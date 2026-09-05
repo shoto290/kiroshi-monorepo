@@ -13,6 +13,7 @@ const NOTIFY_ON_PERMISSION_KEY: &str = "user.notify_on_permission";
 const NOTIFY_ON_FINISHED_TURN_KEY: &str = "user.notify_on_finished_turn";
 const NOTIFY_WITH_SOUND_KEY: &str = "user.notify_with_sound";
 const SIDEBAR_WIDTH_KEY: &str = "user.sidebar_width";
+const ACTIVITY_PANEL_OPEN_KEY: &str = "user.activity_panel_open";
 const LAST_SPACE_ID_KEY: &str = "user.last_space_id";
 const LAST_BOT_ID_BY_SPACE_KEY: &str = "user.last_bot_id_by_space";
 const DROPPED_LAST_BOT_ID_KEY: &str = "user.last_bot_id";
@@ -25,8 +26,8 @@ const WRITE_SETTING: &str = "INSERT INTO app_settings (key, value) VALUES (?1, ?
 	ON CONFLICT (key) DO UPDATE SET value = excluded.value";
 const CLEAR_SETTING: &str = "DELETE FROM app_settings WHERE key = ?1";
 
-fn switch_as_stored(notifies: bool) -> &'static str {
-	if notifies {
+fn switch_as_stored(is_on: bool) -> &'static str {
+	if is_on {
 		SWITCH_ON
 	} else {
 		SWITCH_OFF
@@ -70,6 +71,7 @@ pub struct Preferences {
 	pub notify_on_finished_turn: bool,
 	pub notify_with_sound: bool,
 	pub sidebar_width: Option<u32>,
+	pub activity_panel_open: bool,
 	pub last_space_id: Option<String>,
 	pub last_bot_id_by_space: BTreeMap<String, String>,
 }
@@ -86,6 +88,7 @@ impl Default for Preferences {
 			notify_on_finished_turn: true,
 			notify_with_sound: true,
 			sidebar_width: None,
+			activity_panel_open: false,
 			last_space_id: None,
 			last_bot_id_by_space: BTreeMap::new(),
 		}
@@ -165,6 +168,7 @@ fn stored_in(connection: &Connection) -> Result<Preferences, DatabaseError> {
 		notify_with_sound: switch_in(connection, NOTIFY_WITH_SOUND_KEY)?,
 		sidebar_width: setting_in(connection, SIDEBAR_WIDTH_KEY)?
 			.and_then(|stored| stored.parse().ok()),
+		activity_panel_open: switch_on_in(connection, ACTIVITY_PANEL_OPEN_KEY)?,
 		last_space_id: setting_in(connection, LAST_SPACE_ID_KEY)?,
 		last_bot_id_by_space: setting_in(connection, LAST_BOT_ID_BY_SPACE_KEY)?
 			.and_then(|stored| serde_json::from_str(&stored).ok())
@@ -174,6 +178,10 @@ fn stored_in(connection: &Connection) -> Result<Preferences, DatabaseError> {
 
 fn switch_in(connection: &Connection, key: &str) -> Result<bool, DatabaseError> {
 	Ok(setting_in(connection, key)?.is_none_or(|stored| stored != SWITCH_OFF))
+}
+
+fn switch_on_in(connection: &Connection, key: &str) -> Result<bool, DatabaseError> {
+	Ok(setting_in(connection, key)?.is_some_and(|stored| stored == SWITCH_ON))
 }
 
 fn setting_in(connection: &Connection, key: &str) -> Result<Option<String>, DatabaseError> {
@@ -191,6 +199,7 @@ fn write_in(transaction: &Transaction<'_>, preferences: &Preferences) -> Result<
 	write_switch_in(transaction, NOTIFY_WITH_SOUND_KEY, preferences.notify_with_sound)?;
 	let width = preferences.sidebar_width.map(|width| width.to_string());
 	write_optional_in(transaction, SIDEBAR_WIDTH_KEY, width.as_deref())?;
+	write_switch_in(transaction, ACTIVITY_PANEL_OPEN_KEY, preferences.activity_panel_open)?;
 	write_optional_in(transaction, LAST_SPACE_ID_KEY, preferences.last_space_id.as_deref())?;
 	let bots_by_space = bots_by_space_as_stored(&preferences.last_bot_id_by_space);
 	write_optional_in(transaction, LAST_BOT_ID_BY_SPACE_KEY, bots_by_space.as_deref())?;
@@ -208,9 +217,9 @@ fn bots_by_space_as_stored(entries: &BTreeMap<String, String>) -> Option<String>
 fn write_switch_in(
 	transaction: &Transaction<'_>,
 	key: &str,
-	notifies: bool,
+	is_on: bool,
 ) -> Result<(), DatabaseError> {
-	transaction.execute(WRITE_SETTING, params![key, switch_as_stored(notifies)])?;
+	transaction.execute(WRITE_SETTING, params![key, switch_as_stored(is_on)])?;
 	Ok(())
 }
 
@@ -254,6 +263,7 @@ mod tests {
 			notify_on_finished_turn: false,
 			notify_with_sound: false,
 			sidebar_width: Some(320),
+			activity_panel_open: true,
 			last_space_id: Some("space-one".to_owned()),
 			last_bot_id_by_space: BTreeMap::from([
 				("space-one".to_owned(), "bot-one".to_owned()),
@@ -285,6 +295,7 @@ mod tests {
 				notify_on_finished_turn: true,
 				notify_with_sound: true,
 				sidebar_width: None,
+				activity_panel_open: false,
 				last_space_id: None,
 				last_bot_id_by_space: BTreeMap::new(),
 			}
@@ -397,6 +408,64 @@ mod tests {
 	}
 
 	#[tokio::test]
+	async fn a_panel_state_that_is_neither_on_nor_off_reads_as_a_closed_panel() {
+		let dir = temp_dir();
+		let database = open(&dir);
+		database
+			.call_mut(|connection| {
+				let transaction = write_transaction(connection)?;
+				transaction.execute(WRITE_SETTING, params![ACTIVITY_PANEL_OPEN_KEY, "maybe"])?;
+				transaction.commit()?;
+				Ok(())
+			})
+			.await
+			.expect("the planted value");
+
+		let read = database.user().preferences().await.expect("the record");
+
+		assert!(!read.activity_panel_open);
+	}
+
+	#[tokio::test]
+	async fn an_open_panel_is_still_open_after_the_file_is_reopened() {
+		let dir = temp_dir();
+		{
+			let database = open(&dir);
+			database
+				.user()
+				.set_preferences(Preferences { activity_panel_open: true, ..a_record() })
+				.await
+				.expect("the write");
+		}
+
+		let database = open(&dir);
+
+		assert!(database.user().preferences().await.expect("the record").activity_panel_open);
+	}
+
+	#[tokio::test]
+	async fn a_closed_panel_is_still_closed_after_the_file_is_reopened() {
+		let dir = temp_dir();
+		{
+			let database = open(&dir);
+			database
+				.user()
+				.set_preferences(Preferences { activity_panel_open: true, ..a_record() })
+				.await
+				.expect("the first write");
+			database
+				.user()
+				.set_preferences(Preferences { activity_panel_open: false, ..a_record() })
+				.await
+				.expect("the second write");
+		}
+
+		let database = open(&dir);
+
+		assert!(!database.user().preferences().await.expect("the record").activity_panel_open);
+	}
+
+	#[tokio::test]
 	async fn swapping_the_picture_answers_the_path_it_replaced() {
 		let dir = temp_dir();
 		let database = open(&dir);
@@ -502,6 +571,7 @@ mod tests {
 		assert_eq!(setting(&database, NOTIFY_ON_PERMISSION_KEY).await, Some("on".to_owned()));
 		assert_eq!(setting(&database, NOTIFY_ON_FINISHED_TURN_KEY).await, Some("off".to_owned()));
 		assert_eq!(setting(&database, NOTIFY_WITH_SOUND_KEY).await, Some("off".to_owned()));
+		assert_eq!(setting(&database, ACTIVITY_PANEL_OPEN_KEY).await, Some("on".to_owned()));
 	}
 
 	#[tokio::test]

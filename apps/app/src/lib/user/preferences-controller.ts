@@ -46,6 +46,7 @@ export type UserController = {
 	setColorScheme: (colorScheme: ColorScheme) => Promise<void>
 	setLanguage: (language: Language | null) => Promise<void>
 	setSidebarWidth: (sidebarWidth: number) => Promise<void>
+	setActivityPanelOpen: (activityPanelOpen: boolean) => Promise<void>
 	setLastBot: (opened: LastBotOpened) => Promise<void>
 	setLastSpace: (lastSpaceId: string) => Promise<void>
 	uploadPicture: (file: File) => Promise<void>
@@ -205,6 +206,9 @@ export const createUserController = (): UserController => {
 		setLanguage: (language: Language | null) => changeMirrored({ language }),
 
 		setSidebarWidth: (sidebarWidth: number) => changeMirrored({ sidebarWidth }),
+
+		setActivityPanelOpen: (activityPanelOpen: boolean) =>
+			changeMirrored({ activityPanelOpen }),
 
 		setLastBot: (opened: LastBotOpened) =>
 			changeMirrored({ lastBotIdBySpace: botIdBySpaceWith(opened) }),
