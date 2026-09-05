@@ -1,25 +1,21 @@
 import { expect, fn } from "storybook/test"
 
 import preview from "@workspace/storybook/preview"
-import {
-	MissionCard,
-	type MissionCardModel,
-} from "@workspace/ui/components/mission-card"
+import { slotsIn } from "@workspace/storybook/story-utils"
+import { MissionCard } from "@workspace/ui/components/mission-card"
 import {
 	CLOSED_MISSION_CARD,
 	WAITING_MISSION_CARD,
+	WORKING_MISSION_CARD,
 } from "@workspace/ui/components/missions.fixtures"
 
-const LONG_MISSION_CARD: MissionCardModel = {
+const UNBROKEN_MISSION_CARD = {
 	...WAITING_MISSION_CARD,
-	bot: {
-		...WAITING_MISSION_CARD.bot,
-		name: "Anastasia Konstantinopoulou-Whitfield",
-	},
 	objective:
-		"Follow every package this workspace depends on, read what each release changed, and open a mission for anything that touches the design tokens or the public component surface.",
+		"Follow every package this workspace depends on and open a mission for anything touching supercalifragilisticexpialidociousdesigntokensurface.",
 	ticket: {
-		externalId: "OPE-1042",
+		...WAITING_MISSION_CARD.ticket,
+		externalId: "OPE-1042-supercalifragilisticexpialidocious",
 		title:
 			"Rework the mission thread so a reader can follow a run that spans several days without losing the ticket it answers",
 	},
@@ -33,31 +29,50 @@ const meta = preview.meta({
 		docs: {
 			description: {
 				component:
-					"A mission as it reads in the conversation it was opened from: who runs it, what it is for, which ticket it answers and where it stands. The whole card is the way into the mission thread, so it is one button rather than a surface with a link inside it. Reach for it in a transcript; the thread itself is `MissionThread`.",
+					"The body of a mission turn: a soft bubble holding the objective and, under it, the ticket the mission answers. The whole bubble opens the mission thread, the ticket line opens the ticket in the browser, and the two are separate keyboard targets. Reach for it through `MissionTurn`, which gives it the author line and the gutter it belongs to.",
 			},
 		},
 	},
 	args: { ...WAITING_MISSION_CARD, onOpen: fn() },
 })
 
-export const Waiting = meta.story({
+export const Default = meta.story({
 	parameters: {
 		docs: {
 			description: {
 				story:
-					"A mission still running, stopped on a question for its reader. Check that the objective reads at full contrast, that the badge dot on the avatar and the pill both say it is waiting, and that a pointer and a keyboard reach the same mission. Pick `Closed` for the form a finished mission takes.",
+					"A running mission against a ticket the app knows. Check that the objective reads at full contrast, that the ticket line carries its platform mark, its identifier and its title in the muted foreground, and that Tab reaches the bubble first and the ticket second, each with its own focus ring. Pick `WithoutTicket` for a mission whose ticket the app cannot open.",
 			},
 		},
 	},
 	play: async ({ args, canvas, userEvent }) => {
-		const card = canvas.getByRole("button")
+		const open = canvas.getByRole("button")
 
-		await userEvent.click(card)
+		await userEvent.click(open)
 		await expect(args.onOpen).toHaveBeenCalledWith(WAITING_MISSION_CARD.id)
 
-		card.focus()
+		open.focus()
 		await userEvent.keyboard("{Enter}")
 		await expect(args.onOpen).toHaveBeenCalledTimes(2)
+
+		await userEvent.tab()
+		await expect(canvas.getByRole("link")).toHaveFocus()
+	},
+})
+
+export const WithoutTicket = meta.story({
+	args: WORKING_MISSION_CARD,
+	parameters: {
+		docs: {
+			description: {
+				story:
+					"The mission answers a ticket on a platform the app ships no mark for, so there is nothing to open. Check that the bubble holds the objective alone, with no empty line under it, and that the bubble is then the only keyboard target. Pick `Default` for the ticket the app can open.",
+			},
+		},
+	},
+	play: async ({ canvas, canvasElement }) => {
+		await expect(slotsIn(canvasElement, "mission-ticket-line")).toHaveLength(0)
+		await expect(canvas.queryByRole("link")).toBeNull()
 	},
 })
 
@@ -67,30 +82,30 @@ export const Closed = meta.story({
 		docs: {
 			description: {
 				story:
-					"A mission that ran to the end. Check that the card steps back: no surface tint, the objective in muted text, no badge dot on the avatar, and the pill saying it is done. It stays a button, because the thread it summarises is still worth reading. Pick `Waiting` for the form that has to stand out beside it.",
+					"A mission that ran to the end. Check that the bubble keeps the soft variant of a running one — a closed mission is still part of the transcript — and that only the objective steps back into the muted foreground. Pick `Default` for the form that has to stand out beside it.",
 			},
 		},
 	},
-	play: async ({ canvas }) => {
-		await expect(canvas.getByRole("button")).toHaveAttribute(
-			"data-closed",
-			"true",
-		)
+	play: async ({ canvasElement }) => {
+		const [card] = slotsIn(canvasElement, "mission-card")
+
+		await expect(card).toHaveAttribute("data-closed", "true")
 	},
 })
 
 export const LongContent = meta.story({
+	args: UNBROKEN_MISSION_CARD,
 	parameters: {
 		docs: {
 			description: {
 				story:
-					"A long name, a long objective and a long ticket title, in a container squeezed to 320 pixels. Check that all three wrap instead of truncating, that the pill never leaves the card, and that the card grows taller rather than wider. Read it at 200 percent zoom too: nothing scrolls sideways.",
+					"An objective and a ticket identifier that each hold a string longer than the bubble, in a container squeezed to 320 pixels. Check that all three of the objective, the identifier and the title break instead of overflowing, that the bubble grows taller rather than wider, and that nothing scrolls sideways at 200 percent zoom.",
 			},
 		},
 	},
-	render: () => (
+	render: (args) => (
 		<div className="w-80 max-w-full">
-			<MissionCard {...LONG_MISSION_CARD} onOpen={fn()} />
+			<MissionCard {...args} />
 		</div>
 	),
 })

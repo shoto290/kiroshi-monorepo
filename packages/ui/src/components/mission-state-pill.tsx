@@ -1,12 +1,10 @@
-import type { VariantProps } from "class-variance-authority"
+import { cva } from "class-variance-authority"
 import { useTranslation } from "react-i18next"
 
-import { Badge, type badgeVariants } from "@workspace/ui/components/badge"
+import { BOT_TITLE_BADGE_SHAPE } from "@workspace/ui/components/badge"
 import { type Icon, Icons } from "@workspace/ui/components/icons"
 import type { MissionState } from "@workspace/ui/components/mission"
 import { cn } from "@workspace/ui/lib/utils"
-
-type BadgeVariant = NonNullable<VariantProps<typeof badgeVariants>["variant"]>
 
 const MISSION_STATE_MARK: Record<MissionState, Icon> = {
 	working: Icons.Loading,
@@ -26,13 +24,31 @@ const MISSION_STATE_MARK_CLASS: Record<MissionState, string> = {
 	done: "text-muted-foreground",
 }
 
-const MISSION_STATE_VARIANT: Record<MissionState, BadgeVariant> = {
-	working: "secondary",
-	waiting_bot: "secondary",
+const missionStatePillVariants = cva(
+	cn(
+		BOT_TITLE_BADGE_SHAPE,
+		"inline-flex w-fit max-w-full items-center gap-1 whitespace-nowrap",
+	),
+	{
+		variants: {
+			tone: {
+				neutral: "bg-secondary text-secondary-foreground",
+				outline: "border border-border text-foreground",
+				danger: "bg-destructive/10 text-foreground dark:bg-destructive/20",
+			},
+		},
+	},
+)
+
+type MissionStateTone = "neutral" | "outline" | "danger"
+
+const MISSION_STATE_TONE: Record<MissionState, MissionStateTone> = {
+	working: "neutral",
+	waiting_bot: "neutral",
 	waiting_human: "outline",
 	ready_to_merge: "outline",
-	failed: "destructive",
-	done: "secondary",
+	failed: "danger",
+	done: "neutral",
 }
 
 type MissionStatePillProps = {
@@ -45,19 +61,20 @@ const MissionStatePill = ({ state, className }: MissionStatePillProps) => {
 	const Mark = MISSION_STATE_MARK[state]
 
 	return (
-		<Badge
-			className={className}
+		<span
+			className={cn(
+				missionStatePillVariants({ tone: MISSION_STATE_TONE[state] }),
+				className,
+			)}
 			data-slot="mission-state-pill"
 			data-state={state}
-			variant={MISSION_STATE_VARIANT[state]}
 		>
 			<Mark
 				aria-hidden="true"
-				className={cn("shrink-0", MISSION_STATE_MARK_CLASS[state])}
-				data-icon="inline-start"
+				className={cn("size-2.5 shrink-0", MISSION_STATE_MARK_CLASS[state])}
 			/>
-			{t(`missions.state.${state}`)}
-		</Badge>
+			<span className="truncate">{t(`missions.state.${state}`)}</span>
+		</span>
 	)
 }
 

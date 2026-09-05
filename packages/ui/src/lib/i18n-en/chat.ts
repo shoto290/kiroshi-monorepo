@@ -518,6 +518,9 @@ const chat = {
 			failed: "Mission failed",
 			closed: "Mission closed",
 		},
+		card: {
+			open: "Open the mission: {{objective}}",
+		},
 		header: {
 			tools: "Tools",
 			back: "Back to the conversation",

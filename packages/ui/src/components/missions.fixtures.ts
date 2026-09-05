@@ -1,9 +1,11 @@
+import type { MessageAuthor } from "@workspace/ui/components/message"
 import type {
 	MissionBot,
+	MissionCardModel,
 	MissionEventModel,
 	MissionTicket,
+	MissionTicketLink,
 } from "@workspace/ui/components/mission"
-import type { MissionCardModel } from "@workspace/ui/components/mission-card"
 import type { MissionRowModel } from "@workspace/ui/components/mission-row"
 
 export const MISSIONS_READ_AT = Date.parse("2026-03-04T09:30:00Z")
@@ -71,7 +73,6 @@ export const CLOSED_MISSIONS: MissionRowModel[] = [
 ]
 
 export const NO_MISSIONS: MissionRowModel[] = []
-
 
 export const MISSION_NOW = new Date("2026-03-04T09:30:00Z").getTime()
 
@@ -174,12 +175,46 @@ export const AUTHORED_MISSION_EVENTS: MissionEventModel[] = [
 	},
 ]
 
+export const MISSION_AUTHOR: MessageAuthor = {
+	id: "bot-ada-martin",
+	name: MISSION_BOT.name,
+	animal: MISSION_BOT.animal,
+	title: "Design",
+}
+
+export const MISSION_CARD_TOOLS = ["Superset", "paper", "GitHub"]
+
+export const MISSION_TICKET_LINK: MissionTicketLink = {
+	...MISSION_TICKET,
+	platform: "linear",
+	url: "https://linear.example/opennest/issue/OPE-30",
+}
+
+export const UNTRACKED_MISSION_TICKET: MissionTicketLink = {
+	externalId: "PLAT-118",
+	title: "Move the run history off the shared database",
+	platform: "jira",
+	url: "https://jira.example/browse/PLAT-118",
+}
+
+export const WORKING_MISSION_CARD: MissionCardModel = {
+	id: "mission-ope-31",
+	bot: MISSION_AUTHOR,
+	objective:
+		"Read every release of the packages this workspace depends on and report what changed.",
+	ticket: UNTRACKED_MISSION_TICKET,
+	tools: MISSION_CARD_TOOLS,
+	state: "working",
+	isClosed: false,
+}
+
 export const WAITING_MISSION_CARD: MissionCardModel = {
 	id: "mission-ope-30",
-	bot: MISSION_BOT,
+	bot: MISSION_AUTHOR,
 	objective:
 		"Ship the mission thread and the card that summarises it in the conversation it came from.",
-	ticket: MISSION_TICKET,
+	ticket: MISSION_TICKET_LINK,
+	tools: MISSION_CARD_TOOLS,
 	state: "waiting_human",
 	isClosed: false,
 }
@@ -187,16 +222,20 @@ export const WAITING_MISSION_CARD: MissionCardModel = {
 export const CLOSED_MISSION_CARD: MissionCardModel = {
 	id: "mission-ope-25",
 	bot: {
+		id: "bot-noor-beltran",
 		name: "Noor Beltran",
 		animal: "rabbit",
-		seed: "bot-noor-beltran",
+		title: "Storage",
 	},
 	objective:
 		"Store a mission, its thread, its events and the commands over them.",
 	ticket: {
 		externalId: "OPE-25",
 		title: "Mission storage and its command surface",
+		platform: "linear",
+		url: "https://linear.example/opennest/issue/OPE-25",
 	},
+	tools: ["Superset"],
 	state: "done",
 	isClosed: true,
 }

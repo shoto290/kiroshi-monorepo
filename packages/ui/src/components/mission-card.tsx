@@ -1,81 +1,94 @@
-import { BotIdentityAvatar } from "@workspace/ui/components/bot-identity-avatar"
+"use client"
+
+import { useTranslation } from "react-i18next"
+
 import {
-	MISSION_AVATAR_SIZE,
-	type MissionBot,
-	type MissionState,
-	type MissionTicket,
-	missionBadgeFor,
+	MESSAGE_BUBBLE_PADDING_INSET,
+	MessageBubble,
+	MessageBubbleContent,
+} from "@workspace/ui/components/message-bubble"
+import type {
+	MissionCardModel,
+	MissionTicketLink,
 } from "@workspace/ui/components/mission"
-import { MissionStatePill } from "@workspace/ui/components/mission-state-pill"
+import { missionTicketPlatformMark } from "@workspace/ui/components/mission-marks"
 import { cn } from "@workspace/ui/lib/utils"
 
-type MissionCardModel = {
-	id: string
-	bot: MissionBot
-	objective: string
-	ticket: MissionTicket
-	state: MissionState
-	isClosed: boolean
-}
-
-type MissionCardProps = MissionCardModel & {
+type MissionCardProps = Pick<
+	MissionCardModel,
+	"id" | "objective" | "ticket" | "isClosed"
+> & {
 	onOpen: (missionId: string) => void
 	className?: string
 }
 
+type MissionTicketLineProps = {
+	ticket: MissionTicketLink
+}
+
+const MissionTicketLine = ({ ticket }: MissionTicketLineProps) => {
+	const Mark = missionTicketPlatformMark(ticket.platform)
+
+	if (!Mark) return null
+
+	return (
+		<a
+			className="relative flex w-fit max-w-full flex-wrap items-center gap-x-1.5 text-muted-foreground text-xs"
+			data-slot="mission-ticket-line"
+			href={ticket.url}
+			rel="noreferrer noopener"
+			target="_blank"
+		>
+			<Mark aria-hidden="true" className="size-3 shrink-0" />
+			<span className="min-w-0 wrap-break-word tabular-nums">
+				{ticket.externalId}
+			</span>
+			<span className="min-w-0 wrap-break-word">{ticket.title}</span>
+		</a>
+	)
+}
+
 const MissionCard = ({
 	id,
-	bot,
 	objective,
 	ticket,
-	state,
 	isClosed,
 	onOpen,
 	className,
-}: MissionCardProps) => (
-	<button
-		className={cn(
-			"flex w-full max-w-md items-start gap-3 rounded-2xl border border-border p-3 text-start outline-none transition-colors hover:bg-muted focus-visible:ring-3 focus-visible:ring-ring/30",
-			isClosed ? "bg-transparent" : "bg-muted/40",
-			className,
-		)}
-		data-closed={isClosed}
-		data-slot="mission-card"
-		onClick={() => onOpen(id)}
-		type="button"
-	>
-		<BotIdentityAvatar
-			animal={bot.animal}
-			badge={missionBadgeFor(state)}
-			blot={bot.blot}
-			image={bot.image}
-			name={bot.name}
-			seed={bot.seed}
-			size={MISSION_AVATAR_SIZE}
-		/>
-		<span className="flex min-w-0 flex-1 flex-col gap-1">
-			<span className="flex min-w-0 flex-wrap items-center gap-x-2 gap-y-1">
-				<span className="min-w-0 wrap-break-word font-medium text-sm">
-					{bot.name}
-				</span>
-				<MissionStatePill state={state} />
-			</span>
-			<span
-				className={cn(
-					"wrap-break-word text-sm",
-					isClosed && "text-muted-foreground",
-				)}
-			>
-				{objective}
-			</span>
-			<span className="flex min-w-0 flex-wrap items-baseline gap-x-1.5 text-muted-foreground text-xs">
-				<span className="shrink-0 font-medium tabular-nums">
-					{ticket.externalId}
-				</span>
-				<span className="min-w-0 wrap-break-word">{ticket.title}</span>
-			</span>
-		</span>
-	</button>
-)
+}: MissionCardProps) => {
+	const { t } = useTranslation("chat")
 
-export { MissionCard, type MissionCardModel, type MissionCardProps }
+	return (
+		<MessageBubble className={className} variant="soft">
+			<MessageBubbleContent>
+				<button
+					aria-label={t("missions.card.open", { objective })}
+					className={cn(
+						"absolute rounded-2xl outline-none focus-visible:ring-2 focus-visible:ring-ring",
+						MESSAGE_BUBBLE_PADDING_INSET,
+					)}
+					onClick={() => onOpen(id)}
+					type="button"
+				/>
+				<span
+					className="flex flex-col gap-1"
+					data-closed={isClosed}
+					data-slot="mission-card"
+				>
+					<span
+						className={cn(
+							"wrap-break-word",
+							isClosed && "text-muted-foreground",
+						)}
+						data-slot="mission-objective"
+					>
+						{objective}
+					</span>
+					<MissionTicketLine ticket={ticket} />
+				</span>
+			</MessageBubbleContent>
+		</MessageBubble>
+	)
+}
+
+export { MissionCard, type MissionCardProps }

@@ -1,23 +1,52 @@
 import { expect, fn } from "storybook/test"
 
 import preview from "@workspace/storybook/preview"
-import type { MessageAuthor } from "@workspace/ui/components/message"
+import { slotIn, slotsIn } from "@workspace/storybook/story-utils"
+import type { MissionCardModel } from "@workspace/ui/components/mission"
 import { MissionTurn } from "@workspace/ui/components/mission-turn"
 import {
 	CLOSED_MISSION_CARD,
-	MISSION_BOT,
+	MISSION_AUTHOR,
 	WAITING_MISSION_CARD,
+	WORKING_MISSION_CARD,
 } from "@workspace/ui/components/missions.fixtures"
 import { AssistantTurn, TurnGroup } from "@workspace/ui/components/turn"
 
-const OPENING_AUTHOR: MessageAuthor = {
-	id: "bot-ada-martin",
-	name: MISSION_BOT.name,
-	animal: MISSION_BOT.animal,
-}
-
 const OPENING_ANSWER =
 	"That one is wide enough to run on its own, so I opened a mission for it and I will report here when it lands."
+
+const READY_MISSION_CARD: MissionCardModel = {
+	...WAITING_MISSION_CARD,
+	id: "mission-ope-29",
+	state: "ready_to_merge",
+}
+
+const FAILED_MISSION_CARD: MissionCardModel = {
+	...WAITING_MISSION_CARD,
+	id: "mission-ope-17",
+	state: "failed",
+}
+
+const TOOLLESS_MISSION_CARD: MissionCardModel = {
+	...WAITING_MISSION_CARD,
+	id: "mission-ope-22",
+	tools: [],
+}
+
+const UNKNOWN_TOOL_MISSION_CARD: MissionCardModel = {
+	...WAITING_MISSION_CARD,
+	id: "mission-ope-51",
+	tools: ["Screenshot"],
+}
+
+const pillMatchesTheBadgeBeforeIt = (canvasElement: HTMLElement) => {
+	const badge = slotIn(canvasElement, "bot-title-badge")
+	const pill = slotIn(canvasElement, "mission-state-pill")
+
+	return expect(pill.getBoundingClientRect().height).toBe(
+		badge.getBoundingClientRect().height,
+	)
+}
 
 const meta = preview.meta({
 	title: "Conversation/Missions/MissionTurn",
@@ -27,28 +56,128 @@ const meta = preview.meta({
 		docs: {
 			description: {
 				component:
-					"A mission as it lands in the transcript it was opened from: the card sits in the content column of the bot that opened it, past the avatar gutter and no wider than a soft bubble, with no author line of its own. Reach for it in a conversation feed; the card on its own is `MissionCard`.",
+					"A mission as it lands in the transcript it was opened from: an assistant turn like any other, with the bot's own author line above a soft bubble and the bot's avatar in the gutter. The author line carries where the mission stands and which tools it runs with, the bubble carries the objective and the ticket it answers. Reach for it in a conversation feed; the bubble on its own is `MissionCard`.",
 			},
 		},
 	},
 	args: { mission: WAITING_MISSION_CARD, onOpen: fn() },
 })
 
-export const Opened = meta.story({
+export const Working = meta.story({
+	args: { mission: WORKING_MISSION_CARD },
 	parameters: {
 		docs: {
 			description: {
 				story:
-					"A running mission on its own row. Check that the card starts where a bubble starts, stops before the far edge, and that a pointer and a keyboard both reach the mission thread.",
+					"A mission still running, on tools it named itself, against a ticket from a platform the app does not track. Check that no state pill is drawn — the avatar working in the gutter says it — that the three tool marks read after the title badge, and that no ticket line is drawn under the objective. Pick `WaitingForTheReader` for the state that asks something of the reader.",
 			},
 		},
 	},
-	play: async ({ args, canvas, userEvent }) => {
-		const card = canvas.getByRole("button")
+	play: async ({ canvas, canvasElement }) => {
+		await expect(slotsIn(canvasElement, "mission-state-pill")).toHaveLength(0)
+		await expect(canvas.getByRole("img", { name: "Superset" })).toBeVisible()
+	},
+})
 
-		card.focus()
-		await userEvent.keyboard("{Enter}")
+export const WaitingForTheReader = meta.story({
+	parameters: {
+		docs: {
+			description: {
+				story:
+					"The mission stopped on a question for its reader. Check that the pill says so in words, that the attention badge sits on the gutter avatar, and that the pill matches the title badge to its left in height, radius and text size. Pick `Working` for the state that carries no pill at all.",
+			},
+		},
+	},
+	play: async ({ args, canvas, canvasElement, userEvent }) => {
+		const open = canvas.getByRole("button")
+		const ticket = canvas.getByRole("link")
+
+		await pillMatchesTheBadgeBeforeIt(canvasElement)
+
+		await userEvent.click(open)
 		await expect(args.onOpen).toHaveBeenCalledWith(WAITING_MISSION_CARD.id)
+
+		ticket.focus()
+		await expect(ticket).toHaveFocus()
+		await expect(ticket).toHaveAttribute(
+			"href",
+			WAITING_MISSION_CARD.ticket.url,
+		)
+	},
+})
+
+export const ReadyToMerge = meta.story({
+	args: { mission: READY_MISSION_CARD },
+	parameters: {
+		docs: {
+			description: {
+				story:
+					"The work is done and waits to be merged. Check that the pill reads as an outline beside the title badge rather than as a colour block, and that the gutter avatar carries no badge — nothing is asked of the reader here. Pick `Done` for the mission that has already been closed.",
+			},
+		},
+	},
+})
+
+export const Failed = meta.story({
+	args: { mission: FAILED_MISSION_CARD },
+	parameters: {
+		docs: {
+			description: {
+				story:
+					"The run stopped on a failure and the mission is still open. Check that the pill names the failure in words as well as in colour, that its tinted form stands as tall as the title badge beside it, and that the objective stays at full contrast because the mission is not closed. Pick `Done` for the closed form.",
+			},
+		},
+	},
+	play: async ({ canvasElement }) => {
+		await pillMatchesTheBadgeBeforeIt(canvasElement)
+	},
+})
+
+export const Done = meta.story({
+	args: { mission: CLOSED_MISSION_CARD },
+	parameters: {
+		docs: {
+			description: {
+				story:
+					"A mission that ran to the end and was closed. Check that the bubble keeps its soft variant, that the objective steps back into the muted foreground while the ticket line stays reachable, and that the pill says it is done. Pick `Failed` for a mission that stopped without being closed.",
+			},
+		},
+	},
+	play: async ({ canvasElement }) => {
+		await expect(slotIn(canvasElement, "mission-card")).toHaveAttribute(
+			"data-closed",
+			"true",
+		)
+	},
+})
+
+export const WithoutTools = meta.story({
+	args: { mission: TOOLLESS_MISSION_CARD },
+	parameters: {
+		docs: {
+			description: {
+				story:
+					"A mission that runs on no tool at all. Check that the author line stops after the state pill and that nothing is drawn in place of the marks. Pick `WithAnUnknownTool` for a mission whose tool has no mark of its own.",
+			},
+		},
+	},
+	play: async ({ canvasElement }) => {
+		await expect(slotsIn(canvasElement, "mission-tool-mark")).toHaveLength(0)
+	},
+})
+
+export const WithAnUnknownTool = meta.story({
+	args: { mission: UNKNOWN_TOOL_MISSION_CARD },
+	parameters: {
+		docs: {
+			description: {
+				story:
+					"A tool the app ships no mark for, since the bot that opens a mission names its tools itself. Check that one default mark stands in, that it cannot be mistaken for the Superset, Paper or GitHub marks, and that a screen reader still reads the tool's own name. Pick `Working` for the marks the app does know.",
+			},
+		},
+	},
+	play: async ({ canvas }) => {
+		await expect(canvas.getByRole("img", { name: "Screenshot" })).toBeVisible()
 	},
 })
 
@@ -57,34 +186,16 @@ export const UnderTheTurnThatOpenedIt = meta.story({
 		docs: {
 			description: {
 				story:
-					"The row as a reader meets it, right under the answer that opened the mission. Check that the card lines up with the bubble above it and that the bot is named once, by the turn, not twice.",
+					"The row as a reader meets it, right under the answer that opened the mission. Check that the avatar, the author line and the bubble sit on the very same gutter grid as the turn above, and that the bot is named the same way twice rather than in two different shapes.",
 			},
 		},
 	},
 	render: (args) => (
 		<>
 			<TurnGroup>
-				<AssistantTurn author={OPENING_AUTHOR}>{OPENING_ANSWER}</AssistantTurn>
+				<AssistantTurn author={MISSION_AUTHOR}>{OPENING_ANSWER}</AssistantTurn>
 			</TurnGroup>
 			<MissionTurn {...args} />
 		</>
 	),
-})
-
-export const Closed = meta.story({
-	args: { mission: CLOSED_MISSION_CARD },
-	parameters: {
-		docs: {
-			description: {
-				story:
-					"A mission that ran to the end stays in the transcript, carrying its final state. Check that it steps back from the running one without leaving the feed.",
-			},
-		},
-	},
-	play: async ({ canvas }) => {
-		await expect(canvas.getByRole("button")).toHaveAttribute(
-			"data-closed",
-			"true",
-		)
-	},
 })

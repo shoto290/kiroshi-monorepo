@@ -101,6 +101,8 @@ export function MessageBubble({
 
 export const MESSAGE_BUBBLE_INLINE_PADDING = "px-3.5"
 
+export const MESSAGE_BUBBLE_PADDING_INSET = "-inset-x-3.5 -inset-y-2.5"
+
 const MENTION_OPENING_PADDING =
 	'has-[p:first-child>[data-slot="bot-mention"]:first-child]:py-3.5'
 

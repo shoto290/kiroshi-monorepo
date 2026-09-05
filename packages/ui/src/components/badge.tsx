@@ -156,8 +156,10 @@ const BotMissionChip = ({
 	)
 }
 
-const BOT_TITLE_BADGE =
-	"shrink-0 truncate rounded-full bg-foreground/10 px-1.5 py-0.5 font-medium text-[10px] text-foreground/80 leading-none"
+const BOT_TITLE_BADGE_SHAPE =
+	"h-3.5 shrink-0 rounded-full px-1.5 font-medium text-[10px] leading-none"
+
+const BOT_TITLE_BADGE = `${BOT_TITLE_BADGE_SHAPE} truncate bg-foreground/10 py-0.5 text-foreground/80`
 
 type BotTitleBadgeProps = Omit<ComponentPropsWithRef<"span">, "title"> & {
 	title?: string
@@ -178,6 +180,7 @@ export {
 	Badge,
 	BOT_BADGES,
 	BOT_MISSION_STATES,
+	BOT_TITLE_BADGE_SHAPE,
 	type BotBadge,
 	BotBadgeDot,
 	type BotBadgeDotProps,
