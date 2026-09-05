@@ -7,7 +7,7 @@ import type {
 	MissionOnBoard,
 	MissionState,
 } from "./mission-contract"
-import { isReportOwedOn, missionRunOutputSchemaFor } from "./mission-run-output"
+import { isReportOwedBy, missionRunOutputSchemaFor } from "./mission-run-output"
 import {
 	type MissionRunCall,
 	type MissionRunCause,
@@ -239,13 +239,16 @@ export const startMissionRunDriver = ({
 		}
 	}
 
-	const readCall = async (missionId: string) => {
+	const readMission = async (missionId: string) => {
 		try {
-			return callFor(await missions.detail(missionId))
+			return await missions.detail(missionId)
 		} catch (thrown) {
 			throw new Error(`the mission could not be read: ${detailOf(thrown)}`)
 		}
 	}
+
+	const readCall = async (missionId: string) =>
+		callFor(await readMission(missionId))
 
 	const consider = async (changed: MissionChanged) => {
 		if (isBusy(changed.missionId)) {
@@ -314,19 +317,47 @@ export const startMissionRunDriver = ({
 		})
 	}
 
+	const isReportStillOwed = async ({ call }: LiveMissionRun) => {
+		if (!isReportOwedBy(call.cause)) {
+			return false
+		}
+
+		try {
+			const { mission } = await readMission(call.mission.id)
+			return mission.closedAt !== null
+		} catch (thrown) {
+			raiseFailure(detailOf(thrown))
+			return false
+		}
+	}
+
 	const recordReport = async (
 		{ call }: LiveMissionRun,
 		reportedTurnId: string | null,
 	) => {
-		if (!isReportOwedOn(call)) {
-			return
-		}
-
 		try {
 			await missions.reported(call.mission.id, reportedTurnId)
 		} catch (thrown) {
 			raiseFailure(`the report could not be recorded: ${detailOf(thrown)}`)
 		}
+	}
+
+	const recordWhenOwed = async (
+		held: LiveMissionRun,
+		reportedTurnId: string | null,
+	) => {
+		if (await isReportStillOwed(held)) {
+			await recordReport(held, reportedTurnId)
+		}
+	}
+
+	const settleNothingReported = async (held: LiveMissionRun) => {
+		if (!(await isReportStillOwed(held))) {
+			return
+		}
+
+		raiseFailure("the closing mission run reported nothing")
+		await recordReport(held, null)
 	}
 
 	const settle = async (held: LiveMissionRun, ended: TurnEnded) => {
@@ -340,19 +371,16 @@ export const startMissionRunDriver = ({
 
 		if (!report) {
 			raiseFailure("the mission run ended with no structured output")
-			return recordReport(held, null)
+			return recordWhenOwed(held, null)
 		}
 
 		if (report.outcome === "nothing") {
-			if (isReportOwedOn(held.call)) {
-				raiseFailure("the closing mission run reported nothing")
-			}
-			return recordReport(held, null)
+			return settleNothingReported(held)
 		}
 
 		try {
 			const reportedTurnId = await writeReport(held, report.text)
-			await recordReport(held, reportedTurnId)
+			await recordWhenOwed(held, reportedTurnId)
 		} catch (thrown) {
 			raiseFailure(`the report could not be written: ${detailOf(thrown)}`)
 		}

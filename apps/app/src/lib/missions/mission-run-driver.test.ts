@@ -788,6 +788,22 @@ describe("startMissionRunDriver", () => {
 		expect(harness.reportFailure).not.toHaveBeenCalled()
 	})
 
+	it("names a run that reported nothing on a mission closed while it ran", async () => {
+		const logged = vi
+			.spyOn(console, "error")
+			.mockImplementation(() => undefined)
+		await restart({ open: "failed", openEvents: failedBy("agent-hook") })
+		harness.hold("done", closedBy("claude-code"))
+
+		await harness.endTurn({ structuredOutput: { outcome: "nothing" } })
+
+		expect(logged).toHaveBeenCalledWith(
+			"mission run driver: the run failed",
+			"the closing mission run reported nothing",
+		)
+		expect(harness.missions.reports).toEqual([[harness.mission.id, null]])
+	})
+
 	it("records the report of a closing run with the turn it was written on", async () => {
 		await restart({ open: "done", openEvents: closedBy("poller") })
 		await harness.endTurn(reported("The walls stand."))
@@ -816,6 +832,34 @@ describe("startMissionRunDriver", () => {
 		await harness.endTurn(reported("I cut the branch from main."))
 
 		expect(harness.missions.reports).toEqual([])
+	})
+
+	it("reads the mission no further when the run it ends answers one", async () => {
+		await harness.enter("waiting_bot")
+		await harness.endTurn(reported("I cut the branch from main."))
+
+		expect(harness.missions.detailCalls).toEqual([harness.mission.id])
+	})
+
+	it("records the report of a run on a mission its own bot closed", async () => {
+		await harness.enter("failed", failedBy("agent-hook"))
+		harness.hold("done", closedBy("claude-code"))
+
+		await harness.endTurn(reported("The walls stand."))
+
+		const [turnId] = [...harness.originTail().reportedCauses.keys()]
+		expect(harness.missions.reports).toEqual([[harness.mission.id, turnId]])
+	})
+
+	it("raises a failure notice when the mission cannot be read at the end", async () => {
+		vi.spyOn(console, "error").mockImplementation(() => undefined)
+		await restart({ open: "done", openEvents: closedBy("poller") })
+		harness.missions.refuseOnce(harness.mission.id)
+
+		await harness.endTurn(reported("The walls stand."))
+
+		expect(harness.missions.reports).toEqual([])
+		expect(harness.reportFailure).toHaveBeenCalledTimes(1)
 	})
 
 	it("raises a failure notice when the report cannot be recorded", async () => {

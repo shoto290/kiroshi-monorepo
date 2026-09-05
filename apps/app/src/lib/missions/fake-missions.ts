@@ -10,6 +10,7 @@ export type FakeMissions = {
 		listener: (changed: MissionChanged) => void,
 	) => Promise<() => void>
 	detail: (missionId: string) => Promise<MissionDetail>
+	detailCalls: string[]
 	rosterBlock: (conversationId: string, botId: string) => Promise<string | null>
 	rosterCalls: [conversationId: string, botId: string][]
 	holdRosterBlock: (block: string | null) => void
@@ -40,6 +41,7 @@ export const createFakeMissions = (): FakeMissions => {
 	const opened: OpenedMission[] = []
 	const rosterCalls: [conversationId: string, botId: string][] = []
 	const reports: [missionId: string, turnId: string | null][] = []
+	const detailCalls: string[] = []
 	let rosterBlock: string | null = null
 	let isRosterRefused = false
 	let placed: Mission[] = []
@@ -62,6 +64,7 @@ export const createFakeMissions = (): FakeMissions => {
 		opened,
 		rosterCalls,
 		reports,
+		detailCalls,
 
 		rosterBlock: async (conversationId, botId) => {
 			rosterCalls.push([conversationId, botId])
@@ -146,6 +149,7 @@ export const createFakeMissions = (): FakeMissions => {
 		},
 
 		detail: async (missionId) => {
+			detailCalls.push(missionId)
 			if (detailGate) {
 				await detailGate
 			}
