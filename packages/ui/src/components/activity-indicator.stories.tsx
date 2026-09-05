@@ -25,9 +25,11 @@ const SECOND = 1000
 const startedSecondsAgo = (seconds: number) => Date.now() - seconds * SECOND
 
 const LONG_TOOL_LABEL =
-	"Bash · bun run --filter @workspace/ui test:storybook --reporter verbose"
+	"Bash · bun run --filter @workspace/ui test:storybook --reporter verbose --coverage --update-snapshots --project chromium --shard 1/4 --retry 2"
 
 const MCP_TOOL_LABEL = "mcp__linear__create_issue"
+
+const EDGE = 8
 
 const ROOM_BOTS = [
 	{ botId: "bot-lyra", name: "Lyra", animal: "owl", blot: "blue" },
@@ -372,7 +374,7 @@ export const LongContent = meta.story({
 		docs: {
 			description: {
 				story:
-					"A tool title far wider than the row it sits in, in a 320px column. Check that the label gives way alone — one line, ending in an ellipsis — while the clock stays whole at the end edge, and that hovering the label opens the repo tooltip with the title in full. Pick `WithTool` for a title the row can hold.",
+					"A tool title far wider than the row it sits in, and wider than the window itself, in a 320px column. Check that the label gives way alone — one line, ending in an ellipsis — while the clock stays whole at the end edge, and that hovering the label opens the repo tooltip with the title in full, wrapped over several lines and clear of both window edges. Pick `WithTool` for a title the row can hold.",
 			},
 		},
 	},
@@ -386,8 +388,14 @@ export const LongContent = meta.story({
 		await expect(clock.scrollWidth).toBe(clock.clientWidth)
 
 		await userEvent.hover(label)
-		await expect(await screen.findByRole("tooltip")).toHaveTextContent(
-			LONG_TOOL_LABEL,
+		const tip = await screen.findByRole("tooltip")
+		const box = tip.getBoundingClientRect()
+
+		await expect(tip).toHaveTextContent(LONG_TOOL_LABEL)
+		await expect(box.left).toBeGreaterThanOrEqual(EDGE)
+		await expect(box.right).toBeLessThanOrEqual(window.innerWidth - EDGE)
+		await expect(box.height).toBeGreaterThan(
+			2 * Number.parseFloat(getComputedStyle(tip).lineHeight),
 		)
 	},
 })
@@ -397,7 +405,7 @@ export const WaitingForYou = meta.story({
 		...BUSY_BOT,
 		kind: "waiting",
 		name: "Atlas",
-		label: "Run the release script?",
+		label: "Run the release script",
 	},
 	render: (args) => (
 		<div className="flex flex-col gap-4">
@@ -409,13 +417,13 @@ export const WaitingForYou = meta.story({
 		docs: {
 			description: {
 				story:
-					"The bot has a question or a permission pending and cannot go on without the reader. The first row carries the title of what is being asked, the second has none. Check that both read `is waiting for you`, that neither shimmers and neither carries a clock — nothing is running, so there is nothing to time. Pick `UpNext` for a seat waiting on the wave rather than on the reader.",
+					"The bot has a question or a permission pending and cannot go on without the reader. The first row carries the title of what is being asked, the second has none. Check that both read `is waiting for you` and end on the same trailing ellipsis, that neither shimmers and neither carries a clock — nothing is running, so there is nothing to time. Pick `UpNext` for a seat waiting on the wave rather than on the reader.",
 			},
 		},
 	},
 	play: async ({ canvas, canvasElement }) => {
 		await expect(
-			canvas.getByText("Atlas is waiting for you · Run the release script?"),
+			canvas.getByText("Atlas is waiting for you · Run the release script…"),
 		).toBeVisible()
 		await expect(canvas.getByText("Atlas is waiting for you…")).toBeVisible()
 		await expect(slotsIn(canvasElement, "bot-working-elapsed")).toHaveLength(0)
@@ -434,7 +442,7 @@ export const UpNext = meta.story({
 		},
 	},
 	play: async ({ canvas, canvasElement }) => {
-		await expect(canvas.getByText("Atlas is up next")).toBeVisible()
+		await expect(canvas.getByText("Atlas is up next…")).toBeVisible()
 		await expect(slotsIn(canvasElement, "bot-working-elapsed")).toHaveLength(0)
 	},
 })

@@ -159,7 +159,11 @@ function ActivityIndicator(props: ActivityIndicatorProps) {
 					avatar
 				)}
 			</SharedMark>
-			<Tooltip content={text} wrapperClassName="min-w-0 flex-1">
+			<Tooltip
+				content={text}
+				className="max-w-[min(28rem,calc(100vw-2rem))] whitespace-normal break-words"
+				wrapperClassName="min-w-0 flex-1"
+			>
 				<span
 					data-slot="bot-working-label"
 					className="block min-w-0 max-w-full truncate font-medium text-muted-foreground text-sm"

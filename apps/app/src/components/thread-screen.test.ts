@@ -1264,7 +1264,9 @@ describe("ThreadScreen", () => {
 		})
 		await settle()
 
-		expect(screen.getByText("Ada · Which wall")).toBeTruthy()
+		expect(
+			screen.getByText("Ada is waiting for you · Which wall…"),
+		).toBeTruthy()
 	})
 
 	it("draws one row for a speaking bot another speaker hands over to", async () => {
