@@ -577,19 +577,14 @@ export function App() {
 		[user.controller],
 	)
 
-	const changeActivityPanelOpen = useCallback(
-		(isOpen: boolean) => {
-			void user.controller.setActivityPanelOpen(isOpen)
-		},
-		[user.controller],
-	)
-
 	const activityPanel = useMemo(
 		() => ({
 			isOpen: preferences.activityPanelOpen,
-			onOpenChange: changeActivityPanelOpen,
+			onOpenChange: (isOpen: boolean) => {
+				void user.controller.setActivityPanelOpen(isOpen)
+			},
 		}),
-		[preferences.activityPanelOpen, changeActivityPanelOpen],
+		[preferences.activityPanelOpen, user.controller],
 	)
 
 	const changeColorScheme = useCallback(
