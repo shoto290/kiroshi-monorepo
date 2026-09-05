@@ -1,9 +1,10 @@
 import { useState } from "react"
-import { expect, fn, waitFor } from "storybook/test"
+import { expect, fn, screen, waitFor } from "storybook/test"
 
 import preview from "@workspace/storybook/preview"
 import {
 	botIdentityAvatars,
+	slotIn,
 	slotsIn,
 	UPLOADED_AVATAR_IMAGE,
 } from "@workspace/storybook/story-utils"
@@ -18,6 +19,17 @@ import { MarkProvider } from "@workspace/ui/components/mark-context"
 import { TURN_AVATAR_SIZE, UserTurn } from "@workspace/ui/components/turn"
 
 const BUSY_BOT = { animal: "owl", blot: "blue", seed: "bot-7" } as const
+
+const SECOND = 1000
+
+const startedSecondsAgo = (seconds: number) => Date.now() - seconds * SECOND
+
+const LONG_TOOL_LABEL =
+	"Bash · bun run --filter @workspace/ui test:storybook --reporter verbose --coverage --update-snapshots --project chromium --shard 1/4 --retry 2"
+
+const MCP_TOOL_LABEL = "mcp__linear__create_issue"
+
+const EDGE = 8
 
 const ROOM_BOTS = [
 	{ botId: "bot-lyra", name: "Lyra", animal: "owl", blot: "blue" },
@@ -68,6 +80,7 @@ const RoomWorkers = () => (
 				{...SPEAKING_BOT}
 				kind="working"
 				seed={SPEAKING_BOT.botId}
+				startedAt={startedSecondsAgo(12)}
 			/>
 			{WAITING_BOTS.map((bot) => (
 				<ActivityIndicator
@@ -120,13 +133,14 @@ const meta = preview.meta({
 		docs: {
 			description: {
 				component:
-					"What the transcript shows while the bot is busy: its avatar, alone, in the pose that matches the work. The avatar is also the stop control — given `stoppable`, pointing at it or reaching it by keyboard covers the animal with a stop glyph, so the composer below stays free for the next prompt. The words only appear while the reader points at the avatar — timed kinds add a clock to them, untimed ones only shimmer. The kind comes from the running tool, so reading turns the avatar to `searching` and a shell command to `working`. Nothing here polls the transport; a screen maps its own state onto `kind` and `label`. Inside a transcript the avatar is understood to be the same mark the `AssistantTurn` gutter shows once the turn lands, so it travels there rather than being replaced — give both rows the same `botId` and it does, within that one conversation. See `Mark`, `MarkPerBot` for a room where several bots are busy at once, and `ConversationChange` for what a swapped conversation does to them.",
+					"What the transcript shows while the bot is busy: its avatar in the pose that matches the work, the words that say who is busy and at what, and the time the run has taken so far at the end of the row. The label is always on the screen, shimmering while the bot works, so nothing has to be pointed at to be read; a busy row given a `startedAt` instant counts up from it every second, and a row without one shows the label alone. The avatar is also the stop control — given `stoppable`, pointing at it or reaching it by keyboard covers the animal with a stop glyph, so the composer below stays free for the next prompt. A waiting row carries neither shimmer nor clock: `waitingOn` says whether the bot is waiting for the reader or queued for the next wave. The kind comes from the running tool, so reading turns the avatar to `searching` and a shell command to `working`. Nothing here polls the transport; a screen maps its own state onto `kind` and `label`. Inside a transcript the avatar is understood to be the same mark the `AssistantTurn` gutter shows once the turn lands, so it travels there rather than being replaced — give both rows the same `botId` and it does, within that one conversation. See `Mark`, `MarkPerBot` for a room where several bots are busy at once, and `ConversationChange` for what a swapped conversation does to them.",
 			},
 		},
 	},
 	args: { kind: "thinking", name: "No name" },
 	argTypes: {
 		kind: { control: "select", options: BOT_WORKING_KINDS },
+		waitingOn: { control: "inline-radio", options: ["you", "next"] },
 		botId: { control: "text" },
 		animal: { control: "select", options: Object.keys(ANIMALS) },
 		blot: { control: "select", options: [undefined, ...BLOT_TINTS] },
@@ -136,21 +150,28 @@ const meta = preview.meta({
 })
 
 export const Playground = meta.story({
+	args: { startedAt: startedSecondsAgo(8) },
 	parameters: {
 		docs: {
 			description: {
 				story:
-					"Reach for this to audition a kind with its own label, as a tool would supply. Check that the avatar pose changes with the kind and that only `searching` and `working` add a running clock.",
+					"Reach for this to audition a kind with its own label, as a tool would supply. Check that the avatar pose changes with the kind, that the label reads without pointing at anything, and that a `startedAt` in the past starts the clock at the age of the run rather than at zero.",
 			},
 		},
 	},
 })
 
 export const Variants = meta.story({
-	render: () => (
+	args: { name: "Atlas" },
+	render: (args) => (
 		<div className="flex flex-col gap-4">
 			{BOT_WORKING_KINDS.map((kind) => (
-				<ActivityIndicator key={kind} kind={kind} />
+				<ActivityIndicator
+					{...args}
+					key={kind}
+					kind={kind}
+					startedAt={startedSecondsAgo(8)}
+				/>
 			))}
 		</div>
 	),
@@ -158,9 +179,57 @@ export const Variants = meta.story({
 		docs: {
 			description: {
 				story:
-					"Every kind of work, in the order a turn tends to walk through them, at rest — which is how the transcript shows them. Check that each pose reads differently at avatar size without any words to lean on. Pick `HoverLabel` for what pointing at one says.",
+					"Every kind of work, in the order a turn tends to walk through them, each solo and each given the same start instant. Check that all five rows read their words with no pointer anywhere near them, that the four busy kinds shimmer and count while `waiting` does neither, and that every clock sits at the end of its own row. Pick `InWave` for the same rows stacked as one wave.",
 			},
 		},
+	},
+	play: async ({ canvasElement }) => {
+		const labels = slotsIn(canvasElement, "bot-working-label")
+		const clocks = slotsIn(canvasElement, "bot-working-elapsed")
+
+		await expect(labels).toHaveLength(BOT_WORKING_KINDS.length)
+		for (const label of labels) await expect(label).toBeVisible()
+
+		await expect(clocks).toHaveLength(BOT_WORKING_KINDS.length - 1)
+		for (const clock of clocks) await expect(clock).toHaveTextContent(/^\d+s$/)
+	},
+})
+
+export const InWave = meta.story({
+	render: () => (
+		<MarkProvider transcriptKey={ROOMS[0].id}>
+			<div className="flex w-[420px] flex-col gap-4">
+				{ROOM_BOTS.map((bot, index) => (
+					<ActivityIndicator
+						{...bot}
+						key={bot.botId}
+						kind="working"
+						label={index === 1 ? "Read · src/components/turn.tsx" : undefined}
+						seed={bot.botId}
+						startedAt={startedSecondsAgo(3 + index * 5)}
+					/>
+				))}
+			</div>
+		</MarkProvider>
+	),
+	parameters: {
+		docs: {
+			description: {
+				story:
+					"A wave of three bots working at once, each with a start instant of its own. Check that all three labels are readable with the pointer off the panel, that each row carries exactly one clock and that the three clocks line up on the end edge — the tabular figures are there so a digit rolling over does not move the column. Pick `MarkPerBot` for a wave where only one bot holds the turn.",
+			},
+		},
+	},
+	play: async ({ canvasElement }) => {
+		const clocks = slotsIn(canvasElement, "bot-working-elapsed")
+		const ends = clocks.map((clock) =>
+			Math.round(clock.getBoundingClientRect().right),
+		)
+
+		await expect(clocks).toHaveLength(ROOM_BOTS.length)
+		await expect(new Set(ends).size).toBe(1)
+		for (const label of slotsIn(canvasElement, "bot-working-label"))
+			await expect(label).toBeVisible()
 	},
 })
 
@@ -197,14 +266,216 @@ export const Blot = meta.story({
 })
 
 export const WithTool = meta.story({
-	args: { kind: "working", label: "Bash · npm test" },
+	args: {
+		...BUSY_BOT,
+		kind: "working",
+		name: "Atlas",
+		label: "Bash · npm test",
+		startedAt: startedSecondsAgo(8),
+	},
 	parameters: {
 		docs: {
 			description: {
 				story:
-					"Reach for this when a tool is running: on hover the label names the step itself rather than a verb, and the clock says how long it has been going. Check that the elapsed time keeps counting behind the fade and that a long tool title does not push the row past the column.",
+					"Reach for this when a tool is running: the label names the step itself rather than a verb, joined to the bot name by the middle dot, and the clock says how long the run has been going. Check that the seconds rise at least once a second and that they read as whole seconds under a minute. Pick `PastAMinute` for the longer form, `WithMcpTool` for a tool served by an MCP server.",
 			},
 		},
+	},
+	play: async ({ canvas, canvasElement }) => {
+		const clock = slotIn(canvasElement, "bot-working-elapsed")
+		const first = clock.textContent
+
+		await expect(canvas.getByText("Atlas · Bash · npm test")).toBeVisible()
+		await expect(clock).toHaveTextContent(/^\d+s$/)
+		await waitFor(() => expect(clock.textContent).not.toBe(first), {
+			timeout: 2 * SECOND,
+		})
+	},
+})
+
+export const WithMcpTool = meta.story({
+	args: {
+		...BUSY_BOT,
+		kind: "working",
+		name: "Atlas",
+		label: MCP_TOOL_LABEL,
+		startedAt: startedSecondsAgo(4),
+	},
+	parameters: {
+		docs: {
+			description: {
+				story:
+					"A tool served by an MCP server, which the transport names `mcp__server__tool`. Check that the row reads the server and the tool as two parts of the same path rather than the raw token, and that anything else in the label is left exactly as it was given.",
+			},
+		},
+	},
+	play: async ({ canvas }) => {
+		await expect(
+			canvas.getByText("Atlas · linear · create_issue"),
+		).toBeVisible()
+	},
+})
+
+export const PastAMinute = meta.story({
+	args: {
+		...BUSY_BOT,
+		kind: "working",
+		name: "Atlas",
+		label: "Bash · bun test",
+	},
+	render: (args) => (
+		<ActivityIndicator {...args} startedAt={startedSecondsAgo(68)} />
+	),
+	parameters: {
+		docs: {
+			description: {
+				story:
+					"A run that started over a minute before the row was drawn, which is what a reopened conversation shows. Check that the clock reads minutes then two-digit seconds — `1m 08s`, not `68s` and not `1m 8s` — and that it starts from the age of the run rather than from the moment the row mounted.",
+			},
+		},
+	},
+	play: async ({ canvasElement }) => {
+		await expect(
+			slotIn(canvasElement, "bot-working-elapsed"),
+		).toHaveTextContent(/^1m 0[89]s$/)
+	},
+})
+
+export const NoStartInstant = meta.story({
+	args: { ...BUSY_BOT, kind: "thinking", name: "Atlas" },
+	parameters: {
+		docs: {
+			description: {
+				story:
+					"A busy row whose host has no start instant to give — a turn picked up from a transport that never reported when it began. Check that the label still reads and still shimmers, and that no clock is drawn rather than one counting from the mount, which would date the row to when the reader opened it.",
+			},
+		},
+	},
+	play: async ({ canvas, canvasElement }) => {
+		await expect(canvas.getByText("Atlas is thinking…")).toBeVisible()
+		await expect(slotsIn(canvasElement, "bot-working-elapsed")).toHaveLength(0)
+	},
+})
+
+export const LongContent = meta.story({
+	args: {
+		...BUSY_BOT,
+		kind: "working",
+		name: "Atlas",
+		label: LONG_TOOL_LABEL,
+		startedAt: startedSecondsAgo(42),
+	},
+	render: (args) => (
+		<div className="w-[320px]">
+			<ActivityIndicator {...args} />
+		</div>
+	),
+	parameters: {
+		docs: {
+			description: {
+				story:
+					"A tool title far wider than the row it sits in, and wider than the window itself, in a 320px column. Check that the label gives way alone — one line, ending in an ellipsis — while the clock stays whole at the end edge, and that hovering the label opens the repo tooltip with the title in full, wrapped over several lines and clear of both window edges. Pick `WithTool` for a title the row can hold.",
+			},
+		},
+	},
+	play: async ({ canvasElement, userEvent }) => {
+		const label = slotIn(canvasElement, "bot-working-label")
+		const clock = slotIn(canvasElement, "bot-working-elapsed")
+
+		await expect(label.scrollWidth).toBeGreaterThan(label.clientWidth)
+		await expect(getComputedStyle(label).textOverflow).toBe("ellipsis")
+		await expect(clock).toHaveTextContent(/^\d+s$/)
+		await expect(clock.scrollWidth).toBe(clock.clientWidth)
+
+		await userEvent.hover(label)
+		const tip = await screen.findByRole("tooltip")
+		const box = tip.getBoundingClientRect()
+
+		await expect(tip).toHaveTextContent(LONG_TOOL_LABEL)
+		await expect(box.left).toBeGreaterThanOrEqual(EDGE)
+		await expect(box.right).toBeLessThanOrEqual(window.innerWidth - EDGE)
+		await expect(box.height).toBeGreaterThan(
+			2 * Number.parseFloat(getComputedStyle(tip).lineHeight),
+		)
+	},
+})
+
+export const WaitingForYou = meta.story({
+	args: {
+		...BUSY_BOT,
+		kind: "waiting",
+		name: "Atlas",
+		label: "Which wall holds?",
+	},
+	render: (args) => (
+		<div className="flex flex-col gap-4">
+			<ActivityIndicator {...args} />
+			<ActivityIndicator {...args} label={undefined} />
+		</div>
+	),
+	parameters: {
+		docs: {
+			description: {
+				story:
+					"The bot has a question or a permission pending and cannot go on without the reader. The first row carries the title of what is being asked, a question ending on its own question mark, the second has none. Check that the ellipsis closes the waiting clause rather than the row, so the title stands last with nothing appended to it and the question mark is the final character; that neither row shimmers and neither carries a clock — nothing is running, so there is nothing to time. Pick `UpNext` for a seat waiting on the wave rather than on the reader.",
+			},
+		},
+	},
+	play: async ({ canvas, canvasElement }) => {
+		const titled = canvas.getByText(
+			"Atlas is waiting for you… · Which wall holds?",
+		)
+
+		await expect(titled).toBeVisible()
+		await expect(titled.textContent?.endsWith("?")).toBe(true)
+		await expect(canvas.getByText("Atlas is waiting for you…")).toBeVisible()
+		await expect(slotsIn(canvasElement, "bot-working-elapsed")).toHaveLength(0)
+		await expect(slotsIn(canvasElement, "text-shimmer")).toHaveLength(0)
+	},
+})
+
+export const UpNext = meta.story({
+	args: { ...BUSY_BOT, kind: "waiting", name: "Atlas", waitingOn: "next" },
+	parameters: {
+		docs: {
+			description: {
+				story:
+					"A seat queued for the next wave: the bot is not working and is not blocked on the reader, it is simply not its turn yet. Check that the row reads `is up next` rather than `is waiting for you`, and that it carries neither shimmer nor clock. The distinction rides on `waitingOn`, not on a sixth kind, so the avatar pose is the same one every waiting seat wears.",
+			},
+		},
+	},
+	play: async ({ canvas, canvasElement }) => {
+		await expect(canvas.getByText("Atlas is up next…")).toBeVisible()
+		await expect(slotsIn(canvasElement, "bot-working-elapsed")).toHaveLength(0)
+	},
+})
+
+export const ReducedMotion = meta.story({
+	args: {
+		...BUSY_BOT,
+		kind: "searching",
+		name: "Atlas",
+		label: "Grep · turn.tsx",
+		startedAt: startedSecondsAgo(15),
+	},
+	parameters: {
+		docs: {
+			description: {
+				story:
+					"The row under `prefers-reduced-motion: reduce`, which is how the test browser renders every story here. Check that the label drops its sweep and its gradient for the flat muted colour, that it stays fully readable, and that the clock keeps counting — the elapsed time is the state, not decoration, so it is the one thing that must not stop when motion does.",
+			},
+		},
+	},
+	play: async ({ canvasElement }) => {
+		const shimmer = slotIn(canvasElement, "text-shimmer")
+		const clock = slotIn(canvasElement, "bot-working-elapsed")
+		const first = clock.textContent
+
+		await expect(getComputedStyle(shimmer).animationName).toBe("none")
+		await expect(getComputedStyle(shimmer).backgroundImage).toBe("none")
+		await waitFor(() => expect(clock.textContent).not.toBe(first), {
+			timeout: 2 * SECOND,
+		})
 	},
 })
 
@@ -256,22 +527,29 @@ export const ConversationChange = meta.story({
 	},
 })
 
-export const HoverLabel = meta.story({
-	args: { kind: "searching" },
+export const Default = meta.story({
+	args: {
+		...BUSY_BOT,
+		kind: "searching",
+		name: "Atlas",
+		startedAt: startedSecondsAgo(8),
+	},
 	parameters: {
 		docs: {
 			description: {
 				story:
-					"Reach for this to check the hover affordance: the row is only an avatar until the reader points at it, and the words that fade in name who is busy and at what. Check that nothing shifts as they appear — the text holds its place while invisible, and screen readers get it either way.",
+					"The nominal busy row: avatar, label and clock, with the pointer nowhere near it. Check that the words are on the screen from the first frame rather than on hover, that they shimmer at the shared working duration, and that the clock reads whole seconds at the end of the row.",
 			},
 		},
 	},
-	play: async ({ canvas, userEvent }) => {
-		const text = canvas.getByText("No name is searching…")
+	play: async ({ canvas, canvasElement }) => {
+		const clock = slotIn(canvasElement, "bot-working-elapsed")
 
-		await waitFor(() => expect(text).not.toBeVisible())
-		await userEvent.hover(canvas.getByRole("img"))
-		await waitFor(() => expect(text).toBeVisible())
+		await expect(canvas.getByText("Atlas is searching…")).toBeVisible()
+		await expect(clock).toHaveTextContent(/^\d+s$/)
+		await expect(getComputedStyle(clock).fontVariantNumeric).toContain(
+			"tabular-nums",
+		)
 	},
 })
 
