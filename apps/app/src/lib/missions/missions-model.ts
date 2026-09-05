@@ -1,7 +1,4 @@
-import type {
-	AppSidebarBot,
-	AppSidebarBotMission,
-} from "@workspace/ui/components/app-sidebar"
+import type { AppSidebarBotMission } from "@workspace/ui/components/app-sidebar"
 import type { BotBadge, BotMissionState } from "@workspace/ui/components/badge"
 import type {
 	MissionBot,
@@ -72,9 +69,11 @@ export const toMissionEventModels = (
 		text: spokenTextOf(event.payload),
 	}))
 
-export type MissionsByBot = Record<string, AppSidebarBotMission>
+export type MissionsByRow = Record<string, AppSidebarBotMission>
 
-export const NO_MISSIONS: MissionsByBot = {}
+type MissionCarrier = {
+	mission?: AppSidebarBotMission
+}
 
 const CHIP_STATE_OF: Partial<Record<MissionState, BotMissionState>> = {
 	waiting_human: "waiting",
@@ -102,33 +101,45 @@ const RING_BADGE_OF: Partial<Record<BotMissionState, BotBadge>> =
 const mostUrgent = (states: BotMissionState[]): BotMissionState =>
 	MOST_URGENT_FIRST.find((state) => states.includes(state)) ?? "working"
 
-export const missionsByBot = (board: MissionOnBoard[]): MissionsByBot => {
+const rowIdOf = (mission: Mission, listedConversationIds: Set<string>) =>
+	listedConversationIds.has(mission.originConversationId)
+		? mission.originConversationId
+		: mission.botId
+
+export const missionsByRow = (
+	board: MissionOnBoard[],
+	listedConversations: { id: string }[],
+): MissionsByRow => {
+	const listedConversationIds = new Set(
+		listedConversations.map((conversation) => conversation.id),
+	)
 	const states: Record<string, BotMissionState[]> = {}
 	for (const { mission } of board) {
 		const state = CHIP_STATE_OF[mission.state]
 		if (state) {
-			states[mission.botId] = [...(states[mission.botId] ?? []), state]
+			const rowId = rowIdOf(mission, listedConversationIds)
+			states[rowId] = [...(states[rowId] ?? []), state]
 		}
 	}
 
 	return Object.fromEntries(
-		Object.entries(states).map(([botId, held]) => [
-			botId,
+		Object.entries(states).map(([rowId, held]) => [
+			rowId,
 			{ state: mostUrgent(held), count: held.length },
 		]),
 	)
 }
 
-export const withMissions = <Row extends AppSidebarBot>(
+export const withMissions = <Row extends MissionCarrier & { id: string }>(
 	rows: Row[],
-	missions: MissionsByBot,
+	missions: MissionsByRow,
 ): Row[] =>
 	rows.map((row) =>
 		missions[row.id] ? { ...row, mission: missions[row.id] } : row,
 	)
 
 export const missionRingBadges = (
-	rowsBySpaceId: Record<string, AppSidebarBot[]>,
+	rowsBySpaceId: Record<string, MissionCarrier[]>,
 ): Record<string, { badge?: BotBadge }[]> =>
 	Object.fromEntries(
 		Object.entries(rowsBySpaceId).map(([spaceId, rows]) => [

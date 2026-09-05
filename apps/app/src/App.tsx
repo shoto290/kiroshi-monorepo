@@ -57,7 +57,11 @@ import { toEnvironmentRows } from "@/lib/environment/environment-rows"
 import { useEnvironment } from "@/lib/environment/use-environment"
 import { hasOverlayWindowControls, isSidebarResizable } from "@/lib/host"
 import { useExternalLinks } from "@/lib/links/use-external-links"
-import { missionRingBadges, withMissions } from "@/lib/missions/missions-model"
+import {
+	missionRingBadges,
+	missionsByRow,
+	withMissions,
+} from "@/lib/missions/missions-model"
 import { createOpenedMissionController } from "@/lib/missions/opened-mission-controller"
 import { useMissionBoard } from "@/lib/missions/use-mission-board"
 import { useMissionRunDriver } from "@/lib/missions/use-mission-run-driver"
@@ -182,7 +186,7 @@ export function App() {
 		roster: roster.controller,
 	})
 
-	const missions = useMissionBoard()
+	const missionBoard = useMissionBoard()
 
 	const conversationBadges = useConversationBadges({
 		runtimes: conversationRuntimes,
@@ -209,6 +213,11 @@ export function App() {
 	const settingsConversation = conversations.find(
 		(conversation) => conversation.id === settingsConversationId,
 	)
+	const missions = useMemo(
+		() => missionsByRow(missionBoard, conversations),
+		[missionBoard, conversations],
+	)
+
 	const [isCreatingConversation, setIsCreatingConversation] = useState(false)
 	const [openedMcpServer, setOpenedMcpServer] = useState<EnvScope | null>(null)
 
@@ -457,13 +466,16 @@ export function App() {
 
 	const rosterConversations = useMemo(
 		() =>
-			withBadges(
-				toRosterConversations(
-					conversations,
-					{ working: conversationWorkers, previews: conversationPreviews },
-					now,
+			withMissions(
+				withBadges(
+					toRosterConversations(
+						conversations,
+						{ working: conversationWorkers, previews: conversationPreviews },
+						now,
+					),
+					conversationBadges,
 				),
-				conversationBadges,
+				missions,
 			),
 		[
 			conversations,
@@ -471,6 +483,7 @@ export function App() {
 			conversationPreviews,
 			now,
 			conversationBadges,
+			missions,
 		],
 	)
 
@@ -493,13 +506,19 @@ export function App() {
 			Object.fromEntries(
 				Object.entries(conversationRosters).map(([spaceId, spaceRooms]) => [
 					spaceId,
-					withBadges(
-						toRosterConversations(
-							spaceRooms,
-							{ working: conversationWorkers, previews: conversationPreviews },
-							now,
+					withMissions(
+						withBadges(
+							toRosterConversations(
+								spaceRooms,
+								{
+									working: conversationWorkers,
+									previews: conversationPreviews,
+								},
+								now,
+							),
+							conversationBadges,
 						),
-						conversationBadges,
+						missions,
 					),
 				]),
 			),
@@ -509,6 +528,7 @@ export function App() {
 			conversationPreviews,
 			now,
 			conversationBadges,
+			missions,
 		],
 	)
 
@@ -518,6 +538,7 @@ export function App() {
 				rosterBotsBySpace,
 				rosterConversationsBySpace,
 				missionRingBadges(rosterBotsBySpace),
+				missionRingBadges(rosterConversationsBySpace),
 			),
 		[rosterBotsBySpace, rosterConversationsBySpace],
 	)

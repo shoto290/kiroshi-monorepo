@@ -4355,6 +4355,78 @@ export const WorkingLongSummary = meta.story({
 	},
 })
 
+const MISSION_CONVERSATIONS: AppSidebarConversation[] = [
+	{
+		...CONVERSATIONS[0],
+		lastActivityAt: 1,
+		timestamp: "Tue",
+		mission: { state: "waiting", count: 2 },
+	},
+	{ ...CONVERSATIONS[1], lastActivityAt: 3, timestamp: "now" },
+]
+
+const MISSION_CONVERSATION_ARGS = {
+	...conversationArgs(),
+	bots: [{ ...ROSTER[0], lastActivityAt: 2, timestamp: "5m" }],
+	conversations: MISSION_CONVERSATIONS,
+}
+
+export const ConversationMissionChip = meta.story({
+	args: MISSION_CONVERSATION_ARGS,
+	parameters: {
+		docs: {
+			description: {
+				story:
+					"A mission belongs to the conversation it was opened from, so a room carrying open missions wears the pill its bots would otherwise wear alone. Check the pill sits on the room row, between the name and the time, in the same slot and the same shapes a bot row gives it, and that it counts every mission the room holds whichever bot runs them. Check the room whose mission waits on the reader is drawn first even though it spoke longest ago, exactly as a waiting bot row is raised, and that the room with no mission carries no pill. Pick `MissionChips` for the pill on a bot row, `ConversationMissionChipOnRail` for the rail that drops it.",
+			},
+		},
+	},
+	play: async ({ canvasElement }) => {
+		const rows = rowsIn(canvasElement)
+
+		await expect(rowNames(canvasElement)).toEqual([
+			"Launch review",
+			"Transport migration",
+			"Atlas",
+		])
+		await expect(rows.map(chipStateIn)).toEqual([
+			"waiting",
+			undefined,
+			undefined,
+		])
+		await expect(chipIn(rows[0])).toHaveAccessibleName(
+			"2 missions, waiting for you",
+		)
+		await expect(slotIn(rows[0], "roster-row-timestamp")).toHaveTextContent(
+			"Tue",
+		)
+		await expectAlignedRows(rows)
+		await expect(uniqueCount(rowHeights(rows))).toBe(1)
+	},
+})
+
+export const ConversationMissionChipOnRail = meta.story({
+	args: MISSION_CONVERSATION_ARGS,
+	render: renderShell(false),
+	parameters: {
+		docs: {
+			description: {
+				story:
+					"The same room once the panel is down to its icon rail. Check no pill is drawn there either: the rail is the avatar stack and nothing else, and a room defers its mission to the open panel exactly as a bot does. Pick `ConversationMissionChip` for the open panel, `MissionChipOnRail` for the bot row that drops it too.",
+			},
+		},
+	},
+	play: async ({ canvas, canvasElement }) => {
+		const panel = canvas.getByRole("complementary", { name: "Conversations" })
+		const rail = railWidth()
+		await waitFor(async () => {
+			await expect(panel.getBoundingClientRect().width).toBeCloseTo(rail, 0)
+		}, FRAME_POLL)
+
+		await expect(slotsIn(canvasElement, "bot-mission-chip")).toHaveLength(0)
+	},
+})
+
 export const ConversationSelected = meta.story({
 	args: { ...conversationArgs(), selectedConversationId: "migration" },
 	parameters: {

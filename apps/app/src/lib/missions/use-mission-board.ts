@@ -3,21 +3,19 @@ import { useCallback, useEffect, useState } from "react"
 import { raiseFailureNotice } from "@workspace/ui/components/notice-surface"
 import { i18n } from "@workspace/ui/lib/i18n"
 
-import {
-	type MissionsByBot,
-	missionsByBot,
-	NO_MISSIONS,
-} from "./missions-model"
+import type { MissionOnBoard } from "./mission-contract"
 import { missionsTransport } from "./missions-transport"
 
-export const useMissionBoard = (): MissionsByBot => {
-	const [driving, setDriving] = useState<MissionsByBot>(NO_MISSIONS)
+const NO_BOARD: MissionOnBoard[] = []
+
+export const useMissionBoard = (): MissionOnBoard[] => {
+	const [driving, setDriving] = useState<MissionOnBoard[]>(NO_BOARD)
 
 	const read = useCallback(() => {
 		void missionsTransport.board().then(
-			(board) => setDriving(missionsByBot(board)),
+			(board) => setDriving(board),
 			() => {
-				setDriving(NO_MISSIONS)
+				setDriving(NO_BOARD)
 				raiseFailureNotice({
 					title: i18n.t("bots:roster.mission.unavailable.title"),
 					description: i18n.t("bots:roster.mission.unavailable.description"),

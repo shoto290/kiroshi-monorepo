@@ -279,6 +279,7 @@ interface AppSidebarConversation {
 	lastActivityAt?: number
 	status?: AppSidebarStatus
 	badge?: BotBadge
+	mission?: AppSidebarBotMission
 }
 
 const poseOf = (bot: AppSidebarBot) => bot.pose ?? "thinking"
@@ -775,7 +776,7 @@ const ConversationRosterRow = ({
 	onCreateSectionFor,
 }: ConversationRosterRowProps) => {
 	const { t } = useTranslation("bots")
-	const { avatarBadge, rowBadge } = useRosterBadgePlacement(
+	const { isCollapsed, avatarBadge, rowBadge } = useRosterBadgePlacement(
 		badgeOf(conversation),
 	)
 
@@ -812,6 +813,12 @@ const ConversationRosterRow = ({
 									{conversation.name}
 								</span>
 								<span className={TRAILING_SLOT}>
+									{conversation.mission && !isCollapsed ? (
+										<BotMissionChip
+											count={conversation.mission.count}
+											state={conversation.mission.state}
+										/>
+									) : null}
 									<span
 										className={TIMESTAMP_SLOT}
 										data-slot="roster-row-timestamp"
@@ -1254,8 +1261,9 @@ const activityOf = ({ bot, conversation }: PinnedEntry) =>
 const byMostRecent = (one: PinnedEntry, other: PinnedEntry) =>
 	activityOf(other) - activityOf(one)
 
-const isWaitingOnReader = ({ bot }: PinnedEntry) =>
-	bot?.mission?.state === "waiting"
+const isWaitingOnReader = ({ bot, conversation }: PinnedEntry) =>
+	bot?.mission?.state === "waiting" ||
+	conversation?.mission?.state === "waiting"
 
 const waitingFirst = (entries: PinnedEntry[]) => [
 	...entries.filter(isWaitingOnReader),
