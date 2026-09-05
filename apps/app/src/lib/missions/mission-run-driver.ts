@@ -2,6 +2,7 @@ import type { NoticeMessage } from "@workspace/ui/components/notice-surface"
 import { i18n } from "@workspace/ui/lib/i18n"
 
 import type {
+	Mission,
 	MissionChanged,
 	MissionDetail,
 	MissionOnBoard,
@@ -152,11 +153,14 @@ export const startMissionRunDriver = ({
 		}
 	}
 
-	const forget = (held: LiveMissionRun) => {
-		const { id } = held.call.mission
+	const release = (held: LiveMissionRun) => {
 		clearTimeout(held.deadline)
-		live.delete(id)
-		takeAgain(id)
+		live.delete(held.call.mission.id)
+	}
+
+	const forget = (held: LiveMissionRun) => {
+		release(held)
+		takeAgain(held.call.mission.id)
 	}
 
 	const end = (held: LiveMissionRun) => {
@@ -314,51 +318,65 @@ export const startMissionRunDriver = ({
 		})
 	}
 
-	const isReportStillOwed = async ({ call }: LiveMissionRun) => {
+	const readSettledMission = async ({ call }: LiveMissionRun) => {
 		if (!isReportOwedBy(call.cause)) {
-			return false
+			return null
 		}
 
 		try {
 			const { mission } = await readMission(call.mission.id)
-			return mission.closedAt !== null
+			return mission
 		} catch (thrown) {
 			raiseFailure(detailOf(thrown))
-			return false
+			return null
 		}
 	}
 
+	const isClosed = (settled: Mission | null): settled is Mission =>
+		settled !== null && settled.closedAt !== null
+
 	const recordReport = async (
-		{ call }: LiveMissionRun,
+		missionId: string,
 		reportedTurnId: string | null,
 	) => {
 		try {
-			await missions.reported(call.mission.id, reportedTurnId)
+			await missions.reported(missionId, reportedTurnId)
 		} catch (thrown) {
 			raiseFailure(`the report could not be recorded: ${detailOf(thrown)}`)
 		}
 	}
 
 	const recordWhenOwed = async (
-		held: LiveMissionRun,
+		settled: Mission | null,
 		reportedTurnId: string | null,
 	) => {
-		if (await isReportStillOwed(held)) {
-			await recordReport(held, reportedTurnId)
+		if (!isClosed(settled)) {
+			return
 		}
+
+		await recordReport(settled.id, reportedTurnId)
 	}
 
-	const settleNothingReported = async (held: LiveMissionRun) => {
-		if (!(await isReportStillOwed(held))) {
+	const settleNothingReported = async (settled: Mission | null) => {
+		if (!isClosed(settled)) {
 			return
 		}
 
 		raiseFailure("the closing mission run reported nothing")
-		await recordReport(held, null)
+		await recordReport(settled.id, null)
 	}
 
 	const settle = async (held: LiveMissionRun, ended: TurnEnded) => {
-		end(held)
+		release(held)
+		shutdownSession(held.scope)
+
+		const settled = await readSettledMission(held)
+
+		if (settled) {
+			states.remember({ missionId: settled.id, state: settled.state })
+		}
+
+		takeAgain(held.call.mission.id)
 
 		if (ended.outcome !== "completed") {
 			return raiseFailure(`the mission run's turn was ${ended.outcome}`)
@@ -368,16 +386,16 @@ export const startMissionRunDriver = ({
 
 		if (!report) {
 			raiseFailure("the mission run ended with no structured output")
-			return recordWhenOwed(held, null)
+			return recordWhenOwed(settled, null)
 		}
 
 		if (report.outcome === "nothing") {
-			return settleNothingReported(held)
+			return settleNothingReported(settled)
 		}
 
 		try {
 			const reportedTurnId = await writeReport(held, report.text)
-			await recordWhenOwed(held, reportedTurnId)
+			await recordWhenOwed(settled, reportedTurnId)
 		} catch (thrown) {
 			raiseFailure(`the report could not be written: ${detailOf(thrown)}`)
 		}

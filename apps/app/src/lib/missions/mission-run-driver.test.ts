@@ -379,12 +379,11 @@ describe("startMissionRunDriver", () => {
 	})
 
 	it("keeps the state of a change it dropped for being busy", async () => {
-		await harness.enter("done", closedBy("poller"))
 		await harness.enter("waiting_bot")
+		await harness.enter("done", closedBy("poller"))
 		expect(harness.starts).toHaveLength(1)
 
-		await harness.endTurn(reported("The walls stand, handing over."))
-		await harness.enter("waiting_bot")
+		await harness.endTurn(reported("I cut the branch from main."))
 
 		expect(harness.starts).toHaveLength(2)
 	})
@@ -582,6 +581,31 @@ describe("startMissionRunDriver", () => {
 
 		expect(harness.starts).toHaveLength(1)
 		expect(harness.driver.submissions).toHaveLength(1)
+	})
+
+	it("opens one closing run whatever state its bot writes while it runs", async () => {
+		await harness.enter("failed", failedBy("agent-hook"))
+		await harness.enter("done", closedBy("claude-code"))
+
+		await harness.endTurn(reported("The walls stand, handing over."))
+
+		expect(harness.starts).toHaveLength(1)
+		expect(spoken(harness.originTail())).toEqual([
+			[harness.mission.botId, "The walls stand, handing over."],
+		])
+		expect(harness.missions.detailCalls).toHaveLength(2)
+	})
+
+	it("takes the state its bot wrote when the reading at the end fails", async () => {
+		vi.spyOn(console, "error").mockImplementation(() => undefined)
+		await harness.enter("failed", failedBy("agent-hook"))
+		await harness.enter("done", closedBy("claude-code"))
+		harness.missions.refuseOnce(harness.mission.id)
+
+		await harness.endTurn(reported("The walls stand, handing over."))
+
+		expect(harness.starts).toHaveLength(2)
+		expect(harness.reportFailure).toHaveBeenCalledTimes(1)
 	})
 
 	it("takes a closing that landed while an answer run was live", async () => {
