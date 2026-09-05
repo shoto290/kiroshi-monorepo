@@ -46,7 +46,8 @@ fn refused_draft(draft: &MissionDraft) -> Result<(), MissionError> {
 	refuse_blank("objective", &draft.objective)?;
 	refuse_blank("ticket.platform", &draft.ticket.platform)?;
 	refuse_blank("ticket.externalId", &draft.ticket.external_id)?;
-	refuse_blank("source", &draft.source)
+	refuse_blank("source", &draft.source)?;
+	refused_workspace(draft.workspace_path.as_deref())
 }
 
 #[tauri::command]
@@ -55,9 +56,8 @@ pub async fn mission_open<R: Runtime>(
 	state: State<'_, db::DatabaseState>,
 	draft: MissionDraft,
 ) -> Result<MissionOpened, MissionError> {
-	refused_draft(&draft)?;
 	let draft = MissionDraft { workspace_path: trimmed(draft.workspace_path), ..draft };
-	refused_workspace(draft.workspace_path.as_deref())?;
+	refused_draft(&draft)?;
 	let workspace = draft.workspace_path.clone();
 	let key = uuid::Uuid::new_v4().to_string();
 	let opened = ready(&state)?.missions().open(draft, key.clone()).await?;
