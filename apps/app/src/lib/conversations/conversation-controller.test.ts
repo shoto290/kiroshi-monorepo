@@ -969,6 +969,7 @@ describe("createConversationController", () => {
 
 			expect(workIn(harness.controller)).toEqual({
 				kind: "thinking",
+				startedAt: expect.any(Number),
 			})
 		})
 
@@ -1334,6 +1335,7 @@ describe("what a speaking bot is doing", () => {
 	it("says a bot that has neither run a tool nor written is thinking", () => {
 		expect(workIn(harness.controller)).toEqual({
 			kind: "thinking",
+			startedAt: expect.any(Number),
 		})
 	})
 
@@ -1344,7 +1346,18 @@ describe("what a speaking bot is doing", () => {
 		expect(workIn(harness.controller)).toEqual({
 			kind: "searching",
 			label: "Grep · walls",
+			startedAt: expect.any(Number),
 		})
+	})
+
+	it("keeps the instant a seated bot went busy through its whole turn", async () => {
+		const seated = workIn(harness.controller)?.startedAt
+
+		harness.driver.pushTo(ada, [ran("a-1", "Grep · walls", "running")])
+		await harness.settled()
+
+		expect(seated).toEqual(expect.any(Number))
+		expect(workIn(harness.controller)?.startedAt).toBe(seated)
 	})
 
 	const started: AgentEvent[] = [
@@ -1372,6 +1385,7 @@ describe("what a speaking bot is doing", () => {
 		expect(unpublishedIn(harness.controller)).toEqual([ada])
 		expect(workIn(harness.controller)).toEqual({
 			kind: "thinking",
+			startedAt: expect.any(Number),
 		})
 	})
 
@@ -1385,6 +1399,7 @@ describe("what a speaking bot is doing", () => {
 		expect(unpublishedIn(harness.controller)).toEqual([])
 		expect(workIn(harness.controller)).toEqual({
 			kind: "writing",
+			startedAt: expect.any(Number),
 		})
 	})
 

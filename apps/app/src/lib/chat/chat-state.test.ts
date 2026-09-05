@@ -1,6 +1,7 @@
 import { describe, expect, it } from "vitest"
 
 import {
+	type ChatAction,
 	type ChatState,
 	canStopTurn,
 	chatReducer,
@@ -18,6 +19,11 @@ import {
 	named,
 } from "../conversations/transcript-fixtures"
 
+const AT = 1_000
+
+const reduce = (state: ChatState, action: ChatAction): ChatState =>
+	chatReducer(state, action, AT)
+
 function run(epoch: number): RuntimeScope {
 	return {
 		conversationId: CONVERSATION,
@@ -30,7 +36,7 @@ function run(epoch: number): RuntimeScope {
 function applyEvents(state: ChatState, events: AgentEvent[]): ChatState {
 	return events.reduce(
 		(current, event) =>
-			chatReducer(current, {
+			reduce(current, {
 				type: "driverEvent",
 				scope: current.runtime,
 				event,
@@ -58,7 +64,7 @@ const streamedTurn: AgentEvent[] = [
 	{ type: "messageDelta", id: "msg-1", seq: 2, text: " world" },
 ]
 
-const opened: ChatState = chatReducer(initialChatState, {
+const opened: ChatState = reduce(initialChatState, {
 	type: "conversationOpened",
 	conversationId: CONVERSATION,
 })
@@ -82,7 +88,7 @@ describe("chatReducer", () => {
 
 	it("mirrors the transcript it is handed, and settles for the same selection", () => {
 		const messages = [message({ id: "m-1", content: "Hello" })]
-		const mirrored = chatReducer(opened, {
+		const mirrored = reduce(opened, {
 			type: "transcriptChanged",
 			messages,
 			hasOlder: true,
@@ -91,7 +97,7 @@ describe("chatReducer", () => {
 		expect(mirrored.messages).toBe(messages)
 		expect(mirrored.hasOlder).toBe(true)
 		expect(
-			chatReducer(mirrored, {
+			reduce(mirrored, {
 				type: "transcriptChanged",
 				messages,
 				hasOlder: true,
@@ -100,12 +106,12 @@ describe("chatReducer", () => {
 	})
 
 	it("keeps the mirrored transcript across a session reset", () => {
-		const mirrored = chatReducer(opened, {
+		const mirrored = reduce(opened, {
 			type: "transcriptChanged",
 			messages: [message({ id: "m-1" })],
 			hasOlder: true,
 		})
-		const reset = chatReducer(mirrored, {
+		const reset = reduce(mirrored, {
 			type: "sessionReset",
 			runtime: run(1),
 			sessionId: null,
@@ -123,7 +129,7 @@ describe("chatReducer", () => {
 
 		expect(listed.commands).toEqual(named("review", "compact"))
 
-		const reset = chatReducer(listed, {
+		const reset = reduce(listed, {
 			type: "sessionReset",
 			runtime: run(1),
 			sessionId: null,
@@ -133,7 +139,7 @@ describe("chatReducer", () => {
 	})
 
 	it("replaces what it holds with what the next session named", () => {
-		const recalled = chatReducer(opened, {
+		const recalled = reduce(opened, {
 			type: "commandsRecalled",
 			commands: named("review", "compact"),
 		})
@@ -148,12 +154,12 @@ describe("chatReducer", () => {
 	})
 
 	it("stands still when what arrives is what it already holds", () => {
-		const recalled = chatReducer(opened, {
+		const recalled = reduce(opened, {
 			type: "commandsRecalled",
 			commands: named("review", "compact"),
 		})
 
-		const again = chatReducer(recalled, {
+		const again = reduce(recalled, {
 			type: "commandsRecalled",
 			commands: named("review", "compact"),
 		})
@@ -189,7 +195,7 @@ describe("chatReducer", () => {
 	})
 
 	it("drops every event from a run this state is not about", () => {
-		const reset = chatReducer(initialChatState, {
+		const reset = reduce(initialChatState, {
 			type: "sessionReset",
 			runtime: run(2),
 			sessionId: null,
@@ -203,7 +209,7 @@ describe("chatReducer", () => {
 			{ ...run(2), conversationId: "another" },
 		]) {
 			expect(
-				chatReducer(reset, {
+				reduce(reset, {
 					type: "driverEvent",
 					scope,
 					event: { type: "turnChanged", state: "running" },
@@ -212,7 +218,7 @@ describe("chatReducer", () => {
 		}
 
 		expect(
-			chatReducer(reset, {
+			reduce(reset, {
 				type: "driverEvent",
 				scope: run(2),
 				event: { type: "turnChanged", state: "submitting" },
@@ -221,7 +227,7 @@ describe("chatReducer", () => {
 	})
 
 	it("takes an unscoped event while it holds no run of its own", () => {
-		const checked = chatReducer(initialChatState, {
+		const checked = reduce(initialChatState, {
 			type: "driverEvent",
 			scope: null,
 			event: { type: "connectionChanged", state: "ready" },
@@ -336,10 +342,10 @@ describe("chatReducer", () => {
 	})
 
 	it("marks the refused prompt on the screen alone, and clears it on retry", () => {
-		const submitted = chatReducer(opened, { type: "promptSubmitted" })
+		const submitted = reduce(opened, { type: "promptSubmitted" })
 		expect(submitted.turn).toBe("submitting")
 
-		const rejected = chatReducer(submitted, {
+		const rejected = reduce(submitted, {
 			type: "promptRejected",
 			id: "m-1",
 			error: { kind: "notStarted" },
@@ -348,31 +354,29 @@ describe("chatReducer", () => {
 		expect(rejected.rejectedPromptId).toBe("m-1")
 		expect(rejected.errors).toHaveLength(1)
 
-		const retried = chatReducer(rejected, { type: "promptRetried", id: "m-1" })
+		const retried = reduce(rejected, { type: "promptRetried", id: "m-1" })
 		expect(retried.turn).toBe("submitting")
 		expect(retried.rejectedPromptId).toBeNull()
 	})
 
 	it("ignores a retry of a prompt that was never refused", () => {
-		const rejected = chatReducer(
-			chatReducer(opened, { type: "promptSubmitted" }),
-			{ type: "promptRejected", id: "m-1", error: { kind: "notStarted" } },
-		)
+		const rejected = reduce(reduce(opened, { type: "promptSubmitted" }), {
+			type: "promptRejected",
+			id: "m-1",
+			error: { kind: "notStarted" },
+		})
 
-		expect(chatReducer(rejected, { type: "promptRetried", id: "m-2" })).toBe(
+		expect(reduce(rejected, { type: "promptRetried", id: "m-2" })).toBe(
 			rejected,
 		)
 	})
 
 	it("fails the turn without a row when the store refused the prompt", () => {
-		const rejected = chatReducer(
-			chatReducer(opened, { type: "promptSubmitted" }),
-			{
-				type: "promptRejected",
-				id: null,
-				error: { kind: "writeFailed", detail: "the store refused it" },
-			},
-		)
+		const rejected = reduce(reduce(opened, { type: "promptSubmitted" }), {
+			type: "promptRejected",
+			id: null,
+			error: { kind: "writeFailed", detail: "the store refused it" },
+		})
 
 		expect(rejected.turn).toBe("failed")
 		expect(rejected.rejectedPromptId).toBeNull()
@@ -383,11 +387,11 @@ describe("chatReducer", () => {
 		const ready = applyEvents(initialChatState, [
 			{ type: "connectionChanged", state: "ready" },
 		])
-		const versioned = chatReducer(ready, {
+		const versioned = reduce(ready, {
 			type: "binaryVersion",
 			version: "1.2.3",
 		})
-		const reset = chatReducer(versioned, {
+		const reset = reduce(versioned, {
 			type: "sessionReset",
 			runtime: run(1),
 			sessionId: null,
@@ -399,15 +403,14 @@ describe("chatReducer", () => {
 	})
 
 	it("tracks the page in flight above the transcript", () => {
-		const loading = chatReducer(opened, { type: "olderLoading", loading: true })
+		const loading = reduce(opened, { type: "olderLoading", loading: true })
 
 		expect(loading.loadingOlder).toBe(true)
-		expect(chatReducer(loading, { type: "olderLoading", loading: true })).toBe(
+		expect(reduce(loading, { type: "olderLoading", loading: true })).toBe(
 			loading,
 		)
 		expect(
-			chatReducer(loading, { type: "olderLoading", loading: false })
-				.loadingOlder,
+			reduce(loading, { type: "olderLoading", loading: false }).loadingOlder,
 		).toBe(false)
 	})
 })
@@ -473,10 +476,10 @@ describe("turn predicates", () => {
 
 	it("clears the open session on reset and reopens on sessionOpened", () => {
 		const ready: ChatState = { ...initialChatState, connection: "ready" }
-		const open = chatReducer(ready, { type: "sessionOpened" })
+		const open = reduce(ready, { type: "sessionOpened" })
 		expect(isSessionReady(open)).toBe(true)
 
-		const reset = chatReducer(open, {
+		const reset = reduce(open, {
 			type: "sessionReset",
 			runtime: run(1),
 			sessionId: null,
@@ -570,10 +573,10 @@ describe("session reset", () => {
 			{ ...initialChatState, connection: "ready" },
 			conversation,
 		)
-		const open = chatReducer(live, { type: "sessionOpened" })
+		const open = reduce(live, { type: "sessionOpened" })
 		expect(open.activities).toHaveLength(1)
 
-		const reset = chatReducer(open, {
+		const reset = reduce(open, {
 			type: "sessionReset",
 			runtime: run(1),
 			sessionId: null,
@@ -612,7 +615,7 @@ describe("session reset", () => {
 		])
 		expect(working.activities).toHaveLength(2)
 
-		const reset = chatReducer(working, {
+		const reset = reduce(working, {
 			type: "sessionReset",
 			runtime: run(1),
 			sessionId: "s-1",
@@ -627,7 +630,7 @@ describe("session reset", () => {
 			{ ...initialChatState, connection: "ready" },
 			conversation,
 		)
-		const reset = chatReducer(live, {
+		const reset = reduce(live, {
 			type: "sessionReset",
 			runtime: run(1),
 			sessionId: "s-1",
@@ -639,7 +642,7 @@ describe("session reset", () => {
 
 describe("the outbox a prompt waits in", () => {
 	const held = (state: ChatState, id: string, text: string): ChatState =>
-		chatReducer(state, {
+		reduce(state, {
 			type: "promptHeld",
 			entry: { id, text, repliedToMessageId: null },
 		})
@@ -654,20 +657,20 @@ describe("the outbox a prompt waits in", () => {
 	})
 
 	it("drops the entry named and keeps the order of the rest", () => {
-		const without = chatReducer(three, {
+		const without = reduce(three, {
 			type: "outboxEntryRemoved",
 			id: "b",
 		})
 
 		expect(queued(without)).toEqual(["one", "three"])
-		expect(chatReducer(without, { type: "outboxEntryRemoved", id: "b" })).toBe(
+		expect(reduce(without, { type: "outboxEntryRemoved", id: "b" })).toBe(
 			without,
 		)
 	})
 
 	it("returns an entry nothing was written for to the front", () => {
-		const taken = chatReducer(three, { type: "outboxEntryRemoved", id: "a" })
-		const returned = chatReducer(taken, {
+		const taken = reduce(three, { type: "outboxEntryRemoved", id: "a" })
+		const returned = reduce(taken, {
 			type: "promptReturned",
 			entry: { id: "a", text: "one", repliedToMessageId: null },
 		})
@@ -676,14 +679,14 @@ describe("the outbox a prompt waits in", () => {
 	})
 
 	it("empties whole when a stop takes what it was holding", () => {
-		const cleared = chatReducer(three, { type: "outboxCleared" })
+		const cleared = reduce(three, { type: "outboxCleared" })
 
 		expect(cleared.outbox).toEqual([])
-		expect(chatReducer(cleared, { type: "outboxCleared" })).toBe(cleared)
+		expect(reduce(cleared, { type: "outboxCleared" })).toBe(cleared)
 	})
 
 	it("survives the session it was waiting for being reset", () => {
-		const reset = chatReducer(three, {
+		const reset = reduce(three, {
 			type: "sessionReset",
 			runtime: run(1),
 			sessionId: null,
@@ -717,7 +720,7 @@ describe("toTransportError", () => {
 
 describe("dismissing a failure", () => {
 	const failed = (state: ChatState, detail: string): ChatState =>
-		chatReducer(state, {
+		reduce(state, {
 			type: "driverEvent",
 			scope: null,
 			event: { type: "failed", error: { kind: "spawnFailed", detail } },
@@ -727,7 +730,7 @@ describe("dismissing a failure", () => {
 		const shown = failed(initialChatState, "no binary")
 		const held = shown.errors.at(-1)
 
-		const dismissed = chatReducer(shown, {
+		const dismissed = reduce(shown, {
 			type: "errorDismissed",
 			id: held?.id ?? "",
 		})
@@ -740,7 +743,7 @@ describe("dismissing a failure", () => {
 		const held = shown.errors.at(-1)
 		const later = failed(shown, "still no binary")
 
-		const dismissed = chatReducer(later, {
+		const dismissed = reduce(later, {
 			type: "errorDismissed",
 			id: held?.id ?? "",
 		})
@@ -749,5 +752,51 @@ describe("dismissing a failure", () => {
 			kind: "spawnFailed",
 			detail: "still no binary",
 		})
+	})
+})
+
+describe("the instant a turn went busy", () => {
+	const at = (state: ChatState, event: AgentEvent, when: number): ChatState =>
+		chatReducer(
+			state,
+			{ type: "driverEvent", scope: state.runtime, event },
+			when,
+		)
+
+	const submitted: AgentEvent = { type: "turnChanged", state: "submitting" }
+	const running: AgentEvent = { type: "turnChanged", state: "running" }
+	const ended: AgentEvent = {
+		type: "turnEnded",
+		ended: { sessionId: null, outcome: "completed" },
+	}
+	const ran: AgentEvent = {
+		type: "activity",
+		activity: {
+			id: "act-1",
+			title: "Grep · walls",
+			kind: "tool",
+			status: "running",
+		},
+	}
+
+	const busy = at(initialChatState, submitted, 100)
+
+	it("reads the instant off the clock when the turn goes busy", () => {
+		expect(initialChatState.turnStartedAt).toBeNull()
+		expect(busy.turnStartedAt).toBe(100)
+	})
+
+	it("holds that instant through the rest of the turn", () => {
+		const working = at(at(busy, running, 400), ran, 900)
+
+		expect(working.turn).toBe("running")
+		expect(working.turnStartedAt).toBe(100)
+	})
+
+	it("forgets it when the turn ends and reads a fresh one for the next", () => {
+		const over = at(at(busy, running, 400), ended, 700)
+
+		expect(over.turnStartedAt).toBeNull()
+		expect(at(over, submitted, 2_000).turnStartedAt).toBe(2_000)
 	})
 })

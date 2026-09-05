@@ -1,9 +1,6 @@
 import { type RefObject, useCallback, useEffect, useMemo, useRef } from "react"
 
-import {
-	ActivityIndicator,
-	type ActivityIndicatorKind,
-} from "@workspace/ui/components/activity-indicator"
+import { ActivityIndicator } from "@workspace/ui/components/activity-indicator"
 import { AppHeader } from "@workspace/ui/components/app-header"
 import { Avatar } from "@workspace/ui/components/avatar"
 import type { BotStopProps } from "@workspace/ui/components/bot-identity-avatar"
@@ -127,23 +124,26 @@ import type { ReportedRunsByTurnId } from "@/lib/routines/routine-contract"
 
 type WorkingBotProps = BotStopProps & {
 	face: ThreadFace
-	kind?: ActivityIndicatorKind
-	label?: string
+	work: WorkingState
 }
 
-const WorkingBot = ({ face, kind, label, ...stop }: WorkingBotProps) => (
+const WorkingBot = ({ face, work, ...stop }: WorkingBotProps) => (
 	<ActivityIndicator
 		{...stop}
 		animal={face.animal}
 		blot={face.blot}
 		botId={face.id}
 		image={face.image}
-		kind={kind}
-		label={label}
+		kind={work.kind}
+		label={work.label}
 		name={face.name}
 		seed={face.id}
+		startedAt={work.startedAt}
+		waitingOn={work.waitingOn}
 	/>
 )
+
+const UP_NEXT: WorkingState = { kind: "waiting", waitingOn: "next" }
 
 const toPinnedRow = (
 	{ id, bubble }: PinnedBubble,
@@ -575,14 +575,7 @@ const BotThreadTail = ({
 
 	return (
 		<>
-			{botWork ? (
-				<WorkingBot
-					{...stop}
-					face={face}
-					kind={botWork.kind}
-					label={botWork.label}
-				/>
-			) : null}
+			{botWork ? <WorkingBot {...stop} face={face} work={botWork} /> : null}
 			{thread.state.outbox.length > 0 ? (
 				<TurnGroup>
 					{thread.state.outbox.map((entry) => (
@@ -647,14 +640,13 @@ const ConversationThreadTail = ({
 				<WorkingBot
 					face={seated}
 					key={seated.id}
-					kind={speaking.work.kind}
-					label={speaking.work.label}
 					onStop={stopOf(speaking)}
 					stoppable
+					work={speaking.work}
 				/>
 			))}
 			{waitingRowsIn(waitingBotIds, speakers, bots).map((seated) => (
-				<WorkingBot face={seated} key={seated.id} kind="waiting" />
+				<WorkingBot face={seated} key={seated.id} work={UP_NEXT} />
 			))}
 		</>
 	)

@@ -36,6 +36,7 @@ export type ChatState = {
 	runtime: RuntimeScope | null
 	connection: ConnectionState
 	turn: TurnState
+	turnStartedAt: number | null
 	sessionOpen: boolean
 	sessionId: string | null
 	commands: AgentCommand[]
@@ -82,6 +83,7 @@ export const initialChatState: ChatState = {
 	runtime: null,
 	connection: "checking",
 	turn: "idle",
+	turnStartedAt: null,
 	sessionOpen: false,
 	sessionId: null,
 	commands: [],
@@ -431,7 +433,29 @@ function applyStopRejected(state: ChatState, error: TransportError): ChatState {
 	return next.turn === "stopping" ? { ...next, turn: "failed" } : next
 }
 
-export function chatReducer(state: ChatState, action: ChatAction): ChatState {
+const withTurnInstant = (
+	state: ChatState,
+	next: ChatState,
+	at: number,
+): ChatState => {
+	if (state.turn === next.turn) {
+		return next
+	}
+	if (!isTurnBusy(next.turn)) {
+		return next.turnStartedAt === null ? next : { ...next, turnStartedAt: null }
+	}
+	return isTurnBusy(state.turn) ? next : { ...next, turnStartedAt: at }
+}
+
+export function chatReducer(
+	state: ChatState,
+	action: ChatAction,
+	at: number,
+): ChatState {
+	return withTurnInstant(state, reducedChat(state, action), at)
+}
+
+function reducedChat(state: ChatState, action: ChatAction): ChatState {
 	switch (action.type) {
 		case "driverEvent":
 			return isSameRuntimeScope(action.scope, state.runtime)
