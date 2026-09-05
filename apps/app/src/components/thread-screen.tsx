@@ -45,7 +45,10 @@ import {
 	QuestionPrompt,
 	SpokenApproval,
 } from "@/components/thread-prompt"
-import { ThreadRoutines } from "@/components/thread-routines"
+import {
+	type ActivityPanel,
+	ThreadRoutines,
+} from "@/components/thread-routines"
 import { QueuedTurn, RefusedTurn, ThreadTurn } from "@/components/thread-turn"
 import type { AttachmentsOwner } from "@/lib/chat/attachments-contract"
 import type { AttachmentsController } from "@/lib/chat/attachments-controller"
@@ -733,6 +736,7 @@ const ThreadNotices = ({
 }
 
 type ThreadViewProps = {
+	activityPanel: ActivityPanel
 	thread: LoadedThread
 	bots: Bot[]
 	attachments: AttachmentsController
@@ -742,6 +746,7 @@ type ThreadViewProps = {
 }
 
 function ThreadView({
+	activityPanel,
 	thread,
 	bots: known,
 	attachments,
@@ -980,6 +985,7 @@ function ThreadView({
 		<RosterProvider bots={bots}>
 			<ThreadRoutines
 				{...routinesScope}
+				activityPanel={activityPanel}
 				missions={missions}
 				onOpenMission={onOpenMission}
 			>
@@ -990,6 +996,7 @@ function ThreadView({
 }
 
 type ThreadScreenProps = {
+	activityPanel: ActivityPanel
 	thread: Thread
 	bots: Bot[]
 	attachments: AttachmentsController
@@ -1003,6 +1010,7 @@ type ConversationThreadViewProps = Omit<ThreadScreenProps, "thread"> & {
 }
 
 function ConversationThreadView({
+	activityPanel,
 	thread,
 	bots,
 	attachments,
@@ -1017,6 +1025,7 @@ function ConversationThreadView({
 
 	return (
 		<ThreadView
+			activityPanel={activityPanel}
 			attachments={attachments}
 			bots={bots}
 			drafts={drafts}
@@ -1032,6 +1041,7 @@ type BotThreadViewProps = Omit<ThreadScreenProps, "thread"> & {
 }
 
 function BotThreadView({
+	activityPanel,
 	thread,
 	bots,
 	attachments,
@@ -1046,6 +1056,7 @@ function BotThreadView({
 
 	return (
 		<ThreadView
+			activityPanel={activityPanel}
 			attachments={attachments}
 			bots={bots}
 			drafts={drafts}
@@ -1057,6 +1068,7 @@ function BotThreadView({
 }
 
 export function ThreadScreen({
+	activityPanel,
 	thread,
 	bots,
 	attachments,
@@ -1067,6 +1079,7 @@ export function ThreadScreen({
 	if (thread.kind === "conversation") {
 		return (
 			<ConversationThreadView
+				activityPanel={activityPanel}
 				attachments={attachments}
 				bots={bots}
 				drafts={drafts}
@@ -1080,6 +1093,7 @@ export function ThreadScreen({
 
 	return (
 		<BotThreadView
+			activityPanel={activityPanel}
 			attachments={attachments}
 			bots={bots}
 			drafts={drafts}

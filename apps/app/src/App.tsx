@@ -577,6 +577,21 @@ export function App() {
 		[user.controller],
 	)
 
+	const changeActivityPanelOpen = useCallback(
+		(isOpen: boolean) => {
+			void user.controller.setActivityPanelOpen(isOpen)
+		},
+		[user.controller],
+	)
+
+	const activityPanel = useMemo(
+		() => ({
+			isOpen: preferences.activityPanelOpen,
+			onOpenChange: changeActivityPanelOpen,
+		}),
+		[preferences.activityPanelOpen, changeActivityPanelOpen],
+	)
+
 	const changeColorScheme = useCallback(
 		(colorScheme: ColorScheme) => {
 			void user.controller.setColorScheme(colorScheme)
@@ -636,6 +651,7 @@ export function App() {
 				}
 			>
 				<WorkspaceBody
+					activityPanel={activityPanel}
 					attachments={attachments}
 					bot={selected}
 					bots={bots}

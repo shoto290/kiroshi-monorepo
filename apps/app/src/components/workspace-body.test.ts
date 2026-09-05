@@ -8,12 +8,13 @@ import {
 	screen,
 	within,
 } from "@testing-library/react"
-import { createElement } from "react"
+import { type ComponentProps, createElement, useState } from "react"
 import { afterEach, beforeEach, describe, expect, it, vi } from "vitest"
 
 import { NoticeSurface } from "@workspace/ui/components/notice-surface"
 import "@workspace/ui/lib/i18n"
 
+import type { ActivityPanel } from "@/components/thread-routines"
 import { WorkspaceBody } from "@/components/workspace-body"
 import { createAttachmentsController } from "@/lib/chat/attachments-controller"
 import { createChatController } from "@/lib/chat/chat-controller"
@@ -150,12 +151,39 @@ const createFakeRoster = () => {
 	}
 }
 
+type WorkspaceBodyHarnessProps = Omit<
+	ComponentProps<typeof WorkspaceBody>,
+	"activityPanel"
+> & {
+	isActivityPanelOpenAtFirst: boolean
+}
+
+const WorkspaceBodyHarness = ({
+	isActivityPanelOpenAtFirst,
+	...body
+}: WorkspaceBodyHarnessProps) => {
+	const [isOpen, setOpen] = useState(isActivityPanelOpenAtFirst)
+
+	return createElement(WorkspaceBody, {
+		...body,
+		activityPanel: { isOpen, onOpenChange: setOpen },
+	})
+}
+
 type Workspace = {
 	bot: Bot
 	conversation: Conversation
 	otherConversation: Conversation
 	driver: ScriptedDriver
-	body: (selected?: Conversation) => ReturnType<typeof createElement>
+	body: (options?: BodyOptions) => ReturnType<typeof createElement>
+	controlledBody: (
+		activityPanel: ActivityPanel,
+	) => ReturnType<typeof createElement>
+}
+
+type BodyOptions = {
+	selected?: Conversation
+	isActivityPanelOpenAtFirst?: boolean
 }
 
 const workspaceOf = async (store = createFakeTranscriptStore()) => {
@@ -178,31 +206,46 @@ const workspaceOf = async (store = createFakeTranscriptStore()) => {
 	const roster = createFakeRoster()
 	const missions = createOpenedMissionController(roster)
 
+	const bodyProps = (selected: Conversation) => {
+		roster.select(selected.id)
+
+		return {
+			attachments,
+			bots: [bot],
+			chat: { state: initialChatState, controller: chatController },
+			conversation: selected,
+			conversationRuntimes: runtimes,
+			drafts: createDraftsController(),
+			haveSpacesFailed: false,
+			isConversationSettingsOpen: false,
+			isOverlayOpen: false,
+			isSettingsOpen: false,
+			missions,
+			onOpenConversationSettings: () => undefined,
+			onRetrySpaces: () => undefined,
+			onToggleSettings: () => undefined,
+			readerName: "Reader",
+		}
+	}
+
 	const workspace: Workspace = {
 		bot,
 		conversation,
 		otherConversation,
 		driver,
-		body: (selected = conversation) => {
-			roster.select(selected.id)
-			return createElement(WorkspaceBody, {
-				attachments,
-				bots: [bot],
-				chat: { state: initialChatState, controller: chatController },
-				conversation: selected,
-				conversationRuntimes: runtimes,
-				drafts: createDraftsController(),
-				haveSpacesFailed: false,
-				isConversationSettingsOpen: false,
-				isOverlayOpen: false,
-				isSettingsOpen: false,
-				missions,
-				onOpenConversationSettings: () => undefined,
-				onRetrySpaces: () => undefined,
-				onToggleSettings: () => undefined,
-				readerName: "Reader",
-			})
-		},
+		body: ({
+			selected = conversation,
+			isActivityPanelOpenAtFirst = false,
+		}: BodyOptions = {}) =>
+			createElement(WorkspaceBodyHarness, {
+				...bodyProps(selected),
+				isActivityPanelOpenAtFirst,
+			}),
+		controlledBody: (activityPanel: ActivityPanel) =>
+			createElement(WorkspaceBody, {
+				...bodyProps(conversation),
+				activityPanel,
+			}),
 	}
 
 	return workspace
@@ -434,7 +477,7 @@ describe("WorkspaceBody missions", () => {
 		await openMission()
 		expect(missionHeader()).toBeTruthy()
 
-		view.rerender(workspace.body(workspace.otherConversation))
+		view.rerender(workspace.body({ selected: workspace.otherConversation }))
 		await settle()
 		expect(missionHeader()).toBeNull()
 
@@ -483,5 +526,72 @@ describe("WorkspaceBody missions", () => {
 
 		await screen.findAllByText(SEND_FAILURE_TITLE)
 		expect(missionHeader()).toBeTruthy()
+	})
+})
+
+describe("WorkspaceBody activity panel", () => {
+	let layout: FakeLayout
+
+	beforeEach(() => {
+		layout = fakeLayout()
+		vi.clearAllMocks()
+		listRoutines.mockResolvedValue([])
+		listSources.mockResolvedValue([])
+		listMissions.mockResolvedValue({ open: [], done: [] })
+		listenToMissions.mockResolvedValue(() => undefined)
+	})
+
+	afterEach(() => {
+		cleanup()
+		layout.restore()
+	})
+
+	const activityToggle = () => screen.getByRole("button", { name: ACTIVITY })
+
+	const isPanelOpen = () =>
+		activityToggle().getAttribute("aria-expanded") === "true"
+
+	it("opens the first thread with the panel already open", async () => {
+		const workspace = await workspaceOf()
+		render(workspace.body({ isActivityPanelOpenAtFirst: true }))
+		await settle()
+
+		expect(isPanelOpen()).toBe(true)
+	})
+
+	it("renders the panel closed when the preference is not set", async () => {
+		const workspace = await workspaceOf()
+		render(workspace.body())
+		await settle()
+
+		expect(isPanelOpen()).toBe(false)
+	})
+
+	it("holds the panel open when the reader moves to another conversation", async () => {
+		const workspace = await workspaceOf()
+		const view = render(workspace.body())
+		await settle()
+
+		fireEvent.click(activityToggle())
+		await settle()
+		expect(isPanelOpen()).toBe(true)
+
+		view.rerender(workspace.body({ selected: workspace.otherConversation }))
+		await settle()
+
+		expect(isPanelOpen()).toBe(true)
+	})
+
+	it("asks for the new value and shows only the state it is given", async () => {
+		const workspace = await workspaceOf()
+		const onOpenChange = vi.fn()
+		render(workspace.controlledBody({ isOpen: false, onOpenChange }))
+		await settle()
+
+		fireEvent.click(activityToggle())
+		await settle()
+
+		expect(onOpenChange).toHaveBeenCalledWith(true)
+		expect(isPanelOpen()).toBe(false)
 	})
 })

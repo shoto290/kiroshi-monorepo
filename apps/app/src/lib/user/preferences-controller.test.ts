@@ -499,6 +499,32 @@ describe("the space the reader is in", () => {
 	})
 })
 
+describe("the activity panel the reader opens", () => {
+	it("is shown, mirrored, and written into the record", async () => {
+		const host = aHost()
+		const controller = await loaded()
+
+		const written = controller.setActivityPanelOpen(true)
+
+		expect(controller.getState().preferences.activityPanelOpen).toBe(true)
+		await written
+		expect(host()).toEqual({ ...DEFAULTS, activityPanelOpen: true })
+	})
+
+	it("goes back to what the host last answered when its write is refused", async () => {
+		aHost({ ...DEFAULTS, activityPanelOpen: true })
+		const controller = await loaded()
+		hostInvoke.mockRejectedValue({
+			kind: "storage",
+			failure: { kind: "sqlite", detail: "disk I/O error" },
+		})
+
+		await controller.setActivityPanelOpen(false)
+
+		expect(controller.getState().preferences.activityPanelOpen).toBe(true)
+	})
+})
+
 describe("the settings the chip opens", () => {
 	it("stand open until they are closed, and nothing else moves", async () => {
 		aHost()
