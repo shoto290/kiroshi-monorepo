@@ -1,7 +1,6 @@
 import { cva } from "class-variance-authority"
 import { useTranslation } from "react-i18next"
 
-import { BOT_TITLE_BADGE_SHAPE } from "@workspace/ui/components/badge"
 import { type Icon, Icons } from "@workspace/ui/components/icons"
 import type { MissionState } from "@workspace/ui/components/mission"
 import { cn } from "@workspace/ui/lib/utils"
@@ -24,12 +23,10 @@ const MISSION_STATE_MARK_CLASS: Record<MissionState, string> = {
 	done: "text-muted-foreground",
 }
 
-type MissionStatePillSize = "default" | "titleBadge"
-
 type MissionStateTone = "neutral" | "outline" | "danger"
 
 const missionStatePillVariants = cva(
-	"inline-flex w-fit max-w-full shrink-0 items-center gap-1 whitespace-nowrap font-medium",
+	"inline-flex h-5 w-fit max-w-full shrink-0 items-center gap-1 whitespace-nowrap rounded-2xl py-0.5 pr-2 pl-1.5 font-medium text-xs [&>svg]:size-3",
 	{
 		variants: {
 			tone: {
@@ -37,13 +34,6 @@ const missionStatePillVariants = cva(
 				outline: "border border-border text-foreground",
 				danger: "bg-destructive/10 text-foreground dark:bg-destructive/20",
 			},
-			size: {
-				default: "h-5 rounded-2xl py-0.5 pr-2 pl-1.5 text-xs [&>svg]:size-3",
-				titleBadge: cn(BOT_TITLE_BADGE_SHAPE, "[&>svg]:size-2.5"),
-			},
-		},
-		defaultVariants: {
-			size: "default",
 		},
 	},
 )
@@ -59,22 +49,17 @@ const MISSION_STATE_TONE: Record<MissionState, MissionStateTone> = {
 
 type MissionStatePillProps = {
 	state: MissionState
-	size?: MissionStatePillSize
 	className?: string
 }
 
-const MissionStatePill = ({
-	state,
-	size = "default",
-	className,
-}: MissionStatePillProps) => {
+const MissionStatePill = ({ state, className }: MissionStatePillProps) => {
 	const { t } = useTranslation("chat")
 	const Mark = MISSION_STATE_MARK[state]
 
 	return (
 		<span
 			className={cn(
-				missionStatePillVariants({ size, tone: MISSION_STATE_TONE[state] }),
+				missionStatePillVariants({ tone: MISSION_STATE_TONE[state] }),
 				className,
 			)}
 			data-slot="mission-state-pill"
@@ -89,8 +74,4 @@ const MissionStatePill = ({
 	)
 }
 
-export {
-	MissionStatePill,
-	type MissionStatePillProps,
-	type MissionStatePillSize,
-}
+export { MissionStatePill, type MissionStatePillProps }

@@ -14,29 +14,8 @@ import {
 	missionBadgeFor,
 } from "@workspace/ui/components/mission"
 import { MissionCard } from "@workspace/ui/components/mission-card"
-import { missionToolMark } from "@workspace/ui/components/mission-marks"
-import { MissionStatePill } from "@workspace/ui/components/mission-state-pill"
 import { TURN_AVATAR_SIZE } from "@workspace/ui/components/turn"
 import { cn } from "@workspace/ui/lib/utils"
-
-type MissionToolMarkProps = {
-	tool: string
-}
-
-const MissionToolMark = ({ tool }: MissionToolMarkProps) => {
-	const Mark = missionToolMark(tool)
-
-	return (
-		<span
-			aria-label={tool}
-			className="inline-flex size-3 shrink-0 items-center justify-center text-muted-foreground"
-			data-slot="mission-tool-mark"
-			role="img"
-		>
-			<Mark aria-hidden="true" className="size-full" />
-		</span>
-	)
-}
 
 type MissionTurnProps = {
 	mission: MissionCardModel
@@ -57,19 +36,10 @@ const MissionTurn = ({ mission, onOpen }: MissionTurnProps) => {
 				<MessageAuthor
 					author={bot}
 					className={cn(
-						"col-start-2 row-start-1 flex-wrap pb-1",
+						"col-start-2 row-start-1 pb-1",
 						MESSAGE_BUBBLE_INLINE_PADDING,
 					)}
-				>
-					{tools.map((tool) => (
-						<MissionToolMark key={tool} tool={tool} />
-					))}
-					{isWorking ? (
-						<span className="sr-only">{t(`missions.state.${state}`)}</span>
-					) : (
-						<MissionStatePill size="titleBadge" state={state} />
-					)}
-				</MessageAuthor>
+				/>
 				<span
 					aria-hidden="true"
 					className="col-start-1 row-start-2 self-end"
@@ -93,7 +63,9 @@ const MissionTurn = ({ mission, onOpen }: MissionTurnProps) => {
 					isClosed={isClosed}
 					objective={objective}
 					onOpen={onOpen}
+					state={state}
 					ticket={ticket}
+					tools={tools}
 				/>
 			</MessageContent>
 		</Message>

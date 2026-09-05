@@ -34,7 +34,7 @@ const meta = preview.meta({
 		docs: {
 			description: {
 				component:
-					"The body of a mission turn: a soft bubble holding the objective and, under it, the ticket the mission answers. The whole bubble opens the mission thread, the ticket line opens the ticket in the browser, and the two are separate keyboard targets. Reach for it through `MissionTurn`, which gives it the author line and the gutter it belongs to.",
+					"The body of a mission turn: a soft bubble opening on the tools the mission runs with and the pill saying where it stands, then the objective and the ticket it answers. The whole bubble opens the mission thread, the ticket line opens the ticket in the browser, and the two are separate keyboard targets. Reach for it through `MissionTurn`, which gives it the author line and the gutter it belongs to.",
 			},
 		},
 	},
@@ -46,7 +46,7 @@ export const Default = meta.story({
 		docs: {
 			description: {
 				story:
-					"A running mission against a ticket the app knows. Check that the objective reads at full contrast, that the ticket line carries its platform mark, its identifier and its title in the muted foreground, and that Tab reaches the bubble first and the ticket second, each with its own focus ring. Pick `WithoutTicket` for a mission whose ticket the app cannot open.",
+					"A running mission against a ticket the app knows. Check that the title row reads before the objective, that the ticket line carries its platform mark, its identifier and its title in the muted foreground, and that Tab reaches the bubble first and the ticket second, each with its own focus ring. Pick `Unlinkable` for a mission whose ticket the app cannot open.",
 			},
 		},
 	},

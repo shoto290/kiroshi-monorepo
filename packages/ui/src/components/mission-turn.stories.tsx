@@ -39,15 +39,6 @@ const UNKNOWN_TOOL_MISSION_CARD: MissionCardModel = {
 	tools: ["Screenshot"],
 }
 
-const pillMatchesTheBadgeBeforeIt = (canvasElement: HTMLElement) => {
-	const badge = slotIn(canvasElement, "bot-title-badge")
-	const pill = slotIn(canvasElement, "mission-state-pill")
-
-	return expect(pill.getBoundingClientRect().height).toBe(
-		badge.getBoundingClientRect().height,
-	)
-}
-
 const meta = preview.meta({
 	title: "Conversation/Missions/MissionTurn",
 	component: MissionTurn,
@@ -56,7 +47,7 @@ const meta = preview.meta({
 		docs: {
 			description: {
 				component:
-					"A mission as it lands in the transcript it was opened from: an assistant turn like any other, with the bot's own author line above a soft bubble and the bot's avatar in the gutter. The author line carries where the mission stands and which tools it runs with, the bubble carries the objective and the ticket it answers. Reach for it in a conversation feed; the bubble on its own is `MissionCard`.",
+					"A mission as it lands in the transcript it was opened from: an assistant turn like any other, with the bot's own author line above a soft bubble and the bot's avatar in the gutter. The author line names the bot and nothing more; the bubble opens on which tools the mission runs with and where it stands, then carries the objective and the ticket it answers. Reach for it in a conversation feed; the bubble on its own is `MissionCard`.",
 			},
 		},
 	},
@@ -69,7 +60,7 @@ export const Working = meta.story({
 		docs: {
 			description: {
 				story:
-					"A mission still running, on tools it named itself, against a ticket from a platform the app ships no mark for. Check that the eye reads the state off the avatar working in the gutter rather than off a pill, that a screen reader is still given the word, and that the three tool marks follow the title badge. Pick `WaitingForTheReader` for the state that asks something of the reader.",
+					"A mission still running, on tools it named itself, against a ticket from a platform the app ships no mark for. Check that the eye reads the state off the avatar working in the gutter rather than off a pill, that a screen reader is still given the word, and that the title row of the bubble then holds the three tool marks alone. Pick `WaitingForTheReader` for the state that asks something of the reader.",
 			},
 		},
 	},
@@ -84,15 +75,13 @@ export const WaitingForTheReader = meta.story({
 		docs: {
 			description: {
 				story:
-					"The mission stopped on a question for its reader. Check that the pill closes the author line after the tool marks, that it says so in words, that the attention badge sits on the gutter avatar, and that it matches the title badge in height, radius and text size. Pick `Working` for the state that carries no pill at all.",
+					"The mission stopped on a question for its reader. Check that the author line names the bot and nothing else, that the pill opens the bubble after the tool marks and says the state in words, and that the attention badge sits on the gutter avatar. Pick `Working` for the state that carries no pill at all.",
 			},
 		},
 	},
-	play: async ({ args, canvas, canvasElement, userEvent }) => {
+	play: async ({ args, canvas, userEvent }) => {
 		const open = canvas.getByRole("button")
 		const ticket = canvas.getByRole("link")
-
-		await pillMatchesTheBadgeBeforeIt(canvasElement)
 
 		await userEvent.click(open)
 		await expect(args.onOpen).toHaveBeenCalledWith(WAITING_MISSION_CARD.id)
@@ -112,7 +101,7 @@ export const ReadyToMerge = meta.story({
 		docs: {
 			description: {
 				story:
-					"The work is done and waits to be merged. Check that the pill reads as an outline beside the title badge rather than as a colour block, and that the gutter avatar carries no badge — nothing is asked of the reader here. Pick `Done` for the mission that has already been closed.",
+					"The work is done and waits to be merged. Check that the pill reads as an outline rather than as a colour block, and that the gutter avatar carries no badge — nothing is asked of the reader here. Pick `Done` for the mission that has already been closed.",
 			},
 		},
 	},
@@ -124,12 +113,14 @@ export const Failed = meta.story({
 		docs: {
 			description: {
 				story:
-					"The run stopped on a failure and the mission is still open. Check that the pill names the failure in words as well as in colour, that its tinted form stands as tall as the title badge beside it, and that the objective stays at full contrast because the mission is not closed. Pick `Done` for the closed form.",
+					"The run stopped on a failure and the mission is still open. Check that the pill names the failure in words as well as in colour, and that the objective stays at full contrast because the mission is not closed. Pick `Done` for the closed form.",
 			},
 		},
 	},
 	play: async ({ canvasElement }) => {
-		await pillMatchesTheBadgeBeforeIt(canvasElement)
+		await expect(slotIn(canvasElement, "mission-state-pill")).toHaveTextContent(
+			"Failed",
+		)
 	},
 })
 
@@ -157,7 +148,7 @@ export const WithoutTools = meta.story({
 		docs: {
 			description: {
 				story:
-					"A mission that runs on no tool at all. Check that the state pill follows the title badge with nothing between them, and that nothing is drawn in place of the marks. Pick `WithAnUnknownTool` for a mission whose tool has no mark of its own.",
+					"A mission that runs on no tool at all. Check that the title row of the bubble holds the state pill alone, with nothing drawn in place of the marks. Pick `WithAnUnknownTool` for a mission whose tool has no mark of its own.",
 			},
 		},
 	},
@@ -172,7 +163,7 @@ export const WithAnUnknownTool = meta.story({
 		docs: {
 			description: {
 				story:
-					"A tool the app ships no mark for, since the bot that opens a mission names its tools itself. Check that one default mark stands in, that it cannot be mistaken for the Superset, Paper or GitHub marks, and that a screen reader still reads the tool's own name. Pick `Working` for the marks the app does know.",
+					"A tool the app ships no mark for, since the bot that opens a mission names its tools itself. Check that one default mark stands in ahead of the pill, that it cannot be mistaken for the Superset, Paper or GitHub marks, and that a screen reader still reads the tool's own name. Pick `Working` for the marks the app does know.",
 			},
 		},
 	},

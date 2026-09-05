@@ -11,15 +11,60 @@ import type {
 	MissionCardModel,
 	MissionTicketLink,
 } from "@workspace/ui/components/mission"
-import { missionTicketPlatformMark } from "@workspace/ui/components/mission-marks"
+import {
+	missionTicketPlatformMark,
+	missionToolMark,
+} from "@workspace/ui/components/mission-marks"
+import { MissionStatePill } from "@workspace/ui/components/mission-state-pill"
 import { cn } from "@workspace/ui/lib/utils"
 
 type MissionCardProps = Pick<
 	MissionCardModel,
-	"id" | "objective" | "ticket" | "isClosed"
+	"id" | "objective" | "state" | "ticket" | "tools" | "isClosed"
 > & {
 	onOpen: (missionId: string) => void
 	className?: string
+}
+
+type MissionToolMarkProps = {
+	tool: string
+}
+
+const MissionToolMark = ({ tool }: MissionToolMarkProps) => {
+	const Mark = missionToolMark(tool)
+
+	return (
+		<span
+			aria-label={tool}
+			className="inline-flex size-4 shrink-0 items-center justify-center text-muted-foreground"
+			data-slot="mission-tool-mark"
+			role="img"
+		>
+			<Mark aria-hidden="true" className="size-full" />
+		</span>
+	)
+}
+
+type MissionTitleRowProps = Pick<MissionCardModel, "state" | "tools">
+
+const MissionTitleRow = ({ state, tools }: MissionTitleRowProps) => {
+	const { t } = useTranslation("chat")
+
+	return (
+		<span
+			className="flex flex-wrap items-center gap-x-2 gap-y-1"
+			data-slot="mission-title-row"
+		>
+			{tools.map((tool) => (
+				<MissionToolMark key={tool} tool={tool} />
+			))}
+			{state === "working" ? (
+				<span className="sr-only">{t(`missions.state.${state}`)}</span>
+			) : (
+				<MissionStatePill state={state} />
+			)}
+		</span>
+	)
 }
 
 const MISSION_TICKET_LINE =
@@ -65,7 +110,9 @@ const MissionTicketLine = ({ ticket }: MissionTicketLineProps) => {
 const MissionCard = ({
 	id,
 	objective,
+	state,
 	ticket,
+	tools,
 	isClosed,
 	onOpen,
 	className,
@@ -85,20 +132,23 @@ const MissionCard = ({
 					type="button"
 				/>
 				<span
-					className="flex flex-col gap-1"
+					className="flex flex-col gap-2"
 					data-closed={isClosed}
 					data-slot="mission-card"
 				>
-					<span
-						className={cn(
-							"wrap-break-word",
-							isClosed && "text-muted-foreground",
-						)}
-						data-slot="mission-objective"
-					>
-						{objective}
+					<MissionTitleRow state={state} tools={tools} />
+					<span className="flex flex-col gap-1">
+						<span
+							className={cn(
+								"wrap-break-word",
+								isClosed && "text-muted-foreground",
+							)}
+							data-slot="mission-objective"
+						>
+							{objective}
+						</span>
+						<MissionTicketLine ticket={ticket} />
 					</span>
-					<MissionTicketLine ticket={ticket} />
 				</span>
 			</MessageBubbleContent>
 		</MessageBubble>
