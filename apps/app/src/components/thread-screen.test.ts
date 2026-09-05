@@ -495,6 +495,14 @@ const withoutMainConversation = (thread: BotThread): BotThread => ({
 	},
 })
 
+const withoutRuns = (thread: BotThread): BotThread => ({
+	...thread,
+	chat: {
+		...thread.chat,
+		state: { ...thread.chat.state, messages: [] },
+	},
+})
+
 const turnGroups = () =>
 	document.querySelectorAll('[data-slot="chat-turn-group"]')
 
@@ -683,6 +691,19 @@ describe("ThreadScreen", () => {
 			turnGroups()[0].compareDocumentPosition(card) &
 				Node.DOCUMENT_POSITION_FOLLOWING,
 		).toBeTruthy()
+	})
+
+	it("shows a mission of a thread holding no run at all", async () => {
+		listMissions.mockResolvedValue({ open: [SOLO_MISSION], done: [] })
+		render(
+			screenOf(
+				withoutRuns(threadOf({ id: "bot-1", name: "Nyx", said: "held" })),
+			),
+		)
+		await settle()
+
+		expect(within(missionCard()).getByText(SOLO_MISSION.objective)).toBeTruthy()
+		expect(turnGroups()).toHaveLength(0)
 	})
 
 	it("opens the mission thread the reader activates in the transcript", async () => {

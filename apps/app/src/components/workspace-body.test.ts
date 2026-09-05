@@ -1,6 +1,13 @@
 // @vitest-environment happy-dom
 
-import { act, cleanup, fireEvent, render, screen } from "@testing-library/react"
+import {
+	act,
+	cleanup,
+	fireEvent,
+	render,
+	screen,
+	within,
+} from "@testing-library/react"
 import { createElement } from "react"
 import { afterEach, beforeEach, describe, expect, it, vi } from "vitest"
 
@@ -211,7 +218,10 @@ const settle = () =>
 const openMission = async () => {
 	fireEvent.click(screen.getByRole("button", { name: ACTIVITY }))
 	await settle()
-	fireEvent.click(screen.getByRole("button", { name: new RegExp(OBJECTIVE) }))
+	const missions = screen.getByRole("region", { name: "Missions" })
+	fireEvent.click(
+		within(missions).getByRole("button", { name: new RegExp(OBJECTIVE) }),
+	)
 	await settle()
 }
 
