@@ -111,7 +111,7 @@ const chat = {
 		state: "{{name}} {{verb}}…",
 		labelled: "{{name}} · {{label}}",
 		mcp: "{{server}} · {{tool}}",
-		waitingTitled: "{{name}} vous attend · {{title}}…",
+		waitingTitled: "{{name}} vous attend… · {{title}}",
 		upNext: "{{name}} passe ensuite…",
 		stop: "Arrêter {{name}}",
 	},

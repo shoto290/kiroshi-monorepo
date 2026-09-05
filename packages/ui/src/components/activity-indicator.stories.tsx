@@ -405,7 +405,7 @@ export const WaitingForYou = meta.story({
 		...BUSY_BOT,
 		kind: "waiting",
 		name: "Atlas",
-		label: "Run the release script",
+		label: "Which wall holds?",
 	},
 	render: (args) => (
 		<div className="flex flex-col gap-4">
@@ -417,14 +417,17 @@ export const WaitingForYou = meta.story({
 		docs: {
 			description: {
 				story:
-					"The bot has a question or a permission pending and cannot go on without the reader. The first row carries the title of what is being asked, the second has none. Check that both read `is waiting for you` and end on the same trailing ellipsis, that neither shimmers and neither carries a clock — nothing is running, so there is nothing to time. Pick `UpNext` for a seat waiting on the wave rather than on the reader.",
+					"The bot has a question or a permission pending and cannot go on without the reader. The first row carries the title of what is being asked, a question ending on its own question mark, the second has none. Check that the ellipsis closes the waiting clause rather than the row, so the title stands last with nothing appended to it and the question mark is the final character; that neither row shimmers and neither carries a clock — nothing is running, so there is nothing to time. Pick `UpNext` for a seat waiting on the wave rather than on the reader.",
 			},
 		},
 	},
 	play: async ({ canvas, canvasElement }) => {
-		await expect(
-			canvas.getByText("Atlas is waiting for you · Run the release script…"),
-		).toBeVisible()
+		const titled = canvas.getByText(
+			"Atlas is waiting for you… · Which wall holds?",
+		)
+
+		await expect(titled).toBeVisible()
+		await expect(titled.textContent?.endsWith("?")).toBe(true)
 		await expect(canvas.getByText("Atlas is waiting for you…")).toBeVisible()
 		await expect(slotsIn(canvasElement, "bot-working-elapsed")).toHaveLength(0)
 		await expect(slotsIn(canvasElement, "text-shimmer")).toHaveLength(0)

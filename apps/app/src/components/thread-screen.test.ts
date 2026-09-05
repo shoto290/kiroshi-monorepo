@@ -1265,7 +1265,7 @@ describe("ThreadScreen", () => {
 		await settle()
 
 		expect(
-			screen.getByText("Ada is waiting for you · Which wall…"),
+			screen.getByText("Ada is waiting for you… · Which wall"),
 		).toBeTruthy()
 	})
 
