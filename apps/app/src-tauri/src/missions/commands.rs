@@ -30,7 +30,10 @@ pub struct MissionChanged {
 	pub state: MissionState,
 }
 
-fn announce_change<R: Runtime>(app: &AppHandle<R>, mission: &Mission) -> Result<(), MissionError> {
+pub(super) fn announce_change<R: Runtime>(
+	app: &AppHandle<R>,
+	mission: &Mission,
+) -> Result<(), MissionError> {
 	app.emit(CHANGED_EVENT, MissionChanged { mission_id: mission.id.clone(), state: mission.state })
 		.map_err(|error| MissionError::Undeliverable { detail: error.to_string() })
 }

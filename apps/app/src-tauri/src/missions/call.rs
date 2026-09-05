@@ -6,6 +6,7 @@ use serde_json::{json, Map, Value};
 use tauri::{Manager, Runtime};
 use uuid::Uuid;
 
+use super::commands::announce_change;
 use super::contract::{MissionEntry, MissionError, MissionEventKind};
 use crate::conversations::commands::ready;
 use crate::db;
@@ -85,7 +86,12 @@ async fn carried<R: Runtime>(
 	let entry =
 		MissionEntry { kind: MissionEventKind::AgentAsked, source: SOURCE.to_owned(), payload };
 	match database.missions().append_delivery(mission.id, entry, delivery_id).await {
-		Ok(_) => Ok(ACCEPTED),
+		Ok(written) => {
+			if let Err(failure) = announce_change(&calls.app, &written) {
+				eprintln!("a hook call moved a mission the front was not told about: {failure:?}");
+			}
+			Ok(ACCEPTED)
+		}
 		Err(MissionError::UnknownMission { .. } | MissionError::MissionAlreadyClosed { .. }) => {
 			Ok(REFUSED)
 		}
@@ -126,12 +132,13 @@ mod tests {
 	use std::sync::Arc;
 
 	use tauri::test::{mock_builder, mock_context, noop_assets, MockRuntime};
-	use tauri::App;
+	use tauri::{App, Listener as _};
 	use tokio::io::{AsyncReadExt, AsyncWriteExt};
 	use tokio::net::TcpStream;
 
+	use super::super::commands::CHANGED_EVENT;
 	use super::super::contract::{
-		Mission, MissionDraft, MissionEvent, MissionNote, MissionWatch, Ticket,
+		Mission, MissionDraft, MissionEvent, MissionNote, MissionState, MissionWatch, Ticket,
 	};
 	use super::*;
 	use crate::routines::core::Clock;
@@ -324,6 +331,76 @@ mod tests {
 				"message": "Claude needs your permission",
 			}),
 		);
+
+		webhook.stop();
+		cleaned(&app);
+	}
+
+	fn heard(app: &App<MockRuntime>) -> std::sync::mpsc::Receiver<String> {
+		let (sender, received) = std::sync::mpsc::channel();
+		app.handle().listen(CHANGED_EVENT, move |event| {
+			let _ = sender.send(event.payload().to_owned());
+		});
+		received
+	}
+
+	fn announced(received: &std::sync::mpsc::Receiver<String>) -> Vec<serde_json::Value> {
+		received
+			.try_iter()
+			.map(|payload| serde_json::from_str(&payload).expect("the payload is JSON"))
+			.collect()
+	}
+
+	async fn state_of(app: &App<MockRuntime>, mission_id: &str) -> MissionState {
+		let state = app.state::<db::DatabaseState>();
+		ready(&state)
+			.expect("the database opens")
+			.missions()
+			.detail(mission_id.to_owned())
+			.await
+			.expect("the mission reads")
+			.mission
+			.state
+	}
+
+	#[tokio::test]
+	async fn a_carried_call_tells_the_front_which_mission_moved_and_where_it_stands() {
+		let app = a_host("announced").await;
+		let mission = an_armed_mission(&app, A_KEY).await;
+		let webhook = listening(&app, Ticking::at(NOON));
+		let received = heard(&app);
+
+		let held = answered(webhook.address(), calling(Some(A_KEY), None, A_BODY)).await;
+
+		assert_eq!(held, answer(ACCEPTED));
+		assert_eq!(
+			announced(&received),
+			vec![json!({ "missionId": mission.id, "state": state_of(&app, &mission.id).await })],
+			"the front was not told the hook moved the mission"
+		);
+
+		webhook.stop();
+		cleaned(&app);
+	}
+
+	#[tokio::test]
+	async fn a_refused_call_tells_the_front_nothing() {
+		let app = a_host("unannounced").await;
+		let mission = an_armed_mission(&app, A_KEY).await;
+		let webhook = listening(&app, Ticking::at(NOON));
+		let received = heard(&app);
+
+		let refused =
+			answered(webhook.address(), calling(Some("no mission holds this"), None, A_BODY)).await;
+		let unreadable = answered(webhook.address(), calling(Some(A_KEY), None, "not json")).await;
+		closed(&app, &mission.id).await;
+		let shut = answered(webhook.address(), calling(Some(A_KEY), None, A_BODY)).await;
+
+		assert_eq!(
+			(refused, unreadable, shut),
+			(answer(REFUSED), answer(UNREADABLE), answer(REFUSED))
+		);
+		assert!(announced(&received).is_empty(), "a refused call told the front");
 
 		webhook.stop();
 		cleaned(&app);
