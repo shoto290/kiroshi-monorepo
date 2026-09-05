@@ -122,6 +122,7 @@ export const startMissionRunDriver = ({
 	const live = new Map<string, LiveMissionRun>()
 	const kept = new Map<string, MissionChanged>()
 	const starting = new Set<string>()
+	const settling = new Set<string>()
 	const states = createMissionStates()
 	let isStopped = false
 
@@ -134,7 +135,7 @@ export const startMissionRunDriver = ({
 	}
 
 	const isBusy = (missionId: string) =>
-		starting.has(missionId) || live.has(missionId)
+		starting.has(missionId) || settling.has(missionId) || live.has(missionId)
 
 	const shutdownSession = (scope: RuntimeScope) => {
 		void driver.shutdown(scope).catch(reporting("agent_shutdown"))
@@ -367,16 +368,19 @@ export const startMissionRunDriver = ({
 	}
 
 	const endOn = async (held: LiveMissionRun) => {
+		const { id } = held.call.mission
 		release(held)
+		settling.add(id)
 		shutdownSession(held.scope)
 
 		const settled = await readSettledMission(held)
 
-		if (settled) {
+		if (isClosed(settled)) {
 			states.remember({ missionId: settled.id, state: settled.state })
 		}
 
-		takeAgain(held.call.mission.id)
+		settling.delete(id)
+		takeAgain(id)
 		return settled
 	}
 

@@ -379,13 +379,27 @@ describe("startMissionRunDriver", () => {
 	})
 
 	it("keeps the state of a change it dropped for being busy", async () => {
-		await harness.enter("waiting_bot")
 		await harness.enter("done", closedBy("poller"))
+		await harness.enter("waiting_bot")
 		expect(harness.starts).toHaveLength(1)
 
-		await harness.endTurn(reported("I cut the branch from main."))
+		await harness.endTurn(reported("The walls stand, handing over."))
+		await harness.enter("waiting_bot")
 
 		expect(harness.starts).toHaveLength(2)
+	})
+
+	it("answers a question the agent raised during a run it left open", async () => {
+		await harness.enter("failed", failedBy("agent-hook"))
+		await harness.enter("waiting_bot")
+
+		await harness.endTurn(reported("The build will not pass."))
+
+		expect(harness.starts).toHaveLength(2)
+		expect(harness.starts[1].scope).toMatchObject({
+			conversationId: harness.thread.id,
+		})
+		expect(harness.missions.reports).toEqual([])
 	})
 
 	it("cancels the turn of a refused run before it shuts its session down", async () => {
@@ -594,6 +608,20 @@ describe("startMissionRunDriver", () => {
 			[harness.mission.botId, "The walls stand, handing over."],
 		])
 		expect(harness.missions.detailCalls).toHaveLength(2)
+	})
+
+	it("holds a state announced while the mission of an ended run is read", async () => {
+		await harness.enter("failed", failedBy("agent-hook"))
+		harness.hold("done", closedBy("claude-code"))
+		harness.missions.stallDetail()
+
+		await harness.endTurn(reported("The walls stand, handing over."))
+		harness.missions.change({ missionId: harness.mission.id, state: "done" })
+		await settled()
+		harness.missions.releaseDetail()
+		await settled()
+
+		expect(harness.starts).toHaveLength(1)
 	})
 
 	it("takes the state its bot wrote when the reading at the end fails", async () => {
