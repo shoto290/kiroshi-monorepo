@@ -247,9 +247,6 @@ export const startMissionRunDriver = ({
 		}
 	}
 
-	const readCall = async (missionId: string) =>
-		callFor(await readMission(missionId))
-
 	const consider = async (changed: MissionChanged) => {
 		if (isBusy(changed.missionId)) {
 			kept.set(changed.missionId, changed)
@@ -267,7 +264,7 @@ export const startMissionRunDriver = ({
 
 		starting.add(changed.missionId)
 		try {
-			const call = await readCall(changed.missionId)
+			const call = callFor(await readMission(changed.missionId))
 			if (!call) {
 				return
 			}
