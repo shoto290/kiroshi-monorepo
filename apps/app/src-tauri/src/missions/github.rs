@@ -8,7 +8,8 @@ use serde_json::json;
 use tauri::{AppHandle, Manager, Runtime};
 use tokio::sync::watch as signal;
 
-use super::contract::{MissionEntry, MissionError, MissionEventKind, WatchedMission};
+use super::commands::announce_change;
+use super::contract::{Mission, MissionEntry, MissionError, MissionEventKind, WatchedMission};
 use crate::conversations::commands::ready;
 use crate::db;
 use crate::routines::core::{Clock, SystemClock};
@@ -67,7 +68,7 @@ async fn polling<R: Runtime>(app: AppHandle<R>, base: String, mut halted: signal
 	loop {
 		tokio::select! {
 			_ = halted.changed() => return,
-			_ = ticker.tick() => pass(&reach, database, &mut kept, &SystemClock).await,
+			_ = ticker.tick() => pass(&app, &reach, database, &mut kept, &SystemClock).await,
 		}
 	}
 }
@@ -246,7 +247,8 @@ impl Fingerprint {
 	}
 }
 
-pub(crate) async fn pass(
+pub(crate) async fn pass<R: Runtime>(
+	app: &AppHandle<R>,
 	reach: &Reach,
 	database: &db::Database,
 	kept: &mut Kept,
@@ -263,9 +265,19 @@ pub(crate) async fn pass(
 			return;
 		}
 		let id = mission.id.clone();
-		if let Err(failure) = seen(reach, database, kept, mission).await {
-			eprintln!("what became of mission {id} on github was not read: {failure}");
+		match seen(reach, database, kept, mission).await {
+			Ok(Some(written)) => told(app, &written),
+			Ok(None) => (),
+			Err(failure) => {
+				eprintln!("what became of mission {id} on github was not read: {failure}");
+			}
 		}
+	}
+}
+
+fn told<R: Runtime>(app: &AppHandle<R>, mission: &Mission) {
+	if let Err(failure) = announce_change(app, mission) {
+		eprintln!("github moved mission {} and the front was not told: {failure:?}", mission.id);
 	}
 }
 
@@ -274,13 +286,13 @@ async fn seen(
 	database: &db::Database,
 	kept: &mut Kept,
 	mission: WatchedMission,
-) -> Result<(), Failure> {
+) -> Result<Option<Mission>, Failure> {
 	let held = Fingerprint::held(&mission.fingerprint)?;
 	let sent = kept.etags.get(&mission.id).cloned();
 	match reach.pulls(&mission, sent.as_deref()).await? {
 		Answer::Held { until_ms } => {
 			kept.hold_until(until_ms);
-			Ok(())
+			Ok(None)
 		}
 		Answer::Unchanged => settling(reach, database, kept, &mission, held).await,
 		Answer::Read { etag, held: pulls } => {
@@ -295,13 +307,13 @@ async fn settling(
 	kept: &mut Kept,
 	mission: &WatchedMission,
 	held: Option<Fingerprint>,
-) -> Result<(), Failure> {
+) -> Result<Option<Mission>, Failure> {
 	let Some(standing) = held.filter(|held| !held.checks.settled()) else {
-		return Ok(());
+		return Ok(None);
 	};
 	let Some(checks) = learned_checks(reach, kept, &mission.repository, &standing.head_sha).await?
 	else {
-		return Ok(());
+		return Ok(None);
 	};
 	let fresh = Fingerprint { checks, ..standing.clone() };
 	recorded(database, &mission.id, Some(&standing), fresh, None).await
@@ -315,22 +327,23 @@ async fn listed(
 	held: Option<Fingerprint>,
 	etag: Option<String>,
 	pulls: Vec<Pull>,
-) -> Result<(), Failure> {
+) -> Result<Option<Mission>, Failure> {
 	let Some(pull) = pulls.into_iter().next() else {
 		kept.remember(&mission.id, etag);
-		return Ok(());
+		return Ok(None);
 	};
 	let checks = match asks_for_checks(held.as_ref(), &pull) {
 		false => held.as_ref().map_or(Checks::None, |held| held.checks),
 		true => match learned_checks(reach, kept, &mission.repository, &pull.head.sha).await? {
 			Some(checks) => checks,
-			None => return Ok(()),
+			None => return Ok(None),
 		},
 	};
 	let fresh = Fingerprint::of(&pull, checks);
-	recorded(database, &mission.id, held.as_ref(), fresh, Some(&pull.html_url)).await?;
+	let written =
+		recorded(database, &mission.id, held.as_ref(), fresh, Some(&pull.html_url)).await?;
 	kept.remember(&mission.id, etag);
-	Ok(())
+	Ok(written)
 }
 
 async fn learned_checks(
@@ -355,15 +368,14 @@ async fn recorded(
 	held: Option<&Fingerprint>,
 	fresh: Fingerprint,
 	url: Option<&str>,
-) -> Result<(), Failure> {
+) -> Result<Option<Mission>, Failure> {
 	if held == Some(&fresh) {
-		return Ok(());
+		return Ok(None);
 	}
 	let entries = appended(held, &fresh, url);
 	let stored = serde_json::to_string(&fresh)
 		.map_err(|error| Failure::Unreadable(format!("no fingerprint: {error}")))?;
-	database.missions().record_github(mission_id.to_owned(), entries, stored).await?;
-	Ok(())
+	Ok(database.missions().record_github(mission_id.to_owned(), entries, stored).await?)
 }
 
 fn asks_for_checks(held: Option<&Fingerprint>, pull: &Pull) -> bool {
@@ -502,6 +514,7 @@ mod tests {
 	use std::net::{Ipv4Addr, SocketAddr};
 	use std::path::PathBuf;
 	use std::sync::atomic::{AtomicI64, Ordering};
+	use std::sync::mpsc::channel;
 	use std::sync::Arc;
 
 	use axum::extract::{Path as AxumPath, State as Extracted};
@@ -510,10 +523,13 @@ mod tests {
 	use axum::Router;
 	use reqwest::header::AUTHORIZATION;
 	use serde_json::Value;
+	use tauri::test::{mock_builder, mock_context, noop_assets, MockRuntime};
+	use tauri::{App, Listener as _};
 	use tokio::sync::Mutex;
 
+	use super::super::commands::CHANGED_EVENT;
 	use super::super::contract::{
-		Mission, MissionDraft, MissionEvent, MissionNote, MissionState, MissionWatch, Ticket,
+		MissionDraft, MissionEvent, MissionNote, MissionState, MissionWatch, Ticket,
 	};
 	use super::*;
 	use crate::db::connection::temp_dir;
@@ -793,14 +809,41 @@ mod tests {
 		(held.state, held.closed_at.is_some())
 	}
 
-	async fn walked(stub: &Stub, database: &Database, kept: &mut Kept, clock: &Ticking) {
-		pass(&stub.reach(), database, kept, clock).await;
+	fn a_host() -> App<MockRuntime> {
+		mock_builder().build(mock_context(noop_assets())).expect("the app builds")
+	}
+
+	async fn announced_by(
+		reach: &Reach,
+		database: &Database,
+		kept: &mut Kept,
+		clock: &Ticking,
+	) -> Vec<Value> {
+		let app = a_host();
+		let (sender, received) = channel();
+		app.handle().listen(CHANGED_EVENT, move |event| {
+			let _ = sender.send(event.payload().to_owned());
+		});
+		pass(app.handle(), reach, database, kept, clock).await;
+		received
+			.try_iter()
+			.map(|payload| serde_json::from_str(&payload).expect("the payload is JSON"))
+			.collect()
+	}
+
+	async fn walked(
+		stub: &Stub,
+		database: &Database,
+		kept: &mut Kept,
+		clock: &Ticking,
+	) -> Vec<Value> {
+		announced_by(&stub.reach(), database, kept, clock).await
 	}
 
 	async fn walked_bearing(stub: &Stub, database: &Database, token: Option<&str>) {
 		let reach =
 			Reach::bearing(stub.base.clone(), token.map(str::to_owned)).expect("the client builds");
-		pass(&reach, database, &mut Kept::default(), &Ticking::at(NOON)).await;
+		announced_by(&reach, database, &mut Kept::default(), &Ticking::at(NOON)).await;
 	}
 
 	#[tokio::test]
@@ -836,6 +879,31 @@ mod tests {
 			Some("\"one\"".to_owned()),
 			"the second pass was not conditional on the entity tag it kept"
 		);
+
+		stub.stop.send_replace(true);
+		std::fs::remove_dir_all(&dir).expect("cleanup");
+	}
+
+	#[tokio::test]
+	async fn a_pass_that_writes_tells_the_front_and_a_pass_that_writes_nothing_tells_it_nothing() {
+		let (database, dir) = planted().await;
+		let mission = an_armed_mission(&database).await;
+		let stub = Stub::holding(a_pull("open", "abc", false), "\"one\"").await;
+		let clock = Ticking::at(NOON);
+		let mut kept = Kept::default();
+
+		let announced = walked(&stub, &database, &mut kept, &clock).await;
+
+		let (state, _) = state_of(&database, &mission.id).await;
+		assert_eq!(
+			announced,
+			vec![json!({ "missionId": mission.id, "state": state })],
+			"the front was not told which mission github moved and where it stands"
+		);
+
+		let silent = walked(&stub, &database, &mut kept, &clock).await;
+
+		assert!(silent.is_empty(), "a pass that wrote nothing told the front: {silent:?}");
 
 		stub.stop.send_replace(true);
 		std::fs::remove_dir_all(&dir).expect("cleanup");
