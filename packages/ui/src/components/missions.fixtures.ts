@@ -185,7 +185,8 @@ export const MISSION_AUTHOR: MessageAuthor = {
 
 export const WORKING_MISSION_CARD: MissionCardModel = {
 	id: "mission-ope-31",
-	bot: MISSION_AUTHOR,
+	author: MISSION_AUTHOR,
+	identity: MISSION_AUTHOR,
 	objective:
 		"Read every release of the packages this workspace depends on and report what changed.",
 	ticket: {
@@ -201,7 +202,8 @@ export const WORKING_MISSION_CARD: MissionCardModel = {
 
 export const WAITING_MISSION_CARD: MissionCardModel = {
 	id: "mission-ope-30",
-	bot: MISSION_AUTHOR,
+	author: MISSION_AUTHOR,
+	identity: MISSION_AUTHOR,
 	objective:
 		"Ship the mission thread and the card that summarises it in the conversation it came from.",
 	ticket: {
@@ -214,14 +216,17 @@ export const WAITING_MISSION_CARD: MissionCardModel = {
 	isClosed: false,
 }
 
+const CLOSED_MISSION_BOT: MessageAuthor = {
+	id: "bot-noor-beltran",
+	name: "Noor Beltran",
+	animal: "rabbit",
+	title: "Storage",
+}
+
 export const CLOSED_MISSION_CARD: MissionCardModel = {
 	id: "mission-ope-25",
-	bot: {
-		id: "bot-noor-beltran",
-		name: "Noor Beltran",
-		animal: "rabbit",
-		title: "Storage",
-	},
+	author: CLOSED_MISSION_BOT,
+	identity: CLOSED_MISSION_BOT,
 	objective:
 		"Store a mission, its thread, its events and the commands over them.",
 	ticket: {

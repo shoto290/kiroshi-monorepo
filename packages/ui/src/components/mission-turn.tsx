@@ -24,7 +24,8 @@ type MissionTurnProps = {
 
 const MissionTurn = ({ mission, onOpen }: MissionTurnProps) => {
 	const { t } = useTranslation("chat")
-	const { bot, id, isClosed, objective, state, ticket, tools } = mission
+	const { author, id, identity, isClosed, objective, state, ticket, tools } =
+		mission
 	const isWorking = state === "working"
 
 	return (
@@ -33,26 +34,28 @@ const MissionTurn = ({ mission, onOpen }: MissionTurnProps) => {
 				className="grid gap-x-2 gap-y-0"
 				style={{ gridTemplateColumns: `${TURN_AVATAR_SIZE}px 1fr` }}
 			>
-				<MessageAuthor
-					author={bot}
-					className={cn(
-						"col-start-2 row-start-1 pb-1",
-						MESSAGE_BUBBLE_INLINE_PADDING,
-					)}
-				/>
+				{author ? (
+					<MessageAuthor
+						author={author}
+						className={cn(
+							"col-start-2 row-start-1 pb-1",
+							MESSAGE_BUBBLE_INLINE_PADDING,
+						)}
+					/>
+				) : null}
 				<span
 					aria-hidden="true"
 					className="col-start-1 row-start-2 self-end"
 					data-slot="message-gutter"
 				>
 					<BotIdentityAvatar
-						animal={bot.animal}
+						animal={identity.animal}
 						badge={missionBadgeFor(state)}
-						blot={bot.blot}
-						image={bot.image}
+						blot={identity.blot}
+						image={identity.image}
 						kind="working"
-						name={bot.name}
-						seed={bot.id}
+						name={identity.name}
+						seed={identity.id}
 						size={TURN_AVATAR_SIZE}
 						working={isWorking}
 					/>

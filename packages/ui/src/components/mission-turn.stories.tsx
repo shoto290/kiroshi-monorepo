@@ -33,6 +33,17 @@ const TOOLLESS_MISSION_CARD: MissionCardModel = {
 	tools: [],
 }
 
+const TOOLLESS_WORKING_MISSION_CARD: MissionCardModel = {
+	...WORKING_MISSION_CARD,
+	id: "mission-ope-42",
+	tools: [],
+}
+
+const SOLO_MISSION_CARD: MissionCardModel = {
+	...WAITING_MISSION_CARD,
+	author: undefined,
+}
+
 const UNKNOWN_TOOL_MISSION_CARD: MissionCardModel = {
 	...WAITING_MISSION_CARD,
 	id: "mission-ope-51",
@@ -148,12 +159,53 @@ export const WithoutTools = meta.story({
 		docs: {
 			description: {
 				story:
-					"A mission that runs on no tool at all. Check that the title row of the bubble holds the state pill alone, with nothing drawn in place of the marks. Pick `WithAnUnknownTool` for a mission whose tool has no mark of its own.",
+					"A mission that runs on no tool at all. Check that the title row of the bubble holds the state pill alone, with nothing drawn in place of the marks. Pick `WorkingWithoutTools` for the same mission while it runs, when there is no pill to hold the row up either.",
 			},
 		},
 	},
 	play: async ({ canvasElement }) => {
 		await expect(slotsIn(canvasElement, "mission-tool-mark")).toHaveLength(0)
+	},
+})
+
+export const WorkingWithoutTools = meta.story({
+	args: { mission: TOOLLESS_WORKING_MISSION_CARD },
+	parameters: {
+		docs: {
+			description: {
+				story:
+					"A mission the bot opened without naming a tool, still running. Check that the bubble opens straight on the objective — no leading row, no space above it beyond the bubble's own padding — while a screen reader is still given the state. Pick `WithoutTools` for the same mission once it waits on its reader.",
+			},
+		},
+	},
+	play: async ({ canvas, canvasElement }) => {
+		await expect(slotsIn(canvasElement, "mission-title-row")).toHaveLength(0)
+		await expect(canvas.getByText("Working")).toBeInTheDocument()
+	},
+})
+
+export const InASoloThread = meta.story({
+	args: { mission: SOLO_MISSION_CARD },
+	parameters: {
+		docs: {
+			description: {
+				story:
+					"A thread with a single bot names it once, in the header, so no assistant row carries an author line. Check that the mission turn drops its own line rather than being the only row that names the bot, that the avatar stays in the gutter, and that the bubble still opens on the state. Pick `UnderTheTurnThatOpenedIt` for a thread that names its speakers.",
+			},
+		},
+	},
+	render: (args) => (
+		<div className="flex flex-col gap-6">
+			<TurnGroup>
+				<AssistantTurn identity={MISSION_AUTHOR}>
+					{OPENING_ANSWER}
+				</AssistantTurn>
+			</TurnGroup>
+			<MissionTurn {...args} />
+		</div>
+	),
+	play: async ({ canvasElement }) => {
+		await expect(slotsIn(canvasElement, "message-author")).toHaveLength(0)
 	},
 })
 

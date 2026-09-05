@@ -522,12 +522,16 @@ type MissionCardRowsProps = {
 
 const toMissionCardRow = (
 	mission: Mission,
-	author: MessageAuthor,
+	identity: ThreadFace,
+	author: MessageAuthor | undefined,
 	onOpen: (missionId: string) => void,
 ): TranscriptItem => ({
 	key: `mission-${mission.id}`,
 	render: () => (
-		<MissionTurn mission={toMissionCard(mission, author)} onOpen={onOpen} />
+		<MissionTurn
+			mission={toMissionCard(mission, identity, author)}
+			onOpen={onOpen}
+		/>
 	),
 })
 
@@ -542,8 +546,16 @@ const withMissionCards = ({
 		placed
 			.filter((opened) => opened.runIndex === runIndex)
 			.flatMap(({ mission }) => {
-				const author = authors.get(mission.botId) ?? faceOf(mission.botId)
-				return author ? [toMissionCardRow(mission, author, onOpen)] : []
+				const identity = faceOf(mission.botId)
+				if (!identity) return []
+				return [
+					toMissionCardRow(
+						mission,
+						identity,
+						authors.get(mission.botId),
+						onOpen,
+					),
+				]
 			})
 
 	return [

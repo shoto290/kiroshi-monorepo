@@ -163,7 +163,6 @@ export function MessageHeader({ className, ...props }: MessageHeaderProps) {
 
 export function MessageAuthor({
 	author,
-	children,
 	className,
 	...props
 }: MessageAuthorProps) {
@@ -190,7 +189,6 @@ export function MessageAuthor({
 				)}
 				title={author.title}
 			/>
-			{children}
 			{author.isLead ? (
 				<>
 					<Icons.Crown

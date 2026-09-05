@@ -6,6 +6,7 @@ import type {
 	MissionEventModel,
 } from "@workspace/ui/components/mission"
 import type { MissionRowModel } from "@workspace/ui/components/mission-row"
+import type { RosterBot } from "@workspace/ui/components/roster"
 
 import type {
 	Mission,
@@ -35,10 +36,12 @@ export const toMissionRows = (missions: Mission[]): MissionRowModel[] =>
 
 export const toMissionCard = (
 	mission: Mission,
-	bot: MessageAuthor,
+	identity: RosterBot,
+	author: MessageAuthor | undefined,
 ): MissionCardModel => ({
 	id: mission.id,
-	bot,
+	identity,
+	author,
 	objective: mission.objective,
 	ticket: {
 		externalId: mission.ticket.externalId,

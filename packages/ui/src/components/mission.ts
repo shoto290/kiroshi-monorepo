@@ -1,6 +1,7 @@
 import type { BotBadge } from "@workspace/ui/components/badge"
 import type { BotIdentityAvatarProps } from "@workspace/ui/components/bot-identity-avatar"
 import type { MessageAuthor } from "@workspace/ui/components/message"
+import type { RosterBot } from "@workspace/ui/components/roster"
 
 type MissionEventKind =
 	| "opened"
@@ -39,7 +40,8 @@ type MissionTicketLink = MissionTicket & {
 
 type MissionCardModel = {
 	id: string
-	bot: MessageAuthor
+	identity: RosterBot
+	author?: MessageAuthor
 	objective: string
 	ticket: MissionTicketLink
 	tools: string[]

@@ -20,7 +20,7 @@ const UNBROKEN_MISSION_CARD = {
 		"Follow every package this workspace depends on and open a mission for anything touching supercalifragilisticexpialidociousdesigntokensurface.",
 	ticket: {
 		...WAITING_MISSION_CARD.ticket,
-		externalId: "OPE-1042-supercalifragilisticexpialidocious",
+		externalId: "OPE-1042",
 		title:
 			"Rework the mission thread so a reader can follow a run that spans several days without losing the ticket it answers",
 	},
@@ -129,7 +129,7 @@ export const LongContent = meta.story({
 		docs: {
 			description: {
 				story:
-					"An objective and a ticket identifier that each hold a string longer than the bubble, in a container squeezed to 320 pixels. Check that all three of the objective, the identifier and the title break instead of overflowing, that the bubble grows taller rather than wider, and that nothing scrolls sideways at 200 percent zoom.",
+					"An objective and a ticket title that each hold a string longer than the bubble, in a container squeezed to 320 pixels. Check that both break instead of overflowing, that the identifier stays whole on the line it opens, that the bubble grows taller rather than wider, and that nothing scrolls sideways at 200 percent zoom.",
 			},
 		},
 	},

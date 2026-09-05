@@ -18,7 +18,7 @@ import {
 import { MissionStatePill } from "@workspace/ui/components/mission-state-pill"
 import { cn } from "@workspace/ui/lib/utils"
 
-type MissionCardProps = Omit<MissionCardModel, "bot"> & {
+type MissionCardProps = Omit<MissionCardModel, "author" | "identity"> & {
 	onOpen: (missionId: string) => void
 	className?: string
 }
@@ -46,6 +46,14 @@ type MissionTitleRowProps = Pick<MissionCardModel, "state" | "tools">
 
 const MissionTitleRow = ({ state, tools }: MissionTitleRowProps) => {
 	const { t } = useTranslation("chat")
+	const isWorking = state === "working"
+	const readState = isWorking ? (
+		<span className="sr-only">{t(`missions.state.${state}`)}</span>
+	) : (
+		<MissionStatePill state={state} />
+	)
+
+	if (isWorking && tools.length === 0) return readState
 
 	return (
 		<span
@@ -55,11 +63,7 @@ const MissionTitleRow = ({ state, tools }: MissionTitleRowProps) => {
 			{tools.map((tool) => (
 				<MissionToolMark key={tool} tool={tool} />
 			))}
-			{state === "working" ? (
-				<span className="sr-only">{t(`missions.state.${state}`)}</span>
-			) : (
-				<MissionStatePill state={state} />
-			)}
+			{readState}
 		</span>
 	)
 }
@@ -76,7 +80,7 @@ const MissionTicketLine = ({ ticket }: MissionTicketLineProps) => {
 	const line = (
 		<>
 			<Mark aria-hidden="true" className="size-3 shrink-0" />
-			<span className="min-w-0 wrap-break-word tabular-nums">
+			<span className="shrink-0 font-medium tabular-nums">
 				{ticket.externalId}
 			</span>
 			<span className="min-w-0 wrap-break-word">{ticket.title}</span>

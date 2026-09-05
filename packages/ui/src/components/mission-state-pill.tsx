@@ -1,9 +1,12 @@
-import { cva } from "class-variance-authority"
+import type { VariantProps } from "class-variance-authority"
 import { useTranslation } from "react-i18next"
 
+import { Badge, type badgeVariants } from "@workspace/ui/components/badge"
 import { type Icon, Icons } from "@workspace/ui/components/icons"
 import type { MissionState } from "@workspace/ui/components/mission"
 import { cn } from "@workspace/ui/lib/utils"
+
+type BadgeVariant = NonNullable<VariantProps<typeof badgeVariants>["variant"]>
 
 const MISSION_STATE_MARK: Record<MissionState, Icon> = {
 	working: Icons.Loading,
@@ -23,28 +26,13 @@ const MISSION_STATE_MARK_CLASS: Record<MissionState, string> = {
 	done: "text-muted-foreground",
 }
 
-type MissionStateTone = "neutral" | "outline" | "danger"
-
-const missionStatePillVariants = cva(
-	"inline-flex h-5 w-fit max-w-full shrink-0 items-center gap-1 whitespace-nowrap rounded-2xl py-0.5 pr-2 pl-1.5 font-medium text-xs [&>svg]:size-3",
-	{
-		variants: {
-			tone: {
-				neutral: "bg-secondary text-secondary-foreground",
-				outline: "border border-border text-foreground",
-				danger: "bg-destructive/10 text-foreground dark:bg-destructive/20",
-			},
-		},
-	},
-)
-
-const MISSION_STATE_TONE: Record<MissionState, MissionStateTone> = {
-	working: "neutral",
-	waiting_bot: "neutral",
+const MISSION_STATE_VARIANT: Record<MissionState, BadgeVariant> = {
+	working: "secondary",
+	waiting_bot: "secondary",
 	waiting_human: "outline",
 	ready_to_merge: "outline",
-	failed: "danger",
-	done: "neutral",
+	failed: "destructive",
+	done: "secondary",
 }
 
 type MissionStatePillProps = {
@@ -57,20 +45,19 @@ const MissionStatePill = ({ state, className }: MissionStatePillProps) => {
 	const Mark = MISSION_STATE_MARK[state]
 
 	return (
-		<span
-			className={cn(
-				missionStatePillVariants({ tone: MISSION_STATE_TONE[state] }),
-				className,
-			)}
+		<Badge
+			className={cn(state === "failed" && "text-foreground", className)}
 			data-slot="mission-state-pill"
 			data-state={state}
+			variant={MISSION_STATE_VARIANT[state]}
 		>
 			<Mark
 				aria-hidden="true"
 				className={cn("shrink-0", MISSION_STATE_MARK_CLASS[state])}
+				data-icon="inline-start"
 			/>
-			<span className="truncate">{t(`missions.state.${state}`)}</span>
-		</span>
+			{t(`missions.state.${state}`)}
+		</Badge>
 	)
 }
 
