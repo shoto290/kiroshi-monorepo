@@ -38,8 +38,8 @@ const missionStatePillVariants = cva(
 				danger: "bg-destructive/10 text-foreground dark:bg-destructive/20",
 			},
 			size: {
-				default: "h-5 rounded-2xl py-0.5 pr-2 pl-1.5 text-xs",
-				titleBadge: BOT_TITLE_BADGE_SHAPE,
+				default: "h-5 rounded-2xl py-0.5 pr-2 pl-1.5 text-xs [&>svg]:size-3",
+				titleBadge: cn(BOT_TITLE_BADGE_SHAPE, "[&>svg]:size-2.5"),
 			},
 		},
 		defaultVariants: {
@@ -47,11 +47,6 @@ const missionStatePillVariants = cva(
 		},
 	},
 )
-
-const MISSION_STATE_MARK_SIZE: Record<MissionStatePillSize, string> = {
-	default: "size-3",
-	titleBadge: "size-2.5",
-}
 
 const MISSION_STATE_TONE: Record<MissionState, MissionStateTone> = {
 	working: "neutral",
@@ -87,11 +82,7 @@ const MissionStatePill = ({
 		>
 			<Mark
 				aria-hidden="true"
-				className={cn(
-					"shrink-0",
-					MISSION_STATE_MARK_SIZE[size],
-					MISSION_STATE_MARK_CLASS[state],
-				)}
+				className={cn("shrink-0", MISSION_STATE_MARK_CLASS[state])}
 			/>
 			<span className="truncate">{t(`missions.state.${state}`)}</span>
 		</span>
