@@ -18,7 +18,7 @@ const TICKET_TITLE = "The title the ticket carries on its own platform."
 
 const TOOLS = "What this mission is allowed to reach for to meet its objective."
 
-const MISSION_ID = "The id mission_open answered."
+const MISSION_ID = "The id of the mission this lands on."
 
 const LINE =
 	"One line of progress, written for the person who reads the thread."
@@ -40,10 +40,10 @@ const REPOSITORY =
 	"The repository that branch lives in, written owner then slash then name."
 
 const WORKSPACE_PATH =
-	"The git checkout of that repository on this machine, a linked worktree included. Only a git checkout is accepted, so the path names a directory holding a .git entry and nothing else is taken. A path given installs the agent hook in that checkout, so what you do there reaches the thread of the mission. Left out, the branch stays watched by its repository alone and no hook is installed."
+	"The git checkout on this machine the work of the mission happens in, a linked worktree included. Only a git checkout is accepted, so the path names a directory holding a .git entry and nothing else is taken. A path given arms the agent hook in that checkout, so what an agent does there reaches the thread of the mission. Left out, the mission moves only on the lines, the escalations and the closing you write."
 
 const OPEN =
-	"Open a mission on this conversation, owned by you, and get its own thread. Call this once you and the person agree on the objective and the ticket it carries."
+	"Open a mission on this conversation, owned by you, and get its own thread with one line telling whether that mission hears its agent. Given the checkout the work happens in, the agent hook is armed there in the same call. Call this once you and the person agree on the objective and the ticket it carries."
 
 const NOTE =
 	"Record one line of progress on a mission of yours. Write what moved, not what you are about to do."
@@ -58,7 +58,7 @@ const WATCH =
 	"Arm a mission of yours on the branch it lands its work in, so what happens on that branch reaches its thread. It answers the address a call reaches the mission at, the key that call carries and the name of the header that key goes in. Call this once the branch exists."
 
 const LIST =
-	"Read the missions of yours this conversation still carries, each with the id the other mission tools take. Read this when you no longer hold the id mission_open answered."
+	"Read the missions of yours this conversation still carries, each with its id, its ticket and where it stands. Read this when you no longer hold the id of a mission."
 
 const TICKET = z.object({
 	platform: z.string().describe(TICKET_PLATFORM),
@@ -77,6 +77,7 @@ const OPENED: ToolInput = {
 	objective: z.string().describe(OBJECTIVE),
 	ticket: TICKET,
 	tools: z.array(z.string()).describe(TOOLS),
+	workspacePath: z.string().describe(WORKSPACE_PATH).optional(),
 }
 
 const NOTED: ToolInput = { ...NAMED, line: z.string().describe(LINE) }
@@ -97,7 +98,6 @@ const ARMED: ToolInput = {
 	...NAMED,
 	branch: z.string().describe(BRANCH),
 	repository: z.string().describe(REPOSITORY),
-	workspacePath: z.string().describe(WORKSPACE_PATH).optional(),
 }
 
 const asked = carriedTo(SUBTYPE)

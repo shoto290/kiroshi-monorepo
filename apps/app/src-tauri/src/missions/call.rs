@@ -201,29 +201,32 @@ mod tests {
 		let database = ready(&state).expect("the database opens");
 		let opened = database
 			.missions()
-			.open(MissionDraft {
-				origin_conversation_id: "c1".to_owned(),
-				bot_id: "b1".to_owned(),
-				objective: "Fix the crash".to_owned(),
-				ticket: Ticket {
-					platform: "github".to_owned(),
-					external_id: "42".to_owned(),
-					url: "https://opennest.test/tickets/42".to_owned(),
-					title: "Crash on open".to_owned(),
+			.open(
+				MissionDraft {
+					origin_conversation_id: "c1".to_owned(),
+					bot_id: "b1".to_owned(),
+					objective: "Fix the crash".to_owned(),
+					ticket: Ticket {
+						platform: "github".to_owned(),
+						external_id: "42".to_owned(),
+						url: "https://opennest.test/tickets/42".to_owned(),
+						title: "Crash on open".to_owned(),
+					},
+					tools: vec!["gh".to_owned()],
+					source: "bot".to_owned(),
+					workspace_path: None,
 				},
-				tools: vec!["gh".to_owned()],
-				source: "bot".to_owned(),
-			})
+				key.to_owned(),
+			)
 			.await
 			.expect("the mission opens");
 		let watch = MissionWatch {
 			branch: "feature/ope-27".to_owned(),
 			repository: "shoto290/OpenNest".to_owned(),
-			workspace_path: None,
 		};
 		let (armed, _) = database
 			.missions()
-			.arm(opened.id.clone(), watch, key.to_owned())
+			.arm(opened.id.clone(), watch, uuid::Uuid::new_v4().to_string())
 			.await
 			.expect("the mission is armed");
 		armed
