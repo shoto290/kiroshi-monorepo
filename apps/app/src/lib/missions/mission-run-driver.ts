@@ -265,13 +265,15 @@ export const startMissionRunDriver = ({
 		starting.add(changed.missionId)
 		try {
 			const call = await readCall(changed.missionId)
-			if (call) {
-				await begin({ ...call, rosterBlock: await rosterBlockOf(call) })
-				states.remember({
-					missionId: changed.missionId,
-					state: call.mission.state,
-				})
+			if (!call) {
+				return
 			}
+
+			await begin({ ...call, rosterBlock: await rosterBlockOf(call) })
+			states.remember({
+				missionId: changed.missionId,
+				state: call.mission.state,
+			})
 		} catch (thrown) {
 			raiseFailure(detailOf(thrown))
 		} finally {

@@ -6,7 +6,7 @@ const REPORTING_CAUSES: MissionRunCause[] = ["done", "failed"]
 export const isReportOwedBy = (cause: MissionRunCause) =>
 	REPORTING_CAUSES.includes(cause)
 
-export type MissionRunClosing = {
+type MissionRunClosing = {
 	cause: MissionRunCause
 	mission: Pick<Mission, "closedAt">
 }
