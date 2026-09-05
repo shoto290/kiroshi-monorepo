@@ -20,6 +20,7 @@ const DEFAULTS: UserPreferences = {
 	notifyOnFinishedTurn: true,
 	notifyWithSound: true,
 	sidebarWidth: null,
+	activityPanelOpen: false,
 	lastSpaceId: null,
 	lastBotIdBySpace: {},
 }

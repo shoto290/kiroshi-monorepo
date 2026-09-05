@@ -29,6 +29,7 @@ const PREFERENCES = {
 	colorScheme: "system",
 	language: null,
 	sidebarWidth: null,
+	activityPanelOpen: false,
 	lastSpaceId: null,
 	lastBotIdBySpace: {},
 } as const

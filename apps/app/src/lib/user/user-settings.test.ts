@@ -13,6 +13,7 @@ const RECORD: ReaderPreferences = {
 	notifyOnFinishedTurn: true,
 	notifyWithSound: true,
 	sidebarWidth: null,
+	activityPanelOpen: false,
 	lastSpaceId: null,
 	lastBotIdBySpace: {},
 }

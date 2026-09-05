@@ -48,6 +48,8 @@ pub struct UserPreferences {
 	pub notify_on_finished_turn: bool,
 	pub notify_with_sound: bool,
 	pub sidebar_width: Option<u32>,
+	#[serde(default)]
+	pub activity_panel_open: bool,
 	pub last_space_id: Option<String>,
 	#[serde(default)]
 	pub last_bot_id_by_space: BTreeMap<String, String>,
@@ -71,6 +73,7 @@ impl UserPreferences {
 			notify_on_finished_turn: preferences.notify_on_finished_turn,
 			notify_with_sound: preferences.notify_with_sound,
 			sidebar_width: preferences.sidebar_width,
+			activity_panel_open: preferences.activity_panel_open,
 			last_space_id: preferences.last_space_id,
 			last_bot_id_by_space: preferences.last_bot_id_by_space,
 		}
@@ -89,6 +92,7 @@ impl From<UserPreferences> for user::Preferences {
 			notify_on_finished_turn: preferences.notify_on_finished_turn,
 			notify_with_sound: preferences.notify_with_sound,
 			sidebar_width: preferences.sidebar_width,
+			activity_panel_open: preferences.activity_panel_open,
 			last_space_id: preferences.last_space_id,
 			last_bot_id_by_space: preferences.last_bot_id_by_space,
 		}

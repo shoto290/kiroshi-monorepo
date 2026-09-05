@@ -24,6 +24,7 @@ const RECORD: UserPreferences = {
 	notifyOnFinishedTurn: true,
 	notifyWithSound: true,
 	sidebarWidth: null,
+	activityPanelOpen: false,
 	lastSpaceId: null,
 	lastBotIdBySpace: {},
 }
@@ -32,6 +33,7 @@ const MIRRORED: MirroredPreferences = {
 	colorScheme: "light",
 	language: null,
 	sidebarWidth: null,
+	activityPanelOpen: false,
 	lastSpaceId: null,
 	lastBotIdBySpace: {},
 }
@@ -82,6 +84,7 @@ describe("the mirror", () => {
 			colorScheme: "system",
 			language: null,
 			sidebarWidth: null,
+			activityPanelOpen: false,
 			lastSpaceId: null,
 			lastBotIdBySpace: {},
 		})
@@ -142,6 +145,21 @@ describe("the mirror", () => {
 		expect(readMirror().sidebarWidth).toBeNull()
 	})
 
+	it("holds the panel the reader left open", () => {
+		writeMirror({ ...MIRRORED, activityPanelOpen: true })
+
+		expect(isMirrorKey("activityPanelOpen")).toBe(true)
+		expect(readMirror().activityPanelOpen).toBe(true)
+	})
+
+	it("holds the panel the reader left closed", () => {
+		writeMirror({ ...MIRRORED, activityPanelOpen: true })
+
+		writeMirror({ ...MIRRORED, activityPanelOpen: false })
+
+		expect(readMirror().activityPanelOpen).toBe(false)
+	})
+
 	it("drops the single bot an older build left behind", () => {
 		localStorage.setItem("lastBotId", "nyx")
 
@@ -177,6 +195,7 @@ describe("the record the host holds", () => {
 			colorScheme: "dark",
 			language: "fr",
 			sidebarWidth: 320,
+			activityPanelOpen: false,
 			lastSpaceId: "vocca",
 			lastBotIdBySpace: {},
 		})
@@ -193,6 +212,7 @@ describe("the record the host holds", () => {
 			colorScheme: "dark",
 			language: null,
 			sidebarWidth: null,
+			activityPanelOpen: false,
 			lastSpaceId: null,
 			lastBotIdBySpace: {},
 		})
@@ -244,6 +264,7 @@ describe("sameMirror", () => {
 			colorScheme: "dark",
 			language: "fr",
 			sidebarWidth: 320,
+			activityPanelOpen: false,
 			lastSpaceId: "vocca",
 			lastBotIdBySpace: {},
 		} as const
@@ -254,6 +275,9 @@ describe("sameMirror", () => {
 		)
 		expect(sameMirror(mirrored, { ...mirrored, language: null })).toBe(false)
 		expect(sameMirror(mirrored, { ...mirrored, sidebarWidth: 256 })).toBe(false)
+		expect(sameMirror(mirrored, { ...mirrored, activityPanelOpen: true })).toBe(
+			false,
+		)
 		expect(sameMirror(mirrored, { ...mirrored, lastSpaceId: null })).toBe(false)
 		expect(
 			sameMirror(mirrored, { ...mirrored, lastBotIdBySpace: { vocca: "nyx" } }),
