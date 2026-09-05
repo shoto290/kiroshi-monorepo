@@ -47,13 +47,13 @@ type MissionTitleRowProps = Pick<MissionCardModel, "state" | "tools">
 const MissionTitleRow = ({ state, tools }: MissionTitleRowProps) => {
 	const { t } = useTranslation("chat")
 	const isWorking = state === "working"
-	const readState = isWorking ? (
+	const stateName = isWorking ? (
 		<span className="sr-only">{t(`missions.state.${state}`)}</span>
 	) : (
 		<MissionStatePill state={state} />
 	)
 
-	if (isWorking && tools.length === 0) return readState
+	if (isWorking && tools.length === 0) return stateName
 
 	return (
 		<span
@@ -63,7 +63,7 @@ const MissionTitleRow = ({ state, tools }: MissionTitleRowProps) => {
 			{tools.map((tool) => (
 				<MissionToolMark key={tool} tool={tool} />
 			))}
-			{readState}
+			{stateName}
 		</span>
 	)
 }

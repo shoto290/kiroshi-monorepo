@@ -24,9 +24,8 @@ type MissionTurnProps = {
 
 const MissionTurn = ({ mission, onOpen }: MissionTurnProps) => {
 	const { t } = useTranslation("chat")
-	const { author, id, identity, isClosed, objective, state, ticket, tools } =
-		mission
-	const isWorking = state === "working"
+	const { author, identity, ...card } = mission
+	const isWorking = card.state === "working"
 
 	return (
 		<Message aria-label={t("transcript.message.mission")} from="assistant">
@@ -50,7 +49,7 @@ const MissionTurn = ({ mission, onOpen }: MissionTurnProps) => {
 				>
 					<BotIdentityAvatar
 						animal={identity.animal}
-						badge={missionBadgeFor(state)}
+						badge={missionBadgeFor(card.state)}
 						blot={identity.blot}
 						image={identity.image}
 						kind="working"
@@ -61,14 +60,9 @@ const MissionTurn = ({ mission, onOpen }: MissionTurnProps) => {
 					/>
 				</span>
 				<MissionCard
+					{...card}
 					className="col-start-2 row-start-2 min-w-0"
-					id={id}
-					isClosed={isClosed}
-					objective={objective}
 					onOpen={onOpen}
-					state={state}
-					ticket={ticket}
-					tools={tools}
 				/>
 			</MessageContent>
 		</Message>
