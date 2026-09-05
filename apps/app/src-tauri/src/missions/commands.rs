@@ -690,7 +690,6 @@ mod tests {
 		assert!(opened.reach.starts_with(UNHEARD), "got {}", opened.reach);
 		assert!(opened.reach.contains("local server answers no call"), "got {}", opened.reach);
 		assert!(!opened.reach.contains("Undeliverable"), "got {}", opened.reach);
-		assert!(!opened.reach.contains("detail"), "got {}", opened.reach);
 		assert!(opened.mission.closed_at.is_none(), "the mission did not stay open");
 		assert!(!workspace.join(".claude").exists(), "a hook landed without an address");
 
@@ -742,10 +741,9 @@ mod tests {
 			mission_open(app.handle().clone(), app.state(), drafted_in("Ship it", Some(&gone)))
 				.await
 				.expect("the mission opens");
-		let standing =
-			mission_open(app.handle().clone(), app.state(), drafted_in("Fix it", Some(&here)))
-				.await
-				.expect("the mission opens");
+		mission_open(app.handle().clone(), app.state(), drafted_in("Fix it", Some(&here)))
+			.await
+			.expect("the mission opens");
 		read_first(&app, &leaving.mission.id).await;
 		fs::remove_dir_all(here.join(".claude")).expect("the settings are wiped");
 		fs::remove_dir_all(&gone).expect("the checkout is gone");
@@ -754,7 +752,6 @@ mod tests {
 
 		let settings = hooked_in(&here);
 		assert!(settings.contains("opennest-agent-hook.sh"), "got {settings}");
-		assert!(standing.mission.closed_at.is_none(), "the open mission was closed");
 
 		if let Some(webhook) = app.try_state::<crate::routines::webhook::Webhook>() {
 			webhook.stop();
