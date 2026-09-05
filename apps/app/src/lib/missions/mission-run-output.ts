@@ -1,9 +1,18 @@
+import type { Mission } from "./mission-contract"
 import type { MissionRunCause } from "./mission-run-prompt"
 
 const REPORTING_CAUSES: MissionRunCause[] = ["done", "failed"]
 
 export const isReportOwedBy = (cause: MissionRunCause) =>
 	REPORTING_CAUSES.includes(cause)
+
+export type MissionRunClosing = {
+	cause: MissionRunCause
+	mission: Pick<Mission, "closedAt">
+}
+
+export const isReportOwedOn = ({ cause, mission }: MissionRunClosing) =>
+	isReportOwedBy(cause) && mission.closedAt !== null
 
 const REPORT_OWED_SCHEMA: Record<string, unknown> = {
 	type: "object",

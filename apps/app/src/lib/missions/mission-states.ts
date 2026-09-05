@@ -9,11 +9,7 @@ export const createMissionStates = (): MissionStates => {
 	const seen = new Map<string, MissionState>()
 
 	return {
-		entered: ({ missionId, state }) => {
-			const before = seen.get(missionId)
-			seen.set(missionId, state)
-			return before !== state
-		},
+		entered: ({ missionId, state }) => seen.get(missionId) !== state,
 
 		remember: ({ missionId, state }) => {
 			seen.set(missionId, state)

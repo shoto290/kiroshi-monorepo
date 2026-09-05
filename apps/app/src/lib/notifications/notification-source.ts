@@ -247,6 +247,8 @@ export const startNotificationSource = ({
 			return
 		}
 
+		missionStates.remember(changed)
+
 		const { state } = changed
 
 		if (!isNotifiedMissionState(state)) {

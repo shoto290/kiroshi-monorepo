@@ -76,7 +76,13 @@ type HarnessSeed = {
 	reportedFails?: boolean
 	reports?: [missionId: string, turnId: string | null][]
 	soloOrigin?: boolean
+	firstStartFails?: boolean
 }
+
+const CLOSING_INSTANT = 9
+
+const closingInstantOf = (events: MissionEvent[]) =>
+	events.some(({ kind }) => kind === "closed") ? CLOSING_INSTANT : null
 
 const createHarness = async ({
 	store: overrides = {},
@@ -89,6 +95,7 @@ const createHarness = async ({
 	reportedFails = false,
 	reports = [],
 	soloOrigin = false,
+	firstStartFails = false,
 }: HarnessSeed = {}): Promise<Harness> => {
 	const scripted = createScriptedDriver()
 	const starts: Started[] = []
@@ -109,7 +116,17 @@ const createHarness = async ({
 		},
 	}
 	const base = createFakeTranscriptStore()
-	const store = { ...base, ...overrides }
+	let isFirstStartRefused = firstStartFails
+	const openRuntimeSession: TranscriptStore["openRuntimeSession"] = (
+		...opening
+	) => {
+		if (!isFirstStartRefused) {
+			return base.openRuntimeSession(...opening)
+		}
+		isFirstStartRefused = false
+		return Promise.reject(new Error("no runtime"))
+	}
+	const store = { ...base, openRuntimeSession, ...overrides }
 	const [bot] = await seatBots(store, SPACE, ["Ada"])
 	const thread = await store.createConversation({
 		spaceId: SPACE,
@@ -134,9 +151,15 @@ const createHarness = async ({
 		originConversationId: soloOrigin ? soloChat.id : origin.id,
 	})
 
+	const missionAt = (state: MissionState, events: MissionEvent[]): Mission => ({
+		...mission,
+		state,
+		closedAt: closingInstantOf(events),
+	})
+
 	if (open) {
-		missions.hold({ mission: { ...mission, state: open }, events: openEvents })
-		missions.place([{ ...mission, state: open }])
+		missions.hold({ mission: missionAt(open, openEvents), events: openEvents })
+		missions.place([missionAt(open, openEvents)])
 	}
 
 	if (stalled) {
@@ -175,7 +198,7 @@ const createHarness = async ({
 	await settled()
 
 	const hold = (state: MissionState, events = AGENT_ASKED) => {
-		missions.hold({ mission: { ...mission, state }, events })
+		missions.hold({ mission: missionAt(state, events), events })
 	}
 
 	const enter = async (state: MissionState, events = AGENT_ASKED) => {
@@ -696,6 +719,33 @@ describe("startMissionRunDriver", () => {
 		expect(spoken(harness.tail())).toEqual([])
 	})
 
+	it("takes the state again once a start that failed is announced anew", async () => {
+		await restart({ firstStartFails: true })
+
+		await harness.enter("waiting_bot")
+
+		expect(harness.starts).toEqual([])
+		expect(harness.reportFailure).toHaveBeenCalledTimes(1)
+
+		await harness.enter("waiting_bot")
+
+		expect(harness.starts).toHaveLength(1)
+		expect(harness.driver.submissions).toHaveLength(1)
+	})
+
+	it("takes the state again once a read that failed is announced anew", async () => {
+		harness.missions.refuseOnce(harness.mission.id)
+
+		await harness.enter("waiting_bot")
+
+		expect(harness.starts).toEqual([])
+		expect(harness.reportFailure).toHaveBeenCalledTimes(1)
+
+		await harness.enter("waiting_bot")
+
+		expect(harness.starts).toHaveLength(1)
+	})
+
 	it("raises a failure notice when the run's turn ends without a report", async () => {
 		await harness.enter("waiting_bot")
 		await harness.endTurn({ outcome: "failed" })
@@ -720,14 +770,22 @@ describe("startMissionRunDriver", () => {
 		})
 	})
 
-	it("takes a mission that failed before the start and still owes a report", async () => {
-		await restart({ open: "failed", openEvents: failedBy("claude-code") })
+	it("takes a mission the hook failed before the start while it stayed open", async () => {
+		await restart({ open: "failed", openEvents: failedBy("agent-hook") })
 
 		await harness.endTurn(reported("The build will not pass."))
 
 		expect(spoken(harness.originTail())).toEqual([
 			[harness.mission.botId, "The build will not pass."],
 		])
+	})
+
+	it("records no report and raises no notice for a run on a mission still open", async () => {
+		await restart({ open: "failed", openEvents: failedBy("agent-hook") })
+		await harness.endTurn({ structuredOutput: { outcome: "nothing" } })
+
+		expect(harness.missions.reports).toEqual([])
+		expect(harness.reportFailure).not.toHaveBeenCalled()
 	})
 
 	it("records the report of a closing run with the turn it was written on", async () => {

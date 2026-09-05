@@ -7,7 +7,7 @@ import type {
 	MissionOnBoard,
 	MissionState,
 } from "./mission-contract"
-import { isReportOwedBy, missionRunOutputSchemaFor } from "./mission-run-output"
+import { isReportOwedOn, missionRunOutputSchemaFor } from "./mission-run-output"
 import {
 	type MissionRunCall,
 	type MissionRunCause,
@@ -84,10 +84,8 @@ const conversationOf = ({ cause, mission }: MissionRunCall) =>
 		? mission.originConversationId
 		: mission.threadConversationId
 
-const CAUGHT_UP_STATES: MissionState[] = ["waiting_bot"]
-
-const isCaughtUpOn = ({ mission }: Pick<MissionOnBoard, "mission">) =>
-	CAUGHT_UP_STATES.includes(mission.state)
+const carriesRunCause = ({ mission }: Pick<MissionOnBoard, "mission">) =>
+	Boolean(CAUSE_OF_STATE[mission.state])
 
 const detailOf = (thrown: unknown) =>
 	thrown instanceof Error ? thrown.message : String(thrown)
@@ -237,7 +235,15 @@ export const startMissionRunDriver = ({
 			if (held) {
 				end(held)
 			}
-			raiseFailure(`the mission run could not start: ${detailOf(thrown)}`)
+			throw new Error(`the mission run could not start: ${detailOf(thrown)}`)
+		}
+	}
+
+	const readCall = async (missionId: string) => {
+		try {
+			return callFor(await missions.detail(missionId))
+		} catch (thrown) {
+			throw new Error(`the mission could not be read: ${detailOf(thrown)}`)
 		}
 	}
 
@@ -247,22 +253,27 @@ export const startMissionRunDriver = ({
 			return
 		}
 
-		if (!states.entered(changed) || !CAUSE_OF_STATE[changed.state]) {
+		if (!states.entered(changed)) {
+			return
+		}
+
+		if (!CAUSE_OF_STATE[changed.state]) {
+			states.remember(changed)
 			return
 		}
 
 		starting.add(changed.missionId)
 		try {
-			const call = callFor(await missions.detail(changed.missionId))
+			const call = await readCall(changed.missionId)
 			if (call) {
+				await begin({ ...call, rosterBlock: await rosterBlockOf(call) })
 				states.remember({
 					missionId: changed.missionId,
 					state: call.mission.state,
 				})
-				await begin({ ...call, rosterBlock: await rosterBlockOf(call) })
 			}
 		} catch (thrown) {
-			raiseFailure(`the mission could not be read: ${detailOf(thrown)}`)
+			raiseFailure(detailOf(thrown))
 		} finally {
 			starting.delete(changed.missionId)
 			takeAgain(changed.missionId)
@@ -305,7 +316,7 @@ export const startMissionRunDriver = ({
 		{ call }: LiveMissionRun,
 		reportedTurnId: string | null,
 	) => {
-		if (!isReportOwedBy(call.cause)) {
+		if (!isReportOwedOn(call)) {
 			return
 		}
 
@@ -331,7 +342,7 @@ export const startMissionRunDriver = ({
 		}
 
 		if (report.outcome === "nothing") {
-			if (isReportOwedBy(held.call.cause)) {
+			if (isReportOwedOn(held.call)) {
 				raiseFailure("the closing mission run reported nothing")
 			}
 			return recordReport(held, null)
@@ -388,7 +399,7 @@ export const startMissionRunDriver = ({
 	}
 
 	const catchUpOnOpenMissions = async () => {
-		startRunsFor((await missions.board()).filter(isCaughtUpOn))
+		startRunsFor((await missions.board()).filter(carriesRunCause))
 	}
 
 	const catchUpOnUnreportedMissions = async () => {
