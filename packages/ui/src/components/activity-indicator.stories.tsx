@@ -29,8 +29,6 @@ const LONG_TOOL_LABEL =
 
 const MCP_TOOL_LABEL = "mcp__linear__create_issue"
 
-const NARROW_ROW = "w-[320px]"
-
 const ROOM_BOTS = [
 	{ botId: "bot-lyra", name: "Lyra", animal: "owl", blot: "blue" },
 	{ botId: "bot-orion", name: "Orion", animal: "cat", blot: "orange" },
@@ -366,7 +364,7 @@ export const LongContent = meta.story({
 		startedAt: startedSecondsAgo(42),
 	},
 	render: (args) => (
-		<div className={NARROW_ROW}>
+		<div className="w-[320px]">
 			<ActivityIndicator {...args} />
 		</div>
 	),
