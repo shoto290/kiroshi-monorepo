@@ -114,6 +114,7 @@ import { useConversation } from "@/lib/conversations/use-conversation"
 import type { Mission } from "@/lib/missions/mission-contract"
 import { toMissionFace } from "@/lib/missions/mission-thread-model"
 import {
+	BEFORE_FIRST_RUN,
 	type PlacedMission,
 	placeMissions,
 } from "@/lib/missions/mission-transcript"
@@ -537,16 +538,20 @@ const withMissionCards = ({
 	placed,
 	faceOf,
 	onOpen,
-}: MissionCardRowsProps): TranscriptItem[] =>
-	runRows.flatMap((runRow, runIndex) => [
-		runRow,
-		...placed
+}: MissionCardRowsProps): TranscriptItem[] => {
+	const cardsAfter = (runIndex: number) =>
+		placed
 			.filter((opened) => opened.runIndex === runIndex)
 			.flatMap(({ mission }) => {
 				const face = faceOf(mission.botId)
 				return face ? [toMissionCardRow(mission, face, onOpen)] : []
-			}),
-	])
+			})
+
+	return [
+		...cardsAfter(BEFORE_FIRST_RUN),
+		...runRows.flatMap((runRow, runIndex) => [runRow, ...cardsAfter(runIndex)]),
+	]
+}
 
 type BotThreadTailProps = {
 	thread: LoadedBotThread

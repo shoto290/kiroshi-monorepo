@@ -1,7 +1,7 @@
 import { describe, expect, it } from "vitest"
 
 import type { Mission } from "./mission-contract"
-import { placeMissions } from "./mission-transcript"
+import { BEFORE_FIRST_RUN, placeMissions } from "./mission-transcript"
 
 import type { TranscriptRow } from "@/lib/chat/screen-model"
 
@@ -84,13 +84,23 @@ describe("placeMissions", () => {
 		])
 	})
 
-	it("holds a mission of a bot the transcript carries no run of", () => {
-		expect(
-			placeMissions([PROMPT, ANSWER], [missionOf("m-1", 200, "bot-2")]),
-		).toEqual([])
+	it("places a mission of a bot with no run after the last run opened before it", () => {
+		expect(placeMissions(RUNS, [missionOf("m-1", 450, "bot-2")])).toEqual([
+			{ mission: missionOf("m-1", 450, "bot-2"), runIndex: 2 },
+		])
 	})
 
-	it("holds every mission of a transcript with no run at all", () => {
-		expect(placeMissions([], [missionOf("m-1", 200)])).toEqual([])
+	it("places a mission of a bot with no run opened before every run ahead of them", () => {
+		expect(
+			placeMissions([LATER_PROMPT], [missionOf("m-1", 200, "bot-2")]),
+		).toEqual([
+			{ mission: missionOf("m-1", 200, "bot-2"), runIndex: BEFORE_FIRST_RUN },
+		])
+	})
+
+	it("places a mission of a transcript with no run at all ahead of them", () => {
+		expect(placeMissions([], [missionOf("m-1", 200)])).toEqual([
+			{ mission: missionOf("m-1", 200), runIndex: BEFORE_FIRST_RUN },
+		])
 	})
 })
