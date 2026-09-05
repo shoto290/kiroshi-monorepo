@@ -11,7 +11,7 @@ import type {
 } from "./mission-contract"
 import {
 	missionRingBadges,
-	missionsByBot,
+	missionsByRow,
 	toMissionEventModels,
 	toMissionRows,
 	withMissions,
@@ -169,10 +169,15 @@ const row = (over: Partial<AppSidebarBot>): AppSidebarBot => ({
 	...over,
 })
 
-const chipFor = (...states: MissionState[]) =>
-	missionsByBot(states.map((state) => onBoard({ state })))["b-1"]
+const NO_LISTED_CONVERSATIONS: { id: string }[] = []
 
-describe("missionsByBot", () => {
+const chipFor = (...states: MissionState[]) =>
+	missionsByRow(
+		states.map((state) => onBoard({ state })),
+		NO_LISTED_CONVERSATIONS,
+	)["b-1"]
+
+describe("missionsByRow", () => {
 	it("counts every open mission a bot carries", () => {
 		expect(chipFor("working")).toEqual({ state: "working", count: 1 })
 		expect(chipFor("working", "working", "ready_to_merge")).toEqual({
@@ -193,15 +198,56 @@ describe("missionsByBot", () => {
 
 	it("gives every bot its own chip", () => {
 		expect(
-			missionsByBot([
-				onBoard({ botId: "b-1", state: "failed" }),
-				onBoard({ botId: "b-2", state: "working" }),
-				onBoard({ botId: "b-2", state: "working" }),
-			]),
+			missionsByRow(
+				[
+					onBoard({ botId: "b-1", state: "failed" }),
+					onBoard({ botId: "b-2", state: "working" }),
+					onBoard({ botId: "b-2", state: "working" }),
+				],
+				NO_LISTED_CONVERSATIONS,
+			),
 		).toEqual({
 			"b-1": { state: "failed", count: 1 },
 			"b-2": { state: "working", count: 2 },
 		})
+	})
+
+	it("gives the chip to the conversation the mission was opened from", () => {
+		expect(
+			missionsByRow(
+				[onBoard({ originConversationId: "c-1", state: "failed" })],
+				[{ id: "c-1" }],
+			),
+		).toEqual({ "c-1": { state: "failed", count: 1 } })
+	})
+
+	it("gathers on one conversation row what its bots carry there", () => {
+		expect(
+			missionsByRow(
+				[
+					onBoard({
+						originConversationId: "c-1",
+						botId: "b-1",
+						state: "working",
+					}),
+					onBoard({
+						originConversationId: "c-1",
+						botId: "b-2",
+						state: "waiting_human",
+					}),
+				],
+				[{ id: "c-1" }],
+			),
+		).toEqual({ "c-1": { state: "waiting", count: 2 } })
+	})
+
+	it("gives the chip to the bot when no listed conversation carries the mission", () => {
+		expect(
+			missionsByRow(
+				[onBoard({ originConversationId: "c-solo", state: "working" })],
+				[{ id: "c-1" }],
+			),
+		).toEqual({ "b-1": { state: "working", count: 1 } })
 	})
 })
 
@@ -240,7 +286,9 @@ const MISSION_STATES: MissionState[] = [
 describe("mission badges", () => {
 	it("says the same thing on a roster ring as on a panel row", () => {
 		for (const state of MISSION_STATES) {
-			const chip = missionsByBot([onBoard({ state })])["b-1"]
+			const chip = missionsByRow([onBoard({ state })], NO_LISTED_CONVERSATIONS)[
+				"b-1"
+			]
 			const ring = chip
 				? missionRingBadges({ work: [row({ mission: chip })] }).work[0].badge
 				: undefined
