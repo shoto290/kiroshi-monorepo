@@ -4,7 +4,6 @@ import type {
 	MissionCardModel,
 	MissionEventModel,
 	MissionTicket,
-	MissionTicketLink,
 } from "@workspace/ui/components/mission"
 import type { MissionRowModel } from "@workspace/ui/components/mission-row"
 
@@ -175,6 +174,8 @@ export const AUTHORED_MISSION_EVENTS: MissionEventModel[] = [
 	},
 ]
 
+export const MISSION_CARD_TOOLS = ["Superset", "paper", "GitHub"]
+
 export const MISSION_AUTHOR: MessageAuthor = {
 	id: "bot-ada-martin",
 	name: MISSION_BOT.name,
@@ -182,27 +183,17 @@ export const MISSION_AUTHOR: MessageAuthor = {
 	title: "Design",
 }
 
-export const MISSION_CARD_TOOLS = ["Superset", "paper", "GitHub"]
-
-export const MISSION_TICKET_LINK: MissionTicketLink = {
-	...MISSION_TICKET,
-	platform: "linear",
-	url: "https://linear.example/opennest/issue/OPE-30",
-}
-
-export const UNTRACKED_MISSION_TICKET: MissionTicketLink = {
-	externalId: "PLAT-118",
-	title: "Move the run history off the shared database",
-	platform: "jira",
-	url: "https://jira.example/browse/PLAT-118",
-}
-
 export const WORKING_MISSION_CARD: MissionCardModel = {
 	id: "mission-ope-31",
 	bot: MISSION_AUTHOR,
 	objective:
 		"Read every release of the packages this workspace depends on and report what changed.",
-	ticket: UNTRACKED_MISSION_TICKET,
+	ticket: {
+		externalId: "PLAT-118",
+		title: "Move the run history off the shared database",
+		platform: "jira",
+		url: "https://jira.example/browse/PLAT-118",
+	},
 	tools: MISSION_CARD_TOOLS,
 	state: "working",
 	isClosed: false,
@@ -213,7 +204,11 @@ export const WAITING_MISSION_CARD: MissionCardModel = {
 	bot: MISSION_AUTHOR,
 	objective:
 		"Ship the mission thread and the card that summarises it in the conversation it came from.",
-	ticket: MISSION_TICKET_LINK,
+	ticket: {
+		...MISSION_TICKET,
+		platform: "linear",
+		url: "https://linear.example/opennest/issue/OPE-30",
+	},
 	tools: MISSION_CARD_TOOLS,
 	state: "waiting_human",
 	isClosed: false,

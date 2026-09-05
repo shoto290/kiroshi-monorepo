@@ -23,4 +23,4 @@ const missionToolMark = (tool: string): MissionMark =>
 const missionTicketPlatformMark = (platform: string): MissionMark | undefined =>
 	MISSION_TICKET_PLATFORM_MARK[markKeyOf(platform)]
 
-export { type MissionMark, missionTicketPlatformMark, missionToolMark }
+export { missionTicketPlatformMark, missionToolMark }

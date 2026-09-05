@@ -45,7 +45,7 @@ type MissionTurnProps = {
 
 const MissionTurn = ({ mission, onOpen }: MissionTurnProps) => {
 	const { t } = useTranslation("chat")
-	const { bot, state, tools } = mission
+	const { bot, id, isClosed, objective, state, ticket, tools } = mission
 	const isWorking = state === "working"
 
 	return (
@@ -85,11 +85,11 @@ const MissionTurn = ({ mission, onOpen }: MissionTurnProps) => {
 				</span>
 				<MissionCard
 					className="col-start-2 row-start-2 min-w-0"
-					id={mission.id}
-					isClosed={mission.isClosed}
-					objective={mission.objective}
+					id={id}
+					isClosed={isClosed}
+					objective={objective}
 					onOpen={onOpen}
-					ticket={mission.ticket}
+					ticket={ticket}
 				/>
 			</MessageContent>
 		</Message>
