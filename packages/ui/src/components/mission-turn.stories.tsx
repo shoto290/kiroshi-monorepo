@@ -69,12 +69,12 @@ export const Working = meta.story({
 		docs: {
 			description: {
 				story:
-					"A mission still running, on tools it named itself, against a ticket from a platform the app does not track. Check that no state pill is drawn — the avatar working in the gutter says it — that the three tool marks follow the title badge, and that no ticket line is drawn under the objective. Pick `WaitingForTheReader` for the state that asks something of the reader.",
+					"A mission still running, on tools it named itself, against a ticket from a platform the app ships no mark for. Check that the eye reads the state off the avatar working in the gutter rather than off a pill, that a screen reader is still given the word, and that the three tool marks follow the title badge. Pick `WaitingForTheReader` for the state that asks something of the reader.",
 			},
 		},
 	},
-	play: async ({ canvas, canvasElement }) => {
-		await expect(slotsIn(canvasElement, "mission-state-pill")).toHaveLength(0)
+	play: async ({ canvas }) => {
+		await expect(canvas.getByText("Working")).toBeInTheDocument()
 		await expect(canvas.getByRole("img", { name: "Superset" })).toBeVisible()
 	},
 })

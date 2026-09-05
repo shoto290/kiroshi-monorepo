@@ -64,7 +64,11 @@ const MissionTurn = ({ mission, onOpen }: MissionTurnProps) => {
 					{tools.map((tool) => (
 						<MissionToolMark key={tool} tool={tool} />
 					))}
-					{isWorking ? null : <MissionStatePill state={state} />}
+					{isWorking ? (
+						<span className="sr-only">{t(`missions.state.${state}`)}</span>
+					) : (
+						<MissionStatePill size="titleBadge" state={state} />
+					)}
 				</MessageAuthor>
 				<span
 					aria-hidden="true"

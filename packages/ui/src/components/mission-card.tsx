@@ -22,28 +22,42 @@ type MissionCardProps = Pick<
 	className?: string
 }
 
+const MISSION_TICKET_LINE =
+	"flex w-fit max-w-full flex-wrap items-center gap-x-1.5 text-muted-foreground text-xs"
+
 type MissionTicketLineProps = {
 	ticket: MissionTicketLink
 }
 
 const MissionTicketLine = ({ ticket }: MissionTicketLineProps) => {
 	const Mark = missionTicketPlatformMark(ticket.platform)
-
-	if (!Mark) return null
-
-	return (
-		<a
-			className="relative flex w-fit max-w-full flex-wrap items-center gap-x-1.5 text-muted-foreground text-xs"
-			data-slot="mission-ticket-line"
-			href={ticket.url}
-			rel="noreferrer noopener"
-			target="_blank"
-		>
+	const line = (
+		<>
 			<Mark aria-hidden="true" className="size-3 shrink-0" />
 			<span className="min-w-0 wrap-break-word tabular-nums">
 				{ticket.externalId}
 			</span>
 			<span className="min-w-0 wrap-break-word">{ticket.title}</span>
+		</>
+	)
+
+	if (!ticket.url) {
+		return (
+			<span className={MISSION_TICKET_LINE} data-slot="mission-ticket-line">
+				{line}
+			</span>
+		)
+	}
+
+	return (
+		<a
+			className={cn("relative", MISSION_TICKET_LINE)}
+			data-slot="mission-ticket-line"
+			href={ticket.url}
+			rel="noreferrer noopener"
+			target="_blank"
+		>
+			{line}
 		</a>
 	)
 }

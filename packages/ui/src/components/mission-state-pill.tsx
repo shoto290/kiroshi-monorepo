@@ -24,11 +24,12 @@ const MISSION_STATE_MARK_CLASS: Record<MissionState, string> = {
 	done: "text-muted-foreground",
 }
 
+type MissionStatePillSize = "default" | "titleBadge"
+
+type MissionStateTone = "neutral" | "outline" | "danger"
+
 const missionStatePillVariants = cva(
-	cn(
-		BOT_TITLE_BADGE_SHAPE,
-		"inline-flex w-fit max-w-full items-center gap-1 whitespace-nowrap",
-	),
+	"inline-flex w-fit max-w-full shrink-0 items-center gap-1 whitespace-nowrap font-medium",
 	{
 		variants: {
 			tone: {
@@ -36,11 +37,21 @@ const missionStatePillVariants = cva(
 				outline: "border border-border text-foreground",
 				danger: "bg-destructive/10 text-foreground dark:bg-destructive/20",
 			},
+			size: {
+				default: "h-5 rounded-2xl py-0.5 pr-2 pl-1.5 text-xs",
+				titleBadge: BOT_TITLE_BADGE_SHAPE,
+			},
+		},
+		defaultVariants: {
+			size: "default",
 		},
 	},
 )
 
-type MissionStateTone = "neutral" | "outline" | "danger"
+const MISSION_STATE_MARK_SIZE: Record<MissionStatePillSize, string> = {
+	default: "size-3",
+	titleBadge: "size-2.5",
+}
 
 const MISSION_STATE_TONE: Record<MissionState, MissionStateTone> = {
 	working: "neutral",
@@ -53,17 +64,22 @@ const MISSION_STATE_TONE: Record<MissionState, MissionStateTone> = {
 
 type MissionStatePillProps = {
 	state: MissionState
+	size?: MissionStatePillSize
 	className?: string
 }
 
-const MissionStatePill = ({ state, className }: MissionStatePillProps) => {
+const MissionStatePill = ({
+	state,
+	size = "default",
+	className,
+}: MissionStatePillProps) => {
 	const { t } = useTranslation("chat")
 	const Mark = MISSION_STATE_MARK[state]
 
 	return (
 		<span
 			className={cn(
-				missionStatePillVariants({ tone: MISSION_STATE_TONE[state] }),
+				missionStatePillVariants({ size, tone: MISSION_STATE_TONE[state] }),
 				className,
 			)}
 			data-slot="mission-state-pill"
@@ -71,11 +87,19 @@ const MissionStatePill = ({ state, className }: MissionStatePillProps) => {
 		>
 			<Mark
 				aria-hidden="true"
-				className={cn("size-2.5 shrink-0", MISSION_STATE_MARK_CLASS[state])}
+				className={cn(
+					"shrink-0",
+					MISSION_STATE_MARK_SIZE[size],
+					MISSION_STATE_MARK_CLASS[state],
+				)}
 			/>
 			<span className="truncate">{t(`missions.state.${state}`)}</span>
 		</span>
 	)
 }
 
-export { MissionStatePill, type MissionStatePillProps }
+export {
+	MissionStatePill,
+	type MissionStatePillProps,
+	type MissionStatePillSize,
+}

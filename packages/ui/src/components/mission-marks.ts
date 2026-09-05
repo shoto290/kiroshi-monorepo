@@ -20,7 +20,7 @@ const markKeyOf = (name: string) => name.trim().toLowerCase()
 const missionToolMark = (tool: string): MissionMark =>
 	MISSION_TOOL_MARK[markKeyOf(tool)] ?? Icons.Tool
 
-const missionTicketPlatformMark = (platform: string): MissionMark | undefined =>
-	MISSION_TICKET_PLATFORM_MARK[markKeyOf(platform)]
+const missionTicketPlatformMark = (platform: string): MissionMark =>
+	MISSION_TICKET_PLATFORM_MARK[markKeyOf(platform)] ?? Icons.Tool
 
 export { missionTicketPlatformMark, missionToolMark }

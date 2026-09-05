@@ -735,7 +735,7 @@ describe("ThreadScreen", () => {
 		render(screenOf(threadOf({ id: "bot-1", name: "Nyx", said: "held" })))
 		await settle()
 
-		expect(within(missionCard()).queryByText("Working")).toBeNull()
+		expect(within(missionCard()).getByText("Working")).toBeTruthy()
 
 		listMissions.mockResolvedValue({
 			open: [{ ...SOLO_MISSION, state: "waiting_human" }],

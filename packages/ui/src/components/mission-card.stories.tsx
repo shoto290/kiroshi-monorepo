@@ -9,6 +9,11 @@ import {
 	WORKING_MISSION_CARD,
 } from "@workspace/ui/components/missions.fixtures"
 
+const UNLINKABLE_MISSION_CARD = {
+	...WAITING_MISSION_CARD,
+	ticket: { ...WAITING_MISSION_CARD.ticket, url: "" },
+}
+
 const UNBROKEN_MISSION_CARD = {
 	...WAITING_MISSION_CARD,
 	objective:
@@ -60,18 +65,43 @@ export const Default = meta.story({
 	},
 })
 
-export const WithoutTicket = meta.story({
+export const OnAnUnknownPlatform = meta.story({
 	args: WORKING_MISSION_CARD,
 	parameters: {
 		docs: {
 			description: {
 				story:
-					"The mission answers a ticket on a platform the app ships no mark for, so there is nothing to open. Check that the bubble holds the objective alone, with no empty line under it, and that the bubble is then the only keyboard target. Pick `Default` for the ticket the app can open.",
+					"The ticket comes from a platform the app ships no mark for. Check that the identifier and the title are read all the same, behind the default mark a tool the app does not know is given, and that the line still opens the ticket. Pick `Unlinkable` for the ticket that carries no address at all.",
+			},
+		},
+	},
+	play: async ({ canvas }) => {
+		const ticket = canvas.getByRole("link")
+
+		await expect(ticket).toHaveTextContent(
+			WORKING_MISSION_CARD.ticket.externalId,
+		)
+		await expect(ticket).toHaveTextContent(WORKING_MISSION_CARD.ticket.title)
+	},
+})
+
+export const Unlinkable = meta.story({
+	args: UNLINKABLE_MISSION_CARD,
+	parameters: {
+		docs: {
+			description: {
+				story:
+					"The mission carries a ticket the app has no address for. Check that the identifier and the title are still read, as plain text rather than as a link that would take the reader nowhere, and that the bubble is then the only keyboard target. Pick `Default` for the ticket that can be opened.",
 			},
 		},
 	},
 	play: async ({ canvas, canvasElement }) => {
-		await expect(slotsIn(canvasElement, "mission-ticket-line")).toHaveLength(0)
+		const [ticket] = slotsIn(canvasElement, "mission-ticket-line")
+
+		await expect(ticket).toHaveTextContent(
+			UNLINKABLE_MISSION_CARD.ticket.externalId,
+		)
+		await expect(ticket).toHaveTextContent(UNLINKABLE_MISSION_CARD.ticket.title)
 		await expect(canvas.queryByRole("link")).toBeNull()
 	},
 })
