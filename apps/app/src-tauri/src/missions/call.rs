@@ -129,6 +129,7 @@ mod tests {
 	use std::fs;
 	use std::net::SocketAddr;
 	use std::sync::atomic::{AtomicI64, Ordering};
+	use std::sync::mpsc::{channel, Receiver};
 	use std::sync::Arc;
 
 	use tauri::test::{mock_builder, mock_context, noop_assets, MockRuntime};
@@ -336,15 +337,15 @@ mod tests {
 		cleaned(&app);
 	}
 
-	fn heard(app: &App<MockRuntime>) -> std::sync::mpsc::Receiver<String> {
-		let (sender, received) = std::sync::mpsc::channel();
+	fn heard(app: &App<MockRuntime>) -> Receiver<String> {
+		let (sender, received) = channel();
 		app.handle().listen(CHANGED_EVENT, move |event| {
 			let _ = sender.send(event.payload().to_owned());
 		});
 		received
 	}
 
-	fn announced(received: &std::sync::mpsc::Receiver<String>) -> Vec<serde_json::Value> {
+	fn announced(received: &Receiver<String>) -> Vec<Value> {
 		received
 			.try_iter()
 			.map(|payload| serde_json::from_str(&payload).expect("the payload is JSON"))

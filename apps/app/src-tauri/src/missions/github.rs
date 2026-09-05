@@ -514,6 +514,7 @@ mod tests {
 	use std::net::{Ipv4Addr, SocketAddr};
 	use std::path::PathBuf;
 	use std::sync::atomic::{AtomicI64, Ordering};
+	use std::sync::mpsc::channel;
 	use std::sync::Arc;
 
 	use axum::extract::{Path as AxumPath, State as Extracted};
@@ -819,7 +820,7 @@ mod tests {
 		clock: &Ticking,
 	) -> Vec<Value> {
 		let app = a_host();
-		let (sender, received) = std::sync::mpsc::channel();
+		let (sender, received) = channel();
 		app.handle().listen(CHANGED_EVENT, move |event| {
 			let _ = sender.send(event.payload().to_owned());
 		});
