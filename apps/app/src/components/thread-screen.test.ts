@@ -8,7 +8,7 @@ import {
 	screen,
 	within,
 } from "@testing-library/react"
-import { createElement } from "react"
+import { createElement, useState } from "react"
 import { afterEach, beforeEach, describe, expect, it, vi } from "vitest"
 
 import { NoticeSurface } from "@workspace/ui/components/notice-surface"
@@ -251,12 +251,21 @@ const threadOf = ({
 
 const NO_BOT_RECORDS: Bot[] = []
 
-const screenOf = (
-	thread: Thread,
-	bots: Bot[] = NO_BOT_RECORDS,
-	onOpenMission: (missionId: string) => void = () => undefined,
-) =>
-	createElement(ThreadScreen, {
+type ThreadScreenHarnessProps = {
+	thread: Thread
+	bots: Bot[]
+	onOpenMission: (missionId: string) => void
+}
+
+const ThreadScreenHarness = ({
+	thread,
+	bots,
+	onOpenMission,
+}: ThreadScreenHarnessProps) => {
+	const [isOpen, setOpen] = useState(false)
+
+	return createElement(ThreadScreen, {
+		activityPanel: { isOpen, onOpenChange: setOpen },
 		attachments,
 		bots,
 		drafts: createDraftsController(),
@@ -264,6 +273,13 @@ const screenOf = (
 		readerName: "Reader",
 		thread,
 	})
+}
+
+const screenOf = (
+	thread: Thread,
+	bots: Bot[] = NO_BOT_RECORDS,
+	onOpenMission: (missionId: string) => void = () => undefined,
+) => createElement(ThreadScreenHarness, { bots, onOpenMission, thread })
 
 const settle = () =>
 	act(async () => {

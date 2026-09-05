@@ -5,6 +5,7 @@ import { Notice } from "@workspace/ui/components/notice"
 import { useCommonCopy } from "@workspace/ui/hooks/use-common-copy"
 
 import { MissionThreadScreen } from "@/components/mission-thread-screen"
+import type { ActivityPanel } from "@/components/thread-routines"
 import { ThreadScreen } from "@/components/thread-screen"
 import type { AttachmentsController } from "@/lib/chat/attachments-controller"
 import type { DraftsController } from "@/lib/chat/drafts-controller"
@@ -16,6 +17,7 @@ import { hasOverlayWindowControls } from "@/lib/host"
 import type { OpenedMissionController } from "@/lib/missions/opened-mission-controller"
 
 type WorkspaceBodyProps = {
+	activityPanel: ActivityPanel
 	haveSpacesFailed: boolean
 	onRetrySpaces: () => void
 	bot?: Bot
@@ -121,6 +123,7 @@ export function WorkspaceBody(props: WorkspaceBodyProps) {
 
 	return (
 		<ThreadScreen
+			activityPanel={props.activityPanel}
 			attachments={props.attachments}
 			bots={props.bots}
 			drafts={props.drafts}

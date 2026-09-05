@@ -1,4 +1,4 @@
-import { type ReactNode, useState } from "react"
+import type { ReactNode } from "react"
 
 import {
 	type RoutinesFailure,
@@ -9,7 +9,13 @@ import { useRosterClock } from "@/lib/bots/use-roster-clock"
 import type { ConversationMissionsRead } from "@/lib/missions/use-missions"
 import { useRoutines } from "@/lib/routines/use-routines"
 
+type ActivityPanel = {
+	isOpen: boolean
+	onOpenChange: (isOpen: boolean) => void
+}
+
 type ThreadRoutinesProps = {
+	activityPanel: ActivityPanel
 	conversationId: string | null
 	leadBotId?: string
 	missions: ConversationMissionsRead
@@ -29,13 +35,13 @@ const activityFailure = (
 }
 
 const ThreadRoutines = ({
+	activityPanel,
 	conversationId,
 	leadBotId,
 	missions,
 	onOpenMission,
 	children,
 }: ThreadRoutinesProps) => {
-	const [isOpen, setOpen] = useState(false)
 	const now = useRosterClock()
 	const { routines, failure, reload, setEnabled, remove, form, detail } =
 		useRoutines(conversationId, leadBotId)
@@ -50,11 +56,11 @@ const ThreadRoutines = ({
 			detail={detail}
 			failure={activityFailure(failure, missions.hasFailed)}
 			form={form}
-			isOpen={isOpen}
+			isOpen={activityPanel.isOpen}
 			missions={{ ...missions.rows, now, onOpen: onOpenMission }}
 			onDelete={remove}
 			onEnabledChange={setEnabled}
-			onOpenChange={setOpen}
+			onOpenChange={activityPanel.onOpenChange}
 			onRetry={reloadActivity}
 			routines={routines}
 		>
@@ -63,4 +69,4 @@ const ThreadRoutines = ({
 	)
 }
 
-export { ThreadRoutines, type ThreadRoutinesProps }
+export { type ActivityPanel, ThreadRoutines, type ThreadRoutinesProps }
