@@ -101,11 +101,6 @@ const RING_BADGE_OF: Partial<Record<BotMissionState, BotBadge>> =
 const mostUrgent = (states: BotMissionState[]): BotMissionState =>
 	MOST_URGENT_FIRST.find((state) => states.includes(state)) ?? "working"
 
-const rowIdOf = (mission: Mission, listedConversationIds: Set<string>) =>
-	listedConversationIds.has(mission.originConversationId)
-		? mission.originConversationId
-		: mission.botId
-
 export const missionsByRow = (
 	board: MissionOnBoard[],
 	listedConversations: { id: string }[],
@@ -117,7 +112,9 @@ export const missionsByRow = (
 	for (const { mission } of board) {
 		const state = CHIP_STATE_OF[mission.state]
 		if (state) {
-			const rowId = rowIdOf(mission, listedConversationIds)
+			const rowId = listedConversationIds.has(mission.originConversationId)
+				? mission.originConversationId
+				: mission.botId
 			states[rowId] = [...(states[rowId] ?? []), state]
 		}
 	}
