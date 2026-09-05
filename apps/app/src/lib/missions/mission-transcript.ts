@@ -29,14 +29,14 @@ const nearestRunOfBot = (
 	)
 }
 
-const lastRunOpenedBy = (runs: TranscriptRow[][], moment: number): number =>
+const lastRunOpenedBefore = (runs: TranscriptRow[][], moment: number): number =>
 	runs.reduce(
 		(last, run, index) => (run[0].timestamp <= moment ? index : last),
 		BEFORE_FIRST_RUN,
 	)
 
 const openingRunIndex = (runs: TranscriptRow[][], mission: Mission): number =>
-	nearestRunOfBot(runs, mission) ?? lastRunOpenedBy(runs, mission.openedAt)
+	nearestRunOfBot(runs, mission) ?? lastRunOpenedBefore(runs, mission.openedAt)
 
 export const placeMissions = (
 	runs: TranscriptRow[][],
