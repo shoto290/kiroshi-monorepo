@@ -69,7 +69,7 @@ export const Working = meta.story({
 		docs: {
 			description: {
 				story:
-					"A mission still running, on tools it named itself, against a ticket from a platform the app does not track. Check that no state pill is drawn — the avatar working in the gutter says it — that the three tool marks read after the title badge, and that no ticket line is drawn under the objective. Pick `WaitingForTheReader` for the state that asks something of the reader.",
+					"A mission still running, on tools it named itself, against a ticket from a platform the app does not track. Check that no state pill is drawn — the avatar working in the gutter says it — that the three tool marks follow the title badge, and that no ticket line is drawn under the objective. Pick `WaitingForTheReader` for the state that asks something of the reader.",
 			},
 		},
 	},
@@ -84,7 +84,7 @@ export const WaitingForTheReader = meta.story({
 		docs: {
 			description: {
 				story:
-					"The mission stopped on a question for its reader. Check that the pill says so in words, that the attention badge sits on the gutter avatar, and that the pill matches the title badge to its left in height, radius and text size. Pick `Working` for the state that carries no pill at all.",
+					"The mission stopped on a question for its reader. Check that the pill closes the author line after the tool marks, that it says so in words, that the attention badge sits on the gutter avatar, and that it matches the title badge in height, radius and text size. Pick `Working` for the state that carries no pill at all.",
 			},
 		},
 	},
@@ -157,7 +157,7 @@ export const WithoutTools = meta.story({
 		docs: {
 			description: {
 				story:
-					"A mission that runs on no tool at all. Check that the author line stops after the state pill and that nothing is drawn in place of the marks. Pick `WithAnUnknownTool` for a mission whose tool has no mark of its own.",
+					"A mission that runs on no tool at all. Check that the state pill follows the title badge with nothing between them, and that nothing is drawn in place of the marks. Pick `WithAnUnknownTool` for a mission whose tool has no mark of its own.",
 			},
 		},
 	},
@@ -186,16 +186,16 @@ export const UnderTheTurnThatOpenedIt = meta.story({
 		docs: {
 			description: {
 				story:
-					"The row as a reader meets it, right under the answer that opened the mission. Check that the avatar, the author line and the bubble sit on the very same gutter grid as the turn above, and that the bot is named the same way twice rather than in two different shapes.",
+					"The row as a reader meets it, right under the answer that opened the mission, spaced the way the transcript spaces its rows. Check that the avatar, the author line and the bubble sit on the very same gutter grid as the turn above, and that the bot is named the same way twice rather than in two different shapes.",
 			},
 		},
 	},
 	render: (args) => (
-		<>
+		<div className="flex flex-col gap-6">
 			<TurnGroup>
 				<AssistantTurn author={MISSION_AUTHOR}>{OPENING_ANSWER}</AssistantTurn>
 			</TurnGroup>
 			<MissionTurn {...args} />
-		</>
+		</div>
 	),
 })

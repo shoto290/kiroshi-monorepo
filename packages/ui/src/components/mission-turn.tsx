@@ -61,10 +61,10 @@ const MissionTurn = ({ mission, onOpen }: MissionTurnProps) => {
 						MESSAGE_BUBBLE_INLINE_PADDING,
 					)}
 				>
-					{isWorking ? null : <MissionStatePill state={state} />}
 					{tools.map((tool) => (
 						<MissionToolMark key={tool} tool={tool} />
 					))}
+					{isWorking ? null : <MissionStatePill state={state} />}
 				</MessageAuthor>
 				<span
 					aria-hidden="true"
