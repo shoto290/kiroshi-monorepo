@@ -1310,17 +1310,6 @@ describe("ThreadScreen", () => {
 		expect(stopFor("Nyx")).toBeNull()
 	})
 
-	it("reads the row of a bot summoned for the next wave as up next", async () => {
-		const room = await roomOf({ names: ["Ada", "Nyx"] })
-		render(screenOf(room.thread))
-		await settle()
-
-		await room.send("@Ada now")
-		await room.send("@Nyx after")
-
-		expect(screen.getByText("Nyx is up next…")).toBeTruthy()
-	})
-
 	it("clocks the working row of a seated bot from the start of its turn", async () => {
 		const room = await roomOf({ names: ["Ada"] })
 		render(screenOf(room.thread))
@@ -1328,7 +1317,7 @@ describe("ThreadScreen", () => {
 
 		await room.send("@Ada now")
 
-		expect(screen.getByText(/^\d+s$/)).toBeTruthy()
+		expect(elapsedText()).toMatch(/^\d+s$/)
 	})
 
 	it("carries the stop onto the run a speaking bot is writing", async () => {

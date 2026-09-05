@@ -433,18 +433,26 @@ function applyStopRejected(state: ChatState, error: TransportError): ChatState {
 	return next.turn === "stopping" ? { ...next, turn: "failed" } : next
 }
 
+const turnInstantOf = (
+	state: ChatState,
+	next: ChatState,
+	at: number,
+): number | null => {
+	if (!isTurnBusy(next.turn)) {
+		return null
+	}
+	return isTurnBusy(state.turn) ? state.turnStartedAt : at
+}
+
 const withTurnInstant = (
 	state: ChatState,
 	next: ChatState,
 	at: number,
 ): ChatState => {
-	if (state.turn === next.turn) {
-		return next
-	}
-	if (!isTurnBusy(next.turn)) {
-		return next.turnStartedAt === null ? next : { ...next, turnStartedAt: null }
-	}
-	return isTurnBusy(state.turn) ? next : { ...next, turnStartedAt: at }
+	const turnStartedAt = turnInstantOf(state, next, at)
+	return turnStartedAt === next.turnStartedAt
+		? next
+		: { ...next, turnStartedAt }
 }
 
 export function chatReducer(
