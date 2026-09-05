@@ -366,7 +366,7 @@ export const startMissionRunDriver = ({
 		await recordReport(settled.id, null)
 	}
 
-	const settle = async (held: LiveMissionRun, ended: TurnEnded) => {
+	const endOn = async (held: LiveMissionRun) => {
 		release(held)
 		shutdownSession(held.scope)
 
@@ -377,6 +377,11 @@ export const startMissionRunDriver = ({
 		}
 
 		takeAgain(held.call.mission.id)
+		return settled
+	}
+
+	const settle = async (held: LiveMissionRun, ended: TurnEnded) => {
+		const settled = await endOn(held)
 
 		if (ended.outcome !== "completed") {
 			return raiseFailure(`the mission run's turn was ${ended.outcome}`)
