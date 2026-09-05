@@ -344,6 +344,12 @@ describe("workingStateFor", () => {
 		})
 	})
 
+	it("carries the instant the turn went busy", () => {
+		expect(
+			workingStateFor(chatState({ turnStartedAt: 1_700 }))?.startedAt,
+		).toBe(1_700)
+	})
+
 	it("thinks until the first token, then writes", () => {
 		expect(workingStateFor(chatState())?.kind).toBe("thinking")
 		expect(

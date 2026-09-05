@@ -113,7 +113,11 @@ const CAUSES_SOLO_DESCRIPTION =
 
 const BOT_TITLE = "Release manager"
 
+const A_SECOND = 1_000
+
 const A_MINUTE = 60_000
+
+const TURN_STARTED_AT = 5 * A_MINUTE
 
 const REPORTED: SpokenTurn = {
 	turnId: REPORT_TURN,
@@ -335,6 +339,33 @@ const ASKED: AgentEvent[] = [
 	},
 ]
 
+const SEARCHING: AgentEvent[] = [
+	{
+		type: "activity",
+		activity: {
+			id: "act-1",
+			title: "Grep · walls",
+			kind: "tool",
+			status: "running",
+		},
+	},
+]
+
+const HANDED_TO_ZOE: AgentEvent[] = [
+	{
+		type: "messageStarted",
+		message: {
+			id: "msg-to-zoe",
+			role: "assistant",
+			text: "",
+			completion: "streaming",
+			timestamp: 1,
+		},
+	},
+	{ type: "messageDelta", id: "msg-to-zoe", seq: 1, text: "@Zoe keep going" },
+	{ type: "turnEnded", ended: { sessionId: null, outcome: "completed" } },
+]
+
 const HANDED_TO_ADA: AgentEvent[] = [
 	{
 		type: "messageStarted",
@@ -543,6 +574,8 @@ type SoloFixture = {
 type Solo = {
 	thread: () => BotThread
 	report: (text: string) => Promise<void>
+	send: (text: string) => Promise<void>
+	push: (events: AgentEvent[]) => Promise<void>
 }
 
 const soloOf = async ({
@@ -555,14 +588,28 @@ const soloOf = async ({
 	for (const turn of spoken) {
 		await writeTurn(store, chat.id, bot.id, turn)
 	}
-	const controller = createChatController(createScriptedDriver(), store, {
+	const driver = createScriptedDriver()
+	const controller = createChatController(driver, store, {
 		readReportedRuns,
 	})
+	controller.attach()
 	await act(async () => {
 		await controller.open(bot.id)
 	})
 
 	return {
+		send: async (text) => {
+			await act(async () => {
+				await controller.send(text)
+			})
+			await settle()
+		},
+		push: async (events) => {
+			await act(async () => {
+				driver.pushTo(bot.id, events)
+			})
+			await settle()
+		},
 		thread: () => ({
 			kind: "bot",
 			bot,
@@ -586,6 +633,10 @@ const soloOf = async ({
 		},
 	}
 }
+
+const elapsedText = () =>
+	document.querySelector('[data-slot="bot-working-elapsed"]')?.textContent ??
+	null
 
 const stopsFor = (name: string) =>
 	screen.queryAllByRole("button", { name: `Stop ${name}` })
@@ -941,7 +992,7 @@ describe("ThreadScreen", () => {
 		let state = opened.chat.state
 		const controller = stubController({
 			dismissError: (id) => {
-				state = chatReducer(state, { type: "errorDismissed", id })
+				state = chatReducer(state, { type: "errorDismissed", id }, 0)
 			},
 		})
 		const shown = (): BotThread => ({ ...opened, chat: { state, controller } })
@@ -965,10 +1016,11 @@ describe("ThreadScreen", () => {
 			said: "the first answer",
 			errors: [CRASH],
 		})
-		const later = chatReducer(dismissed.chat.state, {
-			type: "errorDismissed",
-			id: CRASH.id,
-		})
+		const later = chatReducer(
+			dismissed.chat.state,
+			{ type: "errorDismissed", id: CRASH.id },
+			0,
+		)
 
 		render(
 			screenOf({
@@ -1185,6 +1237,52 @@ describe("ThreadScreen", () => {
 		)
 	})
 
+	it("counts the solo working row from the instant the turn began", async () => {
+		const clock = vi.spyOn(Date, "now").mockReturnValue(TURN_STARTED_AT)
+		const solo = await soloOf({})
+		const { rerender, unmount } = render(screenOf(solo.thread()))
+		await settle()
+
+		await solo.send("hold the wall")
+		rerender(screenOf(solo.thread()))
+		await settle()
+
+		expect(screen.getByText("Ada is thinking…")).toBeTruthy()
+		expect(elapsedText()).toBe("0s")
+
+		clock.mockReturnValue(TURN_STARTED_AT + 3 * A_SECOND)
+		await solo.push(SEARCHING)
+		rerender(screenOf(solo.thread()))
+		await settle()
+
+		expect(screen.getByText("Ada · Grep · walls")).toBeTruthy()
+
+		unmount()
+		render(screenOf(solo.thread()))
+		await settle()
+
+		expect(elapsedText()).toBe("3s")
+		clock.mockRestore()
+	})
+
+	it("tells a queued seat from a speaker blocked on a question", async () => {
+		const room = await roomOf({ names: ["Ada", "Nyx", "Zoe"] })
+		render(screenOf(room.thread))
+		await settle()
+
+		await room.send("@Ada @Nyx now")
+		act(() => {
+			room.driver.pushTo(room.idOf("Ada"), HANDED_TO_ZOE)
+			room.driver.pushTo(room.idOf("Nyx"), ASKED)
+		})
+		await settle()
+
+		expect(screen.getByText("Zoe is up next…")).toBeTruthy()
+		expect(
+			screen.getByText("Nyx is waiting for you… · Which wall"),
+		).toBeTruthy()
+	})
+
 	it("stops the bot whose working row carries the stop, and no other", async () => {
 		const room = await roomOf({ names: ["Ada", "Nyx"] })
 		render(screenOf(room.thread))
@@ -1210,6 +1308,16 @@ describe("ThreadScreen", () => {
 
 		expect(stopFor("Ada")).toBeTruthy()
 		expect(stopFor("Nyx")).toBeNull()
+	})
+
+	it("clocks the working row of a seated bot from the start of its turn", async () => {
+		const room = await roomOf({ names: ["Ada"] })
+		render(screenOf(room.thread))
+		await settle()
+
+		await room.send("@Ada now")
+
+		expect(elapsedText()).toMatch(/^\d+s$/)
 	})
 
 	it("carries the stop onto the run a speaking bot is writing", async () => {

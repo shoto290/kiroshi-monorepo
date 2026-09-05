@@ -1,10 +1,15 @@
-import type { ActivityIndicatorKind } from "@workspace/ui/components/activity-indicator"
+import type {
+	ActivityIndicatorKind,
+	ActivityIndicatorWait,
+} from "@workspace/ui/components/activity-indicator"
 
 import type { ActivityEvent, ActivityStatus } from "../agent/contract"
 
 export type WorkingState = {
 	kind: ActivityIndicatorKind
 	label?: string
+	waitingOn?: ActivityIndicatorWait
+	startedAt?: number
 }
 
 const SEARCH_TOOLS = new Set([

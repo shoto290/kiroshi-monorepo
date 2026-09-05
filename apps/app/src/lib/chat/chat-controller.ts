@@ -200,7 +200,7 @@ export function createChatController(
 		chosenBotId === null ? null : (bots.get(chosenBotId) ?? null)
 
 	const dispatch = (bot: BotChat, action: ChatAction) => {
-		const next = chatReducer(bot.state, action)
+		const next = chatReducer(bot.state, action, now())
 		if (next === bot.state) {
 			return
 		}

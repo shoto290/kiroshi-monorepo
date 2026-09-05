@@ -247,7 +247,10 @@ export function workingStateFor(state: ChatState): WorkingState | null {
 
 	const latest = state.messages.at(-1)
 	const isWriting = latest?.role === "assistant" && latest.content.length > 0
-	return workingFor(state.activities, isWriting)
+	const working = workingFor(state.activities, isWriting)
+	return state.turnStartedAt === null
+		? working
+		: { ...working, startedAt: state.turnStartedAt }
 }
 
 export type SidebarActivity = {

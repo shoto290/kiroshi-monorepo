@@ -151,6 +151,7 @@ type Speaker = {
 	activities: ActivityEvent[]
 	pending: PendingPrompt | null
 	askedAt: number
+	startedAt: number
 	isDropped: boolean
 }
 
@@ -171,7 +172,9 @@ const isSamePair = (
 		left[1] === right[1])
 
 const isSameWork = (left: WorkingState | null, right: WorkingState | null) =>
-	left?.kind === right?.kind && left?.label === right?.label
+	left?.kind === right?.kind &&
+	left?.label === right?.label &&
+	left?.startedAt === right?.startedAt
 
 const isSameOrder = (left: string[], right: string[]) =>
 	left.length === right.length && left.every((id, rank) => id === right[rank])
@@ -205,6 +208,14 @@ const promptWork = (pending: PendingPrompt): WorkingState => ({
 			? pending.request.questions[0]?.header
 			: pending.request.title,
 })
+
+const speakerWork = (held: Speaker, hasPublished: boolean): WorkingState =>
+	held.pending
+		? promptWork(held.pending)
+		: {
+				...workingFor(held.activities, hasPublished),
+				startedAt: held.startedAt,
+			}
 
 const initialState: ConversationState = {
 	conversationId: null,
@@ -302,9 +313,7 @@ export const createConversationController = (
 			const hasPublished = hasPublishedBlock(held)
 			return {
 				botId: held.botId,
-				work: held.pending
-					? promptWork(held.pending)
-					: workingFor(held.activities, hasPublished),
+				work: speakerWork(held, hasPublished),
 				hasPublished,
 				stop: () => stopSpeaker(held.botId),
 			}
@@ -666,6 +675,7 @@ export const createConversationController = (
 		activities: [],
 		pending: null,
 		askedAt: 0,
+		startedAt: now(),
 		isDropped: false,
 	})
 
