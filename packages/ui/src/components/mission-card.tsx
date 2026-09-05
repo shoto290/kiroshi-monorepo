@@ -18,10 +18,7 @@ import {
 import { MissionStatePill } from "@workspace/ui/components/mission-state-pill"
 import { cn } from "@workspace/ui/lib/utils"
 
-type MissionCardProps = Pick<
-	MissionCardModel,
-	"id" | "objective" | "state" | "ticket" | "tools" | "isClosed"
-> & {
+type MissionCardProps = Omit<MissionCardModel, "bot"> & {
 	onOpen: (missionId: string) => void
 	className?: string
 }
