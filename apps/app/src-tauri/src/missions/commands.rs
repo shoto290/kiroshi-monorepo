@@ -77,7 +77,11 @@ fn reach_of<R: Runtime>(
 ) -> String {
 	match install(app, mission_id, workspace, key) {
 		Ok(()) => HEARD.to_owned(),
-		Err(failure) => format!("{UNHEARD}: {failure:?}"),
+		Err(MissionError::Undeliverable { detail }) => format!("{UNHEARD}: {detail}"),
+		Err(failure) => {
+			report_unhooked(mission_id, &failure);
+			UNHEARD.to_owned()
+		}
 	}
 }
 
@@ -684,7 +688,9 @@ mod tests {
 				.expect("the mission opens");
 
 		assert!(opened.reach.starts_with(UNHEARD), "got {}", opened.reach);
-		assert!(opened.reach.contains("local server"), "got {}", opened.reach);
+		assert!(opened.reach.contains("local server answers no call"), "got {}", opened.reach);
+		assert!(!opened.reach.contains("Undeliverable"), "got {}", opened.reach);
+		assert!(!opened.reach.contains("detail"), "got {}", opened.reach);
 		assert!(opened.mission.closed_at.is_none(), "the mission did not stay open");
 		assert!(!workspace.join(".claude").exists(), "a hook landed without an address");
 
@@ -716,20 +722,31 @@ mod tests {
 		cleaned(&app);
 	}
 
+	async fn read_first(app: &App<MockRuntime>, mission_id: &str) {
+		let statement = format!("UPDATE missions SET opened_at = 1 WHERE id = '{mission_id}'");
+		ready(&app.state::<db::DatabaseState>())
+			.expect("the database opens")
+			.call_mut(move |connection| Ok(connection.execute_batch(&statement)?))
+			.await
+			.expect("the mission is aged");
+	}
+
 	#[tokio::test]
 	async fn a_launch_hooks_every_open_mission_holding_a_checkout_and_reports_the_one_that_is_gone()
 	{
 		let app = a_host("launch").await;
 		app.manage(crate::routines::webhook::start(app.handle().clone()));
-		let here = a_checkout("launch-here");
 		let gone = a_checkout("launch-gone");
+		let here = a_checkout("launch-here");
+		let leaving =
+			mission_open(app.handle().clone(), app.state(), drafted_in("Ship it", Some(&gone)))
+				.await
+				.expect("the mission opens");
 		let standing =
 			mission_open(app.handle().clone(), app.state(), drafted_in("Fix it", Some(&here)))
 				.await
 				.expect("the mission opens");
-		mission_open(app.handle().clone(), app.state(), drafted_in("Ship it", Some(&gone)))
-			.await
-			.expect("the mission opens");
+		read_first(&app, &leaving.mission.id).await;
 		fs::remove_dir_all(here.join(".claude")).expect("the settings are wiped");
 		fs::remove_dir_all(&gone).expect("the checkout is gone");
 

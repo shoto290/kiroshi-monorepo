@@ -40,6 +40,10 @@ fn write_and_sync(path: &Path, bytes: &[u8]) -> std::io::Result<()> {
 	use std::io::Write;
 
 	let mut file = created_owned_file(path)?;
+	if interrupted() {
+		file.write_all(&bytes[..bytes.len() / 2])?;
+		return Err(stopped_partway());
+	}
 	file.write_all(bytes)?;
 	file.sync_all()
 }

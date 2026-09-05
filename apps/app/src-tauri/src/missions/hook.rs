@@ -47,7 +47,7 @@ pub fn installed(dir: &Path, workspace: &str, url: &str, key: &str) -> Result<()
 	let merged = merged(held, &command(&script))?;
 	let written = serde_json::to_vec_pretty(&merged)
 		.map_err(|error| unreachable(format!("the settings were not rendered: {error}")))?;
-	private_files::replace(&settings, &written).map_err(|error| {
+	private_files::replace_atomically(&settings, &written).map_err(|error| {
 		unreachable(format!("the settings of the workspace were not written: {error}"))
 	})
 }
@@ -346,6 +346,44 @@ mod tests {
 			"{ not json",
 			"the settings the install could not merge were overwritten"
 		);
+
+		fs::remove_dir_all(&dir).expect("cleanup");
+	}
+
+	#[test]
+	fn a_settings_write_that_stops_partway_leaves_the_file_as_it_stood() {
+		let dir = a_dir("interrupted");
+		let workspace = workspace_of(&dir);
+		installed(&dir.join("hook"), &workspace, A_URL, A_KEY).expect("the hook installs");
+		let stood = settings_of(&dir);
+		private_files::interrupt_the_write_after(3);
+
+		let refused = installed(&dir.join("hook"), &workspace, A_URL, "another-key")
+			.expect_err("the install is refused");
+
+		assert!(matches!(refused, MissionError::Undeliverable { .. }), "got {refused:?}");
+		assert_eq!(settings_of(&dir), stood, "the interrupted write left other settings behind");
+		assert_eq!(
+			files_in(&dir.join("workspace")),
+			BTreeSet::from([format!("{CLAUDE_DIR}/{SETTINGS_NAME}")]),
+			"the interrupted write left a staged file in the checkout"
+		);
+
+		fs::remove_dir_all(&dir).expect("cleanup");
+	}
+
+	#[cfg(unix)]
+	#[test]
+	fn the_settings_of_a_checkout_are_created_readable_by_their_owner_alone() {
+		use std::os::unix::fs::PermissionsExt as _;
+
+		let dir = a_dir("mode");
+
+		installed(&dir.join("hook"), &workspace_of(&dir), A_URL, A_KEY).expect("the hook installs");
+
+		let settings = dir.join("workspace").join(CLAUDE_DIR).join(SETTINGS_NAME);
+		let mode = fs::metadata(&settings).expect("the settings are there").permissions().mode();
+		assert_eq!(mode & 0o777, 0o600, "got {mode:o}");
 
 		fs::remove_dir_all(&dir).expect("cleanup");
 	}
