@@ -42,7 +42,12 @@ const A_TICKET = {
 const calls: [string, Record<string, unknown>, string][] = [
 	[
 		"mission_open",
-		{ objective: "Ship the tools", ticket: A_TICKET, tools: ["gh"] },
+		{
+			objective: "Ship the tools",
+			ticket: A_TICKET,
+			tools: ["gh"],
+			workspacePath: "/tmp/opennest",
+		},
 		"open",
 	],
 	["mission_note", { id: "m1", line: "The host answers" }, "note"],
@@ -58,19 +63,14 @@ const calls: [string, Record<string, unknown>, string][] = [
 	],
 	[
 		"mission_watch",
-		{
-			id: "m1",
-			branch: "feature/ope-37",
-			repository: "shoto290/OpenNest",
-			workspacePath: "/tmp/opennest",
-		},
+		{ id: "m1", branch: "feature/ope-37", repository: "shoto290/OpenNest" },
 		"watch",
 	],
 	["mission_list", {}, "list"],
 ]
 
 const answers: Record<string, unknown> = {
-	open: A_MISSION,
+	open: { mission: A_MISSION, reach: "no agent reaches this mission" },
 	note: A_MISSION,
 	escalate: { ...A_MISSION, state: "waiting_human" },
 	close: { ...A_MISSION, state: "done" },
@@ -141,16 +141,34 @@ describe("missionTools", () => {
 		])
 	})
 
-	it("tells the agent only a git checkout is taken as a workspace path", () => {
-		const armed = z.toJSONSchema(
-			z.object(toolNamed(SESSION, "mission_watch").inputSchema),
+	it("tells the agent only a git checkout is taken as the workspace a mission opens on", () => {
+		const opened = z.toJSONSchema(
+			z.object(toolNamed(SESSION, "mission_open").inputSchema),
 		)
 
-		const said = JSON.stringify(armed.properties?.workspacePath)
+		const said = JSON.stringify(opened.properties?.workspacePath)
 
 		expect(said).toContain("git checkout")
 		expect(said).toContain("linked worktree")
 		expect(said).not.toMatch(/superset/i)
+	})
+
+	it("takes no workspace path on mission_watch", () => {
+		expect(
+			Object.keys(toolNamed(SESSION, "mission_watch").inputSchema),
+		).not.toContain("workspacePath")
+	})
+
+	it("describes each mission tool without naming another one as a step", () => {
+		for (const held of missionTools(SESSION)) {
+			const said = `${held.description} ${JSON.stringify(
+				z.toJSONSchema(z.object(held.inputSchema)),
+			)}`
+
+			const named = said.match(/mission_[a-z]+/g) ?? []
+
+			expect(named.filter((one) => one !== held.name)).toEqual([])
+		}
 	})
 
 	it("words the mission tools of the objective and names no tool it runs with", () => {

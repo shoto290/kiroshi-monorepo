@@ -76,6 +76,8 @@ pub struct MissionDraft {
 	pub ticket: Ticket,
 	pub tools: Vec<String>,
 	pub source: String,
+	#[serde(default)]
+	pub workspace_path: Option<String>,
 }
 
 #[derive(Debug, Clone, PartialEq, Serialize, Deserialize)]
@@ -160,7 +162,13 @@ pub struct MissionEvent {
 pub struct MissionWatch {
 	pub branch: String,
 	pub repository: String,
-	pub workspace_path: Option<String>,
+}
+
+#[derive(Debug, Clone, PartialEq, Serialize, Deserialize)]
+#[serde(rename_all = "camelCase")]
+pub struct MissionOpened {
+	pub mission: Mission,
+	pub reach: String,
 }
 
 #[derive(Debug, Clone, PartialEq, Serialize, Deserialize)]
@@ -170,6 +178,13 @@ pub struct MissionWatching {
 	pub url: String,
 	pub key: String,
 	pub header: String,
+}
+
+#[derive(Debug, Clone, PartialEq, Eq)]
+pub struct HookedMission {
+	pub id: String,
+	pub workspace_path: String,
+	pub delivery_key: String,
 }
 
 #[derive(Debug, Clone, PartialEq, Eq)]

@@ -91,11 +91,7 @@ impl<R: Runtime> MissionHost<R> {
 			Operation::Watch => {
 				let asked: Armed = read(payload)?;
 				self.refuse_a_mission_it_does_not_own(database, &asked.id).await?;
-				let watch = MissionWatch {
-					branch: asked.branch,
-					repository: asked.repository,
-					workspace_path: asked.workspace_path,
-				};
+				let watch = MissionWatch { branch: asked.branch, repository: asked.repository };
 				answered(mission_watch(self.app.clone(), state, asked.id, watch).await?)
 			}
 			Operation::List => {
@@ -117,6 +113,7 @@ impl<R: Runtime> MissionHost<R> {
 			ticket: asked.ticket,
 			tools: asked.tools,
 			source: BOT.to_owned(),
+			workspace_path: asked.workspace_path,
 		}
 	}
 
@@ -191,6 +188,8 @@ struct Opened {
 	objective: String,
 	ticket: Ticket,
 	tools: Vec<String>,
+	#[serde(default)]
+	workspace_path: Option<String>,
 }
 
 #[derive(Debug, Deserialize)]
@@ -222,8 +221,6 @@ struct Armed {
 	id: String,
 	branch: String,
 	repository: String,
-	#[serde(default)]
-	workspace_path: Option<String>,
 }
 
 #[derive(Debug, Deserialize)]
@@ -324,6 +321,10 @@ mod tests {
 	}
 
 	fn an_open() -> Value {
+		an_open_in(None)
+	}
+
+	fn an_open_in(workspace: Option<&Path>) -> Value {
 		asking(
 			"open",
 			json!({
@@ -334,7 +335,8 @@ mod tests {
 					"url": "https://linear.test/OPE-26",
 					"title": "Mission tools"
 				},
-				"tools": ["gh"]
+				"tools": ["gh"],
+				"workspacePath": workspace.map(|path| path.to_string_lossy().into_owned())
 			}),
 		)
 	}
@@ -355,10 +357,12 @@ mod tests {
 				},
 				tools: Vec::new(),
 				source: "human".to_owned(),
+				workspace_path: None,
 			},
 		)
 		.await
 		.expect("the mission opens")
+		.mission
 	}
 
 	async fn events(app: &App<MockRuntime>, id: &str) -> Vec<MissionEvent> {
@@ -386,14 +390,13 @@ mod tests {
 			.collect()
 	}
 
-	fn an_arming(id: &str, workspace: Option<&Path>) -> Value {
+	fn an_arming(id: &str) -> Value {
 		asking(
 			"watch",
 			json!({
 				"id": id,
 				"branch": "feature/ope-37",
-				"repository": "shoto290/OpenNest",
-				"workspacePath": workspace.map(|path| path.to_string_lossy().into_owned())
+				"repository": "shoto290/OpenNest"
 			}),
 		)
 	}
@@ -414,7 +417,7 @@ mod tests {
 		let host = serving(&app, "c1");
 
 		let opened = host.answer(an_open()).await.expect("the mission opens");
-		let id = opened["id"].as_str().expect("the mission is named").to_owned();
+		let id = opened["mission"]["id"].as_str().expect("the mission is named").to_owned();
 		let noted = host
 			.answer(asking("note", json!({ "id": id, "line": "The host answers" })))
 			.await
@@ -438,10 +441,11 @@ mod tests {
 			.await
 			.expect("the mission is closed");
 
-		assert_eq!(opened["originConversationId"], json!("c1"));
-		assert_eq!(opened["botId"], json!("b1"));
-		assert_eq!(opened["state"], json!("working"));
-		assert!(opened["threadConversationId"].is_string(), "got {opened}");
+		assert_eq!(opened["mission"]["originConversationId"], json!("c1"));
+		assert_eq!(opened["mission"]["botId"], json!("b1"));
+		assert_eq!(opened["mission"]["state"], json!("working"));
+		assert!(opened["mission"]["threadConversationId"].is_string(), "got {opened}");
+		assert!(opened["reach"].is_string(), "got {opened}");
 		assert_eq!(noted["state"], json!("working"));
 		assert_eq!(escalated["state"], json!("waiting_human"));
 		assert_eq!(closed["state"], json!("done"));
@@ -517,7 +521,7 @@ mod tests {
 			asking("note", json!({ "id": held.id, "line": "Sneaking in" })),
 			asking("escalate", json!({ "id": held.id, "question": "?", "reason": "?" })),
 			asking("close", json!({ "id": held.id, "outcome": "done", "summary": "?" })),
-			an_arming(&held.id, None),
+			an_arming(&held.id),
 		] {
 			let refused = host.answer(asked).await.expect_err("the call is refused");
 
@@ -543,7 +547,7 @@ mod tests {
 			asking("note", json!({ "id": held.id, "line": "Sneaking in" })),
 			asking("escalate", json!({ "id": held.id, "question": "?", "reason": "?" })),
 			asking("close", json!({ "id": held.id, "outcome": "done", "summary": "?" })),
-			an_arming(&held.id, None),
+			an_arming(&held.id),
 		] {
 			let refused = host.answer(asked).await.expect_err("the call is refused");
 
@@ -589,14 +593,10 @@ mod tests {
 	async fn a_mission_is_armed_and_listed_from_its_own_thread() {
 		let app = a_host("armed").await;
 		app.manage(crate::routines::webhook::start(app.handle().clone()));
-		let workspace = a_workspace("armed");
 		let opened = a_mission_of(&app, "c1", "b1").await;
 		let host = serving(&app, &opened.thread_conversation_id);
 
-		let armed = host
-			.answer(an_arming(&opened.id, Some(&workspace)))
-			.await
-			.expect("the mission is armed");
+		let armed = host.answer(an_arming(&opened.id)).await.expect("the mission is armed");
 		let answered =
 			host.answer(asking("list", json!({}))).await.expect("the missions are listed");
 
@@ -608,6 +608,27 @@ mod tests {
 		assert!(armed["key"].as_str().is_some_and(|key| !key.is_empty()), "got {armed}");
 		assert_eq!(armed_missions(&app).await, vec![opened.id.clone()]);
 		assert_eq!(ids(&answered), vec![opened.id]);
+
+		if let Some(webhook) = app.try_state::<crate::routines::webhook::Webhook>() {
+			webhook.stop();
+		}
+		cleaned(&app);
+	}
+
+	#[tokio::test]
+	async fn a_mission_opened_on_a_checkout_carries_the_hook_and_the_line_on_its_agent() {
+		let app = a_host("opened-hook").await;
+		app.manage(crate::routines::webhook::start(app.handle().clone()));
+		let workspace = a_workspace("opened-hook");
+		let host = serving(&app, "c1");
+
+		let opened = host.answer(an_open_in(Some(&workspace))).await.expect("the mission opens");
+
+		assert!(opened["mission"]["id"].is_string(), "got {opened}");
+		assert!(
+			opened["reach"].as_str().is_some_and(|line| line.contains("agent hook")),
+			"got {opened}"
+		);
 		let settings = fs::read_to_string(workspace.join(".claude").join("settings.local.json"))
 			.expect("the settings of the workspace read");
 		assert!(settings.contains("opennest-agent-hook.sh"), "got {settings}");
@@ -656,7 +677,7 @@ mod tests {
 		let app = a_host("derived").await;
 		let host = serving(&app, "c1");
 		let opened = host.answer(an_open()).await.expect("the mission opens");
-		let id = opened["id"].as_str().expect("the mission is named").to_owned();
+		let id = opened["mission"]["id"].as_str().expect("the mission is named").to_owned();
 
 		host.answer(asking(
 			"close",

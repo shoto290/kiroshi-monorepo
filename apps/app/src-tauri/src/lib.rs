@@ -53,6 +53,10 @@ pub fn run() {
 			tauri::async_runtime::spawn(async move {
 				conversations::commands::list_bundles_at_launch(&handle).await;
 			});
+			let handle = app.handle().clone();
+			tauri::async_runtime::spawn(async move {
+				missions::commands::install_hooks_at_launch(&handle).await;
+			});
 			Ok(())
 		})
 		.invoke_handler(invoke_handler())

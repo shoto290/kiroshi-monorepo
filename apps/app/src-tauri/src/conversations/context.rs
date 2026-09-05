@@ -1510,19 +1510,23 @@ mod tests {
 	async fn a_mission_of(database: &Database, conversation_id: &str) -> Mission {
 		database
 			.missions()
-			.open(MissionDraft {
-				origin_conversation_id: conversation_id.to_owned(),
-				bot_id: "default".to_owned(),
-				objective: "Fix the crash on open".to_owned(),
-				ticket: Ticket {
-					platform: "github".to_owned(),
-					external_id: "42".to_owned(),
-					url: "https://opennest.test/tickets/42".to_owned(),
-					title: "Crash on open".to_owned(),
+			.open(
+				MissionDraft {
+					origin_conversation_id: conversation_id.to_owned(),
+					bot_id: "default".to_owned(),
+					objective: "Fix the crash on open".to_owned(),
+					ticket: Ticket {
+						platform: "github".to_owned(),
+						external_id: "42".to_owned(),
+						url: "https://opennest.test/tickets/42".to_owned(),
+						title: "Crash on open".to_owned(),
+					},
+					tools: vec!["gh".to_owned()],
+					source: "bot".to_owned(),
+					workspace_path: None,
 				},
-				tools: vec!["gh".to_owned()],
-				source: "bot".to_owned(),
-			})
+				uuid::Uuid::new_v4().to_string(),
+			)
 			.await
 			.expect("the mission opens")
 	}

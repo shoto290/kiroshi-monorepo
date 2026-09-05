@@ -8,9 +8,9 @@ use uuid::Uuid;
 use super::conversations::open_thread_under;
 use crate::db::{Access, DatabaseError};
 use crate::missions::contract::{
-	ConversationMissions, Mission, MissionClosing, MissionDetail, MissionDraft, MissionEntry,
-	MissionError, MissionEvent, MissionEventKind, MissionInThread, MissionState, MissionWatch,
-	Ticket, WatchedMission,
+	ConversationMissions, HookedMission, Mission, MissionClosing, MissionDetail, MissionDraft,
+	MissionEntry, MissionError, MissionEvent, MissionEventKind, MissionInThread, MissionState,
+	MissionWatch, Ticket, WatchedMission,
 };
 
 const MAX_MISSIONS_PER_READ: u32 = 200;
@@ -48,8 +48,9 @@ const MISSION_COLUMNS: &str = "SELECT id, origin_conversation_id, bot_id, thread
 
 const INSERT_MISSION: &str = "INSERT INTO missions
 	(id, origin_conversation_id, bot_id, thread_conversation_id, objective, ticket_platform,
-		ticket_external_id, ticket_url, ticket_title, tools, opened_at)
-	VALUES (?1, ?2, ?3, ?4, ?5, ?6, ?7, ?8, ?9, ?10, ?11)";
+		ticket_external_id, ticket_url, ticket_title, tools, opened_at,
+		watch_workspace_path, delivery_key)
+	VALUES (?1, ?2, ?3, ?4, ?5, ?6, ?7, ?8, ?9, ?10, ?11, ?12, ?13)";
 
 const INSERT_EVENT: &str = "INSERT INTO mission_events
 	(id, mission_id, seq, kind, source, payload, created_at, delivery_id)
@@ -62,8 +63,10 @@ const COUNT_DELIVERY: &str = "SELECT count(*) FROM mission_events
 const WATCH_COLUMNS: &str = "SELECT id, watch_branch, watch_repository, github_fingerprint
 	FROM missions";
 
+const HOOK_COLUMNS: &str = "SELECT id, watch_workspace_path, delivery_key FROM missions";
+
 const ARM_MISSION: &str = "UPDATE missions SET watch_branch = ?2, watch_repository = ?3,
-	watch_workspace_path = ?4, delivery_key = ?5 WHERE id = ?1";
+	delivery_key = ?4 WHERE id = ?1";
 
 const KEEP_FINGERPRINT: &str = "UPDATE missions SET github_fingerprint = ?2 WHERE id = ?1";
 
@@ -90,8 +93,12 @@ impl MissionsRepository {
 		Self { access }
 	}
 
-	pub async fn open(&self, draft: MissionDraft) -> Result<Mission, MissionError> {
-		self.access.call_mut(move |connection| Ok(opened(connection, &draft))).await?
+	pub async fn open(
+		&self,
+		draft: MissionDraft,
+		minted_key: String,
+	) -> Result<Mission, MissionError> {
+		self.access.call_mut(move |connection| Ok(opened(connection, &draft, &minted_key))).await?
 	}
 
 	pub async fn append(
@@ -158,6 +165,21 @@ impl MissionsRepository {
 						AND watch_branch <> '' ORDER BY opened_at, id LIMIT ?1"
 				))?;
 				let rows = statement.query_map([MAX_MISSIONS_PER_READ], watched)?;
+				Ok(rows.collect::<rusqlite::Result<Vec<_>>>()?)
+			})
+			.await?)
+	}
+
+	pub async fn hooked(&self) -> Result<Vec<HookedMission>, MissionError> {
+		Ok(self
+			.access
+			.call(move |connection| {
+				let mut statement = connection.prepare_cached(&format!(
+					"{HOOK_COLUMNS} WHERE closed_at IS NULL AND delivery_key <> ''
+						AND COALESCE(watch_workspace_path, '') <> ''
+						ORDER BY opened_at, id LIMIT ?1"
+				))?;
+				let rows = statement.query_map([MAX_MISSIONS_PER_READ], hooked)?;
 				Ok(rows.collect::<rusqlite::Result<Vec<_>>>()?)
 			})
 			.await?)
@@ -300,7 +322,11 @@ impl MissionsRepository {
 	}
 }
 
-fn opened(connection: &mut Connection, draft: &MissionDraft) -> Result<Mission, MissionError> {
+fn opened(
+	connection: &mut Connection,
+	draft: &MissionDraft,
+	minted_key: &str,
+) -> Result<Mission, MissionError> {
 	let transaction = write_transaction(connection)?;
 	let thread = open_thread_under(
 		&transaction,
@@ -325,6 +351,8 @@ fn opened(connection: &mut Connection, draft: &MissionDraft) -> Result<Mission, 
 				draft.ticket.title,
 				as_text(&draft.tools)?,
 				at,
+				draft.workspace_path,
+				minted_key,
 			],
 		)
 		.map_err(|error| {
@@ -446,10 +474,7 @@ fn armed(
 		true => minted_key.to_owned(),
 		false => held_key,
 	};
-	transaction.execute(
-		ARM_MISSION,
-		params![mission_id, watch.branch, watch.repository, watch.workspace_path, key],
-	)?;
+	transaction.execute(ARM_MISSION, params![mission_id, watch.branch, watch.repository, key])?;
 	let stored = read(&transaction, mission_id)?;
 	transaction.commit()?;
 	Ok((stored, key))
@@ -587,6 +612,10 @@ fn watched(row: &Row<'_>) -> rusqlite::Result<WatchedMission> {
 	})
 }
 
+fn hooked(row: &Row<'_>) -> rusqlite::Result<HookedMission> {
+	Ok(HookedMission { id: row.get(0)?, workspace_path: row.get(1)?, delivery_key: row.get(2)? })
+}
+
 fn event(row: &Row<'_>) -> rusqlite::Result<MissionEvent> {
 	Ok(MissionEvent {
 		id: row.get(0)?,
@@ -678,7 +707,12 @@ mod tests {
 			},
 			tools: vec!["gh".to_owned()],
 			source: "bot".to_owned(),
+			workspace_path: None,
 		}
+	}
+
+	fn a_key() -> String {
+		Uuid::new_v4().to_string()
 	}
 
 	fn an_entry(kind: MissionEventKind) -> MissionEntry {
@@ -707,7 +741,7 @@ mod tests {
 
 		let opened = database
 			.missions()
-			.open(a_draft("c1", "b1", "Fix the crash"))
+			.open(a_draft("c1", "b1", "Fix the crash"), a_key())
 			.await
 			.expect("the mission opens");
 
@@ -735,7 +769,7 @@ mod tests {
 		let (database, dir) = planted().await;
 		let opened = database
 			.missions()
-			.open(a_draft("c1", "b1", "Fix the crash"))
+			.open(a_draft("c1", "b1", "Fix the crash"), a_key())
 			.await
 			.expect("the mission opens");
 
@@ -773,7 +807,7 @@ mod tests {
 		let (database, dir) = planted().await;
 		let opened = database
 			.missions()
-			.open(a_draft("c1", "b1", "Fix the crash"))
+			.open(a_draft("c1", "b1", "Fix the crash"), a_key())
 			.await
 			.expect("the mission opens");
 
@@ -816,12 +850,12 @@ mod tests {
 		let (database, dir) = planted().await;
 		let still_open = database
 			.missions()
-			.open(a_draft("c1", "b1", "Fix the crash"))
+			.open(a_draft("c1", "b1", "Fix the crash"), a_key())
 			.await
 			.expect("the mission opens");
 		let done = database
 			.missions()
-			.open(a_draft("c1", "b1", "Ship the fix"))
+			.open(a_draft("c1", "b1", "Ship the fix"), a_key())
 			.await
 			.expect("the mission opens");
 		database
@@ -831,7 +865,7 @@ mod tests {
 			.expect("the mission is closed");
 		database
 			.missions()
-			.open(a_draft("c2", "b2", "Another room"))
+			.open(a_draft("c2", "b2", "Another room"), a_key())
 			.await
 			.expect("the mission opens");
 
@@ -857,17 +891,17 @@ mod tests {
 		let (database, dir) = planted().await;
 		let here = database
 			.missions()
-			.open(a_draft("c1", "b1", "Fix the crash"))
+			.open(a_draft("c1", "b1", "Fix the crash"), a_key())
 			.await
 			.expect("the mission opens");
 		let there = database
 			.missions()
-			.open(a_draft("c2", "b2", "Another room"))
+			.open(a_draft("c2", "b2", "Another room"), a_key())
 			.await
 			.expect("the mission opens");
 		let closed = database
 			.missions()
-			.open(a_draft("c2", "b2", "Already done"))
+			.open(a_draft("c2", "b2", "Already done"), a_key())
 			.await
 			.expect("the mission opens");
 		database
@@ -959,7 +993,7 @@ mod tests {
 		let (database, dir) = planted().await;
 		let opened = database
 			.missions()
-			.open(a_draft("c1", "b1", "Fix the crash"))
+			.open(a_draft("c1", "b1", "Fix the crash"), a_key())
 			.await
 			.expect("the mission opens");
 		let planting = events_past_the_cap(&opened.id);
@@ -991,20 +1025,15 @@ mod tests {
 	}
 
 	fn a_watch(branch: &str) -> MissionWatch {
-		MissionWatch {
-			branch: branch.to_owned(),
-			repository: "shoto290/OpenNest".to_owned(),
-			workspace_path: Some("/tmp/workspace".to_owned()),
-		}
+		MissionWatch { branch: branch.to_owned(), repository: "shoto290/OpenNest".to_owned() }
 	}
 
 	#[tokio::test]
-	async fn arming_a_mission_twice_keeps_the_key_minted_the_first_time_and_carries_the_new_watch()
-	{
+	async fn arming_a_mission_twice_keeps_the_key_its_open_call_wrote_and_carries_the_new_watch() {
 		let (database, dir) = planted().await;
 		let opened = database
 			.missions()
-			.open(a_draft("c1", "b1", "Fix the crash"))
+			.open(a_draft("c1", "b1", "Fix the crash"), "minted-at-open".to_owned())
 			.await
 			.expect("the mission opens");
 
@@ -1019,7 +1048,7 @@ mod tests {
 			.await
 			.expect("the mission is armed again");
 
-		assert_eq!((first.as_str(), second.as_str()), ("minted-first", "minted-first"));
+		assert_eq!((first.as_str(), second.as_str()), ("minted-at-open", "minted-at-open"));
 		assert_eq!(armed.id, opened.id);
 		assert_eq!(
 			database
@@ -1041,7 +1070,7 @@ mod tests {
 		assert_eq!(
 			database
 				.missions()
-				.armed_on_key("minted-first".to_owned())
+				.armed_on_key("minted-at-open".to_owned())
 				.await
 				.expect("the mission reads")
 				.map(|held| held.id),
@@ -1057,7 +1086,7 @@ mod tests {
 		let (database, dir) = planted().await;
 		database
 			.missions()
-			.open(a_draft("c1", "b1", "Fix the crash"))
+			.open(a_draft("c1", "b1", "Fix the crash"), a_key())
 			.await
 			.expect("the mission opens");
 
@@ -1076,7 +1105,7 @@ mod tests {
 		let (database, dir) = planted().await;
 		let opened = database
 			.missions()
-			.open(a_draft("c1", "b1", "Fix the crash"))
+			.open(a_draft("c1", "b1", "Fix the crash"), a_key())
 			.await
 			.expect("the mission opens");
 
@@ -1114,7 +1143,7 @@ mod tests {
 		let (database, dir) = planted().await;
 		let opened = database
 			.missions()
-			.open(a_draft("c1", "b1", "Fix the crash"))
+			.open(a_draft("c1", "b1", "Fix the crash"), a_key())
 			.await
 			.expect("the mission opens");
 		let closed = database
@@ -1163,7 +1192,7 @@ mod tests {
 		let (database, dir) = planted().await;
 		let opened = database
 			.missions()
-			.open(a_draft("c1", "b1", "Fix the crash"))
+			.open(a_draft("c1", "b1", "Fix the crash"), a_key())
 			.await
 			.expect("the mission opens");
 		for _ in 0..3 {
@@ -1212,7 +1241,7 @@ mod tests {
 	async fn a_closed_mission(database: &Database) -> Mission {
 		let opened = database
 			.missions()
-			.open(a_draft("c1", "b1", "Fix it"))
+			.open(a_draft("c1", "b1", "Fix it"), a_key())
 			.await
 			.expect("the mission opens");
 		database
@@ -1227,7 +1256,7 @@ mod tests {
 		let (database, dir) = planted().await;
 		let open = database
 			.missions()
-			.open(a_draft("c1", "b1", "Ship it"))
+			.open(a_draft("c1", "b1", "Ship it"), a_key())
 			.await
 			.expect("the mission opens");
 		let closed = a_closed_mission(&database).await;

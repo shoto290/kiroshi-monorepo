@@ -739,30 +739,30 @@ mod tests {
 	async fn an_armed_mission_on(database: &Database, repository: &str) -> Mission {
 		let opened = database
 			.missions()
-			.open(MissionDraft {
-				origin_conversation_id: "c1".to_owned(),
-				bot_id: "b1".to_owned(),
-				objective: "Fix the crash".to_owned(),
-				ticket: Ticket {
-					platform: "github".to_owned(),
-					external_id: "42".to_owned(),
-					url: "https://opennest.test/tickets/42".to_owned(),
-					title: "Crash on open".to_owned(),
+			.open(
+				MissionDraft {
+					origin_conversation_id: "c1".to_owned(),
+					bot_id: "b1".to_owned(),
+					objective: "Fix the crash".to_owned(),
+					ticket: Ticket {
+						platform: "github".to_owned(),
+						external_id: "42".to_owned(),
+						url: "https://opennest.test/tickets/42".to_owned(),
+						title: "Crash on open".to_owned(),
+					},
+					tools: vec!["gh".to_owned()],
+					source: "bot".to_owned(),
+					workspace_path: None,
 				},
-				tools: vec!["gh".to_owned()],
-				source: "bot".to_owned(),
-			})
+				uuid::Uuid::new_v4().to_string(),
+			)
 			.await
 			.expect("the mission opens");
 		let (armed, _) = database
 			.missions()
 			.arm(
 				opened.id,
-				MissionWatch {
-					branch: A_BRANCH.to_owned(),
-					repository: repository.to_owned(),
-					workspace_path: None,
-				},
+				MissionWatch { branch: A_BRANCH.to_owned(), repository: repository.to_owned() },
 				uuid::Uuid::new_v4().to_string(),
 			)
 			.await

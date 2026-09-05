@@ -2,9 +2,9 @@ use serde::Serialize;
 use tauri::{AppHandle, Emitter, Manager, Runtime, State};
 
 use super::contract::{
-	ConversationMissions, Mission, MissionClosing, MissionDetail, MissionDraft, MissionEntry,
-	MissionError, MissionEventKind, MissionNote, MissionOnBoard, MissionState, MissionWatch,
-	MissionWatching,
+	ConversationMissions, HookedMission, Mission, MissionClosing, MissionDetail, MissionDraft,
+	MissionEntry, MissionError, MissionEventKind, MissionNote, MissionOnBoard, MissionOpened,
+	MissionState, MissionWatch, MissionWatching,
 };
 use super::hook;
 use crate::avatars;
@@ -15,6 +15,13 @@ use crate::db;
 use crate::routines::webhook::{Webhook, HEADER};
 
 pub const CHANGED_EVENT: &str = "mission://changed";
+
+const HEARD: &str =
+	"the agent hook is installed in the checkout of this mission, so what the agent does there \
+	reaches its thread";
+
+const UNHEARD: &str = "no agent reaches this mission, it moves only on the lines, the escalations \
+	and the closing its bot writes";
 
 #[derive(Debug, Clone, Serialize)]
 #[serde(rename_all = "camelCase")]
@@ -47,11 +54,65 @@ pub async fn mission_open<R: Runtime>(
 	app: AppHandle<R>,
 	state: State<'_, db::DatabaseState>,
 	draft: MissionDraft,
-) -> Result<Mission, MissionError> {
+) -> Result<MissionOpened, MissionError> {
 	refused_draft(&draft)?;
-	let opened = ready(&state)?.missions().open(draft).await?;
+	let draft = MissionDraft { workspace_path: trimmed(draft.workspace_path), ..draft };
+	refused_workspace(draft.workspace_path.as_deref())?;
+	let workspace = draft.workspace_path.clone();
+	let key = uuid::Uuid::new_v4().to_string();
+	let opened = ready(&state)?.missions().open(draft, key.clone()).await?;
 	announce_change(&app, &opened)?;
-	Ok(opened)
+	let reach = match workspace {
+		Some(workspace) => reach_of(&app, &opened.id, &workspace, &key),
+		None => UNHEARD.to_owned(),
+	};
+	Ok(MissionOpened { mission: opened, reach })
+}
+
+fn reach_of<R: Runtime>(
+	app: &AppHandle<R>,
+	mission_id: &str,
+	workspace: &str,
+	key: &str,
+) -> String {
+	match install(app, mission_id, workspace, key) {
+		Ok(()) => HEARD.to_owned(),
+		Err(failure) => format!("{UNHEARD}: {failure:?}"),
+	}
+}
+
+fn install<R: Runtime>(
+	app: &AppHandle<R>,
+	mission_id: &str,
+	workspace: &str,
+	key: &str,
+) -> Result<(), MissionError> {
+	hook::installed(&hook::dir(app, mission_id)?, workspace, &hook_url(app)?, key)
+}
+
+pub async fn install_hooks_at_launch<R: Runtime>(app: &AppHandle<R>) {
+	let missions = match at_launch(app).await {
+		Ok(missions) => missions,
+		Err(failure) => {
+			return eprintln!("the open missions holding a checkout were not read: {failure:?}")
+		}
+	};
+	for mission in missions {
+		if let Err(failure) =
+			install(app, &mission.id, &mission.workspace_path, &mission.delivery_key)
+		{
+			report_unhooked(&mission.id, &failure);
+		}
+	}
+}
+
+async fn at_launch<R: Runtime>(app: &AppHandle<R>) -> Result<Vec<HookedMission>, MissionError> {
+	let state = app.state::<db::DatabaseState>();
+	ready(&state)?.missions().hooked().await
+}
+
+fn report_unhooked(mission_id: &str, failure: &MissionError) {
+	eprintln!("the agent hook of {mission_id} was not installed: {failure:?}");
 }
 
 #[tauri::command]
@@ -109,13 +170,8 @@ pub async fn mission_watch<R: Runtime>(
 	let watch = normalised(watch);
 	refused_watch(&watch)?;
 	let url = hook_url(&app)?;
-	let (mission, key) = ready(&state)?
-		.missions()
-		.arm(mission_id, watch.clone(), uuid::Uuid::new_v4().to_string())
-		.await?;
-	if let Some(workspace) = watch.workspace_path.as_deref() {
-		hook::installed(&hook::dir(&app, &mission.id)?, workspace, &url, &key)?;
-	}
+	let (mission, key) =
+		ready(&state)?.missions().arm(mission_id, watch, uuid::Uuid::new_v4().to_string()).await?;
 	Ok(MissionWatching { mission, url, key, header: HEADER.to_owned() })
 }
 
@@ -123,21 +179,24 @@ fn normalised(watch: MissionWatch) -> MissionWatch {
 	MissionWatch {
 		branch: watch.branch.trim().to_owned(),
 		repository: watch.repository.trim().to_owned(),
-		workspace_path: watch
-			.workspace_path
-			.map(|path| path.trim().to_owned())
-			.filter(|path| !path.is_empty()),
+	}
+}
+
+fn trimmed(path: Option<String>) -> Option<String> {
+	path.map(|path| path.trim().to_owned()).filter(|path| !path.is_empty())
+}
+
+fn refused_workspace(workspace: Option<&str>) -> Result<(), MissionError> {
+	match workspace {
+		Some(workspace) => hook::checkout(workspace).map(|_| ()),
+		None => Ok(()),
 	}
 }
 
 fn refused_watch(watch: &MissionWatch) -> Result<(), MissionError> {
 	refuse_blank("branch", &watch.branch)?;
 	refuse_blank("repository", &watch.repository)?;
-	refuse_unnamed(&watch.repository)?;
-	match watch.workspace_path.as_deref() {
-		Some(workspace) => hook::checkout(workspace).map(|_| ()),
-		None => Ok(()),
-	}
+	refuse_unnamed(&watch.repository)
 }
 
 fn refuse_unnamed(repository: &str) -> Result<(), MissionError> {
@@ -282,7 +341,15 @@ mod tests {
 			},
 			tools: vec!["gh".to_owned()],
 			source: "bot".to_owned(),
+			workspace_path: None,
 		}
+	}
+
+	async fn a_mission(app: &App<MockRuntime>, draft: MissionDraft) -> Mission {
+		mission_open(app.handle().clone(), app.state(), draft)
+			.await
+			.expect("the mission opens")
+			.mission
 	}
 
 	fn a_note() -> MissionNote {
@@ -306,15 +373,9 @@ mod tests {
 	#[tokio::test]
 	async fn the_board_holds_every_open_mission_of_every_space_with_its_bot_and_its_state() {
 		let app = a_host("board").await;
-		let here = mission_open(app.handle().clone(), app.state(), a_draft("c1", "b1", "Fix it"))
-			.await
-			.expect("the mission opens");
-		let there = mission_open(app.handle().clone(), app.state(), a_draft("c2", "b2", "Ship it"))
-			.await
-			.expect("the mission opens");
-		let done = mission_open(app.handle().clone(), app.state(), a_draft("c2", "b2", "Old work"))
-			.await
-			.expect("the mission opens");
+		let here = a_mission(&app, a_draft("c1", "b1", "Fix it")).await;
+		let there = a_mission(&app, a_draft("c2", "b2", "Ship it")).await;
+		let done = a_mission(&app, a_draft("c2", "b2", "Old work")).await;
 		mission_escalate(app.handle().clone(), app.state(), here.id.clone(), a_note())
 			.await
 			.expect("the mission is escalated");
@@ -343,12 +404,8 @@ mod tests {
 	#[tokio::test]
 	async fn a_closed_mission_owes_a_report_until_one_is_recorded_and_recording_stays_silent() {
 		let app = a_host("unreported").await;
-		let opened = mission_open(app.handle().clone(), app.state(), a_draft("c1", "b1", "Fix it"))
-			.await
-			.expect("the mission opens");
-		let open = mission_open(app.handle().clone(), app.state(), a_draft("c1", "b1", "Ship it"))
-			.await
-			.expect("the mission opens");
+		let opened = a_mission(&app, a_draft("c1", "b1", "Fix it")).await;
+		let open = a_mission(&app, a_draft("c1", "b1", "Ship it")).await;
 		mission_close(
 			app.handle().clone(),
 			app.state(),
@@ -413,9 +470,7 @@ mod tests {
 	async fn closing_on_a_failed_outcome_appends_failed_carries_the_summary_and_shuts_the_mission()
 	{
 		let app = a_host("failed-close").await;
-		let opened = mission_open(app.handle().clone(), app.state(), a_draft("c1", "b1", "Fix it"))
-			.await
-			.expect("the mission opens");
+		let opened = a_mission(&app, a_draft("c1", "b1", "Fix it")).await;
 
 		let closed = mission_close(
 			app.handle().clone(),
@@ -455,9 +510,7 @@ mod tests {
 	#[tokio::test]
 	async fn closing_on_a_done_outcome_appends_closed_and_carries_the_summary() {
 		let app = a_host("done-close").await;
-		let opened = mission_open(app.handle().clone(), app.state(), a_draft("c1", "b1", "Fix it"))
-			.await
-			.expect("the mission opens");
+		let opened = a_mission(&app, a_draft("c1", "b1", "Fix it")).await;
 
 		let closed = mission_close(
 			app.handle().clone(),
@@ -491,9 +544,7 @@ mod tests {
 			let _ = sender.send(event.payload().to_owned());
 		});
 
-		let opened = mission_open(app.handle().clone(), app.state(), a_draft("c1", "b1", "Fix it"))
-			.await
-			.expect("the mission opens");
+		let opened = a_mission(&app, a_draft("c1", "b1", "Fix it")).await;
 		mission_escalate(app.handle().clone(), app.state(), opened.id.clone(), a_note())
 			.await
 			.expect("the mission is escalated");
@@ -516,7 +567,7 @@ mod tests {
 
 	fn a_workspace(name: &str) -> std::path::PathBuf {
 		let path = std::env::temp_dir()
-			.join(format!("opennest-mission-watch-{name}-{}", std::process::id()));
+			.join(format!("opennest-mission-hook-{name}-{}", std::process::id()));
 		let _ = fs::remove_dir_all(&path);
 		fs::create_dir_all(&path).expect("the workspace is there");
 		path
@@ -529,51 +580,66 @@ mod tests {
 		path
 	}
 
-	fn a_watch(branch: &str, workspace: Option<&std::path::Path>) -> MissionWatch {
-		MissionWatch {
-			branch: branch.to_owned(),
-			repository: "shoto290/OpenNest".to_owned(),
+	fn a_watch(branch: &str) -> MissionWatch {
+		MissionWatch { branch: branch.to_owned(), repository: "shoto290/OpenNest".to_owned() }
+	}
+
+	fn drafted_in(objective: &str, workspace: Option<&std::path::Path>) -> MissionDraft {
+		MissionDraft {
 			workspace_path: workspace.map(|path| path.to_string_lossy().into_owned()),
+			..a_draft("c1", "b1", objective)
 		}
 	}
 
+	fn hooked_in(workspace: &std::path::Path) -> String {
+		fs::read_to_string(workspace.join(".claude").join("settings.local.json"))
+			.expect("the settings of the workspace read")
+	}
+
 	#[tokio::test]
-	async fn arming_a_mission_answers_where_the_hook_calls_and_installs_it_in_the_workspace() {
-		let app = a_host("watched").await;
+	async fn opening_on_a_checkout_installs_the_hook_there_and_answers_that_the_agent_is_heard() {
+		let app = a_host("opened-hook").await;
 		app.manage(crate::routines::webhook::start(app.handle().clone()));
-		let workspace = a_checkout("watched");
-		let opened = mission_open(app.handle().clone(), app.state(), a_draft("c1", "b1", "Fix it"))
+		let workspace = a_checkout("opened-hook");
+
+		let opened =
+			mission_open(app.handle().clone(), app.state(), drafted_in("Fix it", Some(&workspace)))
+				.await
+				.expect("the mission opens");
+
+		assert_eq!(opened.reach, HEARD, "the answer did not tell the mission hears its agent");
+		let settings = hooked_in(&workspace);
+		assert!(settings.contains("opennest-agent-hook.sh"), "got {settings}");
+		let hooked = ready(&app.state::<db::DatabaseState>())
+			.expect("the database opens")
+			.missions()
+			.hooked()
 			.await
-			.expect("the mission opens");
+			.expect("the missions holding a checkout read");
+		assert_eq!(
+			hooked.iter().map(|held| held.id.clone()).collect::<Vec<_>>(),
+			vec![opened.mission.id.clone()],
+			"the mission did not keep the checkout its open call named"
+		);
+		assert!(!hooked[0].delivery_key.is_empty(), "the open call minted no delivery key");
 
 		let armed = mission_watch(
 			app.handle().clone(),
 			app.state(),
-			opened.id.clone(),
-			a_watch("feature/ope-27", Some(&workspace)),
+			opened.mission.id.clone(),
+			a_watch("feature/ope-56"),
 		)
 		.await
 		.expect("the mission is armed");
 
-		assert_eq!(armed.header, crate::routines::webhook::HEADER);
-		assert!(armed.url.starts_with("http://127.0.0.1:"), "got {}", armed.url);
-		assert!(armed.url.ends_with(crate::missions::call::PATH), "got {}", armed.url);
-		assert!(!armed.key.is_empty());
-		assert_eq!(armed.mission.id, opened.id);
-		let settings = fs::read_to_string(workspace.join(".claude").join("settings.local.json"))
-			.expect("the settings of the workspace read");
-		assert!(settings.contains("opennest-agent-hook.sh"), "got {settings}");
-
-		let again = mission_watch(
-			app.handle().clone(),
-			app.state(),
-			opened.id.clone(),
-			a_watch("feature/ope-27", None),
-		)
-		.await
-		.expect("the mission is armed again");
-
-		assert_eq!(again.key, armed.key, "the second arming minted another key");
+		assert_eq!(armed.key, hooked[0].delivery_key, "arming minted another key");
+		let still = ready(&app.state::<db::DatabaseState>())
+			.expect("the database opens")
+			.missions()
+			.hooked()
+			.await
+			.expect("the missions holding a checkout read");
+		assert_eq!(still, hooked, "arming lost the checkout or the key the open call wrote");
 
 		if let Some(webhook) = app.try_state::<crate::routines::webhook::Webhook>() {
 			webhook.stop();
@@ -583,15 +649,109 @@ mod tests {
 	}
 
 	#[tokio::test]
+	async fn opening_without_a_checkout_writes_the_mission_and_answers_that_no_agent_reaches_it() {
+		let app = a_host("opened-bare").await;
+		app.manage(crate::routines::webhook::start(app.handle().clone()));
+
+		let opened = mission_open(app.handle().clone(), app.state(), drafted_in("Fix it", None))
+			.await
+			.expect("the mission opens");
+
+		assert_eq!(opened.reach, UNHEARD, "got {}", opened.reach);
+		assert_eq!(opened.mission.state, MissionState::Working);
+		let hooked = ready(&app.state::<db::DatabaseState>())
+			.expect("the database opens")
+			.missions()
+			.hooked()
+			.await
+			.expect("the missions holding a checkout read");
+		assert!(hooked.is_empty(), "got {hooked:?}");
+
+		if let Some(webhook) = app.try_state::<crate::routines::webhook::Webhook>() {
+			webhook.stop();
+		}
+		cleaned(&app);
+	}
+
+	#[tokio::test]
+	async fn opening_with_no_local_server_keeps_the_mission_and_answers_why_no_agent_reaches_it() {
+		let app = a_host("opened-serverless").await;
+		let workspace = a_checkout("opened-serverless");
+
+		let opened =
+			mission_open(app.handle().clone(), app.state(), drafted_in("Fix it", Some(&workspace)))
+				.await
+				.expect("the mission opens");
+
+		assert!(opened.reach.starts_with(UNHEARD), "got {}", opened.reach);
+		assert!(opened.reach.contains("local server"), "got {}", opened.reach);
+		assert!(opened.mission.closed_at.is_none(), "the mission did not stay open");
+		assert!(!workspace.join(".claude").exists(), "a hook landed without an address");
+
+		fs::remove_dir_all(&workspace).expect("cleanup");
+		cleaned(&app);
+	}
+
+	#[tokio::test]
+	async fn opening_on_a_workspace_that_is_no_git_checkout_refuses_and_writes_no_mission() {
+		let app = a_host("no-git").await;
+		app.manage(crate::routines::webhook::start(app.handle().clone()));
+		let workspace = a_workspace("no-git");
+
+		let refused =
+			mission_open(app.handle().clone(), app.state(), drafted_in("Fix it", Some(&workspace)))
+				.await
+				.expect_err("the workspace that is no git checkout is refused");
+
+		assert!(matches!(refused, MissionError::Undeliverable { .. }), "got {refused:?}");
+		assert!(!workspace.join(".claude").exists(), "the refused workspace was written in");
+		let board =
+			mission_board(app.handle().clone(), app.state()).await.expect("the board reads");
+		assert!(board.is_empty(), "got {board:?}");
+
+		if let Some(webhook) = app.try_state::<crate::routines::webhook::Webhook>() {
+			webhook.stop();
+		}
+		fs::remove_dir_all(&workspace).expect("cleanup");
+		cleaned(&app);
+	}
+
+	#[tokio::test]
+	async fn a_launch_hooks_every_open_mission_holding_a_checkout_and_reports_the_one_that_is_gone()
+	{
+		let app = a_host("launch").await;
+		app.manage(crate::routines::webhook::start(app.handle().clone()));
+		let here = a_checkout("launch-here");
+		let gone = a_checkout("launch-gone");
+		let standing =
+			mission_open(app.handle().clone(), app.state(), drafted_in("Fix it", Some(&here)))
+				.await
+				.expect("the mission opens");
+		mission_open(app.handle().clone(), app.state(), drafted_in("Ship it", Some(&gone)))
+			.await
+			.expect("the mission opens");
+		fs::remove_dir_all(here.join(".claude")).expect("the settings are wiped");
+		fs::remove_dir_all(&gone).expect("the checkout is gone");
+
+		install_hooks_at_launch(app.handle()).await;
+
+		let settings = hooked_in(&here);
+		assert!(settings.contains("opennest-agent-hook.sh"), "got {settings}");
+		assert!(standing.mission.closed_at.is_none(), "the open mission was closed");
+
+		if let Some(webhook) = app.try_state::<crate::routines::webhook::Webhook>() {
+			webhook.stop();
+		}
+		fs::remove_dir_all(&here).expect("cleanup");
+		cleaned(&app);
+	}
+
+	#[tokio::test]
 	async fn arming_refuses_an_unknown_mission_a_closed_one_and_a_repository_without_an_owner() {
 		let app = a_host("refused").await;
 		app.manage(crate::routines::webhook::start(app.handle().clone()));
-		let opened = mission_open(app.handle().clone(), app.state(), a_draft("c1", "b1", "Fix it"))
-			.await
-			.expect("the mission opens");
-		let done = mission_open(app.handle().clone(), app.state(), a_draft("c1", "b1", "Old work"))
-			.await
-			.expect("the mission opens");
+		let opened = a_mission(&app, a_draft("c1", "b1", "Fix it")).await;
+		let done = a_mission(&app, a_draft("c1", "b1", "Old work")).await;
 		mission_close(
 			app.handle().clone(),
 			app.state(),
@@ -605,7 +765,7 @@ mod tests {
 			app.handle().clone(),
 			app.state(),
 			"x9".to_owned(),
-			a_watch("feature/ope-27", None),
+			a_watch("feature/ope-27"),
 		)
 		.await
 		.expect_err("the unknown mission is refused");
@@ -613,7 +773,7 @@ mod tests {
 			app.handle().clone(),
 			app.state(),
 			done.id.clone(),
-			a_watch("feature/ope-27", None),
+			a_watch("feature/ope-27"),
 		)
 		.await
 		.expect_err("the closed mission is refused");
@@ -621,11 +781,7 @@ mod tests {
 			app.handle().clone(),
 			app.state(),
 			opened.id,
-			MissionWatch {
-				branch: "feature/ope-27".to_owned(),
-				repository: "OpenNest".to_owned(),
-				workspace_path: None,
-			},
+			MissionWatch { branch: "feature/ope-27".to_owned(), repository: "OpenNest".to_owned() },
 		)
 		.await
 		.expect_err("the repository without an owner is refused");
@@ -637,41 +793,6 @@ mod tests {
 		if let Some(webhook) = app.try_state::<crate::routines::webhook::Webhook>() {
 			webhook.stop();
 		}
-		cleaned(&app);
-	}
-
-	#[tokio::test]
-	async fn arming_on_a_workspace_that_is_no_git_checkout_writes_nothing_and_arms_nothing() {
-		let app = a_host("no-git").await;
-		app.manage(crate::routines::webhook::start(app.handle().clone()));
-		let workspace = a_workspace("no-git");
-		let opened = mission_open(app.handle().clone(), app.state(), a_draft("c1", "b1", "Fix it"))
-			.await
-			.expect("the mission opens");
-
-		let refused = mission_watch(
-			app.handle().clone(),
-			app.state(),
-			opened.id.clone(),
-			a_watch("feature/ope-42", Some(&workspace)),
-		)
-		.await
-		.expect_err("the workspace that is no git checkout is refused");
-
-		assert!(matches!(refused, MissionError::Undeliverable { .. }), "got {refused:?}");
-		assert!(!workspace.join(".claude").exists(), "the refused workspace was written in");
-		let watched = ready(&app.state::<db::DatabaseState>())
-			.expect("the database opens")
-			.missions()
-			.watched()
-			.await
-			.expect("the watched missions read");
-		assert!(watched.is_empty(), "got {watched:?}");
-
-		if let Some(webhook) = app.try_state::<crate::routines::webhook::Webhook>() {
-			webhook.stop();
-		}
-		fs::remove_dir_all(&workspace).expect("cleanup");
 		cleaned(&app);
 	}
 
