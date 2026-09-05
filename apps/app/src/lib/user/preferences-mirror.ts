@@ -73,10 +73,6 @@ const widthOf = (value: string | null): number | null => {
 	return Number.isNaN(width) ? null : width
 }
 
-const panelOpenOf = (value: string | null) => value === PANEL_OPEN
-
-const panelAsStored = (isOpen: boolean) => (isOpen ? PANEL_OPEN : PANEL_CLOSED)
-
 export const activeLanguageOf = (chosen: string | null): Language =>
 	languageOf(chosen) ?? languageOf(navigator.language) ?? DEFAULT_LANGUAGE
 
@@ -108,7 +104,8 @@ export const readMirror = (): MirroredPreferences => ({
 	colorScheme: colorSchemeOf(localStorage.getItem(COLOR_SCHEME_KEY)),
 	language: languageOf(localStorage.getItem(LANGUAGE_KEY)),
 	sidebarWidth: widthOf(localStorage.getItem(SIDEBAR_WIDTH_KEY)),
-	activityPanelOpen: panelOpenOf(localStorage.getItem(ACTIVITY_PANEL_OPEN_KEY)),
+	activityPanelOpen:
+		localStorage.getItem(ACTIVITY_PANEL_OPEN_KEY) === PANEL_OPEN,
 	lastSpaceId: localStorage.getItem(LAST_SPACE_KEY),
 	lastBotIdBySpace: parseBotIdBySpace(
 		localStorage.getItem(LAST_BOT_BY_SPACE_KEY),
@@ -130,7 +127,7 @@ export const writeMirror = (mirrored: MirroredPreferences) => {
 	keep(SIDEBAR_WIDTH_KEY, mirrored.sidebarWidth)
 	localStorage.setItem(
 		ACTIVITY_PANEL_OPEN_KEY,
-		panelAsStored(mirrored.activityPanelOpen),
+		mirrored.activityPanelOpen ? PANEL_OPEN : PANEL_CLOSED,
 	)
 	keep(LAST_SPACE_KEY, mirrored.lastSpaceId)
 	keep(LAST_BOT_BY_SPACE_KEY, JSON.stringify(mirrored.lastBotIdBySpace))
