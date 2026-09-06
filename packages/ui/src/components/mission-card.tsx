@@ -3,6 +3,7 @@
 import { useTranslation } from "react-i18next"
 
 import {
+	MESSAGE_BUBBLE_INTERACTIVE,
 	MESSAGE_BUBBLE_PADDING_INSET,
 	MessageBubble,
 	MessageBubbleContent,
@@ -76,16 +77,18 @@ type MissionTicketLineProps = {
 }
 
 const MissionTicketLine = ({ ticket }: MissionTicketLineProps) => {
-	if (!ticket.externalId && !ticket.title) return null
-
 	const Mark = missionTicketPlatformMark(ticket.platform)
 	const line = (
 		<>
 			<Mark aria-hidden="true" className="size-3 shrink-0" />
-			<span className="shrink-0 font-medium tabular-nums">
-				{ticket.externalId}
-			</span>
-			<span className="min-w-0 wrap-break-word">{ticket.title}</span>
+			{ticket.externalId ? (
+				<span className="shrink-0 font-medium tabular-nums">
+					{ticket.externalId}
+				</span>
+			) : null}
+			{ticket.title ? (
+				<span className="min-w-0 wrap-break-word">{ticket.title}</span>
+			) : null}
 		</>
 	)
 
@@ -127,11 +130,11 @@ const MissionCard = ({
 
 	return (
 		<MessageBubble className={className} variant="soft">
-			<MessageBubbleContent className="transition-[filter] duration-150 hover:brightness-[0.98]">
+			<MessageBubbleContent className={MESSAGE_BUBBLE_INTERACTIVE}>
 				<button
 					aria-label={t("missions.card.open", { objective })}
 					className={cn(
-						"absolute cursor-pointer rounded-2xl outline-none focus-visible:ring-2 focus-visible:ring-ring",
+						"absolute rounded-2xl outline-none focus-visible:ring-2 focus-visible:ring-ring",
 						MESSAGE_BUBBLE_PADDING_INSET,
 					)}
 					onClick={() => onOpen(id)}

@@ -14,9 +14,9 @@ const UNRECOGNISED_MISSION_CARD = {
 	tools: ["Screenshot"],
 }
 
-const TICKETLESS_MISSION_CARD = {
-	...WORKING_MISSION_CARD,
-	ticket: { externalId: "", title: "", platform: "", url: "" },
+const UNTITLED_TICKET_MISSION_CARD = {
+	...WAITING_MISSION_CARD,
+	ticket: { ...WAITING_MISSION_CARD.ticket, title: "" },
 }
 
 const UNLINKABLE_MISSION_CARD = {
@@ -98,19 +98,26 @@ export const Unrecognised = meta.story({
 	},
 })
 
-export const WithoutTicket = meta.story({
-	args: TICKETLESS_MISSION_CARD,
+export const IdentifierWithoutTitle = meta.story({
+	args: UNTITLED_TICKET_MISSION_CARD,
 	parameters: {
 		docs: {
 			description: {
 				story:
-					"A mission opened without a ticket, as one opened from a design file is. Check that the bubble holds the objective alone rather than a lone mark over two empty spans, and that the bubble is then the only keyboard target. Pick `Unlinkable` for a ticket that exists but carries no address.",
+					"A ticket the app knows by number and not by name, which is what a mission opened before its ticket was written carries. Check that the line stops after the identifier, with no empty element and no gap held open for the title that is missing. Pick `Default` for the ticket that carries both.",
 			},
 		},
 	},
-	play: async ({ canvas, canvasElement }) => {
-		await expect(slotsIn(canvasElement, "mission-ticket-line")).toHaveLength(0)
-		await expect(canvas.queryByRole("link")).toBeNull()
+	play: async ({ canvasElement }) => {
+		const [ticket] = slotsIn(canvasElement, "mission-ticket-line")
+		const empty = [...ticket.querySelectorAll("span")].filter(
+			(span) => span.textContent === "",
+		)
+
+		await expect(ticket).toHaveTextContent(
+			UNTITLED_TICKET_MISSION_CARD.ticket.externalId,
+		)
+		await expect(empty).toHaveLength(0)
 	},
 })
 
