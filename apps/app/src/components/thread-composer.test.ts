@@ -31,6 +31,7 @@ const composerOf = ({
 		attachments: NO_ATTACHMENTS,
 		canAttach,
 		composerRef: { current: null },
+		isDisabled: false,
 		isDropTarget: false,
 		menu,
 		onAttach: () => undefined,

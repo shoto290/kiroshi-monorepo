@@ -1,4 +1,5 @@
 import type { MessageAuthor } from "@workspace/ui/components/message"
+import type { MissionEventModel } from "@workspace/ui/components/mission"
 import type { RosterBot } from "@workspace/ui/components/roster"
 
 import type { ChatController } from "./chat-controller"
@@ -19,6 +20,7 @@ import type {
 import type { ConversationRuntimes } from "../conversations/conversation-runtimes"
 import { presentParticipants } from "../conversations/roster-conversations"
 import type { Bot, Conversation } from "../conversations/store-contract"
+import type { Mission } from "../missions/mission-contract"
 import type { ReportedRunsByTurnId } from "../routines/routine-contract"
 
 export type ThreadFace = RosterBot
@@ -36,12 +38,20 @@ export type BotThread = {
 	onToggleSettings: () => void
 }
 
+export type ThreadMission = {
+	mission: Mission
+	events: MissionEventModel[]
+	now: number
+	onLeave: () => void
+}
+
 export type ConversationThread = {
 	kind: "conversation"
 	conversation: Conversation
 	runtimes: ConversationRuntimes
 	isSettingsOpen: boolean
 	onOpenSettings: (conversationId: string) => void
+	mission?: ThreadMission
 }
 
 export type Thread = BotThread | ConversationThread
@@ -91,6 +101,7 @@ export type ThreadFacts = {
 	workingBotIds: (string | null)[]
 	loopingPair: [string, string] | null
 	causes: ReportedRunsByTurnId
+	mission: ThreadMission | null
 }
 
 const NO_WORKING_BOT_IDS: (string | null)[] = []
@@ -130,6 +141,7 @@ const botFactsOf = (thread: LoadedBotThread): ThreadFacts => {
 		workingBotIds: NO_WORKING_BOT_IDS,
 		loopingPair: null,
 		causes: thread.state.reportedCauses,
+		mission: null,
 	}
 }
 
@@ -158,6 +170,7 @@ const conversationFactsOf = (
 	],
 	loopingPair: thread.state.loopingPair,
 	causes: thread.state.reportedCauses,
+	mission: thread.mission ?? null,
 })
 
 export const factsOf = (thread: LoadedThread): ThreadFacts =>

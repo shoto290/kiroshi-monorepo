@@ -8,20 +8,13 @@ import {
 } from "@workspace/ui/components/message-bubble"
 import type { MissionEventModel } from "@workspace/ui/components/mission"
 import { toRelativeTime } from "@workspace/ui/lib/relative-time"
-import { cn } from "@workspace/ui/lib/utils"
 
-type MissionFeedProps = {
-	events: MissionEventModel[]
-	now: number
-	className?: string
-}
-
-type MissionEventProps = {
+type MissionEventRowProps = {
 	event: MissionEventModel
 	now: number
 }
 
-const MissionEventTime = ({ event, now }: MissionEventProps) => {
+const MissionEventTime = ({ event, now }: MissionEventRowProps) => {
 	const { i18n } = useTranslation("chat")
 
 	return (
@@ -34,7 +27,7 @@ const MissionEventTime = ({ event, now }: MissionEventProps) => {
 	)
 }
 
-const MissionMachineLine = ({ event, now }: MissionEventProps) => {
+const MissionMachineLine = ({ event, now }: MissionEventRowProps) => {
 	const { t } = useTranslation("chat")
 
 	return (
@@ -51,7 +44,7 @@ const MissionMachineLine = ({ event, now }: MissionEventProps) => {
 	)
 }
 
-const MissionAuthoredEvent = ({ event, now }: MissionEventProps) => {
+const MissionAuthoredEvent = ({ event, now }: MissionEventRowProps) => {
 	const { t } = useTranslation("chat")
 
 	return (
@@ -76,21 +69,14 @@ const MissionAuthoredEvent = ({ event, now }: MissionEventProps) => {
 	)
 }
 
-const MissionFeed = ({ events, now, className }: MissionFeedProps) => (
-	<ol
-		className={cn("flex w-full min-w-0 flex-col gap-2", className)}
-		data-slot="mission-feed"
-	>
-		{events.map((event) => (
-			<li className="min-w-0" key={event.id}>
-				{event.text === undefined ? (
-					<MissionMachineLine event={event} now={now} />
-				) : (
-					<MissionAuthoredEvent event={event} now={now} />
-				)}
-			</li>
-		))}
-	</ol>
+const MissionEventRow = ({ event, now }: MissionEventRowProps) => (
+	<div className="w-full min-w-0" data-slot="mission-event-row">
+		{event.text === undefined ? (
+			<MissionMachineLine event={event} now={now} />
+		) : (
+			<MissionAuthoredEvent event={event} now={now} />
+		)}
+	</div>
 )
 
-export { MissionFeed, type MissionFeedProps }
+export { MissionEventRow, type MissionEventRowProps }

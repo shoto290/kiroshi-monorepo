@@ -25,6 +25,7 @@ export type ThreadMenuSlot = {
 type ThreadComposerProps = {
 	attachments: StagedAttachment[]
 	canAttach: boolean
+	isDisabled: boolean
 	isDropTarget: boolean
 	onAttach: (files: File[]) => void
 	onRemoveAttachment: (id: string) => void
@@ -40,6 +41,7 @@ type ThreadComposerProps = {
 export const ThreadComposer = ({
 	attachments,
 	canAttach,
+	isDisabled,
 	isDropTarget,
 	onAttach,
 	onRemoveAttachment,
@@ -102,6 +104,7 @@ export const ThreadComposer = ({
 						onRemove={onRemoveAttachment}
 					/>
 				}
+				disabled={isDisabled}
 				dropTarget={isDropTarget}
 				leading={
 					<PromptAttachButton disabled={!canAttach} onAttach={onAttach} />

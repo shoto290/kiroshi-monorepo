@@ -13,6 +13,8 @@ import {
 	MessageQuote,
 	type QuotedMessage,
 } from "@workspace/ui/components/message-quote"
+import { MissionEventRow } from "@workspace/ui/components/mission-event-row"
+import { MissionHeader } from "@workspace/ui/components/mission-header"
 import { MissionTurn } from "@workspace/ui/components/mission-turn"
 import {
 	PINNED_AVATAR_SIZE,
@@ -27,7 +29,7 @@ import type {
 	TranscriptItem,
 } from "@workspace/ui/components/transcript"
 import { TurnGroup } from "@workspace/ui/components/turn"
-import { useChatCopy } from "@workspace/ui/hooks/use-chat-copy"
+import { type ChatCopy, useChatCopy } from "@workspace/ui/hooks/use-chat-copy"
 
 import { FaceAvatar } from "@/components/face-avatar"
 import { ThreadComposer } from "@/components/thread-composer"
@@ -79,6 +81,7 @@ import {
 	type ThreadAuthors,
 	type ThreadFace,
 	type ThreadFacts,
+	type ThreadMission,
 	type ThreadPermission,
 	type ThreadQuotes,
 } from "@/lib/chat/thread-contract"
@@ -113,12 +116,16 @@ import { leadOf } from "@/lib/conversations/roster-conversations"
 import type { Bot } from "@/lib/conversations/store-contract"
 import { useConversation } from "@/lib/conversations/use-conversation"
 import type { Mission } from "@/lib/missions/mission-contract"
+import { toMissionFace } from "@/lib/missions/mission-thread-model"
 import {
 	BEFORE_FIRST_RUN,
 	type PlacedMission,
+	type PlacedMissionEvent,
+	placeMissionEvents,
 	placeMissions,
 } from "@/lib/missions/mission-transcript"
 import { toMissionCard } from "@/lib/missions/missions-model"
+import { useMissionSendFailure } from "@/lib/missions/use-mission-failure-notices"
 import { useMissions } from "@/lib/missions/use-missions"
 import type { ReportedRunsByTurnId } from "@/lib/routines/routine-contract"
 
@@ -171,19 +178,40 @@ type RoutinesScope = {
 	leadBotId?: string
 }
 
+const NO_ROUTINES: RoutinesScope = { conversationId: null }
+
 const routinesScopeOf = (
 	facts: ThreadFacts,
 	mainConversationId: string | null,
-): RoutinesScope =>
-	facts.conversation
+): RoutinesScope => {
+	if (facts.mission) {
+		return NO_ROUTINES
+	}
+
+	return facts.conversation
 		? {
 				conversationId: facts.conversation.id,
 				leadBotId: leadOf(facts.conversation),
 			}
 		: { conversationId: mainConversationId, leadBotId: facts.bot?.id }
+}
+
+const isClosedMission = (seat: ThreadMission | null): boolean =>
+	seat !== null && seat.mission.closedAt !== null
+
+const composerPlaceholderOf = (facts: ThreadFacts, t: ChatCopy): string => {
+	if (facts.mission) {
+		return t("missions.composer.placeholder")
+	}
+
+	return facts.bot
+		? t("screen.placeholder", { name: facts.bot.name })
+		: t("composer.placeholder")
+}
 
 type ThreadHeaderProps = {
 	thread: LoadedThread
+	mission: ThreadMission | null
 	botWork: WorkingState | null
 	botImage?: string
 	present: RosterBot[]
@@ -195,6 +223,7 @@ type ThreadHeaderProps = {
 
 const ThreadHeader = ({
 	thread,
+	mission,
 	botWork,
 	botImage,
 	present,
@@ -203,6 +232,22 @@ const ThreadHeader = ({
 	onJumpToPin,
 	onUnpin,
 }: ThreadHeaderProps) => {
+	const missionFace = mission
+		? present.find(({ id }) => id === mission.mission.botId)
+		: undefined
+
+	if (mission && missionFace) {
+		return (
+			<MissionHeader
+				bot={toMissionFace(missionFace)}
+				onBack={mission.onLeave}
+				state={mission.mission.state}
+				ticket={mission.mission.ticket}
+				tools={mission.mission.tools}
+			/>
+		)
+	}
+
 	const pinned = (
 		<PinnedMessages
 			messages={pinnedRows}
@@ -257,6 +302,7 @@ type ThreadComposerSlotProps = {
 	composerRef: RefObject<HTMLTextAreaElement | null>
 	staged: StagedFiles
 	canAttach: boolean
+	isDisabled: boolean
 	placeholder: string
 	present: RosterBot[]
 	readDraft: () => string
@@ -269,6 +315,7 @@ const ThreadComposerSlot = ({
 	composerRef,
 	staged,
 	canAttach,
+	isDisabled,
 	placeholder,
 	present,
 	readDraft,
@@ -293,6 +340,7 @@ const ThreadComposerSlot = ({
 			attachments={staged.items}
 			canAttach={canAttach}
 			composerRef={composerRef}
+			isDisabled={isDisabled}
 			isDropTarget={staged.isDropTarget}
 			onAttach={staged.stage}
 			onPromptChange={onPromptChange}
@@ -515,6 +563,20 @@ const toRunRows = ({
 		),
 	}))
 
+const interleavedWithRuns = <Placed extends { runIndex: number }>(
+	runRows: TranscriptItem[],
+	placed: Placed[],
+	toRows: (placed: Placed) => TranscriptItem[],
+): TranscriptItem[] => {
+	const rowsAfter = (runIndex: number) =>
+		placed.filter((one) => one.runIndex === runIndex).flatMap(toRows)
+
+	return [
+		...rowsAfter(BEFORE_FIRST_RUN),
+		...runRows.flatMap((runRow, runIndex) => [runRow, ...rowsAfter(runIndex)]),
+	]
+}
+
 type MissionCardRowsProps = {
 	runRows: TranscriptItem[]
 	placed: PlacedMission[]
@@ -544,28 +606,28 @@ const withMissionCards = ({
 	authors,
 	faceOf,
 	onOpen,
-}: MissionCardRowsProps): TranscriptItem[] => {
-	const cardsAfter = (runIndex: number) =>
-		placed
-			.filter((opened) => opened.runIndex === runIndex)
-			.flatMap(({ mission }) => {
-				const identity = faceOf(mission.botId)
-				if (!identity) return []
-				return [
-					toMissionCardRow(
-						mission,
-						identity,
-						authors.get(mission.botId),
-						onOpen,
-					),
-				]
-			})
+}: MissionCardRowsProps): TranscriptItem[] =>
+	interleavedWithRuns(runRows, placed, ({ mission }) => {
+		const identity = faceOf(mission.botId)
+		if (!identity) {
+			return []
+		}
+		return [
+			toMissionCardRow(mission, identity, authors.get(mission.botId), onOpen),
+		]
+	})
 
-	return [
-		...cardsAfter(BEFORE_FIRST_RUN),
-		...runRows.flatMap((runRow, runIndex) => [runRow, ...cardsAfter(runIndex)]),
-	]
-}
+const withMissionEvents = (
+	runRows: TranscriptItem[],
+	placed: PlacedMissionEvent[],
+	now: number,
+): TranscriptItem[] =>
+	interleavedWithRuns(runRows, placed, ({ event }) => [
+		{
+			key: `mission-event-${event.id}`,
+			render: () => <MissionEventRow event={event} now={now} />,
+		},
+	])
 
 type BotThreadTailProps = {
 	thread: LoadedBotThread
@@ -766,9 +828,9 @@ function ThreadView({
 	const promptResponder = usePromptResponder(controller, scrollerRef)
 
 	const reader = readerName || t("working.name")
-	const composerPlaceholder = facts.bot
-		? t("screen.placeholder", { name: facts.bot.name })
-		: t("composer.placeholder")
+	const missionSeat = facts.mission
+	const isMissionClosed = isClosedMission(missionSeat)
+	const composerPlaceholder = composerPlaceholderOf(facts, t)
 	const roster = useThreadRoster({ ...facts, bots: known })
 	const { bots, present, authors, botFace } = roster
 	const botImage = botFace?.image
@@ -882,13 +944,19 @@ function ThreadView({
 		speakerStops: speakerStopsOf(thread),
 		toQuote,
 	})
-	const transcriptRows = withMissionCards({
-		authors,
-		faceOf,
-		onOpen: onOpenMission,
-		placed: placeMissions(runs, missions.missions),
-		runRows,
-	})
+	const transcriptRows = missionSeat
+		? withMissionEvents(
+				runRows,
+				placeMissionEvents(runs, missionSeat.events),
+				missionSeat.now,
+			)
+		: withMissionCards({
+				authors,
+				faceOf,
+				onOpen: onOpenMission,
+				placed: placeMissions(runs, missions.missions),
+				runRows,
+			})
 	const refusedTarget = repliedToRefusal
 		? quotes.get(repliedToRefusal)
 		: undefined
@@ -899,8 +967,9 @@ function ThreadView({
 			busy={facts.isBusy}
 			composer={
 				<ThreadComposerSlot
-					canAttach={facts.canAttach}
+					canAttach={facts.canAttach && !isMissionClosed}
 					composerRef={composerRef}
+					isDisabled={isMissionClosed}
 					onPromptChange={rememberDraft}
 					onSubmitPrompt={submitPrompt}
 					placeholder={composerPlaceholder}
@@ -915,6 +984,7 @@ function ThreadView({
 					botImage={botImage}
 					botWork={facts.botWork}
 					hasRoutines={routinesScope.conversationId !== null}
+					mission={missionSeat}
 					onJumpToPin={(bubbleId) => jumpToMessage(pins.anchorOf(bubbleId))}
 					onUnpin={pins.unpin}
 					pinnedRows={pinnedRows}
@@ -923,7 +993,7 @@ function ThreadView({
 				/>
 			}
 			highlightedMessageId={highlightedMessageId}
-			label={t("screen.label")}
+			label={missionSeat ? t("missions.feed.label") : t("screen.label")}
 			notice={
 				<ThreadNotices
 					bots={bots}
@@ -966,7 +1036,7 @@ function ThreadView({
 			scrollerRef={scrollerRef}
 			transcriptKey={facts.id}
 		>
-			{state.messages.length === 0 ? (
+			{transcriptRows.length === 0 ? (
 				<ThreadEmptyState
 					botImage={botImage}
 					onRestart={restart}
@@ -1026,6 +1096,8 @@ function ConversationThreadView({
 		thread.runtimes,
 		thread.conversation,
 	)
+
+	useMissionSendFailure(thread.mission ? state.refusedMessage : null)
 
 	return (
 		<ThreadView

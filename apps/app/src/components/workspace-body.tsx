@@ -101,9 +101,13 @@ export function WorkspaceBody(props: WorkspaceBodyProps) {
 	if (openedMissionId) {
 		return (
 			<MissionThreadScreen
+				activityPanel={props.activityPanel}
+				attachments={props.attachments}
 				bots={props.bots}
+				drafts={props.drafts}
 				missionId={openedMissionId}
 				onLeave={leaveMission}
+				onOpenMission={openMission}
 				readerName={props.readerName}
 				runtimes={props.conversationRuntimes}
 			/>
