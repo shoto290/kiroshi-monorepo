@@ -34,6 +34,7 @@ const composerWith = (wiring: ThreadMenuWiring): ReactNode =>
 		attachments: NO_ATTACHMENTS,
 		canAttach: true,
 		composerRef: { current: null },
+		isDisabled: false,
 		isDropTarget: false,
 		menu: wiring.menu,
 		onAttach: () => undefined,

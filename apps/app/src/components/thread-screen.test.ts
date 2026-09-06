@@ -11,6 +11,7 @@ import {
 import { createElement, useState } from "react"
 import { afterEach, beforeEach, describe, expect, it, vi } from "vitest"
 
+import type { MissionEventModel } from "@workspace/ui/components/mission"
 import { NoticeSurface } from "@workspace/ui/components/notice-surface"
 import "@workspace/ui/lib/i18n"
 
@@ -27,7 +28,11 @@ import {
 	initialChatState,
 } from "@/lib/chat/chat-state"
 import { createDraftsController } from "@/lib/chat/drafts-controller"
-import type { BotThread, Thread } from "@/lib/chat/thread-contract"
+import type {
+	BotThread,
+	ConversationThread,
+	Thread,
+} from "@/lib/chat/thread-contract"
 import { createConversationRuntimes } from "@/lib/conversations/conversation-runtimes"
 import { createFakeTranscriptStore } from "@/lib/conversations/fake-transcript-store"
 import {
@@ -399,7 +404,7 @@ const SAID_AND_LANDED: AgentEvent[] = [
 type Room = {
 	driver: ScriptedDriver
 	bots: Bot[]
-	thread: Thread
+	thread: ConversationThread
 	idOf: (name: string) => string
 	send: (text: string) => Promise<void>
 }
@@ -633,6 +638,59 @@ const soloOf = async ({
 		},
 	}
 }
+
+const MISSION_SAID: SpokenTurn = {
+	turnId: "t-mission",
+	text: "the parser is rewritten",
+	createdAt: 2 * A_MINUTE,
+}
+
+const MISSION_OPENED: MissionEventModel = {
+	id: "e-opened",
+	kind: "opened",
+	source: "linear",
+	createdAt: A_MINUTE,
+}
+
+const MISSION_ESCALATED: MissionEventModel = {
+	id: "e-escalated",
+	kind: "escalated",
+	source: "linear",
+	createdAt: 3 * A_MINUTE,
+	text: "The parser needs a decision.",
+}
+
+type MissionRoomFixture = {
+	events: MissionEventModel[]
+	spoken?: SpokenTurn[]
+	closedAt?: number | null
+}
+
+const missionRoomOf = async ({
+	events,
+	spoken = [],
+	closedAt = null,
+}: MissionRoomFixture): Promise<Room> => {
+	const room = await roomOf({ names: ["Ada"], spoken })
+	const mission: Mission = {
+		...SOLO_MISSION,
+		botId: room.idOf("Ada"),
+		closedAt,
+	}
+
+	return {
+		...room,
+		thread: {
+			...room.thread,
+			mission: { mission, events, onLeave: () => undefined },
+		},
+	}
+}
+
+const transcriptRows = () =>
+	[...document.querySelectorAll('[data-slot="message-scroller-item"]')].map(
+		(row) => row.textContent ?? "",
+	)
 
 const elapsedText = () =>
 	document.querySelector('[data-slot="bot-working-elapsed"]')?.textContent ??
@@ -1424,6 +1482,40 @@ describe("ThreadScreen", () => {
 		expect(screen.getByText("the walls hold")).toBeTruthy()
 		expect(screen.queryByText("Ada is writing…")).toBeNull()
 		expect(stopFor("Ada")).toBeNull()
+	})
+
+	it("places the events of a mission thread among its messages by date", async () => {
+		const room = await missionRoomOf({
+			events: [MISSION_ESCALATED, MISSION_OPENED],
+			spoken: [MISSION_SAID],
+		})
+		render(screenOf(room.thread, room.bots))
+		await settle()
+
+		const rows = transcriptRows()
+
+		expect(rows).toHaveLength(3)
+		expect(rows[0]).toContain("Mission opened")
+		expect(rows[1]).toContain(MISSION_SAID.text)
+		expect(rows[2]).toContain(MISSION_ESCALATED.text)
+	})
+
+	it("shows a working row for the bot a mission thread summons", async () => {
+		const room = await missionRoomOf({ events: [] })
+		render(screenOf(room.thread, room.bots))
+		await settle()
+
+		await room.send("@Ada now")
+
+		expect(stopFor("Ada")).toBeTruthy()
+	})
+
+	it("disables the composer of a closed mission thread", async () => {
+		const room = await missionRoomOf({ events: [], closedAt: A_MINUTE })
+		render(screenOf(room.thread, room.bots))
+		await settle()
+
+		expect(screen.getByRole("textbox").hasAttribute("disabled")).toBe(true)
 	})
 
 	it("stops the solo bot from the row it works on", async () => {

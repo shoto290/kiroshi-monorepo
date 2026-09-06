@@ -1,9 +1,16 @@
+import type { MissionEventModel } from "@workspace/ui/components/mission"
+
 import type { Mission } from "./mission-contract"
 
 import type { TranscriptRow } from "@/lib/chat/screen-model"
 
 export type PlacedMission = {
 	mission: Mission
+	runIndex: number
+}
+
+export type PlacedMissionEvent = {
+	event: MissionEventModel
 	runIndex: number
 }
 
@@ -45,3 +52,14 @@ export const placeMissions = (
 	[...missions]
 		.sort((one, other) => one.openedAt - other.openedAt)
 		.map((mission) => ({ mission, runIndex: openingRunIndex(runs, mission) }))
+
+export const placeMissionEvents = (
+	runs: TranscriptRow[][],
+	events: MissionEventModel[],
+): PlacedMissionEvent[] =>
+	[...events]
+		.sort((one, other) => one.createdAt - other.createdAt)
+		.map((event) => ({
+			event,
+			runIndex: lastRunOpenedBefore(runs, event.createdAt),
+		}))

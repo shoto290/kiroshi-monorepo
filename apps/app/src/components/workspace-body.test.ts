@@ -17,6 +17,7 @@ import "@workspace/ui/lib/i18n"
 import type { ActivityPanel } from "@/components/thread-routines"
 import { WorkspaceBody } from "@/components/workspace-body"
 import { createAttachmentsController } from "@/lib/chat/attachments-controller"
+import { createAttachmentsPort } from "@/lib/chat/attachments-port"
 import { createChatController } from "@/lib/chat/chat-controller"
 import { initialChatState } from "@/lib/chat/chat-state"
 import { createDraftsController } from "@/lib/chat/drafts-controller"
@@ -121,11 +122,6 @@ const eventOf = (
 	createdAt,
 })
 
-const attachments = createAttachmentsController({
-	store: async () => [],
-	send: () => true,
-})
-
 const createFakeRoster = () => {
 	const listeners = new Set<() => void>()
 	let selected: SelectedRow = {
@@ -205,6 +201,9 @@ const workspaceOf = async (store = createFakeTranscriptStore()) => {
 	const driver = createScriptedDriver()
 	const runtimes = createConversationRuntimes(driver, store)
 	const chatController = createChatController(createScriptedDriver(), store)
+	const attachments = createAttachmentsController(
+		createAttachmentsPort({ chat: chatController, driver, runtimes }),
+	)
 	const roster = createFakeRoster()
 	const missions = createOpenedMissionController(roster)
 
@@ -273,11 +272,6 @@ const openMission = async () => {
 const missionHeader = () =>
 	document.querySelector('[data-slot="mission-header"]')
 
-const feedLines = () =>
-	[...document.querySelectorAll('[data-slot="mission-feed"] > li')].map(
-		(row) => row.textContent ?? "",
-	)
-
 const answer = async (text: string) => {
 	const composer = screen.getByRole("textbox")
 	fireEvent.change(composer, { target: { value: text } })
@@ -327,79 +321,6 @@ describe("WorkspaceBody missions", () => {
 		expect(missionHeader()?.textContent).toContain("Waiting for you")
 	})
 
-	it("shows the events of the mission and the messages of its thread oldest first", async () => {
-		const store = createFakeTranscriptStore()
-		await store.startTurn({
-			id: "t-1",
-			conversationId: THREAD_CONVERSATION,
-			startedAt: A_MINUTE,
-		})
-		await store.appendUserMessage({
-			id: "m-said",
-			conversationId: THREAD_CONVERSATION,
-			turnId: "t-1",
-			authorBotId: null,
-			repliedToMessageId: null,
-			content: "Take the second option.",
-			createdAt: A_MINUTE,
-		})
-		const { workspace } = await seed(
-			(mission) => ({
-				mission,
-				events: [
-					eventOf("opened", 0),
-					eventOf("escalated", 2 * A_MINUTE, {
-						text: "The parser needs a decision.",
-					}),
-				],
-			}),
-			store,
-		)
-		render(workspace.body())
-		await settle()
-
-		await openMission()
-
-		const lines = feedLines()
-		expect(lines).toHaveLength(3)
-		expect(lines[0]).toContain("Mission opened")
-		expect(lines[1]).toContain("Take the second option.")
-		expect(lines[1]).toContain("Reader")
-		expect(lines[2]).toContain("The parser needs a decision.")
-	})
-
-	it("reads an answer of the thread as a note of the owning bot", async () => {
-		const store = createFakeTranscriptStore()
-		const { workspace } = await seed(
-			(mission) => ({ mission, events: [] }),
-			store,
-		)
-		await store.startTurn({
-			id: "t-1",
-			conversationId: THREAD_CONVERSATION,
-			startedAt: A_MINUTE,
-		})
-		await store.openAssistantMessage({
-			id: "m-noted",
-			conversationId: THREAD_CONVERSATION,
-			turnId: "t-1",
-			authorBotId: workspace.bot.id,
-			repliedToMessageId: null,
-			createdAt: A_MINUTE,
-		})
-		await store.appendText("m-noted", "The parser is rewritten.")
-		await store.finalizeMessage("m-noted", "complete")
-		render(workspace.body())
-		await settle()
-
-		await openMission()
-
-		const [line] = feedLines()
-		expect(line).toContain("Nyx")
-		expect(line).toContain("Note recorded")
-		expect(line).toContain("The parser is rewritten.")
-	})
-
 	it("sends what the composer holds to the owning bot", async () => {
 		const { workspace } = await seed((mission) => ({ mission, events: [] }))
 		render(workspace.body())
@@ -415,26 +336,13 @@ describe("WorkspaceBody missions", () => {
 		)
 	})
 
-	it("refuses the composer while the mission is closed", async () => {
-		const { workspace } = await seed((mission) => ({
-			mission: { ...mission, state: "done", closedAt: A_MINUTE },
-			events: [],
-		}))
-		render(workspace.body())
-		await settle()
-
-		await openMission()
-
-		expect(screen.getByRole("textbox").hasAttribute("disabled")).toBe(true)
-	})
-
 	it("shows an event recorded after the mission was opened", async () => {
-		const announce: { toScreen: ((changed: MissionChanged) => void) | null } = {
-			toScreen: null,
-		}
+		const listening = new Set<(changed: MissionChanged) => void>()
 		listenToMissions.mockImplementation((listener) => {
-			announce.toScreen = listener
-			return Promise.resolve(() => undefined)
+			listening.add(listener)
+			return Promise.resolve(() => {
+				listening.delete(listener)
+			})
 		})
 		const { workspace, mission } = await seed((opened) => ({
 			mission: opened,
@@ -449,7 +357,9 @@ describe("WorkspaceBody missions", () => {
 			events: [eventOf("note", A_MINUTE, { text: "Two files touched." })],
 		})
 		await act(async () => {
-			announce.toScreen?.({ missionId: "m-1", state: "working" })
+			for (const listener of [...listening]) {
+				listener({ missionId: "m-1", state: "working" })
+			}
 		})
 		await settle()
 

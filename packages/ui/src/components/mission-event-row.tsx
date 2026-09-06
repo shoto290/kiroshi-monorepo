@@ -10,8 +10,8 @@ import type { MissionEventModel } from "@workspace/ui/components/mission"
 import { toRelativeTime } from "@workspace/ui/lib/relative-time"
 import { cn } from "@workspace/ui/lib/utils"
 
-type MissionFeedProps = {
-	events: MissionEventModel[]
+type MissionEventRowProps = {
+	event: MissionEventModel
 	now: number
 	className?: string
 }
@@ -76,21 +76,17 @@ const MissionAuthoredEvent = ({ event, now }: MissionEventProps) => {
 	)
 }
 
-const MissionFeed = ({ events, now, className }: MissionFeedProps) => (
-	<ol
-		className={cn("flex w-full min-w-0 flex-col gap-2", className)}
-		data-slot="mission-feed"
+const MissionEventRow = ({ event, now, className }: MissionEventRowProps) => (
+	<div
+		className={cn("w-full min-w-0", className)}
+		data-slot="mission-event-row"
 	>
-		{events.map((event) => (
-			<li className="min-w-0" key={event.id}>
-				{event.text === undefined ? (
-					<MissionMachineLine event={event} now={now} />
-				) : (
-					<MissionAuthoredEvent event={event} now={now} />
-				)}
-			</li>
-		))}
-	</ol>
+		{event.text === undefined ? (
+			<MissionMachineLine event={event} now={now} />
+		) : (
+			<MissionAuthoredEvent event={event} now={now} />
+		)}
+	</div>
 )
 
-export { MissionFeed, type MissionFeedProps }
+export { MissionEventRow, type MissionEventRowProps }
