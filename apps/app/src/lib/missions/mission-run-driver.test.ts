@@ -221,11 +221,11 @@ const createHarness = async ({
 		await announce(state)
 	}
 
-	const startsOn = (conversationId: string) =>
-		starts.filter((start) => start.scope.conversationId === conversationId)
-
 	const originStarts = () =>
 		starts.filter((start) => start.scope.conversationId !== thread.id)
+
+	const threadStarts = () =>
+		starts.filter((start) => start.scope.conversationId === thread.id)
 
 	const emitAt = async (opened: Started[], event: AgentEvent) => {
 		const start = opened.at(-1)
@@ -238,7 +238,7 @@ const createHarness = async ({
 
 	const emitAtRun = (event: AgentEvent) => emitAt(originStarts(), event)
 
-	const emitAtThread = (event: AgentEvent) => emitAt(startsOn(thread.id), event)
+	const emitAtThread = (event: AgentEvent) => emitAt(threadStarts(), event)
 
 	const endTurn = (ended: Partial<TurnEnded>) =>
 		emitAtRun({

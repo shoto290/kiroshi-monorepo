@@ -86,9 +86,6 @@ const CAUSE_OF_STATE: Partial<Record<MissionState, MissionRunCause>> = {
 const isTakenState = (state: MissionState) =>
 	isSummonedMissionState(state) || Boolean(CAUSE_OF_STATE[state])
 
-const isTaken = ({ mission }: Pick<MissionOnBoard, "mission">) =>
-	isTakenState(mission.state)
-
 const detailOf = (thrown: unknown) =>
 	thrown instanceof Error ? thrown.message : String(thrown)
 
@@ -104,12 +101,6 @@ const listening = (
 		console.error(label, reason)
 		return () => undefined
 	})
-
-const callFor = ({ mission, events }: MissionDetail): MissionRunCall | null => {
-	const cause = CAUSE_OF_STATE[mission.state]
-
-	return cause ? { cause, mission, events } : null
-}
 
 export const startMissionRunDriver = ({
 	driver,
@@ -291,12 +282,13 @@ export const startMissionRunDriver = ({
 			return mission.state
 		}
 
-		const call = callFor({ mission, events })
+		const cause = CAUSE_OF_STATE[mission.state]
 
-		if (!call) {
+		if (!cause) {
 			return null
 		}
 
+		const call: MissionRunCall = { cause, mission, events }
 		await begin({ ...call, rosterBlock: await rosterBlockOf(call) })
 		return mission.state
 	}
@@ -497,7 +489,11 @@ export const startMissionRunDriver = ({
 	}
 
 	const catchUpOnOpenMissions = async () => {
-		startRunsFor((await missions.board()).filter(isTaken))
+		startRunsFor(
+			(await missions.board()).filter(({ mission }) =>
+				isTakenState(mission.state),
+			),
+		)
 	}
 
 	const catchUpOnUnreportedMissions = async () => {
