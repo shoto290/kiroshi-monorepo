@@ -703,6 +703,8 @@ const SUMMONS_CAUSE = "Opened by the mission"
 
 const SUMMONS_ANNOUNCEMENT = "Mission summons"
 
+const SUMMONS_AGAIN_CAUSE = "Opened by the blocked coding agent"
+
 const MISSION_ASKED: SpokenTurn = {
 	turnId: "t-asked",
 	text: "and the tests?",
@@ -1683,10 +1685,7 @@ describe("ThreadScreen", () => {
 		render(screenOf(room.thread, room.bots))
 		await settle()
 
-		expect(causeTitles()).toEqual([
-			SUMMONS_CAUSE,
-			"Opened by the blocked coding agent",
-		])
+		expect(causeTitles()).toEqual([SUMMONS_CAUSE, SUMMONS_AGAIN_CAUSE])
 	})
 
 	it("disables the composer of a closed mission thread", async () => {
