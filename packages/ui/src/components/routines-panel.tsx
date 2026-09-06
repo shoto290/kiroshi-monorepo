@@ -435,22 +435,18 @@ const RoutinesPanelSurface = (props: RoutinesPanelListProps) => {
 			<AnimatedSidebarHeader>
 				<div className="flex h-7 items-center gap-2">
 					{heading ? (
-						<>
-							<Button
-								aria-label={t(heading.back)}
-								onClick={heading.onBack}
-								size="icon-sm"
-								variant="ghost"
-							>
-								<Icons.Previous aria-hidden="true" />
-							</Button>
-							<h2 className="flex-1 font-medium text-sm">{t(heading.title)}</h2>
-						</>
-					) : (
-						<h2 className="flex-1 font-medium text-sm">
-							{t("activity.panel.title")}
-						</h2>
-					)}
+						<Button
+							aria-label={t(heading.back)}
+							onClick={heading.onBack}
+							size="icon-sm"
+							variant="ghost"
+						>
+							<Icons.Previous aria-hidden="true" />
+						</Button>
+					) : null}
+					<h2 className="flex-1 font-medium text-sm">
+						{t(heading?.title ?? "activity.panel.title")}
+					</h2>
 					{open ? (
 						<Button
 							aria-label={t("activity.panel.close")}
