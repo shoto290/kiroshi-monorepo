@@ -43,7 +43,7 @@ const meta = preview.meta({
 		docs: {
 			description: {
 				component:
-					"The top of a mission thread: the way out of it, who runs it, which ticket it answers, what it is allowed to reach for, and where it stands. Reach for it inside `MissionThread`; on its own it is useful to check that a long ticket title and a long tool list still leave the state pill in place.",
+					"The top of a mission thread: the way out of it, who runs it, which ticket it answers, what it is allowed to reach for, and where it stands. Reach for it as the header of a mission thread; on its own it is useful to check that a long ticket title and a long tool list still leave the state pill in place.",
 			},
 		},
 	},

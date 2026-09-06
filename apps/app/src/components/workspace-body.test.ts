@@ -272,6 +272,24 @@ const openMission = async () => {
 const missionHeader = () =>
 	document.querySelector('[data-slot="mission-header"]')
 
+const missionChanges = () => {
+	const listeners = new Set<(changed: MissionChanged) => void>()
+
+	listenToMissions.mockImplementation((listener) => {
+		listeners.add(listener)
+		return Promise.resolve(() => {
+			listeners.delete(listener)
+		})
+	})
+
+	return () =>
+		act(async () => {
+			for (const listener of [...listeners]) {
+				listener({ missionId: "m-1", state: "working" })
+			}
+		})
+}
+
 const answer = async (text: string) => {
 	const composer = screen.getByRole("textbox")
 	fireEvent.change(composer, { target: { value: text } })
@@ -337,13 +355,7 @@ describe("WorkspaceBody missions", () => {
 	})
 
 	it("shows an event recorded after the mission was opened", async () => {
-		const listening = new Set<(changed: MissionChanged) => void>()
-		listenToMissions.mockImplementation((listener) => {
-			listening.add(listener)
-			return Promise.resolve(() => {
-				listening.delete(listener)
-			})
-		})
+		const announce = missionChanges()
 		const { workspace, mission } = await seed((opened) => ({
 			mission: opened,
 			events: [],
@@ -356,14 +368,30 @@ describe("WorkspaceBody missions", () => {
 			mission,
 			events: [eventOf("note", A_MINUTE, { text: "Two files touched." })],
 		})
-		await act(async () => {
-			for (const listener of [...listening]) {
-				listener({ missionId: "m-1", state: "working" })
-			}
-		})
+		await announce()
 		await settle()
 
 		expect(screen.getByText("Two files touched.")).toBeTruthy()
+	})
+
+	it("keeps the thread on screen when a later read of the mission fails", async () => {
+		const announce = missionChanges()
+		const { workspace } = await seed((mission) => ({
+			mission,
+			events: [eventOf("opened", 0)],
+		}))
+		render(workspace.body())
+		render(createElement(NoticeSurface))
+		await settle()
+
+		await openMission()
+		readMission.mockRejectedValue(new Error("refused"))
+		await announce()
+		await settle()
+
+		await screen.findAllByText(READ_FAILURE_TITLE)
+		expect(missionHeader()).toBeTruthy()
+		expect(screen.getByText("Mission opened")).toBeTruthy()
 	})
 
 	it("returns to the conversation the mission was opened from", async () => {

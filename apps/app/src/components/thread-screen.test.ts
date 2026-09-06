@@ -1500,6 +1500,17 @@ describe("ThreadScreen", () => {
 		expect(rows[2]).toContain(MISSION_ESCALATED.text)
 	})
 
+	it("renders the events of a mission thread holding no message alone", async () => {
+		const room = await missionRoomOf({ events: [MISSION_OPENED] })
+		render(screenOf(room.thread, room.bots))
+		await settle()
+
+		expect(screen.getByText("Mission opened")).toBeTruthy()
+		expect(
+			document.querySelector('[data-slot="conversation-empty-state"]'),
+		).toBeNull()
+	})
+
 	it("shows a working row for the bot a mission thread summons", async () => {
 		const room = await missionRoomOf({ events: [] })
 		render(screenOf(room.thread, room.bots))

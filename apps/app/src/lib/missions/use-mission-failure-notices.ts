@@ -20,3 +20,23 @@ export const useMissionSendFailure = (refused: RefusedMessage | null): void => {
 		})
 	}, [refused, t])
 }
+
+export const useMissionReadFailure = (hasFailedToRead: boolean): void => {
+	const t = useChatCopy()
+	const wasReported = useRef(false)
+
+	useEffect(() => {
+		if (!hasFailedToRead) {
+			wasReported.current = false
+			return
+		}
+		if (wasReported.current) {
+			return
+		}
+		wasReported.current = true
+		raiseFailureNotice({
+			title: t("missions.failure.read.title"),
+			description: t("missions.failure.read.description"),
+		})
+	}, [hasFailedToRead, t])
+}

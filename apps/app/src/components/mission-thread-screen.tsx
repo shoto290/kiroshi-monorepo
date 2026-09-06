@@ -14,6 +14,7 @@ import type { Bot } from "@/lib/conversations/store-contract"
 import type { Mission } from "@/lib/missions/mission-contract"
 import { toMissionConversation } from "@/lib/missions/mission-thread-model"
 import { useMissionDetail } from "@/lib/missions/use-mission-detail"
+import { useMissionReadFailure } from "@/lib/missions/use-mission-failure-notices"
 
 type MissionReadFailureProps = {
 	onRetry: () => void
@@ -37,6 +38,7 @@ type OpenedMissionProps = {
 	bot: Bot
 	bots: Bot[]
 	events: MissionEventModel[]
+	hasFailedToRead: boolean
 	runtimes: ConversationRuntimes
 	attachments: AttachmentsController
 	drafts: DraftsController
@@ -51,6 +53,7 @@ const OpenedMission = ({
 	bot,
 	bots,
 	events,
+	hasFailedToRead,
 	runtimes,
 	attachments,
 	drafts,
@@ -58,6 +61,8 @@ const OpenedMission = ({
 	onLeave,
 	onOpenMission,
 }: OpenedMissionProps) => {
+	useMissionReadFailure(hasFailedToRead)
+
 	const thread = useMemo<Thread>(
 		() => ({
 			kind: "conversation",
@@ -108,16 +113,12 @@ export function MissionThreadScreen({
 }: MissionThreadScreenProps) {
 	const { read, hasFailedToRead, onRetry } = useMissionDetail(missionId)
 
-	if (hasFailedToRead) {
-		return <MissionReadFailure onRetry={onRetry} />
-	}
-
 	const bot = read
 		? bots.find(({ id }) => id === read.mission.botId)
 		: undefined
 
 	if (!read || !bot) {
-		return null
+		return hasFailedToRead ? <MissionReadFailure onRetry={onRetry} /> : null
 	}
 
 	return (
@@ -128,6 +129,7 @@ export function MissionThreadScreen({
 			bots={bots}
 			drafts={drafts}
 			events={read.events}
+			hasFailedToRead={hasFailedToRead}
 			mission={read.mission}
 			onLeave={onLeave}
 			onOpenMission={onOpenMission}

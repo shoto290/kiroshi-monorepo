@@ -127,7 +127,7 @@ import {
 	placeMissions,
 } from "@/lib/missions/mission-transcript"
 import { toMissionCard } from "@/lib/missions/missions-model"
-import { useMissionSendFailure } from "@/lib/missions/use-mission-send-failure"
+import { useMissionSendFailure } from "@/lib/missions/use-mission-failure-notices"
 import { useMissions } from "@/lib/missions/use-missions"
 import type { ReportedRunsByTurnId } from "@/lib/routines/routine-contract"
 
@@ -1050,7 +1050,7 @@ function ThreadView({
 			scrollerRef={scrollerRef}
 			transcriptKey={facts.id}
 		>
-			{state.messages.length === 0 ? (
+			{transcriptRows.length === 0 ? (
 				<ThreadEmptyState
 					botImage={botImage}
 					onRestart={restart}
