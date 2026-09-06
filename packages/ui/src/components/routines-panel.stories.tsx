@@ -817,10 +817,11 @@ const cardIn = (canvasElement: HTMLElement) => {
 	return cards[cards.length - 1] as HTMLElement
 }
 
+const panelSurfaceIn = (panel: HTMLElement) =>
+	panel.querySelector<HTMLElement>('[data-slot="sidebar-panel"]') as HTMLElement
+
 const expectPanelOnShellSurface = async (panel: HTMLElement) => {
-	const surface = panel.querySelector<HTMLElement>(
-		'[data-slot="sidebar-panel"]',
-	) as HTMLElement
+	const surface = panelSurfaceIn(panel)
 	const painted = getComputedStyle(surface)
 
 	await expect(paintOf(surface)).toBe(TRANSPARENT)
@@ -930,5 +931,36 @@ export const OnShellSurfaceClosedDark = meta.story({
 	render: renderInShell,
 	play: async ({ canvasElement }) => {
 		await expectShellSurfaceWithoutPanel(canvasElement)
+	},
+})
+
+export const OnShellSurfaceTinted = meta.story({
+	args: { isOpen: true },
+	parameters: {
+		a11y: A11Y_CONTRAST_AWAITING_DESIGN_DECISION,
+		docs: {
+			description: {
+				story:
+					"The panel open in a space that carries a colour, which is the only state where the panel could betray the surface it sits on. Check that the panel is washed with exactly the tint the sidebar wears on the other side of the window and not with the untinted surface, so a panel that stops resolving the tint of the space in view reads as a plain grey column beside a coloured one. Pick `OnShellSurfaceOpen` for the untinted surface.",
+			},
+		},
+	},
+	render: (args) => (
+		<WorkspaceShell sidebar={WORKSPACE_SIDEBAR} spaceTint="blue">
+			<PanelHost {...args} />
+		</WorkspaceShell>
+	),
+	play: async ({ canvas, canvasElement }) => {
+		const panel = activityPanelIn(canvasElement)
+		const sidebar = canvas.getByRole("complementary", { name: "Workspace" })
+
+		await expect(paintOf(panelSurfaceIn(panel))).toBe(TRANSPARENT)
+		await expect(paintOf(panelSurfaceIn(sidebar))).toBe(TRANSPARENT)
+
+		await waitFor(async () => {
+			const tinted = paintOf(panel.parentElement as HTMLElement)
+			await expect(tinted).toBe(paintOf(sidebar.parentElement as HTMLElement))
+			await expect(tinted).not.toBe(shellPaint())
+		}, FRAME_POLL)
 	},
 })
