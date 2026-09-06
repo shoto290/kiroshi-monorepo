@@ -4,6 +4,7 @@ import {
 	type ConversationRound,
 	type NotificationSwitches,
 	notificationsFor,
+	notifiesAskedQuestion,
 	notifiesFinishedRound,
 	notifiesMission,
 } from "./notification-policy"
@@ -15,6 +16,7 @@ import type {
 import {
 	isNotifiedMissionState,
 	missionNotificationWordsFor,
+	missionQuestionWordsFor,
 	type NotificationFailure,
 	notificationFailureTitleFor,
 	notificationWordsFor,
@@ -24,8 +26,10 @@ import type { ChatState } from "../chat/chat-state"
 import { conversationName } from "../conversations/roster-conversations"
 import type { Conversation } from "../conversations/store-contract"
 import type {
+	Mission,
 	MissionChanged,
 	MissionDetail,
+	MissionOnBoard,
 } from "../missions/mission-contract"
 import { createMissionStates } from "../missions/mission-states"
 import type { OpenedMission } from "../missions/opened-mission-controller"
@@ -61,6 +65,7 @@ type SpacesSource = {
 }
 
 type MissionsSource = {
+	board: () => Promise<Pick<MissionOnBoard, "mission">[]>
 	onChanged: (
 		listener: (changed: MissionChanged) => void,
 	) => Promise<() => void>
@@ -123,6 +128,7 @@ export const startNotificationSource = ({
 }: NotificationSourceOptions): (() => void) => {
 	const seen = new Map<string, ChatState>()
 	const seenRounds = new Map<string, ConversationRound>()
+	const missionThreads = new Map<string, Mission>()
 	const missionStates = createMissionStates()
 
 	let windowFocus: boolean | undefined
@@ -181,45 +187,71 @@ export const startNotificationSource = ({
 		return requests
 	}
 
-	const conversationNotifications = ({
-		switches,
-		hasFocus,
-	}: Reading): NotificationRequest[] => {
-		const { conversations } = roster.getState()
-		const requests: NotificationRequest[] = []
+	const roundChangeOf = (conversationId: string) => {
+		const held = runtimes.heldFor(conversationId)
 
-		for (const conversation of conversations) {
-			const held = runtimes.heldFor(conversation.id)
+		if (!held) {
+			seenRounds.delete(conversationId)
+			return null
+		}
 
-			if (!held) {
-				seenRounds.delete(conversation.id)
-				continue
+		const after = held.getState()
+		const before = seenRounds.get(conversationId)
+		seenRounds.set(conversationId, after)
+
+		return before ? { before, after } : null
+	}
+
+	const conversationNotifications = (
+		conversations: Conversation[],
+		reading: Reading,
+	): NotificationRequest[] =>
+		conversations.flatMap((conversation) => {
+			const change = roundChangeOf(conversation.id)
+
+			if (!change || !notifiesFinishedRound({ ...change, ...reading })) {
+				return []
 			}
 
-			const after = held.getState()
-			const before = seenRounds.get(conversation.id)
-			seenRounds.set(conversation.id, after)
-
-			if (
-				before &&
-				notifiesFinishedRound({ before, after, switches, hasFocus })
-			) {
-				requests.push({
-					target: { kind: "conversation", id: conversation.id },
+			return [
+				{
+					target: { kind: "conversation" as const, id: conversation.id },
 					...notificationWordsFor({
 						name: conversationName(conversation),
 						event: "finishedTurn",
 					}),
-				})
-			}
-		}
+				},
+			]
+		})
 
-		forgetBeyond(
-			seenRounds,
-			conversations.map((conversation) => conversation.id),
-		)
-		return requests
-	}
+	const botNameOf = (botId: string) =>
+		roster.getState().bots.find(({ id }) => id === botId)?.name
+
+	const missionThreadNotifications = (
+		reading: Reading,
+	): NotificationRequest[] =>
+		[...missionThreads.values()].flatMap((mission) => {
+			const change = roundChangeOf(mission.threadConversationId)
+			const name = botNameOf(mission.botId)
+
+			if (
+				!change ||
+				!name ||
+				!notifiesAskedQuestion({ ...change, ...reading })
+			) {
+				return []
+			}
+
+			return [
+				{
+					target: { kind: "mission" as const, id: mission.id },
+					...missionQuestionWordsFor({
+						name,
+						ticket: mission.ticket.externalId,
+					}),
+				},
+			]
+		})
 
 	const currentFocus = (): boolean => windowFocus ?? hasFocus()
 
@@ -228,10 +260,17 @@ export const startNotificationSource = ({
 			switches: switches(),
 			hasFocus: currentFocus(),
 		}
+		const { conversations } = roster.getState()
 		const requests = [
 			...botNotifications(reading),
-			...conversationNotifications(reading),
+			...conversationNotifications(conversations, reading),
+			...missionThreadNotifications(reading),
 		]
+
+		forgetBeyond(seenRounds, [
+			...conversations.map((conversation) => conversation.id),
+			...missionThreads.keys(),
+		])
 
 		for (const request of requests) {
 			void notifications.send(request).catch(failWith("send"))
@@ -242,12 +281,24 @@ export const startNotificationSource = ({
 		}
 	}
 
+	const holdMissionThread = (mission: Mission) => {
+		if (mission.closedAt === null) {
+			missionThreads.set(mission.threadConversationId, mission)
+			return
+		}
+
+		missionThreads.delete(mission.threadConversationId)
+	}
+
 	const missionChanged = async (changed: MissionChanged) => {
 		if (!missionStates.entered(changed)) {
 			return
 		}
 
 		missionStates.remember(changed)
+
+		const { mission } = await missions.detail(changed.missionId)
+		holdMissionThread(mission)
 
 		const { state } = changed
 
@@ -264,10 +315,9 @@ export const startNotificationSource = ({
 			return
 		}
 
-		const { mission } = await missions.detail(changed.missionId)
-		const bot = roster.getState().bots.find(({ id }) => id === mission.botId)
+		const name = botNameOf(mission.botId)
 
-		if (!bot) {
+		if (!name) {
 			return
 		}
 
@@ -275,7 +325,7 @@ export const startNotificationSource = ({
 			.send({
 				target: { kind: "mission", id: mission.id },
 				...missionNotificationWordsFor({
-					name: bot.name,
+					name,
 					ticket: mission.ticket.externalId,
 					state,
 				}),
@@ -284,6 +334,12 @@ export const startNotificationSource = ({
 
 		if (reading.switches.notifyWithSound) {
 			playChime()
+		}
+	}
+
+	const catchUpOnMissionThreads = async () => {
+		for (const { mission } of await missions.board()) {
+			holdMissionThread(mission)
 		}
 	}
 
@@ -338,6 +394,7 @@ export const startNotificationSource = ({
 			(changed) => void missionChanged(changed).catch(failWith("send")),
 		)
 		.catch(failWith("send"))
+	void catchUpOnMissionThreads().catch(failWith("send"))
 	const focus = watchFocus((isFocused) => {
 		windowFocus = isFocused
 	}).catch(failWith("focus"))

@@ -1,6 +1,6 @@
 import type { Mission, MissionEvent } from "./mission-contract"
 
-export type MissionRunCause = "answer" | "done" | "failed"
+export type MissionRunCause = "done" | "failed"
 
 export type MissionRunCall = {
 	cause: MissionRunCause
@@ -10,8 +10,6 @@ export type MissionRunCall = {
 }
 
 const INSTRUCTION_OF: Record<MissionRunCause, string> = {
-	answer:
-		"The coding agent running your mission is blocked and waiting on you. Read where the mission stands, decide alone with the tools you hold, and act. Report only what the reader must know, and report nothing when the mission moved on without them.",
 	done: "Your mission is finished. Close it if it is still open, report in a few lines where it landed, and mention whoever takes it from here.",
 	failed:
 		"Your mission is blocked and cannot go further. Close it if it is still open, report in a few lines what blocks it, and mention whoever takes it from here.",

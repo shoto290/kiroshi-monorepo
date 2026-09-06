@@ -7,6 +7,7 @@ import {
 	type NotificationPolicyInput,
 	type NotificationSwitches,
 	notificationsFor,
+	notifiesAskedQuestion,
 	notifiesFinishedRound,
 	notifiesMission,
 } from "./notification-policy"
@@ -178,6 +179,7 @@ const round = (
 ): ConversationRound => ({
 	speakers: [],
 	waitingBotIds: [],
+	pendingPrompt: null,
 	...overrides,
 })
 
@@ -251,6 +253,71 @@ describe("notifiesFinishedRound", () => {
 			decideRound({
 				before: round({ speakers: [speakingBot("bot-1")] }),
 				switches: { ...ALL_ON, notifyOnFinishedTurn: false },
+			}),
+		).toBe(false)
+	})
+})
+
+const asking = (id: string): ConversationRound =>
+	round({
+		pendingPrompt: {
+			kind: "question",
+			botId: "bot-1",
+			request: { id, questions: [] },
+		},
+	})
+
+const decideAskedQuestion = (input: Partial<ConversationPolicyInput>) =>
+	notifiesAskedQuestion({
+		before: round(),
+		after: round(),
+		switches: ALL_ON,
+		hasFocus: false,
+		...input,
+	})
+
+describe("notifiesAskedQuestion", () => {
+	it("reports a question raised in the round", () => {
+		expect(decideAskedQuestion({ after: asking("q-1") })).toBe(true)
+	})
+
+	it("reports nothing while the same question stands", () => {
+		expect(
+			decideAskedQuestion({ before: asking("q-1"), after: asking("q-1") }),
+		).toBe(false)
+	})
+
+	it("reports a question replacing the one before it", () => {
+		expect(
+			decideAskedQuestion({ before: asking("q-1"), after: asking("q-2") }),
+		).toBe(true)
+	})
+
+	it("reports nothing for a permission", () => {
+		expect(
+			decideAskedQuestion({
+				after: round({
+					pendingPrompt: {
+						kind: "permission",
+						botId: "bot-1",
+						request: permission("p-1"),
+					},
+				}),
+			}),
+		).toBe(false)
+	})
+
+	it("reports nothing while the window holds the focus", () => {
+		expect(decideAskedQuestion({ after: asking("q-1"), hasFocus: true })).toBe(
+			false,
+		)
+	})
+
+	it("reports nothing while the question switch is off", () => {
+		expect(
+			decideAskedQuestion({
+				after: asking("q-1"),
+				switches: { ...ALL_ON, notifyOnQuestion: false },
 			}),
 		).toBe(false)
 	})

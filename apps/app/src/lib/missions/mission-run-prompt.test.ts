@@ -8,7 +8,7 @@ const OPEN = "<untrusted-data>"
 const CLOSE = "</untrusted-data>"
 
 const callSaying = (message: string): MissionRunCall => ({
-	cause: "answer",
+	cause: "done",
 	mission: aMission(),
 	events: missionEvents([
 		{ kind: "agent_asked", source: "agent-hook", payload: { message } },

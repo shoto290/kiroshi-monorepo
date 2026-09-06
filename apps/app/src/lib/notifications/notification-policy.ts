@@ -18,7 +18,7 @@ export type NotificationSwitches = Pick<
 
 export type ConversationRound = Pick<
 	ConversationState,
-	"speakers" | "waitingBotIds"
+	"speakers" | "waitingBotIds" | "pendingPrompt"
 >
 
 export type NotificationPolicyInput = {
@@ -95,6 +95,19 @@ export const notifiesFinishedRound = ({
 	switches.notifyOnFinishedTurn &&
 	isRoundBusy(before) &&
 	!isRoundBusy(after)
+
+const askedQuestionIn = ({ pendingPrompt }: ConversationRound): Request =>
+	pendingPrompt?.kind === "question" ? pendingPrompt.request : null
+
+export const notifiesAskedQuestion = ({
+	before,
+	after,
+	switches,
+	hasFocus,
+}: ConversationPolicyInput): boolean =>
+	!hasFocus &&
+	switches.notifyOnQuestion &&
+	isNewRequest(askedQuestionIn(before), askedQuestionIn(after))
 
 export type MissionPolicyInput = {
 	state: NotifiedMissionState
