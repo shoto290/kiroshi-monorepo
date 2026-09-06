@@ -258,12 +258,12 @@ export const startMissionRunDriver = ({
 			return
 		}
 
-		if (seqs.handled(changed)) {
+		if (seqs.handled(changed.missionId, changed.stateSeq)) {
 			return
 		}
 
 		if (!CAUSE_OF_STATE[changed.state]) {
-			seqs.remember(changed)
+			seqs.remember(changed.missionId, changed.stateSeq)
 			return
 		}
 
@@ -275,10 +275,7 @@ export const startMissionRunDriver = ({
 			}
 
 			await begin({ ...call, rosterBlock: await rosterBlockOf(call) })
-			seqs.remember({
-				missionId: changed.missionId,
-				stateSeq: call.mission.stateSeq,
-			})
+			seqs.remember(changed.missionId, call.mission.stateSeq)
 		} catch (thrown) {
 			raiseFailure(detailOf(thrown))
 		} finally {
@@ -376,7 +373,7 @@ export const startMissionRunDriver = ({
 		const settled = await readSettledMission(held)
 
 		if (isClosed(settled)) {
-			seqs.remember({ missionId: settled.id, stateSeq: settled.stateSeq })
+			seqs.remember(settled.id, settled.stateSeq)
 		}
 
 		holding.delete(id)
