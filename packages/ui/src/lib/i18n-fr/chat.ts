@@ -313,6 +313,7 @@ const chat = {
 	},
 	activity: {
 		panel: {
+			close: "Fermer l'activité",
 			label: "Activité",
 			toggle: "Activité",
 			title: "Activité",

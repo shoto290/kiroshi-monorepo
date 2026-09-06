@@ -78,6 +78,8 @@ const OBJECTIVE = "Rewrite the changelog parser"
 
 const ACTIVITY = "Activity"
 
+const CLOSE_ACTIVITY = "Close activity"
+
 const A_MINUTE = 60_000
 
 const BACK = "Back to the conversation"
@@ -549,7 +551,10 @@ describe("WorkspaceBody activity panel", () => {
 	const activityToggle = () => screen.getByRole("button", { name: ACTIVITY })
 
 	const isPanelOpen = () =>
-		activityToggle().getAttribute("aria-expanded") === "true"
+		screen.queryByRole("button", { name: CLOSE_ACTIVITY }) !== null
+
+	const isPanelClosed = () =>
+		screen.queryByRole("button", { name: ACTIVITY }) !== null
 
 	it("opens the first thread with the panel already open", async () => {
 		const workspace = await workspaceOf()
@@ -564,7 +569,7 @@ describe("WorkspaceBody activity panel", () => {
 		render(workspace.body())
 		await settle()
 
-		expect(isPanelOpen()).toBe(false)
+		expect(isPanelClosed()).toBe(true)
 	})
 
 	it("holds the panel open when the reader moves to another conversation", async () => {
@@ -592,6 +597,6 @@ describe("WorkspaceBody activity panel", () => {
 		await settle()
 
 		expect(onOpenChange).toHaveBeenCalledWith(true)
-		expect(isPanelOpen()).toBe(false)
+		expect(isPanelClosed()).toBe(true)
 	})
 })

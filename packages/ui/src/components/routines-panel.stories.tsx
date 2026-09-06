@@ -254,13 +254,19 @@ export const Default = meta.story({
 		docs: {
 			description: {
 				story:
-					"The panel open beside a live thread: the missions running on the conversation first, the routines watching it under them. Check that the two lists read in that order under their own heads, that every routine row names its routine and the source that fires it — including the routine whose source no read named, which falls back to the source id rather than leaving the line blank — that the transcript keeps its own scroll while the panel stays put, and that flipping a switch reports the routine it belongs to.",
+					"The panel open beside a live thread: the missions running on the conversation first, the routines watching it under them. Check that the two lists read in that order under their own heads, that every routine row names its routine and the source that fires it — including the routine whose source no read named, which falls back to the source id rather than leaving the line blank — that the transcript keeps its own scroll while the panel stays put, and that flipping a switch reports the routine it belongs to, and that the only control over the panel is the one in its own header, the app header carrying none.",
 			},
 		},
 	},
 	play: async ({ args, canvas, canvasElement, userEvent }) => {
 		const panel = canvas.getByRole("complementary", { name: "Activity" })
 		await expect(panel).toBeVisible()
+		await expect(
+			within(panel).getByRole("button", { name: "Close activity" }),
+		).toBeVisible()
+		await expect(
+			canvas.queryByRole("button", { name: "Activity" }),
+		).not.toBeInTheDocument()
 		await expect(slotsIn(canvasElement, "mission-row")).toHaveLength(
 			RUNNING_MISSIONS.length,
 		)
@@ -293,7 +299,7 @@ export const Closed = meta.story({
 		docs: {
 			description: {
 				story:
-					"The panel folded away. Check that the transcript spans the whole thread with no gutter left behind, and that the control in the header reports the panel closed rather than merely looking unpressed.",
+					"The panel folded away. Check that the transcript spans the whole thread with no gutter left behind, that the control in the app header reports the panel closed rather than merely looking unpressed, and that the panel carries no control of its own while it is folded away.",
 			},
 		},
 	},
@@ -304,6 +310,9 @@ export const Closed = meta.story({
 
 		const thread = slotIn(canvasElement, "sidebar-inset")
 		const panel = canvas.getByRole("complementary", { name: "Activity" })
+		await expect(
+			within(panel).queryByRole("button", { name: "Close activity" }),
+		).not.toBeInTheDocument()
 		await waitFor(
 			() => expect(panel.getBoundingClientRect().width).toBe(0),
 			FRAME_POLL,
@@ -321,25 +330,30 @@ export const Toggling = meta.story({
 		docs: {
 			description: {
 				story:
-					"The one way in and out. Check that the control opens the panel and closes it again, that it reports the state it is in on every press, and that closing hands the keyboard back to the control rather than dropping focus into a panel that is no longer there.",
+					"The way in and the way out, each in its own place. Check that the control in the app header opens the panel and then leaves the header, that opening hands the keyboard to the close control inside the panel rather than dropping it on the body, that this control closes the panel, and that closing hands the keyboard back to the control in the app header.",
 			},
 		},
 	},
 	play: async ({ args, canvas, userEvent }) => {
-		const control = canvas.getByRole("button", { name: "Activity" })
-
-		await userEvent.click(control)
+		await userEvent.click(canvas.getByRole("button", { name: "Activity" }))
 		await expect(args.onOpenChange).toHaveBeenCalledWith(true)
-		await expect(control).toHaveAttribute("aria-expanded", "true")
 
 		const panel = canvas.getByRole("complementary", { name: "Activity" })
 		await waitFor(
 			() => expect(panel.getBoundingClientRect().width).toBeGreaterThan(0),
 			FRAME_POLL,
 		)
+		await expect(
+			canvas.queryByRole("button", { name: "Activity" }),
+		).not.toBeInTheDocument()
 
-		await userEvent.click(control)
+		const close = within(panel).getByRole("button", { name: "Close activity" })
+		await waitFor(() => expect(close).toHaveFocus(), FRAME_POLL)
+
+		await userEvent.click(close)
 		await expect(args.onOpenChange).toHaveBeenCalledWith(false)
+
+		const control = canvas.getByRole("button", { name: "Activity" })
 		await expect(control).toHaveAttribute("aria-expanded", "false")
 		await waitFor(() => expect(control).toHaveFocus(), FRAME_POLL)
 	},
@@ -583,7 +597,7 @@ export const Opening = meta.story({
 		docs: {
 			description: {
 				story:
-					"A row picked from the list. Check that the detail takes the place of the list inside the panel, that it repeats the title and the trigger source the row carried rather than a shortened version of them, that the runs are read as it opens, and that leaving returns focus to the row that opened it. Pick `Editing` for the form reached from here.",
+					"A row picked from the list. Check that the detail takes the place of the list inside the panel, that it repeats the title and the trigger source the row carried rather than a shortened version of them, that the runs are read as it opens, that the close control still holds the end of the header row behind the back control, and that leaving returns focus to the row that opened it. Pick `Editing` for the form reached from here.",
 			},
 		},
 	},
@@ -599,9 +613,14 @@ export const Opening = meta.story({
 			DIGEST_RUNS.length,
 		)
 
-		await userEvent.click(
-			canvas.getByRole("button", { name: "Back to the routines" }),
-		)
+		const back = canvas.getByRole("button", { name: "Back to the routines" })
+		await expect(
+			back.compareDocumentPosition(
+				slotIn(canvasElement, "routines-panel-close"),
+			),
+		).toBe(Node.DOCUMENT_POSITION_FOLLOWING)
+
+		await userEvent.click(back)
 		const rows = slotsIn(canvasElement, "routine-row")
 		await expect(rows).toHaveLength(ROUTINES.length)
 		await waitFor(
