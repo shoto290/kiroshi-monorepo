@@ -4,6 +4,10 @@ import { cva, type VariantProps } from "class-variance-authority"
 import type { ComponentPropsWithRef } from "react"
 import { useTranslation } from "react-i18next"
 
+import {
+	isNamedTicketPlatform,
+	missionTicketPlatformMark,
+} from "@workspace/ui/components/mission-marks"
 import { cn } from "@workspace/ui/lib/utils"
 
 const badgeVariants = cva(
@@ -107,10 +111,10 @@ const BOT_MISSION_STATES = ["waiting", "failed", "ready", "working"] as const
 
 type BotMissionState = (typeof BOT_MISSION_STATES)[number]
 
-const BOT_MISSION_CHIP =
-	"inline-flex h-4 shrink-0 items-center gap-1 rounded-full bg-foreground/10 px-1.5 text-[10px] font-medium text-foreground/80 leading-none tabular-nums"
+const BOT_MISSION_TICKET_LINE =
+	"flex h-4 min-w-0 items-center gap-1.5 pe-3.5 text-[11px] text-muted-foreground leading-4"
 
-const botMissionDotVariants = cva("size-1.5 rounded-full", {
+const botMissionDotVariants = cva("size-1.5 shrink-0 rounded-full", {
 	variants: {
 		state: {
 			waiting: "bg-bot-badge-attention",
@@ -121,27 +125,48 @@ const botMissionDotVariants = cva("size-1.5 rounded-full", {
 	},
 })
 
-type BotMissionChipProps = Omit<ComponentPropsWithRef<"span">, "children"> & {
-	state: BotMissionState
-	count: number
+type BotMissionTicket = {
+	platform: string
+	externalId: string
+	title: string
 }
 
-const BotMissionChip = ({
+type BotMissionTicketLineProps = Omit<
+	ComponentPropsWithRef<"span">,
+	"children"
+> & {
+	state: BotMissionState
+	ticket: BotMissionTicket
+	otherCount: number
+}
+
+const BotMissionTicketLine = ({
 	state,
-	count,
+	ticket,
+	otherCount,
 	className,
 	...props
-}: BotMissionChipProps) => {
+}: BotMissionTicketLineProps) => {
 	const { t } = useTranslation("bots")
+	const Mark = missionTicketPlatformMark(ticket.platform)
+	const isNamed = isNamedTicketPlatform(ticket.platform)
+	const label = {
+		state: t(`roster.mission.state.${state}`),
+		ticket: isNamed ? `${ticket.externalId} ${ticket.title}` : ticket.title,
+	}
 
 	return (
 		<span
-			aria-label={t("roster.mission.chip", {
-				count,
-				state: t(`roster.mission.state.${state}`),
-			})}
-			className={cn(BOT_MISSION_CHIP, className)}
-			data-slot="bot-mission-chip"
+			aria-label={
+				otherCount > 0
+					? t("roster.mission.lineWithOthers", {
+							...label,
+							count: otherCount,
+						})
+					: t("roster.mission.line", label)
+			}
+			className={cn(BOT_MISSION_TICKET_LINE, className)}
+			data-slot="bot-mission-ticket-line"
 			data-state={state}
 			role="img"
 			{...props}
@@ -151,7 +176,24 @@ const BotMissionChip = ({
 				className={botMissionDotVariants({ state })}
 				data-slot="bot-mission-dot"
 			/>
-			{count > 1 ? count : null}
+			<Mark
+				aria-hidden="true"
+				className="size-3 shrink-0"
+				data-slot="bot-mission-mark"
+			/>
+			{isNamed ? (
+				<span className="shrink-0 font-medium tabular-nums">
+					{ticket.externalId}
+				</span>
+			) : null}
+			<span className="min-w-0 truncate" data-slot="bot-mission-ticket-title">
+				{ticket.title}
+			</span>
+			{otherCount > 0 ? (
+				<span className="shrink-0 tabular-nums">
+					{t("roster.mission.others", { count: otherCount })}
+				</span>
+			) : null}
 		</span>
 	)
 }
@@ -181,9 +223,10 @@ export {
 	type BotBadge,
 	BotBadgeDot,
 	type BotBadgeDotProps,
-	BotMissionChip,
-	type BotMissionChipProps,
 	type BotMissionState,
+	type BotMissionTicket,
+	BotMissionTicketLine,
+	type BotMissionTicketLineProps,
 	BotTitleBadge,
 	type BotTitleBadgeProps,
 	badgeVariants,

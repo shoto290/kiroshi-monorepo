@@ -13,6 +13,7 @@ import {
 import {
 	AppSidebar,
 	type AppSidebarBot,
+	type AppSidebarBotMission,
 	type AppSidebarConversation,
 	type AppSidebarProps,
 	type AppSidebarSection,
@@ -20,6 +21,10 @@ import {
 	type Space,
 	type UserChipIdentity,
 } from "@workspace/ui/components/app-sidebar"
+import type {
+	BotMissionState,
+	BotMissionTicket,
+} from "@workspace/ui/components/badge"
 import { blotTransform } from "@workspace/ui/components/bot-avatar-blot"
 import { Button } from "@workspace/ui/components/button"
 import { Icons } from "@workspace/ui/components/icons"
@@ -155,20 +160,47 @@ const BADGED_ROSTER: AppSidebarBot[] = [
 	ROSTER[3],
 ]
 
-const MISSION_CHIP_ROSTER: AppSidebarBot[] = [
-	{ ...ROSTER[0], mission: { state: "waiting", count: 1 } },
-	{ ...ROSTER[1], mission: { state: "failed", count: 1 } },
-	{ ...ROSTER[4], mission: { state: "ready", count: 1 } },
-	{ ...ROSTER[5], mission: { state: "working", count: 1 } },
+const MISSION_TICKETS: BotMissionTicket[] = [
+	{
+		platform: "linear",
+		externalId: "OPE-71",
+		title: "Roster row shows the mission ticket",
+	},
+	{ platform: "github", externalId: "#4172", title: "Resume the second turn" },
+	{ platform: "linear", externalId: "OPE-64", title: "Pin the waiting room" },
+	{
+		platform: "github",
+		externalId: "#4180",
+		title: "Split the transport read",
+	},
+]
+
+const missionOf = (
+	state: BotMissionState,
+	index: number,
+	otherCount = 0,
+): AppSidebarBotMission => ({
+	state,
+	ticket: MISSION_TICKETS[index],
+	otherCount,
+})
+
+const MISSION_LINE_ROSTER: AppSidebarBot[] = [
+	{ ...ROSTER[0], mission: missionOf("waiting", 0) },
+	{ ...ROSTER[1], mission: missionOf("failed", 1) },
+	{ ...ROSTER[4], mission: missionOf("ready", 2) },
+	{ ...ROSTER[5], mission: missionOf("working", 3) },
 	ROSTER[6],
 ]
 
-const chipIn = (row: HTMLElement) =>
-	row.querySelector<HTMLElement>('[data-slot="bot-mission-chip"]')
+const ticketLineIn = (row: HTMLElement) =>
+	row.querySelector<HTMLElement>('[data-slot="bot-mission-ticket-line"]')
 
-const chipStateIn = (row: HTMLElement) => chipIn(row)?.dataset.state
+const missionStateIn = (row: HTMLElement) => ticketLineIn(row)?.dataset.state
 
 const dotIn = (row: HTMLElement) => slotIn(row, "bot-mission-dot")
+
+const MISSION_ROW_HEIGHT = 64
 
 const LOOSE_MISSION_ROSTER: AppSidebarBot[] = [
 	{ ...ROSTER[1], lastActivityAt: 3, timestamp: "now" },
@@ -177,7 +209,7 @@ const LOOSE_MISSION_ROSTER: AppSidebarBot[] = [
 		...ROSTER[0],
 		lastActivityAt: 1,
 		timestamp: "Tue",
-		mission: { state: "waiting", count: 1 },
+		mission: missionOf("waiting", 0),
 	},
 ]
 
@@ -353,6 +385,11 @@ const expectNameOnAvatarCentre = async (row: HTMLElement, avatarSlot: string) =>
 		verticalCentreOf(slotIn(row, avatarSlot).getBoundingClientRect()),
 		0,
 	)
+
+const expectAvatarCentredOnRow = async (row: HTMLElement, avatarSlot: string) =>
+	expect(
+		verticalCentreOf(slotIn(row, avatarSlot).getBoundingClientRect()),
+	).toBeCloseTo(verticalCentreOf(row.getBoundingClientRect()), 0)
 
 const expectAlignedRows = async (rows: HTMLElement[]) => {
 	await expect(uniqueCount(startOffsets(rows, "roster-row-name"))).toBe(1)
@@ -973,30 +1010,36 @@ export const BadgesOnRail = meta.story({
 	},
 })
 
-export const MissionChips = meta.story({
-	args: { bots: MISSION_CHIP_ROSTER, selectedBotId: "beacon" },
+export const MissionTicketLines = meta.story({
+	args: { bots: MISSION_LINE_ROSTER, selectedBotId: "beacon" },
 	parameters: {
 		docs: {
 			description: {
 				story:
-					"Four bots each carrying one open mission, one per state a mission can be in, over a fifth carrying none. The mission speaks in a pill on the name line and never in the dot on the preview line: the chip is the state of the work, the dot is the state of the conversation, and the two shapes are never confused. Check the pill sits between the title badge and the time, that its inner dot takes the attention, failed and done colours the panel already uses and the muted grey of a resting row while the mission simply runs, and that the row with no mission carries no pill at all. Check the pill never moves: it is the one mark in the row that does not pulse, because a mission is a fact and not an alarm. Check each pill is named for a screen reader — the number of missions and the state — so the colour is never the only carrier. Check the four chat signals of every row are exactly what the host passed: badge, title, message and time are untouched by the mission. Pick `MissionChipCounts` for the pill that carries a number, `MissionChipWithChatBadge` for a row that carries both marks at once.",
+					"Four bots each carrying one open mission, one per state a mission can be in, over a fifth carrying none. The mission speaks on a third line under the preview, and never in the dot on the preview line: the ticket line is the state of the work, the dot is the state of the conversation, and the two shapes are never confused. Check the line opens with the state dot in the attention, failed and done colours the panel already uses and the muted grey of a resting row while the mission simply runs, then the mark of the ticket platform, then the identifier, then the title. Check the line never moves: it is the one mark in the row that does not pulse, because a mission is a fact and not an alarm. Check the four mission rows stand 64px tall and the row with no mission keeps the height it has everywhere else, with every avatar centred on its row. Check each line is named for a screen reader — the ticket and the state — so the colour is never the only carrier. Check the trailing slot is the timestamp alone. Pick `MissionTicketLineCounts` for the line that closes on a count, `MissionTicketLineTruncated` for a title too long for the row.",
 			},
 		},
 	},
 	play: async ({ canvasElement }) => {
 		const rows = rowsIn(canvasElement)
 
-		await expect(rows.map(chipStateIn)).toEqual([
+		await expect(rows.map(missionStateIn)).toEqual([
 			"waiting",
 			"failed",
 			"ready",
 			"working",
 			undefined,
 		])
-		await expect(chipIn(rows[0])).toHaveAccessibleName(
-			"1 mission, waiting for you",
+		await expect(ticketLineIn(rows[0])).toHaveAccessibleName(
+			"OPE-71 Roster row shows the mission ticket, waiting for you",
 		)
-		await expect(chipIn(rows[3])).toHaveAccessibleName("1 mission, working")
+		await expect(ticketLineIn(rows[3])).toHaveAccessibleName(
+			"#4180 Split the transport read, working",
+		)
+		await expect(ticketLineIn(rows[0])).toHaveTextContent(
+			"OPE-71Roster row shows the mission ticket",
+		)
+		await expect(slotIn(rows[0], "bot-mission-mark")).toBeVisible()
 
 		const dotColours = rows
 			.slice(0, 4)
@@ -1012,6 +1055,14 @@ export const MissionChips = meta.story({
 			await expect(getComputedStyle(dotIn(row)).animationName).toBe("none")
 		}
 
+		await expect(rowHeights(rows.slice(0, 4))).toEqual(
+			rows.slice(0, 4).map(() => MISSION_ROW_HEIGHT),
+		)
+		await expect(rowHeights([rows[4]])[0]).toBeLessThan(MISSION_ROW_HEIGHT)
+		for (const row of rows) {
+			await expectAvatarCentredOnRow(row, "bot-identity-avatar")
+		}
+
 		await expect(rows.map(badgeIn)).toEqual(rows.map(() => undefined))
 		await expect(slotIn(rows[0], "roster-row-badge")).toHaveTextContent(
 			"Research",
@@ -1022,17 +1073,100 @@ export const MissionChips = meta.story({
 		await expect(slotIn(rows[0], "roster-row-timestamp")).toHaveTextContent(
 			"09:24",
 		)
-		await expectAlignedRows(rows)
 	},
 })
 
-export const MissionChipRaised = meta.story({
+export const MissionTicketLineTruncated = meta.story({
+	args: {
+		bots: [
+			{
+				...ROSTER[0],
+				mission: {
+					state: "waiting" as const,
+					ticket: {
+						platform: "linear",
+						externalId: "OPE-71",
+						title:
+							"Roster row shows the most urgent mission ticket on a third line under the preview, replacing the chip",
+					},
+					otherCount: 4,
+				},
+			},
+		],
+		selectedBotId: "atlas",
+	},
+	parameters: {
+		docs: {
+			description: {
+				story:
+					"A ticket whose title runs far past the width of the row. Check the title alone clips to an ellipsis and that everything the reader needs to act stays whole around it: the state dot, the platform mark, the identifier that names the ticket and the count of the missions behind it. A title is prose the product does not author and can be any length; an identifier is the handle a person types into a search box, so it is the one thing the row never eats. Check the line stays on one line and the row stays 64px. Pick `MissionTicketLines` for titles that fit.",
+			},
+		},
+	},
+	play: async ({ canvasElement }) => {
+		const row = rowsIn(canvasElement)[0]
+		const line = ticketLineIn(row) as HTMLElement
+		const title = slotIn(row, "bot-mission-ticket-title")
+
+		await expect(isClipped(title)).toBe(true)
+		await expect(line).toHaveTextContent("OPE-71")
+		await expect(line).toHaveTextContent("+4")
+		await expect(line.getBoundingClientRect().height).toBe(16)
+		await expect(rowHeights([row])[0]).toBe(MISSION_ROW_HEIGHT)
+	},
+})
+
+export const MissionTicketLineUnnamedPlatform = meta.story({
+	args: {
+		bots: [
+			{
+				...ROSTER[0],
+				mission: {
+					state: "ready" as const,
+					ticket: {
+						platform: "jira",
+						externalId: "OPS-9",
+						title: "Rotate the staging credentials",
+					},
+					otherCount: 0,
+				},
+			},
+			{ ...ROSTER[1], mission: missionOf("waiting", 1) },
+		],
+		selectedBotId: "atlas",
+	},
+	parameters: {
+		docs: {
+			description: {
+				story:
+					"A ticket from a platform the mark table does not name, over one it does. Check the first line falls back to the neutral bookmark and drops the identifier: an identifier only reads as a handle when the mark beside it says which tracker to type it into, and without that mark it is a number from nowhere. Check the title stands alone after the fallback and that the fallback sits on exactly the lane the named mark sits on, so the two rows read as one column and not as two shapes. Pick `MissionTicketLines` for the platforms the table names.",
+			},
+		},
+	},
+	play: async ({ canvasElement }) => {
+		const fallbackRow = rowFor(canvasElement, "Atlas")
+		const fallbackLine = ticketLineIn(fallbackRow) as HTMLElement
+
+		await expect(fallbackLine).toHaveTextContent(
+			"Rotate the staging credentials",
+		)
+		await expect(fallbackLine.textContent).not.toContain("OPS-9")
+		await expect(fallbackLine).toHaveAccessibleName(
+			"Rotate the staging credentials, ready to merge",
+		)
+		await expect(
+			uniqueCount(startOffsets(rowsIn(canvasElement), "bot-mission-mark")),
+		).toBe(1)
+	},
+})
+
+export const MissionTicketLineRaised = meta.story({
 	args: { bots: LOOSE_MISSION_ROSTER, selectedBotId: "beacon" },
 	parameters: {
 		docs: {
 			description: {
 				story:
-					"Three loose bots ordered by their last word, where the one carrying a mission that waits on the reader is also the one that spoke longest ago. Check it renders first anyway: a mission that cannot move without a person outranks a room that is merely fresh, so the reader finds what is blocked at the top of the list rather than hunting for a pill down it. Check the two rows below keep the order the zone already sorts them into, and that nothing about the raised row changes shape — same height, same columns, same trailing edge. Pick `MissionChipPinned` for the section where a rank the reader set holds the waiting row in place, `MissionChips` for the pill alone.",
+					"Three loose bots ordered by their last word, where the one carrying a mission that waits on the reader is also the one that spoke longest ago. Check it renders first anyway: a mission that cannot move without a person outranks a room that is merely fresh, so the reader finds what is blocked at the top of the list rather than hunting for a ticket down it. Check the two rows below keep the order the zone already sorts them into, and that the raised row is the only taller one — it is the third line that takes it to 64px, not a different layout. Pick `MissionTicketLinePinned` for the section where a rank the reader set holds the waiting row in place, `MissionTicketLines` for the line alone.",
 			},
 		},
 	},
@@ -1042,20 +1176,20 @@ export const MissionChipRaised = meta.story({
 		await expect(
 			rows.map((row) => slotIn(row, "roster-row-name").textContent),
 		).toEqual(["Atlas", "Beacon", "Ember"])
-		await expect(chipStateIn(rows[0])).toBe("waiting")
+		await expect(missionStateIn(rows[0])).toBe("waiting")
 		await expect(slotIn(rows[0], "roster-row-timestamp")).toHaveTextContent(
 			"Tue",
 		)
-		await expectAlignedRows(rows)
-		await expect(uniqueCount(rowHeights(rows))).toBe(1)
+		await expect(rowHeights([rows[0]])[0]).toBe(MISSION_ROW_HEIGHT)
+		await expect(uniqueCount(rowHeights(rows.slice(1)))).toBe(1)
 	},
 })
 
-export const MissionChipCounts = meta.story({
+export const MissionTicketLineCounts = meta.story({
 	args: {
 		bots: [
-			MISSION_CHIP_ROSTER[0],
-			{ ...ROSTER[1], mission: { state: "working", count: 3 } },
+			MISSION_LINE_ROSTER[0],
+			{ ...ROSTER[1], mission: missionOf("working", 1, 3) },
 		],
 		selectedBotId: "atlas",
 	},
@@ -1063,67 +1197,67 @@ export const MissionChipCounts = meta.story({
 		docs: {
 			description: {
 				story:
-					"One bot on a single mission over one bot juggling three. Check the first pill is the dot alone in its background — a count of one is the count the reader assumes, so printing it is noise — and that the second prints the number beside the dot in tabular figures, so a pill that counts up does not shift the time beside it. Check both pills read the same height and hang off the same trailing edge whatever they carry, and that the accessible name says one mission in the first and three in the second, since the digit alone would leave the single mission unnamed. Pick `MissionChips` for the states behind the colours.",
+					"One bot whose conversation holds nothing behind the mission shown over one holding three more. Check the first line ends on its title — a count of zero is the count the reader assumes, so printing it is noise — and that the second closes on the number in tabular figures, so a count that climbs does not shift the line under it. Check the row does not count anything itself: the number is the one the host passed. Check both lines read the same height and both rows stay 64px whatever they carry. Pick `MissionTicketLines` for the states behind the colours.",
 			},
 		},
 	},
 	play: async ({ canvasElement }) => {
 		const rows = rowsIn(canvasElement)
+		const lines = rows.map((row) => ticketLineIn(row) as HTMLElement)
 
-		await expect(chipIn(rows[0])).toHaveTextContent("")
-		await expect(chipIn(rows[1])).toHaveTextContent("3")
-		await expect(chipIn(rows[0])).toHaveAccessibleName(
-			"1 mission, waiting for you",
+		await expect(lines[0].textContent).not.toContain("+")
+		await expect(lines[1]).toHaveTextContent("+3")
+		await expect(lines[1]).toHaveAccessibleName(
+			"#4172 Resume the second turn, working, 3 other missions",
 		)
-		await expect(chipIn(rows[1])).toHaveAccessibleName("3 missions, working")
-
-		const chips = rows.map((row) => chipIn(row) as HTMLElement)
-		await expect(uniqueCount(rowHeights(chips))).toBe(1)
-		await expect(uniqueCount(endOffsets(rows, "roster-row-timestamp"))).toBe(1)
+		await expect(uniqueCount(rowHeights(lines))).toBe(1)
+		await expect(uniqueCount(rowHeights(rows))).toBe(1)
 	},
 })
 
-export const MissionChipWithChatBadge = meta.story({
+export const MissionTicketLineWithChatBadge = meta.story({
 	args: {
 		bots: [
-			{ ...MISSION_CHIP_ROSTER[0], badge: "attention" },
-			MISSION_CHIP_ROSTER[4],
+			{ ...MISSION_LINE_ROSTER[0], badge: "attention" },
+			MISSION_LINE_ROSTER[4],
 		],
-		selectedBotId: "grove",
+		selectedBotId: "atlas",
 	},
 	parameters: {
 		docs: {
 			description: {
 				story:
-					"A bot whose mission waits on the reader and whose conversation is asking for them too. Check both marks are drawn: the chat dot at the trailing edge of the preview line, the mission pill on the name line above it, each answering a different question. A mission never eats the badge a conversation put there and a conversation never dims a mission, so the row can say two things at once without either mark moving. Check the row keeps the height and the columns the list holds throughout. Pick `Badges` for the dot alone, `MissionChips` for the pill alone.",
+					"A bot whose mission waits on the reader and whose conversation is asking for them too. Check both marks are drawn: the chat dot at the trailing edge of the row, the mission ticket on the line under the preview, each answering a different question. A mission never eats the badge a conversation put there and a conversation never dims a mission, so the row can say two things at once without either mark moving. Check the dot keeps clear of the count at the end of the ticket line. Pick `Badges` for the dot alone, `MissionTicketLines` for the line alone.",
 			},
 		},
 	},
 	play: async ({ canvasElement }) => {
 		const rows = rowsIn(canvasElement)
 
+		await expect(missionStateIn(rows[0])).toBe("waiting")
 		await expect(badgeIn(rows[0])).toBe("attention")
-		await expect(chipStateIn(rows[0])).toBe("waiting")
 
-		const nameLine = slotIn(rows[0], "roster-row-name").parentElement
-		await expect(nameLine?.contains(chipIn(rows[0]))).toBe(true)
-		await expect(nameLine?.contains(slotIn(rows[0], "bot-activity-dot"))).toBe(
-			false,
-		)
+		const stack = slotIn(rows[0], "roster-row-preview").parentElement
+		await expect(stack?.contains(ticketLineIn(rows[0]))).toBe(true)
+		await expect(missionStateIn(rows[1])).toBe(undefined)
 
-		await expect(uniqueCount(rowHeights(rows))).toBe(1)
-		await expectAlignedRows(rows)
+		const dot = slotIn(rows[0], "bot-activity-dot").getBoundingClientRect()
+		const title = slotIn(
+			rows[0],
+			"bot-mission-ticket-title",
+		).getBoundingClientRect()
+		await expect(dot.left).toBeGreaterThanOrEqual(title.right)
 	},
 })
 
-export const MissionChipOnRail = meta.story({
-	args: { bots: MISSION_CHIP_ROSTER, selectedBotId: "beacon" },
+export const MissionTicketLineOnRail = meta.story({
+	args: { bots: MISSION_LINE_ROSTER, selectedBotId: "beacon" },
 	render: renderShell(false),
 	parameters: {
 		docs: {
 			description: {
 				story:
-					"The same four missions once the panel is down to its icon rail. Check no pill is drawn at all: the rail is the avatar and nothing else, and a chip squeezed onto it would collide with the badge that already rides the corner there. The mission is not lost, it is deferred to the open panel — what a collapsed reader still needs is the bot asking for them, and that is the dot. Pick `MissionChips` for the open panel, `BadgesOnRail` for the mark the rail does keep.",
+					"The same four missions once the panel is down to its icon rail. Check no ticket line is drawn at all: the rail is the avatar and nothing else, and a line squeezed onto it would have nowhere to put its title. The mission is not lost, it is deferred to the open panel — what a collapsed reader still needs is the bot asking for them, and that is the badge dot the rail keeps on the avatar. Pick `MissionTicketLines` for the open panel, `BadgesOnRail` for the mark the rail does keep.",
 			},
 		},
 	},
@@ -1134,7 +1268,9 @@ export const MissionChipOnRail = meta.story({
 			await expect(panel.getBoundingClientRect().width).toBeCloseTo(rail, 0)
 		}, FRAME_POLL)
 
-		await expect(slotsIn(canvasElement, "bot-mission-chip")).toHaveLength(0)
+		await expect(
+			slotsIn(canvasElement, "bot-mission-ticket-line"),
+		).toHaveLength(0)
 	},
 })
 
@@ -2129,8 +2265,8 @@ export const MissionSpaceRing = meta.story({
 		selectedSpaceId: "vocca",
 		botsBySpaceId: {
 			...FIVE_ROSTERS,
-			perso: [{ ...ROSTER[0], mission: { state: "working", count: 2 } }],
-			atelier: [{ ...ROSTER[1], mission: { state: "waiting", count: 1 } }],
+			perso: [{ ...ROSTER[0], mission: missionOf("working", 0) }],
+			atelier: [{ ...ROSTER[1], mission: missionOf("waiting", 1) }],
 		},
 		badgesBySpaceId: { atelier: "attention" },
 		user: READER,
@@ -2139,7 +2275,7 @@ export const MissionSpaceRing = meta.story({
 		docs: {
 			description: {
 				story:
-					"Two spaces the reader is not in, each with a bot on a mission, and only one of them lit. The space whose mission waits on a person takes the attention ring; the space whose mission is simply running stays exactly as a space with nothing to say, because a bot at work is not news. Check the switcher above the roster repeats the lit mark and only that one, so a reader deep in one space learns another is blocked on them without being pulled by every mission in the app. Check no bot row anywhere carries a mission badge on its preview line: the ring is derived from the missions, not from a dot written onto a row. Pick `SpaceBadges` for the rings a chat lights, `MissionChips` for what the mission puts on a row.",
+					"Two spaces the reader is not in, each with a bot on a mission, and only one of them lit. The space whose mission waits on a person takes the attention ring; the space whose mission is simply running stays exactly as a space with nothing to say, because a bot at work is not news. Check the switcher above the roster repeats the lit mark and only that one, so a reader deep in one space learns another is blocked on them without being pulled by every mission in the app. Check no bot row anywhere carries a mission badge on its preview line: the ring is derived from the missions, not from a dot written onto a row. Pick `SpaceBadges` for the rings a chat lights, `MissionTicketLines` for what the mission puts on a row.",
 			},
 		},
 	},
@@ -2943,26 +3079,24 @@ export const Sections = meta.story({
 	},
 })
 
-export const MissionChipPinned = meta.story({
+export const MissionTicketLinePinned = meta.story({
 	args: {
 		...sectionArgs(),
 		bots: SECTIONED_ROSTER.map((bot) =>
-			bot.id === "ember"
-				? { ...bot, mission: { state: "waiting" as const, count: 1 } }
-				: bot,
+			bot.id === "ember" ? { ...bot, mission: missionOf("waiting", 0) } : bot,
 		),
 	},
 	parameters: {
 		docs: {
 			description: {
 				story:
-					"A sectioned roster where the second row of Research carries a mission waiting on its reader. Check the section renders in the order the reader pinned it and the waiting row stays second: a rank a person set by hand is not a guess the panel may improve on, so a mission never reorders a section any more than it reorders the pinned zone. Check the row still wears its chip in the waiting state, so the news reaches the reader through the pill where the order will not carry it. Pick `MissionChipRaised` for the zone where the waiting row does move up, `Sections` for the same roster with no mission in it.",
+					"A sectioned roster where the second row of Research carries a mission waiting on its reader. Check the section renders in the order the reader pinned it and the waiting row stays second: a rank a person set by hand is not a guess the panel may improve on, so a mission never reorders a section any more than it reorders the pinned zone. Check the row still wears its ticket line in the waiting state, so the news reaches the reader through the line where the order will not carry it. Pick `MissionTicketLineRaised` for the zone where the waiting row does move up, `Sections` for the same roster with no mission in it.",
 			},
 		},
 	},
 	play: async ({ canvasElement }) => {
 		await expect(rowNames(canvasElement)).toEqual(GROUPED_ORDER)
-		await expect(chipStateIn(rowFor(canvasElement, "Ember"))).toBe("waiting")
+		await expect(missionStateIn(rowFor(canvasElement, "Ember"))).toBe("waiting")
 	},
 })
 
@@ -4360,7 +4494,7 @@ const MISSION_CONVERSATIONS: AppSidebarConversation[] = [
 		...CONVERSATIONS[0],
 		lastActivityAt: 1,
 		timestamp: "Tue",
-		mission: { state: "waiting", count: 2 },
+		mission: missionOf("waiting", 0, 2),
 	},
 	{ ...CONVERSATIONS[1], lastActivityAt: 3, timestamp: "now" },
 ]
@@ -4371,13 +4505,13 @@ const MISSION_CONVERSATION_ARGS = {
 	conversations: MISSION_CONVERSATIONS,
 }
 
-export const ConversationMissionChip = meta.story({
+export const ConversationMissionTicketLine = meta.story({
 	args: MISSION_CONVERSATION_ARGS,
 	parameters: {
 		docs: {
 			description: {
 				story:
-					"A mission belongs to the conversation it was opened from, so a room carrying open missions wears the pill its bots would otherwise wear alone. Check the pill sits on the room row, between the name and the time, in the same slot and the same shapes a bot row gives it, and that it counts every mission the room holds whichever bot runs them. Check the room whose mission waits on the reader is drawn first even though it spoke longest ago, exactly as a waiting bot row is raised, and that the room with no mission carries no pill. Pick `MissionChips` for the pill on a bot row, `ConversationMissionChipOnRail` for the rail that drops it.",
+					"A mission belongs to the conversation it was opened from, so a room carrying open missions wears the ticket line its bots would otherwise wear alone. Check the line sits under the preview of the room row, in the same lane and the same shapes a bot row gives it, and that it closes on the count of the other missions the room holds whichever bot runs them. Check the room whose mission waits on the reader is drawn first even though it spoke longest ago, exactly as a waiting bot row is raised, that it stands 64px while the rooms with no mission keep their height. Pick `MissionTicketLines` for the line on a bot row, `ConversationMissionTicketLineOnRail` for the rail that drops it.",
 			},
 		},
 	},
@@ -4389,30 +4523,31 @@ export const ConversationMissionChip = meta.story({
 			"Transport migration",
 			"Atlas",
 		])
-		await expect(rows.map(chipStateIn)).toEqual([
+		await expect(rows.map(missionStateIn)).toEqual([
 			"waiting",
 			undefined,
 			undefined,
 		])
-		await expect(chipIn(rows[0])).toHaveAccessibleName(
-			"2 missions, waiting for you",
+		await expect(ticketLineIn(rows[0])).toHaveAccessibleName(
+			"OPE-71 Roster row shows the mission ticket, waiting for you, 2 other missions",
 		)
 		await expect(slotIn(rows[0], "roster-row-timestamp")).toHaveTextContent(
 			"Tue",
 		)
-		await expectAlignedRows(rows)
-		await expect(uniqueCount(rowHeights(rows))).toBe(1)
+		await expect(rowHeights([rows[0]])[0]).toBe(MISSION_ROW_HEIGHT)
+		await expect(uniqueCount(rowHeights(rows.slice(1)))).toBe(1)
+		await expectAvatarCentredOnRow(rows[0], "conversation-avatar")
 	},
 })
 
-export const ConversationMissionChipOnRail = meta.story({
+export const ConversationMissionTicketLineOnRail = meta.story({
 	args: MISSION_CONVERSATION_ARGS,
 	render: renderShell(false),
 	parameters: {
 		docs: {
 			description: {
 				story:
-					"The same room once the panel is down to its icon rail. Check no pill is drawn there either: the rail is the avatar stack and nothing else, and a room defers its mission to the open panel exactly as a bot does. Pick `ConversationMissionChip` for the open panel, `MissionChipOnRail` for the bot row that drops it too.",
+					"The same room once the panel is down to its icon rail. Check no ticket line is drawn there either: the rail is the avatar stack and nothing else, and a room defers its mission to the open panel exactly as a bot does. Pick `ConversationMissionTicketLine` for the open panel, `MissionTicketLineOnRail` for the bot row that drops it too.",
 			},
 		},
 	},
@@ -4423,7 +4558,9 @@ export const ConversationMissionChipOnRail = meta.story({
 			await expect(panel.getBoundingClientRect().width).toBeCloseTo(rail, 0)
 		}, FRAME_POLL)
 
-		await expect(slotsIn(canvasElement, "bot-mission-chip")).toHaveLength(0)
+		await expect(
+			slotsIn(canvasElement, "bot-mission-ticket-line"),
+		).toHaveLength(0)
 	},
 })
 

@@ -23,4 +23,7 @@ const missionToolMark = (tool: string): MissionMark =>
 const missionTicketPlatformMark = (platform: string): MissionMark =>
 	MISSION_TICKET_PLATFORM_MARK[markKeyOf(platform)] ?? Icons.Bookmark
 
-export { missionTicketPlatformMark, missionToolMark }
+const isNamedTicketPlatform = (platform: string): boolean =>
+	markKeyOf(platform) in MISSION_TICKET_PLATFORM_MARK
+
+export { isNamedTicketPlatform, missionTicketPlatformMark, missionToolMark }

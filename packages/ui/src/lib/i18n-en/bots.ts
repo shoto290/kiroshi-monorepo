@@ -20,8 +20,10 @@ const bots = {
 		empty: "No bots yet",
 		unavailable: "Your bots could not be read.",
 		mission: {
-			chip_one: "{{count}} mission, {{state}}",
-			chip_other: "{{count}} missions, {{state}}",
+			line: "{{ticket}}, {{state}}",
+			lineWithOthers_one: "{{ticket}}, {{state}}, {{count}} other mission",
+			lineWithOthers_other: "{{ticket}}, {{state}}, {{count}} other missions",
+			others: "+{{count}}",
 			state: {
 				waiting: "waiting for you",
 				failed: "failed",
