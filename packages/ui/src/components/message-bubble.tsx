@@ -101,6 +101,11 @@ export function MessageBubble({
 
 export const MESSAGE_BUBBLE_INLINE_PADDING = "px-3.5"
 
+export const MESSAGE_BUBBLE_PADDING_INSET = "-inset-x-3.5 -inset-y-2.5"
+
+export const MESSAGE_BUBBLE_INTERACTIVE =
+	"cursor-pointer text-left outline-none transition-transform duration-150 hover:brightness-[0.98] focus-visible:ring-2 focus-visible:ring-ring active:scale-[0.99]"
+
 const MENTION_OPENING_PADDING =
 	'has-[p:first-child>[data-slot="bot-mention"]:first-child]:py-3.5'
 
@@ -117,8 +122,7 @@ function bubbleContentClass(
 		variant === "ghost" && "w-full rounded-none px-0 py-0",
 		variant === "bare" && "w-auto rounded-none px-0 py-1",
 		variant === "danger" && "on-destructive text-destructive",
-		interactive &&
-			"cursor-pointer text-left outline-none transition-transform duration-150 hover:brightness-[0.98] focus-visible:ring-2 focus-visible:ring-ring active:scale-[0.99]",
+		interactive && MESSAGE_BUBBLE_INTERACTIVE,
 	)
 }
 

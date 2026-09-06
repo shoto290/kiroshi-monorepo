@@ -8,6 +8,7 @@ import { ChatEmptyState } from "@workspace/ui/components/chat-empty-state"
 import { ConversationEmptyState } from "@workspace/ui/components/conversation-empty-state"
 import { HeaderConversationButton } from "@workspace/ui/components/header-conversation-button"
 import { HeaderIdentityButton } from "@workspace/ui/components/header-identity-button"
+import type { MessageAuthor } from "@workspace/ui/components/message"
 import {
 	MessageQuote,
 	type QuotedMessage,
@@ -112,7 +113,6 @@ import { leadOf } from "@/lib/conversations/roster-conversations"
 import type { Bot } from "@/lib/conversations/store-contract"
 import { useConversation } from "@/lib/conversations/use-conversation"
 import type { Mission } from "@/lib/missions/mission-contract"
-import { toMissionFace } from "@/lib/missions/mission-thread-model"
 import {
 	BEFORE_FIRST_RUN,
 	type PlacedMission,
@@ -518,19 +518,21 @@ const toRunRows = ({
 type MissionCardRowsProps = {
 	runRows: TranscriptItem[]
 	placed: PlacedMission[]
+	authors: ThreadAuthors
 	faceOf: ThreadNaming["faceOf"]
 	onOpen: (missionId: string) => void
 }
 
 const toMissionCardRow = (
 	mission: Mission,
-	face: ThreadFace,
+	identity: ThreadFace,
+	author: MessageAuthor | undefined,
 	onOpen: (missionId: string) => void,
 ): TranscriptItem => ({
 	key: `mission-${mission.id}`,
 	render: () => (
 		<MissionTurn
-			mission={toMissionCard(mission, toMissionFace(face))}
+			mission={toMissionCard(mission, identity, author)}
 			onOpen={onOpen}
 		/>
 	),
@@ -539,6 +541,7 @@ const toMissionCardRow = (
 const withMissionCards = ({
 	runRows,
 	placed,
+	authors,
 	faceOf,
 	onOpen,
 }: MissionCardRowsProps): TranscriptItem[] => {
@@ -546,8 +549,16 @@ const withMissionCards = ({
 		placed
 			.filter((opened) => opened.runIndex === runIndex)
 			.flatMap(({ mission }) => {
-				const face = faceOf(mission.botId)
-				return face ? [toMissionCardRow(mission, face, onOpen)] : []
+				const identity = faceOf(mission.botId)
+				if (!identity) return []
+				return [
+					toMissionCardRow(
+						mission,
+						identity,
+						authors.get(mission.botId),
+						onOpen,
+					),
+				]
 			})
 
 	return [
@@ -872,6 +883,7 @@ function ThreadView({
 		toQuote,
 	})
 	const transcriptRows = withMissionCards({
+		authors,
 		faceOf,
 		onOpen: onOpenMission,
 		placed: placeMissions(runs, missions.missions),

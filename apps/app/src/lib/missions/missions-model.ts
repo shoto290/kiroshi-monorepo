@@ -1,11 +1,12 @@
 import type { AppSidebarBotMission } from "@workspace/ui/components/app-sidebar"
 import type { BotBadge, BotMissionState } from "@workspace/ui/components/badge"
+import type { MessageAuthor } from "@workspace/ui/components/message"
 import type {
-	MissionBot,
+	MissionCardModel,
 	MissionEventModel,
 } from "@workspace/ui/components/mission"
-import type { MissionCardModel } from "@workspace/ui/components/mission-card"
 import type { MissionRowModel } from "@workspace/ui/components/mission-row"
+import type { RosterBot } from "@workspace/ui/components/roster"
 
 import type {
 	Mission,
@@ -35,15 +36,20 @@ export const toMissionRows = (missions: Mission[]): MissionRowModel[] =>
 
 export const toMissionCard = (
 	mission: Mission,
-	bot: MissionBot,
+	identity: RosterBot,
+	author: MessageAuthor | undefined,
 ): MissionCardModel => ({
 	id: mission.id,
-	bot,
+	identity,
+	author,
 	objective: mission.objective,
 	ticket: {
 		externalId: mission.ticket.externalId,
 		title: mission.ticket.title,
+		platform: mission.ticket.platform,
+		url: mission.ticket.url,
 	},
+	tools: mission.tools,
 	state: mission.state,
 	isClosed: mission.closedAt !== null,
 })

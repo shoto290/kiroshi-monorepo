@@ -819,9 +819,9 @@ describe("ThreadScreen", () => {
 		render(screenOf(threadOf({ id: "bot-1", name: "Nyx", said: "held" })))
 		await settle()
 
-		const card = within(missionCard()).getByRole("button")
-		expect(card.getAttribute("data-closed")).toBe("true")
-		expect(within(card).getByText("Done")).toBeTruthy()
+		const card = missionCard().querySelector('[data-slot="mission-card"]')
+		expect(card?.getAttribute("data-closed")).toBe("true")
+		expect(within(missionCard()).getByText("Done")).toBeTruthy()
 	})
 
 	it("dates the missions of the Activity panel by the roster clock", async () => {

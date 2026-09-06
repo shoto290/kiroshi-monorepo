@@ -23,6 +23,6 @@ Each icon takes the Lucide SVG props (`size`, `strokeWidth`, `absoluteStrokeWidt
 3. Name it after its **purpose**, not its shape — `Delete`, not `Trash2`; `Expand`, not `ChevronDown`.
 4. One key, one glyph — no two keys map to the same Lucide icon. If a second role needs an existing glyph, reuse that key.
 
-A brand mark Lucide does not ship (`Icons.Claude`) is declared as an inline `<svg>` component in `icons.tsx` itself, following Lucide's own conventions — a 24x24 `viewBox`, `stroke="currentColor"`, round caps and joins, `size` mapped onto `width`/`height` — so it sizes and colours identically to every other key.
+A brand mark Lucide does not ship (`Icons.Claude`, `Icons.GitHub`, `Icons.Linear`, `Icons.Paper`, `Icons.Superset`) is declared as an inline `<svg>` component in `icons.tsx` itself, following Lucide's own conventions — `size` mapped onto `width`/`height`, `currentColor`, `aria-hidden` by default — so it sizes and colours identically to every other key. Each keeps the vendor's own geometry rather than Lucide's: its own `viewBox`, and `fill` where the vendor mark is filled instead of stroked.
 
 <IconGrid />

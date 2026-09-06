@@ -537,6 +537,9 @@ const chat = {
 			failed: "Mission en échec",
 			closed: "Mission fermée",
 		},
+		card: {
+			open: "Ouvrir la mission : {{objective}}",
+		},
 		header: {
 			tools: "Outils",
 			back: "Retour à la conversation",

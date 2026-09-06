@@ -1,5 +1,7 @@
 import type { BotBadge } from "@workspace/ui/components/badge"
 import type { BotIdentityAvatarProps } from "@workspace/ui/components/bot-identity-avatar"
+import type { MessageAuthor } from "@workspace/ui/components/message"
+import type { RosterBot } from "@workspace/ui/components/roster"
 
 type MissionEventKind =
 	| "opened"
@@ -31,6 +33,22 @@ type MissionTicket = {
 	title: string
 }
 
+type MissionTicketLink = MissionTicket & {
+	platform: string
+	url: string
+}
+
+type MissionCardModel = {
+	id: string
+	identity: RosterBot
+	author?: MessageAuthor
+	objective: string
+	ticket: MissionTicketLink
+	tools: string[]
+	state: MissionState
+	isClosed: boolean
+}
+
 type MissionEventModel = {
 	id: string
 	kind: MissionEventKind
@@ -45,9 +63,11 @@ const missionBadgeFor = (state: MissionState): BotBadge | undefined =>
 export {
 	MISSION_AVATAR_SIZE,
 	type MissionBot,
+	type MissionCardModel,
 	type MissionEventKind,
 	type MissionEventModel,
 	type MissionState,
 	type MissionTicket,
+	type MissionTicketLink,
 	missionBadgeFor,
 }
