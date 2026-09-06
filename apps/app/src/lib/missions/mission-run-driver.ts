@@ -14,7 +14,7 @@ import {
 	type MissionRunCause,
 	missionRunPromptFor,
 } from "./mission-run-prompt"
-import { createMissionStates } from "./mission-states"
+import { createMissionSeqs } from "./mission-seqs"
 
 import type {
 	RuntimeScope,
@@ -123,7 +123,7 @@ export const startMissionRunDriver = ({
 	const live = new Map<string, LiveMissionRun>()
 	const kept = new Map<string, MissionChanged>()
 	const holding = new Set<string>()
-	const states = createMissionStates()
+	const seqs = createMissionSeqs()
 	let isStopped = false
 
 	const raiseFailure = (reason: unknown) => {
@@ -258,12 +258,12 @@ export const startMissionRunDriver = ({
 			return
 		}
 
-		if (!states.entered(changed)) {
+		if (seqs.handled(changed)) {
 			return
 		}
 
 		if (!CAUSE_OF_STATE[changed.state]) {
-			states.remember(changed)
+			seqs.remember(changed)
 			return
 		}
 
@@ -275,9 +275,9 @@ export const startMissionRunDriver = ({
 			}
 
 			await begin({ ...call, rosterBlock: await rosterBlockOf(call) })
-			states.remember({
+			seqs.remember({
 				missionId: changed.missionId,
-				state: call.mission.state,
+				stateSeq: call.mission.stateSeq,
 			})
 		} catch (thrown) {
 			raiseFailure(detailOf(thrown))
@@ -376,7 +376,7 @@ export const startMissionRunDriver = ({
 		const settled = await readSettledMission(held)
 
 		if (isClosed(settled)) {
-			states.remember({ missionId: settled.id, state: settled.state })
+			seqs.remember({ missionId: settled.id, stateSeq: settled.stateSeq })
 		}
 
 		holding.delete(id)
