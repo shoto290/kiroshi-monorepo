@@ -196,6 +196,14 @@ const WORKSPACE_SIDEBAR = (
 	</AnimatedSidebar>
 )
 
+const CARD_GUTTER = 4
+
+const renderInShell = (args: RoutinesPanelProps) => (
+	<WorkspaceShell sidebar={WORKSPACE_SIDEBAR}>
+		<PanelHost {...args} />
+	</WorkspaceShell>
+)
+
 const handleIn = (canvasElement: HTMLElement, side: string) =>
 	canvasElement.querySelector<HTMLElement>(
 		`[data-slot="sidebar-resize-handle"][data-side="${side}"]`,
@@ -299,7 +307,7 @@ export const Closed = meta.story({
 		docs: {
 			description: {
 				story:
-					"The panel folded away. Check that the transcript spans the whole thread with no gutter left behind, that the control in the app header reports the panel closed rather than merely looking unpressed, and that the panel carries no control of its own while it is folded away.",
+					"The panel folded away. Check that the thread card takes the whole room the folded panel leaves, keeping nothing but its own gutter, that the control in the app header reports the panel closed rather than merely looking unpressed, and that the panel carries no control of its own while it is folded away.",
 			},
 		},
 	},
@@ -318,7 +326,8 @@ export const Closed = meta.story({
 			FRAME_POLL,
 		)
 		await expect(thread.getBoundingClientRect().width).toBe(
-			panel.parentElement?.getBoundingClientRect().width,
+			(panel.parentElement?.getBoundingClientRect().width ?? 0) -
+				CARD_GUTTER * 2,
 		)
 	},
 })
@@ -761,11 +770,7 @@ export const InWorkspaceShell = meta.story({
 			},
 		},
 	},
-	render: (args) => (
-		<WorkspaceShell sidebar={WORKSPACE_SIDEBAR}>
-			<PanelHost {...args} />
-		</WorkspaceShell>
-	),
+	render: renderInShell,
 	play: async ({ canvas, canvasElement, userEvent }) => {
 		const workspace = canvas.getByRole("complementary", { name: "Workspace" })
 		const widthBefore = workspace.getBoundingClientRect().width
@@ -788,5 +793,174 @@ export const InWorkspaceShell = meta.story({
 		)
 		await expect(workspace).toHaveAttribute("data-state", "expanded")
 		await expect(workspace.getBoundingClientRect().width).toBe(widthBefore)
+	},
+})
+
+const TRANSPARENT = "rgba(0, 0, 0, 0)"
+
+const paintOf = (element: HTMLElement) =>
+	getComputedStyle(element).backgroundColor
+
+const shellPaint = () => {
+	const swatch = document.createElement("div")
+	swatch.className = "surface-shell"
+	document.body.append(swatch)
+	const painted = paintOf(swatch)
+	swatch.remove()
+	return painted
+}
+
+const cardIn = (canvasElement: HTMLElement) => {
+	const cards = canvasElement.querySelectorAll<HTMLElement>(
+		"[data-content-card]",
+	)
+	return cards[cards.length - 1] as HTMLElement
+}
+
+const panelSurfaceIn = (panel: HTMLElement) =>
+	panel.querySelector<HTMLElement>('[data-slot="sidebar-panel"]') as HTMLElement
+
+const expectPanelOnShellSurface = async (panel: HTMLElement) => {
+	const surface = panelSurfaceIn(panel)
+	const painted = getComputedStyle(surface)
+
+	await expect(paintOf(surface)).toBe(TRANSPARENT)
+	await expect(painted.borderInlineStartWidth).toBe("0px")
+	await expect(paintOf(panel.parentElement as HTMLElement)).toBe(shellPaint())
+}
+
+const expectCardFramed = async (card: HTMLElement) => {
+	const painted = getComputedStyle(card)
+
+	await expect(painted.borderInlineEndWidth).toBe(
+		painted.borderInlineStartWidth,
+	)
+	await expect(painted.borderStartEndRadius).toBe(
+		painted.borderStartStartRadius,
+	)
+	await expect(painted.borderStartStartRadius).not.toBe("0px")
+	await expect(painted.overflow).toBe("hidden")
+	await expect(paintOf(card)).not.toBe(TRANSPARENT)
+}
+
+const activityPanelIn = (canvasElement: HTMLElement) =>
+	within(canvasElement).getByRole("complementary", { name: "Activity" })
+
+const expectShellSurfaceAround = async (canvasElement: HTMLElement) => {
+	const panel = activityPanelIn(canvasElement)
+	const card = cardIn(canvasElement)
+
+	await expectPanelOnShellSurface(panel)
+	await expectCardFramed(card)
+
+	await waitFor(async () => {
+		const edges = card.getBoundingClientRect()
+		const panelEdges = panel.getBoundingClientRect()
+		await expect(panelEdges.left - edges.right).toBe(CARD_GUTTER)
+		await expect(window.innerWidth - panelEdges.right).toBe(0)
+	}, FRAME_POLL)
+}
+
+const OPEN_ON_SHELL_SURFACE =
+	"The panel open on the shell surface: the surface reaches the trailing window edge and the thread floats on it as a single card, framed on the edge it shares with the panel exactly as on the edge it shares with the sidebar. Check that the panel paints no background and no border of its own, that the missions and the routines read against the shell surface as the sidebar rows do on the other side, and that the card keeps its gutter against the panel. Pick `OnShellSurfaceClosed` for the panel taking no room at all."
+
+const CLOSED_ON_SHELL_SURFACE =
+	"The panel closed, which is what most of a session looks like: the thread card keeps the same gutter, radius, border and background it had before the panel existed, and the shell surface is all that shows around it. Check that the trailing gutter matches the leading one now that the panel takes no room. Pick `OnShellSurfaceOpen` for the panel holding room beside the card."
+
+export const OnShellSurfaceOpen = meta.story({
+	args: { isOpen: true },
+	parameters: {
+		a11y: A11Y_CONTRAST_AWAITING_DESIGN_DECISION,
+		docs: { description: { story: OPEN_ON_SHELL_SURFACE } },
+	},
+	render: renderInShell,
+	play: async ({ canvasElement }) => {
+		await expectShellSurfaceAround(canvasElement)
+	},
+})
+
+export const OnShellSurfaceOpenDark = meta.story({
+	args: { isOpen: true },
+	globals: { theme: "dark" },
+	parameters: {
+		a11y: A11Y_CONTRAST_AWAITING_DESIGN_DECISION,
+		docs: { description: { story: OPEN_ON_SHELL_SURFACE } },
+	},
+	render: renderInShell,
+	play: async ({ canvasElement }) => {
+		await expectShellSurfaceAround(canvasElement)
+	},
+})
+
+const expectShellSurfaceWithoutPanel = async (canvasElement: HTMLElement) => {
+	const panel = activityPanelIn(canvasElement)
+	const card = cardIn(canvasElement)
+
+	await expectPanelOnShellSurface(panel)
+	await expectCardFramed(card)
+
+	await waitFor(async () => {
+		await expect(panel.getBoundingClientRect().width).toBe(0)
+	}, FRAME_POLL)
+
+	const edges = card.getBoundingClientRect()
+	await expect(window.innerWidth - edges.right).toBe(CARD_GUTTER)
+	await expect(edges.top).toBe(CARD_GUTTER)
+	await expect(window.innerHeight - edges.bottom).toBe(CARD_GUTTER)
+}
+
+export const OnShellSurfaceClosed = meta.story({
+	args: { isOpen: false },
+	parameters: {
+		a11y: A11Y_CONTRAST_AWAITING_DESIGN_DECISION,
+		docs: { description: { story: CLOSED_ON_SHELL_SURFACE } },
+	},
+	render: renderInShell,
+	play: async ({ canvasElement }) => {
+		await expectShellSurfaceWithoutPanel(canvasElement)
+	},
+})
+
+export const OnShellSurfaceClosedDark = meta.story({
+	args: { isOpen: false },
+	globals: { theme: "dark" },
+	parameters: {
+		a11y: A11Y_CONTRAST_AWAITING_DESIGN_DECISION,
+		docs: { description: { story: CLOSED_ON_SHELL_SURFACE } },
+	},
+	render: renderInShell,
+	play: async ({ canvasElement }) => {
+		await expectShellSurfaceWithoutPanel(canvasElement)
+	},
+})
+
+export const OnShellSurfaceTinted = meta.story({
+	args: { isOpen: true },
+	parameters: {
+		a11y: A11Y_CONTRAST_AWAITING_DESIGN_DECISION,
+		docs: {
+			description: {
+				story:
+					"The panel open in a space that carries a colour, which is the only state where the panel could betray the surface it sits on. Check that the panel is washed with exactly the tint the sidebar wears on the other side of the window and not with the untinted surface, so a panel that stops resolving the tint of the space in view reads as a plain grey column beside a coloured one. Pick `OnShellSurfaceOpen` for the untinted surface.",
+			},
+		},
+	},
+	render: (args) => (
+		<WorkspaceShell sidebar={WORKSPACE_SIDEBAR} spaceTint="blue">
+			<PanelHost {...args} />
+		</WorkspaceShell>
+	),
+	play: async ({ canvas, canvasElement }) => {
+		const panel = activityPanelIn(canvasElement)
+		const sidebar = canvas.getByRole("complementary", { name: "Workspace" })
+
+		await expect(paintOf(panelSurfaceIn(panel))).toBe(TRANSPARENT)
+		await expect(paintOf(panelSurfaceIn(sidebar))).toBe(TRANSPARENT)
+
+		await waitFor(async () => {
+			const tinted = paintOf(panel.parentElement as HTMLElement)
+			await expect(tinted).toBe(paintOf(sidebar.parentElement as HTMLElement))
+			await expect(tinted).not.toBe(shellPaint())
+		}, FRAME_POLL)
 	},
 })
