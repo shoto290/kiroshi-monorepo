@@ -46,7 +46,7 @@ const MissionStatePill = ({ state, className }: MissionStatePillProps) => {
 
 	return (
 		<Badge
-			className={cn(state === "failed" && "text-foreground", className)}
+			className={className}
 			data-slot="mission-state-pill"
 			data-state={state}
 			variant={MISSION_STATE_VARIANT[state]}

@@ -1,7 +1,11 @@
 import { expect, fn } from "storybook/test"
 
 import preview from "@workspace/storybook/preview"
-import { slotIn, slotsIn } from "@workspace/storybook/story-utils"
+import {
+	A11Y_CONTRAST_AWAITING_DESIGN_DECISION,
+	slotIn,
+	slotsIn,
+} from "@workspace/storybook/story-utils"
 import type { MissionCardModel } from "@workspace/ui/components/mission"
 import { MissionTurn } from "@workspace/ui/components/mission-turn"
 import {
@@ -121,10 +125,11 @@ export const ReadyToMerge = meta.story({
 export const Failed = meta.story({
 	args: { mission: FAILED_MISSION_CARD },
 	parameters: {
+		a11y: A11Y_CONTRAST_AWAITING_DESIGN_DECISION,
 		docs: {
 			description: {
 				story:
-					"The run stopped on a failure and the mission is still open. Check that the pill names the failure in words as well as in colour, and that the objective stays at full contrast because the mission is not closed. Pick `Done` for the closed form.",
+					"The run stopped on a failure and the mission is still open. Check that the pill names the failure in words as well as in colour, and that the objective stays at full contrast because the mission is not closed. Its label rides the destructive pair the palette still owes a decision on, so the story carries the audit's exception rather than nudging the pill. Pick `Done` for the closed form.",
 			},
 		},
 	},

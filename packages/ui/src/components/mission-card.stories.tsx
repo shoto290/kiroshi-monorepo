@@ -9,6 +9,16 @@ import {
 	WORKING_MISSION_CARD,
 } from "@workspace/ui/components/missions.fixtures"
 
+const UNRECOGNISED_MISSION_CARD = {
+	...WORKING_MISSION_CARD,
+	tools: ["Screenshot"],
+}
+
+const TICKETLESS_MISSION_CARD = {
+	...WORKING_MISSION_CARD,
+	ticket: { externalId: "", title: "", platform: "", url: "" },
+}
+
 const UNLINKABLE_MISSION_CARD = {
 	...WAITING_MISSION_CARD,
 	ticket: { ...WAITING_MISSION_CARD.ticket, url: "" },
@@ -46,7 +56,7 @@ export const Default = meta.story({
 		docs: {
 			description: {
 				story:
-					"A running mission against a ticket the app knows. Check that the title row reads before the objective, that the ticket line carries its platform mark, its identifier and its title in the muted foreground, and that Tab reaches the bubble first and the ticket second, each with its own focus ring. Pick `Unlinkable` for a mission whose ticket the app cannot open.",
+					"A running mission against a ticket the app knows. Check that the title row reads before the objective, that the ticket line carries its platform mark, its identifier and its title in the muted foreground, that the bubble darkens under the pointer as the target it is, and that Tab reaches the bubble first and the ticket second, each with the ring the repo draws. Pick `Unlinkable` for a mission whose ticket the app cannot open.",
 			},
 		},
 	},
@@ -65,13 +75,13 @@ export const Default = meta.story({
 	},
 })
 
-export const OnAnUnknownPlatform = meta.story({
-	args: WORKING_MISSION_CARD,
+export const Unrecognised = meta.story({
+	args: UNRECOGNISED_MISSION_CARD,
 	parameters: {
 		docs: {
 			description: {
 				story:
-					"The ticket comes from a platform the app ships no mark for. Check that the identifier and the title are read all the same, behind the default mark a tool the app does not know is given, and that the line still opens the ticket. Pick `Unlinkable` for the ticket that carries no address at all.",
+					"A ticket from a platform the app ships no mark for, on a tool it does not know either, since the bot that opens a mission names both itself. Check that the identifier and the title are read all the same, that the line still opens the ticket, and above all that the two stand-in marks cannot be mistaken for one another — the ticket is bookmarked, the tool is a tool. Pick `Default` for the pair the app does recognise.",
 			},
 		},
 	},
@@ -79,9 +89,28 @@ export const OnAnUnknownPlatform = meta.story({
 		const ticket = canvas.getByRole("link")
 
 		await expect(ticket).toHaveTextContent(
-			WORKING_MISSION_CARD.ticket.externalId,
+			UNRECOGNISED_MISSION_CARD.ticket.externalId,
 		)
-		await expect(ticket).toHaveTextContent(WORKING_MISSION_CARD.ticket.title)
+		await expect(ticket).toHaveTextContent(
+			UNRECOGNISED_MISSION_CARD.ticket.title,
+		)
+		await expect(canvas.getByRole("img", { name: "Screenshot" })).toBeVisible()
+	},
+})
+
+export const WithoutTicket = meta.story({
+	args: TICKETLESS_MISSION_CARD,
+	parameters: {
+		docs: {
+			description: {
+				story:
+					"A mission opened without a ticket, as one opened from a design file is. Check that the bubble holds the objective alone rather than a lone mark over two empty spans, and that the bubble is then the only keyboard target. Pick `Unlinkable` for a ticket that exists but carries no address.",
+			},
+		},
+	},
+	play: async ({ canvas, canvasElement }) => {
+		await expect(slotsIn(canvasElement, "mission-ticket-line")).toHaveLength(0)
+		await expect(canvas.queryByRole("link")).toBeNull()
 	},
 })
 

@@ -77,6 +77,9 @@ type MissionTicketLineProps = {
 
 const MissionTicketLine = ({ ticket }: MissionTicketLineProps) => {
 	const Mark = missionTicketPlatformMark(ticket.platform)
+
+	if (!ticket.externalId && !ticket.title) return null
+
 	const line = (
 		<>
 			<Mark aria-hidden="true" className="size-3 shrink-0" />
@@ -97,7 +100,10 @@ const MissionTicketLine = ({ ticket }: MissionTicketLineProps) => {
 
 	return (
 		<a
-			className={cn("relative", MISSION_TICKET_LINE)}
+			className={cn(
+				"relative rounded-sm outline-none focus-visible:ring-2 focus-visible:ring-ring",
+				MISSION_TICKET_LINE,
+			)}
 			data-slot="mission-ticket-line"
 			href={ticket.url}
 			rel="noreferrer noopener"
@@ -122,11 +128,11 @@ const MissionCard = ({
 
 	return (
 		<MessageBubble className={className} variant="soft">
-			<MessageBubbleContent>
+			<MessageBubbleContent className="transition-[filter] duration-150 hover:brightness-[0.98]">
 				<button
 					aria-label={t("missions.card.open", { objective })}
 					className={cn(
-						"absolute rounded-2xl outline-none focus-visible:ring-2 focus-visible:ring-ring",
+						"absolute cursor-pointer rounded-2xl outline-none focus-visible:ring-2 focus-visible:ring-ring",
 						MESSAGE_BUBBLE_PADDING_INSET,
 					)}
 					onClick={() => onOpen(id)}
