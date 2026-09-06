@@ -26,6 +26,7 @@ const DETAIL: MissionDetail = {
 		},
 		tools: ["Repository"],
 		state: "working",
+		stateSeq: 1,
 		openedAt: 1,
 		closedAt: null,
 		reportedAt: null,

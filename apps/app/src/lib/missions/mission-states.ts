@@ -1,8 +1,10 @@
 import type { MissionChanged, MissionState } from "./mission-contract"
 
+type MissionStanding = Pick<MissionChanged, "missionId" | "state">
+
 export type MissionStates = {
-	entered: (changed: MissionChanged) => boolean
-	remember: (changed: MissionChanged) => void
+	entered: (changed: MissionStanding) => boolean
+	remember: (changed: MissionStanding) => void
 }
 
 export const createMissionStates = (): MissionStates => {

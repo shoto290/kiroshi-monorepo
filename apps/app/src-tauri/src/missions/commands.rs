@@ -2,9 +2,9 @@ use serde::Serialize;
 use tauri::{AppHandle, Emitter, Manager, Runtime, State};
 
 use super::contract::{
-	ConversationMissions, HookedMission, Mission, MissionClosing, MissionDetail, MissionDraft,
-	MissionEntry, MissionError, MissionEventKind, MissionNote, MissionOnBoard, MissionOpened,
-	MissionState, MissionWatch, MissionWatching,
+	ConversationMissions, HookedMission, Mission, MissionAnswer, MissionClosing, MissionDetail,
+	MissionDraft, MissionEntry, MissionError, MissionEventKind, MissionNote, MissionOnBoard,
+	MissionOpened, MissionState, MissionWatch, MissionWatching,
 };
 use super::hook;
 use crate::avatars;
@@ -15,6 +15,8 @@ use crate::db;
 use crate::routines::webhook::{Webhook, HEADER};
 
 pub const CHANGED_EVENT: &str = "mission://changed";
+
+const BOT: &str = "bot";
 
 const HEARD: &str =
 	"the agent hook is installed in the checkout of this mission, so what the agent does there \
@@ -34,14 +36,22 @@ const UNHEARD: &str = "no agent reaches this mission, it moves only on the lines
 pub struct MissionChanged {
 	pub mission_id: String,
 	pub state: MissionState,
+	pub state_seq: i64,
 }
 
 pub(super) fn announce_change<R: Runtime>(
 	app: &AppHandle<R>,
 	mission: &Mission,
 ) -> Result<(), MissionError> {
-	app.emit(CHANGED_EVENT, MissionChanged { mission_id: mission.id.clone(), state: mission.state })
-		.map_err(|error| MissionError::Undeliverable { detail: error.to_string() })
+	app.emit(
+		CHANGED_EVENT,
+		MissionChanged {
+			mission_id: mission.id.clone(),
+			state: mission.state,
+			state_seq: mission.state_seq,
+		},
+	)
+	.map_err(|error| MissionError::Undeliverable { detail: error.to_string() })
 }
 
 fn refuse_blank(field: &str, held: &str) -> Result<(), MissionError> {
@@ -176,6 +186,22 @@ async fn appended<R: Runtime>(
 	let written = ready(state)?.missions().append(mission_id, entry).await?;
 	announce_change(app, &written)?;
 	Ok(written)
+}
+
+#[tauri::command]
+pub async fn mission_answered<R: Runtime>(
+	app: AppHandle<R>,
+	state: State<'_, db::DatabaseState>,
+	mission_id: String,
+	seq: i64,
+) -> Result<Mission, MissionError> {
+	match ready(&state)?.missions().answer(mission_id, seq, BOT.to_owned()).await? {
+		MissionAnswer::Appended(written) => {
+			announce_change(&app, &written)?;
+			Ok(written)
+		}
+		MissionAnswer::Stale(stored) => Ok(stored),
+	}
 }
 
 #[tauri::command]
@@ -554,6 +580,105 @@ mod tests {
 		cleaned(&app);
 	}
 
+	async fn an_agent_question(app: &App<MockRuntime>, mission_id: &str) -> Mission {
+		mission_note(
+			app.handle().clone(),
+			app.state(),
+			mission_id.to_owned(),
+			MissionEntry::of(MissionEventKind::AgentAsked, a_note()),
+		)
+		.await
+		.expect("the question is appended")
+	}
+
+	#[tokio::test]
+	async fn the_answer_at_the_standing_seq_works_the_mission_again_and_a_new_question_waits_it() {
+		let app = a_host("answered").await;
+		let opened = a_mission(&app, a_draft("c1", "b1", "Fix it")).await;
+
+		let asked = an_agent_question(&app, &opened.id).await;
+		let answered =
+			mission_answered(app.handle().clone(), app.state(), opened.id.clone(), asked.state_seq)
+				.await
+				.expect("the answer is recorded");
+		let asked_again = an_agent_question(&app, &opened.id).await;
+
+		assert_eq!(
+			[asked.state, answered.state, asked_again.state],
+			[MissionState::WaitingBot, MissionState::Working, MissionState::WaitingBot],
+			"the mission did not go back to working once its bot had answered"
+		);
+		assert!(
+			asked.state_seq < answered.state_seq && answered.state_seq < asked_again.state_seq,
+			"the seq of the state did not grow: {} then {} then {}",
+			asked.state_seq,
+			answered.state_seq,
+			asked_again.state_seq
+		);
+
+		cleaned(&app);
+	}
+
+	#[tokio::test]
+	async fn an_answer_older_than_the_standing_seq_appends_nothing_and_says_nothing() {
+		let app = a_host("stale-answer").await;
+		let opened = a_mission(&app, a_draft("c1", "b1", "Fix it")).await;
+		let asked = an_agent_question(&app, &opened.id).await;
+		let before =
+			mission_detail(app.state(), opened.id.clone()).await.expect("the detail reads");
+		let (sender, received) = channel();
+		app.handle().listen(CHANGED_EVENT, move |event| {
+			let _ = sender.send(event.payload().to_owned());
+		});
+
+		let answered = mission_answered(
+			app.handle().clone(),
+			app.state(),
+			opened.id.clone(),
+			asked.state_seq - 1,
+		)
+		.await
+		.expect("the stale answer is taken");
+
+		let after = mission_detail(app.state(), opened.id).await.expect("the detail reads");
+		assert_eq!(after.events.len(), before.events.len(), "the stale answer appended an event");
+		assert_eq!(
+			(answered.state, answered.state_seq),
+			(asked.state, asked.state_seq),
+			"the stale answer moved the mission"
+		);
+		assert!(received.try_recv().is_err(), "the stale answer told the front the mission moved");
+
+		cleaned(&app);
+	}
+
+	#[tokio::test]
+	async fn a_closed_mission_refuses_an_answer() {
+		let app = a_host("closed-answer").await;
+		let opened = a_mission(&app, a_draft("c1", "b1", "Fix it")).await;
+		let closed = mission_close(
+			app.handle().clone(),
+			app.state(),
+			opened.id.clone(),
+			a_closing(MissionOutcome::Done),
+		)
+		.await
+		.expect("the mission closes");
+
+		let refused = mission_answered(
+			app.handle().clone(),
+			app.state(),
+			opened.id.clone(),
+			closed.state_seq,
+		)
+		.await
+		.expect_err("the closed mission refuses an answer");
+
+		assert_eq!(refused, MissionError::MissionAlreadyClosed { id: opened.id });
+
+		cleaned(&app);
+	}
+
 	#[tokio::test]
 	async fn a_write_tells_the_front_which_mission_moved_and_where_it_stands() {
 		let app = a_host("announced").await;
@@ -574,8 +699,8 @@ mod tests {
 		assert_eq!(
 			announced,
 			vec![
-				json!({ "missionId": opened.id, "state": "working" }),
-				json!({ "missionId": opened.id, "state": "waiting_human" }),
+				json!({ "missionId": opened.id, "state": "working", "stateSeq": 1 }),
+				json!({ "missionId": opened.id, "state": "waiting_human", "stateSeq": 2 }),
 			],
 			"the front was not told which mission moved and where it stands"
 		);

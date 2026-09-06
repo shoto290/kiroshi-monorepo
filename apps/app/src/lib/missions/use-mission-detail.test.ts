@@ -30,6 +30,7 @@ const DETAIL: MissionDetail = {
 		},
 		tools: ["Repository"],
 		state: "working",
+		stateSeq: 1,
 		openedAt: 1,
 		closedAt: null,
 		reportedAt: null,
@@ -74,7 +75,7 @@ it("reads the mission again when a change names it", async () => {
 
 	await waitFor(() => expect(result.current.isReading).toBe(false))
 
-	announce({ missionId: "m-1", state: "waiting_human" })
+	announce({ missionId: "m-1", state: "waiting_human", stateSeq: 2 })
 
 	await waitFor(() => expect(readDetail).toHaveBeenCalledTimes(2))
 })
@@ -84,7 +85,7 @@ it("leaves the mission alone when a change names another one", async () => {
 
 	await waitFor(() => expect(result.current.isReading).toBe(false))
 
-	announce({ missionId: "m-2", state: "done" })
+	announce({ missionId: "m-2", state: "done", stateSeq: 2 })
 
 	expect(readDetail).toHaveBeenCalledTimes(1)
 })

@@ -40,6 +40,7 @@ export type MissionRunPort = {
 	board: () => Promise<Pick<MissionOnBoard, "mission">[]>
 	unreported: () => Promise<Pick<MissionOnBoard, "mission">[]>
 	reported: (missionId: string, turnId: string | null) => Promise<unknown>
+	answered: (missionId: string, seq: number) => Promise<unknown>
 	onChanged: (
 		listener: (changed: MissionChanged) => void,
 	) => Promise<MissionRunUnsubscribe>
@@ -383,12 +384,26 @@ export const startMissionRunDriver = ({
 		return settled
 	}
 
+	const answerWhenAsked = async ({ call }: LiveMissionRun) => {
+		if (call.cause !== "answer") {
+			return
+		}
+
+		try {
+			await missions.answered(call.mission.id, call.mission.stateSeq)
+		} catch (thrown) {
+			raiseFailure(`the answer could not be recorded: ${detailOf(thrown)}`)
+		}
+	}
+
 	const settle = async (held: LiveMissionRun, ended: TurnEnded) => {
 		const settled = await endOn(held)
 
 		if (ended.outcome !== "completed") {
 			return raiseFailure(`the mission run's turn was ${ended.outcome}`)
 		}
+
+		await answerWhenAsked(held)
 
 		const report = readRunReport(ended.structuredOutput)
 
@@ -447,7 +462,11 @@ export const startMissionRunDriver = ({
 		}
 
 		for (const { mission } of caughtUp) {
-			void consider({ missionId: mission.id, state: mission.state })
+			void consider({
+				missionId: mission.id,
+				state: mission.state,
+				stateSeq: mission.stateSeq,
+			})
 		}
 	}
 

@@ -81,6 +81,8 @@ type HarnessSeed = {
 
 const CLOSING_INSTANT = 9
 
+const STANDING_SEQ = 4
+
 const closingInstantOf = (events: MissionEvent[]) =>
 	events.some(({ kind }) => kind === "closed") ? CLOSING_INSTANT : null
 
@@ -154,6 +156,7 @@ const createHarness = async ({
 	const missionAt = (state: MissionState, events: MissionEvent[]): Mission => ({
 		...mission,
 		state,
+		stateSeq: STANDING_SEQ,
 		closedAt: closingInstantOf(events),
 	})
 
@@ -203,7 +206,7 @@ const createHarness = async ({
 
 	const enter = async (state: MissionState, events = AGENT_ASKED) => {
 		hold(state, events)
-		missions.change({ missionId: mission.id, state })
+		missions.change({ missionId: mission.id, state, stateSeq: STANDING_SEQ })
 		await settled()
 	}
 
@@ -616,7 +619,11 @@ describe("startMissionRunDriver", () => {
 		harness.missions.stallDetail()
 
 		await harness.endTurn(reported("The walls stand, handing over."))
-		harness.missions.change({ missionId: harness.mission.id, state: "done" })
+		harness.missions.change({
+			missionId: harness.mission.id,
+			state: "done",
+			stateSeq: STANDING_SEQ,
+		})
 		await settled()
 		harness.missions.releaseDetail()
 		await settled()
@@ -674,9 +681,14 @@ describe("startMissionRunDriver", () => {
 		harness.missions.change({
 			missionId: harness.mission.id,
 			state: "waiting_bot",
+			stateSeq: STANDING_SEQ,
 		})
 		await settled()
-		harness.missions.change({ missionId: harness.mission.id, state: "done" })
+		harness.missions.change({
+			missionId: harness.mission.id,
+			state: "done",
+			stateSeq: STANDING_SEQ,
+		})
 		await settled()
 		harness.missions.releaseDetail()
 		await settled()
@@ -696,9 +708,14 @@ describe("startMissionRunDriver", () => {
 		harness.missions.change({
 			missionId: harness.mission.id,
 			state: "waiting_bot",
+			stateSeq: STANDING_SEQ,
 		})
 		await settled()
-		harness.missions.change({ missionId: harness.mission.id, state: "done" })
+		harness.missions.change({
+			missionId: harness.mission.id,
+			state: "done",
+			stateSeq: STANDING_SEQ,
+		})
 		await settled()
 		harness.missions.releaseDetail()
 		await settled()
@@ -884,6 +901,40 @@ describe("startMissionRunDriver", () => {
 		await harness.endTurn(reported("I cut the branch from main."))
 
 		expect(harness.missions.reports).toEqual([])
+	})
+
+	it("records the answer of a settled run with the seq it ran on", async () => {
+		await harness.enter("waiting_bot")
+		await harness.endTurn(reported("I cut the branch from main."))
+
+		expect(harness.missions.answers).toEqual([
+			[harness.mission.id, STANDING_SEQ],
+		])
+	})
+
+	it("records no answer when the turn of an answer run is cancelled", async () => {
+		vi.spyOn(console, "error").mockImplementation(() => undefined)
+		await harness.enter("waiting_bot")
+		await harness.endTurn({ outcome: "cancelled" })
+
+		expect(harness.missions.answers).toEqual([])
+	})
+
+	it("records no answer for a run that closes a mission", async () => {
+		await restart({ open: "done", openEvents: closedBy("poller") })
+		await harness.endTurn(reported("The walls stand, handing over."))
+
+		expect(harness.missions.answers).toEqual([])
+	})
+
+	it("raises a failure notice when the answer cannot be recorded", async () => {
+		vi.spyOn(console, "error").mockImplementation(() => undefined)
+		await harness.enter("waiting_bot")
+		harness.missions.refuseAnswered()
+
+		await harness.endTurn(reported("I cut the branch from main."))
+
+		expect(harness.reportFailure).toHaveBeenCalledTimes(1)
 	})
 
 	it("reads the mission no further when the run it ends answers one", async () => {

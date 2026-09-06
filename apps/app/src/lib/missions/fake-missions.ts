@@ -6,6 +6,9 @@ export type FakeMissions = {
 	unreported: () => Promise<{ mission: Mission }[]>
 	reported: (missionId: string, turnId: string | null) => Promise<void>
 	reports: [missionId: string, turnId: string | null][]
+	answered: (missionId: string, seq: number) => Promise<void>
+	answers: [missionId: string, seq: number][]
+	refuseAnswered: () => void
 	onChanged: (
 		listener: (changed: MissionChanged) => void,
 	) => Promise<() => void>
@@ -41,6 +44,7 @@ export const createFakeMissions = (): FakeMissions => {
 	const opened: OpenedMission[] = []
 	const rosterCalls: [conversationId: string, botId: string][] = []
 	const reports: [missionId: string, turnId: string | null][] = []
+	const answers: [missionId: string, seq: number][] = []
 	const detailCalls: string[] = []
 	let rosterBlock: string | null = null
 	let isRosterRefused = false
@@ -52,6 +56,7 @@ export const createFakeMissions = (): FakeMissions => {
 	let makeUnreportedReadable: () => void = () => undefined
 	let isUnreportedRefused = false
 	let isReportedRefused = false
+	let isAnsweredRefused = false
 	let detailGate: Promise<void> | null = null
 	let openDetailGate: () => void = () => undefined
 
@@ -64,6 +69,7 @@ export const createFakeMissions = (): FakeMissions => {
 		opened,
 		rosterCalls,
 		reports,
+		answers,
 		detailCalls,
 
 		rosterBlock: async (conversationId, botId) => {
@@ -139,6 +145,17 @@ export const createFakeMissions = (): FakeMissions => {
 
 		refuseReported: () => {
 			isReportedRefused = true
+		},
+
+		answered: async (missionId, seq) => {
+			if (isAnsweredRefused) {
+				throw new Error("the mission answer could not be recorded")
+			}
+			answers.push([missionId, seq])
+		},
+
+		refuseAnswered: () => {
+			isAnsweredRefused = true
 		},
 
 		onChanged: async (listener) => {

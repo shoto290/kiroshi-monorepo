@@ -31,6 +31,7 @@ const MISSION: Mission = {
 	},
 	tools: ["Read"],
 	state: "working",
+	stateSeq: 1,
 	openedAt: 0,
 	closedAt: null,
 	reportedAt: null,

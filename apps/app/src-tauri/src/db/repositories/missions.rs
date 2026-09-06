@@ -8,9 +8,9 @@ use uuid::Uuid;
 use super::conversations::open_thread_under;
 use crate::db::{Access, DatabaseError};
 use crate::missions::contract::{
-	ConversationMissions, HookedMission, Mission, MissionClosing, MissionDetail, MissionDraft,
-	MissionEntry, MissionError, MissionEvent, MissionEventKind, MissionInThread, MissionState,
-	MissionWatch, Ticket, WatchedMission,
+	ConversationMissions, HookedMission, Mission, MissionAnswer, MissionClosing, MissionDetail,
+	MissionDraft, MissionEntry, MissionError, MissionEvent, MissionEventKind, MissionInThread,
+	MissionState, MissionWatch, Ticket, WatchedMission,
 };
 
 const MAX_MISSIONS_PER_READ: u32 = 200;
@@ -43,7 +43,10 @@ const MISSION_COLUMNS: &str = "SELECT id, origin_conversation_id, bot_id, thread
 	opened_at, closed_at, reported_at, reported_turn_id,
 	COALESCE((SELECT kind FROM mission_events
 		WHERE mission_events.mission_id = missions.id AND mission_events.kind <> 'note'
-		ORDER BY mission_events.seq DESC LIMIT 1), 'opened') AS state_kind
+		ORDER BY mission_events.seq DESC LIMIT 1), 'opened') AS state_kind,
+	COALESCE((SELECT seq FROM mission_events
+		WHERE mission_events.mission_id = missions.id AND mission_events.kind <> 'note'
+		ORDER BY mission_events.seq DESC LIMIT 1), 0) AS state_seq
 	FROM missions";
 
 const INSERT_MISSION: &str = "INSERT INTO missions
@@ -111,6 +114,17 @@ impl MissionsRepository {
 	) -> Result<Mission, MissionError> {
 		self.access
 			.call_mut(move |connection| Ok(appended(connection, &mission_id, &entry, "")))
+			.await?
+	}
+
+	pub async fn answer(
+		&self,
+		mission_id: String,
+		seq: i64,
+		source: String,
+	) -> Result<MissionAnswer, MissionError> {
+		self.access
+			.call_mut(move |connection| Ok(answered(connection, &mission_id, seq, &source)))
 			.await?
 	}
 
@@ -395,6 +409,29 @@ fn appended(
 	Ok(stored)
 }
 
+fn answered(
+	connection: &mut Connection,
+	mission_id: &str,
+	seq: i64,
+	source: &str,
+) -> Result<MissionAnswer, MissionError> {
+	let transaction = write_transaction(connection)?;
+	refuse_a_shut_mission(&transaction, mission_id)?;
+	let standing = read(&transaction, mission_id)?;
+	if standing.state_seq != seq {
+		return Ok(MissionAnswer::Stale(standing));
+	}
+	let entry = MissionEntry {
+		kind: MissionEventKind::Answered,
+		source: source.to_owned(),
+		payload: serde_json::json!({}),
+	};
+	record(&transaction, mission_id, &entry, "", now())?;
+	let stored = read(&transaction, mission_id)?;
+	transaction.commit()?;
+	Ok(MissionAnswer::Appended(stored))
+}
+
 fn refuse_a_shut_mission(
 	transaction: &Transaction<'_>,
 	mission_id: &str,
@@ -606,6 +643,7 @@ fn mission(row: &Row<'_>) -> rusqlite::Result<Mission> {
 		reported_at: row.get(12)?,
 		reported_turn_id: row.get(13)?,
 		state: derived(row.get(14)?)?,
+		state_seq: row.get(15)?,
 	})
 }
 

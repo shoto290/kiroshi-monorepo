@@ -18,6 +18,7 @@ const A_MISSION: Mission = {
 	},
 	tools: ["claude-code"],
 	state: "working",
+	stateSeq: 1,
 	openedAt: 1,
 	closedAt: null,
 	reportedAt: null,

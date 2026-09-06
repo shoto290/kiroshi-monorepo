@@ -511,6 +511,7 @@ const SOLO_MISSION: Mission = {
 	},
 	tools: ["Read", "Write"],
 	state: "working",
+	stateSeq: 1,
 	openedAt: 0,
 	closedAt: null,
 	reportedAt: null,
@@ -803,7 +804,11 @@ describe("ThreadScreen", () => {
 			within(missionsSection()).getByText(SOLO_MISSION.objective),
 		).toBeTruthy()
 
-		announce.toPanel?.({ missionId: SOLO_MISSION.id, state: "waiting_human" })
+		announce.toPanel?.({
+			missionId: SOLO_MISSION.id,
+			state: "waiting_human",
+			stateSeq: 2,
+		})
 		await settle()
 
 		expect(listMissions).toHaveBeenCalledTimes(2)
@@ -871,7 +876,11 @@ describe("ThreadScreen", () => {
 			open: [{ ...SOLO_MISSION, state: "waiting_human" }],
 			done: [],
 		})
-		announce.toPanel?.({ missionId: SOLO_MISSION.id, state: "waiting_human" })
+		announce.toPanel?.({
+			missionId: SOLO_MISSION.id,
+			state: "waiting_human",
+			stateSeq: 2,
+		})
 		await settle()
 
 		expect(within(missionCard()).getByText("Waiting for you")).toBeTruthy()

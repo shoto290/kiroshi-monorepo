@@ -16,6 +16,8 @@ export const missionsTransport = {
 	unreported: () => invoke<MissionOnBoard[]>("mission_unreported"),
 	reported: (missionId: string, turnId: string | null) =>
 		invoke<Mission>("mission_reported", { missionId, turnId }),
+	answered: (missionId: string, seq: number) =>
+		invoke<Mission>("mission_answered", { missionId, seq }),
 	detail: (missionId: string) =>
 		invoke<MissionDetail>("mission_detail", { missionId }),
 	rosterBlock: (conversationId: string, botId: string) =>

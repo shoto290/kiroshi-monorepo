@@ -140,6 +140,7 @@ pub struct Mission {
 	pub ticket: Ticket,
 	pub tools: Vec<String>,
 	pub state: MissionState,
+	pub state_seq: i64,
 	pub opened_at: i64,
 	pub closed_at: Option<i64>,
 	pub reported_at: Option<i64>,
@@ -180,6 +181,12 @@ pub struct MissionWatching {
 	pub url: String,
 	pub key: String,
 	pub header: String,
+}
+
+#[derive(Debug, Clone, PartialEq)]
+pub enum MissionAnswer {
+	Appended(Mission),
+	Stale(Mission),
 }
 
 #[derive(Debug, Clone, PartialEq, Eq)]
@@ -381,6 +388,7 @@ mod tests {
 			},
 			tools: vec!["gh".to_owned()],
 			state: MissionState::Done,
+			state_seq: 4,
 			opened_at: 1,
 			closed_at: Some(2),
 			reported_at: Some(3),

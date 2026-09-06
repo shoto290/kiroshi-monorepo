@@ -799,6 +799,16 @@ mod tests {
 			.collect()
 	}
 
+	async fn state_seq_of(database: &Database, mission_id: &str) -> i64 {
+		database
+			.missions()
+			.detail(mission_id.to_owned())
+			.await
+			.expect("the mission reads")
+			.mission
+			.state_seq
+	}
+
 	async fn state_of(database: &Database, mission_id: &str) -> (MissionState, bool) {
 		let held = database
 			.missions()
@@ -895,9 +905,10 @@ mod tests {
 		let announced = walked(&stub, &database, &mut kept, &clock).await;
 
 		let (state, _) = state_of(&database, &mission.id).await;
+		let seq = state_seq_of(&database, &mission.id).await;
 		assert_eq!(
 			announced,
-			vec![json!({ "missionId": mission.id, "state": state })],
+			vec![json!({ "missionId": mission.id, "state": state, "stateSeq": seq })],
 			"the front was not told which mission github moved and where it stands"
 		);
 
