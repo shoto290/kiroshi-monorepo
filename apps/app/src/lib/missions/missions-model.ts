@@ -104,8 +104,20 @@ const RING_BADGE_OF: Partial<Record<BotMissionState, BotBadge>> =
 		}),
 	)
 
-const mostUrgent = (states: BotMissionState[]): BotMissionState =>
-	MOST_URGENT_FIRST.find((state) => states.includes(state)) ?? "working"
+const urgencyOf = (state: BotMissionState) => MOST_URGENT_FIRST.indexOf(state)
+
+const isMoreUrgent = (candidate: ShownMission, held: ShownMission): boolean => {
+	if (candidate.state !== held.state)
+		return urgencyOf(candidate.state) < urgencyOf(held.state)
+	if (candidate.mission.openedAt !== held.mission.openedAt)
+		return candidate.mission.openedAt < held.mission.openedAt
+	return candidate.mission.id < held.mission.id
+}
+
+type ShownMission = {
+	state: BotMissionState
+	mission: Mission
+}
 
 export const missionsByRow = (
 	board: MissionOnBoard[],
@@ -114,21 +126,34 @@ export const missionsByRow = (
 	const listedConversationIds = new Set(
 		listedConversations.map((conversation) => conversation.id),
 	)
-	const states: Record<string, BotMissionState[]> = {}
+	const shown: Record<string, ShownMission> = {}
+	const openCount: Record<string, number> = {}
 	for (const { mission } of board) {
 		const state = CHIP_STATE_OF[mission.state]
-		if (state) {
-			const rowId = listedConversationIds.has(mission.originConversationId)
-				? mission.originConversationId
-				: mission.botId
-			states[rowId] = [...(states[rowId] ?? []), state]
-		}
+		if (!state) continue
+
+		const rowId = listedConversationIds.has(mission.originConversationId)
+			? mission.originConversationId
+			: mission.botId
+		openCount[rowId] = (openCount[rowId] ?? 0) + 1
+
+		const held = shown[rowId]
+		const candidate = { state, mission }
+		if (!held || isMoreUrgent(candidate, held)) shown[rowId] = candidate
 	}
 
 	return Object.fromEntries(
-		Object.entries(states).map(([rowId, held]) => [
+		Object.entries(shown).map(([rowId, { state, mission }]) => [
 			rowId,
-			{ state: mostUrgent(held), count: held.length },
+			{
+				state,
+				ticket: {
+					platform: mission.ticket.platform,
+					externalId: mission.ticket.externalId,
+					title: mission.ticket.title,
+				},
+				otherCount: openCount[rowId] - 1,
+			},
 		]),
 	)
 }

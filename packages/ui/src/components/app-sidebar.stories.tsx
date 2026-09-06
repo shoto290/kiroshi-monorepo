@@ -391,15 +391,19 @@ const expectAvatarCentredOnRow = async (row: HTMLElement, avatarSlot: string) =>
 		verticalCentreOf(slotIn(row, avatarSlot).getBoundingClientRect()),
 	).toBeCloseTo(verticalCentreOf(row.getBoundingClientRect()), 0)
 
-const expectAlignedRows = async (rows: HTMLElement[]) => {
+const expectAlignedColumns = async (rows: HTMLElement[]) => {
 	await expect(uniqueCount(startOffsets(rows, "roster-row-name"))).toBe(1)
 	await expect(uniqueCount(startOffsets(rows, "roster-row-preview"))).toBe(1)
 	await expect(uniqueCount(startOffsets(rows, "roster-row-timestamp"))).toBe(1)
 	await expect(uniqueCount(endOffsets(rows, "roster-row-timestamp"))).toBe(1)
+	await expect(previewShortfalls(rows)).toEqual(rows.map(() => 0))
+}
+
+const expectAlignedRows = async (rows: HTMLElement[]) => {
+	await expectAlignedColumns(rows)
 	await expect(
 		uniqueCount(topOffsets(rowsWithPreview(rows), "roster-row-name")),
 	).toBe(1)
-	await expect(previewShortfalls(rows)).toEqual(rows.map(() => 0))
 	await expect(uniqueCount(rowHeights(rows))).toBe(1)
 }
 
@@ -1073,6 +1077,8 @@ export const MissionTicketLines = meta.story({
 		await expect(slotIn(rows[0], "roster-row-timestamp")).toHaveTextContent(
 			"09:24",
 		)
+		await expectAlignedColumns(rows)
+		await expectAlignedRows(rows.slice(0, 4))
 	},
 })
 
@@ -1131,6 +1137,18 @@ export const MissionTicketLineUnnamedPlatform = meta.story({
 					otherCount: 0,
 				},
 			},
+			{
+				...ROSTER[4],
+				mission: {
+					state: "failed" as const,
+					ticket: {
+						platform: "constructor",
+						externalId: "CON-1",
+						title: "Retry the nightly export",
+					},
+					otherCount: 0,
+				},
+			},
 			{ ...ROSTER[1], mission: missionOf("waiting", 1) },
 		],
 		selectedBotId: "atlas",
@@ -1139,13 +1157,17 @@ export const MissionTicketLineUnnamedPlatform = meta.story({
 		docs: {
 			description: {
 				story:
-					"A ticket from a platform the mark table does not name, over one it does. Check the first line falls back to the neutral bookmark and drops the identifier: an identifier only reads as a handle when the mark beside it says which tracker to type it into, and without that mark it is a number from nowhere. Check the title stands alone after the fallback and that the fallback sits on exactly the lane the named mark sits on, so the two rows read as one column and not as two shapes. Pick `MissionTicketLines` for the platforms the table names.",
+					"Two tickets from platforms the mark table does not name, over one it does. Check both fall back to the neutral bookmark and drop the identifier: an identifier only reads as a handle when the mark beside it says which tracker to type it into, and without that mark it is a number from nowhere. The second platform is called `constructor`, a name every object in JavaScript answers to: a lookup that asks the prototype would hand it the wrong mark and print an identifier the reader cannot use, so the table is read for its own keys only. Check the title stands alone after the fallback and that the fallback sits on exactly the lane the named mark sits on, so the three rows read as one column and not as three shapes. Pick `MissionTicketLines` for the platforms the table names.",
 			},
 		},
 	},
 	play: async ({ canvasElement }) => {
-		const fallbackRow = rowFor(canvasElement, "Atlas")
-		const fallbackLine = ticketLineIn(fallbackRow) as HTMLElement
+		const fallbackLine = ticketLineIn(
+			rowFor(canvasElement, "Atlas"),
+		) as HTMLElement
+		const inheritedLine = ticketLineIn(
+			rowFor(canvasElement, "Ember"),
+		) as HTMLElement
 
 		await expect(fallbackLine).toHaveTextContent(
 			"Rotate the staging credentials",
@@ -1154,9 +1176,15 @@ export const MissionTicketLineUnnamedPlatform = meta.story({
 		await expect(fallbackLine).toHaveAccessibleName(
 			"Rotate the staging credentials, ready to merge",
 		)
+		await expect(inheritedLine).toHaveTextContent("Retry the nightly export")
+		await expect(inheritedLine.textContent).not.toContain("CON-1")
+		await expect(inheritedLine).toHaveAccessibleName(
+			"Retry the nightly export, failed",
+		)
 		await expect(
 			uniqueCount(startOffsets(rowsIn(canvasElement), "bot-mission-mark")),
 		).toBe(1)
+		await expectAlignedRows(rowsIn(canvasElement))
 	},
 })
 
@@ -1181,7 +1209,8 @@ export const MissionTicketLineRaised = meta.story({
 			"Tue",
 		)
 		await expect(rowHeights([rows[0]])[0]).toBe(MISSION_ROW_HEIGHT)
-		await expect(uniqueCount(rowHeights(rows.slice(1)))).toBe(1)
+		await expectAlignedColumns(rows)
+		await expectAlignedRows(rows.slice(1))
 	},
 })
 
@@ -1211,7 +1240,7 @@ export const MissionTicketLineCounts = meta.story({
 			"#4172 Resume the second turn, working, 3 other missions",
 		)
 		await expect(uniqueCount(rowHeights(lines))).toBe(1)
-		await expect(uniqueCount(rowHeights(rows))).toBe(1)
+		await expectAlignedRows(rows)
 	},
 })
 
@@ -1247,6 +1276,7 @@ export const MissionTicketLineWithChatBadge = meta.story({
 			"bot-mission-ticket-title",
 		).getBoundingClientRect()
 		await expect(dot.left).toBeGreaterThanOrEqual(title.right)
+		await expectAlignedColumns(rows)
 	},
 })
 
@@ -4535,7 +4565,8 @@ export const ConversationMissionTicketLine = meta.story({
 			"Tue",
 		)
 		await expect(rowHeights([rows[0]])[0]).toBe(MISSION_ROW_HEIGHT)
-		await expect(uniqueCount(rowHeights(rows.slice(1)))).toBe(1)
+		await expectAlignedColumns(rows)
+		await expectAlignedRows(rows.slice(1))
 		await expectAvatarCentredOnRow(rows[0], "conversation-avatar")
 	},
 })

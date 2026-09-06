@@ -4,10 +4,7 @@ import { cva, type VariantProps } from "class-variance-authority"
 import type { ComponentPropsWithRef } from "react"
 import { useTranslation } from "react-i18next"
 
-import {
-	isNamedTicketPlatform,
-	missionTicketPlatformMark,
-} from "@workspace/ui/components/mission-marks"
+import { missionTicketPlatform } from "@workspace/ui/components/mission-marks"
 import { cn } from "@workspace/ui/lib/utils"
 
 const badgeVariants = cva(
@@ -148,8 +145,7 @@ const BotMissionTicketLine = ({
 	...props
 }: BotMissionTicketLineProps) => {
 	const { t } = useTranslation("bots")
-	const Mark = missionTicketPlatformMark(ticket.platform)
-	const isNamed = isNamedTicketPlatform(ticket.platform)
+	const { Mark, isNamed } = missionTicketPlatform(ticket.platform)
 	const label = {
 		state: t(`roster.mission.state.${state}`),
 		ticket: isNamed ? `${ticket.externalId} ${ticket.title}` : ticket.title,
