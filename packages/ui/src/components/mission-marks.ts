@@ -17,10 +17,33 @@ const MISSION_TICKET_PLATFORM_MARK: Record<string, MissionMark> = {
 
 const markKeyOf = (name: string) => name.trim().toLowerCase()
 
+const namedMark = (
+	table: Record<string, MissionMark>,
+	name: string,
+): MissionMark | undefined => {
+	const key = markKeyOf(name)
+	return Object.hasOwn(table, key) ? table[key] : undefined
+}
+
+type MissionTicketPlatform = {
+	Mark: MissionMark
+	isNamed: boolean
+}
+
 const missionToolMark = (tool: string): MissionMark =>
-	MISSION_TOOL_MARK[markKeyOf(tool)] ?? Icons.Tool
+	namedMark(MISSION_TOOL_MARK, tool) ?? Icons.Tool
+
+const missionTicketPlatform = (platform: string): MissionTicketPlatform => {
+	const mark = namedMark(MISSION_TICKET_PLATFORM_MARK, platform)
+	return { Mark: mark ?? Icons.Bookmark, isNamed: mark !== undefined }
+}
 
 const missionTicketPlatformMark = (platform: string): MissionMark =>
-	MISSION_TICKET_PLATFORM_MARK[markKeyOf(platform)] ?? Icons.Bookmark
+	missionTicketPlatform(platform).Mark
 
-export { missionTicketPlatformMark, missionToolMark }
+export {
+	type MissionTicketPlatform,
+	missionTicketPlatform,
+	missionTicketPlatformMark,
+	missionToolMark,
+}

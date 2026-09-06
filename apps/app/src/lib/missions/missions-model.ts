@@ -1,4 +1,4 @@
-import type { AppSidebarBotMission } from "@workspace/ui/components/app-sidebar"
+import type { AppSidebarRowMission } from "@workspace/ui/components/app-sidebar"
 import type { BotBadge, BotMissionState } from "@workspace/ui/components/badge"
 import type { MessageAuthor } from "@workspace/ui/components/message"
 import type {
@@ -75,10 +75,10 @@ export const toMissionEventModels = (
 		text: spokenTextOf(event.payload),
 	}))
 
-export type MissionsByRow = Record<string, AppSidebarBotMission>
+export type MissionsByRow = Record<string, AppSidebarRowMission[]>
 
 type MissionCarrier = {
-	mission?: AppSidebarBotMission
+	missions?: AppSidebarRowMission[]
 }
 
 const CHIP_STATE_OF: Partial<Record<MissionState, BotMissionState>> = {
@@ -104,8 +104,29 @@ const RING_BADGE_OF: Partial<Record<BotMissionState, BotBadge>> =
 		}),
 	)
 
-const mostUrgent = (states: BotMissionState[]): BotMissionState =>
-	MOST_URGENT_FIRST.find((state) => states.includes(state)) ?? "working"
+type ShownMission = {
+	state: BotMissionState
+	mission: Mission
+}
+
+const mostUrgentFirst = (one: ShownMission, other: ShownMission): number =>
+	MOST_URGENT_FIRST.indexOf(one.state) -
+		MOST_URGENT_FIRST.indexOf(other.state) ||
+	one.mission.openedAt - other.mission.openedAt ||
+	(one.mission.id < other.mission.id ? -1 : 1)
+
+const toRowMission = ({
+	state,
+	mission,
+}: ShownMission): AppSidebarRowMission => ({
+	id: mission.id,
+	state,
+	ticket: {
+		platform: mission.ticket.platform,
+		externalId: mission.ticket.externalId,
+		title: mission.ticket.title,
+	},
+})
 
 export const missionsByRow = (
 	board: MissionOnBoard[],
@@ -114,21 +135,21 @@ export const missionsByRow = (
 	const listedConversationIds = new Set(
 		listedConversations.map((conversation) => conversation.id),
 	)
-	const states: Record<string, BotMissionState[]> = {}
+	const open: Record<string, ShownMission[]> = {}
 	for (const { mission } of board) {
 		const state = CHIP_STATE_OF[mission.state]
-		if (state) {
-			const rowId = listedConversationIds.has(mission.originConversationId)
-				? mission.originConversationId
-				: mission.botId
-			states[rowId] = [...(states[rowId] ?? []), state]
-		}
+		if (!state) continue
+
+		const rowId = listedConversationIds.has(mission.originConversationId)
+			? mission.originConversationId
+			: mission.botId
+		open[rowId] = [...(open[rowId] ?? []), { state, mission }]
 	}
 
 	return Object.fromEntries(
-		Object.entries(states).map(([rowId, held]) => [
+		Object.entries(open).map(([rowId, held]) => [
 			rowId,
-			{ state: mostUrgent(held), count: held.length },
+			[...held].sort(mostUrgentFirst).map(toRowMission),
 		]),
 	)
 }
@@ -138,7 +159,7 @@ export const withMissions = <Row extends MissionCarrier & { id: string }>(
 	missions: MissionsByRow,
 ): Row[] =>
 	rows.map((row) =>
-		missions[row.id] ? { ...row, mission: missions[row.id] } : row,
+		missions[row.id] ? { ...row, missions: missions[row.id] } : row,
 	)
 
 export const missionRingBadges = (
@@ -148,7 +169,7 @@ export const missionRingBadges = (
 		Object.entries(rowsBySpaceId).map(([spaceId, rows]) => [
 			spaceId,
 			rows.map((row) => ({
-				badge: row.mission && RING_BADGE_OF[row.mission.state],
+				badge: row.missions?.[0] && RING_BADGE_OF[row.missions[0].state],
 			})),
 		]),
 	)

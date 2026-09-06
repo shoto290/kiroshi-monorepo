@@ -23,8 +23,9 @@ import {
 import {
 	type BotBadge,
 	BotBadgeDot,
-	BotMissionChip,
 	type BotMissionState,
+	BotMissionStrip,
+	type BotMissionTicket,
 	BotTitleBadge,
 } from "@workspace/ui/components/badge"
 import {
@@ -110,6 +111,10 @@ const TRAILING_SLOT = "ml-auto flex shrink-0 items-center gap-1.5"
 const NAME_LINE = "flex h-5 min-w-0 items-center gap-1.5"
 
 const ROW_STACK = "relative flex h-9 min-w-0 flex-col justify-center"
+
+const ROW_ITEM = "flex flex-col gap-1"
+
+const MISSION_STRIPS = "flex flex-col gap-1"
 
 const PREVIEW_LINE =
 	"h-4 truncate pe-3.5 text-muted-foreground text-xs leading-4 empty:h-0"
@@ -244,10 +249,26 @@ interface AppSidebarSection {
 	position: number
 }
 
-interface AppSidebarBotMission {
+interface AppSidebarRowMission {
+	id: string
 	state: BotMissionState
-	count: number
+	ticket: BotMissionTicket
+	objective?: string
 }
+
+const missionStripsOf = (missions: AppSidebarRowMission[] | undefined) =>
+	missions?.length ? (
+		<span className={MISSION_STRIPS} data-slot="roster-row-missions">
+			{missions.map(({ id, state, ticket, objective }) => (
+				<BotMissionStrip
+					key={id}
+					objective={objective}
+					state={state}
+					ticket={ticket}
+				/>
+			))}
+		</span>
+	) : undefined
 
 interface AppSidebarBot {
 	id: string
@@ -264,7 +285,7 @@ interface AppSidebarBot {
 	status?: AppSidebarStatus
 	pose?: ActivityIndicatorKind
 	badge?: BotBadge
-	mission?: AppSidebarBotMission
+	missions?: AppSidebarRowMission[]
 }
 
 interface AppSidebarConversation {
@@ -279,7 +300,7 @@ interface AppSidebarConversation {
 	lastActivityAt?: number
 	status?: AppSidebarStatus
 	badge?: BotBadge
-	mission?: AppSidebarBotMission
+	missions?: AppSidebarRowMission[]
 }
 
 const poseOf = (bot: AppSidebarBot) => bot.pose ?? "thinking"
@@ -619,10 +640,12 @@ const BotRosterRow = ({
 	const { isCollapsed, avatarBadge, rowBadge } = useRosterBadgePlacement(
 		bot.badge,
 	)
+	const strips = isCollapsed ? undefined : missionStripsOf(bot.missions)
 
 	return (
 		<AnimatedSidebarMenuItem
 			{...(isPinned ? dropArea(bot.id) : undefined)}
+			className={ROW_ITEM}
 			data-tauri-drag-region="false"
 			ref={slotRef}
 		>
@@ -631,6 +654,7 @@ const BotRosterRow = ({
 				<ContextMenuTrigger>
 					<AnimatedSidebarMenuButton
 						{...lift.handlersFor(bot.id)}
+						below={strips}
 						className={ROW}
 						icon={<BotRowAvatar badge={avatarBadge} bot={bot} />}
 						isActive={isSelected}
@@ -652,12 +676,6 @@ const BotRosterRow = ({
 									title={bot.title}
 								/>
 								<span className={TRAILING_SLOT}>
-									{bot.mission && !isCollapsed ? (
-										<BotMissionChip
-											count={bot.mission.count}
-											state={bot.mission.state}
-										/>
-									) : null}
 									<span
 										className={TIMESTAMP_SLOT}
 										data-slot="roster-row-timestamp"
@@ -779,10 +797,14 @@ const ConversationRosterRow = ({
 	const { isCollapsed, avatarBadge, rowBadge } = useRosterBadgePlacement(
 		badgeOf(conversation),
 	)
+	const strips = isCollapsed
+		? undefined
+		: missionStripsOf(conversation.missions)
 
 	return (
 		<AnimatedSidebarMenuItem
 			{...(isPinned ? dropArea(conversation.id) : undefined)}
+			className={ROW_ITEM}
 			data-tauri-drag-region="false"
 			ref={slotRef}
 		>
@@ -791,6 +813,7 @@ const ConversationRosterRow = ({
 				<ContextMenuTrigger>
 					<AnimatedSidebarMenuButton
 						{...lift.handlersFor(conversation.id)}
+						below={strips}
 						className={ROW}
 						icon={
 							<AvatarGroup
@@ -813,12 +836,6 @@ const ConversationRosterRow = ({
 									{conversation.name}
 								</span>
 								<span className={TRAILING_SLOT}>
-									{conversation.mission && !isCollapsed ? (
-										<BotMissionChip
-											count={conversation.mission.count}
-											state={conversation.mission.state}
-										/>
-									) : null}
 									<span
 										className={TIMESTAMP_SLOT}
 										data-slot="roster-row-timestamp"
@@ -1261,9 +1278,11 @@ const activityOf = ({ bot, conversation }: PinnedEntry) =>
 const byMostRecent = (one: PinnedEntry, other: PinnedEntry) =>
 	activityOf(other) - activityOf(one)
 
+const hasWaitingMission = (missions: AppSidebarRowMission[] | undefined) =>
+	missions?.some(({ state }) => state === "waiting") ?? false
+
 const isWaitingOnReader = ({ bot, conversation }: PinnedEntry) =>
-	bot?.mission?.state === "waiting" ||
-	conversation?.mission?.state === "waiting"
+	hasWaitingMission(bot?.missions) || hasWaitingMission(conversation?.missions)
 
 const waitingFirst = (entries: PinnedEntry[]) => [
 	...entries.filter(isWaitingOnReader),
@@ -2219,9 +2238,9 @@ const AppSidebar = memo(AppSidebarBase)
 export {
 	AppSidebar,
 	type AppSidebarBot,
-	type AppSidebarBotMission,
 	type AppSidebarConversation,
 	type AppSidebarProps,
+	type AppSidebarRowMission,
 	type AppSidebarSection,
 	type BotAvatarBlot,
 	type RosterPin,
