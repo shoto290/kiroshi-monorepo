@@ -261,6 +261,17 @@ pub struct MessageWindowQuery {
 	pub limit: u32,
 }
 
+pub enum MessageAuthorship {
+	AnyUser,
+	Bot(String),
+}
+
+pub struct LatestMessageQuery {
+	pub conversation_id: String,
+	pub authorship: MessageAuthorship,
+	pub not_after: i64,
+}
+
 pub struct NewActivity {
 	pub id: String,
 	pub turn_id: String,
@@ -323,6 +334,14 @@ const MESSAGE_WINDOW: &str = "SELECT id, turn_id, author_bot_id, replied_to_mess
 		content, completion_state, created_at, runtime_session_id
 	FROM messages WHERE conversation_id = ?1 AND seq > ?2 AND seq < ?3
 	ORDER BY seq DESC LIMIT ?4";
+const LATEST_USER_MESSAGE: &str = "SELECT id, turn_id, author_bot_id, replied_to_message_id, seq,
+		role, content, completion_state, created_at, runtime_session_id
+	FROM messages WHERE conversation_id = ?1 AND role = 'user' AND created_at <= ?2
+		AND trim(content, char(32, 9, 10, 13)) <> '' ORDER BY seq DESC LIMIT 1";
+const LATEST_MESSAGE_OF_BOT: &str = "SELECT id, turn_id, author_bot_id, replied_to_message_id, seq,
+		role, content, completion_state, created_at, runtime_session_id
+	FROM messages WHERE conversation_id = ?1 AND author_bot_id = ?2 AND created_at <= ?3
+		AND trim(content, char(32, 9, 10, 13)) <> '' ORDER BY seq DESC LIMIT 1";
 const MESSAGE_OF_CONVERSATION: &str =
 	"SELECT 1 FROM messages WHERE conversation_id = ?1 AND id = ?2";
 const KEEP_MESSAGE_PIN: &str =
@@ -555,6 +574,29 @@ impl MessagesRepository {
 					.collect::<Result<Vec<_>, _>>()?;
 				messages.reverse();
 				Ok(messages)
+			})
+			.await?)
+	}
+
+	pub async fn latest_message(
+		&self,
+		query: LatestMessageQuery,
+	) -> Result<Option<StoredMessage>, TranscriptError> {
+		Ok(self
+			.call(move |connection| {
+				Ok(match &query.authorship {
+					MessageAuthorship::AnyUser => connection
+						.prepare_cached(LATEST_USER_MESSAGE)?
+						.query_row(params![query.conversation_id, query.not_after], read_message)
+						.optional()?,
+					MessageAuthorship::Bot(bot_id) => connection
+						.prepare_cached(LATEST_MESSAGE_OF_BOT)?
+						.query_row(
+							params![query.conversation_id, bot_id, query.not_after],
+							read_message,
+						)
+						.optional()?,
+				})
 			})
 			.await?)
 	}

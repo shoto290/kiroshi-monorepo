@@ -641,6 +641,27 @@ mod tests {
 	}
 
 	#[tokio::test]
+	async fn an_opened_mission_answers_its_thread_and_the_lines_that_end_the_turn() {
+		let app = a_host("opened-thread").await;
+		let host = serving(&app, "c1");
+
+		let opened = host.answer(an_open()).await.expect("the mission opens");
+
+		let thread = opened["mission"]["threadConversationId"].as_str().unwrap_or_default();
+		let carries_on = opened["carriesOn"].as_str().unwrap_or_default();
+
+		assert!(!thread.is_empty(), "the answer named no thread: {opened}");
+		assert!(carries_on.contains("carries on"), "got {opened}");
+		assert!(carries_on.contains("thread"), "got {opened}");
+		assert!(
+			opened["acknowledge"].as_str().is_some_and(|line| line.contains("single line")),
+			"got {opened}"
+		);
+
+		cleaned(&app);
+	}
+
+	#[tokio::test]
 	async fn a_field_the_operation_does_not_declare_is_named_and_refused() {
 		let app = a_host("undeclared").await;
 		let host = serving(&app, "c1");

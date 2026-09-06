@@ -82,6 +82,9 @@ const CONVERSATION_OF_TURN: &str = "SELECT conversation_id FROM turns WHERE id =
 const SELECT_EVENTS: &str = "SELECT id, mission_id, kind, source, payload, created_at
 	FROM mission_events WHERE mission_id = ?1 ORDER BY seq DESC LIMIT ?2";
 
+const WORKSPACE_OF_MISSION: &str =
+	"SELECT NULLIF(watch_workspace_path, '') FROM missions WHERE id = ?1";
+
 const COUNT_EVENTS: &str = "SELECT count(*) FROM mission_events WHERE mission_id = ?1";
 
 pub struct MissionsRepository {
@@ -256,8 +259,11 @@ impl MissionsRepository {
 				let latest = oldest_first(rows.collect::<rusqlite::Result<Vec<_>>>()?);
 				let held: i64 =
 					connection.query_row(COUNT_EVENTS, [&threaded.id], |row| row.get(0))?;
+				let workspace_path: Option<String> =
+					connection.query_row(WORKSPACE_OF_MISSION, [&threaded.id], |row| row.get(0))?;
 				Ok(Some(MissionInThread {
 					earlier_events: held - latest.len() as i64,
+					workspace_path,
 					mission: threaded,
 					events: latest,
 				}))
