@@ -108,8 +108,8 @@ const BOT_MISSION_STATES = ["waiting", "failed", "ready", "working"] as const
 
 type BotMissionState = (typeof BOT_MISSION_STATES)[number]
 
-const BOT_MISSION_TICKET_LINE =
-	"flex h-4 min-w-0 items-center gap-1.5 pe-3.5 text-[11px] text-muted-foreground leading-4"
+const BOT_MISSION_STRIP =
+	"flex h-6 items-center gap-1.5 rounded-lg bg-sidebar-accent px-2 text-[11px] text-sidebar-foreground leading-4"
 
 const botMissionDotVariants = cva("size-1.5 shrink-0 rounded-full", {
 	variants: {
@@ -128,43 +128,25 @@ type BotMissionTicket = {
 	title: string
 }
 
-type BotMissionTicketLineProps = Omit<
-	ComponentPropsWithRef<"span">,
-	"children"
-> & {
+type BotMissionStripProps = Omit<ComponentPropsWithRef<"span">, "children"> & {
 	state: BotMissionState
 	ticket: BotMissionTicket
-	otherCount: number
 }
 
-const BotMissionTicketLine = ({
+const BotMissionStrip = ({
 	state,
 	ticket,
-	otherCount,
 	className,
 	...props
-}: BotMissionTicketLineProps) => {
+}: BotMissionStripProps) => {
 	const { t } = useTranslation("bots")
 	const { Mark, isNamed } = missionTicketPlatform(ticket.platform)
-	const label = {
-		state: t(`roster.mission.state.${state}`),
-		ticket: isNamed ? `${ticket.externalId} ${ticket.title}` : ticket.title,
-	}
 
 	return (
 		<span
-			aria-label={
-				otherCount > 0
-					? t("roster.mission.lineWithOthers", {
-							...label,
-							count: otherCount,
-						})
-					: t("roster.mission.line", label)
-			}
-			className={cn(BOT_MISSION_TICKET_LINE, className)}
-			data-slot="bot-mission-ticket-line"
+			className={cn(BOT_MISSION_STRIP, className)}
+			data-slot="bot-mission-strip"
 			data-state={state}
-			role="img"
 			{...props}
 		>
 			<span
@@ -172,6 +154,7 @@ const BotMissionTicketLine = ({
 				className={botMissionDotVariants({ state })}
 				data-slot="bot-mission-dot"
 			/>
+			<span className="sr-only">{t(`roster.mission.state.${state}`)}</span>
 			<Mark
 				aria-hidden="true"
 				className="size-3 shrink-0"
@@ -182,14 +165,12 @@ const BotMissionTicketLine = ({
 					{ticket.externalId}
 				</span>
 			) : null}
-			<span className="min-w-0 truncate" data-slot="bot-mission-ticket-title">
+			<span
+				className="min-w-0 truncate text-muted-foreground"
+				data-slot="bot-mission-ticket-title"
+			>
 				{ticket.title}
 			</span>
-			{otherCount > 0 ? (
-				<span className="shrink-0 tabular-nums">
-					{t("roster.mission.others", { count: otherCount })}
-				</span>
-			) : null}
 		</span>
 	)
 }
@@ -220,9 +201,9 @@ export {
 	BotBadgeDot,
 	type BotBadgeDotProps,
 	type BotMissionState,
+	BotMissionStrip,
+	type BotMissionStripProps,
 	type BotMissionTicket,
-	BotMissionTicketLine,
-	type BotMissionTicketLineProps,
 	BotTitleBadge,
 	type BotTitleBadgeProps,
 	badgeVariants,

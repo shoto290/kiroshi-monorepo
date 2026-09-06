@@ -24,8 +24,8 @@ import {
 	type BotBadge,
 	BotBadgeDot,
 	type BotMissionState,
+	BotMissionStrip,
 	type BotMissionTicket,
-	BotMissionTicketLine,
 	BotTitleBadge,
 } from "@workspace/ui/components/badge"
 import {
@@ -110,8 +110,11 @@ const TRAILING_SLOT = "ml-auto flex shrink-0 items-center gap-1.5"
 
 const NAME_LINE = "flex h-5 min-w-0 items-center gap-1.5"
 
-const rowStackFor = (mission?: AppSidebarBotMission) =>
-	cn("relative flex min-w-0 flex-col justify-center", mission ? "h-13" : "h-9")
+const ROW_STACK = "relative flex h-9 min-w-0 flex-col justify-center"
+
+const ROW_ITEM = "flex flex-col gap-1"
+
+const MISSION_STRIPS = "flex flex-col gap-1 ps-1.5 pe-3"
 
 const PREVIEW_LINE =
 	"h-4 truncate pe-3.5 text-muted-foreground text-xs leading-4 empty:h-0"
@@ -246,11 +249,26 @@ interface AppSidebarSection {
 	position: number
 }
 
-interface AppSidebarBotMission {
+interface AppSidebarRowMission {
+	id: string
 	state: BotMissionState
 	ticket: BotMissionTicket
-	otherCount: number
 }
+
+const NO_MISSIONS: AppSidebarRowMission[] = []
+
+interface RowMissionStripsProps {
+	missions: AppSidebarRowMission[]
+}
+
+const RowMissionStrips = ({ missions }: RowMissionStripsProps) =>
+	missions.length > 0 ? (
+		<span className={MISSION_STRIPS} data-slot="roster-row-missions">
+			{missions.map(({ id, state, ticket }) => (
+				<BotMissionStrip key={id} state={state} ticket={ticket} />
+			))}
+		</span>
+	) : null
 
 interface AppSidebarBot {
 	id: string
@@ -267,7 +285,7 @@ interface AppSidebarBot {
 	status?: AppSidebarStatus
 	pose?: ActivityIndicatorKind
 	badge?: BotBadge
-	mission?: AppSidebarBotMission
+	missions?: AppSidebarRowMission[]
 }
 
 interface AppSidebarConversation {
@@ -282,7 +300,7 @@ interface AppSidebarConversation {
 	lastActivityAt?: number
 	status?: AppSidebarStatus
 	badge?: BotBadge
-	mission?: AppSidebarBotMission
+	missions?: AppSidebarRowMission[]
 }
 
 const poseOf = (bot: AppSidebarBot) => bot.pose ?? "thinking"
@@ -622,11 +640,12 @@ const BotRosterRow = ({
 	const { isCollapsed, avatarBadge, rowBadge } = useRosterBadgePlacement(
 		bot.badge,
 	)
-	const mission = isCollapsed ? undefined : bot.mission
+	const missions = isCollapsed ? NO_MISSIONS : (bot.missions ?? NO_MISSIONS)
 
 	return (
 		<AnimatedSidebarMenuItem
 			{...(isPinned ? dropArea(bot.id) : undefined)}
+			className={ROW_ITEM}
 			data-tauri-drag-region="false"
 			ref={slotRef}
 		>
@@ -645,7 +664,7 @@ const BotRosterRow = ({
 							onSelect?.(bot.id)
 						}}
 					>
-						<span className={rowStackFor(mission)}>
+						<span className={ROW_STACK}>
 							<span className={NAME_LINE}>
 								<span className="truncate" data-slot="roster-row-name">
 									{bot.name}
@@ -669,13 +688,6 @@ const BotRosterRow = ({
 									? t("roster.working", { pose: t(`roster.pose.${pose}`) })
 									: bot.lastMessage && toPlainText(bot.lastMessage)}
 							</RowPreview>
-							{mission ? (
-								<BotMissionTicketLine
-									otherCount={mission.otherCount}
-									state={mission.state}
-									ticket={mission.ticket}
-								/>
-							) : null}
 							{rowBadge ? (
 								<BotBadgeDot
 									badge={rowBadge}
@@ -733,6 +745,7 @@ const BotRosterRow = ({
 					</ContextMenuItem>
 				</ContextMenuContent>
 			</ContextMenu>
+			<RowMissionStrips missions={missions} />
 		</AnimatedSidebarMenuItem>
 	)
 }
@@ -784,11 +797,14 @@ const ConversationRosterRow = ({
 	const { isCollapsed, avatarBadge, rowBadge } = useRosterBadgePlacement(
 		badgeOf(conversation),
 	)
-	const mission = isCollapsed ? undefined : conversation.mission
+	const missions = isCollapsed
+		? NO_MISSIONS
+		: (conversation.missions ?? NO_MISSIONS)
 
 	return (
 		<AnimatedSidebarMenuItem
 			{...(isPinned ? dropArea(conversation.id) : undefined)}
+			className={ROW_ITEM}
 			data-tauri-drag-region="false"
 			ref={slotRef}
 		>
@@ -813,7 +829,7 @@ const ConversationRosterRow = ({
 							onSelect?.(conversation.id)
 						}}
 					>
-						<span className={rowStackFor(mission)}>
+						<span className={ROW_STACK}>
 							<span className={NAME_LINE}>
 								<span className="truncate" data-slot="roster-row-name">
 									{conversation.name}
@@ -830,13 +846,6 @@ const ConversationRosterRow = ({
 							<RowPreview isWorking={Boolean(workingBotOf(conversation))}>
 								{previewOf(t, conversation)}
 							</RowPreview>
-							{mission ? (
-								<BotMissionTicketLine
-									otherCount={mission.otherCount}
-									state={mission.state}
-									ticket={mission.ticket}
-								/>
-							) : null}
 							{rowBadge ? (
 								<BotBadgeDot
 									badge={rowBadge}
@@ -877,6 +886,7 @@ const ConversationRosterRow = ({
 					</ContextMenuItem>
 				</ContextMenuContent>
 			</ContextMenu>
+			<RowMissionStrips missions={missions} />
 		</AnimatedSidebarMenuItem>
 	)
 }
@@ -1269,8 +1279,8 @@ const byMostRecent = (one: PinnedEntry, other: PinnedEntry) =>
 	activityOf(other) - activityOf(one)
 
 const isWaitingOnReader = ({ bot, conversation }: PinnedEntry) =>
-	bot?.mission?.state === "waiting" ||
-	conversation?.mission?.state === "waiting"
+	bot?.missions?.[0]?.state === "waiting" ||
+	conversation?.missions?.[0]?.state === "waiting"
 
 const waitingFirst = (entries: PinnedEntry[]) => [
 	...entries.filter(isWaitingOnReader),
@@ -2226,9 +2236,9 @@ const AppSidebar = memo(AppSidebarBase)
 export {
 	AppSidebar,
 	type AppSidebarBot,
-	type AppSidebarBotMission,
 	type AppSidebarConversation,
 	type AppSidebarProps,
+	type AppSidebarRowMission,
 	type AppSidebarSection,
 	type BotAvatarBlot,
 	type RosterPin,

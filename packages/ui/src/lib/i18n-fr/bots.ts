@@ -11,11 +11,6 @@ const bots = {
 		empty: "Aucun bot pour l'instant",
 		unavailable: "Vos bots n'ont pas pu être lus.",
 		mission: {
-			line: "{{ticket}}, {{state}}",
-			lineWithOthers_one: "{{ticket}}, {{state}}, {{count}} autre mission",
-			lineWithOthers_many: "{{ticket}}, {{state}}, {{count}} autres missions",
-			lineWithOthers_other: "{{ticket}}, {{state}}, {{count}} autres missions",
-			others: "+{{count}}",
 			state: {
 				waiting: "en attente de vous",
 				failed: "en échec",
