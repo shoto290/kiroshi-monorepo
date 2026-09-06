@@ -330,7 +330,7 @@ export const Toggling = meta.story({
 		docs: {
 			description: {
 				story:
-					"The way in and the way out, each in its own place. Check that the control in the app header opens the panel and then leaves the header, that the control inside the panel header closes it, and that closing hands the keyboard back to the control in the app header rather than dropping focus into a panel that is no longer there.",
+					"The way in and the way out, each in its own place. Check that the control in the app header opens the panel and then leaves the header, that opening hands the keyboard to the close control inside the panel rather than dropping it on the body, that this control closes the panel, and that closing hands the keyboard back to the control in the app header.",
 			},
 		},
 	},
@@ -347,9 +347,10 @@ export const Toggling = meta.story({
 			canvas.queryByRole("button", { name: "Activity" }),
 		).not.toBeInTheDocument()
 
-		await userEvent.click(
-			within(panel).getByRole("button", { name: "Close activity" }),
-		)
+		const close = within(panel).getByRole("button", { name: "Close activity" })
+		await waitFor(() => expect(close).toHaveFocus(), FRAME_POLL)
+
+		await userEvent.click(close)
 		await expect(args.onOpenChange).toHaveBeenCalledWith(false)
 
 		const control = canvas.getByRole("button", { name: "Activity" })

@@ -376,6 +376,7 @@ const RoutinesPanelSurface = (props: RoutinesPanelListProps) => {
 	const [isShowingClosedMissions, setShowingClosedMissions] = useState(false)
 	const wasOpen = useRef(open)
 	const surface = useRef<HTMLElement>(null)
+	const closeControl = useRef<HTMLButtonElement>(null)
 	const openers = useRef<string[]>([])
 	const { form, detail } = props
 	const heading = headingOf({
@@ -391,8 +392,9 @@ const RoutinesPanelSurface = (props: RoutinesPanelListProps) => {
 	const shownDepth = useRef(depth)
 
 	useEffect(() => {
-		if (wasOpen.current && !open) {
-			triggerRef.current?.focus({ preventScroll: true })
+		if (wasOpen.current !== open) {
+			const landing = open ? closeControl.current : triggerRef.current
+			landing?.focus({ preventScroll: true })
 		}
 		wasOpen.current = open
 	}, [open, triggerRef])
@@ -452,6 +454,7 @@ const RoutinesPanelSurface = (props: RoutinesPanelListProps) => {
 							aria-label={t("activity.panel.close")}
 							data-slot="routines-panel-close"
 							onClick={toggleSidebar}
+							ref={closeControl}
 							size="icon-sm"
 							variant="ghost"
 						>
