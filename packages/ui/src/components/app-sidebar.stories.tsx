@@ -201,6 +201,14 @@ const stripStatesIn = (row: HTMLElement) =>
 
 const dotIn = (row: HTMLElement) => slotIn(row, "bot-mission-dot")
 
+const dotBoxIn = (row: HTMLElement) => {
+	const box = dotIn(row).getBoundingClientRect()
+
+	return [box.width, box.height]
+}
+
+const DOT_SIZE = 5
+
 const BARE_ROW_HEIGHT = 52
 
 const STRIP_HEIGHT = 20
@@ -1053,7 +1061,7 @@ export const MissionStripStates = meta.story({
 		docs: {
 			description: {
 				story:
-					"Four bots each carrying one open mission, one per state a mission can be in. The mission speaks in a bare line under the preview and never in the dot on the preview line: the line is the state of the work, the dot is the state of the conversation, and the two shapes are never confused. Check the strip carries no fill, no border and no rounding of its own, and that it opens on the lane the name line opens, inside the text column rather than under the avatar. Check the strip opens on its state dot in the attention, failed and done colours the panel already uses and the muted grey of a resting row while the mission simply runs, then the platform mark, the identifier, the title. Check the strip never moves: it is the one mark in the row that does not pulse, because a mission is a fact and not an alarm. The title and the mark carry `--muted-foreground`, the token every muted line in this panel already carries, and the identifier takes the colour of the row name so the handle reads as the row speaking. Check every row measures 72px and that the avatar stays level with the name line instead of sliding to the middle of the taller row. Pick `MissionStripStack` for a row carrying four, `MissionStripSelected` for the strip under a lit row.",
+					"Four bots each carrying one open mission, one per state a mission can be in. The mission speaks in a bare line under the preview and never in the dot on the preview line: the line is the state of the work, the dot is the state of the conversation, and the two shapes are never confused. Check the strip carries no fill, no border and no rounding of its own, and that it opens on the lane the name line opens, inside the text column rather than under the avatar. Check the strip opens on its state dot, 5px by 5px, in the attention, failed and done colours the panel already uses and the muted grey of a resting row while the mission simply runs, then the platform mark, the identifier, the title. Check the strip never moves: it is the one mark in the row that does not pulse, because a mission is a fact and not an alarm. The title and the mark carry `--muted-foreground`, the token every muted line in this panel already carries, and the identifier takes the colour of the row name so the handle reads as the row speaking. Check every row measures 72px and that the avatar stays level with the name line instead of sliding to the middle of the taller row. Pick `MissionStripStack` for a row carrying four, `MissionStripSelected` for the strip under a lit row.",
 			},
 		},
 	},
@@ -1087,6 +1095,9 @@ export const MissionStripStates = meta.story({
 			await expectAvatarLevelWithNameLine(row, "bot-identity-avatar")
 		}
 
+		await expect(rows.map(dotBoxIn)).toEqual(
+			rows.map(() => [DOT_SIZE, DOT_SIZE]),
+		)
 		await expect(rowHeights(rows)).toEqual(rows.map(() => heightForStrips(1)))
 		await expect(rows.map(badgeIn)).toEqual(rows.map(() => undefined))
 		await expect(slotIn(rows[0], "roster-row-badge")).toHaveTextContent(
@@ -1278,6 +1289,7 @@ export const MissionStripTruncatedTitle = meta.story({
 		await expect(isClipped(title)).toBe(true)
 		await expect(strip).toHaveTextContent("OPE-71")
 		await expect(slotIn(row, "bot-mission-mark")).toBeVisible()
+		await expect(dotBoxIn(row)).toEqual([DOT_SIZE, DOT_SIZE])
 		await expect(rowHeights([strip])[0]).toBe(STRIP_HEIGHT)
 		await expect(rowHeights([row])[0]).toBe(heightForStrips(1))
 	},

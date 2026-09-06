@@ -110,7 +110,7 @@ type BotMissionState = (typeof BOT_MISSION_STATES)[number]
 
 const BOT_MISSION_STRIP = "flex h-5 items-center gap-1.5 text-[11px] leading-4"
 
-const botMissionDotVariants = cva("size-1.5 shrink-0 rounded-full", {
+const botMissionDotVariants = cva("size-[5px] shrink-0 rounded-full", {
 	variants: {
 		state: {
 			waiting: "bg-bot-badge-attention",
