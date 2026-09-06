@@ -180,10 +180,11 @@ const NO_MISSION_AT_ALL = {
 const shownMissionRows = (canvasElement: HTMLElement) =>
 	slotsIn(canvasElement, "mission-row").filter((row) => row.checkVisibility())
 
-const foldedListOf = (head: HTMLElement) => {
+const listNamedBy = (head: HTMLElement) => {
 	const listId = head.getAttribute("aria-controls")
-	if (!listId) throw new Error("the fold names no list")
-	return head.ownerDocument.getElementById(listId)
+	const list = listId && head.ownerDocument.getElementById(listId)
+	if (!list) throw new Error("the fold names no list of this document")
+	return list
 }
 
 const openRoutines = async (
@@ -381,9 +382,8 @@ export const EarlierTodayFoldTarget = meta.story({
 	},
 	play: async ({ canvas, canvasElement, userEvent }) => {
 		const head = canvas.getByRole("button", { name: /Earlier today/ })
-		const folded = foldedListOf(head)
+		const folded = listNamedBy(head)
 
-		await expect(folded).not.toBeNull()
 		await expect(folded).not.toBeVisible()
 		await expect(shownMissionRows(canvasElement)).toHaveLength(
 			OPEN_MISSIONS.length,
@@ -392,16 +392,14 @@ export const EarlierTodayFoldTarget = meta.story({
 		head.focus()
 		await userEvent.tab()
 		await expect(head.ownerDocument.activeElement).not.toBe(
-			folded?.querySelector("button"),
+			folded.querySelector("button"),
 		)
 
 		await userEvent.click(head)
-		await expect(foldedListOf(head)).toBe(folded)
+		await expect(listNamedBy(head)).toBe(folded)
 		await expect(folded).toBeVisible()
 		await expect(
-			within(folded as HTMLElement).getByText(
-				EARLIER_TODAY_MISSIONS[0].objective,
-			),
+			within(folded).getByText(EARLIER_TODAY_MISSIONS[0].objective),
 		).toBeVisible()
 	},
 })
