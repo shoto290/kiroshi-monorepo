@@ -1,8 +1,9 @@
 // @vitest-environment happy-dom
 
-import { act, cleanup, renderHook } from "@testing-library/react"
+import { cleanup, renderHook } from "@testing-library/react"
 import { afterEach, describe, expect, it } from "vitest"
 
+import { createFakeThreadRuntimes } from "./fake-thread-runtimes"
 import type { Mission } from "./mission-contract"
 import { aMission } from "./mission-fixtures"
 import {
@@ -30,39 +31,6 @@ const permission = (botId: string): PendingPrompt => ({
 	request: { id: "p-1", toolName: "Bash", title: "Run it", detail: null },
 })
 
-const createFakeRuntimes = () => {
-	const prompts = new Map<string, PendingPrompt | null>()
-	const listeners = new Set<() => void>()
-
-	const runtimes: MissionThreadRuntimes = {
-		heldFor: (conversationId) =>
-			prompts.has(conversationId)
-				? {
-						getState: () => ({
-							pendingPrompt: prompts.get(conversationId) ?? null,
-						}),
-					}
-				: null,
-		subscribe: (listener) => {
-			listeners.add(listener)
-			return () => {
-				listeners.delete(listener)
-			}
-		},
-	}
-
-	const publish = (conversationId: string, prompt: PendingPrompt | null) => {
-		act(() => {
-			prompts.set(conversationId, prompt)
-			for (const listener of [...listeners]) {
-				listener()
-			}
-		})
-	}
-
-	return { runtimes, publish }
-}
-
 const waitingIn = (runtimes: MissionThreadRuntimes, missions: Mission[]) =>
 	renderHook(() => useWaitingMissions(runtimes, missions))
 
@@ -70,7 +38,7 @@ afterEach(cleanup)
 
 describe("useWaitingMissions", () => {
 	it("holds a mission whose thread asks its bot a question", () => {
-		const { runtimes, publish } = createFakeRuntimes()
+		const { runtimes, publish } = createFakeThreadRuntimes()
 		const { result } = waitingIn(runtimes, [MISSION])
 
 		publish("thread-1", question("bot-1"))
@@ -79,7 +47,7 @@ describe("useWaitingMissions", () => {
 	})
 
 	it("holds a mission whose thread asks its bot a permission", () => {
-		const { runtimes, publish } = createFakeRuntimes()
+		const { runtimes, publish } = createFakeThreadRuntimes()
 		const { result } = waitingIn(runtimes, [MISSION])
 
 		publish("thread-1", permission("bot-1"))
@@ -88,7 +56,7 @@ describe("useWaitingMissions", () => {
 	})
 
 	it("drops the mission once the prompt is answered", () => {
-		const { runtimes, publish } = createFakeRuntimes()
+		const { runtimes, publish } = createFakeThreadRuntimes()
 		const { result } = waitingIn(runtimes, [MISSION])
 		publish("thread-1", question("bot-1"))
 
@@ -98,14 +66,14 @@ describe("useWaitingMissions", () => {
 	})
 
 	it("holds nothing for a thread no runtime is held for", () => {
-		const { runtimes } = createFakeRuntimes()
+		const { runtimes } = createFakeThreadRuntimes()
 		const { result } = waitingIn(runtimes, [MISSION])
 
 		expect([...result.current]).toEqual([])
 	})
 
 	it("holds nothing when the thread waits on another bot", () => {
-		const { runtimes, publish } = createFakeRuntimes()
+		const { runtimes, publish } = createFakeThreadRuntimes()
 		const { result } = waitingIn(runtimes, [MISSION])
 
 		publish("thread-1", question("bot-2"))
@@ -114,7 +82,7 @@ describe("useWaitingMissions", () => {
 	})
 
 	it("holds the same set while nothing moves", () => {
-		const { runtimes, publish } = createFakeRuntimes()
+		const { runtimes, publish } = createFakeThreadRuntimes()
 		const missions = [MISSION]
 		const { result, rerender } = waitingIn(runtimes, missions)
 		publish("thread-1", question("bot-1"))

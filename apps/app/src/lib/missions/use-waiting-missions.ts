@@ -17,10 +17,8 @@ export type MissionThreadRuntimes = SubscribableRuntimes & {
 	heldFor: (conversationId: string) => AwaitedThread | null
 }
 
-const NO_BOT = ""
-
-const awaitedBotIdIn = (thread: AwaitedThread | null): string =>
-	thread?.getState().pendingPrompt?.botId ?? NO_BOT
+const awaitedBotIdIn = (thread: AwaitedThread | null): string | null =>
+	thread?.getState().pendingPrompt?.botId ?? null
 
 export const useWaitingMissions = (
 	runtimes: MissionThreadRuntimes,
@@ -30,7 +28,7 @@ export const useWaitingMissions = (
 		runtimes,
 		missions.map(({ threadConversationId }) => threadConversationId),
 		(conversationId) => awaitedBotIdIn(runtimes.heldFor(conversationId)),
-		(botId) => botId,
+		(botId) => botId ?? "",
 	)
 
 	return useMemo(
