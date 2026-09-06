@@ -563,29 +563,22 @@ const SUMMONS_CAUSE_KEY = {
 	waiting_bot: "missions.summons.waiting_bot",
 } as const satisfies Record<SummonedMissionState, string>
 
-const toSummonsCause = (
-	{ turnId, state }: MissionSummonsCause,
-	t: ChatCopy,
-): [string, ReportedRun] => [
-	turnId,
-	{
-		turnId,
-		routineTitle: t(SUMMONS_CAUSE_KEY[state]),
-		triggerSourceId: SUMMONS_TRIGGER_SOURCE,
-	},
-]
-
 const withSummonsCauses = (
 	causes: ReportedRunsByTurnId,
 	summonsCauses: MissionSummonsCause[],
 	t: ChatCopy,
 ): ReportedRunsByTurnId =>
-	summonsCauses.length === 0
-		? causes
-		: new Map([
-				...causes,
-				...summonsCauses.map((cause) => toSummonsCause(cause, t)),
-			])
+	new Map([
+		...causes,
+		...summonsCauses.map(({ turnId, state }): [string, ReportedRun] => [
+			turnId,
+			{
+				turnId,
+				routineTitle: t(SUMMONS_CAUSE_KEY[state]),
+				triggerSourceId: SUMMONS_TRIGGER_SOURCE,
+			},
+		]),
+	])
 
 type ReadRunsProps = {
 	messages: TranscriptMessage[]
