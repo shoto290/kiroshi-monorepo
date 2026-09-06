@@ -13,13 +13,13 @@ export const MISSION_BOT: MissionBot = {
 	seed: "bot-ada-martin",
 }
 
-export const STORAGE_BOT: MissionBot = {
+const STORAGE_BOT: MissionBot = {
 	name: "Noor Beltran",
 	animal: "rabbit",
 	seed: "bot-noor-beltran",
 }
 
-export const SHELL_BOT: MissionBot = {
+const SHELL_BOT: MissionBot = {
 	name: "Iris Nakamura",
 	animal: "cat",
 	seed: "bot-iris-nakamura",

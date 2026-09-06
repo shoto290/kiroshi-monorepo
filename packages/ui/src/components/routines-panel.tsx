@@ -172,11 +172,7 @@ const MissionGroup = ({
 				</div>
 			)}
 			{isUnfolded ? (
-				<ul
-					className="flex flex-col gap-0.5"
-					data-slot={`${slot}-list`}
-					id={listId}
-				>
+				<ul className="flex flex-col gap-0.5" id={listId}>
 					{missions.map((mission) => (
 						<MissionRow
 							{...mission}
