@@ -253,13 +253,19 @@ interface AppSidebarRowMission {
 	id: string
 	state: BotMissionState
 	ticket: BotMissionTicket
+	objective?: string
 }
 
 const missionStripsOf = (missions: AppSidebarRowMission[] | undefined) =>
 	missions?.length ? (
 		<span className={MISSION_STRIPS} data-slot="roster-row-missions">
-			{missions.map(({ id, state, ticket }) => (
-				<BotMissionStrip key={id} state={state} ticket={ticket} />
+			{missions.map(({ id, state, ticket, objective }) => (
+				<BotMissionStrip
+					key={id}
+					objective={objective}
+					state={state}
+					ticket={ticket}
+				/>
 			))}
 		</span>
 	) : undefined

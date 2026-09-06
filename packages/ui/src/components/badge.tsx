@@ -131,11 +131,13 @@ type BotMissionTicket = {
 type BotMissionStripProps = Omit<ComponentPropsWithRef<"span">, "children"> & {
 	state: BotMissionState
 	ticket: BotMissionTicket
+	objective?: string
 }
 
 const BotMissionStrip = ({
 	state,
 	ticket,
+	objective,
 	className,
 	...props
 }: BotMissionStripProps) => {
@@ -169,7 +171,7 @@ const BotMissionStrip = ({
 				className="min-w-0 truncate text-muted-foreground"
 				data-slot="bot-mission-ticket-title"
 			>
-				{ticket.title}
+				{ticket.title || objective}
 			</span>
 		</span>
 	)

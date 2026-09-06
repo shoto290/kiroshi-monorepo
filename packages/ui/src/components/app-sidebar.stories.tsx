@@ -1350,6 +1350,63 @@ export const MissionStripUnnamedPlatform = meta.story({
 	},
 })
 
+export const MissionStripUntrackedTicket = meta.story({
+	args: {
+		bots: [
+			{
+				...ROSTER[0],
+				missions: [
+					{
+						id: "m-untracked",
+						state: "working" as const,
+						objective: "Read the transport log and say what broke the turn",
+						ticket: { platform: "", externalId: "", title: "" },
+					},
+				],
+			},
+			{
+				...ROSTER[4],
+				missions: [
+					{
+						...missionOf("waiting", 0),
+						objective: "Never shown, the ticket names this one",
+					},
+				],
+			},
+		],
+		selectedBotId: "atlas",
+	},
+	parameters: {
+		a11y: A11Y_CONTRAST_AWAITING_DESIGN_DECISION,
+		docs: {
+			description: {
+				story:
+					"A mission opened on no tracker at all, over one opened on a ticket. A bot can open a mission without a ticket, and the three strings it would have filled arrive empty: the strip would then be a band holding a dot, a bookmark and not one word, which says less than an empty row. Check the first strip reads its mission objective in the lane the title holds, and the second reads its ticket title and never its objective, since a ticket the bot bothered to name is the handle the reader shares. Check the fallback changes nothing else: the state dot, the bookmark the unnamed platform falls back to and the clipping all behave as they do on a tracked mission. Pick `MissionStripUnnamedPlatform` for a ticket that has an identifier the table cannot mark, `MissionStripTruncatedTitle` for the lane running out of room.",
+			},
+		},
+	},
+	play: async ({ canvasElement }) => {
+		const untracked = rowFor(canvasElement, "Atlas")
+		const tracked = rowFor(canvasElement, "Ember")
+
+		await expect(
+			slotIn(untracked, "bot-mission-ticket-title"),
+		).toHaveTextContent("Read the transport log and say what broke the turn")
+		await expect(slotIn(tracked, "bot-mission-ticket-title")).toHaveTextContent(
+			"Roster row shows the mission ticket",
+		)
+		await expect(tracked.textContent).not.toContain("Never shown")
+		await expect(dotIn(untracked)).toBeVisible()
+		await expect(slotIn(untracked, "bot-mission-mark")).toBeVisible()
+		await expect(rowHeights(stripsIn(untracked))).toEqual([24])
+		await expect(rowHeights([untracked, tracked])).toEqual([
+			heightForStrips(1),
+			heightForStrips(1),
+		])
+		await expectStripSpansRow(untracked)
+	},
+})
+
 export const MissionStripRaised = meta.story({
 	args: { bots: LOOSE_MISSION_ROSTER, selectedBotId: "beacon" },
 	parameters: {
