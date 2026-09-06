@@ -63,7 +63,7 @@ const toMissionRow = (
 	mission: Mission,
 	face: ThreadFace,
 	timestamp: string,
-	waitingMissionIds: WaitingMissionIds,
+	state: MissionState,
 ): MissionRowModel => ({
 	id: mission.id,
 	objective: mission.objective,
@@ -73,7 +73,7 @@ const toMissionRow = (
 		title: mission.ticket.title,
 	},
 	bot: toMissionFace(face),
-	state: shownStateOf(mission, waitingMissionIds),
+	state,
 	timestamp,
 })
 
@@ -86,7 +86,14 @@ const rowsOf = (
 	missions.flatMap((mission) => {
 		const face = faceOf(mission.botId)
 		return face
-			? [toMissionRow(mission, face, timestampOf(mission), waitingMissionIds)]
+			? [
+					toMissionRow(
+						mission,
+						face,
+						timestampOf(mission),
+						shownStateOf(mission, waitingMissionIds),
+					),
+				]
 			: []
 	})
 
@@ -115,7 +122,7 @@ const closedTodayEntries = (
 						mission,
 						face,
 						TIME_OF_DAY.format(mission.closedAt),
-						NO_WAITING_MISSIONS,
+						mission.state,
 					),
 				},
 			},
