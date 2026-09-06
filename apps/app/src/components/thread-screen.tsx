@@ -209,21 +209,6 @@ const composerPlaceholderOf = (facts: ThreadFacts, t: ChatCopy): string => {
 		: t("composer.placeholder")
 }
 
-type MissionThreadHeaderProps = {
-	seat: ThreadMission
-	face: ThreadFace
-}
-
-const MissionThreadHeader = ({ seat, face }: MissionThreadHeaderProps) => (
-	<MissionHeader
-		bot={toMissionFace(face)}
-		onBack={seat.onLeave}
-		state={seat.mission.state}
-		ticket={seat.mission.ticket}
-		tools={seat.mission.tools}
-	/>
-)
-
 type ThreadHeaderProps = {
 	thread: LoadedThread
 	mission: ThreadMission | null
@@ -252,7 +237,15 @@ const ThreadHeader = ({
 		: undefined
 
 	if (mission && missionFace) {
-		return <MissionThreadHeader face={missionFace} seat={mission} />
+		return (
+			<MissionHeader
+				bot={toMissionFace(missionFace)}
+				onBack={mission.onLeave}
+				state={mission.mission.state}
+				ticket={mission.mission.ticket}
+				tools={mission.mission.tools}
+			/>
+		)
 	}
 
 	const pinned = (
