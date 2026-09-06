@@ -169,6 +169,8 @@ pub struct MissionWatch {
 pub struct MissionOpened {
 	pub mission: Mission,
 	pub reach: String,
+	pub carries_on: String,
+	pub acknowledge: String,
 }
 
 #[derive(Debug, Clone, PartialEq, Serialize, Deserialize)]
@@ -208,6 +210,7 @@ pub struct MissionInThread {
 	pub mission: Mission,
 	pub events: Vec<MissionEvent>,
 	pub earlier_events: i64,
+	pub workspace_path: Option<String>,
 }
 
 #[derive(Debug, Clone, PartialEq, Serialize, Deserialize)]

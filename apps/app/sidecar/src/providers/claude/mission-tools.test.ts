@@ -70,7 +70,13 @@ const calls: [string, Record<string, unknown>, string][] = [
 ]
 
 const answers: Record<string, unknown> = {
-	open: { mission: A_MISSION, reach: "no agent reaches this mission" },
+	open: {
+		mission: A_MISSION,
+		reach: "no agent reaches this mission",
+		carriesOn:
+			"the work of this mission carries on in the thread this answer names",
+		acknowledge: "end the turn you are answering in with a single line",
+	},
 	note: A_MISSION,
 	escalate: { ...A_MISSION, state: "waiting_human" },
 	close: { ...A_MISSION, state: "done" },
@@ -151,6 +157,13 @@ describe("missionTools", () => {
 		expect(said).toContain("git checkout")
 		expect(said).toContain("linked worktree")
 		expect(said).not.toMatch(/superset/i)
+	})
+
+	it("tells the agent the work of a mission carries on in the thread it opens", () => {
+		const said = toolNamed(SESSION, "mission_open").description
+
+		expect(said).toContain("carries on in the thread")
+		expect(said).toContain("single line of acknowledgement")
 	})
 
 	it("takes no workspace path on mission_watch", () => {

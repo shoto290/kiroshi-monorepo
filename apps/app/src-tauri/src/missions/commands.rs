@@ -20,6 +20,12 @@ const HEARD: &str =
 	"the agent hook is installed in the checkout of this mission, so what the agent does there \
 	reaches its thread";
 
+const CARRIES_ON: &str = "the work of this mission carries on in the thread this answer names, \
+	where the person follows it";
+
+const ACKNOWLEDGE: &str = "end the turn you are answering in with a single line saying the \
+	mission is open, and nothing more";
+
 const UNHEARD: &str = "no agent reaches this mission, it moves only on the lines, the escalations \
 	and the closing its bot writes";
 
@@ -69,7 +75,12 @@ pub async fn mission_open<R: Runtime>(
 		Some(workspace) => reach_of(&app, &opened.id, &workspace, &key),
 		None => UNHEARD.to_owned(),
 	};
-	Ok(MissionOpened { mission: opened, reach })
+	Ok(MissionOpened {
+		mission: opened,
+		reach,
+		carries_on: CARRIES_ON.to_owned(),
+		acknowledge: ACKNOWLEDGE.to_owned(),
+	})
 }
 
 fn reach_of<R: Runtime>(
