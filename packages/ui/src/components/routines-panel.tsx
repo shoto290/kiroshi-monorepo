@@ -392,11 +392,10 @@ const RoutinesPanelSurface = (props: RoutinesPanelListProps) => {
 	const shownDepth = useRef(depth)
 
 	useEffect(() => {
-		if (wasOpen.current !== open) {
-			const landing = open ? closeControl.current : triggerRef.current
-			landing?.focus({ preventScroll: true })
-		}
+		if (wasOpen.current === open) return
 		wasOpen.current = open
+		const landing = open ? closeControl.current : triggerRef.current
+		landing?.focus({ preventScroll: true })
 	}, [open, triggerRef])
 
 	useEffect(() => {
