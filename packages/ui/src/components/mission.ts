@@ -21,7 +21,7 @@ type MissionState =
 	| "failed"
 	| "done"
 
-const MISSION_AVATAR_SIZE = 24
+const MISSION_AVATAR_SIZE = 32
 
 type MissionBot = Pick<
 	BotIdentityAvatarProps,

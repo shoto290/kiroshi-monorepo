@@ -5,7 +5,6 @@ import { BotIdentityAvatar } from "@workspace/ui/components/bot-identity-avatar"
 import { Button } from "@workspace/ui/components/button"
 import { Icons } from "@workspace/ui/components/icons"
 import {
-	MISSION_AVATAR_SIZE,
 	type MissionBot,
 	type MissionState,
 	type MissionTicketLink,
@@ -18,6 +17,8 @@ import {
 import { MissionStatePill } from "@workspace/ui/components/mission-state-pill"
 import { toRelativeTime } from "@workspace/ui/lib/relative-time"
 import { cn } from "@workspace/ui/lib/utils"
+
+const MISSION_HEADER_AVATAR_SIZE = 24
 
 type MissionHeaderProps = {
 	bot: MissionBot
@@ -69,7 +70,7 @@ const MissionHeader = ({
 							image={bot.image}
 							name={bot.name}
 							seed={bot.seed}
-							size={MISSION_AVATAR_SIZE}
+							size={MISSION_HEADER_AVATAR_SIZE}
 						/>
 						<span className="min-w-0 truncate" data-slot="mission-objective">
 							{objective}
