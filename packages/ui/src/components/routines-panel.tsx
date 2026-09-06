@@ -4,6 +4,7 @@ import { type ReactNode, useEffect, useId, useRef, useState } from "react"
 import { useTranslation } from "react-i18next"
 
 import { Button } from "@workspace/ui/components/button"
+import { ContentCard } from "@workspace/ui/components/content-card"
 import { EmptyStateShell } from "@workspace/ui/components/empty-state-shell"
 import { Icons } from "@workspace/ui/components/icons"
 import {
@@ -14,7 +15,6 @@ import {
 	AnimatedSidebar,
 	AnimatedSidebarContent,
 	AnimatedSidebarHeader,
-	AnimatedSidebarInset,
 	AnimatedSidebarProvider,
 	AnimatedSidebarTrigger,
 	type AnimatedSidebarTriggerProps,
@@ -432,6 +432,7 @@ const RoutinesPanelSurface = (props: RoutinesPanelListProps) => {
 			panelClassName="h-full"
 			ref={surface}
 			side="right"
+			variant="inset"
 		>
 			<AnimatedSidebarHeader>
 				<div className="flex h-7 items-center gap-2">
@@ -497,7 +498,7 @@ const RoutinesPanel = ({
 		onOpenChange={onOpenChange}
 		open={isOpen}
 	>
-		<AnimatedSidebarInset isLandmark={false}>{children}</AnimatedSidebarInset>
+		<ContentCard isLandmark={false}>{children}</ContentCard>
 		<RoutinesPanelSurface {...list} />
 	</AnimatedSidebarProvider>
 )

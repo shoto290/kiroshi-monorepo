@@ -4,13 +4,11 @@ import {
 	type BotAvatarBlot,
 	blotTint,
 } from "@workspace/ui/components/bot-avatar"
+import { ContentCard } from "@workspace/ui/components/content-card"
 import {
-	AnimatedSidebarInset,
 	AnimatedSidebarProvider,
 	type AnimatedSidebarProviderProps,
 } from "@workspace/ui/components/motion/animated-sidebar"
-
-const CONTENT_CARD = "m-1 rounded-xl border border-border"
 
 interface WorkspaceShellProps
 	extends Pick<
@@ -56,9 +54,7 @@ const WorkspaceShell = ({
 		className={className}
 	>
 		{sidebar}
-		<AnimatedSidebarInset className={CONTENT_CARD}>
-			{children}
-		</AnimatedSidebarInset>
+		<ContentCard>{children}</ContentCard>
 	</AnimatedSidebarProvider>
 )
 
