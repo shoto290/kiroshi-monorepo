@@ -1,12 +1,5 @@
-import type {
-	Mission,
-	MissionChanged,
-	MissionDetail,
-	MissionState,
-} from "./mission-contract"
+import type { Mission, MissionChanged, MissionDetail } from "./mission-contract"
 import type { OpenedMission } from "./opened-mission-controller"
-
-const CLOSED_STATES: MissionState[] = ["done", "failed"]
 
 export type FakeMissions = {
 	board: () => Promise<{ mission: Mission }[]>
@@ -17,6 +10,7 @@ export type FakeMissions = {
 		listener: (changed: MissionChanged) => void,
 	) => Promise<() => void>
 	detail: (missionId: string) => Promise<MissionDetail>
+	detailCalls: string[]
 	rosterBlock: (conversationId: string, botId: string) => Promise<string | null>
 	rosterCalls: [conversationId: string, botId: string][]
 	holdRosterBlock: (block: string | null) => void
@@ -47,6 +41,7 @@ export const createFakeMissions = (): FakeMissions => {
 	const opened: OpenedMission[] = []
 	const rosterCalls: [conversationId: string, botId: string][] = []
 	const reports: [missionId: string, turnId: string | null][] = []
+	const detailCalls: string[] = []
 	let rosterBlock: string | null = null
 	let isRosterRefused = false
 	let placed: Mission[] = []
@@ -60,14 +55,16 @@ export const createFakeMissions = (): FakeMissions => {
 	let detailGate: Promise<void> | null = null
 	let openDetailGate: () => void = () => undefined
 
-	const isStillOwingAReport = ({ id, state }: Mission) =>
-		CLOSED_STATES.includes(state) &&
-		!reports.some(([missionId]) => missionId === id)
+	const isOpen = ({ closedAt }: Mission) => closedAt === null
+
+	const isStillOwingAReport = (mission: Mission) =>
+		!isOpen(mission) && !reports.some(([missionId]) => missionId === mission.id)
 
 	return {
 		opened,
 		rosterCalls,
 		reports,
+		detailCalls,
 
 		rosterBlock: async (conversationId, botId) => {
 			rosterCalls.push([conversationId, botId])
@@ -90,7 +87,7 @@ export const createFakeMissions = (): FakeMissions => {
 			if (isBoardRefused) {
 				throw new Error("the board could not be read")
 			}
-			return placed.map((mission) => ({ mission }))
+			return placed.filter(isOpen).map((mission) => ({ mission }))
 		},
 
 		place: (next) => {
@@ -152,6 +149,7 @@ export const createFakeMissions = (): FakeMissions => {
 		},
 
 		detail: async (missionId) => {
+			detailCalls.push(missionId)
 			if (detailGate) {
 				await detailGate
 			}
