@@ -202,8 +202,8 @@ describe("missionsByRow", () => {
 	it("lists every open mission of the row, most urgent first", () => {
 		expect(stripsFor("working", "working", "ready_to_merge")).toEqual([
 			shownMission("m-3", "ready"),
-			shownMission("m-1", "working"),
 			shownMission("m-2", "working"),
+			shownMission("m-1", "working"),
 		])
 	})
 
@@ -221,7 +221,7 @@ describe("missionsByRow", () => {
 		expect(stripsFor("waiting_bot")).toEqual([shownMission("m-1", "working")])
 	})
 
-	it("opens on the mission opened first when two hold the most urgent state", () => {
+	it("opens on the mission opened most recently when two hold the most urgent state", () => {
 		expect(
 			missionsByRow(
 				[
@@ -237,14 +237,35 @@ describe("missionsByRow", () => {
 				NO_LISTED_CONVERSATIONS,
 			)["b-1"],
 		).toEqual([
-			shownMission("m-early", "waiting"),
 			shownMission("m-late", "waiting", {
 				platform: OTHER_TICKET.platform,
 				externalId: OTHER_TICKET.externalId,
 				title: OTHER_TICKET.title,
 			}),
+			shownMission("m-early", "waiting"),
 			shownMission("m-running", "working"),
 		])
+	})
+
+	it("leaves a closed mission out of the row whatever its state", () => {
+		expect(
+			missionsByRow(
+				[
+					onBoard({ id: "m-closed", state: "waiting_human", closedAt: 9 }),
+					onBoard({ id: "m-open", state: "working" }),
+				],
+				NO_LISTED_CONVERSATIONS,
+			)["b-1"],
+		).toEqual([shownMission("m-open", "working")])
+	})
+
+	it("gives a row no list when every mission it holds is closed", () => {
+		expect(
+			missionsByRow(
+				[onBoard({ id: "m-closed", state: "failed", closedAt: 9 })],
+				NO_LISTED_CONVERSATIONS,
+			),
+		).toEqual({})
 	})
 
 	it("breaks a tie on the mission id so two reads of one board agree", () => {
