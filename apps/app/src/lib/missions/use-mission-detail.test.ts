@@ -41,7 +41,7 @@ const DETAIL: MissionDetail = {
 			id: "e-1",
 			missionId: "m-1",
 			kind: "opened",
-			source: "claude-code",
+			source: "bot",
 			payload: null,
 			createdAt: 2,
 		},

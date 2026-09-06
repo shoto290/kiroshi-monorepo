@@ -13,6 +13,7 @@ import {
 	MessageQuote,
 	type QuotedMessage,
 } from "@workspace/ui/components/message-quote"
+import type { MissionBot } from "@workspace/ui/components/mission"
 import { MissionEventRow } from "@workspace/ui/components/mission-event-row"
 import { MissionHeader } from "@workspace/ui/components/mission-header"
 import { MissionTurn } from "@workspace/ui/components/mission-turn"
@@ -240,7 +241,10 @@ const ThreadHeader = ({
 		return (
 			<MissionHeader
 				bot={toMissionFace(missionFace)}
+				now={mission.now}
+				objective={mission.mission.objective}
 				onBack={mission.onLeave}
+				openedAt={mission.mission.openedAt}
 				state={mission.mission.state}
 				ticket={mission.mission.ticket}
 				tools={mission.mission.tools}
@@ -617,15 +621,27 @@ const withMissionCards = ({
 		]
 	})
 
-const withMissionEvents = (
-	runRows: TranscriptItem[],
-	placed: PlacedMissionEvent[],
-	now: number,
-): TranscriptItem[] =>
+type MissionEventRowsProps = {
+	runRows: TranscriptItem[]
+	placed: PlacedMissionEvent[]
+	tools: string[]
+	bot?: MissionBot
+	now: number
+}
+
+const withMissionEvents = ({
+	runRows,
+	placed,
+	tools,
+	bot,
+	now,
+}: MissionEventRowsProps): TranscriptItem[] =>
 	interleavedWithRuns(runRows, placed, ({ event }) => [
 		{
 			key: `mission-event-${event.id}`,
-			render: () => <MissionEventRow event={event} now={now} />,
+			render: () => (
+				<MissionEventRow bot={bot} event={event} now={now} tools={tools} />
+			),
 		},
 	])
 
@@ -944,12 +960,17 @@ function ThreadView({
 		speakerStops: speakerStopsOf(thread),
 		toQuote,
 	})
+	const missionFace = missionSeat
+		? present.find(({ id }) => id === missionSeat.mission.botId)
+		: undefined
 	const transcriptRows = missionSeat
-		? withMissionEvents(
+		? withMissionEvents({
+				bot: missionFace ? toMissionFace(missionFace) : undefined,
+				now: missionSeat.now,
+				placed: placeMissionEvents(runs, missionSeat.events),
 				runRows,
-				placeMissionEvents(runs, missionSeat.events),
-				missionSeat.now,
-			)
+				tools: missionSeat.mission.tools,
+			})
 		: withMissionCards({
 				authors,
 				faceOf,

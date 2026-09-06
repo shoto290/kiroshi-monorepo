@@ -8,13 +8,10 @@ import {
 	MessageBubble,
 	MessageBubbleContent,
 } from "@workspace/ui/components/message-bubble"
-import type {
-	MissionCardModel,
-	MissionTicketLink,
-} from "@workspace/ui/components/mission"
+import type { MissionCardModel } from "@workspace/ui/components/mission"
 import {
-	missionTicketPlatformMark,
-	missionToolMark,
+	MissionTicketLine,
+	MissionToolMark,
 } from "@workspace/ui/components/mission-marks"
 import { MissionStatePill } from "@workspace/ui/components/mission-state-pill"
 import { cn } from "@workspace/ui/lib/utils"
@@ -22,25 +19,6 @@ import { cn } from "@workspace/ui/lib/utils"
 type MissionCardProps = Omit<MissionCardModel, "author" | "identity"> & {
 	onOpen: (missionId: string) => void
 	className?: string
-}
-
-type MissionToolMarkProps = {
-	tool: string
-}
-
-const MissionToolMark = ({ tool }: MissionToolMarkProps) => {
-	const Mark = missionToolMark(tool)
-
-	return (
-		<span
-			aria-label={tool}
-			className="inline-flex size-4 shrink-0 items-center justify-center text-muted-foreground"
-			data-slot="mission-tool-mark"
-			role="img"
-		>
-			<Mark aria-hidden="true" className="size-full" />
-		</span>
-	)
 }
 
 type MissionTitleRowProps = Pick<MissionCardModel, "state" | "tools">
@@ -66,53 +44,6 @@ const MissionTitleRow = ({ state, tools }: MissionTitleRowProps) => {
 			))}
 			{stateName}
 		</span>
-	)
-}
-
-const MISSION_TICKET_LINE =
-	"flex w-fit max-w-full flex-wrap items-center gap-x-1.5 text-muted-foreground text-xs"
-
-type MissionTicketLineProps = {
-	ticket: MissionTicketLink
-}
-
-const MissionTicketLine = ({ ticket }: MissionTicketLineProps) => {
-	const Mark = missionTicketPlatformMark(ticket.platform)
-	const line = (
-		<>
-			<Mark aria-hidden="true" className="size-3 shrink-0" />
-			{ticket.externalId ? (
-				<span className="shrink-0 font-medium tabular-nums">
-					{ticket.externalId}
-				</span>
-			) : null}
-			{ticket.title ? (
-				<span className="min-w-0 wrap-break-word">{ticket.title}</span>
-			) : null}
-		</>
-	)
-
-	if (!ticket.url) {
-		return (
-			<span className={MISSION_TICKET_LINE} data-slot="mission-ticket-line">
-				{line}
-			</span>
-		)
-	}
-
-	return (
-		<a
-			className={cn(
-				"relative rounded-sm outline-none focus-visible:ring-2 focus-visible:ring-ring",
-				MISSION_TICKET_LINE,
-			)}
-			data-slot="mission-ticket-line"
-			href={ticket.url}
-			rel="noreferrer noopener"
-			target="_blank"
-		>
-			{line}
-		</a>
 	)
 }
 

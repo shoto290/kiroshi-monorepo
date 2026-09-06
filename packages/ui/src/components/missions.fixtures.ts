@@ -3,7 +3,7 @@ import type {
 	MissionBot,
 	MissionCardModel,
 	MissionEventModel,
-	MissionTicket,
+	MissionTicketLink,
 } from "@workspace/ui/components/mission"
 import type { MissionRowModel } from "@workspace/ui/components/mission-row"
 import type { ReportedRunRowModel } from "@workspace/ui/components/reported-run-row"
@@ -156,62 +156,72 @@ export const MISSION_NOW = new Date("2026-03-04T09:30:00Z").getTime()
 
 const minutesBefore = (minutes: number) => MISSION_NOW - minutes * 60_000
 
-export const MISSION_TICKET: MissionTicket = {
+export const MISSION_TICKET: MissionTicketLink = {
 	externalId: "OPE-30",
 	title: "Mission thread screen and mission card in the origin",
+	platform: "linear",
+	url: "https://linear.example/opennest/issue/OPE-30",
 }
 
-export const MISSION_TOOLS = ["Repository", "Terminal", "Web search"]
+export const MISSION_OBJECTIVE =
+	"Render the mission thread header and its event rows"
+
+export const MISSION_OPENED_AT = MISSION_NOW - 5_400_000
+
+export const MISSION_TOOLS = ["Superset", "GitHub", "Terminal"]
+
+export const MISSION_TOOLS_WITHOUT_A_MARK = ["Terminal", "Web search"]
 
 export const MISSION_EVENTS: MissionEventModel[] = [
 	{
 		id: "event-opened",
 		kind: "opened",
-		source: "claude-code",
+		source: "bot",
 		createdAt: minutesBefore(48),
 	},
 	{
 		id: "event-note",
 		kind: "note",
-		source: "claude-code",
+		source: "bot",
 		createdAt: minutesBefore(41),
 		text: "Read the Rust contract and mirrored every kind and every state before touching a pixel.",
 	},
 	{
 		id: "event-agent-asked",
 		kind: "agent_asked",
-		source: "claude-code",
+		source: "agent-hook",
 		createdAt: minutesBefore(33),
+		text: "Which field of the payload names the ticket this mission answers?",
 	},
 	{
 		id: "event-answered",
 		kind: "answered",
-		source: "claude-code",
+		source: "human",
 		createdAt: minutesBefore(30),
 	},
 	{
 		id: "event-escalated",
 		kind: "escalated",
-		source: "claude-code",
+		source: "bot",
 		createdAt: minutesBefore(12),
 		text: "The payload carries no field this design can trust yet. Which one names the ticket?",
 	},
 	{
 		id: "event-ready",
 		kind: "ready",
-		source: "claude-code",
+		source: "github",
 		createdAt: minutesBefore(6),
 	},
 	{
 		id: "event-failed",
 		kind: "failed",
-		source: "claude-code",
+		source: "github",
 		createdAt: minutesBefore(4),
 	},
 	{
 		id: "event-closed",
 		kind: "closed",
-		source: "claude-code",
+		source: "bot",
 		createdAt: minutesBefore(1),
 	},
 ]
@@ -220,28 +230,28 @@ export const AUTHORED_MISSION_EVENTS: MissionEventModel[] = [
 	{
 		id: "event-authored-note",
 		kind: "note",
-		source: "claude-code",
+		source: "bot",
 		createdAt: minutesBefore(24),
 		text: "Read the Rust contract and mirrored every kind and every state before touching a pixel.",
 	},
 	{
 		id: "event-authored-agent-asked",
 		kind: "agent_asked",
-		source: "claude-code",
+		source: "agent-hook",
 		createdAt: minutesBefore(18),
 		text: "Which field of the payload names the ticket this mission answers?",
 	},
 	{
 		id: "event-authored-answered",
 		kind: "answered",
-		source: "ada.martin",
+		source: "human",
 		createdAt: minutesBefore(11),
 		text: "None of them yet. Read the ticket off the mission, not off the payload.",
 	},
 	{
 		id: "event-authored-escalated",
 		kind: "escalated",
-		source: "claude-code",
+		source: "bot",
 		createdAt: minutesBefore(3),
 		text: "The run needs a human to say whether the mirror file should be resolved here or on the other branch.",
 	},

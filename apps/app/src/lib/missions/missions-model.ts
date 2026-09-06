@@ -177,14 +177,18 @@ export const toMissionCard = (
 	isClosed: mission.closedAt !== null,
 })
 
+const SPOKEN_KEYS = ["line", "message", "question", "summary"] as const
+
 const spokenTextOf = (payload: unknown): string | undefined => {
 	if (typeof payload !== "object" || payload === null) {
 		return undefined
 	}
 
-	const { text } = payload as { text?: unknown }
+	const held = payload as Record<string, unknown>
 
-	return typeof text === "string" ? text : undefined
+	return SPOKEN_KEYS.map((key) => held[key]).find(
+		(value): value is string => typeof value === "string" && value.length > 0,
+	)
 }
 
 export const toMissionEventModels = (

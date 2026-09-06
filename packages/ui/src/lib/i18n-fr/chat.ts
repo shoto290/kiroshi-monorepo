@@ -530,14 +530,32 @@ const chat = {
 			done: "Terminée",
 		},
 		event: {
-			opened: "Mission ouverte",
-			note: "Note enregistrée",
-			agent_asked: "Question envoyée à l'agent",
-			answered: "L'agent a répondu",
-			escalated: "Remontée à un humain",
-			ready: "Prête à fusionner",
-			failed: "Mission en échec",
-			closed: "Mission fermée",
+			source: {
+				bot: "Le bot",
+				reader: "Vous",
+				agent: "L'agent de code",
+				github: "GitHub",
+			},
+			line: {
+				opened: "Mission ouverte par {{source}}",
+				note: "Note enregistrée par {{source}}",
+				agent_asked: "Question envoyée à l'agent par {{source}}",
+				answered: "Réponse envoyée à l'agent",
+				escalated: "Remontée à un humain par {{source}}",
+				ready: "Marquée prête à fusionner par {{source}}",
+				failed: "Échec signalé par {{source}}",
+				closed: "Mission fermée par {{source}}",
+			},
+			kind: {
+				opened: "Ouverture",
+				note: "Note",
+				agent_asked: "Question",
+				answered: "Réponse",
+				escalated: "Remontée",
+				ready: "Prête à fusionner",
+				failed: "En échec",
+				closed: "Fermée",
+			},
 		},
 		card: {
 			open: "Ouvrir la mission : {{objective}}",
@@ -545,6 +563,7 @@ const chat = {
 		header: {
 			tools: "Outils",
 			back: "Retour à la conversation",
+			openedAt: "ouverte {{time}}",
 		},
 		feed: {
 			label: "Fil de la mission",
