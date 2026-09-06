@@ -7,6 +7,7 @@ import {
 	CLOSED_MISSION,
 	FAILED_MISSION,
 	READY_MISSION,
+	UNTICKETED_MISSION,
 	WAITING_BOT_MISSION,
 	WAITING_HUMAN_MISSION,
 	WORKING_MISSION,
@@ -149,6 +150,25 @@ export const Closed = meta.story({
 		await expect(dotIn(canvasElement)).toBeNull()
 		await expect(canvas.getByText("09:12")).toBeVisible()
 		await expect(canvas.getByText("Done")).toBeVisible()
+	},
+})
+
+export const WithoutATicket = meta.story({
+	args: UNTICKETED_MISSION,
+	parameters: {
+		docs: {
+			description: {
+				story:
+					"A mission opened with no ticket at all, which the store keeps as empty strings rather than as nothing. Check that the meta line opens on the bot name with no separator in front of it, and that the bookmark mark still stands for the platform no read named.",
+			},
+		},
+	},
+	play: async ({ canvasElement }) => {
+		const first = slotIn(canvasElement, "activity-row-parts")
+			.firstElementChild as HTMLElement
+
+		await expect(first).toHaveTextContent(UNTICKETED_MISSION.bot.name)
+		await expect(getComputedStyle(first, "::before").content).toBe("none")
 	},
 })
 

@@ -105,6 +105,19 @@ export const CLOSED_MISSION: MissionRowModel = {
 	timestamp: "09:12",
 }
 
+export const UNTICKETED_MISSION: MissionRowModel = {
+	id: "mission-unticketed",
+	objective: "Read the shift log of the night",
+	ticket: {
+		platform: "",
+		externalId: "",
+		title: "",
+	},
+	bot: MISSION_BOT,
+	state: "working",
+	timestamp: "22m",
+}
+
 export const OPEN_MISSIONS: MissionRowModel[] = [
 	WAITING_HUMAN_MISSION,
 	READY_MISSION,

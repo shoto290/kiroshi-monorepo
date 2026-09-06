@@ -87,15 +87,17 @@ const ActivityRow = ({
 							{identifier}
 						</span>
 					) : null}
-					<span className="min-w-0 truncate">
-						{parts.map((part, index) => (
-							<span
-								className={index === 0 && !identifier ? undefined : DOT_CLASS}
-								key={part.key}
-							>
-								{part.text}
-							</span>
-						))}
+					<span className="min-w-0 truncate" data-slot="activity-row-parts">
+						{parts
+							.filter((part) => part.text !== "")
+							.map((part, index) => (
+								<span
+									className={index === 0 && !identifier ? undefined : DOT_CLASS}
+									key={part.key}
+								>
+									{part.text}
+								</span>
+							))}
 					</span>
 				</span>
 			</span>
