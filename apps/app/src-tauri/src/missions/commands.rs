@@ -682,7 +682,7 @@ mod tests {
 	}
 
 	#[tokio::test]
-	async fn a_closed_mission_refuses_an_answer() {
+	async fn an_answer_at_the_standing_seq_of_a_closed_mission_appends_nothing_and_says_nothing() {
 		let app = a_host("closed-answer").await;
 		let opened = a_mission(&app, a_draft("c1", "b1", "Fix it")).await;
 		let closed = mission_close(
@@ -693,17 +693,37 @@ mod tests {
 		)
 		.await
 		.expect("the mission closes");
+		let before =
+			mission_detail(app.state(), opened.id.clone()).await.expect("the detail reads");
+		let (sender, received) = channel();
+		app.handle().listen(CHANGED_EVENT, move |event| {
+			let _ = sender.send(event.payload().to_owned());
+		});
 
-		let refused = mission_answered(
+		let answered = mission_answered(
 			app.handle().clone(),
 			app.state(),
 			opened.id.clone(),
 			closed.state_seq,
 		)
 		.await
-		.expect_err("the closed mission refuses an answer");
+		.expect("the closed mission takes the answer quietly");
 
-		assert_eq!(refused, MissionError::MissionAlreadyClosed { id: opened.id });
+		let after = mission_detail(app.state(), opened.id).await.expect("the detail reads");
+		assert_eq!(
+			after.events.len(),
+			before.events.len(),
+			"the answer of a closed mission appended an event"
+		);
+		assert_eq!(
+			(answered.state, answered.state_seq),
+			(closed.state, closed.state_seq),
+			"the answer moved a closed mission"
+		);
+		assert!(
+			received.try_recv().is_err(),
+			"the answer of a closed mission told the front it moved"
+		);
 
 		cleaned(&app);
 	}

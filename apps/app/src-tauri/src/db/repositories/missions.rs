@@ -416,9 +416,8 @@ fn answered(
 	source: &str,
 ) -> Result<MissionAnswer, MissionError> {
 	let transaction = write_transaction(connection)?;
-	refuse_a_shut_mission(&transaction, mission_id)?;
 	let standing = read(&transaction, mission_id)?;
-	if standing.state_seq != seq {
+	if standing.closed_at.is_some() || standing.state_seq != seq {
 		return Ok(MissionAnswer::Stale(standing));
 	}
 	let entry = MissionEntry {
