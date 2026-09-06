@@ -372,7 +372,7 @@ const headingOf = ({
 
 const RoutinesPanelSurface = (props: RoutinesPanelListProps) => {
 	const { t } = useTranslation("chat")
-	const { open, triggerRef } = useAnimatedSidebar()
+	const { open, toggleSidebar, triggerRef } = useAnimatedSidebar()
 	const [isShowingClosedMissions, setShowingClosedMissions] = useState(false)
 	const wasOpen = useRef(open)
 	const surface = useRef<HTMLElement>(null)
@@ -444,13 +444,24 @@ const RoutinesPanelSurface = (props: RoutinesPanelListProps) => {
 							>
 								<Icons.Previous aria-hidden="true" />
 							</Button>
-							<h2 className="font-medium text-sm">{t(heading.title)}</h2>
+							<h2 className="flex-1 font-medium text-sm">{t(heading.title)}</h2>
 						</>
 					) : (
 						<h2 className="flex-1 font-medium text-sm">
 							{t("activity.panel.title")}
 						</h2>
 					)}
+					{open ? (
+						<Button
+							aria-label={t("activity.panel.close")}
+							data-slot="routines-panel-close"
+							onClick={toggleSidebar}
+							size="icon-sm"
+							variant="ghost"
+						>
+							<Icons.SidePanel aria-hidden="true" />
+						</Button>
+					) : null}
 				</div>
 			</AnimatedSidebarHeader>
 			<AnimatedSidebarContent className="gap-4">
@@ -495,6 +506,9 @@ const RoutinesPanel = ({
 
 const RoutinesPanelTrigger = (props: AnimatedSidebarTriggerProps) => {
 	const { t } = useTranslation("chat")
+	const { open } = useAnimatedSidebar()
+
+	if (open) return null
 
 	return (
 		<AnimatedSidebarTrigger
@@ -503,7 +517,7 @@ const RoutinesPanelTrigger = (props: AnimatedSidebarTriggerProps) => {
 			aria-label={t("activity.panel.toggle")}
 			className="size-8"
 		>
-			<Icons.Routine aria-hidden="true" className="size-4" />
+			<Icons.SidePanel aria-hidden="true" className="size-4" />
 		</AnimatedSidebarTrigger>
 	)
 }
