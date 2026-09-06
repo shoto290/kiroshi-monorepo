@@ -262,6 +262,14 @@ const threadOf = ({
 
 const NO_BOT_RECORDS: Bot[] = []
 
+const BOT_THREAD_RUNTIMES = createConversationRuntimes(
+	createScriptedDriver(),
+	createFakeTranscriptStore(),
+)
+
+const runtimesOf = (thread: Thread) =>
+	thread.kind === "conversation" ? thread.runtimes : BOT_THREAD_RUNTIMES
+
 type ThreadScreenHarnessProps = {
 	thread: Thread
 	bots: Bot[]
@@ -282,6 +290,7 @@ const ThreadScreenHarness = ({
 		drafts: createDraftsController(),
 		onOpenMission,
 		readerName: "Reader",
+		runtimes: runtimesOf(thread),
 		thread,
 	})
 }

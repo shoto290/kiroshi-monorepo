@@ -491,32 +491,32 @@ describe("startMissionRunDriver", () => {
 		expect(harness.originStarts()).toHaveLength(1)
 	})
 
-	it("opens one run per seq when two changes leave the mission on the bot", async () => {
-		await harness.enter("waiting_bot")
-		await harness.endTurn(reported("I cut the branch from main."))
-		await harness.enter("waiting_bot")
+	it("opens one run per seq when two changes leave the mission blocked", async () => {
+		await harness.enter("failed", failedBy("agent-hook"))
+		await harness.endTurn(reported("The build will not pass."))
+		await harness.enter("failed", failedBy("agent-hook"))
 
-		expect(harness.starts).toHaveLength(2)
+		expect(harness.originStarts()).toHaveLength(2)
 		expect(harness.driver.submissions).toHaveLength(2)
 	})
 
 	it("opens no run for a change carrying a seq it already handled", async () => {
-		await harness.enter("waiting_bot")
-		await harness.endTurn(reported("I cut the branch from main."))
-		await harness.announce("waiting_bot")
+		await harness.enter("failed", failedBy("agent-hook"))
+		await harness.endTurn(reported("The build will not pass."))
+		await harness.announce("failed")
 
-		expect(harness.starts).toHaveLength(1)
+		expect(harness.originStarts()).toHaveLength(1)
 	})
 
 	it("takes a change of a new seq kept while the run was live", async () => {
-		await harness.enter("waiting_bot")
-		await harness.enter("waiting_bot")
+		await harness.enter("failed", failedBy("agent-hook"))
+		await harness.enter("failed", failedBy("agent-hook"))
 
-		expect(harness.starts).toHaveLength(1)
+		expect(harness.originStarts()).toHaveLength(1)
 
-		await harness.endTurn(reported("I cut the branch from main."))
+		await harness.endTurn(reported("The build will not pass."))
 
-		expect(harness.starts).toHaveLength(2)
+		expect(harness.originStarts()).toHaveLength(2)
 		expect(harness.driver.submissions).toHaveLength(2)
 	})
 

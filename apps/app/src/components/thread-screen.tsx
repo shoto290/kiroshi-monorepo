@@ -113,6 +113,7 @@ import {
 } from "@/lib/chat/use-thread-roster"
 import type { WorkingState } from "@/lib/chat/working-kind"
 import type { SpeakingBot } from "@/lib/conversations/conversation-controller"
+import type { ConversationRuntimes } from "@/lib/conversations/conversation-runtimes"
 import { leadOf } from "@/lib/conversations/roster-conversations"
 import type { Bot } from "@/lib/conversations/store-contract"
 import { useConversation } from "@/lib/conversations/use-conversation"
@@ -820,6 +821,7 @@ type ThreadViewProps = {
 	activityPanel: ActivityPanel
 	thread: LoadedThread
 	bots: Bot[]
+	runtimes: ConversationRuntimes
 	attachments: AttachmentsController
 	drafts: DraftsController
 	readerName: string
@@ -830,6 +832,7 @@ function ThreadView({
 	activityPanel,
 	thread,
 	bots: known,
+	runtimes,
 	attachments,
 	drafts,
 	readerName,
@@ -1084,6 +1087,7 @@ function ThreadView({
 				faceOf={faceOf}
 				missions={missions}
 				onOpenMission={onOpenMission}
+				runtimes={runtimes}
 			>
 				{layout}
 			</ThreadRoutines>
@@ -1095,6 +1099,7 @@ type ThreadScreenProps = {
 	activityPanel: ActivityPanel
 	thread: Thread
 	bots: Bot[]
+	runtimes: ConversationRuntimes
 	attachments: AttachmentsController
 	drafts: DraftsController
 	readerName: string
@@ -1109,6 +1114,7 @@ function ConversationThreadView({
 	activityPanel,
 	thread,
 	bots,
+	runtimes,
 	attachments,
 	drafts,
 	readerName,
@@ -1129,6 +1135,7 @@ function ConversationThreadView({
 			drafts={drafts}
 			onOpenMission={onOpenMission}
 			readerName={readerName}
+			runtimes={runtimes}
 			thread={{ ...thread, state, controller }}
 		/>
 	)
@@ -1142,6 +1149,7 @@ function BotThreadView({
 	activityPanel,
 	thread,
 	bots,
+	runtimes,
 	attachments,
 	drafts,
 	readerName,
@@ -1160,6 +1168,7 @@ function BotThreadView({
 			drafts={drafts}
 			onOpenMission={onOpenMission}
 			readerName={readerName}
+			runtimes={runtimes}
 			thread={{ ...thread, state: thread.chat.state, controller }}
 		/>
 	)
@@ -1169,6 +1178,7 @@ export function ThreadScreen({
 	activityPanel,
 	thread,
 	bots,
+	runtimes,
 	attachments,
 	drafts,
 	readerName,
@@ -1184,6 +1194,7 @@ export function ThreadScreen({
 				key={thread.conversation.id}
 				onOpenMission={onOpenMission}
 				readerName={readerName}
+				runtimes={runtimes}
 				thread={thread}
 			/>
 		)
@@ -1198,6 +1209,7 @@ export function ThreadScreen({
 			key={thread.bot.id}
 			onOpenMission={onOpenMission}
 			readerName={readerName}
+			runtimes={runtimes}
 			thread={thread}
 		/>
 	)

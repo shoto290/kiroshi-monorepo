@@ -86,6 +86,7 @@ const OpenedMission = ({
 			drafts={drafts}
 			onOpenMission={onOpenMission}
 			readerName={readerName}
+			runtimes={runtimes}
 			thread={thread}
 		/>
 	)

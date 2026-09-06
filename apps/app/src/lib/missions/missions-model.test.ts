@@ -75,6 +75,7 @@ const rowsOf = (read: Partial<MissionRowsRead>) =>
 		closed: [],
 		reportedRuns: [],
 		faceOf,
+		waitingMissionIds: new Set<string>(),
 		now: READ_AT,
 		...read,
 	})
@@ -169,6 +170,21 @@ describe("toMissionRows", () => {
 			"m-done",
 			"run-early",
 		])
+	})
+
+	it("reads a mission whose thread waits on the reader as waiting whatever its state", () => {
+		const { open } = rowsOf({
+			open: [missionIn("working")],
+			waitingMissionIds: new Set(["m-working"]),
+		})
+
+		expect(open[0].state).toBe("waiting_human")
+	})
+
+	it("reads a mission from its state again once nothing waits", () => {
+		const { open } = rowsOf({ open: [missionIn("working")] })
+
+		expect(open[0].state).toBe("working")
 	})
 })
 
@@ -307,9 +323,38 @@ const stripsFor = (...states: MissionState[]) =>
 		NO_LISTED_CONVERSATIONS,
 	)["b-1"]
 
+const waitingStripsFor = (waiting: string[], ...states: MissionState[]) =>
+	missionsByRow(
+		states.map((state, index) =>
+			onBoard({ id: `m-${index + 1}`, openedAt: index + 1, state }),
+		),
+		NO_LISTED_CONVERSATIONS,
+		new Set(waiting),
+	)["b-1"]
+
 describe("missionsByRow", () => {
 	it("gives a row with one mission its id, its state and its ticket", () => {
 		expect(stripsFor("working")).toEqual([shownMission("m-1", "working")])
+	})
+
+	it("shows a mission whose thread waits on the reader as waiting", () => {
+		expect(waitingStripsFor(["m-1"], "working")).toEqual([
+			shownMission("m-1", "waiting"),
+		])
+	})
+
+	it("orders a mission whose thread waits ahead of the ones that only work", () => {
+		expect(
+			waitingStripsFor(["m-2"], "working", "waiting_bot", "working")?.map(
+				({ id }) => id,
+			),
+		).toEqual(["m-2", "m-3", "m-1"])
+	})
+
+	it("shows a mission from its state again once nothing waits", () => {
+		expect(waitingStripsFor([], "working")).toEqual([
+			shownMission("m-1", "working"),
+		])
 	})
 
 	it("lists every open mission of the row, most urgent first", () => {

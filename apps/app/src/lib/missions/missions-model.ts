@@ -33,6 +33,18 @@ const BADGE_BY_STATE: Record<MissionState, BotBadge | null> = {
 	done: null,
 }
 
+export type WaitingMissionIds = ReadonlySet<string>
+
+const NO_WAITING_MISSIONS: WaitingMissionIds = new Set()
+
+const WAITING_ON_READER: MissionState = "waiting_human"
+
+const shownStateOf = (
+	mission: Mission,
+	waitingMissionIds: WaitingMissionIds,
+): MissionState =>
+	waitingMissionIds.has(mission.id) ? WAITING_ON_READER : mission.state
+
 const TIME_OF_DAY = new Intl.DateTimeFormat("en-US", {
 	hour: "2-digit",
 	minute: "2-digit",
@@ -51,6 +63,7 @@ const toMissionRow = (
 	mission: Mission,
 	face: ThreadFace,
 	timestamp: string,
+	waitingMissionIds: WaitingMissionIds,
 ): MissionRowModel => ({
 	id: mission.id,
 	objective: mission.objective,
@@ -60,7 +73,7 @@ const toMissionRow = (
 		title: mission.ticket.title,
 	},
 	bot: toMissionFace(face),
-	state: mission.state,
+	state: shownStateOf(mission, waitingMissionIds),
 	timestamp,
 })
 
@@ -68,10 +81,13 @@ const rowsOf = (
 	missions: Mission[],
 	faceOf: MissionFaces,
 	timestampOf: (mission: Mission) => string,
+	waitingMissionIds: WaitingMissionIds,
 ): MissionRowModel[] =>
 	missions.flatMap((mission) => {
 		const face = faceOf(mission.botId)
-		return face ? [toMissionRow(mission, face, timestampOf(mission))] : []
+		return face
+			? [toMissionRow(mission, face, timestampOf(mission), waitingMissionIds)]
+			: []
 	})
 
 type EarlierTodayEntry = {
@@ -95,7 +111,12 @@ const closedTodayEntries = (
 				at: mission.closedAt,
 				row: {
 					kind: "mission",
-					...toMissionRow(mission, face, TIME_OF_DAY.format(mission.closedAt)),
+					...toMissionRow(
+						mission,
+						face,
+						TIME_OF_DAY.format(mission.closedAt),
+						NO_WAITING_MISSIONS,
+					),
 				},
 			},
 		]
@@ -132,6 +153,7 @@ export type MissionRowsRead = {
 	closed: Mission[]
 	reportedRuns: ReportedRunRead[]
 	faceOf: MissionFaces
+	waitingMissionIds: WaitingMissionIds
 	now: number
 }
 
@@ -140,13 +162,17 @@ export const toMissionRows = ({
 	closed,
 	reportedRuns,
 	faceOf,
+	waitingMissionIds,
 	now,
 }: MissionRowsRead): Omit<RoutinesPanelMissions, "onOpen"> => {
 	const midnight = startOfLocalDay(now)
 
 	return {
-		open: rowsOf(open, faceOf, (mission) =>
-			rosterTimestamp(mission.openedAt, now),
+		open: rowsOf(
+			open,
+			faceOf,
+			(mission) => rosterTimestamp(mission.openedAt, now),
+			waitingMissionIds,
 		),
 		earlierToday: [
 			...closedTodayEntries(closed, faceOf, midnight),
@@ -258,6 +284,7 @@ const toRowMission = ({
 export const missionsByRow = (
 	board: MissionOnBoard[],
 	listedConversations: { id: string }[],
+	waitingMissionIds: WaitingMissionIds = NO_WAITING_MISSIONS,
 ): MissionsByRow => {
 	const listedConversationIds = new Set(
 		listedConversations.map((conversation) => conversation.id),
@@ -266,7 +293,7 @@ export const missionsByRow = (
 	for (const { mission } of board) {
 		if (mission.closedAt !== null) continue
 
-		const state = CHIP_STATE_OF[mission.state]
+		const state = CHIP_STATE_OF[shownStateOf(mission, waitingMissionIds)]
 		if (!state) continue
 
 		const rowId = listedConversationIds.has(mission.originConversationId)

@@ -540,7 +540,11 @@ describe("startNotificationSource on a mission thread", () => {
 			mission: aMission({ botId: "bot-one", state: "done", closedAt: 9 }),
 			events: [],
 		})
-		harness.missions.change({ missionId: "mission-1", state: "done" })
+		harness.missions.change({
+			missionId: "mission-1",
+			state: "done",
+			stateSeq: 3,
+		})
 		await Promise.resolve()
 		await Promise.resolve()
 		seedRound(harness, "thread-1")
