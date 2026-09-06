@@ -913,8 +913,7 @@ export interface AnimatedSidebarMenuButtonProps extends MenuButtonElementProps {
 	className?: string
 }
 
-const MENU_BUTTON_HEAD =
-	"flex min-h-9 w-full min-w-0 items-center gap-2.5 pe-1.5"
+const MENU_BUTTON_HEAD = "flex min-h-9 min-w-0 items-center gap-2.5 pe-1.5"
 
 export function AnimatedSidebarMenuButton({
 	children,
@@ -1000,7 +999,7 @@ export function AnimatedSidebarMenuButton({
 
 	const interactiveClassName = cn(
 		"relative flex min-h-9 w-full min-w-0 select-none overflow-hidden rounded-xl text-left font-medium text-sm outline-none",
-		below ? "flex-col items-stretch gap-1" : "items-center gap-2.5",
+		below ? "flex-col gap-1" : "items-center gap-2.5",
 		"px-3",
 		icon && "pl-2",
 		below && "pe-1.5",

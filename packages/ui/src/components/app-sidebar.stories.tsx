@@ -333,11 +333,9 @@ const rowHead = (row: HTMLElement) =>
 
 const headHeightOf = (row: HTMLElement) => {
 	const head = rowHead(row)
-	const box = head.getBoundingClientRect()
-	if (head !== rowButton(row)) return Math.round(box.height)
 	const { paddingTop, paddingBottom } = getComputedStyle(head)
 	return Math.round(
-		box.height -
+		head.getBoundingClientRect().height -
 			Number.parseFloat(paddingTop) -
 			Number.parseFloat(paddingBottom),
 	)
