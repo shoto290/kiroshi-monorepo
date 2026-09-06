@@ -13,7 +13,6 @@ import {
 	MessageQuote,
 	type QuotedMessage,
 } from "@workspace/ui/components/message-quote"
-import type { MissionEventModel } from "@workspace/ui/components/mission"
 import { MissionEventRow } from "@workspace/ui/components/mission-event-row"
 import { MissionHeader } from "@workspace/ui/components/mission-header"
 import { MissionTurn } from "@workspace/ui/components/mission-turn"
@@ -51,7 +50,6 @@ import {
 	ThreadRoutines,
 } from "@/components/thread-routines"
 import { QueuedTurn, RefusedTurn, ThreadTurn } from "@/components/thread-turn"
-import { useRosterClock } from "@/lib/bots/use-roster-clock"
 import type { AttachmentsOwner } from "@/lib/chat/attachments-contract"
 import type { AttachmentsController } from "@/lib/chat/attachments-controller"
 import type { ChatError } from "@/lib/chat/chat-state"
@@ -626,24 +624,15 @@ const withMissionCards = ({
 		]
 	})
 
-type MissionEventTurnProps = {
-	event: MissionEventModel
-}
-
-const MissionEventTurn = ({ event }: MissionEventTurnProps) => {
-	const now = useRosterClock()
-
-	return <MissionEventRow event={event} now={now} />
-}
-
 const withMissionEvents = (
 	runRows: TranscriptItem[],
 	placed: PlacedMissionEvent[],
+	now: number,
 ): TranscriptItem[] =>
 	interleavedWithRuns(runRows, placed, ({ event }) => [
 		{
 			key: `mission-event-${event.id}`,
-			render: () => <MissionEventTurn event={event} />,
+			render: () => <MissionEventRow event={event} now={now} />,
 		},
 	])
 
@@ -963,7 +952,11 @@ function ThreadView({
 		toQuote,
 	})
 	const transcriptRows = missionSeat
-		? withMissionEvents(runRows, placeMissionEvents(runs, missionSeat.events))
+		? withMissionEvents(
+				runRows,
+				placeMissionEvents(runs, missionSeat.events),
+				missionSeat.now,
+			)
 		: withMissionCards({
 				authors,
 				faceOf,

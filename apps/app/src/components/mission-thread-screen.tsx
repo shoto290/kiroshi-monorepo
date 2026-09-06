@@ -6,6 +6,7 @@ import { useChatCopy } from "@workspace/ui/hooks/use-chat-copy"
 
 import type { ActivityPanel } from "@/components/thread-routines"
 import { ThreadScreen } from "@/components/thread-screen"
+import { useRosterClock } from "@/lib/bots/use-roster-clock"
 import type { AttachmentsController } from "@/lib/chat/attachments-controller"
 import type { DraftsController } from "@/lib/chat/drafts-controller"
 import type { Thread } from "@/lib/chat/thread-contract"
@@ -61,6 +62,8 @@ const OpenedMission = ({
 	onLeave,
 	onOpenMission,
 }: OpenedMissionProps) => {
+	const now = useRosterClock()
+
 	useMissionReadFailure(hasFailedToRead)
 
 	const thread = useMemo<Thread>(
@@ -70,9 +73,9 @@ const OpenedMission = ({
 			runtimes,
 			isSettingsOpen: false,
 			onOpenSettings: () => undefined,
-			mission: { mission, events, onLeave },
+			mission: { mission, events, now, onLeave },
 		}),
-		[mission, bot, events, runtimes, onLeave],
+		[mission, bot, events, now, runtimes, onLeave],
 	)
 
 	return (

@@ -41,6 +41,7 @@ export type BotThread = {
 export type ThreadMission = {
 	mission: Mission
 	events: MissionEventModel[]
+	now: number
 	onLeave: () => void
 }
 

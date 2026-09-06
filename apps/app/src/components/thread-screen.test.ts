@@ -682,7 +682,12 @@ const missionRoomOf = async ({
 		...room,
 		thread: {
 			...room.thread,
-			mission: { mission, events, onLeave: () => undefined },
+			mission: {
+				mission,
+				events,
+				now: 4 * A_MINUTE,
+				onLeave: () => undefined,
+			},
 		},
 	}
 }
