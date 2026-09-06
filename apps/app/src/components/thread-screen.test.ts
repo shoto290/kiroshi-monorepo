@@ -41,12 +41,14 @@ import {
 } from "@/lib/conversations/scripted-driver"
 import type { Bot } from "@/lib/conversations/store-contract"
 import type { TranscriptStore } from "@/lib/conversations/store-port"
+import type { TranscriptRole } from "@/lib/conversations/transcript-contract"
 import {
 	botIdentity,
 	message,
 	seatBots,
 } from "@/lib/conversations/transcript-fixtures"
 import type { Mission, MissionChanged } from "@/lib/missions/mission-contract"
+import { missionSummonsFor } from "@/lib/missions/mission-summons"
 import { missionsTransport } from "@/lib/missions/missions-transport"
 import { type FakeLayout, fakeLayout } from "@/lib/perf/fake-layout"
 import type { Routine } from "@/lib/routines/routine-contract"
@@ -424,6 +426,7 @@ type SpokenTurn = {
 	turnId: string
 	text: string
 	createdAt: number
+	role?: TranscriptRole
 }
 
 type RoomFixture = {
@@ -432,13 +435,28 @@ type RoomFixture = {
 	spoken?: SpokenTurn[]
 }
 
-const writeTurn = async (
+const writeUserTurn = async (
+	store: TranscriptStore,
+	conversationId: string,
+	{ turnId, text, createdAt }: SpokenTurn,
+) => {
+	await store.appendUserMessage({
+		id: `m-${turnId}`,
+		conversationId,
+		turnId,
+		authorBotId: null,
+		repliedToMessageId: null,
+		content: text,
+		createdAt,
+	})
+}
+
+const writeBotTurn = async (
 	store: TranscriptStore,
 	conversationId: string,
 	botId: string,
 	{ turnId, text, createdAt }: SpokenTurn,
 ) => {
-	await store.startTurn({ id: turnId, conversationId, startedAt: createdAt })
 	await store.openAssistantMessage({
 		id: `m-${turnId}`,
 		conversationId,
@@ -449,6 +467,19 @@ const writeTurn = async (
 	})
 	await store.appendText(`m-${turnId}`, text)
 	await store.finalizeMessage(`m-${turnId}`, "complete")
+}
+
+const writeTurn = async (
+	store: TranscriptStore,
+	conversationId: string,
+	botId: string,
+	turn: SpokenTurn,
+) => {
+	const { turnId, createdAt } = turn
+	await store.startTurn({ id: turnId, conversationId, startedAt: createdAt })
+	await (turn.role === "user"
+		? writeUserTurn(store, conversationId, turn)
+		: writeBotTurn(store, conversationId, botId, turn))
 	await store.completeTurn(turnId, createdAt)
 }
 
@@ -660,6 +691,15 @@ const soloOf = async ({
 		},
 	}
 }
+
+const MISSION_SUMMONS: SpokenTurn = {
+	turnId: "t-summons",
+	text: missionSummonsFor("working"),
+	createdAt: A_MINUTE,
+	role: "user",
+}
+
+const SUMMONS_CAUSE = "Opened by the mission"
 
 const MISSION_SAID: SpokenTurn = {
 	turnId: "t-mission",
@@ -1559,6 +1599,32 @@ describe("ThreadScreen", () => {
 		await room.send("@Ada now")
 
 		expect(stopFor("Ada")).toBeTruthy()
+	})
+
+	it("opens a mission thread on a cause line instead of the summons", async () => {
+		const room = await missionRoomOf({
+			events: [],
+			spoken: [MISSION_SUMMONS, MISSION_SAID],
+		})
+		render(screenOf(room.thread, room.bots))
+		await settle()
+
+		await room.send("and the tests?")
+
+		expect(screen.queryByText(MISSION_SUMMONS.text)).toBeNull()
+
+		const said = screen
+			.getByText(MISSION_SAID.text)
+			.closest('[data-slot="message"]')
+
+		expect(
+			said?.querySelector('[data-slot="turn-cause-title"]')?.textContent,
+		).toBe(SUMMONS_CAUSE)
+
+		const asked = screen.getAllByLabelText("user message")
+
+		expect(asked).toHaveLength(1)
+		expect(asked[0].textContent).toContain("and the tests?")
 	})
 
 	it("disables the composer of a closed mission thread", async () => {
