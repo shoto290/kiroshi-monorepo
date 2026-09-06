@@ -112,7 +112,7 @@ type ShownMission = {
 const mostUrgentFirst = (one: ShownMission, other: ShownMission): number =>
 	MOST_URGENT_FIRST.indexOf(one.state) -
 		MOST_URGENT_FIRST.indexOf(other.state) ||
-	one.mission.openedAt - other.mission.openedAt ||
+	other.mission.openedAt - one.mission.openedAt ||
 	(one.mission.id < other.mission.id ? -1 : 1)
 
 const toRowMission = ({
@@ -137,6 +137,8 @@ export const missionsByRow = (
 	)
 	const open: Record<string, ShownMission[]> = {}
 	for (const { mission } of board) {
+		if (mission.closedAt !== null) continue
+
 		const state = CHIP_STATE_OF[mission.state]
 		if (!state) continue
 
