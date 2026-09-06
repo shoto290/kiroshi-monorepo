@@ -201,13 +201,24 @@ const stripStatesIn = (row: HTMLElement) =>
 
 const dotIn = (row: HTMLElement) => slotIn(row, "bot-mission-dot")
 
+const dotBoxIn = (row: HTMLElement) => {
+	const { width, height } = dotIn(row).getBoundingClientRect()
+
+	return [width, height]
+}
+
 const BARE_ROW_HEIGHT = 52
 
-const ROW_HEAD_HEIGHT = 40
+const DOT_SIZE = 5
 
-const STRIP_STEP = 28
+const STRIP_HEIGHT = 20
 
-const heightForStrips = (count: number) => BARE_ROW_HEIGHT + count * STRIP_STEP
+const STRIP_GAP = 2
+
+const heightForStrips = (count: number) =>
+	count === 0
+		? BARE_ROW_HEIGHT
+		: BARE_ROW_HEIGHT + count * STRIP_HEIGHT + (count - 1) * STRIP_GAP
 
 const LOOSE_MISSION_ROSTER: AppSidebarBot[] = [
 	{ ...ROSTER[1], lastActivityAt: 3, timestamp: "now" },
@@ -327,20 +338,6 @@ const rowFor = (canvasElement: HTMLElement, name: string) => {
 
 const rowButton = (row: HTMLElement) => slotIn(row, "sidebar-menu-button")
 
-const rowHead = (row: HTMLElement) =>
-	row.querySelector<HTMLElement>('[data-slot="sidebar-menu-head"]') ??
-	rowButton(row)
-
-const headHeightOf = (row: HTMLElement) => {
-	const head = rowHead(row)
-	const { paddingTop, paddingBottom } = getComputedStyle(head)
-	return Math.round(
-		head.getBoundingClientRect().height -
-			Number.parseFloat(paddingTop) -
-			Number.parseFloat(paddingBottom),
-	)
-}
-
 const badgeIn = (row: HTMLElement) =>
 	row.querySelector<HTMLElement>('[data-slot="bot-activity-dot"]')?.dataset
 		.badge
@@ -417,22 +414,26 @@ const gapsBetween = (nodes: HTMLElement[]) =>
 			),
 		)
 
-const expectAvatarCentredOnRowPart = async (
+const expectAvatarLevelWithNameLine = async (
 	row: HTMLElement,
 	avatarSlot: string,
-) =>
-	expect(
+) => {
+	const name = slotIn(row, "roster-row-name").getBoundingClientRect()
+	const preview = slotIn(row, "roster-row-preview").getBoundingClientRect()
+
+	await expect(
 		verticalCentreOf(slotIn(row, avatarSlot).getBoundingClientRect()),
-	).toBeCloseTo(verticalCentreOf(rowHead(row).getBoundingClientRect()), 0)
+	).toBeCloseTo((name.top + preview.bottom) / 2, 0)
+}
 
-const expectStripSpansRow = async (row: HTMLElement) => {
-	const strip = stripsIn(row)[0].getBoundingClientRect()
-	const avatar = slotIn(row, "bot-identity-avatar").getBoundingClientRect()
-	const button = rowButton(row).getBoundingClientRect()
+const expectStripInTextColumn = async (row: HTMLElement) => {
+	const strip = stripsIn(row)[0]
+	const name = slotIn(row, "roster-row-name").getBoundingClientRect()
 
-	await expect(Math.round(strip.left)).toBe(Math.round(avatar.left))
-	await expect(Math.round(button.right - strip.right)).toBe(6)
-	await expect(rowButton(row).contains(stripsIn(row)[0])).toBe(true)
+	await expect(Math.round(strip.getBoundingClientRect().left)).toBe(
+		Math.round(name.left),
+	)
+	await expect(rowButton(row).contains(strip)).toBe(true)
 }
 
 const expectAlignedRows = async (rows: HTMLElement[]) => {
@@ -444,7 +445,6 @@ const expectAlignedRows = async (rows: HTMLElement[]) => {
 		uniqueCount(topOffsets(rowsWithPreview(rows), "roster-row-name")),
 	).toBe(1)
 	await expect(previewShortfalls(rows)).toEqual(rows.map(() => 0))
-	await expect(uniqueCount(rows.map(headHeightOf))).toBe(1)
 }
 
 const colorOf = (row: HTMLElement, slot: string) =>
@@ -1061,7 +1061,7 @@ export const MissionStripStates = meta.story({
 		docs: {
 			description: {
 				story:
-					"Four bots each carrying one open mission, one per state a mission can be in. The mission speaks in a strip under the row and never in the dot on the preview line: the strip is the state of the work, the dot is the state of the conversation, and the two shapes are never confused. Check each strip runs the full width of the row, from the leading edge of the avatar to the trailing inner edge, so it passes under the avatar rather than starting after it. Check the strip opens on its state dot in the attention, failed and done colours the panel already uses and the muted grey of a resting row while the mission simply runs, then the platform mark, the identifier, the title. Check the strip never moves: it is the one mark in the row that does not pulse, because a mission is a fact and not an alarm. The title and the mark carry `--muted-foreground`, which reaches 3.9:1 on the strip fill instead of the 4.5:1 AA asks for: the pair is the artboard’s and the fix is a lightness step on the token, which every muted line in the panel would take with it, so it is flagged for review here rather than settled inside this strip. Check every row measures 80px, the head staying 40px with the avatar centred on it rather than on the row plus the strip, and that the four chat signals are exactly what the host passed. Pick `MissionStripStack` for a row carrying four, `MissionStripSelected` for the strip under a lit row.",
+					"Four bots each carrying one open mission, one per state a mission can be in. The mission speaks in a bare line under the preview and never in the dot on the preview line: the line is the state of the work, the dot is the state of the conversation, and the two shapes are never confused. Check the strip carries no fill, no border and no rounding of its own, and that it opens on the lane the name line opens, inside the text column rather than under the avatar. Check the strip opens on its state dot, 5px by 5px, in the attention, failed and done colours the panel already uses and the muted grey of a resting row while the mission simply runs, then the platform mark, the identifier, the title. Check the strip never moves: it is the one mark in the row that does not pulse, because a mission is a fact and not an alarm. The title and the mark carry `--muted-foreground`, the token every muted line in this panel already carries, and the identifier takes the colour of the row name so the handle reads as the row speaking. Check every row measures 72px and that the avatar stays level with the name line instead of sliding to the middle of the taller row. Pick `MissionStripStack` for a row carrying four, `MissionStripSelected` for the strip under a lit row.",
 			},
 		},
 	},
@@ -1091,10 +1091,13 @@ export const MissionStripStates = meta.story({
 		)
 		for (const row of rows) {
 			await expect(getComputedStyle(dotIn(row)).animationName).toBe("none")
-			await expectStripSpansRow(row)
-			await expectAvatarCentredOnRowPart(row, "bot-identity-avatar")
+			await expectStripInTextColumn(row)
+			await expectAvatarLevelWithNameLine(row, "bot-identity-avatar")
 		}
 
+		await expect(rows.map(dotBoxIn)).toEqual(
+			rows.map(() => [DOT_SIZE, DOT_SIZE]),
+		)
 		await expect(rowHeights(rows)).toEqual(rows.map(() => heightForStrips(1)))
 		await expect(rows.map(badgeIn)).toEqual(rows.map(() => undefined))
 		await expect(slotIn(rows[0], "roster-row-badge")).toHaveTextContent(
@@ -1120,7 +1123,7 @@ export const MissionStripSingle = meta.story({
 		docs: {
 			description: {
 				story:
-					"One bot on one mission over one bot on none. Check the first row measures 80px and the second 52px: a strip costs 24px of height and the 4px that separates it from the row above it, and a row with nothing to say pays neither. Check the strip sits inside the row button, under the head, so one surface and one rounding cover both: the head keeps the 40px it has everywhere else in the panel and the avatar stays centred on it rather than on the row plus what hangs below it. Pick `MissionStripNone` for the bare row alone, `MissionStripStack` for four at once.",
+					"One bot on one mission over one bot on none. Check the first row measures 72px and the second the 52px it has always measured: a strip costs the 20px of its own line and nothing more, and a row with nothing to say pays neither. Check the strip sits inside the row button, in the text column under the preview, and that both avatars sit at the same offset from the top of their row: the taller row grows downwards under the name, so the two faces stay on one line down the panel. Pick `MissionStripNone` for the bare row alone, `MissionStripStack` for four at once.",
 			},
 		},
 	},
@@ -1133,10 +1136,10 @@ export const MissionStripSingle = meta.story({
 		])
 		await expect(stripsIn(rows[0])).toHaveLength(1)
 		await expect(stripsIn(rows[1])).toHaveLength(0)
-		await expect(rows.map(headHeightOf)).toEqual(
-			rows.map(() => ROW_HEAD_HEIGHT),
-		)
 		await expect(rowHeights([rows[1]])).toEqual([BARE_ROW_HEIGHT])
+		await expect(uniqueCount(topOffsets(rows, "bot-identity-avatar"))).toBe(1)
+		await expectAvatarLevelWithNameLine(rows[0], "bot-identity-avatar")
+		await expectStripInTextColumn(rows[0])
 		await expectAlignedRows(rows)
 	},
 })
@@ -1161,7 +1164,7 @@ export const MissionStripStack = meta.story({
 		docs: {
 			description: {
 				story:
-					"One bot running four missions at once. Check the row measures 164px and that the strips render in the order the host passed them, most urgent first: the roster never reorders them, it draws the list it is given. Check every gap in the stack is the same 4px, above the first strip as between the others, so four missions read as one block rather than as four decisions. Check each strip keeps its own state dot and its own ticket. Pick `MissionStripSingle` for the arithmetic on one strip.",
+					"One bot running four missions at once. Check the row measures 138px and that the strips render in the order the host passed them, most urgent first: the roster never reorders them, it draws the list it is given. Check every strip is 20px tall and every gap between them the same 2px, so four missions read as one block of lines rather than as four decisions. Check each strip keeps its own state dot and its own ticket, and that the whole stack holds the lane the name line opens. Pick `MissionStripSingle` for the arithmetic on one strip.",
 			},
 		},
 	},
@@ -1176,11 +1179,10 @@ export const MissionStripStack = meta.story({
 			"working",
 		])
 		await expect(rowHeights([row])[0]).toBe(heightForStrips(4))
-		await expect(rowHeights(strips)).toEqual(strips.map(() => 24))
+		await expect(rowHeights(strips)).toEqual(strips.map(() => STRIP_HEIGHT))
 		await expect(uniqueCount(gapsBetween(strips))).toBe(1)
-		await expect(gapsBetween(strips)[0]).toBe(4)
-		await expect(gapsBetween([rowHead(row), strips[0]])).toEqual([4])
-		await expectStripSpansRow(row)
+		await expect(gapsBetween(strips)[0]).toBe(STRIP_GAP)
+		await expectStripInTextColumn(row)
 	},
 })
 
@@ -1190,7 +1192,7 @@ export const MissionStripNone = meta.story({
 		docs: {
 			description: {
 				story:
-					"Two bots with no open mission. Check neither row carries a strip and both measure the 52px a roster row has always measured: the strip is what a mission adds, never a slot held open for one that may arrive. Pick `MissionStripSingle` for the row that does carry one.",
+					"Two bots with no open mission. Check neither row carries a strip and both measure the 52px a roster row has always measured: the strip is what a mission adds, never a slot held open for one that may arrive, so a row with none is untouched. Pick `MissionStripSingle` for the row that does carry one.",
 			},
 		},
 	},
@@ -1213,39 +1215,39 @@ export const MissionStripSelected = meta.story({
 		docs: {
 			description: {
 				story:
-					"The same two rows, the first of them the one the reader is in. Check the lit background and its rounding cover the head and the strip alike: the strip lives inside the button, 4px under the head and 6px from the surface edge, so a selected row reads as one block and not as a row with something stapled under it. Check the strip keeps its own rounded corners and the same 10 percent foreground fill on the lit row as on the resting one, since a mission does not change because the reader happens to be reading it, and that fill is neither the panel surface nor the selected surface it sits on. Pick `MissionStripStates` for the strip on rows at rest.",
+					"The same two rows, the first of them the one the reader is in, then the second hovered and reached by keyboard. Check the strip draws no surface of its own on any of the three: no fill, no border, no rounding, so the lit background of the row is the only shape and the strip reads as one more line of it rather than as something stapled under it. Check the ticket title keeps the muted token it wears at rest, and the identifier the colour of the row name, so a lit row lifts the whole line at once instead of leaving the handle behind. Pick `MissionStripStates` for the strip on rows at rest.",
 			},
 		},
 	},
-	play: async ({ canvasElement }) => {
+	play: async ({ canvasElement, userEvent }) => {
 		const rows = rowsIn(canvasElement)
-		const surfaces = rows.map(
-			(row) => getComputedStyle(stripsIn(row)[0]).backgroundColor,
-		)
+		const strips = rows.map((row) => stripsIn(row)[0])
+		const style = getComputedStyle(strips[0])
 
-		await expect(uniqueCount(surfaces)).toBe(1)
-		await expect(surfaces[0]).not.toBe(
-			tokenBackground(canvasElement, "var(--sidebar)"),
-		)
-		await expect(getComputedStyle(stripsIn(rows[0])[0]).borderRadius).not.toBe(
-			"0px",
-		)
-		await expect(gapsBetween([rowHead(rows[0]), stripsIn(rows[0])[0]])).toEqual(
-			[4],
-		)
-		await expect(surfaces[0]).not.toBe(
-			getComputedStyle(rowButton(rows[0])).backgroundColor,
-		)
+		await expect(style.backgroundColor).toBe("rgba(0, 0, 0, 0)")
+		await expect(style.borderRadius).toBe("0px")
+		await expect(style.borderTopWidth).toBe("0px")
+		await expect(style.color).toBe(colorOf(rows[0], "roster-row-name"))
 		await expect(getComputedStyle(rowButton(rows[0])).backgroundColor).not.toBe(
 			getComputedStyle(rowButton(rows[1])).backgroundColor,
 		)
-		await expect(rowButton(rows[0]).contains(stripsIn(rows[0])[0])).toBe(true)
-		await expect(
-			Math.round(
-				rowButton(rows[0]).getBoundingClientRect().bottom -
-					stripsIn(rows[0])[0].getBoundingClientRect().bottom,
-			),
-		).toBe(6)
+
+		const titleColours = () =>
+			rows.map((row) => colorOf(row, "bot-mission-ticket-title"))
+		const atRest = titleColours()
+		await expect(uniqueCount(atRest)).toBe(1)
+
+		await userEvent.hover(rowButton(rows[1]))
+		await expect(titleColours()).toEqual(atRest)
+
+		await userEvent.tab()
+		await userEvent.tab()
+		await expect(rowButton(rows[0])).toHaveFocus()
+		await expect(rowButton(rows[0]).matches(":focus-visible")).toBe(true)
+		await expect(titleColours()).toEqual(atRest)
+		await expect(getComputedStyle(strips[0]).backgroundColor).toBe(
+			"rgba(0, 0, 0, 0)",
+		)
 	},
 })
 
@@ -1275,7 +1277,7 @@ export const MissionStripTruncatedTitle = meta.story({
 		docs: {
 			description: {
 				story:
-					"A ticket whose title runs far past the width of the strip. Check the title alone clips to an ellipsis and that everything the reader needs to act stays whole around it: the state dot, the platform mark and the identifier that names the ticket. A title is prose the product does not author and can be any length; an identifier is the handle a person types into a search box, so it is the one thing the strip never eats. Check the strip stays 24px and the row stays 80px. Pick `MissionStripStates` for titles that fit.",
+					"A ticket whose title runs far past the width of the strip. Check the title alone clips to an ellipsis and that everything the reader needs to act stays whole around it: the state dot, the platform mark and the identifier that names the ticket. A title is prose the product does not author and can be any length; an identifier is the handle a person types into a search box, so it is the one thing the strip never eats. Check the strip stays 20px and the row stays 72px. Pick `MissionStripStates` for titles that fit.",
 			},
 		},
 	},
@@ -1287,7 +1289,8 @@ export const MissionStripTruncatedTitle = meta.story({
 		await expect(isClipped(title)).toBe(true)
 		await expect(strip).toHaveTextContent("OPE-71")
 		await expect(slotIn(row, "bot-mission-mark")).toBeVisible()
-		await expect(rowHeights([strip])[0]).toBe(24)
+		await expect(dotBoxIn(row)).toEqual([DOT_SIZE, DOT_SIZE])
+		await expect(rowHeights([strip])[0]).toBe(STRIP_HEIGHT)
 		await expect(rowHeights([row])[0]).toBe(heightForStrips(1))
 	},
 })
@@ -1398,12 +1401,12 @@ export const MissionStripUntrackedTicket = meta.story({
 		await expect(tracked.textContent).not.toContain("Never shown")
 		await expect(dotIn(untracked)).toBeVisible()
 		await expect(slotIn(untracked, "bot-mission-mark")).toBeVisible()
-		await expect(rowHeights(stripsIn(untracked))).toEqual([24])
+		await expect(rowHeights(stripsIn(untracked))).toEqual([STRIP_HEIGHT])
 		await expect(rowHeights([untracked, tracked])).toEqual([
 			heightForStrips(1),
 			heightForStrips(1),
 		])
-		await expectStripSpansRow(untracked)
+		await expectStripInTextColumn(untracked)
 	},
 })
 
@@ -1414,7 +1417,7 @@ export const MissionStripRaised = meta.story({
 		docs: {
 			description: {
 				story:
-					"Three loose bots ordered by their last word, where the one carrying a mission that waits on the reader is also the one that spoke longest ago. Check it renders first anyway: a mission that cannot move without a person outranks a room that is merely fresh, so the reader finds what is blocked at the top of the list rather than hunting for a strip down it. Check the two rows below keep the order the zone already sorts them into, and that the raised row is the only taller one — it is the strip that takes it to 80px, not a different row. Pick `MissionStripPinned` for the section where a rank the reader set holds the waiting row in place.",
+					"Three loose bots ordered by their last word, where the one carrying a mission that waits on the reader is also the one that spoke longest ago. Check it renders first anyway: a mission that cannot move without a person outranks a room that is merely fresh, so the reader finds what is blocked at the top of the list rather than hunting for a strip down it. Check the two rows below keep the order the zone already sorts them into, and that the raised row is the only taller one — it is the strip that takes it to 72px, not a different row. Pick `MissionStripPinned` for the section where a rank the reader set holds the waiting row in place.",
 			},
 		},
 	},
@@ -1494,7 +1497,7 @@ export const MissionStripPlainMenuButton = meta.story({
 		docs: {
 			description: {
 				story:
-					"The mission rows over the reader chip, an ordinary menu button that carries no strip. Check the chip is drawn exactly as every menu button outside the roster is: one line, its content centred on it, the 10px gap every menu button puts between its icon and its label, and no head wrapper split out of it. A strip changes the button that has one and no other, so a mission in the roster never reshapes the footer, the switcher or a header. Pick `MissionStripStates` for the rows that do carry one.",
+					"The mission rows over the reader chip, an ordinary menu button that carries no strip. Check the chip is drawn exactly as every menu button outside the roster is: one line, its content centred on it, the 10px gap every menu button puts between its icon and its label. A strip now lives in the text column of the row that owns it, so the menu button has no second layout to switch into and no head wrapper is split out of any button in the panel. Pick `MissionStripStates` for the rows that do carry one.",
 			},
 		},
 	},
@@ -1505,9 +1508,7 @@ export const MissionStripPlainMenuButton = meta.story({
 		)
 		const style = getComputedStyle(chip)
 
-		await expect(
-			chip.querySelector('[data-slot="sidebar-menu-head"]'),
-		).toBeNull()
+		await expect(slotsIn(canvasElement, "sidebar-menu-head")).toHaveLength(0)
 		await expect(style.flexDirection).toBe("row")
 		await expect(style.alignItems).toBe("center")
 		await expect(style.columnGap).toBe("10px")
@@ -4758,7 +4759,7 @@ export const ConversationMissionStrips = meta.story({
 		docs: {
 			description: {
 				story:
-					"A mission belongs to the conversation it was opened from, so a room carrying open missions wears the strips its bots would otherwise wear alone. Check the strips sit under the room row, in the same lane and the same shapes a bot row gives them, and that the room draws one per open mission whichever of its bots runs it. Check the room whose mission waits on the reader is drawn first even though it spoke longest ago, exactly as a waiting bot row is raised, that it measures 108px for its two missions while the rows with none keep their 52px, and that the avatar stack stays centred on the row part. Pick `MissionStripStates` for the strip on a bot row, `ConversationMissionStripsOnRail` for the rail that drops it.",
+					"A mission belongs to the conversation it was opened from, so a room carrying open missions wears the strips its bots would otherwise wear alone. Check the strips sit under the preview of the room row, in the same lane and the same shapes a bot row gives them, and that the room draws one per open mission whichever of its bots runs it. Check the room whose mission waits on the reader is drawn first even though it spoke longest ago, exactly as a waiting bot row is raised, that it measures 94px for its two missions while the rows with none keep their 52px, and that the avatar stack stays level with the name line. Pick `MissionStripStates` for the strip on a bot row, `ConversationMissionStripsOnRail` for the rail that drops it.",
 			},
 		},
 	},
@@ -4783,7 +4784,7 @@ export const ConversationMissionStrips = meta.story({
 		await expect(slotIn(rows[0], "roster-row-timestamp")).toHaveTextContent(
 			"Tue",
 		)
-		await expectAvatarCentredOnRowPart(rows[0], "conversation-avatar")
+		await expectAvatarLevelWithNameLine(rows[0], "conversation-avatar")
 		await expectAlignedRows(rows)
 	},
 })

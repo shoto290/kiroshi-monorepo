@@ -108,10 +108,9 @@ const BOT_MISSION_STATES = ["waiting", "failed", "ready", "working"] as const
 
 type BotMissionState = (typeof BOT_MISSION_STATES)[number]
 
-const BOT_MISSION_STRIP =
-	"flex h-6 items-center gap-1.5 rounded-sm bg-foreground/10 px-2 py-1 text-xs"
+const BOT_MISSION_STRIP = "flex h-5 items-center gap-1.5 text-[11px] leading-4"
 
-const botMissionDotVariants = cva("size-1.5 shrink-0 rounded-full", {
+const botMissionDotVariants = cva("size-[5px] shrink-0 rounded-full", {
 	variants: {
 		state: {
 			waiting: "bg-bot-badge-attention",
@@ -159,11 +158,11 @@ const BotMissionStrip = ({
 			<span className="sr-only">{t(`roster.mission.state.${state}`)}</span>
 			<Mark
 				aria-hidden="true"
-				className="size-3 shrink-0 text-muted-foreground"
+				className="size-2.5 shrink-0 text-muted-foreground"
 				data-slot="bot-mission-mark"
 			/>
 			{isNamed ? (
-				<span className="shrink-0 font-medium text-foreground/70 tabular-nums">
+				<span className="shrink-0 font-medium tabular-nums">
 					{ticket.externalId}
 				</span>
 			) : null}

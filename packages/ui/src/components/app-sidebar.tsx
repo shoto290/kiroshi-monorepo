@@ -110,11 +110,13 @@ const TRAILING_SLOT = "ml-auto flex shrink-0 items-center gap-1.5"
 
 const NAME_LINE = "flex h-5 min-w-0 items-center gap-1.5"
 
+const ROW_COLUMN = "flex min-w-0 flex-col py-0.5"
+
 const ROW_STACK = "relative flex h-9 min-w-0 flex-col justify-center"
 
 const ROW_ITEM = "flex flex-col gap-1"
 
-const MISSION_STRIPS = "flex flex-col gap-1"
+const MISSION_STRIPS = "flex flex-col gap-0.5"
 
 const PREVIEW_LINE =
 	"h-4 truncate pe-3.5 text-muted-foreground text-xs leading-4 empty:h-0"
@@ -122,7 +124,7 @@ const PREVIEW_LINE =
 const DESTINATION_NAME = "min-w-0 truncate"
 
 const ROW =
-	"py-1.5 pl-1.5 aria-expanded:bg-sidebar-accent/70 group-data-[state=collapsed]/sidebar:pl-0"
+	"items-start py-1.5 pl-1.5 aria-expanded:bg-sidebar-accent/70 group-data-[state=collapsed]/sidebar:pl-0"
 
 const FOOTER_INSET = "group-data-[state=collapsed]/sidebar:px-0"
 
@@ -654,7 +656,6 @@ const BotRosterRow = ({
 				<ContextMenuTrigger>
 					<AnimatedSidebarMenuButton
 						{...lift.handlersFor(bot.id)}
-						below={strips}
 						className={ROW}
 						icon={<BotRowAvatar badge={avatarBadge} bot={bot} />}
 						isActive={isSelected}
@@ -665,37 +666,40 @@ const BotRosterRow = ({
 							onSelect?.(bot.id)
 						}}
 					>
-						<span className={ROW_STACK}>
-							<span className={NAME_LINE}>
-								<span className="truncate" data-slot="roster-row-name">
-									{bot.name}
-								</span>
-								<BotTitleBadge
-									className="max-w-16"
-									data-slot="roster-row-badge"
-									title={bot.title}
-								/>
-								<span className={TRAILING_SLOT}>
-									<span
-										className={TIMESTAMP_SLOT}
-										data-slot="roster-row-timestamp"
-									>
-										{bot.timestamp}
+						<span className={ROW_COLUMN}>
+							<span className={ROW_STACK}>
+								<span className={NAME_LINE}>
+									<span className="truncate" data-slot="roster-row-name">
+										{bot.name}
+									</span>
+									<BotTitleBadge
+										className="max-w-16"
+										data-slot="roster-row-badge"
+										title={bot.title}
+									/>
+									<span className={TRAILING_SLOT}>
+										<span
+											className={TIMESTAMP_SLOT}
+											data-slot="roster-row-timestamp"
+										>
+											{bot.timestamp}
+										</span>
 									</span>
 								</span>
+								<RowPreview isWorking={working}>
+									{working
+										? t("roster.working", { pose: t(`roster.pose.${pose}`) })
+										: bot.lastMessage && toPlainText(bot.lastMessage)}
+								</RowPreview>
+								{rowBadge ? (
+									<BotBadgeDot
+										badge={rowBadge}
+										data-slot="bot-activity-dot"
+										placement="row"
+									/>
+								) : null}
 							</span>
-							<RowPreview isWorking={working}>
-								{working
-									? t("roster.working", { pose: t(`roster.pose.${pose}`) })
-									: bot.lastMessage && toPlainText(bot.lastMessage)}
-							</RowPreview>
-							{rowBadge ? (
-								<BotBadgeDot
-									badge={rowBadge}
-									data-slot="bot-activity-dot"
-									placement="row"
-								/>
-							) : null}
+							{strips}
 						</span>
 					</AnimatedSidebarMenuButton>
 				</ContextMenuTrigger>
@@ -813,7 +817,6 @@ const ConversationRosterRow = ({
 				<ContextMenuTrigger>
 					<AnimatedSidebarMenuButton
 						{...lift.handlersFor(conversation.id)}
-						below={strips}
 						className={ROW}
 						icon={
 							<AvatarGroup
@@ -830,30 +833,33 @@ const ConversationRosterRow = ({
 							onSelect?.(conversation.id)
 						}}
 					>
-						<span className={ROW_STACK}>
-							<span className={NAME_LINE}>
-								<span className="truncate" data-slot="roster-row-name">
-									{conversation.name}
-								</span>
-								<span className={TRAILING_SLOT}>
-									<span
-										className={TIMESTAMP_SLOT}
-										data-slot="roster-row-timestamp"
-									>
-										{conversation.timestamp}
+						<span className={ROW_COLUMN}>
+							<span className={ROW_STACK}>
+								<span className={NAME_LINE}>
+									<span className="truncate" data-slot="roster-row-name">
+										{conversation.name}
+									</span>
+									<span className={TRAILING_SLOT}>
+										<span
+											className={TIMESTAMP_SLOT}
+											data-slot="roster-row-timestamp"
+										>
+											{conversation.timestamp}
+										</span>
 									</span>
 								</span>
+								<RowPreview isWorking={Boolean(workingBotOf(conversation))}>
+									{previewOf(t, conversation)}
+								</RowPreview>
+								{rowBadge ? (
+									<BotBadgeDot
+										badge={rowBadge}
+										data-slot="bot-activity-dot"
+										placement="row"
+									/>
+								) : null}
 							</span>
-							<RowPreview isWorking={Boolean(workingBotOf(conversation))}>
-								{previewOf(t, conversation)}
-							</RowPreview>
-							{rowBadge ? (
-								<BotBadgeDot
-									badge={rowBadge}
-									data-slot="bot-activity-dot"
-									placement="row"
-								/>
-							) : null}
+							{strips}
 						</span>
 					</AnimatedSidebarMenuButton>
 				</ContextMenuTrigger>
