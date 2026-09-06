@@ -176,28 +176,38 @@ const EVENT: MissionEvent = {
 	id: "e-1",
 	missionId: "m-1",
 	kind: "note",
-	source: "claude-code",
+	source: "bot",
 	payload: null,
 	createdAt: 1_700_000_000_000,
 }
 
-it("lets an event speak when its payload holds a text string", () => {
-	const [model] = toMissionEventModels([
-		{ ...EVENT, payload: { text: "The branch is pushed." } },
+it("lets an event speak through the payload key its writer emits", () => {
+	const spoken = toMissionEventModels([
+		{ ...EVENT, payload: { line: "The branch is pushed." } },
+		{ ...EVENT, id: "e-2", payload: { message: "Which branch answers?" } },
+		{ ...EVENT, id: "e-3", payload: { question: "Which branch answers?" } },
+		{ ...EVENT, id: "e-4", payload: { summary: "The parser is rewritten." } },
 	])
 
-	expect(model?.text).toBe("The branch is pushed.")
+	expect(spoken.map(({ text }) => text)).toEqual([
+		"The branch is pushed.",
+		"Which branch answers?",
+		"Which branch answers?",
+		"The parser is rewritten.",
+	])
 })
 
-it("keeps an event silent when its payload holds no text", () => {
+it("keeps an event silent when its payload holds no spoken key", () => {
 	const models = toMissionEventModels([
 		EVENT,
 		{ ...EVENT, id: "e-2", payload: {} },
-		{ ...EVENT, id: "e-3", payload: { text: 42 } },
+		{ ...EVENT, id: "e-3", payload: { line: 42 } },
 		{ ...EVENT, id: "e-4", payload: "The branch is pushed." },
+		{ ...EVENT, id: "e-5", payload: { outcome: "done" } },
 	])
 
 	expect(models.map(({ text }) => text)).toEqual([
+		undefined,
 		undefined,
 		undefined,
 		undefined,
@@ -210,7 +220,7 @@ it("carries the kind, the source and the time of every event", () => {
 		{
 			id: "e-1",
 			kind: "note",
-			source: "claude-code",
+			source: "bot",
 			createdAt: 1_700_000_000_000,
 			text: undefined,
 		},

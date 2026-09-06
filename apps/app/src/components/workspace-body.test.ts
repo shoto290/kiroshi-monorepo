@@ -123,7 +123,7 @@ const eventOf = (
 	id: `e-${kind}-${createdAt}`,
 	missionId: "m-1",
 	kind,
-	source: "linear",
+	source: "bot",
 	payload,
 	createdAt,
 })
@@ -373,7 +373,7 @@ describe("WorkspaceBody missions", () => {
 		await openMission()
 		readMission.mockResolvedValue({
 			mission,
-			events: [eventOf("note", A_MINUTE, { text: "Two files touched." })],
+			events: [eventOf("note", A_MINUTE, { line: "Two files touched." })],
 		})
 		await announce()
 		await settle()
@@ -398,7 +398,7 @@ describe("WorkspaceBody missions", () => {
 
 		await screen.findAllByText(READ_FAILURE_TITLE)
 		expect(missionHeader()).toBeTruthy()
-		expect(screen.getByText("linear opened the mission")).toBeTruthy()
+		expect(screen.getByText(/Mission opened by/)).toBeTruthy()
 	})
 
 	it("returns to the conversation the mission was opened from", async () => {

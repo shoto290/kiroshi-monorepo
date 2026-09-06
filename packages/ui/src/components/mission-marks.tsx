@@ -38,6 +38,25 @@ const missionToolMark = (tool: string): MissionMark =>
 const isNamedMissionTool = (tool: string): boolean =>
 	namedMark(MISSION_TOOL_MARK, tool) !== undefined
 
+type MissionSourceKind = "bot" | "reader" | "agent" | "github" | "unknown"
+
+const MISSION_SOURCE_KIND: Record<string, MissionSourceKind> = {
+	bot: "bot",
+	human: "reader",
+	"agent-hook": "agent",
+	github: "github",
+}
+
+const missionSourceKind = (source: string): MissionSourceKind => {
+	const key = markKeyOf(source)
+	return Object.hasOwn(MISSION_SOURCE_KIND, key)
+		? MISSION_SOURCE_KIND[key]
+		: "unknown"
+}
+
+const missionAgentTool = (tools: string[]): string | undefined =>
+	tools.find(isNamedMissionTool)
+
 const missionTicketPlatform = (platform: string): MissionTicketPlatform => {
 	const mark = namedMark(MISSION_TICKET_PLATFORM_MARK, platform)
 	return { Mark: mark ?? Icons.Bookmark, isNamed: mark !== undefined }
@@ -149,11 +168,15 @@ const MissionTicketLine = ({
 
 export {
 	isNamedMissionTool,
+	type MissionMark,
+	type MissionSourceKind,
 	MissionTicketLine,
 	type MissionTicketLineProps,
 	type MissionTicketPlatform,
 	MissionToolMark,
 	type MissionToolMarkProps,
+	missionAgentTool,
+	missionSourceKind,
 	missionTicketPlatform,
 	missionTicketPlatformMark,
 	missionToolMark,

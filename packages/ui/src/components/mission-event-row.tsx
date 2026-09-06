@@ -1,3 +1,4 @@
+import type { TFunction } from "i18next"
 import { useTranslation } from "react-i18next"
 
 import { BotTitleBadge } from "@workspace/ui/components/badge"
@@ -12,8 +13,10 @@ import type {
 	MissionEventModel,
 } from "@workspace/ui/components/mission"
 import {
-	isNamedMissionTool,
-	MissionToolMark,
+	type MissionMark,
+	missionAgentTool,
+	missionSourceKind,
+	missionToolMark,
 } from "@workspace/ui/components/mission-marks"
 import { toRelativeTime } from "@workspace/ui/lib/relative-time"
 
@@ -21,11 +24,55 @@ const MISSION_EVENT_GUTTER_SIZE = 40
 
 type MissionEventRowProps = {
 	event: MissionEventModel
-	bot: MissionBot
+	tools: string[]
+	bot?: MissionBot
 	now: number
 }
 
-type MissionEventTimeProps = Omit<MissionEventRowProps, "bot">
+type MissionEventFace = {
+	label: string
+	Mark?: MissionMark
+}
+
+type MissionEventFaceProps = {
+	source: string
+	tools: string[]
+	bot?: MissionBot
+	t: TFunction<"chat">
+}
+
+const missionEventFace = ({
+	source,
+	tools,
+	bot,
+	t,
+}: MissionEventFaceProps): MissionEventFace => {
+	const kind = missionSourceKind(source)
+
+	if (kind === "bot") {
+		return { label: bot?.name ?? t("missions.event.source.bot") }
+	}
+
+	if (kind === "agent") {
+		const tool = missionAgentTool(tools)
+
+		return tool
+			? { label: tool, Mark: missionToolMark(tool) }
+			: {
+					label: t("missions.event.source.agent"),
+					Mark: missionToolMark(source),
+				}
+	}
+
+	const named = kind === "unknown" ? source : t(`missions.event.source.${kind}`)
+
+	return { label: named, Mark: missionToolMark(source) }
+}
+
+type MissionEventTimeProps = {
+	event: MissionEventModel
+	now: number
+}
 
 const MissionEventTime = ({ event, now }: MissionEventTimeProps) => {
 	const { i18n } = useTranslation("chat")
@@ -40,7 +87,11 @@ const MissionEventTime = ({ event, now }: MissionEventTimeProps) => {
 	)
 }
 
-const MissionMachineLine = ({ event, now }: MissionEventTimeProps) => {
+type MissionEventLineProps = MissionEventTimeProps & {
+	label: string
+}
+
+const MissionMachineLine = ({ event, label, now }: MissionEventLineProps) => {
 	const { t } = useTranslation("chat")
 
 	return (
@@ -53,7 +104,7 @@ const MissionMachineLine = ({ event, now }: MissionEventTimeProps) => {
 				className="size-[5px] shrink-0 rounded-full bg-muted-foreground/45"
 			/>
 			<span className="min-w-0 flex-1 truncate">
-				{t(`missions.event.line.${event.kind}`, { source: event.source })}
+				{t(`missions.event.line.${event.kind}`, { source: label })}
 			</span>
 			<MissionEventTime event={event} now={now} />
 		</p>
@@ -61,19 +112,22 @@ const MissionMachineLine = ({ event, now }: MissionEventTimeProps) => {
 }
 
 type MissionEventGutterProps = {
-	source: string
-	bot: MissionBot
+	Mark?: MissionMark
+	bot?: MissionBot
 }
 
-const MissionEventGutter = ({ source, bot }: MissionEventGutterProps) => {
-	if (isNamedMissionTool(source)) {
+const MissionEventGutter = ({ Mark, bot }: MissionEventGutterProps) => {
+	if (Mark) {
 		return (
 			<span
 				className="grid size-10 shrink-0 place-items-center rounded-full bg-muted"
 				data-gutter="tool"
 				data-slot="mission-event-gutter"
 			>
-				<MissionToolMark className="size-[18px]" tool={source} />
+				<Mark
+					aria-hidden="true"
+					className="size-[18px] text-muted-foreground"
+				/>
 			</span>
 		)
 	}
@@ -85,18 +139,28 @@ const MissionEventGutter = ({ source, bot }: MissionEventGutterProps) => {
 			data-slot="mission-event-gutter"
 		>
 			<BotIdentityAvatar
-				animal={bot.animal}
-				blot={bot.blot}
-				image={bot.image}
-				name={bot.name}
-				seed={bot.seed}
+				animal={bot?.animal}
+				blot={bot?.blot}
+				image={bot?.image}
+				name={bot?.name}
+				seed={bot?.seed}
 				size={MISSION_EVENT_GUTTER_SIZE}
 			/>
 		</span>
 	)
 }
 
-const MissionAuthoredEvent = ({ event, bot, now }: MissionEventRowProps) => {
+type MissionAuthoredEventProps = MissionEventTimeProps & {
+	face: MissionEventFace
+	bot?: MissionBot
+}
+
+const MissionAuthoredEvent = ({
+	event,
+	face,
+	bot,
+	now,
+}: MissionAuthoredEventProps) => {
 	const { t } = useTranslation("chat")
 
 	return (
@@ -104,11 +168,11 @@ const MissionAuthoredEvent = ({ event, bot, now }: MissionEventRowProps) => {
 			className="flex w-full min-w-0 items-end gap-2"
 			data-slot="mission-authored-event"
 		>
-			<MissionEventGutter bot={bot} source={event.source} />
+			<MissionEventGutter Mark={face.Mark} bot={bot} />
 			<div className="flex min-w-0 max-w-[75%] flex-col gap-1">
 				<MessageHeader className="min-w-0">
 					<span className="min-w-0 truncate font-medium text-foreground/80">
-						{event.source}
+						{face.label}
 					</span>
 					<BotTitleBadge
 						className={
@@ -128,14 +192,19 @@ const MissionAuthoredEvent = ({ event, bot, now }: MissionEventRowProps) => {
 	)
 }
 
-const MissionEventRow = ({ event, bot, now }: MissionEventRowProps) => (
-	<div className="w-full min-w-0" data-slot="mission-event-row">
-		{event.text === undefined ? (
-			<MissionMachineLine event={event} now={now} />
-		) : (
-			<MissionAuthoredEvent bot={bot} event={event} now={now} />
-		)}
-	</div>
-)
+const MissionEventRow = ({ event, tools, bot, now }: MissionEventRowProps) => {
+	const { t } = useTranslation("chat")
+	const face = missionEventFace({ source: event.source, tools, bot, t })
+
+	return (
+		<div className="w-full min-w-0" data-slot="mission-event-row">
+			{event.text === undefined ? (
+				<MissionMachineLine event={event} label={face.label} now={now} />
+			) : (
+				<MissionAuthoredEvent bot={bot} event={event} face={face} now={now} />
+			)}
+		</div>
+	)
+}
 
 export { MissionEventRow, type MissionEventRowProps }

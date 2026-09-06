@@ -515,15 +515,21 @@ const chat = {
 			done: "Done",
 		},
 		event: {
+			source: {
+				bot: "The bot",
+				reader: "You",
+				agent: "The coding agent",
+				github: "GitHub",
+			},
 			line: {
-				opened: "{{source}} opened the mission",
-				note: "{{source}} recorded a note",
-				agent_asked: "{{source}} sent a question to the agent",
-				answered: "{{source}} answered",
-				escalated: "{{source}} escalated to a human",
-				ready: "{{source}} marked the mission ready to merge",
-				failed: "{{source}} reported the mission failed",
-				closed: "{{source}} closed the mission",
+				opened: "Mission opened by {{source}}",
+				note: "Note recorded by {{source}}",
+				agent_asked: "Question sent to the agent by {{source}}",
+				answered: "Answer sent to the agent",
+				escalated: "Escalated to a human by {{source}}",
+				ready: "Marked ready to merge by {{source}}",
+				failed: "Failure reported by {{source}}",
+				closed: "Mission closed by {{source}}",
 			},
 			kind: {
 				opened: "Opened",
@@ -542,6 +548,7 @@ const chat = {
 		header: {
 			tools: "Tools",
 			back: "Back to the conversation",
+			openedAt: "opened {{time}}",
 		},
 		feed: {
 			label: "Mission thread",

@@ -150,6 +150,23 @@ export const Empty = meta.story({
 	},
 })
 
+export const WithoutATool = meta.story({
+	args: { tools: [] },
+	parameters: {
+		docs: {
+			description: {
+				story:
+					"A mission carrying a ticket and no tool. Check that the rule that separates the ticket from the tool marks is left out rather than drawn against nothing, and that the opening time keeps the trailing edge. Pick `Default` for the band that draws both.",
+			},
+		},
+	},
+	play: async ({ canvasElement }) => {
+		await expect(slotsIn(canvasElement, "mission-ticket-line")).toHaveLength(1)
+		await expect(slotsIn(canvasElement, "mission-ticket-rule")).toHaveLength(0)
+		await expect(slotsIn(canvasElement, "mission-tool-mark")).toHaveLength(0)
+	},
+})
+
 export const LongContent = meta.story({
 	args: {
 		bot: { ...MISSION_BOT, name: "Anastasia Konstantinopoulou-Whitfield" },

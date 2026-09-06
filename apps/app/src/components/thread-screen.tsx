@@ -624,20 +624,24 @@ const withMissionCards = ({
 type MissionEventRowsProps = {
 	runRows: TranscriptItem[]
 	placed: PlacedMissionEvent[]
-	bot: MissionBot
+	tools: string[]
+	bot?: MissionBot
 	now: number
 }
 
 const withMissionEvents = ({
 	runRows,
 	placed,
+	tools,
 	bot,
 	now,
 }: MissionEventRowsProps): TranscriptItem[] =>
 	interleavedWithRuns(runRows, placed, ({ event }) => [
 		{
 			key: `mission-event-${event.id}`,
-			render: () => <MissionEventRow bot={bot} event={event} now={now} />,
+			render: () => (
+				<MissionEventRow bot={bot} event={event} now={now} tools={tools} />
+			),
 		},
 	])
 
@@ -959,21 +963,21 @@ function ThreadView({
 	const missionFace = missionSeat
 		? present.find(({ id }) => id === missionSeat.mission.botId)
 		: undefined
-	const transcriptRows =
-		missionSeat && missionFace
-			? withMissionEvents({
-					bot: toMissionFace(missionFace),
-					now: missionSeat.now,
-					placed: placeMissionEvents(runs, missionSeat.events),
-					runRows,
-				})
-			: withMissionCards({
-					authors,
-					faceOf,
-					onOpen: onOpenMission,
-					placed: placeMissions(runs, missions.missions),
-					runRows,
-				})
+	const transcriptRows = missionSeat
+		? withMissionEvents({
+				bot: missionFace ? toMissionFace(missionFace) : undefined,
+				now: missionSeat.now,
+				placed: placeMissionEvents(runs, missionSeat.events),
+				runRows,
+				tools: missionSeat.mission.tools,
+			})
+		: withMissionCards({
+				authors,
+				faceOf,
+				onOpen: onOpenMission,
+				placed: placeMissions(runs, missions.missions),
+				runRows,
+			})
 	const refusedTarget = repliedToRefusal
 		? quotes.get(repliedToRefusal)
 		: undefined

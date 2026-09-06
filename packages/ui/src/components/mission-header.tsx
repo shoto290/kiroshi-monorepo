@@ -44,6 +44,7 @@ const MissionHeader = ({
 }: MissionHeaderProps) => {
 	const { t, i18n } = useTranslation("chat")
 	const hasTicket = Boolean(ticket.externalId || ticket.title)
+	const hasTools = tools.length > 0
 
 	return (
 		<div
@@ -81,17 +82,15 @@ const MissionHeader = ({
 				className="flex h-8.5 shrink-0 items-center gap-2 border-border border-b pe-4 ps-12.5"
 				data-slot="mission-ticket-band"
 			>
-				{hasTicket ? (
-					<>
-						<MissionTicketLine layout="line" ticket={ticket} />
-						<span
-							aria-hidden="true"
-							className="h-3 w-px shrink-0 bg-border"
-							data-slot="mission-ticket-rule"
-						/>
-					</>
+				{hasTicket ? <MissionTicketLine layout="line" ticket={ticket} /> : null}
+				{hasTicket && hasTools ? (
+					<span
+						aria-hidden="true"
+						className="h-3 w-px shrink-0 bg-border"
+						data-slot="mission-ticket-rule"
+					/>
 				) : null}
-				{tools.length > 0 ? (
+				{hasTools ? (
 					<ul
 						aria-label={t("missions.header.tools")}
 						className="flex shrink-0 items-center gap-2"
@@ -107,7 +106,9 @@ const MissionHeader = ({
 					className="ms-auto shrink-0 text-[11px] text-muted-foreground leading-4 tabular-nums"
 					dateTime={new Date(openedAt).toISOString()}
 				>
-					{toRelativeTime(openedAt, i18n.language, now)}
+					{t("missions.header.openedAt", {
+						time: toRelativeTime(openedAt, i18n.language, now),
+					})}
 				</time>
 			</div>
 		</div>

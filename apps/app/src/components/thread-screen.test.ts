@@ -661,14 +661,14 @@ const MISSION_SAID: SpokenTurn = {
 const MISSION_OPENED: MissionEventModel = {
 	id: "e-opened",
 	kind: "opened",
-	source: "linear",
+	source: "bot",
 	createdAt: A_MINUTE,
 }
 
 const MISSION_ESCALATED: MissionEventModel = {
 	id: "e-escalated",
 	kind: "escalated",
-	source: "linear",
+	source: "bot",
 	createdAt: 3 * A_MINUTE,
 	text: "The parser needs a decision.",
 }
@@ -1526,7 +1526,7 @@ describe("ThreadScreen", () => {
 		const rows = transcriptRows()
 
 		expect(rows).toHaveLength(3)
-		expect(rows[0]).toContain("linear opened the mission")
+		expect(rows[0]).toContain("Mission opened by")
 		expect(rows[1]).toContain(MISSION_SAID.text)
 		expect(rows[2]).toContain(MISSION_ESCALATED.text)
 	})
@@ -1536,7 +1536,7 @@ describe("ThreadScreen", () => {
 		render(screenOf(room.thread, room.bots))
 		await settle()
 
-		expect(screen.getByText("linear opened the mission")).toBeTruthy()
+		expect(screen.getByText(/Mission opened by/)).toBeTruthy()
 		expect(
 			document.querySelector('[data-slot="conversation-empty-state"]'),
 		).toBeNull()
