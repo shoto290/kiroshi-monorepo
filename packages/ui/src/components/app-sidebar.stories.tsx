@@ -202,14 +202,14 @@ const stripStatesIn = (row: HTMLElement) =>
 const dotIn = (row: HTMLElement) => slotIn(row, "bot-mission-dot")
 
 const dotBoxIn = (row: HTMLElement) => {
-	const box = dotIn(row).getBoundingClientRect()
+	const { width, height } = dotIn(row).getBoundingClientRect()
 
-	return [box.width, box.height]
+	return [width, height]
 }
 
-const DOT_SIZE = 5
-
 const BARE_ROW_HEIGHT = 52
+
+const DOT_SIZE = 5
 
 const STRIP_HEIGHT = 20
 
