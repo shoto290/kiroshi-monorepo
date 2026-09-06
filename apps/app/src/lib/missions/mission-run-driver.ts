@@ -273,12 +273,25 @@ export const startMissionRunDriver = ({
 		await thread.send(missionSummonsFor(state))
 	}
 
+	const answerWhenAsked = async (mission: Mission) => {
+		if (mission.state !== "waiting_bot") {
+			return
+		}
+
+		try {
+			await missions.answered(mission.id, mission.stateSeq)
+		} catch (thrown) {
+			raiseFailure(`the answer could not be recorded: ${detailOf(thrown)}`)
+		}
+	}
+
 	const take = async ({
 		mission,
 		events,
 	}: MissionDetail): Promise<MissionState | null> => {
 		if (isSummonedMissionState(mission.state)) {
 			await summon(mission, mission.state)
+			await answerWhenAsked(mission)
 			return mission.state
 		}
 

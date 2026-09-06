@@ -365,6 +365,40 @@ describe("startMissionRunDriver", () => {
 		expect(harness.originStarts()).toEqual([])
 	})
 
+	it("records the answer with the seq the waiting_bot summon was taken on", async () => {
+		await harness.enter("waiting_bot")
+
+		expect(harness.missions.answers).toEqual([
+			[harness.mission.id, harness.standingSeq()],
+		])
+	})
+
+	it("records no answer when the summon cannot read the bot", async () => {
+		await restart({
+			store: { bots: () => Promise.reject(new Error("no bot")) },
+		})
+
+		await harness.enter("waiting_bot")
+
+		expect(harness.missions.answers).toEqual([])
+		expect(harness.reportFailure).toHaveBeenCalledTimes(1)
+	})
+
+	it("records no answer for a summon taken on working", async () => {
+		await harness.enter("working")
+
+		expect(harness.missions.answers).toEqual([])
+	})
+
+	it("raises a failure notice when the answer cannot be recorded", async () => {
+		vi.spyOn(console, "error").mockImplementation(() => undefined)
+		harness.missions.refuseAnswered()
+
+		await harness.enter("waiting_bot")
+
+		expect(harness.reportFailure).toHaveBeenCalledTimes(1)
+	})
+
 	it("summons nobody when the thread of a mission entering working carries a message", async () => {
 		await harness.enter("working")
 		await harness.enter("waiting_human")
