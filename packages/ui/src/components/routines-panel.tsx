@@ -334,12 +334,12 @@ const RoutinesPanelBody = ({
 					slot="missions-earlierToday"
 					title={t("activity.missions.group.earlierToday")}
 				>
-					{missions.earlierToday.map(({ kind, ...row }) =>
-						kind === "run" ? (
-							<ReportedRunRow {...(row as ReportedRunRowModel)} key={row.id} />
+					{missions.earlierToday.map((row) =>
+						row.kind === "run" ? (
+							<ReportedRunRow {...row} key={row.id} />
 						) : (
 							<MissionRow
-								{...(row as MissionRowModel)}
+								{...row}
 								key={row.id}
 								onOpen={() => missions.onOpen(row.id)}
 							/>

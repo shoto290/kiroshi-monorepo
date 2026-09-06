@@ -96,7 +96,7 @@ const closedTodayEntries = (
 				row: {
 					kind: "mission",
 					...toMissionRow(mission, face, TIME_OF_DAY.format(mission.closedAt)),
-				} satisfies EarlierTodayRow,
+				},
 			},
 		]
 	})
@@ -122,7 +122,7 @@ const reportedTodayEntries = (
 					triggerSourceTitle: run.triggerSourceTitle,
 					bot: toMissionFace(face),
 					timestamp: TIME_OF_DAY.format(run.at),
-				} satisfies EarlierTodayRow,
+				},
 			},
 		]
 	})
