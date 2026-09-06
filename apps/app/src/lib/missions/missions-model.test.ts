@@ -25,6 +25,7 @@ import type { ReportedRunRead } from "@/lib/routines/routines-model"
 
 const missionIn = (state: MissionState): Mission => ({
 	id: `m-${state}`,
+	stateSeq: 1,
 	originConversationId: "c-1",
 	botId: "b-1",
 	threadConversationId: "c-mission-1",
@@ -230,6 +231,7 @@ const mission = (over: Partial<Mission>): Mission => ({
 	},
 	tools: [],
 	state: "working",
+	stateSeq: 1,
 	openedAt: 1,
 	closedAt: null,
 	reportedAt: null,

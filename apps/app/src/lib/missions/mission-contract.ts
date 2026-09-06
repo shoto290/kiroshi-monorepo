@@ -54,6 +54,7 @@ export type Mission = {
 	ticket: Ticket
 	tools: string[]
 	state: MissionState
+	stateSeq: number
 	openedAt: number
 	closedAt: number | null
 	reportedAt: number | null
@@ -107,4 +108,5 @@ export type MissionError =
 export type MissionChanged = {
 	missionId: string
 	state: MissionState
+	stateSeq: number
 }

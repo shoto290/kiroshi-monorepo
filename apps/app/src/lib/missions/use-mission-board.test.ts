@@ -50,7 +50,11 @@ const onBoard = (id: string): MissionOnBoard => ({
 const FIRST_BOARD = [onBoard("m-1")]
 const NEXT_BOARD = [onBoard("m-1"), onBoard("m-2")]
 
-const A_CHANGE: MissionChanged = { missionId: "m-2", state: "working" }
+const A_CHANGE: MissionChanged = {
+	missionId: "m-2",
+	state: "working",
+	stateSeq: 1,
+}
 
 describe("useMissionBoard", () => {
 	beforeEach(() => {

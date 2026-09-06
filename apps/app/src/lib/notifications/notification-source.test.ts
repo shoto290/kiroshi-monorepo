@@ -231,7 +231,7 @@ const start = async (
 const escalate = async (harness: Harness, state: MissionState) => {
 	const mission = aMission({ botId: "bot-one", state })
 	harness.missions.hold({ mission, events: [] })
-	harness.missions.change({ missionId: mission.id, state })
+	harness.missions.change({ missionId: mission.id, state, stateSeq: 2 })
 	await Promise.resolve()
 	await Promise.resolve()
 }
@@ -735,6 +735,7 @@ describe("startNotificationSource on missions", () => {
 		harness.missions.change({
 			missionId: "mission-1",
 			state: "waiting_human",
+			stateSeq: 2,
 		})
 		await Promise.resolve()
 		await Promise.resolve()

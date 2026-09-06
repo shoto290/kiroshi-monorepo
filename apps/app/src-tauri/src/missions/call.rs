@@ -352,16 +352,16 @@ mod tests {
 			.collect()
 	}
 
-	async fn state_of(app: &App<MockRuntime>, mission_id: &str) -> MissionState {
+	async fn state_of(app: &App<MockRuntime>, mission_id: &str) -> (MissionState, i64) {
 		let state = app.state::<db::DatabaseState>();
-		ready(&state)
+		let held = ready(&state)
 			.expect("the database opens")
 			.missions()
 			.detail(mission_id.to_owned())
 			.await
 			.expect("the mission reads")
-			.mission
-			.state
+			.mission;
+		(held.state, held.state_seq)
 	}
 
 	#[tokio::test]
@@ -374,9 +374,10 @@ mod tests {
 		let held = answered(webhook.address(), calling(Some(A_KEY), None, A_BODY)).await;
 
 		assert_eq!(held, answer(ACCEPTED));
+		let (state, state_seq) = state_of(&app, &mission.id).await;
 		assert_eq!(
 			announced(&received),
-			vec![json!({ "missionId": mission.id, "state": state_of(&app, &mission.id).await })],
+			vec![json!({ "missionId": mission.id, "state": state, "stateSeq": state_seq })],
 			"the front was not told the hook moved the mission"
 		);
 
