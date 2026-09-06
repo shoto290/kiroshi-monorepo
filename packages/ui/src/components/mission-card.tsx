@@ -76,10 +76,9 @@ type MissionTicketLineProps = {
 }
 
 const MissionTicketLine = ({ ticket }: MissionTicketLineProps) => {
-	const Mark = missionTicketPlatformMark(ticket.platform)
-
 	if (!ticket.externalId && !ticket.title) return null
 
+	const Mark = missionTicketPlatformMark(ticket.platform)
 	const line = (
 		<>
 			<Mark aria-hidden="true" className="size-3 shrink-0" />
