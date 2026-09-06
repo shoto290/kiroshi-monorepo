@@ -65,6 +65,7 @@ import {
 import { createOpenedMissionController } from "@/lib/missions/opened-mission-controller"
 import { useMissionBoard } from "@/lib/missions/use-mission-board"
 import { useMissionRunDriver } from "@/lib/missions/use-mission-run-driver"
+import { useWaitingMissions } from "@/lib/missions/use-waiting-missions"
 import { useNotifications } from "@/lib/notifications/use-notifications"
 import { useRunDriver } from "@/lib/routines/use-run-driver"
 import { useCollapsedSections } from "@/lib/sections/use-collapsed-sections"
@@ -187,6 +188,14 @@ export function App() {
 	})
 
 	const missionBoard = useMissionBoard()
+	const openMissions = useMemo(
+		() => missionBoard.map(({ mission }) => mission),
+		[missionBoard],
+	)
+	const waitingMissionIds = useWaitingMissions(
+		conversationRuntimes,
+		openMissions,
+	)
 
 	const conversationBadges = useConversationBadges({
 		runtimes: conversationRuntimes,
@@ -214,8 +223,8 @@ export function App() {
 		(conversation) => conversation.id === settingsConversationId,
 	)
 	const missions = useMemo(
-		() => missionsByRow(missionBoard, conversations),
-		[missionBoard, conversations],
+		() => missionsByRow(missionBoard, conversations, waitingMissionIds),
+		[missionBoard, conversations, waitingMissionIds],
 	)
 
 	const [isCreatingConversation, setIsCreatingConversation] = useState(false)

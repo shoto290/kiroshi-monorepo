@@ -34,6 +34,7 @@ const common = {
 		permission: "Wants your permission",
 		finishedTurn: "Finished its turn",
 		mission: {
+			question: "Asked you a question on {{ticket}}",
 			waiting_human: "Needs you on {{ticket}}",
 			ready_to_merge: "{{ticket}} is ready to merge",
 		},

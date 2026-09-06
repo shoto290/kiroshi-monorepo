@@ -8,13 +8,19 @@ import type {
 	MissionOnBoard,
 	MissionState,
 } from "./mission-contract"
-import { isReportOwedBy, missionRunOutputSchemaFor } from "./mission-run-output"
+import { MISSION_RUN_OUTPUT_SCHEMA } from "./mission-run-output"
 import {
 	type MissionRunCall,
 	type MissionRunCause,
 	missionRunPromptFor,
 } from "./mission-run-prompt"
 import { createMissionSeqs } from "./mission-seqs"
+import {
+	isSummonedMissionState,
+	missionSummonsFor,
+	type SummonedMissionState,
+} from "./mission-summons"
+import { toMissionConversation } from "./mission-thread-model"
 
 import type {
 	RuntimeScope,
@@ -26,6 +32,7 @@ import type { ChatController } from "../chat/chat-controller"
 import { isSameRuntimeScope } from "../chat/chat-state"
 import type { ChatDriver } from "../chat/driver"
 import { needsFreshSession } from "../chat/screen-model"
+import type { ConversationController } from "../conversations/conversation-controller"
 import type { ConversationRuntimes } from "../conversations/conversation-runtimes"
 import type { TranscriptStore } from "../conversations/store-port"
 import { readRunReport } from "../routines/run-output"
@@ -57,7 +64,7 @@ export type MissionRunDriverOptions = {
 		| "shutdown"
 		| "subscribe"
 	>
-	store: Pick<TranscriptStore, "openRuntimeSession" | "mainChat">
+	store: Pick<TranscriptStore, "openRuntimeSession" | "mainChat" | "bots">
 	runtimes: Pick<ConversationRuntimes, "runtimeFor">
 	chat: Pick<ChatController, "reportRun">
 	missions: MissionRunPort
@@ -72,22 +79,12 @@ type LiveMissionRun = {
 }
 
 const CAUSE_OF_STATE: Partial<Record<MissionState, MissionRunCause>> = {
-	waiting_bot: "answer",
 	done: "done",
 	failed: "failed",
 }
 
-const ORIGIN_CAUSES: MissionRunCause[] = ["done", "failed"]
-
-const isOnOrigin = (cause: MissionRunCause) => ORIGIN_CAUSES.includes(cause)
-
-const conversationOf = ({ cause, mission }: MissionRunCall) =>
-	isOnOrigin(cause)
-		? mission.originConversationId
-		: mission.threadConversationId
-
-const carriesRunCause = ({ mission }: Pick<MissionOnBoard, "mission">) =>
-	Boolean(CAUSE_OF_STATE[mission.state])
+const isTakenState = (state: MissionState) =>
+	isSummonedMissionState(state) || Boolean(CAUSE_OF_STATE[state])
 
 const detailOf = (thrown: unknown) =>
 	thrown instanceof Error ? thrown.message : String(thrown)
@@ -104,12 +101,6 @@ const listening = (
 		console.error(label, reason)
 		return () => undefined
 	})
-
-const callFor = ({ mission, events }: MissionDetail): MissionRunCall | null => {
-	const cause = CAUSE_OF_STATE[mission.state]
-
-	return cause ? { cause, mission, events } : null
-}
 
 export const startMissionRunDriver = ({
 	driver,
@@ -187,11 +178,7 @@ export const startMissionRunDriver = ({
 		await refuse(held, "the mission run outlived its deadline")
 	}
 
-	const rosterBlockOf = async ({ cause, mission }: MissionRunCall) => {
-		if (!isOnOrigin(cause)) {
-			return null
-		}
-
+	const rosterBlockOf = async ({ mission }: MissionRunCall) => {
 		try {
 			return await missions.rosterBlock(
 				mission.originConversationId,
@@ -205,7 +192,7 @@ export const startMissionRunDriver = ({
 
 	const openScope = async (call: MissionRunCall) => {
 		const opened = await store.openRuntimeSession(
-			conversationOf(call),
+			call.mission.originConversationId,
 			call.mission.botId,
 			now(),
 			null,
@@ -232,7 +219,7 @@ export const startMissionRunDriver = ({
 				scope,
 				undefined,
 				undefined,
-				missionRunOutputSchemaFor(call.cause),
+				MISSION_RUN_OUTPUT_SCHEMA,
 			)
 			await driver.submitPrompt(scope, missionRunPromptFor(call))
 		} catch (thrown) {
@@ -252,6 +239,73 @@ export const startMissionRunDriver = ({
 		}
 	}
 
+	const readBot = async (botId: string) => {
+		try {
+			const seated = (await store.bots()).find(({ id }) => id === botId)
+
+			if (!seated) {
+				throw new Error(`no bot answers ${botId}`)
+			}
+
+			return seated
+		} catch (thrown) {
+			throw new Error(`the mission bot could not be read: ${detailOf(thrown)}`)
+		}
+	}
+
+	const carriesNoMessage = (thread: ConversationController) =>
+		thread.getState().messages.length === 0
+
+	const isSummonsDue = (
+		state: SummonedMissionState,
+		thread: ConversationController,
+	) => state === "waiting_bot" || carriesNoMessage(thread)
+
+	const summon = async (mission: Mission, state: SummonedMissionState) => {
+		const bot = await readBot(mission.botId)
+		const thread = runtimes.runtimeFor(mission.threadConversationId)
+		await thread.open(toMissionConversation({ mission, bot }))
+
+		if (!isSummonsDue(state, thread)) {
+			return
+		}
+
+		await thread.send(missionSummonsFor(state))
+	}
+
+	const answerWhenAsked = async (mission: Mission) => {
+		if (mission.state !== "waiting_bot") {
+			return
+		}
+
+		try {
+			await missions.answered(mission.id, mission.stateSeq)
+		} catch (thrown) {
+			raiseFailure(`the answer could not be recorded: ${detailOf(thrown)}`)
+		}
+	}
+
+	const take = async ({
+		mission,
+		events,
+	}: MissionDetail): Promise<MissionState | null> => {
+		if (isSummonedMissionState(mission.state)) {
+			await summon(mission, mission.state)
+			await answerWhenAsked(mission)
+			return mission.state
+		}
+
+		const cause = CAUSE_OF_STATE[mission.state]
+
+		if (!cause) {
+			return null
+		}
+
+		const call: MissionRunCall = { cause, mission, events }
+		await begin({ ...call, rosterBlock: await rosterBlockOf(call) })
+		return mission.state
+	}
+
 	const consider = async (changed: MissionChanged) => {
 		if (isBusy(changed.missionId)) {
 			kept.set(changed.missionId, changed)
@@ -262,20 +316,18 @@ export const startMissionRunDriver = ({
 			return
 		}
 
-		if (!CAUSE_OF_STATE[changed.state]) {
+		if (!isTakenState(changed.state)) {
 			seqs.remember(changed.missionId, changed.stateSeq)
 			return
 		}
 
 		holding.add(changed.missionId)
 		try {
-			const call = callFor(await readMission(changed.missionId))
-			if (!call) {
-				return
-			}
+			const detail = await readMission(changed.missionId)
 
-			await begin({ ...call, rosterBlock: await rosterBlockOf(call) })
-			seqs.remember(changed.missionId, call.mission.stateSeq)
+			if (await take(detail)) {
+				seqs.remember(changed.missionId, detail.mission.stateSeq)
+			}
 		} catch (thrown) {
 			raiseFailure(detailOf(thrown))
 		} finally {
@@ -303,7 +355,7 @@ export const startMissionRunDriver = ({
 
 	const writeReport = async ({ call, scope }: LiveMissionRun, text: string) => {
 		const { mission } = call
-		const conversationId = conversationOf(call)
+		const conversationId = mission.originConversationId
 		const reporter = await reporterOf(conversationId, mission.botId)
 
 		return reporter.reportRun({
@@ -317,10 +369,6 @@ export const startMissionRunDriver = ({
 	}
 
 	const readSettledMission = async ({ call }: LiveMissionRun) => {
-		if (!isReportOwedBy(call.cause)) {
-			return null
-		}
-
 		try {
 			const { mission } = await readMission(call.mission.id)
 			return mission
@@ -381,21 +429,8 @@ export const startMissionRunDriver = ({
 		return settled
 	}
 
-	const answerWhenAsked = async ({ call }: LiveMissionRun) => {
-		if (call.cause !== "answer") {
-			return
-		}
-
-		try {
-			await missions.answered(call.mission.id, call.mission.stateSeq)
-		} catch (thrown) {
-			raiseFailure(`the answer could not be recorded: ${detailOf(thrown)}`)
-		}
-	}
-
 	const settle = async (held: LiveMissionRun, ended: TurnEnded) => {
 		const settled = await endOn(held)
-		await answerWhenAsked(held)
 
 		if (ended.outcome !== "completed") {
 			return raiseFailure(`the mission run's turn was ${ended.outcome}`)
@@ -467,7 +502,11 @@ export const startMissionRunDriver = ({
 	}
 
 	const catchUpOnOpenMissions = async () => {
-		startRunsFor((await missions.board()).filter(carriesRunCause))
+		startRunsFor(
+			(await missions.board()).filter(({ mission }) =>
+				isTakenState(mission.state),
+			),
+		)
 	}
 
 	const catchUpOnUnreportedMissions = async () => {

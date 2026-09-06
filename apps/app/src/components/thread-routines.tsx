@@ -9,6 +9,10 @@ import { useRosterClock } from "@/lib/bots/use-roster-clock"
 import type { ThreadNaming } from "@/lib/chat/use-thread-roster"
 import { toMissionRows } from "@/lib/missions/missions-model"
 import type { ConversationMissionsRead } from "@/lib/missions/use-missions"
+import {
+	type MissionThreadRuntimes,
+	useWaitingMissions,
+} from "@/lib/missions/use-waiting-missions"
 import { useRoutines } from "@/lib/routines/use-routines"
 
 type ActivityPanel = {
@@ -21,6 +25,7 @@ type ThreadRoutinesProps = {
 	conversationId: string | null
 	leadBotId?: string
 	missions: ConversationMissionsRead
+	runtimes: MissionThreadRuntimes
 	faceOf: ThreadNaming["faceOf"]
 	onOpenMission: (missionId: string) => void
 	children: ReactNode
@@ -42,6 +47,7 @@ const ThreadRoutines = ({
 	conversationId,
 	leadBotId,
 	missions,
+	runtimes,
 	faceOf,
 	onOpenMission,
 	children,
@@ -57,6 +63,7 @@ const ThreadRoutines = ({
 		form,
 		detail,
 	} = useRoutines(conversationId, leadBotId)
+	const waitingMissionIds = useWaitingMissions(runtimes, missions.open)
 	const rows = useMemo(
 		() =>
 			toMissionRows({
@@ -64,9 +71,17 @@ const ThreadRoutines = ({
 				closed: missions.closed,
 				reportedRuns,
 				faceOf,
+				waitingMissionIds,
 				now,
 			}),
-		[missions.open, missions.closed, reportedRuns, faceOf, now],
+		[
+			missions.open,
+			missions.closed,
+			reportedRuns,
+			faceOf,
+			waitingMissionIds,
+			now,
+		],
 	)
 
 	const reloadActivity = () => {

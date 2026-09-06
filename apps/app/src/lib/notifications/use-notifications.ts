@@ -40,6 +40,7 @@ export const useNotifications = ({
 				roster,
 				spaces,
 				missions: {
+					board: missionsTransport.board,
 					onChanged: missionsTransport.onChanged,
 					detail: missionsTransport.detail,
 					open: missions.open,

@@ -133,6 +133,7 @@ export function WorkspaceBody(props: WorkspaceBodyProps) {
 			drafts={props.drafts}
 			onOpenMission={openMission}
 			readerName={props.readerName}
+			runtimes={props.conversationRuntimes}
 			thread={thread}
 		/>
 	)

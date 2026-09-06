@@ -41,8 +41,10 @@ export type ConversationWorkers = Record<string, ConversationWorker[]>
 
 const NO_WORKERS: ConversationWorker[] = []
 
-const useHeldRecord = <Value>(
-	runtimes: ConversationRuntimes,
+export type SubscribableRuntimes = Pick<ConversationRuntimes, "subscribe">
+
+export const useHeldRecord = <Value>(
+	runtimes: SubscribableRuntimes,
 	conversationIds: string[],
 	readFor: (conversationId: string) => Value,
 	signOf: (value: Value) => string,
