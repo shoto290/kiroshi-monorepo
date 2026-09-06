@@ -185,11 +185,10 @@ const spokenTextOf = (payload: unknown): string | undefined => {
 	}
 
 	const held = payload as Record<string, unknown>
-	const spoken = SPOKEN_KEYS.map((key) => held[key]).find(
-		(value) => typeof value === "string" && value.length > 0,
-	)
 
-	return typeof spoken === "string" ? spoken : undefined
+	return SPOKEN_KEYS.map((key) => held[key]).find(
+		(value): value is string => typeof value === "string" && value.length > 0,
+	)
 }
 
 export const toMissionEventModels = (

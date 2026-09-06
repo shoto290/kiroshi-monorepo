@@ -178,6 +178,5 @@ export {
 	missionAgentTool,
 	missionSourceKind,
 	missionTicketPlatform,
-	missionTicketPlatformMark,
 	missionToolMark,
 }
