@@ -198,6 +198,12 @@ const WORKSPACE_SIDEBAR = (
 
 const CARD_GUTTER = 4
 
+const renderInShell = (args: RoutinesPanelProps) => (
+	<WorkspaceShell sidebar={WORKSPACE_SIDEBAR}>
+		<PanelHost {...args} />
+	</WorkspaceShell>
+)
+
 const handleIn = (canvasElement: HTMLElement, side: string) =>
 	canvasElement.querySelector<HTMLElement>(
 		`[data-slot="sidebar-resize-handle"][data-side="${side}"]`,
@@ -764,11 +770,7 @@ export const InWorkspaceShell = meta.story({
 			},
 		},
 	},
-	render: (args) => (
-		<WorkspaceShell sidebar={WORKSPACE_SIDEBAR}>
-			<PanelHost {...args} />
-		</WorkspaceShell>
-	),
+	render: renderInShell,
 	play: async ({ canvas, canvasElement, userEvent }) => {
 		const workspace = canvas.getByRole("complementary", { name: "Workspace" })
 		const widthBefore = workspace.getBoundingClientRect().width
@@ -815,11 +817,10 @@ const cardIn = (canvasElement: HTMLElement) => {
 	return cards[cards.length - 1] as HTMLElement
 }
 
-const panelSurfaceIn = (panel: HTMLElement) =>
-	panel.querySelector<HTMLElement>('[data-slot="sidebar-panel"]') as HTMLElement
-
 const expectPanelOnShellSurface = async (panel: HTMLElement) => {
-	const surface = panelSurfaceIn(panel)
+	const surface = panel.querySelector<HTMLElement>(
+		'[data-slot="sidebar-panel"]',
+	) as HTMLElement
 	const painted = getComputedStyle(surface)
 
 	await expect(paintOf(surface)).toBe(TRANSPARENT)
@@ -841,9 +842,11 @@ const expectCardFramed = async (card: HTMLElement) => {
 	await expect(paintOf(card)).not.toBe(TRANSPARENT)
 }
 
+const activityPanelIn = (canvasElement: HTMLElement) =>
+	within(canvasElement).getByRole("complementary", { name: "Activity" })
+
 const expectShellSurfaceAround = async (canvasElement: HTMLElement) => {
-	const canvas = within(canvasElement)
-	const panel = canvas.getByRole("complementary", { name: "Activity" })
+	const panel = activityPanelIn(canvasElement)
 	const card = cardIn(canvasElement)
 
 	await expectPanelOnShellSurface(panel)
@@ -869,11 +872,7 @@ export const OnShellSurfaceOpen = meta.story({
 		a11y: A11Y_CONTRAST_AWAITING_DESIGN_DECISION,
 		docs: { description: { story: OPEN_ON_SHELL_SURFACE } },
 	},
-	render: (args) => (
-		<WorkspaceShell sidebar={WORKSPACE_SIDEBAR}>
-			<PanelHost {...args} />
-		</WorkspaceShell>
-	),
+	render: renderInShell,
 	play: async ({ canvasElement }) => {
 		await expectShellSurfaceAround(canvasElement)
 	},
@@ -886,19 +885,14 @@ export const OnShellSurfaceOpenDark = meta.story({
 		a11y: A11Y_CONTRAST_AWAITING_DESIGN_DECISION,
 		docs: { description: { story: OPEN_ON_SHELL_SURFACE } },
 	},
-	render: (args) => (
-		<WorkspaceShell sidebar={WORKSPACE_SIDEBAR}>
-			<PanelHost {...args} />
-		</WorkspaceShell>
-	),
+	render: renderInShell,
 	play: async ({ canvasElement }) => {
 		await expectShellSurfaceAround(canvasElement)
 	},
 })
 
 const expectShellSurfaceWithoutPanel = async (canvasElement: HTMLElement) => {
-	const canvas = within(canvasElement)
-	const panel = canvas.getByRole("complementary", { name: "Activity" })
+	const panel = activityPanelIn(canvasElement)
 	const card = cardIn(canvasElement)
 
 	await expectPanelOnShellSurface(panel)
@@ -920,11 +914,7 @@ export const OnShellSurfaceClosed = meta.story({
 		a11y: A11Y_CONTRAST_AWAITING_DESIGN_DECISION,
 		docs: { description: { story: CLOSED_ON_SHELL_SURFACE } },
 	},
-	render: (args) => (
-		<WorkspaceShell sidebar={WORKSPACE_SIDEBAR}>
-			<PanelHost {...args} />
-		</WorkspaceShell>
-	),
+	render: renderInShell,
 	play: async ({ canvasElement }) => {
 		await expectShellSurfaceWithoutPanel(canvasElement)
 	},
@@ -937,11 +927,7 @@ export const OnShellSurfaceClosedDark = meta.story({
 		a11y: A11Y_CONTRAST_AWAITING_DESIGN_DECISION,
 		docs: { description: { story: CLOSED_ON_SHELL_SURFACE } },
 	},
-	render: (args) => (
-		<WorkspaceShell sidebar={WORKSPACE_SIDEBAR}>
-			<PanelHost {...args} />
-		</WorkspaceShell>
-	),
+	render: renderInShell,
 	play: async ({ canvasElement }) => {
 		await expectShellSurfaceWithoutPanel(canvasElement)
 	},

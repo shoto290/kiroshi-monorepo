@@ -11,7 +11,9 @@ const CONTENT = (
 )
 
 const cardsIn = (canvasElement: HTMLElement) =>
-	Array.from(canvasElement.querySelectorAll<HTMLElement>("[data-content-card]"))
+	Array.from(
+		canvasElement.querySelectorAll<HTMLElement>("[data-content-card]"),
+	) as [HTMLElement, HTMLElement]
 
 const expectCarriesCard = async (card: HTMLElement) => {
 	const painted = getComputedStyle(card)
@@ -57,8 +59,7 @@ export const Default = meta.story({
 	},
 	play: async ({ canvasElement }) => {
 		const [card] = cardsIn(canvasElement)
-		await expect(card).toBeDefined()
-		if (card) await expectCarriesCard(card)
+		await expectCarriesCard(card)
 	},
 })
 
@@ -82,10 +83,6 @@ export const WithNestedCard = meta.story({
 	},
 	play: async ({ canvasElement }) => {
 		const [outer, inner] = cardsIn(canvasElement)
-		await expect(outer).toBeDefined()
-		await expect(inner).toBeDefined()
-		if (!(outer && inner)) return
-
 		const yielded = getComputedStyle(outer)
 		await expect(yielded.borderTopWidth).toBe("0px")
 		await expect(yielded.borderStartStartRadius).toBe("0px")
