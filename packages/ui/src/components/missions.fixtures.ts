@@ -3,7 +3,7 @@ import type {
 	MissionBot,
 	MissionCardModel,
 	MissionEventModel,
-	MissionTicket,
+	MissionTicketLink,
 } from "@workspace/ui/components/mission"
 import type { MissionRowModel } from "@workspace/ui/components/mission-row"
 import type { ReportedRunRowModel } from "@workspace/ui/components/reported-run-row"
@@ -156,10 +156,17 @@ export const MISSION_NOW = new Date("2026-03-04T09:30:00Z").getTime()
 
 const minutesBefore = (minutes: number) => MISSION_NOW - minutes * 60_000
 
-export const MISSION_TICKET: MissionTicket = {
+export const MISSION_TICKET: MissionTicketLink = {
 	externalId: "OPE-30",
 	title: "Mission thread screen and mission card in the origin",
+	platform: "linear",
+	url: "https://linear.example/opennest/issue/OPE-30",
 }
+
+export const MISSION_OBJECTIVE =
+	"Render the mission thread header and its event rows"
+
+export const MISSION_OPENED_AT = MISSION_NOW - 5_400_000
 
 export const MISSION_TOOLS = ["Repository", "Terminal", "Web search"]
 

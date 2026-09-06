@@ -1,0 +1,160 @@
+import type { ComponentType } from "react"
+
+import { type IconProps, Icons } from "@workspace/ui/components/icons"
+import type { MissionTicketLink } from "@workspace/ui/components/mission"
+import { cn } from "@workspace/ui/lib/utils"
+
+type MissionMark = ComponentType<IconProps>
+
+const MISSION_TOOL_MARK: Record<string, MissionMark> = {
+	github: Icons.GitHub,
+	paper: Icons.Paper,
+	superset: Icons.Superset,
+}
+
+const MISSION_TICKET_PLATFORM_MARK: Record<string, MissionMark> = {
+	github: Icons.GitHub,
+	linear: Icons.Linear,
+}
+
+const markKeyOf = (name: string) => name.trim().toLowerCase()
+
+const namedMark = (
+	table: Record<string, MissionMark>,
+	name: string,
+): MissionMark | undefined => {
+	const key = markKeyOf(name)
+	return Object.hasOwn(table, key) ? table[key] : undefined
+}
+
+type MissionTicketPlatform = {
+	Mark: MissionMark
+	isNamed: boolean
+}
+
+const missionToolMark = (tool: string): MissionMark =>
+	namedMark(MISSION_TOOL_MARK, tool) ?? Icons.Tool
+
+const isNamedMissionTool = (tool: string): boolean =>
+	namedMark(MISSION_TOOL_MARK, tool) !== undefined
+
+const missionTicketPlatform = (platform: string): MissionTicketPlatform => {
+	const mark = namedMark(MISSION_TICKET_PLATFORM_MARK, platform)
+	return { Mark: mark ?? Icons.Bookmark, isNamed: mark !== undefined }
+}
+
+const missionTicketPlatformMark = (platform: string): MissionMark =>
+	missionTicketPlatform(platform).Mark
+
+type MissionToolMarkProps = {
+	tool: string
+	className?: string
+}
+
+const MissionToolMark = ({ tool, className }: MissionToolMarkProps) => {
+	const Mark = missionToolMark(tool)
+
+	return (
+		<span
+			aria-label={tool}
+			className={cn(
+				"inline-flex size-4 shrink-0 items-center justify-center text-muted-foreground",
+				className,
+			)}
+			data-slot="mission-tool-mark"
+			role="img"
+		>
+			<Mark aria-hidden="true" className="size-full" />
+		</span>
+	)
+}
+
+type MissionTicketLayout = "wrap" | "line"
+
+type MissionTicketLineStyle = {
+	root: string
+	mark: string
+	identifier: string
+	title: string
+}
+
+const MISSION_TICKET_LINE_STYLE: Record<
+	MissionTicketLayout,
+	MissionTicketLineStyle
+> = {
+	wrap: {
+		root: "flex w-fit max-w-full flex-wrap items-center gap-x-1.5 text-muted-foreground text-xs",
+		mark: "size-3",
+		identifier: "",
+		title: "wrap-break-word",
+	},
+	line: {
+		root: "flex min-w-0 items-center gap-1.5 text-xs leading-4",
+		mark: "size-[11px] text-muted-foreground",
+		identifier: "text-foreground",
+		title: "truncate text-muted-foreground",
+	},
+}
+
+type MissionTicketLineProps = {
+	ticket: MissionTicketLink
+	layout?: MissionTicketLayout
+}
+
+const MissionTicketLine = ({
+	ticket,
+	layout = "wrap",
+}: MissionTicketLineProps) => {
+	const Mark = missionTicketPlatformMark(ticket.platform)
+	const style = MISSION_TICKET_LINE_STYLE[layout]
+	const line = (
+		<>
+			<Mark aria-hidden="true" className={cn("shrink-0", style.mark)} />
+			{ticket.externalId ? (
+				<span
+					className={cn("shrink-0 font-medium tabular-nums", style.identifier)}
+				>
+					{ticket.externalId}
+				</span>
+			) : null}
+			{ticket.title ? (
+				<span className={cn("min-w-0", style.title)}>{ticket.title}</span>
+			) : null}
+		</>
+	)
+
+	if (!ticket.url) {
+		return (
+			<span className={style.root} data-slot="mission-ticket-line">
+				{line}
+			</span>
+		)
+	}
+
+	return (
+		<a
+			className={cn(
+				"relative rounded-sm outline-none focus-visible:ring-2 focus-visible:ring-ring",
+				style.root,
+			)}
+			data-slot="mission-ticket-line"
+			href={ticket.url}
+			rel="noreferrer noopener"
+			target="_blank"
+		>
+			{line}
+		</a>
+	)
+}
+
+export {
+	isNamedMissionTool,
+	MissionTicketLine,
+	type MissionTicketLineProps,
+	type MissionTicketPlatform,
+	MissionToolMark,
+	type MissionToolMarkProps,
+	missionTicketPlatform,
+	missionTicketPlatformMark,
+	missionToolMark,
+}

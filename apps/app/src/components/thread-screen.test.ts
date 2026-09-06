@@ -1526,7 +1526,7 @@ describe("ThreadScreen", () => {
 		const rows = transcriptRows()
 
 		expect(rows).toHaveLength(3)
-		expect(rows[0]).toContain("Mission opened")
+		expect(rows[0]).toContain("linear opened the mission")
 		expect(rows[1]).toContain(MISSION_SAID.text)
 		expect(rows[2]).toContain(MISSION_ESCALATED.text)
 	})
@@ -1536,7 +1536,7 @@ describe("ThreadScreen", () => {
 		render(screenOf(room.thread, room.bots))
 		await settle()
 
-		expect(screen.getByText("Mission opened")).toBeTruthy()
+		expect(screen.getByText("linear opened the mission")).toBeTruthy()
 		expect(
 			document.querySelector('[data-slot="conversation-empty-state"]'),
 		).toBeNull()

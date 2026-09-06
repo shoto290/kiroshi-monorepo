@@ -398,7 +398,7 @@ describe("WorkspaceBody missions", () => {
 
 		await screen.findAllByText(READ_FAILURE_TITLE)
 		expect(missionHeader()).toBeTruthy()
-		expect(screen.getByText("Mission opened")).toBeTruthy()
+		expect(screen.getByText("linear opened the mission")).toBeTruthy()
 	})
 
 	it("returns to the conversation the mission was opened from", async () => {

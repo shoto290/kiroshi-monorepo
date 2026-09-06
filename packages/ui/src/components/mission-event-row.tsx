@@ -1,25 +1,38 @@
 import { useTranslation } from "react-i18next"
 
 import { BotTitleBadge } from "@workspace/ui/components/badge"
+import { BotIdentityAvatar } from "@workspace/ui/components/bot-identity-avatar"
 import { MessageHeader } from "@workspace/ui/components/message"
 import {
 	MessageBubble,
 	MessageBubbleContent,
 } from "@workspace/ui/components/message-bubble"
-import type { MissionEventModel } from "@workspace/ui/components/mission"
+import type {
+	MissionBot,
+	MissionEventModel,
+} from "@workspace/ui/components/mission"
+import {
+	isNamedMissionTool,
+	MissionToolMark,
+} from "@workspace/ui/components/mission-marks"
 import { toRelativeTime } from "@workspace/ui/lib/relative-time"
+
+const MISSION_EVENT_GUTTER_SIZE = 40
 
 type MissionEventRowProps = {
 	event: MissionEventModel
+	bot: MissionBot
 	now: number
 }
 
-const MissionEventTime = ({ event, now }: MissionEventRowProps) => {
+type MissionEventTimeProps = Omit<MissionEventRowProps, "bot">
+
+const MissionEventTime = ({ event, now }: MissionEventTimeProps) => {
 	const { i18n } = useTranslation("chat")
 
 	return (
 		<time
-			className="ms-auto shrink-0 tabular-nums"
+			className="ms-auto shrink-0 text-[11px] leading-4 tabular-nums"
 			dateTime={new Date(event.createdAt).toISOString()}
 		>
 			{toRelativeTime(event.createdAt, i18n.language, now)}
@@ -27,54 +40,102 @@ const MissionEventTime = ({ event, now }: MissionEventRowProps) => {
 	)
 }
 
-const MissionMachineLine = ({ event, now }: MissionEventRowProps) => {
+const MissionMachineLine = ({ event, now }: MissionEventTimeProps) => {
 	const { t } = useTranslation("chat")
 
 	return (
 		<p
-			className="flex w-full min-w-0 items-center gap-1.5 text-muted-foreground text-xs"
+			className="flex h-5 w-full min-w-0 items-center gap-2 px-1 text-muted-foreground text-xs leading-4"
 			data-slot="mission-machine-line"
 		>
-			<span className="max-w-24 truncate font-medium">{event.source}</span>
+			<span
+				aria-hidden="true"
+				className="size-[5px] shrink-0 rounded-full bg-muted-foreground/45"
+			/>
 			<span className="min-w-0 flex-1 truncate">
-				{t(`missions.event.${event.kind}`)}
+				{t(`missions.event.line.${event.kind}`, { source: event.source })}
 			</span>
 			<MissionEventTime event={event} now={now} />
 		</p>
 	)
 }
 
-const MissionAuthoredEvent = ({ event, now }: MissionEventRowProps) => {
+type MissionEventGutterProps = {
+	source: string
+	bot: MissionBot
+}
+
+const MissionEventGutter = ({ source, bot }: MissionEventGutterProps) => {
+	if (isNamedMissionTool(source)) {
+		return (
+			<span
+				className="grid size-10 shrink-0 place-items-center rounded-full bg-muted"
+				data-gutter="tool"
+				data-slot="mission-event-gutter"
+			>
+				<MissionToolMark className="size-[18px]" tool={source} />
+			</span>
+		)
+	}
+
+	return (
+		<span
+			className="flex shrink-0"
+			data-gutter="bot"
+			data-slot="mission-event-gutter"
+		>
+			<BotIdentityAvatar
+				animal={bot.animal}
+				blot={bot.blot}
+				image={bot.image}
+				name={bot.name}
+				seed={bot.seed}
+				size={MISSION_EVENT_GUTTER_SIZE}
+			/>
+		</span>
+	)
+}
+
+const MISSION_EVENT_KIND_BADGE: Partial<
+	Record<MissionEventModel["kind"], string>
+> = {
+	agent_asked: "bg-bot-badge-attention/18",
+}
+
+const MissionAuthoredEvent = ({ event, bot, now }: MissionEventRowProps) => {
 	const { t } = useTranslation("chat")
 
 	return (
 		<div
-			className="flex w-full min-w-0 flex-col gap-1"
+			className="flex w-full min-w-0 items-end gap-2"
 			data-slot="mission-authored-event"
 		>
-			<MessageHeader className="min-w-0 flex-wrap">
-				<span className="max-w-32 truncate font-medium text-foreground/80">
-					{event.source}
-				</span>
-				<BotTitleBadge
-					className="max-w-40"
-					title={t(`missions.event.${event.kind}`)}
-				/>
-				<MissionEventTime event={event} now={now} />
-			</MessageHeader>
-			<MessageBubble variant="soft">
-				<MessageBubbleContent>{event.text}</MessageBubbleContent>
-			</MessageBubble>
+			<MissionEventGutter bot={bot} source={event.source} />
+			<div className="flex min-w-0 max-w-[75%] flex-col gap-1">
+				<MessageHeader className="min-w-0">
+					<span className="min-w-0 truncate font-medium text-foreground/80">
+						{event.source}
+					</span>
+					<BotTitleBadge
+						className={MISSION_EVENT_KIND_BADGE[event.kind]}
+						title={t(`missions.event.kind.${event.kind}`)}
+					/>
+					<MissionEventTime event={event} now={now} />
+				</MessageHeader>
+				<MessageBubble variant="soft">
+					<MessageBubbleContent>{event.text}</MessageBubbleContent>
+				</MessageBubble>
+			</div>
 		</div>
 	)
 }
 
-const MissionEventRow = ({ event, now }: MissionEventRowProps) => (
+const MissionEventRow = ({ event, bot, now }: MissionEventRowProps) => (
 	<div className="w-full min-w-0" data-slot="mission-event-row">
 		{event.text === undefined ? (
 			<MissionMachineLine event={event} now={now} />
 		) : (
-			<MissionAuthoredEvent event={event} now={now} />
+			<MissionAuthoredEvent bot={bot} event={event} now={now} />
 		)}
 	</div>
 )
