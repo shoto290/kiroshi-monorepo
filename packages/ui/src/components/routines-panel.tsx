@@ -24,6 +24,10 @@ import {
 } from "@workspace/ui/components/motion/animated-sidebar"
 import { Notice } from "@workspace/ui/components/notice"
 import {
+	ReportedRunRow,
+	type ReportedRunRowModel,
+} from "@workspace/ui/components/reported-run-row"
+import {
 	ROUTINE_DETAIL_EDIT_OPENER,
 	RoutineDetail,
 	type RoutineDetailModel,
@@ -67,9 +71,13 @@ type RoutinesPanelDetail = {
 	onRunNow: () => void
 }
 
+type EarlierTodayRow =
+	| ({ kind: "mission" } & MissionRowModel)
+	| ({ kind: "run" } & ReportedRunRowModel)
+
 type RoutinesPanelMissions = {
 	open: MissionRowModel[]
-	earlierToday: MissionRowModel[]
+	earlierToday: EarlierTodayRow[]
 	onOpen: (missionId: string) => void
 }
 
@@ -107,34 +115,32 @@ const GROUP_HEAD_CLASS = "flex h-7 items-center gap-1.5 px-1.5"
 const GROUP_FOLD_CLASS =
 	"w-full rounded-lg text-start outline-none transition-colors duration-150 hover:bg-muted/50 focus-visible:ring-3 focus-visible:ring-ring/30 motion-reduce:transition-none"
 
-type MissionGroupFold = {
+type ActivityGroupFold = {
 	isOpen: boolean
 	onToggle: () => void
 }
 
-type MissionGroupProps = {
+type ActivityGroupProps = {
 	slot: string
 	title: string
-	missions: MissionRowModel[]
-	onOpen: (missionId: string) => void
-	fold?: MissionGroupFold
+	count: number
+	fold?: ActivityGroupFold
+	children: ReactNode
 }
 
-const MissionGroup = ({
+const ActivityGroup = ({
 	slot,
 	title,
-	missions,
-	onOpen,
+	count: held,
 	fold,
-}: MissionGroupProps) => {
+	children,
+}: ActivityGroupProps) => {
 	const titleId = useId()
 	const listId = useId()
 	const isUnfolded = fold ? fold.isOpen : true
 
 	const count = (
-		<span className="text-muted-foreground text-xs tabular-nums">
-			{missions.length}
-		</span>
+		<span className="text-muted-foreground text-xs tabular-nums">{held}</span>
 	)
 
 	return (
@@ -172,13 +178,7 @@ const MissionGroup = ({
 				</div>
 			)}
 			<ul className="flex flex-col gap-0.5" hidden={!isUnfolded} id={listId}>
-				{missions.map((mission) => (
-					<MissionRow
-						{...mission}
-						key={mission.id}
-						onOpen={() => onOpen(mission.id)}
-					/>
-				))}
+				{children}
 			</ul>
 		</section>
 	)
@@ -308,26 +308,44 @@ const RoutinesPanelBody = ({
 				if (held.length === 0) return null
 
 				return (
-					<MissionGroup
+					<ActivityGroup
+						count={held.length}
 						key={key}
-						missions={held}
-						onOpen={missions.onOpen}
 						slot={`missions-${key}`}
 						title={t(`activity.missions.group.${key}`)}
-					/>
+					>
+						{held.map((mission) => (
+							<MissionRow
+								{...mission}
+								key={mission.id}
+								onOpen={() => missions.onOpen(mission.id)}
+							/>
+						))}
+					</ActivityGroup>
 				)
 			})}
 			{missions.earlierToday.length > 0 ? (
-				<MissionGroup
+				<ActivityGroup
+					count={missions.earlierToday.length}
 					fold={{
 						isOpen: isEarlierTodayOpen,
 						onToggle: () => setEarlierTodayOpen((shown) => !shown),
 					}}
-					missions={missions.earlierToday}
-					onOpen={missions.onOpen}
 					slot="missions-earlierToday"
 					title={t("activity.missions.group.earlierToday")}
-				/>
+				>
+					{missions.earlierToday.map(({ kind, ...row }) =>
+						kind === "run" ? (
+							<ReportedRunRow {...(row as ReportedRunRowModel)} key={row.id} />
+						) : (
+							<MissionRow
+								{...(row as MissionRowModel)}
+								key={row.id}
+								onOpen={() => missions.onOpen(row.id)}
+							/>
+						),
+					)}
+				</ActivityGroup>
 			) : null}
 		</>
 	)
@@ -562,6 +580,7 @@ const RoutinesPanelTrigger = (props: AnimatedSidebarTriggerProps) => {
 }
 
 export {
+	type EarlierTodayRow,
 	ROUTINES_PANEL_WIDTH,
 	type RoutinesFailure,
 	RoutinesPanel,

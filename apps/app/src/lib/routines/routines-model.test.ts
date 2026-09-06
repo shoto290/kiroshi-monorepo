@@ -1,11 +1,12 @@
 import { describe, expect, it } from "vitest"
 
-import type { Routine } from "./routine-contract"
+import type { Routine, RoutineRun, RunOutcome } from "./routine-contract"
 import {
 	botIdsOf,
 	toFilter,
 	toFormFilter,
 	toKnownSources,
+	toReportedRuns,
 	toRoutineRows,
 } from "./routines-model"
 import type { Filter, PayloadField, TriggerSource } from "./trigger-contract"
@@ -85,6 +86,53 @@ describe("toRoutineRows", () => {
 				known,
 			)[0].hasStoppedItself,
 		).toBe(false)
+	})
+})
+
+const run = (over: Partial<RoutineRun>): RoutineRun => ({
+	id: "run-1",
+	routineId: "r-1",
+	startedAt: 1_700_000_000_000,
+	endedAt: 1_700_000_060_000,
+	outcome: "ok",
+	reason: null,
+	costUsd: null,
+	modelUsage: null,
+	...over,
+})
+
+describe("toReportedRuns", () => {
+	const known = toKnownSources([{ botId: "b-1", sources: [SCHEDULE] }])
+	const reportedOf = (runs: RoutineRun[]) =>
+		toReportedRuns([{ routine: routine({}), runs }], known)
+
+	it("reads a run that reported as the row of the Earlier today group", () => {
+		expect(reportedOf([run({})])).toEqual([
+			{
+				id: "run-1",
+				routineTitle: "Nightly report",
+				triggerSourceTitle: SCHEDULE.title,
+				botId: "b-1",
+				at: 1_700_000_060_000,
+			},
+		])
+	})
+
+	it("leaves out a run whose outcome is not ok", () => {
+		const outcomes: (RunOutcome | null)[] = [
+			"nothing",
+			"skipped",
+			"failed",
+			null,
+		]
+
+		expect(
+			outcomes.flatMap((outcome) => reportedOf([run({ outcome })])),
+		).toEqual([])
+	})
+
+	it("dates a run that never ended by the time it started", () => {
+		expect(reportedOf([run({ endedAt: null })])[0]?.at).toBe(1_700_000_000_000)
 	})
 })
 

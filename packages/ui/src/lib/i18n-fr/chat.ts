@@ -329,6 +329,9 @@ const chat = {
 			title: "Routines",
 			back: "Retour à l'activité",
 		},
+		runs: {
+			reported: "rapporté",
+		},
 		empty: {
 			title: "Rien ne tourne ici",
 			description:

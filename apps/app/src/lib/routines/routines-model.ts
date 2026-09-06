@@ -50,6 +50,10 @@ export const toKnownSources = (
 		),
 	)
 
+const triggerSourceTitleOf = (routine: Routine, known: KnownSources): string =>
+	known.get(sourceKeyOf(routine.botId, routine.triggerSourceId))?.title ??
+	routine.triggerSourceId
+
 export const toRoutineRows = (
 	routines: Routine[],
 	known: KnownSources,
@@ -57,12 +61,39 @@ export const toRoutineRows = (
 	routines.map((routine) => ({
 		id: routine.id,
 		title: routine.title,
-		triggerSourceTitle:
-			known.get(sourceKeyOf(routine.botId, routine.triggerSourceId))?.title ??
-			routine.triggerSourceId,
+		triggerSourceTitle: triggerSourceTitleOf(routine, known),
 		isEnabled: routine.isEnabled,
 		hasStoppedItself: !routine.isEnabled && routine.consecutiveFailures > 0,
 	}))
+
+export type ReportedRunRead = {
+	id: string
+	routineTitle: string
+	triggerSourceTitle: string
+	botId: string
+	at: number
+}
+
+type RoutineRuns = {
+	routine: Routine
+	runs: RoutineRun[]
+}
+
+export const toReportedRuns = (
+	read: RoutineRuns[],
+	known: KnownSources,
+): ReportedRunRead[] =>
+	read.flatMap(({ routine, runs }) =>
+		runs
+			.filter((run) => run.outcome === "ok")
+			.map((run) => ({
+				id: run.id,
+				routineTitle: routine.title,
+				triggerSourceTitle: triggerSourceTitleOf(routine, known),
+				botId: routine.botId,
+				at: run.endedAt ?? run.startedAt,
+			})),
+	)
 
 const RUN_OUTCOME_NAMES: Record<RunOutcome, RoutineRunOutcome> = {
 	ok: "reported",

@@ -320,6 +320,9 @@ const chat = {
 			title: "Routines",
 			back: "Back to the activity",
 		},
+		runs: {
+			reported: "reported",
+		},
 		empty: {
 			title: "Nothing is running here",
 			description:

@@ -11,6 +11,7 @@ import type {
 	MissionState,
 } from "./mission-contract"
 import {
+	type MissionRowsRead,
 	missionRingBadges,
 	missionsByRow,
 	toMissionEventModels,
@@ -20,6 +21,7 @@ import {
 
 import type { ThreadFace } from "@/lib/chat/thread-contract"
 import type { Bot } from "@/lib/conversations/store-contract"
+import type { ReportedRunRead } from "@/lib/routines/routines-model"
 
 const missionIn = (state: MissionState): Mission => ({
 	id: `m-${state}`,
@@ -57,13 +59,29 @@ const closedAt = (at: number): Mission => ({
 	closedAt: at,
 })
 
+const reportedRun = (over: Partial<ReportedRunRead>): ReportedRunRead => ({
+	id: "run-1",
+	routineTitle: "Nightly report",
+	triggerSourceTitle: "Every day at 08:00",
+	botId: "b-1",
+	at: READ_AT - 7_200_000,
+	...over,
+})
+
+const rowsOf = (read: Partial<MissionRowsRead>) =>
+	toMissionRows({
+		open: [],
+		closed: [],
+		reportedRuns: [],
+		faceOf,
+		now: READ_AT,
+		...read,
+	})
+
 describe("toMissionRows", () => {
 	it("reads an open mission as the row of the activity panel", () => {
-		const { open } = toMissionRows({
+		const { open } = rowsOf({
 			open: [{ ...missionIn("working"), openedAt: READ_AT - 3_600_000 }],
-			closed: [],
-			faceOf,
-			now: READ_AT,
 		})
 
 		expect(open).toEqual([
@@ -83,29 +101,73 @@ describe("toMissionRows", () => {
 	})
 
 	it("keeps only the missions closed since local midnight, at the time they closed", () => {
-		const { earlierToday } = toMissionRows({
-			open: [],
+		const { earlierToday } = rowsOf({
 			closed: [
 				closedAt(READ_AT - 7_200_000),
 				closedAt(READ_AT - 3 * 86_400_000),
 			],
-			faceOf,
-			now: READ_AT,
 		})
 
 		expect(earlierToday).toHaveLength(1)
-		expect(earlierToday[0]?.timestamp).toBe("12:20")
+		expect(earlierToday[0]).toMatchObject({
+			kind: "mission",
+			timestamp: "12:20",
+		})
 	})
 
 	it("leaves out a mission whose bot the conversation does not name", () => {
-		const { open } = toMissionRows({
+		const { open } = rowsOf({
 			open: [{ ...missionIn("working"), botId: "b-unknown" }],
-			closed: [],
-			faceOf,
-			now: READ_AT,
 		})
 
 		expect(open).toEqual([])
+	})
+
+	it("reads a run that reported today as a row of the group", () => {
+		const { earlierToday } = rowsOf({ reportedRuns: [reportedRun({})] })
+
+		expect(earlierToday).toEqual([
+			{
+				kind: "run",
+				id: "run-1",
+				routineTitle: "Nightly report",
+				triggerSourceTitle: "Every day at 08:00",
+				bot: { name: "Ada Martin", animal: "owl", seed: "b-1" },
+				timestamp: "12:20",
+			},
+		])
+	})
+
+	it("leaves out a run that reported before the current local day", () => {
+		const { earlierToday } = rowsOf({
+			reportedRuns: [reportedRun({ at: READ_AT - 86_400_000 })],
+		})
+
+		expect(earlierToday).toEqual([])
+	})
+
+	it("leaves out a run whose bot the conversation does not name", () => {
+		const { earlierToday } = rowsOf({
+			reportedRuns: [reportedRun({ botId: "b-unknown" })],
+		})
+
+		expect(earlierToday).toEqual([])
+	})
+
+	it("orders the closed missions and the reported runs most recent first", () => {
+		const { earlierToday } = rowsOf({
+			closed: [closedAt(READ_AT - 3_600_000)],
+			reportedRuns: [
+				reportedRun({ id: "run-early", at: READ_AT - 7_200_000 }),
+				reportedRun({ id: "run-late", at: READ_AT - 600_000 }),
+			],
+		})
+
+		expect(earlierToday.map((row) => row.id)).toEqual([
+			"run-late",
+			"m-done",
+			"run-early",
+		])
 	})
 })
 

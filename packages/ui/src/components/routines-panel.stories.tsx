@@ -11,9 +11,13 @@ import {
 import { AppHeader } from "@workspace/ui/components/app-header"
 import { Icons } from "@workspace/ui/components/icons"
 import {
-	EARLIER_TODAY_MISSIONS,
+	CLOSED_MISSION,
+	EARLIER_TODAY_ROWS,
+	LATE_REPORTED_RUN,
+	NO_EARLIER_TODAY,
 	NO_MISSIONS,
 	OPEN_MISSIONS,
+	REPORTED_RUN,
 	WAITING_HUMAN_MISSION,
 } from "@workspace/ui/components/missions.fixtures"
 import {
@@ -173,12 +177,19 @@ const NO_ROUTINES: RoutineRowModel[] = []
 
 const NO_MISSION_AT_ALL = {
 	open: NO_MISSIONS,
-	earlierToday: NO_MISSIONS,
+	earlierToday: NO_EARLIER_TODAY,
 	onOpen: fn(),
 }
 
 const shownMissionRows = (canvasElement: HTMLElement) =>
 	slotsIn(canvasElement, "mission-row").filter((row) => row.checkVisibility())
+
+const shownActivityRows = (canvasElement: HTMLElement) =>
+	Array.from(
+		canvasElement.querySelectorAll<HTMLElement>(
+			'[data-slot="mission-row"], [data-slot="reported-run-row"]',
+		),
+	).filter((row) => row.checkVisibility())
 
 const listNamedBy = (head: HTMLElement) => {
 	const listId = head.getAttribute("aria-controls")
@@ -258,7 +269,7 @@ const meta = preview.meta({
 		isOpen: true,
 		missions: {
 			open: OPEN_MISSIONS,
-			earlierToday: EARLIER_TODAY_MISSIONS,
+			earlierToday: EARLIER_TODAY_ROWS,
 			onOpen: fn(),
 		},
 		onDelete: fn(),
@@ -318,7 +329,7 @@ export const OneMission = meta.story({
 	args: {
 		missions: {
 			open: [WAITING_HUMAN_MISSION],
-			earlierToday: NO_MISSIONS,
+			earlierToday: NO_EARLIER_TODAY,
 			onOpen: fn(),
 		},
 	},
@@ -353,7 +364,7 @@ export const EarlierTodayUnfolded = meta.story({
 		docs: {
 			description: {
 				story:
-					"The missions closed since midnight, unfolded from their head. Check that the head reports itself expanded once activated, that the closed rows join the open ones under it, and that a closed row reads muted, with the time of day it closed in place of an age and no badge dot on its blot.",
+					"What the conversation closed and what its routines reported since midnight, unfolded from their head. Check that the head reports itself expanded once activated, that closed missions and reported runs read as one list ordered most recent first, that a closed mission reads muted with the time of day it closed, that a reported run names its routine, its trigger, its bot and the word reported, and that a run row answers no pointer.",
 			},
 		},
 	},
@@ -363,10 +374,36 @@ export const EarlierTodayUnfolded = meta.story({
 
 		await userEvent.click(head)
 		await expect(head).toHaveAttribute("aria-expanded", "true")
-		await expect(shownMissionRows(canvasElement)).toHaveLength(
-			OPEN_MISSIONS.length + EARLIER_TODAY_MISSIONS.length,
+		await expect(shownActivityRows(canvasElement)).toHaveLength(
+			OPEN_MISSIONS.length + EARLIER_TODAY_ROWS.length,
 		)
-		await expect(canvas.getByText("09:12")).toBeVisible()
+
+		const group = within(slotIn(canvasElement, "missions-earlierToday"))
+		await expect(
+			[
+				LATE_REPORTED_RUN.routineTitle,
+				CLOSED_MISSION.objective,
+				REPORTED_RUN.routineTitle,
+			].map((title) => group.getByText(title)),
+		).toHaveLength(3)
+		await expect(
+			group
+				.getByText(LATE_REPORTED_RUN.routineTitle)
+				.compareDocumentPosition(group.getByText(CLOSED_MISSION.objective)),
+		).toBe(Node.DOCUMENT_POSITION_FOLLOWING)
+		await expect(
+			group
+				.getByText(CLOSED_MISSION.objective)
+				.compareDocumentPosition(group.getByText(REPORTED_RUN.routineTitle)),
+		).toBe(Node.DOCUMENT_POSITION_FOLLOWING)
+
+		await expect(group.getByText("09:12")).toBeVisible()
+		await expect(group.getByText(REPORTED_RUN.timestamp)).toBeVisible()
+		await expect(group.getByText(REPORTED_RUN.triggerSourceTitle)).toBeVisible()
+		await expect(group.getAllByText("reported")).toHaveLength(2)
+		await expect(
+			within(slotIn(canvasElement, "reported-run-row")).queryByRole("button"),
+		).not.toBeInTheDocument()
 	},
 })
 
@@ -399,7 +436,7 @@ export const EarlierTodayFoldTarget = meta.story({
 		await expect(listNamedBy(head)).toBe(folded)
 		await expect(folded).toBeVisible()
 		await expect(
-			within(folded).getByText(EARLIER_TODAY_MISSIONS[0].objective),
+			within(folded).getByText(CLOSED_MISSION.objective),
 		).toBeVisible()
 	},
 })

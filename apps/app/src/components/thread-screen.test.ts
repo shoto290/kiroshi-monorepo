@@ -59,6 +59,7 @@ vi.mock("@/lib/routines/routines-transport", async (importOriginal) => {
 			...actual.routinesTransport,
 			list: vi.fn(),
 			update: vi.fn(),
+			runs: vi.fn(),
 		},
 	}
 })
@@ -73,6 +74,7 @@ vi.mock("@/lib/missions/missions-transport", () => ({
 }))
 
 const listRoutines = vi.mocked(routinesTransport.list)
+const listRuns = vi.mocked(routinesTransport.runs)
 const updateRoutine = vi.mocked(routinesTransport.update)
 const listSources = vi.mocked(triggerSourcesTransport.sources)
 const listMissions = vi.mocked(missionsTransport.list)
@@ -660,6 +662,7 @@ describe("ThreadScreen", () => {
 		layout = fakeLayout()
 		vi.clearAllMocks()
 		listRoutines.mockResolvedValue([SOLO_ROUTINE])
+		listRuns.mockResolvedValue([])
 		listSources.mockResolvedValue([SCHEDULE_SOURCE])
 		listMissions.mockResolvedValue({ open: [], done: [] })
 		listenToMissions.mockResolvedValue(() => undefined)

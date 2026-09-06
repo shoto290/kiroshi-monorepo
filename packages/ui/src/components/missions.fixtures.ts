@@ -6,6 +6,8 @@ import type {
 	MissionTicket,
 } from "@workspace/ui/components/mission"
 import type { MissionRowModel } from "@workspace/ui/components/mission-row"
+import type { ReportedRunRowModel } from "@workspace/ui/components/reported-run-row"
+import type { EarlierTodayRow } from "@workspace/ui/components/routines-panel"
 
 export const MISSION_BOT: MissionBot = {
 	name: "Ada Martin",
@@ -111,7 +113,29 @@ export const OPEN_MISSIONS: MissionRowModel[] = [
 	FAILED_MISSION,
 ]
 
-export const EARLIER_TODAY_MISSIONS: MissionRowModel[] = [CLOSED_MISSION]
+export const REPORTED_RUN: ReportedRunRowModel = {
+	id: "run-morning-digest",
+	routineTitle: "Morning digest",
+	triggerSourceTitle: "On a schedule",
+	bot: MISSION_BOT,
+	timestamp: "08:04",
+}
+
+export const LATE_REPORTED_RUN: ReportedRunRowModel = {
+	id: "run-release-watch",
+	routineTitle: "Release watch",
+	triggerSourceTitle: "Watching a file",
+	bot: SHELL_BOT,
+	timestamp: "10:04",
+}
+
+export const EARLIER_TODAY_ROWS: EarlierTodayRow[] = [
+	{ kind: "run", ...LATE_REPORTED_RUN },
+	{ kind: "mission", ...CLOSED_MISSION },
+	{ kind: "run", ...REPORTED_RUN },
+]
+
+export const NO_EARLIER_TODAY: EarlierTodayRow[] = []
 
 export const NO_MISSIONS: MissionRowModel[] = []
 

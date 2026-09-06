@@ -47,17 +47,26 @@ const ThreadRoutines = ({
 	children,
 }: ThreadRoutinesProps) => {
 	const now = useRosterClock()
-	const { routines, failure, reload, setEnabled, remove, form, detail } =
-		useRoutines(conversationId, leadBotId)
+	const {
+		routines,
+		reportedRuns,
+		failure,
+		reload,
+		setEnabled,
+		remove,
+		form,
+		detail,
+	} = useRoutines(conversationId, leadBotId)
 	const rows = useMemo(
 		() =>
 			toMissionRows({
 				open: missions.open,
 				closed: missions.closed,
+				reportedRuns,
 				faceOf,
 				now,
 			}),
-		[missions.open, missions.closed, faceOf, now],
+		[missions.open, missions.closed, reportedRuns, faceOf, now],
 	)
 
 	const reloadActivity = () => {
