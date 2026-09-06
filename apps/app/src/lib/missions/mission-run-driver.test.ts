@@ -56,6 +56,8 @@ type Harness = {
 	reportFailure: ReturnType<typeof vi.fn>
 	stop: () => void
 	hold: (state: MissionState, events?: MissionEvent[]) => void
+	announce: (state: MissionState) => Promise<void>
+	standingSeq: () => number
 	enter: (state: MissionState, events?: MissionEvent[]) => Promise<void>
 	emitAtRun: (event: AgentEvent) => Promise<void>
 	endTurn: (ended: Partial<TurnEnded>) => Promise<void>
@@ -153,10 +155,12 @@ const createHarness = async ({
 		originConversationId: soloOrigin ? soloChat.id : origin.id,
 	})
 
+	let standingSeq = STANDING_SEQ
+
 	const missionAt = (state: MissionState, events: MissionEvent[]): Mission => ({
 		...mission,
 		state,
-		stateSeq: STANDING_SEQ,
+		stateSeq: standingSeq,
 		closedAt: closingInstantOf(events),
 	})
 
@@ -204,10 +208,15 @@ const createHarness = async ({
 		missions.hold({ mission: missionAt(state, events), events })
 	}
 
-	const enter = async (state: MissionState, events = AGENT_ASKED) => {
-		hold(state, events)
-		missions.change({ missionId: mission.id, state, stateSeq: STANDING_SEQ })
+	const announce = async (state: MissionState) => {
+		missions.change({ missionId: mission.id, state, stateSeq: standingSeq })
 		await settled()
+	}
+
+	const enter = async (state: MissionState, events = AGENT_ASKED) => {
+		standingSeq += 1
+		hold(state, events)
+		await announce(state)
 	}
 
 	const emitAtRun = async (event: AgentEvent) => {
@@ -253,6 +262,8 @@ const createHarness = async ({
 		reportFailure,
 		stop,
 		hold,
+		announce,
+		standingSeq: () => standingSeq,
 		enter,
 		emitAtRun,
 		endTurn,
@@ -379,6 +390,35 @@ describe("startMissionRunDriver", () => {
 
 		expect(harness.starts).toHaveLength(1)
 		expect(harness.driver.submissions).toHaveLength(1)
+	})
+
+	it("opens one run per seq when two changes leave the mission on the bot", async () => {
+		await harness.enter("waiting_bot")
+		await harness.endTurn(reported("I cut the branch from main."))
+		await harness.enter("waiting_bot")
+
+		expect(harness.starts).toHaveLength(2)
+		expect(harness.driver.submissions).toHaveLength(2)
+	})
+
+	it("opens no run for a change carrying a seq it already handled", async () => {
+		await harness.enter("waiting_bot")
+		await harness.endTurn(reported("I cut the branch from main."))
+		await harness.announce("waiting_bot")
+
+		expect(harness.starts).toHaveLength(1)
+	})
+
+	it("takes a change of a new seq kept while the run was live", async () => {
+		await harness.enter("waiting_bot")
+		await harness.enter("waiting_bot")
+
+		expect(harness.starts).toHaveLength(1)
+
+		await harness.endTurn(reported("I cut the branch from main."))
+
+		expect(harness.starts).toHaveLength(2)
+		expect(harness.driver.submissions).toHaveLength(2)
 	})
 
 	it("keeps the state of a change it dropped for being busy", async () => {
@@ -591,9 +631,9 @@ describe("startMissionRunDriver", () => {
 		)
 	})
 
-	it("starts no second run when the bot closes its mission during its own run", async () => {
+	it("starts no second run when its bot writes the state of the seq it runs on", async () => {
 		await harness.enter("failed", failedBy("claude-code"))
-		await harness.enter("failed", failedBy("claude-code"))
+		await harness.announce("failed")
 		await harness.endTurn(reported("The build will not pass."))
 
 		expect(harness.starts).toHaveLength(1)
@@ -619,12 +659,7 @@ describe("startMissionRunDriver", () => {
 		harness.missions.stallDetail()
 
 		await harness.endTurn(reported("The walls stand, handing over."))
-		harness.missions.change({
-			missionId: harness.mission.id,
-			state: "done",
-			stateSeq: STANDING_SEQ,
-		})
-		await settled()
+		await harness.announce("done")
 		harness.missions.releaseDetail()
 		await settled()
 
@@ -678,18 +713,8 @@ describe("startMissionRunDriver", () => {
 	it("runs once when a change lands while the read already carries its state", async () => {
 		harness.hold("done", closedBy("poller"))
 		harness.missions.stallDetail()
-		harness.missions.change({
-			missionId: harness.mission.id,
-			state: "waiting_bot",
-			stateSeq: STANDING_SEQ,
-		})
-		await settled()
-		harness.missions.change({
-			missionId: harness.mission.id,
-			state: "done",
-			stateSeq: STANDING_SEQ,
-		})
-		await settled()
+		await harness.announce("waiting_bot")
+		await harness.announce("done")
 		harness.missions.releaseDetail()
 		await settled()
 
@@ -705,18 +730,8 @@ describe("startMissionRunDriver", () => {
 		harness.hold("done", closedBy("poller"))
 		harness.missions.stallDetail()
 		harness.missions.refuseOnce(harness.mission.id)
-		harness.missions.change({
-			missionId: harness.mission.id,
-			state: "waiting_bot",
-			stateSeq: STANDING_SEQ,
-		})
-		await settled()
-		harness.missions.change({
-			missionId: harness.mission.id,
-			state: "done",
-			stateSeq: STANDING_SEQ,
-		})
-		await settled()
+		await harness.announce("waiting_bot")
+		await harness.announce("done")
 		harness.missions.releaseDetail()
 		await settled()
 
@@ -788,7 +803,7 @@ describe("startMissionRunDriver", () => {
 		expect(spoken(harness.tail())).toEqual([])
 	})
 
-	it("takes the state again once a start that failed is announced anew", async () => {
+	it("takes the seq again once a start that failed is announced anew", async () => {
 		await restart({ firstStartFails: true })
 
 		await harness.enter("waiting_bot")
@@ -796,13 +811,13 @@ describe("startMissionRunDriver", () => {
 		expect(harness.starts).toEqual([])
 		expect(harness.reportFailure).toHaveBeenCalledTimes(1)
 
-		await harness.enter("waiting_bot")
+		await harness.announce("waiting_bot")
 
 		expect(harness.starts).toHaveLength(1)
 		expect(harness.driver.submissions).toHaveLength(1)
 	})
 
-	it("takes the state again once a read that failed is announced anew", async () => {
+	it("takes the seq again once a read that failed is announced anew", async () => {
 		harness.missions.refuseOnce(harness.mission.id)
 
 		await harness.enter("waiting_bot")
@@ -810,7 +825,7 @@ describe("startMissionRunDriver", () => {
 		expect(harness.starts).toEqual([])
 		expect(harness.reportFailure).toHaveBeenCalledTimes(1)
 
-		await harness.enter("waiting_bot")
+		await harness.announce("waiting_bot")
 
 		expect(harness.starts).toHaveLength(1)
 	})
@@ -908,7 +923,7 @@ describe("startMissionRunDriver", () => {
 		await harness.endTurn(reported("I cut the branch from main."))
 
 		expect(harness.missions.answers).toEqual([
-			[harness.mission.id, STANDING_SEQ],
+			[harness.mission.id, harness.standingSeq()],
 		])
 	})
 
@@ -918,7 +933,7 @@ describe("startMissionRunDriver", () => {
 		await harness.endTurn({ outcome: "cancelled" })
 
 		expect(harness.missions.answers).toEqual([
-			[harness.mission.id, STANDING_SEQ],
+			[harness.mission.id, harness.standingSeq()],
 		])
 		expect(harness.missions.reports).toEqual([])
 		expect(harness.reportFailure).toHaveBeenCalledTimes(1)
@@ -1034,11 +1049,11 @@ describe("startMissionRunDriver", () => {
 		expect(harness.starts).toHaveLength(1)
 	})
 
-	it("runs no second time on a change carrying the state read at start", async () => {
+	it("runs no second time on a change carrying the seq read at start", async () => {
 		await restart({ open: "waiting_bot" })
 		await harness.endTurn({ structuredOutput: { outcome: "nothing" } })
 
-		await harness.enter("waiting_bot")
+		await harness.announce("waiting_bot")
 
 		expect(harness.starts).toHaveLength(1)
 	})
