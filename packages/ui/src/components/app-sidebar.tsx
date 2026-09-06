@@ -110,11 +110,8 @@ const TRAILING_SLOT = "ml-auto flex shrink-0 items-center gap-1.5"
 
 const NAME_LINE = "flex h-5 min-w-0 items-center gap-1.5"
 
-const ROW_STACK = "relative flex min-w-0 flex-col justify-center"
-
-const ROW_STACK_HEIGHT = "h-9"
-
-const ROW_STACK_MISSION_HEIGHT = "h-13"
+const rowStackFor = (mission?: AppSidebarBotMission) =>
+	cn("relative flex min-w-0 flex-col justify-center", mission ? "h-13" : "h-9")
 
 const PREVIEW_LINE =
 	"h-4 truncate pe-3.5 text-muted-foreground text-xs leading-4 empty:h-0"
@@ -648,12 +645,7 @@ const BotRosterRow = ({
 							onSelect?.(bot.id)
 						}}
 					>
-						<span
-							className={cn(
-								ROW_STACK,
-								mission ? ROW_STACK_MISSION_HEIGHT : ROW_STACK_HEIGHT,
-							)}
-						>
+						<span className={rowStackFor(mission)}>
 							<span className={NAME_LINE}>
 								<span className="truncate" data-slot="roster-row-name">
 									{bot.name}
@@ -821,12 +813,7 @@ const ConversationRosterRow = ({
 							onSelect?.(conversation.id)
 						}}
 					>
-						<span
-							className={cn(
-								ROW_STACK,
-								mission ? ROW_STACK_MISSION_HEIGHT : ROW_STACK_HEIGHT,
-							)}
-						>
+						<span className={rowStackFor(mission)}>
 							<span className={NAME_LINE}>
 								<span className="truncate" data-slot="roster-row-name">
 									{conversation.name}
