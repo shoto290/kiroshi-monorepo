@@ -42,13 +42,13 @@ const BOT: Bot = {
 	pinPosition: null,
 }
 
-const onBoard = (id: string, openedAt: number): MissionOnBoard => ({
-	mission: aMission({ id, openedAt }),
+const onBoard = (id: string): MissionOnBoard => ({
+	mission: aMission({ id }),
 	bot: BOT,
 })
 
-const FIRST_BOARD = [onBoard("m-1", 1)]
-const NEXT_BOARD = [onBoard("m-1", 1), onBoard("m-2", 2)]
+const FIRST_BOARD = [onBoard("m-1")]
+const NEXT_BOARD = [onBoard("m-1"), onBoard("m-2")]
 
 const A_CHANGE: MissionChanged = { missionId: "m-2", state: "working" }
 
