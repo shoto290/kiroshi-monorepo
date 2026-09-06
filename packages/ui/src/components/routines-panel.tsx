@@ -171,17 +171,15 @@ const MissionGroup = ({
 					{count}
 				</div>
 			)}
-			{isUnfolded ? (
-				<ul className="flex flex-col gap-0.5" id={listId}>
-					{missions.map((mission) => (
-						<MissionRow
-							{...mission}
-							key={mission.id}
-							onOpen={() => onOpen(mission.id)}
-						/>
-					))}
-				</ul>
-			) : null}
+			<ul className="flex flex-col gap-0.5" hidden={!isUnfolded} id={listId}>
+				{missions.map((mission) => (
+					<MissionRow
+						{...mission}
+						key={mission.id}
+						onOpen={() => onOpen(mission.id)}
+					/>
+				))}
+			</ul>
 		</section>
 	)
 }

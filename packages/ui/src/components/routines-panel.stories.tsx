@@ -177,6 +177,15 @@ const NO_MISSION_AT_ALL = {
 	onOpen: fn(),
 }
 
+const shownMissionRows = (canvasElement: HTMLElement) =>
+	slotsIn(canvasElement, "mission-row").filter((row) => row.checkVisibility())
+
+const foldedListOf = (head: HTMLElement) => {
+	const listId = head.getAttribute("aria-controls")
+	if (!listId) throw new Error("the fold names no list")
+	return head.ownerDocument.getElementById(listId)
+}
+
 const openRoutines = async (
 	canvasElement: HTMLElement,
 	userEvent: { click: (element: Element) => Promise<void> },
@@ -292,7 +301,7 @@ export const Default = meta.story({
 			),
 		).toBe(Node.DOCUMENT_POSITION_FOLLOWING)
 
-		await expect(slotsIn(canvasElement, "mission-row")).toHaveLength(
+		await expect(shownMissionRows(canvasElement)).toHaveLength(
 			OPEN_MISSIONS.length,
 		)
 		await expect(slotsIn(canvasElement, "routine-row")).toHaveLength(0)
@@ -353,10 +362,47 @@ export const EarlierTodayUnfolded = meta.story({
 
 		await userEvent.click(head)
 		await expect(head).toHaveAttribute("aria-expanded", "true")
-		await expect(slotsIn(canvasElement, "mission-row")).toHaveLength(
+		await expect(shownMissionRows(canvasElement)).toHaveLength(
 			OPEN_MISSIONS.length + EARLIER_TODAY_MISSIONS.length,
 		)
 		await expect(canvas.getByText("09:12")).toBeVisible()
+	},
+})
+
+export const EarlierTodayFoldTarget = meta.story({
+	parameters: {
+		a11y: A11Y_CONTRAST_AWAITING_DESIGN_DECISION,
+		docs: {
+			description: {
+				story:
+					"The list the fold speaks for, in both of its states. Check that the id named by aria-controls resolves in the document while the group is folded as well as once it is unfolded, that the folded list is hidden from view and from assistive technology rather than removed, and that its rows stay out of the tab order until the group is opened.",
+			},
+		},
+	},
+	play: async ({ canvas, canvasElement, userEvent }) => {
+		const head = canvas.getByRole("button", { name: /Earlier today/ })
+		const folded = foldedListOf(head)
+
+		await expect(folded).not.toBeNull()
+		await expect(folded).not.toBeVisible()
+		await expect(shownMissionRows(canvasElement)).toHaveLength(
+			OPEN_MISSIONS.length,
+		)
+
+		head.focus()
+		await userEvent.tab()
+		await expect(head.ownerDocument.activeElement).not.toBe(
+			folded?.querySelector("button"),
+		)
+
+		await userEvent.click(head)
+		await expect(foldedListOf(head)).toBe(folded)
+		await expect(folded).toBeVisible()
+		await expect(
+			within(folded as HTMLElement).getByText(
+				EARLIER_TODAY_MISSIONS[0].objective,
+			),
+		).toBeVisible()
 	},
 })
 
@@ -505,7 +551,7 @@ export const OpeningTheRoutines = meta.story({
 		await userEvent.click(
 			canvas.getByRole("button", { name: "Back to the activity" }),
 		)
-		await expect(slotsIn(canvasElement, "mission-row")).toHaveLength(
+		await expect(shownMissionRows(canvasElement)).toHaveLength(
 			OPEN_MISSIONS.length,
 		)
 		await waitFor(
