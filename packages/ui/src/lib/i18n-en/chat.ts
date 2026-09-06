@@ -48,6 +48,7 @@ const chat = {
 		},
 		cause: {
 			label: "Routine report",
+			mission: "Mission summons",
 			unavailable: {
 				title: "Routine reports could not be read",
 				description:

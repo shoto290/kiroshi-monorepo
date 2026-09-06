@@ -101,8 +101,8 @@ export const withoutMissionSummons = (
 		}
 		if (summoned && row.authorBotId === botId) {
 			summonsCauses.push({ turnId: row.turnId, state: summoned })
-			summoned = undefined
 		}
+		summoned = undefined
 		kept.push(row)
 	}
 

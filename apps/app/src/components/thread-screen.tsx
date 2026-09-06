@@ -29,7 +29,7 @@ import type {
 	TranscriptHandle,
 	TranscriptItem,
 } from "@workspace/ui/components/transcript"
-import { TurnGroup } from "@workspace/ui/components/turn"
+import { type TurnCauseKind, TurnGroup } from "@workspace/ui/components/turn"
 import { type ChatCopy, useChatCopy } from "@workspace/ui/hooks/use-chat-copy"
 
 import { FaceAvatar } from "@/components/face-avatar"
@@ -133,10 +133,7 @@ import {
 import { toMissionCard } from "@/lib/missions/missions-model"
 import { useMissionSendFailure } from "@/lib/missions/use-mission-failure-notices"
 import { useMissions } from "@/lib/missions/use-missions"
-import type {
-	ReportedRun,
-	ReportedRunsByTurnId,
-} from "@/lib/routines/routine-contract"
+import type { ReportedRun } from "@/lib/routines/routine-contract"
 
 type WorkingBotProps = BotStopProps & {
 	face: ThreadFace
@@ -486,7 +483,7 @@ const stopOfRow = (row: TranscriptRow, stops: SpeakerStops) =>
 type ThreadRunProps = {
 	run: TranscriptRow[]
 	presentation: RunPresentation
-	causes: ReportedRunsByTurnId
+	causes: ThreadCauses
 	rejectedPromptId: string | null
 	asked: AskedBubble | null
 	responder: PromptResponder
@@ -556,6 +553,10 @@ const ThreadRun = ({
 	</TurnGroup>
 )
 
+type ThreadCause = ReportedRun & { kind?: TurnCauseKind }
+
+type ThreadCauses = ReadonlyMap<string, ThreadCause>
+
 const SUMMONS_TRIGGER_SOURCE = "mission"
 
 const SUMMONS_CAUSE_KEY = {
@@ -564,16 +565,17 @@ const SUMMONS_CAUSE_KEY = {
 } as const satisfies Record<SummonedMissionState, string>
 
 const withSummonsCauses = (
-	causes: ReportedRunsByTurnId,
+	causes: ThreadCauses,
 	summonsCauses: MissionSummonsCause[],
 	t: ChatCopy,
-): ReportedRunsByTurnId =>
+): ThreadCauses =>
 	new Map([
 		...causes,
-		...summonsCauses.map(({ turnId, state }): [string, ReportedRun] => [
+		...summonsCauses.map(({ turnId, state }): [string, ThreadCause] => [
 			turnId,
 			{
 				turnId,
+				kind: "mission",
 				routineTitle: t(SUMMONS_CAUSE_KEY[state]),
 				triggerSourceId: SUMMONS_TRIGGER_SOURCE,
 			},
@@ -583,13 +585,13 @@ const withSummonsCauses = (
 type ReadRunsProps = {
 	messages: TranscriptMessage[]
 	missionSeat: ThreadMission | null
-	causes: ReportedRunsByTurnId
+	causes: ThreadCauses
 	t: ChatCopy
 }
 
 type ReadRuns = {
 	runs: TranscriptRow[][]
-	causes: ReportedRunsByTurnId
+	causes: ThreadCauses
 }
 
 const readRuns = ({

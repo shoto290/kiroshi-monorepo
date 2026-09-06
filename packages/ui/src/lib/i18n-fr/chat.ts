@@ -51,6 +51,7 @@ const chat = {
 		},
 		cause: {
 			label: "Rapport de routine",
+			mission: "Convocation de mission",
 			unavailable: {
 				title: "Les rapports de routine n'ont pas pu être lus",
 				description:

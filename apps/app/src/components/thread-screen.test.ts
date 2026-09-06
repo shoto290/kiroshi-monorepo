@@ -701,6 +701,33 @@ const MISSION_SUMMONS: SpokenTurn = {
 
 const SUMMONS_CAUSE = "Opened by the mission"
 
+const SUMMONS_ANNOUNCEMENT = "Mission summons"
+
+const MISSION_ASKED: SpokenTurn = {
+	turnId: "t-asked",
+	text: "and the tests?",
+	createdAt: 90 * A_SECOND,
+	role: "user",
+}
+
+const SUMMONS_AGAIN: SpokenTurn = {
+	turnId: "t-summons-2",
+	text: missionSummonsFor("waiting_bot"),
+	createdAt: 3 * A_MINUTE,
+	role: "user",
+}
+
+const MISSION_SAID_AGAIN: SpokenTurn = {
+	turnId: "t-mission-2",
+	text: "the agent is unblocked",
+	createdAt: 4 * A_MINUTE,
+}
+
+const causeTitles = () =>
+	[...document.querySelectorAll('[data-slot="turn-cause-title"]')].map(
+		(cause) => cause.textContent,
+	)
+
 const MISSION_SAID: SpokenTurn = {
 	turnId: "t-mission",
 	text: "the parser is rewritten",
@@ -1617,14 +1644,49 @@ describe("ThreadScreen", () => {
 			.getByText(MISSION_SAID.text)
 			.closest('[data-slot="message"]')
 
+		const cause = said?.querySelector('[data-slot="turn-cause"]')
+
+		expect(cause?.textContent).toContain(SUMMONS_ANNOUNCEMENT)
 		expect(
-			said?.querySelector('[data-slot="turn-cause-title"]')?.textContent,
+			cause?.querySelector('[data-slot="turn-cause-title"]')?.textContent,
 		).toBe(SUMMONS_CAUSE)
 
 		const asked = screen.getAllByLabelText("user message")
 
 		expect(asked).toHaveLength(1)
 		expect(asked[0].textContent).toContain("and the tests?")
+	})
+
+	it("holds no cause line when the reader speaks before the summoned bot", async () => {
+		const room = await missionRoomOf({
+			events: [],
+			spoken: [MISSION_SUMMONS, MISSION_ASKED, MISSION_SAID],
+		})
+		render(screenOf(room.thread, room.bots))
+		await settle()
+
+		expect(screen.queryByText(MISSION_SUMMONS.text)).toBeNull()
+		expect(screen.getByText(MISSION_ASKED.text)).toBeTruthy()
+		expect(causeTitles()).toEqual([])
+	})
+
+	it("marks every summoned run of a mission thread with its own cause line", async () => {
+		const room = await missionRoomOf({
+			events: [],
+			spoken: [
+				MISSION_SUMMONS,
+				MISSION_SAID,
+				SUMMONS_AGAIN,
+				MISSION_SAID_AGAIN,
+			],
+		})
+		render(screenOf(room.thread, room.bots))
+		await settle()
+
+		expect(causeTitles()).toEqual([
+			SUMMONS_CAUSE,
+			"Opened by the blocked coding agent",
+		])
 	})
 
 	it("disables the composer of a closed mission thread", async () => {
