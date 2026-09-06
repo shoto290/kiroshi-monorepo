@@ -96,12 +96,6 @@ const MissionEventGutter = ({ source, bot }: MissionEventGutterProps) => {
 	)
 }
 
-const MISSION_EVENT_KIND_BADGE: Partial<
-	Record<MissionEventModel["kind"], string>
-> = {
-	agent_asked: "bg-bot-badge-attention/18",
-}
-
 const MissionAuthoredEvent = ({ event, bot, now }: MissionEventRowProps) => {
 	const { t } = useTranslation("chat")
 
@@ -117,7 +111,11 @@ const MissionAuthoredEvent = ({ event, bot, now }: MissionEventRowProps) => {
 						{event.source}
 					</span>
 					<BotTitleBadge
-						className={MISSION_EVENT_KIND_BADGE[event.kind]}
+						className={
+							event.kind === "agent_asked"
+								? "bg-bot-badge-attention/18"
+								: undefined
+						}
 						title={t(`missions.event.kind.${event.kind}`)}
 					/>
 					<MissionEventTime event={event} now={now} />
