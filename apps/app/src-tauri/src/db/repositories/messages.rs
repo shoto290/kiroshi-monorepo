@@ -262,8 +262,8 @@ pub struct MessageWindowQuery {
 }
 
 pub enum MessageAuthorship {
-	AnyUser,
 	Bot(String),
+	AnyoneBut(String),
 }
 
 pub struct LatestMessageQuery {
@@ -334,9 +334,10 @@ const MESSAGE_WINDOW: &str = "SELECT id, turn_id, author_bot_id, replied_to_mess
 		content, completion_state, created_at, runtime_session_id
 	FROM messages WHERE conversation_id = ?1 AND seq > ?2 AND seq < ?3
 	ORDER BY seq DESC LIMIT ?4";
-const LATEST_USER_MESSAGE: &str = "SELECT id, turn_id, author_bot_id, replied_to_message_id, seq,
-		role, content, completion_state, created_at, runtime_session_id
-	FROM messages WHERE conversation_id = ?1 AND role = 'user' AND created_at <= ?2
+const LATEST_MESSAGE_ASIDE_BOT: &str = "SELECT id, turn_id, author_bot_id, replied_to_message_id,
+		seq, role, content, completion_state, created_at, runtime_session_id
+	FROM messages WHERE conversation_id = ?1 AND COALESCE(author_bot_id, '') <> ?2
+		AND created_at <= ?3
 		AND trim(content, char(32, 9, 10, 13)) <> '' ORDER BY seq DESC LIMIT 1";
 const LATEST_MESSAGE_OF_BOT: &str = "SELECT id, turn_id, author_bot_id, replied_to_message_id, seq,
 		role, content, completion_state, created_at, runtime_session_id
@@ -584,19 +585,17 @@ impl MessagesRepository {
 	) -> Result<Option<StoredMessage>, TranscriptError> {
 		Ok(self
 			.call(move |connection| {
-				Ok(match &query.authorship {
-					MessageAuthorship::AnyUser => connection
-						.prepare_cached(LATEST_USER_MESSAGE)?
-						.query_row(params![query.conversation_id, query.not_after], read_message)
-						.optional()?,
-					MessageAuthorship::Bot(bot_id) => connection
-						.prepare_cached(LATEST_MESSAGE_OF_BOT)?
-						.query_row(
-							params![query.conversation_id, bot_id, query.not_after],
-							read_message,
-						)
-						.optional()?,
-				})
+				let (statement, bot_id) = match &query.authorship {
+					MessageAuthorship::Bot(bot_id) => (LATEST_MESSAGE_OF_BOT, bot_id),
+					MessageAuthorship::AnyoneBut(bot_id) => (LATEST_MESSAGE_ASIDE_BOT, bot_id),
+				};
+				Ok(connection
+					.prepare_cached(statement)?
+					.query_row(
+						params![query.conversation_id, bot_id, query.not_after],
+						read_message,
+					)
+					.optional()?)
 			})
 			.await?)
 	}

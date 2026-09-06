@@ -114,7 +114,9 @@ async fn origin_carried(
 		},
 	)
 	.await?;
-	let request = latest_in_origin(database, mission, MessageAuthorship::AnyUser).await?;
+	let request =
+		latest_in_origin(database, mission, MessageAuthorship::AnyoneBut(mission.bot_id.clone()))
+			.await?;
 	let reply =
 		latest_in_origin(database, mission, MessageAuthorship::Bot(mission.bot_id.clone())).await?;
 	Ok(CarriedOrigin {
@@ -1945,6 +1947,38 @@ mod tests {
 	}
 
 	#[tokio::test]
+	async fn a_mission_thread_carries_the_words_of_the_bot_that_handed_the_work_over() {
+		let dir = temp_dir();
+		let database = open(&dir);
+		let conversation = a_conversation(&database).await;
+		another_bot(&database, &conversation, "b2").await;
+		let mission = a_mission_of(&database, &conversation).await;
+		wrote(&database, &conversation, "o1", "a human line about something else", 10).await;
+		said_at(&database, &conversation, "b2", "<@default> take the crash", "h1", 20).await;
+		said_at(&database, &conversation, "default", "on it", "s2", 30).await;
+		let thread = mission.thread_conversation_id.clone();
+		asked_in(&database, &thread, "p1").await;
+		let run = a_run_of(&database, &thread, "default").await;
+
+		let context =
+			bounded_context(&database, participant_of(&thread, "default"), run, "p1".to_owned())
+				.await
+				.expect("the context is rebuilt");
+
+		for carried in ["take the crash", "\"author\": \"Second\"", "\"content\": \"on it\""] {
+			assert_eq!(occurrences(&context, carried), 1, "{carried} was not carried: {context}");
+		}
+		assert_eq!(
+			occurrences(&context, "a human line about something else"),
+			0,
+			"a human line stood in for the message that handed the work: {context}"
+		);
+
+		drop(database);
+		fs::remove_dir_all(&dir).expect("cleanup");
+	}
+
+	#[tokio::test]
 	async fn a_mission_thread_whose_origin_says_nothing_carries_the_rest_of_the_block() {
 		let dir = temp_dir();
 		let database = open(&dir);
@@ -2057,7 +2091,18 @@ mod tests {
 	}
 
 	async fn said_by(database: &Database, conversation_id: &str, bot_id: &str, content: &str) {
-		let id = "s1".to_owned();
+		said_at(database, conversation_id, bot_id, content, "s1", 50).await;
+	}
+
+	async fn said_at(
+		database: &Database,
+		conversation_id: &str,
+		bot_id: &str,
+		content: &str,
+		id: &str,
+		created_at: i64,
+	) {
+		let id = id.to_owned();
 		database
 			.messages()
 			.open_assistant_message(NewAssistantMessage {
@@ -2066,7 +2111,7 @@ mod tests {
 				turn_id: TURN.to_owned(),
 				author_bot_id: Some(bot_id.to_owned()),
 				replied_to_message_id: None,
-				created_at: 50,
+				created_at,
 			})
 			.await
 			.expect("the reply is opened");
