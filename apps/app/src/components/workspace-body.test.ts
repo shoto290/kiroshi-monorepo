@@ -51,7 +51,11 @@ vi.mock("@/lib/routines/routines-transport", async (importOriginal) => {
 
 	return {
 		...actual,
-		routinesTransport: { ...actual.routinesTransport, list: vi.fn() },
+		routinesTransport: {
+			...actual.routinesTransport,
+			list: vi.fn(),
+			runs: vi.fn(),
+		},
 	}
 })
 vi.mock("@/lib/routines/trigger-sources-transport", () => ({
@@ -66,6 +70,7 @@ vi.mock("@/lib/missions/missions-transport", () => ({
 }))
 
 const listRoutines = vi.mocked(routinesTransport.list)
+const listRuns = vi.mocked(routinesTransport.runs)
 const listSources = vi.mocked(triggerSourcesTransport.sources)
 const listMissions = vi.mocked(missionsTransport.list)
 const readMission = vi.mocked(missionsTransport.detail)
@@ -262,7 +267,7 @@ const settle = () =>
 const openMission = async () => {
 	fireEvent.click(screen.getByRole("button", { name: ACTIVITY }))
 	await settle()
-	const missions = screen.getByRole("region", { name: "Missions" })
+	const missions = screen.getByRole("region", { name: "Waiting on you" })
 	fireEvent.click(
 		within(missions).getByRole("button", { name: new RegExp(OBJECTIVE) }),
 	)
@@ -304,6 +309,7 @@ describe("WorkspaceBody missions", () => {
 		layout = fakeLayout()
 		vi.clearAllMocks()
 		listRoutines.mockResolvedValue([])
+		listRuns.mockResolvedValue([])
 		listSources.mockResolvedValue([])
 		listenToMissions.mockResolvedValue(() => undefined)
 	})
@@ -476,6 +482,7 @@ describe("WorkspaceBody activity panel", () => {
 		layout = fakeLayout()
 		vi.clearAllMocks()
 		listRoutines.mockResolvedValue([])
+		listRuns.mockResolvedValue([])
 		listSources.mockResolvedValue([])
 		listMissions.mockResolvedValue({ open: [], done: [] })
 		listenToMissions.mockResolvedValue(() => undefined)

@@ -9,7 +9,7 @@ import {
 	type RoutineFormValues,
 } from "@workspace/ui/components/routine-form"
 
-import type { Routine, RoutineKey } from "./routine-contract"
+import type { Routine, RoutineKey, RoutineRun } from "./routine-contract"
 import { routinesTransport } from "./routines-transport"
 import type { TriggerSource } from "./trigger-contract"
 import { triggerSourcesTransport } from "./trigger-sources-transport"
@@ -80,6 +80,17 @@ const DECLARED = [
 	},
 ]
 
+const A_REPORTED_RUN: RoutineRun = {
+	id: "run-1",
+	routineId: ROUTINE.id,
+	startedAt: 1_700_000_000_000,
+	endedAt: 1_700_000_060_000,
+	outcome: "ok",
+	reason: null,
+	costUsd: null,
+	modelUsage: null,
+}
+
 const A_WEBHOOK_KEY = {
 	key: "the-key",
 	header: "X-OpenNest-Key",
@@ -132,6 +143,7 @@ const announce = async (conversationId: string) => {
 beforeEach(() => {
 	vi.clearAllMocks()
 	onChanged.mockResolvedValue(() => undefined)
+	readRuns.mockResolvedValue([])
 })
 
 afterEach(cleanup)
@@ -792,15 +804,15 @@ it("reads nothing when the change carries another conversation", async () => {
 
 it("re-reads the run history of the open routine when a routine changes", async () => {
 	const result = await mountLeadRoutines([ROUTINE])
-	readRuns.mockResolvedValue([])
 
 	await act(async () => {
 		result.current.detail.onOpen(ROUTINE.id)
 	})
-	expect(readRuns).toHaveBeenCalledTimes(1)
+	await waitFor(() => expect(result.current.detail.open?.runs).toEqual([]))
 
+	readRuns.mockResolvedValue([A_REPORTED_RUN])
 	list.mockResolvedValueOnce([ROUTINE])
 	await announce(ROUTINE.conversationId)
 
-	await waitFor(() => expect(readRuns).toHaveBeenCalledTimes(2))
+	await waitFor(() => expect(result.current.detail.open?.runs).toHaveLength(1))
 })

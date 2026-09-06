@@ -7,6 +7,10 @@ import type {
 } from "@workspace/ui/components/mission"
 import type { MissionRowModel } from "@workspace/ui/components/mission-row"
 import type { RosterBot } from "@workspace/ui/components/roster"
+import type {
+	EarlierTodayRow,
+	RoutinesPanelMissions,
+} from "@workspace/ui/components/routines-panel"
 
 import type {
 	Mission,
@@ -14,6 +18,11 @@ import type {
 	MissionOnBoard,
 	MissionState,
 } from "./mission-contract"
+import { toMissionFace } from "./mission-thread-model"
+
+import { rosterTimestamp } from "@/lib/bots/roster-timestamp"
+import type { ThreadFace } from "@/lib/chat/thread-contract"
+import type { ReportedRunRead } from "@/lib/routines/routines-model"
 
 const BADGE_BY_STATE: Record<MissionState, BotBadge | null> = {
 	working: null,
@@ -24,15 +33,129 @@ const BADGE_BY_STATE: Record<MissionState, BotBadge | null> = {
 	done: null,
 }
 
-export const toMissionRows = (missions: Mission[]): MissionRowModel[] =>
-	missions.map((mission) => ({
-		id: mission.id,
-		objective: mission.objective,
-		ticketId: mission.ticket.externalId,
-		tools: mission.tools,
-		openedAt: mission.openedAt,
-		badge: BADGE_BY_STATE[mission.state],
-	}))
+const TIME_OF_DAY = new Intl.DateTimeFormat("en-US", {
+	hour: "2-digit",
+	minute: "2-digit",
+	hourCycle: "h23",
+})
+
+const startOfLocalDay = (now: number): number => {
+	const day = new Date(now)
+	day.setHours(0, 0, 0, 0)
+	return day.getTime()
+}
+
+type MissionFaces = (botId: string) => ThreadFace | undefined
+
+const toMissionRow = (
+	mission: Mission,
+	face: ThreadFace,
+	timestamp: string,
+): MissionRowModel => ({
+	id: mission.id,
+	objective: mission.objective,
+	ticket: {
+		platform: mission.ticket.platform,
+		externalId: mission.ticket.externalId,
+		title: mission.ticket.title,
+	},
+	bot: toMissionFace(face),
+	state: mission.state,
+	timestamp,
+})
+
+const rowsOf = (
+	missions: Mission[],
+	faceOf: MissionFaces,
+	timestampOf: (mission: Mission) => string,
+): MissionRowModel[] =>
+	missions.flatMap((mission) => {
+		const face = faceOf(mission.botId)
+		return face ? [toMissionRow(mission, face, timestampOf(mission))] : []
+	})
+
+type EarlierTodayEntry = {
+	at: number
+	row: EarlierTodayRow
+}
+
+const closedTodayEntries = (
+	closed: Mission[],
+	faceOf: MissionFaces,
+	midnight: number,
+): EarlierTodayEntry[] =>
+	closed.flatMap((mission) => {
+		const face = faceOf(mission.botId)
+		if (!face || mission.closedAt === null || mission.closedAt < midnight) {
+			return []
+		}
+
+		return [
+			{
+				at: mission.closedAt,
+				row: {
+					kind: "mission",
+					...toMissionRow(mission, face, TIME_OF_DAY.format(mission.closedAt)),
+				},
+			},
+		]
+	})
+
+const reportedTodayEntries = (
+	reportedRuns: ReportedRunRead[],
+	faceOf: MissionFaces,
+	midnight: number,
+): EarlierTodayEntry[] =>
+	reportedRuns.flatMap((run) => {
+		const face = faceOf(run.botId)
+		if (!face || run.at < midnight) {
+			return []
+		}
+
+		return [
+			{
+				at: run.at,
+				row: {
+					kind: "run",
+					id: run.id,
+					routineTitle: run.routineTitle,
+					triggerSourceTitle: run.triggerSourceTitle,
+					bot: toMissionFace(face),
+					timestamp: TIME_OF_DAY.format(run.at),
+				},
+			},
+		]
+	})
+
+export type MissionRowsRead = {
+	open: Mission[]
+	closed: Mission[]
+	reportedRuns: ReportedRunRead[]
+	faceOf: MissionFaces
+	now: number
+}
+
+export const toMissionRows = ({
+	open,
+	closed,
+	reportedRuns,
+	faceOf,
+	now,
+}: MissionRowsRead): Omit<RoutinesPanelMissions, "onOpen"> => {
+	const midnight = startOfLocalDay(now)
+
+	return {
+		open: rowsOf(open, faceOf, (mission) =>
+			rosterTimestamp(mission.openedAt, now),
+		),
+		earlierToday: [
+			...closedTodayEntries(closed, faceOf, midnight),
+			...reportedTodayEntries(reportedRuns, faceOf, midnight),
+		]
+			.sort((one, other) => other.at - one.at)
+			.map((entry) => entry.row),
+	}
+}
 
 export const toMissionCard = (
 	mission: Mission,

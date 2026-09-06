@@ -12,7 +12,9 @@ import type { Routine } from "./routine-contract"
 import {
 	botIdsOf,
 	type KnownSources,
+	type ReportedRunRead,
 	toKnownSources,
+	toReportedRuns,
 	toRoutineRows,
 	toTriggerSources,
 } from "./routines-model"
@@ -29,9 +31,11 @@ const withoutWriteFailure = (current: RoutinesFailure | null) =>
 const NO_ROUTINES: Routine[] = []
 const NO_KNOWN_SOURCES: KnownSources = new Map()
 const NO_SOURCES: RoutineTriggerSource[] = []
+const NO_REPORTED_RUNS: ReportedRunRead[] = []
 
 export type ConversationRoutines = {
 	routines: RoutineRowModel[]
+	reportedRuns: ReportedRunRead[]
 	failure: RoutinesFailure | null
 	reload: () => void
 	setEnabled: (id: string, isEnabled: boolean) => void
@@ -75,9 +79,38 @@ const knownOf = async (
 	return toKnownSources(lead ? [lead, ...others] : others)
 }
 
+type ReportedRunsRead = {
+	reported: ReportedRunRead[]
+	hasFailed: boolean
+}
+
+const reportedRunsOf = async (
+	listed: Routine[],
+	known: KnownSources,
+): Promise<ReportedRunsRead> => {
+	const reads = await Promise.allSettled(
+		listed.map(async (routine) => ({
+			routine,
+			runs: await routinesTransport.runs(routine.id),
+		})),
+	)
+	const held = reads.flatMap((read) =>
+		read.status === "fulfilled" ? [read.value] : [],
+	)
+
+	return {
+		reported: toReportedRuns(held, known),
+		hasFailed: held.length < reads.length,
+	}
+}
+
 type RoutinesRead = {
 	sources: RoutineTriggerSource[]
-	listed: { rows: Routine[]; known: KnownSources } | null
+	listed: {
+		rows: Routine[]
+		known: KnownSources
+		reported: ReportedRunRead[]
+	} | null
 	failure: RoutinesFailure | null
 }
 
@@ -93,13 +126,16 @@ const readOf = async (
 		return { sources, listed: null, failure: "routines" }
 	}
 
+	const known = await knownOf(
+		listing.value,
+		leadDeclaration(leadBotId, declared),
+	)
+	const runs = await reportedRunsOf(listing.value, known)
+
 	return {
 		sources,
-		listed: {
-			rows: listing.value,
-			known: await knownOf(listing.value, leadDeclaration(leadBotId, declared)),
-		},
-		failure: declared ? null : "routines",
+		listed: { rows: listing.value, known, reported: runs.reported },
+		failure: declared && !runs.hasFailed ? null : "routines",
 	}
 }
 
@@ -110,6 +146,8 @@ export const useRoutines = (
 	const [held, setHeld] = useState<Routine[]>(NO_ROUTINES)
 	const [known, setKnown] = useState<KnownSources>(NO_KNOWN_SOURCES)
 	const [sources, setSources] = useState<RoutineTriggerSource[]>(NO_SOURCES)
+	const [reportedRuns, setReportedRuns] =
+		useState<ReportedRunRead[]>(NO_REPORTED_RUNS)
 	const [failure, setFailure] = useState<RoutinesFailure | null>(null)
 	const reads = useRef(0)
 
@@ -136,6 +174,7 @@ export const useRoutines = (
 			if (read.listed) {
 				setKnown(read.listed.known)
 				setHeld(read.listed.rows)
+				setReportedRuns(read.listed.reported)
 			}
 		})
 	}, [conversationId, leadBotId])
@@ -217,7 +256,16 @@ export const useRoutines = (
 	})
 
 	return useMemo(
-		() => ({ routines, failure, reload, setEnabled, remove, form, detail }),
-		[routines, failure, reload, setEnabled, remove, form, detail],
+		() => ({
+			routines,
+			reportedRuns,
+			failure,
+			reload,
+			setEnabled,
+			remove,
+			form,
+			detail,
+		}),
+		[routines, reportedRuns, failure, reload, setEnabled, remove, form, detail],
 	)
 }

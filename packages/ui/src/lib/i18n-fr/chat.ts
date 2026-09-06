@@ -319,21 +319,23 @@ const chat = {
 			title: "Activité",
 		},
 		missions: {
-			title: "Missions",
-			none: "Aucune mission en cours",
-			badge: {
-				attention: "En attente d'une personne",
-				done: "Prête à être fusionnée",
-				failed: "Échouée",
-			},
-			closed: {
-				open: "Missions terminées",
-				title: "Missions terminées",
-				back: "Retour à l'activité",
+			group: {
+				waiting: "En attente de vous",
+				inProgress: "En cours",
+				earlierToday: "Plus tôt aujourd'hui",
 			},
 		},
 		routines: {
 			title: "Routines",
+			back: "Retour à l'activité",
+		},
+		runs: {
+			reported: "rapporté",
+		},
+		empty: {
+			title: "Rien ne tourne ici",
+			description:
+				"Les missions qu'un bot ouvre dans cette conversation, et ce que ses routines rapportent, arrivent ici.",
 		},
 		failure: {
 			missions: {

@@ -7,6 +7,7 @@ import { Button } from "@workspace/ui/components/button"
 import { ContentCard } from "@workspace/ui/components/content-card"
 import { EmptyStateShell } from "@workspace/ui/components/empty-state-shell"
 import { Icons } from "@workspace/ui/components/icons"
+import type { MissionState } from "@workspace/ui/components/mission"
 import {
 	MissionRow,
 	type MissionRowModel,
@@ -14,6 +15,7 @@ import {
 import {
 	AnimatedSidebar,
 	AnimatedSidebarContent,
+	AnimatedSidebarFooter,
 	AnimatedSidebarHeader,
 	AnimatedSidebarProvider,
 	AnimatedSidebarTrigger,
@@ -21,6 +23,10 @@ import {
 	useAnimatedSidebar,
 } from "@workspace/ui/components/motion/animated-sidebar"
 import { Notice } from "@workspace/ui/components/notice"
+import {
+	ReportedRunRow,
+	type ReportedRunRowModel,
+} from "@workspace/ui/components/reported-run-row"
 import {
 	ROUTINE_DETAIL_EDIT_OPENER,
 	RoutineDetail,
@@ -36,13 +42,14 @@ import {
 	RoutineRow,
 	type RoutineRowModel,
 } from "@workspace/ui/components/routine-row"
+import { cn } from "@workspace/ui/lib/utils"
 
 const ROUTINES_PANEL_ID = "routines-panel"
 const ROUTINES_PANEL_WIDTH = 320
 
 const NEW_ROUTINE_KEY = "new-routine"
 const NEW_ROUTINE_OPENER = "new-routine-opener"
-const CLOSED_MISSIONS_OPENER = "closed-missions-opener"
+const ROUTINES_OPENER = "routines-opener"
 
 type RoutinesFailure = "missions" | "routines" | "activity" | "write"
 
@@ -64,11 +71,14 @@ type RoutinesPanelDetail = {
 	onRunNow: () => void
 }
 
+type EarlierTodayRow =
+	| ({ kind: "mission" } & MissionRowModel)
+	| ({ kind: "run" } & ReportedRunRowModel)
+
 type RoutinesPanelMissions = {
-	running: MissionRowModel[]
-	closed: MissionRowModel[]
-	now: number
-	onOpen?: (missionId: string) => void
+	open: MissionRowModel[]
+	earlierToday: EarlierTodayRow[]
+	onOpen: (missionId: string) => void
 }
 
 type RoutinesPanelListProps = {
@@ -88,60 +98,94 @@ type RoutinesPanelProps = RoutinesPanelListProps & {
 	children: ReactNode
 }
 
-type PanelSectionProps = {
+type MissionGroupKey = "waiting" | "inProgress"
+
+type OpenMissionGroup = {
+	key: MissionGroupKey
+	states: MissionState[]
+}
+
+const OPEN_MISSION_GROUPS: OpenMissionGroup[] = [
+	{ key: "waiting", states: ["waiting_human", "ready_to_merge"] },
+	{ key: "inProgress", states: ["working", "waiting_bot", "failed"] },
+]
+
+const GROUP_HEAD_CLASS = "flex h-7 items-center gap-1.5 px-1.5"
+
+const GROUP_FOLD_CLASS =
+	"w-full rounded-lg text-start outline-none transition-colors duration-150 hover:bg-muted/50 focus-visible:ring-3 focus-visible:ring-ring/30 motion-reduce:transition-none"
+
+type ActivityGroupFold = {
+	isOpen: boolean
+	onToggle: () => void
+}
+
+type ActivityGroupProps = {
 	slot: string
 	title: string
-	action?: ReactNode
+	count: number
+	fold?: ActivityGroupFold
 	children: ReactNode
 }
 
-const PanelSection = ({ slot, title, action, children }: PanelSectionProps) => {
+const ActivityGroup = ({
+	slot,
+	title,
+	count: held,
+	fold,
+	children,
+}: ActivityGroupProps) => {
 	const titleId = useId()
+	const listId = useId()
+	const isUnfolded = fold ? fold.isOpen : true
+
+	const count = (
+		<span className="text-muted-foreground text-xs tabular-nums">{held}</span>
+	)
 
 	return (
 		<section
 			aria-labelledby={titleId}
-			className="flex min-w-0 flex-col gap-2"
+			className="flex min-w-0 flex-col gap-0.5"
 			data-slot={slot}
 		>
-			<div className="flex h-7 items-center gap-2">
-				<h3
-					className="flex-1 font-medium text-muted-foreground text-xs"
-					id={titleId}
-				>
-					{title}
+			{fold ? (
+				<h3 id={titleId}>
+					<button
+						aria-controls={listId}
+						aria-expanded={isUnfolded}
+						className={cn(GROUP_HEAD_CLASS, GROUP_FOLD_CLASS)}
+						onClick={fold.onToggle}
+						type="button"
+					>
+						<Icons.Expand
+							aria-hidden="true"
+							className={cn(
+								"size-3.5 shrink-0 transition-transform duration-150 motion-reduce:transition-none",
+								isUnfolded || "-rotate-90 rtl:rotate-90",
+							)}
+						/>
+						<span className="font-medium text-foreground text-xs">{title}</span>
+						{count}
+					</button>
 				</h3>
-				{action}
-			</div>
-			{children}
+			) : (
+				<div className={GROUP_HEAD_CLASS}>
+					<h3 className="font-medium text-foreground text-xs" id={titleId}>
+						{title}
+					</h3>
+					{count}
+				</div>
+			)}
+			<ul className="flex flex-col gap-0.5" hidden={!isUnfolded} id={listId}>
+				{children}
+			</ul>
 		</section>
 	)
 }
 
-type MissionListProps = {
-	missions: MissionRowModel[]
-	now: number
-	slot: string
-	onOpen?: (missionId: string) => void
-}
-
-const MissionList = ({ missions, now, slot, onOpen }: MissionListProps) => (
-	<ul className="flex flex-col gap-2" data-slot={slot}>
-		{missions.map((mission) => (
-			<MissionRow
-				{...mission}
-				key={mission.id}
-				now={now}
-				onOpen={onOpen ? () => onOpen(mission.id) : undefined}
-			/>
-		))}
-	</ul>
-)
-
 type RoutinesPanelBodyProps = RoutinesPanelListProps & {
-	isShowingClosedMissions: boolean
-	onShowClosedMissions: () => void
-	onNewRoutine: () => void
+	isShowingRoutines: boolean
 	onOpenRoutine?: (routineId: string) => void
 	onEditRoutine: () => void
 }
@@ -155,13 +199,12 @@ const RoutinesPanelBody = ({
 	onDelete,
 	form,
 	detail,
-	isShowingClosedMissions,
-	onShowClosedMissions,
-	onNewRoutine,
+	isShowingRoutines,
 	onOpenRoutine,
 	onEditRoutine,
 }: RoutinesPanelBodyProps) => {
 	const { t } = useTranslation("chat")
+	const [isEarlierTodayOpen, setEarlierTodayOpen] = useState(false)
 
 	const notice = failure ? (
 		<Notice
@@ -200,62 +243,57 @@ const RoutinesPanelBody = ({
 		)
 	}
 
-	if (isShowingClosedMissions) {
+	if (isShowingRoutines) {
 		return (
 			<>
 				{notice}
-				<MissionList
-					missions={missions.closed}
-					now={missions.now}
-					onOpen={missions.onOpen}
-					slot="closed-missions-list"
-				/>
+				{routines.length > 0 ? (
+					<ul className="flex flex-col gap-2" data-slot="routines-list">
+						{routines.map((routine) => (
+							<RoutineRow
+								{...routine}
+								key={routine.id}
+								onDelete={() => onDelete(routine.id)}
+								onEnabledChange={(isEnabled) =>
+									onEnabledChange(routine.id, isEnabled)
+								}
+								onOpen={
+									onOpenRoutine ? () => onOpenRoutine(routine.id) : undefined
+								}
+							/>
+						))}
+					</ul>
+				) : (
+					<EmptyStateShell
+						data-slot="routines-empty"
+						description={t("routines.empty.description")}
+						mark={
+							<Icons.Routine
+								aria-hidden="true"
+								className="size-8 text-muted-foreground"
+							/>
+						}
+						title={t("routines.empty.title")}
+					/>
+				)}
 			</>
 		)
 	}
 
-	const newRoutine = form?.canCreate ? (
-		<Button
-			aria-label={t("routines.form.new")}
-			data-opens={NEW_ROUTINE_OPENER}
-			onClick={onNewRoutine}
-			size="icon-sm"
-			variant="ghost"
-		>
-			<Icons.Add aria-hidden="true" />
-		</Button>
-	) : undefined
-
-	const routinesSection = (children: ReactNode) => (
-		<PanelSection
-			action={newRoutine}
-			slot="routines-section"
-			title={t("activity.routines.title")}
-		>
-			{children}
-		</PanelSection>
-	)
-
-	const isBare =
-		missions.running.length === 0 &&
-		missions.closed.length === 0 &&
-		routines.length === 0
-
-	if (isBare) {
+	if (missions.open.length === 0 && missions.earlierToday.length === 0) {
 		return (
-			notice ??
-			routinesSection(
+			notice ?? (
 				<EmptyStateShell
-					data-slot="routines-empty"
-					description={t("routines.empty.description")}
+					data-slot="activity-empty"
+					description={t("activity.empty.description")}
 					mark={
-						<Icons.Routine
+						<Icons.Bookmark
 							aria-hidden="true"
 							className="size-8 text-muted-foreground"
 						/>
 					}
-					title={t("routines.empty.title")}
-				/>,
+					title={t("activity.empty.title")}
+				/>
 			)
 		)
 	}
@@ -263,68 +301,61 @@ const RoutinesPanelBody = ({
 	return (
 		<>
 			{notice}
-			<PanelSection
-				action={
-					missions.closed.length > 0 ? (
-						<Button
-							aria-label={t("activity.missions.closed.open")}
-							data-opens={CLOSED_MISSIONS_OPENER}
-							onClick={onShowClosedMissions}
-							size="icon-sm"
-							variant="ghost"
-						>
-							<Icons.History aria-hidden="true" />
-						</Button>
-					) : undefined
-				}
-				slot="missions-section"
-				title={t("activity.missions.title")}
-			>
-				{missions.running.length > 0 ? (
-					<MissionList
-						missions={missions.running}
-						now={missions.now}
-						onOpen={missions.onOpen}
-						slot="missions-list"
-					/>
-				) : (
-					<p
-						className="rounded-xl border border-border border-dashed px-2.5 py-2 text-muted-foreground text-xs"
-						data-slot="missions-none"
+			{OPEN_MISSION_GROUPS.map(({ key, states }) => {
+				const held = missions.open.filter((mission) =>
+					states.includes(mission.state),
+				)
+				if (held.length === 0) return null
+
+				return (
+					<ActivityGroup
+						count={held.length}
+						key={key}
+						slot={`missions-${key}`}
+						title={t(`activity.missions.group.${key}`)}
 					>
-						{t("activity.missions.none")}
-					</p>
-				)}
-			</PanelSection>
-			{routinesSection(
-				<ul className="flex flex-col gap-2" data-slot="routines-list">
-					{routines.map((routine) => (
-						<RoutineRow
-							{...routine}
-							key={routine.id}
-							onDelete={() => onDelete(routine.id)}
-							onEnabledChange={(isEnabled) =>
-								onEnabledChange(routine.id, isEnabled)
-							}
-							onOpen={
-								onOpenRoutine ? () => onOpenRoutine(routine.id) : undefined
-							}
-						/>
-					))}
-				</ul>,
-			)}
+						{held.map((mission) => (
+							<MissionRow
+								{...mission}
+								key={mission.id}
+								onOpen={() => missions.onOpen(mission.id)}
+							/>
+						))}
+					</ActivityGroup>
+				)
+			})}
+			{missions.earlierToday.length > 0 ? (
+				<ActivityGroup
+					count={missions.earlierToday.length}
+					fold={{
+						isOpen: isEarlierTodayOpen,
+						onToggle: () => setEarlierTodayOpen((shown) => !shown),
+					}}
+					slot="missions-earlierToday"
+					title={t("activity.missions.group.earlierToday")}
+				>
+					{missions.earlierToday.map((row) =>
+						row.kind === "run" ? (
+							<ReportedRunRow {...row} key={row.id} />
+						) : (
+							<MissionRow
+								{...row}
+								key={row.id}
+								onOpen={() => missions.onOpen(row.id)}
+							/>
+						),
+					)}
+				</ActivityGroup>
+			) : null}
 		</>
 	)
 }
 
 type PanelHeading = {
-	back:
-		| "activity.missions.closed.back"
-		| "routines.detail.back"
-		| "routines.form.back"
+	back: "activity.routines.back" | "routines.detail.back" | "routines.form.back"
 	onBack: () => void
 	title:
-		| "activity.missions.closed.title"
+		| "activity.routines.title"
 		| "routines.detail.title"
 		| "routines.form.edit"
 		| "routines.form.new"
@@ -333,15 +364,15 @@ type PanelHeading = {
 type HeadingSources = {
 	form: RoutinesPanelForm | undefined
 	detail: RoutinesPanelDetail | undefined
-	isShowingClosedMissions: boolean
-	onHideClosedMissions: () => void
+	isShowingRoutines: boolean
+	onHideRoutines: () => void
 }
 
 const headingOf = ({
 	form,
 	detail,
-	isShowingClosedMissions,
-	onHideClosedMissions,
+	isShowingRoutines,
+	onHideRoutines,
 }: HeadingSources): PanelHeading | null => {
 	if (form?.open) {
 		return {
@@ -359,11 +390,11 @@ const headingOf = ({
 		}
 	}
 
-	if (isShowingClosedMissions) {
+	if (isShowingRoutines) {
 		return {
-			back: "activity.missions.closed.back",
-			onBack: onHideClosedMissions,
-			title: "activity.missions.closed.title",
+			back: "activity.routines.back",
+			onBack: onHideRoutines,
+			title: "activity.routines.title",
 		}
 	}
 
@@ -373,22 +404,20 @@ const headingOf = ({
 const RoutinesPanelSurface = (props: RoutinesPanelListProps) => {
 	const { t } = useTranslation("chat")
 	const { open, toggleSidebar, triggerRef } = useAnimatedSidebar()
-	const [isShowingClosedMissions, setShowingClosedMissions] = useState(false)
+	const [isShowingRoutines, setShowingRoutines] = useState(false)
 	const wasOpen = useRef(open)
 	const surface = useRef<HTMLElement>(null)
 	const closeControl = useRef<HTMLButtonElement>(null)
 	const openers = useRef<string[]>([])
-	const { form, detail } = props
+	const { form, detail, routines } = props
 	const heading = headingOf({
 		form,
 		detail,
-		isShowingClosedMissions,
-		onHideClosedMissions: () => setShowingClosedMissions(false),
+		isShowingRoutines,
+		onHideRoutines: () => setShowingRoutines(false),
 	})
 	const depth =
-		(detail?.open ? 1 : 0) +
-		(form?.open ? 1 : 0) +
-		(isShowingClosedMissions ? 1 : 0)
+		(detail?.open ? 1 : 0) + (form?.open ? 1 : 0) + (isShowingRoutines ? 1 : 0)
 	const shownDepth = useRef(depth)
 
 	useEffect(() => {
@@ -449,6 +478,17 @@ const RoutinesPanelSurface = (props: RoutinesPanelListProps) => {
 					<h2 className="flex-1 font-medium text-sm">
 						{t(heading?.title ?? "activity.panel.title")}
 					</h2>
+					{isShowingRoutines && form?.canCreate ? (
+						<Button
+							aria-label={t("routines.form.new")}
+							data-opens={NEW_ROUTINE_OPENER}
+							onClick={() => remember(NEW_ROUTINE_OPENER, form.onNew)}
+							size="icon-sm"
+							variant="ghost"
+						>
+							<Icons.Add aria-hidden="true" />
+						</Button>
+					) : null}
 					{open ? (
 						<Button
 							aria-label={t("activity.panel.close")}
@@ -463,23 +503,41 @@ const RoutinesPanelSurface = (props: RoutinesPanelListProps) => {
 					) : null}
 				</div>
 			</AnimatedSidebarHeader>
-			<AnimatedSidebarContent className="gap-4">
+			<AnimatedSidebarContent className="gap-4 px-2 pt-1 pb-2">
 				<RoutinesPanelBody
 					{...props}
-					isShowingClosedMissions={isShowingClosedMissions}
+					isShowingRoutines={isShowingRoutines}
 					onEditRoutine={editOpenRoutine}
-					onNewRoutine={() => remember(NEW_ROUTINE_OPENER, () => form?.onNew())}
 					onOpenRoutine={
 						detail &&
 						((routineId) => remember(routineId, () => detail.onOpen(routineId)))
 					}
-					onShowClosedMissions={() =>
-						remember(CLOSED_MISSIONS_OPENER, () =>
-							setShowingClosedMissions(true),
-						)
-					}
 				/>
 			</AnimatedSidebarContent>
+			{heading ? null : (
+				<AnimatedSidebarFooter className="p-2">
+					<button
+						className="flex h-10 items-center gap-2.5 rounded-xl pe-3 ps-2.5 text-start outline-none transition-colors duration-150 hover:bg-muted/50 focus-visible:ring-3 focus-visible:ring-ring/30 motion-reduce:transition-none"
+						data-opens={ROUTINES_OPENER}
+						data-slot="routines-entry"
+						onClick={() =>
+							remember(ROUTINES_OPENER, () => setShowingRoutines(true))
+						}
+						type="button"
+					>
+						<Icons.Routine
+							aria-hidden="true"
+							className="size-4 shrink-0 text-muted-foreground"
+						/>
+						<span className="flex-1 truncate text-[13px] text-foreground leading-5">
+							{t("activity.routines.title")}
+						</span>
+						<span className="text-muted-foreground text-xs leading-5 tabular-nums">
+							{routines.length}
+						</span>
+					</button>
+				</AnimatedSidebarFooter>
+			)}
 		</AnimatedSidebar>
 	)
 }
@@ -522,6 +580,7 @@ const RoutinesPanelTrigger = (props: AnimatedSidebarTriggerProps) => {
 }
 
 export {
+	type EarlierTodayRow,
 	ROUTINES_PANEL_WIDTH,
 	type RoutinesFailure,
 	RoutinesPanel,

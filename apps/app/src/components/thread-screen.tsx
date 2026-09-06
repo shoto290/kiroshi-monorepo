@@ -1060,6 +1060,7 @@ function ThreadView({
 			<ThreadRoutines
 				{...routinesScope}
 				activityPanel={activityPanel}
+				faceOf={faceOf}
 				missions={missions}
 				onOpenMission={onOpenMission}
 			>

@@ -310,21 +310,23 @@ const chat = {
 			title: "Activity",
 		},
 		missions: {
-			title: "Missions",
-			none: "No mission running",
-			badge: {
-				attention: "Waiting for a human",
-				done: "Ready to merge",
-				failed: "Failed",
-			},
-			closed: {
-				open: "Closed missions",
-				title: "Closed missions",
-				back: "Back to the activity",
+			group: {
+				waiting: "Waiting on you",
+				inProgress: "In progress",
+				earlierToday: "Earlier today",
 			},
 		},
 		routines: {
 			title: "Routines",
+			back: "Back to the activity",
+		},
+		runs: {
+			reported: "reported",
+		},
+		empty: {
+			title: "Nothing is running here",
+			description:
+				"The missions a bot opens in this conversation, and what its routines report, land here.",
 		},
 		failure: {
 			missions: {

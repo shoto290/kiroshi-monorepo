@@ -6,82 +6,155 @@ import type {
 	MissionTicket,
 } from "@workspace/ui/components/mission"
 import type { MissionRowModel } from "@workspace/ui/components/mission-row"
-
-export const MISSIONS_READ_AT = Date.parse("2026-03-04T09:30:00Z")
-
-export const WORKING_MISSION: MissionRowModel = {
-	id: "mission-parser",
-	objective: "Rewrite the changelog parser",
-	ticketId: "OPE-42",
-	tools: ["Read", "Write"],
-	openedAt: MISSIONS_READ_AT - 5_400_000,
-	badge: null,
-}
-
-export const WAITING_HUMAN_MISSION: MissionRowModel = {
-	id: "mission-migration",
-	objective: "Migrate the run history table",
-	ticketId: "OPE-51",
-	tools: ["Read", "Bash"],
-	openedAt: MISSIONS_READ_AT - 172_800_000,
-	badge: "attention",
-}
-
-export const READY_MISSION: MissionRowModel = {
-	id: "mission-badges",
-	objective: "Draw the badge dots of the roster",
-	ticketId: "OPE-29",
-	tools: ["Read", "Write", "Bash"],
-	openedAt: MISSIONS_READ_AT - 18_000_000,
-	badge: "done",
-}
-
-export const FAILED_MISSION: MissionRowModel = {
-	id: "mission-upgrade",
-	objective: "Upgrade the desktop shell",
-	ticketId: "OPE-17",
-	tools: ["Bash"],
-	openedAt: MISSIONS_READ_AT - 604_800_000,
-	badge: "failed",
-}
-
-export const RUNNING_MISSIONS: MissionRowModel[] = [
-	WAITING_HUMAN_MISSION,
-	READY_MISSION,
-	FAILED_MISSION,
-	WORKING_MISSION,
-]
-
-export const CLOSED_MISSIONS: MissionRowModel[] = [
-	{
-		id: "mission-transcript",
-		objective: "Store the transcript of a mission thread",
-		ticketId: "OPE-25",
-		tools: ["Read", "Write"],
-		openedAt: MISSIONS_READ_AT - 1_209_600_000,
-		badge: null,
-	},
-	{
-		id: "mission-tools",
-		objective: "Let a bot manage its routines through MCP",
-		ticketId: "OPE-22",
-		tools: ["Read", "Write", "Bash"],
-		openedAt: MISSIONS_READ_AT - 2_592_000_000,
-		badge: null,
-	},
-]
-
-export const NO_MISSIONS: MissionRowModel[] = []
-
-export const MISSION_NOW = new Date("2026-03-04T09:30:00Z").getTime()
-
-const minutesBefore = (minutes: number) => MISSION_NOW - minutes * 60_000
+import type { ReportedRunRowModel } from "@workspace/ui/components/reported-run-row"
+import type { EarlierTodayRow } from "@workspace/ui/components/routines-panel"
 
 export const MISSION_BOT: MissionBot = {
 	name: "Ada Martin",
 	animal: "owl",
 	seed: "bot-ada-martin",
 }
+
+const STORAGE_BOT: MissionBot = {
+	name: "Noor Beltran",
+	animal: "rabbit",
+	seed: "bot-noor-beltran",
+}
+
+const SHELL_BOT: MissionBot = {
+	name: "Iris Nakamura",
+	animal: "cat",
+	seed: "bot-iris-nakamura",
+}
+
+export const WAITING_HUMAN_MISSION: MissionRowModel = {
+	id: "mission-migration",
+	objective: "Migrate the run history table",
+	ticket: {
+		platform: "linear",
+		externalId: "OPE-51",
+		title: "Move the run history off the shared database",
+	},
+	bot: MISSION_BOT,
+	state: "waiting_human",
+	timestamp: "2d",
+}
+
+export const READY_MISSION: MissionRowModel = {
+	id: "mission-badges",
+	objective: "Draw the badge dots of the roster",
+	ticket: {
+		platform: "github",
+		externalId: "OPE-29",
+		title: "Badge dots on the roster rows",
+	},
+	bot: STORAGE_BOT,
+	state: "ready_to_merge",
+	timestamp: "5h",
+}
+
+export const WORKING_MISSION: MissionRowModel = {
+	id: "mission-parser",
+	objective: "Rewrite the changelog parser",
+	ticket: {
+		platform: "linear",
+		externalId: "OPE-42",
+		title: "Changelog parser",
+	},
+	bot: MISSION_BOT,
+	state: "working",
+	timestamp: "1h",
+}
+
+export const WAITING_BOT_MISSION: MissionRowModel = {
+	id: "mission-transcript",
+	objective: "Store the transcript of a mission thread",
+	ticket: {
+		platform: "jira",
+		externalId: "",
+		title: "Mission transcripts kept next to the conversation",
+	},
+	bot: SHELL_BOT,
+	state: "waiting_bot",
+	timestamp: "12m",
+}
+
+export const FAILED_MISSION: MissionRowModel = {
+	id: "mission-upgrade",
+	objective: "Upgrade the desktop shell",
+	ticket: {
+		platform: "github",
+		externalId: "OPE-17",
+		title: "Desktop shell upgrade",
+	},
+	bot: SHELL_BOT,
+	state: "failed",
+	timestamp: "3d",
+}
+
+export const CLOSED_MISSION: MissionRowModel = {
+	id: "mission-tools",
+	objective: "Let a bot manage its routines through MCP",
+	ticket: {
+		platform: "linear",
+		externalId: "OPE-22",
+		title: "Routines over MCP",
+	},
+	bot: STORAGE_BOT,
+	state: "done",
+	timestamp: "09:12",
+}
+
+export const UNTICKETED_MISSION: MissionRowModel = {
+	id: "mission-unticketed",
+	objective: "Read the shift log of the night",
+	ticket: {
+		platform: "",
+		externalId: "",
+		title: "",
+	},
+	bot: MISSION_BOT,
+	state: "working",
+	timestamp: "22m",
+}
+
+export const OPEN_MISSIONS: MissionRowModel[] = [
+	WAITING_HUMAN_MISSION,
+	READY_MISSION,
+	WORKING_MISSION,
+	WAITING_BOT_MISSION,
+	FAILED_MISSION,
+]
+
+export const REPORTED_RUN: ReportedRunRowModel = {
+	id: "run-morning-digest",
+	routineTitle: "Morning digest",
+	triggerSourceTitle: "On a schedule",
+	bot: MISSION_BOT,
+	timestamp: "08:04",
+}
+
+export const LATE_REPORTED_RUN: ReportedRunRowModel = {
+	id: "run-release-watch",
+	routineTitle: "Release watch",
+	triggerSourceTitle: "Watching a file",
+	bot: SHELL_BOT,
+	timestamp: "10:04",
+}
+
+export const EARLIER_TODAY_ROWS: EarlierTodayRow[] = [
+	{ kind: "run", ...LATE_REPORTED_RUN },
+	{ kind: "mission", ...CLOSED_MISSION },
+	{ kind: "run", ...REPORTED_RUN },
+]
+
+export const NO_EARLIER_TODAY: EarlierTodayRow[] = []
+
+export const NO_MISSIONS: MissionRowModel[] = []
+
+export const MISSION_NOW = new Date("2026-03-04T09:30:00Z").getTime()
+
+const minutesBefore = (minutes: number) => MISSION_NOW - minutes * 60_000
 
 export const MISSION_TICKET: MissionTicket = {
 	externalId: "OPE-30",

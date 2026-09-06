@@ -2,74 +2,72 @@
 
 import { useTranslation } from "react-i18next"
 
-import { type BotBadge, BotBadgeDot } from "@workspace/ui/components/badge"
-import { toRelativeTime } from "@workspace/ui/lib/relative-time"
+import {
+	ActivityRow,
+	type ActivityRowPart,
+} from "@workspace/ui/components/activity-row"
+import type { BotBadge, BotMissionTicket } from "@workspace/ui/components/badge"
+import type { MissionBot, MissionState } from "@workspace/ui/components/mission"
+import { missionTicketPlatform } from "@workspace/ui/components/mission-marks"
 
 type MissionRowModel = {
 	id: string
 	objective: string
-	ticketId: string
-	tools: string[]
-	openedAt: number
-	badge: BotBadge | null
+	ticket: BotMissionTicket
+	bot: MissionBot
+	state: MissionState
+	timestamp: string
 }
 
 type MissionRowProps = MissionRowModel & {
-	now: number
-	onOpen?: () => void
+	onOpen: () => void
 }
 
-const SEPARATOR_CLASS = "before:mx-1.5 before:content-['·']"
+const BADGE_OF: Partial<Record<MissionState, BotBadge>> = {
+	waiting_human: "attention",
+	ready_to_merge: "done",
+	failed: "failed",
+}
+
+const NAMED_STATES: MissionState[] = ["ready_to_merge", "failed", "done"]
 
 const MissionRow = ({
 	id,
 	objective,
-	ticketId,
-	tools,
-	openedAt,
-	badge,
-	now,
+	ticket,
+	bot,
+	state,
+	timestamp,
 	onOpen,
 }: MissionRowProps) => {
-	const { t, i18n } = useTranslation("chat")
-
-	const identity = (
-		<>
-			<span className="truncate font-medium text-sm">{objective}</span>
-			<span className="truncate text-muted-foreground text-xs tabular-nums">
-				<span>{ticketId}</span>
-				{tools.length > 0 ? (
-					<span className={SEPARATOR_CLASS}>{tools.join(", ")}</span>
-				) : null}
-				<span className={SEPARATOR_CLASS}>
-					{toRelativeTime(openedAt, i18n.language, now)}
-				</span>
-			</span>
-			{badge ? (
-				<span className="sr-only">{t(`activity.missions.badge.${badge}`)}</span>
-			) : null}
-		</>
-	)
+	const { t } = useTranslation("chat")
+	const { Mark, isNamed } = missionTicketPlatform(ticket.platform)
+	const badge = BADGE_OF[state]
+	const stateWord = NAMED_STATES.includes(state)
+		? t(`missions.state.${state}`)
+		: null
+	const parts: ActivityRowPart[] = [
+		...(isNamed ? [] : [{ key: "ticket", text: ticket.title }]),
+		{ key: "bot", text: bot.name },
+		...(stateWord ? [{ key: "state", text: stateWord }] : []),
+	]
 
 	return (
-		<li
-			className="flex items-center gap-2 rounded-xl border border-border bg-muted/40 p-2.5"
-			data-slot="mission-row"
-		>
-			{onOpen ? (
-				<button
-					className="flex min-w-0 flex-1 flex-col gap-1 rounded-lg text-start outline-none focus-visible:ring-3 focus-visible:ring-ring/30"
-					data-opens={id}
-					onClick={onOpen}
-					type="button"
-				>
-					{identity}
-				</button>
-			) : (
-				<div className="flex min-w-0 flex-1 flex-col gap-1">{identity}</div>
-			)}
-			{badge ? <BotBadgeDot badge={badge} placement="inline" /> : null}
-		</li>
+		<ActivityRow
+			activation={{ id, onOpen }}
+			badge={badge}
+			bot={bot}
+			identifier={isNamed ? ticket.externalId : undefined}
+			isTitleMuted={state === "done"}
+			mark={Mark}
+			parts={parts}
+			slot="mission-row"
+			spokenState={
+				badge && !stateWord ? t(`missions.state.${state}`) : undefined
+			}
+			timestamp={timestamp}
+			title={objective}
+		/>
 	)
 }
 

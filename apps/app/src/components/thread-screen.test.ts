@@ -64,6 +64,7 @@ vi.mock("@/lib/routines/routines-transport", async (importOriginal) => {
 			...actual.routinesTransport,
 			list: vi.fn(),
 			update: vi.fn(),
+			runs: vi.fn(),
 		},
 	}
 })
@@ -78,6 +79,7 @@ vi.mock("@/lib/missions/missions-transport", () => ({
 }))
 
 const listRoutines = vi.mocked(routinesTransport.list)
+const listRuns = vi.mocked(routinesTransport.runs)
 const updateRoutine = vi.mocked(routinesTransport.update)
 const listSources = vi.mocked(triggerSourcesTransport.sources)
 const listMissions = vi.mocked(missionsTransport.list)
@@ -564,10 +566,20 @@ const missionCards = () =>
 const missionCard = () =>
 	screen.getByRole("article", { name: "mission opened" })
 
-const missionsSection = () => screen.getByRole("region", { name: "Missions" })
+const missionsSection = () =>
+	screen.getByRole("region", { name: "In progress" })
 
 const openRoutinesPanel = async () => {
 	fireEvent.click(screen.getByRole("button", { name: ROUTINES_TOGGLE }))
+	await settle()
+}
+
+const openRoutinesScreen = async () => {
+	const entry = document.querySelector<HTMLElement>(
+		'[data-slot="routines-entry"]',
+	)
+	if (!entry) throw new Error("the activity panel holds no routines entry")
+	fireEvent.click(entry)
 	await settle()
 }
 
@@ -713,6 +725,7 @@ describe("ThreadScreen", () => {
 		layout = fakeLayout()
 		vi.clearAllMocks()
 		listRoutines.mockResolvedValue([SOLO_ROUTINE])
+		listRuns.mockResolvedValue([])
 		listSources.mockResolvedValue([SCHEDULE_SOURCE])
 		listMissions.mockResolvedValue({ open: [], done: [] })
 		listenToMissions.mockResolvedValue(() => undefined)
@@ -729,6 +742,7 @@ describe("ThreadScreen", () => {
 		await settle()
 
 		await openRoutinesPanel()
+		await openRoutinesScreen()
 
 		expect(listRoutines).toHaveBeenCalledWith("c-bot-1")
 		expect(listSources).toHaveBeenCalledWith("bot-1")
@@ -781,6 +795,7 @@ describe("ThreadScreen", () => {
 		listRoutines.mockResolvedValue([SOLO_ROUTINE])
 		fireEvent.click(screen.getByRole("button", { name: "Retry" }))
 		await settle()
+		await openRoutinesScreen()
 
 		expect(screen.getByText(SOLO_ROUTINE.title)).toBeTruthy()
 	})
@@ -897,7 +912,7 @@ describe("ThreadScreen", () => {
 
 		await openRoutinesPanel()
 
-		expect(within(missionsSection()).getByText("2 hours ago")).toBeTruthy()
+		expect(within(missionsSection()).getByText("2h")).toBeTruthy()
 	})
 
 	it("leaves the transcript without a mission card when the missions could not be read", async () => {
@@ -923,6 +938,7 @@ describe("ThreadScreen", () => {
 		await settle()
 
 		expect(screen.queryByText(READ_MISSIONS_TITLE)).toBeNull()
+		await openRoutinesScreen()
 		expect(screen.getByText(SOLO_ROUTINE.title)).toBeTruthy()
 	})
 
@@ -946,6 +962,7 @@ describe("ThreadScreen", () => {
 
 		expect(listRoutines).toHaveBeenCalledTimes(2)
 		expect(listMissions).toHaveBeenCalledTimes(2)
+		await openRoutinesScreen()
 		expect(screen.getByText(SOLO_ROUTINE.title)).toBeTruthy()
 	})
 
