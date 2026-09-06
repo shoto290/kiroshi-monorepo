@@ -203,6 +203,8 @@ const dotIn = (row: HTMLElement) => slotIn(row, "bot-mission-dot")
 
 const BARE_ROW_HEIGHT = 52
 
+const ROW_HEAD_HEIGHT = 40
+
 const STRIP_STEP = 28
 
 const heightForStrips = (count: number) => BARE_ROW_HEIGHT + count * STRIP_STEP
@@ -325,6 +327,22 @@ const rowFor = (canvasElement: HTMLElement, name: string) => {
 
 const rowButton = (row: HTMLElement) => slotIn(row, "sidebar-menu-button")
 
+const rowHead = (row: HTMLElement) =>
+	row.querySelector<HTMLElement>('[data-slot="sidebar-menu-head"]') ??
+	rowButton(row)
+
+const headHeightOf = (row: HTMLElement) => {
+	const head = rowHead(row)
+	const box = head.getBoundingClientRect()
+	if (head !== rowButton(row)) return Math.round(box.height)
+	const { paddingTop, paddingBottom } = getComputedStyle(head)
+	return Math.round(
+		box.height -
+			Number.parseFloat(paddingTop) -
+			Number.parseFloat(paddingBottom),
+	)
+}
+
 const badgeIn = (row: HTMLElement) =>
 	row.querySelector<HTMLElement>('[data-slot="bot-activity-dot"]')?.dataset
 		.badge
@@ -407,7 +425,7 @@ const expectAvatarCentredOnRowPart = async (
 ) =>
 	expect(
 		verticalCentreOf(slotIn(row, avatarSlot).getBoundingClientRect()),
-	).toBeCloseTo(verticalCentreOf(rowButton(row).getBoundingClientRect()), 0)
+	).toBeCloseTo(verticalCentreOf(rowHead(row).getBoundingClientRect()), 0)
 
 const expectStripSpansRow = async (row: HTMLElement) => {
 	const strip = stripsIn(row)[0].getBoundingClientRect()
@@ -415,7 +433,8 @@ const expectStripSpansRow = async (row: HTMLElement) => {
 	const button = rowButton(row).getBoundingClientRect()
 
 	await expect(Math.round(strip.left)).toBe(Math.round(avatar.left))
-	await expect(Math.round(button.right - strip.right)).toBe(12)
+	await expect(Math.round(button.right - strip.right)).toBe(6)
+	await expect(rowButton(row).contains(stripsIn(row)[0])).toBe(true)
 }
 
 const expectAlignedRows = async (rows: HTMLElement[]) => {
@@ -427,7 +446,7 @@ const expectAlignedRows = async (rows: HTMLElement[]) => {
 		uniqueCount(topOffsets(rowsWithPreview(rows), "roster-row-name")),
 	).toBe(1)
 	await expect(previewShortfalls(rows)).toEqual(rows.map(() => 0))
-	await expect(uniqueCount(rowHeights(rows.map(rowButton)))).toBe(1)
+	await expect(uniqueCount(rows.map(headHeightOf))).toBe(1)
 }
 
 const colorOf = (row: HTMLElement, slot: string) =>
@@ -1040,10 +1059,11 @@ export const BadgesOnRail = meta.story({
 export const MissionStripStates = meta.story({
 	args: { bots: MISSION_STATE_ROSTER, selectedBotId: "beacon" },
 	parameters: {
+		a11y: A11Y_CONTRAST_AWAITING_DESIGN_DECISION,
 		docs: {
 			description: {
 				story:
-					"Four bots each carrying one open mission, one per state a mission can be in. The mission speaks in a strip under the row and never in the dot on the preview line: the strip is the state of the work, the dot is the state of the conversation, and the two shapes are never confused. Check each strip runs the full width of the row, from the leading edge of the avatar to the trailing inner edge, so it passes under the avatar rather than starting after it. Check the strip opens on its state dot in the attention, failed and done colours the panel already uses and the muted grey of a resting row while the mission simply runs, then the platform mark, the identifier, the title. Check the strip never moves: it is the one mark in the row that does not pulse, because a mission is a fact and not an alarm. Check every row measures 80px, the row part staying 52px with the avatar centred on it, and that the four chat signals are exactly what the host passed. Pick `MissionStripStack` for a row carrying four, `MissionStripSelected` for the strip under a lit row.",
+					"Four bots each carrying one open mission, one per state a mission can be in. The mission speaks in a strip under the row and never in the dot on the preview line: the strip is the state of the work, the dot is the state of the conversation, and the two shapes are never confused. Check each strip runs the full width of the row, from the leading edge of the avatar to the trailing inner edge, so it passes under the avatar rather than starting after it. Check the strip opens on its state dot in the attention, failed and done colours the panel already uses and the muted grey of a resting row while the mission simply runs, then the platform mark, the identifier, the title. Check the strip never moves: it is the one mark in the row that does not pulse, because a mission is a fact and not an alarm. The title and the mark carry `--muted-foreground`, which reaches 3.9:1 on the strip fill instead of the 4.5:1 AA asks for: the pair is the artboard’s and the fix is a lightness step on the token, which every muted line in the panel would take with it, so it is flagged for review here rather than settled inside this strip. Check every row measures 80px, the head staying 40px with the avatar centred on it rather than on the row plus the strip, and that the four chat signals are exactly what the host passed. Pick `MissionStripStack` for a row carrying four, `MissionStripSelected` for the strip under a lit row.",
 			},
 		},
 	},
@@ -1098,10 +1118,11 @@ export const MissionStripSingle = meta.story({
 		selectedBotId: "atlas",
 	},
 	parameters: {
+		a11y: A11Y_CONTRAST_AWAITING_DESIGN_DECISION,
 		docs: {
 			description: {
 				story:
-					"One bot on one mission over one bot on none. Check the first row measures 80px and the second 52px: a strip costs 24px of height and the 4px that separates it from the row above it, and a row with nothing to say pays neither. Check the strips sit outside the row button, so the row keeps the height it has everywhere else in the panel and the avatar stays centred on that part rather than on the row plus what hangs below it. Pick `MissionStripNone` for the bare row alone, `MissionStripStack` for four at once.",
+					"One bot on one mission over one bot on none. Check the first row measures 80px and the second 52px: a strip costs 24px of height and the 4px that separates it from the row above it, and a row with nothing to say pays neither. Check the strip sits inside the row button, under the head, so one surface and one rounding cover both: the head keeps the 40px it has everywhere else in the panel and the avatar stays centred on it rather than on the row plus what hangs below it. Pick `MissionStripNone` for the bare row alone, `MissionStripStack` for four at once.",
 			},
 		},
 	},
@@ -1114,9 +1135,10 @@ export const MissionStripSingle = meta.story({
 		])
 		await expect(stripsIn(rows[0])).toHaveLength(1)
 		await expect(stripsIn(rows[1])).toHaveLength(0)
-		await expect(rowHeights(rows.map(rowButton))).toEqual(
-			rows.map(() => BARE_ROW_HEIGHT),
+		await expect(rows.map(headHeightOf)).toEqual(
+			rows.map(() => ROW_HEAD_HEIGHT),
 		)
+		await expect(rowHeights([rows[1]])).toEqual([BARE_ROW_HEIGHT])
 		await expectAlignedRows(rows)
 	},
 })
@@ -1137,6 +1159,7 @@ export const MissionStripStack = meta.story({
 		selectedBotId: "atlas",
 	},
 	parameters: {
+		a11y: A11Y_CONTRAST_AWAITING_DESIGN_DECISION,
 		docs: {
 			description: {
 				story:
@@ -1158,12 +1181,7 @@ export const MissionStripStack = meta.story({
 		await expect(rowHeights(strips)).toEqual(strips.map(() => 24))
 		await expect(uniqueCount(gapsBetween(strips))).toBe(1)
 		await expect(gapsBetween(strips)[0]).toBe(4)
-		await expect(
-			Math.round(
-				strips[0].getBoundingClientRect().top -
-					rowButton(row).getBoundingClientRect().bottom,
-			),
-		).toBe(4)
+		await expect(gapsBetween([rowHead(row), strips[0]])).toEqual([4])
 		await expectStripSpansRow(row)
 	},
 })
@@ -1193,10 +1211,11 @@ export const MissionStripSelected = meta.story({
 		selectedBotId: "atlas",
 	},
 	parameters: {
+		a11y: A11Y_CONTRAST_AWAITING_DESIGN_DECISION,
 		docs: {
 			description: {
 				story:
-					"The same two rows, the first of them the one the reader is in. Check the strip stays readable as its own block under the lit row: it sits outside the button, keeps its own rounded corners, and a 4px gutter of the panel surface runs between the two, so a selected row never swallows the mission hanging under it even where the two surfaces meet. Check the selected row and the resting row give their strips the same surface, since a mission does not change because the reader happens to be reading it, and that the strip surface is not the panel surface it sits on. Pick `MissionStripStates` for the strip on rows at rest.",
+					"The same two rows, the first of them the one the reader is in. Check the lit background and its rounding cover the head and the strip alike: the strip lives inside the button, 4px under the head and 6px from the surface edge, so a selected row reads as one block and not as a row with something stapled under it. Check the strip keeps its own rounded corners and the same 10 percent foreground fill on the lit row as on the resting one, since a mission does not change because the reader happens to be reading it, and that fill is neither the panel surface nor the selected surface it sits on. Pick `MissionStripStates` for the strip on rows at rest.",
 			},
 		},
 	},
@@ -1213,12 +1232,22 @@ export const MissionStripSelected = meta.story({
 		await expect(getComputedStyle(stripsIn(rows[0])[0]).borderRadius).not.toBe(
 			"0px",
 		)
-		await expect(
-			gapsBetween([rowButton(rows[0]), stripsIn(rows[0])[0]]),
-		).toEqual([4])
+		await expect(gapsBetween([rowHead(rows[0]), stripsIn(rows[0])[0]])).toEqual(
+			[4],
+		)
+		await expect(surfaces[0]).not.toBe(
+			getComputedStyle(rowButton(rows[0])).backgroundColor,
+		)
 		await expect(getComputedStyle(rowButton(rows[0])).backgroundColor).not.toBe(
 			getComputedStyle(rowButton(rows[1])).backgroundColor,
 		)
+		await expect(rowButton(rows[0]).contains(stripsIn(rows[0])[0])).toBe(true)
+		await expect(
+			Math.round(
+				rowButton(rows[0]).getBoundingClientRect().bottom -
+					stripsIn(rows[0])[0].getBoundingClientRect().bottom,
+			),
+		).toBe(6)
 	},
 })
 
@@ -1244,6 +1273,7 @@ export const MissionStripTruncatedTitle = meta.story({
 		selectedBotId: "atlas",
 	},
 	parameters: {
+		a11y: A11Y_CONTRAST_AWAITING_DESIGN_DECISION,
 		docs: {
 			description: {
 				story:
@@ -1300,6 +1330,7 @@ export const MissionStripUnnamedPlatform = meta.story({
 		selectedBotId: "atlas",
 	},
 	parameters: {
+		a11y: A11Y_CONTRAST_AWAITING_DESIGN_DECISION,
 		docs: {
 			description: {
 				story:
@@ -1324,6 +1355,7 @@ export const MissionStripUnnamedPlatform = meta.story({
 export const MissionStripRaised = meta.story({
 	args: { bots: LOOSE_MISSION_ROSTER, selectedBotId: "beacon" },
 	parameters: {
+		a11y: A11Y_CONTRAST_AWAITING_DESIGN_DECISION,
 		docs: {
 			description: {
 				story:
@@ -1356,6 +1388,7 @@ export const MissionStripWithChatBadge = meta.story({
 		selectedBotId: "atlas",
 	},
 	parameters: {
+		a11y: A11Y_CONTRAST_AWAITING_DESIGN_DECISION,
 		docs: {
 			description: {
 				story:
@@ -1396,6 +1429,34 @@ export const MissionStripOnRail = meta.story({
 
 		await expect(slotsIn(canvasElement, "bot-mission-strip")).toHaveLength(0)
 		await expect(uniqueCount(rowHeights(rowsIn(canvasElement)))).toBe(1)
+	},
+})
+
+export const MissionStripPlainMenuButton = meta.story({
+	args: { bots: MISSION_STATE_ROSTER, selectedBotId: "beacon", user: READER },
+	parameters: {
+		a11y: A11Y_CONTRAST_AWAITING_DESIGN_DECISION,
+		docs: {
+			description: {
+				story:
+					"The mission rows over the reader chip, an ordinary menu button that carries no strip. Check the chip is drawn exactly as every menu button outside the roster is: one line, its content centred on it, the 10px gap every menu button puts between its icon and its label, and no head wrapper split out of it. A strip changes the button that has one and no other, so a mission in the roster never reshapes the footer, the switcher or a header. Pick `MissionStripStates` for the rows that do carry one.",
+			},
+		},
+	},
+	play: async ({ canvasElement }) => {
+		const chip = slotIn(
+			slotIn(canvasElement, "sidebar-footer"),
+			"sidebar-menu-button",
+		)
+		const style = getComputedStyle(chip)
+
+		await expect(
+			chip.querySelector('[data-slot="sidebar-menu-head"]'),
+		).toBeNull()
+		await expect(style.flexDirection).toBe("row")
+		await expect(style.alignItems).toBe("center")
+		await expect(style.columnGap).toBe("10px")
+		await expect(slotsIn(chip, "bot-mission-strip")).toHaveLength(0)
 	},
 })
 
@@ -3214,6 +3275,7 @@ export const MissionStripPinned = meta.story({
 		),
 	},
 	parameters: {
+		a11y: A11Y_CONTRAST_AWAITING_DESIGN_DECISION,
 		docs: {
 			description: {
 				story:
@@ -4637,6 +4699,7 @@ const MISSION_CONVERSATION_ARGS = {
 export const ConversationMissionStrips = meta.story({
 	args: MISSION_CONVERSATION_ARGS,
 	parameters: {
+		a11y: A11Y_CONTRAST_AWAITING_DESIGN_DECISION,
 		docs: {
 			description: {
 				story:

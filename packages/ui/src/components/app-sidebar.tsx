@@ -114,7 +114,7 @@ const ROW_STACK = "relative flex h-9 min-w-0 flex-col justify-center"
 
 const ROW_ITEM = "flex flex-col gap-1"
 
-const MISSION_STRIPS = "flex flex-col gap-1 ps-1.5 pe-3"
+const MISSION_STRIPS = "flex flex-col gap-1"
 
 const PREVIEW_LINE =
 	"h-4 truncate pe-3.5 text-muted-foreground text-xs leading-4 empty:h-0"
@@ -255,20 +255,14 @@ interface AppSidebarRowMission {
 	ticket: BotMissionTicket
 }
 
-const NO_MISSIONS: AppSidebarRowMission[] = []
-
-interface RowMissionStripsProps {
-	missions: AppSidebarRowMission[]
-}
-
-const RowMissionStrips = ({ missions }: RowMissionStripsProps) =>
-	missions.length > 0 ? (
+const missionStripsOf = (missions: AppSidebarRowMission[] | undefined) =>
+	missions?.length ? (
 		<span className={MISSION_STRIPS} data-slot="roster-row-missions">
 			{missions.map(({ id, state, ticket }) => (
 				<BotMissionStrip key={id} state={state} ticket={ticket} />
 			))}
 		</span>
-	) : null
+	) : undefined
 
 interface AppSidebarBot {
 	id: string
@@ -640,7 +634,7 @@ const BotRosterRow = ({
 	const { isCollapsed, avatarBadge, rowBadge } = useRosterBadgePlacement(
 		bot.badge,
 	)
-	const missions = isCollapsed ? NO_MISSIONS : (bot.missions ?? NO_MISSIONS)
+	const strips = isCollapsed ? undefined : missionStripsOf(bot.missions)
 
 	return (
 		<AnimatedSidebarMenuItem
@@ -654,6 +648,7 @@ const BotRosterRow = ({
 				<ContextMenuTrigger>
 					<AnimatedSidebarMenuButton
 						{...lift.handlersFor(bot.id)}
+						below={strips}
 						className={ROW}
 						icon={<BotRowAvatar badge={avatarBadge} bot={bot} />}
 						isActive={isSelected}
@@ -745,7 +740,6 @@ const BotRosterRow = ({
 					</ContextMenuItem>
 				</ContextMenuContent>
 			</ContextMenu>
-			<RowMissionStrips missions={missions} />
 		</AnimatedSidebarMenuItem>
 	)
 }
@@ -797,9 +791,9 @@ const ConversationRosterRow = ({
 	const { isCollapsed, avatarBadge, rowBadge } = useRosterBadgePlacement(
 		badgeOf(conversation),
 	)
-	const missions = isCollapsed
-		? NO_MISSIONS
-		: (conversation.missions ?? NO_MISSIONS)
+	const strips = isCollapsed
+		? undefined
+		: missionStripsOf(conversation.missions)
 
 	return (
 		<AnimatedSidebarMenuItem
@@ -813,6 +807,7 @@ const ConversationRosterRow = ({
 				<ContextMenuTrigger>
 					<AnimatedSidebarMenuButton
 						{...lift.handlersFor(conversation.id)}
+						below={strips}
 						className={ROW}
 						icon={
 							<AvatarGroup
@@ -886,7 +881,6 @@ const ConversationRosterRow = ({
 					</ContextMenuItem>
 				</ContextMenuContent>
 			</ContextMenu>
-			<RowMissionStrips missions={missions} />
 		</AnimatedSidebarMenuItem>
 	)
 }
@@ -1278,9 +1272,11 @@ const activityOf = ({ bot, conversation }: PinnedEntry) =>
 const byMostRecent = (one: PinnedEntry, other: PinnedEntry) =>
 	activityOf(other) - activityOf(one)
 
+const hasWaitingMission = (missions: AppSidebarRowMission[] | undefined) =>
+	missions?.some(({ state }) => state === "waiting") ?? false
+
 const isWaitingOnReader = ({ bot, conversation }: PinnedEntry) =>
-	bot?.missions?.[0]?.state === "waiting" ||
-	conversation?.missions?.[0]?.state === "waiting"
+	hasWaitingMission(bot?.missions) || hasWaitingMission(conversation?.missions)
 
 const waitingFirst = (entries: PinnedEntry[]) => [
 	...entries.filter(isWaitingOnReader),
