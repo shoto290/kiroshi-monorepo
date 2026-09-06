@@ -56,6 +56,7 @@ const ActivityRow = ({
 	spokenState,
 	activation,
 }: ActivityRowProps) => {
+	const written = parts.filter((part) => part.text !== "")
 	const content = (
 		<>
 			<BotIdentityAvatar
@@ -88,16 +89,14 @@ const ActivityRow = ({
 						</span>
 					) : null}
 					<span className="min-w-0 truncate" data-slot="activity-row-parts">
-						{parts
-							.filter((part) => part.text !== "")
-							.map((part, index) => (
-								<span
-									className={index === 0 && !identifier ? undefined : DOT_CLASS}
-									key={part.key}
-								>
-									{part.text}
-								</span>
-							))}
+						{written.map((part, index) => (
+							<span
+								className={index === 0 && !identifier ? undefined : DOT_CLASS}
+								key={part.key}
+							>
+								{part.text}
+							</span>
+						))}
 					</span>
 				</span>
 			</span>
