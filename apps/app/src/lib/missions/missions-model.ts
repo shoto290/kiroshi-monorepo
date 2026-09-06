@@ -104,19 +104,20 @@ const RING_BADGE_OF: Partial<Record<BotMissionState, BotBadge>> =
 		}),
 	)
 
-const urgencyOf = (state: BotMissionState) => MOST_URGENT_FIRST.indexOf(state)
-
-const isMoreUrgent = (candidate: ShownMission, held: ShownMission): boolean => {
-	if (candidate.state !== held.state)
-		return urgencyOf(candidate.state) < urgencyOf(held.state)
-	if (candidate.mission.openedAt !== held.mission.openedAt)
-		return candidate.mission.openedAt < held.mission.openedAt
-	return candidate.mission.id < held.mission.id
-}
-
 type ShownMission = {
 	state: BotMissionState
 	mission: Mission
+}
+
+const isMoreUrgent = (candidate: ShownMission, held: ShownMission): boolean => {
+	if (candidate.state !== held.state)
+		return (
+			MOST_URGENT_FIRST.indexOf(candidate.state) <
+			MOST_URGENT_FIRST.indexOf(held.state)
+		)
+	if (candidate.mission.openedAt !== held.mission.openedAt)
+		return candidate.mission.openedAt < held.mission.openedAt
+	return candidate.mission.id < held.mission.id
 }
 
 export const missionsByRow = (

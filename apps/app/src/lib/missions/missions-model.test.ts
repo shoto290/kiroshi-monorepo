@@ -172,6 +172,8 @@ const row = (over: Partial<AppSidebarBot>): AppSidebarBot => ({
 
 const NO_LISTED_CONVERSATIONS: { id: string }[] = []
 
+const OTHER_TICKET = { ...mission({}).ticket, externalId: "OPE-99" }
+
 const TICKET = {
 	platform: "linear",
 	externalId: "OPE-29",
@@ -221,7 +223,7 @@ describe("missionsByRow", () => {
 						id: "m-late",
 						openedAt: 5,
 						state: "waiting_human",
-						ticket: { ...mission({}).ticket, externalId: "OPE-99" },
+						ticket: OTHER_TICKET,
 					}),
 					onBoard({ id: "m-early", openedAt: 2, state: "waiting_human" }),
 					onBoard({ id: "m-running", openedAt: 1, state: "working" }),
@@ -237,7 +239,7 @@ describe("missionsByRow", () => {
 				id: "m-b",
 				openedAt: 3,
 				state: "failed",
-				ticket: { ...mission({}).ticket, externalId: "OPE-99" },
+				ticket: OTHER_TICKET,
 			}),
 			onBoard({ id: "m-a", openedAt: 3, state: "failed" }),
 		]
