@@ -912,12 +912,16 @@ describe("startMissionRunDriver", () => {
 		])
 	})
 
-	it("records no answer when the turn of an answer run is cancelled", async () => {
+	it("records the answer of an answer run whose turn was cancelled", async () => {
 		vi.spyOn(console, "error").mockImplementation(() => undefined)
 		await harness.enter("waiting_bot")
 		await harness.endTurn({ outcome: "cancelled" })
 
-		expect(harness.missions.answers).toEqual([])
+		expect(harness.missions.answers).toEqual([
+			[harness.mission.id, STANDING_SEQ],
+		])
+		expect(harness.missions.reports).toEqual([])
+		expect(harness.reportFailure).toHaveBeenCalledTimes(1)
 	})
 
 	it("records no answer for a run that closes a mission", async () => {

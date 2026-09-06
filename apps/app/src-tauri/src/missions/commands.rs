@@ -595,6 +595,10 @@ mod tests {
 	async fn the_answer_at_the_standing_seq_works_the_mission_again_and_a_new_question_waits_it() {
 		let app = a_host("answered").await;
 		let opened = a_mission(&app, a_draft("c1", "b1", "Fix it")).await;
+		let (sender, received) = channel();
+		app.handle().listen(CHANGED_EVENT, move |event| {
+			let _ = sender.send(event.payload().to_owned());
+		});
 
 		let asked = an_agent_question(&app, &opened.id).await;
 		let answered =
@@ -614,6 +618,31 @@ mod tests {
 			asked.state_seq,
 			answered.state_seq,
 			asked_again.state_seq
+		);
+		let announced: Vec<serde_json::Value> = received
+			.try_iter()
+			.map(|payload| serde_json::from_str(&payload).expect("the payload is JSON"))
+			.collect();
+		assert_eq!(
+			announced,
+			vec![
+				json!({
+					"missionId": opened.id,
+					"state": "waiting_bot",
+					"stateSeq": asked.state_seq
+				}),
+				json!({
+					"missionId": opened.id,
+					"state": "working",
+					"stateSeq": answered.state_seq
+				}),
+				json!({
+					"missionId": opened.id,
+					"state": "waiting_bot",
+					"stateSeq": asked_again.state_seq
+				}),
+			],
+			"the front was not told the mission waited, worked, then waited again"
 		);
 
 		cleaned(&app);

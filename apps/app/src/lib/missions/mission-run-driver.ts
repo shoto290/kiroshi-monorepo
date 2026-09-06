@@ -398,12 +398,11 @@ export const startMissionRunDriver = ({
 
 	const settle = async (held: LiveMissionRun, ended: TurnEnded) => {
 		const settled = await endOn(held)
+		await answerWhenAsked(held)
 
 		if (ended.outcome !== "completed") {
 			return raiseFailure(`the mission run's turn was ${ended.outcome}`)
 		}
-
-		await answerWhenAsked(held)
 
 		const report = readRunReport(ended.structuredOutput)
 
