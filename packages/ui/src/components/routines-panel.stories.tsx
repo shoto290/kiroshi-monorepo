@@ -11,10 +11,9 @@ import {
 import { AppHeader } from "@workspace/ui/components/app-header"
 import { Icons } from "@workspace/ui/components/icons"
 import {
-	CLOSED_MISSIONS,
-	MISSIONS_READ_AT,
+	EARLIER_TODAY_MISSIONS,
 	NO_MISSIONS,
-	RUNNING_MISSIONS,
+	OPEN_MISSIONS,
 	WAITING_HUMAN_MISSION,
 } from "@workspace/ui/components/missions.fixtures"
 import {
@@ -173,10 +172,16 @@ const PanelHost = ({
 const NO_ROUTINES: RoutineRowModel[] = []
 
 const NO_MISSION_AT_ALL = {
-	running: NO_MISSIONS,
-	closed: NO_MISSIONS,
-	now: MISSIONS_READ_AT,
+	open: NO_MISSIONS,
+	earlierToday: NO_MISSIONS,
 	onOpen: fn(),
+}
+
+const openRoutines = async (
+	canvasElement: HTMLElement,
+	userEvent: { click: (element: Element) => Promise<void> },
+) => {
+	await userEvent.click(slotIn(canvasElement, "routines-entry"))
 }
 
 const WORKSPACE_SIDEBAR = (
@@ -242,9 +247,8 @@ const meta = preview.meta({
 		},
 		isOpen: true,
 		missions: {
-			running: RUNNING_MISSIONS,
-			closed: CLOSED_MISSIONS,
-			now: MISSIONS_READ_AT,
+			open: OPEN_MISSIONS,
+			earlierToday: EARLIER_TODAY_MISSIONS,
 			onOpen: fn(),
 		},
 		onDelete: fn(),
@@ -262,11 +266,11 @@ export const Default = meta.story({
 		docs: {
 			description: {
 				story:
-					"The panel open beside a live thread: the missions running on the conversation first, the routines watching it under them. Check that the two lists read in that order under their own heads, that every routine row names its routine and the source that fires it — including the routine whose source no read named, which falls back to the source id rather than leaving the line blank — that the transcript keeps its own scroll while the panel stays put, and that flipping a switch reports the routine it belongs to, and that the only control over the panel is the one in its own header, the app header carrying none.",
+					"Six missions of three bots, spread over the three groups the panel knows: what waits on the reader first, what is in progress under it, then what closed earlier today, folded. Check that every group carries its count, that the rows are bare — no border, no surface — that a mission closed earlier today keeps its rows out of sight until its head is opened, that no routine is listed in the body, and that the routines of the conversation sit behind the entry at the foot carrying their count.",
 			},
 		},
 	},
-	play: async ({ args, canvas, canvasElement, userEvent }) => {
+	play: async ({ canvas, canvasElement }) => {
 		const panel = canvas.getByRole("complementary", { name: "Activity" })
 		await expect(panel).toBeVisible()
 		await expect(
@@ -275,29 +279,84 @@ export const Default = meta.story({
 		await expect(
 			canvas.queryByRole("button", { name: "Activity" }),
 		).not.toBeInTheDocument()
-		await expect(slotsIn(canvasElement, "mission-row")).toHaveLength(
-			RUNNING_MISSIONS.length,
-		)
-		await expect(slotsIn(canvasElement, "routine-row")).toHaveLength(
-			ROUTINES.length,
-		)
+
 		await expect(
-			slotIn(canvasElement, "missions-section").compareDocumentPosition(
-				slotIn(canvasElement, "routines-section"),
+			canvas.getByRole("heading", { name: "Waiting on you" }),
+		).toBeVisible()
+		await expect(
+			canvas.getByRole("heading", { name: "In progress" }),
+		).toBeVisible()
+		await expect(
+			slotIn(canvasElement, "missions-waiting").compareDocumentPosition(
+				slotIn(canvasElement, "missions-inProgress"),
 			),
 		).toBe(Node.DOCUMENT_POSITION_FOLLOWING)
-		await expect(canvas.getByText("Every day at 08:00")).toBeVisible()
-		await expect(
-			canvas.getByText(SOURCE_NAMED_BY_ID.triggerSourceTitle),
-		).toBeVisible()
 
-		await userEvent.click(
-			canvas.getByRole("switch", { name: "Morning digest" }),
+		await expect(slotsIn(canvasElement, "mission-row")).toHaveLength(
+			OPEN_MISSIONS.length,
 		)
-		await expect(args.onEnabledChange).toHaveBeenCalledWith(
-			"routine-morning-digest",
-			false,
+		await expect(slotsIn(canvasElement, "routine-row")).toHaveLength(0)
+		await expect(
+			within(slotIn(canvasElement, "routines-entry")).getByText(
+				String(ROUTINES.length),
+			),
+		).toBeVisible()
+	},
+})
+
+export const OneMission = meta.story({
+	args: {
+		missions: {
+			open: [WAITING_HUMAN_MISSION],
+			earlierToday: NO_MISSIONS,
+			onOpen: fn(),
+		},
+	},
+	parameters: {
+		a11y: A11Y_CONTRAST_AWAITING_DESIGN_DECISION,
+		docs: {
+			description: {
+				story:
+					"A conversation holding one mission, and that mission waiting on the reader. Check that only the group it belongs to is drawn — a group with nothing in it is left out rather than shown empty — and that the row reads its bot, its ticket and its age on two lines.",
+			},
+		},
+	},
+	play: async ({ canvas, canvasElement }) => {
+		await expect(slotsIn(canvasElement, "mission-row")).toHaveLength(1)
+		await expect(
+			canvas.getByRole("heading", { name: "Waiting on you" }),
+		).toBeVisible()
+		await expect(
+			canvas.queryByRole("heading", { name: "In progress" }),
+		).not.toBeInTheDocument()
+		await expect(
+			canvas.queryByRole("button", { name: /Earlier today/ }),
+		).not.toBeInTheDocument()
+		await expect(canvas.getByText("Ada Martin")).toBeVisible()
+		await expect(canvas.getByText("OPE-51")).toBeVisible()
+	},
+})
+
+export const EarlierTodayUnfolded = meta.story({
+	parameters: {
+		a11y: A11Y_CONTRAST_AWAITING_DESIGN_DECISION,
+		docs: {
+			description: {
+				story:
+					"The missions closed since midnight, unfolded from their head. Check that the head reports itself expanded once activated, that the closed rows join the open ones under it, and that a closed row reads muted, with the time of day it closed in place of an age and no badge dot on its blot.",
+			},
+		},
+	},
+	play: async ({ canvas, canvasElement, userEvent }) => {
+		const head = canvas.getByRole("button", { name: /Earlier today/ })
+		await expect(head).toHaveAttribute("aria-expanded", "false")
+
+		await userEvent.click(head)
+		await expect(head).toHaveAttribute("aria-expanded", "true")
+		await expect(slotsIn(canvasElement, "mission-row")).toHaveLength(
+			OPEN_MISSIONS.length + EARLIER_TODAY_MISSIONS.length,
 		)
+		await expect(canvas.getByText("09:12")).toBeVisible()
 	},
 })
 
@@ -374,74 +433,83 @@ export const Empty = meta.story({
 		docs: {
 			description: {
 				story:
-					"A conversation nothing runs on yet, neither mission nor routine. Check that the panel keeps the empty state it has always shown rather than a missions head over a dotted line, that no list, however short, is drawn under it, and that the way to write the first routine is the one control of the routines head. Pick `NoMissionRunning` for a conversation whose routines are written but whose missions are all closed.",
+					"A conversation nothing runs on yet, neither mission nor routine. Check that the empty body names what would land here rather than showing three empty groups, that the entry at the foot still counts the routines it holds — none — and that the way to write the first routine is one screen behind it. Pick `NoMission` for a conversation whose routines are written but whose missions are all closed and gone.",
 			},
 		},
 	},
 	play: async ({ canvas, canvasElement, userEvent }) => {
-		await expect(canvas.getByText("No routine yet")).toBeVisible()
-		await expect(slotsIn(canvasElement, "routines-list")).toHaveLength(0)
-		await expect(slotsIn(canvasElement, "missions-none")).toHaveLength(0)
+		await expect(canvas.getByText("Nothing is running here")).toBeVisible()
+		await expect(slotsIn(canvasElement, "mission-row")).toHaveLength(0)
 		await expect(slotsIn(canvasElement, "routine-row")).toHaveLength(0)
+
+		await openRoutines(canvasElement, userEvent)
+		await expect(canvas.getByText("No routine yet")).toBeVisible()
 
 		await userEvent.click(canvas.getByRole("button", { name: "New routine" }))
 		await expect(slotIn(canvasElement, "routine-form")).toBeVisible()
 	},
 })
 
-export const NoMissionRunning = meta.story({
-	args: {
-		missions: { ...NO_MISSION_AT_ALL, closed: CLOSED_MISSIONS },
-	},
+export const NoMission = meta.story({
+	args: { missions: NO_MISSION_AT_ALL },
 	parameters: {
 		a11y: A11Y_CONTRAST_AWAITING_DESIGN_DECISION,
 		docs: {
 			description: {
 				story:
-					"A conversation whose routines are written and whose missions are all closed. Check that the missions head stays with one dotted line under it rather than collapsing into the routines, and that the routines below read exactly as they do with missions above them.",
+					"A conversation whose routines are written and whose missions are all closed before today. Check that the body reads as the empty one rather than as a blank column, and that the routines are still counted at the foot.",
 			},
 		},
 	},
 	play: async ({ canvas, canvasElement }) => {
-		await expect(canvas.getByText("No mission running")).toBeVisible()
-		await expect(slotsIn(canvasElement, "missions-list")).toHaveLength(0)
-		await expect(slotsIn(canvasElement, "routine-row")).toHaveLength(
-			ROUTINES.length,
-		)
+		await expect(canvas.getByText("Nothing is running here")).toBeVisible()
+		await expect(slotsIn(canvasElement, "mission-row")).toHaveLength(0)
+		await expect(
+			within(slotIn(canvasElement, "routines-entry")).getByText(
+				String(ROUTINES.length),
+			),
+		).toBeVisible()
 	},
 })
 
-export const ClosedMissions = meta.story({
+export const OpeningTheRoutines = meta.story({
 	parameters: {
 		a11y: A11Y_CONTRAST_AWAITING_DESIGN_DECISION,
 		docs: {
 			description: {
 				story:
-					"The missions this conversation is done with, one screen away. Check that the control of the missions head pushes them over the panel rather than growing the running list, that the running missions and the routines are gone while it is up, and that coming back hands the keyboard to the control that opened it.",
+					"The routines of the conversation, one screen behind the entry at the foot. Check that the entry pushes them over the panel rather than growing the body, that the missions are gone while they are up, that every routine row names its routine and the source that fires it — including the routine whose source no read named, which falls back to the source id rather than leaving the line blank — that flipping a switch reports the routine it belongs to, and that coming back hands the keyboard to the entry that opened it.",
 			},
 		},
 	},
-	play: async ({ canvas, canvasElement, userEvent }) => {
-		await userEvent.click(
-			canvas.getByRole("button", { name: "Closed missions" }),
-		)
+	play: async ({ args, canvas, canvasElement, userEvent }) => {
+		await openRoutines(canvasElement, userEvent)
 
-		await expect(slotsIn(canvasElement, "mission-row")).toHaveLength(
-			CLOSED_MISSIONS.length,
+		await expect(slotsIn(canvasElement, "routine-row")).toHaveLength(
+			ROUTINES.length,
 		)
-		await expect(slotsIn(canvasElement, "routine-row")).toHaveLength(0)
+		await expect(slotsIn(canvasElement, "mission-row")).toHaveLength(0)
+		await expect(canvas.getByText("Every day at 08:00")).toBeVisible()
+		await expect(
+			canvas.getByText(SOURCE_NAMED_BY_ID.triggerSourceTitle),
+		).toBeVisible()
+
+		await userEvent.click(
+			canvas.getByRole("switch", { name: "Morning digest" }),
+		)
+		await expect(args.onEnabledChange).toHaveBeenCalledWith(
+			"routine-morning-digest",
+			false,
+		)
 
 		await userEvent.click(
 			canvas.getByRole("button", { name: "Back to the activity" }),
 		)
 		await expect(slotsIn(canvasElement, "mission-row")).toHaveLength(
-			RUNNING_MISSIONS.length,
+			OPEN_MISSIONS.length,
 		)
 		await waitFor(
-			() =>
-				expect(
-					canvas.getByRole("button", { name: "Closed missions" }),
-				).toHaveFocus(),
+			() => expect(slotIn(canvasElement, "routines-entry")).toHaveFocus(),
 			FRAME_POLL,
 		)
 	},
@@ -453,11 +521,11 @@ export const OpeningAMission = meta.story({
 		docs: {
 			description: {
 				story:
-					"A mission picked from the running list. Check that the whole row is what answers the pointer and the keyboard — the row carries no control of its own — and that it reports the mission it belongs to rather than opening anything inside the panel.",
+					"A mission picked from a group. Check that the whole row is what answers the pointer and the keyboard — the row carries no control of its own — that it reports the mission it belongs to rather than opening anything inside the panel, and that a row reached by keyboard wears a focus ring.",
 			},
 		},
 	},
-	play: async ({ args, canvas, canvasElement, userEvent }) => {
+	play: async ({ args, canvas, userEvent }) => {
 		await userEvent.click(canvas.getByText(WAITING_HUMAN_MISSION.objective))
 		await expect(args.missions.onOpen).toHaveBeenCalledWith(
 			WAITING_HUMAN_MISSION.id,
@@ -465,9 +533,12 @@ export const OpeningAMission = meta.story({
 
 		await userEvent.keyboard("{Enter}")
 		await expect(args.missions.onOpen).toHaveBeenCalledTimes(2)
-		await expect(slotsIn(canvasElement, "routine-row")).toHaveLength(
-			ROUTINES.length,
-		)
+
+		const row = canvas
+			.getByText(WAITING_HUMAN_MISSION.objective)
+			.closest("button") as HTMLElement
+		await expect(row).toHaveFocus()
+		await expect(getComputedStyle(row).boxShadow).not.toBe("none")
 	},
 })
 
@@ -500,7 +571,7 @@ export const MissionsReadFailed = meta.story({
 		docs: {
 			description: {
 				story:
-					"The missions could not be read, the routines could. Check that the notice names the missions rather than blaming a routines read that never failed, and that the routines the app did read stay on screen under it.",
+					"The missions could not be read, the routines could. Check that the notice names the missions rather than blaming a routines read that never failed, that it sits above the body rather than inside a group, and that the routines the app did read are still counted at the foot.",
 			},
 		},
 	},
@@ -509,9 +580,11 @@ export const MissionsReadFailed = meta.story({
 		await expect(
 			canvas.queryByText("Routines could not be read"),
 		).not.toBeInTheDocument()
-		await expect(slotsIn(canvasElement, "routine-row")).toHaveLength(
-			ROUTINES.length,
-		)
+		await expect(
+			within(slotIn(canvasElement, "routines-entry")).getByText(
+				String(ROUTINES.length),
+			),
+		).toBeVisible()
 	},
 })
 
@@ -534,7 +607,9 @@ export const ActivityReadFailed = meta.story({
 			canvas.getByText("The activity of this conversation could not be read"),
 		).toBeVisible()
 		await expect(slotsIn(canvasElement, "chat-notice")).toHaveLength(1)
-		await expect(canvas.queryByText("No routine yet")).not.toBeInTheDocument()
+		await expect(
+			canvas.queryByText("Nothing is running here"),
+		).not.toBeInTheDocument()
 
 		await userEvent.click(canvas.getByRole("button", { name: "Retry" }))
 		await expect(args.onRetry).toHaveBeenCalled()
@@ -548,11 +623,12 @@ export const WriteFailed = meta.story({
 		docs: {
 			description: {
 				story:
-					"A switch that could not be written. Check that the panel says a change failed rather than blaming a read that never happened, that the routines the app is holding stay on screen under it, and that the switch reads as it did before the attempt.",
+					"A switch that could not be written. Check that the panel says a change failed rather than blaming a read that never happened, that the notice follows the reader onto the routines screen, that the routines the app is holding stay on screen under it, and that the switch reads as it did before the attempt.",
 			},
 		},
 	},
-	play: async ({ canvas, canvasElement }) => {
+	play: async ({ canvas, canvasElement, userEvent }) => {
+		await openRoutines(canvasElement, userEvent)
 		await expect(
 			canvas.getByText("The routine could not be changed"),
 		).toBeVisible()
@@ -576,6 +652,7 @@ export const Creating = meta.story({
 		},
 	},
 	play: async ({ args, canvas, canvasElement, userEvent }) => {
+		await openRoutines(canvasElement, userEvent)
 		await userEvent.click(canvas.getByRole("button", { name: "New routine" }))
 		await expect(args.form?.onNew).toHaveBeenCalled()
 
@@ -611,6 +688,7 @@ export const Opening = meta.story({
 		},
 	},
 	play: async ({ args, canvas, canvasElement, userEvent }) => {
+		await openRoutines(canvasElement, userEvent)
 		await userEvent.click(canvas.getByText("Morning digest"))
 		await expect(args.detail?.onOpen).toHaveBeenCalledWith(MORNING_DIGEST.id)
 
@@ -650,6 +728,7 @@ export const Editing = meta.story({
 		},
 	},
 	play: async ({ args, canvas, canvasElement, userEvent }) => {
+		await openRoutines(canvasElement, userEvent)
 		await userEvent.click(canvas.getByText("Morning digest"))
 		await userEvent.click(canvas.getByRole("button", { name: "Edit routine" }))
 		await expect(args.form?.onOpen).toHaveBeenCalledWith(MORNING_DIGEST.id)
@@ -685,6 +764,7 @@ export const Saving = meta.story({
 		},
 	},
 	play: async ({ canvas, canvasElement, userEvent }) => {
+		await openRoutines(canvasElement, userEvent)
 		await userEvent.click(canvas.getByText("Morning digest"))
 		await userEvent.click(canvas.getByRole("button", { name: "Edit routine" }))
 
@@ -747,11 +827,12 @@ export const WithoutSeatedLead = meta.story({
 		docs: {
 			description: {
 				story:
-					"A conversation with no lead bot seated: a routine written here would have nobody to run it. Check that the new routine action is left out of the header and of the empty state rather than shown and refused on save, and that the routines already written stay readable and editable.",
+					"A conversation with no lead bot seated: a routine written here would have nobody to run it. Check that the new routine action is left out of the routines screen rather than shown and refused on save, and that the routines already written stay readable and editable.",
 			},
 		},
 	},
-	play: async ({ canvas }) => {
+	play: async ({ canvas, canvasElement, userEvent }) => {
+		await openRoutines(canvasElement, userEvent)
 		await expect(
 			canvas.queryByRole("button", { name: "New routine" }),
 		).not.toBeInTheDocument()

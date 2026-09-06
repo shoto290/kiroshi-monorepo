@@ -1,20 +1,13 @@
 import { useCallback, useEffect, useMemo, useRef, useState } from "react"
 
-import type { RoutinesPanelMissions } from "@workspace/ui/components/routines-panel"
-
 import type { Mission } from "./mission-contract"
-import { toMissionRows } from "./missions-model"
 import { missionsTransport } from "./missions-transport"
 
 const NO_MISSIONS: Mission[] = []
 
-export type ConversationMissionRows = Omit<
-	RoutinesPanelMissions,
-	"now" | "onOpen"
->
-
 export type ConversationMissionsRead = {
-	rows: ConversationMissionRows
+	open: Mission[]
+	closed: Mission[]
 	missions: Mission[]
 	hasFailed: boolean
 	reload: () => void
@@ -70,17 +63,16 @@ export const useMissions = (
 		}
 	}, [reload])
 
-	const rows = useMemo<ConversationMissionRows>(
-		() => ({
-			running: toMissionRows(running),
-			closed: toMissionRows(closed),
-		}),
-		[running, closed],
-	)
 	const missions = useMemo(() => [...running, ...closed], [running, closed])
 
 	return useMemo(
-		() => ({ rows, missions, hasFailed, reload }),
-		[rows, missions, hasFailed, reload],
+		() => ({
+			open: running,
+			closed,
+			missions,
+			hasFailed,
+			reload,
+		}),
+		[running, closed, missions, hasFailed, reload],
 	)
 }

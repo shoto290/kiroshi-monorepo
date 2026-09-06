@@ -263,7 +263,7 @@ const settle = () =>
 const openMission = async () => {
 	fireEvent.click(screen.getByRole("button", { name: ACTIVITY }))
 	await settle()
-	const missions = screen.getByRole("region", { name: "Missions" })
+	const missions = screen.getByRole("region", { name: "Waiting on you" })
 	fireEvent.click(
 		within(missions).getByRole("button", { name: new RegExp(OBJECTIVE) }),
 	)

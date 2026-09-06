@@ -18,6 +18,7 @@ import {
 	withMissions,
 } from "./missions-model"
 
+import type { ThreadFace } from "@/lib/chat/thread-contract"
 import type { Bot } from "@/lib/conversations/store-contract"
 
 const missionIn = (state: MissionState): Mission => ({
@@ -40,33 +41,71 @@ const missionIn = (state: MissionState): Mission => ({
 	reportedTurnId: null,
 })
 
+const READ_AT = Date.parse("2026-03-04T14:20:00")
+
+const FACE: ThreadFace = {
+	id: "b-1",
+	name: "Ada Martin",
+	animal: "owl",
+}
+
+const faceOf = (botId: string): ThreadFace | undefined =>
+	botId === FACE.id ? FACE : undefined
+
+const closedAt = (at: number): Mission => ({
+	...missionIn("done"),
+	closedAt: at,
+})
+
 describe("toMissionRows", () => {
-	it("reads a mission as the ticket, the tools and the time its row shows", () => {
-		expect(toMissionRows([missionIn("working")])).toEqual([
+	it("reads an open mission as the row of the activity panel", () => {
+		const { open } = toMissionRows({
+			open: [{ ...missionIn("working"), openedAt: READ_AT - 3_600_000 }],
+			closed: [],
+			faceOf,
+			now: READ_AT,
+		})
+
+		expect(open).toEqual([
 			{
 				id: "m-working",
 				objective: "Rewrite the changelog parser",
-				ticketId: "OPE-42",
-				tools: ["Read", "Write"],
-				openedAt: 1_700_000_000_000,
-				badge: null,
+				ticket: {
+					platform: "linear",
+					externalId: "OPE-42",
+					title: "Changelog parser",
+				},
+				bot: { name: "Ada Martin", animal: "owl", seed: "b-1" },
+				state: "working",
+				timestamp: "1h",
 			},
 		])
 	})
 
-	it("badges only the missions a reader has something to do about", () => {
-		const badges = (
-			[
-				"working",
-				"waiting_bot",
-				"waiting_human",
-				"ready_to_merge",
-				"failed",
-				"done",
-			] as const
-		).map((state) => toMissionRows([missionIn(state)])[0]?.badge)
+	it("keeps only the missions closed since local midnight, at the time they closed", () => {
+		const { earlierToday } = toMissionRows({
+			open: [],
+			closed: [
+				closedAt(READ_AT - 7_200_000),
+				closedAt(READ_AT - 3 * 86_400_000),
+			],
+			faceOf,
+			now: READ_AT,
+		})
 
-		expect(badges).toEqual([null, null, "attention", "done", "failed", null])
+		expect(earlierToday).toHaveLength(1)
+		expect(earlierToday[0]?.timestamp).toBe("12:20")
+	})
+
+	it("leaves out a mission whose bot the conversation does not name", () => {
+		const { open } = toMissionRows({
+			open: [{ ...missionIn("working"), botId: "b-unknown" }],
+			closed: [],
+			faceOf,
+			now: READ_AT,
+		})
+
+		expect(open).toEqual([])
 	})
 })
 
@@ -395,31 +434,6 @@ describe("withMissions", () => {
 
 	it("leaves a row without a mission exactly as it reads", () => {
 		expect(withMissions([held], {})).toEqual([held])
-	})
-})
-
-const MISSION_STATES: MissionState[] = [
-	"working",
-	"waiting_bot",
-	"waiting_human",
-	"ready_to_merge",
-	"failed",
-	"done",
-]
-
-describe("mission badges", () => {
-	it("says the same thing on a roster ring as on a panel row", () => {
-		for (const state of MISSION_STATES) {
-			const strips = missionsByRow(
-				[onBoard({ state })],
-				NO_LISTED_CONVERSATIONS,
-			)["b-1"]
-			const ring = strips
-				? missionRingBadges({ work: [row({ missions: strips })] }).work[0].badge
-				: undefined
-
-			expect(ring ?? null).toBe(toMissionRows([mission({ state })])[0].badge)
-		}
 	})
 })
 

@@ -30,9 +30,9 @@ import {
 import "@workspace/ui/lib/i18n"
 
 const NO_MISSIONS: RoutinesPanelMissions = {
-	running: [],
-	closed: [],
-	now: 0,
+	open: [],
+	earlierToday: [],
+	onOpen: vi.fn(),
 }
 
 const NEW_SCHEDULE: RoutineFormModel = {

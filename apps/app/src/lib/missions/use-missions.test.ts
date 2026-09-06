@@ -55,7 +55,7 @@ describe("useMissions", () => {
 		const { result } = renderHook(() => useMissions("c-1"))
 
 		await waitFor(() => expect(result.current.missions).toEqual([MISSION]))
-		expect(result.current.rows.running).toHaveLength(1)
+		expect(result.current.open).toHaveLength(1)
 		expect(result.current.hasFailed).toBe(false)
 	})
 
