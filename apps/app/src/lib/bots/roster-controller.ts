@@ -10,6 +10,7 @@ import {
 import { i18n } from "@workspace/ui/lib/i18n"
 
 import { newBotIdentity, toIdentity, toSettingsValue } from "./bot-settings"
+import { type RosterLine, rosterLinesIn, type SoloThreads } from "./roster-line"
 
 import { createQueue } from "../queue"
 import { createWriteLoop } from "../write-loop"
@@ -31,11 +32,6 @@ import {
 	lastWordIn,
 } from "../conversations/transcript-state"
 
-export type RosterLine = {
-	spaceId: string
-	botId: string
-}
-
 export type BotPreviews = Record<string, LastWord | undefined>
 
 export type RosterState = {
@@ -45,7 +41,7 @@ export type RosterState = {
 	conversations: Conversation[]
 	spaceId: string | null
 	previews: Record<string, BotPreviews>
-	soloThreads: Record<string, RosterLine>
+	soloThreads: SoloThreads
 	conversationPreviews: ConversationPreviews
 	selectedBotId: string | null
 	selectedConversationId: string | null
@@ -250,9 +246,9 @@ const withoutLine = (
 })
 
 const withoutThreadsOf = (
-	soloThreads: Record<string, RosterLine>,
+	soloThreads: SoloThreads,
 	holds: (line: RosterLine) => boolean,
-): Record<string, RosterLine> =>
+): SoloThreads =>
 	Object.fromEntries(
 		Object.entries(soloThreads).filter(([, line]) => !holds(line)),
 	)
@@ -498,11 +494,6 @@ export const createRosterController = (
 		set({ previews, soloThreads })
 	}
 
-	const linesIn = (rosters: Record<string, Bot[]>): RosterLine[] =>
-		Object.entries(rosters).flatMap(([spaceId, bots]) =>
-			bots.map((bot) => ({ spaceId, botId: bot.id })),
-		)
-
 	const readConversationPreviews = async (conversationIds: string[]) => {
 		const read: ConversationPreviews = {}
 		await Promise.all(
@@ -594,7 +585,7 @@ export const createRosterController = (
 			await readFrom(opening)
 			set({ hasLoaded: true })
 			await Promise.all([
-				readPreviews(linesIn(state.rosters)),
+				readPreviews(rosterLinesIn(state.rosters)),
 				readConversationPreviews(
 					Object.values(state.conversationRosters)
 						.flat()

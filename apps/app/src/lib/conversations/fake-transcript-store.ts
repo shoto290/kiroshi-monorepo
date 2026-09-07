@@ -1211,12 +1211,16 @@ export const createFakeTranscriptStore = (
 		botCommands: (botId: string) =>
 			Promise.resolve([...(commands.get(botId) ?? [])]),
 
-		mainChat: (botId: string, spaceId?: string | null) =>
-			Promise.resolve<Chat>({
+		mainChat: (botId: string, spaceId?: string | null) => {
+			if (spaceId != null && !isIn(botId, spaceId)) {
+				return refuse({ kind: "foreignBot", id: botId })
+			}
+			return Promise.resolve<Chat>({
 				id: chatIdOf(botId, spaceId ?? homeOf(botId)),
 				createdAt: 0,
 				updatedAt: 0,
-			}),
+			})
+		},
 
 		conversations: (spaceId: string) =>
 			Promise.resolve(

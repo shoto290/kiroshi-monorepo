@@ -14,6 +14,8 @@ import {
 	type MissionRowsRead,
 	missionRingBadges,
 	missionsByRow,
+	missionsBySpaceId,
+	missionsIn,
 	toMissionEventModels,
 	toMissionRows,
 	withMissions,
@@ -530,6 +532,58 @@ describe("missionsByRow", () => {
 				[{ id: "c-1" }],
 			),
 		).toEqual({ "b-1": [shownMission("m-1", "working")] })
+	})
+})
+
+const HOME = "home"
+
+const AWAY = "away"
+
+const SOLO_THREADS = {
+	"chat-home": { spaceId: HOME, botId: "b-1" },
+	"chat-away": { spaceId: AWAY, botId: "b-1" },
+}
+
+describe("missionsBySpaceId", () => {
+	it("strips a solo mission on the line of the space its origin thread sits in", () => {
+		const missions = missionsBySpaceId({
+			board: [onBoard({ id: "m-1", originConversationId: "chat-away" })],
+			conversationRosters: { [HOME]: [], [AWAY]: [] },
+			soloThreads: SOLO_THREADS,
+		})
+
+		expect(missionsIn(missions, AWAY)["b-1"]).toEqual([
+			shownMission("m-1", "working"),
+		])
+		expect(missionsIn(missions, HOME)["b-1"]).toBeUndefined()
+	})
+
+	it("strips a group mission on the conversation row of its own space", () => {
+		const missions = missionsBySpaceId({
+			board: [onBoard({ id: "m-1", originConversationId: "room-1" })],
+			conversationRosters: { [HOME]: [], [AWAY]: [{ id: "room-1" }] },
+			soloThreads: SOLO_THREADS,
+		})
+
+		expect(missionsIn(missions, AWAY)["room-1"]).toEqual([
+			shownMission("m-1", "working"),
+		])
+		expect(missionsIn(missions, AWAY)["b-1"]).toBeUndefined()
+	})
+
+	it("strips nothing when no space holds the origin conversation", () => {
+		const missions = missionsBySpaceId({
+			board: [onBoard({ id: "m-1", originConversationId: "gone" })],
+			conversationRosters: { [HOME]: [] },
+			soloThreads: SOLO_THREADS,
+		})
+
+		expect(missionsIn(missions, HOME)).toEqual({})
+	})
+
+	it("answers no strips for a space nothing runs in", () => {
+		expect(missionsIn({}, HOME)).toEqual({})
+		expect(missionsIn({}, null)).toEqual({})
 	})
 })
 

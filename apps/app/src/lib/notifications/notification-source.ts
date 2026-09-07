@@ -384,16 +384,14 @@ export const startNotificationSource = ({
 	}
 
 	const landOnBot = (botId: string) => {
-		if (!rosteredBots().some((bot) => bot.id === botId)) {
+		const spaceId = spaceOfBotThread(botId)
+
+		if (!spaceId) {
 			return
 		}
 
 		roster.select(botId)
-		const spaceId = spaceOfBotThread(botId)
-
-		if (spaceId) {
-			spaces.select(spaceId)
-		}
+		spaces.select(spaceId)
 	}
 
 	const landOnConversation = (conversationId: string) => {

@@ -445,6 +445,16 @@ describe("startNotificationSource", () => {
 		expect(harness.spaces.select).toHaveBeenCalledWith("space-one")
 	})
 
+	it("selects nothing when no space answers for the bot's thread", async () => {
+		const harness = await start()
+		harness.roster.hold([])
+
+		harness.notifications.activate(BOT)
+
+		expect(harness.roster.select).not.toHaveBeenCalled()
+		expect(harness.spaces.select).not.toHaveBeenCalled()
+	})
+
 	it("selects the bot line before entering the space its thread sits in", async () => {
 		const harness = await start()
 

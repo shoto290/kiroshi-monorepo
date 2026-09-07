@@ -5,7 +5,8 @@ import type { ChatState } from "./chat-state"
 import type { ChatDriver } from "./driver"
 import { type SidebarActivity, sidebarActivityFor } from "./screen-model"
 
-import type { BotPreviews, RosterLine } from "../bots/roster-controller"
+import type { BotPreviews } from "../bots/roster-controller"
+import { type RosterLine, runsIn, type SoloThreads } from "../bots/roster-line"
 import type { TranscriptStore } from "../conversations/store-port"
 import { type LastWord, lastWordIn } from "../conversations/transcript-state"
 
@@ -82,7 +83,7 @@ export type LinePreviewsMount = {
 	controller: ChatController
 	lines: RosterLine[]
 	stored: PreviewsBySpaceId
-	soloThreads: Record<string, RosterLine>
+	soloThreads: SoloThreads
 }
 
 export function useBotPreviews({
@@ -99,11 +100,9 @@ export function useBotPreviews({
 	return useSyncExternalStore(controller.subscribe, () => {
 		const shown = lines.map(({ spaceId, botId }) => {
 			const state = controller.stateFor(botId)
-			const running = state.conversationId
-				? soloThreads[state.conversationId]
+			const live = runsIn(soloThreads, state.conversationId, spaceId)
+				? lastWordIn(state.messages)
 				: undefined
-			const live =
-				running?.spaceId === spaceId ? lastWordIn(state.messages) : undefined
 			return { spaceId, botId, word: live ?? stored[spaceId]?.[botId] }
 		})
 		const signature = previewSignatureOf(shown)

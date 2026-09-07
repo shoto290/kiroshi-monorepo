@@ -35,7 +35,11 @@ import { createAttachmentsController } from "@/lib/chat/attachments-controller"
 import { createAttachmentsPort } from "@/lib/chat/attachments-port"
 import { createChatDriver } from "@/lib/chat/create-driver"
 import { createDraftsController } from "@/lib/chat/drafts-controller"
-import { toSpaceBadges, withBadges } from "@/lib/chat/sidebar-badges"
+import {
+	toSpaceBadges,
+	withBadges,
+	withLineBadges,
+} from "@/lib/chat/sidebar-badges"
 import { useBotBadges } from "@/lib/chat/use-bot-badges"
 import {
 	previewsIn,
@@ -65,7 +69,8 @@ import { hasOverlayWindowControls, isSidebarResizable } from "@/lib/host"
 import { useExternalLinks } from "@/lib/links/use-external-links"
 import {
 	missionRingBadges,
-	missionsByRow,
+	missionsBySpaceId,
+	missionsIn,
 	withMissions,
 } from "@/lib/missions/missions-model"
 import { createOpenedMissionController } from "@/lib/missions/opened-mission-controller"
@@ -218,6 +223,8 @@ export function App() {
 	const {
 		bots,
 		conversations,
+		conversationRosters,
+		soloThreads,
 		spaceId: rosteredSpaceId,
 		selectedBotId,
 		selectedConversationId,
@@ -237,8 +244,14 @@ export function App() {
 		(conversation) => conversation.id === settingsConversationId,
 	)
 	const missions = useMemo(
-		() => missionsByRow(missionBoard, conversations, waitingMissionIds),
-		[missionBoard, conversations, waitingMissionIds],
+		() =>
+			missionsBySpaceId({
+				board: missionBoard,
+				conversationRosters,
+				soloThreads,
+				waitingMissionIds,
+			}),
+		[missionBoard, conversationRosters, soloThreads, waitingMissionIds],
 	)
 
 	const [isCreatingConversation, setIsCreatingConversation] = useState(false)
@@ -334,8 +347,10 @@ export function App() {
 		}
 	}, [serverEnvironment.controller, openedMcpServer])
 
+	const holdsSelectedBot = bots.some((bot) => bot.id === selectedBotId)
+
 	useEffect(() => {
-		if (!selectedBotId) {
+		if (!selectedBotId || !holdsSelectedBot) {
 			return
 		}
 		void chat.controller.open(selectedBotId, rosteredSpaceId)
@@ -343,7 +358,13 @@ export function App() {
 			spaceId: rosteredSpaceId,
 			botId: selectedBotId,
 		})
-	}, [chat.controller, user.controller, selectedBotId, rosteredSpaceId])
+	}, [
+		chat.controller,
+		user.controller,
+		selectedBotId,
+		holdsSelectedBot,
+		rosteredSpaceId,
+	])
 
 	useEffect(() => {
 		if (!selectedConversationId) {
@@ -429,15 +450,16 @@ export function App() {
 	const rosterBots = useMemo(() => {
 		probeRender("rosterBots")
 		return withMissions(
-			withBadges(
+			withLineBadges(
 				toRosterBots(
 					bots,
 					{ working, previews: previewsIn(previews, rosteredSpaceId) },
 					now,
 				),
 				badges,
+				rosteredSpaceId,
 			),
-			missions,
+			missionsIn(missions, rosteredSpaceId),
 		)
 	}, [bots, rosteredSpaceId, working, previews, now, badges, missions])
 
@@ -468,21 +490,20 @@ export function App() {
 			Object.entries(rosters).map(([spaceId, spaceBots]) => [
 				spaceId,
 				withMissions(
-					withBadges(
+					withLineBadges(
 						toRosterBots(
 							spaceBots,
 							{ working, previews: previewsIn(previews, spaceId) },
 							now,
 						),
 						badges,
+						spaceId,
 					),
-					missions,
+					missionsIn(missions, spaceId),
 				),
 			]),
 		)
 	}, [rosters, working, previews, now, badges, missions])
-
-	const conversationRosters = roster.state.conversationRosters
 
 	const conversationIds = useMemo(
 		() =>
@@ -514,10 +535,11 @@ export function App() {
 					),
 					conversationBadges,
 				),
-				missions,
+				missionsIn(missions, rosteredSpaceId),
 			),
 		[
 			conversations,
+			rosteredSpaceId,
 			conversationWorkers,
 			conversationPreviews,
 			now,
@@ -557,7 +579,7 @@ export function App() {
 							),
 							conversationBadges,
 						),
-						missions,
+						missionsIn(missions, spaceId),
 					),
 				]),
 			),

@@ -20,6 +20,7 @@ import type {
 } from "./mission-contract"
 import { toMissionFace } from "./mission-thread-model"
 
+import type { SoloThreads } from "@/lib/bots/roster-line"
 import { rosterTimestamp } from "@/lib/bots/roster-timestamp"
 import type { ThreadFace } from "@/lib/chat/thread-contract"
 import type { ReportedRunRead } from "@/lib/routines/routines-model"
@@ -319,6 +320,61 @@ export const missionsByRow = (
 		]),
 	)
 }
+
+const NO_MISSIONS: MissionsByRow = {}
+
+const spaceOfConversationIn = (
+	conversationRosters: Record<string, { id: string }[]>,
+	soloThreads: SoloThreads,
+) => {
+	const spaces = new Map<string, string>()
+	for (const [spaceId, conversations] of Object.entries(conversationRosters)) {
+		for (const { id } of conversations) {
+			spaces.set(id, spaceId)
+		}
+	}
+	return (conversationId: string) =>
+		spaces.get(conversationId) ?? soloThreads[conversationId]?.spaceId
+}
+
+export type MissionSpaces = {
+	board: MissionOnBoard[]
+	conversationRosters: Record<string, { id: string }[]>
+	soloThreads: SoloThreads
+	waitingMissionIds?: WaitingMissionIds
+}
+
+export const missionsBySpaceId = ({
+	board,
+	conversationRosters,
+	soloThreads,
+	waitingMissionIds,
+}: MissionSpaces): Record<string, MissionsByRow> => {
+	const spaceOf = spaceOfConversationIn(conversationRosters, soloThreads)
+	const listed: Record<string, MissionOnBoard[]> = {}
+	for (const onBoard of board) {
+		const spaceId = spaceOf(onBoard.mission.originConversationId)
+		if (!spaceId) continue
+		listed[spaceId] = [...(listed[spaceId] ?? []), onBoard]
+	}
+
+	return Object.fromEntries(
+		Object.entries(listed).map(([spaceId, held]) => [
+			spaceId,
+			missionsByRow(
+				held,
+				conversationRosters[spaceId] ?? [],
+				waitingMissionIds,
+			),
+		]),
+	)
+}
+
+export const missionsIn = (
+	missions: Record<string, MissionsByRow>,
+	spaceId: string | null,
+): MissionsByRow =>
+	spaceId === null ? NO_MISSIONS : (missions[spaceId] ?? NO_MISSIONS)
 
 export const withMissions = <Row extends MissionCarrier & { id: string }>(
 	rows: Row[],
