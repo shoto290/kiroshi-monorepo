@@ -5011,3 +5011,43 @@ export const DragConversationToSection = meta.story({
 		await expect(liftedBot()).toBeNull()
 	},
 })
+
+const SEARCH_TO_ROSTER_GAP = 6
+
+export const WithSearch = meta.story({
+	args: { onOpenSearch: fn() },
+	parameters: {
+		docs: {
+			description: {
+				story:
+					"The roster with the search field mounted above it. Check that the field sits between the pinned header and the first row rather than inside either, so it never scrolls away with the list, and that pressing it reports and nothing else — the palette it opens is the host's to mount. A sidebar given no `onOpenSearch` draws no field at all, which is what `Roster` shows.",
+			},
+		},
+	},
+	play: async ({ args, canvasElement, userEvent }) => {
+		const field = slotIn(canvasElement, "sidebar-search-field")
+		const header = slotIn(canvasElement, "sidebar-header")
+		const content = slotIn(canvasElement, "sidebar-content")
+
+		await expect(
+			header.compareDocumentPosition(field) & Node.DOCUMENT_POSITION_FOLLOWING,
+		).toBeTruthy()
+		await expect(
+			content.compareDocumentPosition(field) & Node.DOCUMENT_POSITION_PRECEDING,
+		).toBeTruthy()
+		await expect(header.contains(field)).toBe(false)
+		await expect(content.contains(field)).toBe(false)
+
+		const [row] = rowsIn(canvasElement)
+		const fieldBox = field.getBoundingClientRect()
+		const rowBox = rowButton(row).getBoundingClientRect()
+
+		await expect(fieldBox.left).toBe(rowBox.left)
+		await expect(Math.round(rowBox.top - fieldBox.bottom)).toBe(
+			SEARCH_TO_ROSTER_GAP,
+		)
+
+		await userEvent.click(within(field).getByRole("button", { name: /Search/ }))
+		await expect(args.onOpenSearch).toHaveBeenCalledTimes(1)
+	},
+})
