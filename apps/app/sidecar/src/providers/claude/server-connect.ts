@@ -66,6 +66,7 @@ const SECRET_FLOOR = 8
 const REDACTED = "[redacted]"
 const NO_READ = "no status read ever named it"
 const AWAITING_AUTH = "it is waiting for you to authorize it"
+const DISABLED = "it is disabled in this session"
 export const STILL_CONNECTING = "is still connecting"
 export const HOLDS_TOOLS = "holds its tools"
 const UNSETTLED = "it never settled while it was watched"
@@ -291,10 +292,17 @@ const reportPass = async (
 	}
 }
 
-const gaveUp = (names: string[], cause: string, secrets: string[]) => {
-	process.stderr.write(
-		`${GAVE_UP} ${names.join(", ")}: ${readable(cause, secrets)}\n`,
-	)
+const gaveUp = (
+	{ report }: ConnectPass,
+	names: string[],
+	cause: string,
+	secrets: string[],
+) => {
+	const reason = readable(cause, secrets)
+	process.stderr.write(`${GAVE_UP} ${names.join(", ")}: ${reason}\n`)
+	for (const name of names) {
+		report?.(leftOut(name, reason))
+	}
 }
 
 const announce = async (
@@ -309,6 +317,10 @@ const announce = async (
 	}
 	if (status === "connected") {
 		report?.(reachedLine(name))
+		return
+	}
+	if (status === "disabled") {
+		report?.(leftOut(name, DISABLED))
 		return
 	}
 	if (status !== "failed") {
@@ -353,7 +365,7 @@ const watching = async (
 			statuses = await boundedRead(port, bound, signal)
 		} catch (error) {
 			if (!signal?.aborted) {
-				gaveUp(watched, describeError(error), secrets)
+				gaveUp(pass, watched, describeError(error), secrets)
 			}
 			await Promise.all(dialling)
 			return
@@ -371,7 +383,7 @@ const watching = async (
 		)
 	}
 	if (watched.length && !signal?.aborted) {
-		gaveUp(watched, UNSETTLED, secrets)
+		gaveUp(pass, watched, UNSETTLED, secrets)
 	}
 	await Promise.all(dialling)
 }
@@ -391,12 +403,12 @@ export const unconnectedServers = async ({
 			return []
 		}
 		for (const { names: abandoned, cause } of outcome.giveUps) {
-			gaveUp(abandoned, cause, secrets)
+			gaveUp(pass, abandoned, cause, secrets)
 		}
 		const watched = [...outcome.connecting, ...outcome.failing]
 		if (watched.length && pass.report) {
 			void watching(pass, outcome, secrets).catch((thrown) => {
-				gaveUp(watched, describeError(thrown), secrets)
+				gaveUp(pass, watched, describeError(thrown), secrets)
 			})
 		}
 		return outcome.reported
@@ -404,7 +416,7 @@ export const unconnectedServers = async ({
 		if (signal?.aborted) {
 			return []
 		}
-		gaveUp(names, describeError(error), secrets)
+		gaveUp(pass, names, describeError(error), secrets)
 		return []
 	}
 }

@@ -523,7 +523,9 @@ describe("watching a server left connecting", () => {
 
 		expect(dialled).toBe(true)
 		expect(reads).toBeGreaterThan(budgeted)
-		expect(reported).toEqual([])
+		expect(reported).toEqual([
+			'the server "clock" was left out: it never settled while it was watched',
+		])
 	})
 
 	it("stops watching at its bound and names on stderr what it left unsettled", async () => {
@@ -546,7 +548,9 @@ describe("watching a server left connecting", () => {
 		await settling(20)
 		stderr.restore()
 
-		expect(reported).toEqual([])
+		expect(reported).toEqual([
+			'the server "superset" was left out: it never settled while it was watched',
+		])
 		expect(stderr.written).toEqual([
 			"the connection pass gave up on superset: it never settled while it was watched\n",
 		])

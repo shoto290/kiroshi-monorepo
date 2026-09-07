@@ -165,7 +165,8 @@ Every other command names its session.
   the budget left pending is watched past it, one status call every second, until it reads
   connected, failed or `needs-auth`, or 60000 ms pass and it rides a stderr line instead.
   Connected, it earns a frame naming it as holding its tools for the rest of the session;
-  failed, it earns the same one reconnection and frame; `needs-auth`, it earns that frame. One frame per server at the most after the budget,
+  failed, it earns the same one reconnection and frame; `needs-auth` and `disabled`, it
+  earns that frame with the reason of its own. One frame per server at the most after the budget,
   and none once the session closed. A frame raised after a prompt was handed rides the
   next prompt's section, so the bot reads what the screen reads. A slash command is handed
   over untouched, its line waiting for the next prompt that is not one; a line is framed
@@ -199,7 +200,9 @@ Every other command names its session.
   leaves the servers the earlier calls left unconnected reported, and rides a stderr line
   of its own. A stderr line names only the servers the read holds no status for: one the
   earlier calls already named is reported, not given up on, and a give up naming no server
-  is not written. The call taken after the reconnections is the exception: outlasting, it
+  is not written. A give up does not stop at stderr: every server it names rides a frame
+  and the next prompt's section with the same reason, because nothing in a live session
+  reads that stream. The call taken after the reconnections is the exception: outlasting, it
   names on stderr every server the read reconnected, those lines being the only trace it
   left. A server no status call has named yet is polled for 1000 ms only, then
   left to the stderr line. An interrupt drops what is held and leaves

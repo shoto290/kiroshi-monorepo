@@ -876,6 +876,21 @@ describe("reportConnections", () => {
 		return { emitted, pushed, framed: framed.promise, report }
 	}
 
+	it("names a server the watch finds disabled as left out, once", async () => {
+		const { pushed, framed, report } = settlingAfterBudget([
+			{ name: "superset", status: "disabled" },
+		])
+
+		await framed
+		report.prompt("and now?")
+
+		const carried = String(pushed[0])
+
+		expect(carried.split('the server "superset"')).toHaveLength(2)
+		expect(carried).toContain("it is disabled in this session")
+		expect(carried).not.toContain("is still connecting")
+	})
+
 	it("names a server the session finally reached as holding its tools", async () => {
 		const { emitted, pushed, framed, report } = settlingAfterBudget([
 			{ name: "superset", status: "connected" },
@@ -934,7 +949,7 @@ describe("reportConnections", () => {
 		expect(pushed).toEqual([`${section}\n\nfirst`, "second", "third"])
 	})
 
-	it("releases every held prompt unprefixed when the pass gives up", async () => {
+	it("carries to the frame and the section the servers the pass gave up on", async () => {
 		const written = process.stderr.write
 		process.stderr.write = (() => true) as typeof process.stderr.write
 		const { emitted, pushed, settled, report } = reporting({
@@ -950,9 +965,10 @@ describe("reportConnections", () => {
 		report.prompt("first")
 		await settled
 		process.stderr.write = written
+		const gaveUp = 'the server "superset" was left out: the query is gone'
 
-		expect(pushed).toEqual(["first"])
-		expect(emitted).toEqual([])
+		expect(emitted).toEqual([gaveUp])
+		expect(pushed).toEqual([`${unavailableServersSection([gaveUp])}\n\nfirst`])
 	})
 
 	it("drops the held prompts of a cancelled turn and leaves the pass running", async () => {
