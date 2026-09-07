@@ -90,14 +90,12 @@ fn matched_words(text: &str) -> Option<String> {
 		.take(MAX_QUERY_CHARS)
 		.map(|held| if held.is_alphanumeric() { held } else { ' ' })
 		.collect();
-	let words: Vec<&str> = separated.split_whitespace().collect();
-	let (last, earlier) = words.split_last()?;
-	let mut expression = String::new();
-	for word in earlier {
-		expression.push_str(&format!("\"{word}\" "));
+	let words: Vec<String> =
+		separated.split_whitespace().map(|word| format!("\"{word}\"")).collect();
+	match words.is_empty() {
+		true => None,
+		false => Some(format!("{}*", words.join(" "))),
 	}
-	expression.push_str(&format!("\"{last}\"*"));
-	Some(expression)
 }
 
 fn read_hit(row: &Row<'_>) -> rusqlite::Result<MessageHit> {
@@ -115,25 +113,15 @@ fn read_hit(row: &Row<'_>) -> rusqlite::Result<MessageHit> {
 }
 
 fn snippet_parts(snippet: &str) -> Vec<SnippetPart> {
-	let mut parts = Vec::new();
-	let mut rest = snippet;
-	while let Some(opening) = rest.find(MATCH_OPENS) {
-		push_part(&mut parts, &rest[..opening], false);
-		let after = &rest[opening + MATCH_OPENS.len()..];
-		let Some(closing) = after.find(MATCH_CLOSES) else {
-			rest = after;
-			break;
-		};
-		push_part(&mut parts, &after[..closing], true);
-		rest = &after[closing + MATCH_CLOSES.len()..];
-	}
-	push_part(&mut parts, rest, false);
-	parts
-}
-
-fn push_part(parts: &mut Vec<SnippetPart>, text: &str, matched: bool) {
-	if text.is_empty() {
-		return;
-	}
-	parts.push(SnippetPart { text: text.to_owned(), matched });
+	snippet
+		.split(MATCH_OPENS)
+		.flat_map(|run| {
+			let (matched, plain) = run.split_once(MATCH_CLOSES).unwrap_or(("", run));
+			[
+				SnippetPart { text: matched.to_owned(), matched: true },
+				SnippetPart { text: plain.to_owned(), matched: false },
+			]
+		})
+		.filter(|part| !part.text.is_empty())
+		.collect()
 }
