@@ -1431,7 +1431,6 @@ describe("ThreadScreen", () => {
 		await solo.send("hold the wall")
 		await solo.push([...FIRST_TOKEN, ...ASKED])
 		rerender(screenOf(solo.thread()))
-		await settle()
 
 		expect(screen.getByText("the walls hold")).toBeTruthy()
 		expect(rowIndexOf("the walls hold")).toBeLessThan(
@@ -1441,7 +1440,6 @@ describe("ThreadScreen", () => {
 
 		await solo.push(WRITING_LANDED)
 		rerender(screenOf(solo.thread()))
-		await settle()
 
 		expect(screen.getByText("the walls hold")).toBeTruthy()
 	})
