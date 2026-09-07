@@ -17,6 +17,16 @@ const NARROW_PALETTE_WIDTH = 320
 
 const RANK_LANE_WIDTH = 26
 
+const RESULTS_LABEL = "Search results"
+
+const HOVERED_RESULTS_LABEL = "Search results under the pointer"
+
+const QUERY_LABEL = "Search"
+
+const QUERY = "parser"
+
+const PAST_THE_LIST_LABEL = "Past the list"
+
 const ROUTINE_BOT = {
 	name: "Noor Beltran",
 	animal: "rabbit",
@@ -129,9 +139,14 @@ const meta = preview.meta({
 	},
 	args: KIND_ARGS.message,
 	render: (args) => (
-		<ul className="flex flex-col gap-0.5" style={{ width: PALETTE_WIDTH }}>
+		<div
+			aria-label={RESULTS_LABEL}
+			className="flex flex-col gap-0.5"
+			role="listbox"
+			style={{ width: PALETTE_WIDTH }}
+		>
 			<SearchResultRow {...args} />
-		</ul>
+		</div>
 	),
 })
 
@@ -199,13 +214,15 @@ export const ChatSolo = meta.story({
 		docs: {
 			description: {
 				story:
-					"A thread held with one bot alone. Check that the context line ends on the words the component owns rather than on a string its caller passed, which is what tells this hit apart from a room of two.",
+					"A thread held with one bot alone. Check that the context line reads exactly the parts the caller passed and nothing appended behind them: the words that tell a solo thread apart from a room of two are the palette's copy, not this component's.",
 			},
 		},
 	},
-	play: async ({ canvas, canvasElement }) => {
+	play: async ({ canvasElement }) => {
 		await expect(titleWeightOf(canvasElement)).toBe("500")
-		await expect(canvas.getByText("Solo thread")).toBeVisible()
+		await expect(
+			slotIn(canvasElement, "search-result-row-parts").textContent,
+		).toBe("Ada Martin")
 	},
 })
 
@@ -260,13 +277,18 @@ export const Active = meta.story({
 		<>
 			<Probe slot="muted-probe" tone="bg-muted" />
 			<Probe slot="background-probe" tone="bg-background" />
-			<ul className="flex flex-col gap-0.5" style={{ width: PALETTE_WIDTH }}>
+			<div
+				aria-label={RESULTS_LABEL}
+				className="flex flex-col gap-0.5"
+				role="listbox"
+				style={{ width: PALETTE_WIDTH }}
+			>
 				<SearchResultRow {...args} />
-			</ul>
+			</div>
 		</>
 	),
 	play: async ({ canvas, canvasElement }) => {
-		const row = canvas.getByRole("button")
+		const row = canvas.getByRole("option")
 
 		await expect(getComputedStyle(row).backgroundColor).toBe(
 			surfaceOf(canvasElement, "muted-probe"),
@@ -283,39 +305,93 @@ export const States = meta.story({
 		docs: {
 			description: {
 				story:
-					"Rest, the pointer and keyboard focus side by side. Check that the row draws no surface of its own at rest, that the pointer answer is the muted surface at half strength so it never reads as the active row, and that keyboard focus adds a ring on top of whichever surface the row already carries. The pointer surface is read here from the class the row shares with `ActivityRow`: the pseudo-state addon paints it in Storybook but does not reach the browser the story test runs in.",
+					"Rest, the pointer and keyboard focus side by side. Check that the row draws no surface of its own at rest, that the pointer answer is the muted surface at half strength so it never reads as the active row, and that a row the palette moves focus onto adds a ring on top of whichever surface it already carries. The pointer surface is read here from the class the row shares with `ActivityRow`: the pseudo-state addon paints it in Storybook but does not reach the browser the story test runs in.",
 			},
 		},
 	},
 	render: (args) => (
 		<>
-			<ul className="flex flex-col gap-0.5" style={{ width: PALETTE_WIDTH }}>
+			<div
+				aria-label={RESULTS_LABEL}
+				className="flex flex-col gap-0.5"
+				role="listbox"
+				style={{ width: PALETTE_WIDTH }}
+			>
 				<SearchResultRow {...args} />
-			</ul>
-			<ul
+			</div>
+			<div
+				aria-label={HOVERED_RESULTS_LABEL}
 				className="flex flex-col gap-0.5"
 				id="search-result-hovered"
+				role="listbox"
 				style={{ width: PALETTE_WIDTH }}
 			>
 				<SearchResultRow
 					{...args}
 					title={[{ key: "title", text: "Hovered result" }]}
 				/>
-			</ul>
+			</div>
 		</>
 	),
 	play: async ({ canvas, userEvent }) => {
-		const [rested, hovered] = canvas.getAllByRole("button")
+		const [rested, hovered] = canvas.getAllByRole("option")
 
 		await expect(getComputedStyle(rested).backgroundColor).toBe(
 			"rgba(0, 0, 0, 0)",
 		)
 		await expect(hovered).toHaveClass("hover:bg-muted/50")
 
-		await userEvent.tab()
+		await userEvent.keyboard("{ArrowDown}")
+		rested.focus()
 
 		await expect(rested).toHaveFocus()
 		await expect(getComputedStyle(rested).boxShadow).not.toBe("none")
+	},
+})
+
+export const AsListboxOption = meta.story({
+	args: { isActive: true },
+	parameters: {
+		docs: {
+			description: {
+				story:
+					"The row as the palette owns it: an option of the list, with the active one carrying the selected state next to the muted surface it paints. Check that no row is in the tab order — one press of Tab leaves the field and lands past the whole list, because the palette drives the list from the arrow keys and never from Tab.",
+			},
+		},
+	},
+	render: (args) => (
+		<>
+			<input aria-label={QUERY_LABEL} readOnly value={QUERY} />
+			<div
+				aria-label={RESULTS_LABEL}
+				className="flex flex-col gap-0.5"
+				role="listbox"
+				style={{ width: PALETTE_WIDTH }}
+			>
+				<SearchResultRow {...args} />
+				<SearchResultRow
+					{...args}
+					isActive={false}
+					rank={2}
+					title={[{ key: "title", text: "The second hit" }]}
+				/>
+			</div>
+			<button type="button">{PAST_THE_LIST_LABEL}</button>
+		</>
+	),
+	play: async ({ canvas, userEvent }) => {
+		const [selected, rest] = canvas.getAllByRole("option")
+
+		await expect(selected).toHaveAttribute("aria-selected", "true")
+		await expect(rest).toHaveAttribute("aria-selected", "false")
+		await expect(selected).toHaveAttribute("tabindex", "-1")
+
+		canvas.getByRole("textbox").focus()
+		await userEvent.tab()
+
+		await expect(
+			canvas.getByRole("button", { name: PAST_THE_LIST_LABEL }),
+		).toHaveFocus()
 	},
 })
 
@@ -346,7 +422,7 @@ export const LongContent = meta.story({
 		},
 	},
 	play: async ({ canvas, canvasElement }) => {
-		const row = canvas.getByRole("button")
+		const row = canvas.getByRole("option")
 		const title = slotIn(canvasElement, "search-result-row-title")
 		const parts = slotIn(canvasElement, "search-result-row-parts")
 		const rank = slotIn(canvasElement, "search-result-row-rank")
@@ -373,14 +449,19 @@ export const Unranked = meta.story({
 		},
 	},
 	render: (args) => (
-		<ul className="flex flex-col gap-0.5" style={{ width: PALETTE_WIDTH }}>
+		<div
+			aria-label={RESULTS_LABEL}
+			className="flex flex-col gap-0.5"
+			role="listbox"
+			style={{ width: PALETTE_WIDTH }}
+		>
 			<SearchResultRow {...args} rank={undefined} />
 			<SearchResultRow
 				{...args}
 				rank={10}
 				title={[{ key: "title", text: "The tenth hit" }]}
 			/>
-		</ul>
+		</div>
 	),
 	play: async ({ canvasElement }) => {
 		const lanes = slotsIn(canvasElement, "search-result-row-rank")
@@ -399,16 +480,15 @@ export const WithRank = meta.story({
 		docs: {
 			description: {
 				story:
-					"A hit inside the first nine, the range the keyboard can reach by a digit. Check that the lane holds a `Kbd` showing the digit, and that the digit is spoken as a named result rather than as a bare number the screen reader would read out of context.",
+					"A hit inside the first nine, the range the keyboard can reach by a digit. Check that the lane holds a `Kbd` showing the digit, and that the cap stays hidden from assistive technology so the digit never lands in the middle of the option's name.",
 			},
 		},
 	},
-	play: async ({ canvas, canvasElement }) => {
+	play: async ({ canvasElement }) => {
 		const kbd = slotIn(canvasElement, "kbd")
 
 		await expect(kbd).toHaveTextContent("3")
 		await expect(kbd).toHaveAttribute("aria-hidden", "true")
-		await expect(canvas.getByText("Result 3")).toBeInTheDocument()
 	},
 })
 
@@ -418,12 +498,12 @@ export const Activated = meta.story({
 		docs: {
 			description: {
 				story:
-					"The row taken by the pointer and then by the keyboard. Check that the whole row is a single button named by its title, and that either way of activating it reports exactly once — reach for this over `States` when what you are checking is the handler and not the surface.",
+					"The row taken by the pointer and then by the keyboard. Check that the whole row is one option named by its title, and that either way of activating it reports exactly once — reach for this over `States` when what you are checking is the handler and not the surface.",
 			},
 		},
 	},
 	play: async ({ args, canvas, userEvent }) => {
-		const row = canvas.getByRole("button", { name: /drops every escaped/ })
+		const row = canvas.getByRole("option", { name: /drops every escaped/ })
 
 		await userEvent.click(row)
 		await expect(args.onOpen).toHaveBeenCalledTimes(1)
@@ -445,15 +525,17 @@ export const InNarrowPalette = meta.story({
 		},
 	},
 	render: (args) => (
-		<ul
+		<div
+			aria-label={RESULTS_LABEL}
 			className="flex flex-col gap-0.5"
+			role="listbox"
 			style={{ width: NARROW_PALETTE_WIDTH }}
 		>
 			<SearchResultRow {...args} />
-		</ul>
+		</div>
 	),
 	play: async ({ canvas, canvasElement }) => {
-		const row = canvas.getByRole("button").getBoundingClientRect()
+		const row = canvas.getByRole("option").getBoundingClientRect()
 		const rank = slotIn(canvasElement, "search-result-row-rank")
 		const timestamp = slotIn(canvasElement, "search-result-row-timestamp")
 

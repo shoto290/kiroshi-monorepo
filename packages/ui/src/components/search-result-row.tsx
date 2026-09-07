@@ -1,7 +1,5 @@
 "use client"
 
-import { useTranslation } from "react-i18next"
-
 import {
 	ACTIVATION_CLASS,
 	type ActivityRowPart,
@@ -113,90 +111,84 @@ const SearchResultRow = ({
 	isActive = false,
 	onOpen,
 }: SearchResultRowProps) => {
-	const { t } = useTranslation("search")
 	const Glyph = glyphOf(identity)
-	const written = parts.filter((part) => part.text !== "")
-	const context =
-		identity.kind === "chat-solo"
-			? [...written, { key: "solo-thread", text: t("result.soloThread") }]
-			: written
+	const context = parts.filter((part) => part.text !== "")
 	const isRanked = rank !== undefined && rank >= FIRST_RANK && rank <= LAST_RANK
 
 	return (
-		<li data-slot="search-result-row">
-			<button
-				className={cn(ROW_CLASS, ACTIVATION_CLASS, ACTIVE_CLASS)}
-				data-active={isActive}
-				onClick={onOpen}
-				type="button"
-			>
-				<SearchResultIdentityMark identity={identity} />
-				<span className="flex min-w-0 flex-1 flex-col gap-px">
-					<span className="flex h-5 items-center gap-1.5">
-						<span
-							className={cn(
-								"min-w-0 flex-1 truncate text-foreground text-sm leading-5",
-								isMessageKind(identity) ? "font-normal" : "font-medium",
-							)}
-							data-slot="search-result-row-title"
-						>
-							{title.map((part) =>
-								part.isMatch ? (
-									<mark className={MATCH_CLASS} key={part.key}>
-										{part.text}
-									</mark>
-								) : (
-									<span key={part.key}>{part.text}</span>
-								),
-							)}
-						</span>
-						<span
-							className="shrink-0 text-[11px] text-muted-foreground leading-5 tabular-nums"
-							data-slot="search-result-row-timestamp"
-						>
-							{timestamp}
-						</span>
-					</span>
-					<span className="flex h-4 items-center gap-[5px] text-muted-foreground text-xs leading-4">
-						{Glyph ? (
-							<Glyph
-								aria-hidden="true"
-								className="size-[11px] shrink-0"
-								data-slot="search-result-row-glyph"
-							/>
-						) : null}
-						{identifier ? (
-							<span className="shrink-0 font-medium tabular-nums">
-								{identifier}
-							</span>
-						) : null}
-						<span
-							className="min-w-0 truncate"
-							data-slot="search-result-row-parts"
-						>
-							{context.map((part, index) => (
-								<span
-									className={index === 0 && !identifier ? undefined : DOT_CLASS}
-									key={part.key}
-								>
+		<button
+			aria-selected={isActive}
+			className={cn(ROW_CLASS, ACTIVATION_CLASS, ACTIVE_CLASS)}
+			data-active={isActive}
+			data-slot="search-result-row"
+			onClick={onOpen}
+			role="option"
+			tabIndex={-1}
+			type="button"
+		>
+			<SearchResultIdentityMark identity={identity} />
+			<span className="flex min-w-0 flex-1 flex-col gap-px">
+				<span className="flex h-5 items-center gap-1.5">
+					<span
+						className={cn(
+							"min-w-0 flex-1 truncate text-foreground text-sm leading-5",
+							isMessageKind(identity) ? "font-normal" : "font-medium",
+						)}
+						data-slot="search-result-row-title"
+					>
+						{title.map((part) =>
+							part.isMatch ? (
+								<mark className={MATCH_CLASS} key={part.key}>
 									{part.text}
-								</span>
-							))}
-						</span>
+								</mark>
+							) : (
+								<span key={part.key}>{part.text}</span>
+							),
+						)}
+					</span>
+					<span
+						className="shrink-0 text-[11px] text-muted-foreground leading-5 tabular-nums"
+						data-slot="search-result-row-timestamp"
+					>
+						{timestamp}
 					</span>
 				</span>
-				<span className={RANK_LANE_CLASS} data-slot="search-result-row-rank">
-					{isRanked ? (
-						<>
-							<span className="sr-only">{t("result.rank", { rank })}</span>
-							<Kbd aria-hidden="true" className={RANK_CLASS}>
-								{rank}
-							</Kbd>
-						</>
+				<span className="flex h-4 items-center gap-[5px] text-muted-foreground text-xs leading-4">
+					{Glyph ? (
+						<Glyph
+							aria-hidden="true"
+							className="size-[11px] shrink-0"
+							data-slot="search-result-row-glyph"
+						/>
 					) : null}
+					{identifier ? (
+						<span className="shrink-0 font-medium tabular-nums">
+							{identifier}
+						</span>
+					) : null}
+					<span
+						className="min-w-0 truncate"
+						data-slot="search-result-row-parts"
+					>
+						{context.map((part, index) => (
+							<span
+								className={index === 0 && !identifier ? undefined : DOT_CLASS}
+								key={part.key}
+							>
+								{part.text}
+							</span>
+						))}
+					</span>
 				</span>
-			</button>
-		</li>
+			</span>
+			<span className={RANK_LANE_CLASS} data-slot="search-result-row-rank">
+				{isRanked ? (
+					<Kbd aria-hidden="true" className={RANK_CLASS}>
+						{rank}
+					</Kbd>
+				) : null}
+			</span>
+		</button>
 	)
 }
 
