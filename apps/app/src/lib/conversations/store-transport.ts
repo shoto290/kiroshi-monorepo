@@ -30,8 +30,10 @@ import type { TranscriptStore } from "./store-port"
 import {
 	type TerminalCompletion,
 	TRANSCRIPT_PAGE_SIZE,
+	TRANSCRIPT_WINDOW_SIZE,
 	type TranscriptCursor,
 	type TranscriptPage,
+	type TranscriptWindow,
 } from "./transcript-contract"
 
 import type { AgentCommand } from "@/lib/agent/contract"
@@ -42,6 +44,13 @@ export const conversationStore: TranscriptStore = {
 			conversationId,
 			beforeSeq: cursor?.beforeSeq ?? null,
 			limit: TRANSCRIPT_PAGE_SIZE,
+		}),
+
+	loadWindow: (conversationId: string, seq: number) =>
+		invoke<TranscriptWindow>("conversation_message_page_around", {
+			conversationId,
+			seq,
+			limit: TRANSCRIPT_WINDOW_SIZE,
 		}),
 
 	spaces: () => invoke<Space[]>("space_list"),

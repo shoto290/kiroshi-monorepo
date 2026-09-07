@@ -9,6 +9,7 @@ import {
 	Transcript,
 	type TranscriptHandle,
 	type TranscriptItem,
+	type TranscriptNewer,
 	type TranscriptOlder,
 } from "@workspace/ui/components/transcript"
 import { cn } from "@workspace/ui/lib/utils"
@@ -27,6 +28,7 @@ interface ThreadLayoutProps {
 	marksNewMessages?: boolean
 	countsNewMessages?: boolean
 	older?: TranscriptOlder
+	newer?: TranscriptNewer
 	rows?: TranscriptItem[]
 	onFollowChange?: (following: boolean) => void
 	children: ReactNode
@@ -50,6 +52,7 @@ function ThreadLayout({
 	marksNewMessages,
 	countsNewMessages,
 	older,
+	newer,
 	rows,
 	onFollowChange,
 	children,
@@ -79,6 +82,7 @@ function ThreadLayout({
 					marksNewMessages={marksNewMessages}
 					countsNewMessages={countsNewMessages}
 					older={older}
+					newer={newer}
 					rows={rows}
 					onFollowChange={onFollowChange}
 					highlightedMessageId={highlightedMessageId}

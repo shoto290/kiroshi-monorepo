@@ -10,7 +10,11 @@ import type {
 	TranscriptMessage,
 } from "./transcript-contract"
 import { createTranscriptController } from "./transcript-controller"
-import { selectHasMore, selectMessages } from "./transcript-state"
+import {
+	selectHasMore,
+	selectHasNewer,
+	selectMessages,
+} from "./transcript-state"
 import {
 	droppedWaiting,
 	emptyQueue,
@@ -96,6 +100,8 @@ export type ConversationState = {
 	messages: TranscriptMessage[]
 	hasOlder: boolean
 	isLoadingOlder: boolean
+	hasNewer: boolean
+	isLoadingNewer: boolean
 	speakers: SpeakingBot[]
 	waitingBotIds: string[]
 	loopingPair: [string, string] | null
@@ -111,6 +117,8 @@ export type ConversationController = {
 	attach: () => () => void
 	open: (conversation: Conversation) => Promise<void>
 	loadOlder: () => Promise<void>
+	loadNewer: () => Promise<void>
+	landOn: (seq: number) => Promise<void>
 	follow: (isAtLiveEdge: boolean) => void
 	leave: () => void
 	send: (text: string, repliedToMessageId?: string) => Promise<void>
@@ -200,6 +208,8 @@ const isSameState = (left: ConversationState, right: ConversationState) =>
 	left.messages === right.messages &&
 	left.hasOlder === right.hasOlder &&
 	left.isLoadingOlder === right.isLoadingOlder &&
+	left.hasNewer === right.hasNewer &&
+	left.isLoadingNewer === right.isLoadingNewer &&
 	isSameSpeakers(left.speakers, right.speakers) &&
 	isSameOrder(left.waitingBotIds, right.waitingBotIds) &&
 	isSamePair(left.loopingPair, right.loopingPair) &&
@@ -229,6 +239,8 @@ const initialState: ConversationState = {
 	messages: NO_MESSAGES,
 	hasOlder: false,
 	isLoadingOlder: false,
+	hasNewer: false,
+	isLoadingNewer: false,
 	speakers: NO_SPEAKERS,
 	waitingBotIds: [],
 	loopingPair: null,
@@ -297,12 +309,13 @@ export const createConversationController = (
 	const readTranscript = () => {
 		const conversationId = conversation?.id
 		if (!conversationId) {
-			return { messages: NO_MESSAGES, hasOlder: false }
+			return { messages: NO_MESSAGES, hasOlder: false, hasNewer: false }
 		}
 		const held = transcript.getState()
 		return {
 			messages: selectMessages(held, conversationId),
 			hasOlder: selectHasMore(held, conversationId),
+			hasNewer: selectHasNewer(held, conversationId),
 		}
 	}
 
@@ -1038,11 +1051,27 @@ export const createConversationController = (
 		drive()
 	}
 
+	const isTranscriptForgotten = (conversationId: string) =>
+		selectMessages(transcript.getState(), conversationId).length === 0
+
+	const readForgottenTranscript = async (conversationId: string) => {
+		if (!isTranscriptForgotten(conversationId)) {
+			return
+		}
+		try {
+			await enqueue(() => transcript.load(conversationId))
+		} catch (reason) {
+			noteFailure(toReadError(reason))
+		}
+		sync()
+	}
+
 	const open = async (next: Conversation) => {
 		const isSameConversation = conversation?.id === next.id
 		conversation = next
 		if (isSameConversation) {
 			sync()
+			await readForgottenTranscript(next.id)
 			return
 		}
 		queue = emptyQueue
@@ -1094,6 +1123,30 @@ export const createConversationController = (
 		}
 	}
 
+	const loadNewer = async () => {
+		if (!conversation || !state.hasNewer || state.isLoadingNewer) {
+			return
+		}
+		const conversationId = conversation.id
+		settle({ ...state, isLoadingNewer: true })
+		try {
+			await enqueue(() => transcript.loadNewer(conversationId))
+			forgetFailure()
+		} catch (reason) {
+			noteFailure(toReadError(reason))
+		} finally {
+			settle({ ...state, isLoadingNewer: false, latestError })
+		}
+	}
+
+	const landOn = async (seq: number) => {
+		if (!conversation) {
+			return
+		}
+		const conversationId = conversation.id
+		await enqueue(() => transcript.landOn(conversationId, seq))
+	}
+
 	const pin = (messageId: string, blockIndex: number) => {
 		const conversationId = conversation?.id
 		return conversationId
@@ -1143,6 +1196,8 @@ export const createConversationController = (
 		attach,
 		open,
 		loadOlder,
+		loadNewer,
+		landOn,
 		follow,
 		leave,
 		send,

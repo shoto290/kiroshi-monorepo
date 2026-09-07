@@ -42,6 +42,10 @@ const createHarness = (messages: TranscriptMessage[] = STORED): Harness => {
 			reads += 1
 			return fake.loadPage(conversationId, cursor)
 		},
+		loadWindow: (conversationId, seq) => {
+			reads += 1
+			return fake.loadWindow(conversationId, seq)
+		},
 	}
 	return { controller: createTranscriptController(port), reads: () => reads }
 }

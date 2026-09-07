@@ -16,6 +16,7 @@ import type { Mission } from "@/lib/missions/mission-contract"
 import { toMissionConversation } from "@/lib/missions/mission-thread-model"
 import { useMissionDetail } from "@/lib/missions/use-mission-detail"
 import { useMissionReadFailure } from "@/lib/missions/use-mission-failure-notices"
+import type { MessageLandingController } from "@/lib/search/message-landing-controller"
 
 type MissionReadFailureProps = {
 	onRetry: () => void
@@ -43,6 +44,7 @@ type OpenedMissionProps = {
 	runtimes: ConversationRuntimes
 	attachments: AttachmentsController
 	drafts: DraftsController
+	landings: MessageLandingController
 	readerName: string
 	onLeave: () => void
 	onOpenMission: (missionId: string) => void
@@ -58,6 +60,7 @@ const OpenedMission = ({
 	runtimes,
 	attachments,
 	drafts,
+	landings,
 	readerName,
 	onLeave,
 	onOpenMission,
@@ -84,6 +87,7 @@ const OpenedMission = ({
 			attachments={attachments}
 			bots={bots}
 			drafts={drafts}
+			landings={landings}
 			onOpenMission={onOpenMission}
 			readerName={readerName}
 			runtimes={runtimes}
@@ -99,6 +103,7 @@ type MissionThreadScreenProps = {
 	runtimes: ConversationRuntimes
 	attachments: AttachmentsController
 	drafts: DraftsController
+	landings: MessageLandingController
 	readerName: string
 	onLeave: () => void
 	onOpenMission: (missionId: string) => void
@@ -111,6 +116,7 @@ export function MissionThreadScreen({
 	runtimes,
 	attachments,
 	drafts,
+	landings,
 	readerName,
 	onLeave,
 	onOpenMission,
@@ -134,6 +140,7 @@ export function MissionThreadScreen({
 			drafts={drafts}
 			events={read.events}
 			hasFailedToRead={hasFailedToRead}
+			landings={landings}
 			mission={read.mission}
 			onLeave={onLeave}
 			onOpenMission={onOpenMission}

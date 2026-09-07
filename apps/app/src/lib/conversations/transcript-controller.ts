@@ -3,6 +3,8 @@ import type { TranscriptPort } from "./transcript-port"
 import {
 	initialTranscriptState,
 	selectHasMore,
+	selectHasNewer,
+	selectNewestSeq,
 	selectOldestSeq,
 	type TranscriptAction,
 	type TranscriptDelta,
@@ -16,6 +18,8 @@ export type TranscriptController = {
 	subscribe: (listener: () => void) => () => void
 	load: (conversationId: string) => Promise<void>
 	loadOlder: (conversationId: string) => Promise<void>
+	loadNewer: (conversationId: string) => Promise<void>
+	landOn: (conversationId: string, seq: number) => Promise<void>
 	follow: (conversationId: string, isAtLiveEdge: boolean) => void
 	leave: (conversationId: string) => void
 	append: (draft: TranscriptDraft) => void
@@ -59,6 +63,20 @@ export const createTranscriptController = (
 		await readPage(conversationId, { beforeSeq })
 	}
 
+	const loadNewer = async (conversationId: string) => {
+		const seq = selectNewestSeq(state, conversationId)
+		if (seq === null || !selectHasNewer(state, conversationId)) {
+			return
+		}
+		const window = await port.loadWindow(conversationId, seq)
+		dispatch({ type: "newerLoaded", window })
+	}
+
+	const landOn = async (conversationId: string, seq: number) => {
+		const window = await port.loadWindow(conversationId, seq)
+		dispatch({ type: "windowLanded", window })
+	}
+
 	return {
 		getState: () => state,
 		subscribe: (listener) => {
@@ -69,6 +87,8 @@ export const createTranscriptController = (
 		},
 		load,
 		loadOlder,
+		loadNewer,
+		landOn,
 		follow: (conversationId, isAtLiveEdge) => {
 			liveEdges.set(conversationId, isAtLiveEdge)
 		},

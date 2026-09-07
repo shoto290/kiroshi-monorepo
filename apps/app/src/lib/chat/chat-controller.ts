@@ -57,6 +57,7 @@ import type { TerminalCompletion } from "../conversations/transcript-contract"
 import { createTranscriptController } from "../conversations/transcript-controller"
 import {
 	selectHasMore,
+	selectHasNewer,
 	selectMessages,
 } from "../conversations/transcript-state"
 import { createReportedRunsReader } from "../routines/create-run-port"
@@ -87,6 +88,8 @@ export type ChatController = {
 	restart: () => Promise<SessionHandle | null>
 	rotate: () => Promise<SessionHandle | null>
 	loadOlder: () => Promise<void>
+	loadNewer: () => Promise<void>
+	landOn: (seq: number) => Promise<void>
 	follow: (isAtLiveEdge: boolean) => void
 	send: (text: string, repliedToMessageId?: string) => Promise<void>
 	sendTo: (
@@ -241,6 +244,7 @@ export function createChatController(
 			type: "transcriptChanged",
 			messages: selectMessages(current, conversationId),
 			hasOlder: selectHasMore(current, conversationId),
+			hasNewer: selectHasNewer(current, conversationId),
 		})
 	}
 
@@ -861,6 +865,29 @@ export function createChatController(
 		}
 	}
 
+	const loadNewer = async (bot: BotChat) => {
+		const conversationId = bot.state.conversationId
+		if (!conversationId || !bot.state.hasNewer || bot.state.loadingNewer) {
+			return
+		}
+		dispatch(bot, { type: "newerLoading", loading: true })
+		try {
+			await enqueue(() => transcript.loadNewer(conversationId))
+		} catch (reason) {
+			reportRead(bot, reason)
+		} finally {
+			dispatch(bot, { type: "newerLoading", loading: false })
+		}
+	}
+
+	const landOn = async (bot: BotChat, seq: number) => {
+		const conversationId = bot.state.conversationId
+		if (!conversationId) {
+			return
+		}
+		await enqueue(() => transcript.landOn(conversationId, seq))
+	}
+
 	const referenceFor = (bot: BotChat, messageId: string) => {
 		const conversationId = bot.state.conversationId
 		return conversationId
@@ -1288,6 +1315,8 @@ export function createChatController(
 			),
 		rotate: () => onSelected((bot) => rotateFor(bot, ASKED_FOR), null),
 		loadOlder: () => onSelected(loadOlder, undefined),
+		loadNewer: () => onSelected(loadNewer, undefined),
+		landOn: (seq) => onSelected((bot) => landOn(bot, seq), undefined),
 		follow: (isAtLiveEdge) => forSelected((bot) => follow(bot, isAtLiveEdge)),
 		send: (text, repliedToMessageId) =>
 			onSelected((bot) => send(bot, text, repliedToMessageId), undefined),

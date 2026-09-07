@@ -37,3 +37,10 @@ export type TranscriptPage = {
 	messages: TranscriptMessage[]
 	hasMore: boolean
 }
+
+export type TranscriptWindow = {
+	conversationId: string
+	messages: TranscriptMessage[]
+	hasOlder: boolean
+	hasNewer: boolean
+}

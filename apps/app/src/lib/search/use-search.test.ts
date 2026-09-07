@@ -141,6 +141,8 @@ const aNavigation = (): TracedNavigation => {
 			openRoutine: ({ routineId, conversationId }) =>
 				trace.push(`routine:${routineId}:${conversationId}`),
 			openActivityPanel: () => trace.push("activity"),
+			recordLanding: ({ messageId, seq }) =>
+				trace.push(`landing:${messageId}:${seq}`),
 		},
 	}
 }

@@ -15,6 +15,7 @@ import type { ConversationRuntimes } from "@/lib/conversations/conversation-runt
 import type { Bot, Conversation } from "@/lib/conversations/store-contract"
 import { hasOverlayWindowControls } from "@/lib/host"
 import type { OpenedMissionController } from "@/lib/missions/opened-mission-controller"
+import type { MessageLandingController } from "@/lib/search/message-landing-controller"
 
 type WorkspaceBodyProps = {
 	activityPanel: ActivityPanel
@@ -27,6 +28,7 @@ type WorkspaceBodyProps = {
 	chat: Chat
 	attachments: AttachmentsController
 	drafts: DraftsController
+	landings: MessageLandingController
 	readerName: string
 	isSettingsOpen: boolean
 	isOverlayOpen: boolean
@@ -105,6 +107,7 @@ export function WorkspaceBody(props: WorkspaceBodyProps) {
 				attachments={props.attachments}
 				bots={props.bots}
 				drafts={props.drafts}
+				landings={props.landings}
 				missionId={openedMissionId}
 				onLeave={leaveMission}
 				onOpenMission={openMission}
@@ -131,6 +134,7 @@ export function WorkspaceBody(props: WorkspaceBodyProps) {
 			attachments={props.attachments}
 			bots={props.bots}
 			drafts={props.drafts}
+			landings={props.landings}
 			onOpenMission={openMission}
 			readerName={props.readerName}
 			runtimes={props.conversationRuntimes}

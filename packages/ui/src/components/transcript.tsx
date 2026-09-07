@@ -43,6 +43,12 @@ export interface TranscriptOlder {
 	startOfHistoryLabel?: string
 }
 
+export interface TranscriptNewer {
+	isLoading?: boolean
+	onLoad: () => void
+	label?: string
+}
+
 export interface TranscriptHandle {
 	scrollToEnd: (behavior?: ScrollBehavior) => void
 	scrollToMessage: (messageId: string, behavior?: ScrollBehavior) => boolean
@@ -59,6 +65,7 @@ export interface TranscriptProps extends ComponentPropsWithRef<"div"> {
 	busy?: boolean
 	highlightedMessageId?: string
 	older?: TranscriptOlder
+	newer?: TranscriptNewer
 	scrollerRef?: Ref<TranscriptHandle>
 	contentClassName?: string
 }
@@ -238,6 +245,44 @@ const TranscriptOlderControl = ({
 	)
 }
 
+type TranscriptNewerControlProps = {
+	newer: TranscriptNewer
+	isReducedMotion: boolean
+}
+
+const TranscriptNewerControl = ({
+	newer,
+	isReducedMotion,
+}: TranscriptNewerControlProps) => {
+	const { t } = useTranslation("chat")
+
+	return (
+		<div
+			data-slot="transcript-newer"
+			className="flex min-h-9 items-center justify-center px-3"
+		>
+			<Button
+				variant="ghost"
+				size="sm"
+				aria-busy={newer.isLoading}
+				aria-disabled={newer.isLoading}
+				className="aria-disabled:opacity-60"
+				onClick={() => {
+					if (!newer.isLoading) newer.onLoad()
+				}}
+			>
+				{newer.isLoading ? (
+					<Icons.Loading
+						data-icon="inline-start"
+						className={cn(!isReducedMotion && "animate-spin")}
+					/>
+				) : null}
+				{newer.label ?? t("transcript.loadNewer")}
+			</Button>
+		</div>
+	)
+}
+
 const TranscriptNewMark = () => {
 	const { t } = useTranslation("chat")
 
@@ -264,6 +309,7 @@ const TranscriptBody = ({
 	busy,
 	highlightedMessageId,
 	older,
+	newer,
 	scrollerRef,
 	contentClassName,
 	className,
@@ -330,6 +376,13 @@ const TranscriptBody = ({
 						{children}
 					</MessageHighlightProvider>
 				</MessageScrollerContent>
+
+				{newer ? (
+					<TranscriptNewerControl
+						isReducedMotion={isReducedMotion}
+						newer={newer}
+					/>
+				) : null}
 			</MessageScrollerViewport>
 
 			<MessageScrollerButton

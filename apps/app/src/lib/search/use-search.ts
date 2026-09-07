@@ -62,11 +62,20 @@ export const useSearchNavigation = ({
 	spaces,
 	missions,
 	routines,
+	landings,
 	user,
 }: SearchNavigationSource): SearchNavigation =>
 	useMemo(
-		() => createSearchNavigation({ roster, spaces, missions, routines, user }),
-		[roster, spaces, missions, routines, user],
+		() =>
+			createSearchNavigation({
+				roster,
+				spaces,
+				missions,
+				routines,
+				landings,
+				user,
+			}),
+		[roster, spaces, missions, routines, landings, user],
 	)
 
 const raiseSearchFailure = () =>
