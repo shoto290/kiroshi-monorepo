@@ -7,7 +7,6 @@ import {
 	useReducedMotion,
 } from "motion/react"
 import {
-	type CSSProperties,
 	createContext,
 	type ReactNode,
 	useCallback,
@@ -110,24 +109,13 @@ export function TabsList({
 	)
 }
 
-function TabIndicator({
-	className,
-	style,
-}: {
-	className?: string
-	style?: CSSProperties
-}) {
+function TabIndicator({ className }: { className?: string }) {
 	const { layoutId, isAnimated } = useTabs()
 
-	if (!isAnimated) return <span className={className} style={style} />
+	if (!isAnimated) return <span className={className} />
 
 	return (
-		<motion.span
-			layoutId={layoutId}
-			layout="position"
-			className={className}
-			style={style}
-		/>
+		<motion.span layoutId={layoutId} layout="position" className={className} />
 	)
 }
 
