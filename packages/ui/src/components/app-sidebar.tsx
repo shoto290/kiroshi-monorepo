@@ -534,7 +534,7 @@ const SpacesBranch = ({
 	onRemoveFromSpace,
 }: SpacesBranchProps) => {
 	const { t } = useTranslation("bots")
-	const noteId = useId()
+	const reasonId = useId()
 
 	const hasHost = Boolean(onAddToSpace || onRemoveFromSpace)
 
@@ -544,8 +544,13 @@ const SpacesBranch = ({
 
 	return (
 		<ContextMenuSub>
+			{isHeldByOneSpace ? (
+				<span className="sr-only" id={reasonId}>
+					{t("roster.spaces.lastSpace")}
+				</span>
+			) : null}
 			<ContextMenuSubTrigger
-				describedBy={isHeldByOneSpace ? noteId : undefined}
+				describedBy={isHeldByOneSpace ? reasonId : undefined}
 			>
 				<Icons.Spaces aria-hidden="true" className="size-3.5" />
 				{t("roster.spaces.label")}
@@ -558,7 +563,7 @@ const SpacesBranch = ({
 						<ContextMenuCheckboxItem
 							checked={isMember}
 							closeOnSelect={isMember && space.id === openSpaceId}
-							describedBy={isLocked ? noteId : undefined}
+							describedBy={isLocked ? reasonId : undefined}
 							key={space.id}
 							unavailable={isLocked}
 							onCheckedChange={(checked) =>
@@ -576,7 +581,7 @@ const SpacesBranch = ({
 				{isHeldByOneSpace ? (
 					<>
 						<ContextMenuSeparator />
-						<p aria-hidden="true" className={LAST_SPACE_NOTE} id={noteId}>
+						<p aria-hidden="true" className={LAST_SPACE_NOTE}>
 							{t("roster.spaces.lastSpace")}
 						</p>
 					</>

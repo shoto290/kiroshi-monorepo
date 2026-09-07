@@ -2535,15 +2535,20 @@ export const RowLastSpace = meta.story({
 		docs: {
 			description: {
 				story:
-					"The bot that has one space left, walked with the keyboard. Grove sits in Vocca alone: that row is `aria-disabled` rather than switched off, so the arrow walk still lands on it and a reader who cannot see the panel hears which space holds the bot — the one row they most need is the one a native `disabled` would have hidden from them. Landing there announces it ticked and unavailable, Enter and a click both report to nobody, and the next arrow stays inside the panel. The reason is the accessible description of both the `Spaces` entry and the row itself, so it is heard before the branch is opened and again on the row it applies to, however the reader got there; the note under the rule shows the same sentence to the eye while staying out of the tree. Beacon, held by two spaces, carries no description: there is nothing to warn about while every row is live.",
+					"The bot that has one space left, walked with the keyboard. Grove sits in Vocca alone: that row is `aria-disabled` rather than switched off, so the arrow walk still lands on it and a reader who cannot see the panel hears which space holds the bot — the one row they most need is the one a native `disabled` would have hidden from them. Landing there announces it ticked and unavailable, Enter and a click both report to nobody, and the next arrow stays inside the panel. The reason is the accessible description of both the `Spaces` entry and the row itself, so it is heard before the branch is opened and again on the row it applies to, however the reader got there. It is read from a node beside the entry in the row menu, exposed but unseen, because the panel it would otherwise live in is inert while the branch is shut and a description cannot be read out of an inert subtree; the note under the rule shows the same sentence to the eye and stays out of the tree. A pointer resting on the locked row moves neither the focus nor the pill: an affordance the row cannot honour is worse than none. Beacon, held by two spaces, carries no description: there is nothing to warn about while every row is live.",
 			},
 		},
 	},
 	play: async ({ args, canvasElement, userEvent }) => {
 		const menu = await openRowMenu(canvasElement, "Grove")
-		await expect(
-			menu.getByRole("menuitem", { name: SPACES_BRANCH }),
-		).toHaveAccessibleDescription(LAST_SPACE_NOTE)
+		const trigger = menu.getByRole("menuitem", { name: SPACES_BRANCH })
+		const reason = menu.getByText(LAST_SPACE_NOTE)
+
+		await expect(trigger).toHaveAccessibleName(SPACES_BRANCH)
+		await expect(trigger).toHaveAttribute("aria-describedby", reason.id)
+		await expect(reason).toBeVisible()
+		await expect(reason.closest("[inert]")).toBeNull()
+		await expect(reason).not.toHaveAttribute("aria-hidden")
 
 		const panel = await walkIntoSpacesBranch(canvasElement, "Grove", userEvent)
 		const rows = within(panel).getAllByRole("menuitemcheckbox")
@@ -2562,6 +2567,9 @@ export const RowLastSpace = meta.story({
 		await expect(panel).toBeVisible()
 
 		await userEvent.keyboard("{ArrowDown}")
+		await expect(rows[2]).toHaveFocus()
+
+		await userEvent.hover(held)
 		await expect(rows[2]).toHaveFocus()
 
 		const note = within(panel).getByText(LAST_SPACE_NOTE)

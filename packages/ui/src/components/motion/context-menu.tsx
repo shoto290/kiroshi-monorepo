@@ -727,7 +727,7 @@ function ContextMenuItemBase({
 		role === "menuitem" ? {} : { "aria-checked": ariaChecked }
 
 	const onPointerMove = (event: ReactPointerEvent<HTMLButtonElement>) => {
-		if (disabled || event.pointerType === "touch") return
+		if (disabled || unavailable || event.pointerType === "touch") return
 		event.currentTarget.focus()
 		if (branch) branch.reveal()
 		else if (panel === "sub") context.keepSub()

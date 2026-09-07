@@ -306,7 +306,7 @@ export const UnavailableItem = meta.story({
 		docs: {
 			description: {
 				story:
-					"`unavailable` is the other half of `disabled`, and the two are never worn at once. `disabled` is for an action that cannot be run now: it is switched off natively and stepped over, because focusing a row a reader cannot use wastes their time. `unavailable` is for a row that carries state they came to read — the ticked space a bot cannot leave — which must stay in the walk to be heard at all: it is `aria-disabled`, keeps the same dimmed skin, and reports to nobody on Enter or on a click. Check the arrows land on it rather than skipping it, and that landing there says both checked and disabled.",
+					"`unavailable` is the other half of `disabled`, and the two are never worn at once. `disabled` is for an action that cannot be run now: it is switched off natively and stepped over, because focusing a row a reader cannot use wastes their time. `unavailable` is for a row that carries state they came to read — the ticked space a bot cannot leave — which must stay in the walk to be heard at all: it is `aria-disabled`, keeps the same dimmed skin, and reports to nobody on Enter or on a click. A pointer resting on it changes nothing — focus and the active pill stay on the row the reader left them on, since a row that lights up under the cursor and then swallows the click promises something it cannot keep. Check the arrows land on it rather than skipping it, and that landing there says both checked and disabled.",
 			},
 		},
 	},
@@ -322,6 +322,12 @@ export const UnavailableItem = meta.story({
 
 		await userEvent.keyboard("{Enter}")
 		await expect(locked).toBeVisible()
+
+		const live = screen.getByRole("menuitemcheckbox", { name: "Atelier" })
+		await userEvent.hover(live)
+		await expect(live).toHaveFocus()
+		await userEvent.hover(locked)
+		await expect(live).toHaveFocus()
 	},
 })
 
