@@ -389,12 +389,14 @@ describe("reopening a thread that was left", () => {
 
 		const landing = controller.askLanding(CONVERSATION, EARLIER_SEQ)
 		await controller.reopen(CONVERSATION)
+		await controller.load(CONVERSATION)
 
 		expect(reads()).toBe(opened)
 
 		await landing()
 
 		expect(idsOf(controller)).toContain(`m-${EARLIER_SEQ}`)
+		expect(idsOf(controller)).not.toContain(`m-${LONG.length}`)
 		expect(selectHasNewer(controller.getState(), CONVERSATION)).toBe(true)
 	})
 
@@ -406,20 +408,5 @@ describe("reopening a thread that was left", () => {
 		).rejects.toThrow()
 
 		expect(idsOf(controller)).toContain(`m-${LONG.length}`)
-	})
-
-	it("reads no newest page while a landing is pending, whoever asks", async () => {
-		const { controller, reads } = await emptied()
-		const opened = reads()
-
-		const landing = controller.askLanding(CONVERSATION, EARLIER_SEQ)
-		await controller.load(CONVERSATION)
-
-		expect(reads()).toBe(opened)
-
-		await landing()
-
-		expect(idsOf(controller)).not.toContain(`m-${LONG.length}`)
-		expect(selectHasNewer(controller.getState(), CONVERSATION)).toBe(true)
 	})
 })

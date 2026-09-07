@@ -111,19 +111,23 @@ export const createTranscriptController = (
 		landingsAsked += 1
 		const asked = landingsAsked
 		openLandings.set(conversationId, asked)
-		const isOpen = () => openLandings.get(conversationId) === asked
+		const closeLanding = () => {
+			if (openLandings.get(conversationId) !== asked) {
+				return false
+			}
+			openLandings.delete(conversationId)
+			return true
+		}
 
 		return async () => {
 			try {
 				const window = await port.loadWindow(conversationId, seq)
-				if (isOpen()) {
-					openLandings.delete(conversationId)
+				if (closeLanding()) {
 					dispatch({ type: "windowLanded", window })
 				}
 				return window.messages
 			} catch (reason) {
-				if (isOpen()) {
-					openLandings.delete(conversationId)
+				if (closeLanding()) {
 					await reopen(conversationId)
 				}
 				throw reason
