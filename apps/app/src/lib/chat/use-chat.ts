@@ -24,6 +24,18 @@ export function useChat(driver: ChatDriver, store: TranscriptStore): Chat {
 	return { state, controller }
 }
 
+type LineValue<Value> = RosterLine & { value: Value }
+
+const bySpaceId = <Value>(
+	shown: LineValue<Value>[],
+): Record<string, Record<string, Value>> => {
+	const held: Record<string, Record<string, Value>> = {}
+	for (const { spaceId, botId, value } of shown) {
+		held[spaceId] = { ...held[spaceId], [botId]: value }
+	}
+	return held
+}
+
 type BotActivity = Record<string, SidebarActivity>
 
 export type ActivityBySpaceId = Record<string, BotActivity>
@@ -52,23 +64,13 @@ export const busyBotCountIn = (working: ActivityBySpaceId): number =>
 		.flatMap((held) => Object.values(held))
 		.filter((activity) => activity.isWorking).length
 
-type ShownActivity = RosterLine & { activity: SidebarActivity }
-
-const signatureOf = (shown: ShownActivity[]): string =>
+const activitySignatureOf = (shown: LineValue<SidebarActivity>[]): string =>
 	shown
 		.map(
-			({ spaceId, botId, activity }) =>
-				`${spaceId}/${botId}:${activity.isWorking}:${activity.kind ?? ""}`,
+			({ spaceId, botId, value }) =>
+				`${spaceId}/${botId}:${value.isWorking}:${value.kind ?? ""}`,
 		)
 		.join("|")
-
-const activityBySpaceId = (shown: ShownActivity[]): ActivityBySpaceId => {
-	const working: ActivityBySpaceId = {}
-	for (const { spaceId, botId, activity } of shown) {
-		working[spaceId] = { ...working[spaceId], [botId]: activity }
-	}
-	return working
-}
 
 type ReadableChat = Pick<ChatController, "stateFor" | "subscribe">
 
@@ -94,14 +96,14 @@ export function useBotActivity({
 			return {
 				spaceId,
 				botId,
-				activity: runsIn(soloThreads, state.conversationId, spaceId)
+				value: runsIn(soloThreads, state.conversationId, spaceId)
 					? sidebarActivityFor(state)
 					: IDLE,
 			}
 		})
-		const signature = signatureOf(shown)
+		const signature = activitySignatureOf(shown)
 		if (held.current?.signature !== signature) {
-			held.current = { signature, working: activityBySpaceId(shown) }
+			held.current = { signature, working: bySpaceId(shown) }
 		}
 		return held.current.working
 	})
@@ -116,23 +118,13 @@ export const previewsIn = (
 	spaceId: string | null,
 ): BotPreviews => (spaceId ? (previews[spaceId] ?? NO_PREVIEWS) : NO_PREVIEWS)
 
-type ShownPreview = RosterLine & { word: LastWord | undefined }
-
-const previewSignatureOf = (shown: ShownPreview[]): string =>
+const previewSignatureOf = (shown: LineValue<LastWord | undefined>[]): string =>
 	shown
 		.map(
-			({ spaceId, botId, word }) =>
-				`${spaceId}/${botId}:${word?.at ?? ""}:${word?.text ?? ""}`,
+			({ spaceId, botId, value }) =>
+				`${spaceId}/${botId}:${value?.at ?? ""}:${value?.text ?? ""}`,
 		)
 		.join("|")
-
-const bySpaceId = (shown: ShownPreview[]): PreviewsBySpaceId => {
-	const previews: PreviewsBySpaceId = {}
-	for (const { spaceId, botId, word } of shown) {
-		previews[spaceId] = { ...previews[spaceId], [botId]: word }
-	}
-	return previews
-}
 
 export type LinePreviewsMount = {
 	controller: ChatController
@@ -158,7 +150,7 @@ export function useBotPreviews({
 			const live = runsIn(soloThreads, state.conversationId, spaceId)
 				? lastWordIn(state.messages)
 				: undefined
-			return { spaceId, botId, word: live ?? stored[spaceId]?.[botId] }
+			return { spaceId, botId, value: live ?? stored[spaceId]?.[botId] }
 		})
 		const signature = previewSignatureOf(shown)
 		if (held.current?.signature !== signature) {
