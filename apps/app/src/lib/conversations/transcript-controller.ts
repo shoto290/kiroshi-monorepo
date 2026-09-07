@@ -65,7 +65,15 @@ export const createTranscriptController = (
 		dispatch({ type: "pageLoaded", page })
 	}
 
-	const load = (conversationId: string) => readPage(conversationId, null)
+	const load = async (conversationId: string) => {
+		if (
+			openLandings.has(conversationId) ||
+			selectHasNewer(state, conversationId)
+		) {
+			return
+		}
+		await readPage(conversationId, null)
+	}
 
 	const loadOlder = async (conversationId: string) => {
 		const beforeSeq = selectOldestSeq(state, conversationId)
@@ -93,13 +101,10 @@ export const createTranscriptController = (
 	}
 
 	const reopen = async (conversationId: string) => {
-		if (
-			openLandings.has(conversationId) ||
-			selectMessages(state, conversationId).length > 0
-		) {
+		if (selectMessages(state, conversationId).length > 0) {
 			return
 		}
-		await readPage(conversationId, null)
+		await load(conversationId)
 	}
 
 	const askLanding = (conversationId: string, seq: number) => {
@@ -112,13 +117,16 @@ export const createTranscriptController = (
 			try {
 				const window = await port.loadWindow(conversationId, seq)
 				if (isOpen()) {
+					openLandings.delete(conversationId)
 					dispatch({ type: "windowLanded", window })
 				}
 				return window.messages
-			} finally {
+			} catch (reason) {
 				if (isOpen()) {
 					openLandings.delete(conversationId)
+					await reopen(conversationId)
 				}
+				throw reason
 			}
 		}
 	}

@@ -3145,6 +3145,22 @@ describe("returning to a solo thread", () => {
 		detach()
 	})
 
+	it("shows the landed window with no newest page spliced under it", async () => {
+		const { controller, detach } = await bootedHarness({ store: longStore() })
+
+		const landing = controller.landOn(LANDED_SEQ)
+		await controller.open(BOT)
+		await landing
+		await vi.runAllTimersAsync()
+
+		const shown = controller.getState()
+		const ids = shown.messages.map((held) => held.id)
+		expect(ids).toContain(`m-${LANDED_SEQ}`)
+		expect(ids).not.toContain(`m-${MESSAGES}`)
+		expect(shown.hasNewer).toBe(true)
+		detach()
+	})
+
 	it("reads nothing back while the thread still holds messages", async () => {
 		const store = longStore()
 		const { controller, detach } = await bootedHarness({ store })
