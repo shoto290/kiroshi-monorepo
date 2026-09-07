@@ -3,12 +3,12 @@ import { liveSessions } from "./transport"
 
 declare global {
 	interface Window {
-		opennest?: { liveSessions: () => Promise<LiveSession[]> }
+		kiroshi?: { liveSessions: () => Promise<LiveSession[]> }
 	}
 }
 
 const bindLiveSessions = () => {
-	window.opennest = { liveSessions }
+	window.kiroshi = { liveSessions }
 }
 
 export const exposeLiveSessions = import.meta.env.DEV

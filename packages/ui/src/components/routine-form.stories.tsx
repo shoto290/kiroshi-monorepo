@@ -136,7 +136,7 @@ export const OnAWebhookCall = meta.story({
 		await expect(
 			canvas.getByDisplayValue("http://127.0.0.1:45367/routines/call"),
 		).toHaveAttribute("readonly")
-		await expect(canvas.getByDisplayValue("X-OpenNest-Delivery")).toBeVisible()
+		await expect(canvas.getByDisplayValue("X-Kiroshi-Delivery")).toBeVisible()
 
 		await userEvent.click(
 			canvas.getByRole("button", { name: "Copy the Key of this routine" }),

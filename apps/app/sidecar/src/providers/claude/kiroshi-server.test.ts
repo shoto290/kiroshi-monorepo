@@ -2,24 +2,24 @@ import { describe, expect, it } from "bun:test"
 
 import {
 	DELEGATE_TOOL,
-	OPENNEST_SERVER,
-	opennestServer,
-	opennestTools,
-} from "./opennest-server"
+	KIROSHI_SERVER,
+	kiroshiServer,
+	kiroshiTools,
+} from "./kiroshi-server"
 
 const scope = { cwd: "/tmp", managedSettings: {}, session: "k1" }
 
-describe("opennestServer", () => {
+describe("kiroshiServer", () => {
 	it("bridges one in-process server under the name its tools answer to", () => {
-		const servers = opennestServer(scope)
+		const servers = kiroshiServer(scope)
 
-		expect(Object.keys(servers)).toEqual([OPENNEST_SERVER])
-		expect(servers[OPENNEST_SERVER]?.type).toBe("sdk")
-		expect(DELEGATE_TOOL).toBe(`mcp__${OPENNEST_SERVER}__delegate`)
+		expect(Object.keys(servers)).toEqual([KIROSHI_SERVER])
+		expect(servers[KIROSHI_SERVER]?.type).toBe("sdk")
+		expect(DELEGATE_TOOL).toBe(`mcp__${KIROSHI_SERVER}__delegate`)
 	})
 
 	it("carries the delegate tool and every routine and mission tool of the session", () => {
-		expect(opennestTools(scope).map((held) => held.name)).toEqual([
+		expect(kiroshiTools(scope).map((held) => held.name)).toEqual([
 			"delegate",
 			"routine_list",
 			"routine_trigger_sources",

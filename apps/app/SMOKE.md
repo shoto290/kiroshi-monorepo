@@ -7,13 +7,13 @@ macOS quit sequence.
 ## Preconditions
 
 - A real `claude` on `PATH`, signed in. Check with `claude --version`.
-- `unset OPENNEST_CLAUDE_BIN`. A leftover export from an E2E session silently
+- `unset KIROSHI_CLAUDE_BIN`. A leftover export from an E2E session silently
   points the live tests and the app at the fake binary, and everything below
   passes against a stub that never talks to the network.
 - Quit any running `bun run dev` first. `tauri.dev.conf.json` overrides only
   `bundle.icon`, so the identifier, the single-instance lock and the data
   directory are shared with the packaged app — the two builds fight over both.
-- Store paths, both under `~/Library/Application Support/com.opennest.app/`:
+- Store paths, both under `~/Library/Application Support/com.kiroshi.app/`:
   `conversations.sqlite3` holds the transcript the app reads and writes, and
   `session.json` is the legacy file the first launch imports once and never
   writes again.
@@ -30,11 +30,11 @@ APPLE_SIGNING_IDENTITY="Developer ID Application: Steve Puget (BBE5V2JL5H)" bun 
 The identity stays out of the committed config on purpose: a personal
 certificate name is not shared property. Tauri reads `APPLE_SIGNING_IDENTITY`,
 enables the hardened runtime on its own, and signs every nested executable —
-`opennest-agent` and `opennest-claude` first, then `opennest-app`, then the
+`kiroshi-agent` and `kiroshi-claude` first, then `kiroshi-app`, then the
 bundle. Confirm both:
 
 ```
-APP=apps/app/src-tauri/target/release/bundle/macos/OpenNest.app
+APP=apps/app/src-tauri/target/release/bundle/macos/Kiroshi.app
 codesign --verify --deep --strict --verbose=4 "$APP"
 codesign -d --verbose=4 "$APP" 2>&1 | grep -E "flags|Authority"
 ```
@@ -47,14 +47,14 @@ ID, whatever the build log claimed.
 to them. Check them on their own:
 
 ```
-AGENT="$APP/Contents/MacOS/opennest-agent"
+AGENT="$APP/Contents/MacOS/kiroshi-agent"
 codesign -dv "$AGENT" 2>&1 | grep -E "Identifier|TeamIdentifier"
-codesign -dv "$APP/Contents/MacOS/opennest-claude" 2>&1 | grep -E "Identifier|TeamIdentifier"
+codesign -dv "$APP/Contents/MacOS/kiroshi-claude" 2>&1 | grep -E "Identifier|TeamIdentifier"
 "$AGENT" --probe
 ```
 
-→ `Identifier=opennest-agent` with a `TeamIdentifier`, a `TeamIdentifier` on
-`opennest-claude` too, then one line of JSON. A probe that names a path instead
+→ `Identifier=kiroshi-agent` with a `TeamIdentifier`, a `TeamIdentifier` on
+`kiroshi-claude` too, then one line of JSON. A probe that names a path instead
 means the provider executable did not land beside the sidecar.
 `Identifier=a.out` and no team means the binary kept the ad hoc signature bun
 gives it, which Apple will not notarize. A `SharedArrayBuffer is not defined`
@@ -74,8 +74,8 @@ notarization credential belongs in the repo.
    → the four `#[ignore]`d live tests pass.
 
 2. Build signed (see **Signing** above), then
-   `ls apps/app/src-tauri/target/release/bundle/macos/OpenNest.app/Contents/MacOS/`
-   → **exactly** `opennest-app`, `opennest-agent` and `opennest-claude`.
+   `ls apps/app/src-tauri/target/release/bundle/macos/Kiroshi.app/Contents/MacOS/`
+   → **exactly** `kiroshi-app`, `kiroshi-agent` and `kiroshi-claude`.
    `fake_claude` next to them means the feature gate regressed.
 
 3. Open the `.dmg` from
@@ -84,7 +84,7 @@ notarization credential belongs in the repo.
    → first launch needs right-click → Open: the bundle is not notarized, so
    Gatekeeper refuses a double-click whether it is ad-hoc or Developer ID
    signed. On a Mac that received the `.dmg` over the network, the fix is
-   `xattr -dr com.apple.quarantine /Applications/OpenNest.app`.
+   `xattr -dr com.apple.quarantine /Applications/Kiroshi.app`.
 
 4. Read the header.
    → the real CLI version is shown and the status dot is ready. A missing
@@ -93,7 +93,7 @@ notarization credential belongs in the repo.
 5. Send `Remember the number 4271.`
    → the reply streams in token by token, not as one block.
 
-6. Ask it to write a file, e.g. `Write "hello" to /tmp/opennest-smoke.txt`.
+6. Ask it to write a file, e.g. `Write "hello" to /tmp/kiroshi-smoke.txt`.
    → a permission card appears; Allow once; the activity row turns green.
 
 7. Send a long prompt (`Count from 1 to 300, one number per line.`) and press
@@ -129,7 +129,7 @@ notarization credential belongs in the repo.
     is reached it is replaced by `Beginning of the conversation`. No message
     appears twice and none is skipped.
 
-12. Quit, then `echo '{' > ~/Library/Application\ Support/com.opennest.app/session.json`
+12. Quit, then `echo '{' > ~/Library/Application\ Support/com.kiroshi.app/session.json`
     and relaunch.
     → the transcript is unchanged and there is no crash: nothing reads that file
     any more once the import has run, and the import never destroys bytes it
@@ -141,7 +141,7 @@ Run before quitting, then again after. The second run must print nothing but
 the header.
 
 ```
-APP_PID=$(pgrep -x OpenNest); CLAUDE=$(pgrep -P "$APP_PID" -f claude)
+APP_PID=$(pgrep -x Kiroshi); CLAUDE=$(pgrep -P "$APP_PID" -f claude)
 PGID=$(ps -o pgid= -p "$CLAUDE" | tr -d ' ')
 ps -o pid=,ppid=,pgid=,command= -g "$PGID"
 ```

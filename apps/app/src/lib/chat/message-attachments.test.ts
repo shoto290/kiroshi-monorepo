@@ -6,7 +6,7 @@ import {
 	storedAttachmentPath,
 } from "./message-attachments"
 
-const ROOT = "/Users/reader/Library/Application Support/com.opennest.app"
+const ROOT = "/Users/reader/Library/Application Support/com.kiroshi.app"
 
 const stored = (submittedName: string) =>
 	storedAttachmentPath({ root: ROOT, conversationId: "conv-1", submittedName })

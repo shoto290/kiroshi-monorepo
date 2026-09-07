@@ -2,14 +2,14 @@ use std::path::{Path, PathBuf};
 use std::sync::{Arc, Mutex};
 use std::time::{Duration, Instant};
 
-use opennest_app::agent::commands::EVENT_CHANNEL;
-use opennest_app::agent::contract::{AgentEvent, EvolvedBundle, RuntimeScope, ScopedEvent};
-use opennest_app::agent::sidecar::SIDECAR_OVERRIDE_ENV;
-use opennest_app::agent::AgentState;
-use opennest_app::bundles;
-use opennest_app::commands::invoke_handler;
-use opennest_app::db;
-use opennest_app::db::repositories::conversations::Bot as StoredBot;
+use kiroshi_app::agent::commands::EVENT_CHANNEL;
+use kiroshi_app::agent::contract::{AgentEvent, EvolvedBundle, RuntimeScope, ScopedEvent};
+use kiroshi_app::agent::sidecar::SIDECAR_OVERRIDE_ENV;
+use kiroshi_app::agent::AgentState;
+use kiroshi_app::bundles;
+use kiroshi_app::commands::invoke_handler;
+use kiroshi_app::db;
+use kiroshi_app::db::repositories::conversations::Bot as StoredBot;
 use serde_json::{json, Value};
 use tauri::test::{mock_builder, mock_context, noop_assets, MockRuntime, INVOKE_KEY};
 use tauri::webview::InvokeRequest;
@@ -17,7 +17,7 @@ use tauri::{App, Listener, Manager, WebviewWindow, WebviewWindowBuilder};
 
 const FAKE_SIDECAR: &str = env!("CARGO_BIN_EXE_fake_sidecar");
 const SCENARIO_ENV: &str = "FAKE_AGENT_SCENARIO_FILE";
-const IDENTIFIER: &str = "com.opennest.bundle-evolution";
+const IDENTIFIER: &str = "com.kiroshi.bundle-evolution";
 const DEADLINE: Duration = Duration::from_secs(10);
 const POLL: Duration = Duration::from_millis(25);
 const SETTLE: Duration = Duration::from_millis(500);
@@ -201,7 +201,7 @@ fn an_identity() -> Value {
 
 fn scenario(name: &str) {
 	let path =
-		std::env::temp_dir().join(format!("opennest-fake-scenario-{}.txt", std::process::id()));
+		std::env::temp_dir().join(format!("kiroshi-fake-scenario-{}.txt", std::process::id()));
 	std::fs::write(&path, name).expect("the scenario is written");
 	std::env::set_var(SCENARIO_ENV, path);
 }

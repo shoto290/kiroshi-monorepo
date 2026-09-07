@@ -23,7 +23,7 @@ const WRITE_PARAMETERS: ToolApprovalParameter[] = [
 	{
 		id: "file_path",
 		label: "file_path",
-		value: "/Users/ada/opennest/.env.local",
+		value: "/Users/ada/kiroshi/.env.local",
 	},
 	{ id: "content", label: "content", sensitive: true },
 ]
@@ -156,7 +156,7 @@ export const WithRedactedInput = meta.story({
 	play: async ({ canvas }) => {
 		await expect(canvas.getByText("Hidden")).toBeVisible()
 		await expect(
-			canvas.getByText("/Users/ada/opennest/.env.local"),
+			canvas.getByText("/Users/ada/kiroshi/.env.local"),
 		).toBeVisible()
 	},
 })

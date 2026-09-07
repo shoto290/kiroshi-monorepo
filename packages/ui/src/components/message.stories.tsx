@@ -23,7 +23,7 @@ const MESSAGE_FROM = listExhaustively<MessageFrom>({
 })
 
 const AUTHORS: Record<MessageFrom, string> = {
-	assistant: "OpenNest",
+	assistant: "Kiroshi",
 	user: "Ada Martin",
 }
 

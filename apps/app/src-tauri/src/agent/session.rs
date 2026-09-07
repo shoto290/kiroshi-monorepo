@@ -591,7 +591,7 @@ mod tests {
 	fn a_bot_opens_on_the_bundle_it_runs_as() {
 		let bundle = Bundle {
 			path: "/bots/b1".to_owned(),
-			system_path: Some("/system/opennest".to_owned()),
+			system_path: Some("/system/kiroshi".to_owned()),
 			user_path: Some("/user/me".to_owned()),
 			space_path: Some("/spaces/s1".to_owned()),
 			agent: "bean".to_owned(),
@@ -610,9 +610,9 @@ mod tests {
 	#[test]
 	fn a_run_carries_the_directory_the_host_keeps_its_own_data_in() {
 		let request =
-			options().with_app_data(Some(PathBuf::from("/app-data/opennest"))).open_request(true);
+			options().with_app_data(Some(PathBuf::from("/app-data/kiroshi"))).open_request(true);
 
-		assert_eq!(request.app_data_dir.as_deref(), Some("/app-data/opennest"));
+		assert_eq!(request.app_data_dir.as_deref(), Some("/app-data/kiroshi"));
 		assert_eq!(options().open_request(true).app_data_dir, None);
 	}
 
@@ -628,7 +628,7 @@ mod tests {
 	fn a_resumed_run_carries_the_bundle_again() {
 		let bundle = Bundle {
 			path: "/bots/b1".to_owned(),
-			system_path: Some("/system/opennest".to_owned()),
+			system_path: Some("/system/kiroshi".to_owned()),
 			user_path: Some("/user/me".to_owned()),
 			space_path: Some("/spaces/s1".to_owned()),
 			agent: "bean".to_owned(),
@@ -648,7 +648,7 @@ mod tests {
 	fn a_bot_opens_on_the_style_its_bundle_carries() {
 		let bundle = Bundle {
 			path: "/bots/b1".to_owned(),
-			system_path: Some("/system/opennest".to_owned()),
+			system_path: Some("/system/kiroshi".to_owned()),
 			user_path: Some("/user/me".to_owned()),
 			space_path: Some("/spaces/s1".to_owned()),
 			agent: "bean".to_owned(),

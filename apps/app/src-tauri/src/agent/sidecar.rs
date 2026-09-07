@@ -15,9 +15,9 @@ use tokio::task::JoinHandle;
 use super::contract::TransportError;
 use super::protocol::{self, Catalogue, Checked, Ready, Titled, ToolCatalogue};
 
-pub const SIDECAR_OVERRIDE_ENV: &str = "OPENNEST_AGENT_SIDECAR";
+pub const SIDECAR_OVERRIDE_ENV: &str = "KIROSHI_AGENT_SIDECAR";
 
-const SIDECAR_NAME: &str = "opennest-agent";
+const SIDECAR_NAME: &str = "kiroshi-agent";
 
 const BUILD_COMMAND: &str = "bun run --filter sidecar build";
 

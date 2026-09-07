@@ -292,7 +292,7 @@ mod tests {
 	async fn a_host(name: &str) -> App<MockRuntime> {
 		let mut context = mock_context(noop_assets());
 		context.config_mut().identifier =
-			format!("com.opennest.mission-host-{name}-{}", std::process::id());
+			format!("com.kiroshi.mission-host-{name}-{}", std::process::id());
 		let app = mock_builder().build(context).expect("the app builds");
 		if let Ok(dir) = app.path().app_data_dir() {
 			let _ = fs::remove_dir_all(&dir);
@@ -396,14 +396,14 @@ mod tests {
 			json!({
 				"id": id,
 				"branch": "feature/ope-37",
-				"repository": "shoto290/OpenNest"
+				"repository": "shoto290/kiroshi-monorepo"
 			}),
 		)
 	}
 
 	fn a_workspace(name: &str) -> PathBuf {
 		let path = std::env::temp_dir()
-			.join(format!("opennest-mission-host-{name}-{}", std::process::id()));
+			.join(format!("kiroshi-mission-host-{name}-{}", std::process::id()));
 		let _ = fs::remove_dir_all(&path);
 		fs::create_dir_all(&path).expect("the workspace is there");
 		fs::write(path.join(".git"), "gitdir: /elsewhere/.git/worktrees/one")
@@ -631,7 +631,7 @@ mod tests {
 		);
 		let settings = fs::read_to_string(workspace.join(".claude").join("settings.local.json"))
 			.expect("the settings of the workspace read");
-		assert!(settings.contains("opennest-agent-hook.sh"), "got {settings}");
+		assert!(settings.contains("kiroshi-agent-hook.sh"), "got {settings}");
 
 		if let Some(webhook) = app.try_state::<crate::routines::webhook::Webhook>() {
 			webhook.stop();

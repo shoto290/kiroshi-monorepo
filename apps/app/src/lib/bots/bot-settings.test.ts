@@ -46,7 +46,7 @@ describe("toSettingsValue", () => {
 					model: "haiku",
 					avatarAnimal: "owl",
 					avatarBlot: "green",
-					workingDir: "/work/opennest",
+					workingDir: "/work/kiroshi",
 				}),
 			),
 		).toEqual({
@@ -55,7 +55,7 @@ describe("toSettingsValue", () => {
 			title: "Reviewer",
 			instructions: "Answer briefly.",
 			model: "haiku",
-			workingDirectory: "/work/opennest",
+			workingDirectory: "/work/kiroshi",
 			permissions: BLANK_BOT_PERMISSIONS,
 		})
 	})
@@ -74,7 +74,7 @@ describe("toSettingsValue", () => {
 describe("changesRuntime", () => {
 	const stored = bot({
 		instructions: "Answer briefly.",
-		workingDir: "/work/opennest",
+		workingDir: "/work/kiroshi",
 	})
 	const value = toSettingsValue(stored)
 

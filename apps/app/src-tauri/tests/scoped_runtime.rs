@@ -2,12 +2,12 @@
 use std::sync::{Arc, Mutex};
 use std::time::{Duration, Instant};
 
-use opennest_app::agent::sidecar::SIDECAR_OVERRIDE_ENV;
-use opennest_app::agent::commands::EVENT_CHANNEL;
-use opennest_app::agent::contract::{AgentEvent, RuntimeScope, ScopedEvent, TurnOutcome};
-use opennest_app::agent::AgentState;
-use opennest_app::commands::invoke_handler;
-use opennest_app::db;
+use kiroshi_app::agent::sidecar::SIDECAR_OVERRIDE_ENV;
+use kiroshi_app::agent::commands::EVENT_CHANNEL;
+use kiroshi_app::agent::contract::{AgentEvent, RuntimeScope, ScopedEvent, TurnOutcome};
+use kiroshi_app::agent::AgentState;
+use kiroshi_app::commands::invoke_handler;
+use kiroshi_app::db;
 use serde_json::{json, Value};
 use tauri::test::{mock_builder, mock_context, noop_assets, MockRuntime, INVOKE_KEY};
 use tauri::webview::InvokeRequest;

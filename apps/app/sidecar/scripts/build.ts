@@ -3,7 +3,7 @@ import { dirname, join } from "node:path"
 
 import { prepareProviders, stageProviders } from "../src/providers/build"
 
-const BINARY_NAME = "opennest-agent"
+const BINARY_NAME = "kiroshi-agent"
 
 const sidecarRoot = dirname(import.meta.dir)
 const binariesDirectory = join(sidecarRoot, "..", "src-tauri", "binaries")

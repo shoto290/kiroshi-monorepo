@@ -89,6 +89,7 @@ jobs:
 
       - name: Install Playwright browser
         if: steps.playwright.outputs.cache-hit != 'true'
+        working-directory: packages/ui
         run: bunx playwright install --with-deps chromium
 
       - name: Test app

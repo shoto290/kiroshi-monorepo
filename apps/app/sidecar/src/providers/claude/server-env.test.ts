@@ -124,7 +124,7 @@ describe("resolvedServers", () => {
 	let bundle: string
 
 	beforeEach(() => {
-		bundle = mkdtempSync(join(tmpdir(), "opennest-server-env-"))
+		bundle = mkdtempSync(join(tmpdir(), "kiroshi-server-env-"))
 		writeFileSync(
 			join(bundle, ".mcp.json"),
 			JSON.stringify({ mcpServers: { probe, plain } }),

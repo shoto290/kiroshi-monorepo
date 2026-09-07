@@ -46,7 +46,7 @@ const calls: [string, Record<string, unknown>, string][] = [
 			objective: "Ship the tools",
 			ticket: A_TICKET,
 			tools: ["gh"],
-			workspacePath: "/tmp/opennest",
+			workspacePath: "/tmp/kiroshi",
 		},
 		"open",
 	],
@@ -63,7 +63,11 @@ const calls: [string, Record<string, unknown>, string][] = [
 	],
 	[
 		"mission_watch",
-		{ id: "m1", branch: "feature/ope-37", repository: "shoto290/OpenNest" },
+		{
+			id: "m1",
+			branch: "feature/ope-37",
+			repository: "shoto290/kiroshi-monorepo",
+		},
 		"watch",
 	],
 	["mission_list", {}, "list"],
@@ -84,7 +88,7 @@ const answers: Record<string, unknown> = {
 		mission: A_MISSION,
 		url: "http://127.0.0.1:7788/hooks/mission",
 		key: "a-key",
-		header: "x-opennest-key",
+		header: "x-kiroshi-key",
 	},
 	list: [
 		{

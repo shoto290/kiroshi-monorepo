@@ -383,7 +383,7 @@ mod tests {
 			ticket: Ticket {
 				platform: "github".to_owned(),
 				external_id: "42".to_owned(),
-				url: "https://opennest.test/tickets/42".to_owned(),
+				url: "https://kiroshi.test/tickets/42".to_owned(),
 				title: "Crash on open".to_owned(),
 			},
 			tools: vec!["gh".to_owned()],

@@ -1,6 +1,6 @@
 const common = {
 	boot: {
-		status: "Démarrage d'OpenNest",
+		status: "Démarrage d'Kiroshi",
 	},
 	spaces: {
 		unavailable: {

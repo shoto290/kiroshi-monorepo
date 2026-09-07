@@ -16,9 +16,9 @@ const INFO_DIR: &str = "info";
 const EXCLUDE_NAME: &str = "exclude";
 
 const USER_NAME: &str = "Reader";
-const USER_MAIL: &str = "user@opennest.local";
+const USER_MAIL: &str = "user@kiroshi.local";
 const BOT_NAME: &str = "Bot";
-const BOT_MAIL: &str = "bot@opennest.local";
+const BOT_MAIL: &str = "bot@kiroshi.local";
 
 const EVERYTHING: &str = "*";
 

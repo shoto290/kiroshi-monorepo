@@ -50,7 +50,7 @@ mod tests {
 	use super::*;
 
 	fn a_bundle(name: &str) -> PathBuf {
-		let path = std::env::temp_dir().join(format!("opennest-triggers-{name}"));
+		let path = std::env::temp_dir().join(format!("kiroshi-triggers-{name}"));
 		let _ = fs::remove_dir_all(&path);
 		fs::create_dir_all(&path).expect("the bundle directory is there");
 		path
@@ -77,7 +77,7 @@ mod tests {
 	}
 
 	fn committed_system_bundle() -> PathBuf {
-		PathBuf::from(env!("CARGO_MANIFEST_DIR")).join("plugins").join("opennest")
+		PathBuf::from(env!("CARGO_MANIFEST_DIR")).join("plugins").join("kiroshi")
 	}
 
 	#[test]
@@ -199,7 +199,7 @@ mod tests {
 		let webhook = sources.iter().find(|source| source.id == "local-webhook");
 		assert_eq!(
 			webhook.and_then(|source| source.header.clone()),
-			Some("X-OpenNest-Delivery".to_owned())
+			Some("X-Kiroshi-Delivery".to_owned())
 		);
 	}
 }

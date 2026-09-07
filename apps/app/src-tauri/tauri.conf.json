@@ -1,8 +1,8 @@
 {
 	"$schema": "https://schema.tauri.app/config/2",
-	"productName": "OpenNest",
+	"productName": "Kiroshi",
 	"version": "0.15.1",
-	"identifier": "com.opennest.app",
+	"identifier": "com.kiroshi.app",
 	"build": {
 		"beforeDevCommand": "bun run dev:web",
 		"devUrl": "http://127.0.0.1:1420",
@@ -18,7 +18,7 @@
 		},
 		"windows": [
 			{
-				"title": "OpenNest",
+				"title": "Kiroshi",
 				"dragDropEnabled": false,
 				"visible": false,
 				"width": 1280,
@@ -34,7 +34,7 @@
 	"plugins": {
 		"updater": {
 			"endpoints": [
-				"https://github.com/shoto290/OpenNest/releases/latest/download/latest.json"
+				"https://github.com/shoto290/kiroshi-monorepo/releases/latest/download/latest.json"
 			],
 			"pubkey": "dW50cnVzdGVkIGNvbW1lbnQ6IG1pbmlzaWduIHB1YmxpYyBrZXk6IDhGMkVBNjdDQ0I1QTc2N0QKUldSOWRsckxmS1l1ajArcW54RTM3R0dWSEJ1YTBMbnhlYjdnakg3MXA4RTFUajlvUFVDT0lJdzMK"
 		}
@@ -42,10 +42,10 @@
 	"bundle": {
 		"active": true,
 		"createUpdaterArtifacts": true,
-		"externalBin": ["binaries/opennest-agent", "binaries/opennest-claude"],
+		"externalBin": ["binaries/kiroshi-agent", "binaries/kiroshi-claude"],
 		"targets": ["app", "dmg", "deb", "nsis"],
 		"category": "DeveloperTool",
-		"copyright": "© 2026 OpenNest",
+		"copyright": "© 2026 Kiroshi",
 		"icon": [
 			"icons/32x32.png",
 			"icons/128x128.png",

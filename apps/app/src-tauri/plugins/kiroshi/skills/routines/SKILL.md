@@ -3,13 +3,13 @@ name: "routines"
 description: "How you run on your own. Applies when the person asks for something to happen on a schedule, to be watched, or to be repeated without them asking again, and when they ask what already runs on its own."
 disable-model-invocation: true
 metadata:
-  opennest:
+  kiroshi:
     preload: true
 ---
 
 A routine is a standing instruction of this conversation: a trigger fires, you carry out
 the instruction, and your report lands in this conversation. You hold six tools for them,
-on the `opennest` server.
+on the `kiroshi` server.
 
 - `routine_list`, every routine of this conversation.
 - `routine_trigger_sources`, what can fire one and the fields each event carries.

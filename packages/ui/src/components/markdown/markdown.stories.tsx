@@ -252,35 +252,35 @@ const FOOTNOTES = `The sync dedupes on the client id[^dedupe], not on the timest
 [^dedupe]: Set in \`useTranscriptSocket\` before the cache merge.
 [^clock]: Two hosts can disagree by seconds.`
 
-const AUTOLINKS = `Docs live at https://opennest.dev and issues go to nest@opennest.dev.
+const AUTOLINKS = `Docs live at https://kiroshi.dev and issues go to nest@kiroshi.dev.
 
-An explicit [link](https://opennest.dev/changelog) reads the same.`
+An explicit [link](https://kiroshi.dev/changelog) reads the same.`
 
-const DESTINATIONS = `Every link carries where it goes: [the changelog](https://opennest.dev/changelog), [our roadmap](https://www.opennest.dev/roadmap), and a URL typed bare, https://opennest.dev/docs.
+const DESTINATIONS = `Every link carries where it goes: [the changelog](https://kiroshi.dev/changelog), [our roadmap](https://www.kiroshi.dev/roadmap), and a URL typed bare, https://kiroshi.dev/docs.
 
-Mail stays with the reader: nest@opennest.dev.`
+Mail stays with the reader: nest@kiroshi.dev.`
 
-const MANY_HOSTS = `One answer naming seven places at once: [the changelog](https://opennest.dev/changelog), [the spec](https://html.spec.whatwg.org/multipage/links.html), [a search](https://www.google.com/search?q=nest), [a paper](https://arxiv.org/abs/2401.00001), [an internal tracker](https://tracker.internal.test/issue/42), [a directory](https://пример.рф/каталог) and [the box on this desk](https://192.168.1.1/admin).`
+const MANY_HOSTS = `One answer naming seven places at once: [the changelog](https://kiroshi.dev/changelog), [the spec](https://html.spec.whatwg.org/multipage/links.html), [a search](https://www.google.com/search?q=nest), [a paper](https://arxiv.org/abs/2401.00001), [an internal tracker](https://tracker.internal.test/issue/42), [a directory](https://пример.рф/каталог) and [the box on this desk](https://192.168.1.1/admin).`
 
-const DECEPTIVE_LINKS = `Userinfo hides the host: [https://opennest.dev@evil.test/reports](https://opennest.dev@evil.test/reports).
+const DECEPTIVE_LINKS = `Userinfo hides the host: [https://kiroshi.dev@evil.test/reports](https://kiroshi.dev@evil.test/reports).
 
-A text with no scheme parses as nothing: [opennest.dev/download](https://evil.test/payload).
+A text with no scheme parses as nothing: [kiroshi.dev/download](https://evil.test/payload).
 
 A homograph reads as latin: [https://\u043Epennest.dev/login](https://\u043Epennest.dev/login).
 
-Emphasis is an element, not a string: [**https://opennest.dev**](https://evil.test/steal).
+Emphasis is an element, not a string: [**https://kiroshi.dev**](https://evil.test/steal).
 
-A protocol-relative href would move this very window: [https://opennest.dev](//evil.test/steal).
+A protocol-relative href would move this very window: [https://kiroshi.dev](//evil.test/steal).
 
-A mailto under a web address opens a draft, not a page: [https://opennest.dev](mailto:steal@evil.test).`
+A mailto under a web address opens a draft, not a page: [https://kiroshi.dev](mailto:steal@evil.test).`
 
-const INERT_SCHEMES = `A scheme this app cannot open is not a link: [join the channel](irc://opennest.dev/nest).
+const INERT_SCHEMES = `A scheme this app cannot open is not a link: [join the channel](irc://kiroshi.dev/nest).
 
 Neither is a path that would resolve against this window: [settings](/settings).
 
 Neither is a script: [looks like a link](javascript:alert('nest')).`
 
-const LONG_URL = `https://opennest.dev/reports/2026/08/nest_42/occupants?include=arrivals%2Cdepartures&sort=timestamp&cursor=eyJvZmZzZXQiOjEyMCwibGltaXQiOjQwfQ&signature=9f2c1ad4e7b8c05a`
+const LONG_URL = `https://kiroshi.dev/reports/2026/08/nest_42/occupants?include=arrivals%2Cdepartures&sort=timestamp&cursor=eyJvZmZzZXQiOjEyMCwibGltaXQiOjQwfQ&signature=9f2c1ad4e7b8c05a`
 
 const FRAGMENT_LINK = `The counts come from the last sync[^count], and the method sits in the [summary](#summary) closing this answer.
 
@@ -342,7 +342,7 @@ const MALFORMED = `# unclosed **bold and \`code
 | ---
 | nest_42
 
-[broken](https://opennest.dev
+[broken](https://kiroshi.dev
 
 :::unknown-block
 content
@@ -370,11 +370,11 @@ Progress:
 
 ---
 
-Run \`bun run test\` — docs at https://opennest.dev.
+Run \`bun run test\` — docs at https://kiroshi.dev.
 
 [^1]: nest_43 lost its last occupant.`
 
-const USER_BLOCK = `Run \`bun run test\` before merging — the dedupe now lives in \`useTranscriptSocket\`, next to the cache merge, and not in the store, see [the changelog](https://opennest.dev/changelog):
+const USER_BLOCK = `Run \`bun run test\` before merging — the dedupe now lives in \`useTranscriptSocket\`, next to the cache merge, and not in the store, see [the changelog](https://kiroshi.dev/changelog):
 
 \`\`\`bash
 bun run test --project=unit
@@ -517,7 +517,7 @@ const MARK_BOX = 14
 
 const SPACE_RUN = 8
 
-const EXPECTED_MARKS = ["o", "h", "g", "a", "t", "п", "•"]
+const EXPECTED_MARKS = ["k", "h", "g", "a", "t", "п", "•"]
 
 const FETCHING_ELEMENTS = "img, iframe, object, embed, source, [srcset]"
 
@@ -1332,13 +1332,13 @@ export const Autolinks = meta.story({
 	},
 	play: async ({ canvas }) => {
 		const autolink = canvas.getByRole("link", {
-			name: "https://opennest.dev (opennest.dev)",
+			name: "https://kiroshi.dev (kiroshi.dev)",
 		})
 
 		await expect(autolink).toHaveAttribute("target", "_blank")
 		await expect(autolink).toHaveAttribute("rel", "noreferrer noopener")
 		await expect(
-			canvas.getByRole("link", { name: "nest@opennest.dev" }),
+			canvas.getByRole("link", { name: "nest@kiroshi.dev" }),
 		).not.toHaveAttribute("target")
 	},
 })
@@ -1355,15 +1355,15 @@ export const Destinations = meta.story({
 	},
 	play: async ({ canvas, canvasElement }) => {
 		await expect(
-			canvas.getByRole("link", { name: "the changelog (opennest.dev)" }),
+			canvas.getByRole("link", { name: "the changelog (kiroshi.dev)" }),
 		).toHaveAttribute("target", "_blank")
 		await expect(
-			canvas.getByRole("link", { name: "our roadmap (www.opennest.dev)" }),
+			canvas.getByRole("link", { name: "our roadmap (www.kiroshi.dev)" }),
 		).toBeInTheDocument()
 
 		await expect(
 			linkMarksOf(canvasElement).map((mark) => mark.textContent),
-		).toEqual(["o", "o", "o"])
+		).toEqual(["k", "k", "k"])
 	},
 })
 
@@ -1432,7 +1432,7 @@ export const DeceptiveLinks = meta.story({
 		await expect(canvas.getAllByText("(evil.test)")).toHaveLength(4)
 		await expect(canvas.getByText("(xn--pennest-8ig.dev)")).toBeInTheDocument()
 		await expect(
-			canvas.getByRole("link", { name: "https://opennest.dev" }),
+			canvas.getByRole("link", { name: "https://kiroshi.dev" }),
 		).not.toHaveAttribute("target")
 	},
 })
@@ -1472,7 +1472,7 @@ export const LongUrl = meta.story({
 	),
 	play: async ({ canvas, canvasElement }) => {
 		const link = canvas.getByRole("link")
-		const host = canvas.getByText("(opennest.dev)")
+		const host = canvas.getByText("(kiroshi.dev)")
 		const text = link.firstElementChild as HTMLElement
 		const bubble = canvasElement.querySelector(
 			'[data-slot="message-bubble-content"]',

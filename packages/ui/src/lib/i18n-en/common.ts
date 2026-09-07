@@ -1,6 +1,6 @@
 const common = {
 	boot: {
-		status: "Starting OpenNest",
+		status: "Starting Kiroshi",
 	},
 	spaces: {
 		unavailable: {

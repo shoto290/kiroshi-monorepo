@@ -7,12 +7,12 @@ import type { Settings } from "@anthropic-ai/claude-agent-sdk"
 
 import { claudeSourceExecutable } from "./build"
 import { EXECUTABLE_OVERRIDE_ENV } from "./executable"
-import { OPENNEST_SERVER } from "./opennest-server"
+import { KIROSHI_SERVER } from "./kiroshi-server"
 import { buildOptions, CLASSIFY_ASK_USER_QUESTION } from "./session"
 import {
 	bundleLine,
+	KIROSHI_LAYER,
 	layerFor,
-	OPENNEST_LAYER,
 	skillLine,
 	spaceLine,
 	unavailableServersSection,
@@ -29,7 +29,7 @@ process.env[EXECUTABLE_OVERRIDE_ENV] = claudeSourceExecutable()
 const identity = "You are Bean, the baker."
 
 const systemBundle = new URL(
-	"../../../../src-tauri/plugins/opennest",
+	"../../../../src-tauri/plugins/kiroshi",
 	import.meta.url,
 ).pathname
 
@@ -97,10 +97,10 @@ describe("buildOptions", () => {
 
 	it("names the bot's own directory under the layer, and only with a bundle", () => {
 		expect(layerFor({ pluginPath: "/bots/b1" })).toBe(
-			`${OPENNEST_LAYER}\n\n${bundleLine("/bots/b1")}`,
+			`${KIROSHI_LAYER}\n\n${bundleLine("/bots/b1")}`,
 		)
 		expect(bundleLine("/bots/b1")).toContain("/bots/b1")
-		expect(layerFor({})).toBe(OPENNEST_LAYER)
+		expect(layerFor({})).toBe(KIROSHI_LAYER)
 	})
 
 	it("opens every session in auto mode, bundled or not", () => {
@@ -110,7 +110,7 @@ describe("buildOptions", () => {
 	})
 
 	it("opens on the settings file the host names, mode and rules at once", () => {
-		const bundle = mkdtempSync(join(tmpdir(), "opennest-settings-"))
+		const bundle = mkdtempSync(join(tmpdir(), "kiroshi-settings-"))
 		const settingsPath = join(bundle, "settings.json")
 		writeFileSync(
 			settingsPath,
@@ -144,34 +144,34 @@ describe("buildOptions", () => {
 	})
 
 	it("hands the session an allowlist, not the sidecar's whole environment", () => {
-		process.env.OPENNEST_SECRET_TOKEN = "leaked"
+		process.env.KIROSHI_SECRET_TOKEN = "leaked"
 
 		const env = buildOptions(request, undefined).env ?? {}
-		delete process.env.OPENNEST_SECRET_TOKEN
+		delete process.env.KIROSHI_SECRET_TOKEN
 
-		expect(env.OPENNEST_SECRET_TOKEN).toBeUndefined()
+		expect(env.KIROSHI_SECRET_TOKEN).toBeUndefined()
 		expect(env.PATH).toBe(process.env.PATH)
 		expect(env[EXECUTABLE_OVERRIDE_ENV]).toBe(claudeSourceExecutable())
 	})
 
 	it("names no tool in the layer, so it grants no capability", () => {
 		for (const tool of ["Bash", "Edit", "Grep", "Glob", "Task", "WebFetch"]) {
-			expect(OPENNEST_LAYER).not.toContain(tool)
+			expect(KIROSHI_LAYER).not.toContain(tool)
 		}
 	})
 
-	it("places the bot in OpenNest and points its learning at the History", () => {
-		expect(OPENNEST_LAYER).toContain("OpenNest, a desktop app")
-		expect(OPENNEST_LAYER).toContain("one of them")
-		expect(OPENNEST_LAYER).toContain("one of your skills")
-		expect(OPENNEST_LAYER).toContain("your History")
+	it("places the bot in Kiroshi and points its learning at the History", () => {
+		expect(KIROSHI_LAYER).toContain("Kiroshi, a desktop app")
+		expect(KIROSHI_LAYER).toContain("one of them")
+		expect(KIROSHI_LAYER).toContain("one of your skills")
+		expect(KIROSHI_LAYER).toContain("your History")
 	})
 
 	it("has the bot look for a path before it declines, without agreeing to please", () => {
-		expect(OPENNEST_LAYER).toContain("closest workable path")
-		expect(OPENNEST_LAYER).toContain("what you can do instead")
-		expect(OPENNEST_LAYER).toContain("never agree just to please")
-		expect(OPENNEST_LAYER).toContain("never claim a capability you do not have")
+		expect(KIROSHI_LAYER).toContain("closest workable path")
+		expect(KIROSHI_LAYER).toContain("what you can do instead")
+		expect(KIROSHI_LAYER).toContain("never agree just to please")
+		expect(KIROSHI_LAYER).toContain("never claim a capability you do not have")
 	})
 
 	it("passes the output style the host names, and locks bypass out either way", () => {
@@ -190,17 +190,17 @@ describe("buildOptions", () => {
 
 	it("pins the floor to the policy tier, above what a bot may declare", () => {
 		const options = buildOptions(
-			{ ...request, appDataDir: "/app-data/opennest" },
+			{ ...request, appDataDir: "/app-data/kiroshi" },
 			undefined,
 		)
 		const floor = options.managedSettings
 
 		expect(floor?.permissions?.deny).toContain(
-			"Read(//app-data/opennest/conversations.sqlite3)",
+			"Read(//app-data/kiroshi/conversations.sqlite3)",
 		)
 		expect(floor?.sandbox?.enabled).toBe(true)
 		expect(floor?.sandbox?.filesystem?.denyRead).toContain(
-			"/app-data/opennest/bots",
+			"/app-data/kiroshi/bots",
 		)
 		expect(floor?.sandbox?.filesystem?.allowRead).toEqual(["/bots/b1"])
 	})
@@ -231,7 +231,7 @@ describe("buildOptions", () => {
 	it("hands over the servers the bundle declares", () => {
 		expect(
 			Object.keys(buildOptions(request, undefined).mcpServers ?? {}),
-		).toEqual([OPENNEST_SERVER])
+		).toEqual([KIROSHI_SERVER])
 	})
 
 	it("leaves an unbundled session without a server or a routine of any kind", () => {
@@ -250,7 +250,7 @@ describe("buildOptions", () => {
 			undefined,
 		)
 
-		expect(Object.keys(options.mcpServers ?? {})).toContain(OPENNEST_SERVER)
+		expect(Object.keys(options.mcpServers ?? {})).toContain(KIROSHI_SERVER)
 		expect(appended(options)).toContain("routine_create")
 	})
 
@@ -366,13 +366,13 @@ describe("buildOptions", () => {
 
 		expect(Object.keys(options.mcpServers ?? {})).toEqual([
 			"clock",
-			OPENNEST_SERVER,
+			KIROSHI_SERVER,
 		])
 		expect(appended(options)).toContain(leftOut[0])
 	})
 
 	it("keeps the value a scope defines out of that section", () => {
-		const bundle = mkdtempSync(join(tmpdir(), "opennest-servers-"))
+		const bundle = mkdtempSync(join(tmpdir(), "kiroshi-servers-"))
 		writeFileSync(
 			join(bundle, ".mcp.json"),
 			JSON.stringify({
@@ -407,7 +407,7 @@ describe("layerFor", () => {
 	let system: string
 
 	beforeEach(() => {
-		system = mkdtempSync(join(tmpdir(), "opennest-layer-"))
+		system = mkdtempSync(join(tmpdir(), "kiroshi-layer-"))
 	})
 
 	afterEach(() => {
@@ -423,12 +423,12 @@ describe("layerFor", () => {
 	it("carries the app plugin's preloaded skills under the bot's own directory", () => {
 		dropSkill(
 			"learn",
-			'---\nname: "learn"\nmetadata:\n  opennest:\n    preload: true\n---\n\n## When to write\n\nRules.\n',
+			'---\nname: "learn"\nmetadata:\n  kiroshi:\n    preload: true\n---\n\n## When to write\n\nRules.\n',
 		)
 
 		expect(layerFor({ pluginPath: "/bots/b1", systemPluginPath: system })).toBe(
 			[
-				OPENNEST_LAYER,
+				KIROSHI_LAYER,
 				bundleLine("/bots/b1"),
 				`# learn\n\n${skillLine(join(system, "skills", "learn"))}\n\n## When to write\n\nRules.`,
 			].join("\n\n"),
@@ -438,12 +438,12 @@ describe("layerFor", () => {
 	it("carries the person's plugin above the bot's own directory", () => {
 		dropSkill(
 			"about-me",
-			'---\nname: "about-me"\nmetadata:\n  opennest:\n    preload: true\n---\n\nThey like figs.\n',
+			'---\nname: "about-me"\nmetadata:\n  kiroshi:\n    preload: true\n---\n\nThey like figs.\n',
 		)
 
 		expect(layerFor({ pluginPath: "/bots/b1", userPluginPath: system })).toBe(
 			[
-				OPENNEST_LAYER,
+				KIROSHI_LAYER,
 				userLine(system),
 				`# about-me\n\n${skillLine(join(system, "skills", "about-me"))}\n\nThey like figs.`,
 				bundleLine("/bots/b1"),
@@ -454,12 +454,12 @@ describe("layerFor", () => {
 	it("carries the space's plugin below the person's", () => {
 		dropSkill(
 			"about-this-space",
-			'---\nname: "about-this-space"\nmetadata:\n  opennest:\n    preload: true\n---\n\nThe API lives in apps/api.\n',
+			'---\nname: "about-this-space"\nmetadata:\n  kiroshi:\n    preload: true\n---\n\nThe API lives in apps/api.\n',
 		)
 
 		expect(layerFor({ pluginPath: "/bots/b1", spacePluginPath: system })).toBe(
 			[
-				OPENNEST_LAYER,
+				KIROSHI_LAYER,
 				spaceLine(system),
 				`# about-this-space\n\n${skillLine(join(system, "skills", "about-this-space"))}\n\nThe API lives in apps/api.`,
 				bundleLine("/bots/b1"),
@@ -476,7 +476,7 @@ describe("layerFor", () => {
 			}),
 		).toBe(
 			[
-				OPENNEST_LAYER,
+				KIROSHI_LAYER,
 				userLine("/user/me"),
 				spaceLine("/spaces/s1"),
 				bundleLine("/bots/b1"),
@@ -486,18 +486,18 @@ describe("layerFor", () => {
 
 	it("names no space when the bot's space has no plugin laid down", () => {
 		expect(layerFor({ pluginPath: "/bots/b1" })).toBe(
-			[OPENNEST_LAYER, bundleLine("/bots/b1")].join("\n\n"),
+			[KIROSHI_LAYER, bundleLine("/bots/b1")].join("\n\n"),
 		)
 	})
 
 	it("leaves out a preloaded skill the person has written nothing in yet", () => {
 		dropSkill(
 			"about-me",
-			'---\nname: "about-me"\nmetadata:\n  opennest:\n    preload: true\n---\n\n',
+			'---\nname: "about-me"\nmetadata:\n  kiroshi:\n    preload: true\n---\n\n',
 		)
 
 		expect(layerFor({ pluginPath: "/bots/b1", userPluginPath: system })).toBe(
-			[OPENNEST_LAYER, userLine(system), bundleLine("/bots/b1")].join("\n\n"),
+			[KIROSHI_LAYER, userLine(system), bundleLine("/bots/b1")].join("\n\n"),
 		)
 	})
 
@@ -505,14 +505,14 @@ describe("layerFor", () => {
 		dropSkill("quiet", '---\nname: "quiet"\n---\n\nRules.\n')
 
 		expect(layerFor({ pluginPath: "/bots/b1", systemPluginPath: system })).toBe(
-			`${OPENNEST_LAYER}\n\n${bundleLine("/bots/b1")}`,
+			`${KIROSHI_LAYER}\n\n${bundleLine("/bots/b1")}`,
 		)
 	})
 
 	it("closes on the servers left out, below every other section", () => {
 		dropSkill(
 			"learn",
-			'---\nname: "learn"\nmetadata:\n  opennest:\n    preload: true\n---\n\nRules.\n',
+			'---\nname: "learn"\nmetadata:\n  kiroshi:\n    preload: true\n---\n\nRules.\n',
 		)
 
 		expect(
@@ -523,7 +523,7 @@ describe("layerFor", () => {
 		).toBe(
 			[
 				identity,
-				OPENNEST_LAYER,
+				KIROSHI_LAYER,
 				bundleLine("/bots/b1"),
 				`# learn\n\n${skillLine(join(system, "skills", "learn"))}\n\nRules.`,
 				unavailableServersSection(leftOut),
@@ -551,9 +551,9 @@ describe("layerFor", () => {
 		expect(section).toContain("give them the reason listed for it")
 	})
 
-	it("opens on the identity the host rendered, above the OpenNest sentences", () => {
+	it("opens on the identity the host rendered, above the Kiroshi sentences", () => {
 		expect(layerFor({ identity, pluginPath: "/bots/b1" })).toBe(
-			[identity, OPENNEST_LAYER, bundleLine("/bots/b1")].join("\n\n"),
+			[identity, KIROSHI_LAYER, bundleLine("/bots/b1")].join("\n\n"),
 		)
 		expect(layerFor({ pluginPath: "/bots/b1" })).not.toContain(identity)
 	})

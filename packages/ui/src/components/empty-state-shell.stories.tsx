@@ -32,7 +32,7 @@ const meta = preview.meta({
 		mark: MARK,
 		title: "Nest Keeper",
 		description:
-			"OpenNest talks to its built-in agent. Nothing leaves your device.",
+			"Kiroshi talks to its built-in agent. Nothing leaves your device.",
 		hint: "Type your first prompt in the composer below",
 	},
 })
@@ -81,7 +81,7 @@ export const WithoutHint = meta.story({
 		hint: undefined,
 		action: <Button onClick={fn()}>Try again</Button>,
 		title: "Claude Code is not available",
-		description: "OpenNest cannot reach its built-in agent.",
+		description: "Kiroshi cannot reach its built-in agent.",
 		mark: null,
 	},
 	parameters: {

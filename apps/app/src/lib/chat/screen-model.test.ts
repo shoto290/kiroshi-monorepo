@@ -33,7 +33,7 @@ import { message as storedMessage } from "../conversations/transcript-fixtures"
 const t = i18n.getFixedT(null, "chat")
 
 const ATTACHMENT = storedAttachmentPath({
-	root: "/tmp/opennest",
+	root: "/tmp/kiroshi",
 	conversationId: "c-1",
 	submittedName: "shot.png",
 })
@@ -514,7 +514,7 @@ describe("quoted messages", () => {
 	it("quotes a message that was paged out from its stored reference", () => {
 		expect(
 			replyTargetOfReference({
-				uri: "opennest://c-1/m-9",
+				uri: "kiroshi://c-1/m-9",
 				conversationId: "c-1",
 				messageId: "m-9",
 				role: "user",

@@ -1031,7 +1031,7 @@ mod tests {
 
 	#[test]
 	fn a_write_from_the_settings_stops_at_a_skill_marked_as_the_hosts() {
-		let root = std::env::temp_dir().join("opennest-commands-system-skill");
+		let root = std::env::temp_dir().join("kiroshi-commands-system-skill");
 		let _ = fs::remove_dir_all(&root);
 		let bot = a_bot();
 		bundles::write(&root, &bot).expect("the bundle is written");
@@ -1039,7 +1039,7 @@ mod tests {
 		fs::create_dir_all(&older).expect("the older directory is made");
 		fs::write(
 			older.join("SKILL.md"),
-			"---\nname: remembering\nmetadata:\n  opennest:\n    system: true\n---\n\nOld rules.\n",
+			"---\nname: remembering\nmetadata:\n  kiroshi:\n    system: true\n---\n\nOld rules.\n",
 		)
 		.expect("the older file lands");
 

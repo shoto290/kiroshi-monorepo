@@ -1,4 +1,4 @@
-const BASE_NAME = "opennest-claude"
+const BASE_NAME = "kiroshi-claude"
 
 export const EXECUTABLE_EXTENSION = process.platform === "win32" ? ".exe" : ""
 

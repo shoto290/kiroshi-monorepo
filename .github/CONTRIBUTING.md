@@ -1,6 +1,6 @@
-# Contributing to OpenNest
+# Contributing to Kiroshi
 
-Thanks for taking the time. OpenNest is a Tauri desktop app in a Bun monorepo:
+Thanks for taking the time. Kiroshi is a Tauri desktop app in a Bun monorepo:
 `apps/app` composes screens and owns the logic, `packages/ui` owns every visual.
 
 ## Conventions

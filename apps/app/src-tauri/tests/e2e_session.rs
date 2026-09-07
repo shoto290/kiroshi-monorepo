@@ -2,15 +2,15 @@
 use std::sync::{Arc, Mutex};
 use std::time::{Duration, Instant};
 
-use opennest_app::agent::sidecar::SIDECAR_OVERRIDE_ENV;
-use opennest_app::agent::commands::{terminate_session, EVENT_CHANNEL};
-use opennest_app::agent::contract::{
+use kiroshi_app::agent::sidecar::SIDECAR_OVERRIDE_ENV;
+use kiroshi_app::agent::commands::{terminate_session, EVENT_CHANNEL};
+use kiroshi_app::agent::contract::{
 	CheckReport, AgentEvent, ConnectionState, PermissionDecision, PermissionRequest, RuntimeScope,
 	ScopedEvent, TransportError, TurnOutcome,
 };
-use opennest_app::agent::AgentState;
-use opennest_app::commands::invoke_handler;
-use opennest_app::db;
+use kiroshi_app::agent::AgentState;
+use kiroshi_app::commands::invoke_handler;
+use kiroshi_app::db;
 use serde_json::{json, Value};
 use tauri::test::{mock_builder, mock_context, noop_assets, MockRuntime, INVOKE_KEY};
 use tauri::webview::InvokeRequest;
@@ -18,7 +18,7 @@ use tauri::{App, Listener, Manager, WebviewWindow, WebviewWindowBuilder};
 
 const FAKE_SIDECAR: &str = env!("CARGO_BIN_EXE_fake_sidecar");
 const SCENARIO_ENV: &str = "FAKE_AGENT_SCENARIO_FILE";
-const IDENTIFIER: &str = "com.opennest.e2e";
+const IDENTIFIER: &str = "com.kiroshi.e2e";
 const DEADLINE: Duration = Duration::from_secs(10);
 const POLL: Duration = Duration::from_millis(25);
 
@@ -139,7 +139,7 @@ impl Harness {
 
 fn scenario(name: &str) {
 	let path = std::env::temp_dir()
-		.join(format!("opennest-fake-scenario-{}.txt", std::process::id()));
+		.join(format!("kiroshi-fake-scenario-{}.txt", std::process::id()));
 	std::fs::write(&path, name).expect("the scenario is written");
 	std::env::set_var(SCENARIO_ENV, path);
 }
@@ -200,7 +200,7 @@ fn deltas(seen: &[AgentEvent]) -> String {
 }
 
 fn orphan_pid_file() -> std::path::PathBuf {
-	std::env::temp_dir().join(format!("opennest-e2e-orphan-{}.pid", std::process::id()))
+	std::env::temp_dir().join(format!("kiroshi-e2e-orphan-{}.pid", std::process::id()))
 }
 
 #[cfg(unix)]

@@ -5,7 +5,7 @@ use tauri::{AppHandle, Manager, Runtime};
 
 use super::{
 	drafted, git, learned, Author, Evolution, HistoryEntry, McpServer, Skill, SkillDraft,
-	SkillFront, LEARNED_NAME, MANIFEST_DIR, MANIFEST_NAME, OPENNEST_KEY, PRELOAD_KEY,
+	SkillFront, LEARNED_NAME, MANIFEST_DIR, MANIFEST_NAME, KIROSHI_KEY, PRELOAD_KEY,
 	SERVER_SUBJECT, SKILLS_DIR, SKILL_NAME, VERSION,
 };
 use crate::private_files;
@@ -171,7 +171,7 @@ fn about() -> std::io::Result<String> {
 		description: ABOUT_DESCRIPTION.to_owned(),
 		body: String::new(),
 		front: SkillFront {
-			metadata: Some(serde_json::json!({ OPENNEST_KEY: { PRELOAD_KEY: true } })),
+			metadata: Some(serde_json::json!({ KIROSHI_KEY: { PRELOAD_KEY: true } })),
 			disable_model_invocation: Some(true),
 			..SkillFront::default()
 		},
@@ -186,7 +186,7 @@ mod tests {
 	use std::thread;
 
 	fn a_path(name: &str) -> PathBuf {
-		let path = std::env::temp_dir().join(format!("opennest-space-{name}"));
+		let path = std::env::temp_dir().join(format!("kiroshi-space-{name}"));
 		let _ = fs::remove_dir_all(&path);
 		path
 	}

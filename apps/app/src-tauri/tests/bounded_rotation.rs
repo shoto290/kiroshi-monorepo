@@ -2,12 +2,12 @@
 use std::sync::{Arc, Mutex};
 use std::time::{Duration, Instant};
 
-use opennest_app::agent::sidecar::SIDECAR_OVERRIDE_ENV;
-use opennest_app::agent::commands::EVENT_CHANNEL;
-use opennest_app::agent::contract::{AgentEvent, RuntimeScope, ScopedEvent, TransportError};
-use opennest_app::agent::AgentState;
-use opennest_app::commands::invoke_handler;
-use opennest_app::db;
+use kiroshi_app::agent::sidecar::SIDECAR_OVERRIDE_ENV;
+use kiroshi_app::agent::commands::EVENT_CHANNEL;
+use kiroshi_app::agent::contract::{AgentEvent, RuntimeScope, ScopedEvent, TransportError};
+use kiroshi_app::agent::AgentState;
+use kiroshi_app::commands::invoke_handler;
+use kiroshi_app::db;
 use serde_json::{json, Value};
 use tauri::test::{mock_builder, mock_context, noop_assets, MockRuntime, INVOKE_KEY};
 use tauri::webview::InvokeRequest;
@@ -15,7 +15,7 @@ use tauri::{App, Listener, Manager, WebviewWindow, WebviewWindowBuilder};
 
 const FAKE_SIDECAR: &str = env!("CARGO_BIN_EXE_fake_sidecar");
 const SCENARIO_ENV: &str = "FAKE_AGENT_SCENARIO_FILE";
-const IDENTIFIER: &str = "com.opennest.bounded-rotation";
+const IDENTIFIER: &str = "com.kiroshi.bounded-rotation";
 const DEADLINE: Duration = Duration::from_secs(10);
 const POLL: Duration = Duration::from_millis(25);
 
@@ -156,7 +156,7 @@ impl Harness {
 
 fn scenario(name: &str) {
 	let path = std::env::temp_dir()
-		.join(format!("opennest-fake-scenario-{}.txt", std::process::id()));
+		.join(format!("kiroshi-fake-scenario-{}.txt", std::process::id()));
 	std::fs::write(&path, name).expect("the scenario is written");
 	std::env::set_var(SCENARIO_ENV, path);
 }
@@ -351,7 +351,7 @@ fn a_refused_provider_session_is_rotated_and_the_same_chat_carries_on() {
 	assert_eq!(occurrences(&told, "message 3\n"), 1, "the summary lost what it folded");
 	assert_eq!(occurrences(&told, "message 30\n"), 1, "the tail lost what was just said");
 	assert!(
-		told.contains("The message this one replies to:\nuri: opennest://c/"),
+		told.contains("The message this one replies to:\nuri: kiroshi://c/"),
 		"an answer to an earlier message lost the target it points at: {told}"
 	);
 	assert!(told.ends_with(PROMPT_TEXT), "the prompt was not the last thing the run was told");

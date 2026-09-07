@@ -113,26 +113,26 @@ mod tests {
 	#[test]
 	fn an_executable_under_contents_macos_of_a_dot_app_is_inside_a_bundle() {
 		assert!(is_inside_app_bundle(Path::new(
-			"/Applications/OpenNest.app/Contents/MacOS/OpenNest"
+			"/Applications/Kiroshi.app/Contents/MacOS/Kiroshi"
 		)));
 	}
 
 	#[test]
 	fn an_executable_built_in_the_target_folder_is_outside_a_bundle() {
 		assert!(!is_inside_app_bundle(Path::new(
-			"/workspace/apps/app/src-tauri/target/debug/OpenNest"
+			"/workspace/apps/app/src-tauri/target/debug/Kiroshi"
 		)));
 	}
 
 	#[test]
 	fn an_executable_beside_the_bundle_binaries_is_outside_a_bundle() {
 		assert!(!is_inside_app_bundle(Path::new(
-			"/Applications/OpenNest.app/Contents/Resources/OpenNest"
+			"/Applications/Kiroshi.app/Contents/Resources/Kiroshi"
 		)));
 	}
 
 	#[test]
 	fn an_executable_at_the_root_is_outside_a_bundle() {
-		assert!(!is_inside_app_bundle(Path::new("/OpenNest")));
+		assert!(!is_inside_app_bundle(Path::new("/Kiroshi")));
 	}
 }

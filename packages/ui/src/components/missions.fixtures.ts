@@ -160,7 +160,7 @@ export const MISSION_TICKET: MissionTicketLink = {
 	externalId: "OPE-30",
 	title: "Mission thread screen and mission card in the origin",
 	platform: "linear",
-	url: "https://linear.example/opennest/issue/OPE-30",
+	url: "https://linear.example/kiroshi/issue/OPE-30",
 }
 
 export const MISSION_OBJECTIVE =
@@ -292,7 +292,7 @@ export const WAITING_MISSION_CARD: MissionCardModel = {
 	ticket: {
 		...MISSION_TICKET,
 		platform: "linear",
-		url: "https://linear.example/opennest/issue/OPE-30",
+		url: "https://linear.example/kiroshi/issue/OPE-30",
 	},
 	tools: MISSION_CARD_TOOLS,
 	state: "waiting_human",
@@ -316,7 +316,7 @@ export const CLOSED_MISSION_CARD: MissionCardModel = {
 		externalId: "OPE-25",
 		title: "Mission storage and its command surface",
 		platform: "linear",
-		url: "https://linear.example/opennest/issue/OPE-25",
+		url: "https://linear.example/kiroshi/issue/OPE-25",
 	},
 	tools: ["Superset"],
 	state: "done",

@@ -745,7 +745,7 @@ mod tests {
 			ticket: Ticket {
 				platform: "github".to_owned(),
 				external_id: "42".to_owned(),
-				url: "https://opennest.test/tickets/42".to_owned(),
+				url: "https://kiroshi.test/tickets/42".to_owned(),
 				title: "Crash on open".to_owned(),
 			},
 			tools: vec!["gh".to_owned()],
@@ -989,7 +989,7 @@ mod tests {
 			objective, ticket_platform, ticket_external_id, ticket_url, ticket_title,
 			tools, opened_at)
 			SELECT 'm-' || value, 'c1', 'b1', 'thread-' || value, 'Objective ' || value,
-				'github', value, 'https://opennest.test/tickets/' || value, 'Ticket', '[]', value
+				'github', value, 'https://kiroshi.test/tickets/' || value, 'Ticket', '[]', value
 			FROM counter;
 	";
 
@@ -1068,7 +1068,7 @@ mod tests {
 	}
 
 	fn a_watch(branch: &str) -> MissionWatch {
-		MissionWatch { branch: branch.to_owned(), repository: "shoto290/OpenNest".to_owned() }
+		MissionWatch { branch: branch.to_owned(), repository: "shoto290/kiroshi-monorepo".to_owned() }
 	}
 
 	#[tokio::test]
@@ -1105,7 +1105,7 @@ mod tests {
 			vec![(
 				opened.id.clone(),
 				"feature/two".to_owned(),
-				"shoto290/OpenNest".to_owned(),
+				"shoto290/kiroshi-monorepo".to_owned(),
 				String::new(),
 			)],
 			"the second arming did not carry the branch it named"

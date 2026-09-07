@@ -2,8 +2,8 @@
 use std::path::{Path, PathBuf};
 use std::sync::atomic::{AtomicUsize, Ordering};
 
-use opennest_app::commands::invoke_handler;
-use opennest_app::db;
+use kiroshi_app::commands::invoke_handler;
+use kiroshi_app::db;
 use serde_json::{json, Value};
 use tauri::test::{mock_builder, mock_context, noop_assets, MockRuntime, INVOKE_KEY};
 use tauri::webview::InvokeRequest;
@@ -20,7 +20,7 @@ impl Home {
 	fn new() -> Self {
 		static CLAIMED: AtomicUsize = AtomicUsize::new(0);
 		let identifier = format!(
-			"com.opennest.user-commands-{}-{}",
+			"com.kiroshi.user-commands-{}-{}",
 			std::process::id(),
 			CLAIMED.fetch_add(1, Ordering::Relaxed)
 		);

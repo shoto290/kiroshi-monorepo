@@ -1,8 +1,8 @@
 
-use opennest_app::agent::commands::{check, terminate_session};
-use opennest_app::agent::contract::{ConnectionState, TransportError};
-use opennest_app::agent::sidecar::SIDECAR_OVERRIDE_ENV;
-use opennest_app::agent::AgentState;
+use kiroshi_app::agent::commands::{check, terminate_session};
+use kiroshi_app::agent::contract::{ConnectionState, TransportError};
+use kiroshi_app::agent::sidecar::SIDECAR_OVERRIDE_ENV;
+use kiroshi_app::agent::AgentState;
 
 const FAKE_SIDECAR: &str = env!("CARGO_BIN_EXE_fake_sidecar");
 

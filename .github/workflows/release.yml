@@ -94,7 +94,7 @@ jobs:
         with:
           projectPath: apps/app
           tagName: ${{ github.ref_name }}
-          releaseName: "OpenNest ${{ github.ref_name }}"
+          releaseName: "Kiroshi ${{ github.ref_name }}"
           releaseBody: ${{ steps.notes.outputs.body }}
           releaseDraft: true
           prerelease: false
@@ -107,7 +107,7 @@ jobs:
         with:
           projectPath: apps/app
           tagName: ${{ github.ref_name }}
-          releaseName: "OpenNest ${{ github.ref_name }}"
+          releaseName: "Kiroshi ${{ github.ref_name }}"
           releaseBody: ${{ steps.notes.outputs.body }}
           releaseDraft: true
           prerelease: false

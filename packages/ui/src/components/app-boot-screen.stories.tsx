@@ -33,7 +33,7 @@ export const Default = meta.story({
 		await expect(screen.clientHeight).toBe(window.innerHeight)
 		await expect(botIdentityAvatars(canvasElement)).toHaveLength(1)
 		await expect(canvas.getByRole("status")).toHaveTextContent(
-			"Starting OpenNest",
+			"Starting Kiroshi",
 		)
 		await expect(screen.children).toHaveLength(2)
 	},

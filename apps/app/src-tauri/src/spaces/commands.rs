@@ -255,7 +255,7 @@ mod tests {
 	use tauri::{App, Manager};
 
 	fn a_root(name: &str) -> PathBuf {
-		let root = std::env::temp_dir().join(format!("opennest-space-bundles-{name}"));
+		let root = std::env::temp_dir().join(format!("kiroshi-space-bundles-{name}"));
 		let _ = fs::remove_dir_all(&root);
 		root
 	}
@@ -298,7 +298,7 @@ mod tests {
 	fn a_host(name: &str) -> App<MockRuntime> {
 		let mut context = mock_context(noop_assets());
 		context.config_mut().identifier =
-			format!("com.opennest.space-commands-{name}-{}", std::process::id()).into();
+			format!("com.kiroshi.space-commands-{name}-{}", std::process::id()).into();
 		let app = mock_builder().build(context).expect("the app builds");
 		if let Ok(dir) = app.path().app_data_dir() {
 			let _ = fs::remove_dir_all(&dir);

@@ -12,7 +12,7 @@ catalogue are both asked of the sidecar, so nothing here reads a `PATH`.
 ## Process shape
 
 ```
-opennest-agent --serve [--provider=<id>]
+kiroshi-agent --serve [--provider=<id>]
 ```
 
 **One process for every session.** stdin is NDJSON commands from the host, stdout
@@ -102,14 +102,14 @@ Every other command names its session.
   above the sentence naming the bot's directory.
 - the provider's own preset system prompt stays set on every spawn that names an
   `agent`. Measured, not documented: without it the agent resolves and its body is
-  never applied. Its `append` is the OpenNest layer, the same text on every session:
+  never applied. Its `append` is the Kiroshi layer, the same text on every session:
   the speaking situation of a chat, no capability and no tool name, so an exported
   bot loses the chat and nothing else. It is not editable by anyone. A spawn carrying
   a `pluginPath` appends one more sentence, naming that directory as where the bot's
   own skills live — with two plugins loaded, nothing else says which is the bot's.
 - `identity` is who the bot is: the host's own sentences over the bot's own name and
   title, rendered on the host side — see `bundles.rs::identity`. It is appended to the
-  layer above the OpenNest sentences, and it travels on the request rather than in the
+  layer above the Kiroshi sentences, and it travels on the request rather than in the
   bundle because the sentences are the app's: no bot's file carries a copy, and a
   rename reaches the next session with nothing rewritten. Left out for a session
   opened with no bot to name, which is a session that carries no plugin either.
@@ -134,7 +134,7 @@ Every other command names its session.
   it. The sidecar never reads it: it hands it to the security floor, which the session
   carries as `managedSettings`, the policy tier a bot's own settings cannot loosen. The
   floor denies reading `conversations.sqlite3` and its `-wal`/`-shm` companions,
-  `opennest.db`, every `session.json*` and the `attachments` directory — at the
+  `kiroshi.db`, every `session.json*` and the `attachments` directory — at the
   permission layer and in `sandbox.filesystem.denyRead` both. It keeps `bots` and
   `spaces` in `sandbox.filesystem.denyRead`, lists the session's own plugin paths in
   `allowRead`, and denies the `Read` tool on every other bundle it finds under
@@ -229,7 +229,7 @@ no turn, and it does not promote a session to `Running`.
 `subtype` names who serves the request. `routine` is served by
 `routines::host::RoutineHost`, over the six operations `list`, `triggerSources`,
 `create`, `update`, `runNow` and `delete`, which the sidecar exposes to the agent
-as the tools of the `opennest` MCP server:
+as the tools of the `kiroshi` MCP server:
 
 - the conversation and the bot come from the scope the session was opened with,
   never from the payload — a payload naming a field its operation does not
@@ -268,7 +268,7 @@ it is the one channel that could carry an environment value. The sign-in probe
 returns an email, an org id, an org name and a subscription type; the provider
 module reduces it to one boolean before it reaches the pipe, so the host never
 holds any of the rest. Search locations are reported as labels
-(`$OPENNEST_AGENT_SIDECAR`, the app's own directory) rather than raw environment
+(`$KIROSHI_AGENT_SIDECAR`, the app's own directory) rather than raw environment
 values, and `redact` collapses the home directory out of every path *and* every
 shell command before it crosses to React. There is no logging statement anywhere
 in the module.

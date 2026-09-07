@@ -92,7 +92,7 @@ describe("toUpdateBadgeProps", () => {
 		const props = propsOf(stateOf({ available: release }))
 
 		expect(props.releaseNotesUrl).toBe(
-			"https://github.com/shoto290/OpenNest/releases/tag/v1.4.0",
+			"https://github.com/shoto290/kiroshi-monorepo/releases/tag/v1.4.0",
 		)
 	})
 

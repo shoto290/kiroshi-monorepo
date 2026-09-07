@@ -1,13 +1,13 @@
 ---
 name: release
-description: Publish an OpenNest release end to end — read the commits since the last release, draft one to three user-facing highlights, and hand them to `bun run release` as the release notes.
-when_to_use: When shipping a new OpenNest version — "release", "publish a release", "ship the next version", "cut a patch/minor/major" — including when the notes still have to be written from the commit history. Not for writing a changelog without publishing, and not for opening a plain pull request — use /git:create.
+description: Publish an Kiroshi release end to end — read the commits since the last release, draft one to three user-facing highlights, and hand them to `bun run release` as the release notes.
+when_to_use: When shipping a new Kiroshi version — "release", "publish a release", "ship the next version", "cut a patch/minor/major" — including when the notes still have to be written from the commit history. Not for writing a changelog without publishing, and not for opening a plain pull request — use /git:create.
 argument-hint: "[patch|minor|major]"
 disable-model-invocation: true
 allowed-tools: Bash, Write, Read, AskUserQuestion
 ---
 
-# Release OpenNest
+# Release Kiroshi
 
 This skill calls `scripts/release.ts`. It never edits that script or `.github/workflows/`.
 
@@ -58,7 +58,7 @@ One sentence per highlight, written for someone who does not read this repo:
 
 When the range holds nothing user-visible, write one sentence about the effect anyway ("Faster startup and a steadier window."). Never invent a feature that is not in the commits.
 
-Write them to `/tmp/opennest-release-notes-v<next>.md` — outside the repo, so the tree stays clean for the script's own check. One sentence per line, blank line between them. No headings, no bullets, no version number.
+Write them to `/tmp/kiroshi-release-notes-v<next>.md` — outside the repo, so the tree stays clean for the script's own check. One sentence per line, blank line between them. No headings, no bullets, no version number.
 
 ## 4. Approve
 
@@ -72,7 +72,7 @@ From a release branch — the script refuses `main`:
 
 ```bash
 git checkout -b release/v<next>   # only when on main
-bun run release <type> --notes /tmp/opennest-release-notes-v<next>.md
+bun run release <type> --notes /tmp/kiroshi-release-notes-v<next>.md
 ```
 
 Then report:

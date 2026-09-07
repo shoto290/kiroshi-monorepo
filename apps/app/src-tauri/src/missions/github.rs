@@ -20,7 +20,7 @@ pub const SOURCE: &str = "github";
 
 const API: &str = "https://api.github.com";
 
-const AGENT: &str = "OpenNest";
+const AGENT: &str = "Kiroshi";
 
 const TIMEOUT: Duration = Duration::from_secs(15);
 
@@ -539,11 +539,11 @@ mod tests {
 
 	const A_BRANCH: &str = "feature/ope-27";
 
-	const A_REPOSITORY: &str = "shoto290/OpenNest";
+	const A_REPOSITORY: &str = "shoto290/kiroshi-monorepo";
 
 	const HIDDEN_REPOSITORY: &str = "shoto290/Hidden";
 
-	const A_PULL_URL: &str = "https://github.test/shoto290/OpenNest/pull/7";
+	const A_PULL_URL: &str = "https://github.test/shoto290/kiroshi-monorepo/pull/7";
 
 	const A_PARTICIPANT: &str = "
 		INSERT INTO bots (id, space_id, name, model, created_at)
@@ -763,7 +763,7 @@ mod tests {
 					ticket: Ticket {
 						platform: "github".to_owned(),
 						external_id: "42".to_owned(),
-						url: "https://opennest.test/tickets/42".to_owned(),
+						url: "https://kiroshi.test/tickets/42".to_owned(),
 						title: "Crash on open".to_owned(),
 					},
 					tools: vec!["gh".to_owned()],

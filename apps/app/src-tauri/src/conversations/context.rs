@@ -635,7 +635,7 @@ mod tests {
 	#[test]
 	fn every_part_is_printed_once_and_the_prompt_comes_last() {
 		let target = RepliedTo {
-			uri: "opennest://c/c1/m/m2".to_owned(),
+			uri: "kiroshi://c/c1/m/m2".to_owned(),
 			role: MessageRole::User,
 			author_bot_id: None,
 			provider_session_id: Some("claude-9f3c".to_owned()),
@@ -657,7 +657,7 @@ mod tests {
 			context,
 			"The conversation so far:\nuser: we are building a house\n\n\
 			The message this one replies to:\n\
-			uri: opennest://c/c1/m/m2\nfrom: user\nclaude session: claude-9f3c\n\
+			uri: kiroshi://c/c1/m/m2\nfrom: user\nclaude session: claude-9f3c\n\
 			what about the roof?\n\n\
 			The most recent messages:\nuser: and the walls?\nassistant: they are up\n\n\
 			The new message:\nand now?"
@@ -1604,7 +1604,7 @@ mod tests {
 					ticket: Ticket {
 						platform: "github".to_owned(),
 						external_id: "42".to_owned(),
-						url: "https://opennest.test/tickets/42".to_owned(),
+						url: "https://kiroshi.test/tickets/42".to_owned(),
 						title: "Crash on open".to_owned(),
 					},
 					tools: vec!["gh".to_owned()],
@@ -1706,7 +1706,7 @@ mod tests {
 			"\"openedAt\"",
 			"Fix the crash on open",
 			"Crash on open",
-			"https://opennest.test/tickets/42",
+			"https://kiroshi.test/tickets/42",
 			"\"gh\"",
 			"\"state\": \"working\"",
 			"\"source\": \"github\"",
@@ -1806,7 +1806,7 @@ mod tests {
 			mission.id.as_str(),
 			"Fix the crash on open",
 			"Crash on open",
-			"https://opennest.test/tickets/42",
+			"https://kiroshi.test/tickets/42",
 			"\"gh\"",
 			"\"state\": \"working\"",
 		] {
@@ -1894,7 +1894,7 @@ mod tests {
 		fs::remove_dir_all(&dir).expect("cleanup");
 	}
 
-	const A_CHECKOUT: &str = "/checkouts/opennest/ope-78";
+	const A_CHECKOUT: &str = "/checkouts/kiroshi/ope-78";
 
 	#[tokio::test]
 	async fn a_turn_in_a_mission_thread_carries_the_checkout_and_the_words_it_came_from() {

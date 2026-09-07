@@ -3,11 +3,11 @@ const chat = {
 		ready: {
 			title: "Commencer avec Claude Code",
 			description:
-				"OpenNest dialogue avec son agent intégré. Rien ne quitte votre appareil.",
+				"Kiroshi dialogue avec son agent intégré. Rien ne quitte votre appareil.",
 		},
 		unavailable: {
 			title: "Claude Code n'est pas disponible",
-			description: "OpenNest n'atteint pas son agent intégré.",
+			description: "Kiroshi n'atteint pas son agent intégré.",
 		},
 		settings: "Réglages du bot",
 		hint: "Saisissez votre première invite dans le champ ci-dessous",
@@ -211,7 +211,7 @@ const chat = {
 			readFailed: "Messages précédents non chargés",
 		},
 		transport: {
-			binaryNotFound: "L'agent intégré d'OpenNest est injoignable.",
+			binaryNotFound: "L'agent intégré d'Kiroshi est injoignable.",
 			notAuthenticated:
 				"Votre abonnement Claude n'est pas connecté. Connectez-vous à Claude, puis reprenez la conversation.",
 			authCheckFailed: "La vérification de la connexion a échoué : {{detail}}",

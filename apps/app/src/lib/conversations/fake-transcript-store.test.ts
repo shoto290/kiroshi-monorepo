@@ -396,7 +396,7 @@ describe("createFakeTranscriptStore", () => {
 		const answer = await store.messageReference(FAKE_CHAT_ID, REPLY.id)
 
 		expect(prompt).toEqual({
-			uri: `opennest://c/${FAKE_CHAT_ID}/m/${PROMPT.id}`,
+			uri: `kiroshi://c/${FAKE_CHAT_ID}/m/${PROMPT.id}`,
 			conversationId: FAKE_CHAT_ID,
 			messageId: PROMPT.id,
 			role: "user",

@@ -1,20 +1,20 @@
-# OpenNest
+# Kiroshi
 
-OpenNest is a desktop app for Claude Code: a roster of bots you name, dress and brief — each with its own model, working directory and instructions — grouped into spaces and talking in conversations that are stored locally and come back on the next launch.
+Kiroshi is a desktop app for Claude Code: a roster of bots you name, dress and brief — each with its own model, working directory and instructions — grouped into spaces and talking in conversations that are stored locally and come back on the next launch.
 
-A conversation seats as many bots as you name in it, and every bot named in one message runs in the same wave, so one can be working while you read another. Every turn is answered by the Claude Code executable OpenNest ships beside its agent sidecar.
+A conversation seats as many bots as you name in it, and every bot named in one message runs in the same wave, so one can be working while you read another. Every turn is answered by the Claude Code executable Kiroshi ships beside its agent sidecar.
 
 ## What a bot carries
 
 **Its space.** A bot belongs to a space, and a space carries a plugin of its own — `about-this-space` and whatever the bots wrote there — read by every bot of that space. A second plugin, `me`, holds what the bots know about you and is read by every bot in the app.
 
-**Its skills.** Each bot owns a plugin directory: an agent file at `agents/agent.md` for what it always knows, and `skills/<name>/SKILL.md` files for what a task calls for. A bot writes there itself, each write is a git commit in that directory, and you read and undo them in its History. On top of that, every session is given the bundled `opennest` plugin, whose `learn` and `routines` skills are preloaded into the system prompt.
+**Its skills.** Each bot owns a plugin directory: an agent file at `agents/agent.md` for what it always knows, and `skills/<name>/SKILL.md` files for what a task calls for. A bot writes there itself, each write is a git commit in that directory, and you read and undo them in its History. On top of that, every session is given the bundled `kiroshi` plugin, whose `learn` and `routines` skills are preloaded into the system prompt.
 
 **Its MCP servers.** Servers are declared in `.mcp.json` inside a plugin directory and stacked system, then space, then bot, so a bot can override a server the space declares. A server declaration may hold `${VAR}` placeholders; a server whose placeholders cannot be filled is left out of the session and named to the bot, with the reason, so it can tell you.
 
 **Its environment variables.** Values are stored outside the plugins, under the app's `env/` directory, scoped to a space, to a bot, or to one named server of either. They are what fills the `${VAR}` placeholders above.
 
-**Its routines.** A routine is a standing instruction of one conversation: a trigger fires, the bot carries out the instruction, and its report lands in that conversation. Three triggers ship: a cron schedule, a watched file changing, and a call on the local webhook. Each routine filters the trigger payload field by field, and a bot creates, edits, runs, lists and deletes its own routines through the `routine_*` tools on the `opennest` server.
+**Its routines.** A routine is a standing instruction of one conversation: a trigger fires, the bot carries out the instruction, and its report lands in that conversation. Three triggers ship: a cron schedule, a watched file changing, and a call on the local webhook. Each routine filters the trigger payload field by field, and a bot creates, edits, runs, lists and deletes its own routines through the `routine_*` tools on the `kiroshi` server.
 
 **Its missions.** A mission is a longer piece of work a bot owns: an objective, the ticket it comes from, and a thread of its own. It moves through events — opened, note, agent_asked, answered, escalated, ready, failed, closed — and rests in a state you can read from the roster. A bot opens, notes, escalates, closes and lists its missions through the `mission_*` tools, and `mission_watch` arms a branch so what happens to it on GitHub reaches the mission thread; pointed at a git checkout, it also installs an agent hook there.
 
@@ -22,8 +22,8 @@ Every bot also holds `delegate`, which hands a self-contained job to a nested re
 
 ## Requirements
 
-- **A [Claude](https://claude.com/claude-code) subscription, signed in.** OpenNest bundles the Claude Code executable that answers — nothing to install — but it answers on your own sign-in.
-- **No API key.** The session OpenNest opens inherits a fixed allowlist of environment variables, and no API key is on it.
+- **A [Claude](https://claude.com/claude-code) subscription, signed in.** Kiroshi bundles the Claude Code executable that answers — nothing to install — but it answers on your own sign-in.
+- **No API key.** The session Kiroshi opens inherits a fixed allowlist of environment variables, and no API key is on it.
 - [Bun](https://bun.sh) — runtime and package manager.
 - [Rust toolchain](https://rustup.rs) — the Tauri host is Rust.
 - On Linux, the [Tauri system dependencies](https://tauri.app/start/prerequisites/#linux).
@@ -60,11 +60,11 @@ bun run dev
 
 | Variable | Read by | What it does |
 | --- | --- | --- |
-| `OPENNEST_AGENT_SIDECAR` | the app, whenever it resolves the agent | Path to an `opennest-agent` executable. It is tried **before** the copy beside the app executable and the one left in the build tree, so it wins over the sidecar the app ships with. Leave it unset to run that one. |
-| `OPENNEST_CLAUDE_EXECUTABLE` | the sidecar, whenever it resolves the provider | Path to a Claude Code executable. It is tried **before** the copy shipped beside the sidecar, which is what a bundle and a build tree both carry. Leave it unset to run that one; the sidecar test suites point it at the platform binary of the agent SDK in `node_modules`, having no bundle of their own. |
+| `KIROSHI_AGENT_SIDECAR` | the app, whenever it resolves the agent | Path to an `kiroshi-agent` executable. It is tried **before** the copy beside the app executable and the one left in the build tree, so it wins over the sidecar the app ships with. Leave it unset to run that one. |
+| `KIROSHI_CLAUDE_EXECUTABLE` | the sidecar, whenever it resolves the provider | Path to a Claude Code executable. It is tried **before** the copy shipped beside the sidecar, which is what a bundle and a build tree both carry. Leave it unset to run that one; the sidecar test suites point it at the platform binary of the agent SDK in `node_modules`, having no bundle of their own. |
 | `APPLE_SIGNING_IDENTITY` | `bun run tauri:build` | Developer ID to sign the macOS bundle with. Turbo passes it through to that task, and the release workflow feeds it from a repository secret. |
 
-`OPENNEST_AGENT_SIDECAR` is what the host test suites point at a fake sidecar. A leftover export silently sends the app at that fake too, so `unset OPENNEST_AGENT_SIDECAR` before running against the bundled sidecar.
+`KIROSHI_AGENT_SIDECAR` is what the host test suites point at a fake sidecar. A leftover export silently sends the app at that fake too, so `unset KIROSHI_AGENT_SIDECAR` before running against the bundled sidecar.
 
 None of them belongs in the repository: two are local paths, the third a personal certificate name.
 
@@ -73,7 +73,7 @@ None of them belongs in the repository: two are local paths, the third a persona
 | Workspace | Path | Purpose |
 | --- | --- | --- |
 | `app` | `apps/app` | The desktop application — technical composition only. Tauri + React + Vite. |
-| `sidecar` | `apps/app/sidecar` | The `opennest-agent` binary: one compiled Bun executable carrying the Claude Agent SDK, the Claude Code executable it spawns, and the protocol the host speaks. |
+| `sidecar` | `apps/app/sidecar` | The `kiroshi-agent` binary: one compiled Bun executable carrying the Claude Agent SDK, the Claude Code executable it spawns, and the protocol the host speaks. |
 | `@workspace/ui` | `packages/ui` | Every visual: components, foundations, tokens. React + Storybook + Tailwind + Base UI. |
 
 The boundary between the app and the UI package is absolute — no markup, no Tailwind class and no raw DOM element lives in `apps/app`. That rule and the rest of the conventions are in [`AGENTS.md`](AGENTS.md), which every contributor and every AI agent working here must follow.

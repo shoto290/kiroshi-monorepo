@@ -774,7 +774,7 @@ mod tests {
 					objective, ticket_platform, ticket_external_id, ticket_url, ticket_title,
 					tools, opened_at)
 					VALUES ('m1', 'c1', 'b1', 'c2', 'Fix it', 'github', '42',
-						'https://opennest.test/tickets/42', 'Crash', '[]', 1);
+						'https://kiroshi.test/tickets/42', 'Crash', '[]', 1);
 				INSERT INTO mission_events (id, mission_id, seq, kind, source, payload, created_at)
 					VALUES ('e1', 'm1', 1, 'opened', 'bot', '{}', 1);",
 			)
@@ -843,9 +843,9 @@ mod tests {
 					objective, ticket_platform, ticket_external_id, ticket_url, ticket_title,
 					tools, opened_at, closed_at)
 					VALUES ('m1', 'c1', 'b1', 'c2', 'Fix it', 'github', '42',
-							'https://opennest.test/tickets/42', 'Crash', '[]', 1, 9),
+							'https://kiroshi.test/tickets/42', 'Crash', '[]', 1, 9),
 						('m2', 'c1', 'b1', 'c3', 'Ship it', 'github', '43',
-							'https://opennest.test/tickets/43', 'Ship', '[]', 2, NULL);",
+							'https://kiroshi.test/tickets/43', 'Ship', '[]', 2, NULL);",
 			)
 			.expect("the missions this build upgrades from");
 
@@ -2093,7 +2093,7 @@ mod tests {
 			objective, ticket_platform, ticket_external_id, ticket_url, ticket_title,
 			tools, opened_at)
 			VALUES ('x1', 'c1', 'b1', 'c9', 'Fix the crash', 'github', '42',
-				'https://opennest.test/tickets/42', 'Crash on open', '[]', 1);
+				'https://kiroshi.test/tickets/42', 'Crash on open', '[]', 1);
 		INSERT INTO mission_events (id, mission_id, seq, kind, source, payload, created_at)
 			VALUES ('e1', 'x1', 1, 'opened', 'bot', '{}', 1);
 	";

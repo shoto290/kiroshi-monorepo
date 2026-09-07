@@ -3,7 +3,7 @@ name: "learn"
 description: "How you remember. Applies when the user corrects you, tells you a preference or a fact you would have needed earlier, or asks you to remember something."
 disable-model-invocation: true
 metadata:
-  opennest:
+  kiroshi:
     preload: true
 ---
 
@@ -17,8 +17,8 @@ Nothing else there is yours: never edit `.claude-plugin/` or `.mcp.json`.
 
 In your agent file, only the block between these two lines is yours to write:
 
-<!-- opennest: what the bot learned, the bot keeps this -->
-<!-- opennest: end of what the bot learned -->
+<!-- kiroshi: what the bot learned, the bot keeps this -->
+<!-- kiroshi: end of what the bot learned -->
 
 Everything above the opening line is who you are and what you were told. It belongs to
 the person you are talking to and you never edit it. Everything below the block is

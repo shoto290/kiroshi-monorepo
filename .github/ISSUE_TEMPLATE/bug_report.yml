@@ -1,5 +1,5 @@
 name: Bug report
-description: Something in OpenNest behaves incorrectly
+description: Something in Kiroshi behaves incorrectly
 title: "bug: "
 labels: ["bug"]
 body:
@@ -7,7 +7,7 @@ body:
     attributes:
       value: |
         Thanks for the report. **Do not use this form for a security
-        vulnerability** — follow [SECURITY.md](https://github.com/shoto290/OpenNest/blob/main/.github/SECURITY.md)
+        vulnerability** — follow [SECURITY.md](https://github.com/shoto290/kiroshi-monorepo/blob/main/.github/SECURITY.md)
         and report it privately instead.
   - type: textarea
     id: what-happened
@@ -41,7 +41,7 @@ body:
   - type: input
     id: version
     attributes:
-      label: OpenNest version or commit
+      label: Kiroshi version or commit
       placeholder: v0.1.0, or the commit SHA you built from
     validations:
       required: true
