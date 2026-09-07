@@ -275,6 +275,17 @@ pub(crate) async fn bot_owner(
 	Ok(EnvOwner::Bot { id: bot_id.to_owned(), space_id: oldest_space(database, bot_id).await? })
 }
 
+pub(crate) async fn space_of_the_conversation(
+	database: &db::Database,
+	conversation_id: &str,
+	bot_id: &str,
+) -> Result<String, TranscriptStoreError> {
+	match database.conversations().space(conversation_id.to_owned()).await? {
+		Some(named) => Ok(named),
+		None => oldest_space(database, bot_id).await,
+	}
+}
+
 pub(crate) async fn oldest_space(
 	database: &db::Database,
 	bot_id: &str,

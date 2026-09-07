@@ -14,6 +14,7 @@ use super::session::{Bundle, EventSink, GatedSink, Session, SessionOptions};
 use super::sidecar::{self, Sidecar, SidecarOptions};
 use super::translate::now_ms;
 use crate::bundles;
+use crate::conversations::commands::space_of_the_conversation;
 use crate::db;
 use crate::db::repositories::conversations::Bot as StoredBot;
 use crate::db::repositories::runtime_context::ParticipantKey;
@@ -241,7 +242,9 @@ async fn evolutions<R: Runtime>(
 	let Ok(Some(bot)) = database.conversations().bot(scope.bot_id.clone()).await else {
 		return announced;
 	};
-	if let Ok(Some(space_id)) = space_of_the_run(database, scope).await {
+	if let Ok(space_id) =
+		space_of_the_conversation(database, &scope.conversation_id, &scope.bot_id).await
+	{
 		if let Some(evolution) =
 			bundles::space::laid_down(app, &space_id).and_then(|path| bundles::space::evolve(&path))
 		{
@@ -459,16 +462,6 @@ fn served_environment<R: Runtime>(app: &AppHandle<R>, bot_id: &str, space_id: &s
 	environment::resolve(&root, &owner).unwrap_or_else(|_| ResolvedEnv::failed(ENV_UNREADABLE))
 }
 
-async fn space_of_the_run(
-	database: &db::Database,
-	scope: &RuntimeScope,
-) -> Result<Option<String>, db::DatabaseError> {
-	if let Some(named) = database.conversations().space(scope.conversation_id.clone()).await? {
-		return Ok(Some(named));
-	}
-	database.conversations().oldest_bot_space(scope.bot_id.clone()).await
-}
-
 async fn runtime_identity<R: Runtime>(
 	app: &AppHandle<R>,
 	state: &db::DatabaseState,
@@ -480,7 +473,9 @@ async fn runtime_identity<R: Runtime>(
 	let Ok(Some(bot)) = database.conversations().bot(scope.bot_id.clone()).await else {
 		return RuntimeIdentity::default();
 	};
-	let Ok(Some(space_id)) = space_of_the_run(database, scope).await else {
+	let Ok(space_id) =
+		space_of_the_conversation(database, &scope.conversation_id, &scope.bot_id).await
+	else {
 		return RuntimeIdentity::default();
 	};
 	let root = bundles::root(app);

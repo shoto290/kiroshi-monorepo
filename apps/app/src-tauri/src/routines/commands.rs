@@ -14,7 +14,7 @@ use super::schedule;
 use super::sources;
 use super::webhook;
 use crate::bundles;
-use crate::conversations::commands::{oldest_space, ready};
+use crate::conversations::commands::{oldest_space, ready, space_of_the_conversation};
 use crate::conversations::contract::TranscriptStoreError;
 use crate::db;
 
@@ -73,10 +73,11 @@ fn stacked_bundles<R: Runtime>(app: &AppHandle<R>, space_id: &str, bot_id: &str)
 pub(crate) async fn declared_source<R: Runtime>(
 	app: &AppHandle<R>,
 	database: &db::Database,
+	conversation_id: &str,
 	bot_id: &str,
 	trigger_source_id: &str,
 ) -> Result<TriggerSource, RoutineError> {
-	let space_id = oldest_space(database, bot_id).await?;
+	let space_id = space_of_the_conversation(database, conversation_id, bot_id).await?;
 	let stacked = sources::stacked(&stacked_bundles(app, &space_id, bot_id))?;
 	stacked
 		.into_iter()
@@ -87,11 +88,12 @@ pub(crate) async fn declared_source<R: Runtime>(
 async fn refuse_unsupported_rows<R: Runtime>(
 	app: &AppHandle<R>,
 	database: &db::Database,
+	conversation_id: &str,
 	bot_id: &str,
 	trigger_source_id: &str,
 	held: &Filter,
 ) -> Result<(), RoutineError> {
-	let source = declared_source(app, database, bot_id, trigger_source_id).await?;
+	let source = declared_source(app, database, conversation_id, bot_id, trigger_source_id).await?;
 	filter::validate(&source.payload, held)
 }
 
@@ -113,8 +115,15 @@ pub async fn routine_create<R: Runtime>(
 ) -> Result<Routine, RoutineError> {
 	let database = ready(&state)?;
 	core::refuse_blank_task(&draft.title, &draft.instruction)?;
-	refuse_unsupported_rows(&app, database, &draft.bot_id, &draft.trigger_source_id, &draft.filter)
-		.await?;
+	refuse_unsupported_rows(
+		&app,
+		database,
+		&draft.conversation_id,
+		&draft.bot_id,
+		&draft.trigger_source_id,
+		&draft.filter,
+	)
+	.await?;
 	refuse_unreadable_expression(&draft.trigger_source_id, &draft.trigger_config)?;
 	let key = uuid::Uuid::new_v4().to_string();
 	let stored = database.routines().create(draft, key, SystemClock.now_ms()).await?;
@@ -132,8 +141,15 @@ pub async fn routine_update<R: Runtime>(
 	let database = ready(&state)?;
 	core::refuse_blank_task(&edit.title, &edit.instruction)?;
 	let held = routine_row(database, &id).await?;
-	refuse_unsupported_rows(&app, database, &held.bot_id, &held.trigger_source_id, &edit.filter)
-		.await?;
+	refuse_unsupported_rows(
+		&app,
+		database,
+		&held.conversation_id,
+		&held.bot_id,
+		&held.trigger_source_id,
+		&edit.filter,
+	)
+	.await?;
 	refuse_unreadable_expression(&held.trigger_source_id, &edit.trigger_config)?;
 	let stored = database.routines().update(id, edit).await?;
 	announce_change(&app, &stored.conversation_id)?;
@@ -215,7 +231,14 @@ pub async fn routine_key<R: Runtime>(
 ) -> Result<RoutineKey, RoutineError> {
 	let database = ready(&state)?;
 	let held = routine_row(database, &id).await?;
-	let source = declared_source(&app, database, &held.bot_id, &held.trigger_source_id).await?;
+	let source = declared_source(
+		&app,
+		database,
+		&held.conversation_id,
+		&held.bot_id,
+		&held.trigger_source_id,
+	)
+	.await?;
 	let key = database.routines().key_of(id).await?;
 	let url = called_at(&app, &held.trigger_source_id);
 	Ok(RoutineKey { key, header: source.header, url })
@@ -385,6 +408,71 @@ mod tests {
 		let held = routine_list(app.state(), "c1".to_owned()).await.expect("the routines read");
 		assert_eq!(held.len(), 1, "got {held:?}");
 		assert_eq!(held[0].trigger_config, json!({ "expression": "0 * * * *" }));
+
+		cleaned(&app);
+	}
+
+	const A_SECOND_SPACE: &str = "
+		INSERT INTO spaces (id, name, colour, position, created_at)
+			VALUES ('writers', 'Writers', 'blue', 1, 1);
+		INSERT INTO bot_spaces (bot_id, space_id, joined_at) VALUES ('b1', 'writers', 2);
+		INSERT INTO conversations (id, kind, space_id, title, created_at, updated_at)
+			VALUES ('c2', 'main', 'writers', 'Second', 1, 1);
+		INSERT INTO conversation_participants (conversation_id, bot_id, role, joined_at, join_seq)
+			VALUES ('c2', 'b1', 'assistant', 1, 0);
+		INSERT INTO conversations (id, kind, space_id, title, created_at, updated_at)
+			VALUES ('c3', 'main', 'personal', 'Oldest', 1, 1);
+		INSERT INTO conversation_participants (conversation_id, bot_id, role, joined_at, join_seq)
+			VALUES ('c3', 'b1', 'assistant', 1, 0);
+	";
+
+	const SHIFT_LOG: &str = "shift-log";
+
+	fn declaring_shift_log(app: &App<MockRuntime>, space_id: &str) {
+		bundles::space::lay_down(app.handle(), space_id).expect("the plugin is laid down");
+		let plugin = bundles::space::path(app.handle(), space_id).expect("the plugin is named");
+		let declaration = json!({
+			"sources": [{
+				"id": SHIFT_LOG,
+				"title": "Shift log",
+				"payload": [{ "name": "at", "type": "datetime" }],
+				"dedupeKey": "at",
+			}],
+		});
+		fs::write(plugin.join(".triggers.json"), declaration.to_string())
+			.expect("the declaration lands");
+	}
+
+	#[tokio::test]
+	async fn a_trigger_source_is_read_from_the_space_the_conversation_stands_in() {
+		let app = a_host("second-space").await;
+		let state = app.state::<db::DatabaseState>();
+		let database = ready(&state).expect("the database opens");
+		database
+			.call_mut(|connection| Ok(connection.execute_batch(A_SECOND_SPACE)?))
+			.await
+			.expect("the second space is planted");
+		declaring_shift_log(&app, "writers");
+
+		let found = declared_source(app.handle(), database, "c2", "b1", SHIFT_LOG)
+			.await
+			.expect("the source of the second space is stacked");
+		let in_the_oldest = declared_source(app.handle(), database, "c3", "b1", SHIFT_LOG)
+			.await
+			.expect_err("the source of another space is stacked");
+		let named_by_no_space = declared_source(app.handle(), database, "c1", "b1", SHIFT_LOG)
+			.await
+			.expect_err("the source of another space is stacked");
+
+		assert_eq!(found.id, SHIFT_LOG);
+		assert!(
+			matches!(in_the_oldest, RoutineError::UnknownSource { ref id } if id == SHIFT_LOG),
+			"got {in_the_oldest:?}"
+		);
+		assert!(
+			matches!(named_by_no_space, RoutineError::UnknownSource { ref id } if id == SHIFT_LOG),
+			"got {named_by_no_space:?}"
+		);
 
 		cleaned(&app);
 	}
