@@ -262,10 +262,14 @@ describe("createTranscriptController", () => {
 		expect(selectHasMore(read.getState(), CONVERSATION)).toBe(false)
 	})
 })
-describe("a landing window that comes back late", () => {
+describe("a landing window nobody is waiting for", () => {
 	const LONG = Array.from({ length: TRANSCRIPT_WINDOW_SIZE * 2 }, (_, index) =>
 		message({ id: `m-${index + 1}`, seq: index + 1 }),
 	)
+
+	const EARLIER_SEQ = 20
+
+	const LATER_SEQ = 100
 
 	const gatedLanding = () => {
 		const fake = createFakeTranscriptPort({ messages: LONG })
@@ -283,29 +287,40 @@ describe("a landing window that comes back late", () => {
 		return { controller: createTranscriptController(port), release }
 	}
 
-	const LANDED_SEQ = 20
-
 	it("installs the window while the reader stays in the thread", async () => {
 		const { controller, release } = gatedLanding()
 
-		const landing = controller.landOn(CONVERSATION, LANDED_SEQ)
+		const landing = controller.askLanding(CONVERSATION, EARLIER_SEQ)()
 		release()
 		await landing
 
-		expect(idsOf(controller)).toContain(`m-${LANDED_SEQ}`)
+		expect(idsOf(controller)).toContain(`m-${EARLIER_SEQ}`)
 		expect(selectHasNewer(controller.getState(), CONVERSATION)).toBe(true)
 	})
 
-	it("installs no window once the reader has left the thread", async () => {
+	it("installs no window when the reader leaves before the read starts", async () => {
+		const { controller, release } = gatedLanding()
+		await controller.load(CONVERSATION)
+		release()
+
+		const read = controller.askLanding(CONVERSATION, EARLIER_SEQ)
+		controller.leave(CONVERSATION)
+		await read()
+
+		expect(idsOf(controller)).not.toContain(`m-${EARLIER_SEQ}`)
+		expect(selectHasNewer(controller.getState(), CONVERSATION)).toBe(false)
+	})
+
+	it("installs no window when the reader leaves while the read is in flight", async () => {
 		const { controller, release } = gatedLanding()
 		await controller.load(CONVERSATION)
 
-		const landing = controller.landOn(CONVERSATION, LANDED_SEQ)
+		const landing = controller.askLanding(CONVERSATION, EARLIER_SEQ)()
 		controller.leave(CONVERSATION)
 		release()
 		await landing
 
-		expect(idsOf(controller)).not.toContain(`m-${LANDED_SEQ}`)
+		expect(idsOf(controller)).not.toContain(`m-${EARLIER_SEQ}`)
 		expect(selectHasNewer(controller.getState(), CONVERSATION)).toBe(false)
 	})
 
@@ -313,7 +328,7 @@ describe("a landing window that comes back late", () => {
 		const { controller, release } = gatedLanding()
 		await controller.load(CONVERSATION)
 
-		const landing = controller.landOn(CONVERSATION, LANDED_SEQ)
+		const landing = controller.askLanding(CONVERSATION, EARLIER_SEQ)()
 		controller.leave(CONVERSATION)
 		release()
 		await landing
@@ -321,5 +336,22 @@ describe("a landing window that comes back late", () => {
 		controller.append(draft({ id: "said-while-away" }))
 
 		expect(idsOf(controller)).toContain("said-while-away")
+	})
+
+	it("installs the window of the later landing only", async () => {
+		const { controller, release } = gatedLanding()
+		release()
+
+		const earlier = controller.askLanding(CONVERSATION, EARLIER_SEQ)
+		const later = controller.askLanding(CONVERSATION, LATER_SEQ)
+
+		await earlier()
+
+		expect(idsOf(controller)).toEqual([])
+
+		await later()
+
+		expect(idsOf(controller)).toContain(`m-${LATER_SEQ}`)
+		expect(idsOf(controller)).not.toContain(`m-${EARLIER_SEQ}`)
 	})
 })

@@ -902,9 +902,10 @@ export function createChatController(
 
 	const landOn = (bot: BotChat, seq: number) => {
 		const conversationId = bot.state.conversationId
-		return conversationId
-			? enqueue(() => transcript.landOn(conversationId, seq))
-			: Promise.resolve(NO_LANDED_MESSAGES)
+		if (!conversationId) {
+			return Promise.resolve(NO_LANDED_MESSAGES)
+		}
+		return enqueue(transcript.askLanding(conversationId, seq))
 	}
 
 	const referenceFor = (bot: BotChat, messageId: string) => {

@@ -1178,9 +1178,10 @@ export const createConversationController = (
 
 	const landOn = (seq: number) => {
 		const conversationId = conversation?.id
-		return conversationId
-			? enqueue(() => transcript.landOn(conversationId, seq))
-			: Promise.resolve(NO_MESSAGES)
+		if (!conversationId) {
+			return Promise.resolve(NO_MESSAGES)
+		}
+		return enqueue(transcript.askLanding(conversationId, seq))
 	}
 
 	const pin = (messageId: string, blockIndex: number) => {
