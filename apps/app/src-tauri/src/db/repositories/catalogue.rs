@@ -1,6 +1,6 @@
 use std::collections::HashMap;
 
-use rusqlite::{params, Connection, Row};
+use rusqlite::{Connection, Row};
 use serde_json::Value;
 use unicode_normalization::char::is_combining_mark;
 use unicode_normalization::UnicodeNormalization;
@@ -13,29 +13,39 @@ use crate::search::contract::{
 	ChatKind, MAX_MATCHES_PER_LIST, MAX_QUERY_LENGTH, MAX_RECENT_CHATS,
 };
 
-const CHATS: &str = "WITH chat AS (
+const PRESENT_SEAT: &str = "conversation_participants.left_at IS NULL AND bots.deleted_at IS NULL";
+
+const CHAT_ORDER: &str = "ORDER BY spoken_at DESC, id";
+
+const RECENT_CHATS_OF_SPACE: &str = "WHERE kind <> 'mission' AND space_id = ?1";
+
+fn chats() -> String {
+	format!(
+		"WITH chat AS (
 	SELECT conversations.id AS id, conversations.kind AS kind, conversations.title AS title,
 		COALESCE(conversations.space_id, (SELECT bots.space_id FROM conversation_participants
 			JOIN bots ON bots.id = conversation_participants.bot_id
-			WHERE conversation_participants.conversation_id = conversations.id
+			WHERE conversation_participants.conversation_id = conversations.id AND {PRESENT_SEAT}
 			ORDER BY conversation_participants.join_seq LIMIT 1)) AS space_id,
 		COALESCE((SELECT messages.created_at FROM messages
 			WHERE messages.conversation_id = conversations.id
 			ORDER BY messages.seq DESC LIMIT 1),
 			conversations.created_at) AS spoken_at
 	FROM conversations WHERE conversations.archived_at IS NULL)
-	SELECT id, kind, title, space_id FROM chat";
+	SELECT id, kind, title, space_id FROM chat"
+	)
+}
 
-const CHAT_ORDER: &str = "ORDER BY spoken_at DESC, id";
-
-const RECENT_CHATS_OF_SPACE: &str = "WHERE kind <> 'mission' AND space_id = ?1";
-
-const PARTICIPANTS: &str = "SELECT conversation_participants.conversation_id, bots.id, bots.name
+fn participants() -> String {
+	format!(
+		"SELECT conversation_participants.conversation_id, bots.id, bots.name
 	FROM conversation_participants
 	JOIN bots ON bots.id = conversation_participants.bot_id
 	JOIN conversations ON conversations.id = conversation_participants.conversation_id
-	WHERE conversations.archived_at IS NULL
-	ORDER BY conversation_participants.conversation_id, conversation_participants.join_seq";
+	WHERE conversations.archived_at IS NULL AND {PRESENT_SEAT}
+	ORDER BY conversation_participants.conversation_id, conversation_participants.join_seq"
+	)
+}
 
 const BOT_SPACES: &str = "SELECT id, space_id FROM bots";
 
@@ -105,13 +115,14 @@ fn recent_chats(
 	space_id: &str,
 ) -> Result<Vec<CatalogueChat>, CatalogueError> {
 	let seated = seated_bots(connection)?;
-	let mut statement = connection
-		.prepare_cached(&format!("{CHATS} {RECENT_CHATS_OF_SPACE} {CHAT_ORDER} LIMIT ?2"))?;
-	let rows = statement.query_map(params![space_id, MAX_RECENT_CHATS], chat_row)?;
+	let mut statement =
+		connection.prepare_cached(&format!("{} {RECENT_CHATS_OF_SPACE} {CHAT_ORDER}", chats()))?;
+	let rows = statement.query_map([space_id], chat_row)?;
 	Ok(rows
 		.collect::<rusqlite::Result<Vec<_>>>()?
 		.into_iter()
 		.filter_map(|row| chat_of(row, &seated))
+		.take(MAX_RECENT_CHATS)
 		.collect())
 }
 
@@ -121,7 +132,7 @@ fn matching_chats(
 	needle: &str,
 	seated: &Seated,
 ) -> Result<Vec<CatalogueChat>, CatalogueError> {
-	let mut statement = connection.prepare_cached(&format!("{CHATS} {CHAT_ORDER}"))?;
+	let mut statement = connection.prepare_cached(&format!("{} {CHAT_ORDER}", chats()))?;
 	let rows = statement.query_map([], chat_row)?;
 	Ok(rows
 		.collect::<rusqlite::Result<Vec<_>>>()?
@@ -258,7 +269,7 @@ fn expression_of(trigger_config: &Value) -> Option<String> {
 }
 
 fn seated_bots(connection: &Connection) -> Result<Seated, DatabaseError> {
-	let mut statement = connection.prepare_cached(PARTICIPANTS)?;
+	let mut statement = connection.prepare_cached(&participants())?;
 	let rows = statement.query_map([], |row| {
 		Ok((row.get::<_, String>(0)?, (row.get::<_, String>(1)?, row.get::<_, String>(2)?)))
 	})?;
@@ -321,6 +332,7 @@ fn folded(text: &str) -> String {
 mod tests {
 	use std::path::PathBuf;
 
+	use rusqlite::params;
 	use uuid::Uuid;
 
 	use super::*;
@@ -581,6 +593,154 @@ mod tests {
 		std::fs::remove_dir_all(&dir).expect("cleanup");
 	}
 
+	const GONE_SEATS: &str = "
+		INSERT INTO bots (id, space_id, name, model, created_at, deleted_at)
+			VALUES ('b3', 'personal', 'Clément', 'sonnet', 1, NULL),
+				('b4', 'personal', 'Damien', 'sonnet', 1, 9);
+		INSERT INTO conversations (id, kind, space_id, title, created_at, updated_at)
+			VALUES ('topic-4', 'topic', 'personal', 'Departed room', 20, 20),
+				('topic-5', 'topic', 'personal', 'Tombstone room', 21, 21),
+				('topic-6', 'topic', NULL, 'Orphan room', 22, 22),
+				('main-3', 'main', NULL, 'Chat', 23, 23);
+		INSERT INTO conversation_participants
+				(conversation_id, bot_id, role, joined_at, join_seq, left_at)
+			VALUES ('topic-4', 'b3', 'member', 20, 0, 30),
+				('topic-5', 'b4', 'member', 21, 0, NULL),
+				('topic-6', 'b3', 'member', 22, 0, 30),
+				('main-3', 'b3', 'member', 23, 0, 30);
+	";
+
+	async fn planted_with(database: &Database, batch: &'static str) {
+		database
+			.call_mut(move |connection| Ok(connection.execute_batch(batch)?))
+			.await
+			.expect("the rows are planted");
+	}
+
+	async fn a_crowd_of_topics(database: &Database, count: usize) {
+		database
+			.call_mut(move |connection| {
+				let transaction = connection.transaction()?;
+				for index in 0..count {
+					transaction.execute(
+						"INSERT INTO conversations (id, kind, space_id, title, created_at,
+								updated_at)
+							VALUES (?1, 'topic', 'personal', ?2, ?3, ?3)",
+						params![
+							format!("crowd-{index}"),
+							format!("Crowd {index}"),
+							40 + index as i64
+						],
+					)?;
+				}
+				transaction.commit()?;
+				Ok(())
+			})
+			.await
+			.expect("the topics are planted");
+	}
+
+	async fn a_crowd_of_routines(database: &Database, count: usize) {
+		database
+			.call_mut(move |connection| {
+				let transaction = connection.transaction()?;
+				for index in 0..count {
+					transaction.execute(
+						"INSERT INTO routines (id, conversation_id, bot_id, trigger_source_id,
+								event_filter, trigger_config, trigger_key, created_at, title,
+								instruction)
+							VALUES (?1, 'topic-1', 'b1', 'schedule', '[]', '{}', ?1, ?2, ?3, '')",
+						params![
+							format!("crowd-{index}"),
+							40 + index as i64,
+							format!("Crowd {index}")
+						],
+					)?;
+				}
+				transaction.commit()?;
+				Ok(())
+			})
+			.await
+			.expect("the routines are planted");
+	}
+
+	#[tokio::test]
+	async fn a_seat_a_bot_left_or_a_tombstone_names_no_chat_and_lends_no_space() {
+		let (database, dir) = planted().await;
+		planted_with(&database, GONE_SEATS).await;
+
+		for query in ["clement", "damien"] {
+			let held = database
+				.catalogue()
+				.search(scope(query, PERSONAL, true))
+				.await
+				.expect("the catalogue reads");
+
+			assert_eq!(named(&held.chats), vec![], "{query:?} reached a chat through a gone seat");
+		}
+
+		let rooms = database
+			.catalogue()
+			.search(scope("room", PERSONAL, true))
+			.await
+			.expect("the catalogue reads");
+		assert!(
+			rooms.chats.iter().all(|chat| chat.participants.is_empty()),
+			"a gone seat was listed among the participants: {:?}",
+			rooms.chats
+		);
+
+		let scoped = database
+			.catalogue()
+			.search(scope("orphan room", PERSONAL, false))
+			.await
+			.expect("the catalogue reads");
+		assert_eq!(
+			named(&scoped.chats),
+			vec![],
+			"a space-less room lent itself the space of a seat that left it"
+		);
+
+		let recent = database.catalogue().recent(PERSONAL.to_owned()).await.expect("recent reads");
+		assert!(
+			!recent.iter().any(|chat| chat.conversation_id == "main-3"),
+			"a solo chat no present seat names answered as recent"
+		);
+
+		std::fs::remove_dir_all(&dir).expect("cleanup");
+	}
+
+	#[tokio::test]
+	async fn a_search_stops_at_the_bound_of_every_list_it_answers() {
+		let (database, dir) = planted().await;
+		a_crowd_of_topics(&database, MAX_MATCHES_PER_LIST + 3).await;
+		a_crowd_of_routines(&database, MAX_MATCHES_PER_LIST + 3).await;
+
+		let held = database
+			.catalogue()
+			.search(scope("crowd", PERSONAL, true))
+			.await
+			.expect("the catalogue reads");
+
+		assert_eq!(held.chats.len(), MAX_MATCHES_PER_LIST, "the chats ran past their bound");
+		assert_eq!(held.routines.len(), MAX_MATCHES_PER_LIST, "the routines ran past their bound");
+
+		std::fs::remove_dir_all(&dir).expect("cleanup");
+	}
+
+	#[tokio::test]
+	async fn the_recent_chats_stop_at_their_bound() {
+		let (database, dir) = planted().await;
+		a_crowd_of_topics(&database, MAX_RECENT_CHATS + 3).await;
+
+		let held =
+			database.catalogue().recent(PERSONAL.to_owned()).await.expect("the recent reads");
+
+		assert_eq!(held.len(), MAX_RECENT_CHATS, "the recent chats ran past their bound");
+
+		std::fs::remove_dir_all(&dir).expect("cleanup");
+	}
+
 	#[tokio::test]
 	async fn the_chats_read_their_last_message_through_an_index() {
 		let (database, dir) = planted().await;
@@ -588,11 +748,12 @@ mod tests {
 		let (plan, opcodes) = database
 			.call(|connection| {
 				let mut plan =
-					connection.prepare(&format!("EXPLAIN QUERY PLAN {CHATS} {CHAT_ORDER}"))?;
+					connection.prepare(&format!("EXPLAIN QUERY PLAN {} {CHAT_ORDER}", chats()))?;
 				let steps = plan
 					.query_map([], |row| row.get::<_, String>(3))?
 					.collect::<rusqlite::Result<Vec<_>>>()?;
-				let mut bytecode = connection.prepare(&format!("EXPLAIN {CHATS} {CHAT_ORDER}"))?;
+				let mut bytecode =
+					connection.prepare(&format!("EXPLAIN {} {CHAT_ORDER}", chats()))?;
 				let opcodes = bytecode
 					.query_map([], |row| row.get::<_, String>(1))?
 					.collect::<rusqlite::Result<Vec<_>>>()?;

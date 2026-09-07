@@ -69,7 +69,7 @@ impl From<DatabaseError> for MessageSearchError {
 
 pub const MAX_QUERY_LENGTH: usize = 200;
 pub const MAX_MATCHES_PER_LIST: usize = 20;
-pub const MAX_RECENT_CHATS: u32 = 8;
+pub const MAX_RECENT_CHATS: usize = 8;
 
 #[derive(Debug, Clone, Copy, PartialEq, Eq, Serialize, Deserialize)]
 #[serde(rename_all = "snake_case")]
