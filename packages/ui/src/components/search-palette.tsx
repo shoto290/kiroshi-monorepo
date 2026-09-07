@@ -104,8 +104,6 @@ const HINT_CLASS = "flex items-center gap-1.5 text-[11px] text-muted-foreground"
 
 const KEYCAP_CLASS = "bg-background"
 
-const EMPTY_ACTION_CLASS = "rounded-lg"
-
 const SearchPaletteFooter = () => {
 	const { t } = useTranslation("search")
 
@@ -346,7 +344,7 @@ const SearchPalette = ({
 								action={
 									isScopeAllSpaces ? undefined : (
 										<Button
-											className={EMPTY_ACTION_CLASS}
+											className="rounded-lg"
 											onClick={() => onScopeChange(true)}
 											size="sm"
 											variant="secondary"

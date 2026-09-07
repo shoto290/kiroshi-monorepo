@@ -318,18 +318,15 @@ export const AcrossSpaces = meta.story({
 		const reader = within(popup)
 		const body = bodyOf(popup)
 		const [first] = slotsIn(body, "search-result-row-parts")
-		const [mark] = slotsIn(body, "space-tint")
+		const marks = slotsIn(body, "space-tint")
+		const [mark] = marks
 
 		await expect(first?.textContent?.startsWith(SPACE.name)).toBe(true)
-		await expect(slotsIn(body, "space-tint")).toHaveLength(
-			slotsIn(body, "search-result-row").length,
-		)
+		await expect(marks).toHaveLength(slotsIn(body, "search-result-row").length)
 		await expect(mark).toHaveAttribute("data-tint", SPACE.tint)
 		await expect(mark?.getBoundingClientRect().width).toBe(SPACE_MARK_SIZE)
 		await expect(
-			slotsIn(body, "space-tint").filter(
-				(tint) => tint.dataset.tint === undefined,
-			),
+			marks.filter((tint) => tint.dataset.tint === undefined),
 		).toHaveLength(UNTINTED_RESULTS)
 		await expect(
 			reader.getByRole("group", { name: "Chats" }).textContent,
