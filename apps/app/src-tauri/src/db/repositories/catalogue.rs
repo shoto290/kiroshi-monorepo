@@ -610,13 +610,6 @@ mod tests {
 				('main-3', 'b3', 'member', 23, 0, 30);
 	";
 
-	async fn planted_with(database: &Database, batch: &'static str) {
-		database
-			.call_mut(move |connection| Ok(connection.execute_batch(batch)?))
-			.await
-			.expect("the rows are planted");
-	}
-
 	async fn a_crowd_of_topics(database: &Database, count: usize) {
 		database
 			.call_mut(move |connection| {
@@ -667,7 +660,10 @@ mod tests {
 	#[tokio::test]
 	async fn a_seat_a_bot_left_or_a_tombstone_names_no_chat_and_lends_no_space() {
 		let (database, dir) = planted().await;
-		planted_with(&database, GONE_SEATS).await;
+		database
+			.call_mut(|connection| Ok(connection.execute_batch(GONE_SEATS)?))
+			.await
+			.expect("the gone seats are planted");
 
 		for query in ["clement", "damien"] {
 			let held = database
