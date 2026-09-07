@@ -90,7 +90,7 @@ export const createSearchLookups = ({
 	}
 }
 
-const missionBotOf = (botId: string, lookups: SearchLookups): MissionBot =>
+const botFaceOf = (botId: string, lookups: SearchLookups): MissionBot =>
 	toMissionFace(lookups.faceOf(botId) ?? { id: botId, name: "" })
 
 const participantsOf = (
@@ -122,7 +122,7 @@ const identityOfChat = (
 	lookups: SearchLookups,
 ): SearchResultIdentity => {
 	if (chat.kind === "main" && chat.botId) {
-		return { kind: "chat-solo", bot: missionBotOf(chat.botId, lookups) }
+		return { kind: "chat-solo", bot: botFaceOf(chat.botId, lookups) }
 	}
 	return {
 		kind: "chat-group",
@@ -135,7 +135,7 @@ const identityOfMessage = (
 	lookups: SearchLookups,
 ): SearchResultIdentity =>
 	hit.authorBotId
-		? { kind: "message", bot: missionBotOf(hit.authorBotId, lookups) }
+		? { kind: "message", bot: botFaceOf(hit.authorBotId, lookups) }
 		: { kind: "message-from-you", reader: lookups.readerName }
 
 const authorNameOf = (hit: MessageHit, lookups: SearchLookups): string =>
@@ -212,7 +212,7 @@ const toMissionResult = (
 	id: `mission-${mission.id}`,
 	identity: {
 		kind: "mission",
-		bot: missionBotOf(mission.botId, lookups),
+		bot: botFaceOf(mission.botId, lookups),
 		badge: badgeOfMissionState(mission.state) ?? NEUTRAL_BADGE,
 		mark: missionTicketPlatform(mission.ticketPlatform).Mark,
 	},
@@ -237,7 +237,7 @@ const toRoutineResult = (
 	open: ResultOpening,
 ): SearchPaletteResult => ({
 	id: `routine-${routine.id}`,
-	identity: { kind: "routine", bot: missionBotOf(routine.botId, lookups) },
+	identity: { kind: "routine", bot: botFaceOf(routine.botId, lookups) },
 	title: markedTitle(routine.title, query),
 	timestamp: "",
 	parts: [{ key: "expression", text: routine.expression ?? "" }],
@@ -323,7 +323,7 @@ export const toRecentResults = (
 		return row ? [toChatResult(chat, row, "", lookups, open)] : []
 	})
 
-export type VisibleResults = {
+export type VisibleOrder = {
 	query: string
 	tab: SearchTab
 	groups: SearchResultGroup[]
@@ -335,7 +335,7 @@ export const visibleResults = ({
 	tab,
 	groups,
 	recents,
-}: VisibleResults): SearchPaletteResult[] => {
+}: VisibleOrder): SearchPaletteResult[] => {
 	if (query === "") {
 		return recents
 	}
