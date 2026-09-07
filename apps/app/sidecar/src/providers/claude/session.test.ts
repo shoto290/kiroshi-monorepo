@@ -949,9 +949,13 @@ describe("reportConnections", () => {
 		expect(pushed).toEqual([`${section}\n\nfirst`, "second", "third"])
 	})
 
-	it("reports once, naming no server, when no status read ever answered", async () => {
-		const written = process.stderr.write
-		process.stderr.write = (() => true) as typeof process.stderr.write
+	it("says nothing to anyone but stderr when no status read ever answered", async () => {
+		const written: string[] = []
+		const original = process.stderr.write
+		process.stderr.write = ((line: string) => {
+			written.push(String(line))
+			return true
+		}) as typeof process.stderr.write
 		const { emitted, pushed, settled, report } = reporting({
 			names: ["superset"],
 			port: {
@@ -964,13 +968,13 @@ describe("reportConnections", () => {
 
 		report.prompt("first")
 		await settled
-		process.stderr.write = written
-		const gaveUp =
-			"the status of this session's servers could not be read: the query is gone"
+		process.stderr.write = original
 
-		expect(emitted).toEqual([gaveUp])
-		expect(gaveUp).not.toContain("left out")
-		expect(pushed).toEqual([`${unavailableServersSection([gaveUp])}\n\nfirst`])
+		expect(emitted).toEqual([])
+		expect(pushed).toEqual(["first"])
+		expect(written).toEqual([
+			"the connection pass gave up on superset: the query is gone\n",
+		])
 	})
 
 	it("drops the held prompts of a cancelled turn and leaves the pass running", async () => {

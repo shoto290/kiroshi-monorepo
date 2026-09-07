@@ -487,7 +487,7 @@ describe("watching a server left connecting", () => {
 		expect(reconnected).toEqual(["superset"])
 	})
 
-	it("watches on when the read after a reconnection still names it pending", async () => {
+	it("keeps the reconnection's answer for the read that settles it later", async () => {
 		const reported: string[] = []
 		const reconnected: string[] = []
 		let time = 0
@@ -505,6 +505,7 @@ describe("watching a server left connecting", () => {
 				},
 				reconnect: async (name) => {
 					reconnected.push(name)
+					throw new Error("server not found")
 				},
 			},
 			now: () => time,
@@ -517,7 +518,40 @@ describe("watching a server left connecting", () => {
 
 		expect(dialledReads).toBeGreaterThan(1)
 		expect(reconnected).toEqual(["superset"])
-		expect(reported).toEqual([`${leftOut}it read failed`])
+		expect(reported).toEqual([
+			`${leftOut}it read failed, and the reconnection answered: server not found`,
+		])
+	})
+
+	it("names the read that threw as the source, claiming no answer of the reconnection", async () => {
+		const reported: string[] = []
+		let time = 0
+		let dialled = false
+
+		await unconnectedServers({
+			names: ["superset"],
+			port: {
+				status: async () => {
+					if (!dialled) {
+						return failed
+					}
+					throw new Error("the query stalled")
+				},
+				reconnect: async () => {
+					dialled = true
+				},
+			},
+			now: () => time,
+			wait: async (ms) => {
+				time += ms
+			},
+			report: (line) => reported.push(line.detail),
+		})
+		await settling(20)
+
+		expect(reported).toEqual([
+			`${leftOut}it read failed, and the status read that followed it answered: the query stalled`,
+		])
 	})
 
 	it("keeps reading, and names no server left out, when a watch read throws", async () => {

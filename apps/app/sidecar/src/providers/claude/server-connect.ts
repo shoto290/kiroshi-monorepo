@@ -33,6 +33,16 @@ type Take = {
 	spent: number
 }
 
+type Answer = {
+	source: string
+	message: string
+}
+
+type Redialled = {
+	name: string
+	answer?: Answer
+}
+
 type NamedRead = {
 	status: ServerStatus["status"]
 	spent: number
@@ -76,6 +86,8 @@ export const STILL_CONNECTING = "is still connecting"
 export const HOLDS_TOOLS = "holds its tools"
 const UNSETTLED = "it never settled while it was watched"
 const UNREADABLE = "the status of this session's servers could not be read"
+const RECONNECTION_SAID = "and the reconnection answered"
+const READ_SAID = "and the status read that followed it answered"
 const GAVE_UP = "the connection pass gave up on"
 const REPORTABLE = ["pending", "failed", "needs-auth"]
 
@@ -222,7 +234,7 @@ const reachedLine = (name: string): string =>
 const lineFor = (
 	name: string,
 	{ status, spent }: NamedRead,
-	thrown: string | undefined,
+	answer: Answer | undefined,
 	secrets: string[],
 ): string => {
 	if (status === "needs-auth") {
@@ -231,8 +243,8 @@ const lineFor = (
 	if (status === "pending") {
 		return `the server "${name}" ${STILL_CONNECTING} after ${spent} ms`
 	}
-	const answered = thrown
-		? `, and the reconnection answered: ${readable(thrown, secrets)}`
+	const answered = answer
+		? `, ${answer.source}: ${readable(answer.message, secrets)}`
 		: ""
 	return leftOut(name, `it read ${status}${answered}`)
 }
@@ -333,14 +345,14 @@ const readLine = (
 	name: string,
 	status: ServerStatus["status"],
 	spent: number,
-	thrown: string | undefined,
+	answer: Answer | undefined,
 	secrets: string[],
 ): ReportedLine => {
 	const settled = SETTLED_LINE[status]
 	if (settled) {
 		return settled(name)
 	}
-	const line = lineFor(name, { status, spent }, thrown, secrets)
+	const line = lineFor(name, { status, spent }, answer, secrets)
 	return status === "pending" ? news(line) : notice(line)
 }
 
@@ -350,7 +362,7 @@ const announce = async (
 	status: ServerStatus["status"],
 	spent: () => number,
 	secrets: string[],
-): Promise<string | undefined> => {
+): Promise<Redialled | undefined> => {
 	const settled = SETTLED_LINE[status]
 	if (settled) {
 		report?.(settled(name))
@@ -363,13 +375,18 @@ const announce = async (
 	if (signal?.aborted) {
 		return undefined
 	}
-	const dialled = (reason: string | undefined) =>
-		notice(lineFor(name, { status, spent: spent() }, reason, secrets))
+	const answer = thrown
+		? { source: RECONNECTION_SAID, message: thrown }
+		: undefined
+	const dialled = (held: Answer | undefined) =>
+		notice(lineFor(name, { status, spent: spent() }, held, secrets))
 	let after: ServerStatus[]
 	try {
 		after = await boundedRead(port, bound, signal)
 	} catch (error) {
-		report?.(dialled(thrown ?? describeError(error)))
+		report?.(
+			dialled(answer ?? { source: READ_SAID, message: describeError(error) }),
+		)
 		return undefined
 	}
 	if (signal?.aborted) {
@@ -377,10 +394,10 @@ const announce = async (
 	}
 	const read = after.find((status) => status.name === name)?.status
 	if (read === "pending") {
-		return name
+		return { name, ...(answer ? { answer } : {}) }
 	}
 	report?.(
-		read ? readLine(name, read, spent(), thrown, secrets) : dialled(thrown),
+		read ? readLine(name, read, spent(), answer, secrets) : dialled(answer),
 	)
 	return undefined
 }
@@ -414,15 +431,15 @@ const watching = async (
 	const started = now()
 	const spent = () => now() - started
 	const watched = [...connecting]
-	const redialled = new Set<string>()
+	const redialled = new Map<string, Answer | undefined>()
 	const dialling = new Set<Promise<void>>()
 
 	const dial = (name: string, status: ServerStatus["status"]) => {
 		const dialled = announce(pass, name, status, spent, secrets)
 			.then((again) => {
 				if (again) {
-					redialled.add(again)
-					watched.push(again)
+					redialled.set(again.name, again.answer)
+					watched.push(again.name)
 				}
 			})
 			.finally(() => dialling.delete(dialled))
@@ -452,7 +469,7 @@ const watching = async (
 		}
 		for (const { name, status } of takeSettled(watched, statuses)) {
 			if (redialled.has(name)) {
-				report?.(readLine(name, status, spent(), undefined, secrets))
+				report?.(readLine(name, status, spent(), redialled.get(name), secrets))
 				continue
 			}
 			dial(name, status)
@@ -465,14 +482,11 @@ const watching = async (
 }
 
 const unreadableStatus = (
-	{ report }: ConnectPass,
 	names: string[],
 	cause: string,
 	secrets: string[],
 ) => {
-	const reason = readable(cause, secrets)
-	writeGiveUp(names, reason)
-	report?.(notice(`${UNREADABLE}: ${reason}`))
+	writeGiveUp(names, readable(cause, secrets))
 }
 
 export const unconnectedServers = async ({
@@ -503,7 +517,7 @@ export const unconnectedServers = async ({
 		if (signal?.aborted) {
 			return []
 		}
-		unreadableStatus(pass, names, describeError(error), secrets)
+		unreadableStatus(names, describeError(error), secrets)
 		return []
 	}
 }
