@@ -9,7 +9,7 @@ import {
 import { readBotSettings, type SettingsOptions } from "./bot-settings"
 import type { BundleScope } from "./bundle-writes"
 import { resolveExecutable } from "./executable"
-import { kiroshiServer } from "./kiroshi-server"
+import { KIROSHI_SERVER, kiroshiServer } from "./kiroshi-server"
 import { createPermissionGate } from "./permissions"
 import { createPromptStream } from "./prompt-stream"
 import { securityFloor } from "./security-floor"
@@ -135,6 +135,31 @@ export const buildOptions = (
 	}
 }
 
+export const dialledServers = (options: Options): string[] =>
+	Object.keys(options.mcpServers ?? {}).filter(
+		(name) => name !== KIROSHI_SERVER,
+	)
+
+export type StopRequest = {
+	dropped: boolean
+	emit: EmitFrame
+	interrupt: () => Promise<void>
+}
+
+const CANCELLED: SessionFrame = {
+	type: "result",
+	subtype: "interrupted",
+	is_error: false,
+}
+
+export const stopTurn = async ({ dropped, emit, interrupt }: StopRequest) => {
+	if (dropped) {
+		emit(CANCELLED)
+		return
+	}
+	await interrupt()
+}
+
 export type ConnectionReport = {
 	emit: EmitFrame
 	push: (text: string) => void
@@ -146,7 +171,7 @@ export const reportConnections = ({ emit, push, pass }: ConnectionReport) => {
 	const { signal } = abandoning
 	const held: string[] = []
 	let details: string[] = []
-	let holding = true
+	let holding = pass.names.length > 0
 	let announced = false
 
 	const hand = (text: string) => {
@@ -185,7 +210,9 @@ export const reportConnections = ({ emit, push, pass }: ConnectionReport) => {
 			hand(text)
 		},
 		drop: () => {
+			const dropped = held.length > 0
 			held.length = 0
+			return dropped
 		},
 		abandon: () => {
 			abandoning.abort()
@@ -209,15 +236,13 @@ export const openClaudeSession = async (
 	for (const detail of resolved.rejections) {
 		emit({ type: "server_env_rejected", detail })
 	}
-	const run = query({
-		prompt: prompts.stream,
-		options: buildOptions(
-			request,
-			permissions.canUseTool,
-			botSettings.options,
-			resolved,
-		),
-	})
+	const options = buildOptions(
+		request,
+		permissions.canUseTool,
+		botSettings.options,
+		resolved,
+	)
+	const run = query({ prompt: prompts.stream, options })
 
 	let closing = false
 
@@ -255,7 +280,7 @@ export const openClaudeSession = async (
 		emit,
 		push: prompts.push,
 		pass: {
-			names: Object.keys(resolved.servers),
+			names: dialledServers(options),
 			port: {
 				status: () => run.mcpServerStatus(),
 				reconnect: (name) => run.reconnectMcpServer(name),
@@ -266,10 +291,14 @@ export const openClaudeSession = async (
 
 	return {
 		prompt: report.prompt,
-		interrupt: async () => {
-			report.drop()
-			await run.interrupt()
-		},
+		interrupt: () =>
+			stopTurn({
+				dropped: report.drop(),
+				emit,
+				interrupt: async () => {
+					await run.interrupt()
+				},
+			}),
 		decide: permissions.decide,
 		close: async () => {
 			closing = true

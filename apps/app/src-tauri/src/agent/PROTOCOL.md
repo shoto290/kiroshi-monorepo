@@ -160,7 +160,10 @@ Every other command names its session.
   were received, until it settles or reaches its own bound of 30250 ms: 15250 ms of
   pending polls, one 250 ms poll past the 15000 ms connect budget the options set, plus
   a reconnection bounded by that same budget. An interrupt drops what is held and leaves
-  the read running; a close abandons it, frame, stderr line and timers included. A server
+  the read running: the CLI never received that prompt, so no interrupt is sent to it and
+  the sidecar rides a `result` frame of subtype `interrupted` instead, which ends the
+  host's turn as cancelled. An interrupt with nothing held reaches the CLI as before. A
+  close abandons the read, frame, stderr line and timers included. A server
   reading `needs-auth` is named as waiting for its authorization, and no reconnection is
   attempted on it. A server no read ever named rides no frame: the sidecar writes one
   stderr line naming it, as it does when the read throws or outlasts its deadline. No
@@ -187,7 +190,7 @@ The frame is an `SDKMessage` verbatim, plus the four the sidecar adds itself.
 | `stream_event` | `SDKPartialAssistantMessage` — one Messages API streaming event | `messageStarted` / `messageDelta` / `activity` |
 | `assistant` | `SDKAssistantMessage` — `text` and/or `tool_use` blocks | `messageCompleted` / `activity` |
 | `user` | `SDKUserMessage` — `tool_result` with `is_error` | `activity` (succeeded / failed) |
-| `result` | `SDKResultMessage` — `subtype`, `session_id`, `is_error` | `turnEnded` |
+| `result` | `SDKResultMessage` — `subtype`, `session_id`, `is_error`, or the sidecar when a stop lands on a prompt still held | `turnEnded` |
 | `host_request` | the sidecar, from `askHost` | nothing — it is answered, not read |
 | `control_request` / `can_use_tool` | the sidecar, from `canUseTool` | `permissionRequested` |
 | `control_request` / `can_use_tool`, tool `AskUserQuestion` | the sidecar, from `canUseTool` | `questionRequested` |

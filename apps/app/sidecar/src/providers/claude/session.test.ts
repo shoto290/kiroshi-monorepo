@@ -16,7 +16,9 @@ import {
 import {
 	buildOptions,
 	CLASSIFY_ASK_USER_QUESTION,
+	dialledServers,
 	reportConnections,
+	stopTurn,
 } from "./session"
 import {
 	bundleLine,
@@ -28,7 +30,7 @@ import {
 	userLine,
 } from "./system-layer"
 
-import type { SessionRequest } from "../provider"
+import type { SessionFrame, SessionRequest } from "../provider"
 
 const settingsOf = (options: ReturnType<typeof buildOptions>): Settings =>
 	options.settings as Settings
@@ -376,6 +378,36 @@ describe("buildOptions", () => {
 				}),
 			),
 		).toContain(failure)
+	})
+
+	it("names to the pass the servers the options carry, and nothing else", () => {
+		const options = buildOptions(request, undefined, undefined, {
+			servers: { clock: { command: "run" } },
+			rejections: [],
+		})
+
+		expect(dialledServers(options)).toEqual(["clock"])
+		expect(Object.keys(options.mcpServers ?? {})).toEqual([
+			"clock",
+			KIROSHI_SERVER,
+		])
+	})
+
+	it("names no server to the pass when the options carry none", () => {
+		const bundle = mkdtempSync(join(tmpdir(), "kiroshi-dialled-"))
+		writeFileSync(
+			join(bundle, ".mcp.json"),
+			JSON.stringify({ mcpServers: { clock: { command: "run" } } }),
+		)
+
+		const withoutAgent = buildOptions(
+			{ ...request, agent: undefined, pluginPath: bundle },
+			undefined,
+		)
+		rmSync(bundle, { recursive: true, force: true })
+
+		expect(withoutAgent.mcpServers).toBeUndefined()
+		expect(dialledServers(withoutAgent)).toEqual([])
 	})
 
 	it("hands the kept servers and the rejections of one same resolution", () => {
@@ -764,6 +796,29 @@ describe("reportConnections", () => {
 		expect(emitted).toEqual([detail])
 	})
 
+	it("holds nothing and reads no status when the options carry no server", async () => {
+		let reads = 0
+		const { emitted, pushed, report } = reporting({
+			names: [],
+			port: {
+				status: async () => {
+					reads += 1
+					return []
+				},
+				reconnect: async () => {},
+			},
+		})
+
+		report.prompt("first")
+
+		expect(pushed).toEqual(["first"])
+
+		await ticked()
+
+		expect(reads).toBe(0)
+		expect(emitted).toEqual([])
+	})
+
 	it("releases the first prompt on the first read when every server connected", async () => {
 		let reads = 0
 		const { emitted, pushed, settled, report } = reporting({
@@ -783,5 +838,45 @@ describe("reportConnections", () => {
 		expect(pushed).toEqual(["first"])
 		expect(emitted).toEqual([])
 		expect(reads).toBe(1)
+	})
+})
+
+describe("stopTurn", () => {
+	it("ends the host's turn itself when the stop lands on a held prompt", async () => {
+		const frames: SessionFrame[] = []
+		let interrupted = false
+
+		await stopTurn({
+			dropped: true,
+			emit: (frame) => {
+				frames.push(frame)
+			},
+			interrupt: async () => {
+				interrupted = true
+			},
+		})
+
+		expect(frames).toEqual([
+			{ type: "result", subtype: "interrupted", is_error: false },
+		])
+		expect(interrupted).toBe(false)
+	})
+
+	it("sends the interrupt and emits nothing when nothing was held", async () => {
+		const frames: SessionFrame[] = []
+		let interrupted = false
+
+		await stopTurn({
+			dropped: false,
+			emit: (frame) => {
+				frames.push(frame)
+			},
+			interrupt: async () => {
+				interrupted = true
+			},
+		})
+
+		expect(frames).toEqual([])
+		expect(interrupted).toBe(true)
 	})
 })
