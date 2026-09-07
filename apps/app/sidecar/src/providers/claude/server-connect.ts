@@ -30,8 +30,7 @@ export const CONNECT_BUDGET_MS = 15_000
 const PENDING_POLL = 250
 const PENDING_POLLS = Math.ceil(CONNECT_BUDGET_MS / PENDING_POLL) + 1
 const PENDING_WAIT = PENDING_POLLS * PENDING_POLL
-const RECONNECT_LIMIT = CONNECT_BUDGET_MS
-const PASS_LIMIT = PENDING_WAIT + RECONNECT_LIMIT
+const PASS_LIMIT = PENDING_WAIT + CONNECT_BUDGET_MS
 const REASON_LIMIT = 300
 const SECRET_FLOOR = 8
 const REDACTED = "[redacted]"
@@ -114,11 +113,11 @@ const reconnectFailure = async (
 			() => undefined,
 			(error: unknown) => describeError(error),
 		),
-		RECONNECT_LIMIT,
+		CONNECT_BUDGET_MS,
 		signal,
 	)
 	return thrown === OUTLASTED
-		? `the reconnection outlasted its ${RECONNECT_LIMIT} ms deadline`
+		? `the reconnection outlasted its ${CONNECT_BUDGET_MS} ms deadline`
 		: thrown
 }
 
