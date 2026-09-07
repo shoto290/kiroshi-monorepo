@@ -786,16 +786,13 @@ export function createChatController(
 		return settled
 	}
 
-	const readForgottenTranscript = async (bot: BotChat) => {
+	const readBack = async (bot: BotChat) => {
 		const conversationId = bot.state.conversationId
-		if (
-			!conversationId ||
-			selectMessages(transcript.getState(), conversationId).length > 0
-		) {
+		if (!conversationId) {
 			return
 		}
 		try {
-			await enqueue(() => transcript.load(conversationId))
+			await enqueue(() => transcript.reopen(conversationId))
 		} catch (reason) {
 			reportRead(bot, reason)
 		}
@@ -804,7 +801,7 @@ export function createChatController(
 	const enterThread = (botId: string) => {
 		const bot = bots.get(botId)
 		if (bot) {
-			void readForgottenTranscript(bot)
+			void readBack(bot)
 		}
 	}
 

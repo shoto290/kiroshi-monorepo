@@ -1076,12 +1076,9 @@ export const createConversationController = (
 		drive()
 	}
 
-	const readForgottenTranscript = async (conversationId: string) => {
-		if (selectMessages(transcript.getState(), conversationId).length > 0) {
-			return
-		}
+	const readBack = async (conversationId: string) => {
 		try {
-			await enqueue(() => transcript.load(conversationId))
+			await enqueue(() => transcript.reopen(conversationId))
 		} catch (reason) {
 			noteFailure(toReadError(reason))
 		}
@@ -1093,7 +1090,7 @@ export const createConversationController = (
 		conversation = next
 		if (isSameConversation) {
 			sync()
-			await readForgottenTranscript(next.id)
+			await readBack(next.id)
 			return
 		}
 		queue = emptyQueue

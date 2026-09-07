@@ -355,3 +355,63 @@ describe("a landing window nobody is waiting for", () => {
 		expect(idsOf(controller)).not.toContain(`m-${EARLIER_SEQ}`)
 	})
 })
+describe("reopening a thread that was left", () => {
+	const LONG = Array.from({ length: TRANSCRIPT_WINDOW_SIZE * 2 }, (_, index) =>
+		message({ id: `m-${index + 1}`, seq: index + 1 }),
+	)
+
+	const LANDED_SEQ = 20
+
+	const emptied = async () => {
+		const fake = createFakeTranscriptPort({ messages: LONG })
+		let reads = 0
+		const port: TranscriptPort = {
+			loadPage: (conversationId, cursor) => {
+				reads += 1
+				return fake.loadPage(conversationId, cursor)
+			},
+			loadWindow: fake.loadWindow,
+		}
+		const controller = createTranscriptController(port)
+		await controller.load(CONVERSATION)
+		await controller.askLanding(CONVERSATION, LANDED_SEQ)()
+		controller.leave(CONVERSATION)
+
+		return { controller, reads: () => reads }
+	}
+
+	it("shows the newest page again when no landing was asked", async () => {
+		const { controller } = await emptied()
+
+		await controller.reopen(CONVERSATION)
+
+		expect(idsOf(controller)).toContain(`m-${LONG.length}`)
+		expect(selectHasNewer(controller.getState(), CONVERSATION)).toBe(false)
+	})
+
+	it("reads no newest page while a landing of that conversation is pending", async () => {
+		const { controller, reads } = await emptied()
+		const opened = reads()
+
+		const landing = controller.askLanding(CONVERSATION, LANDED_SEQ)
+		await controller.reopen(CONVERSATION)
+
+		expect(reads()).toBe(opened)
+
+		await landing()
+
+		expect(idsOf(controller)).toContain(`m-${LANDED_SEQ}`)
+		expect(selectHasNewer(controller.getState(), CONVERSATION)).toBe(true)
+	})
+
+	it("reads the newest page back once a failed landing gave up", async () => {
+		const { controller } = await emptied()
+
+		await expect(
+			controller.askLanding(CONVERSATION, LONG.length + 1)(),
+		).rejects.toThrow()
+		await controller.reopen(CONVERSATION)
+
+		expect(idsOf(controller)).toContain(`m-${LONG.length}`)
+	})
+})

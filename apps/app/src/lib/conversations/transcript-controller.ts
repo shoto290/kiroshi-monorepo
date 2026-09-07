@@ -8,6 +8,7 @@ import {
 	initialTranscriptState,
 	selectHasMore,
 	selectHasNewer,
+	selectMessages,
 	selectNewestSeq,
 	selectOldestSeq,
 	type TranscriptAction,
@@ -21,6 +22,7 @@ export type TranscriptController = {
 	getState: () => TranscriptState
 	subscribe: (listener: () => void) => () => void
 	load: (conversationId: string) => Promise<void>
+	reopen: (conversationId: string) => Promise<void>
 	loadOlder: (conversationId: string) => Promise<void>
 	loadNewer: (conversationId: string) => Promise<void>
 	loadLatest: (conversationId: string) => Promise<void>
@@ -90,18 +92,34 @@ export const createTranscriptController = (
 		dispatch({ type: "latestLoaded", page })
 	}
 
+	const reopen = async (conversationId: string) => {
+		if (
+			openLandings.has(conversationId) ||
+			selectMessages(state, conversationId).length > 0
+		) {
+			return
+		}
+		await readPage(conversationId, null)
+	}
+
 	const askLanding = (conversationId: string, seq: number) => {
 		landingsAsked += 1
 		const asked = landingsAsked
 		openLandings.set(conversationId, asked)
+		const isOpen = () => openLandings.get(conversationId) === asked
 
 		return async () => {
-			const window = await port.loadWindow(conversationId, seq)
-			if (openLandings.get(conversationId) === asked) {
-				openLandings.delete(conversationId)
-				dispatch({ type: "windowLanded", window })
+			try {
+				const window = await port.loadWindow(conversationId, seq)
+				if (isOpen()) {
+					dispatch({ type: "windowLanded", window })
+				}
+				return window.messages
+			} finally {
+				if (isOpen()) {
+					openLandings.delete(conversationId)
+				}
 			}
-			return window.messages
 		}
 	}
 
@@ -114,6 +132,7 @@ export const createTranscriptController = (
 			}
 		},
 		load,
+		reopen,
 		loadOlder,
 		loadNewer,
 		loadLatest,
