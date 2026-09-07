@@ -239,9 +239,8 @@ const reportPass = async (
 	const started = now()
 	const spent = () => now() - started
 	const read = () => boundedRead(port, bound, signal)
-	const polled = await polledTakes(read, names, wait, spent, signal)
-	const takes = polled.takes
-	const giveUps = polled.giveUp ? [polled.giveUp] : []
+	const { takes, giveUp } = await polledTakes(read, names, wait, spent, signal)
+	const giveUps = giveUp ? [giveUp] : []
 	const failing = names.filter((name) => {
 		const status = lastRead(takes, name)?.status
 		return status === "failed" || status === "pending"
