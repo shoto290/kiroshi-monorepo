@@ -810,7 +810,7 @@ describe("createRosterController on memberships", () => {
 		expect(reads.count()).toBe(0)
 	})
 
-	it("keeps every roster and reports the failure when the last space is refused", async () => {
+	it("says a bot has to stay in one space when its last one is refused", async () => {
 		const store = createFakeTranscriptStore()
 		const elsewhere = await store.createSpace("Vocca")
 		const reportFailure = vi.fn()
