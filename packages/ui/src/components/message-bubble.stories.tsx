@@ -325,7 +325,7 @@ export const SpaceTinted = meta.story({
 const SHORT_REPLY = "Booked."
 
 const UNBREAKABLE_REPLY =
-	"migration-window-export-rollback-checklist-attachment"
+	"migration-window-exports-rollback-attachment-manifest-digest"
 
 const MAX_INLINE_SIZE_FRACTION = 0.85
 
@@ -352,7 +352,7 @@ export const ContentWidths = meta.story({
 		docs: {
 			description: {
 				story:
-					"Three replies in one column so their widths read against each other: a two-word answer, a paragraph long enough to reach the cap, and an unbreakable string the product did not author. Check that the short one hugs its text, that the long one stops at 85 percent of the column, and that the unbreakable one breaks inside the surface instead of pushing past it. `NarrowContainer` covers the same three at 320 pixels.",
+					"Reach for this when a change touches how wide a bubble is allowed to get: a two-word answer, a paragraph past the cap and a sixty-character unbreakable string, in a 34rem column where all three still fit on their own terms. Check that the short one hugs its text and that the long one stops at 85 percent of the column. `NarrowContainer` gives the same three a container too narrow for the unbreakable one.",
 			},
 		},
 	},
@@ -360,7 +360,7 @@ export const ContentWidths = meta.story({
 	play: async ({ canvasElement }) => {
 		const group = slotIn(canvasElement, "message-bubble-group")
 		const [, long] = slotsIn(canvasElement, "message-bubble")
-		const [shortContent, longContent, unbreakableContent] = slotsIn(
+		const [shortContent, longContent] = slotsIn(
 			canvasElement,
 			"message-bubble-content",
 		)
@@ -368,12 +368,10 @@ export const ContentWidths = meta.story({
 		await expect(inlineSizeOf(shortContent)).toBeLessThan(
 			inlineSizeOf(longContent),
 		)
-		await expect(inlineSizeOf(long) / inlineSizeOf(group)).toBeCloseTo(
+		await expect(inlineSizeOf(longContent)).toBeCloseTo(inlineSizeOf(long), 0)
+		await expect(inlineSizeOf(longContent) / inlineSizeOf(group)).toBeCloseTo(
 			MAX_INLINE_SIZE_FRACTION,
 			2,
-		)
-		await expect(unbreakableContent.scrollWidth).toBeLessThanOrEqual(
-			unbreakableContent.clientWidth + 1,
 		)
 	},
 })
@@ -383,15 +381,21 @@ export const NarrowContainer = meta.story({
 		docs: {
 			description: {
 				story:
-					"The same three replies in a container squeezed to 320 pixels. Check that nothing scrolls sideways and that the unbreakable string wraps inside the surface. `ContentWidths` compares the three at thread width.",
+					"Reach for this when the window is as narrow as the product allows: the same three replies in a 320 pixel container, where the unbreakable string is wider than the surface it is given. Check that it breaks across lines inside that surface and that nothing scrolls sideways. `ContentWidths` compares the three at thread width.",
 			},
 		},
 	},
 	render: () => <ComparedWidths className="w-80" />,
 	play: async ({ canvasElement }) => {
 		const group = slotIn(canvasElement, "message-bubble-group")
+		const contents = slotsIn(canvasElement, "message-bubble-content")
+		const [shortContent, , unbreakableContent] = contents
 
-		for (const content of slotsIn(canvasElement, "message-bubble-content")) {
+		await expect(
+			unbreakableContent.getBoundingClientRect().height,
+		).toBeGreaterThan(shortContent.getBoundingClientRect().height)
+
+		for (const content of contents) {
 			await expect(content.scrollWidth).toBeLessThanOrEqual(
 				content.clientWidth + 1,
 			)
