@@ -231,6 +231,9 @@ const readable = (reason: string, secrets: string[]): string =>
 const reachedLine = (name: string): string =>
 	`the server "${name}" connected, and ${HOLDS_TOOLS} for the rest of this session`
 
+const answered = (answer: Answer | undefined, secrets: string[]): string =>
+	answer ? `, ${answer.source}: ${readable(answer.message, secrets)}` : ""
+
 const lineFor = (
 	name: string,
 	{ status, spent }: NamedRead,
@@ -243,10 +246,7 @@ const lineFor = (
 	if (status === "pending") {
 		return `the server "${name}" ${STILL_CONNECTING} after ${spent} ms`
 	}
-	const answered = answer
-		? `, ${answer.source}: ${readable(answer.message, secrets)}`
-		: ""
-	return leftOut(name, `it read ${status}${answered}`)
+	return leftOut(name, `it read ${status}${answered(answer, secrets)}`)
 }
 
 const linesFor = (
@@ -423,17 +423,8 @@ const abandon = (
 ) => {
 	writeGiveUp(watched, UNSETTLED)
 	for (const name of watched) {
-		const answer = redialled.get(name)
-		report?.(
-			notice(
-				leftOut(
-					name,
-					answer
-						? `${UNSETTLED}, ${answer.source}: ${readable(answer.message, secrets)}`
-						: UNSETTLED,
-				),
-			),
-		)
+		const reason = `${UNSETTLED}${answered(redialled.get(name), secrets)}`
+		report?.(notice(leftOut(name, reason)))
 	}
 }
 
