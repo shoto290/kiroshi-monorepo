@@ -1056,22 +1056,20 @@ fn read_around(
 		return Ok(None);
 	};
 
+	let conversation_id = &query.conversation_id;
 	let budget = query.limit.saturating_sub(1);
-	let mut older = read_older(connection, &query.conversation_id, query.seq, budget / 2)?;
-	let newer =
-		read_newer(connection, &query.conversation_id, query.seq, budget - older.len() as u32)?;
+	let mut older = read_older(connection, conversation_id, query.seq, budget / 2)?;
+	let newer = read_newer(connection, conversation_id, query.seq, budget - older.len() as u32)?;
 	let oldest_held = older.first().map_or(query.seq, |message| message.seq);
 	let shortfall = budget - older.len() as u32 - newer.len() as u32;
-	let mut earlier = read_older(connection, &query.conversation_id, oldest_held, shortfall)?;
 
-	earlier.append(&mut older);
-	let mut messages = earlier;
+	let mut messages = read_older(connection, conversation_id, oldest_held, shortfall)?;
+	messages.append(&mut older);
 	let first_seq = messages.first().map_or(query.seq, |message| message.seq);
+	let last_seq = newer.last().map_or(query.seq, |message| message.seq);
 	messages.push(centre);
 	messages.extend(newer);
-	let last_seq = messages.last().map_or(query.seq, |message| message.seq);
 
-	let conversation_id = &query.conversation_id;
 	Ok(Some(MessagesAround {
 		messages,
 		has_older: sits_beside(connection, MESSAGE_OLDER_THAN_SEQ, conversation_id, first_seq)?,
