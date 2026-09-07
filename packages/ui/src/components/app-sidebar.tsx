@@ -125,10 +125,8 @@ const DESTINATION_NAME = "min-w-0 truncate"
 
 const SPACES_PANEL = "max-w-64"
 
-const SIDEBAR_REGION = '[data-slot="sidebar-content"]'
-
 const holdFocusInSidebar = (row: HTMLElement | null) => {
-	const region = row?.closest<HTMLElement>(SIDEBAR_REGION)
+	const region = row?.closest<HTMLElement>('[data-slot="sidebar-content"]')
 	if (!region) return
 	region.tabIndex = -1
 	region.focus({ preventScroll: true })
