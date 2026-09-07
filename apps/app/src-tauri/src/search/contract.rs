@@ -59,6 +59,8 @@ pub enum MessageSearchError {
 	Unavailable { failure: StorageFailure },
 	#[serde(rename_all = "camelCase")]
 	Storage { failure: StorageFailure },
+	#[serde(rename_all = "camelCase")]
+	QueryTooLong { limit: usize },
 }
 
 impl From<DatabaseError> for MessageSearchError {
@@ -67,23 +69,15 @@ impl From<DatabaseError> for MessageSearchError {
 	}
 }
 
-pub const MAX_QUERY_LENGTH: usize = 200;
+pub const MAX_QUERY_CHARS: usize = 200;
 pub const MAX_MATCHES_PER_LIST: usize = 20;
 pub const MAX_RECENT_CHATS: usize = 8;
-
-#[derive(Debug, Clone, Copy, PartialEq, Eq, Serialize, Deserialize)]
-#[serde(rename_all = "snake_case")]
-pub enum ChatKind {
-	Main,
-	Topic,
-	Mission,
-}
 
 #[derive(Debug, Clone, PartialEq, Eq, Serialize, Deserialize)]
 #[serde(rename_all = "camelCase")]
 pub struct CatalogueChat {
 	pub conversation_id: String,
-	pub kind: ChatKind,
+	pub kind: ConversationKind,
 	pub title: String,
 	pub bot_id: Option<String>,
 	pub participants: Vec<String>,

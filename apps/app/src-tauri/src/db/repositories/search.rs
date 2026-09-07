@@ -4,9 +4,9 @@ use rusqlite::{params, Row};
 use crate::db::{Access, DatabaseError};
 use crate::search::contract::{
 	ConversationKind, MessageHit, MessageSearchError, MessageSearchQuery, SnippetPart,
+	MAX_QUERY_CHARS,
 };
 
-pub const MAX_QUERY_CHARS: usize = 120;
 pub const MAX_HITS: u32 = 50;
 
 const SNIPPET_TOKENS: i64 = 24;
@@ -58,6 +58,9 @@ impl SearchRepository {
 		&self,
 		query: MessageSearchQuery,
 	) -> Result<Vec<MessageHit>, MessageSearchError> {
+		if query.text.chars().count() > MAX_QUERY_CHARS {
+			return Err(MessageSearchError::QueryTooLong { limit: MAX_QUERY_CHARS });
+		}
 		let Some(expression) = matched_words(&query.text) else {
 			return Ok(Vec::new());
 		};
@@ -85,11 +88,8 @@ impl SearchRepository {
 }
 
 fn matched_words(text: &str) -> Option<String> {
-	let separated: String = text
-		.chars()
-		.take(MAX_QUERY_CHARS)
-		.map(|held| if held.is_alphanumeric() { held } else { ' ' })
-		.collect();
+	let separated: String =
+		text.chars().map(|held| if held.is_alphanumeric() { held } else { ' ' }).collect();
 	let words: Vec<String> =
 		separated.split_whitespace().map(|word| format!("\"{word}\"")).collect();
 	match words.is_empty() {

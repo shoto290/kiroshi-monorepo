@@ -1,11 +1,11 @@
+import type { ConversationKind } from "./search-contract"
+
 import type { StorageFailure } from "@/lib/conversations/store-contract"
 import type { MissionState } from "@/lib/missions/mission-contract"
 
-export type ChatKind = "main" | "topic" | "mission"
-
 export type CatalogueChat = {
 	conversationId: string
-	kind: ChatKind
+	kind: ConversationKind
 	title: string
 	botId: string | null
 	participants: string[]

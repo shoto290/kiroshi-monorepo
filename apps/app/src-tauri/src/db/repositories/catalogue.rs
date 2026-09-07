@@ -10,7 +10,7 @@ use crate::db::{Access, DatabaseError};
 use crate::missions::contract::Mission;
 use crate::search::contract::{
 	Catalogue, CatalogueChat, CatalogueError, CatalogueMission, CatalogueRoutine, CatalogueScope,
-	ChatKind, MAX_MATCHES_PER_LIST, MAX_QUERY_LENGTH, MAX_RECENT_CHATS,
+	ConversationKind, MAX_MATCHES_PER_LIST, MAX_QUERY_CHARS, MAX_RECENT_CHATS,
 };
 
 const PRESENT_SEAT: &str = "conversation_participants.left_at IS NULL AND bots.deleted_at IS NULL";
@@ -54,7 +54,7 @@ const ROUTINES: &str = "SELECT id, conversation_id, bot_id, title, trigger_sourc
 
 struct ChatRow {
 	conversation_id: String,
-	kind: ChatKind,
+	kind: ConversationKind,
 	title: String,
 	space_id: Option<String>,
 }
@@ -81,8 +81,8 @@ impl CatalogueRepository {
 	}
 
 	pub async fn search(&self, scope: CatalogueScope) -> Result<Catalogue, CatalogueError> {
-		if scope.query.chars().count() > MAX_QUERY_LENGTH {
-			return Err(CatalogueError::QueryTooLong { limit: MAX_QUERY_LENGTH });
+		if scope.query.chars().count() > MAX_QUERY_CHARS {
+			return Err(CatalogueError::QueryTooLong { limit: MAX_QUERY_CHARS });
 		}
 		let needle = folded(scope.query.trim());
 		if needle.is_empty() {
@@ -211,7 +211,7 @@ fn matching_routines(
 fn chat_of(row: ChatRow, seated: &Seated) -> Option<CatalogueChat> {
 	let bots = seated.get(&row.conversation_id).map(Vec::as_slice).unwrap_or_default();
 	Some(match row.kind {
-		ChatKind::Main => {
+		ConversationKind::Main => {
 			let (bot_id, name) = bots.first()?;
 			CatalogueChat {
 				conversation_id: row.conversation_id,
@@ -222,7 +222,7 @@ fn chat_of(row: ChatRow, seated: &Seated) -> Option<CatalogueChat> {
 				space_id: row.space_id,
 			}
 		}
-		ChatKind::Topic => CatalogueChat {
+		ConversationKind::Topic => CatalogueChat {
 			conversation_id: row.conversation_id,
 			kind: row.kind,
 			title: row.title,
@@ -230,7 +230,7 @@ fn chat_of(row: ChatRow, seated: &Seated) -> Option<CatalogueChat> {
 			participants: bots.iter().map(|(_, name)| name.clone()).collect(),
 			space_id: row.space_id,
 		},
-		ChatKind::Mission => CatalogueChat {
+		ConversationKind::Mission => CatalogueChat {
 			conversation_id: row.conversation_id,
 			kind: row.kind,
 			title: row.title,
@@ -297,17 +297,15 @@ fn chat_row(row: &Row<'_>) -> rusqlite::Result<ChatRow> {
 	})
 }
 
-fn chat_kind(row: &Row<'_>, index: usize) -> rusqlite::Result<ChatKind> {
-	match row.get::<_, String>(index)?.as_str() {
-		"main" => Ok(ChatKind::Main),
-		"topic" => Ok(ChatKind::Topic),
-		"mission" => Ok(ChatKind::Mission),
-		held => Err(rusqlite::Error::FromSqlConversionFailure(
+fn chat_kind(row: &Row<'_>, index: usize) -> rusqlite::Result<ConversationKind> {
+	let held = row.get::<_, String>(index)?;
+	ConversationKind::parse(&held).ok_or_else(|| {
+		rusqlite::Error::FromSqlConversionFailure(
 			index,
 			rusqlite::types::Type::Text,
-			format!("{held} names no chat kind").into(),
-		)),
-	}
+			format!("{held} names no conversation kind").into(),
+		)
+	})
 }
 
 fn routine_row(row: &Row<'_>) -> rusqlite::Result<RoutineRow> {
@@ -444,7 +442,7 @@ mod tests {
 		held
 	}
 
-	fn named(chats: &[CatalogueChat]) -> Vec<(&str, ChatKind, &str)> {
+	fn named(chats: &[CatalogueChat]) -> Vec<(&str, ConversationKind, &str)> {
 		chats
 			.iter()
 			.map(|chat| (chat.conversation_id.as_str(), chat.kind, chat.title.as_str()))
@@ -464,8 +462,8 @@ mod tests {
 		assert_eq!(
 			named(&held.chats),
 			vec![
-				("topic-1", ChatKind::Topic, "Roadmap review"),
-				("topic-2", ChatKind::Topic, "Roadmap of the other space"),
+				("topic-1", ConversationKind::Topic, "Roadmap review"),
+				("topic-2", ConversationKind::Topic, "Roadmap of the other space"),
 			],
 			"the chats lost the spoken order, or kept the archived conversation"
 		);
@@ -489,8 +487,8 @@ mod tests {
 		assert_eq!(
 			named(&held.chats),
 			vec![
-				("main-1", ChatKind::Main, "Amélie"),
-				("topic-1", ChatKind::Topic, "Roadmap review")
+				("main-1", ConversationKind::Main, "Amélie"),
+				("topic-1", ConversationKind::Topic, "Roadmap review")
 			],
 			"the fold did not reach the name of the bot behind its main chat"
 		);
@@ -523,7 +521,7 @@ mod tests {
 			named(&held.chats),
 			vec![(
 				mission.thread_conversation_id.as_str(),
-				ChatKind::Mission,
+				ConversationKind::Mission,
 				"Fix the crash on open"
 			)],
 			"the mission thread did not answer as a chat of its own space"
@@ -586,7 +584,7 @@ mod tests {
 		);
 		assert_eq!(
 			named(&wide.chats),
-			vec![("topic-1", ChatKind::Topic, "Roadmap review")],
+			vec![("topic-1", ConversationKind::Topic, "Roadmap review")],
 			"a chat of another space crossed the scope"
 		);
 
@@ -789,8 +787,8 @@ mod tests {
 		assert_eq!(
 			named(&bare.chats),
 			vec![
-				("topic-1", ChatKind::Topic, "Roadmap review"),
-				("topic-2", ChatKind::Topic, "Roadmap of the other space"),
+				("topic-1", ConversationKind::Topic, "Roadmap review"),
+				("topic-2", ConversationKind::Topic, "Roadmap of the other space"),
 			]
 		);
 
@@ -831,7 +829,7 @@ mod tests {
 			named(&held.chats),
 			vec![(
 				mission.thread_conversation_id.as_str(),
-				ChatKind::Mission,
+				ConversationKind::Mission,
 				"Rename the sidecar"
 			)],
 			"the thread of a mission opened from a solo chat fell out of its own space"
@@ -903,10 +901,10 @@ mod tests {
 
 		let held = database
 			.catalogue()
-			.search(scope(&"a".repeat(MAX_QUERY_LENGTH + 1), PERSONAL, true))
+			.search(scope(&"a".repeat(MAX_QUERY_CHARS + 1), PERSONAL, true))
 			.await;
 
-		assert_eq!(held, Err(CatalogueError::QueryTooLong { limit: MAX_QUERY_LENGTH }));
+		assert_eq!(held, Err(CatalogueError::QueryTooLong { limit: MAX_QUERY_CHARS }));
 
 		std::fs::remove_dir_all(&dir).expect("cleanup");
 	}
@@ -921,8 +919,8 @@ mod tests {
 		assert_eq!(
 			named(&held),
 			vec![
-				("main-1", ChatKind::Main, "Amélie"),
-				("topic-1", ChatKind::Topic, "Roadmap review"),
+				("main-1", ConversationKind::Main, "Amélie"),
+				("topic-1", ConversationKind::Topic, "Roadmap review"),
 			],
 			"the recent chats lost the last message order, or kept a mission thread"
 		);

@@ -28,3 +28,4 @@ export type MessageHit = {
 export type MessageSearchError =
 	| { kind: "unavailable"; failure: StorageFailure }
 	| { kind: "storage"; failure: StorageFailure }
+	| { kind: "queryTooLong"; limit: number }
