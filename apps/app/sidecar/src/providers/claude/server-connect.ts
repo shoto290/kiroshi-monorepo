@@ -47,7 +47,7 @@ type PolledTakes = {
 	giveUp?: GaveUp
 }
 
-export const REQUEST_BOUND_MS = 30_000
+const REQUEST_BOUND_MS = 30_000
 
 export const POLL_BUDGET_MS = 5_000
 
