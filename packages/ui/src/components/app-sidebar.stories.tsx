@@ -2453,6 +2453,76 @@ export const RowMembershipsUnknown = meta.story({
 	},
 })
 
+const LiveMemberships = (args: AppSidebarProps) => {
+	const [rosters, setRosters] = useState(args.botsBySpaceId ?? {})
+
+	return (
+		<WorkspaceShell
+			defaultOpen
+			sidebar={
+				<AppSidebar
+					{...args}
+					botsBySpaceId={rosters}
+					onRemoveBotFromSpace={(botId, spaceId) => {
+						args.onRemoveBotFromSpace?.(botId, spaceId)
+						setRosters((held) => ({
+							...held,
+							[spaceId]: (held[spaceId] ?? []).filter(
+								(bot) => bot.id !== botId,
+							),
+						}))
+					}}
+				/>
+			}
+		>
+			{null}
+		</WorkspaceShell>
+	)
+}
+
+export const RowLeavesOpenSpace = meta.story({
+	render: LiveMemberships,
+	args: {
+		spaces: FIVE_SPACES,
+		selectedSpaceId: "vocca",
+		botsBySpaceId: BEACON_IN_TWO_SPACES,
+		user: READER,
+	},
+	parameters: {
+		a11y: A11Y_CONTRAST_AWAITING_DESIGN_DECISION,
+		docs: {
+			description: {
+				story:
+					"Unticking the space the reader is looking at. Beacon is held by Vocca and Atelier, and Vocca is the roster on screen, so this one gesture deletes the row the menu hangs off and the menu with it. Every other row keeps the branch open for a second edit; this row hands focus to the roster region first and closes the menu on its way out, so nothing is left hanging over a row that no longer exists and a keyboard reader carries on from inside the sidebar rather than from the top of the document. Pick `RowTogglesSpaces` for the ordinary case, where the row survives its own edit and the branch stays open.",
+			},
+		},
+	},
+	play: async ({ args, canvasElement, userEvent }) => {
+		const beaconRows = () =>
+			rowsIn(canvasElement).filter(
+				(row) => slotIn(row, "roster-row-name").textContent === "Beacon",
+			)
+		await expect(beaconRows()).toHaveLength(2)
+
+		const panel = await openSpacesBranch(canvasElement, "Beacon", userEvent)
+		const rows = within(panel).getAllByRole("menuitemcheckbox")
+
+		await userEvent.click(rows[1])
+		await expect(args.onRemoveBotFromSpace).toHaveBeenCalledWith(
+			"beacon",
+			"vocca",
+		)
+		await waitFor(async () => {
+			await expect(beaconRows()).toHaveLength(1)
+		}, FRAME_POLL)
+
+		await expect(screen.queryByRole("menu")).toBeNull()
+		await expect(
+			slotIn(canvasElement, "sidebar-content").contains(document.activeElement),
+		).toBe(true)
+	},
+})
+
 export const RowLastSpace = meta.story({
 	args: {
 		spaces: FIVE_SPACES,
@@ -2465,7 +2535,7 @@ export const RowLastSpace = meta.story({
 		docs: {
 			description: {
 				story:
-					"The bot that has one space left, walked with the keyboard. Grove sits in Vocca alone: that row is `aria-disabled` rather than switched off, so the arrow walk still lands on it and a reader who cannot see the panel hears which space holds the bot — the one row they most need is the one a native `disabled` would have hidden from them. Landing there announces it ticked and unavailable, Enter and a click both report to nobody, and the next arrow stays inside the panel. The reason lives on the `Spaces` entry as its accessible description, heard before the branch is ever opened, and the note under the rule shows the same sentence to the eye while staying out of the tree. Beacon, held by two spaces, carries no description: there is nothing to warn about while every row is live.",
+					"The bot that has one space left, walked with the keyboard. Grove sits in Vocca alone: that row is `aria-disabled` rather than switched off, so the arrow walk still lands on it and a reader who cannot see the panel hears which space holds the bot — the one row they most need is the one a native `disabled` would have hidden from them. Landing there announces it ticked and unavailable, Enter and a click both report to nobody, and the next arrow stays inside the panel. The reason is the accessible description of both the `Spaces` entry and the row itself, so it is heard before the branch is opened and again on the row it applies to, however the reader got there; the note under the rule shows the same sentence to the eye while staying out of the tree. Beacon, held by two spaces, carries no description: there is nothing to warn about while every row is live.",
 			},
 		},
 	},
@@ -2483,6 +2553,7 @@ export const RowLastSpace = meta.story({
 		await expect(held).toHaveFocus()
 		await expect(held).toHaveAttribute("aria-checked", "true")
 		await expect(held).toHaveAttribute("aria-disabled", "true")
+		await expect(held).toHaveAccessibleDescription(LAST_SPACE_NOTE)
 
 		await userEvent.keyboard("{Enter}")
 		fireEvent.click(held)

@@ -93,7 +93,7 @@ import {
 import { useSpaceShortcut } from "@workspace/ui/hooks/use-space-shortcut"
 import { toPlainText } from "@workspace/ui/lib/plain-text"
 import { probeRender } from "@workspace/ui/lib/render-probe"
-import { cn } from "@workspace/ui/lib/utils"
+import { cn, mergeRefs } from "@workspace/ui/lib/utils"
 
 const HEADER =
 	"h-12 flex-row items-center justify-end py-0 pr-2.5 group-data-[state=collapsed]/sidebar:justify-center group-data-[state=collapsed]/sidebar:px-0"
@@ -124,6 +124,15 @@ const PREVIEW_LINE =
 const DESTINATION_NAME = "min-w-0 truncate"
 
 const SPACES_PANEL = "max-w-64"
+
+const SIDEBAR_REGION = '[data-slot="sidebar-content"]'
+
+const holdFocusInSidebar = (row: HTMLElement | null) => {
+	const region = row?.closest<HTMLElement>(SIDEBAR_REGION)
+	if (!region) return
+	region.tabIndex = -1
+	region.focus({ preventScroll: true })
+}
 
 const LAST_SPACE_NOTE =
 	"px-2.5 pt-0.5 pb-1.5 text-[11px] text-muted-foreground leading-[15px]"
@@ -513,6 +522,7 @@ interface SpacesBranchProps {
 	botId: string
 	spaces: Space[]
 	memberships: string[]
+	openSpaceId?: string
 	onAddToSpace?: (botId: string, spaceId: string) => void
 	onRemoveFromSpace?: (botId: string, spaceId: string) => void
 }
@@ -521,6 +531,7 @@ const SpacesBranch = ({
 	botId,
 	spaces,
 	memberships,
+	openSpaceId,
 	onAddToSpace,
 	onRemoveFromSpace,
 }: SpacesBranchProps) => {
@@ -544,12 +555,14 @@ const SpacesBranch = ({
 			<ContextMenuSubContent className={SPACES_PANEL}>
 				{spaces.map((space) => {
 					const isMember = memberships.includes(space.id)
+					const isLocked = isMember && isHeldByOneSpace
 					return (
 						<ContextMenuCheckboxItem
 							checked={isMember}
-							closeOnSelect={false}
-							unavailable={isMember && isHeldByOneSpace}
+							closeOnSelect={isMember && space.id === openSpaceId}
+							describedBy={isLocked ? noteId : undefined}
 							key={space.id}
+							unavailable={isLocked}
 							onCheckedChange={(checked) =>
 								checked
 									? onAddToSpace?.(botId, space.id)
@@ -670,6 +683,7 @@ interface BotRosterRowProps extends RosterRowSlot, RosterPinActions {
 	spaces: Space[]
 	memberships: string[]
 	sections: AppSidebarSection[]
+	openSpaceId?: string
 	onSelect?: (id: string) => void
 	onEdit?: (id: string) => void
 	onDuplicate?: (id: string) => void
@@ -687,6 +701,7 @@ const BotRosterRow = ({
 	spaces,
 	memberships,
 	sections,
+	openSpaceId,
 	lift,
 	insertion,
 	slotRef,
@@ -709,13 +724,19 @@ const BotRosterRow = ({
 		bot.badge,
 	)
 	const strips = isCollapsed ? undefined : missionStripsOf(bot.missions)
+	const rowRef = useRef<HTMLElement | null>(null)
+
+	const leaveSpace = (botId: string, spaceId: string) => {
+		if (spaceId === openSpaceId) holdFocusInSidebar(rowRef.current)
+		onRemoveFromSpace?.(botId, spaceId)
+	}
 
 	return (
 		<AnimatedSidebarMenuItem
 			{...(isPinned ? dropArea(bot.id) : undefined)}
 			className={ROW_ITEM}
 			data-tauri-drag-region="false"
-			ref={slotRef}
+			ref={mergeRefs<HTMLElement>(rowRef, slotRef)}
 		>
 			<InsertionLine edge={insertion} />
 			<ContextMenu>
@@ -794,7 +815,8 @@ const BotRosterRow = ({
 						botId={bot.id}
 						memberships={memberships}
 						onAddToSpace={onAddToSpace}
-						onRemoveFromSpace={onRemoveFromSpace}
+						onRemoveFromSpace={leaveSpace}
+						openSpaceId={openSpaceId}
 						spaces={spaces}
 					/>
 					<ContextMenuSeparator />
@@ -1701,6 +1723,7 @@ const BotRoster = ({
 				onEdit={onEditBot}
 				onRemoveFromSpace={onRemoveBotFromSpace}
 				onSelect={onSelectBot}
+				openSpaceId={spaceId}
 				spaces={spaces}
 			/>
 		)
