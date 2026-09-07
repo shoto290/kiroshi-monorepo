@@ -35,6 +35,7 @@ const MIGRATIONS: &[Migration] = &[
 	Migration { version: 26, statements: MISSIONS },
 	Migration { version: 27, statements: MISSION_WATCH },
 	Migration { version: 28, statements: MISSION_REPORT },
+	Migration { version: 29, statements: MESSAGE_SEARCH },
 ];
 
 const CONVERSATIONS_SCHEMA: &str = "
@@ -615,6 +616,48 @@ CREATE INDEX missions_closed_without_report
 	ON missions (closed_at, id) WHERE closed_at IS NOT NULL AND reported_at IS NULL;
 ";
 
+const MESSAGE_SEARCH: &str = "
+CREATE VIRTUAL TABLE message_search USING fts5(
+	content,
+	message_id UNINDEXED,
+	conversation_id UNINDEXED,
+	tokenize = 'unicode61 remove_diacritics 2'
+);
+
+INSERT INTO message_search (content, message_id, conversation_id)
+	SELECT content, id, conversation_id FROM messages
+	WHERE completion_state NOT IN ('pending', 'streaming');
+
+CREATE TRIGGER messages_settled_at_once_are_indexed
+AFTER INSERT ON messages
+WHEN NEW.completion_state NOT IN ('pending', 'streaming')
+BEGIN
+	INSERT INTO message_search (content, message_id, conversation_id)
+		VALUES (NEW.content, NEW.id, NEW.conversation_id);
+END;
+
+CREATE TRIGGER messages_are_indexed_when_they_settle
+AFTER UPDATE OF completion_state ON messages
+WHEN OLD.completion_state IN ('pending', 'streaming')
+	AND NEW.completion_state NOT IN ('pending', 'streaming')
+BEGIN
+	INSERT INTO message_search (content, message_id, conversation_id)
+		VALUES (NEW.content, NEW.id, NEW.conversation_id);
+END;
+
+CREATE TRIGGER messages_leave_the_index_with_their_row
+AFTER DELETE ON messages
+BEGIN
+	DELETE FROM message_search WHERE message_id = OLD.id;
+END;
+
+CREATE TRIGGER messages_leave_the_index_with_their_conversation
+AFTER DELETE ON conversations
+BEGIN
+	DELETE FROM message_search WHERE conversation_id = OLD.id;
+END;
+";
+
 pub fn latest_version() -> u32 {
 	MIGRATIONS.last().map_or(0, |migration| migration.version)
 }
@@ -689,6 +732,7 @@ mod tests {
 	const MISSIONS_STEP: u32 = 26;
 	const MISSION_WATCH_STEP: u32 = 27;
 	const MISSION_REPORT_STEP: u32 = 28;
+	const MESSAGE_SEARCH_STEP: u32 = 29;
 
 	const A_LIVE_SESSION: &str = "INSERT INTO runtime_sessions
 		(id, conversation_id, bot_id, provider_session_id, seq, status, started_at)
@@ -864,6 +908,78 @@ mod tests {
 
 		drop(connection);
 		fs::remove_dir_all(&dir).expect("cleanup");
+	}
+
+	#[test]
+	fn the_search_step_indexes_the_settled_messages_and_takes_the_others_in_when_they_settle() {
+		let dir = temp_dir();
+		let mut connection = open(&dir.join(FILE_NAME)).expect("open");
+		apply_each(&mut connection, shipped_before(MESSAGE_SEARCH_STEP))
+			.expect("the shipped schema");
+		connection
+			.execute_batch(
+				"INSERT INTO bots (id, space_id, name, model, created_at)
+					VALUES ('b1', 'personal', 'First', 'sonnet', 1);
+				INSERT INTO conversations (id, kind, title, created_at, updated_at)
+					VALUES ('c1', 'topic', 'Chat', 1, 1);
+				INSERT INTO conversation_participants
+					(conversation_id, bot_id, role, joined_at, join_seq)
+					VALUES ('c1', 'b1', 'lead', 1, 0);
+				INSERT INTO turns (id, conversation_id, seq, started_at) VALUES ('t1', 'c1', 1, 1);
+				INSERT INTO messages
+					(id, conversation_id, turn_id, seq, role, content, completion_state, created_at)
+					VALUES ('m1', 'c1', 't1', 1, 'user', 'the cafe opens at dawn', 'complete', 1),
+						('m2', 'c1', 't1', 2, 'assistant', 'the ca', 'streaming', 2),
+						('m3', 'c1', 't1', 3, 'assistant', 'the bakery', 'interrupted', 3),
+						('m4', 'c1', 't1', 4, 'assistant', '', 'pending', 4);",
+			)
+			.expect("the messages this build upgrades from");
+
+		apply(&mut connection).expect("the file comes up to this build");
+
+		assert_eq!(version(&connection).expect("version"), latest_version());
+		assert_eq!(
+			indexed_ids(&connection),
+			vec!["m1".to_owned(), "m3".to_owned()],
+			"the step indexed an unfinished message or lost a settled one"
+		);
+
+		write(
+			&connection,
+			"UPDATE messages SET completion_state = 'complete', content = 'the cafe closes at dusk'
+				WHERE id = 'm2'",
+		)
+		.expect("the streaming message settles");
+
+		assert_eq!(
+			indexed_ids(&connection),
+			vec!["m1".to_owned(), "m2".to_owned(), "m3".to_owned()],
+			"a message that settled after the step stayed out of the index"
+		);
+		assert_eq!(
+			matched_ids(&connection, "dusk"),
+			vec!["m2".to_owned()],
+			"the index does not hold the text a message carried when it settled"
+		);
+
+		drop(connection);
+		fs::remove_dir_all(&dir).expect("cleanup");
+	}
+
+	fn indexed_ids(connection: &Connection) -> Vec<String> {
+		let mut statement = connection
+			.prepare("SELECT message_id FROM message_search ORDER BY message_id")
+			.expect("the index is there");
+		let rows = statement.query_map([], |row| row.get(0)).expect("the index reads");
+		rows.collect::<rusqlite::Result<Vec<_>>>().expect("every index row reads")
+	}
+
+	fn matched_ids(connection: &Connection, word: &str) -> Vec<String> {
+		let mut statement = connection
+			.prepare("SELECT message_id FROM message_search WHERE message_search MATCH ?1")
+			.expect("the index is there");
+		let rows = statement.query_map([word], |row| row.get(0)).expect("the index reads");
+		rows.collect::<rusqlite::Result<Vec<_>>>().expect("every matched row reads")
 	}
 
 	fn reports_of(connection: &Connection) -> Vec<(String, Option<i64>, Option<String>)> {

@@ -1,0 +1,315 @@
+use tauri::State;
+
+use super::contract::{MessageHit, MessageSearchError, MessageSearchQuery};
+use crate::db;
+
+fn ready(state: &db::DatabaseState) -> Result<&db::Database, MessageSearchError> {
+	state.as_ref().map_err(|failure| MessageSearchError::Unavailable { failure: failure.into() })
+}
+
+#[tauri::command]
+pub async fn search_messages(
+	state: State<'_, db::DatabaseState>,
+	query: MessageSearchQuery,
+) -> Result<Vec<MessageHit>, MessageSearchError> {
+	ready(&state)?.search().messages(query).await
+}
+
+#[cfg(test)]
+mod tests {
+	use std::fs;
+
+	use rusqlite::params;
+	use tauri::test::{mock_builder, mock_context, noop_assets, MockRuntime};
+	use tauri::{App, Manager as _};
+
+	use super::*;
+	use crate::db::repositories::messages::{NewAssistantMessage, TerminalState};
+	use crate::db::repositories::search::{MAX_HITS, MAX_QUERY_CHARS};
+	use crate::search::contract::{ConversationKind, SnippetPart};
+
+	const A_SPACE_EACH: &str = "
+		INSERT INTO spaces (id, name, colour, position, created_at)
+			VALUES ('work', 'Work', 'blue', 1, 1);
+		INSERT INTO bots (id, space_id, name, model, created_at)
+			VALUES ('b1', 'personal', 'First', 'sonnet', 1),
+				('b2', 'work', 'Second', 'sonnet', 1);
+		INSERT INTO conversations (id, kind, space_id, title, created_at, updated_at)
+			VALUES ('c1', 'main', NULL, 'Chat', 1, 1), ('c2', 'topic', 'work', 'Room', 1, 1);
+		INSERT INTO conversation_participants (conversation_id, bot_id, role, joined_at, join_seq)
+			VALUES ('c1', 'b1', 'assistant', 1, 0), ('c2', 'b2', 'lead', 1, 0);
+		INSERT INTO turns (id, conversation_id, seq, started_at)
+			VALUES ('t1', 'c1', 1, 1), ('t2', 'c2', 1, 1);
+	";
+
+	async fn a_host(name: &str) -> App<MockRuntime> {
+		let mut context = mock_context(noop_assets());
+		context.config_mut().identifier =
+			format!("com.kiroshi.search-commands-{name}-{}", std::process::id()).into();
+		let app = mock_builder().build(context).expect("the app builds");
+		if let Ok(dir) = app.path().app_data_dir() {
+			let _ = fs::remove_dir_all(&dir);
+		}
+		app.manage(db::bootstrap(app.handle()));
+		plant(&app, A_SPACE_EACH).await;
+		app
+	}
+
+	fn cleaned(app: &App<MockRuntime>) {
+		if let Ok(dir) = app.path().app_data_dir() {
+			let _ = fs::remove_dir_all(&dir);
+		}
+	}
+
+	async fn plant(app: &App<MockRuntime>, statements: &str) {
+		let statements = statements.to_owned();
+		ready(&app.state::<db::DatabaseState>())
+			.expect("the database opens")
+			.call_mut(move |connection| Ok(connection.execute_batch(&statements)?))
+			.await
+			.expect("the rows are planted");
+	}
+
+	async fn a_settled_message(app: &App<MockRuntime>, id: &str, room: &str, text: &str, at: i64) {
+		let turn = if room == "c1" { "t1" } else { "t2" };
+		let bot = if room == "c1" { "b1" } else { "b2" };
+		plant(
+			app,
+			&format!(
+				"INSERT INTO messages (id, conversation_id, turn_id, author_bot_id, seq, role,
+					content, completion_state, created_at)
+					VALUES ('{id}', '{room}', '{turn}', '{bot}', {at}, 'assistant', '{text}',
+						'complete', {at});"
+			),
+		)
+		.await;
+	}
+
+	async fn indexed_rows(app: &App<MockRuntime>, message_id: &str) -> i64 {
+		let message_id = message_id.to_owned();
+		ready(&app.state::<db::DatabaseState>())
+			.expect("the database opens")
+			.call(move |connection| {
+				Ok(connection.query_row(
+					"SELECT COUNT(*) FROM message_search WHERE message_id = ?1",
+					params![message_id],
+					|row| row.get(0),
+				)?)
+			})
+			.await
+			.expect("the index reads")
+	}
+
+	fn in_space(text: &str, space_id: &str) -> MessageSearchQuery {
+		MessageSearchQuery {
+			text: text.to_owned(),
+			space_id: space_id.to_owned(),
+			all_spaces: false,
+		}
+	}
+
+	fn everywhere(text: &str) -> MessageSearchQuery {
+		MessageSearchQuery {
+			text: text.to_owned(),
+			space_id: "personal".to_owned(),
+			all_spaces: true,
+		}
+	}
+
+	async fn found(app: &App<MockRuntime>, query: MessageSearchQuery) -> Vec<MessageHit> {
+		search_messages(app.state(), query).await.expect("the search answers")
+	}
+
+	fn ids(hits: &[MessageHit]) -> Vec<String> {
+		hits.iter().map(|hit| hit.message_id.clone()).collect()
+	}
+
+	#[tokio::test]
+	async fn a_search_holds_to_its_space_until_every_space_is_asked_for() {
+		let app = a_host("scope").await;
+		a_settled_message(&app, "m1", "c1", "the cafe opens at dawn", 1).await;
+		a_settled_message(&app, "m2", "c2", "the cafe closes at dusk", 2).await;
+
+		let here = found(&app, in_space("cafe", "personal")).await;
+		let anywhere = found(&app, everywhere("cafe")).await;
+
+		assert_eq!(ids(&here), vec!["m1".to_owned()], "the scope let another space through");
+		assert_eq!(here[0].space_id.as_deref(), Some("personal"), "a main chat lost its space");
+		assert_eq!(here[0].conversation_kind, ConversationKind::Main, "the kind of the room moved");
+		assert_eq!(here[0].conversation_title, "Chat", "the title of the room moved");
+		assert_eq!(here[0].author_bot_id.as_deref(), Some("b1"), "the author of the hit moved");
+		assert_eq!(here[0].seq, 1, "the seq of the hit moved");
+		assert_eq!(ids(&anywhere), vec!["m2".to_owned(), "m1".to_owned()], "a space was left out");
+
+		cleaned(&app);
+	}
+
+	#[tokio::test]
+	async fn a_message_reaches_the_index_once_it_settles_and_holds_a_single_row() {
+		let app = a_host("settle").await;
+		let state = app.state::<db::DatabaseState>();
+		let database = ready(&state).expect("the database opens");
+		database
+			.messages()
+			.open_assistant_message(NewAssistantMessage {
+				id: "m1".to_owned(),
+				conversation_id: "c1".to_owned(),
+				turn_id: "t1".to_owned(),
+				author_bot_id: Some("b1".to_owned()),
+				replied_to_message_id: None,
+				created_at: 1,
+			})
+			.await
+			.expect("the message opens");
+		database
+			.messages()
+			.append_text("m1".to_owned(), "the cafe".to_owned())
+			.await
+			.expect("the first delta lands");
+		database
+			.messages()
+			.append_text("m1".to_owned(), " opens at dawn".to_owned())
+			.await
+			.expect("the second delta lands");
+
+		let while_streaming = found(&app, in_space("cafe", "personal")).await;
+		assert!(while_streaming.is_empty(), "an unfinished message was already indexed");
+		assert_eq!(indexed_rows(&app, "m1").await, 0, "an unfinished message holds an index row");
+
+		database
+			.messages()
+			.finalize_message("m1".to_owned(), TerminalState::Complete, None)
+			.await
+			.expect("the message settles");
+
+		let settled = found(&app, in_space("dawn", "personal")).await;
+		assert_eq!(
+			ids(&settled),
+			vec!["m1".to_owned()],
+			"a settled message stayed out of the index"
+		);
+		assert_eq!(indexed_rows(&app, "m1").await, 1, "a message holds more than one index row");
+
+		cleaned(&app);
+	}
+
+	#[tokio::test]
+	async fn every_word_is_required_and_the_last_one_matches_as_a_prefix() {
+		let app = a_host("words").await;
+		a_settled_message(&app, "m1", "c1", "the cafe opens at dawn", 1).await;
+		a_settled_message(&app, "m2", "c1", "the bakery opens at dawn", 2).await;
+
+		let both = found(&app, in_space("cafe daw", "personal")).await;
+		let missing = found(&app, in_space("cafe bakery", "personal")).await;
+
+		assert_eq!(ids(&both), vec!["m1".to_owned()], "a word of the query went unmatched");
+		assert!(missing.is_empty(), "a message carrying only one of the words was answered");
+
+		cleaned(&app);
+	}
+
+	#[tokio::test]
+	async fn the_case_and_the_accents_of_the_query_do_not_matter() {
+		let app = a_host("folding").await;
+		a_settled_message(&app, "m1", "c1", "the CAFÉ opens at dawn", 1).await;
+		a_settled_message(&app, "m2", "c1", "the creme is ready", 2).await;
+
+		let unaccented = found(&app, in_space("cafe", "personal")).await;
+		let accented = found(&app, in_space("crème", "personal")).await;
+		let shouted = found(&app, in_space("DAWN", "personal")).await;
+
+		assert_eq!(ids(&unaccented), vec!["m1".to_owned()], "an accent in the message hid it");
+		assert_eq!(ids(&accented), vec!["m2".to_owned()], "an accent in the query hid a message");
+		assert_eq!(ids(&shouted), vec!["m1".to_owned()], "the case of the query hid a message");
+
+		cleaned(&app);
+	}
+
+	#[tokio::test]
+	async fn punctuation_reads_as_a_separator_and_a_query_without_a_word_answers_nothing() {
+		let app = a_host("punctuation").await;
+		a_settled_message(&app, "m1", "c1", "the cafe opens at dawn", 1).await;
+
+		let empty = found(&app, in_space("*** \"", "personal")).await;
+		let operators = found(&app, in_space("cafe* ^dawn -at:", "personal")).await;
+		let quoted = found(&app, in_space("(cafe) \"dawn", "personal")).await;
+
+		assert!(empty.is_empty(), "a query without a letter or a digit answered a hit");
+		assert_eq!(ids(&operators), vec!["m1".to_owned()], "an operator broke the search");
+		assert_eq!(ids(&quoted), vec!["m1".to_owned()], "a quote broke the search");
+
+		cleaned(&app);
+	}
+
+	#[tokio::test]
+	async fn a_deleted_row_leaves_the_index_with_the_message_and_with_the_conversation() {
+		let app = a_host("deletion").await;
+		a_settled_message(&app, "m1", "c1", "the cafe opens at dawn", 1).await;
+		a_settled_message(&app, "m2", "c2", "the cafe closes at dusk", 2).await;
+
+		plant(&app, "DELETE FROM messages WHERE id = 'm1';").await;
+		plant(&app, "DELETE FROM conversations WHERE id = 'c2';").await;
+
+		assert!(found(&app, everywhere("cafe")).await.is_empty(), "a deleted row still answers");
+		assert_eq!(indexed_rows(&app, "m1").await, 0, "a deleted message kept its index row");
+		assert_eq!(indexed_rows(&app, "m2").await, 0, "a deleted conversation kept its index rows");
+
+		cleaned(&app);
+	}
+
+	#[tokio::test]
+	async fn a_hit_carries_its_snippet_with_the_matched_words_flagged() {
+		let app = a_host("snippet").await;
+		a_settled_message(&app, "m1", "c1", "the cafe opens at dawn", 1).await;
+
+		let hits = found(&app, in_space("cafe", "personal")).await;
+
+		assert_eq!(
+			hits[0].snippet,
+			vec![
+				SnippetPart { text: "the ".to_owned(), matched: false },
+				SnippetPart { text: "cafe".to_owned(), matched: true },
+				SnippetPart { text: " opens at dawn".to_owned(), matched: false },
+			],
+			"the snippet lost the words it matched"
+		);
+
+		cleaned(&app);
+	}
+
+	#[tokio::test]
+	async fn hits_come_back_by_relevance_then_by_the_most_recent() {
+		let app = a_host("order").await;
+		a_settled_message(&app, "m1", "c1", "cafe", 1).await;
+		a_settled_message(&app, "m2", "c1", "cafe", 2).await;
+		a_settled_message(&app, "m3", "c1", "cafe opens at dawn under a long awning of canvas", 3)
+			.await;
+
+		let hits = found(&app, in_space("cafe", "personal")).await;
+
+		assert_eq!(
+			ids(&hits),
+			vec!["m2".to_owned(), "m1".to_owned(), "m3".to_owned()],
+			"the hits came back out of relevance and recency order"
+		);
+
+		cleaned(&app);
+	}
+
+	#[tokio::test]
+	async fn the_answer_stops_at_the_hit_cap_and_the_query_stops_at_the_length_cap() {
+		let app = a_host("caps").await;
+		for at in 1..=i64::from(MAX_HITS) + 5 {
+			a_settled_message(&app, &format!("m{at}"), "c1", "the cafe opens at dawn", at).await;
+		}
+
+		let capped = found(&app, in_space("cafe", "personal")).await;
+		let past_the_cap = format!("cafe {}zebra", "dawn ".repeat(MAX_QUERY_CHARS / 5));
+		let cut = found(&app, in_space(&past_the_cap, "personal")).await;
+
+		assert_eq!(capped.len(), MAX_HITS as usize, "the answer went past the hit cap");
+		assert_eq!(cut.len(), MAX_HITS as usize, "the query text past the length cap was read");
+
+		cleaned(&app);
+	}
+}
