@@ -268,8 +268,8 @@ const reportPass = async (
 	const started = now()
 	const spent = () => now() - started
 	const read = (ms: number) => boundedRead(port, ms, signal)
-	const left = () => POLL_BUDGET_MS - spent()
-	const polling = () => read(Math.max(Math.min(bound, left()), 1))
+	const pollBound = () => Math.max(Math.min(bound, POLL_BUDGET_MS - spent()), 1)
+	const polling = () => read(pollBound())
 	const { takes, giveUp } = await polledTakes(
 		polling,
 		names,
