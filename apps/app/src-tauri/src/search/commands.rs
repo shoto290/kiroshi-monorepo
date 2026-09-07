@@ -11,10 +11,6 @@ fn ready(state: &db::DatabaseState) -> Result<&db::Database, StorageFailure> {
 	state.as_ref().map_err(StorageFailure::from)
 }
 
-fn unavailable(failure: StorageFailure) -> CatalogueError {
-	CatalogueError::Unavailable { failure }
-}
-
 #[tauri::command]
 pub async fn search_messages(
 	state: State<'_, db::DatabaseState>,
@@ -35,7 +31,7 @@ pub async fn search_catalogue(
 	all_spaces: bool,
 ) -> Result<Catalogue, CatalogueError> {
 	ready(&state)
-		.map_err(unavailable)?
+		.map_err(|failure| CatalogueError::Unavailable { failure })?
 		.catalogue()
 		.search(CatalogueScope { query, space_id, all_spaces })
 		.await
@@ -46,7 +42,11 @@ pub async fn search_recent(
 	state: State<'_, db::DatabaseState>,
 	space_id: String,
 ) -> Result<Vec<CatalogueChat>, CatalogueError> {
-	ready(&state).map_err(unavailable)?.catalogue().recent(space_id).await
+	ready(&state)
+		.map_err(|failure| CatalogueError::Unavailable { failure })?
+		.catalogue()
+		.recent(space_id)
+		.await
 }
 
 #[cfg(test)]
