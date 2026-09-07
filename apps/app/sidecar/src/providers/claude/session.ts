@@ -16,12 +16,12 @@ import { securityFloor } from "./security-floor"
 import {
 	CONNECT_BUDGET_MS,
 	type ConnectPass,
-	sectionPrefixer,
+	delay,
 	unconnectedServers,
 } from "./server-connect"
 import { type ResolvedServers, resolvedServers } from "./server-env"
 import { inheritedEnv } from "./session-env"
-import { layerFor } from "./system-layer"
+import { layerFor, unavailableServersSection } from "./system-layer"
 
 import type {
 	AgentCommand,
@@ -144,49 +144,67 @@ export type ConnectionReport = {
 	releaseAfter?: number
 }
 
-const afterOpenedFrame = <T>(work: () => Promise<T>): Promise<T> =>
-	new Promise((resolve) => {
-		setTimeout(() => resolve(work()), 0)
-	})
-
 export const reportConnections = ({
 	emit,
 	push,
 	pass,
 	releaseAfter = HELD_RELEASE_MS,
 }: ConnectionReport) => {
+	const abandoning = new AbortController()
+	const signal = abandoning.signal
 	const held: string[] = []
-	let prefix: ((text: string) => string) | undefined
+	let details: string[] = []
+	let holding = true
+	let announced = false
 
-	const flush = () => {
-		for (const text of held.splice(0)) {
-			push(prefix ? prefix(text) : text)
+	const hand = (text: string) => {
+		if (announced || details.length === 0) {
+			push(text)
+			return
 		}
-	}
-
-	const settle = (details: string[]) => {
+		announced = true
 		for (const detail of details) {
 			emit({ type: "server_env_rejected", detail })
 		}
-		prefix = sectionPrefixer(details)
-		flush()
+		push(`${unavailableServersSection(details)}\n\n${text}`)
 	}
 
-	const deadline = setTimeout(flush, releaseAfter)
-	void afterOpenedFrame(() => unconnectedServers(pass))
-		.then(settle, () => settle([]))
-		.finally(() => clearTimeout(deadline))
+	const release = (reported: string[]) => {
+		if (signal.aborted) {
+			return
+		}
+		details = reported
+		holding = false
+		for (const text of held.splice(0)) {
+			hand(text)
+		}
+	}
+
+	void delay(0, signal)
+		.then(() => (signal.aborted ? [] : unconnectedServers({ ...pass, signal })))
+		.then(release, () => release([]))
+
+	void delay(releaseAfter, signal).then(() => {
+		if (holding) {
+			release([])
+		}
+	})
 
 	return {
 		prompt: (text: string) => {
-			if (prefix) {
-				push(prefix(text))
+			if (holding) {
+				held.push(text)
 				return
 			}
-			held.push(text)
+			hand(text)
 		},
 		drop: () => {
 			held.length = 0
+		},
+		abandon: () => {
+			abandoning.abort()
+			held.length = 0
+			holding = false
 		},
 	}
 }
@@ -269,7 +287,7 @@ export const openClaudeSession = async (
 		decide: permissions.decide,
 		close: async () => {
 			closing = true
-			report.drop()
+			report.abandon()
 			prompts.end()
 			run.close()
 			await drained

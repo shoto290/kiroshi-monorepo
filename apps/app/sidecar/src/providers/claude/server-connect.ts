@@ -1,7 +1,6 @@
 import type { McpServerStatus } from "@anthropic-ai/claude-agent-sdk"
 
 import { leftOut } from "./server-env"
-import { unavailableServersSection } from "./system-layer"
 
 import type { ServerEnv } from "../provider"
 import { describeError } from "../../describe-error"
@@ -17,7 +16,13 @@ export type ConnectPass = {
 	names: string[]
 	port: ConnectPort
 	env?: ServerEnv
+	signal?: AbortSignal
 	wait?: (ms: number) => Promise<void>
+}
+
+type PassOutcome = {
+	reported: string[]
+	missing: string[]
 }
 
 export const CONNECT_BUDGET_MS = 15_000
@@ -28,24 +33,41 @@ const PENDING_WAIT = PENDING_POLLS * PENDING_POLL
 const RECONNECT_LIMIT = 20_000
 const PASS_LIMIT = PENDING_WAIT * 2 + RECONNECT_LIMIT
 const REASON_LIMIT = 300
+const SECRET_FLOOR = 8
 const REDACTED = "[redacted]"
 const NO_REASON = "no reason given"
+const NO_READ = "no status read ever named it"
 const TWO_ATTEMPTS = "two connection attempts failed"
 const AWAITING_AUTH = "it is waiting for you to authorize it"
 const GAVE_UP = "the connection pass gave up on"
+const REPORTED = ["pending", "failed", "needs-auth"]
 
 const OUTLASTED = Symbol("outlasted")
 
-const delay = (ms: number): Promise<void> =>
-	new Promise((resolve) => setTimeout(resolve, ms))
+export const delay = (ms: number, signal?: AbortSignal): Promise<void> =>
+	new Promise((resolve) => {
+		if (signal?.aborted) {
+			resolve()
+			return
+		}
+		const settle = () => {
+			clearTimeout(timer)
+			signal?.removeEventListener("abort", settle)
+			resolve()
+		}
+		const timer = setTimeout(settle, ms)
+		signal?.addEventListener("abort", settle)
+	})
 
 const withinDeadline = async <T>(
 	work: Promise<T>,
 	ms: number,
+	signal?: AbortSignal,
 ): Promise<T | typeof OUTLASTED> => {
 	let timer: ReturnType<typeof setTimeout> | undefined
 	const bound = new Promise<typeof OUTLASTED>((resolve) => {
 		timer = setTimeout(() => resolve(OUTLASTED), ms)
+		signal?.addEventListener("abort", () => resolve(OUTLASTED), { once: true })
 	})
 	try {
 		return await Promise.race([work, bound])
@@ -54,36 +76,27 @@ const withinDeadline = async <T>(
 	}
 }
 
-const stillPending = (statuses: ServerStatus[], names: string[]): boolean =>
-	statuses.some(
-		({ name, status }) => names.includes(name) && status === "pending",
-	)
+const lastRead = (
+	reads: ServerStatus[],
+	name: string,
+): ServerStatus | undefined => reads.findLast((read) => read.name === name)
 
-const notConnected = (statuses: ServerStatus[], names: string[]): string[] => {
-	const settled = new Set(
-		statuses
-			.filter(({ status }) => status === "connected" || status === "disabled")
-			.map(({ name }) => name),
-	)
-	return names.filter((name) => !settled.has(name))
-}
-
-const awaitingAuth = (statuses: ServerStatus[], names: string[]): string[] =>
-	statuses
-		.filter(
-			({ name, status }) => names.includes(name) && status === "needs-auth",
-		)
-		.map(({ name }) => name)
+const unsettled = (reads: ServerStatus[], names: string[]): boolean =>
+	names.some((name) => {
+		const read = lastRead(reads, name)
+		return !read || read.status === "pending"
+	})
 
 const settledStatuses = async (
 	port: ConnectPort,
 	names: string[],
 	wait: (ms: number) => Promise<void>,
+	signal?: AbortSignal,
 ): Promise<ServerStatus[]> => {
 	let statuses = await port.status()
 	for (
 		let poll = 0;
-		poll < PENDING_POLLS && stillPending(statuses, names);
+		poll < PENDING_POLLS && unsettled(statuses, names) && !signal?.aborted;
 		poll += 1
 	) {
 		await wait(PENDING_POLL)
@@ -103,19 +116,10 @@ const reconnectFailure = async (
 		),
 		RECONNECT_LIMIT,
 	)
-	return thrown === OUTLASTED ? undefined : thrown
+	return thrown === OUTLASTED
+		? `the reconnection outlasted its ${RECONNECT_LIMIT} ms deadline`
+		: thrown
 }
-
-const storedValues = ({ base, perServer }: ServerEnv): string[] =>
-	[
-		...Object.values(base ?? {}),
-		...Object.values(perServer ?? {}).flatMap((scope) => Object.values(scope)),
-	].filter((value) => value.length > 0)
-
-const readable = (reason: string, secrets: string[]): string =>
-	secrets
-		.reduce((held, secret) => held.split(secret).join(REDACTED), reason)
-		.slice(0, REASON_LIMIT)
 
 const reconnectFailures = async (
 	port: ConnectPort,
@@ -128,6 +132,17 @@ const reconnectFailures = async (
 			),
 		),
 	)
+
+const storedValues = ({ base, perServer }: ServerEnv): string[] =>
+	[
+		...Object.values(base ?? {}),
+		...Object.values(perServer ?? {}).flatMap((scope) => Object.values(scope)),
+	].filter((value) => value.length >= SECRET_FLOOR)
+
+const readable = (reason: string, secrets: string[]): string =>
+	secrets
+		.reduce((held, secret) => held.split(secret).join(REDACTED), reason)
+		.slice(0, REASON_LIMIT)
 
 const lineFor = (
 	name: string,
@@ -142,65 +157,72 @@ const lineFor = (
 				`${TWO_ATTEMPTS}, ${readable(read?.error ?? thrown ?? NO_REASON, secrets)}`,
 			)
 
-const reportPass = async ({
-	names,
-	port,
-	env = {},
-	wait = delay,
-}: ConnectPass): Promise<string[]> => {
-	const settled = await settledStatuses(port, names, wait)
-	const awaiting = awaitingAuth(settled, names)
-	const failing = notConnected(settled, names).filter(
-		(name) => !awaiting.includes(name),
-	)
+const reportPass = async (
+	{
+		names,
+		port,
+		signal,
+		wait = (ms: number) => delay(ms, signal),
+	}: ConnectPass,
+	secrets: string[],
+): Promise<PassOutcome> => {
+	const settled = await settledStatuses(port, names, wait, signal)
+	const failing = names.filter((name) => {
+		const status = lastRead(settled, name)?.status
+		return status === "failed" || status === "pending"
+	})
 	const thrown = await reconnectFailures(port, failing)
-	const after = failing.length ? await settledStatuses(port, failing, wait) : []
-	const reported = new Set([...awaiting, ...notConnected(after, failing)])
-	const secrets = storedValues(env)
+	const after = failing.length
+		? await settledStatuses(port, failing, wait, signal)
+		: []
 	const reads = [...settled, ...after]
-	return names
-		.filter((name) => reported.has(name))
-		.map((name) =>
-			lineFor(
-				name,
-				reads.findLast((read) => read.name === name),
-				thrown.get(name),
-				secrets,
+	return {
+		reported: names
+			.filter((name) => REPORTED.includes(lastRead(reads, name)?.status ?? ""))
+			.map((name) =>
+				lineFor(name, lastRead(reads, name), thrown.get(name), secrets),
 			),
-		)
+		missing: names.filter((name) => !lastRead(reads, name)),
+	}
 }
 
-const gaveUp = ({ names, env = {} }: ConnectPass, cause: string) => {
+const gaveUp = (names: string[], cause: string, secrets: string[]) => {
 	process.stderr.write(
-		`${GAVE_UP} ${names.join(", ")}: ${readable(cause, storedValues(env))}\n`,
+		`${GAVE_UP} ${names.join(", ")}: ${readable(cause, secrets)}\n`,
 	)
 }
 
-export const unconnectedServers = async (
-	pass: ConnectPass,
-): Promise<string[]> => {
-	if (pass.names.length === 0) {
+export const unconnectedServers = async ({
+	env = {},
+	...pass
+}: ConnectPass): Promise<string[]> => {
+	const { names, signal } = pass
+	if (names.length === 0) {
 		return []
 	}
+	const secrets = storedValues(env)
 	try {
-		const reported = await withinDeadline(reportPass(pass), PASS_LIMIT)
-		if (reported !== OUTLASTED) {
-			return reported
+		const outcome = await withinDeadline(
+			reportPass(pass, secrets),
+			PASS_LIMIT,
+			signal,
+		)
+		if (signal?.aborted) {
+			return []
 		}
-		gaveUp(pass, `it outlasted ${PASS_LIMIT} ms`)
+		if (outcome === OUTLASTED) {
+			gaveUp(names, `it outlasted ${PASS_LIMIT} ms`, secrets)
+			return []
+		}
+		if (outcome.missing.length) {
+			gaveUp(outcome.missing, NO_READ, secrets)
+		}
+		return outcome.reported
 	} catch (error) {
-		gaveUp(pass, describeError(error))
-	}
-	return []
-}
-
-export const sectionPrefixer = (details: string[]) => {
-	let pending = details.length > 0
-	return (text: string) => {
-		if (!pending) {
-			return text
+		if (signal?.aborted) {
+			return []
 		}
-		pending = false
-		return `${unavailableServersSection(details)}\n\n${text}`
+		gaveUp(names, describeError(error), secrets)
+		return []
 	}
 }

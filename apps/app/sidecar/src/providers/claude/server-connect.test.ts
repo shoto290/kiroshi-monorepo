@@ -4,10 +4,8 @@ import {
 	CONNECT_BUDGET_MS,
 	type ConnectPort,
 	type ServerStatus,
-	sectionPrefixer,
 	unconnectedServers,
 } from "./server-connect"
-import { unavailableServersSection } from "./system-layer"
 
 import type { ServerEnv } from "../provider"
 
@@ -34,7 +32,7 @@ const failed = (error?: string): ServerStatus[] => [
 const connected: ServerStatus[] = [{ name: "superset", status: "connected" }]
 
 describe("unconnectedServers", () => {
-	it("reports a server reading failed, and prefixes the first prompt alone", async () => {
+	it("reports a server reading failed, with the reason its status carried", async () => {
 		const port = portReading([failed("connect ECONNREFUSED")])
 
 		const details = await unconnectedServers({ names: ["superset"], port })
@@ -43,12 +41,6 @@ describe("unconnectedServers", () => {
 			'the server "superset" was left out: two connection attempts failed, connect ECONNREFUSED',
 		])
 		expect(port.reconnected).toEqual(["superset"])
-
-		const prefix = sectionPrefixer(details)
-		expect(prefix("what is the plan?")).toBe(
-			`${unavailableServersSection(details)}\n\nwhat is the plan?`,
-		)
-		expect(prefix("and then?")).toBe("and then?")
 	})
 
 	it("waits past five seconds for a server still connecting under the budget", async () => {
@@ -153,6 +145,18 @@ describe("unconnectedServers", () => {
 		)
 	})
 
+	it("leaves a stored value shorter than eight characters out of the redaction", async () => {
+		const port = portReading([failed("dial 127.0.0.1 refused")])
+
+		const [detail] = await unconnectedServers({
+			names: ["superset"],
+			port,
+			env: { base: { PORT: "1", TOKEN: "abcdefgh" } },
+		})
+
+		expect(detail).toContain("dial 127.0.0.1 refused")
+	})
+
 	it("leaves out the in process server, a disabled server and a session given none", async () => {
 		const port = portReading([
 			[
@@ -205,11 +209,56 @@ describe("unconnectedServers", () => {
 	})
 })
 
-describe("sectionPrefixer", () => {
-	it("hands every prompt over unchanged when no server is reported", () => {
-		const prefix = sectionPrefixer([])
+describe("a server no read ever named", () => {
+	const capture = (): { written: string[]; restore: () => void } => {
+		const written: string[] = []
+		const original = process.stderr.write
+		process.stderr.write = ((line: string) => {
+			written.push(String(line))
+			return true
+		}) as typeof process.stderr.write
+		return {
+			written,
+			restore: () => {
+				process.stderr.write = original
+			},
+		}
+	}
 
-		expect(prefix("first")).toBe("first")
-		expect(prefix("second")).toBe("second")
+	it("rides no frame, keeps being polled, and lands on stderr", async () => {
+		const port = portReading([[]])
+		const stderr = capture()
+
+		const details = await unconnectedServers({
+			names: ["superset"],
+			port,
+			wait: async () => {},
+		})
+		stderr.restore()
+
+		expect(details).toEqual([])
+		expect(port.reads).toBeGreaterThan(1)
+		expect(stderr.written).toEqual([
+			"the connection pass gave up on superset: no status read ever named it\n",
+		])
+	})
+
+	it("writes nothing and reports nothing once the pass is abandoned", async () => {
+		const abandoning = new AbortController()
+		const port = portReading([[{ name: "superset", status: "pending" }]])
+		const stderr = capture()
+
+		const passing = unconnectedServers({
+			names: ["superset"],
+			port,
+			signal: abandoning.signal,
+			wait: async () => {},
+		})
+		abandoning.abort()
+		const details = await passing
+		stderr.restore()
+
+		expect(details).toEqual([])
+		expect(stderr.written).toEqual([])
 	})
 })

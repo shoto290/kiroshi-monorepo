@@ -8,7 +8,11 @@ import type { Settings } from "@anthropic-ai/claude-agent-sdk"
 import { claudeSourceExecutable } from "./build"
 import { EXECUTABLE_OVERRIDE_ENV } from "./executable"
 import { KIROSHI_SERVER } from "./kiroshi-server"
-import { CONNECT_BUDGET_MS, type ServerStatus } from "./server-connect"
+import {
+	CONNECT_BUDGET_MS,
+	type ConnectPass,
+	type ServerStatus,
+} from "./server-connect"
 import {
 	buildOptions,
 	CLASSIFY_ASK_USER_QUESTION,
@@ -584,14 +588,46 @@ describe("reportConnections", () => {
 	const detail =
 		'the server "superset" was left out: two connection attempts failed, refused'
 
+	const section = unavailableServersSection([detail])
+
+	type Report = {
+		emitted: string[]
+		pushed: string[]
+		settled: Promise<void>
+		report: ReturnType<typeof reportConnections>
+	}
+
+	const reporting = (pass: ConnectPass, releaseAfter?: number): Report => {
+		const emitted: string[] = []
+		const pushed: string[] = []
+		const done = Promise.withResolvers<void>()
+		const report = reportConnections({
+			emit: (frame) => {
+				emitted.push(String(frame.detail))
+			},
+			push: (text) => {
+				pushed.push(text)
+				done.resolve()
+			},
+			pass,
+			...(releaseAfter ? { releaseAfter } : {}),
+		})
+		return { emitted, pushed, settled: done.promise, report }
+	}
+
+	const refusing = (): ConnectPass => ({
+		names: ["superset"],
+		port: { status: async () => refused, reconnect: async () => {} },
+	})
+
+	const ticked = () => new Promise((resolve) => setTimeout(resolve, 10))
+
 	it("lets the session be announced before the pass reads a status", async () => {
 		const order: string[] = []
 		const read = Promise.withResolvers<void>()
 
 		reportConnections({
-			emit: (frame) => {
-				order.push(String(frame.type))
-			},
+			emit: () => {},
 			push: () => {},
 			pass: {
 				names: ["superset"],
@@ -614,115 +650,114 @@ describe("reportConnections", () => {
 		expect(order).toEqual(["opened", "status"])
 	})
 
-	it("holds every prompt behind the pass and prefixes the first it releases", async () => {
-		const pushed: string[] = []
-		const released = Promise.withResolvers<void>()
-		const report = reportConnections({
-			emit: () => {},
-			push: (text) => {
-				pushed.push(text)
-				if (pushed.length === 2) {
-					released.resolve()
-				}
-			},
-			pass: {
-				names: ["superset"],
-				port: {
-					status: async () => refused,
-					reconnect: async () => {},
-				},
-			},
-		})
+	it("emits its frames in the call that hands the prefixed prompt over", async () => {
+		const { emitted, pushed, settled, report } = reporting(refusing())
+
+		report.prompt("first")
+		await settled
+
+		expect(emitted).toEqual([detail])
+		expect(pushed).toEqual([`${section}\n\nfirst`])
+	})
+
+	it("emits no frame while the pass settles on its own", async () => {
+		const { emitted, pushed } = reporting(refusing())
+
+		await ticked()
+
+		expect(emitted).toEqual([])
+		expect(pushed).toEqual([])
+	})
+
+	it("holds every prompt behind the pass and names the servers once", async () => {
+		const { emitted, pushed, report } = reporting(refusing())
 
 		report.prompt("first")
 		report.prompt("second")
 
 		expect(pushed).toEqual([])
 
-		await released.promise
+		await ticked()
+		report.prompt("third")
 
-		expect(pushed).toEqual([
-			`${unavailableServersSection([detail])}\n\nfirst`,
-			"second",
-		])
+		expect(emitted).toEqual([detail])
+		expect(pushed).toEqual([`${section}\n\nfirst`, "second", "third"])
 	})
 
 	it("releases every held prompt unprefixed when the pass gives up", async () => {
-		const pushed: string[] = []
-		const released = Promise.withResolvers<void>()
 		const written = process.stderr.write
 		process.stderr.write = (() => true) as typeof process.stderr.write
-		const report = reportConnections({
-			emit: () => {},
-			push: (text) => {
-				pushed.push(text)
-				released.resolve()
-			},
-			pass: {
-				names: ["superset"],
-				port: {
-					status: async () => {
-						throw new Error("the query is gone")
-					},
-					reconnect: async () => {},
+		const { emitted, pushed, settled, report } = reporting({
+			names: ["superset"],
+			port: {
+				status: async () => {
+					throw new Error("the query is gone")
 				},
+				reconnect: async () => {},
 			},
 		})
 
 		report.prompt("first")
-		await released.promise
+		await settled
 		process.stderr.write = written
 
 		expect(pushed).toEqual(["first"])
+		expect(emitted).toEqual([])
 	})
 
-	it("drops every held prompt when the turn is cancelled or the session closes", async () => {
-		const pushed: string[] = []
-		const emitted: string[] = []
-		const settled = Promise.withResolvers<void>()
-		const report = reportConnections({
-			emit: (frame) => {
-				emitted.push(String(frame.detail))
-				settled.resolve()
-			},
-			push: (text) => {
-				pushed.push(text)
-			},
-			pass: {
-				names: ["superset"],
-				port: { status: async () => refused, reconnect: async () => {} },
+	it("drops the held prompts of a cancelled turn and leaves the pass running", async () => {
+		const { emitted, pushed, report } = reporting(refusing())
+
+		report.prompt("first")
+		report.drop()
+		await ticked()
+		report.prompt("second")
+
+		expect(pushed).toEqual([`${section}\n\nsecond`])
+		expect(emitted).toEqual([detail])
+	})
+
+	it("abandons the pass on a close, with no frame and no held prompt", async () => {
+		const written: string[] = []
+		const original = process.stderr.write
+		process.stderr.write = ((line: string) => {
+			written.push(String(line))
+			return true
+		}) as typeof process.stderr.write
+		const { emitted, pushed, report } = reporting({
+			names: ["superset"],
+			port: {
+				status: async () => {
+					throw new Error("the query is gone")
+				},
+				reconnect: async () => {},
 			},
 		})
 
 		report.prompt("first")
-		report.drop()
-		await settled.promise
+		report.abandon()
+		await ticked()
+		process.stderr.write = original
 
+		expect(emitted).toEqual([])
 		expect(pushed).toEqual([])
-		expect(emitted).toEqual([detail])
+		expect(written).toEqual([])
 	})
 
 	it("releases a held prompt unprefixed once the session has waited long enough", async () => {
-		const pushed: string[] = []
-		const released = Promise.withResolvers<void>()
-		const report = reportConnections({
-			emit: () => {},
-			push: (text) => {
-				pushed.push(text)
-				released.resolve()
-			},
-			pass: {
+		const { pushed, settled, report } = reporting(
+			{
 				names: ["superset"],
 				port: {
 					status: () => new Promise(() => {}),
 					reconnect: async () => {},
 				},
 			},
-			releaseAfter: 5,
-		})
+			5,
+		)
 
 		report.prompt("first")
-		await released.promise
+		await settled
 
 		expect(pushed).toEqual(["first"])
 		expect(HELD_RELEASE_MS).toBeLessThanOrEqual(10_000)

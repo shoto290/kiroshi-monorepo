@@ -153,14 +153,18 @@ Every other command names its session.
   read, leaves out every server declaring a variable and rides the same frame. A server
   the options did keep is read once the session is initialized: still not connected after
   a wait on its pending state and a single reconnection, it rides the same frame naming
-  the server and the reason its two attempts failed, and the first prompt released after
-  that read carries that same line. The session opens without waiting on that read: the
+  the server and the reason its two attempts failed. That frame goes out in the very call
+  that hands the prompt carrying the same line over, once per session, so the notice
+  lands while a turn is live. The session opens without waiting on that read: the
   `opened` frame goes out first and the prompts wait behind the read, in the order they
-  were received, ten seconds at the most, and not at all past an interrupt or a close,
-  which drop what is held. A server reading `needs-auth` is named as waiting for its
-  authorization, and no reconnection is attempted on it. No resolved value is ever named in a frame or a log line: a
-  reason is cut at 300 characters and every value the store holds reads `[redacted]` in
-  it.
+  were received, ten seconds at the most. An interrupt drops what is held and leaves the
+  read running; a close abandons it, frame, stderr line and timers included. A server
+  reading `needs-auth` is named as waiting for its authorization, and no reconnection is
+  attempted on it. A server no read ever named rides no frame: the sidecar writes one
+  stderr line naming it, as it does when the read throws or outlasts its deadline. No
+  resolved value is ever named in a frame or a log line: a reason is cut at 300
+  characters and every value of eight characters or more the store holds reads
+  `[redacted]` in it.
 
 ## Sidecar → host
 
