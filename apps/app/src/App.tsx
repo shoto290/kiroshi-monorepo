@@ -589,7 +589,7 @@ export function App() {
 		spaceName: selectedSpace?.name,
 		lookups: searchLookups,
 		navigation: searchNavigation,
-		isEnabled: !isDialogOpen,
+		canOpen: !isDialogOpen,
 	})
 
 	const isOverlayOpen = search.isOpen || isDialogOpen

@@ -142,10 +142,10 @@ const aNavigation = (): TracedNavigation => {
 type Rendering = {
 	navigation: SearchNavigation
 	port: SearchPort
-	isEnabled?: boolean
+	canOpen?: boolean
 }
 
-const renderSearch = ({ navigation, port, isEnabled = true }: Rendering) => {
+const renderSearch = ({ navigation, port, canOpen = true }: Rendering) => {
 	const lookups = createSearchLookups({
 		rosters: { [WORK]: [A_BOT] },
 		conversationRosters: { [WORK]: [A_ROOM] },
@@ -161,7 +161,7 @@ const renderSearch = ({ navigation, port, isEnabled = true }: Rendering) => {
 			lookups,
 			navigation,
 			port,
-			isEnabled,
+			canOpen,
 		}),
 	).result
 }
@@ -221,7 +221,7 @@ it("opens no palette on the chord while another dialog is open", () => {
 	const result = renderSearch({
 		navigation,
 		port: aPort(),
-		isEnabled: false,
+		canOpen: false,
 	})
 
 	act(() => press("k", true))

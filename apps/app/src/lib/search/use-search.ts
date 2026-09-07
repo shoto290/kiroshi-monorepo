@@ -26,7 +26,7 @@ import { useSearchKeys } from "./use-search-keys"
 export type SearchSource = {
 	spaceId: string | null
 	spaceName: string | undefined
-	isEnabled: boolean
+	canOpen: boolean
 	lookups: SearchLookups
 	navigation: SearchNavigation
 	port?: SearchPort
@@ -78,7 +78,7 @@ const raiseSearchFailure = () =>
 export const useSearch = ({
 	spaceId,
 	spaceName,
-	isEnabled,
+	canOpen,
 	lookups,
 	navigation,
 	port = searchPort,
@@ -135,7 +135,7 @@ export const useSearch = ({
 
 	useSearchKeys({
 		isOpen: state.isOpen,
-		canOpen: isEnabled,
+		canOpen,
 		onOpen: open,
 		onMove: (by) => controller.moveActive(by, visible.length),
 		onEnter: () => active?.onOpen(),
