@@ -730,8 +730,7 @@ function ContextMenuItemBase({
 		if (disabled || unavailable || event.pointerType === "touch") return
 		event.currentTarget.focus()
 		if (branch) branch.reveal()
-		else if (panel === "sub") context.keepSub()
-		else context.closeSubOnRest()
+		else if (panel !== "sub") context.closeSubOnRest()
 	}
 
 	const onBranchKeyDown =
@@ -1005,6 +1004,7 @@ export function ContextMenuSubContent({
 					transformOrigin: placement.side === "end" ? "left top" : "right top",
 				}}
 				onKeyDown={onKeyDown}
+				onPointerMove={context.keepSub}
 				onContextMenu={(event) => event.preventDefault()}
 				className={cn(PANEL_CLASS, className)}
 			>

@@ -1,5 +1,5 @@
 import { useState } from "react"
-import { expect, fireEvent, screen, waitFor } from "storybook/test"
+import { expect, fireEvent, screen, waitFor, within } from "storybook/test"
 
 import preview from "@workspace/storybook/preview"
 import { settled } from "@workspace/storybook/story-utils"
@@ -38,6 +38,8 @@ const openMenuOn = async (target: HTMLElement, at = { x: 180, y: 140 }) => {
 }
 
 const SUBMENU_NAME = "Move to"
+
+const SUB_REST_WAIT = 260
 
 const settledSubmenu = async () =>
 	settled(await screen.findByRole("menu", { name: SUBMENU_NAME }))
@@ -281,39 +283,74 @@ export const States = meta.story({
 	},
 })
 
+const SPACES_NAME = "Spaces"
+
+const LAST_SPACE_NOTE = "The last space a bot is in stays."
+
+const pillIn = (item: HTMLElement) =>
+	item.querySelector("span[class*='inset-0']")
+
+const rested = () =>
+	new Promise((resolve) => setTimeout(resolve, SUB_REST_WAIT))
+
+const SpacesCard = () => (
+	<ContextMenu>
+		<ContextMenuTrigger>
+			<button type="button" className={SURFACE_CLASS}>
+				Right-click for bot actions
+			</button>
+		</ContextMenuTrigger>
+		<ContextMenuContent ariaLabel="Bot actions">
+			<ContextMenuItem>Settings</ContextMenuItem>
+			<ContextMenuSub>
+				<ContextMenuSubTrigger>{SPACES_NAME}</ContextMenuSubTrigger>
+				<ContextMenuSubContent>
+					<ContextMenuCheckboxItem checked={false} closeOnSelect={false}>
+						Perso
+					</ContextMenuCheckboxItem>
+					<ContextMenuCheckboxItem checked closeOnSelect={false} unavailable>
+						Vocca
+					</ContextMenuCheckboxItem>
+					<ContextMenuSeparator />
+					<p
+						aria-hidden="true"
+						className="px-2.5 pt-0.5 pb-1.5 text-[11px] text-muted-foreground leading-[15px]"
+					>
+						{LAST_SPACE_NOTE}
+					</p>
+				</ContextMenuSubContent>
+			</ContextMenuSub>
+			<ContextMenuItem tone="destructive">Delete</ContextMenuItem>
+		</ContextMenuContent>
+	</ContextMenu>
+)
+
 export const UnavailableItem = meta.story({
-	render: () => (
-		<ContextMenu>
-			<ContextMenuTrigger>
-				<button type="button" className={SURFACE_CLASS}>
-					Right-click for spaces
-				</button>
-			</ContextMenuTrigger>
-			<ContextMenuContent ariaLabel="Spaces">
-				<ContextMenuCheckboxItem checked={false} closeOnSelect={false}>
-					Perso
-				</ContextMenuCheckboxItem>
-				<ContextMenuCheckboxItem checked closeOnSelect={false} unavailable>
-					Vocca
-				</ContextMenuCheckboxItem>
-				<ContextMenuCheckboxItem checked={false} closeOnSelect={false}>
-					Atelier
-				</ContextMenuCheckboxItem>
-			</ContextMenuContent>
-		</ContextMenu>
-	),
+	render: () => <SpacesCard />,
 	parameters: {
 		docs: {
 			description: {
 				story:
-					"`unavailable` is the other half of `disabled`, and the two are never worn at once. `disabled` is for an action that cannot be run now: it is switched off natively and stepped over, because focusing a row a reader cannot use wastes their time. `unavailable` is for a row that carries state they came to read — the ticked space a bot cannot leave — which must stay in the walk to be heard at all: it is `aria-disabled`, keeps the same dimmed skin, and reports to nobody on Enter or on a click. A pointer resting on it changes nothing — focus and the active pill stay on the row the reader left them on, since a row that lights up under the cursor and then swallows the click promises something it cannot keep. Check the arrows land on it rather than skipping it, and that landing there says both checked and disabled.",
+					"`unavailable` is the other half of `disabled`, and the two are never worn at once. `disabled` is for an action that cannot be run now: it is switched off natively and stepped over, because focusing a row a reader cannot use wastes their time. `unavailable` is for a row that carries state they came to read — the ticked space a bot cannot leave — which must stay in the walk to be heard at all: it is `aria-disabled`, keeps the same dimmed skin, and reports to nobody on Enter or on a click. A pointer resting on it changes nothing either — focus and the active pill stay on the row the reader left them on, since a row that lights up under the cursor and then swallows the click promises something it cannot keep. What it does do is hold its panel open: the submenu counts a pointer anywhere inside it, on a live row, on this one or on the note under the rule, as the reader still being there, so a trip in that crossed a root item on the way does not shut the panel 150ms later.",
 			},
 		},
 	},
 	play: async ({ canvas, userEvent }) => {
-		await openMenuOn(canvas.getByText("Right-click for spaces"))
+		const menu = await openMenuOn(
+			canvas.getByText("Right-click for bot actions"),
+		)
+		const trigger = screen.getByRole("menuitem", { name: SPACES_NAME })
+
+		await userEvent.hover(trigger)
+		const panel = await settled(
+			await screen.findByRole("menu", { name: SPACES_NAME }),
+		)
+		const live = screen.getByRole("menuitemcheckbox", { name: "Perso" })
 		const locked = screen.getByRole("menuitemcheckbox", { name: "Vocca" })
 
+		trigger.focus()
+		await userEvent.keyboard("{ArrowRight}")
+		await waitFor(() => expect(live).toHaveFocus())
 		await userEvent.keyboard("{ArrowDown}")
 		await expect(locked).toHaveFocus()
 		await expect(locked).toHaveAttribute("aria-checked", "true")
@@ -321,13 +358,24 @@ export const UnavailableItem = meta.story({
 		await expect(locked).toBeEnabled()
 
 		await userEvent.keyboard("{Enter}")
-		await expect(locked).toBeVisible()
+		await expect(panel).toBeVisible()
 
-		const live = screen.getByRole("menuitemcheckbox", { name: "Atelier" })
 		await userEvent.hover(live)
 		await expect(live).toHaveFocus()
 		await userEvent.hover(locked)
 		await expect(live).toHaveFocus()
+		await expect(pillIn(live)).not.toBeNull()
+		await expect(pillIn(locked)).toBeNull()
+
+		const away = within(menu).getByRole("menuitem", { name: "Delete" })
+		await userEvent.hover(away)
+		await expect(away).toHaveFocus()
+
+		await userEvent.hover(locked)
+		await rested()
+		await expect(panel).toBeVisible()
+		await expect(away).toHaveFocus()
+		await expect(pillIn(away)).not.toBeNull()
 	},
 })
 
