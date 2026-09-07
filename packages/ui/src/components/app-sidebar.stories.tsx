@@ -511,8 +511,8 @@ const meta = preview.meta({
 		onCreateBot: fn(),
 		onEditBot: fn(),
 		onDuplicateBot: fn(),
-		onDuplicateBotToSpace: fn(),
-		onMoveBotToSpace: fn(),
+		onAddBotToSpace: fn(),
+		onRemoveBotFromSpace: fn(),
 		onDeleteBot: fn(),
 		onOpenUserSettings: fn(),
 		onSelectSpace: fn(),
@@ -2274,15 +2274,69 @@ const openRowMenu = async (canvasElement: HTMLElement, name: string) => {
 	)
 }
 
-const DUPLICATE_TO = "Duplicate to space"
+const SPACES_BRANCH = "Spaces"
+
+const LAST_SPACE_NOTE =
+	"The last space a bot is in stays. Delete the bot to be rid of it."
 
 const tintOf = (node: HTMLElement) => getComputedStyle(node).backgroundColor
 
-export const RowDuplicateToSpace = meta.story({
+type Gestures = {
+	click: (node: Element) => Promise<void>
+	hover: (node: Element) => Promise<void>
+}
+
+const openSpacesBranch = async (
+	canvasElement: HTMLElement,
+	bot: string,
+	userEvent: Gestures,
+) => {
+	const menu = await openRowMenu(canvasElement, bot)
+	await userEvent.hover(menu.getByRole("menuitem", { name: SPACES_BRANCH }))
+	return await settled(await screen.findByRole("menu", { name: SPACES_BRANCH }))
+}
+
+type Typing = { keyboard: (keys: string) => Promise<void> }
+
+const walkIntoSpacesBranch = async (
+	canvasElement: HTMLElement,
+	bot: string,
+	userEvent: Typing,
+) => {
+	const menu = await openRowMenu(canvasElement, bot)
+	menu.getByRole("menuitem", { name: SPACES_BRANCH }).focus()
+	await userEvent.keyboard("{ArrowRight}")
+	const panel = await settled(
+		await screen.findByRole("menu", { name: SPACES_BRANCH }),
+	)
+	await waitFor(
+		() => expect(panel.contains(document.activeElement)).toBe(true),
+		FRAME_POLL,
+	)
+	return panel
+}
+
+const BEACON_IN_TWO_SPACES: Record<string, AppSidebarBot[]> = {
+	...FIVE_ROSTERS,
+	atelier: [
+		...FIVE_ROSTERS.atelier,
+		...ROSTER.filter((bot) => bot.id === "beacon"),
+	],
+}
+
+const WORDY_SPACE: Space = {
+	id: "wordy",
+	name: "Recherche, veille et documentation partagée",
+	colour: "cyan",
+}
+
+const WORDY_SPACES = [...FIVE_SPACES, WORDY_SPACE]
+
+export const RowSpaces = meta.story({
 	args: {
 		spaces: FIVE_SPACES,
 		selectedSpaceId: "vocca",
-		botsBySpaceId: FIVE_ROSTERS,
+		botsBySpaceId: BEACON_IN_TWO_SPACES,
 		user: READER,
 	},
 	parameters: {
@@ -2290,49 +2344,47 @@ export const RowDuplicateToSpace = meta.story({
 		docs: {
 			description: {
 				story:
-					"The branch under a row that sends a copy of the bot somewhere else. It sits under the entries that keep the bot where it is — the plain duplicate, which still copies into the space the bot already lives in and leaves the reader where they are, and the section branch when the account has sections. Check the branch offers every other space and never the one holding the bot — Vocca is open here, so Vocca is not on the list — that the destinations keep the order and the tint the space switcher gives them, and that choosing one reports the bot and the space it was sent to. Pick `RowContextMenu` for the actions above it, `RowMoveToSpace` for the branch under it that hands the bot over instead of copying it, `OneSpaceRowMenu` for the account that has nowhere to send a copy.",
+					"The branch under a row that says which spaces the bot belongs to. A bot is one bot in one or more spaces, not a copy per space, so there is nothing to duplicate towards and nothing to move: the branch lists every space of the account in the order the switcher gives them, each with its tint dot and its name, and ticks the ones holding the bot. Beacon sits in Vocca and Atelier here, so two rows read as ticked and three as free. The branch keeps no membership of its own — every tick is read from the rosters the sidebar was handed, so a refused edit that never reaches the store leaves the tick where it was. With the bot in more than one space, every row is live and nothing is drawn under them. Pick `RowTogglesSpaces` for both directions of the toggle in one visit, `RowLastSpace` for the bot that has only one space left.",
 			},
 		},
 	},
-	play: async ({ args, canvasElement, userEvent }) => {
+	play: async ({ canvasElement, userEvent }) => {
 		const menu = await openRowMenu(canvasElement, "Beacon")
+		await expect(
+			menu.getAllByRole("menuitem").map((item) => item.textContent),
+		).toEqual(["Settings", "Duplicate", SPACES_BRANCH, "Delete"])
+		await expect(
+			menu.getByRole("menuitem", { name: SPACES_BRANCH }),
+		).toHaveAttribute("aria-haspopup", "menu")
 
-		const branch = menu.getByRole("menuitem", { name: DUPLICATE_TO })
-		await expect(branch).toHaveAttribute("aria-haspopup", "menu")
-
-		await userEvent.hover(branch)
-		const panel = await settled(
-			await screen.findByRole("menu", { name: DUPLICATE_TO }),
+		const panel = await openSpacesBranch(canvasElement, "Beacon", userEvent)
+		const rows = within(panel).getAllByRole("menuitemcheckbox")
+		await expect(rows.map((row) => row.textContent)).toEqual(
+			FIVE_SPACES.map((space) => space.name),
 		)
-		const destinations = within(panel).getAllByRole("menuitem")
-		const offered = FIVE_SPACES.filter((space) => space.id !== "vocca")
-		await expect(destinations.map((item) => item.textContent)).toEqual(
-			offered.map((space) => space.name),
-		)
+		await expect(rows.map((row) => row.getAttribute("aria-checked"))).toEqual([
+			"false",
+			"true",
+			"true",
+			"false",
+			"false",
+		])
 		await expect(slotsIn(panel, "space-dot").map(tintOf)).toEqual(
-			offered.map((space) =>
+			FIVE_SPACES.map((space) =>
 				tokenColor(canvasElement, `--bot-blot-${space.colour}`),
 			),
 		)
-
-		await userEvent.click(destinations[2])
-		await waitFor(async () => {
-			await expect(screen.queryByRole("menu")).toBeNull()
-		}, FRAME_POLL)
-		await expect(args.onDuplicateBotToSpace).toHaveBeenCalledWith(
-			"beacon",
-			"veille",
-		)
+		for (const row of rows) await expect(row).toBeEnabled()
+		await expect(within(panel).queryByText(LAST_SPACE_NOTE)).toBeNull()
+		await expect(within(panel).queryAllByRole("separator")).toHaveLength(0)
 	},
 })
 
-const MOVE_TO_SPACE = "Move to space"
-
-export const RowMoveToSpace = meta.story({
+export const RowTogglesSpaces = meta.story({
 	args: {
 		spaces: FIVE_SPACES,
 		selectedSpaceId: "vocca",
-		botsBySpaceId: FIVE_ROSTERS,
+		botsBySpaceId: BEACON_IN_TWO_SPACES,
 		user: READER,
 	},
 	parameters: {
@@ -2340,41 +2392,234 @@ export const RowMoveToSpace = meta.story({
 		docs: {
 			description: {
 				story:
-					"The branch under a row that hands the bot over to another space, sitting directly under the one that copies it there. The two are told apart with both menus shut: the copy reads `Duplicate to space` under the copy glyph, the move reads `Move to space` under an arrow, so the pair says the same destination and differs only on the verb and the glyph — and the section branch names its own landing too, `Move to section` under a folder, since filing a bot under a section is not travel. Check the branch offers every other space and never the one holding the bot — Vocca is open here, so Vocca is not on the list — that the destinations carry the same order and the same tint the copy branch gives them, and that choosing one reports the bot and the space it is owed to and copies nothing. Pick `RowDuplicateToSpace` for the branch above it, `OneSpaceRowMenu` for the account with nowhere to send the bot.",
+					"Two spaces settled in one visit. Ticking Perso reports the bot and that space to the add handler; unticking Atelier, without reopening anything, reports them to the remove handler — a membership is rarely edited alone, so the branch and the menu under it stay open across both, the way every checkbox menu in this system behaves. Neither gesture reaches the other handler, and neither redraws a tick on its own: the rows here are fed a roster that never changes, so both stay exactly as they were drawn. The tick a reader ends up seeing is the one the host hands back, which is also what makes a refused edit honest.",
 			},
 		},
 	},
 	play: async ({ args, canvasElement, userEvent }) => {
+		const panel = await openSpacesBranch(canvasElement, "Beacon", userEvent)
+		const rows = within(panel).getAllByRole("menuitemcheckbox")
+
+		await userEvent.click(rows[0])
+		await expect(args.onAddBotToSpace).toHaveBeenCalledWith("beacon", "perso")
+		await expect(panel).toBeVisible()
+
+		await userEvent.click(rows[2])
+		await expect(args.onRemoveBotFromSpace).toHaveBeenCalledWith(
+			"beacon",
+			"atelier",
+		)
+
+		await expect(panel).toBeVisible()
+		await expect(
+			screen.getByRole("menu", { name: "Actions for Beacon" }),
+		).toBeVisible()
+		await expect(args.onAddBotToSpace).toHaveBeenCalledTimes(1)
+		await expect(args.onRemoveBotFromSpace).toHaveBeenCalledTimes(1)
+		await expect(rows.map((row) => row.getAttribute("aria-checked"))).toEqual([
+			"false",
+			"true",
+			"true",
+			"false",
+			"false",
+		])
+	},
+})
+
+export const RowMembershipsUnknown = meta.story({
+	args: {
+		spaces: FIVE_SPACES,
+		selectedSpaceId: "vocca",
+		user: READER,
+	},
+	parameters: {
+		a11y: A11Y_CONTRAST_AWAITING_DESIGN_DECISION,
+		docs: {
+			description: {
+				story:
+					"An account with spaces handed one flat roster instead of one roster per space. Which spaces hold a bot cannot be read from that, and a branch that guessed would tick the open space and lie about the rest, so the branch is not drawn at all — a host that wants it passes `botsBySpaceId`. The rest of the menu is untouched.",
+			},
+		},
+	},
+	play: async ({ canvasElement }) => {
 		const menu = await openRowMenu(canvasElement, "Beacon")
 
 		await expect(
 			menu.getAllByRole("menuitem").map((item) => item.textContent),
-		).toEqual(["Settings", "Duplicate", DUPLICATE_TO, MOVE_TO_SPACE, "Delete"])
+		).toEqual(["Settings", "Duplicate", "Delete"])
+		await expect(
+			menu.queryByRole("menuitem", { name: SPACES_BRANCH }),
+		).toBeNull()
+	},
+})
 
-		const branch = menu.getByRole("menuitem", { name: MOVE_TO_SPACE })
-		await expect(branch).toHaveAttribute("aria-haspopup", "menu")
+const LiveMemberships = (args: AppSidebarProps) => {
+	const [rosters, setRosters] = useState(args.botsBySpaceId ?? {})
 
-		await userEvent.hover(branch)
-		const panel = await settled(
-			await screen.findByRole("menu", { name: MOVE_TO_SPACE }),
-		)
-		const destinations = within(panel).getAllByRole("menuitem")
-		const offered = FIVE_SPACES.filter((space) => space.id !== "vocca")
-		await expect(destinations.map((item) => item.textContent)).toEqual(
-			offered.map((space) => space.name),
-		)
-		await expect(slotsIn(panel, "space-dot").map(tintOf)).toEqual(
-			offered.map((space) =>
-				tokenColor(canvasElement, `--bot-blot-${space.colour}`),
-			),
-		)
+	return (
+		<WorkspaceShell
+			defaultOpen
+			sidebar={
+				<AppSidebar
+					{...args}
+					botsBySpaceId={rosters}
+					onRemoveBotFromSpace={(botId, spaceId) => {
+						args.onRemoveBotFromSpace?.(botId, spaceId)
+						setRosters((held) => ({
+							...held,
+							[spaceId]: (held[spaceId] ?? []).filter(
+								(bot) => bot.id !== botId,
+							),
+						}))
+					}}
+				/>
+			}
+		>
+			{null}
+		</WorkspaceShell>
+	)
+}
 
-		await userEvent.click(destinations[2])
+export const RowLeavesOpenSpace = meta.story({
+	render: LiveMemberships,
+	args: {
+		spaces: FIVE_SPACES,
+		selectedSpaceId: "vocca",
+		botsBySpaceId: BEACON_IN_TWO_SPACES,
+		user: READER,
+	},
+	parameters: {
+		a11y: A11Y_CONTRAST_AWAITING_DESIGN_DECISION,
+		docs: {
+			description: {
+				story:
+					"Unticking the space the reader is looking at. Beacon is held by Vocca and Atelier, and Vocca is the roster on screen, so this one gesture deletes the row the menu hangs off and the menu with it. Every other row keeps the branch open for a second edit; this row hands focus to the roster region first and closes the menu on its way out, so nothing is left hanging over a row that no longer exists and a keyboard reader carries on from inside the sidebar rather than from the top of the document. Pick `RowTogglesSpaces` for the ordinary case, where the row survives its own edit and the branch stays open.",
+			},
+		},
+	},
+	play: async ({ args, canvasElement, userEvent }) => {
+		const beaconRows = () =>
+			rowsIn(canvasElement).filter(
+				(row) => slotIn(row, "roster-row-name").textContent === "Beacon",
+			)
+		await expect(beaconRows()).toHaveLength(2)
+
+		const panel = await openSpacesBranch(canvasElement, "Beacon", userEvent)
+		const rows = within(panel).getAllByRole("menuitemcheckbox")
+
+		await userEvent.click(rows[1])
+		await expect(args.onRemoveBotFromSpace).toHaveBeenCalledWith(
+			"beacon",
+			"vocca",
+		)
+		await waitFor(async () => {
+			await expect(beaconRows()).toHaveLength(1)
+		}, FRAME_POLL)
+
+		await expect(screen.queryByRole("menu")).toBeNull()
+		await expect(
+			slotIn(canvasElement, "sidebar-content").contains(document.activeElement),
+		).toBe(true)
+	},
+})
+
+export const RowLastSpace = meta.story({
+	args: {
+		spaces: FIVE_SPACES,
+		selectedSpaceId: "vocca",
+		botsBySpaceId: BEACON_IN_TWO_SPACES,
+		user: READER,
+	},
+	parameters: {
+		a11y: A11Y_CONTRAST_AWAITING_DESIGN_DECISION,
+		docs: {
+			description: {
+				story:
+					"The bot that has one space left, walked with the keyboard. Grove sits in Vocca alone: that row is `aria-disabled` rather than switched off, so the arrow walk still lands on it and a reader who cannot see the panel hears which space holds the bot — the one row they most need is the one a native `disabled` would have hidden from them. Landing there announces it ticked and unavailable, Enter and a click both report to nobody, and the next arrow stays inside the panel. The reason is the accessible description of both the `Spaces` entry and the row itself, so it is heard before the branch is opened and again on the row it applies to, however the reader got there. It is read from a node beside the entry in the row menu, exposed but unseen, because the panel it would otherwise live in is inert while the branch is shut and a description cannot be read out of an inert subtree; the note under the rule shows the same sentence to the eye and stays out of the tree. A pointer resting on the locked row moves neither the focus nor the pill: an affordance the row cannot honour is worse than none. Beacon, held by two spaces, carries no description: there is nothing to warn about while every row is live.",
+			},
+		},
+	},
+	play: async ({ args, canvasElement, userEvent }) => {
+		const menu = await openRowMenu(canvasElement, "Grove")
+		const trigger = menu.getByRole("menuitem", { name: SPACES_BRANCH })
+		const reason = menu.getByText(LAST_SPACE_NOTE)
+
+		await expect(trigger).toHaveAccessibleName(SPACES_BRANCH)
+		await expect(trigger).toHaveAttribute("aria-describedby", reason.id)
+		await expect(reason).toBeVisible()
+		await expect(reason.closest("[inert]")).toBeNull()
+		await expect(reason).not.toHaveAttribute("aria-hidden")
+
+		const panel = await walkIntoSpacesBranch(canvasElement, "Grove", userEvent)
+		const rows = within(panel).getAllByRole("menuitemcheckbox")
+		const held = rows[1]
+
+		await userEvent.keyboard("{ArrowDown}")
+		await expect(held).toHaveFocus()
+		await expect(held).toHaveAttribute("aria-checked", "true")
+		await expect(held).toHaveAttribute("aria-disabled", "true")
+		await expect(held).toHaveAccessibleDescription(LAST_SPACE_NOTE)
+
+		await userEvent.keyboard("{Enter}")
+		fireEvent.click(held)
+		await expect(args.onRemoveBotFromSpace).not.toHaveBeenCalled()
+		await expect(args.onAddBotToSpace).not.toHaveBeenCalled()
+		await expect(panel).toBeVisible()
+
+		await userEvent.keyboard("{ArrowDown}")
+		await expect(rows[2]).toHaveFocus()
+
+		await userEvent.hover(held)
+		await expect(rows[2]).toHaveFocus()
+
+		const note = within(panel).getByText(LAST_SPACE_NOTE)
+		await expect(note).toBeVisible()
+		await expect(note).toHaveAttribute("aria-hidden", "true")
+		await expect(within(panel).getAllByRole("separator")).toHaveLength(1)
+
+		await userEvent.keyboard("{Escape}{Escape}")
 		await waitFor(async () => {
 			await expect(screen.queryByRole("menu")).toBeNull()
 		}, FRAME_POLL)
-		await expect(args.onMoveBotToSpace).toHaveBeenCalledWith("beacon", "veille")
-		await expect(args.onDuplicateBotToSpace).not.toHaveBeenCalled()
+
+		const shared = await openRowMenu(canvasElement, "Beacon")
+		await expect(
+			shared.getByRole("menuitem", { name: SPACES_BRANCH }),
+		).not.toHaveAccessibleDescription()
+	},
+})
+
+export const RowSpaceNameTooLong = meta.story({
+	args: {
+		spaces: WORDY_SPACES,
+		selectedSpaceId: "vocca",
+		botsBySpaceId: BEACON_IN_TWO_SPACES,
+		user: READER,
+	},
+	parameters: {
+		a11y: A11Y_CONTRAST_AWAITING_DESIGN_DECISION,
+		docs: {
+			description: {
+				story:
+					"A space named longer than the branch is wide. The name clips on one line with an ellipsis rather than wrapping onto a second or widening the panel past the row menu it hangs off, and the two things that carry the state — the tick slot and the tint dot — keep their full size, so a long name never costs the reader the answer they opened the branch for. The full name stays the row's accessible name, so a reader who cannot see the clip still hears it whole.",
+			},
+		},
+	},
+	play: async ({ canvasElement, userEvent }) => {
+		const panel = await openSpacesBranch(canvasElement, "Beacon", userEvent)
+		const row = within(panel).getByRole("menuitemcheckbox", {
+			name: WORDY_SPACE.name,
+		})
+		const name = within(row).getByText(WORDY_SPACE.name)
+		const dot = name.previousElementSibling as HTMLElement
+		const tick = dot.previousElementSibling as HTMLElement
+
+		await expect(name.scrollWidth).toBeGreaterThan(name.clientWidth)
+		await expect(name.getBoundingClientRect().height).toBeLessThanOrEqual(
+			Number.parseFloat(getComputedStyle(name).lineHeight) + 1,
+		)
+		await expect(dot.getBoundingClientRect().width).toBe(10)
+		await expect(tick.getBoundingClientRect().width).toBe(16)
 	},
 })
 
@@ -2390,23 +2635,27 @@ export const OneSpaceRowMenu = meta.story({
 		docs: {
 			description: {
 				story:
-					"The same row menu in the account that has only one space. There is nowhere to send a copy and nowhere to move the bot, so neither space branch is drawn at all rather than drawn empty or drawn offering the space the bot is already in — a submenu that opens onto nothing is worse than no submenu. Check the menu is the three plain actions and that the plain duplicate is still there, since copying a bot beside itself has nothing to do with spaces. The two rules that fence settings and delete off from the middle stay put whatever the middle holds: a menu never opens on a rule with nothing on one side of it.",
+					"The same row menu in the account that has only one space. The branch still opens, on the single space the account has, ticked and unavailable with the note under it — an account with one space is the account where every bot is on its last space, so the branch says what it always says rather than vanishing and leaving the reader to guess where their bots live. That single row is the whole walk: opening the branch with the keyboard lands on it, and the next arrow stays on it rather than falling back through the parent menu onto `Delete` with the panel still open. The plain duplicate stays where it is: copying a bot beside itself has nothing to do with spaces. The two rules that fence settings and delete off from the middle stay put whatever the middle holds.",
 			},
 		},
 	},
-	play: async ({ canvasElement }) => {
+	play: async ({ canvasElement, userEvent }) => {
 		const menu = await openRowMenu(canvasElement, "Beacon")
 
 		await expect(
 			menu.getAllByRole("menuitem").map((item) => item.textContent),
-		).toEqual(["Settings", "Duplicate", "Delete"])
-		await expect(
-			menu.queryByRole("menuitem", { name: DUPLICATE_TO }),
-		).toBeNull()
-		await expect(
-			menu.queryByRole("menuitem", { name: MOVE_TO_SPACE }),
-		).toBeNull()
+		).toEqual(["Settings", "Duplicate", SPACES_BRANCH, "Delete"])
 		await expect(menu.getAllByRole("separator")).toHaveLength(2)
+
+		const panel = await walkIntoSpacesBranch(canvasElement, "Beacon", userEvent)
+		const rows = within(panel).getAllByRole("menuitemcheckbox")
+		await expect(rows.map((row) => row.textContent)).toEqual(["Perso"])
+		await expect(rows[0]).toHaveFocus()
+		await expect(rows[0]).toHaveAttribute("aria-disabled", "true")
+
+		await userEvent.keyboard("{ArrowDown}")
+		await expect(rows[0]).toHaveFocus()
+		await expect(within(panel).getByText(LAST_SPACE_NOTE)).toBeVisible()
 	},
 })
 
@@ -3250,11 +3499,6 @@ const MOVE_TO = "Move to section"
 
 const NEW_SECTION = "New section"
 
-type Gestures = {
-	click: (node: Element) => Promise<void>
-	hover: (node: Element) => Promise<void>
-}
-
 const openMoveToBranch = async (
 	canvasElement: HTMLElement,
 	bot: string,
@@ -3603,7 +3847,7 @@ export const FullRowMenu = meta.story({
 		...sectionArgs(),
 		spaces: FIVE_SPACES,
 		selectedSpaceId: "vocca",
-		botsBySpaceId: FIVE_ROSTERS,
+		botsBySpaceId: BEACON_IN_TWO_SPACES,
 		user: READER,
 	},
 	parameters: {
@@ -3611,7 +3855,7 @@ export const FullRowMenu = meta.story({
 		docs: {
 			description: {
 				story:
-					"Every branch a row can carry, open at once — the account that has sections to file under and spaces to travel to, which is the only place the four middle entries are read side by side. They are ordered by how far they reach: the plain duplicate and the section branch keep the bot in the space it is in, the two space branches take it out of it, so the band widens downward and the entry with the longest reach sits nearest delete. The two that name a space are adjacent and differ on the verb and the glyph alone — `Duplicate to space` under the copy, `Move to space` under the arrow — while the section branch reads `Move to section` under its folder, so every branch names what it lands in and none of them is read as a truncation of the one above. Pin leads the menu with a rule under it, and the middle stays one band: the other rules are spent under settings and over delete and nowhere else, so a hand aimed anywhere in the middle can never land on delete. Pick `RowDuplicateToSpace` and `RowMoveToSpace` for each space branch opened, `MoveBotToSection` for the section one.",
+					"Every branch a row can carry, shut, in the account that has sections to file under and spaces to belong to — the only place the middle entries are read side by side. They are ordered by how far they reach: the plain duplicate makes a second bot, the section branch files the bot inside the space it is read in, and the spaces branch says which spaces hold it at all, so the band widens downward and the entry with the longest reach sits nearest delete. The two branches name what they land in and are told apart with both shut: `Move to section` under a folder, `Spaces` under the layers glyph. Pin leads the menu with a rule under it, and the middle stays one band: the other rules are spent under settings and over delete and nowhere else, so a hand aimed anywhere in the middle can never land on delete. Pick `RowSpaces` for the spaces branch opened, `MoveBotToSection` for the section one.",
 			},
 		},
 	},
@@ -3625,8 +3869,7 @@ export const FullRowMenu = meta.story({
 			"Settings",
 			"Duplicate",
 			MOVE_TO,
-			DUPLICATE_TO,
-			MOVE_TO_SPACE,
+			SPACES_BRANCH,
 			"Delete",
 		])
 		await expect(menu.getAllByRole("separator")).toHaveLength(3)
@@ -3640,7 +3883,7 @@ export const MoveBotToSection = meta.story({
 		docs: {
 			description: {
 				story:
-					"The branch under a row that files the bot. It sits directly under the plain duplicate, in the same band as it — copying a bot and filing a bot both keep the bot in the space it is in, so nothing is drawn between them and the branches that carry it to another space come after; the rules are spent where they matter, one under the leading pin, one under settings and one over delete, so a hand aimed at anything in the middle can never land on delete. It offers every section plus the entry that files it under none, and it marks the one the bot holds now, so the branch reads as where the bot is before it reads as where it could go — Beacon sits in Research here. Choosing one reports the bot and the section, and the entry that clears it reports `null` rather than an empty string, so a host never has to guess what no section means. The branch is only drawn to a host that listens for it: `RowContextMenu` and `OneSpaceRowMenu` pass no section handlers and keep the three plain actions they always had.",
+					"The branch under a row that files the bot. It sits directly under the plain duplicate, in the same band as it — copying a bot and filing a bot both act inside the space it is read in, so nothing is drawn between them and the branch that says which spaces hold the bot at all comes after; the rules are spent where they matter, one under the leading pin, one under settings and one over delete, so a hand aimed at anything in the middle can never land on delete. It offers every section plus the entry that files it under none, and it marks the one the bot holds now, so the branch reads as where the bot is before it reads as where it could go — Beacon sits in Research here. Choosing one reports the bot and the section, and the entry that clears it reports `null` rather than an empty string, so a host never has to guess what no section means. The branch is only drawn to a host that listens for it: `RowContextMenu` passes no section handlers and keeps the plain actions it always had.",
 			},
 		},
 	},

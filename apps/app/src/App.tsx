@@ -390,7 +390,6 @@ export function App() {
 
 	const sidebarActions = useSidebarActions({
 		attachments,
-		chat: chat.controller,
 		collapsedSections: collapsedSections.controller,
 		drafts,
 		roster: roster.controller,

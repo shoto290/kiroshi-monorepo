@@ -35,11 +35,14 @@ const bots = {
 		actions: "Actions for {{name}}",
 		settings: "Settings",
 		duplicate: "Duplicate",
-		duplicateTo: "Duplicate to space",
+		spaces: {
+			label: "Spaces",
+			lastSpace:
+				"The last space a bot is in stays. Delete the bot to be rid of it.",
+		},
 		pin: "Pin",
 		pinDrop: "Drop here to pin",
 		unpin: "Unpin",
-		moveToSpace: "Move to space",
 		delete: "Delete",
 		working: "{{pose}}…",
 		pose: {

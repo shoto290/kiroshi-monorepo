@@ -680,6 +680,8 @@ export interface ContextMenuItemProps {
 	children: ReactNode
 	onSelect?: () => void
 	disabled?: boolean
+	unavailable?: boolean
+	describedBy?: string
 	closeOnSelect?: boolean
 	tone?: ContextMenuItemTone
 	inset?: boolean
@@ -699,6 +701,8 @@ function ContextMenuItemBase({
 	children,
 	onSelect,
 	disabled = false,
+	unavailable = false,
+	describedBy,
 	closeOnSelect = true,
 	tone = "default",
 	inset = false,
@@ -723,11 +727,10 @@ function ContextMenuItemBase({
 		role === "menuitem" ? {} : { "aria-checked": ariaChecked }
 
 	const onPointerMove = (event: ReactPointerEvent<HTMLButtonElement>) => {
-		if (disabled || event.pointerType === "touch") return
+		if (disabled || unavailable || event.pointerType === "touch") return
 		event.currentTarget.focus()
 		if (branch) branch.reveal()
-		else if (panel === "sub") context.keepSub()
-		else context.closeSubOnRest()
+		else if (panel !== "sub") context.closeSubOnRest()
 	}
 
 	const onBranchKeyDown =
@@ -746,6 +749,8 @@ function ContextMenuItemBase({
 			id={id}
 			role={role}
 			{...checkedProps}
+			aria-describedby={describedBy}
+			aria-disabled={unavailable || undefined}
 			aria-haspopup={branch ? "menu" : undefined}
 			aria-expanded={branch ? branch.open : undefined}
 			aria-controls={branch?.open ? branch.contentId : undefined}
@@ -759,7 +764,7 @@ function ContextMenuItemBase({
 			onPointerMove={onPointerMove}
 			onKeyDown={onBranchKeyDown || undefined}
 			onClick={() => {
-				if (disabled) return
+				if (disabled || unavailable) return
 				if (branch) {
 					branch.reveal()
 					return
@@ -771,6 +776,7 @@ function ContextMenuItemBase({
 				"relative isolate flex w-full select-none items-center gap-2.5 rounded-lg px-2.5 py-2 text-left text-[13px] outline-none",
 				"focus-visible:ring-2 focus-visible:ring-foreground/15",
 				"disabled:pointer-events-none disabled:opacity-40",
+				"aria-disabled:opacity-40",
 				inset && "pl-8",
 				tone === "destructive" ? "text-destructive" : "text-foreground",
 				branch?.open && !active && "bg-foreground/[0.065]",
@@ -998,6 +1004,7 @@ export function ContextMenuSubContent({
 					transformOrigin: placement.side === "end" ? "left top" : "right top",
 				}}
 				onKeyDown={onKeyDown}
+				onPointerMove={context.keepSub}
 				onContextMenu={(event) => event.preventDefault()}
 				className={cn(PANEL_CLASS, className)}
 			>

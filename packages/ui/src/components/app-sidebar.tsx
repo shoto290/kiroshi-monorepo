@@ -40,7 +40,7 @@ import {
 } from "@workspace/ui/components/bot-identity-avatar"
 import { BOT_IDENTITY_ANIMALS } from "@workspace/ui/components/bot-settings"
 import { Button } from "@workspace/ui/components/button"
-import { type Icon, Icons } from "@workspace/ui/components/icons"
+import { Icons } from "@workspace/ui/components/icons"
 import {
 	AnimatedSidebar,
 	AnimatedSidebarContent,
@@ -57,6 +57,7 @@ import {
 } from "@workspace/ui/components/motion/animated-sidebar"
 import {
 	ContextMenu,
+	ContextMenuCheckboxItem,
 	ContextMenuContent,
 	ContextMenuItem,
 	ContextMenuRadioGroup,
@@ -92,7 +93,7 @@ import {
 import { useSpaceShortcut } from "@workspace/ui/hooks/use-space-shortcut"
 import { toPlainText } from "@workspace/ui/lib/plain-text"
 import { probeRender } from "@workspace/ui/lib/render-probe"
-import { cn } from "@workspace/ui/lib/utils"
+import { cn, mergeRefs } from "@workspace/ui/lib/utils"
 
 const HEADER =
 	"h-12 flex-row items-center justify-end py-0 pr-2.5 group-data-[state=collapsed]/sidebar:justify-center group-data-[state=collapsed]/sidebar:px-0"
@@ -121,6 +122,18 @@ const PREVIEW_LINE =
 	"h-4 truncate pe-3.5 text-muted-foreground text-xs leading-4 empty:h-0"
 
 const DESTINATION_NAME = "min-w-0 truncate"
+
+const SPACES_PANEL = "max-w-64"
+
+const holdFocusInSidebar = (row: HTMLElement | null) => {
+	const region = row?.closest<HTMLElement>('[data-slot="sidebar-content"]')
+	if (!region) return
+	region.tabIndex = -1
+	region.focus({ preventScroll: true })
+}
+
+const LAST_SPACE_NOTE =
+	"px-2.5 pt-0.5 pb-1.5 text-[11px] text-muted-foreground leading-[15px]"
 
 const ROW =
 	"py-1.5 pl-1.5 aria-expanded:bg-sidebar-accent/70 group-data-[state=collapsed]/sidebar:pl-0"
@@ -392,8 +405,8 @@ interface BotRosterActions {
 	onSelectBot?: (id: string) => void
 	onEditBot?: (id: string) => void
 	onDuplicateBot?: (id: string) => void
-	onDuplicateBotToSpace?: (id: string, spaceId: string) => void
-	onMoveBotToSpace?: (botId: string, spaceId: string) => void
+	onAddBotToSpace?: (botId: string, spaceId: string) => void
+	onRemoveBotFromSpace?: (botId: string, spaceId: string) => void
 	onDeleteBot?: (id: string) => void
 }
 
@@ -488,40 +501,92 @@ const SectionBranch = ({
 	)
 }
 
-interface SpaceDestinationBranchProps {
+interface BotMembershipQuery {
 	botId: string
-	icon: Icon
-	label: string
-	destinations: Space[]
-	onPick?: (botId: string, spaceId: string) => void
+	botsBySpaceId?: Record<string, AppSidebarBot[]>
 }
 
-const SpaceDestinationBranch = ({
+const spaceIdsOfBot = ({
 	botId,
-	icon: Glyph,
-	label,
-	destinations,
-	onPick,
-}: SpaceDestinationBranchProps) => {
-	if (!onPick || destinations.length === 0) return null
+	botsBySpaceId,
+}: BotMembershipQuery): string[] => {
+	if (!botsBySpaceId) return []
+	return Object.entries(botsBySpaceId)
+		.filter(([, held]) => held.some((bot) => bot.id === botId))
+		.map(([spaceId]) => spaceId)
+}
+
+interface SpacesBranchProps {
+	botId: string
+	spaces: Space[]
+	memberships: string[]
+	openSpaceId?: string
+	onAddToSpace?: (botId: string, spaceId: string) => void
+	onRemoveFromSpace?: (botId: string, spaceId: string) => void
+}
+
+const SpacesBranch = ({
+	botId,
+	spaces,
+	memberships,
+	openSpaceId,
+	onAddToSpace,
+	onRemoveFromSpace,
+}: SpacesBranchProps) => {
+	const { t } = useTranslation("bots")
+	const reasonId = useId()
+
+	const hasHost = Boolean(onAddToSpace || onRemoveFromSpace)
+
+	if (!hasHost || spaces.length === 0 || memberships.length === 0) return null
+
+	const isHeldByOneSpace = memberships.length === 1
+	const reason = t("roster.spaces.lastSpace")
 
 	return (
 		<ContextMenuSub>
-			<ContextMenuSubTrigger>
-				<Glyph aria-hidden="true" className="size-3.5" />
-				{label}
+			{isHeldByOneSpace ? (
+				<span className="sr-only" id={reasonId}>
+					{reason}
+				</span>
+			) : null}
+			<ContextMenuSubTrigger
+				describedBy={isHeldByOneSpace ? reasonId : undefined}
+			>
+				<Icons.Spaces aria-hidden="true" className="size-3.5" />
+				{t("roster.spaces.label")}
 			</ContextMenuSubTrigger>
-			<ContextMenuSubContent>
-				{destinations.map((space) => (
-					<ContextMenuItem
-						key={space.id}
-						onSelect={() => onPick(botId, space.id)}
-						textValue={space.name}
-					>
-						<SpaceDot colour={space.colour} />
-						<span className={DESTINATION_NAME}>{space.name}</span>
-					</ContextMenuItem>
-				))}
+			<ContextMenuSubContent className={SPACES_PANEL}>
+				{spaces.map((space) => {
+					const isMember = memberships.includes(space.id)
+					const isLocked = isMember && isHeldByOneSpace
+					return (
+						<ContextMenuCheckboxItem
+							checked={isMember}
+							closeOnSelect={isMember && space.id === openSpaceId}
+							describedBy={isLocked ? reasonId : undefined}
+							key={space.id}
+							unavailable={isLocked}
+							onCheckedChange={(checked) =>
+								checked
+									? onAddToSpace?.(botId, space.id)
+									: onRemoveFromSpace?.(botId, space.id)
+							}
+							textValue={space.name}
+						>
+							<SpaceDot colour={space.colour} />
+							<span className={DESTINATION_NAME}>{space.name}</span>
+						</ContextMenuCheckboxItem>
+					)
+				})}
+				{isHeldByOneSpace ? (
+					<>
+						<ContextMenuSeparator />
+						<p aria-hidden="true" className={LAST_SPACE_NOTE}>
+							{reason}
+						</p>
+					</>
+				) : null}
 			</ContextMenuSubContent>
 		</ContextMenuSub>
 	)
@@ -619,13 +684,15 @@ interface RosterPinActions {
 interface BotRosterRowProps extends RosterRowSlot, RosterPinActions {
 	bot: AppSidebarBot
 	isSelected: boolean
-	destinations: Space[]
+	spaces: Space[]
+	memberships: string[]
 	sections: AppSidebarSection[]
+	openSpaceId?: string
 	onSelect?: (id: string) => void
 	onEdit?: (id: string) => void
 	onDuplicate?: (id: string) => void
-	onDuplicateToSpace?: (id: string, spaceId: string) => void
-	onMoveToSpace?: (id: string, spaceId: string) => void
+	onAddToSpace?: (botId: string, spaceId: string) => void
+	onRemoveFromSpace?: (botId: string, spaceId: string) => void
 	onDelete?: (id: string) => void
 	onMoveToSection?: (id: string, sectionId: string | null) => void
 	onCreateSectionFor?: (id: string) => void
@@ -635,8 +702,10 @@ interface BotRosterRowProps extends RosterRowSlot, RosterPinActions {
 const BotRosterRow = ({
 	bot,
 	isSelected,
-	destinations,
+	spaces,
+	memberships,
 	sections,
+	openSpaceId,
 	lift,
 	insertion,
 	slotRef,
@@ -646,8 +715,8 @@ const BotRosterRow = ({
 	onSelect,
 	onEdit,
 	onDuplicate,
-	onDuplicateToSpace,
-	onMoveToSpace,
+	onAddToSpace,
+	onRemoveFromSpace,
 	onDelete,
 	onMoveToSection,
 	onCreateSectionFor,
@@ -659,13 +728,19 @@ const BotRosterRow = ({
 		bot.badge,
 	)
 	const strips = isCollapsed ? undefined : missionStripsOf(bot.missions)
+	const rowRef = useRef<HTMLElement | null>(null)
+
+	const leaveSpace = (botId: string, spaceId: string) => {
+		if (spaceId === openSpaceId) holdFocusInSidebar(rowRef.current)
+		onRemoveFromSpace?.(botId, spaceId)
+	}
 
 	return (
 		<AnimatedSidebarMenuItem
 			{...(isPinned ? dropArea(bot.id) : undefined)}
 			className={ROW_ITEM}
 			data-tauri-drag-region="false"
-			ref={slotRef}
+			ref={mergeRefs<HTMLElement>(rowRef, slotRef)}
 		>
 			<InsertionLine edge={insertion} />
 			<ContextMenu>
@@ -740,19 +815,13 @@ const BotRosterRow = ({
 						sectionId={bot.sectionId}
 						sections={sections}
 					/>
-					<SpaceDestinationBranch
+					<SpacesBranch
 						botId={bot.id}
-						destinations={destinations}
-						icon={Icons.Copy}
-						label={t("roster.duplicateTo")}
-						onPick={onDuplicateToSpace}
-					/>
-					<SpaceDestinationBranch
-						botId={bot.id}
-						destinations={destinations}
-						icon={Icons.ArrowRight}
-						label={t("roster.moveToSpace")}
-						onPick={onMoveToSpace}
+						memberships={memberships}
+						onAddToSpace={onAddToSpace}
+						onRemoveFromSpace={leaveSpace}
+						openSpaceId={openSpaceId}
+						spaces={spaces}
 					/>
 					<ContextMenuSeparator />
 					<ContextMenuItem
@@ -1352,7 +1421,8 @@ interface BotRosterProps
 	conversations: AppSidebarConversation[]
 	selectedBotId?: string
 	selectedConversationId?: string
-	destinations: Space[]
+	spaces: Space[]
+	membershipsOf: (botId: string) => string[]
 	sections: AppSidebarSection[]
 	collapsedSectionIds?: string[]
 	naming?: SectionNaming | null
@@ -1366,7 +1436,8 @@ const BotRoster = ({
 	conversations,
 	selectedBotId,
 	selectedConversationId,
-	destinations,
+	spaces,
+	membershipsOf,
 	sections,
 	collapsedSectionIds = NO_COLLAPSED_SECTIONS,
 	onCollapseSection,
@@ -1381,8 +1452,8 @@ const BotRoster = ({
 	onSelectBot,
 	onEditBot,
 	onDuplicateBot,
-	onDuplicateBotToSpace,
-	onMoveBotToSpace,
+	onAddBotToSpace,
+	onRemoveBotFromSpace,
 	onDeleteBot,
 	onCreateSection,
 	onRenameSection,
@@ -1647,15 +1718,17 @@ const BotRoster = ({
 			<BotRosterRow
 				{...shared}
 				bot={entry.bot}
-				destinations={destinations}
 				isSelected={entry.bot.id === activeBotId}
 				key={entry.id}
+				memberships={membershipsOf(entry.bot.id)}
+				onAddToSpace={onAddBotToSpace}
 				onDelete={onDeleteBot}
 				onDuplicate={onDuplicateBot}
-				onDuplicateToSpace={onDuplicateBotToSpace}
 				onEdit={onEditBot}
-				onMoveToSpace={onMoveBotToSpace}
+				onRemoveFromSpace={onRemoveBotFromSpace}
 				onSelect={onSelectBot}
+				openSpaceId={spaceId}
+				spaces={spaces}
 			/>
 		)
 	}
@@ -2048,8 +2121,8 @@ const AppSidebarBase = ({
 	onCreateBot,
 	onEditBot,
 	onDuplicateBot,
-	onDuplicateBotToSpace,
-	onMoveBotToSpace,
+	onAddBotToSpace,
+	onRemoveBotFromSpace,
 	onDeleteBot,
 	onCreateSection,
 	onRenameSection,
@@ -2080,6 +2153,7 @@ const AppSidebarBase = ({
 		SectionActions &
 		RosterCreateActions &
 		RosterSpaceActions = {
+		onAddBotToSpace,
 		onCollapseSection,
 		onCreateBot,
 		onCreateConversation,
@@ -2088,12 +2162,11 @@ const AppSidebarBase = ({
 		onDeleteConversation,
 		onDeleteSection,
 		onDuplicateBot,
-		onDuplicateBotToSpace,
 		onEditBot,
-		onMoveBotToSpace,
 		onOpenConversationSettings,
 		onOpenSpaceSettings,
 		onPinRoster,
+		onRemoveBotFromSpace,
 		onRenameSection,
 		onSelectBot,
 		onSelectConversation,
@@ -2109,8 +2182,8 @@ const AppSidebarBase = ({
 	const sectionsOf = (spaceId: string) =>
 		sectionsBySpaceId ? (sectionsBySpaceId[spaceId] ?? NO_SECTIONS) : sections
 
-	const destinationsFrom = (spaceId?: string) =>
-		spaces.filter((space) => space.id !== spaceId)
+	const membershipsOf = (botId: string) =>
+		spaceIdsOfBot({ botId, botsBySpaceId })
 
 	const hasRosterPerSpace = Boolean(botsBySpaceId) && spaces.length > 0
 	const shown =
@@ -2196,13 +2269,14 @@ const AppSidebarBase = ({
 									collapsedSectionIds={collapsedSectionIds}
 									haveBotsFailedToLoad={haveBotsFailedToLoad}
 									conversations={roomsOf(space.id)}
-									destinations={destinationsFrom(space.id)}
+									membershipsOf={membershipsOf}
 									naming={space.id === selectedSpaceId ? naming : null}
 									onNaming={setNaming}
 									sections={sectionsOf(space.id)}
 									selectedBotId={selectedId}
 									selectedConversationId={selectedConversationId}
 									spaceId={space.id}
+									spaces={spaces}
 								/>
 							)}
 							selectedSpaceId={selectedSpaceId}
@@ -2215,13 +2289,14 @@ const AppSidebarBase = ({
 							collapsedSectionIds={collapsedSectionIds}
 							haveBotsFailedToLoad={haveBotsFailedToLoad}
 							conversations={rooms}
-							destinations={destinationsFrom(selectedSpaceId)}
+							membershipsOf={membershipsOf}
 							naming={naming}
 							onNaming={setNaming}
 							sections={sections}
 							selectedBotId={selectedId}
 							selectedConversationId={selectedConversationId}
 							spaceId={selectedSpaceId}
+							spaces={spaces}
 						/>
 					)}
 				</AnimatedSidebarContent>

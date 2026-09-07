@@ -2,10 +2,8 @@ import { useMemo } from "react"
 
 import type { AppSidebarProps } from "@workspace/ui/components/app-sidebar"
 
-import { moveBotToSpace } from "../bots/bot-space-move"
 import type { RosterController } from "../bots/roster-controller"
 import type { AttachmentsController } from "../chat/attachments-controller"
-import type { ChatController } from "../chat/chat-controller"
 import type { DraftsController } from "../chat/drafts-controller"
 import type { ConversationRuntimes } from "../conversations/conversation-runtimes"
 import type { CollapsedSectionsController } from "../sections/collapsed-sections-controller"
@@ -22,6 +20,7 @@ import type { UserPluginController } from "../user/user-plugin-controller"
 export type SidebarActions = Required<
 	Pick<
 		AppSidebarProps,
+		| "onAddBotToSpace"
 		| "onCollapseSection"
 		| "onCreateBot"
 		| "onCreateSection"
@@ -30,13 +29,12 @@ export type SidebarActions = Required<
 		| "onDeleteConversation"
 		| "onDeleteSection"
 		| "onDuplicateBot"
-		| "onDuplicateBotToSpace"
 		| "onEditBot"
-		| "onMoveBotToSpace"
 		| "onOpenConversationSettings"
 		| "onOpenSpaceSettings"
 		| "onOpenUserSettings"
 		| "onPinRoster"
+		| "onRemoveBotFromSpace"
 		| "onRenameSection"
 		| "onReorderSpaces"
 		| "onSelectBot"
@@ -47,7 +45,6 @@ export type SidebarActions = Required<
 
 export type SidebarActionsSource = {
 	attachments: AttachmentsController
-	chat: ChatController
 	collapsedSections: CollapsedSectionsController
 	drafts: DraftsController
 	roster: RosterController
@@ -61,7 +58,6 @@ export type SidebarActionsSource = {
 
 export const useSidebarActions = ({
 	attachments,
-	chat,
 	collapsedSections,
 	drafts,
 	roster,
@@ -119,17 +115,13 @@ export const useSidebarActions = ({
 			onDuplicateBot: (id) => {
 				void roster.duplicate(id)
 			},
-			onDuplicateBotToSpace: (id, spaceId) => {
-				void roster.duplicate(id, spaceId).then((copy) => {
-					if (copy) {
-						spaces.select(spaceId)
-					}
-				})
+			onAddBotToSpace: (botId, spaceId) => {
+				void roster.addToSpace(botId, spaceId)
+			},
+			onRemoveBotFromSpace: (botId, spaceId) => {
+				void roster.removeFromSpace(botId, spaceId)
 			},
 			onEditBot: roster.edit,
-			onMoveBotToSpace: (botId, spaceId) => {
-				void moveBotToSpace({ botId, spaceId, roster, chat, spaces })
-			},
 			onOpenConversationSettings: roster.editConversation,
 			onOpenSpaceSettings: () => {
 				spaces.setSettingsOpen(true)
@@ -155,7 +147,6 @@ export const useSidebarActions = ({
 		}),
 		[
 			attachments,
-			chat,
 			collapsedSections,
 			drafts,
 			roster,
