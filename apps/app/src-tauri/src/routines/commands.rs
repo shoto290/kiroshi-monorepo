@@ -454,15 +454,13 @@ mod tests {
 			.expect("the second space is planted");
 		declaring_shift_log(&app, "writers");
 
-		let found = declared_source(app.handle(), database, "c2", "b1", SHIFT_LOG)
-			.await
-			.expect("the source of the second space is stacked");
-		let in_the_oldest = declared_source(app.handle(), database, "c3", "b1", SHIFT_LOG)
-			.await
-			.expect_err("the source of another space is stacked");
-		let named_by_no_space = declared_source(app.handle(), database, "c1", "b1", SHIFT_LOG)
-			.await
-			.expect_err("the source of another space is stacked");
+		let source_of =
+			|conversation| declared_source(app.handle(), database, conversation, "b1", SHIFT_LOG);
+		let found = source_of("c2").await.expect("the source of the second space is stacked");
+		let in_the_oldest =
+			source_of("c3").await.expect_err("the source of another space is stacked");
+		let named_by_no_space =
+			source_of("c1").await.expect_err("the source of another space is stacked");
 
 		assert_eq!(found.id, SHIFT_LOG);
 		assert!(
