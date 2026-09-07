@@ -2,6 +2,11 @@ import { expect, fn } from "storybook/test"
 
 import preview from "@workspace/storybook/preview"
 import { listExhaustively, slotsIn } from "@workspace/storybook/story-utils"
+import {
+	MessageBubble,
+	MessageBubbleContent,
+	MessageBubbleGroup,
+} from "@workspace/ui/components/message-bubble"
 import type {
 	MissionEventKind,
 	MissionEventModel,
@@ -304,7 +309,7 @@ export const InAMissionThread = meta.story({
 		docs: {
 			description: {
 				story:
-					"The header and the rows a mission thread is made of, in a container squeezed to 480 pixels. Check that no row is wider than the container, that the bubbles stop at three quarters of it, and that the header bands hold their two lines. Pick this one before shipping any change to either component.",
+					"The header and the rows a mission thread is made of, in a container squeezed to 480 pixels. Check that no row is wider than the container, that the bubbles stop at 85 percent of the width left beside the gutter, and that the header bands hold their two lines. Pick this one before shipping any change to either component.",
 			},
 		},
 	},
@@ -361,6 +366,49 @@ export const LongContent = meta.story({
 		await expect(line).toBeVisible()
 		await expect(line?.scrollWidth).toBeLessThanOrEqual(
 			(line?.clientWidth ?? 0) + 1,
+		)
+	},
+})
+
+const SHARED_PARAGRAPH =
+	"Freeze writes on the legacy workspace first, then run the export against the frozen copy and check the row counts before you touch the target."
+
+const MISSION_EVENT_GUTTER_INDENT = "ps-12"
+
+const SHARED_PARAGRAPH_EVENT: MissionEventModel = {
+	id: "event-shared-paragraph",
+	kind: "note",
+	source: "bot",
+	createdAt: MISSION_NOW - 120_000,
+	text: SHARED_PARAGRAPH,
+}
+
+export const SameCapAsAChatBubble = meta.story({
+	args: { event: SHARED_PARAGRAPH_EVENT },
+	parameters: {
+		docs: {
+			description: {
+				story:
+					"The same paragraph read twice: once as a mission event, once as a chat bubble indented to where the gutter leaves off. Check that the two surfaces stop on the same trailing edge, since a mission event is capped by the bubble alone and by nothing above it. Pick `InAMissionThread` to read a whole thread instead.",
+			},
+		},
+	},
+	render: (args) => (
+		<div className="flex w-[30rem] max-w-full flex-col gap-2">
+			<MissionEventRow {...args} />
+			<MessageBubbleGroup className={MISSION_EVENT_GUTTER_INDENT}>
+				<MessageBubble variant="soft">
+					<MessageBubbleContent>{SHARED_PARAGRAPH}</MessageBubbleContent>
+				</MessageBubble>
+			</MessageBubbleGroup>
+		</div>
+	),
+	play: async ({ canvasElement }) => {
+		const [missionBubble, chatBubble] = slotsIn(canvasElement, "message-bubble")
+
+		await expect(missionBubble.getBoundingClientRect().width).toBeCloseTo(
+			chatBubble.getBoundingClientRect().width,
+			0,
 		)
 	},
 })

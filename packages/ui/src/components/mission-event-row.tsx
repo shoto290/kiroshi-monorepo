@@ -169,7 +169,7 @@ const MissionAuthoredEvent = ({
 			data-slot="mission-authored-event"
 		>
 			<MissionEventGutter Mark={face.Mark} bot={bot} />
-			<div className="flex min-w-0 max-w-[75%] flex-col gap-1">
+			<div className="flex w-full min-w-0 flex-col gap-1">
 				<MessageHeader className="min-w-0">
 					<span className="min-w-0 truncate font-medium text-foreground/80">
 						{face.label}

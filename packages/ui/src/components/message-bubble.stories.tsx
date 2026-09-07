@@ -5,6 +5,8 @@ import preview from "@workspace/storybook/preview"
 import {
 	A11Y_CONTRAST_AWAITING_DESIGN_DECISION,
 	listExhaustively,
+	slotIn,
+	slotsIn,
 } from "@workspace/storybook/story-utils"
 import {
 	BLOT_TINTS,
@@ -317,5 +319,96 @@ export const SpaceTinted = meta.story({
 			"data-space-tint",
 			"blue",
 		)
+	},
+})
+
+const SHORT_REPLY = "Booked."
+
+const UNBREAKABLE_REPLY =
+	"migration-window-export-rollback-checklist-attachment"
+
+const MAX_INLINE_SIZE_FRACTION = 0.85
+
+const inlineSizeOf = (element: Element) => element.getBoundingClientRect().width
+
+export const ContentWidths = meta.story({
+	parameters: {
+		docs: {
+			description: {
+				story:
+					"Three replies in one column so their widths read against each other: a two-word answer, a paragraph long enough to reach the cap, and an unbreakable string the product did not author. Check that the short one hugs its text, that the long one stops at 85 percent of the column, and that the unbreakable one breaks inside the surface instead of pushing past it. `NarrowContainer` covers the same three at 320 pixels.",
+			},
+		},
+	},
+	render: () => (
+		<MessageBubbleGroup spacing="default" className={THREAD_WIDTH}>
+			<MessageBubble variant="soft" align="start">
+				<MessageBubbleContent>{SHORT_REPLY}</MessageBubbleContent>
+			</MessageBubble>
+			<MessageBubble variant="soft" align="start">
+				<MessageBubbleContent>{AGENT_LONG_REPLY[0]}</MessageBubbleContent>
+			</MessageBubble>
+			<MessageBubble variant="soft" align="start">
+				<MessageBubbleContent>{UNBREAKABLE_REPLY}</MessageBubbleContent>
+			</MessageBubble>
+		</MessageBubbleGroup>
+	),
+	play: async ({ canvasElement }) => {
+		const group = slotIn(canvasElement, "message-bubble-group")
+		const [short, long] = slotsIn(canvasElement, "message-bubble")
+		const [shortContent, longContent, unbreakableContent] = slotsIn(
+			canvasElement,
+			"message-bubble-content",
+		)
+
+		await expect(inlineSizeOf(shortContent)).toBeLessThan(
+			inlineSizeOf(longContent),
+		)
+		await expect(inlineSizeOf(short)).toBe(inlineSizeOf(long))
+		await expect(inlineSizeOf(long) / inlineSizeOf(group)).toBeCloseTo(
+			MAX_INLINE_SIZE_FRACTION,
+			2,
+		)
+		await expect(unbreakableContent.scrollWidth).toBeLessThanOrEqual(
+			unbreakableContent.clientWidth + 1,
+		)
+	},
+})
+
+export const NarrowContainer = meta.story({
+	parameters: {
+		docs: {
+			description: {
+				story:
+					"The same three replies in a container squeezed to 320 pixels. Check that nothing scrolls sideways and that the unbreakable string wraps inside the surface. `ContentWidths` compares the three at thread width.",
+			},
+		},
+	},
+	render: () => (
+		<div className="w-80">
+			<MessageBubbleGroup spacing="default">
+				<MessageBubble variant="soft" align="start">
+					<MessageBubbleContent>{SHORT_REPLY}</MessageBubbleContent>
+				</MessageBubble>
+				<MessageBubble variant="soft" align="start">
+					<MessageBubbleContent>{AGENT_LONG_REPLY[0]}</MessageBubbleContent>
+				</MessageBubble>
+				<MessageBubble variant="soft" align="start">
+					<MessageBubbleContent>{UNBREAKABLE_REPLY}</MessageBubbleContent>
+				</MessageBubble>
+			</MessageBubbleGroup>
+		</div>
+	),
+	play: async ({ canvasElement }) => {
+		const group = slotIn(canvasElement, "message-bubble-group")
+
+		for (const content of slotsIn(canvasElement, "message-bubble-content")) {
+			await expect(content.scrollWidth).toBeLessThanOrEqual(
+				content.clientWidth + 1,
+			)
+			await expect(content.getBoundingClientRect().right).toBeLessThanOrEqual(
+				group.getBoundingClientRect().right + 1,
+			)
+		}
 	},
 })
