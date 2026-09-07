@@ -129,7 +129,7 @@ const createHarness = async (
 	}
 
 	const openSoloOnScreen = async () => {
-		await chat.open(bot.id)
+		await chat.open(bot.id, null)
 		await settled()
 	}
 

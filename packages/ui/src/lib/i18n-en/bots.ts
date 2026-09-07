@@ -78,6 +78,11 @@ const bots = {
 		create: "New space",
 		settings: "Space settings",
 		shortcut: "⌘{{rank}}",
+		remove: {
+			lastSpace: "A bot has to stay in at least one space.",
+			failed:
+				"This bot could not be removed from this space. Nothing changed, try again.",
+		},
 	},
 	dialog: {
 		untitled: "Untitled bot",

@@ -57,7 +57,8 @@ type OpenPanels = {
 const createPanels = ({ botId, spaceId = null }: OpenPanels) => {
 	const panels: Panels = {
 		roster: {
-			spaceOfBot: (id: string) => (id === "bot-1" ? "space-1" : undefined),
+			spaceOfConversation: (id: string) =>
+				id === "chat-1" ? "space-1" : undefined,
 			reload: vi.fn(() => Promise.resolve()),
 		},
 		skills: { getState: () => ({ botId }), reload: vi.fn() },

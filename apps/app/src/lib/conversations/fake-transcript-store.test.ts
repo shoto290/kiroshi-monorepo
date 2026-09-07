@@ -527,6 +527,26 @@ describe("createFakeTranscriptStore", () => {
 		expect(copy.sectionId).toBeNull()
 	})
 
+	it("answers a different solo thread in each space a bot belongs to", async () => {
+		const store = createFakeTranscriptStore()
+		const elsewhere = await store.createSpace("Vocca")
+		await store.addBotToSpace("default", elsewhere.id)
+
+		const home = await store.mainChat("default", "personal")
+		const away = await store.mainChat("default", elsewhere.id)
+
+		expect(home.id).not.toBe(away.id)
+	})
+
+	it("refuses a solo thread whose space does not hold the bot", async () => {
+		const store = createFakeTranscriptStore()
+		const elsewhere = await store.createSpace("Vocca")
+
+		await expect(store.mainChat("default", elsewhere.id)).rejects.toMatchObject(
+			{ kind: "foreignBot", id: "default" },
+		)
+	})
+
 	it("takes the picture off a bot described again without a path", async () => {
 		const store = createFakeTranscriptStore()
 		await store.setBotAvatarImage("default", aPng())

@@ -2,6 +2,8 @@ import type { BotBadge as ShownBadge } from "@workspace/ui/components/badge"
 
 import type { BotBadge } from "./bot-badge"
 
+import { rosterLineKey } from "../bots/roster-line"
+
 type BadgedRow = {
 	id: string
 }
@@ -24,6 +26,19 @@ export const withBadges = <Row extends BadgedRow>(
 	badges: Record<string, BotBadge>,
 ): Badged<Row>[] =>
 	rows.map((row) => ({ ...row, badge: shownBadge(badges[row.id]) }))
+
+export const withLineBadges = <Row extends BadgedRow>(
+	rows: Row[],
+	badges: Record<string, BotBadge>,
+	spaceId: string | null,
+): Badged<Row>[] =>
+	rows.map((row) => ({
+		...row,
+		badge:
+			spaceId === null
+				? undefined
+				: shownBadge(badges[rosterLineKey({ spaceId, botId: row.id })]),
+	}))
 
 const strongestBadge = (rows: BadgeCarrier[]): ShownBadge | undefined =>
 	STRONGEST_FIRST.find((badge) => rows.some((row) => row.badge === badge))

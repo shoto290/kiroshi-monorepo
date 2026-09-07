@@ -168,7 +168,13 @@ export type TranscriptStore = TranscriptPort & {
 	) => Promise<BotHistoryEntry[]>
 	recordBotCommands: (botId: string, commands: AgentCommand[]) => Promise<void>
 	botCommands: (botId: string) => Promise<AgentCommand[]>
-	mainChat: (botId: string) => Promise<Chat>
+	mainChat: (botId: string, spaceId?: string | null) => Promise<Chat>
+	addBotToSpace: (
+		botId: string,
+		spaceId: string,
+		sectionId?: string | null,
+	) => Promise<void>
+	removeBotFromSpace: (botId: string, spaceId: string) => Promise<void>
 	conversations: (spaceId: string) => Promise<Conversation[]>
 	createConversation: (draft: ConversationDraft) => Promise<Conversation>
 	updateConversation: (

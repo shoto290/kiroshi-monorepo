@@ -53,8 +53,10 @@ type RuntimeSource = {
 }
 
 type RosterSource = {
-	getState: () => { bots: NotifiedBot[]; conversations: Conversation[] }
-	spaceOfBot: (botId: string) => string | undefined
+	getState: () => {
+		rosters: Record<string, NotifiedBot[]>
+		conversations: Conversation[]
+	}
 	spaceOfConversation: (conversationId: string) => string | undefined
 	select: (botId: string) => void
 	selectConversation: (conversationId: string) => void
@@ -148,11 +150,21 @@ export const startNotificationSource = ({
 			})
 		}
 
+	const rosteredBots = (): NotifiedBot[] => {
+		const held = new Map<string, NotifiedBot>()
+		for (const bots of Object.values(roster.getState().rosters)) {
+			for (const bot of bots) {
+				held.set(bot.id, bot)
+			}
+		}
+		return [...held.values()]
+	}
+
 	const botNotifications = ({
 		switches,
 		hasFocus,
 	}: Reading): NotificationRequest[] => {
-		const { bots } = roster.getState()
+		const bots = rosteredBots()
 		const requests: NotificationRequest[] = []
 
 		for (const bot of bots) {
@@ -225,7 +237,7 @@ export const startNotificationSource = ({
 		})
 
 	const botNameOf = (botId: string) =>
-		roster.getState().bots.find(({ id }) => id === botId)?.name
+		rosteredBots().find(({ id }) => id === botId)?.name
 
 	const missionThreadNotifications = (
 		reading: Reading,
@@ -252,6 +264,13 @@ export const startNotificationSource = ({
 				},
 			]
 		})
+
+	const spaceOfBotThread = (botId: string) => {
+		const { conversationId } = chat.stateFor(botId)
+		return conversationId
+			? roster.spaceOfConversation(conversationId)
+			: undefined
+	}
 
 	const currentFocus = (): boolean => windowFocus ?? hasFocus()
 
@@ -345,7 +364,7 @@ export const startNotificationSource = ({
 
 	const openMission = async (missionId: string) => {
 		const { mission } = await missions.detail(missionId)
-		const spaceId = roster.spaceOfBot(mission.botId)
+		const spaceId = roster.spaceOfConversation(mission.originConversationId)
 
 		if (!spaceId) {
 			return
@@ -364,6 +383,28 @@ export const startNotificationSource = ({
 		}
 	}
 
+	const landOnBot = (botId: string) => {
+		const spaceId = spaceOfBotThread(botId)
+
+		if (!spaceId) {
+			return
+		}
+
+		roster.select(botId)
+		spaces.select(spaceId)
+	}
+
+	const landOnConversation = (conversationId: string) => {
+		const spaceId = roster.spaceOfConversation(conversationId)
+
+		if (!spaceId) {
+			return
+		}
+
+		roster.selectConversation(conversationId)
+		spaces.select(spaceId)
+	}
+
 	const activate = ({ kind, id }: NotificationTarget) => {
 		void windowRaised().catch(failWith("reveal"))
 
@@ -371,20 +412,11 @@ export const startNotificationSource = ({
 			return void openMission(id).catch(failWith("clicks"))
 		}
 
-		const spaceId =
-			kind === "bot" ? roster.spaceOfBot(id) : roster.spaceOfConversation(id)
-
-		if (!spaceId) {
-			return
-		}
-
 		if (kind === "bot") {
-			roster.select(id)
-		} else {
-			roster.selectConversation(id)
+			return landOnBot(id)
 		}
 
-		spaces.select(spaceId)
+		landOnConversation(id)
 	}
 
 	const stopChat = chat.subscribe(compare)

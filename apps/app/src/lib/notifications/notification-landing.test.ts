@@ -34,10 +34,13 @@ const PREFERENCES = {
 	lastBotIdBySpace: {},
 } as const
 
-const idleChat = {
-	stateFor: () => initialChatState,
+const chatRunningIn = (threads: Record<string, string>) => ({
+	stateFor: (botId: string) => ({
+		...initialChatState,
+		conversationId: threads[botId] ?? null,
+	}),
 	subscribe: () => () => undefined,
-}
+})
 
 const idleRuntimes = {
 	heldFor: () => null,
@@ -68,6 +71,11 @@ const aWorld = async () => {
 		botIds: [away.id],
 	})
 
+	const threads = {
+		[neighbour.id]: (await store.mainChat(neighbour.id, HOME)).id,
+		[away.id]: (await store.mainChat(away.id, elsewhere.id)).id,
+	}
+
 	const spaces = createSpacesController(store)
 	await spaces.load(null)
 	const roster = createRosterController(store)
@@ -82,7 +90,7 @@ const aWorld = async () => {
 	const reader = aReader()
 
 	startNotificationSource({
-		chat: idleChat,
+		chat: chatRunningIn(threads),
 		runtimes: idleRuntimes,
 		roster,
 		spaces,
@@ -115,6 +123,7 @@ const aWorld = async () => {
 		neighbour,
 		away,
 		room,
+		threads,
 	}
 }
 
@@ -159,9 +168,13 @@ it("lands on a bot of the space already on screen without changing space", async
 })
 
 it("enters the space of the mission's bot and opens that mission thread", async () => {
-	const { spaces, roster, notifications, missions, elsewhere, away } =
+	const { spaces, roster, notifications, missions, elsewhere, away, room } =
 		await aWorld()
-	const mission = aMission({ id: "mission-9", botId: away.id })
+	const mission = aMission({
+		id: "mission-9",
+		botId: away.id,
+		originConversationId: room.id,
+	})
 	missions.hold({ mission, events: [] })
 
 	await act(async () => {
@@ -174,8 +187,13 @@ it("enters the space of the mission's bot and opens that mission thread", async 
 })
 
 it("opens a mission of the space already on screen without changing space", async () => {
-	const { spaces, roster, notifications, missions, neighbour } = await aWorld()
-	const mission = aMission({ id: "mission-10", botId: neighbour.id })
+	const { spaces, roster, notifications, missions, neighbour, threads } =
+		await aWorld()
+	const mission = aMission({
+		id: "mission-10",
+		botId: neighbour.id,
+		originConversationId: threads[neighbour.id],
+	})
 	missions.hold({ mission, events: [] })
 
 	await act(async () => {

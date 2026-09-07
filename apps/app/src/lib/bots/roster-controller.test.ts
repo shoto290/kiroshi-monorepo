@@ -59,6 +59,16 @@ const held = (controller: { getState: () => { bots: Bot[] } }, id: string) => {
 const reloaded = async (store: TranscriptStore) =>
 	(await loaded(store)).getState()
 
+const countingBots = (store: TranscriptStore) => {
+	let count = 0
+	const read = store.bots
+	store.bots = (spaceId?: string | null) => {
+		count += 1
+		return read(spaceId)
+	}
+	return { count: () => count }
+}
+
 const leadIn = (conversation: Conversation) => leadOf(conversation)
 
 const seatedIn = (conversation: Conversation) =>
@@ -723,6 +733,124 @@ describe("createRosterController on a space", () => {
 	})
 })
 
+describe("createRosterController on memberships", () => {
+	const acrossTwoSpaces = async () => {
+		const store = createFakeTranscriptStore()
+		const elsewhere = await store.createSpace("Vocca")
+		await store.addBotToSpace("default", elsewhere.id)
+		const controller = createRosterController(store)
+		await controller.load(opening(null, "personal", ["personal", elsewhere.id]))
+		return { store, elsewhere, controller }
+	}
+
+	it("lists a bot of several spaces in the roster of each", async () => {
+		const { elsewhere, controller } = await acrossTwoSpaces()
+
+		const { rosters } = controller.getState()
+
+		expect(rosters.personal.map((bot) => bot.id)).toEqual(["default"])
+		expect(rosters[elsewhere.id].map((bot) => bot.id)).toEqual(["default"])
+	})
+
+	it("answers the spaces a bot belongs to from the rosters it holds", async () => {
+		const { elsewhere, controller } = await acrossTwoSpaces()
+
+		expect(controller.spacesOfBot("default")).toEqual([
+			"personal",
+			elsewhere.id,
+		])
+	})
+
+	it("previews the solo thread of the space each line sits in", async () => {
+		const { store, elsewhere } = await acrossTwoSpaces()
+		await saidIn(
+			store,
+			(await store.mainChat("default", "personal")).id,
+			"Home",
+		)
+		await saidIn(
+			store,
+			(await store.mainChat("default", elsewhere.id)).id,
+			"Away",
+		)
+
+		const listed = createRosterController(store)
+		await listed.load(opening(null, "personal", ["personal", elsewhere.id]))
+
+		const { previews } = listed.getState()
+		expect(previews.personal?.default).toMatchObject({ text: "Home" })
+		expect(previews[elsewhere.id]?.default).toMatchObject({ text: "Away" })
+	})
+
+	it("shows a bot in the space it is added to without reading every roster", async () => {
+		const store = createFakeTranscriptStore()
+		const elsewhere = await store.createSpace("Vocca")
+		const controller = createRosterController(store)
+		await controller.load(opening(null, "personal", ["personal", elsewhere.id]))
+		const reads = countingBots(store)
+
+		await controller.addToSpace("default", elsewhere.id)
+
+		expect(
+			controller.getState().rosters[elsewhere.id].map((bot) => bot.id),
+		).toEqual(["default"])
+		expect(reads.count()).toBe(0)
+	})
+
+	it("drops a bot from the space it is removed from without reading every roster", async () => {
+		const { store, elsewhere, controller } = await acrossTwoSpaces()
+		const reads = countingBots(store)
+
+		await controller.removeFromSpace("default", elsewhere.id)
+
+		expect(controller.getState().rosters[elsewhere.id]).toEqual([])
+		expect(controller.getState().rosters.personal.map((bot) => bot.id)).toEqual(
+			["default"],
+		)
+		expect(reads.count()).toBe(0)
+	})
+
+	it("says a bot has to stay in one space when its last one is refused", async () => {
+		const store = createFakeTranscriptStore()
+		const elsewhere = await store.createSpace("Vocca")
+		const reportFailure = vi.fn()
+		const controller = createRosterController(store, { reportFailure })
+		await controller.load(opening(null, "personal", ["personal", elsewhere.id]))
+
+		await controller.removeFromSpace("default", "personal")
+
+		expect(controller.getState().rosters.personal.map((bot) => bot.id)).toEqual(
+			["default"],
+		)
+		expect(reportFailure).toHaveBeenCalledWith({
+			title: "A bot has to stay in at least one space.",
+		})
+	})
+
+	it("says nothing changed when a removal fails for another reason", async () => {
+		const { store, elsewhere } = await acrossTwoSpaces()
+		const reportFailure = vi.fn()
+		const refusing = createRosterController(
+			{
+				...store,
+				removeBotFromSpace: () => Promise.reject({ kind: "storage" }),
+			},
+			{ reportFailure },
+		)
+		await refusing.load(opening(null, "personal", ["personal", elsewhere.id]))
+
+		await refusing.removeFromSpace("default", elsewhere.id)
+
+		expect(
+			refusing.getState().rosters[elsewhere.id].map((bot) => bot.id),
+		).toEqual(["default"])
+		expect(reportFailure).toHaveBeenCalledWith({
+			title:
+				"This bot could not be removed from this space. Nothing changed, try again.",
+		})
+	})
+})
+
 describe("createRosterController previews", () => {
 	it("reads the last word of a bot outside the space it opens on", async () => {
 		const store = createFakeTranscriptStore()
@@ -736,13 +864,15 @@ describe("createRosterController previews", () => {
 		await controller.load(opening(null, "personal", ["personal", elsewhere.id]))
 
 		const { rosters, previews } = controller.getState()
-		expect(previews[loud.id]).toMatchObject({
+		expect(previews[elsewhere.id]?.[loud.id]).toMatchObject({
 			text: "Rebuilding the bundle.",
 		})
 		expect(
-			toRosterBots(rosters[elsewhere.id], { working: {}, previews }, 0).map(
-				(bot) => bot.id,
-			),
+			toRosterBots(
+				rosters[elsewhere.id],
+				{ working: {}, previews: previews[elsewhere.id] ?? {} },
+				0,
+			).map((bot) => bot.id),
 		).toEqual([loud.id, quiet.id])
 	})
 
@@ -756,10 +886,10 @@ describe("createRosterController previews", () => {
 
 		const state = (await loaded(store)).getState()
 
-		expect(state.previews[first.id]).toMatchObject({
+		expect(state.previews.personal?.[first.id]).toMatchObject({
 			text: "Pulled the three papers.",
 		})
-		expect(state.previews[second.id]).toMatchObject({
+		expect(state.previews.personal?.[second.id]).toMatchObject({
 			text: "Rebuilding the bundle.",
 		})
 	})
@@ -770,13 +900,13 @@ describe("createRosterController previews", () => {
 
 		const state = (await loaded(store)).getState()
 
-		expect(state.previews.default?.at).toBe(said.createdAt)
+		expect(state.previews.personal?.default?.at).toBe(said.createdAt)
 	})
 
 	it("previews nothing for a bot nothing has been said to", async () => {
 		const state = (await loaded(createFakeTranscriptStore())).getState()
 
-		expect(state.previews.default).toBeUndefined()
+		expect(state.previews.personal?.default).toBeUndefined()
 	})
 
 	it("holds the last settled message while the next one streams", async () => {
@@ -786,7 +916,7 @@ describe("createRosterController previews", () => {
 
 		const state = (await loaded(store)).getState()
 
-		expect(state.previews.default).toMatchObject({ text: "And?" })
+		expect(state.previews.personal?.default).toMatchObject({ text: "And?" })
 	})
 
 	it("drops the preview of the bot it deletes and keeps every other", async () => {
@@ -801,8 +931,8 @@ describe("createRosterController previews", () => {
 		await controller.remove(second.id)
 
 		const { previews } = controller.getState()
-		expect(previews).not.toHaveProperty(second.id)
-		expect(previews[first.id]).toMatchObject({
+		expect(previews.personal).not.toHaveProperty(second.id)
+		expect(previews.personal?.[first.id]).toMatchObject({
 			text: "Pulled the three papers.",
 		})
 	})
@@ -824,8 +954,8 @@ describe("createRosterController previews", () => {
 
 		const state = (await loaded(refusing)).getState()
 
-		expect(state.previews[first.id]).toBeUndefined()
-		expect(state.previews[second.id]).toMatchObject({
+		expect(state.previews.personal?.[first.id]).toBeUndefined()
+		expect(state.previews.personal?.[second.id]).toMatchObject({
 			text: "Rebuilding the bundle.",
 		})
 		expect(state.bots).toHaveLength(2)

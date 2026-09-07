@@ -83,9 +83,9 @@ const DEFAULT_SPACE: Space = {
 	createdAt: 0,
 }
 
-const chatIdOf = (botId: string) => `chat-${botId}`
+const chatIdOf = (botId: string, spaceId: string) => `chat-${botId}-${spaceId}`
 
-export const FAKE_CHAT_ID = chatIdOf(DEFAULT_BOT.id)
+export const FAKE_CHAT_ID = chatIdOf(DEFAULT_BOT.id, DEFAULT_SPACE.id)
 
 const OPEN: TranscriptCompletion[] = ["pending", "streaming"]
 
@@ -205,7 +205,9 @@ export const createFakeTranscriptStore = (
 	const bots = new Map<string, Bot>([[DEFAULT_BOT.id, DEFAULT_BOT]])
 	const spaces = new Map<string, Space>([[DEFAULT_SPACE.id, DEFAULT_SPACE]])
 	const departed = new Map<string, Bot>()
-	const spaceOf = new Map<string, string>([[DEFAULT_BOT.id, DEFAULT_SPACE.id]])
+	const spacesOf = new Map<string, Set<string>>([
+		[DEFAULT_BOT.id, new Set([DEFAULT_SPACE.id])],
+	])
 	const sections = new Map<string, Section>()
 	const preferences = new Map<string, SpacePreferences>()
 	const conversations = new Map<string, StoredConversation>()
@@ -500,12 +502,18 @@ export const createFakeTranscriptStore = (
 		minted += 1
 		const bot: Bot = { ...fields, id: `bot-${minted}`, createdAt: minted }
 		bots.set(bot.id, bot)
-		spaceOf.set(bot.id, spaceId)
+		spacesOf.set(bot.id, new Set([spaceId]))
 		skills.set(bot.id, [learnSkill()])
 		return Promise.resolve(bot)
 	}
 
 	const firstSpace = () => [...spaces.keys()][0]
+
+	const spacesFor = (botId: string) => spacesOf.get(botId) ?? new Set<string>()
+
+	const isIn = (botId: string, spaceId: string) => spacesFor(botId).has(spaceId)
+
+	const homeOf = (botId: string) => [...spacesFor(botId)][0] ?? firstSpace()
 
 	const participantsOf = (conversationId: string): Participant[] =>
 		(seats.get(conversationId) ?? []).flatMap((seat) => {
@@ -540,10 +548,11 @@ export const createFakeTranscriptStore = (
 	}
 
 	const forgetSpace = (spaceId: string) => {
-		for (const [botId, held] of spaceOf) {
-			if (held === spaceId) {
+		for (const [botId, held] of spacesOf) {
+			held.delete(spaceId)
+			if (held.size === 0) {
 				bots.delete(botId)
-				spaceOf.delete(botId)
+				spacesOf.delete(botId)
 			}
 		}
 		for (const [sectionId, section] of sections) {
@@ -570,7 +579,7 @@ export const createFakeTranscriptStore = (
 			-1,
 			...sectionsOf(spaceId).map((section) => section.position),
 			...[...bots.values()]
-				.filter((bot) => spaceOf.get(bot.id) === spaceId)
+				.filter((bot) => isIn(bot.id, spaceId))
 				.map((bot) => bot.pinPosition ?? -1),
 			...[...conversations.values()]
 				.filter((stored) => stored.spaceId === spaceId)
@@ -585,7 +594,7 @@ export const createFakeTranscriptStore = (
 	const unsharedName = (wanted: string, spaceId: string) => {
 		const carried = new Set(
 			[...bots.values()]
-				.filter((bot) => spaceOf.get(bot.id) === spaceId)
+				.filter((bot) => isIn(bot.id, spaceId))
 				.map((bot) => bot.name),
 		)
 		if (!carried.has(wanted)) {
@@ -751,14 +760,14 @@ export const createFakeTranscriptStore = (
 			const stranger = pins.find(
 				({ id }) =>
 					sections.get(id)?.spaceId !== spaceId &&
-					spaceOf.get(id) !== spaceId &&
+					!isIn(id, spaceId) &&
 					conversations.get(id)?.spaceId !== spaceId,
 			)
 			if (stranger) {
 				return refuse({ kind: "unknownSection", id: stranger.id })
 			}
 			for (const [id, bot] of bots) {
-				if (spaceOf.get(id) === spaceId) {
+				if (isIn(id, spaceId)) {
 					bots.set(id, { ...bot, sectionId: null, pinPosition: null })
 				}
 			}
@@ -812,20 +821,21 @@ export const createFakeTranscriptStore = (
 			if (!bot) {
 				return refuse({ kind: "unknownBot", id: botId })
 			}
-			if (sectionId !== null) {
-				const section = sections.get(sectionId)
-				if (!section) {
-					return refuse({ kind: "unknownSection", id: sectionId })
-				}
-				if (section.spaceId !== spaceOf.get(botId)) {
-					return refuse({ kind: "foreignSection", id: sectionId })
-				}
+			if (sectionId === null) {
+				bots.set(botId, { ...bot, sectionId, pinPosition: null })
+				return Promise.resolve()
+			}
+			const section = sections.get(sectionId)
+			if (!section) {
+				return refuse({ kind: "unknownSection", id: sectionId })
+			}
+			if (!isIn(botId, section.spaceId)) {
+				return refuse({ kind: "foreignSection", id: sectionId })
 			}
 			bots.set(botId, {
 				...bot,
 				sectionId,
-				pinPosition:
-					sectionId === null ? null : nextPin(spaceOf.get(botId) ?? ""),
+				pinPosition: nextPin(section.spaceId),
 			})
 			return Promise.resolve()
 		},
@@ -838,18 +848,55 @@ export const createFakeTranscriptStore = (
 			if (!spaces.has(spaceId)) {
 				return refuse({ kind: "unknownSpace", id: spaceId })
 			}
-			if (spaceOf.get(botId) !== spaceId) {
+			const held = spacesFor(botId)
+			if (held.size !== 1 || !held.has(spaceId)) {
 				bots.set(botId, { ...bot, sectionId: null })
-				spaceOf.set(botId, spaceId)
+				spacesOf.set(botId, new Set([spaceId]))
 			}
+			return Promise.resolve()
+		},
+
+		addBotToSpace: (
+			botId: string,
+			spaceId: string,
+			sectionId?: string | null,
+		) => {
+			const bot = bots.get(botId)
+			if (!bot) {
+				return refuse({ kind: "unknownBot", id: botId })
+			}
+			if (!spaces.has(spaceId)) {
+				return refuse({ kind: "unknownSpace", id: spaceId })
+			}
+			spacesOf.set(botId, new Set([...spacesFor(botId), spaceId]))
+			if (sectionId !== undefined) {
+				bots.set(botId, {
+					...bot,
+					sectionId,
+					pinPosition: sectionId === null ? null : nextPin(spaceId),
+				})
+			}
+			return Promise.resolve()
+		},
+
+		removeBotFromSpace: (botId: string, spaceId: string) => {
+			if (!bots.has(botId)) {
+				return refuse({ kind: "unknownBot", id: botId })
+			}
+			const held = spacesFor(botId)
+			if (!held.has(spaceId)) {
+				return refuse({ kind: "unknownSpace", id: spaceId })
+			}
+			if (held.size === 1) {
+				return refuse({ kind: "lastSpaceOfBot", id: botId })
+			}
+			spacesOf.set(botId, new Set([...held].filter((id) => id !== spaceId)))
 			return Promise.resolve()
 		},
 
 		bots: (spaceId?: string | null) =>
 			Promise.resolve(
-				[...bots.values()].filter(
-					(bot) => !spaceId || spaceOf.get(bot.id) === spaceId,
-				),
+				[...bots.values()].filter((bot) => !spaceId || isIn(bot.id, spaceId)),
 			),
 
 		createBot: (identity: BotIdentity, spaceId?: string | null) =>
@@ -869,13 +916,12 @@ export const createFakeTranscriptStore = (
 			if (!source) {
 				return refuse({ kind: "unknownBot", id: botId })
 			}
-			const destination = spaceId ?? spaceOf.get(botId) ?? firstSpace()
+			const destination = spaceId ?? homeOf(botId)
 			return mint(
 				{
 					...source,
 					name: unsharedName(`${source.name} copy`, destination),
-					sectionId:
-						spaceOf.get(botId) === destination ? source.sectionId : null,
+					sectionId: isIn(botId, destination) ? source.sectionId : null,
 					pinPosition: null,
 				},
 				destination,
@@ -901,20 +947,25 @@ export const createFakeTranscriptStore = (
 			if (!bot) {
 				return refuse({ kind: "unknownBot", id })
 			}
+			const held = [...spacesFor(id)]
 			bots.delete(id)
 			departed.set(id, bot)
-			spaceOf.delete(id)
+			spacesOf.delete(id)
 			commands.delete(id)
 			skills.delete(id)
 			servers.delete(id)
-			const conversationId = chatIdOf(id)
+			const soloThreadIds = new Set(
+				held.map((spaceId) => chatIdOf(id, spaceId)),
+			)
 			for (const [rowId, row] of rows) {
-				if (row.conversationId === conversationId) {
+				if (soloThreadIds.has(row.conversationId)) {
 					rows.delete(rowId)
 					pins.delete(rowId)
 				}
 			}
-			seqs.delete(conversationId)
+			for (const conversationId of soloThreadIds) {
+				seqs.delete(conversationId)
+			}
 			return Promise.resolve()
 		},
 
@@ -1160,12 +1211,16 @@ export const createFakeTranscriptStore = (
 		botCommands: (botId: string) =>
 			Promise.resolve([...(commands.get(botId) ?? [])]),
 
-		mainChat: (botId: string) =>
-			Promise.resolve<Chat>({
-				id: chatIdOf(botId),
+		mainChat: (botId: string, spaceId?: string | null) => {
+			if (spaceId != null && !isIn(botId, spaceId)) {
+				return refuse({ kind: "foreignBot", id: botId })
+			}
+			return Promise.resolve<Chat>({
+				id: chatIdOf(botId, spaceId ?? homeOf(botId)),
 				createdAt: 0,
 				updatedAt: 0,
-			}),
+			})
+		},
 
 		conversations: (spaceId: string) =>
 			Promise.resolve(
@@ -1178,9 +1233,7 @@ export const createFakeTranscriptStore = (
 			if (!spaces.has(draft.spaceId)) {
 				return refuse({ kind: "unknownSpace", id: draft.spaceId })
 			}
-			const stranger = draft.botIds.find(
-				(botId) => spaceOf.get(botId) !== draft.spaceId,
-			)
+			const stranger = draft.botIds.find((botId) => !isIn(botId, draft.spaceId))
 			if (stranger) {
 				return refuse({ kind: "unknownBot", id: stranger })
 			}
@@ -1247,7 +1300,7 @@ export const createFakeTranscriptStore = (
 			if (!stored) {
 				return refuse({ kind: "unknownConversation", id: conversationId })
 			}
-			if (spaceOf.get(botId) !== stored.spaceId) {
+			if (!stored.spaceId || !isIn(botId, stored.spaceId)) {
 				return refuse({ kind: "unknownBot", id: botId })
 			}
 			const held = seats.get(conversationId) ?? []

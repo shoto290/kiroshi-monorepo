@@ -1,9 +1,29 @@
 import { describe, expect, it } from "vitest"
 
+import type { BadgeSource } from "./badge-source"
 import { createBotBadgeSource } from "./bot-badge-source"
 import { type ChatState, initialChatState } from "./chat-state"
 
 import type { PermissionRequest, QuestionRequest } from "../agent/contract"
+import {
+	type RosterLine,
+	rosterLineKey,
+	rosterLinesIn,
+	type SoloThreads,
+} from "../bots/roster-line"
+
+const HOME = "home"
+
+const soloThreadOf = ({ spaceId, botId }: RosterLine) =>
+	`chat-${spaceId}-${botId}`
+
+const threadsIn = (rosters: Record<string, { id: string }[]>): SoloThreads =>
+	Object.fromEntries(
+		rosterLinesIn(rosters).map((line) => [soloThreadOf(line), line]),
+	)
+
+const badgeIn = (source: BadgeSource, botId: string, spaceId = HOME) =>
+	source.getBadges()[rosterLineKey({ spaceId, botId })]
 
 const question = (id: string): QuestionRequest => ({
 	id,
@@ -24,12 +44,17 @@ const permission = (id: string): PermissionRequest => ({
 	detail: null,
 })
 
-const createFakeChat = () => {
+const createFakeChat = (threadOf: (botId: string) => string | null) => {
 	const states = new Map<string, ChatState>()
 	const listeners = new Set<() => void>()
 
+	const openOn = (botId: string): ChatState => ({
+		...initialChatState,
+		conversationId: threadOf(botId),
+	})
+
 	return {
-		stateFor: (botId: string) => states.get(botId) ?? initialChatState,
+		stateFor: (botId: string) => states.get(botId) ?? openOn(botId),
 		subscribe: (listener: () => void) => {
 			listeners.add(listener)
 			return () => {
@@ -37,7 +62,7 @@ const createFakeChat = () => {
 			}
 		},
 		publish: (botId: string, state: Partial<ChatState> = {}) => {
-			states.set(botId, { ...initialChatState, ...state })
+			states.set(botId, { ...openOn(botId), ...state })
 			for (const listener of [...listeners]) {
 				listener()
 			}
@@ -49,7 +74,12 @@ const createFakeRoster = (
 	rosters: Record<string, { id: string }[]>,
 	selectedBotId: string | null = null,
 ) => {
-	const state = { rosters, selectedBotId }
+	const state = {
+		rosters,
+		selectedBotId,
+		spaceId: HOME,
+		soloThreads: threadsIn(rosters),
+	}
 	const listeners = new Set<() => void>()
 
 	const publish = () => {
@@ -72,6 +102,7 @@ const createFakeRoster = (
 		},
 		hold: (held: Record<string, { id: string }[]>) => {
 			state.rosters = held
+			state.soloThreads = threadsIn(held)
 			publish()
 		},
 	}
@@ -81,14 +112,22 @@ type HarnessOptions = {
 	rosters?: Record<string, { id: string }[]>
 	selectedBotId?: string | null
 	hasFocus?: boolean
+	runningIn?: Record<string, string>
 }
 
 const start = ({
-	rosters = { home: [{ id: "bot-one" }] },
+	rosters = { [HOME]: [{ id: "bot-one" }] },
 	selectedBotId = null,
 	hasFocus = true,
+	runningIn = {},
 }: HarnessOptions = {}) => {
-	const chat = createFakeChat()
+	const threadOf = (botId: string) => {
+		const spaceId =
+			runningIn[botId] ??
+			rosterLinesIn(rosters).find((line) => line.botId === botId)?.spaceId
+		return spaceId === undefined ? null : soloThreadOf({ spaceId, botId })
+	}
+	const chat = createFakeChat(threadOf)
 	const roster = createFakeRoster(rosters, selectedBotId)
 	let tellFocus: ((isFocused: boolean) => void) | undefined
 
@@ -123,7 +162,7 @@ describe("createBotBadgeSource", () => {
 	it("reports none until a bot's chat state changes", () => {
 		const { source } = start()
 
-		expect(source.getBadges()["bot-one"]).toBe("none")
+		expect(badgeIn(source, "bot-one")).toBe("none")
 	})
 
 	it("reports attention while a question waits", () => {
@@ -131,7 +170,7 @@ describe("createBotBadgeSource", () => {
 
 		chat.publish("bot-one", { ...runs, question: question("q-1") })
 
-		expect(source.getBadges()["bot-one"]).toBe("attention")
+		expect(badgeIn(source, "bot-one")).toBe("attention")
 	})
 
 	it("reports attention while a permission waits", () => {
@@ -139,7 +178,7 @@ describe("createBotBadgeSource", () => {
 
 		chat.publish("bot-one", { ...runs, permission: permission("p-1") })
 
-		expect(source.getBadges()["bot-one"]).toBe("attention")
+		expect(badgeIn(source, "bot-one")).toBe("attention")
 	})
 
 	it("keeps attention on the selected bot", () => {
@@ -148,7 +187,7 @@ describe("createBotBadgeSource", () => {
 		chat.publish("bot-one", { ...runs, question: question("q-1") })
 		roster.select("bot-one")
 
-		expect(source.getBadges()["bot-one"]).toBe("attention")
+		expect(badgeIn(source, "bot-one")).toBe("attention")
 	})
 
 	it("reports none while a turn runs", () => {
@@ -156,7 +195,7 @@ describe("createBotBadgeSource", () => {
 
 		chat.publish("bot-one", runs)
 
-		expect(source.getBadges()["bot-one"]).toBe("none")
+		expect(badgeIn(source, "bot-one")).toBe("none")
 	})
 
 	it("reports done when an unselected bot ends its turn", () => {
@@ -165,7 +204,7 @@ describe("createBotBadgeSource", () => {
 		chat.publish("bot-one", runs)
 		chat.publish("bot-one", idles)
 
-		expect(source.getBadges()["bot-one"]).toBe("done")
+		expect(badgeIn(source, "bot-one")).toBe("done")
 	})
 
 	it("reports failed when an unselected bot's turn fails", () => {
@@ -174,7 +213,7 @@ describe("createBotBadgeSource", () => {
 		chat.publish("bot-one", runs)
 		chat.publish("bot-one", fails)
 
-		expect(source.getBadges()["bot-one"]).toBe("failed")
+		expect(badgeIn(source, "bot-one")).toBe("failed")
 	})
 
 	it("reports none when the selected bot ends its turn under focus", () => {
@@ -183,7 +222,7 @@ describe("createBotBadgeSource", () => {
 		chat.publish("bot-one", runs)
 		chat.publish("bot-one", idles)
 
-		expect(source.getBadges()["bot-one"]).toBe("none")
+		expect(badgeIn(source, "bot-one")).toBe("none")
 	})
 
 	it("reports done when the selected bot ends its turn without focus", () => {
@@ -193,7 +232,7 @@ describe("createBotBadgeSource", () => {
 		chat.publish("bot-one", runs)
 		chat.publish("bot-one", idles)
 
-		expect(source.getBadges()["bot-one"]).toBe("done")
+		expect(badgeIn(source, "bot-one")).toBe("done")
 	})
 
 	it("drops the badge of the selected bot when the window comes back", () => {
@@ -204,7 +243,7 @@ describe("createBotBadgeSource", () => {
 		chat.publish("bot-one", fails)
 		focus()
 
-		expect(source.getBadges()["bot-one"]).toBe("none")
+		expect(badgeIn(source, "bot-one")).toBe("none")
 	})
 
 	it("keeps the badge of an unselected bot when the window comes back", () => {
@@ -215,7 +254,7 @@ describe("createBotBadgeSource", () => {
 		chat.publish("bot-one", idles)
 		focus()
 
-		expect(source.getBadges()["bot-one"]).toBe("done")
+		expect(badgeIn(source, "bot-one")).toBe("done")
 	})
 
 	it("keeps attention on the selected bot when the window comes back", () => {
@@ -225,7 +264,7 @@ describe("createBotBadgeSource", () => {
 		chat.publish("bot-one", { ...runs, question: question("q-1") })
 		focus()
 
-		expect(source.getBadges()["bot-one"]).toBe("attention")
+		expect(badgeIn(source, "bot-one")).toBe("attention")
 	})
 
 	it("keeps every badge when the window loses focus", () => {
@@ -235,7 +274,7 @@ describe("createBotBadgeSource", () => {
 		chat.publish("bot-one", idles)
 		blur()
 
-		expect(source.getBadges()["bot-one"]).toBe("done")
+		expect(badgeIn(source, "bot-one")).toBe("done")
 	})
 
 	it("drops done when the bot becomes the selected bot", () => {
@@ -245,7 +284,7 @@ describe("createBotBadgeSource", () => {
 		chat.publish("bot-one", idles)
 		roster.select("bot-one")
 
-		expect(source.getBadges()["bot-one"]).toBe("none")
+		expect(badgeIn(source, "bot-one")).toBe("none")
 	})
 
 	it("drops failed when the bot starts a new turn", () => {
@@ -255,18 +294,31 @@ describe("createBotBadgeSource", () => {
 		chat.publish("bot-one", fails)
 		chat.publish("bot-one", runs)
 
-		expect(source.getBadges()["bot-one"]).toBe("none")
+		expect(badgeIn(source, "bot-one")).toBe("none")
 	})
 
 	it("badges a bot of another space", () => {
 		const { chat, source } = start({
-			rosters: { home: [{ id: "bot-one" }], work: [{ id: "bot-two" }] },
+			rosters: { [HOME]: [{ id: "bot-one" }], work: [{ id: "bot-two" }] },
 		})
 
 		chat.publish("bot-two", runs)
 		chat.publish("bot-two", idles)
 
-		expect(source.getBadges()["bot-two"]).toBe("done")
+		expect(badgeIn(source, "bot-two", "work")).toBe("done")
+	})
+
+	it("badges only the line of the space the running thread sits in", () => {
+		const { chat, source } = start({
+			rosters: { [HOME]: [{ id: "bot-one" }], work: [{ id: "bot-one" }] },
+			runningIn: { "bot-one": "work" },
+		})
+
+		chat.publish("bot-one", runs)
+		chat.publish("bot-one", idles)
+
+		expect(badgeIn(source, "bot-one", "work")).toBe("done")
+		expect(badgeIn(source, "bot-one")).toBeUndefined()
 	})
 
 	it("forgets a bot that leaves the roster", () => {
@@ -274,7 +326,7 @@ describe("createBotBadgeSource", () => {
 
 		chat.publish("bot-one", runs)
 		chat.publish("bot-one", idles)
-		roster.hold({ home: [] })
+		roster.hold({ [HOME]: [] })
 
 		expect(source.getBadges()).toEqual({})
 	})
@@ -309,6 +361,6 @@ describe("createBotBadgeSource", () => {
 		stop()
 		chat.publish("bot-one", idles)
 
-		expect(source.getBadges()["bot-one"]).toBe("none")
+		expect(badgeIn(source, "bot-one")).toBe("none")
 	})
 })

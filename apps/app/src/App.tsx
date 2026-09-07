@@ -35,9 +35,21 @@ import { createAttachmentsController } from "@/lib/chat/attachments-controller"
 import { createAttachmentsPort } from "@/lib/chat/attachments-port"
 import { createChatDriver } from "@/lib/chat/create-driver"
 import { createDraftsController } from "@/lib/chat/drafts-controller"
-import { toSpaceBadges, withBadges } from "@/lib/chat/sidebar-badges"
+import {
+	toSpaceBadges,
+	withBadges,
+	withLineBadges,
+} from "@/lib/chat/sidebar-badges"
 import { useBotBadges } from "@/lib/chat/use-bot-badges"
-import { useBotActivity, useBotPreviews, useChat } from "@/lib/chat/use-chat"
+import {
+	activityIn,
+	activityOf,
+	busyBotCountIn,
+	previewsIn,
+	useBotActivity,
+	useBotPreviews,
+	useChat,
+} from "@/lib/chat/use-chat"
 import { createConversationRuntimes } from "@/lib/conversations/conversation-runtimes"
 import { createTranscriptStore } from "@/lib/conversations/create-store"
 import {
@@ -60,7 +72,8 @@ import { hasOverlayWindowControls, isSidebarResizable } from "@/lib/host"
 import { useExternalLinks } from "@/lib/links/use-external-links"
 import {
 	missionRingBadges,
-	missionsByRow,
+	missionsBySpaceId,
+	missionsIn,
 	withMissions,
 } from "@/lib/missions/missions-model"
 import { createOpenedMissionController } from "@/lib/missions/opened-mission-controller"
@@ -213,6 +226,9 @@ export function App() {
 	const {
 		bots,
 		conversations,
+		conversationRosters,
+		soloThreads,
+		spaceId: rosteredSpaceId,
 		selectedBotId,
 		selectedConversationId,
 		settingsBotId,
@@ -231,8 +247,14 @@ export function App() {
 		(conversation) => conversation.id === settingsConversationId,
 	)
 	const missions = useMemo(
-		() => missionsByRow(missionBoard, conversations, waitingMissionIds),
-		[missionBoard, conversations, waitingMissionIds],
+		() =>
+			missionsBySpaceId({
+				board: missionBoard,
+				conversationRosters,
+				soloThreads,
+				waitingMissionIds,
+			}),
+		[missionBoard, conversationRosters, soloThreads, waitingMissionIds],
 	)
 
 	const [isCreatingConversation, setIsCreatingConversation] = useState(false)
@@ -328,16 +350,24 @@ export function App() {
 		}
 	}, [serverEnvironment.controller, openedMcpServer])
 
+	const holdsSelectedBot = bots.some((bot) => bot.id === selectedBotId)
+
 	useEffect(() => {
-		if (!selectedBotId) {
+		if (!selectedBotId || !holdsSelectedBot) {
 			return
 		}
-		void chat.controller.open(selectedBotId)
+		void chat.controller.open(selectedBotId, rosteredSpaceId)
 		void user.controller.setLastBot({
-			spaceId: roster.controller.getState().spaceId,
+			spaceId: rosteredSpaceId,
 			botId: selectedBotId,
 		})
-	}, [chat.controller, roster.controller, user.controller, selectedBotId])
+	}, [
+		chat.controller,
+		user.controller,
+		selectedBotId,
+		holdsSelectedBot,
+		rosteredSpaceId,
+	])
 
 	useEffect(() => {
 		if (!selectedConversationId) {
@@ -377,25 +407,27 @@ export function App() {
 		await roster.controller.remove(id)
 	}
 
-	const botIds = useMemo(
+	const lines = useMemo(
 		() =>
-			Object.values(rosters).flatMap((spaceBots) =>
-				spaceBots.map((bot) => bot.id),
+			Object.entries(rosters).flatMap(([spaceId, spaceBots]) =>
+				spaceBots.map((bot) => ({ spaceId, botId: bot.id })),
 			),
 		[rosters],
 	)
-	const working = useBotActivity(chat.controller, botIds)
-	const previews = useBotPreviews(
-		chat.controller,
-		botIds,
-		roster.state.previews,
-	)
-	const activity = settingsBotId ? working[settingsBotId] : undefined
+	const working = useBotActivity({
+		controller: chat.controller,
+		lines,
+		soloThreads,
+	})
+	const previews = useBotPreviews({
+		controller: chat.controller,
+		lines,
+		stored: roster.state.previews,
+		soloThreads,
+	})
+	const activity = activityOf(working, settingsBotId)
 
-	const busyBotCount = useMemo(
-		() => Object.values(working).filter((bot) => bot.isWorking).length,
-		[working],
-	)
+	const busyBotCount = useMemo(() => busyBotCountIn(working), [working])
 
 	const updateBadge = useMemo(
 		() => (
@@ -418,10 +450,21 @@ export function App() {
 	const rosterBots = useMemo(() => {
 		probeRender("rosterBots")
 		return withMissions(
-			withBadges(toRosterBots(bots, { working, previews }, now), badges),
-			missions,
+			withLineBadges(
+				toRosterBots(
+					bots,
+					{
+						working: activityIn(working, rosteredSpaceId),
+						previews: previewsIn(previews, rosteredSpaceId),
+					},
+					now,
+				),
+				badges,
+				rosteredSpaceId,
+			),
+			missionsIn(missions, rosteredSpaceId),
 		)
-	}, [bots, working, previews, now, badges, missions])
+	}, [bots, rosteredSpaceId, working, previews, now, badges, missions])
 
 	const listedRosters = Object.keys(rosters).join(" ")
 
@@ -450,17 +493,23 @@ export function App() {
 			Object.entries(rosters).map(([spaceId, spaceBots]) => [
 				spaceId,
 				withMissions(
-					withBadges(
-						toRosterBots(spaceBots, { working, previews }, now),
+					withLineBadges(
+						toRosterBots(
+							spaceBots,
+							{
+								working: activityIn(working, spaceId),
+								previews: previewsIn(previews, spaceId),
+							},
+							now,
+						),
 						badges,
+						spaceId,
 					),
-					missions,
+					missionsIn(missions, spaceId),
 				),
 			]),
 		)
 	}, [rosters, working, previews, now, badges, missions])
-
-	const conversationRosters = roster.state.conversationRosters
 
 	const conversationIds = useMemo(
 		() =>
@@ -492,10 +541,11 @@ export function App() {
 					),
 					conversationBadges,
 				),
-				missions,
+				missionsIn(missions, rosteredSpaceId),
 			),
 		[
 			conversations,
+			rosteredSpaceId,
 			conversationWorkers,
 			conversationPreviews,
 			now,
@@ -535,7 +585,7 @@ export function App() {
 							),
 							conversationBadges,
 						),
-						missions,
+						missionsIn(missions, spaceId),
 					),
 				]),
 			),
@@ -815,8 +865,8 @@ export function App() {
 					skills={skills.state.skills.map(toSkillItem)}
 					showDanger={isShowingDanger}
 					value={toSettingsValue(settingsBot)}
-					working={activity?.isWorking ?? false}
-					workingKind={activity?.kind}
+					working={activity.isWorking}
+					workingKind={activity.kind}
 				/>
 			) : null}
 			{settingsConversation ? (

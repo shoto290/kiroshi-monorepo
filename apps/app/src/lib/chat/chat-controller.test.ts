@@ -217,7 +217,7 @@ const bootedHarness = async (
 	options: HarnessOptions = {},
 ): Promise<Harness> => {
 	const harness = createHarness(options)
-	await harness.controller.open(options.botId ?? BOT)
+	await harness.controller.open(options.botId ?? BOT, null)
 	await vi.runAllTimersAsync()
 	return harness
 }
@@ -864,7 +864,7 @@ describe("createChatController", () => {
 
 	it("rejects a prompt sent before the session starts", async () => {
 		const harness = createHarness()
-		await harness.controller.open(BOT)
+		await harness.controller.open(BOT, null)
 		vi.spyOn(harness.driver, "submitPrompt").mockRejectedValue({
 			kind: "notStarted",
 		})
@@ -886,7 +886,7 @@ describe("createChatController", () => {
 			},
 		})
 		const submitSpy = vi.spyOn(driver, "submitPrompt")
-		await controller.open(BOT)
+		await controller.open(BOT, null)
 		await vi.runAllTimersAsync()
 
 		await controller.send("hello")
@@ -928,7 +928,7 @@ describe("createChatController", () => {
 		})
 		const startSpy = vi.spyOn(driver, "startOrResumeSession")
 
-		expect(await controller.open(BOT)).toBeNull()
+		expect(await controller.open(BOT, null)).toBeNull()
 		await vi.runAllTimersAsync()
 
 		const state = controller.getState()
@@ -955,7 +955,7 @@ describe("createChatController", () => {
 		})
 		const startSpy = vi.spyOn(driver, "startOrResumeSession")
 
-		expect(await controller.open(BOT)).toBeNull()
+		expect(await controller.open(BOT, null)).toBeNull()
 		await vi.runAllTimersAsync()
 
 		const state = controller.getState()
@@ -978,7 +978,7 @@ describe("createChatController", () => {
 			error: { kind: "notAuthenticated" },
 		})
 
-		await controller.open(BOT)
+		await controller.open(BOT, null)
 		expect(await controller.preflight()).toBeNull()
 		expect(startSpy).not.toHaveBeenCalled()
 		const state = controller.getState()
@@ -1011,7 +1011,7 @@ describe("createChatController", () => {
 			}),
 		})
 
-		await controller.open(BOT)
+		await controller.open(BOT, null)
 
 		expect(controller.getState().sessionId).toBe("s-1")
 	})
@@ -1021,7 +1021,7 @@ describe("createChatController", () => {
 		const { driver, controller } = createHarness({ store })
 		const startSpy = vi.spyOn(driver, "startOrResumeSession")
 
-		await controller.open(BOT)
+		await controller.open(BOT, null)
 		await vi.runAllTimersAsync()
 
 		const state = controller.getState()
@@ -1046,7 +1046,7 @@ describe("createChatController", () => {
 		const before = spoken(harness.controller.getState().messages)
 		expect(before.length).toBe(2)
 
-		await harness.controller.open(other.id)
+		await harness.controller.open(other.id, null)
 		await vi.runAllTimersAsync()
 
 		const switched = harness.controller.getState()
@@ -1054,7 +1054,7 @@ describe("createChatController", () => {
 		expect(switched.messages).toEqual([])
 		expect(runOf(harness.controller).botId).toBe(other.id)
 
-		await harness.controller.open(BOT)
+		await harness.controller.open(BOT, null)
 		await vi.runAllTimersAsync()
 		expect(spoken(harness.controller.getState().messages)).toEqual(before)
 		expect(runOf(harness.controller).botId).toBe(BOT)
@@ -1081,7 +1081,7 @@ describe("createChatController", () => {
 		await vi.runAllTimersAsync()
 		const leaving = runOf(harness.controller)
 
-		await harness.controller.open(other.id)
+		await harness.controller.open(other.id, null)
 		await vi.runAllTimersAsync()
 		for (const event of [
 			{ type: "messageDelta", id: "msg-1", seq: 2, text: " an answer" },
@@ -1111,7 +1111,7 @@ describe("createChatController", () => {
 			["assistant", "Half an answer", "complete"],
 		])
 
-		await harness.controller.open(BOT)
+		await harness.controller.open(BOT, null)
 		await vi.runAllTimersAsync()
 		expect(spoken(harness.controller.getState().messages)).toEqual([
 			["user", "hello", "complete"],
@@ -1152,7 +1152,7 @@ describe("createChatController", () => {
 		await vi.runAllTimersAsync()
 		const leaving = runOf(harness.controller)
 
-		await harness.controller.open(other.id)
+		await harness.controller.open(other.id, null)
 		await vi.runAllTimersAsync()
 
 		holdsTheWrite = true
@@ -1162,7 +1162,7 @@ describe("createChatController", () => {
 		)
 		await vi.runAllTimersAsync()
 
-		const returning = harness.controller.open(BOT)
+		const returning = harness.controller.open(BOT, null)
 		stored.release()
 		await returning
 		await vi.runAllTimersAsync()
@@ -1183,7 +1183,7 @@ describe("createChatController", () => {
 		await vi.advanceTimersByTimeAsync(STEP_MS * 4)
 		expect(isTurnBusy(harness.controller.getState().turn)).toBe(true)
 
-		await harness.controller.open(other.id)
+		await harness.controller.open(other.id, null)
 		await harness.controller.send("salut")
 		expect(isTurnBusy(harness.controller.getState().turn)).toBe(true)
 		expect(harness.controller.getState().errors).toEqual([])
@@ -1212,7 +1212,7 @@ describe("createChatController", () => {
 		await harness.controller.send("hello")
 		await vi.advanceTimersByTimeAsync(STEP_MS * 4)
 
-		await harness.controller.open(other.id)
+		await harness.controller.open(other.id, null)
 
 		expect(isTurnBusy(harness.controller.getState().turn)).toBe(false)
 		expect(isTurnBusy(harness.controller.stateFor(BOT).turn)).toBe(true)
@@ -1230,7 +1230,7 @@ describe("createChatController", () => {
 		await harness.controller.send("hello")
 		await vi.advanceTimersByTimeAsync(STEP_MS * 4)
 
-		await harness.controller.open(other.id)
+		await harness.controller.open(other.id, null)
 
 		expect(previewFor(harness.controller, BOT)).toMatchObject({
 			text: "hello",
@@ -1249,9 +1249,9 @@ describe("createChatController", () => {
 		const held = runOf(harness.controller)
 		const startSpy = vi.spyOn(harness.driver, "startOrResumeSession")
 
-		expect(await harness.controller.open(BOT)).toBeNull()
-		await harness.controller.open(other.id)
-		await harness.controller.open(BOT)
+		expect(await harness.controller.open(BOT, null)).toBeNull()
+		await harness.controller.open(other.id, null)
+		await harness.controller.open(BOT, null)
 		await vi.runAllTimersAsync()
 
 		expect(startSpy).toHaveBeenCalledTimes(1)
@@ -1277,8 +1277,8 @@ describe("createChatController", () => {
 		)
 
 		const closing = harness.controller.close(BOT)
-		const followed = harness.controller.open(BOT)
-		const moved = harness.controller.open(BOT)
+		const followed = harness.controller.open(BOT, null)
+		const moved = harness.controller.open(BOT, null)
 		await vi.advanceTimersByTimeAsync(STEP_MS)
 		expect(startSpy).not.toHaveBeenCalled()
 
@@ -1306,8 +1306,8 @@ describe("createChatController", () => {
 		)
 
 		const closing = harness.controller.close(BOT)
-		const queued = harness.controller.open(BOT)
-		const picked = harness.controller.open(other.id)
+		const queued = harness.controller.open(BOT, null)
+		const picked = harness.controller.open(other.id, null)
 		expect(harness.controller.getState().runtime).toBeNull()
 
 		await vi.advanceTimersByTimeAsync(STEP_MS)
@@ -1324,7 +1324,7 @@ describe("createChatController", () => {
 		const harness = createHarness()
 		const shutdownSpy = vi.spyOn(harness.driver, "shutdown")
 
-		const opening = harness.controller.open(BOT)
+		const opening = harness.controller.open(BOT, null)
 		const closing = harness.controller.close(BOT)
 		await Promise.all([opening, closing])
 		await vi.runAllTimersAsync()
@@ -1357,7 +1357,7 @@ describe("createChatController", () => {
 			store: { ...store, loadPage: () => Promise.reject({ kind: "storage" }) },
 		})
 
-		await controller.open(BOT)
+		await controller.open(BOT, null)
 		await vi.runAllTimersAsync()
 
 		const state = controller.getState()
@@ -1497,9 +1497,9 @@ describe("history above the transcript", () => {
 		await harness.controller.loadOlder()
 		harness.controller.leave(BOT)
 
-		await harness.controller.open(other.id)
+		await harness.controller.open(other.id, null)
 		await vi.runAllTimersAsync()
-		await harness.controller.open(BOT)
+		await harness.controller.open(BOT, null)
 		await vi.runAllTimersAsync()
 		await harness.controller.loadOlder()
 
@@ -1519,7 +1519,7 @@ describe("history above the transcript", () => {
 		await harness.controller.send("hello")
 		await vi.runAllTimersAsync()
 		const held = harness.controller.stateFor(other.id).messages
-		await harness.controller.open(BOT)
+		await harness.controller.open(BOT, null)
 		await vi.runAllTimersAsync()
 		await harness.controller.loadOlder()
 		await harness.controller.loadOlder()
@@ -1970,7 +1970,7 @@ describe("a run replaced under a conversation that carries on", () => {
 		const other = await store.createBot(botIdentity({ name: "Second" }))
 		const opened = vi.spyOn(store, "openRuntimeSession")
 		const { controller, detach } = await bootedHarness({ store })
-		await controller.open(other.id)
+		await controller.open(other.id, null)
 		await vi.runAllTimersAsync()
 
 		controller.redescribe("nobody")
@@ -1981,7 +1981,7 @@ describe("a run replaced under a conversation that carries on", () => {
 		expect(reasons(opened, "nobody")).toEqual([])
 		expect(reasons(opened, other.id)).toEqual([null])
 
-		await controller.open(BOT)
+		await controller.open(BOT, null)
 		await vi.runAllTimersAsync()
 
 		expect(reasons(opened, BOT)).toEqual([null, REDESCRIBED])
@@ -2859,7 +2859,7 @@ describe("prompts the session cannot take yet", () => {
 			mainChat: (botId) => reading.promise.then(() => base.mainChat(botId)),
 		}
 		const harness = createHarness({ store })
-		const opening = harness.controller.open(BOT)
+		const opening = harness.controller.open(BOT, null)
 		await vi.advanceTimersByTimeAsync(0)
 
 		await harness.controller.send("early")
@@ -3015,7 +3015,7 @@ describe("prompts the session cannot take yet", () => {
 		)
 
 		refusing = false
-		await harness.controller.open(BOT)
+		await harness.controller.open(BOT, null)
 		await vi.runAllTimersAsync()
 
 		const state = harness.controller.getState()
@@ -3058,7 +3058,7 @@ describe("prompts the session cannot take yet", () => {
 		await harness.controller.send("mine")
 		await harness.controller.send("mine again")
 
-		await harness.controller.open(other.id)
+		await harness.controller.open(other.id, null)
 		await harness.controller.send("theirs")
 		await harness.controller.send("theirs again")
 

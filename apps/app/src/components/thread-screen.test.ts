@@ -671,7 +671,7 @@ const soloOf = async ({
 	})
 	controller.attach()
 	await act(async () => {
-		await controller.open(bot.id)
+		await controller.open(bot.id, null)
 	})
 
 	return {
