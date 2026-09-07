@@ -355,21 +355,22 @@ const announce = async (
 	if (signal?.aborted) {
 		return
 	}
-	const dialled = notice(
-		lineFor(name, { status, spent: spent() }, thrown, secrets),
-	)
+	const dialled = (reason: string | undefined) =>
+		notice(lineFor(name, { status, spent: spent() }, reason, secrets))
 	let after: ServerStatus[]
 	try {
 		after = await boundedRead(port, bound, signal)
-	} catch {
-		report?.(dialled)
+	} catch (error) {
+		report?.(dialled(thrown ?? describeError(error)))
 		return
 	}
 	if (signal?.aborted) {
 		return
 	}
 	const read = after.find((status) => status.name === name)?.status
-	report?.(read ? readLine(name, read, spent(), thrown, secrets) : dialled)
+	report?.(
+		read ? readLine(name, read, spent(), thrown, secrets) : dialled(thrown),
+	)
 }
 
 const watching = async (
