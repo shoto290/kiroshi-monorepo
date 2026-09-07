@@ -9,7 +9,7 @@ import { claudeSourceExecutable } from "./build"
 import { EXECUTABLE_OVERRIDE_ENV } from "./executable"
 import { KIROSHI_SERVER } from "./kiroshi-server"
 import type { ConnectPass, ServerStatus } from "./server-connect"
-import { leftOut as rejectionLine } from "./server-env"
+import { leftOut } from "./server-env"
 import {
 	buildOptions,
 	CLASSIFY_ASK_USER_QUESTION,
@@ -49,7 +49,7 @@ const request = {
 	identity,
 }
 
-const leftOut = [
+const rejections = [
 	'the server "clock" was left out: TOKEN is defined by no scope',
 	'the server "probe" was left out: RUNNER is defined by no scope',
 ]
@@ -340,13 +340,13 @@ describe("buildOptions", () => {
 		const append = appended(
 			buildOptions(request, undefined, undefined, {
 				servers: {},
-				rejections: leftOut,
+				rejections,
 			}),
 		)
 
-		expect(append).toBe(layerFor(request, leftOut))
-		expect(append.endsWith(unavailableServersSection(leftOut))).toBe(true)
-		for (const detail of leftOut) {
+		expect(append).toBe(layerFor(request, rejections))
+		expect(append.endsWith(unavailableServersSection(rejections))).toBe(true)
+		for (const detail of rejections) {
 			expect(append).toContain(detail)
 		}
 	})
@@ -409,14 +409,14 @@ describe("buildOptions", () => {
 	it("hands the kept servers and the rejections of one same resolution", () => {
 		const options = buildOptions(request, undefined, undefined, {
 			servers: { clock: { command: "run" } },
-			rejections: leftOut,
+			rejections,
 		})
 
 		expect(Object.keys(options.mcpServers ?? {})).toEqual([
 			"clock",
 			KIROSHI_SERVER,
 		])
-		expect(appended(options)).toContain(leftOut[0])
+		expect(appended(options)).toContain(rejections[0] ?? "")
 	})
 
 	it("keeps the value a scope defines out of that section", () => {
@@ -566,7 +566,7 @@ describe("layerFor", () => {
 		expect(
 			layerFor(
 				{ identity, pluginPath: "/bots/b1", systemPluginPath: system },
-				leftOut,
+				rejections,
 			),
 		).toBe(
 			[
@@ -574,13 +574,13 @@ describe("layerFor", () => {
 				KIROSHI_LAYER,
 				bundleLine("/bots/b1"),
 				`# learn\n\n${skillLine(join(system, "skills", "learn"))}\n\nRules.`,
-				unavailableServersSection(leftOut),
+				unavailableServersSection(rejections),
 			].join("\n\n"),
 		)
 	})
 
 	it("tells the bot to answer with the tools it holds and to give the reason listed", () => {
-		const section = unavailableServersSection(leftOut)
+		const section = unavailableServersSection(rejections)
 
 		expect(section).toContain("Answer the person with the tools you still hold")
 		expect(section).toContain("give them the reason listed for it")
@@ -600,7 +600,7 @@ describe("layerFor", () => {
 	})
 
 	it("keeps the rejection of a missing variable, and its section, word for word", () => {
-		const rejection = rejectionLine("probe", "RUNNER is defined by no scope")
+		const rejection = leftOut("probe", "RUNNER is defined by no scope")
 
 		expect(rejection).toBe(
 			'the server "probe" was left out: RUNNER is defined by no scope',
