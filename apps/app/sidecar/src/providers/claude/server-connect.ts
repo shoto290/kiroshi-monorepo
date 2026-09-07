@@ -20,10 +20,10 @@ export type ConnectPass = {
 	wait?: (ms: number) => Promise<void>
 }
 
-export const MCP_CONNECT_MS = 15_000
+export const CONNECT_BUDGET_MS = 15_000
 
 const PENDING_POLL = 250
-const PENDING_POLLS = Math.ceil(MCP_CONNECT_MS / PENDING_POLL)
+const PENDING_POLLS = Math.ceil(CONNECT_BUDGET_MS / PENDING_POLL)
 const PENDING_WAIT = PENDING_POLLS * PENDING_POLL
 const RECONNECT_LIMIT = 20_000
 const PASS_LIMIT = PENDING_WAIT * 2 + RECONNECT_LIMIT
@@ -31,6 +31,8 @@ const REASON_LIMIT = 300
 const REDACTED = "[redacted]"
 const NO_REASON = "no reason given"
 const TWO_ATTEMPTS = "two connection attempts failed"
+const AWAITING_AUTH = "it is waiting for you to authorize it"
+const GAVE_UP = "the connection pass gave up on"
 
 const OUTLASTED = Symbol("outlasted")
 
@@ -65,6 +67,13 @@ const notConnected = (statuses: ServerStatus[], names: string[]): string[] => {
 	)
 	return names.filter((name) => !settled.has(name))
 }
+
+const awaitingAuth = (statuses: ServerStatus[], names: string[]): string[] =>
+	statuses
+		.filter(
+			({ name, status }) => names.includes(name) && status === "needs-auth",
+		)
+		.map(({ name }) => name)
 
 const settledStatuses = async (
 	port: ConnectPort,
@@ -108,6 +117,31 @@ const readable = (reason: string, secrets: string[]): string =>
 		.reduce((held, secret) => held.split(secret).join(REDACTED), reason)
 		.slice(0, REASON_LIMIT)
 
+const reconnectFailures = async (
+	port: ConnectPort,
+	names: string[],
+): Promise<Map<string, string | undefined>> =>
+	new Map(
+		await Promise.all(
+			names.map(
+				async (name) => [name, await reconnectFailure(port, name)] as const,
+			),
+		),
+	)
+
+const lineFor = (
+	name: string,
+	read: ServerStatus | undefined,
+	thrown: string | undefined,
+	secrets: string[],
+): string =>
+	read?.status === "needs-auth"
+		? leftOut(name, AWAITING_AUTH)
+		: leftOut(
+				name,
+				`${TWO_ATTEMPTS}, ${readable(read?.error ?? thrown ?? NO_REASON, secrets)}`,
+			)
+
 const reportPass = async ({
 	names,
 	port,
@@ -115,27 +149,32 @@ const reportPass = async ({
 	wait = delay,
 }: ConnectPass): Promise<string[]> => {
 	const settled = await settledStatuses(port, names, wait)
-	const unconnected = notConnected(settled, names)
-	if (unconnected.length === 0) {
-		return []
-	}
-	const thrown = new Map(
-		await Promise.all(
-			unconnected.map(
-				async (name) => [name, await reconnectFailure(port, name)] as const,
-			),
-		),
+	const awaiting = awaitingAuth(settled, names)
+	const failing = notConnected(settled, names).filter(
+		(name) => !awaiting.includes(name),
 	)
-	const after = await settledStatuses(port, unconnected, wait)
+	const thrown = await reconnectFailures(port, failing)
+	const after = failing.length ? await settledStatuses(port, failing, wait) : []
+	const reported = new Set([...awaiting, ...notConnected(after, failing)])
 	const secrets = storedValues(env)
-	return notConnected(after, unconnected).map((name) => {
-		const reason =
-			after.find((held) => held.name === name)?.error ?? thrown.get(name)
-		return leftOut(
-			name,
-			`${TWO_ATTEMPTS}, ${readable(reason ?? NO_REASON, secrets)}`,
+	const reads = [...settled, ...after]
+	return names
+		.filter((name) => reported.has(name))
+		.map((name) =>
+			lineFor(
+				name,
+				reads.findLast((read) => read.name === name),
+				thrown.get(name),
+				secrets,
+			),
 		)
-	})
+}
+
+const gaveUp = ({ names, env = {} }: ConnectPass, cause: string): string[] => {
+	process.stderr.write(
+		`${GAVE_UP} ${names.join(", ")}: ${readable(cause, storedValues(env))}\n`,
+	)
+	return []
 }
 
 export const unconnectedServers = async (
@@ -146,9 +185,11 @@ export const unconnectedServers = async (
 	}
 	try {
 		const reported = await withinDeadline(reportPass(pass), PASS_LIMIT)
-		return reported === OUTLASTED ? [] : reported
-	} catch {
-		return []
+		return reported === OUTLASTED
+			? gaveUp(pass, `it outlasted ${PASS_LIMIT} ms`)
+			: reported
+	} catch (error) {
+		return gaveUp(pass, describeError(error))
 	}
 }
 

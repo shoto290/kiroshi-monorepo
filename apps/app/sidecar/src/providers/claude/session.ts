@@ -14,8 +14,8 @@ import { createPermissionGate } from "./permissions"
 import { createPromptStream } from "./prompt-stream"
 import { securityFloor } from "./security-floor"
 import {
+	CONNECT_BUDGET_MS,
 	type ConnectPass,
-	MCP_CONNECT_MS,
 	sectionPrefixer,
 	unconnectedServers,
 } from "./server-connect"
@@ -35,7 +35,7 @@ import { describeError } from "../../describe-error"
 const ABANDONED = "The session ended before this was answered."
 const ENDED = "the agent ended"
 const DISABLE_AUTO_MEMORY = "CLAUDE_CODE_DISABLE_AUTO_MEMORY"
-const MCP_TIMEOUT = "MCP_TIMEOUT"
+const MCP_CONNECT_TIMEOUT = "MCP_CONNECT_TIMEOUT_MS"
 export const CLASSIFY_ASK_USER_QUESTION =
 	"CLAUDE_CODE_AUTO_MODE_CLASSIFY_ASK_USER_QUESTION"
 
@@ -125,7 +125,7 @@ export const buildOptions = (
 			...inheritedEnv(),
 			[DISABLE_AUTO_MEMORY]: "1",
 			[CLASSIFY_ASK_USER_QUESTION]: "0",
-			[MCP_TIMEOUT]: String(MCP_CONNECT_MS),
+			[MCP_CONNECT_TIMEOUT]: String(CONNECT_BUDGET_MS),
 		},
 		managedSettings,
 		settingSources: [],
@@ -135,10 +135,13 @@ export const buildOptions = (
 	}
 }
 
+export const HELD_RELEASE_MS = 10_000
+
 export type ConnectionReport = {
 	emit: EmitFrame
 	push: (text: string) => void
 	pass: ConnectPass
+	releaseAfter?: number
 }
 
 const afterOpenedFrame = <T>(work: () => Promise<T>): Promise<T> =>
@@ -146,30 +149,45 @@ const afterOpenedFrame = <T>(work: () => Promise<T>): Promise<T> =>
 		setTimeout(() => resolve(work()), 0)
 	})
 
-export const reportConnections = ({ emit, push, pass }: ConnectionReport) => {
+export const reportConnections = ({
+	emit,
+	push,
+	pass,
+	releaseAfter = HELD_RELEASE_MS,
+}: ConnectionReport) => {
 	const held: string[] = []
 	let prefix: ((text: string) => string) | undefined
 
-	const release = (details: string[]) => {
+	const flush = () => {
+		for (const text of held.splice(0)) {
+			push(prefix ? prefix(text) : text)
+		}
+	}
+
+	const settle = (details: string[]) => {
 		for (const detail of details) {
 			emit({ type: "server_env_rejected", detail })
 		}
 		prefix = sectionPrefixer(details)
-		for (const text of held.splice(0)) {
-			push(prefix(text))
-		}
+		flush()
 	}
 
-	void afterOpenedFrame(() => unconnectedServers(pass)).then(release, () =>
-		release([]),
-	)
+	const deadline = setTimeout(flush, releaseAfter)
+	void afterOpenedFrame(() => unconnectedServers(pass))
+		.then(settle, () => settle([]))
+		.finally(() => clearTimeout(deadline))
 
-	return (text: string) => {
-		if (prefix) {
-			push(prefix(text))
-			return
-		}
-		held.push(text)
+	return {
+		prompt: (text: string) => {
+			if (prefix) {
+				push(prefix(text))
+				return
+			}
+			held.push(text)
+		},
+		drop: () => {
+			held.length = 0
+		},
 	}
 }
 
@@ -229,25 +247,29 @@ export const openClaudeSession = async (
 
 	emit({ type: "commands", commands: described(initialized.commands) })
 
-	return {
-		prompt: reportConnections({
-			emit,
-			push: prompts.push,
-			pass: {
-				names: Object.keys(resolved.servers),
-				port: {
-					status: () => run.mcpServerStatus(),
-					reconnect: (name) => run.reconnectMcpServer(name),
-				},
-				env: request.serverEnv,
+	const report = reportConnections({
+		emit,
+		push: prompts.push,
+		pass: {
+			names: Object.keys(resolved.servers),
+			port: {
+				status: () => run.mcpServerStatus(),
+				reconnect: (name) => run.reconnectMcpServer(name),
 			},
-		}),
+			env: request.serverEnv,
+		},
+	})
+
+	return {
+		prompt: report.prompt,
 		interrupt: async () => {
+			report.drop()
 			await run.interrupt()
 		},
 		decide: permissions.decide,
 		close: async () => {
 			closing = true
+			report.drop()
 			prompts.end()
 			run.close()
 			await drained

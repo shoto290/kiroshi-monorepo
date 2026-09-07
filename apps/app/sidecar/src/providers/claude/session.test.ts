@@ -8,10 +8,11 @@ import type { Settings } from "@anthropic-ai/claude-agent-sdk"
 import { claudeSourceExecutable } from "./build"
 import { EXECUTABLE_OVERRIDE_ENV } from "./executable"
 import { KIROSHI_SERVER } from "./kiroshi-server"
-import type { ServerStatus } from "./server-connect"
+import { CONNECT_BUDGET_MS, type ServerStatus } from "./server-connect"
 import {
 	buildOptions,
 	CLASSIFY_ASK_USER_QUESTION,
+	HELD_RELEASE_MS,
 	reportConnections,
 } from "./session"
 import {
@@ -148,9 +149,14 @@ describe("buildOptions", () => {
 		}
 	})
 
-	it("gives an MCP server 15s to connect before the session gives up on it", () => {
+	it("widens the MCP connect budget and lowers no timeout the CLI defaults", () => {
 		for (const spawned of spawns) {
-			expect(buildOptions(spawned, undefined).env?.MCP_TIMEOUT).toBe("15000")
+			const env = buildOptions(spawned, undefined).env ?? {}
+
+			expect(env.MCP_CONNECT_TIMEOUT_MS).toBe(String(CONNECT_BUDGET_MS))
+			expect(Number(env.MCP_CONNECT_TIMEOUT_MS)).toBeGreaterThan(5_000)
+			expect(env.MCP_TIMEOUT).toBeUndefined()
+			expect(env.MCP_TOOL_TIMEOUT).toBeUndefined()
 		}
 	})
 
@@ -611,7 +617,7 @@ describe("reportConnections", () => {
 	it("holds every prompt behind the pass and prefixes the first it releases", async () => {
 		const pushed: string[] = []
 		const released = Promise.withResolvers<void>()
-		const prompt = reportConnections({
+		const report = reportConnections({
 			emit: () => {},
 			push: (text) => {
 				pushed.push(text)
@@ -628,8 +634,8 @@ describe("reportConnections", () => {
 			},
 		})
 
-		prompt("first")
-		prompt("second")
+		report.prompt("first")
+		report.prompt("second")
 
 		expect(pushed).toEqual([])
 
@@ -644,7 +650,9 @@ describe("reportConnections", () => {
 	it("releases every held prompt unprefixed when the pass gives up", async () => {
 		const pushed: string[] = []
 		const released = Promise.withResolvers<void>()
-		const prompt = reportConnections({
+		const written = process.stderr.write
+		process.stderr.write = (() => true) as typeof process.stderr.write
+		const report = reportConnections({
 			emit: () => {},
 			push: (text) => {
 				pushed.push(text)
@@ -661,9 +669,62 @@ describe("reportConnections", () => {
 			},
 		})
 
-		prompt("first")
+		report.prompt("first")
+		await released.promise
+		process.stderr.write = written
+
+		expect(pushed).toEqual(["first"])
+	})
+
+	it("drops every held prompt when the turn is cancelled or the session closes", async () => {
+		const pushed: string[] = []
+		const emitted: string[] = []
+		const settled = Promise.withResolvers<void>()
+		const report = reportConnections({
+			emit: (frame) => {
+				emitted.push(String(frame.detail))
+				settled.resolve()
+			},
+			push: (text) => {
+				pushed.push(text)
+			},
+			pass: {
+				names: ["superset"],
+				port: { status: async () => refused, reconnect: async () => {} },
+			},
+		})
+
+		report.prompt("first")
+		report.drop()
+		await settled.promise
+
+		expect(pushed).toEqual([])
+		expect(emitted).toEqual([detail])
+	})
+
+	it("releases a held prompt unprefixed once the session has waited long enough", async () => {
+		const pushed: string[] = []
+		const released = Promise.withResolvers<void>()
+		const report = reportConnections({
+			emit: () => {},
+			push: (text) => {
+				pushed.push(text)
+				released.resolve()
+			},
+			pass: {
+				names: ["superset"],
+				port: {
+					status: () => new Promise(() => {}),
+					reconnect: async () => {},
+				},
+			},
+			releaseAfter: 5,
+		})
+
+		report.prompt("first")
 		await released.promise
 
 		expect(pushed).toEqual(["first"])
+		expect(HELD_RELEASE_MS).toBeLessThanOrEqual(10_000)
 	})
 })

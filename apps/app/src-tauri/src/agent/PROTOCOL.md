@@ -156,7 +156,9 @@ Every other command names its session.
   the server and the reason its two attempts failed, and the first prompt released after
   that read carries that same line. The session opens without waiting on that read: the
   `opened` frame goes out first and the prompts wait behind the read, in the order they
-  were received. No resolved value is ever named in a frame or a log line: a
+  were received, ten seconds at the most, and not at all past an interrupt or a close,
+  which drop what is held. A server reading `needs-auth` is named as waiting for its
+  authorization, and no reconnection is attempted on it. No resolved value is ever named in a frame or a log line: a
   reason is cut at 300 characters and every value the store holds reads `[redacted]` in
   it.
 

@@ -1,8 +1,8 @@
 import { describe, expect, it } from "bun:test"
 
 import {
+	CONNECT_BUDGET_MS,
 	type ConnectPort,
-	MCP_CONNECT_MS,
 	type ServerStatus,
 	sectionPrefixer,
 	unconnectedServers,
@@ -51,7 +51,7 @@ describe("unconnectedServers", () => {
 		expect(prefix("and then?")).toBe("and then?")
 	})
 
-	it("waits past five seconds for a server still connecting under MCP_CONNECT_MS", async () => {
+	it("waits past five seconds for a server still connecting under the budget", async () => {
 		const pending: ServerStatus[] = [{ name: "superset", status: "pending" }]
 		let waited = 0
 		const port = {
@@ -73,7 +73,7 @@ describe("unconnectedServers", () => {
 		expect(details).toEqual([])
 		expect(port.reconnected).toEqual([])
 		expect(waited).toBeGreaterThan(5_000)
-		expect(waited).toBeLessThanOrEqual(MCP_CONNECT_MS)
+		expect(waited).toBeLessThanOrEqual(CONNECT_BUDGET_MS)
 	})
 
 	it("settles a server left pending by its reconnection before deciding", async () => {
@@ -166,7 +166,13 @@ describe("unconnectedServers", () => {
 		expect(port.reconnected).toEqual([])
 	})
 
-	it("reports nothing when reading the status throws", async () => {
+	it("names on stderr the servers it gave up on when the status throws", async () => {
+		const written: string[] = []
+		const original = process.stderr.write
+		process.stderr.write = ((line: string) => {
+			written.push(String(line))
+			return true
+		}) as typeof process.stderr.write
 		const port: ConnectPort = {
 			status: async () => {
 				throw new Error("the query is gone")
@@ -174,7 +180,28 @@ describe("unconnectedServers", () => {
 			reconnect: async () => {},
 		}
 
-		expect(await unconnectedServers({ names: ["superset"], port })).toEqual([])
+		const details = await unconnectedServers({
+			names: ["superset", "clock"],
+			port,
+		})
+		process.stderr.write = original
+
+		expect(details).toEqual([])
+		expect(written).toEqual([
+			"the connection pass gave up on superset, clock: the query is gone\n",
+		])
+	})
+
+	it("names a server waiting for authorization, and reconnects it by no call", async () => {
+		const port = portReading([[{ name: "superset", status: "needs-auth" }]])
+
+		const details = await unconnectedServers({ names: ["superset"], port })
+
+		expect(details).toEqual([
+			'the server "superset" was left out: it is waiting for you to authorize it',
+		])
+		expect(port.reconnected).toEqual([])
+		expect(port.reads).toBe(1)
 	})
 })
 
