@@ -32,6 +32,8 @@ const ACTIVE_OPTION_ID = "search-result-active"
 
 const RESULT_LIST_ID = "search-result-list"
 
+const PALETTE_RING_CLASS = "[--badge-ring:var(--color-popover)]"
+
 const RANK_CHORD = "Press Control"
 
 const rankLabelFor = (rank: number) => `${RANK_CHORD} ${rank}`
@@ -142,7 +144,7 @@ const ResultList = ({
 }: ResultListProps) => (
 	<div
 		aria-label={label}
-		className="flex flex-col gap-0.5"
+		className={`flex flex-col gap-0.5 rounded-xl bg-popover p-1 ${PALETTE_RING_CLASS}`}
 		id={id}
 		role="listbox"
 		style={{ width }}
@@ -328,7 +330,7 @@ export const States = meta.story({
 		docs: {
 			description: {
 				story:
-					"Rest, the pointer and keyboard focus side by side. Check that the row draws no surface of its own at rest, that the pointer answer is the muted surface at half strength so it never reads as the active row, and that a row the palette moves focus onto adds a ring on top of whichever surface it already carries. The pointer surface is read here from the class the row shares with `ActivityRow`: the pseudo-state addon paints it in Storybook but does not reach the browser the story test runs in.",
+					"Rest, the pointer and keyboard focus side by side. Check that the row draws no surface of its own at rest so the palette behind it shows through, that the pointer answer is the muted surface at half strength so it never reads as the active row, and that a row the palette moves focus onto adds a ring on top of whichever surface it already carries.",
 			},
 		},
 	},
@@ -346,13 +348,11 @@ export const States = meta.story({
 		</>
 	),
 	play: async ({ canvas, userEvent }) => {
-		const [rested, hovered] = canvas.getAllByRole("option")
+		const [rested] = canvas.getAllByRole("option")
 
 		await expect(getComputedStyle(rested).backgroundColor).toBe(
 			"rgba(0, 0, 0, 0)",
 		)
-		await expect(hovered).toHaveClass("hover:bg-muted/50")
-
 		await userEvent.keyboard("{ArrowDown}")
 		rested.focus()
 
@@ -427,6 +427,78 @@ export const AsListboxOption = meta.story({
 		await expect(
 			canvas.getByRole("button", { name: PAST_THE_LIST_LABEL }),
 		).toHaveFocus()
+	},
+})
+
+export const ActiveUnderPointer = meta.story({
+	args: { isActive: true },
+	parameters: {
+		pseudo: { hover: true },
+		docs: {
+			description: {
+				story:
+					"The row the keyboard sits on, with the pointer resting on it too. Check that it keeps the muted surface at full strength instead of lightening to the half-strength pointer answer: the pointer never takes a row away from the keyboard, and the two surfaces are close enough that a row flickering between them reads as a bug. Reach for `States` when what you are checking is a row the keyboard is not on.",
+			},
+		},
+	},
+	render: (args) => (
+		<>
+			<Probe slot="muted-probe" tone="bg-muted" />
+			<ResultList>
+				<SearchResultRow {...args} />
+			</ResultList>
+		</>
+	),
+	play: async ({ canvas, canvasElement }) => {
+		await expect(
+			getComputedStyle(canvas.getByRole("option")).backgroundColor,
+		).toBe(surfaceOf(canvasElement, "muted-probe"))
+	},
+})
+
+export const WithBadgeWhileActive = meta.story({
+	args: KIND_ARGS.mission,
+	parameters: {
+		docs: {
+			description: {
+				story:
+					"Two mission rows on the palette surface, one of them active. The badge ring is a hole punched through whatever is behind the dot, so check that the resting row punches the palette it is placed on and the active row punches the muted surface it draws itself — a ring naming a surface the row is not on paints a pale halo instead of disappearing.",
+			},
+		},
+	},
+	render: (args) => (
+		<>
+			<Probe slot="muted-probe" tone="bg-muted" />
+			<ResultList>
+				<SearchResultRow {...args} isActive={false} />
+				<SearchResultRow
+					{...args}
+					isActive
+					rank={2}
+					title={[{ key: "title", text: "Retire the legacy importer" }]}
+				/>
+			</ResultList>
+		</>
+	),
+	play: async ({ canvasElement }) => {
+		const [resting, active] = slotsIn(canvasElement, "search-result-row")
+		const [restingDot, activeDot] = slotsIn(canvasElement, "bot-activity-dot")
+		const palette = slotIn(canvasElement, "search-result-row").parentElement
+
+		if (!palette) throw new Error("The rows sit in no palette")
+
+		await expect(getComputedStyle(restingDot).boxShadow).toContain(
+			getComputedStyle(palette).backgroundColor,
+		)
+		await expect(getComputedStyle(activeDot).boxShadow).toContain(
+			surfaceOf(canvasElement, "muted-probe"),
+		)
+		await expect(getComputedStyle(resting).backgroundColor).toBe(
+			"rgba(0, 0, 0, 0)",
+		)
+		await expect(getComputedStyle(active).backgroundColor).toBe(
+			surfaceOf(canvasElement, "muted-probe"),
+		)
 	},
 })
 
