@@ -64,12 +64,9 @@ const STANDING_OPENING = [
 	"Every server named here belongs to this session. Read each line for where that server stands, and answer the person with every tool you hold. Naming that server and its state is the one exception to saying nothing about the machinery you run on.",
 ]
 
-const holding = (lines: ServerLine[], state: ServerState): boolean =>
-	lines.some((line) => line.state === state)
-
-const openingFor = (lines: ServerLine[]): string[] => {
-	const dropped = holding(lines, "left-out")
-	const standing = lines.some((line) => line.state !== "left-out")
+const openingFor = (states: Set<ServerState>): string[] => {
+	const dropped = states.has("left-out")
+	const standing = [...states].some((state) => state !== "left-out")
 	if (dropped && standing) {
 		return MIXED_OPENING
 	}
@@ -80,15 +77,16 @@ export const leftOutLines = (details: string[]): ServerLine[] =>
 	details.map((detail) => ({ detail, state: "left-out" as const }))
 
 export const unavailableServersSection = (lines: ServerLine[]): string => {
-	const [title, opening] = openingFor(lines)
-	const connecting =
-		holding(lines, "connecting") || holding(lines, "reconnecting")
+	const states = new Set(lines.map((line) => line.state))
+	const [title, opening] = openingFor(states)
 	return [
 		title,
 		lines.map(({ detail }) => `- ${detail}`).join("\n"),
 		opening,
-		...(connecting ? [CONNECTING_LINE] : []),
-		...(holding(lines, "holding") ? [HOLDS_TOOLS_LINE] : []),
+		...(states.has("connecting") || states.has("reconnecting")
+			? [CONNECTING_LINE]
+			: []),
+		...(states.has("holding") ? [HOLDS_TOOLS_LINE] : []),
 	].join("\n\n")
 }
 
