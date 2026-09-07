@@ -1286,7 +1286,10 @@ export function createChatController(
 		if (!runtime || request?.id !== id) {
 			return
 		}
-		if (!(await loadLatest(bot))) {
+		const conversationId = bot.state.conversationId
+		const isAnswerable =
+			(await loadLatest(bot)) && bot.state.conversationId === conversationId
+		if (!isAnswerable) {
 			return
 		}
 		try {

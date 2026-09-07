@@ -1018,7 +1018,10 @@ export const createConversationController = (
 		if (!held?.scope || pending?.kind !== "question") {
 			return
 		}
-		if (!(await loadLatest())) {
+		const conversationId = conversation?.id
+		const isAnswerable =
+			(await loadLatest()) && conversation?.id === conversationId
+		if (!isAnswerable) {
 			return
 		}
 		await driver.answerQuestion(held.scope, id, answers).catch(() => undefined)

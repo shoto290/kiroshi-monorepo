@@ -2306,7 +2306,30 @@ describe("a conversation landed away from its newest end", () => {
 		driver.pushTo(bots[0].id, [ASK])
 		await settled()
 		await controller.landOn(LANDED_SEQ)
-		return { controller, detach, driver }
+		return { controller, conversation, detach, driver }
+	}
+
+	const gatingLatest = () => {
+		const base = createFakeTranscriptStore()
+		let release: () => void = () => undefined
+		const gate = new Promise<void>((resolve) => {
+			release = resolve
+		})
+		let newestReads = 0
+		const store: TranscriptStore = {
+			...base,
+			loadPage: async (conversationId, cursor) => {
+				if (cursor) {
+					return base.loadPage(conversationId, cursor)
+				}
+				newestReads += 1
+				if (newestReads > 1) {
+					await gate
+				}
+				return base.loadPage(conversationId, null)
+			},
+		}
+		return { store, release: () => release() }
 	}
 
 	it("leaves a question unanswered when the newest page is refused", async () => {
@@ -2339,6 +2362,34 @@ describe("a conversation landed away from its newest end", () => {
 		expect(state.messages.some((said) => said.content === "the north")).toBe(
 			true,
 		)
+		detach()
+	})
+	it("writes no answer when the reader moved on before the newest page came", async () => {
+		const { store, release } = gatingLatest()
+		const { controller, conversation, detach, driver } = await askedOn(store)
+		const elsewhere = await store.createConversation({
+			spaceId: SPACE,
+			sectionId: null,
+			title: "Roof",
+			botIds: [],
+		})
+
+		const answering = controller.answer("ask-1", { "Which wall?": "the north" })
+		void controller.open(elsewhere)
+		release()
+		await answering
+		await settled()
+
+		expect(driver.answered).toEqual([])
+
+		await controller.open(conversation)
+		await settled()
+
+		expect(
+			controller
+				.getState()
+				.messages.some((said) => said.content === "the north"),
+		).toBe(false)
 		detach()
 	})
 })
