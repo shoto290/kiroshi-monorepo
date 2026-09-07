@@ -10,7 +10,7 @@ import type { Conversation } from "./store-contract"
 import {
 	type ConversationPreviews,
 	type LastWord,
-	lastWordIn,
+	lastWordHeldIn,
 } from "./transcript-state"
 
 export type ConversationChat = {
@@ -97,7 +97,7 @@ export const useConversationWorkers = (
 const heldWordIn = (
 	controller: ConversationController | null,
 ): LastWord | undefined =>
-	controller ? lastWordIn(controller.getState().messages) : undefined
+	controller ? lastWordHeldIn(controller.getState()) : undefined
 
 export const useConversationPreviews = (
 	runtimes: ConversationRuntimes,

@@ -120,6 +120,17 @@ export const lastWordIn = (
 	}
 }
 
+export type HeldTranscript = {
+	messages: TranscriptMessage[]
+	hasNewer: boolean
+}
+
+export const lastWordHeldIn = ({
+	messages,
+	hasNewer,
+}: HeldTranscript): LastWord | undefined =>
+	hasNewer ? undefined : lastWordIn(messages)
+
 const oldestSeq = (messages: TranscriptMessage[]): number | null =>
 	messages[0]?.seq ?? null
 

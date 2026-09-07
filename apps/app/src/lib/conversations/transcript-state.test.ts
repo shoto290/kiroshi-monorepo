@@ -17,6 +17,7 @@ import {
 import {
 	initialTranscriptState,
 	isTerminalCompletion,
+	lastWordHeldIn,
 	lastWordIn,
 	selectHasMore,
 	selectHasNewer,
@@ -613,6 +614,28 @@ describe("lastWordIn", () => {
 				settled({ content: "  ", completion: "failed", createdAt: 40 }),
 			]),
 		).toEqual({ text: undefined, at: 40 })
+	})
+})
+
+describe("lastWordHeldIn", () => {
+	const SAID = [
+		message({
+			id: "a",
+			completion: "complete",
+			content: "Done",
+			createdAt: 10,
+		}),
+	]
+
+	it("says nothing while the thread holds newer messages it has not loaded", () => {
+		expect(lastWordHeldIn({ messages: SAID, hasNewer: true })).toBeUndefined()
+	})
+
+	it("takes the last word once the thread is back at its newest message", () => {
+		expect(lastWordHeldIn({ messages: SAID, hasNewer: false })).toEqual({
+			text: "Done",
+			at: 10,
+		})
 	})
 })
 
