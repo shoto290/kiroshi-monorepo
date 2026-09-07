@@ -232,6 +232,15 @@ const withoutBot = (
 		]),
 	)
 
+const withLine = (
+	previews: Record<string, BotPreviews>,
+	{ spaceId, botId }: RosterLine,
+	word: LastWord | undefined,
+): Record<string, BotPreviews> => ({
+	...previews,
+	[spaceId]: { ...previews[spaceId], [botId]: word },
+})
+
 const withoutLine = (
 	previews: Record<string, BotPreviews>,
 	{ spaceId, botId }: RosterLine,
@@ -406,11 +415,6 @@ export const createRosterController = (
 		reportFailure({ title: i18n.t("bots:environment.remove.failed") })
 	}
 
-	const heldIn = (spaceId: string | undefined, botId: string) =>
-		spaceId === undefined
-			? undefined
-			: rosterIn(state.rosters, spaceId).find((bot) => bot.id === botId)
-
 	const readFrom = (opening: RosterOpening) =>
 		enqueue(() => read(opening)).catch(noteFailedRead)
 
@@ -468,15 +472,6 @@ export const createRosterController = (
 			return null
 		}
 	}
-
-	const withLine = (
-		previews: Record<string, BotPreviews>,
-		{ spaceId, botId }: RosterLine,
-		word: LastWord | undefined,
-	) => ({
-		...previews,
-		[spaceId]: { ...(previews[spaceId] ?? {}), [botId]: word },
-	})
 
 	const readPreviews = async (lines: RosterLine[]) => {
 		const read = await Promise.all(
@@ -741,8 +736,11 @@ export const createRosterController = (
 
 		addToSpace: (botId: string, spaceId: string) =>
 			enqueue(async () => {
-				const joined = heldIn(spacesOfBot(botId)[0], botId)
-				if (!joined || spacesOfBot(botId).includes(spaceId)) {
+				const memberships = spacesOfBot(botId)
+				const joined = rosterIn(state.rosters, memberships[0] ?? null).find(
+					(bot) => bot.id === botId,
+				)
+				if (!joined || memberships.includes(spaceId)) {
 					return
 				}
 				await store.addBotToSpace(botId, spaceId)

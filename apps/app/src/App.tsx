@@ -383,19 +383,16 @@ export function App() {
 		await roster.controller.remove(id)
 	}
 
-	const botIds = useMemo(
-		() =>
-			Object.values(rosters).flatMap((spaceBots) =>
-				spaceBots.map((bot) => bot.id),
-			),
-		[rosters],
-	)
 	const lines = useMemo(
 		() =>
 			Object.entries(rosters).flatMap(([spaceId, spaceBots]) =>
 				spaceBots.map((bot) => ({ spaceId, botId: bot.id })),
 			),
 		[rosters],
+	)
+	const botIds = useMemo(
+		() => [...new Set(lines.map(({ botId }) => botId))],
+		[lines],
 	)
 	const working = useBotActivity(chat.controller, botIds)
 	const previews = useBotPreviews({
