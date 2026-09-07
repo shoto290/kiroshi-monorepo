@@ -1,10 +1,14 @@
 use tauri::State;
 
-use super::contract::{MessageHit, MessageSearchError, MessageSearchQuery};
+use super::contract::{
+	Catalogue, CatalogueChat, CatalogueError, CatalogueScope, MessageHit, MessageSearchError,
+	MessageSearchQuery,
+};
+use crate::conversations::contract::StorageFailure;
 use crate::db;
 
-fn ready(state: &db::DatabaseState) -> Result<&db::Database, MessageSearchError> {
-	state.as_ref().map_err(|failure| MessageSearchError::Unavailable { failure: failure.into() })
+fn ready(state: &db::DatabaseState) -> Result<&db::Database, StorageFailure> {
+	state.as_ref().map_err(StorageFailure::from)
 }
 
 #[tauri::command]
@@ -12,7 +16,37 @@ pub async fn search_messages(
 	state: State<'_, db::DatabaseState>,
 	query: MessageSearchQuery,
 ) -> Result<Vec<MessageHit>, MessageSearchError> {
-	ready(&state)?.search().messages(query).await
+	ready(&state)
+		.map_err(|failure| MessageSearchError::Unavailable { failure })?
+		.search()
+		.messages(query)
+		.await
+}
+
+#[tauri::command]
+pub async fn search_catalogue(
+	state: State<'_, db::DatabaseState>,
+	query: String,
+	space_id: String,
+	all_spaces: bool,
+) -> Result<Catalogue, CatalogueError> {
+	ready(&state)
+		.map_err(|failure| CatalogueError::Unavailable { failure })?
+		.catalogue()
+		.search(CatalogueScope { query, space_id, all_spaces })
+		.await
+}
+
+#[tauri::command]
+pub async fn search_recent(
+	state: State<'_, db::DatabaseState>,
+	space_id: String,
+) -> Result<Vec<CatalogueChat>, CatalogueError> {
+	ready(&state)
+		.map_err(|failure| CatalogueError::Unavailable { failure })?
+		.catalogue()
+		.recent(space_id)
+		.await
 }
 
 #[cfg(test)]
@@ -25,8 +59,8 @@ mod tests {
 
 	use super::*;
 	use crate::db::repositories::messages::{NewAssistantMessage, TerminalState};
-	use crate::db::repositories::search::{MAX_HITS, MAX_QUERY_CHARS};
-	use crate::search::contract::{ConversationKind, SnippetPart};
+	use crate::db::repositories::search::MAX_HITS;
+	use crate::search::contract::{ConversationKind, SnippetPart, MAX_QUERY_CHARS};
 
 	const A_SPACE_EACH: &str = "
 		INSERT INTO spaces (id, name, colour, position, created_at)
@@ -297,18 +331,43 @@ mod tests {
 	}
 
 	#[tokio::test]
-	async fn the_answer_stops_at_the_hit_cap_and_the_query_stops_at_the_length_cap() {
+	async fn the_answer_stops_at_the_hit_cap() {
 		let app = a_host("caps").await;
 		for at in 1..=i64::from(MAX_HITS) + 5 {
 			a_settled_message(&app, &format!("m{at}"), "c1", "the cafe opens at dawn", at).await;
 		}
 
 		let capped = found(&app, in_space("cafe", "personal")).await;
-		let past_the_cap = format!("cafe {}zebra", "dawn ".repeat(MAX_QUERY_CHARS / 5));
-		let cut = found(&app, in_space(&past_the_cap, "personal")).await;
 
 		assert_eq!(capped.len(), MAX_HITS as usize, "the answer went past the hit cap");
-		assert_eq!(cut.len(), MAX_HITS as usize, "the query text past the length cap was read");
+
+		cleaned(&app);
+	}
+
+	#[tokio::test]
+	async fn one_character_over_the_cap_is_refused_by_every_command_of_the_search() {
+		let app = a_host("query-cap").await;
+		let held = "a".repeat(MAX_QUERY_CHARS);
+		let over = "a".repeat(MAX_QUERY_CHARS + 1);
+
+		assert!(
+			search_messages(app.state(), in_space(&held, "personal")).await.is_ok(),
+			"a query at the cap was refused"
+		);
+		assert!(
+			search_catalogue(app.state(), held, "personal".to_owned(), false).await.is_ok(),
+			"a query at the cap was refused"
+		);
+		assert_eq!(
+			search_messages(app.state(), in_space(&over, "personal")).await,
+			Err(MessageSearchError::QueryTooLong { limit: MAX_QUERY_CHARS }),
+			"the message search read a query past the cap"
+		);
+		assert_eq!(
+			search_catalogue(app.state(), over, "personal".to_owned(), false).await,
+			Err(CatalogueError::QueryTooLong { limit: MAX_QUERY_CHARS }),
+			"the catalogue read a query past the cap"
+		);
 
 		cleaned(&app);
 	}

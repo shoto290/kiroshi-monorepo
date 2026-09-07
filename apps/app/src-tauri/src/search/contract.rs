@@ -2,6 +2,7 @@ use serde::{Deserialize, Serialize};
 
 use crate::conversations::contract::StorageFailure;
 use crate::db::DatabaseError;
+use crate::missions::contract::MissionState;
 
 #[derive(Debug, Clone, Copy, PartialEq, Eq, Serialize, Deserialize)]
 #[serde(rename_all = "snake_case")]
@@ -58,10 +59,94 @@ pub enum MessageSearchError {
 	Unavailable { failure: StorageFailure },
 	#[serde(rename_all = "camelCase")]
 	Storage { failure: StorageFailure },
+	#[serde(rename_all = "camelCase")]
+	QueryTooLong { limit: usize },
 }
 
 impl From<DatabaseError> for MessageSearchError {
 	fn from(error: DatabaseError) -> Self {
 		MessageSearchError::Storage { failure: (&error).into() }
+	}
+}
+
+pub const MAX_QUERY_CHARS: usize = 200;
+pub const MAX_MATCHES_PER_LIST: usize = 20;
+pub const MAX_RECENT_CHATS: usize = 8;
+
+#[derive(Debug, Clone, PartialEq, Eq, Serialize, Deserialize)]
+#[serde(rename_all = "camelCase")]
+pub struct CatalogueChat {
+	pub conversation_id: String,
+	pub kind: ConversationKind,
+	pub title: String,
+	pub bot_id: Option<String>,
+	pub participants: Vec<String>,
+	pub space_id: Option<String>,
+}
+
+#[derive(Debug, Clone, PartialEq, Eq, Serialize, Deserialize)]
+#[serde(rename_all = "camelCase")]
+pub struct CatalogueMission {
+	pub id: String,
+	pub thread_conversation_id: String,
+	pub objective: String,
+	pub ticket_platform: String,
+	pub ticket_external_id: String,
+	pub ticket_title: String,
+	pub state: MissionState,
+	pub bot_id: String,
+	pub space_id: String,
+}
+
+#[derive(Debug, Clone, PartialEq, Eq, Serialize, Deserialize)]
+#[serde(rename_all = "camelCase")]
+pub struct CatalogueRoutine {
+	pub id: String,
+	pub conversation_id: String,
+	pub bot_id: String,
+	pub title: String,
+	pub trigger_source_id: String,
+	pub is_enabled: bool,
+	pub expression: Option<String>,
+	pub space_id: String,
+}
+
+#[derive(Debug, Clone, PartialEq, Eq, Serialize, Deserialize)]
+#[serde(rename_all = "camelCase")]
+pub struct Catalogue {
+	pub chats: Vec<CatalogueChat>,
+	pub missions: Vec<CatalogueMission>,
+	pub routines: Vec<CatalogueRoutine>,
+}
+
+#[derive(Debug, Clone, PartialEq, Eq)]
+pub struct CatalogueScope {
+	pub query: String,
+	pub space_id: String,
+	pub all_spaces: bool,
+}
+
+#[derive(Debug, Clone, PartialEq, Eq, Serialize, Deserialize)]
+#[serde(tag = "kind", rename_all = "camelCase")]
+pub enum CatalogueError {
+	#[serde(rename_all = "camelCase")]
+	Unavailable { failure: StorageFailure },
+	#[serde(rename_all = "camelCase")]
+	Storage { failure: StorageFailure },
+	#[serde(rename_all = "camelCase")]
+	QueryTooLong { limit: usize },
+	#[serde(rename_all = "camelCase")]
+	UnknownBot { id: String },
+}
+
+impl From<DatabaseError> for CatalogueError {
+	fn from(error: DatabaseError) -> Self {
+		CatalogueError::Storage { failure: (&error).into() }
+	}
+}
+
+impl From<rusqlite::Error> for CatalogueError {
+	fn from(error: rusqlite::Error) -> Self {
+		CatalogueError::from(DatabaseError::Sqlite(error))
 	}
 }

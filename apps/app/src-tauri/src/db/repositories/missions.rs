@@ -38,7 +38,8 @@ fn named(kind: MissionEventKind) -> rusqlite::Result<String> {
 	}
 }
 
-const MISSION_COLUMNS: &str = "SELECT id, origin_conversation_id, bot_id, thread_conversation_id,
+pub(in crate::db) const MISSION_COLUMNS: &str =
+	"SELECT id, origin_conversation_id, bot_id, thread_conversation_id,
 	objective, ticket_platform, ticket_external_id, ticket_url, ticket_title, tools,
 	opened_at, closed_at, reported_at, reported_turn_id,
 	COALESCE((SELECT kind FROM mission_events
@@ -623,7 +624,7 @@ fn unknown_participant(
 	}
 }
 
-fn mission(row: &Row<'_>) -> rusqlite::Result<Mission> {
+pub(in crate::db) fn mission(row: &Row<'_>) -> rusqlite::Result<Mission> {
 	Ok(Mission {
 		id: row.get(0)?,
 		origin_conversation_id: row.get(1)?,

@@ -69,6 +69,9 @@ reqwest = { version = "0.13", default-features = false, features = ["json", "rus
 # Named only to hand reqwest the provider it asks for: already in the tree with ring compiled in,
 # and no crate enters the lockfile through this line.
 rustls = { version = "0.23", default-features = false, features = ["ring"] }
+# The one route to a fold that a search compares against: NFD splits an accented letter into
+# its base and its marks, which are then dropped, so "Amelie" reaches "Amélie".
+unicode-normalization = "0.1"
 
 [target.'cfg(unix)'.dependencies]
 libc = "0.2"
