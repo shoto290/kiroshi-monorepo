@@ -170,11 +170,10 @@ const reportPass = async ({
 		)
 }
 
-const gaveUp = ({ names, env = {} }: ConnectPass, cause: string): string[] => {
+const gaveUp = ({ names, env = {} }: ConnectPass, cause: string) => {
 	process.stderr.write(
 		`${GAVE_UP} ${names.join(", ")}: ${readable(cause, storedValues(env))}\n`,
 	)
-	return []
 }
 
 export const unconnectedServers = async (
@@ -185,12 +184,14 @@ export const unconnectedServers = async (
 	}
 	try {
 		const reported = await withinDeadline(reportPass(pass), PASS_LIMIT)
-		return reported === OUTLASTED
-			? gaveUp(pass, `it outlasted ${PASS_LIMIT} ms`)
-			: reported
+		if (reported !== OUTLASTED) {
+			return reported
+		}
+		gaveUp(pass, `it outlasted ${PASS_LIMIT} ms`)
 	} catch (error) {
-		return gaveUp(pass, describeError(error))
+		gaveUp(pass, describeError(error))
 	}
+	return []
 }
 
 export const sectionPrefixer = (details: string[]) => {
