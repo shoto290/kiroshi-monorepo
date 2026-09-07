@@ -204,22 +204,24 @@ const readable = (reason: string, secrets: string[]): string =>
 		.reduce((held, secret) => held.split(secret).join(REDACTED), reason)
 		.slice(0, REASON_LIMIT)
 
+const reasonFor = ({ status, spent }: NamedRead): string =>
+	status === "pending"
+		? `${STILL_CONNECTING} after ${spent} ms`
+		: `it read ${status}`
+
 const lineFor = (
 	name: string,
-	{ status, spent }: NamedRead,
+	named: NamedRead,
 	thrown: string | undefined,
 	secrets: string[],
 ): string => {
-	if (status === "needs-auth") {
+	if (named.status === "needs-auth") {
 		return leftOut(name, AWAITING_AUTH)
 	}
 	const answered = thrown
 		? `, and the reconnection answered: ${readable(thrown, secrets)}`
 		: ""
-	if (status === "pending") {
-		return leftOut(name, `${STILL_CONNECTING} after ${spent} ms${answered}`)
-	}
-	return leftOut(name, `it read ${status}${answered}`)
+	return leftOut(name, `${reasonFor(named)}${answered}`)
 }
 
 const reportPass = async (
