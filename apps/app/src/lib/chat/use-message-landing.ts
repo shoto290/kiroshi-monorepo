@@ -47,17 +47,24 @@ export const useMessageLanding = ({
 			return
 		}
 		requested.current = shown
-		const whileLatest = (act: () => void) => {
-			if (requested.current === shown) {
-				act()
-			}
-		}
+		const isSuperseded = () => requested.current !== shown
 		landOn(shown.seq).then(
-			(window) =>
-				whileLatest(() =>
-					holds(window, shown.messageId) ? setRead(shown) : giveUp(shown),
-				),
-			() => whileLatest(() => giveUp(shown)),
+			(window) => {
+				if (isSuperseded()) {
+					return
+				}
+				if (holds(window, shown.messageId)) {
+					setRead(shown)
+					return
+				}
+				giveUp(shown)
+			},
+			() => {
+				if (isSuperseded()) {
+					return
+				}
+				giveUp(shown)
+			},
 		)
 	}, [shown, landOn, giveUp])
 
