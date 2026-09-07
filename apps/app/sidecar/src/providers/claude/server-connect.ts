@@ -40,7 +40,7 @@ const NO_READ = "no status read ever named it"
 const TWO_ATTEMPTS = "two connection attempts failed"
 const AWAITING_AUTH = "it is waiting for you to authorize it"
 const GAVE_UP = "the connection pass gave up on"
-const REPORTED = ["pending", "failed", "needs-auth"]
+const REPORTABLE = ["pending", "failed", "needs-auth"]
 
 const OUTLASTED = Symbol("outlasted")
 
@@ -177,11 +177,12 @@ const reportPass = async (
 		: []
 	const reads = [...settled, ...after]
 	return {
-		reported: names
-			.filter((name) => REPORTED.includes(lastRead(reads, name)?.status ?? ""))
-			.map((name) =>
-				lineFor(name, lastRead(reads, name), thrown.get(name), secrets),
-			),
+		reported: names.flatMap((name) => {
+			const read = lastRead(reads, name)
+			return REPORTABLE.includes(read?.status ?? "")
+				? [lineFor(name, read, thrown.get(name), secrets)]
+				: []
+		}),
 		missing: names.filter((name) => !lastRead(reads, name)),
 	}
 }
