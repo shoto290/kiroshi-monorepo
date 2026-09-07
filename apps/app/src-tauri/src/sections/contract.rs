@@ -51,6 +51,8 @@ pub enum SectionError {
 	#[serde(rename_all = "camelCase")]
 	UnknownBot { id: String },
 	#[serde(rename_all = "camelCase")]
+	SeveralSpaces { id: String },
+	#[serde(rename_all = "camelCase")]
 	ForeignSection { id: String },
 }
 
@@ -65,6 +67,7 @@ impl From<sections::SectionError> for SectionError {
 		match error {
 			sections::SectionError::UnknownSection { id } => SectionError::UnknownSection { id },
 			sections::SectionError::UnknownBot { id } => SectionError::UnknownBot { id },
+			sections::SectionError::SeveralSpaces { id } => SectionError::SeveralSpaces { id },
 			sections::SectionError::ForeignSection { id } => SectionError::ForeignSection { id },
 			sections::SectionError::Database(failure) => {
 				SectionError::Storage { failure: (&failure).into() }

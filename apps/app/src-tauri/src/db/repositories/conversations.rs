@@ -5,6 +5,7 @@ use rusqlite::types::{FromSql, FromSqlError, FromSqlResult, ToSql, ToSqlOutput, 
 use rusqlite::{params, Connection, OptionalExtension, Row, Transaction, TransactionBehavior};
 use uuid::Uuid;
 
+use super::bot_spaces;
 use super::messages::stored_as_text;
 use super::sections;
 use crate::agent::contract::AgentCommand;
@@ -118,6 +119,7 @@ pub enum ConversationError {
 	UnknownBot { id: String },
 	UnknownConversation { id: String },
 	ForeignBot { id: String },
+	SeveralSpaces { id: String },
 	UnknownParticipant { conversation_id: String, bot_id: String },
 }
 
@@ -285,18 +287,11 @@ impl ConversationsRepository {
 	}
 
 	pub async fn bot(&self, id: String) -> Result<Option<Bot>, ConversationError> {
-		Ok(self
-			.call(move |connection| Ok(connection.query_row(SELECT_BOT, [id], bot).optional()?))
-			.await?)
+		Ok(self.call(move |connection| Ok(bot_at(connection, &id)?)).await?)
 	}
 
 	pub async fn bots(&self, space_id: Option<String>) -> Result<Vec<Bot>, DatabaseError> {
-		self.call(move |connection| {
-			let mut statement = connection.prepare_cached(SELECT_BOTS)?;
-			let rows = statement.query_map([space_id], bot)?;
-			Ok(rows.collect::<rusqlite::Result<Vec<_>>>()?)
-		})
-		.await
+		self.call(move |connection| Ok(bots_of(connection, space_id.as_deref())?)).await
 	}
 
 	pub async fn create_bot(
@@ -523,20 +518,20 @@ impl ConversationsRepository {
 	}
 }
 
-const SELECT_BOT: &str = "SELECT id, space_id, section_id, pin_position, name, title, model,
-		avatar_animal, avatar_color,
-		avatar_image_path, working_dir, instructions, memory, denied_tools, permissions,
-		created_at
-	FROM bots WHERE id = ?1";
+const BOT_COLUMNS: &str = "SELECT bots.id, membership.space_id, membership.section_id,
+		membership.pin_position, bots.name, bots.title, bots.model,
+		bots.avatar_animal, bots.avatar_color,
+		bots.avatar_image_path, bots.working_dir, bots.instructions, bots.memory,
+		bots.denied_tools, bots.permissions, bots.created_at
+	FROM bots JOIN bot_spaces AS membership ON membership.bot_id = bots.id";
 
-const SELECT_BOTS: &str = "SELECT id, space_id, section_id, pin_position, name, title, model,
-		avatar_animal, avatar_color,
-		avatar_image_path, working_dir, instructions, memory, denied_tools, permissions,
-		created_at
-	FROM bots WHERE deleted_at IS NULL AND (?1 IS NULL OR space_id = ?1)
-	ORDER BY created_at ASC, id ASC";
+const OLDEST_MEMBERSHIP: &str = "membership.space_id = (SELECT space_id FROM bot_spaces
+		WHERE bot_id = bots.id ORDER BY joined_at ASC, space_id ASC LIMIT 1)";
 
-const SPACE_OF_LIVE_BOT: &str = "SELECT space_id FROM bots WHERE id = ?1 AND deleted_at IS NULL";
+const BOT_ORDER: &str = "ORDER BY bots.created_at ASC, bots.id ASC";
+
+const LIVE_BOT: &str = "SELECT EXISTS
+	(SELECT 1 FROM bots WHERE id = ?1 AND deleted_at IS NULL)";
 
 const CONVERSATION_COLUMNS: &str = "SELECT id, space_id, section_id, pin_position,
 		title, instructions, created_at, updated_at
@@ -569,7 +564,38 @@ fn ensured_default_bot(connection: &mut Connection) -> Result<Bot, ConversationE
 }
 
 fn stored_default_bot(connection: &Connection) -> Result<Option<Bot>, ConversationError> {
-	Ok(connection.query_row(SELECT_BOT, [DEFAULT_BOT_ID], bot).optional()?)
+	Ok(bot_at(connection, DEFAULT_BOT_ID)?)
+}
+
+fn bot_at(connection: &Connection, id: &str) -> rusqlite::Result<Option<Bot>> {
+	connection
+		.prepare_cached(&format!("{BOT_COLUMNS} WHERE bots.id = ?1 AND {OLDEST_MEMBERSHIP}"))?
+		.query_row([id], bot)
+		.optional()
+}
+
+fn stored_bot(connection: &Connection, id: &str) -> Result<Bot, ConversationError> {
+	bot_at(connection, id)?.ok_or_else(|| ConversationError::UnknownBot { id: id.to_owned() })
+}
+
+fn bots_statement(space_id: Option<&str>) -> String {
+	match space_id {
+		Some(_) => format!(
+			"{BOT_COLUMNS} WHERE bots.deleted_at IS NULL AND membership.space_id = ?1 {BOT_ORDER}"
+		),
+		None => format!(
+			"{BOT_COLUMNS} WHERE bots.deleted_at IS NULL AND {OLDEST_MEMBERSHIP} {BOT_ORDER}"
+		),
+	}
+}
+
+fn bots_of(connection: &Connection, space_id: Option<&str>) -> rusqlite::Result<Vec<Bot>> {
+	let mut prepared = connection.prepare_cached(&bots_statement(space_id))?;
+	let rows = match space_id {
+		Some(space_id) => prepared.query_map([space_id], bot)?,
+		None => prepared.query_map([], bot)?,
+	};
+	rows.collect()
 }
 
 fn ensured_chat(connection: &mut Connection, bot_id: &str) -> Result<Chat, ConversationError> {
@@ -661,14 +687,12 @@ fn created_bot(
 	let transaction = write_transaction(connection)?;
 	let id = Uuid::new_v4().to_string();
 	transaction.execute(
-		"INSERT INTO bots (id, space_id, section_id, name, title, model, avatar_animal,
+		"INSERT INTO bots (id, name, title, model, avatar_animal,
 				avatar_color, avatar_image_path, working_dir, instructions, denied_tools,
 				created_at)
-			VALUES (?1, ?2, ?3, ?4, ?5, ?6, ?7, ?8, ?9, ?10, ?11, ?12, ?13)",
+			VALUES (?1, ?2, ?3, ?4, ?5, ?6, ?7, ?8, ?9, ?10, ?11)",
 		params![
 			id,
-			space_of(&transaction, space_id)?,
-			section_id,
 			identity.name,
 			identity.title,
 			identity.model,
@@ -681,8 +705,9 @@ fn created_bot(
 			now(),
 		],
 	)?;
+	bot_spaces::join(&transaction, &id, &space_of(&transaction, space_id)?, section_id, None)?;
 	ensure_chat_in(&transaction, &id)?;
-	let created = transaction.query_row(SELECT_BOT, [&id], bot)?;
+	let created = stored_bot(&transaction, &id)?;
 	transaction.commit()?;
 	Ok(created)
 }
@@ -712,7 +737,7 @@ fn updated_bot(
 		],
 	)?;
 	refuse_if_untouched(written, id)?;
-	let stored = transaction.query_row(SELECT_BOT, [id], bot)?;
+	let stored = stored_bot(&transaction, id)?;
 	transaction.commit()?;
 	Ok(stored)
 }
@@ -779,11 +804,15 @@ fn seat(
 	space_id: Option<&str>,
 	role: &str,
 ) -> Result<(), ConversationError> {
-	let home: String = transaction
-		.query_row(SPACE_OF_LIVE_BOT, [bot_id], |row| row.get(0))
-		.optional()?
-		.ok_or_else(|| ConversationError::UnknownBot { id: bot_id.to_owned() })?;
-	if Some(home.as_str()) != space_id {
+	let is_live: bool = transaction.query_row(LIVE_BOT, [bot_id], |row| row.get(0))?;
+	if !is_live {
+		return Err(ConversationError::UnknownBot { id: bot_id.to_owned() });
+	}
+	let holds_membership = match space_id {
+		Some(space_id) => bot_spaces::held(transaction, bot_id, space_id)?,
+		None => false,
+	};
+	if !holds_membership {
 		return Err(ConversationError::ForeignBot { id: bot_id.to_owned() });
 	}
 	transaction.execute(
@@ -1008,7 +1037,7 @@ fn set_avatar_image_path(
 	let written = transaction
 		.execute("UPDATE bots SET avatar_image_path = ?2 WHERE id = ?1", params![id, path])?;
 	refuse_if_untouched(written, id)?;
-	let stored = transaction.query_row(SELECT_BOT, [id], bot)?;
+	let stored = stored_bot(&transaction, id)?;
 	transaction.commit()?;
 	Ok(stored)
 }
@@ -1022,22 +1051,21 @@ fn set_memory(
 	let written =
 		transaction.execute("UPDATE bots SET memory = ?2 WHERE id = ?1", params![id, memory])?;
 	refuse_if_untouched(written, id)?;
-	let stored = transaction.query_row(SELECT_BOT, [id], bot)?;
+	let stored = stored_bot(&transaction, id)?;
 	transaction.commit()?;
 	Ok(stored)
 }
 
 fn pinned_bot(connection: &mut Connection, id: &str) -> Result<Bot, ConversationError> {
 	let transaction = write_transaction(connection)?;
-	let home: Option<String> = transaction
-		.query_row("SELECT space_id FROM bots WHERE id = ?1", [id], |row| row.get(0))
-		.optional()?;
-	let home = home.ok_or_else(|| ConversationError::UnknownBot { id: id.to_owned() })?;
+	let home = only_space_of(&transaction, id)?;
 	let pin = sections::next_pin(&transaction, &home)?;
-	let written =
-		transaction.execute("UPDATE bots SET pin_position = ?2 WHERE id = ?1", params![id, pin])?;
+	let written = transaction.execute(
+		"UPDATE bot_spaces SET pin_position = ?3 WHERE bot_id = ?1 AND space_id = ?2",
+		params![id, home, pin],
+	)?;
 	refuse_if_untouched(written, id)?;
-	let stored = transaction.query_row(SELECT_BOT, [id], bot)?;
+	let stored = stored_bot(&transaction, id)?;
 	transaction.commit()?;
 	Ok(stored)
 }
@@ -1051,9 +1079,17 @@ fn set_permissions(
 	let written = transaction
 		.execute("UPDATE bots SET permissions = ?2 WHERE id = ?1", params![id, ruled])?;
 	refuse_if_untouched(written, id)?;
-	let stored = transaction.query_row(SELECT_BOT, [id], bot)?;
+	let stored = stored_bot(&transaction, id)?;
 	transaction.commit()?;
 	Ok(stored)
+}
+
+fn only_space_of(connection: &Connection, bot_id: &str) -> Result<String, ConversationError> {
+	match bot_spaces::spaces_of(connection, bot_id)?.as_slice() {
+		[] => Err(ConversationError::UnknownBot { id: bot_id.to_owned() }),
+		[only] => Ok(only.clone()),
+		_ => Err(ConversationError::SeveralSpaces { id: bot_id.to_owned() }),
+	}
 }
 
 fn space_of(connection: &Connection, wanted: Option<&str>) -> Result<String, ConversationError> {
@@ -1072,18 +1108,12 @@ fn refuse_if_untouched(rows: usize, id: &str) -> Result<(), ConversationError> {
 
 fn seed_default_bot(transaction: &Transaction<'_>) -> Result<Bot, ConversationError> {
 	transaction.execute(
-		"INSERT OR IGNORE INTO bots (id, space_id, name, model, avatar_animal, created_at)
-			VALUES (?1, ?2, ?3, ?4, ?5, ?6)",
-		params![
-			DEFAULT_BOT_ID,
-			space_of(transaction, None)?,
-			DEFAULT_BOT_NAME,
-			DEFAULT_BOT_MODEL,
-			DEFAULT_BOT_ANIMAL,
-			now(),
-		],
+		"INSERT OR IGNORE INTO bots (id, name, model, avatar_animal, created_at)
+			VALUES (?1, ?2, ?3, ?4, ?5)",
+		params![DEFAULT_BOT_ID, DEFAULT_BOT_NAME, DEFAULT_BOT_MODEL, DEFAULT_BOT_ANIMAL, now()],
 	)?;
-	Ok(transaction.query_row(SELECT_BOT, [DEFAULT_BOT_ID], bot)?)
+	bot_spaces::join(transaction, DEFAULT_BOT_ID, &space_of(transaction, None)?, None, None)?;
+	stored_bot(transaction, DEFAULT_BOT_ID)
 }
 
 fn chat(row: &Row<'_>) -> rusqlite::Result<Chat> {
@@ -2129,6 +2159,94 @@ mod tests {
 		assert_eq!(seeded, moved, "a launch wrote the shipped model back over the user's");
 		assert_eq!(count_of(&database, "bots").await, 1);
 		assert!(!held.id.is_empty(), "the chat was refused over a model the user chose");
+
+		drop(database);
+		fs::remove_dir_all(&dir).expect("cleanup");
+	}
+
+	#[tokio::test]
+	async fn a_room_seats_a_bot_holding_a_membership_of_its_space_and_refuses_one_holding_none() {
+		let dir = temp_dir();
+		let database = open(&dir);
+		let repository = database.conversations();
+		let elsewhere = database.spaces().create("Writers".to_owned()).await.expect("the space");
+		let shared = repository.create_bot(an_identity("Nyx"), None, None).await.expect("the bot");
+		let stranger =
+			repository.create_bot(an_identity("Ada"), None, None).await.expect("the bot");
+		database
+			.spaces()
+			.add_bot(shared.id.clone(), elsewhere.id.clone(), None)
+			.await
+			.expect("the shared bot joins the second space");
+
+		let room = repository
+			.create_conversation(a_draft(&elsewhere.id, &[&shared]))
+			.await
+			.expect("the room seats the bot whose oldest membership is another space");
+		let refused = repository.add_participant(room.id.clone(), stranger.id).await;
+
+		assert_eq!(
+			room.seats.iter().map(|seat| seat.bot_id.clone()).collect::<Vec<_>>(),
+			vec![shared.id]
+		);
+		assert!(matches!(refused, Err(ConversationError::ForeignBot { .. })));
+
+		drop(database);
+		fs::remove_dir_all(&dir).expect("cleanup");
+	}
+
+	#[tokio::test]
+	async fn a_pin_named_without_a_space_is_refused_for_a_bot_holding_several() {
+		let dir = temp_dir();
+		let database = open(&dir);
+		let repository = database.conversations();
+		let elsewhere = database.spaces().create("Writers".to_owned()).await.expect("the space");
+		let bot = repository.create_bot(an_identity("Nyx"), None, None).await.expect("the bot");
+		database
+			.spaces()
+			.add_bot(bot.id.clone(), elsewhere.id.clone(), None)
+			.await
+			.expect("the bot joins the second space");
+
+		let refused = repository.pin_bot(bot.id.clone()).await;
+
+		assert!(matches!(refused, Err(ConversationError::SeveralSpaces { .. })));
+		assert_eq!(
+			repository
+				.bots(Some(elsewhere.id))
+				.await
+				.expect("the bots")
+				.into_iter()
+				.map(|listed| listed.pin_position)
+				.collect::<Vec<_>>(),
+			vec![None],
+			"a refused pin still landed on a membership"
+		);
+
+		drop(database);
+		fs::remove_dir_all(&dir).expect("cleanup");
+	}
+
+	#[tokio::test]
+	async fn the_bots_of_a_space_are_read_through_the_index_on_the_membership_space() {
+		let dir = temp_dir();
+		let database = open(&dir);
+
+		let plan = database
+			.call(|connection| {
+				let mut statement = connection
+					.prepare(&format!("EXPLAIN QUERY PLAN {}", bots_statement(Some("personal"))))?;
+				let rows =
+					statement.query_map(["personal"], |row| row.get::<_, String>("detail"))?;
+				Ok(rows.collect::<rusqlite::Result<Vec<_>>>()?)
+			})
+			.await
+			.expect("the plan");
+
+		assert!(
+			plan.iter().any(|step| step.contains("bot_spaces_of_space")),
+			"the roster read scans the memberships: got {plan:?}"
+		);
 
 		drop(database);
 		fs::remove_dir_all(&dir).expect("cleanup");

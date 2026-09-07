@@ -70,6 +70,10 @@ pub enum SpaceError {
 	},
 	IncompleteOrder,
 	LastSpace,
+	#[serde(rename_all = "camelCase")]
+	LastSpaceOfBot {
+		id: String,
+	},
 }
 
 impl From<DatabaseError> for SpaceError {
@@ -85,6 +89,7 @@ impl From<spaces::SpaceError> for SpaceError {
 			spaces::SpaceError::UnknownBot { id } => SpaceError::UnknownBot { id },
 			spaces::SpaceError::IncompleteOrder => SpaceError::IncompleteOrder,
 			spaces::SpaceError::LastSpace => SpaceError::LastSpace,
+			spaces::SpaceError::LastSpaceOfBot { id } => SpaceError::LastSpaceOfBot { id },
 			spaces::SpaceError::Database(failure) => {
 				SpaceError::Storage { failure: (&failure).into() }
 			}

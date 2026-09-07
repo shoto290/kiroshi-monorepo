@@ -36,6 +36,7 @@ const MIGRATIONS: &[Migration] = &[
 	Migration { version: 27, statements: MISSION_WATCH },
 	Migration { version: 28, statements: MISSION_REPORT },
 	Migration { version: 29, statements: MESSAGE_SEARCH },
+	Migration { version: 30, statements: BOT_SPACES },
 ];
 
 const CONVERSATIONS_SCHEMA: &str = "
@@ -658,6 +659,26 @@ BEGIN
 END;
 ";
 
+const BOT_SPACES: &str = "
+CREATE TABLE bot_spaces (
+	bot_id TEXT NOT NULL REFERENCES bots (id) ON DELETE CASCADE,
+	space_id TEXT NOT NULL REFERENCES spaces (id) ON DELETE CASCADE,
+	section_id TEXT REFERENCES sections (id) ON DELETE SET NULL,
+	pin_position INTEGER,
+	joined_at INTEGER NOT NULL,
+	PRIMARY KEY (bot_id, space_id)
+);
+
+CREATE INDEX bot_spaces_of_space ON bot_spaces (space_id);
+
+INSERT INTO bot_spaces (bot_id, space_id, section_id, pin_position, joined_at)
+	SELECT id, space_id, section_id, pin_position, created_at FROM bots;
+
+ALTER TABLE bots DROP COLUMN space_id;
+ALTER TABLE bots DROP COLUMN section_id;
+ALTER TABLE bots DROP COLUMN pin_position;
+";
+
 pub fn latest_version() -> u32 {
 	MIGRATIONS.last().map_or(0, |migration| migration.version)
 }
@@ -703,10 +724,20 @@ mod tests {
 	use super::*;
 	use crate::db::connection::{open, temp_dir, FILE_NAME};
 
-	const FIXTURE: &str = "
+	const BOTS_HOLDING_A_MEMBERSHIP: &str = "
+		INSERT INTO bots (id, name, model, created_at)
+			VALUES ('b1', 'First', 'sonnet', 1), ('b2', 'Second', 'sonnet', 1);
+		INSERT INTO bot_spaces (bot_id, space_id, joined_at)
+			VALUES ('b1', 'personal', 1), ('b2', 'personal', 1);
+	";
+
+	const BOTS_CARRYING_A_SPACE_COLUMN: &str = "
 		INSERT INTO bots (id, space_id, name, model, created_at)
 			VALUES ('b1', 'personal', 'First', 'sonnet', 1),
 				('b2', 'personal', 'Second', 'sonnet', 1);
+	";
+
+	const FIXTURE: &str = "
 		INSERT INTO conversations (id, kind, title, created_at, updated_at)
 			VALUES ('c1', 'main', 'First', 1, 1), ('c2', 'topic', 'Second', 1, 1);
 		INSERT INTO conversation_participants
@@ -733,6 +764,7 @@ mod tests {
 	const MISSION_WATCH_STEP: u32 = 27;
 	const MISSION_REPORT_STEP: u32 = 28;
 	const MESSAGE_SEARCH_STEP: u32 = 29;
+	const BOT_SPACES_STEP: u32 = 30;
 
 	const A_LIVE_SESSION: &str = "INSERT INTO runtime_sessions
 		(id, conversation_id, bot_id, provider_session_id, seq, status, started_at)
@@ -782,8 +814,14 @@ mod tests {
 
 	fn fixture(dir: &Path) -> Connection {
 		let connection = migrated(dir);
-		connection.execute_batch(FIXTURE).expect("the fixture is inserted");
 		connection
+			.execute_batch(&format!("{BOTS_HOLDING_A_MEMBERSHIP}{FIXTURE}"))
+			.expect("the fixture is inserted");
+		connection
+	}
+
+	fn fixture_before_memberships() -> String {
+		format!("{BOTS_CARRYING_A_SPACE_COLUMN}{FIXTURE}")
 	}
 
 	fn write(connection: &Connection, statement: &str) -> rusqlite::Result<usize> {
@@ -1342,6 +1380,60 @@ mod tests {
 		fs::remove_dir_all(&dir).expect("cleanup");
 	}
 
+	#[test]
+	fn a_bot_pinned_in_a_section_before_the_membership_step_keeps_both() {
+		let dir = temp_dir();
+		let mut connection = open(&dir.join(FILE_NAME)).expect("open");
+		apply_each(&mut connection, shipped_before(BOT_SPACES_STEP)).expect("the shipped schema");
+		connection
+			.execute_batch(
+				"INSERT INTO spaces (id, name, colour, position, created_at)
+					VALUES ('writers', 'Writers', 'blue', 1, 1);
+				INSERT INTO sections (id, space_id, name, position, created_at)
+					VALUES ('sec1', 'writers', 'Drafts', 0, 1);
+				INSERT INTO bots (id, space_id, section_id, pin_position, name, model, created_at)
+					VALUES ('b1', 'writers', 'sec1', 3, 'First', 'sonnet', 7),
+						('b2', 'writers', NULL, NULL, 'Second', 'sonnet', 8);",
+			)
+			.expect("the bots this build upgrades from");
+
+		apply(&mut connection).expect("the file comes up to this build");
+
+		assert_eq!(
+			memberships_of(&connection),
+			vec![
+				("b1".to_owned(), "writers".to_owned(), Some("sec1".to_owned()), Some(3), 7),
+				("b2".to_owned(), "writers".to_owned(), None, None, 8)
+			],
+			"the backfill lost the section or the pin a bot already held"
+		);
+		assert!(
+			write(&connection, "SELECT space_id FROM bots").is_err(),
+			"the bots table still carries the columns the step drops"
+		);
+
+		drop(connection);
+		fs::remove_dir_all(&dir).expect("cleanup");
+	}
+
+	type StoredMembership = (String, String, Option<String>, Option<i64>, i64);
+
+	fn memberships_of(connection: &Connection) -> Vec<StoredMembership> {
+		let mut statement = connection
+			.prepare(
+				"SELECT bot_id, space_id, section_id, pin_position, joined_at FROM bot_spaces
+					ORDER BY bot_id, space_id",
+			)
+			.expect("prepare");
+		statement
+			.query_map([], |row| {
+				Ok((row.get(0)?, row.get(1)?, row.get(2)?, row.get(3)?, row.get(4)?))
+			})
+			.expect("query")
+			.collect::<rusqlite::Result<Vec<_>>>()
+			.expect("rows")
+	}
+
 	fn join_order_of(connection: &Connection, conversation_id: &str) -> Vec<(String, i64)> {
 		let mut statement = connection
 			.prepare(
@@ -1368,8 +1460,9 @@ mod tests {
 	}
 
 	fn bot_spaces_of(connection: &Connection) -> Vec<(String, String)> {
-		let mut statement =
-			connection.prepare("SELECT id, space_id FROM bots ORDER BY id").expect("prepare");
+		let mut statement = connection
+			.prepare("SELECT bot_id, space_id FROM bot_spaces ORDER BY bot_id, space_id")
+			.expect("prepare");
 		statement
 			.query_map([], |row| Ok((row.get(0)?, row.get(1)?)))
 			.expect("query")
@@ -1441,7 +1534,7 @@ mod tests {
 		let mut connection = open(&dir.join(FILE_NAME)).expect("open");
 		apply_each(&mut connection, shipped_before(ROUTINE_TASK_STEP))
 			.expect("the build that shipped a routine without a task installs");
-		connection.execute_batch(FIXTURE).expect("the fixture is inserted");
+		connection.execute_batch(&fixture_before_memberships()).expect("the fixture is inserted");
 		write(
 			&connection,
 			"INSERT INTO routines (id, conversation_id, bot_id, trigger_source_id, event_filter,
@@ -1473,7 +1566,7 @@ mod tests {
 		let mut connection = open(&dir.join(FILE_NAME)).expect("open");
 		apply_each(&mut connection, shipped_before(ROUTINE_LAST_OCCURRENCE_STEP))
 			.expect("the build that shipped without the occurrence column installs");
-		connection.execute_batch(FIXTURE).expect("the fixture is inserted");
+		connection.execute_batch(&fixture_before_memberships()).expect("the fixture is inserted");
 		write(
 			&connection,
 			"INSERT INTO routines (id, conversation_id, bot_id, trigger_source_id, event_filter,
@@ -1502,7 +1595,7 @@ mod tests {
 		let mut connection = open(&dir.join(FILE_NAME)).expect("open");
 		apply_each(&mut connection, shipped_before(ROUTINE_REPORTED_TURN_STEP))
 			.expect("the build that shipped without the reported turn installs");
-		connection.execute_batch(FIXTURE).expect("the fixture is inserted");
+		connection.execute_batch(&fixture_before_memberships()).expect("the fixture is inserted");
 		write(
 			&connection,
 			"INSERT INTO routines (id, conversation_id, bot_id, trigger_source_id, event_filter,
@@ -1738,9 +1831,8 @@ mod tests {
 		apply(&mut connection).expect("the schema installs");
 		write(
 			&connection,
-			"INSERT INTO bots (id, space_id, name, model, created_at, title, avatar_animal,
-					avatar_pose)
-				VALUES ('b1', 'personal', 'First', 'sonnet', 1, 'Reviewer', 'owl', 'curious')",
+			"INSERT INTO bots (id, name, model, created_at, title, avatar_animal, avatar_pose)
+				VALUES ('b1', 'First', 'sonnet', 1, 'Reviewer', 'owl', 'curious')",
 		)
 		.expect("a bot written between the two runs");
 
@@ -1994,24 +2086,28 @@ mod tests {
 
 		assert_eq!(version(&connection).expect("version"), latest_version());
 		assert_eq!(
-			pin_of(&connection, "bots", "held"),
+			bot_pin_of(&connection, "held"),
 			Some(1),
 			"a bot a section held came out of the step loose"
 		);
-		assert_eq!(pin_of(&connection, "bots", "later"), Some(2));
+		assert_eq!(bot_pin_of(&connection, "later"), Some(2));
 		assert_eq!(
 			pin_of(&connection, "conversations", "room"),
 			Some(0),
 			"a conversation a section held came out of the step loose"
 		);
-		assert_eq!(
-			pin_of(&connection, "bots", "loose"),
-			None,
-			"the step pinned a bot no section held"
-		);
+		assert_eq!(bot_pin_of(&connection, "loose"), None, "the step pinned a bot no section held");
 
 		drop(connection);
 		fs::remove_dir_all(&dir).expect("cleanup");
+	}
+
+	fn bot_pin_of(connection: &Connection, bot_id: &str) -> Option<i64> {
+		connection
+			.query_row("SELECT pin_position FROM bot_spaces WHERE bot_id = ?1", [bot_id], |row| {
+				row.get(0)
+			})
+			.expect("query")
 	}
 
 	fn pin_of(connection: &Connection, table: &str, id: &str) -> Option<i64> {
@@ -2126,8 +2222,8 @@ mod tests {
 	fn a_bot_marked(blot: Option<&str>, id: &str) -> String {
 		let mark = blot.map_or("NULL".to_owned(), |blot| format!("'{blot}'"));
 		format!(
-			"INSERT INTO bots (id, space_id, name, model, created_at, avatar_color)
-				VALUES ('{id}', 'personal', 'A bot', 'sonnet', 1, {mark})"
+			"INSERT INTO bots (id, name, model, created_at, avatar_color)
+				VALUES ('{id}', 'A bot', 'sonnet', 1, {mark})"
 		)
 	}
 
@@ -2139,8 +2235,8 @@ mod tests {
 
 	fn a_bot_shown_as(animal: &str, pose: &str, id: &str) -> String {
 		format!(
-			"INSERT INTO bots (id, space_id, name, model, created_at, avatar_animal, avatar_pose)
-				VALUES ('{id}', 'personal', 'A bot', 'sonnet', 1, '{animal}', '{pose}')"
+			"INSERT INTO bots (id, name, model, created_at, avatar_animal, avatar_pose)
+				VALUES ('{id}', 'A bot', 'sonnet', 1, '{animal}', '{pose}')"
 		)
 	}
 
@@ -2322,7 +2418,7 @@ mod tests {
 		let mut connection = open(&dir.join(FILE_NAME)).expect("open");
 		apply_each(&mut connection, shipped_before(CHECKPOINT_PER_SESSION_STEP))
 			.expect("the build that shipped one checkpoint per bot installs");
-		connection.execute_batch(FIXTURE).expect("the fixture is inserted");
+		connection.execute_batch(&fixture_before_memberships()).expect("the fixture is inserted");
 		connection
 			.execute_batch(
 				"INSERT INTO runtime_sessions
@@ -2371,7 +2467,7 @@ mod tests {
 		let mut connection = open(&dir.join(FILE_NAME)).expect("open");
 		apply_each(&mut connection, shipped_before(SEVERAL_LIVE_SESSIONS_STEP))
 			.expect("the build that shipped the one live session rule installs");
-		connection.execute_batch(FIXTURE).expect("the fixture is inserted");
+		connection.execute_batch(&fixture_before_memberships()).expect("the fixture is inserted");
 		write(&connection, A_LIVE_SESSION).expect("the session is inserted");
 		let a_second_instance = "INSERT INTO runtime_sessions
 			(id, conversation_id, bot_id, provider_session_id, seq, status, started_at)
