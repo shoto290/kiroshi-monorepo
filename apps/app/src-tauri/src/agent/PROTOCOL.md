@@ -163,10 +163,14 @@ Every other command names its session.
   `opened` frame goes out first and the prompts wait behind the read, in the order they
   were received, until it settles. No deadline covers that read as a whole: each status
   call and each reconnection is bounded on its own by the 15000 ms connect budget the
-  options set, and the polls are bounded by their count, 15250 ms, one 250 ms poll past
-  that budget. A status call that outlasts its bound ends the read there, on a stderr
-  line and with nothing reported. A server no status call has named yet is polled for
-  1000 ms only, then left to the stderr line. An interrupt drops what is held and leaves
+  options set, and the polls stop once the time the read has spent on them, read from a
+  clock and not counted in sleeps, reaches that same budget. A status call that outlasts
+  its bound ends the polls there and keeps what the earlier calls named: only the very
+  first call has nothing to fall back on, and it ends the read on a stderr line with
+  nothing reported. The call taken after the reconnections is the same: outlasting, it
+  leaves the servers the earlier calls left unconnected reported, and rides a stderr line
+  of its own. A server no status call has named yet is polled for 1000 ms only, then left
+  to the stderr line. An interrupt drops what is held and leaves
   the read running: the CLI never received that prompt, so no interrupt is sent to it and
   the sidecar rides a `result` frame of subtype `interrupted` instead, which ends the
   host's turn as cancelled. An interrupt with nothing held reaches the CLI as before. A

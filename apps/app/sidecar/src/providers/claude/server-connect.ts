@@ -18,17 +18,33 @@ export type ConnectPass = {
 	env?: ServerEnv
 	signal?: AbortSignal
 	wait?: (ms: number) => Promise<void>
+	now?: () => number
 	bound?: number
+}
+
+type Take = {
+	statuses: ServerStatus[]
+	spent?: number
+}
+
+type NamedRead = {
+	status: ServerStatus["status"]
+	spent?: number
+}
+
+type GaveUp = {
+	names: string[]
+	cause: string
 }
 
 type PassOutcome = {
 	reported: string[]
-	missing: string[]
+	giveUps: GaveUp[]
 }
 
-type SettledReads = {
-	statuses: ServerStatus[]
-	waited: number
+type PolledTakes = {
+	takes: Take[]
+	giveUp?: GaveUp
 }
 
 export const CONNECT_BUDGET_MS = 15_000
@@ -36,7 +52,6 @@ export const CONNECT_BUDGET_MS = 15_000
 export const UNNAMED_GRACE_MS = 1_000
 
 const PENDING_POLL = 250
-const PENDING_POLLS = Math.ceil(CONNECT_BUDGET_MS / PENDING_POLL) + 1
 const REASON_LIMIT = 300
 const SECRET_FLOOR = 8
 const REDACTED = "[redacted]"
@@ -88,19 +103,26 @@ const withinDeadline = async <T>(
 	}
 }
 
-const lastRead = (
-	reads: ServerStatus[],
-	name: string,
-): ServerStatus | undefined => reads.findLast((read) => read.name === name)
+const readIn = (take: Take, name: string): ServerStatus | undefined =>
+	take.statuses.find((status) => status.name === name)
 
-const unsettled = (
-	reads: ServerStatus[],
-	names: string[],
-	waited: number,
-): boolean =>
+const reversed = (takes: Take[]): Take[] => [...takes].reverse()
+
+const lastRead = (takes: Take[], name: string): ServerStatus | undefined =>
+	reversed(takes)
+		.map((take) => readIn(take, name))
+		.find((read) => read !== undefined)
+
+const pendingSpent = (takes: Take[], name: string): number | undefined =>
+	reversed(takes).find(
+		(take) =>
+			take.spent !== undefined && readIn(take, name)?.status === "pending",
+	)?.spent
+
+const unsettled = (takes: Take[], names: string[], spent: number): boolean =>
 	names.some((name) => {
-		const read = lastRead(reads, name)
-		return read ? read.status === "pending" : waited < UNNAMED_GRACE_MS
+		const read = lastRead(takes, name)
+		return read ? read.status === "pending" : spent < UNNAMED_GRACE_MS
 	})
 
 const boundedRead = async (
@@ -115,26 +137,27 @@ const boundedRead = async (
 	return statuses
 }
 
-const settledStatuses = async (
+const polledTakes = async (
 	read: () => Promise<ServerStatus[]>,
 	names: string[],
 	wait: (ms: number) => Promise<void>,
+	spent: () => number,
 	signal?: AbortSignal,
-): Promise<SettledReads> => {
-	let statuses = await read()
-	let waited = 0
-	for (
-		let poll = 0;
-		poll < PENDING_POLLS &&
-		unsettled(statuses, names, waited) &&
-		!signal?.aborted;
-		poll += 1
+): Promise<PolledTakes> => {
+	const takes: Take[] = [{ statuses: await read(), spent: spent() }]
+	while (
+		unsettled(takes, names, spent()) &&
+		spent() < CONNECT_BUDGET_MS &&
+		!signal?.aborted
 	) {
 		await wait(PENDING_POLL)
-		waited += PENDING_POLL
-		statuses = await read()
+		try {
+			takes.push({ statuses: await read(), spent: spent() })
+		} catch (error) {
+			return { takes, giveUp: { names, cause: describeError(error) } }
+		}
 	}
-	return { statuses, waited }
+	return { takes }
 }
 
 const reconnectFailure = async (
@@ -182,31 +205,24 @@ const readable = (reason: string, secrets: string[]): string =>
 		.reduce((held, secret) => held.split(secret).join(REDACTED), reason)
 		.slice(0, REASON_LIMIT)
 
-const statusReason = (
-	status: ServerStatus["status"],
-	waited: number,
-): string =>
-	status === "pending" && waited > 0
-		? `it read pending after the ${waited} ms it was given`
+const statusReason = ({ status, spent }: NamedRead): string =>
+	status === "pending" && spent
+		? `it read pending after the ${spent} ms it was given`
 		: `it read ${status}`
 
 const lineFor = (
 	name: string,
-	read: ServerStatus,
+	named: NamedRead,
 	thrown: string | undefined,
-	waited: number,
 	secrets: string[],
 ): string => {
-	if (read.status === "needs-auth") {
+	if (named.status === "needs-auth") {
 		return leftOut(name, AWAITING_AUTH)
 	}
 	const answered = thrown
 		? `, and the reconnection answered: ${readable(thrown, secrets)}`
 		: ""
-	return leftOut(
-		name,
-		`${TWO_ATTEMPTS}, ${statusReason(read.status, waited)}${answered}`,
-	)
+	return leftOut(name, `${TWO_ATTEMPTS}, ${statusReason(named)}${answered}`)
 }
 
 const reportPass = async (
@@ -215,30 +231,47 @@ const reportPass = async (
 		port,
 		signal,
 		bound = CONNECT_BUDGET_MS,
+		now = Date.now,
 		wait = (ms: number) => delay(ms, signal),
 	}: ConnectPass,
 	secrets: string[],
 ): Promise<PassOutcome> => {
+	const started = now()
+	const spent = () => now() - started
 	const read = () => boundedRead(port, bound, signal)
-	const { statuses, waited } = await settledStatuses(read, names, wait, signal)
+	const polled = await polledTakes(read, names, wait, spent, signal)
+	const takes = polled.takes
+	const giveUps = polled.giveUp ? [polled.giveUp] : []
 	const failing = names.filter((name) => {
-		const status = lastRead(statuses, name)?.status
+		const status = lastRead(takes, name)?.status
 		return status === "failed" || status === "pending"
 	})
 	const thrown = await reconnectFailures(port, failing, bound, signal)
-	const reads = [...statuses, ...(failing.length ? await read() : [])]
-	const outcome: PassOutcome = { reported: [], missing: [] }
-	for (const name of names) {
-		const named = lastRead(reads, name)
-		if (!named) {
-			outcome.missing.push(name)
-		} else if (REPORTABLE.includes(named.status)) {
-			outcome.reported.push(
-				lineFor(name, named, thrown.get(name), waited, secrets),
-			)
+	if (failing.length) {
+		try {
+			takes.push({ statuses: await read() })
+		} catch (error) {
+			giveUps.push({ names: failing, cause: describeError(error) })
 		}
 	}
-	return outcome
+	const reported: string[] = []
+	const missing: string[] = []
+	for (const name of names) {
+		const read = lastRead(takes, name)
+		if (!read) {
+			missing.push(name)
+		} else if (REPORTABLE.includes(read.status)) {
+			const named = {
+				status: read.status,
+				spent: pendingSpent(takes, name),
+			}
+			reported.push(lineFor(name, named, thrown.get(name), secrets))
+		}
+	}
+	if (missing.length) {
+		giveUps.push({ names: missing, cause: NO_READ })
+	}
+	return { reported, giveUps }
 }
 
 const gaveUp = (names: string[], cause: string, secrets: string[]) => {
@@ -261,8 +294,8 @@ export const unconnectedServers = async ({
 		if (signal?.aborted) {
 			return []
 		}
-		if (outcome.missing.length) {
-			gaveUp(outcome.missing, NO_READ, secrets)
+		for (const { names: abandoned, cause } of outcome.giveUps) {
+			gaveUp(abandoned, cause, secrets)
 		}
 		return outcome.reported
 	} catch (error) {
