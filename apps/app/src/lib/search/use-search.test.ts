@@ -188,6 +188,10 @@ const press = (key: string, metaKey = false) => {
 	fireEvent.keyDown(document.body, { key, metaKey })
 }
 
+const pressWhileComposing = (key: string) => {
+	fireEvent.keyDown(document.body, { key, isComposing: true })
+}
+
 const pressOnControl = (key: string, metaKey = false) => {
 	const control = document.createElement("button")
 	document.body.append(control)
@@ -316,4 +320,16 @@ it("moves and opens the active result after the See all button changed the tab",
 		"activity",
 		`routine:${ANOTHER_ROUTINE.id}:${A_ROOM.id}`,
 	])
+})
+
+it("leaves a key press that only ends a composition to the composition", async () => {
+	const { navigation, trace } = aNavigation()
+	const result = await searchedOn(aPort(), navigation)
+	const active = result.current.palette.activeResultId
+
+	act(() => pressWhileComposing("Enter"))
+
+	expect(trace).toEqual([])
+	expect(result.current.isOpen).toBe(true)
+	expect(result.current.palette.activeResultId).toBe(active)
 })

@@ -46,6 +46,8 @@ export const useSearchKeys = (keys: SearchKeys) => {
 
 	useEffect(() => {
 		const press = (event: KeyboardEvent) => {
+			if (event.isComposing) return
+
 			const held = reach.current
 
 			if (isOpeningChord(event)) {
