@@ -1,3 +1,4 @@
+pub mod catalogue;
 pub mod conversations;
 pub mod messages;
 pub mod missions;
@@ -9,6 +10,7 @@ pub mod space_settings;
 pub mod spaces;
 pub mod user;
 
+pub use catalogue::CatalogueRepository;
 pub use conversations::ConversationsRepository;
 pub use messages::MessagesRepository;
 pub use missions::MissionsRepository;

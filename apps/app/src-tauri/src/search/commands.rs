@@ -1,10 +1,18 @@
 use tauri::State;
 
-use super::contract::{MessageHit, MessageSearchError, MessageSearchQuery};
+use super::contract::{
+	Catalogue, CatalogueChat, CatalogueError, CatalogueScope, MessageHit, MessageSearchError,
+	MessageSearchQuery,
+};
+use crate::conversations::contract::StorageFailure;
 use crate::db;
 
-fn ready(state: &db::DatabaseState) -> Result<&db::Database, MessageSearchError> {
-	state.as_ref().map_err(|failure| MessageSearchError::Unavailable { failure: failure.into() })
+fn ready(state: &db::DatabaseState) -> Result<&db::Database, StorageFailure> {
+	state.as_ref().map_err(StorageFailure::from)
+}
+
+fn unavailable(failure: StorageFailure) -> CatalogueError {
+	CatalogueError::Unavailable { failure }
 }
 
 #[tauri::command]
@@ -12,7 +20,33 @@ pub async fn search_messages(
 	state: State<'_, db::DatabaseState>,
 	query: MessageSearchQuery,
 ) -> Result<Vec<MessageHit>, MessageSearchError> {
-	ready(&state)?.search().messages(query).await
+	ready(&state)
+		.map_err(|failure| MessageSearchError::Unavailable { failure })?
+		.search()
+		.messages(query)
+		.await
+}
+
+#[tauri::command]
+pub async fn search_catalogue(
+	state: State<'_, db::DatabaseState>,
+	query: String,
+	space_id: String,
+	all_spaces: bool,
+) -> Result<Catalogue, CatalogueError> {
+	ready(&state)
+		.map_err(unavailable)?
+		.catalogue()
+		.search(CatalogueScope { query, space_id, all_spaces })
+		.await
+}
+
+#[tauri::command]
+pub async fn search_recent(
+	state: State<'_, db::DatabaseState>,
+	space_id: String,
+) -> Result<Vec<CatalogueChat>, CatalogueError> {
+	ready(&state).map_err(unavailable)?.catalogue().recent(space_id).await
 }
 
 #[cfg(test)]
