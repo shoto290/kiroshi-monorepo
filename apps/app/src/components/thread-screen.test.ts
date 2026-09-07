@@ -1443,7 +1443,7 @@ describe("ThreadScreen", () => {
 		rerender(screenOf(solo.thread()))
 		await settle()
 
-		expect(screen.getAllByText("the walls hold")).toHaveLength(1)
+		expect(screen.getByText("the walls hold")).toBeTruthy()
 	})
 
 	it("counts the solo working row from the instant the turn began", async () => {
