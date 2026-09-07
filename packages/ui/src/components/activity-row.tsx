@@ -128,5 +128,6 @@ export {
 	type ActivityRowActivation,
 	type ActivityRowPart,
 	type ActivityRowProps,
+	DOT_CLASS,
 	ROW_CLASS,
 }

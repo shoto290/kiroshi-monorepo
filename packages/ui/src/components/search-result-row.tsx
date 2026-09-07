@@ -5,6 +5,7 @@ import { useTranslation } from "react-i18next"
 import {
 	ACTIVATION_CLASS,
 	type ActivityRowPart,
+	DOT_CLASS,
 	ROW_CLASS,
 } from "@workspace/ui/components/activity-row"
 import { Avatar } from "@workspace/ui/components/avatar"
@@ -50,8 +51,6 @@ const FIRST_RANK = 1
 
 const LAST_RANK = 9
 
-const DOT_CLASS = "before:mx-1 before:content-['·']"
-
 const ACTIVE_CLASS = "group/search-result-row data-[active=true]:bg-muted"
 
 const MATCH_CLASS =
@@ -59,8 +58,7 @@ const MATCH_CLASS =
 
 const RANK_LANE_CLASS = "flex w-[26px] shrink-0 justify-center self-start"
 
-const RANK_CLASS =
-	"group-data-[active=true]/search-result-row:bg-background leading-4"
+const RANK_CLASS = "group-data-[active=true]/search-result-row:bg-background"
 
 const BADGE_RING_CLASS = "[--badge-ring:var(--color-popover)]"
 
@@ -118,7 +116,7 @@ const SearchResultRow = ({
 	const { t } = useTranslation("search")
 	const Glyph = glyphOf(identity)
 	const written = parts.filter((part) => part.text !== "")
-	const spoken =
+	const context =
 		identity.kind === "chat-solo"
 			? [...written, { key: "solo-thread", text: t("result.soloThread") }]
 			: written
@@ -176,7 +174,7 @@ const SearchResultRow = ({
 							className="min-w-0 truncate"
 							data-slot="search-result-row-parts"
 						>
-							{spoken.map((part, index) => (
+							{context.map((part, index) => (
 								<span
 									className={index === 0 && !identifier ? undefined : DOT_CLASS}
 									key={part.key}

@@ -108,8 +108,8 @@ const KIND_ARGS: Record<SearchResultKind, SearchResultRowProps> = {
 const titleWeightOf = (canvasElement: HTMLElement) =>
 	getComputedStyle(slotIn(canvasElement, "search-result-row-title")).fontWeight
 
-const Probe = ({ surface, tone }: { surface: string; tone: string }) => (
-	<span className={`hidden ${tone}`} data-slot={surface} />
+const Probe = ({ slot, tone }: { slot: string; tone: string }) => (
+	<span className={`hidden ${tone}`} data-slot={slot} />
 )
 
 const surfaceOf = (canvasElement: HTMLElement, slot: string) =>
@@ -258,8 +258,8 @@ export const Active = meta.story({
 	},
 	render: (args) => (
 		<>
-			<Probe surface="muted-probe" tone="bg-muted" />
-			<Probe surface="background-probe" tone="bg-background" />
+			<Probe slot="muted-probe" tone="bg-muted" />
+			<Probe slot="background-probe" tone="bg-background" />
 			<ul className="flex flex-col gap-0.5" style={{ width: PALETTE_WIDTH }}>
 				<SearchResultRow {...args} />
 			</ul>
