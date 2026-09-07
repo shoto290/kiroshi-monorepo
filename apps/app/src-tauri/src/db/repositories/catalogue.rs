@@ -363,10 +363,15 @@ mod tests {
 					'k2', 8, 'Nightly digest', 'Read the log');
 	";
 
-	fn a_draft(origin_conversation_id: &str, objective: &str, ticket: Ticket) -> MissionDraft {
+	fn a_draft(
+		origin_conversation_id: &str,
+		bot_id: &str,
+		objective: &str,
+		ticket: Ticket,
+	) -> MissionDraft {
 		MissionDraft {
 			origin_conversation_id: origin_conversation_id.to_owned(),
-			bot_id: "b1".to_owned(),
+			bot_id: bot_id.to_owned(),
 			objective: objective.to_owned(),
 			ticket,
 			tools: vec![],
@@ -392,11 +397,18 @@ mod tests {
 			.await
 			.expect("the catalogue is planted");
 		for draft in [
-			a_draft("topic-1", "Fix the crash on open", a_ticket("OPE-42", "Crash on open")),
+			a_draft("topic-1", "b1", "Fix the crash on open", a_ticket("OPE-42", "Crash on open")),
 			a_draft(
 				"main-1",
+				"b1",
 				"Rename the sidecar",
 				a_ticket("OPE-7", "The binary keeps its old name"),
+			),
+			a_draft(
+				"topic-2",
+				"b2",
+				"Rename the sidecar of the other space",
+				a_ticket("OPE-9", "A binary of its own"),
 			),
 		] {
 			database
@@ -410,6 +422,13 @@ mod tests {
 
 	fn scope(query: &str, space_id: &str, all_spaces: bool) -> CatalogueScope {
 		CatalogueScope { query: query.to_owned(), space_id: space_id.to_owned(), all_spaces }
+	}
+
+	fn objectives(missions: &[CatalogueMission]) -> Vec<&str> {
+		let mut held =
+			missions.iter().map(|mission| mission.objective.as_str()).collect::<Vec<_>>();
+		held.sort_unstable();
+		held
 	}
 
 	fn named(chats: &[CatalogueChat]) -> Vec<(&str, ChatKind, &str)> {
@@ -601,6 +620,35 @@ mod tests {
 			"the thread of a mission opened from a solo chat fell out of its own space"
 		);
 		assert_eq!(held.chats[0].space_id, Some(PERSONAL.to_owned()));
+
+		std::fs::remove_dir_all(&dir).expect("cleanup");
+	}
+
+	#[tokio::test]
+	async fn a_mission_of_another_space_answers_only_once_the_search_widens() {
+		let (database, dir) = planted().await;
+
+		let scoped = database
+			.catalogue()
+			.search(scope("rename the sidecar", PERSONAL, false))
+			.await
+			.expect("the catalogue reads");
+		let wide = database
+			.catalogue()
+			.search(scope("rename the sidecar", PERSONAL, true))
+			.await
+			.expect("the catalogue reads");
+
+		assert_eq!(
+			objectives(&scoped.missions),
+			vec!["Rename the sidecar"],
+			"a mission whose bot sits in another space crossed the scope"
+		);
+		assert_eq!(
+			objectives(&wide.missions),
+			vec!["Rename the sidecar", "Rename the sidecar of the other space"],
+			"the wide search lost a mission of another space"
+		);
 
 		std::fs::remove_dir_all(&dir).expect("cleanup");
 	}
