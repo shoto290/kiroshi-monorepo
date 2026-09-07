@@ -51,6 +51,26 @@ const ticking = (step: number) => {
 
 const LAST_POLL_MS = POLL_BUDGET_MS - 250
 
+const clockedPass = async (
+	portFor: (now: () => number) => ConnectPort,
+): Promise<string[]> => {
+	const reported: string[] = []
+	let time = 0
+
+	await unconnectedServers({
+		names: ["superset"],
+		port: portFor(() => time),
+		now: () => time,
+		wait: async (ms) => {
+			time += ms
+		},
+		report: (line) => reported.push(line.detail),
+	})
+	await settling(20)
+
+	return reported
+}
+
 const reportedLines = async (pass: ConnectPass): Promise<string[]> =>
 	(await unconnectedServers(pass)).map((line) => line.detail)
 
@@ -488,33 +508,22 @@ describe("watching a server left connecting", () => {
 	})
 
 	it("keeps the reconnection's answer for the read that settles it later", async () => {
-		const reported: string[] = []
 		const reconnected: string[] = []
-		let time = 0
 		let dialledReads = 0
 
-		await unconnectedServers({
-			names: ["superset"],
-			port: {
-				status: async () => {
-					if (reconnected.length === 0) {
-						return failed
-					}
-					dialledReads += 1
-					return dialledReads < 3 ? pending : failed
-				},
-				reconnect: async (name) => {
-					reconnected.push(name)
-					throw new Error("server not found")
-				},
+		const reported = await clockedPass(() => ({
+			status: async () => {
+				if (reconnected.length === 0) {
+					return failed
+				}
+				dialledReads += 1
+				return dialledReads < 3 ? pending : failed
 			},
-			now: () => time,
-			wait: async (ms) => {
-				time += ms
+			reconnect: async (name) => {
+				reconnected.push(name)
+				throw new Error("server not found")
 			},
-			report: (line) => reported.push(line.detail),
-		})
-		await settling(20)
+		}))
 
 		expect(dialledReads).toBeGreaterThan(1)
 		expect(reconnected).toEqual(["superset"])
@@ -524,30 +533,19 @@ describe("watching a server left connecting", () => {
 	})
 
 	it("names the read that threw as the source, claiming no answer of the reconnection", async () => {
-		const reported: string[] = []
-		let time = 0
 		let dialled = false
 
-		await unconnectedServers({
-			names: ["superset"],
-			port: {
-				status: async () => {
-					if (!dialled) {
-						return failed
-					}
-					throw new Error("the query stalled")
-				},
-				reconnect: async () => {
-					dialled = true
-				},
+		const reported = await clockedPass(() => ({
+			status: async () => {
+				if (!dialled) {
+					return failed
+				}
+				throw new Error("the query stalled")
 			},
-			now: () => time,
-			wait: async (ms) => {
-				time += ms
+			reconnect: async () => {
+				dialled = true
 			},
-			report: (line) => reported.push(line.detail),
-		})
-		await settling(20)
+		}))
 
 		expect(reported).toEqual([
 			`${leftOut}it read failed, and the status read that followed it answered: the query stalled`,
@@ -556,32 +554,21 @@ describe("watching a server left connecting", () => {
 
 	it("keeps reading, and names no server left out, when a watch read throws", async () => {
 		const stderr = capture()
-		const reported: string[] = []
-		let time = 0
 		let stalled = false
 
-		await unconnectedServers({
-			names: ["superset"],
-			port: {
-				status: async () => {
-					if (time <= LAST_POLL_MS) {
-						return pending
-					}
-					if (!stalled) {
-						stalled = true
-						throw new Error("the query stalled")
-					}
-					return connected
-				},
-				reconnect: async () => {},
+		const reported = await clockedPass((now) => ({
+			status: async () => {
+				if (now() <= LAST_POLL_MS) {
+					return pending
+				}
+				if (!stalled) {
+					stalled = true
+					throw new Error("the query stalled")
+				}
+				return connected
 			},
-			now: () => time,
-			wait: async (ms) => {
-				time += ms
-			},
-			report: (line) => reported.push(line.detail),
-		})
-		await settling(20)
+			reconnect: async () => {},
+		}))
 		stderr.restore()
 
 		expect(stalled).toBe(true)
@@ -594,32 +581,21 @@ describe("watching a server left connecting", () => {
 	})
 
 	it("reports by the read it takes after a reconnection that brought a server back", async () => {
-		const reported: string[] = []
 		const reconnected: string[] = []
-		let time = 0
 		let dialled = false
 
-		await unconnectedServers({
-			names: ["superset"],
-			port: {
-				status: async () => {
-					if (dialled) {
-						return connected
-					}
-					return time <= LAST_POLL_MS ? pending : failed
-				},
-				reconnect: async (name) => {
-					reconnected.push(name)
-					dialled = true
-				},
+		const reported = await clockedPass((now) => ({
+			status: async () => {
+				if (dialled) {
+					return connected
+				}
+				return now() <= LAST_POLL_MS ? pending : failed
 			},
-			now: () => time,
-			wait: async (ms) => {
-				time += ms
+			reconnect: async (name) => {
+				reconnected.push(name)
+				dialled = true
 			},
-			report: (line) => reported.push(line.detail),
-		})
-		await settling()
+		}))
 
 		expect(reported).toEqual([
 			'the server "superset" connected, and holds its tools for the rest of this session',
