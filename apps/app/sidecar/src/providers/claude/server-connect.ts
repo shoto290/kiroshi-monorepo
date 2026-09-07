@@ -360,7 +360,9 @@ export const unconnectedServers = async ({
 			gaveUp(abandoned, cause, secrets)
 		}
 		if (outcome.connecting.length && pass.report) {
-			void watching(pass, outcome.connecting, secrets)
+			void watching(pass, outcome.connecting, secrets).catch((thrown) => {
+				gaveUp(outcome.connecting, describeError(thrown), secrets)
+			})
 		}
 		return outcome.reported
 	} catch (error) {
