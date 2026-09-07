@@ -104,23 +104,6 @@ const HINT_CLASS = "flex items-center gap-1.5 text-[11px] text-muted-foreground"
 
 const KEYCAP_CLASS = "bg-background"
 
-type SeeAllButtonProps = {
-	kind: SearchKind
-	label: string
-	onSeeAll: (kind: SearchKind) => void
-}
-
-const SeeAllButton = ({ kind, label, onSeeAll }: SeeAllButtonProps) => (
-	<button
-		className={SEE_ALL_CLASS}
-		data-slot="search-palette-see-all"
-		onClick={() => onSeeAll(kind)}
-		type="button"
-	>
-		{label}
-	</button>
-)
-
 const SearchPaletteFooter = () => {
 	const { t } = useTranslation("search")
 
@@ -227,6 +210,11 @@ const SearchPalette = ({
 			? rowId(activeResultId)
 			: undefined
 
+	const ownedLists =
+		shown.length === 0
+			? listId
+			: sections.map((section) => sectionListId(section.key)).join(" ")
+
 	const rowOf = ({ id, space, ...rest }: SearchPaletteResult) => (
 		<SearchResultRow
 			{...rest}
@@ -258,13 +246,7 @@ const SearchPalette = ({
 						/>
 						<input
 							aria-activedescendant={activeId}
-							aria-controls={
-								shown.length === 0
-									? listId
-									: sections
-											.map((section) => sectionListId(section.key))
-											.join(" ")
-							}
+							aria-controls={ownedLists}
 							aria-expanded
 							aria-label={label}
 							autoComplete="off"
@@ -316,6 +298,7 @@ const SearchPalette = ({
 						tabIndex={0}
 					>
 						{sections.map(({ key, head, results: rows }) => {
+							const seeAllKind = head?.seeAllKind
 							const list = (
 								<div
 									aria-label={head?.label ?? t("results")}
@@ -344,12 +327,15 @@ const SearchPalette = ({
 												{head.total}
 											</span>
 										)}
-										{head.seeAllKind ? (
-											<SeeAllButton
-												kind={head.seeAllKind}
-												label={t("seeAll")}
-												onSeeAll={onTabChange}
-											/>
+										{seeAllKind ? (
+											<button
+												className={SEE_ALL_CLASS}
+												data-slot="search-palette-see-all"
+												onClick={() => onTabChange(seeAllKind)}
+												type="button"
+											>
+												{t("seeAll")}
+											</button>
 										) : null}
 									</div>
 									{list}
