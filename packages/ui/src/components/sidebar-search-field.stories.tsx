@@ -12,6 +12,8 @@ const LABEL = "Search"
 
 const CHORD = "⌘K"
 
+const HOST_CHORD = "Ctrl K"
+
 const Probe = ({ slot, tone }: { slot: string; tone: string }) => (
 	<span className={`hidden ${tone}`} data-slot={slot} />
 )
@@ -114,6 +116,22 @@ export const UnderPointer = meta.story({
 		await expect(canvas.getByText(CHORD)).toHaveClass(
 			"group-hover/search-field:bg-background",
 		)
+	},
+})
+
+export const WithHostChord = meta.story({
+	args: { chord: HOST_CHORD },
+	parameters: {
+		docs: {
+			description: {
+				story:
+					"The field on a host that binds another chord than the default one. Check that the keycap reads exactly what the host passed and that the catalogue's chord is nowhere on screen — the palette is opened by the app, so the shortcut it advertises has to be the one the app actually listens for.",
+			},
+		},
+	},
+	play: async ({ canvas }) => {
+		await expect(canvas.getByText(HOST_CHORD)).toBeVisible()
+		await expect(canvas.queryByText(CHORD)).toBeNull()
 	},
 })
 

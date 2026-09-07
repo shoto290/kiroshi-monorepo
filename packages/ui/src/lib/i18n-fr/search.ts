@@ -14,11 +14,8 @@ const search = {
 	recent: "Récents",
 	seeAll: "Tout voir",
 	close: "Échap",
-	key: {
-		enter: "Entrée",
-		rank: "1-9",
-		tab: "Tab",
-	},
+	rank: "⌘{{rank}}",
+	solo: "fil en tête-à-tête",
 	hint: {
 		move: "Naviguer",
 		open: "Ouvrir",

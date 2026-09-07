@@ -36,6 +36,8 @@ const PALETTE_RING_CLASS = "[--badge-ring:var(--color-popover)]"
 
 const RANK_CHORD = "Press Control"
 
+const RANK_CAP = "⌘3"
+
 const rankLabelFor = (rank: number) => `${RANK_CHORD} ${rank}`
 
 const ROUTINE_BOT = {
@@ -595,11 +597,11 @@ export const WithRank = meta.story({
 	play: async ({ canvas, canvasElement }) => {
 		const kbd = slotIn(canvasElement, "kbd")
 
-		await expect(kbd).toHaveTextContent("3")
+		await expect(kbd).toHaveTextContent(RANK_CAP)
 		await expect(kbd).toHaveAttribute("aria-hidden", "true")
 		await expect(
 			slotIn(canvasElement, "search-result-row-rank").textContent,
-		).toBe("3")
+		).toBe(RANK_CAP)
 		await expect(canvas.getByRole("option")).toHaveAccessibleName(
 			expect.not.stringContaining(RANK_CHORD),
 		)

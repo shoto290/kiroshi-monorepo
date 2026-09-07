@@ -14,11 +14,8 @@ const search = {
 	recent: "Recent",
 	seeAll: "See all",
 	close: "Esc",
-	key: {
-		enter: "Enter",
-		rank: "1-9",
-		tab: "Tab",
-	},
+	rank: "⌘{{rank}}",
+	solo: "solo thread",
 	hint: {
 		move: "Move",
 		open: "Open",

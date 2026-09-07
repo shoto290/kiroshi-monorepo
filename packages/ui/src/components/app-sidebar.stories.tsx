@@ -5012,6 +5012,8 @@ export const DragConversationToSection = meta.story({
 	},
 })
 
+const SEARCH_TO_ROSTER_GAP = 6
+
 export const WithSearch = meta.story({
 	args: { onOpenSearch: fn() },
 	parameters: {
@@ -5035,6 +5037,15 @@ export const WithSearch = meta.story({
 		).toBeTruthy()
 		await expect(header.contains(field)).toBe(false)
 		await expect(content.contains(field)).toBe(false)
+
+		const [row] = rowsIn(canvasElement)
+		const fieldBox = field.getBoundingClientRect()
+		const rowBox = rowButton(row).getBoundingClientRect()
+
+		await expect(fieldBox.left).toBe(rowBox.left)
+		await expect(Math.round(rowBox.top - fieldBox.bottom)).toBe(
+			SEARCH_TO_ROSTER_GAP,
+		)
 
 		await userEvent.click(within(field).getByRole("button", { name: /Search/ }))
 		await expect(args.onOpenSearch).toHaveBeenCalledTimes(1)

@@ -4,7 +4,6 @@ import { Dialog } from "@base-ui/react/dialog"
 import { useId, useRef } from "react"
 import { useTranslation } from "react-i18next"
 
-import type { ActivityRowPart } from "@workspace/ui/components/activity-row"
 import { Button } from "@workspace/ui/components/button"
 import { EmptyStateShell } from "@workspace/ui/components/empty-state-shell"
 import { Icons } from "@workspace/ui/components/icons"
@@ -32,10 +31,7 @@ type SearchTab = "all" | SearchKind
 type SearchPaletteResult = Omit<
 	SearchResultRowProps,
 	"id" | "isActive" | "rank" | "rankLabel"
-> & {
-	id: string
-	space?: string
-}
+> & { id: string }
 
 type SearchResultGroup = {
 	kind: SearchKind
@@ -108,8 +104,7 @@ const HINT_CLASS = "flex items-center gap-1.5 text-[11px] text-muted-foreground"
 
 const KEYCAP_CLASS = "bg-background"
 
-const EMPTY_MARK_CLASS =
-	"flex size-12 items-center justify-center rounded-2xl bg-muted text-muted-foreground"
+const EMPTY_ACTION_CLASS = "rounded-lg"
 
 const SearchPaletteFooter = () => {
 	const { t } = useTranslation("search")
@@ -131,17 +126,17 @@ const SearchPaletteFooter = () => {
 		},
 		{
 			key: "open",
-			cap: <Kbd className={KEYCAP_CLASS}>{t("key.enter")}</Kbd>,
+			cap: <Kbd className={KEYCAP_CLASS}>↵</Kbd>,
 			label: t("hint.open"),
 		},
 		{
 			key: "rank",
-			cap: <Kbd className={KEYCAP_CLASS}>{t("key.rank")}</Kbd>,
+			cap: <Kbd className={KEYCAP_CLASS}>⌘1-9</Kbd>,
 			label: t("hint.rank"),
 		},
 		{
 			key: "tab",
-			cap: <Kbd className={KEYCAP_CLASS}>{t("key.tab")}</Kbd>,
+			cap: <Kbd className={KEYCAP_CLASS}>⇥</Kbd>,
 			label: t("hint.tab"),
 		},
 	]
@@ -157,14 +152,6 @@ const SearchPaletteFooter = () => {
 		</div>
 	)
 }
-
-const spacedParts = (
-	result: SearchPaletteResult,
-	isScopeAllSpaces: boolean,
-): ActivityRowPart[] =>
-	isScopeAllSpaces && result.space
-		? [{ key: "space", text: result.space }, ...result.parts]
-		: result.parts
 
 const SearchPalette = ({
 	open,
@@ -224,20 +211,16 @@ const SearchPalette = ({
 			? rowId(activeResultId)
 			: undefined
 
-	const rowOf = (result: SearchPaletteResult) => {
-		const { id, space: _space, parts: _parts, ...rest } = result
-
-		return (
-			<SearchResultRow
-				{...rest}
-				id={rowId(id)}
-				isActive={id === activeResultId}
-				key={id}
-				parts={spacedParts(result, isScopeAllSpaces)}
-				rank={rankOf.get(id)}
-			/>
-		)
-	}
+	const rowOf = ({ id, space, ...rest }: SearchPaletteResult) => (
+		<SearchResultRow
+			{...rest}
+			id={rowId(id)}
+			isActive={id === activeResultId}
+			key={id}
+			rank={rankOf.get(id)}
+			space={isScopeAllSpaces ? space : undefined}
+		/>
+	)
 
 	return (
 		<Dialog.Root onOpenChange={onOpenChange} open={open}>
@@ -259,8 +242,8 @@ const SearchPalette = ({
 						/>
 						<input
 							aria-activedescendant={activeId}
-							aria-controls={shown.length === 0 ? undefined : listId}
-							aria-expanded={shown.length > 0}
+							aria-controls={listId}
+							aria-expanded
 							aria-label={label}
 							autoComplete="off"
 							className={INPUT_CLASS}
@@ -307,64 +290,66 @@ const SearchPalette = ({
 						aria-busy={isLoading}
 						className={BODY_CLASS}
 						data-slot="search-palette-body"
-						id={listId}
 						// biome-ignore lint/a11y/noNoninteractiveTabindex: the body scrolls on its own and every row inside it is driven by aria-activedescendant, so this is the only handle a keyboard has on it
 						tabIndex={0}
 					>
-						{sections.map(({ key, head, results: rows }) => {
-							if (!head)
+						<div
+							aria-label={t("results")}
+							className={LIST_CLASS}
+							id={listId}
+							role="listbox"
+						>
+							{sections.map(({ key, head, results: rows }) => {
+								if (!head) return rows.map(rowOf)
+								const { label: name, total, seeAllKind } = head
+
 								return (
 									<div
-										aria-label={t("results")}
+										aria-label={name}
 										className={LIST_CLASS}
 										key={key}
-										role="listbox"
+										role="group"
 									>
+										<div
+											className={SECTION_HEAD_CLASS}
+											data-slot="search-palette-section-head"
+										>
+											<span className="font-medium text-foreground text-xs">
+												{name}
+											</span>
+											{total === undefined ? null : (
+												<span className="text-muted-foreground text-xs tabular-nums">
+													{total}
+												</span>
+											)}
+											{seeAllKind ? (
+												<button
+													aria-selected={false}
+													className={SEE_ALL_CLASS}
+													data-slot="search-palette-see-all"
+													onClick={() => onTabChange(seeAllKind)}
+													role="option"
+													type="button"
+												>
+													{t("seeAll")}
+												</button>
+											) : null}
+										</div>
 										{rows.map(rowOf)}
 									</div>
 								)
+							})}
+						</div>
 
-							const { label: name, total, seeAllKind } = head
-
-							return (
-								<div className={LIST_CLASS} key={key}>
-									<div
-										className={SECTION_HEAD_CLASS}
-										data-slot="search-palette-section-head"
-									>
-										<span className="font-medium text-foreground text-xs">
-											{name}
-										</span>
-										{total === undefined ? null : (
-											<span className="text-muted-foreground text-xs tabular-nums">
-												{total}
-											</span>
-										)}
-										{seeAllKind ? (
-											<button
-												className={SEE_ALL_CLASS}
-												data-slot="search-palette-see-all"
-												onClick={() => onTabChange(seeAllKind)}
-												type="button"
-											>
-												{t("seeAll")}
-											</button>
-										) : null}
-									</div>
-									<div aria-label={name} className={LIST_CLASS} role="listbox">
-										{rows.map(rowOf)}
-									</div>
-								</div>
-							)
-						})}
-
-						{shown.length > 0 || isLoading ? null : (
+						{isRecent || isLoading || shown.length > 0 ? null : (
 							<EmptyStateShell
 								action={
 									isScopeAllSpaces ? undefined : (
 										<Button
+											className={EMPTY_ACTION_CLASS}
 											onClick={() => onScopeChange(true)}
-											variant="outline"
+											size="sm"
+											variant="secondary"
 										>
 											{t("empty.action")}
 										</Button>
@@ -376,9 +361,10 @@ const SearchPalette = ({
 									query,
 								})}
 								mark={
-									<span className={EMPTY_MARK_CLASS}>
-										<Icons.Search aria-hidden="true" className="size-6" />
-									</span>
+									<Icons.Search
+										aria-hidden="true"
+										className="size-8 text-muted-foreground"
+									/>
 								}
 								title={t("empty.title")}
 							/>

@@ -1,5 +1,7 @@
 "use client"
 
+import { useTranslation } from "react-i18next"
+
 import {
 	ACTIVATION_CLASS,
 	type ActivityRowPart,
@@ -12,6 +14,7 @@ import {
 	type ConversationParticipant,
 } from "@workspace/ui/components/avatar-group"
 import type { BotBadge } from "@workspace/ui/components/badge"
+import type { BotAvatarBlot } from "@workspace/ui/components/bot-avatar"
 import { BotIdentityAvatar } from "@workspace/ui/components/bot-identity-avatar"
 import { Icons } from "@workspace/ui/components/icons"
 import { Kbd } from "@workspace/ui/components/kbd"
@@ -20,6 +23,7 @@ import {
 	type MissionBot,
 } from "@workspace/ui/components/mission"
 import type { MissionMark } from "@workspace/ui/components/mission-marks"
+import { SpaceTint } from "@workspace/ui/components/space-tint"
 import { cn } from "@workspace/ui/lib/utils"
 
 type SearchResultIdentity =
@@ -34,11 +38,14 @@ type SearchResultKind = SearchResultIdentity["kind"]
 
 type SearchResultTitlePart = ActivityRowPart & { isMatch?: boolean }
 
+type SearchResultSpace = { name: string; tint?: BotAvatarBlot }
+
 type SearchResultRowProps = {
 	identity: SearchResultIdentity
 	title: SearchResultTitlePart[]
 	timestamp: string
 	parts: ActivityRowPart[]
+	space?: SearchResultSpace
 	identifier?: string
 	rank?: number
 	rankLabel?: string
@@ -107,6 +114,7 @@ const SearchResultRow = ({
 	title,
 	timestamp,
 	parts,
+	space,
 	identifier,
 	rank,
 	rankLabel,
@@ -114,6 +122,7 @@ const SearchResultRow = ({
 	id,
 	onOpen,
 }: SearchResultRowProps) => {
+	const { t } = useTranslation("search")
 	const Glyph = glyphOf(identity)
 	const context = parts.filter((part) => part.text !== "")
 	const isRanked = rank !== undefined && rank >= FIRST_RANK && rank <= LAST_RANK
@@ -158,6 +167,7 @@ const SearchResultRow = ({
 					</span>
 				</span>
 				<span className="flex h-4 items-center gap-[5px] text-muted-foreground text-xs leading-4">
+					{space ? <SpaceTint className="size-2" tint={space.tint} /> : null}
 					{Glyph ? (
 						<Glyph
 							aria-hidden="true"
@@ -174,9 +184,12 @@ const SearchResultRow = ({
 						className="min-w-0 truncate"
 						data-slot="search-result-row-parts"
 					>
+						{space ? <span>{space.name}</span> : null}
 						{context.map((part, index) => (
 							<span
-								className={index === 0 && !identifier ? undefined : DOT_CLASS}
+								className={
+									index === 0 && !identifier && !space ? undefined : DOT_CLASS
+								}
 								key={part.key}
 							>
 								{part.text}
@@ -190,7 +203,7 @@ const SearchResultRow = ({
 					<>
 						{rankLabel ? <span className="sr-only">{rankLabel}</span> : null}
 						<Kbd aria-hidden="true" className={RANK_CLASS}>
-							{rank}
+							{t("rank", { rank })}
 						</Kbd>
 					</>
 				) : null}
@@ -204,5 +217,6 @@ export {
 	type SearchResultKind,
 	SearchResultRow,
 	type SearchResultRowProps,
+	type SearchResultSpace,
 	type SearchResultTitlePart,
 }

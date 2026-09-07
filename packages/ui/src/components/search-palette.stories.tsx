@@ -15,13 +15,17 @@ import {
 
 const QUERY = "parser"
 
-const SPACE = "Studio"
+const SPACE = { name: "Studio", tint: "blue" } as const
 
-const OTHER_SPACE = "Archive"
+const OTHER_SPACE = { name: "Archive" } as const
 
 const MESSAGES_FOUND = 12
 
 const SHOWN_PER_KIND = 3
+
+const SPACE_MARK_SIZE = 8
+
+const UNTINTED_RESULTS = 2
 
 const ROUTINE_BOT = {
 	name: "Noor Beltran",
@@ -180,7 +184,7 @@ const meta = preview.meta({
 		query: QUERY,
 		tab: "all" as SearchTab,
 		isScopeAllSpaces: false,
-		spaceName: SPACE,
+		spaceName: SPACE.name,
 		results: RESULTS,
 		recents: RECENTS,
 		isLoading: false,
@@ -214,8 +218,8 @@ export const Default = meta.story({
 		await expect(heads).toHaveLength(4)
 		await expect(heads[0]).toHaveTextContent(`Messages${MESSAGES_FOUND}`)
 
-		const messages = within(popup).getByRole("listbox", { name: "Messages" })
-		await expect(within(messages).getAllByRole("option")).toHaveLength(
+		const messages = within(popup).getByRole("group", { name: "Messages" })
+		await expect(slotsIn(messages, "search-result-row")).toHaveLength(
 			SHOWN_PER_KIND,
 		)
 		await expect(slotsIn(body, "search-palette-see-all")).toHaveLength(1)
@@ -223,14 +227,17 @@ export const Default = meta.story({
 		const ranks = slotsIn(body, "search-result-row-rank").map(
 			(lane) => lane.textContent,
 		)
-		await expect(ranks).toEqual(["1", "2", "3", "4", "5", "6", "7"])
+		await expect(ranks).toEqual(["⌘1", "⌘2", "⌘3", "⌘4", "⌘5", "⌘6", "⌘7"])
 
 		const selected = within(popup).getAllByRole("option", { selected: true })
 		await expect(selected).toHaveLength(1)
 		await expect(field.getAttribute("aria-activedescendant")).toBe(
 			selected[0]?.id,
 		)
-		await expect(field).toHaveAttribute("aria-controls", body.id)
+		const list = within(popup).getByRole("listbox")
+		await expect(field).toHaveAttribute("aria-controls", list.id)
+		await expect(field).toHaveAttribute("aria-expanded", "true")
+		await expect(list.contains(selected[0] ?? null)).toBe(true)
 	},
 })
 
@@ -250,6 +257,7 @@ export const OneKind = meta.story({
 
 		await expect(slotsIn(body, "search-palette-section-head")).toHaveLength(0)
 		await expect(within(popup).getAllByRole("listbox")).toHaveLength(1)
+		await expect(within(popup).queryAllByRole("group")).toHaveLength(0)
 		await expect(within(popup).getAllByRole("option")).toHaveLength(
 			MESSAGES.length,
 		)
@@ -287,7 +295,7 @@ export const ChangingTab = meta.story({
 			await expect(slotsIn(body, "search-palette-see-all")).toHaveLength(1)
 		})
 
-		await userEvent.click(reader.getByRole("button", { name: "See all" }))
+		await userEvent.click(reader.getByRole("option", { name: "See all" }))
 		await expect(args.onTabChange).toHaveBeenLastCalledWith("messages")
 		await waitFor(async () => {
 			await expect(reader.getAllByRole("option")).toHaveLength(MESSAGES.length)
@@ -301,22 +309,37 @@ export const AcrossSpaces = meta.story({
 		docs: {
 			description: {
 				story:
-					"The same query once the scope is every space. Check that each row opens its context line with the space it was found in, which is the only thing that tells two identically named threads apart here, and that turning the switch back reports the scope the reader asked for rather than filtering anything on its own.",
+					"The same query once the scope is every space. Check that each row opens its context line with a round mark in its space tint and then the space name, which is the only thing that tells two identically named threads apart here, that a result from a space with no tint keeps the untinted mark rather than dropping the column, and that turning the switch back reports the scope and takes the marks away with it.",
 			},
 		},
 	},
 	play: async ({ args, userEvent }) => {
 		const popup = await palette()
 		const reader = within(popup)
-		const [first] = slotsIn(bodyOf(popup), "search-result-row-parts")
+		const body = bodyOf(popup)
+		const [first] = slotsIn(body, "search-result-row-parts")
+		const [mark] = slotsIn(body, "space-tint")
 
-		await expect(first?.textContent?.startsWith(SPACE)).toBe(true)
+		await expect(first?.textContent?.startsWith(SPACE.name)).toBe(true)
+		await expect(slotsIn(body, "space-tint")).toHaveLength(
+			slotsIn(body, "search-result-row").length,
+		)
+		await expect(mark).toHaveAttribute("data-tint", SPACE.tint)
+		await expect(mark?.getBoundingClientRect().width).toBe(SPACE_MARK_SIZE)
 		await expect(
-			reader.getByRole("listbox", { name: "Chats" }).textContent,
-		).toContain(OTHER_SPACE)
+			slotsIn(body, "space-tint").filter(
+				(tint) => tint.dataset.tint === undefined,
+			),
+		).toHaveLength(UNTINTED_RESULTS)
+		await expect(
+			reader.getByRole("group", { name: "Chats" }).textContent,
+		).toContain(OTHER_SPACE.name)
 
 		await userEvent.click(reader.getByRole("switch", { name: "All spaces" }))
 		await expect(args.onScopeChange).toHaveBeenCalledWith(false)
+		await waitFor(async () => {
+			await expect(slotsIn(body, "space-tint")).toHaveLength(0)
+		})
 	},
 })
 
@@ -344,6 +367,27 @@ export const Recent = meta.story({
 	},
 })
 
+export const NoRecent = meta.story({
+	args: { query: "", recents: [], activeResultId: undefined },
+	parameters: {
+		docs: {
+			description: {
+				story:
+					"The palette on a fresh account: nothing typed, nothing recent. Check that the body stays bare rather than claiming nothing matches — no query has been asked, so there is nothing for an empty state to report on. Pick `Empty` for the sentence a search that came back with nothing earns.",
+			},
+		},
+	},
+	play: async () => {
+		const reader = within(await palette())
+
+		await expect(reader.getByRole("listbox")).toBeEmptyDOMElement()
+		await expect(reader.queryByText("Nothing here matches")).toBeNull()
+		await expect(
+			reader.queryByRole("button", { name: "Search all spaces" }),
+		).toBeNull()
+	},
+})
+
 export const Empty = meta.story({
 	args: { results: [], recents: [] },
 	parameters: {
@@ -357,12 +401,15 @@ export const Empty = meta.story({
 	play: async ({ args, userEvent }) => {
 		const reader = within(await palette())
 
-		await expect(reader.queryByRole("listbox")).toBeNull()
+		await expect(reader.getByRole("listbox")).toBeEmptyDOMElement()
 		await expect(reader.getByText("Nothing here matches")).toBeVisible()
 		await expect(
-			reader.getByText(`No message, chat, mission or routine in ${SPACE}`, {
-				exact: false,
-			}),
+			reader.getByText(
+				`No message, chat, mission or routine in ${SPACE.name}`,
+				{
+					exact: false,
+				},
+			),
 		).toHaveTextContent(`“${QUERY}”`)
 
 		await userEvent.click(
@@ -406,7 +453,7 @@ export const Loading = meta.story({
 		const popup = await palette()
 		const reader = within(popup)
 
-		await expect(reader.getAllByRole("option")).toHaveLength(7)
+		await expect(slotsIn(bodyOf(popup), "search-result-row")).toHaveLength(7)
 		await expect(reader.queryByText("Nothing here matches")).toBeNull()
 		await expect(bodyOf(popup)).toHaveAttribute("aria-busy", "true")
 	},
@@ -425,11 +472,11 @@ export const LoadingFirstQuery = meta.story({
 	play: async () => {
 		const reader = within(await palette())
 
-		await expect(reader.queryByRole("listbox")).toBeNull()
+		await expect(reader.getByRole("listbox")).toBeEmptyDOMElement()
 		await expect(reader.queryByText("Nothing here matches")).toBeNull()
 		await expect(reader.getByRole("combobox")).toHaveAttribute(
 			"aria-expanded",
-			"false",
+			"true",
 		)
 	},
 })

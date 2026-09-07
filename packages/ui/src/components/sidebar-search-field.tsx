@@ -9,6 +9,7 @@ import { FIELD_CONTROL_CLASS } from "@workspace/ui/components/settings-styles"
 import { cn } from "@workspace/ui/lib/utils"
 
 type SidebarSearchFieldProps = {
+	chord?: string
 	isCollapsed?: boolean
 	onOpen: () => void
 }
@@ -19,6 +20,7 @@ const FIELD_CLASS =
 const CHORD_CLASS = "group-hover/search-field:bg-background"
 
 const SidebarSearchField = ({
+	chord,
 	isCollapsed = false,
 	onOpen,
 }: SidebarSearchFieldProps) => {
@@ -59,7 +61,7 @@ const SidebarSearchField = ({
 				<span className="min-w-0 flex-1 truncate text-muted-foreground text-sm">
 					{label}
 				</span>
-				<Kbd className={CHORD_CLASS}>{t("chord")}</Kbd>
+				<Kbd className={CHORD_CLASS}>{chord ?? t("chord")}</Kbd>
 			</button>
 		</div>
 	)
