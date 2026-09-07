@@ -1601,6 +1601,13 @@ describe("ThreadScreen", () => {
 			rowIndexOf("Which wall holds?"),
 		)
 		expect(askedForm()).toBeTruthy()
+
+		act(() => {
+			room.driver.pushTo(room.idOf("Ada"), WRITING_LANDED)
+		})
+		await settle()
+
+		expect(screen.getByText("the walls hold")).toBeTruthy()
 	})
 
 	it("keeps the working row of a bot asking after it published a block", async () => {
