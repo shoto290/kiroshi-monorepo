@@ -32,6 +32,8 @@ const MISSION = { kind: "mission", id: "mission-1" } as const
 
 const SPACE = "space-one"
 
+const OTHER_SPACE = "space-two"
+
 const ALL_ON: NotificationSourceSwitches = {
 	notifyOnQuestion: true,
 	notifyOnPermission: true,
@@ -139,11 +141,15 @@ const createFakeRoster = (
 	bots: { id: string; name: string }[],
 	conversations: Conversation[] = [],
 ) => {
-	const state = { bots, conversations }
+	const state = {
+		bots,
+		conversations,
+		away: [] as { id: string; name: string }[],
+	}
 
 	return {
 		getState: () => ({
-			rosters: { [SPACE]: state.bots },
+			rosters: { [SPACE]: state.bots, [OTHER_SPACE]: state.away },
 			conversations: state.conversations,
 		}),
 		spaceOfConversation: (conversationId: string) =>
@@ -157,6 +163,9 @@ const createFakeRoster = (
 		selectConversation: vi.fn(),
 		hold: (held: { id: string; name: string }[]) => {
 			state.bots = held
+		},
+		holdElsewhere: (held: { id: string; name: string }[]) => {
+			state.away = held
 		},
 		holdConversations: (held: Conversation[]) => {
 			state.conversations = held
@@ -436,6 +445,16 @@ describe("startNotificationSource", () => {
 		expect(harness.spaces.select).toHaveBeenCalledWith("space-one")
 	})
 
+	it("selects the bot line before entering the space its thread sits in", async () => {
+		const harness = await start()
+
+		harness.notifications.activate(BOT)
+
+		expect(harness.roster.select.mock.invocationCallOrder[0]).toBeLessThan(
+			harness.spaces.select.mock.invocationCallOrder[0],
+		)
+	})
+
 	it("shows the window and leaves the selection alone for a bot that is gone", async () => {
 		const raiseWindow = vi.fn(async () => undefined)
 		const harness = await start({ raiseWindow })
@@ -445,6 +464,23 @@ describe("startNotificationSource", () => {
 
 		expect(raiseWindow).toHaveBeenCalled()
 		expect(harness.roster.select).not.toHaveBeenCalled()
+	})
+
+	it("names a bot running in a space that is not the one on screen", async () => {
+		const harness = await start()
+		harness.roster.hold([])
+		harness.roster.holdElsewhere([{ id: "bot-away", name: "Vega" }])
+		seed(harness, "bot-away")
+
+		harness.chat.publish("bot-away", { question: question("q-1") })
+
+		expect(harness.notifications.sent).toEqual([
+			{
+				target: { kind: "bot", id: "bot-away" },
+				title: "Vega",
+				body: "Asked you a question",
+			},
+		])
 	})
 
 	it("forgets the state of a bot the roster let go of", async () => {

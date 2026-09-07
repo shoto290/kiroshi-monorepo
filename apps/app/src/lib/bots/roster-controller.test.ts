@@ -59,6 +59,16 @@ const held = (controller: { getState: () => { bots: Bot[] } }, id: string) => {
 const reloaded = async (store: TranscriptStore) =>
 	(await loaded(store)).getState()
 
+const countingBots = (store: TranscriptStore) => {
+	let count = 0
+	const read = store.bots
+	store.bots = (spaceId?: string | null) => {
+		count += 1
+		return read(spaceId)
+	}
+	return { count: () => count }
+}
+
 const leadIn = (conversation: Conversation) => leadOf(conversation)
 
 const seatedIn = (conversation: Conversation) =>
@@ -720,6 +730,99 @@ describe("createRosterController on a space", () => {
 		const { rosters } = controller.getState()
 		expect(rosters.personal).toEqual([])
 		expect(rosters[elsewhere.id].map((bot) => bot.id)).toEqual([away.id])
+	})
+})
+
+describe("createRosterController on memberships", () => {
+	const acrossTwoSpaces = async () => {
+		const store = createFakeTranscriptStore()
+		const elsewhere = await store.createSpace("Vocca")
+		await store.addBotToSpace("default", elsewhere.id)
+		const controller = createRosterController(store)
+		await controller.load(opening(null, "personal", ["personal", elsewhere.id]))
+		return { store, elsewhere, controller }
+	}
+
+	it("lists a bot of several spaces in the roster of each", async () => {
+		const { elsewhere, controller } = await acrossTwoSpaces()
+
+		const { rosters } = controller.getState()
+
+		expect(rosters.personal.map((bot) => bot.id)).toEqual(["default"])
+		expect(rosters[elsewhere.id].map((bot) => bot.id)).toEqual(["default"])
+	})
+
+	it("answers the spaces a bot belongs to from the rosters it holds", async () => {
+		const { elsewhere, controller } = await acrossTwoSpaces()
+
+		expect(controller.spacesOfBot("default")).toEqual([
+			"personal",
+			elsewhere.id,
+		])
+	})
+
+	it("previews the solo thread of the space each line sits in", async () => {
+		const { store, elsewhere } = await acrossTwoSpaces()
+		await saidIn(
+			store,
+			(await store.mainChat("default", "personal")).id,
+			"Home",
+		)
+		await saidIn(
+			store,
+			(await store.mainChat("default", elsewhere.id)).id,
+			"Away",
+		)
+
+		const listed = createRosterController(store)
+		await listed.load(opening(null, "personal", ["personal", elsewhere.id]))
+
+		const { previews } = listed.getState()
+		expect(previews.personal?.default).toMatchObject({ text: "Home" })
+		expect(previews[elsewhere.id]?.default).toMatchObject({ text: "Away" })
+	})
+
+	it("shows a bot in the space it is added to without reading every roster", async () => {
+		const store = createFakeTranscriptStore()
+		const elsewhere = await store.createSpace("Vocca")
+		const controller = createRosterController(store)
+		await controller.load(opening(null, "personal", ["personal", elsewhere.id]))
+		const reads = countingBots(store)
+
+		await controller.addToSpace("default", elsewhere.id)
+
+		expect(
+			controller.getState().rosters[elsewhere.id].map((bot) => bot.id),
+		).toEqual(["default"])
+		expect(reads.count()).toBe(0)
+	})
+
+	it("drops a bot from the space it is removed from without reading every roster", async () => {
+		const { store, elsewhere, controller } = await acrossTwoSpaces()
+		const reads = countingBots(store)
+
+		await controller.removeFromSpace("default", elsewhere.id)
+
+		expect(controller.getState().rosters[elsewhere.id]).toEqual([])
+		expect(controller.getState().rosters.personal.map((bot) => bot.id)).toEqual(
+			["default"],
+		)
+		expect(reads.count()).toBe(0)
+	})
+
+	it("keeps every roster and reports the failure when the last space is refused", async () => {
+		const store = createFakeTranscriptStore()
+		const elsewhere = await store.createSpace("Vocca")
+		const reportFailure = vi.fn()
+		const controller = createRosterController(store, { reportFailure })
+		await controller.load(opening(null, "personal", ["personal", elsewhere.id]))
+
+		await controller.removeFromSpace("default", "personal")
+
+		expect(controller.getState().rosters.personal.map((bot) => bot.id)).toEqual(
+			["default"],
+		)
+		expect(reportFailure).toHaveBeenCalledTimes(1)
 	})
 })
 
