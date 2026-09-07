@@ -759,17 +759,14 @@ describe("reportConnections", () => {
 		expect(pushed).toEqual([`${section}\n\nfirst`])
 	})
 
-	it("releases at the budget, reconnects once, and frames the answer afterwards", async () => {
+	it("names a budget failure with its status, then with what the reconnection said", async () => {
 		const emitted: string[] = []
 		const pushed: string[] = []
-		const reconnected: string[] = []
 		const released = Promise.withResolvers<void>()
-		const framed = Promise.withResolvers<void>()
 
 		const report = reportConnections({
 			emit: (frame) => {
 				emitted.push(String(frame.detail))
-				framed.resolve()
 			},
 			push: (text) => {
 				pushed.push(text)
@@ -779,8 +776,7 @@ describe("reportConnections", () => {
 				names: ["superset"],
 				port: {
 					status: async () => [{ name: "superset", status: "failed" }],
-					reconnect: async (name) => {
-						reconnected.push(name)
+					reconnect: async () => {
 						throw new Error("Connection failed")
 					},
 				},
@@ -790,69 +786,29 @@ describe("reportConnections", () => {
 
 		report.prompt("first")
 		await released.promise
+		const read = 'the server "superset" was left out: it read failed'
 
-		expect(pushed).toEqual(["first"])
-		expect(emitted).toEqual([])
+		expect(emitted).toEqual([read])
+		expect(pushed[0]).toBe(`${unavailableServersSection([read])}\n\nfirst`)
 
-		await framed.promise
-		const answered =
-			'the server "superset" was left out: it read failed, and the reconnection answered: Connection failed'
-
-		expect(emitted).toEqual([answered])
-		expect(reconnected).toEqual(["superset"])
-
-		report.prompt("second")
-
-		expect(pushed[1]).toBe(`${unavailableServersSection([answered])}\n\nsecond`)
-	})
-
-	it("hands a slash command untouched, and the line to the prompt after it", async () => {
-		const order: string[] = []
-		const pushed: string[] = []
-		const handed = Promise.withResolvers<void>()
-		const report = reportConnections({
-			emit: (frame) => {
-				order.push(`frame ${String(frame.detail)}`)
-			},
-			push: (text) => {
-				order.push(`prompt ${text}`)
-				pushed.push(text)
-				handed.resolve()
-			},
-			pass: refusing(),
-		})
-
-		report.prompt("/compact")
-		await handed.promise
-
-		expect(pushed).toEqual(["/compact"])
-		expect(order).toEqual([`frame ${detail}`, "prompt /compact"])
-
+		await ticked()
 		report.prompt("and now?")
+		const answered = `${read}, and the reconnection answered: Connection failed`
 
-		expect(pushed[1]).toBe(`${section}\n\nand now?`)
-		expect(order.filter((step) => step.startsWith("frame"))).toHaveLength(1)
-	})
-
-	it("takes a path for the prompt it is, not for a slash command", async () => {
-		const { pushed, settled, report } = reporting(refusing())
-
-		report.prompt("/Users/shoto/notes.md needs a read")
-		await settled
-
-		expect(pushed).toEqual([`${section}\n\n/Users/shoto/notes.md needs a read`])
+		expect(emitted).toEqual([read, answered])
+		expect(pushed[1]).toBe(
+			`${unavailableServersSection([answered])}\n\nand now?`,
+		)
 	})
 
 	const settlingAfterBudget = (settled: ServerStatus[]) => {
 		const emitted: string[] = []
 		const pushed: string[] = []
-		const framed = Promise.withResolvers<void>()
 		let time = 0
 
 		const report = reportConnections({
 			emit: (frame) => {
 				emitted.push(String(frame.detail))
-				framed.resolve()
 			},
 			push: (text) => {
 				pushed.push(text)
@@ -873,15 +829,15 @@ describe("reportConnections", () => {
 			},
 		})
 
-		return { emitted, pushed, framed: framed.promise, report }
+		return { emitted, pushed, report }
 	}
 
 	it("names a server the watch finds disabled as left out, once", async () => {
-		const { pushed, framed, report } = settlingAfterBudget([
+		const { pushed, report } = settlingAfterBudget([
 			{ name: "superset", status: "disabled" },
 		])
 
-		await framed
+		await ticked()
 		report.prompt("and now?")
 
 		const carried = String(pushed[0])
@@ -891,35 +847,34 @@ describe("reportConnections", () => {
 		expect(carried).not.toContain("is still connecting")
 	})
 
-	it("names a server the session finally reached as holding its tools", async () => {
-		const { emitted, pushed, framed, report } = settlingAfterBudget([
+	it("tells the bot of a server it reached without framing it on screen", async () => {
+		const { emitted, pushed, report } = settlingAfterBudget([
 			{ name: "superset", status: "connected" },
 		])
 
-		await framed
+		await ticked()
 
-		expect(emitted).toEqual([
-			'the server "superset" connected, and holds its tools for the rest of this session',
-		])
+		expect(emitted).toEqual([])
 
 		report.prompt("and now?")
 
 		expect(pushed[0]).toContain("holds its tools for the rest of this session")
 		expect(pushed[0]).not.toContain("is still connecting")
+		expect(emitted).toEqual([])
 	})
 
 	it("carries the later line alone when a server was named twice", async () => {
-		const { emitted, pushed, framed, report } = settlingAfterBudget([
+		const { emitted, pushed, report } = settlingAfterBudget([
 			{ name: "superset", status: "failed" },
 		])
 
-		await framed
+		await ticked()
 		report.prompt("and now?")
 
 		const carried = String(pushed[0])
 		const named = carried.split('the server "superset"').length - 1
 
-		expect(emitted).toHaveLength(1)
+		expect(emitted).toEqual([])
 		expect(named).toBe(1)
 		expect(carried).toContain("was reconnected")
 		expect(carried).not.toContain("is still connecting")

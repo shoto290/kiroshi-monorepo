@@ -13,7 +13,12 @@ import { KIROSHI_SERVER, kiroshiServer } from "./kiroshi-server"
 import { createPermissionGate } from "./permissions"
 import { createPromptStream } from "./prompt-stream"
 import { securityFloor } from "./security-floor"
-import { type ConnectPass, delay, unconnectedServers } from "./server-connect"
+import {
+	type ConnectPass,
+	delay,
+	type ReportedLine,
+	unconnectedServers,
+} from "./server-connect"
 import { type ResolvedServers, resolvedServers } from "./server-env"
 import { inheritedEnv } from "./session-env"
 import { layerFor, unavailableServersSection } from "./system-layer"
@@ -157,7 +162,7 @@ export const stopTurn = async ({ dropped, emit, interrupt }: StopRequest) => {
 
 type WaitingLine = {
 	detail: string
-	framed: boolean
+	owing: boolean
 }
 
 export type ConnectionReport = {
@@ -187,20 +192,22 @@ export const reportConnections = ({ emit, push, pass }: ConnectionReport) => {
 		emit({ type: "server_env_rejected", detail })
 	}
 
-	const rejected = (detail: string) => {
+	const reported = ({ detail, notice }: ReportedLine) => {
 		if (signal.aborted) {
 			return
 		}
-		framed(detail)
-		waiting.push({ detail, framed: true })
+		if (notice) {
+			framed(detail)
+		}
+		waiting.push({ detail, owing: false })
 	}
 
 	const hand = (text: string) => {
 		waiting.splice(0, waiting.length, ...latest(waiting))
 		for (const line of waiting) {
-			if (!line.framed) {
+			if (line.owing) {
 				framed(line.detail)
-				line.framed = true
+				line.owing = false
 			}
 		}
 		if (waiting.length === 0 || SLASH_COMMAND.test(text)) {
@@ -213,11 +220,11 @@ export const reportConnections = ({ emit, push, pass }: ConnectionReport) => {
 		push(`${section}\n\n${text}`)
 	}
 
-	const release = (reported: string[]) => {
+	const release = (settled: string[]) => {
 		if (signal.aborted) {
 			return
 		}
-		waiting.push(...reported.map((detail) => ({ detail, framed: false })))
+		waiting.push(...settled.map((detail) => ({ detail, owing: true })))
 		holding = false
 		for (const text of held.splice(0)) {
 			hand(text)
@@ -228,7 +235,7 @@ export const reportConnections = ({ emit, push, pass }: ConnectionReport) => {
 		.then(() =>
 			signal.aborted
 				? []
-				: unconnectedServers({ ...pass, signal, report: rejected }),
+				: unconnectedServers({ ...pass, signal, report: reported }),
 		)
 		.then(release, () => release([]))
 

@@ -7,6 +7,11 @@ import { describeError } from "../../describe-error"
 
 export type ServerStatus = Pick<McpServerStatus, "name" | "status">
 
+export type ReportedLine = {
+	detail: string
+	notice: boolean
+}
+
 export type ConnectPort = {
 	status: () => Promise<ServerStatus[]>
 	reconnect: (name: string) => Promise<void>
@@ -20,7 +25,7 @@ export type ConnectPass = {
 	wait?: (ms: number) => Promise<void>
 	now?: () => number
 	bound?: number
-	report?: (detail: string) => void
+	report?: (line: ReportedLine) => void
 }
 
 type Take = {
@@ -71,7 +76,7 @@ export const STILL_CONNECTING = "is still connecting"
 export const HOLDS_TOOLS = "holds its tools"
 const UNSETTLED = "it never settled while it was watched"
 const GAVE_UP = "the connection pass gave up on"
-const REPORTABLE = ["pending", "needs-auth"]
+const REPORTABLE = ["pending", "failed", "needs-auth"]
 
 const OUTLASTED = Symbol("outlasted")
 
@@ -301,16 +306,20 @@ const gaveUp = (
 	const reason = readable(cause, secrets)
 	process.stderr.write(`${GAVE_UP} ${names.join(", ")}: ${reason}\n`)
 	for (const name of names) {
-		report?.(leftOut(name, reason))
+		report?.(notice(leftOut(name, reason)))
 	}
 }
 
+const notice = (detail: string): ReportedLine => ({ detail, notice: true })
+
+const news = (detail: string): ReportedLine => ({ detail, notice: false })
+
 const SETTLED_LINE: Partial<
-	Record<ServerStatus["status"], (name: string) => string>
+	Record<ServerStatus["status"], (name: string) => ReportedLine>
 > = {
-	connected: reachedLine,
-	disabled: (name) => leftOut(name, DISABLED),
-	"needs-auth": (name) => leftOut(name, AWAITING_AUTH),
+	connected: (name) => news(reachedLine(name)),
+	disabled: (name) => notice(leftOut(name, DISABLED)),
+	"needs-auth": (name) => notice(leftOut(name, AWAITING_AUTH)),
 }
 
 const announce = async (
@@ -333,8 +342,8 @@ const announce = async (
 	}
 	report?.(
 		thrown
-			? lineFor(name, { status, spent: 0 }, thrown, secrets)
-			: reconnectedLine(name),
+			? notice(lineFor(name, { status, spent: 0 }, thrown, secrets))
+			: news(reconnectedLine(name)),
 	)
 }
 

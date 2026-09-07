@@ -95,7 +95,7 @@ describe("unconnectedServers", () => {
 		}
 	})
 
-	it("hands the first prompt the servers no reconnection can answer for", async () => {
+	it("names each server by the status its own read gave it", async () => {
 		const clock = ticking(250)
 		const port = {
 			reconnected: [] as string[],
@@ -116,6 +116,7 @@ describe("unconnectedServers", () => {
 		})
 
 		expect(details).toEqual([
+			`${leftOut}it read failed`,
 			`the server "clock" is still connecting after ${LAST_POLL_MS} ms`,
 		])
 		expect(clock.now()).toBe(LAST_POLL_MS)
@@ -462,7 +463,7 @@ describe("watching a server left connecting", () => {
 			wait: async (ms) => {
 				time += ms
 			},
-			report: (detail) => reported.push(detail),
+			report: (line) => reported.push(line.detail),
 		})
 		const spentReads = reads
 		await settling()
@@ -516,7 +517,7 @@ describe("watching a server left connecting", () => {
 			wait: async (ms) => {
 				time += ms
 			},
-			report: (detail) => reported.push(detail),
+			report: (line) => reported.push(line.detail),
 		})
 		const budgeted = reads
 		await settling(20)
@@ -543,7 +544,7 @@ describe("watching a server left connecting", () => {
 			wait: async (ms) => {
 				time += ms
 			},
-			report: (detail) => reported.push(detail),
+			report: (line) => reported.push(line.detail),
 		})
 		await settling(20)
 		stderr.restore()
@@ -603,7 +604,7 @@ describe("watching a server left connecting", () => {
 					await new Promise((resolve) => setTimeout(resolve, 20))
 				}
 			},
-			report: (detail) => reported.push(detail),
+			report: (line) => reported.push(line.detail),
 		})
 		const budgeted = reads
 		abandoning.abort()
@@ -629,7 +630,7 @@ describe("watching a server left connecting", () => {
 			wait: async (ms) => {
 				time += ms
 			},
-			report: (detail) => reported.push(detail),
+			report: (line) => reported.push(line.detail),
 		})
 		await settling()
 

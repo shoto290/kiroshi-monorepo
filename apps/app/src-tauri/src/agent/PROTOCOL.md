@@ -153,18 +153,20 @@ Every other command names its session.
   read, leaves out every server declaring a variable and rides the same frame. A server
   the options did keep is read once the session is initialized, for the 5000 ms of the
   poll budget. What that budget settles rides the frames of the first prompt: a server it
-  read `needs-auth` as waiting for its authorization, one it left pending as still
+  read failed by that status, one it read `needs-auth` as waiting for its authorization, one it left pending as still
   connecting after the time the read spent, worded as connecting and not as left out, the
   CLI still dialling it and its tools able to land later in the session, which the section
   handed to the bot says in its own words. A line never counts connection attempts: the
   CLI retries a failing server on its own, several times per read, so no number the
   sidecar could state would be true. A server the budget read failed earns one
-  reconnection, taken after the budget so no prompt waits on it, and one frame of its own:
+  reconnection, taken after the budget so no prompt waits on it, and a second line of its
+  own which overtakes the first:
   the reconnection's answer when it threw, and that the server was reconnected and holds
   its tools again when it did not, which the section says in its own words too. A server
   the budget left pending is watched past it, one status call every second, until it reads
   connected, failed or `needs-auth`, or 60000 ms pass and it rides a stderr line instead.
-  Connected, it earns a frame naming it as holding its tools for the rest of the session;
+  Connected, it earns a line naming it as holding its tools for the rest of the session,
+  carried to the bot by the next prompt and framed to nobody: good news is no notice;
   failed, it earns the same one reconnection and frame; `needs-auth` and `disabled`, it
   earns that frame with the reason of its own. One frame per server at the most after the budget,
   and none once the session closed. A frame raised after a prompt was handed rides the
