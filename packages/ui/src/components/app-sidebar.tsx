@@ -71,6 +71,7 @@ import {
 	TextShimmer,
 	WORKING_SHIMMER_DURATION,
 } from "@workspace/ui/components/motion/text-shimmer"
+import { SidebarSearchField } from "@workspace/ui/components/sidebar-search-field"
 import { type Space, spaceAtRank } from "@workspace/ui/components/space"
 import {
 	SpaceDot,
@@ -216,6 +217,23 @@ const drawnFrom = <Item,>(pool: Item[], seed: string) => {
 }
 
 const CONTENT_INSET = "pr-1 group-data-[state=collapsed]/sidebar:px-0"
+
+const SEARCH_INSET = "px-2.5 pb-2 group-data-[state=collapsed]/sidebar:px-0"
+
+type SidebarSearchSlotProps = { onOpenSearch: () => void }
+
+const SidebarSearchSlot = ({ onOpenSearch }: SidebarSearchSlotProps) => {
+	const { isMobile, state } = useAnimatedSidebar()
+
+	return (
+		<div className={SEARCH_INSET}>
+			<SidebarSearchField
+				isCollapsed={!isMobile && state === "collapsed"}
+				onOpen={onOpenSearch}
+			/>
+		</div>
+	)
+}
 
 const CLIPPED_SIDEWAYS = { overflow: { x: "hidden" } } as const
 
@@ -2006,6 +2024,7 @@ interface AppSidebarProps
 	footer?: ReactNode
 	user?: UserChipIdentity
 	onOpenUserSettings?: () => void
+	onOpenSearch?: () => void
 	insetWindowControls?: boolean
 }
 
@@ -2047,6 +2066,7 @@ const AppSidebarBase = ({
 	footer,
 	user,
 	onOpenUserSettings,
+	onOpenSearch,
 	insetWindowControls = false,
 	...panel
 }: AppSidebarProps) => {
@@ -2158,6 +2178,9 @@ const AppSidebarBase = ({
 						</Button>
 					)}
 				</AnimatedSidebarHeader>
+				{onOpenSearch ? (
+					<SidebarSearchSlot onOpenSearch={onOpenSearch} />
+				) : null}
 				<AnimatedSidebarContent
 					className={hasRosterPerSpace ? CAROUSEL_CONTENT : CONTENT_INSET}
 					isScrollable={!hasRosterPerSpace}
