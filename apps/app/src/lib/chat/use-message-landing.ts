@@ -47,10 +47,17 @@ export const useMessageLanding = ({
 			return
 		}
 		requested.current = shown
+		const whileLatest = (act: () => void) => {
+			if (requested.current === shown) {
+				act()
+			}
+		}
 		landOn(shown.seq).then(
 			(window) =>
-				holds(window, shown.messageId) ? setRead(shown) : giveUp(shown),
-			() => giveUp(shown),
+				whileLatest(() =>
+					holds(window, shown.messageId) ? setRead(shown) : giveUp(shown),
+				),
+			() => whileLatest(() => giveUp(shown)),
 		)
 	}, [shown, landOn, giveUp])
 

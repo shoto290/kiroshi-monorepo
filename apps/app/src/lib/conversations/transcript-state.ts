@@ -56,6 +56,15 @@ const EMPTY_CONVERSATION: TranscriptConversation = {
 	hasNewer: false,
 }
 
+const FORGOTTEN_CONVERSATION: TranscriptConversation = {
+	messages: NO_MESSAGES,
+	hasMore: true,
+	hasNewer: false,
+}
+
+const isAwayFromNewest = (held: TranscriptConversation): boolean =>
+	held.hasNewer || (held.messages.length === 0 && held.hasMore)
+
 const TERMINAL_RANK = 2
 
 const COMPLETION_RANK: Record<TranscriptCompletion, number> = {
@@ -295,7 +304,7 @@ const applyMessageAppended = (
 ): TranscriptState => {
 	const current =
 		state.conversations[draft.conversationId] ?? EMPTY_CONVERSATION
-	if (current.hasNewer) {
+	if (isAwayFromNewest(current)) {
 		return state
 	}
 	if (current.messages.some((message) => message.id === draft.id)) {
@@ -324,7 +333,7 @@ const applyThreadLeft = (
 		return state
 	}
 	if (current.hasNewer) {
-		return withConversation(state, conversationId, EMPTY_CONVERSATION)
+		return withConversation(state, conversationId, FORGOTTEN_CONVERSATION)
 	}
 	const dropped = droppedCount(
 		current.messages,

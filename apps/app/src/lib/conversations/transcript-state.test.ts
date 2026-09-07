@@ -19,6 +19,7 @@ import {
 	isTerminalCompletion,
 	lastWordIn,
 	selectHasMore,
+	selectHasNewer,
 	selectMessages,
 	selectOldestSeq,
 	type TranscriptState,
@@ -744,5 +745,38 @@ describe("leaving a thread", () => {
 
 	it("holds a conversation nothing has ever loaded", () => {
 		expect(leave(SEEDED, "c-unknown")).toBe(SEEDED)
+	})
+})
+describe("leaving a thread away from its newest end", () => {
+	const landed = transcriptReducer(SEEDED, {
+		type: "windowLanded",
+		window: {
+			conversationId: CONVERSATION,
+			messages: [message({ id: "m-40", seq: 40 })],
+			hasOlder: true,
+			hasNewer: true,
+		},
+	})
+
+	const left = transcriptReducer(landed, {
+		type: "threadLeft",
+		conversationId: CONVERSATION,
+	})
+
+	it("forgets the window it read and still reports older messages", () => {
+		expect(selectMessages(left, CONVERSATION)).toEqual([])
+		expect(selectHasMore(left, CONVERSATION)).toBe(true)
+		expect(selectHasNewer(left, CONVERSATION)).toBe(false)
+	})
+
+	it("ignores a message appended onto the window it forgot", () => {
+		expect(append(left, streamingDraft("live"))).toBe(left)
+	})
+
+	it("reads a newest page onto the window it forgot", () => {
+		const reopened = load(left, page([message({ id: "m-80", seq: 80 })], true))
+
+		expect(idsOf(reopened)).toEqual(["m-80"])
+		expect(selectHasMore(reopened, CONVERSATION)).toBe(true)
 	})
 })

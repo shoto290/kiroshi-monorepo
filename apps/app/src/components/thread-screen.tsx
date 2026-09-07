@@ -1047,7 +1047,11 @@ function ThreadView({
 		void controller.loadNewer()
 	}, [controller])
 	const loadLatest = useCallback(() => {
-		void controller.loadLatest().then(() => scrollerRef.current?.scrollToEnd())
+		void controller.loadLatest().then((isLoaded) => {
+			if (isLoaded) {
+				scrollerRef.current?.scrollToEnd()
+			}
+		})
 	}, [controller])
 	const hasNewer = state.hasNewer
 	const follow = useMemo(
