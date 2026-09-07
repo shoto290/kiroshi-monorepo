@@ -2329,7 +2329,7 @@ describe("a conversation landed away from its newest end", () => {
 				return base.loadPage(conversationId, null)
 			},
 		}
-		return { store, release: () => release() }
+		return { store, release }
 	}
 
 	it("leaves a question unanswered when the newest page is refused", async () => {
