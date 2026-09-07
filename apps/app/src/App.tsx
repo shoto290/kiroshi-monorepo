@@ -42,6 +42,9 @@ import {
 } from "@/lib/chat/sidebar-badges"
 import { useBotBadges } from "@/lib/chat/use-bot-badges"
 import {
+	activityIn,
+	activityOf,
+	busyBotCountIn,
 	previewsIn,
 	useBotActivity,
 	useBotPreviews,
@@ -411,23 +414,20 @@ export function App() {
 			),
 		[rosters],
 	)
-	const botIds = useMemo(
-		() => [...new Set(lines.map(({ botId }) => botId))],
-		[lines],
-	)
-	const working = useBotActivity(chat.controller, botIds)
+	const working = useBotActivity({
+		controller: chat.controller,
+		lines,
+		soloThreads,
+	})
 	const previews = useBotPreviews({
 		controller: chat.controller,
 		lines,
 		stored: roster.state.previews,
-		soloThreads: roster.state.soloThreads,
+		soloThreads,
 	})
-	const activity = settingsBotId ? working[settingsBotId] : undefined
+	const activity = activityOf(working, settingsBotId)
 
-	const busyBotCount = useMemo(
-		() => Object.values(working).filter((bot) => bot.isWorking).length,
-		[working],
-	)
+	const busyBotCount = useMemo(() => busyBotCountIn(working), [working])
 
 	const updateBadge = useMemo(
 		() => (
@@ -453,7 +453,10 @@ export function App() {
 			withLineBadges(
 				toRosterBots(
 					bots,
-					{ working, previews: previewsIn(previews, rosteredSpaceId) },
+					{
+						working: activityIn(working, rosteredSpaceId),
+						previews: previewsIn(previews, rosteredSpaceId),
+					},
 					now,
 				),
 				badges,
@@ -493,7 +496,10 @@ export function App() {
 					withLineBadges(
 						toRosterBots(
 							spaceBots,
-							{ working, previews: previewsIn(previews, spaceId) },
+							{
+								working: activityIn(working, spaceId),
+								previews: previewsIn(previews, spaceId),
+							},
 							now,
 						),
 						badges,
@@ -859,8 +865,8 @@ export function App() {
 					skills={skills.state.skills.map(toSkillItem)}
 					showDanger={isShowingDanger}
 					value={toSettingsValue(settingsBot)}
-					working={activity?.isWorking ?? false}
-					workingKind={activity?.kind}
+					working={activity.isWorking}
+					workingKind={activity.kind}
 				/>
 			) : null}
 			{settingsConversation ? (

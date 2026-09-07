@@ -26,29 +26,84 @@ export function useChat(driver: ChatDriver, store: TranscriptStore): Chat {
 
 type BotActivity = Record<string, SidebarActivity>
 
-const signatureOf = (busy: [string, SidebarActivity][]): string =>
-	busy
+export type ActivityBySpaceId = Record<string, BotActivity>
+
+const IDLE: SidebarActivity = { isWorking: false }
+
+const NO_ACTIVITY: BotActivity = {}
+
+export const activityIn = (
+	working: ActivityBySpaceId,
+	spaceId: string | null,
+): BotActivity => (spaceId ? (working[spaceId] ?? NO_ACTIVITY) : NO_ACTIVITY)
+
+export const activityOf = (
+	working: ActivityBySpaceId,
+	botId: string | null,
+): SidebarActivity =>
+	(botId === null
+		? undefined
+		: Object.values(working)
+				.map((held) => held[botId])
+				.find((activity) => activity?.isWorking)) ?? IDLE
+
+export const busyBotCountIn = (working: ActivityBySpaceId): number =>
+	Object.values(working)
+		.flatMap((held) => Object.values(held))
+		.filter((activity) => activity.isWorking).length
+
+type ShownActivity = RosterLine & { activity: SidebarActivity }
+
+const signatureOf = (shown: ShownActivity[]): string =>
+	shown
 		.map(
-			([id, activity]) => `${id}:${activity.isWorking}:${activity.kind ?? ""}`,
+			({ spaceId, botId, activity }) =>
+				`${spaceId}/${botId}:${activity.isWorking}:${activity.kind ?? ""}`,
 		)
 		.join("|")
 
-export function useBotActivity(
-	controller: ChatController,
-	botIds: string[],
-): BotActivity {
-	const held = useRef<{ signature: string; activity: BotActivity } | null>(null)
+const activityBySpaceId = (shown: ShownActivity[]): ActivityBySpaceId => {
+	const working: ActivityBySpaceId = {}
+	for (const { spaceId, botId, activity } of shown) {
+		working[spaceId] = { ...working[spaceId], [botId]: activity }
+	}
+	return working
+}
+
+type ReadableChat = Pick<ChatController, "stateFor" | "subscribe">
+
+export type LineActivityMount = {
+	controller: ReadableChat
+	lines: RosterLine[]
+	soloThreads: SoloThreads
+}
+
+export function useBotActivity({
+	controller,
+	lines,
+	soloThreads,
+}: LineActivityMount): ActivityBySpaceId {
+	const held = useRef<{
+		signature: string
+		working: ActivityBySpaceId
+	} | null>(null)
 
 	return useSyncExternalStore(controller.subscribe, () => {
-		const busy: [string, SidebarActivity][] = botIds.map((id) => [
-			id,
-			sidebarActivityFor(controller.stateFor(id)),
-		])
-		const signature = signatureOf(busy)
+		const shown = lines.map(({ spaceId, botId }) => {
+			const state = controller.stateFor(botId)
+			return {
+				spaceId,
+				botId,
+				activity: runsIn(soloThreads, state.conversationId, spaceId)
+					? sidebarActivityFor(state)
+					: IDLE,
+			}
+		})
+		const signature = signatureOf(shown)
 		if (held.current?.signature !== signature) {
-			held.current = { signature, activity: Object.fromEntries(busy) }
+			held.current = { signature, working: activityBySpaceId(shown) }
 		}
-		return held.current.activity
+		return held.current.working
 	})
 }
 
