@@ -1429,8 +1429,7 @@ describe("ThreadScreen", () => {
 		await settle()
 
 		await solo.send("hold the wall")
-		await solo.push(FIRST_TOKEN)
-		await solo.push(ASKED)
+		await solo.push([...FIRST_TOKEN, ...ASKED])
 		rerender(screenOf(solo.thread()))
 		await settle()
 
