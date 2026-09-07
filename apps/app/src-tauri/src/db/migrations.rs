@@ -37,6 +37,7 @@ const MIGRATIONS: &[Migration] = &[
 	Migration { version: 28, statements: MISSION_REPORT },
 	Migration { version: 29, statements: MESSAGE_SEARCH },
 	Migration { version: 30, statements: BOT_SPACES },
+	Migration { version: 31, statements: SOLO_THREAD_PER_SPACE },
 ];
 
 const CONVERSATIONS_SCHEMA: &str = "
@@ -679,6 +680,19 @@ ALTER TABLE bots DROP COLUMN section_id;
 ALTER TABLE bots DROP COLUMN pin_position;
 ";
 
+const SOLO_THREAD_PER_SPACE: &str = "
+UPDATE conversations SET space_id = (
+	SELECT bot_spaces.space_id FROM conversation_participants
+		JOIN bot_spaces ON bot_spaces.bot_id = conversation_participants.bot_id
+		WHERE conversation_participants.conversation_id = conversations.id
+		ORDER BY conversation_participants.join_seq ASC,
+			bot_spaces.joined_at ASC, bot_spaces.space_id ASC
+		LIMIT 1)
+WHERE kind = 'main' AND space_id IS NULL;
+
+CREATE INDEX conversation_participants_of_bot ON conversation_participants (bot_id);
+";
+
 pub fn latest_version() -> u32 {
 	MIGRATIONS.last().map_or(0, |migration| migration.version)
 }
@@ -765,6 +779,7 @@ mod tests {
 	const MISSION_REPORT_STEP: u32 = 28;
 	const MESSAGE_SEARCH_STEP: u32 = 29;
 	const BOT_SPACES_STEP: u32 = 30;
+	const SOLO_THREAD_PER_SPACE_STEP: u32 = 31;
 
 	const A_LIVE_SESSION: &str = "INSERT INTO runtime_sessions
 		(id, conversation_id, bot_id, provider_session_id, seq, status, started_at)
@@ -1060,7 +1075,14 @@ mod tests {
 		assert_eq!(
 			rooms_of(&connection),
 			vec![
-				("c1".to_owned(), "main".to_owned(), None, "Chat".to_owned(), String::new(), None),
+				(
+					"c1".to_owned(),
+					"main".to_owned(),
+					Some("personal".to_owned()),
+					"Chat".to_owned(),
+					String::new(),
+					None
+				),
 				(
 					"c2".to_owned(),
 					"topic".to_owned(),
@@ -1414,6 +1436,54 @@ mod tests {
 
 		drop(connection);
 		fs::remove_dir_all(&dir).expect("cleanup");
+	}
+
+	#[test]
+	fn a_main_conversation_stored_before_the_solo_thread_step_takes_the_space_it_belongs_to() {
+		let dir = temp_dir();
+		let mut connection = open(&dir.join(FILE_NAME)).expect("open");
+		apply_each(&mut connection, shipped_before(SOLO_THREAD_PER_SPACE_STEP))
+			.expect("the shipped schema");
+		connection
+			.execute_batch(
+				"INSERT INTO spaces (id, name, colour, position, created_at)
+					VALUES ('writers', 'Writers', 'blue', 1, 1);
+				INSERT INTO bots (id, name, model, created_at)
+					VALUES ('b1', 'First', 'sonnet', 1), ('b2', 'Second', 'sonnet', 1);
+				INSERT INTO bot_spaces (bot_id, space_id, joined_at)
+					VALUES ('b1', 'writers', 2), ('b1', 'personal', 1);
+				INSERT INTO conversations (id, kind, title, created_at, updated_at)
+					VALUES ('c1', 'main', 'Chat', 1, 1), ('c2', 'main', 'Chat', 1, 1);
+				INSERT INTO conversation_participants
+					(conversation_id, bot_id, role, joined_at, join_seq)
+					VALUES ('c1', 'b1', 'assistant', 1, 0), ('c2', 'b2', 'assistant', 1, 0);",
+			)
+			.expect("the solo threads this build upgrades from");
+
+		apply(&mut connection).expect("the file comes up to this build");
+
+		assert_eq!(
+			space_of(&connection, "c1"),
+			Some("personal".to_owned()),
+			"the backfill did not give the thread the space of the oldest membership"
+		);
+		assert_eq!(
+			space_of(&connection, "c2"),
+			None,
+			"a thread whose bot holds no membership came out of the step carrying a space"
+		);
+		drop(connection);
+		fs::remove_dir_all(&dir).expect("cleanup");
+	}
+
+	fn space_of(connection: &Connection, conversation_id: &str) -> Option<String> {
+		connection
+			.query_row(
+				"SELECT space_id FROM conversations WHERE id = ?1",
+				[conversation_id],
+				|row| row.get(0),
+			)
+			.expect("the conversation reads")
 	}
 
 	type StoredMembership = (String, String, Option<String>, Option<i64>, i64);

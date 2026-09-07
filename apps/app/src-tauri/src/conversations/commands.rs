@@ -667,8 +667,9 @@ pub async fn conversation_bot_commands(
 pub async fn conversation_main_chat(
 	state: State<'_, db::DatabaseState>,
 	bot_id: String,
+	space_id: Option<String>,
 ) -> Result<Chat, TranscriptStoreError> {
-	Ok(ready(&state)?.conversations().ensure_chat(bot_id).await?.into())
+	Ok(ready(&state)?.conversations().ensure_chat(bot_id, space_id).await?.into())
 }
 
 #[tauri::command]
