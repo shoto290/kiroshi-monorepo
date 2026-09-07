@@ -502,24 +502,6 @@ mod tests {
 	}
 
 	#[tokio::test]
-	async fn a_query_reaches_a_mission_by_the_external_id_of_its_ticket() {
-		let (database, dir) = planted().await;
-
-		let held = database
-			.catalogue()
-			.search(scope("ope-42", PERSONAL, true))
-			.await
-			.expect("the catalogue reads");
-
-		assert_eq!(
-			held.missions.iter().map(|held| held.objective.as_str()).collect::<Vec<_>>(),
-			vec!["Fix the crash on open"]
-		);
-
-		std::fs::remove_dir_all(&dir).expect("cleanup");
-	}
-
-	#[tokio::test]
 	async fn a_query_reaches_a_routine_by_its_title_and_carries_the_expression_it_holds() {
 		let (database, dir) = planted().await;
 
@@ -624,22 +606,28 @@ mod tests {
 	}
 
 	#[tokio::test]
-	async fn a_query_reaches_a_mission_by_the_title_of_its_ticket_and_carries_it_back() {
+	async fn a_query_reaches_a_mission_by_its_ticket_and_carries_the_title_it_matched() {
 		let (database, dir) = planted().await;
 
-		let held = database
-			.catalogue()
-			.search(scope("keeps its old", PERSONAL, true))
-			.await
-			.expect("the catalogue reads");
+		for (query, objective, ticket_title) in [
+			("ope-42", "Fix the crash on open", "Crash on open"),
+			("keeps its old", "Rename the sidecar", "The binary keeps its old name"),
+		] {
+			let held = database
+				.catalogue()
+				.search(scope(query, PERSONAL, true))
+				.await
+				.expect("the catalogue reads");
 
-		assert_eq!(
-			held.missions
-				.iter()
-				.map(|mission| (mission.objective.as_str(), mission.ticket_title.as_str()))
-				.collect::<Vec<_>>(),
-			vec![("Rename the sidecar", "The binary keeps its old name")]
-		);
+			assert_eq!(
+				held.missions
+					.iter()
+					.map(|mission| (mission.objective.as_str(), mission.ticket_title.as_str()))
+					.collect::<Vec<_>>(),
+				vec![(objective, ticket_title)],
+				"{query:?} did not reach the ticket it names"
+			);
+		}
 
 		std::fs::remove_dir_all(&dir).expect("cleanup");
 	}
