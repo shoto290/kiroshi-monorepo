@@ -18,6 +18,7 @@ export type CatalogueMission = {
 	objective: string
 	ticketPlatform: string
 	ticketExternalId: string
+	ticketTitle: string
 	state: MissionState
 	botId: string
 	spaceId: string

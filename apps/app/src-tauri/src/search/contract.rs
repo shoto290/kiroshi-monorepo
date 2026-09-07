@@ -98,6 +98,7 @@ pub struct CatalogueMission {
 	pub objective: String,
 	pub ticket_platform: String,
 	pub ticket_external_id: String,
+	pub ticket_title: String,
 	pub state: MissionState,
 	pub bot_id: String,
 	pub space_id: String,

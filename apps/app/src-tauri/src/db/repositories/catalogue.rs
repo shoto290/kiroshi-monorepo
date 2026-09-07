@@ -15,13 +15,10 @@ use crate::search::contract::{
 
 const CHATS: &str = "WITH chat AS (
 	SELECT conversations.id AS id, conversations.kind AS kind, conversations.title AS title,
-		CASE conversations.kind
-			WHEN 'main' THEN (SELECT bots.space_id FROM conversation_participants
-				JOIN bots ON bots.id = conversation_participants.bot_id
-				WHERE conversation_participants.conversation_id = conversations.id
-				ORDER BY conversation_participants.join_seq LIMIT 1)
-			ELSE conversations.space_id
-		END AS space_id,
+		COALESCE(conversations.space_id, (SELECT bots.space_id FROM conversation_participants
+			JOIN bots ON bots.id = conversation_participants.bot_id
+			WHERE conversation_participants.conversation_id = conversations.id
+			ORDER BY conversation_participants.join_seq LIMIT 1)) AS space_id,
 		COALESCE((SELECT max(messages.created_at) FROM messages
 			WHERE messages.conversation_id = conversations.id),
 			conversations.created_at) AS spoken_at
@@ -77,7 +74,7 @@ impl CatalogueRepository {
 			return Err(CatalogueError::QueryTooLong { limit: MAX_QUERY_LENGTH });
 		}
 		let needle = folded(&scope.query);
-		if needle.is_empty() {
+		if needle.trim().is_empty() {
 			return Ok(Catalogue { chats: vec![], missions: vec![], routines: vec![] });
 		}
 		self.access.call(move |connection| Ok(searched(connection, &scope, &needle))).await?
@@ -159,6 +156,7 @@ fn matching_missions(
 			objective: mission.objective,
 			ticket_platform: mission.ticket.platform,
 			ticket_external_id: mission.ticket.external_id,
+			ticket_title: mission.ticket.title,
 			state: mission.state,
 			bot_id: mission.bot_id,
 			space_id,
@@ -365,6 +363,27 @@ mod tests {
 					'k2', 8, 'Nightly digest', 'Read the log');
 	";
 
+	fn a_draft(origin_conversation_id: &str, objective: &str, ticket: Ticket) -> MissionDraft {
+		MissionDraft {
+			origin_conversation_id: origin_conversation_id.to_owned(),
+			bot_id: "b1".to_owned(),
+			objective: objective.to_owned(),
+			ticket,
+			tools: vec![],
+			source: "bot".to_owned(),
+			workspace_path: None,
+		}
+	}
+
+	fn a_ticket(external_id: &str, title: &str) -> Ticket {
+		Ticket {
+			platform: "github".to_owned(),
+			external_id: external_id.to_owned(),
+			url: format!("https://kiroshi.test/tickets/{external_id}"),
+			title: title.to_owned(),
+		}
+	}
+
 	async fn planted() -> (Database, PathBuf) {
 		let dir = temp_dir();
 		let database = open(&dir);
@@ -372,27 +391,20 @@ mod tests {
 			.call_mut(|connection| Ok(connection.execute_batch(A_CATALOGUE)?))
 			.await
 			.expect("the catalogue is planted");
-		database
-			.missions()
-			.open(
-				MissionDraft {
-					origin_conversation_id: "topic-1".to_owned(),
-					bot_id: "b1".to_owned(),
-					objective: "Fix the crash on open".to_owned(),
-					ticket: Ticket {
-						platform: "github".to_owned(),
-						external_id: "OPE-42".to_owned(),
-						url: "https://kiroshi.test/tickets/42".to_owned(),
-						title: "Crash on open".to_owned(),
-					},
-					tools: vec![],
-					source: "bot".to_owned(),
-					workspace_path: None,
-				},
-				Uuid::new_v4().to_string(),
-			)
-			.await
-			.expect("the mission opens");
+		for draft in [
+			a_draft("topic-1", "Fix the crash on open", a_ticket("OPE-42", "Crash on open")),
+			a_draft(
+				"main-1",
+				"Rename the sidecar",
+				a_ticket("OPE-7", "The binary keeps its old name"),
+			),
+		] {
+			database
+				.missions()
+				.open(draft, Uuid::new_v4().to_string())
+				.await
+				.expect("the mission opens");
+		}
 		(database, dir)
 	}
 
@@ -471,6 +483,7 @@ mod tests {
 		assert_eq!(mission.objective, "Fix the crash on open");
 		assert_eq!(mission.ticket_platform, "github");
 		assert_eq!(mission.ticket_external_id, "OPE-42");
+		assert_eq!(mission.ticket_title, "Crash on open");
 		assert_eq!(mission.state, MissionState::Working);
 		assert_eq!(mission.bot_id, "b1");
 		assert_eq!(mission.space_id, PERSONAL);
@@ -567,16 +580,66 @@ mod tests {
 	}
 
 	#[tokio::test]
-	async fn an_empty_query_answers_three_empty_lists() {
+	async fn a_query_of_nothing_but_blanks_answers_three_empty_lists() {
+		let (database, dir) = planted().await;
+
+		let empty = Catalogue { chats: vec![], missions: vec![], routines: vec![] };
+		for query in ["", " "] {
+			let held = database
+				.catalogue()
+				.search(scope(query, PERSONAL, true))
+				.await
+				.expect("the catalogue reads");
+
+			assert_eq!(held, empty, "{query:?} reached the catalogue");
+		}
+
+		std::fs::remove_dir_all(&dir).expect("cleanup");
+	}
+
+	#[tokio::test]
+	async fn a_mission_opened_from_a_solo_chat_answers_with_its_thread_inside_its_space() {
 		let (database, dir) = planted().await;
 
 		let held = database
 			.catalogue()
-			.search(scope("", PERSONAL, true))
+			.search(scope("rename the sidecar", PERSONAL, false))
 			.await
 			.expect("the catalogue reads");
 
-		assert_eq!(held, Catalogue { chats: vec![], missions: vec![], routines: vec![] });
+		let mission = held.missions.first().expect("the mission is answered");
+		assert_eq!(mission.space_id, PERSONAL);
+		assert_eq!(
+			named(&held.chats),
+			vec![(
+				mission.thread_conversation_id.as_str(),
+				ChatKind::Mission,
+				"Rename the sidecar"
+			)],
+			"the thread of a mission opened from a solo chat fell out of its own space"
+		);
+		assert_eq!(held.chats[0].space_id, Some(PERSONAL.to_owned()));
+
+		std::fs::remove_dir_all(&dir).expect("cleanup");
+	}
+
+	#[tokio::test]
+	async fn a_query_reaches_a_mission_by_the_title_of_its_ticket_and_carries_it_back() {
+		let (database, dir) = planted().await;
+
+		let held = database
+			.catalogue()
+			.search(scope("keeps its old", PERSONAL, true))
+			.await
+			.expect("the catalogue reads");
+
+		assert_eq!(
+			held.missions
+				.iter()
+				.map(|mission| (mission.objective.as_str(), mission.ticket_title.as_str()))
+				.collect::<Vec<_>>(),
+			vec![("Rename the sidecar", "The binary keeps its old name")]
+		);
 
 		std::fs::remove_dir_all(&dir).expect("cleanup");
 	}

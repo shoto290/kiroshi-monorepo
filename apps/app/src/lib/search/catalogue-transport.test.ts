@@ -26,6 +26,7 @@ const A_CATALOGUE: Catalogue = {
 			objective: "Fix the crash on open",
 			ticketPlatform: "github",
 			ticketExternalId: "OPE-42",
+			ticketTitle: "Crash on open",
 			state: "working",
 			botId: "b-1",
 			spaceId: "personal",
