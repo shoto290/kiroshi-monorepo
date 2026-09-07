@@ -1061,10 +1061,9 @@ export function createChatController(
 			reportStore(bot, { kind: "unavailable" })
 			return "unwritten"
 		}
-		if (!(await loadLatest(bot))) {
-			return "unwritten"
-		}
-		if (bot.state.conversationId !== conversationId) {
+		const isWritable =
+			(await loadLatest(bot)) && bot.state.conversationId === conversationId
+		if (!isWritable) {
 			return "unwritten"
 		}
 		await rotateIfDue(bot)

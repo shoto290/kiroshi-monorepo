@@ -29,6 +29,7 @@ export const useMessageLanding = ({
 	const t = useChatCopy()
 	const requested = useRef<MessageLanding | null>(null)
 	const [read, setRead] = useState<MessageLanding | null>(null)
+	const shown = landing?.conversationId === conversationId ? landing : null
 
 	const giveUp = useCallback(
 		(taken: MessageLanding) => {
@@ -42,26 +43,23 @@ export const useMessageLanding = ({
 	)
 
 	useEffect(() => {
-		if (!landing || landing.conversationId !== conversationId) {
+		if (!shown || requested.current === shown) {
 			return
 		}
-		if (requested.current === landing) {
-			return
-		}
-		requested.current = landing
-		landOn(landing.seq).then(
+		requested.current = shown
+		landOn(shown.seq).then(
 			(window) =>
-				holds(window, landing.messageId) ? setRead(landing) : giveUp(landing),
-			() => giveUp(landing),
+				holds(window, shown.messageId) ? setRead(shown) : giveUp(shown),
+			() => giveUp(shown),
 		)
-	}, [landing, conversationId, landOn, giveUp])
+	}, [shown, landOn, giveUp])
 
 	useEffect(() => {
-		if (!landing || landing.conversationId !== conversationId) {
+		if (!shown) {
 			return
 		}
-		return () => onTaken(landing)
-	}, [landing, conversationId, onTaken])
+		return () => onTaken(shown)
+	}, [shown, onTaken])
 
 	useEffect(() => {
 		if (!read || !holds(messages, read.messageId)) {
