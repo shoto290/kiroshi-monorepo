@@ -3,6 +3,7 @@ use std::time::{SystemTime, UNIX_EPOCH};
 use rusqlite::{params, Connection, OptionalExtension, Row, Transaction, TransactionBehavior};
 use uuid::Uuid;
 
+use super::bot_spaces;
 use crate::db::{Access, DatabaseError};
 
 const SELECT_SECTION: &str =
@@ -14,16 +15,14 @@ const SELECT_SECTIONS: &str = "SELECT id, space_id, name, position, created_at F
 
 const NEXT_PIN: &str = "SELECT COALESCE(MAX(rank), -1) + 1 FROM (
 		SELECT position AS rank FROM sections WHERE space_id = ?1
-		UNION ALL SELECT pin_position FROM bots WHERE space_id = ?1
+		UNION ALL SELECT pin_position FROM bot_spaces WHERE space_id = ?1
 		UNION ALL SELECT pin_position FROM conversations WHERE space_id = ?1)";
 
 const UNPIN_BOTS: &str =
-	"UPDATE bots SET pin_position = NULL, section_id = NULL WHERE space_id = ?1";
+	"UPDATE bot_spaces SET pin_position = NULL, section_id = NULL WHERE space_id = ?1";
 
 const UNPIN_CONVERSATIONS: &str =
 	"UPDATE conversations SET pin_position = NULL, section_id = NULL WHERE space_id = ?1";
-
-const SPACE_OF_BOT: &str = "SELECT space_id FROM bots WHERE id = ?1";
 
 const SPACE_OF_SECTION: &str = "SELECT space_id FROM sections WHERE id = ?1";
 
@@ -32,6 +31,8 @@ pub enum SectionError {
 	Database(DatabaseError),
 	UnknownSection { id: String },
 	UnknownBot { id: String },
+	SeveralSpaces { id: String },
+	ForeignSpace { id: String },
 	ForeignSection { id: String },
 }
 
@@ -101,9 +102,12 @@ impl SectionsRepository {
 		&self,
 		bot_id: String,
 		section_id: Option<String>,
+		space_id: Option<String>,
 	) -> Result<(), SectionError> {
 		self.access
-			.call_mut(move |connection| Ok(moved_bot(connection, &bot_id, section_id.as_deref())))
+			.call_mut(move |connection| {
+				Ok(moved_bot(connection, &bot_id, section_id.as_deref(), space_id.as_deref()))
+			})
 			.await?
 	}
 }
@@ -150,7 +154,8 @@ fn pinned(
 			"UPDATE sections SET position = ?3 WHERE id = ?1 AND space_id = ?2",
 			params![pin.id, space_id, rank],
 		)? + transaction.execute(
-			"UPDATE bots SET pin_position = ?3, section_id = ?4 WHERE id = ?1 AND space_id = ?2",
+			"UPDATE bot_spaces SET pin_position = ?3, section_id = ?4
+				WHERE bot_id = ?1 AND space_id = ?2",
 			params![pin.id, space_id, rank, pin.section_id],
 		)? + transaction.execute(
 			"UPDATE conversations SET pin_position = ?3, section_id = ?4
@@ -175,39 +180,71 @@ fn moved_bot(
 	connection: &mut Connection,
 	bot_id: &str,
 	section_id: Option<&str>,
+	space_id: Option<&str>,
 ) -> Result<(), SectionError> {
 	let transaction = write_transaction(connection)?;
-	let home = space_of(&transaction, SPACE_OF_BOT, bot_id)?
-		.ok_or_else(|| SectionError::UnknownBot { id: bot_id.to_owned() })?;
-	if let Some(section_id) = section_id {
-		let wanted = space_of(&transaction, SPACE_OF_SECTION, section_id)?
-			.ok_or_else(|| SectionError::UnknownSection { id: section_id.to_owned() })?;
-		if wanted != home {
-			return Err(SectionError::ForeignSection { id: section_id.to_owned() });
-		}
-	}
+	let home = home_of_move(&transaction, bot_id, section_id, space_id)?;
 	let pin = match section_id {
 		Some(_) => Some(next_pin(&transaction, &home)?),
 		None => None,
 	};
 	transaction.execute(
-		"UPDATE bots SET section_id = ?2, pin_position = ?3 WHERE id = ?1",
-		params![bot_id, section_id, pin],
+		"UPDATE bot_spaces SET section_id = ?3, pin_position = ?4
+			WHERE bot_id = ?1 AND space_id = ?2",
+		params![bot_id, home, section_id, pin],
 	)?;
 	transaction.commit()?;
 	Ok(())
+}
+
+fn home_of_move(
+	connection: &Connection,
+	bot_id: &str,
+	section_id: Option<&str>,
+	space_id: Option<&str>,
+) -> Result<String, SectionError> {
+	let Some(section_id) = section_id else {
+		return match space_id {
+			Some(space_id) => space_the_bot_holds(connection, bot_id, space_id),
+			None => only_space_of(connection, bot_id),
+		};
+	};
+	let owner = space_of(connection, section_id)?
+		.ok_or_else(|| SectionError::UnknownSection { id: section_id.to_owned() })?;
+	match bot_spaces::held(connection, bot_id, &owner)? {
+		true => Ok(owner),
+		false => Err(SectionError::ForeignSection { id: section_id.to_owned() }),
+	}
+}
+
+fn space_the_bot_holds(
+	connection: &Connection,
+	bot_id: &str,
+	space_id: &str,
+) -> Result<String, SectionError> {
+	match bot_spaces::held(connection, bot_id, space_id)? {
+		true => Ok(space_id.to_owned()),
+		false => Err(SectionError::ForeignSpace { id: space_id.to_owned() }),
+	}
+}
+
+fn only_space_of(connection: &Connection, bot_id: &str) -> Result<String, SectionError> {
+	match bot_spaces::spaces_of(connection, bot_id)?.as_slice() {
+		[] => Err(SectionError::UnknownBot { id: bot_id.to_owned() }),
+		[only] => Ok(only.clone()),
+		_ => Err(SectionError::SeveralSpaces { id: bot_id.to_owned() }),
+	}
 }
 
 pub(in crate::db) fn next_pin(connection: &Connection, space_id: &str) -> rusqlite::Result<i64> {
 	connection.query_row(NEXT_PIN, [space_id], |row| row.get(0))
 }
 
-fn space_of(
+pub(in crate::db) fn space_of(
 	connection: &Connection,
-	statement: &str,
-	id: &str,
-) -> Result<Option<String>, SectionError> {
-	Ok(connection.query_row(statement, [id], |row| row.get(0)).optional()?)
+	section_id: &str,
+) -> rusqlite::Result<Option<String>> {
+	connection.query_row(SPACE_OF_SECTION, [section_id], |row| row.get(0)).optional()
 }
 
 fn refuse_if_untouched(rows: usize, id: &str) -> Result<(), SectionError> {
@@ -447,7 +484,10 @@ mod tests {
 		let home = only_space(&database).await;
 		let held = sections.create(home.clone(), "Writers".to_owned()).await.expect("the section");
 		let bot = a_bot(&database, "Nyx", &home).await;
-		sections.move_bot(bot.id.clone(), Some(held.id.clone())).await.expect("the bot moves");
+		sections
+			.move_bot(bot.id.clone(), Some(held.id.clone()), None)
+			.await
+			.expect("the bot moves");
 
 		sections.delete(held.id).await.expect("the section is deleted");
 
@@ -473,10 +513,13 @@ mod tests {
 
 		assert_eq!(bot.section_id, None, "a created bot landed in a section");
 
-		sections.move_bot(bot.id.clone(), Some(held.id.clone())).await.expect("the bot moves");
+		sections
+			.move_bot(bot.id.clone(), Some(held.id.clone()), None)
+			.await
+			.expect("the bot moves");
 		assert_eq!(section_of(&database, &bot.id).await, Some(held.id));
 
-		sections.move_bot(bot.id.clone(), None).await.expect("the bot moves out");
+		sections.move_bot(bot.id.clone(), None, None).await.expect("the bot moves out");
 		assert_eq!(section_of(&database, &bot.id).await, None);
 
 		drop(database);
@@ -515,18 +558,21 @@ mod tests {
 		let foreign =
 			sections.create(elsewhere.id, "Builders".to_owned()).await.expect("the section");
 		let bot = a_bot(&database, "Nyx", &home).await;
-		sections.move_bot(bot.id.clone(), Some(held.id.clone())).await.expect("the bot moves");
+		sections
+			.move_bot(bot.id.clone(), Some(held.id.clone()), None)
+			.await
+			.expect("the bot moves");
 
-		let refused = sections.move_bot(bot.id.clone(), Some(foreign.id)).await;
+		let refused = sections.move_bot(bot.id.clone(), Some(foreign.id), None).await;
 
 		assert!(matches!(refused, Err(SectionError::ForeignSection { .. })));
 		assert_eq!(section_of(&database, &bot.id).await, Some(held.id));
 		assert!(matches!(
-			sections.move_bot("nobody".to_owned(), None).await,
+			sections.move_bot("nobody".to_owned(), None, None).await,
 			Err(SectionError::UnknownBot { .. })
 		));
 		assert!(matches!(
-			sections.move_bot(bot.id, Some("nowhere".to_owned())).await,
+			sections.move_bot(bot.id, Some("nowhere".to_owned()), None).await,
 			Err(SectionError::UnknownSection { .. })
 		));
 
@@ -551,5 +597,119 @@ mod tests {
 
 		drop(database);
 		fs::remove_dir_all(&dir).expect("cleanup");
+	}
+
+	#[tokio::test]
+	async fn a_bot_holding_two_spaces_moves_into_a_section_of_the_space_that_section_belongs_to() {
+		let dir = temp_dir();
+		let database = open(&dir);
+		let sections = database.sections();
+		let home = only_space(&database).await;
+		let elsewhere = database.spaces().create("Vocca".to_owned()).await.expect("the space");
+		let held =
+			sections.create(elsewhere.id.clone(), "Writers".to_owned()).await.expect("the section");
+		let bot = a_bot(&database, "Nyx", &home).await;
+		database
+			.spaces()
+			.add_bot(bot.id.clone(), elsewhere.id.clone(), None)
+			.await
+			.expect("the bot joins the second space");
+
+		sections
+			.move_bot(bot.id.clone(), Some(held.id.clone()), None)
+			.await
+			.expect("the bot moves");
+
+		assert_eq!(
+			membership_of(&database, &bot.id, &elsewhere.id).await,
+			(Some(held.id), Some(1)),
+			"the move wrote neither the section nor the pin of that space"
+		);
+		assert_eq!(
+			membership_of(&database, &bot.id, &home).await,
+			(None, None),
+			"the move reached the membership of another space"
+		);
+
+		drop(database);
+		fs::remove_dir_all(&dir).expect("cleanup");
+	}
+
+	#[tokio::test]
+	async fn a_move_into_a_section_of_a_space_the_bot_does_not_hold_is_refused() {
+		let dir = temp_dir();
+		let database = open(&dir);
+		let sections = database.sections();
+		let home = only_space(&database).await;
+		let elsewhere = database.spaces().create("Vocca".to_owned()).await.expect("the space");
+		let foreign =
+			sections.create(elsewhere.id, "Writers".to_owned()).await.expect("the section");
+		let bot = a_bot(&database, "Nyx", &home).await;
+
+		let refused = sections.move_bot(bot.id.clone(), Some(foreign.id), None).await;
+
+		assert!(matches!(refused, Err(SectionError::ForeignSection { .. })), "got {refused:?}");
+		assert_eq!(
+			membership_of(&database, &bot.id, &home).await,
+			(None, None),
+			"a refused move wrote a section"
+		);
+
+		drop(database);
+		fs::remove_dir_all(&dir).expect("cleanup");
+	}
+
+	#[tokio::test]
+	async fn a_move_out_of_every_section_clears_the_membership_of_the_space_it_names() {
+		let dir = temp_dir();
+		let database = open(&dir);
+		let sections = database.sections();
+		let home = only_space(&database).await;
+		let elsewhere = database.spaces().create("Vocca".to_owned()).await.expect("the space");
+		let held =
+			sections.create(elsewhere.id.clone(), "Writers".to_owned()).await.expect("the section");
+		let bot = a_bot(&database, "Nyx", &home).await;
+		database
+			.spaces()
+			.add_bot(bot.id.clone(), elsewhere.id.clone(), Some(held.id))
+			.await
+			.expect("the bot joins the second space");
+
+		sections
+			.move_bot(bot.id.clone(), None, Some(elsewhere.id.clone()))
+			.await
+			.expect("the bot moves out");
+
+		assert_eq!(membership_of(&database, &bot.id, &elsewhere.id).await, (None, None));
+		assert!(matches!(
+			sections.move_bot(bot.id.clone(), None, None).await,
+			Err(SectionError::SeveralSpaces { .. })
+		));
+		let refused = sections.move_bot(bot.id.clone(), None, Some("nowhere".to_owned())).await;
+		assert!(matches!(refused, Err(SectionError::ForeignSpace { .. })), "got {refused:?}");
+		assert_eq!(
+			membership_of(&database, &bot.id, &home).await,
+			(None, None),
+			"a refused move out reached a membership of that bot"
+		);
+
+		drop(database);
+		fs::remove_dir_all(&dir).expect("cleanup");
+	}
+
+	async fn membership_of(
+		database: &Database,
+		bot_id: &str,
+		space_id: &str,
+	) -> (Option<String>, Option<i64>) {
+		database
+			.conversations()
+			.bots(Some(space_id.to_owned()))
+			.await
+			.expect("the bots")
+			.into_iter()
+			.find(|bot| bot.id == bot_id)
+			.map(|bot| (bot.section_id, bot.pin_position))
+			.expect("the bot stands in that space")
 	}
 }

@@ -279,8 +279,10 @@ mod tests {
 	use super::*;
 
 	const A_SPACE: &str = "
-		INSERT INTO bots (id, space_id, name, model, created_at)
-			VALUES ('b1', 'personal', 'First', 'sonnet', 1), ('b2', 'personal', 'Second', 'sonnet', 1);
+		INSERT INTO bots (id, name, model, created_at)
+			VALUES ('b1', 'First', 'sonnet', 1), ('b2', 'Second', 'sonnet', 1);
+		INSERT INTO bot_spaces (bot_id, space_id, joined_at)
+			VALUES ('b1', 'personal', 1), ('b2', 'personal', 1);
 		INSERT INTO conversations (id, kind, space_id, title, created_at, updated_at)
 			VALUES ('c1', 'topic', 'personal', 'First', 1, 1),
 				('c2', 'topic', 'personal', 'Second', 1, 1);

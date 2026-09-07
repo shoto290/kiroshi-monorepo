@@ -65,9 +65,10 @@ mod tests {
 	const A_SPACE_EACH: &str = "
 		INSERT INTO spaces (id, name, colour, position, created_at)
 			VALUES ('work', 'Work', 'blue', 1, 1);
-		INSERT INTO bots (id, space_id, name, model, created_at)
-			VALUES ('b1', 'personal', 'First', 'sonnet', 1),
-				('b2', 'work', 'Second', 'sonnet', 1);
+		INSERT INTO bots (id, name, model, created_at)
+			VALUES ('b1', 'First', 'sonnet', 1), ('b2', 'Second', 'sonnet', 1);
+		INSERT INTO bot_spaces (bot_id, space_id, joined_at)
+			VALUES ('b1', 'personal', 1), ('b2', 'work', 1);
 		INSERT INTO conversations (id, kind, space_id, title, created_at, updated_at)
 			VALUES ('c1', 'main', NULL, 'Chat', 1, 1), ('c2', 'topic', 'work', 'Room', 1, 1);
 		INSERT INTO conversation_participants (conversation_id, bot_id, role, joined_at, join_seq)

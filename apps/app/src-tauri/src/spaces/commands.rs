@@ -111,6 +111,25 @@ pub async fn bot_move_to_space(
 	Ok(ready(&state)?.spaces().move_bot(bot_id, space_id).await?)
 }
 
+#[tauri::command]
+pub async fn bot_add_to_space(
+	state: State<'_, db::DatabaseState>,
+	bot_id: String,
+	space_id: String,
+	section_id: Option<String>,
+) -> Result<(), SpaceError> {
+	Ok(ready(&state)?.spaces().add_bot(bot_id, space_id, section_id).await?)
+}
+
+#[tauri::command]
+pub async fn bot_remove_from_space(
+	state: State<'_, db::DatabaseState>,
+	bot_id: String,
+	space_id: String,
+) -> Result<(), SpaceError> {
+	Ok(ready(&state)?.spaces().remove_bot(bot_id, space_id).await?)
+}
+
 pub(crate) fn plugin_path<R: Runtime>(
 	app: &AppHandle<R>,
 	space_id: &str,

@@ -923,9 +923,14 @@ mod tests {
 		database
 			.call(move |connection| {
 				connection.execute(
-					"INSERT INTO bots (id, space_id, name, model, created_at)
-						VALUES (?1, 'personal', ?2, 'sonnet', 1)",
+					"INSERT INTO bots (id, name, model, created_at)
+						VALUES (?1, ?2, 'sonnet', 1)",
 					rusqlite::params![id, name],
+				)?;
+				connection.execute(
+					"INSERT INTO bot_spaces (bot_id, space_id, joined_at)
+						VALUES (?1, 'personal', 1)",
+					rusqlite::params![id],
 				)?;
 				connection.execute(
 					"INSERT INTO conversation_participants

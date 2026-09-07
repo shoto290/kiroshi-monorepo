@@ -51,6 +51,10 @@ pub enum SectionError {
 	#[serde(rename_all = "camelCase")]
 	UnknownBot { id: String },
 	#[serde(rename_all = "camelCase")]
+	SeveralSpaces { id: String },
+	#[serde(rename_all = "camelCase")]
+	ForeignSpace { id: String },
+	#[serde(rename_all = "camelCase")]
 	ForeignSection { id: String },
 }
 
@@ -65,6 +69,8 @@ impl From<sections::SectionError> for SectionError {
 		match error {
 			sections::SectionError::UnknownSection { id } => SectionError::UnknownSection { id },
 			sections::SectionError::UnknownBot { id } => SectionError::UnknownBot { id },
+			sections::SectionError::SeveralSpaces { id } => SectionError::SeveralSpaces { id },
+			sections::SectionError::ForeignSpace { id } => SectionError::ForeignSpace { id },
 			sections::SectionError::ForeignSection { id } => SectionError::ForeignSection { id },
 			sections::SectionError::Database(failure) => {
 				SectionError::Storage { failure: (&failure).into() }
@@ -122,6 +128,20 @@ mod tests {
 			}))
 			.expect("the error"),
 			json!({ "kind": "unknownBot", "id": "b1" })
+		);
+		assert_eq!(
+			to_value(SectionError::from(sections::SectionError::SeveralSpaces {
+				id: "b1".to_owned()
+			}))
+			.expect("the error"),
+			json!({ "kind": "severalSpaces", "id": "b1" })
+		);
+		assert_eq!(
+			to_value(SectionError::from(sections::SectionError::ForeignSpace {
+				id: "s1".to_owned()
+			}))
+			.expect("the error"),
+			json!({ "kind": "foreignSpace", "id": "s1" })
 		);
 	}
 }

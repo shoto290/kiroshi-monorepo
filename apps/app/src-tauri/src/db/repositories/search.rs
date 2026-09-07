@@ -22,11 +22,12 @@ const SEARCH_MESSAGES: &str = "SELECT message_id, seq, conversation_id, kind, ti
 			conversations.title AS title, messages.author_bot_id AS author_bot_id,
 			messages.created_at AS created_at,
 			COALESCE(conversations.space_id, (
-				SELECT bots.space_id FROM conversation_participants
-					JOIN bots ON bots.id = conversation_participants.bot_id
+				SELECT bot_spaces.space_id FROM conversation_participants
+					JOIN bot_spaces ON bot_spaces.bot_id = conversation_participants.bot_id
 					WHERE conversation_participants.conversation_id = conversations.id
 					ORDER BY conversation_participants.joined_at ASC,
-						conversation_participants.bot_id ASC
+						conversation_participants.bot_id ASC,
+						bot_spaces.joined_at ASC, bot_spaces.space_id ASC
 					LIMIT 1)) AS space_id,
 			snippet(message_search, 0, ?2, ?3, ?4, ?5) AS snippet,
 			bm25(message_search) AS relevance

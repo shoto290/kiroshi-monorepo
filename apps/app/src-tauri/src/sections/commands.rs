@@ -57,6 +57,7 @@ pub async fn bot_move_to_section(
 	state: State<'_, db::DatabaseState>,
 	bot_id: String,
 	section_id: Option<String>,
+	space_id: Option<String>,
 ) -> Result<(), SectionError> {
-	Ok(ready(&state)?.sections().move_bot(bot_id, section_id).await?)
+	Ok(ready(&state)?.sections().move_bot(bot_id, section_id, space_id).await?)
 }
