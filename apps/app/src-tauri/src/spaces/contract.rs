@@ -74,6 +74,10 @@ pub enum SpaceError {
 	LastSpaceOfBot {
 		id: String,
 	},
+	#[serde(rename_all = "camelCase")]
+	ForeignSection {
+		id: String,
+	},
 }
 
 impl From<DatabaseError> for SpaceError {
@@ -90,6 +94,7 @@ impl From<spaces::SpaceError> for SpaceError {
 			spaces::SpaceError::IncompleteOrder => SpaceError::IncompleteOrder,
 			spaces::SpaceError::LastSpace => SpaceError::LastSpace,
 			spaces::SpaceError::LastSpaceOfBot { id } => SpaceError::LastSpaceOfBot { id },
+			spaces::SpaceError::ForeignSection { id } => SpaceError::ForeignSection { id },
 			spaces::SpaceError::Database(failure) => {
 				SpaceError::Storage { failure: (&failure).into() }
 			}
@@ -188,6 +193,11 @@ mod tests {
 			to_value(SpaceError::from(spaces::SpaceError::LastSpaceOfBot { id: "b1".to_owned() }))
 				.expect("the error"),
 			json!({ "kind": "lastSpaceOfBot", "id": "b1" })
+		);
+		assert_eq!(
+			to_value(SpaceError::from(spaces::SpaceError::ForeignSection { id: "n1".to_owned() }))
+				.expect("the error"),
+			json!({ "kind": "foreignSection", "id": "n1" })
 		);
 	}
 }

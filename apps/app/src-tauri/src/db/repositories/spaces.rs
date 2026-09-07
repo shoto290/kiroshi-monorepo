@@ -27,6 +27,7 @@ pub enum SpaceError {
 	IncompleteOrder,
 	LastSpace,
 	LastSpaceOfBot { id: String },
+	ForeignSection { id: String },
 }
 
 impl From<DatabaseError> for SpaceError {
@@ -221,7 +222,10 @@ fn added_bot(
 		return Err(SpaceError::UnknownSpace { id: space_id.to_owned() });
 	}
 	let pin = match section_id {
-		Some(_) => Some(sections::next_pin(&transaction, space_id)?),
+		Some(section_id) => {
+			refuse_foreign_section(&transaction, space_id, section_id)?;
+			Some(sections::next_pin(&transaction, space_id)?)
+		}
 		None => None,
 	};
 	bot_spaces::join(&transaction, bot_id, space_id, section_id, pin)?;
@@ -257,6 +261,17 @@ fn removed_bot(
 	)?;
 	transaction.commit()?;
 	Ok(())
+}
+
+fn refuse_foreign_section(
+	connection: &Connection,
+	space_id: &str,
+	section_id: &str,
+) -> Result<(), SpaceError> {
+	match sections::space_of(connection, section_id)?.as_deref() == Some(space_id) {
+		true => Ok(()),
+		false => Err(SpaceError::ForeignSection { id: section_id.to_owned() }),
+	}
 }
 
 fn refuse_unknown_bot(connection: &Connection, bot_id: &str) -> Result<(), SpaceError> {
@@ -935,6 +950,34 @@ mod tests {
 			vec![kept_room.id],
 			"the shared bot lost a conversation of the space that stays"
 		);
+
+		drop(database);
+		fs::remove_dir_all(&dir).expect("cleanup");
+	}
+
+	#[tokio::test]
+	async fn a_bot_added_under_a_section_of_another_space_is_refused_and_joins_nothing() {
+		let dir = temp_dir();
+		let database = open(&dir);
+		let spaces = database.spaces();
+		let home = spaces.list().await.expect("the spaces")[0].id.clone();
+		let elsewhere = spaces.create("Vocca".to_owned()).await.expect("the space");
+		let foreign = database
+			.sections()
+			.create(home.clone(), "Writers".to_owned())
+			.await
+			.expect("the section");
+		let bot = database
+			.conversations()
+			.create_bot(an_identity("Nyx"), Some(home.clone()), None)
+			.await
+			.expect("the bot");
+
+		let refused = spaces.add_bot(bot.id.clone(), elsewhere.id.clone(), Some(foreign.id)).await;
+
+		assert!(matches!(refused, Err(SpaceError::ForeignSection { .. })), "got {refused:?}");
+		assert_eq!(memberships_of(&database, &bot.id).await, vec![home]);
+		assert!(roster_of(&database, &elsewhere.id).await.is_empty());
 
 		drop(database);
 		fs::remove_dir_all(&dir).expect("cleanup");

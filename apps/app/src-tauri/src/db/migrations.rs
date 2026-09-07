@@ -1408,8 +1408,8 @@ mod tests {
 			"the backfill lost the section or the pin a bot already held"
 		);
 		assert!(
-			write(&connection, "SELECT space_id FROM bots").is_err(),
-			"the bots table still carries the columns the step drops"
+			connection.prepare("SELECT space_id FROM bots").is_err(),
+			"the bots table still carries the column the step drops"
 		);
 
 		drop(connection);
