@@ -221,8 +221,14 @@ async fn carried<R: Runtime>(
 		return Ok(FLOODED);
 	}
 	let app = &calls.app;
-	let source =
-		declared_source(app, database, &routine.bot_id, &routine.trigger_source_id).await?;
+	let source = declared_source(
+		app,
+		database,
+		&routine.conversation_id,
+		&routine.bot_id,
+		&routine.trigger_source_id,
+	)
+	.await?;
 	let event = TriggerEvent {
 		routine_id: routine.id,
 		source,

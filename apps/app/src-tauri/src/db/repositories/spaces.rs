@@ -360,6 +360,15 @@ mod tests {
 		}
 	}
 
+	async fn home_of(database: &Database, id: &str) -> String {
+		database
+			.conversations()
+			.oldest_bot_space(id.to_owned())
+			.await
+			.expect("the space is read")
+			.expect("the bot holds a membership")
+	}
+
 	async fn stored_bot(database: &Database, id: &str) -> Bot {
 		database
 			.conversations()
@@ -606,7 +615,7 @@ mod tests {
 		spaces.move_bot(bot.id.clone(), elsewhere.id.clone()).await.expect("the bot moves");
 
 		let moved = stored_bot(&database, &bot.id).await;
-		assert_eq!(moved.space_id, elsewhere.id);
+		assert_eq!(home_of(&database, &bot.id).await, elsewhere.id);
 		assert_eq!(moved.section_id, None, "a moved bot carried a section of the space it left");
 		assert_eq!(moved.name, bot.name, "a moved bot was renamed");
 		assert!(
@@ -679,11 +688,7 @@ mod tests {
 			spaces.move_bot(bot.id.clone(), "nowhere".to_owned()).await,
 			Err(SpaceError::UnknownSpace { .. })
 		));
-		assert_eq!(
-			stored_bot(&database, &bot.id).await.space_id,
-			home,
-			"a refused move took the bot with it"
-		);
+		assert_eq!(home_of(&database, &bot.id).await, home, "a refused move took the bot with it");
 
 		drop(database);
 		fs::remove_dir_all(&dir).expect("cleanup");
@@ -810,7 +815,7 @@ mod tests {
 			"joining a second space moved the bot in the first one"
 		);
 		assert_eq!(
-			stored_bot(&database, &bot.id).await.space_id,
+			home_of(&database, &bot.id).await,
 			home,
 			"a bot read with no space named left its oldest membership"
 		);

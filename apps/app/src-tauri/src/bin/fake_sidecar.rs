@@ -98,6 +98,18 @@ fn servers_in_the_bundle(command: &Value) -> String {
 	read().unwrap_or_else(|| "none".to_owned())
 }
 
+fn base_environment(command: &Value) -> String {
+	let read = || {
+		let named = command["serverEnv"]["base"].as_object()?;
+		let listed: Vec<String> = named
+			.iter()
+			.filter_map(|(name, value)| value.as_str().map(|value| format!("{name}={value}")))
+			.collect();
+		(!listed.is_empty()).then(|| listed.join(","))
+	};
+	read().unwrap_or_else(|| "none".to_owned())
+}
+
 fn ignores_eof() -> bool {
 	std::env::var("FAKE_AGENT_IGNORE_EOF").is_ok()
 }
@@ -111,6 +123,8 @@ struct Run {
 	instructions: String,
 	presented: String,
 	servers: String,
+	space: String,
+	base_env: String,
 	cwd: String,
 	announced: bool,
 	pending_permission: Option<String>,
@@ -148,6 +162,8 @@ impl Run {
 			instructions: instructions_in_the_bundle(command),
 			presented: command["identity"].as_str().unwrap_or("none").to_owned(),
 			servers: servers_in_the_bundle(command),
+			space: command["spacePluginPath"].as_str().unwrap_or("none").to_owned(),
+			base_env: base_environment(command),
 			cwd: as_a_child_would_see_it(command["cwd"].as_str().unwrap_or_default()),
 			announced: false,
 			pending_permission: None,
@@ -161,8 +177,8 @@ impl Run {
 
 	fn identity(&self) -> String {
 		format!(
-			"system<{}> told<{}> cwd<{}> mcp<{}>",
-			self.instructions, self.presented, self.cwd, self.servers
+			"system<{}> told<{}> cwd<{}> mcp<{}> space<{}> env<{}>",
+			self.instructions, self.presented, self.cwd, self.servers, self.space, self.base_env
 		)
 	}
 }

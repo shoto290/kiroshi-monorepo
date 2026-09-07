@@ -224,7 +224,15 @@ async fn source_of<R: Runtime>(
 	database: &db::Database,
 	routine: &Routine,
 ) -> Result<Option<TriggerSource>, RoutineError> {
-	match declared_source(app, database, &routine.bot_id, &routine.trigger_source_id).await {
+	match declared_source(
+		app,
+		database,
+		&routine.conversation_id,
+		&routine.bot_id,
+		&routine.trigger_source_id,
+	)
+	.await
+	{
 		Ok(source) => Ok(Some(source)),
 		Err(RoutineError::UnknownSource { .. }) => Ok(None),
 		Err(failure) => Err(failure),

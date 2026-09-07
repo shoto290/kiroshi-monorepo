@@ -181,7 +181,11 @@ pub async fn conversation_duplicate_bot<R: Runtime>(
 		.bot(bot_id.clone())
 		.await?
 		.ok_or_else(|| TranscriptStoreError::UnknownBot { id: bot_id.clone() })?;
-	let destination = space_id.unwrap_or_else(|| source.space_id.clone());
+	let source_of = bot_owner(database, &bot_id).await?;
+	let destination = match space_id {
+		Some(named) => named,
+		None => oldest_space(database, &bot_id).await?,
+	};
 	let held = database.conversations().bot_in(bot_id.clone(), destination.clone()).await?;
 	let section = held.as_ref().and_then(|membership| membership.section_id.clone());
 	let is_pinned = held.is_some_and(|membership| membership.pin_position.is_some());
@@ -192,7 +196,6 @@ pub async fn conversation_duplicate_bot<R: Runtime>(
 		.into_iter()
 		.map(|bot| bot.name)
 		.collect();
-	let source_of = owned_by(&source);
 	let memory = source.memory.clone();
 	let identity =
 		duplicated_identity(Bot::of(source, dir.as_deref(), bundle_root.as_deref()), &taken);
@@ -242,7 +245,7 @@ async fn copied_onto<R: Runtime>(
 	} else {
 		remembered
 	};
-	copied_environment(app, &carried.source_of, &placed)?;
+	copied_environment(app, database, &carried.source_of, &placed.id).await?;
 	let root = bundles::root(app);
 	if let Some(root) = root.as_deref() {
 		bundles::inherit(root, &carried.source_id, &placed.id).map_err(unwritable)?;
@@ -251,20 +254,47 @@ async fn copied_onto<R: Runtime>(
 		.await
 }
 
-fn copied_environment<R: Runtime>(
+async fn copied_environment<R: Runtime>(
 	app: &AppHandle<R>,
+	database: &db::Database,
 	source: &EnvOwner,
-	copy: &StoredBot,
+	copy_id: &str,
 ) -> Result<(), TranscriptStoreError> {
 	let Some(root) = environment::store::root(app) else {
 		return Ok(());
 	};
-	environment::store::copy_owner(&root, source, &owned_by(copy))
+	let copy = bot_owner(database, copy_id).await?;
+	environment::store::copy_owner(&root, source, &copy)
 		.map_err(|failure| TranscriptStoreError::UnwritableEnvironment { failure })
 }
 
-fn owned_by(bot: &StoredBot) -> EnvOwner {
-	EnvOwner::Bot { id: bot.id.clone(), space_id: bot.space_id.clone() }
+pub(crate) async fn bot_owner(
+	database: &db::Database,
+	bot_id: &str,
+) -> Result<EnvOwner, TranscriptStoreError> {
+	Ok(EnvOwner::Bot { id: bot_id.to_owned(), space_id: oldest_space(database, bot_id).await? })
+}
+
+pub(crate) async fn space_of_the_conversation(
+	database: &db::Database,
+	conversation_id: &str,
+	bot_id: &str,
+) -> Result<String, TranscriptStoreError> {
+	match database.conversations().space(conversation_id.to_owned()).await? {
+		Some(named) => Ok(named),
+		None => oldest_space(database, bot_id).await,
+	}
+}
+
+pub(crate) async fn oldest_space(
+	database: &db::Database,
+	bot_id: &str,
+) -> Result<String, TranscriptStoreError> {
+	database
+		.conversations()
+		.oldest_bot_space(bot_id.to_owned())
+		.await?
+		.ok_or_else(|| TranscriptStoreError::UnknownBot { id: bot_id.to_owned() })
 }
 
 fn duplicated_identity(source: Bot, taken: &[String]) -> BotIdentity {
@@ -539,13 +569,10 @@ pub async fn conversation_delete_bot_mcp_server<R: Runtime>(
 	name: String,
 ) -> Result<(), TranscriptStoreError> {
 	let root = writable_root(&app)?;
-	let bot = bot_row(ready(&state)?, &bot_id).await?;
+	let database = ready(&state)?;
+	let bot = bot_row(database, &bot_id).await?;
 	bundled(bundles::remove_mcp_server(&root, &bot, &name))?;
-	environment::store::forget_server(
-		&app,
-		&EnvOwner::Bot { id: bot.id, space_id: bot.space_id },
-		&name,
-	);
+	environment::store::forget_server(&app, &bot_owner(database, &bot.id).await?, &name);
 	Ok(())
 }
 
@@ -958,7 +985,6 @@ mod tests {
 	fn a_bot() -> StoredBot {
 		StoredBot {
 			id: "b1".to_owned(),
-			space_id: "personal".to_owned(),
 			section_id: None,
 			pin_position: None,
 			name: "Bean".to_owned(),

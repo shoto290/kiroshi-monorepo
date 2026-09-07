@@ -14,6 +14,7 @@ use super::session::{Bundle, EventSink, GatedSink, Session, SessionOptions};
 use super::sidecar::{self, Sidecar, SidecarOptions};
 use super::translate::now_ms;
 use crate::bundles;
+use crate::conversations::commands::space_of_the_conversation;
 use crate::db;
 use crate::db::repositories::conversations::Bot as StoredBot;
 use crate::db::repositories::runtime_context::ParticipantKey;
@@ -207,7 +208,7 @@ impl<R: Runtime> RunSink<R> {
 		let scope = self.scope.clone();
 		let live = self.live.clone();
 		tauri::async_runtime::spawn(async move {
-			for (bundle, evolution) in evolutions(&app, &scope.bot_id).await {
+			for (bundle, evolution) in evolutions(&app, &scope).await {
 				if !live.holds(&scope) {
 					return;
 				}
@@ -227,7 +228,7 @@ impl<R: Runtime> RunSink<R> {
 
 async fn evolutions<R: Runtime>(
 	app: &AppHandle<R>,
-	bot_id: &str,
+	scope: &RuntimeScope,
 ) -> Vec<(EvolvedBundle, bundles::Evolution)> {
 	let mut announced = Vec::new();
 	if let Some(evolution) =
@@ -238,13 +239,17 @@ async fn evolutions<R: Runtime>(
 	let Some(database) = bot_database(app) else {
 		return announced;
 	};
-	let Ok(Some(bot)) = database.conversations().bot(bot_id.to_owned()).await else {
+	let Ok(Some(bot)) = database.conversations().bot(scope.bot_id.clone()).await else {
 		return announced;
 	};
-	if let Some(evolution) =
-		bundles::space::laid_down(app, &bot.space_id).and_then(|path| bundles::space::evolve(&path))
+	if let Ok(space_id) =
+		space_of_the_conversation(database, &scope.conversation_id, &scope.bot_id).await
 	{
-		announced.push((EvolvedBundle::Space, evolution));
+		if let Some(evolution) =
+			bundles::space::laid_down(app, &space_id).and_then(|path| bundles::space::evolve(&path))
+		{
+			announced.push((EvolvedBundle::Space, evolution));
+		}
 	}
 	let Some(root) = bundles::root(app) else {
 		return announced;
@@ -449,29 +454,34 @@ struct RuntimeIdentity {
 
 const ENV_UNREADABLE: &str = "the environment store could not be read";
 
-fn served_environment<R: Runtime>(app: &AppHandle<R>, bot: &StoredBot) -> ResolvedEnv {
+fn served_environment<R: Runtime>(app: &AppHandle<R>, bot_id: &str, space_id: &str) -> ResolvedEnv {
 	let Some(root) = environment::root(app) else {
 		return ResolvedEnv::failed(ENV_UNREADABLE);
 	};
-	let owner = EnvOwner::Bot { id: bot.id.clone(), space_id: bot.space_id.clone() };
+	let owner = EnvOwner::Bot { id: bot_id.to_owned(), space_id: space_id.to_owned() };
 	environment::resolve(&root, &owner).unwrap_or_else(|_| ResolvedEnv::failed(ENV_UNREADABLE))
 }
 
 async fn runtime_identity<R: Runtime>(
 	app: &AppHandle<R>,
 	state: &db::DatabaseState,
-	bot_id: &str,
+	scope: &RuntimeScope,
 ) -> RuntimeIdentity {
 	let Ok(database) = state.as_ref() else {
 		return RuntimeIdentity::default();
 	};
-	let Ok(Some(bot)) = database.conversations().bot(bot_id.to_owned()).await else {
+	let Ok(Some(bot)) = database.conversations().bot(scope.bot_id.clone()).await else {
+		return RuntimeIdentity::default();
+	};
+	let Ok(space_id) =
+		space_of_the_conversation(database, &scope.conversation_id, &scope.bot_id).await
+	else {
 		return RuntimeIdentity::default();
 	};
 	let root = bundles::root(app);
 	let system = bundles::system::laid_down(app);
 	let user = bundles::user::laid_down(app);
-	let space = bundles::space::laid_down(app, &bot.space_id);
+	let space = bundles::space::laid_down(app, &space_id);
 	let permissions = settled_permissions(database, root.as_deref(), &bot).await;
 	let bundle = root.as_deref().and_then(|root| {
 		laid_down_bundle(
@@ -486,7 +496,7 @@ async fn runtime_identity<R: Runtime>(
 	if let Some(root) = root.as_deref() {
 		reconcile_bot(database, root, &bot).await;
 	}
-	let server_env = served_environment(app, &bot);
+	let server_env = served_environment(app, &bot.id, &space_id);
 	RuntimeIdentity { bundle, working_dir: bot.working_dir, server_env }
 }
 
@@ -574,7 +584,7 @@ pub async fn agent_start_or_resume_session<R: Runtime>(
 	}
 
 	let sidecar = state.sidecar().await?;
-	let identity = runtime_identity(&app, &database, &scope.bot_id).await;
+	let identity = runtime_identity(&app, &database, &scope).await;
 	let anywhere = cwd.map(PathBuf::from).unwrap_or_else(|| its_own_directory(&app, &scope.bot_id));
 	let (working_dir, refused_dir) = where_it_runs(identity.working_dir, anywhere);
 
@@ -869,7 +879,6 @@ mod tests {
 	fn a_stored_bot() -> StoredBot {
 		StoredBot {
 			id: "b1".to_owned(),
-			space_id: "personal".to_owned(),
 			section_id: None,
 			pin_position: None,
 			name: "Bean".to_owned(),

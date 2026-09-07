@@ -60,7 +60,6 @@ const PROBE_NAME: &str = "Probe";
 fn probe_bot(id: &str, instructions: &str, model: &str) -> Bot {
 	Bot {
 		id: id.to_owned(),
-		space_id: "personal".to_owned(),
 		section_id: None,
 		pin_position: None,
 		name: PROBE_NAME.to_owned(),

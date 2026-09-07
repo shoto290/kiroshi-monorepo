@@ -18,6 +18,7 @@ use tauri::{App, Listener, Manager, WebviewWindow, WebviewWindowBuilder};
 const FAKE_SIDECAR: &str = env!("CARGO_BIN_EXE_fake_sidecar");
 const SCENARIO_ENV: &str = "FAKE_AGENT_SCENARIO_FILE";
 const IDENTIFIER: &str = "com.kiroshi.runtime-identity";
+const SPACES_IDENTIFIER: &str = "com.kiroshi.runtime-identity-spaces";
 const DEADLINE: Duration = Duration::from_secs(10);
 const POLL: Duration = Duration::from_millis(25);
 
@@ -26,6 +27,7 @@ const NAME: &str = "Camille";
 const FRENCH: &str = "Answer only in French.";
 const DUTCH: &str = "Answer only in Dutch.";
 const SPANISH: &str = "Answer only in Spanish.";
+const DESK: &str = "TICKET_DESK";
 
 struct Harness {
 	app: App<MockRuntime>,
@@ -34,8 +36,12 @@ struct Harness {
 }
 
 fn launch() -> Harness {
+	launch_as(IDENTIFIER)
+}
+
+fn launch_as(identifier: &str) -> Harness {
 	let mut context = mock_context(noop_assets());
-	context.config_mut().identifier = IDENTIFIER.into();
+	context.config_mut().identifier = identifier.into();
 
 	let app = mock_builder()
 		.manage(AgentState::default())
@@ -115,6 +121,48 @@ impl Harness {
 			json!({ "id": bot, "identity": an_identity(Some(instructions), working_dir) }),
 		)
 		.expect("the bot is described");
+	}
+
+	fn first_space(&self) -> String {
+		self.call("space_list", json!({})).expect("the spaces")[0]["id"]
+			.as_str()
+			.expect("the space holds an id")
+			.to_owned()
+	}
+
+	fn create_space(&self, name: &str) -> String {
+		self.call("space_create", json!({ "name": name })).expect("the space is created")["id"]
+			.as_str()
+			.expect("the space holds an id")
+			.to_owned()
+	}
+
+	fn solo_thread(&self, bot: &str, space: Option<&str>) -> String {
+		let opened = self
+			.call("conversation_main_chat", json!({ "botId": bot, "spaceId": space }))
+			.expect("the solo thread");
+		let conversation = opened["id"].as_str().expect("the thread holds an id").to_owned();
+		self.call(
+			"conversation_start_turn",
+			json!({
+				"turn": { "id": format!("{TURN}-{conversation}"),
+					"conversationId": &conversation, "startedAt": 1 }
+			}),
+		)
+		.expect("the turn is started");
+		conversation
+	}
+
+	fn define(&self, space: &str, value: &str) {
+		self.call(
+			"env_set",
+			json!({
+				"scope": { "kind": "space", "id": space },
+				"name": DESK,
+				"value": value
+			}),
+		)
+		.expect("the variable is set");
 	}
 
 	fn main_chat(&self, bot: &str) -> String {
@@ -272,7 +320,9 @@ fn told() -> String {
 fn scenario(name: &str) {
 	let path =
 		std::env::temp_dir().join(format!("kiroshi-fake-scenario-{}.txt", std::process::id()));
-	std::fs::write(&path, name).expect("the scenario is written");
+	let staged = path.with_extension(format!("{:?}.staging", std::thread::current().id()));
+	std::fs::write(&staged, name).expect("the scenario is written");
+	std::fs::rename(&staged, &path).expect("the scenario is put in place");
 	std::env::set_var(SCENARIO_ENV, path);
 }
 
@@ -421,4 +471,55 @@ fn every_run_carries_the_identity_the_bot_holds_when_it_starts() {
 	if let Ok(dir) = harness.app.path().app_data_dir() {
 		let _ = std::fs::remove_dir_all(dir);
 	}
+}
+
+#[test]
+fn a_run_stacks_the_space_of_the_thread_it_speaks_in() {
+	std::env::set_var(SIDECAR_OVERRIDE_ENV, FAKE_SIDECAR);
+	scenario("identity");
+
+	let harness = launch_as(SPACES_IDENTIFIER);
+	let bot = harness.create_bot();
+	let home = harness.first_space();
+	let elsewhere = harness.create_space("Writers");
+	harness
+		.call("bot_add_to_space", json!({ "botId": &bot, "spaceId": &elsewhere }))
+		.expect("the bot joins the second space");
+
+	let here = harness.solo_thread(&bot, None);
+	let there = harness.solo_thread(&bot, Some(&elsewhere));
+	harness.define(&home, "here");
+	harness.define(&elsewhere, "there");
+	let home_plugin = plugin_of(&harness, &home);
+	let elsewhere_plugin = plugin_of(&harness, &elsewhere);
+
+	let spoken = harness.runtime_of(&here, &bot, 1);
+	assert!(spoken.spoken.contains(&plugged_into(&home_plugin)), "got {}", spoken.spoken);
+	assert!(spoken.spoken.contains(&format!("env<{DESK}=here>")), "got {}", spoken.spoken);
+
+	let elsewhere_spoken = harness.runtime_of(&there, &bot, 2);
+	assert!(
+		elsewhere_spoken.spoken.contains(&plugged_into(&elsewhere_plugin)),
+		"got {}",
+		elsewhere_spoken.spoken
+	);
+	assert!(
+		elsewhere_spoken.spoken.contains(&format!("env<{DESK}=there>")),
+		"got {}",
+		elsewhere_spoken.spoken
+	);
+
+	if let Ok(dir) = harness.app.path().app_data_dir() {
+		let _ = std::fs::remove_dir_all(dir);
+	}
+}
+
+fn plugin_of(harness: &Harness, space: &str) -> PathBuf {
+	let path = bundles::space::path(harness.app.handle(), space).expect("the space's plugin path");
+	bundles::space::lay_down_at(&path).expect("the space's plugin is laid down");
+	path
+}
+
+fn plugged_into(plugin: &Path) -> String {
+	format!("space<{}>", plugin.display())
 }

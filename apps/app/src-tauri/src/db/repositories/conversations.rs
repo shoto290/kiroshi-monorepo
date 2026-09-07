@@ -203,7 +203,6 @@ pub struct ConversationEdit {
 #[derive(Debug, PartialEq, Eq)]
 pub struct Bot {
 	pub id: String,
-	pub space_id: String,
 	pub section_id: Option<String>,
 	pub pin_position: Option<i64>,
 	pub name: String,
@@ -522,6 +521,14 @@ impl ConversationsRepository {
 		.await
 	}
 
+	pub async fn space(&self, conversation_id: String) -> Result<Option<String>, DatabaseError> {
+		self.call(move |connection| space_of_conversation(connection, &conversation_id)).await
+	}
+
+	pub async fn oldest_bot_space(&self, bot_id: String) -> Result<Option<String>, DatabaseError> {
+		self.call(move |connection| Ok(oldest_space_of(connection, &bot_id)?)).await
+	}
+
 	pub async fn set_lead(
 		&self,
 		conversation_id: String,
@@ -531,7 +538,7 @@ impl ConversationsRepository {
 	}
 }
 
-const BOT_COLUMNS: &str = "SELECT bots.id, membership.space_id, membership.section_id,
+const BOT_COLUMNS: &str = "SELECT bots.id, membership.section_id,
 		membership.pin_position, bots.name, bots.title, bots.model,
 		bots.avatar_animal, bots.avatar_color,
 		bots.avatar_image_path, bots.working_dir, bots.instructions, bots.memory,
@@ -599,6 +606,21 @@ fn stored_bot(connection: &Connection, id: &str) -> Result<Bot, ConversationErro
 	bot_at(connection, id)?.ok_or_else(|| ConversationError::UnknownBot { id: id.to_owned() })
 }
 
+fn space_of_conversation(
+	connection: &Connection,
+	conversation_id: &str,
+) -> Result<Option<String>, DatabaseError> {
+	let named: Option<Option<String>> = connection
+		.prepare_cached("SELECT space_id FROM conversations WHERE id = ?1")?
+		.query_row([conversation_id], |row| row.get(0))
+		.optional()?;
+	Ok(named.flatten())
+}
+
+fn oldest_space_of(connection: &Connection, bot_id: &str) -> rusqlite::Result<Option<String>> {
+	Ok(bot_spaces::spaces_of(connection, bot_id)?.into_iter().next())
+}
+
 fn bots_statement(space_id: Option<&str>) -> String {
 	match space_id {
 		Some(_) => format!(
@@ -657,7 +679,7 @@ fn solo_space_of(
 	wanted_space_id: Option<&str>,
 ) -> Result<Option<String>, ConversationError> {
 	let Some(space_id) = wanted_space_id else {
-		return Ok(bot_spaces::spaces_of(connection, bot_id)?.into_iter().next());
+		return Ok(oldest_space_of(connection, bot_id)?);
 	};
 	match bot_spaces::held(connection, bot_id, space_id)? {
 		true => Ok(Some(space_id.to_owned())),
@@ -1223,7 +1245,6 @@ fn seated(row: &Row<'_>) -> rusqlite::Result<Seat> {
 fn bot(row: &Row<'_>) -> rusqlite::Result<Bot> {
 	Ok(Bot {
 		id: row.get("id")?,
-		space_id: row.get("space_id")?,
 		section_id: row.get("section_id")?,
 		pin_position: row.get("pin_position")?,
 		name: row.get("name")?,
@@ -1884,6 +1905,14 @@ mod tests {
 		fs::remove_dir_all(&dir).expect("cleanup");
 	}
 
+	async fn home_of(repository: &ConversationsRepository, bot: &Bot) -> String {
+		repository
+			.oldest_bot_space(bot.id.clone())
+			.await
+			.expect("the space is read")
+			.expect("the bot holds a membership")
+	}
+
 	fn a_draft(space_id: &str, bots: &[&Bot]) -> ConversationDraft {
 		ConversationDraft {
 			space_id: space_id.to_owned(),
@@ -1909,10 +1938,11 @@ mod tests {
 		let second = repository.create_bot(an_identity("Ada"), None, None).await.expect("the bot");
 
 		let room = repository
-			.create_conversation(a_draft(&first.space_id, &[&first, &second]))
+			.create_conversation(a_draft(&home_of(repository, &first).await, &[&first, &second]))
 			.await
 			.expect("the room is opened");
-		let listed = repository.conversations(first.space_id.clone()).await.expect("the rooms");
+		let listed =
+			repository.conversations(home_of(repository, &first).await).await.expect("the rooms");
 
 		assert_eq!(
 			roster(&room),
@@ -1922,7 +1952,7 @@ mod tests {
 			],
 			"the room seated its bots in an order nobody asked for"
 		);
-		assert_eq!(room.space_id.as_deref(), Some(first.space_id.as_str()));
+		assert_eq!(room.space_id, Some(home_of(repository, &first).await));
 		assert_eq!(listed, vec![room], "the room the space holds is not the one that was opened");
 
 		drop(database);
@@ -1941,15 +1971,20 @@ mod tests {
 			.await
 			.expect("the bot");
 
-		let refused =
-			repository.create_conversation(a_draft(&home.space_id, &[&home, &stranger])).await;
+		let refused = repository
+			.create_conversation(a_draft(&home_of(repository, &home).await, &[&home, &stranger]))
+			.await;
 
 		assert!(
 			format!("{refused:?}").contains("ForeignBot"),
 			"a bot of another space was let in: {refused:?}"
 		);
 		assert!(
-			repository.conversations(home.space_id).await.expect("the rooms").is_empty(),
+			repository
+				.conversations(home_of(repository, &home).await)
+				.await
+				.expect("the rooms")
+				.is_empty(),
 			"a refused room was written"
 		);
 		assert_eq!(
@@ -1970,7 +2005,7 @@ mod tests {
 		let first = repository.create_bot(an_identity("Nyx"), None, None).await.expect("the bot");
 		let second = repository.create_bot(an_identity("Ada"), None, None).await.expect("the bot");
 		let room = repository
-			.create_conversation(a_draft(&first.space_id, &[&first, &second]))
+			.create_conversation(a_draft(&home_of(repository, &first).await, &[&first, &second]))
 			.await
 			.expect("the room is opened");
 		a_transcript_for(&database, &room.id, &first.id).await;
@@ -2015,7 +2050,7 @@ mod tests {
 		let first = repository.create_bot(an_identity("Nyx"), None, None).await.expect("the bot");
 		let second = repository.create_bot(an_identity("Ada"), None, None).await.expect("the bot");
 		let room = repository
-			.create_conversation(a_draft(&first.space_id, &[&first, &second]))
+			.create_conversation(a_draft(&home_of(repository, &first).await, &[&first, &second]))
 			.await
 			.expect("the room is opened");
 		for leaving in [&first, &second] {
@@ -2048,7 +2083,7 @@ mod tests {
 		let first = repository.create_bot(an_identity("Nyx"), None, None).await.expect("the bot");
 		let second = repository.create_bot(an_identity("Ada"), None, None).await.expect("the bot");
 		let room = repository
-			.create_conversation(a_draft(&first.space_id, &[&first, &second]))
+			.create_conversation(a_draft(&home_of(repository, &first).await, &[&first, &second]))
 			.await
 			.expect("the room is opened");
 
@@ -2087,7 +2122,7 @@ mod tests {
 			.await
 			.expect("the bot");
 		let room = repository
-			.create_conversation(a_draft(&host.space_id, &[&host]))
+			.create_conversation(a_draft(&home_of(repository, &host).await, &[&host]))
 			.await
 			.expect("the room is opened");
 
@@ -2119,11 +2154,11 @@ mod tests {
 		let bot = repository.create_bot(an_identity("Nyx"), None, None).await.expect("the bot");
 		let section = database
 			.sections()
-			.create(bot.space_id.clone(), "Writers".to_owned())
+			.create(home_of(repository, &bot).await, "Writers".to_owned())
 			.await
 			.expect("the section");
 		let room = repository
-			.create_conversation(a_draft(&bot.space_id, &[&bot]))
+			.create_conversation(a_draft(&home_of(repository, &bot).await, &[&bot]))
 			.await
 			.expect("the room is opened");
 		tokio::time::sleep(std::time::Duration::from_millis(2)).await;
@@ -2170,15 +2205,16 @@ mod tests {
 		let repository = database.conversations();
 		let deleted = repository.create_bot(an_identity("Nyx"), None, None).await.expect("the bot");
 		let kept = repository.create_bot(an_identity("Ada"), None, None).await.expect("the bot");
+		let home = home_of(repository, &deleted).await;
 		let room = repository
-			.create_conversation(a_draft(&deleted.space_id, &[&deleted, &kept]))
+			.create_conversation(a_draft(&home, &[&deleted, &kept]))
 			.await
 			.expect("the room is opened");
 		a_transcript_for(&database, &room.id, &deleted.id).await;
 
 		repository.delete_bot(deleted.id.clone()).await.expect("the bot is deleted");
 
-		let rooms = repository.conversations(deleted.space_id.clone()).await.expect("the rooms");
+		let rooms = repository.conversations(home.clone()).await.expect("the rooms");
 		assert_eq!(rooms.len(), 1, "the room went with the bot that spoke in it");
 		assert_eq!(
 			roster(&rooms[0]),
@@ -2201,7 +2237,7 @@ mod tests {
 		);
 		assert_eq!(
 			repository
-				.bots(Some(deleted.space_id))
+				.bots(Some(home))
 				.await
 				.expect("the bots")
 				.into_iter()
@@ -2337,7 +2373,7 @@ mod tests {
 		let bot = repository.create_bot(an_identity("Nyx"), None, None).await.expect("the bot");
 		let chat = repository.ensure_chat(bot.id.clone(), None).await.expect("the chat");
 		let room = repository
-			.create_conversation(a_draft(&bot.space_id, &[&bot]))
+			.create_conversation(a_draft(&home_of(repository, &bot).await, &[&bot]))
 			.await
 			.expect("the room is opened");
 
