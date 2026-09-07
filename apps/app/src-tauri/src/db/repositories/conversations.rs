@@ -290,6 +290,14 @@ impl ConversationsRepository {
 		Ok(self.call(move |connection| Ok(bot_at(connection, &id)?)).await?)
 	}
 
+	pub async fn bot_in(
+		&self,
+		id: String,
+		space_id: String,
+	) -> Result<Option<Bot>, ConversationError> {
+		Ok(self.call(move |connection| Ok(bot_in(connection, &id, &space_id)?)).await?)
+	}
+
 	pub async fn bots(&self, space_id: Option<String>) -> Result<Vec<Bot>, DatabaseError> {
 		self.call(move |connection| Ok(bots_of(connection, space_id.as_deref())?)).await
 	}
@@ -571,6 +579,13 @@ fn bot_at(connection: &Connection, id: &str) -> rusqlite::Result<Option<Bot>> {
 	connection
 		.prepare_cached(&format!("{BOT_COLUMNS} WHERE bots.id = ?1 AND {OLDEST_MEMBERSHIP}"))?
 		.query_row([id], bot)
+		.optional()
+}
+
+fn bot_in(connection: &Connection, id: &str, space_id: &str) -> rusqlite::Result<Option<Bot>> {
+	connection
+		.prepare_cached(&format!("{BOT_COLUMNS} WHERE bots.id = ?1 AND membership.space_id = ?2"))?
+		.query_row(params![id, space_id], bot)
 		.optional()
 }
 

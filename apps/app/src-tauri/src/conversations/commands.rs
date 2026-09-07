@@ -182,7 +182,9 @@ pub async fn conversation_duplicate_bot<R: Runtime>(
 		.await?
 		.ok_or_else(|| TranscriptStoreError::UnknownBot { id: bot_id.clone() })?;
 	let destination = space_id.unwrap_or_else(|| source.space_id.clone());
-	let section = carried_section(&source, &destination);
+	let held = database.conversations().bot_in(bot_id.clone(), destination.clone()).await?;
+	let section = held.as_ref().and_then(|membership| membership.section_id.clone());
+	let is_pinned = held.is_some_and(|membership| membership.pin_position.is_some());
 	let taken: Vec<String> = database
 		.conversations()
 		.bots(Some(destination.clone()))
@@ -190,7 +192,6 @@ pub async fn conversation_duplicate_bot<R: Runtime>(
 		.into_iter()
 		.map(|bot| bot.name)
 		.collect();
-	let is_pinned = source.pin_position.is_some() && source.space_id == destination;
 	let source_of = owned_by(&source);
 	let memory = source.memory.clone();
 	let identity =
@@ -217,10 +218,6 @@ pub async fn conversation_duplicate_bot<R: Runtime>(
 		}
 	};
 	Ok(Bot::of(ruled, dir.as_deref(), bundle_root.as_deref()))
-}
-
-fn carried_section(source: &StoredBot, destination: &str) -> Option<String> {
-	source.section_id.clone().filter(|_| source.space_id == destination)
 }
 
 struct Carried {
@@ -976,15 +973,6 @@ mod tests {
 			permissions: None,
 			created_at: 1,
 		}
-	}
-
-	#[test]
-	fn a_copy_staying_home_keeps_the_section_and_one_leaving_lands_in_none() {
-		let held = StoredBot { section_id: Some("n1".to_owned()), ..a_bot() };
-
-		assert_eq!(carried_section(&held, "personal"), Some("n1".to_owned()));
-		assert_eq!(carried_section(&held, "vocca"), None);
-		assert_eq!(carried_section(&a_bot(), "personal"), None);
 	}
 
 	#[test]

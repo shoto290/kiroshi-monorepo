@@ -32,6 +32,7 @@ pub enum SectionError {
 	UnknownSection { id: String },
 	UnknownBot { id: String },
 	SeveralSpaces { id: String },
+	ForeignSpace { id: String },
 	ForeignSection { id: String },
 }
 
@@ -223,7 +224,7 @@ fn space_the_bot_holds(
 ) -> Result<String, SectionError> {
 	match bot_spaces::held(connection, bot_id, space_id)? {
 		true => Ok(space_id.to_owned()),
-		false => Err(SectionError::UnknownBot { id: bot_id.to_owned() }),
+		false => Err(SectionError::ForeignSpace { id: space_id.to_owned() }),
 	}
 }
 
@@ -684,10 +685,13 @@ mod tests {
 			sections.move_bot(bot.id.clone(), None, None).await,
 			Err(SectionError::SeveralSpaces { .. })
 		));
-		assert!(matches!(
-			sections.move_bot(bot.id, None, Some("nowhere".to_owned())).await,
-			Err(SectionError::UnknownBot { .. })
-		));
+		let refused = sections.move_bot(bot.id.clone(), None, Some("nowhere".to_owned())).await;
+		assert!(matches!(refused, Err(SectionError::ForeignSpace { .. })), "got {refused:?}");
+		assert_eq!(
+			membership_of(&database, &bot.id, &home).await,
+			(None, None),
+			"a refused move out reached a membership of that bot"
+		);
 
 		drop(database);
 		fs::remove_dir_all(&dir).expect("cleanup");

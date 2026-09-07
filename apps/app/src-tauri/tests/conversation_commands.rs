@@ -2081,6 +2081,66 @@ fn a_duplicate_lands_in_the_space_the_reader_named_and_keeps_what_the_source_car
 }
 
 #[test]
+fn a_duplicate_carries_the_section_and_the_pin_the_source_holds_in_the_named_space() {
+	let home = Home::new();
+	let app = home.app();
+	let window = window(&app);
+
+	let source_id = a_bot(&window, "Nyx");
+	let away = a_space(&window, "Away");
+	let writers = call(&window, "section_create", json!({ "spaceId": away, "name": "Writers" }))
+		.expect("the section is created")["id"]
+		.as_str()
+		.expect("the section holds an id")
+		.to_owned();
+	call(
+		&window,
+		"bot_add_to_space",
+		json!({ "botId": source_id, "spaceId": away, "sectionId": writers }),
+	)
+	.expect("the source joins the second space");
+
+	let duplicate =
+		call(&window, "conversation_duplicate_bot", json!({ "botId": source_id, "spaceId": away }))
+			.expect("the bot is duplicated");
+
+	assert_eq!(
+		duplicate["sectionId"],
+		json!(writers),
+		"the copy did not carry the section its source holds in the space it landed in"
+	);
+	assert!(
+		!duplicate["pinPosition"].is_null(),
+		"the copy did not carry the pin its source holds there: got {duplicate}"
+	);
+}
+
+#[test]
+fn a_duplicate_into_a_space_the_source_does_not_hold_lands_loose() {
+	let home = Home::new();
+	let app = home.app();
+	let window = window(&app);
+
+	let nest = a_space(&window, "Nest");
+	let away = a_space(&window, "Away");
+	let source_id = a_bot_in(&window, &nest, "Nyx");
+	let writers = call(&window, "section_create", json!({ "spaceId": nest, "name": "Writers" }))
+		.expect("the section is created")["id"]
+		.as_str()
+		.expect("the section holds an id")
+		.to_owned();
+	call(&window, "bot_move_to_section", json!({ "botId": source_id, "sectionId": writers }))
+		.expect("the source moves into a section of its own space");
+
+	let duplicate =
+		call(&window, "conversation_duplicate_bot", json!({ "botId": source_id, "spaceId": away }))
+			.expect("the bot is duplicated");
+
+	assert_eq!(duplicate["sectionId"], Value::Null);
+	assert_eq!(duplicate["pinPosition"], Value::Null);
+}
+
+#[test]
 fn a_duplicate_only_dodges_the_names_the_space_it_lands_in_already_carries() {
 	let home = Home::new();
 	let app = home.app();
