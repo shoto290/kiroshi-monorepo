@@ -544,12 +544,11 @@ const SpacesBranch = ({
 			<ContextMenuSubContent className={SPACES_PANEL}>
 				{spaces.map((space) => {
 					const isMember = memberships.includes(space.id)
-					const isLocked = isMember && isHeldByOneSpace
 					return (
 						<ContextMenuCheckboxItem
 							checked={isMember}
 							closeOnSelect={false}
-							disabled={isLocked}
+							disabled={isMember && isHeldByOneSpace}
 							key={space.id}
 							onCheckedChange={(checked) =>
 								checked
