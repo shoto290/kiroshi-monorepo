@@ -62,14 +62,18 @@ const STANDING_OPENING = [
 const naming = (rejections: string[], phrase: string): boolean =>
 	rejections.some((detail) => detail.includes(phrase))
 
-export const unavailableServersSection = (rejections: string[]): string => {
+const openingFor = (rejections: string[]): string[] => {
+	const dropped = naming(rejections, LEFT_OUT)
 	const standing =
 		naming(rejections, STILL_CONNECTING) || naming(rejections, RECONNECTED)
-	const [title, opening] = naming(rejections, LEFT_OUT)
-		? standing
-			? MIXED_OPENING
-			: LEFT_OUT_OPENING
-		: STANDING_OPENING
+	if (dropped && standing) {
+		return MIXED_OPENING
+	}
+	return dropped ? LEFT_OUT_OPENING : STANDING_OPENING
+}
+
+export const unavailableServersSection = (rejections: string[]): string => {
+	const [title, opening] = openingFor(rejections)
 	return [
 		title,
 		rejections.map((detail) => `- ${detail}`).join("\n"),
