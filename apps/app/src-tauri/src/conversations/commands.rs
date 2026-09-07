@@ -6,7 +6,7 @@ use super::context;
 use super::contract::{
 	Bot, BotHistoryEntry, BotIdentity, Chat, ContextCheckpoint, Conversation, McpServer,
 	MessageReference, NewAssistantMessage, NewTurn, NewUserMessage, PinnedBubble, RuntimeSession,
-	Skill, SkillDraft, TerminalCompletion, TranscriptPage, TranscriptStoreError,
+	Skill, SkillDraft, TerminalCompletion, TranscriptPage, TranscriptStoreError, TranscriptWindow,
 };
 use crate::agent::contract::AgentCommand;
 use crate::attachments;
@@ -16,7 +16,7 @@ use crate::db;
 use crate::db::repositories::conversations::{
 	Bot as StoredBot, Conversation as StoredConversation, ConversationDraft, ConversationEdit,
 };
-use crate::db::repositories::messages::MessagePageQuery;
+use crate::db::repositories::messages::{MessagePageQuery, MessagesAroundQuery};
 use crate::db::repositories::runtime_context::{Handover, ParticipantKey};
 use crate::environment;
 use crate::environment::contract::EnvOwner;
@@ -834,6 +834,20 @@ pub async fn conversation_message_page(
 	let query = MessagePageQuery { conversation_id: conversation_id.clone(), before_seq, limit };
 	let page = ready(&state)?.messages().page_messages(query).await?;
 	Ok(TranscriptPage::of(conversation_id, page))
+}
+
+#[tauri::command]
+pub async fn conversation_message_page_around(
+	state: State<'_, db::DatabaseState>,
+	conversation_id: String,
+	seq: i64,
+	limit: u32,
+) -> Result<TranscriptWindow, TranscriptStoreError> {
+	let query = MessagesAroundQuery { conversation_id: conversation_id.clone(), seq, limit };
+	let Some(around) = ready(&state)?.messages().messages_around(query).await? else {
+		return Err(TranscriptStoreError::UnknownMessageSeq { conversation_id, seq });
+	};
+	Ok(TranscriptWindow::of(conversation_id, around))
 }
 
 #[tauri::command]

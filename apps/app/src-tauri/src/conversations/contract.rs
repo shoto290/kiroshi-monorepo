@@ -633,6 +633,26 @@ impl TranscriptPage {
 
 #[derive(Debug, Clone, PartialEq, Eq, Serialize, Deserialize)]
 #[serde(rename_all = "camelCase")]
+pub struct TranscriptWindow {
+	pub conversation_id: String,
+	pub messages: Vec<TranscriptMessage>,
+	pub has_older: bool,
+	pub has_newer: bool,
+}
+
+impl TranscriptWindow {
+	pub fn of(conversation_id: String, around: messages::MessagesAround) -> Self {
+		let messages = around
+			.messages
+			.into_iter()
+			.map(|stored| TranscriptMessage::of(&conversation_id, stored))
+			.collect();
+		Self { conversation_id, messages, has_older: around.has_older, has_newer: around.has_newer }
+	}
+}
+
+#[derive(Debug, Clone, PartialEq, Eq, Serialize, Deserialize)]
+#[serde(rename_all = "camelCase")]
 pub struct NewTurn {
 	pub id: String,
 	pub conversation_id: String,
@@ -748,6 +768,8 @@ pub enum TranscriptStoreError {
 	UnknownParticipant { conversation_id: String, bot_id: String },
 	#[serde(rename_all = "camelCase")]
 	UnknownMessage { id: String },
+	#[serde(rename_all = "camelCase")]
+	UnknownMessageSeq { conversation_id: String, seq: i64 },
 	#[serde(rename_all = "camelCase")]
 	RejectedAvatarImage { reason: AvatarRejection },
 	#[serde(rename_all = "camelCase")]
@@ -1154,6 +1176,28 @@ mod tests {
 				has_more: true,
 			},
 			json!({ "conversationId": "c1", "messages": [a_message_wire()], "hasMore": true }),
+		);
+	}
+
+	#[test]
+	fn a_window_centred_on_a_message_crosses_as_camel_case() {
+		assert_crosses_as(
+			TranscriptWindow {
+				conversation_id: "c1".into(),
+				messages: vec![a_message()],
+				has_older: true,
+				has_newer: false,
+			},
+			json!({
+				"conversationId": "c1",
+				"messages": [a_message_wire()],
+				"hasOlder": true,
+				"hasNewer": false
+			}),
+		);
+		assert_crosses_as(
+			TranscriptStoreError::UnknownMessageSeq { conversation_id: "c1".into(), seq: 7 },
+			json!({ "kind": "unknownMessageSeq", "conversationId": "c1", "seq": 7 }),
 		);
 	}
 
