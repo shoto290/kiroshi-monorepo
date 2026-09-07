@@ -23,10 +23,13 @@ fn chats() -> String {
 	format!(
 		"WITH chat AS (
 	SELECT conversations.id AS id, conversations.kind AS kind, conversations.title AS title,
-		COALESCE(conversations.space_id, (SELECT bots.space_id FROM conversation_participants
+		COALESCE(conversations.space_id, (SELECT bot_spaces.space_id
+			FROM conversation_participants
 			JOIN bots ON bots.id = conversation_participants.bot_id
+			JOIN bot_spaces ON bot_spaces.bot_id = bots.id
 			WHERE conversation_participants.conversation_id = conversations.id AND {PRESENT_SEAT}
-			ORDER BY conversation_participants.join_seq LIMIT 1)) AS space_id,
+			ORDER BY conversation_participants.join_seq, bot_spaces.joined_at, bot_spaces.space_id
+			LIMIT 1)) AS space_id,
 		COALESCE((SELECT messages.created_at FROM messages
 			WHERE messages.conversation_id = conversations.id
 			ORDER BY messages.seq DESC LIMIT 1),
@@ -47,7 +50,9 @@ fn participants() -> String {
 	)
 }
 
-const BOT_SPACES: &str = "SELECT id, space_id FROM bots";
+const BOT_SPACES: &str = "SELECT bots.id, bot_spaces.space_id FROM bots
+	LEFT JOIN bot_spaces ON bot_spaces.bot_id = bots.id
+	ORDER BY bots.id, bot_spaces.joined_at, bot_spaces.space_id";
 
 const ROUTINES: &str = "SELECT id, conversation_id, bot_id, title, trigger_source_id,
 	trigger_config, is_enabled FROM routines ORDER BY created_at DESC, id";
@@ -70,6 +75,8 @@ struct RoutineRow {
 }
 
 type Seated = HashMap<String, Vec<(String, String)>>;
+
+type Memberships = HashMap<String, Vec<String>>;
 
 pub struct CatalogueRepository {
 	access: Access,
@@ -148,7 +155,7 @@ fn matching_missions(
 	connection: &Connection,
 	scope: &CatalogueScope,
 	needle: &str,
-	spaces: &HashMap<String, String>,
+	spaces: &Memberships,
 ) -> Result<Vec<CatalogueMission>, CatalogueError> {
 	let mut statement =
 		connection.prepare_cached(&format!("{MISSION_COLUMNS} ORDER BY opened_at DESC, id"))?;
@@ -158,8 +165,11 @@ fn matching_missions(
 		if held.len() == MAX_MATCHES_PER_LIST {
 			break;
 		}
-		let space_id = space_of(spaces, &mission.bot_id)?;
-		if !in_scope(scope, Some(&space_id)) || !mission_matches(&mission, needle) {
+		let held_spaces = spaces_of(spaces, &mission.bot_id)?;
+		let Some(space_id) = space_within(scope, held_spaces) else {
+			continue;
+		};
+		if !mission_matches(&mission, needle) {
 			continue;
 		}
 		held.push(CatalogueMission {
@@ -181,7 +191,7 @@ fn matching_routines(
 	connection: &Connection,
 	scope: &CatalogueScope,
 	needle: &str,
-	spaces: &HashMap<String, String>,
+	spaces: &Memberships,
 ) -> Result<Vec<CatalogueRoutine>, CatalogueError> {
 	let mut statement = connection.prepare_cached(ROUTINES)?;
 	let rows = statement.query_map([], routine_row)?;
@@ -190,8 +200,11 @@ fn matching_routines(
 		if held.len() == MAX_MATCHES_PER_LIST {
 			break;
 		}
-		let space_id = space_of(spaces, &row.bot_id)?;
-		if !in_scope(scope, Some(&space_id)) || !folded(&row.title).contains(needle) {
+		let held_spaces = spaces_of(spaces, &row.bot_id)?;
+		let Some(space_id) = space_within(scope, held_spaces) else {
+			continue;
+		};
+		if !folded(&row.title).contains(needle) {
 			continue;
 		}
 		held.push(CatalogueRoutine {
@@ -256,8 +269,18 @@ fn in_scope(scope: &CatalogueScope, space_id: Option<&str>) -> bool {
 	scope.all_spaces || space_id == Some(scope.space_id.as_str())
 }
 
-fn space_of(spaces: &HashMap<String, String>, bot_id: &str) -> Result<String, CatalogueError> {
-	spaces.get(bot_id).cloned().ok_or_else(|| CatalogueError::UnknownBot { id: bot_id.to_owned() })
+fn spaces_of<'a>(spaces: &'a Memberships, bot_id: &str) -> Result<&'a [String], CatalogueError> {
+	spaces
+		.get(bot_id)
+		.map(Vec::as_slice)
+		.ok_or_else(|| CatalogueError::UnknownBot { id: bot_id.to_owned() })
+}
+
+fn space_within(scope: &CatalogueScope, held_spaces: &[String]) -> Option<String> {
+	match scope.all_spaces {
+		true => held_spaces.first().cloned(),
+		false => held_spaces.iter().find(|held| *held == &scope.space_id).cloned(),
+	}
 }
 
 fn expression_of(trigger_config: &Value) -> Option<String> {
@@ -281,11 +304,19 @@ fn seated_bots(connection: &Connection) -> Result<Seated, DatabaseError> {
 	Ok(seated)
 }
 
-fn bot_spaces(connection: &Connection) -> Result<HashMap<String, String>, DatabaseError> {
+fn bot_spaces(connection: &Connection) -> Result<Memberships, DatabaseError> {
 	let mut statement = connection.prepare_cached(BOT_SPACES)?;
-	let rows =
-		statement.query_map([], |row| Ok((row.get::<_, String>(0)?, row.get::<_, String>(1)?)))?;
-	Ok(rows.collect::<rusqlite::Result<HashMap<_, _>>>()?)
+	let rows = statement
+		.query_map([], |row| Ok((row.get::<_, String>(0)?, row.get::<_, Option<String>>(1)?)))?;
+	let mut memberships: Memberships = HashMap::new();
+	for held in rows {
+		let (bot_id, space_id) = held?;
+		let spaces = memberships.entry(bot_id).or_default();
+		if let Some(space_id) = space_id {
+			spaces.push(space_id);
+		}
+	}
+	Ok(memberships)
 }
 
 fn chat_row(row: &Row<'_>) -> rusqlite::Result<ChatRow> {
@@ -344,9 +375,10 @@ mod tests {
 	const A_CATALOGUE: &str = "
 		INSERT INTO spaces (id, name, colour, position, created_at)
 			VALUES ('work', 'Work', 'blue', 1, 1);
-		INSERT INTO bots (id, space_id, name, model, created_at)
-			VALUES ('b1', 'personal', 'Amélie', 'sonnet', 1),
-				('b2', 'work', 'Basile', 'sonnet', 1);
+		INSERT INTO bots (id, name, model, created_at)
+			VALUES ('b1', 'Amélie', 'sonnet', 1), ('b2', 'Basile', 'sonnet', 1);
+		INSERT INTO bot_spaces (bot_id, space_id, joined_at)
+			VALUES ('b1', 'personal', 1), ('b2', 'work', 1);
 		INSERT INTO conversations (id, kind, space_id, title, created_at, updated_at, archived_at)
 			VALUES ('main-1', 'main', NULL, 'Chat', 1, 1, NULL),
 				('main-2', 'main', NULL, 'Chat', 2, 2, NULL),
@@ -592,9 +624,10 @@ mod tests {
 	}
 
 	const GONE_SEATS: &str = "
-		INSERT INTO bots (id, space_id, name, model, created_at, deleted_at)
-			VALUES ('b3', 'personal', 'Clément', 'sonnet', 1, NULL),
-				('b4', 'personal', 'Damien', 'sonnet', 1, 9);
+		INSERT INTO bots (id, name, model, created_at, deleted_at)
+			VALUES ('b3', 'Clément', 'sonnet', 1, NULL), ('b4', 'Damien', 'sonnet', 1, 9);
+		INSERT INTO bot_spaces (bot_id, space_id, joined_at)
+			VALUES ('b3', 'personal', 1), ('b4', 'personal', 1);
 		INSERT INTO conversations (id, kind, space_id, title, created_at, updated_at)
 			VALUES ('topic-4', 'topic', 'personal', 'Departed room', 20, 20),
 				('topic-5', 'topic', 'personal', 'Tombstone room', 21, 21),
