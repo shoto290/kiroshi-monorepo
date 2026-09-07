@@ -765,19 +765,22 @@ fn deleted_bot(connection: &mut Connection, id: &str) -> Result<(), Conversation
 			(SELECT conversation_id FROM conversation_participants WHERE bot_id = ?1)",
 		params![id, CHAT_KIND],
 	)?;
-	let written = match still_seated(&transaction, id)? {
-		true => transaction.execute(
-			"UPDATE bots SET deleted_at = ?2 WHERE id = ?1 AND deleted_at IS NULL",
-			params![id, now()],
-		)?,
-		false => transaction.execute("DELETE FROM bots WHERE id = ?1", [id])?,
-	};
-	refuse_if_untouched(written, id)?;
+	refuse_if_untouched(retired_bot(&transaction, id)?, id)?;
 	transaction.commit()?;
 	Ok(())
 }
 
-fn still_seated(transaction: &Transaction<'_>, bot_id: &str) -> Result<bool, ConversationError> {
+pub(super) fn retired_bot(transaction: &Transaction<'_>, id: &str) -> rusqlite::Result<usize> {
+	match still_seated(transaction, id)? {
+		true => transaction.execute(
+			"UPDATE bots SET deleted_at = ?2 WHERE id = ?1 AND deleted_at IS NULL",
+			params![id, now()],
+		),
+		false => transaction.execute("DELETE FROM bots WHERE id = ?1", [id]),
+	}
+}
+
+fn still_seated(transaction: &Transaction<'_>, bot_id: &str) -> rusqlite::Result<bool> {
 	let seats: i64 = transaction.query_row(
 		"SELECT count(*) FROM conversation_participants WHERE bot_id = ?1",
 		[bot_id],

@@ -5,7 +5,7 @@ use rusqlite::{params, Connection, Row, Transaction, TransactionBehavior};
 use uuid::Uuid;
 
 use super::conversations::AvatarBlot;
-use super::{bot_spaces, sections};
+use super::{bot_spaces, conversations, sections};
 use crate::db::{Access, DatabaseError};
 
 const SELECT_SPACE: &str =
@@ -175,11 +175,11 @@ fn deleted(connection: &mut Connection, id: &str) -> Result<Vec<String>, SpaceEr
 	transaction.pragma_update(None, "defer_foreign_keys", true)?;
 	for bot_id in &cascaded {
 		transaction.execute(
-			"DELETE FROM conversations WHERE id IN
+			"DELETE FROM conversations WHERE (space_id = ?2 OR space_id IS NULL) AND id IN
 				(SELECT conversation_id FROM conversation_participants WHERE bot_id = ?1)",
-			[bot_id],
+			params![bot_id, id],
 		)?;
-		transaction.execute("DELETE FROM bots WHERE id = ?1", [bot_id])?;
+		conversations::retired_bot(&transaction, bot_id)?;
 	}
 	transaction.execute("DELETE FROM spaces WHERE id = ?1", [id])?;
 	transaction.commit()?;
@@ -197,11 +197,14 @@ fn bots_of_only_this_space(
 
 fn moved_bot(connection: &mut Connection, bot_id: &str, space_id: &str) -> Result<(), SpaceError> {
 	let transaction = write_transaction(connection)?;
-	refuse_unknown_bot(&transaction, bot_id)?;
+	let spaces = refuse_unknown_bot(&transaction, bot_id)?;
 	if !held(&transaction, space_id)? {
 		return Err(SpaceError::UnknownSpace { id: space_id.to_owned() });
 	}
 	bot_spaces::join(&transaction, bot_id, space_id, None, None)?;
+	for left in spaces.iter().filter(|held| *held != space_id) {
+		left_the_seats_of(&transaction, bot_id, left)?;
+	}
 	transaction.execute(
 		"DELETE FROM bot_spaces WHERE bot_id = ?1 AND space_id <> ?2",
 		params![bot_id, space_id],
@@ -239,22 +242,14 @@ fn removed_bot(
 	space_id: &str,
 ) -> Result<(), SpaceError> {
 	let transaction = write_transaction(connection)?;
-	let spaces = bot_spaces::spaces_of(&transaction, bot_id)?;
-	if spaces.is_empty() {
-		return Err(SpaceError::UnknownBot { id: bot_id.to_owned() });
-	}
+	let spaces = refuse_unknown_bot(&transaction, bot_id)?;
 	if !spaces.iter().any(|held| held == space_id) {
 		return Ok(());
 	}
 	if spaces.len() == 1 {
 		return Err(SpaceError::LastSpaceOfBot { id: bot_id.to_owned() });
 	}
-	transaction.execute(
-		"UPDATE conversation_participants SET left_at = ?3
-			WHERE bot_id = ?1 AND left_at IS NULL AND conversation_id IN
-				(SELECT id FROM conversations WHERE space_id = ?2)",
-		params![bot_id, space_id, now()],
-	)?;
+	left_the_seats_of(&transaction, bot_id, space_id)?;
 	transaction.execute(
 		"DELETE FROM bot_spaces WHERE bot_id = ?1 AND space_id = ?2",
 		params![bot_id, space_id],
@@ -274,10 +269,25 @@ fn refuse_foreign_section(
 	}
 }
 
-fn refuse_unknown_bot(connection: &Connection, bot_id: &str) -> Result<(), SpaceError> {
-	match bot_spaces::spaces_of(connection, bot_id)?.is_empty() {
+fn left_the_seats_of(
+	transaction: &Transaction<'_>,
+	bot_id: &str,
+	space_id: &str,
+) -> Result<(), SpaceError> {
+	transaction.execute(
+		"UPDATE conversation_participants SET left_at = ?3
+			WHERE bot_id = ?1 AND left_at IS NULL AND conversation_id IN
+				(SELECT id FROM conversations WHERE space_id = ?2)",
+		params![bot_id, space_id, now()],
+	)?;
+	Ok(())
+}
+
+fn refuse_unknown_bot(connection: &Connection, bot_id: &str) -> Result<Vec<String>, SpaceError> {
+	let spaces = bot_spaces::spaces_of(connection, bot_id)?;
+	match spaces.is_empty() {
 		true => Err(SpaceError::UnknownBot { id: bot_id.to_owned() }),
-		false => Ok(()),
+		false => Ok(spaces),
 	}
 }
 
@@ -332,6 +342,7 @@ mod tests {
 	use crate::db::repositories::conversations::{
 		AvatarAnimal, Bot, BotIdentity, ConversationDraft,
 	};
+	use crate::db::repositories::messages::{MessagePageQuery, NewAssistantMessage, NewTurn};
 	use crate::db::{count_of, open, Database};
 
 	fn an_identity(name: &str) -> BotIdentity {
@@ -711,6 +722,45 @@ mod tests {
 			.expect("the memberships")
 	}
 
+	async fn spoke_in(database: &Database, conversation_id: &str, bot_id: &str) {
+		let turn_id = Uuid::new_v4().to_string();
+		database
+			.messages()
+			.start_turn(NewTurn {
+				id: turn_id.clone(),
+				conversation_id: conversation_id.to_owned(),
+				started_at: now(),
+			})
+			.await
+			.expect("the turn");
+		database
+			.messages()
+			.open_assistant_message(NewAssistantMessage {
+				id: Uuid::new_v4().to_string(),
+				conversation_id: conversation_id.to_owned(),
+				turn_id,
+				author_bot_id: Some(bot_id.to_owned()),
+				replied_to_message_id: None,
+				created_at: now(),
+			})
+			.await
+			.expect("the message");
+	}
+
+	async fn said_in(database: &Database, conversation_id: &str) -> usize {
+		database
+			.messages()
+			.page_messages(MessagePageQuery {
+				conversation_id: conversation_id.to_owned(),
+				before_seq: None,
+				limit: 10,
+			})
+			.await
+			.expect("the messages")
+			.messages
+			.len()
+	}
+
 	async fn roster_of(
 		database: &Database,
 		space_id: &str,
@@ -978,6 +1028,127 @@ mod tests {
 		assert!(matches!(refused, Err(SpaceError::ForeignSection { .. })), "got {refused:?}");
 		assert_eq!(memberships_of(&database, &bot.id).await, vec![home]);
 		assert!(roster_of(&database, &elsewhere.id).await.is_empty());
+
+		drop(database);
+		fs::remove_dir_all(&dir).expect("cleanup");
+	}
+
+	#[tokio::test]
+	async fn deleting_a_space_spares_the_room_of_another_space_the_dying_bot_sat_in() {
+		let dir = temp_dir();
+		let database = open(&dir);
+		let spaces = database.spaces();
+		let dropped = spaces.list().await.expect("the spaces")[0].id.clone();
+		let kept = spaces.create("Vocca".to_owned()).await.expect("the space");
+		let dying = database
+			.conversations()
+			.create_bot(an_identity("Nyx"), Some(dropped.clone()), None)
+			.await
+			.expect("the bot of the space that goes");
+		let standing = database
+			.conversations()
+			.create_bot(an_identity("Ada"), Some(kept.id.clone()), None)
+			.await
+			.expect("the bot of the space that stays");
+		spaces
+			.add_bot(dying.id.clone(), kept.id.clone(), None)
+			.await
+			.expect("the dying bot joins the space that stays");
+		let room = database
+			.conversations()
+			.create_conversation(ConversationDraft {
+				space_id: kept.id.clone(),
+				section_id: None,
+				title: "Room".to_owned(),
+				bot_ids: vec![dying.id.clone(), standing.id.clone()],
+			})
+			.await
+			.expect("the room of the space that stays");
+		spoke_in(&database, &room.id, &dying.id).await;
+		let main_chat = database
+			.conversations()
+			.ensure_chat(dying.id.clone())
+			.await
+			.expect("the main chat of the dying bot");
+		spaces
+			.remove_bot(dying.id.clone(), kept.id.clone())
+			.await
+			.expect("the dying bot leaves the space that stays");
+
+		let cascaded = spaces.delete(dropped).await.expect("the space is deleted");
+
+		assert_eq!(cascaded, vec![dying.id.clone()]);
+		assert_eq!(
+			database
+				.conversations()
+				.conversations(kept.id)
+				.await
+				.expect("the rooms")
+				.into_iter()
+				.map(|room| room.id)
+				.collect::<Vec<_>>(),
+			vec![room.id.clone()],
+			"the room of the space that stays went with the space that died"
+		);
+		assert!(
+			!database
+				.conversations()
+				.conversation_ids()
+				.await
+				.expect("the conversations")
+				.contains(&main_chat.id),
+			"the main chat of the dying bot outlived it"
+		);
+		assert_eq!(said_in(&database, &room.id).await, 1, "the room lost the words spoken in it");
+		assert_eq!(
+			database
+				.conversations()
+				.seats(room.id)
+				.await
+				.expect("the seats")
+				.into_iter()
+				.filter(|seat| seat.left_at.is_none())
+				.map(|seat| seat.bot_id)
+				.collect::<Vec<_>>(),
+			vec![standing.id],
+			"the seat the standing bot holds went with the space that died"
+		);
+
+		drop(database);
+		fs::remove_dir_all(&dir).expect("cleanup");
+	}
+
+	#[tokio::test]
+	async fn a_moved_bot_holds_no_seat_in_the_rooms_of_the_space_it_left() {
+		let dir = temp_dir();
+		let database = open(&dir);
+		let spaces = database.spaces();
+		let home = spaces.list().await.expect("the spaces")[0].id.clone();
+		let elsewhere = spaces.create("Vocca".to_owned()).await.expect("the space");
+		let bot = database
+			.conversations()
+			.create_bot(an_identity("Nyx"), Some(home.clone()), None)
+			.await
+			.expect("the bot");
+		let room = database
+			.conversations()
+			.create_conversation(ConversationDraft {
+				space_id: home,
+				section_id: None,
+				title: "Room".to_owned(),
+				bot_ids: vec![bot.id.clone()],
+			})
+			.await
+			.expect("the room of the space it leaves");
+
+		spaces.move_bot(bot.id.clone(), elsewhere.id.clone()).await.expect("the bot moves");
+
+		assert_eq!(memberships_of(&database, &bot.id).await, vec![elsewhere.id]);
+		let seats = database.conversations().seats(room.id).await.expect("the seats");
+		assert!(
+			seats.iter().all(|seat| seat.left_at.is_some()),
+			"a seat of the space the bot left is still held: got {seats:?}"
+		);
 
 		drop(database);
 		fs::remove_dir_all(&dir).expect("cleanup");
