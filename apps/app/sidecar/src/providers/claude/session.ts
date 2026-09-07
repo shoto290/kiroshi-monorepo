@@ -167,6 +167,12 @@ export const reportConnections = ({ emit, push, pass }: ConnectionReport) => {
 	let holding = pass.names.length > 0
 	let announced = false
 
+	const rejected = (detail: string) => {
+		if (!signal.aborted) {
+			emit({ type: "server_env_rejected", detail })
+		}
+	}
+
 	const hand = (text: string) => {
 		if (announced || details.length === 0) {
 			push(text)
@@ -174,7 +180,7 @@ export const reportConnections = ({ emit, push, pass }: ConnectionReport) => {
 		}
 		announced = true
 		for (const detail of details) {
-			emit({ type: "server_env_rejected", detail })
+			rejected(detail)
 		}
 		push(`${unavailableServersSection(details)}\n\n${text}`)
 	}
@@ -191,7 +197,11 @@ export const reportConnections = ({ emit, push, pass }: ConnectionReport) => {
 	}
 
 	void delay(0, signal)
-		.then(() => (signal.aborted ? [] : unconnectedServers({ ...pass, signal })))
+		.then(() =>
+			signal.aborted
+				? []
+				: unconnectedServers({ ...pass, signal, report: rejected }),
+		)
 		.then(release, () => release([]))
 
 	return {

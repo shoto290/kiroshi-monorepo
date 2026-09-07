@@ -8,7 +8,11 @@ import type { Settings } from "@anthropic-ai/claude-agent-sdk"
 import { claudeSourceExecutable } from "./build"
 import { EXECUTABLE_OVERRIDE_ENV } from "./executable"
 import { KIROSHI_SERVER } from "./kiroshi-server"
-import type { ConnectPass, ServerStatus } from "./server-connect"
+import {
+	type ConnectPass,
+	POLL_BUDGET_MS,
+	type ServerStatus,
+} from "./server-connect"
 import { leftOut } from "./server-env"
 import {
 	buildOptions,
@@ -706,6 +710,59 @@ describe("reportConnections", () => {
 
 		expect(emitted).toEqual([detail])
 		expect(pushed).toEqual([`${section}\n\nfirst`])
+	})
+
+	it("releases the held prompt at the budget, and frames the server settled after it", async () => {
+		const emitted: string[] = []
+		const pushed: string[] = []
+		const released = Promise.withResolvers<void>()
+		const framed = Promise.withResolvers<void>()
+		let time = 0
+
+		const report = reportConnections({
+			emit: (frame) => {
+				emitted.push(String(frame.detail))
+				if (emitted.length === 2) {
+					framed.resolve()
+				}
+			},
+			push: (text) => {
+				pushed.push(text)
+				released.resolve()
+			},
+			pass: {
+				names: ["superset"],
+				port: {
+					status: async () =>
+						time <= POLL_BUDGET_MS - 250
+							? [{ name: "superset", status: "pending" }]
+							: [{ name: "superset", status: "failed" }],
+					reconnect: async () => {
+						throw new Error("Connection failed")
+					},
+				},
+				now: () => time,
+				wait: async (ms) => {
+					time += ms
+				},
+			},
+		})
+
+		report.prompt("first")
+		await released.promise
+
+		expect(pushed).toHaveLength(1)
+		expect(pushed[0]).toContain("is still connecting after 4750 ms")
+		expect(emitted).toEqual([
+			'the server "superset" is still connecting after 4750 ms',
+		])
+
+		await framed.promise
+
+		expect(emitted[1]).toBe(
+			'the server "superset" was left out: it read failed, and the reconnection answered: Connection failed',
+		)
+		expect(pushed).toHaveLength(1)
 	})
 
 	it("emits no frame while the pass settles on its own", async () => {
