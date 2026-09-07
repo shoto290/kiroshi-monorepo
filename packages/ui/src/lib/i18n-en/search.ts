@@ -22,6 +22,11 @@ const search = {
 		rank: "Open by rank",
 		tab: "Change tab",
 	},
+	unavailable: {
+		title: "Search could not be read",
+		description:
+			"Nothing was lost. The last results stay on screen until the next read.",
+	},
 	empty: {
 		title: "Nothing here matches",
 		description:

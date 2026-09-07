@@ -22,6 +22,11 @@ const search = {
 		rank: "Ouvrir par rang",
 		tab: "Changer d'onglet",
 	},
+	unavailable: {
+		title: "La recherche n'a pas pu être lue",
+		description:
+			"Rien n'est perdu. Les derniers résultats restent à l'écran jusqu'à la prochaine lecture.",
+	},
 	empty: {
 		title: "Rien ne correspond ici",
 		description:

@@ -51,6 +51,7 @@ import type { Mission, MissionChanged } from "@/lib/missions/mission-contract"
 import { missionSummonsFor } from "@/lib/missions/mission-summons"
 import { missionsTransport } from "@/lib/missions/missions-transport"
 import { type FakeLayout, fakeLayout } from "@/lib/perf/fake-layout"
+import { createOpenedRoutineController } from "@/lib/routines/opened-routine-controller"
 import type { Routine } from "@/lib/routines/routine-contract"
 import { routinesTransport } from "@/lib/routines/routines-transport"
 import type { ReportedRunsReader } from "@/lib/routines/run-port"
@@ -286,7 +287,11 @@ const ThreadScreenHarness = ({
 	const [isOpen, setOpen] = useState(false)
 
 	return createElement(ThreadScreen, {
-		activityPanel: { isOpen, onOpenChange: setOpen },
+		activityPanel: {
+			isOpen,
+			onOpenChange: setOpen,
+			openedRoutine: createOpenedRoutineController(),
+		},
 		attachments,
 		bots,
 		drafts: createDraftsController(),

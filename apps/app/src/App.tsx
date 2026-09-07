@@ -6,6 +6,7 @@ import { BotSettingsDialog } from "@workspace/ui/components/bot-settings-dialog"
 import { ConversationSettingsDialog } from "@workspace/ui/components/conversation-settings-dialog"
 import { NewConversationDialog } from "@workspace/ui/components/new-conversation-dialog"
 import { NoticeSurface } from "@workspace/ui/components/notice-surface"
+import { SearchPalette } from "@workspace/ui/components/search-palette"
 import { SpaceSettingsDialog } from "@workspace/ui/components/space-settings-dialog"
 import { UpdateBadge } from "@workspace/ui/components/update-badge"
 import { UserSettingsDialog } from "@workspace/ui/components/user-settings-dialog"
@@ -67,7 +68,13 @@ import { useMissionBoard } from "@/lib/missions/use-mission-board"
 import { useMissionRunDriver } from "@/lib/missions/use-mission-run-driver"
 import { useWaitingMissions } from "@/lib/missions/use-waiting-missions"
 import { useNotifications } from "@/lib/notifications/use-notifications"
+import { createOpenedRoutineController } from "@/lib/routines/opened-routine-controller"
 import { useRunDriver } from "@/lib/routines/use-run-driver"
+import {
+	useSearch,
+	useSearchLookups,
+	useSearchNavigation,
+} from "@/lib/search/use-search"
 import { useCollapsedSections } from "@/lib/sections/use-collapsed-sections"
 import { useSections } from "@/lib/sections/use-sections"
 import { useSidebarActions } from "@/lib/sidebar/use-sidebar-actions"
@@ -126,6 +133,7 @@ export function App() {
 		() => createOpenedMissionController(roster.controller),
 		[roster.controller],
 	)
+	const openedRoutine = useMemo(createOpenedRoutineController, [])
 	const sections = useSections(store, {
 		move: roster.controller.moveToSection,
 		clear: roster.controller.clearSection,
@@ -552,12 +560,39 @@ export function App() {
 		[rosterBotsBySpace, rosterConversationsBySpace],
 	)
 
-	const isOverlayOpen =
-		isEditing ||
-		isEditingConversation ||
-		user.state.isSettingsOpen ||
-		isSpaceEditing ||
-		isCreatingConversation
+	const isDialogOpen = [
+		isEditing,
+		isEditingConversation,
+		user.state.isSettingsOpen,
+		isSpaceEditing,
+		isCreatingConversation,
+	].some(Boolean)
+
+	const searchLookups = useSearchLookups({
+		rosters: roster.state.rosters,
+		conversationRosters,
+		spaces: spaces.state.spaces,
+		readerName: preferences.displayName,
+		now,
+	})
+
+	const searchNavigation = useSearchNavigation({
+		roster: roster.controller,
+		spaces: spaces.controller,
+		missions: openedMission,
+		routines: openedRoutine,
+		user: user.controller,
+	})
+
+	const search = useSearch({
+		spaceId: selectedSpaceId,
+		spaceName: selectedSpace?.name,
+		lookups: searchLookups,
+		navigation: searchNavigation,
+		canOpen: !isDialogOpen,
+	})
+
+	const isOverlayOpen = search.isOpen || isDialogOpen
 
 	const isThreadSettingsOpen = isEditing && settingsBotId === selectedBotId
 
@@ -592,8 +627,9 @@ export function App() {
 			onOpenChange: (isOpen: boolean) => {
 				void user.controller.setActivityPanelOpen(isOpen)
 			},
+			openedRoutine,
 		}),
-		[preferences.activityPanelOpen, user.controller],
+		[preferences.activityPanelOpen, user.controller, openedRoutine],
 	)
 
 	const changeColorScheme = useCallback(
@@ -609,7 +645,7 @@ export function App() {
 	})
 
 	useSettingsShortcut({
-		isEnabled: Boolean(selected) && !isEditing,
+		isEnabled: Boolean(selected) && !isEditing && !search.isOpen,
 		onToggle: toggleSettings,
 	})
 
@@ -644,6 +680,7 @@ export function App() {
 						sectionsBySpaceId={sections.state.sections}
 						footer={updateBadge}
 						isSpaceSwitchingEnabled={!isOverlayOpen}
+						onOpenSearch={search.open}
 						{...sidebarActions}
 						onCreateConversation={startConversation}
 						selectedBotId={selectedBotId ?? undefined}
@@ -939,6 +976,7 @@ export function App() {
 				skills={userPlugin.state.skills.map(toSkillItem)}
 				value={userSettings}
 			/>
+			<SearchPalette {...search.palette} />
 			<NoticeSurface />
 		</>
 	)

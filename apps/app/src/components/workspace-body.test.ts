@@ -42,6 +42,7 @@ import {
 	type SelectedRow,
 } from "@/lib/missions/opened-mission-controller"
 import { type FakeLayout, fakeLayout } from "@/lib/perf/fake-layout"
+import { createOpenedRoutineController } from "@/lib/routines/opened-routine-controller"
 import { routinesTransport } from "@/lib/routines/routines-transport"
 import { triggerSourcesTransport } from "@/lib/routines/trigger-sources-transport"
 
@@ -170,7 +171,11 @@ const WorkspaceBodyHarness = ({
 
 	return createElement(WorkspaceBody, {
 		...body,
-		activityPanel: { isOpen, onOpenChange: setOpen },
+		activityPanel: {
+			isOpen,
+			onOpenChange: setOpen,
+			openedRoutine: createOpenedRoutineController(),
+		},
 	})
 }
 
@@ -536,7 +541,13 @@ describe("WorkspaceBody activity panel", () => {
 	it("asks for the new value and shows only the state it is given", async () => {
 		const workspace = await workspaceOf()
 		const onOpenChange = vi.fn()
-		render(workspace.controlledBody({ isOpen: false, onOpenChange }))
+		render(
+			workspace.controlledBody({
+				isOpen: false,
+				onOpenChange,
+				openedRoutine: createOpenedRoutineController(),
+			}),
+		)
 		await settle()
 
 		fireEvent.click(activityToggle())
