@@ -47,7 +47,9 @@ type PolledTakes = {
 	giveUp?: GaveUp
 }
 
-export const CONNECT_BUDGET_MS = 15_000
+export const REQUEST_BOUND_MS = 30_000
+
+export const POLL_BUDGET_MS = 5_000
 
 export const UNNAMED_GRACE_MS = 1_000
 
@@ -58,6 +60,7 @@ const REDACTED = "[redacted]"
 const NO_READ = "no status read ever named it"
 const TWO_ATTEMPTS = "two connection attempts failed"
 const AWAITING_AUTH = "it is waiting for you to authorize it"
+const STILL_CONNECTING = "it is still connecting"
 const GAVE_UP = "the connection pass gave up on"
 const REPORTABLE = ["pending", "failed", "needs-auth"]
 
@@ -147,7 +150,7 @@ const polledTakes = async (
 	const takes: Take[] = [{ statuses: await read(), spent: spent() }]
 	while (
 		unsettled(takes, names, spent()) &&
-		spent() < CONNECT_BUDGET_MS &&
+		spent() < POLL_BUDGET_MS &&
 		!signal?.aborted
 	) {
 		await wait(PENDING_POLL)
@@ -205,24 +208,27 @@ const readable = (reason: string, secrets: string[]): string =>
 		.reduce((held, secret) => held.split(secret).join(REDACTED), reason)
 		.slice(0, REASON_LIMIT)
 
-const statusReason = ({ status, spent }: NamedRead): string =>
-	status === "pending" && spent
-		? `it read pending after the ${spent} ms it was given`
-		: `it read ${status}`
+const stillConnecting = (spent: number | undefined): string =>
+	spent === undefined
+		? STILL_CONNECTING
+		: `${STILL_CONNECTING} after ${spent} ms`
 
 const lineFor = (
 	name: string,
-	named: NamedRead,
+	{ status, spent }: NamedRead,
 	thrown: string | undefined,
 	secrets: string[],
 ): string => {
-	if (named.status === "needs-auth") {
+	if (status === "needs-auth") {
 		return leftOut(name, AWAITING_AUTH)
+	}
+	if (status === "pending") {
+		return leftOut(name, stillConnecting(spent))
 	}
 	const answered = thrown
 		? `, and the reconnection answered: ${readable(thrown, secrets)}`
 		: ""
-	return leftOut(name, `${TWO_ATTEMPTS}, ${statusReason(named)}${answered}`)
+	return leftOut(name, `${TWO_ATTEMPTS}, it read ${status}${answered}`)
 }
 
 const reportPass = async (
@@ -230,7 +236,7 @@ const reportPass = async (
 		names,
 		port,
 		signal,
-		bound = CONNECT_BUDGET_MS,
+		bound = REQUEST_BOUND_MS,
 		now = Date.now,
 		wait = (ms: number) => delay(ms, signal),
 	}: ConnectPass,
@@ -241,10 +247,9 @@ const reportPass = async (
 	const read = () => boundedRead(port, bound, signal)
 	const { takes, giveUp } = await polledTakes(read, names, wait, spent, signal)
 	const giveUps = giveUp ? [giveUp] : []
-	const failing = names.filter((name) => {
-		const status = lastRead(takes, name)?.status
-		return status === "failed" || status === "pending"
-	})
+	const failing = names.filter(
+		(name) => lastRead(takes, name)?.status === "failed",
+	)
 	const thrown = await reconnectFailures(port, failing, bound, signal)
 	if (failing.length) {
 		try {

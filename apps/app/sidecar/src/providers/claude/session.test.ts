@@ -8,11 +8,7 @@ import type { Settings } from "@anthropic-ai/claude-agent-sdk"
 import { claudeSourceExecutable } from "./build"
 import { EXECUTABLE_OVERRIDE_ENV } from "./executable"
 import { KIROSHI_SERVER } from "./kiroshi-server"
-import {
-	CONNECT_BUDGET_MS,
-	type ConnectPass,
-	type ServerStatus,
-} from "./server-connect"
+import type { ConnectPass, ServerStatus } from "./server-connect"
 import {
 	buildOptions,
 	CLASSIFY_ASK_USER_QUESTION,
@@ -154,13 +150,12 @@ describe("buildOptions", () => {
 		}
 	})
 
-	it("widens the MCP connect budget and lowers no timeout the CLI defaults", () => {
+	it("bounds no MCP timeout of the CLI from the session options", () => {
 		for (const spawned of spawns) {
 			const env = buildOptions(spawned, undefined).env ?? {}
 
-			expect(env.MCP_CONNECT_TIMEOUT_MS).toBe(String(CONNECT_BUDGET_MS))
-			expect(Number(env.MCP_CONNECT_TIMEOUT_MS)).toBeGreaterThan(5_000)
 			expect(env.MCP_TIMEOUT).toBeUndefined()
+			expect(env.MCP_CONNECT_TIMEOUT_MS).toBeUndefined()
 			expect(env.MCP_TOOL_TIMEOUT).toBeUndefined()
 		}
 	})

@@ -13,12 +13,7 @@ import { KIROSHI_SERVER, kiroshiServer } from "./kiroshi-server"
 import { createPermissionGate } from "./permissions"
 import { createPromptStream } from "./prompt-stream"
 import { securityFloor } from "./security-floor"
-import {
-	CONNECT_BUDGET_MS,
-	type ConnectPass,
-	delay,
-	unconnectedServers,
-} from "./server-connect"
+import { type ConnectPass, delay, unconnectedServers } from "./server-connect"
 import { type ResolvedServers, resolvedServers } from "./server-env"
 import { inheritedEnv } from "./session-env"
 import { layerFor, unavailableServersSection } from "./system-layer"
@@ -35,7 +30,6 @@ import { describeError } from "../../describe-error"
 const ABANDONED = "The session ended before this was answered."
 const ENDED = "the agent ended"
 const DISABLE_AUTO_MEMORY = "CLAUDE_CODE_DISABLE_AUTO_MEMORY"
-const MCP_CONNECT_TIMEOUT = "MCP_CONNECT_TIMEOUT_MS"
 export const CLASSIFY_ASK_USER_QUESTION =
 	"CLAUDE_CODE_AUTO_MODE_CLASSIFY_ASK_USER_QUESTION"
 
@@ -125,7 +119,6 @@ export const buildOptions = (
 			...inheritedEnv(),
 			[DISABLE_AUTO_MEMORY]: "1",
 			[CLASSIFY_ASK_USER_QUESTION]: "0",
-			[MCP_CONNECT_TIMEOUT]: String(CONNECT_BUDGET_MS),
 		},
 		managedSettings,
 		settingSources: [],

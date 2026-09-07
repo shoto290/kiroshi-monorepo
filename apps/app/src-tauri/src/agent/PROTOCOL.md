@@ -151,20 +151,24 @@ Every other command names its session.
   nor default leaves its server out of the options and rides a `server_env_rejected`
   frame naming the server and the variable. `failure`, set when the store could not be
   read, leaves out every server declaring a variable and rides the same frame. A server
-  the options did keep is read once the session is initialized: still not connected after
-  a wait on its pending state and a single reconnection, it rides the same frame naming
-  the server and the reason its two attempts failed. A status read carries a name and a
-  status alone, so that reason is built from the status the last read named, the wait a
-  server still pending was given, and the message the reconnection threw, and from
-  nothing else: the cause the CLI knows, a 401 or a refused socket, never crosses the
-  control protocol. That frame goes out in the very call
+  the options did keep is read once the session is initialized. A read that names it
+  failed earns it one reconnection, and it rides the same frame naming the server and the
+  reason its two attempts failed. A read that leaves it pending earns it none, the CLI
+  retrying a failing server itself: the frame says it is still connecting after the time
+  the read spent, and names no attempt that did not take place. A status read carries a
+  name and a status alone, so that reason is built from the status the last read named,
+  the time the read had spent, and the message the reconnection threw, and from nothing
+  else: the cause the CLI knows, a 401 or a refused socket, never crosses the control
+  protocol. That frame goes out in the very call
   that hands the prompt carrying the same line over, once per session, so the notice
   lands while a turn is live. The session opens without waiting on that read: the
   `opened` frame goes out first and the prompts wait behind the read, in the order they
   were received, until it settles. No deadline covers that read as a whole: each status
-  call and each reconnection is bounded on its own by the 15000 ms connect budget the
-  options set, and the polls stop once the time the read has spent on them, read from a
-  clock and not counted in sleeps, reaches that same budget. A status call that outlasts
+  call and each reconnection is bounded on its own by 30000 ms, what the CLI gives an MCP
+  request of its own, and the polls stop once the time the read has spent on them, taken
+  from a clock and not counted in sleeps, reaches 5000 ms. No session option bounds the
+  dial: neither `MCP_TIMEOUT` nor `MCP_CONNECT_TIMEOUT_MS` is set, the CLI keeping its
+  own defaults. A status call that outlasts
   its bound ends the polls there and keeps what the earlier calls named: only the very
   first call has nothing to fall back on, and it ends the read on a stderr line with
   nothing reported. The call taken after the reconnections is the same: outlasting, it
