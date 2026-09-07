@@ -2881,3 +2881,46 @@ fn listing_the_rooms_of_a_space_answers_with_that_space_alone() {
 	);
 	assert_eq!(room_ids_of(&window, &elsewhere), vec![id_of(&there)]);
 }
+
+#[test]
+fn a_bot_moves_into_a_section_over_ipc_naming_only_the_bot_and_the_section() {
+	let home = Home::new();
+	let app = home.app();
+	let window = window(&app);
+
+	let nest = a_space(&window, "Nest");
+	let elsewhere = a_space(&window, "Elsewhere");
+	let bot = a_bot_in(&window, &nest, "Nyx");
+	call(&window, "bot_add_to_space", json!({ "botId": bot, "spaceId": elsewhere }))
+		.expect("the bot joins the second space");
+	let writers =
+		call(&window, "section_create", json!({ "spaceId": elsewhere, "name": "Writers" }))
+			.expect("the section is created")["id"]
+			.as_str()
+			.expect("the section holds an id")
+			.to_owned();
+
+	call(&window, "bot_move_to_section", json!({ "botId": bot, "sectionId": writers }))
+		.expect("the bot moves without the space being named");
+
+	assert_eq!(
+		sections_in(&window, &elsewhere),
+		vec![json!(writers)],
+		"the move over ipc wrote no section on the membership of that space"
+	);
+	assert_eq!(
+		sections_in(&window, &nest),
+		vec![Value::Null],
+		"the move over ipc reached the membership of another space"
+	);
+}
+
+fn sections_in(window: &WebviewWindow<MockRuntime>, space_id: &str) -> Vec<Value> {
+	call(window, "conversation_bots", json!({ "spaceId": space_id }))
+		.expect("the bots")
+		.as_array()
+		.expect("a list")
+		.iter()
+		.map(|bot| bot["sectionId"].clone())
+		.collect()
+}
