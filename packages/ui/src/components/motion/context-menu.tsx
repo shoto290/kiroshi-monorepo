@@ -680,6 +680,7 @@ export interface ContextMenuItemProps {
 	children: ReactNode
 	onSelect?: () => void
 	disabled?: boolean
+	describedBy?: string
 	closeOnSelect?: boolean
 	tone?: ContextMenuItemTone
 	inset?: boolean
@@ -699,6 +700,7 @@ function ContextMenuItemBase({
 	children,
 	onSelect,
 	disabled = false,
+	describedBy,
 	closeOnSelect = true,
 	tone = "default",
 	inset = false,
@@ -746,6 +748,7 @@ function ContextMenuItemBase({
 			id={id}
 			role={role}
 			{...checkedProps}
+			aria-describedby={describedBy}
 			aria-haspopup={branch ? "menu" : undefined}
 			aria-expanded={branch ? branch.open : undefined}
 			aria-controls={branch?.open ? branch.contentId : undefined}

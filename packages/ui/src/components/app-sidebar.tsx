@@ -497,15 +497,13 @@ const SectionBranch = ({
 interface BotMembershipQuery {
 	botId: string
 	botsBySpaceId?: Record<string, AppSidebarBot[]>
-	openSpaceId?: string
 }
 
 const spaceIdsOfBot = ({
 	botId,
 	botsBySpaceId,
-	openSpaceId,
 }: BotMembershipQuery): string[] => {
-	if (!botsBySpaceId) return openSpaceId ? [openSpaceId] : []
+	if (!botsBySpaceId) return []
 	return Object.entries(botsBySpaceId)
 		.filter(([, held]) => held.some((bot) => bot.id === botId))
 		.map(([spaceId]) => spaceId)
@@ -527,8 +525,10 @@ const SpacesBranch = ({
 	onRemoveFromSpace,
 }: SpacesBranchProps) => {
 	const { t } = useTranslation("bots")
+	const noteId = useId()
 
-	if ((!onAddToSpace && !onRemoveFromSpace) || spaces.length === 0) return null
+	if (!onAddToSpace && !onRemoveFromSpace) return null
+	if (spaces.length === 0 || memberships.length === 0) return null
 
 	const isHeldByOneSpace = memberships.length === 1
 
@@ -541,10 +541,13 @@ const SpacesBranch = ({
 			<ContextMenuSubContent className={SPACES_PANEL}>
 				{spaces.map((space) => {
 					const isMember = memberships.includes(space.id)
+					const isLocked = isMember && isHeldByOneSpace
 					return (
 						<ContextMenuCheckboxItem
 							checked={isMember}
-							disabled={isMember && isHeldByOneSpace}
+							closeOnSelect={false}
+							describedBy={isLocked ? noteId : undefined}
+							disabled={isLocked}
 							key={space.id}
 							onCheckedChange={(checked) =>
 								checked
@@ -561,7 +564,9 @@ const SpacesBranch = ({
 				{isHeldByOneSpace ? (
 					<>
 						<ContextMenuSeparator />
-						<p className={LAST_SPACE_NOTE}>{t("roster.spaces.lastSpace")}</p>
+						<p aria-hidden="true" className={LAST_SPACE_NOTE} id={noteId}>
+							{t("roster.spaces.lastSpace")}
+						</p>
 					</>
 				) : null}
 			</ContextMenuSubContent>
@@ -2150,7 +2155,7 @@ const AppSidebarBase = ({
 		sectionsBySpaceId ? (sectionsBySpaceId[spaceId] ?? NO_SECTIONS) : sections
 
 	const membershipsOf = (botId: string) =>
-		spaceIdsOfBot({ botId, botsBySpaceId, openSpaceId: selectedSpaceId })
+		spaceIdsOfBot({ botId, botsBySpaceId })
 
 	const hasRosterPerSpace = Boolean(botsBySpaceId) && spaces.length > 0
 	const shown =

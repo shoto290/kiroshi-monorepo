@@ -2324,7 +2324,7 @@ export const RowSpaces = meta.story({
 		docs: {
 			description: {
 				story:
-					"The branch under a row that says which spaces the bot belongs to. A bot is one bot in one or more spaces, not a copy per space, so there is nothing to duplicate towards and nothing to move: the branch lists every space of the account in the order the switcher gives them, each with its tint dot and its name, and ticks the ones holding the bot. Beacon sits in Vocca and Atelier here, so two rows read as ticked and three as free. The branch keeps no membership of its own — every tick is read from the rosters the sidebar was handed, so a refused edit that never reaches the store leaves the tick where it was. With the bot in more than one space, every row is live and nothing is drawn under them. Pick `RowJoinsSpace` and `RowLeavesSpace` for each direction of the toggle, `RowLastSpace` for the bot that has only one space left.",
+					"The branch under a row that says which spaces the bot belongs to. A bot is one bot in one or more spaces, not a copy per space, so there is nothing to duplicate towards and nothing to move: the branch lists every space of the account in the order the switcher gives them, each with its tint dot and its name, and ticks the ones holding the bot. Beacon sits in Vocca and Atelier here, so two rows read as ticked and three as free. The branch keeps no membership of its own — every tick is read from the rosters the sidebar was handed, so a refused edit that never reaches the store leaves the tick where it was. With the bot in more than one space, every row is live and nothing is drawn under them. Pick `RowTogglesSpaces` for both directions of the toggle in one visit, `RowLastSpace` for the bot that has only one space left.",
 			},
 		},
 	},
@@ -2360,7 +2360,7 @@ export const RowSpaces = meta.story({
 	},
 })
 
-export const RowJoinsSpace = meta.story({
+export const RowTogglesSpaces = meta.story({
 	args: {
 		spaces: FIVE_SPACES,
 		selectedSpaceId: "vocca",
@@ -2372,7 +2372,7 @@ export const RowJoinsSpace = meta.story({
 		docs: {
 			description: {
 				story:
-					"Ticking a space the bot is not in. The row reports the bot and that space to the add handler and says nothing to the remove one, then the menu closes — the tick that follows comes from the roster the host hands back, never from the branch, so a host that refuses the edit redraws the row untouched. Pick `RowLeavesSpace` for the other direction.",
+					"Two spaces settled in one visit. Ticking Perso reports the bot and that space to the add handler; unticking Atelier, without reopening anything, reports them to the remove handler — a membership is rarely edited alone, so the branch and the menu under it stay open across both, the way every checkbox menu in this system behaves. Neither gesture reaches the other handler, and neither redraws a tick on its own: the rows here are fed a roster that never changes, so both stay exactly as they were drawn. The tick a reader ends up seeing is the one the host hands back, which is also what makes a refused edit honest.",
 			},
 		},
 	},
@@ -2381,19 +2381,35 @@ export const RowJoinsSpace = meta.story({
 		const rows = within(panel).getAllByRole("menuitemcheckbox")
 
 		await userEvent.click(rows[0])
-		await waitFor(async () => {
-			await expect(screen.queryByRole("menu")).toBeNull()
-		}, FRAME_POLL)
 		await expect(args.onAddBotToSpace).toHaveBeenCalledWith("beacon", "perso")
-		await expect(args.onRemoveBotFromSpace).not.toHaveBeenCalled()
+		await expect(panel).toBeVisible()
+
+		await userEvent.click(rows[2])
+		await expect(args.onRemoveBotFromSpace).toHaveBeenCalledWith(
+			"beacon",
+			"atelier",
+		)
+
+		await expect(panel).toBeVisible()
+		await expect(
+			screen.getByRole("menu", { name: "Actions for Beacon" }),
+		).toBeVisible()
+		await expect(args.onAddBotToSpace).toHaveBeenCalledTimes(1)
+		await expect(args.onRemoveBotFromSpace).toHaveBeenCalledTimes(1)
+		await expect(rows.map((row) => row.getAttribute("aria-checked"))).toEqual([
+			"false",
+			"true",
+			"true",
+			"false",
+			"false",
+		])
 	},
 })
 
-export const RowLeavesSpace = meta.story({
+export const RowMembershipsUnknown = meta.story({
 	args: {
 		spaces: FIVE_SPACES,
 		selectedSpaceId: "vocca",
-		botsBySpaceId: BEACON_IN_TWO_SPACES,
 		user: READER,
 	},
 	parameters: {
@@ -2401,23 +2417,19 @@ export const RowLeavesSpace = meta.story({
 		docs: {
 			description: {
 				story:
-					"Unticking a space the bot is in. The row reports the bot and that space to the remove handler and says nothing to the add one, so the same gesture reads in both directions and neither is a copy: the bot stays one bot, it is only held by one space fewer. Pick `RowJoinsSpace` for the other direction, `RowLastSpace` for the space that cannot be untied.",
+					"An account with spaces handed one flat roster instead of one roster per space. Which spaces hold a bot cannot be read from that, and a branch that guessed would tick the open space and lie about the rest, so the branch is not drawn at all — a host that wants it passes `botsBySpaceId`. The rest of the menu is untouched.",
 			},
 		},
 	},
-	play: async ({ args, canvasElement, userEvent }) => {
-		const panel = await openSpacesBranch(canvasElement, "Beacon", userEvent)
-		const rows = within(panel).getAllByRole("menuitemcheckbox")
+	play: async ({ canvasElement }) => {
+		const menu = await openRowMenu(canvasElement, "Beacon")
 
-		await userEvent.click(rows[2])
-		await waitFor(async () => {
-			await expect(screen.queryByRole("menu")).toBeNull()
-		}, FRAME_POLL)
-		await expect(args.onRemoveBotFromSpace).toHaveBeenCalledWith(
-			"beacon",
-			"atelier",
-		)
-		await expect(args.onAddBotToSpace).not.toHaveBeenCalled()
+		await expect(
+			menu.getAllByRole("menuitem").map((item) => item.textContent),
+		).toEqual(["Settings", "Duplicate", "Delete"])
+		await expect(
+			menu.queryByRole("menuitem", { name: SPACES_BRANCH }),
+		).toBeNull()
 	},
 })
 
@@ -2433,7 +2445,7 @@ export const RowLastSpace = meta.story({
 		docs: {
 			description: {
 				story:
-					"The bot that has one space left. That row is ticked and disabled rather than live and refused after the fact, so the gesture that would strand the bot is never offered — the store refuses it too, and a reader should not have to read a notice to learn what the menu could have said. A note under a rule at the foot of the panel says why and what to do instead, since a control that cannot be used owes the reader a reason. The other spaces stay live: joining one is what unlocks leaving this one.",
+					"The bot that has one space left. That row is ticked and disabled rather than live and refused after the fact, so the gesture that would strand the bot is never offered — the store refuses it too, and a reader should not have to read a notice to learn what the menu could have said. A note under a rule at the foot of the panel says why and what to do instead, and it is the disabled row's own accessible description rather than a stray paragraph: a screen reader hears the reason on the row it applies to, and the note is hidden from the menu's own tree so it is never walked as if it were a choice. The other spaces stay live: joining one is what unlocks leaving this one.",
 			},
 		},
 	},
@@ -2444,14 +2456,19 @@ export const RowLastSpace = meta.story({
 
 		await expect(held).toHaveAttribute("aria-checked", "true")
 		await expect(held).toBeDisabled()
-		for (const row of [rows[0], rows[2], rows[3], rows[4]])
+		await expect(held).toHaveAccessibleDescription(LAST_SPACE_NOTE)
+		for (const row of [rows[0], rows[2], rows[3], rows[4]]) {
 			await expect(row).toBeEnabled()
+			await expect(row).not.toHaveAccessibleDescription()
+		}
 
 		fireEvent.click(held)
 		await expect(args.onRemoveBotFromSpace).not.toHaveBeenCalled()
 		await expect(args.onAddBotToSpace).not.toHaveBeenCalled()
 
-		await expect(within(panel).getByText(LAST_SPACE_NOTE)).toBeVisible()
+		const note = within(panel).getByText(LAST_SPACE_NOTE)
+		await expect(note).toBeVisible()
+		await expect(note).toHaveAttribute("aria-hidden", "true")
 		await expect(within(panel).getAllByRole("separator")).toHaveLength(1)
 	},
 })
