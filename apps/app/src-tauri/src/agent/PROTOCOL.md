@@ -163,9 +163,11 @@ Every other command names its session.
   CLI retries a failing server on its own, several times per read, so no number the
   sidecar could state would be true. A server the budget read failed earns one
   reconnection, taken after the budget so no prompt waits on it, and a second line of its
-  own which overtakes the first:
-  the reconnection's answer when it threw, and that the server was reconnected and holds
-  its tools again when it did not, which the section says in its own words too. A server
+  own which overtakes the first. That line comes from one more status call, taken once the
+  reconnection answered: the server reads connected and holds its tools again, or left out
+  with the reason its status and the reconnection give. Still connecting on that call, it
+  goes back under the watch, read every second until it settles or the watch bound
+  elapses, and reported by the status that settles it, with no second reconnection. A server
   the budget left pending is watched past it, one status call every second, until it reads
   connected, failed or `needs-auth`, or 60000 ms pass and it rides a stderr line instead.
   Connected, it earns a line naming it as holding its tools for the rest of the session,
@@ -209,7 +211,9 @@ Every other command names its session.
   and the next prompt's section with the same reason, because nothing in a live session
   reads that stream. A pass whose very first status call throws names no server at all: no
   call ever said anything about them, so it reports once that the status could not be
-  read, with its cause, and leaves every server unjudged. The call taken after the reconnections is the exception: outlasting, it
+  read, with its cause, and leaves every server unjudged. A status call the watch takes and
+  loses says as little: it rides that same stderr line, names no server, and the watch
+  keeps reading until its bound. The call taken after the reconnections is the exception: outlasting, it
   names on stderr every server the read reconnected, those lines being the only trace it
   left. A server no status call has named yet is polled for 1000 ms only, then
   left to the stderr line. An interrupt drops what is held and leaves
