@@ -265,6 +265,7 @@ export type TranscriptStoreError =
 	| { kind: "invalidTransition"; id: string; from: string; to: string }
 	| { kind: "unknownBot"; id: string }
 	| { kind: "unknownConversation"; id: string }
+	| { kind: "unknownMessageSeq"; conversationId: string; seq: number }
 	| { kind: "rejectedAvatarImage"; reason: AvatarRejection }
 	| { kind: "unwritableBundle"; detail: string }
 	| { kind: "systemSkill"; id: string }

@@ -254,6 +254,19 @@ pub struct MessagePage {
 	pub has_more: bool,
 }
 
+pub struct MessagesAroundQuery {
+	pub conversation_id: String,
+	pub seq: i64,
+	pub limit: u32,
+}
+
+#[derive(Debug, Clone, PartialEq, Eq)]
+pub struct MessagesAround {
+	pub messages: Vec<StoredMessage>,
+	pub has_older: bool,
+	pub has_newer: bool,
+}
+
 pub struct MessageWindowQuery {
 	pub conversation_id: String,
 	pub after_seq: i64,
@@ -327,6 +340,16 @@ const FINALIZE_MESSAGE: &str =
 const MESSAGE_PAGE: &str = "SELECT id, turn_id, author_bot_id, replied_to_message_id, seq, role,
 		content, completion_state, created_at, runtime_session_id
 	FROM messages WHERE conversation_id = ?1 AND seq < ?2 ORDER BY seq DESC LIMIT ?3";
+const MESSAGE_AT_SEQ: &str = "SELECT id, turn_id, author_bot_id, replied_to_message_id, seq, role,
+		content, completion_state, created_at, runtime_session_id
+	FROM messages WHERE conversation_id = ?1 AND seq = ?2";
+const MESSAGES_AFTER_SEQ: &str = "SELECT id, turn_id, author_bot_id, replied_to_message_id, seq,
+		role, content, completion_state, created_at, runtime_session_id
+	FROM messages WHERE conversation_id = ?1 AND seq > ?2 ORDER BY seq ASC LIMIT ?3";
+const MESSAGE_OLDER_THAN_SEQ: &str =
+	"SELECT EXISTS(SELECT 1 FROM messages WHERE conversation_id = ?1 AND seq < ?2)";
+const MESSAGE_NEWER_THAN_SEQ: &str =
+	"SELECT EXISTS(SELECT 1 FROM messages WHERE conversation_id = ?1 AND seq > ?2)";
 const MESSAGE_BY_ID: &str = "SELECT id, turn_id, author_bot_id, replied_to_message_id, seq, role,
 		content, completion_state, created_at, runtime_session_id
 	FROM messages WHERE conversation_id = ?1 AND id = ?2";
@@ -487,6 +510,13 @@ impl MessagesRepository {
 				Ok(MessagePage { messages, has_more })
 			})
 			.await?)
+	}
+
+	pub async fn messages_around(
+		&self,
+		query: MessagesAroundQuery,
+	) -> Result<Option<MessagesAround>, TranscriptError> {
+		Ok(self.call(move |connection| read_around(connection, &query)).await?)
 	}
 
 	pub async fn message(
@@ -1014,6 +1044,83 @@ fn stored_state<T: FromSql>(
 	Ok(transaction.query_row(query, params![id], |row| row.get(0)).optional()?)
 }
 
+fn read_around(
+	connection: &Connection,
+	query: &MessagesAroundQuery,
+) -> Result<Option<MessagesAround>, DatabaseError> {
+	let Some(centre) = connection
+		.prepare_cached(MESSAGE_AT_SEQ)?
+		.query_row(params![query.conversation_id, query.seq], read_message)
+		.optional()?
+	else {
+		return Ok(None);
+	};
+
+	let conversation_id = &query.conversation_id;
+	let budget = query.limit.saturating_sub(1);
+	let mut older = read_older(connection, conversation_id, query.seq, budget / 2)?;
+	let newer = read_newer(connection, conversation_id, query.seq, budget - older.len() as u32)?;
+	let oldest_held = older.first().map_or(query.seq, |message| message.seq);
+	let shortfall = budget - older.len() as u32 - newer.len() as u32;
+
+	let mut messages = read_older(connection, conversation_id, oldest_held, shortfall)?;
+	messages.append(&mut older);
+	let first_seq = messages.first().map_or(query.seq, |message| message.seq);
+	let last_seq = newer.last().map_or(query.seq, |message| message.seq);
+	messages.push(centre);
+	messages.extend(newer);
+
+	Ok(Some(MessagesAround {
+		messages,
+		has_older: sits_beside(connection, MESSAGE_OLDER_THAN_SEQ, conversation_id, first_seq)?,
+		has_newer: sits_beside(connection, MESSAGE_NEWER_THAN_SEQ, conversation_id, last_seq)?,
+	}))
+}
+
+fn read_older(
+	connection: &Connection,
+	conversation_id: &str,
+	before_seq: i64,
+	limit: u32,
+) -> Result<Vec<StoredMessage>, DatabaseError> {
+	if limit == 0 {
+		return Ok(Vec::new());
+	}
+	let mut statement = connection.prepare_cached(MESSAGE_PAGE)?;
+	let mut messages = statement
+		.query_map(params![conversation_id, before_seq, limit], read_message)?
+		.collect::<Result<Vec<_>, _>>()?;
+	messages.reverse();
+	Ok(messages)
+}
+
+fn read_newer(
+	connection: &Connection,
+	conversation_id: &str,
+	after_seq: i64,
+	limit: u32,
+) -> Result<Vec<StoredMessage>, DatabaseError> {
+	if limit == 0 {
+		return Ok(Vec::new());
+	}
+	let mut statement = connection.prepare_cached(MESSAGES_AFTER_SEQ)?;
+	let messages = statement
+		.query_map(params![conversation_id, after_seq, limit], read_message)?
+		.collect::<Result<Vec<_>, _>>()?;
+	Ok(messages)
+}
+
+fn sits_beside(
+	connection: &Connection,
+	statement: &str,
+	conversation_id: &str,
+	seq: i64,
+) -> Result<bool, DatabaseError> {
+	Ok(connection
+		.prepare_cached(statement)?
+		.query_row(params![conversation_id, seq], |row| row.get(0))?)
+}
+
 fn read_message(row: &Row<'_>) -> rusqlite::Result<StoredMessage> {
 	Ok(StoredMessage {
 		id: row.get(0)?,
@@ -1169,6 +1276,23 @@ mod tests {
 			.page_messages(MessagePageQuery { conversation_id: "c1".into(), before_seq, limit })
 			.await
 			.expect("the page is read")
+	}
+
+	async fn around(
+		database: &Database,
+		conversation: &str,
+		seq: i64,
+		limit: u32,
+	) -> Option<MessagesAround> {
+		database
+			.messages()
+			.messages_around(MessagesAroundQuery {
+				conversation_id: conversation.into(),
+				seq,
+				limit,
+			})
+			.await
+			.expect("the window is read")
 	}
 
 	async fn whole_transcript(database: &Database, limit: u32) -> Vec<StoredMessage> {
@@ -1712,6 +1836,77 @@ mod tests {
 			[seqs(&older.messages), seqs(&newest.messages)].concat(),
 			vec![1, 2, 3, 4, 5],
 			"the two pages did not join up into the whole transcript in order"
+		);
+
+		drop(database);
+		fs::remove_dir_all(&dir).expect("cleanup");
+	}
+
+	#[tokio::test]
+	async fn a_window_centres_on_its_seq_and_leans_on_the_side_that_still_has_messages() {
+		let dir = temp_dir();
+		let database = seeded(&dir).await;
+		a_turn(&database, "t1", "c1").await;
+		a_turn(&database, "t2", "c2").await;
+		some_user_messages(&database, LONG_CONVERSATION).await;
+		for index in 0..3 {
+			database
+				.messages()
+				.append_user_message(NewUserMessage {
+					conversation_id: "c2".into(),
+					turn_id: "t2".into(),
+					..a_user_message(&format!("short{index}"), "hello", 1)
+				})
+				.await
+				.expect("the short conversation's message is appended");
+		}
+		let last = LONG_CONVERSATION as i64;
+
+		let middle = around(&database, "c1", 100, 11).await.expect("the centre message is there");
+		let start = around(&database, "c1", 1, 11).await.expect("the first message is there");
+		let end = around(&database, "c1", last, 11).await.expect("the last message is there");
+		let alone = around(&database, "c1", 100, 1).await.expect("the centre message is there");
+		let none = around(&database, "c1", last + 1, 11).await;
+		let whole = around(&database, "c2", 2, 11).await.expect("the centre message is there");
+
+		assert_eq!(
+			seqs(&middle.messages),
+			(95..=105).collect::<Vec<_>>(),
+			"a centred window did not hold five messages on each side of its seq"
+		);
+		assert!(
+			middle.has_older && middle.has_newer,
+			"a window inside the transcript said it was at an edge"
+		);
+		assert_eq!(
+			seqs(&start.messages),
+			(1..=11).collect::<Vec<_>>(),
+			"a window on the first seq did not take its whole share from the newer side"
+		);
+		assert!(!start.has_older, "a window holding the first message promised something older");
+		assert!(start.has_newer, "a window with messages behind it promised nothing newer");
+		assert_eq!(
+			seqs(&end.messages),
+			(last - 10..=last).collect::<Vec<_>>(),
+			"a window on the last seq did not take its whole share from the older side"
+		);
+		assert!(end.has_older, "a window with messages before it promised nothing older");
+		assert!(!end.has_newer, "a window holding the last message promised something newer");
+		assert_eq!(
+			seqs(&alone.messages),
+			vec![100],
+			"a window of one held anything other than the message it was centred on"
+		);
+		assert!(alone.has_older && alone.has_newer, "a window of one lost sight of both sides");
+		assert!(none.is_none(), "a seq no row carries came back as a window");
+		assert_eq!(
+			seqs(&whole.messages),
+			vec![1, 2, 3],
+			"a conversation shorter than the limit did not come back whole"
+		);
+		assert!(
+			!whole.has_older && !whole.has_newer,
+			"a window holding the whole conversation promised messages on one of its sides"
 		);
 
 		drop(database);

@@ -57,6 +57,7 @@ pub fn invoke_handler<R: Runtime>() -> impl Fn(tauri::ipc::Invoke<R>) -> bool + 
 		conversations::commands::conversation_roster_block,
 		conversations::commands::conversation_capture_checkpoint,
 		conversations::commands::conversation_message_page,
+		conversations::commands::conversation_message_page_around,
 		conversations::commands::conversation_message_reference,
 		conversations::commands::conversation_pin_message,
 		conversations::commands::conversation_unpin_message,
