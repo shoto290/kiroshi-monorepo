@@ -28,6 +28,10 @@ const QUERY = "parser"
 
 const PAST_THE_LIST_LABEL = "Past the list"
 
+const ACTIVE_OPTION_ID = "search-result-active"
+
+const rankLabelFor = (rank: number) => `Press Control ${rank}`
+
 const ROUTINE_BOT = {
 	name: "Noor Beltran",
 	animal: "rabbit",
@@ -354,38 +358,58 @@ export const States = meta.story({
 })
 
 export const AsListboxOption = meta.story({
-	args: { isActive: true },
+	args: {
+		isActive: true,
+		id: ACTIVE_OPTION_ID,
+		rank: 1,
+		rankLabel: rankLabelFor(1),
+	},
 	parameters: {
 		docs: {
 			description: {
 				story:
-					"The row as the palette owns it: an option of the list, with the active one carrying the selected state next to the muted surface it paints. Check that no row is in the tab order — one press of Tab leaves the field and lands past the whole list, because the palette drives the list from the arrow keys and never from Tab.",
+					"The row as the palette owns it: focus stays in the query field, which points at the active option through `aria-activedescendant`. Check that the pointed id resolves to the option carrying the selected state, that its accessible name carries both the title and the chord its rank answers to, and that no row is in the tab order — one press of Tab leaves the field and lands past the whole list, because the palette drives the list from the arrow keys and never from Tab.",
 			},
 		},
 	},
 	render: (args) => (
 		<>
-			<input aria-label={QUERY_LABEL} readOnly value={QUERY} />
+			<input
+				aria-activedescendant={ACTIVE_OPTION_ID}
+				aria-label={QUERY_LABEL}
+				readOnly
+				value={QUERY}
+			/>
 			<ResultList>
 				<SearchResultRow {...args} />
 				<SearchResultRow
 					{...args}
+					id="search-result-second"
 					isActive={false}
 					rank={2}
+					rankLabel={rankLabelFor(2)}
 					title={[{ key: "title", text: "The second hit" }]}
 				/>
 			</ResultList>
 			<button type="button">{PAST_THE_LIST_LABEL}</button>
 		</>
 	),
-	play: async ({ canvas, userEvent }) => {
+	play: async ({ canvas, canvasElement, userEvent }) => {
+		const field = canvas.getByRole("textbox")
 		const [selected, rest] = canvas.getAllByRole("option")
+		const pointed = canvasElement.querySelector(
+			`#${field.getAttribute("aria-activedescendant")}`,
+		)
 
+		await expect(pointed).toBe(selected)
 		await expect(selected).toHaveAttribute("aria-selected", "true")
 		await expect(rest).toHaveAttribute("aria-selected", "false")
 		await expect(selected).toHaveAttribute("tabindex", "-1")
+		await expect(selected).toHaveAccessibleName(
+			expect.stringContaining(rankLabelFor(1)),
+		)
 
-		canvas.getByRole("textbox").focus()
+		field.focus()
 		await userEvent.tab()
 
 		await expect(
@@ -443,27 +467,33 @@ export const Unranked = meta.story({
 		docs: {
 			description: {
 				story:
-					"The rows past the ninth hit, which no digit opens. Check that the lane still measures its full width so every title in the list starts and ends on the same column, and that nothing is drawn inside it — a row given a rank of ten is the same case as a row given none.",
+					"The rows past the ninth hit, which no digit opens. Check that the lane still measures its full width so every title in the list starts and ends on the same column, that nothing is drawn inside it, and that a rank label handed to a row out of range is dropped along with the keycap rather than announced for a chord that does nothing — a row given a rank of ten is the same case as a row given none.",
 			},
 		},
 	},
 	render: (args) => (
 		<ResultList>
-			<SearchResultRow {...args} rank={undefined} />
+			<SearchResultRow {...args} rank={undefined} rankLabel={rankLabelFor(1)} />
 			<SearchResultRow
 				{...args}
 				rank={10}
+				rankLabel={rankLabelFor(10)}
 				title={[{ key: "title", text: "The tenth hit" }]}
 			/>
 		</ResultList>
 	),
-	play: async ({ canvasElement }) => {
+	play: async ({ canvas, canvasElement }) => {
 		const lanes = slotsIn(canvasElement, "search-result-row-rank")
 
 		await expect(lanes).toHaveLength(2)
 		for (const lane of lanes) {
 			await expect(lane.getBoundingClientRect().width).toBe(RANK_LANE_WIDTH)
 			await expect(lane.children).toHaveLength(0)
+		}
+		for (const option of canvas.getAllByRole("option")) {
+			await expect(option).not.toHaveAccessibleName(
+				expect.stringContaining("Press Control"),
+			)
 		}
 	},
 })
@@ -474,15 +504,21 @@ export const WithRank = meta.story({
 		docs: {
 			description: {
 				story:
-					"A hit inside the first nine, the range the keyboard can reach by a digit. Check that the lane holds a `Kbd` showing the digit, and that the cap stays hidden from assistive technology so the digit never lands in the middle of the option's name.",
+					"A hit inside the first nine, the range the keyboard can reach by a digit, given no rank label. Check that the lane holds a `Kbd` showing the digit, that the cap stays hidden from assistive technology so the digit never lands in the middle of the option's name, and that nothing takes its place in the name — a caller that says nothing about the chord gets no invented wording.",
 			},
 		},
 	},
-	play: async ({ canvasElement }) => {
+	play: async ({ canvas, canvasElement }) => {
 		const kbd = slotIn(canvasElement, "kbd")
 
 		await expect(kbd).toHaveTextContent("3")
 		await expect(kbd).toHaveAttribute("aria-hidden", "true")
+		await expect(
+			slotIn(canvasElement, "search-result-row-rank").textContent,
+		).toBe("3")
+		await expect(canvas.getByRole("option")).toHaveAccessibleName(
+			expect.not.stringContaining("Press"),
+		)
 	},
 })
 

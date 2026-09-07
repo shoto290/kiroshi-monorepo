@@ -41,7 +41,9 @@ type SearchResultRowProps = {
 	parts: ActivityRowPart[]
 	identifier?: string
 	rank?: number
+	rankLabel?: string
 	isActive?: boolean
+	id?: string
 	onOpen: () => void
 }
 
@@ -108,7 +110,9 @@ const SearchResultRow = ({
 	parts,
 	identifier,
 	rank,
+	rankLabel,
 	isActive = false,
+	id,
 	onOpen,
 }: SearchResultRowProps) => {
 	const Glyph = glyphOf(identity)
@@ -121,6 +125,7 @@ const SearchResultRow = ({
 			className={cn(ROW_CLASS, ACTIVATION_CLASS, ACTIVE_CLASS)}
 			data-active={isActive}
 			data-slot="search-result-row"
+			id={id}
 			onClick={onOpen}
 			role="option"
 			tabIndex={-1}
@@ -183,9 +188,12 @@ const SearchResultRow = ({
 			</span>
 			<span className={RANK_LANE_CLASS} data-slot="search-result-row-rank">
 				{isRanked ? (
-					<Kbd aria-hidden="true" className={RANK_CLASS}>
-						{rank}
-					</Kbd>
+					<>
+						{rankLabel ? <span className="sr-only">{rankLabel}</span> : null}
+						<Kbd aria-hidden="true" className={RANK_CLASS}>
+							{rank}
+						</Kbd>
+					</>
 				) : null}
 			</span>
 		</button>
