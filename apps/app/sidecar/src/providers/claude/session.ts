@@ -222,11 +222,13 @@ export const reportConnections = ({ emit, push, pass }: ConnectionReport) => {
 		push(`${section}\n\n${text}`)
 	}
 
-	const release = (settled: string[]) => {
+	const release = (settled: ReportedLine[]) => {
 		if (signal.aborted) {
 			return
 		}
-		waiting.push(...settled.map((detail) => ({ detail, owing: true })))
+		waiting.push(
+			...settled.map(({ detail, notice }) => ({ detail, owing: notice })),
+		)
 		holding = false
 		for (const text of held.splice(0)) {
 			hand(text)

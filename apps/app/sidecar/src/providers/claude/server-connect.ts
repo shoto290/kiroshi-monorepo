@@ -44,7 +44,7 @@ type GaveUp = {
 }
 
 type PassOutcome = {
-	reported: string[]
+	reported: ReportedLine[]
 	giveUps: GaveUp[]
 	connecting: string[]
 	failing: string[]
@@ -243,15 +243,16 @@ const linesFor = (
 	takes: Take[],
 	names: string[],
 	secrets: string[],
-): { reported: string[]; unread: string[] } => {
-	const reported: string[] = []
+): { reported: ReportedLine[]; unread: string[] } => {
+	const reported: ReportedLine[] = []
 	const unread: string[] = []
 	for (const name of names) {
 		const named = namedRead(takes, name)
 		if (!named) {
 			unread.push(name)
 		} else if (REPORTABLE.includes(named.status)) {
-			reported.push(lineFor(name, named, undefined, secrets))
+			const detail = lineFor(name, named, undefined, secrets)
+			reported.push(named.status === "pending" ? news(detail) : notice(detail))
 		}
 	}
 	return { reported, unread }
@@ -401,7 +402,7 @@ const watching = async (
 export const unconnectedServers = async ({
 	env = {},
 	...pass
-}: ConnectPass): Promise<string[]> => {
+}: ConnectPass): Promise<ReportedLine[]> => {
 	const { names, signal } = pass
 	if (names.length === 0) {
 		return []

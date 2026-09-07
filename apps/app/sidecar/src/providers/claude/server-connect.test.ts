@@ -1,6 +1,7 @@
 import { describe, expect, it } from "bun:test"
 
 import {
+	type ConnectPass,
 	type ConnectPort,
 	POLL_BUDGET_MS,
 	type ServerStatus,
@@ -50,6 +51,9 @@ const ticking = (step: number) => {
 
 const LAST_POLL_MS = POLL_BUDGET_MS - 250
 
+const reportedLines = async (pass: ConnectPass): Promise<string[]> =>
+	(await unconnectedServers(pass)).map((line) => line.detail)
+
 const settling = (ms = 5) => new Promise((resolve) => setTimeout(resolve, ms))
 
 const capture = (): { written: string[]; restore: () => void } => {
@@ -74,16 +78,16 @@ const connecting = 'the server "superset" is still connecting'
 describe("unconnectedServers", () => {
 	it("names no count of connection attempts in any line it builds", async () => {
 		const built = [
-			...(await unconnectedServers({
+			...(await reportedLines({
 				names: ["superset"],
 				port: portReading([awaiting]),
 			})),
-			...(await unconnectedServers({
+			...(await reportedLines({
 				names: ["superset"],
 				port: portReading([pending]),
 				...ticking(250),
 			})),
-			...(await unconnectedServers({
+			...(await reportedLines({
 				names: ["superset"],
 				port: portReading([[{ name: "superset", status: "disabled" }]]),
 			})),
@@ -108,7 +112,7 @@ describe("unconnectedServers", () => {
 			},
 		}
 
-		const details = await unconnectedServers({
+		const details = await reportedLines({
 			names: ["superset", "clock"],
 			port,
 			now: clock.now,
@@ -143,7 +147,7 @@ describe("unconnectedServers", () => {
 		const clock = ticking(250)
 		const port = portReading([pending])
 
-		const details = await unconnectedServers({
+		const details = await reportedLines({
 			names: ["superset"],
 			port,
 			now: clock.now,
@@ -159,7 +163,7 @@ describe("unconnectedServers", () => {
 		const clock = ticking(POLL_BUDGET_MS)
 		const port = portReading([pending, []])
 
-		const details = await unconnectedServers({
+		const details = await reportedLines({
 			names: ["superset"],
 			port,
 			now: clock.now,
@@ -174,7 +178,7 @@ describe("unconnectedServers", () => {
 		let time = 0
 		let reads = 0
 
-		const details = await unconnectedServers({
+		const details = await reportedLines({
 			names: ["superset"],
 			port: {
 				status: () => {
@@ -202,7 +206,7 @@ describe("unconnectedServers", () => {
 		const clock = ticking(250)
 		let reads = 0
 
-		const details = await unconnectedServers({
+		const details = await reportedLines({
 			names: ["superset"],
 			port: {
 				status: () => {
@@ -229,7 +233,7 @@ describe("unconnectedServers", () => {
 		const clock = ticking(250)
 		let reads = 0
 
-		const details = await unconnectedServers({
+		const details = await reportedLines({
 			names: ["superset", "clock"],
 			port: {
 				status: () => {
@@ -253,7 +257,7 @@ describe("unconnectedServers", () => {
 	it("reads the status again while a server stays pending", async () => {
 		const port = portReading([pending, connected])
 
-		expect(await unconnectedServers({ names: ["superset"], port })).toEqual([])
+		expect(await reportedLines({ names: ["superset"], port })).toEqual([])
 		expect(port.reconnected).toEqual([])
 	})
 
@@ -261,7 +265,7 @@ describe("unconnectedServers", () => {
 		let time = 0
 		let reads = 0
 
-		await unconnectedServers({
+		await reportedLines({
 			names: ["superset"],
 			port: {
 				status: async () => {
@@ -282,7 +286,7 @@ describe("unconnectedServers", () => {
 	it("claims no server still connecting was left out of the session", async () => {
 		const clock = ticking(250)
 
-		const [detail] = await unconnectedServers({
+		const [detail] = await reportedLines({
 			names: ["superset"],
 			port: portReading([pending]),
 			now: clock.now,
@@ -296,7 +300,7 @@ describe("unconnectedServers", () => {
 	it("gives up on stderr, reporting nothing, when a status read never settles", async () => {
 		const stderr = capture()
 
-		const details = await unconnectedServers({
+		const details = await reportedLines({
 			names: ["superset"],
 			port: {
 				status: () => new Promise(() => {}),
@@ -316,7 +320,7 @@ describe("unconnectedServers", () => {
 		const clock = ticking(8_000)
 		const port = portReading([pending, pending, []])
 
-		const details = await unconnectedServers({
+		const details = await reportedLines({
 			names: ["superset"],
 			port,
 			now: clock.now,
@@ -331,7 +335,7 @@ describe("unconnectedServers", () => {
 		const stderr = capture()
 		const clock = ticking(250)
 
-		const details = await unconnectedServers({
+		const details = await reportedLines({
 			names: ["superset", "ghost"],
 			port: {
 				status: async () => awaiting,
@@ -357,8 +361,8 @@ describe("unconnectedServers", () => {
 			],
 		])
 
-		expect(await unconnectedServers({ names: ["clock"], port })).toEqual([])
-		expect(await unconnectedServers({ names: [], port })).toEqual([])
+		expect(await reportedLines({ names: ["clock"], port })).toEqual([])
+		expect(await reportedLines({ names: [], port })).toEqual([])
 		expect(port.reconnected).toEqual([])
 	})
 
@@ -371,7 +375,7 @@ describe("unconnectedServers", () => {
 			reconnect: async () => {},
 		}
 
-		const details = await unconnectedServers({
+		const details = await reportedLines({
 			names: ["superset", "clock"],
 			port,
 		})
@@ -386,7 +390,7 @@ describe("unconnectedServers", () => {
 	it("names a server waiting for authorization, and reconnects it by no call", async () => {
 		const port = portReading([[{ name: "superset", status: "needs-auth" }]])
 
-		const details = await unconnectedServers({ names: ["superset"], port })
+		const details = await reportedLines({ names: ["superset"], port })
 
 		expect(details).toEqual([
 			'the server "superset" was left out: it is waiting for you to authorize it',
@@ -401,7 +405,7 @@ describe("a server no read ever named", () => {
 		const port = portReading([[]])
 		const stderr = capture()
 
-		const details = await unconnectedServers({
+		const details = await reportedLines({
 			names: ["superset"],
 			port,
 			...ticking(250),
@@ -446,7 +450,7 @@ describe("watching a server left connecting", () => {
 		let time = 0
 		let reads = 0
 
-		await unconnectedServers({
+		await reportedLines({
 			names: ["superset"],
 			port: {
 				status: async () => {
@@ -498,7 +502,7 @@ describe("watching a server left connecting", () => {
 		let reads = 0
 		let dialled = false
 
-		await unconnectedServers({
+		await reportedLines({
 			names: ["superset", "clock"],
 			port: {
 				status: async () => {
@@ -534,7 +538,7 @@ describe("watching a server left connecting", () => {
 		const reported: string[] = []
 		let time = 0
 
-		await unconnectedServers({
+		await reportedLines({
 			names: ["superset"],
 			port: {
 				status: async () => pending,
@@ -585,7 +589,7 @@ describe("watching a server left connecting", () => {
 		let time = 0
 		let reads = 0
 
-		await unconnectedServers({
+		await reportedLines({
 			names: ["superset"],
 			port: {
 				status: async () => {
@@ -619,7 +623,7 @@ describe("watching a server left connecting", () => {
 		const reported: string[] = []
 		let time = 0
 
-		await unconnectedServers({
+		await reportedLines({
 			names: ["superset"],
 			port: {
 				status: async () => (time <= LAST_POLL_MS ? pending : failed),

@@ -832,6 +832,84 @@ describe("reportConnections", () => {
 		return { emitted, pushed, report }
 	}
 
+	it("raises no frame for a server the budget left pending", async () => {
+		const emitted: string[] = []
+		const pushed: string[] = []
+		const released = Promise.withResolvers<void>()
+		let time = 0
+
+		const report = reportConnections({
+			emit: (frame) => {
+				emitted.push(String(frame.detail))
+			},
+			push: (text) => {
+				pushed.push(text)
+				released.resolve()
+			},
+			pass: {
+				names: ["superset"],
+				port: {
+					status: async () => [{ name: "superset", status: "pending" }],
+					reconnect: async () => {},
+				},
+				now: () => time,
+				wait: async (ms) => {
+					time += ms
+				},
+			},
+		})
+
+		report.prompt("first")
+		await released.promise
+
+		expect(emitted).toEqual([])
+		expect(pushed[0]).toContain("is still connecting after")
+	})
+
+	it("raises one frame once that server reads failed under the watch", async () => {
+		const emitted: string[] = []
+		const pushed: string[] = []
+		const released = Promise.withResolvers<void>()
+		let time = 0
+
+		const report = reportConnections({
+			emit: (frame) => {
+				emitted.push(String(frame.detail))
+			},
+			push: (text) => {
+				pushed.push(text)
+				released.resolve()
+			},
+			pass: {
+				names: ["superset"],
+				port: {
+					status: async () =>
+						time <= POLL_BUDGET_MS - 250
+							? [{ name: "superset", status: "pending" }]
+							: [{ name: "superset", status: "failed" }],
+					reconnect: async () => {
+						throw new Error("Connection failed")
+					},
+				},
+				now: () => time,
+				wait: async (ms) => {
+					time += ms
+				},
+			},
+		})
+
+		report.prompt("first")
+		await released.promise
+
+		expect(emitted).toEqual([])
+
+		await ticked()
+
+		expect(emitted).toEqual([
+			'the server "superset" was left out: it read failed, and the reconnection answered: Connection failed',
+		])
+	})
+
 	it("names a server the watch finds disabled as left out, once", async () => {
 		const { pushed, report } = settlingAfterBudget([
 			{ name: "superset", status: "disabled" },
