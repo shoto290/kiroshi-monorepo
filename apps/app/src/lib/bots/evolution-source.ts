@@ -1,4 +1,4 @@
-import type { EvolvedBundle } from "../agent/contract"
+import type { EvolvedBundle, RuntimeScope } from "../agent/contract"
 import type { ChatDriver } from "../chat/driver"
 
 type BotPanel = {
@@ -16,7 +16,7 @@ type SpacePanel = {
 }
 
 type RosterPanel = {
-	spaceOfBot: (botId: string) => string | undefined
+	spaceOfConversation: (conversationId: string) => string | undefined
 	reload: () => Promise<void>
 }
 
@@ -46,27 +46,27 @@ export const startEvolutionSource = ({
 		}
 	}
 
-	const readSpacePanel = (botId: string) => {
-		const spaceId = roster.spaceOfBot(botId)
+	const readSpacePanel = (conversationId: string) => {
+		const spaceId = roster.spaceOfConversation(conversationId)
 		if (spaceId && spacePlugin.getState().spaceId === spaceId) {
 			spacePlugin.reload()
 		}
 	}
 
-	const readPanels = (botId: string, bundle: EvolvedBundle) => {
+	const readPanels = (scope: RuntimeScope, bundle: EvolvedBundle) => {
 		if (bundle === "user") {
 			return userPlugin.reload()
 		}
 		if (bundle === "space") {
-			return readSpacePanel(botId)
+			return readSpacePanel(scope.conversationId)
 		}
-		return readBotPanels(botId)
+		return readBotPanels(scope.botId)
 	}
 
 	const detach = driver
 		.subscribe(({ scope, event }) => {
 			if (scope && event.type === "botEvolved") {
-				readPanels(scope.botId, event.bundle)
+				readPanels(scope, event.bundle)
 			}
 		})
 		.catch(() => undefined)

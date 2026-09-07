@@ -37,7 +37,12 @@ import { createChatDriver } from "@/lib/chat/create-driver"
 import { createDraftsController } from "@/lib/chat/drafts-controller"
 import { toSpaceBadges, withBadges } from "@/lib/chat/sidebar-badges"
 import { useBotBadges } from "@/lib/chat/use-bot-badges"
-import { useBotActivity, useBotPreviews, useChat } from "@/lib/chat/use-chat"
+import {
+	previewsIn,
+	useBotActivity,
+	useBotPreviews,
+	useChat,
+} from "@/lib/chat/use-chat"
 import { createConversationRuntimes } from "@/lib/conversations/conversation-runtimes"
 import { createTranscriptStore } from "@/lib/conversations/create-store"
 import {
@@ -385,12 +390,20 @@ export function App() {
 			),
 		[rosters],
 	)
-	const working = useBotActivity(chat.controller, botIds)
-	const previews = useBotPreviews(
-		chat.controller,
-		botIds,
-		roster.state.previews,
+	const lines = useMemo(
+		() =>
+			Object.entries(rosters).flatMap(([spaceId, spaceBots]) =>
+				spaceBots.map((bot) => ({ spaceId, botId: bot.id })),
+			),
+		[rosters],
 	)
+	const working = useBotActivity(chat.controller, botIds)
+	const previews = useBotPreviews({
+		controller: chat.controller,
+		lines,
+		stored: roster.state.previews,
+		soloThreads: roster.state.soloThreads,
+	})
 	const activity = settingsBotId ? working[settingsBotId] : undefined
 
 	const busyBotCount = useMemo(
@@ -419,10 +432,17 @@ export function App() {
 	const rosterBots = useMemo(() => {
 		probeRender("rosterBots")
 		return withMissions(
-			withBadges(toRosterBots(bots, { working, previews }, now), badges),
+			withBadges(
+				toRosterBots(
+					bots,
+					{ working, previews: previewsIn(previews, rosteredSpaceId) },
+					now,
+				),
+				badges,
+			),
 			missions,
 		)
-	}, [bots, working, previews, now, badges, missions])
+	}, [bots, rosteredSpaceId, working, previews, now, badges, missions])
 
 	const listedRosters = Object.keys(rosters).join(" ")
 
@@ -452,7 +472,11 @@ export function App() {
 				spaceId,
 				withMissions(
 					withBadges(
-						toRosterBots(spaceBots, { working, previews }, now),
+						toRosterBots(
+							spaceBots,
+							{ working, previews: previewsIn(previews, spaceId) },
+							now,
+						),
 						badges,
 					),
 					missions,

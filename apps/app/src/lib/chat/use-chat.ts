@@ -5,6 +5,7 @@ import type { ChatState } from "./chat-state"
 import type { ChatDriver } from "./driver"
 import { type SidebarActivity, sidebarActivityFor } from "./screen-model"
 
+import type { BotPreviews, RosterLine } from "../bots/roster-controller"
 import type { TranscriptStore } from "../conversations/store-port"
 import { type LastWord, lastWordIn } from "../conversations/transcript-state"
 
@@ -50,28 +51,64 @@ export function useBotActivity(
 	})
 }
 
-type BotPreviews = Record<string, LastWord | undefined>
+export type PreviewsBySpaceId = Record<string, BotPreviews>
 
-const previewSignatureOf = (shown: [string, LastWord | undefined][]): string =>
+const NO_PREVIEWS: BotPreviews = {}
+
+export const previewsIn = (
+	previews: PreviewsBySpaceId,
+	spaceId: string | null,
+): BotPreviews => (spaceId ? (previews[spaceId] ?? NO_PREVIEWS) : NO_PREVIEWS)
+
+type ShownPreview = RosterLine & { word: LastWord | undefined }
+
+const previewSignatureOf = (shown: ShownPreview[]): string =>
 	shown
-		.map(([id, word]) => `${id}:${word?.at ?? ""}:${word?.text ?? ""}`)
+		.map(
+			({ spaceId, botId, word }) =>
+				`${spaceId}/${botId}:${word?.at ?? ""}:${word?.text ?? ""}`,
+		)
 		.join("|")
 
-export function useBotPreviews(
-	controller: ChatController,
-	botIds: string[],
-	stored: BotPreviews,
-): BotPreviews {
-	const held = useRef<{ signature: string; previews: BotPreviews } | null>(null)
+const bySpaceId = (shown: ShownPreview[]): PreviewsBySpaceId => {
+	const previews: PreviewsBySpaceId = {}
+	for (const { spaceId, botId, word } of shown) {
+		previews[spaceId] = { ...previews[spaceId], [botId]: word }
+	}
+	return previews
+}
+
+export type LinePreviewsMount = {
+	controller: ChatController
+	lines: RosterLine[]
+	stored: PreviewsBySpaceId
+	soloThreads: Record<string, RosterLine>
+}
+
+export function useBotPreviews({
+	controller,
+	lines,
+	stored,
+	soloThreads,
+}: LinePreviewsMount): PreviewsBySpaceId {
+	const held = useRef<{
+		signature: string
+		previews: PreviewsBySpaceId
+	} | null>(null)
 
 	return useSyncExternalStore(controller.subscribe, () => {
-		const shown: [string, LastWord | undefined][] = botIds.map((id) => [
-			id,
-			lastWordIn(controller.stateFor(id).messages) ?? stored[id],
-		])
+		const shown = lines.map(({ spaceId, botId }) => {
+			const state = controller.stateFor(botId)
+			const running = state.conversationId
+				? soloThreads[state.conversationId]
+				: undefined
+			const live =
+				running?.spaceId === spaceId ? lastWordIn(state.messages) : undefined
+			return { spaceId, botId, word: live ?? stored[spaceId]?.[botId] }
+		})
 		const signature = previewSignatureOf(shown)
 		if (held.current?.signature !== signature) {
-			held.current = { signature, previews: Object.fromEntries(shown) }
+			held.current = { signature, previews: bySpaceId(shown) }
 		}
 		return held.current.previews
 	})

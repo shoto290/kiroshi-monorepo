@@ -58,12 +58,19 @@ const permission = (id: string): PermissionRequest => ({
 	detail: null,
 })
 
+const soloThreadOf = (botId: string) => `chat-${botId}`
+
+const soloStateOf = (botId: string): ChatState => ({
+	...initialChatState,
+	conversationId: soloThreadOf(botId),
+})
+
 const createFakeChat = () => {
 	const states = new Map<string, ChatState>()
 	const listeners = new Set<() => void>()
 
 	return {
-		stateFor: (botId: string) => states.get(botId) ?? initialChatState,
+		stateFor: (botId: string) => states.get(botId) ?? soloStateOf(botId),
 		subscribe: (listener: () => void) => {
 			listeners.add(listener)
 			return () => {
@@ -72,7 +79,7 @@ const createFakeChat = () => {
 		},
 		listenerCount: () => listeners.size,
 		publish: (botId: string, state: Partial<ChatState> = {}) => {
-			states.set(botId, { ...initialChatState, ...state })
+			states.set(botId, { ...soloStateOf(botId), ...state })
 			for (const listener of [...listeners]) {
 				listener()
 			}
@@ -135,10 +142,12 @@ const createFakeRoster = (
 	const state = { bots, conversations }
 
 	return {
-		getState: () => state,
-		spaceOfBot: (botId: string) =>
-			state.bots.some((bot) => bot.id === botId) ? SPACE : undefined,
+		getState: () => ({
+			rosters: { [SPACE]: state.bots },
+			conversations: state.conversations,
+		}),
 		spaceOfConversation: (conversationId: string) =>
+			state.bots.some((bot) => soloThreadOf(bot.id) === conversationId) ||
 			state.conversations.some(
 				(conversation) => conversation.id === conversationId,
 			)
@@ -230,7 +239,11 @@ const start = async (
 }
 
 const escalate = async (harness: Harness, state: MissionState) => {
-	const mission = aMission({ botId: "bot-one", state })
+	const mission = aMission({
+		botId: "bot-one",
+		originConversationId: soloThreadOf("bot-one"),
+		state,
+	})
 	harness.missions.hold({ mission, events: [] })
 	harness.missions.change({ missionId: mission.id, state, stateSeq: 2 })
 	await Promise.resolve()

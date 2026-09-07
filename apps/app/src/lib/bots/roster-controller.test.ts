@@ -736,13 +736,15 @@ describe("createRosterController previews", () => {
 		await controller.load(opening(null, "personal", ["personal", elsewhere.id]))
 
 		const { rosters, previews } = controller.getState()
-		expect(previews[loud.id]).toMatchObject({
+		expect(previews[elsewhere.id]?.[loud.id]).toMatchObject({
 			text: "Rebuilding the bundle.",
 		})
 		expect(
-			toRosterBots(rosters[elsewhere.id], { working: {}, previews }, 0).map(
-				(bot) => bot.id,
-			),
+			toRosterBots(
+				rosters[elsewhere.id],
+				{ working: {}, previews: previews[elsewhere.id] ?? {} },
+				0,
+			).map((bot) => bot.id),
 		).toEqual([loud.id, quiet.id])
 	})
 
@@ -756,10 +758,10 @@ describe("createRosterController previews", () => {
 
 		const state = (await loaded(store)).getState()
 
-		expect(state.previews[first.id]).toMatchObject({
+		expect(state.previews.personal?.[first.id]).toMatchObject({
 			text: "Pulled the three papers.",
 		})
-		expect(state.previews[second.id]).toMatchObject({
+		expect(state.previews.personal?.[second.id]).toMatchObject({
 			text: "Rebuilding the bundle.",
 		})
 	})
@@ -770,13 +772,13 @@ describe("createRosterController previews", () => {
 
 		const state = (await loaded(store)).getState()
 
-		expect(state.previews.default?.at).toBe(said.createdAt)
+		expect(state.previews.personal?.default?.at).toBe(said.createdAt)
 	})
 
 	it("previews nothing for a bot nothing has been said to", async () => {
 		const state = (await loaded(createFakeTranscriptStore())).getState()
 
-		expect(state.previews.default).toBeUndefined()
+		expect(state.previews.personal?.default).toBeUndefined()
 	})
 
 	it("holds the last settled message while the next one streams", async () => {
@@ -786,7 +788,7 @@ describe("createRosterController previews", () => {
 
 		const state = (await loaded(store)).getState()
 
-		expect(state.previews.default).toMatchObject({ text: "And?" })
+		expect(state.previews.personal?.default).toMatchObject({ text: "And?" })
 	})
 
 	it("drops the preview of the bot it deletes and keeps every other", async () => {
@@ -801,8 +803,8 @@ describe("createRosterController previews", () => {
 		await controller.remove(second.id)
 
 		const { previews } = controller.getState()
-		expect(previews).not.toHaveProperty(second.id)
-		expect(previews[first.id]).toMatchObject({
+		expect(previews.personal).not.toHaveProperty(second.id)
+		expect(previews.personal?.[first.id]).toMatchObject({
 			text: "Pulled the three papers.",
 		})
 	})
@@ -824,8 +826,8 @@ describe("createRosterController previews", () => {
 
 		const state = (await loaded(refusing)).getState()
 
-		expect(state.previews[first.id]).toBeUndefined()
-		expect(state.previews[second.id]).toMatchObject({
+		expect(state.previews.personal?.[first.id]).toBeUndefined()
+		expect(state.previews.personal?.[second.id]).toMatchObject({
 			text: "Rebuilding the bundle.",
 		})
 		expect(state.bots).toHaveLength(2)
