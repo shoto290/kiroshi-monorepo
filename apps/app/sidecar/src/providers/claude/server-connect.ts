@@ -415,27 +415,29 @@ const watching = async (
 	const spent = () => now() - started
 	const watched = [...connecting]
 	const redialled = new Set<string>()
-	const dialling: Promise<void>[] = []
-	let dialing = 0
+	const dialling = new Set<Promise<void>>()
 
 	const dial = (name: string, status: ServerStatus["status"]) => {
-		dialing += 1
-		dialling.push(
-			announce(pass, name, status, spent, secrets).then((again) => {
-				dialing -= 1
+		const dialled = announce(pass, name, status, spent, secrets)
+			.then((again) => {
 				if (again) {
 					redialled.add(again)
 					watched.push(again)
 				}
-			}),
-		)
+			})
+			.finally(() => dialling.delete(dialled))
+		dialling.add(dialled)
 	}
 
 	for (const name of failing) {
 		dial(name, "failed")
 	}
 	const until = now() + WATCH_BOUND_MS
-	while ((watched.length || dialing) && !signal?.aborted && now() < until) {
+	while (
+		(watched.length || dialling.size) &&
+		!signal?.aborted &&
+		now() < until
+	) {
 		await wait(WATCH_POLL_MS)
 		if (signal?.aborted) {
 			await Promise.all(dialling)
