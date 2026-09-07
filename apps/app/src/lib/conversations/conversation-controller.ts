@@ -1051,11 +1051,8 @@ export const createConversationController = (
 		drive()
 	}
 
-	const isTranscriptForgotten = (conversationId: string) =>
-		selectMessages(transcript.getState(), conversationId).length === 0
-
 	const readForgottenTranscript = async (conversationId: string) => {
-		if (!isTranscriptForgotten(conversationId)) {
+		if (selectMessages(transcript.getState(), conversationId).length > 0) {
 			return
 		}
 		try {
