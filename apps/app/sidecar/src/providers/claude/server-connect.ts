@@ -19,6 +19,8 @@ export type ConnectPass = {
 	env?: ServerEnv
 }
 
+const NO_ENV: ServerEnv = {}
+
 const PENDING_POLL = 250
 const PENDING_WAIT = 5_000
 const RECONNECT_LIMIT = 20_000
@@ -103,7 +105,7 @@ const readable = (reason: string, secrets: string[]): string =>
 const reportPass = async ({
 	names,
 	port,
-	env,
+	env = NO_ENV,
 }: ConnectPass): Promise<string[]> => {
 	const settled = await settledStatuses(port, names)
 	const unconnected = notConnected(settled, names)
@@ -118,7 +120,7 @@ const reportPass = async ({
 		),
 	)
 	const after = await port.status()
-	const secrets = storedValues(env ?? {})
+	const secrets = storedValues(env)
 	return notConnected(after, unconnected).map((name) => {
 		const reason =
 			after.find((held) => held.name === name)?.error ?? thrown.get(name)
@@ -143,11 +145,9 @@ export const unconnectedServers = async (
 	}
 }
 
-export const sectionPrefixer = (
-	details: string[],
-): ((text: string) => string) => {
+export const sectionPrefixer = (details: string[]) => {
 	let pending = details.length > 0
-	return (text) => {
+	return (text: string) => {
 		if (!pending) {
 			return text
 		}
