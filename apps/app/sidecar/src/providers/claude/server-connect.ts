@@ -136,6 +136,17 @@ const boundedRead = async (
 	return statuses
 }
 
+const unreadable = (
+	takes: Take[],
+	names: string[],
+	error: unknown,
+): GaveUp | undefined => {
+	const unread = names.filter((name) => !namedRead(takes, name))
+	return unread.length
+		? { names: unread, cause: describeError(error) }
+		: undefined
+}
+
 const polledTakes = async (
 	read: () => Promise<ServerStatus[]>,
 	names: string[],
@@ -146,14 +157,14 @@ const polledTakes = async (
 	const takes: Take[] = [{ statuses: await read(), spent: spent() }]
 	while (
 		unsettled(takes, names, spent()) &&
-		spent() < POLL_BUDGET_MS &&
+		spent() + PENDING_POLL < POLL_BUDGET_MS &&
 		!signal?.aborted
 	) {
 		await wait(PENDING_POLL)
 		try {
 			takes.push({ statuses: await read(), spent: spent() })
 		} catch (error) {
-			return { takes, giveUp: { names, cause: describeError(error) } }
+			return { takes, giveUp: unreadable(takes, names, error) }
 		}
 	}
 	return { takes }
@@ -224,6 +235,25 @@ const lineFor = (
 	return leftOut(name, `${reasonFor(named)}${answered}`)
 }
 
+const linesFor = (
+	takes: Take[],
+	names: string[],
+	thrown: Map<string, string | undefined>,
+	secrets: string[],
+): { reported: string[]; unread: string[] } => {
+	const reported: string[] = []
+	const unread: string[] = []
+	for (const name of names) {
+		const named = namedRead(takes, name)
+		if (!named) {
+			unread.push(name)
+		} else if (REPORTABLE.includes(named.status)) {
+			reported.push(lineFor(name, named, thrown.get(name), secrets))
+		}
+	}
+	return { reported, unread }
+}
+
 const reportPass = async (
 	{
 		names,
@@ -238,8 +268,8 @@ const reportPass = async (
 	const started = now()
 	const spent = () => now() - started
 	const read = (ms: number) => boundedRead(port, ms, signal)
-	const left = () => Math.max(POLL_BUDGET_MS - spent(), 0)
-	const polling = () => read(Math.min(bound, left()))
+	const left = () => POLL_BUDGET_MS - spent()
+	const polling = () => read(Math.max(Math.min(bound, left()), 1))
 	const { takes, giveUp } = await polledTakes(
 		polling,
 		names,
@@ -256,19 +286,16 @@ const reportPass = async (
 		try {
 			takes.push({ statuses: await read(bound), spent: spent() })
 		} catch (error) {
-			giveUps.push({ names: failing, cause: describeError(error) })
+			const gone = unreadable(takes, failing, error)
+			if (gone) {
+				giveUps.push(gone)
+			}
 		}
 	}
-	const reported: string[] = []
-	const missing: string[] = []
-	for (const name of names) {
-		const named = namedRead(takes, name)
-		if (!named) {
-			missing.push(name)
-		} else if (REPORTABLE.includes(named.status)) {
-			reported.push(lineFor(name, named, thrown.get(name), secrets))
-		}
-	}
+	const { reported, unread } = linesFor(takes, names, thrown, secrets)
+	const missing = unread.filter(
+		(name) => !giveUps.some((gone) => gone.names.includes(name)),
+	)
 	if (missing.length) {
 		giveUps.push({ names: missing, cause: NO_READ })
 	}

@@ -46,6 +46,8 @@ const ticking = (step: number) => {
 	}
 }
 
+const LAST_POLL_MS = POLL_BUDGET_MS - 250
+
 const capture = (): { written: string[]; restore: () => void } => {
 	const written: string[] = []
 	const original = process.stderr.write
@@ -133,7 +135,7 @@ describe("unconnectedServers", () => {
 		const details = await unconnectedServers({
 			names: ["superset"],
 			port: {
-				status: async () => (clock.now() < POLL_BUDGET_MS ? pending : failed),
+				status: async () => (clock.now() < LAST_POLL_MS ? pending : failed),
 				reconnect: throwing("Connection failed"),
 			},
 			now: clock.now,
@@ -143,7 +145,7 @@ describe("unconnectedServers", () => {
 		expect(details).toEqual([
 			`${leftOut}it read failed, and the reconnection answered: Connection failed`,
 		])
-		expect(clock.now()).toBe(POLL_BUDGET_MS)
+		expect(clock.now()).toBe(LAST_POLL_MS)
 	})
 
 	it("leaves no reconnection pending once the pass is abandoned", async () => {
@@ -175,10 +177,10 @@ describe("unconnectedServers", () => {
 		})
 
 		expect(details).toEqual([
-			`${leftOut}it is still connecting after ${POLL_BUDGET_MS} ms`,
+			`${leftOut}it is still connecting after ${LAST_POLL_MS} ms`,
 		])
 		expect(port.reconnected).toEqual([])
-		expect(clock.now()).toBe(POLL_BUDGET_MS)
+		expect(clock.now()).toBe(LAST_POLL_MS)
 	})
 
 	it("names the 0 ms a read that landed at once spent on a pending server", async () => {
@@ -215,7 +217,7 @@ describe("unconnectedServers", () => {
 		expect(port.reconnected).toEqual(["superset"])
 	})
 
-	it("abandons a polling read once the poll budget it was left is spent", async () => {
+	it("takes no read the time left in the poll budget cannot cover", async () => {
 		const stderr = capture()
 		let time = 0
 		let reads = 0
@@ -228,7 +230,7 @@ describe("unconnectedServers", () => {
 					if (reads > 1) {
 						return new Promise(() => {})
 					}
-					time = POLL_BUDGET_MS - 1
+					time = LAST_POLL_MS + 1
 					return Promise.resolve(pending)
 				},
 				reconnect: async () => {},
@@ -238,11 +240,65 @@ describe("unconnectedServers", () => {
 		})
 		stderr.restore()
 
+		expect(reads).toBe(1)
 		expect(details).toEqual([
-			`${leftOut}it is still connecting after ${POLL_BUDGET_MS - 1} ms`,
+			`${leftOut}it is still connecting after ${LAST_POLL_MS + 1} ms`,
 		])
+		expect(stderr.written).toEqual([])
+	})
+
+	it("reports a server pending throughout, on a port answering off a timer", async () => {
+		const stderr = capture()
+		const clock = ticking(250)
+		let reads = 0
+
+		const details = await unconnectedServers({
+			names: ["superset"],
+			port: {
+				status: () => {
+					reads += 1
+					return new Promise((resolve) => {
+						setTimeout(() => resolve(pending), 1)
+					})
+				},
+				reconnect: async () => {},
+			},
+			now: clock.now,
+			wait: clock.wait,
+		})
+		stderr.restore()
+
+		expect(details).toEqual([
+			`${leftOut}it is still connecting after ${LAST_POLL_MS} ms`,
+		])
+		expect(stderr.written).toEqual([])
+		expect(clock.now()).toBeLessThanOrEqual(POLL_BUDGET_MS)
+		expect(reads).toBe(LAST_POLL_MS / 250 + 1)
+	})
+
+	it("names in a give up only the servers it holds no read for", async () => {
+		const stderr = capture()
+		const clock = ticking(250)
+		let reads = 0
+
+		const details = await unconnectedServers({
+			names: ["superset", "clock"],
+			port: {
+				status: () => {
+					reads += 1
+					return reads > 1 ? new Promise(() => {}) : Promise.resolve(pending)
+				},
+				reconnect: async () => {},
+			},
+			bound: 5,
+			now: clock.now,
+			wait: clock.wait,
+		})
+		stderr.restore()
+
+		expect(details).toEqual([`${leftOut}it is still connecting after 0 ms`])
 		expect(stderr.written).toEqual([
-			"the connection pass gave up on superset: a status read outlasted its 1 ms bound\n",
+			"the connection pass gave up on clock: a status read outlasted its 5 ms bound\n",
 		])
 	})
 
@@ -290,7 +346,7 @@ describe("unconnectedServers", () => {
 		const details = await unconnectedServers({
 			names: ["superset"],
 			port: {
-				status: async () => (clock.now() < POLL_BUDGET_MS ? pending : failed),
+				status: async () => (clock.now() < LAST_POLL_MS ? pending : failed),
 				reconnect: () => new Promise(() => {}),
 			},
 			bound: 5,
@@ -301,7 +357,7 @@ describe("unconnectedServers", () => {
 		expect(details).toEqual([
 			`${leftOut}it read failed, and the reconnection answered: the reconnection outlasted its 5 ms deadline`,
 		])
-		expect(clock.now()).toBe(POLL_BUDGET_MS)
+		expect(clock.now()).toBe(LAST_POLL_MS)
 	})
 
 	it("stops polling once its own reads have spent the poll budget", async () => {
@@ -336,7 +392,7 @@ describe("unconnectedServers", () => {
 			port: {
 				status: () =>
 					polling
-						? Promise.resolve(clock.now() < POLL_BUDGET_MS ? pending : failed)
+						? Promise.resolve(clock.now() < LAST_POLL_MS ? pending : failed)
 						: new Promise(() => {}),
 				reconnect: async () => {
 					polling = false
@@ -349,9 +405,7 @@ describe("unconnectedServers", () => {
 		stderr.restore()
 
 		expect(details).toEqual([`${leftOut}it read failed`])
-		expect(stderr.written).toEqual([
-			"the connection pass gave up on superset: a status read outlasted its 5 ms bound\n",
-		])
+		expect(stderr.written).toEqual([])
 	})
 
 	it("gives up on stderr, reporting nothing, when a status read never settles", async () => {

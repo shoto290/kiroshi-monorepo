@@ -171,16 +171,19 @@ Every other command names its session.
   were received, until it settles. No deadline covers that read as a whole: each status
   call taken while polling is bounded by what is left of the 5000 ms poll budget, and the
   reconnections and the call taken after them by 30000 ms each, what the CLI gives an MCP
-  request of its own. The polls stop once the time the read has spent on them, taken from
-  a clock and not counted in sleeps, reaches that 5000 ms. No session option bounds the
+  request of its own. The polls stop once the time left, taken from a clock and not
+  counted in sleeps, no longer covers a 250 ms wait and a call after it, so the last call
+  of a read is always given a bound it can land in. No session option bounds the
   dial: neither `MCP_TIMEOUT` nor `MCP_CONNECT_TIMEOUT_MS` is set, the CLI keeping its
   own defaults. A status call that outlasts
   its bound ends the polls there and keeps what the earlier calls named: only the very
   first call has nothing to fall back on, and it ends the read on a stderr line with
   nothing reported. The call taken after the reconnections is the same: outlasting, it
   leaves the servers the earlier calls left unconnected reported, and rides a stderr line
-  of its own. A server no status call has named yet is polled for 1000 ms only, then left
-  to the stderr line. An interrupt drops what is held and leaves
+  of its own. A stderr line names only the servers the read holds no status for: one the
+  earlier calls already named is reported, not given up on, and a give up naming no server
+  is not written. A server no status call has named yet is polled for 1000 ms only, then
+  left to the stderr line. An interrupt drops what is held and leaves
   the read running: the CLI never received that prompt, so no interrupt is sent to it and
   the sidecar rides a `result` frame of subtype `interrupted` instead, which ends the
   host's turn as cancelled. An interrupt with nothing held reaches the CLI as before. A
