@@ -898,6 +898,7 @@ type MenuButtonElementProps = AriaAttributes &
 export interface AnimatedSidebarMenuButtonProps extends MenuButtonElementProps {
 	ref?: Ref<HTMLElement>
 	children: ReactNode
+	below?: ReactNode
 	icon?: ReactNode
 	isIconDecorative?: boolean
 	label?: string
@@ -912,8 +913,11 @@ export interface AnimatedSidebarMenuButtonProps extends MenuButtonElementProps {
 	className?: string
 }
 
+const MENU_BUTTON_HEAD = "flex min-h-9 min-w-0 items-center gap-2.5 pe-1.5"
+
 export function AnimatedSidebarMenuButton({
 	children,
+	below,
 	icon,
 	isIconDecorative = true,
 	label,
@@ -982,9 +986,23 @@ export function AnimatedSidebarMenuButton({
 		</>
 	)
 
+	const body = below ? (
+		<>
+			<span className={MENU_BUTTON_HEAD} data-slot="sidebar-menu-head">
+				{content}
+			</span>
+			{below}
+		</>
+	) : (
+		content
+	)
+
 	const interactiveClassName = cn(
-		"relative flex min-h-9 w-full min-w-0 select-none items-center gap-2.5 overflow-hidden rounded-xl px-3 text-left font-medium text-sm outline-none",
+		"relative flex min-h-9 w-full min-w-0 select-none overflow-hidden rounded-xl text-left font-medium text-sm outline-none",
+		below ? "flex-col gap-1" : "items-center gap-2.5",
+		"px-3",
 		icon && "pl-2",
+		below && "pe-1.5",
 		"text-sidebar-foreground/70",
 		panel.collapsed && "justify-center gap-0 px-0",
 		!disabled &&
@@ -1012,7 +1030,7 @@ export function AnimatedSidebarMenuButton({
 			className={interactiveClassName}
 			{...elementProps}
 		>
-			{content}
+			{body}
 		</a>
 	) : (
 		<button
@@ -1028,7 +1046,7 @@ export function AnimatedSidebarMenuButton({
 			className={interactiveClassName}
 			{...elementProps}
 		>
-			{content}
+			{body}
 		</button>
 	)
 }
