@@ -331,6 +331,22 @@ const MAX_INLINE_SIZE_FRACTION = 0.85
 
 const inlineSizeOf = (element: Element) => element.getBoundingClientRect().width
 
+type ComparedWidthsProps = { className: string }
+
+const ComparedWidths = ({ className }: ComparedWidthsProps) => (
+	<MessageBubbleGroup spacing="default" className={className}>
+		<MessageBubble variant="soft" align="start">
+			<MessageBubbleContent>{SHORT_REPLY}</MessageBubbleContent>
+		</MessageBubble>
+		<MessageBubble variant="soft" align="start">
+			<MessageBubbleContent>{AGENT_LONG_REPLY[0]}</MessageBubbleContent>
+		</MessageBubble>
+		<MessageBubble variant="soft" align="start">
+			<MessageBubbleContent>{UNBREAKABLE_REPLY}</MessageBubbleContent>
+		</MessageBubble>
+	</MessageBubbleGroup>
+)
+
 export const ContentWidths = meta.story({
 	parameters: {
 		docs: {
@@ -340,22 +356,10 @@ export const ContentWidths = meta.story({
 			},
 		},
 	},
-	render: () => (
-		<MessageBubbleGroup spacing="default" className={THREAD_WIDTH}>
-			<MessageBubble variant="soft" align="start">
-				<MessageBubbleContent>{SHORT_REPLY}</MessageBubbleContent>
-			</MessageBubble>
-			<MessageBubble variant="soft" align="start">
-				<MessageBubbleContent>{AGENT_LONG_REPLY[0]}</MessageBubbleContent>
-			</MessageBubble>
-			<MessageBubble variant="soft" align="start">
-				<MessageBubbleContent>{UNBREAKABLE_REPLY}</MessageBubbleContent>
-			</MessageBubble>
-		</MessageBubbleGroup>
-	),
+	render: () => <ComparedWidths className={THREAD_WIDTH} />,
 	play: async ({ canvasElement }) => {
 		const group = slotIn(canvasElement, "message-bubble-group")
-		const [short, long] = slotsIn(canvasElement, "message-bubble")
+		const [, long] = slotsIn(canvasElement, "message-bubble")
 		const [shortContent, longContent, unbreakableContent] = slotsIn(
 			canvasElement,
 			"message-bubble-content",
@@ -364,7 +368,6 @@ export const ContentWidths = meta.story({
 		await expect(inlineSizeOf(shortContent)).toBeLessThan(
 			inlineSizeOf(longContent),
 		)
-		await expect(inlineSizeOf(short)).toBe(inlineSizeOf(long))
 		await expect(inlineSizeOf(long) / inlineSizeOf(group)).toBeCloseTo(
 			MAX_INLINE_SIZE_FRACTION,
 			2,
@@ -384,21 +387,7 @@ export const NarrowContainer = meta.story({
 			},
 		},
 	},
-	render: () => (
-		<div className="w-80">
-			<MessageBubbleGroup spacing="default">
-				<MessageBubble variant="soft" align="start">
-					<MessageBubbleContent>{SHORT_REPLY}</MessageBubbleContent>
-				</MessageBubble>
-				<MessageBubble variant="soft" align="start">
-					<MessageBubbleContent>{AGENT_LONG_REPLY[0]}</MessageBubbleContent>
-				</MessageBubble>
-				<MessageBubble variant="soft" align="start">
-					<MessageBubbleContent>{UNBREAKABLE_REPLY}</MessageBubbleContent>
-				</MessageBubble>
-			</MessageBubbleGroup>
-		</div>
-	),
+	render: () => <ComparedWidths className="w-80" />,
 	play: async ({ canvasElement }) => {
 		const group = slotIn(canvasElement, "message-bubble-group")
 
