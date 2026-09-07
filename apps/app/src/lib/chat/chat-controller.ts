@@ -86,6 +86,7 @@ export type ChatController = {
 	preflight: (resume?: string) => Promise<SessionHandle | null>
 	open: (botId: string, spaceId: string | null) => Promise<SessionHandle | null>
 	close: (botId: string) => Promise<void>
+	enter: (botId: string) => void
 	leave: (botId: string) => void
 	redescribe: (botId: string) => void
 	restart: () => Promise<SessionHandle | null>
@@ -785,6 +786,28 @@ export function createChatController(
 		return settled
 	}
 
+	const readForgottenTranscript = async (bot: BotChat) => {
+		const conversationId = bot.state.conversationId
+		if (
+			!conversationId ||
+			selectMessages(transcript.getState(), conversationId).length > 0
+		) {
+			return
+		}
+		try {
+			await enqueue(() => transcript.load(conversationId))
+		} catch (reason) {
+			reportRead(bot, reason)
+		}
+	}
+
+	const enterThread = (botId: string) => {
+		const bot = bots.get(botId)
+		if (bot) {
+			void readForgottenTranscript(bot)
+		}
+	}
+
 	const leaveThread = (botId: string) => {
 		const conversationId = bots.get(botId)?.state.conversationId
 		if (conversationId) {
@@ -1339,6 +1362,7 @@ export function createChatController(
 		preflight: (resume) => onSelected((bot) => preflightFor(bot, resume), null),
 		open,
 		close,
+		enter: enterThread,
 		leave: leaveThread,
 		redescribe,
 		restart: () =>

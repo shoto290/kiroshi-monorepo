@@ -1285,7 +1285,10 @@ function BotThreadView({
 	const { controller } = thread.chat
 	const botId = thread.bot.id
 
-	useEffect(() => () => controller.leave(botId), [controller, botId])
+	useEffect(() => {
+		controller.enter(botId)
+		return () => controller.leave(botId)
+	}, [controller, botId])
 
 	return (
 		<ThreadView

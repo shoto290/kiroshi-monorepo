@@ -187,6 +187,7 @@ const stubController = (
 	preflight: async () => null,
 	open: async () => null,
 	close: async () => undefined,
+	enter: () => undefined,
 	leave: () => undefined,
 	redescribe: () => undefined,
 	restart: async () => null,

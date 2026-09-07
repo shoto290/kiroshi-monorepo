@@ -34,6 +34,7 @@ export type SearchNavigation = {
 	selectConversation: (conversationId: string) => void
 	selectSpace: (spaceId: string) => void
 	openMission: (opened: { missionId: string; rowId: string }) => void
+	leaveMission: () => void
 	openRoutine: (opened: { routineId: string; conversationId: string }) => void
 	openActivityPanel: () => void
 	recordLanding: (landing: MessageLanding) => void
@@ -61,6 +62,8 @@ export const openSearchTarget = (
 		return
 	}
 
+	navigation.leaveMission()
+
 	if (target.kind === "chat" && target.landing) {
 		navigation.recordLanding(target.landing)
 	}
@@ -83,7 +86,7 @@ export const openSearchTarget = (
 export type SearchNavigationSource = {
 	roster: Pick<RosterController, "select" | "selectConversation">
 	spaces: Pick<SpacesController, "select">
-	missions: Pick<OpenedMissionController, "open">
+	missions: Pick<OpenedMissionController, "open" | "leave">
 	routines: Pick<OpenedRoutineController, "open">
 	landings: Pick<MessageLandingController, "record">
 	user: Pick<UserController, "setActivityPanelOpen">
@@ -101,6 +104,7 @@ export const createSearchNavigation = ({
 	selectConversation: roster.selectConversation,
 	selectSpace: spaces.select,
 	openMission: missions.open,
+	leaveMission: missions.leave,
 	openRoutine: routines.open,
 	openActivityPanel: () => void user.setActivityPanelOpen(true),
 	recordLanding: landings.record,

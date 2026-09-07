@@ -138,6 +138,7 @@ const aNavigation = (): TracedNavigation => {
 			selectSpace: (spaceId) => trace.push(`space:${spaceId}`),
 			openMission: ({ missionId, rowId }) =>
 				trace.push(`mission:${missionId}:${rowId}`),
+			leaveMission: () => undefined,
 			openRoutine: ({ routineId, conversationId }) =>
 				trace.push(`routine:${routineId}:${conversationId}`),
 			openActivityPanel: () => trace.push("activity"),
