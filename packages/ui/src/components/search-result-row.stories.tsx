@@ -30,6 +30,8 @@ const PAST_THE_LIST_LABEL = "Past the list"
 
 const ACTIVE_OPTION_ID = "search-result-active"
 
+const RESULT_LIST_ID = "search-result-list"
+
 const RANK_CHORD = "Press Control"
 
 const rankLabelFor = (rank: number) => `${RANK_CHORD} ${rank}`
@@ -370,7 +372,7 @@ export const AsListboxOption = meta.story({
 		docs: {
 			description: {
 				story:
-					"The row as the palette owns it: focus stays in the query field, which points at the active option through `aria-activedescendant`. Check that the pointed id resolves to the option carrying the selected state, that its accessible name carries both the title and the chord its rank answers to, and that no row is in the tab order — one press of Tab leaves the field and lands past the whole list, because the palette drives the list from the arrow keys and never from Tab.",
+					"The row as the palette owns it, with the wiring a reader needs around it: the query field is a combobox that owns the list through `aria-controls`, so the option it points at with `aria-activedescendant` is a logical descendant of the focused element and is actually announced. Check that the pointed id resolves inside the owned list to the option carrying the selected state, that its accessible name carries both the title and the chord its rank answers to, and that no row is in the tab order — one press of Tab leaves the field and lands past the whole list, because the palette drives the list from the arrow keys and never from Tab.",
 			},
 		},
 	},
@@ -378,11 +380,14 @@ export const AsListboxOption = meta.story({
 		<>
 			<input
 				aria-activedescendant={ACTIVE_OPTION_ID}
+				aria-controls={RESULT_LIST_ID}
+				aria-expanded
 				aria-label={QUERY_LABEL}
 				readOnly
+				role="combobox"
 				value={QUERY}
 			/>
-			<ResultList>
+			<ResultList id={RESULT_LIST_ID}>
 				<SearchResultRow {...args} />
 				<SearchResultRow
 					{...args}
@@ -397,13 +402,18 @@ export const AsListboxOption = meta.story({
 		</>
 	),
 	play: async ({ canvas, canvasElement, userEvent }) => {
-		const field = canvas.getByRole("textbox")
-		const [selected, rest] = canvas.getAllByRole("option")
-		const pointed = canvasElement.querySelector(
-			`#${field.getAttribute("aria-activedescendant")}`,
+		const field = canvas.getByRole("combobox")
+		const owned = canvasElement.querySelector(
+			`#${field.getAttribute("aria-controls")}`,
 		)
+		const [selected, rest] = canvas.getAllByRole("option")
 
-		await expect(pointed).toBe(selected)
+		if (!owned) throw new Error("The combobox owns no list")
+
+		await expect(field).toHaveAttribute("aria-expanded", "true")
+		await expect(
+			owned.querySelector(`#${field.getAttribute("aria-activedescendant")}`),
+		).toBe(selected)
 		await expect(selected).toHaveAttribute("aria-selected", "true")
 		await expect(rest).toHaveAttribute("aria-selected", "false")
 		await expect(selected).toHaveAttribute("tabindex", "-1")
