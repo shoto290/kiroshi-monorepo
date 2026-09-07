@@ -21,7 +21,11 @@ import {
 } from "./server-connect"
 import { type ResolvedServers, resolvedServers } from "./server-env"
 import { inheritedEnv } from "./session-env"
-import { layerFor, unavailableServersSection } from "./system-layer"
+import {
+	layerFor,
+	type ServerLine,
+	unavailableServersSection,
+} from "./system-layer"
 
 import type {
 	AgentCommand,
@@ -160,8 +164,7 @@ export const stopTurn = async ({ dropped, emit, interrupt }: StopRequest) => {
 	await interrupt()
 }
 
-type WaitingLine = {
-	detail: string
+type WaitingLine = ServerLine & {
 	owing: boolean
 }
 
@@ -192,14 +195,14 @@ export const reportConnections = ({ emit, push, pass }: ConnectionReport) => {
 		emit({ type: "server_env_rejected", detail })
 	}
 
-	const reported = ({ detail, notice }: ReportedLine) => {
+	const reported = ({ detail, state, notice }: ReportedLine) => {
 		if (signal.aborted) {
 			return
 		}
 		if (notice) {
 			framed(detail)
 		}
-		waiting.push({ detail, owing: false })
+		waiting.push({ detail, state, owing: false })
 	}
 
 	const hand = (text: string) => {
@@ -217,7 +220,7 @@ export const reportConnections = ({ emit, push, pass }: ConnectionReport) => {
 		}
 		waiting.length = 0
 		const section = unavailableServersSection(
-			carried.map((line) => line.detail),
+			carried.map(({ detail, state }) => ({ detail, state })),
 		)
 		push(`${section}\n\n${text}`)
 	}
@@ -227,7 +230,11 @@ export const reportConnections = ({ emit, push, pass }: ConnectionReport) => {
 			return
 		}
 		waiting.push(
-			...settled.map(({ detail, notice }) => ({ detail, owing: notice })),
+			...settled.map(({ detail, state, notice }) => ({
+				detail,
+				state,
+				owing: notice,
+			})),
 		)
 		holding = false
 		for (const text of held.splice(0)) {

@@ -1,5 +1,3 @@
-import { HOLDS_TOOLS, STILL_CONNECTING } from "./server-connect"
-import { LEFT_OUT } from "./server-env"
 import { type PreloadedSkill, preloadedSkills } from "./system-skills"
 
 import type { SessionRequest } from "../provider"
@@ -38,8 +36,15 @@ export const userLine = (userPluginPath: string): string =>
 export const spaceLine = (spacePluginPath: string): string =>
 	`What you learn about the project this space is for lives in ${spacePluginPath}, the directory every bot of this space reads, and that is where you write it.`
 
+export type ServerState = "left-out" | "connecting" | "reconnecting" | "holding"
+
+export type ServerLine = {
+	detail: string
+	state: ServerState
+}
+
 const CONNECTING_LINE =
-	"A server still connecting holds none of its tools yet, and can gain them later in this session. Say it is not ready rather than gone, and try it again when the person asks for it."
+	"A server still connecting, or being reconnected, holds none of its tools yet, and can gain them later in this session. Say it is not ready rather than gone, and try it again when the person asks for it."
 
 const HOLDS_TOOLS_LINE =
 	"A server named as holding its tools has them for the rest of this session. Use it as you would any other, and tell the person it is there if they asked about it."
@@ -59,27 +64,31 @@ const STANDING_OPENING = [
 	"Every server named here belongs to this session. Read each line for where that server stands, and answer the person with every tool you hold. Naming that server and its state is the one exception to saying nothing about the machinery you run on.",
 ]
 
-const naming = (rejections: string[], phrase: string): boolean =>
-	rejections.some((detail) => detail.includes(phrase))
+const holding = (lines: ServerLine[], state: ServerState): boolean =>
+	lines.some((line) => line.state === state)
 
-const openingFor = (rejections: string[]): string[] => {
-	const dropped = naming(rejections, LEFT_OUT)
-	const standing =
-		naming(rejections, STILL_CONNECTING) || naming(rejections, HOLDS_TOOLS)
+const openingFor = (lines: ServerLine[]): string[] => {
+	const dropped = holding(lines, "left-out")
+	const standing = lines.some((line) => line.state !== "left-out")
 	if (dropped && standing) {
 		return MIXED_OPENING
 	}
 	return dropped ? LEFT_OUT_OPENING : STANDING_OPENING
 }
 
-export const unavailableServersSection = (rejections: string[]): string => {
-	const [title, opening] = openingFor(rejections)
+export const leftOutLines = (details: string[]): ServerLine[] =>
+	details.map((detail) => ({ detail, state: "left-out" as const }))
+
+export const unavailableServersSection = (lines: ServerLine[]): string => {
+	const [title, opening] = openingFor(lines)
+	const connecting =
+		holding(lines, "connecting") || holding(lines, "reconnecting")
 	return [
 		title,
-		rejections.map((detail) => `- ${detail}`).join("\n"),
+		lines.map(({ detail }) => `- ${detail}`).join("\n"),
 		opening,
-		...(naming(rejections, STILL_CONNECTING) ? [CONNECTING_LINE] : []),
-		...(naming(rejections, HOLDS_TOOLS) ? [HOLDS_TOOLS_LINE] : []),
+		...(connecting ? [CONNECTING_LINE] : []),
+		...(holding(lines, "holding") ? [HOLDS_TOOLS_LINE] : []),
 	].join("\n\n")
 }
 
@@ -114,5 +123,7 @@ export const layerFor = (
 		...(systemPluginPath
 			? preloadedSkills(systemPluginPath).map(skillSection)
 			: []),
-		...(rejections.length ? [unavailableServersSection(rejections)] : []),
+		...(rejections.length
+			? [unavailableServersSection(leftOutLines(rejections))]
+			: []),
 	].join("\n\n")

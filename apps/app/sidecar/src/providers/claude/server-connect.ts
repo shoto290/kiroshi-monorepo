@@ -1,14 +1,14 @@
 import type { McpServerStatus } from "@anthropic-ai/claude-agent-sdk"
 
 import { leftOut } from "./server-env"
+import type { ServerLine, ServerState } from "./system-layer"
 
 import type { ServerEnv } from "../provider"
 import { describeError } from "../../describe-error"
 
 export type ServerStatus = Pick<McpServerStatus, "name" | "status">
 
-export type ReportedLine = {
-	detail: string
+export type ReportedLine = ServerLine & {
 	notice: boolean
 }
 
@@ -82,12 +82,13 @@ const REDACTED = "[redacted]"
 const NO_READ = "no status read ever named it"
 const AWAITING_AUTH = "it is waiting for you to authorize it"
 const DISABLED = "it is disabled in this session"
-export const STILL_CONNECTING = "is still connecting"
-export const HOLDS_TOOLS = "holds its tools"
+const STILL_CONNECTING = "is still connecting"
+const HOLDS_TOOLS = "holds its tools"
 const UNSETTLED = "it never settled while it was watched"
 const UNREADABLE = "the status of this session's servers could not be read"
 const RECONNECTION_SAID = "and the reconnection answered"
 const READ_SAID = "and the status read that followed it answered"
+const RECONNECTION_UNDER_WAY = "a reconnection is under way"
 const GAVE_UP = "the connection pass gave up on"
 const REPORTABLE = ["pending", "failed", "needs-auth"]
 
@@ -234,6 +235,23 @@ const reachedLine = (name: string): string =>
 const answered = (answer: Answer | undefined, secrets: string[]): string =>
 	answer ? `, ${answer.source}: ${readable(answer.message, secrets)}` : ""
 
+const dialling = (name: string): string =>
+	`the server "${name}" read failed, and ${RECONNECTION_UNDER_WAY}`
+
+const openingLine = (
+	name: string,
+	named: NamedRead,
+	secrets: string[],
+): ReportedLine => {
+	if (named.status === "failed") {
+		return news(dialling(name), "reconnecting")
+	}
+	const detail = lineFor(name, named, undefined, secrets)
+	return named.status === "pending"
+		? news(detail, "connecting")
+		: notice(detail)
+}
+
 const lineFor = (
 	name: string,
 	{ status, spent }: NamedRead,
@@ -261,8 +279,7 @@ const linesFor = (
 		if (!named) {
 			unread.push(name)
 		} else if (REPORTABLE.includes(named.status)) {
-			const detail = lineFor(name, named, undefined, secrets)
-			reported.push(named.status === "pending" ? news(detail) : notice(detail))
+			reported.push(openingLine(name, named, secrets))
 		}
 	}
 	return { reported, unread }
@@ -329,14 +346,22 @@ const gaveUp = (
 	}
 }
 
-const notice = (detail: string): ReportedLine => ({ detail, notice: true })
+const notice = (detail: string): ReportedLine => ({
+	detail,
+	state: "left-out",
+	notice: true,
+})
 
-const news = (detail: string): ReportedLine => ({ detail, notice: false })
+const news = (detail: string, state: ServerState): ReportedLine => ({
+	detail,
+	state,
+	notice: false,
+})
 
 const SETTLED_LINE: Partial<
 	Record<ServerStatus["status"], (name: string) => ReportedLine>
 > = {
-	connected: (name) => news(reachedLine(name)),
+	connected: (name) => news(reachedLine(name), "holding"),
 	disabled: (name) => notice(leftOut(name, DISABLED)),
 	"needs-auth": (name) => notice(leftOut(name, AWAITING_AUTH)),
 }
@@ -353,7 +378,7 @@ const readLine = (
 		return settled(name)
 	}
 	const line = lineFor(name, { status, spent }, answer, secrets)
-	return status === "pending" ? news(line) : notice(line)
+	return status === "pending" ? news(line, "connecting") : notice(line)
 }
 
 const announce = async (

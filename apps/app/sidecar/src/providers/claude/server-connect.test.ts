@@ -140,7 +140,7 @@ describe("unconnectedServers", () => {
 		})
 
 		expect(details).toEqual([
-			`${leftOut}it read failed`,
+			'the server "superset" read failed, and a reconnection is under way',
 			`the server "clock" is still connecting after ${LAST_POLL_MS} ms`,
 		])
 		expect(clock.now()).toBe(LAST_POLL_MS)

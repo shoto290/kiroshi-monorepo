@@ -75,7 +75,7 @@ const expandServer = (
 	return { ...server, ...Object.fromEntries(expanded) } as Server
 }
 
-export const LEFT_OUT = "was left out"
+const LEFT_OUT = "was left out"
 
 export const leftOut = (name: string, reason: string) =>
 	`the server "${name}" ${LEFT_OUT}: ${reason}`

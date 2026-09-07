@@ -26,6 +26,7 @@ import {
 	bundleLine,
 	KIROSHI_LAYER,
 	layerFor,
+	leftOutLines,
 	skillLine,
 	spaceLine,
 	unavailableServersSection,
@@ -350,7 +351,9 @@ describe("buildOptions", () => {
 		)
 
 		expect(append).toBe(layerFor(request, rejections))
-		expect(append.endsWith(unavailableServersSection(rejections))).toBe(true)
+		expect(
+			append.endsWith(unavailableServersSection(leftOutLines(rejections))),
+		).toBe(true)
 		for (const detail of rejections) {
 			expect(append).toContain(detail)
 		}
@@ -579,13 +582,13 @@ describe("layerFor", () => {
 				KIROSHI_LAYER,
 				bundleLine("/bots/b1"),
 				`# learn\n\n${skillLine(join(system, "skills", "learn"))}\n\nRules.`,
-				unavailableServersSection(rejections),
+				unavailableServersSection(leftOutLines(rejections)),
 			].join("\n\n"),
 		)
 	})
 
 	it("tells the bot to answer with the tools it holds and to give the reason listed", () => {
-		const section = unavailableServersSection(rejections)
+		const section = unavailableServersSection(leftOutLines(rejections))
 
 		expect(section).toContain("Answer the person with the tools you still hold")
 		expect(section).toContain("give them the reason listed for it")
@@ -594,10 +597,31 @@ describe("layerFor", () => {
 		)
 	})
 
+	it("reads the state of a line, not the words its reason quotes", () => {
+		const section = unavailableServersSection(
+			leftOutLines([
+				'the server "superset" was left out: it read failed, and the reconnection answered: is still connecting, holds its tools',
+			]),
+		)
+
+		expect(section).toContain("# Servers left out of this session")
+		expect(section).toContain("tell them that server is unavailable")
+		expect(section).not.toContain("holds none of its tools yet")
+		expect(section).not.toContain("has them for the rest of this session")
+	})
+
 	it("claims nothing of every server when one was left out and one came back", () => {
 		const section = unavailableServersSection([
-			'the server "clock" was left out: it is waiting for you to authorize it',
-			'the server "superset" was reconnected, and holds its tools again',
+			{
+				detail:
+					'the server "clock" was left out: it is waiting for you to authorize it',
+				state: "left-out",
+			},
+			{
+				detail:
+					'the server "superset" connected, and holds its tools for the rest of this session',
+				state: "holding",
+			},
 		])
 
 		expect(section).toContain("hold none of them as unavailable")
@@ -608,8 +632,15 @@ describe("layerFor", () => {
 
 	it("claims nothing of every server when one was left out and one is connecting", () => {
 		const section = unavailableServersSection([
-			'the server "clock" was left out: it is waiting for you to authorize it',
-			'the server "superset" is still connecting after 4750 ms',
+			{
+				detail:
+					'the server "clock" was left out: it is waiting for you to authorize it',
+				state: "left-out",
+			},
+			{
+				detail: 'the server "superset" is still connecting after 4750 ms',
+				state: "connecting",
+			},
 		])
 
 		expect(section).toContain("hold none of them as unavailable")
@@ -620,7 +651,11 @@ describe("layerFor", () => {
 
 	it("claims no server was left out when none was, and says the tools are back", () => {
 		const section = unavailableServersSection([
-			'the server "superset" was reconnected, and holds its tools again',
+			{
+				detail:
+					'the server "superset" connected, and holds its tools for the rest of this session',
+				state: "holding",
+			},
 		])
 
 		expect(section).not.toContain("was left out")
@@ -631,7 +666,10 @@ describe("layerFor", () => {
 
 	it("claims no server was left out for a server still connecting", () => {
 		const section = unavailableServersSection([
-			'the server "superset" is still connecting after 4750 ms',
+			{
+				detail: 'the server "superset" is still connecting after 4750 ms',
+				state: "connecting",
+			},
 		])
 
 		expect(section).not.toContain("was left out")
@@ -642,7 +680,10 @@ describe("layerFor", () => {
 
 	it("tells the bot a server still connecting can hold its tools later", () => {
 		const section = unavailableServersSection([
-			'the server "superset" is still connecting after 4750 ms',
+			{
+				detail: 'the server "superset" is still connecting after 4750 ms',
+				state: "connecting",
+			},
 		])
 
 		expect(section).toContain("holds none of its tools yet")
@@ -656,7 +697,7 @@ describe("layerFor", () => {
 		expect(rejection).toBe(
 			'the server "probe" was left out: RUNNER is defined by no scope',
 		)
-		expect(unavailableServersSection([rejection])).toBe(
+		expect(unavailableServersSection(leftOutLines([rejection]))).toBe(
 			[
 				"# Servers left out of this session",
 				`- ${rejection}`,
@@ -666,10 +707,12 @@ describe("layerFor", () => {
 	})
 
 	it("holds for a rejection naming no variable, such as an unreadable store", () => {
-		const section = unavailableServersSection([
-			"the environment store could not be read",
-			'the server "clock" was left out: the environment store could not be read',
-		])
+		const section = unavailableServersSection(
+			leftOutLines([
+				"the environment store could not be read",
+				'the server "clock" was left out: the environment store could not be read',
+			]),
+		)
 
 		expect(section).not.toContain("variable")
 		expect(section).toContain("give them the reason listed for it")
@@ -689,7 +732,7 @@ describe("reportConnections", () => {
 	const detail =
 		'the server "superset" was left out: it is waiting for you to authorize it'
 
-	const section = unavailableServersSection([detail])
+	const section = unavailableServersSection(leftOutLines([detail]))
 
 	type Report = {
 		emitted: string[]
@@ -760,7 +803,7 @@ describe("reportConnections", () => {
 		expect(pushed).toEqual([`${section}\n\nfirst`])
 	})
 
-	it("names a budget failure with its status, then with what the reconnection said", async () => {
+	it("raises no frame at the opening for a server its watch is about to dial", async () => {
 		const emitted: string[] = []
 		const pushed: string[] = []
 		const released = Promise.withResolvers<void>()
@@ -787,19 +830,57 @@ describe("reportConnections", () => {
 
 		report.prompt("first")
 		await released.promise
-		const read = 'the server "superset" was left out: it read failed'
 
-		expect(emitted).toEqual([read])
-		expect(pushed[0]).toBe(`${unavailableServersSection([read])}\n\nfirst`)
+		expect(emitted).toEqual([])
+		expect(pushed[0]).toContain("read failed, and a reconnection is under way")
 
 		await ticked()
 		report.prompt("and now?")
-		const answered = `${read}, and the reconnection answered: Connection failed`
+		const answered =
+			'the server "superset" was left out: it read failed, and the reconnection answered: Connection failed'
 
-		expect(emitted).toEqual([read, answered])
+		expect(emitted).toEqual([answered])
 		expect(pushed[1]).toBe(
-			`${unavailableServersSection([answered])}\n\nand now?`,
+			`${unavailableServersSection(leftOutLines([answered]))}\n\nand now?`,
 		)
+	})
+
+	it("raises no frame at all for a server its reconnection brings back", async () => {
+		const emitted: string[] = []
+		const pushed: string[] = []
+		const released = Promise.withResolvers<void>()
+		let dialled = false
+
+		const report = reportConnections({
+			emit: (frame) => {
+				emitted.push(String(frame.detail))
+			},
+			push: (text) => {
+				pushed.push(text)
+				released.resolve()
+			},
+			pass: {
+				names: ["superset"],
+				port: {
+					status: async () => [
+						{ name: "superset", status: dialled ? "connected" : "failed" },
+					],
+					reconnect: async () => {
+						dialled = true
+					},
+				},
+				wait: async () => {},
+			},
+		})
+
+		report.prompt("first")
+		await released.promise
+		await ticked()
+		report.prompt("and now?")
+
+		expect(emitted).toEqual([])
+		expect(pushed[1]).toContain("holds its tools for the rest of this session")
+		expect(pushed[1]).not.toContain("was left out")
 	})
 
 	const clocked = (portFor: (now: () => number) => ConnectPort) => {

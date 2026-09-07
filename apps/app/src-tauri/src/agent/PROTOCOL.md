@@ -152,10 +152,12 @@ Every other command names its session.
   frame naming the server and the variable. `failure`, set when the store could not be
   read, leaves out every server declaring a variable and rides the same frame. A server
   the options did keep is read once the session is initialized, for the 5000 ms of the
-  poll budget. What that budget settles rides the first prompt: a server it read failed by
-  that status and one it read `needs-auth` as waiting for its authorization, each on a
-  frame of its own, and one it left pending as still connecting after the time the read
-  spent, which reaches the bot's section and no frame at all. The frame carries the
+  poll budget. What that budget settles rides the first prompt: a server it read
+  `needs-auth` as waiting for its authorization, on a frame of its own, one it read failed
+  as having read failed with a reconnection under way, and one it left pending as still
+  connecting after the time the read spent, both of those reaching the bot's section and
+  no frame at all. A server whose outcome the watch is about to decide raises no frame
+  until it is decided: one frame per server at the most, across the read and its watch. The frame carries the
   servers this session is without, and the CLI is still dialling that one: its tools can
   land later in the session, which the section says in its own words, and its frame comes
   later too, when a read names it failed, `needs-auth` or disabled, or the pass gives up
@@ -182,7 +184,9 @@ Every other command names its session.
   failed, it earns the same one reconnection and frame; `needs-auth` and `disabled`, it
   earns that frame with the reason of its own. One frame per server at the most after the budget,
   and none once the session closed. A frame raised after a prompt was handed rides the
-  next prompt's section, so the bot reads what the screen reads. A slash command is handed
+  next prompt's section, so the bot reads what the screen reads. The section reads the
+  state each line was built for, never the words of a line: a reason quoting the CLI can
+  say anything without moving the opening or the closing lines that frame it. A slash command is handed
   over untouched, its line waiting for the next prompt that is not one; a line is framed
   once, whichever prompt ends up carrying it. A server named by a line and then by a later
   one rides the later line alone, on the screen and in the section both: a standing the
