@@ -1,4 +1,11 @@
-import { type RefObject, useCallback, useEffect, useMemo, useRef } from "react"
+import {
+	type RefObject,
+	useCallback,
+	useEffect,
+	useMemo,
+	useRef,
+	useSyncExternalStore,
+} from "react"
 
 import { ActivityIndicator } from "@workspace/ui/components/activity-indicator"
 import { AppHeader } from "@workspace/ui/components/app-header"
@@ -28,6 +35,7 @@ import { ThreadLayout } from "@workspace/ui/components/thread-layout"
 import type {
 	TranscriptHandle,
 	TranscriptItem,
+	TranscriptNewer,
 } from "@workspace/ui/components/transcript"
 import { type TurnCauseKind, TurnGroup } from "@workspace/ui/components/turn"
 import { type ChatCopy, useChatCopy } from "@workspace/ui/hooks/use-chat-copy"
@@ -92,6 +100,7 @@ import {
 } from "@/lib/chat/use-asked-question"
 import type { StagedFiles } from "@/lib/chat/use-attachments"
 import { useAttachments } from "@/lib/chat/use-attachments"
+import { useMessageLanding } from "@/lib/chat/use-message-landing"
 import {
 	type PinnedBubbles,
 	usePinnedMessages,
@@ -134,6 +143,7 @@ import { toMissionCard } from "@/lib/missions/missions-model"
 import { useMissionSendFailure } from "@/lib/missions/use-mission-failure-notices"
 import { useMissions } from "@/lib/missions/use-missions"
 import type { ReportedRun } from "@/lib/routines/routine-contract"
+import type { MessageLandingController } from "@/lib/search/message-landing-controller"
 
 type WorkingBotProps = BotStopProps & {
 	face: ThreadFace
@@ -881,6 +891,21 @@ const ThreadNotices = ({
 	)
 }
 
+type NewerControl = {
+	hasNewer: boolean
+	isLoading: boolean
+	onLoad: () => void
+	onLoadLatest: () => void
+}
+
+const newerControlOf = ({
+	hasNewer,
+	isLoading,
+	onLoad,
+	onLoadLatest,
+}: NewerControl): TranscriptNewer | undefined =>
+	hasNewer ? { isLoading, onLoad, onLoadLatest } : undefined
+
 type ThreadViewProps = {
 	activityPanel: ActivityPanel
 	thread: LoadedThread
@@ -888,6 +913,7 @@ type ThreadViewProps = {
 	runtimes: ConversationRuntimes
 	attachments: AttachmentsController
 	drafts: DraftsController
+	landings: MessageLandingController
 	readerName: string
 	onOpenMission: (missionId: string) => void
 }
@@ -899,6 +925,7 @@ function ThreadView({
 	runtimes,
 	attachments,
 	drafts,
+	landings,
 	readerName,
 	onOpenMission,
 }: ThreadViewProps) {
@@ -938,10 +965,20 @@ function ThreadView({
 	const pins = usePinnedMessages(controller, state.conversationId)
 	const routinesScope = routinesScopeOf(facts, state.conversationId)
 	const missions = useMissions(routinesScope.conversationId)
-	const { highlightedMessageId, jumpToMessage } = useThreadJump(
+	const { highlightedMessageId, jumpToMessage, landOnMessage } = useThreadJump(
 		controller,
 		scrollerRef,
 	)
+	const landing = useSyncExternalStore(landings.subscribe, landings.getState)
+
+	useMessageLanding({
+		conversationId: state.conversationId,
+		landOn: controller.landOn,
+		landing,
+		messages: state.messages,
+		onLand: landOnMessage,
+		onTaken: landings.forget,
+	})
 	const { faceOf, toExcerpt, toQuote } = useThreadNaming({
 		...roster,
 		reader,
@@ -997,6 +1034,17 @@ function ThreadView({
 	const loadOlder = useCallback(() => {
 		void controller.loadOlder()
 	}, [controller])
+	const loadNewer = useCallback(() => {
+		void controller.loadNewer()
+	}, [controller])
+	const loadLatest = useCallback(() => {
+		void controller.loadLatest().then((isLoaded) => {
+			if (isLoaded) {
+				scrollerRef.current?.scrollToEnd()
+			}
+		})
+	}, [controller])
+	const hasNewer = state.hasNewer
 
 	const { asked, recall } = useAskedQuestion({
 		question: facts.question,
@@ -1101,6 +1149,12 @@ function ThreadView({
 			}
 			countsNewMessages={!isSoloThread}
 			marksNewMessages={!isSoloThread}
+			newer={newerControlOf({
+				hasNewer,
+				isLoading: facts.isLoadingNewer,
+				onLoad: loadNewer,
+				onLoadLatest: loadLatest,
+			})}
 			older={
 				state.messages.length > 0
 					? {
@@ -1171,6 +1225,7 @@ type ThreadScreenProps = {
 	runtimes: ConversationRuntimes
 	attachments: AttachmentsController
 	drafts: DraftsController
+	landings: MessageLandingController
 	readerName: string
 	onOpenMission: (missionId: string) => void
 }
@@ -1186,6 +1241,7 @@ function ConversationThreadView({
 	runtimes,
 	attachments,
 	drafts,
+	landings,
 	readerName,
 	onOpenMission,
 }: ConversationThreadViewProps) {
@@ -1202,6 +1258,7 @@ function ConversationThreadView({
 			attachments={attachments}
 			bots={bots}
 			drafts={drafts}
+			landings={landings}
 			onOpenMission={onOpenMission}
 			readerName={readerName}
 			runtimes={runtimes}
@@ -1221,13 +1278,17 @@ function BotThreadView({
 	runtimes,
 	attachments,
 	drafts,
+	landings,
 	readerName,
 	onOpenMission,
 }: BotThreadViewProps) {
 	const { controller } = thread.chat
 	const botId = thread.bot.id
 
-	useEffect(() => () => controller.leave(botId), [controller, botId])
+	useEffect(() => {
+		controller.enter(botId)
+		return () => controller.leave(botId)
+	}, [controller, botId])
 
 	return (
 		<ThreadView
@@ -1235,6 +1296,7 @@ function BotThreadView({
 			attachments={attachments}
 			bots={bots}
 			drafts={drafts}
+			landings={landings}
 			onOpenMission={onOpenMission}
 			readerName={readerName}
 			runtimes={runtimes}
@@ -1250,6 +1312,7 @@ export function ThreadScreen({
 	runtimes,
 	attachments,
 	drafts,
+	landings,
 	readerName,
 	onOpenMission,
 }: ThreadScreenProps) {
@@ -1261,6 +1324,7 @@ export function ThreadScreen({
 				bots={bots}
 				drafts={drafts}
 				key={thread.conversation.id}
+				landings={landings}
 				onOpenMission={onOpenMission}
 				readerName={readerName}
 				runtimes={runtimes}
@@ -1276,6 +1340,7 @@ export function ThreadScreen({
 			bots={bots}
 			drafts={drafts}
 			key={thread.bot.id}
+			landings={landings}
 			onOpenMission={onOpenMission}
 			readerName={readerName}
 			runtimes={runtimes}

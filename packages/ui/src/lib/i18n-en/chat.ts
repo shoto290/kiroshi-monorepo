@@ -29,11 +29,19 @@ const chat = {
 	transcript: {
 		label: "Conversation",
 		loadOlder: "Load older messages",
+		loadNewer: "Load newer messages",
 		jumpToLatest: "Jump to latest",
 		newMessages: "New messages",
 		newCounted_one: "{{count}} new message",
 		newCounted_other: "{{count}} new messages",
 		startOfHistory: "Beginning of the conversation",
+		landing: {
+			unavailable: {
+				title: "That message could not be reached",
+				description:
+					"The thread is intact. Open the search result again to try landing on it.",
+			},
+		},
 		message: {
 			user: "user message",
 			assistant: "assistant message",

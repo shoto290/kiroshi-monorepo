@@ -6,6 +6,7 @@ import {
 	type TranscriptDraft,
 	type TranscriptMessage,
 	type TranscriptPage,
+	type TranscriptWindow,
 } from "./transcript-contract"
 
 export type TranscriptDelta = {
@@ -24,6 +25,7 @@ export type TranscriptSettlement = {
 export type TranscriptConversation = {
 	messages: TranscriptMessage[]
 	hasMore: boolean
+	hasNewer: boolean
 }
 
 export type TranscriptState = {
@@ -32,6 +34,9 @@ export type TranscriptState = {
 
 export type TranscriptAction =
 	| { type: "pageLoaded"; page: TranscriptPage }
+	| { type: "windowLanded"; window: TranscriptWindow }
+	| { type: "latestLoaded"; page: TranscriptPage }
+	| { type: "newerLoaded"; window: TranscriptWindow }
 	| {
 			type: "messageAppended"
 			draft: TranscriptDraft
@@ -48,7 +53,17 @@ const NO_MESSAGES: TranscriptMessage[] = []
 const EMPTY_CONVERSATION: TranscriptConversation = {
 	messages: NO_MESSAGES,
 	hasMore: false,
+	hasNewer: false,
 }
+
+const FORGOTTEN_CONVERSATION: TranscriptConversation = {
+	messages: NO_MESSAGES,
+	hasMore: true,
+	hasNewer: false,
+}
+
+const isAwayFromNewest = (held: TranscriptConversation): boolean =>
+	held.hasNewer || (held.messages.length === 0 && held.hasMore)
 
 const TERMINAL_RANK = 2
 
@@ -76,6 +91,11 @@ export const selectHasMore = (
 	conversationId: string,
 ): boolean => state.conversations[conversationId]?.hasMore ?? false
 
+export const selectHasNewer = (
+	state: TranscriptState,
+	conversationId: string,
+): boolean => state.conversations[conversationId]?.hasNewer ?? false
+
 export type LastWord = {
 	text?: string
 	at: number
@@ -100,6 +120,17 @@ export const lastWordIn = (
 	}
 }
 
+type HeldTranscript = {
+	messages: TranscriptMessage[]
+	hasNewer: boolean
+}
+
+export const lastWordHeldIn = ({
+	messages,
+	hasNewer,
+}: HeldTranscript): LastWord | undefined =>
+	hasNewer ? undefined : lastWordIn(messages)
+
 const oldestSeq = (messages: TranscriptMessage[]): number | null =>
 	messages[0]?.seq ?? null
 
@@ -107,6 +138,11 @@ export const selectOldestSeq = (
 	state: TranscriptState,
 	conversationId: string,
 ): number | null => oldestSeq(selectMessages(state, conversationId))
+
+export const selectNewestSeq = (
+	state: TranscriptState,
+	conversationId: string,
+): number | null => selectMessages(state, conversationId).at(-1)?.seq ?? null
 
 const byPosition = (
 	left: TranscriptMessage,
@@ -217,8 +253,42 @@ const applyPageLoaded = (
 	}
 	const messages = mergePage(current.messages, page.messages)
 	return withConversation(state, page.conversationId, {
+		...current,
 		messages,
 		hasMore: nextHasMore(current, page, messages),
+	})
+}
+
+const applyWindowLanded = (
+	state: TranscriptState,
+	window: TranscriptWindow,
+): TranscriptState =>
+	withConversation(state, window.conversationId, {
+		messages: window.messages.map(recoveredFromPort),
+		hasMore: window.hasOlder,
+		hasNewer: window.hasNewer,
+	})
+
+const applyLatestLoaded = (
+	state: TranscriptState,
+	page: TranscriptPage,
+): TranscriptState =>
+	withConversation(state, page.conversationId, {
+		messages: page.messages.map(recoveredFromPort),
+		hasMore: page.hasMore,
+		hasNewer: false,
+	})
+
+const applyNewerLoaded = (
+	state: TranscriptState,
+	window: TranscriptWindow,
+): TranscriptState => {
+	const current =
+		state.conversations[window.conversationId] ?? EMPTY_CONVERSATION
+	return withConversation(state, window.conversationId, {
+		...current,
+		messages: mergePage(current.messages, window.messages),
+		hasNewer: window.hasNewer,
 	})
 }
 
@@ -245,6 +315,9 @@ const applyMessageAppended = (
 ): TranscriptState => {
 	const current =
 		state.conversations[draft.conversationId] ?? EMPTY_CONVERSATION
+	if (isAwayFromNewest(current)) {
+		return state
+	}
 	if (current.messages.some((message) => message.id === draft.id)) {
 		return state
 	}
@@ -256,6 +329,7 @@ const applyMessageAppended = (
 		? droppedCount(grown, TRANSCRIPT_WINDOW_SIZE, isRunning)
 		: 0
 	return withConversation(state, draft.conversationId, {
+		...current,
 		messages: grown.slice(dropped),
 		hasMore: current.hasMore || dropped > 0,
 	})
@@ -269,6 +343,9 @@ const applyThreadLeft = (
 	if (!current) {
 		return state
 	}
+	if (current.hasNewer) {
+		return withConversation(state, conversationId, FORGOTTEN_CONVERSATION)
+	}
 	const dropped = droppedCount(
 		current.messages,
 		TRANSCRIPT_PAGE_SIZE,
@@ -278,6 +355,7 @@ const applyThreadLeft = (
 		return state
 	}
 	return withConversation(state, conversationId, {
+		...current,
 		messages: current.messages.slice(dropped),
 		hasMore: true,
 	})
@@ -346,6 +424,12 @@ export const transcriptReducer = (
 	switch (action.type) {
 		case "pageLoaded":
 			return applyPageLoaded(state, action.page)
+		case "windowLanded":
+			return applyWindowLanded(state, action.window)
+		case "latestLoaded":
+			return applyLatestLoaded(state, action.page)
+		case "newerLoaded":
+			return applyNewerLoaded(state, action.window)
 		case "messageAppended":
 			return applyMessageAppended(state, action.draft, action.isAtLiveEdge)
 		case "messageStreamed":

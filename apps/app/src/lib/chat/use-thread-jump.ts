@@ -19,6 +19,7 @@ export type ThreadPager = {
 export type ThreadJump = {
 	highlightedMessageId?: string
 	jumpToMessage: (messageId: string) => void
+	landOnMessage: (messageId: string) => boolean
 }
 
 export function useThreadJump(
@@ -47,19 +48,30 @@ export function useThreadJump(
 		[controller, scrollerRef],
 	)
 
+	const holdHighlight = useCallback((messageId: string) => {
+		clearTimeout(heldHighlight.current)
+		setHighlightedMessageId(messageId)
+		heldHighlight.current = setTimeout(
+			() => setHighlightedMessageId(undefined),
+			HIGHLIGHT_MS,
+		)
+	}, [])
+
 	return {
 		highlightedMessageId,
 		jumpToMessage: useCallback(
 			(messageId: string) => {
-				clearTimeout(heldHighlight.current)
-				setHighlightedMessageId(messageId)
-				heldHighlight.current = setTimeout(
-					() => setHighlightedMessageId(undefined),
-					HIGHLIGHT_MS,
-				)
+				holdHighlight(messageId)
 				void reachMessage(messageId)
 			},
-			[reachMessage],
+			[holdHighlight, reachMessage],
+		),
+		landOnMessage: useCallback(
+			(messageId: string) => {
+				holdHighlight(messageId)
+				return scrollerRef.current?.scrollToMessage(messageId) === true
+			},
+			[holdHighlight, scrollerRef],
 		),
 	}
 }

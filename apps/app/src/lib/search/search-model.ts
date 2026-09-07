@@ -177,7 +177,17 @@ const toMessageResult = (
 			: { key: "conversation", text: hit.conversationTitle },
 	],
 	space: lookups.spaceOf(hit.spaceId),
-	onOpen: () => open({ kind: "chat", row, spaceId: hit.spaceId }),
+	onOpen: () =>
+		open({
+			kind: "chat",
+			row,
+			spaceId: hit.spaceId,
+			landing: {
+				conversationId: hit.conversationId,
+				messageId: hit.messageId,
+				seq: hit.seq,
+			},
+		}),
 })
 
 const toChatResult = (

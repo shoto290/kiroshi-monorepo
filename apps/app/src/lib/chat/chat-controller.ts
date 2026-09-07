@@ -53,10 +53,14 @@ import type {
 	MessageReference,
 } from "../conversations/store-contract"
 import type { TranscriptStore } from "../conversations/store-port"
-import type { TerminalCompletion } from "../conversations/transcript-contract"
+import type {
+	TerminalCompletion,
+	TranscriptMessage,
+} from "../conversations/transcript-contract"
 import { createTranscriptController } from "../conversations/transcript-controller"
 import {
 	selectHasMore,
+	selectHasNewer,
 	selectMessages,
 } from "../conversations/transcript-state"
 import { createReportedRunsReader } from "../routines/create-run-port"
@@ -82,11 +86,15 @@ export type ChatController = {
 	preflight: (resume?: string) => Promise<SessionHandle | null>
 	open: (botId: string, spaceId: string | null) => Promise<SessionHandle | null>
 	close: (botId: string) => Promise<void>
+	enter: (botId: string) => void
 	leave: (botId: string) => void
 	redescribe: (botId: string) => void
 	restart: () => Promise<SessionHandle | null>
 	rotate: () => Promise<SessionHandle | null>
 	loadOlder: () => Promise<void>
+	loadNewer: () => Promise<void>
+	loadLatest: () => Promise<boolean>
+	landOn: (seq: number) => Promise<TranscriptMessage[]>
 	follow: (isAtLiveEdge: boolean) => void
 	send: (text: string, repliedToMessageId?: string) => Promise<void>
 	sendTo: (
@@ -122,6 +130,8 @@ export type ChatControllerOptions = {
 const INTERRUPTED: TerminalCompletion = "interrupted"
 
 const NO_PINS: MessagePin[] = []
+
+const NO_LANDED_MESSAGES: TranscriptMessage[] = []
 
 type PromptOutcome = "submitted" | "unwritten" | "refused"
 
@@ -241,6 +251,7 @@ export function createChatController(
 			type: "transcriptChanged",
 			messages: selectMessages(current, conversationId),
 			hasOlder: selectHasMore(current, conversationId),
+			hasNewer: selectHasNewer(current, conversationId),
 		})
 	}
 
@@ -775,6 +786,25 @@ export function createChatController(
 		return settled
 	}
 
+	const readBack = async (bot: BotChat) => {
+		const conversationId = bot.state.conversationId
+		if (!conversationId) {
+			return
+		}
+		try {
+			await enqueue(() => transcript.reopen(conversationId))
+		} catch (reason) {
+			reportRead(bot, reason)
+		}
+	}
+
+	const enterThread = (botId: string) => {
+		const bot = bots.get(botId)
+		if (bot) {
+			void readBack(bot)
+		}
+	}
+
 	const leaveThread = (botId: string) => {
 		const conversationId = bots.get(botId)?.state.conversationId
 		if (conversationId) {
@@ -859,6 +889,43 @@ export function createChatController(
 		} finally {
 			dispatch(bot, { type: "olderLoading", loading: false })
 		}
+	}
+
+	const loadNewer = async (bot: BotChat) => {
+		const conversationId = bot.state.conversationId
+		if (!conversationId || !bot.state.hasNewer || bot.state.loadingNewer) {
+			return
+		}
+		dispatch(bot, { type: "newerLoading", loading: true })
+		try {
+			await enqueue(() => transcript.loadNewer(conversationId))
+		} catch (reason) {
+			reportRead(bot, reason)
+		} finally {
+			dispatch(bot, { type: "newerLoading", loading: false })
+		}
+	}
+
+	const loadLatest = async (bot: BotChat) => {
+		const conversationId = bot.state.conversationId
+		if (!conversationId || !bot.state.hasNewer) {
+			return true
+		}
+		try {
+			await enqueue(() => transcript.loadLatest(conversationId))
+			return true
+		} catch (reason) {
+			reportRead(bot, reason)
+			return false
+		}
+	}
+
+	const landOn = (bot: BotChat, seq: number) => {
+		const conversationId = bot.state.conversationId
+		if (!conversationId) {
+			return Promise.resolve(NO_LANDED_MESSAGES)
+		}
+		return enqueue(transcript.askLanding(conversationId, seq))
 	}
 
 	const referenceFor = (bot: BotChat, messageId: string) => {
@@ -1013,6 +1080,11 @@ export function createChatController(
 		const conversationId = bot.state.conversationId
 		if (!conversationId) {
 			reportStore(bot, { kind: "unavailable" })
+			return "unwritten"
+		}
+		const isWritable =
+			(await loadLatest(bot)) && bot.state.conversationId === conversationId
+		if (!isWritable) {
 			return "unwritten"
 		}
 		await rotateIfDue(bot)
@@ -1229,16 +1301,24 @@ export function createChatController(
 		)
 	}
 
-	const answer = (bot: BotChat, id: string, answers: QuestionAnswers) => {
+	const answer = async (bot: BotChat, id: string, answers: QuestionAnswers) => {
 		const runtime = bot.state.runtime
 		const request = bot.state.question
 		if (!runtime || request?.id !== id) {
-			return Promise.resolve()
+			return
 		}
-		return driver
-			.answerQuestion(runtime, id, answers)
-			.then(() => recordAnswers(bot, request, answers))
-			.catch((reason) => report(bot, reason))
+		const conversationId = bot.state.conversationId
+		const isAnswerable =
+			(await loadLatest(bot)) && bot.state.conversationId === conversationId
+		if (!isAnswerable) {
+			return
+		}
+		try {
+			await driver.answerQuestion(runtime, id, answers)
+			recordAnswers(bot, request, answers)
+		} catch (reason) {
+			report(bot, reason)
+		}
 	}
 
 	const shutdown = async (bot: BotChat) => {
@@ -1279,6 +1359,7 @@ export function createChatController(
 		preflight: (resume) => onSelected((bot) => preflightFor(bot, resume), null),
 		open,
 		close,
+		enter: enterThread,
 		leave: leaveThread,
 		redescribe,
 		restart: () =>
@@ -1288,6 +1369,9 @@ export function createChatController(
 			),
 		rotate: () => onSelected((bot) => rotateFor(bot, ASKED_FOR), null),
 		loadOlder: () => onSelected(loadOlder, undefined),
+		loadNewer: () => onSelected(loadNewer, undefined),
+		loadLatest: () => onSelected(loadLatest, true),
+		landOn: (seq) => onSelected((bot) => landOn(bot, seq), NO_LANDED_MESSAGES),
 		follow: (isAtLiveEdge) => forSelected((bot) => follow(bot, isAtLiveEdge)),
 		send: (text, repliedToMessageId) =>
 			onSelected((bot) => send(bot, text, repliedToMessageId), undefined),

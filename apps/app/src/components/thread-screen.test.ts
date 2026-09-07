@@ -56,6 +56,10 @@ import type { Routine } from "@/lib/routines/routine-contract"
 import { routinesTransport } from "@/lib/routines/routines-transport"
 import type { ReportedRunsReader } from "@/lib/routines/run-port"
 import { triggerSourcesTransport } from "@/lib/routines/trigger-sources-transport"
+import {
+	createMessageLandingController,
+	type MessageLandingController,
+} from "@/lib/search/message-landing-controller"
 
 vi.mock("@/lib/routines/routines-transport", async (importOriginal) => {
 	const actual =
@@ -183,11 +187,15 @@ const stubController = (
 	preflight: async () => null,
 	open: async () => null,
 	close: async () => undefined,
+	enter: () => undefined,
 	leave: () => undefined,
 	redescribe: () => undefined,
 	restart: async () => null,
 	rotate: async () => null,
 	loadOlder: async () => undefined,
+	loadNewer: async () => undefined,
+	loadLatest: async () => true,
+	landOn: async () => [],
 	follow: () => undefined,
 	send: async () => undefined,
 	sendTo: async () => undefined,
@@ -276,12 +284,14 @@ const runtimesOf = (thread: Thread) =>
 type ThreadScreenHarnessProps = {
 	thread: Thread
 	bots: Bot[]
+	landings: MessageLandingController
 	onOpenMission: (missionId: string) => void
 }
 
 const ThreadScreenHarness = ({
 	thread,
 	bots,
+	landings,
 	onOpenMission,
 }: ThreadScreenHarnessProps) => {
 	const [isOpen, setOpen] = useState(false)
@@ -295,6 +305,7 @@ const ThreadScreenHarness = ({
 		attachments,
 		bots,
 		drafts: createDraftsController(),
+		landings,
 		onOpenMission,
 		readerName: "Reader",
 		runtimes: runtimesOf(thread),
@@ -306,7 +317,14 @@ const screenOf = (
 	thread: Thread,
 	bots: Bot[] = NO_BOT_RECORDS,
 	onOpenMission: (missionId: string) => void = () => undefined,
-) => createElement(ThreadScreenHarness, { bots, onOpenMission, thread })
+	landings: MessageLandingController = createMessageLandingController(),
+) =>
+	createElement(ThreadScreenHarness, {
+		bots,
+		landings,
+		onOpenMission,
+		thread,
+	})
 
 const settle = () =>
 	act(async () => {
@@ -543,6 +561,37 @@ const roomOf = async ({
 		},
 	}
 }
+
+const LONG_ROOM_TURNS = 400
+
+const LANDED_SEQ = 80
+
+const LANDED_MESSAGE_ID = `m-t-${LANDED_SEQ}`
+
+const UNREACHABLE_TITLE = "That message could not be reached"
+
+const textOfTurn = (index: number) => `Message ${index} of the long room`
+
+const LONG_ROOM_SPOKEN: SpokenTurn[] = Array.from(
+	{ length: LONG_ROOM_TURNS },
+	(_, index) => ({
+		turnId: `t-${index + 1}`,
+		text: textOfTurn(index + 1),
+		createdAt: index + 1,
+	}),
+)
+
+const longRoomOf = () => roomOf({ names: ["Ada"], spoken: LONG_ROOM_SPOKEN })
+
+const anchorOf = (messageId: string) =>
+	document.querySelector(`[data-message-id="${messageId}"]`)
+
+const shownTurnNumbers = () =>
+	[...document.querySelectorAll("[data-message-id]")]
+		.map((anchor) =>
+			/^m-t-(\d+)$/.exec(anchor.getAttribute("data-message-id") ?? ""),
+		)
+		.flatMap((found) => (found ? [Number(found[1])] : []))
 
 const SOLO_ROUTINE: Routine = {
 	id: "r-1",
@@ -1789,5 +1838,100 @@ describe("ThreadScreen", () => {
 		await settle()
 
 		expect(cancelled).toEqual(["Nyx"])
+	})
+
+	it("opens a searched message centred, highlighted and paged both ways", async () => {
+		const room = await longRoomOf()
+		const landings = createMessageLandingController()
+		landings.record({
+			conversationId: room.thread.conversation.id,
+			messageId: LANDED_MESSAGE_ID,
+			seq: LANDED_SEQ,
+		})
+
+		render(screenOf(room.thread, room.bots, () => undefined, landings))
+		await settle()
+
+		expect(screen.getByText(textOfTurn(LANDED_SEQ))).toBeTruthy()
+		expect(anchorOf(LANDED_MESSAGE_ID)?.getAttribute("data-highlighted")).toBe(
+			"true",
+		)
+		expect(landings.getState()).toBeNull()
+
+		const landed = shownTurnNumbers()
+		const oldestLanded = Math.min(...landed)
+		const newestLanded = Math.max(...landed)
+
+		fireEvent.click(screen.getByRole("button", { name: "Load older messages" }))
+		await settle()
+
+		expect(Math.min(...shownTurnNumbers())).toBeLessThan(oldestLanded)
+
+		fireEvent.click(screen.getByRole("button", { name: "Load newer messages" }))
+		await settle()
+
+		expect(Math.max(...shownTurnNumbers())).toBeGreaterThan(newestLanded)
+	})
+	it("returns a left landing to the newest page with nothing newer to load", async () => {
+		const room = await longRoomOf()
+		const landings = createMessageLandingController()
+		landings.record({
+			conversationId: room.thread.conversation.id,
+			messageId: LANDED_MESSAGE_ID,
+			seq: LANDED_SEQ,
+		})
+
+		const { unmount } = render(
+			screenOf(room.thread, room.bots, () => undefined, landings),
+		)
+		await settle()
+		expect(shownTurnNumbers()).toContain(LANDED_SEQ)
+
+		unmount()
+		render(screenOf(room.thread, room.bots))
+		await settle()
+
+		expect(Math.max(...shownTurnNumbers())).toBe(LONG_ROOM_TURNS)
+		expect(
+			screen.queryByRole("button", { name: "Load newer messages" }),
+		).toBeNull()
+	})
+	it("shows a prompt sent from a landed thread and the reply to it", async () => {
+		const room = await longRoomOf()
+		const landings = createMessageLandingController()
+		landings.record({
+			conversationId: room.thread.conversation.id,
+			messageId: LANDED_MESSAGE_ID,
+			seq: LANDED_SEQ,
+		})
+
+		render(screenOf(room.thread, room.bots, () => undefined, landings))
+		await settle()
+		expect(shownTurnNumbers()).toContain(LANDED_SEQ)
+
+		await room.send("hold the line")
+		act(() => {
+			room.driver.pushTo(room.idOf("Ada"), WRITING)
+		})
+		await settle()
+
+		expect(screen.getByText("hold the line")).toBeTruthy()
+		expect(screen.getByText("the walls hold")).toBeTruthy()
+	})
+	it("gives up on a landing the window it read does not hold", async () => {
+		const room = await longRoomOf()
+		const landings = createMessageLandingController()
+		landings.record({
+			conversationId: room.thread.conversation.id,
+			messageId: "m-t-nowhere",
+			seq: LANDED_SEQ,
+		})
+
+		render(createElement(NoticeSurface))
+		render(screenOf(room.thread, room.bots, () => undefined, landings))
+		await settle()
+
+		expect(landings.getState()).toBeNull()
+		expect(screen.getAllByText(UNREACHABLE_TITLE).length).toBeGreaterThan(0)
 	})
 })

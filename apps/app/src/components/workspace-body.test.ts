@@ -45,6 +45,7 @@ import { type FakeLayout, fakeLayout } from "@/lib/perf/fake-layout"
 import { createOpenedRoutineController } from "@/lib/routines/opened-routine-controller"
 import { routinesTransport } from "@/lib/routines/routines-transport"
 import { triggerSourcesTransport } from "@/lib/routines/trigger-sources-transport"
+import { createMessageLandingController } from "@/lib/search/message-landing-controller"
 
 vi.mock("@/lib/routines/routines-transport", async (importOriginal) => {
 	const actual =
@@ -232,6 +233,7 @@ const workspaceOf = async (store = createFakeTranscriptStore()) => {
 			isConversationSettingsOpen: false,
 			isOverlayOpen: false,
 			isSettingsOpen: false,
+			landings: createMessageLandingController(),
 			missions,
 			onOpenConversationSettings: () => undefined,
 			onRetrySpaces: () => undefined,

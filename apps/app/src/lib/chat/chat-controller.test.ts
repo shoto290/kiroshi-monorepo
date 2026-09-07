@@ -28,6 +28,7 @@ import {
 import type { TranscriptStore } from "../conversations/store-port"
 import {
 	TRANSCRIPT_PAGE_SIZE,
+	TRANSCRIPT_WINDOW_SIZE,
 	type TranscriptCompletion,
 	type TranscriptMessage,
 } from "../conversations/transcript-contract"
@@ -3102,5 +3103,73 @@ describe("prompts the session cannot take yet", () => {
 			"complete",
 		])
 		harness.detach()
+	})
+})
+describe("returning to a solo thread", () => {
+	beforeEach(() => {
+		vi.useFakeTimers()
+	})
+
+	afterEach(() => {
+		vi.useRealTimers()
+	})
+
+	const MESSAGES = TRANSCRIPT_WINDOW_SIZE * 2
+
+	const LANDED_SEQ = 20
+
+	const longStore = () =>
+		createFakeTranscriptStore({
+			messages: Array.from({ length: MESSAGES }, (_, index) =>
+				storedMessage({
+					id: `m-${index + 1}`,
+					seq: index + 1,
+					conversationId: FAKE_CHAT_ID,
+				}),
+			),
+		})
+
+	it("shows the newest page again after a landed window was left", async () => {
+		const { controller, detach } = await bootedHarness({ store: longStore() })
+
+		await controller.landOn(LANDED_SEQ)
+		expect(controller.getState().hasNewer).toBe(true)
+
+		controller.leave(BOT)
+		controller.enter(BOT)
+		await vi.runAllTimersAsync()
+
+		const state = controller.getState()
+		expect(state.hasNewer).toBe(false)
+		expect(state.messages.at(-1)?.id).toBe(`m-${MESSAGES}`)
+		detach()
+	})
+
+	it("shows the landed window with no newest page spliced under it", async () => {
+		const { controller, detach } = await bootedHarness({ store: longStore() })
+
+		const landing = controller.landOn(LANDED_SEQ)
+		await controller.open(BOT, null)
+		await landing
+		await vi.runAllTimersAsync()
+
+		const shown = controller.getState()
+		const ids = shown.messages.map((held) => held.id)
+		expect(ids).toContain(`m-${LANDED_SEQ}`)
+		expect(ids).not.toContain(`m-${MESSAGES}`)
+		expect(shown.hasNewer).toBe(true)
+		detach()
+	})
+
+	it("reads nothing back while the thread still holds messages", async () => {
+		const store = longStore()
+		const { controller, detach } = await bootedHarness({ store })
+		const loadPage = vi.spyOn(store, "loadPage")
+
+		controller.enter(BOT)
+		await vi.runAllTimersAsync()
+
+		expect(loadPage).not.toHaveBeenCalled()
+		detach()
 	})
 })

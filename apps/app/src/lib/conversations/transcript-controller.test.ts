@@ -16,7 +16,11 @@ import {
 	OTHER_CONVERSATION,
 } from "./transcript-fixtures"
 import type { TranscriptPort } from "./transcript-port"
-import { selectHasMore, selectMessages } from "./transcript-state"
+import {
+	selectHasMore,
+	selectHasNewer,
+	selectMessages,
+} from "./transcript-state"
 
 const PAGE_SIZE = 2
 
@@ -42,6 +46,10 @@ const createHarness = (messages: TranscriptMessage[] = STORED): Harness => {
 			reads += 1
 			return fake.loadPage(conversationId, cursor)
 		},
+		loadWindow: (conversationId, seq) => {
+			reads += 1
+			return fake.loadWindow(conversationId, seq)
+		},
 	}
 	return { controller: createTranscriptController(port), reads: () => reads }
 }
@@ -51,6 +59,12 @@ const idsOf = (
 	conversationId = CONVERSATION,
 ): string[] =>
 	selectMessages(controller.getState(), conversationId).map((entry) => entry.id)
+
+const LONG = Array.from({ length: TRANSCRIPT_WINDOW_SIZE * 2 }, (_, index) =>
+	message({ id: `m-${index + 1}`, seq: index + 1 }),
+)
+
+const EARLIER_SEQ = 20
 
 const draft = (overrides: Partial<TranscriptDraft>): TranscriptDraft => ({
 	id: "local-1",
@@ -252,5 +266,147 @@ describe("createTranscriptController", () => {
 
 		expect(idsOf(read)).toHaveLength(TRANSCRIPT_WINDOW_SIZE + 1)
 		expect(selectHasMore(read.getState(), CONVERSATION)).toBe(false)
+	})
+})
+describe("a landing window nobody is waiting for", () => {
+	const LATER_SEQ = 100
+
+	const gatedLanding = () => {
+		const fake = createFakeTranscriptPort({ messages: LONG })
+		let release = (): void => undefined
+		const gate = new Promise<void>((resolve) => {
+			release = resolve
+		})
+		const port: TranscriptPort = {
+			loadPage: fake.loadPage,
+			loadWindow: async (conversationId, seq) => {
+				await gate
+				return fake.loadWindow(conversationId, seq)
+			},
+		}
+		return { controller: createTranscriptController(port), release }
+	}
+
+	const leftMidLanding = async () => {
+		const { controller, release } = gatedLanding()
+		await controller.load(CONVERSATION)
+
+		const landing = controller.askLanding(CONVERSATION, EARLIER_SEQ)()
+		controller.leave(CONVERSATION)
+		release()
+		await landing
+
+		return controller
+	}
+
+	it("installs the window while the reader stays in the thread", async () => {
+		const { controller, release } = gatedLanding()
+
+		const landing = controller.askLanding(CONVERSATION, EARLIER_SEQ)()
+		release()
+		await landing
+
+		expect(idsOf(controller)).toContain(`m-${EARLIER_SEQ}`)
+		expect(selectHasNewer(controller.getState(), CONVERSATION)).toBe(true)
+	})
+
+	it("installs no window when the reader leaves before the read starts", async () => {
+		const { controller, release } = gatedLanding()
+		await controller.load(CONVERSATION)
+		release()
+
+		const read = controller.askLanding(CONVERSATION, EARLIER_SEQ)
+		controller.leave(CONVERSATION)
+		await read()
+
+		expect(idsOf(controller)).not.toContain(`m-${EARLIER_SEQ}`)
+		expect(selectHasNewer(controller.getState(), CONVERSATION)).toBe(false)
+	})
+
+	it("installs no window when the reader leaves while the read is in flight", async () => {
+		const controller = await leftMidLanding()
+
+		expect(idsOf(controller)).not.toContain(`m-${EARLIER_SEQ}`)
+		expect(selectHasNewer(controller.getState(), CONVERSATION)).toBe(false)
+	})
+
+	it("shows a message appended to the thread the reader left that way", async () => {
+		const controller = await leftMidLanding()
+
+		controller.append(draft({ id: "said-while-away" }))
+
+		expect(idsOf(controller)).toContain("said-while-away")
+	})
+
+	it("installs the window of the later landing only", async () => {
+		const { controller, release } = gatedLanding()
+		release()
+
+		const earlier = controller.askLanding(CONVERSATION, EARLIER_SEQ)
+		const later = controller.askLanding(CONVERSATION, LATER_SEQ)
+
+		await earlier()
+
+		expect(idsOf(controller)).toEqual([])
+
+		await later()
+
+		expect(idsOf(controller)).toContain(`m-${LATER_SEQ}`)
+		expect(idsOf(controller)).not.toContain(`m-${EARLIER_SEQ}`)
+	})
+})
+describe("reopening a thread that was left", () => {
+	const emptied = async () => {
+		const fake = createFakeTranscriptPort({ messages: LONG })
+		let reads = 0
+		const port: TranscriptPort = {
+			loadPage: (conversationId, cursor) => {
+				reads += 1
+				return fake.loadPage(conversationId, cursor)
+			},
+			loadWindow: fake.loadWindow,
+		}
+		const controller = createTranscriptController(port)
+		await controller.load(CONVERSATION)
+		await controller.askLanding(CONVERSATION, EARLIER_SEQ)()
+		controller.leave(CONVERSATION)
+
+		return { controller, reads: () => reads }
+	}
+
+	it("shows the newest page again when no landing was asked", async () => {
+		const { controller } = await emptied()
+
+		await controller.reopen(CONVERSATION)
+
+		expect(idsOf(controller)).toContain(`m-${LONG.length}`)
+		expect(selectHasNewer(controller.getState(), CONVERSATION)).toBe(false)
+	})
+
+	it("reads no newest page while a landing of that conversation is pending", async () => {
+		const { controller, reads } = await emptied()
+		const opened = reads()
+
+		const landing = controller.askLanding(CONVERSATION, EARLIER_SEQ)
+		await controller.reopen(CONVERSATION)
+		await controller.load(CONVERSATION)
+
+		expect(reads()).toBe(opened)
+
+		await landing()
+
+		expect(idsOf(controller)).toContain(`m-${EARLIER_SEQ}`)
+		expect(idsOf(controller)).not.toContain(`m-${LONG.length}`)
+		expect(selectHasNewer(controller.getState(), CONVERSATION)).toBe(true)
+	})
+
+	it("reads the newest page back when a landing gives up on an empty thread", async () => {
+		const { controller } = await emptied()
+
+		await expect(
+			controller.askLanding(CONVERSATION, LONG.length + 1)(),
+		).rejects.toThrow()
+
+		expect(idsOf(controller)).toContain(`m-${LONG.length}`)
 	})
 })

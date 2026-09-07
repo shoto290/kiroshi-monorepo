@@ -8,7 +8,10 @@ import { type SidebarActivity, sidebarActivityFor } from "./screen-model"
 import type { BotPreviews } from "../bots/roster-controller"
 import { type RosterLine, runsIn, type SoloThreads } from "../bots/roster-line"
 import type { TranscriptStore } from "../conversations/store-port"
-import { type LastWord, lastWordIn } from "../conversations/transcript-state"
+import {
+	type LastWord,
+	lastWordHeldIn,
+} from "../conversations/transcript-state"
 
 export type Chat = {
 	state: ChatState
@@ -148,7 +151,7 @@ export function useBotPreviews({
 		const shown = lines.map(({ spaceId, botId }) => {
 			const state = controller.stateFor(botId)
 			const live = runsIn(soloThreads, state.conversationId, spaceId)
-				? lastWordIn(state.messages)
+				? lastWordHeldIn(state)
 				: undefined
 			return { spaceId, botId, value: live ?? stored[spaceId]?.[botId] }
 		})

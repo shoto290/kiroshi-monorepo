@@ -1,6 +1,10 @@
 import type { RosterController } from "@/lib/bots/roster-controller"
 import type { OpenedMissionController } from "@/lib/missions/opened-mission-controller"
 import type { OpenedRoutineController } from "@/lib/routines/opened-routine-controller"
+import type {
+	MessageLanding,
+	MessageLandingController,
+} from "@/lib/search/message-landing-controller"
 import type { SpacesController } from "@/lib/spaces/spaces-controller"
 import type { UserController } from "@/lib/user/preferences-controller"
 
@@ -10,7 +14,12 @@ export type SearchRow = {
 }
 
 export type SearchTarget =
-	| { kind: "chat"; row: SearchRow; spaceId: string | null }
+	| {
+			kind: "chat"
+			row: SearchRow
+			spaceId: string | null
+			landing?: MessageLanding
+	  }
 	| { kind: "mission"; missionId: string; botId: string; spaceId: string }
 	| {
 			kind: "routine"
@@ -25,8 +34,10 @@ export type SearchNavigation = {
 	selectConversation: (conversationId: string) => void
 	selectSpace: (spaceId: string) => void
 	openMission: (opened: { missionId: string; rowId: string }) => void
+	leaveMission: () => void
 	openRoutine: (opened: { routineId: string; conversationId: string }) => void
 	openActivityPanel: () => void
+	recordLanding: (landing: MessageLanding) => void
 }
 
 const selectRow = (row: SearchRow, navigation: SearchNavigation) => {
@@ -51,6 +62,12 @@ export const openSearchTarget = (
 		return
 	}
 
+	navigation.leaveMission()
+
+	if (target.kind === "chat" && target.landing) {
+		navigation.recordLanding(target.landing)
+	}
+
 	selectRow(target.row, navigation)
 
 	if (target.spaceId) {
@@ -69,8 +86,9 @@ export const openSearchTarget = (
 export type SearchNavigationSource = {
 	roster: Pick<RosterController, "select" | "selectConversation">
 	spaces: Pick<SpacesController, "select">
-	missions: Pick<OpenedMissionController, "open">
+	missions: Pick<OpenedMissionController, "open" | "leave">
 	routines: Pick<OpenedRoutineController, "open">
+	landings: Pick<MessageLandingController, "record">
 	user: Pick<UserController, "setActivityPanelOpen">
 }
 
@@ -79,12 +97,15 @@ export const createSearchNavigation = ({
 	spaces,
 	missions,
 	routines,
+	landings,
 	user,
 }: SearchNavigationSource): SearchNavigation => ({
 	selectBot: roster.select,
 	selectConversation: roster.selectConversation,
 	selectSpace: spaces.select,
 	openMission: missions.open,
+	leaveMission: missions.leave,
 	openRoutine: routines.open,
 	openActivityPanel: () => void user.setActivityPanelOpen(true),
+	recordLanding: landings.record,
 })

@@ -31,12 +31,20 @@ const chat = {
 	transcript: {
 		label: "Conversation",
 		loadOlder: "Charger les messages plus anciens",
+		loadNewer: "Charger les messages plus récents",
 		jumpToLatest: "Aller au dernier message",
 		newMessages: "Nouveaux messages",
 		newCounted_one: "{{count}} nouveau message",
 		newCounted_many: "{{count}} nouveaux messages",
 		newCounted_other: "{{count}} nouveaux messages",
 		startOfHistory: "Début de la conversation",
+		landing: {
+			unavailable: {
+				title: "Ce message n'a pas pu être atteint",
+				description:
+					"La conversation est intacte. Ouvrez à nouveau le résultat de recherche pour y arriver.",
+			},
+		},
 		message: {
 			user: "message de l'utilisateur",
 			assistant: "message de l'assistant",

@@ -643,12 +643,15 @@ export const createFakeTranscriptStore = (
 		return Promise.resolve(seq)
 	}
 
+	const transcriptPort = () =>
+		createFakeTranscriptPort({ messages: [...rows.values()], pageSize })
+
 	return {
 		loadPage: (conversationId: string, cursor: TranscriptCursor | null) =>
-			createFakeTranscriptPort({
-				messages: [...rows.values()],
-				pageSize,
-			}).loadPage(conversationId, cursor),
+			transcriptPort().loadPage(conversationId, cursor),
+
+		loadWindow: (conversationId: string, seq: number) =>
+			transcriptPort().loadWindow(conversationId, seq),
 
 		spaces: () =>
 			Promise.resolve(

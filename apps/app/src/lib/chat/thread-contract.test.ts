@@ -70,6 +70,8 @@ const conversationState = (
 	messages: [],
 	hasOlder: false,
 	isLoadingOlder: false,
+	hasNewer: false,
+	isLoadingNewer: false,
 	speakers: [],
 	waitingBotIds: [],
 	loopingPair: null,

@@ -37,6 +37,14 @@ const OLDER_PAGE = Array.from({ length: 6 }, (_, index) => ({
 	text: `Older run ${index + 1}, prepended above the reading position.`,
 }))
 
+const NEWER_PAGE = Array.from({ length: 6 }, (_, index) => ({
+	id: `newer-${index}`,
+	from: index % 2 === 0 ? ("user" as const) : ("assistant" as const),
+	text: `Newer run ${index + 1}, appended below the landed message.`,
+}))
+
+const NEWEST_ROW = NEWER_PAGE[NEWER_PAGE.length - 1].text
+
 const REPLIES = Array.from({ length: 4 }, (_, index) => ({
 	id: `reply-${index}`,
 	from: "assistant" as const,
@@ -121,21 +129,27 @@ const scrollUp = async (viewport: HTMLElement) => {
 	await settleScroll()
 }
 
-type DemoProps = Omit<TranscriptProps, "children" | "rows" | "older"> & {
+type DemoProps = Omit<
+	TranscriptProps,
+	"children" | "rows" | "older" | "newer"
+> & {
 	entries?: Entry[]
 	incoming?: Entry[]
 	olderPages?: Entry[][]
+	newerPages?: Entry[][]
 }
 
 const TranscriptDemo = ({
 	entries = HISTORY,
 	incoming = REPLIES,
 	olderPages,
+	newerPages,
 	...transcriptProps
 }: DemoProps) => {
 	const [shown, setShown] = useState(entries)
 	const [sent, setSent] = useState(0)
 	const [pending, setPending] = useState(olderPages ?? [])
+	const [ahead, setAhead] = useState(newerPages ?? [])
 	const next = incoming[sent]
 
 	const deliverIncoming = () => {
@@ -151,12 +165,30 @@ const TranscriptDemo = ({
 		setPending((current) => current.slice(1))
 	}
 
+	const deliverNewer = () => {
+		const page = ahead[0]
+		if (!page) return
+		setShown((current) => [...current, ...page])
+		setAhead((current) => current.slice(1))
+	}
+
+	const deliverLatest = () => {
+		if (ahead.length === 0) return
+		setShown(ahead.at(-1) ?? [])
+		setAhead([])
+	}
+
 	return (
 		<div className={FRAME_CLASS}>
 			<Transcript
 				{...transcriptProps}
 				className="flex-1"
 				contentClassName="flex flex-col p-3"
+				newer={
+					ahead.length > 0
+						? { onLoad: deliverNewer, onLoadLatest: deliverLatest }
+						: undefined
+				}
 				older={
 					olderPages
 						? { has: pending.length > 0, onLoad: deliverOlder }
@@ -463,6 +495,66 @@ export const PrependsOlderMessages = meta.story({
 		await expect(
 			Math.abs(anchor.getBoundingClientRect().top - before),
 		).toBeLessThanOrEqual(2)
+	},
+})
+
+export const LoadsNewerMessages = meta.story({
+	render: (args) => (
+		<TranscriptDemo {...args} entries={HISTORY} newerPages={[NEWER_PAGE]} />
+	),
+	parameters: {
+		docs: {
+			description: {
+				story:
+					"A thread opened on a search result: the newest end is not loaded, so a control sits below the last row and reads the page after it. Once nothing newer is left the control is gone, which is how the reader knows the live edge is back.",
+			},
+		},
+	},
+	play: async ({ canvas, userEvent }) => {
+		const control = canvas.getByRole("button", { name: "Load newer messages" })
+
+		await userEvent.click(control)
+		await waitFor(() =>
+			expect(canvas.getByText(NEWER_PAGE[0].text)).toBeInTheDocument(),
+		)
+
+		await waitFor(() =>
+			expect(
+				canvas.queryByRole("button", { name: "Load newer messages" }),
+			).toBeNull(),
+		)
+	},
+})
+
+export const JumpsToTheNewestPage = meta.story({
+	render: (args) => (
+		<TranscriptDemo {...args} entries={HISTORY} newerPages={[NEWER_PAGE]} />
+	),
+	parameters: {
+		docs: {
+			description: {
+				story:
+					"The return control on a transcript whose newest end is unloaded. Scrolling back down would only reach the last row read, which is not the last row of the conversation, so the control asks for the newest page instead: the rows it lands on are the ones that were never loaded, and both it and the load-newer control are gone once the live edge is back.",
+			},
+		},
+	},
+	play: async ({ canvas, userEvent }) => {
+		const viewport = canvas.getByRole("region", { name: "Conversation" })
+		await atLiveEdge(viewport)
+		await scrollUp(viewport)
+
+		await expect(canvas.queryByText(NEWEST_ROW)).toBeNull()
+
+		await userEvent.click(canvas.getByRole("button", RETURN_CONTROL))
+
+		await waitFor(() =>
+			expect(canvas.getByText(NEWEST_ROW)).toBeInTheDocument(),
+		)
+		await waitFor(() =>
+			expect(
+				canvas.queryByRole("button", { name: "Load newer messages" }),
+			).toBeNull(),
+		)
 	},
 })
 

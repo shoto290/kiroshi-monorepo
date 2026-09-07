@@ -83,6 +83,7 @@ import { useWaitingMissions } from "@/lib/missions/use-waiting-missions"
 import { useNotifications } from "@/lib/notifications/use-notifications"
 import { createOpenedRoutineController } from "@/lib/routines/opened-routine-controller"
 import { useRunDriver } from "@/lib/routines/use-run-driver"
+import { createMessageLandingController } from "@/lib/search/message-landing-controller"
 import {
 	useSearch,
 	useSearchLookups,
@@ -147,6 +148,7 @@ export function App() {
 		[roster.controller],
 	)
 	const openedRoutine = useMemo(createOpenedRoutineController, [])
+	const messageLandings = useMemo(createMessageLandingController, [])
 	const sections = useSections(store, {
 		move: roster.controller.moveToSection,
 		clear: roster.controller.clearSection,
@@ -631,6 +633,7 @@ export function App() {
 		spaces: spaces.controller,
 		missions: openedMission,
 		routines: openedRoutine,
+		landings: messageLandings,
 		user: user.controller,
 	})
 
@@ -754,6 +757,7 @@ export function App() {
 					isConversationSettingsOpen={isThreadConversationSettingsOpen}
 					isOverlayOpen={isOverlayOpen}
 					isSettingsOpen={isThreadSettingsOpen}
+					landings={messageLandings}
 					missions={openedMission}
 					onOpenConversationSettings={roster.controller.editConversation}
 					onRetrySpaces={loadSpaces}

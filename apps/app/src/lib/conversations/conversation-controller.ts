@@ -10,7 +10,11 @@ import type {
 	TranscriptMessage,
 } from "./transcript-contract"
 import { createTranscriptController } from "./transcript-controller"
-import { selectHasMore, selectMessages } from "./transcript-state"
+import {
+	selectHasMore,
+	selectHasNewer,
+	selectMessages,
+} from "./transcript-state"
 import {
 	droppedWaiting,
 	emptyQueue,
@@ -96,6 +100,8 @@ export type ConversationState = {
 	messages: TranscriptMessage[]
 	hasOlder: boolean
 	isLoadingOlder: boolean
+	hasNewer: boolean
+	isLoadingNewer: boolean
 	speakers: SpeakingBot[]
 	waitingBotIds: string[]
 	loopingPair: [string, string] | null
@@ -111,6 +117,9 @@ export type ConversationController = {
 	attach: () => () => void
 	open: (conversation: Conversation) => Promise<void>
 	loadOlder: () => Promise<void>
+	loadNewer: () => Promise<void>
+	loadLatest: () => Promise<boolean>
+	landOn: (seq: number) => Promise<TranscriptMessage[]>
 	follow: (isAtLiveEdge: boolean) => void
 	leave: () => void
 	send: (text: string, repliedToMessageId?: string) => Promise<void>
@@ -200,6 +209,8 @@ const isSameState = (left: ConversationState, right: ConversationState) =>
 	left.messages === right.messages &&
 	left.hasOlder === right.hasOlder &&
 	left.isLoadingOlder === right.isLoadingOlder &&
+	left.hasNewer === right.hasNewer &&
+	left.isLoadingNewer === right.isLoadingNewer &&
 	isSameSpeakers(left.speakers, right.speakers) &&
 	isSameOrder(left.waitingBotIds, right.waitingBotIds) &&
 	isSamePair(left.loopingPair, right.loopingPair) &&
@@ -229,6 +240,8 @@ const initialState: ConversationState = {
 	messages: NO_MESSAGES,
 	hasOlder: false,
 	isLoadingOlder: false,
+	hasNewer: false,
+	isLoadingNewer: false,
 	speakers: NO_SPEAKERS,
 	waitingBotIds: [],
 	loopingPair: null,
@@ -297,12 +310,13 @@ export const createConversationController = (
 	const readTranscript = () => {
 		const conversationId = conversation?.id
 		if (!conversationId) {
-			return { messages: NO_MESSAGES, hasOlder: false }
+			return { messages: NO_MESSAGES, hasOlder: false, hasNewer: false }
 		}
 		const held = transcript.getState()
 		return {
 			messages: selectMessages(held, conversationId),
 			hasOlder: selectHasMore(held, conversationId),
+			hasNewer: selectHasNewer(held, conversationId),
 		}
 	}
 
@@ -798,6 +812,27 @@ export const createConversationController = (
 		}
 	}
 
+	const refuse = (said: TranscriptMessage, text: string) => {
+		refused = {
+			id: said.id,
+			text,
+			repliedToMessageId: said.repliedToMessageId,
+		}
+		sync()
+	}
+
+	const interruptRunningTurn = () => {
+		if (speakers.size > 0) {
+			for (const held of speakers.values()) {
+				held.isDropped = true
+			}
+			return
+		}
+		if (activeTurn) {
+			completeTurn(activeTurn)
+		}
+	}
+
 	const send = async (text: string, repliedToMessageId?: string) => {
 		const trimmed = text.trim()
 		if (!conversation || trimmed.length === 0) {
@@ -811,15 +846,18 @@ export const createConversationController = (
 		const turn: OpenTurn = { id: newId(), promptId: newId() }
 		const said = sentMessage({ turn, conversationId, content, answered })
 
+		if (!(await loadLatest())) {
+			refuse(said, trimmed)
+			return
+		}
+		if (conversation?.id !== conversationId) {
+			return
+		}
+
 		try {
 			await enqueue(() => storePrompt(turn, said))
 		} catch {
-			refused = {
-				id: said.id,
-				text: trimmed,
-				repliedToMessageId: said.repliedToMessageId,
-			}
-			sync()
+			refuse(said, trimmed)
 			return
 		}
 
@@ -828,13 +866,7 @@ export const createConversationController = (
 			void nameFrom(conversationId, trimmed)
 		}
 		transcript.append(said)
-		if (speakers.size > 0) {
-			for (const held of speakers.values()) {
-				held.isDropped = true
-			}
-		} else if (activeTurn) {
-			completeTurn(activeTurn)
-		}
+		interruptRunningTurn()
 		queue = reopenedFor(queue, summonedBy(said, answered))
 		activeTurn = turn
 		sync()
@@ -986,6 +1018,12 @@ export const createConversationController = (
 		if (!held?.scope || pending?.kind !== "question") {
 			return
 		}
+		const conversationId = conversation?.id
+		const isAnswerable =
+			(await loadLatest()) && conversation?.id === conversationId
+		if (!isAnswerable) {
+			return
+		}
 		await driver.answerQuestion(held.scope, id, answers).catch(() => undefined)
 		recordAnswers(held, pending.request, answers)
 		releasePrompt(held, id)
@@ -1038,11 +1076,21 @@ export const createConversationController = (
 		drive()
 	}
 
+	const readBack = async (conversationId: string) => {
+		try {
+			await enqueue(() => transcript.reopen(conversationId))
+		} catch (reason) {
+			noteFailure(toReadError(reason))
+		}
+		sync()
+	}
+
 	const open = async (next: Conversation) => {
 		const isSameConversation = conversation?.id === next.id
 		conversation = next
 		if (isSameConversation) {
 			sync()
+			await readBack(next.id)
 			return
 		}
 		queue = emptyQueue
@@ -1094,6 +1142,45 @@ export const createConversationController = (
 		}
 	}
 
+	const loadNewer = async () => {
+		if (!conversation || !state.hasNewer || state.isLoadingNewer) {
+			return
+		}
+		const conversationId = conversation.id
+		settle({ ...state, isLoadingNewer: true })
+		try {
+			await enqueue(() => transcript.loadNewer(conversationId))
+			forgetFailure()
+		} catch (reason) {
+			noteFailure(toReadError(reason))
+		} finally {
+			settle({ ...state, isLoadingNewer: false, latestError })
+		}
+	}
+
+	const loadLatest = async () => {
+		if (!conversation || !state.hasNewer) {
+			return true
+		}
+		const conversationId = conversation.id
+		try {
+			await enqueue(() => transcript.loadLatest(conversationId))
+			return true
+		} catch (reason) {
+			noteFailure(toReadError(reason))
+			settle({ ...state, latestError })
+			return false
+		}
+	}
+
+	const landOn = (seq: number) => {
+		const conversationId = conversation?.id
+		if (!conversationId) {
+			return Promise.resolve(NO_MESSAGES)
+		}
+		return enqueue(transcript.askLanding(conversationId, seq))
+	}
+
 	const pin = (messageId: string, blockIndex: number) => {
 		const conversationId = conversation?.id
 		return conversationId
@@ -1143,6 +1230,9 @@ export const createConversationController = (
 		attach,
 		open,
 		loadOlder,
+		loadNewer,
+		loadLatest,
+		landOn,
 		follow,
 		leave,
 		send,

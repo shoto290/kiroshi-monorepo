@@ -45,6 +45,8 @@ export type ChatState = {
 	messages: TranscriptMessage[]
 	hasOlder: boolean
 	loadingOlder: boolean
+	hasNewer: boolean
+	loadingNewer: boolean
 	rejectedPromptId: string | null
 	outbox: OutboxEntry[]
 	activities: ActivityEvent[]
@@ -65,8 +67,10 @@ export type ChatAction =
 			type: "transcriptChanged"
 			messages: TranscriptMessage[]
 			hasOlder: boolean
+			hasNewer: boolean
 	  }
 	| { type: "olderLoading"; loading: boolean }
+	| { type: "newerLoading"; loading: boolean }
 	| { type: "promptSubmitted" }
 	| { type: "promptHeld"; entry: OutboxEntry }
 	| { type: "promptReturned"; entry: OutboxEntry }
@@ -92,6 +96,8 @@ export const initialChatState: ChatState = {
 	messages: [],
 	hasOlder: false,
 	loadingOlder: false,
+	hasNewer: false,
+	loadingNewer: false,
 	rejectedPromptId: null,
 	outbox: [],
 	activities: [],
@@ -396,11 +402,16 @@ function applyTranscriptChanged(
 	state: ChatState,
 	messages: TranscriptMessage[],
 	hasOlder: boolean,
+	hasNewer: boolean,
 ): ChatState {
-	if (state.messages === messages && state.hasOlder === hasOlder) {
+	if (
+		state.messages === messages &&
+		state.hasOlder === hasOlder &&
+		state.hasNewer === hasNewer
+	) {
 		return state
 	}
-	return { ...state, messages, hasOlder }
+	return { ...state, messages, hasOlder, hasNewer }
 }
 
 function applyPromptRejected(
@@ -482,11 +493,20 @@ function reducedChat(state: ChatState, action: ChatAction): ChatState {
 		case "causesChanged":
 			return { ...state, reportedCauses: action.causes }
 		case "transcriptChanged":
-			return applyTranscriptChanged(state, action.messages, action.hasOlder)
+			return applyTranscriptChanged(
+				state,
+				action.messages,
+				action.hasOlder,
+				action.hasNewer,
+			)
 		case "olderLoading":
 			return state.loadingOlder === action.loading
 				? state
 				: { ...state, loadingOlder: action.loading }
+		case "newerLoading":
+			return state.loadingNewer === action.loading
+				? state
+				: { ...state, loadingNewer: action.loading }
 		case "promptSubmitted":
 			return setTurn({ ...state, rejectedPromptId: null }, "submitting")
 		case "promptHeld":
