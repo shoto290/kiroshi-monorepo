@@ -111,69 +111,8 @@ const KEYCAP_CLASS = "bg-background"
 const EMPTY_MARK_CLASS =
 	"flex size-12 items-center justify-center rounded-2xl bg-muted text-muted-foreground"
 
-const spacedParts = (
-	result: SearchPaletteResult,
-	isScopeAllSpaces: boolean,
-): ActivityRowPart[] =>
-	isScopeAllSpaces && result.space
-		? [{ key: "space", text: result.space }, ...result.parts]
-		: result.parts
-
-const SearchPalette = ({
-	open,
-	onOpenChange,
-	query,
-	onQueryChange,
-	tab,
-	onTabChange,
-	isScopeAllSpaces,
-	onScopeChange,
-	spaceName,
-	results,
-	recents,
-	isLoading = false,
-	activeResultId,
-}: SearchPaletteProps) => {
+const SearchPaletteFooter = () => {
 	const { t } = useTranslation("search")
-	const input = useRef<HTMLInputElement>(null)
-	const listId = useId()
-	const scopeId = useId()
-	const label = t("open")
-	const isRecent = query === ""
-
-	const found = results.filter(
-		(group) =>
-			group.results.length > 0 && (tab === "all" || group.kind === tab),
-	)
-
-	const sections: PaletteSection[] = isRecent
-		? recents.length === 0
-			? []
-			: [{ key: "recent", head: { label: t("recent") }, results: recents }]
-		: found.map((group) =>
-				tab === "all"
-					? {
-							key: group.kind,
-							head: {
-								label: t(`tab.${group.kind}`),
-								total: group.total,
-								seeAllKind:
-									group.total > SHOWN_PER_KIND ? group.kind : undefined,
-							},
-							results: group.results.slice(0, SHOWN_PER_KIND),
-						}
-					: { key: group.kind, results: group.results },
-			)
-
-	const shown = sections.flatMap((section) => section.results)
-	const rankOf = new Map(
-		shown.map((result, index) => [result.id, index + FIRST_RANK]),
-	)
-	const rowId = (id: string) => `${listId}-${id}`
-	const activeId =
-		activeResultId && rankOf.has(activeResultId)
-			? rowId(activeResultId)
-			: undefined
 
 	const hints = [
 		{
@@ -206,6 +145,84 @@ const SearchPalette = ({
 			label: t("hint.tab"),
 		},
 	]
+
+	return (
+		<div className={FOOTER_CLASS} data-slot="search-palette-footer">
+			{hints.map((hint) => (
+				<span className={HINT_CLASS} key={hint.key}>
+					{hint.cap}
+					{hint.label}
+				</span>
+			))}
+		</div>
+	)
+}
+
+const spacedParts = (
+	result: SearchPaletteResult,
+	isScopeAllSpaces: boolean,
+): ActivityRowPart[] =>
+	isScopeAllSpaces && result.space
+		? [{ key: "space", text: result.space }, ...result.parts]
+		: result.parts
+
+const SearchPalette = ({
+	open,
+	onOpenChange,
+	query,
+	onQueryChange,
+	tab,
+	onTabChange,
+	isScopeAllSpaces,
+	onScopeChange,
+	spaceName,
+	results,
+	recents,
+	isLoading = false,
+	activeResultId,
+}: SearchPaletteProps) => {
+	const { t } = useTranslation("search")
+	const input = useRef<HTMLInputElement>(null)
+	const listId = useId()
+	const scopeId = useId()
+	const label = t("open")
+	const isRecent = query === ""
+
+	const recentSections: PaletteSection[] =
+		recents.length === 0
+			? []
+			: [{ key: "recent", head: { label: t("recent") }, results: recents }]
+
+	const foundSections: PaletteSection[] = results
+		.filter(
+			(group) =>
+				group.results.length > 0 && (tab === "all" || group.kind === tab),
+		)
+		.map((group) =>
+			tab === "all"
+				? {
+						key: group.kind,
+						head: {
+							label: t(`tab.${group.kind}`),
+							total: group.total,
+							seeAllKind: group.total > SHOWN_PER_KIND ? group.kind : undefined,
+						},
+						results: group.results.slice(0, SHOWN_PER_KIND),
+					}
+				: { key: group.kind, results: group.results },
+		)
+
+	const sections = isRecent ? recentSections : foundSections
+
+	const shown = sections.flatMap((section) => section.results)
+	const rankOf = new Map(
+		shown.map((result, index) => [result.id, index + FIRST_RANK]),
+	)
+	const rowId = (id: string) => `${listId}-${id}`
+	const activeId =
+		activeResultId && rankOf.has(activeResultId)
+			? rowId(activeResultId)
+			: undefined
 
 	const rowOf = (result: SearchPaletteResult) => {
 		const { id, space: _space, parts: _parts, ...rest } = result
@@ -368,14 +385,7 @@ const SearchPalette = ({
 						)}
 					</div>
 
-					<div className={FOOTER_CLASS} data-slot="search-palette-footer">
-						{hints.map((hint) => (
-							<span className={HINT_CLASS} key={hint.key}>
-								{hint.cap}
-								{hint.label}
-							</span>
-						))}
-					</div>
+					<SearchPaletteFooter />
 				</Dialog.Popup>
 			</Dialog.Portal>
 		</Dialog.Root>
