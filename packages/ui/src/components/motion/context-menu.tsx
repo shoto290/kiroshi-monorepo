@@ -680,6 +680,7 @@ export interface ContextMenuItemProps {
 	children: ReactNode
 	onSelect?: () => void
 	disabled?: boolean
+	unavailable?: boolean
 	describedBy?: string
 	closeOnSelect?: boolean
 	tone?: ContextMenuItemTone
@@ -700,6 +701,7 @@ function ContextMenuItemBase({
 	children,
 	onSelect,
 	disabled = false,
+	unavailable = false,
 	describedBy,
 	closeOnSelect = true,
 	tone = "default",
@@ -723,6 +725,7 @@ function ContextMenuItemBase({
 	const active = context.activeId === id
 	const checkedProps =
 		role === "menuitem" ? {} : { "aria-checked": ariaChecked }
+	const isInert = disabled || unavailable
 
 	const onPointerMove = (event: ReactPointerEvent<HTMLButtonElement>) => {
 		if (disabled || event.pointerType === "touch") return
@@ -749,6 +752,7 @@ function ContextMenuItemBase({
 			role={role}
 			{...checkedProps}
 			aria-describedby={describedBy}
+			aria-disabled={unavailable || undefined}
 			aria-haspopup={branch ? "menu" : undefined}
 			aria-expanded={branch ? branch.open : undefined}
 			aria-controls={branch?.open ? branch.contentId : undefined}
@@ -762,7 +766,7 @@ function ContextMenuItemBase({
 			onPointerMove={onPointerMove}
 			onKeyDown={onBranchKeyDown || undefined}
 			onClick={() => {
-				if (disabled) return
+				if (isInert) return
 				if (branch) {
 					branch.reveal()
 					return
@@ -774,6 +778,7 @@ function ContextMenuItemBase({
 				"relative isolate flex w-full select-none items-center gap-2.5 rounded-lg px-2.5 py-2 text-left text-[13px] outline-none",
 				"focus-visible:ring-2 focus-visible:ring-foreground/15",
 				"disabled:pointer-events-none disabled:opacity-40",
+				"aria-disabled:opacity-40",
 				inset && "pl-8",
 				tone === "destructive" ? "text-destructive" : "text-foreground",
 				branch?.open && !active && "bg-foreground/[0.065]",

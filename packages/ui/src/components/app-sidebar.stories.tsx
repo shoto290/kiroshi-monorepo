@@ -2296,6 +2296,26 @@ const openSpacesBranch = async (
 	return await settled(await screen.findByRole("menu", { name: SPACES_BRANCH }))
 }
 
+type Typing = { keyboard: (keys: string) => Promise<void> }
+
+const walkIntoSpacesBranch = async (
+	canvasElement: HTMLElement,
+	bot: string,
+	userEvent: Typing,
+) => {
+	const menu = await openRowMenu(canvasElement, bot)
+	menu.getByRole("menuitem", { name: SPACES_BRANCH }).focus()
+	await userEvent.keyboard("{ArrowRight}")
+	const panel = await settled(
+		await screen.findByRole("menu", { name: SPACES_BRANCH }),
+	)
+	await waitFor(
+		() => expect(panel.contains(document.activeElement)).toBe(true),
+		FRAME_POLL,
+	)
+	return panel
+}
+
 const BEACON_IN_TWO_SPACES: Record<string, AppSidebarBot[]> = {
 	...FIVE_ROSTERS,
 	atelier: [
@@ -2445,7 +2465,7 @@ export const RowLastSpace = meta.story({
 		docs: {
 			description: {
 				story:
-					"The bot that has one space left. Grove sits in Vocca alone: that row is ticked and disabled rather than live and refused after the fact, so the gesture that would strand the bot is never offered. A disabled row is out of the arrow walk and out of reach of the pointer, so the reason cannot be hung on it — it is the accessible description of the `Spaces` entry instead, which is the node a reader lands on before the panel opens, and it is read there whether the branch is ever opened or not. The note under the rule shows the same sentence to the eye and is hidden from the tree, so nobody hears it twice. Beacon, two rows down and held by two spaces, carries no description at all: there is nothing to warn about while every row is live.",
+					"The bot that has one space left, walked with the keyboard. Grove sits in Vocca alone: that row is `aria-disabled` rather than switched off, so the arrow walk still lands on it and a reader who cannot see the panel hears which space holds the bot — the one row they most need is the one a native `disabled` would have hidden from them. Landing there announces it ticked and unavailable, Enter and a click both report to nobody, and the next arrow stays inside the panel. The reason lives on the `Spaces` entry as its accessible description, heard before the branch is ever opened, and the note under the rule shows the same sentence to the eye while staying out of the tree. Beacon, held by two spaces, carries no description: there is nothing to warn about while every row is live.",
 			},
 		},
 	},
@@ -2455,25 +2475,30 @@ export const RowLastSpace = meta.story({
 			menu.getByRole("menuitem", { name: SPACES_BRANCH }),
 		).toHaveAccessibleDescription(LAST_SPACE_NOTE)
 
-		const panel = await openSpacesBranch(canvasElement, "Grove", userEvent)
+		const panel = await walkIntoSpacesBranch(canvasElement, "Grove", userEvent)
 		const rows = within(panel).getAllByRole("menuitemcheckbox")
 		const held = rows[1]
 
+		await userEvent.keyboard("{ArrowDown}")
+		await expect(held).toHaveFocus()
 		await expect(held).toHaveAttribute("aria-checked", "true")
-		await expect(held).toBeDisabled()
-		for (const row of [rows[0], rows[2], rows[3], rows[4]])
-			await expect(row).toBeEnabled()
+		await expect(held).toHaveAttribute("aria-disabled", "true")
 
+		await userEvent.keyboard("{Enter}")
 		fireEvent.click(held)
 		await expect(args.onRemoveBotFromSpace).not.toHaveBeenCalled()
 		await expect(args.onAddBotToSpace).not.toHaveBeenCalled()
+		await expect(panel).toBeVisible()
+
+		await userEvent.keyboard("{ArrowDown}")
+		await expect(rows[2]).toHaveFocus()
 
 		const note = within(panel).getByText(LAST_SPACE_NOTE)
 		await expect(note).toBeVisible()
 		await expect(note).toHaveAttribute("aria-hidden", "true")
 		await expect(within(panel).getAllByRole("separator")).toHaveLength(1)
 
-		await userEvent.keyboard("{Escape}")
+		await userEvent.keyboard("{Escape}{Escape}")
 		await waitFor(async () => {
 			await expect(screen.queryByRole("menu")).toBeNull()
 		}, FRAME_POLL)
@@ -2531,7 +2556,7 @@ export const OneSpaceRowMenu = meta.story({
 		docs: {
 			description: {
 				story:
-					"The same row menu in the account that has only one space. The branch still opens, on the single space the account has, ticked and disabled with the note under it — an account with one space is the account where every bot is on its last space, so the branch says what it always says rather than vanishing and leaving the reader to guess where their bots live. The plain duplicate stays where it is: copying a bot beside itself has nothing to do with spaces. The two rules that fence settings and delete off from the middle stay put whatever the middle holds: a menu never opens on a rule with nothing on one side of it.",
+					"The same row menu in the account that has only one space. The branch still opens, on the single space the account has, ticked and unavailable with the note under it — an account with one space is the account where every bot is on its last space, so the branch says what it always says rather than vanishing and leaving the reader to guess where their bots live. That single row is the whole walk: opening the branch with the keyboard lands on it, and the next arrow stays on it rather than falling back through the parent menu onto `Delete` with the panel still open. The plain duplicate stays where it is: copying a bot beside itself has nothing to do with spaces. The two rules that fence settings and delete off from the middle stay put whatever the middle holds.",
 			},
 		},
 	},
@@ -2543,10 +2568,14 @@ export const OneSpaceRowMenu = meta.story({
 		).toEqual(["Settings", "Duplicate", SPACES_BRANCH, "Delete"])
 		await expect(menu.getAllByRole("separator")).toHaveLength(2)
 
-		const panel = await openSpacesBranch(canvasElement, "Beacon", userEvent)
+		const panel = await walkIntoSpacesBranch(canvasElement, "Beacon", userEvent)
 		const rows = within(panel).getAllByRole("menuitemcheckbox")
 		await expect(rows.map((row) => row.textContent)).toEqual(["Perso"])
-		await expect(rows[0]).toBeDisabled()
+		await expect(rows[0]).toHaveFocus()
+		await expect(rows[0]).toHaveAttribute("aria-disabled", "true")
+
+		await userEvent.keyboard("{ArrowDown}")
+		await expect(rows[0]).toHaveFocus()
 		await expect(within(panel).getByText(LAST_SPACE_NOTE)).toBeVisible()
 	},
 })

@@ -281,6 +281,50 @@ export const States = meta.story({
 	},
 })
 
+export const UnavailableItem = meta.story({
+	render: () => (
+		<ContextMenu>
+			<ContextMenuTrigger>
+				<button type="button" className={SURFACE_CLASS}>
+					Right-click for spaces
+				</button>
+			</ContextMenuTrigger>
+			<ContextMenuContent ariaLabel="Spaces">
+				<ContextMenuCheckboxItem checked={false} closeOnSelect={false}>
+					Perso
+				</ContextMenuCheckboxItem>
+				<ContextMenuCheckboxItem checked closeOnSelect={false} unavailable>
+					Vocca
+				</ContextMenuCheckboxItem>
+				<ContextMenuCheckboxItem checked={false} closeOnSelect={false}>
+					Atelier
+				</ContextMenuCheckboxItem>
+			</ContextMenuContent>
+		</ContextMenu>
+	),
+	parameters: {
+		docs: {
+			description: {
+				story:
+					"`unavailable` is the other half of `disabled`, and the two are never worn at once. `disabled` is for an action that cannot be run now: it is switched off natively and stepped over, because focusing a row a reader cannot use wastes their time. `unavailable` is for a row that carries state they came to read — the ticked space a bot cannot leave — which must stay in the walk to be heard at all: it is `aria-disabled`, keeps the same dimmed skin, and reports to nobody on Enter or on a click. Check the arrows land on it rather than skipping it, and that landing there says both checked and disabled.",
+			},
+		},
+	},
+	play: async ({ canvas, userEvent }) => {
+		await openMenuOn(canvas.getByText("Right-click for spaces"))
+		const locked = screen.getByRole("menuitemcheckbox", { name: "Vocca" })
+
+		await userEvent.keyboard("{ArrowDown}")
+		await expect(locked).toHaveFocus()
+		await expect(locked).toHaveAttribute("aria-checked", "true")
+		await expect(locked).toHaveAttribute("aria-disabled", "true")
+		await expect(locked).toBeEnabled()
+
+		await userEvent.keyboard("{Enter}")
+		await expect(locked).toBeVisible()
+	},
+})
+
 export const Keyboard = meta.story({
 	render: () => (
 		<ContextMenu>

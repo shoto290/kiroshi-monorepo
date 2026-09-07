@@ -548,7 +548,7 @@ const SpacesBranch = ({
 						<ContextMenuCheckboxItem
 							checked={isMember}
 							closeOnSelect={false}
-							disabled={isMember && isHeldByOneSpace}
+							unavailable={isMember && isHeldByOneSpace}
 							key={space.id}
 							onCheckedChange={(checked) =>
 								checked
