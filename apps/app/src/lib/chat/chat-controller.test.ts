@@ -3129,20 +3129,6 @@ describe("returning to a solo thread", () => {
 			),
 		})
 
-	const readsOf = (store: TranscriptStore) => {
-		let newestReads = 0
-		const counted: TranscriptStore = {
-			...store,
-			loadPage: (conversationId, cursor) => {
-				if (!cursor) {
-					newestReads += 1
-				}
-				return store.loadPage(conversationId, cursor)
-			},
-		}
-		return { store: counted, newestReads: () => newestReads }
-	}
-
 	it("shows the newest page again after a landed window was left", async () => {
 		const { controller, detach } = await bootedHarness({ store: longStore() })
 
@@ -3160,14 +3146,14 @@ describe("returning to a solo thread", () => {
 	})
 
 	it("reads nothing back while the thread still holds messages", async () => {
-		const counted = readsOf(longStore())
-		const { controller, detach } = await bootedHarness({ store: counted.store })
-		const opened = counted.newestReads()
+		const store = longStore()
+		const { controller, detach } = await bootedHarness({ store })
+		const loadPage = vi.spyOn(store, "loadPage")
 
 		controller.enter(BOT)
 		await vi.runAllTimersAsync()
 
-		expect(counted.newestReads()).toBe(opened)
+		expect(loadPage).not.toHaveBeenCalled()
 		detach()
 	})
 })
