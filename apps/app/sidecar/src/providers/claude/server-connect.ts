@@ -24,12 +24,12 @@ export type ConnectPass = {
 
 type Take = {
 	statuses: ServerStatus[]
-	spent?: number
+	spent: number
 }
 
 type NamedRead = {
 	status: ServerStatus["status"]
-	spent?: number
+	spent: number
 }
 
 type GaveUp = {
@@ -111,21 +111,18 @@ const readIn = (take: Take, name: string): ServerStatus | undefined =>
 
 const reversed = (takes: Take[]): Take[] => [...takes].reverse()
 
-const lastRead = (takes: Take[], name: string): ServerStatus | undefined =>
+const namedRead = (takes: Take[], name: string): NamedRead | undefined =>
 	reversed(takes)
-		.map((take) => readIn(take, name))
-		.find((read) => read !== undefined)
-
-const pendingSpent = (takes: Take[], name: string): number | undefined =>
-	reversed(takes).find(
-		(take) =>
-			take.spent !== undefined && readIn(take, name)?.status === "pending",
-	)?.spent
+		.flatMap((take) => {
+			const read = readIn(take, name)
+			return read ? [{ status: read.status, spent: take.spent }] : []
+		})
+		.at(0)
 
 const unsettled = (takes: Take[], names: string[], spent: number): boolean =>
 	names.some((name) => {
-		const read = lastRead(takes, name)
-		return read ? read.status === "pending" : spent < UNNAMED_GRACE_MS
+		const named = namedRead(takes, name)
+		return named ? named.status === "pending" : spent < UNNAMED_GRACE_MS
 	})
 
 const boundedRead = async (
@@ -208,11 +205,6 @@ const readable = (reason: string, secrets: string[]): string =>
 		.reduce((held, secret) => held.split(secret).join(REDACTED), reason)
 		.slice(0, REASON_LIMIT)
 
-const stillConnecting = (spent: number | undefined): string =>
-	spent === undefined
-		? STILL_CONNECTING
-		: `${STILL_CONNECTING} after ${spent} ms`
-
 const lineFor = (
 	name: string,
 	{ status, spent }: NamedRead,
@@ -226,7 +218,7 @@ const lineFor = (
 		? `, and the reconnection answered: ${readable(thrown, secrets)}`
 		: ""
 	if (status === "pending") {
-		return leftOut(name, `${stillConnecting(spent)}${answered}`)
+		return leftOut(name, `${STILL_CONNECTING} after ${spent} ms${answered}`)
 	}
 	return leftOut(name, `${TWO_ATTEMPTS}, it read ${status}${answered}`)
 }
@@ -245,8 +237,8 @@ const reportPass = async (
 	const started = now()
 	const spent = () => now() - started
 	const read = (ms: number) => boundedRead(port, ms, signal)
-	const polling = () =>
-		read(Math.min(bound, Math.max(POLL_BUDGET_MS - spent(), 0)))
+	const left = () => Math.max(POLL_BUDGET_MS - spent(), 0)
+	const polling = () => read(Math.min(bound, left()))
 	const { takes, giveUp } = await polledTakes(
 		polling,
 		names,
@@ -256,7 +248,7 @@ const reportPass = async (
 	)
 	const giveUps = giveUp ? [giveUp] : []
 	const failing = names.filter(
-		(name) => lastRead(takes, name)?.status === "failed",
+		(name) => namedRead(takes, name)?.status === "failed",
 	)
 	const thrown = await reconnectFailures(port, failing, bound, signal)
 	if (failing.length) {
@@ -269,14 +261,10 @@ const reportPass = async (
 	const reported: string[] = []
 	const missing: string[] = []
 	for (const name of names) {
-		const read = lastRead(takes, name)
-		if (!read) {
+		const named = namedRead(takes, name)
+		if (!named) {
 			missing.push(name)
-		} else if (REPORTABLE.includes(read.status)) {
-			const named = {
-				status: read.status,
-				spent: pendingSpent(takes, name),
-			}
+		} else if (REPORTABLE.includes(named.status)) {
 			reported.push(lineFor(name, named, thrown.get(name), secrets))
 		}
 	}
