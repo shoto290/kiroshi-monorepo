@@ -35,6 +35,7 @@ export type TranscriptState = {
 export type TranscriptAction =
 	| { type: "pageLoaded"; page: TranscriptPage }
 	| { type: "windowLanded"; window: TranscriptWindow }
+	| { type: "latestLoaded"; page: TranscriptPage }
 	| { type: "newerLoaded"; window: TranscriptWindow }
 	| {
 			type: "messageAppended"
@@ -248,6 +249,16 @@ const applyWindowLanded = (
 		hasNewer: window.hasNewer,
 	})
 
+const applyLatestLoaded = (
+	state: TranscriptState,
+	page: TranscriptPage,
+): TranscriptState =>
+	withConversation(state, page.conversationId, {
+		messages: page.messages.map(recoveredFromPort),
+		hasMore: page.hasMore,
+		hasNewer: false,
+	})
+
 const applyNewerLoaded = (
 	state: TranscriptState,
 	window: TranscriptWindow,
@@ -395,6 +406,8 @@ export const transcriptReducer = (
 			return applyPageLoaded(state, action.page)
 		case "windowLanded":
 			return applyWindowLanded(state, action.window)
+		case "latestLoaded":
+			return applyLatestLoaded(state, action.page)
 		case "newerLoaded":
 			return applyNewerLoaded(state, action.window)
 		case "messageAppended":

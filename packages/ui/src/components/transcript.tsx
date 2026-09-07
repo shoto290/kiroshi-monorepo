@@ -46,6 +46,7 @@ export interface TranscriptOlder {
 export interface TranscriptNewer {
 	isLoading?: boolean
 	onLoad: () => void
+	onLoadLatest: () => void
 	label?: string
 }
 
@@ -388,6 +389,14 @@ const TranscriptBody = ({
 			<MessageScrollerButton
 				behavior={behavior}
 				className="start-1/2 rounded-full shadow-xl tabular-nums"
+				onClick={
+					newer
+						? (event) => {
+								event.preventDefault()
+								newer.onLoadLatest()
+							}
+						: undefined
+				}
 				size="sm"
 				variant="secondary"
 			>

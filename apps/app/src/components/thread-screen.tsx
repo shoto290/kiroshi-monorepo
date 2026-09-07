@@ -904,14 +904,16 @@ type NewerControl = {
 	hasNewer: boolean
 	isLoading: boolean
 	onLoad: () => void
+	onLoadLatest: () => void
 }
 
 const newerControlOf = ({
 	hasNewer,
 	isLoading,
 	onLoad,
+	onLoadLatest,
 }: NewerControl): TranscriptNewer | undefined =>
-	hasNewer ? { isLoading, onLoad } : undefined
+	hasNewer ? { isLoading, onLoad, onLoadLatest } : undefined
 
 type ThreadViewProps = {
 	activityPanel: ActivityPanel
@@ -1044,6 +1046,9 @@ function ThreadView({
 	const loadNewer = useCallback(() => {
 		void controller.loadNewer()
 	}, [controller])
+	const loadLatest = useCallback(() => {
+		void controller.loadLatest().then(() => scrollerRef.current?.scrollToEnd())
+	}, [controller])
 	const hasNewer = state.hasNewer
 	const follow = useMemo(
 		() => followOf(controller, hasNewer),
@@ -1157,6 +1162,7 @@ function ThreadView({
 				hasNewer,
 				isLoading: facts.isLoadingNewer,
 				onLoad: loadNewer,
+				onLoadLatest: loadLatest,
 			})}
 			older={
 				state.messages.length > 0

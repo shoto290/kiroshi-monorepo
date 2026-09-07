@@ -1,4 +1,4 @@
-import { useEffect, useRef, useState } from "react"
+import { useCallback, useEffect, useRef, useState } from "react"
 
 import { raiseFailureNotice } from "@workspace/ui/components/notice-surface"
 import { useChatCopy } from "@workspace/ui/hooks/use-chat-copy"
@@ -11,7 +11,7 @@ export type MessageLandingRequest = {
 	conversationId: string | null
 	messages: TranscriptMessage[]
 	landOn: (seq: number) => Promise<void>
-	onLand: (messageId: string) => void
+	onLand: (messageId: string) => boolean
 	onTaken: () => void
 }
 
@@ -27,6 +27,13 @@ export const useMessageLanding = ({
 	const requested = useRef<MessageLanding | null>(null)
 	const [readMessageId, setReadMessageId] = useState<string | null>(null)
 
+	const reportUnreachable = useCallback(() => {
+		raiseFailureNotice({
+			title: t("transcript.landing.unavailable.title"),
+			description: t("transcript.landing.unavailable.description"),
+		})
+	}, [t])
+
 	useEffect(() => {
 		if (!landing || landing.conversationId !== conversationId) {
 			return
@@ -39,13 +46,17 @@ export const useMessageLanding = ({
 			() => setReadMessageId(landing.messageId),
 			() => {
 				onTaken()
-				raiseFailureNotice({
-					title: t("transcript.landing.unavailable.title"),
-					description: t("transcript.landing.unavailable.description"),
-				})
+				reportUnreachable()
 			},
 		)
-	}, [landing, conversationId, landOn, onTaken, t])
+	}, [landing, conversationId, landOn, onTaken, reportUnreachable])
+
+	useEffect(() => {
+		if (!landing || landing.conversationId !== conversationId) {
+			return
+		}
+		return onTaken
+	}, [landing, conversationId, onTaken])
 
 	useEffect(() => {
 		if (readMessageId === null) {
@@ -56,6 +67,8 @@ export const useMessageLanding = ({
 		}
 		setReadMessageId(null)
 		onTaken()
-		onLand(readMessageId)
-	}, [readMessageId, messages, onLand, onTaken])
+		if (!onLand(readMessageId)) {
+			reportUnreachable()
+		}
+	}, [readMessageId, messages, onLand, onTaken, reportUnreachable])
 }

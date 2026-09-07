@@ -19,7 +19,7 @@ export type ThreadPager = {
 export type ThreadJump = {
 	highlightedMessageId?: string
 	jumpToMessage: (messageId: string) => void
-	landOnMessage: (messageId: string) => void
+	landOnMessage: (messageId: string) => boolean
 }
 
 export function useThreadJump(
@@ -69,7 +69,7 @@ export function useThreadJump(
 		landOnMessage: useCallback(
 			(messageId: string) => {
 				holdHighlight(messageId)
-				scrollerRef.current?.scrollToMessage(messageId)
+				return scrollerRef.current?.scrollToMessage(messageId) === true
 			},
 			[holdHighlight, scrollerRef],
 		),

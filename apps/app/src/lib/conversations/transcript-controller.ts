@@ -19,6 +19,7 @@ export type TranscriptController = {
 	load: (conversationId: string) => Promise<void>
 	loadOlder: (conversationId: string) => Promise<void>
 	loadNewer: (conversationId: string) => Promise<void>
+	loadLatest: (conversationId: string) => Promise<void>
 	landOn: (conversationId: string, seq: number) => Promise<void>
 	follow: (conversationId: string, isAtLiveEdge: boolean) => void
 	leave: (conversationId: string) => void
@@ -72,6 +73,14 @@ export const createTranscriptController = (
 		dispatch({ type: "newerLoaded", window })
 	}
 
+	const loadLatest = async (conversationId: string) => {
+		if (!selectHasNewer(state, conversationId)) {
+			return
+		}
+		const page = await port.loadPage(conversationId, null)
+		dispatch({ type: "latestLoaded", page })
+	}
+
 	const landOn = async (conversationId: string, seq: number) => {
 		const window = await port.loadWindow(conversationId, seq)
 		dispatch({ type: "windowLanded", window })
@@ -88,6 +97,7 @@ export const createTranscriptController = (
 		load,
 		loadOlder,
 		loadNewer,
+		loadLatest,
 		landOn,
 		follow: (conversationId, isAtLiveEdge) => {
 			liveEdges.set(conversationId, isAtLiveEdge)

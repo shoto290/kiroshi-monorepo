@@ -89,6 +89,7 @@ export type ChatController = {
 	rotate: () => Promise<SessionHandle | null>
 	loadOlder: () => Promise<void>
 	loadNewer: () => Promise<void>
+	loadLatest: () => Promise<void>
 	landOn: (seq: number) => Promise<void>
 	follow: (isAtLiveEdge: boolean) => void
 	send: (text: string, repliedToMessageId?: string) => Promise<void>
@@ -880,6 +881,18 @@ export function createChatController(
 		}
 	}
 
+	const loadLatest = async (bot: BotChat) => {
+		const conversationId = bot.state.conversationId
+		if (!conversationId || !bot.state.hasNewer) {
+			return
+		}
+		try {
+			await enqueue(() => transcript.loadLatest(conversationId))
+		} catch (reason) {
+			reportRead(bot, reason)
+		}
+	}
+
 	const landOn = async (bot: BotChat, seq: number) => {
 		const conversationId = bot.state.conversationId
 		if (!conversationId) {
@@ -1042,6 +1055,7 @@ export function createChatController(
 			reportStore(bot, { kind: "unavailable" })
 			return "unwritten"
 		}
+		await loadLatest(bot)
 		await rotateIfDue(bot)
 		dispatch(bot, { type: "promptSubmitted" })
 
@@ -1214,7 +1228,7 @@ export function createChatController(
 			.catch((reason) => report(bot, reason))
 	}
 
-	const recordAnswers = (
+	const recordAnswers = async (
 		bot: BotChat,
 		request: QuestionRequest,
 		answers: QuestionAnswers,
@@ -1225,6 +1239,7 @@ export function createChatController(
 		if (!conversationId || !turn || content.length === 0) {
 			return
 		}
+		await loadLatest(bot)
 		const id = newId()
 		const createdAt = now()
 		const repliedToMessageId = questionMessageIdOf(request.id)
@@ -1316,6 +1331,7 @@ export function createChatController(
 		rotate: () => onSelected((bot) => rotateFor(bot, ASKED_FOR), null),
 		loadOlder: () => onSelected(loadOlder, undefined),
 		loadNewer: () => onSelected(loadNewer, undefined),
+		loadLatest: () => onSelected(loadLatest, undefined),
 		landOn: (seq) => onSelected((bot) => landOn(bot, seq), undefined),
 		follow: (isAtLiveEdge) => forSelected((bot) => follow(bot, isAtLiveEdge)),
 		send: (text, repliedToMessageId) =>

@@ -118,6 +118,7 @@ export type ConversationController = {
 	open: (conversation: Conversation) => Promise<void>
 	loadOlder: () => Promise<void>
 	loadNewer: () => Promise<void>
+	loadLatest: () => Promise<void>
 	landOn: (seq: number) => Promise<void>
 	follow: (isAtLiveEdge: boolean) => void
 	leave: () => void
@@ -817,10 +818,11 @@ export const createConversationController = (
 			return
 		}
 		const conversationId = conversation.id
+		const answered = messageAnsweredIn(conversationId, repliedToMessageId)
+		await loadLatest()
 		const isNamingItself =
 			isNameless(conversation) && state.messages.length === 0
 		const content = toMentionTokens(trimmed, mentionBots())
-		const answered = messageAnsweredIn(conversationId, repliedToMessageId)
 		const turn: OpenTurn = { id: newId(), promptId: newId() }
 		const said = sentMessage({ turn, conversationId, content, answered })
 
@@ -950,7 +952,7 @@ export const createConversationController = (
 		return reported.turnId
 	}
 
-	const recordAnswers = (
+	const recordAnswers = async (
 		held: Speaker,
 		request: QuestionRequest,
 		answers: QuestionAnswers,
@@ -960,6 +962,7 @@ export const createConversationController = (
 		if (!conversationId || content.length === 0) {
 			return
 		}
+		await loadLatest()
 		const id = newId()
 		const createdAt = now()
 		const repliedToMessageId = questionMessageIdOf(request.id)
@@ -1000,7 +1003,7 @@ export const createConversationController = (
 			return
 		}
 		await driver.answerQuestion(held.scope, id, answers).catch(() => undefined)
-		recordAnswers(held, pending.request, answers)
+		await recordAnswers(held, pending.request, answers)
 		releasePrompt(held, id)
 	}
 
@@ -1136,6 +1139,20 @@ export const createConversationController = (
 		}
 	}
 
+	const loadLatest = async () => {
+		if (!conversation || !state.hasNewer) {
+			return
+		}
+		const conversationId = conversation.id
+		try {
+			await enqueue(() => transcript.loadLatest(conversationId))
+			forgetFailure()
+		} catch (reason) {
+			noteFailure(toReadError(reason))
+		}
+		settle({ ...state, latestError })
+	}
+
 	const landOn = async (seq: number) => {
 		if (!conversation) {
 			return
@@ -1194,6 +1211,7 @@ export const createConversationController = (
 		open,
 		loadOlder,
 		loadNewer,
+		loadLatest,
 		landOn,
 		follow,
 		leave,

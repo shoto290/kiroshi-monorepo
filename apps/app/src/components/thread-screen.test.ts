@@ -193,6 +193,7 @@ const stubController = (
 	rotate: async () => null,
 	loadOlder: async () => undefined,
 	loadNewer: async () => undefined,
+	loadLatest: async () => undefined,
 	landOn: async () => undefined,
 	follow: () => undefined,
 	send: async () => undefined,
@@ -571,6 +572,9 @@ const textOfTurn = (index: number) => `Message ${index} of the long room`
 type LongRoom = {
 	bots: Bot[]
 	thread: ConversationThread
+	driver: ScriptedDriver
+	idOf: (name: string) => string
+	send: (text: string) => Promise<void>
 }
 
 const longRoomOf = async (): Promise<LongRoom> => {
@@ -589,7 +593,9 @@ const longRoomOf = async (): Promise<LongRoom> => {
 			createdAt: index,
 		})
 	}
-	const runtimes = createConversationRuntimes(createScriptedDriver(), store)
+	const driver = createScriptedDriver()
+	const runtimes = createConversationRuntimes(driver, store)
+	const controller = runtimes.runtimeFor(conversation.id)
 
 	return {
 		bots,
@@ -599,6 +605,14 @@ const longRoomOf = async (): Promise<LongRoom> => {
 			runtimes,
 			isSettingsOpen: false,
 			onOpenSettings: () => undefined,
+		},
+		driver,
+		idOf: (name) => bots.find((bot) => bot.name === name)?.id ?? name,
+		send: async (text) => {
+			await act(async () => {
+				await controller.send(text)
+			})
+			await settle()
 		},
 	}
 }
@@ -1915,5 +1929,27 @@ describe("ThreadScreen", () => {
 		expect(
 			screen.queryByRole("button", { name: "Load newer messages" }),
 		).toBeNull()
+	})
+	it("shows a prompt sent from a landed thread and the reply to it", async () => {
+		const room = await longRoomOf()
+		const landings = createMessageLandingController()
+		landings.record({
+			conversationId: room.thread.conversation.id,
+			messageId: LANDED_MESSAGE_ID,
+			seq: LANDED_SEQ,
+		})
+
+		render(screenOf(room.thread, room.bots, () => undefined, landings))
+		await settle()
+		expect(shownTurnNumbers()).toContain(LANDED_SEQ)
+
+		await room.send("hold the line")
+		act(() => {
+			room.driver.pushTo(room.idOf("Ada"), WRITING)
+		})
+		await settle()
+
+		expect(screen.getByText("hold the line")).toBeTruthy()
+		expect(screen.getByText("the walls hold")).toBeTruthy()
 	})
 })
