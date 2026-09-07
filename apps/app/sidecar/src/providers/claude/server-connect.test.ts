@@ -25,36 +25,38 @@ const portReading = (
 	return port
 }
 
-const failed = (error?: string): ServerStatus[] => [
-	{ name: "superset", status: "failed", ...(error ? { error } : {}) },
-]
+const failed: ServerStatus[] = [{ name: "superset", status: "failed" }]
+
+const pending: ServerStatus[] = [{ name: "superset", status: "pending" }]
 
 const connected: ServerStatus[] = [{ name: "superset", status: "connected" }]
 
+const throwing = (message: string) => async () => {
+	throw new Error(message)
+}
+
+const leftOut = 'the server "superset" was left out: '
+
 describe("unconnectedServers", () => {
-	it("reports a server reading failed, with the reason its status carried", async () => {
-		const port = portReading([failed("connect ECONNREFUSED")])
+	it("names the status of the last read and what the reconnection threw", async () => {
+		const port = portReading([failed], throwing("Connection failed"))
 
 		const details = await unconnectedServers({ names: ["superset"], port })
 
 		expect(details).toEqual([
-			'the server "superset" was left out: two connection attempts failed, connect ECONNREFUSED',
+			`${leftOut}two connection attempts failed, it read failed, and the reconnection answered: Connection failed`,
 		])
 		expect(port.reconnected).toEqual(["superset"])
 	})
 
 	it("reads a server the CLI marks failed at the end of the connect budget", async () => {
-		const pending: ServerStatus[] = [{ name: "superset", status: "pending" }]
 		let waited = 0
 
 		const details = await unconnectedServers({
 			names: ["superset"],
 			port: {
-				status: async () =>
-					waited <= CONNECT_BUDGET_MS
-						? pending
-						: failed("timed out connecting"),
-				reconnect: async () => {},
+				status: async () => (waited <= CONNECT_BUDGET_MS ? pending : failed),
+				reconnect: throwing("Connection failed"),
 			},
 			wait: async (ms) => {
 				waited += ms
@@ -62,7 +64,7 @@ describe("unconnectedServers", () => {
 		})
 
 		expect(details).toEqual([
-			'the server "superset" was left out: two connection attempts failed, timed out connecting',
+			`${leftOut}two connection attempts failed, it read failed, and the reconnection answered: Connection failed`,
 		])
 		expect(waited).toBeGreaterThan(CONNECT_BUDGET_MS)
 	})
@@ -72,7 +74,7 @@ describe("unconnectedServers", () => {
 		const passing = unconnectedServers({
 			names: ["superset"],
 			port: {
-				status: async () => failed("refused"),
+				status: async () => failed,
 				reconnect: () => new Promise(() => {}),
 			},
 			signal: abandoning.signal,
@@ -109,11 +111,8 @@ describe("unconnectedServers", () => {
 		expect(waited).toBeLessThanOrEqual(CONNECT_BUDGET_MS)
 	})
 
-	it("takes a single read after the reconnection, and polls no second budget", async () => {
-		const port = portReading([
-			failed("first attempt refused"),
-			[{ name: "superset", status: "pending" }],
-		])
+	it("takes a single read after the reconnection, and names the wait it gave", async () => {
+		const port = portReading([failed, pending])
 
 		const details = await unconnectedServers({
 			names: ["superset"],
@@ -122,44 +121,45 @@ describe("unconnectedServers", () => {
 		})
 
 		expect(details).toEqual([
-			'the server "superset" was left out: two connection attempts failed, no reason given',
+			`${leftOut}two connection attempts failed, it read pending after the 15250 ms it was given`,
 		])
 		expect(port.reads).toBe(2)
 		expect(port.reconnected).toEqual(["superset"])
 	})
 
 	it("reads the status again while a server stays pending", async () => {
-		const port = portReading([
-			[{ name: "superset", status: "pending" }],
-			connected,
-		])
+		const port = portReading([pending, connected])
 
 		expect(await unconnectedServers({ names: ["superset"], port })).toEqual([])
 		expect(port.reconnected).toEqual([])
 	})
 
 	it("reports nothing when the single reconnect brings the server back", async () => {
-		const port = portReading([failed("timed out"), connected])
+		const port = portReading([failed, connected])
 
 		expect(await unconnectedServers({ names: ["superset"], port })).toEqual([])
 		expect(port.reconnected).toEqual(["superset"])
 	})
 
-	it("takes the message a thrown reconnect carries as the reason", async () => {
-		const port = portReading([failed()], async () => {
-			throw new Error("no transport for superset")
+	it("names the wait and what the reconnection threw on a server still pending", async () => {
+		const port = portReading([pending], throwing("Server status: pending"))
+
+		const details = await unconnectedServers({
+			names: ["superset"],
+			port,
+			wait: async () => {},
 		})
 
-		expect(await unconnectedServers({ names: ["superset"], port })).toEqual([
-			'the server "superset" was left out: two connection attempts failed, no transport for superset',
+		expect(details).toEqual([
+			`${leftOut}two connection attempts failed, it read pending after the 15250 ms it was given, and the reconnection answered: Server status: pending`,
 		])
 	})
 
-	it("names no reason when neither the status nor the reconnect gives one", async () => {
-		const port = portReading([failed()])
+	it("names the status alone when the reconnection threw nothing", async () => {
+		const port = portReading([failed])
 
 		expect(await unconnectedServers({ names: ["superset"], port })).toEqual([
-			'the server "superset" was left out: two connection attempts failed, no reason given',
+			`${leftOut}two connection attempts failed, it read failed`,
 		])
 	})
 
@@ -168,27 +168,26 @@ describe("unconnectedServers", () => {
 			base: { TOKEN: "wide-secret" },
 			perServer: { superset: { KEY: "narrow-secret" } },
 		}
-		const port = portReading([
-			failed(`401 for wide-secret with narrow-secret ${"x".repeat(400)}`),
-		])
+		const port = portReading(
+			[failed],
+			throwing(`401 for wide-secret with narrow-secret ${"x".repeat(400)}`),
+		)
 
 		const [detail] = await unconnectedServers({
 			names: ["superset"],
 			port,
 			env,
 		})
+		const opening = `${leftOut}two connection attempts failed, it read failed, and the reconnection answered: `
 
-		expect(detail).toContain("401 for [redacted] with [redacted]")
+		expect(detail).toContain(`${opening}401 for [redacted] with [redacted]`)
 		expect(detail).not.toContain("wide-secret")
 		expect(detail).not.toContain("narrow-secret")
-		expect(detail).toHaveLength(
-			'the server "superset" was left out: two connection attempts failed, '
-				.length + 300,
-		)
+		expect(detail).toHaveLength(opening.length + 300)
 	})
 
 	it("leaves a stored value shorter than eight characters out of the redaction", async () => {
-		const port = portReading([failed("dial 127.0.0.1 refused")])
+		const port = portReading([failed], throwing("dial 127.0.0.1 refused"))
 
 		const [detail] = await unconnectedServers({
 			names: ["superset"],
@@ -202,7 +201,7 @@ describe("unconnectedServers", () => {
 	it("leaves out the in process server, a disabled server and a session given none", async () => {
 		const port = portReading([
 			[
-				{ name: "kiroshi", status: "failed", error: "never read" },
+				{ name: "kiroshi", status: "failed" },
 				{ name: "clock", status: "disabled" },
 			],
 		])

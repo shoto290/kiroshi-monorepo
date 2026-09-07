@@ -153,7 +153,11 @@ Every other command names its session.
   read, leaves out every server declaring a variable and rides the same frame. A server
   the options did keep is read once the session is initialized: still not connected after
   a wait on its pending state and a single reconnection, it rides the same frame naming
-  the server and the reason its two attempts failed. That frame goes out in the very call
+  the server and the reason its two attempts failed. A status read carries a name and a
+  status alone, so that reason is built from the status the last read named, the wait a
+  server still pending was given, and the message the reconnection threw, and from
+  nothing else: the cause the CLI knows, a 401 or a refused socket, never crosses the
+  control protocol. That frame goes out in the very call
   that hands the prompt carrying the same line over, once per session, so the notice
   lands while a turn is live. The session opens without waiting on that read: the
   `opened` frame goes out first and the prompts wait behind the read, in the order they
@@ -167,9 +171,9 @@ Every other command names its session.
   reading `needs-auth` is named as waiting for its authorization, and no reconnection is
   attempted on it. A server no read ever named rides no frame: the sidecar writes one
   stderr line naming it, as it does when the read throws or outlasts its deadline. No
-  resolved value is ever named in a frame or a log line: a reason is cut at 300
-  characters and every value of eight characters or more the store holds reads
-  `[redacted]` in it.
+  resolved value is ever named in a frame or a log line: the message a reconnection
+  throws is cut at 300 characters and every value of eight characters or more the store
+  holds reads `[redacted]` in it.
 
 ## Sidecar → host
 

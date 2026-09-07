@@ -5,7 +5,7 @@ import { leftOut } from "./server-env"
 import type { ServerEnv } from "../provider"
 import { describeError } from "../../describe-error"
 
-export type ServerStatus = Pick<McpServerStatus, "name" | "status" | "error">
+export type ServerStatus = Pick<McpServerStatus, "name" | "status">
 
 export type ConnectPort = {
 	status: () => Promise<ServerStatus[]>
@@ -35,7 +35,6 @@ const PASS_LIMIT = PENDING_WAIT + RECONNECT_LIMIT
 const REASON_LIMIT = 300
 const SECRET_FLOOR = 8
 const REDACTED = "[redacted]"
-const NO_REASON = "no reason given"
 const NO_READ = "no status read ever named it"
 const TWO_ATTEMPTS = "two connection attempts failed"
 const AWAITING_AUTH = "it is waiting for you to authorize it"
@@ -148,18 +147,28 @@ const readable = (reason: string, secrets: string[]): string =>
 		.reduce((held, secret) => held.split(secret).join(REDACTED), reason)
 		.slice(0, REASON_LIMIT)
 
+const statusReason = (status: ServerStatus["status"]): string =>
+	status === "pending"
+		? `it read pending after the ${PENDING_WAIT} ms it was given`
+		: `it read ${status}`
+
 const lineFor = (
 	name: string,
-	read: ServerStatus | undefined,
+	read: ServerStatus,
 	thrown: string | undefined,
 	secrets: string[],
-): string =>
-	read?.status === "needs-auth"
-		? leftOut(name, AWAITING_AUTH)
-		: leftOut(
-				name,
-				`${TWO_ATTEMPTS}, ${readable(read?.error ?? thrown ?? NO_REASON, secrets)}`,
-			)
+): string => {
+	if (read.status === "needs-auth") {
+		return leftOut(name, AWAITING_AUTH)
+	}
+	const answered = thrown
+		? `, and the reconnection answered: ${readable(thrown, secrets)}`
+		: ""
+	return leftOut(
+		name,
+		`${TWO_ATTEMPTS}, ${statusReason(read.status)}${answered}`,
+	)
+}
 
 const reportPass = async (
 	{
