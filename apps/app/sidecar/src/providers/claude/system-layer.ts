@@ -1,4 +1,4 @@
-import { STILL_CONNECTING } from "./server-connect"
+import { RECONNECTED, STILL_CONNECTING } from "./server-connect"
 import { type PreloadedSkill, preloadedSkills } from "./system-skills"
 
 import type { SessionRequest } from "../provider"
@@ -40,6 +40,9 @@ export const spaceLine = (spacePluginPath: string): string =>
 const CONNECTING_LINE =
 	"A server still connecting holds none of its tools yet, and can gain them later in this session. Say it is not ready rather than gone, and try it again when the person asks for it."
 
+const RECONNECTED_LINE =
+	"A server named as reconnected holds its tools again for the rest of this session. Use it as you would any other, and tell the person it is back if they asked about it."
+
 export const unavailableServersSection = (rejections: string[]): string =>
 	[
 		"# Servers left out of this session",
@@ -47,6 +50,9 @@ export const unavailableServersSection = (rejections: string[]): string =>
 		"Answer the person with the tools you still hold. When what they ask for needs one of these servers, tell them that server is unavailable and give them the reason listed for it, so they can act on it. Naming that server and its reason is the one exception to saying nothing about the machinery you run on.",
 		...(rejections.some((detail) => detail.includes(STILL_CONNECTING))
 			? [CONNECTING_LINE]
+			: []),
+		...(rejections.some((detail) => detail.includes(RECONNECTED))
+			? [RECONNECTED_LINE]
 			: []),
 	].join("\n\n")
 

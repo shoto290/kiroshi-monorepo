@@ -152,25 +152,29 @@ Every other command names its session.
   frame naming the server and the variable. `failure`, set when the store could not be
   read, leaves out every server declaring a variable and rides the same frame. A server
   the options did keep is read once the session is initialized, for the 5000 ms of the
-  poll budget. What that budget read rides the frames of the first prompt: a server it
-  read failed by its status, one it read `needs-auth` as waiting for its authorization,
-  one it left pending as still connecting after the time the read spent, worded as
-  connecting and not as left out, the CLI still dialling it and its tools able to land
-  later in the session, which the section handed to the bot says in its own words. A line
-  never counts connection attempts: the CLI retries a failing server on its own, several
-  times per read, so no number the sidecar could state would be true. A server the budget
-  left pending is watched past it, one status call every second for as long as the session
-  is open, until it reads connected, failed or `needs-auth`. Connected, it draws nothing.
-  Failed, it earns one reconnection and one frame of its own, naming the status and the
-  answer that reconnection gave. `needs-auth`, it earns that one frame. One frame per
-  server at the most after the budget, and none once the session closed. A status read carries a
+  poll budget. What that budget settles rides the frames of the first prompt: a server it
+  read `needs-auth` as waiting for its authorization, one it left pending as still
+  connecting after the time the read spent, worded as connecting and not as left out, the
+  CLI still dialling it and its tools able to land later in the session, which the section
+  handed to the bot says in its own words. A line never counts connection attempts: the
+  CLI retries a failing server on its own, several times per read, so no number the
+  sidecar could state would be true. A server the budget read failed earns one
+  reconnection, taken after the budget so no prompt waits on it, and one frame of its own:
+  the reconnection's answer when it threw, and that the server was reconnected and holds
+  its tools again when it did not, which the section says in its own words too. A server
+  the budget left pending is watched past it, one status call every second, until it reads
+  connected, failed or `needs-auth`, or 60000 ms pass and it rides a stderr line instead.
+  Connected, it draws nothing; failed, it earns the same one reconnection and frame;
+  `needs-auth`, it earns that frame. One frame per server at the most after the budget,
+  and none once the session closed. A frame raised after a prompt was handed rides the
+  next prompt's section, so the bot reads what the screen reads. A status read carries a
   name and a status alone, so that reason is built from the status the last read named,
   the time the read had spent, and the message the reconnection threw, and from nothing
   else: the cause the CLI knows, a 401 or a refused socket, never crosses the control
   protocol. That frame goes out in the very call
   that hands the prompt carrying the same line over, once per session, so the notice
-  lands while a turn is live. The frames the watch raises after the budget go out on their
-  own, no prompt carrying them. The session opens without waiting on any of it: the
+  lands while a turn is live. The frames raised after the budget go out at once, and their
+  lines wait for the next prompt. The session opens without waiting on any of it: the
   `opened` frame goes out first and the prompts wait behind the budget, in the order they
   were received, never longer than it. No deadline covers that read as a whole: each status
   call taken while polling is bounded by what is left of the 5000 ms poll budget, and the

@@ -8,11 +8,7 @@ import type { Settings } from "@anthropic-ai/claude-agent-sdk"
 import { claudeSourceExecutable } from "./build"
 import { EXECUTABLE_OVERRIDE_ENV } from "./executable"
 import { KIROSHI_SERVER } from "./kiroshi-server"
-import {
-	type ConnectPass,
-	POLL_BUDGET_MS,
-	type ServerStatus,
-} from "./server-connect"
+import type { ConnectPass, ServerStatus } from "./server-connect"
 import { leftOut } from "./server-env"
 import {
 	buildOptions,
@@ -637,9 +633,10 @@ describe("layerFor", () => {
 })
 
 describe("reportConnections", () => {
-	const refused: ServerStatus[] = [{ name: "superset", status: "failed" }]
+	const refused: ServerStatus[] = [{ name: "superset", status: "needs-auth" }]
 
-	const detail = 'the server "superset" was left out: it read failed'
+	const detail =
+		'the server "superset" was left out: it is waiting for you to authorize it'
 
 	const section = unavailableServersSection([detail])
 
@@ -712,19 +709,17 @@ describe("reportConnections", () => {
 		expect(pushed).toEqual([`${section}\n\nfirst`])
 	})
 
-	it("releases the held prompt at the budget, and frames the server settled after it", async () => {
+	it("releases at the budget, reconnects once, and frames the answer afterwards", async () => {
 		const emitted: string[] = []
 		const pushed: string[] = []
+		const reconnected: string[] = []
 		const released = Promise.withResolvers<void>()
 		const framed = Promise.withResolvers<void>()
-		let time = 0
 
 		const report = reportConnections({
 			emit: (frame) => {
 				emitted.push(String(frame.detail))
-				if (emitted.length === 2) {
-					framed.resolve()
-				}
+				framed.resolve()
 			},
 			push: (text) => {
 				pushed.push(text)
@@ -733,36 +728,32 @@ describe("reportConnections", () => {
 			pass: {
 				names: ["superset"],
 				port: {
-					status: async () =>
-						time <= POLL_BUDGET_MS - 250
-							? [{ name: "superset", status: "pending" }]
-							: [{ name: "superset", status: "failed" }],
-					reconnect: async () => {
+					status: async () => [{ name: "superset", status: "failed" }],
+					reconnect: async (name) => {
+						reconnected.push(name)
 						throw new Error("Connection failed")
 					},
 				},
-				now: () => time,
-				wait: async (ms) => {
-					time += ms
-				},
+				wait: async () => {},
 			},
 		})
 
 		report.prompt("first")
 		await released.promise
 
-		expect(pushed).toHaveLength(1)
-		expect(pushed[0]).toContain("is still connecting after 4750 ms")
-		expect(emitted).toEqual([
-			'the server "superset" is still connecting after 4750 ms',
-		])
+		expect(pushed).toEqual(["first"])
+		expect(emitted).toEqual([])
 
 		await framed.promise
+		const answered =
+			'the server "superset" was left out: it read failed, and the reconnection answered: Connection failed'
 
-		expect(emitted[1]).toBe(
-			'the server "superset" was left out: it read failed, and the reconnection answered: Connection failed',
-		)
-		expect(pushed).toHaveLength(1)
+		expect(emitted).toEqual([answered])
+		expect(reconnected).toEqual(["superset"])
+
+		report.prompt("second")
+
+		expect(pushed[1]).toBe(`${unavailableServersSection([answered])}\n\nsecond`)
 	})
 
 	it("emits no frame while the pass settles on its own", async () => {

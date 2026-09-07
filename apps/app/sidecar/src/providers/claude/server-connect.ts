@@ -42,6 +42,7 @@ type PassOutcome = {
 	reported: string[]
 	giveUps: GaveUp[]
 	connecting: string[]
+	failing: string[]
 }
 
 type PolledTakes = {
@@ -55,6 +56,8 @@ export const POLL_BUDGET_MS = 5_000
 
 export const WATCH_POLL_MS = 1_000
 
+export const WATCH_BOUND_MS = 60_000
+
 export const UNNAMED_GRACE_MS = 1_000
 
 const PENDING_POLL = 250
@@ -64,8 +67,10 @@ const REDACTED = "[redacted]"
 const NO_READ = "no status read ever named it"
 const AWAITING_AUTH = "it is waiting for you to authorize it"
 export const STILL_CONNECTING = "is still connecting"
+export const RECONNECTED = "was reconnected"
+const UNSETTLED = "it never settled while it was watched"
 const GAVE_UP = "the connection pass gave up on"
-const REPORTABLE = ["pending", "failed", "needs-auth"]
+const REPORTABLE = ["pending", "needs-auth"]
 
 const OUTLASTED = Symbol("outlasted")
 
@@ -204,6 +209,9 @@ const readable = (reason: string, secrets: string[]): string =>
 		.reduce((held, secret) => held.split(secret).join(REDACTED), reason)
 		.slice(0, REASON_LIMIT)
 
+const reconnectedLine = (name: string): string =>
+	`the server "${name}" ${RECONNECTED}, and its tools are back`
+
 const lineFor = (
 	name: string,
 	{ status, spent }: NamedRead,
@@ -269,12 +277,13 @@ const reportPass = async (
 	if (missing.length) {
 		giveUps.push({ names: missing, cause: NO_READ })
 	}
+	const settledAs = (status: ServerStatus["status"]) =>
+		names.filter((name) => namedRead(takes, name)?.status === status)
 	return {
 		reported,
 		giveUps,
-		connecting: names.filter(
-			(name) => namedRead(takes, name)?.status === "pending",
-		),
+		connecting: settledAs("pending"),
+		failing: settledAs("failed"),
 	}
 }
 
@@ -301,22 +310,31 @@ const announce = async (
 	if (signal?.aborted) {
 		return
 	}
-	report?.(lineFor(name, { status, spent: 0 }, thrown, secrets))
+	report?.(
+		thrown
+			? lineFor(name, { status, spent: 0 }, thrown, secrets)
+			: reconnectedLine(name),
+	)
 }
 
 const watching = async (
 	pass: ConnectPass,
-	connecting: string[],
+	{ connecting, failing }: Pick<PassOutcome, "connecting" | "failing">,
 	secrets: string[],
 ) => {
 	const {
 		port,
 		signal,
+		now = Date.now,
 		bound = REQUEST_BOUND_MS,
 		wait = (ms: number) => delay(ms, signal),
 	} = pass
+	await Promise.all(
+		failing.map((name) => announce(pass, name, "failed", secrets)),
+	)
+	const until = now() + WATCH_BOUND_MS
 	let watched = connecting
-	while (watched.length && !signal?.aborted) {
+	while (watched.length && !signal?.aborted && now() < until) {
 		await wait(WATCH_POLL_MS)
 		if (signal?.aborted) {
 			return
@@ -336,9 +354,12 @@ const watching = async (
 		watched = watched.filter(
 			(name) => !settled.some((read) => read.name === name),
 		)
-		for (const { name, status } of settled) {
-			await announce(pass, name, status, secrets)
-		}
+		await Promise.all(
+			settled.map(({ name, status }) => announce(pass, name, status, secrets)),
+		)
+	}
+	if (watched.length && !signal?.aborted) {
+		gaveUp(watched, UNSETTLED, secrets)
 	}
 }
 
@@ -359,9 +380,10 @@ export const unconnectedServers = async ({
 		for (const { names: abandoned, cause } of outcome.giveUps) {
 			gaveUp(abandoned, cause, secrets)
 		}
-		if (outcome.connecting.length && pass.report) {
-			void watching(pass, outcome.connecting, secrets).catch((thrown) => {
-				gaveUp(outcome.connecting, describeError(thrown), secrets)
+		const watched = [...outcome.connecting, ...outcome.failing]
+		if (watched.length && pass.report) {
+			void watching(pass, outcome, secrets).catch((thrown) => {
+				gaveUp(watched, describeError(thrown), secrets)
 			})
 		}
 		return outcome.reported

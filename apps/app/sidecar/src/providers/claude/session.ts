@@ -163,33 +163,41 @@ export const reportConnections = ({ emit, push, pass }: ConnectionReport) => {
 	const abandoning = new AbortController()
 	const { signal } = abandoning
 	const held: string[] = []
-	let details: string[] = []
+	const waiting: string[] = []
+	let unframed: string[] = []
 	let holding = pass.names.length > 0
-	let announced = false
+
+	const framed = (detail: string) => {
+		emit({ type: "server_env_rejected", detail })
+	}
 
 	const rejected = (detail: string) => {
-		if (!signal.aborted) {
-			emit({ type: "server_env_rejected", detail })
+		if (signal.aborted) {
+			return
 		}
+		framed(detail)
+		waiting.push(detail)
 	}
 
 	const hand = (text: string) => {
-		if (announced || details.length === 0) {
+		if (waiting.length === 0) {
 			push(text)
 			return
 		}
-		announced = true
-		for (const detail of details) {
-			rejected(detail)
+		for (const detail of unframed) {
+			framed(detail)
 		}
-		push(`${unavailableServersSection(details)}\n\n${text}`)
+		unframed = []
+		const carried = waiting.splice(0)
+		push(`${unavailableServersSection(carried)}\n\n${text}`)
 	}
 
 	const release = (reported: string[]) => {
 		if (signal.aborted) {
 			return
 		}
-		details = reported
+		unframed = reported
+		waiting.push(...reported)
 		holding = false
 		for (const text of held.splice(0)) {
 			hand(text)

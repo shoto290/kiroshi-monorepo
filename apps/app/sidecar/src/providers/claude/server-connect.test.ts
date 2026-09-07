@@ -6,6 +6,7 @@ import {
 	type ServerStatus,
 	UNNAMED_GRACE_MS,
 	unconnectedServers,
+	WATCH_BOUND_MS,
 	WATCH_POLL_MS,
 } from "./server-connect"
 
@@ -28,6 +29,8 @@ const portReading = (
 const failed: ServerStatus[] = [{ name: "superset", status: "failed" }]
 
 const pending: ServerStatus[] = [{ name: "superset", status: "pending" }]
+
+const awaiting: ServerStatus[] = [{ name: "superset", status: "needs-auth" }]
 
 const connected: ServerStatus[] = [{ name: "superset", status: "connected" }]
 
@@ -73,7 +76,7 @@ describe("unconnectedServers", () => {
 		const built = [
 			...(await unconnectedServers({
 				names: ["superset"],
-				port: portReading([failed]),
+				port: portReading([awaiting]),
 			})),
 			...(await unconnectedServers({
 				names: ["superset"],
@@ -82,17 +85,17 @@ describe("unconnectedServers", () => {
 			})),
 			...(await unconnectedServers({
 				names: ["superset"],
-				port: portReading([[{ name: "superset", status: "needs-auth" }]]),
+				port: portReading([[{ name: "superset", status: "disabled" }]]),
 			})),
 		]
 
-		expect(built).toHaveLength(3)
+		expect(built).toHaveLength(2)
 		for (const line of built) {
 			expect(line).not.toContain("attempts")
 		}
 	})
 
-	it("names each server by the status its own read gave it", async () => {
+	it("hands the first prompt the servers no reconnection can answer for", async () => {
 		const clock = ticking(250)
 		const port = {
 			reconnected: [] as string[],
@@ -113,10 +116,8 @@ describe("unconnectedServers", () => {
 		})
 
 		expect(details).toEqual([
-			`${leftOut}it read failed`,
 			`the server "clock" is still connecting after ${LAST_POLL_MS} ms`,
 		])
-		expect(port.reconnected).toEqual([])
 		expect(clock.now()).toBe(LAST_POLL_MS)
 	})
 
@@ -332,7 +333,7 @@ describe("unconnectedServers", () => {
 		const details = await unconnectedServers({
 			names: ["superset", "ghost"],
 			port: {
-				status: async () => failed,
+				status: async () => awaiting,
 				reconnect: async () => {},
 			},
 			now: clock.now,
@@ -341,17 +342,9 @@ describe("unconnectedServers", () => {
 		stderr.restore()
 
 		expect(clock.now()).toBe(UNNAMED_GRACE_MS)
-		expect(details).toEqual([`${leftOut}it read failed`])
+		expect(details).toEqual([`${leftOut}it is waiting for you to authorize it`])
 		expect(stderr.written).toEqual([
 			"the connection pass gave up on ghost: no status read ever named it\n",
-		])
-	})
-
-	it("names the status alone when the reconnection threw nothing", async () => {
-		const port = portReading([failed])
-
-		expect(await unconnectedServers({ names: ["superset"], port })).toEqual([
-			`${leftOut}it read failed`,
 		])
 	})
 
@@ -487,6 +480,42 @@ describe("watching a server left connecting", () => {
 			`${leftOut}it read failed, and the reconnection answered: Connection failed`,
 		])
 		expect(reconnected).toEqual(["superset"])
+	})
+
+	it("says a server its reconnection brought back is reconnected", async () => {
+		const { reported, reconnected } = await watched(failed)
+
+		expect(reported).toEqual([
+			'the server "superset" was reconnected, and its tools are back',
+		])
+		expect(reconnected).toEqual(["superset"])
+	})
+
+	it("stops watching at its bound and names on stderr what it left unsettled", async () => {
+		const stderr = capture()
+		const reported: string[] = []
+		let time = 0
+
+		await unconnectedServers({
+			names: ["superset"],
+			port: {
+				status: async () => pending,
+				reconnect: async () => {},
+			},
+			now: () => time,
+			wait: async (ms) => {
+				time += ms
+			},
+			report: (detail) => reported.push(detail),
+		})
+		await settling(20)
+		stderr.restore()
+
+		expect(reported).toEqual([])
+		expect(stderr.written).toEqual([
+			"the connection pass gave up on superset: it never settled while it was watched\n",
+		])
+		expect(time).toBeGreaterThanOrEqual(WATCH_BOUND_MS)
 	})
 
 	it("reports nothing on a server the CLI settles connected after the budget", async () => {
