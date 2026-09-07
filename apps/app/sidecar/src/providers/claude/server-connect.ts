@@ -178,15 +178,16 @@ const reportPass = async (
 	const thrown = await reconnectFailures(port, failing, signal)
 	const after = failing.length ? await port.status() : []
 	const reads = [...settled, ...after]
-	return {
-		reported: names.flatMap((name) => {
-			const read = lastRead(reads, name)
-			return REPORTABLE.includes(read?.status ?? "")
-				? [lineFor(name, read, thrown.get(name), secrets)]
-				: []
-		}),
-		missing: names.filter((name) => !lastRead(reads, name)),
+	const outcome: PassOutcome = { reported: [], missing: [] }
+	for (const name of names) {
+		const read = lastRead(reads, name)
+		if (!read) {
+			outcome.missing.push(name)
+		} else if (REPORTABLE.includes(read.status)) {
+			outcome.reported.push(lineFor(name, read, thrown.get(name), secrets))
+		}
 	}
+	return outcome
 }
 
 const gaveUp = (names: string[], cause: string, secrets: string[]) => {
