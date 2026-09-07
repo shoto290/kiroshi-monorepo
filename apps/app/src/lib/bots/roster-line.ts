@@ -8,6 +8,11 @@ export type SoloThreads = Record<string, RosterLine>
 export const rosterLineKey = ({ spaceId, botId }: RosterLine): string =>
 	`${spaceId}/${botId}`
 
+export const rosterLineOf = (key: string): RosterLine => {
+	const [spaceId, botId] = key.split("/")
+	return { spaceId, botId }
+}
+
 export const rosterLinesIn = (
 	rosters: Record<string, { id: string }[]>,
 ): RosterLine[] =>

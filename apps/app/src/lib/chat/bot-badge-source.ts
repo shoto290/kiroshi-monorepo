@@ -3,8 +3,8 @@ import { badgeAfter } from "./bot-badge"
 import type { ChatState } from "./chat-state"
 
 import {
-	type RosterLine,
 	rosterLineKey,
+	rosterLineOf,
 	rosterLinesIn,
 	runsIn,
 	type SoloThreads,
@@ -36,11 +36,6 @@ export type BotBadgeSourceOptions = {
 	watchFocus: (report: (isFocused: boolean) => void) => Promise<() => void>
 }
 
-const lineOf = (key: string): RosterLine => {
-	const [spaceId, botId] = key.split("/")
-	return { spaceId, botId }
-}
-
 const selectedLineKey = (spaceId: string | null, botId: string | null) =>
 	spaceId === null || botId === null ? null : rosterLineKey({ spaceId, botId })
 
@@ -53,7 +48,7 @@ export const createBotBadgeSource = ({
 	createBadgeSource({
 		states: {
 			stateFor: (key) => {
-				const { spaceId, botId } = lineOf(key)
+				const { spaceId, botId } = rosterLineOf(key)
 				const state = chat.stateFor(botId)
 				const { soloThreads } = roster.getState()
 				return runsIn(soloThreads, state.conversationId, spaceId) ? state : null

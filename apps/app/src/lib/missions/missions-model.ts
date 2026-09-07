@@ -323,18 +323,20 @@ export const missionsByRow = (
 
 const NO_MISSIONS: MissionsByRow = {}
 
-const spaceOfConversationIn = (
+const conversationSpaces = (
 	conversationRosters: Record<string, { id: string }[]>,
 	soloThreads: SoloThreads,
-) => {
+): Map<string, string> => {
 	const spaces = new Map<string, string>()
+	for (const [conversationId, line] of Object.entries(soloThreads)) {
+		spaces.set(conversationId, line.spaceId)
+	}
 	for (const [spaceId, conversations] of Object.entries(conversationRosters)) {
 		for (const { id } of conversations) {
 			spaces.set(id, spaceId)
 		}
 	}
-	return (conversationId: string) =>
-		spaces.get(conversationId) ?? soloThreads[conversationId]?.spaceId
+	return spaces
 }
 
 export type MissionSpaces = {
@@ -350,10 +352,10 @@ export const missionsBySpaceId = ({
 	soloThreads,
 	waitingMissionIds,
 }: MissionSpaces): Record<string, MissionsByRow> => {
-	const spaceOf = spaceOfConversationIn(conversationRosters, soloThreads)
+	const spaces = conversationSpaces(conversationRosters, soloThreads)
 	const listed: Record<string, MissionOnBoard[]> = {}
 	for (const onBoard of board) {
-		const spaceId = spaceOf(onBoard.mission.originConversationId)
+		const spaceId = spaces.get(onBoard.mission.originConversationId)
 		if (!spaceId) continue
 		listed[spaceId] = [...(listed[spaceId] ?? []), onBoard]
 	}

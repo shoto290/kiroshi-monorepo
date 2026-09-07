@@ -32,12 +32,13 @@ export const withLineBadges = <Row extends BadgedRow>(
 	badges: Record<string, BotBadge>,
 	spaceId: string | null,
 ): Badged<Row>[] =>
-	spaceId === null
-		? rows.map((row) => ({ ...row, badge: undefined }))
-		: rows.map((row) => ({
-				...row,
-				badge: shownBadge(badges[rosterLineKey({ spaceId, botId: row.id })]),
-			}))
+	rows.map((row) => ({
+		...row,
+		badge:
+			spaceId === null
+				? undefined
+				: shownBadge(badges[rosterLineKey({ spaceId, botId: row.id })]),
+	}))
 
 const strongestBadge = (rows: BadgeCarrier[]): ShownBadge | undefined =>
 	STRONGEST_FIRST.find((badge) => rows.some((row) => row.badge === badge))
