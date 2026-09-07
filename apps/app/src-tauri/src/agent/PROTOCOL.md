@@ -155,7 +155,10 @@ Every other command names its session.
   failed earns it one reconnection, and it rides the same frame naming the server and the
   reason its two attempts failed. A read that leaves it pending earns it none, the CLI
   retrying a failing server itself: the frame says it is still connecting after the time
-  the read spent, and names no attempt that did not take place. A status read carries a
+  the read spent, and names no attempt that did not take place. A server reconnected and
+  read pending right after reads both, still connecting after that time and the answer
+  its reconnection gave: the dial can outlast our own bound while the client is still on
+  it. A status read carries a
   name and a status alone, so that reason is built from the status the last read named,
   the time the read had spent, and the message the reconnection threw, and from nothing
   else: the cause the CLI knows, a 401 or a refused socket, never crosses the control
@@ -164,9 +167,10 @@ Every other command names its session.
   lands while a turn is live. The session opens without waiting on that read: the
   `opened` frame goes out first and the prompts wait behind the read, in the order they
   were received, until it settles. No deadline covers that read as a whole: each status
-  call and each reconnection is bounded on its own by 30000 ms, what the CLI gives an MCP
-  request of its own, and the polls stop once the time the read has spent on them, taken
-  from a clock and not counted in sleeps, reaches 5000 ms. No session option bounds the
+  call taken while polling is bounded by what is left of the 5000 ms poll budget, and the
+  reconnections and the call taken after them by 30000 ms each, what the CLI gives an MCP
+  request of its own. The polls stop once the time the read has spent on them, taken from
+  a clock and not counted in sleeps, reaches that 5000 ms. No session option bounds the
   dial: neither `MCP_TIMEOUT` nor `MCP_CONNECT_TIMEOUT_MS` is set, the CLI keeping its
   own defaults. A status call that outlasts
   its bound ends the polls there and keeps what the earlier calls named: only the very

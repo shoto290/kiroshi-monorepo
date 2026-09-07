@@ -222,12 +222,12 @@ const lineFor = (
 	if (status === "needs-auth") {
 		return leftOut(name, AWAITING_AUTH)
 	}
-	if (status === "pending") {
-		return leftOut(name, stillConnecting(spent))
-	}
 	const answered = thrown
 		? `, and the reconnection answered: ${readable(thrown, secrets)}`
 		: ""
+	if (status === "pending") {
+		return leftOut(name, `${stillConnecting(spent)}${answered}`)
+	}
 	return leftOut(name, `${TWO_ATTEMPTS}, it read ${status}${answered}`)
 }
 
@@ -244,8 +244,16 @@ const reportPass = async (
 ): Promise<PassOutcome> => {
 	const started = now()
 	const spent = () => now() - started
-	const read = () => boundedRead(port, bound, signal)
-	const { takes, giveUp } = await polledTakes(read, names, wait, spent, signal)
+	const read = (ms: number) => boundedRead(port, ms, signal)
+	const polling = () =>
+		read(Math.min(bound, Math.max(POLL_BUDGET_MS - spent(), 0)))
+	const { takes, giveUp } = await polledTakes(
+		polling,
+		names,
+		wait,
+		spent,
+		signal,
+	)
 	const giveUps = giveUp ? [giveUp] : []
 	const failing = names.filter(
 		(name) => lastRead(takes, name)?.status === "failed",
@@ -253,7 +261,7 @@ const reportPass = async (
 	const thrown = await reconnectFailures(port, failing, bound, signal)
 	if (failing.length) {
 		try {
-			takes.push({ statuses: await read() })
+			takes.push({ statuses: await read(bound), spent: spent() })
 		} catch (error) {
 			giveUps.push({ names: failing, cause: describeError(error) })
 		}

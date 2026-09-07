@@ -143,18 +143,79 @@ describe("unconnectedServers", () => {
 		expect(details).toEqual([`${leftOut}it is still connecting after 0 ms`])
 	})
 
-	it("takes a single read after the reconnection, and names no wait it never spent", async () => {
-		const port = portReading([failed, pending])
+	it("keeps the answer and the time when the read after the reconnection is pending", async () => {
+		let time = 0
+		const port = portReading([failed, pending], async () => {
+			time += 400
+			throw new Error("Connection failed")
+		})
 
 		const details = await unconnectedServers({
 			names: ["superset"],
 			port,
+			now: () => time,
 			wait: async () => {},
 		})
 
-		expect(details).toEqual([`${leftOut}it is still connecting`])
-		expect(port.reads).toBe(2)
+		expect(details).toEqual([
+			`${leftOut}it is still connecting after 400 ms, and the reconnection answered: Connection failed`,
+		])
 		expect(port.reconnected).toEqual(["superset"])
+	})
+
+	it("abandons a polling read once the poll budget it was left is spent", async () => {
+		const stderr = capture()
+		let time = 0
+		let reads = 0
+
+		const details = await unconnectedServers({
+			names: ["superset"],
+			port: {
+				status: () => {
+					reads += 1
+					if (reads > 1) {
+						return new Promise(() => {})
+					}
+					time = POLL_BUDGET_MS - 1
+					return Promise.resolve(pending)
+				},
+				reconnect: async () => {},
+			},
+			now: () => time,
+			wait: async () => {},
+		})
+		stderr.restore()
+
+		expect(details).toEqual([
+			`${leftOut}it is still connecting after ${POLL_BUDGET_MS - 1} ms`,
+		])
+		expect(stderr.written).toEqual([
+			"the connection pass gave up on superset: a status read outlasted its 1 ms bound\n",
+		])
+	})
+
+	it("keeps the reconnection on its own bound once the poll budget is spent", async () => {
+		let time = 0
+
+		const details = await unconnectedServers({
+			names: ["superset"],
+			port: {
+				status: async () => {
+					time = POLL_BUDGET_MS + 1_000
+					return failed
+				},
+				reconnect: async () => {
+					await new Promise((resolve) => setTimeout(resolve, 10))
+					throw new Error("Connection failed")
+				},
+			},
+			now: () => time,
+			wait: async () => {},
+		})
+
+		expect(details).toEqual([
+			`${leftOut}two connection attempts failed, it read failed, and the reconnection answered: Connection failed`,
+		])
 	})
 
 	it("reads the status again while a server stays pending", async () => {
