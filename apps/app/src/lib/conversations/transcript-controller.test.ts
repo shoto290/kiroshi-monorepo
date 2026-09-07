@@ -16,7 +16,11 @@ import {
 	OTHER_CONVERSATION,
 } from "./transcript-fixtures"
 import type { TranscriptPort } from "./transcript-port"
-import { selectHasMore, selectMessages } from "./transcript-state"
+import {
+	selectHasMore,
+	selectHasNewer,
+	selectMessages,
+} from "./transcript-state"
 
 const PAGE_SIZE = 2
 
@@ -256,5 +260,66 @@ describe("createTranscriptController", () => {
 
 		expect(idsOf(read)).toHaveLength(TRANSCRIPT_WINDOW_SIZE + 1)
 		expect(selectHasMore(read.getState(), CONVERSATION)).toBe(false)
+	})
+})
+describe("a landing window that comes back late", () => {
+	const LONG = Array.from({ length: TRANSCRIPT_WINDOW_SIZE * 2 }, (_, index) =>
+		message({ id: `m-${index + 1}`, seq: index + 1 }),
+	)
+
+	const gatedLanding = () => {
+		const fake = createFakeTranscriptPort({ messages: LONG })
+		let release = (): void => undefined
+		const gate = new Promise<void>((resolve) => {
+			release = resolve
+		})
+		const port: TranscriptPort = {
+			loadPage: fake.loadPage,
+			loadWindow: async (conversationId, seq) => {
+				await gate
+				return fake.loadWindow(conversationId, seq)
+			},
+		}
+		return { controller: createTranscriptController(port), release }
+	}
+
+	const LANDED_SEQ = 20
+
+	it("installs the window while the reader stays in the thread", async () => {
+		const { controller, release } = gatedLanding()
+
+		const landing = controller.landOn(CONVERSATION, LANDED_SEQ)
+		release()
+		await landing
+
+		expect(idsOf(controller)).toContain(`m-${LANDED_SEQ}`)
+		expect(selectHasNewer(controller.getState(), CONVERSATION)).toBe(true)
+	})
+
+	it("installs no window once the reader has left the thread", async () => {
+		const { controller, release } = gatedLanding()
+		await controller.load(CONVERSATION)
+
+		const landing = controller.landOn(CONVERSATION, LANDED_SEQ)
+		controller.leave(CONVERSATION)
+		release()
+		await landing
+
+		expect(idsOf(controller)).not.toContain(`m-${LANDED_SEQ}`)
+		expect(selectHasNewer(controller.getState(), CONVERSATION)).toBe(false)
+	})
+
+	it("shows a message appended to the thread the reader left that way", async () => {
+		const { controller, release } = gatedLanding()
+		await controller.load(CONVERSATION)
+
+		const landing = controller.landOn(CONVERSATION, LANDED_SEQ)
+		controller.leave(CONVERSATION)
+		release()
+		await landing
+
+		controller.append(draft({ id: "said-while-away" }))
+
+		expect(idsOf(controller)).toContain("said-while-away")
 	})
 })

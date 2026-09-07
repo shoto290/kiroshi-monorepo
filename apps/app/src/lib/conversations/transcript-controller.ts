@@ -38,6 +38,8 @@ export const createTranscriptController = (
 	let state = initialTranscriptState
 	const listeners = new Set<() => void>()
 	const liveEdges = new Map<string, boolean>()
+	const openLandings = new Map<string, number>()
+	let landingCount = 0
 
 	const dispatch = (action: TranscriptAction) => {
 		const next = transcriptReducer(state, action)
@@ -86,7 +88,14 @@ export const createTranscriptController = (
 	}
 
 	const landOn = async (conversationId: string, seq: number) => {
+		landingCount += 1
+		const landing = landingCount
+		openLandings.set(conversationId, landing)
 		const window = await port.loadWindow(conversationId, seq)
+		if (openLandings.get(conversationId) !== landing) {
+			return window.messages
+		}
+		openLandings.delete(conversationId)
 		dispatch({ type: "windowLanded", window })
 		return window.messages
 	}
@@ -107,7 +116,10 @@ export const createTranscriptController = (
 		follow: (conversationId, isAtLiveEdge) => {
 			liveEdges.set(conversationId, isAtLiveEdge)
 		},
-		leave: (conversationId) => dispatch({ type: "threadLeft", conversationId }),
+		leave: (conversationId) => {
+			openLandings.delete(conversationId)
+			dispatch({ type: "threadLeft", conversationId })
+		},
 		append: (draft) =>
 			dispatch({
 				type: "messageAppended",
