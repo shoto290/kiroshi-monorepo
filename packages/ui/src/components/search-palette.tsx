@@ -104,6 +104,23 @@ const HINT_CLASS = "flex items-center gap-1.5 text-[11px] text-muted-foreground"
 
 const KEYCAP_CLASS = "bg-background"
 
+type SeeAllButtonProps = {
+	kind: SearchKind
+	label: string
+	onSeeAll: (kind: SearchKind) => void
+}
+
+const SeeAllButton = ({ kind, label, onSeeAll }: SeeAllButtonProps) => (
+	<button
+		className={SEE_ALL_CLASS}
+		data-slot="search-palette-see-all"
+		onClick={() => onSeeAll(kind)}
+		type="button"
+	>
+		{label}
+	</button>
+)
+
 const SearchPaletteFooter = () => {
 	const { t } = useTranslation("search")
 
@@ -204,6 +221,7 @@ const SearchPalette = ({
 		shown.map((result, index) => [result.id, index + FIRST_RANK]),
 	)
 	const rowId = (id: string) => `${listId}-${id}`
+	const sectionListId = (key: string) => `${listId}-${key}`
 	const activeId =
 		activeResultId && rankOf.has(activeResultId)
 			? rowId(activeResultId)
@@ -240,7 +258,13 @@ const SearchPalette = ({
 						/>
 						<input
 							aria-activedescendant={activeId}
-							aria-controls={listId}
+							aria-controls={
+								shown.length === 0
+									? listId
+									: sections
+											.map((section) => sectionListId(section.key))
+											.join(" ")
+							}
 							aria-expanded
 							aria-label={label}
 							autoComplete="off"
@@ -291,53 +315,56 @@ const SearchPalette = ({
 						// biome-ignore lint/a11y/noNoninteractiveTabindex: the body scrolls on its own and every row inside it is driven by aria-activedescendant, so this is the only handle a keyboard has on it
 						tabIndex={0}
 					>
-						<div
-							aria-label={t("results")}
-							className={LIST_CLASS}
-							id={listId}
-							role="listbox"
-						>
-							{sections.map(({ key, head, results: rows }) => {
-								if (!head) return rows.map(rowOf)
-								const { label: name, total, seeAllKind } = head
+						{sections.map(({ key, head, results: rows }) => {
+							const list = (
+								<div
+									aria-label={head?.label ?? t("results")}
+									className={LIST_CLASS}
+									id={sectionListId(key)}
+									key={key}
+									role="listbox"
+								>
+									{rows.map(rowOf)}
+								</div>
+							)
 
-								return (
+							if (!head) return list
+
+							return (
+								<div className={LIST_CLASS} key={key}>
 									<div
-										aria-label={name}
-										className={LIST_CLASS}
-										key={key}
-										role="group"
+										className={SECTION_HEAD_CLASS}
+										data-slot="search-palette-section-head"
 									>
-										<div
-											className={SECTION_HEAD_CLASS}
-											data-slot="search-palette-section-head"
-										>
-											<span className="font-medium text-foreground text-xs">
-												{name}
+										<span className="font-medium text-foreground text-xs">
+											{head.label}
+										</span>
+										{head.total === undefined ? null : (
+											<span className="text-muted-foreground text-xs tabular-nums">
+												{head.total}
 											</span>
-											{total === undefined ? null : (
-												<span className="text-muted-foreground text-xs tabular-nums">
-													{total}
-												</span>
-											)}
-											{seeAllKind ? (
-												<button
-													aria-selected={false}
-													className={SEE_ALL_CLASS}
-													data-slot="search-palette-see-all"
-													onClick={() => onTabChange(seeAllKind)}
-													role="option"
-													type="button"
-												>
-													{t("seeAll")}
-												</button>
-											) : null}
-										</div>
-										{rows.map(rowOf)}
+										)}
+										{head.seeAllKind ? (
+											<SeeAllButton
+												kind={head.seeAllKind}
+												label={t("seeAll")}
+												onSeeAll={onTabChange}
+											/>
+										) : null}
 									</div>
-								)
-							})}
-						</div>
+									{list}
+								</div>
+							)
+						})}
+
+						{shown.length > 0 ? null : (
+							<div
+								aria-label={t("results")}
+								className={LIST_CLASS}
+								id={listId}
+								role="listbox"
+							/>
+						)}
 
 						{isRecent || isLoading || shown.length > 0 ? null : (
 							<EmptyStateShell

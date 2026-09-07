@@ -202,7 +202,7 @@ export const Default = meta.story({
 		docs: {
 			description: {
 				story:
-					"Every kind answering one query, on the All tab. Check that each kind carries a head naming it and counting what it found, that the twelve messages are cut to the three rows the head announces with a See all beside them while the kinds that fit draw none, that the rows are numbered from one straight through the sections rather than restarting at each head, and that focus never leaves the query line while the row it points at is the one drawn as selected.",
+					"Every kind answering one query, on the All tab. Check that each kind carries a head naming it and counting what it found, that the twelve messages are cut to the three rows the head announces with a See all beside them while the kinds that fit draw none, that the rows are numbered from one straight through the sections rather than restarting at each head, and that focus never leaves the query line while the row it points at is the one drawn as selected. Check too that the options are exactly the rows: the heads and their See all stand outside the lists, so a reader is never told a section title or a filter is a result they can open.",
 			},
 		},
 	},
@@ -218,7 +218,7 @@ export const Default = meta.story({
 		await expect(heads).toHaveLength(4)
 		await expect(heads[0]).toHaveTextContent(`Messages${MESSAGES_FOUND}`)
 
-		const messages = within(popup).getByRole("group", { name: "Messages" })
+		const messages = within(popup).getByRole("listbox", { name: "Messages" })
 		await expect(slotsIn(messages, "search-result-row")).toHaveLength(
 			SHOWN_PER_KIND,
 		)
@@ -234,10 +234,20 @@ export const Default = meta.story({
 		await expect(field.getAttribute("aria-activedescendant")).toBe(
 			selected[0]?.id,
 		)
-		const list = within(popup).getByRole("listbox")
-		await expect(field).toHaveAttribute("aria-controls", list.id)
+		const lists = within(popup).getAllByRole("listbox")
+		const owned = field.getAttribute("aria-controls")?.split(" ")
+
 		await expect(field).toHaveAttribute("aria-expanded", "true")
-		await expect(list.contains(selected[0] ?? null)).toBe(true)
+		await expect(owned).toEqual(lists.map((list) => list.id))
+		await expect(lists.some((list) => list.contains(selected[0] ?? null))).toBe(
+			true,
+		)
+
+		const options = within(popup).getAllByRole("option")
+		await expect(options).toEqual(slotsIn(body, "search-result-row"))
+		await expect(
+			within(popup).getByRole("button", { name: "See all" }),
+		).not.toHaveAttribute("aria-selected")
 	},
 })
 
@@ -295,7 +305,7 @@ export const ChangingTab = meta.story({
 			await expect(slotsIn(body, "search-palette-see-all")).toHaveLength(1)
 		})
 
-		await userEvent.click(reader.getByRole("option", { name: "See all" }))
+		await userEvent.click(reader.getByRole("button", { name: "See all" }))
 		await expect(args.onTabChange).toHaveBeenLastCalledWith("messages")
 		await waitFor(async () => {
 			await expect(reader.getAllByRole("option")).toHaveLength(MESSAGES.length)
@@ -329,7 +339,7 @@ export const AcrossSpaces = meta.story({
 			marks.filter((tint) => tint.dataset.tint === undefined),
 		).toHaveLength(UNTINTED_RESULTS)
 		await expect(
-			reader.getByRole("group", { name: "Chats" }).textContent,
+			reader.getByRole("listbox", { name: "Chats" }).textContent,
 		).toContain(OTHER_SPACE.name)
 
 		await userEvent.click(reader.getByRole("switch", { name: "All spaces" }))
