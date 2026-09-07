@@ -196,20 +196,19 @@ export const reportConnections = ({ emit, push, pass }: ConnectionReport) => {
 	}
 
 	const hand = (text: string) => {
-		const carried = latest(waiting.splice(0))
-		for (const line of carried) {
+		waiting.splice(0, waiting.length, ...latest(waiting))
+		for (const line of waiting) {
 			if (!line.framed) {
 				framed(line.detail)
 				line.framed = true
 			}
 		}
-		if (carried.length === 0 || SLASH_COMMAND.test(text)) {
-			waiting.push(...carried)
+		if (waiting.length === 0 || SLASH_COMMAND.test(text)) {
 			push(text)
 			return
 		}
 		const section = unavailableServersSection(
-			carried.map((line) => line.detail),
+			waiting.splice(0).map((line) => line.detail),
 		)
 		push(`${section}\n\n${text}`)
 	}
