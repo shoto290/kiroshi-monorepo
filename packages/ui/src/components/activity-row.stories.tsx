@@ -43,12 +43,15 @@ export const Plain = meta.story({
 		docs: {
 			description: {
 				story:
-					"The row with nothing to open. Check that it carries no button, that the identifier keeps its room beside the mark, and that the row is 52px tall.",
+					"The row with nothing to open. Check that it carries no button, that its blot rests because no caller said it was working, that the identifier keeps its room beside the mark, and that the row is 52px tall.",
 			},
 		},
 	},
 	play: async ({ canvas, canvasElement }) => {
 		await expect(canvas.queryByRole("button")).not.toBeInTheDocument()
+		await expect(
+			canvas.getByRole("img", { name: "Bot avatar owl, idle" }),
+		).toBeVisible()
 		await expect(canvas.getByText("OPE-42")).toBeVisible()
 		await expect(
 			slotIn(canvasElement, "activity-row").getBoundingClientRect().height,

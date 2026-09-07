@@ -59,6 +59,7 @@ const MissionRow = ({
 			bot={bot}
 			identifier={isNamed ? ticket.externalId : undefined}
 			isTitleMuted={state === "done"}
+			isWorking={state === "working"}
 			mark={Mark}
 			parts={parts}
 			slot="mission-row"

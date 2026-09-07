@@ -27,6 +27,7 @@ type ActivityRowProps = {
 	badge?: BotBadge
 	title: string
 	isTitleMuted?: boolean
+	isWorking?: boolean
 	timestamp: string
 	mark: ComponentType<IconProps>
 	identifier?: string
@@ -49,6 +50,7 @@ const ActivityRow = ({
 	badge,
 	title,
 	isTitleMuted = false,
+	isWorking = false,
 	timestamp,
 	mark: Mark,
 	identifier,
@@ -63,7 +65,9 @@ const ActivityRow = ({
 				{...bot}
 				badge={badge}
 				className="shrink-0"
+				kind="working"
 				size={MISSION_AVATAR_SIZE}
+				working={isWorking}
 			/>
 			<span className="flex min-w-0 flex-1 flex-col gap-px">
 				<span className="flex h-5 items-center gap-1.5">
