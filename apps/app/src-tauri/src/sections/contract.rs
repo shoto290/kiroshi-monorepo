@@ -126,5 +126,12 @@ mod tests {
 			.expect("the error"),
 			json!({ "kind": "unknownBot", "id": "b1" })
 		);
+		assert_eq!(
+			to_value(SectionError::from(sections::SectionError::SeveralSpaces {
+				id: "b1".to_owned()
+			}))
+			.expect("the error"),
+			json!({ "kind": "severalSpaces", "id": "b1" })
+		);
 	}
 }

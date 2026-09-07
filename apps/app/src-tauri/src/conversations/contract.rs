@@ -1302,6 +1302,10 @@ mod tests {
 				json!({ "kind": "unknownBot", "id": "b1" }),
 			),
 			(
+				TranscriptStoreError::SeveralSpaces { id: "b1".into() },
+				json!({ "kind": "severalSpaces", "id": "b1" }),
+			),
+			(
 				TranscriptStoreError::SystemSkill { id: "learn".into() },
 				json!({ "kind": "systemSkill", "id": "learn" }),
 			),

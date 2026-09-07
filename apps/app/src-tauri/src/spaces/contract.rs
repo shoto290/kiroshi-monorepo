@@ -184,5 +184,10 @@ mod tests {
 			to_value(SpaceError::from(spaces::SpaceError::IncompleteOrder)).expect("the error"),
 			json!({ "kind": "incompleteOrder" })
 		);
+		assert_eq!(
+			to_value(SpaceError::from(spaces::SpaceError::LastSpaceOfBot { id: "b1".to_owned() }))
+				.expect("the error"),
+			json!({ "kind": "lastSpaceOfBot", "id": "b1" })
+		);
 	}
 }
