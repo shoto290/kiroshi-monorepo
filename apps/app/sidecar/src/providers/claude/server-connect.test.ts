@@ -43,6 +43,47 @@ describe("unconnectedServers", () => {
 		expect(port.reconnected).toEqual(["superset"])
 	})
 
+	it("reads a server the CLI marks failed at the end of the connect budget", async () => {
+		const pending: ServerStatus[] = [{ name: "superset", status: "pending" }]
+		let waited = 0
+
+		const details = await unconnectedServers({
+			names: ["superset"],
+			port: {
+				status: async () =>
+					waited <= CONNECT_BUDGET_MS
+						? pending
+						: failed("timed out connecting"),
+				reconnect: async () => {},
+			},
+			wait: async (ms) => {
+				waited += ms
+			},
+		})
+
+		expect(details).toEqual([
+			'the server "superset" was left out: two connection attempts failed, timed out connecting',
+		])
+		expect(waited).toBeGreaterThan(CONNECT_BUDGET_MS)
+	})
+
+	it("leaves no reconnection pending once the pass is abandoned", async () => {
+		const abandoning = new AbortController()
+		const passing = unconnectedServers({
+			names: ["superset"],
+			port: {
+				status: async () => failed("refused"),
+				reconnect: () => new Promise(() => {}),
+			},
+			signal: abandoning.signal,
+			wait: async () => {},
+		})
+
+		abandoning.abort()
+
+		expect(await passing).toEqual([])
+	})
+
 	it("waits past five seconds for a server still connecting under the budget", async () => {
 		const pending: ServerStatus[] = [{ name: "superset", status: "pending" }]
 		let waited = 0
@@ -68,11 +109,10 @@ describe("unconnectedServers", () => {
 		expect(waited).toBeLessThanOrEqual(CONNECT_BUDGET_MS)
 	})
 
-	it("settles a server left pending by its reconnection before deciding", async () => {
+	it("takes a single read after the reconnection, and polls no second budget", async () => {
 		const port = portReading([
 			failed("first attempt refused"),
 			[{ name: "superset", status: "pending" }],
-			connected,
 		])
 
 		const details = await unconnectedServers({
@@ -81,8 +121,10 @@ describe("unconnectedServers", () => {
 			wait: async () => {},
 		})
 
-		expect(details).toEqual([])
-		expect(port.reads).toBe(3)
+		expect(details).toEqual([
+			'the server "superset" was left out: two connection attempts failed, no reason given',
+		])
+		expect(port.reads).toBe(2)
 		expect(port.reconnected).toEqual(["superset"])
 	})
 

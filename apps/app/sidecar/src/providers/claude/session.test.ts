@@ -16,7 +16,6 @@ import {
 import {
 	buildOptions,
 	CLASSIFY_ASK_USER_QUESTION,
-	HELD_RELEASE_MS,
 	reportConnections,
 } from "./session"
 import {
@@ -597,7 +596,7 @@ describe("reportConnections", () => {
 		report: ReturnType<typeof reportConnections>
 	}
 
-	const reporting = (pass: ConnectPass, releaseAfter?: number): Report => {
+	const reporting = (pass: ConnectPass): Report => {
 		const emitted: string[] = []
 		const pushed: string[] = []
 		const done = Promise.withResolvers<void>()
@@ -610,7 +609,6 @@ describe("reportConnections", () => {
 				done.resolve()
 			},
 			pass,
-			...(releaseAfter ? { releaseAfter } : {}),
 		})
 		return { emitted, pushed, settled: done.promise, report }
 	}
@@ -744,22 +742,46 @@ describe("reportConnections", () => {
 		expect(written).toEqual([])
 	})
 
-	it("releases a held prompt unprefixed once the session has waited long enough", async () => {
-		const { pushed, settled, report } = reporting(
-			{
-				names: ["superset"],
-				port: {
-					status: () => new Promise(() => {}),
-					reconnect: async () => {},
-				},
+	it("holds a prompt for as long as the pass runs, and releases it on the pass", async () => {
+		const reading = Promise.withResolvers<ServerStatus[]>()
+		const { emitted, pushed, settled, report } = reporting({
+			names: ["superset"],
+			port: {
+				status: () => reading.promise,
+				reconnect: async () => {},
 			},
-			5,
-		)
+		})
+
+		report.prompt("first")
+		await ticked()
+
+		expect(pushed).toEqual([])
+
+		reading.resolve(refused)
+		await settled
+
+		expect(pushed).toEqual([`${section}\n\nfirst`])
+		expect(emitted).toEqual([detail])
+	})
+
+	it("releases the first prompt on the first read when every server connected", async () => {
+		let reads = 0
+		const { emitted, pushed, settled, report } = reporting({
+			names: ["superset"],
+			port: {
+				status: async () => {
+					reads += 1
+					return [{ name: "superset", status: "connected" }]
+				},
+				reconnect: async () => {},
+			},
+		})
 
 		report.prompt("first")
 		await settled
 
 		expect(pushed).toEqual(["first"])
-		expect(HELD_RELEASE_MS).toBeLessThanOrEqual(10_000)
+		expect(emitted).toEqual([])
+		expect(reads).toBe(1)
 	})
 })

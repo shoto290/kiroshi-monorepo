@@ -157,8 +157,10 @@ Every other command names its session.
   that hands the prompt carrying the same line over, once per session, so the notice
   lands while a turn is live. The session opens without waiting on that read: the
   `opened` frame goes out first and the prompts wait behind the read, in the order they
-  were received, ten seconds at the most. An interrupt drops what is held and leaves the
-  read running; a close abandons it, frame, stderr line and timers included. A server
+  were received, until it settles or reaches its own bound of 30250 ms: 15250 ms of
+  pending polls, one 250 ms poll past the 15000 ms connect budget the options set, plus
+  a reconnection bounded by that same budget. An interrupt drops what is held and leaves
+  the read running; a close abandons it, frame, stderr line and timers included. A server
   reading `needs-auth` is named as waiting for its authorization, and no reconnection is
   attempted on it. A server no read ever named rides no frame: the sidecar writes one
   stderr line naming it, as it does when the read throws or outlasts its deadline. No

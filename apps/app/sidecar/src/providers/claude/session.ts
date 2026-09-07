@@ -135,21 +135,13 @@ export const buildOptions = (
 	}
 }
 
-export const HELD_RELEASE_MS = 10_000
-
 export type ConnectionReport = {
 	emit: EmitFrame
 	push: (text: string) => void
 	pass: ConnectPass
-	releaseAfter?: number
 }
 
-export const reportConnections = ({
-	emit,
-	push,
-	pass,
-	releaseAfter = HELD_RELEASE_MS,
-}: ConnectionReport) => {
+export const reportConnections = ({ emit, push, pass }: ConnectionReport) => {
 	const abandoning = new AbortController()
 	const { signal } = abandoning
 	const held: string[] = []
@@ -183,12 +175,6 @@ export const reportConnections = ({
 	void delay(0, signal)
 		.then(() => (signal.aborted ? [] : unconnectedServers({ ...pass, signal })))
 		.then(release, () => release([]))
-
-	void delay(releaseAfter, signal).then(() => {
-		if (holding) {
-			release([])
-		}
-	})
 
 	return {
 		prompt: (text: string) => {

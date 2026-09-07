@@ -28,10 +28,10 @@ type PassOutcome = {
 export const CONNECT_BUDGET_MS = 15_000
 
 const PENDING_POLL = 250
-const PENDING_POLLS = Math.ceil(CONNECT_BUDGET_MS / PENDING_POLL)
+const PENDING_POLLS = Math.ceil(CONNECT_BUDGET_MS / PENDING_POLL) + 1
 const PENDING_WAIT = PENDING_POLLS * PENDING_POLL
-const RECONNECT_LIMIT = 20_000
-const PASS_LIMIT = PENDING_WAIT * 2 + RECONNECT_LIMIT
+const RECONNECT_LIMIT = CONNECT_BUDGET_MS
+const PASS_LIMIT = PENDING_WAIT + RECONNECT_LIMIT
 const REASON_LIMIT = 300
 const SECRET_FLOOR = 8
 const REDACTED = "[redacted]"
@@ -108,6 +108,7 @@ const settledStatuses = async (
 const reconnectFailure = async (
 	port: ConnectPort,
 	name: string,
+	signal?: AbortSignal,
 ): Promise<string | undefined> => {
 	const thrown = await withinDeadline(
 		port.reconnect(name).then(
@@ -115,6 +116,7 @@ const reconnectFailure = async (
 			(error: unknown) => describeError(error),
 		),
 		RECONNECT_LIMIT,
+		signal,
 	)
 	return thrown === OUTLASTED
 		? `the reconnection outlasted its ${RECONNECT_LIMIT} ms deadline`
@@ -124,11 +126,13 @@ const reconnectFailure = async (
 const reconnectFailures = async (
 	port: ConnectPort,
 	names: string[],
+	signal?: AbortSignal,
 ): Promise<Map<string, string | undefined>> =>
 	new Map(
 		await Promise.all(
 			names.map(
-				async (name) => [name, await reconnectFailure(port, name)] as const,
+				async (name) =>
+					[name, await reconnectFailure(port, name, signal)] as const,
 			),
 		),
 	)
@@ -171,10 +175,8 @@ const reportPass = async (
 		const status = lastRead(settled, name)?.status
 		return status === "failed" || status === "pending"
 	})
-	const thrown = await reconnectFailures(port, failing)
-	const after = failing.length
-		? await settledStatuses(port, failing, wait, signal)
-		: []
+	const thrown = await reconnectFailures(port, failing, signal)
+	const after = failing.length ? await port.status() : []
 	const reads = [...settled, ...after]
 	return {
 		reported: names.flatMap((name) => {
