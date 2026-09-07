@@ -120,7 +120,7 @@ export const lastWordIn = (
 	}
 }
 
-export type HeldTranscript = {
+type HeldTranscript = {
 	messages: TranscriptMessage[]
 	hasNewer: boolean
 }
