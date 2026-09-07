@@ -170,8 +170,11 @@ Every other command names its session.
   next prompt's section, so the bot reads what the screen reads. A slash command is handed
   over untouched, its line waiting for the next prompt that is not one; a line is framed
   once, whichever prompt ends up carrying it. The section itself follows what its lines
-  say: it claims a server was left out only when one was, and tells the bot where a server
-  still connecting or freshly reconnected stands. A status read carries a
+  say: it claims a server was left out only when every line says so, it sends the bot to
+  each line when they differ, and it tells the bot where a server still connecting or
+  freshly reconnected stands. A still connecting line carries the status a read gave and
+  the time that read landed at, never what a reconnection answered. A reconnection holds
+  no other server back: the servers left pending are read again while it runs. A status read carries a
   name and a status alone, so that reason is built from the status the last read named,
   the time the read had spent, and the message the reconnection threw, and from nothing
   else: the cause the CLI knows, a 401 or a refused socket, never crosses the control

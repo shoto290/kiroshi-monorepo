@@ -49,6 +49,11 @@ const LEFT_OUT_OPENING = [
 	"Answer the person with the tools you still hold. When what they ask for needs one of these servers, tell them that server is unavailable and give them the reason listed for it, so they can act on it. Naming that server and its reason is the one exception to saying nothing about the machinery you run on.",
 ]
 
+const MIXED_OPENING = [
+	"# Where the servers of this session stand",
+	"These servers do not stand alike: read each line for the server it names, and hold none of them as unavailable on this opening alone. Answer the person with every tool you hold, and when what they ask for needs one of these servers, give them what its own line says. Naming that server and its line is the one exception to saying nothing about the machinery you run on.",
+]
+
 const STANDING_OPENING = [
 	"# Where the servers of this session stand",
 	"Every server named here belongs to this session, and none of them was dropped from it. Read each line for where that server stands, and answer the person with every tool you hold. Naming that server and its state is the one exception to saying nothing about the machinery you run on.",
@@ -58,8 +63,12 @@ const naming = (rejections: string[], phrase: string): boolean =>
 	rejections.some((detail) => detail.includes(phrase))
 
 export const unavailableServersSection = (rejections: string[]): string => {
+	const standing =
+		naming(rejections, STILL_CONNECTING) || naming(rejections, RECONNECTED)
 	const [title, opening] = naming(rejections, LEFT_OUT)
-		? LEFT_OUT_OPENING
+		? standing
+			? MIXED_OPENING
+			: LEFT_OUT_OPENING
 		: STANDING_OPENING
 	return [
 		title,

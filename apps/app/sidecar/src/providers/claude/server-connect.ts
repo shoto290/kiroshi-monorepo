@@ -221,12 +221,13 @@ const lineFor = (
 	if (status === "needs-auth") {
 		return leftOut(name, AWAITING_AUTH)
 	}
+	if (status === "pending") {
+		return `the server "${name}" ${STILL_CONNECTING} after ${spent} ms`
+	}
 	const answered = thrown
 		? `, and the reconnection answered: ${readable(thrown, secrets)}`
 		: ""
-	return status === "pending"
-		? `the server "${name}" ${STILL_CONNECTING} after ${spent} ms${answered}`
-		: leftOut(name, `it read ${status}${answered}`)
+	return leftOut(name, `it read ${status}${answered}`)
 }
 
 const linesFor = (
@@ -329,14 +330,15 @@ const watching = async (
 		bound = REQUEST_BOUND_MS,
 		wait = (ms: number) => delay(ms, signal),
 	} = pass
-	await Promise.all(
-		failing.map((name) => announce(pass, name, "failed", secrets)),
+	const dialling = failing.map((name) =>
+		announce(pass, name, "failed", secrets),
 	)
 	const until = now() + WATCH_BOUND_MS
 	let watched = connecting
 	while (watched.length && !signal?.aborted && now() < until) {
 		await wait(WATCH_POLL_MS)
 		if (signal?.aborted) {
+			await Promise.all(dialling)
 			return
 		}
 		let statuses: ServerStatus[]
@@ -346,6 +348,7 @@ const watching = async (
 			if (!signal?.aborted) {
 				gaveUp(watched, describeError(error), secrets)
 			}
+			await Promise.all(dialling)
 			return
 		}
 		const settled = statuses.filter(
@@ -354,13 +357,16 @@ const watching = async (
 		watched = watched.filter(
 			(name) => !settled.some((read) => read.name === name),
 		)
-		await Promise.all(
-			settled.map(({ name, status }) => announce(pass, name, status, secrets)),
+		dialling.push(
+			...settled.map(({ name, status }) =>
+				announce(pass, name, status, secrets),
+			),
 		)
 	}
 	if (watched.length && !signal?.aborted) {
 		gaveUp(watched, UNSETTLED, secrets)
 	}
+	await Promise.all(dialling)
 }
 
 export const unconnectedServers = async ({

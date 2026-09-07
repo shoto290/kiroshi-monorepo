@@ -491,6 +491,41 @@ describe("watching a server left connecting", () => {
 		expect(reconnected).toEqual(["superset"])
 	})
 
+	it("reads a server left pending again while a reconnection still hangs", async () => {
+		const reported: string[] = []
+		let time = 0
+		let reads = 0
+		let dialled = false
+
+		await unconnectedServers({
+			names: ["superset", "clock"],
+			port: {
+				status: async () => {
+					reads += 1
+					return [
+						{ name: "superset", status: "failed" },
+						{ name: "clock", status: "pending" },
+					]
+				},
+				reconnect: () => {
+					dialled = true
+					return new Promise(() => {})
+				},
+			},
+			now: () => time,
+			wait: async (ms) => {
+				time += ms
+			},
+			report: (detail) => reported.push(detail),
+		})
+		const budgeted = reads
+		await settling(20)
+
+		expect(dialled).toBe(true)
+		expect(reads).toBeGreaterThan(budgeted)
+		expect(reported).toEqual([])
+	})
+
 	it("stops watching at its bound and names on stderr what it left unsettled", async () => {
 		const stderr = capture()
 		const reported: string[] = []

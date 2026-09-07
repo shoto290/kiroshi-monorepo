@@ -589,6 +589,30 @@ describe("layerFor", () => {
 		)
 	})
 
+	it("claims nothing of every server when one was left out and one came back", () => {
+		const section = unavailableServersSection([
+			'the server "clock" was left out: it is waiting for you to authorize it',
+			'the server "superset" was reconnected, and its tools are back',
+		])
+
+		expect(section).toContain("hold none of them as unavailable")
+		expect(section).toContain("on this opening alone")
+		expect(section).not.toContain("tell them that server is unavailable")
+		expect(section).toContain("holds its tools again")
+	})
+
+	it("claims nothing of every server when one was left out and one is connecting", () => {
+		const section = unavailableServersSection([
+			'the server "clock" was left out: it is waiting for you to authorize it',
+			'the server "superset" is still connecting after 4750 ms',
+		])
+
+		expect(section).toContain("hold none of them as unavailable")
+		expect(section).toContain("on this opening alone")
+		expect(section).not.toContain("tell them that server is unavailable")
+		expect(section).toContain("holds none of its tools yet")
+	})
+
 	it("claims no server was left out when none was, and says the tools are back", () => {
 		const section = unavailableServersSection([
 			'the server "superset" was reconnected, and its tools are back',
