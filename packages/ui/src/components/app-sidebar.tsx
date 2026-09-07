@@ -527,8 +527,9 @@ const SpacesBranch = ({
 	const { t } = useTranslation("bots")
 	const noteId = useId()
 
-	if (!onAddToSpace && !onRemoveFromSpace) return null
-	if (spaces.length === 0 || memberships.length === 0) return null
+	const hasHost = Boolean(onAddToSpace || onRemoveFromSpace)
+
+	if (!hasHost || spaces.length === 0 || memberships.length === 0) return null
 
 	const isHeldByOneSpace = memberships.length === 1
 
