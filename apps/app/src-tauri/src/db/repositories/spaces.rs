@@ -249,6 +249,7 @@ fn removed_bot(
 	if spaces.len() == 1 {
 		return Err(SpaceError::LastSpaceOfBot { id: bot_id.to_owned() });
 	}
+	conversations::deleted_chat_in(&transaction, bot_id, space_id)?;
 	left_the_seats_of(&transaction, bot_id, space_id)?;
 	transaction.execute(
 		"DELETE FROM bot_spaces WHERE bot_id = ?1 AND space_id = ?2",
@@ -893,6 +894,104 @@ mod tests {
 	}
 
 	#[tokio::test]
+	async fn a_bot_removed_from_one_space_loses_the_solo_thread_it_held_there_and_no_other() {
+		let dir = temp_dir();
+		let database = open(&dir);
+		let spaces = database.spaces();
+		let home = spaces.list().await.expect("the spaces")[0].id.clone();
+		let elsewhere = spaces.create("Vocca".to_owned()).await.expect("the space");
+		let bot = database
+			.conversations()
+			.create_bot(an_identity("Nyx"), Some(home.clone()), None)
+			.await
+			.expect("the bot");
+		spaces
+			.add_bot(bot.id.clone(), elsewhere.id.clone(), None)
+			.await
+			.expect("the bot joins the second space");
+		let kept = database
+			.conversations()
+			.ensure_chat(bot.id.clone(), Some(home))
+			.await
+			.expect("the thread of the first space");
+		let dropped = database
+			.conversations()
+			.ensure_chat(bot.id.clone(), Some(elsewhere.id.clone()))
+			.await
+			.expect("the thread of the second space");
+		spoke_in(&database, &dropped.id, &bot.id).await;
+
+		spaces
+			.remove_bot(bot.id.clone(), elsewhere.id.clone())
+			.await
+			.expect("the bot leaves the second space");
+
+		let standing = database.conversations().conversation_ids().await.expect("the threads");
+		assert!(
+			!standing.contains(&dropped.id),
+			"the solo thread of the space the bot left outlived the membership"
+		);
+		assert!(
+			standing.contains(&kept.id),
+			"the solo thread of the space the bot keeps went with the membership it lost"
+		);
+		assert_eq!(
+			said_in(&database, &dropped.id).await,
+			0,
+			"the messages of the deleted thread are still readable"
+		);
+		assert_eq!(said_in(&database, &kept.id).await, 0);
+
+		drop(database);
+		fs::remove_dir_all(&dir).expect("cleanup");
+	}
+
+	#[tokio::test]
+	async fn deleting_a_space_takes_the_solo_thread_a_surviving_bot_held_in_it() {
+		let dir = temp_dir();
+		let database = open(&dir);
+		let spaces = database.spaces();
+		let kept = spaces.list().await.expect("the spaces")[0].id.clone();
+		let dropped = spaces.create("Vocca".to_owned()).await.expect("the space");
+		let bot = database
+			.conversations()
+			.create_bot(an_identity("Nyx"), Some(kept.clone()), None)
+			.await
+			.expect("the bot");
+		spaces
+			.add_bot(bot.id.clone(), dropped.id.clone(), None)
+			.await
+			.expect("the bot joins the space that goes");
+		let standing_thread = database
+			.conversations()
+			.ensure_chat(bot.id.clone(), Some(kept))
+			.await
+			.expect("the thread of the space that stays");
+		let dying_thread = database
+			.conversations()
+			.ensure_chat(bot.id.clone(), Some(dropped.id.clone()))
+			.await
+			.expect("the thread of the space that goes");
+
+		let cascaded = spaces.delete(dropped.id).await.expect("the space is deleted");
+
+		let standing = database.conversations().conversation_ids().await.expect("the threads");
+		assert!(cascaded.is_empty(), "a bot that holds another space was reported as cascaded");
+		assert!(
+			!standing.contains(&dying_thread.id),
+			"the solo thread of the deleted space outlived it"
+		);
+		assert!(
+			standing.contains(&standing_thread.id),
+			"the solo thread of the space that stays went with the space that died"
+		);
+		assert_eq!(memberships_of(&database, &bot.id).await.len(), 1);
+
+		drop(database);
+		fs::remove_dir_all(&dir).expect("cleanup");
+	}
+
+	#[tokio::test]
 	async fn removing_the_only_space_of_a_bot_is_refused_and_leaves_its_membership_standing() {
 		let dir = temp_dir();
 		let database = open(&dir);
@@ -961,7 +1060,7 @@ mod tests {
 			.expect("the shared bot joins the space that goes");
 		let main_chat = database
 			.conversations()
-			.ensure_chat(shared.id.clone())
+			.ensure_chat(shared.id.clone(), None)
 			.await
 			.expect("the main chat of the shared bot");
 		let kept_room = database
@@ -1067,7 +1166,7 @@ mod tests {
 		spoke_in(&database, &room.id, &dying.id).await;
 		let main_chat = database
 			.conversations()
-			.ensure_chat(dying.id.clone())
+			.ensure_chat(dying.id.clone(), None)
 			.await
 			.expect("the main chat of the dying bot");
 		spaces

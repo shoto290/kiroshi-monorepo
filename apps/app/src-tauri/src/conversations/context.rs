@@ -882,7 +882,7 @@ mod tests {
 
 	async fn a_conversation(database: &Database) -> String {
 		let bot = database.conversations().ensure_default_bot().await.expect("the bot");
-		let chat = database.conversations().ensure_chat(bot.id).await.expect("the chat");
+		let chat = database.conversations().ensure_chat(bot.id, None).await.expect("the chat");
 		database
 			.messages()
 			.start_turn(NewTurn {
