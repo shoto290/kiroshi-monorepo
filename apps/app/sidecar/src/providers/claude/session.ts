@@ -153,6 +153,11 @@ export const stopTurn = async ({ dropped, emit, interrupt }: StopRequest) => {
 	await interrupt()
 }
 
+type WaitingLine = {
+	detail: string
+	framed: boolean
+}
+
 export type ConnectionReport = {
 	emit: EmitFrame
 	push: (text: string) => void
@@ -163,8 +168,7 @@ export const reportConnections = ({ emit, push, pass }: ConnectionReport) => {
 	const abandoning = new AbortController()
 	const { signal } = abandoning
 	const held: string[] = []
-	const waiting: string[] = []
-	let unframed: string[] = []
+	const waiting: WaitingLine[] = []
 	let holding = pass.names.length > 0
 
 	const framed = (detail: string) => {
@@ -176,7 +180,7 @@ export const reportConnections = ({ emit, push, pass }: ConnectionReport) => {
 			return
 		}
 		framed(detail)
-		waiting.push(detail)
+		waiting.push({ detail, framed: true })
 	}
 
 	const hand = (text: string) => {
@@ -184,20 +188,23 @@ export const reportConnections = ({ emit, push, pass }: ConnectionReport) => {
 			push(text)
 			return
 		}
-		for (const detail of unframed) {
-			framed(detail)
-		}
-		unframed = []
 		const carried = waiting.splice(0)
-		push(`${unavailableServersSection(carried)}\n\n${text}`)
+		for (const line of carried) {
+			if (!line.framed) {
+				framed(line.detail)
+			}
+		}
+		const section = unavailableServersSection(
+			carried.map((line) => line.detail),
+		)
+		push(`${section}\n\n${text}`)
 	}
 
 	const release = (reported: string[]) => {
 		if (signal.aborted) {
 			return
 		}
-		unframed = reported
-		waiting.push(...reported)
+		waiting.push(...reported.map((detail) => ({ detail, framed: false })))
 		holding = false
 		for (const text of held.splice(0)) {
 			hand(text)
