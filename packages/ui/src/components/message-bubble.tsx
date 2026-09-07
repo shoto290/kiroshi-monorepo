@@ -67,7 +67,7 @@ function hasSurface(variant: MessageBubbleVariant) {
 	return variant !== "ghost" && variant !== "bare"
 }
 
-export const MESSAGE_BUBBLE_MAX_INLINE_SIZE = "max-w-[75%]"
+export const MESSAGE_BUBBLE_MAX_INLINE_SIZE = "max-w-[85%]"
 
 export function MessageBubble({
 	variant = "soft",

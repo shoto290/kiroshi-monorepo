@@ -5,6 +5,8 @@ import preview from "@workspace/storybook/preview"
 import {
 	A11Y_CONTRAST_AWAITING_DESIGN_DECISION,
 	listExhaustively,
+	slotIn,
+	slotsIn,
 } from "@workspace/storybook/story-utils"
 import {
 	BLOT_TINTS,
@@ -317,5 +319,89 @@ export const SpaceTinted = meta.story({
 			"data-space-tint",
 			"blue",
 		)
+	},
+})
+
+const SHORT_REPLY = "Booked."
+
+const UNBREAKABLE_REPLY =
+	"migration-window-exports-rollback-attachment-manifest-digest"
+
+const MAX_INLINE_SIZE_FRACTION = 0.85
+
+const inlineSizeOf = (element: Element) => element.getBoundingClientRect().width
+
+type ComparedWidthsProps = { className: string }
+
+const ComparedWidths = ({ className }: ComparedWidthsProps) => (
+	<MessageBubbleGroup spacing="default" className={className}>
+		<MessageBubble variant="soft" align="start">
+			<MessageBubbleContent>{SHORT_REPLY}</MessageBubbleContent>
+		</MessageBubble>
+		<MessageBubble variant="soft" align="start">
+			<MessageBubbleContent>{AGENT_LONG_REPLY[0]}</MessageBubbleContent>
+		</MessageBubble>
+		<MessageBubble variant="soft" align="start">
+			<MessageBubbleContent>{UNBREAKABLE_REPLY}</MessageBubbleContent>
+		</MessageBubble>
+	</MessageBubbleGroup>
+)
+
+export const ContentWidths = meta.story({
+	parameters: {
+		docs: {
+			description: {
+				story:
+					"Reach for this when a change touches how wide a bubble is allowed to get: a two-word answer, a paragraph past the cap and a sixty-character unbreakable string, in a 34rem column where all three still fit on their own terms. Check that the short one hugs its text and that the long one stops at 85 percent of the column. `NarrowContainer` gives the same three a container too narrow for the unbreakable one.",
+			},
+		},
+	},
+	render: () => <ComparedWidths className={THREAD_WIDTH} />,
+	play: async ({ canvasElement }) => {
+		const group = slotIn(canvasElement, "message-bubble-group")
+		const [, long] = slotsIn(canvasElement, "message-bubble")
+		const [shortContent, longContent] = slotsIn(
+			canvasElement,
+			"message-bubble-content",
+		)
+
+		await expect(inlineSizeOf(shortContent)).toBeLessThan(
+			inlineSizeOf(longContent),
+		)
+		await expect(inlineSizeOf(longContent)).toBeCloseTo(inlineSizeOf(long), 0)
+		await expect(inlineSizeOf(longContent) / inlineSizeOf(group)).toBeCloseTo(
+			MAX_INLINE_SIZE_FRACTION,
+			2,
+		)
+	},
+})
+
+export const NarrowContainer = meta.story({
+	parameters: {
+		docs: {
+			description: {
+				story:
+					"Reach for this when the window is as narrow as the product allows: the same three replies in a 320 pixel container, where the unbreakable string is wider than the surface it is given. Check that it breaks across lines inside that surface and that nothing scrolls sideways. `ContentWidths` compares the three at thread width.",
+			},
+		},
+	},
+	render: () => <ComparedWidths className="w-80" />,
+	play: async ({ canvasElement }) => {
+		const group = slotIn(canvasElement, "message-bubble-group")
+		const contents = slotsIn(canvasElement, "message-bubble-content")
+		const [shortContent, , unbreakableContent] = contents
+
+		await expect(
+			unbreakableContent.getBoundingClientRect().height,
+		).toBeGreaterThan(shortContent.getBoundingClientRect().height)
+
+		for (const content of contents) {
+			await expect(content.scrollWidth).toBeLessThanOrEqual(
+				content.clientWidth + 1,
+			)
+			await expect(content.getBoundingClientRect().right).toBeLessThanOrEqual(
+				group.getBoundingClientRect().right + 1,
+			)
+		}
 	},
 })
