@@ -725,7 +725,6 @@ function ContextMenuItemBase({
 	const active = context.activeId === id
 	const checkedProps =
 		role === "menuitem" ? {} : { "aria-checked": ariaChecked }
-	const isInert = disabled || unavailable
 
 	const onPointerMove = (event: ReactPointerEvent<HTMLButtonElement>) => {
 		if (disabled || event.pointerType === "touch") return
@@ -766,7 +765,7 @@ function ContextMenuItemBase({
 			onPointerMove={onPointerMove}
 			onKeyDown={onBranchKeyDown || undefined}
 			onClick={() => {
-				if (isInert) return
+				if (disabled || unavailable) return
 				if (branch) {
 					branch.reveal()
 					return
