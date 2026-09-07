@@ -123,8 +123,10 @@ const ActivityRow = ({
 }
 
 export {
+	ACTIVATION_CLASS,
 	ActivityRow,
 	type ActivityRowActivation,
 	type ActivityRowPart,
 	type ActivityRowProps,
+	ROW_CLASS,
 }
