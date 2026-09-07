@@ -546,6 +546,7 @@ export const createConversationController = (
 
 	const askQuestion = (held: Speaker, request: QuestionRequest) => {
 		const id = questionMessageIdOf(request.id)
+		settleOpenReplies(held, "complete")
 		writeReply(
 			held,
 			{

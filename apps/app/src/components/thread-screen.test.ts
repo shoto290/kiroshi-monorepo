@@ -340,6 +340,20 @@ const BLOCK_CLOSED: AgentEvent[] = [
 	{ type: "messageDelta", id: "msg-writing", seq: 2, text: "\n\nand" },
 ]
 
+const WRITING_LANDED: AgentEvent[] = [
+	{
+		type: "messageCompleted",
+		message: {
+			id: "msg-writing",
+			role: "assistant",
+			text: "the walls hold",
+			completion: "complete",
+			timestamp: 1,
+		},
+	},
+	{ type: "turnEnded", ended: { sessionId: null, outcome: "completed" } },
+]
+
 const ASKED: AgentEvent[] = [
 	{
 		type: "questionRequested",
@@ -787,6 +801,11 @@ const transcriptRows = () =>
 	[...document.querySelectorAll('[data-slot="message-scroller-item"]')].map(
 		(row) => row.textContent ?? "",
 	)
+
+const rowIndexOf = (text: string) =>
+	transcriptRows().findIndex((row) => row.includes(text))
+
+const askedForm = () => screen.getByRole("form", { name: "Which wall holds?" })
 
 const elapsedText = () =>
 	document.querySelector('[data-slot="bot-working-elapsed"]')?.textContent ??
@@ -1404,6 +1423,27 @@ describe("ThreadScreen", () => {
 		)
 	})
 
+	it("keeps what a solo bot wrote above the question it asks", async () => {
+		const solo = await soloOf({})
+		const { rerender } = render(screenOf(solo.thread()))
+		await settle()
+
+		await solo.send("hold the wall")
+		await solo.push([...FIRST_TOKEN, ...ASKED])
+		rerender(screenOf(solo.thread()))
+
+		expect(screen.getByText("the walls hold")).toBeTruthy()
+		expect(rowIndexOf("the walls hold")).toBeLessThan(
+			rowIndexOf("Which wall holds?"),
+		)
+		expect(askedForm()).toBeTruthy()
+
+		await solo.push(WRITING_LANDED)
+		rerender(screenOf(solo.thread()))
+
+		expect(screen.getByText("the walls hold")).toBeTruthy()
+	})
+
 	it("counts the solo working row from the instant the turn began", async () => {
 		const clock = vi.spyOn(Date, "now").mockReturnValue(TURN_STARTED_AT)
 		const solo = await soloOf({})
@@ -1540,6 +1580,32 @@ describe("ThreadScreen", () => {
 		await settle()
 
 		expect(room.driver.cancelled).toEqual([room.idOf("Ada")])
+	})
+
+	it("keeps what a speaker wrote above the question it asks", async () => {
+		const room = await roomOf({ names: ["Ada"] })
+		render(screenOf(room.thread))
+		await settle()
+
+		await room.send("@Ada now")
+		act(() => {
+			room.driver.pushTo(room.idOf("Ada"), FIRST_TOKEN)
+			room.driver.pushTo(room.idOf("Ada"), ASKED)
+		})
+		await settle()
+
+		expect(screen.getByText("the walls hold")).toBeTruthy()
+		expect(rowIndexOf("the walls hold")).toBeLessThan(
+			rowIndexOf("Which wall holds?"),
+		)
+		expect(askedForm()).toBeTruthy()
+
+		act(() => {
+			room.driver.pushTo(room.idOf("Ada"), WRITING_LANDED)
+		})
+		await settle()
+
+		expect(screen.getByText("the walls hold")).toBeTruthy()
 	})
 
 	it("keeps the working row of a bot asking after it published a block", async () => {
