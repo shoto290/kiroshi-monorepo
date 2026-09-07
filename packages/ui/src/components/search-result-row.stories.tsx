@@ -30,7 +30,9 @@ const PAST_THE_LIST_LABEL = "Past the list"
 
 const ACTIVE_OPTION_ID = "search-result-active"
 
-const rankLabelFor = (rank: number) => `Press Control ${rank}`
+const RANK_CHORD = "Press Control"
+
+const rankLabelFor = (rank: number) => `${RANK_CHORD} ${rank}`
 
 const ROUTINE_BOT = {
 	name: "Noor Beltran",
@@ -492,7 +494,7 @@ export const Unranked = meta.story({
 		}
 		for (const option of canvas.getAllByRole("option")) {
 			await expect(option).not.toHaveAccessibleName(
-				expect.stringContaining("Press Control"),
+				expect.stringContaining(RANK_CHORD),
 			)
 		}
 	},
@@ -517,7 +519,7 @@ export const WithRank = meta.story({
 			slotIn(canvasElement, "search-result-row-rank").textContent,
 		).toBe("3")
 		await expect(canvas.getByRole("option")).toHaveAccessibleName(
-			expect.not.stringContaining("Press"),
+			expect.not.stringContaining(RANK_CHORD),
 		)
 	},
 })
