@@ -1289,10 +1289,12 @@ export function createChatController(
 		if (!(await loadLatest(bot))) {
 			return
 		}
-		await driver
-			.answerQuestion(runtime, id, answers)
-			.then(() => recordAnswers(bot, request, answers))
-			.catch((reason) => report(bot, reason))
+		try {
+			await driver.answerQuestion(runtime, id, answers)
+			recordAnswers(bot, request, answers)
+		} catch (reason) {
+			report(bot, reason)
+		}
 	}
 
 	const shutdown = async (bot: BotChat) => {
