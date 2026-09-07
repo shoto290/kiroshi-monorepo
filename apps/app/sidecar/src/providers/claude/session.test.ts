@@ -10,6 +10,7 @@ import { EXECUTABLE_OVERRIDE_ENV } from "./executable"
 import { KIROSHI_SERVER } from "./kiroshi-server"
 import {
 	type ConnectPass,
+	type ConnectPort,
 	POLL_BUDGET_MS,
 	type ServerStatus,
 } from "./server-connect"
@@ -801,38 +802,7 @@ describe("reportConnections", () => {
 		)
 	})
 
-	const settlingAfterBudget = (settled: ServerStatus[]) => {
-		const emitted: string[] = []
-		const pushed: string[] = []
-		let time = 0
-
-		const report = reportConnections({
-			emit: (frame) => {
-				emitted.push(String(frame.detail))
-			},
-			push: (text) => {
-				pushed.push(text)
-			},
-			pass: {
-				names: ["superset"],
-				port: {
-					status: async () =>
-						time <= POLL_BUDGET_MS - 250
-							? [{ name: "superset", status: "pending" }]
-							: settled,
-					reconnect: async () => {},
-				},
-				now: () => time,
-				wait: async (ms) => {
-					time += ms
-				},
-			},
-		})
-
-		return { emitted, pushed, report }
-	}
-
-	it("raises no frame for a server the budget left pending", async () => {
+	const clocked = (portFor: (now: () => number) => ConnectPort) => {
 		const emitted: string[] = []
 		const pushed: string[] = []
 		const released = Promise.withResolvers<void>()
@@ -848,10 +818,7 @@ describe("reportConnections", () => {
 			},
 			pass: {
 				names: ["superset"],
-				port: {
-					status: async () => [{ name: "superset", status: "pending" }],
-					reconnect: async () => {},
-				},
+				port: portFor(() => time),
 				now: () => time,
 				wait: async (ms) => {
 					time += ms
@@ -859,49 +826,47 @@ describe("reportConnections", () => {
 			},
 		})
 
+		return { emitted, pushed, released: released.promise, report }
+	}
+
+	const settlingAfterBudget = (settled: ServerStatus[]) =>
+		clocked((now) => ({
+			status: async () =>
+				now() <= POLL_BUDGET_MS - 250
+					? [{ name: "superset", status: "pending" }]
+					: settled,
+			reconnect: async () => {},
+		}))
+
+	it("raises no frame for a server the budget left pending", async () => {
+		const { emitted, pushed, released, report } = clocked(() => ({
+			status: async () => [{ name: "superset", status: "pending" }],
+			reconnect: async () => {},
+		}))
+
 		report.prompt("first")
-		await released.promise
+		await released
 
 		expect(emitted).toEqual([])
 		expect(pushed[0]).toContain("is still connecting after")
 	})
 
 	it("raises one frame once that server reads failed under the watch", async () => {
-		const emitted: string[] = []
-		const pushed: string[] = []
-		const released = Promise.withResolvers<void>()
-		let time = 0
-
-		const report = reportConnections({
-			emit: (frame) => {
-				emitted.push(String(frame.detail))
+		const { emitted, pushed, released, report } = clocked((now) => ({
+			status: async () =>
+				now() <= POLL_BUDGET_MS - 250
+					? [{ name: "superset", status: "pending" }]
+					: [{ name: "superset", status: "failed" }],
+			reconnect: async () => {
+				throw new Error("Connection failed")
 			},
-			push: (text) => {
-				pushed.push(text)
-				released.resolve()
-			},
-			pass: {
-				names: ["superset"],
-				port: {
-					status: async () =>
-						time <= POLL_BUDGET_MS - 250
-							? [{ name: "superset", status: "pending" }]
-							: [{ name: "superset", status: "failed" }],
-					reconnect: async () => {
-						throw new Error("Connection failed")
-					},
-				},
-				now: () => time,
-				wait: async (ms) => {
-					time += ms
-				},
-			},
-		})
+		}))
 
 		report.prompt("first")
-		await released.promise
+		await released
 
 		expect(emitted).toEqual([])
+		expect(pushed[0]).toContain("is still connecting after")
 
 		await ticked()
 
