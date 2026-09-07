@@ -969,7 +969,7 @@ export const createConversationController = (
 		return reported.turnId
 	}
 
-	const recordAnswers = async (
+	const recordAnswers = (
 		held: Speaker,
 		request: QuestionRequest,
 		answers: QuestionAnswers,
@@ -979,7 +979,6 @@ export const createConversationController = (
 		if (!conversationId || content.length === 0) {
 			return
 		}
-		await loadLatest()
 		const id = newId()
 		const createdAt = now()
 		const repliedToMessageId = questionMessageIdOf(request.id)
@@ -1019,8 +1018,11 @@ export const createConversationController = (
 		if (!held?.scope || pending?.kind !== "question") {
 			return
 		}
+		if (!(await loadLatest())) {
+			return
+		}
 		await driver.answerQuestion(held.scope, id, answers).catch(() => undefined)
-		await recordAnswers(held, pending.request, answers)
+		recordAnswers(held, pending.request, answers)
 		releasePrompt(held, id)
 	}
 

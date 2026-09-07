@@ -1238,7 +1238,7 @@ export function createChatController(
 			.catch((reason) => report(bot, reason))
 	}
 
-	const recordAnswers = async (
+	const recordAnswers = (
 		bot: BotChat,
 		request: QuestionRequest,
 		answers: QuestionAnswers,
@@ -1249,7 +1249,6 @@ export function createChatController(
 		if (!conversationId || !turn || content.length === 0) {
 			return
 		}
-		await loadLatest(bot)
 		const id = newId()
 		const createdAt = now()
 		const repliedToMessageId = questionMessageIdOf(request.id)
@@ -1281,13 +1280,16 @@ export function createChatController(
 		)
 	}
 
-	const answer = (bot: BotChat, id: string, answers: QuestionAnswers) => {
+	const answer = async (bot: BotChat, id: string, answers: QuestionAnswers) => {
 		const runtime = bot.state.runtime
 		const request = bot.state.question
 		if (!runtime || request?.id !== id) {
-			return Promise.resolve()
+			return
 		}
-		return driver
+		if (!(await loadLatest(bot))) {
+			return
+		}
+		await driver
 			.answerQuestion(runtime, id, answers)
 			.then(() => recordAnswers(bot, request, answers))
 			.catch((reason) => report(bot, reason))

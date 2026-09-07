@@ -891,15 +891,6 @@ const ThreadNotices = ({
 	)
 }
 
-type TranscriptFollow = {
-	follow: (isAtLiveEdge: boolean) => void
-}
-
-const followOf =
-	({ follow }: TranscriptFollow, hasNewer: boolean) =>
-	(isAtLiveEdge: boolean) =>
-		follow(isAtLiveEdge && !hasNewer)
-
 type NewerControl = {
 	hasNewer: boolean
 	isLoading: boolean
@@ -1054,10 +1045,6 @@ function ThreadView({
 		})
 	}, [controller])
 	const hasNewer = state.hasNewer
-	const follow = useMemo(
-		() => followOf(controller, hasNewer),
-		[controller, hasNewer],
-	)
 
 	const { asked, recall } = useAskedQuestion({
 		question: facts.question,
@@ -1177,7 +1164,7 @@ function ThreadView({
 						}
 					: undefined
 			}
-			onFollowChange={follow}
+			onFollowChange={controller.follow}
 			pending={
 				<ThreadPending
 					authors={authors}

@@ -2273,4 +2273,72 @@ describe("a conversation landed away from its newest end", () => {
 		).toBe(true)
 		detach()
 	})
+	const ASK: AgentEvent = {
+		type: "questionRequested",
+		request: {
+			id: "ask-1",
+			questions: [
+				{
+					header: "Walls",
+					question: "Which wall?",
+					options: [],
+					multiSelect: false,
+				},
+			],
+		},
+	}
+
+	const askedOn = async (store: TranscriptStore) => {
+		const bots = await seatBots(store, SPACE, ["Nyx"])
+		const conversation = await store.createConversation({
+			spaceId: SPACE,
+			sectionId: null,
+			title: "Walls",
+			botIds: bots.map((bot) => bot.id),
+		})
+		await writeLines(store, conversation.id)
+		const driver = createScriptedDriver()
+		const controller = createConversationController(driver, store)
+		const detach = controller.attach()
+		await controller.open(conversation)
+		await controller.send("@Nyx hold the walls")
+		await settled()
+		driver.pushTo(bots[0].id, [ASK])
+		await settled()
+		await controller.landOn(LANDED_SEQ)
+		return { controller, detach, driver }
+	}
+
+	it("leaves a question unanswered when the newest page is refused", async () => {
+		const { controller, detach, driver } = await askedOn(refusingLatest())
+		expect(controller.getState().hasNewer).toBe(true)
+
+		await controller.answer("ask-1", { "Which wall?": "the north" })
+		await settled()
+
+		const state = controller.getState()
+		expect(state.pendingPrompt).toMatchObject({ kind: "question" })
+		expect(driver.answered).toEqual([])
+		expect(state.messages.some((said) => said.content === "the north")).toBe(
+			false,
+		)
+		detach()
+	})
+
+	it("answers on the newest page once it is read", async () => {
+		const { controller, detach, driver } = await askedOn(
+			createFakeTranscriptStore(),
+		)
+
+		await controller.answer("ask-1", { "Which wall?": "the north" })
+		await settled()
+
+		const state = controller.getState()
+		expect(state.hasNewer).toBe(false)
+		expect(driver.answered).toHaveLength(1)
+		expect(state.messages.some((said) => said.content === "the north")).toBe(
+			true,
+		)
+		detach()
+	})
 })
