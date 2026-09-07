@@ -152,11 +152,14 @@ Every other command names its session.
   frame naming the server and the variable. `failure`, set when the store could not be
   read, leaves out every server declaring a variable and rides the same frame. A server
   the options did keep is read once the session is initialized, for the 5000 ms of the
-  poll budget. What that budget settles rides the frames of the first prompt: a server it
-  read failed by that status, one it read `needs-auth` as waiting for its authorization, one it left pending as still
-  connecting after the time the read spent, worded as connecting and not as left out, the
-  CLI still dialling it and its tools able to land later in the session, which the section
-  handed to the bot says in its own words. A line never counts connection attempts: the
+  poll budget. What that budget settles rides the first prompt: a server it read failed by
+  that status and one it read `needs-auth` as waiting for its authorization, each on a
+  frame of its own, and one it left pending as still connecting after the time the read
+  spent, which reaches the bot's section and no frame at all. The frame carries the
+  servers this session is without, and the CLI is still dialling that one: its tools can
+  land later in the session, which the section says in its own words, and its frame comes
+  later too, when a read names it failed, `needs-auth` or disabled, or the pass gives up
+  on it. A line never counts connection attempts: the
   CLI retries a failing server on its own, several times per read, so no number the
   sidecar could state would be true. A server the budget read failed earns one
   reconnection, taken after the budget so no prompt waits on it, and a second line of its
