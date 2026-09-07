@@ -9,6 +9,7 @@ pub mod environment;
 pub mod missions;
 pub mod notifications;
 pub mod routines;
+pub mod search;
 pub mod sections;
 pub mod spaces;
 pub mod user;
