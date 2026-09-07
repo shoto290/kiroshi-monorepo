@@ -179,7 +179,6 @@ export function TabsTrigger({
 		<div className="relative">
 			{active ? (
 				<TabIndicator
-					style={{ borderRadius: variant === "pill" ? 9999 : 8 }}
 					className={cn(
 						"absolute inset-0 bg-primary",
 						radius,

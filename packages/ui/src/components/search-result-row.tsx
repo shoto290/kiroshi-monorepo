@@ -54,8 +54,7 @@ const LAST_RANK = 9
 const ACTIVE_CLASS =
 	"group/search-result-row data-[active=true]:bg-muted data-[active=true]:[--badge-ring:var(--color-muted)] [&[data-active=true]:hover]:bg-muted"
 
-const MATCH_CLASS =
-	"rounded-[0.2em] bg-mark/40 px-[0.15em] py-[0.05em] text-inherit"
+const MATCH_CLASS = "rounded-xs bg-mark/40 px-[0.15em] py-[0.05em] text-inherit"
 
 const RANK_LANE_CLASS = "flex w-[26px] shrink-0 justify-center self-start"
 

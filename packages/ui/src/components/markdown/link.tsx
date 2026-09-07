@@ -20,7 +20,7 @@ const TEXT_CLASS = "inline-block max-w-full truncate align-bottom"
 const HOST_CLASS = "whitespace-nowrap font-normal"
 
 const MARK_CLASS =
-	"mr-1 inline-grid size-3.5 select-none place-items-center rounded-[3px] bg-current/10 align-middle text-[0.65em] uppercase leading-none"
+	"mr-1 inline-grid size-3.5 select-none place-items-center rounded-xs bg-current/10 align-middle text-[0.65em] uppercase leading-none"
 
 export const MarkdownLink = ({
 	node,

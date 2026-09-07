@@ -69,7 +69,6 @@ const meta = preview.meta({
 		align: { control: "inline-radio", options: ALIGNS },
 		trigger: { control: "inline-radio", options: TRIGGER_MODES },
 		sideOffset: { control: { type: "number", min: 0, step: 2 } },
-		panelRadius: { control: { type: "number", min: 0, step: 2 } },
 	},
 })
 
@@ -79,7 +78,7 @@ export const Playground = meta.story({
 		docs: {
 			description: {
 				story:
-					"The knob story: turn `sideOffset` up to push the panel further from its trigger, and `panelRadius` to change how its corners round off. Check that the panel opens on the first click and closes on the second — the trigger toggles, it does not only open — and that `onOpenChange` fires once per gesture. Pick `Open` to review the resting shape without driving it.",
+					"The knob story: turn `sideOffset` up to push the panel further from its trigger. Check that the panel opens on the first click and closes on the second — the trigger toggles, it does not only open — and that `onOpenChange` fires once per gesture. Pick `Open` to review the resting shape without driving it.",
 			},
 		},
 	},

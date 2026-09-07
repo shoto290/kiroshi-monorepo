@@ -1,5 +1,9 @@
 const RADII = [
-	{ token: "--radius-xs", className: "rounded-xs", computed: "0.125rem" },
+	{
+		token: "--radius-xs",
+		className: "rounded-xs",
+		computed: "calc(var(--radius) * 0.2)",
+	},
 	{
 		token: "--radius-sm",
 		className: "rounded-sm",

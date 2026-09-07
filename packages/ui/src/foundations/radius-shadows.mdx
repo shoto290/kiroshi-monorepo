@@ -17,7 +17,7 @@ One source value drives the whole scale:
 --radius: 0.625rem;
 ```
 
-The `@theme inline` block derives `sm` through `4xl` from it with multipliers (`0.6` to `2.6`), so changing `--radius` reshapes every component at once. `rounded-xs` is the one step that is *not* derived — it keeps the Tailwind default of `0.125rem`.
+The `@theme inline` block derives every step, `xs` through `4xl`, from it with multipliers (`0.2` to `2.6`), so changing `--radius` reshapes every component at once.
 
 <RadiusScale />
 

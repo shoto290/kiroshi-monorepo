@@ -45,7 +45,7 @@ function Cells() {
 			{GRID_CELLS.map(({ id, delay }) => (
 				<motion.span
 					key={id}
-					className="rounded-[1px] bg-current"
+					className="rounded-xs bg-current"
 					animate={reduce ? undefined : { scale: [0.72, 1, 0.72] }}
 					transition={{
 						duration: 1.55,
