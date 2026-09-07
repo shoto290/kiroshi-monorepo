@@ -296,6 +296,10 @@ const reportPass = async (
 	}
 }
 
+const writeGiveUp = (names: string[], reason: string) => {
+	process.stderr.write(`${GAVE_UP} ${names.join(", ")}: ${reason}\n`)
+}
+
 const gaveUp = (
 	{ report }: ConnectPass,
 	names: string[],
@@ -303,7 +307,7 @@ const gaveUp = (
 	secrets: string[],
 ) => {
 	const reason = readable(cause, secrets)
-	process.stderr.write(`${GAVE_UP} ${names.join(", ")}: ${reason}\n`)
+	writeGiveUp(names, reason)
 	for (const name of names) {
 		report?.(notice(leftOut(name, reason)))
 	}
@@ -433,7 +437,7 @@ const unreadableStatus = (
 	secrets: string[],
 ) => {
 	const reason = readable(cause, secrets)
-	process.stderr.write(`${GAVE_UP} ${names.join(", ")}: ${reason}\n`)
+	writeGiveUp(names, reason)
 	report?.(notice(`${UNREADABLE}: ${reason}`))
 }
 
