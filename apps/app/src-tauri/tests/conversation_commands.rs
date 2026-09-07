@@ -2032,6 +2032,51 @@ fn a_duplicate_of_a_bot_that_is_gone_crosses_as_an_unknown_bot() {
 	assert_eq!(call(&window, "conversation_bots", json!({})), Ok(json!([])));
 }
 
+#[test]
+fn a_solo_thread_asked_over_ipc_with_the_bot_alone_is_the_one_of_its_oldest_space() {
+	let home = Home::new();
+	let app = home.app();
+	let window = window(&app);
+
+	let oldest = the_first_space(&window);
+	let bot_id = a_bot(&window, "Nyx");
+	let joined = a_space(&window, "Away");
+	call(
+		&window,
+		"bot_add_to_space",
+		json!({ "botId": bot_id, "spaceId": joined, "sectionId": null }),
+	)
+	.expect("the bot joins the second space");
+
+	let alone = call(&window, "conversation_main_chat", json!({ "botId": bot_id }))
+		.expect("the thread of the bot alone");
+	let again = call(&window, "conversation_main_chat", json!({ "botId": bot_id }))
+		.expect("the thread of the bot alone again");
+	let at_home = call(
+		&window,
+		"conversation_main_chat",
+		json!({ "botId": bot_id, "spaceId": oldest }),
+	)
+	.expect("the thread of the oldest space");
+	let away =
+		call(&window, "conversation_main_chat", json!({ "botId": bot_id, "spaceId": joined }))
+			.expect("the thread of the space that was joined");
+
+	assert_eq!(alone, again, "asking twice with the bot alone answered two threads");
+	assert_eq!(
+		alone, at_home,
+		"the bot alone did not answer the thread of the space it joined first"
+	);
+	assert_ne!(alone["id"], away["id"], "one thread answered for two spaces");
+}
+
+fn the_first_space(window: &WebviewWindow<MockRuntime>) -> String {
+	call(window, "space_list", json!({})).expect("the spaces")[0]["id"]
+		.as_str()
+		.expect("the space holds an id")
+		.to_owned()
+}
+
 fn a_space(window: &WebviewWindow<MockRuntime>, name: &str) -> String {
 	call(window, "space_create", json!({ "name": name })).expect("the space is created")["id"]
 		.as_str()
