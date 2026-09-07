@@ -487,6 +487,78 @@ describe("watching a server left connecting", () => {
 		expect(reconnected).toEqual(["superset"])
 	})
 
+	it("watches on when the read after a reconnection still names it pending", async () => {
+		const reported: string[] = []
+		const reconnected: string[] = []
+		let time = 0
+		let dialledReads = 0
+
+		await unconnectedServers({
+			names: ["superset"],
+			port: {
+				status: async () => {
+					if (reconnected.length === 0) {
+						return failed
+					}
+					dialledReads += 1
+					return dialledReads < 3 ? pending : failed
+				},
+				reconnect: async (name) => {
+					reconnected.push(name)
+				},
+			},
+			now: () => time,
+			wait: async (ms) => {
+				time += ms
+			},
+			report: (line) => reported.push(line.detail),
+		})
+		await settling(20)
+
+		expect(dialledReads).toBeGreaterThan(1)
+		expect(reconnected).toEqual(["superset"])
+		expect(reported).toEqual([`${leftOut}it read failed`])
+	})
+
+	it("keeps reading, and names no server left out, when a watch read throws", async () => {
+		const stderr = capture()
+		const reported: string[] = []
+		let time = 0
+		let stalled = false
+
+		await unconnectedServers({
+			names: ["superset"],
+			port: {
+				status: async () => {
+					if (time <= LAST_POLL_MS) {
+						return pending
+					}
+					if (!stalled) {
+						stalled = true
+						throw new Error("the query stalled")
+					}
+					return connected
+				},
+				reconnect: async () => {},
+			},
+			now: () => time,
+			wait: async (ms) => {
+				time += ms
+			},
+			report: (line) => reported.push(line.detail),
+		})
+		await settling(20)
+		stderr.restore()
+
+		expect(stalled).toBe(true)
+		expect(reported).toEqual([
+			'the server "superset" connected, and holds its tools for the rest of this session',
+		])
+		expect(stderr.written).toEqual([
+			"the status of this session's servers could not be read: the query stalled\n",
+		])
+	})
+
 	it("reports by the read it takes after a reconnection that brought a server back", async () => {
 		const reported: string[] = []
 		const reconnected: string[] = []

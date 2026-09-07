@@ -296,6 +296,10 @@ const reportPass = async (
 	}
 }
 
+const noteUnreadable = (cause: string, secrets: string[]) => {
+	process.stderr.write(`${UNREADABLE}: ${readable(cause, secrets)}\n`)
+}
+
 const writeGiveUp = (names: string[], reason: string) => {
 	process.stderr.write(`${GAVE_UP} ${names.join(", ")}: ${reason}\n`)
 }
@@ -346,18 +350,18 @@ const announce = async (
 	status: ServerStatus["status"],
 	spent: () => number,
 	secrets: string[],
-) => {
+): Promise<string | undefined> => {
 	const settled = SETTLED_LINE[status]
 	if (settled) {
 		report?.(settled(name))
-		return
+		return undefined
 	}
 	if (status !== "failed") {
-		return
+		return undefined
 	}
 	const thrown = await reconnectFailure(port, name, bound, signal)
 	if (signal?.aborted) {
-		return
+		return undefined
 	}
 	const dialled = (reason: string | undefined) =>
 		notice(lineFor(name, { status, spent: spent() }, reason, secrets))
@@ -366,15 +370,32 @@ const announce = async (
 		after = await boundedRead(port, bound, signal)
 	} catch (error) {
 		report?.(dialled(thrown ?? describeError(error)))
-		return
+		return undefined
 	}
 	if (signal?.aborted) {
-		return
+		return undefined
 	}
 	const read = after.find((status) => status.name === name)?.status
+	if (read === "pending") {
+		return name
+	}
 	report?.(
 		read ? readLine(name, read, spent(), thrown, secrets) : dialled(thrown),
 	)
+	return undefined
+}
+
+const takeSettled = (
+	watched: string[],
+	statuses: ServerStatus[],
+): ServerStatus[] => {
+	const settled = statuses.filter(
+		({ name, status }) => watched.includes(name) && status !== "pending",
+	)
+	for (const { name } of settled) {
+		watched.splice(watched.indexOf(name), 1)
+	}
+	return settled
 }
 
 const watching = async (
@@ -387,16 +408,34 @@ const watching = async (
 		signal,
 		now = Date.now,
 		bound = REQUEST_BOUND_MS,
+		report,
 		wait = (ms: number) => delay(ms, signal),
 	} = pass
 	const started = now()
 	const spent = () => now() - started
-	const dialling = failing.map((name) =>
-		announce(pass, name, "failed", spent, secrets),
-	)
+	const watched = [...connecting]
+	const redialled = new Set<string>()
+	const dialling: Promise<void>[] = []
+	let dialing = 0
+
+	const dial = (name: string, status: ServerStatus["status"]) => {
+		dialing += 1
+		dialling.push(
+			announce(pass, name, status, spent, secrets).then((again) => {
+				dialing -= 1
+				if (again) {
+					redialled.add(again)
+					watched.push(again)
+				}
+			}),
+		)
+	}
+
+	for (const name of failing) {
+		dial(name, "failed")
+	}
 	const until = now() + WATCH_BOUND_MS
-	let watched = connecting
-	while (watched.length && !signal?.aborted && now() < until) {
+	while ((watched.length || dialing) && !signal?.aborted && now() < until) {
 		await wait(WATCH_POLL_MS)
 		if (signal?.aborted) {
 			await Promise.all(dialling)
@@ -406,23 +445,16 @@ const watching = async (
 		try {
 			statuses = await boundedRead(port, bound, signal)
 		} catch (error) {
-			if (!signal?.aborted) {
-				gaveUp(pass, watched, describeError(error), secrets)
-			}
-			await Promise.all(dialling)
-			return
+			noteUnreadable(describeError(error), secrets)
+			continue
 		}
-		const settled = statuses.filter(
-			({ name, status }) => watched.includes(name) && status !== "pending",
-		)
-		watched = watched.filter(
-			(name) => !settled.some((read) => read.name === name),
-		)
-		dialling.push(
-			...settled.map(({ name, status }) =>
-				announce(pass, name, status, spent, secrets),
-			),
-		)
+		for (const { name, status } of takeSettled(watched, statuses)) {
+			if (redialled.has(name)) {
+				report?.(readLine(name, status, spent(), undefined, secrets))
+				continue
+			}
+			dial(name, status)
+		}
 	}
 	if (watched.length && !signal?.aborted) {
 		gaveUp(pass, watched, UNSETTLED, secrets)
