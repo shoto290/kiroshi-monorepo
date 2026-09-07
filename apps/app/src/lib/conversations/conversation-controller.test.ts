@@ -390,13 +390,13 @@ describe("createConversationController", () => {
 						pageOfHistory(conversationId, cursor?.beforeSeq ?? null, nyx),
 					),
 			)
-			const held = await harness.store.createConversation({
+			const paged = await harness.store.createConversation({
 				spaceId: SPACE,
 				sectionId: null,
 				title: "Roofs",
 				botIds: harness.conversation.participants.map(({ botId }) => botId),
 			})
-			await harness.controller.open(held)
+			await harness.controller.open(paged)
 			await harness.controller.loadOlder()
 			await harness.controller.loadOlder()
 			await harness.settled()

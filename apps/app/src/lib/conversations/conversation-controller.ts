@@ -748,7 +748,7 @@ export const createConversationController = (
 		})
 	}
 
-	const answeredIn = (conversationId: string, messageId?: string) => {
+	const messageAnsweredIn = (conversationId: string, messageId?: string) => {
 		if (!messageId) {
 			return null
 		}
@@ -807,7 +807,7 @@ export const createConversationController = (
 		const isNamingItself =
 			isNameless(conversation) && state.messages.length === 0
 		const content = toMentionTokens(trimmed, mentionBots())
-		const answered = answeredIn(conversationId, repliedToMessageId)
+		const answered = messageAnsweredIn(conversationId, repliedToMessageId)
 		const turn: OpenTurn = { id: newId(), promptId: newId() }
 		const said = sentMessage({ turn, conversationId, content, answered })
 
