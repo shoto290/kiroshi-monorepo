@@ -541,12 +541,13 @@ const SpacesBranch = ({
 	if (!hasHost || spaces.length === 0 || memberships.length === 0) return null
 
 	const isHeldByOneSpace = memberships.length === 1
+	const reason = t("roster.spaces.lastSpace")
 
 	return (
 		<ContextMenuSub>
 			{isHeldByOneSpace ? (
 				<span className="sr-only" id={reasonId}>
-					{t("roster.spaces.lastSpace")}
+					{reason}
 				</span>
 			) : null}
 			<ContextMenuSubTrigger
@@ -582,7 +583,7 @@ const SpacesBranch = ({
 					<>
 						<ContextMenuSeparator />
 						<p aria-hidden="true" className={LAST_SPACE_NOTE}>
-							{t("roster.spaces.lastSpace")}
+							{reason}
 						</p>
 					</>
 				) : null}
