@@ -31,7 +31,7 @@ type SearchResultIdentity =
 	| { kind: "message-from-you"; reader: string }
 	| { kind: "chat-group"; participants: ConversationParticipant[] }
 	| { kind: "chat-solo"; bot: MissionBot }
-	| { kind: "mission"; bot: MissionBot; badge: BotBadge; mark: MissionMark }
+	| { kind: "mission"; bot: MissionBot; badge?: BotBadge; mark: MissionMark }
 	| { kind: "routine"; bot: MissionBot }
 
 type SearchResultKind = SearchResultIdentity["kind"]

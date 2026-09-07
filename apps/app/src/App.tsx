@@ -560,6 +560,14 @@ export function App() {
 		[rosterBotsBySpace, rosterConversationsBySpace],
 	)
 
+	const isDialogOpen = [
+		isEditing,
+		isEditingConversation,
+		user.state.isSettingsOpen,
+		isSpaceEditing,
+		isCreatingConversation,
+	].some(Boolean)
+
 	const searchLookups = useSearchLookups({
 		rosters: roster.state.rosters,
 		conversationRosters,
@@ -581,15 +589,10 @@ export function App() {
 		spaceName: selectedSpace?.name,
 		lookups: searchLookups,
 		navigation: searchNavigation,
+		isEnabled: !isDialogOpen,
 	})
 
-	const isOverlayOpen =
-		search.isOpen ||
-		isEditing ||
-		isEditingConversation ||
-		user.state.isSettingsOpen ||
-		isSpaceEditing ||
-		isCreatingConversation
+	const isOverlayOpen = search.isOpen || isDialogOpen
 
 	const isThreadSettingsOpen = isEditing && settingsBotId === selectedBotId
 

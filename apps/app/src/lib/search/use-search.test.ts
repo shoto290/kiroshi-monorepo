@@ -7,7 +7,7 @@ import {
 	renderHook,
 	waitFor,
 } from "@testing-library/react"
-import { afterEach, expect, it, vi } from "vitest"
+import { afterEach, beforeEach, expect, it, vi } from "vitest"
 
 import "@workspace/ui/lib/i18n"
 
@@ -139,7 +139,13 @@ const aNavigation = (): TracedNavigation => {
 	}
 }
 
-const searchedOn = async (port: SearchPort, navigation: SearchNavigation) => {
+type Rendering = {
+	navigation: SearchNavigation
+	port: SearchPort
+	isEnabled?: boolean
+}
+
+const renderSearch = ({ navigation, port, isEnabled = true }: Rendering) => {
 	const lookups = createSearchLookups({
 		rosters: { [WORK]: [A_BOT] },
 		conversationRosters: { [WORK]: [A_ROOM] },
@@ -147,15 +153,21 @@ const searchedOn = async (port: SearchPort, navigation: SearchNavigation) => {
 		readerName: "You",
 		now: 2,
 	})
-	const { result } = renderHook(() =>
+
+	return renderHook(() =>
 		useSearch({
 			spaceId: PERSONAL,
 			spaceName: "Personal",
 			lookups,
 			navigation,
 			port,
+			isEnabled,
 		}),
-	)
+	).result
+}
+
+const searchedOn = async (port: SearchPort, navigation: SearchNavigation) => {
+	const result = renderSearch({ navigation, port })
 
 	act(() => result.current.open())
 	act(() => result.current.palette.onQueryChange("roadmap"))
@@ -166,31 +178,33 @@ const searchedOn = async (port: SearchPort, navigation: SearchNavigation) => {
 	return result
 }
 
+let resultsBody: HTMLElement
+
 const press = (key: string, metaKey = false) => {
-	fireEvent.keyDown(window, { key, metaKey })
+	fireEvent.keyDown(resultsBody, { key, metaKey })
 }
 
-afterEach(cleanup)
+const pressOnControl = (key: string, metaKey = false) => {
+	const control = document.createElement("button")
+	document.body.append(control)
+	fireEvent.keyDown(control, { key, metaKey })
+	control.remove()
+}
+
+beforeEach(() => {
+	resultsBody = document.createElement("div")
+	resultsBody.setAttribute("data-slot", "search-palette-body")
+	document.body.append(resultsBody)
+})
+
+afterEach(() => {
+	resultsBody.remove()
+	cleanup()
+})
 
 it("opens the palette on an empty query, the All tab and the current space", () => {
 	const { navigation } = aNavigation()
-	const port = aPort()
-	const lookups = createSearchLookups({
-		rosters: {},
-		conversationRosters: {},
-		spaces: SPACES,
-		readerName: "You",
-		now: 2,
-	})
-	const { result } = renderHook(() =>
-		useSearch({
-			spaceId: PERSONAL,
-			spaceName: "Personal",
-			lookups,
-			navigation,
-			port,
-		}),
-	)
+	const result = renderSearch({ navigation, port: aPort() })
 
 	act(() => press("k", true))
 
@@ -200,6 +214,19 @@ it("opens the palette on an empty query, the All tab and the current space", () 
 		tab: "all",
 		isScopeAllSpaces: false,
 	})
+})
+
+it("opens no palette on the chord while another dialog is open", () => {
+	const { navigation } = aNavigation()
+	const result = renderSearch({
+		navigation,
+		port: aPort(),
+		isEnabled: false,
+	})
+
+	act(() => press("k", true))
+
+	expect(result.current.isOpen).toBe(false)
 })
 
 it("opens the chat of another space on its rank chord", async () => {
@@ -251,6 +278,25 @@ it("opens the active result on Enter and moves it with the arrows", async () => 
 
 	act(() => press("ArrowDown"))
 	act(() => press("Enter"))
+
+	expect(trace).toEqual([`conversation:${A_ROOM.id}`, `space:${WORK}`])
+})
+
+it("leaves Enter to a control that is neither the query input nor the body", async () => {
+	const { navigation, trace } = aNavigation()
+	const result = await searchedOn(aPort(), navigation)
+
+	act(() => pressOnControl("Enter"))
+
+	expect(trace).toEqual([])
+	expect(result.current.isOpen).toBe(true)
+})
+
+it("opens the result of a rank chord whatever the focused control", async () => {
+	const { navigation, trace } = aNavigation()
+	await searchedOn(aPort(), navigation)
+
+	act(() => pressOnControl("1", true))
 
 	expect(trace).toEqual([`conversation:${A_ROOM.id}`, `space:${WORK}`])
 })

@@ -6,8 +6,12 @@ const NEXT = 1
 
 const PREVIOUS = -1
 
+const KEY_DRIVEN_CONTROLS =
+	'[data-slot="search-palette-query"] input, [data-slot="search-palette-body"]'
+
 export type SearchKeys = {
 	isOpen: boolean
+	canOpen: boolean
 	onOpen: () => void
 	onMove: (by: number) => void
 	onEnter: () => void
@@ -25,12 +29,15 @@ const PRESS_BY_KEY = new Map<string, SearchKeyPress>([
 const isOpeningChord = (event: KeyboardEvent) =>
 	event.metaKey && event.key.toLowerCase() === "k"
 
+const isKeyDriven = (target: EventTarget | null) =>
+	target instanceof Element && target.matches(KEY_DRIVEN_CONTROLS)
+
 const pressOf = (event: KeyboardEvent): SearchKeyPress | undefined => {
 	const rank = spaceRankOf(event)
 	if (rank !== 0) {
 		return ({ onRank }) => onRank(rank)
 	}
-	return PRESS_BY_KEY.get(event.key)
+	return isKeyDriven(event.target) ? PRESS_BY_KEY.get(event.key) : undefined
 }
 
 export const useSearchKeys = (keys: SearchKeys) => {
@@ -43,7 +50,7 @@ export const useSearchKeys = (keys: SearchKeys) => {
 
 			if (isOpeningChord(event)) {
 				event.preventDefault()
-				if (!held.isOpen) {
+				if (!held.isOpen && held.canOpen) {
 					held.onOpen()
 				}
 				return

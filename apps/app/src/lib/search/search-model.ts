@@ -1,5 +1,4 @@
 import type { ConversationParticipant } from "@workspace/ui/components/avatar-group"
-import type { BotBadge } from "@workspace/ui/components/badge"
 import type { MissionBot } from "@workspace/ui/components/mission"
 import { missionTicketPlatform } from "@workspace/ui/components/mission-marks"
 import type {
@@ -38,8 +37,6 @@ import { toMissionFace } from "@/lib/missions/mission-thread-model"
 import { badgeOfMissionState } from "@/lib/missions/missions-model"
 
 const SHOWN_PER_KIND = 3
-
-const NEUTRAL_BADGE: BotBadge = "done"
 
 export type SearchLookups = {
 	faceOf: (botId: string) => ThreadFace | undefined
@@ -203,6 +200,16 @@ const toChatResult = (
 	onOpen: () => open({ kind: "chat", row, spaceId: chat.spaceId }),
 })
 
+const identityOfMission = (
+	mission: CatalogueMission,
+	lookups: SearchLookups,
+): SearchResultIdentity => ({
+	kind: "mission",
+	bot: botFaceOf(mission.botId, lookups),
+	badge: badgeOfMissionState(mission.state) ?? undefined,
+	mark: missionTicketPlatform(mission.ticketPlatform).Mark,
+})
+
 const toMissionResult = (
 	mission: CatalogueMission,
 	query: string,
@@ -210,12 +217,7 @@ const toMissionResult = (
 	open: ResultOpening,
 ): SearchPaletteResult => ({
 	id: `mission-${mission.id}`,
-	identity: {
-		kind: "mission",
-		bot: botFaceOf(mission.botId, lookups),
-		badge: badgeOfMissionState(mission.state) ?? NEUTRAL_BADGE,
-		mark: missionTicketPlatform(mission.ticketPlatform).Mark,
-	},
+	identity: identityOfMission(mission, lookups),
 	title: markedTitle(mission.objective, query),
 	timestamp: "",
 	identifier: mission.ticketExternalId,
