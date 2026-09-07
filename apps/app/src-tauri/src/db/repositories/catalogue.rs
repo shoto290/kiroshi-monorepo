@@ -44,8 +44,6 @@ const BOT_SPACES: &str = "SELECT id, space_id FROM bots";
 const ROUTINES: &str = "SELECT id, conversation_id, bot_id, title, trigger_source_id,
 	trigger_config, is_enabled FROM routines ORDER BY created_at DESC, id";
 
-const EXPRESSION: &str = "expression";
-
 struct ChatRow {
 	conversation_id: String,
 	kind: ChatKind,
@@ -254,7 +252,7 @@ fn space_of(spaces: &HashMap<String, String>, bot_id: &str) -> Result<String, Ca
 
 fn expression_of(trigger_config: &Value) -> Option<String> {
 	trigger_config
-		.get(EXPRESSION)
+		.get("expression")
 		.and_then(Value::as_str)
 		.filter(|held| !held.trim().is_empty())
 		.map(str::to_owned)
