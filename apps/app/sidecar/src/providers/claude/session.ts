@@ -143,7 +143,7 @@ export const dialledServers = (options: Options): string[] =>
 export type StopRequest = {
 	dropped: boolean
 	emit: EmitFrame
-	interrupt: () => Promise<void>
+	interrupt: () => Promise<unknown>
 }
 
 const CANCELLED: SessionFrame = {
@@ -295,9 +295,7 @@ export const openClaudeSession = async (
 			stopTurn({
 				dropped: report.drop(),
 				emit,
-				interrupt: async () => {
-					await run.interrupt()
-				},
+				interrupt: () => run.interrupt(),
 			}),
 		decide: permissions.decide,
 		close: async () => {
