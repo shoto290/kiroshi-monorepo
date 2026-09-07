@@ -80,6 +80,16 @@ export const conversationStore: TranscriptStore = {
 	moveBotToSpace: (botId: string, spaceId: string) =>
 		invoke<void>("bot_move_to_space", { botId, spaceId }),
 
+	addBotToSpace: (botId: string, spaceId: string, sectionId?: string | null) =>
+		invoke<void>("bot_add_to_space", {
+			botId,
+			spaceId,
+			sectionId: sectionId ?? null,
+		}),
+
+	removeBotFromSpace: (botId: string, spaceId: string) =>
+		invoke<void>("bot_remove_from_space", { botId, spaceId }),
+
 	bots: (spaceId?: string | null) =>
 		invoke<Bot[]>("conversation_bots", { spaceId: spaceId ?? null }),
 
@@ -307,8 +317,8 @@ export const conversationStore: TranscriptStore = {
 	botCommands: (botId: string) =>
 		invoke<AgentCommand[]>("conversation_bot_commands", { botId }),
 
-	mainChat: (botId: string) =>
-		invoke<Chat>("conversation_main_chat", { botId }),
+	mainChat: (botId: string, spaceId?: string | null) =>
+		invoke<Chat>("conversation_main_chat", { botId, spaceId: spaceId ?? null }),
 
 	conversations: (spaceId: string) =>
 		invoke<Conversation[]>("conversation_list", { spaceId }),

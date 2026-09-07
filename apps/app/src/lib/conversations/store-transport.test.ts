@@ -226,6 +226,19 @@ const WRITES: WriteCase[] = [
 		call: ["bot_move_to_space", { botId: "b-1", spaceId: "s-2" }],
 	},
 	{
+		member: "addBotToSpace",
+		write: () => conversationStore.addBotToSpace("b-1", "s-2"),
+		call: [
+			"bot_add_to_space",
+			{ botId: "b-1", spaceId: "s-2", sectionId: null },
+		],
+	},
+	{
+		member: "removeBotFromSpace",
+		write: () => conversationStore.removeBotFromSpace("b-1", "s-2"),
+		call: ["bot_remove_from_space", { botId: "b-1", spaceId: "s-2" }],
+	},
+	{
 		member: "bots",
 		write: () => conversationStore.bots("s-1"),
 		call: ["conversation_bots", { spaceId: "s-1" }],
@@ -365,8 +378,8 @@ const WRITES: WriteCase[] = [
 	},
 	{
 		member: "mainChat",
-		write: () => conversationStore.mainChat("b-1"),
-		call: ["conversation_main_chat", { botId: "b-1" }],
+		write: () => conversationStore.mainChat("b-1", "s-1"),
+		call: ["conversation_main_chat", { botId: "b-1", spaceId: "s-1" }],
 	},
 	{
 		member: "recordProviderSession",

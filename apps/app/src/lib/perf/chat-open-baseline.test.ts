@@ -165,7 +165,7 @@ const seedTranscript = async (
 	messages: number,
 	withCode = false,
 ) => {
-	const conversationId = `chat-${botId}`
+	const { id: conversationId } = await store.mainChat(botId)
 	for (let index = 0; index < messages; index += 1) {
 		const turnId = `${botId}-turn-${index}`
 		const id = `${botId}-m${index}`
