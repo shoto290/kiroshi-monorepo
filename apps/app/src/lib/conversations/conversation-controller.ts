@@ -139,6 +139,13 @@ type OpenTurn = {
 	promptId: string
 }
 
+type SentPrompt = {
+	turn: OpenTurn
+	conversationId: string
+	content: string
+	answered: TranscriptMessage | null
+}
+
 type Speaker = {
 	botId: string
 	promptId: string
@@ -741,10 +748,7 @@ export const createConversationController = (
 		})
 	}
 
-	const messageAnsweredIn = (
-		conversationId: string,
-		messageId?: string | null,
-	) => {
+	const answeredIn = (conversationId: string, messageId?: string) => {
 		if (!messageId) {
 			return null
 		}
@@ -752,16 +756,32 @@ export const createConversationController = (
 		return shown.find((message) => message.id === messageId) ?? null
 	}
 
-	const answeredIn = (conversationId: string, messageId?: string) =>
-		messageAnsweredIn(conversationId, messageId)?.id ?? null
+	const sentMessage = ({
+		turn,
+		conversationId,
+		content,
+		answered,
+	}: SentPrompt): TranscriptMessage => ({
+		id: turn.promptId,
+		conversationId,
+		turnId: turn.id,
+		seq: 0,
+		role: "user",
+		content,
+		completion: "complete",
+		createdAt: now(),
+		authorBotId: null,
+		repliedToMessageId: answered?.id ?? null,
+		runtimeSessionId: null,
+	})
 
-	const summonedBy = (said: TranscriptMessage): Summons[] => {
+	const summonedBy = (
+		said: TranscriptMessage,
+		answered: TranscriptMessage | null,
+	): Summons[] => {
 		const present = presentBotIds()
 		const named = addresseesIn(said.content, present)
-		const author = messageAnsweredIn(
-			said.conversationId,
-			said.repliedToMessageId,
-		)?.authorBotId
+		const author = answered?.authorBotId
 		const addressed =
 			author && present.includes(author)
 				? [author, ...named.filter((botId) => botId !== author)]
@@ -787,20 +807,9 @@ export const createConversationController = (
 		const isNamingItself =
 			isNameless(conversation) && state.messages.length === 0
 		const content = toMentionTokens(trimmed, mentionBots())
+		const answered = answeredIn(conversationId, repliedToMessageId)
 		const turn: OpenTurn = { id: newId(), promptId: newId() }
-		const said: TranscriptMessage = {
-			id: turn.promptId,
-			conversationId,
-			turnId: turn.id,
-			seq: 0,
-			role: "user",
-			content,
-			completion: "complete",
-			createdAt: now(),
-			authorBotId: null,
-			repliedToMessageId: answeredIn(conversationId, repliedToMessageId),
-			runtimeSessionId: null,
-		}
+		const said = sentMessage({ turn, conversationId, content, answered })
 
 		try {
 			await enqueue(() => storePrompt(turn, said))
@@ -826,7 +835,7 @@ export const createConversationController = (
 		} else if (activeTurn) {
 			completeTurn(activeTurn)
 		}
-		queue = reopenedFor(queue, summonedBy(said))
+		queue = reopenedFor(queue, summonedBy(said, answered))
 		activeTurn = turn
 		sync()
 		drive()

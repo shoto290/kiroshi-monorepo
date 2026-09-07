@@ -12,7 +12,10 @@ import {
 } from "./scripted-driver"
 import type { Conversation } from "./store-contract"
 import type { TranscriptStore } from "./store-port"
-import { TRANSCRIPT_PAGE_SIZE } from "./transcript-contract"
+import {
+	TRANSCRIPT_PAGE_SIZE,
+	TRANSCRIPT_WINDOW_SIZE,
+} from "./transcript-contract"
 import { message, seatBots } from "./transcript-fixtures"
 
 import type {
@@ -248,6 +251,34 @@ describe("createConversationController", () => {
 	})
 
 	describe("summoning the bot a reply answers", () => {
+		const HELD_HISTORY = 200
+
+		const pageOfHistory = (
+			conversationId: string,
+			beforeSeq: number | null,
+			oldestAuthorBotId: string,
+		) => {
+			const shown = Array.from({ length: HELD_HISTORY }, (_, index) =>
+				message({
+					id: `m-${index + 1}`,
+					conversationId,
+					seq: index + 1,
+					authorBotId:
+						index === HELD_HISTORY - TRANSCRIPT_WINDOW_SIZE
+							? oldestAuthorBotId
+							: null,
+				}),
+			)
+			const page = shown
+				.filter((held) => held.seq < (beforeSeq ?? HELD_HISTORY + 1))
+				.slice(-TRANSCRIPT_PAGE_SIZE)
+			return {
+				conversationId,
+				messages: page,
+				hasMore: (page[0]?.seq ?? 1) > 1,
+			}
+		}
+
 		const answeredBy = async (harness: Harness, botId: string) => {
 			harness.driver.pushTo(botId, spoke(botId, "walls up"))
 			await harness.settled()
@@ -348,6 +379,35 @@ describe("createConversationController", () => {
 			await harness.settled()
 
 			expect(runningIn(harness.controller)).toEqual([ada])
+		})
+
+		it("summons the bot answered when the send drops it from the window", async () => {
+			const nyx = idOf(harness.conversation, "Nyx")
+			const answered = `m-${HELD_HISTORY - TRANSCRIPT_WINDOW_SIZE + 1}`
+			vi.spyOn(harness.store, "loadPage").mockImplementation(
+				(conversationId, cursor) =>
+					Promise.resolve(
+						pageOfHistory(conversationId, cursor?.beforeSeq ?? null, nyx),
+					),
+			)
+			const held = await harness.store.createConversation({
+				spaceId: SPACE,
+				sectionId: null,
+				title: "Roofs",
+				botIds: harness.conversation.participants.map(({ botId }) => botId),
+			})
+			await harness.controller.open(held)
+			await harness.controller.loadOlder()
+			await harness.controller.loadOlder()
+			await harness.settled()
+			expect(harness.controller.getState().messages[0].id).toBe(answered)
+
+			await harness.controller.send("and the gates?", answered)
+			await harness.settled()
+
+			const shown = harness.controller.getState().messages
+			expect(shown.some((message) => message.id === answered)).toBe(false)
+			expect(submittedIn(harness).at(-1)).toBe(nyx)
 		})
 
 		it("summons the bot answered when a refused reply is sent again", async () => {
