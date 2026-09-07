@@ -51,11 +51,14 @@ export const Working = meta.story({
 		docs: {
 			description: {
 				story:
-					"A mission its bot is working on. Check that no badge dot is drawn on the blot, that no state word is added after the bot name, that the ticket identifier and the age read on their own lines, and that the row reports the mission it belongs to when it is pressed.",
+					"A mission its bot is working on. Check that the blot holds the working pose the same mission carries on its thread card, that no badge dot is drawn on it, that no state word is added after the bot name, that the ticket identifier and the age read on their own lines, and that the row reports the mission it belongs to when it is pressed.",
 			},
 		},
 	},
 	play: async ({ args, canvas, canvasElement, userEvent }) => {
+		await expect(
+			canvas.getByRole("img", { name: "Bot avatar owl, working" }),
+		).toBeVisible()
 		await expect(dotIn(canvasElement)).toBeNull()
 		await expect(canvas.getByText("OPE-42")).toBeVisible()
 		await expect(canvas.getByText("Ada Martin")).toBeVisible()
@@ -142,11 +145,14 @@ export const Closed = meta.story({
 		docs: {
 			description: {
 				story:
-					"A mission closed earlier today. Check that the objective drops to the muted colour at regular weight, that no badge dot is drawn on the blot, that the time of day it closed takes the place of an age, and that the state word says it is done.",
+					"A mission closed earlier today. Check that the blot rests rather than holding the working pose, that the objective drops to the muted colour at regular weight, that no badge dot is drawn on it, that the time of day it closed takes the place of an age, and that the state word says it is done.",
 			},
 		},
 	},
 	play: async ({ canvas, canvasElement }) => {
+		await expect(
+			canvas.getByRole("img", { name: "Bot avatar rabbit, idle" }),
+		).toBeVisible()
 		await expect(dotIn(canvasElement)).toBeNull()
 		await expect(canvas.getByText("09:12")).toBeVisible()
 		await expect(canvas.getByText("Done")).toBeVisible()
