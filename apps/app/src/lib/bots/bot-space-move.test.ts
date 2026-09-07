@@ -26,7 +26,7 @@ describe("moveBotToSpace", () => {
 		expect(move.roster.moveToSpace).toHaveBeenCalledWith("beacon", "veille")
 		expect(move.chat.close).toHaveBeenCalledWith("beacon")
 		expect(move.spaces.select).toHaveBeenCalledWith("veille")
-		expect(move.chat.open).toHaveBeenCalledWith("beacon")
+		expect(move.chat.open).toHaveBeenCalledWith("beacon", "veille")
 	})
 
 	it("leaves the reader where they are when the move is refused", async () => {

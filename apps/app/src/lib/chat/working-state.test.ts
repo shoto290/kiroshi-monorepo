@@ -21,7 +21,7 @@ const startedHarness = async (): Promise<ChatController> => {
 	})
 	const controller = createChatController(driver, createFakeTranscriptStore())
 	controller.attach()
-	await controller.open("default")
+	await controller.open("default", null)
 	await vi.runAllTimersAsync()
 	return controller
 }

@@ -253,7 +253,7 @@ const createHarness = async ({
 	await settled()
 
 	const openSolo = async () => {
-		await chat.open(bot.id)
+		await chat.open(bot.id, null)
 		await settled()
 	}
 

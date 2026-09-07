@@ -213,6 +213,7 @@ export function App() {
 	const {
 		bots,
 		conversations,
+		spaceId: rosteredSpaceId,
 		selectedBotId,
 		selectedConversationId,
 		settingsBotId,
@@ -332,12 +333,12 @@ export function App() {
 		if (!selectedBotId) {
 			return
 		}
-		void chat.controller.open(selectedBotId)
+		void chat.controller.open(selectedBotId, rosteredSpaceId)
 		void user.controller.setLastBot({
-			spaceId: roster.controller.getState().spaceId,
+			spaceId: rosteredSpaceId,
 			botId: selectedBotId,
 		})
-	}, [chat.controller, roster.controller, user.controller, selectedBotId])
+	}, [chat.controller, user.controller, selectedBotId, rosteredSpaceId])
 
 	useEffect(() => {
 		if (!selectedConversationId) {

@@ -80,7 +80,7 @@ export type ChatController = {
 	check: () => Promise<CheckReport | null>
 	start: (resume?: string) => Promise<SessionHandle | null>
 	preflight: (resume?: string) => Promise<SessionHandle | null>
-	open: (botId: string) => Promise<SessionHandle | null>
+	open: (botId: string, spaceId: string | null) => Promise<SessionHandle | null>
 	close: (botId: string) => Promise<void>
 	leave: (botId: string) => void
 	redescribe: (botId: string) => void
@@ -140,7 +140,7 @@ type BotChat = {
 	draining: Promise<void> | null
 }
 
-type TransitionKind = "open" | "close"
+type TransitionKind = "close" | `open:${string}`
 
 type BotTransition = {
 	kind: TransitionKind
@@ -677,9 +677,17 @@ export function createChatController(
 		setCauses(bot, new Map([...reported, ...bot.state.reportedCauses]))
 	}
 
-	const openConversation = async (bot: BotChat) => {
+	const leaveThreadBefore = (bot: BotChat, openedConversationId: string) => {
+		const left = bot.state.conversationId
+		if (left && left !== openedConversationId) {
+			transcript.leave(left)
+		}
+	}
+
+	const openConversation = async (bot: BotChat, spaceId: string | null) => {
 		try {
-			const chat = await store.mainChat(bot.id)
+			const chat = await store.mainChat(bot.id, spaceId)
+			leaveThreadBefore(bot, chat.id)
 			dispatch(bot, { type: "conversationOpened", conversationId: chat.id })
 			void recallCommands(bot)
 			void readCauses(bot, chat.id)
@@ -722,9 +730,9 @@ export function createChatController(
 	const openedFor = (bot: BotChat) =>
 		isAnswerable(bot) ? Promise.resolve(null) : preflightFor(bot)
 
-	const runOpen = async (nextBotId: string) => {
+	const runOpen = async (nextBotId: string, spaceId: string | null) => {
 		const bot = botFor(nextBotId)
-		await openConversation(bot)
+		await openConversation(bot, spaceId)
 		const handle = await openedFor(bot)
 		pump(bot)
 		return handle
@@ -779,9 +787,11 @@ export function createChatController(
 		publish()
 	}
 
-	const open = (botId: string) => {
+	const open = (botId: string, spaceId: string | null) => {
 		choose(botId)
-		return transitionFor(botId, "open", () => runOpen(botId))
+		return transitionFor(botId, `open:${spaceId}`, () =>
+			runOpen(botId, spaceId),
+		)
 	}
 
 	const close = (botId: string) => {

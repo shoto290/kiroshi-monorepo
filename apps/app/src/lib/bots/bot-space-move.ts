@@ -24,5 +24,5 @@ export const moveBotToSpace = async ({
 	}
 	await chat.close(botId)
 	spaces.select(spaceId)
-	await chat.open(botId)
+	await chat.open(botId, spaceId)
 }
