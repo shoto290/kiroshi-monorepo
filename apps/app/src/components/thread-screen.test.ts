@@ -569,53 +569,16 @@ const LANDED_MESSAGE_ID = `m-t-${LANDED_SEQ}`
 
 const textOfTurn = (index: number) => `Message ${index} of the long room`
 
-type LongRoom = {
-	bots: Bot[]
-	thread: ConversationThread
-	driver: ScriptedDriver
-	idOf: (name: string) => string
-	send: (text: string) => Promise<void>
-}
+const LONG_ROOM_SPOKEN: SpokenTurn[] = Array.from(
+	{ length: LONG_ROOM_TURNS },
+	(_, index) => ({
+		turnId: `t-${index + 1}`,
+		text: textOfTurn(index + 1),
+		createdAt: index + 1,
+	}),
+)
 
-const longRoomOf = async (): Promise<LongRoom> => {
-	const store = createFakeTranscriptStore()
-	const bots = await seatBots(store, SPACE, ["Ada"])
-	const conversation = await store.createConversation({
-		spaceId: SPACE,
-		sectionId: null,
-		title: "Walls",
-		botIds: bots.map((bot) => bot.id),
-	})
-	for (let index = 1; index <= LONG_ROOM_TURNS; index += 1) {
-		await writeTurn(store, conversation.id, bots[0].id, {
-			turnId: `t-${index}`,
-			text: textOfTurn(index),
-			createdAt: index,
-		})
-	}
-	const driver = createScriptedDriver()
-	const runtimes = createConversationRuntimes(driver, store)
-	const controller = runtimes.runtimeFor(conversation.id)
-
-	return {
-		bots,
-		thread: {
-			kind: "conversation",
-			conversation,
-			runtimes,
-			isSettingsOpen: false,
-			onOpenSettings: () => undefined,
-		},
-		driver,
-		idOf: (name) => bots.find((bot) => bot.name === name)?.id ?? name,
-		send: async (text) => {
-			await act(async () => {
-				await controller.send(text)
-			})
-			await settle()
-		},
-	}
-}
+const longRoomOf = () => roomOf({ names: ["Ada"], spoken: LONG_ROOM_SPOKEN })
 
 const anchorOf = (messageId: string) =>
 	document.querySelector(`[data-message-id="${messageId}"]`)
