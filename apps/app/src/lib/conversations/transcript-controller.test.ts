@@ -60,6 +60,12 @@ const idsOf = (
 ): string[] =>
 	selectMessages(controller.getState(), conversationId).map((entry) => entry.id)
 
+const LONG = Array.from({ length: TRANSCRIPT_WINDOW_SIZE * 2 }, (_, index) =>
+	message({ id: `m-${index + 1}`, seq: index + 1 }),
+)
+
+const EARLIER_SEQ = 20
+
 const draft = (overrides: Partial<TranscriptDraft>): TranscriptDraft => ({
 	id: "local-1",
 	conversationId: CONVERSATION,
@@ -263,12 +269,6 @@ describe("createTranscriptController", () => {
 	})
 })
 describe("a landing window nobody is waiting for", () => {
-	const LONG = Array.from({ length: TRANSCRIPT_WINDOW_SIZE * 2 }, (_, index) =>
-		message({ id: `m-${index + 1}`, seq: index + 1 }),
-	)
-
-	const EARLIER_SEQ = 20
-
 	const LATER_SEQ = 100
 
 	const gatedLanding = () => {
@@ -356,12 +356,6 @@ describe("a landing window nobody is waiting for", () => {
 	})
 })
 describe("reopening a thread that was left", () => {
-	const LONG = Array.from({ length: TRANSCRIPT_WINDOW_SIZE * 2 }, (_, index) =>
-		message({ id: `m-${index + 1}`, seq: index + 1 }),
-	)
-
-	const LANDED_SEQ = 20
-
 	const emptied = async () => {
 		const fake = createFakeTranscriptPort({ messages: LONG })
 		let reads = 0
@@ -374,7 +368,7 @@ describe("reopening a thread that was left", () => {
 		}
 		const controller = createTranscriptController(port)
 		await controller.load(CONVERSATION)
-		await controller.askLanding(CONVERSATION, LANDED_SEQ)()
+		await controller.askLanding(CONVERSATION, EARLIER_SEQ)()
 		controller.leave(CONVERSATION)
 
 		return { controller, reads: () => reads }
@@ -393,14 +387,14 @@ describe("reopening a thread that was left", () => {
 		const { controller, reads } = await emptied()
 		const opened = reads()
 
-		const landing = controller.askLanding(CONVERSATION, LANDED_SEQ)
+		const landing = controller.askLanding(CONVERSATION, EARLIER_SEQ)
 		await controller.reopen(CONVERSATION)
 
 		expect(reads()).toBe(opened)
 
 		await landing()
 
-		expect(idsOf(controller)).toContain(`m-${LANDED_SEQ}`)
+		expect(idsOf(controller)).toContain(`m-${EARLIER_SEQ}`)
 		expect(selectHasNewer(controller.getState(), CONVERSATION)).toBe(true)
 	})
 
