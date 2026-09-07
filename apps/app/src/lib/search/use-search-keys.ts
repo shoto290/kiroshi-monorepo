@@ -20,6 +20,14 @@ export type SearchKeys = {
 
 type SearchKeyPress = (keys: SearchKeys) => void
 
+const OPEN_PALETTE: SearchKeyPress = ({ canOpen, onOpen }) => {
+	if (canOpen) {
+		onOpen()
+	}
+}
+
+const KEEP_THE_CHORD: SearchKeyPress = () => undefined
+
 const PRESS_BY_KEY = new Map<string, SearchKeyPress>([
 	["ArrowDown", ({ onMove }) => onMove(NEXT)],
 	["ArrowUp", ({ onMove }) => onMove(PREVIOUS)],
@@ -32,11 +40,23 @@ const isOpeningChord = (event: KeyboardEvent) =>
 const keepsItsOwnKeys = (target: EventTarget | null) =>
 	target instanceof Element && target.matches(CONTROLS_THAT_KEEP_THEIR_KEYS)
 
-const pressOf = (event: KeyboardEvent): SearchKeyPress | undefined => {
+const pressOf = (
+	event: KeyboardEvent,
+	isOpen: boolean,
+): SearchKeyPress | undefined => {
+	if (isOpeningChord(event)) {
+		return isOpen ? KEEP_THE_CHORD : OPEN_PALETTE
+	}
+
+	if (!isOpen) {
+		return undefined
+	}
+
 	const rank = spaceRankOf(event)
 	if (rank !== 0) {
 		return ({ onRank }) => onRank(rank)
 	}
+
 	return keepsItsOwnKeys(event.target) ? undefined : PRESS_BY_KEY.get(event.key)
 }
 
@@ -49,16 +69,7 @@ export const useSearchKeys = (keys: SearchKeys) => {
 			if (event.isComposing) return
 
 			const held = reach.current
-
-			if (isOpeningChord(event)) {
-				event.preventDefault()
-				if (!held.isOpen && held.canOpen) {
-					held.onOpen()
-				}
-				return
-			}
-
-			const pressed = held.isOpen ? pressOf(event) : undefined
+			const pressed = pressOf(event, held.isOpen)
 			if (!pressed) {
 				return
 			}

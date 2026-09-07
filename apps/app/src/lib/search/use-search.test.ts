@@ -184,18 +184,14 @@ const searchedOn = async (port: SearchPort, navigation: SearchNavigation) => {
 	return result
 }
 
-const press = (key: string, metaKey = false) => {
-	fireEvent.keyDown(document.body, { key, metaKey })
+const press = (key: string, held: KeyboardEventInit = {}) => {
+	fireEvent.keyDown(document.body, { key, ...held })
 }
 
-const pressWhileComposing = (key: string) => {
-	fireEvent.keyDown(document.body, { key, isComposing: true })
-}
-
-const pressOnControl = (key: string, metaKey = false) => {
+const pressOnControl = (key: string, held: KeyboardEventInit = {}) => {
 	const control = document.createElement("button")
 	document.body.append(control)
-	fireEvent.keyDown(control, { key, metaKey })
+	fireEvent.keyDown(control, { key, ...held })
 	control.remove()
 }
 
@@ -205,7 +201,7 @@ it("opens the palette on an empty query, the All tab and the current space", () 
 	const { navigation } = aNavigation()
 	const result = renderSearch({ navigation, port: aPort() })
 
-	act(() => press("k", true))
+	act(() => press("k", { metaKey: true }))
 
 	expect(result.current.isOpen).toBe(true)
 	expect(result.current.palette).toMatchObject({
@@ -223,7 +219,7 @@ it("opens no palette on the chord while another dialog is open", () => {
 		canOpen: false,
 	})
 
-	act(() => press("k", true))
+	act(() => press("k", { metaKey: true }))
 
 	expect(result.current.isOpen).toBe(false)
 })
@@ -232,7 +228,7 @@ it("opens the chat of another space on its rank chord", async () => {
 	const { navigation, trace } = aNavigation()
 	const result = await searchedOn(aPort(), navigation)
 
-	act(() => press("1", true))
+	act(() => press("1", { metaKey: true }))
 
 	expect(trace).toEqual([`conversation:${A_ROOM.id}`, `space:${WORK}`])
 	expect(result.current.isOpen).toBe(false)
@@ -242,7 +238,7 @@ it("opens the mission of another space on its rank chord", async () => {
 	const { navigation, trace } = aNavigation()
 	await searchedOn(aPort(), navigation)
 
-	act(() => press("2", true))
+	act(() => press("2", { metaKey: true }))
 
 	expect(trace).toEqual([
 		`bot:${A_BOT.id}`,
@@ -255,7 +251,7 @@ it("opens the routine of another space on its rank chord", async () => {
 	const { navigation, trace } = aNavigation()
 	await searchedOn(aPort(), navigation)
 
-	act(() => press("3", true))
+	act(() => press("3", { metaKey: true }))
 
 	expect(trace).toEqual([
 		`conversation:${A_ROOM.id}`,
@@ -295,7 +291,7 @@ it("opens the result of a rank chord whatever the focused control", async () => 
 	const { navigation, trace } = aNavigation()
 	await searchedOn(aPort(), navigation)
 
-	act(() => pressOnControl("1", true))
+	act(() => pressOnControl("1", { metaKey: true }))
 
 	expect(trace).toEqual([`conversation:${A_ROOM.id}`, `space:${WORK}`])
 })
@@ -327,7 +323,7 @@ it("leaves a key press that only ends a composition to the composition", async (
 	const result = await searchedOn(aPort(), navigation)
 	const active = result.current.palette.activeResultId
 
-	act(() => pressWhileComposing("Enter"))
+	act(() => press("Enter", { isComposing: true }))
 
 	expect(trace).toEqual([])
 	expect(result.current.isOpen).toBe(true)
