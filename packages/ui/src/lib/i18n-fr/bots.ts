@@ -26,11 +26,14 @@ const bots = {
 		actions: "Actions pour {{name}}",
 		settings: "Réglages",
 		duplicate: "Dupliquer",
-		duplicateTo: "Dupliquer vers un espace",
+		spaces: {
+			label: "Espaces",
+			lastSpace:
+				"Le dernier espace d'un bot y reste. Supprimez le bot pour vous en défaire.",
+		},
 		pin: "Épingler",
 		pinDrop: "Déposer ici pour épingler",
 		unpin: "Détacher",
-		moveToSpace: "Déplacer vers un espace",
 		delete: "Supprimer",
 		working: "{{pose}}…",
 		pose: {
