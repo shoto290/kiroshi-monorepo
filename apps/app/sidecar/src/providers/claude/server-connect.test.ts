@@ -640,6 +640,53 @@ describe("watching a server left connecting", () => {
 		])
 	})
 
+	it("reports a server its dial hands back after the bound had passed", async () => {
+		const stderr = capture()
+		let dialled = false
+
+		const reported = await clockedPass((now) => ({
+			status: async () => {
+				if (!dialled) {
+					return now() <= LAST_POLL_MS ? pending : failed
+				}
+				return pending
+			},
+			reconnect: async () => {
+				dialled = true
+				await new Promise((resolve) => setTimeout(resolve, 15))
+				throw new Error("server not found")
+			},
+		}))
+		stderr.restore()
+
+		expect(reported).toEqual([
+			`${leftOut}it never settled while it was watched, and the reconnection answered: server not found`,
+		])
+	})
+
+	it("gives up on a dialled server with the answer its reconnection gave", async () => {
+		const stderr = capture()
+		let dialled = false
+
+		const reported = await clockedPass((now) => ({
+			status: async () => {
+				if (!dialled) {
+					return now() <= LAST_POLL_MS ? pending : failed
+				}
+				return pending
+			},
+			reconnect: async () => {
+				dialled = true
+				throw new Error("server not found")
+			},
+		}))
+		stderr.restore()
+
+		expect(reported).toEqual([
+			`${leftOut}it never settled while it was watched, and the reconnection answered: server not found`,
+		])
+	})
+
 	it("stops watching at its bound and names on stderr what it left unsettled", async () => {
 		const stderr = capture()
 		const reported: string[] = []

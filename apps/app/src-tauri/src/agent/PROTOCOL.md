@@ -172,7 +172,11 @@ Every other command names its session.
   source that gave it: the reconnection when it threw, and the status call that followed
   it when that call is the one that threw. A server
   the budget left pending is watched past it, one status call every second, until it reads
-  connected, failed or `needs-auth`, or 60000 ms pass and it rides a stderr line instead.
+  connected, failed or `needs-auth`, or 60000 ms pass and it is given up on: a stderr line
+  naming it, and a frame saying it never settled while it was watched, with the answer its
+  reconnection gave when one was asked for. A dial still running when that bound passes is
+  waited on, and the server it hands back is given up on then, never left on the line the
+  first prompt carried.
   Connected, it earns a line naming it as holding its tools for the rest of the session,
   carried to the bot by the next prompt and framed to nobody: good news is no notice;
   failed, it earns the same one reconnection and frame; `needs-auth` and `disabled`, it

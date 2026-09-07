@@ -415,6 +415,49 @@ const takeSettled = (
 	return settled
 }
 
+const abandon = (
+	{ report }: ConnectPass,
+	watched: string[],
+	redialled: Map<string, Answer | undefined>,
+	secrets: string[],
+) => {
+	writeGiveUp(watched, UNSETTLED)
+	for (const name of watched) {
+		const answer = redialled.get(name)
+		report?.(
+			notice(
+				leftOut(
+					name,
+					answer
+						? `${UNSETTLED}, ${answer.source}: ${readable(answer.message, secrets)}`
+						: UNSETTLED,
+				),
+			),
+		)
+	}
+}
+
+type Watch = {
+	watched: string[]
+	redialled: Map<string, Answer | undefined>
+	dialling: Set<Promise<void>>
+}
+
+const closeWatch = async (
+	pass: ConnectPass,
+	{ watched, redialled, dialling }: Watch,
+	secrets: string[],
+) => {
+	const unsettled = watched.splice(0)
+	if (unsettled.length && !pass.signal?.aborted) {
+		abandon(pass, unsettled, redialled, secrets)
+	}
+	await Promise.all(dialling)
+	if (watched.length && !pass.signal?.aborted) {
+		abandon(pass, watched, redialled, secrets)
+	}
+}
+
 const watching = async (
 	pass: ConnectPass,
 	{ connecting, failing }: Pick<PassOutcome, "connecting" | "failing">,
@@ -430,9 +473,12 @@ const watching = async (
 	} = pass
 	const started = now()
 	const spent = () => now() - started
-	const watched = [...connecting]
-	const redialled = new Map<string, Answer | undefined>()
-	const dialling = new Set<Promise<void>>()
+	const watch: Watch = {
+		watched: [...connecting],
+		redialled: new Map(),
+		dialling: new Set(),
+	}
+	const { watched, redialled, dialling } = watch
 
 	const dial = (name: string, status: ServerStatus["status"]) => {
 		const dialled = announce(pass, name, status, spent, secrets)
@@ -475,10 +521,7 @@ const watching = async (
 			dial(name, status)
 		}
 	}
-	if (watched.length && !signal?.aborted) {
-		gaveUp(pass, watched, UNSETTLED, secrets)
-	}
-	await Promise.all(dialling)
+	await closeWatch(pass, watch, secrets)
 }
 
 const unreadableStatus = (
