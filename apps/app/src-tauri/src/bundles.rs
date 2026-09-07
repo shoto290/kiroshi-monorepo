@@ -1890,7 +1890,6 @@ mod tests {
 	fn a_bot(name: &str, instructions: &str) -> Bot {
 		Bot {
 			id: "b1".to_owned(),
-			space_id: "personal".to_owned(),
 			section_id: None,
 			pin_position: None,
 			name: name.to_owned(),

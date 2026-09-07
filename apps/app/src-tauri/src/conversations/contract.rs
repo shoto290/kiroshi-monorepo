@@ -1451,7 +1451,6 @@ mod tests {
 	fn a_stored_bot(model: &str) -> conversations::Bot {
 		conversations::Bot {
 			id: "b1".into(),
-			space_id: "personal".into(),
 			section_id: None,
 			pin_position: None,
 			name: "Nyx".into(),

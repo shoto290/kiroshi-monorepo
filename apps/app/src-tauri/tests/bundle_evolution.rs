@@ -150,6 +150,16 @@ impl Harness {
 		self.wait_for("the turn to end", ended);
 	}
 
+	fn recorded_space(&self, bot: &str) -> String {
+		let state = self.app.state::<db::DatabaseState>();
+		let database = state.inner().as_ref().expect("the database is open");
+		tokio::runtime::Runtime::new()
+			.expect("runtime")
+			.block_on(database.conversations().oldest_bot_space(bot.to_owned()))
+			.expect("the space reads")
+			.expect("the bot holds a membership")
+	}
+
 	fn recorded_bot(&self, bot: &str) -> StoredBot {
 		let state = self.app.state::<db::DatabaseState>();
 		let database = state.inner().as_ref().expect("the database is open");
@@ -243,7 +253,7 @@ fn every_bundle_the_turn_changed_is_announced_once() {
 	let harness = launch();
 	let bot = harness.create_bot();
 	let conversation = harness.main_chat(&bot);
-	let space = harness.recorded_bot(&bot).space_id;
+	let space = harness.recorded_space(&bot);
 
 	let person = user_plugin(&harness);
 	let project = space_plugin(&harness, &space);

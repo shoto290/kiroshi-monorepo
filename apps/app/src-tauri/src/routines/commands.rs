@@ -14,7 +14,7 @@ use super::schedule;
 use super::sources;
 use super::webhook;
 use crate::bundles;
-use crate::conversations::commands::{bot_row, ready};
+use crate::conversations::commands::{oldest_space, ready};
 use crate::conversations::contract::TranscriptStoreError;
 use crate::db;
 
@@ -54,8 +54,9 @@ pub async fn routine_trigger_sources<R: Runtime>(
 	state: State<'_, db::DatabaseState>,
 	bot_id: String,
 ) -> Result<Vec<TriggerSource>, TranscriptStoreError> {
-	let bot = bot_row(ready(&state)?, &bot_id).await?;
-	sources::stacked(&stacked_bundles(&app, &bot.space_id, &bot.id))
+	let database = ready(&state)?;
+	let space_id = oldest_space(database, &bot_id).await?;
+	sources::stacked(&stacked_bundles(&app, &space_id, &bot_id))
 }
 
 fn stacked_bundles<R: Runtime>(app: &AppHandle<R>, space_id: &str, bot_id: &str) -> Vec<PathBuf> {
@@ -75,8 +76,8 @@ pub(crate) async fn declared_source<R: Runtime>(
 	bot_id: &str,
 	trigger_source_id: &str,
 ) -> Result<TriggerSource, RoutineError> {
-	let bot = bot_row(database, bot_id).await?;
-	let stacked = sources::stacked(&stacked_bundles(app, &bot.space_id, &bot.id))?;
+	let space_id = oldest_space(database, bot_id).await?;
+	let stacked = sources::stacked(&stacked_bundles(app, &space_id, bot_id))?;
 	stacked
 		.into_iter()
 		.find(|source| source.id == trigger_source_id)
