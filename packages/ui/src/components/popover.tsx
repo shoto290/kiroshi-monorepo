@@ -25,7 +25,6 @@ interface PopoverContextValue {
 	side: Side
 	align: Align
 	sideOffset: number
-	panelRadius: number
 }
 
 const PopoverContext = createContext<PopoverContextValue | null>(null)
@@ -45,7 +44,6 @@ export interface PopoverProps {
 	side?: Side
 	align?: Align
 	sideOffset?: number
-	panelRadius?: number
 	className?: string
 }
 
@@ -58,12 +56,11 @@ export function Popover({
 	side = "bottom",
 	align = "center",
 	sideOffset = 14,
-	panelRadius = 16,
 	className,
 }: PopoverProps) {
 	const context = useMemo<PopoverContextValue>(
-		() => ({ triggerMode: trigger, side, align, sideOffset, panelRadius }),
-		[trigger, side, align, sideOffset, panelRadius],
+		() => ({ triggerMode: trigger, side, align, sideOffset }),
+		[trigger, side, align, sideOffset],
 	)
 
 	return (
@@ -110,8 +107,7 @@ export function PopoverContent({
 	className,
 	"aria-label": ariaLabel,
 }: PopoverContentProps) {
-	const { side, align, sideOffset, panelRadius } =
-		usePopoverContext("PopoverContent")
+	const { side, align, sideOffset } = usePopoverContext("PopoverContent")
 
 	return (
 		<PopoverPrimitive.Portal>
@@ -124,10 +120,9 @@ export function PopoverContent({
 			>
 				<PopoverPrimitive.Popup
 					aria-label={ariaLabel}
-					style={{ borderRadius: panelRadius }}
 					className={cn(
 						POPUP_CLASS,
-						"w-max max-w-[min(92vw,20rem)] p-4",
+						"w-max max-w-[min(92vw,20rem)] rounded-2xl p-4",
 						className,
 					)}
 				>

@@ -25,6 +25,15 @@ const TRIGGER_MODES = listExhaustively<TriggerMode>({
 	hover: true,
 })
 
+const scaleStepRadius = (host: HTMLElement, token: string) => {
+	const probe = host.ownerDocument.createElement("div")
+	probe.style.borderRadius = `var(${token})`
+	host.ownerDocument.body.append(probe)
+	const radius = getComputedStyle(probe).borderRadius
+	probe.remove()
+	return radius
+}
+
 const anchorLabel = (side: Side, align: Align) => `${side} ${align}`
 
 const PANEL_TITLE = "Release notes"
@@ -69,7 +78,6 @@ const meta = preview.meta({
 		align: { control: "inline-radio", options: ALIGNS },
 		trigger: { control: "inline-radio", options: TRIGGER_MODES },
 		sideOffset: { control: { type: "number", min: 0, step: 2 } },
-		panelRadius: { control: { type: "number", min: 0, step: 2 } },
 	},
 })
 
@@ -79,7 +87,7 @@ export const Playground = meta.story({
 		docs: {
 			description: {
 				story:
-					"The knob story: turn `sideOffset` up to push the panel further from its trigger, and `panelRadius` to change how its corners round off. Check that the panel opens on the first click and closes on the second — the trigger toggles, it does not only open — and that `onOpenChange` fires once per gesture. Pick `Open` to review the resting shape without driving it.",
+					"The knob story: turn `sideOffset` up to push the panel further from its trigger. Check that the panel opens on the first click and closes on the second — the trigger toggles, it does not only open — and that `onOpenChange` fires once per gesture. Pick `Open` to review the resting shape without driving it.",
 			},
 		},
 	},
@@ -106,7 +114,7 @@ export const Open = meta.story({
 		docs: {
 			description: {
 				story:
-					"The panel already out, which is what to review the surface against: a crisp edge, the popover fill, and a trigger that still reads as a button rather than a piece of the panel. Check that the panel keeps `sideOffset` of clearance below its trigger and that `aria-expanded` starts at `true`.",
+					"The panel already out, which is what to review the surface against: a crisp edge, the popover fill, and a trigger that still reads as a button rather than a piece of the panel. Check that the panel keeps `sideOffset` of clearance below its trigger, that its corner is the `--radius-2xl` step of the scale rather than a value of its own, and that `aria-expanded` starts at `true`.",
 			},
 		},
 	},
@@ -115,9 +123,13 @@ export const Open = meta.story({
 		await expect(
 			canvas.getByRole("button", { name: PANEL_TITLE }),
 		).toHaveAttribute("aria-expanded", "true")
-		await expect(
-			await body.findByRole("dialog", { name: PANEL_TITLE }),
-		).toBeVisible()
+
+		const panel = await body.findByRole("dialog", { name: PANEL_TITLE })
+
+		await expect(panel).toBeVisible()
+		await expect(getComputedStyle(panel).borderRadius).toBe(
+			scaleStepRadius(canvasElement, "--radius-2xl"),
+		)
 	},
 })
 
