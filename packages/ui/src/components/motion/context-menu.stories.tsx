@@ -39,8 +39,6 @@ const openMenuOn = async (target: HTMLElement, at = { x: 180, y: 140 }) => {
 
 const SUBMENU_NAME = "Move to"
 
-const SUB_REST_WAIT = 260
-
 const settledSubmenu = async () =>
 	settled(await screen.findByRole("menu", { name: SUBMENU_NAME }))
 
@@ -290,8 +288,7 @@ const LAST_SPACE_NOTE = "The last space a bot is in stays."
 const pillIn = (item: HTMLElement) =>
 	item.querySelector("span[class*='inset-0']")
 
-const rested = () =>
-	new Promise((resolve) => setTimeout(resolve, SUB_REST_WAIT))
+const rested = () => new Promise((resolve) => setTimeout(resolve, 260))
 
 const SpacesCard = () => (
 	<ContextMenu>
