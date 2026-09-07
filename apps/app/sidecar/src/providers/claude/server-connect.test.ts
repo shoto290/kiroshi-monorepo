@@ -36,6 +36,21 @@ const throwing = (message: string) => async () => {
 	throw new Error(message)
 }
 
+const capture = (): { written: string[]; restore: () => void } => {
+	const written: string[] = []
+	const original = process.stderr.write
+	process.stderr.write = ((line: string) => {
+		written.push(String(line))
+		return true
+	}) as typeof process.stderr.write
+	return {
+		written,
+		restore: () => {
+			process.stderr.write = original
+		},
+	}
+}
+
 const leftOut = 'the server "superset" was left out: '
 
 describe("unconnectedServers", () => {
@@ -178,12 +193,7 @@ describe("unconnectedServers", () => {
 	})
 
 	it("gives up on stderr, reporting nothing, when a status read never settles", async () => {
-		const written: string[] = []
-		const original = process.stderr.write
-		process.stderr.write = ((line: string) => {
-			written.push(String(line))
-			return true
-		}) as typeof process.stderr.write
+		const stderr = capture()
 
 		const details = await unconnectedServers({
 			names: ["superset"],
@@ -193,10 +203,10 @@ describe("unconnectedServers", () => {
 			},
 			bound: 5,
 		})
-		process.stderr.write = original
+		stderr.restore()
 
 		expect(details).toEqual([])
-		expect(written).toEqual([
+		expect(stderr.written).toEqual([
 			"the connection pass gave up on superset: a status read outlasted its 5 ms bound\n",
 		])
 	})
@@ -220,12 +230,7 @@ describe("unconnectedServers", () => {
 	})
 
 	it("stops polling a server no read names at the grace, and reports the named one", async () => {
-		const written: string[] = []
-		const original = process.stderr.write
-		process.stderr.write = ((line: string) => {
-			written.push(String(line))
-			return true
-		}) as typeof process.stderr.write
+		const stderr = capture()
 		let waited = 0
 
 		const details = await unconnectedServers({
@@ -238,13 +243,13 @@ describe("unconnectedServers", () => {
 				waited += ms
 			},
 		})
-		process.stderr.write = original
+		stderr.restore()
 
 		expect(waited).toBe(UNNAMED_GRACE_MS)
 		expect(details).toEqual([
 			`${leftOut}two connection attempts failed, it read failed`,
 		])
-		expect(written).toEqual([
+		expect(stderr.written).toEqual([
 			"the connection pass gave up on ghost: no status read ever named it\n",
 		])
 	})
@@ -306,12 +311,7 @@ describe("unconnectedServers", () => {
 	})
 
 	it("names on stderr the servers it gave up on when the status throws", async () => {
-		const written: string[] = []
-		const original = process.stderr.write
-		process.stderr.write = ((line: string) => {
-			written.push(String(line))
-			return true
-		}) as typeof process.stderr.write
+		const stderr = capture()
 		const port: ConnectPort = {
 			status: async () => {
 				throw new Error("the query is gone")
@@ -323,10 +323,10 @@ describe("unconnectedServers", () => {
 			names: ["superset", "clock"],
 			port,
 		})
-		process.stderr.write = original
+		stderr.restore()
 
 		expect(details).toEqual([])
-		expect(written).toEqual([
+		expect(stderr.written).toEqual([
 			"the connection pass gave up on superset, clock: the query is gone\n",
 		])
 	})
@@ -345,21 +345,6 @@ describe("unconnectedServers", () => {
 })
 
 describe("a server no read ever named", () => {
-	const capture = (): { written: string[]; restore: () => void } => {
-		const written: string[] = []
-		const original = process.stderr.write
-		process.stderr.write = ((line: string) => {
-			written.push(String(line))
-			return true
-		}) as typeof process.stderr.write
-		return {
-			written,
-			restore: () => {
-				process.stderr.write = original
-			},
-		}
-	}
-
 	it("rides no frame, keeps being polled, and lands on stderr", async () => {
 		const port = portReading([[]])
 		const stderr = capture()
