@@ -305,22 +305,23 @@ const gaveUp = (
 	}
 }
 
+const SETTLED_LINE: Partial<
+	Record<ServerStatus["status"], (name: string) => string>
+> = {
+	connected: reachedLine,
+	disabled: (name) => leftOut(name, DISABLED),
+	"needs-auth": (name) => leftOut(name, AWAITING_AUTH),
+}
+
 const announce = async (
 	{ port, signal, bound = REQUEST_BOUND_MS, report }: ConnectPass,
 	name: string,
 	status: ServerStatus["status"],
 	secrets: string[],
 ) => {
-	if (status === "needs-auth") {
-		report?.(leftOut(name, AWAITING_AUTH))
-		return
-	}
-	if (status === "connected") {
-		report?.(reachedLine(name))
-		return
-	}
-	if (status === "disabled") {
-		report?.(leftOut(name, DISABLED))
+	const settled = SETTLED_LINE[status]
+	if (settled) {
+		report?.(settled(name))
 		return
 	}
 	if (status !== "failed") {
