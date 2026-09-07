@@ -7,7 +7,7 @@ import {
 	renderHook,
 	waitFor,
 } from "@testing-library/react"
-import { afterEach, beforeEach, expect, it, vi } from "vitest"
+import { afterEach, expect, it, vi } from "vitest"
 
 import "@workspace/ui/lib/i18n"
 
@@ -184,14 +184,8 @@ const searchedOn = async (port: SearchPort, navigation: SearchNavigation) => {
 	return result
 }
 
-let resultsBody: HTMLElement
-
 const press = (key: string, metaKey = false) => {
-	fireEvent.keyDown(resultsBody, { key, metaKey })
-}
-
-const pressOnBody = (key: string) => {
-	fireEvent.keyDown(document.body, { key })
+	fireEvent.keyDown(document.body, { key, metaKey })
 }
 
 const pressOnControl = (key: string, metaKey = false) => {
@@ -201,16 +195,7 @@ const pressOnControl = (key: string, metaKey = false) => {
 	control.remove()
 }
 
-beforeEach(() => {
-	resultsBody = document.createElement("div")
-	resultsBody.setAttribute("data-slot", "search-palette-body")
-	document.body.append(resultsBody)
-})
-
-afterEach(() => {
-	resultsBody.remove()
-	cleanup()
-})
+afterEach(cleanup)
 
 it("opens the palette on an empty query, the All tab and the current space", () => {
 	const { navigation } = aNavigation()
@@ -317,13 +302,13 @@ it("moves and opens the active result after the See all button changed the tab",
 	const result = await searchedOn(port, navigation)
 
 	act(() => result.current.palette.onTabChange("routines"))
-	act(() => pressOnBody("ArrowDown"))
+	act(() => press("ArrowDown"))
 
 	expect(result.current.palette.activeResultId).toBe(
 		`routine-${ANOTHER_ROUTINE.id}`,
 	)
 
-	act(() => pressOnBody("Enter"))
+	act(() => press("Enter"))
 
 	expect(trace).toEqual([
 		`conversation:${A_ROOM.id}`,
