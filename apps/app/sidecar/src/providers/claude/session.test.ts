@@ -917,9 +917,11 @@ describe("reportConnections", () => {
 		const carried = String(pushed[0])
 		const named = carried.split('the server "superset"').length - 1
 
-		expect(emitted).toEqual([])
+		expect(emitted).toEqual([
+			'the server "superset" was left out: it read failed',
+		])
 		expect(named).toBe(1)
-		expect(carried).toContain("was reconnected")
+		expect(carried).toContain("it read failed")
 		expect(carried).not.toContain("is still connecting")
 	})
 
@@ -947,7 +949,7 @@ describe("reportConnections", () => {
 		expect(pushed).toEqual([`${section}\n\nfirst`, "second", "third"])
 	})
 
-	it("carries to the frame and the section the servers the pass gave up on", async () => {
+	it("reports once, naming no server, when no status read ever answered", async () => {
 		const written = process.stderr.write
 		process.stderr.write = (() => true) as typeof process.stderr.write
 		const { emitted, pushed, settled, report } = reporting({
@@ -963,9 +965,11 @@ describe("reportConnections", () => {
 		report.prompt("first")
 		await settled
 		process.stderr.write = written
-		const gaveUp = 'the server "superset" was left out: the query is gone'
+		const gaveUp =
+			"the status of this session's servers could not be read: the query is gone"
 
 		expect(emitted).toEqual([gaveUp])
+		expect(gaveUp).not.toContain("left out")
 		expect(pushed).toEqual([`${unavailableServersSection([gaveUp])}\n\nfirst`])
 	})
 

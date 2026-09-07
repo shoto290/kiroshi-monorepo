@@ -56,7 +56,7 @@ const MIXED_OPENING = [
 
 const STANDING_OPENING = [
 	"# Where the servers of this session stand",
-	"Every server named here belongs to this session, and none of them was dropped from it. Read each line for where that server stands, and answer the person with every tool you hold. Naming that server and its state is the one exception to saying nothing about the machinery you run on.",
+	"Every server named here belongs to this session. Read each line for where that server stands, and answer the person with every tool you hold. Naming that server and its state is the one exception to saying nothing about the machinery you run on.",
 ]
 
 const naming = (rejections: string[], phrase: string): boolean =>

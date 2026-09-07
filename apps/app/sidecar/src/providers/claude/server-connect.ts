@@ -75,6 +75,7 @@ const DISABLED = "it is disabled in this session"
 export const STILL_CONNECTING = "is still connecting"
 export const HOLDS_TOOLS = "holds its tools"
 const UNSETTLED = "it never settled while it was watched"
+const UNREADABLE = "the status of this session's servers could not be read"
 const GAVE_UP = "the connection pass gave up on"
 const REPORTABLE = ["pending", "failed", "needs-auth"]
 
@@ -215,9 +216,6 @@ const readable = (reason: string, secrets: string[]): string =>
 		.reduce((held, secret) => held.split(secret).join(REDACTED), reason)
 		.slice(0, REASON_LIMIT)
 
-const reconnectedLine = (name: string): string =>
-	`the server "${name}" was reconnected, and ${HOLDS_TOOLS} again`
-
 const reachedLine = (name: string): string =>
 	`the server "${name}" connected, and ${HOLDS_TOOLS} for the rest of this session`
 
@@ -323,10 +321,26 @@ const SETTLED_LINE: Partial<
 	"needs-auth": (name) => notice(leftOut(name, AWAITING_AUTH)),
 }
 
+const readLine = (
+	name: string,
+	status: ServerStatus["status"],
+	spent: number,
+	thrown: string | undefined,
+	secrets: string[],
+): ReportedLine => {
+	const settled = SETTLED_LINE[status]
+	if (settled) {
+		return settled(name)
+	}
+	const line = lineFor(name, { status, spent }, thrown, secrets)
+	return status === "pending" ? news(line) : notice(line)
+}
+
 const announce = async (
 	{ port, signal, bound = REQUEST_BOUND_MS, report }: ConnectPass,
 	name: string,
 	status: ServerStatus["status"],
+	spent: () => number,
 	secrets: string[],
 ) => {
 	const settled = SETTLED_LINE[status]
@@ -341,11 +355,21 @@ const announce = async (
 	if (signal?.aborted) {
 		return
 	}
-	report?.(
-		thrown
-			? notice(lineFor(name, { status, spent: 0 }, thrown, secrets))
-			: news(reconnectedLine(name)),
+	const dialled = notice(
+		lineFor(name, { status, spent: spent() }, thrown, secrets),
 	)
+	let after: ServerStatus[]
+	try {
+		after = await boundedRead(port, bound, signal)
+	} catch {
+		report?.(dialled)
+		return
+	}
+	if (signal?.aborted) {
+		return
+	}
+	const read = after.find((status) => status.name === name)?.status
+	report?.(read ? readLine(name, read, spent(), thrown, secrets) : dialled)
 }
 
 const watching = async (
@@ -360,8 +384,10 @@ const watching = async (
 		bound = REQUEST_BOUND_MS,
 		wait = (ms: number) => delay(ms, signal),
 	} = pass
+	const started = now()
+	const spent = () => now() - started
 	const dialling = failing.map((name) =>
-		announce(pass, name, "failed", secrets),
+		announce(pass, name, "failed", spent, secrets),
 	)
 	const until = now() + WATCH_BOUND_MS
 	let watched = connecting
@@ -389,7 +415,7 @@ const watching = async (
 		)
 		dialling.push(
 			...settled.map(({ name, status }) =>
-				announce(pass, name, status, secrets),
+				announce(pass, name, status, spent, secrets),
 			),
 		)
 	}
@@ -397,6 +423,17 @@ const watching = async (
 		gaveUp(pass, watched, UNSETTLED, secrets)
 	}
 	await Promise.all(dialling)
+}
+
+const unreadableStatus = (
+	{ report }: ConnectPass,
+	names: string[],
+	cause: string,
+	secrets: string[],
+) => {
+	const reason = readable(cause, secrets)
+	process.stderr.write(`${GAVE_UP} ${names.join(", ")}: ${reason}\n`)
+	report?.(notice(`${UNREADABLE}: ${reason}`))
 }
 
 export const unconnectedServers = async ({
@@ -427,7 +464,7 @@ export const unconnectedServers = async ({
 		if (signal?.aborted) {
 			return []
 		}
-		gaveUp(pass, names, describeError(error), secrets)
+		unreadableStatus(pass, names, describeError(error), secrets)
 		return []
 	}
 }

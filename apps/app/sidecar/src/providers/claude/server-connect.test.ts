@@ -487,11 +487,36 @@ describe("watching a server left connecting", () => {
 		expect(reconnected).toEqual(["superset"])
 	})
 
-	it("says a server its reconnection brought back is reconnected", async () => {
-		const { reported, reconnected } = await watched(failed)
+	it("reports by the read it takes after a reconnection that brought a server back", async () => {
+		const reported: string[] = []
+		const reconnected: string[] = []
+		let time = 0
+		let dialled = false
+
+		await unconnectedServers({
+			names: ["superset"],
+			port: {
+				status: async () => {
+					if (dialled) {
+						return connected
+					}
+					return time <= LAST_POLL_MS ? pending : failed
+				},
+				reconnect: async (name) => {
+					reconnected.push(name)
+					dialled = true
+				},
+			},
+			now: () => time,
+			wait: async (ms) => {
+				time += ms
+			},
+			report: (line) => reported.push(line.detail),
+		})
+		await settling()
 
 		expect(reported).toEqual([
-			'the server "superset" was reconnected, and holds its tools again',
+			'the server "superset" connected, and holds its tools for the rest of this session',
 		])
 		expect(reconnected).toEqual(["superset"])
 	})
