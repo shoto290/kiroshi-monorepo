@@ -535,7 +535,9 @@ const SpacesBranch = ({
 
 	return (
 		<ContextMenuSub>
-			<ContextMenuSubTrigger>
+			<ContextMenuSubTrigger
+				describedBy={isHeldByOneSpace ? noteId : undefined}
+			>
 				<Icons.Spaces aria-hidden="true" className="size-3.5" />
 				{t("roster.spaces.label")}
 			</ContextMenuSubTrigger>
@@ -547,7 +549,6 @@ const SpacesBranch = ({
 						<ContextMenuCheckboxItem
 							checked={isMember}
 							closeOnSelect={false}
-							describedBy={isLocked ? noteId : undefined}
 							disabled={isLocked}
 							key={space.id}
 							onCheckedChange={(checked) =>

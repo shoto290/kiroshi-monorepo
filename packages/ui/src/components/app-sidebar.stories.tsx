@@ -2437,7 +2437,7 @@ export const RowLastSpace = meta.story({
 	args: {
 		spaces: FIVE_SPACES,
 		selectedSpaceId: "vocca",
-		botsBySpaceId: FIVE_ROSTERS,
+		botsBySpaceId: BEACON_IN_TWO_SPACES,
 		user: READER,
 	},
 	parameters: {
@@ -2445,22 +2445,24 @@ export const RowLastSpace = meta.story({
 		docs: {
 			description: {
 				story:
-					"The bot that has one space left. That row is ticked and disabled rather than live and refused after the fact, so the gesture that would strand the bot is never offered — the store refuses it too, and a reader should not have to read a notice to learn what the menu could have said. A note under a rule at the foot of the panel says why and what to do instead, and it is the disabled row's own accessible description rather than a stray paragraph: a screen reader hears the reason on the row it applies to, and the note is hidden from the menu's own tree so it is never walked as if it were a choice. The other spaces stay live: joining one is what unlocks leaving this one.",
+					"The bot that has one space left. Grove sits in Vocca alone: that row is ticked and disabled rather than live and refused after the fact, so the gesture that would strand the bot is never offered. A disabled row is out of the arrow walk and out of reach of the pointer, so the reason cannot be hung on it — it is the accessible description of the `Spaces` entry instead, which is the node a reader lands on before the panel opens, and it is read there whether the branch is ever opened or not. The note under the rule shows the same sentence to the eye and is hidden from the tree, so nobody hears it twice. Beacon, two rows down and held by two spaces, carries no description at all: there is nothing to warn about while every row is live.",
 			},
 		},
 	},
 	play: async ({ args, canvasElement, userEvent }) => {
-		const panel = await openSpacesBranch(canvasElement, "Beacon", userEvent)
+		const menu = await openRowMenu(canvasElement, "Grove")
+		await expect(
+			menu.getByRole("menuitem", { name: SPACES_BRANCH }),
+		).toHaveAccessibleDescription(LAST_SPACE_NOTE)
+
+		const panel = await openSpacesBranch(canvasElement, "Grove", userEvent)
 		const rows = within(panel).getAllByRole("menuitemcheckbox")
 		const held = rows[1]
 
 		await expect(held).toHaveAttribute("aria-checked", "true")
 		await expect(held).toBeDisabled()
-		await expect(held).toHaveAccessibleDescription(LAST_SPACE_NOTE)
-		for (const row of [rows[0], rows[2], rows[3], rows[4]]) {
+		for (const row of [rows[0], rows[2], rows[3], rows[4]])
 			await expect(row).toBeEnabled()
-			await expect(row).not.toHaveAccessibleDescription()
-		}
 
 		fireEvent.click(held)
 		await expect(args.onRemoveBotFromSpace).not.toHaveBeenCalled()
@@ -2470,6 +2472,16 @@ export const RowLastSpace = meta.story({
 		await expect(note).toBeVisible()
 		await expect(note).toHaveAttribute("aria-hidden", "true")
 		await expect(within(panel).getAllByRole("separator")).toHaveLength(1)
+
+		await userEvent.keyboard("{Escape}")
+		await waitFor(async () => {
+			await expect(screen.queryByRole("menu")).toBeNull()
+		}, FRAME_POLL)
+
+		const shared = await openRowMenu(canvasElement, "Beacon")
+		await expect(
+			shared.getByRole("menuitem", { name: SPACES_BRANCH }),
+		).not.toHaveAccessibleDescription()
 	},
 })
 
