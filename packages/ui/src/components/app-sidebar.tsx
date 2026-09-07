@@ -531,13 +531,12 @@ const SpacesBranch = ({
 	if ((!onAddToSpace && !onRemoveFromSpace) || spaces.length === 0) return null
 
 	const isHeldByOneSpace = memberships.length === 1
-	const label = t("roster.spaces.label")
 
 	return (
 		<ContextMenuSub>
 			<ContextMenuSubTrigger>
 				<Icons.Spaces aria-hidden="true" className="size-3.5" />
-				{label}
+				{t("roster.spaces.label")}
 			</ContextMenuSubTrigger>
 			<ContextMenuSubContent className={SPACES_PANEL}>
 				{spaces.map((space) => {
