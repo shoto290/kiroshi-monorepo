@@ -808,12 +808,12 @@ fn seat(
 	if !is_live {
 		return Err(ConversationError::UnknownBot { id: bot_id.to_owned() });
 	}
-	let holds_membership = match space_id {
-		Some(space_id) => bot_spaces::held(transaction, bot_id, space_id)?,
-		None => false,
+	let foreign = ConversationError::ForeignBot { id: bot_id.to_owned() };
+	let Some(space_id) = space_id else {
+		return Err(foreign);
 	};
-	if !holds_membership {
-		return Err(ConversationError::ForeignBot { id: bot_id.to_owned() });
+	if !bot_spaces::held(transaction, bot_id, space_id)? {
+		return Err(foreign);
 	}
 	transaction.execute(
 		"INSERT INTO conversation_participants
