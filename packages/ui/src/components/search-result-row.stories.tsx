@@ -483,7 +483,7 @@ export const WithBadgeWhileActive = meta.story({
 	play: async ({ canvasElement }) => {
 		const [resting, active] = slotsIn(canvasElement, "search-result-row")
 		const [restingDot, activeDot] = slotsIn(canvasElement, "bot-activity-dot")
-		const palette = slotIn(canvasElement, "search-result-row").parentElement
+		const palette = resting.parentElement
 
 		if (!palette) throw new Error("The rows sit in no palette")
 
