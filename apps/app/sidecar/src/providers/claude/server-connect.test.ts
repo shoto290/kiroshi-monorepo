@@ -4,6 +4,7 @@ import {
 	CONNECT_BUDGET_MS,
 	type ConnectPort,
 	type ServerStatus,
+	UNNAMED_GRACE_MS,
 	unconnectedServers,
 } from "./server-connect"
 
@@ -111,7 +112,7 @@ describe("unconnectedServers", () => {
 		expect(waited).toBeLessThanOrEqual(CONNECT_BUDGET_MS)
 	})
 
-	it("takes a single read after the reconnection, and names the wait it gave", async () => {
+	it("takes a single read after the reconnection, and names no wait it never spent", async () => {
 		const port = portReading([failed, pending])
 
 		const details = await unconnectedServers({
@@ -121,7 +122,7 @@ describe("unconnectedServers", () => {
 		})
 
 		expect(details).toEqual([
-			`${leftOut}two connection attempts failed, it read pending after the 15250 ms it was given`,
+			`${leftOut}two connection attempts failed, it read pending`,
 		])
 		expect(port.reads).toBe(2)
 		expect(port.reconnected).toEqual(["superset"])
@@ -152,6 +153,99 @@ describe("unconnectedServers", () => {
 
 		expect(details).toEqual([
 			`${leftOut}two connection attempts failed, it read pending after the 15250 ms it was given, and the reconnection answered: Server status: pending`,
+		])
+	})
+
+	it("reports its server when the polls and the reconnection both run their bound", async () => {
+		let waited = 0
+
+		const details = await unconnectedServers({
+			names: ["superset"],
+			port: {
+				status: async () => pending,
+				reconnect: () => new Promise(() => {}),
+			},
+			bound: 5,
+			wait: async (ms) => {
+				waited += ms
+			},
+		})
+
+		expect(details).toEqual([
+			`${leftOut}two connection attempts failed, it read pending after the 15250 ms it was given, and the reconnection answered: the reconnection outlasted its 5 ms deadline`,
+		])
+		expect(waited).toBe(15_250)
+	})
+
+	it("gives up on stderr, reporting nothing, when a status read never settles", async () => {
+		const written: string[] = []
+		const original = process.stderr.write
+		process.stderr.write = ((line: string) => {
+			written.push(String(line))
+			return true
+		}) as typeof process.stderr.write
+
+		const details = await unconnectedServers({
+			names: ["superset"],
+			port: {
+				status: () => new Promise(() => {}),
+				reconnect: async () => {},
+			},
+			bound: 5,
+		})
+		process.stderr.write = original
+
+		expect(details).toEqual([])
+		expect(written).toEqual([
+			"the connection pass gave up on superset: a status read outlasted its 5 ms bound\n",
+		])
+	})
+
+	it("names the wait it spent when the polls end before their full count", async () => {
+		const port = portReading([pending, failed, pending])
+		let waited = 0
+
+		const details = await unconnectedServers({
+			names: ["superset"],
+			port,
+			wait: async (ms) => {
+				waited += ms
+			},
+		})
+
+		expect(waited).toBe(250)
+		expect(details).toEqual([
+			`${leftOut}two connection attempts failed, it read pending after the 250 ms it was given`,
+		])
+	})
+
+	it("stops polling a server no read names at the grace, and reports the named one", async () => {
+		const written: string[] = []
+		const original = process.stderr.write
+		process.stderr.write = ((line: string) => {
+			written.push(String(line))
+			return true
+		}) as typeof process.stderr.write
+		let waited = 0
+
+		const details = await unconnectedServers({
+			names: ["superset", "ghost"],
+			port: {
+				status: async () => failed,
+				reconnect: async () => {},
+			},
+			wait: async (ms) => {
+				waited += ms
+			},
+		})
+		process.stderr.write = original
+
+		expect(waited).toBe(UNNAMED_GRACE_MS)
+		expect(details).toEqual([
+			`${leftOut}two connection attempts failed, it read failed`,
+		])
+		expect(written).toEqual([
+			"the connection pass gave up on ghost: no status read ever named it\n",
 		])
 	})
 

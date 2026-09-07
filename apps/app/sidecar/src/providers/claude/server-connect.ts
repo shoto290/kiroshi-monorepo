@@ -18,6 +18,7 @@ export type ConnectPass = {
 	env?: ServerEnv
 	signal?: AbortSignal
 	wait?: (ms: number) => Promise<void>
+	bound?: number
 }
 
 type PassOutcome = {
@@ -25,12 +26,17 @@ type PassOutcome = {
 	missing: string[]
 }
 
+type SettledReads = {
+	statuses: ServerStatus[]
+	waited: number
+}
+
 export const CONNECT_BUDGET_MS = 15_000
+
+export const UNNAMED_GRACE_MS = 1_000
 
 const PENDING_POLL = 250
 const PENDING_POLLS = Math.ceil(CONNECT_BUDGET_MS / PENDING_POLL) + 1
-const PENDING_WAIT = PENDING_POLLS * PENDING_POLL
-const PASS_LIMIT = PENDING_WAIT + CONNECT_BUDGET_MS
 const REASON_LIMIT = 300
 const SECRET_FLOOR = 8
 const REDACTED = "[redacted]"
@@ -63,14 +69,22 @@ const withinDeadline = async <T>(
 	signal?: AbortSignal,
 ): Promise<T | typeof OUTLASTED> => {
 	let timer: ReturnType<typeof setTimeout> | undefined
+	let unwatch = () => {}
 	const bound = new Promise<typeof OUTLASTED>((resolve) => {
-		timer = setTimeout(() => resolve(OUTLASTED), ms)
-		signal?.addEventListener("abort", () => resolve(OUTLASTED), { once: true })
+		if (signal?.aborted) {
+			resolve(OUTLASTED)
+			return
+		}
+		const abandon = () => resolve(OUTLASTED)
+		timer = setTimeout(abandon, ms)
+		signal?.addEventListener("abort", abandon, { once: true })
+		unwatch = () => signal?.removeEventListener("abort", abandon)
 	})
 	try {
 		return await Promise.race([work, bound])
 	} finally {
 		clearTimeout(timer)
+		unwatch()
 	}
 }
 
@@ -79,33 +93,54 @@ const lastRead = (
 	name: string,
 ): ServerStatus | undefined => reads.findLast((read) => read.name === name)
 
-const unsettled = (reads: ServerStatus[], names: string[]): boolean =>
+const unsettled = (
+	reads: ServerStatus[],
+	names: string[],
+	waited: number,
+): boolean =>
 	names.some((name) => {
 		const read = lastRead(reads, name)
-		return !read || read.status === "pending"
+		return read ? read.status === "pending" : waited < UNNAMED_GRACE_MS
 	})
 
-const settledStatuses = async (
+const boundedRead = async (
 	port: ConnectPort,
+	bound: number,
+	signal?: AbortSignal,
+): Promise<ServerStatus[]> => {
+	const statuses = await withinDeadline(port.status(), bound, signal)
+	if (statuses === OUTLASTED) {
+		throw new Error(`a status read outlasted its ${bound} ms bound`)
+	}
+	return statuses
+}
+
+const settledStatuses = async (
+	read: () => Promise<ServerStatus[]>,
 	names: string[],
 	wait: (ms: number) => Promise<void>,
 	signal?: AbortSignal,
-): Promise<ServerStatus[]> => {
-	let statuses = await port.status()
+): Promise<SettledReads> => {
+	let statuses = await read()
+	let waited = 0
 	for (
 		let poll = 0;
-		poll < PENDING_POLLS && unsettled(statuses, names) && !signal?.aborted;
+		poll < PENDING_POLLS &&
+		unsettled(statuses, names, waited) &&
+		!signal?.aborted;
 		poll += 1
 	) {
 		await wait(PENDING_POLL)
-		statuses = await port.status()
+		waited += PENDING_POLL
+		statuses = await read()
 	}
-	return statuses
+	return { statuses, waited }
 }
 
 const reconnectFailure = async (
 	port: ConnectPort,
 	name: string,
+	bound: number,
 	signal?: AbortSignal,
 ): Promise<string | undefined> => {
 	const thrown = await withinDeadline(
@@ -113,24 +148,25 @@ const reconnectFailure = async (
 			() => undefined,
 			(error: unknown) => describeError(error),
 		),
-		CONNECT_BUDGET_MS,
+		bound,
 		signal,
 	)
 	return thrown === OUTLASTED
-		? `the reconnection outlasted its ${CONNECT_BUDGET_MS} ms deadline`
+		? `the reconnection outlasted its ${bound} ms deadline`
 		: thrown
 }
 
 const reconnectFailures = async (
 	port: ConnectPort,
 	names: string[],
+	bound: number,
 	signal?: AbortSignal,
 ): Promise<Map<string, string | undefined>> =>
 	new Map(
 		await Promise.all(
 			names.map(
 				async (name) =>
-					[name, await reconnectFailure(port, name, signal)] as const,
+					[name, await reconnectFailure(port, name, bound, signal)] as const,
 			),
 		),
 	)
@@ -146,15 +182,19 @@ const readable = (reason: string, secrets: string[]): string =>
 		.reduce((held, secret) => held.split(secret).join(REDACTED), reason)
 		.slice(0, REASON_LIMIT)
 
-const statusReason = (status: ServerStatus["status"]): string =>
-	status === "pending"
-		? `it read pending after the ${PENDING_WAIT} ms it was given`
+const statusReason = (
+	status: ServerStatus["status"],
+	waited: number,
+): string =>
+	status === "pending" && waited > 0
+		? `it read pending after the ${waited} ms it was given`
 		: `it read ${status}`
 
 const lineFor = (
 	name: string,
 	read: ServerStatus,
 	thrown: string | undefined,
+	waited: number,
 	secrets: string[],
 ): string => {
 	if (read.status === "needs-auth") {
@@ -165,7 +205,7 @@ const lineFor = (
 		: ""
 	return leftOut(
 		name,
-		`${TWO_ATTEMPTS}, ${statusReason(read.status)}${answered}`,
+		`${TWO_ATTEMPTS}, ${statusReason(read.status, waited)}${answered}`,
 	)
 }
 
@@ -174,25 +214,28 @@ const reportPass = async (
 		names,
 		port,
 		signal,
+		bound = CONNECT_BUDGET_MS,
 		wait = (ms: number) => delay(ms, signal),
 	}: ConnectPass,
 	secrets: string[],
 ): Promise<PassOutcome> => {
-	const settled = await settledStatuses(port, names, wait, signal)
+	const read = () => boundedRead(port, bound, signal)
+	const { statuses, waited } = await settledStatuses(read, names, wait, signal)
 	const failing = names.filter((name) => {
-		const status = lastRead(settled, name)?.status
+		const status = lastRead(statuses, name)?.status
 		return status === "failed" || status === "pending"
 	})
-	const thrown = await reconnectFailures(port, failing, signal)
-	const after = failing.length ? await port.status() : []
-	const reads = [...settled, ...after]
+	const thrown = await reconnectFailures(port, failing, bound, signal)
+	const reads = [...statuses, ...(failing.length ? await read() : [])]
 	const outcome: PassOutcome = { reported: [], missing: [] }
 	for (const name of names) {
-		const read = lastRead(reads, name)
-		if (!read) {
+		const named = lastRead(reads, name)
+		if (!named) {
 			outcome.missing.push(name)
-		} else if (REPORTABLE.includes(read.status)) {
-			outcome.reported.push(lineFor(name, read, thrown.get(name), secrets))
+		} else if (REPORTABLE.includes(named.status)) {
+			outcome.reported.push(
+				lineFor(name, named, thrown.get(name), waited, secrets),
+			)
 		}
 	}
 	return outcome
@@ -214,16 +257,8 @@ export const unconnectedServers = async ({
 	}
 	const secrets = storedValues(env)
 	try {
-		const outcome = await withinDeadline(
-			reportPass(pass, secrets),
-			PASS_LIMIT,
-			signal,
-		)
+		const outcome = await reportPass(pass, secrets)
 		if (signal?.aborted) {
-			return []
-		}
-		if (outcome === OUTLASTED) {
-			gaveUp(names, `it outlasted ${PASS_LIMIT} ms`, secrets)
 			return []
 		}
 		if (outcome.missing.length) {
