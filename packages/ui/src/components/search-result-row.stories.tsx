@@ -1,3 +1,4 @@
+import type { ReactNode } from "react"
 import { expect, fn } from "storybook/test"
 
 import preview from "@workspace/storybook/preview"
@@ -118,6 +119,30 @@ const KIND_ARGS: Record<SearchResultKind, SearchResultRowProps> = {
 const titleWeightOf = (canvasElement: HTMLElement) =>
 	getComputedStyle(slotIn(canvasElement, "search-result-row-title")).fontWeight
 
+type ResultListProps = {
+	children: ReactNode
+	label?: string
+	id?: string
+	width?: number
+}
+
+const ResultList = ({
+	children,
+	label = RESULTS_LABEL,
+	id,
+	width = PALETTE_WIDTH,
+}: ResultListProps) => (
+	<div
+		aria-label={label}
+		className="flex flex-col gap-0.5"
+		id={id}
+		role="listbox"
+		style={{ width }}
+	>
+		{children}
+	</div>
+)
+
 const Probe = ({ slot, tone }: { slot: string; tone: string }) => (
 	<span className={`hidden ${tone}`} data-slot={slot} />
 )
@@ -139,14 +164,9 @@ const meta = preview.meta({
 	},
 	args: KIND_ARGS.message,
 	render: (args) => (
-		<div
-			aria-label={RESULTS_LABEL}
-			className="flex flex-col gap-0.5"
-			role="listbox"
-			style={{ width: PALETTE_WIDTH }}
-		>
+		<ResultList>
 			<SearchResultRow {...args} />
-		</div>
+		</ResultList>
 	),
 })
 
@@ -277,14 +297,9 @@ export const Active = meta.story({
 		<>
 			<Probe slot="muted-probe" tone="bg-muted" />
 			<Probe slot="background-probe" tone="bg-background" />
-			<div
-				aria-label={RESULTS_LABEL}
-				className="flex flex-col gap-0.5"
-				role="listbox"
-				style={{ width: PALETTE_WIDTH }}
-			>
+			<ResultList>
 				<SearchResultRow {...args} />
-			</div>
+			</ResultList>
 		</>
 	),
 	play: async ({ canvas, canvasElement }) => {
@@ -311,26 +326,15 @@ export const States = meta.story({
 	},
 	render: (args) => (
 		<>
-			<div
-				aria-label={RESULTS_LABEL}
-				className="flex flex-col gap-0.5"
-				role="listbox"
-				style={{ width: PALETTE_WIDTH }}
-			>
+			<ResultList>
 				<SearchResultRow {...args} />
-			</div>
-			<div
-				aria-label={HOVERED_RESULTS_LABEL}
-				className="flex flex-col gap-0.5"
-				id="search-result-hovered"
-				role="listbox"
-				style={{ width: PALETTE_WIDTH }}
-			>
+			</ResultList>
+			<ResultList id="search-result-hovered" label={HOVERED_RESULTS_LABEL}>
 				<SearchResultRow
 					{...args}
 					title={[{ key: "title", text: "Hovered result" }]}
 				/>
-			</div>
+			</ResultList>
 		</>
 	),
 	play: async ({ canvas, userEvent }) => {
@@ -362,12 +366,7 @@ export const AsListboxOption = meta.story({
 	render: (args) => (
 		<>
 			<input aria-label={QUERY_LABEL} readOnly value={QUERY} />
-			<div
-				aria-label={RESULTS_LABEL}
-				className="flex flex-col gap-0.5"
-				role="listbox"
-				style={{ width: PALETTE_WIDTH }}
-			>
+			<ResultList>
 				<SearchResultRow {...args} />
 				<SearchResultRow
 					{...args}
@@ -375,7 +374,7 @@ export const AsListboxOption = meta.story({
 					rank={2}
 					title={[{ key: "title", text: "The second hit" }]}
 				/>
-			</div>
+			</ResultList>
 			<button type="button">{PAST_THE_LIST_LABEL}</button>
 		</>
 	),
@@ -449,19 +448,14 @@ export const Unranked = meta.story({
 		},
 	},
 	render: (args) => (
-		<div
-			aria-label={RESULTS_LABEL}
-			className="flex flex-col gap-0.5"
-			role="listbox"
-			style={{ width: PALETTE_WIDTH }}
-		>
+		<ResultList>
 			<SearchResultRow {...args} rank={undefined} />
 			<SearchResultRow
 				{...args}
 				rank={10}
 				title={[{ key: "title", text: "The tenth hit" }]}
 			/>
-		</div>
+		</ResultList>
 	),
 	play: async ({ canvasElement }) => {
 		const lanes = slotsIn(canvasElement, "search-result-row-rank")
@@ -525,14 +519,9 @@ export const InNarrowPalette = meta.story({
 		},
 	},
 	render: (args) => (
-		<div
-			aria-label={RESULTS_LABEL}
-			className="flex flex-col gap-0.5"
-			role="listbox"
-			style={{ width: NARROW_PALETTE_WIDTH }}
-		>
+		<ResultList width={NARROW_PALETTE_WIDTH}>
 			<SearchResultRow {...args} />
-		</div>
+		</ResultList>
 	),
 	play: async ({ canvas, canvasElement }) => {
 		const row = canvas.getByRole("option").getBoundingClientRect()
