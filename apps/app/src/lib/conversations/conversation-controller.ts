@@ -741,19 +741,34 @@ export const createConversationController = (
 		})
 	}
 
-	const answeredIn = (conversationId: string, messageId?: string) => {
+	const messageAnsweredIn = (
+		conversationId: string,
+		messageId?: string | null,
+	) => {
 		if (!messageId) {
 			return null
 		}
 		const shown = selectMessages(transcript.getState(), conversationId)
-		return shown.some((message) => message.id === messageId) ? messageId : null
+		return shown.find((message) => message.id === messageId) ?? null
 	}
 
-	const summonedBy = (content: string, promptId: string): Summons[] => {
-		const named = addresseesIn(content, presentBotIds())
+	const answeredIn = (conversationId: string, messageId?: string) =>
+		messageAnsweredIn(conversationId, messageId)?.id ?? null
+
+	const authorAnsweredIn = (said: TranscriptMessage) =>
+		messageAnsweredIn(said.conversationId, said.repliedToMessageId)?.authorBotId
+
+	const summonedBy = (said: TranscriptMessage): Summons[] => {
+		const present = presentBotIds()
+		const named = addresseesIn(said.content, present)
+		const author = authorAnsweredIn(said)
+		const addressed =
+			author && present.includes(author)
+				? [author, ...named.filter((botId) => botId !== author)]
+				: named
 		const lead = conversation ? leadOf(conversation) : undefined
-		const answering = named.length > 0 ? named : lead ? [lead] : []
-		return answering.map((botId) => ({ botId, promptId }))
+		const answering = addressed.length > 0 ? addressed : lead ? [lead] : []
+		return answering.map((botId) => ({ botId, promptId: said.id }))
 	}
 
 	const nameFrom = async (conversationId: string, text: string) => {
@@ -811,7 +826,7 @@ export const createConversationController = (
 		} else if (activeTurn) {
 			completeTurn(activeTurn)
 		}
-		queue = reopenedFor(queue, summonedBy(content, turn.promptId))
+		queue = reopenedFor(queue, summonedBy(said))
 		activeTurn = turn
 		sync()
 		drive()
