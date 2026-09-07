@@ -9,6 +9,7 @@ import { claudeSourceExecutable } from "./build"
 import { EXECUTABLE_OVERRIDE_ENV } from "./executable"
 import { KIROSHI_SERVER } from "./kiroshi-server"
 import type { ConnectPass, ServerStatus } from "./server-connect"
+import { leftOut as rejectionLine } from "./server-env"
 import {
 	buildOptions,
 	CLASSIFY_ASK_USER_QUESTION,
@@ -585,6 +586,31 @@ describe("layerFor", () => {
 		expect(section).toContain("give them the reason listed for it")
 		expect(section).toContain(
 			"the one exception to saying nothing about the machinery you run on",
+		)
+	})
+
+	it("tells the bot a server still connecting can hold its tools later", () => {
+		const section = unavailableServersSection([
+			'the server "superset" is still connecting after 4750 ms',
+		])
+
+		expect(section).toContain("holds none of its tools yet")
+		expect(section).toContain("later in this session")
+		expect(section).toContain("not ready rather than gone")
+	})
+
+	it("keeps the rejection of a missing variable, and its section, word for word", () => {
+		const rejection = rejectionLine("probe", "RUNNER is defined by no scope")
+
+		expect(rejection).toBe(
+			'the server "probe" was left out: RUNNER is defined by no scope',
+		)
+		expect(unavailableServersSection([rejection])).toBe(
+			[
+				"# Servers left out of this session",
+				`- ${rejection}`,
+				"Answer the person with the tools you still hold. When what they ask for needs one of these servers, tell them that server is unavailable and give them the reason listed for it, so they can act on it. Naming that server and its reason is the one exception to saying nothing about the machinery you run on.",
+			].join("\n\n"),
 		)
 	})
 

@@ -156,8 +156,10 @@ Every other command names its session.
   status its last read gave it and, when that reconnection threw, the answer it gave. A
   line never counts connection attempts: the CLI retries a failing server on its own,
   several times per read, so no number the sidecar could state would be true. A read that
-  leaves a server pending earns it no reconnection at all, and its line says it is still
-  connecting after the time the read spent. A server reconnected and read pending right
+  leaves a server pending earns it no reconnection at all, and its line says the server is
+  still connecting after the time the read spent: it is not worded as a server left out,
+  the CLI still dialling it and its tools able to land later in the session, which the
+  section handed to the bot says in its own words. A server reconnected and read pending right
   after reads both, still connecting after that time and the answer its reconnection
   gave: the dial can outlast our own bound while the client is still on it. A server no
   reconnection was requested for never carries one in its line. A status read carries a
@@ -182,7 +184,9 @@ Every other command names its session.
   leaves the servers the earlier calls left unconnected reported, and rides a stderr line
   of its own. A stderr line names only the servers the read holds no status for: one the
   earlier calls already named is reported, not given up on, and a give up naming no server
-  is not written. A server no status call has named yet is polled for 1000 ms only, then
+  is not written. The call taken after the reconnections is the exception: outlasting, it
+  names on stderr every server the read reconnected, those lines being the only trace it
+  left. A server no status call has named yet is polled for 1000 ms only, then
   left to the stderr line. An interrupt drops what is held and leaves
   the read running: the CLI never received that prompt, so no interrupt is sent to it and
   the sidecar rides a `result` frame of subtype `interrupted` instead, which ends the
@@ -219,7 +223,7 @@ The frame is an `SDKMessage` verbatim, plus the four the sidecar adds itself.
 | `control_request` / `can_use_tool` | the sidecar, from `canUseTool` | `permissionRequested` |
 | `control_request` / `can_use_tool`, tool `AskUserQuestion` | the sidecar, from `canUseTool` | `questionRequested` |
 | `settings_rejected` | the sidecar, when the bot's `settings.json` is refused in part or in whole | `failed` — `settingsRejected`, the frame's `detail` as its reason |
-| `server_env_rejected` | the sidecar, when a declared MCP server is left out for want of a variable, or when a kept server did not connect in two attempts | `failed` — `serverEnvRejected`, raised as a non terminal notice reading the frame's `detail` and telling the reader the conversation carries on with the other servers |
+| `server_env_rejected` | the sidecar, when a declared MCP server is left out for want of a variable, or when a kept server has not connected | `failed` — `serverEnvRejected`, raised as a non terminal notice reading the frame's `detail` and telling the reader the conversation carries on with the other servers |
 
 Every other `SDKMessage` type is dropped: `translate.rs` reads what the contract
 needs and nothing else, so a new SDK message is inert until it is asked for.

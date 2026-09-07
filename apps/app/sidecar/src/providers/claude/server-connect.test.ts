@@ -65,6 +65,8 @@ const capture = (): { written: string[]; restore: () => void } => {
 
 const leftOut = 'the server "superset" was left out: '
 
+const connecting = 'the server "superset" is still connecting'
+
 describe("unconnectedServers", () => {
 	it("claims a reconnection for the server it dialled, and none for the other", async () => {
 		const clock = ticking(250)
@@ -176,9 +178,7 @@ describe("unconnectedServers", () => {
 			wait: clock.wait,
 		})
 
-		expect(details).toEqual([
-			`${leftOut}it is still connecting after ${LAST_POLL_MS} ms`,
-		])
+		expect(details).toEqual([`${connecting} after ${LAST_POLL_MS} ms`])
 		expect(port.reconnected).toEqual([])
 		expect(clock.now()).toBe(LAST_POLL_MS)
 	})
@@ -194,7 +194,7 @@ describe("unconnectedServers", () => {
 			wait: clock.wait,
 		})
 
-		expect(details).toEqual([`${leftOut}it is still connecting after 0 ms`])
+		expect(details).toEqual([`${connecting} after 0 ms`])
 	})
 
 	it("keeps the answer and the time when the read after the reconnection is pending", async () => {
@@ -212,7 +212,7 @@ describe("unconnectedServers", () => {
 		})
 
 		expect(details).toEqual([
-			`${leftOut}it is still connecting after 400 ms, and the reconnection answered: Connection failed`,
+			`${connecting} after 400 ms, and the reconnection answered: Connection failed`,
 		])
 		expect(port.reconnected).toEqual(["superset"])
 	})
@@ -241,9 +241,7 @@ describe("unconnectedServers", () => {
 		stderr.restore()
 
 		expect(reads).toBe(1)
-		expect(details).toEqual([
-			`${leftOut}it is still connecting after ${LAST_POLL_MS + 1} ms`,
-		])
+		expect(details).toEqual([`${connecting} after ${LAST_POLL_MS + 1} ms`])
 		expect(stderr.written).toEqual([])
 	})
 
@@ -268,9 +266,7 @@ describe("unconnectedServers", () => {
 		})
 		stderr.restore()
 
-		expect(details).toEqual([
-			`${leftOut}it is still connecting after ${LAST_POLL_MS} ms`,
-		])
+		expect(details).toEqual([`${connecting} after ${LAST_POLL_MS} ms`])
 		expect(stderr.written).toEqual([])
 		expect(clock.now()).toBeLessThanOrEqual(POLL_BUDGET_MS)
 		expect(reads).toBe(LAST_POLL_MS / 250 + 1)
@@ -296,7 +292,7 @@ describe("unconnectedServers", () => {
 		})
 		stderr.restore()
 
-		expect(details).toEqual([`${leftOut}it is still connecting after 0 ms`])
+		expect(details).toEqual([`${connecting} after 0 ms`])
 		expect(stderr.written).toEqual([
 			"the connection pass gave up on clock: a status read outlasted its 5 ms bound\n",
 		])
@@ -382,7 +378,21 @@ describe("unconnectedServers", () => {
 		expect(time).toBe(POLL_BUDGET_MS)
 	})
 
-	it("keeps what the polls read when the read after the reconnection outlasts", async () => {
+	it("claims no server still connecting was left out of the session", async () => {
+		const clock = ticking(250)
+
+		const [detail] = await unconnectedServers({
+			names: ["superset"],
+			port: portReading([pending]),
+			now: clock.now,
+			wait: clock.wait,
+		})
+
+		expect(detail).toBe(`${connecting} after ${LAST_POLL_MS} ms`)
+		expect(detail).not.toContain("left out")
+	})
+
+	it("keeps what the polls read, and names on stderr, when the read after the reconnection outlasts", async () => {
 		const stderr = capture()
 		const clock = ticking(250)
 		let polling = true
@@ -405,7 +415,9 @@ describe("unconnectedServers", () => {
 		stderr.restore()
 
 		expect(details).toEqual([`${leftOut}it read failed`])
-		expect(stderr.written).toEqual([])
+		expect(stderr.written).toEqual([
+			"the connection pass gave up on superset: a status read outlasted its 5 ms bound\n",
+		])
 	})
 
 	it("gives up on stderr, reporting nothing, when a status read never settles", async () => {
@@ -438,7 +450,7 @@ describe("unconnectedServers", () => {
 			wait: clock.wait,
 		})
 
-		expect(details).toEqual([`${leftOut}it is still connecting after 8000 ms`])
+		expect(details).toEqual([`${connecting} after 8000 ms`])
 		expect(clock.now()).toBe(8_000)
 	})
 

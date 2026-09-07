@@ -59,7 +59,7 @@ const SECRET_FLOOR = 8
 const REDACTED = "[redacted]"
 const NO_READ = "no status read ever named it"
 const AWAITING_AUTH = "it is waiting for you to authorize it"
-const STILL_CONNECTING = "it is still connecting"
+export const STILL_CONNECTING = "is still connecting"
 const GAVE_UP = "the connection pass gave up on"
 const REPORTABLE = ["pending", "failed", "needs-auth"]
 
@@ -215,24 +215,21 @@ const readable = (reason: string, secrets: string[]): string =>
 		.reduce((held, secret) => held.split(secret).join(REDACTED), reason)
 		.slice(0, REASON_LIMIT)
 
-const reasonFor = ({ status, spent }: NamedRead): string =>
-	status === "pending"
-		? `${STILL_CONNECTING} after ${spent} ms`
-		: `it read ${status}`
-
 const lineFor = (
 	name: string,
-	named: NamedRead,
+	{ status, spent }: NamedRead,
 	thrown: string | undefined,
 	secrets: string[],
 ): string => {
-	if (named.status === "needs-auth") {
+	if (status === "needs-auth") {
 		return leftOut(name, AWAITING_AUTH)
 	}
 	const answered = thrown
 		? `, and the reconnection answered: ${readable(thrown, secrets)}`
 		: ""
-	return leftOut(name, `${reasonFor(named)}${answered}`)
+	return status === "pending"
+		? `the server "${name}" ${STILL_CONNECTING} after ${spent} ms${answered}`
+		: leftOut(name, `it read ${status}${answered}`)
 }
 
 const linesFor = (
@@ -286,10 +283,7 @@ const reportPass = async (
 		try {
 			takes.push({ statuses: await read(bound), spent: spent() })
 		} catch (error) {
-			const gone = unreadable(takes, failing, error)
-			if (gone) {
-				giveUps.push(gone)
-			}
+			giveUps.push({ names: failing, cause: describeError(error) })
 		}
 	}
 	const { reported, unread } = linesFor(takes, names, thrown, secrets)

@@ -1,3 +1,4 @@
+import { STILL_CONNECTING } from "./server-connect"
 import { type PreloadedSkill, preloadedSkills } from "./system-skills"
 
 import type { SessionRequest } from "../provider"
@@ -36,11 +37,17 @@ export const userLine = (userPluginPath: string): string =>
 export const spaceLine = (spacePluginPath: string): string =>
 	`What you learn about the project this space is for lives in ${spacePluginPath}, the directory every bot of this space reads, and that is where you write it.`
 
+const CONNECTING_LINE =
+	"A server still connecting holds none of its tools yet, and can gain them later in this session. Say it is not ready rather than gone, and try it again when the person asks for it."
+
 export const unavailableServersSection = (rejections: string[]): string =>
 	[
 		"# Servers left out of this session",
 		rejections.map((detail) => `- ${detail}`).join("\n"),
 		"Answer the person with the tools you still hold. When what they ask for needs one of these servers, tell them that server is unavailable and give them the reason listed for it, so they can act on it. Naming that server and its reason is the one exception to saying nothing about the machinery you run on.",
+		...(rejections.some((detail) => detail.includes(STILL_CONNECTING))
+			? [CONNECTING_LINE]
+			: []),
 	].join("\n\n")
 
 export const skillLine = (directory: string): string =>
