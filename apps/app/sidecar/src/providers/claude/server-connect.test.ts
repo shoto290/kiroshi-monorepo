@@ -47,6 +47,8 @@ const ticking = (step: number) => {
 
 const LAST_POLL_MS = POLL_BUDGET_MS - 250
 
+const settling = (ms = 5) => new Promise((resolve) => setTimeout(resolve, ms))
+
 const capture = (): { written: string[]; restore: () => void } => {
 	const written: string[] = []
 	const original = process.stderr.write
@@ -470,7 +472,7 @@ describe("watching a server left connecting", () => {
 			report: (detail) => reported.push(detail),
 		})
 		const spentReads = reads
-		await new Promise((resolve) => setTimeout(resolve, 5))
+		await settling()
 
 		return { reported, reconnected, spentReads, reads: () => reads }
 	}
@@ -535,7 +537,7 @@ describe("watching a server left connecting", () => {
 		})
 		const budgeted = reads
 		abandoning.abort()
-		await new Promise((resolve) => setTimeout(resolve, 40))
+		await settling(40)
 
 		expect(reported).toEqual([])
 		expect(reconnected).toEqual([])
@@ -559,7 +561,7 @@ describe("watching a server left connecting", () => {
 			},
 			report: (detail) => reported.push(detail),
 		})
-		await new Promise((resolve) => setTimeout(resolve, 5))
+		await settling()
 
 		const opening = `${leftOut}it read failed, and the reconnection answered: `
 
