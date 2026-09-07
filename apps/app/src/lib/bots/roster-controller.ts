@@ -253,6 +253,12 @@ const withoutThreadsOf = (
 		Object.entries(soloThreads).filter(([, line]) => !holds(line)),
 	)
 
+const namesTheLastSpace = (reason: unknown): boolean =>
+	typeof reason === "object" &&
+	reason !== null &&
+	"kind" in reason &&
+	reason.kind === "lastSpaceOfBot"
+
 export type RosterControllerOptions = {
 	reportFailure?: (notice: NoticeMessage) => void
 }
@@ -407,8 +413,12 @@ export const createRosterController = (
 
 	const noteFailedRead = () => set({ hasFailedToLoad: true })
 
-	const refuseMembership = () => {
-		reportFailure({ title: i18n.t("bots:environment.remove.failed") })
+	const refuseMembership = (reason: unknown) => {
+		reportFailure({
+			title: namesTheLastSpace(reason)
+				? i18n.t("bots:spaces.remove.lastSpace")
+				: i18n.t("bots:spaces.remove.failed"),
+		})
 	}
 
 	const readFrom = (opening: RosterOpening) =>

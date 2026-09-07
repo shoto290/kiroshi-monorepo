@@ -822,7 +822,32 @@ describe("createRosterController on memberships", () => {
 		expect(controller.getState().rosters.personal.map((bot) => bot.id)).toEqual(
 			["default"],
 		)
-		expect(reportFailure).toHaveBeenCalledTimes(1)
+		expect(reportFailure).toHaveBeenCalledWith({
+			title: "A bot has to stay in at least one space.",
+		})
+	})
+
+	it("says nothing changed when a removal fails for another reason", async () => {
+		const { store, elsewhere } = await acrossTwoSpaces()
+		const reportFailure = vi.fn()
+		const refusing = createRosterController(
+			{
+				...store,
+				removeBotFromSpace: () => Promise.reject({ kind: "storage" }),
+			},
+			{ reportFailure },
+		)
+		await refusing.load(opening(null, "personal", ["personal", elsewhere.id]))
+
+		await refusing.removeFromSpace("default", elsewhere.id)
+
+		expect(
+			refusing.getState().rosters[elsewhere.id].map((bot) => bot.id),
+		).toEqual(["default"])
+		expect(reportFailure).toHaveBeenCalledWith({
+			title:
+				"This bot could not be removed from this space. Nothing changed, try again.",
+		})
 	})
 })
 

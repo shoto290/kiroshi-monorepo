@@ -69,6 +69,11 @@ const bots = {
 		create: "Nouvel espace",
 		settings: "Réglages des espaces",
 		shortcut: "⌘{{rank}}",
+		remove: {
+			lastSpace: "Un bot doit rester dans au moins un espace.",
+			failed:
+				"Ce bot n'a pas pu être retiré de cet espace. Rien n'a changé, réessayez.",
+		},
 	},
 	dialog: {
 		untitled: "Bot sans titre",
