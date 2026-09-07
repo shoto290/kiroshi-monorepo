@@ -19,8 +19,9 @@ const CHATS: &str = "WITH chat AS (
 			JOIN bots ON bots.id = conversation_participants.bot_id
 			WHERE conversation_participants.conversation_id = conversations.id
 			ORDER BY conversation_participants.join_seq LIMIT 1)) AS space_id,
-		COALESCE((SELECT max(messages.created_at) FROM messages
-			WHERE messages.conversation_id = conversations.id),
+		COALESCE((SELECT messages.created_at FROM messages
+			WHERE messages.conversation_id = conversations.id
+			ORDER BY messages.seq DESC LIMIT 1),
 			conversations.created_at) AS spoken_at
 	FROM conversations WHERE conversations.archived_at IS NULL)
 	SELECT id, kind, title, space_id FROM chat";
@@ -73,8 +74,8 @@ impl CatalogueRepository {
 		if scope.query.chars().count() > MAX_QUERY_LENGTH {
 			return Err(CatalogueError::QueryTooLong { limit: MAX_QUERY_LENGTH });
 		}
-		let needle = folded(&scope.query);
-		if needle.trim().is_empty() {
+		let needle = folded(scope.query.trim());
+		if needle.is_empty() {
 			return Ok(Catalogue { chats: vec![], missions: vec![], routines: vec![] });
 		}
 		self.access.call(move |connection| Ok(searched(connection, &scope, &needle))).await?
@@ -575,6 +576,65 @@ mod tests {
 			named(&wide.chats),
 			vec![("topic-1", ChatKind::Topic, "Roadmap review")],
 			"a chat of another space crossed the scope"
+		);
+
+		std::fs::remove_dir_all(&dir).expect("cleanup");
+	}
+
+	#[tokio::test]
+	async fn the_chats_read_their_last_message_through_an_index() {
+		let (database, dir) = planted().await;
+
+		let (plan, opcodes) = database
+			.call(|connection| {
+				let mut plan =
+					connection.prepare(&format!("EXPLAIN QUERY PLAN {CHATS} {CHAT_ORDER}"))?;
+				let steps = plan
+					.query_map([], |row| row.get::<_, String>(3))?
+					.collect::<rusqlite::Result<Vec<_>>>()?;
+				let mut bytecode = connection.prepare(&format!("EXPLAIN {CHATS} {CHAT_ORDER}"))?;
+				let opcodes = bytecode
+					.query_map([], |row| row.get::<_, String>(1))?
+					.collect::<rusqlite::Result<Vec<_>>>()?;
+				Ok((steps, opcodes))
+			})
+			.await
+			.expect("the plan reads");
+
+		assert!(
+			!plan.iter().any(|step| step.starts_with("SCAN") && step.contains("messages")),
+			"the chats read every message row: {plan:?}"
+		);
+		assert!(
+			!opcodes.iter().any(|opcode| opcode.starts_with("Agg")),
+			"the chats fold their last message through an aggregate: {opcodes:?}"
+		);
+
+		std::fs::remove_dir_all(&dir).expect("cleanup");
+	}
+
+	#[tokio::test]
+	async fn the_blanks_around_a_query_answer_what_the_query_alone_answers() {
+		let (database, dir) = planted().await;
+
+		let padded = database
+			.catalogue()
+			.search(scope("  roadmap  ", PERSONAL, true))
+			.await
+			.expect("the catalogue reads");
+		let bare = database
+			.catalogue()
+			.search(scope("roadmap", PERSONAL, true))
+			.await
+			.expect("the catalogue reads");
+
+		assert_eq!(padded, bare, "the blanks around a query changed what it reaches");
+		assert_eq!(
+			named(&bare.chats),
+			vec![
+				("topic-1", ChatKind::Topic, "Roadmap review"),
+				("topic-2", ChatKind::Topic, "Roadmap of the other space"),
+			]
 		);
 
 		std::fs::remove_dir_all(&dir).expect("cleanup");
