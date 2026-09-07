@@ -755,13 +755,13 @@ export const createConversationController = (
 	const answeredIn = (conversationId: string, messageId?: string) =>
 		messageAnsweredIn(conversationId, messageId)?.id ?? null
 
-	const authorAnsweredIn = (said: TranscriptMessage) =>
-		messageAnsweredIn(said.conversationId, said.repliedToMessageId)?.authorBotId
-
 	const summonedBy = (said: TranscriptMessage): Summons[] => {
 		const present = presentBotIds()
 		const named = addresseesIn(said.content, present)
-		const author = authorAnsweredIn(said)
+		const author = messageAnsweredIn(
+			said.conversationId,
+			said.repliedToMessageId,
+		)?.authorBotId
 		const addressed =
 			author && present.includes(author)
 				? [author, ...named.filter((botId) => botId !== author)]
