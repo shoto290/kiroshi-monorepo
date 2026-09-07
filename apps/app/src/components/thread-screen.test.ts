@@ -1433,6 +1433,7 @@ describe("ThreadScreen", () => {
 		rerender(screenOf(solo.thread()))
 		await settle()
 
+		expect(screen.getByText("the walls hold")).toBeTruthy()
 		expect(rowIndexOf("the walls hold")).toBeLessThan(
 			rowIndexOf("Which wall holds?"),
 		)
@@ -1595,6 +1596,7 @@ describe("ThreadScreen", () => {
 		})
 		await settle()
 
+		expect(screen.getByText("the walls hold")).toBeTruthy()
 		expect(rowIndexOf("the walls hold")).toBeLessThan(
 			rowIndexOf("Which wall holds?"),
 		)
