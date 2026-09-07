@@ -1,4 +1,8 @@
-import type { TranscriptCursor, TranscriptDraft } from "./transcript-contract"
+import type {
+	TranscriptCursor,
+	TranscriptDraft,
+	TranscriptMessage,
+} from "./transcript-contract"
 import type { TranscriptPort } from "./transcript-port"
 import {
 	initialTranscriptState,
@@ -20,7 +24,7 @@ export type TranscriptController = {
 	loadOlder: (conversationId: string) => Promise<void>
 	loadNewer: (conversationId: string) => Promise<void>
 	loadLatest: (conversationId: string) => Promise<void>
-	landOn: (conversationId: string, seq: number) => Promise<void>
+	landOn: (conversationId: string, seq: number) => Promise<TranscriptMessage[]>
 	follow: (conversationId: string, isAtLiveEdge: boolean) => void
 	leave: (conversationId: string) => void
 	append: (draft: TranscriptDraft) => void
@@ -84,6 +88,7 @@ export const createTranscriptController = (
 	const landOn = async (conversationId: string, seq: number) => {
 		const window = await port.loadWindow(conversationId, seq)
 		dispatch({ type: "windowLanded", window })
+		return window.messages
 	}
 
 	return {

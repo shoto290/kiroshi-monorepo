@@ -193,8 +193,8 @@ const stubController = (
 	rotate: async () => null,
 	loadOlder: async () => undefined,
 	loadNewer: async () => undefined,
-	loadLatest: async () => undefined,
-	landOn: async () => undefined,
+	loadLatest: async () => true,
+	landOn: async () => [],
 	follow: () => undefined,
 	send: async () => undefined,
 	sendTo: async () => undefined,
@@ -566,6 +566,8 @@ const LONG_ROOM_TURNS = 400
 const LANDED_SEQ = 80
 
 const LANDED_MESSAGE_ID = `m-t-${LANDED_SEQ}`
+
+const UNREACHABLE_TITLE = "That message could not be reached"
 
 const textOfTurn = (index: number) => `Message ${index} of the long room`
 
@@ -1914,5 +1916,21 @@ describe("ThreadScreen", () => {
 
 		expect(screen.getByText("hold the line")).toBeTruthy()
 		expect(screen.getByText("the walls hold")).toBeTruthy()
+	})
+	it("gives up on a landing the window it read does not hold", async () => {
+		const room = await longRoomOf()
+		const landings = createMessageLandingController()
+		landings.record({
+			conversationId: room.thread.conversation.id,
+			messageId: "m-t-nowhere",
+			seq: LANDED_SEQ,
+		})
+
+		render(createElement(NoticeSurface))
+		render(screenOf(room.thread, room.bots, () => undefined, landings))
+		await settle()
+
+		expect(landings.getState()).toBeNull()
+		expect(screen.getAllByText(UNREACHABLE_TITLE).length).toBeGreaterThan(0)
 	})
 })

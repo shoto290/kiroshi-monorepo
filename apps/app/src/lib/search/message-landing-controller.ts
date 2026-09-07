@@ -8,7 +8,7 @@ export type MessageLandingController = {
 	getState: () => MessageLanding | null
 	subscribe: (listener: () => void) => () => void
 	record: (landing: MessageLanding) => void
-	forget: () => void
+	forget: (landing: MessageLanding) => void
 }
 
 export const createMessageLandingController = (): MessageLandingController => {
@@ -34,6 +34,10 @@ export const createMessageLandingController = (): MessageLandingController => {
 
 		record: (next) => set(next),
 
-		forget: () => set(null),
+		forget: (taken) => {
+			if (landing === taken) {
+				set(null)
+			}
+		},
 	}
 }

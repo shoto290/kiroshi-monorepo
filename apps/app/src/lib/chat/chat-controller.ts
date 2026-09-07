@@ -53,7 +53,10 @@ import type {
 	MessageReference,
 } from "../conversations/store-contract"
 import type { TranscriptStore } from "../conversations/store-port"
-import type { TerminalCompletion } from "../conversations/transcript-contract"
+import type {
+	TerminalCompletion,
+	TranscriptMessage,
+} from "../conversations/transcript-contract"
 import { createTranscriptController } from "../conversations/transcript-controller"
 import {
 	selectHasMore,
@@ -89,8 +92,8 @@ export type ChatController = {
 	rotate: () => Promise<SessionHandle | null>
 	loadOlder: () => Promise<void>
 	loadNewer: () => Promise<void>
-	loadLatest: () => Promise<void>
-	landOn: (seq: number) => Promise<void>
+	loadLatest: () => Promise<boolean>
+	landOn: (seq: number) => Promise<TranscriptMessage[]>
 	follow: (isAtLiveEdge: boolean) => void
 	send: (text: string, repliedToMessageId?: string) => Promise<void>
 	sendTo: (
@@ -126,6 +129,8 @@ export type ChatControllerOptions = {
 const INTERRUPTED: TerminalCompletion = "interrupted"
 
 const NO_PINS: MessagePin[] = []
+
+const NO_LANDED_MESSAGES: TranscriptMessage[] = []
 
 type PromptOutcome = "submitted" | "unwritten" | "refused"
 
@@ -884,21 +889,22 @@ export function createChatController(
 	const loadLatest = async (bot: BotChat) => {
 		const conversationId = bot.state.conversationId
 		if (!conversationId || !bot.state.hasNewer) {
-			return
+			return true
 		}
 		try {
 			await enqueue(() => transcript.loadLatest(conversationId))
+			return true
 		} catch (reason) {
 			reportRead(bot, reason)
+			return false
 		}
 	}
 
-	const landOn = async (bot: BotChat, seq: number) => {
+	const landOn = (bot: BotChat, seq: number) => {
 		const conversationId = bot.state.conversationId
-		if (!conversationId) {
-			return
-		}
-		await enqueue(() => transcript.landOn(conversationId, seq))
+		return conversationId
+			? enqueue(() => transcript.landOn(conversationId, seq))
+			: Promise.resolve(NO_LANDED_MESSAGES)
 	}
 
 	const referenceFor = (bot: BotChat, messageId: string) => {
@@ -1055,7 +1061,12 @@ export function createChatController(
 			reportStore(bot, { kind: "unavailable" })
 			return "unwritten"
 		}
-		await loadLatest(bot)
+		if (!(await loadLatest(bot))) {
+			return "unwritten"
+		}
+		if (bot.state.conversationId !== conversationId) {
+			return "unwritten"
+		}
 		await rotateIfDue(bot)
 		dispatch(bot, { type: "promptSubmitted" })
 
@@ -1331,8 +1342,8 @@ export function createChatController(
 		rotate: () => onSelected((bot) => rotateFor(bot, ASKED_FOR), null),
 		loadOlder: () => onSelected(loadOlder, undefined),
 		loadNewer: () => onSelected(loadNewer, undefined),
-		loadLatest: () => onSelected(loadLatest, undefined),
-		landOn: (seq) => onSelected((bot) => landOn(bot, seq), undefined),
+		loadLatest: () => onSelected(loadLatest, true),
+		landOn: (seq) => onSelected((bot) => landOn(bot, seq), NO_LANDED_MESSAGES),
 		follow: (isAtLiveEdge) => forSelected((bot) => follow(bot, isAtLiveEdge)),
 		send: (text, repliedToMessageId) =>
 			onSelected((bot) => send(bot, text, repliedToMessageId), undefined),

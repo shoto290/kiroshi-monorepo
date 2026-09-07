@@ -118,8 +118,8 @@ export type ConversationController = {
 	open: (conversation: Conversation) => Promise<void>
 	loadOlder: () => Promise<void>
 	loadNewer: () => Promise<void>
-	loadLatest: () => Promise<void>
-	landOn: (seq: number) => Promise<void>
+	loadLatest: () => Promise<boolean>
+	landOn: (seq: number) => Promise<TranscriptMessage[]>
 	follow: (isAtLiveEdge: boolean) => void
 	leave: () => void
 	send: (text: string, repliedToMessageId?: string) => Promise<void>
@@ -812,29 +812,52 @@ export const createConversationController = (
 		}
 	}
 
+	const refuse = (said: TranscriptMessage, text: string) => {
+		refused = {
+			id: said.id,
+			text,
+			repliedToMessageId: said.repliedToMessageId,
+		}
+		sync()
+	}
+
+	const interruptRunningTurn = () => {
+		if (speakers.size > 0) {
+			for (const held of speakers.values()) {
+				held.isDropped = true
+			}
+			return
+		}
+		if (activeTurn) {
+			completeTurn(activeTurn)
+		}
+	}
+
 	const send = async (text: string, repliedToMessageId?: string) => {
 		const trimmed = text.trim()
 		if (!conversation || trimmed.length === 0) {
 			return
 		}
 		const conversationId = conversation.id
-		const answered = messageAnsweredIn(conversationId, repliedToMessageId)
-		await loadLatest()
 		const isNamingItself =
 			isNameless(conversation) && state.messages.length === 0
 		const content = toMentionTokens(trimmed, mentionBots())
+		const answered = messageAnsweredIn(conversationId, repliedToMessageId)
 		const turn: OpenTurn = { id: newId(), promptId: newId() }
 		const said = sentMessage({ turn, conversationId, content, answered })
+
+		if (!(await loadLatest())) {
+			refuse(said, trimmed)
+			return
+		}
+		if (conversation?.id !== conversationId) {
+			return
+		}
 
 		try {
 			await enqueue(() => storePrompt(turn, said))
 		} catch {
-			refused = {
-				id: said.id,
-				text: trimmed,
-				repliedToMessageId: said.repliedToMessageId,
-			}
-			sync()
+			refuse(said, trimmed)
 			return
 		}
 
@@ -843,13 +866,7 @@ export const createConversationController = (
 			void nameFrom(conversationId, trimmed)
 		}
 		transcript.append(said)
-		if (speakers.size > 0) {
-			for (const held of speakers.values()) {
-				held.isDropped = true
-			}
-		} else if (activeTurn) {
-			completeTurn(activeTurn)
-		}
+		interruptRunningTurn()
 		queue = reopenedFor(queue, summonedBy(said, answered))
 		activeTurn = turn
 		sync()
@@ -1141,24 +1158,24 @@ export const createConversationController = (
 
 	const loadLatest = async () => {
 		if (!conversation || !state.hasNewer) {
-			return
+			return true
 		}
 		const conversationId = conversation.id
 		try {
 			await enqueue(() => transcript.loadLatest(conversationId))
-			forgetFailure()
+			return true
 		} catch (reason) {
 			noteFailure(toReadError(reason))
+			settle({ ...state, latestError })
+			return false
 		}
-		settle({ ...state, latestError })
 	}
 
-	const landOn = async (seq: number) => {
-		if (!conversation) {
-			return
-		}
-		const conversationId = conversation.id
-		await enqueue(() => transcript.landOn(conversationId, seq))
+	const landOn = (seq: number) => {
+		const conversationId = conversation?.id
+		return conversationId
+			? enqueue(() => transcript.landOn(conversationId, seq))
+			: Promise.resolve(NO_MESSAGES)
 	}
 
 	const pin = (messageId: string, blockIndex: number) => {

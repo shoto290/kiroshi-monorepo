@@ -10,10 +10,13 @@ export type MessageLandingRequest = {
 	landing: MessageLanding | null
 	conversationId: string | null
 	messages: TranscriptMessage[]
-	landOn: (seq: number) => Promise<void>
+	landOn: (seq: number) => Promise<TranscriptMessage[]>
 	onLand: (messageId: string) => boolean
-	onTaken: () => void
+	onTaken: (landing: MessageLanding) => void
 }
+
+const holds = (messages: TranscriptMessage[], messageId: string) =>
+	messages.some((message) => message.id === messageId)
 
 export const useMessageLanding = ({
 	landing,
@@ -25,14 +28,18 @@ export const useMessageLanding = ({
 }: MessageLandingRequest) => {
 	const t = useChatCopy()
 	const requested = useRef<MessageLanding | null>(null)
-	const [readMessageId, setReadMessageId] = useState<string | null>(null)
+	const [read, setRead] = useState<MessageLanding | null>(null)
 
-	const reportUnreachable = useCallback(() => {
-		raiseFailureNotice({
-			title: t("transcript.landing.unavailable.title"),
-			description: t("transcript.landing.unavailable.description"),
-		})
-	}, [t])
+	const giveUp = useCallback(
+		(taken: MessageLanding) => {
+			onTaken(taken)
+			raiseFailureNotice({
+				title: t("transcript.landing.unavailable.title"),
+				description: t("transcript.landing.unavailable.description"),
+			})
+		},
+		[onTaken, t],
+	)
 
 	useEffect(() => {
 		if (!landing || landing.conversationId !== conversationId) {
@@ -43,32 +50,27 @@ export const useMessageLanding = ({
 		}
 		requested.current = landing
 		landOn(landing.seq).then(
-			() => setReadMessageId(landing.messageId),
-			() => {
-				onTaken()
-				reportUnreachable()
-			},
+			(window) =>
+				holds(window, landing.messageId) ? setRead(landing) : giveUp(landing),
+			() => giveUp(landing),
 		)
-	}, [landing, conversationId, landOn, onTaken, reportUnreachable])
+	}, [landing, conversationId, landOn, giveUp])
 
 	useEffect(() => {
 		if (!landing || landing.conversationId !== conversationId) {
 			return
 		}
-		return onTaken
+		return () => onTaken(landing)
 	}, [landing, conversationId, onTaken])
 
 	useEffect(() => {
-		if (readMessageId === null) {
+		if (!read || !holds(messages, read.messageId)) {
 			return
 		}
-		if (!messages.some((message) => message.id === readMessageId)) {
-			return
+		setRead(null)
+		onTaken(read)
+		if (!onLand(read.messageId)) {
+			giveUp(read)
 		}
-		setReadMessageId(null)
-		onTaken()
-		if (!onLand(readMessageId)) {
-			reportUnreachable()
-		}
-	}, [readMessageId, messages, onLand, onTaken, reportUnreachable])
+	}, [read, messages, onLand, onTaken, giveUp])
 }

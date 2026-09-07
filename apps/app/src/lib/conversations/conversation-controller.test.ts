@@ -2175,3 +2175,102 @@ describe("a run report relaying the bots it names", () => {
 		])
 	})
 })
+describe("a conversation landed away from its newest end", () => {
+	const LANDED_SEQ = 40
+
+	const MESSAGES = 80
+
+	const writeLines = async (store: TranscriptStore, conversationId: string) => {
+		for (let line = 1; line <= MESSAGES; line += 1) {
+			await store.appendUserMessage({
+				id: `m-${line}`,
+				conversationId,
+				turnId: `t-${line}`,
+				authorBotId: null,
+				repliedToMessageId: null,
+				content: `line ${line}`,
+				createdAt: line,
+			})
+		}
+	}
+
+	const landedOn = async (store: TranscriptStore) => {
+		const conversation = await store.createConversation({
+			spaceId: SPACE,
+			sectionId: null,
+			title: "Walls",
+			botIds: [],
+		})
+		await writeLines(store, conversation.id)
+		const controller = createConversationController(
+			createScriptedDriver(),
+			store,
+		)
+		const detach = controller.attach()
+		await controller.open(conversation)
+		await controller.landOn(LANDED_SEQ)
+		return { controller, detach }
+	}
+
+	const refusingLatest = (): TranscriptStore => {
+		const base = createFakeTranscriptStore()
+		let hasOpened = false
+		return {
+			...base,
+			loadPage: (conversationId, cursor) => {
+				if (cursor) {
+					return base.loadPage(conversationId, cursor)
+				}
+				if (hasOpened) {
+					return Promise.reject(new Error("refused"))
+				}
+				hasOpened = true
+				return base.loadPage(conversationId, null)
+			},
+		}
+	}
+
+	const refusingOlder = (): TranscriptStore => {
+		const base = createFakeTranscriptStore()
+		return {
+			...base,
+			loadPage: (conversationId, cursor) =>
+				cursor
+					? Promise.reject(new Error("refused"))
+					: base.loadPage(conversationId, null),
+		}
+	}
+
+	it("leaves a prompt unwritten and keeps its text when the newest page is refused", async () => {
+		const { controller, detach } = await landedOn(refusingLatest())
+		expect(controller.getState().hasNewer).toBe(true)
+
+		await controller.send("hold the line")
+		await settled()
+
+		const state = controller.getState()
+		expect(state.refusedMessage?.text).toBe("hold the line")
+		expect(
+			state.messages.some((held) => held.content === "hold the line"),
+		).toBe(false)
+		detach()
+	})
+
+	it("leaves a notice already on screen in place when it reads the newest page", async () => {
+		const { controller, detach } = await landedOn(refusingOlder())
+
+		await controller.loadOlder()
+		const held = controller.getState().latestError
+		expect(held?.error.kind).toBe("readFailed")
+
+		await controller.send("hold the line")
+		await settled()
+
+		const state = controller.getState()
+		expect(state.latestError).toBe(held)
+		expect(
+			state.messages.some((said) => said.content === "hold the line"),
+		).toBe(true)
+		detach()
+	})
+})
