@@ -1,6 +1,10 @@
 import type { MissionEventModel } from "@workspace/ui/components/mission"
 
 import type { Mission } from "./mission-contract"
+import {
+	type SummonedMissionState,
+	summonedStateOfText,
+} from "./mission-summons"
 
 import type { TranscriptRow } from "@/lib/chat/screen-model"
 
@@ -63,3 +67,44 @@ export const placeMissionEvents = (
 			event,
 			runIndex: lastRunOpenedBefore(runs, event.createdAt),
 		}))
+
+export type MissionSummonsCause = {
+	turnId: string
+	state: SummonedMissionState
+}
+
+export type MissionTranscript = {
+	rows: TranscriptRow[]
+	summonsCauses: MissionSummonsCause[]
+}
+
+const summonedStateOf = (
+	row: TranscriptRow,
+): SummonedMissionState | undefined =>
+	row.role === "user" && row.authorBotId === null
+		? summonedStateOfText(row.text)
+		: undefined
+
+export const withoutMissionSummons = (
+	rows: TranscriptRow[],
+	botId: string,
+): MissionTranscript => {
+	const kept: TranscriptRow[] = []
+	const summonsCauses: MissionSummonsCause[] = []
+	let summoned: SummonedMissionState | undefined
+
+	for (const row of rows) {
+		const state = summonedStateOf(row)
+		if (state) {
+			summoned = state
+			continue
+		}
+		if (summoned && row.authorBotId === botId) {
+			summonsCauses.push({ turnId: row.turnId, state: summoned })
+		}
+		summoned = undefined
+		kept.push(row)
+	}
+
+	return { rows: kept, summonsCauses }
+}

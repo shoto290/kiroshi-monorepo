@@ -58,7 +58,18 @@ type TurnRun = "single" | "first" | "middle" | "last"
 
 type InjectedTurnProps = { run?: TurnRun; carriesMark?: boolean }
 
-type TurnCause = { routineTitle: string; triggerSourceId: string }
+type TurnCauseKind = "routine" | "mission"
+
+type TurnCause = {
+	routineTitle: string
+	triggerSourceId: string
+	kind?: TurnCauseKind
+}
+
+const CAUSE_LABEL_KEY = {
+	routine: "transcript.cause.label",
+	mission: "transcript.cause.mission",
+} as const satisfies Record<TurnCauseKind, string>
 
 const TRIGGER_SOURCE_ICON: Record<string, Icon> = {
 	schedule: Icons.Calendar,
@@ -386,7 +397,9 @@ const TurnRunHeader = ({ author, cause, className }: TurnRunHeaderProps) => {
 			data-slot="turn-cause"
 			className={cn("min-w-0 gap-1", className)}
 		>
-			<span className="sr-only">{t("transcript.cause.label")}</span>
+			<span className="sr-only">
+				{t(CAUSE_LABEL_KEY[cause.kind ?? "routine"])}
+			</span>
 			<TriggerIcon aria-hidden="true" className="size-3 shrink-0" />
 			<span data-slot="turn-cause-title" className="truncate">
 				{cause.routineTitle}
@@ -510,6 +523,7 @@ export {
 	type AssistantTurnProps,
 	TURN_AVATAR_SIZE,
 	type TurnCause,
+	type TurnCauseKind,
 	TurnGroup,
 	type TurnGroupProps,
 	type TurnRun,

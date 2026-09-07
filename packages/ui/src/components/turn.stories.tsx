@@ -1266,6 +1266,12 @@ const UNNAMED_CAUSE: TurnCause = {
 	triggerSourceId: "matrix-poll",
 }
 
+const SUMMONS_CAUSE: TurnCause = {
+	routineTitle: "Opened by the mission",
+	triggerSourceId: "mission",
+	kind: "mission",
+}
+
 const LONG_CAUSE: TurnCause = {
 	routineTitle:
 		"Morning release digest, then the migration checklist, then everything the night left open",
@@ -1346,6 +1352,34 @@ export const ReportedByUnnamedTrigger = meta.story({
 		await expect(cause.querySelector(".lucide-bell")).toBeVisible()
 		await expect(slotIn(cause, "turn-cause-title")).toHaveTextContent(
 			UNNAMED_CAUSE.routineTitle,
+		)
+		await expect(slotsIn(canvasElement, "message-author")).toHaveLength(0)
+	},
+})
+
+export const SummonedByMission = meta.story({
+	parameters: {
+		docs: {
+			description: {
+				story:
+					"A run a mission opened, not a routine. The line reads exactly like a routine report, and only the word a screen reader hears before the title changes: a mission summons, never a routine report. Check that the announcement names the mission and that the run still loses its name line.",
+			},
+		},
+	},
+	render: () => (
+		<div className="mx-auto flex max-w-2xl flex-col gap-6">
+			<AssistantTurn author={LEAD} cause={SUMMONS_CAUSE} copyText={REPORT}>
+				{REPORT}
+			</AssistantTurn>
+		</div>
+	),
+	play: async ({ canvasElement }) => {
+		const cause = slotIn(canvasElement, "turn-cause")
+
+		await expect(cause).toHaveTextContent("Mission summons")
+		await expect(cause).not.toHaveTextContent("Routine report")
+		await expect(slotIn(cause, "turn-cause-title")).toHaveTextContent(
+			SUMMONS_CAUSE.routineTitle,
 		)
 		await expect(slotsIn(canvasElement, "message-author")).toHaveLength(0)
 	},

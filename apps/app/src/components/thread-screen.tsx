@@ -29,7 +29,7 @@ import type {
 	TranscriptHandle,
 	TranscriptItem,
 } from "@workspace/ui/components/transcript"
-import { TurnGroup } from "@workspace/ui/components/turn"
+import { type TurnCauseKind, TurnGroup } from "@workspace/ui/components/turn"
 import { type ChatCopy, useChatCopy } from "@workspace/ui/hooks/use-chat-copy"
 
 import { FaceAvatar } from "@/components/face-avatar"
@@ -116,20 +116,24 @@ import type { SpeakingBot } from "@/lib/conversations/conversation-controller"
 import type { ConversationRuntimes } from "@/lib/conversations/conversation-runtimes"
 import { leadOf } from "@/lib/conversations/roster-conversations"
 import type { Bot } from "@/lib/conversations/store-contract"
+import type { TranscriptMessage } from "@/lib/conversations/transcript-contract"
 import { useConversation } from "@/lib/conversations/use-conversation"
 import type { Mission } from "@/lib/missions/mission-contract"
+import type { SummonedMissionState } from "@/lib/missions/mission-summons"
 import { toMissionFace } from "@/lib/missions/mission-thread-model"
 import {
 	BEFORE_FIRST_RUN,
+	type MissionSummonsCause,
 	type PlacedMission,
 	type PlacedMissionEvent,
 	placeMissionEvents,
 	placeMissions,
+	withoutMissionSummons,
 } from "@/lib/missions/mission-transcript"
 import { toMissionCard } from "@/lib/missions/missions-model"
 import { useMissionSendFailure } from "@/lib/missions/use-mission-failure-notices"
 import { useMissions } from "@/lib/missions/use-missions"
-import type { ReportedRunsByTurnId } from "@/lib/routines/routine-contract"
+import type { ReportedRun } from "@/lib/routines/routine-contract"
 
 type WorkingBotProps = BotStopProps & {
 	face: ThreadFace
@@ -479,7 +483,7 @@ const stopOfRow = (row: TranscriptRow, stops: SpeakerStops) =>
 type ThreadRunProps = {
 	run: TranscriptRow[]
 	presentation: RunPresentation
-	causes: ReportedRunsByTurnId
+	causes: ThreadCauses
 	rejectedPromptId: string | null
 	asked: AskedBubble | null
 	responder: PromptResponder
@@ -548,6 +552,66 @@ const ThreadRun = ({
 		})}
 	</TurnGroup>
 )
+
+type ThreadCause = ReportedRun & { kind?: TurnCauseKind }
+
+type ThreadCauses = ReadonlyMap<string, ThreadCause>
+
+const SUMMONS_TRIGGER_SOURCE = "mission"
+
+const SUMMONS_CAUSE_KEY = {
+	working: "missions.summons.working",
+	waiting_bot: "missions.summons.waiting_bot",
+} as const satisfies Record<SummonedMissionState, string>
+
+const withSummonsCauses = (
+	causes: ThreadCauses,
+	summonsCauses: MissionSummonsCause[],
+	t: ChatCopy,
+): ThreadCauses =>
+	new Map([
+		...causes,
+		...summonsCauses.map(({ turnId, state }): [string, ThreadCause] => [
+			turnId,
+			{
+				turnId,
+				kind: "mission",
+				routineTitle: t(SUMMONS_CAUSE_KEY[state]),
+				triggerSourceId: SUMMONS_TRIGGER_SOURCE,
+			},
+		]),
+	])
+
+type ReadRunsProps = {
+	messages: TranscriptMessage[]
+	missionSeat: ThreadMission | null
+	causes: ThreadCauses
+	t: ChatCopy
+}
+
+type ReadRuns = {
+	runs: TranscriptRow[][]
+	causes: ThreadCauses
+}
+
+const readRuns = ({
+	messages,
+	missionSeat,
+	causes,
+	t,
+}: ReadRunsProps): ReadRuns => {
+	const rows = toTranscriptRows(messages)
+	if (!missionSeat) {
+		return { runs: toRuns(rows, causes), causes }
+	}
+	const summoned = withoutMissionSummons(rows, missionSeat.mission.botId)
+	const summonedCauses = withSummonsCauses(causes, summoned.summonsCauses, t)
+
+	return {
+		runs: toRuns(summoned.rows, summonedCauses),
+		causes: summonedCauses,
+	}
+}
 
 type RunRowsProps = Omit<ThreadRunProps, "run" | "presentation"> & {
 	runs: TranscriptRow[][]
@@ -940,7 +1004,12 @@ function ThreadView({
 		toQuote,
 	})
 
-	const runs = toRuns(toTranscriptRows(state.messages), facts.causes)
+	const { runs, causes } = readRuns({
+		messages: state.messages,
+		missionSeat,
+		causes: facts.causes,
+		t,
+	})
 	const presentations = runPresentationsOf({
 		runs,
 		workingBotIds: facts.workingBotIds,
@@ -951,7 +1020,7 @@ function ThreadView({
 		asked,
 		authors,
 		botFace,
-		causes: facts.causes,
+		causes,
 		onReply: holdReply,
 		onRetry: botController ? retry : undefined,
 		pins,

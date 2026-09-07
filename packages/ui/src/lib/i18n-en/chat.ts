@@ -48,6 +48,7 @@ const chat = {
 		},
 		cause: {
 			label: "Routine report",
+			mission: "Mission summons",
 			unavailable: {
 				title: "Routine reports could not be read",
 				description:
@@ -552,6 +553,10 @@ const chat = {
 		},
 		feed: {
 			label: "Mission thread",
+		},
+		summons: {
+			working: "Opened by the mission",
+			waiting_bot: "Opened by the blocked coding agent",
 		},
 		composer: {
 			placeholder: "Answer this mission…",

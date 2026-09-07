@@ -51,6 +51,7 @@ const chat = {
 		},
 		cause: {
 			label: "Rapport de routine",
+			mission: "Convocation de mission",
 			unavailable: {
 				title: "Les rapports de routine n'ont pas pu être lus",
 				description:
@@ -567,6 +568,10 @@ const chat = {
 		},
 		feed: {
 			label: "Fil de la mission",
+		},
+		summons: {
+			working: "Ouvert par la mission",
+			waiting_bot: "Ouvert par l'agent de code bloqué",
 		},
 		composer: {
 			placeholder: "Répondre à cette mission…",
