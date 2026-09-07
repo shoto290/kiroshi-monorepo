@@ -33,6 +33,9 @@ const BADGE_BY_STATE: Record<MissionState, BotBadge | null> = {
 	done: null,
 }
 
+export const badgeOfMissionState = (state: MissionState): BotBadge | null =>
+	BADGE_BY_STATE[state]
+
 export type WaitingMissionIds = ReadonlySet<string>
 
 const NO_WAITING_MISSIONS: WaitingMissionIds = new Set()

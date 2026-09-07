@@ -1,0 +1,351 @@
+import type { ConversationParticipant } from "@workspace/ui/components/avatar-group"
+import type { BotBadge } from "@workspace/ui/components/badge"
+import type { MissionBot } from "@workspace/ui/components/mission"
+import { missionTicketPlatform } from "@workspace/ui/components/mission-marks"
+import type {
+	SearchPaletteResult,
+	SearchResultGroup,
+	SearchTab,
+} from "@workspace/ui/components/search-palette"
+import type {
+	SearchResultIdentity,
+	SearchResultSpace,
+} from "@workspace/ui/components/search-result-row"
+import { i18n } from "@workspace/ui/lib/i18n"
+
+import type {
+	CatalogueChat,
+	CatalogueMission,
+	CatalogueRoutine,
+} from "./catalogue-contract"
+import type { MessageHit } from "./search-contract"
+import type { SearchRead } from "./search-controller"
+import { markedTitle } from "./search-fold"
+import type { SearchRow, SearchTarget } from "./search-navigation"
+
+import { rosterTimestamp } from "@/lib/bots/roster-timestamp"
+import { faceOfBot, type ThreadFace } from "@/lib/chat/thread-contract"
+import {
+	presentParticipants,
+	toConversationBots,
+} from "@/lib/conversations/roster-conversations"
+import type {
+	Bot,
+	Conversation,
+	Space,
+} from "@/lib/conversations/store-contract"
+import { toMissionFace } from "@/lib/missions/mission-thread-model"
+import { badgeOfMissionState } from "@/lib/missions/missions-model"
+
+const SHOWN_PER_KIND = 3
+
+const NEUTRAL_BADGE: BotBadge = "done"
+
+export type SearchLookups = {
+	faceOf: (botId: string) => ThreadFace | undefined
+	conversationOf: (conversationId: string) => Conversation | undefined
+	spaceOf: (spaceId: string | null) => SearchResultSpace | undefined
+	readerName: string
+	now: number
+}
+
+export type SearchLookupSource = {
+	rosters: Record<string, Bot[]>
+	conversationRosters: Record<string, Conversation[]>
+	spaces: Space[]
+	readerName: string
+	now: number
+}
+
+export const createSearchLookups = ({
+	rosters,
+	conversationRosters,
+	spaces,
+	readerName,
+	now,
+}: SearchLookupSource): SearchLookups => {
+	const faces = new Map(
+		Object.values(rosters).flatMap((bots) =>
+			bots.map((bot) => [bot.id, faceOfBot(bot)] as const),
+		),
+	)
+	const conversations = new Map(
+		Object.values(conversationRosters).flatMap((rows) =>
+			rows.map((conversation) => [conversation.id, conversation] as const),
+		),
+	)
+	const named = new Map(
+		spaces.map((space) => [
+			space.id,
+			{ name: space.name, tint: space.colour ?? undefined },
+		]),
+	)
+
+	return {
+		faceOf: (botId) => faces.get(botId),
+		conversationOf: (conversationId) => conversations.get(conversationId),
+		spaceOf: (spaceId) => (spaceId ? named.get(spaceId) : undefined),
+		readerName,
+		now,
+	}
+}
+
+const missionBotOf = (botId: string, lookups: SearchLookups): MissionBot =>
+	toMissionFace(lookups.faceOf(botId) ?? { id: botId, name: "" })
+
+const participantsOf = (
+	conversation: Conversation | undefined,
+): ConversationParticipant[] =>
+	conversation ? toConversationBots(presentParticipants(conversation)) : []
+
+const soloPart = () => ({ key: "kind", text: i18n.t("search:solo") })
+
+const rowOfChat = (chat: CatalogueChat): SearchRow | null => {
+	if (chat.kind === "topic") {
+		return { kind: "conversation", id: chat.conversationId }
+	}
+	return chat.kind === "main" && chat.botId
+		? { kind: "bot", id: chat.botId }
+		: null
+}
+
+const rowOfRoutine = (
+	routine: CatalogueRoutine,
+	lookups: SearchLookups,
+): SearchRow =>
+	lookups.conversationOf(routine.conversationId)
+		? { kind: "conversation", id: routine.conversationId }
+		: { kind: "bot", id: routine.botId }
+
+const identityOfChat = (
+	chat: CatalogueChat,
+	lookups: SearchLookups,
+): SearchResultIdentity => {
+	if (chat.kind === "main" && chat.botId) {
+		return { kind: "chat-solo", bot: missionBotOf(chat.botId, lookups) }
+	}
+	return {
+		kind: "chat-group",
+		participants: participantsOf(lookups.conversationOf(chat.conversationId)),
+	}
+}
+
+const identityOfMessage = (
+	hit: MessageHit,
+	lookups: SearchLookups,
+): SearchResultIdentity =>
+	hit.authorBotId
+		? { kind: "message", bot: missionBotOf(hit.authorBotId, lookups) }
+		: { kind: "message-from-you", reader: lookups.readerName }
+
+const authorNameOf = (hit: MessageHit, lookups: SearchLookups): string =>
+	hit.authorBotId
+		? (lookups.faceOf(hit.authorBotId)?.name ?? "")
+		: lookups.readerName
+
+const messageRowOf = (
+	hit: MessageHit,
+	botOfSoloChat: Map<string, string>,
+): SearchRow | null => {
+	if (hit.conversationKind === "topic") {
+		return { kind: "conversation", id: hit.conversationId }
+	}
+	if (hit.conversationKind === "mission") {
+		return null
+	}
+	const botId = hit.authorBotId ?? botOfSoloChat.get(hit.conversationId)
+	return botId ? { kind: "bot", id: botId } : null
+}
+
+type ResultOpening = (target: SearchTarget) => void
+
+const toMessageResult = (
+	hit: MessageHit,
+	row: SearchRow,
+	lookups: SearchLookups,
+	open: ResultOpening,
+): SearchPaletteResult => ({
+	id: `message-${hit.messageId}`,
+	identity: identityOfMessage(hit, lookups),
+	title: hit.snippet.map((part, index) => ({
+		key: `${index}`,
+		text: part.text,
+		isMatch: part.matched,
+	})),
+	timestamp: rosterTimestamp(hit.createdAt, lookups.now),
+	parts: [
+		{ key: "author", text: authorNameOf(hit, lookups) },
+		hit.conversationKind === "main"
+			? soloPart()
+			: { key: "conversation", text: hit.conversationTitle },
+	],
+	space: lookups.spaceOf(hit.spaceId),
+	onOpen: () => open({ kind: "chat", row, spaceId: hit.spaceId }),
+})
+
+const toChatResult = (
+	chat: CatalogueChat,
+	row: SearchRow,
+	query: string,
+	lookups: SearchLookups,
+	open: ResultOpening,
+): SearchPaletteResult => ({
+	id: `chat-${chat.conversationId}`,
+	identity: identityOfChat(chat, lookups),
+	title: markedTitle(chat.title, query),
+	timestamp: "",
+	parts: [
+		chat.kind === "main"
+			? soloPart()
+			: { key: "participants", text: chat.participants.join(", ") },
+	],
+	space: lookups.spaceOf(chat.spaceId),
+	onOpen: () => open({ kind: "chat", row, spaceId: chat.spaceId }),
+})
+
+const toMissionResult = (
+	mission: CatalogueMission,
+	query: string,
+	lookups: SearchLookups,
+	open: ResultOpening,
+): SearchPaletteResult => ({
+	id: `mission-${mission.id}`,
+	identity: {
+		kind: "mission",
+		bot: missionBotOf(mission.botId, lookups),
+		badge: badgeOfMissionState(mission.state) ?? NEUTRAL_BADGE,
+		mark: missionTicketPlatform(mission.ticketPlatform).Mark,
+	},
+	title: markedTitle(mission.objective, query),
+	timestamp: "",
+	identifier: mission.ticketExternalId,
+	parts: [{ key: "ticket", text: mission.ticketTitle }],
+	space: lookups.spaceOf(mission.spaceId),
+	onOpen: () =>
+		open({
+			kind: "mission",
+			missionId: mission.id,
+			botId: mission.botId,
+			spaceId: mission.spaceId,
+		}),
+})
+
+const toRoutineResult = (
+	routine: CatalogueRoutine,
+	query: string,
+	lookups: SearchLookups,
+	open: ResultOpening,
+): SearchPaletteResult => ({
+	id: `routine-${routine.id}`,
+	identity: { kind: "routine", bot: missionBotOf(routine.botId, lookups) },
+	title: markedTitle(routine.title, query),
+	timestamp: "",
+	parts: [{ key: "expression", text: routine.expression ?? "" }],
+	space: lookups.spaceOf(routine.spaceId),
+	onOpen: () =>
+		open({
+			kind: "routine",
+			routineId: routine.id,
+			row: rowOfRoutine(routine, lookups),
+			conversationId: routine.conversationId,
+			spaceId: routine.spaceId,
+		}),
+})
+
+const soloChatBots = (chats: CatalogueChat[]): Map<string, string> =>
+	new Map(
+		chats.flatMap((chat) =>
+			chat.kind === "main" && chat.botId
+				? [[chat.conversationId, chat.botId] as const]
+				: [],
+		),
+	)
+
+const groupOf = (
+	kind: SearchResultGroup["kind"],
+	results: SearchPaletteResult[],
+): SearchResultGroup => ({ kind, total: results.length, results })
+
+export type SearchGrouping = {
+	read: SearchRead
+	recents: CatalogueChat[]
+	query: string
+	lookups: SearchLookups
+	open: ResultOpening
+}
+
+export const toSearchGroups = ({
+	read,
+	recents,
+	query,
+	lookups,
+	open,
+}: SearchGrouping): SearchResultGroup[] => {
+	const botOfSoloChat = soloChatBots([...read.chats, ...recents])
+
+	return [
+		groupOf(
+			"messages",
+			read.messages.flatMap((hit) => {
+				const row = messageRowOf(hit, botOfSoloChat)
+				return row ? [toMessageResult(hit, row, lookups, open)] : []
+			}),
+		),
+		groupOf(
+			"chats",
+			read.chats.flatMap((chat) => {
+				const row = rowOfChat(chat)
+				return row ? [toChatResult(chat, row, query, lookups, open)] : []
+			}),
+		),
+		groupOf(
+			"missions",
+			read.missions.map((mission) =>
+				toMissionResult(mission, query, lookups, open),
+			),
+		),
+		groupOf(
+			"routines",
+			read.routines.map((routine) =>
+				toRoutineResult(routine, query, lookups, open),
+			),
+		),
+	]
+}
+
+export const toRecentResults = (
+	recents: CatalogueChat[],
+	lookups: SearchLookups,
+	open: ResultOpening,
+): SearchPaletteResult[] =>
+	recents.flatMap((chat) => {
+		const row = rowOfChat(chat)
+		return row ? [toChatResult(chat, row, "", lookups, open)] : []
+	})
+
+export type VisibleResults = {
+	query: string
+	tab: SearchTab
+	groups: SearchResultGroup[]
+	recents: SearchPaletteResult[]
+}
+
+export const visibleResults = ({
+	query,
+	tab,
+	groups,
+	recents,
+}: VisibleResults): SearchPaletteResult[] => {
+	if (query === "") {
+		return recents
+	}
+
+	return groups
+		.filter(
+			(group) =>
+				group.results.length > 0 && (tab === "all" || group.kind === tab),
+		)
+		.flatMap((group) =>
+			tab === "all" ? group.results.slice(0, SHOWN_PER_KIND) : group.results,
+		)
+}

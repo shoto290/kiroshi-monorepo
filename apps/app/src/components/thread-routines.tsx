@@ -1,4 +1,4 @@
-import { type ReactNode, useMemo } from "react"
+import { type ReactNode, useMemo, useSyncExternalStore } from "react"
 
 import {
 	type RoutinesFailure,
@@ -13,11 +13,14 @@ import {
 	type MissionThreadRuntimes,
 	useWaitingMissions,
 } from "@/lib/missions/use-waiting-missions"
+import type { OpenedRoutineController } from "@/lib/routines/opened-routine-controller"
+import { useOpenedRoutine } from "@/lib/routines/use-opened-routine"
 import { useRoutines } from "@/lib/routines/use-routines"
 
 type ActivityPanel = {
 	isOpen: boolean
 	onOpenChange: (isOpen: boolean) => void
+	openedRoutine: OpenedRoutineController
 }
 
 type ThreadRoutinesProps = {
@@ -63,6 +66,17 @@ const ThreadRoutines = ({
 		form,
 		detail,
 	} = useRoutines(conversationId, leadBotId)
+	const opened = useSyncExternalStore(
+		activityPanel.openedRoutine.subscribe,
+		activityPanel.openedRoutine.getState,
+	)
+	useOpenedRoutine({
+		opened,
+		conversationId,
+		routines,
+		onOpen: detail.onOpen,
+		onTaken: activityPanel.openedRoutine.leave,
+	})
 	const waitingMissionIds = useWaitingMissions(runtimes, missions.open)
 	const rows = useMemo(
 		() =>
