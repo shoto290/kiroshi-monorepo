@@ -355,28 +355,6 @@ export function createChatController(
 		settleReply(bot, message.id, completion, conversationId)
 	}
 
-	const recordQuestion = (
-		bot: BotChat,
-		request: QuestionRequest,
-		conversationId: string,
-	) => {
-		if (bot.state.question?.id !== request.id) {
-			return
-		}
-		writeReply(
-			bot,
-			{
-				id: questionMessageIdOf(request.id),
-				role: "assistant",
-				text: questionMessageText(request),
-				completion: "complete",
-				timestamp: now(),
-			},
-			"complete",
-			conversationId,
-		)
-	}
-
 	const settleHeldReply = (
 		bot: BotChat,
 		completion: TerminalCompletion,
@@ -416,6 +394,29 @@ export function createChatController(
 		for (const id of [...bot.openMessages.keys()]) {
 			settleReply(bot, id, completion, conversationId)
 		}
+	}
+
+	const recordQuestion = (
+		bot: BotChat,
+		request: QuestionRequest,
+		conversationId: string,
+	) => {
+		if (bot.state.question?.id !== request.id) {
+			return
+		}
+		settleOpenReplies(bot, "complete", conversationId)
+		writeReply(
+			bot,
+			{
+				id: questionMessageIdOf(request.id),
+				role: "assistant",
+				text: questionMessageText(request),
+				completion: "complete",
+				timestamp: now(),
+			},
+			"complete",
+			conversationId,
+		)
 	}
 
 	const endTurn = (
