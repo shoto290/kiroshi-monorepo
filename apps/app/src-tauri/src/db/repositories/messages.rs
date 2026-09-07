@@ -1278,10 +1278,19 @@ mod tests {
 			.expect("the page is read")
 	}
 
-	async fn around(database: &Database, seq: i64, limit: u32) -> Option<MessagesAround> {
+	async fn around(
+		database: &Database,
+		conversation: &str,
+		seq: i64,
+		limit: u32,
+	) -> Option<MessagesAround> {
 		database
 			.messages()
-			.messages_around(MessagesAroundQuery { conversation_id: "c1".into(), seq, limit })
+			.messages_around(MessagesAroundQuery {
+				conversation_id: conversation.into(),
+				seq,
+				limit,
+			})
 			.await
 			.expect("the window is read")
 	}
@@ -1838,14 +1847,27 @@ mod tests {
 		let dir = temp_dir();
 		let database = seeded(&dir).await;
 		a_turn(&database, "t1", "c1").await;
+		a_turn(&database, "t2", "c2").await;
 		some_user_messages(&database, LONG_CONVERSATION).await;
+		for index in 0..3 {
+			database
+				.messages()
+				.append_user_message(NewUserMessage {
+					conversation_id: "c2".into(),
+					turn_id: "t2".into(),
+					..a_user_message(&format!("short{index}"), "hello", 1)
+				})
+				.await
+				.expect("the short conversation's message is appended");
+		}
 		let last = LONG_CONVERSATION as i64;
 
-		let middle = around(&database, 100, 11).await.expect("the centre message is there");
-		let start = around(&database, 1, 11).await.expect("the first message is there");
-		let end = around(&database, last, 11).await.expect("the last message is there");
-		let alone = around(&database, 100, 1).await.expect("the centre message is there");
-		let none = around(&database, last + 1, 11).await;
+		let middle = around(&database, "c1", 100, 11).await.expect("the centre message is there");
+		let start = around(&database, "c1", 1, 11).await.expect("the first message is there");
+		let end = around(&database, "c1", last, 11).await.expect("the last message is there");
+		let alone = around(&database, "c1", 100, 1).await.expect("the centre message is there");
+		let none = around(&database, "c1", last + 1, 11).await;
+		let whole = around(&database, "c2", 2, 11).await.expect("the centre message is there");
 
 		assert_eq!(
 			seqs(&middle.messages),
@@ -1877,6 +1899,15 @@ mod tests {
 		);
 		assert!(alone.has_older && alone.has_newer, "a window of one lost sight of both sides");
 		assert!(none.is_none(), "a seq no row carries came back as a window");
+		assert_eq!(
+			seqs(&whole.messages),
+			vec![1, 2, 3],
+			"a conversation shorter than the limit did not come back whole"
+		);
+		assert!(
+			!whole.has_older && !whole.has_newer,
+			"a window holding the whole conversation promised messages on one of its sides"
+		);
 
 		drop(database);
 		fs::remove_dir_all(&dir).expect("cleanup");
