@@ -287,6 +287,18 @@ describe("a landing window nobody is waiting for", () => {
 		return { controller: createTranscriptController(port), release }
 	}
 
+	const leftMidLanding = async () => {
+		const { controller, release } = gatedLanding()
+		await controller.load(CONVERSATION)
+
+		const landing = controller.askLanding(CONVERSATION, EARLIER_SEQ)()
+		controller.leave(CONVERSATION)
+		release()
+		await landing
+
+		return controller
+	}
+
 	it("installs the window while the reader stays in the thread", async () => {
 		const { controller, release } = gatedLanding()
 
@@ -312,26 +324,14 @@ describe("a landing window nobody is waiting for", () => {
 	})
 
 	it("installs no window when the reader leaves while the read is in flight", async () => {
-		const { controller, release } = gatedLanding()
-		await controller.load(CONVERSATION)
-
-		const landing = controller.askLanding(CONVERSATION, EARLIER_SEQ)()
-		controller.leave(CONVERSATION)
-		release()
-		await landing
+		const controller = await leftMidLanding()
 
 		expect(idsOf(controller)).not.toContain(`m-${EARLIER_SEQ}`)
 		expect(selectHasNewer(controller.getState(), CONVERSATION)).toBe(false)
 	})
 
 	it("shows a message appended to the thread the reader left that way", async () => {
-		const { controller, release } = gatedLanding()
-		await controller.load(CONVERSATION)
-
-		const landing = controller.askLanding(CONVERSATION, EARLIER_SEQ)()
-		controller.leave(CONVERSATION)
-		release()
-		await landing
+		const controller = await leftMidLanding()
 
 		controller.append(draft({ id: "said-while-away" }))
 
