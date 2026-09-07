@@ -20,8 +20,6 @@ export type ConnectPass = {
 	wait?: (ms: number) => Promise<void>
 }
 
-const NO_ENV: ServerEnv = {}
-
 export const MCP_CONNECT_MS = 15_000
 
 const PENDING_POLL = 250
@@ -113,7 +111,7 @@ const readable = (reason: string, secrets: string[]): string =>
 const reportPass = async ({
 	names,
 	port,
-	env = NO_ENV,
+	env = {},
 	wait = delay,
 }: ConnectPass): Promise<string[]> => {
 	const settled = await settledStatuses(port, names, wait)
