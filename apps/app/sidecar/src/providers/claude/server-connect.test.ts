@@ -2,6 +2,7 @@ import { describe, expect, it } from "bun:test"
 
 import {
 	type ConnectPort,
+	MCP_CONNECT_MS,
 	type ServerStatus,
 	sectionPrefixer,
 	unconnectedServers,
@@ -13,17 +14,17 @@ import type { ServerEnv } from "../provider"
 const portReading = (
 	reads: ServerStatus[][],
 	reconnect: (name: string) => Promise<void> = async () => {},
-): ConnectPort & { reconnected: string[] } => {
-	const reconnected: string[] = []
-	let read = 0
-	return {
-		reconnected,
-		status: async () => reads[Math.min(read++, reads.length - 1)] ?? [],
-		reconnect: async (name) => {
-			reconnected.push(name)
+): ConnectPort & { reconnected: string[]; reads: number } => {
+	const port = {
+		reconnected: [] as string[],
+		reads: 0,
+		status: async () => reads[Math.min(port.reads++, reads.length - 1)] ?? [],
+		reconnect: async (name: string) => {
+			port.reconnected.push(name)
 			await reconnect(name)
 		},
 	}
+	return port
 }
 
 const failed = (error?: string): ServerStatus[] => [
@@ -48,6 +49,49 @@ describe("unconnectedServers", () => {
 			`${unavailableServersSection(details)}\n\nwhat is the plan?`,
 		)
 		expect(prefix("and then?")).toBe("and then?")
+	})
+
+	it("waits past five seconds for a server still connecting under MCP_CONNECT_MS", async () => {
+		const pending: ServerStatus[] = [{ name: "superset", status: "pending" }]
+		let waited = 0
+		const port = {
+			reconnected: [] as string[],
+			status: async () => (waited < 6_000 ? pending : connected),
+			reconnect: async (name: string) => {
+				port.reconnected.push(name)
+			},
+		}
+
+		const details = await unconnectedServers({
+			names: ["superset"],
+			port,
+			wait: async (ms) => {
+				waited += ms
+			},
+		})
+
+		expect(details).toEqual([])
+		expect(port.reconnected).toEqual([])
+		expect(waited).toBeGreaterThan(5_000)
+		expect(waited).toBeLessThanOrEqual(MCP_CONNECT_MS)
+	})
+
+	it("settles a server left pending by its reconnection before deciding", async () => {
+		const port = portReading([
+			failed("first attempt refused"),
+			[{ name: "superset", status: "pending" }],
+			connected,
+		])
+
+		const details = await unconnectedServers({
+			names: ["superset"],
+			port,
+			wait: async () => {},
+		})
+
+		expect(details).toEqual([])
+		expect(port.reads).toBe(3)
+		expect(port.reconnected).toEqual(["superset"])
 	})
 
 	it("reads the status again while a server stays pending", async () => {

@@ -13,7 +13,12 @@ import { kiroshiServer } from "./kiroshi-server"
 import { createPermissionGate } from "./permissions"
 import { createPromptStream } from "./prompt-stream"
 import { securityFloor } from "./security-floor"
-import { sectionPrefixer, unconnectedServers } from "./server-connect"
+import {
+	type ConnectPass,
+	MCP_CONNECT_MS,
+	sectionPrefixer,
+	unconnectedServers,
+} from "./server-connect"
 import { type ResolvedServers, resolvedServers } from "./server-env"
 import { inheritedEnv } from "./session-env"
 import { layerFor } from "./system-layer"
@@ -31,7 +36,6 @@ const ABANDONED = "The session ended before this was answered."
 const ENDED = "the agent ended"
 const DISABLE_AUTO_MEMORY = "CLAUDE_CODE_DISABLE_AUTO_MEMORY"
 const MCP_TIMEOUT = "MCP_TIMEOUT"
-const MCP_CONNECT_MS = "15000"
 export const CLASSIFY_ASK_USER_QUESTION =
 	"CLAUDE_CODE_AUTO_MODE_CLASSIFY_ASK_USER_QUESTION"
 
@@ -121,13 +125,51 @@ export const buildOptions = (
 			...inheritedEnv(),
 			[DISABLE_AUTO_MEMORY]: "1",
 			[CLASSIFY_ASK_USER_QUESTION]: "0",
-			[MCP_TIMEOUT]: MCP_CONNECT_MS,
+			[MCP_TIMEOUT]: String(MCP_CONNECT_MS),
 		},
 		managedSettings,
 		settingSources: [],
 		strictMcpConfig: true,
 		pathToClaudeCodeExecutable: resolveExecutable(),
 		stderr: () => {},
+	}
+}
+
+export type ConnectionReport = {
+	emit: EmitFrame
+	push: (text: string) => void
+	pass: ConnectPass
+}
+
+const afterOpenedFrame = <T>(work: () => Promise<T>): Promise<T> =>
+	new Promise((resolve) => {
+		setTimeout(() => resolve(work()), 0)
+	})
+
+export const reportConnections = ({ emit, push, pass }: ConnectionReport) => {
+	const held: string[] = []
+	let prefix: ((text: string) => string) | undefined
+
+	const release = (details: string[]) => {
+		for (const detail of details) {
+			emit({ type: "server_env_rejected", detail })
+		}
+		prefix = sectionPrefixer(details)
+		for (const text of held.splice(0)) {
+			push(prefix(text))
+		}
+	}
+
+	void afterOpenedFrame(() => unconnectedServers(pass)).then(release, () =>
+		release([]),
+	)
+
+	return (text: string) => {
+		if (prefix) {
+			push(prefix(text))
+			return
+		}
+		held.push(text)
 	}
 }
 
@@ -187,21 +229,19 @@ export const openClaudeSession = async (
 
 	emit({ type: "commands", commands: described(initialized.commands) })
 
-	const unconnected = await unconnectedServers({
-		names: Object.keys(resolved.servers),
-		port: {
-			status: () => run.mcpServerStatus(),
-			reconnect: (name) => run.reconnectMcpServer(name),
-		},
-		env: request.serverEnv,
-	})
-	for (const detail of unconnected) {
-		emit({ type: "server_env_rejected", detail })
-	}
-	const prefixed = sectionPrefixer(unconnected)
-
 	return {
-		prompt: (text: string) => prompts.push(prefixed(text)),
+		prompt: reportConnections({
+			emit,
+			push: prompts.push,
+			pass: {
+				names: Object.keys(resolved.servers),
+				port: {
+					status: () => run.mcpServerStatus(),
+					reconnect: (name) => run.reconnectMcpServer(name),
+				},
+				env: request.serverEnv,
+			},
+		}),
 		interrupt: async () => {
 			await run.interrupt()
 		},

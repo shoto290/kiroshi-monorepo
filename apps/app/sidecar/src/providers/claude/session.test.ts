@@ -8,7 +8,12 @@ import type { Settings } from "@anthropic-ai/claude-agent-sdk"
 import { claudeSourceExecutable } from "./build"
 import { EXECUTABLE_OVERRIDE_ENV } from "./executable"
 import { KIROSHI_SERVER } from "./kiroshi-server"
-import { buildOptions, CLASSIFY_ASK_USER_QUESTION } from "./session"
+import type { ServerStatus } from "./server-connect"
+import {
+	buildOptions,
+	CLASSIFY_ASK_USER_QUESTION,
+	reportConnections,
+} from "./session"
 import {
 	bundleLine,
 	KIROSHI_LAYER,
@@ -562,5 +567,103 @@ describe("layerFor", () => {
 			[identity, KIROSHI_LAYER, bundleLine("/bots/b1")].join("\n\n"),
 		)
 		expect(layerFor({ pluginPath: "/bots/b1" })).not.toContain(identity)
+	})
+})
+
+describe("reportConnections", () => {
+	const refused: ServerStatus[] = [
+		{ name: "superset", status: "failed", error: "refused" },
+	]
+
+	const detail =
+		'the server "superset" was left out: two connection attempts failed, refused'
+
+	it("lets the session be announced before the pass reads a status", async () => {
+		const order: string[] = []
+		const read = Promise.withResolvers<void>()
+
+		reportConnections({
+			emit: (frame) => {
+				order.push(String(frame.type))
+			},
+			push: () => {},
+			pass: {
+				names: ["superset"],
+				port: {
+					status: async () => {
+						order.push("status")
+						read.resolve()
+						return [{ name: "superset", status: "connected" }]
+					},
+					reconnect: async () => {},
+				},
+			},
+		})
+		order.push("opened")
+
+		expect(order).toEqual(["opened"])
+
+		await read.promise
+
+		expect(order).toEqual(["opened", "status"])
+	})
+
+	it("holds every prompt behind the pass and prefixes the first it releases", async () => {
+		const pushed: string[] = []
+		const released = Promise.withResolvers<void>()
+		const prompt = reportConnections({
+			emit: () => {},
+			push: (text) => {
+				pushed.push(text)
+				if (pushed.length === 2) {
+					released.resolve()
+				}
+			},
+			pass: {
+				names: ["superset"],
+				port: {
+					status: async () => refused,
+					reconnect: async () => {},
+				},
+			},
+		})
+
+		prompt("first")
+		prompt("second")
+
+		expect(pushed).toEqual([])
+
+		await released.promise
+
+		expect(pushed).toEqual([
+			`${unavailableServersSection([detail])}\n\nfirst`,
+			"second",
+		])
+	})
+
+	it("releases every held prompt unprefixed when the pass gives up", async () => {
+		const pushed: string[] = []
+		const released = Promise.withResolvers<void>()
+		const prompt = reportConnections({
+			emit: () => {},
+			push: (text) => {
+				pushed.push(text)
+				released.resolve()
+			},
+			pass: {
+				names: ["superset"],
+				port: {
+					status: async () => {
+						throw new Error("the query is gone")
+					},
+					reconnect: async () => {},
+				},
+			},
+		})
+
+		prompt("first")
+		await released.promise
+
+		expect(pushed).toEqual(["first"])
 	})
 })

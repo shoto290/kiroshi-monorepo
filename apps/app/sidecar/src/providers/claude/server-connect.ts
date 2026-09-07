@@ -17,14 +17,18 @@ export type ConnectPass = {
 	names: string[]
 	port: ConnectPort
 	env?: ServerEnv
+	wait?: (ms: number) => Promise<void>
 }
 
 const NO_ENV: ServerEnv = {}
 
+export const MCP_CONNECT_MS = 15_000
+
 const PENDING_POLL = 250
-const PENDING_WAIT = 5_000
+const PENDING_POLLS = Math.ceil(MCP_CONNECT_MS / PENDING_POLL)
+const PENDING_WAIT = PENDING_POLLS * PENDING_POLL
 const RECONNECT_LIMIT = 20_000
-const PASS_LIMIT = 30_000
+const PASS_LIMIT = PENDING_WAIT * 2 + RECONNECT_LIMIT
 const REASON_LIMIT = 300
 const REDACTED = "[redacted]"
 const NO_REASON = "no reason given"
@@ -67,11 +71,15 @@ const notConnected = (statuses: ServerStatus[], names: string[]): string[] => {
 const settledStatuses = async (
 	port: ConnectPort,
 	names: string[],
+	wait: (ms: number) => Promise<void>,
 ): Promise<ServerStatus[]> => {
-	const until = Date.now() + PENDING_WAIT
 	let statuses = await port.status()
-	while (stillPending(statuses, names) && Date.now() < until) {
-		await delay(PENDING_POLL)
+	for (
+		let poll = 0;
+		poll < PENDING_POLLS && stillPending(statuses, names);
+		poll += 1
+	) {
+		await wait(PENDING_POLL)
 		statuses = await port.status()
 	}
 	return statuses
@@ -106,8 +114,9 @@ const reportPass = async ({
 	names,
 	port,
 	env = NO_ENV,
+	wait = delay,
 }: ConnectPass): Promise<string[]> => {
-	const settled = await settledStatuses(port, names)
+	const settled = await settledStatuses(port, names, wait)
 	const unconnected = notConnected(settled, names)
 	if (unconnected.length === 0) {
 		return []
@@ -119,7 +128,7 @@ const reportPass = async ({
 			),
 		),
 	)
-	const after = await port.status()
+	const after = await settledStatuses(port, unconnected, wait)
 	const secrets = storedValues(env)
 	return notConnected(after, unconnected).map((name) => {
 		const reason =

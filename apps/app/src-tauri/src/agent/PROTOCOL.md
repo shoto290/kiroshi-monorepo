@@ -153,8 +153,10 @@ Every other command names its session.
   read, leaves out every server declaring a variable and rides the same frame. A server
   the options did keep is read once the session is initialized: still not connected after
   a wait on its pending state and a single reconnection, it rides the same frame naming
-  the server and the reason its two attempts failed, and the first prompt of the session
-  carries that same line. No resolved value is ever named in a frame or a log line: a
+  the server and the reason its two attempts failed, and the first prompt released after
+  that read carries that same line. The session opens without waiting on that read: the
+  `opened` frame goes out first and the prompts wait behind the read, in the order they
+  were received. No resolved value is ever named in a frame or a log line: a
   reason is cut at 300 characters and every value the store holds reads `[redacted]` in
   it.
 
@@ -182,7 +184,7 @@ The frame is an `SDKMessage` verbatim, plus the four the sidecar adds itself.
 | `control_request` / `can_use_tool` | the sidecar, from `canUseTool` | `permissionRequested` |
 | `control_request` / `can_use_tool`, tool `AskUserQuestion` | the sidecar, from `canUseTool` | `questionRequested` |
 | `settings_rejected` | the sidecar, when the bot's `settings.json` is refused in part or in whole | `failed` — `settingsRejected`, the frame's `detail` as its reason |
-| `server_env_rejected` | the sidecar, when a declared MCP server is left out for want of a variable, or when a kept server did not connect in two attempts | nothing yet — the host reads no notice from it |
+| `server_env_rejected` | the sidecar, when a declared MCP server is left out for want of a variable, or when a kept server did not connect in two attempts | `failed` — `serverEnvRejected`, raised as a non terminal notice reading the frame's `detail` and telling the reader the conversation carries on with the other servers |
 
 Every other `SDKMessage` type is dropped: `translate.rs` reads what the contract
 needs and nothing else, so a new SDK message is inert until it is asked for.
