@@ -30,6 +30,7 @@ import { describeError } from "../../describe-error"
 const ABANDONED = "The session ended before this was answered."
 const ENDED = "the agent ended"
 const DISABLE_AUTO_MEMORY = "CLAUDE_CODE_DISABLE_AUTO_MEMORY"
+const SLASH_COMMAND = /^\/[^\s/]+(\s|$)/
 export const CLASSIFY_ASK_USER_QUESTION =
 	"CLAUDE_CODE_AUTO_MODE_CLASSIFY_ASK_USER_QUESTION"
 
@@ -184,16 +185,17 @@ export const reportConnections = ({ emit, push, pass }: ConnectionReport) => {
 	}
 
 	const hand = (text: string) => {
-		if (waiting.length === 0) {
+		for (const line of waiting) {
+			if (!line.framed) {
+				framed(line.detail)
+				line.framed = true
+			}
+		}
+		if (waiting.length === 0 || SLASH_COMMAND.test(text)) {
 			push(text)
 			return
 		}
 		const carried = waiting.splice(0)
-		for (const line of carried) {
-			if (!line.framed) {
-				framed(line.detail)
-			}
-		}
 		const section = unavailableServersSection(
 			carried.map((line) => line.detail),
 		)

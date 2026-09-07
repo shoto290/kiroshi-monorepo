@@ -589,6 +589,28 @@ describe("layerFor", () => {
 		)
 	})
 
+	it("claims no server was left out when none was, and says the tools are back", () => {
+		const section = unavailableServersSection([
+			'the server "superset" was reconnected, and its tools are back',
+		])
+
+		expect(section).not.toContain("was left out")
+		expect(section).not.toContain("that server is unavailable")
+		expect(section).toContain("# Where the servers of this session stand")
+		expect(section).toContain("holds its tools again")
+	})
+
+	it("claims no server was left out for a server still connecting", () => {
+		const section = unavailableServersSection([
+			'the server "superset" is still connecting after 4750 ms',
+		])
+
+		expect(section).not.toContain("was left out")
+		expect(section).not.toContain("that server is unavailable")
+		expect(section).toContain("# Where the servers of this session stand")
+		expect(section).toContain("holds none of its tools yet")
+	})
+
 	it("tells the bot a server still connecting can hold its tools later", () => {
 		const section = unavailableServersSection([
 			'the server "superset" is still connecting after 4750 ms',
@@ -754,6 +776,43 @@ describe("reportConnections", () => {
 		report.prompt("second")
 
 		expect(pushed[1]).toBe(`${unavailableServersSection([answered])}\n\nsecond`)
+	})
+
+	it("hands a slash command untouched, and the line to the prompt after it", async () => {
+		const order: string[] = []
+		const pushed: string[] = []
+		const handed = Promise.withResolvers<void>()
+		const report = reportConnections({
+			emit: (frame) => {
+				order.push(`frame ${String(frame.detail)}`)
+			},
+			push: (text) => {
+				order.push(`prompt ${text}`)
+				pushed.push(text)
+				handed.resolve()
+			},
+			pass: refusing(),
+		})
+
+		report.prompt("/compact")
+		await handed.promise
+
+		expect(pushed).toEqual(["/compact"])
+		expect(order).toEqual([`frame ${detail}`, "prompt /compact"])
+
+		report.prompt("and now?")
+
+		expect(pushed[1]).toBe(`${section}\n\nand now?`)
+		expect(order.filter((step) => step.startsWith("frame"))).toHaveLength(1)
+	})
+
+	it("takes a path for the prompt it is, not for a slash command", async () => {
+		const { pushed, settled, report } = reporting(refusing())
+
+		report.prompt("/Users/shoto/notes.md needs a read")
+		await settled
+
+		expect(pushed).toEqual([`${section}\n\n/Users/shoto/notes.md needs a read`])
 	})
 
 	it("emits no frame while the pass settles on its own", async () => {

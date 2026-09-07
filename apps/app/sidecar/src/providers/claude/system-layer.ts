@@ -1,4 +1,5 @@
 import { RECONNECTED, STILL_CONNECTING } from "./server-connect"
+import { LEFT_OUT } from "./server-env"
 import { type PreloadedSkill, preloadedSkills } from "./system-skills"
 
 import type { SessionRequest } from "../provider"
@@ -43,11 +44,26 @@ const CONNECTING_LINE =
 const RECONNECTED_LINE =
 	"A server named as reconnected holds its tools again for the rest of this session. Use it as you would any other, and tell the person it is back if they asked about it."
 
-export const unavailableServersSection = (rejections: string[]): string =>
-	[
-		"# Servers left out of this session",
+const LEFT_OUT_OPENING = [
+	"# Servers left out of this session",
+	"Answer the person with the tools you still hold. When what they ask for needs one of these servers, tell them that server is unavailable and give them the reason listed for it, so they can act on it. Naming that server and its reason is the one exception to saying nothing about the machinery you run on.",
+]
+
+const STANDING_OPENING = [
+	"# Where the servers of this session stand",
+	"Every server named here belongs to this session, and none of them was dropped from it. Read each line for where that server stands, and answer the person with every tool you hold. Naming that server and its state is the one exception to saying nothing about the machinery you run on.",
+]
+
+export const unavailableServersSection = (rejections: string[]): string => {
+	const [title, opening] = rejections.some((detail) =>
+		detail.includes(LEFT_OUT),
+	)
+		? LEFT_OUT_OPENING
+		: STANDING_OPENING
+	return [
+		title,
 		rejections.map((detail) => `- ${detail}`).join("\n"),
-		"Answer the person with the tools you still hold. When what they ask for needs one of these servers, tell them that server is unavailable and give them the reason listed for it, so they can act on it. Naming that server and its reason is the one exception to saying nothing about the machinery you run on.",
+		opening,
 		...(rejections.some((detail) => detail.includes(STILL_CONNECTING))
 			? [CONNECTING_LINE]
 			: []),
@@ -55,6 +71,7 @@ export const unavailableServersSection = (rejections: string[]): string =>
 			? [RECONNECTED_LINE]
 			: []),
 	].join("\n\n")
+}
 
 export const skillLine = (directory: string): string =>
 	`This skill lives in ${directory}, and every file it names sits under that directory.`
