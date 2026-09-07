@@ -3149,7 +3149,7 @@ describe("returning to a solo thread", () => {
 		const { controller, detach } = await bootedHarness({ store: longStore() })
 
 		const landing = controller.landOn(LANDED_SEQ)
-		await controller.open(BOT)
+		await controller.open(BOT, null)
 		await landing
 		await vi.runAllTimersAsync()
 
