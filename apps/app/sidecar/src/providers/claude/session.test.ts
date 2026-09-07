@@ -609,8 +609,7 @@ describe("layerFor", () => {
 describe("reportConnections", () => {
 	const refused: ServerStatus[] = [{ name: "superset", status: "failed" }]
 
-	const detail =
-		'the server "superset" was left out: two connection attempts failed, it read failed'
+	const detail = 'the server "superset" was left out: it read failed'
 
 	const section = unavailableServersSection([detail])
 

@@ -152,13 +152,15 @@ Every other command names its session.
   frame naming the server and the variable. `failure`, set when the store could not be
   read, leaves out every server declaring a variable and rides the same frame. A server
   the options did keep is read once the session is initialized. A read that names it
-  failed earns it one reconnection, and it rides the same frame naming the server and the
-  reason its two attempts failed. A read that leaves it pending earns it none, the CLI
-  retrying a failing server itself: the frame says it is still connecting after the time
-  the read spent, and names no attempt that did not take place. A server reconnected and
-  read pending right after reads both, still connecting after that time and the answer
-  its reconnection gave: the dial can outlast our own bound while the client is still on
-  it. A status read carries a
+  failed earns it one reconnection, and it rides the same frame naming the server, the
+  status its last read gave it and, when that reconnection threw, the answer it gave. A
+  line never counts connection attempts: the CLI retries a failing server on its own,
+  several times per read, so no number the sidecar could state would be true. A read that
+  leaves a server pending earns it no reconnection at all, and its line says it is still
+  connecting after the time the read spent. A server reconnected and read pending right
+  after reads both, still connecting after that time and the answer its reconnection
+  gave: the dial can outlast our own bound while the client is still on it. A server no
+  reconnection was requested for never carries one in its line. A status read carries a
   name and a status alone, so that reason is built from the status the last read named,
   the time the read had spent, and the message the reconnection threw, and from nothing
   else: the cause the CLI knows, a 401 or a refused socket, never crosses the control

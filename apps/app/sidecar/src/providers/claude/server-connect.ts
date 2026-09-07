@@ -58,7 +58,6 @@ const REASON_LIMIT = 300
 const SECRET_FLOOR = 8
 const REDACTED = "[redacted]"
 const NO_READ = "no status read ever named it"
-const TWO_ATTEMPTS = "two connection attempts failed"
 const AWAITING_AUTH = "it is waiting for you to authorize it"
 const STILL_CONNECTING = "it is still connecting"
 const GAVE_UP = "the connection pass gave up on"
@@ -220,7 +219,7 @@ const lineFor = (
 	if (status === "pending") {
 		return leftOut(name, `${STILL_CONNECTING} after ${spent} ms${answered}`)
 	}
-	return leftOut(name, `${TWO_ATTEMPTS}, it read ${status}${answered}`)
+	return leftOut(name, `it read ${status}${answered}`)
 }
 
 const reportPass = async (

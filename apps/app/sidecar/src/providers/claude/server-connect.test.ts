@@ -64,13 +64,65 @@ const capture = (): { written: string[]; restore: () => void } => {
 const leftOut = 'the server "superset" was left out: '
 
 describe("unconnectedServers", () => {
+	it("claims a reconnection for the server it dialled, and none for the other", async () => {
+		const clock = ticking(250)
+		const reconnected: string[] = []
+		let dialled = false
+
+		const details = await unconnectedServers({
+			names: ["superset", "clock"],
+			port: {
+				status: async () => [
+					{ name: "superset", status: "failed" },
+					{ name: "clock", status: dialled ? "failed" : "pending" },
+				],
+				reconnect: async (name) => {
+					reconnected.push(name)
+					dialled = true
+					throw new Error("Connection failed")
+				},
+			},
+			now: clock.now,
+			wait: clock.wait,
+		})
+
+		expect(reconnected).toEqual(["superset"])
+		expect(details).toEqual([
+			`${leftOut}it read failed, and the reconnection answered: Connection failed`,
+			'the server "clock" was left out: it read failed',
+		])
+	})
+
+	it("names no count of connection attempts in any line it builds", async () => {
+		const built = [
+			...(await unconnectedServers({
+				names: ["superset"],
+				port: portReading([failed], throwing("Connection failed")),
+			})),
+			...(await unconnectedServers({
+				names: ["superset"],
+				port: portReading([pending]),
+				...ticking(250),
+			})),
+			...(await unconnectedServers({
+				names: ["superset"],
+				port: portReading([[{ name: "superset", status: "needs-auth" }]]),
+			})),
+		]
+
+		expect(built).toHaveLength(3)
+		for (const line of built) {
+			expect(line).not.toContain("attempts")
+		}
+	})
+
 	it("names the status of the last read and what the reconnection threw", async () => {
 		const port = portReading([failed], throwing("Connection failed"))
 
 		const details = await unconnectedServers({ names: ["superset"], port })
 
 		expect(details).toEqual([
-			`${leftOut}two connection attempts failed, it read failed, and the reconnection answered: Connection failed`,
+			`${leftOut}it read failed, and the reconnection answered: Connection failed`,
 		])
 		expect(port.reconnected).toEqual(["superset"])
 	})
@@ -89,7 +141,7 @@ describe("unconnectedServers", () => {
 		})
 
 		expect(details).toEqual([
-			`${leftOut}two connection attempts failed, it read failed, and the reconnection answered: Connection failed`,
+			`${leftOut}it read failed, and the reconnection answered: Connection failed`,
 		])
 		expect(clock.now()).toBe(POLL_BUDGET_MS)
 	})
@@ -214,7 +266,7 @@ describe("unconnectedServers", () => {
 		})
 
 		expect(details).toEqual([
-			`${leftOut}two connection attempts failed, it read failed, and the reconnection answered: Connection failed`,
+			`${leftOut}it read failed, and the reconnection answered: Connection failed`,
 		])
 	})
 
@@ -247,7 +299,7 @@ describe("unconnectedServers", () => {
 		})
 
 		expect(details).toEqual([
-			`${leftOut}two connection attempts failed, it read failed, and the reconnection answered: the reconnection outlasted its 5 ms deadline`,
+			`${leftOut}it read failed, and the reconnection answered: the reconnection outlasted its 5 ms deadline`,
 		])
 		expect(clock.now()).toBe(POLL_BUDGET_MS)
 	})
@@ -296,9 +348,7 @@ describe("unconnectedServers", () => {
 		})
 		stderr.restore()
 
-		expect(details).toEqual([
-			`${leftOut}two connection attempts failed, it read failed`,
-		])
+		expect(details).toEqual([`${leftOut}it read failed`])
 		expect(stderr.written).toEqual([
 			"the connection pass gave up on superset: a status read outlasted its 5 ms bound\n",
 		])
@@ -354,9 +404,7 @@ describe("unconnectedServers", () => {
 		stderr.restore()
 
 		expect(clock.now()).toBe(UNNAMED_GRACE_MS)
-		expect(details).toEqual([
-			`${leftOut}two connection attempts failed, it read failed`,
-		])
+		expect(details).toEqual([`${leftOut}it read failed`])
 		expect(stderr.written).toEqual([
 			"the connection pass gave up on ghost: no status read ever named it\n",
 		])
@@ -366,7 +414,7 @@ describe("unconnectedServers", () => {
 		const port = portReading([failed])
 
 		expect(await unconnectedServers({ names: ["superset"], port })).toEqual([
-			`${leftOut}two connection attempts failed, it read failed`,
+			`${leftOut}it read failed`,
 		])
 	})
 
@@ -385,7 +433,7 @@ describe("unconnectedServers", () => {
 			port,
 			env,
 		})
-		const opening = `${leftOut}two connection attempts failed, it read failed, and the reconnection answered: `
+		const opening = `${leftOut}it read failed, and the reconnection answered: `
 
 		expect(detail).toContain(`${opening}401 for [redacted] with [redacted]`)
 		expect(detail).not.toContain("wide-secret")
