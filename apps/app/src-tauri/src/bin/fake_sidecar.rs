@@ -98,10 +98,6 @@ fn servers_in_the_bundle(command: &Value) -> String {
 	read().unwrap_or_else(|| "none".to_owned())
 }
 
-fn space_of_the_session(command: &Value) -> String {
-	command["spacePluginPath"].as_str().unwrap_or("none").to_owned()
-}
-
 fn base_environment(command: &Value) -> String {
 	let read = || {
 		let named = command["serverEnv"]["base"].as_object()?;
@@ -166,7 +162,7 @@ impl Run {
 			instructions: instructions_in_the_bundle(command),
 			presented: command["identity"].as_str().unwrap_or("none").to_owned(),
 			servers: servers_in_the_bundle(command),
-			space: space_of_the_session(command),
+			space: command["spacePluginPath"].as_str().unwrap_or("none").to_owned(),
 			base_env: base_environment(command),
 			cwd: as_a_child_would_see_it(command["cwd"].as_str().unwrap_or_default()),
 			announced: false,
