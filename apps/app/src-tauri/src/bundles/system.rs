@@ -8,7 +8,7 @@ use crate::private_files;
 
 const DIR_NAME: &str = "system";
 
-const PLUGIN_NAME: &str = "opennest";
+const PLUGIN_NAME: &str = "kiroshi";
 
 const MANIFEST: &str = ".claude-plugin/plugin.json";
 
@@ -19,21 +19,21 @@ const ROUTINES: &str = "skills/routines/SKILL.md";
 const TRIGGERS: &str = ".triggers.json";
 
 const FILES: [(&str, &[u8]); 7] = [
-	(MANIFEST, include_bytes!("../../plugins/opennest/.claude-plugin/plugin.json")),
-	(TRIGGERS, include_bytes!("../../plugins/opennest/.triggers.json")),
-	(LEARN, include_bytes!("../../plugins/opennest/skills/learn/SKILL.md")),
-	(ROUTINES, include_bytes!("../../plugins/opennest/skills/routines/SKILL.md")),
+	(MANIFEST, include_bytes!("../../plugins/kiroshi/.claude-plugin/plugin.json")),
+	(TRIGGERS, include_bytes!("../../plugins/kiroshi/.triggers.json")),
+	(LEARN, include_bytes!("../../plugins/kiroshi/skills/learn/SKILL.md")),
+	(ROUTINES, include_bytes!("../../plugins/kiroshi/skills/routines/SKILL.md")),
 	(
 		"skills/learn/references/skills.md",
-		include_bytes!("../../plugins/opennest/skills/learn/references/skills.md"),
+		include_bytes!("../../plugins/kiroshi/skills/learn/references/skills.md"),
 	),
 	(
 		"skills/learn/references/mcp.md",
-		include_bytes!("../../plugins/opennest/skills/learn/references/mcp.md"),
+		include_bytes!("../../plugins/kiroshi/skills/learn/references/mcp.md"),
 	),
 	(
 		"skills/learn/references/determinism.md",
-		include_bytes!("../../plugins/opennest/skills/learn/references/determinism.md"),
+		include_bytes!("../../plugins/kiroshi/skills/learn/references/determinism.md"),
 	),
 ];
 
@@ -77,7 +77,7 @@ mod tests {
 	use super::*;
 
 	fn a_path(name: &str) -> PathBuf {
-		let path = std::env::temp_dir().join(format!("opennest-system-{name}"));
+		let path = std::env::temp_dir().join(format!("kiroshi-system-{name}"));
 		let _ = fs::remove_dir_all(&path);
 		path
 	}

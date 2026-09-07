@@ -19,7 +19,7 @@ vi.mock("react-markdown", async (importOriginal) => {
 const { I18nProvider } = await import("@workspace/ui/components/i18n-provider")
 const { Markdown } = await import("@workspace/ui/components/markdown")
 
-const SOURCE = "A **claim** with `code` and a [link](https://opennest.dev)"
+const SOURCE = "A **claim** with `code` and a [link](https://kiroshi.dev)"
 
 const page = (blocks: number, className?: string) => (
 	<I18nProvider>

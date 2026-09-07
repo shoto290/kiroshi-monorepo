@@ -39,7 +39,7 @@ const openCommand = (extra: Record<string, unknown> = {}) =>
 	)
 
 const declaringClock = () => {
-	const bundle = mkdtempSync(join(tmpdir(), "opennest-serve-env-"))
+	const bundle = mkdtempSync(join(tmpdir(), "kiroshi-serve-env-"))
 	writeFileSync(
 		join(bundle, ".mcp.json"),
 		JSON.stringify({

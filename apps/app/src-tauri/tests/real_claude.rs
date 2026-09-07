@@ -2,15 +2,15 @@ use std::path::{Path, PathBuf};
 use std::sync::Arc;
 use std::time::Duration;
 
-use opennest_app::agent::commands::check;
-use opennest_app::agent::contract::{
+use kiroshi_app::agent::commands::check;
+use kiroshi_app::agent::contract::{
 	ActivityKind, AgentEvent, ConnectionState, PermissionDecision, TurnOutcome,
 };
-use opennest_app::agent::redact;
-use opennest_app::agent::session::{Bundle, EventSink, Session, SessionOptions};
-use opennest_app::agent::sidecar::{self, Sidecar, SidecarOptions};
-use opennest_app::bundles;
-use opennest_app::db::repositories::conversations::{AvatarAnimal, Bot};
+use kiroshi_app::agent::redact;
+use kiroshi_app::agent::session::{Bundle, EventSink, Session, SessionOptions};
+use kiroshi_app::agent::sidecar::{self, Sidecar, SidecarOptions};
+use kiroshi_app::bundles;
+use kiroshi_app::db::repositories::conversations::{AvatarAnimal, Bot};
 use tokio::sync::mpsc;
 
 const TURN_TIMEOUT: Duration = Duration::from_secs(180);
@@ -52,7 +52,7 @@ async fn started_with(resume: Option<String>, bundle: Option<Bundle>, cwd: PathB
 }
 
 fn bundles_root() -> PathBuf {
-	std::env::temp_dir().join("opennest-real-claude-bundles")
+	std::env::temp_dir().join("kiroshi-real-claude-bundles")
 }
 
 const PROBE_NAME: &str = "Probe";
@@ -128,19 +128,19 @@ fn handed_over(root: &Path, bot: &Bot) -> Bundle {
 }
 
 fn system_plugin() -> PathBuf {
-	let path = std::env::temp_dir().join("opennest-real-claude-system");
+	let path = std::env::temp_dir().join("kiroshi-real-claude-system");
 	bundles::system::write(&path).expect("the app's plugin is written");
 	path
 }
 
 fn user_plugin() -> PathBuf {
-	let path = std::env::temp_dir().join("opennest-real-claude-user");
+	let path = std::env::temp_dir().join("kiroshi-real-claude-user");
 	bundles::user::lay_down(&path).expect("the person's plugin is laid down");
 	path
 }
 
 fn space_plugin() -> PathBuf {
-	let path = std::env::temp_dir().join("opennest-real-claude-space");
+	let path = std::env::temp_dir().join("kiroshi-real-claude-space");
 	bundles::space::lay_down_at(&path).expect("the space's plugin is laid down");
 	path
 }
@@ -228,7 +228,7 @@ const TITLE_LIMIT: &str = "72";
 
 const WHO_AND_WHAT: &str = "Who are you and what can you do?";
 
-const OPENNEST: &str = "opennest";
+const KIROSHI: &str = "kiroshi";
 const LEARNING_WORDS: [&str; 3] = ["learn", "remember", "skill"];
 
 const CLAUDE_CODE: &str = "claude code";
@@ -241,9 +241,9 @@ const CONCISE_WORDS: &str = "concise";
 const CONCISE_STYLE: &str = "Concise";
 const NO_STYLE: &str = "default";
 
-const WRITE_A_FILE: &str = "Write the single word OPENNEST into a file named probe.txt in your working directory. Reply with nothing but DONE.";
+const WRITE_A_FILE: &str = "Write the single word KIROSHI into a file named probe.txt in your working directory. Reply with nothing but DONE.";
 const PROBE_FILE: &str = "probe.txt";
-const PROBE_WORD: &str = "OPENNEST";
+const PROBE_WORD: &str = "KIROSHI";
 
 fn asked_permission(events: &[AgentEvent]) -> bool {
 	events.iter().any(|event| matches!(event, AgentEvent::PermissionRequested { .. }))
@@ -278,7 +278,7 @@ fn a_clean_file(dir: &Path) -> PathBuf {
 }
 
 fn a_directory(name: &str) -> PathBuf {
-	let dir = std::env::temp_dir().join(format!("opennest-real-{name}"));
+	let dir = std::env::temp_dir().join(format!("kiroshi-real-{name}"));
 	std::fs::create_dir_all(&dir).expect("the directory is created");
 	dir.canonicalize().expect("the directory resolves")
 }
@@ -468,7 +468,7 @@ async fn a_bot_answers_under_the_model_its_bundle_names() {
 
 #[tokio::test]
 #[ignore = "needs a signed-in subscription and the network"]
-async fn a_session_carries_the_bundle_brief_and_the_opennest_layer_at_once() {
+async fn a_session_carries_the_bundle_brief_and_the_kiroshi_layer_at_once() {
 	let mut live = started(None, Some(BANANA), std::env::temp_dir()).await;
 	let answer = text(&live.run_turn(QUOTE_THE_LAYER).await);
 	live.sidecar.shutdown().await;
@@ -505,7 +505,7 @@ async fn a_bot_says_its_name_the_app_it_runs_in_and_that_it_learns() {
 		answer.contains(&PROBE_NAME.to_lowercase()),
 		"the bot did not give its own name: {answer:?}"
 	);
-	assert!(answer.contains(OPENNEST), "the bot did not place itself in the app: {answer:?}");
+	assert!(answer.contains(KIROSHI), "the bot did not place itself in the app: {answer:?}");
 	assert!(
 		LEARNING_WORDS.iter().any(|word| answer.contains(word)),
 		"the bot said nothing about learning: {answer:?}"
@@ -616,7 +616,7 @@ async fn a_bot_denied_the_write_by_its_settings_writes_nothing_and_asks_nothing(
 #[tokio::test]
 #[ignore = "needs a signed-in subscription and the network"]
 async fn the_check_report_carries_no_identity() {
-	let state = opennest_app::agent::AgentState::default();
+	let state = kiroshi_app::agent::AgentState::default();
 	let report = check(&state).await;
 	assert_eq!(report.connection, ConnectionState::Ready, "expected a signed-in install");
 	assert!(report.authenticated, "expected a signed-in install");
@@ -646,7 +646,7 @@ async fn two_turns_stream_and_the_second_resumes_the_first() {
 	assert!(text(&recall).contains("4271"), "resumed turn lost the context: {:?}", text(&recall));
 
 	let tooling =
-		second.run_turn("Run the bash command `echo OPENNEST_PROBE` and report its output.").await;
+		second.run_turn("Run the bash command `echo KIROSHI_PROBE` and report its output.").await;
 	let tools: Vec<_> = tooling
 		.iter()
 		.filter_map(|event| match event {
@@ -657,7 +657,7 @@ async fn two_turns_stream_and_the_second_resumes_the_first() {
 		})
 		.collect();
 	assert!(!tools.is_empty(), "a real tool call must surface as activity");
-	assert!(text(&tooling).contains("OPENNEST_PROBE"), "got {:?}", text(&tooling));
+	assert!(text(&tooling).contains("KIROSHI_PROBE"), "got {:?}", text(&tooling));
 
 	second.sidecar.shutdown().await;
 }

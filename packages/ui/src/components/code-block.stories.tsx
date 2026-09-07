@@ -7,7 +7,7 @@ import {
 	type CodeLanguage,
 } from "@workspace/ui/lib/code-highlight"
 
-const TYPESCRIPT_SNIPPET = `import { readNest } from "@opennest/core"
+const TYPESCRIPT_SNIPPET = `import { readNest } from "@kiroshi/core"
 
 export interface NestSummary {
 	id: string

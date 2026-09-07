@@ -5,7 +5,7 @@ use tauri::{AppHandle, Manager, Runtime};
 
 use super::{
 	drafted, git, learned, unrecorded, Author, Evolution, HistoryEntry, Skill, SkillDraft,
-	SkillFront, LEARNED_NAME, MANIFEST_DIR, MANIFEST_NAME, OPENNEST_KEY, PRELOAD_KEY, SKILLS_DIR,
+	SkillFront, LEARNED_NAME, MANIFEST_DIR, MANIFEST_NAME, KIROSHI_KEY, PRELOAD_KEY, SKILLS_DIR,
 	SKILL_NAME, VERSION,
 };
 use crate::private_files;
@@ -14,7 +14,7 @@ const DIR_NAME: &str = "user";
 
 const PLUGIN_NAME: &str = "me";
 
-const DESCRIPTION: &str = "What every bot in OpenNest knows about the person it talks to.";
+const DESCRIPTION: &str = "What every bot in Kiroshi knows about the person it talks to.";
 
 const ABOUT_ID: &str = "about-me";
 
@@ -131,7 +131,7 @@ fn about() -> std::io::Result<String> {
 		description: ABOUT_DESCRIPTION.to_owned(),
 		body: String::new(),
 		front: SkillFront {
-			metadata: Some(serde_json::json!({ OPENNEST_KEY: { PRELOAD_KEY: true } })),
+			metadata: Some(serde_json::json!({ KIROSHI_KEY: { PRELOAD_KEY: true } })),
 			disable_model_invocation: Some(true),
 			..SkillFront::default()
 		},
@@ -146,7 +146,7 @@ mod tests {
 	use std::thread;
 
 	fn a_path(name: &str) -> PathBuf {
-		let path = std::env::temp_dir().join(format!("opennest-user-{name}"));
+		let path = std::env::temp_dir().join(format!("kiroshi-user-{name}"));
 		let _ = fs::remove_dir_all(&path);
 		path
 	}

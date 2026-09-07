@@ -5,7 +5,7 @@ import uuid
 
 MAX_TEXT_CHARACTERS = 500
 MAX_BODY_BYTES = 64 * 1024
-DEFAULT_CONFIG = os.path.join(".opennest", "agent-hook.json")
+DEFAULT_CONFIG = os.path.join(".kiroshi", "agent-hook.json")
 BRANCH_PREFIX = "ref: refs/heads/"
 GITDIR_PREFIX = "gitdir:"
 
@@ -34,7 +34,7 @@ def sound(value):
 
 
 def config():
-	named = os.environ.get("OPENNEST_AGENT_HOOK")
+	named = os.environ.get("KIROSHI_AGENT_HOOK")
 	path = named if named else os.path.join(os.path.expanduser("~"), DEFAULT_CONFIG)
 	held = parsed(read(path) or "")
 	if not isinstance(held, dict):

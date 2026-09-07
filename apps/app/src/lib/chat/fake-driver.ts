@@ -377,7 +377,7 @@ export function createFakeChatDriver(
 			Promise.resolve(
 				attachments.map((attachment) =>
 					storedAttachmentPath({
-						root: "/tmp/opennest",
+						root: "/tmp/kiroshi",
 						conversationId,
 						submittedName: attachment.name,
 					}),

@@ -4,10 +4,10 @@ use std::path::{Path, PathBuf};
 use std::sync::Arc;
 use std::time::Duration;
 
-use opennest_app::agent::commands::terminate_session;
-use opennest_app::agent::session::{EventSink, Session, SessionOptions};
-use opennest_app::agent::sidecar::{Sidecar, SidecarOptions};
-use opennest_app::agent::AgentState;
+use kiroshi_app::agent::commands::terminate_session;
+use kiroshi_app::agent::session::{EventSink, Session, SessionOptions};
+use kiroshi_app::agent::sidecar::{Sidecar, SidecarOptions};
+use kiroshi_app::agent::AgentState;
 use tokio::sync::mpsc;
 
 const FAKE_SIDECAR: &str = env!("CARGO_BIN_EXE_fake_sidecar");
@@ -33,7 +33,7 @@ fn is_alive(pid: i32) -> bool {
 }
 
 fn probe_file() -> PathBuf {
-	let path = std::env::temp_dir().join(format!("opennest-quit-path-{}.pid", std::process::id()));
+	let path = std::env::temp_dir().join(format!("kiroshi-quit-path-{}.pid", std::process::id()));
 	let _ = std::fs::remove_file(&path);
 	path
 }

@@ -25,7 +25,7 @@
 		{
 			"id": "local-webhook",
 			"title": "When a local webhook is called",
-			"header": "X-OpenNest-Delivery",
+			"header": "X-Kiroshi-Delivery",
 			"payload": [
 				{ "name": "deliveryId", "type": "string" },
 				{ "name": "receivedAt", "type": "datetime" },

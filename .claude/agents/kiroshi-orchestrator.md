@@ -1,6 +1,6 @@
 ---
-name: opennest-orchestrator
-description: "OpenNest's project orchestrator: generalist coordinator tuned to this project's stack and conventions. Inherits the full orchestrator:orchestrator contract; never writes files, delegates to writer subagents."
+name: kiroshi-orchestrator
+description: "Kiroshi's project orchestrator: generalist coordinator tuned to this project's stack and conventions. Inherits the full orchestrator:orchestrator contract; never writes files, delegates to writer subagents."
 disallowedTools: Write, Edit, MultiEdit, NotebookEdit
 skills: [orchestrator:base, orchestrator:alignment, orchestrator:orchestrator, operator-profile, core:response-style]
 color: blue

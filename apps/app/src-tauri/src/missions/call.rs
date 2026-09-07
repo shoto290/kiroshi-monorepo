@@ -183,7 +183,7 @@ mod tests {
 	async fn a_host(name: &str) -> App<MockRuntime> {
 		let mut context = mock_context(noop_assets());
 		context.config_mut().identifier =
-			format!("com.opennest.mission-call-{name}-{}", std::process::id());
+			format!("com.kiroshi.mission-call-{name}-{}", std::process::id());
 		let app = mock_builder().build(context).expect("the app builds");
 		cleaned(&app);
 		app.manage(db::bootstrap(app.handle()));
@@ -217,7 +217,7 @@ mod tests {
 					ticket: Ticket {
 						platform: "github".to_owned(),
 						external_id: "42".to_owned(),
-						url: "https://opennest.test/tickets/42".to_owned(),
+						url: "https://kiroshi.test/tickets/42".to_owned(),
 						title: "Crash on open".to_owned(),
 					},
 					tools: vec!["gh".to_owned()],
@@ -230,7 +230,7 @@ mod tests {
 			.expect("the mission opens");
 		let watch = MissionWatch {
 			branch: "feature/ope-27".to_owned(),
-			repository: "shoto290/OpenNest".to_owned(),
+			repository: "shoto290/kiroshi-monorepo".to_owned(),
 		};
 		let (armed, _) = database
 			.missions()

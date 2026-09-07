@@ -9,7 +9,7 @@ import {
 import { readBotSettings, type SettingsOptions } from "./bot-settings"
 import type { BundleScope } from "./bundle-writes"
 import { resolveExecutable } from "./executable"
-import { opennestServer } from "./opennest-server"
+import { kiroshiServer } from "./kiroshi-server"
 import { createPermissionGate } from "./permissions"
 import { createPromptStream } from "./prompt-stream"
 import { securityFloor } from "./security-floor"
@@ -93,7 +93,7 @@ export const buildOptions = (
 					agent: request.agent,
 					mcpServers: {
 						...resolved.servers,
-						...opennestServer({
+						...kiroshiServer({
 							cwd: request.cwd,
 							managedSettings,
 							session: request.session,

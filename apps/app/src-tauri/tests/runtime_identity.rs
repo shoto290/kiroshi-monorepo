@@ -3,13 +3,13 @@ use std::path::{Path, PathBuf};
 use std::sync::{Arc, Mutex};
 use std::time::{Duration, Instant};
 
-use opennest_app::agent::commands::EVENT_CHANNEL;
-use opennest_app::agent::contract::{AgentEvent, RuntimeScope, ScopedEvent, TransportError};
-use opennest_app::agent::sidecar::SIDECAR_OVERRIDE_ENV;
-use opennest_app::agent::AgentState;
-use opennest_app::bundles;
-use opennest_app::commands::invoke_handler;
-use opennest_app::db;
+use kiroshi_app::agent::commands::EVENT_CHANNEL;
+use kiroshi_app::agent::contract::{AgentEvent, RuntimeScope, ScopedEvent, TransportError};
+use kiroshi_app::agent::sidecar::SIDECAR_OVERRIDE_ENV;
+use kiroshi_app::agent::AgentState;
+use kiroshi_app::bundles;
+use kiroshi_app::commands::invoke_handler;
+use kiroshi_app::db;
 use serde_json::{json, Value};
 use tauri::test::{mock_builder, mock_context, noop_assets, MockRuntime, INVOKE_KEY};
 use tauri::webview::InvokeRequest;
@@ -17,7 +17,7 @@ use tauri::{App, Listener, Manager, WebviewWindow, WebviewWindowBuilder};
 
 const FAKE_SIDECAR: &str = env!("CARGO_BIN_EXE_fake_sidecar");
 const SCENARIO_ENV: &str = "FAKE_AGENT_SCENARIO_FILE";
-const IDENTIFIER: &str = "com.opennest.runtime-identity";
+const IDENTIFIER: &str = "com.kiroshi.runtime-identity";
 const DEADLINE: Duration = Duration::from_secs(10);
 const POLL: Duration = Duration::from_millis(25);
 
@@ -251,7 +251,7 @@ fn listed_plugins(harness: &Harness) -> Vec<(String, String)> {
 }
 
 fn a_directory(name: &str) -> PathBuf {
-	let dir = std::env::temp_dir().join(format!("opennest-runtime-identity-{name}"));
+	let dir = std::env::temp_dir().join(format!("kiroshi-runtime-identity-{name}"));
 	let _ = std::fs::remove_dir_all(&dir);
 	std::fs::create_dir_all(&dir).expect("the directory is created");
 	dir
@@ -271,7 +271,7 @@ fn told() -> String {
 
 fn scenario(name: &str) {
 	let path =
-		std::env::temp_dir().join(format!("opennest-fake-scenario-{}.txt", std::process::id()));
+		std::env::temp_dir().join(format!("kiroshi-fake-scenario-{}.txt", std::process::id()));
 	std::fs::write(&path, name).expect("the scenario is written");
 	std::env::set_var(SCENARIO_ENV, path);
 }
@@ -339,7 +339,7 @@ fn every_run_carries_the_identity_the_bot_holds_when_it_starts() {
 	);
 	assert!(elsewhere.spoken.contains(&briefed(FRENCH)), "got {}", elsewhere.spoken);
 	let refused = harness.wait_for("the refused directory to be reported", refused_directory);
-	assert!(refused.ends_with("opennest-runtime-identity-gone"), "got {refused}");
+	assert!(refused.ends_with("kiroshi-runtime-identity-gone"), "got {refused}");
 
 	harness.describe(&bot, DUTCH, None);
 	let bundle = bundle_of(&harness, &bot);

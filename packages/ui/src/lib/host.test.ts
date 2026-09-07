@@ -4,9 +4,9 @@ import { hostInitial } from "@workspace/ui/lib/host"
 
 describe("host initial", () => {
 	it("reads the initial off the host and drops the www prefix", () => {
-		expect(hostInitial("https://opennest.dev/changelog")).toBe("o")
-		expect(hostInitial("https://www.opennest.dev/roadmap")).toBe("o")
-		expect(hostInitial("https://docs.opennest.dev")).toBe("d")
+		expect(hostInitial("https://kiroshi.dev/changelog")).toBe("k")
+		expect(hostInitial("https://www.kiroshi.dev/roadmap")).toBe("k")
+		expect(hostInitial("https://docs.kiroshi.dev")).toBe("d")
 	})
 
 	it("decodes an internationalized host instead of marking every one with x", () => {

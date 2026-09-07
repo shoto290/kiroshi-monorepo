@@ -566,7 +566,7 @@ impl PinnedBubble {
 const EXCERPT_LIMIT: usize = 280;
 
 pub(super) fn message_uri(conversation_id: &str, message_id: &str) -> String {
-	format!("opennest://c/{conversation_id}/m/{message_id}")
+	format!("kiroshi://c/{conversation_id}/m/{message_id}")
 }
 
 fn excerpt_of(content: &str) -> String {
@@ -919,7 +919,7 @@ mod tests {
 				avatar_animal: AvatarAnimal::Owl,
 				avatar_blot: Some(AvatarBlot::Red),
 				avatar_image_path: Some("/pictures/owl.png".into()),
-				working_dir: Some("/work/opennest".into()),
+				working_dir: Some("/work/kiroshi".into()),
 				instructions: "Answer briefly.".into(),
 				memory: "They bake on Sundays.".into(),
 				denied_tools: vec![
@@ -943,7 +943,7 @@ mod tests {
 				"avatarAnimal": "owl",
 				"avatarBlot": "red",
 				"avatarImagePath": "/pictures/owl.png",
-				"workingDir": "/work/opennest",
+				"workingDir": "/work/kiroshi",
 				"instructions": "Answer briefly.",
 				"memory": "They bake on Sundays.",
 				"deniedTools": ["Bash", "Edit", "NotebookEdit", "Write"],
@@ -1417,7 +1417,7 @@ mod tests {
 	}
 
 	fn a_bundle_root(name: &str) -> std::path::PathBuf {
-		let root = std::env::temp_dir().join(format!("opennest-contract-{name}"));
+		let root = std::env::temp_dir().join(format!("kiroshi-contract-{name}"));
 		let _ = std::fs::remove_dir_all(&root);
 		root
 	}

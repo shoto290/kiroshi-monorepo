@@ -30,7 +30,7 @@ const APP_DATA_FILES = [
 	"conversations.sqlite3",
 	"conversations.sqlite3-wal",
 	"conversations.sqlite3-shm",
-	"opennest.db",
+	"kiroshi.db",
 	"session.json*",
 ]
 

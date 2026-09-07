@@ -16,7 +16,7 @@ let directory = ""
 const times = (text: string) => text.split(REFUSAL).length - 1
 
 beforeAll(() => {
-	directory = mkdtempSync(join(tmpdir(), "opennest-refusing-claude-"))
+	directory = mkdtempSync(join(tmpdir(), "kiroshi-refusing-claude-"))
 	const executable = join(directory, "claude")
 	writeFileSync(executable, `#!/bin/sh\necho "${REFUSAL}" >&2\nexit 1\n`)
 	chmodSync(executable, 0o755)

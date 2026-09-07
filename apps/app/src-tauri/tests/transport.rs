@@ -4,13 +4,13 @@ use std::path::PathBuf;
 use std::sync::Arc;
 use std::time::{Duration, Instant};
 
-use opennest_app::agent::commands::start_with_fallback;
-use opennest_app::agent::contract::{
+use kiroshi_app::agent::commands::start_with_fallback;
+use kiroshi_app::agent::contract::{
 	ActivityKind, ActivityStatus, AgentCommand, AgentEvent, ConnectionState, MessageCompletion,
 	PermissionDecision, PermissionRequest, QuestionRequest, TransportError, TurnOutcome, TurnState,
 };
-use opennest_app::agent::session::{EventSink, Session, SessionOptions, PARTIAL_MESSAGES};
-use opennest_app::agent::sidecar::{self, Sidecar, SidecarOptions, SHUTDOWN_GRACE};
+use kiroshi_app::agent::session::{EventSink, Session, SessionOptions, PARTIAL_MESSAGES};
+use kiroshi_app::agent::sidecar::{self, Sidecar, SidecarOptions, SHUTDOWN_GRACE};
 use tokio::sync::mpsc;
 
 const FAKE_SIDECAR: &str = env!("CARGO_BIN_EXE_fake_sidecar");
@@ -331,7 +331,7 @@ async fn invalid_frames_are_reported_without_killing_the_turn() {
 
 #[tokio::test]
 async fn a_missing_sidecar_is_reported_before_spawning() {
-	let options = SidecarOptions::new(PathBuf::from("/nonexistent/opennest-agent"));
+	let options = SidecarOptions::new(PathBuf::from("/nonexistent/kiroshi-agent"));
 	let error = Sidecar::start(options).await.err().expect("spawn fails");
 	assert!(matches!(error, TransportError::SpawnFailed { .. }));
 }
@@ -735,7 +735,7 @@ async fn a_sidecar_that_closes_stdout_and_keeps_running_is_reported_and_still_te
 #[cfg(unix)]
 fn probe_file(label: &str) -> PathBuf {
 	let path = std::env::temp_dir()
-		.join(format!("opennest-orphan-probe-{}-{label}.pid", std::process::id()));
+		.join(format!("kiroshi-orphan-probe-{}-{label}.pid", std::process::id()));
 	let _ = std::fs::remove_file(&path);
 	path
 }

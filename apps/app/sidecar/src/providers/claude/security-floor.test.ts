@@ -5,7 +5,7 @@ import { join } from "node:path"
 
 import { type FloorScope, securityFloor } from "./security-floor"
 
-const APP_DATA = "/app-data/opennest"
+const APP_DATA = "/app-data/kiroshi"
 
 const BOT_PATH = join(APP_DATA, "bots/plugins/b1")
 const SYSTEM_PATH = join(APP_DATA, "bots/plugins/system")
@@ -16,7 +16,7 @@ const PLUGIN_PATHS = [BOT_PATH, SYSTEM_PATH, USER_PATH, SPACE_PATH]
 const WRITABLE_PATHS = [BOT_PATH, USER_PATH, SPACE_PATH]
 
 const WINDOWS_HOME = "C:\\Users\\alice"
-const WINDOWS_APP_DATA = "C:\\data\\opennest"
+const WINDOWS_APP_DATA = "C:\\data\\kiroshi"
 
 const home = (path: string): string => join(homedir(), path)
 
@@ -116,7 +116,7 @@ describe("securityFloor", () => {
 			"conversations.sqlite3",
 			"conversations.sqlite3-wal",
 			"conversations.sqlite3-shm",
-			"opennest.db",
+			"kiroshi.db",
 			"session.json*",
 		]) {
 			expect(deny).toContain(`Read(/${join(APP_DATA, file)})`)
@@ -303,7 +303,7 @@ describe("securityFloor", () => {
 			`Read(/${join(APP_DATA, "conversations.sqlite3")})`,
 			`Read(/${join(APP_DATA, "conversations.sqlite3-wal")})`,
 			`Read(/${join(APP_DATA, "conversations.sqlite3-shm")})`,
-			`Read(/${join(APP_DATA, "opennest.db")})`,
+			`Read(/${join(APP_DATA, "kiroshi.db")})`,
 			`Read(/${join(APP_DATA, "session.json*")})`,
 			`Read(/${join(APP_DATA, "attachments")}/**)`,
 			`Edit(/${home(".claude")}/**)`,
@@ -327,8 +327,8 @@ describe("securityFloor", () => {
 	it("anchors the data directory rules of a Windows session", () => {
 		const deny = onWindows({ appDataDir: WINDOWS_APP_DATA })
 
-		expect(deny).toContain("Read(//c/data/opennest/conversations.sqlite3)")
-		expect(deny).toContain("Read(//c/data/opennest/attachments/**)")
+		expect(deny).toContain("Read(//c/data/kiroshi/conversations.sqlite3)")
+		expect(deny).toContain("Read(//c/data/kiroshi/attachments/**)")
 	})
 
 	it("reads a Windows home directory written with forward slashes the same", () => {
@@ -359,8 +359,8 @@ describe("securityFloor", () => {
 				pluginPaths: [join(WINDOWS_APP_DATA, "bots/plugins/b1")],
 			})
 
-			expect(deny).toContain("Read(//c/data/opennest/bots/plugins/b2/**)")
-			expect(deny).not.toContain("Read(//c/data/opennest/bots/plugins/b1/**)")
+			expect(deny).toContain("Read(//c/data/kiroshi/bots/plugins/b2/**)")
+			expect(deny).not.toContain("Read(//c/data/kiroshi/bots/plugins/b1/**)")
 		})
 	})
 

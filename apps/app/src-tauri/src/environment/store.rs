@@ -305,7 +305,7 @@ mod tests {
 	use super::*;
 
 	fn a_root(name: &str) -> PathBuf {
-		let root = std::env::temp_dir().join(format!("opennest-environment-{name}"));
+		let root = std::env::temp_dir().join(format!("kiroshi-environment-{name}"));
 		let _ = fs::remove_dir_all(&root);
 		root
 	}

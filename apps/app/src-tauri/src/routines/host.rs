@@ -252,7 +252,7 @@ mod tests {
 	async fn a_host(name: &str) -> App<MockRuntime> {
 		let mut context = mock_context(noop_assets());
 		context.config_mut().identifier =
-			format!("com.opennest.routine-host-{name}-{}", std::process::id()).into();
+			format!("com.kiroshi.routine-host-{name}-{}", std::process::id()).into();
 		let app = mock_builder().build(context).expect("the app builds");
 		if let Ok(dir) = app.path().app_data_dir() {
 			let _ = fs::remove_dir_all(&dir);

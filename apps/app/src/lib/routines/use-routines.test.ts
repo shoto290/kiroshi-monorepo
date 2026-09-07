@@ -76,7 +76,7 @@ const DECLARED = [
 		title: "Local webhook",
 		payload: [],
 		dedupeKey: "deliveryId",
-		header: "X-OpenNest-Key",
+		header: "X-Kiroshi-Key",
 	},
 ]
 
@@ -93,7 +93,7 @@ const A_REPORTED_RUN: RoutineRun = {
 
 const A_WEBHOOK_KEY = {
 	key: "the-key",
-	header: "X-OpenNest-Key",
+	header: "X-Kiroshi-Key",
 	url: "http://127.0.0.1:4870/routines",
 }
 

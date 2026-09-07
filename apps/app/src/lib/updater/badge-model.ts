@@ -38,7 +38,8 @@ const linesOf = (notes: string | null | undefined): string[] =>
 		.map((line) => line.trim().replace(BULLET, ""))
 		.filter((line) => line.length > 0)
 
-const RELEASE_TAG_URL = "https://github.com/shoto290/OpenNest/releases/tag"
+const RELEASE_TAG_URL =
+	"https://github.com/shoto290/kiroshi-monorepo/releases/tag"
 
 const releaseNotesUrlOf = (version: string | undefined) =>
 	version ? `${RELEASE_TAG_URL}/v${version}` : undefined

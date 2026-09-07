@@ -1,9 +1,9 @@
 {
 	"$schema": "https://schema.tauri.app/config/2",
-	"productName": "OpenNest Dev",
-	"identifier": "com.opennest.app.dev",
+	"productName": "Kiroshi Dev",
+	"identifier": "com.kiroshi.app.dev",
 	"bundle": {
-		"externalBin": ["binaries/opennest-agent", "binaries/opennest-claude"],
+		"externalBin": ["binaries/kiroshi-agent", "binaries/kiroshi-claude"],
 		"icon": [
 			"icons/dev/32x32.png",
 			"icons/dev/128x128.png",

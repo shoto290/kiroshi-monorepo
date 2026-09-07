@@ -3,11 +3,11 @@ const chat = {
 		ready: {
 			title: "Start with Claude Code",
 			description:
-				"OpenNest talks to its built-in agent. Nothing leaves your device.",
+				"Kiroshi talks to its built-in agent. Nothing leaves your device.",
 		},
 		unavailable: {
 			title: "Claude Code is not available",
-			description: "OpenNest cannot reach its built-in agent.",
+			description: "Kiroshi cannot reach its built-in agent.",
 		},
 		settings: "Bot settings",
 		hint: "Type your first prompt in the composer below",
@@ -205,7 +205,7 @@ const chat = {
 			readFailed: "Earlier messages not loaded",
 		},
 		transport: {
-			binaryNotFound: "OpenNest's built-in agent is unreachable.",
+			binaryNotFound: "Kiroshi's built-in agent is unreachable.",
 			notAuthenticated:
 				"Your Claude subscription is not signed in. Sign in to Claude, then start the conversation again.",
 			authCheckFailed: "The sign-in check failed: {{detail}}",

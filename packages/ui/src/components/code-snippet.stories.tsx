@@ -15,7 +15,7 @@ const SAMPLES: Record<CodeSnippetLanguage, string> = {
 	css: `.nest-card {\n  border-radius: var(--radius-lg);\n}`,
 	diff: `- padding: 12px;\n+ padding: var(--spacing-3);`,
 	html: `<section class="nest-card">\n  <h2>Nest</h2>\n</section>`,
-	json: `{ "nest": "opennest", "tint": "sky" }`,
+	json: `{ "nest": "kiroshi", "tint": "sky" }`,
 	markdown: `## Nest\n\nEvery visual belongs to the package.`,
 	python: `def nest_tint(name: str) -> str:\n    return TINTS[name]`,
 	rust: `fn nest_tint(name: &str) -> Option<&Tint> {\n    TINTS.get(name)\n}`,

@@ -2,11 +2,11 @@
 use std::path::{Path, PathBuf};
 use std::sync::atomic::{AtomicUsize, Ordering};
 
-use opennest_app::bundles;
-use opennest_app::commands::invoke_handler;
-use opennest_app::db;
-use opennest_app::environment::contract::{EnvOwner, ResolvedEnv};
-use opennest_app::environment::store;
+use kiroshi_app::bundles;
+use kiroshi_app::commands::invoke_handler;
+use kiroshi_app::db;
+use kiroshi_app::environment::contract::{EnvOwner, ResolvedEnv};
+use kiroshi_app::environment::store;
 use serde_json::{json, Value};
 use tauri::test::{mock_builder, mock_context, noop_assets, MockRuntime, INVOKE_KEY};
 use tauri::webview::InvokeRequest;
@@ -24,7 +24,7 @@ impl Home {
 	fn new() -> Self {
 		static CLAIMED: AtomicUsize = AtomicUsize::new(0);
 		let identifier = format!(
-			"com.opennest.conversation-commands-{}-{}",
+			"com.kiroshi.conversation-commands-{}-{}",
 			std::process::id(),
 			CLAIMED.fetch_add(1, Ordering::Relaxed)
 		);
@@ -803,7 +803,7 @@ fn a_chat_past_the_fold_bound_survives_a_dead_host_with_nothing_lost_or_doubled(
 		"the tail lost what the dead host had been saying"
 	);
 	assert!(
-		context.contains("The message this one replies to:\nuri: opennest://c/")
+		context.contains("The message this one replies to:\nuri: kiroshi://c/")
 			&& context.contains("from: user\nclaude session: unknown\nmessage 3"),
 		"an answer to an earlier message lost the target it points at: {context}"
 	);
@@ -833,7 +833,7 @@ fn an_identity(name: &str, model: &str, animal: &str, blot: Value) -> Value {
 		"avatarAnimal": animal,
 		"avatarBlot": blot,
 		"avatarImagePath": null,
-		"workingDir": "/work/opennest",
+		"workingDir": "/work/kiroshi",
 		"instructions": "Answer with the file you would touch.",
 		"deniedTools": []
 	})
@@ -859,7 +859,7 @@ fn a_bot_created_over_ipc_is_listed_described_and_deleted_with_its_chat() {
 	assert_eq!(created["avatarAnimal"], json!("owl"));
 	assert_eq!(created["avatarBlot"], json!("red"));
 	assert_eq!(created["avatarImagePath"], json!(null));
-	assert_eq!(created["workingDir"], json!("/work/opennest"));
+	assert_eq!(created["workingDir"], json!("/work/kiroshi"));
 	assert_eq!(created["instructions"], json!("Answer with the file you would touch."));
 	assert!(created["createdAt"].is_i64(), "a bot crossed without a camelCase moment: {created}");
 
@@ -1721,7 +1721,7 @@ fn a_bots_skills_are_written_listed_marked_and_taken_away() {
 	assert_eq!(updated["metadata"]["author"], json!("someone"));
 	assert_eq!(updated["license"], json!(null), "a key the file never carried");
 	assert_eq!(
-		updated["metadata"]["opennest"]["preload"],
+		updated["metadata"]["kiroshi"]["preload"],
 		json!("true"),
 		"a caller writing the map took the mark with it"
 	);
@@ -1815,7 +1815,7 @@ fn a_bots_mcp_servers_are_written_listed_replaced_and_taken_away() {
 	assert_eq!(json_at(&manifest)["mcpServers"], json!("./.mcp.json"));
 
 	let mut theirs = json_at(&servers);
-	theirs["opennestIsNotToTouchThis"] = json!(true);
+	theirs["kiroshiIsNotToTouchThis"] = json!(true);
 	std::fs::write(&servers, theirs.to_string()).expect("the hand edit lands");
 
 	let replaced = json!({ "command": "atlas-mcp", "args": ["--http"] });
@@ -1827,7 +1827,7 @@ fn a_bots_mcp_servers_are_written_listed_replaced_and_taken_away() {
 	.expect("the server is replaced");
 	let after = json_at(&servers);
 	assert_eq!(after["mcpServers"], json!({ "atlas": replaced, "ledger": ledger }));
-	assert_eq!(after["opennestIsNotToTouchThis"], json!(true));
+	assert_eq!(after["kiroshiIsNotToTouchThis"], json!(true));
 
 	let refused = call(
 		&window,
@@ -1859,7 +1859,7 @@ fn a_bots_mcp_servers_are_written_listed_replaced_and_taken_away() {
 		.expect("the last server is taken away");
 	let bare = json_at(&servers);
 	assert_eq!(bare["mcpServers"], Value::Null);
-	assert_eq!(bare["opennestIsNotToTouchThis"], json!(true));
+	assert_eq!(bare["kiroshiIsNotToTouchThis"], json!(true));
 
 	std::fs::write(&servers, json!({ "mcpServers": { "atlas": atlas } }).to_string())
 		.expect("a file with nothing but servers in it");
@@ -2280,7 +2280,7 @@ fn a_duplicate_carries_the_memory_the_source_row_holds_when_its_bundle_carries_n
 	let agent = bundles::agent_file(&root, &source_id).expect("the agent file");
 	std::fs::write(
 		&agent,
-		format!("---\nname: agent\nmetadata:\n  opennestBotId: \"{source_id}\"\n---\n\nAnswer briefly.\n"),
+		format!("---\nname: agent\nmetadata:\n  kiroshiBotId: \"{source_id}\"\n---\n\nAnswer briefly.\n"),
 	)
 	.expect("the block is taken out of the bundle");
 
@@ -2369,7 +2369,7 @@ fn a_copy_that_fails_leaves_no_row_no_bundle_and_no_environment_under_the_new_id
 	let agent = bundles::agent_file(&bundle_root, &source_id).expect("the agent file");
 	std::fs::write(
 		&agent,
-		format!("---\nthis names no key\nmetadata:\n  opennestBotId: \"{source_id}\"\n---\n\nAnswer briefly.\n"),
+		format!("---\nthis names no key\nmetadata:\n  kiroshiBotId: \"{source_id}\"\n---\n\nAnswer briefly.\n"),
 	)
 	.expect("the agent file is broken");
 	let before = call(&window, "conversation_bots", json!({})).expect("the bots");
@@ -2427,7 +2427,7 @@ fn a_reference_resolves_a_message_to_the_uri_and_the_run_that_produced_it() {
 		call(&window, "conversation_message_reference", a_reference(&conversation, &reply))
 			.expect("the reply reference");
 
-	assert_eq!(prompt["uri"], json!(format!("opennest://c/{conversation}/m/m1")));
+	assert_eq!(prompt["uri"], json!(format!("kiroshi://c/{conversation}/m/m1")));
 	assert_eq!(prompt["conversationId"], json!(conversation));
 	assert_eq!(prompt["messageId"], json!("m1"));
 	assert_eq!(prompt["role"], json!("user"));

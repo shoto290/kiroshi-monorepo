@@ -128,7 +128,7 @@ mod tests {
 	const CONVERSATION: &str = "c1";
 
 	fn temp_root() -> PathBuf {
-		std::env::temp_dir().join(format!("opennest-attachments-{}", Uuid::new_v4()))
+		std::env::temp_dir().join(format!("kiroshi-attachments-{}", Uuid::new_v4()))
 	}
 
 	fn an_attachment(name: &str, bytes: &[u8]) -> SubmittedAttachment {

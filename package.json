@@ -1,10 +1,10 @@
 {
-	"name": "opennest",
+	"name": "kiroshi",
 	"private": true,
 	"license": "MIT",
 	"repository": {
 		"type": "git",
-		"url": "git+https://github.com/shoto290/OpenNest.git"
+		"url": "git+https://github.com/shoto290/kiroshi-monorepo.git"
 	},
 	"workspaces": [
 		"packages/*",

@@ -55,7 +55,7 @@ export const TypeScale = () => (
 				<code className="w-40 shrink-0 font-mono text-muted-foreground text-xs">
 					{size} / {lineHeight}
 				</code>
-				<span className={`${className} text-foreground`}>OpenNest</span>
+				<span className={`${className} text-foreground`}>Kiroshi</span>
 			</div>
 		))}
 	</div>
@@ -74,7 +74,7 @@ export const FontWeights = () => (
 				<code className="w-40 shrink-0 font-mono text-muted-foreground text-xs">
 					{value}
 				</code>
-				<span className={`${className} text-foreground text-lg`}>OpenNest</span>
+				<span className={`${className} text-foreground text-lg`}>Kiroshi</span>
 			</div>
 		))}
 	</div>

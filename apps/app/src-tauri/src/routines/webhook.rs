@@ -25,9 +25,9 @@ use crate::missions;
 
 pub const SOURCE_ID: &str = "local-webhook";
 
-pub const HEADER: &str = "X-OpenNest-Delivery";
+pub const HEADER: &str = "X-Kiroshi-Delivery";
 
-pub const DELIVERY_ID_HEADER: &str = "X-OpenNest-Delivery-Id";
+pub const DELIVERY_ID_HEADER: &str = "X-Kiroshi-Delivery-Id";
 
 pub const MAX_DELIVERY_ID_BYTES: usize = 200;
 
@@ -345,7 +345,7 @@ mod tests {
 	async fn a_host(name: &str) -> App<MockRuntime> {
 		let mut context = mock_context(noop_assets());
 		context.config_mut().identifier =
-			format!("com.opennest.routine-webhook-{name}-{}", std::process::id()).into();
+			format!("com.kiroshi.routine-webhook-{name}-{}", std::process::id()).into();
 		let app = mock_builder().build(context).expect("the app builds");
 		cleaned(&app);
 		app.manage(db::bootstrap(app.handle()));
@@ -1009,7 +1009,7 @@ mod tests {
 
 	#[test]
 	fn the_header_and_the_source_are_the_ones_the_committed_bundle_declares() {
-		let bundle = PathBuf::from(env!("CARGO_MANIFEST_DIR")).join("plugins").join("opennest");
+		let bundle = PathBuf::from(env!("CARGO_MANIFEST_DIR")).join("plugins").join("kiroshi");
 		let declared = super::super::sources::sources_at(&bundle).expect("the bundle reads");
 
 		let source = declared

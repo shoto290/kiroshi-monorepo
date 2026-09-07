@@ -1,4 +1,4 @@
-# OpenNest story contract
+# Kiroshi story contract
 
 Authoring rules for every story in this repo, human or agent written. A story that breaks a rule below is not done.
 

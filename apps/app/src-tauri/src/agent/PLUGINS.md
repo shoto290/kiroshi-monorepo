@@ -78,8 +78,8 @@ The two are written differently, and that is the whole shape:
                                       with the block the bot keeps what it learned in
   skills/<name>/SKILL.md              a procedure a task triggers, the bot's to write
 
-<app data>/system/opennest/           the app's — the host is the truth
-  .claude-plugin/plugin.json          name: opennest
+<app data>/system/kiroshi/           the app's — the host is the truth
+  .claude-plugin/plugin.json          name: kiroshi
   skills/learn/SKILL.md               the rules every bot remembers under
 
 <app data>/user/me/                   the person's — they are the truth
@@ -129,7 +129,7 @@ The preset in `providers/claude/session.ts` is therefore **required for `agent` 
 anything at all**, not merely a way to keep Claude Code's own prompt. Removing it
 looks like a simplification and silently strips every bot of its brief.
 
-`append` composes with `agent`: a bot answered `"ORCHID OPENNEST-GLOBAL"` with both set.
+`append` composes with `agent`: a bot answered `"ORCHID KIROSHI-GLOBAL"` with both set.
 
 ## The prompt layer and the output style — verified
 
@@ -257,7 +257,7 @@ on both paths.
   the bot behave differently depending on who called it.
 - `permissionMode` must likewise never appear in a bundle; the host owns permissions.
 
-With those two rules, one file behaves the same whether OpenNest promotes it, Superset
+With those two rules, one file behaves the same whether Kiroshi promotes it, Superset
 launches it, or an orchestrator delegates to it.
 
 ### It is worth the tokens
@@ -290,7 +290,7 @@ round trip for it and leaving the same text in context twice.
 - Consequence: **preloading and model invocation are contradictory settings.** A skill
   whose body is in the system prompt has nothing left to be invoked for, and leaving it
   invocable buys a duplicate.
-- Whatever writes `metadata.opennest.preload` should write `disable-model-invocation`
+- Whatever writes `metadata.kiroshi.preload` should write `disable-model-invocation`
   beside it. That is a decision about a file the reader owns, so it belongs to the
   interface that marks a skill, not to the writer that carries one.
 
@@ -302,7 +302,7 @@ so the app's preloaded skills reach the model through the same `append` the laye
 
 `preloadedSkills` in `sidecar/src/providers/claude/system-skills.ts` reads
 `<pluginPath>/skills/*/SKILL.md`, keeps the ones whose frontmatter carries
-`metadata.opennest.preload: true` and whose body is not empty, and `layerFor` in
+`metadata.kiroshi.preload: true` and whose body is not empty, and `layerFor` in
 `system-layer.ts` appends each body under a `# <name>` heading. The app's land below the
 sentence naming the bot's own directory; the person's land above it, under a sentence
 naming the directory the bot writes what it learns about them into.

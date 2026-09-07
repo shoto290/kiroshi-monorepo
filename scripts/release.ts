@@ -7,7 +7,7 @@ const FILES = {
 	appPkg: `${ROOT}apps/app/package.json`,
 	cargoToml: `${ROOT}apps/app/src-tauri/Cargo.toml`,
 	cargoLock: `${ROOT}apps/app/src-tauri/Cargo.lock`,
-	systemPlugin: `${ROOT}apps/app/src-tauri/plugins/opennest/.claude-plugin/plugin.json`,
+	systemPlugin: `${ROOT}apps/app/src-tauri/plugins/kiroshi/.claude-plugin/plugin.json`,
 	bunLock: `${ROOT}bun.lock`,
 }
 
@@ -57,7 +57,7 @@ const bumpCargoToml = (text: string, next: string) =>
 	text.replace(/^version = "[^"]+"/m, `version = "${next}"`)
 
 const bumpCargoLock = (text: string, next: string) =>
-	text.replace(/(name = "opennest-app"\nversion = ")[^"]+(")/, `$1${next}$2`)
+	text.replace(/(name = "kiroshi-app"\nversion = ")[^"]+(")/, `$1${next}$2`)
 
 const writeFile = async (path: string, transform: (text: string) => string) => {
 	const text = await Bun.file(path).text()

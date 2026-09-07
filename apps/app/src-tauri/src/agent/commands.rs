@@ -777,7 +777,7 @@ mod tests {
 	use crate::db::repositories::runtime_context::RuntimeSessionStatus;
 
 	fn a_fresh_app_data(name: &str) -> PathBuf {
-		let app_data = std::env::temp_dir().join(format!("opennest-app-data-{name}"));
+		let app_data = std::env::temp_dir().join(format!("kiroshi-app-data-{name}"));
 		let _ = std::fs::remove_dir_all(&app_data);
 		std::fs::create_dir_all(&app_data).expect("the app data directory is there");
 		app_data
@@ -842,7 +842,7 @@ mod tests {
 	#[test]
 	fn a_directory_that_is_gone_is_reported_and_the_run_happens_anyway() {
 		let anywhere = std::env::temp_dir();
-		let missing = anywhere.join("opennest-no-such-directory-3f2b");
+		let missing = anywhere.join("kiroshi-no-such-directory-3f2b");
 		let _ = std::fs::remove_dir_all(&missing);
 
 		let (running_in, refused) =
@@ -855,7 +855,7 @@ mod tests {
 	#[test]
 	fn a_path_that_is_not_a_directory_is_refused_like_one_that_is_gone() {
 		let anywhere = std::env::temp_dir();
-		let file = anywhere.join("opennest-not-a-directory-3f2b");
+		let file = anywhere.join("kiroshi-not-a-directory-3f2b");
 		std::fs::write(&file, b"i am a file").expect("the file is written");
 
 		let (running_in, refused) =
@@ -888,7 +888,7 @@ mod tests {
 	}
 
 	fn a_fresh_bundle_root(name: &str) -> PathBuf {
-		let root = std::env::temp_dir().join(format!("opennest-session-rules-{name}"));
+		let root = std::env::temp_dir().join(format!("kiroshi-session-rules-{name}"));
 		let _ = std::fs::remove_dir_all(&root);
 		root
 	}

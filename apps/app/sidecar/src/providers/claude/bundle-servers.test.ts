@@ -6,7 +6,7 @@ import { join } from "node:path"
 import { bundleServers, sessionServers } from "./bundle-servers"
 
 const newBundle = (label: string) =>
-	mkdtempSync(join(tmpdir(), `opennest-${label}-`))
+	mkdtempSync(join(tmpdir(), `kiroshi-${label}-`))
 
 const declaring = (bundle: string, contents?: string) => {
 	const file = join(bundle, ".mcp.json")

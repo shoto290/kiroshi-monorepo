@@ -1,7 +1,7 @@
-use opennest_app::agent::commands::terminate_session;
-use opennest_app::agent::sidecar::SIDECAR_OVERRIDE_ENV;
-use opennest_app::agent::AgentState;
-use opennest_app::commands::invoke_handler;
+use kiroshi_app::agent::commands::terminate_session;
+use kiroshi_app::agent::sidecar::SIDECAR_OVERRIDE_ENV;
+use kiroshi_app::agent::AgentState;
+use kiroshi_app::commands::invoke_handler;
 use serde_json::{json, Value};
 use tauri::test::{mock_builder, mock_context, noop_assets, MockRuntime, INVOKE_KEY};
 use tauri::webview::InvokeRequest;

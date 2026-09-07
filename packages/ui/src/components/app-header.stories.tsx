@@ -69,7 +69,7 @@ export const WithIcons = meta.story({
 		leading: (
 			<>
 				<Icons.Claude aria-hidden="true" className="size-4" />
-				OpenNest
+				Kiroshi
 			</>
 		),
 	},
@@ -85,7 +85,7 @@ export const WithIcons = meta.story({
 
 export const WithAction = meta.story({
 	args: {
-		leading: <>OpenNest</>,
+		leading: <>Kiroshi</>,
 		trailing: (
 			<>
 				<ConnectionStatus state="crashed" />
@@ -131,7 +131,7 @@ export const LongContent = meta.story({
 
 export const TrailingInset = meta.story({
 	args: {
-		leading: <>OpenNest</>,
+		leading: <>Kiroshi</>,
 		trailing: (
 			<Button aria-label="Pinned messages" size="icon-sm" variant="ghost">
 				<Icons.Pin />

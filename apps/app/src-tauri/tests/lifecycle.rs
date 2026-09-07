@@ -3,16 +3,16 @@
 use std::path::{Path, PathBuf};
 use std::time::Duration;
 
-use opennest_app::agent::sidecar::SIDECAR_OVERRIDE_ENV;
-use opennest_app::agent::commands::{
+use kiroshi_app::agent::sidecar::SIDECAR_OVERRIDE_ENV;
+use kiroshi_app::agent::commands::{
 	agent_shutdown, agent_start_or_resume_session, agent_submit_prompt, shutdown_session,
 	terminate_session,
 };
-use opennest_app::agent::contract::{RuntimeScope, SessionHandle, TransportError};
-use opennest_app::agent::sidecar::live_groups;
-use opennest_app::agent::AgentState;
-use opennest_app::commands::invoke_handler;
-use opennest_app::db;
+use kiroshi_app::agent::contract::{RuntimeScope, SessionHandle, TransportError};
+use kiroshi_app::agent::sidecar::live_groups;
+use kiroshi_app::agent::AgentState;
+use kiroshi_app::commands::invoke_handler;
+use kiroshi_app::db;
 use tauri::test::{mock_builder, mock_context, noop_assets, MockRuntime};
 use tauri::{App, Manager};
 
@@ -103,7 +103,7 @@ fn is_alive(pid: i32) -> bool {
 }
 
 fn probe_file() -> PathBuf {
-	let path = std::env::temp_dir().join(format!("opennest-lifecycle-{}.pid", std::process::id()));
+	let path = std::env::temp_dir().join(format!("kiroshi-lifecycle-{}.pid", std::process::id()));
 	let _ = std::fs::remove_file(&path);
 	path
 }

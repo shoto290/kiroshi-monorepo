@@ -172,7 +172,7 @@ mod tests {
 
 	#[test]
 	fn a_change_to_a_file_on_disk_carries_its_size() {
-		let dir = std::env::temp_dir().join("opennest-watch-measured");
+		let dir = std::env::temp_dir().join("kiroshi-watch-measured");
 		fs::create_dir_all(&dir).expect("the directory stands");
 		let path = dir.join("a.md");
 		fs::write(&path, b"four").expect("the file lands");

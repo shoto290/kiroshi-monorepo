@@ -76,7 +76,7 @@ export const ClaudeCodeUnavailable = meta.story({
 		tone: "warning",
 		title: "Claude Code isn't available",
 		description:
-			"OpenNest could not find the claude binary on this machine. Install it, or point OpenNest at an existing install, then start a new session.",
+			"Kiroshi could not find the claude binary on this machine. Install it, or point Kiroshi at an existing install, then start a new session.",
 		detail: "spawn claude ENOENT",
 		action: { label: "Open setup guide", onClick: fn() },
 	},
@@ -177,7 +177,7 @@ export const LongContent = meta.story({
 		description:
 			"The model stopped responding after the tool call returned, while the edit was still being applied to a long path deep in the workspace. Nothing was written to disk, the transport is still connected, and the same prompt can be sent again once the operator has read the diagnostic below.",
 		detail:
-			"stream timeout after 60s · request_id req_0000000000000000000000000000 · workspace /Users/example/projects/opennest/packages/ui",
+			"stream timeout after 60s · request_id req_0000000000000000000000000000 · workspace /Users/example/projects/kiroshi/packages/ui",
 		retry: { onRetry: fn() },
 		action: { label: "Copy diagnostic", onClick: fn() },
 		onDismiss: fn(),

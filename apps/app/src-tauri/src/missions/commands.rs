@@ -358,7 +358,7 @@ mod tests {
 	async fn a_host(name: &str) -> App<MockRuntime> {
 		let mut context = mock_context(noop_assets());
 		context.config_mut().identifier =
-			format!("com.opennest.mission-commands-{name}-{}", std::process::id()).into();
+			format!("com.kiroshi.mission-commands-{name}-{}", std::process::id()).into();
 		let app = mock_builder().build(context).expect("the app builds");
 		if let Ok(dir) = app.path().app_data_dir() {
 			let _ = fs::remove_dir_all(&dir);
@@ -380,7 +380,7 @@ mod tests {
 			ticket: Ticket {
 				platform: "github".to_owned(),
 				external_id: "42".to_owned(),
-				url: "https://opennest.test/tickets/42".to_owned(),
+				url: "https://kiroshi.test/tickets/42".to_owned(),
 				title: "Crash on open".to_owned(),
 			},
 			tools: vec!["gh".to_owned()],
@@ -759,7 +759,7 @@ mod tests {
 
 	fn a_workspace(name: &str) -> std::path::PathBuf {
 		let path = std::env::temp_dir()
-			.join(format!("opennest-mission-hook-{name}-{}", std::process::id()));
+			.join(format!("kiroshi-mission-hook-{name}-{}", std::process::id()));
 		let _ = fs::remove_dir_all(&path);
 		fs::create_dir_all(&path).expect("the workspace is there");
 		path
@@ -773,7 +773,7 @@ mod tests {
 	}
 
 	fn a_watch(branch: &str) -> MissionWatch {
-		MissionWatch { branch: branch.to_owned(), repository: "shoto290/OpenNest".to_owned() }
+		MissionWatch { branch: branch.to_owned(), repository: "shoto290/kiroshi-monorepo".to_owned() }
 	}
 
 	fn drafted_in(objective: &str, workspace: Option<&std::path::Path>) -> MissionDraft {
@@ -801,7 +801,7 @@ mod tests {
 
 		assert_eq!(opened.reach, HEARD, "the answer did not tell the mission hears its agent");
 		let settings = hooked_in(&workspace);
-		assert!(settings.contains("opennest-agent-hook.sh"), "got {settings}");
+		assert!(settings.contains("kiroshi-agent-hook.sh"), "got {settings}");
 		let hooked = ready(&app.state::<db::DatabaseState>())
 			.expect("the database opens")
 			.missions()
@@ -939,7 +939,7 @@ mod tests {
 		install_hooks_at_launch(app.handle()).await;
 
 		let settings = hooked_in(&here);
-		assert!(settings.contains("opennest-agent-hook.sh"), "got {settings}");
+		assert!(settings.contains("kiroshi-agent-hook.sh"), "got {settings}");
 
 		if let Some(webhook) = app.try_state::<crate::routines::webhook::Webhook>() {
 			webhook.stop();
@@ -983,7 +983,7 @@ mod tests {
 			app.handle().clone(),
 			app.state(),
 			opened.id,
-			MissionWatch { branch: "feature/ope-27".to_owned(), repository: "OpenNest".to_owned() },
+			MissionWatch { branch: "feature/ope-27".to_owned(), repository: "Kiroshi".to_owned() },
 		)
 		.await
 		.expect_err("the repository without an owner is refused");

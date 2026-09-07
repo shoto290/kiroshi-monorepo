@@ -67,7 +67,7 @@ type WriteCase = {
 	call: [command: string, args?: Record<string, unknown>]
 }
 
-const IDENTITY = botIdentity({ workingDir: "/work/opennest" })
+const IDENTITY = botIdentity({ workingDir: "/work/kiroshi" })
 
 const SKILL_DRAFT: BotSkillDraft = {
 	name: "Baking",

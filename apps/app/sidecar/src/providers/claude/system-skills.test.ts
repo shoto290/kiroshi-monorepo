@@ -12,13 +12,13 @@ const dropSkill = (plugin: string, id: string, contents: string) => {
 }
 
 const marked = (name: string, body: string) =>
-	`---\nname: ${JSON.stringify(name)}\ndescription: "How you remember."\nmetadata:\n  opennest:\n    preload: true\n---\n\n${body}\n`
+	`---\nname: ${JSON.stringify(name)}\ndescription: "How you remember."\nmetadata:\n  kiroshi:\n    preload: true\n---\n\n${body}\n`
 
 describe("preloadedSkills", () => {
 	let plugin: string
 
 	beforeEach(() => {
-		plugin = mkdtempSync(join(tmpdir(), "opennest-system-"))
+		plugin = mkdtempSync(join(tmpdir(), "kiroshi-system-"))
 	})
 
 	afterEach(() => {
@@ -41,7 +41,7 @@ describe("preloadedSkills", () => {
 		dropSkill(
 			plugin,
 			"learn",
-			"---\nmetadata:\n  opennest:\n    preload: true\n---\n\nRules.\n",
+			"---\nmetadata:\n  kiroshi:\n    preload: true\n---\n\nRules.\n",
 		)
 
 		expect(preloadedSkills(plugin)).toEqual([
@@ -68,7 +68,7 @@ describe("preloadedSkills", () => {
 		dropSkill(
 			plugin,
 			"denied",
-			"---\nmetadata:\n  opennest:\n    preload: false\n---\n\nRules.\n",
+			"---\nmetadata:\n  kiroshi:\n    preload: false\n---\n\nRules.\n",
 		)
 
 		expect(preloadedSkills(plugin)).toEqual([])

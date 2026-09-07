@@ -2285,6 +2285,40 @@ dependencies = [
 ]
 
 [[package]]
+name = "kiroshi-app"
+version = "0.15.1"
+dependencies = [
+ "axum",
+ "chrono",
+ "croner",
+ "git2",
+ "image",
+ "libc",
+ "mac-notification-sys",
+ "mac-usernotifications",
+ "notify-debouncer-full",
+ "objc2",
+ "objc2-app-kit",
+ "objc2-foundation",
+ "reqwest",
+ "rusqlite",
+ "rustls",
+ "serde",
+ "serde_json",
+ "tauri",
+ "tauri-build",
+ "tauri-plugin-notification",
+ "tauri-plugin-opener",
+ "tauri-plugin-os",
+ "tauri-plugin-process",
+ "tauri-plugin-single-instance",
+ "tauri-plugin-updater",
+ "tauri-plugin-window-state",
+ "tokio",
+ "uuid",
+]
+
+[[package]]
 name = "kqueue"
 version = "1.2.1"
 source = "registry+https://github.com/rust-lang/crates.io-index"
@@ -2914,40 +2948,6 @@ dependencies = [
  "dunce",
  "is-wsl",
  "libc",
-]
-
-[[package]]
-name = "opennest-app"
-version = "0.15.1"
-dependencies = [
- "axum",
- "chrono",
- "croner",
- "git2",
- "image",
- "libc",
- "mac-notification-sys",
- "mac-usernotifications",
- "notify-debouncer-full",
- "objc2",
- "objc2-app-kit",
- "objc2-foundation",
- "reqwest",
- "rusqlite",
- "rustls",
- "serde",
- "serde_json",
- "tauri",
- "tauri-build",
- "tauri-plugin-notification",
- "tauri-plugin-opener",
- "tauri-plugin-os",
- "tauri-plugin-process",
- "tauri-plugin-single-instance",
- "tauri-plugin-updater",
- "tauri-plugin-window-state",
- "tokio",
- "uuid",
 ]
 
 [[package]]

@@ -11,9 +11,9 @@ const MISSIONS_DIR: &str = "missions";
 
 const HOOK_DIR: &str = "hook";
 
-const SCRIPT_NAME: &str = "opennest-agent-hook.sh";
+const SCRIPT_NAME: &str = "kiroshi-agent-hook.sh";
 
-const READER_NAME: &str = "opennest-agent-hook.py";
+const READER_NAME: &str = "kiroshi-agent-hook.py";
 
 const CONFIG_NAME: &str = "agent-hook.json";
 
@@ -27,9 +27,9 @@ const HOOKS_KEY: &str = "hooks";
 
 const HOOKED_EVENTS: [&str; 2] = ["Notification", "Stop"];
 
-const SCRIPT: &str = include_str!("../../hooks/opennest-agent-hook.sh");
+const SCRIPT: &str = include_str!("../../hooks/kiroshi-agent-hook.sh");
 
-const READER: &str = include_str!("../../hooks/opennest-agent-hook.py");
+const READER: &str = include_str!("../../hooks/kiroshi-agent-hook.py");
 
 pub fn dir<R: Runtime>(app: &AppHandle<R>, mission_id: &str) -> Result<PathBuf, MissionError> {
 	let data = app
@@ -165,7 +165,7 @@ mod tests {
 
 	fn a_dir(name: &str) -> PathBuf {
 		let path =
-			std::env::temp_dir().join(format!("opennest-hook-{name}-{}", std::process::id()));
+			std::env::temp_dir().join(format!("kiroshi-hook-{name}-{}", std::process::id()));
 		let _ = fs::remove_dir_all(&path);
 		fs::create_dir_all(path.join("workspace").join(GIT_ENTRY)).expect("the workspace is there");
 		path
@@ -259,7 +259,7 @@ mod tests {
 	}
 
 	#[test]
-	fn arming_twice_leaves_one_opennest_entry_on_each_event() {
+	fn arming_twice_leaves_one_kiroshi_entry_on_each_event() {
 		let dir = a_dir("twice");
 		let workspace = workspace_of(&dir);
 
@@ -471,7 +471,7 @@ mod tests {
 			.expect("the call lands")
 			.expect("the listener is joined");
 		assert!(
-			request.contains("X-OpenNest-Delivery: the-key-written-after-the-install"),
+			request.contains("X-Kiroshi-Delivery: the-key-written-after-the-install"),
 			"the script read a config other than the one standing at call time: {request}"
 		);
 		assert!(
@@ -502,8 +502,8 @@ mod tests {
 
 	#[test]
 	fn the_command_carries_the_script_inside_quotes_a_space_in_the_path_survives() {
-		let held = command(Path::new("/a path/with 'quotes'/opennest-agent-hook.sh"));
+		let held = command(Path::new("/a path/with 'quotes'/kiroshi-agent-hook.sh"));
 
-		assert_eq!(held, "bash '/a path/with '\\''quotes'\\''/opennest-agent-hook.sh'");
+		assert_eq!(held, "bash '/a path/with '\\''quotes'\\''/kiroshi-agent-hook.sh'");
 	}
 }

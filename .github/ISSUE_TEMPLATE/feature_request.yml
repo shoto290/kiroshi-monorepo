@@ -1,13 +1,13 @@
 name: Feature request
-description: Suggest a change or an addition to OpenNest
+description: Suggest a change or an addition to Kiroshi
 title: "feat: "
 labels: ["enhancement"]
 body:
   - type: markdown
     attributes:
       value: |
-        OpenNest follows the SIMPLE principles in
-        [AGENTS.md](https://github.com/shoto290/OpenNest/blob/main/AGENTS.md):
+        Kiroshi follows the SIMPLE principles in
+        [AGENTS.md](https://github.com/shoto290/kiroshi-monorepo/blob/main/AGENTS.md):
         the simplest thing that solves a real problem wins, and speculative
         features are declined. Describe the problem before the solution.
   - type: textarea
@@ -40,7 +40,7 @@ body:
     id: alternatives
     attributes:
       label: Alternatives you considered
-      description: Including doing nothing, or solving it outside OpenNest.
+      description: Including doing nothing, or solving it outside Kiroshi.
   - type: checkboxes
     id: checks
     attributes:

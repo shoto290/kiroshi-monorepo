@@ -3,9 +3,9 @@ use std::sync::atomic::{AtomicBool, AtomicUsize, Ordering};
 use std::sync::Arc;
 use std::time::{Duration, Instant};
 
-use opennest_app::commands::invoke_handler;
-use opennest_app::db;
-use opennest_app::db::repositories::messages::{MessagePageQuery, NewUserMessage};
+use kiroshi_app::commands::invoke_handler;
+use kiroshi_app::db;
+use kiroshi_app::db::repositories::messages::{MessagePageQuery, NewUserMessage};
 use rusqlite::{params, Connection};
 use serde_json::{json, Value};
 use tauri::ipc::{CallbackFn, InvokeResponseBody};
@@ -45,7 +45,7 @@ impl Home {
 	fn new() -> Self {
 		static CLAIMED: AtomicUsize = AtomicUsize::new(0);
 		let identifier = format!(
-			"com.opennest.store-open-cost-{}-{}",
+			"com.kiroshi.store-open-cost-{}-{}",
 			std::process::id(),
 			CLAIMED.fetch_add(1, Ordering::Relaxed)
 		);

@@ -456,7 +456,7 @@ describe("missionsByRow", () => {
 						ticket: {
 							platform: "  GitHub  ",
 							externalId: "#4172",
-							url: "https://github.com/vocca/opennest/pull/4172",
+							url: "https://github.com/vocca/kiroshi/pull/4172",
 							title: "  Resume the second turn  ",
 						},
 					}),

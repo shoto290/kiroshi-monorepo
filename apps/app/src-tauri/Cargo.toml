@@ -1,18 +1,18 @@
 [package]
-name = "opennest-app"
+name = "kiroshi-app"
 version = "0.15.1"
-description = "OpenNest desktop app"
+description = "Kiroshi desktop app"
 edition = "2021"
 license = "MIT"
-repository = "https://github.com/shoto290/OpenNest"
-default-run = "OpenNest"
+repository = "https://github.com/shoto290/kiroshi-monorepo"
+default-run = "Kiroshi"
 
 [lib]
-name = "opennest_app"
+name = "kiroshi_app"
 path = "src/lib.rs"
 
 [[bin]]
-name = "OpenNest"
+name = "Kiroshi"
 path = "src/main.rs"
 
 # Every suite but real_claude.rs spawns this, so run them with

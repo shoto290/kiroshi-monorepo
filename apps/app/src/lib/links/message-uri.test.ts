@@ -4,7 +4,7 @@ import { messageUri, parseMessageUri } from "./message-uri"
 
 describe("messageUri", () => {
 	it("addresses a message under its conversation", () => {
-		expect(messageUri("c-1", "m-2")).toBe("opennest://c/c-1/m/m-2")
+		expect(messageUri("c-1", "m-2")).toBe("kiroshi://c/c-1/m/m-2")
 	})
 })
 
@@ -18,11 +18,11 @@ describe("parseMessageUri", () => {
 
 	it("turns down anything that is not a message uri", () => {
 		const strangers = [
-			"opennest://c/c-1",
-			"opennest://c/c-1/m/",
-			"opennest://c//m/m-2",
-			"opennest://c/c-1/m/m-2/extra",
-			"https://opennest.app/c/c-1/m/m-2",
+			"kiroshi://c/c-1",
+			"kiroshi://c/c-1/m/",
+			"kiroshi://c//m/m-2",
+			"kiroshi://c/c-1/m/m-2/extra",
+			"https://kiroshi.app/c/c-1/m/m-2",
 			"",
 		]
 		for (const stranger of strangers) {

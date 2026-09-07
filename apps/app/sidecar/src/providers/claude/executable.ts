@@ -3,7 +3,7 @@ import { dirname, join } from "node:path"
 
 import { BUNDLED_EXECUTABLE_NAME } from "./executable-name"
 
-export const EXECUTABLE_OVERRIDE_ENV = "OPENNEST_CLAUDE_EXECUTABLE"
+export const EXECUTABLE_OVERRIDE_ENV = "KIROSHI_CLAUDE_EXECUTABLE"
 
 const BUILD_COMMAND = "bun run --filter sidecar build"
 

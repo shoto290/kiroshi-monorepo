@@ -3,9 +3,9 @@ set -u
 
 hooks=$(cd -- "$(dirname -- "${BASH_SOURCE[0]}")" && pwd)
 
-export OPENNEST_AGENT_HOOK="${OPENNEST_AGENT_HOOK:-$hooks/agent-hook.json}"
+export KIROSHI_AGENT_HOOK="${KIROSHI_AGENT_HOOK:-$hooks/agent-hook.json}"
 
-python3 "$hooks/opennest-agent-hook.py" | {
+python3 "$hooks/kiroshi-agent-hook.py" | {
 	IFS= read -r url || exit 0
 	IFS= read -r key || exit 0
 	IFS= read -r delivery_id || exit 0
@@ -16,11 +16,11 @@ python3 "$hooks/opennest-agent-hook.py" | {
 		--max-time 5 \
 		--request POST \
 		--header "Content-Type: application/json" \
-		--header "X-OpenNest-Delivery: $key" \
-		--header "X-OpenNest-Delivery-Id: $delivery_id" \
+		--header "X-Kiroshi-Delivery: $key" \
+		--header "X-Kiroshi-Delivery-Id: $delivery_id" \
 		--data-binary @- \
 		"$url" ||
-		printf 'opennest agent hook: the call was not carried\n' >&2
+		printf 'kiroshi agent hook: the call was not carried\n' >&2
 }
 
 exit 0

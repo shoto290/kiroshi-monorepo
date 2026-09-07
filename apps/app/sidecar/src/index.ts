@@ -16,7 +16,7 @@ if (process.argv.includes(PROBE_FLAG)) {
 	await serve(requestedProviderId())
 } else {
 	process.stderr.write(
-		`usage: opennest-agent ${PROBE_FLAG}|${SERVE_FLAG} [${PROVIDER_FLAG}<id>]\n`,
+		`usage: kiroshi-agent ${PROBE_FLAG}|${SERVE_FLAG} [${PROVIDER_FLAG}<id>]\n`,
 	)
 	process.exit(64)
 }

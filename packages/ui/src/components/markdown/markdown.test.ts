@@ -105,10 +105,10 @@ describe("markdown constructions", () => {
 	})
 
 	it("renders autolinks", () => {
-		const html = render("Docs at https://opennest.dev and me@opennest.dev")
+		const html = render("Docs at https://kiroshi.dev and me@kiroshi.dev")
 
-		expect(html).toContain('<a href="https://opennest.dev"')
-		expect(html).toContain('<a href="mailto:me@opennest.dev"')
+		expect(html).toContain('<a href="https://kiroshi.dev"')
+		expect(html).toContain('<a href="mailto:me@kiroshi.dev"')
 	})
 
 	const HIGHLIGHTED_FENCES = [
@@ -301,12 +301,12 @@ describe("markdown links", () => {
 		{
 			case: "userinfo before the host",
 			source:
-				"[https://opennest.dev@evil.test/reports](https://opennest.dev@evil.test/reports)",
+				"[https://kiroshi.dev@evil.test/reports](https://kiroshi.dev@evil.test/reports)",
 			host: "evil.test",
 		},
 		{
 			case: "text without a scheme",
-			source: "[opennest.dev/download](https://evil.test/payload)",
+			source: "[kiroshi.dev/download](https://evil.test/payload)",
 			host: "evil.test",
 		},
 		{
@@ -317,12 +317,12 @@ describe("markdown links", () => {
 		},
 		{
 			case: "emphasis instead of a plain string",
-			source: "[**https://opennest.dev**](https://evil.test/steal)",
+			source: "[**https://kiroshi.dev**](https://evil.test/steal)",
 			host: "evil.test",
 		},
 		{
 			case: "protocol-relative href",
-			source: "[https://opennest.dev](//evil.test/steal)",
+			source: "[https://kiroshi.dev](//evil.test/steal)",
 			host: "evil.test",
 		},
 	]
@@ -338,7 +338,7 @@ describe("markdown links", () => {
 	)
 
 	it("keeps a mailto under url text in the mail client, not in a window", () => {
-		const html = render("[https://opennest.dev](mailto:steal@evil.test)")
+		const html = render("[https://kiroshi.dev](mailto:steal@evil.test)")
 
 		expect(html).toContain('href="mailto:steal@evil.test"')
 		expect(html).not.toContain("target=")
@@ -347,10 +347,10 @@ describe("markdown links", () => {
 
 	it("shows the destination of an ordinary link and of an autolink alike", () => {
 		expect(
-			shownHost(render("[the changelog](https://opennest.dev/changelog)")),
-		).toEqual(["opennest.dev"])
-		expect(shownHost(render("Docs at https://opennest.dev/docs"))).toEqual([
-			"opennest.dev",
+			shownHost(render("[the changelog](https://kiroshi.dev/changelog)")),
+		).toEqual(["kiroshi.dev"])
+		expect(shownHost(render("Docs at https://kiroshi.dev/docs"))).toEqual([
+			"kiroshi.dev",
 		])
 	})
 
@@ -361,13 +361,13 @@ describe("markdown links", () => {
 	})
 
 	it("opens an external link in a new window without leaking the referrer", () => {
-		expect(render("[docs](https://opennest.dev)")).toContain(EXTERNAL)
+		expect(render("[docs](https://kiroshi.dev)")).toContain(EXTERNAL)
 	})
 
 	it("shows a subdomain as it stands", () => {
 		expect(
-			shownHost(render("[roadmap](https://www.opennest.dev/roadmap)")),
-		).toEqual(["www.opennest.dev"])
+			shownHost(render("[roadmap](https://www.kiroshi.dev/roadmap)")),
+		).toEqual(["www.kiroshi.dev"])
 	})
 
 	it("keeps a fragment in the document", () => {
@@ -382,9 +382,9 @@ describe("markdown links", () => {
 	})
 
 	it("keeps a mailto autolink in place", () => {
-		const html = render("Write to me@opennest.dev")
+		const html = render("Write to me@kiroshi.dev")
 
-		expect(html).toContain('href="mailto:me@opennest.dev"')
+		expect(html).toContain('href="mailto:me@kiroshi.dev"')
 		expect(html).not.toContain("target=")
 	})
 
@@ -393,7 +393,7 @@ describe("markdown links", () => {
 	})
 
 	it("renders a scheme it cannot open as plain text", () => {
-		expect(render("[join](irc://opennest.dev/nest)")).not.toContain("<a")
+		expect(render("[join](irc://kiroshi.dev/nest)")).not.toContain("<a")
 	})
 
 	it("renders a path that would resolve against this window as plain text", () => {
@@ -401,16 +401,16 @@ describe("markdown links", () => {
 	})
 
 	it("truncates the text of a link and never its destination", () => {
-		const html = render("https://opennest.dev/a/very/long/path")
+		const html = render("https://kiroshi.dev/a/very/long/path")
 
 		expect(html).toContain("truncate")
 		expect(html).toContain("whitespace-nowrap")
 	})
 
 	it("marks a destination with an initial drawn from the host itself", () => {
-		const html = render("[roadmap](https://www.opennest.dev/roadmap)")
+		const html = render("[roadmap](https://www.kiroshi.dev/roadmap)")
 
-		expect(html).toContain(">o<")
+		expect(html).toContain(">k<")
 		expect(html).toContain('aria-hidden="true"')
 		expect(html).toContain("select-none")
 	})
@@ -436,7 +436,7 @@ describe("markdown links", () => {
 	})
 
 	it("separates the text from its destination with a real space", () => {
-		expect(render("[roadmap](https://opennest.dev)")).toContain("</span> <span")
+		expect(render("[roadmap](https://kiroshi.dev)")).toContain("</span> <span")
 	})
 })
 

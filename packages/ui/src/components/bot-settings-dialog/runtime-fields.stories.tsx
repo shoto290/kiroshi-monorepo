@@ -18,7 +18,7 @@ const MODELS: BotModelOption[] = [
 ]
 
 const LONG_PATH =
-	"/Users/wren/Projects/opennest/packages/ui/src/components/bot-settings-dialog"
+	"/Users/wren/Projects/kiroshi/packages/ui/src/components/bot-settings-dialog"
 
 const RuntimeFieldsHost = (props: RuntimeFieldsProps) => {
 	const [model, setModel] = useState(props.model)
@@ -64,7 +64,7 @@ const meta = preview.meta({
 		models: MODELS,
 		model: "nest-sonnet-4-5",
 		outputStyle: DEFAULT_BOT_OUTPUT_STYLE,
-		workingDirectory: "/Users/wren/Projects/opennest",
+		workingDirectory: "/Users/wren/Projects/kiroshi",
 		onModelChange: fn(),
 		onOutputStyleChange: fn(),
 		onBrowseWorkingDirectory: fn(),

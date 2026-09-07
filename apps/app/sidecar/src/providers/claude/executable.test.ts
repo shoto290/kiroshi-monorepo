@@ -22,7 +22,7 @@ describe("resolveExecutableIn", () => {
 	let directory: string
 
 	beforeEach(() => {
-		directory = mkdtempSync(join(tmpdir(), "opennest-executable-"))
+		directory = mkdtempSync(join(tmpdir(), "kiroshi-executable-"))
 	})
 
 	afterEach(() => {

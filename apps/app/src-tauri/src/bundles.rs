@@ -56,8 +56,8 @@ const MCP_NAME: &str = ".mcp.json";
 const SERVERS_KEY: &str = "mcpServers";
 const MCP_SOURCE: &str = "./.mcp.json";
 
-const MARKETPLACE: &str = "opennest-bots";
-const OWNER: &str = "OpenNest";
+const MARKETPLACE: &str = "kiroshi-bots";
+const OWNER: &str = "Kiroshi";
 
 const VERSION: &str = "0.1.0";
 
@@ -70,7 +70,7 @@ const SKILL_SUBJECT: &str = "Skill";
 const SKILL_FILE_SUBJECT: &str = "Skill file";
 const SERVER_SUBJECT: &str = "MCP server";
 
-const OWNER_KEY: &str = "opennestBotId";
+const OWNER_KEY: &str = "kiroshiBotId";
 
 const MODEL_KEY: &str = "model";
 
@@ -90,7 +90,7 @@ const MCP_PREFIX: &str = "mcp__";
 
 const PRELOAD_KEY: &str = "preload";
 const METADATA_KEY: &str = "metadata";
-const OPENNEST_KEY: &str = "opennest";
+const KIROSHI_KEY: &str = "kiroshi";
 
 const SYSTEM_KEY: &str = "system";
 
@@ -119,13 +119,13 @@ const MARKED: &str = "true";
 
 const INDENT: usize = 2;
 
-const CARRIED_OPEN: &str = "<!-- opennest: generated from this bot's skills, do not edit -->";
-const CARRIED_CLOSE: &str = "<!-- opennest: end of generated skills -->";
+const CARRIED_OPEN: &str = "<!-- kiroshi: generated from this bot's skills, do not edit -->";
+const CARRIED_CLOSE: &str = "<!-- kiroshi: end of generated skills -->";
 
-const MEMORY_OPEN: &str = "<!-- opennest: what the bot learned, the bot keeps this -->";
-const MEMORY_CLOSE: &str = "<!-- opennest: end of what the bot learned -->";
+const MEMORY_OPEN: &str = "<!-- kiroshi: what the bot learned, the bot keeps this -->";
+const MEMORY_CLOSE: &str = "<!-- kiroshi: end of what the bot learned -->";
 
-const IDENTITY_CLOSE: &str = "<!-- opennest: end of generated identity -->";
+const IDENTITY_CLOSE: &str = "<!-- kiroshi: end of generated identity -->";
 
 const IDENTITY_STANCE: &str = "You are a bot with your own personality, and you accompany the person you talk to.
 You are not Claude Code, and you never present yourself as such.
@@ -760,7 +760,7 @@ fn agent(mut parts: Parts, root: &Path, bot: &Bot, written: Written) -> String {
 	parts.front = with_key(&parts.front, &[METADATA_KEY, OWNER_KEY], &quoted(&bot.id));
 	parts.front = with_key(
 		&parts.front,
-		&[METADATA_KEY, OPENNEST_KEY, OUTPUT_STYLE_KEY],
+		&[METADATA_KEY, KIROSHI_KEY, OUTPUT_STYLE_KEY],
 		&quoted(styled(written.output_style)),
 	);
 	parts.body =
@@ -1357,17 +1357,17 @@ fn remarked(offered: serde_json::Value, existing: &str) -> serde_json::Value {
 		serde_json::Value::Object(map) => map,
 		_ => serde_json::Map::new(),
 	};
-	let mut nest = match map.remove(OPENNEST_KEY) {
+	let mut nest = match map.remove(KIROSHI_KEY) {
 		Some(serde_json::Value::Object(nest)) => nest,
 		_ => serde_json::Map::new(),
 	};
 	nest.insert(PRELOAD_KEY.to_owned(), mark.into());
-	map.insert(OPENNEST_KEY.to_owned(), serde_json::Value::Object(nest));
+	map.insert(KIROSHI_KEY.to_owned(), serde_json::Value::Object(nest));
 	serde_json::Value::Object(map)
 }
 
 fn marked(text: &str, is_preloaded: bool) -> std::io::Result<String> {
-	let path = [METADATA_KEY, OPENNEST_KEY, PRELOAD_KEY];
+	let path = [METADATA_KEY, KIROSHI_KEY, PRELOAD_KEY];
 	let mut parts = checked_front(text)?;
 	parts.front = if is_preloaded {
 		with_key(&with_key(&parts.front, &path, MARKED), &[INVOCATION_KEY], MARKED)
@@ -1924,7 +1924,7 @@ mod tests {
 	}
 
 	fn a_root(name: &str) -> PathBuf {
-		let root = std::env::temp_dir().join(format!("opennest-bundle-{name}"));
+		let root = std::env::temp_dir().join(format!("kiroshi-bundle-{name}"));
 		let _ = fs::remove_dir_all(&root);
 		root
 	}
@@ -2665,7 +2665,7 @@ mod tests {
 
 		let path = dir(&root, &bot.id).join(SKILLS_DIR).join("remembering").join(SKILL_NAME);
 		let kept = format!(
-			"{FENCE}\nname: remembering\nmetadata:\n  opennest:\n    system: true\n{FENCE}\n\nRewritten.\n"
+			"{FENCE}\nname: remembering\nmetadata:\n  kiroshi:\n    system: true\n{FENCE}\n\nRewritten.\n"
 		);
 		private_files::replace(&path, kept.as_bytes()).expect("the older file lands");
 		assert!(is_system_skill(&root, &bot.id, "remembering"), "the mark was not read back");
@@ -2724,7 +2724,7 @@ mod tests {
 			.expect("the older script lands");
 		private_files::replace(
 			&bundle.join(SKILLS_DIR).join(LEARN_ID).join(SKILL_NAME),
-			format!("{FENCE}\nname: learn\nmetadata:\n  opennest:\n    system: true\n{FENCE}\n\nOld rules.\n")
+			format!("{FENCE}\nname: learn\nmetadata:\n  kiroshi:\n    system: true\n{FENCE}\n\nOld rules.\n")
 				.as_bytes(),
 		)
 		.expect("the older copy lands");
@@ -2781,7 +2781,7 @@ mod tests {
 
 	fn drop_a_skill(root: &Path, bot_id: &str, name: &str, preload: bool, body: &str) -> PathBuf {
 		let path = dropped_skill(root, bot_id, name);
-		let mark = if preload { "metadata:\n  opennest:\n    preload: true\n" } else { "" };
+		let mark = if preload { "metadata:\n  kiroshi:\n    preload: true\n" } else { "" };
 		private_files::replace(
 			&path,
 			format!("{FENCE}\nname: {name}\n{mark}{FENCE}\n\n{body}\n").as_bytes(),
@@ -3330,7 +3330,7 @@ mod tests {
 				"shell: /bin/zsh\n",
 				"metadata:\n",
 				"  author: someone\n",
-				"  opennest:\n",
+				"  kiroshi:\n",
 				"    preload: true\n",
 				"license: MIT\n",
 				"compatibility:\n",
@@ -3376,7 +3376,7 @@ mod tests {
 		assert_eq!(front.shell.as_deref(), Some("/bin/zsh"));
 		assert_eq!(
 			front.metadata,
-			Some(serde_json::json!({ "author": "someone", "opennest": { "preload": true } }))
+			Some(serde_json::json!({ "author": "someone", "kiroshi": { "preload": true } }))
 		);
 		assert_eq!(front.license.as_deref(), Some("MIT"));
 		assert_eq!(front.compatibility, Some(serde_json::json!({ "claude-code": ">=2.0.0" })));
@@ -3484,7 +3484,7 @@ mod tests {
 		assert!(updated.is_preloaded, "the mark went with the map that carried it");
 		assert_eq!(
 			updated.front.metadata,
-			Some(serde_json::json!({ "author": "someone", "opennest": { "preload": "true" } }))
+			Some(serde_json::json!({ "author": "someone", "kiroshi": { "preload": "true" } }))
 		);
 		let agent = written_agent(&root, &bot.id);
 		assert!(agent.contains("Bake at 220 degrees."), "got {agent}");
@@ -3624,7 +3624,7 @@ mod tests {
 		set_skill_preloaded(&root, &bot, &created.id, true).expect("the mark lands");
 		private_files::replace(
 			&dir(&root, &bot.id).join(SKILLS_DIR).join("kneading").join(SKILL_NAME),
-			format!("{FENCE}\nmetadata:\n  opennest:\n    preload: true\n{FENCE}\n\nKnead.\n")
+			format!("{FENCE}\nmetadata:\n  kiroshi:\n    preload: true\n{FENCE}\n\nKnead.\n")
 				.as_bytes(),
 		)
 		.expect("the nameless skill is dropped in");

@@ -1,16 +1,16 @@
 
 use std::sync::{Arc, Mutex};
 
-use opennest_app::agent::sidecar::SIDECAR_OVERRIDE_ENV;
-use opennest_app::agent::commands::{
+use kiroshi_app::agent::sidecar::SIDECAR_OVERRIDE_ENV;
+use kiroshi_app::agent::commands::{
 	agent_start_or_resume_session, shutdown_session, terminate_session, EVENT_CHANNEL,
 };
-use opennest_app::agent::contract::{AgentEvent, ConnectionState, RuntimeScope, ScopedEvent};
-use opennest_app::agent::AgentState;
-use opennest_app::commands::invoke_handler;
-use opennest_app::db;
-use opennest_app::db::connection::{open, FILE_NAME};
-use opennest_app::db::migrations;
+use kiroshi_app::agent::contract::{AgentEvent, ConnectionState, RuntimeScope, ScopedEvent};
+use kiroshi_app::agent::AgentState;
+use kiroshi_app::commands::invoke_handler;
+use kiroshi_app::db;
+use kiroshi_app::db::connection::{open, FILE_NAME};
+use kiroshi_app::db::migrations;
 use serde_json::{json, Value};
 use tauri::test::{mock_builder, mock_context, noop_assets, MockRuntime, INVOKE_KEY};
 use tauri::webview::InvokeRequest;
@@ -168,7 +168,7 @@ fn shutting_down_a_session_never_queues_behind_the_quit() {
 #[test]
 fn bootstrapping_leaves_a_migrated_file_in_the_app_data_directory() {
 	let mut context = mock_context(noop_assets());
-	context.config_mut().identifier = "com.opennest.db-test".into();
+	context.config_mut().identifier = "com.kiroshi.db-test".into();
 	let app = build(context);
 
 	let database = db::bootstrap(app.handle()).expect("the database opens");
