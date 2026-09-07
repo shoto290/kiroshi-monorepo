@@ -13,6 +13,7 @@ import { kiroshiServer } from "./kiroshi-server"
 import { createPermissionGate } from "./permissions"
 import { createPromptStream } from "./prompt-stream"
 import { securityFloor } from "./security-floor"
+import { sectionPrefixer, unconnectedServers } from "./server-connect"
 import { type ResolvedServers, resolvedServers } from "./server-env"
 import { inheritedEnv } from "./session-env"
 import { layerFor } from "./system-layer"
@@ -29,6 +30,8 @@ import { describeError } from "../../describe-error"
 const ABANDONED = "The session ended before this was answered."
 const ENDED = "the agent ended"
 const DISABLE_AUTO_MEMORY = "CLAUDE_CODE_DISABLE_AUTO_MEMORY"
+const MCP_TIMEOUT = "MCP_TIMEOUT"
+const MCP_CONNECT_MS = "15000"
 export const CLASSIFY_ASK_USER_QUESTION =
 	"CLAUDE_CODE_AUTO_MODE_CLASSIFY_ASK_USER_QUESTION"
 
@@ -118,6 +121,7 @@ export const buildOptions = (
 			...inheritedEnv(),
 			[DISABLE_AUTO_MEMORY]: "1",
 			[CLASSIFY_ASK_USER_QUESTION]: "0",
+			[MCP_TIMEOUT]: MCP_CONNECT_MS,
 		},
 		managedSettings,
 		settingSources: [],
@@ -183,8 +187,21 @@ export const openClaudeSession = async (
 
 	emit({ type: "commands", commands: described(initialized.commands) })
 
+	const unconnected = await unconnectedServers({
+		names: Object.keys(resolved.servers),
+		port: {
+			status: () => run.mcpServerStatus(),
+			reconnect: (name) => run.reconnectMcpServer(name),
+		},
+		env: request.serverEnv,
+	})
+	for (const detail of unconnected) {
+		emit({ type: "server_env_rejected", detail })
+	}
+	const prefixed = sectionPrefixer(unconnected)
+
 	return {
-		prompt: prompts.push,
+		prompt: (text: string) => prompts.push(prefixed(text)),
 		interrupt: async () => {
 			await run.interrupt()
 		},

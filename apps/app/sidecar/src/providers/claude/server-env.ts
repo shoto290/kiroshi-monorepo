@@ -75,7 +75,7 @@ const expandServer = (
 	return { ...server, ...Object.fromEntries(expanded) } as Server
 }
 
-const leftOut = (name: string, reason: string) =>
+export const leftOut = (name: string, reason: string) =>
 	`the server "${name}" was left out: ${reason}`
 
 const UNREADABLE_STORE = "the environment store could not be read"

@@ -150,8 +150,13 @@ Every other command names its session.
   declaration holding no `${` is handed over untouched. A variable with neither value
   nor default leaves its server out of the options and rides a `server_env_rejected`
   frame naming the server and the variable. `failure`, set when the store could not be
-  read, leaves out every server declaring a variable and rides the same frame. No
-  resolved value is ever named in a frame or a log line.
+  read, leaves out every server declaring a variable and rides the same frame. A server
+  the options did keep is read once the session is initialized: still not connected after
+  a wait on its pending state and a single reconnection, it rides the same frame naming
+  the server and the reason its two attempts failed, and the first prompt of the session
+  carries that same line. No resolved value is ever named in a frame or a log line: a
+  reason is cut at 300 characters and every value the store holds reads `[redacted]` in
+  it.
 
 ## Sidecar → host
 
@@ -177,7 +182,7 @@ The frame is an `SDKMessage` verbatim, plus the four the sidecar adds itself.
 | `control_request` / `can_use_tool` | the sidecar, from `canUseTool` | `permissionRequested` |
 | `control_request` / `can_use_tool`, tool `AskUserQuestion` | the sidecar, from `canUseTool` | `questionRequested` |
 | `settings_rejected` | the sidecar, when the bot's `settings.json` is refused in part or in whole | `failed` — `settingsRejected`, the frame's `detail` as its reason |
-| `server_env_rejected` | the sidecar, when a declared MCP server is left out for want of a variable | nothing yet — the host reads no notice from it |
+| `server_env_rejected` | the sidecar, when a declared MCP server is left out for want of a variable, or when a kept server did not connect in two attempts | nothing yet — the host reads no notice from it |
 
 Every other `SDKMessage` type is dropped: `translate.rs` reads what the contract
 needs and nothing else, so a new SDK message is inert until it is asked for.

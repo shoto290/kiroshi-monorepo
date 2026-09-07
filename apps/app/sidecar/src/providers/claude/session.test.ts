@@ -143,6 +143,12 @@ describe("buildOptions", () => {
 		}
 	})
 
+	it("gives an MCP server 15s to connect before the session gives up on it", () => {
+		for (const spawned of spawns) {
+			expect(buildOptions(spawned, undefined).env?.MCP_TIMEOUT).toBe("15000")
+		}
+	})
+
 	it("hands the session an allowlist, not the sidecar's whole environment", () => {
 		process.env.KIROSHI_SECRET_TOKEN = "leaked"
 
