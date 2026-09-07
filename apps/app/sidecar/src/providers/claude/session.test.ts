@@ -8,18 +8,32 @@ import type { Settings } from "@anthropic-ai/claude-agent-sdk"
 import { claudeSourceExecutable } from "./build"
 import { EXECUTABLE_OVERRIDE_ENV } from "./executable"
 import { KIROSHI_SERVER } from "./kiroshi-server"
-import { buildOptions, CLASSIFY_ASK_USER_QUESTION } from "./session"
+import {
+	type ConnectPass,
+	type ConnectPort,
+	POLL_BUDGET_MS,
+	type ServerStatus,
+} from "./server-connect"
+import { leftOut } from "./server-env"
+import {
+	buildOptions,
+	CLASSIFY_ASK_USER_QUESTION,
+	dialledServers,
+	reportConnections,
+	stopTurn,
+} from "./session"
 import {
 	bundleLine,
 	KIROSHI_LAYER,
 	layerFor,
+	leftOutLines,
 	skillLine,
 	spaceLine,
 	unavailableServersSection,
 	userLine,
 } from "./system-layer"
 
-import type { SessionRequest } from "../provider"
+import type { SessionFrame, SessionRequest } from "../provider"
 
 const settingsOf = (options: ReturnType<typeof buildOptions>): Settings =>
 	options.settings as Settings
@@ -41,7 +55,7 @@ const request = {
 	identity,
 }
 
-const leftOut = [
+const rejections = [
 	'the server "clock" was left out: TOKEN is defined by no scope',
 	'the server "probe" was left out: RUNNER is defined by no scope',
 ]
@@ -140,6 +154,16 @@ describe("buildOptions", () => {
 			expect(
 				buildOptions(spawned, undefined).env?.[CLASSIFY_ASK_USER_QUESTION],
 			).toBe("0")
+		}
+	})
+
+	it("bounds no MCP timeout of the CLI from the session options", () => {
+		for (const spawned of spawns) {
+			const env = buildOptions(spawned, undefined).env ?? {}
+
+			expect(env.MCP_TIMEOUT).toBeUndefined()
+			expect(env.MCP_CONNECT_TIMEOUT_MS).toBeUndefined()
+			expect(env.MCP_TOOL_TIMEOUT).toBeUndefined()
 		}
 	})
 
@@ -322,13 +346,15 @@ describe("buildOptions", () => {
 		const append = appended(
 			buildOptions(request, undefined, undefined, {
 				servers: {},
-				rejections: leftOut,
+				rejections,
 			}),
 		)
 
-		expect(append).toBe(layerFor(request, leftOut))
-		expect(append.endsWith(unavailableServersSection(leftOut))).toBe(true)
-		for (const detail of leftOut) {
+		expect(append).toBe(layerFor(request, rejections))
+		expect(
+			append.endsWith(unavailableServersSection(leftOutLines(rejections))),
+		).toBe(true)
+		for (const detail of rejections) {
 			expect(append).toContain(detail)
 		}
 	})
@@ -358,17 +384,47 @@ describe("buildOptions", () => {
 		).toContain(failure)
 	})
 
+	it("names to the pass the servers the options carry, and nothing else", () => {
+		const options = buildOptions(request, undefined, undefined, {
+			servers: { clock: { command: "run" } },
+			rejections: [],
+		})
+
+		expect(dialledServers(options)).toEqual(["clock"])
+		expect(Object.keys(options.mcpServers ?? {})).toEqual([
+			"clock",
+			KIROSHI_SERVER,
+		])
+	})
+
+	it("names no server to the pass when the options carry none", () => {
+		const bundle = mkdtempSync(join(tmpdir(), "kiroshi-dialled-"))
+		writeFileSync(
+			join(bundle, ".mcp.json"),
+			JSON.stringify({ mcpServers: { clock: { command: "run" } } }),
+		)
+
+		const withoutAgent = buildOptions(
+			{ ...request, agent: undefined, pluginPath: bundle },
+			undefined,
+		)
+		rmSync(bundle, { recursive: true, force: true })
+
+		expect(withoutAgent.mcpServers).toBeUndefined()
+		expect(dialledServers(withoutAgent)).toEqual([])
+	})
+
 	it("hands the kept servers and the rejections of one same resolution", () => {
 		const options = buildOptions(request, undefined, undefined, {
 			servers: { clock: { command: "run" } },
-			rejections: leftOut,
+			rejections,
 		})
 
 		expect(Object.keys(options.mcpServers ?? {})).toEqual([
 			"clock",
 			KIROSHI_SERVER,
 		])
-		expect(appended(options)).toContain(leftOut[0])
+		expect(appended(options)).toContain(rejections[0] ?? "")
 	})
 
 	it("keeps the value a scope defines out of that section", () => {
@@ -518,7 +574,7 @@ describe("layerFor", () => {
 		expect(
 			layerFor(
 				{ identity, pluginPath: "/bots/b1", systemPluginPath: system },
-				leftOut,
+				rejections,
 			),
 		).toBe(
 			[
@@ -526,13 +582,13 @@ describe("layerFor", () => {
 				KIROSHI_LAYER,
 				bundleLine("/bots/b1"),
 				`# learn\n\n${skillLine(join(system, "skills", "learn"))}\n\nRules.`,
-				unavailableServersSection(leftOut),
+				unavailableServersSection(leftOutLines(rejections)),
 			].join("\n\n"),
 		)
 	})
 
 	it("tells the bot to answer with the tools it holds and to give the reason listed", () => {
-		const section = unavailableServersSection(leftOut)
+		const section = unavailableServersSection(leftOutLines(rejections))
 
 		expect(section).toContain("Answer the person with the tools you still hold")
 		expect(section).toContain("give them the reason listed for it")
@@ -541,11 +597,122 @@ describe("layerFor", () => {
 		)
 	})
 
-	it("holds for a rejection naming no variable, such as an unreadable store", () => {
+	it("reads the state of a line, not the words its reason quotes", () => {
+		const section = unavailableServersSection(
+			leftOutLines([
+				'the server "superset" was left out: it read failed, and the reconnection answered: is still connecting, holds its tools',
+			]),
+		)
+
+		expect(section).toContain("# Servers left out of this session")
+		expect(section).toContain("tell them that server is unavailable")
+		expect(section).not.toContain("holds none of its tools yet")
+		expect(section).not.toContain("has them for the rest of this session")
+	})
+
+	it("claims nothing of every server when one was left out and one came back", () => {
 		const section = unavailableServersSection([
-			"the environment store could not be read",
-			'the server "clock" was left out: the environment store could not be read',
+			{
+				detail:
+					'the server "clock" was left out: it is waiting for you to authorize it',
+				state: "left-out",
+			},
+			{
+				detail:
+					'the server "superset" connected, and holds its tools for the rest of this session',
+				state: "holding",
+			},
 		])
+
+		expect(section).toContain("hold none of them as unavailable")
+		expect(section).toContain("on this opening alone")
+		expect(section).not.toContain("tell them that server is unavailable")
+		expect(section).toContain("has them for the rest of this session")
+	})
+
+	it("claims nothing of every server when one was left out and one is connecting", () => {
+		const section = unavailableServersSection([
+			{
+				detail:
+					'the server "clock" was left out: it is waiting for you to authorize it',
+				state: "left-out",
+			},
+			{
+				detail: 'the server "superset" is still connecting after 4750 ms',
+				state: "connecting",
+			},
+		])
+
+		expect(section).toContain("hold none of them as unavailable")
+		expect(section).toContain("on this opening alone")
+		expect(section).not.toContain("tell them that server is unavailable")
+		expect(section).toContain("holds none of its tools yet")
+	})
+
+	it("claims no server was left out when none was, and says the tools are back", () => {
+		const section = unavailableServersSection([
+			{
+				detail:
+					'the server "superset" connected, and holds its tools for the rest of this session',
+				state: "holding",
+			},
+		])
+
+		expect(section).not.toContain("was left out")
+		expect(section).not.toContain("that server is unavailable")
+		expect(section).toContain("# Where the servers of this session stand")
+		expect(section).toContain("has them for the rest of this session")
+	})
+
+	it("claims no server was left out for a server still connecting", () => {
+		const section = unavailableServersSection([
+			{
+				detail: 'the server "superset" is still connecting after 4750 ms',
+				state: "connecting",
+			},
+		])
+
+		expect(section).not.toContain("was left out")
+		expect(section).not.toContain("that server is unavailable")
+		expect(section).toContain("# Where the servers of this session stand")
+		expect(section).toContain("holds none of its tools yet")
+	})
+
+	it("tells the bot a server still connecting can hold its tools later", () => {
+		const section = unavailableServersSection([
+			{
+				detail: 'the server "superset" is still connecting after 4750 ms',
+				state: "connecting",
+			},
+		])
+
+		expect(section).toContain("holds none of its tools yet")
+		expect(section).toContain("later in this session")
+		expect(section).toContain("not ready rather than gone")
+	})
+
+	it("keeps the rejection of a missing variable, and its section, word for word", () => {
+		const rejection = leftOut("probe", "RUNNER is defined by no scope")
+
+		expect(rejection).toBe(
+			'the server "probe" was left out: RUNNER is defined by no scope',
+		)
+		expect(unavailableServersSection(leftOutLines([rejection]))).toBe(
+			[
+				"# Servers left out of this session",
+				`- ${rejection}`,
+				"Answer the person with the tools you still hold. When what they ask for needs one of these servers, tell them that server is unavailable and give them the reason listed for it, so they can act on it. Naming that server and its reason is the one exception to saying nothing about the machinery you run on.",
+			].join("\n\n"),
+		)
+	})
+
+	it("holds for a rejection naming no variable, such as an unreadable store", () => {
+		const section = unavailableServersSection(
+			leftOutLines([
+				"the environment store could not be read",
+				'the server "clock" was left out: the environment store could not be read',
+			]),
+		)
 
 		expect(section).not.toContain("variable")
 		expect(section).toContain("give them the reason listed for it")
@@ -556,5 +723,483 @@ describe("layerFor", () => {
 			[identity, KIROSHI_LAYER, bundleLine("/bots/b1")].join("\n\n"),
 		)
 		expect(layerFor({ pluginPath: "/bots/b1" })).not.toContain(identity)
+	})
+})
+
+describe("reportConnections", () => {
+	const refused: ServerStatus[] = [{ name: "superset", status: "needs-auth" }]
+
+	const detail =
+		'the server "superset" was left out: it is waiting for you to authorize it'
+
+	const section = unavailableServersSection(leftOutLines([detail]))
+
+	type Report = {
+		emitted: string[]
+		pushed: string[]
+		settled: Promise<void>
+		report: ReturnType<typeof reportConnections>
+	}
+
+	const reporting = (pass: ConnectPass): Report => {
+		const emitted: string[] = []
+		const pushed: string[] = []
+		const done = Promise.withResolvers<void>()
+		const report = reportConnections({
+			emit: (frame) => {
+				emitted.push(String(frame.detail))
+			},
+			push: (text) => {
+				pushed.push(text)
+				done.resolve()
+			},
+			pass,
+		})
+		return { emitted, pushed, settled: done.promise, report }
+	}
+
+	const refusing = (): ConnectPass => ({
+		names: ["superset"],
+		port: { status: async () => refused, reconnect: async () => {} },
+	})
+
+	const ticked = () => new Promise((resolve) => setTimeout(resolve, 10))
+
+	it("lets the session be announced before the pass reads a status", async () => {
+		const order: string[] = []
+		const read = Promise.withResolvers<void>()
+
+		reportConnections({
+			emit: () => {},
+			push: () => {},
+			pass: {
+				names: ["superset"],
+				port: {
+					status: async () => {
+						order.push("status")
+						read.resolve()
+						return [{ name: "superset", status: "connected" }]
+					},
+					reconnect: async () => {},
+				},
+			},
+		})
+		order.push("opened")
+
+		expect(order).toEqual(["opened"])
+
+		await read.promise
+
+		expect(order).toEqual(["opened", "status"])
+	})
+
+	it("emits its frames in the call that hands the prefixed prompt over", async () => {
+		const { emitted, pushed, settled, report } = reporting(refusing())
+
+		report.prompt("first")
+		await settled
+
+		expect(emitted).toEqual([detail])
+		expect(pushed).toEqual([`${section}\n\nfirst`])
+	})
+
+	it("raises no frame at the opening for a server its watch is about to dial", async () => {
+		const emitted: string[] = []
+		const pushed: string[] = []
+		const released = Promise.withResolvers<void>()
+
+		const report = reportConnections({
+			emit: (frame) => {
+				emitted.push(String(frame.detail))
+			},
+			push: (text) => {
+				pushed.push(text)
+				released.resolve()
+			},
+			pass: {
+				names: ["superset"],
+				port: {
+					status: async () => [{ name: "superset", status: "failed" }],
+					reconnect: async () => {
+						throw new Error("Connection failed")
+					},
+				},
+				wait: async () => {},
+			},
+		})
+
+		report.prompt("first")
+		await released.promise
+
+		expect(emitted).toEqual([])
+		expect(pushed[0]).toContain("read failed, and a reconnection is under way")
+
+		await ticked()
+		report.prompt("and now?")
+		const answered =
+			'the server "superset" was left out: it read failed, and the reconnection answered: Connection failed'
+
+		expect(emitted).toEqual([answered])
+		expect(pushed[1]).toBe(
+			`${unavailableServersSection(leftOutLines([answered]))}\n\nand now?`,
+		)
+	})
+
+	it("raises no frame at all for a server its reconnection brings back", async () => {
+		const emitted: string[] = []
+		const pushed: string[] = []
+		const released = Promise.withResolvers<void>()
+		let dialled = false
+
+		const report = reportConnections({
+			emit: (frame) => {
+				emitted.push(String(frame.detail))
+			},
+			push: (text) => {
+				pushed.push(text)
+				released.resolve()
+			},
+			pass: {
+				names: ["superset"],
+				port: {
+					status: async () => [
+						{ name: "superset", status: dialled ? "connected" : "failed" },
+					],
+					reconnect: async () => {
+						dialled = true
+					},
+				},
+				wait: async () => {},
+			},
+		})
+
+		report.prompt("first")
+		await released.promise
+		await ticked()
+		report.prompt("and now?")
+
+		expect(emitted).toEqual([])
+		expect(pushed[1]).toContain("holds its tools for the rest of this session")
+		expect(pushed[1]).not.toContain("was left out")
+	})
+
+	const clocked = (portFor: (now: () => number) => ConnectPort) => {
+		const emitted: string[] = []
+		const pushed: string[] = []
+		const released = Promise.withResolvers<void>()
+		let time = 0
+
+		const report = reportConnections({
+			emit: (frame) => {
+				emitted.push(String(frame.detail))
+			},
+			push: (text) => {
+				pushed.push(text)
+				released.resolve()
+			},
+			pass: {
+				names: ["superset"],
+				port: portFor(() => time),
+				now: () => time,
+				wait: async (ms) => {
+					time += ms
+				},
+			},
+		})
+
+		return { emitted, pushed, released: released.promise, report }
+	}
+
+	const settlingAfterBudget = (settled: ServerStatus[]) =>
+		clocked((now) => ({
+			status: async () =>
+				now() <= POLL_BUDGET_MS - 250
+					? [{ name: "superset", status: "pending" }]
+					: settled,
+			reconnect: async () => {},
+		}))
+
+	it("raises no frame for a server the budget left pending", async () => {
+		const { emitted, pushed, released, report } = clocked(() => ({
+			status: async () => [{ name: "superset", status: "pending" }],
+			reconnect: async () => {},
+		}))
+
+		report.prompt("first")
+		await released
+
+		expect(emitted).toEqual([])
+		expect(pushed[0]).toContain("is still connecting after")
+	})
+
+	it("raises one frame once that server reads failed under the watch", async () => {
+		const { emitted, pushed, released, report } = clocked((now) => ({
+			status: async () =>
+				now() <= POLL_BUDGET_MS - 250
+					? [{ name: "superset", status: "pending" }]
+					: [{ name: "superset", status: "failed" }],
+			reconnect: async () => {
+				throw new Error("Connection failed")
+			},
+		}))
+
+		report.prompt("first")
+		await released
+
+		expect(emitted).toEqual([])
+		expect(pushed[0]).toContain("is still connecting after")
+
+		await ticked()
+
+		expect(emitted).toEqual([
+			'the server "superset" was left out: it read failed, and the reconnection answered: Connection failed',
+		])
+	})
+
+	it("names a server the watch finds disabled as left out, once", async () => {
+		const { pushed, report } = settlingAfterBudget([
+			{ name: "superset", status: "disabled" },
+		])
+
+		await ticked()
+		report.prompt("and now?")
+
+		const carried = String(pushed[0])
+
+		expect(carried.split('the server "superset"')).toHaveLength(2)
+		expect(carried).toContain("it is disabled in this session")
+		expect(carried).not.toContain("is still connecting")
+	})
+
+	it("tells the bot of a server it reached without framing it on screen", async () => {
+		const { emitted, pushed, report } = settlingAfterBudget([
+			{ name: "superset", status: "connected" },
+		])
+
+		await ticked()
+
+		expect(emitted).toEqual([])
+
+		report.prompt("and now?")
+
+		expect(pushed[0]).toContain("holds its tools for the rest of this session")
+		expect(pushed[0]).not.toContain("is still connecting")
+		expect(emitted).toEqual([])
+	})
+
+	it("carries the later line alone when a server was named twice", async () => {
+		const { emitted, pushed, report } = settlingAfterBudget([
+			{ name: "superset", status: "failed" },
+		])
+
+		await ticked()
+		report.prompt("and now?")
+
+		const carried = String(pushed[0])
+		const named = carried.split('the server "superset"').length - 1
+
+		expect(emitted).toEqual([
+			'the server "superset" was left out: it read failed',
+		])
+		expect(named).toBe(1)
+		expect(carried).toContain("it read failed")
+		expect(carried).not.toContain("is still connecting")
+	})
+
+	it("emits no frame while the pass settles on its own", async () => {
+		const { emitted, pushed } = reporting(refusing())
+
+		await ticked()
+
+		expect(emitted).toEqual([])
+		expect(pushed).toEqual([])
+	})
+
+	it("holds every prompt behind the pass and names the servers once", async () => {
+		const { emitted, pushed, report } = reporting(refusing())
+
+		report.prompt("first")
+		report.prompt("second")
+
+		expect(pushed).toEqual([])
+
+		await ticked()
+		report.prompt("third")
+
+		expect(emitted).toEqual([detail])
+		expect(pushed).toEqual([`${section}\n\nfirst`, "second", "third"])
+	})
+
+	it("says nothing to anyone but stderr when no status read ever answered", async () => {
+		const written: string[] = []
+		const original = process.stderr.write
+		process.stderr.write = ((line: string) => {
+			written.push(String(line))
+			return true
+		}) as typeof process.stderr.write
+		const { emitted, pushed, settled, report } = reporting({
+			names: ["superset"],
+			port: {
+				status: async () => {
+					throw new Error("the query is gone")
+				},
+				reconnect: async () => {},
+			},
+		})
+
+		report.prompt("first")
+		await settled
+		process.stderr.write = original
+
+		expect(emitted).toEqual([])
+		expect(pushed).toEqual(["first"])
+		expect(written).toEqual([
+			"the connection pass gave up on superset: the query is gone\n",
+		])
+	})
+
+	it("drops the held prompts of a cancelled turn and leaves the pass running", async () => {
+		const { emitted, pushed, report } = reporting(refusing())
+
+		report.prompt("first")
+		report.drop()
+		await ticked()
+		report.prompt("second")
+
+		expect(pushed).toEqual([`${section}\n\nsecond`])
+		expect(emitted).toEqual([detail])
+	})
+
+	it("abandons the pass on a close, with no frame and no held prompt", async () => {
+		const written: string[] = []
+		const original = process.stderr.write
+		process.stderr.write = ((line: string) => {
+			written.push(String(line))
+			return true
+		}) as typeof process.stderr.write
+		const { emitted, pushed, report } = reporting({
+			names: ["superset"],
+			port: {
+				status: async () => {
+					throw new Error("the query is gone")
+				},
+				reconnect: async () => {},
+			},
+		})
+
+		report.prompt("first")
+		report.abandon()
+		await ticked()
+		process.stderr.write = original
+
+		expect(emitted).toEqual([])
+		expect(pushed).toEqual([])
+		expect(written).toEqual([])
+	})
+
+	it("holds a prompt for as long as the pass runs, and releases it on the pass", async () => {
+		const reading = Promise.withResolvers<ServerStatus[]>()
+		const { emitted, pushed, settled, report } = reporting({
+			names: ["superset"],
+			port: {
+				status: () => reading.promise,
+				reconnect: async () => {},
+			},
+		})
+
+		report.prompt("first")
+		await ticked()
+
+		expect(pushed).toEqual([])
+
+		reading.resolve(refused)
+		await settled
+
+		expect(pushed).toEqual([`${section}\n\nfirst`])
+		expect(emitted).toEqual([detail])
+	})
+
+	it("holds nothing and reads no status when the options carry no server", async () => {
+		let reads = 0
+		const { emitted, pushed, report } = reporting({
+			names: [],
+			port: {
+				status: async () => {
+					reads += 1
+					return []
+				},
+				reconnect: async () => {},
+			},
+		})
+
+		report.prompt("first")
+
+		expect(pushed).toEqual(["first"])
+
+		await ticked()
+
+		expect(reads).toBe(0)
+		expect(emitted).toEqual([])
+	})
+
+	it("releases the first prompt on the first read when every server connected", async () => {
+		let reads = 0
+		const { emitted, pushed, settled, report } = reporting({
+			names: ["superset"],
+			port: {
+				status: async () => {
+					reads += 1
+					return [{ name: "superset", status: "connected" }]
+				},
+				reconnect: async () => {},
+			},
+		})
+
+		report.prompt("first")
+		await settled
+
+		expect(pushed).toEqual(["first"])
+		expect(emitted).toEqual([])
+		expect(reads).toBe(1)
+	})
+})
+
+describe("stopTurn", () => {
+	it("ends the host's turn itself when the stop lands on a held prompt", async () => {
+		const frames: SessionFrame[] = []
+		let interrupted = false
+
+		await stopTurn({
+			dropped: true,
+			emit: (frame) => {
+				frames.push(frame)
+			},
+			interrupt: async () => {
+				interrupted = true
+			},
+		})
+
+		expect(frames).toEqual([
+			{ type: "result", subtype: "interrupted", is_error: false },
+		])
+		expect(interrupted).toBe(false)
+	})
+
+	it("sends the interrupt and emits nothing when nothing was held", async () => {
+		const frames: SessionFrame[] = []
+		let interrupted = false
+
+		await stopTurn({
+			dropped: false,
+			emit: (frame) => {
+				frames.push(frame)
+			},
+			interrupt: async () => {
+				interrupted = true
+			},
+		})
+
+		expect(frames).toEqual([])
+		expect(interrupted).toBe(true)
 	})
 })

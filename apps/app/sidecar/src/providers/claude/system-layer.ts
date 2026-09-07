@@ -36,12 +36,59 @@ export const userLine = (userPluginPath: string): string =>
 export const spaceLine = (spacePluginPath: string): string =>
 	`What you learn about the project this space is for lives in ${spacePluginPath}, the directory every bot of this space reads, and that is where you write it.`
 
-export const unavailableServersSection = (rejections: string[]): string =>
-	[
-		"# Servers left out of this session",
-		rejections.map((detail) => `- ${detail}`).join("\n"),
-		"Answer the person with the tools you still hold. When what they ask for needs one of these servers, tell them that server is unavailable and give them the reason listed for it, so they can act on it. Naming that server and its reason is the one exception to saying nothing about the machinery you run on.",
+export type ServerState = "left-out" | "connecting" | "reconnecting" | "holding"
+
+export type ServerLine = {
+	detail: string
+	state: ServerState
+}
+
+const CONNECTING_LINE =
+	"A server still connecting, or being reconnected, holds none of its tools yet, and can gain them later in this session. Say it is not ready rather than gone, and try it again when the person asks for it."
+
+const HOLDS_TOOLS_LINE =
+	"A server named as holding its tools has them for the rest of this session. Use it as you would any other, and tell the person it is there if they asked about it."
+
+const LEFT_OUT_OPENING = [
+	"# Servers left out of this session",
+	"Answer the person with the tools you still hold. When what they ask for needs one of these servers, tell them that server is unavailable and give them the reason listed for it, so they can act on it. Naming that server and its reason is the one exception to saying nothing about the machinery you run on.",
+]
+
+const MIXED_OPENING = [
+	"# Where the servers of this session stand",
+	"These servers do not stand alike: read each line for the server it names, and hold none of them as unavailable on this opening alone. Answer the person with every tool you hold, and when what they ask for needs one of these servers, give them what its own line says. Naming that server and its line is the one exception to saying nothing about the machinery you run on.",
+]
+
+const STANDING_OPENING = [
+	"# Where the servers of this session stand",
+	"Every server named here belongs to this session. Read each line for where that server stands, and answer the person with every tool you hold. Naming that server and its state is the one exception to saying nothing about the machinery you run on.",
+]
+
+const openingFor = (states: Set<ServerState>): string[] => {
+	const dropped = states.has("left-out")
+	const standing = [...states].some((state) => state !== "left-out")
+	if (dropped && standing) {
+		return MIXED_OPENING
+	}
+	return dropped ? LEFT_OUT_OPENING : STANDING_OPENING
+}
+
+export const leftOutLines = (details: string[]): ServerLine[] =>
+	details.map((detail) => ({ detail, state: "left-out" as const }))
+
+export const unavailableServersSection = (lines: ServerLine[]): string => {
+	const states = new Set(lines.map((line) => line.state))
+	const [title, opening] = openingFor(states)
+	return [
+		title,
+		lines.map(({ detail }) => `- ${detail}`).join("\n"),
+		opening,
+		...(states.has("connecting") || states.has("reconnecting")
+			? [CONNECTING_LINE]
+			: []),
+		...(states.has("holding") ? [HOLDS_TOOLS_LINE] : []),
 	].join("\n\n")
+}
 
 export const skillLine = (directory: string): string =>
 	`This skill lives in ${directory}, and every file it names sits under that directory.`
@@ -74,5 +121,7 @@ export const layerFor = (
 		...(systemPluginPath
 			? preloadedSkills(systemPluginPath).map(skillSection)
 			: []),
-		...(rejections.length ? [unavailableServersSection(rejections)] : []),
+		...(rejections.length
+			? [unavailableServersSection(leftOutLines(rejections))]
+			: []),
 	].join("\n\n")

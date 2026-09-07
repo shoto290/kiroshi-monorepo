@@ -150,8 +150,96 @@ Every other command names its session.
   declaration holding no `${` is handed over untouched. A variable with neither value
   nor default leaves its server out of the options and rides a `server_env_rejected`
   frame naming the server and the variable. `failure`, set when the store could not be
-  read, leaves out every server declaring a variable and rides the same frame. No
-  resolved value is ever named in a frame or a log line.
+  read, leaves out every server declaring a variable and rides the same frame. A server
+  the options did keep is read once the session is initialized, for the 5000 ms of the
+  poll budget. What that budget settles rides the first prompt: a server it read
+  `needs-auth` as waiting for its authorization, on a frame of its own, one it read failed
+  as having read failed with a reconnection under way, and one it left pending as still
+  connecting after the time the read spent, both of those reaching the bot's section and
+  no frame at all. A server whose outcome the watch is about to decide raises no frame
+  until it is decided: one frame per server at the most, across the read and its watch. The frame carries the
+  servers this session is without, and the CLI is still dialling that one: its tools can
+  land later in the session, which the section says in its own words, and its frame comes
+  later too, when a read names it failed, `needs-auth` or disabled, or the pass gives up
+  on it. A line never counts connection attempts: the
+  CLI retries a failing server on its own, several times per read, so no number the
+  sidecar could state would be true. A server the budget read failed earns one
+  reconnection, taken after the budget so no prompt waits on it, and a second line of its
+  own which overtakes the first. That line comes from one more status call, taken once the
+  reconnection answered: the server reads connected and holds its tools again, or left out
+  with the reason its status and the reconnection give. Still connecting on that call, it
+  goes back under the watch, read every second until it settles or the watch bound
+  elapses, and reported by the status that settles it, with no second reconnection and
+  with the answer its reconnection gave, which the watch holds for it. A reason names the
+  source that gave it: the reconnection when it threw, and the status call that followed
+  it when that call is the one that threw. A server
+  the budget left pending is watched past it, one status call every second, until it reads
+  connected, failed or `needs-auth`, or 60000 ms pass and it is given up on: a stderr line
+  naming it, and a frame saying it never settled while it was watched, with the answer its
+  reconnection gave when one was asked for. A dial still running when that bound passes is
+  waited on, and the server it hands back is given up on then, never left on the line the
+  first prompt carried.
+  Connected, it earns a line naming it as holding its tools for the rest of the session,
+  carried to the bot by the next prompt and framed to nobody: good news is no notice;
+  failed, it earns the same one reconnection and frame; `needs-auth` and `disabled`, it
+  earns that frame with the reason of its own. One frame per server at the most after the budget,
+  and none once the session closed. A frame raised after a prompt was handed rides the
+  next prompt's section, so the bot reads what the screen reads. The section reads the
+  state each line was built for, never the words of a line: a reason quoting the CLI can
+  say anything without moving the opening or the closing lines that frame it. A slash command is handed
+  over untouched, its line waiting for the next prompt that is not one; a line is framed
+  once, whichever prompt ends up carrying it. A server named by a line and then by a later
+  one rides the later line alone, on the screen and in the section both: a standing the
+  reads have overtaken is never handed over. The section itself follows what its lines
+  say: it claims a server was left out only when every line says so, it sends the bot to
+  each line when they differ, and it tells the bot where a server still connecting or
+  freshly reconnected stands. A still connecting line carries the status a read gave and
+  the time that read landed at, never what a reconnection answered. A reconnection holds
+  no other server back: the servers left pending are read again while it runs. A status read carries a
+  name and a status alone, so that reason is built from the status the last read named,
+  the time the read had spent, and the message the reconnection threw, and from nothing
+  else: the cause the CLI knows, a 401 or a refused socket, never crosses the control
+  protocol. That frame goes out in the very call
+  that hands the prompt carrying the same line over, once per session, so the notice
+  lands while a turn is live. The frames raised after the budget go out at once, and their
+  lines wait for the next prompt. The session opens without waiting on any of it: the
+  `opened` frame goes out first and the prompts wait behind the budget, in the order they
+  were received, never longer than it. No deadline covers that read as a whole: each status
+  call taken while polling is bounded by what is left of the 5000 ms poll budget, and the
+  reconnections and the call taken after them by 30000 ms each, what the CLI gives an MCP
+  request of its own. The polls stop once the time left, taken from a clock and not
+  counted in sleeps, no longer covers a 250 ms wait and a call after it, so the last call
+  of a read is always given a bound it can land in. No session option bounds the
+  dial: neither `MCP_TIMEOUT` nor `MCP_CONNECT_TIMEOUT_MS` is set, the CLI keeping its
+  own defaults. A status call that outlasts
+  its bound ends the polls there and keeps what the earlier calls named: only the very
+  first call has nothing to fall back on, and it ends the read on a stderr line with
+  nothing reported. The call taken after the reconnections is the same: outlasting, it
+  leaves the servers the earlier calls left unconnected reported, and rides a stderr line
+  of its own. A stderr line names only the servers the read holds no status for: one the
+  earlier calls already named is reported, not given up on, and a give up naming no server
+  is not written. A give up does not stop at stderr: every server it names rides a frame
+  and the next prompt's section with the same reason, because nothing in a live session
+  reads that stream. A pass whose very first status call throws names no server at all: no
+  call ever said anything about them, so it reports once that the status could not be
+  read, with its cause. That is a diagnostic of ours, not a state of a server: it stays on
+  stderr, raises no frame and reaches no section, every server of the session being left
+  unjudged and possibly connected. A status call the watch takes and loses says as little:
+  same stderr line, no frame, no server named, and the watch keeps reading until its
+  bound. The call taken after the reconnections is the exception: outlasting, it
+  names on stderr every server the read reconnected, those lines being the only trace it
+  left. A server no status call has named yet is polled for 1000 ms only, then
+  left to the stderr line. An interrupt drops what is held and leaves
+  the read running: the CLI never received that prompt, so no interrupt is sent to it and
+  the sidecar rides a `result` frame of subtype `interrupted` instead, which ends the
+  host's turn as cancelled. An interrupt with nothing held reaches the CLI as before. A
+  close abandons the read, frame, stderr line and timers included. A server
+  reading `needs-auth` is named as waiting for its authorization, and no reconnection is
+  attempted on it. A server no read ever named rides no frame: the sidecar writes one
+  stderr line naming it, as it does when the read throws or outlasts its deadline. No
+  resolved value is ever named in a frame or a log line: the message a reconnection
+  throws is cut at 300 characters and every value of eight characters or more the store
+  holds reads `[redacted]` in it.
 
 ## Sidecar → host
 
@@ -172,12 +260,12 @@ The frame is an `SDKMessage` verbatim, plus the four the sidecar adds itself.
 | `stream_event` | `SDKPartialAssistantMessage` — one Messages API streaming event | `messageStarted` / `messageDelta` / `activity` |
 | `assistant` | `SDKAssistantMessage` — `text` and/or `tool_use` blocks | `messageCompleted` / `activity` |
 | `user` | `SDKUserMessage` — `tool_result` with `is_error` | `activity` (succeeded / failed) |
-| `result` | `SDKResultMessage` — `subtype`, `session_id`, `is_error` | `turnEnded` |
+| `result` | `SDKResultMessage` — `subtype`, `session_id`, `is_error`, or the sidecar when a stop lands on a prompt still held | `turnEnded` |
 | `host_request` | the sidecar, from `askHost` | nothing — it is answered, not read |
 | `control_request` / `can_use_tool` | the sidecar, from `canUseTool` | `permissionRequested` |
 | `control_request` / `can_use_tool`, tool `AskUserQuestion` | the sidecar, from `canUseTool` | `questionRequested` |
 | `settings_rejected` | the sidecar, when the bot's `settings.json` is refused in part or in whole | `failed` — `settingsRejected`, the frame's `detail` as its reason |
-| `server_env_rejected` | the sidecar, when a declared MCP server is left out for want of a variable | nothing yet — the host reads no notice from it |
+| `server_env_rejected` | the sidecar, when a declared MCP server is left out for want of a variable, or when a kept server has not connected | `failed` — `serverEnvRejected`, raised as a non terminal notice reading the frame's `detail` and telling the reader the conversation carries on with the other servers |
 
 Every other `SDKMessage` type is dropped: `translate.rs` reads what the contract
 needs and nothing else, so a new SDK message is inert until it is asked for.
