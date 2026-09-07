@@ -164,12 +164,14 @@ Every other command names its session.
   its tools again when it did not, which the section says in its own words too. A server
   the budget left pending is watched past it, one status call every second, until it reads
   connected, failed or `needs-auth`, or 60000 ms pass and it rides a stderr line instead.
-  Connected, it draws nothing; failed, it earns the same one reconnection and frame;
-  `needs-auth`, it earns that frame. One frame per server at the most after the budget,
+  Connected, it earns a frame naming it as holding its tools for the rest of the session;
+  failed, it earns the same one reconnection and frame; `needs-auth`, it earns that frame. One frame per server at the most after the budget,
   and none once the session closed. A frame raised after a prompt was handed rides the
   next prompt's section, so the bot reads what the screen reads. A slash command is handed
   over untouched, its line waiting for the next prompt that is not one; a line is framed
-  once, whichever prompt ends up carrying it. The section itself follows what its lines
+  once, whichever prompt ends up carrying it. A server named by a line and then by a later
+  one rides the later line alone, on the screen and in the section both: a standing the
+  reads have overtaken is never handed over. The section itself follows what its lines
   say: it claims a server was left out only when every line says so, it sends the bot to
   each line when they differ, and it tells the bot where a server still connecting or
   freshly reconnected stands. A still connecting line carries the status a read gave and

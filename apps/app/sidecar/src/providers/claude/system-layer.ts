@@ -1,4 +1,4 @@
-import { RECONNECTED, STILL_CONNECTING } from "./server-connect"
+import { HOLDS_TOOLS, STILL_CONNECTING } from "./server-connect"
 import { LEFT_OUT } from "./server-env"
 import { type PreloadedSkill, preloadedSkills } from "./system-skills"
 
@@ -41,8 +41,8 @@ export const spaceLine = (spacePluginPath: string): string =>
 const CONNECTING_LINE =
 	"A server still connecting holds none of its tools yet, and can gain them later in this session. Say it is not ready rather than gone, and try it again when the person asks for it."
 
-const RECONNECTED_LINE =
-	"A server named as reconnected holds its tools again for the rest of this session. Use it as you would any other, and tell the person it is back if they asked about it."
+const HOLDS_TOOLS_LINE =
+	"A server named as holding its tools has them for the rest of this session. Use it as you would any other, and tell the person it is there if they asked about it."
 
 const LEFT_OUT_OPENING = [
 	"# Servers left out of this session",
@@ -65,7 +65,7 @@ const naming = (rejections: string[], phrase: string): boolean =>
 const openingFor = (rejections: string[]): string[] => {
 	const dropped = naming(rejections, LEFT_OUT)
 	const standing =
-		naming(rejections, STILL_CONNECTING) || naming(rejections, RECONNECTED)
+		naming(rejections, STILL_CONNECTING) || naming(rejections, HOLDS_TOOLS)
 	if (dropped && standing) {
 		return MIXED_OPENING
 	}
@@ -79,7 +79,7 @@ export const unavailableServersSection = (rejections: string[]): string => {
 		rejections.map((detail) => `- ${detail}`).join("\n"),
 		opening,
 		...(naming(rejections, STILL_CONNECTING) ? [CONNECTING_LINE] : []),
-		...(naming(rejections, RECONNECTED) ? [RECONNECTED_LINE] : []),
+		...(naming(rejections, HOLDS_TOOLS) ? [HOLDS_TOOLS_LINE] : []),
 	].join("\n\n")
 }
 

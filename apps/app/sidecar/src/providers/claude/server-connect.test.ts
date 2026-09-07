@@ -486,7 +486,7 @@ describe("watching a server left connecting", () => {
 		const { reported, reconnected } = await watched(failed)
 
 		expect(reported).toEqual([
-			'the server "superset" was reconnected, and its tools are back',
+			'the server "superset" was reconnected, and holds its tools again',
 		])
 		expect(reconnected).toEqual(["superset"])
 	})
@@ -553,10 +553,12 @@ describe("watching a server left connecting", () => {
 		expect(time).toBeGreaterThanOrEqual(WATCH_BOUND_MS)
 	})
 
-	it("reports nothing on a server the CLI settles connected after the budget", async () => {
+	it("names a server the CLI settles connected after the budget as reached", async () => {
 		const { reported, reconnected } = await watched(connected)
 
-		expect(reported).toEqual([])
+		expect(reported).toEqual([
+			'the server "superset" connected, and holds its tools for the rest of this session',
+		])
 		expect(reconnected).toEqual([])
 	})
 

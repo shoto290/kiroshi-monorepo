@@ -31,6 +31,7 @@ const ABANDONED = "The session ended before this was answered."
 const ENDED = "the agent ended"
 const DISABLE_AUTO_MEMORY = "CLAUDE_CODE_DISABLE_AUTO_MEMORY"
 const SLASH_COMMAND = /^\/[^\s/]+(\s|$)/
+const SERVER_NAMED = /^the server "([^"]+)"/
 export const CLASSIFY_ASK_USER_QUESTION =
 	"CLAUDE_CODE_AUTO_MODE_CLASSIFY_ASK_USER_QUESTION"
 
@@ -165,6 +166,16 @@ export type ConnectionReport = {
 	pass: ConnectPass
 }
 
+const latest = (lines: WaitingLine[]): WaitingLine[] => {
+	const named = new Map<string, WaitingLine>()
+	for (const line of lines) {
+		const key = SERVER_NAMED.exec(line.detail)?.[1] ?? line.detail
+		named.delete(key)
+		named.set(key, line)
+	}
+	return [...named.values()]
+}
+
 export const reportConnections = ({ emit, push, pass }: ConnectionReport) => {
 	const abandoning = new AbortController()
 	const { signal } = abandoning
@@ -185,17 +196,18 @@ export const reportConnections = ({ emit, push, pass }: ConnectionReport) => {
 	}
 
 	const hand = (text: string) => {
-		for (const line of waiting) {
+		const carried = latest(waiting.splice(0))
+		for (const line of carried) {
 			if (!line.framed) {
 				framed(line.detail)
 				line.framed = true
 			}
 		}
-		if (waiting.length === 0 || SLASH_COMMAND.test(text)) {
+		if (carried.length === 0 || SLASH_COMMAND.test(text)) {
+			waiting.push(...carried)
 			push(text)
 			return
 		}
-		const carried = waiting.splice(0)
 		const section = unavailableServersSection(
 			carried.map((line) => line.detail),
 		)

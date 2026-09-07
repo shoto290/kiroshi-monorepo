@@ -67,7 +67,7 @@ const REDACTED = "[redacted]"
 const NO_READ = "no status read ever named it"
 const AWAITING_AUTH = "it is waiting for you to authorize it"
 export const STILL_CONNECTING = "is still connecting"
-export const RECONNECTED = "was reconnected"
+export const HOLDS_TOOLS = "holds its tools"
 const UNSETTLED = "it never settled while it was watched"
 const GAVE_UP = "the connection pass gave up on"
 const REPORTABLE = ["pending", "needs-auth"]
@@ -210,7 +210,10 @@ const readable = (reason: string, secrets: string[]): string =>
 		.slice(0, REASON_LIMIT)
 
 const reconnectedLine = (name: string): string =>
-	`the server "${name}" ${RECONNECTED}, and its tools are back`
+	`the server "${name}" was reconnected, and ${HOLDS_TOOLS} again`
+
+const reachedLine = (name: string): string =>
+	`the server "${name}" connected, and ${HOLDS_TOOLS} for the rest of this session`
 
 const lineFor = (
 	name: string,
@@ -302,6 +305,10 @@ const announce = async (
 ) => {
 	if (status === "needs-auth") {
 		report?.(leftOut(name, AWAITING_AUTH))
+		return
+	}
+	if (status === "connected") {
+		report?.(reachedLine(name))
 		return
 	}
 	if (status !== "failed") {

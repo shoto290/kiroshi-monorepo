@@ -8,7 +8,11 @@ import type { Settings } from "@anthropic-ai/claude-agent-sdk"
 import { claudeSourceExecutable } from "./build"
 import { EXECUTABLE_OVERRIDE_ENV } from "./executable"
 import { KIROSHI_SERVER } from "./kiroshi-server"
-import type { ConnectPass, ServerStatus } from "./server-connect"
+import {
+	type ConnectPass,
+	POLL_BUDGET_MS,
+	type ServerStatus,
+} from "./server-connect"
 import { leftOut } from "./server-env"
 import {
 	buildOptions,
@@ -592,13 +596,13 @@ describe("layerFor", () => {
 	it("claims nothing of every server when one was left out and one came back", () => {
 		const section = unavailableServersSection([
 			'the server "clock" was left out: it is waiting for you to authorize it',
-			'the server "superset" was reconnected, and its tools are back',
+			'the server "superset" was reconnected, and holds its tools again',
 		])
 
 		expect(section).toContain("hold none of them as unavailable")
 		expect(section).toContain("on this opening alone")
 		expect(section).not.toContain("tell them that server is unavailable")
-		expect(section).toContain("holds its tools again")
+		expect(section).toContain("has them for the rest of this session")
 	})
 
 	it("claims nothing of every server when one was left out and one is connecting", () => {
@@ -615,13 +619,13 @@ describe("layerFor", () => {
 
 	it("claims no server was left out when none was, and says the tools are back", () => {
 		const section = unavailableServersSection([
-			'the server "superset" was reconnected, and its tools are back',
+			'the server "superset" was reconnected, and holds its tools again',
 		])
 
 		expect(section).not.toContain("was left out")
 		expect(section).not.toContain("that server is unavailable")
 		expect(section).toContain("# Where the servers of this session stand")
-		expect(section).toContain("holds its tools again")
+		expect(section).toContain("has them for the rest of this session")
 	})
 
 	it("claims no server was left out for a server still connecting", () => {
@@ -837,6 +841,73 @@ describe("reportConnections", () => {
 		await settled
 
 		expect(pushed).toEqual([`${section}\n\n/Users/shoto/notes.md needs a read`])
+	})
+
+	const settlingAfterBudget = (settled: ServerStatus[]) => {
+		const emitted: string[] = []
+		const pushed: string[] = []
+		const framed = Promise.withResolvers<void>()
+		let time = 0
+
+		const report = reportConnections({
+			emit: (frame) => {
+				emitted.push(String(frame.detail))
+				framed.resolve()
+			},
+			push: (text) => {
+				pushed.push(text)
+			},
+			pass: {
+				names: ["superset"],
+				port: {
+					status: async () =>
+						time <= POLL_BUDGET_MS - 250
+							? [{ name: "superset", status: "pending" }]
+							: settled,
+					reconnect: async () => {},
+				},
+				now: () => time,
+				wait: async (ms) => {
+					time += ms
+				},
+			},
+		})
+
+		return { emitted, pushed, framed: framed.promise, report }
+	}
+
+	it("names a server the session finally reached as holding its tools", async () => {
+		const { emitted, pushed, framed, report } = settlingAfterBudget([
+			{ name: "superset", status: "connected" },
+		])
+
+		await framed
+
+		expect(emitted).toEqual([
+			'the server "superset" connected, and holds its tools for the rest of this session',
+		])
+
+		report.prompt("and now?")
+
+		expect(pushed[0]).toContain("holds its tools for the rest of this session")
+		expect(pushed[0]).not.toContain("is still connecting")
+	})
+
+	it("carries the later line alone when a server was named twice", async () => {
+		const { emitted, pushed, framed, report } = settlingAfterBudget([
+			{ name: "superset", status: "failed" },
+		])
+
+		await framed
+		report.prompt("and now?")
+
+		const carried = String(pushed[0])
+		const named = carried.split('the server "superset"').length - 1
+
+		expect(emitted).toHaveLength(1)
+		expect(named).toBe(1)
+		expect(carried).toContain("was reconnected")
+		expect(carried).not.toContain("is still connecting")
 	})
 
 	it("emits no frame while the pass settles on its own", async () => {
