@@ -207,7 +207,9 @@ Every other command names its session.
   earlier calls already named is reported, not given up on, and a give up naming no server
   is not written. A give up does not stop at stderr: every server it names rides a frame
   and the next prompt's section with the same reason, because nothing in a live session
-  reads that stream. The call taken after the reconnections is the exception: outlasting, it
+  reads that stream. A pass whose very first status call throws names no server at all: no
+  call ever said anything about them, so it reports once that the status could not be
+  read, with its cause, and leaves every server unjudged. The call taken after the reconnections is the exception: outlasting, it
   names on stderr every server the read reconnected, those lines being the only trace it
   left. A server no status call has named yet is polled for 1000 ms only, then
   left to the stderr line. An interrupt drops what is held and leaves
