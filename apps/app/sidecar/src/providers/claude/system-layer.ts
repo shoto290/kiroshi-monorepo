@@ -54,22 +54,19 @@ const STANDING_OPENING = [
 	"Every server named here belongs to this session, and none of them was dropped from it. Read each line for where that server stands, and answer the person with every tool you hold. Naming that server and its state is the one exception to saying nothing about the machinery you run on.",
 ]
 
+const naming = (rejections: string[], phrase: string): boolean =>
+	rejections.some((detail) => detail.includes(phrase))
+
 export const unavailableServersSection = (rejections: string[]): string => {
-	const [title, opening] = rejections.some((detail) =>
-		detail.includes(LEFT_OUT),
-	)
+	const [title, opening] = naming(rejections, LEFT_OUT)
 		? LEFT_OUT_OPENING
 		: STANDING_OPENING
 	return [
 		title,
 		rejections.map((detail) => `- ${detail}`).join("\n"),
 		opening,
-		...(rejections.some((detail) => detail.includes(STILL_CONNECTING))
-			? [CONNECTING_LINE]
-			: []),
-		...(rejections.some((detail) => detail.includes(RECONNECTED))
-			? [RECONNECTED_LINE]
-			: []),
+		...(naming(rejections, STILL_CONNECTING) ? [CONNECTING_LINE] : []),
+		...(naming(rejections, RECONNECTED) ? [RECONNECTED_LINE] : []),
 	].join("\n\n")
 }
 
