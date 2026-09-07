@@ -104,15 +104,21 @@ const A_ROUTINE: CatalogueRoutine = {
 	spaceId: WORK,
 }
 
+const ANOTHER_ROUTINE: CatalogueRoutine = {
+	...A_ROUTINE,
+	id: "r-2",
+	title: "Roadmap review",
+}
+
 const A_CATALOGUE: Catalogue = {
 	chats: [A_CHAT],
 	missions: [A_MISSION],
 	routines: [A_ROUTINE],
 }
 
-const aPort = (): SearchPort => ({
+const aPort = (catalogue: Catalogue = A_CATALOGUE): SearchPort => ({
 	messages: vi.fn().mockResolvedValue([]),
-	catalogue: vi.fn().mockResolvedValue(A_CATALOGUE),
+	catalogue: vi.fn().mockResolvedValue(catalogue),
 	recent: vi.fn().mockResolvedValue([]),
 })
 
@@ -182,6 +188,10 @@ let resultsBody: HTMLElement
 
 const press = (key: string, metaKey = false) => {
 	fireEvent.keyDown(resultsBody, { key, metaKey })
+}
+
+const pressOnBody = (key: string) => {
+	fireEvent.keyDown(document.body, { key })
 }
 
 const pressOnControl = (key: string, metaKey = false) => {
@@ -299,4 +309,26 @@ it("opens the result of a rank chord whatever the focused control", async () => 
 	act(() => pressOnControl("1", true))
 
 	expect(trace).toEqual([`conversation:${A_ROOM.id}`, `space:${WORK}`])
+})
+
+it("moves and opens the active result after the See all button changed the tab", async () => {
+	const { navigation, trace } = aNavigation()
+	const port = aPort({ ...A_CATALOGUE, routines: [A_ROUTINE, ANOTHER_ROUTINE] })
+	const result = await searchedOn(port, navigation)
+
+	act(() => result.current.palette.onTabChange("routines"))
+	act(() => pressOnBody("ArrowDown"))
+
+	expect(result.current.palette.activeResultId).toBe(
+		`routine-${ANOTHER_ROUTINE.id}`,
+	)
+
+	act(() => pressOnBody("Enter"))
+
+	expect(trace).toEqual([
+		`conversation:${A_ROOM.id}`,
+		`space:${WORK}`,
+		"activity",
+		`routine:${ANOTHER_ROUTINE.id}:${A_ROOM.id}`,
+	])
 })

@@ -6,8 +6,8 @@ const NEXT = 1
 
 const PREVIOUS = -1
 
-const KEY_DRIVEN_CONTROLS =
-	'[data-slot="search-palette-query"] input, [data-slot="search-palette-body"]'
+const CONTROLS_THAT_KEEP_THEIR_KEYS =
+	'button, a[href], [role="button"], [role="link"], [role="tab"], [role="switch"]'
 
 export type SearchKeys = {
 	isOpen: boolean
@@ -29,15 +29,15 @@ const PRESS_BY_KEY = new Map<string, SearchKeyPress>([
 const isOpeningChord = (event: KeyboardEvent) =>
 	event.metaKey && event.key.toLowerCase() === "k"
 
-const isKeyDriven = (target: EventTarget | null) =>
-	target instanceof Element && target.matches(KEY_DRIVEN_CONTROLS)
+const keepsItsOwnKeys = (target: EventTarget | null) =>
+	target instanceof Element && target.matches(CONTROLS_THAT_KEEP_THEIR_KEYS)
 
 const pressOf = (event: KeyboardEvent): SearchKeyPress | undefined => {
 	const rank = spaceRankOf(event)
 	if (rank !== 0) {
 		return ({ onRank }) => onRank(rank)
 	}
-	return isKeyDriven(event.target) ? PRESS_BY_KEY.get(event.key) : undefined
+	return keepsItsOwnKeys(event.target) ? undefined : PRESS_BY_KEY.get(event.key)
 }
 
 export const useSearchKeys = (keys: SearchKeys) => {
