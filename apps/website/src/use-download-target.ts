@@ -50,18 +50,18 @@ const isDistributable = ({ name }: ReleaseAsset) =>
 	name !== UPDATER_MANIFEST &&
 	UPDATER_ASSET_SUFFIXES.every((suffix) => !name.endsWith(suffix))
 
-const PLATFORM_SUFFIXES = PLATFORM_ASSET_SUFFIXES[VISITOR_PLATFORM]
+const VISITOR_ASSET_SUFFIXES = PLATFORM_ASSET_SUFFIXES[VISITOR_PLATFORM]
 
 const platformAssetUrl = (assets: ReleaseAsset[]) => {
 	const distributables = assets.filter(isDistributable)
-	for (const suffix of PLATFORM_SUFFIXES) {
+	for (const suffix of VISITOR_ASSET_SUFFIXES) {
 		const asset = distributables.find(({ name }) => name.endsWith(suffix))
 		if (asset) return asset.browser_download_url
 	}
 	return null
 }
 
-const OFFERS_NO_ASSET = PLATFORM_SUFFIXES.length === 0
+const OFFERS_NO_ASSET = VISITOR_ASSET_SUFFIXES.length === 0
 
 const resolvedTarget = () =>
 	latestAssets()
