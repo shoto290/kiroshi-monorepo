@@ -16,7 +16,7 @@ const meta = preview.meta({
 		docs: {
 			description: {
 				component:
-					"The registry `Button` with a label that opens on hover and on focus. It is the one composition that pairs the vendored button with `TooltipHint`, so an icon-only control can carry a name without a visible one. The tooltip describes, it does not name: give the control an `aria-label` as well.",
+					"The registry `Button` with a label that opens on hover and on focus. It is the one composition that pairs the vendored button with `TooltipHint`, so an icon-only control can carry a name without a visible one. Nothing links the bubble to the button: there is no `aria-describedby` between them, so a screen reader never reads the tooltip and the `aria-label` is what has to carry the name.",
 			},
 		},
 	},
