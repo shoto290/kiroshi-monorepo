@@ -9,6 +9,7 @@ import {
 	SearchPalette,
 	type SearchPaletteProps,
 	type SearchPaletteResult,
+	type SearchRestingGroup,
 	type SearchResultGroup,
 	type SearchTab,
 } from "@workspace/ui/components/search-palette"
@@ -22,6 +23,10 @@ const OTHER_SPACE = { name: "Archive" } as const
 const MESSAGES_FOUND = 12
 
 const SHOWN_PER_KIND = 3
+
+const POPUP_HEIGHT = 584
+
+const ELEVEN_HITS = 11
 
 const SPACE_MARK_SIZE = 8
 
@@ -121,9 +126,112 @@ const RESULTS: SearchResultGroup[] = [
 	{ kind: "routines", total: ROUTINES.length, results: ROUTINES },
 ]
 
-const RECENTS: SearchPaletteResult[] = [
-	CHATS[0] as SearchPaletteResult,
-	MISSIONS[0] as SearchPaletteResult,
+const ELEVEN: SearchResultGroup[] = [
+	{ kind: "messages", total: 7, results: MESSAGES.slice(0, 7) },
+	{ kind: "chats", total: CHATS.length, results: CHATS },
+	{ kind: "missions", total: MISSIONS.length, results: MISSIONS },
+	{ kind: "routines", total: ROUTINES.length, results: ROUTINES },
+]
+
+const ONE_HIT: SearchResultGroup[] = [
+	{ kind: "chats", total: 1, results: [CHATS[0] as SearchPaletteResult] },
+]
+
+type RestingSeed = {
+	id: string
+	title: string
+	timestamp: string
+	part: string
+}
+
+const restingRow = (
+	identity: SearchPaletteResult["identity"],
+	{ id, title, timestamp, part }: RestingSeed,
+): SearchPaletteResult => ({
+	id,
+	identity,
+	title: [{ key: "title", text: title }],
+	timestamp,
+	parts: [{ key: "part", text: part }],
+	space: SPACE,
+	onOpen: fn(),
+})
+
+const RESTING_CHATS: SearchPaletteResult[] = [
+	{
+		id: "resting-chat-onboarding",
+		title: "Onboarding copy pass",
+		timestamp: "10m",
+		part: "Atlas",
+	},
+	{
+		id: "resting-chat-changelog",
+		title: "Changelog cleanup",
+		timestamp: "1h",
+		part: "Beacon",
+	},
+	{
+		id: "resting-chat-release",
+		title: "Release notes review",
+		timestamp: "Mon",
+		part: "Ada Martin",
+	},
+	{
+		id: "resting-chat-triage",
+		title: "Weekly triage",
+		timestamp: "Fri",
+		part: "Atlas",
+	},
+].map((seed) => restingRow({ kind: "chat-solo", bot: MISSION_BOT }, seed))
+
+const RESTING_MISSIONS: SearchPaletteResult[] = [
+	{
+		id: "resting-mission-run-history",
+		title: "Migrate the run history table",
+		timestamp: "2d",
+		part: "Waiting for you",
+	},
+	{
+		id: "resting-mission-parser",
+		title: "Split the parser transport",
+		timestamp: "3d",
+		part: "Running",
+	},
+].map((seed) =>
+	restingRow({ kind: "mission", bot: MISSION_BOT, mark: Icons.Linear }, seed),
+)
+
+const RESTING_ROUTINES: SearchPaletteResult[] = [
+	{
+		id: "resting-routine-digest",
+		title: "Morning changelog digest",
+		timestamp: "8d",
+		part: "Every weekday at 09:00",
+	},
+	{
+		id: "resting-routine-standup",
+		title: "Standup reminder",
+		timestamp: "9d",
+		part: "Every weekday at 10:00",
+	},
+	{
+		id: "resting-routine-backup",
+		title: "Weekly backup report",
+		timestamp: "12d",
+		part: "Every Sunday at 22:00",
+	},
+	{
+		id: "resting-routine-triage",
+		title: "Inbox triage sweep",
+		timestamp: "20d",
+		part: "Every hour",
+	},
+].map((seed) => restingRow({ kind: "routine", bot: ROUTINE_BOT }, seed))
+
+const RESTING: SearchRestingGroup[] = [
+	{ kind: "routines", results: RESTING_ROUTINES },
+	{ kind: "chats", results: RESTING_CHATS },
+	{ kind: "missions", results: RESTING_MISSIONS },
 ]
 
 const palette = async () => {
@@ -175,7 +283,7 @@ const meta = preview.meta({
 		docs: {
 			description: {
 				component:
-					"The search surface of the app, opened over whatever the reader was doing. It composes its own popup rather than the shared dialog content because the query line, the tab row and the footer are pinned and only the body between them scrolls. It reads nothing: the query, the tab, the scope, the results, the recents and the loading flag are all props, and every gesture is a callback, so the host owns the search itself. Focus stays on the query line at all times and the row the keyboard sits on is pointed at with `aria-activedescendant`, which is why the rows are options of one listbox rather than buttons in a tree. On the All tab each kind gets a head naming it and counting what it found, cut to three rows with a See all that moves the reader to that kind's own tab; every other tab is one flat list.",
+					"The search surface of the app, opened over whatever the reader was doing. It composes its own popup rather than the shared dialog content because the query line, the tab row and the footer are pinned and only the body between them scrolls. It holds one height whatever the body holds, so a keystroke never moves the footer under the reader's pointer. It reads nothing: the query, the tab, the scope, the results, the resting rows and the loading flag are all props, and every gesture is a callback, so the host owns the search itself. Focus stays on the query line at all times and the row the keyboard sits on is pointed at with `aria-activedescendant`, which is why the rows are options of one listbox rather than buttons in a tree. On the All tab each kind gets a head naming it and counting what it found, cut to three rows with a See all that moves the reader to that kind's own tab; every other tab is one flat list. While the query is empty every tab answers with the resting rows it was handed or, when it has none, with a panel that says what to do about it.",
 			},
 		},
 	},
@@ -186,7 +294,7 @@ const meta = preview.meta({
 		isScopeAllSpaces: false,
 		spaceName: SPACE.name,
 		results: RESULTS,
-		recents: RECENTS,
+		resting: RESTING,
 		isLoading: false,
 		activeResultId: "message-1",
 		onOpenChange: fn(),
@@ -350,13 +458,119 @@ export const AcrossSpaces = meta.story({
 	},
 })
 
-export const Recent = meta.story({
-	args: { query: "", activeResultId: "chat-changelog" },
+export const OneHit = meta.story({
+	args: { results: ONE_HIT, activeResultId: "chat-changelog" },
 	parameters: {
 		docs: {
 			description: {
 				story:
-					"The palette the moment it opens, with nothing typed yet. Check that the recents stand under one head that counts nothing and offers no See all — there is no total to report when no search has run — and that the rows are numbered from one all the same, because the digits open a recent exactly as they open a hit.",
+					"A query one chat answers, and nothing else. Check that the popup stands at its full height with a single row in it rather than shrinking around it — the height is the same number `ManyHits` asserts — so the footer and the tab row sit where the reader last saw them and the next keystroke does not move them.",
+			},
+		},
+	},
+	play: async () => {
+		const popup = await palette()
+
+		await expect(within(popup).getAllByRole("option")).toHaveLength(1)
+		await expect(popup.getBoundingClientRect().height).toBe(POPUP_HEIGHT)
+	},
+})
+
+export const ManyHits = meta.story({
+	args: { results: ELEVEN },
+	parameters: {
+		docs: {
+			description: {
+				story:
+					"Eleven hits spread over the four kinds, more than the body can show at once. Check that the popup is exactly as tall as it is in `OneHit`, that the overflow is taken by the body alone — it scrolls, the query line, the tab row and the footer do not move — and that no row is dropped to make the palette fit.",
+			},
+		},
+	},
+	play: async () => {
+		const popup = await palette()
+		const body = bodyOf(popup)
+		const handed = ELEVEN.flatMap((group) => group.results)
+
+		await expect(handed).toHaveLength(ELEVEN_HITS)
+		await expect(popup.getBoundingClientRect().height).toBe(POPUP_HEIGHT)
+		await expect(body.scrollHeight).toBeGreaterThan(body.clientHeight)
+		await expect(slotIn(popup, "search-palette-query")).toBeVisible()
+		await expect(slotIn(popup, "search-palette-tabs")).toBeVisible()
+		await expect(slotIn(popup, "search-palette-footer")).toBeVisible()
+	},
+})
+
+export const Resting = meta.story({
+	args: { query: "", activeResultId: "resting-chat-onboarding" },
+	parameters: {
+		docs: {
+			description: {
+				story:
+					"The palette the moment it opens, with nothing typed yet. Check that the three kinds that can rest stand in the order chats, missions, routines whatever order the host handed them over in, that each head names its kind and counts nothing — no search has run, so there is no total to report — that a kind holding more rows than the three the All tab keeps offers a See all onto its own tab while the missions kind, whose two rows are all drawn already, offers none, and that the rows are numbered from one straight across the sections rather than restarting at each head.",
+			},
+		},
+	},
+	play: async ({ args, userEvent }) => {
+		const popup = await palette()
+		const body = bodyOf(popup)
+		const heads = slotsIn(body, "search-palette-section-head")
+
+		await expect(heads.map((head) => head.textContent)).toEqual([
+			"Recent chatsSee all",
+			"Recent missions",
+			"RoutinesSee all",
+		])
+		await expect(
+			within(popup)
+				.getAllByRole("listbox")
+				.map((list) => slotsIn(list, "search-result-row").length),
+		).toEqual([SHOWN_PER_KIND, RESTING_MISSIONS.length, SHOWN_PER_KIND])
+		await expect(
+			slotsIn(body, "search-result-row-rank").map((lane) => lane.textContent),
+		).toEqual(["⌘1", "⌘2", "⌘3", "⌘4", "⌘5", "⌘6", "⌘7", "⌘8"])
+		await expect(slotsIn(body, "search-palette-rest")).toHaveLength(0)
+
+		const [chats] = slotsIn(body, "search-palette-see-all")
+
+		await userEvent.click(chats as HTMLElement)
+		await expect(args.onTabChange).toHaveBeenCalledWith("chats")
+	},
+})
+
+export const RestingMessages = meta.story({
+	args: { query: "", tab: "messages", activeResultId: undefined },
+	parameters: {
+		docs: {
+			description: {
+				story:
+					"The Messages tab with nothing typed. Check that it answers with an instruction rather than rows — no message is recent, every message is only ever reached by typing — that the instruction names the space it will read and warns that matching is by whole words, that it offers no button even while the scope is one space, since widening the scope of a search nobody has run yet changes nothing on screen, and that a listbox is still rendered under it so the query line points at an element that exists.",
+			},
+		},
+	},
+	play: async () => {
+		const popup = await palette()
+		const reader = within(popup)
+		const panel = slotIn(bodyOf(popup), "search-palette-rest")
+
+		await expect(reader.getByText("Search every message")).toBeVisible()
+		await expect(panel).toHaveTextContent(SPACE.name)
+		await expect(panel.querySelector("button")).toBeNull()
+		await expect(reader.queryAllByRole("option")).toHaveLength(0)
+		await expect(reader.getByRole("listbox")).toBeEmptyDOMElement()
+		await expect(reader.getByRole("combobox")).toHaveAttribute(
+			"aria-controls",
+			reader.getByRole("listbox").id,
+		)
+	},
+})
+
+export const RestingOneKind = meta.story({
+	args: { query: "", tab: "chats", activeResultId: "resting-chat-onboarding" },
+	parameters: {
+		docs: {
+			description: {
+				story:
+					"The Chats tab with nothing typed. Check that every resting chat the host handed over is drawn rather than the three the All tab keeps, that the one head naming the kind carries no count and no See all — the tab the See all would move to is the one the reader is already on — and that the popup keeps the height it has everywhere else. Pick `Resting` for the three kinds side by side.",
 			},
 		},
 	},
@@ -365,38 +579,110 @@ export const Recent = meta.story({
 		const body = bodyOf(popup)
 		const [head] = slotsIn(body, "search-palette-section-head")
 
-		await expect(head).toHaveTextContent("Recent")
-		await expect(head?.textContent).toBe("Recent")
-		await expect(
-			slotsIn(within(popup).getByRole("listbox"), "kbd"),
-		).toHaveLength(RECENTS.length)
+		await expect(head?.textContent).toBe("Recent chats")
+		await expect(within(popup).getAllByRole("option")).toHaveLength(
+			RESTING_CHATS.length,
+		)
 		await expect(slotsIn(body, "search-palette-see-all")).toHaveLength(0)
+		await expect(slotsIn(body, "search-palette-rest")).toHaveLength(0)
 	},
 })
 
-export const NoRecent = meta.story({
-	args: { query: "", recents: [], activeResultId: undefined },
+export const RestingKindEmpty = meta.story({
+	args: {
+		query: "",
+		tab: "missions",
+		resting: [{ kind: "chats", results: RESTING_CHATS }],
+		activeResultId: undefined,
+	},
 	parameters: {
 		docs: {
 			description: {
 				story:
-					"The palette on a fresh account: nothing typed, nothing recent. Check that the body stays bare rather than claiming nothing matches — no query has been asked, so there is nothing for an empty state to report on. Pick `Empty` for the sentence a search that came back with nothing earns.",
+					"The Missions tab in a space where no mission has been opened. Check that the panel carries the mark of the kind the reader asked for rather than a magnifier, that it names the space so the emptiness reads as local and not as a broken palette, and that the way out it offers is the scope: pressing it asks for every space, and once the scope is every space the button goes away rather than repeating the state the reader is already in.",
+			},
+		},
+	},
+	play: async ({ args, userEvent }) => {
+		const popup = await palette()
+		const reader = within(popup)
+		const panel = slotIn(bodyOf(popup), "search-palette-rest")
+
+		await expect(reader.getByText("No mission here yet")).toBeVisible()
+		await expect(panel).toHaveTextContent(SPACE.name)
+		await expect(reader.queryAllByRole("option")).toHaveLength(0)
+
+		await userEvent.click(
+			reader.getByRole("button", { name: "Look in all spaces" }),
+		)
+		await expect(args.onScopeChange).toHaveBeenCalledWith(true)
+		await waitFor(async () => {
+			await expect(
+				reader.queryByRole("button", { name: "Look in all spaces" }),
+			).toBeNull()
+		})
+		await expect(reader.getByText("No mission here yet")).toBeVisible()
+	},
+})
+
+export const RestingNothing = meta.story({
+	args: { query: "", resting: [], activeResultId: undefined },
+	parameters: {
+		docs: {
+			description: {
+				story:
+					"The All tab on a fresh account: nothing typed, nothing opened in any kind. Check that it falls back to the instruction the Messages tab carries rather than claiming nothing matches — no query has been asked, so there is nothing for an empty state to report on — and that it offers the scope as the one way out, since another space may well hold what this one does not. Check too that the offer goes away once the scope is every space. Pick `Empty` for the sentence a search that came back with nothing earns.",
+			},
+		},
+	},
+	play: async ({ args, userEvent }) => {
+		const reader = within(await palette())
+
+		await expect(reader.getByText("Search every message")).toBeVisible()
+		await expect(reader.getByRole("listbox")).toBeEmptyDOMElement()
+		await expect(reader.queryByText("Nothing here matches")).toBeNull()
+
+		await userEvent.click(
+			reader.getByRole("button", { name: "Look in all spaces" }),
+		)
+		await expect(args.onScopeChange).toHaveBeenCalledWith(true)
+		await waitFor(async () => {
+			await expect(
+				reader.queryByRole("button", { name: "Look in all spaces" }),
+			).toBeNull()
+		})
+		await expect(reader.getByText("Search every message")).toBeVisible()
+	},
+})
+
+export const RestingLoading = meta.story({
+	args: {
+		query: "",
+		tab: "chats",
+		resting: [],
+		isLoading: true,
+		activeResultId: undefined,
+	},
+	parameters: {
+		docs: {
+			description: {
+				story:
+					"The Chats tab at rest while the resting rows are still being read. Check that the body stays bare: the panel states that nothing has ever been opened here, which is a claim the palette cannot make until the read comes back. Pick `RestingKindEmpty` for the same tab once it has.",
 			},
 		},
 	},
 	play: async () => {
-		const reader = within(await palette())
+		const popup = await palette()
+		const reader = within(popup)
 
+		await expect(slotsIn(bodyOf(popup), "search-palette-rest")).toHaveLength(0)
 		await expect(reader.getByRole("listbox")).toBeEmptyDOMElement()
-		await expect(reader.queryByText("Nothing here matches")).toBeNull()
-		await expect(
-			reader.queryByRole("button", { name: "Search all spaces" }),
-		).toBeNull()
+		await expect(bodyOf(popup)).toHaveAttribute("aria-busy", "true")
 	},
 })
 
 export const Empty = meta.story({
-	args: { results: [], recents: [] },
+	args: { results: [] },
 	parameters: {
 		docs: {
 			description: {
@@ -427,7 +713,7 @@ export const Empty = meta.story({
 })
 
 export const EmptyEverywhere = meta.story({
-	args: { results: [], recents: [], isScopeAllSpaces: true },
+	args: { results: [], isScopeAllSpaces: true },
 	parameters: {
 		docs: {
 			description: {
@@ -467,7 +753,7 @@ export const Loading = meta.story({
 })
 
 export const LoadingFirstQuery = meta.story({
-	args: { isLoading: true, results: [], recents: [] },
+	args: { isLoading: true, results: [] },
 	parameters: {
 		docs: {
 			description: {

@@ -1,7 +1,7 @@
 "use client"
 
 import { Dialog } from "@base-ui/react/dialog"
-import { useId, useRef } from "react"
+import { type ReactNode, useId, useRef } from "react"
 import { useTranslation } from "react-i18next"
 
 import { Button } from "@workspace/ui/components/button"
@@ -28,6 +28,8 @@ type SearchKind = "messages" | "chats" | "missions" | "routines"
 
 type SearchTab = "all" | SearchKind
 
+type SearchRestingKind = Exclude<SearchKind, "messages">
+
 type SearchPaletteResult = Omit<
 	SearchResultRowProps,
 	"id" | "isActive" | "rank" | "rankLabel"
@@ -36,6 +38,11 @@ type SearchPaletteResult = Omit<
 type SearchResultGroup = {
 	kind: SearchKind
 	total: number
+	results: SearchPaletteResult[]
+}
+
+type SearchRestingGroup = {
+	kind: SearchRestingKind
 	results: SearchPaletteResult[]
 }
 
@@ -50,7 +57,7 @@ type SearchPaletteProps = {
 	onScopeChange: (isAllSpaces: boolean) => void
 	spaceName: string
 	results: SearchResultGroup[]
-	recents: SearchPaletteResult[]
+	resting: SearchRestingGroup[]
 	isLoading?: boolean
 	activeResultId?: string
 }
@@ -69,12 +76,22 @@ type PaletteSection = {
 
 const TABS: SearchTab[] = ["all", "messages", "chats", "missions", "routines"]
 
+const RESTING_KINDS: SearchRestingKind[] = ["chats", "missions", "routines"]
+
+const PANEL_MARK_CLASS = "size-8 text-muted-foreground"
+
+const RESTING_MARKS: Record<SearchRestingKind, ReactNode> = {
+	chats: <Icons.Message aria-hidden="true" className={PANEL_MARK_CLASS} />,
+	missions: <Icons.Bookmark aria-hidden="true" className={PANEL_MARK_CLASS} />,
+	routines: <Icons.Routine aria-hidden="true" className={PANEL_MARK_CLASS} />,
+}
+
 const SHOWN_PER_KIND = 3
 
 const FIRST_RANK = 1
 
 const POPUP_CLASS =
-	"-translate-x-1/2 fixed top-27 left-1/2 z-50 flex w-160 max-w-[calc(100vw-3rem)] flex-col overflow-hidden rounded-2xl"
+	"-translate-x-1/2 fixed top-27 left-1/2 z-50 flex h-146 max-h-[calc(100vh-9rem)] w-160 max-w-[calc(100vw-3rem)] flex-col overflow-hidden rounded-2xl"
 
 const QUERY_LINE_CLASS =
 	"flex h-13 shrink-0 items-center gap-2.5 border-border border-b px-4"
@@ -88,7 +105,9 @@ const TAB_ROW_CLASS =
 const TAB_TRIGGER_CLASS = "h-7.5 py-0"
 
 const BODY_CLASS =
-	"flex max-h-105 flex-col gap-0.5 overflow-y-auto p-2 outline-none focus-visible:ring-3 focus-visible:ring-ring/30 focus-visible:ring-inset"
+	"flex min-h-0 flex-1 flex-col gap-0.5 overflow-y-auto p-2 outline-none focus-visible:ring-3 focus-visible:ring-ring/30 focus-visible:ring-inset"
+
+const PANEL_CLASS = "my-auto"
 
 const LIST_CLASS = "flex flex-col gap-0.5"
 
@@ -162,7 +181,7 @@ const SearchPalette = ({
 	onScopeChange,
 	spaceName,
 	results,
-	recents,
+	resting,
 	isLoading = false,
 	activeResultId,
 }: SearchPaletteProps) => {
@@ -171,20 +190,32 @@ const SearchPalette = ({
 	const listId = useId()
 	const scopeId = useId()
 	const label = t("open")
-	const isRecent = query === ""
+	const isRest = query === ""
+	const isAllTab = tab === "all"
 
-	const recentSections: PaletteSection[] =
-		recents.length === 0
-			? []
-			: [{ key: "recent", head: { label: t("recent") }, results: recents }]
+	const restingOf = (kind: SearchRestingKind) =>
+		resting.find((group) => group.kind === kind)?.results ?? []
+
+	const restingSections: PaletteSection[] = RESTING_KINDS.map((kind) => ({
+		kind,
+		rows: restingOf(kind),
+	}))
+		.filter(({ kind, rows }) => (isAllTab || tab === kind) && rows.length > 0)
+		.map(({ kind, rows }) => ({
+			key: kind,
+			head: {
+				label: t(`rest.${kind}`),
+				seeAllKind: isAllTab && rows.length > SHOWN_PER_KIND ? kind : undefined,
+			},
+			results: isAllTab ? rows.slice(0, SHOWN_PER_KIND) : rows,
+		}))
 
 	const foundSections: PaletteSection[] = results
 		.filter(
-			(group) =>
-				group.results.length > 0 && (tab === "all" || group.kind === tab),
+			(group) => group.results.length > 0 && (isAllTab || group.kind === tab),
 		)
 		.map((group) =>
-			tab === "all"
+			isAllTab
 				? {
 						key: group.kind,
 						head: {
@@ -197,7 +228,7 @@ const SearchPalette = ({
 				: { key: group.kind, results: group.results },
 		)
 
-	const sections = isRecent ? recentSections : foundSections
+	const sections = isRest ? restingSections : foundSections
 
 	const shown = sections.flatMap((section) => section.results)
 	const rankOf = new Map(
@@ -214,6 +245,64 @@ const SearchPalette = ({
 		shown.length === 0
 			? listId
 			: sections.map((section) => sectionListId(section.key)).join(" ")
+
+	const scopeAction = (action: string) =>
+		isScopeAllSpaces ? undefined : (
+			<Button
+				className="rounded-lg"
+				onClick={() => onScopeChange(true)}
+				size="sm"
+				variant="secondary"
+			>
+				{action}
+			</Button>
+		)
+
+	const searchMark = (
+		<Icons.Search aria-hidden="true" className={PANEL_MARK_CLASS} />
+	)
+
+	const instructionPanel = (action?: ReactNode) => (
+		<EmptyStateShell
+			action={action}
+			className={PANEL_CLASS}
+			data-slot="search-palette-rest"
+			description={t("rest.messages.body", { space: spaceName })}
+			mark={searchMark}
+			title={t("rest.messages.title")}
+		/>
+	)
+
+	const restingPanel = (kind: SearchRestingKind) => (
+		<EmptyStateShell
+			action={scopeAction(t("rest.action"))}
+			className={PANEL_CLASS}
+			data-slot="search-palette-rest"
+			description={t(`rest.none.body.${kind}`, { space: spaceName })}
+			mark={RESTING_MARKS[kind]}
+			title={t(`rest.none.${kind}`)}
+		/>
+	)
+
+	const foundPanel = (
+		<EmptyStateShell
+			action={scopeAction(t("empty.action"))}
+			className={PANEL_CLASS}
+			data-slot="search-palette-empty"
+			description={t("empty.description", { space: spaceName, query })}
+			mark={searchMark}
+			title={t("empty.title")}
+		/>
+	)
+
+	const panelOf = () => {
+		if (shown.length > 0) return null
+		if (!isRest) return isLoading ? null : foundPanel
+		if (tab === "messages") return instructionPanel()
+		if (isLoading) return null
+		if (!isAllTab) return restingPanel(tab)
+		return instructionPanel(scopeAction(t("rest.action")))
+	}
 
 	const rowOf = ({ id, space, ...rest }: SearchPaletteResult) => (
 		<SearchResultRow
@@ -352,34 +441,7 @@ const SearchPalette = ({
 							/>
 						)}
 
-						{isRecent || isLoading || shown.length > 0 ? null : (
-							<EmptyStateShell
-								action={
-									isScopeAllSpaces ? undefined : (
-										<Button
-											className="rounded-lg"
-											onClick={() => onScopeChange(true)}
-											size="sm"
-											variant="secondary"
-										>
-											{t("empty.action")}
-										</Button>
-									)
-								}
-								data-slot="search-palette-empty"
-								description={t("empty.description", {
-									space: spaceName,
-									query,
-								})}
-								mark={
-									<Icons.Search
-										aria-hidden="true"
-										className="size-8 text-muted-foreground"
-									/>
-								}
-								title={t("empty.title")}
-							/>
-						)}
+						{panelOf()}
 					</div>
 
 					<SearchPaletteFooter />
@@ -394,6 +456,8 @@ export {
 	SearchPalette,
 	type SearchPaletteProps,
 	type SearchPaletteResult,
+	type SearchRestingGroup,
+	type SearchRestingKind,
 	type SearchResultGroup,
 	type SearchTab,
 }

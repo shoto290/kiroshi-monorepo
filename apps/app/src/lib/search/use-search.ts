@@ -9,7 +9,7 @@ import {
 	createSearchLookups,
 	type SearchLookupSource,
 	type SearchLookups,
-	toRecentResults,
+	toRestingGroups,
 	toSearchGroups,
 	visibleResults,
 } from "./search-model"
@@ -118,8 +118,8 @@ export const useSearch = ({
 		[state.read, state.recents, state.query, lookups, openTarget],
 	)
 
-	const recents = useMemo(
-		() => toRecentResults(state.recents, lookups, openTarget),
+	const resting = useMemo(
+		() => toRestingGroups(state.recents, lookups, openTarget),
 		[state.recents, lookups, openTarget],
 	)
 
@@ -129,9 +129,9 @@ export const useSearch = ({
 				query: state.query,
 				tab: state.tab,
 				groups: results,
-				recents,
+				resting,
 			}),
-		[state.query, state.tab, results, recents],
+		[state.query, state.tab, results, resting],
 	)
 
 	const active = visible[state.activeIndex]
@@ -169,7 +169,7 @@ export const useSearch = ({
 			onScopeChange: controller.setScope,
 			spaceName: spaceName ?? "",
 			results,
-			recents,
+			resting,
 			isLoading: state.isLoading,
 			activeResultId: active?.id,
 		},

@@ -11,7 +11,6 @@ const search = {
 		routines: "Routines",
 	},
 	scope: "Tous les espaces",
-	recent: "Récents",
 	seeAll: "Tout voir",
 	close: "Échap",
 	rank: "⌘{{rank}}",
@@ -26,6 +25,29 @@ const search = {
 		title: "La recherche n'a pas pu être lue",
 		description:
 			"Rien n'est perdu. Les derniers résultats restent à l'écran jusqu'à la prochaine lecture.",
+	},
+	rest: {
+		chats: "Conversations récentes",
+		missions: "Missions récentes",
+		routines: "Routines",
+		messages: {
+			title: "Rechercher dans tous les messages",
+			body: "Tapez un mot et tous les messages de {{space}} sont lus. Les messages se comparent par mots entiers : « rout » ne trouvera pas « routine ».",
+		},
+		none: {
+			chats: "Aucune conversation ici",
+			missions: "Aucune mission ici",
+			routines: "Aucune routine ici",
+			body: {
+				chats:
+					"Rien n'a été ouvert dans {{space}}. Élargissez à tous les espaces pour retrouver une conversation ailleurs.",
+				missions:
+					"Aucune mission n'a été ouverte dans {{space}}. Élargissez à tous les espaces pour retrouver une mission ailleurs.",
+				routines:
+					"Rien ne tourne tout seul dans {{space}}. Élargissez à tous les espaces pour retrouver une routine ailleurs.",
+			},
+		},
+		action: "Chercher dans tous les espaces",
 	},
 	empty: {
 		title: "Rien ne correspond ici",
