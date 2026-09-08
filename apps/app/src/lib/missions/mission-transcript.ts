@@ -26,11 +26,6 @@ const lastRunOpenedBefore = (runs: TranscriptRow[][], moment: number): number =>
 		BEFORE_FIRST_RUN,
 	)
 
-const isOlderThanLoadedFeed = (
-	runs: TranscriptRow[][],
-	moment: number,
-): boolean => runs.length > 0 && moment < runs[0][0].timestamp
-
 type MissionPlacement = {
 	runs: TranscriptRow[][]
 	missions: Mission[]
@@ -41,16 +36,17 @@ export const placeMissions = ({
 	runs,
 	missions,
 	hasOlder,
-}: MissionPlacement): PlacedMission[] =>
-	[...missions]
+}: MissionPlacement): PlacedMission[] => {
+	const maskedBefore = hasOlder && runs.length > 0 ? runs[0][0].timestamp : null
+
+	return [...missions]
 		.sort((one, other) => one.openedAt - other.openedAt)
-		.filter(
-			({ openedAt }) => !hasOlder || !isOlderThanLoadedFeed(runs, openedAt),
-		)
+		.filter(({ openedAt }) => maskedBefore === null || openedAt >= maskedBefore)
 		.map((mission) => ({
 			mission,
 			runIndex: lastRunOpenedBefore(runs, mission.openedAt),
 		}))
+}
 
 export const placeMissionEvents = (
 	runs: TranscriptRow[][],
