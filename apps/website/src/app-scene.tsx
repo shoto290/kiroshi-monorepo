@@ -4,16 +4,15 @@ import { ActivityIndicator } from "@workspace/ui/components/activity-indicator"
 import { AppHeader } from "@workspace/ui/components/app-header"
 import { AppSidebar } from "@workspace/ui/components/app-sidebar"
 import { Button } from "@workspace/ui/components/button"
-import { ContentCard } from "@workspace/ui/components/content-card"
 import { Icons } from "@workspace/ui/components/icons"
-import { Mention } from "@workspace/ui/components/mention"
+import { Markdown } from "@workspace/ui/components/markdown"
 import { MissionTurn } from "@workspace/ui/components/mission-turn"
-import { AnimatedSidebarProvider } from "@workspace/ui/components/motion/animated-sidebar"
 import { PromptInput } from "@workspace/ui/components/prompt-input"
 import { RosterProvider } from "@workspace/ui/components/roster"
 import { ThreadLayout } from "@workspace/ui/components/thread-layout"
 import type { TranscriptItem } from "@workspace/ui/components/transcript"
 import { AssistantTurn, UserTurn } from "@workspace/ui/components/turn"
+import { WorkspaceShell } from "@workspace/ui/components/workspace-shell"
 
 import { SCENE_COPY } from "./copy"
 import {
@@ -22,10 +21,11 @@ import {
 	ICHI,
 	MISSION,
 	NI,
+	READER,
 	ROSTER_CONVERSATIONS,
 	ROSTER_ROWS,
 	SCENE_BOTS,
-	SELECTED_SPACE_ID,
+	SELECTED_SPACE,
 	SPACES,
 } from "./scene-cast"
 import { type SceneThread, threadOf } from "./scene-threads"
@@ -34,24 +34,18 @@ import { WindowControls } from "./window-controls"
 
 const SHELL = "relative h-[688px] w-full"
 
-const TRANSCRIPT_INSET = "pt-4"
-
-const ENTER =
-	"animate-in fade-in slide-in-from-bottom-1 duration-[180ms] ease-out"
+const ROW_ENTER =
+	"animate-in slide-in-from-bottom-1 duration-[180ms] ease-out motion-reduce:animate-none"
 
 const openMission = () => {}
 
 type SceneRowProps = {
-	isAnimated: boolean
 	opacity?: number
 	children: ReactNode
 }
 
-const SceneRow = ({ isAnimated, opacity = 1, children }: SceneRowProps) => (
-	<div
-		className={isAnimated ? ENTER : undefined}
-		style={opacity === 1 ? undefined : { opacity }}
-	>
+const SceneRow = ({ opacity = 1, children }: SceneRowProps) => (
+	<div className={ROW_ENTER} style={opacity === 1 ? undefined : { opacity }}>
 		{children}
 	</div>
 )
@@ -60,29 +54,22 @@ const sceneRow = (
 	key: string,
 	body: ReactNode,
 	opacity = 1,
-	isAnimated = false,
 ): TranscriptItem => ({
 	key,
-	render: () => (
-		<SceneRow isAnimated={isAnimated} opacity={opacity}>
-			{body}
-		</SceneRow>
-	),
+	render: () => <SceneRow opacity={opacity}>{body}</SceneRow>,
 })
 
-const scriptedRows = (
-	frame: SceneFrame,
-	isAnimated: boolean,
-): TranscriptItem[] => {
+const scriptedRows = (frame: SceneFrame): TranscriptItem[] => {
 	const rows: TranscriptItem[] = []
 
 	if (frame.openingOpacity > 0) {
 		rows.push(
 			sceneRow(
 				"opening",
-				<AssistantTurn author={HAPPY}>{SCENE_COPY.opening}</AssistantTurn>,
+				<AssistantTurn author={HAPPY}>
+					<Markdown>{SCENE_COPY.opening}</Markdown>
+				</AssistantTurn>,
 				frame.openingOpacity,
-				isAnimated,
 			),
 		)
 	}
@@ -92,25 +79,21 @@ const scriptedRows = (
 			sceneRow(
 				"request",
 				<UserTurn>
-					<Mention botId={ICHI.id} />
-					<Mention botId={NI.id} />
-					{SCENE_COPY.request}
+					<Markdown>{SCENE_COPY.request}</Markdown>
 				</UserTurn>,
 				frame.requestOpacity,
-				isAnimated,
 			),
 		)
 	}
 
-	if (frame.hasIchiAnswer) {
+	if (frame.hasIchiAnswer && frame.ichiAnswerOpacity > 0) {
 		rows.push(
 			sceneRow(
 				"ichi-answer",
 				<AssistantTurn author={ICHI}>
-					{SCENE_COPY.ichiAnswer.slice(0, frame.ichiTyped)}
+					<Markdown>{SCENE_COPY.ichiAnswer.slice(0, frame.ichiTyped)}</Markdown>
 				</AssistantTurn>,
-				frame.closingOpacity,
-				isAnimated,
+				frame.ichiAnswerOpacity,
 			),
 		)
 	}
@@ -120,10 +103,9 @@ const scriptedRows = (
 			sceneRow(
 				"ni-answer",
 				<AssistantTurn author={NI}>
-					{SCENE_COPY.niAnswer.slice(0, frame.niTyped)}
+					<Markdown>{SCENE_COPY.niAnswer.slice(0, frame.niTyped)}</Markdown>
 				</AssistantTurn>,
 				frame.closingOpacity,
-				isAnimated,
 			),
 		)
 	}
@@ -134,7 +116,6 @@ const scriptedRows = (
 				"mission",
 				<MissionTurn mission={MISSION} onOpen={openMission} />,
 				frame.closingOpacity,
-				isAnimated,
 			),
 		)
 	}
@@ -143,22 +124,28 @@ const scriptedRows = (
 }
 
 const threadRows = (thread: SceneThread): TranscriptItem[] => [
-	sceneRow("ask", <UserTurn>{thread.ask}</UserTurn>),
+	sceneRow(
+		"ask",
+		<UserTurn>
+			<Markdown>{thread.ask}</Markdown>
+		</UserTurn>,
+	),
 	sceneRow(
 		"answer",
-		<AssistantTurn author={thread.bot}>{thread.answer}</AssistantTurn>,
+		<AssistantTurn author={thread.bot}>
+			<Markdown>{thread.answer}</Markdown>
+		</AssistantTurn>,
 	),
 ]
 
 type WorkingRowsProps = {
 	frame: SceneFrame
-	isAnimated: boolean
 }
 
-const WorkingRows = ({ frame, isAnimated }: WorkingRowsProps) => (
+const WorkingRows = ({ frame }: WorkingRowsProps) => (
 	<>
 		{frame.hasIchiAnswer ? null : (
-			<SceneRow isAnimated={isAnimated}>
+			<SceneRow>
 				<ActivityIndicator
 					animal={ICHI.animal}
 					blot={ICHI.blot}
@@ -171,7 +158,7 @@ const WorkingRows = ({ frame, isAnimated }: WorkingRowsProps) => (
 			</SceneRow>
 		)}
 		{frame.hasNiAnswer ? null : (
-			<SceneRow isAnimated={isAnimated}>
+			<SceneRow>
 				<ActivityIndicator
 					animal={NI.animal}
 					blot={NI.blot}
@@ -188,7 +175,7 @@ const WorkingRows = ({ frame, isAnimated }: WorkingRowsProps) => (
 
 export const AppScene = () => {
 	const [selectedId, setSelectedId] = useState(CONVERSATION_ID)
-	const { frame, isStill, engage } = useSceneTimeline({
+	const { frame, engage } = useSceneTimeline({
 		onIdle: () => setSelectedId(CONVERSATION_ID),
 	})
 	const select = (id: string) => {
@@ -196,7 +183,6 @@ export const AppScene = () => {
 		setSelectedId(id)
 	}
 	const thread = threadOf(selectedId)
-	const isAnimated = !isStill && thread === undefined
 
 	return (
 		<section
@@ -209,51 +195,53 @@ export const AppScene = () => {
 		>
 			<WindowControls />
 			<RosterProvider bots={SCENE_BOTS}>
-				<AnimatedSidebarProvider className="h-full" defaultOpen>
-					<AppSidebar
-						bots={ROSTER_ROWS}
-						conversations={ROSTER_CONVERSATIONS}
-						insetWindowControls
-						onSelectBot={select}
-						onSelectConversation={select}
-						panelClassName="h-full"
-						selectedBotId={thread ? selectedId : undefined}
-						selectedConversationId={thread ? undefined : CONVERSATION_ID}
-						selectedSpaceId={SELECTED_SPACE_ID}
-						spaces={SPACES}
-					/>
-					<ContentCard isLandmark={false}>
-						<ThreadLayout
-							autoScroll={false}
-							className="h-full"
-							composer={
-								<PromptInput placeholder={SCENE_COPY.composerPlaceholder} />
-							}
-							contentClassName={TRANSCRIPT_INSET}
-							header={
-								<AppHeader
-									leading={thread ? thread.bot.name : SCENE_COPY.threadTitle}
-									trailing={
-										<Button
-											aria-label={SCENE_COPY.panelAction}
-											size="icon-sm"
-											variant="ghost"
-										>
-											<Icons.SidePanel />
-										</Button>
-									}
-								/>
-							}
-							rows={
-								thread ? threadRows(thread) : scriptedRows(frame, isAnimated)
-							}
-						>
-							{thread ? null : (
-								<WorkingRows frame={frame} isAnimated={isAnimated} />
-							)}
-						</ThreadLayout>
-					</ContentCard>
-				</AnimatedSidebarProvider>
+				<WorkspaceShell
+					className="h-full"
+					defaultOpen
+					isLandmark={false}
+					sidebar={
+						<AppSidebar
+							bots={ROSTER_ROWS}
+							conversations={ROSTER_CONVERSATIONS}
+							insetWindowControls
+							onOpenSearch={engage}
+							onSelectBot={select}
+							onSelectConversation={select}
+							panelClassName="h-full"
+							selectedBotId={thread ? selectedId : undefined}
+							selectedConversationId={thread ? undefined : CONVERSATION_ID}
+							selectedSpaceId={SELECTED_SPACE.id}
+							spaces={SPACES}
+							user={READER}
+						/>
+					}
+					spaceTint={SELECTED_SPACE.colour}
+				>
+					<ThreadLayout
+						autoScroll={false}
+						className="h-full"
+						composer={
+							<PromptInput placeholder={SCENE_COPY.composerPlaceholder} />
+						}
+						header={
+							<AppHeader
+								leading={thread ? thread.bot.name : SCENE_COPY.threadTitle}
+								trailing={
+									<Button
+										aria-label={SCENE_COPY.panelAction}
+										size="icon-sm"
+										variant="ghost"
+									>
+										<Icons.SidePanel />
+									</Button>
+								}
+							/>
+						}
+						rows={thread ? threadRows(thread) : scriptedRows(frame)}
+					>
+						{thread ? null : <WorkingRows frame={frame} />}
+					</ThreadLayout>
+				</WorkspaceShell>
 			</RosterProvider>
 		</section>
 	)

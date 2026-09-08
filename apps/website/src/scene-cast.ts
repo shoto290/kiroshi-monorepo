@@ -2,6 +2,7 @@ import type {
 	AppSidebarBot,
 	AppSidebarConversation,
 	Space,
+	UserChipIdentity,
 } from "@workspace/ui/components/app-sidebar"
 import type { MissionCardModel } from "@workspace/ui/components/mission"
 import type { RosterBot } from "@workspace/ui/components/roster"
@@ -83,12 +84,14 @@ const ROSTER_CONVERSATIONS: AppSidebarConversation[] = [
 ]
 
 const SPACES: Space[] = [
-	{ id: "kiroshi", name: SCENE_COPY.spaces.kiroshi, colour: "purple" },
+	{ id: "kiroshi", name: SCENE_COPY.spaces.kiroshi, colour: "yellow" },
 	{ id: "atelier", name: SCENE_COPY.spaces.atelier, colour: "green" },
 	{ id: "veille", name: SCENE_COPY.spaces.veille, colour: "orange" },
 ]
 
-const SELECTED_SPACE_ID = SPACES[0].id
+const SELECTED_SPACE = SPACES[0]
+
+const READER: UserChipIdentity = { name: SCENE_COPY.reader }
 
 const MISSION: MissionCardModel = {
 	id: "mission-working-row",
@@ -106,11 +109,12 @@ export {
 	ICHI,
 	MISSION,
 	NI,
+	READER,
 	REI,
 	ROSTER_CONVERSATIONS,
 	ROSTER_ROWS,
 	SAN,
 	SCENE_BOTS,
-	SELECTED_SPACE_ID,
+	SELECTED_SPACE,
 	SPACES,
 }

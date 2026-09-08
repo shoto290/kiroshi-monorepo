@@ -40,6 +40,7 @@ type SceneFrame = {
 	elapsedSeconds: number
 	openingOpacity: number
 	requestOpacity: number
+	ichiAnswerOpacity: number
 	ichiTyped: number
 	niTyped: number
 	hasIchiAnswer: boolean
@@ -55,7 +56,8 @@ const frameAt = (elapsed: number): SceneFrame => {
 	return {
 		elapsedSeconds: Math.floor(elapsed / 1000),
 		openingOpacity: fadeOutEndingAt(elapsed, ICHI_ANSWER_AT),
-		requestOpacity: fadeOutEndingAt(elapsed, MISSION_AT),
+		requestOpacity: fadeOutEndingAt(elapsed, NI_ANSWER_AT),
+		ichiAnswerOpacity: fadeOutEndingAt(elapsed, MISSION_AT),
 		ichiTyped: hasIchiAnswer
 			? typedCount(SCENE_COPY.ichiAnswer, elapsed - ICHI_ANSWER_AT)
 			: 0,
@@ -73,6 +75,7 @@ const isSameFrame = (one: SceneFrame, other: SceneFrame) =>
 	one.elapsedSeconds === other.elapsedSeconds &&
 	one.openingOpacity === other.openingOpacity &&
 	one.requestOpacity === other.requestOpacity &&
+	one.ichiAnswerOpacity === other.ichiAnswerOpacity &&
 	one.ichiTyped === other.ichiTyped &&
 	one.niTyped === other.niTyped &&
 	one.hasIchiAnswer === other.hasIchiAnswer &&

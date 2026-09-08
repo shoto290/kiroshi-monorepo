@@ -29,6 +29,7 @@ export const SCENE_COPY = {
 		veille: "Veille",
 	},
 	sceneLabel: "Live demonstration of the Kiroshi app",
+	reader: "Steve",
 	threadTitle: "Version 015",
 	composerPlaceholder: "Message the room, or @ a bot...",
 	panelAction: "Open the side panel",
@@ -76,7 +77,7 @@ export const SCENE_COPY = {
 	opening:
 		"Scope is frozen and the board is written. Two tickets left on the working row: the label that never hides, and the clock beside it.",
 	request:
-		"the working row vanishes once a bot has published. Take it between you.",
+		"<@ichi> <@ni> the working row vanishes once a bot has published. Take it between you.",
 	ichiAnswer:
 		"The label rides the row from the first frame now, shimmering, and no hover is needed to read it.",
 	niAnswer:
