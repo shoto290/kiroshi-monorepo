@@ -5,6 +5,7 @@ export const WEBSITE_COPY = {
 	downloadAction: "Download",
 	downloadActionMacOS: "Download for macOS",
 	downloadActionWindows: "Download for Windows",
+	downloadActionLinux: "Download for Linux",
 	githubAction: "View on GitHub",
 	mobileNote:
 		"Desktop today, mobile soon. Open this page on your computer to download.",
