@@ -14,3 +14,8 @@
 		@apply scrollbar-thin;
 	}
 }
+
+.scene-frozen [class*="overflow-y-auto"],
+.scene-frozen [data-overlayscrollbars-viewport] {
+	overflow: hidden;
+}

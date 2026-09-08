@@ -81,8 +81,8 @@ type AppWindowProps = {
 
 const AppWindow = ({ children }: AppWindowProps) => (
 	<div className="relative hidden w-full shrink-0 justify-center lg:flex">
-		<div className="relative mt-[calc(var(--rise)*60/1120)] h-[700px] w-[calc(100vw_-_320px)] max-w-[1760px] ultrawide:h-[720px]">
-			<div className="relative size-full overflow-clip rounded-[16px] border border-border bg-sidebar shadow-[0_-2px_60px_-14px_rgb(20_20_24/0.15)]">
+		<div className="relative mt-[calc(var(--rise)*60/1120)] h-[700px] w-[calc(100%_-_320px)] max-w-[1760px] ultrawide:h-[720px]">
+			<div className="scene-frozen relative size-full overflow-clip rounded-[16px] border border-border bg-sidebar shadow-[0_-2px_60px_-14px_rgb(20_20_24/0.15)]">
 				{children}
 			</div>
 		</div>
@@ -98,7 +98,7 @@ type CreditProps = {
 }
 
 const Credit = ({ handle, label, separator }: CreditProps) => (
-	<footer className="relative z-10 flex w-full shrink-0 justify-center px-7 pt-12 pb-8 lg:pt-16 lg:pb-10">
+	<footer className="relative z-10 mt-auto flex w-full shrink-0 justify-center px-7 pt-12 pb-8 lg:pt-16 lg:pb-10">
 		<p className="flex flex-wrap items-center justify-center gap-1.5 font-mono text-xs leading-4 tracking-[0.08em] text-muted-foreground lg:gap-2">
 			<a
 				className={CREDIT_LINK}
