@@ -41,11 +41,12 @@ pub async fn search_catalogue(
 pub async fn search_recent(
 	state: State<'_, db::DatabaseState>,
 	space_id: String,
+	all_spaces: bool,
 ) -> Result<Vec<CatalogueChat>, CatalogueError> {
 	ready(&state)
 		.map_err(|failure| CatalogueError::Unavailable { failure })?
 		.catalogue()
-		.recent(space_id)
+		.recent(space_id, all_spaces)
 		.await
 }
 

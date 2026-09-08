@@ -138,7 +138,9 @@ export const createSearchController = ({
 	}
 
 	const readRecents = (spaceId: string) => {
-		void port.recent(spaceId).then((recents) => publish({ recents }), fail)
+		void port
+			.recent({ spaceId, allSpaces: state.isAllSpaces })
+			.then((recents) => publish({ recents }), fail)
 	}
 
 	const scheduleRead = () => {
