@@ -191,31 +191,27 @@ const SearchPalette = ({
 	const scopeId = useId()
 	const label = t("open")
 	const isRest = query === ""
+	const isAllTab = tab === "all"
 
 	const restingOf = (kind: SearchRestingKind) =>
 		resting.find((group) => group.kind === kind)?.results ?? []
 
 	const restingSections: PaletteSection[] = RESTING_KINDS.filter(
-		(kind) => (tab === "all" || tab === kind) && restingOf(kind).length > 0,
+		(kind) => (isAllTab || tab === kind) && restingOf(kind).length > 0,
 	).map((kind) => ({
 		key: kind,
-		head: {
-			label: t(`rest.${kind}`),
-			seeAllKind: tab === "all" ? kind : undefined,
-		},
-		results:
-			tab === "all"
-				? restingOf(kind).slice(0, SHOWN_PER_KIND)
-				: restingOf(kind),
+		head: { label: t(`rest.${kind}`), seeAllKind: isAllTab ? kind : undefined },
+		results: isAllTab
+			? restingOf(kind).slice(0, SHOWN_PER_KIND)
+			: restingOf(kind),
 	}))
 
 	const foundSections: PaletteSection[] = results
 		.filter(
-			(group) =>
-				group.results.length > 0 && (tab === "all" || group.kind === tab),
+			(group) => group.results.length > 0 && (isAllTab || group.kind === tab),
 		)
 		.map((group) =>
-			tab === "all"
+			isAllTab
 				? {
 						key: group.kind,
 						head: {
@@ -299,7 +295,7 @@ const SearchPalette = ({
 		if (!isRest) return isLoading ? null : foundPanel
 		if (tab === "messages") return instructionPanel
 		if (isLoading) return null
-		return tab === "all" ? instructionPanel : restingPanel(tab)
+		return isAllTab ? instructionPanel : restingPanel(tab)
 	}
 
 	const rowOf = ({ id, space, ...rest }: SearchPaletteResult) => (
