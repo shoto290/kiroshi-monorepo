@@ -12,6 +12,6 @@ export const WebsitePage = () => (
 		<MessageBubble>
 			<MessageBubbleContent>{WEBSITE_COPY.bubble}</MessageBubbleContent>
 		</MessageBubble>
-		<Button size="lg">{WEBSITE_COPY.action}</Button>
+		<Button>{WEBSITE_COPY.action}</Button>
 	</MessageBubbleGroup>
 )
