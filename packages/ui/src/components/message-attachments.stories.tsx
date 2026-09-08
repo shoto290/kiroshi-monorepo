@@ -66,7 +66,7 @@ const meta = preview.meta({
 		docs: {
 			description: {
 				component:
-					"The files a message carries, drawn inside its bubble above the text. A picture shows itself as a thumbnail, bounded so neither a tall nor a wide one stretches the bubble; anything else shows a file glyph, its name and its extension. Activating an item reports its id — resolving, reading or opening the file is never this row's business. Colors come from the bubble's own text color, so the row reads on the reader's `solid` bubble and the bot's `soft` one alike.",
+					"The files a message carries, drawn inside its bubble above the text. A picture shows itself as a thumbnail, bounded so neither a tall nor a wide one stretches the bubble; anything else shows a file glyph, its name and its extension. Activating an item reports its id — resolving, reading or opening the file is never this row's business. Colors come from the bubble's own text color, so the row reads on the reader's `solid` bubble and the companion's `soft` one alike.",
 			},
 		},
 	},
@@ -240,7 +240,7 @@ export const InTranscript = meta.story({
 		docs: {
 			description: {
 				story:
-					"The row on both surfaces it ever lands on: the reader's `solid` bubble and the bot's `soft` one. Check that the glyph, the name and the extension stay legible on the yellow as well as on the muted grey, and that the item border reads without turning into a hard edge. Flip the `theme_layout` toolbar to side-by-side before calling a change to these colors done.",
+					"The row on both surfaces it ever lands on: the reader's `solid` bubble and the companion's `soft` one. Check that the glyph, the name and the extension stay legible on the yellow as well as on the muted grey, and that the item border reads without turning into a hard edge. Flip the `theme_layout` toolbar to side-by-side before calling a change to these colors done.",
 			},
 		},
 	},

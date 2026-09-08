@@ -63,7 +63,7 @@ const meta = preview.meta({
 		docs: {
 			description: {
 				component:
-					"One MCP server of a bot's, whole, on the whole dialog: a rail of sections down the left and one section at a time on the right. The rail replaces the bot's own while a server is open — Connection, Environment, Advanced — so a reader sees what a server is made of rather than a name and a box of JSON. The fields and the JSON are two readings of one thing: a field answered is carried into the text, the text edited is carried back into the fields, and every key no field names is kept untouched, because the shape belongs to the transport. Which fields stand under Connection is the transport's own answer — a command and its arguments for a server started here, an address and its headers for one reached over the network. Nothing is written as it is typed: the save is a press, and the way out asks before it drops a draft. The destructive red on its own tint is the token's known contrast gap, flagged for review rather than worked around here.",
+					"One MCP server of a companion's, whole, on the whole dialog: a rail of sections down the left and one section at a time on the right. The rail replaces the companion's own while a server is open — Connection, Environment, Advanced — so a reader sees what a server is made of rather than a name and a box of JSON. The fields and the JSON are two readings of one thing: a field answered is carried into the text, the text edited is carried back into the fields, and every key no field names is kept untouched, because the shape belongs to the transport. Which fields stand under Connection is the transport's own answer — a command and its arguments for a server started here, an address and its headers for one reached over the network. Nothing is written as it is typed: the save is a press, and the way out asks before it drops a draft. The destructive red on its own tint is the token's known contrast gap, flagged for review rather than worked around here.",
 			},
 		},
 	},
@@ -223,7 +223,7 @@ export const ServerVariables = meta.story({
 		docs: {
 			description: {
 				story:
-					"The two halves of the Environment section, together. The field above declares which names the server receives and carries its variable references; the list below holds the names this server owns, written once and never read back. A name defined here wins over the same name on the bot, which wins over the space, and every row says which scope actually serves it.",
+					"The two halves of the Environment section, together. The field above declares which names the server receives and carries its variable references; the list below holds the names this server owns, written once and never read back. A name defined here wins over the same name on the companion, which wins over the space, and every row says which scope actually serves it.",
 			},
 		},
 	},
@@ -334,7 +334,7 @@ export const IconRail = meta.story({
 		docs: {
 			description: {
 				story:
-					"The editor on a surface too narrow for the rail's names — below 42rem, the same threshold the bot's own rail takes. Check that every section stays reachable and named to a screen reader, and that the way out keeps its name as a tooltip rather than losing it.",
+					"The editor on a surface too narrow for the rail's names — below 42rem, the same threshold the companion's own rail takes. Check that every section stays reachable and named to a screen reader, and that the way out keeps its name as a tooltip rather than losing it.",
 			},
 		},
 	},

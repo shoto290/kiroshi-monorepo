@@ -27,7 +27,7 @@ const meta = preview.meta({
 		docs: {
 			description: {
 				component:
-					"The leading control of a conversation header: the faces of the bots seated in the room, the name of the conversation, and the way into its settings, in one ghost button. It wears the same height and padding as `HeaderIdentityButton`, so a room and a one-to-one chat sit their identity at exactly the same place. Reach for it in an app header; a single bot's chat takes `HeaderIdentityButton` instead.",
+					"The leading control of a conversation header: the faces of the companions seated in the room, the name of the conversation, and the way into its settings, in one ghost button. It wears the same height and padding as `HeaderIdentityButton`, so a room and a one-to-one chat sit their identity at exactly the same place. Reach for it in an app header; a single companion's chat takes `HeaderIdentityButton` instead.",
 			},
 		},
 	},
@@ -43,7 +43,7 @@ export const Default = meta.story({
 		docs: {
 			description: {
 				story:
-					"Reach for this for the nominal room header: two bots seated, a short name, the settings closed. Check that faces, name and settings glyph read left to right on one row, that the whole thing is a single tab stop, and that activating it asks for the conversation settings. Pick `InLayout` to see it in the header it belongs to.",
+					"Reach for this for the nominal room header: two companions seated, a short name, the settings closed. Check that faces, name and settings glyph read left to right on one row, that the whole thing is a single tab stop, and that activating it asks for the conversation settings. Pick `InLayout` to see it in the header it belongs to.",
 			},
 		},
 	},
@@ -94,7 +94,7 @@ export const SingleBot = meta.story({
 		docs: {
 			description: {
 				story:
-					"Reach for this for a room where one bot is left seated. Check that it still reads as a conversation — the name is the room's, not the bot's, and the settings glyph opens the room. Pick `HeaderIdentityButton` for a true one-to-one chat, which also carries the connection mark.",
+					"Reach for this for a room where one companion is left seated. Check that it still reads as a conversation — the name is the room's, not the companion's, and the settings glyph opens the room. Pick `HeaderIdentityButton` for a true one-to-one chat, which also carries the connection mark.",
 			},
 		},
 	},
@@ -129,7 +129,7 @@ export const InLayout = meta.story({
 		docs: {
 			description: {
 				story:
-					"Reach for this to check the button in the header it ships in, with an empty trailing slot. Check that it lands at the very same height, offset and padding as `HeaderIdentityButton` does in the bot chat: a 48px header, a 36px button, six pixels in from the leading edge. Pick `Default` to inspect the button alone.",
+					"Reach for this to check the button in the header it ships in, with an empty trailing slot. Check that it lands at the very same height, offset and padding as `HeaderIdentityButton` does in the companion chat: a 48px header, a 36px button, six pixels in from the leading edge. Pick `Default` to inspect the button alone.",
 			},
 		},
 	},

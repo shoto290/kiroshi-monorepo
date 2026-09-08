@@ -18,7 +18,7 @@ const meta = preview.meta({
 		docs: {
 			description: {
 				component:
-					"Every skill a bot carries: a name, when the bot should reach for it, and a tag on the ones that travel in every prompt. This is the resting state and the whole of it — taking a row hands the entire dialog to that skill, rail included, because a skill is a file somebody writes and it needs both the height and a summary of its own. The panel keeps nothing: it lists what it is given and reports which row was taken, so the surface above decides what an open skill looks like.",
+					"Every skill a companion carries: a name, when the companion should reach for it, and a tag on the ones that travel in every prompt. This is the resting state and the whole of it — taking a row hands the entire dialog to that skill, rail included, because a skill is a file somebody writes and it needs both the height and a summary of its own. The panel keeps nothing: it lists what it is given and reports which row was taken, so the surface above decides what an open skill looks like.",
 			},
 		},
 	},
@@ -58,7 +58,7 @@ export const Empty = meta.story({
 		docs: {
 			description: {
 				story:
-					"A bot nobody has written a skill for. Reach for this over `Default` to check the one state that has to both say so and offer a way out of it: the sentence explains what a skill is before asking for one, and the button opens the same blank editor the list's own does.",
+					"A companion nobody has written a skill for. Reach for this over `Default` to check the one state that has to both say so and offer a way out of it: the sentence explains what a skill is before asking for one, and the button opens the same blank editor the list's own does.",
 			},
 		},
 	},

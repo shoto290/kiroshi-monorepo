@@ -20,7 +20,7 @@ const meta = preview.meta({
 		docs: {
 			description: {
 				component:
-					"A run of a routine that reported something, as it reads in the Earlier today group of the activity panel. It is the bare row of a mission with nothing to open: the bot's blot carries no state dot, the routine title holds the title line at the foreground colour, and the meta line names the routine mark, the trigger that fired it, the bot that ran it and the word reported. The time it reported sits on the trailing slot in the clock format a closed mission uses.",
+					"A run of a routine that reported something, as it reads in the Earlier today group of the activity panel. It is the bare row of a mission with nothing to open: the companion's blot carries no state dot, the routine title holds the title line at the foreground colour, and the meta line names the routine mark, the trigger that fired it, the companion that ran it and the word reported. The time it reported sits on the trailing slot in the clock format a closed mission uses.",
 			},
 		},
 	},
@@ -40,7 +40,7 @@ export const Reported = meta.story({
 		docs: {
 			description: {
 				story:
-					"A morning digest that reported at 08:04. Check that the routine title reads at the foreground colour rather than muted, that no badge dot is drawn on the blot, that the trigger, the bot and the word reported follow the routine mark, and that the row answers neither the pointer nor the keyboard.",
+					"A morning digest that reported at 08:04. Check that the routine title reads at the foreground colour rather than muted, that no badge dot is drawn on the blot, that the trigger, the companion and the word reported follow the routine mark, and that the row answers neither the pointer nor the keyboard.",
 			},
 		},
 	},
@@ -65,7 +65,7 @@ export const AnotherBot = meta.story({
 		docs: {
 			description: {
 				story:
-					"A run of another routine, watched by another bot. Check that the row reads its own bot's blot and its own trigger rather than borrowing the ones above it in the group.",
+					"A run of another routine, watched by another companion. Check that the row reads its own companion's blot and its own trigger rather than borrowing the ones above it in the group.",
 			},
 		},
 	},

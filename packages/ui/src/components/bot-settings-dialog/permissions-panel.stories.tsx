@@ -31,7 +31,7 @@ const meta = preview.meta({
 		docs: {
 			description: {
 				component:
-					"What a bot is allowed to do: the answer it gives a request by default, then the rules that override it — allowed, asked, refused. The mode is a picker because there are five answers and no more; the rules are lists because there is no telling how many a reader needs. A rule is written the way the runtime reads it, `Tool` or `Tool(specifier)`, and one written any other way is refused at the field rather than saved and dropped later. There is no sixth mode: the one that waves everything through is not offered here at all.",
+					"What a companion is allowed to do: the answer it gives a request by default, then the rules that override it — allowed, asked, refused. The mode is a picker because there are five answers and no more; the rules are lists because there is no telling how many a reader needs. A rule is written the way the runtime reads it, `Tool` or `Tool(specifier)`, and one written any other way is refused at the field rather than saved and dropped later. There is no sixth mode: the one that waves everything through is not offered here at all.",
 			},
 		},
 	},
@@ -70,7 +70,7 @@ export const Untouched = meta.story({
 		docs: {
 			description: {
 				story:
-					"A bot nobody has ruled on yet. Every list says what its emptiness means rather than showing a blank space, so `no rules` never reads as `settings failed to load`.",
+					"A companion nobody has ruled on yet. Every list says what its emptiness means rather than showing a blank space, so `no rules` never reads as `settings failed to load`.",
 			},
 		},
 	},

@@ -73,7 +73,7 @@ const meta = preview.meta({
 		docs: {
 			description: {
 				component:
-					"The mention popup of the composer: it lists the bots of the conversation, each with its avatar and its name, filters them against the typed query and answers the keyboard while focus stays in the textarea. A mention reaches exactly one bot — there is no row that reaches everyone — so a selection reports a single bot id and the menu closes on it. The bot that leads the conversation wears a crown and a screen-reader-only *Lead*, wherever the filtering leaves it in the list. A row whose bot the draft already names carries the count of those mentions before the crown, given by the host as data. It draws only: reading the arobase in the draft, owning `open` and `query`, and writing the mention back into the text all belong to the host. ArrowUp/ArrowDown travel and wrap, Enter and Tab select, Escape or a press outside dismisses, and a query matching no bot renders no menu at all. Reach for `PromptCommandMenu` for the slash commands of the same composer.",
+					"The mention popup of the composer: it lists the companions of the conversation, each with its avatar and its name, filters them against the typed query and answers the keyboard while focus stays in the textarea. A mention reaches exactly one companion — there is no row that reaches everyone — so a selection reports a single companion id and the menu closes on it. The companion that leads the conversation wears a crown and a screen-reader-only *Lead*, wherever the filtering leaves it in the list. A row whose companion the draft already names carries the count of those mentions before the crown, given by the host as data. It draws only: reading the arobase in the draft, owning `open` and `query`, and writing the mention back into the text all belong to the host. ArrowUp/ArrowDown travel and wrap, Enter and Tab select, Escape or a press outside dismisses, and a query matching no companion renders no menu at all. Reach for `PromptCommandMenu` for the slash commands of the same composer.",
 			},
 		},
 	},
@@ -105,7 +105,7 @@ export const Default = meta.story({
 		docs: {
 			description: {
 				story:
-					"The nominal case: the menu is open on an empty query, so every bot of the conversation is listed and the first row is the active one. Check that the panel sits above the composer on its leading edge, that each row pairs an avatar with a name, that exactly one row carries the highlight, and that Escape reports a dismissal to the host.",
+					"The nominal case: the menu is open on an empty query, so every companion of the conversation is listed and the first row is the active one. Check that the panel sits above the composer on its leading edge, that each row pairs an avatar with a name, that exactly one row carries the highlight, and that Escape reports a dismissal to the host.",
 			},
 		},
 	},
@@ -126,7 +126,7 @@ export const Lead = meta.story({
 		docs: {
 			description: {
 				story:
-					"The bot that leads the conversation, marked. Check that the crown falls on the lead and on nobody else, that it never stands alone as the only sign of the role since *Lead* is announced beside it, and that the mark follows the bot rather than the first row.",
+					"The companion that leads the conversation, marked. Check that the crown falls on the lead and on nobody else, that it never stands alone as the only sign of the role since *Lead* is announced beside it, and that the mark follows the companion rather than the first row.",
 			},
 		},
 	},
@@ -144,7 +144,7 @@ export const Filtered = meta.story({
 		docs: {
 			description: {
 				story:
-					"A typed query narrows the list to the bots whose name carries it, matched case-insensitively, and the highlight falls back to the first survivor. Check that the panel shrinks to the remaining rows and that clicking one reports that bot's id rather than the highlighted one.",
+					"A typed query narrows the list to the companions whose name carries it, matched case-insensitively, and the highlight falls back to the first survivor. Check that the panel shrinks to the remaining rows and that clicking one reports that companion's id rather than the highlighted one.",
 			},
 		},
 	},
@@ -213,7 +213,7 @@ export const LongContent = meta.story({
 		docs: {
 			description: {
 				story:
-					"More bots than the panel can show, two of them named far past their row. Check that the list scrolls instead of growing past the composer, that a long name truncates while the avatar and the crown stay whole, and that travelling with the arrows keeps the active row in view.",
+					"More companions than the panel can show, two of them named far past their row. Check that the list scrolls instead of growing past the composer, that a long name truncates while the avatar and the crown stay whole, and that travelling with the arrows keeps the active row in view.",
 			},
 		},
 	},
@@ -262,7 +262,7 @@ export const Empty = meta.story({
 		docs: {
 			description: {
 				story:
-					"The query matches no bot, so the menu renders nothing at all — no panel, no empty message, no keyboard capture. Check that the composer alone remains and that Enter reaches it, since the menu must not swallow a submission it has no row to answer with.",
+					"The query matches no companion, so the menu renders nothing at all — no panel, no empty message, no keyboard capture. Check that the composer alone remains and that Enter reaches it, since the menu must not swallow a submission it has no row to answer with.",
 			},
 		},
 	},
@@ -277,7 +277,7 @@ export const Counted = meta.story({
 		docs: {
 			description: {
 				story:
-					"The draft already names two of the listed bots, one once and one three times, and says nothing of the others. Check that the count reads as part of the name it counts, one row-gap after its last glyph and nowhere near the trailing edge, that the number is announced as a phrase rather than as a bare glyph, and that a bot the draft never names renders exactly as it does everywhere else — no zero, no placeholder.",
+					"The draft already names two of the listed companions, one once and one three times, and says nothing of the others. Check that the count reads as part of the name it counts, one row-gap after its last glyph and nowhere near the trailing edge, that the number is announced as a phrase rather than as a bare glyph, and that a companion the draft never names renders exactly as it does everywhere else — no zero, no placeholder.",
 			},
 		},
 	},
@@ -339,7 +339,7 @@ export const CountedLongName = meta.story({
 		docs: {
 			description: {
 				story:
-					"A count on a bot named far past the width of its row. Check that the name is the only part that gives way to an ellipsis and that the digits stay whole and inside the panel: a reader must never lose the number to the overflow of a name.",
+					"A count on a companion named far past the width of its row. Check that the name is the only part that gives way to an ellipsis and that the digits stay whole and inside the panel: a reader must never lose the number to the overflow of a name.",
 			},
 		},
 	},

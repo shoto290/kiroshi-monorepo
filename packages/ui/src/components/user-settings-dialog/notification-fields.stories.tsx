@@ -47,7 +47,7 @@ const meta = preview.meta({
 		docs: {
 			description: {
 				component:
-					"What a reader is told about, one switch to a moment: a bot asking them a question, a bot asking leave, a bot going quiet. Under them, in a group of its own, the sound the app plays itself alongside a notification — how the interruption arrives rather than when. All four start on — a bot that asked something nobody heard waits forever, so silence is only ever something a reader chose. Each row says under its name what turning it off costs, because a switch whose consequence needs a sentence is one nobody should have to guess at. It holds nothing: a flip hands the whole set back to the host, the flipped one among them.",
+					"What a reader is told about, one switch to a moment: a companion asking them a question, a companion asking leave, a companion going quiet. Under them, in a group of its own, the sound the app plays itself alongside a notification — how the interruption arrives rather than when. All four start on — a companion that asked something nobody heard waits forever, so silence is only ever something a reader chose. Each row says under its name what turning it off costs, because a switch whose consequence needs a sentence is one nobody should have to guess at. It holds nothing: a flip hands the whole set back to the host, the flipped one among them.",
 			},
 		},
 	},
@@ -73,7 +73,7 @@ export const Default = meta.story({
 			await expect(control).toBeChecked()
 		}
 
-		await userEvent.click(canvas.getByText("A bot asks a question"))
+		await userEvent.click(canvas.getByText("A companion asks a question"))
 		await expect(args.onNotificationsChange).toHaveBeenCalledWith({
 			question: false,
 			permission: true,
@@ -81,7 +81,7 @@ export const Default = meta.story({
 			sound: true,
 		})
 		await expect(
-			canvas.getByRole("switch", { name: "A bot asks a question" }),
+			canvas.getByRole("switch", { name: "A companion asks a question" }),
 		).not.toBeChecked()
 	},
 })
@@ -92,7 +92,7 @@ export const AllOff = meta.story({
 		docs: {
 			description: {
 				story:
-					"The reader who turned the lot off, which is the state the sentences under the names are there to warn about: nothing reaches them and a bot waiting on an answer waits in silence. Check that every switch reads as off rather than merely unstyled, and that turning one back on leaves the others off. Pick `Default` for the state a reader starts in.",
+					"The reader who turned the lot off, which is the state the sentences under the names are there to warn about: nothing reaches them and a companion waiting on an answer waits in silence. Check that every switch reads as off rather than merely unstyled, and that turning one back on leaves the others off. Pick `Default` for the state a reader starts in.",
 			},
 		},
 	},
@@ -101,13 +101,13 @@ export const AllOff = meta.story({
 			await expect(control).not.toBeChecked()
 		}
 
-		await userEvent.click(canvas.getByText("A bot finishes its turn"))
+		await userEvent.click(canvas.getByText("A companion finishes its turn"))
 		await expect(args.onNotificationsChange).toHaveBeenCalledWith({
 			...NOTHING_NOTIFIED,
 			turn: true,
 		})
 		await expect(
-			canvas.getByRole("switch", { name: "A bot finishes its turn" }),
+			canvas.getByRole("switch", { name: "A companion finishes its turn" }),
 		).toBeChecked()
 	},
 })
@@ -131,7 +131,9 @@ export const InFrench = meta.story({
 			await canvas.findByRole("group", { name: "Me prévenir quand" }),
 		).toBeVisible()
 		await expect(
-			canvas.getByRole("switch", { name: "Un bot demande une permission" }),
+			canvas.getByRole("switch", {
+				name: "Un compagnon demande une permission",
+			}),
 		).toBeVisible()
 		await expect(
 			await canvas.findByRole("group", { name: "Son" }),

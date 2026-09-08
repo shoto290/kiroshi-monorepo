@@ -58,7 +58,7 @@ const meta = preview.meta({
 		docs: {
 			description: {
 				component:
-					"Everything a space is, in one overlay — the reader's own settings, told about a work area instead of a person. A breadcrumb heads it with the space's tint dot and its name, so the dialog is visibly the one that space opened. Down the left is a rail of five entries: the space itself, what it is called and the tint it wears; its environment, the variables every bot in it starts with; its skills, the plugin every bot in it reads before answering; its MCP servers, the ones every bot in it inherits; its history, everything ever written into that plugin. Below a separator sits the danger zone, set apart in destructive tone exactly as a bot's settings sets it apart, because a space takes its bots with it. It opens on the space every time. Same contract as a bot's settings and for the same reason: fully controlled, saving as you type, no draft, no debounce — closing it is never a question, except while a skill or a server is half written.",
+					"Everything a space is, in one overlay — the reader's own settings, told about a work area instead of a person. A breadcrumb heads it with the space's tint dot and its name, so the dialog is visibly the one that space opened. Down the left is a rail of five entries: the space itself, what it is called and the tint it wears; its environment, the variables every companion in it starts with; its skills, the plugin every companion in it reads before answering; its MCP servers, the ones every companion in it inherits; its history, everything ever written into that plugin. Below a separator sits the danger zone, set apart in destructive tone exactly as a companion's settings sets it apart, because a space takes its companions with it. It opens on the space every time. Same contract as a companion's settings and for the same reason: fully controlled, saving as you type, no draft, no debounce — closing it is never a question, except while a skill or a server is half written.",
 			},
 		},
 	},
@@ -128,7 +128,7 @@ export const Environment = meta.story({
 		docs: {
 			description: {
 				story:
-					"The variables the space hands to every bot in it — the same panel a bot's settings draws, read at space scope, so each name is the space's own and every one of them can be replaced or removed here. A name a bot redefines is still listed, marked as served from the bot, because the space is where it was written even when it is not the value that runs. Check that adding a name reports it, and that the panel never shows a value back.",
+					"The variables the space hands to every companion in it — the same panel a companion's settings draws, read at space scope, so each name is the space's own and every one of them can be replaced or removed here. A name a companion redefines is still listed, marked as served from the companion, because the space is where it was written even when it is not the value that runs. Check that adding a name reports it, and that the panel never shows a value back.",
 			},
 		},
 	},
@@ -143,7 +143,9 @@ export const Environment = meta.story({
 		})
 
 		await expect(within(panel).getByText("ATLAS_TOKEN")).toBeVisible()
-		await expect(within(panel).getByText("Overridden by Bot")).toBeVisible()
+		await expect(
+			within(panel).getByText("Overridden by Companion"),
+		).toBeVisible()
 
 		await userEvent.click(
 			within(panel).getByRole("button", { name: "Add variable" }),
@@ -170,7 +172,7 @@ export const Skills = meta.story({
 		docs: {
 			description: {
 				story:
-					"The skills of the space's own plugin — the same panel a bot's settings draws, on the plugin every bot in the space reads before it answers. Check that opening one swaps the whole body for the editor, and that the way back restores the rail on the space entry, as the reader's own dialog does after the same trip.",
+					"The skills of the space's own plugin — the same panel a companion's settings draws, on the plugin every companion in the space reads before it answers. Check that opening one swaps the whole body for the editor, and that the way back restores the rail on the space entry, as the reader's own dialog does after the same trip.",
 			},
 		},
 	},
@@ -200,7 +202,7 @@ export const McpServers = meta.story({
 		docs: {
 			description: {
 				story:
-					"The servers the space declares, inherited by every bot in it \u2014 the same panel and the same editor a bot\u2019s settings draws, written into the space plugin instead of a bot bundle. A bot that declares a server of the same name wins for itself and leaves this one where it is. Check that opening one swaps the whole body for the editor, and that the way back restores the rail. Pick `McpServersUnavailable` for the listing that could not be read.",
+					"The servers the space declares, inherited by every companion in it \u2014 the same panel and the same editor a companion\u2019s settings draws, written into the space plugin instead of a companion bundle. A companion that declares a server of the same name wins for itself and leaves this one where it is. Check that opening one swaps the whole body for the editor, and that the way back restores the rail. Pick `McpServersUnavailable` for the listing that could not be read.",
 			},
 		},
 	},
@@ -259,7 +261,7 @@ export const History = meta.story({
 		docs: {
 			description: {
 				story:
-					"Everything ever written into the space's plugin, newest first, whoever wrote it. Check that a change the reader made is signed You and one a bot made is signed generically — the space holds many bots, so the entry names none of them — and that asking for the changes of an entry calls back for its diff.",
+					"Everything ever written into the space's plugin, newest first, whoever wrote it. Check that a change the reader made is signed You and one a companion made is signed generically — the space holds many companions, so the entry names none of them — and that asking for the changes of an entry calls back for its diff.",
 			},
 		},
 	},
@@ -272,7 +274,9 @@ export const History = meta.story({
 		})
 
 		await expect(within(panel).getAllByText("You").length).toBeGreaterThan(0)
-		await expect(within(panel).getAllByText("A bot").length).toBeGreaterThan(0)
+		await expect(
+			within(panel).getAllByText("A companion").length,
+		).toBeGreaterThan(0)
 
 		await userEvent.click(
 			within(panel).getAllByRole("button", { name: "Show changes" })[0],

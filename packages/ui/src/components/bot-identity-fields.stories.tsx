@@ -65,7 +65,7 @@ const meta = preview.meta({
 		docs: {
 			description: {
 				component:
-					"Everything a bot's face is made of, flat: what it looks like now, the eight animals the avatar engine draws, the eight ink blots that mark it plus the option that takes the blot off, and the round field that takes a picture and takes it back off. Nothing is behind a popover, a disclosure or a tab set — a reader in a bot's appearance sees every choice at once and compares them instead of opening one to find out. Each grid is a real radio group, so arrow keys move within it and the current choice is announced; the ring is the same answer for the eye. Every thumbnail wears the animal, the blot and the id currently in play, so both rows preview the actual outcome. Picking an animal or a blot takes the picture off, because the picture is what wins over both. The block never reads a file: it hands the host a `File` and waits for the picture to come back as `identity.image`. Only the preview is allowed to move, and only while `working` — the choices always rest.",
+					"Everything a companion's face is made of, flat: what it looks like now, the eight animals the avatar engine draws, the eight ink blots that mark it plus the option that takes the blot off, and the round field that takes a picture and takes it back off. Nothing is behind a popover, a disclosure or a tab set — a reader in a companion's appearance sees every choice at once and compares them instead of opening one to find out. Each grid is a real radio group, so arrow keys move within it and the current choice is announced; the ring is the same answer for the eye. Every thumbnail wears the animal, the blot and the id currently in play, so both rows preview the actual outcome. Picking an animal or a blot takes the picture off, because the picture is what wins over both. The block never reads a file: it hands the host a `File` and waits for the picture to come back as `identity.image`. Only the preview is allowed to move, and only while `working` — the choices always rest.",
 			},
 		},
 	},
@@ -93,7 +93,7 @@ export const Default = meta.story({
 		docs: {
 			description: {
 				story:
-					"The nominal case: a bot that already picked an owl and a blue blot. Reach for it to check that the preview, both grids and the picture field stand at once with nothing to open first, that the two current choices are the checked ones, and that Tab walks the block in reading order.",
+					"The nominal case: a companion that already picked an owl and a blue blot. Reach for it to check that the preview, both grids and the picture field stand at once with nothing to open first, that the two current choices are the checked ones, and that Tab walks the block in reading order.",
 			},
 		},
 	},
@@ -114,7 +114,7 @@ export const PicksAnAnimal = meta.story({
 		docs: {
 			description: {
 				story:
-					"What a new animal costs: the blot the bot already wears stays, and the picture goes — an animal cannot be seen under a photograph. Check that the preview and every blot swatch switch to the new animal at once.",
+					"What a new animal costs: the blot the companion already wears stays, and the picture goes — an animal cannot be seen under a photograph. Check that the preview and every blot swatch switch to the new animal at once.",
 			},
 		},
 	},
@@ -154,7 +154,7 @@ export const TakesTheBlotOff = meta.story({
 		docs: {
 			description: {
 				story:
-					"The ninth blot option is the absence of one. It sits in the same radio group rather than beside it as a clear button, because wearing no blot is a choice a bot makes, not an undo. Check that the emitted identity carries no blot at all and that the animal is then drawn on nothing.",
+					"The ninth blot option is the absence of one. It sits in the same radio group rather than beside it as a clear button, because wearing no blot is a choice a companion makes, not an undo. Check that the emitted identity carries no blot at all and that the animal is then drawn on nothing.",
 			},
 		},
 	},
@@ -177,7 +177,7 @@ export const WithPicture = meta.story({
 		docs: {
 			description: {
 				story:
-					"A bot wearing a picture. The preview shows the picture rather than the animal, while the grids keep showing what the bot would fall back to the moment a reader picks one — the choice under the photograph is never lost. Check that the preview draws no animal, and that the status line says the picture is what is on.",
+					"A companion wearing a picture. The preview shows the picture rather than the animal, while the grids keep showing what the companion would fall back to the moment a reader picks one — the choice under the photograph is never lost. Check that the preview draws no animal, and that the status line says the picture is what is on.",
 			},
 		},
 	},
@@ -199,7 +199,7 @@ export const RemovesThePicture = meta.story({
 		docs: {
 			description: {
 				story:
-					"Taking the picture off, from the picture field itself rather than by picking an animal to overwrite it. The remove button reports the identity the bot already carries — the same animal, the same blot, no image — so the host clears the stored path on that one report and needs no command of its own. Check that the field falls back to the drawn face the moment the identity comes back without an image, and that the button goes with the picture.",
+					"Taking the picture off, from the picture field itself rather than by picking an animal to overwrite it. The remove button reports the identity the companion already carries — the same animal, the same blot, no image — so the host clears the stored path on that one report and needs no command of its own. Check that the field falls back to the drawn face the moment the identity comes back without an image, and that the button goes with the picture.",
 			},
 		},
 	},
@@ -222,7 +222,7 @@ export const RemovesThePicture = meta.story({
 		await expect(field.querySelector("img")).toBeNull()
 		await expect(field.querySelector('svg[role="img"]')).toHaveAttribute(
 			"aria-label",
-			"Bot avatar owl, idle",
+			"Companion avatar owl, idle",
 		)
 		await expect(
 			canvas.queryByRole("button", { name: "Remove picture" }),
@@ -236,14 +236,14 @@ export const Working = meta.story({
 		docs: {
 			description: {
 				story:
-					"The block open on a bot mid-run. Only the preview performs the work, in the pose the host named; all seventeen choice avatars hold their idle frame, because a grid of working animals would say something about the bot that is not true. Check that exactly one avatar in here is doing anything.",
+					"The block open on a companion mid-run. Only the preview performs the work, in the pose the host named; all seventeen choice avatars hold their idle frame, because a grid of working animals would say something about the companion that is not true. Check that exactly one avatar in here is doing anything.",
 			},
 		},
 	},
 	play: async ({ canvasElement }) => {
 		const [previewLabel, ...choices] = drawnLabels(canvasElement)
 
-		await expect(previewLabel).toBe("Bot avatar owl, writing")
+		await expect(previewLabel).toBe("Companion avatar owl, writing")
 		await expect(choices.every((label) => label?.endsWith(", idle"))).toBe(true)
 	},
 })
@@ -253,7 +253,7 @@ export const Seeded = meta.story({
 		docs: {
 			description: {
 				story:
-					"The blot's shape comes from the bot's id and from nothing else, so every blot in the block — the preview's and all sixteen thumbnails' — wears the one shape this bot has always worn. Put it beside a block with no seed: the tints are the same and only the shape has turned.",
+					"The blot's shape comes from the companion's id and from nothing else, so every blot in the block — the preview's and all sixteen thumbnails' — wears the one shape this companion has always worn. Put it beside a block with no seed: the tints are the same and only the shape has turned.",
 			},
 		},
 	},

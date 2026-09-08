@@ -67,7 +67,7 @@ const meta = preview.meta({
 		docs: {
 			description: {
 				component:
-					"The column of groups down the left of a settings dialog — a bot's, a reader's own. It holds its width and never scrolls with the panel beside it, so a reader who scrolled a long group finds the rail where they left it. One tab stop reaches it and the arrow keys walk it: walking is not opening, so nobody drags a grid of animals past on the way to the group they wanted. The surface that owns the width decides when the names leave, and hands the answer to the rail and to the panel beside it at once.",
+					"The column of groups down the left of a settings dialog — a companion's, a reader's own. It holds its width and never scrolls with the panel beside it, so a reader who scrolled a long group finds the rail where they left it. One tab stop reaches it and the arrow keys walk it: walking is not opening, so nobody drags a grid of animals past on the way to the group they wanted. The surface that owns the width decides when the names leave, and hands the answer to the rail and to the panel beside it at once.",
 			},
 		},
 	},

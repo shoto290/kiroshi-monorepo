@@ -15,7 +15,7 @@ const meta = preview.meta({
 		docs: {
 			description: {
 				component:
-					"The bare row of the activity panel, shared by a mission and by a run that reported: no border and no surface at rest, the bot's blot on the leading edge, a title line ending in the time, and a meta line of a mark, an optional identifier and parts a middle dot opens. A row given something to open answers the pointer and the keyboard; a row given nothing is plain text. Reach for `MissionRow` or `ReportedRunRow` rather than this shell.",
+					"The bare row of the activity panel, shared by a mission and by a run that reported: no border and no surface at rest, the companion's blot on the leading edge, a title line ending in the time, and a meta line of a mark, an optional identifier and parts a middle dot opens. A row given something to open answers the pointer and the keyboard; a row given nothing is plain text. Reach for `MissionRow` or `ReportedRunRow` rather than this shell.",
 			},
 		},
 	},
@@ -50,7 +50,7 @@ export const Plain = meta.story({
 	play: async ({ canvas, canvasElement }) => {
 		await expect(canvas.queryByRole("button")).not.toBeInTheDocument()
 		await expect(
-			canvas.getByRole("img", { name: "Bot avatar owl, idle" }),
+			canvas.getByRole("img", { name: "Companion avatar owl, idle" }),
 		).toBeVisible()
 		await expect(canvas.getByText("OPE-42")).toBeVisible()
 		await expect(

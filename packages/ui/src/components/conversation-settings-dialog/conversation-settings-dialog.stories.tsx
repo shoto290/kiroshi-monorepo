@@ -88,7 +88,7 @@ const meta = preview.meta({
 		docs: {
 			description: {
 				component:
-					"Everything a conversation is, behind one rail: its name, who takes part, the instructions every bot in it shares, and the one way to end it. The panes are split the way a reader changes their mind — renaming is a keystroke, changing who leads is a decision, deleting is a question — so the destructive pane sits below a separator and never next to the name field. The dialog holds no draft: every keystroke and every press is reported as it happens, which is what lets the screen persist a rename without a save button. The instructions pane is the conversation's own brief, shared by every bot seated — a bot's own instructions live in `BotSettingsDialog` instead. Reach for `ParticipantsPanel` for the seating on its own, `NewConversationDialog` for the conversation that does not exist yet.",
+					"Everything a conversation is, behind one rail: its name, who takes part, the instructions every companion in it shares, and the one way to end it. The panes are split the way a reader changes their mind — renaming is a keystroke, changing who leads is a decision, deleting is a question — so the destructive pane sits below a separator and never next to the name field. The dialog holds no draft: every keystroke and every press is reported as it happens, which is what lets the screen persist a rename without a save button. The instructions pane is the conversation's own brief, shared by every companion seated — a companion's own instructions live in `BotSettingsDialog` instead. Reach for `ParticipantsPanel` for the seating on its own, `NewConversationDialog` for the conversation that does not exist yet.",
 			},
 		},
 	},
@@ -141,7 +141,7 @@ export const Participants = meta.story({
 		docs: {
 			description: {
 				story:
-					"The seating pane. Check that the bots are listed in joining order with one crown on the lead, that moving the crown reports that bot and leaves a single crown behind, and that the roster below never offers a bot already seated. `ParticipantsPanel` covers dismissal and the last-seat rule on its own.",
+					"The seating pane. Check that the companions are listed in joining order with one crown on the lead, that moving the crown reports that companion and leaves a single crown behind, and that the roster below never offers a companion already seated. `ParticipantsPanel` covers dismissal and the last-seat rule on its own.",
 			},
 		},
 	},
@@ -170,7 +170,7 @@ export const Instructions = meta.story({
 		docs: {
 			description: {
 				story:
-					"The brief every bot in the conversation reads. Check that the field fills the pane rather than sitting as a two-line box — this is written in paragraphs — and that editing reports the whole value alongside the untouched name, so a screen persisting it never has to merge two sources.",
+					"The brief every companion in the conversation reads. Check that the field fills the pane rather than sitting as a two-line box — this is written in paragraphs — and that editing reports the whole value alongside the untouched name, so a screen persisting it never has to merge two sources.",
 			},
 		},
 	},
@@ -227,7 +227,7 @@ export const Empty = meta.story({
 		docs: {
 			description: {
 				story:
-					"A conversation renamed to nothing, with no brief and one bot left. Check that the header falls back to a placeholder name instead of showing an empty breadcrumb, and that the single seat cannot be given up — a conversation with nobody in it can no longer answer.",
+					"A conversation renamed to nothing, with no brief and one companion left. Check that the header falls back to a placeholder name instead of showing an empty breadcrumb, and that the single seat cannot be given up — a conversation with nobody in it can no longer answer.",
 			},
 		},
 	},
@@ -257,7 +257,7 @@ export const LongContent = meta.story({
 		docs: {
 			description: {
 				story:
-					"A conversation and bots named at length, with a brief that runs past the fold. Check that the header truncates the name and keeps the `Settings` breadcrumb visible, that participant rows truncate rather than pushing their controls away, and that the instructions field scrolls inside the pane instead of stretching the dialog.",
+					"A conversation and companions named at length, with a brief that runs past the fold. Check that the header truncates the name and keeps the `Settings` breadcrumb visible, that participant rows truncate rather than pushing their controls away, and that the instructions field scrolls inside the pane instead of stretching the dialog.",
 			},
 		},
 	},

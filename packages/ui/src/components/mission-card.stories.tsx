@@ -81,7 +81,7 @@ export const Unrecognised = meta.story({
 		docs: {
 			description: {
 				story:
-					"A ticket from a platform the app ships no mark for, on a tool it does not know either, since the bot that opens a mission names both itself. Check that the identifier and the title are read all the same, that the line still opens the ticket, and above all that the two stand-in marks cannot be mistaken for one another — the ticket is bookmarked, the tool is a tool. Pick `Default` for the pair the app does recognise.",
+					"A ticket from a platform the app ships no mark for, on a tool it does not know either, since the companion that opens a mission names both itself. Check that the identifier and the title are read all the same, that the line still opens the ticket, and above all that the two stand-in marks cannot be mistaken for one another — the ticket is bookmarked, the tool is a tool. Pick `Default` for the pair the app does recognise.",
 			},
 		},
 	},

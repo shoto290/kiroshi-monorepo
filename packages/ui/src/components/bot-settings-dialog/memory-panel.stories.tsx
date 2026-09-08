@@ -12,7 +12,7 @@ const meta = preview.meta({
 		docs: {
 			description: {
 				component:
-					"What a bot has written down for itself, opened for the person it wrote it about. It sits under the instructions because the two read as one page and are told apart by their author: the instructions are what the user asks of the bot, the memory is what the bot noticed on its own. It is a draft rather than a live field — the bot keeps writing while it is open, so nothing is reported until the reader saves, and saving stays out of reach while the text is the one they were handed. Clearing is the other way out and asks its question first: the memory is written by a hand that is not in the room, so it is never wiped on a single press.",
+					"What a companion has written down for itself, opened for the person it wrote it about. It sits under the instructions because the two read as one page and are told apart by their author: the instructions are what the user asks of the companion, the memory is what the companion noticed on its own. It is a draft rather than a live field — the companion keeps writing while it is open, so nothing is reported until the reader saves, and saving stays out of reach while the text is the one they were handed. Clearing is the other way out and asks its question first: the memory is written by a hand that is not in the room, so it is never wiped on a single press.",
 			},
 		},
 	},
@@ -34,7 +34,7 @@ export const Default = meta.story({
 		docs: {
 			description: {
 				story:
-					"A bot that has been working long enough to have noticed things. Check that the memory arrives as editable text under its own label rather than as a read-only block, and that saving is disabled until the reader has actually changed something — reopening the dialog and pressing Save must not write a new version of the same text. One keystroke is enough to arm it, and what it reports is the whole memory, not the edit.",
+					"A companion that has been working long enough to have noticed things. Check that the memory arrives as editable text under its own label rather than as a read-only block, and that saving is disabled until the reader has actually changed something — reopening the dialog and pressing Save must not write a new version of the same text. One keystroke is enough to arm it, and what it reports is the whole memory, not the edit.",
 			},
 		},
 	},
@@ -59,13 +59,13 @@ export const Empty = meta.story({
 		docs: {
 			description: {
 				story:
-					"A bot that has not written anything down yet. One sentence in place of the field: there is nothing to edit and nothing to clear, and offering an empty box would read as an invitation to write the bot's memory for it.",
+					"A companion that has not written anything down yet. One sentence in place of the field: there is nothing to edit and nothing to clear, and offering an empty box would read as an invitation to write the companion's memory for it.",
 			},
 		},
 	},
 	play: async ({ canvas }) => {
 		await expect(
-			canvas.getByText("This bot has not written anything down yet."),
+			canvas.getByText("This companion has not written anything down yet."),
 		).toBeVisible()
 		await expect(canvas.queryByLabelText("Memory")).not.toBeInTheDocument()
 		await expect(
@@ -79,7 +79,7 @@ export const Clearing = meta.story({
 		docs: {
 			description: {
 				story:
-					"The way back to an empty memory. Check that the press alone reports nothing: the question says what is lost and that the bot starts learning again, and only the second press empties it. Cancelling leaves the memory exactly as it was.",
+					"The way back to an empty memory. Check that the press alone reports nothing: the question says what is lost and that the companion starts learning again, and only the second press empties it. Cancelling leaves the memory exactly as it was.",
 			},
 		},
 	},
@@ -87,7 +87,7 @@ export const Clearing = meta.story({
 		await userEvent.click(canvas.getByRole("button", { name: "Clear" }))
 
 		const question = await screen.findByRole("alertdialog")
-		await expect(question).toHaveTextContent("Clear this bot's memory?")
+		await expect(question).toHaveTextContent("Clear this companion's memory?")
 		await expect(args.onSave).not.toHaveBeenCalled()
 
 		await userEvent.click(

@@ -61,7 +61,7 @@ const meta = preview.meta({
 		docs: {
 			description: {
 				component:
-					"The one badge in the system: a label with a variant API, and the `dot` variant every bot badge is drawn through. `BotBadgeDot` binds a tint — attention, done, failed — to a placement, and owns the mark's size, its ring and where it lands, so no call site writes badge geometry of its own.",
+					"The one badge in the system: a label with a variant API, and the `dot` variant every companion badge is drawn through. `BotBadgeDot` binds a tint — attention, done, failed — to a placement, and owns the mark's size, its ring and where it lands, so no call site writes badge geometry of its own.",
 			},
 		},
 	},
@@ -113,7 +113,7 @@ export const BotBadges = meta.story({
 		docs: {
 			description: {
 				story:
-					"The three things a bot badge can mean, on their own tokens: attention is orange and breathes because it is the only one asking the reader for something, done is green and failed is red and both hold still. Check the three colours hold across themes and across light and dark — they are fixed on purpose — and that only attention pulses, and only while motion is allowed. Pick `Placements` for where the mark lands.",
+					"The three things a companion badge can mean, on their own tokens: attention is orange and breathes because it is the only one asking the reader for something, done is green and failed is red and both hold still. Check the three colours hold across themes and across light and dark — they are fixed on purpose — and that only attention pulses, and only while motion is allowed. Pick `Placements` for where the mark lands.",
 			},
 		},
 	},
@@ -232,7 +232,7 @@ export const BotTitles = meta.story({
 		docs: {
 			description: {
 				story:
-					"The one pill a bot title is drawn in, worn by the roster row and by the message header alike. It holds its width against a name that grows, cuts a title longer than the width its caller allows with an ellipsis, and disappears node and all when a bot carries no title, so a name without one keeps the line it always had. The maximum width comes from the caller: the roster row holds it at 64px, shown here, while the message header gives it more. Check the three cases read as one component, and that the pill stays legible on both themes.",
+					"The one pill a companion title is drawn in, worn by the roster row and by the message header alike. It holds its width against a name that grows, cuts a title longer than the width its caller allows with an ellipsis, and disappears node and all when a companion carries no title, so a name without one keeps the line it always had. The maximum width comes from the caller: the roster row holds it at 64px, shown here, while the message header gives it more. Check the three cases read as one component, and that the pill stays legible on both themes.",
 			},
 		},
 	},

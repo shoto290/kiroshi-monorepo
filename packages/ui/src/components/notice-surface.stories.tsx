@@ -343,12 +343,12 @@ export const WithDialog = meta.story({
 		<>
 			<DialogRoot>
 				<Trigger className={buttonVariants({ variant: "outline" })}>
-					Bot settings
+					Companion settings
 				</Trigger>
 				<Content>
-					<DialogTitle>Bot settings</DialogTitle>
+					<DialogTitle>Companion settings</DialogTitle>
 					<DialogDescription>
-						Name the bot, point it at a folder and tell it how to behave.
+						Name the companion, point it at a folder and tell it how to behave.
 					</DialogDescription>
 				</Content>
 			</DialogRoot>
@@ -364,7 +364,9 @@ export const WithDialog = meta.story({
 		},
 	},
 	play: async ({ canvas, userEvent }) => {
-		await userEvent.click(canvas.getByRole("button", { name: "Bot settings" }))
+		await userEvent.click(
+			canvas.getByRole("button", { name: "Companion settings" }),
+		)
 		const dialog = await screen.findByRole("dialog")
 		await waitFor(() => expect(dialog).toBeVisible())
 

@@ -111,7 +111,7 @@ const meta = preview.meta({
 		docs: {
 			description: {
 				component:
-					"The face of a room: the bots it holds, drawn inside one frame. It exists because a bot and a conversation live in the same lists — the roster, the header of the column beside it — and a room of one bot would otherwise be pixel for pixel that bot's own row. So the kind is carried by shape and never by a word: a bot floats free, a room is held in a container. The frame takes the same square a bot avatar takes, so nothing in the column moves between the two kinds; only what fills the square changes. Up to three bots are drawn; past three the fourth cell of the grid, free by construction, holds how many were left out. It draws and nothing else — no name, no layout — and a room within its three faces is hidden from a screen reader, because three avatar labels in front of a room name bury the name. A room that overflows is the one exception: it announces its count as the label of the square, since nothing else in the row says it.",
+					"The face of a room: the companions it holds, drawn inside one frame. It exists because a companion and a conversation live in the same lists — the roster, the header of the column beside it — and a room of one companion would otherwise be pixel for pixel that companion's own row. So the kind is carried by shape and never by a word: a companion floats free, a room is held in a container. The frame takes the same square a companion avatar takes, so nothing in the column moves between the two kinds; only what fills the square changes. Up to three companions are drawn; past three the fourth cell of the grid, free by construction, holds how many were left out. It draws and nothing else — no name, no layout — and a room within its three faces is hidden from a screen reader, because three avatar labels in front of a room name bury the name. A room that overflows is the one exception: it announces its count as the label of the square, since nothing else in the row says it.",
 			},
 		},
 	},
@@ -130,7 +130,7 @@ export const Default = meta.story({
 		docs: {
 			description: {
 				story:
-					"A room of two. Both bots sit inside the frame, each keeping the animal and the blot it wears everywhere else, and the frame is what says these two are somewhere together rather than side by side in a list. Check that the bots stay inside the frame and that the frame draws a border of its own — that border is the whole signal. Pick `OneBot` for the case this component was built for, `Crowded` for what happens past three.",
+					"A room of two. Both companions sit inside the frame, each keeping the animal and the blot it wears everywhere else, and the frame is what says these two are somewhere together rather than side by side in a list. Check that the companions stay inside the frame and that the frame draws a border of its own — that border is the whole signal. Pick `OneBot` for the case this component was built for, `Crowded` for what happens past three.",
 			},
 		},
 	},
@@ -155,7 +155,7 @@ export const OneBot = meta.story({
 		docs: {
 			description: {
 				story:
-					"The reason this component exists, shown as the pair it has to be told apart from: a room holding Atlas on the left, Atlas himself on the right. Same footprint, same bot, and no text anywhere — what separates them is that one is held and one is not. The single bot is drawn smaller than the square so the frame stays readable all the way around it, which is what keeps the two legible at 24px in a roster and not only at this size.",
+					"The reason this component exists, shown as the pair it has to be told apart from: a room holding Atlas on the left, Atlas himself on the right. Same footprint, same companion, and no text anywhere — what separates them is that one is held and one is not. The single companion is drawn smaller than the square so the frame stays readable all the way around it, which is what keeps the two legible at 24px in a roster and not only at this size.",
 			},
 		},
 	},
@@ -181,7 +181,7 @@ export const Crowded = meta.story({
 		docs: {
 			description: {
 				story:
-					"A room of five. Three bots are held and the two left out are counted in the fourth cell, bottom right — the one the odd number of faces leaves free — drawn as a rounded square on the tile the avatars sit on, so nothing about the frame widens or shifts. The count and the drawing cannot disagree, since the same slice decides both. It is the only thing here a screen reader hears: the square carries `+2` as its label, and the faces stay silent.",
+					"A room of five. Three companions are held and the two left out are counted in the fourth cell, bottom right — the one the odd number of faces leaves free — drawn as a rounded square on the tile the avatars sit on, so nothing about the frame widens or shifts. The count and the drawing cannot disagree, since the same slice decides both. It is the only thing here a screen reader hears: the square carries `+2` as its label, and the faces stay silent.",
 			},
 		},
 	},
@@ -214,7 +214,7 @@ export const EveryPlace = meta.story({
 		docs: {
 			description: {
 				story:
-					"The three places a room is drawn: the rail at 24px, a roster row at 40px, a header or a settings column at 96px. The frame, the inset around the bots and the gap between them all follow the size, so the shape reads the same at every one of them and no call site hand-tunes a number.",
+					"The three places a room is drawn: the rail at 24px, a roster row at 40px, a header or a settings column at 96px. The frame, the inset around the companions and the gap between them all follow the size, so the shape reads the same at every one of them and no call site hand-tunes a number.",
 			},
 		},
 	},
@@ -240,7 +240,7 @@ export const Working = meta.story({
 		docs: {
 			description: {
 				story:
-					"A room where one bot is running. That bot animates inside the frame exactly as it would on its own row and holds the pose it was given, while the quiet one beside it stays a still frame — the frame changes nothing about how a bot says it is working. The dot belongs to the room rather than to the bot: one badge in the corner of the square, in the same corner a bot avatar puts it, so a mixed list never grows a cluster of dots on one row.",
+					"A room where one companion is running. That companion animates inside the frame exactly as it would on its own row and holds the pose it was given, while the quiet one beside it stays a still frame — the frame changes nothing about how a companion says it is working. The dot belongs to the room rather than to the companion: one badge in the corner of the square, in the same corner a companion avatar puts it, so a mixed list never grows a cluster of dots on one row.",
 			},
 		},
 	},
@@ -248,8 +248,8 @@ export const Working = meta.story({
 		const frame = frameOf(canvasElement)
 		const [resting, running] = heldIn(frame)
 
-		await expect(poseOf(resting)).toBe("Bot avatar rabbit, idle")
-		await expect(poseOf(running)).toBe("Bot avatar owl, writing")
+		await expect(poseOf(resting)).toBe("Companion avatar rabbit, idle")
+		await expect(poseOf(running)).toBe("Companion avatar owl, writing")
 		await expect(slotsIn(frame, "bot-activity-dot")).toHaveLength(1)
 	},
 })
@@ -262,7 +262,7 @@ export const Uploaded = meta.story({
 		docs: {
 			description: {
 				story:
-					"A room holding a bot that wears a picture its reader uploaded. The picture is held by the frame like any other bot, clipped to the same round shape it has on its own row, and it never moves — which is exactly why the frame matters here: a photograph in a list of drawn animals already looks like an exception, and the container is what still says this one is a room.",
+					"A room holding a companion that wears a picture its reader uploaded. The picture is held by the frame like any other companion, clipped to the same round shape it has on its own row, and it never moves — which is exactly why the frame matters here: a photograph in a list of drawn animals already looks like an exception, and the container is what still says this one is a room.",
 			},
 		},
 	},
@@ -280,7 +280,7 @@ export const Empty = meta.story({
 		docs: {
 			description: {
 				story:
-					"A room with nobody in it yet — the state a reader sees for the half second between pressing new conversation and picking who joins. The frame is drawn on its own and holds the square, so the row it sits in is laid out before its bots arrive and nothing jumps when they do.",
+					"A room with nobody in it yet — the state a reader sees for the half second between pressing new conversation and picking who joins. The frame is drawn on its own and holds the square, so the row it sits in is laid out before its companions arrive and nothing jumps when they do.",
 			},
 		},
 	},

@@ -407,7 +407,7 @@ export const Badges = meta.story({
 		docs: {
 			description: {
 				story:
-					"Three of the five spaces carrying a badge while the reader sits in a fourth, which is how a bot working out of sight reaches them. Check every badged dot keeps its space's tint at its centre and wears the badge as a ring around it — the mark says something happened there, the tint still says which space it is — that the dots of the spaces with nothing stay exactly as they are drawn without badges, and that the button takes one mark of its own for the strongest badge waiting elsewhere, attention over failed over done, drawn on the name's line and level with the middle of the letters so the name and the mark read as one pair. The marks are drawn and never spoken: the button's accessible name is still the open space, since a reader who moves there meets the rows that carry the news. Pick `BadgeRanking` for the order under a quieter set, `BadgeHere` for the badge that belongs to the space already open.",
+					"Three of the five spaces carrying a badge while the reader sits in a fourth, which is how a companion working out of sight reaches them. Check every badged dot keeps its space's tint at its centre and wears the badge as a ring around it — the mark says something happened there, the tint still says which space it is — that the dots of the spaces with nothing stay exactly as they are drawn without badges, and that the button takes one mark of its own for the strongest badge waiting elsewhere, attention over failed over done, drawn on the name's line and level with the middle of the letters so the name and the mark read as one pair. The marks are drawn and never spoken: the button's accessible name is still the open space, since a reader who moves there meets the rows that carry the news. Pick `BadgeRanking` for the order under a quieter set, `BadgeHere` for the badge that belongs to the space already open.",
 			},
 		},
 	},
@@ -455,7 +455,7 @@ export const BadgeHere = meta.story({
 		docs: {
 			description: {
 				story:
-					"The only badge in the account belongs to the space the reader already has open. Check the button is left unmarked — the roster under it is already showing the bot that raised it, and a mark here would send the reader looking for a space that does not exist — while the space's own row in the menu still carries the ring, so the badge is not lost. Pick `Badges` for the mark the button takes when the news is elsewhere.",
+					"The only badge in the account belongs to the space the reader already has open. Check the button is left unmarked — the roster under it is already showing the companion that raised it, and a mark here would send the reader looking for a space that does not exist — while the space's own row in the menu still carries the ring, so the badge is not lost. Pick `Badges` for the mark the button takes when the news is elsewhere.",
 			},
 		},
 	},

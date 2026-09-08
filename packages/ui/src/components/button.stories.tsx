@@ -157,9 +157,9 @@ export const WithTooltip = meta.story({
 				Send
 			</Button>
 			<Button
-				aria-label="New bot"
+				aria-label="New companion"
 				size="icon-sm"
-				tooltip="New bot"
+				tooltip="New companion"
 				tooltipSide="bottom"
 				variant="ghost"
 			>
@@ -175,7 +175,7 @@ export const WithTooltip = meta.story({
 		await expect(wrapper?.tagName).toBe("SPAN")
 		await expect(wrapper?.parentElement).toBe(plain.parentElement)
 
-		const below = canvas.getByRole("button", { name: "New bot" })
+		const below = canvas.getByRole("button", { name: "New companion" })
 		await userEvent.hover(below)
 		await waitFor(async () => {
 			const label = document.body.querySelector('[role="tooltip"]')

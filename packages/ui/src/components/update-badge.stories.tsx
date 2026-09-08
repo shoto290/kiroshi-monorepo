@@ -26,7 +26,7 @@ const RELEASE_NOTES_URL = "https://example.com/releases/0.4.0"
 const RELEASE_NOTES_LABEL = "Read the full release notes in your browser"
 
 const RELEASE_NOTES = [
-	"Bots keep their transcript when the window is reopened.",
+	"Companions keep their transcript when the window is reopened.",
 	"Faster first paint on the workspace shell.",
 	"Fixes a crash when a tool result arrived after a stop.",
 ]
@@ -39,7 +39,7 @@ const meta = preview.meta({
 		docs: {
 			description: {
 				component:
-					"The sidebar pastille for the auto-updater, driven by props alone — it never polls, never touches the host, and holds no timer. One tap starts the download, the ring reports it, and the panel opens itself exactly once when the bytes have landed. Postponing is final: the panel never reopens on its own, only a deliberate tap on the badge brings it back. Restarting is refused while a bot is still running, because a restart would kill the run.",
+					"The sidebar pastille for the auto-updater, driven by props alone — it never polls, never touches the host, and holds no timer. One tap starts the download, the ring reports it, and the panel opens itself exactly once when the bytes have landed. Postponing is final: the panel never reopens on its own, only a deliberate tap on the badge brings it back. Restarting is refused while a companion is still running, because a restart would kill the run.",
 			},
 		},
 	},
@@ -117,7 +117,7 @@ export const Ready = meta.story({
 		docs: {
 			description: {
 				story:
-					"Reach for this for the one moment the badge speaks first: the bytes have landed, the glyph became a restart, and the panel opened by itself. Check that the version and the release notes are both there, that `Restart now` is live, and that `Later` closes the panel for good — it will not reopen on its own afterwards. Pick `WithActiveBots` for the same panel when a restart would cost a running bot.",
+					"Reach for this for the one moment the badge speaks first: the bytes have landed, the glyph became a restart, and the panel opened by itself. Check that the version and the release notes are both there, that `Restart now` is live, and that `Later` closes the panel for good — it will not reopen on its own afterwards. Pick `WithActiveBots` for the same panel when a restart would cost a running companion.",
 			},
 		},
 	},
@@ -146,7 +146,7 @@ export const WithActiveBots = meta.story({
 		docs: {
 			description: {
 				story:
-					"Reach for this when the update is ready but two bots are mid-run: restarting would kill both, so the action is refused rather than hidden. Check that `Restart now` is disabled, that the count is spelled out instead of left to a badge, and that `Later` still works — the reader must always be able to dismiss. Pick `Ready` for the same panel with nothing running.",
+					"Reach for this when the update is ready but two companions are mid-run: restarting would kill both, so the action is refused rather than hidden. Check that `Restart now` is disabled, that the count is spelled out instead of left to a badge, and that `Later` still works — the reader must always be able to dismiss. Pick `Ready` for the same panel with nothing running.",
 			},
 		},
 	},
@@ -156,7 +156,7 @@ export const WithActiveBots = meta.story({
 			await body.findByRole("button", { name: "Restart now" }),
 		).toBeDisabled()
 		await expect(
-			body.getByText("2 bots are still running. Stop them to restart."),
+			body.getByText("2 companions are still running. Stop them to restart."),
 		).toBeVisible()
 	},
 })

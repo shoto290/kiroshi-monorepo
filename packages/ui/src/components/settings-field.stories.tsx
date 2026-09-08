@@ -78,7 +78,7 @@ export const ZeroValue = meta.story({
 		docs: {
 			description: {
 				story:
-					"The field of a bot that has not been given one yet. Check that the placeholder reads as a hint rather than a value — dimmed, and gone on the first keystroke — and that the label still names the control with nothing in it. Pick `Default` for the filled field.",
+					"The field of a companion that has not been given one yet. Check that the placeholder reads as a hint rather than a value — dimmed, and gone on the first keystroke — and that the label still names the control with nothing in it. Pick `Default` for the filled field.",
 			},
 		},
 	},
@@ -175,7 +175,7 @@ export const ReadOnly = meta.story({
 		readOnly: true,
 		rows: 4,
 		value:
-			"# Environment\n\nPlatform: darwin 24.5.0\nShell: /bin/zsh\n\nRead from the machine each time this bot starts.",
+			"# Environment\n\nPlatform: darwin 24.5.0\nShell: /bin/zsh\n\nRead from the machine each time this companion starts.",
 	},
 	parameters: {
 		docs: {
@@ -199,8 +199,8 @@ export const ReadOnly = meta.story({
 export const WithIcon = meta.story({
 	args: {
 		icon: Icons.Search,
-		label: "Bots",
-		placeholder: "Search bots",
+		label: "Companions",
+		placeholder: "Search companions",
 		value: "",
 	},
 	parameters: {
@@ -212,7 +212,7 @@ export const WithIcon = meta.story({
 		},
 	},
 	play: async ({ args, canvas, userEvent }) => {
-		const field = canvas.getByLabelText("Bots")
+		const field = canvas.getByLabelText("Companions")
 
 		await userEvent.tab()
 		await expect(field).toHaveFocus()

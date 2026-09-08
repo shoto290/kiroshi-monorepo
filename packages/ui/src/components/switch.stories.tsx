@@ -113,7 +113,7 @@ export const WithLabel = meta.story({
 					Preload this skill
 				</label>
 				<p className="text-muted-foreground text-xs" id="switch-preload-hint">
-					A preloaded skill is in this bot's prompt on every turn.
+					A preloaded skill is in this companion's prompt on every turn.
 				</p>
 			</div>
 			<SwitchHost

@@ -135,7 +135,7 @@ const meta = preview.meta({
 		docs: {
 			description: {
 				component:
-					"What the transcript shows while the bot is busy: its avatar in the pose that matches the work, the words that say who is busy and at what, and the time the run has taken so far at the end of the row. The label is always on the screen, shimmering while the bot works, so nothing has to be pointed at to be read; a busy row given a `startedAt` instant counts up from it every second, and a row without one shows the label alone. The avatar is also the stop control — given `stoppable`, pointing at it or reaching it by keyboard covers the animal with a stop glyph, so the composer below stays free for the next prompt. A waiting row carries neither shimmer nor clock: `waitingOn` says whether the bot is waiting for the reader or queued for the next wave. The kind comes from the running tool, so reading turns the avatar to `searching` and a shell command to `working`. Nothing here polls the transport; a screen maps its own state onto `kind` and `label`. Inside a transcript the avatar is understood to be the same mark the `AssistantTurn` gutter shows once the turn lands, so it travels there rather than being replaced — give both rows the same `botId` and it does, within that one conversation. See `Mark`, `MarkPerBot` for a room where several bots are busy at once, and `ConversationChange` for what a swapped conversation does to them.",
+					"What the transcript shows while the companion is busy: its avatar in the pose that matches the work, the words that say who is busy and at what, and the time the run has taken so far at the end of the row. The label is always on the screen, shimmering while the companion works, so nothing has to be pointed at to be read; a busy row given a `startedAt` instant counts up from it every second, and a row without one shows the label alone. The avatar is also the stop control — given `stoppable`, pointing at it or reaching it by keyboard covers the animal with a stop glyph, so the composer below stays free for the next prompt. A waiting row carries neither shimmer nor clock: `waitingOn` says whether the companion is waiting for the reader or queued for the next wave. The kind comes from the running tool, so reading turns the avatar to `searching` and a shell command to `working`. Nothing here polls the transport; a screen maps its own state onto `kind` and `label`. Inside a transcript the avatar is understood to be the same mark the `AssistantTurn` gutter shows once the turn lands, so it travels there rather than being replaced — give both rows the same `botId` and it does, within that one conversation. See `Mark`, `MarkPerBot` for a room where several companions are busy at once, and `ConversationChange` for what a swapped conversation does to them.",
 			},
 		},
 	},
@@ -218,7 +218,7 @@ export const InWave = meta.story({
 		docs: {
 			description: {
 				story:
-					"A wave of three bots working at once, each with a start instant of its own. Check that all three labels are readable with the pointer off the panel, that each row carries exactly one clock and that the three clocks line up on the end edge — the tabular figures are there so a digit rolling over does not move the column. Pick `MarkPerBot` for a wave where only one bot holds the turn.",
+					"A wave of three companions working at once, each with a start instant of its own. Check that all three labels are readable with the pointer off the panel, that each row carries exactly one clock and that the three clocks line up on the end edge — the tabular figures are there so a digit rolling over does not move the column. Pick `MarkPerBot` for a wave where only one companion holds the turn.",
 			},
 		},
 	},
@@ -249,7 +249,7 @@ export const Blot = meta.story({
 		docs: {
 			description: {
 				story:
-					"The tint a bot was marked with, held through every kind of work. The first row carries none and draws the bare animal; the rest carry the same blot, untouched by the work. Pick `Branding/BotIdentityAvatar → EveryBlot` for the eight tints themselves.",
+					"The tint a companion was marked with, held through every kind of work. The first row carries none and draws the bare animal; the rest carry the same blot, untouched by the work. Pick `Branding/BotIdentityAvatar → EveryBlot` for the eight tints themselves.",
 			},
 		},
 	},
@@ -279,7 +279,7 @@ export const WithTool = meta.story({
 		docs: {
 			description: {
 				story:
-					"Reach for this when a tool is running: the label names the step itself rather than a verb, joined to the bot name by the middle dot, and the clock says how long the run has been going. Check that the seconds rise at least once a second and that they read as whole seconds under a minute. Pick `PastAMinute` for the longer form, `WithMcpTool` for a tool served by an MCP server.",
+					"Reach for this when a tool is running: the label names the step itself rather than a verb, joined to the companion name by the middle dot, and the clock says how long the run has been going. Check that the seconds rise at least once a second and that they read as whole seconds under a minute. Pick `PastAMinute` for the longer form, `WithMcpTool` for a tool served by an MCP server.",
 			},
 		},
 	},
@@ -444,7 +444,7 @@ export const WaitingForYou = meta.story({
 		docs: {
 			description: {
 				story:
-					"The bot has a question or a permission pending and cannot go on without the reader. The first row carries the title of what is being asked, a question ending on its own question mark, the second has none. Check that the ellipsis closes the waiting clause rather than the row, so the title stands last with nothing appended to it and the question mark is the final character; that neither row shimmers and neither carries a clock — nothing is running, so there is nothing to time. Pick `UpNext` for a seat waiting on the wave rather than on the reader.",
+					"The companion has a question or a permission pending and cannot go on without the reader. The first row carries the title of what is being asked, a question ending on its own question mark, the second has none. Check that the ellipsis closes the waiting clause rather than the row, so the title stands last with nothing appended to it and the question mark is the final character; that neither row shimmers and neither carries a clock — nothing is running, so there is nothing to time. Pick `UpNext` for a seat waiting on the wave rather than on the reader.",
 			},
 		},
 	},
@@ -467,7 +467,7 @@ export const UpNext = meta.story({
 		docs: {
 			description: {
 				story:
-					"A seat queued for the next wave: the bot is not working and is not blocked on the reader, it is simply not its turn yet. Check that the row reads `is up next` rather than `is waiting for you`, and that it carries neither shimmer nor clock. The distinction rides on `waitingOn`, not on a sixth kind, so the avatar pose is the same one every waiting seat wears.",
+					"A seat queued for the next wave: the companion is not working and is not blocked on the reader, it is simply not its turn yet. Check that the row reads `is up next` rather than `is waiting for you`, and that it carries neither shimmer nor clock. The distinction rides on `waitingOn`, not on a sixth kind, so the avatar pose is the same one every waiting seat wears.",
 			},
 		},
 	},
@@ -512,7 +512,7 @@ export const MarkPerBot = meta.story({
 		docs: {
 			description: {
 				story:
-					"A room where several bots are busy at once: one is speaking and the others are waiting their turn. Each row is told which bot it draws, so each holds a mark of its own and lands in its own gutter when its answer arrives — one mark shared between them would put every waiting bot on the speaking bot's row. The last row names no bot, which is what a transcript that cannot name the worker gets: a plain slot that never travels. Check that every named row carries a different mark and that the unnamed one carries none.",
+					"A room where several companions are busy at once: one is speaking and the others are waiting their turn. Each row is told which companion it draws, so each holds a mark of its own and lands in its own gutter when its answer arrives — one mark shared between them would put every waiting companion on the speaking companion's row. The last row names no companion, which is what a transcript that cannot name the worker gets: a plain slot that never travels. Check that every named row carries a different mark and that the unnamed one carries none.",
 			},
 		},
 	},
@@ -531,7 +531,7 @@ export const ConversationChange = meta.story({
 		docs: {
 			description: {
 				story:
-					"Reach for this when the host swaps the conversation under a chat it keeps mounted, which is what a workspace does when the reader opens another room. A mark is named by its bot and its transcript together, so the swap draws a different mark rather than moving the one left behind: check that the working row of the second conversation appears where it belongs, with no avatar gliding across the window from where the first one stood.",
+					"Reach for this when the host swaps the conversation under a chat it keeps mounted, which is what a workspace does when the reader opens another room. A mark is named by its companion and its transcript together, so the swap draws a different mark rather than moving the one left behind: check that the working row of the second conversation appears where it belongs, with no avatar gliding across the window from where the first one stood.",
 			},
 		},
 	},
@@ -593,7 +593,7 @@ export const Marked = meta.story({
 		docs: {
 			description: {
 				story:
-					"The bot doing the work, wearing exactly what it wears at rest: its own animal, its own tint, and the blot shape its id lands on. A run may change the pose and nothing else — a working row that dropped the tint or reposed the blot would put a different bot on the screen at the one moment the reader is watching it. Check that the mark is identical across all five kinds and against the roster row for the same bot, and that only the animal inside it moves.",
+					"The companion doing the work, wearing exactly what it wears at rest: its own animal, its own tint, and the blot shape its id lands on. A run may change the pose and nothing else — a working row that dropped the tint or reposed the blot would put a different companion on the screen at the one moment the reader is watching it. Check that the mark is identical across all five kinds and against the roster row for the same companion, and that only the animal inside it moves.",
 			},
 		},
 	},
@@ -692,7 +692,7 @@ export const WaitingSeatStop = meta.story({
 		docs: {
 			description: {
 				story:
-					"A wave seats several bots at once, and each seat carries its own way out: every waiting row is `stoppable`, so the reader stops one bot without ending the wave. Check that each control is named after the bot it holds, that it is the size of the avatar it rides, that Tab reaches it and lights the glyph, and that stopping one leaves the other seat drawn exactly as it was.",
+					"A wave seats several companions at once, and each seat carries its own way out: every waiting row is `stoppable`, so the reader stops one companion without ending the wave. Check that each control is named after the companion it holds, that it is the size of the avatar it rides, that Tab reaches it and lights the glyph, and that stopping one leaves the other seat drawn exactly as it was.",
 			},
 		},
 	},
