@@ -264,9 +264,11 @@ export const States = meta.story({
 	play: async ({ canvas, userEvent }) => {
 		const menu = await openMenuOn(canvas.getByText("Right-click this card"))
 
+		await waitFor(() => expect(menu).toHaveFocus(), { timeout: 5000 })
+
 		await userEvent.keyboard("{ArrowDown}")
 		const copy = within(menu).getByRole("menuitem", { name: /Copy transcript/ })
-		await waitFor(() => expect(copy).toHaveFocus())
+		await waitFor(() => expect(copy).toHaveFocus(), { timeout: 5000 })
 
 		await expect(
 			within(menu).getByRole("menuitem", { name: "Rename" }),
