@@ -1,7 +1,7 @@
 export const WEBSITE_COPY = {
 	headlineFirstLine: "A team of companions.",
 	headlineSecondLine: "They finish the work.",
-	lead: "Kiroshi is a desktop app where you keep a team of bots, on your own machine.",
+	lead: "Kiroshi is a desktop app where you keep a team of companions, on your own machine.",
 	downloadAction: "Download",
 	downloadActionMacOS: "Download for macOS",
 	downloadActionWindows: "Download for Windows",
@@ -31,8 +31,7 @@ export const SCENE_COPY = {
 	sceneLabel: "Live demonstration of the Kiroshi app",
 	reader: "Steve",
 	threadTitle: "Version 015",
-	composerPlaceholder: "Message the room, or @ a bot...",
-	panelAction: "Open the side panel",
+	composerPlaceholder: "Message the room, or @ a companion...",
 	conversation: {
 		name: "Version 015",
 		timestamp: "now",
@@ -77,13 +76,31 @@ export const SCENE_COPY = {
 	opening:
 		"Scope is frozen and the board is written. Two tickets left on the working row: the label that never hides, and the clock beside it.",
 	request:
-		"<@ichi> <@ni> the working row vanishes once a bot has published. Take it between you.",
+		"<@ichi> <@ni> the working row vanishes once a companion has published. Take it between you.",
 	ichiAnswer:
 		"The label rides the row from the first frame now, shimmering, and no hover is needed to read it.",
 	niAnswer:
 		"The clock keeps its tabular figures beside that label, so the row holds still while the seconds climb.",
 	missionObjective:
-		"Clear the working row of a bot the moment its first block is published.",
+		"Clear the working row of a companion the moment its first block is published.",
+	panelMissions: [
+		{
+			objective:
+				"Clear the working row of a companion the moment its first block is published.",
+			externalId: "OPE-58",
+			timestamp: "now",
+		},
+		{
+			objective: "Keep the label of the working row readable without a hover.",
+			externalId: "OPE-57",
+			timestamp: "12m",
+		},
+		{
+			objective: "Count the clock of the working row in tabular figures.",
+			externalId: "OPE-56",
+			timestamp: "1h",
+		},
+	],
 	missionTicket: {
 		externalId: "OPE-58",
 		title: "",

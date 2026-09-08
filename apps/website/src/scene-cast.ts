@@ -4,7 +4,11 @@ import type {
 	Space,
 	UserChipIdentity,
 } from "@workspace/ui/components/app-sidebar"
-import type { MissionCardModel } from "@workspace/ui/components/mission"
+import type {
+	MissionCardModel,
+	MissionState,
+} from "@workspace/ui/components/mission"
+import type { MissionRowModel } from "@workspace/ui/components/mission-row"
 import type { RosterBot } from "@workspace/ui/components/roster"
 
 import { SCENE_COPY } from "./copy"
@@ -72,11 +76,13 @@ const ROSTER_ROWS: AppSidebarBot[] = [
 
 const CONVERSATION_ID = "version-015"
 
+const CONVERSATION_BOTS: RosterBot[] = [ICHI, NI]
+
 const ROSTER_CONVERSATIONS: AppSidebarConversation[] = [
 	{
 		id: CONVERSATION_ID,
 		name: SCENE_COPY.conversation.name,
-		participants: [ICHI, NI],
+		participants: CONVERSATION_BOTS,
 		lastSpeaker: SCENE_COPY.conversation.speaker,
 		lastMessage: SCENE_COPY.conversation.preview,
 		timestamp: SCENE_COPY.conversation.timestamp,
@@ -91,6 +97,14 @@ const SPACES: Space[] = [
 
 const SELECTED_SPACE = SPACES[0]
 
+const ROSTER_BY_SPACE: Record<string, AppSidebarBot[]> = {
+	[SELECTED_SPACE.id]: ROSTER_ROWS,
+}
+
+const CONVERSATIONS_BY_SPACE: Record<string, AppSidebarConversation[]> = {
+	[SELECTED_SPACE.id]: ROSTER_CONVERSATIONS,
+}
+
 const READER: UserChipIdentity = { name: SCENE_COPY.reader }
 
 const MISSION: MissionCardModel = {
@@ -103,14 +117,41 @@ const MISSION: MissionCardModel = {
 	isClosed: false,
 }
 
+const PANEL_MISSION_STATES: MissionState[] = [
+	"working",
+	"waiting_human",
+	"ready_to_merge",
+]
+
+const PANEL_MISSION_BOTS: RosterBot[] = [NI, ICHI, SAN]
+
+const PANEL_MISSIONS: MissionRowModel[] = SCENE_COPY.panelMissions.map(
+	(mission, index) => ({
+		id: mission.externalId,
+		objective: mission.objective,
+		ticket: {
+			platform: SCENE_COPY.missionTicket.platform,
+			externalId: mission.externalId,
+			title: "",
+		},
+		bot: PANEL_MISSION_BOTS[index],
+		state: PANEL_MISSION_STATES[index],
+		timestamp: mission.timestamp,
+	}),
+)
+
 export {
+	CONVERSATION_BOTS,
 	CONVERSATION_ID,
+	CONVERSATIONS_BY_SPACE,
 	HAPPY,
 	ICHI,
 	MISSION,
 	NI,
+	PANEL_MISSIONS,
 	READER,
 	REI,
+	ROSTER_BY_SPACE,
 	ROSTER_CONVERSATIONS,
 	ROSTER_ROWS,
 	SAN,
