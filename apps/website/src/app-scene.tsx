@@ -10,7 +10,7 @@ import { Mention } from "@workspace/ui/components/mention"
 import { MissionTurn } from "@workspace/ui/components/mission-turn"
 import { AnimatedSidebarProvider } from "@workspace/ui/components/motion/animated-sidebar"
 import { PromptInput } from "@workspace/ui/components/prompt-input"
-import { RosterProvider } from "@workspace/ui/components/roster"
+import { type RosterBot, RosterProvider } from "@workspace/ui/components/roster"
 import { ThreadLayout } from "@workspace/ui/components/thread-layout"
 import type { TranscriptItem } from "@workspace/ui/components/transcript"
 import { AssistantTurn, UserTurn } from "@workspace/ui/components/turn"
@@ -78,30 +78,25 @@ export const AppScene = () => {
 		},
 	]
 
+	const answerRow = (
+		author: RosterBot,
+		answer: string,
+		typed: number,
+	): TranscriptItem => ({
+		key: `${author.id}-answer`,
+		render: () => (
+			<SceneRow isAnimated={isAnimated} opacity={frame.opacity}>
+				<AssistantTurn author={author}>{answer.slice(0, typed)}</AssistantTurn>
+			</SceneRow>
+		),
+	})
+
 	if (frame.hasIchiAnswer) {
-		rows.push({
-			key: "ichi-answer",
-			render: () => (
-				<SceneRow isAnimated={isAnimated} opacity={frame.opacity}>
-					<AssistantTurn author={ICHI}>
-						{SCENE_COPY.ichiAnswer.slice(0, frame.ichiTyped)}
-					</AssistantTurn>
-				</SceneRow>
-			),
-		})
+		rows.push(answerRow(ICHI, SCENE_COPY.ichiAnswer, frame.ichiTyped))
 	}
 
 	if (frame.hasNiAnswer) {
-		rows.push({
-			key: "ni-answer",
-			render: () => (
-				<SceneRow isAnimated={isAnimated} opacity={frame.opacity}>
-					<AssistantTurn author={NI}>
-						{SCENE_COPY.niAnswer.slice(0, frame.niTyped)}
-					</AssistantTurn>
-				</SceneRow>
-			),
-		})
+		rows.push(answerRow(NI, SCENE_COPY.niAnswer, frame.niTyped))
 	}
 
 	if (frame.hasMission) {
