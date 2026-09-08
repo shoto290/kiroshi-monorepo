@@ -64,14 +64,17 @@ const OTHER_BOT_ANSWER = [rowOf("bot-2", 250)]
 const RUNS = [PROMPT, ANSWER, LATER_PROMPT, LATER_ANSWER]
 
 describe("placeMissions", () => {
+	const placedIn = (runs: TranscriptRow[][], missions: Mission[]) =>
+		placeMissions({ runs, missions, hasOlder: false })
+
 	it("places a mission after the last run opened before it", () => {
-		expect(placeMissions(RUNS, [missionOf("m-1", 200)])).toEqual([
+		expect(placedIn(RUNS, [missionOf("m-1", 200)])).toEqual([
 			{ mission: missionOf("m-1", 200), runIndex: 1 },
 		])
 	})
 
 	it("orders the missions placed on the same run by the time they were opened", () => {
-		const placed = placeMissions(
+		const placed = placedIn(
 			[PROMPT, ANSWER],
 			[missionOf("m-late", 300), missionOf("m-early", 200)],
 		)
@@ -84,26 +87,32 @@ describe("placeMissions", () => {
 
 	it("places a mission after the last run opened before it whatever bot wrote it", () => {
 		expect(
-			placeMissions(
+			placedIn(
 				[PROMPT, ANSWER, OTHER_BOT_ANSWER, LATER_PROMPT],
 				[missionOf("m-1", 300)],
 			),
 		).toEqual([{ mission: missionOf("m-1", 300), runIndex: 2 }])
 	})
 
+	it("places a mission opened after the oldest run in a feed holding no run of its bot", () => {
+		expect(
+			placedIn(
+				[PROMPT, OTHER_BOT_ANSWER, LATER_PROMPT],
+				[missionOf("m-1", 300)],
+			),
+		).toEqual([{ mission: missionOf("m-1", 300), runIndex: 1 }])
+	})
+
 	it("places a mission on the run opened at its very moment", () => {
-		expect(placeMissions(RUNS, [missionOf("m-1", 500)])).toEqual([
+		expect(placedIn(RUNS, [missionOf("m-1", 500)])).toEqual([
 			{ mission: missionOf("m-1", 500), runIndex: 3 },
 		])
 	})
 
 	it("keeps two missions of one bot apart when the runs in between are absent", () => {
-		const placed = placeMissions(RUNS, [
-			missionOf("m-early", 200),
-			missionOf("m-late", 450),
-		])
-
-		expect(placed).toEqual([
+		expect(
+			placedIn(RUNS, [missionOf("m-early", 200), missionOf("m-late", 450)]),
+		).toEqual([
 			{ mission: missionOf("m-early", 200), runIndex: 1 },
 			{ mission: missionOf("m-late", 450), runIndex: 2 },
 		])
@@ -119,24 +128,33 @@ describe("placeMissions", () => {
 			reportedTurnId: "t-500",
 		}
 
-		expect(placeMissions(RUNS, [closed])).toEqual([
-			{ mission: closed, runIndex: 1 },
-		])
+		expect(placedIn(RUNS, [closed])).toEqual([{ mission: closed, runIndex: 1 }])
 	})
 
-	it("leaves a mission older than every loaded run out of the feed until older runs arrive", () => {
+	it("leaves a mission opened before the oldest loaded run out while older messages remain", () => {
 		expect(
-			placeMissions([LATER_PROMPT, LATER_ANSWER], [missionOf("m-1", 200)]),
+			placeMissions({
+				runs: [LATER_PROMPT, LATER_ANSWER],
+				missions: [missionOf("m-1", 200)],
+				hasOlder: true,
+			}),
 		).toEqual([])
-		expect(placeMissions(RUNS, [missionOf("m-1", 200)])).toEqual([
-			{ mission: missionOf("m-1", 200), runIndex: 1 },
-		])
 	})
 
-	it("places a mission of a transcript with no run at all ahead of them", () => {
-		expect(placeMissions([], [missionOf("m-1", 200)])).toEqual([
-			{ mission: missionOf("m-1", 200), runIndex: BEFORE_FIRST_RUN },
-		])
+	it("draws a mission opened before the oldest loaded run ahead of them once no older message remains", () => {
+		expect(
+			placedIn([LATER_PROMPT, LATER_ANSWER], [missionOf("m-1", 200)]),
+		).toEqual([{ mission: missionOf("m-1", 200), runIndex: BEFORE_FIRST_RUN }])
+	})
+
+	it("draws a mission of a feed holding no run ahead of the runs", () => {
+		expect(
+			placeMissions({
+				runs: [],
+				missions: [missionOf("m-1", 200)],
+				hasOlder: true,
+			}),
+		).toEqual([{ mission: missionOf("m-1", 200), runIndex: BEFORE_FIRST_RUN }])
 	})
 })
 

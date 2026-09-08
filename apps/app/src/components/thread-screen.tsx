@@ -1095,7 +1095,11 @@ function ThreadView({
 				authors,
 				faceOf,
 				onOpen: onOpenMission,
-				placed: placeMissions(runs, missions.missions),
+				placed: placeMissions({
+					hasOlder: state.hasOlder,
+					missions: missions.missions,
+					runs,
+				}),
 				runRows,
 			})
 	const refusedTarget = repliedToRefusal
