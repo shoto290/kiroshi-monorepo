@@ -53,9 +53,9 @@ const comparisons = paths.map((path) => ({
 	path,
 	action: actionOf(output, path),
 }))
-const uncompared = comparisons.filter(({ action }) => action === undefined)
+const uncompared = comparisons.filter(({ action }) => !action)
 const divergent = comparisons.filter(
-	({ action }) => action !== undefined && action !== "skip",
+	({ action }) => action && action !== "skip",
 )
 
 if (uncompared.length === 0 && divergent.length === 0) {
@@ -74,15 +74,13 @@ for (const { path } of uncompared) {
 for (const { path, action } of divergent) {
 	const item = registryItemOf(path)
 
-	console.error(`  ${path} (${action}), from one of two causes:`)
 	console.error(
-		`    a hand edit of the vendor file: revert it with \`git checkout -- packages/ui/${path}\`, then put the added behaviour in a composed component beside the folder.`,
-	)
-	console.error(
-		`    a new upstream release of the "${item}" registry item: review the diff below, reinstall it with \`bunx shadcn add ${item} --overwrite\` from packages/ui, then adapt its consumers.`,
-	)
-	console.error(
-		`    \`git log -1 -- packages/ui/${path}\` tells them apart: no local commit on the file means the change came from upstream.\n`,
+		[
+			`  ${path} (${action}), from one of two causes:`,
+			`    a hand edit of the vendor file: revert it with \`git checkout -- packages/ui/${path}\`, then put the added behaviour in a composed component beside the folder.`,
+			`    a new upstream release of the "${item}" registry item: review the diff below, reinstall it with \`bunx shadcn add ${item} --overwrite\` from packages/ui, then adapt its consumers.`,
+			`    \`git log -1 -- packages/ui/${path}\` tells them apart: no local commit on the file means the change came from upstream.\n`,
+		].join("\n"),
 	)
 }
 
