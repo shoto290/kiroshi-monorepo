@@ -17,9 +17,6 @@ export default defineConfig({
 		port: 5173,
 		host: "127.0.0.1",
 	},
-	preview: {
-		host: "127.0.0.1",
-	},
 	resolve: {
 		alias: {
 			"@workspace/ui": resolve(import.meta.dirname, "../../packages/ui/src"),
