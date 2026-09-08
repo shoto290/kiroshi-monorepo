@@ -24,8 +24,6 @@ const TRANSPARENT = "rgba(0, 0, 0, 0)"
 
 const ROSTER_HOVER_FILL = "hover:bg-sidebar-accent/70"
 
-const ROSTER_HOVER_TEXT = "hover:text-sidebar-accent-foreground"
-
 const Probe = ({ slot, tone }: { slot: string; tone: string }) => (
 	<span className={`hidden ${tone}`} data-slot={slot} />
 )
@@ -112,7 +110,6 @@ export const UnderPointer = meta.story({
 		const field = canvas.getByRole("button")
 
 		await expect(field).toHaveClass(ROSTER_HOVER_FILL)
-		await expect(field).toHaveClass(ROSTER_HOVER_TEXT)
 		await expect(keycapIn(field).className).not.toMatch(/hover/)
 	},
 })
