@@ -56,7 +56,7 @@ export const shown = async (element: HTMLElement) => {
 }
 
 export const settled = async (element: HTMLElement) => {
-	await waitFor(() => expect(element).toBeVisible(), FRAME_POLL)
+	await shown(element)
 	await Promise.all(
 		element
 			.getAnimations({ subtree: true })
