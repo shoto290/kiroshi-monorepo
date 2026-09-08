@@ -18,15 +18,17 @@ export const useScrollProgress = (isEnabled: boolean) => {
 			frame = 0
 			setProgress(readProgress())
 		}
-		const onScroll = () => {
+		const schedule = () => {
 			if (!frame) frame = requestAnimationFrame(read)
 		}
 
 		read()
-		window.addEventListener("scroll", onScroll, { passive: true })
+		window.addEventListener("scroll", schedule, { passive: true })
+		window.addEventListener("resize", schedule)
 
 		return () => {
-			window.removeEventListener("scroll", onScroll)
+			window.removeEventListener("scroll", schedule)
+			window.removeEventListener("resize", schedule)
 			cancelAnimationFrame(frame)
 		}
 	}, [isEnabled])

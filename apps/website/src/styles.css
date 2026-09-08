@@ -15,7 +15,7 @@
 	}
 }
 
-.scene-frozen [class*="overflow-y-auto"],
+.scene-frozen [class*="overflow-y-auto"]:not(textarea),
 .scene-frozen [data-overlayscrollbars-viewport] {
 	overflow: hidden;
 }
