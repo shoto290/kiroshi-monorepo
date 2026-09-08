@@ -3,7 +3,7 @@
 import { useId } from "react"
 
 import { FIELD_LABEL_CLASS } from "@workspace/ui/components/settings-styles"
-import { Switch } from "@workspace/ui/components/switch"
+import { ToggleSwitch } from "@workspace/ui/components/toggle-switch"
 
 type SettingsSwitchProps = {
 	label: string
@@ -34,7 +34,7 @@ const SettingsSwitch = ({
 					{description}
 				</p>
 			</div>
-			<Switch
+			<ToggleSwitch
 				aria-describedby={descriptionId}
 				checked={checked}
 				id={id}

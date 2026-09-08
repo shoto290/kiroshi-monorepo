@@ -14,7 +14,6 @@ import {
 	toBundleName,
 	toSkillDescriptionLength,
 } from "@workspace/ui/components/bot-settings"
-import { Button, buttonVariants } from "@workspace/ui/components/button"
 import { ConfirmDialog } from "@workspace/ui/components/confirm-dialog"
 import { Icons } from "@workspace/ui/components/icons"
 import {
@@ -34,6 +33,7 @@ import {
 import { SettingsSelect } from "@workspace/ui/components/settings-select"
 import { SETTINGS_TAG_CLASS } from "@workspace/ui/components/settings-styles"
 import { SettingsSwitch } from "@workspace/ui/components/settings-switch"
+import { Button, buttonVariants } from "@workspace/ui/components/ui/button"
 import { useIsNarrowerThan } from "@workspace/ui/hooks/use-is-narrower-than"
 import { cn } from "@workspace/ui/lib/utils"
 

@@ -4,14 +4,17 @@ import { Tabs } from "@base-ui/react/tabs"
 import { useState } from "react"
 import { useTranslation } from "react-i18next"
 
-import { Avatar, displayNameOf } from "@workspace/ui/components/avatar"
 import type {
 	BotSkillDraft,
 	BotSkillItem,
 } from "@workspace/ui/components/bot-settings"
 import { ConfirmDialog } from "@workspace/ui/components/confirm-dialog"
-import { Content, Root, Title } from "@workspace/ui/components/dialog"
+import { DialogSurface } from "@workspace/ui/components/dialog-surface"
 import { Icons } from "@workspace/ui/components/icons"
+import {
+	displayNameOf,
+	InitialsAvatar,
+} from "@workspace/ui/components/initials-avatar"
 import {
 	HistoryPanel,
 	type PluginHistory,
@@ -31,6 +34,7 @@ import {
 	PICTURE_FIELD_SIZE,
 	SETTINGS_HEADER_CLASS,
 } from "@workspace/ui/components/settings-styles"
+import { Dialog, DialogTitle } from "@workspace/ui/components/ui/dialog"
 import type { UserSettingsValue } from "@workspace/ui/components/user-settings"
 import { AppearanceFields } from "@workspace/ui/components/user-settings-dialog/appearance-fields"
 import { LanguageFields } from "@workspace/ui/components/user-settings-dialog/language-fields"
@@ -98,7 +102,7 @@ const UserSettingsDialog = ({
 		onValueChange({ ...value, ...fields })
 
 	const picture = value.image ? (
-		<Avatar image={value.image} size={PICTURE_FIELD_SIZE} />
+		<InitialsAvatar image={value.image} size={PICTURE_FIELD_SIZE} />
 	) : (
 		<Icons.User aria-hidden="true" className="size-6 text-muted-foreground" />
 	)
@@ -111,20 +115,20 @@ const UserSettingsDialog = ({
 	const close = () => (skillSession.isUnsaved ? setLeaving(true) : leave())
 
 	return (
-		<Root onOpenChange={(next) => !next && close()} open={open}>
-			<Content
+		<Dialog onOpenChange={(next) => !next && close()} open={open}>
+			<DialogSurface
 				className={cn(
 					"h-[34rem] w-[52rem] gap-0 overflow-hidden p-0",
 					className,
 				)}
 			>
 				<header className={SETTINGS_HEADER_CLASS}>
-					<Avatar
+					<InitialsAvatar
 						image={value.image}
 						name={displayName}
 						size={BREADCRUMB_AVATAR_SIZE}
 					/>
-					<Title className="flex min-w-0 items-center gap-1.5 pr-0">
+					<DialogTitle className="flex min-w-0 items-center gap-1.5 pr-0">
 						<span className="truncate">{displayName}</span>
 						<Icons.Next
 							aria-hidden="true"
@@ -133,7 +137,7 @@ const UserSettingsDialog = ({
 						<span className="shrink-0 text-muted-foreground">
 							{t("breadcrumb.title")}
 						</span>
-					</Title>
+					</DialogTitle>
 				</header>
 
 				{skillSession.editor ?? (
@@ -250,8 +254,8 @@ const UserSettingsDialog = ({
 					open={isLeaving}
 					title={t("skills.leave.title", { ns: "bots" })}
 				/>
-			</Content>
-		</Root>
+			</DialogSurface>
+		</Dialog>
 	)
 }
 

@@ -2,12 +2,12 @@ import { useRef, useState } from "react"
 import { expect, fn, waitFor } from "storybook/test"
 
 import preview from "@workspace/storybook/preview"
-import { Button } from "@workspace/ui/components/button"
 import {
 	Transcript,
 	type TranscriptItem,
 	type TranscriptProps,
 } from "@workspace/ui/components/transcript"
+import { Button } from "@workspace/ui/components/ui/button"
 import { cn } from "@workspace/ui/lib/utils"
 
 interface Entry {
@@ -511,7 +511,7 @@ export const PrependsOlderMessages = meta.story({
 		const before = anchor.getBoundingClientRect().top
 
 		await userEvent.click(
-			canvas.getByRole("button", { name: "Load older messages" }),
+			await canvas.findByRole("button", { name: "Load older messages" }),
 		)
 		await waitFor(() =>
 			expect(canvas.getByText(OLDER_PAGE[0].text)).toBeInTheDocument(),
@@ -537,7 +537,9 @@ export const LoadsNewerMessages = meta.story({
 		},
 	},
 	play: async ({ canvas, userEvent }) => {
-		const control = canvas.getByRole("button", { name: "Load newer messages" })
+		const control = await canvas.findByRole("button", {
+			name: "Load newer messages",
+		})
 
 		await userEvent.click(control)
 		await waitFor(() =>

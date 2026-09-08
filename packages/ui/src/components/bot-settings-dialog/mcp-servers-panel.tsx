@@ -4,9 +4,9 @@ import { useTranslation } from "react-i18next"
 
 import type { BotMcpServerItem } from "@workspace/ui/components/bot-settings"
 import { readMcpServerLaunch } from "@workspace/ui/components/bot-settings-dialog/mcp-server-launch"
-import { Button } from "@workspace/ui/components/button"
 import { Icons } from "@workspace/ui/components/icons"
 import { SETTINGS_EMPTY_CLASS } from "@workspace/ui/components/settings-styles"
+import { Button } from "@workspace/ui/components/ui/button"
 
 type McpServersPanelProps = {
 	servers: BotMcpServerItem[]

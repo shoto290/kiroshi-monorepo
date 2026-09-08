@@ -196,7 +196,7 @@ export const OlderMessages = meta.story({
 	},
 	play: async ({ args, canvas, userEvent }) => {
 		await userEvent.click(
-			canvas.getByRole("button", { name: "Load older messages" }),
+			await canvas.findByRole("button", { name: "Load older messages" }),
 		)
 		await expect(args.older?.onLoad).toHaveBeenCalledTimes(1)
 	},
@@ -216,7 +216,7 @@ export const LoadingOlderMessages = meta.story({
 		},
 	},
 	play: async ({ args, canvas, userEvent }) => {
-		const loadOlder = canvas.getByRole("button", {
+		const loadOlder = await canvas.findByRole("button", {
 			name: "Load older messages",
 		})
 

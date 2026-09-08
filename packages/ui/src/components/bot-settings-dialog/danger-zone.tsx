@@ -1,9 +1,9 @@
 "use client"
 
-import { buttonVariants } from "@workspace/ui/components/button"
 import { ConfirmDialog } from "@workspace/ui/components/confirm-dialog"
 import { Icons } from "@workspace/ui/components/icons"
 import { DANGER_BLOCK_CLASS } from "@workspace/ui/components/settings-styles"
+import { buttonVariants } from "@workspace/ui/components/ui/button"
 
 type DangerZoneProps = {
 	deleteLabel: string

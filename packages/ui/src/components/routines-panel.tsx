@@ -3,7 +3,6 @@
 import { type ReactNode, useEffect, useId, useRef, useState } from "react"
 import { useTranslation } from "react-i18next"
 
-import { Button } from "@workspace/ui/components/button"
 import { ContentCard } from "@workspace/ui/components/content-card"
 import { EmptyStateShell } from "@workspace/ui/components/empty-state-shell"
 import { Icons } from "@workspace/ui/components/icons"
@@ -42,6 +41,7 @@ import {
 	RoutineRow,
 	type RoutineRowModel,
 } from "@workspace/ui/components/routine-row"
+import { Button } from "@workspace/ui/components/ui/button"
 import { cn } from "@workspace/ui/lib/utils"
 
 const ROUTINES_PANEL_ID = "routines-panel"

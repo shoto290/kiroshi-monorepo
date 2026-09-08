@@ -117,7 +117,7 @@ export const LongContent = meta.story({
 
 		await expect(title.scrollWidth).toBeGreaterThan(title.clientWidth)
 		await expect(title.getBoundingClientRect().height).toBeLessThan(24)
-		await expect(routine.getBoundingClientRect().width).toBe(36)
+		await expect(routine.getBoundingClientRect().width).toBe(32)
 		await expect(badge.scrollWidth).toBe(badge.clientWidth)
 	},
 })

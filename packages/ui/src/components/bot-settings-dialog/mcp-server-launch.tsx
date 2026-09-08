@@ -8,9 +8,9 @@ import {
 	readConfigPairs,
 	readConfigText,
 } from "@workspace/ui/components/bot-settings"
-import { Button } from "@workspace/ui/components/button"
 import { type Icon, Icons } from "@workspace/ui/components/icons"
 import { FIELD_LABEL_CLASS } from "@workspace/ui/components/settings-styles"
+import { Button } from "@workspace/ui/components/ui/button"
 
 const HIDDEN_VALUE = "••••••••"
 

@@ -4,18 +4,18 @@ import { type ReactNode, useState } from "react"
 import { useTranslation } from "react-i18next"
 
 import {
-	AvatarFrame,
-	UPLOADED_IMAGE_SHAPE,
-} from "@workspace/ui/components/avatar"
-import { type BotBadge, BotBadgeDot } from "@workspace/ui/components/badge"
-import {
 	BotAvatar,
 	type BotAvatarBlot,
 } from "@workspace/ui/components/bot-avatar"
 import type { BotAvatarAnimal } from "@workspace/ui/components/bot-avatar-animals"
 import type { BotAvatarState } from "@workspace/ui/components/bot-avatar-data"
+import { type BotBadge, BotBadgeDot } from "@workspace/ui/components/bot-badge"
 import { drawnAnimal } from "@workspace/ui/components/bot-settings"
 import { Icons } from "@workspace/ui/components/icons"
+import {
+	AvatarFrame,
+	UPLOADED_IMAGE_SHAPE,
+} from "@workspace/ui/components/initials-avatar"
 import { cn } from "@workspace/ui/lib/utils"
 
 const REST_STATE: BotAvatarState = "idle"

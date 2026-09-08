@@ -4,9 +4,8 @@ import preview from "@workspace/storybook/preview"
 import {
 	Progress,
 	ProgressLabel,
-	ProgressRing,
 	ProgressValue,
-} from "@workspace/ui/components/progress"
+} from "@workspace/ui/components/ui/progress"
 
 interface DownloadStep {
 	label: string
@@ -19,8 +18,6 @@ const DOWNLOAD_STEPS: DownloadStep[] = [
 	{ label: "Verified", value: 100 },
 ]
 
-const RING_VALUE = 64
-
 const meta = preview.meta({
 	title: "Feedback/Progress",
 	component: Progress,
@@ -29,7 +26,7 @@ const meta = preview.meta({
 		docs: {
 			description: {
 				component:
-					'A determinate task, read as a filling bar. It is a report, never a control: it holds no action and no cancel, so pair it with whatever owns the task. `Progress` is the assembled bar — pass a `ProgressLabel` and a `ProgressValue` as children and they sit above the track, which is why the root wraps. `ProgressRoot` is the same semantics with no track at all, and `ProgressRing` is the shape built on it. Either way `role="progressbar"` needs a name: give it a `ProgressLabel`, which wires `aria-labelledby` for you, or an `aria-label`.',
+					'A determinate task, read as a filling bar. It is a report, never a control: it holds no action and no cancel, so pair it with whatever owns the task. `Progress` is the assembled bar — pass a `ProgressLabel` and a `ProgressValue` as children and they sit above the track, which is why the root wraps. Reach for `ProgressRing` when the value has to close as an arc rather than fill a bar. `role="progressbar"` needs a name: give it a `ProgressLabel`, which wires `aria-labelledby` for you, or an `aria-label`.',
 			},
 		},
 	},
@@ -110,28 +107,5 @@ export const Indeterminate = meta.story({
 
 		await expect(bar).toHaveAttribute("data-indeterminate")
 		await expect(bar).not.toHaveAttribute("aria-valuenow")
-	},
-})
-
-export const AsRing = meta.story({
-	parameters: {
-		docs: {
-			description: {
-				story:
-					"`ProgressRing` is the same value closing as an arc instead of filling a bar, for the places a bar cannot go — this is how `Feedback/UpdateBadge` reports its download around a 36px button. Check that the arc starts at twelve o'clock, that it grows clockwise, and that the value still reaches assistive technology from the root, since the drawing itself is `aria-hidden` and carries none of it. Size it from `className`: the arc scales with the box, so it has no size prop of its own.",
-			},
-		},
-	},
-	render: () => (
-		<ProgressRing
-			aria-label="Update download progress"
-			className="size-9"
-			value={RING_VALUE}
-		/>
-	),
-	play: async ({ canvas }) => {
-		await expect(
-			canvas.getByRole("progressbar", { name: "Update download progress" }),
-		).toHaveAttribute("aria-valuenow", String(RING_VALUE))
 	},
 })

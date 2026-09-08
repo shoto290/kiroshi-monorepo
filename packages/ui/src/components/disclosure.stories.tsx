@@ -3,8 +3,8 @@ import { useState } from "react"
 import { expect } from "storybook/test"
 
 import preview from "@workspace/storybook/preview"
-import { Button } from "@workspace/ui/components/button"
 import { Disclosure } from "@workspace/ui/components/disclosure"
+import { Button } from "@workspace/ui/components/ui/button"
 
 type DisclosureArgs = {
 	id?: string

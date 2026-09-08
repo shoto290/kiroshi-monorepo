@@ -4,11 +4,11 @@ import { AlertDialog } from "@base-ui/react/alert-dialog"
 import { type ReactNode, useState } from "react"
 import { useTranslation } from "react-i18next"
 
-import { Button, buttonVariants } from "@workspace/ui/components/button"
 import {
 	BACKDROP_CLASS,
 	DIALOG_POPUP_CLASS,
 } from "@workspace/ui/components/settings-styles"
+import { Button, buttonVariants } from "@workspace/ui/components/ui/button"
 import { cn } from "@workspace/ui/lib/utils"
 
 type ConfirmDialogProps = {

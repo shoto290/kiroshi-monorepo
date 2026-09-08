@@ -3,10 +3,10 @@
 import { useTranslation } from "react-i18next"
 
 import { BotIdentityAvatar } from "@workspace/ui/components/bot-identity-avatar"
-import { Button } from "@workspace/ui/components/button"
 import { HEADER_IDENTITY_CLASS } from "@workspace/ui/components/header-identity-button"
 import { Icons } from "@workspace/ui/components/icons"
 import type { RosterBot } from "@workspace/ui/components/roster"
+import { Button } from "@workspace/ui/components/ui/button"
 import { cn } from "@workspace/ui/lib/utils"
 
 const AVATAR_SIZE = 24

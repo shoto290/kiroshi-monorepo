@@ -9,7 +9,6 @@ import {
 	UPLOADED_AVATAR_IMAGE,
 } from "@workspace/storybook/story-utils"
 import { ActivityIndicator } from "@workspace/ui/components/activity-indicator"
-import { Button } from "@workspace/ui/components/button"
 import { MarkProvider } from "@workspace/ui/components/mark-context"
 import { Markdown } from "@workspace/ui/components/markdown"
 import type { MessageAuthor } from "@workspace/ui/components/message"
@@ -22,6 +21,7 @@ import {
 	type TurnState,
 	UserTurn,
 } from "@workspace/ui/components/turn"
+import { Button } from "@workspace/ui/components/ui/button"
 
 const ANSWER =
 	"The workspace has two packages: `@workspace/ui` holds the design system, `app` holds the Tauri shell. Nothing crosses that line in the other direction."

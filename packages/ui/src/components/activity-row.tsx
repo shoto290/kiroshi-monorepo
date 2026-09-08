@@ -2,7 +2,7 @@
 
 import type { ComponentType } from "react"
 
-import type { BotBadge } from "@workspace/ui/components/badge"
+import type { BotBadge } from "@workspace/ui/components/bot-badge"
 import { BotIdentityAvatar } from "@workspace/ui/components/bot-identity-avatar"
 import type { IconProps } from "@workspace/ui/components/icons"
 import {

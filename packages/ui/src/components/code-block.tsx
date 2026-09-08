@@ -10,8 +10,8 @@ import {
 } from "react"
 import { useTranslation } from "react-i18next"
 
-import { Button } from "@workspace/ui/components/button"
 import { Icons } from "@workspace/ui/components/icons"
+import { Button } from "@workspace/ui/components/ui/button"
 import { useCodeHighlightReady } from "@workspace/ui/hooks/use-code-highlight-ready"
 import {
 	type CodeToken,

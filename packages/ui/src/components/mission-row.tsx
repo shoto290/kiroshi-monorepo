@@ -6,7 +6,10 @@ import {
 	ActivityRow,
 	type ActivityRowPart,
 } from "@workspace/ui/components/activity-row"
-import type { BotBadge, BotMissionTicket } from "@workspace/ui/components/badge"
+import type {
+	BotBadge,
+	BotMissionTicket,
+} from "@workspace/ui/components/bot-badge"
 import type { MissionBot, MissionState } from "@workspace/ui/components/mission"
 import { missionTicketPlatform } from "@workspace/ui/components/mission-marks"
 

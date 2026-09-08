@@ -7,7 +7,7 @@ import {
 } from "react"
 import { useTranslation } from "react-i18next"
 
-import { BotTitleBadge } from "@workspace/ui/components/badge"
+import { BotTitleBadge } from "@workspace/ui/components/bot-badge"
 import { Icons } from "@workspace/ui/components/icons"
 import { MessageSideContext } from "@workspace/ui/components/message-side-context"
 import type { RosterBot } from "@workspace/ui/components/roster"

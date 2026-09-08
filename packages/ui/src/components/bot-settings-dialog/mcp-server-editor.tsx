@@ -22,7 +22,6 @@ import {
 	toMcpServerWrittenConfig,
 } from "@workspace/ui/components/bot-settings"
 import { McpServerLaunch } from "@workspace/ui/components/bot-settings-dialog/mcp-server-launch"
-import { Button, buttonVariants } from "@workspace/ui/components/button"
 import { ConfirmDialog } from "@workspace/ui/components/confirm-dialog"
 import {
 	EnvironmentPanel,
@@ -40,6 +39,7 @@ import {
 } from "@workspace/ui/components/settings-rail"
 import { SettingsSelect } from "@workspace/ui/components/settings-select"
 import { SETTINGS_TAG_CLASS } from "@workspace/ui/components/settings-styles"
+import { Button, buttonVariants } from "@workspace/ui/components/ui/button"
 import { useIsNarrowerThan } from "@workspace/ui/hooks/use-is-narrower-than"
 import { cn } from "@workspace/ui/lib/utils"
 

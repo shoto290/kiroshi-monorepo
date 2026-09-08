@@ -1,7 +1,7 @@
 import type { TFunction } from "i18next"
 import { useTranslation } from "react-i18next"
 
-import { BotTitleBadge } from "@workspace/ui/components/badge"
+import { BotTitleBadge } from "@workspace/ui/components/bot-badge"
 import { BotIdentityAvatar } from "@workspace/ui/components/bot-identity-avatar"
 import { MessageHeader } from "@workspace/ui/components/message"
 import {
