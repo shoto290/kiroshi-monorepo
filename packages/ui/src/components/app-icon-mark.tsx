@@ -1,7 +1,6 @@
 "use client"
 
 import {
-	type CSSProperties,
 	type Ref,
 	type RefObject,
 	useEffect,
@@ -26,11 +25,8 @@ const GROUND_FILL = "#FEFCEE"
 
 const RABBIT_TRANSFORM = "translate(-110.4 -14.2) scale(3.41)"
 
-const RABBIT_INK_STYLE = {
-	"--bot-avatar-ink": "var(--bot-blot-ink)",
-} as CSSProperties
-
-const RABBIT_EYE_INK_CLASS = "text-[color:var(--bot-blot-ink)]"
+const RABBIT_INK_CLASS =
+	"text-[color:var(--bot-blot-ink)] [--bot-avatar-ink:var(--bot-blot-ink)]"
 
 const RESTING_STATE: BotAvatarState = "waiting"
 
@@ -131,7 +127,6 @@ const AppIconMark = ({
 			data-slot="app-icon-mark"
 			data-state={state}
 			height={size}
-			style={RABBIT_INK_STYLE}
 			viewBox="0 0 512 512"
 			width={size}
 			xmlns="http://www.w3.org/2000/svg"
@@ -158,7 +153,7 @@ const AppIconMark = ({
 				<g transform={RABBIT_TRANSFORM}>
 					<BotAvatar
 						animated={!prefersReducedMotion}
-						className={RABBIT_EYE_INK_CLASS}
+						className={RABBIT_INK_CLASS}
 						perspective={0}
 						size={240}
 						state={state}
