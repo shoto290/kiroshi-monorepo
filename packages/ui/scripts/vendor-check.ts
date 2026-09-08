@@ -33,36 +33,58 @@ const indented = (output: string) =>
 		.map((line) => `    ${line}`)
 		.join("\n")
 
-const divergenceOf = async (path: string) => {
-	const item = registryItemOf(path)
-	const result = await $`bunx shadcn add ${item} --diff ${path}`
-		.env({ ...process.env, NO_COLOR: "1" })
-		.nothrow()
-		.quiet()
-	const output = `${result.stdout}${result.stderr}`.trim()
-	const action = result.exitCode === 0 ? actionOf(output, path) : undefined
-
-	if (action === "skip") return null
-
-	const reason = action
-		? `diverges from the registry item "${item}" (${action})`
-		: `could not be compared against the registry item "${item}"`
-
-	return `${path}: ${reason}\n${indented(output)}`
-}
-
 const paths = await vendorFilePaths()
-const divergences = (await Promise.all(paths.map(divergenceOf))).filter(
-	(divergence) => divergence !== null,
-)
+const items = [...new Set(paths.map(registryItemOf))]
+const comparison = await $`bunx shadcn add ${items} --diff ${VENDOR_DIR}`
+	.env({ ...process.env, NO_COLOR: "1" })
+	.nothrow()
+	.quiet()
+const output = `${comparison.stdout}${comparison.stderr}`.trim()
 
-if (divergences.length > 0) {
-	console.error(`${VENDOR_DIR} does not match the registry:\n`)
-	for (const divergence of divergences) console.error(`  ${divergence}\n`)
+if (comparison.exitCode !== 0) {
 	console.error(
-		"Reinstall the file with the shadcn CLI, never edit it by hand.",
+		`${VENDOR_DIR} could not be compared against the registry, the shadcn CLI failed:\n`,
 	)
+	console.error(indented(output))
 	process.exit(1)
 }
 
-console.log(`${VENDOR_DIR}: ${paths.length} file(s) match the registry.`)
+const comparisons = paths.map((path) => ({
+	path,
+	action: actionOf(output, path),
+}))
+const uncompared = comparisons.filter(({ action }) => action === undefined)
+const divergent = comparisons.filter(
+	({ action }) => action !== undefined && action !== "skip",
+)
+
+if (uncompared.length === 0 && divergent.length === 0) {
+	console.log(`${VENDOR_DIR}: ${paths.length} file(s) match the registry.`)
+	process.exit(0)
+}
+
+console.error(`${VENDOR_DIR} does not match the registry:\n`)
+
+for (const { path } of uncompared) {
+	console.error(
+		`  ${path}: the shadcn CLI printed no comparison for this file\n`,
+	)
+}
+
+for (const { path, action } of divergent) {
+	const item = registryItemOf(path)
+
+	console.error(`  ${path} (${action}), from one of two causes:`)
+	console.error(
+		`    a hand edit of the vendor file: revert it with \`git checkout -- packages/ui/${path}\`, then put the added behaviour in a composed component beside the folder.`,
+	)
+	console.error(
+		`    a new upstream release of the "${item}" registry item: review the diff below, reinstall it with \`bunx shadcn add ${item} --overwrite\` from packages/ui, then adapt its consumers.`,
+	)
+	console.error(
+		`    \`git log -1 -- packages/ui/${path}\` tells them apart: no local commit on the file means the change came from upstream.\n`,
+	)
+}
+
+console.error(indented(output))
+process.exit(1)
