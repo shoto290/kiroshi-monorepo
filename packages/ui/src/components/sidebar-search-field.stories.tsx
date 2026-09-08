@@ -24,12 +24,6 @@ const TRANSPARENT = "rgba(0, 0, 0, 0)"
 
 const ROSTER_HOVER_FILL = "hover:bg-sidebar-accent/70"
 
-const ACCENT_LABEL_UNDER_POINTER =
-	"group-hover/search-field:text-sidebar-accent-foreground"
-
-const ACCENT_GLYPH_UNDER_POINTER =
-	"group-hover/search-field:text-sidebar-accent-foreground/70"
-
 const Probe = ({ slot, tone }: { slot: string; tone: string }) => (
 	<span className={`hidden ${tone}`} data-slot={slot} />
 )
@@ -121,8 +115,12 @@ export const UnderPointer = meta.story({
 		const field = canvas.getByRole("button")
 
 		await expect(field).toHaveClass(ROSTER_HOVER_FILL)
-		await expect(keycapIn(field)).toHaveClass(ACCENT_LABEL_UNDER_POINTER)
-		await expect(glyphIn(field)).toHaveClass(ACCENT_GLYPH_UNDER_POINTER)
+		await expect(keycapIn(field)).toHaveClass(
+			"group-hover/search-field:text-sidebar-accent-foreground",
+		)
+		await expect(glyphIn(field)).toHaveClass(
+			"group-hover/search-field:text-sidebar-accent-foreground/70",
+		)
 		await expect(keycapIn(field).className).not.toMatch(/hover.*bg-/)
 	},
 })
