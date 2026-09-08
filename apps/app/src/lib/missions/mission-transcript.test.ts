@@ -61,9 +61,9 @@ const LATER_PROMPT = [rowOf(null, 400)]
 const LATER_ANSWER = [rowOf("bot-1", 500)]
 const OTHER_BOT_ANSWER = [rowOf("bot-2", 250)]
 
-describe("placeMissions", () => {
-	const RUNS = [PROMPT, ANSWER, LATER_PROMPT, LATER_ANSWER]
+const RUNS = [PROMPT, ANSWER, LATER_PROMPT, LATER_ANSWER]
 
+describe("placeMissions", () => {
 	it("places a mission after the last run opened before it", () => {
 		expect(placeMissions(RUNS, [missionOf("m-1", 200)])).toEqual([
 			{ mission: missionOf("m-1", 200), runIndex: 1 },
@@ -139,8 +139,6 @@ describe("placeMissions", () => {
 })
 
 describe("placeMissionEvents", () => {
-	const RUNS = [PROMPT, ANSWER, LATER_PROMPT, LATER_ANSWER]
-
 	it("places an event after the last run opened at or before its creation", () => {
 		expect(placeMissionEvents(RUNS, [eventOf("e-1", 400)])).toEqual([
 			{ event: eventOf("e-1", 400), runIndex: 2 },
