@@ -169,7 +169,8 @@ export const useSearch = ({
 			onScopeChange: controller.setScope,
 			spaceName: spaceName ?? "",
 			results,
-			recents,
+			resting:
+				recents.length === 0 ? [] : [{ kind: "chats", results: recents }],
 			isLoading: state.isLoading,
 			activeResultId: active?.id,
 		},

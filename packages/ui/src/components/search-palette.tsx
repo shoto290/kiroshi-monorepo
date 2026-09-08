@@ -200,7 +200,11 @@ const SearchPalette = ({
 		(kind) => (isAllTab || tab === kind) && restingOf(kind).length > 0,
 	).map((kind) => ({
 		key: kind,
-		head: { label: t(`rest.${kind}`), seeAllKind: isAllTab ? kind : undefined },
+		head: {
+			label: t(`rest.${kind}`),
+			seeAllKind:
+				isAllTab && restingOf(kind).length > SHOWN_PER_KIND ? kind : undefined,
+		},
 		results: isAllTab
 			? restingOf(kind).slice(0, SHOWN_PER_KIND)
 			: restingOf(kind),
@@ -258,8 +262,9 @@ const SearchPalette = ({
 		<Icons.Search aria-hidden="true" className={PANEL_MARK_CLASS} />
 	)
 
-	const instructionPanel = (
+	const instructionPanel = (action?: ReactNode) => (
 		<EmptyStateShell
+			action={action}
 			className={PANEL_CLASS}
 			data-slot="search-palette-rest"
 			description={t("rest.messages.body", { space: spaceName })}
@@ -293,9 +298,10 @@ const SearchPalette = ({
 	const panelOf = () => {
 		if (shown.length > 0) return null
 		if (!isRest) return isLoading ? null : foundPanel
-		if (tab === "messages") return instructionPanel
+		if (tab === "messages") return instructionPanel()
 		if (isLoading) return null
-		return isAllTab ? instructionPanel : restingPanel(tab)
+		if (!isAllTab) return restingPanel(tab)
+		return instructionPanel(scopeAction(t("rest.action")))
 	}
 
 	const rowOf = ({ id, space, ...rest }: SearchPaletteResult) => (

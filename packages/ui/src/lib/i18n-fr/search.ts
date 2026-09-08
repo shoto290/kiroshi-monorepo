@@ -40,11 +40,11 @@ const search = {
 			routines: "Aucune routine ici",
 			body: {
 				chats:
-					"Rien n'a été ouvert dans {{space}}. Une conversation d'un autre espace est à un interrupteur.",
+					"Rien n'a été ouvert dans {{space}}. Élargissez à tous les espaces pour retrouver une conversation ailleurs.",
 				missions:
-					"Aucune mission n'a été ouverte dans {{space}}. Une mission d'un autre espace est à un interrupteur.",
+					"Aucune mission n'a été ouverte dans {{space}}. Élargissez à tous les espaces pour retrouver une mission ailleurs.",
 				routines:
-					"Rien ne tourne tout seul dans {{space}}. Une routine posée dans un autre espace est à un interrupteur.",
+					"Rien ne tourne tout seul dans {{space}}. Élargissez à tous les espaces pour retrouver une routine ailleurs.",
 			},
 		},
 		action: "Chercher dans tous les espaces",
