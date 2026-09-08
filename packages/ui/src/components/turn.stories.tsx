@@ -69,11 +69,9 @@ const rightClickOn = async (target: HTMLElement) => {
 	return { defaulted }
 }
 
-const MESSAGE_ACTIONS = "Message actions"
-
 const openTurnMenu = async (target: HTMLElement) => {
 	await rightClickOn(target)
-	return shown(await screen.findByRole("menu", { name: MESSAGE_ACTIONS }))
+	return shown(await screen.findByRole("menu", { name: "Message actions" }))
 }
 
 const PASTED = `Walk me through every package.\n\nStart with the design system, then the Tauri shell, and call out anything that crosses between them.`
