@@ -93,6 +93,7 @@ import {
 } from "@workspace/ui/hooks/use-roster-lift"
 import { useSpaceShortcut } from "@workspace/ui/hooks/use-space-shortcut"
 import { toPlainText } from "@workspace/ui/lib/plain-text"
+import { STILL_UNDER_REDUCED_MOTION } from "@workspace/ui/lib/reduced-motion"
 import { probeRender } from "@workspace/ui/lib/render-probe"
 import { cn, mergeRefs } from "@workspace/ui/lib/utils"
 
@@ -124,9 +125,10 @@ const PREVIEW_LINE =
 
 const DESTINATION_NAME = "min-w-0 truncate"
 
-const STILL_UNDER_REDUCED_MOTION = "motion-reduce:animate-none!"
-
 const NAMED_PANEL = `max-w-64 ${STILL_UNDER_REDUCED_MOTION}`
+
+const rowButtonOf = (row: HTMLElement | null) =>
+	row?.querySelector<HTMLElement>('[data-slot="sidebar-menu-button"]') ?? null
 
 const sidebarRegionOf = (row: HTMLElement | null) => {
 	const region = row?.closest<HTMLElement>('[data-slot="sidebar-content"]')
@@ -746,7 +748,8 @@ const BotRosterRow = ({
 		onRemoveFromSpace?.(botId, spaceId)
 	}
 
-	const keepFocusAfterClose = () => focusAfterClose.current ?? true
+	const keepFocusAfterClose = () =>
+		focusAfterClose.current ?? rowButtonOf(rowRef.current) ?? true
 
 	return (
 		<AnimatedSidebarMenuItem
