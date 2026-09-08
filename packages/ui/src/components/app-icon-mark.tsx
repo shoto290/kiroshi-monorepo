@@ -19,8 +19,6 @@ import {
 import { usePrefersReducedMotion } from "@workspace/ui/hooks/use-prefers-reduced-motion"
 import { cn } from "@workspace/ui/lib/utils"
 
-const GROUND_VIEW_BOX = 512
-
 const GROUND_PATH =
 	"M0 152.867C0 108.849 0 86.8407 7.49114 63.1494C16.906 37.2824 37.2824 16.906 63.1494 7.49114C86.8407 0 108.849 0 152.867 0H359.134C403.151 0 425.159 0 448.851 7.49114C474.718 16.906 495.094 37.2824 504.509 63.1494C512 86.8407 512 108.849 512 152.867V359.134C512 403.151 512 425.159 504.509 448.851C495.094 474.718 474.718 495.094 448.851 504.509C425.159 512 403.151 512 359.134 512H152.867C108.849 512 86.8407 512 63.1494 504.509C37.2824 495.094 16.906 474.718 7.49114 448.851C0 425.159 0 403.151 0 359.134V152.867Z"
 
@@ -115,11 +113,10 @@ const AppIconMark = ({
 			className={cn("shrink-0", className)}
 			data-slot="app-icon-mark"
 			data-state={state}
-			focusable="false"
 			height={size}
 			role={label ? "img" : undefined}
 			style={RABBIT_INK_STYLE}
-			viewBox={`0 0 ${GROUND_VIEW_BOX} ${GROUND_VIEW_BOX}`}
+			viewBox="0 0 512 512"
 			width={size}
 			xmlns="http://www.w3.org/2000/svg"
 		>
