@@ -28,10 +28,32 @@ export const A11Y_FLOATING_FOCUS_GUARDS = {
 	},
 }
 
+export const A11Y_SUBMENU_PORTAL_GUARD = {
+	config: {
+		rules: [{ id: "aria-required-children", reviewOnFail: true }],
+	},
+}
+
+type A11yRuleSet = {
+	config: { rules: { id: string; reviewOnFail: boolean }[] }
+}
+
+export const mergeA11y = (...sets: A11yRuleSet[]) => ({
+	config: { rules: sets.flatMap(({ config }) => config.rules) },
+})
+
 export const FRAME_POLL = { interval: 10 }
 
 const runsToAnEnd = (animation: Animation) =>
 	animation.effect?.getTiming().duration !== "auto"
+
+export const shown = async (element: HTMLElement) => {
+	await waitFor(() => expect(element).toBeVisible(), {
+		...FRAME_POLL,
+		timeout: 5000,
+	})
+	return element
+}
 
 export const settled = async (element: HTMLElement) => {
 	await waitFor(() => expect(element).toBeVisible(), FRAME_POLL)

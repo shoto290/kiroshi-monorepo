@@ -3,12 +3,12 @@
 import { type ReactNode, useContext } from "react"
 
 import { MessageSideContext } from "@workspace/ui/components/message-side-context"
+import { TooltipButton } from "@workspace/ui/components/tooltip-button"
 import {
 	ContextMenu,
 	ContextMenuContent,
 	ContextMenuTrigger,
-} from "@workspace/ui/components/motion/context-menu"
-import { TooltipButton } from "@workspace/ui/components/tooltip-button"
+} from "@workspace/ui/components/ui/context-menu"
 import { cn } from "@workspace/ui/lib/utils"
 
 interface MessageActionsProps {
@@ -23,6 +23,8 @@ interface MessageActionProps {
 	alwaysVisible?: boolean
 	children: ReactNode
 }
+
+const STILL_UNDER_REDUCED_MOTION = "motion-reduce:animate-none!"
 
 const HOVER_REVEAL =
 	"opacity-0 group-focus-within/message:opacity-100 group-hover/message:opacity-100"
@@ -54,8 +56,10 @@ function MessageActions({ actions, menu, children }: MessageActionsProps) {
 
 	return (
 		<ContextMenu>
-			<ContextMenuTrigger announcesPopup={false}>{row}</ContextMenuTrigger>
-			<ContextMenuContent>{menu}</ContextMenuContent>
+			<ContextMenuTrigger render={row} />
+			<ContextMenuContent className={STILL_UNDER_REDUCED_MOTION}>
+				{menu}
+			</ContextMenuContent>
 		</ContextMenu>
 	)
 }
