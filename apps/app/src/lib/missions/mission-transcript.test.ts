@@ -1,7 +1,13 @@
 import { describe, expect, it } from "vitest"
 
+import type { MissionEventModel } from "@workspace/ui/components/mission"
+
 import type { Mission } from "./mission-contract"
-import { placeMissions } from "./mission-transcript"
+import {
+	BEFORE_FIRST_RUN,
+	placeMissionEvents,
+	placeMissions,
+} from "./mission-transcript"
 
 import type { TranscriptRow } from "@/lib/chat/screen-model"
 
@@ -39,6 +45,14 @@ const missionOf = (id: string, openedAt: number, botId = "bot-1"): Mission => ({
 	closedAt: null,
 	reportedAt: null,
 	reportedTurnId: null,
+})
+
+const eventOf = (id: string, createdAt: number): MissionEventModel => ({
+	id,
+	kind: "note",
+	source: "github",
+	createdAt,
+	text: "The pull request was opened",
 })
 
 const PROMPT = [rowOf(null, 0)]
@@ -121,5 +135,30 @@ describe("placeMissions", () => {
 
 	it("leaves a mission of a transcript with no run at all out of the feed", () => {
 		expect(placeMissions([], [missionOf("m-1", 200)])).toEqual([])
+	})
+})
+
+describe("placeMissionEvents", () => {
+	const RUNS = [PROMPT, ANSWER, LATER_PROMPT, LATER_ANSWER]
+
+	it("places an event after the last run opened at or before its creation", () => {
+		expect(placeMissionEvents(RUNS, [eventOf("e-1", 400)])).toEqual([
+			{ event: eventOf("e-1", 400), runIndex: 2 },
+		])
+	})
+
+	it("places an event created before every loaded run ahead of them", () => {
+		expect(
+			placeMissionEvents([LATER_PROMPT, LATER_ANSWER], [eventOf("e-1", 200)]),
+		).toEqual([{ event: eventOf("e-1", 200), runIndex: BEFORE_FIRST_RUN }])
+	})
+
+	it("orders the events placed on the same run by the time they were created", () => {
+		const placed = placeMissionEvents(RUNS, [
+			eventOf("e-late", 300),
+			eventOf("e-early", 200),
+		])
+
+		expect(placed.map(({ event }) => event.id)).toEqual(["e-early", "e-late"])
 	})
 })
