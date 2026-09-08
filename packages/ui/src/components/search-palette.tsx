@@ -7,11 +7,6 @@ import { useTranslation } from "react-i18next"
 import { EmptyStateShell } from "@workspace/ui/components/empty-state-shell"
 import { Icons } from "@workspace/ui/components/icons"
 import {
-	Tabs,
-	TabsList,
-	TabsTrigger,
-} from "@workspace/ui/components/motion/tabs"
-import {
 	SearchResultRow,
 	type SearchResultRowProps,
 } from "@workspace/ui/components/search-result-row"
@@ -22,6 +17,7 @@ import {
 import { ToggleSwitch } from "@workspace/ui/components/toggle-switch"
 import { Button } from "@workspace/ui/components/ui/button"
 import { Kbd, KbdGroup } from "@workspace/ui/components/ui/kbd"
+import { Tabs, TabsList, TabsTrigger } from "@workspace/ui/components/ui/tabs"
 import { cn } from "@workspace/ui/lib/utils"
 
 type SearchKind = "messages" | "chats" | "missions" | "routines"
@@ -102,7 +98,7 @@ const INPUT_CLASS =
 const TAB_ROW_CLASS =
 	"flex h-11 shrink-0 items-center justify-between gap-2 px-3"
 
-const TAB_TRIGGER_CLASS = "h-7.5 py-0"
+const TAB_TRIGGER_CLASS = "h-7.5 shrink-0 py-0"
 
 const BODY_CLASS =
 	"flex min-h-0 flex-1 flex-col gap-0.5 overflow-y-auto p-2 outline-none focus-visible:ring-3 focus-visible:ring-ring/30 focus-visible:ring-inset"
@@ -351,11 +347,14 @@ const SearchPalette = ({
 
 					<div className={TAB_ROW_CLASS} data-slot="search-palette-tabs">
 						<Tabs
+							className="min-w-0"
 							onValueChange={(value) => onTabChange(value as SearchTab)}
 							value={tab}
-							variant="pill"
 						>
-							<TabsList className="bg-transparent p-0">
+							<TabsList
+								activateOnFocus
+								className="max-w-full overflow-x-auto bg-transparent p-0"
+							>
 								{TABS.map((candidate) => (
 									<TabsTrigger
 										className={TAB_TRIGGER_CLASS}

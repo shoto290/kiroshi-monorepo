@@ -582,22 +582,26 @@ export const CreateLabel = meta.story({
 	},
 	play: async ({ canvas, userEvent }) => {
 		const create = canvas.getByRole("button", { name: "New bot" })
-		const label = () => document.body.querySelector('[role="tooltip"]')
+		const label = () =>
+			document.body.querySelector<HTMLElement>('[role="tooltip"]')
 
 		const opensBelow = async () => {
 			await waitFor(async () => {
 				await expect(label()).toBeVisible()
 				await expect(label()).toHaveTextContent("New bot")
 			})
-			const bubble = label()?.getBoundingClientRect()
 			const button = create.getBoundingClientRect()
-			if (!bubble) throw new Error("The create control drew no label")
 
-			await expect(bubble.top).toBeGreaterThanOrEqual(button.bottom)
-			await expect(bubble.top).toBeGreaterThanOrEqual(0)
-			await expect(bubble.left).toBeGreaterThanOrEqual(0)
-			await expect(bubble.bottom).toBeLessThanOrEqual(window.innerHeight)
-			await expect(bubble.right).toBeLessThanOrEqual(window.innerWidth)
+			await waitFor(async () => {
+				const bubble = label()?.getBoundingClientRect()
+				if (!bubble) throw new Error("The create control drew no label")
+
+				await expect(bubble.top).toBeGreaterThanOrEqual(button.bottom)
+				await expect(bubble.top).toBeGreaterThanOrEqual(0)
+				await expect(bubble.left).toBeGreaterThanOrEqual(0)
+				await expect(bubble.bottom).toBeLessThanOrEqual(window.innerHeight)
+				await expect(bubble.right).toBeLessThanOrEqual(window.innerWidth)
+			}, FRAME_POLL)
 		}
 
 		await userEvent.hover(create)

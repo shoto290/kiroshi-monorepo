@@ -143,7 +143,7 @@ const FOOTER_INSET = "group-data-[state=collapsed]/sidebar:px-0"
 const FOOTER_ROW =
 	"flex flex-row items-center gap-2 group-data-[state=collapsed]/sidebar:flex-col-reverse group-data-[state=collapsed]/sidebar:items-center"
 
-const FOOTER_SLOT = "shrink-0 empty:hidden"
+const FOOTER_SLOT = "flex shrink-0 items-center empty:hidden"
 
 const EMPTY_COPY =
 	"px-3 py-4 text-center text-sidebar-foreground/70 text-sm group-data-[state=collapsed]/sidebar:hidden"

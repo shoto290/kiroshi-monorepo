@@ -10,20 +10,22 @@ import {
 import { useTranslation } from "react-i18next"
 
 import { Icons } from "@workspace/ui/components/icons"
-import { Checkbox } from "@workspace/ui/components/motion/checkbox"
+import { SettingsField } from "@workspace/ui/components/settings-field"
+import { Button } from "@workspace/ui/components/ui/button"
+import { Checkbox } from "@workspace/ui/components/ui/checkbox"
 import {
 	RadioGroup,
 	RadioGroupItem,
-} from "@workspace/ui/components/motion/radio"
-import {
-	Tabs,
-	TabsList,
-	TabsTrigger,
-} from "@workspace/ui/components/motion/tabs"
-import { SettingsField } from "@workspace/ui/components/settings-field"
-import { Button } from "@workspace/ui/components/ui/button"
+} from "@workspace/ui/components/ui/radio-group"
+import { Tabs, TabsList, TabsTrigger } from "@workspace/ui/components/ui/tabs"
 import { useAutoFocus } from "@workspace/ui/hooks/use-auto-focus"
 import { cn } from "@workspace/ui/lib/utils"
+
+const QUESTION_TAB_LIST_CLASS =
+	"h-fit max-w-full flex-wrap gap-1 bg-transparent p-0"
+
+const QUESTION_TAB_CLASS =
+	"h-fit min-w-0 whitespace-normal break-words px-2.5 py-1 text-start"
 
 const QUESTION_FORM_CLASS =
 	"grid w-full gap-3 rounded-2xl text-sm outline-none focus-visible:ring-2 focus-visible:ring-ring focus-visible:ring-offset-4 focus-visible:ring-offset-background"
@@ -154,15 +156,14 @@ const ToolQuestion = ({
 			ref={cardRef}
 			tabIndex={-1}
 		>
-			<Tabs
-				isAnimated={false}
-				onValueChange={setAsked}
-				value={item.question}
-				variant="pill"
-			>
-				<TabsList className="flex-wrap bg-transparent p-0">
+			<Tabs onValueChange={setAsked} value={item.question}>
+				<TabsList activateOnFocus className={QUESTION_TAB_LIST_CLASS}>
 					{questions.map((candidate) => (
-						<TabsTrigger key={candidate.question} value={candidate.question}>
+						<TabsTrigger
+							className={QUESTION_TAB_CLASS}
+							key={candidate.question}
+							value={candidate.question}
+						>
 							{candidate.header}
 							{answers[candidate.question] ? (
 								<Icons.Check className="ml-1.5 size-3" />
@@ -182,7 +183,7 @@ const ToolQuestion = ({
 				) : (
 					<RadioGroup
 						className="gap-2"
-						onValueChange={(label) => pickOption(item, label)}
+						onValueChange={(label: string) => pickOption(item, label)}
 						value={draft.selected[0] ?? ""}
 					>
 						{rows}

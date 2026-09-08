@@ -32,6 +32,15 @@ const SPACE_MARK_SIZE = 8
 
 const UNTINTED_RESULTS = 2
 
+const NARROW_WIDTH = 320
+
+const NARROW_VIEWPORT = {
+	narrow: {
+		name: "Narrow",
+		styles: { width: `${NARROW_WIDTH}px`, height: "844px" },
+	},
+}
+
 const ROUTINE_BOT = {
 	name: "Noor Beltran",
 	animal: "rabbit",
@@ -771,5 +780,33 @@ export const LoadingFirstQuery = meta.story({
 			"aria-expanded",
 			"true",
 		)
+	},
+})
+
+export const Narrow = meta.story({
+	globals: { viewport: { value: "narrow" } },
+	parameters: {
+		viewport: { options: NARROW_VIEWPORT },
+		docs: {
+			description: {
+				story:
+					"The palette on a 320px window, the narrowest surface the shell reflows to. Check that the tab strip keeps every tab inside the row rather than pushing the scope switch off it — the strip scrolls sideways instead — and that pressing a tab still swaps the body. Pick `Default` for the palette with room for all five tabs at once.",
+			},
+		},
+	},
+	play: async ({ args, userEvent }) => {
+		const popup = await palette()
+		const reader = within(popup)
+		const row = slotIn(popup, "search-palette-tabs")
+		const strip = reader.getByRole("tablist")
+
+		await expect(window.innerWidth).toBe(NARROW_WIDTH)
+		await expect(strip.getBoundingClientRect().right).toBeLessThanOrEqual(
+			row.getBoundingClientRect().right,
+		)
+		await expect(reader.getByRole("switch")).toBeVisible()
+
+		await userEvent.click(reader.getByRole("tab", { name: "Chats" }))
+		await expect(args.onTabChange).toHaveBeenCalledWith("chats")
 	},
 })
