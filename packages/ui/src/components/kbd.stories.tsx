@@ -2,7 +2,7 @@ import { expect } from "storybook/test"
 
 import preview from "@workspace/storybook/preview"
 import { Row, slotIn, slotsIn } from "@workspace/storybook/story-utils"
-import { Kbd, KbdGroup } from "@workspace/ui/components/kbd"
+import { Kbd, KbdGroup } from "@workspace/ui/components/ui/kbd"
 
 const meta = preview.meta({
 	title: "Primitives/Kbd",
