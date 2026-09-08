@@ -18,7 +18,7 @@ The page is drawn for three viewports, all in light theme:
 |----------|--------|
 | 1440x900 | Fullscreen |
 | 2560x1080 | Fullscreen 21:9, from 2000 wide up |
-| 390x844 | Mobile, under 768 wide |
+| 390x844 | Mobile, under 1024 wide |
 
-The app window carries a `mock` slot: `<WebsitePage mock={…} />` fills the window interior,
-and without it the window stays empty on its own surface.
+The app window interior is a slot: `<WebsitePage>{…}</WebsitePage>` fills it,
+and without a child the window stays an empty bounded surface.

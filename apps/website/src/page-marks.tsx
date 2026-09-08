@@ -1,15 +1,15 @@
 import { cn } from "@workspace/ui/lib/utils"
 
-import rabbitUrl from "./assets/rabbit.png"
-
 const CLAUDE_MARK_COLOR = "#D97757"
-const CLAUDE_LONG_BLADE = "M12 12 L10.9 3.0 C11.15 1.55 12.85 1.55 13.1 3.0 Z"
-const CLAUDE_SHORT_BLADE =
+const CLAUDE_LONG_PETAL = "M12 12 L10.9 3.0 C11.15 1.55 12.85 1.55 13.1 3.0 Z"
+const CLAUDE_SHORT_PETAL =
 	"M12 12 L11.05 5.6 C11.25 4.35 12.75 4.35 12.95 5.6 Z"
-const CLAUDE_LONG_BLADE_ROTATIONS = [
+const CLAUDE_LONG_PETAL_ROTATIONS = [
 	0, 65.5, 98.2, 163.6, 196.4, 261.8, 294.5, 327.3,
 ]
-const CLAUDE_SHORT_BLADE_ROTATIONS = [32.7, 130.9, 229.1]
+const CLAUDE_SHORT_PETAL_ROTATIONS = [32.7, 130.9, 229.1]
+
+const RABBIT_URL = "/kiroshi-rabbit.png"
 
 export const ClaudeMark = () => (
 	<svg
@@ -19,16 +19,16 @@ export const ClaudeMark = () => (
 		viewBox="0 0 24 24"
 		xmlns="http://www.w3.org/2000/svg"
 	>
-		{CLAUDE_LONG_BLADE_ROTATIONS.map((rotation) => (
+		{CLAUDE_LONG_PETAL_ROTATIONS.map((rotation) => (
 			<path
-				d={CLAUDE_LONG_BLADE}
+				d={CLAUDE_LONG_PETAL}
 				key={rotation}
 				transform={`rotate(${rotation} 12 12)`}
 			/>
 		))}
-		{CLAUDE_SHORT_BLADE_ROTATIONS.map((rotation) => (
+		{CLAUDE_SHORT_PETAL_ROTATIONS.map((rotation) => (
 			<path
-				d={CLAUDE_SHORT_BLADE}
+				d={CLAUDE_SHORT_PETAL}
 				key={rotation}
 				transform={`rotate(${rotation} 12 12)`}
 			/>
@@ -57,9 +57,13 @@ type RabbitMarkProps = {
 }
 
 export const RabbitMark = ({ className }: RabbitMarkProps) => (
-	<div
+	<img
+		alt=""
 		aria-hidden="true"
-		className={cn("pointer-events-none absolute bg-cover bg-center", className)}
-		style={{ backgroundImage: `url(${rabbitUrl})` }}
+		className={cn(
+			"pointer-events-none absolute object-cover object-center",
+			className,
+		)}
+		src={RABBIT_URL}
 	/>
 )

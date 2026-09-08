@@ -13,3 +13,5 @@ export const WEBSITE_COPY = {
 }
 
 export const REPOSITORY_URL = "https://github.com/shoto290/kiroshi-monorepo"
+
+export const RELEASES_URL = `${REPOSITORY_URL}/releases`
