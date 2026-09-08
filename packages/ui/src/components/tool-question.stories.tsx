@@ -1,4 +1,4 @@
-import { expect, fn, within } from "storybook/test"
+import { expect, fn } from "storybook/test"
 
 import preview from "@workspace/storybook/preview"
 import {
@@ -334,15 +334,13 @@ export const ArrowKeyTabs = meta.story({
 		},
 	},
 	play: async ({ canvas, userEvent }) => {
-		const strip = canvas.getByRole("tablist")
-
 		await expect(canvas.getByText(SCOPE_QUESTION.question)).toBeVisible()
 
-		within(strip).getByRole("tab", { name: SCOPE_QUESTION.header }).focus()
+		canvas.getByRole("tab", { name: SCOPE_QUESTION.header }).focus()
 		await userEvent.keyboard("{ArrowRight}")
 
 		await expect(
-			within(strip).getByRole("tab", { name: RELEASE_QUESTION.header }),
+			canvas.getByRole("tab", { name: RELEASE_QUESTION.header }),
 		).toHaveAttribute("aria-selected", "true")
 		await expect(canvas.getByText(RELEASE_QUESTION.question)).toBeVisible()
 	},
