@@ -2,28 +2,40 @@ import type { ReactNode } from "react"
 
 import { Icons } from "@workspace/ui/components/icons"
 
-import { RELEASES_URL, REPOSITORY_URL, WEBSITE_COPY } from "./copy"
+import { REPOSITORY_URL, WEBSITE_COPY } from "./copy"
 import { DownloadMark, RabbitMark } from "./page-marks"
 import { PageWash } from "./page-wash"
+import { type DownloadPlatform, useDownloadTarget } from "./use-download-target"
 
 const VIEWPORT_RISE = "[--rise:clamp(0px,100vw_-_1440px,1120px)]"
 
 const ACTION_BASE =
 	"h-[46px] shrink-0 items-center gap-2 rounded-sm border text-[15px] leading-5 font-medium whitespace-nowrap outline-none transition-colors focus-visible:border-ring focus-visible:ring-3 focus-visible:ring-ring/30 active:translate-y-px"
 
+const DOWNLOAD_LABEL: Record<DownloadPlatform, string> = {
+	macos: WEBSITE_COPY.downloadActionMacOS,
+	windows: WEBSITE_COPY.downloadActionWindows,
+	other: WEBSITE_COPY.downloadAction,
+}
+
 type ActionProps = {
 	label: string
 }
 
-const DownloadAction = ({ label }: ActionProps) => (
-	<a
-		className={`${ACTION_BASE} hidden border-transparent bg-foreground px-5 text-background hover:bg-foreground/90 lg:inline-flex`}
-		href={RELEASES_URL}
-	>
-		{label}
-		<DownloadMark />
-	</a>
-)
+const DownloadAction = () => {
+	const { href, onActivate, platform } = useDownloadTarget()
+
+	return (
+		<a
+			className={`${ACTION_BASE} hidden border-transparent bg-foreground px-5 text-background hover:bg-foreground/90 lg:inline-flex`}
+			href={href}
+			onClick={onActivate}
+		>
+			{DOWNLOAD_LABEL[platform]}
+			<DownloadMark />
+		</a>
+	)
+}
 
 const GithubAction = ({ label }: ActionProps) => (
 	<a
@@ -96,7 +108,7 @@ export const WebsitePage = ({ children }: WebsitePageProps) => (
 				<p className="max-w-[302px] text-[15px] leading-[22px] text-foreground lg:hidden">
 					{WEBSITE_COPY.mobileNote}
 				</p>
-				<DownloadAction label={WEBSITE_COPY.downloadAction} />
+				<DownloadAction />
 				<GithubAction label={WEBSITE_COPY.githubAction} />
 			</div>
 			<Fineprint

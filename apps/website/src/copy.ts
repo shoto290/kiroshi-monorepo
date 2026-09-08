@@ -2,7 +2,9 @@ export const WEBSITE_COPY = {
 	headlineFirstLine: "A team of companions.",
 	headlineSecondLine: "They finish the work.",
 	lead: "Kiroshi is a desktop app where you keep a team of bots, on your own machine.",
-	downloadAction: "Download for macOS",
+	downloadAction: "Download",
+	downloadActionMacOS: "Download for macOS",
+	downloadActionWindows: "Download for Windows",
 	githubAction: "View on GitHub",
 	mobileNote:
 		"Desktop today, mobile soon. Open this page on your computer to download.",
@@ -12,6 +14,10 @@ export const WEBSITE_COPY = {
 	fineprintLicense: "MIT",
 }
 
-export const REPOSITORY_URL = "https://github.com/shoto290/kiroshi-monorepo"
+const REPOSITORY_SLUG = "shoto290/kiroshi-monorepo"
+
+export const REPOSITORY_URL = `https://github.com/${REPOSITORY_SLUG}`
 
 export const RELEASES_URL = `${REPOSITORY_URL}/releases`
+
+export const LATEST_RELEASE_URL = `https://api.github.com/repos/${REPOSITORY_SLUG}/releases/latest`
