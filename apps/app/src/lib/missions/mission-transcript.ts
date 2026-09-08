@@ -26,6 +26,9 @@ const lastRunOpenedBefore = (runs: TranscriptRow[][], moment: number): number =>
 		BEFORE_FIRST_RUN,
 	)
 
+const isDrawnInFeed = (runs: TranscriptRow[][], runIndex: number): boolean =>
+	runs.length === 0 || runIndex !== BEFORE_FIRST_RUN
+
 export const placeMissions = (
 	runs: TranscriptRow[][],
 	missions: Mission[],
@@ -36,9 +39,7 @@ export const placeMissions = (
 			mission,
 			runIndex: lastRunOpenedBefore(runs, mission.openedAt),
 		}))
-		.filter(
-			({ runIndex }) => runs.length === 0 || runIndex !== BEFORE_FIRST_RUN,
-		)
+		.filter(({ runIndex }) => isDrawnInFeed(runs, runIndex))
 
 export const placeMissionEvents = (
 	runs: TranscriptRow[][],
