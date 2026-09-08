@@ -231,7 +231,8 @@ const drawnFrom = <Item,>(pool: Item[], seed: string) => {
 
 const CONTENT_INSET = "pr-1 group-data-[state=collapsed]/sidebar:px-0"
 
-const SEARCH_INSET = "-mb-0.5 px-2 group-data-[state=collapsed]/sidebar:px-0"
+const SEARCH_INSET =
+	"px-[9px] pb-[9px] group-data-[state=collapsed]/sidebar:px-0"
 
 type SidebarSearchSlotProps = { onOpenSearch: () => void }
 

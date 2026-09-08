@@ -5255,42 +5255,49 @@ export const DragConversationToSection = meta.story({
 	},
 })
 
-const SEARCH_TO_ROSTER_GAP = 6
+const SEARCH_TO_ROSTER_AIR = 9
 
 export const WithSearch = meta.story({
-	args: { onOpenSearch: fn() },
+	args: {
+		botsBySpaceId: { perso: ROSTER },
+		onOpenSearch: fn(),
+		selectedSpaceId: "perso",
+		spaces: [SPACES[0]],
+	},
 	parameters: {
 		docs: {
 			description: {
 				story:
-					"The roster with the search field mounted above it. Check that the field sits between the pinned header and the first row rather than inside either, so it never scrolls away with the list, and that pressing it reports and nothing else — the palette it opens is the host's to mount. A sidebar given no `onOpenSearch` draws no field at all, which is what `Roster` shows.",
+					"The roster with the search field mounted above it. Check that the field sits between the pinned header and the first row rather than inside either, so it never scrolls away with the list, that its box lands in the lane a roster row's fill holds — same start edge, same end edge — and that the column leaves 9px of air between the box and the first row's fill, so the field reads as its own box on the surface rather than a lid glued on top of the list. Pressing it reports and nothing else: the palette it opens is the host's to mount. A sidebar given no `onOpenSearch` draws no field at all, which is what `Roster` shows.",
 			},
 		},
 	},
 	play: async ({ args, canvasElement, userEvent }) => {
-		const field = slotIn(canvasElement, "sidebar-search-field")
+		const slot = slotIn(canvasElement, "sidebar-search-field")
 		const header = slotIn(canvasElement, "sidebar-header")
 		const content = slotIn(canvasElement, "sidebar-content")
 
 		await expect(
-			header.compareDocumentPosition(field) & Node.DOCUMENT_POSITION_FOLLOWING,
+			header.compareDocumentPosition(slot) & Node.DOCUMENT_POSITION_FOLLOWING,
 		).toBeTruthy()
 		await expect(
-			content.compareDocumentPosition(field) & Node.DOCUMENT_POSITION_PRECEDING,
+			content.compareDocumentPosition(slot) & Node.DOCUMENT_POSITION_PRECEDING,
 		).toBeTruthy()
-		await expect(header.contains(field)).toBe(false)
-		await expect(content.contains(field)).toBe(false)
+		await expect(header.contains(slot)).toBe(false)
+		await expect(content.contains(slot)).toBe(false)
 
-		const [row] = rowsIn(canvasElement)
+		const field = within(slot).getByRole("button", { name: /Search/ })
+		const [first] = rowsIn(canvasElement)
 		const fieldBox = field.getBoundingClientRect()
-		const rowBox = rowButton(row).getBoundingClientRect()
+		const firstFill = rowButton(first).getBoundingClientRect()
 
-		await expect(fieldBox.left).toBe(rowBox.left)
-		await expect(Math.round(rowBox.top - fieldBox.bottom)).toBe(
-			SEARCH_TO_ROSTER_GAP,
+		await expect(Math.round(fieldBox.left)).toBe(Math.round(firstFill.left))
+		await expect(Math.round(fieldBox.right)).toBe(Math.round(firstFill.right))
+		await expect(Math.round(firstFill.top - fieldBox.bottom)).toBe(
+			SEARCH_TO_ROSTER_AIR,
 		)
 
-		await userEvent.click(within(field).getByRole("button", { name: /Search/ }))
+		await userEvent.click(field)
 		await expect(args.onOpenSearch).toHaveBeenCalledTimes(1)
 	},
 })
