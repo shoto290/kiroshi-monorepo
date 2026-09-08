@@ -2,7 +2,11 @@ import { useState } from "react"
 import { expect, fireEvent, fn, screen, waitFor, within } from "storybook/test"
 
 import preview from "@workspace/storybook/preview"
-import { settled, slotsIn } from "@workspace/storybook/story-utils"
+import {
+	A11Y_FLOATING_FOCUS_GUARDS,
+	settled,
+	slotsIn,
+} from "@workspace/storybook/story-utils"
 import type { BotBadge } from "@workspace/ui/components/bot-badge"
 import type { Space } from "@workspace/ui/components/space"
 import {
@@ -102,7 +106,7 @@ const tintVisibleIn = (trigger: HTMLElement) =>
 	slotsIn(trigger, "space-dot")[0]?.checkVisibility()
 
 const openMenu = async (trigger: HTMLElement) => {
-	fireEvent.pointerDown(trigger, { button: 0 })
+	fireEvent.click(trigger)
 	const menu = await settled(await screen.findByRole("menu"))
 	await waitFor(() => expect(menu.contains(document.activeElement)).toBe(true))
 	return menu
@@ -244,6 +248,7 @@ export const Collapsed = meta.story({
 
 export const Open = meta.story({
 	parameters: {
+		a11y: A11Y_FLOATING_FOCUS_GUARDS,
 		docs: {
 			description: {
 				story:
@@ -281,10 +286,11 @@ export const Open = meta.story({
 
 export const Keyboard = meta.story({
 	parameters: {
+		a11y: A11Y_FLOATING_FOCUS_GUARDS,
 		docs: {
 			description: {
 				story:
-					"The same menu reached without a pointer, which is the path a press-to-open trigger usually forgets. Check Enter on the button opens the menu and puts focus on its first row, arrows walk it, Enter reports the space under focus, and Escape closes the menu and hands focus back to the button rather than to the page.",
+					"The same menu reached without a pointer, which is the path a press-to-open trigger usually forgets. Check Enter on the button opens the menu and moves focus into it, that the first arrow reaches the first row and the next walks on, Enter reports the space under focus, and Escape closes the menu and hands focus back to the button rather than to the page.",
 			},
 		},
 	},
@@ -296,6 +302,11 @@ export const Keyboard = meta.story({
 
 		await userEvent.keyboard("{Enter}")
 		const menu = await settled(await screen.findByRole("menu"))
+		await waitFor(() =>
+			expect(menu.contains(document.activeElement)).toBe(true),
+		)
+
+		await userEvent.keyboard("{ArrowDown}")
 		await waitFor(() =>
 			expect(within(menu).getAllByRole("menuitemradio")[0]).toHaveFocus(),
 		)
@@ -314,6 +325,7 @@ export const SingleSpace = meta.story({
 	args: { spaces: [SPACES[0]], selectedSpaceId: "perso" },
 	render: (args) => <LiveSwitcher spaces={args.spaces} />,
 	parameters: {
+		a11y: A11Y_FLOATING_FOCUS_GUARDS,
 		docs: {
 			description: {
 				story:
@@ -452,6 +464,7 @@ export const BadgeRanking = meta.story({
 export const BadgeHere = meta.story({
 	args: { badgesBySpaceId: { vocca: "attention" } },
 	parameters: {
+		a11y: A11Y_FLOATING_FOCUS_GUARDS,
 		docs: {
 			description: {
 				story:
@@ -695,6 +708,7 @@ export const MoveSpace = meta.story({
 		<LiveSwitcher onReorderSpaces={args.onReorderSpaces} spaces={args.spaces} />
 	),
 	parameters: {
+		a11y: A11Y_FLOATING_FOCUS_GUARDS,
 		docs: {
 			description: {
 				story:
@@ -709,7 +723,7 @@ export const MoveSpace = meta.story({
 
 		await expect(
 			within(menu).getByRole("menuitem", { name: "Move up" }),
-		).toBeDisabled()
+		).toHaveAttribute("aria-disabled", "true")
 
 		await userEvent.click(
 			within(menu).getByRole("menuitem", { name: "Move down" }),
@@ -737,7 +751,7 @@ export const MoveSpace = meta.story({
 		)
 		await expect(
 			within(lastMenu).getByRole("menuitem", { name: "Move down" }),
-		).toBeDisabled()
+		).toHaveAttribute("aria-disabled", "true")
 
 		await userEvent.keyboard("{Escape}")
 		await waitFor(() => expect(screen.queryByRole("menu")).toBeNull())

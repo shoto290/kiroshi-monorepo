@@ -39,12 +39,12 @@ import {
 	MessageQuote,
 	type QuotedMessage,
 } from "@workspace/ui/components/message-quote"
+import { SharedMark } from "@workspace/ui/components/motion/shared-mark"
+import type { RosterBot } from "@workspace/ui/components/roster"
 import {
 	ContextMenuItem,
 	ContextMenuSeparator,
-} from "@workspace/ui/components/motion/context-menu"
-import { SharedMark } from "@workspace/ui/components/motion/shared-mark"
-import type { RosterBot } from "@workspace/ui/components/roster"
+} from "@workspace/ui/components/ui/context-menu"
 import { useCopyText } from "@workspace/ui/hooks/use-copy-text"
 import { cn } from "@workspace/ui/lib/utils"
 
@@ -248,7 +248,7 @@ function TurnActionMenu({ actions }: TurnActionListProps) {
 			{actions.map(({ key, label, icon: ActionIcon, onSelect }, index) => (
 				<Fragment key={key}>
 					{actions[index - 1]?.key === "pin" ? <ContextMenuSeparator /> : null}
-					<ContextMenuItem onSelect={onSelect} textValue={label}>
+					<ContextMenuItem label={label} onClick={onSelect}>
 						<ActionIcon aria-hidden="true" className="size-3.5" />
 						{label}
 					</ContextMenuItem>

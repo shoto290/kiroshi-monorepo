@@ -4,6 +4,7 @@ import { expect, fireEvent, fn, screen, waitFor, within } from "storybook/test"
 import preview from "@workspace/storybook/preview"
 import {
 	botIdentityAvatars,
+	settled,
 	slotIn,
 	slotsIn,
 	UPLOADED_AVATAR_IMAGE,
@@ -70,7 +71,7 @@ const rightClickOn = async (target: HTMLElement) => {
 
 const openTurnMenu = async (target: HTMLElement) => {
 	await rightClickOn(target)
-	return screen.findByRole("menu")
+	return settled(await screen.findByRole("menu"))
 }
 
 const PASTED = `Walk me through every package.\n\nStart with the design system, then the Tauri shell, and call out anything that crosses between them.`
@@ -732,7 +733,7 @@ export const Menu = meta.story({
 			"Reply",
 			"Copy",
 		])
-		await expect(menu.querySelector("hr")).toBeInTheDocument()
+		await expect(within(menu).getByRole("separator")).toBeInTheDocument()
 
 		const pinned = await openTurnMenu(canvas.getByText(ANSWER))
 

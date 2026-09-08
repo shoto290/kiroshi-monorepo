@@ -11,7 +11,10 @@ import {
 	BotBadgeDot,
 	botBadgeRingVariants,
 } from "@workspace/ui/components/bot-badge"
+import { ContextMenuPressTrigger } from "@workspace/ui/components/context-menu-press-trigger"
 import { Icons } from "@workspace/ui/components/icons"
+import type { Space } from "@workspace/ui/components/space"
+import { Button } from "@workspace/ui/components/ui/button"
 import {
 	ContextMenu,
 	ContextMenuContent,
@@ -20,10 +23,7 @@ import {
 	ContextMenuRadioItem,
 	ContextMenuSeparator,
 	ContextMenuShortcut,
-	ContextMenuTrigger,
-} from "@workspace/ui/components/motion/context-menu"
-import type { Space } from "@workspace/ui/components/space"
-import { Button } from "@workspace/ui/components/ui/button"
+} from "@workspace/ui/components/ui/context-menu"
 import {
 	dropArea,
 	dropAreaAt,
@@ -31,6 +31,8 @@ import {
 } from "@workspace/ui/hooks/use-roster-lift"
 import { SPACE_RANK_LIMIT } from "@workspace/ui/hooks/use-space-shortcut"
 import { cn } from "@workspace/ui/lib/utils"
+
+const STILL_UNDER_REDUCED_MOTION = "motion-reduce:animate-none!"
 
 const SWITCHER =
 	"relative mr-auto min-w-0 max-w-[62%] px-2 group-data-[state=collapsed]/sidebar:mr-0 group-data-[state=collapsed]/sidebar:size-7 group-data-[state=collapsed]/sidebar:px-0"
@@ -155,36 +157,42 @@ const SpaceSwitcher = ({
 
 	return (
 		<ContextMenu>
-			<ContextMenuTrigger opensOnPress>
-				<Button
-					aria-label={t("spaces.switch", { name: selected.name })}
-					className={SWITCHER}
-					data-slot="space-switcher"
-					size="sm"
-					variant="ghost"
-				>
-					<SpaceDot className={SWITCHER_DOT} colour={selected.colour} />
-					<span className={SWITCHER_NAME} data-slot="space-switcher-name">
-						{selected.name}
-					</span>
-					{elsewhere ? (
-						<BotBadgeDot
-							badge={elsewhere}
-							data-slot="space-switcher-badge"
-							placement="switcher"
-						/>
-					) : null}
-				</Button>
-			</ContextMenuTrigger>
-			<ContextMenuContent ariaLabel={t("spaces.label")}>
+			<ContextMenuPressTrigger
+				render={
+					<Button
+						aria-label={t("spaces.switch", { name: selected.name })}
+						className={SWITCHER}
+						data-slot="space-switcher"
+						size="sm"
+						variant="ghost"
+					>
+						<SpaceDot className={SWITCHER_DOT} colour={selected.colour} />
+						<span className={SWITCHER_NAME} data-slot="space-switcher-name">
+							{selected.name}
+						</span>
+						{elsewhere ? (
+							<BotBadgeDot
+								badge={elsewhere}
+								data-slot="space-switcher-badge"
+								placement="switcher"
+							/>
+						) : null}
+					</Button>
+				}
+			/>
+			<ContextMenuContent
+				aria-label={t("spaces.label")}
+				className={`max-w-64 ${STILL_UNDER_REDUCED_MOTION}`}
+			>
 				<ContextMenuRadioGroup
-					onValueChange={onSelectSpace}
+					onValueChange={(value) => onSelectSpace?.(value)}
 					value={selected.id}
 				>
 					{spaces.map((space, index) => (
 						<ContextMenuRadioItem
+							closeOnClick
 							key={space.id}
-							textValue={space.name}
+							label={space.name}
 							value={space.id}
 						>
 							<SpaceDot
@@ -205,14 +213,14 @@ const SpaceSwitcher = ({
 					<>
 						<ContextMenuItem
 							disabled={rank === 0}
-							onSelect={() => moveSelected(-1)}
+							onClick={() => moveSelected(-1)}
 						>
 							<Icons.ArrowUp aria-hidden="true" className="size-3.5" />
 							{t("spaces.moveUp")}
 						</ContextMenuItem>
 						<ContextMenuItem
 							disabled={rank === spaces.length - 1}
-							onSelect={() => moveSelected(1)}
+							onClick={() => moveSelected(1)}
 						>
 							<Icons.ArrowDown aria-hidden="true" className="size-3.5" />
 							{t("spaces.moveDown")}
@@ -220,11 +228,11 @@ const SpaceSwitcher = ({
 						<ContextMenuSeparator />
 					</>
 				) : null}
-				<ContextMenuItem onSelect={onCreateSpace}>
+				<ContextMenuItem onClick={onCreateSpace}>
 					<Icons.Add aria-hidden="true" className="size-3.5" />
 					{t("spaces.create")}
 				</ContextMenuItem>
-				<ContextMenuItem onSelect={onOpenSpaceSettings}>
+				<ContextMenuItem onClick={onOpenSpaceSettings}>
 					<Icons.Settings aria-hidden="true" className="size-3.5" />
 					{t("spaces.settings")}
 				</ContextMenuItem>

@@ -4,9 +4,13 @@ import { expect, fireEvent, fn, screen, waitFor, within } from "storybook/test"
 import preview from "@workspace/storybook/preview"
 import {
 	A11Y_CONTRAST_AWAITING_DESIGN_DECISION,
+	A11Y_FLOATING_FOCUS_GUARDS,
+	A11Y_SUBMENU_PORTAL_GUARD,
 	FRAME_POLL,
 	hasOverlayScrollbars,
+	mergeA11y,
 	settled,
+	shown,
 	slotIn,
 	slotsIn,
 } from "@workspace/storybook/story-utils"
@@ -474,8 +478,6 @@ const expectMutedSecondaryText = async (row: HTMLElement, muted: string) => {
 	await expect(colorOf(row, "roster-row-name")).not.toBe(muted)
 }
 
-const highlightIn = (item: HTMLElement) => item.querySelector("span")
-
 const railWidth = () => {
 	const probe = document.createElement("div")
 	probe.style.width = "var(--sidebar-width-icon)"
@@ -566,8 +568,6 @@ export const Roster = meta.story({
 
 		await userEvent.keyboard("{Enter}")
 		await expect(args.onSelectBot).toHaveBeenCalledWith("beacon")
-
-		await expect(rowButton(rows[0])).toHaveAttribute("aria-haspopup", "menu")
 	},
 })
 
@@ -1621,7 +1621,7 @@ export const RowContextMenu = meta.story({
 		docs: {
 			description: {
 				story:
-					"The actions behind a row, on the third one. There is no button to find: the row itself is the trigger, so the columns never move to make room for a control and nothing appears on hover. A pointer right-clicks the row; a keyboard reaches the same menu with the Menu key or Shift+F10 on the focused row, which is what this story presses. Check that the menu leads with pin and a rule under it, then offers bot settings, a duplicate under it and delete with delete reading as destructive, that the arrow keys walk them, and that Escape closes the menu and puts focus back on the row it belongs to rather than dropping it on the page. The highlight is drawn on the item under the pointer and nowhere else: it does not slide across from the item before it, which is a deliberate local deviation from the registry component's gliding row — travel under a pointer reads as lag. The row says it carries a menu through `aria-haspopup`, and says whether it is open. The menu is left open here so the panel can be read with it up. Delete carries `--destructive`, which does not clear AA against a light popup at this size — the same open question `Primitives/Button` already carries on its own destructive variant, and a token decision rather than a decision this menu can make on its own.",
+					"The actions behind a row, on the third one. There is no button to find: the row itself is the trigger, so the columns never move to make room for a control and nothing appears on hover. A pointer right-clicks the row; a keyboard reaches the same menu with the Menu key or Shift+F10 on the focused row, which the browser turns into the same `contextmenu` event this story fires. Focus lands on the menu itself and the first arrow reaches its first row, which is what a menu opened by a pointer does everywhere in Base UI. Check that the menu leads with pin and a rule under it, then offers bot settings, a duplicate under it and delete with delete reading as destructive, that the arrow keys walk them, and that Escape closes the menu and puts focus back on the row it belongs to rather than dropping it on the page. The highlighted item is the focused one, drawn by the registry item's own `focus:bg-accent`, so the focus ring and the highlight are the same signal. The row carries no `aria-haspopup`: a click on it opens a bot, not a menu, so the registry trigger leaves the row saying only what it does. The menu is left open here so the panel can be read with it up. Delete carries `--destructive`, which does not clear AA against a light popup at this size — the same open question `Primitives/Button` already carries on its own destructive variant, and a token decision rather than a decision this menu can make on its own.",
 			},
 		},
 	},
@@ -1631,8 +1631,6 @@ export const RowContextMenu = meta.story({
 		const overlay = within(document.body)
 
 		await expect(within(row).getAllByRole("button")).toHaveLength(1)
-		await expect(trigger).toHaveAttribute("aria-haspopup", "menu")
-		await expect(trigger).toHaveAttribute("aria-expanded", "false")
 
 		await userEvent.tab()
 		await userEvent.tab()
@@ -1640,10 +1638,10 @@ export const RowContextMenu = meta.story({
 		await userEvent.tab()
 		await expect(trigger).toHaveFocus()
 
-		await userEvent.keyboard("{Shift>}{F10}{/Shift}")
-		const menu = await overlay.findByRole("menu", {
-			name: "Actions for Cinder",
-		})
+		fireEvent.contextMenu(trigger)
+		const menu = await shown(
+			await overlay.findByRole("menu", { name: "Actions for Cinder" }),
+		)
 		const items = within(menu).getAllByRole("menuitem")
 		await expect(items.map((item) => item.textContent)).toEqual([
 			"Pin",
@@ -1655,11 +1653,13 @@ export const RowContextMenu = meta.story({
 		await expect(pin.nextElementSibling).toBe(
 			within(menu).getAllByRole("separator")[0],
 		)
-		await expect(trigger).toHaveAttribute("aria-expanded", "true")
+		await userEvent.keyboard("{ArrowDown}")
 		await waitFor(async () => {
 			await expect(pin).toHaveFocus()
 		}, FRAME_POLL)
-		await expect(highlightIn(pin)).not.toBeNull()
+		await expect(getComputedStyle(pin).backgroundColor).not.toBe(
+			getComputedStyle(settings).backgroundColor,
+		)
 		await expect(getComputedStyle(remove).color).not.toBe(
 			getComputedStyle(settings).color,
 		)
@@ -1670,8 +1670,9 @@ export const RowContextMenu = meta.story({
 		await expect(duplicate).toHaveFocus()
 		await userEvent.keyboard("{ArrowDown}")
 		await expect(remove).toHaveFocus()
-		await expect(highlightIn(remove)).not.toBeNull()
-		await expect(highlightIn(settings)).toBeNull()
+		await expect(getComputedStyle(remove).backgroundColor).not.toBe(
+			getComputedStyle(settings).backgroundColor,
+		)
 		await userEvent.keyboard("{Escape}")
 		await waitFor(async () => {
 			await expect(overlay.queryByRole("menu")).toBeNull()
@@ -2171,8 +2172,10 @@ const spaceDotsIn = (canvasElement: HTMLElement) =>
 	slotsIn(canvasElement, "space-dot-button")
 
 const openSpaceMenu = async (trigger: HTMLElement) => {
-	fireEvent.pointerDown(trigger, { button: 0 })
-	return within(await screen.findByRole("menu", { name: "Spaces" }))
+	fireEvent.click(trigger)
+	return within(
+		await shown(await screen.findByRole("menu", { name: "Spaces" })),
+	)
 }
 
 export const OneSpace = meta.story({
@@ -2271,10 +2274,19 @@ export const FiveSpaces = meta.story({
 	},
 })
 
+const crossSafePolygon = async (panel: HTMLElement) => {
+	fireEvent.mouseMove(panel)
+	await waitFor(() =>
+		expect(getComputedStyle(panel).pointerEvents).not.toBe("none"),
+	)
+}
+
 const openRowMenu = async (canvasElement: HTMLElement, name: string) => {
 	fireEvent.contextMenu(rowButton(rowFor(canvasElement, name)))
 	return within(
-		await screen.findByRole("menu", { name: `Actions for ${name}` }),
+		await shown(
+			await screen.findByRole("menu", { name: `Actions for ${name}` }),
+		),
 	)
 }
 
@@ -2297,7 +2309,11 @@ const openSpacesBranch = async (
 ) => {
 	const menu = await openRowMenu(canvasElement, bot)
 	await userEvent.hover(menu.getByRole("menuitem", { name: SPACES_BRANCH }))
-	return await settled(await screen.findByRole("menu", { name: SPACES_BRANCH }))
+	const panel = await settled(
+		await screen.findByRole("menu", { name: SPACES_BRANCH }),
+	)
+	await crossSafePolygon(panel)
+	return panel
 }
 
 type Typing = { keyboard: (keys: string) => Promise<void> }
@@ -2308,15 +2324,17 @@ const walkIntoSpacesBranch = async (
 	userEvent: Typing,
 ) => {
 	const menu = await openRowMenu(canvasElement, bot)
-	menu.getByRole("menuitem", { name: SPACES_BRANCH }).focus()
+	const trigger = menu.getByRole("menuitem", { name: SPACES_BRANCH })
+	for (const _ of menu.getAllByRole("menuitem")) {
+		if (document.activeElement === trigger) break
+		await userEvent.keyboard("{ArrowDown}")
+	}
+	await expect(trigger).toHaveFocus()
 	await userEvent.keyboard("{ArrowRight}")
 	const panel = await settled(
 		await screen.findByRole("menu", { name: SPACES_BRANCH }),
 	)
-	await waitFor(
-		() => expect(panel.contains(document.activeElement)).toBe(true),
-		FRAME_POLL,
-	)
+	await crossSafePolygon(panel)
 	return panel
 }
 
@@ -2344,7 +2362,11 @@ export const RowSpaces = meta.story({
 		user: READER,
 	},
 	parameters: {
-		a11y: A11Y_CONTRAST_AWAITING_DESIGN_DECISION,
+		a11y: mergeA11y(
+			A11Y_FLOATING_FOCUS_GUARDS,
+			A11Y_CONTRAST_AWAITING_DESIGN_DECISION,
+			A11Y_SUBMENU_PORTAL_GUARD,
+		),
 		docs: {
 			description: {
 				story:
@@ -2378,7 +2400,8 @@ export const RowSpaces = meta.story({
 				tokenColor(canvasElement, `--bot-blot-${space.colour}`),
 			),
 		)
-		for (const row of rows) await expect(row).toBeEnabled()
+		for (const row of rows)
+			await expect(row).not.toHaveAttribute("aria-disabled", "true")
 		await expect(within(panel).queryByText(LAST_SPACE_NOTE)).toBeNull()
 		await expect(within(panel).queryAllByRole("separator")).toHaveLength(0)
 	},
@@ -2392,7 +2415,11 @@ export const RowTogglesSpaces = meta.story({
 		user: READER,
 	},
 	parameters: {
-		a11y: A11Y_CONTRAST_AWAITING_DESIGN_DECISION,
+		a11y: mergeA11y(
+			A11Y_FLOATING_FOCUS_GUARDS,
+			A11Y_CONTRAST_AWAITING_DESIGN_DECISION,
+			A11Y_SUBMENU_PORTAL_GUARD,
+		),
 		docs: {
 			description: {
 				story:
@@ -2437,7 +2464,11 @@ export const RowMembershipsUnknown = meta.story({
 		user: READER,
 	},
 	parameters: {
-		a11y: A11Y_CONTRAST_AWAITING_DESIGN_DECISION,
+		a11y: mergeA11y(
+			A11Y_FLOATING_FOCUS_GUARDS,
+			A11Y_CONTRAST_AWAITING_DESIGN_DECISION,
+			A11Y_SUBMENU_PORTAL_GUARD,
+		),
 		docs: {
 			description: {
 				story:
@@ -2493,7 +2524,11 @@ export const RowLeavesOpenSpace = meta.story({
 		user: READER,
 	},
 	parameters: {
-		a11y: A11Y_CONTRAST_AWAITING_DESIGN_DECISION,
+		a11y: mergeA11y(
+			A11Y_FLOATING_FOCUS_GUARDS,
+			A11Y_CONTRAST_AWAITING_DESIGN_DECISION,
+			A11Y_SUBMENU_PORTAL_GUARD,
+		),
 		docs: {
 			description: {
 				story:
@@ -2535,11 +2570,15 @@ export const RowLastSpace = meta.story({
 		user: READER,
 	},
 	parameters: {
-		a11y: A11Y_CONTRAST_AWAITING_DESIGN_DECISION,
+		a11y: mergeA11y(
+			A11Y_FLOATING_FOCUS_GUARDS,
+			A11Y_CONTRAST_AWAITING_DESIGN_DECISION,
+			A11Y_SUBMENU_PORTAL_GUARD,
+		),
 		docs: {
 			description: {
 				story:
-					"The bot that has one space left, walked with the keyboard. Grove sits in Vocca alone: that row is `aria-disabled` rather than switched off, so the arrow walk still lands on it and a reader who cannot see the panel hears which space holds the bot — the one row they most need is the one a native `disabled` would have hidden from them. Landing there announces it ticked and unavailable, Enter and a click both report to nobody, and the next arrow stays inside the panel. The reason is the accessible description of both the `Spaces` entry and the row itself, so it is heard before the branch is opened and again on the row it applies to, however the reader got there. It is read from a node beside the entry in the row menu, exposed but unseen, because the panel it would otherwise live in is inert while the branch is shut and a description cannot be read out of an inert subtree; the note under the rule shows the same sentence to the eye and stays out of the tree. A pointer resting on the locked row moves neither the focus nor the pill: an affordance the row cannot honour is worse than none. Beacon, held by two spaces, carries no description: there is nothing to warn about while every row is live.",
+					"The bot that has one space left, walked with the keyboard. Grove sits in Vocca alone: that row is `aria-disabled` rather than switched off, so the arrow walk still lands on it and a reader who cannot see the panel hears which space holds the bot — the one row they most need is the one a native `disabled` would have hidden from them. Landing there announces it ticked and unavailable, Enter and a click both report to nobody, and the next arrow stays inside the panel. The reason is the accessible description of both the `Spaces` entry and the row itself, so it is heard before the branch is opened and again on the row it applies to, however the reader got there. It is read from a node beside the entry in the row menu, exposed but unseen, because the panel it would otherwise live in is inert while the branch is shut and a description cannot be read out of an inert subtree; the note under the rule shows the same sentence to the eye and stays out of the tree. The locked row takes no pointer at all, so resting on it moves neither the focus nor the highlight: an affordance the row cannot honour is worse than none. Beacon, held by two spaces, carries no description: there is nothing to warn about while every row is live.",
 			},
 		},
 	},
@@ -2558,6 +2597,11 @@ export const RowLastSpace = meta.story({
 		const rows = within(panel).getAllByRole("menuitemcheckbox")
 		const held = rows[1]
 
+		await waitFor(
+			() => expect(panel.contains(document.activeElement)).toBe(true),
+			FRAME_POLL,
+		)
+
 		await userEvent.keyboard("{ArrowDown}")
 		await expect(held).toHaveFocus()
 		await expect(held).toHaveAttribute("aria-checked", "true")
@@ -2573,7 +2617,7 @@ export const RowLastSpace = meta.story({
 		await userEvent.keyboard("{ArrowDown}")
 		await expect(rows[2]).toHaveFocus()
 
-		await userEvent.hover(held)
+		await expect(getComputedStyle(held).pointerEvents).toBe("none")
 		await expect(rows[2]).toHaveFocus()
 
 		const note = within(panel).getByText(LAST_SPACE_NOTE)
@@ -2601,7 +2645,11 @@ export const RowSpaceNameTooLong = meta.story({
 		user: READER,
 	},
 	parameters: {
-		a11y: A11Y_CONTRAST_AWAITING_DESIGN_DECISION,
+		a11y: mergeA11y(
+			A11Y_FLOATING_FOCUS_GUARDS,
+			A11Y_CONTRAST_AWAITING_DESIGN_DECISION,
+			A11Y_SUBMENU_PORTAL_GUARD,
+		),
 		docs: {
 			description: {
 				story:
@@ -2616,14 +2664,13 @@ export const RowSpaceNameTooLong = meta.story({
 		})
 		const name = within(row).getByText(WORDY_SPACE.name)
 		const dot = name.previousElementSibling as HTMLElement
-		const tick = dot.previousElementSibling as HTMLElement
 
 		await expect(name.scrollWidth).toBeGreaterThan(name.clientWidth)
 		await expect(name.getBoundingClientRect().height).toBeLessThanOrEqual(
 			Number.parseFloat(getComputedStyle(name).lineHeight) + 1,
 		)
 		await expect(dot.getBoundingClientRect().width).toBe(10)
-		await expect(tick.getBoundingClientRect().width).toBe(16)
+		await expect(getComputedStyle(row).paddingInlineEnd).toBe("32px")
 	},
 })
 
@@ -2635,11 +2682,15 @@ export const OneSpaceRowMenu = meta.story({
 		user: READER,
 	},
 	parameters: {
-		a11y: A11Y_CONTRAST_AWAITING_DESIGN_DECISION,
+		a11y: mergeA11y(
+			A11Y_FLOATING_FOCUS_GUARDS,
+			A11Y_CONTRAST_AWAITING_DESIGN_DECISION,
+			A11Y_SUBMENU_PORTAL_GUARD,
+		),
 		docs: {
 			description: {
 				story:
-					"The same row menu in the account that has only one space. The branch still opens, on the single space the account has, ticked and unavailable with the note under it — an account with one space is the account where every bot is on its last space, so the branch says what it always says rather than vanishing and leaving the reader to guess where their bots live. That single row is the whole walk: opening the branch with the keyboard lands on it, and the next arrow stays on it rather than falling back through the parent menu onto `Delete` with the panel still open. The plain duplicate stays where it is: copying a bot beside itself has nothing to do with spaces. The two rules that fence settings and delete off from the middle stay put whatever the middle holds.",
+					"The same row menu in the account that has only one space. The branch still opens, on the single space the account has, ticked and unavailable with the note under it — an account with one space is the account where every bot is on its last space, so the branch says what it always says rather than vanishing and leaving the reader to guess where their bots live. That single row is the whole walk, and it is unavailable: opening the branch with the keyboard leaves focus on the branch entry, since a list whose only row is unavailable has nothing to hand focus to, and the next arrow walks the row menu it came from rather than dropping focus on the page. The reason is the accessible description of the entry itself, so the reader hears why before deciding to go in. The plain duplicate stays where it is: copying a bot beside itself has nothing to do with spaces. The two rules that fence settings and delete off from the middle stay put whatever the middle holds.",
 			},
 		},
 	},
@@ -2652,14 +2703,24 @@ export const OneSpaceRowMenu = meta.story({
 		await expect(menu.getAllByRole("separator")).toHaveLength(2)
 
 		const panel = await walkIntoSpacesBranch(canvasElement, "Beacon", userEvent)
+		const branch = screen.getByRole("menuitem", { name: SPACES_BRANCH })
 		const rows = within(panel).getAllByRole("menuitemcheckbox")
 		await expect(rows.map((row) => row.textContent)).toEqual(["Perso"])
-		await expect(rows[0]).toHaveFocus()
 		await expect(rows[0]).toHaveAttribute("aria-disabled", "true")
+		await expect(branch).toHaveAttribute("data-popup-open")
+		await expect(document.activeElement).toHaveAttribute(
+			"data-slot",
+			"context-menu-sub-trigger",
+		)
+
+		await expect(within(panel).getByText(LAST_SPACE_NOTE)).toBeVisible()
 
 		await userEvent.keyboard("{ArrowDown}")
-		await expect(rows[0]).toHaveFocus()
-		await expect(within(panel).getByText(LAST_SPACE_NOTE)).toBeVisible()
+		await expect(
+			screen
+				.getByRole("menu", { name: "Actions for Beacon" })
+				.contains(document.activeElement),
+		).toBe(true)
 	},
 })
 
@@ -2671,6 +2732,7 @@ export const NineSpaces = meta.story({
 		user: READER,
 	},
 	parameters: {
+		a11y: A11Y_FLOATING_FOCUS_GUARDS,
 		docs: {
 			description: {
 				story:
@@ -3471,9 +3533,11 @@ const sectionHeader = (canvasElement: HTMLElement, name: string) => {
 const openSectionMenu = async (canvasElement: HTMLElement, name: string) => {
 	fireEvent.contextMenu(sectionHeader(canvasElement, name))
 	return within(
-		await screen.findByRole("menu", {
-			name: `Actions for the ${name} section`,
-		}),
+		await shown(
+			await screen.findByRole("menu", {
+				name: `Actions for the ${name} section`,
+			}),
+		),
 	)
 }
 
@@ -3510,9 +3574,11 @@ const openMoveToBranch = async (
 ) => {
 	const menu = await openRowMenu(canvasElement, bot)
 	await userEvent.hover(menu.getByRole("menuitem", { name: MOVE_TO }))
-	return within(
-		await settled(await screen.findByRole("menu", { name: MOVE_TO })),
+	const panel = await settled(
+		await screen.findByRole("menu", { name: MOVE_TO }),
 	)
+	await crossSafePolygon(panel)
+	return within(panel)
 }
 
 const startRename = async (
@@ -3777,6 +3843,7 @@ export const SectionRename = meta.story({
 export const SectionReorder = meta.story({
 	args: sectionArgs(),
 	parameters: {
+		a11y: A11Y_FLOATING_FOCUS_GUARDS,
 		docs: {
 			description: {
 				story:
@@ -3788,7 +3855,7 @@ export const SectionReorder = meta.story({
 		const first = await openSectionMenu(canvasElement, "Research")
 		await expect(
 			first.getByRole("menuitem", { name: "Move up" }),
-		).toBeDisabled()
+		).toHaveAttribute("aria-disabled", "true")
 		await userEvent.click(first.getByRole("menuitem", { name: "Move down" }))
 		await expect(args.onPinRoster).toHaveBeenCalledWith(
 			HOME,
@@ -3806,7 +3873,7 @@ export const SectionReorder = meta.story({
 		const last = await openSectionMenu(canvasElement, "Archive")
 		await expect(
 			last.getByRole("menuitem", { name: "Move down" }),
-		).toBeDisabled()
+		).toHaveAttribute("aria-disabled", "true")
 		await userEvent.click(last.getByRole("menuitem", { name: "Move up" }))
 		await expect(args.onPinRoster).toHaveBeenCalledWith(
 			HOME,
@@ -3826,7 +3893,10 @@ export const SectionReorder = meta.story({
 export const SectionDelete = meta.story({
 	args: sectionArgs(),
 	parameters: {
-		a11y: A11Y_CONTRAST_AWAITING_DESIGN_DECISION,
+		a11y: mergeA11y(
+			A11Y_CONTRAST_AWAITING_DESIGN_DECISION,
+			A11Y_FLOATING_FOCUS_GUARDS,
+		),
 		docs: {
 			description: {
 				story:
@@ -3855,7 +3925,11 @@ export const FullRowMenu = meta.story({
 		user: READER,
 	},
 	parameters: {
-		a11y: A11Y_CONTRAST_AWAITING_DESIGN_DECISION,
+		a11y: mergeA11y(
+			A11Y_FLOATING_FOCUS_GUARDS,
+			A11Y_CONTRAST_AWAITING_DESIGN_DECISION,
+			A11Y_SUBMENU_PORTAL_GUARD,
+		),
 		docs: {
 			description: {
 				story:
@@ -3883,7 +3957,11 @@ export const FullRowMenu = meta.story({
 export const MoveBotToSection = meta.story({
 	args: sectionArgs(),
 	parameters: {
-		a11y: A11Y_CONTRAST_AWAITING_DESIGN_DECISION,
+		a11y: mergeA11y(
+			A11Y_FLOATING_FOCUS_GUARDS,
+			A11Y_CONTRAST_AWAITING_DESIGN_DECISION,
+			A11Y_SUBMENU_PORTAL_GUARD,
+		),
 		docs: {
 			description: {
 				story:
@@ -3898,9 +3976,11 @@ export const MoveBotToSection = meta.story({
 		await expect(menu.getAllByRole("separator")).toHaveLength(3)
 
 		await userEvent.hover(branch)
-		const panel = within(
-			await settled(await screen.findByRole("menu", { name: MOVE_TO })),
+		const surface = await shown(
+			await screen.findByRole("menu", { name: MOVE_TO }),
 		)
+		await crossSafePolygon(surface)
+		const panel = within(surface)
 		const targets = panel.getAllByRole("menuitemradio")
 		await expect(targets.map((item) => item.textContent)).toEqual([
 			"No section",
@@ -3947,7 +4027,11 @@ export const MoveBotToSection = meta.story({
 export const NewSectionForABot = meta.story({
 	args: sectionArgs(),
 	parameters: {
-		a11y: A11Y_CONTRAST_AWAITING_DESIGN_DECISION,
+		a11y: mergeA11y(
+			A11Y_FLOATING_FOCUS_GUARDS,
+			A11Y_CONTRAST_AWAITING_DESIGN_DECISION,
+			A11Y_SUBMENU_PORTAL_GUARD,
+		),
 		docs: {
 			description: {
 				story:
@@ -3997,13 +4081,16 @@ const openSurfaceMenu = async (canvasElement: HTMLElement) => {
 	)
 	if (!surface) throw new Error("Nothing here draws a roster surface")
 	fireEvent.contextMenu(surface)
-	return within(await screen.findByRole("menu", { name: CREATE }))
+	return within(await shown(await screen.findByRole("menu", { name: CREATE })))
 }
 
 export const RosterSurfaceMenu = meta.story({
 	args: { ...sectionArgs(), onCreateConversation: fn() },
 	parameters: {
-		a11y: A11Y_CONTRAST_AWAITING_DESIGN_DECISION,
+		a11y: mergeA11y(
+			A11Y_CONTRAST_AWAITING_DESIGN_DECISION,
+			A11Y_FLOATING_FOCUS_GUARDS,
+		),
 		docs: {
 			description: {
 				story:
@@ -4047,7 +4134,10 @@ export const RosterSurfaceWithoutSpaceSettings = meta.story({
 		onOpenSpaceSettings: undefined,
 	},
 	parameters: {
-		a11y: A11Y_CONTRAST_AWAITING_DESIGN_DECISION,
+		a11y: mergeA11y(
+			A11Y_CONTRAST_AWAITING_DESIGN_DECISION,
+			A11Y_FLOATING_FOCUS_GUARDS,
+		),
 		docs: {
 			description: {
 				story:
@@ -4067,7 +4157,10 @@ export const RosterSurfaceWithoutSpaceSettings = meta.story({
 export const NewSectionFromNothing = meta.story({
 	args: sectionArgs(),
 	parameters: {
-		a11y: A11Y_CONTRAST_AWAITING_DESIGN_DECISION,
+		a11y: mergeA11y(
+			A11Y_CONTRAST_AWAITING_DESIGN_DECISION,
+			A11Y_FLOATING_FOCUS_GUARDS,
+		),
 		docs: {
 			description: {
 				story:
@@ -5094,7 +5187,11 @@ export const ConversationRowMenu = meta.story({
 		conversations: [{ ...CONVERSATIONS[0], sectionId: "research" }],
 	},
 	parameters: {
-		a11y: A11Y_CONTRAST_AWAITING_DESIGN_DECISION,
+		a11y: mergeA11y(
+			A11Y_FLOATING_FOCUS_GUARDS,
+			A11Y_CONTRAST_AWAITING_DESIGN_DECISION,
+			A11Y_SUBMENU_PORTAL_GUARD,
+		),
 		docs: {
 			description: {
 				story:
@@ -5111,9 +5208,11 @@ export const ConversationRowMenu = meta.story({
 		await expect(menu.getAllByRole("separator")).toHaveLength(2)
 
 		await userEvent.hover(menu.getByRole("menuitem", { name: MOVE_TO }))
-		const branch = within(
-			await settled(await screen.findByRole("menu", { name: MOVE_TO })),
+		const surface = await shown(
+			await screen.findByRole("menu", { name: MOVE_TO }),
 		)
+		await crossSafePolygon(surface)
+		const branch = within(surface)
 		const targets = branch.getAllByRole("menuitemradio")
 		await expect(targets.map((item) => item.textContent)).toEqual([
 			"No section",
@@ -5147,7 +5246,10 @@ export const ConversationRowMenu = meta.story({
 export const CreateMenu = meta.story({
 	args: { ...conversationArgs(), onCreateSection: fn() },
 	parameters: {
-		a11y: A11Y_CONTRAST_AWAITING_DESIGN_DECISION,
+		a11y: mergeA11y(
+			A11Y_CONTRAST_AWAITING_DESIGN_DECISION,
+			A11Y_FLOATING_FOCUS_GUARDS,
+		),
 		docs: {
 			description: {
 				story:
@@ -5198,7 +5300,11 @@ export const NewSectionForAConversation = meta.story({
 		onCreateSection: fn(),
 	},
 	parameters: {
-		a11y: A11Y_CONTRAST_AWAITING_DESIGN_DECISION,
+		a11y: mergeA11y(
+			A11Y_FLOATING_FOCUS_GUARDS,
+			A11Y_CONTRAST_AWAITING_DESIGN_DECISION,
+			A11Y_SUBMENU_PORTAL_GUARD,
+		),
 		docs: {
 			description: {
 				story:
