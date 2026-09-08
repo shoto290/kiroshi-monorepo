@@ -1,6 +1,8 @@
 {
 	"extends": "../../tsconfig.base.json",
 	"compilerOptions": {
+		"rootDir": ".",
+		"outDir": "./dist",
 		"jsx": "react-jsx",
 		"paths": {
 			"@workspace/ui/*": ["../../packages/ui/src/*"]
