@@ -15,6 +15,7 @@ const ACTION_BASE =
 const DOWNLOAD_LABEL: Record<DownloadPlatform, string> = {
 	macos: WEBSITE_COPY.downloadActionMacOS,
 	windows: WEBSITE_COPY.downloadActionWindows,
+	linux: WEBSITE_COPY.downloadActionLinux,
 	other: WEBSITE_COPY.downloadAction,
 }
 

@@ -2,17 +2,18 @@ import { type MouseEvent, useEffect, useState } from "react"
 
 import { LATEST_RELEASE_URL, RELEASES_URL } from "./copy"
 
-export type DownloadPlatform = "macos" | "windows" | "other"
+export type DownloadPlatform = "macos" | "windows" | "linux" | "other"
 
 type ReleaseAsset = {
 	name: string
 	browser_download_url: string
 }
 
-const PLATFORM_ASSET_SUFFIX: Record<DownloadPlatform, string | null> = {
-	macos: "_aarch64.dmg",
-	windows: "-setup.exe",
-	other: null,
+const PLATFORM_ASSET_SUFFIXES: Record<DownloadPlatform, string[]> = {
+	macos: ["_aarch64.dmg"],
+	windows: ["-setup.exe"],
+	linux: [".AppImage", ".deb"],
+	other: [],
 }
 
 const UPDATER_ASSET_SUFFIXES = [".sig", ".app.tar.gz"]
@@ -23,6 +24,7 @@ const detectPlatform = (): DownloadPlatform => {
 	if (/iPhone|iPad|iPod/.test(agent)) return "other"
 	if (/Mac/.test(agent)) return navigator.maxTouchPoints > 1 ? "other" : "macos"
 	if (/Win/.test(agent)) return "windows"
+	if (/Linux/.test(agent)) return /Android/.test(agent) ? "other" : "linux"
 	return "other"
 }
 
@@ -48,16 +50,18 @@ const isDistributable = ({ name }: ReleaseAsset) =>
 	name !== UPDATER_MANIFEST &&
 	UPDATER_ASSET_SUFFIXES.every((suffix) => !name.endsWith(suffix))
 
+const VISITOR_ASSET_SUFFIXES = PLATFORM_ASSET_SUFFIXES[VISITOR_PLATFORM]
+
 const platformAssetUrl = (assets: ReleaseAsset[]) => {
-	const suffix = PLATFORM_ASSET_SUFFIX[VISITOR_PLATFORM]
-	if (suffix === null) return null
-	const asset = assets
-		.filter(isDistributable)
-		.find(({ name }) => name.endsWith(suffix))
-	return asset?.browser_download_url ?? null
+	const distributables = assets.filter(isDistributable)
+	for (const suffix of VISITOR_ASSET_SUFFIXES) {
+		const asset = distributables.find(({ name }) => name.endsWith(suffix))
+		if (asset) return asset.browser_download_url
+	}
+	return null
 }
 
-const OFFERS_NO_ASSET = PLATFORM_ASSET_SUFFIX[VISITOR_PLATFORM] === null
+const OFFERS_NO_ASSET = VISITOR_ASSET_SUFFIXES.length === 0
 
 const resolvedTarget = () =>
 	latestAssets()
