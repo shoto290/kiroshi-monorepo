@@ -1,3 +1,8 @@
 @import "@workspace/ui/styles/globals.css";
 
 @source "../../../packages/ui/src";
+
+@theme {
+	--breakpoint-ultrawide: 125rem;
+	--font-mono: "Roboto Mono", ui-monospace, SFMono-Regular, Menlo, monospace;
+}
