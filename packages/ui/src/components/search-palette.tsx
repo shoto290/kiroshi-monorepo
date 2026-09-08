@@ -196,19 +196,19 @@ const SearchPalette = ({
 	const restingOf = (kind: SearchRestingKind) =>
 		resting.find((group) => group.kind === kind)?.results ?? []
 
-	const restingSections: PaletteSection[] = RESTING_KINDS.filter(
-		(kind) => (isAllTab || tab === kind) && restingOf(kind).length > 0,
-	).map((kind) => ({
-		key: kind,
-		head: {
-			label: t(`rest.${kind}`),
-			seeAllKind:
-				isAllTab && restingOf(kind).length > SHOWN_PER_KIND ? kind : undefined,
-		},
-		results: isAllTab
-			? restingOf(kind).slice(0, SHOWN_PER_KIND)
-			: restingOf(kind),
+	const restingSections: PaletteSection[] = RESTING_KINDS.map((kind) => ({
+		kind,
+		rows: restingOf(kind),
 	}))
+		.filter(({ kind, rows }) => (isAllTab || tab === kind) && rows.length > 0)
+		.map(({ kind, rows }) => ({
+			key: kind,
+			head: {
+				label: t(`rest.${kind}`),
+				seeAllKind: isAllTab && rows.length > SHOWN_PER_KIND ? kind : undefined,
+			},
+			results: isAllTab ? rows.slice(0, SHOWN_PER_KIND) : rows,
+		}))
 
 	const foundSections: PaletteSection[] = results
 		.filter(
