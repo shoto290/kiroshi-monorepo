@@ -58,9 +58,9 @@ const SceneRow = ({ isAnimated, opacity = 1, children }: SceneRowProps) => (
 
 const sceneRow = (
 	key: string,
-	opacity: number,
-	isAnimated: boolean,
 	body: ReactNode,
+	opacity = 1,
+	isAnimated = false,
 ): TranscriptItem => ({
 	key,
 	render: () => (
@@ -80,9 +80,9 @@ const scriptedRows = (
 		rows.push(
 			sceneRow(
 				"opening",
+				<AssistantTurn author={HAPPY}>{SCENE_COPY.opening}</AssistantTurn>,
 				frame.openingOpacity,
 				isAnimated,
-				<AssistantTurn author={HAPPY}>{SCENE_COPY.opening}</AssistantTurn>,
 			),
 		)
 	}
@@ -91,13 +91,13 @@ const scriptedRows = (
 		rows.push(
 			sceneRow(
 				"request",
-				frame.requestOpacity,
-				isAnimated,
 				<UserTurn>
 					<Mention botId={ICHI.id} />
 					<Mention botId={NI.id} />
 					{SCENE_COPY.request}
 				</UserTurn>,
+				frame.requestOpacity,
+				isAnimated,
 			),
 		)
 	}
@@ -106,11 +106,11 @@ const scriptedRows = (
 		rows.push(
 			sceneRow(
 				"ichi-answer",
-				frame.closingOpacity,
-				isAnimated,
 				<AssistantTurn author={ICHI}>
 					{SCENE_COPY.ichiAnswer.slice(0, frame.ichiTyped)}
 				</AssistantTurn>,
+				frame.closingOpacity,
+				isAnimated,
 			),
 		)
 	}
@@ -119,11 +119,11 @@ const scriptedRows = (
 		rows.push(
 			sceneRow(
 				"ni-answer",
-				frame.closingOpacity,
-				isAnimated,
 				<AssistantTurn author={NI}>
 					{SCENE_COPY.niAnswer.slice(0, frame.niTyped)}
 				</AssistantTurn>,
+				frame.closingOpacity,
+				isAnimated,
 			),
 		)
 	}
@@ -132,9 +132,9 @@ const scriptedRows = (
 		rows.push(
 			sceneRow(
 				"mission",
+				<MissionTurn mission={MISSION} onOpen={openMission} />,
 				frame.closingOpacity,
 				isAnimated,
-				<MissionTurn mission={MISSION} onOpen={openMission} />,
 			),
 		)
 	}
@@ -143,11 +143,9 @@ const scriptedRows = (
 }
 
 const threadRows = (thread: SceneThread): TranscriptItem[] => [
-	sceneRow("ask", 1, false, <UserTurn>{thread.ask}</UserTurn>),
+	sceneRow("ask", <UserTurn>{thread.ask}</UserTurn>),
 	sceneRow(
 		"answer",
-		1,
-		false,
 		<AssistantTurn author={thread.bot}>{thread.answer}</AssistantTurn>,
 	),
 ]
