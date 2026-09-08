@@ -278,3 +278,47 @@ export const FourQuestions = meta.story({
 		})
 	},
 })
+
+export const Narrow = meta.story({
+	args: {
+		questions: [
+			FRAMEWORK_QUESTION,
+			SCOPE_QUESTION,
+			NAMING_QUESTION,
+			RELEASE_QUESTION,
+		],
+	},
+	parameters: {
+		docs: {
+			description: {
+				story:
+					"The four-tab card in a 320px column, the narrowest surface a transcript ever hands it. Check that the tab strip wraps over several lines inside the column rather than pushing a tab out of it, that every tab is still reachable by pointer and by arrow key, and that an option below still takes a press and hands the card over to the next question waiting. Pick `FourQuestions` for the same card with room to spread.",
+			},
+		},
+	},
+	render: (args) => (
+		<div className="w-[320px]">
+			<ToolQuestion {...args} />
+		</div>
+	),
+	play: async ({ canvas, canvasElement, userEvent }) => {
+		const column = canvasElement.querySelector("div")
+		const tabs = canvas.getAllByRole("tab")
+		const bounds = column?.getBoundingClientRect()
+		if (!bounds) throw new Error("The card drew no column")
+
+		for (const tab of tabs) {
+			await expect(tab.getBoundingClientRect().right).toBeLessThanOrEqual(
+				bounds.right,
+			)
+		}
+
+		await userEvent.click(canvas.getByRole("tab", { name: /release/i }))
+		await expect(canvas.getByText(RELEASE_QUESTION.question)).toBeVisible()
+
+		await userEvent.click(
+			await canvas.findByRole("radio", { name: /Next week/ }),
+		)
+		await expect(canvas.getByText(FRAMEWORK_QUESTION.question)).toBeVisible()
+	},
+})
