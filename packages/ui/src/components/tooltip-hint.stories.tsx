@@ -6,6 +6,12 @@ import { Icons } from "@workspace/ui/components/icons"
 import { TooltipHint } from "@workspace/ui/components/tooltip-hint"
 import { Button } from "@workspace/ui/components/ui/button"
 
+const COPY_BUTTON = (
+	<Button aria-label="Copy" size="icon-sm" variant="ghost">
+		<Icons.Copy />
+	</Button>
+)
+
 const LONG_HINT =
 	"Reads every file the run touched, then writes the summary back to the conversation"
 
@@ -24,14 +30,7 @@ const meta = preview.meta({
 })
 
 export const Default = meta.story({
-	args: {
-		content: "Copy",
-		children: (
-			<Button aria-label="Copy" size="icon-sm" variant="ghost">
-				<Icons.Copy />
-			</Button>
-		),
-	},
+	args: { content: "Copy", children: COPY_BUTTON },
 	parameters: {
 		docs: {
 			description: {
@@ -51,14 +50,7 @@ export const Default = meta.story({
 })
 
 export const OnFocus = meta.story({
-	args: {
-		content: "Copy",
-		children: (
-			<Button aria-label="Copy" size="icon-sm" variant="ghost">
-				<Icons.Copy />
-			</Button>
-		),
-	},
+	args: { content: "Copy", children: COPY_BUTTON },
 	parameters: {
 		docs: {
 			description: {
@@ -156,11 +148,7 @@ export const InRow = meta.story({
 	},
 	render: (args) => (
 		<Row>
-			<TooltipHint content="Copy">
-				<Button aria-label="Copy" size="icon-sm" variant="ghost">
-					<Icons.Copy />
-				</Button>
-			</TooltipHint>
+			<TooltipHint content="Copy">{COPY_BUTTON}</TooltipHint>
 			<TooltipHint {...args} />
 		</Row>
 	),

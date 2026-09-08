@@ -2,7 +2,7 @@ import type { ComponentType, ReactNode } from "react"
 import { expect, screen, waitFor } from "storybook/test"
 
 import preview from "@workspace/storybook/preview"
-import { FRAME_POLL, Row } from "@workspace/storybook/story-utils"
+import { FRAME_POLL } from "@workspace/storybook/story-utils"
 import { Icons } from "@workspace/ui/components/icons"
 import { Button } from "@workspace/ui/components/ui/button"
 import {
@@ -26,6 +26,13 @@ const LONG_LABEL =
 const meta = preview.meta({
 	title: "Overlays/Tooltip",
 	component: TypedTooltip,
+	decorators: [
+		(Story) => (
+			<TooltipProvider>
+				<Story />
+			</TooltipProvider>
+		),
+	],
 	parameters: {
 		layout: "centered",
 		docs: {
@@ -42,17 +49,15 @@ export const Default = meta.story({
 		docs: {
 			description: {
 				story:
-					"The three parts wired by hand, wrapped in the provider that sets the open delay for a whole region. Check that the bubble opens under the pointer after the provider's delay and closes when the pointer leaves.",
+					"The three parts wired by hand, under the provider that sets the open delay for a whole region. Check that the bubble opens under the pointer after the provider's delay and closes when the pointer leaves.",
 			},
 		},
 	},
 	render: () => (
-		<TooltipProvider>
-			<Tooltip>
-				<TooltipTrigger render={<Button variant="outline">Send</Button>} />
-				<TooltipContent>Send this prompt</TooltipContent>
-			</Tooltip>
-		</TooltipProvider>
+		<Tooltip>
+			<TooltipTrigger render={<Button variant="outline">Send</Button>} />
+			<TooltipContent>Send this prompt</TooltipContent>
+		</Tooltip>
 	),
 	play: async ({ canvas, userEvent }) => {
 		await userEvent.hover(canvas.getByRole("button", { name: "Send" }))
@@ -75,20 +80,16 @@ export const WithSide = meta.story({
 		},
 	},
 	render: () => (
-		<TooltipProvider>
-			<Row>
-				<Tooltip>
-					<TooltipTrigger
-						render={
-							<Button aria-label="New bot" size="icon-sm" variant="ghost">
-								<Icons.Add />
-							</Button>
-						}
-					/>
-					<TooltipContent side="bottom">New bot</TooltipContent>
-				</Tooltip>
-			</Row>
-		</TooltipProvider>
+		<Tooltip>
+			<TooltipTrigger
+				render={
+					<Button aria-label="New bot" size="icon-sm" variant="ghost">
+						<Icons.Add />
+					</Button>
+				}
+			/>
+			<TooltipContent side="bottom">New bot</TooltipContent>
+		</Tooltip>
 	),
 	play: async ({ canvas, userEvent }) => {
 		const trigger = canvas.getByRole("button", { name: "New bot" })
@@ -114,12 +115,10 @@ export const LongContent = meta.story({
 		},
 	},
 	render: () => (
-		<TooltipProvider>
-			<Tooltip>
-				<TooltipTrigger render={<Button variant="outline">Send</Button>} />
-				<TooltipContent>{LONG_LABEL}</TooltipContent>
-			</Tooltip>
-		</TooltipProvider>
+		<Tooltip>
+			<TooltipTrigger render={<Button variant="outline">Send</Button>} />
+			<TooltipContent>{LONG_LABEL}</TooltipContent>
+		</Tooltip>
 	),
 	play: async ({ canvas, userEvent }) => {
 		await userEvent.hover(canvas.getByRole("button", { name: "Send" }))
@@ -144,12 +143,10 @@ export const OnDarkSurface = meta.story({
 		},
 	},
 	render: () => (
-		<TooltipProvider>
-			<Tooltip>
-				<TooltipTrigger render={<Button variant="outline">Send</Button>} />
-				<TooltipContent>Send this prompt</TooltipContent>
-			</Tooltip>
-		</TooltipProvider>
+		<Tooltip>
+			<TooltipTrigger render={<Button variant="outline">Send</Button>} />
+			<TooltipContent>Send this prompt</TooltipContent>
+		</Tooltip>
 	),
 	play: async ({ canvas, userEvent }) => {
 		await userEvent.hover(canvas.getByRole("button", { name: "Send" }))
