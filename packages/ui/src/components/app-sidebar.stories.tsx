@@ -5255,6 +5255,8 @@ export const DragConversationToSection = meta.story({
 	},
 })
 
+const SEARCH_TO_ROSTER_AIR = 9
+
 export const WithSearch = meta.story({
 	args: {
 		botsBySpaceId: { perso: ROSTER },
@@ -5266,7 +5268,7 @@ export const WithSearch = meta.story({
 		docs: {
 			description: {
 				story:
-					"The roster with the search field mounted above it. Check that the field sits between the pinned header and the first row rather than inside either, so it never scrolls away with the list, that its box lands in the lane a roster row's fill holds — same start edge, same end edge — and that the air under it is the air two rows leave between them, so the field reads as the first box of the stack rather than a lid glued on top of it. Pressing it reports and nothing else: the palette it opens is the host's to mount. A sidebar given no `onOpenSearch` draws no field at all, which is what `Roster` shows.",
+					"The roster with the search field mounted above it. Check that the field sits between the pinned header and the first row rather than inside either, so it never scrolls away with the list, that its box lands in the lane a roster row's fill holds — same start edge, same end edge — and that the column leaves 9px of air between the box and the first row's fill, so the field reads as its own box on the surface rather than a lid glued on top of the list. Pressing it reports and nothing else: the palette it opens is the host's to mount. A sidebar given no `onOpenSearch` draws no field at all, which is what `Roster` shows.",
 			},
 		},
 	},
@@ -5285,15 +5287,14 @@ export const WithSearch = meta.story({
 		await expect(content.contains(slot)).toBe(false)
 
 		const field = within(slot).getByRole("button", { name: /Search/ })
-		const [first, second] = rowsIn(canvasElement)
+		const [first] = rowsIn(canvasElement)
 		const fieldBox = field.getBoundingClientRect()
 		const firstFill = rowButton(first).getBoundingClientRect()
-		const secondFill = rowButton(second).getBoundingClientRect()
 
 		await expect(Math.round(fieldBox.left)).toBe(Math.round(firstFill.left))
 		await expect(Math.round(fieldBox.right)).toBe(Math.round(firstFill.right))
 		await expect(Math.round(firstFill.top - fieldBox.bottom)).toBe(
-			Math.round(secondFill.top - firstFill.bottom),
+			SEARCH_TO_ROSTER_AIR,
 		)
 
 		await userEvent.click(field)

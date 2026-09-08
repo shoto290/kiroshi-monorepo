@@ -24,6 +24,12 @@ const TRANSPARENT = "rgba(0, 0, 0, 0)"
 
 const ROSTER_HOVER_FILL = "hover:bg-sidebar-accent/70"
 
+const ACCENT_LABEL_UNDER_POINTER =
+	"group-hover/search-field:text-sidebar-accent-foreground"
+
+const ACCENT_GLYPH_UNDER_POINTER =
+	"group-hover/search-field:text-sidebar-accent-foreground/70"
+
 const Probe = ({ slot, tone }: { slot: string; tone: string }) => (
 	<span className={`hidden ${tone}`} data-slot={slot} />
 )
@@ -33,11 +39,16 @@ const Probes = () => (
 		<Probe slot="roster-hover-probe" tone="bg-sidebar-accent/70" />
 		<Probe slot="keycap-probe" tone="bg-sidebar-foreground/10" />
 		<Probe slot="sidebar-probe" tone="bg-sidebar" />
+		<Probe slot="accent-glyph-probe" tone="text-sidebar-accent-foreground/70" />
+		<Probe slot="accent-label-probe" tone="text-sidebar-accent-foreground" />
 	</>
 )
 
 const surfaceOf = (scope: HTMLElement, slot: string) =>
 	getComputedStyle(slotIn(scope, slot)).backgroundColor
+
+const toneOf = (scope: HTMLElement, slot: string) =>
+	getComputedStyle(slotIn(scope, slot)).color
 
 const keycapIn = (field: HTMLElement) => slotIn(field, "kbd")
 
@@ -102,7 +113,7 @@ export const UnderPointer = meta.story({
 		docs: {
 			description: {
 				story:
-					"The field with the pointer resting on it, drawn by the pseudo-state addon. Check by eye that it fills with the very surface a roster row takes under the pointer and that the keycap does not move with it — a cap that changed colour under the pointer would be noise on a control whose state has not changed. The play only holds the two rules in place: a headless run reports no pointer, so the surface itself cannot be measured here. `KeyboardFocus` measures that same fill on the state the keyboard can reach.",
+					"The field with the pointer resting on it, drawn by the pseudo-state addon. Check by eye that it fills with the surface a roster row takes under the pointer and that the glyph and the keycap label rise onto the accent foreground with it, while the keycap's own surface stays where it was — the cap is relabelled, not refilled. The play only holds those rules in place: a headless run reports no pointer, so the tones themselves cannot be measured here. `KeyboardFocus` measures them on the state the keyboard can reach.",
 			},
 		},
 	},
@@ -110,7 +121,9 @@ export const UnderPointer = meta.story({
 		const field = canvas.getByRole("button")
 
 		await expect(field).toHaveClass(ROSTER_HOVER_FILL)
-		await expect(keycapIn(field).className).not.toMatch(/hover/)
+		await expect(keycapIn(field)).toHaveClass(ACCENT_LABEL_UNDER_POINTER)
+		await expect(glyphIn(field)).toHaveClass(ACCENT_GLYPH_UNDER_POINTER)
+		await expect(keycapIn(field).className).not.toMatch(/hover.*bg-/)
 	},
 })
 
@@ -119,7 +132,7 @@ export const KeyboardFocus = meta.story({
 		docs: {
 			description: {
 				story:
-					"Rest and keyboard focus side by side. Check that the resting field carries no fill and no ring, that the one the keyboard reached takes the roster's hover surface plus the ring every roster row and section trigger already wears, drawn outside its border rather than replacing it, and that both keycaps sit on the same surface, so nothing about the cap moves when focus does. Reach for `UnderPointer` for the surface the pointer draws.",
+					"Rest and keyboard focus side by side. Check that the resting field carries no fill and no ring, that the one the keyboard reached takes the roster's hover surface plus the ring every roster row and section trigger already wears, drawn outside its border rather than replacing it, and that it carries the pointer's own skin down to the glyph and the keycap label, both risen onto the accent foreground. The keycap's surface is the one thing that does not move: it holds the same tone on both fields, so the cap reads as part of the field rather than as a second control lighting up inside it.",
 			},
 		},
 	},
@@ -146,6 +159,13 @@ export const KeyboardFocus = meta.story({
 			surfaceOf(canvasElement, "roster-hover-probe"),
 		)
 		await expect(getComputedStyle(focused).boxShadow).not.toBe("none")
+
+		await expect(getComputedStyle(glyphIn(focused)).color).toBe(
+			toneOf(canvasElement, "accent-glyph-probe"),
+		)
+		await expect(getComputedStyle(keycapIn(focused)).color).toBe(
+			toneOf(canvasElement, "accent-label-probe"),
+		)
 
 		await expect(getComputedStyle(rested).backgroundColor).toBe(TRANSPARENT)
 		await expect(getComputedStyle(rested).boxShadow).toBe("none")
