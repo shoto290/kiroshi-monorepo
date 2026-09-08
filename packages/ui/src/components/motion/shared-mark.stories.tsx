@@ -2,8 +2,8 @@ import { useId, useState } from "react"
 import { expect } from "storybook/test"
 
 import preview from "@workspace/storybook/preview"
-import { Button } from "@workspace/ui/components/button"
 import { SharedMark } from "@workspace/ui/components/motion/shared-mark"
+import { Button } from "@workspace/ui/components/ui/button"
 
 const MARK_SIZE = 40
 

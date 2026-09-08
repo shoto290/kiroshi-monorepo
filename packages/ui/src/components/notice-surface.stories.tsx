@@ -9,14 +9,7 @@ import {
 
 import preview from "@workspace/storybook/preview"
 import { A11Y_FLOATING_FOCUS_GUARDS } from "@workspace/storybook/story-utils"
-import { Button, buttonVariants } from "@workspace/ui/components/button"
-import {
-	Content,
-	Description as DialogDescription,
-	Root as DialogRoot,
-	Title as DialogTitle,
-	Trigger,
-} from "@workspace/ui/components/dialog"
+import { DialogSurface } from "@workspace/ui/components/dialog-surface"
 import {
 	type NoticeMessage,
 	NoticeSurface,
@@ -25,6 +18,13 @@ import {
 	raiseTransientNotice,
 	TRANSIENT_NOTICE_DELAY,
 } from "@workspace/ui/components/notice-surface"
+import { Button, buttonVariants } from "@workspace/ui/components/ui/button"
+import {
+	DialogDescription,
+	Dialog as DialogRoot,
+	DialogTitle,
+	DialogTrigger as Trigger,
+} from "@workspace/ui/components/ui/dialog"
 
 const SAVED: NoticeMessage = {
 	title: "Routine saved",
@@ -133,7 +133,7 @@ const meta = preview.meta({
 		docs: {
 			description: {
 				component:
-					"The window's notice surface: one viewport mounted once in the shell, and two ways to raise something into it. `raiseTransientNotice` reports what went right and leaves on its own once `TRANSIENT_NOTICE_DELAY` has passed; `raiseFailureNotice` reports what went wrong, wears the destructive border and its alert mark, and stays until the reader closes it — a failure that dismisses itself is close to silence. Both are module-level calls, so a controller, a driver or a scheduler raises a notice without a hook and without a component in scope. Notices land against the top inline-end edge, clear of the composer at the bottom and of the window controls at the top inline-start, newest nearest that edge, three at most. Enter and leave fade and slide over 150ms, and drop to a fade with no movement under `prefers-reduced-motion`. `transientDelay` on the viewport overrides the delay for the whole surface; a failure ignores it.",
+					"The window's notice surface: one viewport mounted once in the shell, and two ways to raise something into it. `raiseTransientNotice` reports what went right and leaves on its own once `TRANSIENT_NOTICE_DELAY` has passed; `raiseFailureNotice` reports what went wrong, wears the destructive border and its alert mark, and stays until the reader closes it — a failure that dismisses itself is close to silence. Both are module-level calls, so a controller, a driver or a scheduler raises a notice without a hook and without a component in scope. Notices land against the bottom inline-end edge, newest nearest that edge, three at most, with the ones beyond the limit marked `data-limited` rather than removed. Enter and leave fade and slide over 150ms, and drop to a fade with no movement under `prefers-reduced-motion`. `transientDelay` on the viewport overrides the delay for the whole surface; a failure ignores it.",
 			},
 		},
 	},
@@ -163,9 +163,12 @@ export const Default = meta.story({
 		await expect(notice).toHaveAccessibleName(SAVED.title)
 		await expect(notice).toHaveAccessibleDescription(SAVED.description)
 
-		const box = notice.getBoundingClientRect()
-		await expect(box.top).toBeLessThanOrEqual(24)
-		await expect(window.innerWidth - box.right).toBeLessThanOrEqual(24)
+		await waitFor(async () => {
+			const box = notice.getBoundingClientRect()
+
+			await expect(window.innerHeight - box.bottom).toBeLessThanOrEqual(24)
+			await expect(window.innerWidth - box.right).toBeLessThanOrEqual(24)
+		})
 
 		await expect(viewport()).toHaveAttribute("aria-live", "polite")
 		await expect(viewport()).toHaveAccessibleName("Notices")
@@ -243,7 +246,7 @@ export const Stacked = meta.story({
 		docs: {
 			description: {
 				story:
-					"Four failures raised in a row from the module itself, three kept. Reach for this when several jobs fail at once: check that the surface holds no more than three notices, that the one that no longer fits is the oldest, and that the newest sits nearest the top inline-end edge so a reader's eye lands on what just happened rather than on what they already read. The `aria-hidden-focus` audit is left to review here for the same reason as in `LongContent`: three urgent notices sit unfocused, hidden from the accessibility tree by the library while their mirrors do the announcing.",
+					"Four failures raised in a row from the module itself, three kept. Reach for this when several jobs fail at once: check that the surface holds no more than three notices, that the one that no longer fits is the oldest, and that the newest sits nearest the bottom inline-end edge so a reader's eye lands on what just happened rather than on what they already read. The `aria-hidden-focus` audit is left to review here for the same reason as in `LongContent`: three urgent notices sit unfocused, hidden from the accessibility tree by the library while their mirrors do the announcing.",
 			},
 		},
 	},
@@ -259,11 +262,14 @@ export const Stacked = meta.story({
 		await expect(onScreen[0]).toHaveTextContent(STACK[3].title)
 		await expect(onScreen[1]).toHaveTextContent(STACK[2].title)
 		await expect(onScreen[2]).toHaveTextContent(STACK[1].title)
-		await expect(within(viewport()).getByText(STACK[0].title)).not.toBeVisible()
+		const dropped = within(viewport())
+			.getByText(STACK[0].title)
+			.closest("[data-slot=toast]")
+		await expect(dropped).toHaveAttribute("data-limited")
 
 		const tops = onScreen.map((notice) => notice.getBoundingClientRect().top)
-		await expect(tops[0]).toBeLessThan(tops[1])
-		await expect(tops[1]).toBeLessThan(tops[2])
+		await expect(tops[0]).toBeGreaterThan(tops[1])
+		await expect(tops[1]).toBeGreaterThan(tops[2])
 	},
 })
 
@@ -317,7 +323,7 @@ export const Dismissing = meta.story({
 		docs: {
 			description: {
 				story:
-					"The pointer way out. Notices are anchored to the top inline-end corner, so they leave through that corner: a drag up or toward the inline end dismisses, a drag toward the middle of the window snaps back and keeps the notice. Reach for this when checking that the gesture points at the nearest edge rather than dragging the notice across the surface.",
+					"The pointer way out. Notices are anchored to the bottom inline-end corner, so they leave through that corner: a drag down or toward the inline end dismisses, a drag toward the middle of the window snaps back and keeps the notice. Reach for this when checking that the gesture points at the nearest edge rather than dragging the notice across the surface.",
 			},
 		},
 	},
@@ -328,10 +334,10 @@ export const Dismissing = meta.story({
 
 		const notice = await failureNotice()
 
-		await swipe(notice, userEvent, { y: SWIPE_DISTANCE })
+		await swipe(notice, userEvent, { y: -SWIPE_DISTANCE })
 		await expect(within(viewport()).getByText(FAILURE.title)).toBeVisible()
 
-		await swipe(notice, userEvent, { y: -SWIPE_DISTANCE })
+		await swipe(notice, userEvent, { y: SWIPE_DISTANCE })
 		await waitFor(() =>
 			expect(within(viewport()).queryByText(FAILURE.title)).toBe(null),
 		)
@@ -345,12 +351,12 @@ export const WithDialog = meta.story({
 				<Trigger className={buttonVariants({ variant: "outline" })}>
 					Bot settings
 				</Trigger>
-				<Content>
+				<DialogSurface>
 					<DialogTitle>Bot settings</DialogTitle>
 					<DialogDescription>
 						Name the bot, point it at a folder and tell it how to behave.
 					</DialogDescription>
-				</Content>
+				</DialogSurface>
 			</DialogRoot>
 			<NoticeSurface />
 		</>
@@ -371,12 +377,15 @@ export const WithDialog = meta.story({
 		raiseFailureNotice(FAILURE)
 		const notice = await failureNotice()
 
-		const box = notice.getBoundingClientRect()
-		const topmost = document.elementFromPoint(
-			box.left + box.width / 2,
-			box.top + box.height / 2,
-		)
-		await expect(notice.contains(topmost)).toBe(true)
+		await waitFor(async () => {
+			const box = notice.getBoundingClientRect()
+			const topmost = document.elementFromPoint(
+				box.left + box.width / 2,
+				box.top + box.height / 2,
+			)
+
+			await expect(notice.contains(topmost)).toBe(true)
+		})
 		await expect(isInaccessible(viewport())).toBe(false)
 
 		await userEvent.click(closeControl())

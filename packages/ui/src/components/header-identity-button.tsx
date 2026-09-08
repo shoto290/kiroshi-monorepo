@@ -8,12 +8,12 @@ import {
 	type ActivityIndicatorKind,
 	BotIdentityAvatar,
 } from "@workspace/ui/components/bot-identity-avatar"
-import { Button } from "@workspace/ui/components/button"
 import {
 	ConnectionStatus,
 	type ConnectionStatusState,
 } from "@workspace/ui/components/connection-status"
 import { Icons } from "@workspace/ui/components/icons"
+import { Button } from "@workspace/ui/components/ui/button"
 import { cn } from "@workspace/ui/lib/utils"
 
 const AVATAR_SIZE = 24

@@ -1,7 +1,7 @@
 import { describe, expect, it } from "vitest"
 
 import type { AppSidebarBot } from "@workspace/ui/components/app-sidebar"
-import type { BotMissionState } from "@workspace/ui/components/badge"
+import type { BotMissionState } from "@workspace/ui/components/bot-badge"
 import { BLANK_BOT_PERMISSIONS } from "@workspace/ui/components/bot-settings"
 
 import type {

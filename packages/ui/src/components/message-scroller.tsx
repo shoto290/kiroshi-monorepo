@@ -7,7 +7,7 @@ import {
 import { ArrowDownIcon } from "lucide-react"
 import type * as React from "react"
 
-import { Button } from "@workspace/ui/components/button"
+import { Button } from "@workspace/ui/components/ui/button"
 import { cn } from "@workspace/ui/lib/utils"
 
 function MessageScrollerProvider(

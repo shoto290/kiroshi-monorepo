@@ -2,8 +2,8 @@
 
 import { useTranslation } from "react-i18next"
 
-import { Button } from "@workspace/ui/components/button"
 import { Icons } from "@workspace/ui/components/icons"
+import { TooltipButton } from "@workspace/ui/components/tooltip-button"
 import { Kbd } from "@workspace/ui/components/ui/kbd"
 
 type SidebarSearchFieldProps = {
@@ -36,7 +36,7 @@ const SidebarSearchField = ({
 				data-collapsed="true"
 				data-slot="sidebar-search-field"
 			>
-				<Button
+				<TooltipButton
 					aria-label={label}
 					className="hover:bg-sidebar-accent/70"
 					onClick={onOpen}
@@ -46,7 +46,7 @@ const SidebarSearchField = ({
 					variant="ghost"
 				>
 					<Icons.Search aria-hidden="true" />
-				</Button>
+				</TooltipButton>
 			</div>
 		)
 

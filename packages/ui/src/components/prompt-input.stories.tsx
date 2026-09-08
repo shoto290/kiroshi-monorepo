@@ -1,7 +1,6 @@
 import { expect, fn, waitFor } from "storybook/test"
 
 import preview from "@workspace/storybook/preview"
-import { Button } from "@workspace/ui/components/button"
 import { Icons } from "@workspace/ui/components/icons"
 import { PromptAttachButton } from "@workspace/ui/components/prompt-attach-button"
 import { PromptAttachments } from "@workspace/ui/components/prompt-attachments"
@@ -11,6 +10,7 @@ import {
 	PROMPT_ATTACHMENTS,
 } from "@workspace/ui/components/prompt-attachments.fixtures"
 import { PromptInput } from "@workspace/ui/components/prompt-input"
+import { Button } from "@workspace/ui/components/ui/button"
 
 const DRAFT = "Summarise the release notes for v0.1"
 

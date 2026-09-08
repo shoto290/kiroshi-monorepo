@@ -4,7 +4,6 @@ import { motion, useReducedMotion } from "motion/react"
 import { type ReactNode, useCallback, useId, useState } from "react"
 import { useTranslation } from "react-i18next"
 
-import { Button } from "@workspace/ui/components/button"
 import {
 	CodeSnippet,
 	type CodeSnippetLanguage,
@@ -15,6 +14,7 @@ import {
 	TOOL_CARD_CLASS,
 	TOOL_CARD_SECTION_CLASS,
 } from "@workspace/ui/components/tool-card-styles"
+import { Button } from "@workspace/ui/components/ui/button"
 import { useAutoFocus } from "@workspace/ui/hooks/use-auto-focus"
 import { SPRING_SWAP } from "@workspace/ui/lib/ease"
 import { cn } from "@workspace/ui/lib/utils"

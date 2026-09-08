@@ -10,7 +10,6 @@ import {
 import { useTranslation } from "react-i18next"
 import type { ExtraProps } from "react-markdown"
 
-import { Button } from "@workspace/ui/components/button"
 import { CodeLine } from "@workspace/ui/components/code-block"
 import { Icons } from "@workspace/ui/components/icons"
 import {
@@ -22,6 +21,7 @@ import {
 	MERMAID_LANGUAGE,
 } from "@workspace/ui/components/markdown/mermaid"
 import { MARKDOWN_ESCAPED_BLOCK_CLASS } from "@workspace/ui/components/markdown/prose"
+import { TooltipButton } from "@workspace/ui/components/tooltip-button"
 import { useCodeHighlightReady } from "@workspace/ui/hooks/use-code-highlight-ready"
 import { useCopyText } from "@workspace/ui/hooks/use-copy-text"
 import { highlightCode, toCodeLines } from "@workspace/ui/lib/code-highlight"
@@ -121,7 +121,7 @@ const MarkdownFence = ({ code, language }: MarkdownFenceProps) => {
 				</span>
 			</pre>
 			<span className="absolute top-2 right-2">
-				<Button
+				<TooltipButton
 					variant="ghost"
 					size="icon-xs"
 					aria-label={copied ? t("code.copied") : t("code.copy")}
@@ -131,7 +131,7 @@ const MarkdownFence = ({ code, language }: MarkdownFenceProps) => {
 					}}
 				>
 					{copied ? <Icons.Check /> : <Icons.Copy />}
-				</Button>
+				</TooltipButton>
 			</span>
 		</div>
 	)

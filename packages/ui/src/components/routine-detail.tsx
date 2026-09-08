@@ -3,12 +3,12 @@
 import { useEffect, useRef } from "react"
 import { useTranslation } from "react-i18next"
 
-import { Badge } from "@workspace/ui/components/badge"
-import { Button } from "@workspace/ui/components/button"
 import { EmptyStateShell } from "@workspace/ui/components/empty-state-shell"
 import { type Icon, Icons } from "@workspace/ui/components/icons"
 import { Notice } from "@workspace/ui/components/notice"
 import { FIELD_LABEL_CLASS } from "@workspace/ui/components/settings-styles"
+import { Badge } from "@workspace/ui/components/ui/badge"
+import { Button } from "@workspace/ui/components/ui/button"
 import { toRelativeTime } from "@workspace/ui/lib/relative-time"
 import { cn } from "@workspace/ui/lib/utils"
 

@@ -6,7 +6,7 @@ import { useTranslation } from "react-i18next"
 
 import { DangerZone } from "@workspace/ui/components/bot-settings-dialog/danger-zone"
 import { ParticipantsPanel } from "@workspace/ui/components/conversation-settings-dialog/participants-panel"
-import { Content, Root, Title } from "@workspace/ui/components/dialog"
+import { DialogSurface } from "@workspace/ui/components/dialog-surface"
 import { Icons } from "@workspace/ui/components/icons"
 import type { RosterBot } from "@workspace/ui/components/roster"
 import { SettingsField } from "@workspace/ui/components/settings-field"
@@ -20,6 +20,7 @@ import {
 	SettingsScrollingPanel,
 } from "@workspace/ui/components/settings-rail"
 import { SETTINGS_HEADER_CLASS } from "@workspace/ui/components/settings-styles"
+import { Dialog, DialogTitle } from "@workspace/ui/components/ui/dialog"
 import { useIsNarrowerThan } from "@workspace/ui/hooks/use-is-narrower-than"
 import { cn } from "@workspace/ui/lib/utils"
 
@@ -71,8 +72,8 @@ const ConversationSettingsDialog = ({
 		onValueChange({ ...value, ...fields })
 
 	return (
-		<Root onOpenChange={(next) => !next && onClose()} open={open}>
-			<Content
+		<Dialog onOpenChange={(next) => !next && onClose()} open={open}>
+			<DialogSurface
 				className={cn(
 					"h-[34rem] w-[52rem] gap-0 overflow-hidden p-0",
 					className,
@@ -83,7 +84,7 @@ const ConversationSettingsDialog = ({
 						aria-hidden="true"
 						className="size-5 shrink-0 text-muted-foreground"
 					/>
-					<Title className="flex min-w-0 items-center gap-1.5 pr-0">
+					<DialogTitle className="flex min-w-0 items-center gap-1.5 pr-0">
 						<span className="truncate">{conversationName}</span>
 						<Icons.Next
 							aria-hidden="true"
@@ -92,7 +93,7 @@ const ConversationSettingsDialog = ({
 						<span className="shrink-0 text-muted-foreground">
 							{t("conversationSettings.breadcrumb")}
 						</span>
-					</Title>
+					</DialogTitle>
 				</header>
 
 				<Tabs.Root
@@ -171,8 +172,8 @@ const ConversationSettingsDialog = ({
 						/>
 					</SettingsScrollingPanel>
 				</Tabs.Root>
-			</Content>
-		</Root>
+			</DialogSurface>
+		</Dialog>
 	)
 }
 

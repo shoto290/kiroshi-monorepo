@@ -1,11 +1,15 @@
 import { expect } from "storybook/test"
 
 import preview from "@workspace/storybook/preview"
+import { Row, UPLOADED_AVATAR_IMAGE } from "@workspace/storybook/story-utils"
 import {
-	slotsIn,
-	UPLOADED_AVATAR_IMAGE,
-} from "@workspace/storybook/story-utils"
-import { Avatar } from "@workspace/ui/components/avatar"
+	Avatar,
+	AvatarBadge,
+	AvatarFallback,
+	AvatarGroup,
+	AvatarGroupCount,
+	AvatarImage,
+} from "@workspace/ui/components/ui/avatar"
 
 const NAME = "Ada Martin"
 
@@ -17,19 +21,76 @@ const meta = preview.meta({
 		docs: {
 			description: {
 				component:
-					"The reader's own face, wherever the app shows it: the sidebar chip and the breadcrumb of their settings. One rendering for both, so a picture uploaded in the dialog is the picture the chip wears, and a reader with no picture wears the same initials in both. It draws and nothing else — no name beside it, no press target, no layout around it. `size` is the only thing a call site changes; the initials scale with it.",
+					"The avatar as the shadcn registry ships it: a root that picks a size from the closed set `sm`, `default`, `lg` - 24, 32 and 40 pixels - with `AvatarImage` and `AvatarFallback` swapping on load. Reach for `InitialsAvatar` when the size comes from the caller in pixels or the initials have to be derived from a name.",
 			},
 		},
 	},
-	args: { name: NAME },
 })
 
 export const Default = meta.story({
+	render: () => (
+		<Avatar>
+			<AvatarImage alt={NAME} src={UPLOADED_AVATAR_IMAGE} />
+			<AvatarFallback>AM</AvatarFallback>
+		</Avatar>
+	),
 	parameters: {
 		docs: {
 			description: {
 				story:
-					"A reader who has filled in a name but uploaded no picture. Check that the initials are the first letter of the first two words, upper case whatever the name's own casing, and that the circle is fully round rather than a squared avatar. Pick `WithPicture` for the uploaded one.",
+					"A loaded picture at the default 32px. Check the image fills the circle by covering rather than stretching, so a non-square upload is cropped instead of skewed.",
+			},
+		},
+	},
+	play: async ({ canvas }) => {
+		const image = canvas.getByAltText(NAME)
+
+		await expect(getComputedStyle(image).objectFit).toBe("cover")
+	},
+})
+
+export const Sizes = meta.story({
+	render: () => (
+		<Row>
+			<Avatar size="sm">
+				<AvatarFallback>AM</AvatarFallback>
+			</Avatar>
+			<Avatar>
+				<AvatarFallback>AM</AvatarFallback>
+			</Avatar>
+			<Avatar size="lg">
+				<AvatarFallback>AM</AvatarFallback>
+			</Avatar>
+		</Row>
+	),
+	parameters: {
+		docs: {
+			description: {
+				story:
+					"Every size in the closed set. Check the fallback text steps down with the circle rather than staying pinned at one size, and pick `InitialsAvatar` when the caller needs a pixel size outside these three.",
+			},
+		},
+	},
+	play: async ({ canvas }) => {
+		const heights = canvas
+			.getAllByText("AM")
+			.map((fallback) => fallback.getBoundingClientRect().height)
+
+		await expect(heights).toEqual([24, 32, 40])
+	},
+})
+
+export const Empty = meta.story({
+	render: () => (
+		<Avatar>
+			<AvatarFallback>AM</AvatarFallback>
+		</Avatar>
+	),
+	parameters: {
+		docs: {
+			description: {
+				story:
+					"No image at all, the state a reader who never uploaded one sits in. Check the fallback shows immediately instead of flashing an empty circle first.",
 			},
 		},
 	},
@@ -38,61 +99,41 @@ export const Default = meta.story({
 	},
 })
 
-export const WithPicture = meta.story({
-	args: { image: UPLOADED_AVATAR_IMAGE },
-	parameters: {
-		docs: {
-			description: {
-				story:
-					"A reader who uploaded a picture. Check that it wins over the initials, that it fills the circle by covering rather than stretching, and that it stays out of the accessible tree — the row around it already carries the name, and an avatar announcing it again would say it twice. Pick `Default` for the initials.",
-			},
-		},
-	},
-	play: async ({ canvasElement }) => {
-		const [avatar] = slotsIn(canvasElement, "user-avatar")
-		const image = avatar.querySelector("img")
-
-		await expect(image).toHaveAttribute("aria-hidden", "true")
-		await expect(getComputedStyle(image as Element).objectFit).toBe("cover")
-	},
-})
-
-export const Empty = meta.story({
-	args: { name: "" },
-	parameters: {
-		docs: {
-			description: {
-				story:
-					"A reader who never filled a name in. Check that the circle reads `Y` for `You` rather than sitting blank — an avatar with nothing in it is indistinguishable from one that failed to load. Pick `Default` for the named reader.",
-			},
-		},
-	},
-	play: async ({ canvas }) => {
-		await expect(canvas.getByText("Y")).toBeVisible()
-	},
-})
-
-export const Sizes = meta.story({
+export const WithBadge = meta.story({
 	render: () => (
-		<div className="flex items-center gap-4">
-			<Avatar name={NAME} size={28} />
-			<Avatar name={NAME} size={32} />
-			<Avatar image={UPLOADED_AVATAR_IMAGE} name={NAME} size={64} />
-		</div>
+		<Avatar>
+			<AvatarFallback>AM</AvatarFallback>
+			<AvatarBadge />
+		</Avatar>
 	),
 	parameters: {
 		docs: {
 			description: {
 				story:
-					"The two sizes in use — 28 in the sidebar chip, 32 in the settings breadcrumb — and a large one to show the rule holds. Check that the initials grow with the circle instead of staying pinned at one size and floating in a large one.",
+					"`AvatarBadge` pins a mark to the bottom corner and sizes it from the avatar's own size. Check it keeps the ring that lifts it off whatever is behind the avatar.",
 			},
 		},
 	},
-	play: async ({ canvasElement }) => {
-		const heights = slotsIn(canvasElement, "user-avatar").map(
-			(avatar) => avatar.getBoundingClientRect().height,
-		)
+})
 
-		await expect(heights).toEqual([28, 32, 64])
+export const InGroup = meta.story({
+	render: () => (
+		<AvatarGroup>
+			<Avatar>
+				<AvatarFallback>AM</AvatarFallback>
+			</Avatar>
+			<Avatar>
+				<AvatarFallback>LR</AvatarFallback>
+			</Avatar>
+			<AvatarGroupCount>+3</AvatarGroupCount>
+		</AvatarGroup>
+	),
+	parameters: {
+		docs: {
+			description: {
+				story:
+					"Several avatars overlapped, with `AvatarGroupCount` closing the row. Check the overlap keeps each ring visible so the faces stay countable, and pick `Branding/AvatarGroup` for the conversation tile, which is a different component with the same name.",
+			},
+		},
 	},
 })

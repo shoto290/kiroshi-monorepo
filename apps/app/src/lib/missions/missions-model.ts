@@ -1,5 +1,5 @@
 import type { AppSidebarRowMission } from "@workspace/ui/components/app-sidebar"
-import type { BotBadge, BotMissionState } from "@workspace/ui/components/badge"
+import type { BotBadge, BotMissionState } from "@workspace/ui/components/bot-badge"
 import type { MessageAuthor } from "@workspace/ui/components/message"
 import type {
 	MissionCardModel,

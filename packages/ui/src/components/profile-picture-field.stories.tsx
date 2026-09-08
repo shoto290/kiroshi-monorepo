@@ -5,14 +5,14 @@ import {
 	PICKED_PICTURE_FILE,
 	UPLOADED_AVATAR_IMAGE,
 } from "@workspace/storybook/story-utils"
-import { Avatar } from "@workspace/ui/components/avatar"
 import { BotIdentityAvatar } from "@workspace/ui/components/bot-identity-avatar"
 import { Icons } from "@workspace/ui/components/icons"
+import { InitialsAvatar } from "@workspace/ui/components/initials-avatar"
 import { ProfilePictureField } from "@workspace/ui/components/profile-picture-field"
 import { PICTURE_FIELD_SIZE } from "@workspace/ui/components/settings-styles"
 
 const PICTURE = (
-	<Avatar image={UPLOADED_AVATAR_IMAGE} size={PICTURE_FIELD_SIZE} />
+	<InitialsAvatar image={UPLOADED_AVATAR_IMAGE} size={PICTURE_FIELD_SIZE} />
 )
 
 const GLYPH = (

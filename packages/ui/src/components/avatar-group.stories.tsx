@@ -12,7 +12,7 @@ import {
 	type AvatarGroupProps,
 	type ConversationParticipant,
 } from "@workspace/ui/components/avatar-group"
-import { BOT_BADGES } from "@workspace/ui/components/badge"
+import { BOT_BADGES } from "@workspace/ui/components/bot-badge"
 import { BotIdentityAvatar } from "@workspace/ui/components/bot-identity-avatar"
 
 const SIZES = [24, 40, 96]

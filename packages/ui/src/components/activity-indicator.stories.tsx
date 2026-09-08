@@ -14,9 +14,9 @@ import {
 } from "@workspace/ui/components/activity-indicator"
 import { BLOT_TINTS } from "@workspace/ui/components/bot-avatar"
 import { ANIMALS } from "@workspace/ui/components/bot-avatar-animals"
-import { Button } from "@workspace/ui/components/button"
 import { MarkProvider } from "@workspace/ui/components/mark-context"
 import { TURN_AVATAR_SIZE, UserTurn } from "@workspace/ui/components/turn"
+import { Button } from "@workspace/ui/components/ui/button"
 
 const BUSY_BOT = { animal: "owl", blot: "blue", seed: "bot-7" } as const
 

@@ -13,7 +13,6 @@ import {
 } from "react"
 import { useTranslation } from "react-i18next"
 
-import { Button } from "@workspace/ui/components/button"
 import { Icons } from "@workspace/ui/components/icons"
 import { MessageHighlightProvider } from "@workspace/ui/components/message-highlight-context"
 import {
@@ -26,6 +25,7 @@ import {
 	useMessageScroller,
 	useMessageScrollerScrollable,
 } from "@workspace/ui/components/message-scroller"
+import { Button } from "@workspace/ui/components/ui/button"
 import { cn } from "@workspace/ui/lib/utils"
 
 export interface TranscriptItem {

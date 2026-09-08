@@ -1,5 +1,5 @@
 import type { VariantProps } from "class-variance-authority"
-import { expect, fn, waitFor } from "storybook/test"
+import { expect, fn } from "storybook/test"
 
 import preview from "@workspace/storybook/preview"
 import {
@@ -7,8 +7,8 @@ import {
 	listExhaustively,
 	Row,
 } from "@workspace/storybook/story-utils"
-import { Button, type buttonVariants } from "@workspace/ui/components/button"
 import { Icons } from "@workspace/ui/components/icons"
+import { Button, type buttonVariants } from "@workspace/ui/components/ui/button"
 
 type ButtonVariant = NonNullable<VariantProps<typeof buttonVariants>["variant"]>
 type ButtonSize = NonNullable<VariantProps<typeof buttonVariants>["size"]>
@@ -137,54 +137,6 @@ export const WithIcons = meta.story({
 			</Button>
 		</Row>
 	),
-})
-
-export const WithTooltip = meta.story({
-	parameters: {
-		docs: {
-			description: {
-				story:
-					"`tooltip` wraps the button in a `Tooltip` and costs nothing when it is omitted — no wrapper, no listeners. Reach for it on an icon-only control, and give that control an `aria-label` too: the tooltip describes on hover and focus, it does not name. `tooltipSide` says which way it opens, for the controls that have nothing above them: a button pinned to the top of a window opens its label downwards or off the screen. Check that the label opens on hover and on Tab, that the one asking for `bottom` opens under its button, and that the plain button beside them renders exactly as it did before.",
-			},
-		},
-	},
-	render: () => (
-		<Row>
-			<Button variant="ghost" size="icon-sm" aria-label="Copy" tooltip="Copy">
-				<Icons.Copy />
-			</Button>
-			<Button variant="outline" tooltip="Sends the prompt to Claude">
-				Send
-			</Button>
-			<Button
-				aria-label="New bot"
-				size="icon-sm"
-				tooltip="New bot"
-				tooltipSide="bottom"
-				variant="ghost"
-			>
-				<Icons.Add />
-			</Button>
-			<Button variant="outline">No tooltip</Button>
-		</Row>
-	),
-	play: async ({ canvas, userEvent }) => {
-		const wrapper = canvas.getByRole("button", { name: "Copy" }).parentElement
-		const plain = canvas.getByRole("button", { name: "No tooltip" })
-
-		await expect(wrapper?.tagName).toBe("SPAN")
-		await expect(wrapper?.parentElement).toBe(plain.parentElement)
-
-		const below = canvas.getByRole("button", { name: "New bot" })
-		await userEvent.hover(below)
-		await waitFor(async () => {
-			const label = document.body.querySelector('[role="tooltip"]')
-			await expect(label).toBeVisible()
-			await expect(label?.getBoundingClientRect().top).toBeGreaterThanOrEqual(
-				below.getBoundingClientRect().bottom,
-			)
-		})
-	},
 })
 
 export const AsLink = meta.story({

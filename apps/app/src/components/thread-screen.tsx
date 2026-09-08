@@ -9,7 +9,7 @@ import {
 
 import { ActivityIndicator } from "@workspace/ui/components/activity-indicator"
 import { AppHeader } from "@workspace/ui/components/app-header"
-import { Avatar } from "@workspace/ui/components/avatar"
+import { InitialsAvatar } from "@workspace/ui/components/initials-avatar"
 import type { BotStopProps } from "@workspace/ui/components/bot-identity-avatar"
 import { ChatEmptyState } from "@workspace/ui/components/chat-empty-state"
 import { ConversationEmptyState } from "@workspace/ui/components/conversation-empty-state"
@@ -182,7 +182,7 @@ const toPinnedRow = (
 		avatar: isBotAuthor ? (
 			<FaceAvatar face={face} size={PINNED_AVATAR_SIZE} />
 		) : (
-			<Avatar name={reader} size={PINNED_AVATAR_SIZE} />
+			<InitialsAvatar name={reader} size={PINNED_AVATAR_SIZE} />
 		),
 		timestamp: pinTimestamp(bubble.timestamp),
 		excerpt: toExcerpt(messageWithAttachments(bubble.text).text.trim()),

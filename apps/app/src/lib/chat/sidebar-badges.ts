@@ -1,4 +1,4 @@
-import type { BotBadge as ShownBadge } from "@workspace/ui/components/badge"
+import type { BotBadge as ShownBadge } from "@workspace/ui/components/bot-badge"
 
 import type { BotBadge } from "./bot-badge"
 

@@ -8,14 +8,14 @@ import {
 	slotsIn,
 	UPLOADED_AVATAR_IMAGE,
 } from "@workspace/storybook/story-utils"
-import { BOT_BADGES } from "@workspace/ui/components/badge"
 import { BLOT_TINTS } from "@workspace/ui/components/bot-avatar"
 import { blotTransform } from "@workspace/ui/components/bot-avatar-blot"
+import { BOT_BADGES } from "@workspace/ui/components/bot-badge"
 import {
 	BotIdentityAvatar,
 	type BotIdentityAvatarProps,
 } from "@workspace/ui/components/bot-identity-avatar"
-import { Button } from "@workspace/ui/components/button"
+import { Button } from "@workspace/ui/components/ui/button"
 
 const SIZES = [40, 96, 24]
 

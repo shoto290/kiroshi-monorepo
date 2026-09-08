@@ -1,9 +1,9 @@
 import type { VariantProps } from "class-variance-authority"
 import { useTranslation } from "react-i18next"
 
-import { Badge, type badgeVariants } from "@workspace/ui/components/badge"
 import { type Icon, Icons } from "@workspace/ui/components/icons"
 import type { MissionState } from "@workspace/ui/components/mission"
+import { Badge, type badgeVariants } from "@workspace/ui/components/ui/badge"
 import { cn } from "@workspace/ui/lib/utils"
 
 type BadgeVariant = NonNullable<VariantProps<typeof badgeVariants>["variant"]>

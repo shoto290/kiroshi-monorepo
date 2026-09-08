@@ -3,7 +3,6 @@
 import { useState } from "react"
 import { useTranslation } from "react-i18next"
 
-import { Button } from "@workspace/ui/components/button"
 import { ConfirmDialog } from "@workspace/ui/components/confirm-dialog"
 import { Icons } from "@workspace/ui/components/icons"
 import { SettingsField } from "@workspace/ui/components/settings-field"
@@ -12,6 +11,7 @@ import {
 	FIELD_CONTROL_READONLY_CLASS,
 	FIELD_LABEL_CLASS,
 } from "@workspace/ui/components/settings-styles"
+import { Button } from "@workspace/ui/components/ui/button"
 import { cn } from "@workspace/ui/lib/utils"
 
 type MemoryPanelProps = {

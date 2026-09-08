@@ -21,13 +21,13 @@ import {
 	type Space,
 	type UserChipIdentity,
 } from "@workspace/ui/components/app-sidebar"
+import { blotTransform } from "@workspace/ui/components/bot-avatar-blot"
 import type {
 	BotMissionState,
 	BotMissionTicket,
-} from "@workspace/ui/components/badge"
-import { blotTransform } from "@workspace/ui/components/bot-avatar-blot"
-import { Button } from "@workspace/ui/components/button"
+} from "@workspace/ui/components/bot-badge"
 import { Icons } from "@workspace/ui/components/icons"
+import { TooltipButton } from "@workspace/ui/components/tooltip-button"
 import { WorkspaceShell } from "@workspace/ui/components/workspace-shell"
 
 const LAST_MESSAGE =
@@ -255,14 +255,14 @@ const LONG_ROSTER: AppSidebarBot[] = [0, 1, 2].flatMap((pass) =>
 const FOOTER_LABEL = "Workspace settings"
 
 const FOOTER_CONTENT = (
-	<Button
+	<TooltipButton
 		aria-label={FOOTER_LABEL}
 		size="icon-sm"
 		tooltip={FOOTER_LABEL}
 		variant="ghost"
 	>
 		<Icons.Settings aria-hidden="true" />
-	</Button>
+	</TooltipButton>
 )
 
 const SPACES: Space[] = [

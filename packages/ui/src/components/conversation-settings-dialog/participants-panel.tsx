@@ -4,7 +4,6 @@ import { useState } from "react"
 import { useTranslation } from "react-i18next"
 
 import { BotIdentityAvatar } from "@workspace/ui/components/bot-identity-avatar"
-import { Button } from "@workspace/ui/components/button"
 import { Icons } from "@workspace/ui/components/icons"
 import { BotPicker } from "@workspace/ui/components/new-conversation-dialog/bot-picker"
 import type { RosterBot } from "@workspace/ui/components/roster"
@@ -12,6 +11,7 @@ import {
 	FIELD_LABEL_CLASS,
 	SETTINGS_TAG_CLASS,
 } from "@workspace/ui/components/settings-styles"
+import { Button } from "@workspace/ui/components/ui/button"
 import { cn } from "@workspace/ui/lib/utils"
 
 const ROW_AVATAR_SIZE = 28

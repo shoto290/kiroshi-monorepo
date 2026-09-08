@@ -3,11 +3,11 @@
 import { useId } from "react"
 import { useTranslation } from "react-i18next"
 
-import { Badge } from "@workspace/ui/components/badge"
-import { buttonVariants } from "@workspace/ui/components/button"
 import { ConfirmDialog } from "@workspace/ui/components/confirm-dialog"
 import { Icons } from "@workspace/ui/components/icons"
-import { Switch } from "@workspace/ui/components/switch"
+import { ToggleSwitch } from "@workspace/ui/components/toggle-switch"
+import { Badge } from "@workspace/ui/components/ui/badge"
+import { buttonVariants } from "@workspace/ui/components/ui/button"
 
 type RoutineRowModel = {
 	id: string
@@ -71,7 +71,7 @@ const RoutineRow = ({
 			) : (
 				<div className="flex min-w-0 flex-1 flex-col gap-1">{identity}</div>
 			)}
-			<Switch
+			<ToggleSwitch
 				aria-labelledby={titleId}
 				checked={isEnabled}
 				onCheckedChange={onEnabledChange}

@@ -1,6 +1,6 @@
 import { useState } from "react"
 
-import { Button } from "@workspace/ui/components/button"
+import { Button } from "@workspace/ui/components/ui/button"
 
 const EASINGS = [
 	{ className: "ease-linear", value: "linear" },
