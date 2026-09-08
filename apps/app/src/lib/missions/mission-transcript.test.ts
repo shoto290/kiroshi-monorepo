@@ -110,19 +110,13 @@ describe("placeMissions", () => {
 		])
 	})
 
-	it("leaves a mission older than every loaded run out of the feed", () => {
+	it("leaves a mission older than every loaded run out of the feed until older runs arrive", () => {
 		expect(
 			placeMissions([LATER_PROMPT, LATER_ANSWER], [missionOf("m-1", 200)]),
 		).toEqual([])
-	})
-
-	it("draws a mission older than every loaded run once older runs are loaded", () => {
-		expect(
-			placeMissions(
-				[PROMPT, ANSWER, LATER_PROMPT, LATER_ANSWER],
-				[missionOf("m-1", 200)],
-			),
-		).toEqual([{ mission: missionOf("m-1", 200), runIndex: 1 }])
+		expect(placeMissions(RUNS, [missionOf("m-1", 200)])).toEqual([
+			{ mission: missionOf("m-1", 200), runIndex: 1 },
+		])
 	})
 
 	it("leaves a mission of a transcript with no run at all out of the feed", () => {

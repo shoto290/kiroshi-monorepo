@@ -32,10 +32,11 @@ export const placeMissions = (
 ): PlacedMission[] =>
 	[...missions]
 		.sort((one, other) => one.openedAt - other.openedAt)
-		.flatMap((mission) => {
-			const runIndex = lastRunOpenedBefore(runs, mission.openedAt)
-			return runIndex === BEFORE_FIRST_RUN ? [] : [{ mission, runIndex }]
-		})
+		.map((mission) => ({
+			mission,
+			runIndex: lastRunOpenedBefore(runs, mission.openedAt),
+		}))
+		.filter(({ runIndex }) => runIndex !== BEFORE_FIRST_RUN)
 
 export const placeMissionEvents = (
 	runs: TranscriptRow[][],
