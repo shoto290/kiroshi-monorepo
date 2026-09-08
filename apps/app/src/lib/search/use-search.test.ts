@@ -118,16 +118,13 @@ const A_CATALOGUE: Catalogue = {
 	routines: [A_ROUTINE],
 }
 
-const FOUR_RECENTS: CatalogueChat[] = Array.from(
-	{ length: 4 },
-	(_, index): CatalogueChat => ({
-		...A_CHAT,
-		conversationId: `c-recent-${index + 1}`,
-		title: `Recent room ${index + 1}`,
-	}),
-)
+const FOUR_RECENTS: CatalogueChat[] = Array.from({ length: 4 }, (_, index) => ({
+	...A_CHAT,
+	conversationId: `c-recent-${index + 1}`,
+	title: `Recent room ${index + 1}`,
+}))
 
-type Ports = {
+type PortSource = {
 	catalogue?: Catalogue
 	recents?: CatalogueChat[]
 }
@@ -135,7 +132,7 @@ type Ports = {
 const aPort = ({
 	catalogue = A_CATALOGUE,
 	recents = [],
-}: Ports = {}): SearchPort => ({
+}: PortSource = {}): SearchPort => ({
 	messages: vi.fn().mockResolvedValue([]),
 	catalogue: vi.fn().mockResolvedValue(catalogue),
 	recent: vi.fn().mockResolvedValue(recents),
