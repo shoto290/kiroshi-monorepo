@@ -98,7 +98,8 @@ const INPUT_CLASS =
 const TAB_ROW_CLASS =
 	"flex h-11 shrink-0 items-center justify-between gap-2 px-3"
 
-const TAB_TRIGGER_CLASS = "h-7.5 shrink-0 py-0"
+const TAB_TRIGGER_CLASS =
+	"h-7.5 shrink-0 py-0 motion-reduce:transition-none motion-reduce:duration-0"
 
 const BODY_CLASS =
 	"flex min-h-0 flex-1 flex-col gap-0.5 overflow-y-auto p-2 outline-none focus-visible:ring-3 focus-visible:ring-ring/30 focus-visible:ring-inset"
@@ -351,10 +352,7 @@ const SearchPalette = ({
 							onValueChange={(value) => onTabChange(value as SearchTab)}
 							value={tab}
 						>
-							<TabsList
-								activateOnFocus
-								className="max-w-full overflow-x-auto bg-transparent p-0"
-							>
+							<TabsList className="max-w-full overflow-x-auto bg-transparent p-0">
 								{TABS.map((candidate) => (
 									<TabsTrigger
 										className={TAB_TRIGGER_CLASS}

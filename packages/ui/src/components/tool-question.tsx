@@ -25,7 +25,7 @@ const QUESTION_TAB_LIST_CLASS =
 	"h-fit max-w-full flex-wrap gap-1 bg-transparent p-0"
 
 const QUESTION_TAB_CLASS =
-	"h-fit min-w-0 whitespace-normal break-words px-2.5 py-1 text-start"
+	"h-fit min-w-0 whitespace-normal break-words px-2.5 py-1 text-start motion-reduce:transition-none motion-reduce:duration-0"
 
 const QUESTION_FORM_CLASS =
 	"grid w-full gap-3 rounded-2xl text-sm outline-none focus-visible:ring-2 focus-visible:ring-ring focus-visible:ring-offset-4 focus-visible:ring-offset-background"

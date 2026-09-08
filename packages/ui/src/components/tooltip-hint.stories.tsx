@@ -23,7 +23,7 @@ const meta = preview.meta({
 		docs: {
 			description: {
 				component:
-					'The registry tooltip closed down to what a call site needs: a piece of content, one element to hang it on, a side. It renders no wrapper of its own — the child stays the element the layout around it sees — and the bubble carries `role="tooltip"`. The hint describes, it does not name: keep the label in the child\'s accessible name too.',
+					'The registry tooltip closed down to what a call site needs: a piece of content, one element to hang it on, a side. It renders no wrapper of its own — the child stays the element the layout around it sees — and the bubble carries `role="tooltip"`. Nothing links the bubble to its child: the registry writes no `aria-describedby` on the trigger, so a screen reader never reads the bubble and its text has to live in the child\'s accessible name as well.',
 			},
 		},
 	},
@@ -160,5 +160,30 @@ export const InRow = meta.story({
 		await userEvent.tab()
 		await expect(canvas.getByRole("button", { name: "Copy" })).toHaveFocus()
 		await expect(await screen.findByRole("tooltip")).toHaveTextContent("Copy")
+	},
+})
+
+export const ReducedMotion = meta.story({
+	args: { content: "Copy", children: COPY_BUTTON },
+	parameters: {
+		docs: {
+			description: {
+				story:
+					"The same hint for a reader who asked the system to stop moving things. The registry bubble zooms and fades in and out; the composed one drops the animation under `prefers-reduced-motion`, so the bubble is simply there and then simply gone. Check that the open bubble reports no animation at all, and that it still leaves the document when the pointer does - nothing here waits on an animation end, so dropping it outright costs the hint nothing.",
+			},
+		},
+	},
+	play: async ({ canvas, userEvent }) => {
+		const trigger = canvas.getByRole("button", { name: "Copy" })
+
+		await userEvent.hover(trigger)
+		const hint = await screen.findByRole("tooltip")
+
+		await expect(getComputedStyle(hint).animationName).toBe("none")
+
+		await userEvent.unhover(trigger)
+		await waitFor(async () => {
+			await expect(screen.queryByRole("tooltip")).toBeNull()
+		}, FRAME_POLL)
 	},
 })

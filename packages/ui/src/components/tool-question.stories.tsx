@@ -1,4 +1,4 @@
-import { expect, fn } from "storybook/test"
+import { expect, fn, within } from "storybook/test"
 
 import preview from "@workspace/storybook/preview"
 import {
@@ -320,5 +320,54 @@ export const Narrow = meta.story({
 			await canvas.findByRole("radio", { name: /Next week/ }),
 		)
 		await expect(canvas.getByText(FRAMEWORK_QUESTION.question)).toBeVisible()
+	},
+})
+
+export const ArrowKeyTabs = meta.story({
+	args: { questions: [SCOPE_QUESTION, RELEASE_QUESTION, FRAMEWORK_QUESTION] },
+	parameters: {
+		docs: {
+			description: {
+				story:
+					"The tab strip walked with the arrow keys. A tab here changes nothing but which question is on screen, so walking is opening: the arrows select as they move and the card follows without a second press. Check that the question under the strip is the one the arrows landed on. The search palette does the opposite, because a tab there starts a query.",
+			},
+		},
+	},
+	play: async ({ canvas, userEvent }) => {
+		const strip = canvas.getByRole("tablist")
+
+		await expect(canvas.getByText(SCOPE_QUESTION.question)).toBeVisible()
+
+		within(strip).getByRole("tab", { name: SCOPE_QUESTION.header }).focus()
+		await userEvent.keyboard("{ArrowRight}")
+
+		await expect(
+			within(strip).getByRole("tab", { name: RELEASE_QUESTION.header }),
+		).toHaveAttribute("aria-selected", "true")
+		await expect(canvas.getByText(RELEASE_QUESTION.question)).toBeVisible()
+	},
+})
+
+export const ReducedMotion = meta.story({
+	args: { questions: [SCOPE_QUESTION, RELEASE_QUESTION] },
+	parameters: {
+		docs: {
+			description: {
+				story:
+					"The card for a reader who asked the system to stop moving things. The registry tab transitions every property it changes; the card drops that under `prefers-reduced-motion`, so the fill moves from one tab to the next in a single frame. Check that every tab reports a transition of no duration, and that the strip still selects.",
+			},
+		},
+	},
+	play: async ({ canvas, userEvent }) => {
+		const tabs = canvas.getAllByRole("tab")
+
+		for (const tab of tabs) {
+			await expect(getComputedStyle(tab).transitionDuration).toBe("0s")
+		}
+
+		await userEvent.click(
+			canvas.getByRole("tab", { name: RELEASE_QUESTION.header }),
+		)
+		await expect(canvas.getByText(RELEASE_QUESTION.question)).toBeVisible()
 	},
 })
