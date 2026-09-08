@@ -1,7 +1,13 @@
 import { describe, expect, it } from "vitest"
 
+import type { MissionEventModel } from "@workspace/ui/components/mission"
+
 import type { Mission } from "./mission-contract"
-import { BEFORE_FIRST_RUN, placeMissions } from "./mission-transcript"
+import {
+	BEFORE_FIRST_RUN,
+	placeMissionEvents,
+	placeMissions,
+} from "./mission-transcript"
 
 import type { TranscriptRow } from "@/lib/chat/screen-model"
 
@@ -41,22 +47,34 @@ const missionOf = (id: string, openedAt: number, botId = "bot-1"): Mission => ({
 	reportedTurnId: null,
 })
 
+const eventOf = (id: string, createdAt: number): MissionEventModel => ({
+	id,
+	kind: "note",
+	source: "github",
+	createdAt,
+	text: "The pull request was opened",
+})
+
 const PROMPT = [rowOf(null, 0)]
 const ANSWER = [rowOf("bot-1", 100)]
 const LATER_PROMPT = [rowOf(null, 400)]
 const LATER_ANSWER = [rowOf("bot-1", 500)]
+const OTHER_BOT_ANSWER = [rowOf("bot-2", 250)]
+
+const RUNS = [PROMPT, ANSWER, LATER_PROMPT, LATER_ANSWER]
 
 describe("placeMissions", () => {
-	const RUNS = [PROMPT, ANSWER, LATER_PROMPT, LATER_ANSWER]
+	const placedIn = (runs: TranscriptRow[][], missions: Mission[]) =>
+		placeMissions({ runs, missions, hasOlder: false })
 
-	it("places a mission after the run of the bot that opened it", () => {
-		expect(
-			placeMissions([PROMPT, ANSWER, LATER_PROMPT], [missionOf("m-1", 200)]),
-		).toEqual([{ mission: missionOf("m-1", 200), runIndex: 1 }])
+	it("places a mission after the last run opened before it", () => {
+		expect(placedIn(RUNS, [missionOf("m-1", 200)])).toEqual([
+			{ mission: missionOf("m-1", 200), runIndex: 1 },
+		])
 	})
 
-	it("orders the missions opened in the same run by the time they were opened", () => {
-		const placed = placeMissions(
+	it("orders the missions placed on the same run by the time they were opened", () => {
+		const placed = placedIn(
 			[PROMPT, ANSWER],
 			[missionOf("m-late", 300), missionOf("m-early", 200)],
 		)
@@ -67,41 +85,98 @@ describe("placeMissions", () => {
 		])
 	})
 
-	it("places a mission on the run of its bot opening nearest to it", () => {
-		expect(placeMissions(RUNS, [missionOf("m-1", 50)])).toEqual([
-			{ mission: missionOf("m-1", 50), runIndex: 1 },
-		])
-	})
-
-	it("places a mission opened shortly before a later run of its bot on that run", () => {
-		expect(placeMissions(RUNS, [missionOf("m-1", 450)])).toEqual([
-			{ mission: missionOf("m-1", 450), runIndex: 3 },
-		])
-	})
-
-	it("places a mission opened halfway between two runs of its bot on the later one", () => {
-		expect(placeMissions(RUNS, [missionOf("m-1", 300)])).toEqual([
-			{ mission: missionOf("m-1", 300), runIndex: 3 },
-		])
-	})
-
-	it("places a mission of a bot with no run after the last run opened before it", () => {
-		expect(placeMissions(RUNS, [missionOf("m-1", 450, "bot-2")])).toEqual([
-			{ mission: missionOf("m-1", 450, "bot-2"), runIndex: 2 },
-		])
-	})
-
-	it("places a mission of a bot with no run opened before every run ahead of them", () => {
+	it("places a mission after the last run opened before it whatever bot wrote it", () => {
 		expect(
-			placeMissions([LATER_PROMPT], [missionOf("m-1", 200, "bot-2")]),
-		).toEqual([
-			{ mission: missionOf("m-1", 200, "bot-2"), runIndex: BEFORE_FIRST_RUN },
+			placedIn(
+				[PROMPT, ANSWER, OTHER_BOT_ANSWER, LATER_PROMPT],
+				[missionOf("m-1", 300)],
+			),
+		).toEqual([{ mission: missionOf("m-1", 300), runIndex: 2 }])
+	})
+
+	it("places a mission opened after the oldest run in a feed holding no run of its bot", () => {
+		expect(
+			placedIn(
+				[PROMPT, OTHER_BOT_ANSWER, LATER_PROMPT],
+				[missionOf("m-1", 300)],
+			),
+		).toEqual([{ mission: missionOf("m-1", 300), runIndex: 1 }])
+	})
+
+	it("places a mission on the run opened at its very moment", () => {
+		expect(placedIn(RUNS, [missionOf("m-1", 500)])).toEqual([
+			{ mission: missionOf("m-1", 500), runIndex: 3 },
 		])
 	})
 
-	it("places a mission of a transcript with no run at all ahead of them", () => {
-		expect(placeMissions([], [missionOf("m-1", 200)])).toEqual([
-			{ mission: missionOf("m-1", 200), runIndex: BEFORE_FIRST_RUN },
+	it("keeps two missions of one bot apart when the runs in between are absent", () => {
+		expect(
+			placedIn(RUNS, [missionOf("m-early", 200), missionOf("m-late", 450)]),
+		).toEqual([
+			{ mission: missionOf("m-early", 200), runIndex: 1 },
+			{ mission: missionOf("m-late", 450), runIndex: 2 },
 		])
+	})
+
+	it("leaves a closed mission where it was opened when its bot ran again later", () => {
+		const closed: Mission = {
+			...missionOf("m-1", 200),
+			state: "done",
+			stateSeq: 4,
+			closedAt: 480,
+			reportedAt: 500,
+			reportedTurnId: "t-500",
+		}
+
+		expect(placedIn(RUNS, [closed])).toEqual([{ mission: closed, runIndex: 1 }])
+	})
+
+	it("leaves a mission opened before the oldest loaded run out while older messages remain", () => {
+		expect(
+			placeMissions({
+				runs: [LATER_PROMPT, LATER_ANSWER],
+				missions: [missionOf("m-1", 200)],
+				hasOlder: true,
+			}),
+		).toEqual([])
+	})
+
+	it("draws a mission opened before the oldest loaded run ahead of them once no older message remains", () => {
+		expect(
+			placedIn([LATER_PROMPT, LATER_ANSWER], [missionOf("m-1", 200)]),
+		).toEqual([{ mission: missionOf("m-1", 200), runIndex: BEFORE_FIRST_RUN }])
+	})
+
+	it("draws a mission of a feed holding no run ahead of the runs", () => {
+		expect(
+			placeMissions({
+				runs: [],
+				missions: [missionOf("m-1", 200)],
+				hasOlder: true,
+			}),
+		).toEqual([{ mission: missionOf("m-1", 200), runIndex: BEFORE_FIRST_RUN }])
+	})
+})
+
+describe("placeMissionEvents", () => {
+	it("places an event after the last run opened at or before its creation", () => {
+		expect(placeMissionEvents(RUNS, [eventOf("e-1", 400)])).toEqual([
+			{ event: eventOf("e-1", 400), runIndex: 2 },
+		])
+	})
+
+	it("places an event created before every loaded run ahead of them", () => {
+		expect(
+			placeMissionEvents([LATER_PROMPT, LATER_ANSWER], [eventOf("e-1", 200)]),
+		).toEqual([{ event: eventOf("e-1", 200), runIndex: BEFORE_FIRST_RUN }])
+	})
+
+	it("orders the events placed on the same run by the time they were created", () => {
+		const placed = placeMissionEvents(RUNS, [
+			eventOf("e-late", 300),
+			eventOf("e-early", 200),
+		])
+
+		expect(placed.map(({ event }) => event.id)).toEqual(["e-early", "e-late"])
 	})
 })
