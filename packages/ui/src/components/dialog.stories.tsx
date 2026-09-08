@@ -46,12 +46,12 @@ const LONG_BODY = (
 const DialogDemo = ({ className, body = ACTIONS }: DialogDemoProps) => (
 	<Root>
 		<Trigger className={buttonVariants({ variant: "outline" })}>
-			Bot settings
+			Companion settings
 		</Trigger>
 		<Content className={className}>
-			<Title>Bot settings</Title>
+			<Title>Companion settings</Title>
 			<Description>
-				Name the bot, point it at a folder and tell it how to behave.
+				Name the companion, point it at a folder and tell it how to behave.
 			</Description>
 			{body}
 		</Content>
@@ -71,7 +71,7 @@ const openDialog = async (
 	canvas: ReturnType<typeof within>,
 	user: ReturnType<typeof userEvent.setup>,
 ) => {
-	await user.click(canvas.getByRole("button", { name: "Bot settings" }))
+	await user.click(canvas.getByRole("button", { name: "Companion settings" }))
 
 	const dialog = await screen.findByRole("dialog")
 	await waitFor(() => expect(dialog).toBeVisible())
@@ -104,7 +104,7 @@ export const Default = meta.story({
 		},
 	},
 	play: async ({ canvas, userEvent }) => {
-		const trigger = canvas.getByRole("button", { name: "Bot settings" })
+		const trigger = canvas.getByRole("button", { name: "Companion settings" })
 
 		await userEvent.tab()
 		await expect(trigger).toHaveFocus()
@@ -113,7 +113,7 @@ export const Default = meta.story({
 		await userEvent.keyboard("{Enter}")
 		const dialog = await screen.findByRole("dialog")
 		await waitFor(() => expect(backdropIn()).toBeVisible())
-		await expect(dialog).toHaveAccessibleName("Bot settings")
+		await expect(dialog).toHaveAccessibleName("Companion settings")
 
 		await waitFor(async () => {
 			const box = dialog.getBoundingClientRect()
@@ -148,7 +148,7 @@ export const Dismissing = meta.story({
 		},
 	},
 	play: async ({ canvas, userEvent }) => {
-		const trigger = canvas.getByRole("button", { name: "Bot settings" })
+		const trigger = canvas.getByRole("button", { name: "Companion settings" })
 
 		const dialog = await openDialog(canvas, userEvent)
 		await userEvent.click(dialog)

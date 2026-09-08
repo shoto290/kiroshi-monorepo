@@ -43,7 +43,7 @@ const meta = preview.meta({
 		docs: {
 			description: {
 				component:
-					"The frame a message wears when it answers another one: the quoted author with the first line of what they wrote, above whatever the frame is given to hold — a bubble in the transcript, the composer in `AI/PromptReply`. It takes the fill of the side it quotes, not its own: `from` is who wrote the quoted message, so answering the reader wears the reader's fill and answering a bot wears the bot's. A tenth of the background is laid over that fill, which is what keeps the quote readable as a separate surface from the bubble sitting in it even when both sides are the same. Resolving an id to an author and an excerpt is the screen's business, never this frame's, and pressing the quote reports a jump the host performs. The excerpt is always one line: a longer one is clipped rather than allowed to grow what it wraps. `trailing` takes one control beside the quote — the composer puts its dismiss there. Given no quote it keeps the same two elements around what it holds and drops every mark of its own, so a host that wraps something long-lived can leave the frame mounted and let only the quote come and go.",
+					"The frame a message wears when it answers another one: the quoted author with the first line of what they wrote, above whatever the frame is given to hold — a bubble in the transcript, the composer in `AI/PromptReply`. It takes the fill of the side it quotes, not its own: `from` is who wrote the quoted message, so answering the reader wears the reader's fill and answering a companion wears the companion's. A tenth of the background is laid over that fill, which is what keeps the quote readable as a separate surface from the bubble sitting in it even when both sides are the same. Resolving an id to an author and an excerpt is the screen's business, never this frame's, and pressing the quote reports a jump the host performs. The excerpt is always one line: a longer one is clipped rather than allowed to grow what it wraps. `trailing` takes one control beside the quote — the composer puts its dismiss there. Given no quote it keeps the same two elements around what it holds and drops every mark of its own, so a host that wraps something long-lived can leave the frame mounted and let only the quote come and go.",
 			},
 		},
 	},
@@ -69,7 +69,7 @@ export const Default = meta.story({
 		docs: {
 			description: {
 				story:
-					"The nominal frame: the bot answering the reader, so the quote wears the reader's fill while the bubble under it keeps the bot's. The bubble always takes every pixel the frame offers — the frame is what the transcript caps, never the bubble inside it. Check that the quote reads above the bubble and inside the frame, that the reply glyph marks it as an answer, and that pressing the quote reports a jump — the frame never scrolls anything itself. It is a real button, so it is reachable by Tab and takes Enter and Space.",
+					"The nominal frame: the companion answering the reader, so the quote wears the reader's fill while the bubble under it keeps the companion's. The bubble always takes every pixel the frame offers — the frame is what the transcript caps, never the bubble inside it. Check that the quote reads above the bubble and inside the frame, that the reply glyph marks it as an answer, and that pressing the quote reports a jump — the frame never scrolls anything itself. It is a real button, so it is reachable by Tab and takes Enter and Space.",
 			},
 		},
 	},
@@ -156,7 +156,7 @@ export const Tones = meta.story({
 		docs: {
 			description: {
 				story:
-					"The two fills, one per side, each shown under the bubble it would carry. The reader quoting a bot takes the bot's fill under the reader's own bubble; the bot quoting the reader takes the reader's fill under the bot's bubble. Check that the quote never matches the bubble it holds, that the background wash keeps it a step apart from the bubble it holds, and that the author and the excerpt are told apart by weight rather than by a dimmed colour — the excerpt keeps the full foreground of the fill it sits on, which is what holds it above the contrast floor on the reader's accent.",
+					"The two fills, one per side, each shown under the bubble it would carry. The reader quoting a companion takes the companion's fill under the reader's own bubble; the companion quoting the reader takes the reader's fill under the companion's bubble. Check that the quote never matches the bubble it holds, that the background wash keeps it a step apart from the bubble it holds, and that the author and the excerpt are told apart by weight rather than by a dimmed colour — the excerpt keeps the full foreground of the fill it sits on, which is what holds it above the contrast floor on the reader's accent.",
 			},
 		},
 	},

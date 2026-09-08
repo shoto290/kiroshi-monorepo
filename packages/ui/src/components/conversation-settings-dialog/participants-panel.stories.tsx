@@ -58,7 +58,7 @@ const meta = preview.meta({
 		docs: {
 			description: {
 				component:
-					"Who takes part in a conversation, and who leads it. The seated bots are listed in the order they joined — the list never reorders itself, because that order is the conversation's history — and exactly one of them wears the crown. Moving the crown is a press on another row's crown; dismissing is the cross beside it. The panel owns nothing but the search string: every press is reported up, so the screen decides what a dismissal or a handover means. Two rules are enforced here rather than upstream — the last bot seated cannot be dismissed, and a bot already seated is never offered again, so the roster below only ever shows bots that can actually be recruited. Reach for `BotPicker` for that roster on its own, and for `ConversationSettingsDialog` for the panel in its rail.",
+					"Who takes part in a conversation, and who leads it. The seated companions are listed in the order they joined — the list never reorders itself, because that order is the conversation's history — and exactly one of them wears the crown. Moving the crown is a press on another row's crown; dismissing is the cross beside it. The panel owns nothing but the search string: every press is reported up, so the screen decides what a dismissal or a handover means. Two rules are enforced here rather than upstream — the last companion seated cannot be dismissed, and a companion already seated is never offered again, so the roster below only ever shows companions that can actually be recruited. Reach for `BotPicker` for that roster on its own, and for `ConversationSettingsDialog` for the panel in its rail.",
 			},
 		},
 	},
@@ -78,7 +78,7 @@ export const Default = meta.story({
 		docs: {
 			description: {
 				story:
-					"Three bots seated, the first leading. Check that the crown sits on exactly one row, that pressing another row's crown reports that bot and leaves a single crown behind, and that the leading row offers no crown button of its own — it is already the lead, there is nothing to press. Pick `LastParticipant` for the row that cannot be dismissed, `Empty` for a conversation nobody else can join.",
+					"Three companions seated, the first leading. Check that the crown sits on exactly one row, that pressing another row's crown reports that companion and leaves a single crown behind, and that the leading row offers no crown button of its own — it is already the lead, there is nothing to press. Pick `LastParticipant` for the row that cannot be dismissed, `Empty` for a conversation nobody else can join.",
 			},
 		},
 	},
@@ -103,7 +103,7 @@ export const Dismissed = meta.story({
 		docs: {
 			description: {
 				story:
-					"A bot is sent out of the conversation. Check that the dismissed bot is the one reported and the one that leaves the list, that the rows left keep their joining order, and that the roster below now offers that bot back — dismissing returns it to the space, it does not delete it.",
+					"A companion is sent out of the conversation. Check that the dismissed companion is the one reported and the one that leaves the list, that the rows left keep their joining order, and that the roster below now offers that companion back — dismissing returns it to the space, it does not delete it.",
 			},
 		},
 	},
@@ -127,7 +127,7 @@ export const Recruited = meta.story({
 		docs: {
 			description: {
 				story:
-					"A bot from the space joins. Check that the recruit is reported and lands at the bottom of the list, never at the top — joining does not take the crown — and that its row disappears from the roster once it is seated, so it cannot be recruited twice.",
+					"A companion from the space joins. Check that the recruit is reported and lands at the bottom of the list, never at the top — joining does not take the crown — and that its row disappears from the roster once it is seated, so it cannot be recruited twice.",
 			},
 		},
 	},
@@ -153,7 +153,7 @@ export const LastParticipant = meta.story({
 		docs: {
 			description: {
 				story:
-					"One bot left. A conversation with nobody in it cannot answer, so the last seat is held: the dismiss control is disabled and a line under the list says why, rather than letting the press fail silently. Check that the crown stays on that row and that recruiting anyone from the roster below frees the dismissal again.",
+					"One companion left. A conversation with nobody in it cannot answer, so the last seat is held: the dismiss control is disabled and a line under the list says why, rather than letting the press fail silently. Check that the crown stays on that row and that recruiting anyone from the roster below frees the dismissal again.",
 			},
 		},
 	},
@@ -180,7 +180,7 @@ export const Empty = meta.story({
 		docs: {
 			description: {
 				story:
-					"Every bot of the space is already seated, so there is nobody left to recruit. Check that the search field goes with the roster instead of standing over an empty list — searching a set with nothing in it is a dead end — and that a sentence says why rather than leaving a gap. This is not the same as `BotPicker`'s empty state, which covers a search matching nothing.",
+					"Every companion of the space is already seated, so there is nobody left to recruit. Check that the search field goes with the roster instead of standing over an empty list — searching a set with nothing in it is a dead end — and that a sentence says why rather than leaving a gap. This is not the same as `BotPicker`'s empty state, which covers a search matching nothing.",
 			},
 		},
 	},
@@ -188,7 +188,7 @@ export const Empty = meta.story({
 		await expect(
 			slotsIn(canvasElement, "participants-all-seated"),
 		).toHaveLength(1)
-		await expect(canvas.queryByLabelText("Bots")).toBe(null)
+		await expect(canvas.queryByLabelText("Companions")).toBe(null)
 	},
 })
 
@@ -202,7 +202,7 @@ export const LongContent = meta.story({
 		docs: {
 			description: {
 				story:
-					"Bots named at length. Check that a name truncates on one line instead of wrapping or pushing the crown and the cross off the row — the two controls stay reachable at any name length, which is what makes the row operable rather than pretty.",
+					"Companions named at length. Check that a name truncates on one line instead of wrapping or pushing the crown and the cross off the row — the two controls stay reachable at any name length, which is what makes the row operable rather than pretty.",
 			},
 		},
 	},

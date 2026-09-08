@@ -94,7 +94,7 @@ describe("botThreadMenu", () => {
 describe("conversationThreadMenu", () => {
 	afterEach(cleanup)
 
-	it("offers the present bots and marks the lead", () => {
+	it("offers the present companions and marks the lead", () => {
 		render(composerWith(conversationThreadMenu({ bots: BOTS, leadId: "orb" })))
 
 		type("@")
@@ -103,7 +103,7 @@ describe("conversationThreadMenu", () => {
 		expect(screen.getByRole("option", { name: "Orb Lead" })).toBeTruthy()
 	})
 
-	it("writes the picked bot name into the prompt", () => {
+	it("writes the picked companion name into the prompt", () => {
 		render(composerWith(conversationThreadMenu({ bots: BOTS, leadId: "orb" })))
 
 		type("hey @n")
@@ -112,7 +112,7 @@ describe("conversationThreadMenu", () => {
 		expect(field().value).toBe("hey @Nyx ")
 	})
 
-	it("leaves the prompt untouched when no present bot carries the picked id", () => {
+	it("leaves the prompt untouched when no present companion carries the picked id", () => {
 		expect(promptWithPickedMention("hey @n", BOTS, "ghost")).toBe("hey @n")
 	})
 })

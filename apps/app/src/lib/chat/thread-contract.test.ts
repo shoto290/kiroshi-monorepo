@@ -113,7 +113,7 @@ const conversationThreadOf = ({
 })
 
 describe("factsOf permission", () => {
-	it("carries the bot thread permission with no author", () => {
+	it("carries the companion thread permission with no author", () => {
 		const facts = factsOf(
 			botThreadOf({ ...initialChatState, permission: REQUEST }),
 		)
@@ -122,7 +122,7 @@ describe("factsOf permission", () => {
 		expect(facts.isPromptPending).toBe(true)
 	})
 
-	it("leaves the bot thread permission null when nothing is pending", () => {
+	it("leaves the companion thread permission null when nothing is pending", () => {
 		expect(factsOf(botThreadOf(initialChatState)).permission).toBeNull()
 	})
 
@@ -165,7 +165,7 @@ describe("factsOf permission", () => {
 })
 
 describe("factsOf canAttach", () => {
-	it("follows session readiness on a bot thread", () => {
+	it("follows session readiness on a companion thread", () => {
 		const ready = botThreadOf({
 			...initialChatState,
 			connection: "ready",

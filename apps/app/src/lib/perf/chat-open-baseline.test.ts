@@ -323,7 +323,7 @@ const measureOpenings = async (delayMs: number) => {
 	await quiesce()
 	await openBot(app, streamer)
 	await quiesce()
-	await promptOneTurn("keep this bot writing")
+	await promptOneTurn("keep this companion writing")
 	const busyOpen = await openBot(app, contended)
 	return { busyOpen, coldOpen, warmOpen }
 }

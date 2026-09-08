@@ -147,7 +147,7 @@ describe("mcp servers controller", () => {
 		expect(controller.getState().hasFailedToLoad).toBe(true)
 	})
 
-	it("writes a space server into the space plugin and leaves the bots alone", async () => {
+	it("writes a space server into the space plugin and leaves the companions alone", async () => {
 		const store = createFakeTranscriptStore()
 		const controller = await opened(store, SPACE)
 

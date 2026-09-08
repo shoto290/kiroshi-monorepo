@@ -99,7 +99,7 @@ export const Default = meta.story({
 		docs: {
 			description: {
 				story:
-					"A mention of a bot the conversation holds. The chip is exactly as tall as the line it sits on, so it never pushes the line height, and the avatar keeps the same space on its left, above it and below it. Check that the avatar is the same drawing the roster gives that bot and that the words either side keep their spacing. Pick `Unknown` for an id the conversation cannot resolve.",
+					"A mention of a companion the conversation holds. The chip is exactly as tall as the line it sits on, so it never pushes the line height, and the avatar keeps the same space on its left, above it and below it. Check that the avatar is the same drawing the roster gives that companion and that the words either side keep their spacing. Pick `Unknown` for an id the conversation cannot resolve.",
 			},
 		},
 	},
@@ -119,12 +119,12 @@ export const Unknown = meta.story({
 		docs: {
 			description: {
 				story:
-					"A mention of a bot the conversation does not know — deleted, or never part of it. Check that the chip keeps its shape and dims rather than disappearing, that a silhouette replaces the avatar, and that the reader is told *Unknown bot* instead of being shown a raw id.",
+					"A mention of a companion the conversation does not know — deleted, or never part of it. Check that the chip keeps its shape and dims rather than disappearing, that a silhouette replaces the avatar, and that the reader is told *Unknown companion* instead of being shown a raw id.",
 			},
 		},
 	},
 	play: async ({ canvas }) => {
-		await expect(canvas.getByText("Unknown bot")).toBeVisible()
+		await expect(canvas.getByText("Unknown companion")).toBeVisible()
 	},
 })
 
@@ -134,7 +134,7 @@ export const LongName = meta.story({
 		docs: {
 			description: {
 				story:
-					"A bot whose name is a sentence of its own. Check that the chip truncates at a fixed width and the paragraph keeps wrapping normally — one long name never forces a line of its own.",
+					"A companion whose name is a sentence of its own. Check that the chip truncates at a fixed width and the paragraph keeps wrapping normally — one long name never forces a line of its own.",
 			},
 		},
 	},
@@ -161,7 +161,7 @@ export const InText = meta.story({
 	render: () => <Message source={HANDOVER} />,
 	play: async ({ canvas }) => {
 		await expect(canvas.getByText("Basile")).toBeVisible()
-		await expect(canvas.getByText("Unknown bot")).toBeVisible()
+		await expect(canvas.getByText("Unknown companion")).toBeVisible()
 	},
 })
 
@@ -186,7 +186,7 @@ export const Counted = meta.story({
 		docs: {
 			description: {
 				story:
-					"The same bot named twice in a row, which is how a message addresses two live instances of it. Check that the two tokens draw one chip carrying `×2` rather than two chips side by side, that the space that separated them is gone, and that the multiplier keeps the count from reading as the instance ordinal a live row and a message author show after a name. A screen reader hears *Atlas 2 mentions*: the glyph is hidden and the count spelled out beside it.",
+					"The same companion named twice in a row, which is how a message addresses two live instances of it. Check that the two tokens draw one chip carrying `×2` rather than two chips side by side, that the space that separated them is gone, and that the multiplier keeps the count from reading as the instance ordinal a live row and a message author show after a name. A screen reader hears *Atlas 2 mentions*: the glyph is hidden and the count spelled out beside it.",
 			},
 		},
 	},
@@ -204,7 +204,7 @@ export const CountedToNine = meta.story({
 		docs: {
 			description: {
 				story:
-					"Nine repeats of one bot, the widest count a single digit reaches, next to a bot named once. Check that the counted chip is exactly as tall as the plain one and sits on the same baseline, that `×9` sits inside the chip one space after the name, and that its digit is drawn in the tabular figures the rest of the app counts with.",
+					"Nine repeats of one companion, the widest count a single digit reaches, next to a companion named once. Check that the counted chip is exactly as tall as the plain one and sits on the same baseline, that `×9` sits inside the chip one space after the name, and that its digit is drawn in the tabular figures the rest of the app counts with.",
 			},
 		},
 	},
@@ -236,7 +236,7 @@ export const CountedUnknown = meta.story({
 		docs: {
 			description: {
 				story:
-					"A repeated id the conversation cannot resolve. Check that an unknown id collapses on exactly the same rule as a known one: one dimmed chip with a silhouette, *Unknown bot* and the count, never two identical unknown chips in a row.",
+					"A repeated id the conversation cannot resolve. Check that an unknown id collapses on exactly the same rule as a known one: one dimmed chip with a silhouette, *Unknown companion* and the count, never two identical unknown chips in a row.",
 			},
 		},
 	},
@@ -246,7 +246,7 @@ export const CountedUnknown = meta.story({
 		await expect(
 			canvasElement.querySelector('[data-unknown="true"]'),
 		).not.toBeNull()
-		await expect(canvas.getByText("Unknown bot")).toBeVisible()
+		await expect(canvas.getByText("Unknown companion")).toBeVisible()
 		await expect(canvas.getByText("2 mentions")).toBeInTheDocument()
 	},
 })
@@ -256,7 +256,7 @@ export const CountedLongName = meta.story({
 		docs: {
 			description: {
 				story:
-					"A count on a bot whose name is a sentence of its own. Check that the name is still the part that truncates and that the count stays whole and inside the chip: a reader must never lose the number to an ellipsis.",
+					"A count on a companion whose name is a sentence of its own. Check that the name is still the part that truncates and that the count stays whole and inside the chip: a reader must never lose the number to an ellipsis.",
 			},
 		},
 	},
@@ -283,7 +283,7 @@ export const DifferentBotsAdjacent = meta.story({
 		docs: {
 			description: {
 				story:
-					"Two different bots named back to back. Check that adjacency alone collapses nothing: two ids means two chips, each with its own avatar and no count.",
+					"Two different companions named back to back. Check that adjacency alone collapses nothing: two ids means two chips, each with its own avatar and no count.",
 			},
 		},
 	},
@@ -301,7 +301,7 @@ export const RepeatedApart = meta.story({
 		docs: {
 			description: {
 				story:
-					"The same bot named twice with words in between. Check that only whitespace collapses a repeat: prose between the two tokens means the reader wrote two mentions in two places, so the sentence keeps two chips and no count.",
+					"The same companion named twice with words in between. Check that only whitespace collapses a repeat: prose between the two tokens means the reader wrote two mentions in two places, so the sentence keeps two chips and no count.",
 			},
 		},
 	},

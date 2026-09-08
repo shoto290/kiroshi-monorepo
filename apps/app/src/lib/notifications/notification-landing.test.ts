@@ -131,7 +131,7 @@ afterEach(() => {
 	cleanup()
 })
 
-it("enters the space holding the bot the click carries and lands on that bot", async () => {
+it("enters the space holding the companion the click carries and lands on that companion", async () => {
 	const { spaces, roster, notifications, reader, elsewhere, away } =
 		await aWorld()
 
@@ -156,7 +156,7 @@ it("enters the space holding the conversation the click carries and lands on it"
 	expect(roster.getState().selectedBotId).toBeNull()
 })
 
-it("lands on a bot of the space already on screen without changing space", async () => {
+it("lands on a companion of the space already on screen without changing space", async () => {
 	const { spaces, roster, notifications, neighbour } = await aWorld()
 
 	await act(async () => {
@@ -167,7 +167,7 @@ it("lands on a bot of the space already on screen without changing space", async
 	expect(roster.getState().selectedBotId).toBe(neighbour.id)
 })
 
-it("enters the space of the mission's bot and opens that mission thread", async () => {
+it("enters the space of the mission's companion and opens that mission thread", async () => {
 	const { spaces, roster, notifications, missions, elsewhere, away, room } =
 		await aWorld()
 	const mission = aMission({

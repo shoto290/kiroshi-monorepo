@@ -1038,7 +1038,7 @@ describe("createChatController", () => {
 		expect(isSessionReady(state)).toBe(true)
 	})
 
-	it("switches the visible conversation and the run to the bot it is opened on", async () => {
+	it("switches the visible conversation and the run to the companion it is opened on", async () => {
 		const store = createFakeTranscriptStore()
 		const other = await store.createBot(botIdentity({ name: "Second" }))
 		const harness = await bootedHarness({ store })
@@ -1062,7 +1062,7 @@ describe("createChatController", () => {
 		harness.detach()
 	})
 
-	it("keeps a bot streaming into its own conversation after the reader switches", async () => {
+	it("keeps a companion streaming into its own conversation after the reader switches", async () => {
 		const store = createFakeTranscriptStore()
 		const other = await store.createBot(botIdentity({ name: "Second" }))
 		const harness = await bootedHarness({ store })
@@ -1175,7 +1175,7 @@ describe("createChatController", () => {
 		harness.detach()
 	})
 
-	it("lets two bots answer at once, each into its own conversation", async () => {
+	it("lets two companions answer at once, each into its own conversation", async () => {
 		const store = createFakeTranscriptStore()
 		const other = await store.createBot(botIdentity({ name: "Second" }))
 		const harness = await bootedHarness({ store })
@@ -1206,7 +1206,7 @@ describe("createChatController", () => {
 		harness.detach()
 	})
 
-	it("reports a bot answering in the background as busy", async () => {
+	it("reports a companion answering in the background as busy", async () => {
 		const store = createFakeTranscriptStore()
 		const other = await store.createBot(botIdentity({ name: "Second" }))
 		const harness = await bootedHarness({ store })
@@ -1224,7 +1224,7 @@ describe("createChatController", () => {
 		harness.detach()
 	})
 
-	it("holds the last word of a bot answering in the background", async () => {
+	it("holds the last word of a companion answering in the background", async () => {
 		const store = createFakeTranscriptStore()
 		const other = await store.createBot(botIdentity({ name: "Second" }))
 		const harness = await bootedHarness({ store })
@@ -1243,7 +1243,7 @@ describe("createChatController", () => {
 		harness.detach()
 	})
 
-	it("opens no second process for a bot that already holds one", async () => {
+	it("opens no second process for a companion that already holds one", async () => {
 		const store = createFakeTranscriptStore()
 		const other = await store.createBot(botIdentity({ name: "Second" }))
 		const harness = await bootedHarness({ store })
@@ -1294,7 +1294,7 @@ describe("createChatController", () => {
 		harness.detach()
 	})
 
-	it("keeps the bot the reader picked while a queued session change lands", async () => {
+	it("keeps the companion the reader picked while a queued session change lands", async () => {
 		const store = createFakeTranscriptStore()
 		const other = await store.createBot(botIdentity({ name: "Second" }))
 		const harness = await bootedHarness({ store })
@@ -1321,7 +1321,7 @@ describe("createChatController", () => {
 		harness.detach()
 	})
 
-	it("shuts a bot down only once the session it was opening is up", async () => {
+	it("shuts a companion down only once the session it was opening is up", async () => {
 		const harness = createHarness()
 		const shutdownSpy = vi.spyOn(harness.driver, "shutdown")
 
@@ -1335,7 +1335,7 @@ describe("createChatController", () => {
 		harness.detach()
 	})
 
-	it("ends the runtime of a bot that is deleted while it streams", async () => {
+	it("ends the runtime of a companion that is deleted while it streams", async () => {
 		const harness = await bootedHarness()
 		const shutdownSpy = vi.spyOn(harness.driver, "shutdown")
 		await harness.controller.send("hello")
@@ -1933,7 +1933,7 @@ describe("a run replaced under a conversation that carries on", () => {
 		expect(occurrences(told(submitted), "where were we?")).toBe(1)
 	})
 
-	it("replaces the run of a bot that was described again, on the next prompt", async () => {
+	it("replaces the run of a companion that was described again, on the next prompt", async () => {
 		const store = withHistory()
 		const opened = vi.spyOn(store, "openRuntimeSession")
 		const { controller, driver, detach } = await bootedHarness({ store })
@@ -1966,7 +1966,7 @@ describe("a run replaced under a conversation that carries on", () => {
 		detach()
 	})
 
-	it("retires the run of the bot that was described and no other", async () => {
+	it("retires the run of the companion that was described and no other", async () => {
 		const store = withHistory()
 		const other = await store.createBot(botIdentity({ name: "Second" }))
 		const opened = vi.spyOn(store, "openRuntimeSession")
@@ -1990,7 +1990,7 @@ describe("a run replaced under a conversation that carries on", () => {
 		detach()
 	})
 
-	it("replaces the run of a bot that evolved, on the next prompt", async () => {
+	it("replaces the run of a companion that evolved, on the next prompt", async () => {
 		const store = withHistory()
 		const opened = vi.spyOn(store, "openRuntimeSession")
 		const { controller, driver, detach } = await bootedHarness({ store })
@@ -2055,7 +2055,7 @@ describe("a run replaced under a conversation that carries on", () => {
 		second.detach()
 	})
 
-	it("keeps two bots' runs and recovery points apart in one chat", async () => {
+	it("keeps two companions' runs and recovery points apart in one chat", async () => {
 		const held = withHistory()
 		const store: TranscriptStore = {
 			...held,
@@ -2392,7 +2392,7 @@ describe("the provider session a run answered under", () => {
 	})
 })
 
-describe("the commands a bot last announced", () => {
+describe("the commands a companion last announced", () => {
 	beforeEach(() => {
 		vi.useFakeTimers()
 	})
@@ -2406,7 +2406,7 @@ describe("the commands a bot last announced", () => {
 		startOrResumeSession: () => Promise.resolve({ resumed: false }),
 	})
 
-	it("holds what a session announced against the bot it answered for", async () => {
+	it("holds what a session announced against the companion it answered for", async () => {
 		const store = createFakeTranscriptStore()
 		const { controller, detach } = await bootedHarness({ store })
 
@@ -2444,7 +2444,7 @@ describe("the commands a bot last announced", () => {
 		detach()
 	})
 
-	it("offers no command for a bot no session has announced anything for", async () => {
+	it("offers no command for a companion no session has announced anything for", async () => {
 		const store = createFakeTranscriptStore()
 		const other = await store.createBot(botIdentity({ name: "Ada" }))
 		const { controller, detach } = await bootedHarness({
@@ -3052,7 +3052,7 @@ describe("prompts the session cannot take yet", () => {
 		harness.detach()
 	})
 
-	it("keeps each bot's held prompts to itself", async () => {
+	it("keeps each companion's held prompts to itself", async () => {
 		const store = createFakeTranscriptStore()
 		const other = await store.createBot(botIdentity({ name: "Second" }))
 		const harness = await bootedHarness({ store })

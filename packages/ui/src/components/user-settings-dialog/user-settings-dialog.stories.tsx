@@ -78,7 +78,7 @@ const meta = preview.meta({
 		docs: {
 			description: {
 				component:
-					"Everything a reader is to the app, in one overlay. A breadcrumb heads it with their own face — the same avatar the sidebar chip draws, so the dialog is visibly the one that chip opened — their name and the word Settings. Down the left is a rail of four groups: Profile, what the app calls them and the picture it shows; Appearance, how the app is painted; Notifications, what it tells them about; Language, the one it speaks. It opens on Profile every time. Same contract as a bot's settings and for the same reason: fully controlled, saving as you type, no draft, no debounce, no persistence — closing it is never a question. Two things do not travel through the value: the picture, whose file is handed to the host to store and write a URL back for, and the language, which travels as a prop of its own because the translation runtime is what the whole app reads from.",
+					"Everything a reader is to the app, in one overlay. A breadcrumb heads it with their own face — the same avatar the sidebar chip draws, so the dialog is visibly the one that chip opened — their name and the word Settings. Down the left is a rail of four groups: Profile, what the app calls them and the picture it shows; Appearance, how the app is painted; Notifications, what it tells them about; Language, the one it speaks. It opens on Profile every time. Same contract as a companion's settings and for the same reason: fully controlled, saving as you type, no draft, no debounce, no persistence — closing it is never a question. Two things do not travel through the value: the picture, whose file is handed to the host to store and write a URL back for, and the language, which travels as a prop of its own because the translation runtime is what the whole app reads from.",
 			},
 		},
 	},
@@ -210,7 +210,7 @@ export const Notifications = meta.story({
 		docs: {
 			description: {
 				story:
-					"The third group, on a record that holds no choice: the three moments on and the sound with them, which is what a reader who has never opened this tab is owed — a bot that asked something nobody heard waits forever. Check that flipping one writes the whole value back through `onValueChange` with that one event turned off and the name and the scheme exactly as they were. Pick `LanguageTab` for the group next door.",
+					"The third group, on a record that holds no choice: the three moments on and the sound with them, which is what a reader who has never opened this tab is owed — a companion that asked something nobody heard waits forever. Check that flipping one writes the whole value back through `onValueChange` with that one event turned off and the name and the scheme exactly as they were. Pick `LanguageTab` for the group next door.",
 			},
 		},
 	},
@@ -224,7 +224,9 @@ export const Notifications = meta.story({
 			name: "Notifications",
 		})
 		await userEvent.click(
-			within(panel).getByRole("switch", { name: "A bot asks permission" }),
+			within(panel).getByRole("switch", {
+				name: "A companion asks permission",
+			}),
 		)
 		await expect(args.onValueChange).toHaveBeenCalledWith({
 			...FILLED_USER,
@@ -300,7 +302,7 @@ export const Skills = meta.story({
 		docs: {
 			description: {
 				story:
-					"The skills of the person's own plugin — the same panel a bot's settings draws, on the plugin every bot reads before it answers. Check that opening one swaps the whole body for the editor, and that the way back restores the rail — on Profile, as the bot dialog does after the same trip. Pick `NoSkills` for the plugin that holds none yet.",
+					"The skills of the person's own plugin — the same panel a companion's settings draws, on the plugin every companion reads before it answers. Check that opening one swaps the whole body for the editor, and that the way back restores the rail — on Profile, as the companion dialog does after the same trip. Pick `NoSkills` for the plugin that holds none yet.",
 			},
 		},
 	},
@@ -384,7 +386,7 @@ export const History = meta.story({
 		docs: {
 			description: {
 				story:
-					"Everything ever written into the person's plugin, newest first, whoever wrote it. Check that a change the person made is signed You and one a bot made is signed generically, and that asking for the changes of an entry calls back for its diff.",
+					"Everything ever written into the person's plugin, newest first, whoever wrote it. Check that a change the person made is signed You and one a companion made is signed generically, and that asking for the changes of an entry calls back for its diff.",
 			},
 		},
 	},

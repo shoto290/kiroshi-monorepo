@@ -594,7 +594,7 @@ describe("claimsComposerFocus", () => {
 		expect(claimsComposerFocus(claim)).toBe(true)
 	})
 
-	it("claims the caret again when another bot opens", () => {
+	it("claims the caret again when another companion opens", () => {
 		expect(claimsComposerFocus({ ...claim, focusedBotId: "bot-2" })).toBe(true)
 	})
 
@@ -619,7 +619,7 @@ describe("markedRunsOf", () => {
 	const spoken = (id: string, authorBotId: string) =>
 		message({ id, authorBotId, content: "Said.", completion: "complete" })
 
-	it("marks the last run of every bot that stopped working", () => {
+	it("marks the last run of every companion that stopped working", () => {
 		const runs = toRuns(
 			toTranscriptRows([
 				spoken("a", "bot-1"),
@@ -631,7 +631,7 @@ describe("markedRunsOf", () => {
 		expect([...markedRunsOf(runs, [null])].toSorted()).toEqual([1, 2])
 	})
 
-	it("leaves a bot unmarked while it is still working", () => {
+	it("leaves a companion unmarked while it is still working", () => {
 		const runs = toRuns(
 			toTranscriptRows([spoken("a", "bot-1"), spoken("b", "bot-2")]),
 		)
@@ -661,7 +661,7 @@ describe("runPresentationsOf", () => {
 			isWorking,
 		})
 
-	it("marks the newest run alone in a single bot thread", () => {
+	it("marks the newest run alone in a single companion thread", () => {
 		expect(solo(false).map((run) => run.isMarked)).toEqual([false, false, true])
 	})
 
@@ -669,15 +669,15 @@ describe("runPresentationsOf", () => {
 		expect(solo(false).map((run) => run.avatarIndex)).toEqual([1, 0, 0])
 	})
 
-	it("drops the avatar of the newest run while the bot works", () => {
+	it("drops the avatar of the newest run while the companion works", () => {
 		expect(solo(true).map((run) => run.avatarIndex)).toEqual([1, 0, -1])
 	})
 
-	it("renders tables bare in a single bot thread", () => {
+	it("renders tables bare in a single companion thread", () => {
 		expect(solo(false).every((run) => run.hasBareTables)).toBe(true)
 	})
 
-	it("marks the runs of the bots that stopped working in a conversation", () => {
+	it("marks the runs of the companions that stopped working in a conversation", () => {
 		const spoken = (id: string, authorBotId: string) =>
 			message({ id, authorBotId, content: "Said.", completion: "complete" })
 		const runs = toRuns(

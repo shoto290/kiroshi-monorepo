@@ -28,7 +28,7 @@ const meta = preview.meta({
 		docs: {
 			description: {
 				component:
-					"One mission of a conversation, as it reads in the activity panel: a bare row with no border and no surface under it, the bot's blot carrying the state as its badge dot, what the mission is for on the first line with the time at the trailing edge, then the platform, the ticket, the bot and the state word on a second line that truncates rather than wraps. The whole row is the way into the mission. Reach for it inside `RoutinesPanel`; on its own it is only useful to check one row's states.",
+					"One mission of a conversation, as it reads in the activity panel: a bare row with no border and no surface under it, the companion's blot carrying the state as its badge dot, what the mission is for on the first line with the time at the trailing edge, then the platform, the ticket, the companion and the state word on a second line that truncates rather than wraps. The whole row is the way into the mission. Reach for it inside `RoutinesPanel`; on its own it is only useful to check one row's states.",
 			},
 		},
 	},
@@ -51,13 +51,13 @@ export const Working = meta.story({
 		docs: {
 			description: {
 				story:
-					"A mission its bot is working on. Check that the blot holds the working pose the same mission carries on its thread card, that no badge dot is drawn on it, that no state word is added after the bot name, that the ticket identifier and the age read on their own lines, and that the row reports the mission it belongs to when it is pressed.",
+					"A mission its companion is working on. Check that the blot holds the working pose the same mission carries on its thread card, that no badge dot is drawn on it, that no state word is added after the companion name, that the ticket identifier and the age read on their own lines, and that the row reports the mission it belongs to when it is pressed.",
 			},
 		},
 	},
 	play: async ({ args, canvas, canvasElement, userEvent }) => {
 		await expect(
-			canvas.getByRole("img", { name: "Bot avatar owl, working" }),
+			canvas.getByRole("img", { name: "Companion avatar owl, working" }),
 		).toBeVisible()
 		await expect(dotIn(canvasElement)).toBeNull()
 		await expect(canvas.getByText("OPE-42")).toBeVisible()
@@ -75,7 +75,7 @@ export const WaitingForItsBot = meta.story({
 		docs: {
 			description: {
 				story:
-					"A mission whose bot has not picked it up yet, on a platform that names no identifier. Check that no badge dot is drawn, that no state word is added, and that the ticket title takes the place of the missing identifier right after the platform mark.",
+					"A mission whose companion has not picked it up yet, on a platform that names no identifier. Check that no badge dot is drawn, that no state word is added, and that the ticket title takes the place of the missing identifier right after the platform mark.",
 			},
 		},
 	},
@@ -93,7 +93,7 @@ export const WaitingOnYou = meta.story({
 		docs: {
 			description: {
 				story:
-					"A mission stopped on a question only a person can answer. Check that the attention dot is drawn on the blot, that it names the wait for a screen reader rather than leaving colour to carry it alone, and that no state word is written beside the bot name.",
+					"A mission stopped on a question only a person can answer. Check that the attention dot is drawn on the blot, that it names the wait for a screen reader rather than leaving colour to carry it alone, and that no state word is written beside the companion name.",
 			},
 		},
 	},
@@ -151,7 +151,7 @@ export const Closed = meta.story({
 	},
 	play: async ({ canvas, canvasElement }) => {
 		await expect(
-			canvas.getByRole("img", { name: "Bot avatar rabbit, idle" }),
+			canvas.getByRole("img", { name: "Companion avatar rabbit, idle" }),
 		).toBeVisible()
 		await expect(dotIn(canvasElement)).toBeNull()
 		await expect(canvas.getByText("09:12")).toBeVisible()
@@ -165,7 +165,7 @@ export const WithoutATicket = meta.story({
 		docs: {
 			description: {
 				story:
-					"A mission opened with no ticket at all, which the store keeps as empty strings rather than as nothing. Check that the meta line opens on the bot name with no separator in front of it, and that the bookmark mark still stands for the platform no read named.",
+					"A mission opened with no ticket at all, which the store keeps as empty strings rather than as nothing. Check that the meta line opens on the companion name with no separator in front of it, and that the bookmark mark still stands for the platform no read named.",
 			},
 		},
 	},

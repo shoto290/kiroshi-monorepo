@@ -44,7 +44,7 @@ const meta = preview.meta({
 		docs: {
 			description: {
 				component:
-					"One skill of a bot's, whole, on the whole dialog: a rail of sections down the left and one section at a time on the right. The rail replaces the bot's own while a skill is open and is the summary — Instructions, Triggering, Execution, Tools, Advanced — so a reader sees at once everything a skill can carry rather than three fields and a format they have to know about. Nothing is written as it is typed: every keystroke reports the draft, the editor says when it differs from the skill it was opened on, the save is a press and the way out asks before it drops anything. The description and when to use are budgeted as one paragraph against 1536 characters, because that is how the bot reads them. The destructive red on its own tint is the token's known contrast gap, flagged for review rather than worked around here.",
+					"One skill of a companion's, whole, on the whole dialog: a rail of sections down the left and one section at a time on the right. The rail replaces the companion's own while a skill is open and is the summary — Instructions, Triggering, Execution, Tools, Advanced — so a reader sees at once everything a skill can carry rather than three fields and a format they have to know about. Nothing is written as it is typed: every keystroke reports the draft, the editor says when it differs from the skill it was opened on, the save is a press and the way out asks before it drops anything. The description and when to use are budgeted as one paragraph against 1536 characters, because that is how the companion reads them. The destructive red on its own tint is the token's known contrast gap, flagged for review rather than worked around here.",
 			},
 		},
 	},
@@ -76,7 +76,7 @@ export const Default = meta.story({
 		docs: {
 			description: {
 				story:
-					"A skill that already exists, opened on what it tells the bot to do. Check that the body takes the height the two fields under it leave, that the save is disabled while nothing has been typed, and that typing turns it on and raises the unsaved mark beside the name. Reach for a section story below to review one group of fields on its own.",
+					"A skill that already exists, opened on what it tells the companion to do. Check that the body takes the height the two fields under it leave, that the save is disabled while nothing has been typed, and that typing turns it on and raises the unsaved mark beside the name. Reach for a section story below to review one group of fields on its own.",
 			},
 		},
 	},
@@ -101,7 +101,7 @@ export const Triggering = meta.story({
 		docs: {
 			description: {
 				story:
-					"Everything that decides whether the bot reaches for the skill at all: its name, the description, when to use it, who may invoke it, the paths that make it worth reading and whether it travels in every prompt. Check that the description and when to use are counted together under the second field — the bot reads them as one paragraph, so they share one budget. Pick `OverBudget` for the state where that budget is spent.",
+					"Everything that decides whether the companion reaches for the skill at all: its name, the description, when to use it, who may invoke it, the paths that make it worth reading and whether it travels in every prompt. Check that the description and when to use are counted together under the second field — the companion reads them as one paragraph, so they share one budget. Pick `OverBudget` for the state where that budget is spent.",
 			},
 		},
 	},
@@ -263,7 +263,7 @@ export const Empty = meta.story({
 		).toBeChecked()
 		await expect(
 			canvas.getByRole("switch", {
-				name: "Keep the bot from reaching for it",
+				name: "Keep the companion from reaching for it",
 			}),
 		).not.toBeChecked()
 
@@ -311,7 +311,7 @@ export const IconRail = meta.story({
 		docs: {
 			description: {
 				story:
-					"The editor on a surface too narrow for the rail's names — below 42rem, the same threshold the bot's own rail takes. Check that every section stays reachable and named to a screen reader, and that the way out keeps its name as a tooltip rather than losing it.",
+					"The editor on a surface too narrow for the rail's names — below 42rem, the same threshold the companion's own rail takes. Check that every section stays reachable and named to a screen reader, and that the way out keeps its name as a tooltip rather than losing it.",
 			},
 		},
 	},

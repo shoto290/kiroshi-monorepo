@@ -19,7 +19,7 @@ const meta = preview.meta({
 	args: {
 		title: "Spaces could not be read",
 		description:
-			"Your bots are safe on the record. Try again to open your spaces.",
+			"Your companions are safe on the record. Try again to open your spaces.",
 		onRetry: fn(),
 	},
 	argTypes: {

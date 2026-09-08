@@ -160,7 +160,7 @@ describe("notificationsFor", () => {
 		).toEqual([{ botId: "bot-1", event: "question" }])
 	})
 
-	it("names the bot the change is about", () => {
+	it("names the companion the change is about", () => {
 		expect(
 			decide({
 				botId: "bot-7",
@@ -193,13 +193,13 @@ const decideRound = (input: Partial<ConversationPolicyInput>) =>
 	})
 
 describe("notifiesFinishedRound", () => {
-	it("reports the last bot of the room falling silent", () => {
+	it("reports the last companion of the room falling silent", () => {
 		expect(
 			decideRound({ before: round({ speakers: [speakingBot("bot-1")] }) }),
 		).toBe(true)
 	})
 
-	it("reports nothing while a bot is still speaking", () => {
+	it("reports nothing while a companion is still speaking", () => {
 		expect(
 			decideRound({
 				before: round({ speakers: [speakingBot("bot-1")] }),
@@ -208,7 +208,7 @@ describe("notifiesFinishedRound", () => {
 		).toBe(false)
 	})
 
-	it("reports nothing while a bot is still waiting its turn", () => {
+	it("reports nothing while a companion is still waiting its turn", () => {
 		expect(
 			decideRound({
 				before: round({
@@ -220,7 +220,7 @@ describe("notifiesFinishedRound", () => {
 		).toBe(false)
 	})
 
-	it("reports the room falling silent once the last waiting bot has spoken", () => {
+	it("reports the room falling silent once the last waiting companion has spoken", () => {
 		expect(
 			decideRound({
 				before: round({ speakers: [speakingBot("bot-2")] }),

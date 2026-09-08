@@ -10,15 +10,15 @@ import type {
 const bots = {
 	roster: {
 		label: "Conversations",
-		create: "New bot",
+		create: "New companion",
 		createMenu: "Create",
 		conversation: {
 			create: "New conversation",
 			others: "+{{count}}",
 			preview: "{{name}}: {{text}}",
 		},
-		empty: "No bots yet",
-		unavailable: "Your bots could not be read.",
+		empty: "No companions yet",
+		unavailable: "Your companions could not be read.",
 		mission: {
 			state: {
 				waiting: "waiting for you",
@@ -29,7 +29,7 @@ const bots = {
 			unavailable: {
 				title: "Missions could not be read",
 				description:
-					"Your bots are intact. Each line reads without its mission until the next read.",
+					"Your companions are intact. Each line reads without its mission until the next read.",
 			},
 		},
 		actions: "Actions for {{name}}",
@@ -38,7 +38,7 @@ const bots = {
 		spaces: {
 			label: "Spaces",
 			lastSpace:
-				"The last space a bot is in stays. Delete the bot to be rid of it.",
+				"The last space a companion is in stays. Delete the companion to be rid of it.",
 		},
 		pin: "Pin",
 		pinDrop: "Drop here to pin",
@@ -54,7 +54,7 @@ const bots = {
 		},
 		idle: "idle",
 		announcement: {
-			none: "No bot selected",
+			none: "No companion selected",
 			selected: "{{name}} selected, {{state}}",
 		},
 		section: {
@@ -69,7 +69,7 @@ const bots = {
 			moveUp: "Move up",
 			moveDown: "Move down",
 			delete: "Delete",
-			empty: "Drop a bot here",
+			empty: "Drop a companion here",
 		},
 	},
 	spaces: {
@@ -82,13 +82,13 @@ const bots = {
 		settings: "Space settings",
 		shortcut: "⌘{{rank}}",
 		remove: {
-			lastSpace: "A bot has to stay in at least one space.",
+			lastSpace: "A companion has to stay in at least one space.",
 			failed:
-				"This bot could not be removed from this space. Nothing changed, try again.",
+				"This companion could not be removed from this space. Nothing changed, try again.",
 		},
 	},
 	dialog: {
-		untitled: "Untitled bot",
+		untitled: "Untitled companion",
 		breadcrumb: "Settings",
 		tab: {
 			general: "General",
@@ -112,18 +112,18 @@ const bots = {
 		},
 		instructions: {
 			label: "Instructions",
-			placeholder: "The system prompt this bot always runs with",
+			placeholder: "The system prompt this companion always runs with",
 		},
 		memory: {
 			label: "Memory",
-			hint: "What the bot has written down for itself across conversations. Correct it or wipe it — it keeps writing either way.",
-			empty: "This bot has not written anything down yet.",
+			hint: "What the companion has written down for itself across conversations. Correct it or wipe it — it keeps writing either way.",
+			empty: "This companion has not written anything down yet.",
 			save: "Save memory",
 			clear: {
 				action: "Clear",
-				title: "Clear this bot's memory?",
+				title: "Clear this companion's memory?",
 				description:
-					"Everything the bot has written down for itself is removed. It starts learning again from the next conversation.",
+					"Everything the companion has written down for itself is removed. It starts learning again from the next conversation.",
 				confirm: "Clear the memory",
 			},
 		},
@@ -171,11 +171,11 @@ const bots = {
 		name: {
 			label: "Name",
 			placeholder: "release-notes",
-			hint: "Lowercase letters, numbers and hyphens. It is the skill's identity — the description below is what the bot reads.",
+			hint: "Lowercase letters, numbers and hyphens. It is the skill's identity — the description below is what the companion reads.",
 		},
 		description: {
 			label: "Description",
-			placeholder: "When this bot should reach for it",
+			placeholder: "When this companion should reach for it",
 		},
 		whenToUse: {
 			label: "When to use",
@@ -205,9 +205,9 @@ const bots = {
 			hint: "One glob a line. The files whose presence makes this skill worth reaching for.",
 		},
 		modelInvocation: {
-			label: "Keep the bot from reaching for it",
+			label: "Keep the companion from reaching for it",
 			description:
-				"Left off, the bot decides on its own from the description. Turned on, only a reader may invoke it.",
+				"Left off, the companion decides on its own from the description. Turned on, only a reader may invoke it.",
 		},
 		userInvocable: {
 			label: "Let a reader invoke it",
@@ -218,7 +218,7 @@ const bots = {
 			label: "Preload this skill",
 			tag: "Preloaded",
 			description:
-				"A preloaded skill is in this bot's prompt on every turn. Left off, it stays on the disk as text the bot may go and read.",
+				"A preloaded skill is in this companion's prompt on every turn. Left off, it stays on the disk as text the companion may go and read.",
 		},
 		system: {
 			tag: "System",
@@ -227,12 +227,12 @@ const bots = {
 		},
 		model: {
 			label: "Model",
-			placeholder: "The bot's own",
-			hint: "Left empty, this skill's turn runs on the model the bot runs on.",
+			placeholder: "The companion's own",
+			hint: "Left empty, this skill's turn runs on the model the companion runs on.",
 		},
 		effort: {
 			label: "Effort",
-			default: "The bot's own",
+			default: "The companion's own",
 			option: {
 				low: "Low",
 				medium: "Medium",
@@ -255,7 +255,7 @@ const bots = {
 		},
 		agent: {
 			label: "Agent",
-			placeholder: "The bot itself",
+			placeholder: "The companion itself",
 			hint: "Who the forked run is handed to.",
 		},
 		background: {
@@ -266,7 +266,7 @@ const bots = {
 		allowedTools: {
 			label: "Allowed tools",
 			placeholder: "Read\nGrep",
-			hint: "One tool a name a line. Left empty, this skill's turn may use everything the bot may.",
+			hint: "One tool a name a line. Left empty, this skill's turn may use everything the companion may.",
 		},
 		disallowedTools: {
 			label: "Disallowed tools",
@@ -348,17 +348,17 @@ const bots = {
 			advanced: "Advanced",
 		},
 		notice:
-			"A server is a program this bot starts on your machine, under your account, the next time it runs. Add one only from a source you trust.",
+			"A server is a program this companion starts on your machine, under your account, the next time it runs. Add one only from a source you trust.",
 		empty: {
 			title: "No MCP servers yet",
 			description:
-				"An MCP server gives this bot tools it does not have on its own. Adding one lets this bot start that program on your machine.",
+				"An MCP server gives this companion tools it does not have on its own. Adding one lets this companion start that program on your machine.",
 		},
 		unavailable: "These MCP servers could not be read.",
 		name: {
 			label: "Name",
 			placeholder: "atlas",
-			hint: "Lowercase letters, numbers and hyphens. It is what the server is declared under and what the bot connects to it as.",
+			hint: "Lowercase letters, numbers and hyphens. It is what the server is declared under and what the companion connects to it as.",
 		},
 		config: {
 			label: "Configuration",
@@ -379,7 +379,7 @@ const bots = {
 		command: {
 			label: "Command",
 			placeholder: "npx",
-			hint: "The program this bot starts. It runs under your account, with what you can reach.",
+			hint: "The program this companion starts. It runs under your account, with what you can reach.",
 		},
 		args: {
 			label: "Arguments",
@@ -389,7 +389,7 @@ const bots = {
 		url: {
 			label: "URL",
 			placeholder: "https://example.com/mcp",
-			hint: "The address this bot connects to. Nothing is started on your machine.",
+			hint: "The address this companion connects to. Nothing is started on your machine.",
 		},
 		endpoint: {
 			label: "Endpoint",
@@ -408,7 +408,7 @@ const bots = {
 		environment: {
 			label: "Environment",
 			placeholder: "ATLAS_TOKEN=sk-...",
-			hint: "One name and value a line. The server starts with these, and nothing else this bot holds.",
+			hint: "One name and value a line. The server starts with these, and nothing else this companion holds.",
 		},
 		leave: {
 			title: "Leave without saving?",
@@ -426,7 +426,7 @@ const bots = {
 		delete: {
 			action: "Remove server",
 			description:
-				"This bot stops starting it, and its configuration goes with it. This cannot be undone.",
+				"This companion stops starting it, and its configuration goes with it. This cannot be undone.",
 			confirm: {
 				title: "Remove {{name}}?",
 			},
@@ -448,7 +448,7 @@ const bots = {
 		},
 		scope: {
 			space: "Space",
-			bot: "Bot",
+			bot: "Companion",
 			server: "MCP server",
 		},
 		row: {
@@ -524,7 +524,7 @@ const bots = {
 			option: {
 				auto: {
 					label: "Decide alone",
-					hint: "The bot decides on its own, within the rules below.",
+					hint: "The companion decides on its own, within the rules below.",
 				},
 				default: {
 					label: "Ask every time",
@@ -536,11 +536,11 @@ const bots = {
 				},
 				plan: {
 					label: "Plan first",
-					hint: "The bot reads and plans, and changes nothing until you say so.",
+					hint: "The companion reads and plans, and changes nothing until you say so.",
 				},
 				dontAsk: {
 					label: "Never ask",
-					hint: "Nothing is put to you: only the deny rules below hold the bot back.",
+					hint: "Nothing is put to you: only the deny rules below hold the companion back.",
 				},
 			} as const satisfies Record<
 				BotPermissionMode,
@@ -610,7 +610,7 @@ const bots = {
 		},
 	},
 	danger: {
-		delete: "Delete bot",
+		delete: "Delete companion",
 		description:
 			"Its avatar, instructions and working directory go with it. This cannot be undone.",
 		confirm: {

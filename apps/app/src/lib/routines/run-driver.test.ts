@@ -226,7 +226,7 @@ describe("startRunDriver", () => {
 		vi.useRealTimers()
 	})
 
-	it("opens a fresh session for the run's conversation and bot", async () => {
+	it("opens a fresh session for the run's conversation and companion", async () => {
 		harness.runs.request(harness.requested())
 		await settled()
 
@@ -302,7 +302,7 @@ describe("startRunDriver", () => {
 		expect(harness.driver.shutdowns).toEqual([harness.botId])
 	})
 
-	it("writes one bot turn holding the report and closes the run ok", async () => {
+	it("writes one companion turn holding the report and closes the run ok", async () => {
 		await harness.openOnScreen()
 		harness.runs.request(harness.requested())
 		await settled()
@@ -479,7 +479,7 @@ describe("startRunDriver", () => {
 		expect(harness.runs.closings[0].closing.outcome).toBe("nothing")
 	})
 
-	it("leaves the bot idle in its solo thread while a run is in flight", async () => {
+	it("leaves the companion idle in its solo thread while a run is in flight", async () => {
 		await harness.openSoloOnScreen()
 		const idle = harness.soloState()
 		harness.runs.request(harness.soloRun())

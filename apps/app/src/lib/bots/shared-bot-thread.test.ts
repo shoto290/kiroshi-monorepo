@@ -162,7 +162,7 @@ it("opens the solo thread of the space entered and leaves the one it left", asyn
 	expect(threadText()).not.toContain(AWAY_WORD)
 })
 
-it("opens the thread of the bot's own space when its notification is clicked", async () => {
+it("opens the thread of the companion's own space when its notification is clicked", async () => {
 	vi.useFakeTimers()
 	const { away, notifications } = await aBotOfAnotherSpace()
 

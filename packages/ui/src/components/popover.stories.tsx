@@ -38,7 +38,8 @@ const anchorLabel = (side: Side, align: Align) => `${side} ${align}`
 
 const PANEL_TITLE = "Release notes"
 
-const PANEL_NOTE = "Bots keep their transcript when the window is reopened."
+const PANEL_NOTE =
+	"Companions keep their transcript when the window is reopened."
 
 const PANEL = (
 	<>

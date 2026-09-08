@@ -16,7 +16,7 @@ const settings = {
 	},
 	plugin: {
 		author: {
-			bot: "A bot",
+			bot: "A companion",
 		},
 	},
 	profile: {
@@ -35,17 +35,17 @@ const settings = {
 		label: "Notify me when",
 		event: {
 			question: {
-				label: "A bot asks a question",
+				label: "A companion asks a question",
 				description:
 					"It has stopped and is waiting on an answer only you can give.",
 			},
 			permission: {
-				label: "A bot asks permission",
+				label: "A companion asks permission",
 				description:
 					"It wants leave to run something or change a file, and waits until you say.",
 			},
 			turn: {
-				label: "A bot finishes its turn",
+				label: "A companion finishes its turn",
 				description: "It has said everything it had to say and gone quiet.",
 			},
 		},
@@ -82,7 +82,8 @@ const settings = {
 		},
 		danger: {
 			delete: "Delete space",
-			description: "Its bots and its plugin go with it. This cannot be undone.",
+			description:
+				"Its companions and its plugin go with it. This cannot be undone.",
 			last: "The last space cannot be deleted — the app always keeps one.",
 			confirm: {
 				title: "Delete {{name}}?",

@@ -19,7 +19,7 @@ const meta = preview.meta({
 		docs: {
 			description: {
 				component:
-					"The one action a settings panel cannot undo, kept behind a question — the same group a bot, a conversation and a space all end on. It states what leaves before the reader presses anything, then names the thing again in the confirmation, so a reader who opened the wrong settings finds out there rather than after. The destructive tone is carried by a hairline border rather than a fill, so the group reads as serious without shouting over the panel above it. It carries no copy of its own: the heading, the sentence and the confirmation title all arrive as props, which is what lets one group serve every panel. The question is its own — the group opens and closes it, and `onDelete` fires only on the second press. The destructive red on its own tint is the token's known contrast gap, flagged for review rather than worked around here.",
+					"The one action a settings panel cannot undo, kept behind a question — the same group a companion, a conversation and a space all end on. It states what leaves before the reader presses anything, then names the thing again in the confirmation, so a reader who opened the wrong settings finds out there rather than after. The destructive tone is carried by a hairline border rather than a fill, so the group reads as serious without shouting over the panel above it. It carries no copy of its own: the heading, the sentence and the confirmation title all arrive as props, which is what lets one group serve every panel. The question is its own — the group opens and closes it, and `onDelete` fires only on the second press. The destructive red on its own tint is the token's known contrast gap, flagged for review rather than worked around here.",
 			},
 		},
 	},
@@ -31,7 +31,7 @@ const meta = preview.meta({
 		),
 	],
 	args: {
-		deleteLabel: "Delete bot",
+		deleteLabel: "Delete companion",
 		description:
 			"Its avatar, instructions and working directory go with it. This cannot be undone.",
 		confirmTitle: "Delete Nest Keeper?",
@@ -52,7 +52,7 @@ export const Playground = meta.story({
 		},
 	},
 	play: async ({ canvas, userEvent }) => {
-		const trigger = canvas.getByRole("button", { name: "Delete bot" })
+		const trigger = canvas.getByRole("button", { name: "Delete companion" })
 
 		await userEvent.tab()
 		await expect(trigger).toHaveFocus()
@@ -101,7 +101,9 @@ export const Cancelled = meta.story({
 		},
 	},
 	play: async ({ args, canvas, userEvent }) => {
-		await userEvent.click(canvas.getByRole("button", { name: "Delete bot" }))
+		await userEvent.click(
+			canvas.getByRole("button", { name: "Delete companion" }),
+		)
 
 		const popup = await confirmation()
 		await userEvent.click(within(popup).getByRole("button", { name: "Cancel" }))
@@ -109,7 +111,7 @@ export const Cancelled = meta.story({
 		await waitFor(() => expect(screen.queryByRole("alertdialog")).toBe(null))
 		await expect(args.onDelete).not.toHaveBeenCalled()
 		await expect(
-			canvas.getByRole("button", { name: "Delete bot" }),
+			canvas.getByRole("button", { name: "Delete companion" }),
 		).toBeVisible()
 	},
 })
@@ -124,11 +126,13 @@ export const Deleted = meta.story({
 		},
 	},
 	play: async ({ args, canvas, userEvent }) => {
-		await userEvent.click(canvas.getByRole("button", { name: "Delete bot" }))
+		await userEvent.click(
+			canvas.getByRole("button", { name: "Delete companion" }),
+		)
 
 		const popup = await confirmation()
 		await userEvent.click(
-			within(popup).getByRole("button", { name: "Delete bot" }),
+			within(popup).getByRole("button", { name: "Delete companion" }),
 		)
 
 		await waitFor(() => expect(screen.queryByRole("alertdialog")).toBe(null))

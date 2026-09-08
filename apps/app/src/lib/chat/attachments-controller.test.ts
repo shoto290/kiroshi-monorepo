@@ -81,7 +81,7 @@ describe("a submission in flight", () => {
 		expect(host.sent).toEqual([{ owner: "bot:a", text: "look\n/data/a/1.md" }])
 	})
 
-	it("delivers to the bot it started on, whoever is read meanwhile", async () => {
+	it("delivers to the companion it started on, whoever is read meanwhile", async () => {
 		const host = heldPort()
 		const controller = createAttachmentsController(host.port)
 		controller.stage(bot("a"), [fileNamed("notes.md")])
@@ -118,7 +118,7 @@ describe("a submission in flight", () => {
 })
 
 describe("a refused store", () => {
-	it("is held against the bot it happened on and shown on no other", async () => {
+	it("is held against the companion it happened on and shown on no other", async () => {
 		const host = heldPort()
 		const controller = createAttachmentsController(host.port)
 		controller.stage(bot("a"), [fileNamed("notes.md")])
@@ -137,7 +137,7 @@ describe("a refused store", () => {
 		expect(controller.getState().staged["bot:a"]).toHaveLength(1)
 	})
 
-	it("goes when the bot sends a prompt with nothing staged", async () => {
+	it("goes when the companion sends a prompt with nothing staged", async () => {
 		const host = heldPort()
 		const controller = createAttachmentsController(host.port)
 		controller.stage(bot("a"), [fileNamed("notes.md")])
@@ -157,7 +157,7 @@ describe("a refused store", () => {
 })
 
 describe("files that stop being reachable", () => {
-	it("release their previews when the bot is forgotten", () => {
+	it("release their previews when the companion is forgotten", () => {
 		const released = vi.spyOn(URL, "revokeObjectURL")
 		const controller = createAttachmentsController(heldPort().port)
 		controller.stage(bot("a"), [fileNamed("shot.png", "image/png")])

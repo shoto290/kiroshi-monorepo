@@ -18,7 +18,7 @@ const meta = preview.meta({
 		docs: {
 			description: {
 				component:
-					"Every environment variable handed to what this scope starts, listed by name alone. A value enters through the masked field and is never read back — no story, no state and no prop of this panel carries one, which is the whole point of the surface. What a row does carry is where the name is defined and which of the three scopes actually serves it, because a name written here can be silently replaced by a narrower one: space, then bot, then MCP server, the narrowest winning. The panel keeps nothing beyond the dialog it has open: it lists what it is given, reports a name and a typed value on set, and reports a name on delete.",
+					"Every environment variable handed to what this scope starts, listed by name alone. A value enters through the masked field and is never read back — no story, no state and no prop of this panel carries one, which is the whole point of the surface. What a row does carry is where the name is defined and which of the three scopes actually serves it, because a name written here can be silently replaced by a narrower one: space, then companion, then MCP server, the narrowest winning. The panel keeps nothing beyond the dialog it has open: it lists what it is given, reports a name and a typed value on set, and reports a name on delete.",
 			},
 		},
 	},
@@ -42,7 +42,7 @@ export const Default = meta.story({
 		docs: {
 			description: {
 				story:
-					"A bot seen from its own scope, holding all four kinds of row at once: inherited from the space, overriding the space, its own alone, and its own but beaten by a server. Check that the two marks read in opposite directions — `Overrides Space` on the row that wins, `Overridden by MCP server` on the row that loses — and that the inherited row offers neither replace nor remove, since a bot cannot delete what the space defines. Removing names the key before it reports anything.",
+					"A companion seen from its own scope, holding all four kinds of row at once: inherited from the space, overriding the space, its own alone, and its own but beaten by a server. Check that the two marks read in opposite directions — `Overrides Space` on the row that wins, `Overridden by MCP server` on the row that loses — and that the inherited row offers neither replace nor remove, since a companion cannot delete what the space defines. Removing names the key before it reports anything.",
 			},
 		},
 	},
@@ -79,12 +79,12 @@ export const SpaceScope = meta.story({
 		docs: {
 			description: {
 				story:
-					"The widest scope, where every row is its own and nothing is inherited. Reach for this to check the losing side of the resolution: a space defines all three names and serves only one, the other two being taken over by a bot and by a server. Every row still offers removal, because the definition being removed is the space's own even when it is not the one served.",
+					"The widest scope, where every row is its own and nothing is inherited. Reach for this to check the losing side of the resolution: a space defines all three names and serves only one, the other two being taken over by a companion and by a server. Every row still offers removal, because the definition being removed is the space's own even when it is not the one served.",
 			},
 		},
 	},
 	play: async ({ canvas }) => {
-		await expect(canvas.getByText("Overridden by Bot")).toBeVisible()
+		await expect(canvas.getByText("Overridden by Companion")).toBeVisible()
 		await expect(
 			canvas.getByRole("button", { name: "Remove ATLAS_REGION" }),
 		).toBeVisible()
@@ -97,12 +97,12 @@ export const ServerScope = meta.story({
 		docs: {
 			description: {
 				story:
-					"The narrowest scope, where nothing can take a name away. Reach for this to check that no row is ever marked overridden here — a server's own definition always wins — and that a name it takes from the bot says so rather than looking like a name only it holds.",
+					"The narrowest scope, where nothing can take a name away. Reach for this to check that no row is ever marked overridden here — a server's own definition always wins — and that a name it takes from the companion says so rather than looking like a name only it holds.",
 			},
 		},
 	},
 	play: async ({ canvas }) => {
-		await expect(canvas.getByText("Overrides Bot")).toBeVisible()
+		await expect(canvas.getByText("Overrides Companion")).toBeVisible()
 		await expect(canvas.queryByText(/Overridden by/)).not.toBeInTheDocument()
 	},
 })

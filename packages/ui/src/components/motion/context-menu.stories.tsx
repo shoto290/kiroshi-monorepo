@@ -283,7 +283,7 @@ export const States = meta.story({
 
 const SPACES_NAME = "Spaces"
 
-const LAST_SPACE_NOTE = "The last space a bot is in stays."
+const LAST_SPACE_NOTE = "The last space a companion is in stays."
 
 const pillIn = (item: HTMLElement) =>
 	item.querySelector("span[class*='inset-0']")
@@ -294,10 +294,10 @@ const SpacesCard = () => (
 	<ContextMenu>
 		<ContextMenuTrigger>
 			<button type="button" className={SURFACE_CLASS}>
-				Right-click for bot actions
+				Right-click for companion actions
 			</button>
 		</ContextMenuTrigger>
-		<ContextMenuContent ariaLabel="Bot actions">
+		<ContextMenuContent ariaLabel="Companion actions">
 			<ContextMenuItem>Settings</ContextMenuItem>
 			<ContextMenuSub>
 				<ContextMenuSubTrigger>{SPACES_NAME}</ContextMenuSubTrigger>
@@ -328,13 +328,13 @@ export const UnavailableItem = meta.story({
 		docs: {
 			description: {
 				story:
-					"`unavailable` is the other half of `disabled`, and the two are never worn at once. `disabled` is for an action that cannot be run now: it is switched off natively and stepped over, because focusing a row a reader cannot use wastes their time. `unavailable` is for a row that carries state they came to read — the ticked space a bot cannot leave — which must stay in the walk to be heard at all: it is `aria-disabled`, keeps the same dimmed skin, and reports to nobody on Enter or on a click. A pointer resting on it changes nothing either — focus and the active pill stay on the row the reader left them on, since a row that lights up under the cursor and then swallows the click promises something it cannot keep. What it does do is hold its panel open: the submenu counts a pointer anywhere inside it, on a live row, on this one or on the note under the rule, as the reader still being there, so a trip in that crossed a root item on the way does not shut the panel 150ms later.",
+					"`unavailable` is the other half of `disabled`, and the two are never worn at once. `disabled` is for an action that cannot be run now: it is switched off natively and stepped over, because focusing a row a reader cannot use wastes their time. `unavailable` is for a row that carries state they came to read — the ticked space a companion cannot leave — which must stay in the walk to be heard at all: it is `aria-disabled`, keeps the same dimmed skin, and reports to nobody on Enter or on a click. A pointer resting on it changes nothing either — focus and the active pill stay on the row the reader left them on, since a row that lights up under the cursor and then swallows the click promises something it cannot keep. What it does do is hold its panel open: the submenu counts a pointer anywhere inside it, on a live row, on this one or on the note under the rule, as the reader still being there, so a trip in that crossed a root item on the way does not shut the panel 150ms later.",
 			},
 		},
 	},
 	play: async ({ canvas, userEvent }) => {
 		const menu = await openMenuOn(
-			canvas.getByText("Right-click for bot actions"),
+			canvas.getByText("Right-click for companion actions"),
 		)
 		const trigger = screen.getByRole("menuitem", { name: SPACES_NAME })
 

@@ -20,7 +20,7 @@ const SKILL: BotSkillDraft = {
 }
 
 describe("drawnAnimal", () => {
-	it("draws skippy for a bot called Skippy, whatever it keeps", () => {
+	it("draws skippy for a companion called Skippy, whatever it keeps", () => {
 		expect(drawnAnimal("Skippy", "rabbit")).toBe("skippy")
 	})
 
@@ -32,7 +32,7 @@ describe("drawnAnimal", () => {
 		expect(drawnAnimal("Skippy the second", "rabbit")).toBe("rabbit")
 	})
 
-	it("draws the stored animal for a bot with no name", () => {
+	it("draws the stored animal for a companion with no name", () => {
 		expect(drawnAnimal(undefined, "rabbit")).toBe("rabbit")
 	})
 

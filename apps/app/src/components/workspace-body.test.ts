@@ -94,7 +94,7 @@ const BACK = "Back to the conversation"
 
 const READ_FAILURE_TITLE = "The mission could not be read"
 
-const SEND_FAILURE_TITLE = "The answer did not reach the bot"
+const SEND_FAILURE_TITLE = "The answer did not reach the companion"
 
 const missionOf = (bot: Bot, origin: Conversation): Mission => ({
 	id: "m-1",
@@ -353,7 +353,7 @@ describe("WorkspaceBody missions", () => {
 		expect(missionHeader()?.textContent).toContain("Waiting for you")
 	})
 
-	it("sends what the composer holds to the owning bot", async () => {
+	it("sends what the composer holds to the owning companion", async () => {
 		const { workspace } = await seed((mission) => ({ mission, events: [] }))
 		render(workspace.body())
 		await settle()
@@ -461,7 +461,7 @@ describe("WorkspaceBody missions", () => {
 		expect(missionHeader()?.textContent).toContain("OPE-42")
 	})
 
-	it("raises a failure notice when the answer cannot reach the bot", async () => {
+	it("raises a failure notice when the answer cannot reach the companion", async () => {
 		const store = createFakeTranscriptStore()
 		const refusing: TranscriptStore = {
 			...store,

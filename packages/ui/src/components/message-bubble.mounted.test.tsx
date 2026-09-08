@@ -47,7 +47,7 @@ describe("double-click inside a message bubble", () => {
 		expect(selectedText()).toBe(USER_PROMPT)
 	})
 
-	it("selects both paragraphs of a bot bubble", () => {
+	it("selects both paragraphs of a companion bubble", () => {
 		render(
 			<MessageBubble variant="soft">
 				<MessageBubbleContent>

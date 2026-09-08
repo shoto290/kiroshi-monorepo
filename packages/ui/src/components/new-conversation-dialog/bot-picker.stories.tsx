@@ -45,7 +45,7 @@ const meta = preview.meta({
 		docs: {
 			description: {
 				component:
-					"The half of the new-conversation dialog that answers *who takes part*: one search field over one list of bots, each row an avatar and a name. A row is a toggle, not a link — it reports the bot it was pressed on and wears `aria-pressed` plus a tick once that bot is in, so a reader who tabs the list knows what is already picked without looking at the chips. The picker owns no state: the search string and the picked ids are handed to it and every press is reported up, because the order those ids arrive in is what decides the lead. Reach for `PickedBots` for the chips that same pick draws, and for `NewConversationDialog` for the two of them wired together.",
+					"The half of the new-conversation dialog that answers *who takes part*: one search field over one list of companions, each row an avatar and a name. A row is a toggle, not a link — it reports the companion it was pressed on and wears `aria-pressed` plus a tick once that companion is in, so a reader who tabs the list knows what is already picked without looking at the chips. The picker owns no state: the search string and the picked ids are handed to it and every press is reported up, because the order those ids arrive in is what decides the lead. Reach for `PickedBots` for the chips that same pick draws, and for `NewConversationDialog` for the two of them wired together.",
 			},
 		},
 	},
@@ -64,7 +64,7 @@ export const Default = meta.story({
 		docs: {
 			description: {
 				story:
-					"The list as it opens, nothing picked and nothing typed. Check that every bot shows its avatar and its name, that pressing a row reports that bot's id, and that the row it was pressed on comes back pressed with a tick. Pick `Empty` for a search that matches nothing.",
+					"The list as it opens, nothing picked and nothing typed. Check that every companion shows its avatar and its name, that pressing a row reports that companion's id, and that the row it was pressed on comes back pressed with a tick. Pick `Empty` for a search that matches nothing.",
 			},
 		},
 	},
@@ -87,7 +87,7 @@ export const Picked = meta.story({
 		docs: {
 			description: {
 				story:
-					"Two bots already in. Check that exactly those two rows are pressed and carry a tick, and that pressing a pressed row reports it again so the dialog can take it back out — the chip's cross is not the only way back.",
+					"Two companions already in. Check that exactly those two rows are pressed and carry a tick, and that pressing a pressed row reports it again so the dialog can take it back out — the chip's cross is not the only way back.",
 			},
 		},
 	},
@@ -109,15 +109,17 @@ export const Empty = meta.story({
 		docs: {
 			description: {
 				story:
-					"A search no bot answers. Check that the message takes the list's place rather than sitting under an empty one, and that clearing the search brings every bot back. This is the only empty state the picker has — a roster with no bot in it at all is `NewConversationDialog`'s problem, not the picker's.",
+					"A search no companion answers. Check that the message takes the list's place rather than sitting under an empty one, and that clearing the search brings every companion back. This is the only empty state the picker has — a roster with no companion in it at all is `NewConversationDialog`'s problem, not the picker's.",
 			},
 		},
 	},
 	play: async ({ canvas, userEvent }) => {
-		const search = canvas.getByLabelText("Bots")
+		const search = canvas.getByLabelText("Companions")
 		await userEvent.type(search, "zzz")
 
-		await expect(canvas.getByText("No bot matches that search.")).toBeVisible()
+		await expect(
+			canvas.getByText("No companion matches that search."),
+		).toBeVisible()
 		await expect(canvas.queryByRole("list")).not.toBeInTheDocument()
 
 		await userEvent.clear(search)
@@ -133,7 +135,7 @@ export const Searching = meta.story({
 		docs: {
 			description: {
 				story:
-					"A search that narrows the list without emptying it, matched on the name and ignoring case. Check that only the matching bots remain and that picking one still reports the right id — filtering must never shift which row belongs to which bot.",
+					"A search that narrows the list without emptying it, matched on the name and ignoring case. Check that only the matching companions remain and that picking one still reports the right id — filtering must never shift which row belongs to which companion.",
 			},
 		},
 	},
@@ -154,7 +156,7 @@ export const LongContent = meta.story({
 		docs: {
 			description: {
 				story:
-					"Bots named far past the width of the dialog. Check that each name truncates on one line with the avatar and the tick holding their place, and that no row grows taller than its neighbour.",
+					"Companions named far past the width of the dialog. Check that each name truncates on one line with the avatar and the tick holding their place, and that no row grows taller than its neighbour.",
 			},
 		},
 	},

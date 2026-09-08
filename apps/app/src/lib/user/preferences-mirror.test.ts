@@ -90,7 +90,7 @@ describe("the mirror", () => {
 		})
 	})
 
-	it("holds the bot last opened in each space", () => {
+	it("holds the companion last opened in each space", () => {
 		writeMirror({
 			...MIRRORED,
 			lastBotIdBySpace: { vocca: "nyx", atlas: "iris" },
@@ -105,13 +105,13 @@ describe("the mirror", () => {
 		})
 	})
 
-	it("reads no bot per space when the mirror holds nothing readable", () => {
+	it("reads no companion per space when the mirror holds nothing readable", () => {
 		localStorage.setItem("lastBotIdBySpace", "{not json")
 
 		expect(readMirror().lastBotIdBySpace).toEqual({})
 	})
 
-	it("reads no bot per space when the mirror holds a shape it cannot serve", () => {
+	it("reads no companion per space when the mirror holds a shape it cannot serve", () => {
 		localStorage.setItem("lastBotIdBySpace", JSON.stringify(["nyx"]))
 
 		expect(readMirror().lastBotIdBySpace).toEqual({})
@@ -160,7 +160,7 @@ describe("the mirror", () => {
 		expect(readMirror().activityPanelOpen).toBe(false)
 	})
 
-	it("drops the single bot an older build left behind", () => {
+	it("drops the single companion an older build left behind", () => {
 		localStorage.setItem("lastBotId", "nyx")
 
 		writeMirror(MIRRORED)
@@ -201,7 +201,7 @@ describe("the record the host holds", () => {
 		})
 	})
 
-	it("is read with no bot per space when the record leaves the map out", () => {
+	it("is read with no companion per space when the record leaves the map out", () => {
 		const { lastBotIdBySpace, ...older } = RECORD
 
 		expect(mirrorOf(older as UserPreferences).lastBotIdBySpace).toEqual({})

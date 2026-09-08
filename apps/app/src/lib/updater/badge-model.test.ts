@@ -100,7 +100,7 @@ describe("toUpdateBadgeProps", () => {
 		expect(propsOf(stateOf()).releaseNotesUrl).toBeUndefined()
 	})
 
-	it("counts the bots a restart would interrupt", () => {
+	it("counts the companions a restart would interrupt", () => {
 		const props = propsOf(stateOf({ isRestartPending: true }), 2)
 
 		expect(props.activeBotCount).toBe(2)

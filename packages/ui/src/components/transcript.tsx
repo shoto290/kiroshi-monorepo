@@ -58,6 +58,7 @@ export interface TranscriptHandle {
 export interface TranscriptProps extends ComponentPropsWithRef<"div"> {
 	rows?: TranscriptItem[]
 	transcriptKey?: string
+	autoScroll?: boolean
 	anchorOnSend?: boolean
 	marksNewMessages?: boolean
 	countsNewMessages?: boolean
@@ -298,7 +299,7 @@ const TranscriptNewMark = () => {
 	)
 }
 
-type TranscriptBodyProps = Omit<TranscriptProps, "transcriptKey">
+type TranscriptBodyProps = Omit<TranscriptProps, "transcriptKey" | "autoScroll">
 
 const TranscriptBody = ({
 	rows = NO_ROWS,
@@ -409,10 +410,14 @@ const TranscriptBody = ({
 	)
 }
 
-function Transcript({ transcriptKey, ...props }: TranscriptProps) {
+function Transcript({
+	transcriptKey,
+	autoScroll = true,
+	...props
+}: TranscriptProps) {
 	return (
 		<MessageScrollerProvider
-			autoScroll
+			autoScroll={autoScroll}
 			defaultScrollPosition="end"
 			key={transcriptKey}
 		>

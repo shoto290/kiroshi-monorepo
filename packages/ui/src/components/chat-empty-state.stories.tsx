@@ -22,7 +22,7 @@ const meta = preview.meta({
 		docs: {
 			description: {
 				component:
-					"The single surface Kiroshi shows before a conversation holds any message. It carries the whole first-run decision: either Claude Code answers and the reader is sent to the composer, or it does not and the reader is sent to setup. When it answers, the screen belongs to the bot — its face is the mark and its name is the title — so opening an empty conversation says which bot is about to be talked to. It owns its own copy and holds no sidebar, roster, suggestion or navigation — compose it above a composer, never inside a chat screen shell.",
+					"The single surface Kiroshi shows before a conversation holds any message. It carries the whole first-run decision: either Claude Code answers and the reader is sent to the composer, or it does not and the reader is sent to setup. When it answers, the screen belongs to the companion — its face is the mark and its name is the title — so opening an empty conversation says which companion is about to be talked to. It owns its own copy and holds no sidebar, roster, suggestion or navigation — compose it above a composer, never inside a chat screen shell.",
 			},
 		},
 	},
@@ -41,7 +41,7 @@ export const Default = meta.story({
 		docs: {
 			description: {
 				story:
-					"Reach for this on a genuine first launch of one bot's conversation: Claude Code answered, the composer below is live, and the surface has to name the bot and point down to it. Check that the title is the bot's name, that the mark above it is that bot's face over its tint and reads as an ornament of the heading rather than a roster row, and that the guidance is the arrow hint and nothing else — no button competes with the composer for the first action. Pick `Unavailable` instead when the CLI is unreachable and typing would fail.",
+					"Reach for this on a genuine first launch of one companion's conversation: Claude Code answered, the composer below is live, and the surface has to name the companion and point down to it. Check that the title is the companion's name, that the mark above it is that companion's face over its tint and reads as an ornament of the heading rather than a roster row, and that the guidance is the arrow hint and nothing else — no button competes with the composer for the first action. Pick `Unavailable` instead when the CLI is unreachable and typing would fail.",
 			},
 		},
 	},
@@ -61,12 +61,12 @@ export const WithSettings = meta.story({
 		docs: {
 			description: {
 				story:
-					"Reach for this on the empty conversation of a host that can open the bot's settings: nothing has been said yet, so describing the bot is still worth offering beside the first prompt. Check that the action sits under the copy and above the arrow hint, that it reads as secondary — the first prompt is still the point of the screen — and that it names the settings exactly as the bar above and the roster row's menu do, so the same door is not called three things. Pick `Default` for a host that offers no way in from here.",
+					"Reach for this on the empty conversation of a host that can open the companion's settings: nothing has been said yet, so describing the companion is still worth offering beside the first prompt. Check that the action sits under the copy and above the arrow hint, that it reads as secondary — the first prompt is still the point of the screen — and that it names the settings exactly as the bar above and the roster row's menu do, so the same door is not called three things. Pick `Default` for a host that offers no way in from here.",
 			},
 		},
 	},
 	play: async ({ args, canvas, userEvent }) => {
-		const settings = canvas.getByRole("button", { name: "Bot settings" })
+		const settings = canvas.getByRole("button", { name: "Companion settings" })
 
 		await expect(
 			canvas.getByText(/Type your first prompt in the composer below/),
@@ -82,7 +82,7 @@ export const WithoutBlot = meta.story({
 		docs: {
 			description: {
 				story:
-					"Reach for this for a bot that was never marked with a tint: the animal is drawn on nothing. Check that the mark still holds the same box as `Default` — the heading must not shift up when the tint behind the animal is gone. Pick `Default` for a bot that carries one.",
+					"Reach for this for a companion that was never marked with a tint: the animal is drawn on nothing. Check that the mark still holds the same box as `Default` — the heading must not shift up when the tint behind the animal is gone. Pick `Default` for a companion that carries one.",
 			},
 		},
 	},
@@ -101,7 +101,7 @@ export const WithPicture = meta.story({
 		docs: {
 			description: {
 				story:
-					"Reach for this for a bot whose reader uploaded a picture: it wins over the animal here exactly as it does on the roster row. Check that the picture fills the same round box the drawing would have, so the title lands on the same baseline. Pick `Default` for a bot wearing its animal.",
+					"Reach for this for a companion whose reader uploaded a picture: it wins over the animal here exactly as it does on the roster row. Check that the picture fills the same round box the drawing would have, so the title lands on the same baseline. Pick `Default` for a companion wearing its animal.",
 			},
 		},
 	},
@@ -121,7 +121,7 @@ export const Unnamed = meta.story({
 		docs: {
 			description: {
 				story:
-					"Reach for this when the bot has no name yet — a conversation opened before its bot was named. Check that the title falls back to naming the product instead of showing an empty heading, and that the mark is still drawn. Pick `Default` once the bot carries a name.",
+					"Reach for this when the companion has no name yet — a conversation opened before its companion was named. Check that the title falls back to naming the product instead of showing an empty heading, and that the mark is still drawn. Pick `Default` once the companion carries a name.",
 			},
 		},
 	},
@@ -138,7 +138,7 @@ export const Unavailable = meta.story({
 		docs: {
 			description: {
 				story:
-					"Reach for this when Kiroshi launched but its built-in agent is unreachable: the composer is disabled, so the empty state has to carry the only action left. This screen is about the agent, not about the bot — check that the bot's face and name give way to the alert mark and the agent copy, that the retry button is the single focusable target, and that the copy blames the unreachable agent rather than the prompt. Pick `Default` when Claude Code answers and the composer is live.",
+					"Reach for this when Kiroshi launched but its built-in agent is unreachable: the composer is disabled, so the empty state has to carry the only action left. This screen is about the agent, not about the companion — check that the companion's face and name give way to the alert mark and the agent copy, that the retry button is the single focusable target, and that the copy blames the unreachable agent rather than the prompt. Pick `Default` when Claude Code answers and the composer is live.",
 			},
 		},
 	},

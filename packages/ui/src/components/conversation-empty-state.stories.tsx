@@ -52,7 +52,7 @@ export const Default = meta.story({
 		docs: {
 			description: {
 				story:
-					"Reach for this on a conversation just created with several bots: the room is seated and waiting on its first message. Check that the heading is the conversation's name — not a bot's — that every seated bot's face is shown above it, that the count in the copy matches the faces, and that the arrow hint is the only guidance so nothing competes with the composer below. Pick `SingleBot` for a room seated with one bot.",
+					"Reach for this on a conversation just created with several companions: the room is seated and waiting on its first message. Check that the heading is the conversation's name — not a companion's — that every seated companion's face is shown above it, that the count in the copy matches the faces, and that the arrow hint is the only guidance so nothing competes with the composer below. Pick `SingleBot` for a room seated with one companion.",
 			},
 		},
 	},
@@ -62,7 +62,7 @@ export const Default = meta.story({
 		).toBeVisible()
 		await expect(botIdentityAvatars(canvasElement)).toHaveLength(3)
 		await expect(
-			canvas.getByText(/3 bots are seated here and waiting/),
+			canvas.getByText(/3 companions are seated here and waiting/),
 		).toBeVisible()
 	},
 })
@@ -73,13 +73,13 @@ export const SingleBot = meta.story({
 		docs: {
 			description: {
 				story:
-					"Reach for this on a conversation seated with one bot only. Check that the copy turns singular rather than reading `1 bots`, and that the lone face still sits centered above the heading instead of drifting left. Pick `Default` for a room with several bots.",
+					"Reach for this on a conversation seated with one companion only. Check that the copy turns singular rather than reading `1 companions`, and that the lone face still sits centered above the heading instead of drifting left. Pick `Default` for a room with several companions.",
 			},
 		},
 	},
 	play: async ({ canvas }) => {
 		await expect(
-			canvas.getByText(/1 bot is seated here and waiting/),
+			canvas.getByText(/1 companion is seated here and waiting/),
 		).toBeVisible()
 	},
 })
@@ -92,7 +92,7 @@ export const WithPicture = meta.story({
 		docs: {
 			description: {
 				story:
-					"Reach for this when one seated bot carries an uploaded picture and the others wear their drawn animal. Check that the picture fills the same round box the drawing would, so the row of faces keeps one baseline and one rhythm. Pick `Default` when every bot wears its animal.",
+					"Reach for this when one seated companion carries an uploaded picture and the others wear their drawn animal. Check that the picture fills the same round box the drawing would, so the row of faces keeps one baseline and one rhythm. Pick `Default` when every companion wears its animal.",
 			},
 		},
 	},
@@ -121,7 +121,7 @@ export const LongContent = meta.story({
 		docs: {
 			description: {
 				story:
-					"Reach for this on a long-named room seated with more bots than fit one line. Check that the heading wraps inside its measure instead of stretching the surface, and that the faces wrap onto a second centered row rather than overflowing. Pick `Default` for the nominal room.",
+					"Reach for this on a long-named room seated with more companions than fit one line. Check that the heading wraps inside its measure instead of stretching the surface, and that the faces wrap onto a second centered row rather than overflowing. Pick `Default` for the nominal room.",
 			},
 		},
 	},

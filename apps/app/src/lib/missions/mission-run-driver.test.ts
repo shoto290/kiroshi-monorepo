@@ -343,7 +343,7 @@ describe("startMissionRunDriver", () => {
 		vi.restoreAllMocks()
 	})
 
-	it("summons the mission bot in its thread when the mission enters working", async () => {
+	it("summons the mission companion in its thread when the mission enters working", async () => {
 		await harness.enter("working")
 
 		expect(spoken(harness.tail())).toEqual([[null, "Carry out this mission."]])
@@ -353,7 +353,7 @@ describe("startMissionRunDriver", () => {
 		expect(harness.originStarts()).toEqual([])
 	})
 
-	it("summons the mission bot in its thread when the mission enters waiting_bot", async () => {
+	it("summons the mission companion in its thread when the mission enters waiting_bot", async () => {
 		await harness.enter("waiting_bot")
 
 		expect(spoken(harness.tail())).toEqual([
@@ -373,9 +373,9 @@ describe("startMissionRunDriver", () => {
 		])
 	})
 
-	it("records no answer when the summon cannot read the bot", async () => {
+	it("records no answer when the summon cannot read the companion", async () => {
 		await restart({
-			store: { bots: () => Promise.reject(new Error("no bot")) },
+			store: { bots: () => Promise.reject(new Error("no companion")) },
 		})
 
 		await harness.enter("waiting_bot")
@@ -407,7 +407,7 @@ describe("startMissionRunDriver", () => {
 		expect(spoken(harness.tail())).toEqual([[null, "Carry out this mission."]])
 	})
 
-	it("keeps the turn of a bot asking a question in its mission thread", async () => {
+	it("keeps the turn of a companion asking a question in its mission thread", async () => {
 		await harness.enter("waiting_bot")
 
 		await harness.emitAtThread({
@@ -432,7 +432,7 @@ describe("startMissionRunDriver", () => {
 		})
 	})
 
-	it("keeps the turn of a bot asking a permission in its mission thread", async () => {
+	it("keeps the turn of a companion asking a permission in its mission thread", async () => {
 		await harness.enter("waiting_bot")
 
 		await harness.emitAtThread({
@@ -453,7 +453,7 @@ describe("startMissionRunDriver", () => {
 		expect(spoken(harness.originTail())).toEqual([])
 	})
 
-	it("opens a closing session of its own on the origin for the owning bot", async () => {
+	it("opens a closing session of its own on the origin for the owning companion", async () => {
 		await harness.enter("done", closedBy("poller"))
 
 		expect(harness.originStarts()).toHaveLength(1)
@@ -518,7 +518,7 @@ describe("startMissionRunDriver", () => {
 		)
 	})
 
-	it("runs the bot once while its run is live", async () => {
+	it("runs the companion once while its run is live", async () => {
 		await harness.enter("failed", failedBy("agent-hook"))
 		await harness.enter("failed", failedBy("agent-hook"))
 
@@ -591,7 +591,7 @@ describe("startMissionRunDriver", () => {
 		expect(harness.originStarts()).toHaveLength(2)
 	})
 
-	it("runs the bot again once the run has ended", async () => {
+	it("runs the companion again once the run has ended", async () => {
 		vi.spyOn(console, "error").mockImplementation(() => undefined)
 		await harness.enter("failed", failedBy("agent-hook"))
 		await harness.endTurn({ structuredOutput: { outcome: "nothing" } })
@@ -600,7 +600,7 @@ describe("startMissionRunDriver", () => {
 		expect(harness.originStarts()).toHaveLength(2)
 	})
 
-	it("reports a mission its bot closed as failed in the origin conversation", async () => {
+	it("reports a mission its companion closed as failed in the origin conversation", async () => {
 		await harness.enter("failed", failedBy("claude-code"))
 
 		expect(harness.originStarts()[0].scope).toMatchObject({
@@ -723,7 +723,7 @@ describe("startMissionRunDriver", () => {
 		expect(harness.reportFailure).not.toHaveBeenCalled()
 	})
 
-	it("starts no second run when its bot writes the state of the seq it runs on", async () => {
+	it("starts no second run when its companion writes the state of the seq it runs on", async () => {
 		await harness.enter("failed", failedBy("claude-code"))
 		await harness.announce("failed")
 		await harness.endTurn(reported("The build will not pass."))
@@ -732,7 +732,7 @@ describe("startMissionRunDriver", () => {
 		expect(harness.driver.submissions).toHaveLength(1)
 	})
 
-	it("opens one closing run whatever state its bot writes while it runs", async () => {
+	it("opens one closing run whatever state its companion writes while it runs", async () => {
 		await harness.enter("failed", failedBy("agent-hook"))
 		await harness.enter("done", closedBy("claude-code"))
 
@@ -758,7 +758,7 @@ describe("startMissionRunDriver", () => {
 		expect(harness.originStarts()).toHaveLength(1)
 	})
 
-	it("takes the state its bot wrote when the reading at the end fails", async () => {
+	it("takes the state its companion wrote when the reading at the end fails", async () => {
 		vi.spyOn(console, "error").mockImplementation(() => undefined)
 		await harness.enter("failed", failedBy("agent-hook"))
 		await harness.enter("done", closedBy("claude-code"))
@@ -770,7 +770,7 @@ describe("startMissionRunDriver", () => {
 		expect(harness.reportFailure).toHaveBeenCalledTimes(1)
 	})
 
-	it("takes a closing that landed while a summoned bot was speaking", async () => {
+	it("takes a closing that landed while a summoned companion was speaking", async () => {
 		await harness.enter("waiting_bot")
 		await harness.enter("done", closedBy("claude-code"))
 
@@ -911,7 +911,7 @@ describe("startMissionRunDriver", () => {
 		expect(spoken(harness.originTail())).toEqual([])
 	})
 
-	it("summons in the thread of an open mission that waits on the bot at start", async () => {
+	it("summons in the thread of an open mission that waits on the companion at start", async () => {
 		await restart({ open: "waiting_bot" })
 
 		expect(spoken(harness.tail())).toEqual([
@@ -993,7 +993,7 @@ describe("startMissionRunDriver", () => {
 		expect(harness.missions.reports).toEqual([])
 	})
 
-	it("records the report of a run on a mission its own bot closed", async () => {
+	it("records the report of a run on a mission its own companion closed", async () => {
 		await harness.enter("failed", failedBy("agent-hook"))
 		harness.hold("done", closedBy("claude-code"))
 
@@ -1135,9 +1135,9 @@ describe("startMissionRunDriver", () => {
 		expect(harness.reportFailure).toHaveBeenCalledTimes(1)
 	})
 
-	it("raises a failure notice and summons nobody when the bot cannot be read", async () => {
+	it("raises a failure notice and summons nobody when the companion cannot be read", async () => {
 		await restart({
-			store: { bots: () => Promise.reject(new Error("no bot")) },
+			store: { bots: () => Promise.reject(new Error("no companion")) },
 		})
 
 		await harness.enter("working")

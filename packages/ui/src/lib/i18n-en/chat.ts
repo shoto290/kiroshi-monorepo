@@ -9,15 +9,15 @@ const chat = {
 			title: "Claude Code is not available",
 			description: "Kiroshi cannot reach its built-in agent.",
 		},
-		settings: "Bot settings",
+		settings: "Companion settings",
 		hint: "Type your first prompt in the composer below",
 		setup: "Try again",
 	},
 	conversationEmptyState: {
 		description_one:
-			"{{count}} bot is seated here and waiting on your first message.",
+			"{{count}} companion is seated here and waiting on your first message.",
 		description_other:
-			"{{count}} bots are seated here and waiting on your first message.",
+			"{{count}} companions are seated here and waiting on your first message.",
 		hint: "Type your first message in the composer below",
 	},
 	connection: {
@@ -52,7 +52,7 @@ const chat = {
 		showLess: "Show less",
 		author: {
 			lead: "Lead",
-			deleted: "Deleted bot",
+			deleted: "Deleted companion",
 		},
 		cause: {
 			label: "Routine report",
@@ -66,7 +66,7 @@ const chat = {
 			},
 		},
 		mention: {
-			unknown: "Unknown bot",
+			unknown: "Unknown companion",
 			counted_one: "{{count}} mention",
 			counted_other: "{{count}} mentions",
 		},
@@ -135,7 +135,7 @@ const chat = {
 		placeholder: "Ask the agent to do something…",
 		send: "Send prompt",
 		commands: "Commands",
-		mentions: "Bots",
+		mentions: "Companions",
 		mentioned_one: "{{count}} mention in the draft",
 		mentioned_other: "{{count}} mentions in the draft",
 	},
@@ -184,7 +184,7 @@ const chat = {
 	},
 	screen: {
 		label: "Claude Code conversation",
-		identity: "{{name}} — bot settings",
+		identity: "{{name}} — companion settings",
 		conversationIdentity: "{{name}} — conversation settings",
 		placeholder: "Ask {{name}} to do something…",
 		permission: {
@@ -205,8 +205,8 @@ const chat = {
 		notice: {
 			crashed: "Claude Code stopped",
 			resumeFailed: "Previous conversation could not be resumed",
-			workingDirectoryRefused: "The bot's folder was not found",
-			settingsRejected: "The bot's settings were not applied",
+			workingDirectoryRefused: "The companion's folder was not found",
+			settingsRejected: "The companion's settings were not applied",
 			serverEnvRejected: "A server was left out",
 			unavailable: "Claude Code is unavailable",
 			failed: "That request did not go through",
@@ -226,9 +226,10 @@ const chat = {
 			resumeFailed:
 				"That conversation could not be resumed. Claude Code started a new one; your messages are still here.",
 			workingDirectoryRefused:
-				"{{path}} is not there any more. This bot is answering from the usual place instead.",
+				"{{path}} is not there any more. This companion is answering from the usual place instead.",
 			invalidFrame: "An unreadable frame was skipped: {{detail}}",
-			settingsRejected: "This bot's settings.json was not applied: {{detail}}",
+			settingsRejected:
+				"This companion's settings.json was not applied: {{detail}}",
 			serverEnvRejected:
 				"{{detail}}. The conversation carries on with the other servers.",
 			notStarted: "No session is running.",
@@ -246,7 +247,7 @@ const chat = {
 			megabytes: "{{size}} MB",
 			storage: "The files could not be written down ({{failure}}).",
 			unknownConversation:
-				"This conversation is not on the record any more. Reopen the bot and attach them again.",
+				"This conversation is not on the record any more. Reopen the companion and attach them again.",
 			tooMany:
 				"A prompt carries {{limit}} files at most, and {{staged}} are staged.",
 			tooLarge: "{{name}} is over the {{limit}} a single file may weigh.",
@@ -261,20 +262,20 @@ const chat = {
 	newConversation: {
 		title: "New conversation",
 		description:
-			"Pick who takes part. The first bot you pick leads the conversation. Name it now, or let your first message name it.",
+			"Pick who takes part. The first companion you pick leads the conversation. Name it now, or let your first message name it.",
 		name: {
 			label: "Name",
 			placeholder: "Left empty, your first message names it",
 		},
 		search: {
-			label: "Bots",
-			placeholder: "Search bots",
+			label: "Companions",
+			placeholder: "Search companions",
 		},
 		picked: {
 			lead: "Lead",
 			dismiss: "Remove {{name}}",
 		},
-		empty: "No bot matches that search.",
+		empty: "No companion matches that search.",
 		create: "Create conversation",
 	},
 	conversationSettings: {
@@ -292,20 +293,21 @@ const chat = {
 		},
 		instructions: {
 			label: "Instructions",
-			placeholder: "What every bot in this conversation should keep in mind",
+			placeholder:
+				"What every companion in this conversation should keep in mind",
 		},
 		participants: {
 			label: "In this conversation",
 			lead: "Lead",
 			promote: "Give the lead to {{name}}",
 			dismiss: "Dismiss {{name}}",
-			last: "The last bot seated stays in the conversation.",
-			all: "Every bot of the space is already in this conversation.",
+			last: "The last companion seated stays in the conversation.",
+			all: "Every companion of the space is already in this conversation.",
 		},
 		danger: {
 			delete: "Delete conversation",
 			description:
-				"The conversation and everything said in it go with it. The bots stay in the space.",
+				"The conversation and everything said in it go with it. The companions stay in the space.",
 			confirm: {
 				title: "Delete {{name}}?",
 			},
@@ -335,7 +337,7 @@ const chat = {
 		empty: {
 			title: "Nothing is running here",
 			description:
-				"The missions a bot opens in this conversation, and what its routines report, land here.",
+				"The missions a companion opens in this conversation, and what its routines report, land here.",
 		},
 		failure: {
 			missions: {
@@ -511,13 +513,13 @@ const chat = {
 		empty: {
 			title: "No routine yet",
 			description:
-				"A routine runs a bot on its own, on a schedule or when a file it watches changes.",
+				"A routine runs a companion on its own, on a schedule or when a file it watches changes.",
 		},
 	},
 	missions: {
 		state: {
 			working: "Working",
-			waiting_bot: "Waiting for the bot",
+			waiting_bot: "Waiting for the companion",
 			waiting_human: "Waiting for you",
 			ready_to_merge: "Ready to merge",
 			failed: "Failed",
@@ -525,7 +527,7 @@ const chat = {
 		},
 		event: {
 			source: {
-				bot: "The bot",
+				bot: "The companion",
 				reader: "You",
 				agent: "The coding agent",
 				github: "GitHub",
@@ -575,12 +577,12 @@ const chat = {
 				description: "Nothing was changed. Try again to read this mission.",
 			},
 			send: {
-				title: "The answer did not reach the bot",
+				title: "The answer did not reach the companion",
 				description:
 					"Nothing was recorded on the mission. Send your answer again.",
 			},
 			run: {
-				title: "The bot could not be run on its mission",
+				title: "The companion could not be run on its mission",
 				description:
 					"Nothing was changed on the mission. Open its thread to see where it stands.",
 			},

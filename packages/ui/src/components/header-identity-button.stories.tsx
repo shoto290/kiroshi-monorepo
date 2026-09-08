@@ -24,7 +24,7 @@ const meta = preview.meta({
 		docs: {
 			description: {
 				component:
-					"The header's leading control: who the reader is talking to, whether Claude Code answers, and the way into that bot's settings, in one ghost button. It is the only focusable thing on that row — the connection mark inside it is decorative markup, never a second target — so the header stays one tab stop. Reach for it in an app header; the sidebar's own bot rows are `AppSidebar`, not this.",
+					"The header's leading control: who the reader is talking to, whether Claude Code answers, and the way into that companion's settings, in one ghost button. It is the only focusable thing on that row — the connection mark inside it is decorative markup, never a second target — so the header stays one tab stop. Reach for it in an app header; the sidebar's own companion rows are `AppSidebar`, not this.",
 			},
 		},
 	},
@@ -46,13 +46,13 @@ export const Default = meta.story({
 		docs: {
 			description: {
 				story:
-					"Reach for this for the nominal header: a short bot name, the CLI answering, the settings closed. Check that avatar, name, state and glyph read left to right on one row, that the whole thing is a single button, and that activating it asks for the settings. Pick `InLayout` to see it in the header it belongs to.",
+					"Reach for this for the nominal header: a short companion name, the CLI answering, the settings closed. Check that avatar, name, state and glyph read left to right on one row, that the whole thing is a single button, and that activating it asks for the settings. Pick `InLayout` to see it in the header it belongs to.",
 			},
 		},
 	},
 	play: async ({ args, canvas }) => {
 		const button = canvas.getByRole("button", {
-			name: "Nest — bot settings",
+			name: "Nest — companion settings",
 		})
 
 		await expect(button).toHaveAttribute("aria-expanded", "false")
@@ -90,7 +90,7 @@ export const Expanded = meta.story({
 		docs: {
 			description: {
 				story:
-					"Reach for this while the bot's settings are open: the button is the trigger that stays lit under its own panel. Check that the ghost surface holds the expanded tint and that assistive tech reads it as expanded. Pick `Default` for the closed state.",
+					"Reach for this while the companion's settings are open: the button is the trigger that stays lit under its own panel. Check that the ghost surface holds the expanded tint and that assistive tech reads it as expanded. Pick `Default` for the closed state.",
 			},
 		},
 	},
@@ -114,7 +114,7 @@ export const Working = meta.story({
 		docs: {
 			description: {
 				story:
-					"Reach for this while the bot holds the turn: the header avatar runs the same animation and carries the same pulsing activity dot as the one in the transcript, so the reader can leave the transcript and still see the bot is busy. Check that the row does not reflow while it animates and that the motion stops under `prefers-reduced-motion`. Pick `Default` for the resting bot.",
+					"Reach for this while the companion holds the turn: the header avatar runs the same animation and carries the same pulsing activity dot as the one in the transcript, so the reader can leave the transcript and still see the companion is busy. Check that the row does not reflow while it animates and that the motion stops under `prefers-reduced-motion`. Pick `Default` for the resting companion.",
 			},
 		},
 	},
@@ -128,7 +128,7 @@ export const LongContent = meta.story({
 		docs: {
 			description: {
 				story:
-					"Reach for this when a bot is named in a sentence and the window is narrow. Check that the name clips with an ellipsis while the connection dot and the settings glyph stay fully in view on the right — the name is what gives up room, never the state. Pick `Default` for a name that fits.",
+					"Reach for this when a companion is named in a sentence and the window is narrow. Check that the name clips with an ellipsis while the connection dot and the settings glyph stay fully in view on the right — the name is what gives up room, never the state. Pick `Default` for a name that fits.",
 			},
 		},
 	},

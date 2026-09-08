@@ -65,7 +65,7 @@ const meta = preview.meta({
 		docs: {
 			description: {
 				component:
-					"A bubble's actions, put on the far side of it: right of the bot, left of the reader. It reads the side off `MessageSideContext`, so no caller says which way round it is — the row itself is mirrored on the reader's side, so the first action given is always the one nearest the bubble whichever way round the row runs — and it wraps the bubble body rather than sitting beside it — that is what keeps the row as narrow as the bubble, so the buttons land against the bubble's own edge and never against the transcript's. Their room is held from the first paint: revealing them reflows nothing, and a bubble that runs the full width still leaves them inside the transcript. They fade in whenever the pointer rests anywhere on the line the bubble sits on — the row stays as narrow as the bubble, so widening the reach moves no button — and stay put whenever anything inside the message holds focus, so a keyboard reaches them; under reduced motion they simply appear. Each `MessageAction` decides that for itself: `alwaysVisible` pins the one action a reader must not have to hunt for, and the rest of the row still waits to be pointed at. Hand the row nothing that renders and it collapses, leaving no gap behind. `AI/Turn` composes it with the copy and retry a real transcript offers.",
+					"A bubble's actions, put on the far side of it: right of the companion, left of the reader. It reads the side off `MessageSideContext`, so no caller says which way round it is — the row itself is mirrored on the reader's side, so the first action given is always the one nearest the bubble whichever way round the row runs — and it wraps the bubble body rather than sitting beside it — that is what keeps the row as narrow as the bubble, so the buttons land against the bubble's own edge and never against the transcript's. Their room is held from the first paint: revealing them reflows nothing, and a bubble that runs the full width still leaves them inside the transcript. They fade in whenever the pointer rests anywhere on the line the bubble sits on — the row stays as narrow as the bubble, so widening the reach moves no button — and stay put whenever anything inside the message holds focus, so a keyboard reaches them; under reduced motion they simply appear. Each `MessageAction` decides that for itself: `alwaysVisible` pins the one action a reader must not have to hunt for, and the rest of the row still waits to be pointed at. Hand the row nothing that renders and it collapses, leaving no gap behind. `AI/Turn` composes it with the copy and retry a real transcript offers.",
 			},
 		},
 	},
@@ -82,7 +82,7 @@ export const Default = meta.story({
 		docs: {
 			description: {
 				story:
-					"The bot's side. Hover the bubble and check that the copy button fades in to its right, level with the first line, and that nothing on the row moves as it does. The keyboard path is the same one: the row is faded, never removed, so tabbing reaches the action and it stays lit with its ring in full while it holds focus — which is how the play drives it, since a synthetic pointer never raises a real `:hover`. A bubble handed no actions pays for none: the row below it is the plain bubble it always was.",
+					"The companion's side. Hover the bubble and check that the copy button fades in to its right, level with the first line, and that nothing on the row moves as it does. The keyboard path is the same one: the row is faded, never removed, so tabbing reaches the action and it stays lit with its ring in full while it holds focus — which is how the play drives it, since a synthetic pointer never raises a real `:hover`. A bubble handed no actions pays for none: the row below it is the plain bubble it always was.",
 			},
 		},
 	},
@@ -116,7 +116,7 @@ export const Sides = meta.story({
 		docs: {
 			description: {
 				story:
-					"Both sides at once, neither told which it is on. Check that the bot's actions sit to the right of its bubble and the reader's to the left of theirs — always on the outside, so they never cover the words and never collide with the gutter the bot's avatar occupies.",
+					"Both sides at once, neither told which it is on. Check that the companion's actions sit to the right of its bubble and the reader's to the left of theirs — always on the outside, so they never cover the words and never collide with the gutter the companion's avatar occupies.",
 			},
 		},
 	},

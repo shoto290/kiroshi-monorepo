@@ -51,7 +51,7 @@ describe("blotPose", () => {
 		expect(blotTransform()).toBe(`rotate(0 ${BLOT_CENTER_X} ${BLOT_CENTER_Y})`)
 	})
 
-	it("draws the authored shape for a bot with no id yet", () => {
+	it("draws the authored shape for a companion with no id yet", () => {
 		expect(blotPose("")).toEqual(blotPose())
 	})
 

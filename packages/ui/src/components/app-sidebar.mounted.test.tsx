@@ -59,7 +59,7 @@ const onAvatars = (dots: HTMLElement[]) =>
 describe("AppSidebar roster badge placement mounted", () => {
 	afterEach(cleanup)
 
-	it("draws the bot and conversation dots outside the avatars while expanded", () => {
+	it("draws the companion and conversation dots outside the avatars while expanded", () => {
 		const dots = dotsInRoster(true)
 
 		expect(badgesOf(dots)).toEqual([REVIEW.badge, ATLAS.badge])
@@ -166,7 +166,7 @@ const rowNamesIn = (container: HTMLElement) =>
 describe("AppSidebar merged roster order mounted", () => {
 	afterEach(cleanup)
 
-	it("interleaves bots and conversations by their last activity", () => {
+	it("interleaves companions and conversations by their last activity", () => {
 		const { container } = render(
 			<WorkspaceShell
 				defaultOpen

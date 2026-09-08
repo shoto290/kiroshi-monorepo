@@ -465,7 +465,7 @@ describe("markdown resilience", () => {
 	})
 })
 
-describe("bot mentions", () => {
+describe("companion mentions", () => {
 	const ATLAS = { id: "bot-atlas", name: "Atlas" }
 
 	const count = (html: string, needle: string) => html.split(needle).length - 1
@@ -483,7 +483,7 @@ describe("bot mentions", () => {
 			),
 		)
 
-	it("draws a mention of a known bot as a chip", () => {
+	it("draws a mention of a known companion as a chip", () => {
 		const html = renderInConversation("ask <@bot-atlas> for the notes")
 
 		expect(html).toContain('data-slot="bot-mention"')
@@ -491,11 +491,11 @@ describe("bot mentions", () => {
 		expect(html).not.toContain("&lt;@bot-atlas&gt;")
 	})
 
-	it("draws a mention of an unknown bot as an unknown chip", () => {
+	it("draws a mention of an unknown companion as an unknown chip", () => {
 		const html = renderInConversation("ask <@bot-ghost> instead")
 
 		expect(html).toContain('data-unknown="true"')
-		expect(html).toContain("Unknown bot")
+		expect(html).toContain("Unknown companion")
 	})
 
 	it("keeps a mention written in code literal", () => {
@@ -512,7 +512,7 @@ describe("bot mentions", () => {
 		expect(html).toContain(" now</p>")
 	})
 
-	it("draws repeated mentions of one bot as a single counted chip", () => {
+	it("draws repeated mentions of one companion as a single counted chip", () => {
 		const html = renderInConversation(
 			"ask <@bot-atlas> <@bot-atlas> to split it",
 		)
@@ -531,7 +531,7 @@ describe("bot mentions", () => {
 		expect(html).not.toContain('data-slot="bot-mention-count"')
 	})
 
-	it("draws a chip per token when adjacent mentions name different bots", () => {
+	it("draws a chip per token when adjacent mentions name different companions", () => {
 		const html = renderInConversation("ask <@bot-atlas> <@bot-ghost> now")
 
 		expect(count(html, 'data-slot="bot-mention"')).toBe(2)
@@ -542,12 +542,12 @@ describe("bot mentions", () => {
 		const html = renderInConversation("<@bot-ghost> <@bot-ghost> held the lock")
 
 		expect(count(html, 'data-slot="bot-mention"')).toBe(1)
-		expect(html).toContain("Unknown bot")
+		expect(html).toContain("Unknown companion")
 		expect(html).toContain("2 mentions")
 	})
 
 	it("leaves text without a mention untouched", () => {
-		expect(renderInConversation("nothing here <@ or @bot")).not.toContain(
+		expect(renderInConversation("nothing here <@ or @companion")).not.toContain(
 			'data-slot="bot-mention"',
 		)
 	})

@@ -112,7 +112,7 @@ describe("history controller", () => {
 		expect(controller.getState().commits).toMatchObject([{ id: commit.id }])
 	})
 
-	it("reads nothing while no bot is open", async () => {
+	it("reads nothing while no companion is open", async () => {
 		const store = createFakeTranscriptStore()
 		await store.createBotSkill("default", A_SKILL)
 		const asked: string[] = []

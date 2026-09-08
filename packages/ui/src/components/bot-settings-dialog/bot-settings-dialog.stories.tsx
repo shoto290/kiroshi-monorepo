@@ -140,7 +140,7 @@ const meta = preview.meta({
 		docs: {
 			description: {
 				component:
-					"Everything a bot is, in one overlay. A breadcrumb heads it with the bot's avatar, its name and the word Settings, so a reader who opened it from a roster of twelve knows which one they are editing on every tab. Down the left is a rail of groups — General, Appearance, Instructions, Runtime, then a separator and Danger zone in destructive tone, last because it is the one action that cannot be undone. It opens on General, unless the host set `showDanger` to say a row's own delete is what opened it. It is fully controlled and saves as you type: every keystroke emits `onValueChange` with the whole value, and the dialog owns no draft, no debounce and no persistence. A skill is the exception: it is written on a press, so closing over one with something unsaved asks first. The breadcrumb and the rail hold still and only the open group scrolls, so the rail is where a reader left it after a long scroll through the animals. Below 42rem of content the rail drops to its icons, each one still named to a screen reader and named on hover and focus with a tooltip.",
+					"Everything a companion is, in one overlay. A breadcrumb heads it with the companion's avatar, its name and the word Settings, so a reader who opened it from a roster of twelve knows which one they are editing on every tab. Down the left is a rail of groups — General, Appearance, Instructions, Runtime, then a separator and Danger zone in destructive tone, last because it is the one action that cannot be undone. It opens on General, unless the host set `showDanger` to say a row's own delete is what opened it. It is fully controlled and saves as you type: every keystroke emits `onValueChange` with the whole value, and the dialog owns no draft, no debounce and no persistence. A skill is the exception: it is written on a press, so closing over one with something unsaved asks first. The breadcrumb and the rail hold still and only the open group scrolls, so the rail is where a reader left it after a long scroll through the animals. Below 42rem of content the rail drops to its icons, each one still named to a screen reader and named on hover and focus with a tooltip.",
 			},
 		},
 	},
@@ -186,7 +186,7 @@ export const Default = meta.story({
 		docs: {
 			description: {
 				story:
-					"The dialog as it opens on a bot that has been filled in and used. Check that it lands on General with the name and the title in reach, that the breadcrumb names the bot beside its avatar, and that the dialog announces itself as that bot's settings rather than as `Settings`. Typing emits a change immediately; nothing here batches or waits. Pick `Rail` for the way between the groups.",
+					"The dialog as it opens on a companion that has been filled in and used. Check that it lands on General with the name and the title in reach, that the breadcrumb names the companion beside its avatar, and that the dialog announces itself as that companion's settings rather than as `Settings`. Typing emits a change immediately; nothing here batches or waits. Pick `Rail` for the way between the groups.",
 			},
 		},
 	},
@@ -209,7 +209,7 @@ export const Rail = meta.story({
 		docs: {
 			description: {
 				story:
-					"The groups and the way between them. Check the order — General, Appearance, Instructions, Skills, MCP servers, Environment, History, Permissions, Runtime, then a rule and Danger zone alone below it, the only item in destructive tone. One tab stop reaches the rail and the arrow keys walk it, so a keyboard reader crosses the whole dialog in two stops rather than five. Walking is not opening: focus moves with the arrows and the group opens on Enter, so nobody drags a grid of animals or a model list past on their way to the one they wanted. No item carries a tooltip at this width — its name is already on the screen. Pick `IconRail` for the width where the name leaves it. The breadcrumb is unchanged whichever group is open: it names the bot, not the group.",
+					"The groups and the way between them. Check the order — General, Appearance, Instructions, Skills, MCP servers, Environment, History, Permissions, Runtime, then a rule and Danger zone alone below it, the only item in destructive tone. One tab stop reaches the rail and the arrow keys walk it, so a keyboard reader crosses the whole dialog in two stops rather than five. Walking is not opening: focus moves with the arrows and the group opens on Enter, so nobody drags a grid of animals or a model list past on their way to the one they wanted. No item carries a tooltip at this width — its name is already on the screen. Pick `IconRail` for the width where the name leaves it. The breadcrumb is unchanged whichever group is open: it names the companion, not the group.",
 			},
 		},
 	},
@@ -258,7 +258,7 @@ export const Appearance = meta.story({
 		docs: {
 			description: {
 				story:
-					"The whole of a bot's face, flat: the preview, the eight animals, the nine blot choices and the zone that takes a picture. Nothing is folded away behind a popover — the tab is the picker. Check that choosing an animal writes the whole value back through `onValueChange` and that the preview follows it immediately.",
+					"The whole of a companion's face, flat: the preview, the eight animals, the nine blot choices and the zone that takes a picture. Nothing is folded away behind a popover — the tab is the picker. Check that choosing an animal writes the whole value back through `onValueChange` and that the preview follows it immediately.",
 			},
 		},
 	},
@@ -310,7 +310,7 @@ export const WithMemory = meta.story({
 		docs: {
 			description: {
 				story:
-					"The same tab for a host that hands the dialog what the bot wrote down for itself. The memory sits under the instructions with its own label, so the two are never mistaken for one field: above is what the user asks of the bot, below is what the bot noticed. It is the one place in the dialog that does not save as you type — the memory is reported on its own control and never through `onValueChange`, because it does not live in the bot's settings.",
+					"The same tab for a host that hands the dialog what the companion wrote down for itself. The memory sits under the instructions with its own label, so the two are never mistaken for one field: above is what the user asks of the companion, below is what the companion noticed. It is the one place in the dialog that does not save as you type — the memory is reported on its own control and never through `onValueChange`, because it does not live in the companion's settings.",
 			},
 		},
 	},
@@ -334,7 +334,7 @@ export const Runtime = meta.story({
 		docs: {
 			description: {
 				story:
-					"What the bot runs on: the model out of the list the host supplies, and the folder it works in. Both are pickers — neither is something a reader can type correctly. Check that the folder row shows the whole path or truncates it from the end, that pressing it hands the ask to the host rather than opening anything itself, and that the model list marks the one in use.",
+					"What the companion runs on: the model out of the list the host supplies, and the folder it works in. Both are pickers — neither is something a reader can type correctly. Check that the folder row shows the whole path or truncates it from the end, that pressing it hands the ask to the host rather than opening anything itself, and that the model list marks the one in use.",
 			},
 		},
 	},
@@ -365,7 +365,7 @@ export const DangerZone = meta.story({
 		docs: {
 			description: {
 				story:
-					"The last group, and the only one that cannot be undone. Check that the destructive action is never one press away: it opens a confirmation naming the bot and saying what leaves with it, that Cancel closes that confirmation and changes nothing, and that only the second press reports the deletion. The group carries its tone in the rail as well as in the panel, so a reader never lands here by accident. The destructive red on its own tint is the token's known contrast gap, flagged for review rather than worked around here.",
+					"The last group, and the only one that cannot be undone. Check that the destructive action is never one press away: it opens a confirmation naming the companion and saying what leaves with it, that Cancel closes that confirmation and changes nothing, and that only the second press reports the deletion. The group carries its tone in the rail as well as in the panel, so a reader never lands here by accident. The destructive red on its own tint is the token's known contrast gap, flagged for review rather than worked around here.",
 			},
 		},
 	},
@@ -374,7 +374,7 @@ export const DangerZone = meta.story({
 		const panel = await openTab(dialog, "Danger zone", userEvent)
 
 		await userEvent.click(
-			within(panel).getByRole("button", { name: "Delete bot" }),
+			within(panel).getByRole("button", { name: "Delete companion" }),
 		)
 		const confirmation = await screen.findByRole("alertdialog")
 		await expect(confirmation).toHaveTextContent("Delete Nest Keeper?")
@@ -386,11 +386,11 @@ export const DangerZone = meta.story({
 		await expect(args.onDelete).not.toHaveBeenCalled()
 
 		await userEvent.click(
-			within(panel).getByRole("button", { name: "Delete bot" }),
+			within(panel).getByRole("button", { name: "Delete companion" }),
 		)
 		const reopened = await screen.findByRole("alertdialog")
 		await userEvent.click(
-			within(reopened).getByRole("button", { name: "Delete bot" }),
+			within(reopened).getByRole("button", { name: "Delete companion" }),
 		)
 		await expect(args.onDelete).toHaveBeenCalledTimes(1)
 	},
@@ -403,7 +403,7 @@ export const OpenedOnDanger = meta.story({
 		docs: {
 			description: {
 				story:
-					"The dialog as a row's own delete opens it: `showDanger` lands it on Danger zone instead of General. Check that it only picks the group — no confirmation stands, so a reader who meant another bot can leave without answering anything. Pick `DangerZone` for the confirmation itself.",
+					"The dialog as a row's own delete opens it: `showDanger` lands it on Danger zone instead of General. Check that it only picks the group — no confirmation stands, so a reader who meant another companion can leave without answering anything. Pick `DangerZone` for the confirmation itself.",
 			},
 		},
 	},
@@ -491,7 +491,7 @@ export const ScrollsOneTab = meta.story({
 		docs: {
 			description: {
 				story:
-					"A group taller than the dialog — the animals, the blots and the picture zone together. Check that the panel is the one thing that moves: the breadcrumb stays on the bot's name and the rail stays where the reader left it, so the way out of a long group is never a scroll back up. The dialog itself never scrolls.",
+					"A group taller than the dialog — the animals, the blots and the picture zone together. Check that the panel is the one thing that moves: the breadcrumb stays on the companion's name and the rail stays where the reader left it, so the way out of a long group is never a scroll back up. The dialog itself never scrolls.",
 			},
 		},
 	},
@@ -518,13 +518,13 @@ export const Empty = meta.story({
 		docs: {
 			description: {
 				story:
-					"A bot that has just been created and holds nothing yet. Check that the breadcrumb still names something rather than opening on a blank, that every field falls back to a placeholder saying what belongs there, and that the model reads `Choose a model` and the folder `Choose a folder` rather than empty boxes.",
+					"A companion that has just been created and holds nothing yet. Check that the breadcrumb still names something rather than opening on a blank, that every field falls back to a placeholder saying what belongs there, and that the model reads `Choose a model` and the folder `Choose a folder` rather than empty boxes.",
 			},
 		},
 	},
 	play: async ({ userEvent }) => {
 		const dialog = await dialogIn()
-		await expect(dialog).toHaveAccessibleName("Untitled bot Settings")
+		await expect(dialog).toHaveAccessibleName("Untitled companion Settings")
 		await expect(within(dialog).getByLabelText("Name")).toHaveValue("")
 
 		const panel = await openTab(dialog, "Runtime", userEvent)
@@ -539,7 +539,7 @@ export const History = meta.story({
 		docs: {
 			description: {
 				story:
-					"Everything that has ever changed in this bot's bundle, on the tab between MCP servers and Runtime. Reach for this to check that the group reads as a list of changes rather than a log: the title leads each row, who and when sit under it, and the diff is folded away until somebody asks for it. The tab exists only for a host that passed the `history` group — a host with no bundle to read gets no tab rather than an empty one. Pick `AI/HistoryPanel` for the states the list itself takes.",
+					"Everything that has ever changed in this companion's bundle, on the tab between MCP servers and Runtime. Reach for this to check that the group reads as a list of changes rather than a log: the title leads each row, who and when sit under it, and the diff is folded away until somebody asks for it. The tab exists only for a host that passed the `history` group — a host with no bundle to read gets no tab rather than an empty one. Pick `AI/HistoryPanel` for the states the list itself takes.",
 			},
 		},
 	},
@@ -587,7 +587,7 @@ export const Working = meta.story({
 		docs: {
 			description: {
 				story:
-					"The bot is mid-run while its settings are open. Check that the breadcrumb avatar is the same face the roster row is showing, doing the same thing — and that it carries no dot, because a run is not a badge. Editing a bot never stops it.",
+					"The companion is mid-run while its settings are open. Check that the breadcrumb avatar is the same face the roster row is showing, doing the same thing — and that it carries no dot, because a run is not a badge. Editing a companion never stops it.",
 			},
 		},
 	},
@@ -636,7 +636,7 @@ export const WithSkillOpen = meta.story({
 		docs: {
 			description: {
 				story:
-					"A skill taken out of the list. Reach for this to check the one place the dialog gives up its own rail: the skill takes the whole surface, and the rail becomes that skill's summary — a way back to the list, then Instructions, Triggering, Execution, Tools and Advanced. Nothing in it is written as it is typed, so the save is a press and the way back asks before it drops anything. Pick `Rail` for the bot's own groups.",
+					"A skill taken out of the list. Reach for this to check the one place the dialog gives up its own rail: the skill takes the whole surface, and the rail becomes that skill's summary — a way back to the list, then Instructions, Triggering, Execution, Tools and Advanced. Nothing in it is written as it is typed, so the save is a press and the way back asks before it drops anything. Pick `Rail` for the companion's own groups.",
 			},
 		},
 	},
@@ -697,7 +697,7 @@ export const Closing = meta.story({
 		docs: {
 			description: {
 				story:
-					"The three ways out — Escape, the backdrop and the corner affordance — and none of them asks a question while no skill is open. Every keystroke of the bot's own fields was already reported, so there is nothing unsaved to warn about. Check that Escape closes the dialog and reports it once, and that nothing is confirmed on the way. Pick `ClosingOverAnUnsavedSkill` for the one way out that does ask.",
+					"The three ways out — Escape, the backdrop and the corner affordance — and none of them asks a question while no skill is open. Every keystroke of the companion's own fields was already reported, so there is nothing unsaved to warn about. Check that Escape closes the dialog and reports it once, and that nothing is confirmed on the way. Pick `ClosingOverAnUnsavedSkill` for the one way out that does ask.",
 			},
 		},
 	},

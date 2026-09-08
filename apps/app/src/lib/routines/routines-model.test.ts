@@ -34,7 +34,7 @@ const SCHEDULE: TriggerSource = {
 }
 
 describe("botIdsOf", () => {
-	it("keeps one entry per bot", () => {
+	it("keeps one entry per companion", () => {
 		expect(
 			botIdsOf([
 				routine({ id: "r-1", botId: "b-1" }),
@@ -48,7 +48,7 @@ describe("botIdsOf", () => {
 describe("toRoutineRows", () => {
 	const known = toKnownSources([{ botId: "b-1", sources: [SCHEDULE] }])
 
-	it("names the trigger source declared by the bot of the routine", () => {
+	it("names the trigger source declared by the companion of the routine", () => {
 		expect(toRoutineRows([routine({})], known)[0].triggerSourceTitle).toBe(
 			SCHEDULE.title,
 		)

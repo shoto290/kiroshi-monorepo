@@ -306,7 +306,7 @@ export const Authors = meta.story({
 		docs: {
 			description: {
 				story:
-					"A conversation with more than one bot in it, where a row must say who is speaking. `MessageAuthor` draws that line above the text: the name, then a mark for the two things a name alone cannot say — a crown for the bot that leads, a bin for an author deleted since it wrote. Both are icons, and both carry the word behind them where only a reader who hovers or listens finds it, so the line stays short while nothing is left to colour or shape alone. Check that the crown sits on exactly one row, and that the deleted author is dimmed while its message stays as readable as any other.",
+					"A conversation with more than one companion in it, where a row must say who is speaking. `MessageAuthor` draws that line above the text: the name, then a mark for the two things a name alone cannot say — a crown for the companion that leads, a bin for an author deleted since it wrote. Both are icons, and both carry the word behind them where only a reader who hovers or listens finds it, so the line stays short while nothing is left to colour or shape alone. Check that the crown sits on exactly one row, and that the deleted author is dimmed while its message stays as readable as any other.",
 			},
 		},
 	},
@@ -342,7 +342,7 @@ export const Authors = meta.story({
 			'[data-slot="message-author-deleted"]',
 		)
 
-		await expect(deleted).toHaveAttribute("title", "Deleted bot")
-		await expect(deleted).toHaveTextContent("Deleted bot")
+		await expect(deleted).toHaveAttribute("title", "Deleted companion")
+		await expect(deleted).toHaveTextContent("Deleted companion")
 	},
 })
