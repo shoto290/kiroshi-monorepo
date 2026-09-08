@@ -1,3 +1,18 @@
 @import "@workspace/ui/styles/globals.css";
+@import "@fontsource-variable/roboto-mono";
 
 @source "../../../packages/ui/src";
+
+@theme {
+	--breakpoint-ultrawide: 2000px;
+	--font-mono:
+		"Roboto Mono Variable", ui-monospace, SFMono-Regular, Menlo, monospace;
+}
+
+@layer base {
+	html,
+	body {
+		overflow: hidden;
+		overscroll-behavior: none;
+	}
+}
