@@ -13,9 +13,14 @@ export const WEBSITE_COPY = {
 	fineprintSubscription: "CLAUDE SUBSCRIPTION",
 	fineprintSeparator: "·",
 	fineprintLicense: "MIT",
+	credit: "Made by Shoto",
 }
 
-const REPOSITORY_SLUG = "shoto290/kiroshi-monorepo"
+const AUTHOR_SLUG = "shoto290"
+
+const REPOSITORY_SLUG = `${AUTHOR_SLUG}/kiroshi-monorepo`
+
+export const AUTHOR_URL = `https://github.com/${AUTHOR_SLUG}`
 
 export const REPOSITORY_URL = `https://github.com/${REPOSITORY_SLUG}`
 

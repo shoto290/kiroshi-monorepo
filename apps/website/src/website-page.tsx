@@ -3,7 +3,7 @@ import type { ReactNode } from "react"
 import { AppIconMark } from "@workspace/ui/components/app-icon-mark"
 import { Icons } from "@workspace/ui/components/icons"
 
-import { REPOSITORY_URL, WEBSITE_COPY } from "./copy"
+import { AUTHOR_URL, REPOSITORY_URL, WEBSITE_COPY } from "./copy"
 import { DownloadMark } from "./page-marks"
 import { PageWash } from "./page-wash"
 import { type DownloadPlatform, useDownloadTarget } from "./use-download-target"
@@ -78,13 +78,31 @@ type AppWindowProps = {
 }
 
 const AppWindow = ({ children }: AppWindowProps) => (
-	<div className="relative hidden w-full min-h-0 flex-1 justify-center lg:flex">
-		<div className="relative mt-[calc(var(--rise)*60/1120)] h-[700px] w-[calc(100vw_-_320px)] max-w-[1760px] ultrawide:h-[720px]">
+	<div className="relative hidden w-full shrink-0 justify-center lg:flex">
+		<div className="relative mt-[calc(var(--rise)*60/1120)] h-[700px] w-[calc(100%_-_320px)] max-w-[1760px] ultrawide:h-[720px]">
 			<div className="relative size-full overflow-clip rounded-[16px] border border-border bg-sidebar shadow-[0_-2px_60px_-14px_rgb(20_20_24/0.15)]">
 				{children}
 			</div>
 		</div>
 	</div>
+)
+
+type CreditProps = {
+	label: string
+}
+
+const Credit = ({ label }: CreditProps) => (
+	<footer className="relative z-10 mt-auto flex w-full shrink-0 justify-center px-7 py-10 lg:py-14">
+		<a
+			className="inline-flex items-center gap-1.5 rounded-sm px-1.5 py-1 font-mono text-xs leading-4 tracking-[0.08em] text-muted-foreground outline-none transition-colors hover:text-foreground focus-visible:ring-3 focus-visible:ring-ring/30"
+			href={AUTHOR_URL}
+			rel="noreferrer noopener"
+			target="_blank"
+		>
+			{label}
+			<Icons.GitHub size={13} />
+		</a>
+	</footer>
 )
 
 type WebsitePageProps = {
@@ -93,7 +111,7 @@ type WebsitePageProps = {
 
 export const WebsitePage = ({ children }: WebsitePageProps) => (
 	<main
-		className={`${VIEWPORT_RISE} relative flex h-dvh w-full flex-col items-center overflow-clip bg-background`}
+		className={`${VIEWPORT_RISE} relative flex min-h-dvh w-full flex-col items-center overflow-x-clip bg-background`}
 	>
 		<PageWash />
 		<div className="relative z-10 flex w-full shrink-0 flex-col items-center gap-4 px-7 pt-33 text-center lg:min-h-[60dvh] lg:justify-center lg:gap-[18px] lg:pt-7 ultrawide:gap-5 ultrawide:pt-10">
@@ -123,5 +141,6 @@ export const WebsitePage = ({ children }: WebsitePageProps) => (
 			/>
 		</div>
 		<AppWindow>{children}</AppWindow>
+		<Credit label={WEBSITE_COPY.credit} />
 	</main>
 )
