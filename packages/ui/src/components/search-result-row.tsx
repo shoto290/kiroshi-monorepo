@@ -17,13 +17,13 @@ import type { BotBadge } from "@workspace/ui/components/badge"
 import type { BotAvatarBlot } from "@workspace/ui/components/bot-avatar"
 import { BotIdentityAvatar } from "@workspace/ui/components/bot-identity-avatar"
 import { Icons } from "@workspace/ui/components/icons"
-import { Kbd } from "@workspace/ui/components/kbd"
 import {
 	MISSION_AVATAR_SIZE,
 	type MissionBot,
 } from "@workspace/ui/components/mission"
 import type { MissionMark } from "@workspace/ui/components/mission-marks"
 import { SpaceTint } from "@workspace/ui/components/space-tint"
+import { Kbd } from "@workspace/ui/components/ui/kbd"
 import { cn } from "@workspace/ui/lib/utils"
 
 type SearchResultIdentity =

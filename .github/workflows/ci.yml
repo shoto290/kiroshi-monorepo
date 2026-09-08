@@ -32,6 +32,9 @@ jobs:
       - name: Types
         run: bun run types
 
+      - name: Vendor check
+        run: bun run --filter=@workspace/ui ui:vendor-check
+
       - name: Build website
         run: bun run --filter=website build
 
