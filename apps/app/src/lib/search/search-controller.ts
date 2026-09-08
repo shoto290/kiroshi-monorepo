@@ -112,25 +112,23 @@ export const createSearchController = ({
 		}
 	}
 
-	const answerOf = ({
-		query,
-		spaceId,
-		allSpaces,
-	}: ReadScope): Promise<Partial<SearchState>> =>
-		query === ""
-			? Promise.all([
-					port.recent({ spaceId, allSpaces }),
-					port.catalogue({ query, spaceId, allSpaces }),
-				]).then(([recents, catalogue]) => ({
-					recents,
-					read: readOf([], catalogue),
-				}))
-			: Promise.all([
-					port.messages({ text: query, spaceId, allSpaces }),
-					port.catalogue({ query, spaceId, allSpaces }),
-				]).then(([messages, catalogue]) => ({
-					read: readOf(messages, catalogue),
-				}))
+	const restAnswer = ({ spaceId, allSpaces }: ReadScope) =>
+		Promise.all([
+			port.recent({ spaceId, allSpaces }),
+			port.catalogue({ query: "", spaceId, allSpaces }),
+		]).then(([recents, catalogue]) => ({
+			recents,
+			read: readOf([], catalogue),
+		}))
+
+	const foundAnswer = ({ query, spaceId, allSpaces }: ReadScope) =>
+		Promise.all([
+			port.messages({ text: query, spaceId, allSpaces }),
+			port.catalogue({ query, spaceId, allSpaces }),
+		]).then(([messages, catalogue]) => ({ read: readOf(messages, catalogue) }))
+
+	const answerOf = (scope: ReadScope): Promise<Partial<SearchState>> =>
+		scope.query === "" ? restAnswer(scope) : foundAnswer(scope)
 
 	const read = () => {
 		const { query, spaceId, isAllSpaces } = state
