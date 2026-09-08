@@ -41,6 +41,14 @@ const raiseFailureNotice = (message: NoticeMessage) => {
 	})
 }
 
+const FADE_ONLY_UNDER_REDUCED_MOTION = [
+	"motion-reduce:[transition:opacity_150ms]!",
+	"motion-reduce:data-starting-style:[transform:none]!",
+	"motion-reduce:data-starting-style:opacity-0",
+	"motion-reduce:data-ending-style:[transform:none]!",
+	"motion-reduce:data-ending-style:opacity-0",
+].join(" ")
+
 const NoticeList = () => {
 	const { t } = useTranslation("common")
 	const { toasts } = useToastManager()
@@ -50,7 +58,11 @@ const NoticeList = () => {
 
 		return (
 			<Toast
-				className={cn("pointer-events-auto", hasFailed && "border-destructive")}
+				className={cn(
+					"pointer-events-auto",
+					FADE_ONLY_UNDER_REDUCED_MOTION,
+					hasFailed && "border-destructive",
+				)}
 				key={notice.id}
 				swipeDirection={["down", "right"]}
 				toast={notice}
