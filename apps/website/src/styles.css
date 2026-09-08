@@ -8,3 +8,12 @@
 	--font-mono:
 		"Roboto Mono Variable", ui-monospace, SFMono-Regular, Menlo, monospace;
 }
+
+@layer base {
+	html,
+	body {
+		height: 100%;
+		overflow: hidden;
+		overscroll-behavior: none;
+	}
+}

@@ -3,13 +3,13 @@ import type { ReactNode } from "react"
 import { Icons } from "@workspace/ui/components/icons"
 
 import { RELEASES_URL, REPOSITORY_URL, WEBSITE_COPY } from "./copy"
-import { ClaudeMark, DownloadMark, RabbitMark } from "./page-marks"
+import { DownloadMark, RabbitMark } from "./page-marks"
 import { PageWash } from "./page-wash"
 
 const VIEWPORT_RISE = "[--rise:clamp(0px,100vw_-_1440px,1120px)]"
 
 const ACTION_BASE =
-	"inline-flex h-[46px] shrink-0 items-center gap-2 rounded-sm text-[15px] leading-5 font-medium whitespace-nowrap outline-none transition-colors focus-visible:ring-3 focus-visible:ring-ring/50 active:translate-y-px"
+	"h-[46px] shrink-0 items-center gap-2 rounded-sm border text-[15px] leading-5 font-medium whitespace-nowrap outline-none transition-colors focus-visible:border-ring focus-visible:ring-3 focus-visible:ring-ring/30 active:translate-y-px"
 
 type ActionProps = {
 	label: string
@@ -17,7 +17,7 @@ type ActionProps = {
 
 const DownloadAction = ({ label }: ActionProps) => (
 	<a
-		className={`${ACTION_BASE} hidden bg-foreground px-5 text-background hover:bg-foreground/90 lg:inline-flex`}
+		className={`${ACTION_BASE} hidden border-transparent bg-foreground px-5 text-background hover:bg-foreground/90 lg:inline-flex`}
 		href={RELEASES_URL}
 	>
 		{label}
@@ -27,7 +27,7 @@ const DownloadAction = ({ label }: ActionProps) => (
 
 const GithubAction = ({ label }: ActionProps) => (
 	<a
-		className={`${ACTION_BASE} border border-border bg-background px-[18px] text-foreground hover:bg-accent`}
+		className={`${ACTION_BASE} inline-flex border-border bg-background px-[18px] text-foreground hover:bg-accent`}
 		href={REPOSITORY_URL}
 	>
 		{label}
@@ -48,10 +48,10 @@ const Fineprint = ({
 	separator,
 	subscription,
 }: FineprintProps) => (
-	<p className="mt-2.5 flex flex-wrap items-center justify-center gap-2 font-mono text-xs leading-4 tracking-[0.08em] text-muted-foreground lg:mt-0">
+	<p className="mt-2.5 flex flex-wrap items-center justify-center gap-1.5 font-mono text-xs leading-4 tracking-[0.08em] text-muted-foreground lg:mt-0 lg:gap-2">
 		<span>{runs}</span>
 		<span className="flex items-center gap-1.5">
-			<ClaudeMark />
+			<Icons.Claude className="shrink-0 text-[#D97757]" size={13} />
 			{subscription}
 		</span>
 		<span className="opacity-[0.55]">{separator}</span>
@@ -80,11 +80,11 @@ type WebsitePageProps = {
 
 export const WebsitePage = ({ children }: WebsitePageProps) => (
 	<main
-		className={`${VIEWPORT_RISE} relative flex min-h-dvh w-full flex-col items-center overflow-x-clip bg-background lg:h-dvh lg:min-h-0 lg:overflow-clip`}
+		className={`${VIEWPORT_RISE} relative flex h-dvh w-full flex-col items-center overflow-clip overscroll-none bg-background`}
 	>
 		<PageWash />
 		<RabbitMark className="bottom-0 left-5 size-[330px] lg:hidden" />
-		<div className="relative z-10 flex min-h-[60dvh] w-full shrink-0 flex-col items-center justify-center gap-4 px-7 pt-33 text-center lg:gap-[18px] lg:pt-7 ultrawide:gap-5 ultrawide:pt-10">
+		<div className="relative z-10 flex w-full shrink-0 flex-col items-center gap-4 px-7 pt-33 text-center lg:min-h-[60dvh] lg:justify-center lg:gap-[18px] lg:pt-7 ultrawide:gap-5 ultrawide:pt-10">
 			<h1 className="font-heading text-[28px] leading-[34px] font-medium tracking-[-0.028em] text-foreground lg:text-[54px] lg:leading-[60px] ultrawide:text-[64px] ultrawide:leading-[72px]">
 				<span className="block">{WEBSITE_COPY.headlineFirstLine}</span>
 				<span className="block">{WEBSITE_COPY.headlineSecondLine}</span>
