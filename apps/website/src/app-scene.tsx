@@ -45,8 +45,6 @@ import { type SceneThread, threadOf } from "./scene-threads"
 import { type SceneFrame, useSceneTimeline } from "./use-scene-timeline"
 import { WindowControls } from "./window-controls"
 
-const SHELL = "relative size-full"
-
 const ROW_ENTER =
 	"animate-in slide-in-from-bottom-1 duration-200 ease-out motion-reduce:animate-none"
 
@@ -234,7 +232,7 @@ export const AppScene = () => {
 	return (
 		<section
 			aria-label={SCENE_COPY.sceneLabel}
-			className={SHELL}
+			className="relative size-full"
 			onFocus={engage}
 			onKeyDown={engage}
 			onPointerDown={engage}
