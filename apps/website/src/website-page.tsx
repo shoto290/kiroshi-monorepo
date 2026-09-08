@@ -17,7 +17,7 @@ type ActionProps = {
 
 const DownloadAction = ({ label }: ActionProps) => (
 	<a
-		className={`${ACTION_BASE} bg-foreground px-5 text-background hover:bg-foreground/90`}
+		className={`${ACTION_BASE} hidden bg-foreground px-5 text-background hover:bg-foreground/90 lg:inline-flex`}
 		href={RELEASES_URL}
 	>
 		{label}
@@ -96,9 +96,7 @@ export const WebsitePage = ({ children }: WebsitePageProps) => (
 				<p className="max-w-[302px] text-[15px] leading-[22px] text-foreground lg:hidden">
 					{WEBSITE_COPY.mobileNote}
 				</p>
-				<div className="hidden lg:block">
-					<DownloadAction label={WEBSITE_COPY.downloadAction} />
-				</div>
+				<DownloadAction label={WEBSITE_COPY.downloadAction} />
 				<GithubAction label={WEBSITE_COPY.githubAction} />
 			</div>
 			<Fineprint
