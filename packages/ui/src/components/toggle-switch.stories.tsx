@@ -2,6 +2,7 @@ import { useState } from "react"
 import { expect, fn } from "storybook/test"
 
 import preview from "@workspace/storybook/preview"
+import { slotIn } from "@workspace/storybook/story-utils"
 import {
 	ToggleSwitch,
 	type ToggleSwitchProps,
@@ -146,11 +147,9 @@ export const ReducedMotion = meta.story({
 			},
 		},
 	},
-	play: async ({ canvas, userEvent }) => {
+	play: async ({ canvas, canvasElement, userEvent }) => {
 		const track = canvas.getByRole("switch")
-		const thumb = track.querySelector<HTMLElement>(
-			"[data-slot=switch-thumb]",
-		) as HTMLElement
+		const thumb = slotIn(canvasElement, "switch-thumb")
 
 		await expect(getComputedStyle(track).transitionProperty).toBe("none")
 		await expect(getComputedStyle(thumb).transitionProperty).toBe("none")

@@ -41,13 +41,8 @@ const raiseFailureNotice = (message: NoticeMessage) => {
 	})
 }
 
-const FADE_ONLY_UNDER_REDUCED_MOTION = [
-	"motion-reduce:[transition:opacity_150ms]!",
-	"motion-reduce:data-starting-style:[transform:none]!",
-	"motion-reduce:data-starting-style:opacity-0",
-	"motion-reduce:data-ending-style:[transform:none]!",
-	"motion-reduce:data-ending-style:opacity-0",
-].join(" ")
+const FADE_ONLY_UNDER_REDUCED_MOTION =
+	"motion-reduce:[transition:opacity_150ms]! motion-reduce:data-starting-style:[transform:none]! motion-reduce:data-starting-style:opacity-0 motion-reduce:data-ending-style:[transform:none]! motion-reduce:data-ending-style:opacity-0"
 
 const NoticeList = () => {
 	const { t } = useTranslation("common")
