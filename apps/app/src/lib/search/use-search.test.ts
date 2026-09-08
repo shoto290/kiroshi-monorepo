@@ -339,11 +339,18 @@ it("moves and opens the active result after the See all button changed the tab",
 	])
 })
 
-const restingOn = async (tab: SearchTab, navigation: SearchNavigation) => {
-	const result = renderSearch({
-		navigation,
-		port: aPort({ recents: FOUR_RECENTS }),
-	})
+type Resting = {
+	tab: SearchTab
+	navigation: SearchNavigation
+	port?: SearchPort
+}
+
+const restingOn = async ({
+	tab,
+	navigation,
+	port = aPort({ recents: FOUR_RECENTS }),
+}: Resting) => {
+	const result = renderSearch({ navigation, port })
 
 	act(() => result.current.open())
 	await waitFor(() =>
@@ -356,17 +363,47 @@ const restingOn = async (tab: SearchTab, navigation: SearchNavigation) => {
 	return result
 }
 
-it("walks the three resting rows the All tab draws and no more", async () => {
+it("rests on one group per kind, chats then missions then routines", async () => {
+	const { navigation } = aNavigation()
+	const result = await restingOn({ tab: "all", navigation })
+
+	expect(result.current.palette.resting.map((group) => group.kind)).toEqual([
+		"chats",
+		"missions",
+		"routines",
+	])
+	expect(
+		result.current.palette.resting[1]?.results.map((row) => row.id),
+	).toEqual([`mission-${A_MISSION.id}`])
+})
+
+it("leaves out of the resting groups a kind that has no row", async () => {
+	const { navigation } = aNavigation()
+	const result = await restingOn({
+		tab: "all",
+		navigation,
+		port: aPort({
+			catalogue: { chats: [], missions: [], routines: [] },
+			recents: FOUR_RECENTS,
+		}),
+	})
+
+	expect(result.current.palette.resting.map((group) => group.kind)).toEqual([
+		"chats",
+	])
+})
+
+it("walks three resting rows per kind on the All tab and no more", async () => {
 	const { navigation, trace } = aNavigation()
-	const result = await restingOn("all", navigation)
+	const result = await restingOn({ tab: "all", navigation })
 
 	expect(result.current.palette.activeResultId).toBe("chat-c-recent-1")
 
 	act(() => press("ArrowUp"))
 
-	expect(result.current.palette.activeResultId).toBe("chat-c-recent-3")
+	expect(result.current.palette.activeResultId).toBe(`routine-${A_ROUTINE.id}`)
 
-	act(() => press("4", { metaKey: true }))
+	act(() => press("6", { metaKey: true }))
 
 	expect(trace).toEqual([])
 	expect(result.current.isOpen).toBe(true)
@@ -376,9 +413,35 @@ it("walks the three resting rows the All tab draws and no more", async () => {
 	expect(trace).toEqual(["conversation:c-recent-3", `space:${WORK}`])
 })
 
+it("opens a resting mission the way a mission hit opens", async () => {
+	const { navigation, trace } = aNavigation()
+	await restingOn({ tab: "all", navigation })
+
+	act(() => press("4", { metaKey: true }))
+
+	expect(trace).toEqual([
+		`bot:${A_BOT.id}`,
+		`space:${WORK}`,
+		`mission:${A_MISSION.id}:${A_BOT.id}`,
+	])
+})
+
+it("shows the resting set of the new tab without reading again", async () => {
+	const { navigation } = aNavigation()
+	const port = aPort({ recents: FOUR_RECENTS })
+	const result = await restingOn({ tab: "all", navigation, port })
+	const reads = vi.mocked(port.catalogue).mock.calls.length
+
+	act(() => result.current.palette.onTabChange("routines"))
+
+	expect(result.current.palette.activeResultId).toBe(`routine-${A_ROUTINE.id}`)
+	expect(vi.mocked(port.catalogue).mock.calls).toHaveLength(reads)
+	expect(vi.mocked(port.recent).mock.calls).toHaveLength(1)
+})
+
 it("walks every resting row of the tab of that kind", async () => {
 	const { navigation, trace } = aNavigation()
-	const result = await restingOn("chats", navigation)
+	const result = await restingOn({ tab: "chats", navigation })
 
 	act(() => press("ArrowUp"))
 
@@ -391,7 +454,7 @@ it("walks every resting row of the tab of that kind", async () => {
 
 it("walks nothing on a resting tab that admits no resting kind", async () => {
 	const { navigation, trace } = aNavigation()
-	const result = await restingOn("messages", navigation)
+	const result = await restingOn({ tab: "messages", navigation })
 
 	expect(result.current.palette.activeResultId).toBeUndefined()
 
