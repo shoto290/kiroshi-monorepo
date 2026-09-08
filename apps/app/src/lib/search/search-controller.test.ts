@@ -1,6 +1,10 @@
 import { afterEach, beforeEach, expect, it, vi } from "vitest"
 
-import type { Catalogue, CatalogueChat } from "./catalogue-contract"
+import type {
+	Catalogue,
+	CatalogueChat,
+	CatalogueMission,
+} from "./catalogue-contract"
 import { MAX_QUERY_CHARS, type MessageHit } from "./search-contract"
 import { createSearchController, QUIET_MS } from "./search-controller"
 import type { SearchPort } from "./search-port"
@@ -26,11 +30,29 @@ const hitOf = (messageId: string): MessageHit => ({
 	snippet: [{ text: messageId, matched: true }],
 })
 
+const A_MISSION: CatalogueMission = {
+	id: "mi-1",
+	threadConversationId: "c-1",
+	objective: "Roadmap the parser",
+	ticketPlatform: "linear",
+	ticketExternalId: "OPE-51",
+	ticketTitle: "Parser",
+	state: "working",
+	botId: "b-1",
+	spaceId: "personal",
+}
+
 const catalogueOf = (chats: CatalogueChat[]): Catalogue => ({
 	chats,
 	missions: [],
 	routines: [],
 })
+
+const CATALOGUE_WITH_MISSION: Catalogue = {
+	chats: [],
+	missions: [A_MISSION],
+	routines: [],
+}
 
 type Deferred<Value> = {
 	promise: Promise<Value>
@@ -228,6 +250,30 @@ it("reads the recents and the catalogue again when the query goes empty", async 
 	})
 	expect(controller.getState().read.messages).toEqual([])
 	expect(controller.getState().recents).toEqual([A_CHAT])
+})
+
+it("drops the catalogue of the erased query until the rest read lands", async () => {
+	const port = aPort()
+	const { controller } = openedOn(port)
+	await settle()
+
+	port.catalogue.mockResolvedValueOnce(CATALOGUE_WITH_MISSION)
+	controller.setQuery("par")
+	await quiet()
+
+	expect(controller.getState().read.missions).toEqual([A_MISSION])
+
+	const resting = deferred<Catalogue>()
+	port.catalogue.mockReturnValueOnce(resting.promise)
+	controller.setQuery("")
+
+	expect(controller.getState().read.missions).toEqual([])
+	expect(controller.getState().recents).toEqual([A_CHAT])
+
+	resting.resolve(CATALOGUE_WITH_MISSION)
+	await settle()
+
+	expect(controller.getState().read.missions).toEqual([A_MISSION])
 })
 
 it("reads the recents and the catalogue of the new scope while the query is empty", async () => {

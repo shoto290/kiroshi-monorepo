@@ -162,6 +162,7 @@ export const createSearchController = ({
 		clearTimeout(quiet)
 
 		if (state.query === "") {
+			publish({ read: NOTHING_READ })
 			read()
 			return
 		}
