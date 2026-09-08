@@ -49,9 +49,8 @@ const catalogueOf = (chats: CatalogueChat[]): Catalogue => ({
 })
 
 const CATALOGUE_WITH_MISSION: Catalogue = {
-	chats: [],
+	...catalogueOf([]),
 	missions: [A_MISSION],
-	routines: [],
 }
 
 type Deferred<Value> = {
