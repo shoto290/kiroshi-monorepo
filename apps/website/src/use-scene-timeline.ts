@@ -13,15 +13,15 @@ const NI_ANSWER_AT = 6000
 const MISSION_DELAY = 1000
 const MISSION_AT = NI_ANSWER_AT + typingMs(SCENE_COPY.niAnswer) + MISSION_DELAY
 const CLOSING_AT = 13000
-const CLOSING_MS = 400
-const LOOP_MS = CLOSING_AT + CLOSING_MS
+const FADE_MS = 400
+const LOOP_MS = CLOSING_AT + FADE_MS
 
 const FROZEN_ELAPSED = [
 	0,
 	ICHI_ANSWER_AT + typingMs(SCENE_COPY.ichiAnswer),
 	NI_ANSWER_AT + typingMs(SCENE_COPY.niAnswer),
 	MISSION_AT,
-	CLOSING_AT + CLOSING_MS / 2,
+	CLOSING_AT + FADE_MS / 2,
 ]
 
 const FROZEN_STATE_PARAMETER = "state"
@@ -29,20 +29,21 @@ const FROZEN_STATE_PARAMETER = "state"
 const typedCount = (text: string, sinceMs: number) =>
 	Math.min(text.length, Math.floor((sinceMs * CHARACTERS_PER_SECOND) / 1000))
 
-const closingOpacityAt = (elapsed: number) =>
-	elapsed < CLOSING_AT
-		? 1
-		: Math.max(0, Math.round((1 - (elapsed - CLOSING_AT) / CLOSING_MS) * 100)) /
-			100
+const fadeOutEndingAt = (elapsed: number, gone: number) => {
+	const left = (gone - elapsed) / FADE_MS
+	return left >= 1 ? 1 : Math.max(0, Math.round(left * 100)) / 100
+}
 
 type SceneFrame = {
 	elapsedSeconds: number
+	openingOpacity: number
+	requestOpacity: number
 	ichiTyped: number
 	niTyped: number
 	hasIchiAnswer: boolean
 	hasNiAnswer: boolean
 	hasMission: boolean
-	opacity: number
+	closingOpacity: number
 }
 
 const frameAt = (elapsed: number): SceneFrame => {
@@ -51,6 +52,8 @@ const frameAt = (elapsed: number): SceneFrame => {
 
 	return {
 		elapsedSeconds: Math.floor(elapsed / 1000),
+		openingOpacity: fadeOutEndingAt(elapsed, ICHI_ANSWER_AT),
+		requestOpacity: fadeOutEndingAt(elapsed, MISSION_AT),
 		ichiTyped: hasIchiAnswer
 			? typedCount(SCENE_COPY.ichiAnswer, elapsed - ICHI_ANSWER_AT)
 			: 0,
@@ -60,18 +63,20 @@ const frameAt = (elapsed: number): SceneFrame => {
 		hasIchiAnswer,
 		hasNiAnswer,
 		hasMission: elapsed >= MISSION_AT,
-		opacity: closingOpacityAt(elapsed),
+		closingOpacity: fadeOutEndingAt(elapsed, LOOP_MS),
 	}
 }
 
 const isSameFrame = (one: SceneFrame, other: SceneFrame) =>
 	one.elapsedSeconds === other.elapsedSeconds &&
+	one.openingOpacity === other.openingOpacity &&
+	one.requestOpacity === other.requestOpacity &&
 	one.ichiTyped === other.ichiTyped &&
 	one.niTyped === other.niTyped &&
 	one.hasIchiAnswer === other.hasIchiAnswer &&
 	one.hasNiAnswer === other.hasNiAnswer &&
 	one.hasMission === other.hasMission &&
-	one.opacity === other.opacity
+	one.closingOpacity === other.closingOpacity
 
 const frozenElapsed = () => {
 	const asked = new URLSearchParams(window.location.search).get(

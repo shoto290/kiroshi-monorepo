@@ -8,14 +8,6 @@ import type { RosterBot } from "@workspace/ui/components/roster"
 
 import { SCENE_COPY } from "./copy"
 
-const HAPPY: RosterBot = {
-	id: "happy",
-	name: SCENE_COPY.happy.name,
-	title: SCENE_COPY.happy.title,
-	animal: "chick",
-	blot: "yellow",
-}
-
 const ICHI: RosterBot = {
 	id: "ichi",
 	name: SCENE_COPY.ichi.name,
@@ -32,23 +24,31 @@ const NI: RosterBot = {
 	blot: "pink",
 }
 
-const KUMA: RosterBot = {
-	id: "kuma",
-	name: SCENE_COPY.kuma.name,
-	title: SCENE_COPY.kuma.title,
-	animal: "bear",
+const SAN: RosterBot = {
+	id: "san",
+	name: SCENE_COPY.san.name,
+	title: SCENE_COPY.san.title,
+	animal: "rabbit",
 	blot: "green",
 }
 
-const SORA: RosterBot = {
-	id: "sora",
-	name: SCENE_COPY.sora.name,
-	title: SCENE_COPY.sora.title,
-	animal: "koala",
-	blot: "cyan",
+const REI: RosterBot = {
+	id: "rei",
+	name: SCENE_COPY.rei.name,
+	title: SCENE_COPY.rei.title,
+	animal: "bear",
+	blot: "purple",
 }
 
-const SCENE_BOTS: RosterBot[] = [HAPPY, ICHI, NI, KUMA, SORA]
+const HAPPY: RosterBot = {
+	id: "happy",
+	name: SCENE_COPY.happy.name,
+	title: SCENE_COPY.happy.title,
+	animal: "chick",
+	blot: "yellow",
+}
+
+const SCENE_BOTS: RosterBot[] = [ICHI, NI, SAN, REI, HAPPY]
 
 type RosterCopy = {
 	timestamp: string
@@ -62,20 +62,21 @@ const rosterRow = (bot: RosterBot, copy: RosterCopy): AppSidebarBot => ({
 })
 
 const ROSTER_ROWS: AppSidebarBot[] = [
-	rosterRow(HAPPY, SCENE_COPY.happy),
 	rosterRow(ICHI, SCENE_COPY.ichi),
 	rosterRow(NI, SCENE_COPY.ni),
-	rosterRow(KUMA, SCENE_COPY.kuma),
-	rosterRow(SORA, SCENE_COPY.sora),
+	rosterRow(SAN, SCENE_COPY.san),
+	rosterRow(REI, SCENE_COPY.rei),
+	rosterRow(HAPPY, SCENE_COPY.happy),
 ]
 
-const CONVERSATION_ID = "release-crew"
+const CONVERSATION_ID = "version-015"
 
 const ROSTER_CONVERSATIONS: AppSidebarConversation[] = [
 	{
 		id: CONVERSATION_ID,
 		name: SCENE_COPY.conversation.name,
 		participants: [ICHI, NI],
+		lastSpeaker: SCENE_COPY.conversation.speaker,
 		lastMessage: SCENE_COPY.conversation.preview,
 		timestamp: SCENE_COPY.conversation.timestamp,
 	},
@@ -90,8 +91,8 @@ const SPACES: Space[] = [
 const SELECTED_SPACE_ID = SPACES[0].id
 
 const MISSION: MissionCardModel = {
-	id: "mission-crash",
-	identity: ICHI,
+	id: "mission-working-row",
+	identity: NI,
 	objective: SCENE_COPY.missionObjective,
 	ticket: SCENE_COPY.missionTicket,
 	tools: [],

@@ -29,13 +29,14 @@ import {
 	SPACES,
 } from "./scene-cast"
 import { useSceneTimeline } from "./use-scene-timeline"
+import { WindowControls } from "./window-controls"
 
-const SHELL = "pointer-events-none h-[688px] w-full select-none"
+const SHELL = "relative pointer-events-none h-[688px] w-full select-none"
+
+const TRANSCRIPT_INSET = "pt-4"
 
 const ENTER =
 	"animate-in fade-in slide-in-from-bottom-1 duration-[180ms] ease-out"
-
-const LINE_BREAK = "\n"
 
 const openMission = () => {}
 
@@ -58,25 +59,33 @@ export const AppScene = () => {
 	const { frame, isStill } = useSceneTimeline()
 	const isAnimated = !isStill
 
-	const rows: TranscriptItem[] = [
-		{
+	const rows: TranscriptItem[] = []
+
+	if (frame.openingOpacity > 0) {
+		rows.push({
 			key: "opening",
 			render: () => (
-				<AssistantTurn author={HAPPY}>{SCENE_COPY.opening}</AssistantTurn>
+				<SceneRow isAnimated={isAnimated} opacity={frame.openingOpacity}>
+					<AssistantTurn author={HAPPY}>{SCENE_COPY.opening}</AssistantTurn>
+				</SceneRow>
 			),
-		},
-		{
+		})
+	}
+
+	if (frame.requestOpacity > 0) {
+		rows.push({
 			key: "request",
 			render: () => (
-				<UserTurn>
-					<Mention botId={ICHI.id} />
-					<Mention botId={NI.id} />
-					{LINE_BREAK}
-					{SCENE_COPY.request}
-				</UserTurn>
+				<SceneRow isAnimated={isAnimated} opacity={frame.requestOpacity}>
+					<UserTurn>
+						<Mention botId={ICHI.id} />
+						<Mention botId={NI.id} />
+						{SCENE_COPY.request}
+					</UserTurn>
+				</SceneRow>
 			),
-		},
-	]
+		})
+	}
 
 	const answerRow = (
 		author: RosterBot,
@@ -85,7 +94,7 @@ export const AppScene = () => {
 	): TranscriptItem => ({
 		key: `${author.id}-answer`,
 		render: () => (
-			<SceneRow isAnimated={isAnimated} opacity={frame.opacity}>
+			<SceneRow isAnimated={isAnimated} opacity={frame.closingOpacity}>
 				<AssistantTurn author={author}>{answer.slice(0, typed)}</AssistantTurn>
 			</SceneRow>
 		),
@@ -103,7 +112,7 @@ export const AppScene = () => {
 		rows.push({
 			key: "mission",
 			render: () => (
-				<SceneRow isAnimated={isAnimated} opacity={frame.opacity}>
+				<SceneRow isAnimated={isAnimated} opacity={frame.closingOpacity}>
 					<MissionTurn mission={MISSION} onOpen={openMission} />
 				</SceneRow>
 			),
@@ -112,6 +121,7 @@ export const AppScene = () => {
 
 	return (
 		<div aria-hidden="true" className={SHELL} inert>
+			<WindowControls />
 			<RosterProvider bots={SCENE_BOTS}>
 				<AnimatedSidebarProvider className="h-full" defaultOpen>
 					<AppSidebar
@@ -127,7 +137,10 @@ export const AppScene = () => {
 						<ThreadLayout
 							autoScroll={false}
 							className="h-full"
-							composer={<PromptInput />}
+							contentClassName={TRANSCRIPT_INSET}
+							composer={
+								<PromptInput placeholder={SCENE_COPY.composerPlaceholder} />
+							}
 							header={
 								<AppHeader
 									leading={SCENE_COPY.threadTitle}
