@@ -133,8 +133,10 @@ describe("placeMissions", () => {
 		])
 	})
 
-	it("leaves a mission of a transcript with no run at all out of the feed", () => {
-		expect(placeMissions([], [missionOf("m-1", 200)])).toEqual([])
+	it("places a mission of a transcript with no run at all ahead of them", () => {
+		expect(placeMissions([], [missionOf("m-1", 200)])).toEqual([
+			{ mission: missionOf("m-1", 200), runIndex: BEFORE_FIRST_RUN },
+		])
 	})
 })
 

@@ -36,7 +36,9 @@ export const placeMissions = (
 			mission,
 			runIndex: lastRunOpenedBefore(runs, mission.openedAt),
 		}))
-		.filter(({ runIndex }) => runIndex !== BEFORE_FIRST_RUN)
+		.filter(
+			({ runIndex }) => runs.length === 0 || runIndex !== BEFORE_FIRST_RUN,
+		)
 
 export const placeMissionEvents = (
 	runs: TranscriptRow[][],
