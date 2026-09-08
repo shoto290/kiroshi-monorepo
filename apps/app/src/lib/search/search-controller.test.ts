@@ -81,7 +81,10 @@ it("reads the recent chats of the space it opens on", async () => {
 	const { controller } = openedOn(port)
 	await settle()
 
-	expect(port.recent).toHaveBeenCalledWith("personal")
+	expect(port.recent).toHaveBeenCalledWith({
+		spaceId: "personal",
+		allSpaces: false,
+	})
 	expect(controller.getState().recents).toEqual([A_CHAT])
 	expect(port.catalogue).not.toHaveBeenCalled()
 })

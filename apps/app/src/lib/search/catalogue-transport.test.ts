@@ -71,10 +71,13 @@ it("searches the catalogue of one space from the host", async () => {
 it("reads the recent chats of a space from the host", async () => {
 	hostInvoke.mockResolvedValueOnce([A_CHAT])
 
-	await expect(catalogueTransport.recent("personal")).resolves.toEqual([A_CHAT])
+	await expect(
+		catalogueTransport.recent({ spaceId: "personal", allSpaces: false }),
+	).resolves.toEqual([A_CHAT])
 
 	expect(hostInvoke).toHaveBeenCalledWith("search_recent", {
 		spaceId: "personal",
+		allSpaces: false,
 	})
 })
 

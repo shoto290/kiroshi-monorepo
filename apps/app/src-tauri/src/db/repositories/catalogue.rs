@@ -1,6 +1,6 @@
 use std::collections::HashMap;
 
-use rusqlite::{Connection, Row};
+use rusqlite::{params, Connection, Row};
 use serde_json::Value;
 use unicode_normalization::char::is_combining_mark;
 use unicode_normalization::UnicodeNormalization;
@@ -17,7 +17,7 @@ const PRESENT_SEAT: &str = "conversation_participants.left_at IS NULL AND bots.d
 
 const CHAT_ORDER: &str = "ORDER BY spoken_at DESC, id";
 
-const RECENT_CHATS_OF_SPACE: &str = "WHERE kind <> 'mission' AND space_id = ?1";
+const RECENT_CHATS_OF_SCOPE: &str = "WHERE kind <> 'mission' AND (?2 OR space_id = ?1)";
 
 fn chats() -> String {
 	format!(
@@ -92,14 +92,17 @@ impl CatalogueRepository {
 			return Err(CatalogueError::QueryTooLong { limit: MAX_QUERY_CHARS });
 		}
 		let needle = folded(scope.query.trim());
-		if needle.is_empty() {
-			return Ok(Catalogue { chats: vec![], missions: vec![], routines: vec![] });
-		}
 		self.access.call(move |connection| Ok(searched(connection, &scope, &needle))).await?
 	}
 
-	pub async fn recent(&self, space_id: String) -> Result<Vec<CatalogueChat>, CatalogueError> {
-		self.access.call(move |connection| Ok(recent_chats(connection, &space_id))).await?
+	pub async fn recent(
+		&self,
+		space_id: String,
+		all_spaces: bool,
+	) -> Result<Vec<CatalogueChat>, CatalogueError> {
+		self.access
+			.call(move |connection| Ok(recent_chats(connection, &space_id, all_spaces)))
+			.await?
 	}
 }
 
@@ -120,11 +123,12 @@ fn searched(
 fn recent_chats(
 	connection: &Connection,
 	space_id: &str,
+	all_spaces: bool,
 ) -> Result<Vec<CatalogueChat>, CatalogueError> {
 	let seated = seated_bots(connection)?;
 	let mut statement =
-		connection.prepare_cached(&format!("{} {RECENT_CHATS_OF_SPACE} {CHAT_ORDER}", chats()))?;
-	let rows = statement.query_map([space_id], chat_row)?;
+		connection.prepare_cached(&format!("{} {RECENT_CHATS_OF_SCOPE} {CHAT_ORDER}", chats()))?;
+	let rows = statement.query_map(params![space_id, all_spaces], chat_row)?;
 	Ok(rows
 		.collect::<rusqlite::Result<Vec<_>>>()?
 		.into_iter()
@@ -406,6 +410,17 @@ mod tests {
 					'k2', 8, 'Nightly digest', 'Read the log');
 	";
 
+	const A_QUIET_SPACE: &str = "
+		INSERT INTO spaces (id, name, colour, position, created_at)
+			VALUES ('lab', 'Lab', 'green', 2, 1);
+		INSERT INTO bots (id, name, model, created_at) VALUES ('b9', 'Camille', 'sonnet', 1);
+		INSERT INTO bot_spaces (bot_id, space_id, joined_at) VALUES ('b9', 'lab', 1);
+		INSERT INTO conversations (id, kind, space_id, title, created_at, updated_at)
+			VALUES ('topic-9', 'topic', 'lab', 'Bench notes', 9, 9);
+		INSERT INTO conversation_participants (conversation_id, bot_id, role, joined_at, join_seq)
+			VALUES ('topic-9', 'b9', 'lead', 9, 0);
+	";
+
 	fn a_draft(
 		origin_conversation_id: &str,
 		bot_id: &str,
@@ -468,10 +483,24 @@ mod tests {
 	}
 
 	fn objectives(missions: &[CatalogueMission]) -> Vec<&str> {
-		let mut held =
-			missions.iter().map(|mission| mission.objective.as_str()).collect::<Vec<_>>();
+		missions.iter().map(|mission| mission.objective.as_str()).collect()
+	}
+
+	fn titles(chats: &[CatalogueChat]) -> Vec<&str> {
+		chats.iter().map(|chat| chat.title.as_str()).collect()
+	}
+
+	fn routine_titles(routines: &[CatalogueRoutine]) -> Vec<&str> {
+		routines.iter().map(|routine| routine.title.as_str()).collect()
+	}
+
+	fn sorted(mut held: Vec<&str>) -> Vec<&str> {
 		held.sort_unstable();
 		held
+	}
+
+	fn kept<'a>(held: Vec<&'a str>, wanted: &[&str]) -> Vec<&'a str> {
+		held.into_iter().filter(|one| wanted.contains(one)).collect()
 	}
 
 	fn named(chats: &[CatalogueChat]) -> Vec<(&str, ConversationKind, &str)> {
@@ -728,7 +757,8 @@ mod tests {
 			"a space-less room lent itself the space of a seat that left it"
 		);
 
-		let recent = database.catalogue().recent(PERSONAL.to_owned()).await.expect("recent reads");
+		let recent =
+			database.catalogue().recent(PERSONAL.to_owned(), false).await.expect("recent reads");
 		assert!(
 			!recent.iter().any(|chat| chat.conversation_id == "main-3"),
 			"a solo chat no present seat names answered as recent"
@@ -752,6 +782,19 @@ mod tests {
 		assert_eq!(held.chats.len(), MAX_MATCHES_PER_LIST, "the chats ran past their bound");
 		assert_eq!(held.routines.len(), MAX_MATCHES_PER_LIST, "the routines ran past their bound");
 
+		let rest = database
+			.catalogue()
+			.search(scope("", PERSONAL, true))
+			.await
+			.expect("the catalogue reads");
+
+		assert_eq!(rest.chats.len(), MAX_MATCHES_PER_LIST, "the rest chats ran past their bound");
+		assert_eq!(
+			rest.routines.len(),
+			MAX_MATCHES_PER_LIST,
+			"the rest routines ran past their bound"
+		);
+
 		std::fs::remove_dir_all(&dir).expect("cleanup");
 	}
 
@@ -760,8 +803,11 @@ mod tests {
 		let (database, dir) = planted().await;
 		a_crowd_of_topics(&database, MAX_RECENT_CHATS + 3).await;
 
-		let held =
-			database.catalogue().recent(PERSONAL.to_owned()).await.expect("the recent reads");
+		let held = database
+			.catalogue()
+			.recent(PERSONAL.to_owned(), false)
+			.await
+			.expect("the recent reads");
 
 		assert_eq!(held.len(), MAX_RECENT_CHATS, "the recent chats ran past their bound");
 
@@ -829,19 +875,138 @@ mod tests {
 	}
 
 	#[tokio::test]
-	async fn a_query_of_nothing_but_blanks_answers_three_empty_lists() {
+	async fn a_query_of_nothing_but_blanks_answers_the_rest_of_its_space() {
 		let (database, dir) = planted().await;
 
-		let empty = Catalogue { chats: vec![], missions: vec![], routines: vec![] };
 		for query in ["", " "] {
 			let held = database
 				.catalogue()
-				.search(scope(query, PERSONAL, true))
+				.search(scope(query, PERSONAL, false))
 				.await
 				.expect("the catalogue reads");
 
-			assert_eq!(held, empty, "{query:?} reached the catalogue");
+			assert_eq!(
+				sorted(titles(&held.chats)),
+				vec!["Amélie", "Fix the crash on open", "Rename the sidecar", "Roadmap review"],
+				"{query:?} lost a chat of its space, or kept an archived one"
+			);
+			assert_eq!(
+				sorted(objectives(&held.missions)),
+				vec!["Fix the crash on open", "Rename the sidecar"],
+				"{query:?} lost a mission of its space"
+			);
+			assert_eq!(
+				sorted(routine_titles(&held.routines)),
+				vec!["Nightly réport"],
+				"{query:?} lost a routine of its space"
+			);
 		}
+
+		std::fs::remove_dir_all(&dir).expect("cleanup");
+	}
+
+	#[tokio::test]
+	async fn an_empty_query_of_every_space_answers_the_rows_of_the_other_space_too() {
+		let (database, dir) = planted().await;
+
+		let held = database
+			.catalogue()
+			.search(scope("", PERSONAL, true))
+			.await
+			.expect("the catalogue reads");
+
+		assert_eq!(
+			sorted(titles(&held.chats)),
+			vec![
+				"Amélie",
+				"Basile",
+				"Fix the crash on open",
+				"Rename the sidecar",
+				"Rename the sidecar of the other space",
+				"Roadmap of the other space",
+				"Roadmap review"
+			],
+			"the wide rest lost a chat of another space"
+		);
+		assert_eq!(
+			sorted(objectives(&held.missions)),
+			vec![
+				"Fix the crash on open",
+				"Rename the sidecar",
+				"Rename the sidecar of the other space"
+			],
+			"the wide rest lost a mission of another space"
+		);
+		assert_eq!(
+			sorted(routine_titles(&held.routines)),
+			vec!["Nightly digest", "Nightly réport"],
+			"the wide rest lost a routine of another space"
+		);
+
+		std::fs::remove_dir_all(&dir).expect("cleanup");
+	}
+
+	#[tokio::test]
+	async fn an_empty_query_of_a_space_holding_no_mission_answers_an_empty_list() {
+		let (database, dir) = planted().await;
+		database
+			.call_mut(|connection| Ok(connection.execute_batch(A_QUIET_SPACE)?))
+			.await
+			.expect("the quiet space is planted");
+
+		let held = database
+			.catalogue()
+			.search(scope("", "lab", false))
+			.await
+			.expect("the catalogue reads");
+
+		assert_eq!(titles(&held.chats), vec!["Bench notes"], "the quiet space lost its chat");
+		assert_eq!(held.missions, vec![], "a space holding no mission answered one");
+		assert_eq!(held.routines, vec![], "a space holding no routine answered one");
+
+		std::fs::remove_dir_all(&dir).expect("cleanup");
+	}
+
+	#[tokio::test]
+	async fn an_empty_query_orders_its_rows_the_way_a_matching_query_orders_them() {
+		let (database, dir) = planted().await;
+
+		let rest = database
+			.catalogue()
+			.search(scope("", PERSONAL, true))
+			.await
+			.expect("the catalogue reads");
+		let matched = database
+			.catalogue()
+			.search(scope("roadmap", PERSONAL, true))
+			.await
+			.expect("the catalogue reads");
+		let renamed = database
+			.catalogue()
+			.search(scope("rename the sidecar", PERSONAL, true))
+			.await
+			.expect("the catalogue reads");
+		let nightly = database
+			.catalogue()
+			.search(scope("nightly", PERSONAL, true))
+			.await
+			.expect("the catalogue reads");
+
+		assert_eq!(
+			kept(titles(&rest.chats), &titles(&matched.chats)),
+			titles(&matched.chats),
+			"the rest chats came back in another order than the matching ones"
+		);
+		assert_eq!(
+			kept(objectives(&rest.missions), &objectives(&renamed.missions)),
+			objectives(&renamed.missions),
+			"the rest missions came back in another order than the matching ones"
+		);
+		assert_eq!(
+			kept(routine_titles(&rest.routines), &routine_titles(&nightly.routines)),
+			routine_titles(&nightly.routines),
+			"the rest routines came back in another order than the matching ones"
+		);
 
 		std::fs::remove_dir_all(&dir).expect("cleanup");
 	}
@@ -888,12 +1053,12 @@ mod tests {
 			.expect("the catalogue reads");
 
 		assert_eq!(
-			objectives(&scoped.missions),
+			sorted(objectives(&scoped.missions)),
 			vec!["Rename the sidecar"],
 			"a mission whose bot sits in another space crossed the scope"
 		);
 		assert_eq!(
-			objectives(&wide.missions),
+			sorted(objectives(&wide.missions)),
 			vec!["Rename the sidecar", "Rename the sidecar of the other space"],
 			"the wide search lost a mission of another space"
 		);
@@ -946,8 +1111,11 @@ mod tests {
 	async fn the_recent_chats_of_a_space_answer_the_spoken_first_and_leave_the_threads_out() {
 		let (database, dir) = planted().await;
 
-		let held =
-			database.catalogue().recent(PERSONAL.to_owned()).await.expect("the recent reads");
+		let held = database
+			.catalogue()
+			.recent(PERSONAL.to_owned(), false)
+			.await
+			.expect("the recent reads");
 
 		assert_eq!(
 			named(&held),
@@ -956,6 +1124,27 @@ mod tests {
 				("topic-1", ConversationKind::Topic, "Roadmap review"),
 			],
 			"the recent chats lost the last message order, or kept a mission thread"
+		);
+
+		std::fs::remove_dir_all(&dir).expect("cleanup");
+	}
+
+	#[tokio::test]
+	async fn the_recent_chats_of_every_space_answer_the_chats_of_the_other_space_too() {
+		let (database, dir) = planted().await;
+
+		let held =
+			database.catalogue().recent(PERSONAL.to_owned(), true).await.expect("the recent reads");
+
+		assert_eq!(
+			named(&held),
+			vec![
+				("main-1", ConversationKind::Main, "Amélie"),
+				("topic-1", ConversationKind::Topic, "Roadmap review"),
+				("topic-2", ConversationKind::Topic, "Roadmap of the other space"),
+				("main-2", ConversationKind::Main, "Basile"),
+			],
+			"the wide recents lost a chat of another space, or kept a mission thread"
 		);
 
 		std::fs::remove_dir_all(&dir).expect("cleanup");
