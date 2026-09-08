@@ -20,34 +20,11 @@ export type PlacedMissionEvent = {
 
 export const BEFORE_FIRST_RUN = -1
 
-const nearestRunOfBot = (
-	runs: TranscriptRow[][],
-	mission: Mission,
-): number | null => {
-	const spoken = runs.flatMap(([opening], index) =>
-		opening.authorBotId === mission.botId ? [index] : [],
-	)
-	if (spoken.length === 0) {
-		return null
-	}
-	const distanceOf = (index: number) =>
-		Math.abs(runs[index][0].timestamp - mission.openedAt)
-
-	return spoken.reduce(
-		(nearest, index) =>
-			distanceOf(index) <= distanceOf(nearest) ? index : nearest,
-		spoken[0],
-	)
-}
-
 const lastRunOpenedBefore = (runs: TranscriptRow[][], moment: number): number =>
 	runs.reduce(
 		(last, run, index) => (run[0].timestamp <= moment ? index : last),
 		BEFORE_FIRST_RUN,
 	)
-
-const openingRunIndex = (runs: TranscriptRow[][], mission: Mission): number =>
-	nearestRunOfBot(runs, mission) ?? lastRunOpenedBefore(runs, mission.openedAt)
 
 export const placeMissions = (
 	runs: TranscriptRow[][],
@@ -55,7 +32,10 @@ export const placeMissions = (
 ): PlacedMission[] =>
 	[...missions]
 		.sort((one, other) => one.openedAt - other.openedAt)
-		.map((mission) => ({ mission, runIndex: openingRunIndex(runs, mission) }))
+		.flatMap((mission) => {
+			const runIndex = lastRunOpenedBefore(runs, mission.openedAt)
+			return runIndex === BEFORE_FIRST_RUN ? [] : [{ mission, runIndex }]
+		})
 
 export const placeMissionEvents = (
 	runs: TranscriptRow[][],
