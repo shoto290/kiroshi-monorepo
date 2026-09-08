@@ -80,7 +80,7 @@ type WebsitePageProps = {
 
 export const WebsitePage = ({ children }: WebsitePageProps) => (
 	<main
-		className={`${VIEWPORT_RISE} relative flex h-dvh w-full flex-col items-center overflow-clip overscroll-none bg-background`}
+		className={`${VIEWPORT_RISE} relative flex h-dvh w-full flex-col items-center overflow-clip bg-background`}
 	>
 		<PageWash />
 		<RabbitMark className="bottom-0 left-5 size-[330px] lg:hidden" />
