@@ -45,10 +45,14 @@ import { type SceneThread, threadOf } from "./scene-threads"
 import { type SceneFrame, useSceneTimeline } from "./use-scene-timeline"
 import { WindowControls } from "./window-controls"
 
-const SHELL = "relative h-[688px] w-full"
+const SHELL = "relative size-full"
 
 const ROW_ENTER =
-	"animate-in slide-in-from-bottom-1 duration-[180ms] ease-out motion-reduce:animate-none"
+	"animate-in slide-in-from-bottom-1 duration-200 ease-out motion-reduce:animate-none"
+
+// The fold at 1440x900 reveals 359px of the shell: the scene reclaims one
+// spacing step of the thread layout's top padding to keep its newest row inside.
+const TRANSCRIPT_INSET = "pt-4"
 
 const NO_PINS: PinnedMessage[] = []
 
@@ -209,10 +213,12 @@ const WorkingRows = ({ frame }: WorkingRowsProps) => (
 export const AppScene = () => {
 	const [selectedId, setSelectedId] = useState(CONVERSATION_ID)
 	const [isPanelOpen, setPanelOpen] = useState(false)
+	const [draft, setDraft] = useState("")
 	const { frame, engage } = useSceneTimeline({
 		onIdle: () => {
 			setSelectedId(CONVERSATION_ID)
 			setPanelOpen(false)
+			setDraft("")
 		},
 	})
 	const select = (id: string) => {
@@ -232,7 +238,6 @@ export const AppScene = () => {
 			onFocus={engage}
 			onKeyDown={engage}
 			onPointerDown={engage}
-			onPointerMove={engage}
 		>
 			<WindowControls />
 			<RosterProvider bots={SCENE_BOTS}>
@@ -279,8 +284,13 @@ export const AppScene = () => {
 							autoScroll={false}
 							className="h-full"
 							composer={
-								<PromptInput placeholder={SCENE_COPY.composerPlaceholder} />
+								<PromptInput
+									onValueChange={setDraft}
+									placeholder={SCENE_COPY.composerPlaceholder}
+									value={draft}
+								/>
 							}
+							contentClassName={TRANSCRIPT_INSET}
 							header={
 								<AppHeader
 									leading={<ThreadTitle onOpen={engage} thread={thread} />}
