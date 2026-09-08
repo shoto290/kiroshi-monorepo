@@ -22,6 +22,7 @@ export const useScrollProgress = (isEnabled: boolean) => {
 			if (!frame) frame = requestAnimationFrame(read)
 		}
 
+		read()
 		window.addEventListener("scroll", onScroll, { passive: true })
 
 		return () => {
