@@ -1,4 +1,4 @@
-import { useEffect, useState } from "react"
+import { useCallback, useEffect, useRef, useState } from "react"
 
 import { usePrefersReducedMotion } from "@workspace/ui/hooks/use-prefers-reduced-motion"
 
@@ -12,6 +12,8 @@ const ICHI_ANSWER_AT = 2400
 const NI_ANSWER_AT = 6000
 const MISSION_DELAY = 1000
 const MISSION_AT = NI_ANSWER_AT + typingMs(SCENE_COPY.niAnswer) + MISSION_DELAY
+const IDLE_MS = 8000
+
 const CLOSING_AT = 13000
 const FADE_MS = 400
 const LOOP_MS = CLOSING_AT + FADE_MS
@@ -91,23 +93,50 @@ const frozenElapsed = () => {
 type SceneTimeline = {
 	frame: SceneFrame
 	isStill: boolean
+	engage: () => void
 }
 
-const stillTimeline = (elapsed: number): SceneTimeline => ({
+type SceneTimelineState = Omit<SceneTimeline, "engage">
+
+const stillTimeline = (elapsed: number): SceneTimelineState => ({
 	frame: frameAt(elapsed),
 	isStill: true,
 })
 
-export const useSceneTimeline = (): SceneTimeline => {
+type SceneTimelineInput = {
+	onIdle: () => void
+}
+
+export const useSceneTimeline = ({
+	onIdle,
+}: SceneTimelineInput): SceneTimeline => {
 	const prefersReducedMotion = usePrefersReducedMotion()
 	const [frozenAt] = useState(frozenElapsed)
+	const [isEngaged, setIsEngaged] = useState(false)
+	const idleRef = useRef<number | undefined>(undefined)
+	const onIdleRef = useRef(onIdle)
 	const isStill = prefersReducedMotion || frozenAt !== null
 	const stillAt = frozenAt ?? MISSION_AT
-	const [timeline, setTimeline] = useState<SceneTimeline>(() =>
+	const [timeline, setTimeline] = useState<SceneTimelineState>(() =>
 		stillTimeline(stillAt),
 	)
 
+	onIdleRef.current = onIdle
+
+	const engage = useCallback(() => {
+		setIsEngaged(true)
+		window.clearTimeout(idleRef.current)
+		idleRef.current = window.setTimeout(() => {
+			setIsEngaged(false)
+			onIdleRef.current()
+		}, IDLE_MS)
+	}, [])
+
+	useEffect(() => () => window.clearTimeout(idleRef.current), [])
+
 	useEffect(() => {
+		if (isEngaged) return
+
 		if (isStill) {
 			setTimeline(stillTimeline(stillAt))
 			return
@@ -152,7 +181,9 @@ export const useSceneTimeline = (): SceneTimeline => {
 			stop()
 			document.removeEventListener("visibilitychange", onVisibilityChange)
 		}
-	}, [isStill, stillAt])
+	}, [isEngaged, isStill, stillAt])
 
-	return timeline
+	return { ...timeline, engage }
 }
+
+export type { SceneFrame }
