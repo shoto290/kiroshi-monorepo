@@ -11,6 +11,6 @@
 
 @layer base {
 	html {
-		@apply scrollbar-overlay;
+		@apply scrollbar-thin;
 	}
 }
