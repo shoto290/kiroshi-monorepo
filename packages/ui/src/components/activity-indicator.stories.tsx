@@ -31,6 +31,8 @@ const MCP_TOOL_LABEL = "mcp__linear__create_issue"
 
 const EDGE = 8
 
+const PAST_ONE_TICK = 1200
+
 const ROOM_BOTS = [
 	{ botId: "bot-lyra", name: "Lyra", animal: "owl", blot: "blue" },
 	{ botId: "bot-orion", name: "Orion", animal: "cat", blot: "orange" },
@@ -354,6 +356,31 @@ export const NoStartInstant = meta.story({
 	play: async ({ canvas, canvasElement }) => {
 		await expect(canvas.getByText("Atlas is thinking…")).toBeVisible()
 		await expect(slotsIn(canvasElement, "bot-working-elapsed")).toHaveLength(0)
+	},
+})
+
+export const HeldClock = meta.story({
+	args: {
+		...BUSY_BOT,
+		kind: "working",
+		name: "Atlas",
+		elapsedSeconds: 7,
+		startedAt: startedSecondsAgo(42),
+	},
+	parameters: {
+		docs: {
+			description: {
+				story:
+					"A row whose clock is read from `elapsedSeconds` instead of counting on its own, which is what a host driving its own timeline gives it: a replay, a scripted scene, a frozen frame for review. Check that the clock reads `7s` and stays there, and that `startedAt` is ignored while `elapsedSeconds` is given.",
+			},
+		},
+	},
+	play: async ({ canvasElement }) => {
+		const clock = slotIn(canvasElement, "bot-working-elapsed")
+
+		await expect(clock).toHaveTextContent("7s")
+		await new Promise((resolve) => setTimeout(resolve, PAST_ONE_TICK))
+		await expect(clock).toHaveTextContent("7s")
 	},
 })
 

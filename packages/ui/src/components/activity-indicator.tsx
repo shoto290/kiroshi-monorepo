@@ -31,6 +31,7 @@ type ActivityIndicatorProps = BotStopProps & {
 	label?: string
 	waitingOn?: ActivityIndicatorWait
 	startedAt?: number
+	elapsedSeconds?: number
 	animal?: BotAvatarAnimal
 	blot?: BotAvatarBlot
 	image?: string
@@ -87,6 +88,17 @@ const formatElapsed = (seconds: number) => {
 		: `${rest}s`
 }
 
+type ClockProps = { seconds: number }
+
+const Clock = ({ seconds }: ClockProps) => (
+	<span
+		data-slot="bot-working-elapsed"
+		className="shrink-0 font-normal text-muted-foreground text-sm tabular-nums"
+	>
+		{formatElapsed(seconds)}
+	</span>
+)
+
 type ElapsedClockProps = { startedAt: number }
 
 const ElapsedClock = ({ startedAt }: ElapsedClockProps) => {
@@ -101,14 +113,17 @@ const ElapsedClock = ({ startedAt }: ElapsedClockProps) => {
 		return () => window.clearInterval(timer)
 	}, [startedAt])
 
-	return (
-		<span
-			data-slot="bot-working-elapsed"
-			className="shrink-0 font-normal text-muted-foreground text-sm tabular-nums"
-		>
-			{formatElapsed(seconds)}
-		</span>
-	)
+	return <Clock seconds={seconds} />
+}
+
+type ActivityClockProps = Pick<
+	ActivityIndicatorProps,
+	"startedAt" | "elapsedSeconds"
+>
+
+const ActivityClock = ({ startedAt, elapsedSeconds }: ActivityClockProps) => {
+	if (elapsedSeconds !== undefined) return <Clock seconds={elapsedSeconds} />
+	return startedAt === undefined ? null : <ElapsedClock startedAt={startedAt} />
 }
 
 function ActivityIndicator(props: ActivityIndicatorProps) {
@@ -119,6 +134,7 @@ function ActivityIndicator(props: ActivityIndicatorProps) {
 		label,
 		waitingOn = "you",
 		startedAt,
+		elapsedSeconds,
 		animal,
 		blot,
 		image,
@@ -177,8 +193,8 @@ function ActivityIndicator(props: ActivityIndicatorProps) {
 					)}
 				</span>
 			</Tooltip>
-			{isBusy && startedAt !== undefined ? (
-				<ElapsedClock startedAt={startedAt} />
+			{isBusy ? (
+				<ActivityClock elapsedSeconds={elapsedSeconds} startedAt={startedAt} />
 			) : null}
 		</div>
 	)

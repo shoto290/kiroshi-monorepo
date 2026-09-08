@@ -354,6 +354,32 @@ export const LandsAtEnd = meta.story({
 	},
 })
 
+export const DoesNotFollowWithoutAutoScroll = meta.story({
+	args: { autoScroll: false },
+	render: (args) => <TranscriptDemo {...args} entries={SHORT_HISTORY} />,
+	parameters: {
+		docs: {
+			description: {
+				story:
+					"A transcript a host drives itself, with `autoScroll` off: a replay, a scripted scene, anything whose frame must show the same band from end to end. Check that a reply taller than the room left over stays below the fold instead of pulling the viewport to the live edge, and that the reading position is the one the frame opened on.",
+			},
+		},
+	},
+	play: async ({ canvas, userEvent }) => {
+		const viewport = canvas.getByRole("region", { name: "Conversation" })
+		const held = viewport.scrollTop
+
+		await userEvent.click(canvas.getByRole("button", { name: "Send reply" }))
+		await userEvent.click(canvas.getByRole("button", { name: "Send reply" }))
+		await userEvent.click(canvas.getByRole("button", { name: "Send reply" }))
+		await settleScroll()
+
+		await expect(viewport.scrollHeight).toBeGreaterThan(viewport.clientHeight)
+		await expect(viewport.scrollTop).toBe(held)
+		await expect(distanceFromEnd(viewport)).toBeGreaterThan(2)
+	},
+})
+
 export const Follows = meta.story({
 	parameters: {
 		docs: {

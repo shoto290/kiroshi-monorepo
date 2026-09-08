@@ -22,6 +22,7 @@ interface ThreadLayoutProps {
 	reply?: ReplyQuote
 	highlightedMessageId?: string
 	transcriptKey?: string
+	autoScroll?: boolean
 	busy?: boolean
 	label?: string
 	anchorOnSend?: boolean
@@ -46,6 +47,7 @@ function ThreadLayout({
 	reply,
 	highlightedMessageId,
 	transcriptKey,
+	autoScroll,
 	busy,
 	label,
 	anchorOnSend,
@@ -76,6 +78,7 @@ function ThreadLayout({
 				<Transcript
 					className="flex-1"
 					transcriptKey={transcriptKey}
+					autoScroll={autoScroll}
 					busy={busy}
 					label={label}
 					anchorOnSend={anchorOnSend}
