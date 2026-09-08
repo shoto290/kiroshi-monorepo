@@ -21,9 +21,6 @@ const common = {
 		close: "Fermer la barre latérale",
 		resize: "Redimensionner la barre latérale",
 	},
-	contextMenu: {
-		label: "Menu contextuel",
-	},
 	notice: {
 		label: "Avis",
 		close: "Fermer l'avis",

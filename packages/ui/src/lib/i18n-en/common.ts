@@ -22,9 +22,6 @@ const common = {
 		close: "Close sidebar",
 		resize: "Resize sidebar",
 	},
-	contextMenu: {
-		label: "Context menu",
-	},
 	notice: {
 		label: "Notices",
 		close: "Close notice",

@@ -30,9 +30,8 @@ import {
 	useRosterLift,
 } from "@workspace/ui/hooks/use-roster-lift"
 import { SPACE_RANK_LIMIT } from "@workspace/ui/hooks/use-space-shortcut"
+import { STILL_UNDER_REDUCED_MOTION } from "@workspace/ui/lib/reduced-motion"
 import { cn } from "@workspace/ui/lib/utils"
-
-const STILL_UNDER_REDUCED_MOTION = "motion-reduce:animate-none!"
 
 const SWITCHER =
 	"relative mr-auto min-w-0 max-w-[62%] px-2 group-data-[state=collapsed]/sidebar:mr-0 group-data-[state=collapsed]/sidebar:size-7 group-data-[state=collapsed]/sidebar:px-0"

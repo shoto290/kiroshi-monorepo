@@ -27,11 +27,10 @@ import {
 	ContextMenuSubTrigger,
 	ContextMenuTrigger,
 } from "@workspace/ui/components/ui/context-menu"
+import { STILL_UNDER_REDUCED_MOTION } from "@workspace/ui/lib/reduced-motion"
 
 const SURFACE =
 	"flex h-40 w-72 items-center justify-center rounded-xl border border-border border-dashed bg-card text-muted-foreground text-sm"
-
-const STILL_UNDER_REDUCED_MOTION = "motion-reduce:animate-none!"
 
 const MENU_LABEL = "Transcript actions"
 

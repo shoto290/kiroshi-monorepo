@@ -890,12 +890,7 @@ export const AnimatedSidebarMenuItem = forwardRef<
 type MenuButtonElementProps = AriaAttributes &
 	Pick<
 		HTMLAttributes<HTMLElement>,
-		| "onContextMenu"
-		| "onKeyDown"
-		| "onPointerCancel"
-		| "onPointerDown"
-		| "onPointerMove"
-		| "onPointerUp"
+		"onPointerCancel" | "onPointerDown" | "onPointerMove" | "onPointerUp"
 	>
 
 export interface AnimatedSidebarMenuButtonProps extends MenuButtonElementProps {
