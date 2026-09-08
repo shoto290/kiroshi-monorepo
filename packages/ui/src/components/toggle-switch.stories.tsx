@@ -47,7 +47,7 @@ export const Default = meta.story({
 		docs: {
 			description: {
 				story:
-					"The resting, off state and the press that turns it on. Check that the thumb slides rather than jumps between the two ends, and that the track fills with the primary rather than only outlining — an off switch and an on one must be distinguishable without reading the label beside them.",
+					"The resting, off state and the press that turns it on. Check that the thumb slides rather than jumps between the two ends when motion is allowed, and that the track fills with the primary rather than only outlining — an off switch and an on one must be distinguishable without reading the label beside them.",
 			},
 		},
 	},
@@ -134,5 +134,36 @@ export const WithLabel = meta.story({
 		await userEvent.click(canvas.getByText("Preload this skill"))
 
 		await expect(args.onCheckedChange).toHaveBeenCalledWith(true)
+	},
+})
+
+export const ReducedMotion = meta.story({
+	parameters: {
+		docs: {
+			description: {
+				story:
+					"The same press for a reader who asked the system to stop moving things. The registry switch transitions its track and slides its thumb; the composed one drops both under `prefers-reduced-motion`, so the value changes by colour and position alone with nothing travelling between the two ends. Check the track and the thumb both report no transition property at all, and that the thumb is already at the far end on the frame after the press - a switch is a report, so nothing waits on a transition end and dropping the motion outright costs nothing.",
+			},
+		},
+	},
+	play: async ({ canvas, userEvent }) => {
+		const track = canvas.getByRole("switch")
+		const thumb = track.querySelector<HTMLElement>(
+			"[data-slot=switch-thumb]",
+		) as HTMLElement
+
+		await expect(getComputedStyle(track).transitionProperty).toBe("none")
+		await expect(getComputedStyle(thumb).transitionProperty).toBe("none")
+
+		const restingThumb = thumb.getBoundingClientRect().left
+
+		await userEvent.click(track)
+
+		await expect(track).toHaveAttribute("aria-checked", "true")
+		await expect(thumb.getBoundingClientRect().left).toBeGreaterThan(
+			restingThumb,
+		)
+		await expect(getComputedStyle(track).transitionProperty).toBe("none")
+		await expect(getComputedStyle(thumb).transitionProperty).toBe("none")
 	},
 })

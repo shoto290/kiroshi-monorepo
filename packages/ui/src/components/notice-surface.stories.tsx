@@ -8,7 +8,10 @@ import {
 } from "storybook/test"
 
 import preview from "@workspace/storybook/preview"
-import { A11Y_FLOATING_FOCUS_GUARDS } from "@workspace/storybook/story-utils"
+import {
+	A11Y_FLOATING_FOCUS_GUARDS,
+	settled,
+} from "@workspace/storybook/story-utils"
 import { DialogSurface } from "@workspace/ui/components/dialog-surface"
 import {
 	type NoticeMessage,
@@ -112,9 +115,8 @@ const failureNotice = async () => {
 	const notice = await within(viewport()).findByRole("alertdialog", {
 		hidden: true,
 	})
-	await waitFor(() => expect(notice).toBeVisible())
 
-	return notice
+	return settled(notice)
 }
 
 const closeControl = () =>
@@ -133,7 +135,7 @@ const meta = preview.meta({
 		docs: {
 			description: {
 				component:
-					"The window's notice surface: one viewport mounted once in the shell, and two ways to raise something into it. `raiseTransientNotice` reports what went right and leaves on its own once `TRANSIENT_NOTICE_DELAY` has passed; `raiseFailureNotice` reports what went wrong, wears the destructive border and its alert mark, and stays until the reader closes it — a failure that dismisses itself is close to silence. Both are module-level calls, so a controller, a driver or a scheduler raises a notice without a hook and without a component in scope. Notices land against the bottom inline-end edge, newest nearest that edge, three at most, with the ones beyond the limit marked `data-limited` rather than removed. Enter and leave fade and slide over 150ms, and drop to a fade with no movement under `prefers-reduced-motion`. `transientDelay` on the viewport overrides the delay for the whole surface; a failure ignores it.",
+					"The window's notice surface: one viewport mounted once in the shell, and two ways to raise something into it. `raiseTransientNotice` reports what went right and leaves on its own once `TRANSIENT_NOTICE_DELAY` has passed; `raiseFailureNotice` reports what went wrong, wears the destructive border and its alert mark, and stays until the reader closes it — a failure that dismisses itself is close to silence. Both are module-level calls, so a controller, a driver or a scheduler raises a notice without a hook and without a component in scope. Notices land against the bottom inline-end edge, newest nearest that edge, three at most, with the ones beyond the limit marked `data-limited` rather than removed. Enter and leave slide over 500ms, and drop to a fade with no movement under `prefers-reduced-motion` - see `ReducedMotion`. `transientDelay` on the viewport overrides the delay for the whole surface; a failure ignores it.",
 			},
 		},
 	},
@@ -150,7 +152,7 @@ export const Default = meta.story({
 		docs: {
 			description: {
 				story:
-					"The transient tier, the one an action that succeeded reaches for. Check that the notice lands in the top inline-end corner on the surface tokens the other floating surfaces use, is announced politely through the viewport's live region rather than interrupting, and leaves on its own once `TRANSIENT_NOTICE_DELAY` has passed without anyone touching it. Pick `Error` for the tier that stays.",
+					"The transient tier, the one an action that succeeded reaches for. Check that the notice lands in the bottom inline-end corner on the surface tokens the other floating surfaces use, is announced politely through the viewport's live region rather than interrupting, and leaves on its own once `TRANSIENT_NOTICE_DELAY` has passed without anyone touching it. Pick `Error` for the tier that stays.",
 			},
 		},
 	},
@@ -257,6 +259,7 @@ export const Stacked = meta.story({
 		}
 
 		await waitFor(() => expect(noticesOnScreen()).toHaveLength(3))
+		await settled(viewport())
 
 		const onScreen = noticesOnScreen()
 		await expect(onScreen[0]).toHaveTextContent(STACK[3].title)
@@ -393,5 +396,41 @@ export const WithDialog = meta.story({
 			expect(within(viewport()).queryByText(FAILURE.title)).toBe(null),
 		)
 		await expect(dialog).toBeVisible()
+	},
+})
+
+export const ReducedMotion = meta.story({
+	render: () => (
+		<NoticeDemo
+			label="Report the reduced-motion failure"
+			raise={() => raiseFailureNotice(FAILURE)}
+		/>
+	),
+	parameters: {
+		a11y: A11Y_FLOATING_FOCUS_GUARDS,
+		docs: {
+			description: {
+				story:
+					"The same failure raised for a reader who asked the system to stop moving things. The registry toast slides a notice up from below the fold and scales the ones stacked behind it; the surface drops both under `prefers-reduced-motion` and fades instead, keeping the opacity transition so the library still hears the end event it unmounts on. Check the notice transitions opacity and nothing else, and that it is already at its resting place and its resting height on the frame it appears - a notice that travels is the one thing a reader who asked for stillness cannot look away from.",
+			},
+		},
+	},
+	play: async ({ canvas, userEvent }) => {
+		await userEvent.click(
+			canvas.getByRole("button", {
+				name: "Report the reduced-motion failure",
+			}),
+		)
+
+		const notice = await screen.findByRole("alertdialog", { hidden: true })
+		const raised = notice.getBoundingClientRect()
+
+		await expect(getComputedStyle(notice).transitionProperty).toBe("opacity")
+
+		await settled(notice)
+		const rested = notice.getBoundingClientRect()
+
+		await expect(rested.top).toBe(raised.top)
+		await expect(rested.height).toBe(raised.height)
 	},
 })

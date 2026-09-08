@@ -15,7 +15,11 @@ import {
 type DialogDemoProps = {
 	className?: string
 	body?: ReactNode
+	title?: string
 }
+
+const LONG_TITLE =
+	"Bot settings for the release manager that watches the packaging pipeline"
 
 const ACTIONS = (
 	<div className="flex justify-end gap-2">
@@ -43,13 +47,17 @@ const LONG_BODY = (
 	</>
 )
 
-const DialogDemo = ({ className, body = ACTIONS }: DialogDemoProps) => (
+const DialogDemo = ({
+	className,
+	body = ACTIONS,
+	title = "Bot settings",
+}: DialogDemoProps) => (
 	<Dialog>
 		<DialogTrigger className={buttonVariants({ variant: "outline" })}>
 			Bot settings
 		</DialogTrigger>
 		<DialogSurface className={className}>
-			<DialogTitle>Bot settings</DialogTitle>
+			<DialogTitle>{title}</DialogTitle>
 			<DialogDescription>
 				Name the bot, point it at a folder and tell it how to behave.
 			</DialogDescription>
@@ -214,5 +222,31 @@ export const Sized = meta.story({
 
 		await expect(dialog.offsetWidth).toBe(320)
 		await expect(getComputedStyle(dialog).paddingTop).toBe("16px")
+	},
+})
+
+export const LongTitle = meta.story({
+	render: () => <DialogDemo title={LONG_TITLE} />,
+	parameters: {
+		docs: {
+			description: {
+				story:
+					"A title long enough to wrap onto a second line, which is what a translated heading does to a dialog sized for English. The surface reserves the corner affordance's column once, as a `padding-inline-end` on every title inside it, so no caller has to remember it and the gutter follows the reading direction rather than a hardcoded right edge. Check the title takes more than one line, and that its text column ends before the affordance begins rather than running under it.",
+			},
+		},
+	},
+	play: async ({ canvas, userEvent }) => {
+		const dialog = await openDialog(canvas, userEvent)
+		const title = within(dialog).getByText(LONG_TITLE)
+		const close = within(dialog).getByRole("button", { name: "Close" })
+
+		const { lineHeight, paddingInlineEnd } = getComputedStyle(title)
+		const titleBox = title.getBoundingClientRect()
+		const closeBox = close.getBoundingClientRect()
+
+		await expect(titleBox.height).toBeGreaterThan(Number.parseFloat(lineHeight))
+		await expect(
+			titleBox.right - Number.parseFloat(paddingInlineEnd),
+		).toBeLessThanOrEqual(closeBox.left)
 	},
 })
