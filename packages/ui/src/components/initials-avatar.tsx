@@ -97,11 +97,4 @@ const InitialsAvatar = ({
 	</AvatarFrame>
 )
 
-export {
-	AvatarFrame,
-	type AvatarFrameProps,
-	displayNameOf,
-	InitialsAvatar,
-	type InitialsAvatarProps,
-	UPLOADED_IMAGE_SHAPE,
-}
+export { AvatarFrame, displayNameOf, InitialsAvatar, UPLOADED_IMAGE_SHAPE }

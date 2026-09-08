@@ -45,4 +45,4 @@ const DialogSurface = ({
 	)
 }
 
-export { DialogSurface, type DialogSurfaceProps }
+export { DialogSurface }
