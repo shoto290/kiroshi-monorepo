@@ -21,4 +21,4 @@ const TooltipButton = ({
 	</Tooltip>
 )
 
-export { TooltipButton, type TooltipButtonProps }
+export { TooltipButton }

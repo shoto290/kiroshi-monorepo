@@ -135,10 +135,7 @@ export {
 	PopoverPanel,
 	type PopoverPanelAlign,
 	PopoverPanelContent,
-	type PopoverPanelContentProps,
-	type PopoverPanelProps,
 	type PopoverPanelSide,
 	PopoverPanelTrigger,
 	type PopoverPanelTriggerMode,
-	type PopoverPanelTriggerProps,
 }

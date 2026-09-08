@@ -54,4 +54,4 @@ const ProgressRing = ({
 	</ProgressRoot>
 )
 
-export { ProgressRing, type ProgressRingProps, ProgressRoot }
+export { ProgressRing, ProgressRoot }
