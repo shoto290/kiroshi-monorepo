@@ -40,22 +40,15 @@ const divergenceOf = async (path: string) => {
 		.nothrow()
 		.quiet()
 	const output = `${result.stdout}${result.stderr}`.trim()
+	const action = result.exitCode === 0 ? actionOf(output, path) : undefined
 
-	if (result.exitCode !== 0) {
-		return `${path}: the shadcn CLI could not compare it against the registry item "${item}"\n${indented(output)}`
-	}
+	if (action === "skip") return null
 
-	const action = actionOf(output, path)
+	const reason = action
+		? `diverges from the registry item "${item}" (${action})`
+		: `could not be compared against the registry item "${item}"`
 
-	if (!action) {
-		return `${path}: the registry returned no comparison for this file\n${indented(output)}`
-	}
-
-	if (action !== "skip") {
-		return `${path}: diverges from the registry item "${item}" (${action})\n${indented(output)}`
-	}
-
-	return null
+	return `${path}: ${reason}\n${indented(output)}`
 }
 
 const paths = await vendorFilePaths()
