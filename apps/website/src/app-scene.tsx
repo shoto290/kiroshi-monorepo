@@ -36,7 +36,6 @@ import {
 	PANEL_MISSIONS,
 	READER,
 	ROSTER_BY_SPACE,
-	ROSTER_CONVERSATIONS,
 	ROSTER_ROWS,
 	SCENE_BOTS,
 	SELECTED_SPACE,
@@ -245,7 +244,6 @@ export const AppScene = () => {
 						<AppSidebar
 							bots={ROSTER_ROWS}
 							botsBySpaceId={ROSTER_BY_SPACE}
-							conversations={ROSTER_CONVERSATIONS}
 							conversationsBySpaceId={CONVERSATIONS_BY_SPACE}
 							insetWindowControls
 							onCreateBot={engage}
