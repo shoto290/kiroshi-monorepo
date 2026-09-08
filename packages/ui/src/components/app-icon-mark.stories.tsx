@@ -43,3 +43,16 @@ export const Default = meta.story({
 		},
 	},
 })
+
+export const Themes = meta.story({
+	args: { size: 160 },
+	globals: { theme_layout: "side-by-side" },
+	parameters: {
+		docs: {
+			description: {
+				story:
+					"Reach for this before shipping any change to the mark's ink. The ground is the brand cream in both themes, so the drawing must not follow the theme foreground: check that the eyes are the same near-black as the head outline and the ear strokes on the right-hand dark panel, not the near-white the app text takes there. `Default` covers the motion, this one covers the ink.",
+			},
+		},
+	},
+})

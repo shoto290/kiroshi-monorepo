@@ -12,10 +12,7 @@ import {
 } from "react"
 
 import { BotAvatar } from "@workspace/ui/components/bot-avatar"
-import {
-	type BotAvatarState,
-	STATE_GROUPS,
-} from "@workspace/ui/components/bot-avatar-data"
+import type { BotAvatarState } from "@workspace/ui/components/bot-avatar-data"
 import { usePrefersReducedMotion } from "@workspace/ui/hooks/use-prefers-reduced-motion"
 import { cn } from "@workspace/ui/lib/utils"
 
@@ -30,15 +27,35 @@ const GROUND_FILL = "#FEFCEE"
 const RABBIT_TRANSFORM = "translate(-110.4 -14.2) scale(3.41)"
 
 const RABBIT_INK_STYLE = {
-	color: "var(--bot-blot-ink)",
 	"--bot-avatar-ink": "var(--bot-blot-ink)",
 } as CSSProperties
 
+const RABBIT_EYE_INK_CLASS = "text-[color:var(--bot-blot-ink)]"
+
 const RESTING_STATE: BotAvatarState = "waiting"
 
-const PLAYABLE_STATES = Object.values(STATE_GROUPS)
-	.flat()
-	.filter((state) => state !== RESTING_STATE)
+const PLAYABLE_STATES: BotAvatarState[] = [
+	"waking",
+	"idle",
+	"listening",
+	"thinking",
+	"searching",
+	"working",
+	"excited",
+	"surprised",
+	"happy",
+	"curious",
+	"bored",
+	"proud",
+	"shy",
+	"laughing",
+	"playful",
+	"celebrate",
+	"humming",
+	"dictating",
+	"writing",
+	"bouncing",
+]
 
 const PLAY_DURATION = 2600
 const REST_DELAY = [2400, 6800] as const
@@ -68,14 +85,12 @@ type AppIconMarkHandle = {
 
 type AppIconMarkProps = {
 	size?: number
-	label?: string
 	className?: string
 	ref?: Ref<AppIconMarkHandle>
 }
 
 const AppIconMark = ({
 	size = DEFAULT_SIZE,
-	label,
 	className,
 	ref,
 }: AppIconMarkProps) => {
@@ -91,7 +106,10 @@ const AppIconMark = ({
 	}))
 
 	useEffect(() => {
-		if (prefersReducedMotion) return
+		if (prefersReducedMotion) {
+			setState(RESTING_STATE)
+			return
+		}
 		const isResting = state === RESTING_STATE
 		const timer = setTimeout(
 			() => {
@@ -108,13 +126,11 @@ const AppIconMark = ({
 
 	return (
 		<svg
-			aria-hidden={label ? undefined : true}
-			aria-label={label}
+			aria-hidden="true"
 			className={cn("shrink-0", className)}
 			data-slot="app-icon-mark"
 			data-state={state}
 			height={size}
-			role={label ? "img" : undefined}
 			style={RABBIT_INK_STYLE}
 			viewBox="0 0 512 512"
 			width={size}
@@ -142,6 +158,7 @@ const AppIconMark = ({
 				<g transform={RABBIT_TRANSFORM}>
 					<BotAvatar
 						animated={!prefersReducedMotion}
+						className={RABBIT_EYE_INK_CLASS}
 						perspective={0}
 						size={240}
 						state={state}
