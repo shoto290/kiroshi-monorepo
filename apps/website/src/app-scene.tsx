@@ -39,24 +39,17 @@ const ROW_ENTER =
 
 const openMission = () => {}
 
-type SceneRowProps = {
-	opacity?: number
-	children: ReactNode
-}
-
-const SceneRow = ({ opacity = 1, children }: SceneRowProps) => (
-	<div className={ROW_ENTER} style={opacity === 1 ? undefined : { opacity }}>
-		{children}
-	</div>
-)
-
 const sceneRow = (
 	key: string,
 	body: ReactNode,
 	opacity = 1,
 ): TranscriptItem => ({
 	key,
-	render: () => <SceneRow opacity={opacity}>{body}</SceneRow>,
+	render: () => (
+		<div className={ROW_ENTER} style={opacity === 1 ? undefined : { opacity }}>
+			{body}
+		</div>
+	),
 })
 
 const scriptedRows = (frame: SceneFrame): TranscriptItem[] => {
@@ -145,30 +138,28 @@ type WorkingRowsProps = {
 const WorkingRows = ({ frame }: WorkingRowsProps) => (
 	<>
 		{frame.hasIchiAnswer ? null : (
-			<SceneRow>
-				<ActivityIndicator
-					animal={ICHI.animal}
-					blot={ICHI.blot}
-					botId={ICHI.id}
-					elapsedSeconds={frame.elapsedSeconds}
-					kind="thinking"
-					name={ICHI.name}
-					seed={ICHI.id}
-				/>
-			</SceneRow>
+			<ActivityIndicator
+				animal={ICHI.animal}
+				blot={ICHI.blot}
+				botId={ICHI.id}
+				className={ROW_ENTER}
+				elapsedSeconds={frame.elapsedSeconds}
+				kind="thinking"
+				name={ICHI.name}
+				seed={ICHI.id}
+			/>
 		)}
 		{frame.hasNiAnswer ? null : (
-			<SceneRow>
-				<ActivityIndicator
-					animal={NI.animal}
-					blot={NI.blot}
-					botId={NI.id}
-					elapsedSeconds={frame.elapsedSeconds}
-					kind={frame.hasIchiAnswer ? "writing" : "thinking"}
-					name={NI.name}
-					seed={NI.id}
-				/>
-			</SceneRow>
+			<ActivityIndicator
+				animal={NI.animal}
+				blot={NI.blot}
+				botId={NI.id}
+				className={ROW_ENTER}
+				elapsedSeconds={frame.elapsedSeconds}
+				kind={frame.hasIchiAnswer ? "writing" : "thinking"}
+				name={NI.name}
+				seed={NI.id}
+			/>
 		)}
 	</>
 )
