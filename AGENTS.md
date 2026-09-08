@@ -56,7 +56,7 @@ The moment you are about to write a `<div>` — or *any* raw HTML element, or *a
 - Visual state: hover, focus, loading skeletons, empty states, error banners.
 - A Storybook story per component — anything that renders on its own ships with its stories, and a component without a story is not done. Out of that rule: re-export barrels, mapping tables and context providers, which render nothing on their own.
 - A story title is `Section/Component`, Section taken from the `SECTIONS` list in `packages/ui/.storybook/preview.tsx`. Full contract: `packages/ui/.storybook/README.md`.
-- `packages/ui/src/components/ui` is written by the shadcn CLI only, never edited by hand: `bun run --filter=@workspace/ui ui:vendor-check` fails on any file that diverges from the registry. Added behaviour lives in a composed component beside that folder, and stories stay out of it.
+- `packages/ui/src/components/ui` holds what the shadcn CLI wrote and nothing else: a file enters it through `bunx shadcn@latest add <item>` run from `packages/ui`, never copied, never invented, and is never edited or formatted by hand afterwards. Added behaviour lives in a composed component beside that folder, and a vendored primitive still ships its story, placed beside the folder.
 
 ### `apps/app` owns
 
