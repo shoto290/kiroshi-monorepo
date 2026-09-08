@@ -1,0 +1,31 @@
+{
+	"name": "website",
+	"version": "0.0.1",
+	"private": true,
+	"license": "MIT",
+	"repository": {
+		"type": "git",
+		"url": "git+https://github.com/shoto290/kiroshi-monorepo.git"
+	},
+	"type": "module",
+	"scripts": {
+		"dev": "vite",
+		"build": "tsc -b && vite build",
+		"types": "tsc -b",
+		"lint": "biome lint",
+		"lint:fix": "biome check --assist-enabled=true --unsafe --write ."
+	},
+	"dependencies": {
+		"@workspace/ui": "workspace:*",
+		"react": "^19.2.6",
+		"react-dom": "^19.2.6"
+	},
+	"devDependencies": {
+		"@tailwindcss/vite": "^4",
+		"@types/node": "^24",
+		"@types/react": "^19",
+		"@types/react-dom": "^19",
+		"@vitejs/plugin-react": "^6",
+		"vite": "^8"
+	}
+}

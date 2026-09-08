@@ -22,7 +22,7 @@
 		"lint:fix": "turbo run lint:fix",
 		"types": "turbo run types",
 		"format": "biome format",
-		"ci": "bun run format && bun run lint && bun run types && bun run test",
+		"ci": "bun run format && bun run lint && bun run types && bun run --filter=website build && bun run test",
 		"release": "bun scripts/release.ts",
 		"prepare": "husky"
 	},
