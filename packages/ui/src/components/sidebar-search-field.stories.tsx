@@ -8,18 +8,46 @@ const SIDEBAR_WIDTH = 240
 
 const RAIL_WIDTH = 68
 
+const SQUEEZED_WIDTH = 96
+
+const FIELD_HEIGHT = 36
+
+const GLYPH_SIZE = 16
+
 const LABEL = "Search"
 
 const CHORD = "⌘K"
 
 const HOST_CHORD = "Ctrl K"
 
+const TRANSPARENT = "rgba(0, 0, 0, 0)"
+
+const ROSTER_HOVER_FILL = "hover:bg-sidebar-accent/70"
+
+const ROSTER_HOVER_TEXT = "hover:text-sidebar-accent-foreground"
+
 const Probe = ({ slot, tone }: { slot: string; tone: string }) => (
 	<span className={`hidden ${tone}`} data-slot={slot} />
 )
 
-const surfaceOf = (canvasElement: HTMLElement, slot: string) =>
-	getComputedStyle(slotIn(canvasElement, slot)).backgroundColor
+const Probes = () => (
+	<>
+		<Probe slot="roster-hover-probe" tone="bg-sidebar-accent/70" />
+		<Probe slot="keycap-probe" tone="bg-sidebar-foreground/10" />
+		<Probe slot="sidebar-probe" tone="bg-sidebar" />
+	</>
+)
+
+const surfaceOf = (scope: HTMLElement, slot: string) =>
+	getComputedStyle(slotIn(scope, slot)).backgroundColor
+
+const keycapIn = (field: HTMLElement) => slotIn(field, "kbd")
+
+const glyphIn = (field: HTMLElement) => {
+	const glyph = field.querySelector("svg")
+	if (!glyph) throw new Error("The search glyph is not drawn")
+	return glyph
+}
 
 const meta = preview.meta({
 	title: "Navigation/SidebarSearchField",
@@ -29,13 +57,14 @@ const meta = preview.meta({
 		docs: {
 			description: {
 				component:
-					"The entry point to the search palette, mounted in the sidebar between the header and the roster. It is a button wearing the geometry of a text field rather than a real input: nothing is typed here, the press hands the query over to the palette, and the chord on the trailing keycap says the keyboard reaches it without the pointer. On the icon rail there is no room for a field, so it falls back to the search glyph on a ghost button and moves its label into a tooltip.",
+					"The entry point to the search palette, mounted in the sidebar between the header and the roster. It is a button wearing the geometry of a text field rather than a real input: nothing is typed here, the press hands the query over to the palette, and the chord on the trailing keycap says the keyboard reaches it without the pointer. It wears the roster's own recipe rather than the settings-form one — the outline of a section card at rest, the fill of a roster row under the pointer — so the sidebar reads as one family from the field down to the last row. On the icon rail there is no room for a field, so it falls back to the search glyph on a ghost button and moves its label into a tooltip.",
 			},
 		},
 	},
 	args: { onOpen: fn() },
 	render: (args) => (
-		<div style={{ width: SIDEBAR_WIDTH }}>
+		<div className="bg-sidebar p-2" style={{ width: SIDEBAR_WIDTH }}>
+			<Probes />
 			<SidebarSearchField {...args} />
 		</div>
 	),
@@ -46,53 +75,26 @@ export const Default = meta.story({
 		docs: {
 			description: {
 				story:
-					"The field at rest in an open sidebar. Check that it draws the search glyph, the label and the chord on one 36px line, that the label and the glyph stay muted so the field reads as a prompt rather than as filled text, and that a press reports once — the palette is opened by the host, never by this button on its own.",
+					"The field at rest on the sidebar surface. Check that it draws the search glyph, the label and the chord on one 36px line inside an outlined box that fills with nothing of its own — the sidebar shows through, so the box reads as a frame drawn on the surface rather than a well cut into it — that the box is bounded by a minimum rather than a fixed height, so content taller than the line grows it instead of being clipped, and that a press reports once: the palette is opened by the host, never by this button on its own.",
 			},
 		},
 	},
-	play: async ({ args, canvas, userEvent }) => {
+	play: async ({ args, canvas, canvasElement, userEvent }) => {
 		const field = canvas.getByRole("button")
 
 		await expect(field).toHaveAccessibleName(expect.stringContaining(LABEL))
 		await expect(canvas.getByText(CHORD)).toBeVisible()
-		await expect(field.getBoundingClientRect().height).toBe(36)
+		await expect(field.getBoundingClientRect().height).toBe(FIELD_HEIGHT)
+		await expect(getComputedStyle(field).minHeight).toBe(`${FIELD_HEIGHT}px`)
+		await expect(getComputedStyle(field).overflow).toBe("visible")
+		await expect(getComputedStyle(field).backgroundColor).toBe(TRANSPARENT)
+		await expect(getComputedStyle(keycapIn(field)).backgroundColor).toBe(
+			surfaceOf(canvasElement, "keycap-probe"),
+		)
+		await expect(field).toHaveClass("motion-reduce:transition-none")
 
 		await userEvent.click(field)
 		await expect(args.onOpen).toHaveBeenCalledTimes(1)
-	},
-})
-
-export const States = meta.story({
-	parameters: {
-		docs: {
-			description: {
-				story:
-					"Rest and keyboard focus side by side. Check that the resting field draws the background surface so it reads as a field rather than as a filled button, and that the one the keyboard reached wears the same ring every other field in the app wears, drawn outside its border instead of replacing it. Reach for `UnderPointer` for the surface the pointer draws.",
-			},
-		},
-	},
-	render: (args) => (
-		<div className="flex flex-col gap-3" style={{ width: SIDEBAR_WIDTH }}>
-			<Probe slot="background-probe" tone="bg-background" />
-			<SidebarSearchField {...args} />
-			<SidebarSearchField {...args} />
-		</div>
-	),
-	play: async ({ canvas, canvasElement, userEvent }) => {
-		const [rested, focused] = canvas.getAllByRole("button")
-
-		if (!rested || !focused) throw new Error("The two fields are not drawn")
-
-		await expect(getComputedStyle(rested).backgroundColor).toBe(
-			surfaceOf(canvasElement, "background-probe"),
-		)
-
-		await userEvent.keyboard("{Tab}")
-		focused.focus()
-
-		await expect(focused).toHaveFocus()
-		await expect(getComputedStyle(focused).boxShadow).not.toBe("none")
-		await expect(getComputedStyle(rested).boxShadow).toBe("none")
 	},
 })
 
@@ -102,19 +104,56 @@ export const UnderPointer = meta.story({
 		docs: {
 			description: {
 				story:
-					"The field with the pointer resting on it, drawn by the pseudo-state addon. Check by eye that it fills with the muted surface and that its keycap flips to the background colour at the same time — the cap and the field share the muted token, so a cap that stayed put would dissolve into the surface underneath it exactly when the reader is looking at it. The play only holds the two rules in place: a headless run reports no pointer, so the surface itself cannot be measured here.",
+					"The field with the pointer resting on it, drawn by the pseudo-state addon. Check by eye that it fills with the very surface a roster row takes under the pointer and that the keycap does not move with it — a cap that changed colour under the pointer would be noise on a control whose state has not changed. The play only holds the two rules in place: a headless run reports no pointer, so the surface itself cannot be measured here. `KeyboardFocus` measures that same fill on the state the keyboard can reach.",
+			},
+		},
+	},
+	play: async ({ canvas }) => {
+		const field = canvas.getByRole("button")
+
+		await expect(field).toHaveClass(ROSTER_HOVER_FILL)
+		await expect(field).toHaveClass(ROSTER_HOVER_TEXT)
+		await expect(keycapIn(field).className).not.toMatch(/hover/)
+	},
+})
+
+export const KeyboardFocus = meta.story({
+	parameters: {
+		docs: {
+			description: {
+				story:
+					"Rest and keyboard focus side by side. Check that the resting field carries no fill and no ring, that the one the keyboard reached takes the roster's hover surface plus the ring every roster row and section trigger already wears, drawn outside its border rather than replacing it, and that both keycaps sit on the same surface, so nothing about the cap moves when focus does. Reach for `UnderPointer` for the surface the pointer draws.",
 			},
 		},
 	},
 	render: (args) => (
-		<div style={{ width: SIDEBAR_WIDTH }}>
+		<div
+			className="flex flex-col gap-3 bg-sidebar p-2"
+			style={{ width: SIDEBAR_WIDTH }}
+		>
+			<Probes />
+			<SidebarSearchField {...args} />
 			<SidebarSearchField {...args} />
 		</div>
 	),
-	play: async ({ canvas }) => {
-		await expect(canvas.getByRole("button")).toHaveClass("hover:bg-muted")
-		await expect(canvas.getByText(CHORD)).toHaveClass(
-			"group-hover/search-field:bg-background",
+	play: async ({ canvas, canvasElement, userEvent }) => {
+		const [rested, focused] = canvas.getAllByRole("button")
+
+		if (!rested || !focused) throw new Error("The two fields are not drawn")
+
+		await userEvent.tab()
+		await userEvent.tab()
+
+		await expect(focused).toHaveFocus()
+		await expect(getComputedStyle(focused).backgroundColor).toBe(
+			surfaceOf(canvasElement, "roster-hover-probe"),
+		)
+		await expect(getComputedStyle(focused).boxShadow).not.toBe("none")
+
+		await expect(getComputedStyle(rested).backgroundColor).toBe(TRANSPARENT)
+		await expect(getComputedStyle(rested).boxShadow).toBe("none")
+		await expect(getComputedStyle(keycapIn(focused)).backgroundColor).toBe(
+			getComputedStyle(keycapIn(rested)).backgroundColor,
 		)
 	},
 })
@@ -135,18 +174,69 @@ export const WithHostChord = meta.story({
 	},
 })
 
+export const LabelWiderThanField = meta.story({
+	parameters: {
+		docs: {
+			description: {
+				story:
+					"The field squeezed to 96px, narrower than the label it carries. Check that the label alone gives way, clipped with an ellipsis, while the glyph keeps its 16px and the keycap keeps the width its chord needs: the two ends of the field are what the reader navigates by, and a cap squeezed out of shape says nothing about the shortcut it names.",
+			},
+		},
+	},
+	render: (args) => (
+		<div className="bg-sidebar p-2" style={{ width: SQUEEZED_WIDTH }}>
+			<SidebarSearchField {...args} />
+		</div>
+	),
+	play: async ({ canvas }) => {
+		const field = canvas.getByRole("button")
+		const label = canvas.getByText(LABEL)
+		const keycap = keycapIn(field)
+
+		await expect(label.scrollWidth).toBeGreaterThan(label.clientWidth)
+		await expect(glyphIn(field).getBoundingClientRect().width).toBe(GLYPH_SIZE)
+		await expect(keycap.getBoundingClientRect().width).toBe(keycap.scrollWidth)
+		await expect(field.getBoundingClientRect().height).toBe(FIELD_HEIGHT)
+	},
+})
+
+export const OnDarkSurface = meta.story({
+	globals: { theme: "dark" },
+	parameters: {
+		docs: {
+			description: {
+				story:
+					"The same resting field on the dark sidebar. Check that the outline, the label, the glyph and the keycap all stay off the surface behind them rather than dissolving into it — every one of them is a sidebar token, so the dark theme is designed here and not inverted.",
+			},
+		},
+	},
+	play: async ({ canvas, canvasElement }) => {
+		const field = canvas.getByRole("button")
+		const label = canvas.getByText(LABEL)
+		const surface = surfaceOf(canvasElement, "sidebar-probe")
+
+		await expect(getComputedStyle(field).backgroundColor).toBe(TRANSPARENT)
+		await expect(getComputedStyle(field).borderTopColor).not.toBe(surface)
+		await expect(getComputedStyle(label).color).not.toBe(surface)
+		await expect(getComputedStyle(glyphIn(field)).color).not.toBe(surface)
+		await expect(getComputedStyle(keycapIn(field)).backgroundColor).not.toBe(
+			surface,
+		)
+	},
+})
+
 export const CollapsedRail = meta.story({
 	args: { isCollapsed: true },
 	parameters: {
 		docs: {
 			description: {
 				story:
-					"The field once the sidebar is down to its 68px icon rail. Check that nothing is left but the glyph on a centred ghost button, that the chord and the label are dropped from the markup rather than clipped, and that the label survives as the button's accessible name and its tooltip, so the rail still says what the button opens.",
+					"The field once the sidebar is down to its 68px icon rail. Check that nothing is left but the glyph on a centred ghost button, that the chord and the label are dropped from the markup rather than clipped, that the label survives as the button's accessible name and its tooltip, so the rail still says what the button opens, and that the button fills with the roster's hover surface like every row beside it.",
 			},
 		},
 	},
 	render: (args) => (
-		<div style={{ width: RAIL_WIDTH }}>
+		<div className="bg-sidebar p-2" style={{ width: RAIL_WIDTH }}>
 			<SidebarSearchField {...args} />
 		</div>
 	),
@@ -157,6 +247,7 @@ export const CollapsedRail = meta.story({
 		await expect(rail).toHaveAccessibleName(LABEL)
 		await expect(canvas.queryByText(CHORD)).toBeNull()
 		await expect(slot).toHaveAttribute("data-collapsed", "true")
+		await expect(rail).toHaveClass(ROSTER_HOVER_FILL)
 
 		const centre = rail.getBoundingClientRect()
 		const box = slot.getBoundingClientRect()
