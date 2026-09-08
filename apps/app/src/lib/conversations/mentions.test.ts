@@ -17,7 +17,7 @@ const BOTS: MentionBot[] = [
 ]
 
 describe("toMentionTokens", () => {
-	it("turns a name written behind an arobase into the token of that bot", () => {
+	it("turns a name written behind an arobase into the token of that companion", () => {
 		expect(toMentionTokens("@Ada take the walls", BOTS)).toBe(
 			"<@ada> take the walls",
 		)
@@ -45,7 +45,7 @@ describe("toMentionTokens", () => {
 })
 
 describe("toMentionNames", () => {
-	it("reads a token as an arobase and the name of the bot it reaches", () => {
+	it("reads a token as an arobase and the name of the companion it reaches", () => {
 		expect(toMentionNames("<@ada> take the walls", BOTS)).toBe(
 			"@Ada take the walls",
 		)
@@ -57,8 +57,10 @@ describe("toMentionNames", () => {
 		)
 	})
 
-	it("reads a bot that no longer sits as a name", () => {
-		expect(toMentionNames("<@ghost> again", BOTS)).toBe("@Unknown bot again")
+	it("reads a companion that no longer sits as a name", () => {
+		expect(toMentionNames("<@ghost> again", BOTS)).toBe(
+			"@Unknown companion again",
+		)
 	})
 
 	it("leaves a text holding no token alone", () => {
@@ -67,13 +69,13 @@ describe("toMentionNames", () => {
 })
 
 describe("addresseesIn", () => {
-	it("names the bots in the order they are named, once each", () => {
+	it("names the companions in the order they are named, once each", () => {
 		expect(
 			addresseesIn("<@nyx> and <@ada> and <@nyx>", ["ada", "nyx"]),
 		).toEqual(["nyx", "ada"])
 	})
 
-	it("drops a token pointing at a bot that is not present", () => {
+	it("drops a token pointing at a companion that is not present", () => {
 		expect(addresseesIn("<@ghost> <@ada>", ["ada"])).toEqual(["ada"])
 	})
 

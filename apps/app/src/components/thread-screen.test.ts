@@ -888,7 +888,7 @@ describe("ThreadScreen", () => {
 		layout.restore()
 	})
 
-	it("opens the routines of a solo bot thread on its main conversation", async () => {
+	it("opens the routines of a solo companion thread on its main conversation", async () => {
 		updateRoutine.mockResolvedValue({ ...SOLO_ROUTINE, isEnabled: false })
 		render(screenOf(threadOf({ id: "bot-1", name: "Nyx", said: "held" })))
 		await settle()
@@ -909,7 +909,7 @@ describe("ThreadScreen", () => {
 		)
 	})
 
-	it("leaves a solo bot thread with no main conversation without routines", async () => {
+	it("leaves a solo companion thread with no main conversation without routines", async () => {
 		const thread = threadOf({ id: "bot-1", name: "Nyx", said: "held" })
 		render(screenOf(withoutMainConversation(thread)))
 		await settle()
@@ -919,7 +919,7 @@ describe("ThreadScreen", () => {
 		expect(listSources).not.toHaveBeenCalled()
 	})
 
-	it("keeps the transcript a solo bot thread mounted when its main conversation arrives", async () => {
+	it("keeps the transcript a solo companion thread mounted when its main conversation arrives", async () => {
 		const thread = threadOf({ id: "bot-1", name: "Nyx", said: "held" })
 		const { rerender } = render(screenOf(withoutMainConversation(thread)))
 		await settle()
@@ -936,7 +936,7 @@ describe("ThreadScreen", () => {
 		expect(listRoutines).toHaveBeenCalledWith("c-bot-1")
 	})
 
-	it("tells the reader when the routines of a solo bot thread could not be read", async () => {
+	it("tells the reader when the routines of a solo companion thread could not be read", async () => {
 		listRoutines.mockRejectedValue(new Error("refused"))
 		render(screenOf(threadOf({ id: "bot-1", name: "Nyx", said: "held" })))
 		await settle()
@@ -952,7 +952,7 @@ describe("ThreadScreen", () => {
 		expect(screen.getByText(SOLO_ROUTINE.title)).toBeTruthy()
 	})
 
-	it("reads the missions of a solo bot thread again when one of them changes", async () => {
+	it("reads the missions of a solo companion thread again when one of them changes", async () => {
 		const announce: { toPanel: ((changed: MissionChanged) => void) | null } = {
 			toPanel: null,
 		}
@@ -1222,7 +1222,7 @@ describe("ThreadScreen", () => {
 		expect(screen.getByText("Claude Code exited (code 1).")).toBeTruthy()
 	})
 
-	it("leaves a dismissed bot failure dismissed when the reader returns", async () => {
+	it("leaves a dismissed companion failure dismissed when the reader returns", async () => {
 		const opened = threadOf({
 			id: "bot-1",
 			name: "Nyx",
@@ -1328,7 +1328,7 @@ describe("ThreadScreen", () => {
 		expect(screen.queryByText(PINS_TITLE)).toBeNull()
 	})
 
-	it("writes the title of the bot record next to the author of that bot id", async () => {
+	it("writes the title of the companion record next to the author of that companion id", async () => {
 		const room = await roomOf({ names: ["Ada"], spoken: [SAID_BEFORE] })
 		render(
 			screenOf(
@@ -1342,7 +1342,7 @@ describe("ThreadScreen", () => {
 		expect(screen.getByText(BOT_TITLE)).toBeTruthy()
 	})
 
-	it("leaves the author of a participant no bot record matches with no title", async () => {
+	it("leaves the author of a participant no companion record matches with no title", async () => {
 		const room = await roomOf({ names: ["Ada"], spoken: [SAID_BEFORE] })
 		render(
 			screenOf(room.thread, [
@@ -1396,7 +1396,7 @@ describe("ThreadScreen", () => {
 		expect(screen.getAllByText(CAUSES_TITLE).length).toBeGreaterThan(0)
 	})
 
-	it("names the routine on a report a minute after a message of the same bot", async () => {
+	it("names the routine on a report a minute after a message of the same companion", async () => {
 		const room = await roomOf({
 			names: ["Ada"],
 			spoken: [SAID_BEFORE, REPORTED, SAID_AFTER],
@@ -1477,7 +1477,7 @@ describe("ThreadScreen", () => {
 		)
 	})
 
-	it("keeps what a solo bot wrote above the question it asks", async () => {
+	it("keeps what a solo companion wrote above the question it asks", async () => {
 		const solo = await soloOf({})
 		const { rerender } = render(screenOf(solo.thread()))
 		await settle()
@@ -1544,7 +1544,7 @@ describe("ThreadScreen", () => {
 		).toBeTruthy()
 	})
 
-	it("stops the bot whose working row carries the stop, and no other", async () => {
+	it("stops the companion whose working row carries the stop, and no other", async () => {
 		const room = await roomOf({ names: ["Ada", "Nyx"] })
 		render(screenOf(room.thread))
 		await settle()
@@ -1559,7 +1559,7 @@ describe("ThreadScreen", () => {
 		expect(stopFor("Nyx")).toBeTruthy()
 	})
 
-	it("leaves no stop on the waiting row of a bot holding no seat", async () => {
+	it("leaves no stop on the waiting row of a companion holding no seat", async () => {
 		const room = await roomOf({ names: ["Ada", "Nyx"] })
 		render(screenOf(room.thread))
 		await settle()
@@ -1571,7 +1571,7 @@ describe("ThreadScreen", () => {
 		expect(stopFor("Nyx")).toBeNull()
 	})
 
-	it("clocks the working row of a seated bot from the start of its turn", async () => {
+	it("clocks the working row of a seated companion from the start of its turn", async () => {
 		const room = await roomOf({ names: ["Ada"] })
 		render(screenOf(room.thread))
 		await settle()
@@ -1581,7 +1581,7 @@ describe("ThreadScreen", () => {
 		expect(elapsedText()).toMatch(/^\d+s$/)
 	})
 
-	it("carries the stop onto the run a speaking bot is writing", async () => {
+	it("carries the stop onto the run a speaking companion is writing", async () => {
 		const room = await roomOf({ names: ["Ada"] })
 		render(screenOf(room.thread))
 		await settle()
@@ -1599,7 +1599,7 @@ describe("ThreadScreen", () => {
 		expect(room.driver.cancelled).toEqual([room.idOf("Ada")])
 	})
 
-	it("holds a seated bot on its waiting row until it publishes a block", async () => {
+	it("holds a seated companion on its waiting row until it publishes a block", async () => {
 		const room = await roomOf({ names: ["Ada"] })
 		render(screenOf(room.thread))
 		await settle()
@@ -1615,7 +1615,7 @@ describe("ThreadScreen", () => {
 		expect(stopFor("Ada")).toBeTruthy()
 	})
 
-	it("keeps the working row of a seated bot that has published a block", async () => {
+	it("keeps the working row of a seated companion that has published a block", async () => {
 		const room = await roomOf({ names: ["Ada"] })
 		render(screenOf(room.thread))
 		await settle()
@@ -1662,7 +1662,7 @@ describe("ThreadScreen", () => {
 		expect(screen.getByText("the walls hold")).toBeTruthy()
 	})
 
-	it("keeps the working row of a bot asking after it published a block", async () => {
+	it("keeps the working row of a companion asking after it published a block", async () => {
 		const room = await roomOf({ names: ["Ada"] })
 		render(screenOf(room.thread))
 		await settle()
@@ -1680,7 +1680,7 @@ describe("ThreadScreen", () => {
 		).toBeTruthy()
 	})
 
-	it("draws one row for a speaking bot another speaker hands over to", async () => {
+	it("draws one row for a speaking companion another speaker hands over to", async () => {
 		const room = await roomOf({ names: ["Ada", "Nyx"] })
 		render(screenOf(room.thread))
 		await settle()
@@ -1697,7 +1697,7 @@ describe("ThreadScreen", () => {
 		expect(screen.getByText("Ada is writing…")).toBeTruthy()
 	})
 
-	it("leaves no stop on the turn a bot has landed", async () => {
+	it("leaves no stop on the turn a companion has landed", async () => {
 		const room = await roomOf({ names: ["Ada"] })
 		render(screenOf(room.thread))
 		await settle()
@@ -1740,7 +1740,7 @@ describe("ThreadScreen", () => {
 		).toBeNull()
 	})
 
-	it("shows a working row for the bot a mission thread summons", async () => {
+	it("shows a working row for the companion a mission thread summons", async () => {
 		const room = await missionRoomOf({ events: [] })
 		render(screenOf(room.thread, room.bots))
 		await settle()
@@ -1779,7 +1779,7 @@ describe("ThreadScreen", () => {
 		expect(asked[0].textContent).toContain("and the tests?")
 	})
 
-	it("holds no cause line when the reader speaks before the summoned bot", async () => {
+	it("holds no cause line when the reader speaks before the summoned companion", async () => {
 		const room = await missionRoomOf({
 			events: [],
 			spoken: [MISSION_SUMMONS, MISSION_ASKED, MISSION_SAID],
@@ -1816,7 +1816,7 @@ describe("ThreadScreen", () => {
 		expect(screen.getByRole("textbox").hasAttribute("disabled")).toBe(true)
 	})
 
-	it("stops the solo bot from the row it works on", async () => {
+	it("stops the solo companion from the row it works on", async () => {
 		const thread = threadOf({ id: "bot-1", name: "Nyx", said: "the answer" })
 		const cancelled: string[] = []
 		render(

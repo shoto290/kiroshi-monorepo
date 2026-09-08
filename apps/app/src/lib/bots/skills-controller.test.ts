@@ -166,7 +166,7 @@ describe("skills controller", () => {
 		expect(await readerSkills(store)).toEqual([])
 	})
 
-	it("writes nothing while no bot is open", async () => {
+	it("writes nothing while no companion is open", async () => {
 		const store = createFakeTranscriptStore()
 		const controller = createSkillsController(store)
 

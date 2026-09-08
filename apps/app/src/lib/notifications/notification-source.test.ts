@@ -278,7 +278,7 @@ beforeEach(() => {
 })
 
 describe("startNotificationSource", () => {
-	it("sends the bot's name and what happened", async () => {
+	it("sends the companion's name and what happened", async () => {
 		const harness = await start()
 		seed(harness, "bot-one")
 
@@ -289,7 +289,7 @@ describe("startNotificationSource", () => {
 		])
 	})
 
-	it("compares every bot on the roster, not only the one being read", async () => {
+	it("compares every companion on the roster, not only the one being read", async () => {
 		const harness = await start({}, [
 			{ id: "bot-one", name: "Nyx" },
 			{ id: "bot-two", name: "Ora" },
@@ -303,7 +303,7 @@ describe("startNotificationSource", () => {
 		])
 	})
 
-	it("sends nothing for a bot the roster has never held", async () => {
+	it("sends nothing for a companion the roster has never held", async () => {
 		const harness = await start({}, [])
 		harness.chat.publish("bot-ghost", { question: question("q-1") })
 		harness.chat.publish("bot-ghost", { question: question("q-2") })
@@ -311,7 +311,7 @@ describe("startNotificationSource", () => {
 		expect(harness.notifications.sent).toEqual([])
 	})
 
-	it("sends nothing on the first sight of a bot", async () => {
+	it("sends nothing on the first sight of a companion", async () => {
 		const harness = await start()
 
 		harness.chat.publish("bot-one", { question: question("q-1") })
@@ -413,7 +413,7 @@ describe("startNotificationSource", () => {
 		expect(harness.playChime).toHaveBeenCalledTimes(1)
 	})
 
-	it("shows the window and opens the bot the click carries", async () => {
+	it("shows the window and opens the companion the click carries", async () => {
 		const raiseWindow = vi.fn(async () => undefined)
 		const harness = await start({ raiseWindow })
 
@@ -423,7 +423,7 @@ describe("startNotificationSource", () => {
 		expect(harness.roster.select).toHaveBeenCalledWith("bot-one")
 	})
 
-	it("opens the bot the click carries even when the window stays behind", async () => {
+	it("opens the companion the click carries even when the window stays behind", async () => {
 		const raiseWindow = vi.fn(() => Promise.reject(new Error("window is gone")))
 		const harness = await start({ raiseWindow })
 
@@ -433,7 +433,7 @@ describe("startNotificationSource", () => {
 		expect(harness.spaces.select).toHaveBeenCalledWith("space-one")
 	})
 
-	it("opens the bot the click carries even when the reveal throws on the spot", async () => {
+	it("opens the companion the click carries even when the reveal throws on the spot", async () => {
 		const raiseWindow = vi.fn((): Promise<void> => {
 			throw new Error("window is gone")
 		})
@@ -445,7 +445,7 @@ describe("startNotificationSource", () => {
 		expect(harness.spaces.select).toHaveBeenCalledWith("space-one")
 	})
 
-	it("selects nothing when no space answers for the bot's thread", async () => {
+	it("selects nothing when no space answers for the companion's thread", async () => {
 		const harness = await start()
 		harness.roster.hold([])
 
@@ -455,7 +455,7 @@ describe("startNotificationSource", () => {
 		expect(harness.spaces.select).not.toHaveBeenCalled()
 	})
 
-	it("selects the bot line before entering the space its thread sits in", async () => {
+	it("selects the companion line before entering the space its thread sits in", async () => {
 		const harness = await start()
 
 		harness.notifications.activate(BOT)
@@ -465,7 +465,7 @@ describe("startNotificationSource", () => {
 		)
 	})
 
-	it("shows the window and leaves the selection alone for a bot that is gone", async () => {
+	it("shows the window and leaves the selection alone for a companion that is gone", async () => {
 		const raiseWindow = vi.fn(async () => undefined)
 		const harness = await start({ raiseWindow })
 		harness.roster.hold([])
@@ -476,7 +476,7 @@ describe("startNotificationSource", () => {
 		expect(harness.roster.select).not.toHaveBeenCalled()
 	})
 
-	it("names a bot running in a space that is not the one on screen", async () => {
+	it("names a companion running in a space that is not the one on screen", async () => {
 		const harness = await start()
 		harness.roster.hold([])
 		harness.roster.holdElsewhere([{ id: "bot-away", name: "Vega" }])
@@ -493,7 +493,7 @@ describe("startNotificationSource", () => {
 		])
 	})
 
-	it("forgets the state of a bot the roster let go of", async () => {
+	it("forgets the state of a companion the roster let go of", async () => {
 		const harness = await start()
 		seed(harness, "bot-one")
 
@@ -533,7 +533,7 @@ const askedIn = (harness: Harness, requestId: string) => {
 }
 
 describe("startNotificationSource on a mission thread", () => {
-	it("names the mission whose thread bot asks a question", async () => {
+	it("names the mission whose thread companion asks a question", async () => {
 		const harness = await start()
 		await escalate(harness, "working")
 		seedRound(harness, "thread-1")
@@ -641,7 +641,7 @@ describe("startNotificationSource on a conversation", () => {
 		])
 	})
 
-	it("sends nothing while a bot of the conversation is still speaking", async () => {
+	it("sends nothing while a companion of the conversation is still speaking", async () => {
 		const harness = await start()
 		seedRound(harness, "room-one", { speakers: [speakingBot("bot-one")] })
 
@@ -650,7 +650,7 @@ describe("startNotificationSource on a conversation", () => {
 		expect(harness.notifications.sent).toEqual([])
 	})
 
-	it("sends one notification for a round several bots answered in turn", async () => {
+	it("sends one notification for a round several companions answered in turn", async () => {
 		const harness = await start()
 		seedRound(harness, "room-one", {
 			speakers: [speakingBot("bot-one")],
@@ -815,7 +815,7 @@ describe("startNotificationSource when a subscription breaks", () => {
 })
 
 describe("startNotificationSource on missions", () => {
-	it("names the bot and the ticket when a mission waits for a human", async () => {
+	it("names the companion and the ticket when a mission waits for a human", async () => {
 		const harness = await start()
 
 		await escalate(harness, "waiting_human")
@@ -825,7 +825,7 @@ describe("startNotificationSource on missions", () => {
 		])
 	})
 
-	it("names the bot and the ticket when a mission is ready to merge", async () => {
+	it("names the companion and the ticket when a mission is ready to merge", async () => {
 		const harness = await start()
 
 		await escalate(harness, "ready_to_merge")

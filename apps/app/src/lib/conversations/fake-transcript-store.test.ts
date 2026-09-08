@@ -131,7 +131,7 @@ describe("createFakeTranscriptStore", () => {
 		expect(await store.appendUserMessage(PROMPT)).toBe(8)
 	})
 
-	it("lists the bot it ships with, then the ones it is told to make", async () => {
+	it("lists the companion it ships with, then the ones it is told to make", async () => {
 		const store = createFakeTranscriptStore()
 
 		const created = await store.createBot(botIdentity())
@@ -145,7 +145,7 @@ describe("createFakeTranscriptStore", () => {
 		expect(created.avatarAnimal).toBe("owl")
 	})
 
-	it("copies a bot under a fresh id, a name of its own and an empty transcript", async () => {
+	it("copies a companion under a fresh id, a name of its own and an empty transcript", async () => {
 		const store = createFakeTranscriptStore()
 		await store.startTurn(TURN)
 		await store.appendUserMessage(PROMPT)
@@ -159,7 +159,7 @@ describe("createFakeTranscriptStore", () => {
 		expect((await store.loadPage(chat.id, null)).messages).toEqual([])
 	})
 
-	it("refuses a copy of a bot it does not hold", async () => {
+	it("refuses a copy of a companion it does not hold", async () => {
 		const store = createFakeTranscriptStore()
 
 		await expect(store.duplicateBot("missing")).rejects.toEqual({
@@ -178,7 +178,7 @@ describe("createFakeTranscriptStore", () => {
 		expect(await store.bots(elsewhere.id)).toEqual([copy])
 	})
 
-	it("hands a copy a name no bot in the space it lands in carries", async () => {
+	it("hands a copy a name no companion in the space it lands in carries", async () => {
 		const store = createFakeTranscriptStore()
 		const elsewhere = await store.createSpace("Elsewhere")
 		await store.duplicateBot("default", elsewhere.id)
@@ -201,7 +201,7 @@ describe("createFakeTranscriptStore", () => {
 		expect(await store.bots(null)).toHaveLength(1)
 	})
 
-	it("replaces who a bot is and leaves its id and its moment alone", async () => {
+	it("replaces who a companion is and leaves its id and its moment alone", async () => {
 		const store = createFakeTranscriptStore()
 		const created = await store.createBot(botIdentity())
 
@@ -217,7 +217,7 @@ describe("createFakeTranscriptStore", () => {
 		expect(updated.avatarBlot).toBe("orange")
 	})
 
-	it("refuses a write on a bot it no longer holds", async () => {
+	it("refuses a write on a companion it no longer holds", async () => {
 		const store = createFakeTranscriptStore()
 		const created = await store.createBot(botIdentity())
 		await store.deleteBot(created.id)
@@ -233,7 +233,7 @@ describe("createFakeTranscriptStore", () => {
 		expect((await store.bots()).map((bot) => bot.id)).toEqual(["default"])
 	})
 
-	it("lets the last bot go and answers an empty list after it", async () => {
+	it("lets the last companion go and answers an empty list after it", async () => {
 		const store = createFakeTranscriptStore()
 
 		await store.deleteBot("default")
@@ -241,7 +241,7 @@ describe("createFakeTranscriptStore", () => {
 		expect(await store.bots()).toEqual([])
 	})
 
-	it("forgets what a deleted bot's sessions announced", async () => {
+	it("forgets what a deleted companion's sessions announced", async () => {
 		const store = createFakeTranscriptStore()
 		await store.recordBotCommands("default", named("review"))
 
@@ -250,7 +250,7 @@ describe("createFakeTranscriptStore", () => {
 		expect(await store.botCommands("default")).toEqual([])
 	})
 
-	it("dresses a bot in an uploaded picture and answers a path for it", async () => {
+	it("dresses a companion in an uploaded picture and answers a path for it", async () => {
 		const store = createFakeTranscriptStore()
 
 		const worn = await store.setBotAvatarImage("default", aPng())
@@ -283,7 +283,7 @@ describe("createFakeTranscriptStore", () => {
 		})
 	})
 
-	it("refuses a picture for a bot it no longer holds", async () => {
+	it("refuses a picture for a companion it no longer holds", async () => {
 		const store = createFakeTranscriptStore()
 		await store.deleteBot("default")
 
@@ -293,7 +293,7 @@ describe("createFakeTranscriptStore", () => {
 		})
 	})
 
-	it("writes, marks and takes away a bot's skills", async () => {
+	it("writes, marks and takes away a companion's skills", async () => {
 		const store = createFakeTranscriptStore()
 		const draft = { name: "Baking Bread", description: "How.", body: "Bake." }
 		const [learn] = await store.botSkills("default")
@@ -333,7 +333,7 @@ describe("createFakeTranscriptStore", () => {
 		})
 	})
 
-	it("writes and takes away a bot's mcp servers", async () => {
+	it("writes and takes away a companion's mcp servers", async () => {
 		const store = createFakeTranscriptStore()
 		const atlas = { command: "atlas-mcp", args: ["--stdio"] }
 		const ledger = { command: "ledger-mcp" }
@@ -495,7 +495,7 @@ describe("createFakeTranscriptStore", () => {
 		expect(await store.pinnedMessages(FAKE_CHAT_ID)).toEqual([])
 	})
 
-	it("frees every bot a deleted section held", async () => {
+	it("frees every companion a deleted section held", async () => {
 		const store = createFakeTranscriptStore()
 		const written = await store.createSection("personal", "Writers")
 		await store.moveBotToSection("default", written.id)
@@ -506,7 +506,7 @@ describe("createFakeTranscriptStore", () => {
 		expect(await store.sections("personal")).toEqual([])
 	})
 
-	it("refuses a bot the section of another space", async () => {
+	it("refuses a companion the section of another space", async () => {
 		const store = createFakeTranscriptStore()
 		const elsewhere = await store.createSpace("Vocca")
 		const written = await store.createSection(elsewhere.id, "Callers")
@@ -527,7 +527,7 @@ describe("createFakeTranscriptStore", () => {
 		expect(copy.sectionId).toBeNull()
 	})
 
-	it("answers a different solo thread in each space a bot belongs to", async () => {
+	it("answers a different solo thread in each space a companion belongs to", async () => {
 		const store = createFakeTranscriptStore()
 		const elsewhere = await store.createSpace("Vocca")
 		await store.addBotToSpace("default", elsewhere.id)
@@ -538,7 +538,7 @@ describe("createFakeTranscriptStore", () => {
 		expect(home.id).not.toBe(away.id)
 	})
 
-	it("refuses a solo thread whose space does not hold the bot", async () => {
+	it("refuses a solo thread whose space does not hold the companion", async () => {
 		const store = createFakeTranscriptStore()
 		const elsewhere = await store.createSpace("Vocca")
 
@@ -547,7 +547,7 @@ describe("createFakeTranscriptStore", () => {
 		)
 	})
 
-	it("takes the picture off a bot described again without a path", async () => {
+	it("takes the picture off a companion described again without a path", async () => {
 		const store = createFakeTranscriptStore()
 		await store.setBotAvatarImage("default", aPng())
 

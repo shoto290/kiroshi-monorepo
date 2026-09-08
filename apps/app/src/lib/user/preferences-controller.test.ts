@@ -440,7 +440,7 @@ describe("the conversation the reader opens", () => {
 		})
 	})
 
-	it("leaves the bot of every other space where it was", async () => {
+	it("leaves the companion of every other space where it was", async () => {
 		aHost({ ...DEFAULTS, lastBotIdBySpace: { atlas: "iris" } })
 		const controller = await loaded()
 
@@ -462,7 +462,7 @@ describe("the conversation the reader opens", () => {
 		expect(hostInvoke).not.toHaveBeenCalled()
 	})
 
-	it("is written once when it is the bot the record already names", async () => {
+	it("is written once when it is the companion the record already names", async () => {
 		aHost({
 			...DEFAULTS,
 			lastBotIdBySpace: { vocca: "nyx" },

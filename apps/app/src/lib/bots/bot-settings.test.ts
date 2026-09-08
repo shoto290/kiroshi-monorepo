@@ -36,7 +36,7 @@ const bot = (overrides: Partial<Bot> = {}): Bot => {
 }
 
 describe("toSettingsValue", () => {
-	it("hands the panel every field a bot was described with", () => {
+	it("hands the panel every field a companion was described with", () => {
 		expect(
 			toSettingsValue(
 				bot({
@@ -60,11 +60,11 @@ describe("toSettingsValue", () => {
 		})
 	})
 
-	it("reads a directory the bot does not have as no text at all", () => {
+	it("reads a directory the companion does not have as no text at all", () => {
 		expect(toSettingsValue(bot({ workingDir: null })).workingDirectory).toBe("")
 	})
 
-	it("reads a bot nobody marked as wearing no blot", () => {
+	it("reads a companion nobody marked as wearing no blot", () => {
 		expect(
 			toSettingsValue(bot({ avatarBlot: null })).identity.blot,
 		).toBeUndefined()
@@ -169,7 +169,7 @@ describe("toIdentity", () => {
 		).toBeNull()
 	})
 
-	it("carries the style the bot already answers under", () => {
+	it("carries the style the companion already answers under", () => {
 		const styled = bot({ outputStyle: "default" })
 
 		expect(
@@ -187,7 +187,7 @@ describe("toIdentity", () => {
 	})
 })
 
-describe("toIdentity, on the tools a bot is denied", () => {
+describe("toIdentity, on the tools a companion is denied", () => {
 	it("hands the four tools of the retired switch over to the deny list", () => {
 		const thrown = bot({ deniedTools: [...CHANGING_TOOLS, "WebFetch"] })
 		const value = toSettingsValue(thrown)
@@ -208,7 +208,7 @@ describe("toIdentity, on the tools a bot is denied", () => {
 		).toEqual(permissions)
 	})
 
-	it("carries the bot's own denials through a write that says nothing about them", () => {
+	it("carries the companion's own denials through a write that says nothing about them", () => {
 		const held = bot({ deniedTools: ["WebFetch"] })
 
 		expect(
@@ -247,7 +247,7 @@ describe("modelOptionsFor", () => {
 		)
 	})
 
-	it("offers a label of its own back so the bot can be seen on it", () => {
+	it("offers a label of its own back so the companion can be seen on it", () => {
 		const read = modelOptionsFor("claude-mythos-preview", CATALOGUE)
 		const fallen = modelOptionsFor("claude-mythos-preview", [])
 
@@ -264,7 +264,7 @@ describe("newBotIdentity", () => {
 	const rosterCarrying = (names: readonly string[]): Bot[] =>
 		names.map((name, index) => bot({ id: `b-${index}`, name }))
 
-	it("names a bot before it is named and gives it a face nobody wears", () => {
+	it("names a companion before it is named and gives it a face nobody wears", () => {
 		const created = newBotIdentity([
 			bot({ avatarAnimal: "cat", avatarBlot: "red" }),
 		])
@@ -279,7 +279,7 @@ describe("newBotIdentity", () => {
 		})
 	})
 
-	it("marks a bot with a tint nobody in the roster is marked with", () => {
+	it("marks a companion with a tint nobody in the roster is marked with", () => {
 		const [spared, ...marked] = BLOT_TINTS
 
 		expect(newBotIdentity([]).avatarBlot).toBe(spared)
@@ -300,7 +300,7 @@ describe("newBotIdentity", () => {
 		expect(BLOT_TINTS).toContain(newBotIdentity(roster).avatarBlot)
 	})
 
-	it("creates a bot on the concise style", () => {
+	it("creates a companion on the concise style", () => {
 		expect(newBotIdentity([]).outputStyle).toBe("Concise")
 	})
 
@@ -362,7 +362,7 @@ describe("toRosterBots", () => {
 		expect(beacon.pinPosition).toBeNull()
 	})
 
-	it("gives every bot the working state of its own process", () => {
+	it("gives every companion the working state of its own process", () => {
 		const [atlas, beacon] = toRosterBots(
 			roster,
 			{
@@ -379,7 +379,7 @@ describe("toRosterBots", () => {
 		expect(beacon).toMatchObject({ status: "working", pose: "searching" })
 	})
 
-	it("gives every bot the last word of its own conversation", () => {
+	it("gives every companion the last word of its own conversation", () => {
 		const [atlas, beacon] = toRosterBots(
 			roster,
 			{
@@ -435,7 +435,7 @@ describe("toRosterBots", () => {
 		expect(beacon.timestamp).toBe("1d")
 	})
 
-	it("leaves a bot with no process of its own idle", () => {
+	it("leaves a companion with no process of its own idle", () => {
 		const [atlas, beacon] = toRosterBots(
 			roster,
 			{ working: { "b-1": { isWorking: false } }, previews: {} },
@@ -446,7 +446,7 @@ describe("toRosterBots", () => {
 		expect(beacon).toMatchObject({ status: "idle", pose: undefined })
 	})
 
-	it("leaves a bot nobody marked without a blot rather than with a default one", () => {
+	it("leaves a companion nobody marked without a blot rather than with a default one", () => {
 		const [bare] = toRosterBots(
 			[bot({ avatarBlot: null })],
 			{ working: {}, previews: {} },
@@ -456,7 +456,7 @@ describe("toRosterBots", () => {
 		expect(bare.blot).toBeUndefined()
 	})
 
-	it("puts the bot that spoke last above the one that spoke earlier", () => {
+	it("puts the companion that spoke last above the one that spoke earlier", () => {
 		const ordered = toRosterBots(
 			roster,
 			{
@@ -472,7 +472,7 @@ describe("toRosterBots", () => {
 		expect(ordered.map((bot) => bot.id)).toEqual(["b-2", "b-1"])
 	})
 
-	it("sorts a bot that never spoke on the day it was created", () => {
+	it("sorts a companion that never spoke on the day it was created", () => {
 		const ordered = toRosterBots(
 			[
 				bot({ id: "b-1", createdAt: new Date(2025, 2, 10).getTime() }),
@@ -490,13 +490,13 @@ describe("toRosterBots", () => {
 		expect(ordered.map((bot) => bot.id)).toEqual(["b-2", "b-1"])
 	})
 
-	it("holds two bots carrying the same time in the order it read them", () => {
+	it("holds two companions carrying the same time in the order it read them", () => {
 		const ordered = toRosterBots(roster, { working: {}, previews: {} }, NOW)
 
 		expect(ordered.map((bot) => bot.id)).toEqual(["b-1", "b-2"])
 	})
 
-	it("passes an uploaded picture through and leaves a bot without one to its animal", () => {
+	it("passes an uploaded picture through and leaves a companion without one to its animal", () => {
 		const [worn, drawn] = toRosterBots(
 			[
 				bot({ id: "b-1", avatarImagePath: "/pictures/owl.png" }),

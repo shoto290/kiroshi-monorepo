@@ -52,14 +52,14 @@ describe("describeTransportError", () => {
 		)
 	})
 
-	it("names the folder a bot asked for and no longer has", () => {
+	it("names the folder a companion asked for and no longer has", () => {
 		expect(
 			describeTransportError(t, {
 				kind: "workingDirectoryRefused",
 				path: "/tmp/gone",
 			}),
 		).toBe(
-			"/tmp/gone is not there any more. This bot is answering from the usual place instead.",
+			"/tmp/gone is not there any more. This companion is answering from the usual place instead.",
 		)
 	})
 })

@@ -75,7 +75,7 @@ it("works on the line of the space its thread sits in and idles on the other", (
 	expect(activityIn(result.current, HOME)[BOT]).toEqual({ isWorking: false })
 })
 
-it("follows the bot to the line of the space it runs in next", () => {
+it("follows the companion to the line of the space it runs in next", () => {
 	const chat = createFakeChat()
 	const { result } = mounted(chat)
 
@@ -88,7 +88,7 @@ it("follows the bot to the line of the space it runs in next", () => {
 	expect(activityIn(result.current, AWAY)[BOT]).toEqual({ isWorking: false })
 })
 
-it("answers the working line for a bot wherever it runs", () => {
+it("answers the working line for a companion wherever it runs", () => {
 	const chat = createFakeChat()
 	const { result } = mounted(chat)
 

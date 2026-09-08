@@ -12,7 +12,7 @@ const conversationRosters = {
 }
 
 describe("newSectionFor", () => {
-	it("names the space holding the bot the section is created for", () => {
+	it("names the space holding the companion the section is created for", () => {
 		expect(
 			newSectionFor({ rosters, shownSpaceId: "personal", rowId: "biscuit" }),
 		).toEqual({ spaceId: "vocca", botId: "biscuit", conversationId: null })

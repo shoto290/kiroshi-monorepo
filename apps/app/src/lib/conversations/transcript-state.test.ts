@@ -561,7 +561,7 @@ describe("lastWordIn", () => {
 		).toEqual({ text: "And?", at: 20 })
 	})
 
-	it("carries the bot that said the last word, and nobody for the reader", () => {
+	it("carries the companion that said the last word, and nobody for the reader", () => {
 		expect(
 			lastWordIn([
 				settled({ content: "Done", createdAt: 10, authorBotId: "b-1" }),

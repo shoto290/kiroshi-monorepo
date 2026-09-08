@@ -147,7 +147,7 @@ describe("toRosterConversations", () => {
 			NOW,
 		)[0].lastSpeaker
 
-	it("names the bot still seated that said the last word", () => {
+	it("names the companion still seated that said the last word", () => {
 		expect(speakerAfter([participant({ botId: "b-1" })], "b-1")).toBe("Chef")
 	})
 
@@ -155,17 +155,17 @@ describe("toRosterConversations", () => {
 		expect(speakerAfter([participant()])).toBeUndefined()
 	})
 
-	it("names nobody when the bot that spoke has left the room", () => {
+	it("names nobody when the companion that spoke has left the room", () => {
 		expect(speakerAfter([participant({ leftAt: 4 })], "b-1")).toBeUndefined()
 	})
 
-	it("names nobody when the bot that spoke no longer exists", () => {
+	it("names nobody when the companion that spoke no longer exists", () => {
 		expect(
 			speakerAfter([participant({ isDeleted: true })], "b-1"),
 		).toBeUndefined()
 	})
 
-	it("keeps the last word of a deleted bot and drops it from the seats", () => {
+	it("keeps the last word of a deleted companion and drops it from the seats", () => {
 		const [row] = toRosterConversations(
 			[
 				conversation({
@@ -210,7 +210,7 @@ describe("toRosterConversations", () => {
 		expect(rows.map((row) => row.id)).toEqual(["c-3", "c-1", "c-2"])
 	})
 
-	it("draws the room and the bot answering in it as working", () => {
+	it("draws the room and the companion answering in it as working", () => {
 		const [row] = toRosterConversations(
 			[
 				conversation({
@@ -235,7 +235,7 @@ describe("toRosterConversations", () => {
 		])
 	})
 
-	it("draws the room of a bot waiting its turn as working", () => {
+	it("draws the room of a companion waiting its turn as working", () => {
 		const [row] = toRosterConversations(
 			[conversation()],
 			{ working: { "c-1": [working("b-1", "waiting")] }, previews: {} },
@@ -292,7 +292,7 @@ const bot = (fields: Partial<Bot> = {}): Bot => ({
 })
 
 describe("unseatedBots", () => {
-	it("offers only the bots of the space that hold no seat", () => {
+	it("offers only the companions of the space that hold no seat", () => {
 		const offered = unseatedBots(
 			[bot({ id: "b-1" }), bot({ id: "b-2", name: "Sous-chef" })],
 			conversation({ participants: [participant({ botId: "b-1" })] }),
@@ -309,7 +309,7 @@ describe("unseatedBots", () => {
 		])
 	})
 
-	it("offers a dismissed bot again", () => {
+	it("offers a dismissed companion again", () => {
 		const offered = unseatedBots(
 			[bot({ id: "b-1" })],
 			conversation({
@@ -332,7 +332,7 @@ describe("toConversationSettingsValue", () => {
 })
 
 describe("conversationName", () => {
-	it("calls a nameless conversation by the names of the bots seated in it", () => {
+	it("calls a nameless conversation by the names of the companions seated in it", () => {
 		expect(
 			conversationName(
 				conversation({
@@ -346,7 +346,7 @@ describe("conversationName", () => {
 		).toBe("Chef, Sous-chef")
 	})
 
-	it("leaves out of the name a bot that has left the conversation", () => {
+	it("leaves out of the name a companion that has left the conversation", () => {
 		expect(
 			conversationName(
 				conversation({
@@ -360,7 +360,7 @@ describe("conversationName", () => {
 		).toBe("Chef")
 	})
 
-	it("falls back on the untitled copy when no bot is seated", () => {
+	it("falls back on the untitled copy when no companion is seated", () => {
 		expect(
 			conversationName(conversation({ title: "", participants: [] })),
 		).toBe("Untitled conversation")

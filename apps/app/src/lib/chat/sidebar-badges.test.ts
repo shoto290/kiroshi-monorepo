@@ -12,17 +12,17 @@ const ATLAS = rosterBot("atlas")
 const BEACON = rosterBot("beacon")
 
 describe("withBadges", () => {
-	it("gives a bot the badge held for it", () => {
+	it("gives a companion the badge held for it", () => {
 		const [atlas] = withBadges([ATLAS], { atlas: "attention" })
 		expect(atlas.badge).toBe("attention")
 	})
 
-	it("gives no badge to a bot carrying none", () => {
+	it("gives no badge to a companion carrying none", () => {
 		const [atlas] = withBadges([ATLAS], { atlas: "none" })
 		expect(atlas.badge).toBeUndefined()
 	})
 
-	it("gives no badge to a bot without a held badge", () => {
+	it("gives no badge to a companion without a held badge", () => {
 		const [atlas] = withBadges([ATLAS], {})
 		expect(atlas.badge).toBeUndefined()
 	})
@@ -41,7 +41,7 @@ describe("toSpaceBadges", () => {
 
 	const spaceOf = (...badges: ShownBadge[]) => ({ home: rowsOf(badges) })
 
-	it("takes the strongest badge among the bots of a space", () => {
+	it("takes the strongest badge among the companions of a space", () => {
 		expect(toSpaceBadges(spaceOf("done", "attention", "failed"), {}).home).toBe(
 			"attention",
 		)
@@ -55,7 +55,7 @@ describe("toSpaceBadges", () => {
 		expect(toSpaceBadges(spaceOf(undefined, "done"), {}).home).toBe("done")
 	})
 
-	it("gives no badge to a space where every bot carries none", () => {
+	it("gives no badge to a space where every companion carries none", () => {
 		expect(toSpaceBadges(spaceOf(undefined, undefined), {})).toEqual({})
 	})
 
@@ -70,13 +70,13 @@ describe("toSpaceBadges", () => {
 		expect(badges).toEqual({ home: "done", elsewhere: "attention" })
 	})
 
-	it("takes the badge of a conversation when no bot carries one", () => {
+	it("takes the badge of a conversation when no companion carries one", () => {
 		expect(toSpaceBadges(spaceOf(undefined), spaceOf("attention")).home).toBe(
 			"attention",
 		)
 	})
 
-	it("ranks a conversation badge against the bot badges of the space", () => {
+	it("ranks a conversation badge against the companion badges of the space", () => {
 		expect(toSpaceBadges(spaceOf("done"), spaceOf("failed")).home).toBe(
 			"failed",
 		)
@@ -91,7 +91,7 @@ describe("toSpaceBadges", () => {
 		})
 	})
 
-	it("gives no badge to a space where neither bots nor conversations carry one", () => {
+	it("gives no badge to a space where neither companions nor conversations carry one", () => {
 		expect(toSpaceBadges(spaceOf(undefined), spaceOf(undefined))).toEqual({})
 	})
 })
