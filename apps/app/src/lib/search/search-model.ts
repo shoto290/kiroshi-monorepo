@@ -2,7 +2,9 @@ import type { ConversationParticipant } from "@workspace/ui/components/avatar-gr
 import type { MissionBot } from "@workspace/ui/components/mission"
 import { missionTicketPlatform } from "@workspace/ui/components/mission-marks"
 import type {
+	SearchKind,
 	SearchPaletteResult,
+	SearchRestingGroup,
 	SearchResultGroup,
 	SearchTab,
 } from "@workspace/ui/components/search-palette"
@@ -325,39 +327,45 @@ export const toSearchGroups = ({
 	]
 }
 
-export const toRecentResults = (
+export const toRestingGroups = (
 	recents: CatalogueChat[],
 	lookups: SearchLookups,
 	open: ResultOpening,
-): SearchPaletteResult[] =>
-	recents.flatMap((chat) => {
+): SearchRestingGroup[] => {
+	const results = recents.flatMap((chat) => {
 		const row = rowOfChat(chat)
 		return row ? [toChatResult(chat, row, "", lookups, open)] : []
 	})
+
+	return results.length === 0 ? [] : [{ kind: "chats", results }]
+}
+
+type ShownGroup = {
+	kind: SearchKind
+	results: SearchPaletteResult[]
+}
+
+const shownFor = (
+	tab: SearchTab,
+	groups: ShownGroup[],
+): SearchPaletteResult[] =>
+	groups
+		.filter((group) => tab === "all" || group.kind === tab)
+		.flatMap((group) =>
+			tab === "all" ? group.results.slice(0, SHOWN_PER_KIND) : group.results,
+		)
 
 export type VisibleOrder = {
 	query: string
 	tab: SearchTab
 	groups: SearchResultGroup[]
-	recents: SearchPaletteResult[]
+	resting: SearchRestingGroup[]
 }
 
 export const visibleResults = ({
 	query,
 	tab,
 	groups,
-	recents,
-}: VisibleOrder): SearchPaletteResult[] => {
-	if (query === "") {
-		return recents
-	}
-
-	return groups
-		.filter(
-			(group) =>
-				group.results.length > 0 && (tab === "all" || group.kind === tab),
-		)
-		.flatMap((group) =>
-			tab === "all" ? group.results.slice(0, SHOWN_PER_KIND) : group.results,
-		)
-}
+	resting,
+}: VisibleOrder): SearchPaletteResult[] =>
+	shownFor(tab, query === "" ? resting : groups)

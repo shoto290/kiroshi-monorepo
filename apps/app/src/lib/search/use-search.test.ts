@@ -11,6 +11,8 @@ import { afterEach, expect, it, vi } from "vitest"
 
 import "@workspace/ui/lib/i18n"
 
+import type { SearchTab } from "@workspace/ui/components/search-palette"
+
 import type {
 	Catalogue,
 	CatalogueChat,
@@ -116,10 +118,27 @@ const A_CATALOGUE: Catalogue = {
 	routines: [A_ROUTINE],
 }
 
-const aPort = (catalogue: Catalogue = A_CATALOGUE): SearchPort => ({
+const FOUR_RECENTS: CatalogueChat[] = Array.from(
+	{ length: 4 },
+	(_, index): CatalogueChat => ({
+		...A_CHAT,
+		conversationId: `c-recent-${index + 1}`,
+		title: `Recent room ${index + 1}`,
+	}),
+)
+
+type Ports = {
+	catalogue?: Catalogue
+	recents?: CatalogueChat[]
+}
+
+const aPort = ({
+	catalogue = A_CATALOGUE,
+	recents = [],
+}: Ports = {}): SearchPort => ({
 	messages: vi.fn().mockResolvedValue([]),
 	catalogue: vi.fn().mockResolvedValue(catalogue),
-	recent: vi.fn().mockResolvedValue([]),
+	recent: vi.fn().mockResolvedValue(recents),
 })
 
 type TracedNavigation = {
@@ -301,7 +320,9 @@ it("opens the result of a rank chord whatever the focused control", async () => 
 
 it("moves and opens the active result after the See all button changed the tab", async () => {
 	const { navigation, trace } = aNavigation()
-	const port = aPort({ ...A_CATALOGUE, routines: [A_ROUTINE, ANOTHER_ROUTINE] })
+	const port = aPort({
+		catalogue: { ...A_CATALOGUE, routines: [A_ROUTINE, ANOTHER_ROUTINE] },
+	})
 	const result = await searchedOn(port, navigation)
 
 	act(() => result.current.palette.onTabChange("routines"))
@@ -319,6 +340,70 @@ it("moves and opens the active result after the See all button changed the tab",
 		"activity",
 		`routine:${ANOTHER_ROUTINE.id}:${A_ROOM.id}`,
 	])
+})
+
+const restingOn = async (tab: SearchTab, navigation: SearchNavigation) => {
+	const result = renderSearch({
+		navigation,
+		port: aPort({ recents: FOUR_RECENTS }),
+	})
+
+	act(() => result.current.open())
+	await waitFor(() =>
+		expect(result.current.palette.resting[0]?.results).toHaveLength(
+			FOUR_RECENTS.length,
+		),
+	)
+	act(() => result.current.palette.onTabChange(tab))
+
+	return result
+}
+
+it("walks the three resting rows the All tab draws and no more", async () => {
+	const { navigation, trace } = aNavigation()
+	const result = await restingOn("all", navigation)
+
+	expect(result.current.palette.activeResultId).toBe("chat-c-recent-1")
+
+	act(() => press("ArrowUp"))
+
+	expect(result.current.palette.activeResultId).toBe("chat-c-recent-3")
+
+	act(() => press("4", { metaKey: true }))
+
+	expect(trace).toEqual([])
+	expect(result.current.isOpen).toBe(true)
+
+	act(() => press("3", { metaKey: true }))
+
+	expect(trace).toEqual(["conversation:c-recent-3", `space:${WORK}`])
+})
+
+it("walks every resting row of the tab of that kind", async () => {
+	const { navigation, trace } = aNavigation()
+	const result = await restingOn("chats", navigation)
+
+	act(() => press("ArrowUp"))
+
+	expect(result.current.palette.activeResultId).toBe("chat-c-recent-4")
+
+	act(() => press("4", { metaKey: true }))
+
+	expect(trace).toEqual(["conversation:c-recent-4", `space:${WORK}`])
+})
+
+it("walks nothing on a resting tab that admits no resting kind", async () => {
+	const { navigation, trace } = aNavigation()
+	const result = await restingOn("messages", navigation)
+
+	expect(result.current.palette.activeResultId).toBeUndefined()
+
+	act(() => press("ArrowDown"))
+	act(() => press("Enter"))
+	act(() => press("1", { metaKey: true }))
+
+	expect(trace).toEqual([])
+	expect(result.current.palette.activeResultId).toBeUndefined()
 })
 
 it("leaves a key press that only ends a composition to the composition", async () => {
