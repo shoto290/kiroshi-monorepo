@@ -119,8 +119,14 @@ export const useSearch = ({
 	)
 
 	const resting = useMemo(
-		() => toRestingGroups(state.recents, lookups, openTarget),
-		[state.recents, lookups, openTarget],
+		() =>
+			toRestingGroups({
+				read: state.read,
+				recents: state.recents,
+				lookups,
+				open: openTarget,
+			}),
+		[state.read, state.recents, lookups, openTarget],
 	)
 
 	const visible = useMemo(

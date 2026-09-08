@@ -1,6 +1,10 @@
 import { afterEach, beforeEach, expect, it, vi } from "vitest"
 
-import type { Catalogue, CatalogueChat } from "./catalogue-contract"
+import type {
+	Catalogue,
+	CatalogueChat,
+	CatalogueMission,
+} from "./catalogue-contract"
 import { MAX_QUERY_CHARS, type MessageHit } from "./search-contract"
 import { createSearchController, QUIET_MS } from "./search-controller"
 import type { SearchPort } from "./search-port"
@@ -26,11 +30,28 @@ const hitOf = (messageId: string): MessageHit => ({
 	snippet: [{ text: messageId, matched: true }],
 })
 
+const A_MISSION: CatalogueMission = {
+	id: "mi-1",
+	threadConversationId: "c-1",
+	objective: "Roadmap the parser",
+	ticketPlatform: "linear",
+	ticketExternalId: "OPE-51",
+	ticketTitle: "Parser",
+	state: "working",
+	botId: "b-1",
+	spaceId: "personal",
+}
+
 const catalogueOf = (chats: CatalogueChat[]): Catalogue => ({
 	chats,
 	missions: [],
 	routines: [],
 })
+
+const CATALOGUE_WITH_MISSION: Catalogue = {
+	...catalogueOf([]),
+	missions: [A_MISSION],
+}
 
 type Deferred<Value> = {
 	promise: Promise<Value>
@@ -76,8 +97,9 @@ afterEach(() => {
 	vi.useRealTimers()
 })
 
-it("reads the recent chats of the space it opens on", async () => {
+it("reads the recents and the catalogue of the space it opens on", async () => {
 	const port = aPort()
+	port.catalogue.mockResolvedValueOnce(catalogueOf([A_CHAT]))
 	const { controller } = openedOn(port)
 	await settle()
 
@@ -85,13 +107,21 @@ it("reads the recent chats of the space it opens on", async () => {
 		spaceId: "personal",
 		allSpaces: false,
 	})
+	expect(port.catalogue).toHaveBeenCalledWith({
+		query: "",
+		spaceId: "personal",
+		allSpaces: false,
+	})
 	expect(controller.getState().recents).toEqual([A_CHAT])
-	expect(port.catalogue).not.toHaveBeenCalled()
+	expect(controller.getState().read.chats).toEqual([A_CHAT])
+	expect(port.messages).not.toHaveBeenCalled()
 })
 
 it("reads only after the query goes quiet", async () => {
 	const port = aPort()
 	const { controller } = openedOn(port)
+	await settle()
+	port.catalogue.mockClear()
 
 	controller.setQuery("p")
 	controller.setQuery("pa")
@@ -200,18 +230,96 @@ it("reads again on the new scope when the all spaces switch changes", async () =
 	})
 })
 
-it("shows no result section while the query is empty", async () => {
+it("reads the recents and the catalogue again when the query goes empty", async () => {
 	const port = aPort()
 	port.messages.mockResolvedValueOnce([hitOf("m-1")])
 	const { controller } = openedOn(port)
+	await settle()
 
 	controller.setQuery("par")
 	await quiet()
 	controller.setQuery("")
-	await quiet()
+	await settle()
 
+	expect(port.recent).toHaveBeenCalledTimes(2)
+	expect(port.catalogue).toHaveBeenLastCalledWith({
+		query: "",
+		spaceId: "personal",
+		allSpaces: false,
+	})
 	expect(controller.getState().read.messages).toEqual([])
 	expect(controller.getState().recents).toEqual([A_CHAT])
+})
+
+it("drops the catalogue of the erased query until the rest read lands", async () => {
+	const port = aPort()
+	const { controller } = openedOn(port)
+	await settle()
+
+	port.catalogue.mockResolvedValueOnce(CATALOGUE_WITH_MISSION)
+	controller.setQuery("par")
+	await quiet()
+
+	expect(controller.getState().read.missions).toEqual([A_MISSION])
+
+	const resting = deferred<Catalogue>()
+	port.catalogue.mockReturnValueOnce(resting.promise)
+	controller.setQuery("")
+
+	expect(controller.getState().read.missions).toEqual([])
+	expect(controller.getState().recents).toEqual([A_CHAT])
+
+	resting.resolve(CATALOGUE_WITH_MISSION)
+	await settle()
+
+	expect(controller.getState().read.missions).toEqual([A_MISSION])
+})
+
+it("reads the recents and the catalogue of the new scope while the query is empty", async () => {
+	const port = aPort()
+	const { controller } = openedOn(port)
+	await settle()
+
+	controller.setScope(true)
+	await settle()
+
+	expect(port.recent).toHaveBeenLastCalledWith({
+		spaceId: "personal",
+		allSpaces: true,
+	})
+	expect(port.catalogue).toHaveBeenLastCalledWith({
+		query: "",
+		spaceId: "personal",
+		allSpaces: true,
+	})
+})
+
+it("keeps the resting rows on screen when a rest read fails", async () => {
+	const port = aPort()
+	const { controller, onFailure } = openedOn(port)
+	await settle()
+
+	port.recent.mockRejectedValueOnce({ kind: "storage" })
+	controller.setScope(true)
+	await settle()
+
+	expect(onFailure).toHaveBeenCalledTimes(1)
+	expect(controller.getState().hasFailed).toBe(true)
+	expect(controller.getState().isLoading).toBe(false)
+	expect(controller.getState().recents).toEqual([A_CHAT])
+})
+
+it("drops the answer of a rest read that a close has superseded", async () => {
+	const port = aPort()
+	const late = deferred<CatalogueChat[]>()
+	port.recent.mockReturnValueOnce(late.promise)
+	const { controller } = openedOn(port)
+
+	controller.close()
+	late.resolve([A_CHAT])
+	await settle()
+
+	expect(controller.getState().recents).toEqual([])
 })
 
 it("forgets its query, its tab, its scope and its active result when it closes", async () => {

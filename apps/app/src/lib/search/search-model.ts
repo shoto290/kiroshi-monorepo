@@ -327,17 +327,42 @@ export const toSearchGroups = ({
 	]
 }
 
-export const toRestingGroups = (
-	recents: CatalogueChat[],
-	lookups: SearchLookups,
-	open: ResultOpening,
-): SearchRestingGroup[] => {
-	const results = recents.flatMap((chat) => {
-		const row = rowOfChat(chat)
-		return row ? [toChatResult(chat, row, "", lookups, open)] : []
-	})
+export type SearchResting = {
+	read: SearchRead
+	recents: CatalogueChat[]
+	lookups: SearchLookups
+	open: ResultOpening
+}
 
-	return results.length === 0 ? [] : [{ kind: "chats", results }]
+export const toRestingGroups = ({
+	read,
+	recents,
+	lookups,
+	open,
+}: SearchResting): SearchRestingGroup[] => {
+	const groups: SearchRestingGroup[] = [
+		{
+			kind: "chats",
+			results: recents.flatMap((chat) => {
+				const row = rowOfChat(chat)
+				return row ? [toChatResult(chat, row, "", lookups, open)] : []
+			}),
+		},
+		{
+			kind: "missions",
+			results: read.missions.map((mission) =>
+				toMissionResult(mission, "", lookups, open),
+			),
+		},
+		{
+			kind: "routines",
+			results: read.routines.map((routine) =>
+				toRoutineResult(routine, "", lookups, open),
+			),
+		},
+	]
+
+	return groups.filter((group) => group.results.length > 0)
 }
 
 type ShownGroup = {

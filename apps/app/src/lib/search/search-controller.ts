@@ -54,6 +54,12 @@ const NOTHING_READ: SearchRead = {
 	routines: [],
 }
 
+type ReadScope = {
+	query: string
+	spaceId: string
+	allSpaces: boolean
+}
+
 const CLOSED: SearchState = {
 	isOpen: false,
 	spaceId: null,
@@ -106,6 +112,24 @@ export const createSearchController = ({
 		}
 	}
 
+	const restAnswer = ({ spaceId, allSpaces }: ReadScope) =>
+		Promise.all([
+			port.recent({ spaceId, allSpaces }),
+			port.catalogue({ query: "", spaceId, allSpaces }),
+		]).then(([recents, catalogue]) => ({
+			recents,
+			read: readOf([], catalogue),
+		}))
+
+	const foundAnswer = ({ query, spaceId, allSpaces }: ReadScope) =>
+		Promise.all([
+			port.messages({ text: query, spaceId, allSpaces }),
+			port.catalogue({ query, spaceId, allSpaces }),
+		]).then(([messages, catalogue]) => ({ read: readOf(messages, catalogue) }))
+
+	const answerOf = (scope: ReadScope): Promise<Partial<SearchState>> =>
+		scope.query === "" ? restAnswer(scope) : foundAnswer(scope)
+
 	const read = () => {
 		const { query, spaceId, isAllSpaces } = state
 
@@ -118,16 +142,13 @@ export const createSearchController = ({
 		const ticket = reads
 		publish({ isLoading: true })
 
-		void Promise.all([
-			port.messages({ text: query, spaceId, allSpaces: isAllSpaces }),
-			port.catalogue({ query, spaceId, allSpaces: isAllSpaces }),
-		]).then(
-			([messages, catalogue]) =>
+		void answerOf({ query, spaceId, allSpaces: isAllSpaces }).then(
+			(landed) =>
 				settle(ticket, {
 					isLoading: false,
 					hasFailed: false,
 					activeIndex: 0,
-					read: readOf(messages, catalogue),
+					...landed,
 				}),
 			() => {
 				if (ticket === reads) {
@@ -137,18 +158,12 @@ export const createSearchController = ({
 		)
 	}
 
-	const readRecents = (spaceId: string) => {
-		void port
-			.recent({ spaceId, allSpaces: state.isAllSpaces })
-			.then((recents) => publish({ recents }), fail)
-	}
-
 	const scheduleRead = () => {
 		clearTimeout(quiet)
 
 		if (state.query === "") {
-			reads += 1
-			publish({ isLoading: false, read: NOTHING_READ })
+			publish({ read: NOTHING_READ })
+			read()
 			return
 		}
 
@@ -167,9 +182,8 @@ export const createSearchController = ({
 
 		open: (spaceId) => {
 			clearTimeout(quiet)
-			reads += 1
 			publish({ ...CLOSED, isOpen: true, spaceId })
-			readRecents(spaceId)
+			read()
 		},
 
 		close: () => {
@@ -188,9 +202,7 @@ export const createSearchController = ({
 		setScope: (isAllSpaces) => {
 			clearTimeout(quiet)
 			publish({ isAllSpaces, activeIndex: 0 })
-			if (state.query !== "") {
-				read()
-			}
+			read()
 		},
 
 		moveActive: (by, count) =>
