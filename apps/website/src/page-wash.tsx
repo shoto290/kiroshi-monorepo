@@ -9,7 +9,7 @@ const WASH_COLOR_BACK = "#00000000"
 const WASH_SPEED = 0.73
 const STILL_FRAME_SPEED = 0
 const WASH_OFFSET_Y = 0.25
-const WASH_PARALLAX = 0.12
+const WASH_PARALLAX = 0.3
 
 export const PageWash = () => {
 	const prefersReducedMotion = usePrefersReducedMotion()
