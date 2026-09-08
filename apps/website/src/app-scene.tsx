@@ -10,7 +10,7 @@ import { Mention } from "@workspace/ui/components/mention"
 import { MissionTurn } from "@workspace/ui/components/mission-turn"
 import { AnimatedSidebarProvider } from "@workspace/ui/components/motion/animated-sidebar"
 import { PromptInput } from "@workspace/ui/components/prompt-input"
-import { type RosterBot, RosterProvider } from "@workspace/ui/components/roster"
+import { RosterProvider } from "@workspace/ui/components/roster"
 import { ThreadLayout } from "@workspace/ui/components/thread-layout"
 import type { TranscriptItem } from "@workspace/ui/components/transcript"
 import { AssistantTurn, UserTurn } from "@workspace/ui/components/turn"
@@ -61,62 +61,75 @@ export const AppScene = () => {
 
 	const rows: TranscriptItem[] = []
 
-	if (frame.openingOpacity > 0) {
-		rows.push({
-			key: "opening",
-			render: () => (
-				<SceneRow isAnimated={isAnimated} opacity={frame.openingOpacity}>
-					<AssistantTurn author={HAPPY}>{SCENE_COPY.opening}</AssistantTurn>
-				</SceneRow>
-			),
-		})
-	}
-
-	if (frame.requestOpacity > 0) {
-		rows.push({
-			key: "request",
-			render: () => (
-				<SceneRow isAnimated={isAnimated} opacity={frame.requestOpacity}>
-					<UserTurn>
-						<Mention botId={ICHI.id} />
-						<Mention botId={NI.id} />
-						{SCENE_COPY.request}
-					</UserTurn>
-				</SceneRow>
-			),
-		})
-	}
-
-	const answerRow = (
-		author: RosterBot,
-		answer: string,
-		typed: number,
+	const sceneRow = (
+		key: string,
+		opacity: number,
+		body: ReactNode,
 	): TranscriptItem => ({
-		key: `${author.id}-answer`,
+		key,
 		render: () => (
-			<SceneRow isAnimated={isAnimated} opacity={frame.closingOpacity}>
-				<AssistantTurn author={author}>{answer.slice(0, typed)}</AssistantTurn>
+			<SceneRow isAnimated={isAnimated} opacity={opacity}>
+				{body}
 			</SceneRow>
 		),
 	})
 
+	if (frame.openingOpacity > 0) {
+		rows.push(
+			sceneRow(
+				"opening",
+				frame.openingOpacity,
+				<AssistantTurn author={HAPPY}>{SCENE_COPY.opening}</AssistantTurn>,
+			),
+		)
+	}
+
+	if (frame.requestOpacity > 0) {
+		rows.push(
+			sceneRow(
+				"request",
+				frame.requestOpacity,
+				<UserTurn>
+					<Mention botId={ICHI.id} />
+					<Mention botId={NI.id} />
+					{SCENE_COPY.request}
+				</UserTurn>,
+			),
+		)
+	}
+
 	if (frame.hasIchiAnswer) {
-		rows.push(answerRow(ICHI, SCENE_COPY.ichiAnswer, frame.ichiTyped))
+		rows.push(
+			sceneRow(
+				"ichi-answer",
+				frame.closingOpacity,
+				<AssistantTurn author={ICHI}>
+					{SCENE_COPY.ichiAnswer.slice(0, frame.ichiTyped)}
+				</AssistantTurn>,
+			),
+		)
 	}
 
 	if (frame.hasNiAnswer) {
-		rows.push(answerRow(NI, SCENE_COPY.niAnswer, frame.niTyped))
+		rows.push(
+			sceneRow(
+				"ni-answer",
+				frame.closingOpacity,
+				<AssistantTurn author={NI}>
+					{SCENE_COPY.niAnswer.slice(0, frame.niTyped)}
+				</AssistantTurn>,
+			),
+		)
 	}
 
 	if (frame.hasMission) {
-		rows.push({
-			key: "mission",
-			render: () => (
-				<SceneRow isAnimated={isAnimated} opacity={frame.closingOpacity}>
-					<MissionTurn mission={MISSION} onOpen={openMission} />
-				</SceneRow>
+		rows.push(
+			sceneRow(
+				"mission",
+				frame.closingOpacity,
+				<MissionTurn mission={MISSION} onOpen={openMission} />,
 			),
-		})
+		)
 	}
 
 	return (
