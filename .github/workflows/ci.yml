@@ -32,6 +32,9 @@ jobs:
       - name: Types
         run: bun run types
 
+      - name: Build website
+        run: bun run --filter=website build
+
   rust:
     runs-on: ubuntu-latest
     steps:
