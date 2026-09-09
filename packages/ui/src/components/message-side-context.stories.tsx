@@ -50,7 +50,7 @@ const meta = preview.meta({
 		docs: {
 			description: {
 				component:
-					"Which side of the transcript a turn belongs to, published once and read by everything inside it. `Message` provides it — `end` for the reader, `start` for the bot — so `MessageBubble` knows which corner to grow from and `MessageActions` knows which way to lay its row, and no caller repeats the side on every child. It is the seam that keeps a turn's parts consistent: change the side in one place and the bubble, its tail and its actions all follow. Consumers fall back to `start` when no provider stands above them, so a bubble rendered on its own still renders.",
+					"Which side of the transcript a turn belongs to, published once and read by everything inside it. `Message` provides it — `end` for the reader, `start` for the companion — so `MessageBubble` knows which corner to grow from and `MessageActions` knows which way to lay its row, and no caller repeats the side on every child. It is the seam that keeps a turn's parts consistent: change the side in one place and the bubble, its tail and its actions all follow. Consumers fall back to `start` when no provider stands above them, so a bubble rendered on its own still renders.",
 			},
 		},
 	},

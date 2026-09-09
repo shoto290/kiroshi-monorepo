@@ -10,7 +10,7 @@ import {
 import preview from "@workspace/storybook/preview"
 import {
 	A11Y_FLOATING_FOCUS_GUARDS,
-	settled,
+	opaque,
 } from "@workspace/storybook/story-utils"
 import { DialogSurface } from "@workspace/ui/components/dialog-surface"
 import {
@@ -116,7 +116,7 @@ const failureNotice = async () => {
 		hidden: true,
 	})
 
-	return settled(notice)
+	return opaque(notice)
 }
 
 const closeControl = () =>
@@ -259,7 +259,7 @@ export const Stacked = meta.story({
 		}
 
 		await waitFor(() => expect(noticesOnScreen()).toHaveLength(3))
-		await settled(viewport())
+		await Promise.all(noticesOnScreen().map(opaque))
 
 		const onScreen = noticesOnScreen()
 		await expect(onScreen[0]).toHaveTextContent(STACK[3].title)
@@ -352,12 +352,12 @@ export const WithDialog = meta.story({
 		<>
 			<DialogRoot>
 				<Trigger className={buttonVariants({ variant: "outline" })}>
-					Bot settings
+					Companion settings
 				</Trigger>
 				<DialogSurface>
-					<DialogTitle>Bot settings</DialogTitle>
+					<DialogTitle>Companion settings</DialogTitle>
 					<DialogDescription>
-						Name the bot, point it at a folder and tell it how to behave.
+						Name the companion, point it at a folder and tell it how to behave.
 					</DialogDescription>
 				</DialogSurface>
 			</DialogRoot>
@@ -373,7 +373,9 @@ export const WithDialog = meta.story({
 		},
 	},
 	play: async ({ canvas, userEvent }) => {
-		await userEvent.click(canvas.getByRole("button", { name: "Bot settings" }))
+		await userEvent.click(
+			canvas.getByRole("button", { name: "Companion settings" }),
+		)
 		const dialog = await screen.findByRole("dialog")
 		await waitFor(() => expect(dialog).toBeVisible())
 
@@ -427,7 +429,7 @@ export const ReducedMotion = meta.story({
 
 		await expect(getComputedStyle(notice).transitionProperty).toBe("opacity")
 
-		await settled(notice)
+		await opaque(notice)
 		const rested = notice.getBoundingClientRect()
 
 		await expect(rested.top).toBe(raised.top)

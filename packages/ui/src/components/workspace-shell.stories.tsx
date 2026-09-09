@@ -226,6 +226,35 @@ export const SpaceTinted = meta.story({
 	},
 })
 
+export const NotALandmark = meta.story({
+	args: {
+		sidebar: SIDEBAR,
+		isLandmark: false,
+	},
+	parameters: {
+		docs: {
+			description: {
+				story:
+					"The same shell mounted inside a page that already carries its own `main`, a demonstration of the app on a marketing page for instance, where a second main landmark would leave the document with two. Check that the card renders exactly as it does by default, floating with the same gutter and holding the same conversation, and that nothing in the shell answers to the main role. Pick `Default` for the shell that owns the landmark.",
+			},
+		},
+	},
+	play: async ({ canvas, canvasElement }) => {
+		const card = canvasElement.querySelector(
+			"[data-content-card]",
+		) as HTMLElement
+
+		await expect(canvas.queryByRole("main")).toBeNull()
+		await expect(canvas.getByRole("textbox", { name: "Prompt" })).toBeVisible()
+		await expectCardDetached(
+			card,
+			canvas
+				.getByRole("complementary", { name: "Workspace" })
+				.getBoundingClientRect().right,
+		)
+	},
+})
+
 export const Collapsed = meta.story({
 	args: {
 		sidebar: SIDEBAR,

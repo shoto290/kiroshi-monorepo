@@ -5,7 +5,8 @@ const common = {
 	spaces: {
 		unavailable: {
 			title: "Les espaces n'ont pas pu être lus",
-			description: "Vos bots sont intacts. Réessayez pour ouvrir vos espaces.",
+			description:
+				"Vos compagnons sont intacts. Réessayez pour ouvrir vos espaces.",
 		},
 	},
 	dialog: {
@@ -52,11 +53,12 @@ const common = {
 		panel: {
 			title: "Mise à jour prête",
 			version: "Version {{version}}",
-			botsBusy_one: "{{count}} bot tourne encore. Arrêtez-le pour redémarrer.",
+			botsBusy_one:
+				"{{count}} compagnon tourne encore. Arrêtez-le pour redémarrer.",
 			botsBusy_many:
-				"{{count}} bots tournent encore. Arrêtez-les pour redémarrer.",
+				"{{count}} compagnons tournent encore. Arrêtez-les pour redémarrer.",
 			botsBusy_other:
-				"{{count}} bots tournent encore. Arrêtez-les pour redémarrer.",
+				"{{count}} compagnons tournent encore. Arrêtez-les pour redémarrer.",
 			restart: "Redémarrer maintenant",
 			postpone: "Plus tard",
 			releaseNotes: "Lire les notes de version complètes dans votre navigateur",

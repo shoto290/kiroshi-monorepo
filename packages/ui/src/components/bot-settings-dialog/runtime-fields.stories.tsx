@@ -49,7 +49,7 @@ const meta = preview.meta({
 		docs: {
 			description: {
 				component:
-					"What a bot runs on: the model behind it, the answer style it writes in, and the folder it works in. All three are pickers, never text, because none is something a reader can type correctly — a mistyped model is a bot that never answers and a mistyped path is a bot working nowhere. What the bot is allowed to do is not here: that is the permissions panel next door. No field owns anything either: the model list comes from the host, and pressing the folder hands the ask back rather than opening a picker itself, which is what keeps the native dialog on the app's side of the line.",
+					"What a companion runs on: the model behind it, the answer style it writes in, and the folder it works in. All three are pickers, never text, because none is something a reader can type correctly — a mistyped model is a companion that never answers and a mistyped path is a companion working nowhere. What the companion is allowed to do is not here: that is the permissions panel next door. No field owns anything either: the model list comes from the host, and pressing the folder hands the ask back rather than opening a picker itself, which is what keeps the native dialog on the app's side of the line.",
 			},
 		},
 	},
@@ -93,7 +93,7 @@ export const Filled = meta.story({
 		docs: {
 			description: {
 				story:
-					"A configured bot: a model out of the host's list and a folder already chosen. The folder row keeps its `Change` affordance on the right even when full, so the row never becomes a label a reader mistakes for read-only text.",
+					"A configured companion: a model out of the host's list and a folder already chosen. The folder row keeps its `Change` affordance on the right even when full, so the row never becomes a label a reader mistakes for read-only text.",
 			},
 		},
 	},
@@ -104,7 +104,7 @@ export const Concise = meta.story({
 		docs: {
 			description: {
 				story:
-					"The style a bot is given by default: short answers that lead with the result. The hint under the trigger is the picked style's own, so the reader reads what they chose rather than a sentence about the field.",
+					"The style a companion is given by default: short answers that lead with the result. The hint under the trigger is the picked style's own, so the reader reads what they chose rather than a sentence about the field.",
 			},
 		},
 	},
@@ -149,7 +149,7 @@ export const Empty = meta.story({
 		docs: {
 			description: {
 				story:
-					"A bot that has just been created. Both controls hold their size and show a muted instruction rather than an error — nothing is wrong yet, the reader simply has not answered. Check that the placeholders read as prompts to act (`Choose a model`, `Choose a folder`) and that the folder icon stays put, so the row does not shift once a path lands in it.",
+					"A companion that has just been created. Both controls hold their size and show a muted instruction rather than an error — nothing is wrong yet, the reader simply has not answered. Check that the placeholders read as prompts to act (`Choose a model`, `Choose a folder`) and that the folder icon stays put, so the row does not shift once a path lands in it.",
 			},
 		},
 	},

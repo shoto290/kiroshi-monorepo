@@ -32,7 +32,7 @@ const meta = preview.meta({
 		docs: {
 			description: {
 				component:
-					"The form a routine is created and edited in, as it reads inside the routines panel: a title, an instruction, the trigger that fires it, and whatever that one trigger needs — a cron expression, a watched path, the address and key of a local webhook, or nothing at all. Creating picks the trigger among the ones the bot declares; editing shows it read only, because the key and the configuration of a routine are tied to it. Refusals come back from the write and land under the field they name, with everything the reader typed still in place. Reach for it inside `RoutinesPanel`; on its own it is only useful to check one trigger's fields.",
+					"The form a routine is created and edited in, as it reads inside the routines panel: a title, an instruction, the trigger that fires it, and whatever that one trigger needs — a cron expression, a watched path, the address and key of a local webhook, or nothing at all. Creating picks the trigger among the ones the companion declares; editing shows it read only, because the key and the configuration of a routine are tied to it. Refusals come back from the write and land under the field they name, with everything the reader typed still in place. Reach for it inside `RoutinesPanel`; on its own it is only useful to check one trigger's fields.",
 			},
 		},
 	},
@@ -260,7 +260,7 @@ export const OnASourceWithNoConfiguration = meta.story({
 		docs: {
 			description: {
 				story:
-					"A trigger the bot declares that takes nothing of its own. Check that the form stops at the trigger — no expression, no path, no webhook block — so what the reader saves carries an empty configuration.",
+					"A trigger the companion declares that takes nothing of its own. Check that the form stops at the trigger — no expression, no path, no webhook block — so what the reader saves carries an empty configuration.",
 			},
 		},
 	},

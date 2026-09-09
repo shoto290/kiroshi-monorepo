@@ -569,7 +569,7 @@ const meta = preview.meta({
 		docs: {
 			description: {
 				component:
-					"The roster panel of an agent app, mounted whole: the animated sidebar shell around every bot the reader owns. It carries no chrome of its own beyond the create button — the pinned region above the list clears the window controls when `insetWindowControls` says a transparent title bar sits over it, and the open state comes from the `WorkspaceShell` above it, so Cmd/Ctrl+B and whatever trigger the page mounts drive the panel and the column beside it together. A row is the bot avatar, its name, an optional title badge and the time of its last message, over one clipped line of that message. A bot at rest holds the pose it was given in its settings, drawn as a still frame; a bot that is running holds its work pose, animates, and wears an activity dot. A bot wearing a picture its reader uploaded shows that instead, and it never moves — the dot is what says it is working. Settings, duplicate and delete live behind a right-click on the row — there is no actions button to reveal — and selection and running state are props, so a host maps its store onto `bots` and `selectedBotId` and nothing here polls the transport.",
+					"The roster panel of an agent app, mounted whole: the animated sidebar shell around every companion the reader owns. It carries no chrome of its own beyond the create button — the pinned region above the list clears the window controls when `insetWindowControls` says a transparent title bar sits over it, and the open state comes from the `WorkspaceShell` above it, so Cmd/Ctrl+B and whatever trigger the page mounts drive the panel and the column beside it together. A row is the companion avatar, its name, an optional title badge and the time of its last message, over one clipped line of that message. A companion at rest holds the pose it was given in its settings, drawn as a still frame; a companion that is running holds its work pose, animates, and wears an activity dot. A companion wearing a picture its reader uploaded shows that instead, and it never moves — the dot is what says it is working. Settings, duplicate and delete live behind a right-click on the row — there is no actions button to reveal — and selection and running state are props, so a host maps its store onto `bots` and `selectedBotId` and nothing here polls the transport.",
 			},
 		},
 	},
@@ -598,7 +598,7 @@ export const Roster = meta.story({
 		docs: {
 			description: {
 				story:
-					"A dozen bots, some with a title badge and some without, each wearing the blot it was given. Check that the avatars, the names and the timestamps each hold one column down the whole list — a row without a badge must not slide its name or its preview out of line with the row above it — and that every row is the same height whatever it carries. The message and the time read as muted and read alike, on the selected row as on the rest, so a row says its name first and dates itself second; the name is the only line in the row drawn at full strength. The list is walked with Tab and a row is its own only stop, since the actions carry no button: the create button first, then one stop per row, and Enter on a row reports the selection rather than taking it. Pick `LongContent` for the same list under names and messages that do not fit, `RowContextMenu` for the actions behind a row, `Identities` for the blots at rest.",
+					"A dozen companions, some with a title badge and some without, each wearing the blot it was given. Check that the avatars, the names and the timestamps each hold one column down the whole list — a row without a badge must not slide its name or its preview out of line with the row above it — and that every row is the same height whatever it carries. The message and the time read as muted and read alike, on the selected row as on the rest, so a row says its name first and dates itself second; the name is the only line in the row drawn at full strength. The list is walked with Tab and a row is its own only stop, since the actions carry no button: the create button first, then one stop per row, and Enter on a row reports the selection rather than taking it. Pick `LongContent` for the same list under names and messages that do not fit, `RowContextMenu` for the actions behind a row, `Identities` for the blots at rest.",
 			},
 		},
 	},
@@ -622,7 +622,7 @@ export const Roster = meta.story({
 			),
 		).toBeNull()
 
-		const create = canvas.getByRole("button", { name: "New bot" })
+		const create = canvas.getByRole("button", { name: "New companion" })
 		await userEvent.tab()
 		await expect(create).toHaveFocus()
 		await userEvent.keyboard("{Enter}")
@@ -648,14 +648,14 @@ export const CreateLabel = meta.story({
 		},
 	},
 	play: async ({ canvas, userEvent }) => {
-		const create = canvas.getByRole("button", { name: "New bot" })
+		const create = canvas.getByRole("button", { name: "New companion" })
 		const label = () =>
 			document.body.querySelector<HTMLElement>('[role="tooltip"]')
 
 		const opensBelow = async () => {
 			await waitFor(async () => {
 				await expect(label()).toBeVisible()
-				await expect(label()).toHaveTextContent("New bot")
+				await expect(label()).toHaveTextContent("New companion")
 			})
 			const button = create.getBoundingClientRect()
 
@@ -689,18 +689,18 @@ export const Empty = meta.story({
 		docs: {
 			description: {
 				story:
-					"A reader who owns no bot yet. Check that the list is gone rather than left as an empty box, that the copy says so in one line, and that the create button is still the first thing Tab reaches — it is the only way out of this state. The live region says nothing is selected, so a screen reader is not left waiting for a row that never comes.",
+					"A reader who owns no companion yet. Check that the list is gone rather than left as an empty box, that the copy says so in one line, and that the create button is still the first thing Tab reaches — it is the only way out of this state. The live region says nothing is selected, so a screen reader is not left waiting for a row that never comes.",
 			},
 		},
 	},
 	play: async ({ canvas, canvasElement, userEvent }) => {
 		await expect(rowsIn(canvasElement)).toHaveLength(0)
-		await expect(canvas.getByText("No bots yet")).toBeVisible()
+		await expect(canvas.getByText("No companions yet")).toBeVisible()
 		await expect(canvas.getByRole("status")).toHaveTextContent(
-			"No bot selected",
+			"No companion selected",
 		)
 
-		const create = canvas.getByRole("button", { name: "New bot" })
+		const create = canvas.getByRole("button", { name: "New companion" })
 		await userEvent.tab()
 		await expect(create).toHaveFocus()
 		await expect(create.matches(":focus-visible")).toBe(true)
@@ -713,14 +713,18 @@ export const UnreadableRoster = meta.story({
 		docs: {
 			description: {
 				story:
-					"The read of the roster came back refused. The sidebar says the bots could not be read instead of the invitation to create a first one, so an owner of forty bots is never told they have none. Check no row is drawn and that the create button is still reachable.",
+					"The read of the roster came back refused. The sidebar says the companions could not be read instead of the invitation to create a first one, so an owner of forty companions is never told they have none. Check no row is drawn and that the create button is still reachable.",
 			},
 		},
 	},
 	play: async ({ canvas, canvasElement }) => {
 		await expect(rowsIn(canvasElement)).toHaveLength(0)
-		await expect(canvas.getByText("Your bots could not be read.")).toBeVisible()
-		await expect(canvas.queryByText("No bots yet")).not.toBeInTheDocument()
+		await expect(
+			canvas.getByText("Your companions could not be read."),
+		).toBeVisible()
+		await expect(
+			canvas.queryByText("No companions yet"),
+		).not.toBeInTheDocument()
 	},
 })
 
@@ -730,7 +734,7 @@ export const SingleBot = meta.story({
 		docs: {
 			description: {
 				story:
-					"One bot, which is where most readers start. Check that a single row still lays out on the same columns as a full roster — the avatar slot and the timestamp slot are fixed, so the first row of a roster and the only row of this one sit identically — and that the message clips to one line with an ellipsis instead of wrapping the row taller. Pick `Roster` for the same row among eleven others.",
+					"One companion, which is where most readers start. Check that a single row still lays out on the same columns as a full roster — the avatar slot and the timestamp slot are fixed, so the first row of a roster and the only row of this one sit identically — and that the message clips to one line with an ellipsis instead of wrapping the row taller. Pick `Roster` for the same row among eleven others.",
 			},
 		},
 	},
@@ -762,7 +766,7 @@ export const NoTitles = meta.story({
 		docs: {
 			description: {
 				story:
-					"A roster where no bot carries a title. Check that no badge is drawn at all — not an empty one holding its box — and that the rows keep the height and the baselines they have when badges are present, since the name line owns that height rather than the badge inside it. Pick `Roster` for the mixed case the alignment has to survive.",
+					"A roster where no companion carries a title. Check that no badge is drawn at all — not an empty one holding its box — and that the rows keep the height and the baselines they have when badges are present, since the name line owns that height rather than the badge inside it. Pick `Roster` for the mixed case the alignment has to survive.",
 			},
 		},
 	},
@@ -789,7 +793,7 @@ export const NoHistory = meta.story({
 		docs: {
 			description: {
 				story:
-					"Two bots nobody has talked to yet, between two that carry a message and a time. Check that a row with neither keeps the height of a full row and centres its name on its avatar, since the empty preview line gives up its height rather than pushing the name above the middle, and that the timestamp slot stays reserved at the end of the name line, so a time arriving later lands on the column the rest of the list already stands on instead of shifting it. Pick `BareRows` for the same centring on a room, `Roster` for rows that all carry both, `LongContent` for the name that has to give way to a time on the same line.",
+					"Two companions nobody has talked to yet, between two that carry a message and a time. Check that a row with neither keeps the height of a full row and centres its name on its avatar, since the empty preview line gives up its height rather than pushing the name above the middle, and that the timestamp slot stays reserved at the end of the name line, so a time arriving later lands on the column the rest of the list already stands on instead of shifting it. Pick `BareRows` for the same centring on a room, `Roster` for rows that all carry both, `LongContent` for the name that has to give way to a time on the same line.",
 			},
 		},
 	},
@@ -814,7 +818,7 @@ export const Selected = meta.story({
 		docs: {
 			description: {
 				story:
-					'The selected row, which is the one thing in the panel a reader has to be able to find without looking twice. Check that exactly one row carries the pill and `aria-current="page"`, that clicking another row reports it rather than moving the pill on its own — selection is a prop — and that the live region names the selected bot, so the choice is spoken and not only drawn.',
+					'The selected row, which is the one thing in the panel a reader has to be able to find without looking twice. Check that exactly one row carries the pill and `aria-current="page"`, that clicking another row reports it rather than moving the pill on its own — selection is a prop — and that the live region names the selected companion, so the choice is spoken and not only drawn.',
 			},
 		},
 	},
@@ -855,7 +859,7 @@ export const UploadedPictures = meta.story({
 		docs: {
 			description: {
 				story:
-					"Two bots wearing a picture their reader uploaded, beside one wearing its animal. A picture is a still image whatever the bot is doing, so the row that is running says so with its message line rather than by moving — and it lands in the same slot as a drawing, so the names and the timestamps stay on the column the rest of the roster holds. Check that a row with a picture draws no animal and no blot at all, and that the picture is decorative: the row is already named by its own text. Pick `Identities` for the animals a bot wears when it has no picture.",
+					"Two companions wearing a picture their reader uploaded, beside one wearing its animal. A picture is a still image whatever the companion is doing, so the row that is running says so with its message line rather than by moving — and it lands in the same slot as a drawing, so the names and the timestamps stay on the column the rest of the roster holds. Check that a row with a picture draws no animal and no blot at all, and that the picture is decorative: the row is already named by its own text. Pick `Identities` for the animals a companion wears when it has no picture.",
 			},
 		},
 	},
@@ -886,7 +890,7 @@ export const SharedTint = meta.story({
 		docs: {
 			description: {
 				story:
-					"Eight bots that all picked the same tint. Before a shape was derived from the id they were stamped from one die and a reader had to read the names to tell the rows apart; now each id lays the one authored blot down at its own quarter turn, mirrored or not. The vocabulary is deliberately small — eight poses, and eight tints over them — so two rows can still land on the same mark, and a reader who wants them apart changes a tint. What matters is that a row never changes shape: rename the bot, give it another animal, give it another tint, and the mark it wears is the one it was minted with. Pick `Identities` for the eight tints on their own.",
+					"Eight companions that all picked the same tint. Before a shape was derived from the id they were stamped from one die and a reader had to read the names to tell the rows apart; now each id lays the one authored blot down at its own quarter turn, mirrored or not. The vocabulary is deliberately small — eight poses, and eight tints over them — so two rows can still land on the same mark, and a reader who wants them apart changes a tint. What matters is that a row never changes shape: rename the companion, give it another animal, give it another tint, and the mark it wears is the one it was minted with. Pick `Identities` for the eight tints on their own.",
 			},
 		},
 	},
@@ -914,7 +918,7 @@ export const Identities = meta.story({
 		docs: {
 			description: {
 				story:
-					"The eight blots a bot can be given in its settings, one per row, with nothing running. Every avatar here draws the same idle animal — what tells the rows apart is the tint behind it, not what the bot is doing — and every one of them is a still frame, so a panel of bots that are doing nothing is a panel that does not move. Check that each row wears its own tint, that the ink line and the ear accent stay legible over all eight, that no row carries an activity dot, and that the panel does not report itself busy. Check too that the panel is the width the stylesheet gives it, that it draws no rule down its trailing edge — the thread card's own border is the only edge between the two — and that an avatar is drawn at the size the row asks for rather than at the size the menu button forces on the icons around it. The test browser renders every story with reduced motion, so the stillness is read here rather than measured; open the story in Storybook beside `Working` to see the difference. Pick `Working` for the state that animates.",
+					"The eight blots a companion can be given in its settings, one per row, with nothing running. Every avatar here draws the same idle animal — what tells the rows apart is the tint behind it, not what the companion is doing — and every one of them is a still frame, so a panel of companions that are doing nothing is a panel that does not move. Check that each row wears its own tint, that the ink line and the ear accent stay legible over all eight, that no row carries an activity dot, and that the panel does not report itself busy. Check too that the panel is the width the stylesheet gives it, that it draws no rule down its trailing edge — the thread card's own border is the only edge between the two — and that an avatar is drawn at the size the row asks for rather than at the size the menu button forces on the icons around it. The test browser renders every story with reduced motion, so the stillness is read here rather than measured; open the story in Storybook beside `Working` to see the difference. Pick `Working` for the state that animates.",
 			},
 		},
 	},
@@ -948,7 +952,7 @@ export const Identities = meta.story({
 			getComputedStyle(rowButton(rows[0])).borderStartStartRadius,
 		).toBe(surfaceRadius)
 		await expect(
-			getComputedStyle(canvas.getByRole("button", { name: "New bot" }))
+			getComputedStyle(canvas.getByRole("button", { name: "New companion" }))
 				.borderStartStartRadius,
 		).toBe(surfaceRadius)
 
@@ -973,7 +977,7 @@ export const Working = meta.story({
 		docs: {
 			description: {
 				story:
-					"Four bots running at once and one at rest. Check that each running row holds its own work pose in the avatar and no activity dot, that the verb takes over the message line while it runs, and that the row at rest keeps its blot and its idle frame instead. This is the only state that moves: a running avatar animates, and every other row in the panel is a still frame, so motion in the list means work in the list. The panel reports itself busy while any row runs, and the announcement stays outside it: a live region nested inside an `aria-busy` landmark is swallowed and never reaches a screen reader. The running line also shimmers, the same sweep the activity indicator runs over its own label, so a row reads as busy from the message line alone and not only from its avatar. Pick `Identities` for the rows that hold still, `PermissionPending` for the one running state that looks like rest, `WorkingLongSummary` for a shimmering line too long for its row.",
+					"Four companions running at once and one at rest. Check that each running row holds its own work pose in the avatar and no activity dot, that the verb takes over the message line while it runs, and that the row at rest keeps its blot and its idle frame instead. This is the only state that moves: a running avatar animates, and every other row in the panel is a still frame, so motion in the list means work in the list. The panel reports itself busy while any row runs, and the announcement stays outside it: a live region nested inside an `aria-busy` landmark is swallowed and never reaches a screen reader. The running line also shimmers, the same sweep the activity indicator runs over its own label, so a row reads as busy from the message line alone and not only from its avatar. Pick `Identities` for the rows that hold still, `PermissionPending` for the one running state that looks like rest, `WorkingLongSummary` for a shimmering line too long for its row.",
 			},
 		},
 	},
@@ -990,7 +994,9 @@ export const Working = meta.story({
 			"writing…",
 		)
 		await expect(
-			within(running).getByRole("img", { name: "Bot avatar dog, writing" }),
+			within(running).getByRole("img", {
+				name: "Companion avatar dog, writing",
+			}),
 		).toBeVisible()
 
 		const resting = rowFor(canvasElement, "Ember")
@@ -1043,7 +1049,7 @@ export const PermissionPending = meta.story({
 		docs: {
 			description: {
 				story:
-					'A turn blocked on a permission prompt, which a host maps to `status="working"` with `pose="waiting"` — the turn is waiting on the reader, not over. Check that the avatar holds its listening pose rather than the idle frame it wears at rest and that it is still animating: the panel reports itself busy and the announcement says the bot is waiting, so a row that looked idle here would contradict both at once. Pick `Working` for the work poses that cannot be mistaken for rest, `Identities` for the still frame this state must not fall back to.',
+					'A turn blocked on a permission prompt, which a host maps to `status="working"` with `pose="waiting"` — the turn is waiting on the reader, not over. Check that the avatar holds its listening pose rather than the idle frame it wears at rest and that it is still animating: the panel reports itself busy and the announcement says the companion is waiting, so a row that looked idle here would contradict both at once. Pick `Working` for the work poses that cannot be mistaken for rest, `Identities` for the still frame this state must not fall back to.',
 			},
 		},
 	},
@@ -1111,7 +1117,7 @@ export const BadgesOnRail = meta.story({
 		docs: {
 			description: {
 				story:
-					"The same three badges once the panel is down to its icon rail, where the avatar is all that is left of a row. This is the one case where the mark rides the avatar: there is no trailing edge left to hang it on, no timestamp and no preview line, so it falls back onto the corner of the square. Check every badge is still drawn and still inside the rail rather than clipped against its trailing edge — a reader who collapses the panel is the one who most needs to be told a bot wants them — and that a row with nothing waiting still draws no dot. Pick `Badges` for the open panel, where the mark moves out to the row's edge, `Collapsed` for the rail without any.",
+					"The same three badges once the panel is down to its icon rail, where the avatar is all that is left of a row. This is the one case where the mark rides the avatar: there is no trailing edge left to hang it on, no timestamp and no preview line, so it falls back onto the corner of the square. Check every badge is still drawn and still inside the rail rather than clipped against its trailing edge — a reader who collapses the panel is the one who most needs to be told a companion wants them — and that a row with nothing waiting still draws no dot. Pick `Badges` for the open panel, where the mark moves out to the row's edge, `Collapsed` for the rail without any.",
 			},
 		},
 	},
@@ -1149,7 +1155,7 @@ export const MissionStripStates = meta.story({
 		docs: {
 			description: {
 				story:
-					"Four bots each carrying one open mission, one per state a mission can be in. The mission speaks in a strip under the row and never in the dot on the preview line: the strip is the state of the work, the dot is the state of the conversation, and the two shapes are never confused. Check each strip runs the full width of the row, from the leading edge of the avatar to the trailing inner edge, so it passes under the avatar rather than starting after it. Check the strip opens on its state dot in the attention, failed and done colours the panel already uses and the muted grey of a resting row while the mission simply runs, then the platform mark, the identifier, the title. Check the strip never moves: it is the one mark in the row that does not pulse, because a mission is a fact and not an alarm. The title and the mark carry `--muted-foreground`, which reaches 3.9:1 on the strip fill instead of the 4.5:1 AA asks for: the pair is the artboard’s and the fix is a lightness step on the token, which every muted line in the panel would take with it, so it is flagged for review here rather than settled inside this strip. Check every row measures 80px, the head staying 40px with the avatar centred on it rather than on the row plus the strip, and that the four chat signals are exactly what the host passed. Pick `MissionStripStack` for a row carrying four, `MissionStripSelected` for the strip under a lit row.",
+					"Four companions each carrying one open mission, one per state a mission can be in. The mission speaks in a strip under the row and never in the dot on the preview line: the strip is the state of the work, the dot is the state of the conversation, and the two shapes are never confused. Check each strip runs the full width of the row, from the leading edge of the avatar to the trailing inner edge, so it passes under the avatar rather than starting after it. Check the strip opens on its state dot in the attention, failed and done colours the panel already uses and the muted grey of a resting row while the mission simply runs, then the platform mark, the identifier, the title. Check the strip never moves: it is the one mark in the row that does not pulse, because a mission is a fact and not an alarm. The title and the mark carry `--muted-foreground`, which reaches 3.9:1 on the strip fill instead of the 4.5:1 AA asks for: the pair is the artboard’s and the fix is a lightness step on the token, which every muted line in the panel would take with it, so it is flagged for review here rather than settled inside this strip. Check every row measures 80px, the head staying 40px with the avatar centred on it rather than on the row plus the strip, and that the four chat signals are exactly what the host passed. Pick `MissionStripStack` for a row carrying four, `MissionStripSelected` for the strip under a lit row.",
 			},
 		},
 	},
@@ -1208,7 +1214,7 @@ export const MissionStripSingle = meta.story({
 		docs: {
 			description: {
 				story:
-					"One bot on one mission over one bot on none. Check the first row measures 80px and the second 52px: a strip costs 24px of height and the 4px that separates it from the row above it, and a row with nothing to say pays neither. Check the strip sits inside the row button, under the head, so one surface and one rounding cover both: the head keeps the 40px it has everywhere else in the panel and the avatar stays centred on it rather than on the row plus what hangs below it. Pick `MissionStripNone` for the bare row alone, `MissionStripStack` for four at once.",
+					"One companion on one mission over one companion on none. Check the first row measures 80px and the second 52px: a strip costs 24px of height and the 4px that separates it from the row above it, and a row with nothing to say pays neither. Check the strip sits inside the row button, under the head, so one surface and one rounding cover both: the head keeps the 40px it has everywhere else in the panel and the avatar stays centred on it rather than on the row plus what hangs below it. Pick `MissionStripNone` for the bare row alone, `MissionStripStack` for four at once.",
 			},
 		},
 	},
@@ -1249,7 +1255,7 @@ export const MissionStripStack = meta.story({
 		docs: {
 			description: {
 				story:
-					"One bot running four missions at once. Check the row measures 164px and that the strips render in the order the host passed them, most urgent first: the roster never reorders them, it draws the list it is given. Check every gap in the stack is the same 4px, above the first strip as between the others, so four missions read as one block rather than as four decisions. Check each strip keeps its own state dot and its own ticket. Pick `MissionStripSingle` for the arithmetic on one strip.",
+					"One companion running four missions at once. Check the row measures 164px and that the strips render in the order the host passed them, most urgent first: the roster never reorders them, it draws the list it is given. Check every gap in the stack is the same 4px, above the first strip as between the others, so four missions read as one block rather than as four decisions. Check each strip keeps its own state dot and its own ticket. Pick `MissionStripSingle` for the arithmetic on one strip.",
 			},
 		},
 	},
@@ -1278,7 +1284,7 @@ export const MissionStripNone = meta.story({
 		docs: {
 			description: {
 				story:
-					"Two bots with no open mission. Check neither row carries a strip and both measure the 52px a roster row has always measured: the strip is what a mission adds, never a slot held open for one that may arrive. Pick `MissionStripSingle` for the row that does carry one.",
+					"Two companions with no open mission. Check neither row carries a strip and both measure the 52px a roster row has always measured: the strip is what a mission adds, never a slot held open for one that may arrive. Pick `MissionStripSingle` for the row that does carry one.",
 			},
 		},
 	},
@@ -1469,7 +1475,7 @@ export const MissionStripUntrackedTicket = meta.story({
 		docs: {
 			description: {
 				story:
-					"A mission opened on no tracker at all, over one opened on a ticket. A bot can open a mission without a ticket, and the three strings it would have filled arrive empty: the strip would then be a band holding a dot, a bookmark and not one word, which says less than an empty row. Check the first strip reads its mission objective in the lane the title holds, and the second reads its ticket title and never its objective, since a ticket the bot bothered to name is the handle the reader shares. Check the fallback changes nothing else: the state dot, the bookmark the unnamed platform falls back to and the clipping all behave as they do on a tracked mission. Pick `MissionStripUnnamedPlatform` for a ticket that has an identifier the table cannot mark, `MissionStripTruncatedTitle` for the lane running out of room.",
+					"A mission opened on no tracker at all, over one opened on a ticket. A companion can open a mission without a ticket, and the three strings it would have filled arrive empty: the strip would then be a band holding a dot, a bookmark and not one word, which says less than an empty row. Check the first strip reads its mission objective in the lane the title holds, and the second reads its ticket title and never its objective, since a ticket the companion bothered to name is the handle the reader shares. Check the fallback changes nothing else: the state dot, the bookmark the unnamed platform falls back to and the clipping all behave as they do on a tracked mission. Pick `MissionStripUnnamedPlatform` for a ticket that has an identifier the table cannot mark, `MissionStripTruncatedTitle` for the lane running out of room.",
 			},
 		},
 	},
@@ -1502,7 +1508,7 @@ export const MissionStripRaised = meta.story({
 		docs: {
 			description: {
 				story:
-					"Three loose bots ordered by their last word, where the one carrying a mission that waits on the reader is also the one that spoke longest ago. Check it renders first anyway: a mission that cannot move without a person outranks a room that is merely fresh, so the reader finds what is blocked at the top of the list rather than hunting for a strip down it. Check the two rows below keep the order the zone already sorts them into, and that the raised row is the only taller one — it is the strip that takes it to 80px, not a different row. Pick `MissionStripPinned` for the section where a rank the reader set holds the waiting row in place.",
+					"Three loose companions ordered by their last word, where the one carrying a mission that waits on the reader is also the one that spoke longest ago. Check it renders first anyway: a mission that cannot move without a person outranks a room that is merely fresh, so the reader finds what is blocked at the top of the list rather than hunting for a strip down it. Check the two rows below keep the order the zone already sorts them into, and that the raised row is the only taller one — it is the strip that takes it to 80px, not a different row. Pick `MissionStripPinned` for the section where a rank the reader set holds the waiting row in place.",
 			},
 		},
 	},
@@ -1535,7 +1541,7 @@ export const MissionStripWithChatBadge = meta.story({
 		docs: {
 			description: {
 				story:
-					"A bot whose mission waits on the reader and whose conversation is asking for them too. Check both marks are drawn: the chat dot at the trailing edge of the preview line, the mission strip under the row, each answering a different question. A mission never eats the badge a conversation put there and a conversation never dims a mission, so the row can say two things at once without either mark moving. Check the strip hangs below the badge instead of colliding with it. Pick `Badges` for the dot alone, `MissionStripStates` for the strip alone.",
+					"A companion whose mission waits on the reader and whose conversation is asking for them too. Check both marks are drawn: the chat dot at the trailing edge of the preview line, the mission strip under the row, each answering a different question. A mission never eats the badge a conversation put there and a conversation never dims a mission, so the row can say two things at once without either mark moving. Check the strip hangs below the badge instead of colliding with it. Pick `Badges` for the dot alone, `MissionStripStates` for the strip alone.",
 			},
 		},
 	},
@@ -1559,7 +1565,7 @@ export const MissionStripOnRail = meta.story({
 		docs: {
 			description: {
 				story:
-					"The same four missions once the panel is down to its icon rail. Check no strip is drawn at all: the rail is the avatar and nothing else, and a strip squeezed onto it would have nowhere to put its title. The mission is not lost, it is deferred to the open panel — what a collapsed reader still needs is the bot asking for them, and that is the badge dot the rail keeps on the avatar. Pick `MissionStripStates` for the open panel, `BadgesOnRail` for the mark the rail does keep.",
+					"The same four missions once the panel is down to its icon rail. Check no strip is drawn at all: the rail is the avatar and nothing else, and a strip squeezed onto it would have nowhere to put its title. The mission is not lost, it is deferred to the open panel — what a collapsed reader still needs is the companion asking for them, and that is the badge dot the rail keeps on the avatar. Pick `MissionStripStates` for the open panel, `BadgesOnRail` for the mark the rail does keep.",
 			},
 		},
 	},
@@ -1705,7 +1711,7 @@ export const RowContextMenu = meta.story({
 		docs: {
 			description: {
 				story:
-					"The actions behind a row, on the third one. There is no button to find: the row itself is the trigger, so the columns never move to make room for a control and nothing appears on hover. A pointer right-clicks the row; a keyboard reaches the same menu with the Menu key or Shift+F10 on the focused row, which the browser turns into the same `contextmenu` event this story fires. Focus lands on the menu itself and the first arrow reaches its first row, which is what a menu opened by a pointer does everywhere in Base UI. Check that the menu leads with pin and a rule under it, then offers bot settings, a duplicate under it and delete with delete reading as destructive, that the arrow keys walk them, and that Escape closes the menu and puts focus back on the row it belongs to rather than dropping it on the page, as does choosing an entry. The highlighted item is the focused one, drawn by the registry item's own `focus:bg-accent`, so the focus ring and the highlight are the same signal. The row carries no `aria-haspopup`: a click on it opens a bot, not a menu, so the registry trigger leaves the row saying only what it does. The menu is left open here so the panel can be read with it up. Delete carries `--destructive`, which does not clear AA against a light popup at this size — the same open question `Primitives/Button` already carries on its own destructive variant, and a token decision rather than a decision this menu can make on its own.",
+					"The actions behind a row, on the third one. There is no button to find: the row itself is the trigger, so the columns never move to make room for a control and nothing appears on hover. A pointer right-clicks the row; a keyboard reaches the same menu with the Menu key or Shift+F10 on the focused row, which the browser turns into the same `contextmenu` event this story fires. Focus lands on the menu itself and the first arrow reaches its first row, which is what a menu opened by a pointer does everywhere in Base UI. Check that the menu leads with pin and a rule under it, then offers companion settings, a duplicate under it and delete with delete reading as destructive, that the arrow keys walk them, and that Escape closes the menu and puts focus back on the row it belongs to rather than dropping it on the page, as does choosing an entry. The highlighted item is the focused one, drawn by the registry item's own `focus:bg-accent`, so the focus ring and the highlight are the same signal. The row carries no `aria-haspopup`: a click on it opens a companion, not a menu, so the registry trigger leaves the row saying only what it does. The menu is left open here so the panel can be read with it up. Delete carries `--destructive`, which does not clear AA against a light popup at this size — the same open question `Primitives/Button` already carries on its own destructive variant, and a token decision rather than a decision this menu can make on its own.",
 			},
 		},
 	},
@@ -1809,7 +1815,7 @@ export const Collapsed = meta.story({
 			await expect(panel.getBoundingClientRect().width).toBeCloseTo(rail, 0)
 		}, FRAME_POLL)
 
-		const create = canvas.getByRole("button", { name: "New bot" })
+		const create = canvas.getByRole("button", { name: "New companion" })
 		await userEvent.tab()
 		await expect(create).toHaveFocus()
 
@@ -2013,7 +2019,7 @@ export const FooterWithoutBots = meta.story({
 		docs: {
 			description: {
 				story:
-					"The slot over a reader who owns no bot yet. Check that the pinned region stays against the bottom edge of the column instead of riding up under the empty copy — the list keeps the space it is not using, so the region reads as part of the column rather than as the end of a short list. Pick `Empty` for the same state without the slot.",
+					"The slot over a reader who owns no companion yet. Check that the pinned region stays against the bottom edge of the column instead of riding up under the empty copy — the list keeps the space it is not using, so the region reads as part of the column rather than as the end of a short list. Pick `Empty` for the same state without the slot.",
 			},
 		},
 	},
@@ -2199,7 +2205,7 @@ export const DragRegion = meta.story({
 
 		const pressable = [
 			rowButton(rowsIn(canvasElement)[0]),
-			canvas.getByRole("button", { name: "New bot" }),
+			canvas.getByRole("button", { name: "New companion" }),
 			canvas.getByRole("button", { name: READER_NAME }),
 		]
 		for (const target of pressable) {
@@ -2315,7 +2321,7 @@ export const OneSpace = meta.story({
 		const switcher = canvas.getByRole("button", {
 			name: "Change space, Perso open",
 		})
-		const create = canvas.getByRole("button", { name: "New bot" })
+		const create = canvas.getByRole("button", { name: "New companion" })
 		const header = slotIn(canvasElement, "sidebar-header")
 
 		await expect(switcher.getBoundingClientRect().right).toBeLessThanOrEqual(
@@ -2411,7 +2417,7 @@ const openRowMenu = async (canvasElement: HTMLElement, name: string) => {
 const SPACES_BRANCH = "Spaces"
 
 const LAST_SPACE_NOTE =
-	"The last space a bot is in stays. Delete the bot to be rid of it."
+	"The last space a companion is in stays. Delete the companion to be rid of it."
 
 const tintOf = (node: HTMLElement) => getComputedStyle(node).backgroundColor
 
@@ -2488,7 +2494,7 @@ export const RowSpaces = meta.story({
 		docs: {
 			description: {
 				story:
-					"The branch under a row that says which spaces the bot belongs to. A bot is one bot in one or more spaces, not a copy per space, so there is nothing to duplicate towards and nothing to move: the branch lists every space of the account in the order the switcher gives them, each with its tint dot and its name, and ticks the ones holding the bot. Beacon sits in Vocca and Atelier here, so two rows read as ticked and three as free. The branch keeps no membership of its own — every tick is read from the rosters the sidebar was handed, so a refused edit that never reaches the store leaves the tick where it was. With the bot in more than one space, every row is live and nothing is drawn under them. Pick `RowTogglesSpaces` for both directions of the toggle in one visit, `RowLastSpace` for the bot that has only one space left.",
+					"The branch under a row that says which spaces the companion belongs to. A companion is one companion in one or more spaces, not a copy per space, so there is nothing to duplicate towards and nothing to move: the branch lists every space of the account in the order the switcher gives them, each with its tint dot and its name, and ticks the ones holding the companion. Beacon sits in Vocca and Atelier here, so two rows read as ticked and three as free. The branch keeps no membership of its own — every tick is read from the rosters the sidebar was handed, so a refused edit that never reaches the store leaves the tick where it was. With the companion in more than one space, every row is live and nothing is drawn under them. Pick `RowTogglesSpaces` for both directions of the toggle in one visit, `RowLastSpace` for the companion that has only one space left.",
 			},
 		},
 	},
@@ -2541,7 +2547,7 @@ export const RowTogglesSpaces = meta.story({
 		docs: {
 			description: {
 				story:
-					"Two spaces settled in one visit. Ticking Perso reports the bot and that space to the add handler; unticking Atelier, without reopening anything, reports them to the remove handler — a membership is rarely edited alone, so the branch and the menu under it stay open across both, the way every checkbox menu in this system behaves. Neither gesture reaches the other handler, and neither redraws a tick on its own: the rows here are fed a roster that never changes, so both stay exactly as they were drawn. The tick a reader ends up seeing is the one the host hands back, which is also what makes a refused edit honest.",
+					"Two spaces settled in one visit. Ticking Perso reports the companion and that space to the add handler; unticking Atelier, without reopening anything, reports them to the remove handler — a membership is rarely edited alone, so the branch and the menu under it stay open across both, the way every checkbox menu in this system behaves. Neither gesture reaches the other handler, and neither redraws a tick on its own: the rows here are fed a roster that never changes, so both stay exactly as they were drawn. The tick a reader ends up seeing is the one the host hands back, which is also what makes a refused edit honest.",
 			},
 		},
 	},
@@ -2590,7 +2596,7 @@ export const RowMembershipsUnknown = meta.story({
 		docs: {
 			description: {
 				story:
-					"An account with spaces handed one flat roster instead of one roster per space. Which spaces hold a bot cannot be read from that, and a branch that guessed would tick the open space and lie about the rest, so the branch is not drawn at all — a host that wants it passes `botsBySpaceId`. The rest of the menu is untouched.",
+					"An account with spaces handed one flat roster instead of one roster per space. Which spaces hold a companion cannot be read from that, and a branch that guessed would tick the open space and lie about the rest, so the branch is not drawn at all — a host that wants it passes `botsBySpaceId`. The rest of the menu is untouched.",
 			},
 		},
 	},
@@ -2696,7 +2702,7 @@ export const RowLastSpace = meta.story({
 		docs: {
 			description: {
 				story:
-					"The bot that has one space left, walked with the keyboard. Grove sits in Vocca alone: that row is `aria-disabled` rather than switched off, so the arrow walk still lands on it and a reader who cannot see the panel hears which space holds the bot — the one row they most need is the one a native `disabled` would have hidden from them. Landing there announces it ticked and unavailable, Enter and a click both report to nobody, and the next arrow stays inside the panel. The reason is the accessible description of both the `Spaces` entry and the row itself, so it is heard before the branch is opened and again on the row it applies to, however the reader got there. It is read from a node beside the entry in the row menu, exposed but unseen, because the panel it would otherwise live in is inert while the branch is shut and a description cannot be read out of an inert subtree; the note under the rule shows the same sentence to the eye and stays out of the tree. The locked row takes no pointer at all, so resting on it moves neither the focus nor the highlight: an affordance the row cannot honour is worse than none. Beacon, held by two spaces, carries no description: there is nothing to warn about while every row is live.",
+					"The companion that has one space left, walked with the keyboard. Grove sits in Vocca alone: that row is `aria-disabled` rather than switched off, so the arrow walk still lands on it and a reader who cannot see the panel hears which space holds the companion — the one row they most need is the one a native `disabled` would have hidden from them. Landing there announces it ticked and unavailable, Enter and a click both report to nobody, and the next arrow stays inside the panel. The reason is the accessible description of both the `Spaces` entry and the row itself, so it is heard before the branch is opened and again on the row it applies to, however the reader got there. It is read from a node beside the entry in the row menu, exposed but unseen, because the panel it would otherwise live in is inert while the branch is shut and a description cannot be read out of an inert subtree; the note under the rule shows the same sentence to the eye and stays out of the tree. The locked row takes no pointer at all, so resting on it moves neither the focus nor the highlight: an affordance the row cannot honour is worse than none. Beacon, held by two spaces, carries no description: there is nothing to warn about while every row is live.",
 			},
 		},
 	},
@@ -2808,7 +2814,7 @@ export const OneSpaceRowMenu = meta.story({
 		docs: {
 			description: {
 				story:
-					"The same row menu in the account that has only one space. The branch still opens, on the single space the account has, ticked and unavailable with the note under it — an account with one space is the account where every bot is on its last space, so the branch says what it always says rather than vanishing and leaving the reader to guess where their bots live. That single row is the whole walk, and it is unavailable: opening the branch with the keyboard leaves focus on the branch entry, since a list whose only row is unavailable has nothing to hand focus to, and the next arrow walks the row menu it came from rather than dropping focus on the page. The reason is the accessible description of the entry itself, so the reader hears why before deciding to go in. The plain duplicate stays where it is: copying a bot beside itself has nothing to do with spaces. The two rules that fence settings and delete off from the middle stay put whatever the middle holds.",
+					"The same row menu in the account that has only one space. The branch still opens, on the single space the account has, ticked and unavailable with the note under it — an account with one space is the account where every companion is on its last space, so the branch says what it always says rather than vanishing and leaving the reader to guess where their companions live. That single row is the whole walk, and it is unavailable: opening the branch with the keyboard leaves focus on the branch entry, since a list whose only row is unavailable has nothing to hand focus to, and the next arrow walks the row menu it came from rather than dropping focus on the page. The reason is the accessible description of the entry itself, so the reader hears why before deciding to go in. The plain duplicate stays where it is: copying a companion beside itself has nothing to do with spaces. The two rules that fence settings and delete off from the middle stay put whatever the middle holds.",
 			},
 		},
 	},
@@ -2908,7 +2914,7 @@ export const SpaceBadges = meta.story({
 		docs: {
 			description: {
 				story:
-					"Three spaces the reader is not in, each with a bot that has something to say. Check each dot in the strip keeps its space's tint and takes the badge as a ring around it, that the spaces with nothing are drawn exactly as they are without badges, and that the switcher takes a single mark for the strongest of the three — attention here — so a reader looking at one roster still knows another one wants them. Pick `FiveSpaces` for the same strip with nothing waiting, `Badges` for the marks on the rows inside a space.",
+					"Three spaces the reader is not in, each with a companion that has something to say. Check each dot in the strip keeps its space's tint and takes the badge as a ring around it, that the spaces with nothing are drawn exactly as they are without badges, and that the switcher takes a single mark for the strongest of the three — attention here — so a reader looking at one roster still knows another one wants them. Pick `FiveSpaces` for the same strip with nothing waiting, `Badges` for the marks on the rows inside a space.",
 			},
 		},
 	},
@@ -2949,7 +2955,7 @@ export const MissionSpaceRing = meta.story({
 		docs: {
 			description: {
 				story:
-					"Two spaces the reader is not in, each with a bot on a mission, and only one of them lit. The space whose mission waits on a person takes the attention ring; the space whose mission is simply running stays exactly as a space with nothing to say, because a bot at work is not news. Check the switcher above the roster repeats the lit mark and only that one, so a reader deep in one space learns another is blocked on them without being pulled by every mission in the app. Check no bot row anywhere carries a mission badge on its preview line: the ring is derived from the missions, not from a dot written onto a row. Pick `SpaceBadges` for the rings a chat lights, `MissionStripStates` for what the mission puts on a row.",
+					"Two spaces the reader is not in, each with a companion on a mission, and only one of them lit. The space whose mission waits on a person takes the attention ring; the space whose mission is simply running stays exactly as a space with nothing to say, because a companion at work is not news. Check the switcher above the roster repeats the lit mark and only that one, so a reader deep in one space learns another is blocked on them without being pulled by every mission in the app. Check no companion row anywhere carries a mission badge on its preview line: the ring is derived from the missions, not from a dot written onto a row. Pick `SpaceBadges` for the rings a chat lights, `MissionStripStates` for what the mission puts on a row.",
 			},
 		},
 	},
@@ -3009,7 +3015,7 @@ export const SpacesOnRail = meta.story({
 		const panelBox = panel.getBoundingClientRect()
 		for (const control of [
 			switcher,
-			canvas.getByRole("button", { name: "New bot" }),
+			canvas.getByRole("button", { name: "New companion" }),
 		]) {
 			const box = control.getBoundingClientRect()
 			await expect(box.left).toBeGreaterThanOrEqual(panelBox.left)
@@ -3726,7 +3732,7 @@ export const Sections = meta.story({
 		docs: {
 			description: {
 				story:
-					"The roster carved into sections. The bots holding no section come first, on the bare panel under no header at all and in the order they arrived, so an account that never made a section reads exactly as `Roster` does. Each section follows in the order the host gave, drawn as a rounded card holding its header and its rows together — the card is a translucent wash over the sidebar, never an opaque fill, so the tint the space gives the panel reads straight through it. The header carries the name in semibold, heavier than any bot's, and it is a disclosure: it opens and shuts the group under it, and a chevron sits one gap after the name, travelling with it rather than parked against the far edge. The actions that rename, reorder and delete the section live behind a right-click on the header, exactly as a row\u2019s actions do, so the plain click is never spent on a menu. Check the rows keep one column down the whole panel whatever section they sit in — a header must never indent the bots under it — that every row is still one stop and one button, and that the headers are stops of their own between the groups they open. Pick `SectionCollapse` for the disclosure, `EmptySection` for a section nothing has been filed into yet, `MoveBotToSection` for the branch that files a bot.",
+					"The roster carved into sections. The companions holding no section come first, on the bare panel under no header at all and in the order they arrived, so an account that never made a section reads exactly as `Roster` does. Each section follows in the order the host gave, drawn as a rounded card holding its header and its rows together — the card is a translucent wash over the sidebar, never an opaque fill, so the tint the space gives the panel reads straight through it. The header carries the name in semibold, heavier than any companion's, and it is a disclosure: it opens and shuts the group under it, and a chevron sits one gap after the name, travelling with it rather than parked against the far edge. The actions that rename, reorder and delete the section live behind a right-click on the header, exactly as a row\u2019s actions do, so the plain click is never spent on a menu. Check the rows keep one column down the whole panel whatever section they sit in — a header must never indent the companions under it — that every row is still one stop and one button, and that the headers are stops of their own between the groups they open. Pick `SectionCollapse` for the disclosure, `EmptySection` for a section nothing has been filed into yet, `MoveBotToSection` for the branch that files a companion.",
 			},
 		},
 	},
@@ -3784,12 +3790,12 @@ export const EmptySection = meta.story({
 		docs: {
 			description: {
 				story:
-					"A section nothing has been filed into. It is drawn, not hidden: the header stays where the host put it and a dashed zone under it stands in for the rows that are not there yet. The zone wears a faded bot of its own, drawn from the section\u2019s name so it is the same bot every time that section is empty rather than a new face on every render — it is at rest and never animates, since a placeholder that moves competes with the bots that are actually working. It is decoration and is kept out of the accessibility tree; the invitation beside it is what a reader hears. Check it is drawn under the Archive header, that no row is drawn with it, and that it goes with the headers on the icon rail, where there is nothing to drop onto.",
+					"A section nothing has been filed into. It is drawn, not hidden: the header stays where the host put it and a dashed zone under it stands in for the rows that are not there yet. The zone wears a faded companion of its own, drawn from the section\u2019s name so it is the same companion every time that section is empty rather than a new face on every render — it is at rest and never animates, since a placeholder that moves competes with the companions that are actually working. It is decoration and is kept out of the accessibility tree; the invitation beside it is what a reader hears. Check it is drawn under the Archive header, that no row is drawn with it, and that it goes with the headers on the icon rail, where there is nothing to drop onto.",
 			},
 		},
 	},
 	play: async ({ canvas, canvasElement }) => {
-		const invitation = canvas.getByText("Drop a bot here")
+		const invitation = canvas.getByText("Drop a companion here")
 		await expect(invitation).toBeVisible()
 
 		const zone = slotIn(canvasElement, "roster-section-drop")
@@ -3797,7 +3803,7 @@ export const EmptySection = meta.story({
 		await expect(placeholder?.closest("[aria-hidden='true']")).not.toBeNull()
 		await expect(placeholder).toHaveAttribute(
 			"aria-label",
-			expect.stringMatching(/^Bot avatar \w+, (?!idle)\w+$/),
+			expect.stringMatching(/^Companion avatar \w+, (?!idle)\w+$/),
 		)
 		await expect(getComputedStyle(zone).color).toBe(
 			tokenColor(canvasElement, "--muted-foreground"),
@@ -3816,7 +3822,7 @@ export const SectionCollapse = meta.story({
 		docs: {
 			description: {
 				story:
-					"The header as a disclosure. A plain click shuts the group under it and another opens it back, the card shrinking away with the rows it holds as one movement, the chevron turning from right to down to say which way it stands, and `aria-expanded` saying the same thing to a reader — Enter and Space do it too, since the header is a real button. Which sections stand shut is the host's to hold: the header reports the section and whether it is now collapsed through `onCollapseSection`, and draws itself from the `collapsedSectionIds` it is given back, so the reader finds their panel as they left it after a space switch or a restart. Shutting a section never touches the sections around it. The rows of a shut section stay in the markup rather than being torn out, so the rail still lists every bot when the panel itself is collapsed and no header is left to reopen anything. Check both directions, that the bots of the other sections hold their place, and that the chevron turn is dropped under `prefers-reduced-motion`. Pick `SectionRename` for what a right-click on the same header offers.",
+					"The header as a disclosure. A plain click shuts the group under it and another opens it back, the card shrinking away with the rows it holds as one movement, the chevron turning from right to down to say which way it stands, and `aria-expanded` saying the same thing to a reader — Enter and Space do it too, since the header is a real button. Which sections stand shut is the host's to hold: the header reports the section and whether it is now collapsed through `onCollapseSection`, and draws itself from the `collapsedSectionIds` it is given back, so the reader finds their panel as they left it after a space switch or a restart. Shutting a section never touches the sections around it. The rows of a shut section stay in the markup rather than being torn out, so the rail still lists every companion when the panel itself is collapsed and no header is left to reopen anything. Check both directions, that the companions of the other sections hold their place, and that the chevron turn is dropped under `prefers-reduced-motion`. Pick `SectionRename` for what a right-click on the same header offers.",
 			},
 		},
 	},
@@ -3864,7 +3870,7 @@ export const SectionCard = meta.story({
 		docs: {
 			description: {
 				story:
-					"What an open section is drawn as. Header and rows are held in one rounded card, so a section reads as a single object the eye can take in rather than a title with a list loose beneath it. The card is a wash laid over the panel and never a colour of its own — a sister branch tints the sidebar with the colour of the space on screen, and that tint has to survive under every card. Its rows sit on the card's own gutter, half a step in from the bots filed under no section, so the wash and that hair of an inset say together that a row is held by something without either of them shouting it. Shut the section and the card goes with the rows it held — a closed section is a bare title line on the panel, with no surface and no border left behind. The name carries the section on weight alone — semibold where a bot's name is medium, at the same size, so the header leads the card without shouting over the rows it holds — and the chevron travels one gap behind it instead of sitting against the far edge. Check the open card is painted and holds its rows, that the loose bots sit on no card at all, and that shutting Research strips the surface. Pick `SectionCollapse` for the movement between the two, `DragBotToSection` for the card under a lifted bot.",
+					"What an open section is drawn as. Header and rows are held in one rounded card, so a section reads as a single object the eye can take in rather than a title with a list loose beneath it. The card is a wash laid over the panel and never a colour of its own — a sister branch tints the sidebar with the colour of the space on screen, and that tint has to survive under every card. Its rows sit on the card's own gutter, half a step in from the companions filed under no section, so the wash and that hair of an inset say together that a row is held by something without either of them shouting it. Shut the section and the card goes with the rows it held — a closed section is a bare title line on the panel, with no surface and no border left behind. The name carries the section on weight alone — semibold where a companion's name is medium, at the same size, so the header leads the card without shouting over the rows it holds — and the chevron travels one gap behind it instead of sitting against the far edge. Check the open card is painted and holds its rows, that the loose companions sit on no card at all, and that shutting Research strips the surface. Pick `SectionCollapse` for the movement between the two, `DragBotToSection` for the card under a lifted companion.",
 			},
 		},
 	},
@@ -3912,7 +3918,7 @@ export const SectionHeaderHover = meta.story({
 		docs: {
 			description: {
 				story:
-					"The header under the pointer. It grows no pill of its own: pointing at it deepens the wash of the whole card instead, so what lights up is exactly what the click acts on — the section and every row it holds, opening or shutting as one object. A pill drawn around the name alone would promise a smaller target than the header really is and would read as a second row stacked over the bots. Only the card under the pointer answers, the sections either side keep their resting wash, and a bot row hovered inside a card lights the row alone and leaves the card where it was. The keyboard gets the same answer: the header taking focus deepens the card as the pointer does, with the focus ring still drawn on the header so the caret is never lost inside the surface. Pick `SectionCard` for the card at rest, `SectionCollapse` for what the click does.",
+					"The header under the pointer. It grows no pill of its own: pointing at it deepens the wash of the whole card instead, so what lights up is exactly what the click acts on — the section and every row it holds, opening or shutting as one object. A pill drawn around the name alone would promise a smaller target than the header really is and would read as a second row stacked over the companions. Only the card under the pointer answers, the sections either side keep their resting wash, and a companion row hovered inside a card lights the row alone and leaves the card where it was. The keyboard gets the same answer: the header taking focus deepens the card as the pointer does, with the focus ring still drawn on the header so the caret is never lost inside the surface. Pick `SectionCard` for the card at rest, `SectionCollapse` for what the click does.",
 			},
 		},
 	},
@@ -3965,7 +3971,7 @@ export const SectionReorder = meta.story({
 		docs: {
 			description: {
 				story:
-					"Moving a section up or down the panel. The header reports the whole new order of section ids rather than the one step it took, so a host writes the order it was given and never replays a move. The first section cannot go up and the last cannot go down — those entries are drawn disabled rather than dropped, so the menu keeps the same shape wherever it is opened. Check the two edges and one move in each direction. `DragSectionToPlace` is the same order reported from a drag on the header, and `DragBotToSection` the one that files a bot.",
+					"Moving a section up or down the panel. The header reports the whole new order of section ids rather than the one step it took, so a host writes the order it was given and never replays a move. The first section cannot go up and the last cannot go down — those entries are drawn disabled rather than dropped, so the menu keeps the same shape wherever it is opened. Check the two edges and one move in each direction. `DragSectionToPlace` is the same order reported from a drag on the header, and `DragBotToSection` the one that files a companion.",
 			},
 		},
 	},
@@ -4018,7 +4024,7 @@ export const SectionDelete = meta.story({
 		docs: {
 			description: {
 				story:
-					"Deleting a section from its own header. It reads as destructive, sits last under the reordering entries, and reports only the section — what becomes of the bots filed under it is the host's decision, not this panel's, so nothing is removed here and the panel redraws from the props it is given next. Delete carries `--destructive`, which does not clear AA against a light popup at this size, the same open token question `RowContextMenu` already carries.",
+					"Deleting a section from its own header. It reads as destructive, sits last under the reordering entries, and reports only the section — what becomes of the companions filed under it is the host's decision, not this panel's, so nothing is removed here and the panel redraws from the props it is given next. Delete carries `--destructive`, which does not clear AA against a light popup at this size, the same open token question `RowContextMenu` already carries.",
 			},
 		},
 	},
@@ -4051,7 +4057,7 @@ export const FullRowMenu = meta.story({
 		docs: {
 			description: {
 				story:
-					"Every branch a row can carry, shut, in the account that has sections to file under and spaces to belong to — the only place the middle entries are read side by side. They are ordered by how far they reach: the plain duplicate makes a second bot, the section branch files the bot inside the space it is read in, and the spaces branch says which spaces hold it at all, so the band widens downward and the entry with the longest reach sits nearest delete. The two branches name what they land in and are told apart with both shut: `Move to section` under a folder, `Spaces` under the layers glyph. Pin leads the menu with a rule under it, and the middle stays one band: the other rules are spent under settings and over delete and nowhere else, so a hand aimed anywhere in the middle can never land on delete. Pick `RowSpaces` for the spaces branch opened, `MoveBotToSection` for the section one.",
+					"Every branch a row can carry, shut, in the account that has sections to file under and spaces to belong to — the only place the middle entries are read side by side. They are ordered by how far they reach: the plain duplicate makes a second companion, the section branch files the companion inside the space it is read in, and the spaces branch says which spaces hold it at all, so the band widens downward and the entry with the longest reach sits nearest delete. The two branches name what they land in and are told apart with both shut: `Move to section` under a folder, `Spaces` under the layers glyph. Pin leads the menu with a rule under it, and the middle stays one band: the other rules are spent under settings and over delete and nowhere else, so a hand aimed anywhere in the middle can never land on delete. Pick `RowSpaces` for the spaces branch opened, `MoveBotToSection` for the section one.",
 			},
 		},
 	},
@@ -4083,7 +4089,7 @@ export const MoveBotToSection = meta.story({
 		docs: {
 			description: {
 				story:
-					"The branch under a row that files the bot. It sits directly under the plain duplicate, in the same band as it — copying a bot and filing a bot both act inside the space it is read in, so nothing is drawn between them and the branch that says which spaces hold the bot at all comes after; the rules are spent where they matter, one under the leading pin, one under settings and one over delete, so a hand aimed at anything in the middle can never land on delete. It offers every section plus the entry that files it under none, and it marks the one the bot holds now, so the branch reads as where the bot is before it reads as where it could go — Beacon sits in Research here. Choosing one reports the bot and the section, and the entry that clears it reports `null` rather than an empty string, so a host never has to guess what no section means. The branch is only drawn to a host that listens for it: `RowContextMenu` passes no section handlers and keeps the plain actions it always had.",
+					"The branch under a row that files the companion. It sits directly under the plain duplicate, in the same band as it — copying a companion and filing a companion both act inside the space it is read in, so nothing is drawn between them and the branch that says which spaces hold the companion at all comes after; the rules are spent where they matter, one under the leading pin, one under settings and one over delete, so a hand aimed at anything in the middle can never land on delete. It offers every section plus the entry that files it under none, and it marks the one the companion holds now, so the branch reads as where the companion is before it reads as where it could go — Beacon sits in Research here. Choosing one reports the companion and the section, and the entry that clears it reports `null` rather than an empty string, so a host never has to guess what no section means. The branch is only drawn to a host that listens for it: `RowContextMenu` passes no section handlers and keeps the plain actions it always had.",
 			},
 		},
 	},
@@ -4153,7 +4159,7 @@ export const NewSectionForABot = meta.story({
 		docs: {
 			description: {
 				story:
-					"Making a section from the bot that needs it. The last entry under `Move to section` opens a field at the foot of the roster instead of a dialogue, so the reader stays in the panel and names the thing they are about to fill. The section is drawn whole the moment it opens — the bot already filed under it, the field carrying `New section` with the name selected — so the reader sees what they are naming rather than a blank line. The first keystroke replaces the name, and Enter on an untouched field still makes something. Enter reports the name together with the bot it was made for, and the host is the one that creates the section and files the bot — nothing is drawn here until it comes back through the props. Escape and an empty name both close the field and report nothing.",
+					"Making a section from the companion that needs it. The last entry under `Move to section` opens a field at the foot of the roster instead of a dialogue, so the reader stays in the panel and names the thing they are about to fill. The section is drawn whole the moment it opens — the companion already filed under it, the field carrying `New section` with the name selected — so the reader sees what they are naming rather than a blank line. The first keystroke replaces the name, and Enter on an untouched field still makes something. Enter reports the name together with the companion it was made for, and the host is the one that creates the section and files the companion — nothing is drawn here until it comes back through the props. Escape and an empty name both close the field and report nothing.",
 			},
 		},
 	},
@@ -4212,7 +4218,7 @@ export const RosterSurfaceMenu = meta.story({
 		docs: {
 			description: {
 				story:
-					"The panel itself answers a right-click. Everything the sidebar can make used to need a row to start from — a bot to hang a section on, a header menu to open for a conversation — so the empty ground under the roster was the one place a reader could aim and get nothing. It now carries the three things this panel makes on its own — a bot, a conversation, a section — and, under a rule that closes them off, the way into the space's own settings. The ground is the leftover column under the last row, so it is only ever reached when the aim missed every row, every section header and the header above them: those keep their own menus and take the click first. Check the menu names the three, in the order the panel builds them, that space settings sits last behind its rule, and that a right-click on a row still opens that row's actions and not this. Pick `RosterSurfaceWithoutSpaceSettings` for the panel given no settings handler.",
+					"The panel itself answers a right-click. Everything the sidebar can make used to need a row to start from — a companion to hang a section on, a header menu to open for a conversation — so the empty ground under the roster was the one place a reader could aim and get nothing. It now carries the three things this panel makes on its own — a companion, a conversation, a section — and, under a rule that closes them off, the way into the space's own settings. The ground is the leftover column under the last row, so it is only ever reached when the aim missed every row, every section header and the header above them: those keep their own menus and take the click first. Check the menu names the three, in the order the panel builds them, that space settings sits last behind its rule, and that a right-click on a row still opens that row's actions and not this. Pick `RosterSurfaceWithoutSpaceSettings` for the panel given no settings handler.",
 			},
 		},
 	},
@@ -4220,10 +4226,15 @@ export const RosterSurfaceMenu = meta.story({
 		const menu = await openSurfaceMenu(canvasElement)
 		await expect(
 			menu.getAllByRole("menuitem").map((item) => item.textContent),
-		).toEqual(["New bot", "New conversation", NEW_SECTION, "Space settings"])
+		).toEqual([
+			"New companion",
+			"New conversation",
+			NEW_SECTION,
+			"Space settings",
+		])
 		await expect(menu.getAllByRole("separator")).toHaveLength(1)
 
-		await userEvent.click(menu.getByRole("menuitem", { name: "New bot" }))
+		await userEvent.click(menu.getByRole("menuitem", { name: "New companion" }))
 		await expect(args.onCreateBot).toHaveBeenCalled()
 
 		await userEvent.click(
@@ -4267,7 +4278,7 @@ export const RosterSurfaceWithoutSpaceSettings = meta.story({
 		const menu = await openSurfaceMenu(canvasElement)
 		await expect(
 			menu.getAllByRole("menuitem").map((item) => item.textContent),
-		).toEqual(["New bot", "New conversation", NEW_SECTION])
+		).toEqual(["New companion", "New conversation", NEW_SECTION])
 		await expect(menu.queryAllByRole("separator")).toHaveLength(0)
 	},
 })
@@ -4282,7 +4293,7 @@ export const NewSectionFromNothing = meta.story({
 		docs: {
 			description: {
 				story:
-					"A section born from nothing. Picked from the panel's own menu, the naming field opens at the foot of the roster exactly as it does when a bot starts it — same field, same `New section` already selected — but with no row under it, because there is nothing to show yet. The roster above it is left untouched: no row moves, nothing is borrowed to fill the new group. Enter reports the name alone, and the host makes an empty section in the space on screen. Escape leaves the roster exactly as it was.",
+					"A section born from nothing. Picked from the panel's own menu, the naming field opens at the foot of the roster exactly as it does when a companion starts it — same field, same `New section` already selected — but with no row under it, because there is nothing to show yet. The roster above it is left untouched: no row moves, nothing is borrowed to fill the new group. Enter reports the name alone, and the host makes an empty section in the space on screen. Escape leaves the roster exactly as it was.",
 			},
 		},
 	},
@@ -4445,7 +4456,7 @@ export const DragBotToSection = meta.story({
 		docs: {
 			description: {
 				story:
-					'Filing a bot by hand. A press on a row that then moves lifts the bot: it is reduced to its avatar alone, which follows the pointer, while the row itself stays exactly where it stood — the roster is the host\'s to redraw, so nothing is torn out of the list on the strength of a gesture that has not landed yet. The area the bot would land in lightens under it, header and rows together, so the target is a whole section rather than a slot between two rows: a section is always ordered by last message, so a drop changes which group a bot belongs to and nothing else. Releasing reports the bot and the section, the same call the `Move to section` branch makes, and the click that a release would otherwise fire is swallowed so a drag never doubles as a selection. The row and every drop area carry `data-tauri-drag-region="false"`, which is what keeps the gesture on the bot instead of on the frameless window the panel is mounted in. Keyboard readers are not asked to drag: `MoveBotToSection` is the same move from the menu.',
+					'Filing a companion by hand. A press on a row that then moves lifts the companion: it is reduced to its avatar alone, which follows the pointer, while the row itself stays exactly where it stood — the roster is the host\'s to redraw, so nothing is torn out of the list on the strength of a gesture that has not landed yet. The area the companion would land in lightens under it, header and rows together, so the target is a whole section rather than a slot between two rows: a section is always ordered by last message, so a drop changes which group a companion belongs to and nothing else. Releasing reports the companion and the section, the same call the `Move to section` branch makes, and the click that a release would otherwise fire is swallowed so a drag never doubles as a selection. The row and every drop area carry `data-tauri-drag-region="false"`, which is what keeps the gesture on the companion instead of on the frameless window the panel is mounted in. Keyboard readers are not asked to drag: `MoveBotToSection` is the same move from the menu.',
 			},
 		},
 	},
@@ -4482,7 +4493,7 @@ export const DragBotOutOfSection = meta.story({
 		docs: {
 			description: {
 				story:
-					"Taking a bot back out. The bots holding no section are a drop area like any other, so the gesture that files a bot is the gesture that unfiles it, and the release reports `null` rather than an empty string — a host never has to guess what no section means. When every bot has been filed there is nothing left to aim at, so the empty band draws the same dashed invitation an empty section draws, but only while something is lifted: at rest the roster is exactly what it was before any of this existed. Dropping a bot back on the section it already holds reports nothing at all, and so does a release over the panel's chrome — a gesture that lands nowhere is not a change.",
+					"Taking a companion back out. The companions holding no section are a drop area like any other, so the gesture that files a companion is the gesture that unfiles it, and the release reports `null` rather than an empty string — a host never has to guess what no section means. When every companion has been filed there is nothing left to aim at, so the empty band draws the same dashed invitation an empty section draws, but only while something is lifted: at rest the roster is exactly what it was before any of this existed. Dropping a companion back on the section it already holds reports nothing at all, and so does a release over the panel's chrome — a gesture that lands nowhere is not a change.",
 			},
 		},
 	},
@@ -4518,7 +4529,7 @@ export const DragBotUnderASection = meta.story({
 		docs: {
 			description: {
 				story:
-					"The boundary between the inside of a section and the space under it. Where a row lands is read off what the hand is actually over, never off the rows it has passed: over a card the row joins that section, in the gutter between two cards it stays loose at that place. Without that rule a row let go just under the last row of a section is filed into it, since the two land at the same rank — the reader aims at empty panel and the row disappears into a group. Check that a bot released in the gutter under Research comes back loose, sitting between the two sections rather than inside either. `DragBotToSection` is the same gesture aimed one row higher.",
+					"The boundary between the inside of a section and the space under it. Where a row lands is read off what the hand is actually over, never off the rows it has passed: over a card the row joins that section, in the gutter between two cards it stays loose at that place. Without that rule a row let go just under the last row of a section is filed into it, since the two land at the same rank — the reader aims at empty panel and the row disappears into a group. Check that a companion released in the gutter under Research comes back loose, sitting between the two sections rather than inside either. `DragBotToSection` is the same gesture aimed one row higher.",
 			},
 		},
 	},
@@ -4585,7 +4596,7 @@ export const DragBotIntoEmptySection = meta.story({
 		docs: {
 			description: {
 				story:
-					"The first bot into a section nothing has been filed into yet. The dashed zone is not a separate mechanism — the whole section, header and zone together, is the target, so a hand that lands anywhere near it lands. Check that Archive lightens under the lifted bot and that the release reports the bot and `archive`; the zone stays drawn until the host answers, since this panel never files a bot on its own.",
+					"The first companion into a section nothing has been filed into yet. The dashed zone is not a separate mechanism — the whole section, header and zone together, is the target, so a hand that lands anywhere near it lands. Check that Archive lightens under the lifted companion and that the release reports the companion and `archive`; the zone stays drawn until the host answers, since this panel never files a companion on its own.",
 			},
 		},
 	},
@@ -4612,7 +4623,7 @@ export const DragBotNowhere = meta.story({
 		docs: {
 			description: {
 				story:
-					"Every way a lift ends in nothing. A press that never moves is still a plain click and selects the bot, so the gesture costs the reader nothing to start. A release outside any drop area reports nothing and leaves the roster as it stands. An interrupted pointer — a stream the browser takes back, a touch turned into a scroll — puts the bot down where it was and reports nothing, rather than filing it wherever the last move happened to be. Check all three, and that no lift starts at all from a press that carries a right button.",
+					"Every way a lift ends in nothing. A press that never moves is still a plain click and selects the companion, so the gesture costs the reader nothing to start. A release outside any drop area reports nothing and leaves the roster as it stands. An interrupted pointer — a stream the browser takes back, a touch turned into a scroll — puts the companion down where it was and reports nothing, rather than filing it wherever the last move happened to be. Check all three, and that no lift starts at all from a press that carries a right button.",
 			},
 		},
 	},
@@ -4651,7 +4662,7 @@ export const DragSectionToPlace = meta.story({
 		docs: {
 			description: {
 				story:
-					"Placing a section by hand. A section is not filed into anything — it takes a place in an order — so this gesture is not the one that files a bot: there is no zone to land in and nothing lightens. The header is the handle, a press that moves lifts the whole group, bots and all, and it comes off the panel as a card — a shade smaller, with a shadow under it — so what it passes over stays readable. A line is drawn at the boundary the section would take, above whichever section its middle has not yet passed, or under the last one when it has passed them all. Letting go reports the full new order of section ids — the same call the menu's `Move up` and `Move down` make, which stay exactly where they were for keyboard readers and for a reader who would rather not drag at all. A section released where it already stood reports nothing, an interrupted pointer reports nothing, and a press that never moves is still the plain click that folds the group. The bots holding no section are never a target: they stay pinned above every section, so the first boundary a section can take is under them.",
+					"Placing a section by hand. A section is not filed into anything — it takes a place in an order — so this gesture is not the one that files a companion: there is no zone to land in and nothing lightens. The header is the handle, a press that moves lifts the whole group, companions and all, and it comes off the panel as a card — a shade smaller, with a shadow under it — so what it passes over stays readable. A line is drawn at the boundary the section would take, above whichever section its middle has not yet passed, or under the last one when it has passed them all. Letting go reports the full new order of section ids — the same call the menu's `Move up` and `Move down` make, which stay exactly where they were for keyboard readers and for a reader who would rather not drag at all. A section released where it already stood reports nothing, an interrupted pointer reports nothing, and a press that never moves is still the plain click that folds the group. The companions holding no section are never a target: they stay pinned above every section, so the first boundary a section can take is under them.",
 			},
 		},
 	},
@@ -4731,7 +4742,7 @@ export const CollapsedSections = meta.story({
 		docs: {
 			description: {
 				story:
-					"The sectioned roster on the icon rail. There is no room for a header a reader could read, so the headers go from the picture and from the accessibility tree entirely rather than shrinking into an unreadable stub, and the invitation under an empty section goes with them. The bots stay in exactly the order the sections gave them, so collapsing never reshuffles the rail. Nothing lifts here either: with no header to read and no zone to aim at there is nowhere to drop a bot, so a press that moves on the rail is a press that moves nothing. Check the rail holds the same six avatars in the same order as `Sections`, that no header is reachable by Tab, and that the create button is still the first stop.",
+					"The sectioned roster on the icon rail. There is no room for a header a reader could read, so the headers go from the picture and from the accessibility tree entirely rather than shrinking into an unreadable stub, and the invitation under an empty section goes with them. The companions stay in exactly the order the sections gave them, so collapsing never reshuffles the rail. Nothing lifts here either: with no header to read and no zone to aim at there is nowhere to drop a companion, so a press that moves on the rail is a press that moves nothing. Check the rail holds the same six avatars in the same order as `Sections`, that no header is reachable by Tab, and that the create button is still the first stop.",
 			},
 		},
 	},
@@ -4749,10 +4760,12 @@ export const CollapsedSections = meta.story({
 			await expect(header).not.toBeVisible()
 		}
 		await expect(canvas.queryByRole("button", { name: "Research" })).toBeNull()
-		await expect(canvas.getByText("Drop a bot here")).not.toBeVisible()
+		await expect(canvas.getByText("Drop a companion here")).not.toBeVisible()
 
 		await userEvent.tab()
-		await expect(canvas.getByRole("button", { name: "New bot" })).toHaveFocus()
+		await expect(
+			canvas.getByRole("button", { name: "New companion" }),
+		).toHaveFocus()
 		await userEvent.tab()
 		await expect(rowButton(rowsIn(canvasElement)[0])).toHaveFocus()
 
@@ -4779,7 +4792,7 @@ export const SectionsPerSpace = meta.story({
 		docs: {
 			description: {
 				story:
-					"Sections belong to a space, not to the panel. A host that keeps them per space passes `sectionsBySpaceId`, and from then on that map is the whole truth: a space it does not list holds no section and is drawn flat, rather than borrowing the sections of whichever space happens to be open. It matters at the edges of the carousel, which draws the panel waiting either side of the one in view — a host that has only loaded the space in view would otherwise see its headers bleed into both neighbours and watch them vanish mid-swipe. The `sections` prop stays for the single panel, where there is no map to consult. Check that Vocca carries its three headers and that the panel beside it carries none while listing its own bots.",
+					"Sections belong to a space, not to the panel. A host that keeps them per space passes `sectionsBySpaceId`, and from then on that map is the whole truth: a space it does not list holds no section and is drawn flat, rather than borrowing the sections of whichever space happens to be open. It matters at the edges of the carousel, which draws the panel waiting either side of the one in view — a host that has only loaded the space in view would otherwise see its headers bleed into both neighbours and watch them vanish mid-swipe. The `sections` prop stays for the single panel, where there is no map to consult. Check that Vocca carries its three headers and that the panel beside it carries none while listing its own companions.",
 			},
 		},
 	},
@@ -4865,7 +4878,7 @@ export const Conversations = meta.story({
 		docs: {
 			description: {
 				story:
-					"A conversation is a room holding several bots of the space, and it lives in the roster among them rather than in a list of its own. Its row is built from the same parts as a bot row — a 40px avatar slot, the name, the time of the last message and one clipped line of that message — so the two kinds sit on the same columns and stand the same height, which is what this story checks across a mixed list. What changes is the slot: instead of one bot it carries the bots in the room, drawn small in a fixed square so the column never widens. A room of two draws two, a room of five draws three and writes how many it left out in the fourth corner of the square. Pick `ConversationParticipants` for the stack on its own, `ConversationSelected` for the room a reader is in, `ConversationRowMenu` for what a right-click offers.",
+					"A conversation is a room holding several companions of the space, and it lives in the roster among them rather than in a list of its own. Its row is built from the same parts as a companion row — a 40px avatar slot, the name, the time of the last message and one clipped line of that message — so the two kinds sit on the same columns and stand the same height, which is what this story checks across a mixed list. What changes is the slot: instead of one companion it carries the companions in the room, drawn small in a fixed square so the column never widens. A room of two draws two, a room of five draws three and writes how many it left out in the fourth corner of the square. Pick `ConversationParticipants` for the stack on its own, `ConversationSelected` for the room a reader is in, `ConversationRowMenu` for what a right-click offers.",
 			},
 		},
 	},
@@ -4897,7 +4910,7 @@ export const ConversationParticipants = meta.story({
 		docs: {
 			description: {
 				story:
-					"How many faces a room shows. Two bots draw two avatars, and the slot stays the same square a bot row gives one avatar — the tiles shrink, the column does not move. Past three the stack stops drawing and starts counting: three avatars and `+2` for the two it left out, so the slot never turns into a grid of specks nobody can tell apart. The count sits in the fourth cell of the square, the one the three faces leave free, rather than on the name line — the name reads as the name and nothing else. The square is the only thing that carries the count, so the row hands it to a screen reader as the label of that square; a room within its three faces stays decorative and hidden, since three avatar labels in front of the room name would bury the name.",
+					"How many faces a room shows. Two companions draw two avatars, and the slot stays the same square a companion row gives one avatar — the tiles shrink, the column does not move. Past three the stack stops drawing and starts counting: three avatars and `+2` for the two it left out, so the slot never turns into a grid of specks nobody can tell apart. The count sits in the fourth cell of the square, the one the three faces leave free, rather than on the name line — the name reads as the name and nothing else. The square is the only thing that carries the count, so the row hands it to a screen reader as the label of that square; a room within its three faces stays decorative and hidden, since three avatar labels in front of the room name would bury the name.",
 			},
 		},
 	},
@@ -4973,7 +4986,7 @@ export const ConversationOfOneBot = meta.story({
 		docs: {
 			description: {
 				story:
-					"A room holding one bot, sitting right above that same bot's own row. Nothing on the two lines of text says which is which — same name column, same preview, same time — so the kind is carried by the shape of the icon alone: a bot floats free at the full 40px of the slot, a room is drawn inside a frame with its bots held smaller within it. The footprint is identical, so the column never moves; only what fills it changes. A room of one is still a room, which is why it gets the frame rather than being flattened into the bot it holds.",
+					"A room holding one companion, sitting right above that same companion's own row. Nothing on the two lines of text says which is which — same name column, same preview, same time — so the kind is carried by the shape of the icon alone: a companion floats free at the full 40px of the slot, a room is drawn inside a frame with its companions held smaller within it. The footprint is identical, so the column never moves; only what fills it changes. A room of one is still a room, which is why it gets the frame rather than being flattened into the companion it holds.",
 			},
 		},
 	},
@@ -5021,7 +5034,7 @@ export const ConversationPreview = meta.story({
 		docs: {
 			description: {
 				story:
-					"Who said the last word. A bot row needs no name — the row is the bot — but a room holds several, so the preview carries the name of whoever spoke, ahead of the word and separated from it. The second room shows the two cases that carry no name: the reader's own word, and a bot that has left the room or no longer exists, both of which would name somebody the reader cannot see in the stack. The third room checks that name and word are one string and not two columns: they clip together at the row width with a single ellipsis, and the line never wraps whatever the name is worth.",
+					"Who said the last word. A companion row needs no name — the row is the companion — but a room holds several, so the preview carries the name of whoever spoke, ahead of the word and separated from it. The second room shows the two cases that carry no name: the reader's own word, and a companion that has left the room or no longer exists, both of which would name somebody the reader cannot see in the stack. The third room checks that name and word are one string and not two columns: they clip together at the row width with a single ellipsis, and the line never wraps whatever the name is worth.",
 			},
 		},
 	},
@@ -5061,7 +5074,7 @@ export const BareRows = meta.story({
 		docs: {
 			description: {
 				story:
-					"A bot nobody has written to and a room nobody has spoken in, each above one that carries a line. Check that a row with nothing to preview centres its name on the avatar instead of leaving it riding above the middle: the preview line owns its height only while it holds words, and the pair of lines keeps the height of a full row either way, so the list stays on one rhythm and no row grows or shrinks as the first message lands. Pick `NoHistory` for the bare bot among four, `ConversationPreview` for the room that has something to say.",
+					"A companion nobody has written to and a room nobody has spoken in, each above one that carries a line. Check that a row with nothing to preview centres its name on the avatar instead of leaving it riding above the middle: the preview line owns its height only while it holds words, and the pair of lines keeps the height of a full row either way, so the list stays on one rhythm and no row grows or shrinks as the first message lands. Pick `NoHistory` for the bare companion among four, `ConversationPreview` for the room that has something to say.",
 			},
 		},
 	},
@@ -5116,7 +5129,7 @@ export const ConversationWorking = meta.story({
 		docs: {
 			description: {
 				story:
-					"A room where bots are running. The bot animates inside the stack the way it would on its own row, and its badge is carried up onto the room: a reader scanning the roster sees the dot on the room rather than having to open it to find which of its bots wants them. Only one dot is drawn whatever the room holds — the badge slot is the same one a bot row uses, at the trailing edge under the timestamp, so a mixed list has one dot per row, on one column, and never a cluster over a stack of avatars. The preview line drops the last message for the work in progress, the way a bot row does, except a room names who is at it: the first room has two bots running and speaks of the one that spoke last, so the line never jumps between them mid-run. The third room holds a bot running without a pose and falls back to the same word a bot row falls back to. The quiet room in the middle keeps its message and wears no dot.",
+					"A room where companions are running. The companion animates inside the stack the way it would on its own row, and its badge is carried up onto the room: a reader scanning the roster sees the dot on the room rather than having to open it to find which of its companions wants them. Only one dot is drawn whatever the room holds — the badge slot is the same one a companion row uses, at the trailing edge under the timestamp, so a mixed list has one dot per row, on one column, and never a cluster over a stack of avatars. The preview line drops the last message for the work in progress, the way a companion row does, except a room names who is at it: the first room has two companions running and speaks of the one that spoke last, so the line never jumps between them mid-run. The third room holds a companion running without a pose and falls back to the same word a companion row falls back to. The quiet room in the middle keeps its message and wears no dot.",
 			},
 		},
 	},
@@ -5217,7 +5230,7 @@ export const ConversationMissionStrips = meta.story({
 		docs: {
 			description: {
 				story:
-					"A mission belongs to the conversation it was opened from, so a room carrying open missions wears the strips its bots would otherwise wear alone. Check the strips sit under the room row, in the same lane and the same shapes a bot row gives them, and that the room draws one per open mission whichever of its bots runs it. Check the room whose mission waits on the reader is drawn first even though it spoke longest ago, exactly as a waiting bot row is raised, that it measures 108px for its two missions while the rows with none keep their 52px, and that the avatar stack stays centred on the row part. Pick `MissionStripStates` for the strip on a bot row, `ConversationMissionStripsOnRail` for the rail that drops it.",
+					"A mission belongs to the conversation it was opened from, so a room carrying open missions wears the strips its companions would otherwise wear alone. Check the strips sit under the room row, in the same lane and the same shapes a companion row gives them, and that the room draws one per open mission whichever of its companions runs it. Check the room whose mission waits on the reader is drawn first even though it spoke longest ago, exactly as a waiting companion row is raised, that it measures 108px for its two missions while the rows with none keep their 52px, and that the avatar stack stays centred on the row part. Pick `MissionStripStates` for the strip on a companion row, `ConversationMissionStripsOnRail` for the rail that drops it.",
 			},
 		},
 	},
@@ -5254,7 +5267,7 @@ export const ConversationMissionStripsOnRail = meta.story({
 		docs: {
 			description: {
 				story:
-					"The same room once the panel is down to its icon rail. Check no strip is drawn there either: the rail is the avatar stack and nothing else, and a room defers its missions to the open panel exactly as a bot does. Pick `ConversationMissionStrips` for the open panel, `MissionStripOnRail` for the bot row that drops them too.",
+					"The same room once the panel is down to its icon rail. Check no strip is drawn there either: the rail is the avatar stack and nothing else, and a room defers its missions to the open panel exactly as a companion does. Pick `ConversationMissionStrips` for the open panel, `MissionStripOnRail` for the companion row that drops them too.",
 			},
 		},
 	},
@@ -5275,7 +5288,7 @@ export const ConversationSelected = meta.story({
 		docs: {
 			description: {
 				story:
-					"The room a reader is in. It wears the same pill and the same `aria-current` a selected bot row wears, because a reader is in one place at a time and the panel must not suggest otherwise: while a room is selected no bot row is active, even though `selectedBotId` still names the last bot the reader was with and the host is free to keep it. Check that exactly one row in the panel is current and that it is the room, and that the live region names the room rather than falling back to the bot underneath it.",
+					"The room a reader is in. It wears the same pill and the same `aria-current` a selected companion row wears, because a reader is in one place at a time and the panel must not suggest otherwise: while a room is selected no companion row is active, even though `selectedBotId` still names the last companion the reader was with and the host is free to keep it. Check that exactly one row in the panel is current and that it is the room, and that the live region names the room rather than falling back to the companion underneath it.",
 			},
 		},
 	},
@@ -5314,7 +5327,7 @@ export const ConversationRowMenu = meta.story({
 		docs: {
 			description: {
 				story:
-					"The actions behind a room, reached the same way a bot's are: a right-click on the row, no button on hover. A room offers less than a bot, and deliberately — pin leading the menu with a rule under it, then settings, the branch that files it, and delete. There is nothing to duplicate, because a room is the bots in it and copying it would fork a history rather than a template. The branch is the one a bot row uses, so it marks the section the room sits in now and reports `null` for the entry that clears it; a rule sits over delete and nowhere else, so a hand aimed at moving can never land on removing.",
+					"The actions behind a room, reached the same way a companion's are: a right-click on the row, no button on hover. A room offers less than a companion, and deliberately — pin leading the menu with a rule under it, then settings, the branch that files it, and delete. There is nothing to duplicate, because a room is the companions in it and copying it would fork a history rather than a template. The branch is the one a companion row uses, so it marks the section the room sits in now and reports `null` for the entry that clears it; a rule sits over delete and nowhere else, so a hand aimed at moving can never land on removing.",
 			},
 		},
 	},
@@ -5372,7 +5385,7 @@ export const CreateMenu = meta.story({
 		docs: {
 			description: {
 				story:
-					"The plus in the header makes more than one thing, so it stops acting and starts asking. A press opens a menu under it — the same menu the space switcher beside it opens, on press rather than on right-click — with one entry per thing the panel can make: a bot on its own, a room to put several in, and the section that files them. The entries read in the order the panel builds them, so a section comes after the two things it holds. The button still says what it does before it is pressed and still reports that it carries a menu, so a keyboard reader is not surprised by a popup. A host that does not do rooms passes no `onCreateConversation` and keeps the plain button it always had, which is what every other story here shows — the menu is not the price of mounting this panel.",
+					"The plus in the header makes more than one thing, so it stops acting and starts asking. A press opens a menu under it — the same menu the space switcher beside it opens, on press rather than on right-click — with one entry per thing the panel can make: a companion on its own, a room to put several in, and the section that files them. The entries read in the order the panel builds them, so a section comes after the two things it holds. The button still says what it does before it is pressed and still reports that it carries a menu, so a keyboard reader is not surprised by a popup. A host that does not do rooms passes no `onCreateConversation` and keeps the plain button it always had, which is what every other story here shows — the menu is not the price of mounting this panel.",
 			},
 		},
 	},
@@ -5387,7 +5400,7 @@ export const CreateMenu = meta.story({
 		const menu = within(await screen.findByRole("menu", { name: CREATE }))
 		await expect(
 			menu.getAllByRole("menuitem").map((item) => item.textContent),
-		).toEqual(["New bot", "New conversation", NEW_SECTION])
+		).toEqual(["New companion", "New conversation", NEW_SECTION])
 		await expect(args.onCreateBot).not.toHaveBeenCalled()
 
 		const pick = async (name: string) => {
@@ -5400,7 +5413,7 @@ export const CreateMenu = meta.story({
 			)
 		}
 
-		await userEvent.click(menu.getByRole("menuitem", { name: "New bot" }))
+		await userEvent.click(menu.getByRole("menuitem", { name: "New companion" }))
 		await expect(args.onCreateBot).toHaveBeenCalled()
 
 		await pick("New conversation")
@@ -5427,7 +5440,7 @@ export const NewSectionForAConversation = meta.story({
 		docs: {
 			description: {
 				story:
-					"A room makes a section the same way a bot does. `Move to section` carries the same last entry, under the same label and behind the same rule, so a reader who learned the gesture on a bot row does not have to learn it twice. Picking it draws the section whole at the foot of the roster with the room already filed under it, and Enter reports the name together with the room it was made for — the host creates the section and files the room, and nothing is drawn here until it comes back through the props.",
+					"A room makes a section the same way a companion does. `Move to section` carries the same last entry, under the same label and behind the same rule, so a reader who learned the gesture on a companion row does not have to learn it twice. Picking it draws the section whole at the foot of the roster with the room already filed under it, and Enter reports the name together with the room it was made for — the host creates the section and files the room, and nothing is drawn here until it comes back through the props.",
 			},
 		},
 	},
@@ -5463,7 +5476,7 @@ export const DragConversationToSection = meta.story({
 		docs: {
 			description: {
 				story:
-					"Filing a room by hand, which is the gesture a bot row already answers to. A press that then moves lifts the room: it is reduced to the stack of its bots, which follows the pointer while the row stays where it stood. Releasing reports the whole pinned zone through `onPinRoster` — the same call the menu branch makes for a bot, so a host writes one order rather than telling rooms and bots apart. The click a release would fire is swallowed, so a drag never doubles as opening the room.",
+					"Filing a room by hand, which is the gesture a companion row already answers to. A press that then moves lifts the room: it is reduced to the stack of its companions, which follows the pointer while the row stays where it stood. Releasing reports the whole pinned zone through `onPinRoster` — the same call the menu branch makes for a companion, so a host writes one order rather than telling rooms and companions apart. The click a release would fire is swallowed, so a drag never doubles as opening the room.",
 			},
 		},
 	},

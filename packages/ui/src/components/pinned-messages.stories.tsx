@@ -4,7 +4,7 @@ import { expect, fn, waitFor, within } from "storybook/test"
 import preview from "@workspace/storybook/preview"
 import {
 	A11Y_FLOATING_FOCUS_GUARDS,
-	settled,
+	opaque,
 } from "@workspace/storybook/story-utils"
 import { AppHeader } from "@workspace/ui/components/app-header"
 import { BotIdentityAvatar } from "@workspace/ui/components/bot-identity-avatar"
@@ -86,7 +86,7 @@ const meta = preview.meta({
 		docs: {
 			description: {
 				component:
-					"The reader's bookmarks over a conversation, reached from a pin button in the chat header. The button wears a dot while anything is pinned and says how many it holds to a screen reader, and pressing it drops a plain panel under it holding one row per pinned message: the author's avatar, their name, when they wrote it, the first three lines of what they said, a jump control and an unpin control. A rule separates one row from the next, and the avatar arrives as a node the host draws — `BotIdentityAvatar` for a bot, `Avatar` for the reader — so the face here is the same face the transcript shows. Jumping closes the panel because the reader is leaving for the transcript; unpinning leaves it open because the reader is still tidying. Nothing here animates. It draws only — the host holds the list, moves the transcript on a jump and drops the pin on an unpin. `AI/Turn` carries the pin action that fills this list.",
+					"The reader's bookmarks over a conversation, reached from a pin button in the chat header. The button wears a dot while anything is pinned and says how many it holds to a screen reader, and pressing it drops a plain panel under it holding one row per pinned message: the author's avatar, their name, when they wrote it, the first three lines of what they said, a jump control and an unpin control. A rule separates one row from the next, and the avatar arrives as a node the host draws — `BotIdentityAvatar` for a companion, `Avatar` for the reader — so the face here is the same face the transcript shows. Jumping closes the panel because the reader is leaving for the transcript; unpinning leaves it open because the reader is still tidying. Nothing here animates. It draws only — the host holds the list, moves the transcript on a jump and drops the pin on an unpin. `AI/Turn` carries the pin action that fills this list.",
 			},
 		},
 	},
@@ -114,9 +114,7 @@ export const Default = meta.story({
 		await expect(trigger).toHaveAccessibleName(`${TITLE}, 2 pinned`)
 
 		await userEvent.click(trigger)
-		const panel = await settled(
-			await body.findByRole("dialog", { name: TITLE }),
-		)
+		const panel = await opaque(await body.findByRole("dialog", { name: TITLE }))
 
 		const rows = within(panel).getAllByRole("listitem")
 
@@ -160,9 +158,7 @@ export const Empty = meta.story({
 
 		await userEvent.click(trigger)
 		const body = within(canvasElement.ownerDocument.body)
-		const panel = await settled(
-			await body.findByRole("dialog", { name: TITLE }),
-		)
+		const panel = await opaque(await body.findByRole("dialog", { name: TITLE }))
 
 		await expect(
 			within(panel).getByText("No message is pinned in this conversation yet."),
@@ -185,9 +181,7 @@ export const Overflowing = meta.story({
 		const body = within(canvasElement.ownerDocument.body)
 
 		await userEvent.click(canvas.getByRole("button", { name: TRIGGER }))
-		const panel = await settled(
-			await body.findByRole("dialog", { name: TITLE }),
-		)
+		const panel = await opaque(await body.findByRole("dialog", { name: TITLE }))
 		const excerpt = within(panel).getByText(OVERFLOWING[0].excerpt)
 		const lineHeight = Number.parseFloat(getComputedStyle(excerpt).lineHeight)
 
@@ -213,9 +207,7 @@ export const Unpinning = meta.story({
 		const trigger = canvas.getByRole("button", { name: TRIGGER })
 
 		await userEvent.click(trigger)
-		const panel = await settled(
-			await body.findByRole("dialog", { name: TITLE }),
-		)
+		const panel = await opaque(await body.findByRole("dialog", { name: TITLE }))
 
 		for (const message of MESSAGES) {
 			await userEvent.click(

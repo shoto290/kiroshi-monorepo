@@ -394,7 +394,7 @@ function BotAvatar({
 			width={size}
 			height={size}
 			role="img"
-			aria-label={`Bot avatar ${animal}, ${state}`}
+			aria-label={`Companion avatar ${animal}, ${state}`}
 			onPointerDown={startDrag}
 			onPointerMove={moveDrag}
 			onPointerUp={endDrag}

@@ -73,7 +73,7 @@ const meta = preview.meta({
 		docs: {
 			description: {
 				component:
-					"One thing a mission recorded, dropped in the transcript at the moment it landed. The source a mission stores is a machine word, so every row resolves it first: the bot answers with its name and its avatar, the agent hook with the tool the mission carries, GitHub and the reader with their own words. An event whose payload holds text speaks in a soft bubble; every other event is a machine line kept to one line.",
+					"One thing a mission recorded, dropped in the transcript at the moment it landed. The source a mission stores is a machine word, so every row resolves it first: the companion answers with its name and its avatar, the agent hook with the tool the mission carries, GitHub and the reader with their own words. An event whose payload holds text speaks in a soft bubble; every other event is a machine line kept to one line.",
 			},
 		},
 	},
@@ -95,7 +95,7 @@ export const MachineLine = meta.story({
 		docs: {
 			description: {
 				story:
-					"The mission being opened, with nothing written into its payload. Check that it reads as one muted line naming the bot rather than the stored source, and that the time sits on the trailing edge. Pick `AuthoredEvent` for the form an event carrying text takes.",
+					"The mission being opened, with nothing written into its payload. Check that it reads as one muted line naming the companion rather than the stored source, and that the time sits on the trailing edge. Pick `AuthoredEvent` for the form an event carrying text takes.",
 			},
 		},
 	},
@@ -117,7 +117,7 @@ export const AuthoredEvent = meta.story({
 		docs: {
 			description: {
 				story:
-					"A note the bot wrote against the mission. Check that the gutter carries the mission bot avatar, that the author line names the bot, its kind and its time, and that the text lands in the soft bubble the transcript already uses. Pick `FromTheAgent` for an event the coding agent sent.",
+					"A note the companion wrote against the mission. Check that the gutter carries the mission companion avatar, that the author line names the companion, its kind and its time, and that the text lands in the soft bubble the transcript already uses. Pick `FromTheAgent` for an event the coding agent sent.",
 			},
 		},
 	},
@@ -194,7 +194,7 @@ export const FromTheReader = meta.story({
 		docs: {
 			description: {
 				story:
-					"The answer the reader sent back to the agent. Check that the row is labelled with the word the catalogue gives the reader rather than with `human`, and that the gutter falls back to the default tool mark. Pick `AuthoredEvent` for what the bot itself writes.",
+					"The answer the reader sent back to the agent. Check that the row is labelled with the word the catalogue gives the reader rather than with `human`, and that the gutter falls back to the default tool mark. Pick `AuthoredEvent` for what the companion itself writes.",
 			},
 		},
 	},
@@ -291,7 +291,7 @@ export const WithoutABot = meta.story({
 		docs: {
 			description: {
 				story:
-					"An event of a mission whose bot is not in the roster, the case a thread falls into while its bots are still being read. Check that the row still renders, that the catalogue names the bot in place of a missing name, and that the gutter keeps a drawn avatar rather than a hole.",
+					"An event of a mission whose companion is not in the roster, the case a thread falls into while its companions are still being read. Check that the row still renders, that the catalogue names the companion in place of a missing name, and that the gutter keeps a drawn avatar rather than a hole.",
 			},
 		},
 	},
@@ -299,7 +299,7 @@ export const WithoutABot = meta.story({
 		const [authored] = slotsIn(canvasElement, "mission-authored-event")
 		const [gutter] = slotsIn(canvasElement, "mission-event-gutter")
 
-		await expect(authored).toHaveTextContent("The bot")
+		await expect(authored).toHaveTextContent("The companion")
 		await expect(gutter).toHaveAttribute("data-gutter", "bot")
 	},
 })
@@ -351,7 +351,7 @@ export const LongContent = meta.story({
 		docs: {
 			description: {
 				story:
-					"A machine line whose label is a bot name long enough to fill the row, in a container squeezed to 320 pixels. Check that the line stays on exactly one line and truncates rather than pushing the time out of view. Pick `MachineLine` for realistic lengths.",
+					"A machine line whose label is a companion name long enough to fill the row, in a container squeezed to 320 pixels. Check that the line stays on exactly one line and truncates rather than pushing the time out of view. Pick `MachineLine` for realistic lengths.",
 			},
 		},
 	},

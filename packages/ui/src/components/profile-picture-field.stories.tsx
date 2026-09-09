@@ -38,7 +38,7 @@ const meta = preview.meta({
 		docs: {
 			description: {
 				component:
-					"A picture, as the control that sets it: the round target the settings dialogs head their first group with, whether the picture belongs to the reader or to a bot. Pressing it opens the picker, and a file dropped on it or pasted into it goes the same way — the same drag, paste and browse, wearing the shape the picture will actually have. What sits inside the circle is the host's to draw and arrives as `preview`, which is what lets one field serve a reader with no picture but a person glyph, and a bot with no picture but the face its engine draws. It holds nothing and names nothing: every label arrives as a prop, and the picked file and the removal both go straight to the host, which stores the picture and writes the URL back.",
+					"A picture, as the control that sets it: the round target the settings dialogs head their first group with, whether the picture belongs to the reader or to a companion. Pressing it opens the picker, and a file dropped on it or pasted into it goes the same way — the same drag, paste and browse, wearing the shape the picture will actually have. What sits inside the circle is the host's to draw and arrives as `preview`, which is what lets one field serve a reader with no picture but a person glyph, and a companion with no picture but the face its engine draws. It holds nothing and names nothing: every label arrives as a prop, and the picked file and the removal both go straight to the host, which stores the picture and writes the URL back.",
 			},
 		},
 	},
@@ -57,7 +57,7 @@ export const Default = meta.story({
 		docs: {
 			description: {
 				story:
-					"A reader who already wears a picture. Check that the picture fills the circle rather than sitting in a box inside it, that the remove button sits on the bottom trailing corner without covering the face, and that both press targets emit and change nothing on screen — the picture only moves once the host writes back. Pick `Empty` for the reader with no picture, `Drawn` for a bot's, `WithoutRemove` for the surface that cannot take one off.",
+					"A reader who already wears a picture. Check that the picture fills the circle rather than sitting in a box inside it, that the remove button sits on the bottom trailing corner without covering the face, and that both press targets emit and change nothing on screen — the picture only moves once the host writes back. Pick `Empty` for the reader with no picture, `Drawn` for a companion's, `WithoutRemove` for the surface that cannot take one off.",
 			},
 		},
 	},
@@ -115,7 +115,7 @@ export const Drawn = meta.story({
 		docs: {
 			description: {
 				story:
-					"The same field heading a bot's settings. A bot with no picture is never a blank — it has a face the engine draws — so the host hands that face as the preview and leaves the edge solid rather than dashed. Check that the shape, the size and the corner are the reader's own, and that nothing but the circle's contents tells the two hosts apart.",
+					"The same field heading a companion's settings. A companion with no picture is never a blank — it has a face the engine draws — so the host hands that face as the preview and leaves the edge solid rather than dashed. Check that the shape, the size and the corner are the reader's own, and that nothing but the circle's contents tells the two hosts apart.",
 			},
 		},
 	},

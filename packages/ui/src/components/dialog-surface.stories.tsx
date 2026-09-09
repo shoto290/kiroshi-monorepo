@@ -19,7 +19,7 @@ type DialogDemoProps = {
 }
 
 const LONG_TITLE =
-	"Bot settings for the release manager that watches the packaging pipeline"
+	"Companion settings for the release manager that watches the packaging pipeline"
 
 const ACTIONS = (
 	<div className="flex justify-end gap-2">
@@ -33,7 +33,7 @@ const ACTIONS = (
 const PARAGRAPHS = Array.from(
 	{ length: 20 },
 	(_, index) =>
-		`Setting ${index + 1} — a working directory, a model and a set of instructions are what a bot is made of, and every one of them is editable here.`,
+		`Setting ${index + 1} — a working directory, a model and a set of instructions are what a companion is made of, and every one of them is editable here.`,
 )
 
 const LONG_BODY = (
@@ -50,16 +50,16 @@ const LONG_BODY = (
 const DialogDemo = ({
 	className,
 	body = ACTIONS,
-	title = "Bot settings",
+	title = "Companion settings",
 }: DialogDemoProps) => (
 	<Dialog>
 		<DialogTrigger className={buttonVariants({ variant: "outline" })}>
-			Bot settings
+			Companion settings
 		</DialogTrigger>
 		<DialogSurface className={className}>
 			<DialogTitle>{title}</DialogTitle>
 			<DialogDescription>
-				Name the bot, point it at a folder and tell it how to behave.
+				Name the companion, point it at a folder and tell it how to behave.
 			</DialogDescription>
 			{body}
 		</DialogSurface>
@@ -79,7 +79,7 @@ const openDialog = async (
 	canvas: ReturnType<typeof within>,
 	user: ReturnType<typeof userEvent.setup>,
 ) => {
-	await user.click(canvas.getByRole("button", { name: "Bot settings" }))
+	await user.click(canvas.getByRole("button", { name: "Companion settings" }))
 
 	const dialog = await screen.findByRole("dialog")
 	await waitFor(() => expect(dialog).toBeVisible())
@@ -112,7 +112,7 @@ export const Default = meta.story({
 		},
 	},
 	play: async ({ canvas, userEvent }) => {
-		const trigger = canvas.getByRole("button", { name: "Bot settings" })
+		const trigger = canvas.getByRole("button", { name: "Companion settings" })
 
 		await userEvent.tab()
 		await expect(trigger).toHaveFocus()
@@ -121,7 +121,7 @@ export const Default = meta.story({
 		await userEvent.keyboard("{Enter}")
 		const dialog = await screen.findByRole("dialog")
 		await waitFor(() => expect(backdropIn()).toBeVisible())
-		await expect(dialog).toHaveAccessibleName("Bot settings")
+		await expect(dialog).toHaveAccessibleName("Companion settings")
 
 		await waitFor(async () => {
 			const box = dialog.getBoundingClientRect()
@@ -141,8 +141,10 @@ export const Default = meta.story({
 		}
 
 		await userEvent.keyboard("{Escape}")
-		await waitFor(() => expect(dialog).not.toBeInTheDocument())
-		await expect(trigger).toHaveFocus()
+		await waitFor(() =>
+			expect(trigger).toHaveAttribute("aria-expanded", "false"),
+		)
+		await waitFor(() => expect(trigger).toHaveFocus())
 	},
 })
 
@@ -156,22 +158,26 @@ export const Dismissing = meta.story({
 		},
 	},
 	play: async ({ canvas, userEvent }) => {
-		const trigger = canvas.getByRole("button", { name: "Bot settings" })
+		const trigger = canvas.getByRole("button", { name: "Companion settings" })
 
 		const dialog = await openDialog(canvas, userEvent)
 		await userEvent.click(dialog)
 		await expect(screen.getByRole("dialog")).toBeVisible()
 
 		await userEvent.click(backdropIn())
-		await waitFor(() => expect(dialog).not.toBeInTheDocument())
-		await expect(trigger).toHaveFocus()
+		await waitFor(() =>
+			expect(trigger).toHaveAttribute("aria-expanded", "false"),
+		)
+		await waitFor(() => expect(trigger).toHaveFocus())
 
 		const reopened = await openDialog(canvas, userEvent)
 		await userEvent.click(
 			within(reopened).getByRole("button", { name: "Close" }),
 		)
-		await waitFor(() => expect(reopened).not.toBeInTheDocument())
-		await expect(trigger).toHaveFocus()
+		await waitFor(() =>
+			expect(trigger).toHaveAttribute("aria-expanded", "false"),
+		)
+		await waitFor(() => expect(trigger).toHaveFocus())
 	},
 })
 

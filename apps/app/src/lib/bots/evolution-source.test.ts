@@ -78,7 +78,7 @@ const start = (panels: Panels) => {
 }
 
 describe("evolution source", () => {
-	it("re-reads the open bot's skills, history and the roster", () => {
+	it("re-reads the open companion's skills, history and the roster", () => {
 		const panels = createPanels({ botId: "bot-1" })
 		const { driver } = start(panels)
 
@@ -89,7 +89,7 @@ describe("evolution source", () => {
 		expect(panels.roster.reload).toHaveBeenCalledTimes(1)
 	})
 
-	it("leaves the panels of another bot untouched", () => {
+	it("leaves the panels of another companion untouched", () => {
 		const panels = createPanels({ botId: "bot-2" })
 		const { driver } = start(panels)
 

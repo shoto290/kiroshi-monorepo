@@ -119,7 +119,7 @@ describe("toMissionRows", () => {
 		})
 	})
 
-	it("leaves out a mission whose bot the conversation does not name", () => {
+	it("leaves out a mission whose companion the conversation does not name", () => {
 		const { open } = rowsOf({
 			open: [{ ...missionIn("working"), botId: "b-unknown" }],
 		})
@@ -150,7 +150,7 @@ describe("toMissionRows", () => {
 		expect(earlierToday).toEqual([])
 	})
 
-	it("leaves out a run whose bot the conversation does not name", () => {
+	it("leaves out a run whose companion the conversation does not name", () => {
 		const { earlierToday } = rowsOf({
 			reportedRuns: [reportedRun({ botId: "b-unknown" })],
 		})
@@ -367,7 +367,7 @@ describe("missionsByRow", () => {
 		])
 	})
 
-	it("opens the list on the most urgent state of the bot", () => {
+	it("opens the list on the most urgent state of the companion", () => {
 		expect(stripsFor("working", "failed", "waiting_human")?.[0].state).toBe(
 			"waiting",
 		)
@@ -377,7 +377,7 @@ describe("missionsByRow", () => {
 		expect(stripsFor("working", "ready_to_merge")?.[0].state).toBe("ready")
 	})
 
-	it("reads waiting for its bot as working", () => {
+	it("reads waiting for its companion as working", () => {
 		expect(stripsFor("waiting_bot")).toEqual([shownMission("m-1", "working")])
 	})
 
@@ -478,7 +478,7 @@ describe("missionsByRow", () => {
 		])
 	})
 
-	it("gives every bot its own chip", () => {
+	it("gives every companion its own chip", () => {
 		expect(
 			missionsByRow(
 				[
@@ -503,7 +503,7 @@ describe("missionsByRow", () => {
 		).toEqual({ "c-1": [shownMission("m-1", "failed")] })
 	})
 
-	it("gathers on one conversation row what its bots carry there", () => {
+	it("gathers on one conversation row what its companions carry there", () => {
 		expect(
 			missionsByRow(
 				[
@@ -525,7 +525,7 @@ describe("missionsByRow", () => {
 		})
 	})
 
-	it("gives the chip to the bot when no listed conversation carries the mission", () => {
+	it("gives the chip to the companion when no listed conversation carries the mission", () => {
 		expect(
 			missionsByRow(
 				[onBoard({ originConversationId: "c-solo", state: "working" })],

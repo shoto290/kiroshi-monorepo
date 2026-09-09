@@ -120,7 +120,7 @@ const PopoverPanelContent = ({
 			aria-label={ariaLabel}
 			className={cn(
 				POPUP_CLASS,
-				"w-max max-w-[min(92vw,20rem)] gap-0 rounded-2xl p-4",
+				"motion-reduce:duration-[0.01ms]! w-max max-w-[min(92vw,20rem)] gap-0 rounded-2xl p-4",
 				className,
 			)}
 			side={side}

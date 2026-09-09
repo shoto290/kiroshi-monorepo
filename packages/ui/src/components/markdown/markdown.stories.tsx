@@ -969,7 +969,7 @@ export const CodeFenceCss = meta.story({
 		docs: {
 			description: {
 				story:
-					"CSS, the language a bot answers styling questions in. Check that the selector, the properties and the `var()` reference are told apart, so a custom property is readable at a glance.",
+					"CSS, the language a companion answers styling questions in. Check that the selector, the properties and the `var()` reference are told apart, so a custom property is readable at a glance.",
 			},
 		},
 	},

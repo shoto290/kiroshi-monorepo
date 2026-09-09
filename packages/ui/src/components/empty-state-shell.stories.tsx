@@ -23,7 +23,7 @@ const meta = preview.meta({
 		docs: {
 			description: {
 				component:
-					"The frame every empty conversation surface is drawn in: a centered column holding a mark, a heading over its description, an optional action and an optional arrow hint. It owns the spacing and the type scale only — it reads no copy and knows no bot, so `ChatEmptyState` and `ConversationEmptyState` stay the components an app mounts. Reach for it directly only to add a third empty surface to the transcript region.",
+					"The frame every empty conversation surface is drawn in: a centered column holding a mark, a heading over its description, an optional action and an optional arrow hint. It owns the spacing and the type scale only — it reads no copy and knows no companion, so `ChatEmptyState` and `ConversationEmptyState` stay the components an app mounts. Reach for it directly only to add a third empty surface to the transcript region.",
 			},
 		},
 	},
@@ -56,7 +56,7 @@ export const Default = meta.story({
 
 export const WithAction = meta.story({
 	args: {
-		action: <Button onClick={fn()}>Bot settings</Button>,
+		action: <Button onClick={fn()}>Companion settings</Button>,
 	},
 	parameters: {
 		docs: {
@@ -68,7 +68,7 @@ export const WithAction = meta.story({
 	},
 	play: async ({ canvas }) => {
 		await expect(
-			canvas.getByRole("button", { name: "Bot settings" }),
+			canvas.getByRole("button", { name: "Companion settings" }),
 		).toBeVisible()
 		await expect(
 			canvas.getByText(/Type your first prompt in the composer below/),
@@ -103,7 +103,7 @@ export const LongContent = meta.story({
 		title:
 			"Ship the December release, then plan the January retrospective with everyone involved",
 		description:
-			"Six bots are seated here and waiting on your first message, and every one of them reads the whole room before answering.",
+			"Six companions are seated here and waiting on your first message, and every one of them reads the whole room before answering.",
 	},
 	parameters: {
 		docs: {

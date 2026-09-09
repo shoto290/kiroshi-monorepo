@@ -35,7 +35,7 @@ const meta = preview.meta({
 		docs: {
 			description: {
 				component:
-					"The bots picked for a conversation, in the order they were picked, as chips. The order is the point: the first chip is the lead, and it says so with a crown and a screen-reader-only *Lead*, never with the crown alone. Every chip carries its own cross, named after the bot it removes, and removing one leaves the rest in place — so the second chip is promoted only by removing the first, never by a reorder this component does on its own. It draws nothing when nothing is picked, which is what the dialog wants above an untouched picker. Reach for `BotPicker` for the list these chips come from.",
+					"The companions picked for a conversation, in the order they were picked, as chips. The order is the point: the first chip is the lead, and it says so with a crown and a screen-reader-only *Lead*, never with the crown alone. Every chip carries its own cross, named after the companion it removes, and removing one leaves the rest in place — so the second chip is promoted only by removing the first, never by a reorder this component does on its own. It draws nothing when nothing is picked, which is what the dialog wants above an untouched picker. Reach for `BotPicker` for the list these chips come from.",
 			},
 		},
 	},
@@ -51,7 +51,7 @@ export const Default = meta.story({
 		docs: {
 			description: {
 				story:
-					"Three bots picked. Check that only the first chip wears the crown and announces *Lead*, that each cross is named after its own bot, and that removing a middle chip leaves the lead untouched. Pick `LeadHandover` for what removing the lead does.",
+					"Three companions picked. Check that only the first chip wears the crown and announces *Lead*, that each cross is named after its own companion, and that removing a middle chip leaves the lead untouched. Pick `LeadHandover` for what removing the lead does.",
 			},
 		},
 	},
@@ -96,7 +96,7 @@ export const Single = meta.story({
 		docs: {
 			description: {
 				story:
-					"One bot, which is therefore the lead. Check that the crown is drawn even with nobody to lead — the mark states a role the conversation keeps, not a comparison between chips.",
+					"One companion, which is therefore the lead. Check that the crown is drawn even with nobody to lead — the mark states a role the conversation keeps, not a comparison between chips.",
 			},
 		},
 	},
@@ -113,7 +113,7 @@ export const LongContent = meta.story({
 		docs: {
 			description: {
 				story:
-					"Bots whose names run past a chip's width. Check that the name truncates while the avatar, the crown and the cross stay whole and clickable, and that the row wraps to a second line rather than pushing the dialog wider.",
+					"Companions whose names run past a chip's width. Check that the name truncates while the avatar, the crown and the cross stay whole and clickable, and that the row wraps to a second line rather than pushing the dialog wider.",
 			},
 		},
 	},

@@ -6,7 +6,7 @@ const common = {
 		unavailable: {
 			title: "Spaces could not be read",
 			description:
-				"Your bots are safe on the record. Try again to open your spaces.",
+				"Your companions are safe on the record. Try again to open your spaces.",
 		},
 	},
 	dialog: {
@@ -52,8 +52,10 @@ const common = {
 		panel: {
 			title: "Update ready",
 			version: "Version {{version}}",
-			botsBusy_one: "{{count}} bot is still running. Stop them to restart.",
-			botsBusy_other: "{{count}} bots are still running. Stop them to restart.",
+			botsBusy_one:
+				"{{count}} companion is still running. Stop them to restart.",
+			botsBusy_other:
+				"{{count}} companions are still running. Stop them to restart.",
 			restart: "Restart now",
 			postpone: "Later",
 			releaseNotes: "Read the full release notes in your browser",

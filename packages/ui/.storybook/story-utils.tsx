@@ -79,6 +79,14 @@ export const slotIn = (root: Element, slot: string) => {
 	return node
 }
 
+export const opaque = async (element: HTMLElement) => {
+	await waitFor(
+		() => expect(getComputedStyle(element).opacity).toBe("1"),
+		FRAME_POLL,
+	)
+	return element
+}
+
 export const hasOverlayScrollbars = (element: HTMLElement) =>
 	OverlayScrollbars.valid(OverlayScrollbars(element))
 

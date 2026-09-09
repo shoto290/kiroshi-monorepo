@@ -61,7 +61,7 @@ const meta = preview.meta({
 		docs: {
 			description: {
 				component:
-					"The overlay that brings a conversation into being: an optional name, then the bots that take part, picked one at a time from a searchable roster. The order of the picks is the whole product decision here — the first bot picked leads, and the dialog shows that before the conversation exists rather than settling it afterwards, by drawing a chip per pick, in pick order, with a crown on the first. Removing a chip removes exactly that bot and promotes the next one only if the lead itself was removed. Only the bots are required: a conversation created with the name left empty is reported with an empty name, and it takes its name from its first message instead, which is why the create action waits on the picks alone. The dialog keeps its own draft and throws it away on close: it opens blank every time, so a half-filled attempt never leaks into the next one.",
+					"The overlay that brings a conversation into being: an optional name, then the companions that take part, picked one at a time from a searchable roster. The order of the picks is the whole product decision here — the first companion picked leads, and the dialog shows that before the conversation exists rather than settling it afterwards, by drawing a chip per pick, in pick order, with a crown on the first. Removing a chip removes exactly that companion and promotes the next one only if the lead itself was removed. Only the companions are required: a conversation created with the name left empty is reported with an empty name, and it takes its name from its first message instead, which is why the create action waits on the picks alone. The dialog keeps its own draft and throws it away on close: it opens blank every time, so a half-filled attempt never leaks into the next one.",
 			},
 		},
 	},
@@ -79,7 +79,7 @@ export const Default = meta.story({
 		docs: {
 			description: {
 				story:
-					"The dialog as it opens, blank. Check that create is unavailable while nothing is picked, that picking two bots draws two chips in pick order with the crown on the first and turns create on with the name still empty, and that the conversation is then reported nameless. Pick `LeadHandover` for a named one, `Reopened` for the draft being thrown away, `Empty` for a search matching nothing.",
+					"The dialog as it opens, blank. Check that create is unavailable while nothing is picked, that picking two companions draws two chips in pick order with the crown on the first and turns create on with the name still empty, and that the conversation is then reported nameless. Pick `LeadHandover` for a named one, `Reopened` for the draft being thrown away, `Empty` for a search matching nothing.",
 			},
 		},
 	},
@@ -157,19 +157,17 @@ export const Reopened = meta.story({
 		const inside = within(dialog)
 
 		await userEvent.type(inside.getByLabelText("Name"), "Abandoned")
-		await userEvent.type(inside.getByLabelText("Bots"), "atl")
+		await userEvent.type(inside.getByLabelText("Companions"), "atl")
 		await userEvent.click(inside.getByRole("button", { name: "Atlas" }))
 		await expect(slotsIn(dialog, "picked-bot")).toHaveLength(1)
 
 		await userEvent.click(inside.getByRole("button", { name: "Cancel" }))
-		await waitFor(() =>
-			expect(screen.queryByRole("dialog")).not.toBeInTheDocument(),
-		)
+		await waitFor(() => expect(dialog).not.toBeInTheDocument())
 
 		await userEvent.click(screen.getByRole("button", { name: "Reopen" }))
 		const reopened = await dialogIn()
 		await expect(within(reopened).getByLabelText("Name")).toHaveValue("")
-		await expect(within(reopened).getByLabelText("Bots")).toHaveValue("")
+		await expect(within(reopened).getByLabelText("Companions")).toHaveValue("")
 		await expect(slotsIn(reopened, "picked-bot")).toHaveLength(0)
 	},
 	render: (args) => <ReopenableHost {...args} />,
@@ -180,7 +178,7 @@ export const Empty = meta.story({
 		docs: {
 			description: {
 				story:
-					"A search no bot in the roster answers. Check that the message replaces the list inside the dialog and that create stays unavailable, since a search cannot pick anything. Clearing the search restores every bot.",
+					"A search no companion in the roster answers. Check that the message replaces the list inside the dialog and that create stays unavailable, since a search cannot pick anything. Clearing the search restores every companion.",
 			},
 		},
 	},
@@ -189,9 +187,11 @@ export const Empty = meta.story({
 		const inside = within(dialog)
 
 		await userEvent.type(inside.getByLabelText("Name"), "Nothing here")
-		await userEvent.type(inside.getByLabelText("Bots"), "zzz")
+		await userEvent.type(inside.getByLabelText("Companions"), "zzz")
 
-		await expect(inside.getByText("No bot matches that search.")).toBeVisible()
+		await expect(
+			inside.getByText("No companion matches that search."),
+		).toBeVisible()
 		await expect(
 			inside.getByRole("button", { name: "Create conversation" }),
 		).toBeDisabled()
@@ -204,7 +204,7 @@ export const LongContent = meta.story({
 		docs: {
 			description: {
 				story:
-					"A roster of bots named past the dialog's width, all picked. Check that the chips wrap onto a second row and the names truncate instead of stretching the dialog, and that the list below keeps its own scroll rather than pushing the buttons off-screen.",
+					"A roster of companions named past the dialog's width, all picked. Check that the chips wrap onto a second row and the names truncate instead of stretching the dialog, and that the list below keeps its own scroll rather than pushing the buttons off-screen.",
 			},
 		},
 	},

@@ -173,7 +173,7 @@ export const Message = meta.story({
 		docs: {
 			description: {
 				story:
-					"A message written by a bot, the nominal hit. Check that the excerpt is the title and stays at weight 400 because it is prose and not a name, that the matched word carries a `mark` on the amber token, and that the context line reads the author then the conversation.",
+					"A message written by a companion, the nominal hit. Check that the excerpt is the title and stays at weight 400 because it is prose and not a name, that the matched word carries a `mark` on the amber token, and that the context line reads the author then the conversation.",
 			},
 		},
 	},
@@ -195,7 +195,7 @@ export const MessageFromYou = meta.story({
 		docs: {
 			description: {
 				story:
-					"The same prose hit when the reader wrote it. Check that the leading identity is the reader's initials rather than a bot, and that the title keeps the weight 400 the other message kind takes.",
+					"The same prose hit when the reader wrote it. Check that the leading identity is the reader's initials rather than a companion, and that the title keeps the weight 400 the other message kind takes.",
 			},
 		},
 	},
@@ -212,7 +212,7 @@ export const ChatGroup = meta.story({
 		docs: {
 			description: {
 				story:
-					"A room with several participants. Check that the identity is the held avatar group and not a single bot, that the title is a name and so takes weight 500, and that the context line is one sentence with no leading glyph in front of it.",
+					"A room with several participants. Check that the identity is the held avatar group and not a single companion, that the title is a name and so takes weight 500, and that the context line is one sentence with no leading glyph in front of it.",
 			},
 		},
 	},
@@ -232,7 +232,7 @@ export const ChatSolo = meta.story({
 		docs: {
 			description: {
 				story:
-					"A thread held with one bot alone. Check that the context line reads exactly the parts the caller passed and nothing appended behind them: the words that tell a solo thread apart from a room of two are the palette's copy, not this component's.",
+					"A thread held with one companion alone. Check that the context line reads exactly the parts the caller passed and nothing appended behind them: the words that tell a solo thread apart from a room of two are the palette's copy, not this component's.",
 			},
 		},
 	},
@@ -250,7 +250,7 @@ export const Mission = meta.story({
 		docs: {
 			description: {
 				story:
-					"A mission hit, the only kind carrying a state badge and a ticket. Check that the badge dot sits on the bot and is ringed against the palette surface, and that the platform mark and the identifier open the context line ahead of the owner and the state.",
+					"A mission hit, the only kind carrying a state badge and a ticket. Check that the badge dot sits on the companion and is ringed against the palette surface, and that the platform mark and the identifier open the context line ahead of the owner and the state.",
 			},
 		},
 	},
@@ -270,7 +270,7 @@ export const Routine = meta.story({
 		docs: {
 			description: {
 				story:
-					"A routine hit. Check that its context line opens on the repeat glyph, which is what separates a scheduled run from the mission kind that also names a bot and a state.",
+					"A routine hit. Check that its context line opens on the repeat glyph, which is what separates a scheduled run from the mission kind that also names a companion and a state.",
 			},
 		},
 	},

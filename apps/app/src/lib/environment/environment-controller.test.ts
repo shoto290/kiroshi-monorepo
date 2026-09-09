@@ -39,7 +39,7 @@ describe("environment controller", () => {
 		])
 	})
 
-	it("lists what the space defines beside what the bot defines", async () => {
+	it("lists what the space defines beside what the companion defines", async () => {
 		const store = createFakeTranscriptStore()
 		await store.setEnvironmentVariable(SPACE, "ATLAS_TOKEN", "sk-1")
 		await store.setEnvironmentVariable(BOT, "BOT_SEED", "1")

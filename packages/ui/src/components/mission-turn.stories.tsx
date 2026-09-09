@@ -62,7 +62,7 @@ const meta = preview.meta({
 		docs: {
 			description: {
 				component:
-					"A mission as it lands in the transcript it was opened from: an assistant turn like any other, with the bot's own author line above a soft bubble and the bot's avatar in the gutter. The author line names the bot and nothing more; the bubble opens on which tools the mission runs with and where it stands, then carries the objective and the ticket it answers. Reach for it in a conversation feed; the bubble on its own is `MissionCard`.",
+					"A mission as it lands in the transcript it was opened from: an assistant turn like any other, with the companion's own author line above a soft bubble and the companion's avatar in the gutter. The author line names the companion and nothing more; the bubble opens on which tools the mission runs with and where it stands, then carries the objective and the ticket it answers. Reach for it in a conversation feed; the bubble on its own is `MissionCard`.",
 			},
 		},
 	},
@@ -90,7 +90,7 @@ export const WaitingForTheReader = meta.story({
 		docs: {
 			description: {
 				story:
-					"The mission stopped on a question for its reader. Check that the author line names the bot and nothing else, that the pill opens the bubble after the tool marks and says the state in words, and that the attention badge sits on the gutter avatar. Pick `Working` for the state that carries no pill at all.",
+					"The mission stopped on a question for its reader. Check that the author line names the companion and nothing else, that the pill opens the bubble after the tool marks and says the state in words, and that the attention badge sits on the gutter avatar. Pick `Working` for the state that carries no pill at all.",
 			},
 		},
 	},
@@ -179,7 +179,7 @@ export const WorkingWithoutTools = meta.story({
 		docs: {
 			description: {
 				story:
-					"A mission the bot opened without naming a tool, still running. Check that the bubble opens straight on the objective — no leading row, no space above it beyond the bubble's own padding — while a screen reader is still given the state. Pick `WithoutTools` for the same mission once it waits on its reader.",
+					"A mission the companion opened without naming a tool, still running. Check that the bubble opens straight on the objective — no leading row, no space above it beyond the bubble's own padding — while a screen reader is still given the state. Pick `WithoutTools` for the same mission once it waits on its reader.",
 			},
 		},
 	},
@@ -195,7 +195,7 @@ export const InASoloThread = meta.story({
 		docs: {
 			description: {
 				story:
-					"A thread with a single bot names it once, in the header, so no assistant row carries an author line. Check that the mission turn drops its own line rather than being the only row that names the bot, that the avatar stays in the gutter, and that the bubble still opens on the state. Pick `UnderTheTurnThatOpenedIt` for a thread that names its speakers.",
+					"A thread with a single companion names it once, in the header, so no assistant row carries an author line. Check that the mission turn drops its own line rather than being the only row that names the companion, that the avatar stays in the gutter, and that the bubble still opens on the state. Pick `UnderTheTurnThatOpenedIt` for a thread that names its speakers.",
 			},
 		},
 	},
@@ -220,7 +220,7 @@ export const WithAnUnknownTool = meta.story({
 		docs: {
 			description: {
 				story:
-					"A tool the app ships no mark for, since the bot that opens a mission names its tools itself. Check that one default mark stands in ahead of the pill, that it cannot be mistaken for the Superset, Paper or GitHub marks, and that a screen reader still reads the tool's own name. Pick `Working` for the marks the app does know.",
+					"A tool the app ships no mark for, since the companion that opens a mission names its tools itself. Check that one default mark stands in ahead of the pill, that it cannot be mistaken for the Superset, Paper or GitHub marks, and that a screen reader still reads the tool's own name. Pick `Working` for the marks the app does know.",
 			},
 		},
 	},
@@ -234,7 +234,7 @@ export const UnderTheTurnThatOpenedIt = meta.story({
 		docs: {
 			description: {
 				story:
-					"The row as a reader meets it, right under the answer that opened the mission, spaced the way the transcript spaces its rows. Check that the avatar, the author line and the bubble sit on the very same gutter grid as the turn above, and that the bot is named the same way twice rather than in two different shapes.",
+					"The row as a reader meets it, right under the answer that opened the mission, spaced the way the transcript spaces its rows. Check that the avatar, the author line and the bubble sit on the very same gutter grid as the turn above, and that the companion is named the same way twice rather than in two different shapes.",
 			},
 		},
 	},

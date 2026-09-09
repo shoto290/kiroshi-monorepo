@@ -139,14 +139,14 @@ describe("createRosterController", () => {
 		expect(listed).not.toHaveBeenCalled()
 	})
 
-	it("opens on nothing when the record holds no bot", async () => {
+	it("opens on nothing when the record holds no companion", async () => {
 		const controller = await loaded(await anEmptyStore())
 
 		expect(controller.getState().bots).toEqual([])
 		expect(controller.getState().selectedBotId).toBeNull()
 	})
 
-	it("opens on the bot it was left on when the roster still holds it", async () => {
+	it("opens on the companion it was left on when the roster still holds it", async () => {
 		const store = createFakeTranscriptStore()
 		const opened = await loaded(store)
 		await opened.create()
@@ -159,7 +159,7 @@ describe("createRosterController", () => {
 		expect(reopened.getState().selectedBotId).toBe(left)
 	})
 
-	it("opens on the first bot when the roster no longer holds that one", async () => {
+	it("opens on the first companion when the roster no longer holds that one", async () => {
 		const store = createFakeTranscriptStore()
 		const controller = createRosterController(store)
 
@@ -209,7 +209,7 @@ describe("createRosterController", () => {
 		expect(controller.getState().hasFailedToLoad).toBe(false)
 	})
 
-	it("creates a bot immediately, selects it and leaves the settings closed", async () => {
+	it("creates a companion immediately, selects it and leaves the settings closed", async () => {
 		const store = createFakeTranscriptStore()
 		const controller = await loaded(store)
 
@@ -248,7 +248,7 @@ describe("createRosterController", () => {
 		expect(state.selectedBotId).toBe("default")
 	})
 
-	it("gives every bot it creates a face no other bot is wearing", async () => {
+	it("gives every companion it creates a face no other companion is wearing", async () => {
 		const controller = await loaded(await anEmptyStore())
 
 		await controller.create()
@@ -354,7 +354,7 @@ describe("createRosterController", () => {
 		)
 	})
 
-	it("closes the panel and holds the open thread once a bot is deleted", async () => {
+	it("closes the panel and holds the open thread once a companion is deleted", async () => {
 		const controller = await loaded(await anEmptyStore())
 		await controller.create()
 		await controller.create()
@@ -375,7 +375,7 @@ describe("createRosterController", () => {
 		})
 	})
 
-	it("leaves nothing selected and nothing open once the last bot is deleted", async () => {
+	it("leaves nothing selected and nothing open once the last companion is deleted", async () => {
 		const controller = await loaded(await anEmptyStore())
 		await controller.create()
 		const [only] = controller.getState().bots
@@ -389,7 +389,7 @@ describe("createRosterController", () => {
 		expect(state.isEditing).toBe(false)
 	})
 
-	it("takes the transcript of the bot it deletes", async () => {
+	it("takes the transcript of the companion it deletes", async () => {
 		const store = createFakeTranscriptStore()
 		const controller = await loaded(store)
 		const chat = await store.mainChat("default")
@@ -421,7 +421,7 @@ describe("createRosterController", () => {
 		expect(held(controller, "default").memory).toBe("")
 	})
 
-	it("keeps the memory a bot already had when the command refuses", async () => {
+	it("keeps the memory a companion already had when the command refuses", async () => {
 		const store = createFakeTranscriptStore()
 		await store.setBotMemory("default", "They bake on Sundays.")
 		const controller = await loaded({
@@ -451,7 +451,7 @@ describe("createRosterController", () => {
 		)
 	})
 
-	it("opens the settings of the bot a delete is asked about on the danger group", async () => {
+	it("opens the settings of the companion a delete is asked about on the danger group", async () => {
 		const store = createFakeTranscriptStore()
 		const deleted = vi.spyOn(store, "deleteBot")
 		const controller = await loaded(store)
@@ -469,7 +469,7 @@ describe("createRosterController", () => {
 		expect(controller.getState().isShowingDanger).toBe(false)
 	})
 
-	it("holds the open thread when it opens the settings of another bot", async () => {
+	it("holds the open thread when it opens the settings of another companion", async () => {
 		const controller = await loaded(await anEmptyStore())
 		await controller.create()
 		await controller.create()
@@ -485,7 +485,7 @@ describe("createRosterController", () => {
 		})
 	})
 
-	it("lets go of the danger group when the panel is pointed at another bot", async () => {
+	it("lets go of the danger group when the panel is pointed at another companion", async () => {
 		const controller = await loaded(await anEmptyStore())
 		await controller.create()
 		await controller.create()
@@ -500,7 +500,7 @@ describe("createRosterController", () => {
 		})
 	})
 
-	it("closes the panel when a read no longer holds the bot it was open on", async () => {
+	it("closes the panel when a read no longer holds the companion it was open on", async () => {
 		const store = createFakeTranscriptStore()
 		const controller = await loaded(store)
 		controller.askToDelete("default")
@@ -546,7 +546,7 @@ describe("createRosterController on a space", () => {
 		expect(read).not.toHaveBeenCalled()
 	})
 
-	it("selects nothing when the space it lands on holds no bot", async () => {
+	it("selects nothing when the space it lands on holds no companion", async () => {
 		const store = createFakeTranscriptStore()
 		const empty = await store.createSpace("Vacances")
 		const controller = createRosterController(store)
@@ -595,7 +595,7 @@ describe("createRosterController on a space", () => {
 		expect(Object.keys(controller.getState().rosters)).toEqual(["personal"])
 	})
 
-	it("creates a bot in the space the reader is in and nowhere else", async () => {
+	it("creates a companion in the space the reader is in and nowhere else", async () => {
 		const store = createFakeTranscriptStore()
 		const elsewhere = await store.createSpace("Vocca")
 		const controller = createRosterController(store)
@@ -645,7 +645,7 @@ describe("createRosterController on a space", () => {
 		expect(state.rosters.personal.map((bot) => bot.id)).toEqual(["default"])
 	})
 
-	it("hands the bot over to the space it is moved to and opens that space on it", async () => {
+	it("hands the companion over to the space it is moved to and opens that space on it", async () => {
 		const store = createFakeTranscriptStore()
 		const elsewhere = await store.createSpace("Vocca")
 		const section = await store.createSection("personal", "Writers")
@@ -685,7 +685,7 @@ describe("createRosterController on a space", () => {
 		expect(state.rosters[elsewhere.id]).toEqual([])
 	})
 
-	it("writes nothing when the bot is already in the space it is moved to", async () => {
+	it("writes nothing when the companion is already in the space it is moved to", async () => {
 		const store = createFakeTranscriptStore()
 		const controller = createRosterController(store)
 		await controller.load(opening())
@@ -697,7 +697,7 @@ describe("createRosterController on a space", () => {
 		expect(write).not.toHaveBeenCalled()
 	})
 
-	it("empties the seats a moved bot held in the space it leaves", async () => {
+	it("empties the seats a moved companion held in the space it leaves", async () => {
 		const store = createFakeTranscriptStore()
 		const elsewhere = await store.createSpace("Vocca")
 		const room = await store.createConversation({
@@ -718,7 +718,7 @@ describe("createRosterController on a space", () => {
 		expect(room.id).toBe(left.id)
 	})
 
-	it("leaves the roster of the other spaces untouched when a bot is deleted", async () => {
+	it("leaves the roster of the other spaces untouched when a companion is deleted", async () => {
 		const store = createFakeTranscriptStore()
 		const elsewhere = await store.createSpace("Vocca")
 		const away = await store.createBot(newBotIdentity([]), elsewhere.id)
@@ -743,7 +743,7 @@ describe("createRosterController on memberships", () => {
 		return { store, elsewhere, controller }
 	}
 
-	it("lists a bot of several spaces in the roster of each", async () => {
+	it("lists a companion of several spaces in the roster of each", async () => {
 		const { elsewhere, controller } = await acrossTwoSpaces()
 
 		const { rosters } = controller.getState()
@@ -752,7 +752,7 @@ describe("createRosterController on memberships", () => {
 		expect(rosters[elsewhere.id].map((bot) => bot.id)).toEqual(["default"])
 	})
 
-	it("answers the spaces a bot belongs to from the rosters it holds", async () => {
+	it("answers the spaces a companion belongs to from the rosters it holds", async () => {
 		const { elsewhere, controller } = await acrossTwoSpaces()
 
 		expect(controller.spacesOfBot("default")).toEqual([
@@ -782,7 +782,7 @@ describe("createRosterController on memberships", () => {
 		expect(previews[elsewhere.id]?.default).toMatchObject({ text: "Away" })
 	})
 
-	it("shows a bot in the space it is added to without reading every roster", async () => {
+	it("shows a companion in the space it is added to without reading every roster", async () => {
 		const store = createFakeTranscriptStore()
 		const elsewhere = await store.createSpace("Vocca")
 		const controller = createRosterController(store)
@@ -797,7 +797,7 @@ describe("createRosterController on memberships", () => {
 		expect(reads.count()).toBe(0)
 	})
 
-	it("drops a bot from the space it is removed from without reading every roster", async () => {
+	it("drops a companion from the space it is removed from without reading every roster", async () => {
 		const { store, elsewhere, controller } = await acrossTwoSpaces()
 		const reads = countingBots(store)
 
@@ -810,7 +810,7 @@ describe("createRosterController on memberships", () => {
 		expect(reads.count()).toBe(0)
 	})
 
-	it("says a bot has to stay in one space when its last one is refused", async () => {
+	it("says a companion has to stay in one space when its last one is refused", async () => {
 		const store = createFakeTranscriptStore()
 		const elsewhere = await store.createSpace("Vocca")
 		const reportFailure = vi.fn()
@@ -823,7 +823,7 @@ describe("createRosterController on memberships", () => {
 			["default"],
 		)
 		expect(reportFailure).toHaveBeenCalledWith({
-			title: "A bot has to stay in at least one space.",
+			title: "A companion has to stay in at least one space.",
 		})
 	})
 
@@ -846,13 +846,13 @@ describe("createRosterController on memberships", () => {
 		).toEqual(["default"])
 		expect(reportFailure).toHaveBeenCalledWith({
 			title:
-				"This bot could not be removed from this space. Nothing changed, try again.",
+				"This companion could not be removed from this space. Nothing changed, try again.",
 		})
 	})
 })
 
 describe("createRosterController previews", () => {
-	it("reads the last word of a bot outside the space it opens on", async () => {
+	it("reads the last word of a companion outside the space it opens on", async () => {
 		const store = createFakeTranscriptStore()
 		const elsewhere = await store.createSpace("Vocca")
 		const quiet = await store.createBot(newBotIdentity([]), elsewhere.id)
@@ -876,7 +876,7 @@ describe("createRosterController previews", () => {
 		).toEqual([loud.id, quiet.id])
 	})
 
-	it("reads the last word of every bot's conversation, not only the open one", async () => {
+	it("reads the last word of every companion's conversation, not only the open one", async () => {
 		const store = createFakeTranscriptStore()
 		const controller = await loaded(store)
 		await controller.create()
@@ -903,7 +903,7 @@ describe("createRosterController previews", () => {
 		expect(state.previews.personal?.default?.at).toBe(said.createdAt)
 	})
 
-	it("previews nothing for a bot nothing has been said to", async () => {
+	it("previews nothing for a companion nothing has been said to", async () => {
 		const state = (await loaded(createFakeTranscriptStore())).getState()
 
 		expect(state.previews.personal?.default).toBeUndefined()
@@ -919,7 +919,7 @@ describe("createRosterController previews", () => {
 		expect(state.previews.personal?.default).toMatchObject({ text: "And?" })
 	})
 
-	it("drops the preview of the bot it deletes and keeps every other", async () => {
+	it("drops the preview of the companion it deletes and keeps every other", async () => {
 		const store = createFakeTranscriptStore()
 		const seeded = await loaded(store)
 		await seeded.create()
@@ -960,7 +960,7 @@ describe("createRosterController previews", () => {
 		})
 		expect(state.bots).toHaveLength(2)
 	})
-	it("carries the section a bot is moved into", async () => {
+	it("carries the section a companion is moved into", async () => {
 		const store = createFakeTranscriptStore()
 		const controller = await loaded(store)
 
@@ -969,7 +969,7 @@ describe("createRosterController previews", () => {
 		expect(held(controller, "default").sectionId).toBe("n-1")
 	})
 
-	it("carries no section for every bot a dropped section held", async () => {
+	it("carries no section for every companion a dropped section held", async () => {
 		const store = createFakeTranscriptStore()
 		const controller = await loaded(store)
 		await controller.create()
@@ -1143,7 +1143,7 @@ describe("createRosterController on conversations", () => {
 		expect(state.conversations.map((held) => held.title)).toEqual(["Launch"])
 	})
 
-	it("leaves no bot selected while a conversation is selected", async () => {
+	it("leaves no companion selected while a conversation is selected", async () => {
 		const store = createFakeTranscriptStore()
 		const controller = await loaded(store)
 		const created = await controller.createConversation({
@@ -1287,7 +1287,7 @@ describe("createRosterController on conversations", () => {
 		expect(leadIn((await store.conversations("personal"))[0])).toBe(second.id)
 	})
 
-	it("carries a written name and avatar onto every seat the bot holds", async () => {
+	it("carries a written name and avatar onto every seat the companion holds", async () => {
 		const store = createFakeTranscriptStore()
 		const second = await store.createBot(newBotIdentity([]), "personal")
 		const controller = await loaded(store)
@@ -1340,7 +1340,7 @@ describe("createRosterController on conversations", () => {
 		)
 	})
 
-	it("seats a recruited bot last and offers it no more", async () => {
+	it("seats a recruited companion last and offers it no more", async () => {
 		const store = createFakeTranscriptStore()
 		const second = await store.createBot(newBotIdentity([]), "personal")
 		const controller = await loaded(store)
@@ -1372,7 +1372,7 @@ describe("createRosterController on conversations", () => {
 		expect(room.participants.map((seat) => seat.botId)).toContain(second.id)
 	})
 
-	it("empties the seats a deleted bot held and keeps it readable", async () => {
+	it("empties the seats a deleted companion held and keeps it readable", async () => {
 		const store = createFakeTranscriptStore()
 		const second = await store.createBot(newBotIdentity([]), "personal")
 		const controller = await loaded(store)
@@ -1391,7 +1391,7 @@ describe("createRosterController on conversations", () => {
 		])
 	})
 
-	it("crowns the first bot still seated when the lead is dismissed", async () => {
+	it("crowns the first companion still seated when the lead is dismissed", async () => {
 		const store = createFakeTranscriptStore()
 		const second = await store.createBot(newBotIdentity([]), "personal")
 		const controller = await loaded(store)

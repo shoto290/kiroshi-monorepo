@@ -85,7 +85,7 @@ describe("placeMissions", () => {
 		])
 	})
 
-	it("places a mission after the last run opened before it whatever bot wrote it", () => {
+	it("places a mission after the last run opened before it whatever companion wrote it", () => {
 		expect(
 			placedIn(
 				[PROMPT, ANSWER, OTHER_BOT_ANSWER, LATER_PROMPT],
@@ -94,7 +94,7 @@ describe("placeMissions", () => {
 		).toEqual([{ mission: missionOf("m-1", 300), runIndex: 2 }])
 	})
 
-	it("places a mission opened after the oldest run in a feed holding no run of its bot", () => {
+	it("places a mission opened after the oldest run in a feed holding no run of its companion", () => {
 		expect(
 			placedIn(
 				[PROMPT, OTHER_BOT_ANSWER, LATER_PROMPT],
@@ -109,7 +109,7 @@ describe("placeMissions", () => {
 		])
 	})
 
-	it("keeps two missions of one bot apart when the runs in between are absent", () => {
+	it("keeps two missions of one companion apart when the runs in between are absent", () => {
 		expect(
 			placedIn(RUNS, [missionOf("m-early", 200), missionOf("m-late", 450)]),
 		).toEqual([
@@ -118,7 +118,7 @@ describe("placeMissions", () => {
 		])
 	})
 
-	it("leaves a closed mission where it was opened when its bot ran again later", () => {
+	it("leaves a closed mission where it was opened when its companion ran again later", () => {
 		const closed: Mission = {
 			...missionOf("m-1", 200),
 			state: "done",

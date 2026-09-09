@@ -16,7 +16,7 @@ const settings = {
 	},
 	plugin: {
 		author: {
-			bot: "Un bot",
+			bot: "Un compagnon",
 		},
 	},
 	profile: {
@@ -35,17 +35,17 @@ const settings = {
 		label: "Me prévenir quand",
 		event: {
 			question: {
-				label: "Un bot pose une question",
+				label: "Un compagnon pose une question",
 				description:
 					"Il s'est arrêté et attend une réponse que vous seul pouvez donner.",
 			},
 			permission: {
-				label: "Un bot demande une permission",
+				label: "Un compagnon demande une permission",
 				description:
 					"Il veut lancer quelque chose ou modifier un fichier, et attend votre accord.",
 			},
 			turn: {
-				label: "Un bot termine son tour",
+				label: "Un compagnon termine son tour",
 				description: "Il a dit tout ce qu'il avait à dire et s'est tu.",
 			},
 		},
@@ -83,7 +83,7 @@ const settings = {
 		danger: {
 			delete: "Supprimer l'espace",
 			description:
-				"Ses bots et son plugin partent avec lui. C'est irréversible.",
+				"Ses compagnons et son plugin partent avec lui. C'est irréversible.",
 			last: "Le dernier espace ne peut pas être supprimé — l'application en garde toujours un.",
 			confirm: {
 				title: "Supprimer {{name}} ?",

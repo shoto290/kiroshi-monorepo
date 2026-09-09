@@ -424,3 +424,17 @@
 		color: var(--muted-foreground);
 	}
 }
+
+@media (prefers-reduced-motion: reduce) {
+	.animate-in,
+	.animate-out {
+		animation-duration: 0.01ms;
+	}
+
+	[data-slot="badge"],
+	[data-slot="button"],
+	[data-slot="switch"],
+	[data-slot="switch-thumb"] {
+		transition-duration: 0.01ms;
+	}
+}

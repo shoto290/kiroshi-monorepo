@@ -41,7 +41,7 @@ const inTranscript = (transcriptKey: string, ...botIds: string[]) => ({
 })
 
 describe("useMarkId", () => {
-	it("hands out a different id to every bot of one conversation", () => {
+	it("hands out a different id to every companion of one conversation", () => {
 		const [lyraMark, , orionMark] = readMarkIds([
 			inTranscript("room-1", "bot-lyra", "bot-orion"),
 		])
@@ -49,7 +49,7 @@ describe("useMarkId", () => {
 		expect(lyraMark).not.toBe(orionMark)
 	})
 
-	it("hands out a different id to one bot across two conversations", () => {
+	it("hands out a different id to one companion across two conversations", () => {
 		const [inFirst, , inSecond] = readMarkIds([
 			inTranscript("room-1", "bot-lyra"),
 			inTranscript("room-2", "bot-lyra"),
@@ -58,19 +58,19 @@ describe("useMarkId", () => {
 		expect(inFirst).not.toBe(inSecond)
 	})
 
-	it("hands out the same id on every render of one bot in one conversation", () => {
+	it("hands out the same id on every render of one companion in one conversation", () => {
 		const requests = [inTranscript("room-1", "bot-lyra")]
 
 		expect(readMarkIds(requests)).toEqual(readMarkIds(requests))
 	})
 
-	it("shares one id between the readers of one bot", () => {
+	it("shares one id between the readers of one companion", () => {
 		const [first, second] = readMarkIds([inTranscript("room-1", "bot-lyra")])
 
 		expect(first).toBe(second)
 	})
 
-	it("names no mark for a bot the transcript cannot name", () => {
+	it("names no mark for a companion the transcript cannot name", () => {
 		const [unnamed] = readMarkIds([
 			{ transcriptKey: "room-1", botIds: [undefined] },
 		])

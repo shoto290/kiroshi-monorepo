@@ -60,7 +60,7 @@ it("reads the open and the done missions of a conversation", async () => {
 	})
 })
 
-it("reads the roster block of a conversation for a bot", async () => {
+it("reads the roster block of a conversation for a companion", async () => {
 	hostInvoke.mockResolvedValueOnce("The room holds @ada.")
 
 	await expect(missionsTransport.rosterBlock("c-1", "b-1")).resolves.toBe(

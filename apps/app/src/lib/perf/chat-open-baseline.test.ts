@@ -323,7 +323,7 @@ const measureOpenings = async (delayMs: number) => {
 	await quiesce()
 	await openBot(app, streamer)
 	await quiesce()
-	await promptOneTurn("keep this bot writing")
+	await promptOneTurn("keep this companion writing")
 	const busyOpen = await openBot(app, contended)
 	return { busyOpen, coldOpen, warmOpen }
 }
@@ -451,7 +451,7 @@ describe("PRF5 chat open baseline", () => {
 		expect(await measurePage()).toMatchInlineSnapshot(`
 			{
 			  "commitsToFirstRow": 6,
-			  "commitsToSettled": 12,
+			  "commitsToSettled": 13,
 			  "highlightCalls": 10,
 			  "highlighterBuilds": 0,
 			  "markdownProcessors": 32,

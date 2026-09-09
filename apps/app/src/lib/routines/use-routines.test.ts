@@ -625,7 +625,7 @@ it("writes every row from the declared fields once one of them is edited", async
 	])
 })
 
-it("keeps a value typed by the source the lead bot does not declare", async () => {
+it("keeps a value typed by the source the lead companion does not declare", async () => {
 	const result = await mountOwnedRoutine([INBOX_ROUTINE], declaringTheInbox)
 
 	act(() => {

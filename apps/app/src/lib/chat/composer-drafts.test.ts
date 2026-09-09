@@ -36,7 +36,7 @@ const SETTLE_MS = 200
 
 const CONVERSATION_TITLE = "Round table"
 
-const BOT_DRAFT = "half a thought for the bot"
+const BOT_DRAFT = "half a thought for the companion"
 
 const CONVERSATION_DRAFT = "half a thought for the room"
 
@@ -98,7 +98,7 @@ describe("composer drafts", () => {
 		vi.useRealTimers()
 	})
 
-	it("holds a draft per thread across a bot to conversation round trip", async () => {
+	it("holds a draft per thread across a companion to conversation round trip", async () => {
 		vi.useFakeTimers()
 		const bot = await mountApp()
 

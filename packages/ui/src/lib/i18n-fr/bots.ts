@@ -1,15 +1,15 @@
 const bots = {
 	roster: {
 		label: "Conversations",
-		create: "Nouveau bot",
+		create: "Nouveau compagnon",
 		createMenu: "Créer",
 		conversation: {
 			create: "Nouvelle conversation",
 			others: "+{{count}}",
 			preview: "{{name}} : {{text}}",
 		},
-		empty: "Aucun bot pour l'instant",
-		unavailable: "Vos bots n'ont pas pu être lus.",
+		empty: "Aucun compagnon pour l'instant",
+		unavailable: "Vos compagnons n'ont pas pu être lus.",
 		mission: {
 			state: {
 				waiting: "en attente de vous",
@@ -20,7 +20,7 @@ const bots = {
 			unavailable: {
 				title: "Les missions n'ont pas pu être lues",
 				description:
-					"Vos bots sont intacts. Chaque ligne s'affiche sans sa mission jusqu'à la prochaine lecture.",
+					"Vos compagnons sont intacts. Chaque ligne s'affiche sans sa mission jusqu'à la prochaine lecture.",
 			},
 		},
 		actions: "Actions pour {{name}}",
@@ -29,7 +29,7 @@ const bots = {
 		spaces: {
 			label: "Espaces",
 			lastSpace:
-				"Le dernier espace d'un bot y reste. Supprimez le bot pour vous en défaire.",
+				"Le dernier espace d'un compagnon y reste. Supprimez le compagnon pour vous en défaire.",
 		},
 		pin: "Épingler",
 		pinDrop: "Déposer ici pour épingler",
@@ -45,7 +45,7 @@ const bots = {
 		},
 		idle: "au repos",
 		announcement: {
-			none: "Aucun bot sélectionné",
+			none: "Aucun compagnon sélectionné",
 			selected: "{{name}} sélectionné, {{state}}",
 		},
 		section: {
@@ -60,7 +60,7 @@ const bots = {
 			moveUp: "Monter",
 			moveDown: "Descendre",
 			delete: "Supprimer",
-			empty: "Déposez un bot ici",
+			empty: "Déposez un compagnon ici",
 		},
 	},
 	spaces: {
@@ -73,13 +73,13 @@ const bots = {
 		settings: "Réglages des espaces",
 		shortcut: "⌘{{rank}}",
 		remove: {
-			lastSpace: "Un bot doit rester dans au moins un espace.",
+			lastSpace: "Un compagnon doit rester dans au moins un espace.",
 			failed:
-				"Ce bot n'a pas pu être retiré de cet espace. Rien n'a changé, réessayez.",
+				"Ce compagnon n'a pas pu être retiré de cet espace. Rien n'a changé, réessayez.",
 		},
 	},
 	dialog: {
-		untitled: "Bot sans titre",
+		untitled: "Compagnon sans titre",
 		breadcrumb: "Réglages",
 		tab: {
 			general: "Général",
@@ -103,18 +103,19 @@ const bots = {
 		},
 		instructions: {
 			label: "Instructions",
-			placeholder: "L'invite système avec laquelle ce bot tourne toujours",
+			placeholder:
+				"L'invite système avec laquelle ce compagnon tourne toujours",
 		},
 		memory: {
 			label: "Mémoire",
-			hint: "Ce que le bot a noté pour lui-même au fil des conversations. Corrigez-la ou effacez-la — il continue d'écrire.",
-			empty: "Ce bot n'a encore rien noté.",
+			hint: "Ce que le compagnon a noté pour lui-même au fil des conversations. Corrigez-la ou effacez-la — il continue d'écrire.",
+			empty: "Ce compagnon n'a encore rien noté.",
 			save: "Enregistrer la mémoire",
 			clear: {
 				action: "Effacer",
-				title: "Effacer la mémoire de ce bot ?",
+				title: "Effacer la mémoire de ce compagnon ?",
 				description:
-					"Tout ce que le bot a noté pour lui-même est supprimé. Il recommence à apprendre dès la prochaine conversation.",
+					"Tout ce que le compagnon a noté pour lui-même est supprimé. Il recommence à apprendre dès la prochaine conversation.",
 				confirm: "Effacer la mémoire",
 			},
 		},
@@ -162,11 +163,11 @@ const bots = {
 		name: {
 			label: "Nom",
 			placeholder: "notes-de-version",
-			hint: "Minuscules, chiffres et traits d'union. C'est l'identité de la compétence — c'est la description ci-dessous que le bot lit.",
+			hint: "Minuscules, chiffres et traits d'union. C'est l'identité de la compétence — c'est la description ci-dessous que le compagnon lit.",
 		},
 		description: {
 			label: "Description",
-			placeholder: "Quand ce bot doit y recourir",
+			placeholder: "Quand ce compagnon doit y recourir",
 		},
 		whenToUse: {
 			label: "Quand l'utiliser",
@@ -196,9 +197,9 @@ const bots = {
 			hint: "Un motif par ligne. Les fichiers dont la présence rend cette compétence pertinente.",
 		},
 		modelInvocation: {
-			label: "Empêcher le bot d'y recourir",
+			label: "Empêcher le compagnon d'y recourir",
 			description:
-				"Sinon, le bot décide seul à partir de la description. Activé, seul un lecteur peut l'invoquer.",
+				"Sinon, le compagnon décide seul à partir de la description. Activé, seul un lecteur peut l'invoquer.",
 		},
 		userInvocable: {
 			label: "Laisser un lecteur l'invoquer",
@@ -209,7 +210,7 @@ const bots = {
 			label: "Précharger cette compétence",
 			tag: "Préchargée",
 			description:
-				"Une compétence préchargée est dans l'invite de ce bot à chaque tour. Sinon, elle reste sur le disque comme un texte que le bot peut aller lire.",
+				"Une compétence préchargée est dans l'invite de ce compagnon à chaque tour. Sinon, elle reste sur le disque comme un texte que le compagnon peut aller lire.",
 		},
 		system: {
 			tag: "Système",
@@ -218,12 +219,12 @@ const bots = {
 		},
 		model: {
 			label: "Modèle",
-			placeholder: "Celui du bot",
-			hint: "Laissé vide, le tour de cette compétence tourne sur le modèle du bot.",
+			placeholder: "Celui du compagnon",
+			hint: "Laissé vide, le tour de cette compétence tourne sur le modèle du compagnon.",
 		},
 		effort: {
 			label: "Effort",
-			default: "Celui du bot",
+			default: "Celui du compagnon",
 			option: {
 				low: "Faible",
 				medium: "Moyen",
@@ -246,7 +247,7 @@ const bots = {
 		},
 		agent: {
 			label: "Agent",
-			placeholder: "Le bot lui-même",
+			placeholder: "Le compagnon lui-même",
 			hint: "À qui l'exécution forkée est confiée.",
 		},
 		background: {
@@ -257,7 +258,7 @@ const bots = {
 		allowedTools: {
 			label: "Outils autorisés",
 			placeholder: "Read\nGrep",
-			hint: "Un nom d'outil par ligne. Laissé vide, le tour de cette compétence peut utiliser tout ce que le bot peut utiliser.",
+			hint: "Un nom d'outil par ligne. Laissé vide, le tour de cette compétence peut utiliser tout ce que le compagnon peut utiliser.",
 		},
 		disallowedTools: {
 			label: "Outils interdits",
@@ -340,17 +341,17 @@ const bots = {
 			advanced: "Avancé",
 		},
 		notice:
-			"Un serveur est un programme que ce bot démarre sur votre machine, sous votre compte, à sa prochaine exécution. N'en ajoutez un que depuis une source de confiance.",
+			"Un serveur est un programme que ce compagnon démarre sur votre machine, sous votre compte, à sa prochaine exécution. N'en ajoutez un que depuis une source de confiance.",
 		empty: {
 			title: "Aucun serveur MCP",
 			description:
-				"Un serveur MCP donne à ce bot des outils qu'il n'a pas seul. En ajouter un l'autorise à démarrer ce programme sur votre machine.",
+				"Un serveur MCP donne à ce compagnon des outils qu'il n'a pas seul. En ajouter un l'autorise à démarrer ce programme sur votre machine.",
 		},
 		unavailable: "Ces serveurs MCP n'ont pas pu être lus.",
 		name: {
 			label: "Nom",
 			placeholder: "atlas",
-			hint: "Minuscules, chiffres et traits d'union. C'est le nom sous lequel le serveur est déclaré et celui par lequel le bot s'y connecte.",
+			hint: "Minuscules, chiffres et traits d'union. C'est le nom sous lequel le serveur est déclaré et celui par lequel le compagnon s'y connecte.",
 		},
 		config: {
 			label: "Configuration",
@@ -371,7 +372,7 @@ const bots = {
 		command: {
 			label: "Commande",
 			placeholder: "npx",
-			hint: "Le programme que ce bot démarre. Il tourne sous votre compte, avec ce que vous pouvez atteindre.",
+			hint: "Le programme que ce compagnon démarre. Il tourne sous votre compte, avec ce que vous pouvez atteindre.",
 		},
 		args: {
 			label: "Arguments",
@@ -381,7 +382,7 @@ const bots = {
 		url: {
 			label: "URL",
 			placeholder: "https://exemple.com/mcp",
-			hint: "L'adresse à laquelle ce bot se connecte. Rien n'est démarré sur votre machine.",
+			hint: "L'adresse à laquelle ce compagnon se connecte. Rien n'est démarré sur votre machine.",
 		},
 		endpoint: {
 			label: "Point d'accès",
@@ -400,7 +401,7 @@ const bots = {
 		environment: {
 			label: "Environnement",
 			placeholder: "ATLAS_TOKEN=sk-...",
-			hint: "Un nom et une valeur par ligne. Le serveur démarre avec ceux-ci, et rien d'autre de ce que ce bot détient.",
+			hint: "Un nom et une valeur par ligne. Le serveur démarre avec ceux-ci, et rien d'autre de ce que ce compagnon détient.",
 		},
 		leave: {
 			title: "Partir sans enregistrer ?",
@@ -418,7 +419,7 @@ const bots = {
 		delete: {
 			action: "Retirer le serveur",
 			description:
-				"Ce bot cesse de le démarrer et sa configuration part avec lui. C'est irréversible.",
+				"Ce compagnon cesse de le démarrer et sa configuration part avec lui. C'est irréversible.",
 			confirm: {
 				title: "Retirer {{name}} ?",
 			},
@@ -440,7 +441,7 @@ const bots = {
 		},
 		scope: {
 			space: "Espace",
-			bot: "Bot",
+			bot: "Compagnon",
 			server: "Serveur MCP",
 		},
 		row: {
@@ -513,7 +514,7 @@ const bots = {
 			option: {
 				auto: {
 					label: "Décider seul",
-					hint: "Le bot décide seul, dans les limites des règles ci-dessous.",
+					hint: "Le compagnon décide seul, dans les limites des règles ci-dessous.",
 				},
 				default: {
 					label: "Demander à chaque fois",
@@ -525,11 +526,11 @@ const bots = {
 				},
 				plan: {
 					label: "Planifier d'abord",
-					hint: "Le bot lit et planifie, et ne change rien tant que vous ne l'avez pas dit.",
+					hint: "Le compagnon lit et planifie, et ne change rien tant que vous ne l'avez pas dit.",
 				},
 				dontAsk: {
 					label: "Ne jamais demander",
-					hint: "Rien ne vous est soumis : seules les règles refusées retiennent le bot.",
+					hint: "Rien ne vous est soumis : seules les règles refusées retiennent le compagnon.",
 				},
 			},
 		},
@@ -556,7 +557,7 @@ const bots = {
 		},
 		directories: {
 			label: "Autres dossiers",
-			hint: "Les dossiers que le bot peut atteindre en plus de son dossier de travail.",
+			hint: "Les dossiers que le compagnon peut atteindre en plus de son dossier de travail.",
 			placeholder: "/Users/vous/notes",
 			add: "Ajouter",
 			empty: "Aucun dossier en plus du dossier de travail.",
@@ -605,7 +606,7 @@ const bots = {
 		},
 	},
 	danger: {
-		delete: "Supprimer le bot",
+		delete: "Supprimer le compagnon",
 		description:
 			"Son avatar, ses instructions et son dossier de travail partent avec lui. C'est irréversible.",
 		confirm: {

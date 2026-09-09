@@ -68,7 +68,7 @@ export const Default = meta.story({
 		docs: {
 			description: {
 				story:
-					"A mission a bot is working on right now. Check that the back control is the first thing the keyboard reaches, that the objective titles the thread rather than the bot name, and that the ticket, the tool marks and the opening time read as one line under the avatar.",
+					"A mission a companion is working on right now. Check that the back control is the first thing the keyboard reaches, that the objective titles the thread rather than the companion name, and that the ticket, the tool marks and the opening time read as one line under the avatar.",
 			},
 		},
 	},

@@ -299,7 +299,7 @@ export const Default = meta.story({
 		docs: {
 			description: {
 				story:
-					"Six missions of three bots, spread over the three groups the panel knows: what waits on the reader first, what is in progress under it, then what closed earlier today, folded. Check that every group carries its count, that the rows are bare — no border, no surface — that a mission closed earlier today keeps its rows out of sight until its head is opened, that no routine is listed in the body, and that the routines of the conversation sit behind the entry at the foot carrying their count.",
+					"Six missions of three companions, spread over the three groups the panel knows: what waits on the reader first, what is in progress under it, then what closed earlier today, folded. Check that every group carries its count, that the rows are bare — no border, no surface — that a mission closed earlier today keeps its rows out of sight until its head is opened, that no routine is listed in the body, and that the routines of the conversation sit behind the entry at the foot carrying their count.",
 			},
 		},
 	},
@@ -350,7 +350,7 @@ export const OneMission = meta.story({
 		docs: {
 			description: {
 				story:
-					"A conversation holding one mission, and that mission waiting on the reader. Check that only the group it belongs to is drawn — a group with nothing in it is left out rather than shown empty — and that the row reads its bot, its ticket and its age on two lines.",
+					"A conversation holding one mission, and that mission waiting on the reader. Check that only the group it belongs to is drawn — a group with nothing in it is left out rather than shown empty — and that the row reads its companion, its ticket and its age on two lines.",
 			},
 		},
 	},
@@ -376,7 +376,7 @@ export const EarlierTodayUnfolded = meta.story({
 		docs: {
 			description: {
 				story:
-					"What the conversation closed and what its routines reported since midnight, unfolded from their head. Check that the head reports itself expanded once activated, that closed missions and reported runs read as one list ordered most recent first, that a closed mission reads muted with the time of day it closed, that a reported run names its routine, its trigger, its bot and the word reported, and that a run row answers no pointer.",
+					"What the conversation closed and what its routines reported since midnight, unfolded from their head. Check that the head reports itself expanded once activated, that closed missions and reported runs read as one list ordered most recent first, that a closed mission reads muted with the time of day it closed, that a reported run names its routine, its trigger, its companion and the word reported, and that a run row answers no pointer.",
 			},
 		},
 	},
@@ -920,7 +920,7 @@ export const WithoutSeatedLead = meta.story({
 		docs: {
 			description: {
 				story:
-					"A conversation with no lead bot seated: a routine written here would have nobody to run it. Check that the new routine action is left out of the routines screen rather than shown and refused on save, and that the routines already written stay readable and editable.",
+					"A conversation with no lead companion seated: a routine written here would have nobody to run it. Check that the new routine action is left out of the routines screen rather than shown and refused on save, and that the routines already written stay readable and editable.",
 			},
 		},
 	},

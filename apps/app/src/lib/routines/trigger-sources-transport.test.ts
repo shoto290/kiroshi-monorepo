@@ -20,7 +20,7 @@ describe("triggerSourcesTransport", () => {
 		hostInvoke.mockReset()
 	})
 
-	it("asks the host for the sources stacked for one bot", async () => {
+	it("asks the host for the sources stacked for one companion", async () => {
 		hostInvoke.mockResolvedValueOnce([SCHEDULE])
 
 		await expect(triggerSourcesTransport.sources("b-1")).resolves.toEqual([

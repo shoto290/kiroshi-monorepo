@@ -38,12 +38,14 @@ interface WorkspaceShellProps {
 	className?: string
 	sidebar?: ReactNode
 	spaceTint?: BotAvatarBlot | null
+	isLandmark?: boolean
 	children: ReactNode
 }
 
 const WorkspaceShell = ({
 	sidebar,
 	spaceTint,
+	isLandmark,
 	open,
 	defaultOpen,
 	onOpenChange,
@@ -71,7 +73,7 @@ const WorkspaceShell = ({
 				style={shellStyle(resize.width, spaceTint)}
 			>
 				{sidebar}
-				<ContentCard>{children}</ContentCard>
+				<ContentCard isLandmark={isLandmark}>{children}</ContentCard>
 			</SidebarProvider>
 		)}
 	</SidebarResizeProvider>

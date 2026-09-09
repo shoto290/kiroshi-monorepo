@@ -92,7 +92,7 @@ describe("createSectionsController", () => {
 		expect(listed).not.toHaveBeenCalled()
 	})
 
-	it("holds the named bot in the section it creates", async () => {
+	it("holds the named companion in the section it creates", async () => {
 		const store = createFakeTranscriptStore()
 		const moves: [string, string | null][] = []
 		const controller = await entered(store, "personal", {
@@ -107,7 +107,7 @@ describe("createSectionsController", () => {
 		expect((await store.bots("personal"))[0].sectionId).toBe(created.id)
 	})
 
-	it("moves no bot when a section is created with none named", async () => {
+	it("moves no companion when a section is created with none named", async () => {
 		const store = createFakeTranscriptStore()
 		const moves: string[] = []
 		const controller = await entered(store, "personal", {
@@ -121,7 +121,7 @@ describe("createSectionsController", () => {
 		expect((await store.bots("personal"))[0].sectionId).toBeNull()
 	})
 
-	it("moves no bot when the record refuses the section", async () => {
+	it("moves no companion when the record refuses the section", async () => {
 		const store = createFakeTranscriptStore()
 		const moves: string[] = []
 		const controller = await entered(store, "personal", {
@@ -167,7 +167,7 @@ describe("createSectionsController", () => {
 		])
 	})
 
-	it("drops a deleted section and reports the bots it held", async () => {
+	it("drops a deleted section and reports the companions it held", async () => {
 		const store = createFakeTranscriptStore()
 		const written = await store.createSection("personal", "Writers")
 		const cleared: string[] = []
@@ -182,7 +182,7 @@ describe("createSectionsController", () => {
 		expect(cleared).toEqual([written.id])
 	})
 
-	it("reports the section a bot is moved into", async () => {
+	it("reports the section a companion is moved into", async () => {
 		const store = createFakeTranscriptStore()
 		const written = await store.createSection("personal", "Writers")
 		const moves: (string | null)[] = []
@@ -198,7 +198,7 @@ describe("createSectionsController", () => {
 		expect((await store.bots("personal"))[0].sectionId).toBeNull()
 	})
 
-	it("reports nothing when the record refuses a bot move", async () => {
+	it("reports nothing when the record refuses a companion move", async () => {
 		const store = createFakeTranscriptStore()
 		const moves: string[] = []
 		const controller = await entered(store, "personal", {

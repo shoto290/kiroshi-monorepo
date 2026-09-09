@@ -33,7 +33,7 @@ const meta = preview.meta({
 		docs: {
 			description: {
 				component:
-					"Everything that has ever changed in a bot's bundle, newest first, written for a reader who does not read diffs: the title leads, the body says what it meant, and under both is who made the change and how long ago. The diff is secondary and stays folded away — opening one asks the host for it and shows it once it arrives, so nothing is fetched for a commit nobody opened. Undo asks its question first and is answered upstream as a new commit: nothing in this list is ever removed.",
+					"Everything that has ever changed in a companion's bundle, newest first, written for a reader who does not read diffs: the title leads, the body says what it meant, and under both is who made the change and how long ago. The diff is secondary and stays folded away — opening one asks the host for it and shows it once it arrives, so nothing is fetched for a commit nobody opened. Undo asks its question first and is answered upstream as a new commit: nothing in this list is ever removed.",
 			},
 		},
 	},
@@ -57,7 +57,7 @@ export const Default = meta.story({
 		docs: {
 			description: {
 				story:
-					"A bundle both hands have written in. Check the order first — newest at the top, whatever order the host handed them in — then that each row says who and when in the reader's own words: their own changes are signed `You`, the bot's carry the bot's name, and the moment is a distance rather than a timestamp. A commit with no body keeps its row without an empty line in it.",
+					"A bundle both hands have written in. Check the order first — newest at the top, whatever order the host handed them in — then that each row says who and when in the reader's own words: their own changes are signed `You`, the companion's carry the companion's name, and the moment is a distance rather than a timestamp. A commit with no body keeps its row without an empty line in it.",
 			},
 		},
 	},

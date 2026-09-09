@@ -26,7 +26,8 @@ const TypedPopover = Popover as ComponentType<PopoverArgs>
 
 const PANEL_TITLE = "Release notes"
 
-const PANEL_NOTE = "Bots keep their transcript when the window is reopened."
+const PANEL_NOTE =
+	"Companions keep their transcript when the window is reopened."
 
 const LONG_NOTE =
 	"The workspace shell paints its first frame before the roster resolves, so a cold start no longer stares at an empty column, and a tool result arriving after a stop no longer takes the window down with it."

@@ -17,7 +17,7 @@ const meta = preview.meta({
 		docs: {
 			description: {
 				component:
-					"Every MCP server a bot declares: the name it connects as and the one line that says what starting it means — a command, a URL, or plainly nothing. This is the resting state and the whole of it — taking a row hands the entire dialog to that server, rail included, because a server is a program somebody is about to run on their own machine and it needs both the height and a summary of its own. The panel keeps nothing: it lists what it is given and reports which row was taken.",
+					"Every MCP server a companion declares: the name it connects as and the one line that says what starting it means — a command, a URL, or plainly nothing. This is the resting state and the whole of it — taking a row hands the entire dialog to that server, rail included, because a server is a program somebody is about to run on their own machine and it needs both the height and a summary of its own. The panel keeps nothing: it lists what it is given and reports which row was taken.",
 			},
 		},
 	},
@@ -40,7 +40,7 @@ export const Default = meta.story({
 		docs: {
 			description: {
 				story:
-					"A bot declaring all three kinds at once. Check that each row says what starting it means in one line — which is the whole of what the list has to answer at a glance — and that the row whose configuration names neither keeps the same height as the others. Taking a row reports the server itself, never its name.",
+					"A companion declaring all three kinds at once. Check that each row says what starting it means in one line — which is the whole of what the list has to answer at a glance — and that the row whose configuration names neither keeps the same height as the others. Taking a row reports the server itself, never its name.",
 			},
 		},
 	},
@@ -57,7 +57,7 @@ export const Empty = meta.story({
 		docs: {
 			description: {
 				story:
-					"A bot nobody has given a server. Reach for this over `Default` to check the one state that has to both say so and offer a way out of it: the sentence says what an MCP server is and what adding one lets the bot do, before asking for one.",
+					"A companion nobody has given a server. Reach for this over `Default` to check the one state that has to both say so and offer a way out of it: the sentence says what an MCP server is and what adding one lets the companion do, before asking for one.",
 			},
 		},
 	},
@@ -86,7 +86,7 @@ export const Unreadable = meta.story({
 		docs: {
 			description: {
 				story:
-					"The read of this bot's servers came back refused. The panel says so instead of showing the empty state, so nobody reads a lost list as a bot that declares no server.",
+					"The read of this companion's servers came back refused. The panel says so instead of showing the empty state, so nobody reads a lost list as a companion that declares no server.",
 			},
 		},
 	},

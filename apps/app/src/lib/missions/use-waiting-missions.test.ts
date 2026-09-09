@@ -37,7 +37,7 @@ const waitingIn = (runtimes: MissionThreadRuntimes, missions: Mission[]) =>
 afterEach(cleanup)
 
 describe("useWaitingMissions", () => {
-	it("holds a mission whose thread asks its bot a question", () => {
+	it("holds a mission whose thread asks its companion a question", () => {
 		const { runtimes, publish } = createFakeThreadRuntimes()
 		const { result } = waitingIn(runtimes, [MISSION])
 
@@ -46,7 +46,7 @@ describe("useWaitingMissions", () => {
 		expect([...result.current]).toEqual(["m-1"])
 	})
 
-	it("holds a mission whose thread asks its bot a permission", () => {
+	it("holds a mission whose thread asks its companion a permission", () => {
 		const { runtimes, publish } = createFakeThreadRuntimes()
 		const { result } = waitingIn(runtimes, [MISSION])
 
@@ -72,7 +72,7 @@ describe("useWaitingMissions", () => {
 		expect([...result.current]).toEqual([])
 	})
 
-	it("holds nothing when the thread waits on another bot", () => {
+	it("holds nothing when the thread waits on another companion", () => {
 		const { runtimes, publish } = createFakeThreadRuntimes()
 		const { result } = waitingIn(runtimes, [MISSION])
 

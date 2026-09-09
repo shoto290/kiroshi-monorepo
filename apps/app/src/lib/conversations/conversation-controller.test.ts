@@ -189,7 +189,7 @@ describe("createConversationController", () => {
 		harness = await createHarness(["Ada", "Nyx", "Iris"])
 	})
 
-	it("answers with the bot holding the lead when a message names nobody", async () => {
+	it("answers with the companion holding the lead when a message names nobody", async () => {
 		await harness.controller.send("and now?")
 		await harness.settled()
 
@@ -199,7 +199,7 @@ describe("createConversationController", () => {
 		)
 	})
 
-	it("stores the message carrying the tokens of the bots named", async () => {
+	it("stores the message carrying the tokens of the companions named", async () => {
 		await harness.controller.send("@Nyx take the walls")
 		await harness.settled()
 
@@ -250,7 +250,7 @@ describe("createConversationController", () => {
 		expect(answering?.repliedToMessageId).toBeNull()
 	})
 
-	describe("summoning the bot a reply answers", () => {
+	describe("summoning the companion a reply answers", () => {
 		const HELD_HISTORY = 200
 
 		const pageOfHistory = (
@@ -291,7 +291,7 @@ describe("createConversationController", () => {
 			return spokenByBot
 		}
 
-		it("summons the bot whose message the reply answers", async () => {
+		it("summons the companion whose message the reply answers", async () => {
 			const nyx = idOf(harness.conversation, "Nyx")
 			await harness.controller.send("@Nyx take the walls")
 			await harness.settled()
@@ -303,7 +303,7 @@ describe("createConversationController", () => {
 			expect(submittedIn(harness)).toEqual([nyx, nyx])
 		})
 
-		it("summons in one wave the bot answered first, then the bots the text names", async () => {
+		it("summons in one wave the companion answered first, then the companions the text names", async () => {
 			const nyx = idOf(harness.conversation, "Nyx")
 			const iris = idOf(harness.conversation, "Iris")
 			await harness.controller.send("@Nyx take the walls")
@@ -318,7 +318,7 @@ describe("createConversationController", () => {
 			expect(harness.controller.getState().waitingBotIds).toEqual([])
 		})
 
-		it("summons the bots the text names when the reply answers the reader", async () => {
+		it("summons the companions the text names when the reply answers the reader", async () => {
 			const ada = idOf(harness.conversation, "Ada")
 			const iris = idOf(harness.conversation, "Iris")
 			const said = await saidIn(harness)
@@ -341,7 +341,7 @@ describe("createConversationController", () => {
 			expect(submittedIn(harness)).toEqual([ada, ada])
 		})
 
-		it("summons the lead alone when the bot answered has left the conversation", async () => {
+		it("summons the lead alone when the companion answered has left the conversation", async () => {
 			const ada = idOf(harness.conversation, "Ada")
 			const nyx = idOf(harness.conversation, "Nyx")
 			await harness.controller.send("@Nyx take the walls")
@@ -381,7 +381,7 @@ describe("createConversationController", () => {
 			expect(runningIn(harness.controller)).toEqual([ada])
 		})
 
-		it("summons the bot answered when the send drops it from the window", async () => {
+		it("summons the companion answered when the send drops it from the window", async () => {
 			const nyx = idOf(harness.conversation, "Nyx")
 			const answered = `m-${HELD_HISTORY - TRANSCRIPT_WINDOW_SIZE + 1}`
 			vi.spyOn(harness.store, "loadPage").mockImplementation(
@@ -410,7 +410,7 @@ describe("createConversationController", () => {
 			expect(submittedIn(harness).at(-1)).toBe(nyx)
 		})
 
-		it("summons the bot answered when a refused reply is sent again", async () => {
+		it("summons the companion answered when a refused reply is sent again", async () => {
 			const nyx = idOf(harness.conversation, "Nyx")
 			await harness.controller.send("@Nyx take the walls")
 			await harness.settled()
@@ -427,7 +427,7 @@ describe("createConversationController", () => {
 		})
 	})
 
-	it("runs every bot named at the same time, ranked by first mention", async () => {
+	it("runs every companion named at the same time, ranked by first mention", async () => {
 		const nyx = idOf(harness.conversation, "Nyx")
 		const iris = idOf(harness.conversation, "Iris")
 		await harness.controller.send("@Iris and @Nyx, both of you")
@@ -438,7 +438,7 @@ describe("createConversationController", () => {
 		expect(harness.controller.getState().waitingBotIds).toEqual([])
 	})
 
-	it("keeps the rank of a bot whatever the order its wave mates answer in", async () => {
+	it("keeps the rank of a companion whatever the order its wave mates answer in", async () => {
 		const nyx = idOf(harness.conversation, "Nyx")
 		const iris = idOf(harness.conversation, "Iris")
 		await harness.controller.send("@Nyx then @Iris")
@@ -462,7 +462,7 @@ describe("createConversationController", () => {
 		expect(runningIn(harness.controller)).toEqual([nyx, iris])
 	})
 
-	it("reads the bounded context of every bot of the wave at the message sent", async () => {
+	it("reads the bounded context of every companion of the wave at the message sent", async () => {
 		const nyx = idOf(harness.conversation, "Nyx")
 		const iris = idOf(harness.conversation, "Iris")
 		await harness.controller.send("@Nyx then @Iris")
@@ -475,7 +475,7 @@ describe("createConversationController", () => {
 		])
 	})
 
-	it("holds the bot a speaker names until its whole wave has stopped", async () => {
+	it("holds the companion a speaker names until its whole wave has stopped", async () => {
 		const ada = idOf(harness.conversation, "Ada")
 		const nyx = idOf(harness.conversation, "Nyx")
 		const iris = idOf(harness.conversation, "Iris")
@@ -494,7 +494,7 @@ describe("createConversationController", () => {
 		expect(submittedIn(harness)).toEqual([nyx, iris, ada])
 	})
 
-	it("runs in a second wave the bot a wave mate named", async () => {
+	it("runs in a second wave the companion a wave mate named", async () => {
 		const ada = idOf(harness.conversation, "Ada")
 		const nyx = idOf(harness.conversation, "Nyx")
 		const completed = vi.spyOn(harness.store, "completeTurn")
@@ -521,7 +521,7 @@ describe("createConversationController", () => {
 		expect(completed).toHaveBeenCalledTimes(1)
 	})
 
-	it("keeps the named order of the bots yet to publish while a wave mate publishes", async () => {
+	it("keeps the named order of the companions yet to publish while a wave mate publishes", async () => {
 		const ada = idOf(harness.conversation, "Ada")
 		const nyx = idOf(harness.conversation, "Nyx")
 		const iris = idOf(harness.conversation, "Iris")
@@ -552,7 +552,7 @@ describe("createConversationController", () => {
 		expect(unpublishedIn(harness.controller)).toEqual([ada, iris])
 	})
 
-	it("holds one summons only for a bot two speakers of a wave name", async () => {
+	it("holds one summons only for a companion two speakers of a wave name", async () => {
 		const ada = idOf(harness.conversation, "Ada")
 		const nyx = idOf(harness.conversation, "Nyx")
 		const iris = idOf(harness.conversation, "Iris")
@@ -567,7 +567,7 @@ describe("createConversationController", () => {
 		expect(runningIn(harness.controller)).toEqual([ada])
 	})
 
-	it("drops an event carrying the scope of no running bot", async () => {
+	it("drops an event carrying the scope of no running companion", async () => {
 		const nyx = idOf(harness.conversation, "Nyx")
 		await harness.controller.send("@Nyx take the walls")
 		await harness.settled()
@@ -583,7 +583,7 @@ describe("createConversationController", () => {
 		])
 	})
 
-	it("completes the turn once when the last bot of the wave stops", async () => {
+	it("completes the turn once when the last companion of the wave stops", async () => {
 		const nyx = idOf(harness.conversation, "Nyx")
 		const iris = idOf(harness.conversation, "Iris")
 		const completed = vi.spyOn(harness.store, "completeTurn")
@@ -600,7 +600,7 @@ describe("createConversationController", () => {
 		expect(completed).toHaveBeenCalledTimes(1)
 	})
 
-	it("leaves no message of a bot that ended its turn writing nothing", async () => {
+	it("leaves no message of a companion that ended its turn writing nothing", async () => {
 		const ada = idOf(harness.conversation, "Ada")
 		await harness.controller.send("and now?")
 		await harness.settled()
@@ -612,7 +612,7 @@ describe("createConversationController", () => {
 		expect(runningIn(harness.controller)).toEqual([])
 	})
 
-	it("names the run it left behind when the same bot speaks again", async () => {
+	it("names the run it left behind when the same companion speaks again", async () => {
 		const ada = idOf(harness.conversation, "Ada")
 		const opened = vi.spyOn(harness.store, "openRuntimeSession")
 		await harness.controller.send("and now?")
@@ -630,7 +630,7 @@ describe("createConversationController", () => {
 		])
 	})
 
-	it("puts the bot a speaker names at the end of the same turn", async () => {
+	it("puts the companion a speaker names at the end of the same turn", async () => {
 		const ada = idOf(harness.conversation, "Ada")
 		const nyx = idOf(harness.conversation, "Nyx")
 		await harness.controller.send("and now?")
@@ -645,7 +645,7 @@ describe("createConversationController", () => {
 		])
 	})
 
-	it("puts the bot a speaker names in plain words at the end of the same turn", async () => {
+	it("puts the companion a speaker names in plain words at the end of the same turn", async () => {
 		const ada = idOf(harness.conversation, "Ada")
 		const nyx = idOf(harness.conversation, "Nyx")
 		await harness.controller.send("and now?")
@@ -679,7 +679,7 @@ describe("createConversationController", () => {
 		)
 	})
 
-	it("leaves an arobase naming no seated bot as plain text", async () => {
+	it("leaves an arobase naming no seated companion as plain text", async () => {
 		const ada = idOf(harness.conversation, "Ada")
 		await harness.controller.send("and now?")
 		await harness.settled()
@@ -696,7 +696,7 @@ describe("createConversationController", () => {
 		])
 	})
 
-	it("points a bot pulled in by another at the message that named it", async () => {
+	it("points a companion pulled in by another at the message that named it", async () => {
 		const ada = idOf(harness.conversation, "Ada")
 		const nyx = idOf(harness.conversation, "Nyx")
 		await harness.controller.send("and now?")
@@ -712,7 +712,7 @@ describe("createConversationController", () => {
 		])
 	})
 
-	it("drops the bots of the open wave when a message comes in", async () => {
+	it("drops the companions of the open wave when a message comes in", async () => {
 		const nyx = idOf(harness.conversation, "Nyx")
 		const iris = idOf(harness.conversation, "Iris")
 		const ada = idOf(harness.conversation, "Ada")
@@ -733,7 +733,7 @@ describe("createConversationController", () => {
 		expect(runningIn(harness.controller)).toEqual([ada])
 	})
 
-	it("shows a notice naming the two bots that keep handing the turn over", async () => {
+	it("shows a notice naming the two companions that keep handing the turn over", async () => {
 		const ada = idOf(harness.conversation, "Ada")
 		const nyx = idOf(harness.conversation, "Nyx")
 		await harness.controller.send("and now?")
@@ -751,7 +751,7 @@ describe("createConversationController", () => {
 		expect(harness.controller.getState().loopingPair).toEqual([ada, nyx])
 	})
 
-	it("leaves what the bot in flight wrote in place when the turn is stopped", async () => {
+	it("leaves what the companion in flight wrote in place when the turn is stopped", async () => {
 		const nyx = idOf(harness.conversation, "Nyx")
 		const iris = idOf(harness.conversation, "Iris")
 		await harness.controller.send("@Nyx then @Iris")
@@ -783,7 +783,7 @@ describe("createConversationController", () => {
 		expect(harness.controller.getState().waitingBotIds).toEqual([])
 	})
 
-	it("cancels the bot alone whose row the reader stopped", async () => {
+	it("cancels the companion alone whose row the reader stopped", async () => {
 		const nyx = idOf(harness.conversation, "Nyx")
 		const iris = idOf(harness.conversation, "Iris")
 		await harness.controller.send("@Nyx then @Iris")
@@ -802,7 +802,7 @@ describe("createConversationController", () => {
 		expect(runningIn(harness.controller)).toEqual([nyx])
 	})
 
-	it("cancels every bot and drops the summons held when the reader stops the conversation", async () => {
+	it("cancels every companion and drops the summons held when the reader stops the conversation", async () => {
 		const ada = idOf(harness.conversation, "Ada")
 		const nyx = idOf(harness.conversation, "Nyx")
 		const iris = idOf(harness.conversation, "Iris")
@@ -848,7 +848,7 @@ describe("createConversationController", () => {
 			expect(submittedIn(harness)).toEqual([nyx, iris])
 		})
 
-		it("leaves the state alone when the bot is held nowhere", async () => {
+		it("leaves the state alone when the companion is held nowhere", async () => {
 			const { ada, nyx } = await withOneHeld()
 			const before = harness.controller.getState()
 
@@ -858,7 +858,7 @@ describe("createConversationController", () => {
 			expect(before.waitingBotIds).toEqual([ada])
 		})
 
-		it("leaves a bot of the open wave in its seat, running", async () => {
+		it("leaves a companion of the open wave in its seat, running", async () => {
 			const { ada, iris } = await withOneHeld()
 
 			harness.controller.stopWaiting(iris)
@@ -883,7 +883,7 @@ describe("createConversationController", () => {
 		})
 	})
 
-	it("shuts down the runtime of every bot of the open wave", async () => {
+	it("shuts down the runtime of every companion of the open wave", async () => {
 		const nyx = idOf(harness.conversation, "Nyx")
 		const iris = idOf(harness.conversation, "Iris")
 		await harness.controller.send("@Nyx then @Iris")
@@ -904,13 +904,13 @@ describe("createConversationController", () => {
 			return nyx
 		}
 
-		it("shuts the scope of a bot down once its turn ends", async () => {
+		it("shuts the scope of a companion down once its turn ends", async () => {
 			const nyx = await spokenOnce(harness, "walls are held")
 
 			expect(harness.driver.shutdowns).toEqual([nyx])
 		})
 
-		it("settles the reply of a bot whose shutdown never answers", async () => {
+		it("settles the reply of a companion whose shutdown never answers", async () => {
 			vi.spyOn(harness.driver, "shutdown").mockReturnValue(
 				new Promise(() => undefined),
 			)
@@ -926,7 +926,7 @@ describe("createConversationController", () => {
 			)
 		})
 
-		it("leaves the bot removed and its turn completed when the release fails", async () => {
+		it("leaves the companion removed and its turn completed when the release fails", async () => {
 			const completed = vi.spyOn(harness.store, "completeTurn")
 			const reported = vi
 				.spyOn(console, "error")
@@ -975,7 +975,7 @@ describe("createConversationController", () => {
 			reported.mockRestore()
 		})
 
-		it("resumes the next turn of a bot from the session its closed scope stored", async () => {
+		it("resumes the next turn of a companion from the session its closed scope stored", async () => {
 			const opened = vi.spyOn(harness.store, "openRuntimeSession")
 			const nyx = await spokenOnce(harness, "walls are held")
 			const first = harness.driver.submissions[0].scope.runtimeSessionId
@@ -992,7 +992,7 @@ describe("createConversationController", () => {
 			)
 		})
 
-		it("holds one open scope at most per bot over ten turns", async () => {
+		it("holds one open scope at most per companion over ten turns", async () => {
 			const openRuntimeSession = harness.store.openRuntimeSession
 			let live = 0
 			let peak = 0
@@ -1031,7 +1031,7 @@ describe("createConversationController", () => {
 			return { driver, controller }
 		}
 
-		it("shuts nothing down for a bot that opened no scope", async () => {
+		it("shuts nothing down for a companion that opened no scope", async () => {
 			const { driver, controller } = await refusedOn({
 				openRuntimeSession: () => Promise.reject(new Error("refused")),
 			})
@@ -1040,7 +1040,7 @@ describe("createConversationController", () => {
 			expect(runningIn(controller)).toEqual([])
 		})
 
-		it("shuts the scope down of a bot whose prompt was refused", async () => {
+		it("shuts the scope down of a companion whose prompt was refused", async () => {
 			const { driver } = await refusedOn({
 				boundedContext: () => Promise.reject(new Error("refused")),
 			})
@@ -1049,7 +1049,7 @@ describe("createConversationController", () => {
 		})
 	})
 
-	describe("a bot asking the reader", () => {
+	describe("a companion asking the reader", () => {
 		const askedIn = async (harness: Harness) => {
 			const nyx = idOf(harness.conversation, "Nyx")
 			await harness.controller.send("@Nyx hold the walls")
@@ -1093,7 +1093,7 @@ describe("createConversationController", () => {
 			return nyx
 		}
 
-		it("holds a question with the bot that asked it", async () => {
+		it("holds a question with the companion that asked it", async () => {
 			const nyx = await askedIn(harness)
 
 			expect(harness.controller.getState().pendingPrompt).toEqual({
@@ -1113,7 +1113,7 @@ describe("createConversationController", () => {
 			})
 		})
 
-		it("holds a permission with the bot that asked it", async () => {
+		it("holds a permission with the companion that asked it", async () => {
 			const nyx = await permittedIn(harness)
 
 			expect(harness.controller.getState().pendingPrompt).toMatchObject({
@@ -1123,7 +1123,7 @@ describe("createConversationController", () => {
 			})
 		})
 
-		it("draws the bot that asked as waiting on its first question", async () => {
+		it("draws the companion that asked as waiting on its first question", async () => {
 			await askedIn(harness)
 
 			expect(workIn(harness.controller)).toEqual({
@@ -1132,7 +1132,7 @@ describe("createConversationController", () => {
 			})
 		})
 
-		it("draws the bot that asked as waiting on the permission it wants", async () => {
+		it("draws the companion that asked as waiting on the permission it wants", async () => {
 			await permittedIn(harness)
 
 			expect(workIn(harness.controller)).toEqual({
@@ -1141,7 +1141,7 @@ describe("createConversationController", () => {
 			})
 		})
 
-		it("gives the bot back the work it was doing once the ask is answered", async () => {
+		it("gives the companion back the work it was doing once the ask is answered", async () => {
 			await askedIn(harness)
 
 			await harness.controller.answer("ask-1", { "Which wall?": "the north" })
@@ -1153,7 +1153,7 @@ describe("createConversationController", () => {
 			})
 		})
 
-		it("answers on the runtime of the bot that asked, then releases the ask", async () => {
+		it("answers on the runtime of the companion that asked, then releases the ask", async () => {
 			const nyx = await askedIn(harness)
 
 			await harness.controller.answer("ask-1", { "Which wall?": "the north" })
@@ -1169,7 +1169,7 @@ describe("createConversationController", () => {
 			expect(harness.controller.getState().pendingPrompt).toBeNull()
 		})
 
-		it("writes the question into the transcript as a message of the bot", async () => {
+		it("writes the question into the transcript as a message of the companion", async () => {
 			const nyx = await askedIn(harness)
 
 			const asking = harness.controller
@@ -1207,7 +1207,7 @@ describe("createConversationController", () => {
 			).toBe("question-ask-1")
 		})
 
-		it("decides on the runtime of the bot that asked, then releases the ask", async () => {
+		it("decides on the runtime of the companion that asked, then releases the ask", async () => {
 			const nyx = await permittedIn(harness)
 
 			await harness.controller.respond("let-1", "allowOnce")
@@ -1219,7 +1219,7 @@ describe("createConversationController", () => {
 			expect(harness.controller.getState().pendingPrompt).toBeNull()
 		})
 
-		it("releases the ask when the turn of the bot ends", async () => {
+		it("releases the ask when the turn of the companion ends", async () => {
 			const nyx = await askedIn(harness)
 
 			harness.driver.pushTo(nyx, [
@@ -1244,7 +1244,7 @@ describe("createConversationController", () => {
 		})
 	})
 
-	describe("two bots of a wave asking the reader", () => {
+	describe("two companions of a wave asking the reader", () => {
 		const askedBoth = async (harness: Harness) => {
 			const nyx = idOf(harness.conversation, "Nyx")
 			const iris = idOf(harness.conversation, "Iris")
@@ -1290,7 +1290,7 @@ describe("createConversationController", () => {
 			})
 		})
 
-		it("gives each bot of the wave the work it is doing", async () => {
+		it("gives each companion of the wave the work it is doing", async () => {
 			await askedBoth(harness)
 
 			expect(
@@ -1320,7 +1320,7 @@ describe("createConversationController", () => {
 			})
 		})
 
-		it("decides on the runtime of the bot holding the permission", async () => {
+		it("decides on the runtime of the companion holding the permission", async () => {
 			const { iris } = await askedBoth(harness)
 
 			await harness.controller.respond("let-1", "allowOnce")
@@ -1332,7 +1332,7 @@ describe("createConversationController", () => {
 		})
 	})
 
-	it("writes every message with the bot that wrote it", async () => {
+	it("writes every message with the companion that wrote it", async () => {
 		const ada = idOf(harness.conversation, "Ada")
 		await harness.controller.send("and now?")
 		await harness.settled()
@@ -1400,7 +1400,7 @@ describe("createConversationController", () => {
 		})
 	})
 
-	it("stores the message sent again and lets the seated bots answer it", async () => {
+	it("stores the message sent again and lets the seated companions answer it", async () => {
 		harness.refuseNextWrite()
 		await harness.controller.send("@Nyx take the walls")
 		await harness.settled()
@@ -1492,7 +1492,7 @@ describe("createConversationController", () => {
 	})
 })
 
-describe("what a speaking bot is doing", () => {
+describe("what a speaking companion is doing", () => {
 	const ran = (
 		id: string,
 		title: string,
@@ -1512,14 +1512,14 @@ describe("what a speaking bot is doing", () => {
 		await harness.settled()
 	})
 
-	it("says a bot that has neither run a tool nor written is thinking", () => {
+	it("says a companion that has neither run a tool nor written is thinking", () => {
 		expect(workIn(harness.controller)).toEqual({
 			kind: "thinking",
 			startedAt: expect.any(Number),
 		})
 	})
 
-	it("names the work of the tool a bot runs", async () => {
+	it("names the work of the tool a companion runs", async () => {
 		harness.driver.pushTo(ada, [ran("a-1", "Grep · walls", "running")])
 		await harness.settled()
 
@@ -1530,7 +1530,7 @@ describe("what a speaking bot is doing", () => {
 		})
 	})
 
-	it("keeps the instant a seated bot went busy through its whole turn", async () => {
+	it("keeps the instant a seated companion went busy through its whole turn", async () => {
 		const seated = workIn(harness.controller)?.startedAt
 
 		harness.driver.pushTo(ada, [ran("a-1", "Grep · walls", "running")])
@@ -1555,7 +1555,7 @@ describe("what a speaking bot is doing", () => {
 		},
 	]
 
-	it("keeps a bot thinking between its first token and its first block", async () => {
+	it("keeps a companion thinking between its first token and its first block", async () => {
 		harness.driver.pushTo(ada, [
 			...started,
 			{ type: "messageDelta", id: "msg-ada", seq: 1, text: "walls up" },
@@ -1569,7 +1569,7 @@ describe("what a speaking bot is doing", () => {
 		})
 	})
 
-	it("says a bot is writing once it has published a block", async () => {
+	it("says a companion is writing once it has published a block", async () => {
 		harness.driver.pushTo(ada, [
 			...started,
 			{ type: "messageDelta", id: "msg-ada", seq: 1, text: "walls up\n\n" },
@@ -1583,7 +1583,7 @@ describe("what a speaking bot is doing", () => {
 		})
 	})
 
-	it("drops what a bot was doing when it stops answering", async () => {
+	it("drops what a companion was doing when it stops answering", async () => {
 		harness.driver.pushTo(ada, [
 			ran("a-1", "Grep · walls", "running"),
 			...spoke(ada, "walls up"),
@@ -1754,7 +1754,7 @@ describe("failures the conversation carries to the screen", () => {
 		}
 	}
 
-	it("holds the transport failure that kept a bot from taking the turn", async () => {
+	it("holds the transport failure that kept a companion from taking the turn", async () => {
 		const { controller, detach } = await seatedOn(refusingSessions(1))
 
 		await controller.send("how do we hold the walls?")
@@ -1811,7 +1811,7 @@ describe("failures the conversation carries to the screen", () => {
 		detach()
 	})
 
-	it("forgets the failure once a bot takes the turn", async () => {
+	it("forgets the failure once a companion takes the turn", async () => {
 		const { controller, detach } = await seatedOn(refusingSessions(1))
 
 		await controller.send("how do we hold the walls?")
@@ -2014,7 +2014,7 @@ describe("the routine causes a conversation holds", () => {
 	})
 })
 
-describe("a run report relaying the bots it names", () => {
+describe("a run report relaying the companions it names", () => {
 	const draftFor = (conversationId: string, botId: string, text: string) => ({
 		conversationId,
 		botId,
@@ -2047,7 +2047,7 @@ describe("a run report relaying the bots it names", () => {
 		return { driver, store, controller, conversation }
 	}
 
-	it("summons the bot a report names in a conversation it never opened", async () => {
+	it("summons the companion a report names in a conversation it never opened", async () => {
 		const { driver, controller, conversation } = await createReporting()
 		const ada = idOf(conversation, "Ada")
 		const nyx = idOf(conversation, "Nyx")
@@ -2061,7 +2061,7 @@ describe("a run report relaying the bots it names", () => {
 		expect(driver.submissions[0].prompt).toContain(`<@${nyx}>`)
 	})
 
-	it("stores the answer of a summoned bot outside the turn of the report", async () => {
+	it("stores the answer of a summoned companion outside the turn of the report", async () => {
 		const { driver, store, controller, conversation } = await createReporting()
 		const ada = idOf(conversation, "Ada")
 		const nyx = idOf(conversation, "Nyx")
@@ -2079,7 +2079,7 @@ describe("a run report relaying the bots it names", () => {
 		expect(answer?.turnId).not.toBe(reportTurnId)
 	})
 
-	it("summons nobody when the turn of the summoned bots cannot be started", async () => {
+	it("summons nobody when the turn of the summoned companions cannot be started", async () => {
 		const base = createFakeTranscriptStore()
 		let startedTurns = 0
 		const { driver, store, controller, conversation } = await createReporting({
@@ -2103,7 +2103,7 @@ describe("a run report relaying the bots it names", () => {
 		expect(driver.submissions).toHaveLength(0)
 	})
 
-	it("stores the report carrying the tokens of the bots it names", async () => {
+	it("stores the report carrying the tokens of the companions it names", async () => {
 		const { store, controller, conversation } = await createReporting()
 		const ada = idOf(conversation, "Ada")
 		const nyx = idOf(conversation, "Nyx")
@@ -2139,7 +2139,7 @@ describe("a run report relaying the bots it names", () => {
 		expect(driver.submissions).toHaveLength(0)
 	})
 
-	it("leaves the queue untouched when a report names no seated bot", async () => {
+	it("leaves the queue untouched when a report names no seated companion", async () => {
 		const { driver, controller, conversation } = await createReporting()
 		const ada = idOf(conversation, "Ada")
 

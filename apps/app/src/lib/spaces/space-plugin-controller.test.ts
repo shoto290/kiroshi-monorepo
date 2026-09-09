@@ -7,7 +7,7 @@ import type { TranscriptStore } from "../conversations/store-port"
 
 const A_SKILL = {
 	name: "How this space works",
-	description: "What every bot in here reads first",
+	description: "What every companion in here reads first",
 	body: "Short answers.",
 }
 

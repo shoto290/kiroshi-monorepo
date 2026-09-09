@@ -51,8 +51,8 @@ const heldHosts = () => {
 	}
 }
 
-describe("a draft owned by a bot", () => {
-	it("goes through the bot chat", () => {
+describe("a draft owned by a companion", () => {
+	it("goes through the companion chat", () => {
 		const host = heldHosts()
 		const port = createAttachmentsPort(host.hosts)
 
@@ -60,7 +60,7 @@ describe("a draft owned by a bot", () => {
 		expect(host.sentToBots).toEqual([{ botId: "a", text: "look" }])
 	})
 
-	it("is stored through the bot chat", async () => {
+	it("is stored through the companion chat", async () => {
 		const host = heldHosts()
 		const port = createAttachmentsPort(host.hosts)
 

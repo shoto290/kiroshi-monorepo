@@ -9,17 +9,17 @@ const chat = {
 			title: "Claude Code n'est pas disponible",
 			description: "Kiroshi n'atteint pas son agent intégré.",
 		},
-		settings: "Réglages du bot",
+		settings: "Réglages du compagnon",
 		hint: "Saisissez votre première invite dans le champ ci-dessous",
 		setup: "Réessayer",
 	},
 	conversationEmptyState: {
 		description_one:
-			"{{count}} bot est présent ici et attend votre premier message.",
+			"{{count}} compagnon est présent ici et attend votre premier message.",
 		description_many:
-			"{{count}} bots sont présents ici et attendent votre premier message.",
+			"{{count}} compagnons sont présents ici et attendent votre premier message.",
 		description_other:
-			"{{count}} bots sont présents ici et attendent votre premier message.",
+			"{{count}} compagnons sont présents ici et attendent votre premier message.",
 		hint: "Saisissez votre premier message dans le champ ci-dessous",
 	},
 	connection: {
@@ -56,7 +56,7 @@ const chat = {
 		showLess: "Afficher moins",
 		author: {
 			lead: "Chef",
-			deleted: "Bot supprimé",
+			deleted: "Compagnon supprimé",
 		},
 		cause: {
 			label: "Rapport de routine",
@@ -70,7 +70,7 @@ const chat = {
 			},
 		},
 		mention: {
-			unknown: "Bot inconnu",
+			unknown: "Compagnon inconnu",
 			counted_one: "{{count}} mention",
 			counted_many: "{{count}} mentions",
 			counted_other: "{{count}} mentions",
@@ -141,7 +141,7 @@ const chat = {
 		placeholder: "Demandez à l'agent de faire quelque chose…",
 		send: "Envoyer l'invite",
 		commands: "Commandes",
-		mentions: "Bots",
+		mentions: "Compagnons",
 		mentioned_one: "{{count}} mention dans le brouillon",
 		mentioned_many: "{{count}} mentions dans le brouillon",
 		mentioned_other: "{{count}} mentions dans le brouillon",
@@ -191,7 +191,7 @@ const chat = {
 	},
 	screen: {
 		label: "Conversation Claude Code",
-		identity: "{{name}} — réglages du bot",
+		identity: "{{name}} — réglages du compagnon",
 		conversationIdentity: "{{name}} — réglages de la conversation",
 		placeholder: "Demandez à {{name}} de faire quelque chose…",
 		permission: {
@@ -212,8 +212,8 @@ const chat = {
 		notice: {
 			crashed: "Claude Code s'est arrêté",
 			resumeFailed: "La conversation précédente n'a pas pu être reprise",
-			workingDirectoryRefused: "Le dossier du bot est introuvable",
-			settingsRejected: "Les réglages du bot n'ont pas été appliqués",
+			workingDirectoryRefused: "Le dossier du compagnon est introuvable",
+			settingsRejected: "Les réglages du compagnon n'ont pas été appliqués",
 			serverEnvRejected: "Un serveur a été laissé de côté",
 			unavailable: "Claude Code est indisponible",
 			failed: "Cette demande n'est pas passée",
@@ -234,10 +234,10 @@ const chat = {
 			resumeFailed:
 				"Cette conversation n'a pas pu être reprise. Claude Code en a démarré une nouvelle ; vos messages sont toujours là.",
 			workingDirectoryRefused:
-				"{{path}} n'existe plus. Ce bot répond depuis l'emplacement habituel à la place.",
+				"{{path}} n'existe plus. Ce compagnon répond depuis l'emplacement habituel à la place.",
 			invalidFrame: "Une trame illisible a été ignorée : {{detail}}",
 			settingsRejected:
-				"Le settings.json de ce bot n'a pas été appliqué : {{detail}}",
+				"Le settings.json de ce compagnon n'a pas été appliqué : {{detail}}",
 			serverEnvRejected:
 				"{{detail}}. La conversation continue avec les autres serveurs.",
 			notStarted: "Aucune session n'est en cours.",
@@ -255,7 +255,7 @@ const chat = {
 			megabytes: "{{size}} Mo",
 			storage: "Les fichiers n'ont pas pu être enregistrés ({{failure}}).",
 			unknownConversation:
-				"Cette conversation n'est plus enregistrée. Rouvrez le bot et joignez-les à nouveau.",
+				"Cette conversation n'est plus enregistrée. Rouvrez le compagnon et joignez-les à nouveau.",
 			tooMany:
 				"Une invite porte {{limit}} fichiers au maximum, et {{staged}} sont en attente.",
 			tooLarge: "{{name}} dépasse les {{limit}} qu'un seul fichier peut peser.",
@@ -270,20 +270,20 @@ const chat = {
 	newConversation: {
 		title: "Nouvelle conversation",
 		description:
-			"Choisissez les participants. Le premier bot choisi mène la conversation. Nommez-la maintenant, ou laissez votre premier message la nommer.",
+			"Choisissez les participants. Le premier compagnon choisi mène la conversation. Nommez-la maintenant, ou laissez votre premier message la nommer.",
 		name: {
 			label: "Nom",
 			placeholder: "Laissé vide, votre premier message la nomme",
 		},
 		search: {
-			label: "Bots",
-			placeholder: "Rechercher un bot",
+			label: "Compagnons",
+			placeholder: "Rechercher un compagnon",
 		},
 		picked: {
 			lead: "Meneur",
 			dismiss: "Retirer {{name}}",
 		},
-		empty: "Aucun bot ne correspond à cette recherche.",
+		empty: "Aucun compagnon ne correspond à cette recherche.",
 		create: "Créer la conversation",
 	},
 	conversationSettings: {
@@ -302,20 +302,20 @@ const chat = {
 		instructions: {
 			label: "Instructions",
 			placeholder:
-				"Ce que chaque bot de cette conversation doit garder en tête",
+				"Ce que chaque compagnon de cette conversation doit garder en tête",
 		},
 		participants: {
 			label: "Dans cette conversation",
 			lead: "Meneur",
 			promote: "Confier la conduite à {{name}}",
 			dismiss: "Retirer {{name}}",
-			last: "Le dernier bot reste dans la conversation.",
-			all: "Tous les bots de l'espace sont déjà dans cette conversation.",
+			last: "Le dernier compagnon reste dans la conversation.",
+			all: "Tous les compagnons de l'espace sont déjà dans cette conversation.",
 		},
 		danger: {
 			delete: "Supprimer la conversation",
 			description:
-				"La conversation et tout ce qui s'y est dit disparaissent. Les bots restent dans l'espace.",
+				"La conversation et tout ce qui s'y est dit disparaissent. Les compagnons restent dans l'espace.",
 			confirm: {
 				title: "Supprimer {{name}} ?",
 			},
@@ -345,7 +345,7 @@ const chat = {
 		empty: {
 			title: "Rien ne tourne ici",
 			description:
-				"Les missions qu'un bot ouvre dans cette conversation, et ce que ses routines rapportent, arrivent ici.",
+				"Les missions qu'un compagnon ouvre dans cette conversation, et ce que ses routines rapportent, arrivent ici.",
 		},
 		failure: {
 			missions: {
@@ -527,13 +527,13 @@ const chat = {
 		empty: {
 			title: "Aucune routine",
 			description:
-				"Une routine fait travailler un bot toute seule, sur un horaire ou quand un fichier qu'elle surveille change.",
+				"Une routine fait travailler un compagnon toute seule, sur un horaire ou quand un fichier qu'elle surveille change.",
 		},
 	},
 	missions: {
 		state: {
 			working: "En cours",
-			waiting_bot: "En attente du bot",
+			waiting_bot: "En attente du compagnon",
 			waiting_human: "En attente de vous",
 			ready_to_merge: "Prête à fusionner",
 			failed: "En échec",
@@ -541,7 +541,7 @@ const chat = {
 		},
 		event: {
 			source: {
-				bot: "Le bot",
+				bot: "Le compagnon",
 				reader: "Vous",
 				agent: "L'agent de code",
 				github: "GitHub",
@@ -591,12 +591,12 @@ const chat = {
 				description: "Rien n'a été modifié. Réessayez pour lire cette mission.",
 			},
 			send: {
-				title: "La réponse n'est pas parvenue au bot",
+				title: "La réponse n'est pas parvenue au compagnon",
 				description:
 					"Rien n'a été enregistré sur la mission. Renvoyez votre réponse.",
 			},
 			run: {
-				title: "Le bot n'a pas pu être lancé sur sa mission",
+				title: "Le compagnon n'a pas pu être lancé sur sa mission",
 				description:
 					"Rien n'a été modifié sur la mission. Ouvrez son fil pour voir où elle en est.",
 			},

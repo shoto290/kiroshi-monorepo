@@ -95,7 +95,7 @@ export const Empty = meta.story({
 
 export const Error = meta.story({
 	args: {
-		error: "This model is not available on the plan this bot runs on.",
+		error: "This model is not available on the plan this companion runs on.",
 		value: "claude-opus",
 	},
 	parameters: {
@@ -109,7 +109,7 @@ export const Error = meta.story({
 	play: async ({ canvas }) => {
 		const trigger = canvas.getByRole("combobox")
 		const message = canvas.getByText(
-			"This model is not available on the plan this bot runs on.",
+			"This model is not available on the plan this companion runs on.",
 		)
 
 		await expect(trigger).toHaveAttribute("aria-invalid", "true")
@@ -119,8 +119,8 @@ export const Error = meta.story({
 
 export const WithHint = meta.story({
 	args: {
-		hint: "Left empty, this skill's turn runs on the model the bot runs on.",
-		placeholder: "The bot's own",
+		hint: "Left empty, this skill's turn runs on the model the companion runs on.",
+		placeholder: "The companion's own",
 		value: "",
 	},
 	parameters: {

@@ -10,7 +10,7 @@ const report = async () => {
 }
 
 const DESCRIPTION =
-	"The space was not created. Nothing was saved, and your bots are untouched."
+	"The space was not created. Nothing was saved, and your companions are untouched."
 
 const meta = preview.meta({
 	title: "Overlays/ActionFailureDialog",

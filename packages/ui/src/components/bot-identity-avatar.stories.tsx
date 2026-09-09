@@ -40,7 +40,7 @@ const Renamed = (props: BotIdentityAvatarProps) => {
 		<div className="flex flex-col items-start gap-4">
 			<EveryPlace {...props} name={named ? "Skippy" : "Nibbles"} />
 			<Button onClick={() => setNamed(!named)} size="sm" variant="outline">
-				Rename the bot
+				Rename the companion
 			</Button>
 		</div>
 	)
@@ -79,7 +79,7 @@ const Changing = (props: BotIdentityAvatarProps) => {
 				image={wearing ? UPLOADED_AVATAR_IMAGE : undefined}
 			/>
 			<Button onClick={() => setWearing(!wearing)} size="sm" variant="outline">
-				Change the bot
+				Change the companion
 			</Button>
 		</div>
 	)
@@ -93,7 +93,7 @@ const meta = preview.meta({
 		docs: {
 			description: {
 				component:
-					"A bot's face, wherever it is shown: the roster row, its settings column, the replies it signs, the row that says it is working. One component for all of them, because a bot that picked a rabbit is a rabbit everywhere or it is not an identity — three renderings drift the moment one of them learns something the others do not. It draws and nothing else: no name, no live region, no layout. What tells one bot from another is its animal and the ink blot behind it; every bot at rest holds the same idle frame, so a resting panel says nothing about what anyone is doing. Work is said by the pose alone; the dot at the corner is not work but a badge the caller hands down — attention, a finished turn, or a failed one — and a bot carrying none wears no dot at all. Size is the only thing a call site changes.",
+					"A companion's face, wherever it is shown: the roster row, its settings column, the replies it signs, the row that says it is working. One component for all of them, because a companion that picked a rabbit is a rabbit everywhere or it is not an identity — three renderings drift the moment one of them learns something the others do not. It draws and nothing else: no name, no live region, no layout. What tells one companion from another is its animal and the ink blot behind it; every companion at rest holds the same idle frame, so a resting panel says nothing about what anyone is doing. Work is said by the pose alone; the dot at the corner is not work but a badge the caller hands down — attention, a finished turn, or a failed one — and a companion carrying none wears no dot at all. Size is the only thing a call site changes.",
 			},
 		},
 	},
@@ -117,7 +117,7 @@ export const Default = meta.story({
 		docs: {
 			description: {
 				story:
-					"One bot at rest: the animal it was given, over the blot it was given, drawn once and left alone. Check that nothing moves, that the blot sits behind the whole animal without a stroke of its own, and that no activity dot is drawn — a bot doing nothing must look like a bot doing nothing. Pick `EveryBlot` for the other seven tints, `Working` for the same bot mid-run.",
+					"One companion at rest: the animal it was given, over the blot it was given, drawn once and left alone. Check that nothing moves, that the blot sits behind the whole animal without a stroke of its own, and that no activity dot is drawn — a companion doing nothing must look like a companion doing nothing. Pick `EveryBlot` for the other seven tints, `Working` for the same companion mid-run.",
 			},
 		},
 	},
@@ -125,7 +125,9 @@ export const Default = meta.story({
 		const [avatar] = botIdentityAvatars(canvasElement)
 
 		await expect(
-			within(avatar).getByRole("img", { name: "Bot avatar rabbit, idle" }),
+			within(avatar).getByRole("img", {
+				name: "Companion avatar rabbit, idle",
+			}),
 		).toBeVisible()
 		await expect(
 			avatar.querySelector('[data-slot="bot-activity-dot"]'),
@@ -153,7 +155,9 @@ export const EverySize = meta.story({
 				0,
 			)
 			await expect(
-				within(avatar).getByRole("img", { name: "Bot avatar rabbit, idle" }),
+				within(avatar).getByRole("img", {
+					name: "Companion avatar rabbit, idle",
+				}),
 			).toBeVisible()
 		}
 	},
@@ -172,7 +176,7 @@ export const EveryBlot = meta.story({
 		docs: {
 			description: {
 				story:
-					"The eight tints a bot can be marked with, and the bot marked with none. The names are the ones an agent file's `color` key reads. Seven inks came through the renaming untouched — `purple` is the lavender it always was; `orange` is the one that was drawn again, because the grey it inherited did not answer to the word. All eight are light on purpose: the ink line is near-black and the ear accent is coral, and both stop reading over anything darker — check that the outline, the eyes and the ears hold on every tint, and that the tint is the only thing that changes from one to the next. Switch the Storybook theme to dark: the tints do not flip, because a bot's mark is the same colour wherever it is shown. The first avatar draws no blot at all and must be identical to what the component rendered before blots existed.",
+					"The eight tints a companion can be marked with, and the companion marked with none. The names are the ones an agent file's `color` key reads. Seven inks came through the renaming untouched — `purple` is the lavender it always was; `orange` is the one that was drawn again, because the grey it inherited did not answer to the word. All eight are light on purpose: the ink line is near-black and the ear accent is coral, and both stop reading over anything darker — check that the outline, the eyes and the ears hold on every tint, and that the tint is the only thing that changes from one to the next. Switch the Storybook theme to dark: the tints do not flip, because a companion's mark is the same colour wherever it is shown. The first avatar draws no blot at all and must be identical to what the component rendered before blots existed.",
 			},
 		},
 	},
@@ -203,7 +207,7 @@ export const EveryBadge = meta.story({
 		docs: {
 			description: {
 				story:
-					"The three things a dot can mean, and the bot that means none of them. Attention is orange and breathes, because it is the only one asking the reader for something; a finished turn is green and a failed one is red, and both hold perfectly still — a turn that is over has nothing left to signal. The three colours are fixed and do not follow the theme: green cannot become teal on the water theme without the dot losing the only thing it says. Switch the Storybook theme, and light to dark, and check that all three hold. The first avatar carries no badge and must draw no dot at all.",
+					"The three things a dot can mean, and the companion that means none of them. Attention is orange and breathes, because it is the only one asking the reader for something; a finished turn is green and a failed one is red, and both hold perfectly still — a turn that is over has nothing left to signal. The three colours are fixed and do not follow the theme: green cannot become teal on the water theme without the dot losing the only thing it says. Switch the Storybook theme, and light to dark, and check that all three hold. The first avatar carries no badge and must draw no dot at all.",
 			},
 		},
 	},
@@ -236,7 +240,7 @@ export const BadgedWhileWorking = meta.story({
 		for (const avatar of botIdentityAvatars(canvasElement)) {
 			await expect(
 				within(avatar).getByRole("img", {
-					name: "Bot avatar rabbit, searching",
+					name: "Companion avatar rabbit, searching",
 				}),
 			).toBeVisible()
 			await expect(activityDotOf(avatar).dataset.badge).toBe("failed")
@@ -251,14 +255,16 @@ export const Working = meta.story({
 		docs: {
 			description: {
 				story:
-					"The bot at work, in all three places. The animal doing the work is the bot's own and it keeps its blot throughout — a run must never put a different creature or a different mark on the screen than the one the reader chose — and the pose is the work: writing, searching, thinking, or listening while it waits on the reader. No size wears a dot: a running bot is read from its pose and its message line, and the corner is reserved for a badge the caller passes. Pick `EveryBadge` for the three badges. Open this in Storybook for the movement; the test browser forces reduced motion.",
+					"The companion at work, in all three places. The animal doing the work is the companion's own and it keeps its blot throughout — a run must never put a different creature or a different mark on the screen than the one the reader chose — and the pose is the work: writing, searching, thinking, or listening while it waits on the reader. No size wears a dot: a running companion is read from its pose and its message line, and the corner is reserved for a badge the caller passes. Pick `EveryBadge` for the three badges. Open this in Storybook for the movement; the test browser forces reduced motion.",
 			},
 		},
 	},
 	play: async ({ canvasElement }) => {
 		for (const avatar of botIdentityAvatars(canvasElement)) {
 			await expect(
-				within(avatar).getByRole("img", { name: "Bot avatar rabbit, writing" }),
+				within(avatar).getByRole("img", {
+					name: "Companion avatar rabbit, writing",
+				}),
 			).toBeVisible()
 			await expect(
 				avatar.querySelector('[data-slot="bot-activity-dot"]'),
@@ -273,7 +279,7 @@ export const Waiting = meta.story({
 		docs: {
 			description: {
 				story:
-					"The one kind of work that is not named after its own pose: a bot waiting on the reader is listening, not idling. Reach for this to check that waiting still reads as attention rather than as rest, and that the bot's own animal is the one doing the listening.",
+					"The one kind of work that is not named after its own pose: a companion waiting on the reader is listening, not idling. Reach for this to check that waiting still reads as attention rather than as rest, and that the companion's own animal is the one doing the listening.",
 			},
 		},
 	},
@@ -281,7 +287,9 @@ export const Waiting = meta.story({
 		const [avatar] = botIdentityAvatars(canvasElement)
 
 		await expect(
-			within(avatar).getByRole("img", { name: "Bot avatar rabbit, listening" }),
+			within(avatar).getByRole("img", {
+				name: "Companion avatar rabbit, listening",
+			}),
 		).toBeVisible()
 	},
 })
@@ -293,7 +301,7 @@ export const Uploaded = meta.story({
 		docs: {
 			description: {
 				story:
-					"A bot wearing a picture its reader uploaded. It wins over the animal and its blot in every place — a bot with a photograph is that photograph on the roster, in its settings and beside its replies — and it is decorative in all of them: the row, the column and the reply each name the bot in their own text, so the image says nothing twice. Check that no animal is drawn beside it. Pick `UploadedWorking` for the same picture mid-run.",
+					"A companion wearing a picture its reader uploaded. It wins over the animal and its blot in every place — a companion with a photograph is that photograph on the roster, in its settings and beside its replies — and it is decorative in all of them: the row, the column and the reply each name the companion in their own text, so the image says nothing twice. Check that no animal is drawn beside it. Pick `UploadedWorking` for the same picture mid-run.",
 			},
 		},
 	},
@@ -315,7 +323,7 @@ export const UploadedWorking = meta.story({
 		docs: {
 			description: {
 				story:
-					"A bot with a picture, working. The picture stays: swapping it for an animal that can move would put somebody else on the screen mid-run. A photograph cannot act, so a running picture is read from the line beside it: the corner belongs to the badge and stays empty while none is given. Check that no dot is drawn at any size and that the picture is untouched.",
+					"A companion with a picture, working. The picture stays: swapping it for an animal that can move would put somebody else on the screen mid-run. A photograph cannot act, so a running picture is read from the line beside it: the corner belongs to the badge and stays empty while none is given. Check that no dot is drawn at any size and that the picture is untouched.",
 			},
 		},
 	},
@@ -338,7 +346,7 @@ export const BoundToOneBot = meta.story({
 		docs: {
 			description: {
 				story:
-					"What one component buys: change the bot and every place changes with it. Press the button and all three sizes go from the rabbit to a picture together — there is no fourth rendering left to forget, which is what the roster row and the reply avatar each used to be. Check that the three never disagree at any point.",
+					"What one component buys: change the companion and every place changes with it. Press the button and all three sizes go from the rabbit to a picture together — there is no fourth rendering left to forget, which is what the roster row and the reply avatar each used to be. Check that the three never disagree at any point.",
 			},
 		},
 	},
@@ -350,7 +358,7 @@ export const BoundToOneBot = meta.story({
 		}
 
 		await userEvent.click(
-			canvas.getByRole("button", { name: "Change the bot" }),
+			canvas.getByRole("button", { name: "Change the companion" }),
 		)
 		for (const avatar of drawn()) {
 			await expect(avatar.querySelector("img")).toHaveAttribute(
@@ -361,12 +369,14 @@ export const BoundToOneBot = meta.story({
 		}
 
 		await userEvent.click(
-			canvas.getByRole("button", { name: "Change the bot" }),
+			canvas.getByRole("button", { name: "Change the companion" }),
 		)
 		for (const avatar of drawn()) {
 			await expect(avatar.querySelector("img")).toBeNull()
 			await expect(
-				within(avatar).getByRole("img", { name: "Bot avatar rabbit, idle" }),
+				within(avatar).getByRole("img", {
+					name: "Companion avatar rabbit, idle",
+				}),
 			).toBeVisible()
 		}
 	},
@@ -378,7 +388,7 @@ export const NamedSkippy = meta.story({
 		docs: {
 			description: {
 				story:
-					"The one animal a reader cannot pick: a bot called Skippy is drawn as Skippy, whatever animal it keeps. Press the button and the rabbit becomes the kangaroo in all three places at once, and pressing it again gives the rabbit back — the name is read on every render and nothing is written, so the stored animal is the same rabbit before and after. The match ignores case and surrounding spaces, because a reader typing a name is not typing an identifier. A bot wearing an uploaded picture keeps the picture: pick `Uploaded` for that.",
+					"The one animal a reader cannot pick: a companion called Skippy is drawn as Skippy, whatever animal it keeps. Press the button and the rabbit becomes the kangaroo in all three places at once, and pressing it again gives the rabbit back — the name is read on every render and nothing is written, so the stored animal is the same rabbit before and after. The match ignores case and surrounding spaces, because a reader typing a name is not typing an identifier. A companion wearing an uploaded picture keeps the picture: pick `Uploaded` for that.",
 			},
 		},
 	},
@@ -387,13 +397,15 @@ export const NamedSkippy = meta.story({
 			for (const avatar of botIdentityAvatars(canvasElement)) {
 				await expect(
 					within(avatar).getByRole("img", {
-						name: `Bot avatar ${animal}, idle`,
+						name: `Companion avatar ${animal}, idle`,
 					}),
 				).toBeVisible()
 			}
 		}
 		const rename = () =>
-			userEvent.click(canvas.getByRole("button", { name: "Rename the bot" }))
+			userEvent.click(
+				canvas.getByRole("button", { name: "Rename the companion" }),
+			)
 
 		await expectEveryPlace("rabbit")
 		await rename()
@@ -409,7 +421,7 @@ export const Unseeded = meta.story({
 		docs: {
 			description: {
 				story:
-					"A bot drawn without an id — a preview, a story, anything with no bot behind it yet. It gets the blot exactly as it was authored, so nothing that existed before shapes did has moved. Put it beside `Default`, whose bot is seeded onto a half turn: the tint and the animal are the same and only the blot has turned. Pick `Branding/Bot Avatar → BlotShapes` for all eight poses at once.",
+					"A companion drawn without an id — a preview, a story, anything with no companion behind it yet. It gets the blot exactly as it was authored, so nothing that existed before shapes did has moved. Put it beside `Default`, whose companion is seeded onto a half turn: the tint and the animal are the same and only the blot has turned. Pick `Branding/Companion Avatar → BlotShapes` for all eight poses at once.",
 			},
 		},
 	},
@@ -426,7 +438,7 @@ export const Seeded = meta.story({
 		docs: {
 			description: {
 				story:
-					"What the id buys: press the button and the bot is renamed in every way a reader can rename it — a different animal, a different tint, and mid-run rather than at rest — and its blot holds the shape it has always had. The shape is derived from the id and from nothing else, and it is drawn outside the node the animation engine rewrites, so neither an edit nor a frame of movement can touch it. Check that the blot is perfectly still while the animal works.",
+					"What the id buys: press the button and the companion is renamed in every way a reader can rename it — a different animal, a different tint, and mid-run rather than at rest — and its blot holds the shape it has always had. The shape is derived from the id and from nothing else, and it is drawn outside the node the animation engine rewrites, so neither an edit nor a frame of movement can touch it. Check that the blot is perfectly still while the animal works.",
 			},
 		},
 	},

@@ -159,7 +159,7 @@ const idles = { turn: "idle" } as const
 const fails = { turn: "failed" } as const
 
 describe("createBotBadgeSource", () => {
-	it("reports none until a bot's chat state changes", () => {
+	it("reports none until a companion's chat state changes", () => {
 		const { source } = start()
 
 		expect(badgeIn(source, "bot-one")).toBe("none")
@@ -181,7 +181,7 @@ describe("createBotBadgeSource", () => {
 		expect(badgeIn(source, "bot-one")).toBe("attention")
 	})
 
-	it("keeps attention on the selected bot", () => {
+	it("keeps attention on the selected companion", () => {
 		const { chat, roster, source } = start({ selectedBotId: "bot-one" })
 
 		chat.publish("bot-one", { ...runs, question: question("q-1") })
@@ -198,7 +198,7 @@ describe("createBotBadgeSource", () => {
 		expect(badgeIn(source, "bot-one")).toBe("none")
 	})
 
-	it("reports done when an unselected bot ends its turn", () => {
+	it("reports done when an unselected companion ends its turn", () => {
 		const { chat, source } = start({ selectedBotId: "bot-two" })
 
 		chat.publish("bot-one", runs)
@@ -207,7 +207,7 @@ describe("createBotBadgeSource", () => {
 		expect(badgeIn(source, "bot-one")).toBe("done")
 	})
 
-	it("reports failed when an unselected bot's turn fails", () => {
+	it("reports failed when an unselected companion's turn fails", () => {
 		const { chat, source } = start({ selectedBotId: "bot-two" })
 
 		chat.publish("bot-one", runs)
@@ -216,7 +216,7 @@ describe("createBotBadgeSource", () => {
 		expect(badgeIn(source, "bot-one")).toBe("failed")
 	})
 
-	it("reports none when the selected bot ends its turn under focus", () => {
+	it("reports none when the selected companion ends its turn under focus", () => {
 		const { chat, source } = start({ selectedBotId: "bot-one" })
 
 		chat.publish("bot-one", runs)
@@ -225,7 +225,7 @@ describe("createBotBadgeSource", () => {
 		expect(badgeIn(source, "bot-one")).toBe("none")
 	})
 
-	it("reports done when the selected bot ends its turn without focus", () => {
+	it("reports done when the selected companion ends its turn without focus", () => {
 		const { chat, blur, source } = start({ selectedBotId: "bot-one" })
 
 		blur()
@@ -235,7 +235,7 @@ describe("createBotBadgeSource", () => {
 		expect(badgeIn(source, "bot-one")).toBe("done")
 	})
 
-	it("drops the badge of the selected bot when the window comes back", () => {
+	it("drops the badge of the selected companion when the window comes back", () => {
 		const { chat, blur, focus, source } = start({ selectedBotId: "bot-one" })
 
 		blur()
@@ -246,7 +246,7 @@ describe("createBotBadgeSource", () => {
 		expect(badgeIn(source, "bot-one")).toBe("none")
 	})
 
-	it("keeps the badge of an unselected bot when the window comes back", () => {
+	it("keeps the badge of an unselected companion when the window comes back", () => {
 		const { chat, blur, focus, source } = start({ selectedBotId: "bot-two" })
 
 		blur()
@@ -257,7 +257,7 @@ describe("createBotBadgeSource", () => {
 		expect(badgeIn(source, "bot-one")).toBe("done")
 	})
 
-	it("keeps attention on the selected bot when the window comes back", () => {
+	it("keeps attention on the selected companion when the window comes back", () => {
 		const { chat, blur, focus, source } = start({ selectedBotId: "bot-one" })
 
 		blur()
@@ -277,7 +277,7 @@ describe("createBotBadgeSource", () => {
 		expect(badgeIn(source, "bot-one")).toBe("done")
 	})
 
-	it("drops done when the bot becomes the selected bot", () => {
+	it("drops done when the companion becomes the selected companion", () => {
 		const { chat, roster, source } = start()
 
 		chat.publish("bot-one", runs)
@@ -287,7 +287,7 @@ describe("createBotBadgeSource", () => {
 		expect(badgeIn(source, "bot-one")).toBe("none")
 	})
 
-	it("drops failed when the bot starts a new turn", () => {
+	it("drops failed when the companion starts a new turn", () => {
 		const { chat, source } = start()
 
 		chat.publish("bot-one", runs)
@@ -297,7 +297,7 @@ describe("createBotBadgeSource", () => {
 		expect(badgeIn(source, "bot-one")).toBe("none")
 	})
 
-	it("badges a bot of another space", () => {
+	it("badges a companion of another space", () => {
 		const { chat, source } = start({
 			rosters: { [HOME]: [{ id: "bot-one" }], work: [{ id: "bot-two" }] },
 		})
@@ -321,7 +321,7 @@ describe("createBotBadgeSource", () => {
 		expect(badgeIn(source, "bot-one")).toBeUndefined()
 	})
 
-	it("forgets a bot that leaves the roster", () => {
+	it("forgets a companion that leaves the roster", () => {
 		const { chat, roster, source } = start()
 
 		chat.publish("bot-one", runs)

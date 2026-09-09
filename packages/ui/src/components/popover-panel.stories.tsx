@@ -5,7 +5,6 @@ import {
 	A11Y_FLOATING_FOCUS_GUARDS,
 	listExhaustively,
 	Row,
-	tokenLengthOf,
 } from "@workspace/storybook/story-utils"
 import {
 	PopoverPanel,
@@ -30,12 +29,22 @@ const TRIGGER_MODES = listExhaustively<PopoverPanelTriggerMode>({
 	hover: true,
 })
 
+const scaleStepRadius = (host: HTMLElement, token: string) => {
+	const probe = host.ownerDocument.createElement("div")
+	probe.style.borderRadius = `var(${token})`
+	host.ownerDocument.body.append(probe)
+	const radius = getComputedStyle(probe).borderRadius
+	probe.remove()
+	return radius
+}
+
 const anchorLabel = (side: PopoverPanelSide, align: PopoverPanelAlign) =>
 	`${side} ${align}`
 
 const PANEL_TITLE = "Release notes"
 
-const PANEL_NOTE = "Bots keep their transcript when the window is reopened."
+const PANEL_NOTE =
+	"Companions keep their transcript when the window is reopened."
 
 const PANEL = (
 	<>
@@ -125,7 +134,7 @@ export const Open = meta.story({
 
 		await waitFor(async () => expect(panel).toBeVisible())
 		await expect(getComputedStyle(panel).borderRadius).toBe(
-			tokenLengthOf("--radius-2xl"),
+			scaleStepRadius(canvasElement, "--radius-2xl"),
 		)
 	},
 })
@@ -226,6 +235,7 @@ export const Dismiss = meta.story({
 export const OnHover = meta.story({
 	args: { children: PANEL, trigger: "hover" },
 	parameters: {
+		a11y: A11Y_FLOATING_FOCUS_GUARDS,
 		docs: {
 			description: {
 				story:
