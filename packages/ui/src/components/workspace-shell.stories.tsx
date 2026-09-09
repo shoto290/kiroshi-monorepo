@@ -62,7 +62,7 @@ const SIDEBAR = (
 				<SidebarGroupContent>
 					<SidebarMenu>
 						<SidebarMenuItem>
-							<SidebarMenuRow>Brief</SidebarMenuRow>
+							<SidebarMenuRow label="Brief">Brief</SidebarMenuRow>
 						</SidebarMenuItem>
 					</SidebarMenu>
 				</SidebarGroupContent>

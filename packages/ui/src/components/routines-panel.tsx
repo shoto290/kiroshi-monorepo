@@ -23,6 +23,7 @@ import {
 	MissionRow,
 	type MissionRowModel,
 } from "@workspace/ui/components/mission-row"
+import { NestedSidebarProvider } from "@workspace/ui/components/nested-sidebar-provider"
 import { Notice } from "@workspace/ui/components/notice"
 import {
 	ReportedRunRow,
@@ -49,11 +50,9 @@ import {
 	SidebarContent,
 	SidebarFooter,
 	SidebarHeader,
-	SidebarProvider,
 } from "@workspace/ui/components/ui/sidebar"
 import { cn } from "@workspace/ui/lib/utils"
 
-const ROUTINES_PANEL_ID = "routines-panel"
 const ROUTINES_PANEL_WIDTH = 320
 
 const PANEL_SHELL =
@@ -485,7 +484,6 @@ const RoutinesPanelSurface = (props: RoutinesPanelListProps) => {
 			aria-label={t("activity.panel.label")}
 			className={PANEL_SURFACE}
 			collapsible="none"
-			id={ROUTINES_PANEL_ID}
 			ref={surface}
 			role="complementary"
 		>
@@ -589,14 +587,15 @@ const RoutinesPanel = ({
 
 	return (
 		<RoutinesPanelContext.Provider value={handle}>
-			<SidebarProvider
+			<NestedSidebarProvider
 				className={PANEL_SHELL}
+				onOpenChange={onOpenChange}
 				open={isOpen}
 				style={PANEL_WIDTH_STYLE}
 			>
 				<ContentCard isLandmark={false}>{children}</ContentCard>
 				{isOpen ? <RoutinesPanelSurface {...list} /> : null}
-			</SidebarProvider>
+			</NestedSidebarProvider>
 		</RoutinesPanelContext.Provider>
 	)
 }
@@ -612,7 +611,6 @@ const RoutinesPanelTrigger = (props: RoutinesPanelTriggerProps) => {
 	return (
 		<Button
 			{...props}
-			aria-controls={ROUTINES_PANEL_ID}
 			aria-expanded={isOpen}
 			aria-label={t("activity.panel.toggle")}
 			className="size-8"

@@ -115,7 +115,8 @@ const NAME_LINE = "flex h-5 min-w-0 items-center gap-1.5"
 
 const ROW_STACK = "relative flex h-9 min-w-0 flex-col justify-center"
 
-const ROW_ITEM = "flex flex-col gap-1"
+const ROW_ITEM =
+	"flex flex-col gap-1 group-data-[collapsible=icon]:items-center"
 
 const MISSION_STRIPS = "flex flex-col gap-1"
 
@@ -2373,6 +2374,7 @@ export {
 	type AppSidebarRowMission,
 	type AppSidebarSection,
 	type BotAvatarBlot,
+	ROW_AVATAR_SIZE,
 	type RosterPin,
 	type Space,
 	type UserChipIdentity,

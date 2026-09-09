@@ -11,11 +11,13 @@ import { cn } from "@workspace/ui/lib/utils"
 const SHELL = "surface-shell h-svh min-w-0 overflow-hidden"
 
 type ShellStyle = CSSProperties & {
+	"--sidebar-width": string
 	"--sidebar-width-icon": string
 	"--space-tint"?: string
 }
 
 const shellStyle = (tint?: BotAvatarBlot | null): ShellStyle => ({
+	"--sidebar-width": "var(--sidebar-panel)",
 	"--sidebar-width-icon": "var(--sidebar-rail)",
 	...(tint ? { "--space-tint": blotTint(tint) } : undefined),
 })

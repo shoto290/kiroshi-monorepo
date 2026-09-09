@@ -1,8 +1,10 @@
+import { useState } from "react"
 import { expect, waitFor } from "storybook/test"
 
 import preview from "@workspace/storybook/preview"
 import { FRAME_POLL } from "@workspace/storybook/story-utils"
 import { Icons } from "@workspace/ui/components/icons"
+import { NestedSidebarProvider } from "@workspace/ui/components/nested-sidebar-provider"
 import { SidebarMenuRow } from "@workspace/ui/components/sidebar-menu-row"
 import {
 	Sidebar,
@@ -62,6 +64,7 @@ const Panel = ({ label, side }: PanelProps) => (
 								<SidebarMenuRow
 									icon={<Icons.Message aria-hidden="true" />}
 									isActive={session === SESSIONS[0]}
+									label={session}
 								>
 									{session}
 								</SidebarMenuRow>
@@ -75,6 +78,27 @@ const Panel = ({ label, side }: PanelProps) => (
 	</Sidebar>
 )
 
+const TwoPanels = () => {
+	const [isActivityOpen, setActivityOpen] = useState(true)
+
+	return (
+		<SidebarProvider>
+			<Panel label="Workspace" />
+			<SidebarInset>
+				<NestedSidebarProvider
+					onOpenChange={setActivityOpen}
+					open={isActivityOpen}
+				>
+					<p className={SURFACE}>
+						Whatever screen the shell hands the room to.
+					</p>
+					<Panel label="Activity" side="right" />
+				</NestedSidebarProvider>
+			</SidebarInset>
+		</SidebarProvider>
+	)
+}
+
 const meta = preview.meta({
 	title: "Navigation/Sidebar",
 	component: SidebarProvider,
@@ -83,7 +107,7 @@ const meta = preview.meta({
 		docs: {
 			description: {
 				component:
-					'The collapsible side panel as the shadcn registry ships it: a provider owning the open state and the Cmd/Ctrl+B shortcut, a panel that reserves its own room in the row, and an inset taking whatever room is left. `collapsible="icon"` is the mode this app runs in — collapsing narrows the panel to an icon rail rather than sliding it off the canvas — and on a window too narrow for two columns the panel becomes a drawer instead. Every slot is a plain box: header, content, footer, group, menu. A row with an icon and a label is not one of them, so `SidebarMenuRow` composes it beside the registry. Nesting a second provider inside the inset gives a trailing panel its own open state, which is how the activity panel sits opposite this one.',
+					'The collapsible side panel as the shadcn registry ships it: a provider owning the open state and the Cmd/Ctrl+B shortcut, a panel that reserves its own room in the row, and an inset taking whatever room is left. `collapsible="icon"` is the mode this app runs in — collapsing narrows the panel to an icon rail rather than sliding it off the canvas — and on a window too narrow for two columns the panel becomes a drawer instead. Every slot is a plain box: header, content, footer, group, menu. A row with an icon and a label is not one of them, so `SidebarMenuRow` composes it beside the registry, and `NestedSidebarProvider` composes the second provider a trailing panel needs, which is how the activity panel sits opposite this one.',
 			},
 		},
 	},
@@ -168,23 +192,11 @@ export const RightSide = meta.story({
 		docs: {
 			description: {
 				story:
-					"A panel on the trailing edge, which is what an activity panel is. Check that it holds the trailing end of the row rather than the leading one, that the inset sits between the two panels, and that each panel answers only its own trigger: two providers, two open states, so collapsing one leaves the other exactly where it was. Pick `Expanded` for the single panel.",
+					"A panel on the trailing edge, which is what an activity panel is. Check that it holds the trailing end of the row rather than the leading one, that the inset sits between the two panels, and that each panel answers only its own trigger: two providers, two open states, so collapsing one leaves the other exactly where it was. Cmd/Ctrl+B belongs to the outer provider alone — the registry hangs that shortcut on the window, so a second registry provider nested inside would answer the same press. `NestedSidebarProvider` is the composed provider that drops the shortcut and keeps the handler, so the trailing panel holds its state and its width across the press. Pick `Expanded` for the single panel.",
 			},
 		},
 	},
-	render: () => (
-		<SidebarProvider>
-			<Panel label="Workspace" />
-			<SidebarInset>
-				<SidebarProvider>
-					<div className={SURFACE}>
-						Whatever screen the shell hands the room to.
-					</div>
-					<Panel label="Activity" side="right" />
-				</SidebarProvider>
-			</SidebarInset>
-		</SidebarProvider>
-	),
+	render: () => <TwoPanels />,
 	play: async ({ canvas, userEvent }) => {
 		const workspace = canvas.getByRole("complementary", { name: "Workspace" })
 		const activity = canvas.getByRole("complementary", { name: "Activity" })
@@ -193,13 +205,31 @@ export const RightSide = meta.story({
 			workspace.getBoundingClientRect().right,
 		)
 
-		const width = workspace.getBoundingClientRect().width
+		const activityWidth = activity.getBoundingClientRect().width
 		await userEvent.click(
 			canvas.getByRole("button", { name: "Toggle Activity" }),
 		)
 
 		await expect(stateOf(activity)).toBe("collapsed")
 		await expect(stateOf(workspace)).toBe("expanded")
-		await expect(workspace.getBoundingClientRect().width).toBe(width)
+
+		await userEvent.click(
+			canvas.getByRole("button", { name: "Toggle Activity" }),
+		)
+		await waitFor(async () => {
+			await expect(activity.getBoundingClientRect().width).toBe(activityWidth)
+		}, FRAME_POLL)
+
+		const workspaceWidth = workspace.getBoundingClientRect().width
+		await userEvent.keyboard("{Meta>}b{/Meta}")
+
+		await expect(stateOf(workspace)).toBe("collapsed")
+		await expect(stateOf(activity)).toBe("expanded")
+		await expect(activity.getBoundingClientRect().width).toBe(activityWidth)
+		await waitFor(async () => {
+			await expect(workspace.getBoundingClientRect().width).toBeLessThan(
+				workspaceWidth,
+			)
+		}, FRAME_POLL)
 	},
 })

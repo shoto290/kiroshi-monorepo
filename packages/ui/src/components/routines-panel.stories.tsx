@@ -215,7 +215,7 @@ const WORKSPACE_SIDEBAR = (
 		<SidebarContent>
 			<SidebarMenu>
 				<SidebarMenuItem>
-					<SidebarMenuRow>Shift log</SidebarMenuRow>
+					<SidebarMenuRow label="Shift log">Shift log</SidebarMenuRow>
 				</SidebarMenuItem>
 			</SidebarMenu>
 		</SidebarContent>
@@ -442,14 +442,14 @@ export const Closed = meta.story({
 		docs: {
 			description: {
 				story:
-					"The panel folded away. Check that the thread card takes the whole room the folded panel leaves, keeping nothing but its own gutter, that the control in the app header reports the panel closed rather than merely looking unpressed, and that the panel is out of the document entirely while it is folded away rather than a column of no width.",
+					"The panel folded away. Check that the thread card takes the whole room the folded panel leaves, keeping nothing but its own gutter, that the control in the app header reports the panel closed rather than merely looking unpressed, that it points at nothing while there is nothing to point at — a folded panel is out of the document, so an `aria-controls` naming it would name an element a screen reader cannot reach — and that the panel is out of the document entirely rather than a column of no width.",
 			},
 		},
 	},
 	play: async ({ canvas, canvasElement }) => {
 		const control = canvas.getByRole("button", { name: "Activity" })
 		await expect(control).toHaveAttribute("aria-expanded", "false")
-		await expect(control).toHaveAttribute("aria-controls", "routines-panel")
+		await expect(control).not.toHaveAttribute("aria-controls")
 
 		const thread = slotIn(canvasElement, "sidebar-inset")
 		await expect(

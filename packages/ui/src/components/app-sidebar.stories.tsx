@@ -22,6 +22,7 @@ import {
 	type AppSidebarRowMission,
 	type AppSidebarSection,
 	type BotAvatarBlot,
+	ROW_AVATAR_SIZE,
 	type Space,
 	type UserChipIdentity,
 } from "@workspace/ui/components/app-sidebar"
@@ -331,6 +332,27 @@ const rowFor = (canvasElement: HTMLElement, name: string) => {
 
 const rowButton = (row: HTMLElement) => slotIn(row, "sidebar-menu-button")
 
+const avatarDrawingIn = (row: HTMLElement) => {
+	const drawing = slotIn(row, "bot-identity-avatar").querySelector("svg")
+	if (!drawing) throw new Error("No avatar drawing in the row")
+	return drawing
+}
+
+const expectAvatarDrawnAtCallSiteSize = async (row: HTMLElement) => {
+	const drawn = avatarDrawingIn(row).getBoundingClientRect()
+	await expect(drawn.width).toBeCloseTo(ROW_AVATAR_SIZE, 0)
+	await expect(drawn.height).toBeCloseTo(ROW_AVATAR_SIZE, 0)
+}
+
+const expectAvatarWholeInRow = async (row: HTMLElement) => {
+	const drawn = avatarDrawingIn(row).getBoundingClientRect()
+	const box = rowButton(row).getBoundingClientRect()
+	await expect(drawn.left).toBeGreaterThanOrEqual(box.left)
+	await expect(drawn.right).toBeLessThanOrEqual(box.right)
+	await expect(drawn.top).toBeGreaterThanOrEqual(box.top)
+	await expect(drawn.bottom).toBeLessThanOrEqual(box.bottom)
+}
+
 const rowHead = (row: HTMLElement) =>
 	row.querySelector<HTMLElement>('[data-slot="sidebar-menu-head"]') ??
 	rowButton(row)
@@ -476,6 +498,21 @@ const expectMutedSecondaryText = async (row: HTMLElement, muted: string) => {
 	await expect(colorOf(row, "roster-row-preview")).toBe(muted)
 	await expect(colorOf(row, "roster-row-timestamp")).toBe(muted)
 	await expect(colorOf(row, "roster-row-name")).not.toBe(muted)
+}
+
+const EXPANDED_PANEL_WIDTH = 304
+
+const panelWidth = () => {
+	const shell = document.querySelector<HTMLElement>(
+		'[data-slot="sidebar-wrapper"]',
+	)
+	if (!shell) throw new Error("no sidebar wrapper to read the panel width from")
+	const probe = document.createElement("div")
+	probe.style.width = "var(--sidebar-width)"
+	shell.append(probe)
+	const width = probe.getBoundingClientRect().width
+	probe.remove()
+	return width
 }
 
 const railWidth = () => {
@@ -854,7 +891,7 @@ export const Identities = meta.story({
 		docs: {
 			description: {
 				story:
-					"The eight blots a bot can be given in its settings, one per row, with nothing running. Every avatar here draws the same idle animal — what tells the rows apart is the tint behind it, not what the bot is doing — and every one of them is a still frame, so a panel of bots that are doing nothing is a panel that does not move. Check that each row wears its own tint, that the ink line and the ear accent stay legible over all eight, that no row carries an activity dot, and that the panel does not report itself busy. The test browser renders every story with reduced motion, so the stillness is read here rather than measured; open the story in Storybook beside `Working` to see the difference. Pick `Working` for the state that animates.",
+					"The eight blots a bot can be given in its settings, one per row, with nothing running. Every avatar here draws the same idle animal — what tells the rows apart is the tint behind it, not what the bot is doing — and every one of them is a still frame, so a panel of bots that are doing nothing is a panel that does not move. Check that each row wears its own tint, that the ink line and the ear accent stay legible over all eight, that no row carries an activity dot, and that the panel does not report itself busy. Check too that the panel is the width the stylesheet gives it and that an avatar is drawn at the size the row asks for rather than at the size the menu button forces on the icons around it. The test browser renders every story with reduced motion, so the stillness is read here rather than measured; open the story in Storybook beside `Working` to see the difference. Pick `Working` for the state that animates.",
 			},
 		},
 	},
@@ -874,9 +911,17 @@ export const Identities = meta.story({
 		await expect(
 			canvasElement.querySelectorAll('[data-slot="bot-activity-dot"]'),
 		).toHaveLength(0)
-		await expect(
-			canvas.getByRole("complementary", { name: "Conversations" }),
-		).toHaveAttribute("aria-busy", "false")
+
+		const panel = canvas.getByRole("complementary", { name: "Conversations" })
+		await expect(panel).toHaveAttribute("aria-busy", "false")
+		await expect(panel.getBoundingClientRect().width).toBeCloseTo(
+			panelWidth(),
+			0,
+		)
+		await expect(panelWidth()).toBe(EXPANDED_PANEL_WIDTH)
+
+		await expectAvatarDrawnAtCallSiteSize(rows[0])
+		await expectAvatarWholeInRow(rows[0])
 		await expect(uniqueCount(rowHeights(rows))).toBe(1)
 	},
 })
@@ -1721,7 +1766,7 @@ export const Collapsed = meta.story({
 		docs: {
 			description: {
 				story:
-					"The panel opened on its icon rail, which is how a host restores a remembered choice through `defaultOpen`. Check that the rail is one avatar wide with the avatars sitting centred in it and nothing clipped against either edge, that the create button rides down with it, and that the names, badges and timestamps are gone from the picture and from the accessibility tree — each row keeps its name through `aria-label` instead. A row is still one button and one only, and right-clicking it still reaches its actions. Pick `Toggle` to watch the panel travel between the two widths.",
+					"The panel opened on its icon rail, which is how a host restores a remembered choice through `defaultOpen`. Check that the rail is one avatar wide with the avatars sitting centred in it and nothing clipped against either edge, that an avatar keeps the size the row asks for and fits whole inside the row rather than being cut by it, that the create button rides down with it, and that the names, badges and timestamps are gone from the picture and from the accessibility tree — each row keeps its name through `aria-label` instead. A row is still one button and one only, and right-clicking it still reaches its actions. Pick `Toggle` to watch the panel travel between the two widths.",
 			},
 		},
 	},
@@ -1744,11 +1789,11 @@ export const Collapsed = meta.story({
 		await expect(within(row).getAllByRole("button")).toHaveLength(1)
 
 		const panelBox = panel.getBoundingClientRect()
-		const avatarBox = within(row)
-			.getByRole("img", { name: /idle$/ })
-			.getBoundingClientRect()
+		const avatarBox = avatarDrawingIn(row).getBoundingClientRect()
 		await expect(avatarBox.left).toBeGreaterThanOrEqual(panelBox.left)
 		await expect(avatarBox.right).toBeLessThanOrEqual(panelBox.right)
+		await expectAvatarDrawnAtCallSiteSize(row)
+		await expectAvatarWholeInRow(row)
 
 		await expect(
 			slotIn(row, "roster-row-preview").closest("[aria-hidden='true']"),
@@ -1784,7 +1829,6 @@ export const Toggle = meta.story({
 		await waitFor(async () => {
 			await expect(panel.getBoundingClientRect().width).toBeCloseTo(rail, 0)
 		}, FRAME_POLL)
-		await expect(row.getBoundingClientRect().height).toBeLessThan(rowHeight)
 
 		await userEvent.keyboard("{Control>}b{/Control}")
 		await expect(stateOf(panel)).toBe("expanded")
@@ -4289,12 +4333,13 @@ export const DragBotIntoAnEmptyPinnedZone = meta.story({
 		docs: {
 			description: {
 				story:
-					"The invitation to pin a first row. A space where nothing is pinned draws no zone and no rule at rest — the roster is one plain list, and a band of empty space above it would only ask the reader to wonder what it is for. The moment a row is lifted the zone appears at the top with the rule under it, so the gesture teaches its own target: the reader sees a place to aim at exactly when there is something to aim with, and the panel goes back to one list the instant the row is put down. Releasing over it reports the row as the only pin. Pick `DragBotToSection` for the zone once it holds sections, `DragBotOutOfSection` for the way back down.",
+					"The invitation to pin a first row. A space where nothing is pinned draws no zone and no rule at rest — the roster is one plain list, and a band of empty space above it would only ask the reader to wonder what it is for. The moment a row is lifted the zone appears at the top with the rule under it, so the gesture teaches its own target: the reader sees a place to aim at exactly when there is something to aim with, and the panel goes back to one list the instant the row is put down. Releasing over it reports the row as the only pin. Check the row refuses text selection, so dragging it lifts the row rather than highlighting the name and the preview under the pointer. Pick `DragBotToSection` for the zone once it holds sections, `DragBotOutOfSection` for the way back down.",
 			},
 		},
 	},
 	play: async ({ args, canvasElement }) => {
 		const handle = rowButton(rowFor(canvasElement, "Cinder"))
+		await expect(getComputedStyle(handle).userSelect).toBe("none")
 		await expect(
 			canvasElement.querySelector(
 				`[data-roster-drop="${PINNED_ZONE_LANDING}"]`,
