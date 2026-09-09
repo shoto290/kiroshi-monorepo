@@ -15,9 +15,12 @@ One source value drives the whole scale:
 
 ```css
 --radius: 0.625rem;
+--radius-root: var(--radius);
 ```
 
-The `@theme inline` block derives every step, `xs` through `4xl`, from it with multipliers (`0.2` to `2.6`), so changing `--radius` reshapes every component at once.
+The `@theme inline` block derives every step from `--radius-root`, which is frozen at the root: a subtree that redeclares `--radius` cannot reshape the scale under it, which is what the vendored sidebar does to its own header and content.
+
+`xl` and `2xl` both resolve to the `lg` step. Every surface the reader meets — a menu, a button, a card, a sidebar row, a panel — carries the same corner, and reaching for a rounder step does not get you one. `xs`, `sm` and `md` stay tighter for marks, strips and inline code, `3xl` and `4xl` stay rounder for the composer and the bubbles.
 
 <RadiusScale />
 

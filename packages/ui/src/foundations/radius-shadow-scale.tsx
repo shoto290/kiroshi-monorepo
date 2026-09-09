@@ -2,38 +2,42 @@ const RADII = [
 	{
 		token: "--radius-xs",
 		className: "rounded-xs",
-		computed: "calc(var(--radius) * 0.2)",
+		computed: "calc(var(--radius-root) * 0.2)",
 	},
 	{
 		token: "--radius-sm",
 		className: "rounded-sm",
-		computed: "calc(var(--radius) * 0.6)",
+		computed: "calc(var(--radius-root) * 0.6)",
 	},
 	{
 		token: "--radius-md",
 		className: "rounded-md",
-		computed: "calc(var(--radius) * 0.8)",
+		computed: "calc(var(--radius-root) * 0.8)",
 	},
-	{ token: "--radius-lg", className: "rounded-lg", computed: "var(--radius)" },
+	{
+		token: "--radius-lg",
+		className: "rounded-lg",
+		computed: "var(--radius-root)",
+	},
 	{
 		token: "--radius-xl",
 		className: "rounded-xl",
-		computed: "calc(var(--radius) * 1.4)",
+		computed: "var(--radius-lg)",
 	},
 	{
 		token: "--radius-2xl",
 		className: "rounded-2xl",
-		computed: "calc(var(--radius) * 1.8)",
+		computed: "var(--radius-lg)",
 	},
 	{
 		token: "--radius-3xl",
 		className: "rounded-3xl",
-		computed: "calc(var(--radius) * 2.2)",
+		computed: "calc(var(--radius-root) * 2.2)",
 	},
 	{
 		token: "--radius-4xl",
 		className: "rounded-4xl",
-		computed: "calc(var(--radius) * 2.6)",
+		computed: "calc(var(--radius-root) * 2.6)",
 	},
 ]
 

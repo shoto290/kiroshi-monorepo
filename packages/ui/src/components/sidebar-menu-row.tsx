@@ -10,7 +10,7 @@ import {
 import { cn } from "@workspace/ui/lib/utils"
 
 const ROW =
-	"h-auto min-h-9 select-none items-center gap-2.5 px-3 font-medium text-sidebar-foreground/70 group-data-[collapsible=icon]:min-h-11 group-data-[collapsible=icon]:min-w-11 group-data-[collapsible=icon]:justify-center group-data-[collapsible=icon]:gap-0"
+	"h-auto min-h-9 select-none items-center gap-2.5 rounded-lg px-3 font-medium text-sidebar-foreground/70 group-data-[collapsible=icon]:min-h-11 group-data-[collapsible=icon]:min-w-11 group-data-[collapsible=icon]:justify-center group-data-[collapsible=icon]:gap-0"
 
 const ROW_WITH_ICON = "ps-2"
 
