@@ -101,7 +101,7 @@ const refused = () => new Response(REFUSED, { status: 400 })
 const isLoopback = (host: string | null) =>
 	host !== null && LOOPBACK_HOSTS.has(host.replace(PORT_SUFFIX, ""))
 
-const answered = (settle: Settle, redirect: Redirect) => {
+const settleOnceAnswered = (settle: Settle, redirect: Redirect) => {
 	setTimeout(() => settle(redirect), 0)
 }
 
@@ -122,14 +122,14 @@ const answerRedirect = (
 	}
 	const denied = asked.searchParams.get("error")
 	if (denied) {
-		answered(settle, { failure: { kind: "denied", detail: denied } })
+		settleOnceAnswered(settle, { failure: { kind: "denied", detail: denied } })
 		return new Response(DENIED)
 	}
 	const code = asked.searchParams.get("code")
 	if (!code) {
 		return refused()
 	}
-	answered(settle, { code })
+	settleOnceAnswered(settle, { code })
 	return new Response(GRANTED)
 }
 

@@ -404,12 +404,12 @@ impl OauthFlow {
 		.map_err(|_| flow_outlasted())?;
 		match raced {
 			Raced::Started(named) => {
-				let opening: OauthStarted = read_frame(received(named)?)?;
+				let opening: OauthStarted = frame(named)?;
 				Ok(Opening::Authorization(opening.url))
 			}
 			Raced::Settled(answer) => {
 				self.answered = true;
-				Ok(Opening::Settled(read_frame(received(answer)?)?))
+				Ok(Opening::Settled(frame(answer)?))
 			}
 		}
 	}
@@ -420,7 +420,7 @@ impl OauthFlow {
 			.await
 			.map_err(|_| flow_outlasted())?;
 		self.answered = true;
-		Ok(read_frame(received(answer)?)?)
+		Ok(frame(answer)?)
 	}
 }
 
@@ -434,8 +434,8 @@ impl Drop for OauthFlow {
 	}
 }
 
-fn read_frame<T: serde::de::DeserializeOwned>(answer: Value) -> Result<T, TransportError> {
-	serde_json::from_value(answer)
+fn frame<T: serde::de::DeserializeOwned>(answer: Frame) -> Result<T, TransportError> {
+	serde_json::from_value(received(answer)?)
 		.map_err(|error| TransportError::InvalidFrame { detail: error.to_string() })
 }
 
