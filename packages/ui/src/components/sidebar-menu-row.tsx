@@ -9,10 +9,7 @@ import {
 import { cn } from "@workspace/ui/lib/utils"
 
 const ROW =
-	"h-auto min-h-9 items-center gap-2.5 px-3 font-medium text-sidebar-foreground/70"
-
-const ROW_ON_RAIL =
-	"group-data-[collapsible=icon]:min-h-0 group-data-[collapsible=icon]:justify-center group-data-[collapsible=icon]:gap-0"
+	"h-auto min-h-9 items-center gap-2.5 px-3 font-medium text-sidebar-foreground/70 group-data-[collapsible=icon]:min-h-0 group-data-[collapsible=icon]:justify-center group-data-[collapsible=icon]:gap-0"
 
 const ROW_WITH_ICON = "ps-2"
 
@@ -22,10 +19,8 @@ const HEAD = "flex min-h-9 min-w-0 items-center gap-2.5 pe-1.5"
 
 const ICON_SLOT = "grid min-h-5 min-w-5 shrink-0 place-items-center"
 
-const LABEL_SLOT = "min-w-0 flex-1 truncate"
-
-const LABEL_ON_RAIL =
-	"group-data-[collapsible=icon]:w-0 group-data-[collapsible=icon]:flex-none group-data-[collapsible=icon]:pointer-events-none"
+const LABEL_SLOT =
+	"min-w-0 flex-1 truncate group-data-[collapsible=icon]:pointer-events-none group-data-[collapsible=icon]:w-0 group-data-[collapsible=icon]:flex-none"
 
 type SidebarMenuRowElementProps = AriaAttributes &
 	Pick<
@@ -69,7 +64,7 @@ const SidebarMenuRow = ({
 					{icon}
 				</span>
 			) : null}
-			<span aria-hidden={isCollapsed} className={cn(LABEL_SLOT, LABEL_ON_RAIL)}>
+			<span aria-hidden={isCollapsed} className={LABEL_SLOT}>
 				{children}
 			</span>
 		</>
@@ -82,7 +77,6 @@ const SidebarMenuRow = ({
 			aria-label={isCollapsed ? textLabel : undefined}
 			className={cn(
 				ROW,
-				ROW_ON_RAIL,
 				icon && ROW_WITH_ICON,
 				below && ROW_STACKED,
 				className,

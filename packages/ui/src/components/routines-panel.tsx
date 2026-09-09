@@ -59,7 +59,7 @@ const ROUTINES_PANEL_WIDTH = 320
 const PANEL_SHELL =
 	"surface-shell h-full min-h-0 min-w-0 flex-1 overflow-hidden"
 
-const PANEL_SURFACE = "h-full min-h-0 bg-transparent"
+const PANEL_SURFACE = "min-h-0 bg-transparent"
 
 type PanelWidthStyle = CSSProperties & { "--sidebar-width": string }
 

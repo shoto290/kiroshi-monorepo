@@ -2,9 +2,6 @@ import type { ReactNode } from "react"
 
 import { SidebarInset } from "@workspace/ui/components/ui/sidebar"
 
-const CARD =
-	"relative m-1 flex min-w-0 flex-1 flex-col overflow-hidden rounded-xl border border-border bg-background"
-
 const YIELDS_TO_NESTED_CARD = [
 	"has-[[data-content-card]]:m-0",
 	"has-[[data-content-card]]:rounded-none",
@@ -12,12 +9,12 @@ const YIELDS_TO_NESTED_CARD = [
 	"has-[[data-content-card]]:bg-transparent",
 ].join(" ")
 
+const SURFACE = `relative m-1 flex min-w-0 flex-1 flex-col overflow-hidden rounded-xl border border-border bg-background ${YIELDS_TO_NESTED_CARD}`
+
 interface ContentCardProps {
 	isLandmark?: boolean
 	children?: ReactNode
 }
-
-const SURFACE = `${CARD} ${YIELDS_TO_NESTED_CARD}`
 
 const ContentCard = ({ isLandmark = true, children }: ContentCardProps) =>
 	isLandmark ? (

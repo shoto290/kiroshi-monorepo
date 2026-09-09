@@ -6,6 +6,7 @@ import {
 } from "@workspace/ui/components/bot-avatar"
 import { ContentCard } from "@workspace/ui/components/content-card"
 import { SidebarProvider } from "@workspace/ui/components/ui/sidebar"
+import { cn } from "@workspace/ui/lib/utils"
 
 const SHELL = "surface-shell h-svh min-w-0 overflow-hidden"
 
@@ -39,7 +40,7 @@ const WorkspaceShell = ({
 	className,
 }: WorkspaceShellProps) => (
 	<SidebarProvider
-		className={className ? `${SHELL} ${className}` : SHELL}
+		className={cn(SHELL, className)}
 		data-space-tint={spaceTint ?? undefined}
 		defaultOpen={defaultOpen}
 		onOpenChange={onOpenChange}
