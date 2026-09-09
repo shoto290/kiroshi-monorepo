@@ -51,11 +51,11 @@ import type {
 import type {
 	MessagePin,
 	MessageReference,
+	NewUserMessage,
 } from "../conversations/store-contract"
 import type { TranscriptStore } from "../conversations/store-port"
 import type {
 	TerminalCompletion,
-	TranscriptDraft,
 	TranscriptMessage,
 } from "../conversations/transcript-contract"
 import { createTranscriptController } from "../conversations/transcript-controller"
@@ -1271,6 +1271,18 @@ export function createChatController(
 		return isUnwritten(bot, id) ? null : id
 	}
 
+	const showAnswerInOpenThread = (bot: BotChat, answered: NewUserMessage) => {
+		if (bot.state.conversationId !== answered.conversationId) {
+			return
+		}
+		transcript.append({
+			...answered,
+			role: "user",
+			completion: "complete",
+			runtimeSessionId: null,
+		})
+	}
+
 	const recordAnswers = (
 		bot: BotChat,
 		request: QuestionRequest,
@@ -1281,43 +1293,20 @@ export function createChatController(
 		if (!turn || content.length === 0) {
 			return
 		}
-		const conversationId = turn.conversationId
-		const id = newId()
-		const createdAt = now()
-		const repliedToMessageId = issuedAskingOf(bot, request)
-		const answered: TranscriptDraft = {
-			id,
-			conversationId,
+		const answered: NewUserMessage = {
+			id: newId(),
+			conversationId: turn.conversationId,
 			turnId: turn.id,
-			role: "user",
-			content,
-			completion: "complete",
-			createdAt,
 			authorBotId: null,
-			repliedToMessageId,
-			runtimeSessionId: null,
+			repliedToMessageId: issuedAskingOf(bot, request),
+			content,
+			createdAt: now(),
 		}
 		write(
 			bot,
-			() =>
-				store.appendUserMessage({
-					id,
-					conversationId,
-					turnId: turn.id,
-					authorBotId: null,
-					repliedToMessageId,
-					content,
-					createdAt,
-				}),
+			() => store.appendUserMessage(answered),
 			() => showAnswerInOpenThread(bot, answered),
 		)
-	}
-
-	const showAnswerInOpenThread = (bot: BotChat, answered: TranscriptDraft) => {
-		if (bot.state.conversationId !== answered.conversationId) {
-			return
-		}
-		transcript.append(answered)
 	}
 
 	const answer = async (bot: BotChat, id: string, answers: QuestionAnswers) => {
