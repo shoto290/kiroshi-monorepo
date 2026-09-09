@@ -1,6 +1,4 @@
-use std::path::PathBuf;
 use std::sync::atomic::{AtomicBool, Ordering};
-use std::sync::Arc;
 
 use tauri::{AppHandle, Manager, Runtime};
 use tauri_plugin_opener::OpenerExt;
@@ -9,9 +7,11 @@ use super::contract::{Disconnected, OauthError};
 use super::credentials;
 use crate::agent::commands::AgentState;
 use crate::agent::protocol::{OauthCredentials, RevocationRequest};
-use crate::agent::sidecar::Sidecar;
+use crate::environment::commands::writable_root;
 use crate::environment::contract::{EnvOwner, EnvScope, Values};
 use crate::environment::store;
+
+const NOTHING_STORED: &str = "no access token was stored for that server";
 
 #[derive(Default)]
 pub struct McpOauthState {
@@ -41,19 +41,11 @@ impl Drop for Running<'_> {
 	}
 }
 
-fn writable_root<R: Runtime>(app: &AppHandle<R>) -> Result<PathBuf, OauthError> {
-	crate::environment::commands::writable_root(app).map_err(OauthError::from)
-}
-
-async fn sidecar<R: Runtime>(app: &AppHandle<R>) -> Result<Arc<Sidecar>, OauthError> {
-	app.state::<AgentState>().sidecar().await.map_err(OauthError::from)
-}
-
 async fn granted<R: Runtime>(
 	app: &AppHandle<R>,
 	url: &str,
 ) -> Result<OauthCredentials, OauthError> {
-	let sidecar = sidecar(app).await?;
+	let sidecar = app.state::<AgentState>().sidecar().await?;
 	let mut flow = sidecar.begin_oauth(url)?;
 	let authorization = flow.authorization_url().await?;
 	if app.opener().open_url(authorization.clone(), None::<&str>).is_err() {
@@ -82,7 +74,7 @@ pub async fn mcp_oauth_connect<R: Runtime>(
 	let root = writable_root(&app)?;
 	let scope = EnvScope::Server { name, owner };
 	let credentials = granted(&app, &url).await?;
-	credentials::store(&root, &scope, &credentials).map_err(OauthError::from)
+	Ok(credentials::store(&root, &scope, &credentials)?)
 }
 
 #[tauri::command]
@@ -90,7 +82,7 @@ pub async fn mcp_oauth_cancel<R: Runtime>(app: AppHandle<R>) -> Result<(), Oauth
 	if !app.state::<McpOauthState>().is_running() {
 		return Ok(());
 	}
-	sidecar(&app).await?.cancel_oauth().map_err(OauthError::from)
+	Ok(app.state::<AgentState>().sidecar().await?.cancel_oauth()?)
 }
 
 #[tauri::command]
@@ -102,13 +94,11 @@ pub async fn mcp_oauth_disconnect<R: Runtime>(
 ) -> Result<Disconnected, OauthError> {
 	let root = writable_root(&app)?;
 	let scope = EnvScope::Server { name, owner };
-	let held = store::values(&root, &scope).map_err(OauthError::from)?;
+	let held = store::values(&root, &scope)?;
 	let revocation = revoked(&app, &url, &held).await;
-	credentials::forget(&root, &scope).map_err(OauthError::from)?;
+	credentials::forget(&root, &scope)?;
 	Ok(revocation)
 }
-
-const NOTHING_STORED: &str = "no access token was stored for that server";
 
 async fn revoked<R: Runtime>(app: &AppHandle<R>, url: &str, held: &Values) -> Disconnected {
 	let Some(token) = held.get(credentials::ACCESS_TOKEN) else {
@@ -120,7 +110,7 @@ async fn revoked<R: Runtime>(app: &AppHandle<R>, url: &str, held: &Values) -> Di
 		client_id: held.get(credentials::CLIENT_ID).cloned(),
 		client_secret: held.get(credentials::CLIENT_SECRET).cloned(),
 	};
-	match sidecar(app).await {
+	match app.state::<AgentState>().sidecar().await {
 		Ok(sidecar) => match sidecar.revoke_oauth(&request).await {
 			Ok(answer) => Disconnected { revoked: answer.revoked, detail: answer.detail },
 			Err(error) => Disconnected { revoked: false, detail: Some(format!("{error:?}")) },

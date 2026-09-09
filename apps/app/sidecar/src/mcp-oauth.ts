@@ -25,7 +25,7 @@ const NO_REVOCATION =
 
 export const OAUTH_STARTED = "oauth_started"
 
-export const FLOW_TIMEOUT_MS = 300_000
+const FLOW_TIMEOUT_MS = 300_000
 
 export type OauthFailureKind =
 	| "busy"
@@ -72,6 +72,14 @@ type Emit = (frame: Record<string, unknown>) => void
 type Redirect = { code: string } | { failure: OauthFailure }
 
 type Settle = (redirect: Redirect) => void
+
+type Attempt = {
+	serverUrl: string
+	redirectUrl: string
+	state: string
+	arrival: Promise<Redirect>
+	emit: Emit
+}
 
 type Held = {
 	client?: OAuthClientInformationFull
@@ -120,10 +128,8 @@ const clientMetadata = (redirectUrl: string): OAuthClientMetadata => ({
 })
 
 const clientProvider = (
-	redirectUrl: string,
-	state: string,
+	{ redirectUrl, state, emit }: Attempt,
 	held: Held,
-	emit: Emit,
 ): OAuthClientProvider => ({
 	get redirectUrl() {
 		return redirectUrl
@@ -163,15 +169,10 @@ const credentialsOf = (
 	clientSecret: client.client_secret,
 })
 
-const exchanged = async (
-	serverUrl: string,
-	redirectUrl: string,
-	state: string,
-	arrival: Promise<Redirect>,
-	emit: Emit,
-): Promise<OauthAnswer> => {
+const exchanged = async (attempt: Attempt): Promise<OauthAnswer> => {
+	const { serverUrl, arrival } = attempt
 	const held: Held = {}
-	const provider = clientProvider(redirectUrl, state, held, emit)
+	const provider = clientProvider(attempt, held)
 	const opened = await auth(provider, { serverUrl, fetchFn: timedFetch })
 	if (opened !== "REDIRECT") {
 		return {
@@ -231,13 +232,13 @@ export const authorizeMcpServer = async (
 	)
 	running = settle
 	try {
-		return await exchanged(
-			url,
-			`http://${LOOPBACK}:${listener.port}${REDIRECT_PATH}`,
+		return await exchanged({
+			serverUrl: url,
+			redirectUrl: `http://${LOOPBACK}:${listener.port}${REDIRECT_PATH}`,
 			state,
 			arrival,
 			emit,
-		)
+		})
 	} catch (error) {
 		return { error: { kind: "failed", detail: describeError(error) } }
 	} finally {
