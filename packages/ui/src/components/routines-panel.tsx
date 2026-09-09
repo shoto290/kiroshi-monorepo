@@ -522,13 +522,14 @@ const RoutinesPanelSurface = (props: RoutinesPanelListProps) => {
 					) : null}
 					<Button
 						aria-label={t("activity.panel.close")}
+						className="size-8"
 						data-slot="routines-panel-close"
 						onClick={() => onOpenChange(false)}
 						ref={closeRef}
 						size="icon-sm"
 						variant="ghost"
 					>
-						<Icons.SidePanel aria-hidden="true" />
+						<Icons.SidePanel aria-hidden="true" className="size-4" />
 					</Button>
 				</div>
 			</SidebarHeader>
