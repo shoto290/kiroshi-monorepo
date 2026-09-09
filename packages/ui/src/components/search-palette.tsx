@@ -98,6 +98,9 @@ const INPUT_CLASS =
 const TAB_ROW_CLASS =
 	"flex h-11 shrink-0 items-center justify-between gap-2 px-3"
 
+const TAB_STRIP_CLASS =
+	"scrollbar-hide max-w-full overflow-x-auto bg-transparent p-0"
+
 const TAB_TRIGGER_CLASS =
 	"h-7.5 shrink-0 py-0 motion-reduce:transition-none motion-reduce:duration-0"
 
@@ -352,7 +355,7 @@ const SearchPalette = ({
 							onValueChange={(value) => onTabChange(value as SearchTab)}
 							value={tab}
 						>
-							<TabsList className="max-w-full overflow-x-auto bg-transparent p-0">
+							<TabsList className={TAB_STRIP_CLASS}>
 								{TABS.map((candidate) => (
 									<TabsTrigger
 										className={TAB_TRIGGER_CLASS}
