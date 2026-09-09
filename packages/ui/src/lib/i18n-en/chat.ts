@@ -133,7 +133,7 @@ const chat = {
 	},
 	composer: {
 		label: "Message",
-		placeholder: "Ask the agent to do something…",
+		placeholder: "Message",
 		send: "Send",
 		commands: "Commands",
 		mentions: "Companions",
@@ -567,7 +567,7 @@ const chat = {
 		},
 		summons: {
 			working: "Opened by the mission",
-			waiting_bot: "Opened by the blocked coding agent",
+			waiting_bot: "Opened by the coding agent's question",
 		},
 		composer: {
 			placeholder: "Answer this mission…",

@@ -771,7 +771,7 @@ const SUMMONS_CAUSE = "Opened by the mission"
 
 const SUMMONS_ANNOUNCEMENT = "Mission summons"
 
-const SUMMONS_AGAIN_CAUSE = "Opened by the blocked coding agent"
+const SUMMONS_AGAIN_CAUSE = "Opened by the coding agent's question"
 
 const MISSION_ASKED: SpokenTurn = {
 	turnId: "t-asked",

@@ -426,18 +426,18 @@ const bots = {
 		},
 	},
 	secrets: {
-		add: "Ajouter une variable",
+		add: "Ajouter un secret",
 		notice:
 			"Une valeur est écrite une fois et remise à ce qui démarre ici. Rien ne la relit, elle n'est donc jamais réaffichée — ni ici, ni ailleurs.",
 		unreadable: {
-			title: "Les variables n'ont pas pu être lues",
+			title: "Les secrets n'ont pas pu être lus",
 			description:
 				"Rien n'est perdu. Ce qui est enregistré ici est toujours sur le disque, et cette liste le montrera de nouveau dès qu'elle pourra le lire.",
 		},
 		empty: {
-			title: "Aucune variable",
+			title: "Aucun secret",
 			description:
-				"Une variable est un nom et un secret remis à ce qui démarre ici. La valeur est écrite une fois et n'est jamais réaffichée.",
+				"Un secret est un nom et une valeur remis à ce qui démarre ici. La valeur est écrite une fois et n'est jamais réaffichée.",
 		},
 		scope: {
 			space: "Espace",
@@ -445,15 +445,15 @@ const bots = {
 			server: "Connecteur",
 		},
 		row: {
-			scopes: "Définie dans {{defined}} · Servie depuis {{served}}",
-			overridden: "Remplacée par {{scope}}",
+			scopes: "Défini dans {{defined}} · Servi depuis {{served}}",
+			overridden: "Remplacé par {{scope}}",
 			overriding: "Remplace {{scope}}",
 			replace: "Remplacer la valeur de {{name}}",
 			remove: "Retirer {{name}}",
 		},
 		set: {
 			add: {
-				title: "Ajouter une variable",
+				title: "Ajouter un secret",
 				description:
 					"La valeur est remise à ce qui démarre ici et n'est jamais réaffichée.",
 			},
@@ -465,7 +465,7 @@ const bots = {
 			name: {
 				label: "Nom",
 				placeholder: "ATLAS_TOKEN",
-				hint: "Majuscules, chiffres et tirets bas. C'est le nom que le programme lit.",
+				hint: "Majuscules, chiffres et tirets bas. C'est le nom sous lequel le programme lit le secret.",
 				invalid:
 					"Un nom prend des majuscules, des chiffres et des tirets bas, et commence par une lettre ou un tiret bas.",
 			},
@@ -473,14 +473,14 @@ const bots = {
 				label: "Valeur",
 				hint: "Saisie une fois. Elle quitte ce champ pour le disque et n'est jamais relue.",
 			},
-			submit: "Enregistrer la variable",
+			submit: "Enregistrer le secret",
 			failed: "L'écriture a échoué. Rien n'a changé — réessayez.",
 		},
 		remove: {
 			title: "Retirer {{name}} ?",
 			description:
 				"Le nom et sa valeur partent avec lui, et ce qui démarre ici cesse de les recevoir. C'est irréversible.",
-			action: "Retirer la variable",
+			action: "Retirer le secret",
 			failed: "La suppression a échoué. Rien n'a changé — réessayez.",
 		},
 	},

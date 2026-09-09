@@ -18,7 +18,7 @@ const meta = preview.meta({
 		docs: {
 			description: {
 				component:
-					"Every environment variable handed to what this scope starts, listed by name alone. A value enters through the masked field and is never read back — no story, no state and no prop of this panel carries one, which is the whole point of the surface. What a row does carry is where the name is defined and which of the three scopes actually serves it, because a name written here can be silently replaced by a narrower one: space, then companion, then connector, the narrowest winning. The panel keeps nothing beyond the dialog it has open: it lists what it is given, reports a name and a typed value on set, and reports a name on delete.",
+					"Every secret handed to what this scope starts, listed by name alone. A value enters through the masked field and is never read back — no story, no state and no prop of this panel carries one, which is the whole point of the surface. What a row does carry is where the name is defined and which of the three scopes actually serves it, because a name written here can be silently replaced by a narrower one: space, then companion, then connector, the narrowest winning. The panel keeps nothing beyond the dialog it has open: it lists what it is given, reports a name and a typed value on set, and reports a name on delete.",
 			},
 		},
 	},
@@ -66,7 +66,7 @@ export const Default = meta.story({
 		await expect(args.onDelete).not.toHaveBeenCalled()
 
 		await userEvent.click(
-			within(question).getByRole("button", { name: "Remove variable" }),
+			within(question).getByRole("button", { name: "Remove secret" }),
 		)
 
 		await expect(args.onDelete).toHaveBeenCalledWith("BOT_SEED")
@@ -113,12 +113,12 @@ export const Empty = meta.story({
 		docs: {
 			description: {
 				story:
-					"A scope nobody has given a variable. Reach for this over `Default` to check the one state that has to both say so and offer a way out of it: the sentence says what a variable is here and that its value is written once, before asking for one.",
+					"A scope nobody has given a secret. Reach for this over `Default` to check the one state that has to both say so and offer a way out of it: the sentence says what a secret is here and that its value is written once, before asking for one.",
 			},
 		},
 	},
 	play: async ({ canvas, userEvent }) => {
-		await userEvent.click(canvas.getByRole("button", { name: "Add variable" }))
+		await userEvent.click(canvas.getByRole("button", { name: "Add secret" }))
 
 		const write = await screen.findByRole("dialog")
 		await expect(within(write).getByLabelText("Value")).toHaveValue("")
@@ -131,13 +131,13 @@ export const Unreadable = meta.story({
 		docs: {
 			description: {
 				story:
-					"The read of the scope came back refused. Reach for this to check that the panel says so rather than showing the empty state: an empty list and a failed read look the same on screen, and only one of the two means there is nothing stored. The message says nothing was lost and offers no way to add a variable, since the panel cannot know what it would be added beside.",
+					"The read of the scope came back refused. Reach for this to check that the panel says so rather than showing the empty state: an empty list and a failed read look the same on screen, and only one of the two means there is nothing stored. The message says nothing was lost and offers no way to add a secret, since the panel cannot know what it would be added beside.",
 			},
 		},
 	},
 	play: async ({ canvas }) => {
-		await expect(canvas.getByText("Variables could not be read")).toBeVisible()
-		await expect(canvas.queryByRole("button", { name: "Add variable" })).toBe(
+		await expect(canvas.getByText("Secrets could not be read")).toBeVisible()
+		await expect(canvas.queryByRole("button", { name: "Add secret" })).toBe(
 			null,
 		)
 	},
@@ -154,10 +154,10 @@ export const UnreadableWithEntries = meta.story({
 		},
 	},
 	play: async ({ canvas }) => {
-		await expect(canvas.getByText("Variables could not be read")).toBeVisible()
+		await expect(canvas.getByText("Secrets could not be read")).toBeVisible()
 		await expect(canvas.getByText("BOT_SEED")).toBeVisible()
 		await expect(
-			canvas.getByRole("button", { name: "Add variable" }),
+			canvas.getByRole("button", { name: "Add secret" }),
 		).toBeVisible()
 	},
 })
@@ -172,13 +172,13 @@ export const RefusedName = meta.story({
 		},
 	},
 	play: async ({ args, canvas, userEvent }) => {
-		await userEvent.click(canvas.getByRole("button", { name: "Add variable" }))
+		await userEvent.click(canvas.getByRole("button", { name: "Add secret" }))
 
 		const write = await screen.findByRole("dialog")
 		await userEvent.type(within(write).getByLabelText("Name"), "atlas token")
 		await userEvent.type(within(write).getByLabelText("Value"), "s3cret")
 		await userEvent.click(
-			within(write).getByRole("button", { name: "Save variable" }),
+			within(write).getByRole("button", { name: "Save secret" }),
 		)
 
 		await expect(
@@ -203,13 +203,13 @@ export const Error = meta.story({
 		},
 	},
 	play: async ({ canvas, userEvent }) => {
-		await userEvent.click(canvas.getByRole("button", { name: "Add variable" }))
+		await userEvent.click(canvas.getByRole("button", { name: "Add secret" }))
 
 		const write = await screen.findByRole("dialog")
 		await userEvent.type(within(write).getByLabelText("Name"), "NEW_TOKEN")
 		await userEvent.type(within(write).getByLabelText("Value"), "s3cret")
 		await userEvent.click(
-			within(write).getByRole("button", { name: "Save variable" }),
+			within(write).getByRole("button", { name: "Save secret" }),
 		)
 
 		await expect(
@@ -242,7 +242,7 @@ export const RejectedDelete = meta.story({
 
 		const question = await screen.findByRole("alertdialog")
 		await userEvent.click(
-			within(question).getByRole("button", { name: "Remove variable" }),
+			within(question).getByRole("button", { name: "Remove secret" }),
 		)
 
 		await expect(

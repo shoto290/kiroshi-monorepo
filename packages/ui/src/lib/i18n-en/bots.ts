@@ -433,18 +433,18 @@ const bots = {
 		},
 	},
 	secrets: {
-		add: "Add variable",
+		add: "Add secret",
 		notice:
 			"A value is written once and handed to what starts here. Nothing reads it back, so it is never shown again — not here, not anywhere.",
 		unreadable: {
-			title: "Variables could not be read",
+			title: "Secrets could not be read",
 			description:
 				"Nothing was lost. What is stored here is still on the disk, and this list will show it again once it can be read.",
 		},
 		empty: {
-			title: "No variables yet",
+			title: "No secrets yet",
 			description:
-				"A variable is a name and a secret handed to what starts here. The value is written once and never shown again.",
+				"A secret is a name and a value handed to what starts here. The value is written once and never shown again.",
 		},
 		scope: {
 			space: "Space",
@@ -460,7 +460,7 @@ const bots = {
 		},
 		set: {
 			add: {
-				title: "Add a variable",
+				title: "Add a secret",
 				description:
 					"The value is handed to what starts here and is never shown again.",
 			},
@@ -472,7 +472,7 @@ const bots = {
 			name: {
 				label: "Name",
 				placeholder: "ATLAS_TOKEN",
-				hint: "Capital letters, digits and underscores. It is the name the program reads.",
+				hint: "Capital letters, digits and underscores. It is the name the program reads the secret under.",
 				invalid:
 					"A name takes capital letters, digits and underscores, and starts with a letter or an underscore.",
 			},
@@ -480,14 +480,14 @@ const bots = {
 				label: "Value",
 				hint: "Typed once. It leaves this field for the disk and is never read back.",
 			},
-			submit: "Save variable",
+			submit: "Save secret",
 			failed: "This could not be written. Nothing changed — try again.",
 		},
 		remove: {
 			title: "Remove {{name}}?",
 			description:
 				"The name and its value go with it, and what starts here stops being handed them. This cannot be undone.",
-			action: "Remove variable",
+			action: "Remove secret",
 			failed: "This could not be removed. Nothing changed — try again.",
 		},
 	},
