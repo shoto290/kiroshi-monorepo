@@ -67,7 +67,7 @@ const PANEL_SURFACE = "relative on-shell min-h-0 bg-transparent"
 const PANEL_BODY = "gap-4 px-2 pt-1 pb-2"
 
 const PANEL_HEADER =
-	"h-13 shrink-0 flex-row items-center pt-[calc(--spacing(1)+1px)] pe-[calc(--spacing(3.5)+1px)] pb-0 ps-2"
+	"h-14 shrink-0 flex-row items-center pt-[calc(--spacing(2)+1px)] pe-[calc(--spacing(2.5)+1px)] pb-0 ps-2"
 
 type PanelWidthStyle = CSSProperties & { "--sidebar-width": string }
 

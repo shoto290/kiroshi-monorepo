@@ -238,7 +238,7 @@ const drawnFrom = <Item,>(pool: Item[], seed: string) => {
 	return pool[total % pool.length]
 }
 
-const CONTENT_INSET = "py-2 ps-2 pe-1 group-data-[collapsible=icon]:px-0"
+const CONTENT_INSET = "p-2 group-data-[collapsible=icon]:px-0"
 
 const SEARCH_INSET = "px-[9px] pb-[9px] group-data-[collapsible=icon]:px-0"
 

@@ -135,13 +135,13 @@ const paintFor = (value: string) =>
 		swatch.style.backgroundColor = value
 	})
 
-const CARD_GUTTER = 4
+const CARD_GUTTER = 8
 
 const expectCardDetached = async (card: HTMLElement, leadingEdge: number) => {
 	const edges = card.getBoundingClientRect()
-	await expect(edges.left - leadingEdge).toBe(CARD_GUTTER)
-	await expect(edges.top).toBe(CARD_GUTTER)
+	await expect(edges.left - leadingEdge).toBe(0)
 	await expect(window.innerWidth - edges.right).toBe(CARD_GUTTER)
+	await expect(edges.top).toBe(CARD_GUTTER)
 	await expect(window.innerHeight - edges.bottom).toBe(CARD_GUTTER)
 }
 

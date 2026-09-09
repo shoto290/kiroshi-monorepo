@@ -224,7 +224,7 @@ const WORKSPACE_SIDEBAR = (
 	</Sidebar>
 )
 
-const CARD_GUTTER = 4
+const CARD_GUTTER = 8
 
 const verticalCentreOf = (element: HTMLElement) => {
 	const box = element.getBoundingClientRect()
@@ -471,8 +471,7 @@ export const Closed = meta.story({
 			canvas.queryByRole("complementary", { name: "Activity" }),
 		).toBeNull()
 		await expect(thread.getBoundingClientRect().width).toBe(
-			(thread.parentElement?.getBoundingClientRect().width ?? 0) -
-				CARD_GUTTER * 2,
+			(thread.parentElement?.getBoundingClientRect().width ?? 0) - CARD_GUTTER,
 		)
 	},
 })
@@ -484,7 +483,7 @@ export const Toggling = meta.story({
 		docs: {
 			description: {
 				story:
-					"The way in and the way out, each in its own place. Check that the control in the app header opens the panel and then leaves the header, that the icon that closes it again sits on the same line the opener's icon sat on and the same distance in from the frame, once the thread card's own gutter is counted — the two controls are the same size, so the icons land together rather than the boxes around them — the two read as one control moving between two homes rather than two controls at two positions — that opening hands the keyboard to the close control inside the panel rather than dropping it on the body, that this control closes the panel, and that closing hands the keyboard back to the control in the app header.",
+					"The way in and the way out, each in its own place. Check that the control in the app header opens the panel and then leaves the header, that the icon that closes it again sits on the same line the opener's icon sat on and the same distance in from the frame — the two controls are the same size, so the icons land together rather than the boxes around them — the two read as one control moving between two homes rather than two controls at two positions — that opening hands the keyboard to the close control inside the panel rather than dropping it on the body, that this control closes the panel, and that closing hands the keyboard back to the control in the app header.",
 			},
 		},
 	},
@@ -492,9 +491,10 @@ export const Toggling = meta.story({
 		const opener = canvas.getByRole("button", { name: "Activity" })
 		const openerCentre = verticalCentreOf(opener)
 		const card = slotIn(canvasElement, "sidebar-inset")
-		const openerGlyphInset =
-			trailingInsetOf(opener.querySelector("svg") as Element, card) +
-			CARD_GUTTER
+		const openerGlyphInset = trailingInsetOf(
+			opener.querySelector("svg") as Element,
+			card,
+		)
 
 		await userEvent.click(opener)
 		await expect(args.onOpenChange).toHaveBeenCalledWith(true)
@@ -1063,7 +1063,7 @@ const expectShellSurfaceAround = async (canvasElement: HTMLElement) => {
 	await waitFor(async () => {
 		const edges = card.getBoundingClientRect()
 		const panelEdges = panel.getBoundingClientRect()
-		await expect(panelEdges.left - edges.right).toBe(CARD_GUTTER)
+		await expect(panelEdges.left - edges.right).toBe(0)
 		await expect(window.innerWidth - panelEdges.right).toBe(0)
 	}, FRAME_POLL)
 }
