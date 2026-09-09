@@ -18,6 +18,7 @@ import type {
 	AgentCommand,
 	AgentEvent,
 	ChatMessage,
+	QuestionRequest,
 	RuntimeScope,
 	ScopedEvent,
 } from "../agent/contract"
@@ -130,6 +131,18 @@ const spokenAnswer = (text: string): AgentEvent[] => [
 	},
 ]
 
+const ASKED: QuestionRequest = {
+	id: "ask-1",
+	questions: [
+		{
+			header: "Framework",
+			question: "Which framework should it use?",
+			multiSelect: false,
+			options: [{ label: "React", description: null, preview: null }],
+		},
+	],
+}
+
 const EVOLUTION: AgentEvent = {
 	type: "botEvolved",
 	bundle: "bot",
@@ -162,6 +175,45 @@ const recordingStore = (base: TranscriptStore) => {
 		},
 	}
 	return { store, recorded }
+}
+
+const REFUSED_REFERENCE = {
+	kind: "storage",
+	failure: { kind: "sqlite", detail: "FOREIGN KEY constraint failed" },
+} as const
+
+const referentialStore = (base: TranscriptStore) => {
+	const conversationOf = new Map<string, string>()
+	const takes = ({
+		id,
+		conversationId,
+		repliedToMessageId,
+	}: {
+		id: string
+		conversationId: string
+		repliedToMessageId: string | null
+	}) => {
+		if (
+			repliedToMessageId &&
+			conversationOf.get(repliedToMessageId) !== conversationId
+		) {
+			return false
+		}
+		conversationOf.set(id, conversationId)
+		return true
+	}
+	const store: TranscriptStore = {
+		...base,
+		appendUserMessage: (message) =>
+			takes(message)
+				? base.appendUserMessage(message)
+				: Promise.reject(REFUSED_REFERENCE),
+		openAssistantMessage: (message) =>
+			takes(message)
+				? base.openAssistantMessage(message)
+				: Promise.reject(REFUSED_REFERENCE),
+	}
+	return store
 }
 
 const deferred = () => {
@@ -837,6 +889,70 @@ describe("createChatController", () => {
 		)
 		expect(answered?.role).toBe("user")
 		expect(answered?.content).toBe("never mind, do it your way")
+	})
+
+	it("answers a question the store never took the asking for", async () => {
+		const answerQuestion = vi.fn(() => Promise.resolve())
+		let listen: ((event: ScopedEvent) => void) | null = null
+		let scope: RuntimeScope | null = null
+		let hasAsked = false
+		const askWhileThePromptIsWritten = () => {
+			if (hasAsked || !scope) {
+				return
+			}
+			hasAsked = true
+			listen?.({ scope, event: { type: "questionRequested", request: ASKED } })
+		}
+		const base = createFakeTranscriptStore()
+		const asking: TranscriptStore = {
+			...base,
+			appendUserMessage: (message) => {
+				askWhileThePromptIsWritten()
+				return base.appendUserMessage(message)
+			},
+		}
+		const store = referentialStore(asking)
+		const { controller } = await bootedHarness({
+			store,
+			driver: (fake) => ({
+				...fake,
+				startOrResumeSession: (opened, resume) => {
+					scope = opened
+					return fake.startOrResumeSession(opened, resume)
+				},
+				subscribe: (onEvent) => {
+					listen = onEvent
+					return fake.subscribe(onEvent)
+				},
+				submitPrompt: () => Promise.resolve(),
+				answerQuestion,
+			}),
+		})
+
+		await controller.send("pick one")
+		await vi.runAllTimersAsync()
+		expect(controller.getState().question?.id).toBe(ASKED.id)
+		expect(
+			controller
+				.getState()
+				.messages.some(
+					(message) => message.id === questionMessageIdOf(ASKED.id),
+				),
+		).toBe(false)
+
+		await controller.send("never mind, do it your way")
+		await vi.runAllTimersAsync()
+
+		expect(answerQuestion).toHaveBeenCalledWith(expect.anything(), ASKED.id, {
+			"Which framework should it use?": "never mind, do it your way",
+		})
+		const state = controller.getState()
+		expect(state.errors).toEqual([])
+		const answered = state.messages.at(-1)
+		expect(answered?.role).toBe("user")
+		expect(answered?.content).toBe("never mind, do it your way")
+		expect(answered?.repliedToMessageId).toBeNull()
+		expect(spoken(await reload(store))).toEqual(spoken(state.messages))
 	})
 
 	it("leaves no permission activity pending after either decision", async () => {

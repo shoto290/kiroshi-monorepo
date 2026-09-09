@@ -1259,6 +1259,11 @@ export function createChatController(
 			.catch((reason) => report(bot, reason))
 	}
 
+	const askedMessageIn = (bot: BotChat, request: QuestionRequest) => {
+		const id = questionMessageIdOf(request.id)
+		return bot.state.messages.some((message) => message.id === id) ? id : null
+	}
+
 	const recordAnswers = (
 		bot: BotChat,
 		request: QuestionRequest,
@@ -1272,7 +1277,7 @@ export function createChatController(
 		}
 		const id = newId()
 		const createdAt = now()
-		const repliedToMessageId = questionMessageIdOf(request.id)
+		const repliedToMessageId = askedMessageIn(bot, request)
 		write(
 			bot,
 			() =>
