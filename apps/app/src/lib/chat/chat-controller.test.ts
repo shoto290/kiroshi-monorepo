@@ -26,6 +26,10 @@ import {
 	createFakeTranscriptStore,
 	FAKE_CHAT_ID,
 } from "../conversations/fake-transcript-store"
+import type {
+	NewAssistantMessage,
+	NewUserMessage,
+} from "../conversations/store-contract"
 import type { TranscriptStore } from "../conversations/store-port"
 import {
 	TRANSCRIPT_PAGE_SIZE,
@@ -188,11 +192,7 @@ const referentialStore = (base: TranscriptStore) => {
 		id,
 		conversationId,
 		repliedToMessageId,
-	}: {
-		id: string
-		conversationId: string
-		repliedToMessageId: string | null
-	}) => {
+	}: NewUserMessage | NewAssistantMessage) => {
 		if (
 			repliedToMessageId &&
 			conversationOf.get(repliedToMessageId) !== conversationId
@@ -894,14 +894,16 @@ describe("createChatController", () => {
 	it("answers a question the store never took the asking for", async () => {
 		const answerQuestion = vi.fn(() => Promise.resolve())
 		let listen: ((event: ScopedEvent) => void) | null = null
-		let scope: RuntimeScope | null = null
 		let hasAsked = false
 		const askWhileThePromptIsWritten = () => {
-			if (hasAsked || !scope) {
+			if (hasAsked) {
 				return
 			}
 			hasAsked = true
-			listen?.({ scope, event: { type: "questionRequested", request: ASKED } })
+			listen?.({
+				scope: runOf(controller),
+				event: { type: "questionRequested", request: ASKED },
+			})
 		}
 		const base = createFakeTranscriptStore()
 		const asking: TranscriptStore = {
@@ -916,10 +918,6 @@ describe("createChatController", () => {
 			store,
 			driver: (fake) => ({
 				...fake,
-				startOrResumeSession: (opened, resume) => {
-					scope = opened
-					return fake.startOrResumeSession(opened, resume)
-				},
 				subscribe: (onEvent) => {
 					listen = onEvent
 					return fake.subscribe(onEvent)
@@ -933,12 +931,8 @@ describe("createChatController", () => {
 		await vi.runAllTimersAsync()
 		expect(controller.getState().question?.id).toBe(ASKED.id)
 		expect(
-			controller
-				.getState()
-				.messages.some(
-					(message) => message.id === questionMessageIdOf(ASKED.id),
-				),
-		).toBe(false)
+			controller.getState().messages.map((message) => message.id),
+		).not.toContain(questionMessageIdOf(ASKED.id))
 
 		await controller.send("never mind, do it your way")
 		await vi.runAllTimersAsync()
