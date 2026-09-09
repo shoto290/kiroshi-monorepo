@@ -72,7 +72,6 @@ const SidebarMenuRow = ({
 		<SidebarMenuButton
 			{...elementProps}
 			aria-current={isActive ? "page" : undefined}
-			data-slot="sidebar-menu-button"
 			aria-label={isCollapsed ? label : undefined}
 			className={cn(
 				ROW,
@@ -80,6 +79,7 @@ const SidebarMenuRow = ({
 				below && ROW_STACKED,
 				className,
 			)}
+			data-slot="sidebar-menu-button"
 			isActive={isActive}
 			onClick={() => {
 				onSelect?.()
