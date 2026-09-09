@@ -1,7 +1,8 @@
 "use client"
 
-import type { AriaAttributes, HTMLAttributes, ReactNode, Ref } from "react"
+import type { AriaAttributes, HTMLAttributes, ReactNode } from "react"
 
+import { TooltipHint } from "@workspace/ui/components/tooltip-hint"
 import {
 	SidebarMenuButton,
 	useSidebar,
@@ -30,7 +31,6 @@ type SidebarMenuRowElementProps = AriaAttributes &
 	>
 
 interface SidebarMenuRowProps extends SidebarMenuRowElementProps {
-	ref?: Ref<HTMLButtonElement>
 	label: string
 	children: ReactNode
 	below?: ReactNode
@@ -50,7 +50,6 @@ const SidebarMenuRow = ({
 	isActive = false,
 	onSelect,
 	className,
-	ref,
 	...elementProps
 }: SidebarMenuRowProps) => {
 	const { isMobile, setOpenMobile, state } = useSidebar()
@@ -69,10 +68,11 @@ const SidebarMenuRow = ({
 		</>
 	)
 
-	return (
+	const row = (
 		<SidebarMenuButton
 			{...elementProps}
 			aria-current={isActive ? "page" : undefined}
+			data-slot="sidebar-menu-button"
 			aria-label={isCollapsed ? label : undefined}
 			className={cn(
 				ROW,
@@ -85,7 +85,6 @@ const SidebarMenuRow = ({
 				onSelect?.()
 				if (isMobile) setOpenMobile(false)
 			}}
-			ref={ref}
 		>
 			{below ? (
 				<>
@@ -98,6 +97,12 @@ const SidebarMenuRow = ({
 				head
 			)}
 		</SidebarMenuButton>
+	)
+
+	return (
+		<TooltipHint content={isCollapsed ? label : null} side="right">
+			{row}
+		</TooltipHint>
 	)
 }
 

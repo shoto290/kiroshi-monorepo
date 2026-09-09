@@ -24,13 +24,15 @@ type TooltipHintProps = {
 const TooltipHint = ({ content, children, side = "top" }: TooltipHintProps) => (
 	<Tooltip>
 		<TooltipTrigger delay={HOVER_INTENT_DELAY_MS} render={children} />
-		<TooltipContent
-			className={cn("break-words", STILL_UNDER_REDUCED_MOTION)}
-			role="tooltip"
-			side={side}
-		>
-			{content}
-		</TooltipContent>
+		{content ? (
+			<TooltipContent
+				className={cn("break-words", STILL_UNDER_REDUCED_MOTION)}
+				role="tooltip"
+				side={side}
+			>
+				{content}
+			</TooltipContent>
+		) : null}
 	</Tooltip>
 )
 

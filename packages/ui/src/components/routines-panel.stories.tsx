@@ -988,12 +988,37 @@ const expectCardFramed = async (card: HTMLElement) => {
 const activityPanelIn = (canvasElement: HTMLElement) =>
 	within(canvasElement).getByRole("complementary", { name: "Activity" })
 
+const ON_SHELL_TOKENS = [
+	"--sidebar",
+	"--sidebar-accent",
+	"--sidebar-border",
+	"--accent",
+	"--border",
+	"--input",
+	"--muted",
+	"--secondary",
+]
+
+const tokenPaintsIn = (host: HTMLElement, className = "") =>
+	ON_SHELL_TOKENS.map((token) => {
+		const probe = document.createElement("div")
+		probe.className = className
+		probe.style.backgroundColor = `var(${token})`
+		host.append(probe)
+		const painted = paintOf(probe)
+		probe.remove()
+		return painted
+	})
+
 const expectShellSurfaceAround = async (canvasElement: HTMLElement) => {
 	const panel = activityPanelIn(canvasElement)
 	const card = cardIn(canvasElement)
 
 	await expectPanelOnShellSurface(panel)
 	await expectCardFramed(card)
+	await expect(tokenPaintsIn(panel)).toEqual(
+		tokenPaintsIn(document.body, "on-shell"),
+	)
 
 	await waitFor(async () => {
 		const edges = card.getBoundingClientRect()
@@ -1080,7 +1105,7 @@ export const OnShellSurfaceTinted = meta.story({
 		docs: {
 			description: {
 				story:
-					"The panel open in a space that carries a colour, which is the only state where the panel could betray the surface it sits on. Check that the panel is washed with exactly the tint the sidebar wears on the other side of the window and not with the untinted surface, so a panel that stops resolving the tint of the space in view reads as a plain grey column beside a coloured one. Pick `OnShellSurfaceOpen` for the untinted surface.",
+					"The panel open in a space that carries a colour, which is the only state where the panel could betray the surface it sits on. Check that the panel is washed with exactly the tint the shell wears behind it and not with the untinted surface, so a panel that stops resolving the tint of the space in view reads as a plain grey column beside a coloured one. Check too that the eight tokens the panel redeclares — sidebar, sidebar-accent, sidebar-border, accent, border, input, muted and secondary — read tinted inside it and untinted outside the shell, since a row, a rule or a field that keeps the untinted value is the way a tint leaks. `Navigation/AppSidebar` `SpaceTinted` reads the same pair on the roster panel opposite. Pick `OnShellSurfaceOpen` for the untinted surface.",
 			},
 		},
 	},
@@ -1090,13 +1115,19 @@ export const OnShellSurfaceTinted = meta.story({
 		</WorkspaceShell>
 	),
 	play: async ({ canvas, canvasElement }) => {
-		const panel = activityPanelIn(canvasElement)
+		const activity = activityPanelIn(canvasElement)
 		const shell = canvas.getByRole("main").parentElement as HTMLElement
 
-		await expect(paintOf(panelSurfaceIn(panel))).toBe(TRANSPARENT)
+		await expect(paintOf(panelSurfaceIn(activity))).toBe(TRANSPARENT)
+		await expect(tokenPaintsIn(activity)).toEqual(
+			tokenPaintsIn(shell, "on-shell"),
+		)
+		await expect(tokenPaintsIn(activity)).not.toEqual(
+			tokenPaintsIn(document.body, "on-shell"),
+		)
 
 		await waitFor(async () => {
-			const tinted = paintOf(panel.parentElement as HTMLElement)
+			const tinted = paintOf(activity.parentElement as HTMLElement)
 			await expect(tinted).toBe(paintOf(shell))
 			await expect(tinted).not.toBe(shellPaint())
 		}, FRAME_POLL)

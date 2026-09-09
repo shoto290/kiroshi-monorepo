@@ -97,6 +97,8 @@ import { STILL_UNDER_REDUCED_MOTION } from "@workspace/ui/lib/reduced-motion"
 import { probeRender } from "@workspace/ui/lib/render-probe"
 import { cn, mergeRefs } from "@workspace/ui/lib/utils"
 
+const PANEL = "on-shell border-e-0! **:data-[slot=sidebar-inner]:bg-transparent"
+
 const HEADER =
 	"h-12 flex-row items-center justify-end py-0 pr-2.5 group-data-[collapsible=icon]:justify-center group-data-[collapsible=icon]:px-0"
 
@@ -529,7 +531,6 @@ interface SpacesBranchProps {
 	spaces: Space[]
 	memberships: string[]
 	openSpaceId?: string
-	finalFocus: () => HTMLElement | true
 	onAddToSpace?: (botId: string, spaceId: string) => void
 	onRemoveFromSpace?: (botId: string, spaceId: string) => void
 }
@@ -539,7 +540,6 @@ const SpacesBranch = ({
 	spaces,
 	memberships,
 	openSpaceId,
-	finalFocus,
 	onAddToSpace,
 	onRemoveFromSpace,
 }: SpacesBranchProps) => {
@@ -567,7 +567,7 @@ const SpacesBranch = ({
 				<Icons.Spaces aria-hidden="true" className="size-3.5" />
 				{t("roster.spaces.label")}
 			</ContextMenuSubTrigger>
-			<ContextMenuSubContent className={NAMED_PANEL} finalFocus={finalFocus}>
+			<ContextMenuSubContent className={NAMED_PANEL}>
 				{spaces.map((space) => {
 					const isMember = memberships.includes(space.id)
 					const isLocked = isMember && isHeldByOneSpace
@@ -838,7 +838,6 @@ const BotRosterRow = ({
 					/>
 					<SpacesBranch
 						botId={bot.id}
-						finalFocus={keepFocusAfterClose}
 						memberships={memberships}
 						onAddToSpace={onAddToSpace}
 						onRemoveFromSpace={leaveSpace}
@@ -2246,6 +2245,7 @@ const AppSidebarBase = ({
 				{...panel}
 				aria-busy={shown.some(isBusy) || shownRooms.some(isBusy)}
 				aria-label={t("roster.label")}
+				className={PANEL}
 				collapsible="icon"
 				role="complementary"
 			>

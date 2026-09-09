@@ -1,5 +1,5 @@
 import { useState } from "react"
-import { expect, waitFor } from "storybook/test"
+import { expect, screen, waitFor } from "storybook/test"
 
 import preview from "@workspace/storybook/preview"
 import { FRAME_POLL } from "@workspace/storybook/story-utils"
@@ -175,6 +175,11 @@ export const Collapsed = meta.story({
 		await expect(canvas.getByText(SESSIONS[0])).toHaveAttribute(
 			"aria-hidden",
 			"true",
+		)
+
+		await userEvent.hover(row)
+		await expect(await screen.findByRole("tooltip")).toHaveTextContent(
+			SESSIONS[0],
 		)
 
 		await userEvent.click(
