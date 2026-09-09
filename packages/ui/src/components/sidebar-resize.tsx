@@ -181,12 +181,10 @@ const SidebarResizeHandle = ({ side }: SidebarResizeHandleProps) => {
 }
 
 export {
-	clampSidebarWidth,
 	SIDEBAR_DEFAULT_WIDTH,
 	SIDEBAR_MAX_WIDTH,
 	SIDEBAR_MIN_WIDTH,
 	SIDEBAR_WIDTH_STEP,
-	type SidebarResize,
 	SidebarResizeHandle,
 	SidebarResizeProvider,
 }
