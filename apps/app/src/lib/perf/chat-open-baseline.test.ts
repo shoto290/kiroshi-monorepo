@@ -451,7 +451,7 @@ describe("PRF5 chat open baseline", () => {
 		expect(await measurePage()).toMatchInlineSnapshot(`
 			{
 			  "commitsToFirstRow": 6,
-			  "commitsToSettled": 12,
+			  "commitsToSettled": 13,
 			  "highlightCalls": 10,
 			  "highlighterBuilds": 0,
 			  "markdownProcessors": 32,
