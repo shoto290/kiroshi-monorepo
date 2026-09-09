@@ -794,7 +794,7 @@ export const Narrow = meta.story({
 		await expect(strip.clientHeight).toBe(strip.offsetHeight)
 		await expect(reader.getByRole("switch")).toBeVisible()
 
-		await userEvent.click(reader.getByRole("tab", { name: "Chats" }))
+		await userEvent.click(reader.getByRole("tab", { name: "Conversations" }))
 		await expect(args.onTabChange).toHaveBeenCalledWith("chats")
 	},
 })
@@ -825,7 +825,7 @@ export const ArrowKeyTabs = meta.story({
 		await userEvent.keyboard("{Enter}")
 		await expect(args.onTabChange).toHaveBeenCalledWith("messages")
 
-		reader.getByRole("tab", { name: "Chats" }).focus()
+		reader.getByRole("tab", { name: "Conversations" }).focus()
 		await userEvent.keyboard(" ")
 		await expect(args.onTabChange).toHaveBeenLastCalledWith("chats")
 	},
@@ -847,7 +847,7 @@ export const ReducedMotion = meta.story({
 			await expect(getComputedStyle(tab).transitionDuration).toBe("0s")
 		}
 
-		await userEvent.click(reader.getByRole("tab", { name: "Chats" }))
+		await userEvent.click(reader.getByRole("tab", { name: "Conversations" }))
 		await expect(args.onTabChange).toHaveBeenCalledWith("chats")
 	},
 })
