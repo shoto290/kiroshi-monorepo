@@ -342,10 +342,51 @@ const bots = {
 		save: "Save changes",
 		unsaved: "Unsaved changes",
 		back: "All connectors",
+		intro:
+			"What this companion connects to for tools it doesn’t have on its own.",
+		open: "Open {{name}}",
 		section: {
 			connection: "Connection",
 			secrets: "Secrets",
 			advanced: "Advanced",
+		},
+		connection: {
+			state: {
+				connected: "Connected",
+				needsAuthorization: "Needs authorization",
+				connecting: "Connecting…",
+				failed: "Couldn’t connect",
+			},
+			connect: "Connect",
+			retry: "Retry",
+			cancel: "Cancel",
+			reopen: "Open the page again",
+			disconnect: "Disconnect",
+			row: {
+				connect: "Connect {{name}}",
+				retry: "Retry {{name}}",
+			},
+			waiting: "Waiting for your browser",
+			description: {
+				needsAuthorization:
+					"{{name}} signs you in through your browser. Kiroshi keeps the token with this connector’s secrets, never in the configuration below.",
+				connecting:
+					"A tab is open at {{host}}. Authorize Kiroshi there and this screen catches up on its own.",
+				connected:
+					"Authorized on {{date}}. Kiroshi refreshes the token on its own, and says so here if that ever stops working.",
+				unsaved: "Available once this connector is saved.",
+			},
+			confirm: {
+				title: "Disconnect {{name}}?",
+				description:
+					"Kiroshi drops the token and asks {{name}} to forget it. This companion loses its {{name}} tools until you connect again.",
+			},
+			session: {
+				title: "{{name}} was left out",
+				description:
+					"It’s waiting for your authorization, so this session ran without its tools.",
+				action: "Open Connectors",
+			},
 		},
 		notice:
 			"A connector is a program this companion starts on your machine, under your account, the next time it runs. Add one only from a source you trust.",

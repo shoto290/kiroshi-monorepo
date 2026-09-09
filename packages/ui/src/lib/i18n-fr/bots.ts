@@ -335,10 +335,51 @@ const bots = {
 		save: "Enregistrer les modifications",
 		unsaved: "Modifications non enregistrées",
 		back: "Tous les connecteurs",
+		intro:
+			"Ce à quoi ce compagnon se connecte pour les outils qu'il n'a pas seul.",
+		open: "Ouvrir {{name}}",
 		section: {
 			connection: "Connexion",
 			secrets: "Secrets",
 			advanced: "Avancé",
+		},
+		connection: {
+			state: {
+				connected: "Connecté",
+				needsAuthorization: "Autorisation requise",
+				connecting: "Connexion…",
+				failed: "Connexion impossible",
+			},
+			connect: "Connecter",
+			retry: "Réessayer",
+			cancel: "Annuler",
+			reopen: "Rouvrir la page",
+			disconnect: "Déconnecter",
+			row: {
+				connect: "Connecter {{name}}",
+				retry: "Réessayer {{name}}",
+			},
+			waiting: "En attente de votre navigateur",
+			description: {
+				needsAuthorization:
+					"{{name}} vous identifie via votre navigateur. Kiroshi garde le jeton avec les secrets de ce connecteur, jamais dans la configuration ci-dessous.",
+				connecting:
+					"Un onglet est ouvert sur {{host}}. Autorisez Kiroshi là-bas et cet écran se met à jour tout seul.",
+				connected:
+					"Autorisé le {{date}}. Kiroshi renouvelle le jeton tout seul, et le dit ici si cela venait à ne plus fonctionner.",
+				unsaved: "Disponible une fois ce connecteur enregistré.",
+			},
+			confirm: {
+				title: "Déconnecter {{name}} ?",
+				description:
+					"Kiroshi abandonne le jeton et demande à {{name}} de l'oublier. Ce compagnon perd les outils de {{name}} jusqu'à une nouvelle connexion.",
+			},
+			session: {
+				title: "{{name}} a été laissé de côté",
+				description:
+					"Il attend votre autorisation, cette session s'est donc déroulée sans ses outils.",
+				action: "Ouvrir les connecteurs",
+			},
 		},
 		notice:
 			"Un connecteur est un programme que ce compagnon démarre sur votre machine, sous votre compte, à sa prochaine exécution. N'en ajoutez un que depuis une source de confiance.",
