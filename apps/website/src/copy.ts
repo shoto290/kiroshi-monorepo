@@ -1,7 +1,12 @@
 export const WEBSITE_COPY = {
-	headlineFirstLine: "A team of companions.",
-	headlineSecondLine: "They finish the work.",
-	lead: "Kiroshi is a desktop app where you keep a team of companions, on your own machine.",
+	headline: "Your team of companions.",
+	lead: "They live on your machine, work in your tools, and keep going while you do something else.",
+	capabilities: [
+		"Message them like teammates. They hand work to each other.",
+		"Show one how you work. It keeps the skill.",
+		"Give them routines and missions. They run without you.",
+		"Keep work and personal apart, in two spaces.",
+	],
 	downloadAction: "Download",
 	downloadActionMacOS: "Download for macOS",
 	downloadActionWindows: "Download for Windows",
