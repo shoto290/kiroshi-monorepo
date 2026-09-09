@@ -357,6 +357,18 @@ impl Sidecar {
 	}
 }
 
+#[derive(Debug)]
+pub enum OauthFlowError {
+	Outlasted { timeout_ms: u64 },
+	Transport(TransportError),
+}
+
+impl From<TransportError> for OauthFlowError {
+	fn from(error: TransportError) -> Self {
+		Self::Transport(error)
+	}
+}
+
 pub enum Opening {
 	Authorization(String),
 	Settled(Authorized),
@@ -378,7 +390,7 @@ enum Raced {
 }
 
 impl OauthFlow {
-	pub async fn opened(&mut self) -> Result<Opening, TransportError> {
+	pub async fn opened(&mut self) -> Result<Opening, OauthFlowError> {
 		let deadline = self.deadline;
 		let started = &mut self.started;
 		let settled = &mut self.settled;
@@ -389,7 +401,7 @@ impl OauthFlow {
 			}
 		})
 		.await
-		.map_err(|_| outlasted(OAUTH_FLOW_TIMEOUT))?;
+		.map_err(|_| flow_outlasted())?;
 		match raced {
 			Raced::Started(named) => {
 				let opening: OauthStarted = read_frame(received(named)?)?;
@@ -402,13 +414,13 @@ impl OauthFlow {
 		}
 	}
 
-	pub async fn settled(&mut self) -> Result<Authorized, TransportError> {
+	pub async fn settled(&mut self) -> Result<Authorized, OauthFlowError> {
 		let deadline = self.deadline;
 		let answer = tokio::time::timeout_at(deadline, &mut self.settled)
 			.await
-			.map_err(|_| outlasted(OAUTH_FLOW_TIMEOUT))?;
+			.map_err(|_| flow_outlasted())?;
 		self.answered = true;
-		read_frame(received(answer)?)
+		Ok(read_frame(received(answer)?)?)
 	}
 }
 
@@ -432,6 +444,10 @@ fn received(answer: Frame) -> Result<Value, TransportError> {
 		code: None,
 		detail: Some("the sidecar went away before it answered".into()),
 	})
+}
+
+fn flow_outlasted() -> OauthFlowError {
+	OauthFlowError::Outlasted { timeout_ms: OAUTH_FLOW_TIMEOUT.as_millis() as u64 }
 }
 
 fn outlasted(timeout: Duration) -> TransportError {

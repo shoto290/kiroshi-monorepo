@@ -2,6 +2,7 @@ use serde::Serialize;
 
 use crate::agent::contract::TransportError;
 use crate::agent::protocol::{OauthFailure, OauthFailureKind};
+use crate::agent::sidecar::OauthFlowError;
 use crate::environment::contract::EnvError;
 
 #[derive(Debug, Clone, PartialEq, Eq, Serialize)]
@@ -17,6 +18,14 @@ pub enum OauthError {
 	#[serde(rename_all = "camelCase")]
 	BrowserRefused {
 		url: String,
+	},
+	#[serde(rename_all = "camelCase")]
+	RefusedUrl {
+		url: String,
+	},
+	#[serde(rename_all = "camelCase")]
+	FlowTimedOut {
+		timeout_ms: u64,
 	},
 	#[serde(rename_all = "camelCase")]
 	Failed {
@@ -37,6 +46,15 @@ const NO_DETAIL: &str = "the authorization flow named no reason";
 impl From<TransportError> for OauthError {
 	fn from(error: TransportError) -> Self {
 		Self::Transport { error }
+	}
+}
+
+impl From<OauthFlowError> for OauthError {
+	fn from(error: OauthFlowError) -> Self {
+		match error {
+			OauthFlowError::Outlasted { timeout_ms } => Self::FlowTimedOut { timeout_ms },
+			OauthFlowError::Transport(error) => Self::Transport { error },
+		}
 	}
 }
 
@@ -90,6 +108,35 @@ mod tests {
 			.expect("the error serializes"),
 			json!({ "kind": "browserRefused", "url": "https://example.test/authorize" })
 		);
+	}
+
+	#[test]
+	fn a_url_no_browser_may_be_handed_crosses_with_the_url_that_was_refused() {
+		assert_eq!(
+			to_value(OauthError::RefusedUrl { url: "javascript:alert(1)".to_owned() })
+				.expect("the error serializes"),
+			json!({ "kind": "refusedUrl", "url": "javascript:alert(1)" })
+		);
+	}
+
+	#[test]
+	fn the_flow_deadline_and_a_sidecar_that_never_started_read_as_two_reasons() {
+		let flow = to_value(OauthError::from(OauthFlowError::Outlasted { timeout_ms: 310_000 }))
+			.expect("the error serializes");
+		let never_started = to_value(OauthError::from(OauthFlowError::Transport(
+			TransportError::StartupTimeout { timeout_ms: 310_000 },
+		)))
+		.expect("the error serializes");
+
+		assert_eq!(flow, json!({ "kind": "flowTimedOut", "timeoutMs": 310_000 }));
+		assert_eq!(
+			never_started,
+			json!({
+				"kind": "transport",
+				"error": { "kind": "startupTimeout", "timeoutMs": 310_000 }
+			})
+		);
+		assert_ne!(flow, never_started);
 	}
 
 	#[test]

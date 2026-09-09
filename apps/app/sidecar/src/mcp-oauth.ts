@@ -16,6 +16,7 @@ import { describeError } from "./describe-error"
 const LOOPBACK = "127.0.0.1"
 const LOOPBACK_HOSTS = new Set([LOOPBACK, "localhost"])
 const PORT_SUFFIX = /:\d+$/
+const OPENABLE_SCHEMES = new Set(["http:", "https:"])
 const REDIRECT_PATH = "/oauth/callback"
 const CLIENT_NAME = "Kiroshi"
 const REQUEST_TIMEOUT_MS = 30_000
@@ -100,6 +101,10 @@ const refused = () => new Response(REFUSED, { status: 400 })
 const isLoopback = (host: string | null) =>
 	host !== null && LOOPBACK_HOSTS.has(host.replace(PORT_SUFFIX, ""))
 
+const answered = (settle: Settle, redirect: Redirect) => {
+	setTimeout(() => settle(redirect), 0)
+}
+
 const answerRedirect = (
 	request: Request,
 	state: string,
@@ -117,14 +122,14 @@ const answerRedirect = (
 	}
 	const denied = asked.searchParams.get("error")
 	if (denied) {
-		settle({ failure: { kind: "denied", detail: denied } })
+		answered(settle, { failure: { kind: "denied", detail: denied } })
 		return new Response(DENIED)
 	}
 	const code = asked.searchParams.get("code")
 	if (!code) {
 		return refused()
 	}
-	settle({ code })
+	answered(settle, { code })
 	return new Response(GRANTED)
 }
 
@@ -160,6 +165,11 @@ const clientProvider = (
 	},
 	codeVerifier: () => held.codeVerifier ?? "",
 	redirectToAuthorization: (authorizationUrl) => {
+		if (!OPENABLE_SCHEMES.has(authorizationUrl.protocol)) {
+			throw new Error(
+				`the authorization server named the refused scheme ${authorizationUrl.protocol}`,
+			)
+		}
 		emit({ type: OAUTH_STARTED, url: authorizationUrl.toString() })
 	},
 })
@@ -253,7 +263,7 @@ export const authorizeMcpServer = async (
 	} finally {
 		clearTimeout(expiry)
 		running = undefined
-		await listener.stop()
+		await listener.stop(true)
 	}
 }
 

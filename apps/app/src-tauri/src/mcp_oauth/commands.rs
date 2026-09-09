@@ -17,6 +17,13 @@ use crate::environment::store;
 
 const NOTHING_STORED: &str = "no access token was stored for that server";
 
+const OPENABLE_SCHEMES: [&str; 2] = ["http://", "https://"];
+
+fn is_openable(url: &str) -> bool {
+	let lowered = url.to_ascii_lowercase();
+	OPENABLE_SCHEMES.iter().any(|scheme| lowered.starts_with(scheme))
+}
+
 #[derive(Default)]
 pub struct McpOauthState {
 	running: AtomicBool,
@@ -54,6 +61,9 @@ async fn granted<R: Runtime>(
 	let settled = match flow.opened().await? {
 		Opening::Settled(settled) => settled,
 		Opening::Authorization(authorization) => {
+			if !is_openable(&authorization) {
+				return Err(OauthError::RefusedUrl { url: authorization });
+			}
 			if app.opener().open_url(authorization.clone(), None::<&str>).is_err() {
 				return Err(OauthError::BrowserRefused { url: authorization });
 			}
@@ -99,6 +109,8 @@ pub async fn mcp_oauth_disconnect<R: Runtime>(
 	name: String,
 	url: String,
 ) -> Result<Disconnected, OauthError> {
+	let state = app.state::<McpOauthState>();
+	let _running = state.begin()?;
 	let root = writable_root(&app)?;
 	let scope = EnvScope::Server { name, owner };
 	let held = store::values(&root, &scope)?;
@@ -148,5 +160,30 @@ mod tests {
 	#[test]
 	fn a_state_holding_no_flow_reads_as_holding_none() {
 		assert!(!McpOauthState::default().is_running());
+	}
+
+	#[test]
+	fn a_disconnect_claims_the_same_state_a_connect_does() {
+		let state = McpOauthState::default();
+		let connecting = state.begin().expect("the connect claims the state");
+
+		assert_eq!(state.begin().err(), Some(OauthError::AlreadyRunning));
+
+		drop(connecting);
+		let disconnecting = state.begin().expect("the disconnect claims it in turn");
+
+		assert_eq!(state.begin().err(), Some(OauthError::AlreadyRunning));
+		drop(disconnecting);
+	}
+
+	#[test]
+	fn only_an_http_url_is_ever_handed_to_a_browser() {
+		assert!(is_openable("https://authority.test/authorize?state=1"));
+		assert!(is_openable("http://127.0.0.1:8080/authorize"));
+		assert!(is_openable("HTTPS://authority.test/authorize"));
+		assert!(!is_openable("javascript:alert(1)"));
+		assert!(!is_openable("file:///etc/passwd"));
+		assert!(!is_openable("data:text/html,<script>1</script>"));
+		assert!(!is_openable("authorize"));
 	}
 }

@@ -83,20 +83,26 @@ const declaredHeaders = (server: Server): Values => {
 	return declared && typeof declared === "object" ? (declared as Values) : {}
 }
 
+const carriesUrl = (server: Server): boolean =>
+	typeof (server as Record<string, unknown>).url === "string"
+
+const declaresAuthorization = (server: Server): boolean =>
+	Object.keys(declaredHeaders(server)).some(
+		(held) => held.toLowerCase() === AUTHORIZATION,
+	)
+
+const needsTheStore = (server: Server): boolean =>
+	declaresVariable(server) ||
+	(carriesUrl(server) && !declaresAuthorization(server))
+
 const authorized = (server: Server, own: Values | undefined): Server => {
 	const token = own?.[ACCESS_TOKEN]
-	if (!token || typeof (server as Record<string, unknown>).url !== "string") {
-		return server
-	}
-	const headers = declaredHeaders(server)
-	if (
-		Object.keys(headers).some((held) => held.toLowerCase() === AUTHORIZATION)
-	) {
+	if (!token || !carriesUrl(server) || declaresAuthorization(server)) {
 		return server
 	}
 	return {
 		...server,
-		headers: { ...headers, Authorization: `Bearer ${token}` },
+		headers: { ...declaredHeaders(server), Authorization: `Bearer ${token}` },
 	} as Server
 }
 
@@ -115,12 +121,12 @@ export const resolveServers = (
 	const rejections: string[] = []
 	for (const [name, server] of Object.entries(servers)) {
 		const own = env.perServer?.[name]
-		if (!declaresVariable(server)) {
-			kept[name] = authorized(server, own)
+		if (env.failure && needsTheStore(server)) {
+			rejections.push(leftOut(name, UNREADABLE_STORE))
 			continue
 		}
-		if (env.failure) {
-			rejections.push(leftOut(name, UNREADABLE_STORE))
+		if (!declaresVariable(server)) {
+			kept[name] = authorized(server, own)
 			continue
 		}
 		const missing: string[] = []

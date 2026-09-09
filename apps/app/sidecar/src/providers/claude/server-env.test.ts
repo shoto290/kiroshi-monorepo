@@ -3,7 +3,7 @@ import { mkdtempSync, rmSync, writeFileSync } from "node:fs"
 import { tmpdir } from "node:os"
 import { join } from "node:path"
 
-import { resolvedServers, resolveServers } from "./server-env"
+import { leftOut, resolvedServers, resolveServers } from "./server-env"
 
 import type { ServerEnv } from "../provider"
 
@@ -208,6 +208,45 @@ describe("resolvedServers", () => {
 		)
 
 		expect(servers.plain).toEqual(plain)
+	})
+
+	it("leaves out a url server holding no authorization header when the store failed", () => {
+		const { servers, rejections } = resolveServers(
+			{ granola },
+			{ failure: "the keychain is locked" },
+		)
+
+		expect(servers.granola).toBeUndefined()
+		expect(rejections).toEqual([
+			"the keychain is locked",
+			leftOut("granola", "the environment store could not be read"),
+		])
+	})
+
+	it("keeps a url server holding an authorization header of its own when the store failed", () => {
+		const { servers, rejections } = resolveServers(
+			{
+				granola: { ...granola, headers: { authorization: "Bearer written" } },
+			},
+			{ failure: "the keychain is locked" },
+		)
+
+		expect(servers.granola).toEqual({
+			type: "http",
+			url: "https://mcp.granola.ai/mcp",
+			headers: { authorization: "Bearer written" },
+		})
+		expect(rejections).toEqual([])
+	})
+
+	it("keeps a server naming no url and no variable when the store failed", () => {
+		const { servers, rejections } = resolveServers(
+			{ plain },
+			{ failure: "the keychain is locked" },
+		)
+
+		expect(servers.plain).toEqual(plain)
+		expect(rejections).toEqual([])
 	})
 
 	it("carries nothing for a session opened with no bundle", () => {

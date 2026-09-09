@@ -29,9 +29,11 @@ type Authority = {
 const anAuthorizationServer = ({
 	revocable = true,
 	revocationStatus = 200,
+	authorizationScheme = "",
 }: {
 	revocable?: boolean
 	revocationStatus?: number
+	authorizationScheme?: string
 } = {}): Authority => {
 	const seen: Registration = {
 		redirectUris: [],
@@ -46,7 +48,8 @@ const anAuthorizationServer = ({
 			if (asked.pathname === "/.well-known/oauth-authorization-server") {
 				return Response.json({
 					issuer: asked.origin,
-					authorization_endpoint: `${asked.origin}/authorize`,
+					authorization_endpoint:
+						authorizationScheme || `${asked.origin}/authorize`,
 					token_endpoint: `${asked.origin}/token`,
 					registration_endpoint: `${asked.origin}/register`,
 					response_types_supported: ["code"],
@@ -286,6 +289,27 @@ describe("mcp oauth", () => {
 			expect(await flow).toMatchObject({
 				credentials: { accessToken: ACCESS_TOKEN },
 			})
+		} finally {
+			await authority.stop()
+		}
+	}, 20_000)
+
+	it("refuses an authorization endpoint naming a scheme no browser may open", async () => {
+		frames.length = 0
+		const authority = anAuthorizationServer({
+			authorizationScheme: "file:///etc/passwd",
+		})
+		try {
+			const settled = await authorizeMcpServer({ url: authority.url }, collect)
+
+			expect(settled).toEqual({
+				error: {
+					kind: "failed",
+					detail: "the authorization server named the refused scheme file:",
+				},
+			})
+			expect(frames.filter((frame) => frame.type === OAUTH_STARTED)).toEqual([])
+			expect(authority.seen.tokenRequests).toHaveLength(0)
 		} finally {
 			await authority.stop()
 		}
