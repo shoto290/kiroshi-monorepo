@@ -252,12 +252,12 @@ export const Error = meta.story({
 		header: <AppHeader trailing={<ConnectionStatus state="crashed" />} />,
 		notice: (
 			<Notice
-				title="Claude Code stopped"
-				description="Claude Code exited (code 1)."
+				title="The agent stopped"
+				description="The agent exited (code 1)."
 				retry={{ label: "Restart session", onRetry: fn() }}
 			/>
 		),
-		composer: <PromptInput disabled placeholder="Waiting for Claude Code…" />,
+		composer: <PromptInput disabled placeholder="Waiting for the agent…" />,
 		children: (
 			<>
 				<UserTurn>How is this workspace laid out?</UserTurn>

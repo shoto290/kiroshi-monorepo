@@ -185,7 +185,7 @@ const bots = {
 		argumentHint: {
 			label: "Indication d'arguments",
 			placeholder: "[version] [--brouillon]",
-			hint: "Ce qui est proposé à un lecteur qui invoque cette compétence à la main.",
+			hint: "Ce qui vous est proposé quand vous invoquez cette compétence à la main.",
 		},
 		arguments: {
 			label: "Arguments",
@@ -199,10 +199,10 @@ const bots = {
 		modelInvocation: {
 			label: "Empêcher le compagnon d'y recourir",
 			description:
-				"Sinon, le compagnon décide seul à partir de la description. Activé, seul un lecteur peut l'invoquer.",
+				"Sinon, le compagnon décide seul à partir de la description. Activé, vous seul pouvez l'invoquer.",
 		},
 		userInvocable: {
-			label: "Laisser un lecteur l'invoquer",
+			label: "Vous laisser l'invoquer",
 			description:
 				"Elle apparaît dans le menu de commandes, invoquée par son nom avec les arguments ci-dessus.",
 		},

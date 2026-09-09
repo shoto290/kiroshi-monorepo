@@ -8,7 +8,7 @@ const matrix = (size: number) => {
 }
 
 describe("typeset math", () => {
-	it("typesets an expression a reader can follow", () => {
+	it("typesets an expression you can follow", () => {
 		const html = typesetMath({
 			display: true,
 			source: "c(n) = \\sum_{i=1}^{n} \\frac{o_i}{2^{i}}",

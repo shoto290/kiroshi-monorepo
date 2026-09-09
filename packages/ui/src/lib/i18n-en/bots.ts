@@ -193,7 +193,7 @@ const bots = {
 		argumentHint: {
 			label: "Argument hint",
 			placeholder: "[version] [--draft]",
-			hint: "What a reader invoking this skill by hand is prompted for.",
+			hint: "What you are prompted for when you invoke this skill by hand.",
 		},
 		arguments: {
 			label: "Arguments",
@@ -207,10 +207,10 @@ const bots = {
 		modelInvocation: {
 			label: "Keep the companion from reaching for it",
 			description:
-				"Left off, the companion decides on its own from the description. Turned on, only a reader may invoke it.",
+				"Left off, the companion decides on its own from the description. Turned on, only you may invoke it.",
 		},
 		userInvocable: {
-			label: "Let a reader invoke it",
+			label: "Let you invoke it",
 			description:
 				"It appears in the command menu, invoked by name with the arguments above.",
 		},

@@ -1,12 +1,12 @@
 const chat = {
 	emptyState: {
 		ready: {
-			title: "Commencer avec Claude Code",
+			title: "Commencer avec l'agent",
 			description:
 				"Kiroshi dialogue avec son agent intégré. Rien ne quitte votre appareil.",
 		},
 		unavailable: {
-			title: "Claude Code n'est pas disponible",
+			title: "L'agent n'est pas disponible",
 			description: "Kiroshi n'atteint pas son agent intégré.",
 		},
 		settings: "Réglages du compagnon",
@@ -23,10 +23,10 @@ const chat = {
 		hint: "Saisissez votre premier message dans le champ ci-dessous",
 	},
 	connection: {
-		checking: "Vérification de Claude Code…",
-		ready: "Claude Code est prêt",
-		unavailable: "Claude Code indisponible",
-		crashed: "Claude Code s'est arrêté",
+		checking: "Vérification de l'agent…",
+		ready: "Agent prêt",
+		unavailable: "Agent indisponible",
+		crashed: "Agent arrêté",
 	},
 	transcript: {
 		label: "Conversation",
@@ -190,12 +190,12 @@ const chat = {
 		todo: "À faire",
 	},
 	screen: {
-		label: "Conversation Claude Code",
+		label: "Conversation avec l'agent",
 		identity: "{{name}} — réglages du compagnon",
 		conversationIdentity: "{{name}} — réglages de la conversation",
 		placeholder: "Message à {{name}}",
 		approval: {
-			description: "Claude Code attend votre accord avant de lancer cet outil.",
+			description: "L'agent attend votre accord avant de lancer cet outil.",
 			path: "Chemin",
 		},
 		question: {
@@ -210,12 +210,12 @@ const chat = {
 			stop: "Arrêter le tour",
 		},
 		notice: {
-			crashed: "Claude Code s'est arrêté",
+			crashed: "L'agent s'est arrêté",
 			resumeFailed: "La conversation précédente n'a pas pu être reprise",
 			workingDirectoryRefused: "Le dossier du compagnon est introuvable",
 			settingsRejected: "Les réglages du compagnon n'ont pas été appliqués",
 			serverEnvRejected: "Un connecteur a été laissé de côté",
-			unavailable: "Claude Code est indisponible",
+			unavailable: "L'agent est indisponible",
 			failed: "Cette demande n'est pas passée",
 			readFailed: "Messages précédents non chargés",
 		},
@@ -224,15 +224,15 @@ const chat = {
 			notAuthenticated:
 				"Votre abonnement Claude n'est pas connecté. Connectez-vous à Claude, puis reprenez la conversation.",
 			authCheckFailed: "La vérification de la connexion a échoué : {{detail}}",
-			spawnFailed: "Claude Code n'a pas pu être démarré : {{detail}}",
-			startupTimeout: "Claude Code n'a pas répondu en {{timeoutMs}} ms.",
-			crashed: "Claude Code s'est arrêté (code {{code}}).",
-			crashedDetail: "Claude Code s'est arrêté (code {{code}}). {{detail}}",
-			crashedUnknownCode: "Claude Code s'est arrêté (code inconnu).",
+			spawnFailed: "L'agent n'a pas pu être démarré : {{detail}}",
+			startupTimeout: "L'agent n'a pas répondu en {{timeoutMs}} ms.",
+			crashed: "L'agent s'est arrêté (code {{code}}).",
+			crashedDetail: "L'agent s'est arrêté (code {{code}}). {{detail}}",
+			crashedUnknownCode: "L'agent s'est arrêté (code inconnu).",
 			crashedUnknownCodeDetail:
-				"Claude Code s'est arrêté (code inconnu). {{detail}}",
+				"L'agent s'est arrêté (code inconnu). {{detail}}",
 			resumeFailed:
-				"Cette conversation n'a pas pu être reprise. Claude Code en a démarré une nouvelle ; vos messages sont toujours là.",
+				"Cette conversation n'a pas pu être reprise. L'agent en a démarré une nouvelle ; vos messages sont toujours là.",
 			workingDirectoryRefused:
 				"{{path}} n'existe plus. Ce compagnon répond depuis l'emplacement habituel à la place.",
 			invalidFrame: "Une trame illisible a été ignorée : {{detail}}",

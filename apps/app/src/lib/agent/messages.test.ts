@@ -25,10 +25,10 @@ describe("describeTransportError", () => {
 	it("names the exit code, and says so when the process left none", () => {
 		expect(
 			describeTransportError(t, { kind: "crashed", code: 1, detail: null }),
-		).toBe("Claude Code exited (code 1).")
+		).toBe("The agent exited (code 1).")
 		expect(
 			describeTransportError(t, { kind: "crashed", code: null, detail: null }),
-		).toBe("Claude Code exited (code unknown).")
+		).toBe("The agent exited (code unknown).")
 	})
 
 	it("reads back a detail the host sent unescaped", () => {

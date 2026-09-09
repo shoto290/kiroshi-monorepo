@@ -127,7 +127,7 @@ export const Unnamed = meta.story({
 	},
 	play: async ({ canvas }) => {
 		await expect(
-			canvas.getByRole("heading", { name: "Start with Claude Code" }),
+			canvas.getByRole("heading", { name: "Start with the agent" }),
 		).toBeVisible()
 	},
 })

@@ -435,9 +435,9 @@ describe("notices", () => {
 
 		expect(
 			noticeTitleFor(t, { kind: "crashed", code: null, detail: null }),
-		).toBe("Claude Code stopped")
+		).toBe("The agent stopped")
 		expect(noticeTitleFor(t, { kind: "binaryNotFound", searched: [] })).toBe(
-			"Claude Code is unavailable",
+			"The agent is unavailable",
 		)
 		expect(noticeTitleFor(t, { kind: "noActiveTurn" })).toBe(
 			"That request did not go through",
