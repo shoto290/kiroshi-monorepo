@@ -21,6 +21,10 @@ const remote = {
 
 const plain = { command: "python3", args: ["server.py"] }
 
+const granola = { type: "http" as const, url: "https://mcp.granola.ai/mcp" }
+
+const ACCESS_TOKEN = "KIROSHI_OAUTH_ACCESS_TOKEN"
+
 const held: ServerEnv = {
 	base: { RUNNER: "node", TOKEN: "wide", API_KEY: "secret" },
 	perServer: { probe: { TOKEN: "narrow" } },
@@ -150,6 +154,60 @@ describe("resolvedServers", () => {
 		})
 		expect(servers.plain).toEqual(plain)
 		expect(rejections).toEqual([])
+	})
+
+	it("sends the stored access token as a bearer header on a server declaring no placeholder", () => {
+		const { servers, rejections } = resolveServers(
+			{ granola },
+			{ perServer: { granola: { [ACCESS_TOKEN]: "granted" } } },
+		)
+
+		expect(servers.granola).toEqual({
+			type: "http",
+			url: "https://mcp.granola.ai/mcp",
+			headers: { Authorization: "Bearer granted" },
+		})
+		expect(rejections).toEqual([])
+	})
+
+	it("leaves a hand-written authorization header alone whatever its letter case", () => {
+		const { servers } = resolveServers(
+			{
+				granola: { ...granola, headers: { authorization: "Bearer written" } },
+			},
+			{ perServer: { granola: { [ACCESS_TOKEN]: "granted" } } },
+		)
+
+		expect(servers.granola).toEqual({
+			type: "http",
+			url: "https://mcp.granola.ai/mcp",
+			headers: { authorization: "Bearer written" },
+		})
+	})
+
+	it("adds the bearer header beside the headers a server expanded", () => {
+		const { servers } = resolveServers(
+			{ remote: { type: "http" as const, url: "${BASE_URL}/mcp" } },
+			{
+				base: { BASE_URL: "https://example.test" },
+				perServer: { remote: { [ACCESS_TOKEN]: "granted" } },
+			},
+		)
+
+		expect(servers.remote).toEqual({
+			type: "http",
+			url: "https://example.test/mcp",
+			headers: { Authorization: "Bearer granted" },
+		})
+	})
+
+	it("adds no bearer header to a server that carries no url", () => {
+		const { servers } = resolveServers(
+			{ plain },
+			{ perServer: { plain: { [ACCESS_TOKEN]: "granted" } } },
+		)
+
+		expect(servers.plain).toEqual(plain)
 	})
 
 	it("carries nothing for a session opened with no bundle", () => {

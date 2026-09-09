@@ -47,6 +47,10 @@ pub fn delete(root: &Path, scope: &EnvScope, name: &str) -> Result<(), EnvError>
 	written(&path, &kept)
 }
 
+pub fn values(root: &Path, scope: &EnvScope) -> Result<Values, EnvError> {
+	Ok(stored(&file(root, scope)?)?.into_iter().collect())
+}
+
 pub fn list(root: &Path, scope: &EnvScope) -> Result<Vec<EnvEntry>, EnvError> {
 	let mut entries: Vec<EnvEntry> = Vec::new();
 	for step in chain(scope) {
