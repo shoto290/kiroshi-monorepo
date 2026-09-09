@@ -226,7 +226,7 @@ const WORKSPACE_SIDEBAR = (
 
 const CARD_GUTTER = 8
 
-const CLOSE_GLYPH_INSET = 24
+const CLOSE_GLYPH_INSET = 28
 
 const verticalCentreOf = (element: HTMLElement) => {
 	const box = element.getBoundingClientRect()
