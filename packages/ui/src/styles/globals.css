@@ -426,8 +426,8 @@
 }
 
 @media (prefers-reduced-motion: reduce) {
-	.animate-in,
-	.animate-out {
+	[class*="animate-in"],
+	[class*="animate-out"] {
 		animation-duration: 0.01ms;
 	}
 
