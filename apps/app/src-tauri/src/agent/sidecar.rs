@@ -370,6 +370,13 @@ pub struct OauthFlow {
 	answered: bool,
 }
 
+type Frame = Result<Value, oneshot::error::RecvError>;
+
+enum Raced {
+	Started(Frame),
+	Settled(Frame),
+}
+
 impl OauthFlow {
 	pub async fn opened(&mut self) -> Result<Opening, TransportError> {
 		let deadline = self.deadline;
@@ -377,18 +384,18 @@ impl OauthFlow {
 		let settled = &mut self.settled;
 		let raced = tokio::time::timeout_at(deadline, async {
 			tokio::select! {
-				named = started => Ok(named),
-				answer = settled => Err(answer),
+				named = started => Raced::Started(named),
+				answer = settled => Raced::Settled(answer),
 			}
 		})
 		.await
 		.map_err(|_| outlasted(OAUTH_FLOW_TIMEOUT))?;
 		match raced {
-			Ok(named) => {
+			Raced::Started(named) => {
 				let opening: OauthStarted = read_frame(received(named)?)?;
 				Ok(Opening::Authorization(opening.url))
 			}
-			Err(answer) => {
+			Raced::Settled(answer) => {
 				self.answered = true;
 				Ok(Opening::Settled(read_frame(received(answer)?)?))
 			}
@@ -420,7 +427,7 @@ fn read_frame<T: serde::de::DeserializeOwned>(answer: Value) -> Result<T, Transp
 		.map_err(|error| TransportError::InvalidFrame { detail: error.to_string() })
 }
 
-fn received(answer: Result<Value, oneshot::error::RecvError>) -> Result<Value, TransportError> {
+fn received(answer: Frame) -> Result<Value, TransportError> {
 	answer.map_err(|_| TransportError::Crashed {
 		code: None,
 		detail: Some("the sidecar went away before it answered".into()),

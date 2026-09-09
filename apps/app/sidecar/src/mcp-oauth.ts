@@ -14,6 +14,8 @@ import type { FetchLike } from "@modelcontextprotocol/sdk/shared/transport.js"
 import { describeError } from "./describe-error"
 
 const LOOPBACK = "127.0.0.1"
+const LOOPBACK_HOSTS = new Set([LOOPBACK, "localhost"])
+const PORT_SUFFIX = /:\d+$/
 const REDIRECT_PATH = "/oauth/callback"
 const CLIENT_NAME = "Kiroshi"
 const REQUEST_TIMEOUT_MS = 30_000
@@ -94,10 +96,6 @@ const timedFetch: FetchLike = (input, init) =>
 	fetch(input, { ...init, signal: AbortSignal.timeout(REQUEST_TIMEOUT_MS) })
 
 const refused = () => new Response(REFUSED, { status: 400 })
-
-const LOOPBACK_HOSTS = new Set([LOOPBACK, "localhost"])
-
-const PORT_SUFFIX = /:\d+$/
 
 const isLoopback = (host: string | null) =>
 	host !== null && LOOPBACK_HOSTS.has(host.replace(PORT_SUFFIX, ""))
