@@ -89,13 +89,9 @@ const AppWindow = ({ children }: AppWindowProps) => (
 	</div>
 )
 
-type CapabilitiesProps = {
-	lines: readonly string[]
-}
-
-const Capabilities = ({ lines }: CapabilitiesProps) => (
+const Capabilities = () => (
 	<ul className="flex max-w-[310px] flex-col gap-2 text-sm leading-5 text-muted-foreground lg:max-w-[740px] lg:gap-0.5 lg:text-[15px] lg:leading-[22px] ultrawide:max-w-[880px] ultrawide:text-base ultrawide:leading-6">
-		{lines.map((line) => (
+		{WEBSITE_COPY.capabilities.map((line) => (
 			<li key={line}>{line}</li>
 		))}
 	</ul>
@@ -155,7 +151,7 @@ export const WebsitePage = ({ children }: WebsitePageProps) => (
 			<p className="max-w-[310px] text-base leading-6 text-muted-foreground lg:max-w-[740px] lg:text-[19px] lg:leading-7 ultrawide:max-w-[880px] ultrawide:text-[21px] ultrawide:leading-[30px]">
 				{WEBSITE_COPY.lead}
 			</p>
-			<Capabilities lines={WEBSITE_COPY.capabilities} />
+			<Capabilities />
 			<div className="flex flex-col items-center gap-3.5 pt-3.5 lg:flex-row lg:gap-3 lg:pt-1">
 				<p className="max-w-[302px] text-[15px] leading-[22px] text-foreground lg:hidden">
 					{WEBSITE_COPY.mobileNote}
