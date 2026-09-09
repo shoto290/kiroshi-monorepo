@@ -259,7 +259,7 @@ export const Stacked = meta.story({
 		}
 
 		await waitFor(() => expect(noticesOnScreen()).toHaveLength(3))
-		await opaque(viewport())
+		await Promise.all(noticesOnScreen().map(opaque))
 
 		const onScreen = noticesOnScreen()
 		await expect(onScreen[0]).toHaveTextContent(STACK[3].title)
