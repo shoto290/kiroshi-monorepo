@@ -367,6 +367,8 @@ export const Default = meta.story({
 	},
 })
 
+const pixelsOf = (length: string) => Number.parseFloat(length)
+
 export const Run = meta.story({
 	render: () => (
 		<div className="mx-auto flex max-w-2xl flex-col gap-6">
@@ -393,14 +395,22 @@ export const Run = meta.story({
 		docs: {
 			description: {
 				story:
-					"Reach for this for the shape a real answer takes: one paragraph per row, published as each one closes. Check that the run reads as one block — tight spacing and the corners facing a neighbour pulled in — and that a single avatar marks it from the last row while the rows above keep the gutter empty. Every bubble carries its own copy, and copying one takes that paragraph alone: there is no action anywhere for the answer entire, because the reader points at the part they want.",
+					"Reach for this for the shape a real answer takes: one paragraph per row, published as each one closes. Check that the run reads as one block — tight spacing, and the corner facing a neighbour pulled in to less than half the corner facing away, which is what makes the rows read as one bubble rather than three — and that a single avatar marks it from the last row while the rows above keep the gutter empty. Every bubble carries its own copy, and copying one takes that paragraph alone: there is no action anywhere for the answer entire, because the reader points at the part they want.",
 			},
 		},
 	},
-	play: async ({ canvas }) => {
+	play: async ({ canvas, canvasElement }) => {
 		await expect(canvas.getAllByLabelText("assistant message")).toHaveLength(3)
 		await expect(canvas.getAllByRole("button", { name: "Copy" })).toHaveLength(
 			5,
+		)
+
+		const closing = canvasElement.querySelectorAll<HTMLElement>(
+			'[data-slot="message-bubble-content"]',
+		)[1]
+		const corners = getComputedStyle(closing)
+		await expect(pixelsOf(corners.borderEndEndRadius)).toBeGreaterThan(
+			pixelsOf(corners.borderStartEndRadius) * 2,
 		)
 	},
 })
