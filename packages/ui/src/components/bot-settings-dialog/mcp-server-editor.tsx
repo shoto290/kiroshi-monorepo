@@ -127,6 +127,11 @@ const McpAuthorization = ({
 		if (!isSaved)
 			return onConnect ? (
 				<Button disabled size="sm">
+					<Icons.ExternalLink
+						aria-hidden="true"
+						className="size-3.5"
+						data-icon="inline-start"
+					/>
 					{t("connectors.connection.connect")}
 				</Button>
 			) : null
@@ -134,6 +139,11 @@ const McpAuthorization = ({
 		if (state === "needsAuthorization")
 			return onConnect ? (
 				<Button onClick={onConnect} size="sm">
+					<Icons.ExternalLink
+						aria-hidden="true"
+						className="size-3.5"
+						data-icon="inline-start"
+					/>
 					{t("connectors.connection.connect")}
 				</Button>
 			) : null
@@ -150,6 +160,11 @@ const McpAuthorization = ({
 				<>
 					{onReopen ? (
 						<Button onClick={onReopen} size="sm" variant="outline">
+							<Icons.ExternalLink
+								aria-hidden="true"
+								className="size-3.5"
+								data-icon="inline-start"
+							/>
 							{t("connectors.connection.reopen")}
 						</Button>
 					) : null}
