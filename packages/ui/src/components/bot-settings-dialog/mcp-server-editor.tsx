@@ -80,8 +80,10 @@ const EditorNotice = ({
 	</p>
 )
 
+const QUIET_FIELD = "border-border bg-muted/60"
+
 const AUTHORIZATION_FIELD = {
-	connected: "border-border bg-muted/60",
+	connected: QUIET_FIELD,
 	needsAuthorization: "border-bot-badge-attention/45 bg-bot-badge-attention/8",
 	connecting: "border-bot-badge-attention/45 bg-bot-badge-attention/8",
 	failed: "border-destructive/45 bg-destructive/8",
@@ -178,7 +180,7 @@ const McpAuthorization = ({
 		<div
 			className={cn(
 				"flex shrink-0 items-start gap-3 rounded-xl border p-3",
-				isSaved ? AUTHORIZATION_FIELD[state] : AUTHORIZATION_FIELD.connected,
+				isSaved ? AUTHORIZATION_FIELD[state] : QUIET_FIELD,
 			)}
 		>
 			<span className="flex size-4 shrink-0 items-center justify-center">
