@@ -194,13 +194,10 @@ const referentialStore = (base: TranscriptStore) => {
 		turnId,
 		repliedToMessageId,
 	}: NewUserMessage | NewAssistantMessage) => {
-		if (conversationOf.get(turnId) !== conversationId) {
-			return false
-		}
-		if (
-			repliedToMessageId &&
-			conversationOf.get(repliedToMessageId) !== conversationId
-		) {
+		const referenced = [turnId, repliedToMessageId].filter(
+			(key) => key !== null,
+		)
+		if (referenced.some((key) => conversationOf.get(key) !== conversationId)) {
 			return false
 		}
 		conversationOf.set(id, conversationId)
