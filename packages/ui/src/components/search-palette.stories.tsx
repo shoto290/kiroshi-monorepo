@@ -341,11 +341,6 @@ export const Default = meta.story({
 		)
 		await expect(slotsIn(body, "search-palette-see-all")).toHaveLength(1)
 
-		const ranks = slotsIn(body, "search-result-row-rank").map(
-			(lane) => lane.textContent,
-		)
-		await expect(ranks).toEqual(["⌘1", "⌘2", "⌘3", "⌘4", "⌘5", "⌘6", "⌘7"])
-
 		const selected = within(popup).getAllByRole("option", { selected: true })
 		await expect(selected).toHaveLength(1)
 		await expect(field.getAttribute("aria-activedescendant")).toBe(
@@ -389,10 +384,7 @@ export const OneKind = meta.story({
 			MESSAGES.length,
 		)
 
-		const lanes = slotsIn(body, "search-result-row-rank")
-		await expect(lanes.filter((lane) => lane.textContent !== "")).toHaveLength(
-			9,
-		)
+		await expect(slotsIn(body, "search-result-row-rank")).toHaveLength(0)
 	},
 })
 
@@ -534,9 +526,6 @@ export const Resting = meta.story({
 				.getAllByRole("listbox")
 				.map((list) => slotsIn(list, "search-result-row").length),
 		).toEqual([SHOWN_PER_KIND, RESTING_MISSIONS.length, SHOWN_PER_KIND])
-		await expect(
-			slotsIn(body, "search-result-row-rank").map((lane) => lane.textContent),
-		).toEqual(["⌘1", "⌘2", "⌘3", "⌘4", "⌘5", "⌘6", "⌘7", "⌘8"])
 		await expect(slotsIn(body, "search-palette-rest")).toHaveLength(0)
 
 		const [chats] = slotsIn(body, "search-palette-see-all")

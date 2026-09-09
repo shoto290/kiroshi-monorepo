@@ -25,10 +25,9 @@ type SearchTab = "all" | SearchKind
 
 type SearchRestingKind = Exclude<SearchKind, "messages">
 
-type SearchPaletteResult = Omit<
-	SearchResultRowProps,
-	"id" | "isActive" | "rank" | "rankLabel"
-> & { id: string }
+type SearchPaletteResult = Omit<SearchResultRowProps, "id" | "isActive"> & {
+	id: string
+}
 
 type SearchResultGroup = {
 	kind: SearchKind
@@ -83,7 +82,7 @@ const RESTING_MARKS: Record<SearchRestingKind, ReactNode> = {
 
 const SHOWN_PER_KIND = 3
 
-const FIRST_RANK = 1
+const STILL = "transition-none"
 
 const POPUP_CLASS =
 	"-translate-x-1/2 fixed top-27 left-1/2 z-50 flex h-146 max-h-[calc(100vh-9rem)] w-160 max-w-[calc(100vw-3rem)] flex-col overflow-hidden rounded-2xl"
@@ -100,7 +99,7 @@ const TAB_ROW_CLASS =
 const TAB_STRIP_CLASS =
 	"scrollbar-hide max-w-full overflow-x-auto bg-transparent p-0"
 
-const TAB_TRIGGER_CLASS = "h-7.5 shrink-0 py-0 transition-none"
+const TAB_TRIGGER_CLASS = `h-7.5 shrink-0 py-0 ${STILL}`
 
 const BODY_CLASS =
 	"flex min-h-0 flex-1 flex-col gap-0.5 overflow-y-auto p-2 outline-none focus-visible:ring-3 focus-visible:ring-ring/30 focus-visible:ring-inset"
@@ -175,13 +174,11 @@ const SearchPalette = ({
 	const sections = isRest ? restingSections : foundSections
 
 	const shown = sections.flatMap((section) => section.results)
-	const rankOf = new Map(
-		shown.map((result, index) => [result.id, index + FIRST_RANK]),
-	)
+	const shownIds = new Set(shown.map((result) => result.id))
 	const rowId = (id: string) => `${listId}-${id}`
 	const sectionListId = (key: string) => `${listId}-${key}`
 	const activeId =
-		activeResultId && rankOf.has(activeResultId)
+		activeResultId && shownIds.has(activeResultId)
 			? rowId(activeResultId)
 			: undefined
 
@@ -254,7 +251,6 @@ const SearchPalette = ({
 			id={rowId(id)}
 			isActive={id === activeResultId}
 			key={id}
-			rank={rankOf.get(id)}
 			space={isScopeAllSpaces ? space : undefined}
 		/>
 	)
@@ -263,12 +259,12 @@ const SearchPalette = ({
 		<Dialog.Root onOpenChange={onOpenChange} open={open}>
 			<Dialog.Portal>
 				<Dialog.Backdrop
-					className={BACKDROP_CLASS}
+					className={cn(BACKDROP_CLASS, STILL)}
 					data-slot="search-palette-backdrop"
 				/>
 				<Dialog.Popup
 					aria-label={label}
-					className={cn(DIALOG_POPUP_CLASS, POPUP_CLASS)}
+					className={cn(DIALOG_POPUP_CLASS, POPUP_CLASS, STILL)}
 					data-slot="search-palette"
 					initialFocus={input}
 				>

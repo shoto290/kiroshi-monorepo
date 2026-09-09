@@ -12,7 +12,6 @@ const search = {
 	},
 	scope: "All spaces",
 	seeAll: "See all",
-	rank: "⌘{{rank}}",
 	solo: "solo thread",
 	unavailable: {
 		title: "Search could not be read",

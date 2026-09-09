@@ -67,7 +67,7 @@ export const Default = meta.story({
 		docs: {
 			description: {
 				story:
-					"The resting state and the open one. Check the trigger takes focus with a visible ring and opens on Enter, that the surface lands centred over a dimmed overlay, and that Escape closes it and puts focus back on the trigger.",
+					"The resting state and the open one. Check the trigger takes focus with a visible ring and opens on Enter, that the surface lands centred over an overlay that dims what is behind it without blurring it, and that Escape closes it and puts focus back on the trigger.",
 			},
 		},
 	},
@@ -81,6 +81,12 @@ export const Default = meta.story({
 		const dialog = await screen.findByRole("dialog")
 		await waitFor(() => expect(dialog).toBeVisible())
 		await expect(dialog).toHaveAccessibleName("Bot settings")
+
+		const overlay = document.body.querySelector<HTMLElement>(
+			'[data-slot="dialog-overlay"]',
+		)
+		if (!overlay) throw new Error("The dialog dims nothing behind it")
+		await expect(getComputedStyle(overlay).backdropFilter).toBe("none")
 
 		await userEvent.keyboard("{Escape}")
 		await waitFor(() => expect(screen.queryByRole("dialog")).toBe(null))

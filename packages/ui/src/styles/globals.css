@@ -8,6 +8,11 @@
 
 @custom-variant dark (&:is(.dark *));
 
+[data-slot="dialog-overlay"],
+[data-slot="sheet-overlay"] {
+	backdrop-filter: none;
+}
+
 :root {
 	--background: oklch(1 0 0);
 	--foreground: oklch(0.141 0.005 285.823);

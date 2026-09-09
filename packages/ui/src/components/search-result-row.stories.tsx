@@ -16,8 +16,6 @@ const PALETTE_WIDTH = 420
 
 const NARROW_PALETTE_WIDTH = 320
 
-const RANK_LANE_WIDTH = 26
-
 const RESULTS_LABEL = "Search results"
 
 const HOVERED_RESULTS_LABEL = "Search results under the pointer"
@@ -33,12 +31,6 @@ const ACTIVE_OPTION_ID = "search-result-active"
 const RESULT_LIST_ID = "search-result-list"
 
 const PALETTE_RING_CLASS = "[--badge-ring:var(--color-popover)]"
-
-const RANK_CHORD = "Press Control"
-
-const RANK_CAP = "⌘3"
-
-const rankLabelFor = (rank: number) => `${RANK_CHORD} ${rank}`
 
 const ROUTINE_BOT = {
 	name: "Noor Beltran",
@@ -64,7 +56,6 @@ const KIND_ARGS: Record<SearchResultKind, SearchResultRowProps> = {
 			{ key: "author", text: "Ada Martin" },
 			{ key: "conversation", text: "Changelog cleanup" },
 		],
-		rank: 1,
 		onOpen: fn(),
 	},
 	"message-from-you": {
@@ -79,7 +70,6 @@ const KIND_ARGS: Record<SearchResultKind, SearchResultRowProps> = {
 			{ key: "reader", text: "You" },
 			{ key: "other", text: "Ada Martin" },
 		],
-		rank: 2,
 		onOpen: fn(),
 	},
 	"chat-group": {
@@ -87,7 +77,6 @@ const KIND_ARGS: Record<SearchResultKind, SearchResultRowProps> = {
 		title: [{ key: "title", text: "Changelog cleanup" }],
 		timestamp: "Mon",
 		parts: [{ key: "participants", text: "Atlas and Beacon" }],
-		rank: 3,
 		onOpen: fn(),
 	},
 	"chat-solo": {
@@ -95,7 +84,6 @@ const KIND_ARGS: Record<SearchResultKind, SearchResultRowProps> = {
 		title: [{ key: "title", text: "Release notes review" }],
 		timestamp: "Tue",
 		parts: [{ key: "bot", text: "Ada Martin" }],
-		rank: 4,
 		onOpen: fn(),
 	},
 	mission: {
@@ -112,7 +100,6 @@ const KIND_ARGS: Record<SearchResultKind, SearchResultRowProps> = {
 			{ key: "owner", text: "Ada Martin" },
 			{ key: "state", text: "Waiting for you" },
 		],
-		rank: 5,
 		onOpen: fn(),
 	},
 	routine: {
@@ -123,7 +110,6 @@ const KIND_ARGS: Record<SearchResultKind, SearchResultRowProps> = {
 			{ key: "schedule", text: "Every weekday at 09:00" },
 			{ key: "conversation", text: "Changelog cleanup" },
 		],
-		rank: 6,
 		onOpen: fn(),
 	},
 }
@@ -170,7 +156,7 @@ const meta = preview.meta({
 		docs: {
 			description: {
 				component:
-					"One hit of the search palette, in the six kinds a hit can take. It borrows the geometry and the interaction of `ActivityRow`, adds a rank lane on a `Kbd` for the digit that opens it from the keyboard, and marks the matched words of its title. It draws a hit and nothing else: the palette that holds it, its scope and its keyboard loop live above.",
+					"One hit of the search palette, in the six kinds a hit can take. It borrows the geometry and the interaction of `ActivityRow`, and marks the matched words of its title. It draws a hit and nothing else: the palette that holds it, its scope and its keyboard loop live above.",
 			},
 		},
 	},
@@ -301,7 +287,7 @@ export const Active = meta.story({
 		docs: {
 			description: {
 				story:
-					"The row the keyboard loop currently sits on. Check that the row takes the muted surface at full strength and that its `Kbd` flips to the background colour so the digit stays readable on top of it, which is the only place the two surfaces swap.",
+					"The row the keyboard loop currently sits on. Check that the row takes the muted surface at full strength, which is what tells the reader where the keyboard sits.",
 			},
 		},
 	},
@@ -319,9 +305,6 @@ export const Active = meta.story({
 
 		await expect(getComputedStyle(row).backgroundColor).toBe(
 			surfaceOf(canvasElement, "muted-probe"),
-		)
-		await expect(surfaceOf(canvasElement, "kbd")).toBe(
-			surfaceOf(canvasElement, "background-probe"),
 		)
 	},
 })
@@ -367,8 +350,6 @@ export const AsListboxOption = meta.story({
 	args: {
 		isActive: true,
 		id: ACTIVE_OPTION_ID,
-		rank: 1,
-		rankLabel: rankLabelFor(1),
 	},
 	parameters: {
 		docs: {
@@ -395,8 +376,6 @@ export const AsListboxOption = meta.story({
 					{...args}
 					id="search-result-second"
 					isActive={false}
-					rank={2}
-					rankLabel={rankLabelFor(2)}
 					title={[{ key: "title", text: "The second hit" }]}
 				/>
 			</ResultList>
@@ -419,9 +398,6 @@ export const AsListboxOption = meta.story({
 		await expect(selected).toHaveAttribute("aria-selected", "true")
 		await expect(rest).toHaveAttribute("aria-selected", "false")
 		await expect(selected).toHaveAttribute("tabindex", "-1")
-		await expect(selected).toHaveAccessibleName(
-			expect.stringContaining(rankLabelFor(1)),
-		)
 
 		field.focus()
 		await userEvent.tab()
@@ -476,7 +452,6 @@ export const WithBadgeWhileActive = meta.story({
 				<SearchResultRow
 					{...args}
 					isActive
-					rank={2}
 					title={[{ key: "title", text: "Retire the legacy importer" }]}
 				/>
 			</ResultList>
@@ -526,7 +501,7 @@ export const LongContent = meta.story({
 		docs: {
 			description: {
 				story:
-					"A title and a context line longer than their lanes. Check that both end on an ellipsis rather than wrapping, that the timestamp and the rank lane keep their width and their place instead of being pushed out, and that the identifier and the leading glyph are never the part that gets cut.",
+					"A title and a context line longer than their lanes. Check that both end on an ellipsis rather than wrapping, that the timestamp keeps its width and its place instead of being pushed out, and that the identifier and the leading glyph are never the part that gets cut.",
 			},
 		},
 	},
@@ -534,76 +509,14 @@ export const LongContent = meta.story({
 		const row = canvas.getByRole("option")
 		const title = slotIn(canvasElement, "search-result-row-title")
 		const parts = slotIn(canvasElement, "search-result-row-parts")
-		const rank = slotIn(canvasElement, "search-result-row-rank")
 		const timestamp = slotIn(canvasElement, "search-result-row-timestamp")
 
 		await expect(title.scrollWidth).toBeGreaterThan(title.clientWidth)
 		await expect(getComputedStyle(title).textOverflow).toBe("ellipsis")
 		await expect(parts.scrollWidth).toBeGreaterThan(parts.clientWidth)
 		await expect(getComputedStyle(parts).textOverflow).toBe("ellipsis")
-		await expect(rank.getBoundingClientRect().width).toBe(RANK_LANE_WIDTH)
 		await expect(timestamp.getBoundingClientRect().right).toBeLessThanOrEqual(
 			row.getBoundingClientRect().right,
-		)
-	},
-})
-
-export const Unranked = meta.story({
-	parameters: {
-		docs: {
-			description: {
-				story:
-					"The rows past the ninth hit, which no digit opens. Check that the lane still measures its full width so every title in the list starts and ends on the same column, that nothing is drawn inside it, and that a rank label handed to a row out of range is dropped along with the keycap rather than announced for a chord that does nothing — a row given a rank of ten is the same case as a row given none.",
-			},
-		},
-	},
-	render: (args) => (
-		<ResultList>
-			<SearchResultRow {...args} rank={undefined} rankLabel={rankLabelFor(1)} />
-			<SearchResultRow
-				{...args}
-				rank={10}
-				rankLabel={rankLabelFor(10)}
-				title={[{ key: "title", text: "The tenth hit" }]}
-			/>
-		</ResultList>
-	),
-	play: async ({ canvas, canvasElement }) => {
-		const lanes = slotsIn(canvasElement, "search-result-row-rank")
-
-		await expect(lanes).toHaveLength(2)
-		for (const lane of lanes) {
-			await expect(lane.getBoundingClientRect().width).toBe(RANK_LANE_WIDTH)
-			await expect(lane.children).toHaveLength(0)
-		}
-		for (const option of canvas.getAllByRole("option")) {
-			await expect(option).not.toHaveAccessibleName(
-				expect.stringContaining(RANK_CHORD),
-			)
-		}
-	},
-})
-
-export const WithRank = meta.story({
-	args: { rank: 3 },
-	parameters: {
-		docs: {
-			description: {
-				story:
-					"A hit inside the first nine, the range the keyboard can reach by a digit, given no rank label. Check that the lane holds a `Kbd` showing the digit, that the cap stays hidden from assistive technology so the digit never lands in the middle of the option's name, and that nothing takes its place in the name — a caller that says nothing about the chord gets no invented wording.",
-			},
-		},
-	},
-	play: async ({ canvas, canvasElement }) => {
-		const kbd = slotIn(canvasElement, "kbd")
-
-		await expect(kbd).toHaveTextContent(RANK_CAP)
-		await expect(kbd).toHaveAttribute("aria-hidden", "true")
-		await expect(
-			slotIn(canvasElement, "search-result-row-rank").textContent,
-		).toBe(RANK_CAP)
-		await expect(canvas.getByRole("option")).toHaveAccessibleName(
-			expect.not.stringContaining(RANK_CHORD),
 		)
 	},
 })
@@ -647,13 +560,8 @@ export const InNarrowPalette = meta.story({
 	),
 	play: async ({ canvas, canvasElement }) => {
 		const row = canvas.getByRole("option").getBoundingClientRect()
-		const rank = slotIn(canvasElement, "search-result-row-rank")
 		const timestamp = slotIn(canvasElement, "search-result-row-timestamp")
 
-		await expect(rank.getBoundingClientRect().width).toBe(RANK_LANE_WIDTH)
-		await expect(rank.getBoundingClientRect().right).toBeLessThanOrEqual(
-			row.right,
-		)
 		await expect(timestamp.getBoundingClientRect().right).toBeLessThanOrEqual(
 			row.right,
 		)
