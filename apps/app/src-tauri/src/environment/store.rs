@@ -4,7 +4,9 @@ use std::sync::{Mutex, PoisonError};
 
 use tauri::{AppHandle, Manager, Runtime};
 
-use super::contract::{EnvEntry, EnvError, EnvOwner, EnvScope, PerServer, ResolvedEnv, Values};
+use super::contract::{
+	is_reserved, EnvEntry, EnvError, EnvOwner, EnvScope, PerServer, ResolvedEnv, Values,
+};
 use crate::private_files;
 
 const DIR_NAME: &str = "env";
@@ -54,7 +56,11 @@ pub fn values(root: &Path, scope: &EnvScope) -> Result<Values, EnvError> {
 pub fn list(root: &Path, scope: &EnvScope) -> Result<Vec<EnvEntry>, EnvError> {
 	let mut entries: Vec<EnvEntry> = Vec::new();
 	for step in chain(scope) {
+		let owned_by_a_server = matches!(step, EnvScope::Server { .. });
 		for (name, _) in stored(&file(root, &step)?)? {
+			if owned_by_a_server && is_reserved(&name) {
+				continue;
+			}
 			let served_from = serving(&entries, &name).unwrap_or_else(|| step.clone());
 			entries.push(EnvEntry { name, defined_in: step.clone(), served_from });
 		}

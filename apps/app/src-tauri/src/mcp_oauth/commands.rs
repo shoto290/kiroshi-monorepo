@@ -7,8 +7,12 @@ use super::contract::{Disconnected, OauthError};
 use super::credentials;
 use crate::agent::commands::AgentState;
 use crate::agent::protocol::{OauthCredentials, RevocationRequest};
+use crate::agent::sidecar::Opening;
 use crate::environment::commands::writable_root;
-use crate::environment::contract::{EnvOwner, EnvScope, Values};
+use crate::environment::contract::{
+	EnvOwner, EnvScope, Values, OAUTH_ACCESS_TOKEN, OAUTH_CLIENT_ID, OAUTH_CLIENT_SECRET,
+	OAUTH_REFRESH_TOKEN,
+};
 use crate::environment::store;
 
 const NOTHING_STORED: &str = "no access token was stored for that server";
@@ -47,12 +51,15 @@ async fn granted<R: Runtime>(
 ) -> Result<OauthCredentials, OauthError> {
 	let sidecar = app.state::<AgentState>().sidecar().await?;
 	let mut flow = sidecar.begin_oauth(url)?;
-	let authorization = flow.authorization_url().await?;
-	if app.opener().open_url(authorization.clone(), None::<&str>).is_err() {
-		sidecar.cancel_oauth()?;
-		return Err(OauthError::BrowserRefused { url: authorization });
-	}
-	let settled = flow.settled().await?;
+	let settled = match flow.opened().await? {
+		Opening::Settled(settled) => settled,
+		Opening::Authorization(authorization) => {
+			if app.opener().open_url(authorization.clone(), None::<&str>).is_err() {
+				return Err(OauthError::BrowserRefused { url: authorization });
+			}
+			flow.settled().await?
+		}
+	};
 	match (settled.credentials, settled.error) {
 		(Some(credentials), _) => Ok(credentials),
 		(None, Some(failure)) => Err(OauthError::from(failure)),
@@ -101,14 +108,15 @@ pub async fn mcp_oauth_disconnect<R: Runtime>(
 }
 
 async fn revoked<R: Runtime>(app: &AppHandle<R>, url: &str, held: &Values) -> Disconnected {
-	let Some(token) = held.get(credentials::ACCESS_TOKEN) else {
+	let Some(token) = held.get(OAUTH_ACCESS_TOKEN) else {
 		return Disconnected { revoked: false, detail: Some(NOTHING_STORED.to_owned()) };
 	};
 	let request = RevocationRequest {
 		url: url.to_owned(),
 		token: token.clone(),
-		client_id: held.get(credentials::CLIENT_ID).cloned(),
-		client_secret: held.get(credentials::CLIENT_SECRET).cloned(),
+		refresh_token: held.get(OAUTH_REFRESH_TOKEN).cloned(),
+		client_id: held.get(OAUTH_CLIENT_ID).cloned(),
+		client_secret: held.get(OAUTH_CLIENT_SECRET).cloned(),
 	};
 	match app.state::<AgentState>().sidecar().await {
 		Ok(sidecar) => match sidecar.revoke_oauth(&request).await {

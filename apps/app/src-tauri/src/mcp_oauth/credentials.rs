@@ -1,35 +1,30 @@
 use std::path::Path;
 
 use crate::agent::protocol::OauthCredentials;
-use crate::environment::contract::{EnvError, EnvScope};
+use crate::environment::contract::{
+	EnvError, EnvScope, OAUTH_ACCESS_TOKEN, OAUTH_CLIENT_ID, OAUTH_CLIENT_SECRET,
+	OAUTH_EXPIRES_AT, OAUTH_REFRESH_TOKEN, RESERVED_NAMES,
+};
 use crate::environment::store;
 
-pub const ACCESS_TOKEN: &str = "KIROSHI_OAUTH_ACCESS_TOKEN";
-pub const REFRESH_TOKEN: &str = "KIROSHI_OAUTH_REFRESH_TOKEN";
-pub const EXPIRES_AT: &str = "KIROSHI_OAUTH_EXPIRES_AT";
-pub const CLIENT_ID: &str = "KIROSHI_OAUTH_CLIENT_ID";
-pub const CLIENT_SECRET: &str = "KIROSHI_OAUTH_CLIENT_SECRET";
-
-pub const RESERVED: [&str; 5] = [ACCESS_TOKEN, REFRESH_TOKEN, EXPIRES_AT, CLIENT_ID, CLIENT_SECRET];
-
-fn assignments(held: &OauthCredentials) -> Vec<(&'static str, String)> {
-	let mut written =
-		vec![(ACCESS_TOKEN, held.access_token.clone()), (CLIENT_ID, held.client_id.clone())];
-	if let Some(refresh_token) = &held.refresh_token {
-		written.push((REFRESH_TOKEN, refresh_token.clone()));
+fn named(held: &OauthCredentials, name: &str) -> Option<String> {
+	match name {
+		OAUTH_ACCESS_TOKEN => Some(held.access_token.clone()),
+		OAUTH_CLIENT_ID => Some(held.client_id.clone()),
+		OAUTH_REFRESH_TOKEN => held.refresh_token.clone(),
+		OAUTH_CLIENT_SECRET => held.client_secret.clone(),
+		OAUTH_EXPIRES_AT => held.expires_at.map(|at| at.to_string()),
+		_ => None,
 	}
-	if let Some(expires_at) = held.expires_at {
-		written.push((EXPIRES_AT, expires_at.to_string()));
-	}
-	if let Some(client_secret) = &held.client_secret {
-		written.push((CLIENT_SECRET, client_secret.clone()));
-	}
-	written
 }
 
 pub fn store(root: &Path, scope: &EnvScope, held: &OauthCredentials) -> Result<(), EnvError> {
-	for (name, value) in assignments(held) {
-		if let Err(refused) = store::set(root, scope, name, &value) {
+	for name in RESERVED_NAMES {
+		let written = match named(held, name) {
+			Some(value) => store::set(root, scope, name, &value),
+			None => store::delete(root, scope, name),
+		};
+		if let Err(refused) = written {
 			return Err(rolled_back(root, scope, refused));
 		}
 	}
@@ -38,7 +33,7 @@ pub fn store(root: &Path, scope: &EnvScope, held: &OauthCredentials) -> Result<(
 
 pub fn forget(root: &Path, scope: &EnvScope) -> Result<(), EnvError> {
 	let mut refused = None;
-	for name in RESERVED {
+	for name in RESERVED_NAMES {
 		if let Err(error) = store::delete(root, scope, name) {
 			refused = refused.or(Some(error));
 		}
@@ -86,6 +81,16 @@ mod tests {
 		}
 	}
 
+	fn a_bare_grant() -> OauthCredentials {
+		OauthCredentials {
+			access_token: "granted-again".to_owned(),
+			refresh_token: None,
+			expires_at: None,
+			client_id: "registered-again".to_owned(),
+			client_secret: None,
+		}
+	}
+
 	#[test]
 	fn the_five_reserved_names_land_at_server_scope() {
 		let root = a_root("five-names");
@@ -94,12 +99,12 @@ mod tests {
 		store(&root, &scope, &a_full_grant()).expect("the grant is written");
 
 		let kept = store::values(&root, &scope).expect("the scope is readable");
-		assert_eq!(kept.get(ACCESS_TOKEN).map(String::as_str), Some("granted"));
-		assert_eq!(kept.get(REFRESH_TOKEN).map(String::as_str), Some("renewable"));
-		assert_eq!(kept.get(EXPIRES_AT).map(String::as_str), Some("1700000000000"));
-		assert_eq!(kept.get(CLIENT_ID).map(String::as_str), Some("registered"));
-		assert_eq!(kept.get(CLIENT_SECRET).map(String::as_str), Some("confidential"));
-		assert_eq!(kept.len(), RESERVED.len());
+		assert_eq!(kept.get(OAUTH_ACCESS_TOKEN).map(String::as_str), Some("granted"));
+		assert_eq!(kept.get(OAUTH_REFRESH_TOKEN).map(String::as_str), Some("renewable"));
+		assert_eq!(kept.get(OAUTH_EXPIRES_AT).map(String::as_str), Some("1700000000000"));
+		assert_eq!(kept.get(OAUTH_CLIENT_ID).map(String::as_str), Some("registered"));
+		assert_eq!(kept.get(OAUTH_CLIENT_SECRET).map(String::as_str), Some("confidential"));
+		assert_eq!(kept.len(), RESERVED_NAMES.len());
 	}
 
 	#[test]
@@ -107,24 +112,29 @@ mod tests {
 		let root = a_root("no-expiry");
 		let scope = a_server();
 
-		store(
-			&root,
-			&scope,
-			&OauthCredentials {
-				access_token: "granted".to_owned(),
-				refresh_token: None,
-				expires_at: None,
-				client_id: "registered".to_owned(),
-				client_secret: None,
-			},
-		)
-		.expect("the grant is written");
+		store(&root, &scope, &a_bare_grant()).expect("the grant is written");
 
 		let kept = store::values(&root, &scope).expect("the scope is readable");
 		assert_eq!(
 			kept.keys().map(String::as_str).collect::<Vec<_>>(),
-			vec![ACCESS_TOKEN, CLIENT_ID]
+			vec![OAUTH_ACCESS_TOKEN, OAUTH_CLIENT_ID]
 		);
+	}
+
+	#[test]
+	fn a_second_grant_leaves_no_value_of_the_first_behind() {
+		let root = a_root("second-grant");
+		let scope = a_server();
+		store(&root, &scope, &a_full_grant()).expect("the first grant is written");
+
+		store(&root, &scope, &a_bare_grant()).expect("the second grant is written");
+
+		let kept = store::values(&root, &scope).expect("the scope is readable");
+		assert_eq!(kept.get(OAUTH_ACCESS_TOKEN).map(String::as_str), Some("granted-again"));
+		assert_eq!(kept.get(OAUTH_CLIENT_ID).map(String::as_str), Some("registered-again"));
+		assert_eq!(kept.get(OAUTH_REFRESH_TOKEN), None);
+		assert_eq!(kept.get(OAUTH_EXPIRES_AT), None);
+		assert_eq!(kept.get(OAUTH_CLIENT_SECRET), None);
 	}
 
 	#[test]
@@ -138,7 +148,7 @@ mod tests {
 
 		let kept = store::values(&root, &scope).expect("the scope is readable");
 		assert_eq!(kept.get("GRANOLA_REGION").map(String::as_str), Some("eu"));
-		assert!(RESERVED.iter().all(|name| !kept.contains_key(*name)));
+		assert!(RESERVED_NAMES.iter().all(|name| !kept.contains_key(*name)));
 	}
 
 	#[test]
@@ -146,5 +156,20 @@ mod tests {
 		let root = a_root("forget-empty");
 
 		forget(&root, &a_server()).expect("nothing to delete is not a failure");
+	}
+
+	#[test]
+	fn a_listing_of_a_server_scope_names_none_of_the_five() {
+		let root = a_root("listing");
+		let scope = a_server();
+		store::set(&root, &scope, "GRANOLA_REGION", "eu").expect("the name is written");
+		store(&root, &scope, &a_full_grant()).expect("the grant is written");
+
+		let listed = store::list(&root, &scope).expect("the scope lists");
+
+		assert_eq!(
+			listed.iter().map(|entry| entry.name.as_str()).collect::<Vec<_>>(),
+			vec!["GRANOLA_REGION"]
+		);
 	}
 }

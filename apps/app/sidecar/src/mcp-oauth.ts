@@ -63,6 +63,7 @@ export type AuthorizeRequest = {
 export type RevokeRequest = {
 	url?: string
 	token?: string
+	refreshToken?: string
 	clientId?: string
 	clientSecret?: string
 }
@@ -94,11 +95,21 @@ const timedFetch: FetchLike = (input, init) =>
 
 const refused = () => new Response(REFUSED, { status: 400 })
 
+const LOOPBACK_HOSTS = new Set([LOOPBACK, "localhost"])
+
+const PORT_SUFFIX = /:\d+$/
+
+const isLoopback = (host: string | null) =>
+	host !== null && LOOPBACK_HOSTS.has(host.replace(PORT_SUFFIX, ""))
+
 const answerRedirect = (
 	request: Request,
 	state: string,
 	settle: Settle,
 ): Response => {
+	if (!isLoopback(request.headers.get("host"))) {
+		return refused()
+	}
 	const asked = new URL(request.url)
 	if (asked.pathname !== REDIRECT_PATH) {
 		return refused()
@@ -252,11 +263,24 @@ export const cancelMcpAuthorization = () => {
 	running?.({ failure: { kind: "cancelled" } })
 }
 
-const revocationBody = ({ token, clientId, clientSecret }: RevokeRequest) => {
-	const body = new URLSearchParams({
-		token: token ?? "",
-		token_type_hint: "access_token",
-	})
+type Revocable = [token: string, hint: string]
+
+const revocables = ({ token, refreshToken }: RevokeRequest): Revocable[] => {
+	const posted: Revocable[] = []
+	if (token) {
+		posted.push([token, "access_token"])
+	}
+	if (refreshToken) {
+		posted.push([refreshToken, "refresh_token"])
+	}
+	return posted
+}
+
+const revocationBody = (
+	{ clientId, clientSecret }: RevokeRequest,
+	[token, hint]: Revocable,
+) => {
+	const body = new URLSearchParams({ token, token_type_hint: hint })
 	if (clientId) {
 		body.set("client_id", clientId)
 	}
@@ -275,15 +299,17 @@ const posted = async (
 	endpoint: string,
 	request: RevokeRequest,
 ): Promise<RevocationAnswer> => {
-	const answered = await timedFetch(endpoint, {
-		method: "POST",
-		headers: { "content-type": "application/x-www-form-urlencoded" },
-		body: revocationBody(request),
-	})
-	if (!answered.ok) {
-		return {
-			revoked: false,
-			detail: `the revocation endpoint answered ${answered.status}`,
+	for (const revocable of revocables(request)) {
+		const answered = await timedFetch(endpoint, {
+			method: "POST",
+			headers: { "content-type": "application/x-www-form-urlencoded" },
+			body: revocationBody(request, revocable),
+		})
+		if (!answered.ok) {
+			return {
+				revoked: false,
+				detail: `the revocation endpoint answered ${answered.status}`,
+			}
 		}
 	}
 	return { revoked: true }
@@ -292,8 +318,8 @@ const posted = async (
 export const revokeMcpToken = async (
 	request: RevokeRequest,
 ): Promise<RevocationAnswer> => {
-	const { url, token } = request
-	if (!url || !token) {
+	const { url } = request
+	if (!url || revocables(request).length === 0) {
 		return { revoked: false, detail: "no server url or no token was named" }
 	}
 	try {

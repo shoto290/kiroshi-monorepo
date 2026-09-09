@@ -39,6 +39,7 @@ type Command = {
 	text?: string
 	url?: string
 	token?: string
+	refreshToken?: string
 	clientId?: string
 	clientSecret?: string
 	requestId?: string

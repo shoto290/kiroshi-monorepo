@@ -26,9 +26,13 @@ type Authority = {
 	stop: () => Promise<void>
 }
 
-const anAuthorizationServer = (
-	{ revocable }: { revocable: boolean } = { revocable: true },
-): Authority => {
+const anAuthorizationServer = ({
+	revocable = true,
+	revocationStatus = 200,
+}: {
+	revocable?: boolean
+	revocationStatus?: number
+} = {}): Authority => {
 	const seen: Registration = {
 		redirectUris: [],
 		tokenRequests: [],
@@ -75,7 +79,7 @@ const anAuthorizationServer = (
 			}
 			if (asked.pathname === "/revoke") {
 				seen.revocations.push(new URLSearchParams(await request.text()))
-				return new Response(null, { status: 200 })
+				return new Response(null, { status: revocationStatus })
 			}
 			return new Response(null, { status: 404 })
 		},
@@ -239,6 +243,54 @@ describe("mcp oauth", () => {
 		}
 	}, 20_000)
 
+	it("refuses a redirect whose host header names neither loopback name", async () => {
+		frames.length = 0
+		const authority = anAuthorizationServer()
+		try {
+			const flow = authorizeMcpServer({ url: authority.url }, collect)
+			const landing = new URL(await waitForRegistration(authority.seen))
+			landing.searchParams.set("code", CODE)
+			landing.searchParams.set(
+				"state",
+				String(startedUrl().searchParams.get("state")),
+			)
+			const rebound = await fetch(landing, {
+				headers: { Host: "granola.attacker.test" },
+			})
+			cancelMcpAuthorization()
+
+			expect(rebound.status).toBe(400)
+			expect(await flow).toEqual({ error: { kind: "cancelled" } })
+			expect(authority.seen.tokenRequests).toHaveLength(0)
+		} finally {
+			await authority.stop()
+		}
+	}, 20_000)
+
+	it("takes a redirect whose host header names localhost with the bound port", async () => {
+		frames.length = 0
+		const authority = anAuthorizationServer()
+		try {
+			const flow = authorizeMcpServer({ url: authority.url }, collect)
+			const landing = new URL(await waitForRegistration(authority.seen))
+			landing.searchParams.set("code", CODE)
+			landing.searchParams.set(
+				"state",
+				String(startedUrl().searchParams.get("state")),
+			)
+			const answered = await fetch(landing, {
+				headers: { Host: `localhost:${landing.port}` },
+			})
+
+			expect(answered.status).toBe(200)
+			expect(await flow).toMatchObject({
+				credentials: { accessToken: ACCESS_TOKEN },
+			})
+		} finally {
+			await authority.stop()
+		}
+	}, 20_000)
+
 	it("posts the token to the revocation endpoint the metadata advertises", async () => {
 		const authority = anAuthorizationServer()
 		try {
@@ -252,6 +304,49 @@ describe("mcp oauth", () => {
 			expect(answered).toEqual({ revoked: true })
 			expect(authority.seen.revocations[0]?.get("token")).toBe(ACCESS_TOKEN)
 			expect(authority.seen.revocations[0]?.get("client_id")).toBe(CLIENT_ID)
+		} finally {
+			await authority.stop()
+		}
+	}, 20_000)
+
+	it("posts the refresh token under its own hint beside the access token", async () => {
+		const authority = anAuthorizationServer()
+		try {
+			const answered = await revokeMcpToken({
+				url: authority.url,
+				token: ACCESS_TOKEN,
+				refreshToken: REFRESH_TOKEN,
+			})
+
+			expect(answered).toEqual({ revoked: true })
+			expect(
+				authority.seen.revocations.map((posted) => [
+					posted.get("token"),
+					posted.get("token_type_hint"),
+				]),
+			).toEqual([
+				[ACCESS_TOKEN, "access_token"],
+				[REFRESH_TOKEN, "refresh_token"],
+			])
+		} finally {
+			await authority.stop()
+		}
+	}, 20_000)
+
+	it("answers the status a revocation outside 2xx came back with", async () => {
+		const authority = anAuthorizationServer({ revocationStatus: 503 })
+		try {
+			const answered = await revokeMcpToken({
+				url: authority.url,
+				token: ACCESS_TOKEN,
+				refreshToken: REFRESH_TOKEN,
+			})
+
+			expect(answered).toEqual({
+				revoked: false,
+				detail: "the revocation endpoint answered 503",
+			})
+			expect(authority.seen.revocations).toHaveLength(1)
 		} finally {
 			await authority.stop()
 		}

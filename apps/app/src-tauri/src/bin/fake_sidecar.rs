@@ -552,8 +552,39 @@ fn answer_the_host(command: &Value) {
 			let asked = command["text"].as_str().unwrap_or("");
 			emit_raw(&json!({ "type": "title", "title": title(asked) }).to_string())
 		}
+		Some("mcp_oauth_authorize") => on_oauth_authorize(),
+		Some("mcp_oauth_cancel") => on_oauth_cancel(),
+		Some("mcp_oauth_revoke") => {
+			emit_raw(&json!({ "type": "mcp_oauth_revoke", "revoked": true }).to_string())
+		}
 		_ => {}
 	}
+}
+
+const OAUTH_AUTHORIZATION_URL: &str = "https://authority.test/authorize?state=fake";
+
+fn on_oauth_authorize() {
+	if std::env::var("FAKE_AGENT_OAUTH_SETTLES_FIRST").is_ok() {
+		return emit_raw(
+			&json!({
+				"type": "mcp_oauth_authorize",
+				"error": { "kind": "failed", "detail": "discovery was refused" }
+			})
+			.to_string(),
+		);
+	}
+	emit_raw(
+		&json!({ "type": "oauth_started", "url": OAUTH_AUTHORIZATION_URL }).to_string(),
+	);
+}
+
+fn on_oauth_cancel() {
+	if let Ok(path) = std::env::var("FAKE_AGENT_OAUTH_CANCEL_FILE") {
+		let _ = std::fs::write(path, "cancelled");
+	}
+	emit_raw(
+		&json!({ "type": "mcp_oauth_authorize", "error": { "kind": "cancelled" } }).to_string(),
+	);
 }
 
 fn checked() -> Value {

@@ -363,6 +363,8 @@ pub struct RevocationRequest {
 	pub url: String,
 	pub token: String,
 	#[serde(skip_serializing_if = "Option::is_none")]
+	pub refresh_token: Option<String>,
+	#[serde(skip_serializing_if = "Option::is_none")]
 	pub client_id: Option<String>,
 	#[serde(skip_serializing_if = "Option::is_none")]
 	pub client_secret: Option<String>,

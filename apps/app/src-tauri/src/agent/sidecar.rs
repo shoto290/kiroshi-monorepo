@@ -32,8 +32,6 @@ const CATALOGUE_TIMEOUT: Duration = Duration::from_secs(60);
 
 const TITLE_TIMEOUT: Duration = Duration::from_secs(60);
 
-const OAUTH_STARTED_TIMEOUT: Duration = Duration::from_secs(60);
-
 pub const OAUTH_FLOW_TIMEOUT: Duration = Duration::from_secs(310);
 
 const OAUTH_REVOKE_TIMEOUT: Duration = Duration::from_secs(60);
@@ -265,7 +263,7 @@ impl Sidecar {
 	) -> Result<Value, TransportError> {
 		let rx = self.expect(kind);
 		self.send(command)?;
-		answered(rx, timeout).await
+		awaited(rx, timeout).await
 	}
 
 	fn expect(&self, kind: &str) -> oneshot::Receiver<Value> {
@@ -274,11 +272,17 @@ impl Sidecar {
 		rx
 	}
 
-	pub fn begin_oauth(&self, url: &str) -> Result<OauthFlow, TransportError> {
+	pub fn begin_oauth(self: &Arc<Self>, url: &str) -> Result<OauthFlow, TransportError> {
 		let started = self.expect(protocol::OAUTH_STARTED);
 		let settled = self.expect(protocol::OAUTH_AUTHORIZE);
 		self.send(protocol::oauth_authorize_command(url))?;
-		Ok(OauthFlow { started, settled })
+		Ok(OauthFlow {
+			sidecar: self.clone(),
+			started,
+			settled,
+			deadline: tokio::time::Instant::now() + OAUTH_FLOW_TIMEOUT,
+			answered: false,
+		})
 	}
 
 	pub fn cancel_oauth(&self) -> Result<(), TransportError> {
@@ -353,37 +357,87 @@ impl Sidecar {
 	}
 }
 
+pub enum Opening {
+	Authorization(String),
+	Settled(Authorized),
+}
+
 pub struct OauthFlow {
+	sidecar: Arc<Sidecar>,
 	started: oneshot::Receiver<Value>,
 	settled: oneshot::Receiver<Value>,
+	deadline: tokio::time::Instant,
+	answered: bool,
 }
 
 impl OauthFlow {
-	pub async fn authorization_url(&mut self) -> Result<String, TransportError> {
-		let answer = answered(&mut self.started, OAUTH_STARTED_TIMEOUT).await?;
-		let started: OauthStarted = serde_json::from_value(answer)
-			.map_err(|error| TransportError::InvalidFrame { detail: error.to_string() })?;
-		Ok(started.url)
+	pub async fn opened(&mut self) -> Result<Opening, TransportError> {
+		let deadline = self.deadline;
+		let started = &mut self.started;
+		let settled = &mut self.settled;
+		let raced = tokio::time::timeout_at(deadline, async {
+			tokio::select! {
+				named = started => Ok(named),
+				answer = settled => Err(answer),
+			}
+		})
+		.await
+		.map_err(|_| outlasted(OAUTH_FLOW_TIMEOUT))?;
+		match raced {
+			Ok(named) => {
+				let opening: OauthStarted = read_frame(received(named)?)?;
+				Ok(Opening::Authorization(opening.url))
+			}
+			Err(answer) => {
+				self.answered = true;
+				Ok(Opening::Settled(read_frame(received(answer)?)?))
+			}
+		}
 	}
 
-	pub async fn settled(self) -> Result<Authorized, TransportError> {
-		let answer = answered(self.settled, OAUTH_FLOW_TIMEOUT).await?;
-		serde_json::from_value(answer)
-			.map_err(|error| TransportError::InvalidFrame { detail: error.to_string() })
+	pub async fn settled(&mut self) -> Result<Authorized, TransportError> {
+		let deadline = self.deadline;
+		let answer = tokio::time::timeout_at(deadline, &mut self.settled)
+			.await
+			.map_err(|_| outlasted(OAUTH_FLOW_TIMEOUT))?;
+		self.answered = true;
+		read_frame(received(answer)?)
 	}
 }
 
-async fn answered<F>(rx: F, timeout: Duration) -> Result<Value, TransportError>
-where
-	F: std::future::Future<Output = Result<Value, oneshot::error::RecvError>>,
-{
+impl Drop for OauthFlow {
+	fn drop(&mut self) {
+		if self.answered {
+			return;
+		}
+		// A sidecar that refuses the write holds no flow left to cancel.
+		let _ = self.sidecar.cancel_oauth();
+	}
+}
+
+fn read_frame<T: serde::de::DeserializeOwned>(answer: Value) -> Result<T, TransportError> {
+	serde_json::from_value(answer)
+		.map_err(|error| TransportError::InvalidFrame { detail: error.to_string() })
+}
+
+fn received(answer: Result<Value, oneshot::error::RecvError>) -> Result<Value, TransportError> {
+	answer.map_err(|_| TransportError::Crashed {
+		code: None,
+		detail: Some("the sidecar went away before it answered".into()),
+	})
+}
+
+fn outlasted(timeout: Duration) -> TransportError {
+	TransportError::StartupTimeout { timeout_ms: timeout.as_millis() as u64 }
+}
+
+async fn awaited(
+	rx: oneshot::Receiver<Value>,
+	timeout: Duration,
+) -> Result<Value, TransportError> {
 	match tokio::time::timeout(timeout, rx).await {
-		Ok(Ok(value)) => Ok(value),
-		Ok(Err(_)) => Err(TransportError::Crashed {
-			code: None,
-			detail: Some("the sidecar went away before it answered".into()),
-		}),
-		Err(_) => Err(TransportError::StartupTimeout { timeout_ms: timeout.as_millis() as u64 }),
+		Ok(value) => received(value),
+		Err(_) => Err(outlasted(timeout)),
 	}
 }
 
