@@ -262,7 +262,7 @@ const StreamingDemo = ({
 			</Transcript>
 			<div className="flex items-center gap-2 border-border border-t p-2">
 				<Button disabled={isStreaming} onClick={sendPrompt} size="sm">
-					Send prompt
+					Send
 				</Button>
 				<Button
 					onClick={() =>
@@ -420,7 +420,7 @@ export const StreamHoldsTheLastLine = meta.story({
 		const viewport = canvas.getByRole("region", { name: "Conversation" })
 		await atLiveEdge(viewport)
 
-		await userEvent.click(canvas.getByRole("button", { name: "Send prompt" }))
+		await userEvent.click(canvas.getByRole("button", { name: "Send" }))
 
 		let samples = 0
 		let widest = 0
@@ -450,7 +450,7 @@ export const Disengages = meta.story({
 		const viewport = canvas.getByRole("region", { name: "Conversation" })
 		await atLiveEdge(viewport)
 
-		await userEvent.click(canvas.getByRole("button", { name: "Send prompt" }))
+		await userEvent.click(canvas.getByRole("button", { name: "Send" }))
 		await scrollUp(viewport)
 
 		await waitFor(() => expect(args.onFollowChange).toHaveBeenCalledWith(false))
@@ -601,7 +601,7 @@ export const AnchorsTheSentMessage = meta.story({
 		const viewport = canvas.getByRole("region", { name: "Conversation" })
 		await atLiveEdge(viewport)
 
-		await userEvent.click(canvas.getByRole("button", { name: "Send prompt" }))
+		await userEvent.click(canvas.getByRole("button", { name: "Send" }))
 
 		const sent = canvas.getByText(PROMPT.text)
 		await waitFor(() => {
@@ -670,7 +670,7 @@ export const RestsWithoutABand = meta.story({
 		const viewport = canvas.getByRole("region", { name: "Conversation" })
 		await atLiveEdge(viewport)
 
-		await userEvent.click(canvas.getByRole("button", { name: "Send prompt" }))
+		await userEvent.click(canvas.getByRole("button", { name: "Send" }))
 		await waitFor(() => expect(canvas.getByText("Working")).toBeInTheDocument())
 		await waitFor(() => expect(canvas.queryByText("Working")).toBeNull(), {
 			timeout: 5000,
@@ -700,7 +700,7 @@ export const ConversationRestsWithoutABand = meta.story({
 		const viewport = canvas.getByRole("region", { name: "Conversation" })
 		await atLiveEdge(viewport)
 
-		await userEvent.click(canvas.getByRole("button", { name: "Send prompt" }))
+		await userEvent.click(canvas.getByRole("button", { name: "Send" }))
 		await waitFor(() => expect(canvas.getByText("Working")).toBeInTheDocument())
 		await waitFor(() => expect(canvas.queryByText("Working")).toBeNull(), {
 			timeout: 5000,
@@ -730,7 +730,7 @@ export const RestsAfterAResize = meta.story({
 		const viewport = canvas.getByRole("region", { name: "Conversation" })
 		await atLiveEdge(viewport)
 
-		await userEvent.click(canvas.getByRole("button", { name: "Send prompt" }))
+		await userEvent.click(canvas.getByRole("button", { name: "Send" }))
 		await waitFor(() => expect(canvas.getByText("Working")).toBeInTheDocument())
 		await waitFor(() => expect(canvas.queryByText("Working")).toBeNull(), {
 			timeout: 5000,

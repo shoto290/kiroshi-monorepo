@@ -22,7 +22,7 @@ const bots = {
 		mission: {
 			state: {
 				waiting: "waiting for you",
-				failed: "failed",
+				failed: "blocked",
 				ready: "ready to merge",
 				working: "working",
 			},
@@ -95,10 +95,10 @@ const bots = {
 			appearance: "Appearance",
 			instructions: "Instructions",
 			skills: "Skills",
-			mcp: "MCP servers",
-			environment: "Environment",
+			connectors: "Connectors",
+			secrets: "Secrets",
 			history: "History",
-			permissions: "Permissions",
+			approvals: "Approvals",
 			runtime: "Runtime",
 			danger: "Danger zone",
 		},
@@ -335,42 +335,42 @@ const bots = {
 			},
 		},
 	},
-	mcp: {
-		untitled: "Untitled server",
-		add: "Add server",
-		create: "Add server",
+	connectors: {
+		untitled: "Untitled connector",
+		add: "Add connector",
+		create: "Add connector",
 		save: "Save changes",
 		unsaved: "Unsaved changes",
-		back: "All servers",
+		back: "All connectors",
 		section: {
 			connection: "Connection",
-			environment: "Environment",
+			secrets: "Secrets",
 			advanced: "Advanced",
 		},
 		notice:
-			"A server is a program this companion starts on your machine, under your account, the next time it runs. Add one only from a source you trust.",
+			"A connector is a program this companion starts on your machine, under your account, the next time it runs. Add one only from a source you trust.",
 		empty: {
-			title: "No MCP servers yet",
+			title: "No connectors yet",
 			description:
-				"An MCP server gives this companion tools it does not have on its own. Adding one lets this companion start that program on your machine.",
+				"An MCP connector gives this companion tools it does not have on its own. Adding one lets this companion start that program on your machine.",
 		},
-		unavailable: "These MCP servers could not be read.",
+		unavailable: "These connectors could not be read.",
 		name: {
 			label: "Name",
 			placeholder: "atlas",
-			hint: "Lowercase letters, numbers and hyphens. It is what the server is declared under and what the companion connects to it as.",
+			hint: "Lowercase letters, numbers and hyphens. It is what the connector is declared under and what the companion connects to it as.",
 		},
 		config: {
 			label: "Configuration",
 			placeholder:
 				'{\n  "command": "npx",\n  "args": ["-y", "@scope/server"]\n}',
-			hint: "JSON, copied from the server's own instructions. A local server names a command, its arguments and its environment; a remote one names a URL.",
+			hint: "JSON, copied from the connector's own instructions. A local connector names a command, its arguments and its secrets; a remote one names a URL.",
 			invalid:
 				"This is not a JSON object, so there is nothing to save yet. Check the braces, the commas and the quotes.",
 		},
 		transport: {
 			label: "Transport",
-			hint: "It decides what the rest of the configuration says: a local server names a command to run, a remote one an address to reach.",
+			hint: "It decides what the rest of the configuration says: a local connector names a command to run, a remote one an address to reach.",
 			option: {
 				local: "Started on this machine",
 				remote: "Reached over the network",
@@ -393,7 +393,7 @@ const bots = {
 		},
 		endpoint: {
 			label: "Endpoint",
-			hint: "The kind of endpoint the address is reached on. A remote server written without one is skipped, so it is always saved beside the URL. Streamable HTTP is the same endpoint as HTTP, and a file already spelling it that way is left alone.",
+			hint: "The kind of endpoint the address is reached on. A remote connector written without one is skipped, so it is always saved beside the URL. Streamable HTTP is the same endpoint as HTTP, and a file already spelling it that way is left alone.",
 			option: {
 				http: "HTTP",
 				sse: "Server-sent events",
@@ -403,28 +403,28 @@ const bots = {
 		headers: {
 			label: "Headers",
 			placeholder: "Authorization: Bearer token",
-			hint: "One header a line, as name and value. This is where a server asks for a key.",
+			hint: "One header a line, as name and value. This is where a connector asks for a key.",
 		},
-		environment: {
-			label: "Environment",
+		secrets: {
+			label: "Secrets",
 			placeholder: "ATLAS_TOKEN=sk-...",
-			hint: "One name and value a line. The server starts with these, and nothing else this companion holds.",
+			hint: "One name and value a line. The connector starts with these, and nothing else this companion holds.",
 		},
 		leave: {
 			title: "Leave without saving?",
 			description:
-				"Everything typed since this server was opened goes with it. The server on the disk is left as it was.",
+				"Everything typed since this connector was opened goes with it. The connector on the disk is left as it was.",
 			action: "Leave",
 		},
 		launch: {
 			label: "What this starts",
-			environment: "Environment",
+			secrets: "Secrets",
 			unknown: "This configuration names nothing to start or connect to.",
 			reveal: "Show the value of {{name}}",
 			conceal: "Hide the value of {{name}}",
 		},
 		delete: {
-			action: "Remove server",
+			action: "Remove connector",
 			description:
 				"This companion stops starting it, and its configuration goes with it. This cannot be undone.",
 			confirm: {
@@ -432,7 +432,7 @@ const bots = {
 			},
 		},
 	},
-	environment: {
+	secrets: {
 		add: "Add variable",
 		notice:
 			"A value is written once and handed to what starts here. Nothing reads it back, so it is never shown again — not here, not anywhere.",
@@ -449,7 +449,7 @@ const bots = {
 		scope: {
 			space: "Space",
 			bot: "Companion",
-			server: "MCP server",
+			server: "Connector",
 		},
 		row: {
 			scopes: "Defined in {{defined}} · Served from {{served}}",
@@ -513,12 +513,12 @@ const bots = {
 			>,
 		},
 		directory: {
-			label: "Working directory",
+			label: "Folder",
 			placeholder: "Choose a folder",
 			browse: "Change",
 		},
 	},
-	permissions: {
+	approvals: {
 		mode: {
 			label: "Default answer to a request",
 			option: {
@@ -572,7 +572,7 @@ const bots = {
 	identity: {
 		avatar: "Avatar",
 		uploadedImage: "Uploaded image",
-		current: "{{animal}}, {{blot}}",
+		current: "{{animal}}, {{colour}}",
 		animal: {
 			label: "Animal",
 			option: {
@@ -587,9 +587,9 @@ const bots = {
 				skippy: "Skippy",
 			} as const satisfies Record<BotAvatarAnimal, string>,
 		},
-		blot: {
-			label: "Blot",
-			none: "No blot",
+		colour: {
+			label: "Colour",
+			none: "No colour",
 			option: {
 				red: "Red",
 				yellow: "Yellow",
@@ -612,7 +612,7 @@ const bots = {
 	danger: {
 		delete: "Delete companion",
 		description:
-			"Its avatar, instructions and working directory go with it. This cannot be undone.",
+			"Its avatar, instructions and folder go with it. This cannot be undone.",
 		confirm: {
 			title: "Delete {{name}}?",
 		},

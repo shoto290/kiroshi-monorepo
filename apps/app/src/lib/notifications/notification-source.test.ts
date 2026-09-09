@@ -299,7 +299,7 @@ describe("startNotificationSource", () => {
 		harness.chat.publish("bot-two", { permission: permission("p-1") })
 
 		expect(harness.notifications.sent).toEqual([
-			{ target: OTHER_BOT, title: "Ora", body: "Wants your permission" },
+			{ target: OTHER_BOT, title: "Ora", body: "Wants your approval" },
 		])
 	})
 

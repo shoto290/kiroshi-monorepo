@@ -84,7 +84,7 @@ const open = async (name: string) => {
 }
 
 const composer = () =>
-	screen.getByRole<HTMLTextAreaElement>("textbox", { name: "Prompt" })
+	screen.getByRole<HTMLTextAreaElement>("textbox", { name: "Message" })
 
 const typeDraft = (text: string) => {
 	fireEvent.change(composer(), { target: { value: text } })

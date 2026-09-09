@@ -56,7 +56,7 @@ const BotIdentityFields = ({
 	const groupId = useId()
 
 	const blotLabel = (blot?: BotAvatarBlot) =>
-		blot ? t(`identity.blot.option.${blot}`) : t("identity.blot.none")
+		blot ? t(`identity.colour.option.${blot}`) : t("identity.colour.none")
 
 	const dropPicture = () =>
 		onIdentityChange({ animal: identity.animal, blot: identity.blot })
@@ -67,7 +67,7 @@ const BotIdentityFields = ({
 				animal: t(
 					`identity.animal.option.${drawnAnimal(name, identity.animal)}`,
 				),
-				blot: blotLabel(identity.blot),
+				colour: blotLabel(identity.blot),
 			})
 
 	return (
@@ -127,7 +127,10 @@ const BotIdentityFields = ({
 				))}
 			</SettingsGroup>
 
-			<SettingsGroup grid="grid-cols-9 gap-1" label={t("identity.blot.label")}>
+			<SettingsGroup
+				grid="grid-cols-9 gap-1"
+				label={t("identity.colour.label")}
+			>
 				{BLOT_OPTIONS.map((blot) => (
 					<label
 						className={BLOT_OPTION_CLASS}

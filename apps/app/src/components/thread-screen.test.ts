@@ -123,7 +123,7 @@ const ROUTINE_TITLE = "Nightly report"
 const CAUSES_TITLE = "Routine reports could not be read"
 
 const CAUSES_SOLO_DESCRIPTION =
-	"The thread is intact. What opened each report is missing until the next read."
+	"The conversation is intact. What opened each report is missing until the next read."
 
 const BOT_TITLE = "Release manager"
 

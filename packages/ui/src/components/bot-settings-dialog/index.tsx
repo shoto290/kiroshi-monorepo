@@ -176,9 +176,9 @@ const BotSettingsDialog = ({
 
 	const leaveCopy = mcpSession.isOpen
 		? {
-				title: t("mcp.leave.title"),
-				description: t("mcp.leave.description"),
-				action: t("mcp.leave.action"),
+				title: t("connectors.leave.title"),
+				description: t("connectors.leave.description"),
+				action: t("connectors.leave.action"),
 			}
 		: {
 				title: t("skills.leave.title"),
@@ -254,13 +254,13 @@ const BotSettingsDialog = ({
 							<SettingsRailItem
 								icon={Icons.Server}
 								iconsOnly={iconsOnly}
-								label={t("dialog.tab.mcp")}
+								label={t("dialog.tab.connectors")}
 								value="mcp"
 							/>
 							<SettingsRailItem
 								icon={Icons.Json}
 								iconsOnly={iconsOnly}
-								label={t("dialog.tab.environment")}
+								label={t("dialog.tab.secrets")}
 								value="environment"
 							/>
 							{history ? (
@@ -274,7 +274,7 @@ const BotSettingsDialog = ({
 							<SettingsRailItem
 								icon={Icons.Shield}
 								iconsOnly={iconsOnly}
-								label={t("dialog.tab.permissions")}
+								label={t("dialog.tab.approvals")}
 								value="permissions"
 							/>
 							<SettingsRailItem

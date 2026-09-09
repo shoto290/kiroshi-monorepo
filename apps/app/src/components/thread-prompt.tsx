@@ -28,7 +28,7 @@ export const ApprovalPrompt = ({ request, responder }: ApprovalPromptProps) => {
 
 	return (
 		<ToolApproval
-			description={t("screen.permission.description")}
+			description={t("screen.approval.description")}
 			onAllowOnce={() => {
 				void responder.respond(request.id, "allowOnce")
 			}}
@@ -40,7 +40,7 @@ export const ApprovalPrompt = ({ request, responder }: ApprovalPromptProps) => {
 					? [
 							{
 								id: "path",
-								label: t("screen.permission.path"),
+								label: t("screen.approval.path"),
 								value: request.detail,
 							},
 						]

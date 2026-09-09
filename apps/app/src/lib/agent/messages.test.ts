@@ -37,7 +37,7 @@ describe("describeTransportError", () => {
 				kind: "writeFailed",
 				detail: "pipe closed & gone",
 			}),
-		).toBe("The prompt could not be sent: pipe closed & gone")
+		).toBe("The message could not be sent: pipe closed & gone")
 	})
 
 	it("names the server left out and the variable it waited for", () => {
@@ -48,7 +48,7 @@ describe("describeTransportError", () => {
 					'the server "linear" was left out: LINEAR_KEY is defined by no scope',
 			}),
 		).toBe(
-			'the server "linear" was left out: LINEAR_KEY is defined by no scope. The conversation carries on with the other servers.',
+			'the server "linear" was left out: LINEAR_KEY is defined by no scope. The conversation carries on with the other connectors.',
 		)
 	})
 

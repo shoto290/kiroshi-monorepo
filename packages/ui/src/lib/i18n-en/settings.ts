@@ -5,12 +5,12 @@ const settings = {
 	rail: {
 		profile: "Profile",
 		space: "Space",
-		environment: "Environment",
+		secrets: "Secrets",
 		appearance: "Appearance",
 		notifications: "Notifications",
 		language: "Language",
 		skills: "Skills",
-		mcp: "MCP servers",
+		connectors: "Connectors",
 		history: "History",
 		danger: "Danger zone",
 	},
@@ -40,7 +40,7 @@ const settings = {
 					"It has stopped and is waiting on an answer only you can give.",
 			},
 			permission: {
-				label: "A companion asks permission",
+				label: "A companion asks for approval",
 				description:
 					"It wants leave to run something or change a file, and waits until you say.",
 			},

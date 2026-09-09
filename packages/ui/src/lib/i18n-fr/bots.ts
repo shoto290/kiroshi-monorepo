@@ -13,7 +13,7 @@ const bots = {
 		mission: {
 			state: {
 				waiting: "en attente de vous",
-				failed: "en échec",
+				failed: "bloquée",
 				ready: "prête à fusionner",
 				working: "en cours",
 			},
@@ -86,10 +86,10 @@ const bots = {
 			appearance: "Apparence",
 			instructions: "Instructions",
 			skills: "Compétences",
-			mcp: "Serveurs MCP",
-			environment: "Environnement",
+			connectors: "Connecteurs",
+			secrets: "Secrets",
 			history: "Historique",
-			permissions: "Permissions",
+			approvals: "Autorisations",
 			runtime: "Exécution",
 			danger: "Zone sensible",
 		},
@@ -328,42 +328,42 @@ const bots = {
 			},
 		},
 	},
-	mcp: {
-		untitled: "Serveur sans titre",
-		add: "Ajouter un serveur",
-		create: "Ajouter le serveur",
+	connectors: {
+		untitled: "Connecteur sans titre",
+		add: "Ajouter un connecteur",
+		create: "Ajouter le connecteur",
 		save: "Enregistrer les modifications",
 		unsaved: "Modifications non enregistrées",
-		back: "Tous les serveurs",
+		back: "Tous les connecteurs",
 		section: {
 			connection: "Connexion",
-			environment: "Environnement",
+			secrets: "Secrets",
 			advanced: "Avancé",
 		},
 		notice:
-			"Un serveur est un programme que ce compagnon démarre sur votre machine, sous votre compte, à sa prochaine exécution. N'en ajoutez un que depuis une source de confiance.",
+			"Un connecteur est un programme que ce compagnon démarre sur votre machine, sous votre compte, à sa prochaine exécution. N'en ajoutez un que depuis une source de confiance.",
 		empty: {
-			title: "Aucun serveur MCP",
+			title: "Aucun connecteur",
 			description:
-				"Un serveur MCP donne à ce compagnon des outils qu'il n'a pas seul. En ajouter un l'autorise à démarrer ce programme sur votre machine.",
+				"Un connecteur MCP donne à ce compagnon des outils qu'il n'a pas seul. En ajouter un l'autorise à démarrer ce programme sur votre machine.",
 		},
-		unavailable: "Ces serveurs MCP n'ont pas pu être lus.",
+		unavailable: "Ces connecteurs n'ont pas pu être lus.",
 		name: {
 			label: "Nom",
 			placeholder: "atlas",
-			hint: "Minuscules, chiffres et traits d'union. C'est le nom sous lequel le serveur est déclaré et celui par lequel le compagnon s'y connecte.",
+			hint: "Minuscules, chiffres et traits d'union. C'est le nom sous lequel le connecteur est déclaré et celui par lequel le compagnon s'y connecte.",
 		},
 		config: {
 			label: "Configuration",
 			placeholder:
 				'{\n  "command": "npx",\n  "args": ["-y", "@scope/server"]\n}',
-			hint: "Du JSON, repris des instructions du serveur. Un serveur local nomme une commande, ses arguments et son environnement ; un serveur distant nomme une URL.",
+			hint: "Du JSON, repris des instructions du connecteur. Un connecteur local nomme une commande, ses arguments et ses secrets ; un connecteur distant nomme une URL.",
 			invalid:
 				"Ce n'est pas un objet JSON, il n'y a donc rien à enregistrer. Vérifiez les accolades, les virgules et les guillemets.",
 		},
 		transport: {
 			label: "Transport",
-			hint: "C'est lui qui décide de ce que dit le reste de la configuration : un serveur local nomme une commande à lancer, un serveur distant une adresse à joindre.",
+			hint: "C'est lui qui décide de ce que dit le reste de la configuration : un connecteur local nomme une commande à lancer, un connecteur distant une adresse à joindre.",
 			option: {
 				local: "Démarré sur cette machine",
 				remote: "Joint par le réseau",
@@ -386,7 +386,7 @@ const bots = {
 		},
 		endpoint: {
 			label: "Point d'accès",
-			hint: "Le type de point d'accès sur lequel l'adresse est jointe. Un serveur distant écrit sans lui est ignoré, il est donc toujours enregistré à côté de l'URL. Streamable HTTP est le même point d'accès que HTTP, et un fichier qui l'écrit déjà ainsi est laissé tel quel.",
+			hint: "Le type de point d'accès sur lequel l'adresse est jointe. Un connecteur distant écrit sans lui est ignoré, il est donc toujours enregistré à côté de l'URL. Streamable HTTP est le même point d'accès que HTTP, et un fichier qui l'écrit déjà ainsi est laissé tel quel.",
 			option: {
 				http: "HTTP",
 				sse: "Événements envoyés par le serveur",
@@ -396,28 +396,28 @@ const bots = {
 		headers: {
 			label: "En-têtes",
 			placeholder: "Authorization: Bearer jeton",
-			hint: "Un en-tête par ligne, nom et valeur. C'est ici qu'un serveur demande une clé.",
+			hint: "Un en-tête par ligne, nom et valeur. C'est ici qu'un connecteur demande une clé.",
 		},
-		environment: {
-			label: "Environnement",
+		secrets: {
+			label: "Secrets",
 			placeholder: "ATLAS_TOKEN=sk-...",
-			hint: "Un nom et une valeur par ligne. Le serveur démarre avec ceux-ci, et rien d'autre de ce que ce compagnon détient.",
+			hint: "Un nom et une valeur par ligne. Le connecteur démarre avec ceux-ci, et rien d'autre de ce que ce compagnon détient.",
 		},
 		leave: {
 			title: "Partir sans enregistrer ?",
 			description:
-				"Tout ce qui a été tapé depuis l'ouverture de ce serveur part avec. Le serveur sur le disque reste tel qu'il était.",
+				"Tout ce qui a été tapé depuis l'ouverture de ce connecteur part avec. Le connecteur sur le disque reste tel qu'il était.",
 			action: "Partir",
 		},
 		launch: {
 			label: "Ce que cela démarre",
-			environment: "Environnement",
+			secrets: "Secrets",
 			unknown: "Cette configuration ne nomme rien à démarrer ni à joindre.",
 			reveal: "Afficher la valeur de {{name}}",
 			conceal: "Masquer la valeur de {{name}}",
 		},
 		delete: {
-			action: "Retirer le serveur",
+			action: "Retirer le connecteur",
 			description:
 				"Ce compagnon cesse de le démarrer et sa configuration part avec lui. C'est irréversible.",
 			confirm: {
@@ -425,7 +425,7 @@ const bots = {
 			},
 		},
 	},
-	environment: {
+	secrets: {
 		add: "Ajouter une variable",
 		notice:
 			"Une valeur est écrite une fois et remise à ce qui démarre ici. Rien ne la relit, elle n'est donc jamais réaffichée — ni ici, ni ailleurs.",
@@ -442,7 +442,7 @@ const bots = {
 		scope: {
 			space: "Espace",
 			bot: "Compagnon",
-			server: "Serveur MCP",
+			server: "Connecteur",
 		},
 		row: {
 			scopes: "Définie dans {{defined}} · Servie depuis {{served}}",
@@ -503,12 +503,12 @@ const bots = {
 			},
 		},
 		directory: {
-			label: "Dossier de travail",
+			label: "Dossier",
 			placeholder: "Choisissez un dossier",
 			browse: "Changer",
 		},
 	},
-	permissions: {
+	approvals: {
 		mode: {
 			label: "Réponse par défaut à une demande",
 			option: {
@@ -568,7 +568,7 @@ const bots = {
 	identity: {
 		avatar: "Avatar",
 		uploadedImage: "Image importée",
-		current: "{{animal}}, {{blot}}",
+		current: "{{animal}}, {{colour}}",
 		animal: {
 			label: "Animal",
 			option: {
@@ -583,9 +583,9 @@ const bots = {
 				skippy: "Skippy",
 			},
 		},
-		blot: {
-			label: "Tache",
-			none: "Aucune tache",
+		colour: {
+			label: "Couleur",
+			none: "Aucune couleur",
 			option: {
 				red: "Rouge",
 				yellow: "Jaune",
@@ -608,7 +608,7 @@ const bots = {
 	danger: {
 		delete: "Supprimer le compagnon",
 		description:
-			"Son avatar, ses instructions et son dossier de travail partent avec lui. C'est irréversible.",
+			"Son avatar, ses instructions et son dossier partent avec lui. C'est irréversible.",
 		confirm: {
 			title: "Supprimer {{name}} ?",
 		},

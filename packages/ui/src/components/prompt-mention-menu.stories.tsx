@@ -60,7 +60,11 @@ const ComposedMenu = (props: PromptMentionMenuProps) => {
 
 	return (
 		<PromptMentionMenu {...props} query={draft.replace("@", "")}>
-			<PromptInput aria-label="Prompt" onValueChange={setDraft} value={draft} />
+			<PromptInput
+				aria-label="Message"
+				onValueChange={setDraft}
+				value={draft}
+			/>
 		</PromptMentionMenu>
 	)
 }
@@ -84,7 +88,7 @@ const meta = preview.meta({
 		query: "",
 		onSelect: fn(),
 		onDismiss: fn(),
-		children: <PromptInput aria-label="Prompt" defaultValue="@" />,
+		children: <PromptInput aria-label="Message" defaultValue="@" />,
 	},
 	argTypes: {
 		open: { control: "boolean" },
@@ -239,7 +243,7 @@ export const QueryChanged = meta.story({
 	},
 	render: (args) => <ComposedMenu {...args} />,
 	play: async ({ canvas, userEvent }) => {
-		await userEvent.click(canvas.getByRole("textbox", { name: "Prompt" }))
+		await userEvent.click(canvas.getByRole("textbox", { name: "Message" }))
 		await userEvent.keyboard("{ArrowDown}{ArrowDown}")
 
 		await expect(canvas.getAllByRole("option")[2]).toHaveAttribute(

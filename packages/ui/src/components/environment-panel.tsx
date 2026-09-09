@@ -100,31 +100,31 @@ const EnvironmentWriteDialog = ({
 			<DialogSurface className="w-100">
 				<DialogTitle>
 					{isReplacing
-						? t("environment.set.replace.title")
-						: t("environment.set.add.title")}
+						? t("secrets.set.replace.title")
+						: t("secrets.set.add.title")}
 				</DialogTitle>
 				<DialogDescription>
 					{isReplacing
-						? t("environment.set.replace.description", { name: written })
-						: t("environment.set.add.description")}
+						? t("secrets.set.replace.description", { name: written })
+						: t("secrets.set.add.description")}
 				</DialogDescription>
 
 				<form className="flex flex-col gap-4" onSubmit={submit}>
 					<SettingsField
-						error={isRefused ? t("environment.set.name.invalid") : undefined}
-						hint={t("environment.set.name.hint")}
-						label={t("environment.set.name.label")}
+						error={isRefused ? t("secrets.set.name.invalid") : undefined}
+						hint={t("secrets.set.name.hint")}
+						label={t("secrets.set.name.label")}
 						onValueChange={(next) => {
 							setName(next)
 							setRefused(false)
 						}}
-						placeholder={t("environment.set.name.placeholder")}
+						placeholder={t("secrets.set.name.placeholder")}
 						readOnly={isReplacing}
 						value={name}
 					/>
 					<SettingsField
-						hint={t("environment.set.value.hint")}
-						label={t("environment.set.value.label")}
+						hint={t("secrets.set.value.hint")}
+						label={t("secrets.set.value.label")}
 						masked
 						onValueChange={setValue}
 						value={value}
@@ -132,14 +132,14 @@ const EnvironmentWriteDialog = ({
 
 					{hasFailed ? (
 						<p className="text-destructive text-xs" role="alert">
-							{t("environment.set.failed")}
+							{t("secrets.set.failed")}
 						</p>
 					) : null}
 
 					<div className="flex justify-end">
 						<Button disabled={isWriting} size="sm" type="submit">
 							<Icons.Check aria-hidden="true" className="size-3.5" />
-							{t("environment.set.submit")}
+							{t("secrets.set.submit")}
 						</Button>
 					</div>
 				</form>
@@ -173,24 +173,24 @@ const EnvironmentRow = ({
 					{entry.name}
 				</span>
 				<span className="truncate text-muted-foreground text-xs">
-					{t("environment.row.scopes", {
-						defined: t(`environment.scope.${entry.definedIn}`),
-						served: t(`environment.scope.${entry.servedFrom}`),
+					{t("secrets.row.scopes", {
+						defined: t(`secrets.scope.${entry.definedIn}`),
+						served: t(`secrets.scope.${entry.servedFrom}`),
 					})}
 				</span>
 			</span>
 
 			{overriddenBy ? (
 				<span className={cn(SETTINGS_TAG_CLASS, "text-muted-foreground")}>
-					{t("environment.row.overridden", {
-						scope: t(`environment.scope.${entry.servedFrom}`),
+					{t("secrets.row.overridden", {
+						scope: t(`secrets.scope.${entry.servedFrom}`),
 					})}
 				</span>
 			) : null}
 			{overriding ? (
 				<span className={cn(SETTINGS_TAG_CLASS, "text-muted-foreground")}>
-					{t("environment.row.overriding", {
-						scope: t(`environment.scope.${overriding}`),
+					{t("secrets.row.overriding", {
+						scope: t(`secrets.scope.${overriding}`),
 					})}
 				</span>
 			) : null}
@@ -198,7 +198,7 @@ const EnvironmentRow = ({
 			{isOwned ? (
 				<span className="flex shrink-0 items-center gap-1">
 					<Button
-						aria-label={t("environment.row.replace", { name: entry.name })}
+						aria-label={t("secrets.row.replace", { name: entry.name })}
 						onClick={onReplace}
 						size="icon-xs"
 						variant="ghost"
@@ -206,7 +206,7 @@ const EnvironmentRow = ({
 						<Icons.Edit aria-hidden="true" className="size-3.5" />
 					</Button>
 					<Button
-						aria-label={t("environment.row.remove", { name: entry.name })}
+						aria-label={t("secrets.row.remove", { name: entry.name })}
 						onClick={onRemove}
 						size="icon-xs"
 						variant="ghost"
@@ -242,20 +242,20 @@ const EnvironmentPanel = ({
 	const removeDialog =
 		removed === null ? null : (
 			<ConfirmDialog
-				confirmLabel={t("environment.remove.action")}
-				description={t("environment.remove.description")}
-				failureLabel={t("environment.remove.failed")}
+				confirmLabel={t("secrets.remove.action")}
+				description={t("secrets.remove.description")}
+				failureLabel={t("secrets.remove.failed")}
 				onConfirm={() => onDelete(removed)}
 				onOpenChange={() => setRemoved(null)}
 				open
-				title={t("environment.remove.title", { name: removed })}
+				title={t("secrets.remove.title", { name: removed })}
 			/>
 		)
 
 	const failureNotice = hasFailedToRead ? (
 		<Notice
-			description={t("environment.unreadable.description")}
-			title={t("environment.unreadable.title")}
+			description={t("secrets.unreadable.description")}
+			title={t("secrets.unreadable.title")}
 		/>
 	) : null
 
@@ -273,15 +273,15 @@ const EnvironmentPanel = ({
 					/>
 					<div className="flex flex-col gap-1">
 						<span className="font-medium text-foreground text-sm">
-							{t("environment.empty.title")}
+							{t("secrets.empty.title")}
 						</span>
 						<p className="max-w-xs text-muted-foreground text-sm">
-							{t("environment.empty.description")}
+							{t("secrets.empty.description")}
 						</p>
 					</div>
 					<Button onClick={() => setWritten(NEW_NAME)} size="sm">
 						<Icons.Add aria-hidden="true" className="size-3.5" />
-						{t("environment.add")}
+						{t("secrets.add")}
 					</Button>
 				</div>
 				{writeDialog}
@@ -295,7 +295,7 @@ const EnvironmentPanel = ({
 
 			<div className="flex shrink-0 items-start justify-between gap-3">
 				<p className="max-w-sm text-muted-foreground text-xs leading-relaxed">
-					{t("environment.notice")}
+					{t("secrets.notice")}
 				</p>
 				<Button
 					onClick={() => setWritten(NEW_NAME)}
@@ -303,7 +303,7 @@ const EnvironmentPanel = ({
 					variant="outline"
 				>
 					<Icons.Add aria-hidden="true" className="size-3.5" />
-					{t("environment.add")}
+					{t("secrets.add")}
 				</Button>
 			</div>
 

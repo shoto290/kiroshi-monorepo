@@ -10,7 +10,7 @@ const chat = {
 			description: "Kiroshi n'atteint pas son agent intégré.",
 		},
 		settings: "Réglages du compagnon",
-		hint: "Saisissez votre première invite dans le champ ci-dessous",
+		hint: "Saisissez votre premier message dans le champ ci-dessous",
 		setup: "Réessayer",
 	},
 	conversationEmptyState: {
@@ -66,7 +66,7 @@ const chat = {
 				description:
 					"La conversation est intacte. Ce qui a déclenché chaque rapport manque jusqu'à la prochaine lecture.",
 				soloDescription:
-					"Le fil est intact. Ce qui a déclenché chaque rapport manque jusqu'à la prochaine lecture.",
+					"La conversation est intacte. Ce qui a déclenché chaque rapport manque jusqu'à la prochaine lecture.",
 			},
 		},
 		mention: {
@@ -83,7 +83,7 @@ const chat = {
 		unpin: "Retirer l'épingle",
 		copied: "Copié",
 		retry: "Réessayer",
-		cancel: "Annuler cette invite",
+		cancel: "Annuler ce message",
 		footer: {
 			cancelled: "Arrêté",
 			failed: "Cette réponse a échoué",
@@ -137,9 +137,9 @@ const chat = {
 		attach: "Joindre des fichiers",
 	},
 	composer: {
-		label: "Invite",
+		label: "Message",
 		placeholder: "Demandez à l'agent de faire quelque chose…",
-		send: "Envoyer l'invite",
+		send: "Envoyer",
 		commands: "Commandes",
 		mentions: "Compagnons",
 		mentioned_one: "{{count}} mention dans le brouillon",
@@ -193,8 +193,8 @@ const chat = {
 		label: "Conversation Claude Code",
 		identity: "{{name}} — réglages du compagnon",
 		conversationIdentity: "{{name}} — réglages de la conversation",
-		placeholder: "Demandez à {{name}} de faire quelque chose…",
-		permission: {
+		placeholder: "Message à {{name}}",
+		approval: {
 			description: "Claude Code attend votre accord avant de lancer cet outil.",
 			path: "Chemin",
 		},
@@ -203,7 +203,7 @@ const chat = {
 		},
 		attachmentsRefused: "Fichiers non joints",
 		restart: "Redémarrer la session",
-		handover: {
+		handoff: {
 			title: "{{first}} et {{second}} n'arrêtent pas de se passer le tour",
 			description:
 				"Ils se le sont renvoyé trois fois. Le tour continue tant que vous ne l'arrêtez pas.",
@@ -214,7 +214,7 @@ const chat = {
 			resumeFailed: "La conversation précédente n'a pas pu être reprise",
 			workingDirectoryRefused: "Le dossier du compagnon est introuvable",
 			settingsRejected: "Les réglages du compagnon n'ont pas été appliqués",
-			serverEnvRejected: "Un serveur a été laissé de côté",
+			serverEnvRejected: "Un connecteur a été laissé de côté",
 			unavailable: "Claude Code est indisponible",
 			failed: "Cette demande n'est pas passée",
 			readFailed: "Messages précédents non chargés",
@@ -239,7 +239,7 @@ const chat = {
 			settingsRejected:
 				"Le settings.json de ce compagnon n'a pas été appliqué : {{detail}}",
 			serverEnvRejected:
-				"{{detail}}. La conversation continue avec les autres serveurs.",
+				"{{detail}}. La conversation continue avec les autres connecteurs.",
 			notStarted: "Aucune session n'est en cours.",
 			turnAlreadyRunning: "Un tour est déjà en cours.",
 			transitionInProgress: "Un changement de session est déjà en cours.",
@@ -247,7 +247,7 @@ const chat = {
 			staleRuntimeSession:
 				"Cette session a été remplacée. Celle qui tourne maintenant a pris sa place.",
 			unknownPermission: "Demande d'autorisation inconnue ({{id}}).",
-			writeFailed: "L'invite n'a pas pu être envoyée : {{detail}}",
+			writeFailed: "Le message n'a pas pu être envoyé : {{detail}}",
 			readFailed: "Les messages précédents n'ont pas pu être lus : {{detail}}",
 			unknownFailure: "Quelque chose s'est mal passé : {{detail}}",
 		},
@@ -257,10 +257,10 @@ const chat = {
 			unknownConversation:
 				"Cette conversation n'est plus enregistrée. Rouvrez le compagnon et joignez-les à nouveau.",
 			tooMany:
-				"Une invite porte {{limit}} fichiers au maximum, et {{staged}} sont en attente.",
+				"Un message porte {{limit}} fichiers au maximum, et {{staged}} sont en attente.",
 			tooLarge: "{{name}} dépasse les {{limit}} qu'un seul fichier peut peser.",
 			tooLargeTogether:
-				"Les fichiers en attente totalisent {{bytes}}, au-delà des {{limit}} qu'une invite peut porter.",
+				"Les fichiers en attente totalisent {{bytes}}, au-delà des {{limit}} qu'un message peut porter.",
 			unwritable: "Les fichiers n'ont pas pu être enregistrés : {{detail}}",
 		},
 	},
@@ -533,10 +533,10 @@ const chat = {
 	missions: {
 		state: {
 			working: "En cours",
-			waiting_bot: "En attente du compagnon",
+			waiting_bot: "En cours",
 			waiting_human: "En attente de vous",
 			ready_to_merge: "Prête à fusionner",
-			failed: "En échec",
+			failed: "Bloquée",
 			done: "Terminée",
 		},
 		event: {
@@ -576,7 +576,7 @@ const chat = {
 			openedAt: "ouverte {{time}}",
 		},
 		feed: {
-			label: "Fil de la mission",
+			label: "Conversation de la mission",
 		},
 		summons: {
 			working: "Ouvert par la mission",
@@ -598,7 +598,7 @@ const chat = {
 			run: {
 				title: "Le compagnon n'a pas pu être lancé sur sa mission",
 				description:
-					"Rien n'a été modifié sur la mission. Ouvrez son fil pour voir où elle en est.",
+					"Rien n'a été modifié sur la mission. Ouvrez sa conversation pour voir où elle en est.",
 			},
 		},
 	},

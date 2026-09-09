@@ -7,7 +7,7 @@ import type { MissionState } from "../missions/mission-contract"
 
 const BODY_KEY = {
 	question: "common:notification.question",
-	permission: "common:notification.permission",
+	permission: "common:notification.approval",
 	finishedTurn: "common:notification.finishedTurn",
 } as const satisfies Record<NotifiedEvent, string>
 

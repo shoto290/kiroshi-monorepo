@@ -62,7 +62,7 @@ export const Empty = meta.story({
 		},
 	},
 	play: async ({ args, canvas, userEvent }) => {
-		await userEvent.click(canvas.getByRole("button", { name: "Add server" }))
+		await userEvent.click(canvas.getByRole("button", { name: "Add connector" }))
 
 		await expect(args.onAdd).toHaveBeenCalledTimes(1)
 	},
@@ -92,10 +92,10 @@ export const Unreadable = meta.story({
 	},
 	play: async ({ canvas }) => {
 		await expect(
-			canvas.getByText("These MCP servers could not be read."),
+			canvas.getByText("These connectors could not be read."),
 		).toBeVisible()
 		await expect(
-			canvas.queryByRole("button", { name: "Add server" }),
+			canvas.queryByRole("button", { name: "Add connector" }),
 		).not.toBeInTheDocument()
 	},
 })

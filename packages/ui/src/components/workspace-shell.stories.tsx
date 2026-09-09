@@ -177,7 +177,7 @@ export const Default = meta.story({
 		const sidebar = canvas.getByRole("complementary", { name: "Workspace" })
 		await expect(sidebar).toBeVisible()
 		await expect(canvas.getByRole("main")).toBeVisible()
-		await expect(canvas.getByRole("textbox", { name: "Prompt" })).toBeVisible()
+		await expect(canvas.getByRole("textbox", { name: "Message" })).toBeVisible()
 
 		const surface = shellSurface(canvas)
 		await expect(surface.style.getPropertyValue("--space-tint")).toBe("")
@@ -245,7 +245,7 @@ export const NotALandmark = meta.story({
 		) as HTMLElement
 
 		await expect(canvas.queryByRole("main")).toBeNull()
-		await expect(canvas.getByRole("textbox", { name: "Prompt" })).toBeVisible()
+		await expect(canvas.getByRole("textbox", { name: "Message" })).toBeVisible()
 		await expectCardDetached(
 			card,
 			canvas

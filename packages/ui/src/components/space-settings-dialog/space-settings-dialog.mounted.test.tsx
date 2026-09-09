@@ -68,35 +68,35 @@ const answer = (label: string, value: string) =>
 
 afterEach(cleanup)
 
-describe("SpaceSettingsDialog MCP servers", () => {
+describe("SpaceSettingsDialog connectors", () => {
 	it("lists the servers the space holds", async () => {
 		spaceDialog()
 
-		const panel = await pick("MCP servers")
+		const panel = await pick("Connectors")
 
 		expect(within(panel).getByText("atlas")).toBeTruthy()
 		expect(within(panel).getByText("ledger")).toBeTruthy()
 	})
 
-	it("says the listing failed instead of inviting a first server", async () => {
+	it("says the listing failed instead of inviting a first connector", async () => {
 		spaceDialog({ haveMcpServersFailedToLoad: true, mcpServers: [] })
 
-		const panel = await pick("MCP servers")
+		const panel = await pick("Connectors")
 
 		expect(
-			within(panel).getByText("These MCP servers could not be read."),
+			within(panel).getByText("These connectors could not be read."),
 		).toBeTruthy()
-		expect(screen.queryByRole("button", { name: "Add server" })).toBe(null)
+		expect(screen.queryByRole("button", { name: "Add connector" })).toBe(null)
 	})
 
 	it("writes a new server under the name it was given", async () => {
 		const onMcpServerCreate = vi.fn()
 		spaceDialog({ mcpServers: [], onMcpServerCreate })
 
-		press("Add server", await pick("MCP servers"))
+		press("Add connector", await pick("Connectors"))
 		answer("Name", "atlas")
 		answer("Command", "npx")
-		press("Add server")
+		press("Add connector")
 
 		expect(onMcpServerCreate).toHaveBeenCalledWith("atlas", { command: "npx" })
 	})
@@ -105,9 +105,9 @@ describe("SpaceSettingsDialog MCP servers", () => {
 		const onMcpServerDelete = vi.fn()
 		spaceDialog({ onMcpServerDelete })
 
-		press(/atlas/, await pick("MCP servers"))
-		press("Remove server")
-		press("Remove server", await screen.findByRole("alertdialog"))
+		press(/atlas/, await pick("Connectors"))
+		press("Remove connector")
+		press("Remove connector", await screen.findByRole("alertdialog"))
 
 		expect(onMcpServerDelete).toHaveBeenCalledWith("atlas")
 	})
@@ -116,23 +116,19 @@ describe("SpaceSettingsDialog MCP servers", () => {
 		const onMcpServerOpen = vi.fn()
 		spaceDialog({ onMcpServerOpen })
 
-		press(/atlas/, await pick("MCP servers"))
+		press(/atlas/, await pick("Connectors"))
 
 		expect(onMcpServerOpen).toHaveBeenLastCalledWith("atlas")
-		expect(
-			within(await pick("Environment")).getByText("LEDGER_KEY"),
-		).toBeTruthy()
+		expect(within(await pick("Secrets")).getByText("LEDGER_KEY")).toBeTruthy()
 	})
 
 	it("shows no variables for a server that was never saved", async () => {
 		const onMcpServerOpen = vi.fn()
 		spaceDialog({ mcpServers: [], onMcpServerOpen })
 
-		press("Add server", await pick("MCP servers"))
+		press("Add connector", await pick("Connectors"))
 
 		expect(onMcpServerOpen).toHaveBeenLastCalledWith(null)
-		expect(within(await pick("Environment")).queryByText("LEDGER_KEY")).toBe(
-			null,
-		)
+		expect(within(await pick("Secrets")).queryByText("LEDGER_KEY")).toBe(null)
 	})
 })

@@ -28,7 +28,7 @@ const McpServersPanel = ({
 			<div className={SETTINGS_EMPTY_CLASS}>
 				<Icons.Alert aria-hidden="true" className="size-8 text-destructive" />
 				<p className="max-w-xs text-muted-foreground text-sm">
-					{t("mcp.unavailable")}
+					{t("connectors.unavailable")}
 				</p>
 			</div>
 		)
@@ -43,15 +43,15 @@ const McpServersPanel = ({
 				/>
 				<div className="flex flex-col gap-1">
 					<span className="font-medium text-foreground text-sm">
-						{t("mcp.empty.title")}
+						{t("connectors.empty.title")}
 					</span>
 					<p className="max-w-xs text-muted-foreground text-sm">
-						{t("mcp.empty.description")}
+						{t("connectors.empty.description")}
 					</p>
 				</div>
 				<Button onClick={onAdd} size="sm">
 					<Icons.Add aria-hidden="true" className="size-3.5" />
-					{t("mcp.add")}
+					{t("connectors.add")}
 				</Button>
 			</div>
 		)
@@ -62,7 +62,7 @@ const McpServersPanel = ({
 			<div className="flex shrink-0 justify-end">
 				<Button onClick={onAdd} size="sm" variant="outline">
 					<Icons.Add aria-hidden="true" className="size-3.5" />
-					{t("mcp.add")}
+					{t("connectors.add")}
 				</Button>
 			</div>
 			<ul className="flex min-h-0 flex-1 list-none flex-col gap-2 overflow-y-auto p-0">
@@ -81,7 +81,9 @@ const McpServersPanel = ({
 										{server.name}
 									</span>
 									<span className="truncate font-mono text-muted-foreground text-xs">
-										{launch.command ?? launch.url ?? t("mcp.launch.unknown")}
+										{launch.command ??
+											launch.url ??
+											t("connectors.launch.unknown")}
 									</span>
 								</span>
 								<Icons.Next

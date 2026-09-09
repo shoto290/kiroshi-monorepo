@@ -18,7 +18,7 @@ const meta = preview.meta({
 		docs: {
 			description: {
 				component:
-					"Every environment variable handed to what this scope starts, listed by name alone. A value enters through the masked field and is never read back — no story, no state and no prop of this panel carries one, which is the whole point of the surface. What a row does carry is where the name is defined and which of the three scopes actually serves it, because a name written here can be silently replaced by a narrower one: space, then companion, then MCP server, the narrowest winning. The panel keeps nothing beyond the dialog it has open: it lists what it is given, reports a name and a typed value on set, and reports a name on delete.",
+					"Every environment variable handed to what this scope starts, listed by name alone. A value enters through the masked field and is never read back — no story, no state and no prop of this panel carries one, which is the whole point of the surface. What a row does carry is where the name is defined and which of the three scopes actually serves it, because a name written here can be silently replaced by a narrower one: space, then companion, then connector, the narrowest winning. The panel keeps nothing beyond the dialog it has open: it lists what it is given, reports a name and a typed value on set, and reports a name on delete.",
 			},
 		},
 	},
@@ -42,13 +42,13 @@ export const Default = meta.story({
 		docs: {
 			description: {
 				story:
-					"A companion seen from its own scope, holding all four kinds of row at once: inherited from the space, overriding the space, its own alone, and its own but beaten by a server. Check that the two marks read in opposite directions — `Overrides Space` on the row that wins, `Overridden by MCP server` on the row that loses — and that the inherited row offers neither replace nor remove, since a companion cannot delete what the space defines. Removing names the key before it reports anything.",
+					"A companion seen from its own scope, holding all four kinds of row at once: inherited from the space, overriding the space, its own alone, and its own but beaten by a server. Check that the two marks read in opposite directions — `Overrides Space` on the row that wins, `Overridden by Connector` on the row that loses — and that the inherited row offers neither replace nor remove, since a companion cannot delete what the space defines. Removing names the key before it reports anything.",
 			},
 		},
 	},
 	play: async ({ args, canvas, userEvent }) => {
 		await expect(canvas.getByText("Overrides Space")).toBeVisible()
-		await expect(canvas.getByText("Overridden by MCP server")).toBeVisible()
+		await expect(canvas.getByText("Overridden by Connector")).toBeVisible()
 		await expect(
 			canvas.getByText("Defined in Space · Served from Space"),
 		).toBeVisible()

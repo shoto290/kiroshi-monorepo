@@ -107,7 +107,7 @@ describe("a refused store", () => {
 	it("names the count limit the call was refused on", () => {
 		expect(
 			describeAttachmentError(t, { kind: "tooMany", count: 21, limit: 20 }),
-		).toBe("A prompt carries 20 files at most, and 21 are staged.")
+		).toBe("A message carries 20 files at most, and 21 are staged.")
 	})
 
 	it("names the total size limit the call was refused on", () => {
@@ -118,7 +118,7 @@ describe("a refused store", () => {
 				limit: 100 * 1024 * 1024,
 			}),
 		).toBe(
-			"The staged files come to 210 MB, over the 100 MB one prompt may carry.",
+			"The staged files come to 210 MB, over the 100 MB one message may carry.",
 		)
 	})
 

@@ -128,7 +128,7 @@ export const Default = meta.story({
 	},
 	play: async ({ canvas, canvasElement }) => {
 		await expect(canvas.getByRole("banner")).toBeVisible()
-		await expect(canvas.getByRole("textbox", { name: "Prompt" })).toBeVisible()
+		await expect(canvas.getByRole("textbox", { name: "Message" })).toBeVisible()
 		await expect(
 			canvasElement.querySelector('[data-slot="message-scroller-older"]'),
 		).toBeNull()

@@ -193,7 +193,7 @@ export const Environment = meta.story({
 		},
 	},
 	play: async ({ canvas, userEvent }) => {
-		const environment = canvas.getByRole("textbox", { name: "Environment" })
+		const environment = canvas.getByRole("textbox", { name: "Secrets" })
 
 		await expect(environment).toHaveValue(
 			"ATLAS_TOKEN=sk-atlas-2f9c41d8e7b6a530\nATLAS_REGION=eu",
@@ -228,9 +228,7 @@ export const ServerVariables = meta.story({
 		},
 	},
 	play: async ({ canvas }) => {
-		await expect(
-			canvas.getByRole("textbox", { name: "Environment" }),
-		).toBeVisible()
+		await expect(canvas.getByRole("textbox", { name: "Secrets" })).toBeVisible()
 		await expect(canvas.getByText("LEDGER_KEY")).toBeVisible()
 		await expect(canvas.getByText("SERVER_TIMEOUT_MS")).toBeVisible()
 	},
@@ -274,7 +272,7 @@ export const Empty = meta.story({
 		},
 	},
 	play: async ({ args, canvas, userEvent }) => {
-		const create = canvas.getByRole("button", { name: "Add server" })
+		const create = canvas.getByRole("button", { name: "Add connector" })
 
 		await expect(create).toBeDisabled()
 		await userEvent.type(canvas.getByLabelText("Name"), "Atlas Docs")
@@ -339,9 +337,11 @@ export const IconRail = meta.story({
 		},
 	},
 	play: async ({ canvas, userEvent }) => {
-		await userEvent.hover(canvas.getByRole("button", { name: "All servers" }))
+		await userEvent.hover(
+			canvas.getByRole("button", { name: "All connectors" }),
+		)
 		await expect(await screen.findByRole("tooltip")).toHaveTextContent(
-			"All servers",
+			"All connectors",
 		)
 	},
 })
@@ -383,7 +383,7 @@ export const WithConfirmation = meta.story({
 
 		await expect(popup).toHaveTextContent(`Remove ${LOCAL.name}?`)
 		await userEvent.click(
-			within(popup).getByRole("button", { name: "Remove server" }),
+			within(popup).getByRole("button", { name: "Remove connector" }),
 		)
 
 		await waitFor(() => expect(screen.queryByRole("alertdialog")).toBe(null))

@@ -108,7 +108,7 @@ const McpServerEditor = ({
 	const [typed, setTyped] = useState<Partial<BotMcpServerFields>>({})
 	const iconsOnly = useIsNarrowerThan(root, RAIL_LABELS_MIN_WIDTH)
 
-	const name = draft.name.trim() || t("mcp.untitled")
+	const name = draft.name.trim() || t("connectors.untitled")
 	const config = parseMcpServerConfig(draft.config)
 	const fields = readMcpServerFields(config ?? {})
 	const written = config && toMcpServerWrittenConfig(config, draft.transport)
@@ -165,17 +165,21 @@ const McpServerEditor = ({
 	const leave = () => (isUnsaved ? setLeaving(true) : onBack())
 
 	const transportOptions = MCP_TRANSPORTS.map((transport) => ({
-		label: t(`mcp.transport.option.${transport}`),
+		label: t(`connectors.transport.option.${transport}`),
 		value: transport,
 	}))
 
 	const endpointOptions = MCP_ENDPOINT_KINDS.map((kind) => ({
-		label: t(`mcp.endpoint.option.${kind}`),
+		label: t(`connectors.endpoint.option.${kind}`),
 		value: kind,
 	}))
 
 	const unreadable = (
-		<EditorNotice danger icon={Icons.Error} text={t("mcp.config.invalid")} />
+		<EditorNotice
+			danger
+			icon={Icons.Error}
+			text={t("connectors.config.invalid")}
+		/>
 	)
 
 	return (
@@ -191,7 +195,7 @@ const McpServerEditor = ({
 					<>
 						<SettingsRailBack
 							iconsOnly={iconsOnly}
-							label={t("mcp.back")}
+							label={t("connectors.back")}
 							onClick={leave}
 						/>
 						<SettingsRailSeparator />
@@ -201,19 +205,19 @@ const McpServerEditor = ({
 				<SettingsRailItem
 					icon={Icons.Server}
 					iconsOnly={iconsOnly}
-					label={t("mcp.section.connection")}
+					label={t("connectors.section.connection")}
 					value={FIRST_SECTION}
 				/>
 				<SettingsRailItem
 					icon={Icons.Shield}
 					iconsOnly={iconsOnly}
-					label={t("mcp.section.environment")}
+					label={t("connectors.section.secrets")}
 					value="environment"
 				/>
 				<SettingsRailItem
 					icon={Icons.Json}
 					iconsOnly={iconsOnly}
-					label={t("mcp.section.advanced")}
+					label={t("connectors.section.advanced")}
 					value="advanced"
 				/>
 			</SettingsRail>
@@ -226,22 +230,22 @@ const McpServerEditor = ({
 						</span>
 						{isUnsaved && isWritten ? (
 							<span className={cn(SETTINGS_TAG_CLASS, "text-muted-foreground")}>
-								{t("mcp.unsaved")}
+								{t("connectors.unsaved")}
 							</span>
 						) : null}
 					</div>
 					<div className="flex shrink-0 items-center gap-2">
 						{isWritten && onDelete ? (
 							<ConfirmDialog
-								confirmLabel={t("mcp.delete.action")}
+								confirmLabel={t("connectors.delete.action")}
 								defaultOpen={defaultConfirming}
-								description={t("mcp.delete.description")}
+								description={t("connectors.delete.description")}
 								onConfirm={onDelete}
-								title={t("mcp.delete.confirm.title", { name })}
+								title={t("connectors.delete.confirm.title", { name })}
 								trigger={
 									<>
 										<Icons.Delete aria-hidden="true" className="size-3.5" />
-										{t("mcp.delete.action")}
+										{t("connectors.delete.action")}
 									</>
 								}
 								triggerClassName={buttonVariants({
@@ -260,23 +264,23 @@ const McpServerEditor = ({
 							) : (
 								<Icons.Add aria-hidden="true" className="size-3.5" />
 							)}
-							{isWritten ? t("mcp.save") : t("mcp.create")}
+							{isWritten ? t("connectors.save") : t("connectors.create")}
 						</Button>
 					</div>
 				</div>
 
 				<SettingsScrollingPanel value={FIRST_SECTION}>
-					<EditorNotice icon={Icons.Alert} text={t("mcp.notice")} />
+					<EditorNotice icon={Icons.Alert} text={t("connectors.notice")} />
 					<SettingsField
-						hint={t("mcp.name.hint")}
-						label={t("mcp.name.label")}
+						hint={t("connectors.name.hint")}
+						label={t("connectors.name.label")}
 						onValueChange={(value) => patch({ name: toBundleName(value) })}
-						placeholder={t("mcp.name.placeholder")}
+						placeholder={t("connectors.name.placeholder")}
 						value={draft.name}
 					/>
 					<SettingsSelect
-						hint={t("mcp.transport.hint")}
-						label={t("mcp.transport.label")}
+						hint={t("connectors.transport.hint")}
+						label={t("connectors.transport.label")}
 						onValueChange={pickTransport}
 						options={transportOptions}
 						value={draft.transport}
@@ -285,17 +289,17 @@ const McpServerEditor = ({
 					{config && draft.transport === "local" ? (
 						<>
 							<SettingsField
-								hint={t("mcp.command.hint")}
-								label={t("mcp.command.label")}
+								hint={t("connectors.command.hint")}
+								label={t("connectors.command.label")}
 								onValueChange={(value) => answer("command", value)}
-								placeholder={t("mcp.command.placeholder")}
+								placeholder={t("connectors.command.placeholder")}
 								value={shown("command")}
 							/>
 							<SettingsField
-								hint={t("mcp.args.hint")}
-								label={t("mcp.args.label")}
+								hint={t("connectors.args.hint")}
+								label={t("connectors.args.label")}
 								onValueChange={(value) => answer("args", value)}
-								placeholder={t("mcp.args.placeholder")}
+								placeholder={t("connectors.args.placeholder")}
 								rows={4}
 								value={shown("args")}
 							/>
@@ -304,24 +308,24 @@ const McpServerEditor = ({
 					{config && draft.transport === "remote" ? (
 						<>
 							<SettingsField
-								hint={t("mcp.url.hint")}
-								label={t("mcp.url.label")}
+								hint={t("connectors.url.hint")}
+								label={t("connectors.url.label")}
 								onValueChange={(value) => answer("url", value)}
-								placeholder={t("mcp.url.placeholder")}
+								placeholder={t("connectors.url.placeholder")}
 								value={shown("url")}
 							/>
 							<SettingsSelect
-								hint={t("mcp.endpoint.hint")}
-								label={t("mcp.endpoint.label")}
+								hint={t("connectors.endpoint.hint")}
+								label={t("connectors.endpoint.label")}
 								onValueChange={(value) => answer("type", value)}
 								options={endpointOptions}
 								value={readMcpEndpointKind(fields.type)}
 							/>
 							<SettingsField
-								hint={t("mcp.headers.hint")}
-								label={t("mcp.headers.label")}
+								hint={t("connectors.headers.hint")}
+								label={t("connectors.headers.label")}
 								onValueChange={(value) => answer("headers", value)}
-								placeholder={t("mcp.headers.placeholder")}
+								placeholder={t("connectors.headers.placeholder")}
 								rows={4}
 								value={shown("headers")}
 							/>
@@ -332,10 +336,10 @@ const McpServerEditor = ({
 				<SettingsScrollingPanel value="environment">
 					{config ? (
 						<SettingsField
-							hint={t("mcp.environment.hint")}
-							label={t("mcp.environment.label")}
+							hint={t("connectors.secrets.hint")}
+							label={t("connectors.secrets.label")}
 							onValueChange={(value) => answer("environment", value)}
-							placeholder={t("mcp.environment.placeholder")}
+							placeholder={t("connectors.secrets.placeholder")}
 							rows={8}
 							value={shown("environment")}
 						/>
@@ -349,11 +353,11 @@ const McpServerEditor = ({
 
 				<SettingsScrollingPanel value="advanced">
 					<SettingsField
-						error={config ? undefined : t("mcp.config.invalid")}
-						hint={t("mcp.config.hint")}
-						label={t("mcp.config.label")}
+						error={config ? undefined : t("connectors.config.invalid")}
+						hint={t("connectors.config.hint")}
+						label={t("connectors.config.label")}
 						onValueChange={editConfig}
-						placeholder={t("mcp.config.placeholder")}
+						placeholder={t("connectors.config.placeholder")}
 						rows={10}
 						value={draft.config}
 					/>
@@ -362,12 +366,12 @@ const McpServerEditor = ({
 			</div>
 
 			<ConfirmDialog
-				confirmLabel={t("mcp.leave.action")}
-				description={t("mcp.leave.description")}
+				confirmLabel={t("connectors.leave.action")}
+				description={t("connectors.leave.description")}
 				onConfirm={onBack}
 				onOpenChange={setLeaving}
 				open={isLeaving}
-				title={t("mcp.leave.title")}
+				title={t("connectors.leave.title")}
 			/>
 		</Tabs.Root>
 	)

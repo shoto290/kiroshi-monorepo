@@ -17,7 +17,7 @@ const jump = fn()
 
 const Composer = () => (
 	<PromptInput
-		aria-label="Prompt"
+		aria-label="Message"
 		defaultValue={PROMPT}
 		leading={<PromptAttachButton onAttach={fn()} />}
 	/>
@@ -118,7 +118,7 @@ export const Default = meta.story({
 	},
 	play: async ({ args, canvas, userEvent }) => {
 		const frame = canvas.getByRole("group", { name: `Replying to ${AUTHOR}` })
-		const composer = canvas.getByRole("textbox", { name: "Prompt" })
+		const composer = canvas.getByRole("textbox", { name: "Message" })
 
 		await expect(frame).toContainElement(composer)
 		await expect(
@@ -144,7 +144,7 @@ export const Alignment = meta.story({
 	},
 	play: async ({ canvas }) => {
 		const frame = canvas.getByRole("group")
-		const textarea = canvas.getByRole("textbox", { name: "Prompt" })
+		const textarea = canvas.getByRole("textbox", { name: "Message" })
 		const glyph = frame.querySelector("span")?.getBoundingClientRect()
 		const quote = canvas
 			.getByRole("button", { name: /Skippy/ })
@@ -156,7 +156,7 @@ export const Alignment = meta.story({
 			.getByRole("button", { name: "Attach files" })
 			.getBoundingClientRect()
 		const send = canvas
-			.getByRole("button", { name: "Send prompt" })
+			.getByRole("button", { name: "Send" })
 			.getBoundingClientRect()
 		const composer = textarea
 			.closest('[data-slot="prompt-input"]')
@@ -194,7 +194,7 @@ export const Dismissed = meta.story({
 
 		await userEvent.click(canvas.getByRole("button", { name: "Cancel reply" }))
 		await expect(canvas.queryByRole("group")).not.toBeInTheDocument()
-		await expect(canvas.getByRole("textbox", { name: "Prompt" })).toHaveValue(
+		await expect(canvas.getByRole("textbox", { name: "Message" })).toHaveValue(
 			PROMPT,
 		)
 	},
@@ -211,7 +211,7 @@ export const Naming = meta.story({
 		},
 	},
 	play: async ({ canvas, userEvent }) => {
-		const textarea = canvas.getByRole("textbox", { name: "Prompt" })
+		const textarea = canvas.getByRole("textbox", { name: "Message" })
 
 		await userEvent.click(textarea)
 		await userEvent.type(textarea, " Twice?")
@@ -221,12 +221,16 @@ export const Naming = meta.story({
 
 		await userEvent.click(toggle)
 		await expect(canvas.getByRole("group")).toBeVisible()
-		await expect(canvas.getByRole("textbox", { name: "Prompt" })).toBe(textarea)
+		await expect(canvas.getByRole("textbox", { name: "Message" })).toBe(
+			textarea,
+		)
 		await expect(textarea).toHaveFocus()
 
 		await userEvent.click(canvas.getByRole("button", { name: "Cancel reply" }))
 		await expect(canvas.queryByRole("group")).not.toBeInTheDocument()
-		await expect(canvas.getByRole("textbox", { name: "Prompt" })).toBe(textarea)
+		await expect(canvas.getByRole("textbox", { name: "Message" })).toBe(
+			textarea,
+		)
 		await expect(textarea).toHaveValue(`${PROMPT} Twice?`)
 	},
 })
