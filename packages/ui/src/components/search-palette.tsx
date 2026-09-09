@@ -7,7 +7,6 @@ import { useTranslation } from "react-i18next"
 import { Button } from "@workspace/ui/components/button"
 import { EmptyStateShell } from "@workspace/ui/components/empty-state-shell"
 import { Icons } from "@workspace/ui/components/icons"
-import { Kbd, KbdGroup } from "@workspace/ui/components/kbd"
 import {
 	Tabs,
 	TabsList,
@@ -22,6 +21,7 @@ import {
 	DIALOG_POPUP_CLASS,
 } from "@workspace/ui/components/settings-styles"
 import { Switch } from "@workspace/ui/components/switch"
+import { Kbd, KbdGroup } from "@workspace/ui/components/ui/kbd"
 import { cn } from "@workspace/ui/lib/utils"
 
 type SearchKind = "messages" | "chats" | "missions" | "routines"

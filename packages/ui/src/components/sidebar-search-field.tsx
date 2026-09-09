@@ -4,7 +4,7 @@ import { useTranslation } from "react-i18next"
 
 import { Button } from "@workspace/ui/components/button"
 import { Icons } from "@workspace/ui/components/icons"
-import { Kbd } from "@workspace/ui/components/kbd"
+import { Kbd } from "@workspace/ui/components/ui/kbd"
 
 type SidebarSearchFieldProps = {
 	chord?: string
