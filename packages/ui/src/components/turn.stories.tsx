@@ -4,6 +4,7 @@ import { expect, fireEvent, fn, screen, waitFor, within } from "storybook/test"
 import preview from "@workspace/storybook/preview"
 import {
 	botIdentityAvatars,
+	shown,
 	slotIn,
 	slotsIn,
 	UPLOADED_AVATAR_IMAGE,
@@ -70,7 +71,7 @@ const rightClickOn = async (target: HTMLElement) => {
 
 const openTurnMenu = async (target: HTMLElement) => {
 	await rightClickOn(target)
-	return screen.findByRole("menu")
+	return shown(await screen.findByRole("menu", { name: "Message actions" }))
 }
 
 const PASTED = `Walk me through every package.\n\nStart with the design system, then the Tauri shell, and call out anything that crosses between them.`
@@ -717,12 +718,17 @@ export const Menu = meta.story({
 		docs: {
 			description: {
 				story:
-					"The same actions the hover row offers, reached by right-clicking the bubble instead of hunting for a button: pin, then reply and copy behind a separator, each carrying the icon and the label its button carries — a pinned row says `Unpin` in both places. A row is handed only the actions it was given a handler for, and the last row here, given none at all, keeps the browser's own menu rather than drawing an empty one. Check that the menu grows out of the pointer, that choosing a row reports it and closes, and that right-clicking a second bubble hands the menu over rather than leaving two open.",
+					"The same actions the hover row offers, reached by right-clicking the bubble instead of hunting for a button: pin, then reply and copy behind a separator, each carrying the icon and the label its button carries — a pinned row says `Unpin` in both places. A row is handed only the actions it was given a handler for, and the last row here, given none at all, keeps the browser's own menu rather than drawing an empty one. Check that the menu grows out of the pointer, that choosing a row reports it and closes, and that right-clicking a second bubble hands the menu over rather than leaving two open. The bubble stays selectable under the menu, because a reader copies a passage of an answer far more often than they right-click it; the registry trigger's own `select-none` is overridden here and only comes back on a coarse pointer, where a drag is a scroll and a long press is the way in. That coarse branch is a media query the runner cannot emulate, so the play reads the rule rather than the effect.",
 			},
 		},
 	},
-	play: async ({ canvas, userEvent }) => {
+	play: async ({ canvas, canvasElement, userEvent }) => {
 		reply.mockClear()
+
+		const surface = slotIn(canvasElement, "message-actions")
+
+		await expect(getComputedStyle(surface).userSelect).toBe("text")
+		await expect(surface.className).toContain("pointer-coarse:select-none")
 
 		const menu = await openTurnMenu(canvas.getByText(QUESTION))
 		const items = within(menu).getAllByRole("menuitem")
@@ -732,7 +738,7 @@ export const Menu = meta.story({
 			"Reply",
 			"Copy",
 		])
-		await expect(menu.querySelector("hr")).toBeInTheDocument()
+		await expect(within(menu).getByRole("separator")).toBeInTheDocument()
 
 		const pinned = await openTurnMenu(canvas.getByText(ANSWER))
 

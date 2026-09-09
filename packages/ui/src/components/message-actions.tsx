@@ -1,14 +1,17 @@
 "use client"
 
 import { type ReactNode, useContext } from "react"
+import { useTranslation } from "react-i18next"
 
 import { MessageSideContext } from "@workspace/ui/components/message-side-context"
+import { TooltipButton } from "@workspace/ui/components/tooltip-button"
 import {
 	ContextMenu,
 	ContextMenuContent,
 	ContextMenuTrigger,
-} from "@workspace/ui/components/motion/context-menu"
-import { TooltipButton } from "@workspace/ui/components/tooltip-button"
+} from "@workspace/ui/components/ui/context-menu"
+import { STILL_UNDER_REDUCED_MOTION } from "@workspace/ui/lib/reduced-motion"
+import { TOUCH_GESTURE_CONTENT_CLASS } from "@workspace/ui/lib/touch"
 import { cn } from "@workspace/ui/lib/utils"
 
 interface MessageActionsProps {
@@ -31,6 +34,7 @@ const ROW_SIDE_START = "flex max-w-full items-start gap-1"
 const ROW_SIDE_END = `${ROW_SIDE_START} flex-row-reverse`
 
 function MessageActions({ actions, menu, children }: MessageActionsProps) {
+	const { t } = useTranslation("chat")
 	const side = useContext(MessageSideContext) ?? "start"
 
 	const row = (
@@ -54,8 +58,16 @@ function MessageActions({ actions, menu, children }: MessageActionsProps) {
 
 	return (
 		<ContextMenu>
-			<ContextMenuTrigger announcesPopup={false}>{row}</ContextMenuTrigger>
-			<ContextMenuContent>{menu}</ContextMenuContent>
+			<ContextMenuTrigger
+				className={TOUCH_GESTURE_CONTENT_CLASS}
+				render={row}
+			/>
+			<ContextMenuContent
+				aria-label={t("transcript.message.actions")}
+				className={STILL_UNDER_REDUCED_MOTION}
+			>
+				{menu}
+			</ContextMenuContent>
 		</ContextMenu>
 	)
 }

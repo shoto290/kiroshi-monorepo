@@ -39,6 +39,7 @@ import {
 	BotIdentityAvatar,
 } from "@workspace/ui/components/bot-identity-avatar"
 import { BOT_IDENTITY_ANIMALS } from "@workspace/ui/components/bot-settings"
+import { ContextMenuPressTrigger } from "@workspace/ui/components/context-menu-press-trigger"
 import { Icons } from "@workspace/ui/components/icons"
 import {
 	AnimatedSidebar,
@@ -55,19 +56,6 @@ import {
 	useAnimatedSidebar,
 } from "@workspace/ui/components/motion/animated-sidebar"
 import {
-	ContextMenu,
-	ContextMenuCheckboxItem,
-	ContextMenuContent,
-	ContextMenuItem,
-	ContextMenuRadioGroup,
-	ContextMenuRadioItem,
-	ContextMenuSeparator,
-	ContextMenuSub,
-	ContextMenuSubContent,
-	ContextMenuSubTrigger,
-	ContextMenuTrigger,
-} from "@workspace/ui/components/motion/context-menu"
-import {
 	TextShimmer,
 	WORKING_SHIMMER_DURATION,
 } from "@workspace/ui/components/motion/text-shimmer"
@@ -79,6 +67,19 @@ import {
 	SpaceSwitcher,
 } from "@workspace/ui/components/space-switcher"
 import { TooltipButton } from "@workspace/ui/components/tooltip-button"
+import {
+	ContextMenu,
+	ContextMenuCheckboxItem,
+	ContextMenuContent,
+	ContextMenuItem,
+	ContextMenuRadioGroup,
+	ContextMenuRadioItem,
+	ContextMenuSeparator,
+	ContextMenuSub,
+	ContextMenuSubContent,
+	ContextMenuSubTrigger,
+	ContextMenuTrigger,
+} from "@workspace/ui/components/ui/context-menu"
 import {
 	UserChip,
 	type UserChipIdentity,
@@ -92,6 +93,7 @@ import {
 } from "@workspace/ui/hooks/use-roster-lift"
 import { useSpaceShortcut } from "@workspace/ui/hooks/use-space-shortcut"
 import { toPlainText } from "@workspace/ui/lib/plain-text"
+import { STILL_UNDER_REDUCED_MOTION } from "@workspace/ui/lib/reduced-motion"
 import { probeRender } from "@workspace/ui/lib/render-probe"
 import { cn, mergeRefs } from "@workspace/ui/lib/utils"
 
@@ -123,13 +125,18 @@ const PREVIEW_LINE =
 
 const DESTINATION_NAME = "min-w-0 truncate"
 
-const SPACES_PANEL = "max-w-64"
+const BRANCH_ROW = "gap-2"
 
-const holdFocusInSidebar = (row: HTMLElement | null) => {
+const NAMED_PANEL = `max-w-64 ${STILL_UNDER_REDUCED_MOTION}`
+
+const rowButtonOf = (row: HTMLElement | null) =>
+	row?.querySelector<HTMLElement>('[data-slot="sidebar-menu-button"]') ?? null
+
+const sidebarRegionOf = (row: HTMLElement | null) => {
 	const region = row?.closest<HTMLElement>('[data-slot="sidebar-content"]')
-	if (!region) return
+	if (!region) return null
 	region.tabIndex = -1
-	region.focus({ preventScroll: true })
+	return region
 }
 
 const LAST_SPACE_NOTE =
@@ -458,11 +465,11 @@ const SectionBranch = ({
 
 	return (
 		<ContextMenuSub>
-			<ContextMenuSubTrigger>
+			<ContextMenuSubTrigger className={BRANCH_ROW}>
 				<Icons.Folder aria-hidden="true" className="size-3.5" />
 				{t("roster.section.moveTo")}
 			</ContextMenuSubTrigger>
-			<ContextMenuSubContent>
+			<ContextMenuSubContent className={NAMED_PANEL}>
 				<ContextMenuRadioGroup
 					onValueChange={(value) =>
 						onMoveToSection?.(id, value === NO_SECTION ? null : value)
@@ -470,15 +477,17 @@ const SectionBranch = ({
 					value={sectionId ?? NO_SECTION}
 				>
 					<ContextMenuRadioItem
-						textValue={t("roster.section.none")}
+						closeOnClick
+						label={t("roster.section.none")}
 						value={NO_SECTION}
 					>
 						<span className={DESTINATION_NAME}>{t("roster.section.none")}</span>
 					</ContextMenuRadioItem>
 					{sections.map((section) => (
 						<ContextMenuRadioItem
+							closeOnClick
 							key={section.id}
-							textValue={section.name}
+							label={section.name}
 							value={section.id}
 						>
 							<span className={DESTINATION_NAME}>{section.name}</span>
@@ -489,8 +498,8 @@ const SectionBranch = ({
 					<>
 						<ContextMenuSeparator />
 						<ContextMenuItem
-							onSelect={() => onCreateSectionFor(id)}
-							textValue={t("roster.section.create")}
+							label={t("roster.section.create")}
+							onClick={() => onCreateSectionFor(id)}
 						>
 							<Icons.Add aria-hidden="true" className="size-3.5" />
 							{t("roster.section.create")}
@@ -522,6 +531,7 @@ interface SpacesBranchProps {
 	spaces: Space[]
 	memberships: string[]
 	openSpaceId?: string
+	finalFocus: () => HTMLElement | true
 	onAddToSpace?: (botId: string, spaceId: string) => void
 	onRemoveFromSpace?: (botId: string, spaceId: string) => void
 }
@@ -531,6 +541,7 @@ const SpacesBranch = ({
 	spaces,
 	memberships,
 	openSpaceId,
+	finalFocus,
 	onAddToSpace,
 	onRemoveFromSpace,
 }: SpacesBranchProps) => {
@@ -552,28 +563,29 @@ const SpacesBranch = ({
 				</span>
 			) : null}
 			<ContextMenuSubTrigger
-				describedBy={isHeldByOneSpace ? reasonId : undefined}
+				aria-describedby={isHeldByOneSpace ? reasonId : undefined}
+				className={BRANCH_ROW}
 			>
 				<Icons.Spaces aria-hidden="true" className="size-3.5" />
 				{t("roster.spaces.label")}
 			</ContextMenuSubTrigger>
-			<ContextMenuSubContent className={SPACES_PANEL}>
+			<ContextMenuSubContent className={NAMED_PANEL} finalFocus={finalFocus}>
 				{spaces.map((space) => {
 					const isMember = memberships.includes(space.id)
 					const isLocked = isMember && isHeldByOneSpace
 					return (
 						<ContextMenuCheckboxItem
+							aria-describedby={isLocked ? reasonId : undefined}
 							checked={isMember}
-							closeOnSelect={isMember && space.id === openSpaceId}
-							describedBy={isLocked ? reasonId : undefined}
+							closeOnClick={isMember && space.id === openSpaceId}
+							disabled={isLocked}
 							key={space.id}
-							unavailable={isLocked}
+							label={space.name}
 							onCheckedChange={(checked) =>
 								checked
 									? onAddToSpace?.(botId, space.id)
 									: onRemoveFromSpace?.(botId, space.id)
 							}
-							textValue={space.name}
 						>
 							<SpaceDot colour={space.colour} />
 							<span className={DESTINATION_NAME}>{space.name}</span>
@@ -662,7 +674,7 @@ const PinGroup = ({ id, isPinned, onPin, onUnpin }: PinGroupProps) => {
 	const PinIcon = isPinned ? Icons.Unpin : Icons.Pin
 	return (
 		<>
-			<ContextMenuItem onSelect={() => toggle(id)}>
+			<ContextMenuItem onClick={() => toggle(id)}>
 				<PinIcon aria-hidden="true" className="size-3.5" />
 				{t(isPinned ? "roster.unpin" : "roster.pin")}
 			</ContextMenuItem>
@@ -731,10 +743,16 @@ const BotRosterRow = ({
 	const strips = isCollapsed ? undefined : missionStripsOf(bot.missions)
 	const rowRef = useRef<HTMLElement | null>(null)
 
+	const focusAfterClose = useRef<HTMLElement | null>(null)
+
 	const leaveSpace = (botId: string, spaceId: string) => {
-		if (spaceId === openSpaceId) holdFocusInSidebar(rowRef.current)
+		focusAfterClose.current =
+			spaceId === openSpaceId ? sidebarRegionOf(rowRef.current) : null
 		onRemoveFromSpace?.(botId, spaceId)
 	}
+
+	const keepFocusAfterClose = () =>
+		focusAfterClose.current ?? rowButtonOf(rowRef.current) ?? true
 
 	return (
 		<AnimatedSidebarMenuItem
@@ -793,19 +811,23 @@ const BotRosterRow = ({
 						</span>
 					</AnimatedSidebarMenuButton>
 				</ContextMenuTrigger>
-				<ContextMenuContent ariaLabel={t("roster.actions", { name: bot.name })}>
+				<ContextMenuContent
+					aria-label={t("roster.actions", { name: bot.name })}
+					className={STILL_UNDER_REDUCED_MOTION}
+					finalFocus={keepFocusAfterClose}
+				>
 					<PinGroup
 						id={bot.id}
 						isPinned={isPinned}
 						onPin={onPin}
 						onUnpin={onUnpin}
 					/>
-					<ContextMenuItem onSelect={() => onEdit?.(bot.id)}>
+					<ContextMenuItem onClick={() => onEdit?.(bot.id)}>
 						<Icons.Settings aria-hidden="true" className="size-3.5" />
 						{t("roster.settings")}
 					</ContextMenuItem>
 					<ContextMenuSeparator />
-					<ContextMenuItem onSelect={() => onDuplicate?.(bot.id)}>
+					<ContextMenuItem onClick={() => onDuplicate?.(bot.id)}>
 						<Icons.Copy aria-hidden="true" className="size-3.5" />
 						{t("roster.duplicate")}
 					</ContextMenuItem>
@@ -818,6 +840,7 @@ const BotRosterRow = ({
 					/>
 					<SpacesBranch
 						botId={bot.id}
+						finalFocus={keepFocusAfterClose}
 						memberships={memberships}
 						onAddToSpace={onAddToSpace}
 						onRemoveFromSpace={leaveSpace}
@@ -826,8 +849,8 @@ const BotRosterRow = ({
 					/>
 					<ContextMenuSeparator />
 					<ContextMenuItem
-						onSelect={() => onDelete?.(bot.id)}
-						tone="destructive"
+						onClick={() => onDelete?.(bot.id)}
+						variant="destructive"
 					>
 						<Icons.Delete aria-hidden="true" className="size-3.5" />
 						{t("roster.delete")}
@@ -946,7 +969,8 @@ const ConversationRosterRow = ({
 					</AnimatedSidebarMenuButton>
 				</ContextMenuTrigger>
 				<ContextMenuContent
-					ariaLabel={t("roster.actions", { name: conversation.name })}
+					aria-label={t("roster.actions", { name: conversation.name })}
+					className={STILL_UNDER_REDUCED_MOTION}
 				>
 					<PinGroup
 						id={conversation.id}
@@ -954,7 +978,7 @@ const ConversationRosterRow = ({
 						onPin={onPin}
 						onUnpin={onUnpin}
 					/>
-					<ContextMenuItem onSelect={() => onOpenSettings?.(conversation.id)}>
+					<ContextMenuItem onClick={() => onOpenSettings?.(conversation.id)}>
 						<Icons.Settings aria-hidden="true" className="size-3.5" />
 						{t("roster.settings")}
 					</ContextMenuItem>
@@ -967,8 +991,8 @@ const ConversationRosterRow = ({
 					/>
 					<ContextMenuSeparator />
 					<ContextMenuItem
-						onSelect={() => onDelete?.(conversation.id)}
-						tone="destructive"
+						onClick={() => onDelete?.(conversation.id)}
+						variant="destructive"
 					>
 						<Icons.Delete aria-hidden="true" className="size-3.5" />
 						{t("roster.delete")}
@@ -995,19 +1019,19 @@ const CreateItems = ({
 	return (
 		<>
 			{onCreateBot ? (
-				<ContextMenuItem onSelect={onCreateBot}>
+				<ContextMenuItem onClick={onCreateBot}>
 					<Icons.User aria-hidden="true" className="size-3.5" />
 					{t("roster.create")}
 				</ContextMenuItem>
 			) : null}
 			{onCreateConversation ? (
-				<ContextMenuItem onSelect={onCreateConversation}>
+				<ContextMenuItem onClick={onCreateConversation}>
 					<Icons.Message aria-hidden="true" className="size-3.5" />
 					{t("roster.conversation.create")}
 				</ContextMenuItem>
 			) : null}
 			{onCreateSection ? (
-				<ContextMenuItem onSelect={onCreateSection}>
+				<ContextMenuItem onClick={onCreateSection}>
 					<Icons.Folder aria-hidden="true" className="size-3.5" />
 					{t("roster.section.create")}
 				</ContextMenuItem>
@@ -1034,12 +1058,13 @@ const RosterSurface = ({
 
 	return (
 		<ContextMenu>
-			<ContextMenuTrigger announcesPopup={false}>
-				<div className={ROSTER_SURFACE} data-slot="roster-surface">
-					{children}
-				</div>
+			<ContextMenuTrigger className={ROSTER_SURFACE} data-slot="roster-surface">
+				{children}
 			</ContextMenuTrigger>
-			<ContextMenuContent ariaLabel={t("roster.createMenu")}>
+			<ContextMenuContent
+				aria-label={t("roster.createMenu")}
+				className={STILL_UNDER_REDUCED_MOTION}
+			>
 				<CreateItems
 					onCreateBot={onCreateBot}
 					onCreateConversation={onCreateConversation}
@@ -1048,7 +1073,7 @@ const RosterSurface = ({
 				{onOpenSpaceSettings ? (
 					<>
 						<ContextMenuSeparator />
-						<ContextMenuItem onSelect={onOpenSpaceSettings}>
+						<ContextMenuItem onClick={onOpenSpaceSettings}>
 							<Icons.Settings aria-hidden="true" className="size-3.5" />
 							{t("spaces.settings")}
 						</ContextMenuItem>
@@ -1252,52 +1277,58 @@ const RosterSection = ({
 					/>
 				) : (
 					<ContextMenu>
-						<ContextMenuTrigger announcesPopup={false}>
-							<button
-								{...lift.handlersFor(section.id)}
-								aria-controls={bodyId}
-								aria-expanded={isOpen}
-								className={SECTION_TRIGGER}
-								data-slot="roster-section-trigger"
-								onClick={() => {
-									if (lift.hasJustDropped()) return
-									onOpenChange(!isOpen)
-								}}
-								type="button"
-							>
-								<span className={SECTION_NAME} data-slot="roster-section-name">
-									{section.name}
-								</span>
-								<Icons.Next
-									aria-hidden="true"
-									className={cn(SECTION_CHEVRON, isOpen && "rotate-90")}
-								/>
-							</button>
-						</ContextMenuTrigger>
+						<ContextMenuTrigger
+							render={
+								<button
+									{...lift.handlersFor(section.id)}
+									aria-controls={bodyId}
+									aria-expanded={isOpen}
+									className={SECTION_TRIGGER}
+									data-slot="roster-section-trigger"
+									onClick={() => {
+										if (lift.hasJustDropped()) return
+										onOpenChange(!isOpen)
+									}}
+									type="button"
+								>
+									<span
+										className={SECTION_NAME}
+										data-slot="roster-section-name"
+									>
+										{section.name}
+									</span>
+									<Icons.Next
+										aria-hidden="true"
+										className={cn(SECTION_CHEVRON, isOpen && "rotate-90")}
+									/>
+								</button>
+							}
+						/>
 						<ContextMenuContent
-							ariaLabel={t("roster.section.actions", { name: section.name })}
+							aria-label={t("roster.section.actions", { name: section.name })}
+							className={STILL_UNDER_REDUCED_MOTION}
 						>
-							<ContextMenuItem onSelect={() => setIsRenaming(true)}>
+							<ContextMenuItem onClick={() => setIsRenaming(true)}>
 								<Icons.Edit aria-hidden="true" className="size-3.5" />
 								{t("roster.section.rename")}
 							</ContextMenuItem>
 							<ContextMenuItem
 								disabled={isFirst}
-								onSelect={() => onMove?.(section.id, -1)}
+								onClick={() => onMove?.(section.id, -1)}
 							>
 								<Icons.ArrowUp aria-hidden="true" className="size-3.5" />
 								{t("roster.section.moveUp")}
 							</ContextMenuItem>
 							<ContextMenuItem
 								disabled={isLast}
-								onSelect={() => onMove?.(section.id, 1)}
+								onClick={() => onMove?.(section.id, 1)}
 							>
 								<Icons.ArrowDown aria-hidden="true" className="size-3.5" />
 								{t("roster.section.moveDown")}
 							</ContextMenuItem>
 							<ContextMenuItem
-								onSelect={() => onDelete?.(section.id)}
-								tone="destructive"
+								onClick={() => onDelete?.(section.id)}
+								variant="destructive"
 							>
 								<Icons.Delete aria-hidden="true" className="size-3.5" />
 								{t("roster.section.delete")}
@@ -2047,18 +2078,23 @@ const CreateMenu = (items: CreateItemsProps) => {
 
 	return (
 		<ContextMenu>
-			<ContextMenuTrigger opensOnPress>
-				<TooltipButton
-					aria-label={label}
-					size="icon-sm"
-					tooltip={label}
-					tooltipSide="bottom"
-					variant="ghost"
-				>
-					<Icons.Add aria-hidden="true" />
-				</TooltipButton>
-			</ContextMenuTrigger>
-			<ContextMenuContent ariaLabel={label}>
+			<ContextMenuPressTrigger
+				render={
+					<TooltipButton
+						aria-label={label}
+						size="icon-sm"
+						tooltip={label}
+						tooltipSide="bottom"
+						variant="ghost"
+					>
+						<Icons.Add aria-hidden="true" />
+					</TooltipButton>
+				}
+			/>
+			<ContextMenuContent
+				aria-label={label}
+				className={STILL_UNDER_REDUCED_MOTION}
+			>
 				<CreateItems {...items} />
 			</ContextMenuContent>
 		</ContextMenu>
