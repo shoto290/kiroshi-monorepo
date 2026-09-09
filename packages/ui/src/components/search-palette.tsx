@@ -16,7 +16,6 @@ import {
 } from "@workspace/ui/components/settings-styles"
 import { ToggleSwitch } from "@workspace/ui/components/toggle-switch"
 import { Button } from "@workspace/ui/components/ui/button"
-import { Kbd, KbdGroup } from "@workspace/ui/components/ui/kbd"
 import { Tabs, TabsList, TabsTrigger } from "@workspace/ui/components/ui/tabs"
 import { cn } from "@workspace/ui/lib/utils"
 
@@ -101,8 +100,7 @@ const TAB_ROW_CLASS =
 const TAB_STRIP_CLASS =
 	"scrollbar-hide max-w-full overflow-x-auto bg-transparent p-0"
 
-const TAB_TRIGGER_CLASS =
-	"h-7.5 shrink-0 py-0 motion-reduce:transition-none motion-reduce:duration-0"
+const TAB_TRIGGER_CLASS = "h-7.5 shrink-0 py-0 transition-none"
 
 const BODY_CLASS =
 	"flex min-h-0 flex-1 flex-col gap-0.5 overflow-y-auto p-2 outline-none focus-visible:ring-3 focus-visible:ring-ring/30 focus-visible:ring-inset"
@@ -115,60 +113,6 @@ const SECTION_HEAD_CLASS = "flex h-7 items-center gap-1.5 px-2"
 
 const SEE_ALL_CLASS =
 	"ms-auto rounded-md text-muted-foreground text-xs outline-none hover:text-foreground focus-visible:ring-3 focus-visible:ring-ring/30"
-
-const FOOTER_CLASS =
-	"flex h-9 shrink-0 items-center gap-4 border-border border-t bg-muted px-4"
-
-const HINT_CLASS = "flex items-center gap-1.5 text-[11px] text-muted-foreground"
-
-const KEYCAP_CLASS = "bg-background"
-
-const SearchPaletteFooter = () => {
-	const { t } = useTranslation("search")
-
-	const hints = [
-		{
-			key: "move",
-			cap: (
-				<KbdGroup>
-					<Kbd className={KEYCAP_CLASS}>
-						<Icons.ArrowUp aria-hidden="true" />
-					</Kbd>
-					<Kbd className={KEYCAP_CLASS}>
-						<Icons.ArrowDown aria-hidden="true" />
-					</Kbd>
-				</KbdGroup>
-			),
-			label: t("hint.move"),
-		},
-		{
-			key: "open",
-			cap: <Kbd className={KEYCAP_CLASS}>↵</Kbd>,
-			label: t("hint.open"),
-		},
-		{
-			key: "rank",
-			cap: <Kbd className={KEYCAP_CLASS}>⌘1-9</Kbd>,
-			label: t("hint.rank"),
-		},
-		{
-			key: "tab",
-			cap: <Kbd className={KEYCAP_CLASS}>⇥</Kbd>,
-			label: t("hint.tab"),
-		},
-	]
-
-	return (
-		<div className={FOOTER_CLASS} data-slot="search-palette-footer">
-			{hints.map((hint) => (
-				<span className={HINT_CLASS} key={hint.key}>
-					{hint.cap}
-					{hint.label}
-				</span>
-			))}
-		</div>
-	)
-}
 
 const SearchPalette = ({
 	open,
@@ -346,7 +290,6 @@ const SearchPalette = ({
 							role="combobox"
 							value={query}
 						/>
-						<Kbd>{t("close")}</Kbd>
 					</div>
 
 					<div className={TAB_ROW_CLASS} data-slot="search-palette-tabs">
@@ -443,8 +386,6 @@ const SearchPalette = ({
 
 						{panelOf()}
 					</div>
-
-					<SearchPaletteFooter />
 				</Dialog.Popup>
 			</Dialog.Portal>
 		</Dialog.Root>

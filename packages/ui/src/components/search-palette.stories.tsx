@@ -292,7 +292,7 @@ const meta = preview.meta({
 		docs: {
 			description: {
 				component:
-					"The search surface of the app, opened over whatever the reader was doing. It composes its own popup rather than the shared dialog content because the query line, the tab row and the footer are pinned and only the body between them scrolls. It holds one height whatever the body holds, so a keystroke never moves the footer under the reader's pointer. It reads nothing: the query, the tab, the scope, the results, the resting rows and the loading flag are all props, and every gesture is a callback, so the host owns the search itself. Focus stays on the query line at all times and the row the keyboard sits on is pointed at with `aria-activedescendant`, which is why the rows are options of one listbox rather than buttons in a tree. On the All tab each kind gets a head naming it and counting what it found, cut to three rows with a See all that moves the reader to that kind's own tab; every other tab is one flat list. While the query is empty every tab answers with the resting rows it was handed or, when it has none, with a panel that says what to do about it.",
+					"The search surface of the app, opened over whatever the reader was doing. It composes its own popup rather than the shared dialog content because the query line and the tab row are pinned and only the body under them scrolls. It holds one height whatever the body holds, so a keystroke never moves a row under the reader's pointer. It reads nothing: the query, the tab, the scope, the results, the resting rows and the loading flag are all props, and every gesture is a callback, so the host owns the search itself. Focus stays on the query line at all times and the row the keyboard sits on is pointed at with `aria-activedescendant`, which is why the rows are options of one listbox rather than buttons in a tree. On the All tab each kind gets a head naming it and counting what it found, cut to three rows with a See all that moves the reader to that kind's own tab; every other tab is one flat list. While the query is empty every tab answers with the resting rows it was handed or, when it has none, with a panel that says what to do about it.",
 			},
 		},
 	},
@@ -473,7 +473,7 @@ export const OneHit = meta.story({
 		docs: {
 			description: {
 				story:
-					"A query one chat answers, and nothing else. Check that the popup stands at its full height with a single row in it rather than shrinking around it — the height is the same number `ManyHits` asserts — so the footer and the tab row sit where the reader last saw them and the next keystroke does not move them.",
+					"A query one chat answers, and nothing else. Check that the popup stands at its full height with a single row in it rather than shrinking around it — the height is the same number `ManyHits` asserts — so the query line and the tab row sit where the reader last saw them and the next keystroke does not move them.",
 			},
 		},
 	},
@@ -491,7 +491,7 @@ export const ManyHits = meta.story({
 		docs: {
 			description: {
 				story:
-					"Eleven hits spread over the four kinds, more than the body can show at once. Check that the popup is exactly as tall as it is in `OneHit`, that the overflow is taken by the body alone — it scrolls, the query line, the tab row and the footer do not move — and that no row is dropped to make the palette fit.",
+					"Eleven hits spread over the four kinds, more than the body can show at once. Check that the popup is exactly as tall as it is in `OneHit`, that the overflow is taken by the body alone — it scrolls, the query line and the tab row do not move — that the palette carries no bar of keyboard hints under it, and that no row is dropped to make the palette fit.",
 			},
 		},
 	},
@@ -505,7 +505,7 @@ export const ManyHits = meta.story({
 		await expect(body.scrollHeight).toBeGreaterThan(body.clientHeight)
 		await expect(slotIn(popup, "search-palette-query")).toBeVisible()
 		await expect(slotIn(popup, "search-palette-tabs")).toBeVisible()
-		await expect(slotIn(popup, "search-palette-footer")).toBeVisible()
+		await expect(slotsIn(popup, "search-palette-footer")).toHaveLength(0)
 	},
 })
 
