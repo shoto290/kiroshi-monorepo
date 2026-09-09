@@ -18,7 +18,7 @@ import {
 	TextShimmer,
 	WORKING_SHIMMER_DURATION,
 } from "@workspace/ui/components/motion/text-shimmer"
-import { Tooltip } from "@workspace/ui/components/motion/tooltip"
+import { TooltipHint } from "@workspace/ui/components/tooltip-hint"
 import { TURN_AVATAR_SIZE } from "@workspace/ui/components/turn"
 import { cn } from "@workspace/ui/lib/utils"
 
@@ -175,14 +175,10 @@ function ActivityIndicator(props: ActivityIndicatorProps) {
 					avatar
 				)}
 			</SharedMark>
-			<Tooltip
-				content={text}
-				className="max-w-[min(28rem,calc(100vw-2rem))] whitespace-normal break-words"
-				wrapperClassName="min-w-0 flex-1"
-			>
+			<TooltipHint content={text}>
 				<span
 					data-slot="bot-working-label"
-					className="block min-w-0 max-w-full truncate font-medium text-muted-foreground text-sm"
+					className="block min-w-0 max-w-full flex-1 truncate font-medium text-muted-foreground text-sm"
 				>
 					{isBusy ? (
 						<TextShimmer className="inline" duration={WORKING_SHIMMER_DURATION}>
@@ -192,7 +188,7 @@ function ActivityIndicator(props: ActivityIndicatorProps) {
 						text
 					)}
 				</span>
-			</Tooltip>
+			</TooltipHint>
 			{isBusy ? (
 				<ActivityClock elapsedSeconds={elapsedSeconds} startedAt={startedAt} />
 			) : null}

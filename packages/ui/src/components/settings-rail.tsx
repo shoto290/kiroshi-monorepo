@@ -9,7 +9,7 @@ import {
 } from "react"
 
 import { type Icon, Icons } from "@workspace/ui/components/icons"
-import { Tooltip } from "@workspace/ui/components/motion/tooltip"
+import { TooltipHint } from "@workspace/ui/components/tooltip-hint"
 import { useOverlayScrollbars } from "@workspace/ui/hooks/use-overlay-scrollbars"
 import { cn, mergeRefs } from "@workspace/ui/lib/utils"
 
@@ -54,9 +54,9 @@ const SettingsScrollingPanel = ({
 
 const named = (item: ReactElement, label: string, iconsOnly: boolean) =>
 	iconsOnly ? (
-		<Tooltip content={label} side="right" wrapperClassName="w-full">
+		<TooltipHint content={label} side="right">
 			{item}
-		</Tooltip>
+		</TooltipHint>
 	) : (
 		item
 	)

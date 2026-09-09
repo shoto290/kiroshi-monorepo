@@ -1,14 +1,14 @@
 "use client"
 
 import {
-	Tooltip,
-	type TooltipProps,
-} from "@workspace/ui/components/motion/tooltip"
+	TooltipHint,
+	type TooltipHintSide,
+} from "@workspace/ui/components/tooltip-hint"
 import { Button } from "@workspace/ui/components/ui/button"
 
 type TooltipButtonProps = React.ComponentProps<typeof Button> & {
 	tooltip: string
-	tooltipSide?: TooltipProps["side"]
+	tooltipSide?: TooltipHintSide
 }
 
 const TooltipButton = ({
@@ -16,9 +16,9 @@ const TooltipButton = ({
 	tooltipSide,
 	...props
 }: TooltipButtonProps) => (
-	<Tooltip content={tooltip} side={tooltipSide}>
+	<TooltipHint content={tooltip} side={tooltipSide}>
 		<Button {...props} />
-	</Tooltip>
+	</TooltipHint>
 )
 
 export { TooltipButton }

@@ -4,7 +4,6 @@ import { useState } from "react"
 import { useTranslation } from "react-i18next"
 
 import { Icons } from "@workspace/ui/components/icons"
-import { Tooltip } from "@workspace/ui/components/motion/tooltip"
 import {
 	PopoverPanel,
 	PopoverPanelContent,
@@ -12,6 +11,7 @@ import {
 } from "@workspace/ui/components/popover-panel"
 import { ProgressRing } from "@workspace/ui/components/progress-ring"
 import { TooltipButton } from "@workspace/ui/components/tooltip-button"
+import { TooltipHint } from "@workspace/ui/components/tooltip-hint"
 import { Button, buttonVariants } from "@workspace/ui/components/ui/button"
 import { cn } from "@workspace/ui/lib/utils"
 
@@ -100,7 +100,7 @@ const ReleaseNotesLink = ({ href }: ReleaseNotesLinkProps) => {
 	const label = t("update.panel.releaseNotes")
 
 	return (
-		<Tooltip content={label} side="right" wrapperClassName="ml-auto">
+		<TooltipHint content={label} side="right">
 			<a
 				data-slot="update-release-notes"
 				aria-label={label}
@@ -109,12 +109,12 @@ const ReleaseNotesLink = ({ href }: ReleaseNotesLinkProps) => {
 				rel="noreferrer noopener"
 				className={cn(
 					buttonVariants({ variant: "ghost", size: "icon-sm" }),
-					"text-muted-foreground",
+					"ms-auto text-muted-foreground",
 				)}
 			>
 				<Icons.ExternalLink />
 			</a>
-		</Tooltip>
+		</TooltipHint>
 	)
 }
 

@@ -278,3 +278,94 @@ export const FourQuestions = meta.story({
 		})
 	},
 })
+
+export const Narrow = meta.story({
+	args: {
+		questions: [
+			FRAMEWORK_QUESTION,
+			SCOPE_QUESTION,
+			NAMING_QUESTION,
+			RELEASE_QUESTION,
+		],
+	},
+	parameters: {
+		docs: {
+			description: {
+				story:
+					"The four-tab card in a 320px column, the narrowest surface a transcript ever hands it. Check that the tab strip wraps over several lines inside the column rather than pushing a tab out of it, that every tab is still reachable by pointer and by arrow key, and that an option below still takes a press and hands the card over to the next question waiting. Pick `FourQuestions` for the same card with room to spread.",
+			},
+		},
+	},
+	render: (args) => (
+		<div className="w-[320px]">
+			<ToolQuestion {...args} />
+		</div>
+	),
+	play: async ({ canvas, canvasElement, userEvent }) => {
+		const column = canvasElement.querySelector("div")
+		const tabs = canvas.getAllByRole("tab")
+		const bounds = column?.getBoundingClientRect()
+		if (!bounds) throw new Error("The card drew no column")
+
+		for (const tab of tabs) {
+			await expect(tab.getBoundingClientRect().right).toBeLessThanOrEqual(
+				bounds.right,
+			)
+		}
+
+		await userEvent.click(canvas.getByRole("tab", { name: /release/i }))
+		await expect(canvas.getByText(RELEASE_QUESTION.question)).toBeVisible()
+
+		await userEvent.click(
+			await canvas.findByRole("radio", { name: /Next week/ }),
+		)
+		await expect(canvas.getByText(FRAMEWORK_QUESTION.question)).toBeVisible()
+	},
+})
+
+export const ArrowKeyTabs = meta.story({
+	args: { questions: [SCOPE_QUESTION, RELEASE_QUESTION, FRAMEWORK_QUESTION] },
+	parameters: {
+		docs: {
+			description: {
+				story:
+					"The tab strip walked with the arrow keys. A tab here changes nothing but which question is on screen, so walking is opening: the arrows select as they move and the card follows without a second press. Check that the question under the strip is the one the arrows landed on. The search palette does the opposite, because a tab there starts a query.",
+			},
+		},
+	},
+	play: async ({ canvas, userEvent }) => {
+		await expect(canvas.getByText(SCOPE_QUESTION.question)).toBeVisible()
+
+		canvas.getByRole("tab", { name: SCOPE_QUESTION.header }).focus()
+		await userEvent.keyboard("{ArrowRight}")
+
+		await expect(
+			canvas.getByRole("tab", { name: RELEASE_QUESTION.header }),
+		).toHaveAttribute("aria-selected", "true")
+		await expect(canvas.getByText(RELEASE_QUESTION.question)).toBeVisible()
+	},
+})
+
+export const ReducedMotion = meta.story({
+	args: { questions: [SCOPE_QUESTION, RELEASE_QUESTION] },
+	parameters: {
+		docs: {
+			description: {
+				story:
+					"The card for a reader who asked the system to stop moving things. The registry tab transitions every property it changes; the card drops that under `prefers-reduced-motion`, so the fill moves from one tab to the next in a single frame. Check that every tab reports a transition of no duration, and that the strip still selects.",
+			},
+		},
+	},
+	play: async ({ canvas, userEvent }) => {
+		const tabs = canvas.getAllByRole("tab")
+
+		for (const tab of tabs) {
+			await expect(getComputedStyle(tab).transitionDuration).toBe("0s")
+		}
+
+		await userEvent.click(
+			canvas.getByRole("tab", { name: RELEASE_QUESTION.header }),
+		)
+		await expect(canvas.getByText(RELEASE_QUESTION.question)).toBeVisible()
+	},
+})

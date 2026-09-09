@@ -16,7 +16,7 @@ const meta = preview.meta({
 		docs: {
 			description: {
 				component:
-					"The registry `Button` with a label that opens on hover and on focus. It is the one composition that pairs the vendored button with `motion/tooltip`, so an icon-only control can carry a name without a visible one. The tooltip describes, it does not name: give the control an `aria-label` as well.",
+					"The registry `Button` with a label that opens on hover and on focus. It is the one composition that pairs the vendored button with `TooltipHint`, so an icon-only control can carry a name without a visible one. Nothing links the bubble to the button: there is no `aria-describedby` between them, so a screen reader never reads the tooltip and the `aria-label` is what has to carry the name.",
 			},
 		},
 	},
@@ -35,14 +35,14 @@ export const Default = meta.story({
 		docs: {
 			description: {
 				story:
-					"The nominal case: an icon-only control whose meaning lives in the tooltip. Check that the button still renders inside its wrapper span, so a row of them keeps the same rhythm as plain buttons.",
+					"The nominal case: an icon-only control whose meaning lives in the tooltip. Check that the button is rendered as itself, with no wrapper around it, so a row of them keeps the same rhythm as plain buttons.",
 			},
 		},
 	},
 	play: async ({ canvas }) => {
 		const button = canvas.getByRole("button", { name: "Copy" })
 
-		await expect(button.parentElement?.tagName).toBe("SPAN")
+		await expect(button.parentElement?.tagName).not.toBe("SPAN")
 	},
 })
 

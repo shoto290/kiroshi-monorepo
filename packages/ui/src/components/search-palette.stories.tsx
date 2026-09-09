@@ -32,6 +32,15 @@ const SPACE_MARK_SIZE = 8
 
 const UNTINTED_RESULTS = 2
 
+const NARROW_WIDTH = 320
+
+const NARROW_VIEWPORT = {
+	narrow: {
+		name: "Narrow",
+		styles: { width: `${NARROW_WIDTH}px`, height: "844px" },
+	},
+}
+
 const ROUTINE_BOT = {
 	name: "Noor Beltran",
 	animal: "rabbit",
@@ -771,5 +780,86 @@ export const LoadingFirstQuery = meta.story({
 			"aria-expanded",
 			"true",
 		)
+	},
+})
+
+export const Narrow = meta.story({
+	globals: { viewport: { value: "narrow" } },
+	parameters: {
+		viewport: { options: NARROW_VIEWPORT },
+		docs: {
+			description: {
+				story:
+					"The palette on a 320px window, the narrowest surface the shell reflows to. Check that the tab strip keeps every tab inside the row rather than pushing the scope switch off it — the strip scrolls sideways instead — and that pressing a tab still swaps the body. Pick `Default` for the palette with room for all five tabs at once.",
+			},
+		},
+	},
+	play: async ({ args, userEvent }) => {
+		const popup = await palette()
+		const reader = within(popup)
+		const row = slotIn(popup, "search-palette-tabs")
+		const strip = reader.getByRole("tablist")
+
+		await expect(window.innerWidth).toBe(NARROW_WIDTH)
+		await expect(strip.getBoundingClientRect().right).toBeLessThanOrEqual(
+			row.getBoundingClientRect().right,
+		)
+		await expect(reader.getByRole("switch")).toBeVisible()
+
+		await userEvent.click(reader.getByRole("tab", { name: "Chats" }))
+		await expect(args.onTabChange).toHaveBeenCalledWith("chats")
+	},
+})
+
+export const ArrowKeyTabs = meta.story({
+	parameters: {
+		docs: {
+			description: {
+				story:
+					"The tab strip walked with the arrow keys. A tab here is a search kind, so selecting one runs another query: the arrows move focus and stop there, and the kind changes only on Enter or Space. Check that walking the strip reports nothing to the host and leaves All selected, and that the press on the tab the arrows reached is what reports it. The tool question card does the opposite, because a tab there only swaps which question is on screen.",
+			},
+		},
+	},
+	play: async ({ args, userEvent }) => {
+		const reader = within(await palette())
+		const all = reader.getByRole("tab", { name: "All" })
+
+		all.focus()
+		await userEvent.keyboard("{ArrowRight}")
+
+		const messages = reader.getByRole("tab", { name: "Messages" })
+
+		await expect(messages).toHaveFocus()
+		await expect(all).toHaveAttribute("aria-selected", "true")
+		await expect(messages).toHaveAttribute("aria-selected", "false")
+		await expect(args.onTabChange).not.toHaveBeenCalled()
+
+		await userEvent.keyboard("{Enter}")
+		await expect(args.onTabChange).toHaveBeenCalledWith("messages")
+
+		reader.getByRole("tab", { name: "Chats" }).focus()
+		await userEvent.keyboard(" ")
+		await expect(args.onTabChange).toHaveBeenLastCalledWith("chats")
+	},
+})
+
+export const ReducedMotion = meta.story({
+	parameters: {
+		docs: {
+			description: {
+				story:
+					"The palette for a reader who asked the system to stop moving things. The registry tab transitions every property it changes; the palette drops that under `prefers-reduced-motion`, so the selected fill lands on the pressed tab in a single frame. Check that every tab reports a transition of no duration, and that pressing one still reports the kind.",
+			},
+		},
+	},
+	play: async ({ args, userEvent }) => {
+		const reader = within(await palette())
+
+		for (const tab of reader.getAllByRole("tab")) {
+			await expect(getComputedStyle(tab).transitionDuration).toBe("0s")
+		}
+
+		await userEvent.click(reader.getByRole("tab", { name: "Chats" }))
+		await expect(args.onTabChange).toHaveBeenCalledWith("chats")
 	},
 })
