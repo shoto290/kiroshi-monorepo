@@ -10,9 +10,12 @@
 }
 
 @layer base {
-	html,
-	body {
-		overflow: hidden;
-		overscroll-behavior: none;
+	html {
+		@apply scrollbar-thin;
 	}
+}
+
+.scene-frozen [class*="overflow-y-auto"]:not(textarea),
+.scene-frozen [data-overlayscrollbars-viewport] {
+	overflow: hidden;
 }
