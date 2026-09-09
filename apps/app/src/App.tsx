@@ -68,7 +68,7 @@ import {
 import { useConversationBadges } from "@/lib/conversations/use-conversation-badges"
 import { toEnvironmentRows } from "@/lib/environment/environment-rows"
 import { useEnvironment } from "@/lib/environment/use-environment"
-import { hasOverlayWindowControls } from "@/lib/host"
+import { hasOverlayWindowControls, isSidebarResizable } from "@/lib/host"
 import { useExternalLinks } from "@/lib/links/use-external-links"
 import {
 	missionRingBadges,
@@ -666,6 +666,13 @@ export function App() {
 		[preferences],
 	)
 
+	const changeSidebarWidth = useCallback(
+		(sidebarWidth: number) => {
+			void user.controller.setSidebarWidth(sidebarWidth)
+		},
+		[user.controller],
+	)
+
 	const activityPanel = useMemo(
 		() => ({
 			isOpen: preferences.activityPanelOpen,
@@ -708,6 +715,9 @@ export function App() {
 			<WorkspaceShell
 				defaultOpen
 				spaceTint={selectedSpace?.colour}
+				width={preferences.sidebarWidth ?? undefined}
+				onWidthChange={changeSidebarWidth}
+				isResizable={isSidebarResizable()}
 				sidebar={
 					<AppSidebar
 						data-tauri-drag-region="deep"

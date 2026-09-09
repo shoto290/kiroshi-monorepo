@@ -44,6 +44,10 @@ import {
 	RoutineRow,
 	type RoutineRowModel,
 } from "@workspace/ui/components/routine-row"
+import {
+	SidebarResizeHandle,
+	SidebarResizeProvider,
+} from "@workspace/ui/components/sidebar-resize"
 import { Button } from "@workspace/ui/components/ui/button"
 import {
 	Sidebar,
@@ -58,13 +62,16 @@ const ROUTINES_PANEL_WIDTH = 320
 const PANEL_SHELL =
 	"surface-shell h-full min-h-0 min-w-0 flex-1 overflow-hidden"
 
-const PANEL_SURFACE = "on-shell min-h-0 bg-transparent"
+const PANEL_SURFACE = "relative on-shell min-h-0 bg-transparent"
+
+const PANEL_HEADER =
+	"h-13 shrink-0 flex-row items-center pt-[calc(--spacing(1)+1px)] pe-[calc(--spacing(3.5)+1px)] pb-0 ps-2"
 
 type PanelWidthStyle = CSSProperties & { "--sidebar-width": string }
 
-const PANEL_WIDTH_STYLE: PanelWidthStyle = {
-	"--sidebar-width": `${ROUTINES_PANEL_WIDTH}px`,
-}
+const panelWidthStyle = (width: number): PanelWidthStyle => ({
+	"--sidebar-width": `${width}px`,
+})
 
 type RoutinesPanelHandle = {
 	isOpen: boolean
@@ -487,8 +494,8 @@ const RoutinesPanelSurface = (props: RoutinesPanelListProps) => {
 			ref={surface}
 			role="complementary"
 		>
-			<SidebarHeader>
-				<div className="flex h-7 items-center gap-2">
+			<SidebarHeader className={PANEL_HEADER}>
+				<div className="flex h-7 w-full items-center gap-2">
 					{heading ? (
 						<Button
 							aria-label={t(heading.back)}
@@ -560,6 +567,7 @@ const RoutinesPanelSurface = (props: RoutinesPanelListProps) => {
 					</button>
 				</SidebarFooter>
 			)}
+			<SidebarResizeHandle side="right" />
 		</Sidebar>
 	)
 }
@@ -587,15 +595,20 @@ const RoutinesPanel = ({
 
 	return (
 		<RoutinesPanelContext.Provider value={handle}>
-			<NestedSidebarProvider
-				className={PANEL_SHELL}
-				onOpenChange={onOpenChange}
-				open={isOpen}
-				style={PANEL_WIDTH_STYLE}
-			>
-				<ContentCard isLandmark={false}>{children}</ContentCard>
-				{isOpen ? <RoutinesPanelSurface {...list} /> : null}
-			</NestedSidebarProvider>
+			<SidebarResizeProvider defaultWidth={ROUTINES_PANEL_WIDTH}>
+				{(resize) => (
+					<NestedSidebarProvider
+						className={PANEL_SHELL}
+						data-resizing={resize.isResizing}
+						onOpenChange={onOpenChange}
+						open={isOpen}
+						style={panelWidthStyle(resize.width)}
+					>
+						<ContentCard isLandmark={false}>{children}</ContentCard>
+						{isOpen ? <RoutinesPanelSurface {...list} /> : null}
+					</NestedSidebarProvider>
+				)}
+			</SidebarResizeProvider>
 		</RoutinesPanelContext.Provider>
 	)
 }

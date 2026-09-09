@@ -42,11 +42,13 @@ import {
 	WATCHING_FORM,
 } from "@workspace/ui/components/routines.fixtures"
 import {
+	ROUTINES_PANEL_WIDTH,
 	RoutinesPanel,
 	type RoutinesPanelProps,
 	RoutinesPanelTrigger,
 } from "@workspace/ui/components/routines-panel"
 import { SidebarMenuRow } from "@workspace/ui/components/sidebar-menu-row"
+import { SIDEBAR_WIDTH_STEP } from "@workspace/ui/components/sidebar-resize"
 import { ThreadLayout } from "@workspace/ui/components/thread-layout"
 import { AssistantTurn, UserTurn } from "@workspace/ui/components/turn"
 import {
@@ -223,6 +225,19 @@ const WORKSPACE_SIDEBAR = (
 )
 
 const CARD_GUTTER = 4
+
+const verticalCentreOf = (element: HTMLElement) => {
+	const box = element.getBoundingClientRect()
+	return Math.round(box.top + box.height / 2)
+}
+
+const resizeHandleIn = (canvas: ReturnType<typeof within>) =>
+	canvas.getByRole("separator", { name: "Resize sidebar" })
+
+const trailingInsetOf = (control: HTMLElement, host: HTMLElement) =>
+	Math.round(
+		host.getBoundingClientRect().right - control.getBoundingClientRect().right,
+	)
 
 const renderInShell = (args: RoutinesPanelProps) => (
 	<WorkspaceShell sidebar={WORKSPACE_SIDEBAR}>
@@ -469,12 +484,18 @@ export const Toggling = meta.story({
 		docs: {
 			description: {
 				story:
-					"The way in and the way out, each in its own place. Check that the control in the app header opens the panel and then leaves the header, that opening hands the keyboard to the close control inside the panel rather than dropping it on the body, that this control closes the panel, and that closing hands the keyboard back to the control in the app header.",
+					"The way in and the way out, each in its own place. Check that the control in the app header opens the panel and then leaves the header, that the control that closes it again sits on the same line the opener sat on and the same distance in from the frame, once the thread card's own gutter is counted — the two read as one control moving between two homes rather than two controls at two positions — that opening hands the keyboard to the close control inside the panel rather than dropping it on the body, that this control closes the panel, and that closing hands the keyboard back to the control in the app header.",
 			},
 		},
 	},
-	play: async ({ args, canvas, userEvent }) => {
-		await userEvent.click(canvas.getByRole("button", { name: "Activity" }))
+	play: async ({ args, canvas, canvasElement, userEvent }) => {
+		const opener = canvas.getByRole("button", { name: "Activity" })
+		const openerCentre = verticalCentreOf(opener)
+		const openerInset =
+			trailingInsetOf(opener, slotIn(canvasElement, "sidebar-inset")) +
+			CARD_GUTTER
+
+		await userEvent.click(opener)
 		await expect(args.onOpenChange).toHaveBeenCalledWith(true)
 
 		const panel = canvas.getByRole("complementary", { name: "Activity" })
@@ -484,6 +505,8 @@ export const Toggling = meta.story({
 		).not.toBeInTheDocument()
 
 		const close = within(panel).getByRole("button", { name: "Close activity" })
+		await expect(verticalCentreOf(close)).toBe(openerCentre)
+		await expect(trailingInsetOf(close, panel)).toBe(openerInset)
 		await waitFor(() => expect(close).toHaveFocus(), FRAME_POLL)
 
 		await userEvent.click(close)
@@ -915,7 +938,7 @@ export const InWorkspaceShell = meta.story({
 		docs: {
 			description: {
 				story:
-					"The panel where it really lives: inside the shell, opposite the workspace sidebar. This is the one to open when the two panels are suspected of sharing a context. Check that opening the routines panel leaves the sidebar on the other side expanded and exactly as wide as it was: each panel carries a provider of its own, so neither open state can reach the other.",
+					"The panel where it really lives: inside the shell, opposite the workspace sidebar. This is the one to open when the two panels are suspected of sharing a context. Check that opening the routines panel leaves the sidebar on the other side expanded and exactly as wide as it was, and that widening this panel from its own handle does not narrow the sidebar with it: each panel carries a provider and a width of its own, so neither can reach the other.",
 			},
 		},
 	},
@@ -934,6 +957,20 @@ export const InWorkspaceShell = meta.story({
 		await expect(
 			workspace.closest("[data-slot=sidebar]")?.getAttribute("data-state"),
 		).toBe("expanded")
+		await expect(workspace.getBoundingClientRect().width).toBe(widthBefore)
+
+		const handle = resizeHandleIn(canvas)
+		handle.focus()
+		await userEvent.keyboard("{ArrowLeft}")
+
+		await waitFor(
+			() =>
+				expect(handle).toHaveAttribute(
+					"aria-valuenow",
+					String(ROUTINES_PANEL_WIDTH + SIDEBAR_WIDTH_STEP),
+				),
+			FRAME_POLL,
+		)
 		await expect(workspace.getBoundingClientRect().width).toBe(widthBefore)
 	},
 })

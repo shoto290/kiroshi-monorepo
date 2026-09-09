@@ -47,6 +47,7 @@ import {
 	WORKING_SHIMMER_DURATION,
 } from "@workspace/ui/components/motion/text-shimmer"
 import { SidebarMenuRow } from "@workspace/ui/components/sidebar-menu-row"
+import { SidebarResizeHandle } from "@workspace/ui/components/sidebar-resize"
 import { SidebarSearchField } from "@workspace/ui/components/sidebar-search-field"
 import { type Space, spaceAtRank } from "@workspace/ui/components/space"
 import {
@@ -2356,6 +2357,7 @@ const AppSidebarBase = ({
 						) : null}
 					</SidebarFooter>
 				) : null}
+				<SidebarResizeHandle side="left" />
 			</Sidebar>
 			<span className="sr-only" role="status">
 				{announcementFor(t, selectedBot, selectedConversation)}
