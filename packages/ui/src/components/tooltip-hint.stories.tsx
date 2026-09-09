@@ -23,7 +23,7 @@ const meta = preview.meta({
 		docs: {
 			description: {
 				component:
-					'The registry tooltip closed down to what a call site needs: a piece of content, one element to hang it on, a side. It renders no wrapper of its own — the child stays the element the layout around it sees — and the bubble carries `role="tooltip"`. Nothing links the bubble to its child: the registry writes no `aria-describedby` on the trigger, so a screen reader never reads the bubble and its text has to live in the child\'s accessible name as well.',
+					'The registry tooltip closed down to what a call site needs: a piece of content, one element to hang it on, a side. It renders no wrapper of its own — the child stays the element the layout around it sees — and the bubble carries `role="tooltip"`. A `content` of nothing draws no bubble while keeping the child mounted, so a caller that only sometimes has a name to give never swaps the control it wraps. Nothing links the bubble to its child: the registry writes no `aria-describedby` on the trigger, so a screen reader never reads the bubble and its text has to live in the child\'s accessible name as well.',
 			},
 		},
 	},
@@ -46,6 +46,24 @@ export const Default = meta.story({
 
 		await userEvent.hover(trigger)
 		await expect(await screen.findByRole("tooltip")).toHaveTextContent("Copy")
+	},
+})
+
+export const WithoutContent = meta.story({
+	args: { content: null, children: COPY_BUTTON },
+	parameters: {
+		docs: {
+			description: {
+				story:
+					"A hint with nothing to say, which is how a caller that only sometimes has a name to give keeps one element rather than swapping it. Check that hovering opens no bubble at all instead of an empty one, and that the child is still the element the layout sees — a caller switching `content` on and off never remounts the control it wraps, so focus and a drag under way both survive the switch. Pick `Default` for the hint with content.",
+			},
+		},
+	},
+	play: async ({ canvas, userEvent }) => {
+		const trigger = canvas.getByRole("button", { name: "Copy" })
+
+		await userEvent.hover(trigger)
+		await expect(screen.queryByRole("tooltip")).toBeNull()
 	},
 })
 

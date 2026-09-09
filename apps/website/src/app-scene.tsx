@@ -254,7 +254,6 @@ export const AppScene = () => {
 							onOpenSearch={engage}
 							onSelectBot={select}
 							onSelectConversation={select}
-							panelClassName="h-full"
 							selectedBotId={thread ? selectedId : undefined}
 							selectedConversationId={thread ? undefined : CONVERSATION_ID}
 							selectedSpaceId={SELECTED_SPACE.id}

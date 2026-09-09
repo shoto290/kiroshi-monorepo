@@ -42,7 +42,10 @@ const ROW_CLASS =
 	"flex min-h-13 w-full items-center gap-2.5 rounded-xl py-1.5 pe-3 ps-1.5 text-start"
 
 const ACTIVATION_CLASS =
-	"outline-none transition-colors duration-150 hover:bg-muted/50 focus-visible:ring-3 focus-visible:ring-ring/30 motion-reduce:transition-none"
+	"outline-none hover:bg-muted/50 focus-visible:ring-3 focus-visible:ring-ring/30"
+
+const ACTIVATION_TRANSITION_CLASS =
+	"transition-colors duration-150 motion-reduce:transition-none"
 
 const ActivityRow = ({
 	slot,
@@ -112,7 +115,11 @@ const ActivityRow = ({
 		<li data-slot={slot}>
 			{activation ? (
 				<button
-					className={cn(ROW_CLASS, ACTIVATION_CLASS)}
+					className={cn(
+						ROW_CLASS,
+						ACTIVATION_CLASS,
+						ACTIVATION_TRANSITION_CLASS,
+					)}
 					data-opens={activation.id}
 					onClick={activation.onOpen}
 					type="button"

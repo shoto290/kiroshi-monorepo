@@ -12,15 +12,7 @@ const search = {
 	},
 	scope: "All spaces",
 	seeAll: "See all",
-	close: "Esc",
-	rank: "⌘{{rank}}",
 	solo: "solo thread",
-	hint: {
-		move: "Move",
-		open: "Open",
-		rank: "Open by rank",
-		tab: "Change tab",
-	},
 	unavailable: {
 		title: "Search could not be read",
 		description:

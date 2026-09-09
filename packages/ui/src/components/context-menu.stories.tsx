@@ -7,6 +7,7 @@ import {
 	A11Y_SUBMENU_PORTAL_GUARD,
 	FRAME_POLL,
 	mergeA11y,
+	tokenLengthOf,
 } from "@workspace/storybook/story-utils"
 import { ContextMenuPressTrigger } from "@workspace/ui/components/context-menu-press-trigger"
 import { Icons } from "@workspace/ui/components/icons"
@@ -161,17 +162,21 @@ export const Default = meta.story({
 		docs: {
 			description: {
 				story:
-					"The nominal case: actions on one object, the destructive one separated and toned apart at the bottom. Check the menu opens at the cursor rather than at the card's corner, that the shortcut hint is decorative text and not a second control, and that Escape closes it. Pick `WithCheckboxAndRadioItems` for the stateful item kinds.",
+					"The nominal case: actions on one object, the destructive one separated and toned apart at the bottom. Check the menu opens at the cursor rather than at the card's corner, that its corner is the one every other surface carries — the scale collapses `xl` and `2xl` onto `lg`, so the registry's own `rounded-xl` lands there without the file being touched — that the shortcut hint is decorative text and not a second control, and that Escape closes it. Pick `WithCheckboxAndRadioItems` for the stateful item kinds.",
 			},
 		},
 	},
 	render: () => <TranscriptCard />,
 	play: async ({ canvas, userEvent }) => {
-		await openMenuOn(canvas.getByText("Right-click this card"))
+		const menu = await openMenuOn(canvas.getByText("Right-click this card"))
 
 		await expect(
 			screen.getByRole("menuitem", { name: /Copy transcript/ }),
 		).toBeVisible()
+
+		await expect(getComputedStyle(menu).borderStartStartRadius).toBe(
+			tokenLengthOf("--radius-lg"),
+		)
 
 		await userEvent.keyboard("{Escape}")
 		await waitFor(() => expect(screen.queryByRole("menu")).toBeNull())

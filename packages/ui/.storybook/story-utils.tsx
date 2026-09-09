@@ -94,6 +94,15 @@ export const widthInRems = (element: HTMLElement) =>
 	element.getBoundingClientRect().width /
 	Number.parseFloat(getComputedStyle(document.documentElement).fontSize)
 
+export const tokenLengthOf = (token: string) => {
+	const probe = document.createElement("div")
+	probe.style.width = `var(${token})`
+	document.body.append(probe)
+	const length = getComputedStyle(probe).width
+	probe.remove()
+	return length
+}
+
 export const botIdentityAvatars = (canvasElement: HTMLElement) =>
 	slotsIn(canvasElement, "bot-identity-avatar")
 

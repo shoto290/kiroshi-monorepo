@@ -50,7 +50,7 @@ const HEADER_LINE =
 	"flex h-12 w-64 items-center justify-end rounded-xl border border-border border-dashed px-2.5"
 
 const RAIL_LINE =
-	"group/sidebar flex h-12 w-12 items-center justify-center rounded-xl border border-border border-dashed"
+	"group flex h-12 w-12 items-center justify-center rounded-xl border border-border border-dashed"
 
 const NARROW_STRIP = "w-24 rounded-xl border border-border border-dashed py-2"
 
@@ -119,7 +119,7 @@ const SwitcherLine = (props: SpaceSwitcherProps) => (
 )
 
 const SwitcherRail = (props: SpaceSwitcherProps) => (
-	<div className={RAIL_LINE} data-state="collapsed">
+	<div className={RAIL_LINE} data-collapsible="icon">
 		<SpaceSwitcher {...props} />
 	</div>
 )

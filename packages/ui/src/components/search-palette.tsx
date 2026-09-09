@@ -12,11 +12,10 @@ import {
 } from "@workspace/ui/components/search-result-row"
 import {
 	BACKDROP_CLASS,
-	DIALOG_POPUP_CLASS,
+	POPUP_CLASS,
 } from "@workspace/ui/components/settings-styles"
 import { ToggleSwitch } from "@workspace/ui/components/toggle-switch"
 import { Button } from "@workspace/ui/components/ui/button"
-import { Kbd, KbdGroup } from "@workspace/ui/components/ui/kbd"
 import { Tabs, TabsList, TabsTrigger } from "@workspace/ui/components/ui/tabs"
 import { cn } from "@workspace/ui/lib/utils"
 
@@ -26,10 +25,9 @@ type SearchTab = "all" | SearchKind
 
 type SearchRestingKind = Exclude<SearchKind, "messages">
 
-type SearchPaletteResult = Omit<
-	SearchResultRowProps,
-	"id" | "isActive" | "rank" | "rankLabel"
-> & { id: string }
+type SearchPaletteResult = Omit<SearchResultRowProps, "id" | "isActive"> & {
+	id: string
+}
 
 type SearchResultGroup = {
 	kind: SearchKind
@@ -84,10 +82,10 @@ const RESTING_MARKS: Record<SearchRestingKind, ReactNode> = {
 
 const SHOWN_PER_KIND = 3
 
-const FIRST_RANK = 1
-
-const POPUP_CLASS =
+const PALETTE_GEOMETRY_CLASS =
 	"-translate-x-1/2 fixed top-27 left-1/2 z-50 flex h-146 max-h-[calc(100vh-9rem)] w-160 max-w-[calc(100vw-3rem)] flex-col overflow-hidden rounded-2xl"
+
+const POPUP = cn(POPUP_CLASS, PALETTE_GEOMETRY_CLASS)
 
 const QUERY_LINE_CLASS =
 	"flex h-13 shrink-0 items-center gap-2.5 border-border border-b px-4"
@@ -98,8 +96,10 @@ const INPUT_CLASS =
 const TAB_ROW_CLASS =
 	"flex h-11 shrink-0 items-center justify-between gap-2 px-3"
 
-const TAB_TRIGGER_CLASS =
-	"h-7.5 shrink-0 py-0 motion-reduce:transition-none motion-reduce:duration-0"
+const TAB_STRIP_CLASS =
+	"scrollbar-hide max-w-full overflow-x-auto bg-transparent p-0"
+
+const TAB_TRIGGER_CLASS = "h-7.5 shrink-0 py-0 transition-none"
 
 const BODY_CLASS =
 	"flex min-h-0 flex-1 flex-col gap-0.5 overflow-y-auto p-2 outline-none focus-visible:ring-3 focus-visible:ring-ring/30 focus-visible:ring-inset"
@@ -112,60 +112,6 @@ const SECTION_HEAD_CLASS = "flex h-7 items-center gap-1.5 px-2"
 
 const SEE_ALL_CLASS =
 	"ms-auto rounded-md text-muted-foreground text-xs outline-none hover:text-foreground focus-visible:ring-3 focus-visible:ring-ring/30"
-
-const FOOTER_CLASS =
-	"flex h-9 shrink-0 items-center gap-4 border-border border-t bg-muted px-4"
-
-const HINT_CLASS = "flex items-center gap-1.5 text-[11px] text-muted-foreground"
-
-const KEYCAP_CLASS = "bg-background"
-
-const SearchPaletteFooter = () => {
-	const { t } = useTranslation("search")
-
-	const hints = [
-		{
-			key: "move",
-			cap: (
-				<KbdGroup>
-					<Kbd className={KEYCAP_CLASS}>
-						<Icons.ArrowUp aria-hidden="true" />
-					</Kbd>
-					<Kbd className={KEYCAP_CLASS}>
-						<Icons.ArrowDown aria-hidden="true" />
-					</Kbd>
-				</KbdGroup>
-			),
-			label: t("hint.move"),
-		},
-		{
-			key: "open",
-			cap: <Kbd className={KEYCAP_CLASS}>↵</Kbd>,
-			label: t("hint.open"),
-		},
-		{
-			key: "rank",
-			cap: <Kbd className={KEYCAP_CLASS}>⌘1-9</Kbd>,
-			label: t("hint.rank"),
-		},
-		{
-			key: "tab",
-			cap: <Kbd className={KEYCAP_CLASS}>⇥</Kbd>,
-			label: t("hint.tab"),
-		},
-	]
-
-	return (
-		<div className={FOOTER_CLASS} data-slot="search-palette-footer">
-			{hints.map((hint) => (
-				<span className={HINT_CLASS} key={hint.key}>
-					{hint.cap}
-					{hint.label}
-				</span>
-			))}
-		</div>
-	)
-}
 
 const SearchPalette = ({
 	open,
@@ -228,13 +174,10 @@ const SearchPalette = ({
 	const sections = isRest ? restingSections : foundSections
 
 	const shown = sections.flatMap((section) => section.results)
-	const rankOf = new Map(
-		shown.map((result, index) => [result.id, index + FIRST_RANK]),
-	)
 	const rowId = (id: string) => `${listId}-${id}`
 	const sectionListId = (key: string) => `${listId}-${key}`
 	const activeId =
-		activeResultId && rankOf.has(activeResultId)
+		activeResultId && shown.some((result) => result.id === activeResultId)
 			? rowId(activeResultId)
 			: undefined
 
@@ -307,7 +250,6 @@ const SearchPalette = ({
 			id={rowId(id)}
 			isActive={id === activeResultId}
 			key={id}
-			rank={rankOf.get(id)}
 			space={isScopeAllSpaces ? space : undefined}
 		/>
 	)
@@ -321,7 +263,7 @@ const SearchPalette = ({
 				/>
 				<Dialog.Popup
 					aria-label={label}
-					className={cn(DIALOG_POPUP_CLASS, POPUP_CLASS)}
+					className={POPUP}
 					data-slot="search-palette"
 					initialFocus={input}
 				>
@@ -343,7 +285,6 @@ const SearchPalette = ({
 							role="combobox"
 							value={query}
 						/>
-						<Kbd>{t("close")}</Kbd>
 					</div>
 
 					<div className={TAB_ROW_CLASS} data-slot="search-palette-tabs">
@@ -352,7 +293,7 @@ const SearchPalette = ({
 							onValueChange={(value) => onTabChange(value as SearchTab)}
 							value={tab}
 						>
-							<TabsList className="max-w-full overflow-x-auto bg-transparent p-0">
+							<TabsList className={TAB_STRIP_CLASS}>
 								{TABS.map((candidate) => (
 									<TabsTrigger
 										className={TAB_TRIGGER_CLASS}
@@ -440,8 +381,6 @@ const SearchPalette = ({
 
 						{panelOf()}
 					</div>
-
-					<SearchPaletteFooter />
 				</Dialog.Popup>
 			</Dialog.Portal>
 		</Dialog.Root>

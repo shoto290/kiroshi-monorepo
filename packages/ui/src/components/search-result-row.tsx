@@ -1,7 +1,5 @@
 "use client"
 
-import { useTranslation } from "react-i18next"
-
 import {
 	ACTIVATION_CLASS,
 	type ActivityRowPart,
@@ -23,7 +21,6 @@ import {
 } from "@workspace/ui/components/mission"
 import type { MissionMark } from "@workspace/ui/components/mission-marks"
 import { SpaceTint } from "@workspace/ui/components/space-tint"
-import { Kbd } from "@workspace/ui/components/ui/kbd"
 import { cn } from "@workspace/ui/lib/utils"
 
 type SearchResultIdentity =
@@ -47,25 +44,17 @@ type SearchResultRowProps = {
 	parts: ActivityRowPart[]
 	space?: SearchResultSpace
 	identifier?: string
-	rank?: number
-	rankLabel?: string
 	isActive?: boolean
 	id?: string
 	onOpen: () => void
 }
-
-const FIRST_RANK = 1
-
-const LAST_RANK = 9
 
 const ACTIVE_CLASS =
 	"group/search-result-row data-[active=true]:bg-muted data-[active=true]:[--badge-ring:var(--color-muted)] [&[data-active=true]:hover]:bg-muted"
 
 const MATCH_CLASS = "rounded-xs bg-mark/40 px-[0.15em] py-[0.05em] text-inherit"
 
-const RANK_LANE_CLASS = "flex w-[26px] shrink-0 justify-center self-start"
-
-const RANK_CLASS = "group-data-[active=true]/search-result-row:bg-background"
+const ROW_CLASS_NAME = cn(ROW_CLASS, ACTIVATION_CLASS, ACTIVE_CLASS)
 
 const isMessageKind = (identity: SearchResultIdentity) =>
 	identity.kind === "message" || identity.kind === "message-from-you"
@@ -115,21 +104,17 @@ const SearchResultRow = ({
 	parts,
 	space,
 	identifier,
-	rank,
-	rankLabel,
 	isActive = false,
 	id,
 	onOpen,
 }: SearchResultRowProps) => {
-	const { t } = useTranslation("search")
 	const Glyph = glyphOf(identity)
 	const context = parts.filter((part) => part.text !== "")
-	const isRanked = rank !== undefined && rank >= FIRST_RANK && rank <= LAST_RANK
 
 	return (
 		<button
 			aria-selected={isActive}
-			className={cn(ROW_CLASS, ACTIVATION_CLASS, ACTIVE_CLASS)}
+			className={ROW_CLASS_NAME}
 			data-active={isActive}
 			data-slot="search-result-row"
 			id={id}
@@ -196,16 +181,6 @@ const SearchResultRow = ({
 						))}
 					</span>
 				</span>
-			</span>
-			<span className={RANK_LANE_CLASS} data-slot="search-result-row-rank">
-				{isRanked ? (
-					<>
-						{rankLabel ? <span className="sr-only">{rankLabel}</span> : null}
-						<Kbd aria-hidden="true" className={RANK_CLASS}>
-							{t("rank", { rank })}
-						</Kbd>
-					</>
-				) : null}
 			</span>
 		</button>
 	)

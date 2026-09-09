@@ -9,12 +9,12 @@ import {
 
 import { ActivityIndicator } from "@workspace/ui/components/activity-indicator"
 import { AppHeader } from "@workspace/ui/components/app-header"
-import { InitialsAvatar } from "@workspace/ui/components/initials-avatar"
 import type { BotStopProps } from "@workspace/ui/components/bot-identity-avatar"
 import { ChatEmptyState } from "@workspace/ui/components/chat-empty-state"
 import { ConversationEmptyState } from "@workspace/ui/components/conversation-empty-state"
 import { HeaderConversationButton } from "@workspace/ui/components/header-conversation-button"
 import { HeaderIdentityButton } from "@workspace/ui/components/header-identity-button"
+import { InitialsAvatar } from "@workspace/ui/components/initials-avatar"
 import type { MessageAuthor } from "@workspace/ui/components/message"
 import {
 	MessageQuote,

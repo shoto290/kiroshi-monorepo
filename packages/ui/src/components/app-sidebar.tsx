@@ -3,6 +3,7 @@
 import type { TFunction } from "i18next"
 import { useReducedMotion } from "motion/react"
 import {
+	type ComponentProps,
 	memo,
 	type ReactNode,
 	type UIEvent,
@@ -42,23 +43,11 @@ import { BOT_IDENTITY_ANIMALS } from "@workspace/ui/components/bot-settings"
 import { ContextMenuPressTrigger } from "@workspace/ui/components/context-menu-press-trigger"
 import { Icons } from "@workspace/ui/components/icons"
 import {
-	AnimatedSidebar,
-	AnimatedSidebarContent,
-	AnimatedSidebarFooter,
-	AnimatedSidebarGroup,
-	AnimatedSidebarGroupContent,
-	AnimatedSidebarGroupLabel,
-	AnimatedSidebarHeader,
-	AnimatedSidebarMenu,
-	AnimatedSidebarMenuButton,
-	AnimatedSidebarMenuItem,
-	type AnimatedSidebarProps,
-	useAnimatedSidebar,
-} from "@workspace/ui/components/motion/animated-sidebar"
-import {
 	TextShimmer,
 	WORKING_SHIMMER_DURATION,
 } from "@workspace/ui/components/motion/text-shimmer"
+import { SidebarMenuRow } from "@workspace/ui/components/sidebar-menu-row"
+import { SidebarResizeHandle } from "@workspace/ui/components/sidebar-resize"
 import { SidebarSearchField } from "@workspace/ui/components/sidebar-search-field"
 import { type Space, spaceAtRank } from "@workspace/ui/components/space"
 import {
@@ -81,6 +70,18 @@ import {
 	ContextMenuTrigger,
 } from "@workspace/ui/components/ui/context-menu"
 import {
+	Sidebar,
+	SidebarContent,
+	SidebarFooter,
+	SidebarGroup,
+	SidebarGroupContent,
+	SidebarGroupLabel,
+	SidebarHeader,
+	SidebarMenu,
+	SidebarMenuItem,
+	useSidebar,
+} from "@workspace/ui/components/ui/sidebar"
+import {
 	UserChip,
 	type UserChipIdentity,
 } from "@workspace/ui/components/user-chip"
@@ -97,11 +98,12 @@ import { STILL_UNDER_REDUCED_MOTION } from "@workspace/ui/lib/reduced-motion"
 import { probeRender } from "@workspace/ui/lib/render-probe"
 import { cn, mergeRefs } from "@workspace/ui/lib/utils"
 
-const HEADER =
-	"h-12 flex-row items-center justify-end py-0 pr-2.5 group-data-[state=collapsed]/sidebar:justify-center group-data-[state=collapsed]/sidebar:px-0"
+const PANEL = "on-shell border-e-0! **:data-[slot=sidebar-inner]:bg-transparent"
 
-const WINDOW_CONTROLS_INSET =
-	"pl-[78px] group-data-[state=collapsed]/sidebar:*:hidden"
+const HEADER =
+	"h-12 flex-row items-center justify-end py-0 pr-2.5 group-data-[collapsible=icon]:justify-center group-data-[collapsible=icon]:px-0"
+
+const WINDOW_CONTROLS_INSET = "pl-[78px] group-data-[collapsible=icon]:*:hidden"
 
 const NO_WINDOW_CONTROLS_INSET = "pl-2.5"
 
@@ -116,7 +118,8 @@ const NAME_LINE = "flex h-5 min-w-0 items-center gap-1.5"
 
 const ROW_STACK = "relative flex h-9 min-w-0 flex-col justify-center"
 
-const ROW_ITEM = "flex flex-col gap-1"
+const ROW_ITEM =
+	"flex flex-col gap-1 group-data-[collapsible=icon]:items-center"
 
 const MISSION_STRIPS = "flex flex-col gap-1"
 
@@ -143,17 +146,17 @@ const LAST_SPACE_NOTE =
 	"px-2.5 pt-0.5 pb-1.5 text-[11px] text-muted-foreground leading-[15px]"
 
 const ROW =
-	"py-1.5 pl-1.5 aria-expanded:bg-sidebar-accent/70 group-data-[state=collapsed]/sidebar:pl-0"
+	"py-1.5 pl-1.5 aria-expanded:bg-sidebar-accent/70 group-data-[collapsible=icon]:pl-0"
 
-const FOOTER_INSET = "group-data-[state=collapsed]/sidebar:px-0"
+const FOOTER_INSET = "group-data-[collapsible=icon]:px-0"
 
 const FOOTER_ROW =
-	"flex flex-row items-center gap-2 group-data-[state=collapsed]/sidebar:flex-col-reverse group-data-[state=collapsed]/sidebar:items-center"
+	"flex flex-row items-center gap-2 group-data-[collapsible=icon]:flex-col-reverse group-data-[collapsible=icon]:items-center"
 
 const FOOTER_SLOT = "flex shrink-0 items-center empty:hidden"
 
 const EMPTY_COPY =
-	"px-3 py-4 text-center text-sidebar-foreground/70 text-sm group-data-[state=collapsed]/sidebar:hidden"
+	"px-3 py-4 text-center text-sidebar-foreground/70 text-sm group-data-[collapsible=icon]:hidden"
 
 const ROSTER_SURFACE = "min-h-10 flex-1"
 
@@ -161,17 +164,16 @@ const ROSTER_ROWS = "gap-0.5"
 
 const SECTION_GROUP = "px-0 py-0"
 
-const SECTION_PAD =
-	"px-[4.5px] pb-[4.5px] group-data-[state=collapsed]/sidebar:p-0"
+const SECTION_PAD = "px-[4.5px] pb-[4.5px] group-data-[collapsible=icon]:p-0"
 
 const SECTION_CARD =
-	"rounded-xl border border-border transition-colors duration-200 ease-out motion-reduce:transition-none has-[[data-slot=roster-section-trigger]:hover]:bg-sidebar-accent/70 group-data-[state=collapsed]/sidebar:border-transparent group-data-[state=collapsed]/sidebar:bg-transparent"
+	"rounded-xl transition-colors duration-200 ease-out motion-reduce:transition-none has-[[data-slot=roster-section-trigger]:hover]:bg-sidebar-accent/70 group-data-[collapsible=icon]:bg-transparent"
 
 const SECTION_CARD_OPEN =
 	"bg-sidebar-accent/50 group-data-[landing]/roster-drop:bg-sidebar-accent"
 
 const SECTION_LABEL =
-	"mb-0 h-auto px-0 font-semibold text-sidebar-foreground text-xs normal-case tracking-normal group-data-[state=collapsed]/sidebar:hidden"
+	"mb-0 h-auto px-0 font-semibold text-sidebar-foreground text-xs normal-case tracking-normal group-data-[collapsible=icon]:hidden"
 
 const SECTION_TRIGGER =
 	"flex w-full min-w-0 select-none items-center gap-1.5 rounded-xl px-[10.5px] py-2.5 text-left focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-sidebar-ring"
@@ -182,7 +184,7 @@ const SECTION_CHEVRON =
 	"size-3.5 shrink-0 text-sidebar-foreground/50 transition-transform duration-150 ease-out motion-reduce:transition-none"
 
 const SECTION_BODY =
-	"grid transition-[grid-template-rows,visibility] duration-200 ease-out motion-reduce:transition-none group-data-[state=collapsed]/sidebar:visible group-data-[state=collapsed]/sidebar:grid-rows-[1fr]"
+	"grid transition-[grid-template-rows,visibility] duration-200 ease-out motion-reduce:transition-none group-data-[collapsible=icon]:visible group-data-[collapsible=icon]:grid-rows-[1fr]"
 
 const SECTION_BODY_OPEN = "visible grid-rows-[1fr]"
 
@@ -194,7 +196,7 @@ const SECTION_FIELD =
 	"w-full min-w-0 border-none bg-transparent px-[10.5px] py-2.5 text-sidebar-foreground text-xs outline-none"
 
 const SECTION_DROP =
-	"flex items-center justify-center gap-2 rounded-xl border border-sidebar-border border-dashed px-3 py-3 text-center text-muted-foreground text-xs group-data-[state=collapsed]/sidebar:hidden"
+	"flex items-center justify-center gap-2 rounded-xl border border-sidebar-border border-dashed px-3 py-3 text-center text-muted-foreground text-xs group-data-[collapsible=icon]:hidden"
 
 const SECTION_DROP_AVATAR = "block opacity-40"
 
@@ -212,7 +214,7 @@ const INSERTION_LINE =
 const PINNED_ZONE_STACK = "flex flex-col gap-1.5"
 
 const ZONE_SEPARATOR =
-	"mx-1.5 my-1 block h-px shrink-0 rounded-full bg-sidebar-border group-data-[state=collapsed]/sidebar:hidden"
+	"mx-1.5 my-1 block h-px shrink-0 rounded-full bg-sidebar-border group-data-[collapsible=icon]:hidden"
 
 const INSERTION_ABOVE = "-top-0.5"
 
@@ -236,15 +238,14 @@ const drawnFrom = <Item,>(pool: Item[], seed: string) => {
 	return pool[total % pool.length]
 }
 
-const CONTENT_INSET = "pr-1 group-data-[state=collapsed]/sidebar:px-0"
+const CONTENT_INSET = "p-2 group-data-[collapsible=icon]:px-0"
 
-const SEARCH_INSET =
-	"px-[9px] pb-[9px] group-data-[state=collapsed]/sidebar:px-0"
+const SEARCH_INSET = "px-[9px] pb-[9px] group-data-[collapsible=icon]:px-0"
 
 type SidebarSearchSlotProps = { onOpenSearch: () => void }
 
 const SidebarSearchSlot = ({ onOpenSearch }: SidebarSearchSlotProps) => {
-	const { isMobile, state } = useAnimatedSidebar()
+	const { isMobile, state } = useSidebar()
 
 	return (
 		<div className={SEARCH_INSET}>
@@ -268,7 +269,7 @@ const CAROUSEL_SWIPEABLE = "overflow-x-auto"
 const CAROUSEL_HELD = "overflow-x-hidden"
 
 const CAROUSEL_PANEL =
-	"flex w-full flex-none snap-start snap-always flex-col gap-1.5 overflow-y-auto overscroll-y-contain px-[9px] pt-0 pb-1.5 group-data-[state=collapsed]/sidebar:px-0"
+	"flex w-full flex-none snap-start snap-always flex-col gap-1.5 overflow-y-auto overscroll-y-contain px-[9px] pt-0 pb-1.5 group-data-[collapsible=icon]:px-0"
 
 type AppSidebarStatus = "idle" | "working"
 
@@ -531,7 +532,6 @@ interface SpacesBranchProps {
 	spaces: Space[]
 	memberships: string[]
 	openSpaceId?: string
-	finalFocus: () => HTMLElement | true
 	onAddToSpace?: (botId: string, spaceId: string) => void
 	onRemoveFromSpace?: (botId: string, spaceId: string) => void
 }
@@ -541,7 +541,6 @@ const SpacesBranch = ({
 	spaces,
 	memberships,
 	openSpaceId,
-	finalFocus,
 	onAddToSpace,
 	onRemoveFromSpace,
 }: SpacesBranchProps) => {
@@ -569,7 +568,7 @@ const SpacesBranch = ({
 				<Icons.Spaces aria-hidden="true" className="size-3.5" />
 				{t("roster.spaces.label")}
 			</ContextMenuSubTrigger>
-			<ContextMenuSubContent className={NAMED_PANEL} finalFocus={finalFocus}>
+			<ContextMenuSubContent className={NAMED_PANEL}>
 				{spaces.map((space) => {
 					const isMember = memberships.includes(space.id)
 					const isLocked = isMember && isHeldByOneSpace
@@ -606,7 +605,7 @@ const SpacesBranch = ({
 }
 
 const useRosterBadgePlacement = (badge?: BotBadge) => {
-	const { state } = useAnimatedSidebar()
+	const { state } = useSidebar()
 	const isCollapsed = state === "collapsed"
 
 	return {
@@ -755,7 +754,7 @@ const BotRosterRow = ({
 		focusAfterClose.current ?? rowButtonOf(rowRef.current) ?? true
 
 	return (
-		<AnimatedSidebarMenuItem
+		<SidebarMenuItem
 			{...(isPinned ? dropArea(bot.id) : undefined)}
 			className={ROW_ITEM}
 			data-tauri-drag-region="false"
@@ -764,7 +763,7 @@ const BotRosterRow = ({
 			<InsertionLine edge={insertion} />
 			<ContextMenu>
 				<ContextMenuTrigger>
-					<AnimatedSidebarMenuButton
+					<SidebarMenuRow
 						{...lift.handlersFor(bot.id)}
 						below={strips}
 						className={ROW}
@@ -809,7 +808,7 @@ const BotRosterRow = ({
 								/>
 							) : null}
 						</span>
-					</AnimatedSidebarMenuButton>
+					</SidebarMenuRow>
 				</ContextMenuTrigger>
 				<ContextMenuContent
 					aria-label={t("roster.actions", { name: bot.name })}
@@ -840,7 +839,6 @@ const BotRosterRow = ({
 					/>
 					<SpacesBranch
 						botId={bot.id}
-						finalFocus={keepFocusAfterClose}
 						memberships={memberships}
 						onAddToSpace={onAddToSpace}
 						onRemoveFromSpace={leaveSpace}
@@ -857,7 +855,7 @@ const BotRosterRow = ({
 					</ContextMenuItem>
 				</ContextMenuContent>
 			</ContextMenu>
-		</AnimatedSidebarMenuItem>
+		</SidebarMenuItem>
 	)
 }
 
@@ -913,7 +911,7 @@ const ConversationRosterRow = ({
 		: missionStripsOf(conversation.missions)
 
 	return (
-		<AnimatedSidebarMenuItem
+		<SidebarMenuItem
 			{...(isPinned ? dropArea(conversation.id) : undefined)}
 			className={ROW_ITEM}
 			data-tauri-drag-region="false"
@@ -922,7 +920,7 @@ const ConversationRosterRow = ({
 			<InsertionLine edge={insertion} />
 			<ContextMenu>
 				<ContextMenuTrigger>
-					<AnimatedSidebarMenuButton
+					<SidebarMenuRow
 						{...lift.handlersFor(conversation.id)}
 						below={strips}
 						className={ROW}
@@ -966,7 +964,7 @@ const ConversationRosterRow = ({
 								/>
 							) : null}
 						</span>
-					</AnimatedSidebarMenuButton>
+					</SidebarMenuRow>
 				</ContextMenuTrigger>
 				<ContextMenuContent
 					aria-label={t("roster.actions", { name: conversation.name })}
@@ -999,7 +997,7 @@ const ConversationRosterRow = ({
 					</ContextMenuItem>
 				</ContextMenuContent>
 			</ContextMenu>
-		</AnimatedSidebarMenuItem>
+		</SidebarMenuItem>
 	)
 }
 
@@ -1090,9 +1088,9 @@ interface SectionLabelProps {
 }
 
 const SectionLabel = ({ ref, children }: SectionLabelProps) => (
-	<AnimatedSidebarGroupLabel className={SECTION_LABEL} ref={ref}>
+	<SidebarGroupLabel className={SECTION_LABEL} ref={ref}>
 		{children}
-	</AnimatedSidebarGroupLabel>
+	</SidebarGroupLabel>
 )
 
 interface SectionDropZoneProps {
@@ -1260,9 +1258,8 @@ const RosterSection = ({
 	const [isRenaming, setIsRenaming] = useState(false)
 
 	return (
-		<AnimatedSidebarGroup
+		<SidebarGroup
 			className={cn(SECTION_GROUP, SECTION_CARD, isOpen && SECTION_CARD_OPEN)}
-			data-slot="roster-section"
 		>
 			<SectionLabel ref={headRef}>
 				{isRenaming ? (
@@ -1337,7 +1334,7 @@ const RosterSection = ({
 					</ContextMenu>
 				)}
 			</SectionLabel>
-			<AnimatedSidebarGroupContent
+			<SidebarGroupContent
 				className={cn(
 					SECTION_BODY,
 					isOpen ? SECTION_BODY_OPEN : SECTION_BODY_CLOSED,
@@ -1347,8 +1344,8 @@ const RosterSection = ({
 				<div className={SECTION_BODY_INNER}>
 					<div className={SECTION_PAD}>{children}</div>
 				</div>
-			</AnimatedSidebarGroupContent>
-		</AnimatedSidebarGroup>
+			</SidebarGroupContent>
+		</SidebarGroup>
 	)
 }
 
@@ -1493,7 +1490,7 @@ const BotRoster = ({
 	onPinRoster,
 }: BotRosterProps) => {
 	const { t } = useTranslation("bots")
-	const { isMobile, state } = useAnimatedSidebar()
+	const { isMobile, state } = useSidebar()
 
 	const known = new Set(sections.map((section) => section.id))
 
@@ -1766,9 +1763,9 @@ const BotRoster = ({
 	}
 
 	const menuOf = (entries: PinnedEntry[], isSlotted: boolean) => (
-		<AnimatedSidebarMenu className={ROSTER_ROWS}>
+		<SidebarMenu className={ROSTER_ROWS}>
 			{entries.map((entry) => rowFor(entry, isSlotted))}
-		</AnimatedSidebarMenu>
+		</SidebarMenu>
 	)
 
 	const menuOfRows = (
@@ -1894,7 +1891,7 @@ const BotRoster = ({
 				</RosterDropArea>
 			) : null}
 			{naming ? (
-				<AnimatedSidebarGroup className={SECTION_GROUP}>
+				<SidebarGroup className={SECTION_GROUP}>
 					<SectionLabel>
 						<SectionNameField
 							ariaLabel={t("roster.section.createField")}
@@ -1907,11 +1904,11 @@ const BotRoster = ({
 						/>
 					</SectionLabel>
 					{hasNamedRow ? (
-						<AnimatedSidebarGroupContent>
+						<SidebarGroupContent>
 							{menuOfRows(namedConversations, namedBots)}
-						</AnimatedSidebarGroupContent>
+						</SidebarGroupContent>
 					) : null}
-				</AnimatedSidebarGroup>
+				</SidebarGroup>
 			) : null}
 			<RosterSurface {...surface} />
 			{isLifting
@@ -2102,8 +2099,8 @@ const CreateMenu = (items: CreateItemsProps) => {
 }
 
 type AppSidebarPanelProps = Omit<
-	AnimatedSidebarProps,
-	"ariaLabel" | "children" | "collapsible"
+	ComponentProps<typeof Sidebar>,
+	"children" | "collapsible"
 >
 
 interface AppSidebarProps
@@ -2245,14 +2242,15 @@ const AppSidebarBase = ({
 
 	return (
 		<>
-			<AnimatedSidebar
-				variant="inset"
+			<Sidebar
 				{...panel}
 				aria-busy={shown.some(isBusy) || shownRooms.some(isBusy)}
-				ariaLabel={t("roster.label")}
+				aria-label={t("roster.label")}
+				className={PANEL}
 				collapsible="icon"
+				role="complementary"
 			>
-				<AnimatedSidebarHeader
+				<SidebarHeader
 					className={cn(
 						HEADER,
 						insetWindowControls
@@ -2287,13 +2285,12 @@ const AppSidebarBase = ({
 							<Icons.Add aria-hidden="true" />
 						</TooltipButton>
 					)}
-				</AnimatedSidebarHeader>
+				</SidebarHeader>
 				{onOpenSearch ? (
 					<SidebarSearchSlot onOpenSearch={onOpenSearch} />
 				) : null}
-				<AnimatedSidebarContent
+				<SidebarContent
 					className={hasRosterPerSpace ? CAROUSEL_CONTENT : CONTENT_INSET}
-					isScrollable={!hasRosterPerSpace}
 				>
 					{hasRosterPerSpace ? (
 						<SpaceCarousel
@@ -2336,9 +2333,9 @@ const AppSidebarBase = ({
 							spaces={spaces}
 						/>
 					)}
-				</AnimatedSidebarContent>
+				</SidebarContent>
 				{user || footer || spaces.length > 1 ? (
-					<AnimatedSidebarFooter className={FOOTER_INSET}>
+					<SidebarFooter className={FOOTER_INSET}>
 						<SpaceDots
 							badgesBySpaceId={badgesBySpaceId}
 							onReorderSpaces={onReorderSpaces}
@@ -2358,9 +2355,10 @@ const AppSidebarBase = ({
 								<span className={FOOTER_SLOT}>{footer}</span>
 							</span>
 						) : null}
-					</AnimatedSidebarFooter>
+					</SidebarFooter>
 				) : null}
-			</AnimatedSidebar>
+				<SidebarResizeHandle side="left" />
+			</Sidebar>
 			<span className="sr-only" role="status">
 				{announcementFor(t, selectedBot, selectedConversation)}
 			</span>
@@ -2378,6 +2376,7 @@ export {
 	type AppSidebarRowMission,
 	type AppSidebarSection,
 	type BotAvatarBlot,
+	ROW_AVATAR_SIZE,
 	type RosterPin,
 	type Space,
 	type UserChipIdentity,

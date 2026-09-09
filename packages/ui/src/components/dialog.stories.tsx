@@ -2,6 +2,7 @@ import type { ComponentType, ReactNode } from "react"
 import { expect, screen, waitFor, within } from "storybook/test"
 
 import preview from "@workspace/storybook/preview"
+import { slotIn } from "@workspace/storybook/story-utils"
 import { Button } from "@workspace/ui/components/ui/button"
 import {
 	Dialog,
@@ -67,7 +68,7 @@ export const Default = meta.story({
 		docs: {
 			description: {
 				story:
-					"The resting state and the open one. Check the trigger takes focus with a visible ring and opens on Enter, that the surface lands centred over a dimmed overlay, and that Escape closes it and puts focus back on the trigger.",
+					"The resting state and the open one. Check the trigger takes focus with a visible ring and opens on Enter, that the surface lands centred over an overlay that dims what is behind it without blurring it, and that Escape closes it and puts focus back on the trigger.",
 			},
 		},
 	},
@@ -81,6 +82,9 @@ export const Default = meta.story({
 		const dialog = await screen.findByRole("dialog")
 		await waitFor(() => expect(dialog).toBeVisible())
 		await expect(dialog).toHaveAccessibleName("Companion settings")
+
+		const overlay = slotIn(document.body, "dialog-overlay")
+		await expect(getComputedStyle(overlay).backdropFilter).toBe("none")
 
 		await userEvent.keyboard("{Escape}")
 		await waitFor(() =>

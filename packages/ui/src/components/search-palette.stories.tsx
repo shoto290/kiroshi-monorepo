@@ -292,7 +292,7 @@ const meta = preview.meta({
 		docs: {
 			description: {
 				component:
-					"The search surface of the app, opened over whatever the reader was doing. It composes its own popup rather than the shared dialog content because the query line, the tab row and the footer are pinned and only the body between them scrolls. It holds one height whatever the body holds, so a keystroke never moves the footer under the reader's pointer. It reads nothing: the query, the tab, the scope, the results, the resting rows and the loading flag are all props, and every gesture is a callback, so the host owns the search itself. Focus stays on the query line at all times and the row the keyboard sits on is pointed at with `aria-activedescendant`, which is why the rows are options of one listbox rather than buttons in a tree. On the All tab each kind gets a head naming it and counting what it found, cut to three rows with a See all that moves the reader to that kind's own tab; every other tab is one flat list. While the query is empty every tab answers with the resting rows it was handed or, when it has none, with a panel that says what to do about it.",
+					"The search surface of the app, opened over whatever the reader was doing. It composes its own popup rather than the shared dialog content because the query line and the tab row are pinned and only the body under them scrolls. It holds one height whatever the body holds, so a keystroke never moves a row under the reader's pointer. It reads nothing: the query, the tab, the scope, the results, the resting rows and the loading flag are all props, and every gesture is a callback, so the host owns the search itself. Focus stays on the query line at all times and the row the keyboard sits on is pointed at with `aria-activedescendant`, which is why the rows are options of one listbox rather than buttons in a tree. On the All tab each kind gets a head naming it and counting what it found, cut to three rows with a See all that moves the reader to that kind's own tab; every other tab is one flat list. While the query is empty every tab answers with the resting rows it was handed or, when it has none, with a panel that says what to do about it.",
 			},
 		},
 	},
@@ -341,11 +341,6 @@ export const Default = meta.story({
 		)
 		await expect(slotsIn(body, "search-palette-see-all")).toHaveLength(1)
 
-		const ranks = slotsIn(body, "search-result-row-rank").map(
-			(lane) => lane.textContent,
-		)
-		await expect(ranks).toEqual(["⌘1", "⌘2", "⌘3", "⌘4", "⌘5", "⌘6", "⌘7"])
-
 		const selected = within(popup).getAllByRole("option", { selected: true })
 		await expect(selected).toHaveLength(1)
 		await expect(field.getAttribute("aria-activedescendant")).toBe(
@@ -387,11 +382,6 @@ export const OneKind = meta.story({
 		await expect(within(popup).queryAllByRole("group")).toHaveLength(0)
 		await expect(within(popup).getAllByRole("option")).toHaveLength(
 			MESSAGES.length,
-		)
-
-		const lanes = slotsIn(body, "search-result-row-rank")
-		await expect(lanes.filter((lane) => lane.textContent !== "")).toHaveLength(
-			9,
 		)
 	},
 })
@@ -473,7 +463,7 @@ export const OneHit = meta.story({
 		docs: {
 			description: {
 				story:
-					"A query one chat answers, and nothing else. Check that the popup stands at its full height with a single row in it rather than shrinking around it — the height is the same number `ManyHits` asserts — so the footer and the tab row sit where the reader last saw them and the next keystroke does not move them.",
+					"A query one chat answers, and nothing else. Check that the popup stands at its full height with a single row in it rather than shrinking around it — the height is the same number `ManyHits` asserts — so the query line and the tab row sit where the reader last saw them and the next keystroke does not move them.",
 			},
 		},
 	},
@@ -491,7 +481,7 @@ export const ManyHits = meta.story({
 		docs: {
 			description: {
 				story:
-					"Eleven hits spread over the four kinds, more than the body can show at once. Check that the popup is exactly as tall as it is in `OneHit`, that the overflow is taken by the body alone — it scrolls, the query line, the tab row and the footer do not move — and that no row is dropped to make the palette fit.",
+					"Eleven hits spread over the four kinds, more than the body can show at once. Check that the popup is exactly as tall as it is in `OneHit`, that the overflow is taken by the body alone — it scrolls, the query line and the tab row do not move, and that no row is dropped to make the palette fit.",
 			},
 		},
 	},
@@ -505,7 +495,6 @@ export const ManyHits = meta.story({
 		await expect(body.scrollHeight).toBeGreaterThan(body.clientHeight)
 		await expect(slotIn(popup, "search-palette-query")).toBeVisible()
 		await expect(slotIn(popup, "search-palette-tabs")).toBeVisible()
-		await expect(slotIn(popup, "search-palette-footer")).toBeVisible()
 	},
 })
 
@@ -534,9 +523,6 @@ export const Resting = meta.story({
 				.getAllByRole("listbox")
 				.map((list) => slotsIn(list, "search-result-row").length),
 		).toEqual([SHOWN_PER_KIND, RESTING_MISSIONS.length, SHOWN_PER_KIND])
-		await expect(
-			slotsIn(body, "search-result-row-rank").map((lane) => lane.textContent),
-		).toEqual(["⌘1", "⌘2", "⌘3", "⌘4", "⌘5", "⌘6", "⌘7", "⌘8"])
 		await expect(slotsIn(body, "search-palette-rest")).toHaveLength(0)
 
 		const [chats] = slotsIn(body, "search-palette-see-all")
@@ -790,7 +776,7 @@ export const Narrow = meta.story({
 		docs: {
 			description: {
 				story:
-					"The palette on a 320px window, the narrowest surface the shell reflows to. Check that the tab strip keeps every tab inside the row rather than pushing the scope switch off it — the strip scrolls sideways instead — and that pressing a tab still swaps the body. Pick `Default` for the palette with room for all five tabs at once.",
+					"The palette on a 320px window, the narrowest surface the shell reflows to. Check that the tab strip keeps every tab inside the row rather than pushing the scope switch off it — the strip scrolls sideways instead — that it draws no scrollbar of its own, since a reader whose system paints scrollbars permanently would otherwise get a bar across the tab labels, and that pressing a tab still swaps the body. Pick `Default` for the palette with room for all five tabs at once.",
 			},
 		},
 	},
@@ -804,6 +790,8 @@ export const Narrow = meta.story({
 		await expect(strip.getBoundingClientRect().right).toBeLessThanOrEqual(
 			row.getBoundingClientRect().right,
 		)
+		await expect(getComputedStyle(strip).scrollbarWidth).toBe("none")
+		await expect(strip.clientHeight).toBe(strip.offsetHeight)
 		await expect(reader.getByRole("switch")).toBeVisible()
 
 		await userEvent.click(reader.getByRole("tab", { name: "Chats" }))

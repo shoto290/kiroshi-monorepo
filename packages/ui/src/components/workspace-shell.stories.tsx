@@ -9,27 +9,31 @@ import {
 	type AppSidebarBot,
 } from "@workspace/ui/components/app-sidebar"
 import { ConnectionStatus } from "@workspace/ui/components/connection-status"
+import { CONTENT_CARD_GUTTER } from "@workspace/ui/components/content-card"
 import { Icons } from "@workspace/ui/components/icons"
+import { PromptInput } from "@workspace/ui/components/prompt-input"
+import type { RosterBot } from "@workspace/ui/components/roster"
+import { SidebarMenuRow } from "@workspace/ui/components/sidebar-menu-row"
 import {
-	AnimatedSidebar,
-	AnimatedSidebarContent,
-	AnimatedSidebarGroup,
-	AnimatedSidebarGroupContent,
-	AnimatedSidebarGroupLabel,
-	AnimatedSidebarHeader,
-	AnimatedSidebarMenu,
-	AnimatedSidebarMenuButton,
-	AnimatedSidebarMenuItem,
-	AnimatedSidebarTrigger,
 	SIDEBAR_DEFAULT_WIDTH,
 	SIDEBAR_MAX_WIDTH,
 	SIDEBAR_MIN_WIDTH,
 	SIDEBAR_WIDTH_STEP,
-} from "@workspace/ui/components/motion/animated-sidebar"
-import { PromptInput } from "@workspace/ui/components/prompt-input"
-import type { RosterBot } from "@workspace/ui/components/roster"
+	SidebarResizeHandle,
+} from "@workspace/ui/components/sidebar-resize"
 import { ThreadLayout } from "@workspace/ui/components/thread-layout"
 import { AssistantTurn, UserTurn } from "@workspace/ui/components/turn"
+import {
+	Sidebar,
+	SidebarContent,
+	SidebarGroup,
+	SidebarGroupContent,
+	SidebarGroupLabel,
+	SidebarHeader,
+	SidebarMenu,
+	SidebarMenuItem,
+	SidebarTrigger,
+} from "@workspace/ui/components/ui/sidebar"
 import { WorkspaceShell } from "@workspace/ui/components/workspace-shell"
 
 const ANSWER =
@@ -54,25 +58,26 @@ const ROSTER: AppSidebarBot[] = [
 ]
 
 const SIDEBAR = (
-	<AnimatedSidebar ariaLabel="Workspace" variant="inset">
-		<AnimatedSidebarHeader>
-			<AnimatedSidebarTrigger aria-label="Toggle workspace">
+	<Sidebar aria-label="Workspace" collapsible="icon" role="complementary">
+		<SidebarHeader>
+			<SidebarTrigger aria-label="Toggle workspace">
 				<Icons.More className="size-4" />
-			</AnimatedSidebarTrigger>
-		</AnimatedSidebarHeader>
-		<AnimatedSidebarContent>
-			<AnimatedSidebarGroup>
-				<AnimatedSidebarGroupLabel>Sessions</AnimatedSidebarGroupLabel>
-				<AnimatedSidebarGroupContent>
-					<AnimatedSidebarMenu>
-						<AnimatedSidebarMenuItem>
-							<AnimatedSidebarMenuButton>Brief</AnimatedSidebarMenuButton>
-						</AnimatedSidebarMenuItem>
-					</AnimatedSidebarMenu>
-				</AnimatedSidebarGroupContent>
-			</AnimatedSidebarGroup>
-		</AnimatedSidebarContent>
-	</AnimatedSidebar>
+			</SidebarTrigger>
+		</SidebarHeader>
+		<SidebarContent>
+			<SidebarGroup>
+				<SidebarGroupLabel>Sessions</SidebarGroupLabel>
+				<SidebarGroupContent>
+					<SidebarMenu>
+						<SidebarMenuItem>
+							<SidebarMenuRow label="Brief">Brief</SidebarMenuRow>
+						</SidebarMenuItem>
+					</SidebarMenu>
+				</SidebarGroupContent>
+			</SidebarGroup>
+		</SidebarContent>
+		<SidebarResizeHandle side="left" />
+	</Sidebar>
 )
 
 const chat = (leading?: ReactNode) => (
@@ -95,15 +100,18 @@ const chat = (leading?: ReactNode) => (
 const CHAT = chat()
 
 const CHAT_WITH_TRIGGER = chat(
-	<AnimatedSidebarTrigger>
+	<SidebarTrigger aria-label="Toggle sidebar">
 		<Icons.Sidebar className="size-4" />
-	</AnimatedSidebarTrigger>,
+	</SidebarTrigger>,
 )
 
 const OVERFLOWING_CHILD = <div className="h-[300svh] w-full bg-muted" />
 
 const shellSurface = (canvas: ReturnType<typeof within>) =>
 	canvas.getByRole("main").parentElement as HTMLElement
+
+const stateOf = (sidebar: HTMLElement) =>
+	sidebar.closest<HTMLElement>("[data-slot=sidebar]")?.dataset.state
 
 const paintOf = (element: HTMLElement) =>
 	getComputedStyle(element).backgroundColor
@@ -128,14 +136,12 @@ const paintFor = (value: string) =>
 		swatch.style.backgroundColor = value
 	})
 
-const CARD_GUTTER = 4
-
 const expectCardDetached = async (card: HTMLElement, leadingEdge: number) => {
 	const edges = card.getBoundingClientRect()
-	await expect(edges.left - leadingEdge).toBe(CARD_GUTTER)
-	await expect(edges.top).toBe(CARD_GUTTER)
-	await expect(window.innerWidth - edges.right).toBe(CARD_GUTTER)
-	await expect(window.innerHeight - edges.bottom).toBe(CARD_GUTTER)
+	await expect(edges.left - leadingEdge).toBe(0)
+	await expect(window.innerWidth - edges.right).toBe(CONTENT_CARD_GUTTER)
+	await expect(edges.top).toBe(CONTENT_CARD_GUTTER)
+	await expect(window.innerHeight - edges.bottom).toBe(CONTENT_CARD_GUTTER)
 }
 
 const meta = preview.meta({
@@ -258,26 +264,27 @@ export const Collapsed = meta.story({
 		docs: {
 			description: {
 				story:
-					"The same workspace opened with the sidebar already collapsed, which is how a host restores a remembered choice through `defaultOpen`. Check that the main column takes the room the panel gave up rather than leaving a gap beside the rail, that the trigger stays on the rail and reports `aria-expanded=false`, and that expanding it widens the panel while the conversation reflows without reloading. The session list hides itself on the rail — that is the panel's own collapse behaviour, not the shell's. Check too that the main column keeps its full height across both widths. Pick `Default` for the expanded panel, `OffCanvas` for the drawer a narrow window gets instead.",
+					"The same workspace opened with the sidebar already collapsed, which is how a host restores a remembered choice through `defaultOpen`. Check that the main column takes the room the panel gave up rather than leaving a gap beside the rail, that the trigger stays on the rail, and that activating it widens the panel while the conversation reflows without reloading. The session list hides itself on the rail — that is the panel's own collapse behaviour, not the shell's. Check too that the main column keeps its full height across both widths. Pick `Default` for the expanded panel, `OffCanvas` for the drawer a narrow window gets instead.",
 			},
 		},
 	},
 	play: async ({ canvas, userEvent }) => {
 		const trigger = canvas.getByRole("button", { name: "Toggle workspace" })
 		const main = canvas.getByRole("main")
+		const sidebar = canvas.getByRole("complementary", { name: "Workspace" })
 		const mainHeight = main.getBoundingClientRect().height
+		const railWidth = sidebar.getBoundingClientRect().width
 
-		await expect(trigger).toHaveAttribute("aria-expanded", "false")
-
-		await expectCardDetached(
-			main,
-			canvas
-				.getByRole("complementary", { name: "Workspace" })
-				.getBoundingClientRect().right,
-		)
+		await expect(stateOf(sidebar)).toBe("collapsed")
+		await expectCardDetached(main, sidebar.getBoundingClientRect().right)
 
 		await userEvent.click(trigger)
-		await expect(trigger).toHaveAttribute("aria-expanded", "true")
+		await expect(stateOf(sidebar)).toBe("expanded")
+		await waitFor(async () => {
+			await expect(sidebar.getBoundingClientRect().width).toBeGreaterThan(
+				railWidth,
+			)
+		}, FRAME_POLL)
 		await expect(main.getBoundingClientRect().height).toBe(mainHeight)
 	},
 })
@@ -292,7 +299,7 @@ export const OffCanvas = meta.story({
 		docs: {
 			description: {
 				story:
-					"The same shell on a window too narrow for two columns, where the panel stops being a column and becomes a drawer over the page. Check that the conversation keeps the whole width until the trigger in the bar opens the drawer, that the drawer slides in over the transcript with the scrim dimming it rather than pushing it aside, and that Escape closes it and puts focus back on the trigger that opened it. The page underneath keeps its full height throughout — the drawer must never resize the column it covers. Pick `Default` for the two-column shell.",
+					"The same shell on a window too narrow for two columns, where the panel stops being a column and becomes a drawer over the page. Check that the conversation keeps the whole width until the trigger in the bar opens the drawer, that the drawer comes in over the transcript with the scrim dimming it rather than pushing it aside, and that Escape closes it and puts focus back on the trigger that opened it. Opening hands the keyboard to the first control in the drawer, whose tooltip opens with it, so the first Escape dismisses that tooltip and the second closes the drawer. The page underneath keeps its full height throughout — the drawer must never resize the column it covers. Pick `Default` for the two-column shell.",
 			},
 		},
 	},
@@ -302,17 +309,13 @@ export const OffCanvas = meta.story({
 		const main = canvas.getByRole("main")
 		const mainHeight = main.getBoundingClientRect().height
 
-		await expect(trigger).toHaveAttribute("aria-expanded", "false")
-		await expect(canvas.queryByRole("complementary")).toBeNull()
+		await expect(overlay.queryByRole("dialog")).toBeNull()
 		await expectCardDetached(main, 0)
 
 		await userEvent.click(trigger)
-		await expect(trigger).toHaveAttribute("aria-expanded", "true")
 
-		const drawer = overlay.getByRole("dialog", { name: "Conversations" })
-		const scrim = overlay.getByRole("button", { name: "Close sidebar" })
+		const drawer = overlay.getByRole("dialog", { name: "Sidebar" })
 		await settled(drawer)
-		await expect(scrim).toBeVisible()
 		await expect(drawer.getBoundingClientRect().left).toBeCloseTo(0, 0)
 		await expect(main.getBoundingClientRect().height).toBe(mainHeight)
 
@@ -320,9 +323,13 @@ export const OffCanvas = meta.story({
 			await expect(drawer.contains(document.activeElement)).toBe(true)
 		}, FRAME_POLL)
 
-		await userEvent.keyboard("{Escape}")
-		await expect(trigger).toHaveFocus()
-		await expect(trigger).toHaveAttribute("aria-expanded", "false")
+		await userEvent.keyboard("{Escape}{Escape}")
+		await waitFor(async () => {
+			await expect(overlay.queryByRole("dialog")).toBeNull()
+		}, FRAME_POLL)
+		await waitFor(async () => {
+			await expect(trigger).toHaveFocus()
+		}, FRAME_POLL)
 		await expect(main.getBoundingClientRect().height).toBe(mainHeight)
 
 		await settled(document.body)
@@ -591,9 +598,10 @@ export const NotResizable = meta.story({
 			canvas.queryByRole("separator", { name: "Resize sidebar" }),
 		).toBeNull()
 
-		const trigger = canvas.getByRole("button", { name: "Toggle workspace" })
-		await userEvent.click(trigger)
-		await expect(trigger).toHaveAttribute("aria-expanded", "false")
+		await userEvent.click(
+			canvas.getByRole("button", { name: "Toggle workspace" }),
+		)
+		await expect(stateOf(sidebar)).toBe("collapsed")
 		await expect(args.onWidthChange).not.toHaveBeenCalled()
 	},
 })

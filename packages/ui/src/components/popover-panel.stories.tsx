@@ -259,8 +259,11 @@ export const OnHover = meta.story({
 
 		await userEvent.unhover(panel)
 		await waitFor(() =>
-			expect(trigger).toHaveAttribute("aria-expanded", "false"),
+			expect(
+				body.queryByRole("dialog", { name: PANEL_TITLE }),
+			).not.toBeInTheDocument(),
 		)
+		await expect(trigger).toHaveAttribute("aria-expanded", "false")
 	},
 })
 

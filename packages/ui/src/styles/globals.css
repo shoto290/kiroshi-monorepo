@@ -8,6 +8,11 @@
 
 @custom-variant dark (&:is(.dark *));
 
+[data-slot="dialog-overlay"],
+[data-slot="sheet-overlay"] {
+	backdrop-filter: none;
+}
+
 :root {
 	--background: oklch(1 0 0);
 	--foreground: oklch(0.141 0.005 285.823);
@@ -49,6 +54,7 @@
 	--chart-4: oklch(0.554 0.135 66.442);
 	--chart-5: oklch(0.476 0.114 61.907);
 	--radius: 0.625rem;
+	--radius-root: var(--radius);
 	--sidebar: oklch(0.985 0 0);
 	--sidebar-foreground: oklch(0.141 0.005 285.823);
 	--sidebar-primary: oklch(0.681 0.162 75.834);
@@ -57,9 +63,8 @@
 	--sidebar-accent-foreground: oklch(0.21 0.006 285.885);
 	--sidebar-border: oklch(0.92 0.004 286.32);
 	--sidebar-ring: oklch(0.705 0.015 286.067);
-	--sidebar-width: 19rem;
-	--sidebar-width-icon: 4.25rem;
-	--sidebar-width-mobile: 18rem;
+	--sidebar-panel: 19rem;
+	--sidebar-rail: 4.25rem;
 	--scrollbar: oklch(0.72 0.013 285.938);
 	--scrollbar-hover: oklch(0.6 0.014 285.938);
 	--user-bubble-tint-strength: 100%;
@@ -138,14 +143,15 @@
 	--color-bot-badge-done: var(--bot-badge-done);
 	--color-bot-badge-failed: var(--bot-badge-failed);
 	--color-user-bubble-foreground: var(--user-bubble-foreground);
-	--radius-xs: calc(var(--radius) * 0.2);
-	--radius-sm: calc(var(--radius) * 0.6);
-	--radius-md: calc(var(--radius) * 0.8);
-	--radius-lg: var(--radius);
-	--radius-xl: calc(var(--radius) * 1.4);
-	--radius-2xl: calc(var(--radius) * 1.8);
-	--radius-3xl: calc(var(--radius) * 2.2);
-	--radius-4xl: calc(var(--radius) * 2.6);
+	--radius-xs: calc(var(--radius-root) * 0.2);
+	--radius-sm: calc(var(--radius-root) * 0.6);
+	--radius-md: calc(var(--radius-root) * 0.8);
+	--radius-lg: var(--radius-root);
+	--radius-xl: var(--radius-lg);
+	--radius-2xl: var(--radius-lg);
+	--radius-3xl: calc(var(--radius-root) * 2.2);
+	--radius-4xl: calc(var(--radius-root) * 2.6);
+	--radius-bubble: calc(var(--radius-root) * 1.8);
 	--color-sidebar: var(--sidebar);
 	--color-sidebar-foreground: var(--sidebar-foreground);
 	--color-sidebar-primary: var(--sidebar-primary);
