@@ -920,14 +920,16 @@ describe("createChatController", () => {
 		expect(spoken(await reload(store))).toEqual(spoken(state.messages))
 	})
 
-	it("leaves an answer unwritten when the thread it was asked in was left", async () => {
+	it("writes an answer to the thread of its turn after the reader left it", async () => {
 		const store = referentialStore(createFakeTranscriptStore())
 		const elsewhere = await store.createSpace("Vocca")
 		await store.addBotToSpace(BOT, elsewhere.id)
 		const { controller } = await bootedHarness({ store })
 		await controller.send("pick one /question")
 		await vi.runAllTimersAsync()
-		expect(controller.getState().question).not.toBeNull()
+
+		const asked = controller.getState().question
+		expect(asked).not.toBeNull()
 
 		await controller.open(BOT, elsewhere.id)
 		await vi.runAllTimersAsync()
@@ -937,6 +939,45 @@ describe("createChatController", () => {
 		const state = controller.getState()
 		expect(state.errors).toEqual([])
 		expect(state.messages).toEqual([])
+		const answered = (await reload(store)).find(
+			(message) => message.content === "never mind, do it your way",
+		)
+		expect(answered?.role).toBe("user")
+		expect(answered?.repliedToMessageId).toBe(
+			questionMessageIdOf(asked?.id ?? ""),
+		)
+	})
+
+	it("points an answer at an asking row still on its way to the store", async () => {
+		const asking = deferred()
+		const base = createFakeTranscriptStore()
+		const store = referentialStore({
+			...base,
+			openAssistantMessage: (message) =>
+				asking.promise.then(() => base.openAssistantMessage(message)),
+		})
+		const { controller } = await bootedHarness({ store })
+		await controller.send("pick one /question")
+		await vi.runAllTimersAsync()
+
+		const asked = controller.getState().question
+		expect(asked).not.toBeNull()
+		expect(
+			controller.getState().messages.map((message) => message.id),
+		).not.toContain(questionMessageIdOf(asked?.id ?? ""))
+
+		await controller.send("never mind, do it your way")
+		asking.release()
+		await vi.runAllTimersAsync()
+
+		const state = controller.getState()
+		expect(state.errors).toEqual([])
+		const answered = state.messages.find(
+			(message) => message.content === "never mind, do it your way",
+		)
+		expect(answered?.repliedToMessageId).toBe(
+			questionMessageIdOf(asked?.id ?? ""),
+		)
 	})
 
 	it("keeps recording the turn still running in the thread left behind", async () => {

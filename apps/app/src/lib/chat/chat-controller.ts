@@ -55,6 +55,7 @@ import type {
 import type { TranscriptStore } from "../conversations/store-port"
 import type {
 	TerminalCompletion,
+	TranscriptDraft,
 	TranscriptMessage,
 } from "../conversations/transcript-contract"
 import { createTranscriptController } from "../conversations/transcript-controller"
@@ -1265,12 +1266,9 @@ export function createChatController(
 			.catch((reason) => report(bot, reason))
 	}
 
-	const turnOpenIn = (bot: BotChat, conversationId: string | null) =>
-		bot.activeTurn?.conversationId === conversationId ? bot.activeTurn : null
-
-	const askedMessageIn = (bot: BotChat, request: QuestionRequest) => {
+	const issuedAskingOf = (bot: BotChat, request: QuestionRequest) => {
 		const id = questionMessageIdOf(request.id)
-		return bot.state.messages.some((message) => message.id === id) ? id : null
+		return isUnwritten(bot, id) ? null : id
 	}
 
 	const recordAnswers = (
@@ -1278,15 +1276,27 @@ export function createChatController(
 		request: QuestionRequest,
 		answers: QuestionAnswers,
 	) => {
-		const conversationId = bot.state.conversationId
-		const turn = turnOpenIn(bot, conversationId)
+		const turn = bot.activeTurn
 		const content = answeredText(request, answers)
-		if (!conversationId || !turn || content.length === 0) {
+		if (!turn || content.length === 0) {
 			return
 		}
+		const conversationId = turn.conversationId
 		const id = newId()
 		const createdAt = now()
-		const repliedToMessageId = askedMessageIn(bot, request)
+		const repliedToMessageId = issuedAskingOf(bot, request)
+		const answered: TranscriptDraft = {
+			id,
+			conversationId,
+			turnId: turn.id,
+			role: "user",
+			content,
+			completion: "complete",
+			createdAt,
+			authorBotId: null,
+			repliedToMessageId,
+			runtimeSessionId: null,
+		}
 		write(
 			bot,
 			() =>
@@ -1299,20 +1309,15 @@ export function createChatController(
 					content,
 					createdAt,
 				}),
-			() =>
-				transcript.append({
-					id,
-					conversationId,
-					turnId: turn.id,
-					role: "user",
-					content,
-					completion: "complete",
-					createdAt,
-					authorBotId: null,
-					repliedToMessageId,
-					runtimeSessionId: null,
-				}),
+			() => showAnswerInOpenThread(bot, answered),
 		)
+	}
+
+	const showAnswerInOpenThread = (bot: BotChat, answered: TranscriptDraft) => {
+		if (bot.state.conversationId !== answered.conversationId) {
+			return
+		}
+		transcript.append(answered)
 	}
 
 	const answer = async (bot: BotChat, id: string, answers: QuestionAnswers) => {
