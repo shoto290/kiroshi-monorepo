@@ -191,8 +191,12 @@ const referentialStore = (base: TranscriptStore) => {
 	const takes = ({
 		id,
 		conversationId,
+		turnId,
 		repliedToMessageId,
 	}: NewUserMessage | NewAssistantMessage) => {
+		if (conversationOf.get(turnId) !== conversationId) {
+			return false
+		}
 		if (
 			repliedToMessageId &&
 			conversationOf.get(repliedToMessageId) !== conversationId
@@ -204,6 +208,10 @@ const referentialStore = (base: TranscriptStore) => {
 	}
 	const store: TranscriptStore = {
 		...base,
+		startTurn: (turn) => {
+			conversationOf.set(turn.id, turn.conversationId)
+			return base.startTurn(turn)
+		},
 		appendUserMessage: (message) =>
 			takes(message)
 				? base.appendUserMessage(message)
@@ -889,6 +897,65 @@ describe("createChatController", () => {
 		)
 		expect(answered?.role).toBe("user")
 		expect(answered?.content).toBe("never mind, do it your way")
+	})
+
+	it("answers a question raised before any assistant text was published", async () => {
+		const store = referentialStore(createFakeTranscriptStore())
+		const { controller } = await bootedHarness({ store })
+		await controller.send("pick one /question")
+		await vi.runAllTimersAsync()
+
+		const asked = controller.getState().question
+		expect(asked).not.toBeNull()
+
+		await controller.send("never mind, do it your way")
+		await vi.runAllTimersAsync()
+
+		const state = controller.getState()
+		expect(state.errors).toEqual([])
+		const answered = state.messages.find(
+			(message) => message.content === "never mind, do it your way",
+		)
+		expect(answered?.role).toBe("user")
+		expect(answered?.repliedToMessageId).toBe(
+			questionMessageIdOf(asked?.id ?? ""),
+		)
+		expect(spoken(await reload(store))).toEqual(spoken(state.messages))
+	})
+
+	it("leaves an answer unwritten when the thread it was asked in was left", async () => {
+		const store = referentialStore(createFakeTranscriptStore())
+		const elsewhere = await store.createSpace("Vocca")
+		await store.addBotToSpace(BOT, elsewhere.id)
+		const { controller } = await bootedHarness({ store })
+		await controller.send("pick one /question")
+		await vi.runAllTimersAsync()
+		expect(controller.getState().question).not.toBeNull()
+
+		await controller.open(BOT, elsewhere.id)
+		await vi.runAllTimersAsync()
+		await controller.send("never mind, do it your way")
+		await vi.runAllTimersAsync()
+
+		const state = controller.getState()
+		expect(state.errors).toEqual([])
+		expect(state.messages).toEqual([])
+	})
+
+	it("keeps recording the turn still running in the thread left behind", async () => {
+		const store = createFakeTranscriptStore()
+		const elsewhere = await store.createSpace("Vocca")
+		await store.addBotToSpace(BOT, elsewhere.id)
+		const { controller } = await bootedHarness({ store })
+
+		await controller.send("hello")
+		await controller.open(BOT, elsewhere.id)
+		await vi.runAllTimersAsync()
+
+		expect(spoken(await reload(store))).toEqual([
+			["user", "hello", "complete"],
+			["assistant", REPLY, "complete"],
+		])
 	})
 
 	it("answers a question the store never took the asking for", async () => {

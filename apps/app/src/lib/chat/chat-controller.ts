@@ -135,11 +135,13 @@ const NO_LANDED_MESSAGES: TranscriptMessage[] = []
 
 type PromptOutcome = "submitted" | "unwritten" | "refused"
 
+type ActiveTurn = { id: string; promptId: string; conversationId: string }
+
 type BotChat = {
 	id: string
 	state: ChatState
 	run: LiveRun
-	activeTurn: { id: string; promptId: string } | null
+	activeTurn: ActiveTurn | null
 	heldReply: ChatMessage | null
 	openMessages: Map<string, number>
 	settledMessages: Set<string>
@@ -1103,7 +1105,7 @@ export function createChatController(
 		}
 
 		showPrompt(said)
-		bot.activeTurn = { id: said.turnId, promptId: said.id }
+		bot.activeTurn = { id: said.turnId, promptId: said.id, conversationId }
 		return (await submit(bot, said.id, trimmed)) ? "submitted" : "refused"
 	}
 
@@ -1205,7 +1207,11 @@ export function createChatController(
 		}
 		dispatch(bot, { type: "promptRetried", id })
 		await rotateIfDue(bot)
-		bot.activeTurn = { id: target.turnId, promptId: id }
+		bot.activeTurn = {
+			id: target.turnId,
+			promptId: id,
+			conversationId: target.conversationId,
+		}
 		await submit(bot, id, target.content)
 	}
 
@@ -1259,6 +1265,9 @@ export function createChatController(
 			.catch((reason) => report(bot, reason))
 	}
 
+	const turnOpenIn = (bot: BotChat, conversationId: string | null) =>
+		bot.activeTurn?.conversationId === conversationId ? bot.activeTurn : null
+
 	const askedMessageIn = (bot: BotChat, request: QuestionRequest) => {
 		const id = questionMessageIdOf(request.id)
 		return bot.state.messages.some((message) => message.id === id) ? id : null
@@ -1270,7 +1279,7 @@ export function createChatController(
 		answers: QuestionAnswers,
 	) => {
 		const conversationId = bot.state.conversationId
-		const turn = bot.activeTurn
+		const turn = turnOpenIn(bot, conversationId)
 		const content = answeredText(request, answers)
 		if (!conversationId || !turn || content.length === 0) {
 			return
