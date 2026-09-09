@@ -502,31 +502,22 @@ const expectMutedSecondaryText = async (row: HTMLElement, muted: string) => {
 
 const EXPANDED_PANEL_WIDTH = 304
 
-const panelWidth = () => {
+const shellWidthOf = (property: string) => {
 	const shell = document.querySelector<HTMLElement>(
 		'[data-slot="sidebar-wrapper"]',
 	)
-	if (!shell) throw new Error("no sidebar wrapper to read the panel width from")
+	if (!shell) throw new Error(`no sidebar wrapper to read ${property} from`)
 	const probe = document.createElement("div")
-	probe.style.width = "var(--sidebar-width)"
+	probe.style.width = `var(${property})`
 	shell.append(probe)
 	const width = probe.getBoundingClientRect().width
 	probe.remove()
 	return width
 }
 
-const railWidth = () => {
-	const shell = document.querySelector<HTMLElement>(
-		'[data-slot="sidebar-wrapper"]',
-	)
-	if (!shell) throw new Error("no sidebar wrapper to read the rail width from")
-	const probe = document.createElement("div")
-	probe.style.width = "var(--sidebar-width-icon)"
-	shell.append(probe)
-	const width = probe.getBoundingClientRect().width
-	probe.remove()
-	return width
-}
+const panelWidth = () => shellWidthOf("--sidebar-width")
+
+const railWidth = () => shellWidthOf("--sidebar-width-icon")
 
 const stateOf = (panel: HTMLElement) =>
 	panel.closest<HTMLElement>('[data-slot="sidebar"]')?.dataset.state
