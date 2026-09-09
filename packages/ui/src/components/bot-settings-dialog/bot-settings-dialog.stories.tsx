@@ -11,7 +11,6 @@ import {
 import preview from "@workspace/storybook/preview"
 import {
 	A11Y_CONTRAST_AWAITING_DESIGN_DECISION,
-	settled,
 	slotsIn,
 	UPLOADED_AVATAR_IMAGE,
 	widthInRems,
@@ -620,9 +619,8 @@ export const WithALongSkill = meta.story({
 		const dialog = await dialogIn()
 		const panel = await openTab(dialog, "Skills", userEvent)
 
-		await expect(widthInRems(await settled(dialog))).toBeCloseTo(
-			DIALOG_WIDTH_REMS,
-			1,
+		await waitFor(() =>
+			expect(widthInRems(dialog)).toBeCloseTo(DIALOG_WIDTH_REMS, 1),
 		)
 
 		const row = within(panel).getByRole("button", {

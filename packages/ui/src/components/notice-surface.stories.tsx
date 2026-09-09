@@ -10,7 +10,7 @@ import {
 import preview from "@workspace/storybook/preview"
 import {
 	A11Y_FLOATING_FOCUS_GUARDS,
-	settled,
+	opaque,
 } from "@workspace/storybook/story-utils"
 import { DialogSurface } from "@workspace/ui/components/dialog-surface"
 import {
@@ -116,7 +116,7 @@ const failureNotice = async () => {
 		hidden: true,
 	})
 
-	return settled(notice)
+	return opaque(notice)
 }
 
 const closeControl = () =>
@@ -259,7 +259,7 @@ export const Stacked = meta.story({
 		}
 
 		await waitFor(() => expect(noticesOnScreen()).toHaveLength(3))
-		await settled(viewport())
+		await opaque(viewport())
 
 		const onScreen = noticesOnScreen()
 		await expect(onScreen[0]).toHaveTextContent(STACK[3].title)
@@ -429,7 +429,7 @@ export const ReducedMotion = meta.story({
 
 		await expect(getComputedStyle(notice).transitionProperty).toBe("opacity")
 
-		await settled(notice)
+		await opaque(notice)
 		const rested = notice.getBoundingClientRect()
 
 		await expect(rested.top).toBe(raised.top)

@@ -4,7 +4,6 @@ import { expect, fn, screen, waitFor, within } from "storybook/test"
 import preview from "@workspace/storybook/preview"
 import {
 	PICKED_PICTURE_FILE,
-	settled,
 	slotsIn,
 	UPLOADED_AVATAR_IMAGE,
 	widthInRems,
@@ -371,9 +370,8 @@ export const WithALongSkill = meta.story({
 			name: "Skills",
 		})
 
-		await expect(widthInRems(await settled(dialog))).toBeCloseTo(
-			DIALOG_WIDTH_REMS,
-			1,
+		await waitFor(() =>
+			expect(widthInRems(dialog)).toBeCloseTo(DIALOG_WIDTH_REMS, 1),
 		)
 
 		const row = within(panel).getByRole("button", {

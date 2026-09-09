@@ -5,7 +5,7 @@ import {
 	A11Y_CONTRAST_AWAITING_DESIGN_DECISION,
 	A11Y_FLOATING_FOCUS_GUARDS,
 	listExhaustively,
-	settled,
+	opaque,
 	slotsIn,
 } from "@workspace/storybook/story-utils"
 import {
@@ -130,7 +130,7 @@ export const Ready = meta.story({
 			canvas.getByRole("button", { name: "Restart to update" }),
 		).toHaveAttribute("aria-expanded", "true")
 
-		const panel = await settled(await body.findByRole("dialog"))
+		const panel = await opaque(await body.findByRole("dialog"))
 
 		await expect(within(panel).getByText(`Version ${VERSION}`)).toBeVisible()
 		await expect(within(panel).getByText(RELEASE_NOTES[0])).toBeVisible()
@@ -165,7 +165,7 @@ export const WithActiveBots = meta.story({
 	},
 	play: async ({ canvasElement }) => {
 		const body = within(canvasElement.ownerDocument.body)
-		const panel = await settled(await body.findByRole("dialog"))
+		const panel = await opaque(await body.findByRole("dialog"))
 
 		await expect(
 			within(panel).getByRole("button", { name: "Restart now" }),

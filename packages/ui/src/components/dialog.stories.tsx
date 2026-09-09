@@ -83,7 +83,7 @@ export const Default = meta.story({
 		await expect(dialog).toHaveAccessibleName("Companion settings")
 
 		await userEvent.keyboard("{Escape}")
-		await waitFor(() => expect(screen.queryByRole("dialog")).toBe(null))
+		await waitFor(() => expect(dialog).not.toBeInTheDocument())
 		await expect(trigger).toHaveFocus()
 	},
 })
