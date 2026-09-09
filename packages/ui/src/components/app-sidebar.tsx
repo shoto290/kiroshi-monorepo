@@ -164,7 +164,7 @@ const ROSTER_ROWS = "gap-0.5"
 
 const SECTION_GROUP = "px-0 py-0"
 
-const SECTION_PAD = "px-[4.5px] pb-[4.5px] group-data-[collapsible=icon]:p-0"
+const SECTION_PAD = "pb-[4.5px] group-data-[collapsible=icon]:p-0"
 
 const SECTION_CARD =
 	"rounded-xl border border-border transition-colors duration-200 ease-out motion-reduce:transition-none has-[[data-slot=roster-section-trigger]:hover]:bg-sidebar-accent/70 group-data-[collapsible=icon]:border-transparent group-data-[collapsible=icon]:bg-transparent"
@@ -238,7 +238,7 @@ const drawnFrom = <Item,>(pool: Item[], seed: string) => {
 	return pool[total % pool.length]
 }
 
-const CONTENT_INSET = "p-2 group-data-[collapsible=icon]:px-0"
+const CONTENT_INSET = "py-2 ps-2 pe-1 group-data-[collapsible=icon]:px-0"
 
 const SEARCH_INSET = "px-[9px] pb-[9px] group-data-[collapsible=icon]:px-0"
 

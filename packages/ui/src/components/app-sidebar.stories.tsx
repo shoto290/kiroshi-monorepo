@@ -2069,20 +2069,20 @@ export const WithUser = meta.story({
 		docs: {
 			description: {
 				story:
-					"The reader themselves, pinned under the list — the only way into their own settings, so a host that has an account to show always hands one down. Check that the chip opens the region with the picture leading and the name beside it, that it covers the whole row since nothing else is drawn there, that a conversation row above it is inset from both edges of the panel by exactly what the chip is inset by — the two columns of rounded rows have to read as one column — and that activating it fires the open event once. Pick `WithUserAndFooter` for the same chip sharing the row.",
+					"The reader themselves, pinned under the list — the only way into their own settings, so a host that has an account to show always hands one down. Check that the chip opens the region with the picture leading and the name beside it, that it covers the whole row since nothing else is drawn there, that the chip starts on the column a conversation row above it starts on, and that the row leaves the same channel on both sides — the thread card's own gutter counts towards the trailing one, so the roster pays 4px there and 8px against the window edge to read as even air — and that activating it fires the open event once. Pick `WithUserAndFooter` for the same chip sharing the row.",
 			},
 		},
 	},
-	play: async ({ args, canvasElement, userEvent }) => {
+	play: async ({ args, canvas, canvasElement, userEvent }) => {
 		const footer = slotIn(canvasElement, "sidebar-footer")
 		const chip = within(footer).getByRole("button", { name: READER_NAME })
 		const inner = slotIn(canvasElement, "sidebar-inner").getBoundingClientRect()
 		const chipBox = chip.getBoundingClientRect()
 		const rowBox = rowButton(rowsIn(canvasElement)[0]).getBoundingClientRect()
-		await expect([
-			rowBox.left - inner.left,
-			inner.right - rowBox.right,
-		]).toEqual([chipBox.left - inner.left, inner.right - chipBox.right])
+		const card = canvas.getByRole("main").getBoundingClientRect()
+		const gutter = rowBox.left - inner.left
+		await expect(card.left - rowBox.right).toBe(gutter)
+		await expect(chipBox.left - inner.left).toBe(gutter)
 
 		await expect(chip.getBoundingClientRect().width).toBeCloseTo(
 			footerRowWidth(footer),
