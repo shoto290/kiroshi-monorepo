@@ -125,6 +125,8 @@ const PREVIEW_LINE =
 
 const DESTINATION_NAME = "min-w-0 truncate"
 
+const BRANCH_ROW = "gap-2"
+
 const NAMED_PANEL = `max-w-64 ${STILL_UNDER_REDUCED_MOTION}`
 
 const rowButtonOf = (row: HTMLElement | null) =>
@@ -463,7 +465,7 @@ const SectionBranch = ({
 
 	return (
 		<ContextMenuSub>
-			<ContextMenuSubTrigger>
+			<ContextMenuSubTrigger className={BRANCH_ROW}>
 				<Icons.Folder aria-hidden="true" className="size-3.5" />
 				{t("roster.section.moveTo")}
 			</ContextMenuSubTrigger>
@@ -562,6 +564,7 @@ const SpacesBranch = ({
 			) : null}
 			<ContextMenuSubTrigger
 				aria-describedby={isHeldByOneSpace ? reasonId : undefined}
+				className={BRANCH_ROW}
 			>
 				<Icons.Spaces aria-hidden="true" className="size-3.5" />
 				{t("roster.spaces.label")}

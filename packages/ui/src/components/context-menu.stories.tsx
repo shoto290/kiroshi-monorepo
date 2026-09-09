@@ -65,7 +65,7 @@ const TranscriptMenu = () => (
 			Rename
 		</ContextMenuItem>
 		<ContextMenuSub>
-			<ContextMenuSubTrigger>
+			<ContextMenuSubTrigger className="gap-2">
 				<Icons.Folder aria-hidden="true" className="size-3.5" />
 				{SUBMENU_LABEL}
 			</ContextMenuSubTrigger>
