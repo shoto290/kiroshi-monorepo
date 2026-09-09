@@ -8,7 +8,7 @@ import { DialogClose, DialogContent } from "@workspace/ui/components/ui/dialog"
 import { cn } from "@workspace/ui/lib/utils"
 
 const SURFACE_CLASS =
-	"flex max-h-[calc(100dvh-3rem)] w-128 max-w-[calc(100vw-3rem)] flex-col gap-4 overflow-y-auto rounded-2xl p-6 sm:max-w-[calc(100vw-3rem)] [&_[data-slot=dialog-title]]:pe-8 [&>[data-slot=dialog-title]+[data-slot=dialog-description]]:-mt-3"
+	"motion-reduce:duration-[0.01ms]! flex max-h-[calc(100dvh-3rem)] w-128 max-w-[calc(100vw-3rem)] flex-col gap-4 overflow-y-auto rounded-2xl p-6 sm:max-w-[calc(100vw-3rem)] [&_[data-slot=dialog-title]]:pe-8 [&>[data-slot=dialog-title]+[data-slot=dialog-description]]:-mt-3"
 
 type DialogSurfaceProps = Omit<
 	React.ComponentProps<typeof DialogContent>,

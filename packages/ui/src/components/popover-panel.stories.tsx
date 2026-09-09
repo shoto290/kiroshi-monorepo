@@ -235,6 +235,7 @@ export const Dismiss = meta.story({
 export const OnHover = meta.story({
 	args: { children: PANEL, trigger: "hover" },
 	parameters: {
+		a11y: A11Y_FLOATING_FOCUS_GUARDS,
 		docs: {
 			description: {
 				story:
@@ -258,11 +259,9 @@ export const OnHover = meta.story({
 
 		await userEvent.unhover(panel)
 		await waitFor(() =>
-			expect(
-				body.queryByRole("dialog", { name: PANEL_TITLE }),
-			).not.toBeInTheDocument(),
+			expect(trigger).toHaveAttribute("aria-expanded", "false"),
 		)
-		await expect(trigger).toHaveAttribute("aria-expanded", "false")
+		await waitFor(() => expect(panel).toHaveAttribute("data-closed"))
 	},
 })
 

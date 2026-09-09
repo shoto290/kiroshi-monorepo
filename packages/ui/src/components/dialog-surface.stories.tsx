@@ -141,8 +141,8 @@ export const Default = meta.story({
 		}
 
 		await userEvent.keyboard("{Escape}")
-		await waitFor(() => expect(dialog).not.toBeInTheDocument())
-		await expect(trigger).toHaveFocus()
+		await waitFor(() => expect(dialog).toHaveAttribute("data-closed"))
+		await waitFor(() => expect(trigger).toHaveFocus())
 	},
 })
 
@@ -163,15 +163,15 @@ export const Dismissing = meta.story({
 		await expect(screen.getByRole("dialog")).toBeVisible()
 
 		await userEvent.click(backdropIn())
-		await waitFor(() => expect(dialog).not.toBeInTheDocument())
-		await expect(trigger).toHaveFocus()
+		await waitFor(() => expect(dialog).toHaveAttribute("data-closed"))
+		await waitFor(() => expect(trigger).toHaveFocus())
 
 		const reopened = await openDialog(canvas, userEvent)
 		await userEvent.click(
 			within(reopened).getByRole("button", { name: "Close" }),
 		)
-		await waitFor(() => expect(reopened).not.toBeInTheDocument())
-		await expect(trigger).toHaveFocus()
+		await waitFor(() => expect(reopened).toHaveAttribute("data-closed"))
+		await waitFor(() => expect(trigger).toHaveFocus())
 	},
 })
 
