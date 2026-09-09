@@ -83,7 +83,9 @@ export const Default = meta.story({
 		await expect(dialog).toHaveAccessibleName("Companion settings")
 
 		await userEvent.keyboard("{Escape}")
-		await waitFor(() => expect(dialog).toHaveAttribute("data-closed"))
+		await waitFor(() =>
+			expect(trigger).toHaveAttribute("aria-expanded", "false"),
+		)
 		await waitFor(() => expect(trigger).toHaveFocus())
 	},
 })

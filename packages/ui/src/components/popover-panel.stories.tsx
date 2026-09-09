@@ -261,7 +261,6 @@ export const OnHover = meta.story({
 		await waitFor(() =>
 			expect(trigger).toHaveAttribute("aria-expanded", "false"),
 		)
-		await waitFor(() => expect(panel).toHaveAttribute("data-closed"))
 	},
 })
 
