@@ -226,6 +226,8 @@ const WORKSPACE_SIDEBAR = (
 
 const CARD_GUTTER = 8
 
+const CLOSE_GLYPH_INSET = 22
+
 const verticalCentreOf = (element: HTMLElement) => {
 	const box = element.getBoundingClientRect()
 	return Math.round(box.top + box.height / 2)
@@ -487,14 +489,9 @@ export const Toggling = meta.story({
 			},
 		},
 	},
-	play: async ({ args, canvas, canvasElement, userEvent }) => {
+	play: async ({ args, canvas, userEvent }) => {
 		const opener = canvas.getByRole("button", { name: "Activity" })
 		const openerCentre = verticalCentreOf(opener)
-		const card = slotIn(canvasElement, "sidebar-inset")
-		const openerGlyphInset = trailingInsetOf(
-			opener.querySelector("svg") as Element,
-			card,
-		)
 
 		await userEvent.click(opener)
 		await expect(args.onOpenChange).toHaveBeenCalledWith(true)
@@ -509,7 +506,7 @@ export const Toggling = meta.story({
 		await expect(verticalCentreOf(close)).toBe(openerCentre)
 		await expect(
 			trailingInsetOf(close.querySelector("svg") as Element, panel),
-		).toBe(openerGlyphInset)
+		).toBe(CLOSE_GLYPH_INSET)
 		await waitFor(() => expect(close).toHaveFocus(), FRAME_POLL)
 
 		await userEvent.click(close)

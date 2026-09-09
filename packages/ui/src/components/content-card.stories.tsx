@@ -17,10 +17,8 @@ const cardsIn = (canvasElement: HTMLElement) =>
 
 const expectCarriesCard = async (card: HTMLElement) => {
 	const painted = getComputedStyle(card)
-	await expect(painted.borderTopWidth).toBe("1px")
-	await expect(painted.borderInlineStartWidth).toBe(
-		painted.borderInlineEndWidth,
-	)
+	await expect(painted.borderTopWidth).toBe("0px")
+	await expect(painted.backgroundColor).not.toBe("rgba(0, 0, 0, 0)")
 	await expect(painted.borderStartStartRadius).toBe(
 		painted.borderStartEndRadius,
 	)
@@ -55,7 +53,7 @@ export const Default = meta.story({
 		docs: {
 			description: {
 				story:
-					"The card as a screen with no side panel gets it. Check that the shell surface shows through on all four sides with the same gutter, that the border and the radius read the same on the inline-start and the inline-end edge, and that the content is clipped by the radius rather than squaring the corners. Pick `WithNestedCard` for the shape the activity panel puts it in.",
+					"The card as a screen with no side panel gets it. Check that the shell surface shows through above and below with the same gutter and past the trailing edge, that the card is told from that surface by its own background rather than by a border, that the radius reads the same on both leading corners, and that the content is clipped by the radius rather than squaring the corners. Pick `WithNestedCard` for the shape the activity panel puts it in.",
 			},
 		},
 	},
@@ -79,14 +77,13 @@ export const WithNestedCard = meta.story({
 		docs: {
 			description: {
 				story:
-					"A card holding a host that draws a card of its own, which is what the activity panel does to the shell. Check that only one frame is visible: the outer card keeps no gutter, no border, no radius and no background of its own, so the shell surface runs under the inner card and out to the window edge. Pick `Default` for the single card.",
+					"A card holding a host that draws a card of its own, which is what the activity panel does to the shell. Check that only one frame is visible: the outer card keeps no gutter, no radius and no background of its own, so the shell surface runs under the inner card and out to the window edge. Pick `Default` for the single card.",
 			},
 		},
 	},
 	play: async ({ canvasElement }) => {
 		const [outer, inner] = cardsIn(canvasElement)
 		const yielded = getComputedStyle(outer)
-		await expect(yielded.borderTopWidth).toBe("0px")
 		await expect(yielded.borderStartStartRadius).toBe("0px")
 		await expect(yielded.marginTop).toBe("0px")
 		await expect(yielded.backgroundColor).toBe("rgba(0, 0, 0, 0)")
