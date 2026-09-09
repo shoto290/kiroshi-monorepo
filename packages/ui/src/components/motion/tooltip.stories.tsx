@@ -2,9 +2,9 @@ import { expect, waitFor } from "storybook/test"
 
 import preview from "@workspace/storybook/preview"
 import { Row } from "@workspace/storybook/story-utils"
-import { Button } from "@workspace/ui/components/button"
 import { Icons } from "@workspace/ui/components/icons"
 import { Tooltip } from "@workspace/ui/components/motion/tooltip"
+import { Button } from "@workspace/ui/components/ui/button"
 
 const SIDES = ["top", "right", "bottom", "left"] as const
 

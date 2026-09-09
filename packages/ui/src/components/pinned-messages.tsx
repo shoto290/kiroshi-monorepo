@@ -3,13 +3,13 @@
 import { type ReactNode, useState } from "react"
 import { useTranslation } from "react-i18next"
 
-import { Button } from "@workspace/ui/components/button"
 import { Icons } from "@workspace/ui/components/icons"
 import {
-	Popover,
-	PopoverContent,
-	PopoverTrigger,
-} from "@workspace/ui/components/popover"
+	PopoverPanel,
+	PopoverPanelContent,
+	PopoverPanelTrigger,
+} from "@workspace/ui/components/popover-panel"
+import { Button } from "@workspace/ui/components/ui/button"
 
 const PINNED_AVATAR_SIZE = 24
 
@@ -98,14 +98,14 @@ const PinnedMessages = ({
 	}
 
 	return (
-		<Popover
+		<PopoverPanel
 			open={isOpen}
 			onOpenChange={setIsOpen}
 			side="bottom"
 			align="end"
 			className={className}
 		>
-			<PopoverTrigger>
+			<PopoverPanelTrigger>
 				<Button
 					data-slot="pinned-messages-trigger"
 					size="icon-sm"
@@ -114,8 +114,8 @@ const PinnedMessages = ({
 				>
 					<Icons.Pin />
 				</Button>
-			</PopoverTrigger>
-			<PopoverContent
+			</PopoverPanelTrigger>
+			<PopoverPanelContent
 				aria-label={title}
 				className="w-80 overflow-hidden rounded-2xl p-0"
 			>
@@ -138,8 +138,8 @@ const PinnedMessages = ({
 						{t("pinned.empty")}
 					</p>
 				)}
-			</PopoverContent>
-		</Popover>
+			</PopoverPanelContent>
+		</PopoverPanel>
 	)
 }
 

@@ -351,9 +351,12 @@ function MobileSidebar({
 		body.style.overflow = "hidden"
 
 		const focusFrame = requestAnimationFrame(() => {
-			const firstFocusable =
-				panelRef.current?.querySelector<HTMLElement>(FOCUSABLE_SELECTOR)
-			;(firstFocusable ?? panelRef.current)?.focus({ preventScroll: true })
+			panelRef.current
+				?.querySelector<HTMLElement>(FOCUSABLE_SELECTOR)
+				?.focus({ preventScroll: true })
+
+			if (!panelRef.current?.contains(document.activeElement))
+				panelRef.current?.focus({ preventScroll: true })
 		})
 
 		return () => {

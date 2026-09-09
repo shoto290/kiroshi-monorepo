@@ -2,8 +2,8 @@ import { expect, fn } from "storybook/test"
 
 import preview from "@workspace/storybook/preview"
 import { BotIdentityAvatar } from "@workspace/ui/components/bot-identity-avatar"
-import { Button } from "@workspace/ui/components/button"
 import { EmptyStateShell } from "@workspace/ui/components/empty-state-shell"
+import { Button } from "@workspace/ui/components/ui/button"
 
 const MARK = (
 	<BotIdentityAvatar

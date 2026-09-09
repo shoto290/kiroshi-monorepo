@@ -9,7 +9,6 @@ import {
 } from "react"
 import { useTranslation } from "react-i18next"
 
-import { Button } from "@workspace/ui/components/button"
 import { Icons } from "@workspace/ui/components/icons"
 import { Checkbox } from "@workspace/ui/components/motion/checkbox"
 import {
@@ -22,6 +21,7 @@ import {
 	TabsTrigger,
 } from "@workspace/ui/components/motion/tabs"
 import { SettingsField } from "@workspace/ui/components/settings-field"
+import { Button } from "@workspace/ui/components/ui/button"
 import { useAutoFocus } from "@workspace/ui/hooks/use-auto-focus"
 import { cn } from "@workspace/ui/lib/utils"
 

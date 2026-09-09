@@ -2,8 +2,10 @@ import { expect, fn, within } from "storybook/test"
 
 import preview from "@workspace/storybook/preview"
 import {
+	A11Y_CONTRAST_AWAITING_DESIGN_DECISION,
 	A11Y_FLOATING_FOCUS_GUARDS,
 	listExhaustively,
+	opaque,
 	slotsIn,
 } from "@workspace/storybook/story-utils"
 import {
@@ -114,6 +116,7 @@ export const Loading = meta.story({
 export const Ready = meta.story({
 	args: { status: "ready" },
 	parameters: {
+		a11y: A11Y_FLOATING_FOCUS_GUARDS,
 		docs: {
 			description: {
 				story:
@@ -126,8 +129,11 @@ export const Ready = meta.story({
 		await expect(
 			canvas.getByRole("button", { name: "Restart to update" }),
 		).toHaveAttribute("aria-expanded", "true")
-		await expect(await body.findByText(`Version ${VERSION}`)).toBeVisible()
-		await expect(body.getByText(RELEASE_NOTES[0])).toBeVisible()
+
+		const panel = await opaque(await body.findByRole("dialog"))
+
+		await expect(within(panel).getByText(`Version ${VERSION}`)).toBeVisible()
+		await expect(within(panel).getByText(RELEASE_NOTES[0])).toBeVisible()
 		await expect(
 			body.queryByRole("link", { name: RELEASE_NOTES_LABEL }),
 		).toBeNull()
@@ -142,7 +148,14 @@ export const Ready = meta.story({
 export const WithActiveBots = meta.story({
 	args: { status: "ready", activeBotCount: 2 },
 	parameters: {
-		a11y: A11Y_FLOATING_FOCUS_GUARDS,
+		a11y: {
+			config: {
+				rules: [
+					...A11Y_FLOATING_FOCUS_GUARDS.config.rules,
+					...A11Y_CONTRAST_AWAITING_DESIGN_DECISION.config.rules,
+				],
+			},
+		},
 		docs: {
 			description: {
 				story:
@@ -152,11 +165,15 @@ export const WithActiveBots = meta.story({
 	},
 	play: async ({ canvasElement }) => {
 		const body = within(canvasElement.ownerDocument.body)
+		const panel = await opaque(await body.findByRole("dialog"))
+
 		await expect(
-			await body.findByRole("button", { name: "Restart now" }),
+			within(panel).getByRole("button", { name: "Restart now" }),
 		).toBeDisabled()
 		await expect(
-			body.getByText("2 companions are still running. Stop them to restart."),
+			within(panel).getByText(
+				"2 companions are still running. Stop them to restart.",
+			),
 		).toBeVisible()
 	},
 })

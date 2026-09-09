@@ -2,9 +2,9 @@ import { expect } from "storybook/test"
 
 import preview from "@workspace/storybook/preview"
 import { AppHeader } from "@workspace/ui/components/app-header"
-import { Button } from "@workspace/ui/components/button"
 import { ConnectionStatus } from "@workspace/ui/components/connection-status"
 import { Icons } from "@workspace/ui/components/icons"
+import { Button } from "@workspace/ui/components/ui/button"
 
 const HEADER_HEIGHT = 48
 

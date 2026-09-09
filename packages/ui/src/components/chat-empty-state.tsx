@@ -4,9 +4,9 @@ import { useTranslation } from "react-i18next"
 import type { BotAvatarBlot } from "@workspace/ui/components/bot-avatar"
 import type { BotAvatarAnimal } from "@workspace/ui/components/bot-avatar-animals"
 import { BotIdentityAvatar } from "@workspace/ui/components/bot-identity-avatar"
-import { Button } from "@workspace/ui/components/button"
 import { EmptyStateShell } from "@workspace/ui/components/empty-state-shell"
 import { Icons } from "@workspace/ui/components/icons"
+import { Button } from "@workspace/ui/components/ui/button"
 
 type ChatEmptyStateStatus = "ready" | "unavailable"
 

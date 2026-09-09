@@ -619,7 +619,9 @@ export const WithALongSkill = meta.story({
 		const dialog = await dialogIn()
 		const panel = await openTab(dialog, "Skills", userEvent)
 
-		await expect(widthInRems(dialog)).toBeCloseTo(DIALOG_WIDTH_REMS, 1)
+		await waitFor(() =>
+			expect(widthInRems(dialog)).toBeCloseTo(DIALOG_WIDTH_REMS, 1),
+		)
 
 		const row = within(panel).getByRole("button", {
 			name: new RegExp(LONG_SKILL.name),

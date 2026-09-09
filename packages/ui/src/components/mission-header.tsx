@@ -2,7 +2,6 @@ import { useTranslation } from "react-i18next"
 
 import { AppHeader } from "@workspace/ui/components/app-header"
 import { BotIdentityAvatar } from "@workspace/ui/components/bot-identity-avatar"
-import { Button } from "@workspace/ui/components/button"
 import { Icons } from "@workspace/ui/components/icons"
 import {
 	type MissionBot,
@@ -15,6 +14,7 @@ import {
 	MissionToolMark,
 } from "@workspace/ui/components/mission-marks"
 import { MissionStatePill } from "@workspace/ui/components/mission-state-pill"
+import { Button } from "@workspace/ui/components/ui/button"
 import { toRelativeTime } from "@workspace/ui/lib/relative-time"
 import { cn } from "@workspace/ui/lib/utils"
 

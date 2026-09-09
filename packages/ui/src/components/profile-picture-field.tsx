@@ -2,7 +2,6 @@
 
 import type { ReactNode } from "react"
 
-import { Button } from "@workspace/ui/components/button"
 import { Icons } from "@workspace/ui/components/icons"
 import {
 	PICTURE_CONTROL_CLASS,
@@ -10,6 +9,7 @@ import {
 	PICTURE_REMOVE_CLASS,
 	PICTURE_REMOVE_INSET,
 } from "@workspace/ui/components/settings-styles"
+import { Button } from "@workspace/ui/components/ui/button"
 import { usePicturePicker } from "@workspace/ui/hooks/use-picture-picker"
 import { cn } from "@workspace/ui/lib/utils"
 

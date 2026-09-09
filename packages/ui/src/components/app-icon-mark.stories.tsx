@@ -7,7 +7,7 @@ import {
 	type AppIconMarkHandle,
 	type AppIconMarkProps,
 } from "@workspace/ui/components/app-icon-mark"
-import { Button } from "@workspace/ui/components/button"
+import { Button } from "@workspace/ui/components/ui/button"
 
 const Performed = (props: AppIconMarkProps) => {
 	const markRef = useRef<AppIconMarkHandle>(null)

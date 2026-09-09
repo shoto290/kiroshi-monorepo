@@ -3,17 +3,17 @@
 import { type FormEvent, useState } from "react"
 import { useTranslation } from "react-i18next"
 
-import { Button } from "@workspace/ui/components/button"
-import {
-	Content,
-	Description,
-	Root,
-	Title,
-} from "@workspace/ui/components/dialog"
+import { DialogSurface } from "@workspace/ui/components/dialog-surface"
 import { BotPicker } from "@workspace/ui/components/new-conversation-dialog/bot-picker"
 import { PickedBots } from "@workspace/ui/components/new-conversation-dialog/picked-bots"
 import type { RosterBot } from "@workspace/ui/components/roster"
 import { SettingsField } from "@workspace/ui/components/settings-field"
+import { Button } from "@workspace/ui/components/ui/button"
+import {
+	Dialog,
+	DialogDescription,
+	DialogTitle,
+} from "@workspace/ui/components/ui/dialog"
 
 type NewConversationDraft = {
 	name: string
@@ -103,17 +103,19 @@ const NewConversationDialog = ({
 	const { t } = useTranslation("chat")
 
 	return (
-		<Root onOpenChange={(next) => !next && onClose()} open={open}>
-			<Content>
-				<Title>{t("newConversation.title")}</Title>
-				<Description>{t("newConversation.description")}</Description>
+		<Dialog onOpenChange={(next) => !next && onClose()} open={open}>
+			<DialogSurface>
+				<DialogTitle>{t("newConversation.title")}</DialogTitle>
+				<DialogDescription>
+					{t("newConversation.description")}
+				</DialogDescription>
 				<NewConversationForm
 					bots={bots}
 					onCancel={onClose}
 					onCreate={onCreate}
 				/>
-			</Content>
-		</Root>
+			</DialogSurface>
+		</Dialog>
 	)
 }
 

@@ -11,7 +11,7 @@ import type {
 } from "@workspace/ui/components/bot-settings"
 import { DangerZone } from "@workspace/ui/components/bot-settings-dialog/danger-zone"
 import { ConfirmDialog } from "@workspace/ui/components/confirm-dialog"
-import { Content, Root, Title } from "@workspace/ui/components/dialog"
+import { DialogSurface } from "@workspace/ui/components/dialog-surface"
 import {
 	type EnvironmentEntry,
 	EnvironmentPanel,
@@ -39,6 +39,7 @@ import { SETTINGS_HEADER_CLASS } from "@workspace/ui/components/settings-styles"
 import type { SpaceSettingsValue } from "@workspace/ui/components/space-settings"
 import { SpaceFields } from "@workspace/ui/components/space-settings-dialog/space-fields"
 import { SpaceTint } from "@workspace/ui/components/space-tint"
+import { Dialog, DialogTitle } from "@workspace/ui/components/ui/dialog"
 import { useIsNarrowerThan } from "@workspace/ui/hooks/use-is-narrower-than"
 import { cn } from "@workspace/ui/lib/utils"
 
@@ -150,8 +151,8 @@ const SpaceSettingsDialog = ({
 			}
 
 	return (
-		<Root onOpenChange={(next) => !next && close()} open={open}>
-			<Content
+		<Dialog onOpenChange={(next) => !next && close()} open={open}>
+			<DialogSurface
 				className={cn(
 					"h-[34rem] w-[52rem] gap-0 overflow-hidden p-0",
 					className,
@@ -159,7 +160,7 @@ const SpaceSettingsDialog = ({
 			>
 				<header className={SETTINGS_HEADER_CLASS}>
 					<SpaceTint className="size-5" tint={value.colour} />
-					<Title className="flex min-w-0 items-center gap-1.5 pr-0">
+					<DialogTitle className="flex min-w-0 items-center gap-1.5 pr-0">
 						<span className="truncate">{spaceName}</span>
 						<Icons.Next
 							aria-hidden="true"
@@ -168,7 +169,7 @@ const SpaceSettingsDialog = ({
 						<span className="shrink-0 text-muted-foreground">
 							{t("breadcrumb.title")}
 						</span>
-					</Title>
+					</DialogTitle>
 				</header>
 
 				{skillSession.editor ?? mcpSession.editor ?? (
@@ -274,8 +275,8 @@ const SpaceSettingsDialog = ({
 					open={isLeaving}
 					title={leaveCopy.title}
 				/>
-			</Content>
-		</Root>
+			</DialogSurface>
+		</Dialog>
 	)
 }
 

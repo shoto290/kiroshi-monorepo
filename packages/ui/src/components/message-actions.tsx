@@ -2,13 +2,13 @@
 
 import { type ReactNode, useContext } from "react"
 
-import { Button } from "@workspace/ui/components/button"
 import { MessageSideContext } from "@workspace/ui/components/message-side-context"
 import {
 	ContextMenu,
 	ContextMenuContent,
 	ContextMenuTrigger,
 } from "@workspace/ui/components/motion/context-menu"
+import { TooltipButton } from "@workspace/ui/components/tooltip-button"
 import { cn } from "@workspace/ui/lib/utils"
 
 interface MessageActionsProps {
@@ -67,7 +67,7 @@ function MessageAction({
 	children,
 }: MessageActionProps) {
 	return (
-		<Button
+		<TooltipButton
 			size="icon-xs"
 			variant="ghost"
 			aria-label={label}
@@ -76,7 +76,7 @@ function MessageAction({
 			className={alwaysVisible ? undefined : HOVER_REVEAL}
 		>
 			{children}
-		</Button>
+		</TooltipButton>
 	)
 }
 

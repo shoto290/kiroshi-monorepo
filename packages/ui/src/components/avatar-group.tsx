@@ -2,7 +2,7 @@
 
 import { useTranslation } from "react-i18next"
 
-import { type BotBadge, BotBadgeDot } from "@workspace/ui/components/badge"
+import { type BotBadge, BotBadgeDot } from "@workspace/ui/components/bot-badge"
 import {
 	BotIdentityAvatar,
 	type BotIdentityAvatarProps,

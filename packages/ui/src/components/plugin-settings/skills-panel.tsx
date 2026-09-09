@@ -3,12 +3,12 @@
 import { useTranslation } from "react-i18next"
 
 import type { BotSkillItem } from "@workspace/ui/components/bot-settings"
-import { Button } from "@workspace/ui/components/button"
 import { Icons } from "@workspace/ui/components/icons"
 import {
 	SETTINGS_EMPTY_CLASS,
 	SETTINGS_TAG_CLASS,
 } from "@workspace/ui/components/settings-styles"
+import { Button } from "@workspace/ui/components/ui/button"
 import { cn } from "@workspace/ui/lib/utils"
 
 type SkillsPanelProps = {

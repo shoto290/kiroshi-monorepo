@@ -1,5 +1,10 @@
 import type { ReactNode } from "react"
 
+import {
+	Avatar,
+	AvatarFallback,
+	AvatarImage,
+} from "@workspace/ui/components/ui/avatar"
 import { cn } from "@workspace/ui/lib/utils"
 
 const FALLBACK_NAME = "You"
@@ -8,11 +13,9 @@ const DEFAULT_SIZE = 28
 
 const INITIALS_RATIO = 0.4
 
-const FRAME_CLASS = "relative block shrink-0 overflow-hidden"
+const FRAME_CLASS = "block overflow-hidden after:hidden"
 
 const UPLOADED_IMAGE_SHAPE = "rounded-full"
-
-const IMAGE_CLASS = `size-full object-cover ${UPLOADED_IMAGE_SHAPE}`
 
 const INITIALS_CLASS =
 	"grid size-full place-items-center rounded-full bg-sidebar-accent font-medium text-sidebar-accent-foreground uppercase leading-none"
@@ -44,38 +47,40 @@ const AvatarFrame = ({
 	className,
 	children,
 }: AvatarFrameProps) => (
-	<span
+	<Avatar
 		className={cn(FRAME_CLASS, className)}
 		data-slot={slot}
 		style={{ width: size, height: size }}
 	>
 		{image ? (
-			<img
+			<AvatarImage
 				alt=""
 				aria-hidden="true"
-				className={cn(IMAGE_CLASS, imageClassName)}
+				className={cn(UPLOADED_IMAGE_SHAPE, imageClassName)}
 				src={image}
 			/>
 		) : (
-			children
+			<AvatarFallback className="bg-transparent text-inherit">
+				{children}
+			</AvatarFallback>
 		)}
 		{overlay}
-	</span>
+	</Avatar>
 )
 
-type AvatarProps = {
+type InitialsAvatarProps = {
 	name?: string
 	image?: string
 	size?: number
 	className?: string
 }
 
-const Avatar = ({
+const InitialsAvatar = ({
 	name,
 	image,
 	size = DEFAULT_SIZE,
 	className,
-}: AvatarProps) => (
+}: InitialsAvatarProps) => (
 	<AvatarFrame
 		className={className}
 		image={image}
@@ -92,10 +97,4 @@ const Avatar = ({
 	</AvatarFrame>
 )
 
-export {
-	Avatar,
-	AvatarFrame,
-	type AvatarProps,
-	displayNameOf,
-	UPLOADED_IMAGE_SHAPE,
-}
+export { AvatarFrame, displayNameOf, InitialsAvatar, UPLOADED_IMAGE_SHAPE }

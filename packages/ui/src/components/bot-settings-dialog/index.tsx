@@ -25,7 +25,7 @@ import { MemoryPanel } from "@workspace/ui/components/bot-settings-dialog/memory
 import { PermissionsPanel } from "@workspace/ui/components/bot-settings-dialog/permissions-panel"
 import { RuntimeFields } from "@workspace/ui/components/bot-settings-dialog/runtime-fields"
 import { ConfirmDialog } from "@workspace/ui/components/confirm-dialog"
-import { Content, Root, Title } from "@workspace/ui/components/dialog"
+import { DialogSurface } from "@workspace/ui/components/dialog-surface"
 import {
 	type EnvironmentEntry,
 	EnvironmentPanel,
@@ -51,6 +51,7 @@ import {
 	SettingsScrollingPanel,
 } from "@workspace/ui/components/settings-rail"
 import { SETTINGS_HEADER_CLASS } from "@workspace/ui/components/settings-styles"
+import { Dialog, DialogTitle } from "@workspace/ui/components/ui/dialog"
 import { useIsNarrowerThan } from "@workspace/ui/hooks/use-is-narrower-than"
 import { useSettingsShortcut } from "@workspace/ui/hooks/use-settings-shortcut"
 import { cn } from "@workspace/ui/lib/utils"
@@ -188,8 +189,8 @@ const BotSettingsDialog = ({
 	useSettingsShortcut({ isEnabled: open, onToggle: close })
 
 	return (
-		<Root onOpenChange={(next) => !next && close()} open={open}>
-			<Content
+		<Dialog onOpenChange={(next) => !next && close()} open={open}>
+			<DialogSurface
 				className={cn(
 					"h-[34rem] w-[52rem] gap-0 overflow-hidden p-0",
 					className,
@@ -206,7 +207,7 @@ const BotSettingsDialog = ({
 						size={32}
 						working={working}
 					/>
-					<Title className="flex min-w-0 items-center gap-1.5 pr-0">
+					<DialogTitle className="flex min-w-0 items-center gap-1.5 pr-0">
 						<span className="truncate">{botName}</span>
 						<Icons.Next
 							aria-hidden="true"
@@ -215,7 +216,7 @@ const BotSettingsDialog = ({
 						<span className="shrink-0 text-muted-foreground">
 							{t("dialog.breadcrumb")}
 						</span>
-					</Title>
+					</DialogTitle>
 				</header>
 
 				{skillSession.editor ?? mcpSession.editor ?? (
@@ -407,8 +408,8 @@ const BotSettingsDialog = ({
 					open={isLeaving}
 					title={leaveCopy.title}
 				/>
-			</Content>
-		</Root>
+			</DialogSurface>
+		</Dialog>
 	)
 }
 

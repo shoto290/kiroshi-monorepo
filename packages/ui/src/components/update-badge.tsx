@@ -3,15 +3,16 @@
 import { useState } from "react"
 import { useTranslation } from "react-i18next"
 
-import { Button, buttonVariants } from "@workspace/ui/components/button"
 import { Icons } from "@workspace/ui/components/icons"
 import { Tooltip } from "@workspace/ui/components/motion/tooltip"
 import {
-	Popover,
-	PopoverContent,
-	PopoverTrigger,
-} from "@workspace/ui/components/popover"
-import { ProgressRing } from "@workspace/ui/components/progress"
+	PopoverPanel,
+	PopoverPanelContent,
+	PopoverPanelTrigger,
+} from "@workspace/ui/components/popover-panel"
+import { ProgressRing } from "@workspace/ui/components/progress-ring"
+import { TooltipButton } from "@workspace/ui/components/tooltip-button"
+import { Button, buttonVariants } from "@workspace/ui/components/ui/button"
 import { cn } from "@workspace/ui/lib/utils"
 
 type UpdateBadgeStatus =
@@ -57,7 +58,7 @@ const UpdateAction = ({
 	const isDownloading = status === "downloading"
 	const label = t(`update.badge.${status}`)
 	const button = (
-		<Button
+		<TooltipButton
 			data-slot="update-badge"
 			data-status={status}
 			aria-label={label}
@@ -70,7 +71,7 @@ const UpdateAction = ({
 			className={BADGE_BUTTON}
 		>
 			{status === "error" ? <Icons.Retry /> : <Icons.ArrowUp />}
-		</Button>
+		</TooltipButton>
 	)
 
 	if (!isDownloading)
@@ -147,14 +148,14 @@ const UpdateReady = ({
 	}
 
 	return (
-		<Popover
+		<PopoverPanel
 			open={isOpen}
 			onOpenChange={setIsOpen}
 			side="top"
 			align="start"
 			className={cn(BADGE_FRAME, BADGE_SIZE, className)}
 		>
-			<PopoverTrigger>
+			<PopoverPanelTrigger>
 				<Button
 					data-slot="update-badge"
 					data-status="ready"
@@ -165,8 +166,8 @@ const UpdateReady = ({
 				>
 					<Icons.Restart />
 				</Button>
-			</PopoverTrigger>
-			<PopoverContent aria-label={title}>
+			</PopoverPanelTrigger>
+			<PopoverPanelContent aria-label={title}>
 				<div data-slot="update-panel" className="flex flex-col gap-3">
 					<div className="flex flex-col gap-1">
 						<p className="font-medium text-sm">{title}</p>
@@ -200,8 +201,8 @@ const UpdateReady = ({
 						) : null}
 					</div>
 				</div>
-			</PopoverContent>
-		</Popover>
+			</PopoverPanelContent>
+		</PopoverPanel>
 	)
 }
 

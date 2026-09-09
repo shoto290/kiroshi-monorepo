@@ -3,14 +3,8 @@
 import { type FormEvent, useState } from "react"
 import { useTranslation } from "react-i18next"
 
-import { Button } from "@workspace/ui/components/button"
 import { ConfirmDialog } from "@workspace/ui/components/confirm-dialog"
-import {
-	Content,
-	Description,
-	Root,
-	Title,
-} from "@workspace/ui/components/dialog"
+import { DialogSurface } from "@workspace/ui/components/dialog-surface"
 import { Icons } from "@workspace/ui/components/icons"
 import { Notice } from "@workspace/ui/components/notice"
 import { SettingsField } from "@workspace/ui/components/settings-field"
@@ -18,6 +12,12 @@ import {
 	SETTINGS_EMPTY_CLASS,
 	SETTINGS_TAG_CLASS,
 } from "@workspace/ui/components/settings-styles"
+import { Button } from "@workspace/ui/components/ui/button"
+import {
+	Dialog,
+	DialogDescription,
+	DialogTitle,
+} from "@workspace/ui/components/ui/dialog"
 import { cn } from "@workspace/ui/lib/utils"
 
 const ENVIRONMENT_SCOPES = ["space", "bot", "server"] as const
@@ -96,18 +96,18 @@ const EnvironmentWriteDialog = ({
 	}
 
 	return (
-		<Root onOpenChange={(open) => (open ? undefined : onClose())} open>
-			<Content className="w-100">
-				<Title>
+		<Dialog onOpenChange={(open) => (open ? undefined : onClose())} open>
+			<DialogSurface className="w-100">
+				<DialogTitle>
 					{isReplacing
 						? t("environment.set.replace.title")
 						: t("environment.set.add.title")}
-				</Title>
-				<Description>
+				</DialogTitle>
+				<DialogDescription>
 					{isReplacing
 						? t("environment.set.replace.description", { name: written })
 						: t("environment.set.add.description")}
-				</Description>
+				</DialogDescription>
 
 				<form className="flex flex-col gap-4" onSubmit={submit}>
 					<SettingsField
@@ -143,8 +143,8 @@ const EnvironmentWriteDialog = ({
 						</Button>
 					</div>
 				</form>
-			</Content>
-		</Root>
+			</DialogSurface>
+		</Dialog>
 	)
 }
 

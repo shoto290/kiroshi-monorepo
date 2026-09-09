@@ -21,25 +21,24 @@ import {
 	type ConversationParticipant,
 } from "@workspace/ui/components/avatar-group"
 import {
-	type BotBadge,
-	BotBadgeDot,
-	type BotMissionState,
-	BotMissionStrip,
-	type BotMissionTicket,
-	BotTitleBadge,
-} from "@workspace/ui/components/badge"
-import {
 	BotAvatar,
 	type BotAvatarBlot,
 } from "@workspace/ui/components/bot-avatar"
 import type { BotAvatarAnimal } from "@workspace/ui/components/bot-avatar-animals"
 import type { BotAvatarState } from "@workspace/ui/components/bot-avatar-data"
 import {
+	type BotBadge,
+	BotBadgeDot,
+	type BotMissionState,
+	BotMissionStrip,
+	type BotMissionTicket,
+	BotTitleBadge,
+} from "@workspace/ui/components/bot-badge"
+import {
 	type ActivityIndicatorKind,
 	BotIdentityAvatar,
 } from "@workspace/ui/components/bot-identity-avatar"
 import { BOT_IDENTITY_ANIMALS } from "@workspace/ui/components/bot-settings"
-import { Button } from "@workspace/ui/components/button"
 import { Icons } from "@workspace/ui/components/icons"
 import {
 	AnimatedSidebar,
@@ -79,6 +78,7 @@ import {
 	SpaceDots,
 	SpaceSwitcher,
 } from "@workspace/ui/components/space-switcher"
+import { TooltipButton } from "@workspace/ui/components/tooltip-button"
 import {
 	UserChip,
 	type UserChipIdentity,
@@ -2048,7 +2048,7 @@ const CreateMenu = (items: CreateItemsProps) => {
 	return (
 		<ContextMenu>
 			<ContextMenuTrigger opensOnPress>
-				<Button
+				<TooltipButton
 					aria-label={label}
 					size="icon-sm"
 					tooltip={label}
@@ -2056,7 +2056,7 @@ const CreateMenu = (items: CreateItemsProps) => {
 					variant="ghost"
 				>
 					<Icons.Add aria-hidden="true" />
-				</Button>
+				</TooltipButton>
 			</ContextMenuTrigger>
 			<ContextMenuContent ariaLabel={label}>
 				<CreateItems {...items} />
@@ -2240,7 +2240,7 @@ const AppSidebarBase = ({
 							onCreateSection={onCreateSection ? nameLooseSection : undefined}
 						/>
 					) : (
-						<Button
+						<TooltipButton
 							aria-label={createLabel}
 							onClick={onCreateBot}
 							size="icon-sm"
@@ -2249,7 +2249,7 @@ const AppSidebarBase = ({
 							variant="ghost"
 						>
 							<Icons.Add aria-hidden="true" />
-						</Button>
+						</TooltipButton>
 					)}
 				</AnimatedSidebarHeader>
 				{onOpenSearch ? (

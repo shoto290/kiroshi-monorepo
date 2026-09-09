@@ -3,17 +3,20 @@
 import { useTranslation } from "react-i18next"
 
 import { Icons } from "@workspace/ui/components/icons"
+import { Button } from "@workspace/ui/components/ui/button"
 import {
-	Close,
 	createToastManager,
-	Description,
-	Portal,
-	Provider,
-	Root,
-	Title,
+	Toast,
+	ToastClose,
+	ToastContent,
+	ToastDescription,
+	ToastPortal,
+	ToastProvider,
+	ToastTitle,
+	ToastViewport,
 	useToastManager,
-	Viewport,
-} from "@workspace/ui/components/toast"
+} from "@workspace/ui/components/ui/toast"
+import { cn } from "@workspace/ui/lib/utils"
 
 const TRANSIENT_NOTICE_DELAY = 5000
 const NOTICE_LIMIT = 3
@@ -38,30 +41,49 @@ const raiseFailureNotice = (message: NoticeMessage) => {
 	})
 }
 
+const FADE_ONLY_UNDER_REDUCED_MOTION =
+	"motion-reduce:[transition:opacity_150ms]! motion-reduce:data-starting-style:[transform:none]! motion-reduce:data-starting-style:opacity-0 motion-reduce:data-ending-style:[transform:none]! motion-reduce:data-ending-style:opacity-0"
+
 const NoticeList = () => {
+	const { t } = useTranslation("common")
 	const { toasts } = useToastManager()
 
 	return toasts.map((notice) => {
 		const hasFailed = notice.type === "failure"
 
 		return (
-			<Root
-				className={hasFailed ? "border-destructive" : undefined}
+			<Toast
+				className={cn(
+					"pointer-events-auto",
+					FADE_ONLY_UNDER_REDUCED_MOTION,
+					hasFailed && "border-destructive",
+				)}
 				key={notice.id}
+				swipeDirection={["down", "right"]}
 				toast={notice}
 			>
-				{hasFailed ? (
-					<Icons.Alert
-						aria-hidden="true"
-						className="mt-0.5 size-4 shrink-0 text-destructive"
+				<ToastContent>
+					{hasFailed ? (
+						<Icons.Alert
+							aria-hidden="true"
+							className="size-4 shrink-0 text-destructive"
+						/>
+					) : null}
+					<div className="flex min-w-0 flex-1 flex-col gap-1">
+						<ToastTitle className="break-words" />
+						<ToastDescription className="break-words" />
+					</div>
+					<ToastClose
+						render={
+							<Button
+								aria-label={t("notice.close")}
+								size="icon-sm"
+								variant="ghost"
+							/>
+						}
 					/>
-				) : null}
-				<div className="flex min-w-0 flex-1 flex-col gap-1">
-					<Title />
-					<Description />
-				</div>
-				<Close />
-			</Root>
+				</ToastContent>
+			</Toast>
 		)
 	})
 }
@@ -76,17 +98,17 @@ const NoticeSurface = ({
 	const { t } = useTranslation("common")
 
 	return (
-		<Provider
+		<ToastProvider
 			limit={NOTICE_LIMIT}
 			timeout={transientDelay}
 			toastManager={noticeManager}
 		>
-			<Portal>
-				<Viewport aria-label={t("notice.label")}>
+			<ToastPortal>
+				<ToastViewport aria-label={t("notice.label")} className="z-100">
 					<NoticeList />
-				</Viewport>
-			</Portal>
-		</Provider>
+				</ToastViewport>
+			</ToastPortal>
+		</ToastProvider>
 	)
 }
 

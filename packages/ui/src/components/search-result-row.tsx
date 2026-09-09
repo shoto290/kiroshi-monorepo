@@ -8,15 +8,15 @@ import {
 	DOT_CLASS,
 	ROW_CLASS,
 } from "@workspace/ui/components/activity-row"
-import { Avatar } from "@workspace/ui/components/avatar"
 import {
 	AvatarGroup,
 	type ConversationParticipant,
 } from "@workspace/ui/components/avatar-group"
-import type { BotBadge } from "@workspace/ui/components/badge"
 import type { BotAvatarBlot } from "@workspace/ui/components/bot-avatar"
+import type { BotBadge } from "@workspace/ui/components/bot-badge"
 import { BotIdentityAvatar } from "@workspace/ui/components/bot-identity-avatar"
 import { Icons } from "@workspace/ui/components/icons"
+import { InitialsAvatar } from "@workspace/ui/components/initials-avatar"
 import {
 	MISSION_AVATAR_SIZE,
 	type MissionBot,
@@ -91,7 +91,7 @@ const SearchResultIdentityMark = ({
 
 	if (identity.kind === "message-from-you")
 		return (
-			<Avatar
+			<InitialsAvatar
 				className="shrink-0"
 				name={identity.reader}
 				size={MISSION_AVATAR_SIZE}

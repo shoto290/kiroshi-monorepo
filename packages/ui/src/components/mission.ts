@@ -1,4 +1,4 @@
-import type { BotBadge } from "@workspace/ui/components/badge"
+import type { BotBadge } from "@workspace/ui/components/bot-badge"
 import type { BotIdentityAvatarProps } from "@workspace/ui/components/bot-identity-avatar"
 import type { MessageAuthor } from "@workspace/ui/components/message"
 import type { RosterBot } from "@workspace/ui/components/roster"

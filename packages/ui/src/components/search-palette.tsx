@@ -4,7 +4,6 @@ import { Dialog } from "@base-ui/react/dialog"
 import { type ReactNode, useId, useRef } from "react"
 import { useTranslation } from "react-i18next"
 
-import { Button } from "@workspace/ui/components/button"
 import { EmptyStateShell } from "@workspace/ui/components/empty-state-shell"
 import { Icons } from "@workspace/ui/components/icons"
 import {
@@ -20,7 +19,8 @@ import {
 	BACKDROP_CLASS,
 	DIALOG_POPUP_CLASS,
 } from "@workspace/ui/components/settings-styles"
-import { Switch } from "@workspace/ui/components/switch"
+import { ToggleSwitch } from "@workspace/ui/components/toggle-switch"
+import { Button } from "@workspace/ui/components/ui/button"
 import { Kbd, KbdGroup } from "@workspace/ui/components/ui/kbd"
 import { cn } from "@workspace/ui/lib/utils"
 
@@ -371,7 +371,7 @@ const SearchPalette = ({
 							<span className="text-muted-foreground text-xs" id={scopeId}>
 								{t("scope")}
 							</span>
-							<Switch
+							<ToggleSwitch
 								aria-labelledby={scopeId}
 								checked={isScopeAllSpaces}
 								onCheckedChange={onScopeChange}

@@ -2,9 +2,13 @@ import { useState } from "react"
 import { expect, fn, waitFor, within } from "storybook/test"
 
 import preview from "@workspace/storybook/preview"
+import {
+	A11Y_FLOATING_FOCUS_GUARDS,
+	opaque,
+} from "@workspace/storybook/story-utils"
 import { AppHeader } from "@workspace/ui/components/app-header"
-import { Avatar } from "@workspace/ui/components/avatar"
 import { BotIdentityAvatar } from "@workspace/ui/components/bot-identity-avatar"
+import { InitialsAvatar } from "@workspace/ui/components/initials-avatar"
 import {
 	PINNED_AVATAR_SIZE,
 	type PinnedMessage,
@@ -18,7 +22,7 @@ const TRIGGER = /^Pinned messages/
 
 const BOT = <BotIdentityAvatar name="Skippy" size={PINNED_AVATAR_SIZE} />
 
-const READER = <Avatar name="You" size={PINNED_AVATAR_SIZE} />
+const READER = <InitialsAvatar name="You" size={PINNED_AVATAR_SIZE} />
 
 const MESSAGES: PinnedMessage[] = [
 	{
@@ -95,6 +99,7 @@ const meta = preview.meta({
 
 export const Default = meta.story({
 	parameters: {
+		a11y: A11Y_FLOATING_FOCUS_GUARDS,
 		docs: {
 			description: {
 				story:
@@ -109,7 +114,7 @@ export const Default = meta.story({
 		await expect(trigger).toHaveAccessibleName(`${TITLE}, 2 pinned`)
 
 		await userEvent.click(trigger)
-		const panel = await body.findByRole("dialog", { name: TITLE })
+		const panel = await opaque(await body.findByRole("dialog", { name: TITLE }))
 
 		const rows = within(panel).getAllByRole("listitem")
 
@@ -153,7 +158,7 @@ export const Empty = meta.story({
 
 		await userEvent.click(trigger)
 		const body = within(canvasElement.ownerDocument.body)
-		const panel = await body.findByRole("dialog", { name: TITLE })
+		const panel = await opaque(await body.findByRole("dialog", { name: TITLE }))
 
 		await expect(
 			within(panel).getByText("No message is pinned in this conversation yet."),
@@ -176,7 +181,7 @@ export const Overflowing = meta.story({
 		const body = within(canvasElement.ownerDocument.body)
 
 		await userEvent.click(canvas.getByRole("button", { name: TRIGGER }))
-		const panel = await body.findByRole("dialog", { name: TITLE })
+		const panel = await opaque(await body.findByRole("dialog", { name: TITLE }))
 		const excerpt = within(panel).getByText(OVERFLOWING[0].excerpt)
 		const lineHeight = Number.parseFloat(getComputedStyle(excerpt).lineHeight)
 
@@ -202,7 +207,7 @@ export const Unpinning = meta.story({
 		const trigger = canvas.getByRole("button", { name: TRIGGER })
 
 		await userEvent.click(trigger)
-		const panel = await body.findByRole("dialog", { name: TITLE })
+		const panel = await opaque(await body.findByRole("dialog", { name: TITLE }))
 
 		for (const message of MESSAGES) {
 			await userEvent.click(

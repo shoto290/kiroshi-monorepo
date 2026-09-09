@@ -2,10 +2,10 @@
 
 import { useTranslation } from "react-i18next"
 
-import { Badge } from "@workspace/ui/components/badge"
 import { BotIdentityAvatar } from "@workspace/ui/components/bot-identity-avatar"
 import { Icons } from "@workspace/ui/components/icons"
 import type { RosterBot } from "@workspace/ui/components/roster"
+import { Badge } from "@workspace/ui/components/ui/badge"
 
 const CHIP_AVATAR_SIZE = 20
 

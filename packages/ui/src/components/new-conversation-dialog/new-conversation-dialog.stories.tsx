@@ -162,9 +162,7 @@ export const Reopened = meta.story({
 		await expect(slotsIn(dialog, "picked-bot")).toHaveLength(1)
 
 		await userEvent.click(inside.getByRole("button", { name: "Cancel" }))
-		await waitFor(() =>
-			expect(screen.queryByRole("dialog")).not.toBeInTheDocument(),
-		)
+		await waitFor(() => expect(dialog).not.toBeInTheDocument())
 
 		await userEvent.click(screen.getByRole("button", { name: "Reopen" }))
 		const reopened = await dialogIn()

@@ -2,8 +2,8 @@ import { expect, fn, screen, waitFor, within } from "storybook/test"
 
 import preview from "@workspace/storybook/preview"
 import { A11Y_CONTRAST_AWAITING_DESIGN_DECISION } from "@workspace/storybook/story-utils"
-import { buttonVariants } from "@workspace/ui/components/button"
 import { ConfirmDialog } from "@workspace/ui/components/confirm-dialog"
+import { buttonVariants } from "@workspace/ui/components/ui/button"
 
 const confirmation = async () => {
 	const popup = await screen.findByRole("alertdialog")

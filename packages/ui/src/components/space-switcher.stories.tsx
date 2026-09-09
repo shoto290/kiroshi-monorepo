@@ -3,7 +3,7 @@ import { expect, fireEvent, fn, screen, waitFor, within } from "storybook/test"
 
 import preview from "@workspace/storybook/preview"
 import { settled, slotsIn } from "@workspace/storybook/story-utils"
-import type { BotBadge } from "@workspace/ui/components/badge"
+import type { BotBadge } from "@workspace/ui/components/bot-badge"
 import type { Space } from "@workspace/ui/components/space"
 import {
 	SpaceDots,
