@@ -7,10 +7,10 @@ import {
 	UPLOADED_AVATAR_IMAGE,
 } from "@workspace/storybook/story-utils"
 import {
-	AnimatedSidebar,
-	AnimatedSidebarContent,
-	AnimatedSidebarFooter,
-} from "@workspace/ui/components/motion/animated-sidebar"
+	Sidebar,
+	SidebarContent,
+	SidebarFooter,
+} from "@workspace/ui/components/ui/sidebar"
 import {
 	UserChip,
 	type UserChipProps,
@@ -23,18 +23,18 @@ const FALLBACK_NAME = "You"
 
 const SINGLE_LINE_HEIGHT = 24
 const FOOTER_INSET =
-	"group-data-[state=collapsed]/sidebar:items-center group-data-[state=collapsed]/sidebar:px-0"
+	"group-data-[collapsible=icon]:items-center group-data-[collapsible=icon]:px-0"
 
 const renderShell = (defaultOpen: boolean) => (args: UserChipProps) => (
 	<WorkspaceShell
 		defaultOpen={defaultOpen}
 		sidebar={
-			<AnimatedSidebar ariaLabel="Workspace" collapsible="icon">
-				<AnimatedSidebarContent />
-				<AnimatedSidebarFooter className={FOOTER_INSET}>
+			<Sidebar aria-label="Workspace" collapsible="icon" role="complementary">
+				<SidebarContent />
+				<SidebarFooter className={FOOTER_INSET}>
 					<UserChip {...args} />
-				</AnimatedSidebarFooter>
-			</AnimatedSidebar>
+				</SidebarFooter>
+			</Sidebar>
 		}
 	>
 		{null}
@@ -45,7 +45,7 @@ const avatarIn = (canvasElement: HTMLElement) =>
 	slotsIn(canvasElement, "user-avatar")[0]
 
 const panelIn = (canvasElement: HTMLElement) =>
-	slotsIn(canvasElement, "sidebar-panel")[0]
+	slotsIn(canvasElement, "sidebar-container")[0]
 
 const horizontalCentreOf = (element: HTMLElement) => {
 	const box = element.getBoundingClientRect()

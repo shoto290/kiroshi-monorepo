@@ -20,15 +20,6 @@ import {
 	REPORTED_RUN,
 	WAITING_HUMAN_MISSION,
 } from "@workspace/ui/components/missions.fixtures"
-import {
-	AnimatedSidebar,
-	AnimatedSidebarContent,
-	AnimatedSidebarHeader,
-	AnimatedSidebarMenu,
-	AnimatedSidebarMenuButton,
-	AnimatedSidebarMenuItem,
-	AnimatedSidebarTrigger,
-} from "@workspace/ui/components/motion/animated-sidebar"
 import { PromptInput } from "@workspace/ui/components/prompt-input"
 import type { RoutineDetailModel } from "@workspace/ui/components/routine-detail"
 import {
@@ -55,8 +46,17 @@ import {
 	type RoutinesPanelProps,
 	RoutinesPanelTrigger,
 } from "@workspace/ui/components/routines-panel"
+import { SidebarMenuRow } from "@workspace/ui/components/sidebar-menu-row"
 import { ThreadLayout } from "@workspace/ui/components/thread-layout"
 import { AssistantTurn, UserTurn } from "@workspace/ui/components/turn"
+import {
+	Sidebar,
+	SidebarContent,
+	SidebarHeader,
+	SidebarMenu,
+	SidebarMenuItem,
+	SidebarTrigger,
+} from "@workspace/ui/components/ui/sidebar"
 import { WorkspaceShell } from "@workspace/ui/components/workspace-shell"
 
 const ANSWER =
@@ -206,20 +206,20 @@ const openRoutines = async (
 }
 
 const WORKSPACE_SIDEBAR = (
-	<AnimatedSidebar ariaLabel="Workspace" variant="inset">
-		<AnimatedSidebarHeader>
-			<AnimatedSidebarTrigger aria-label="Toggle workspace">
+	<Sidebar aria-label="Workspace" collapsible="icon" role="complementary">
+		<SidebarHeader>
+			<SidebarTrigger aria-label="Toggle workspace">
 				<Icons.Sidebar className="size-4" />
-			</AnimatedSidebarTrigger>
-		</AnimatedSidebarHeader>
-		<AnimatedSidebarContent>
-			<AnimatedSidebarMenu>
-				<AnimatedSidebarMenuItem>
-					<AnimatedSidebarMenuButton>Shift log</AnimatedSidebarMenuButton>
-				</AnimatedSidebarMenuItem>
-			</AnimatedSidebarMenu>
-		</AnimatedSidebarContent>
-	</AnimatedSidebar>
+			</SidebarTrigger>
+		</SidebarHeader>
+		<SidebarContent>
+			<SidebarMenu>
+				<SidebarMenuItem>
+					<SidebarMenuRow>Shift log</SidebarMenuRow>
+				</SidebarMenuItem>
+			</SidebarMenu>
+		</SidebarContent>
+	</Sidebar>
 )
 
 const CARD_GUTTER = 4
@@ -229,11 +229,6 @@ const renderInShell = (args: RoutinesPanelProps) => (
 		<PanelHost {...args} />
 	</WorkspaceShell>
 )
-
-const handleIn = (canvasElement: HTMLElement, side: string) =>
-	canvasElement.querySelector<HTMLElement>(
-		`[data-slot="sidebar-resize-handle"][data-side="${side}"]`,
-	)
 
 const meta = preview.meta({
 	title: "Conversation/Routines/RoutinesPanel",
@@ -447,7 +442,7 @@ export const Closed = meta.story({
 		docs: {
 			description: {
 				story:
-					"The panel folded away. Check that the thread card takes the whole room the folded panel leaves, keeping nothing but its own gutter, that the control in the app header reports the panel closed rather than merely looking unpressed, and that the panel carries no control of its own while it is folded away.",
+					"The panel folded away. Check that the thread card takes the whole room the folded panel leaves, keeping nothing but its own gutter, that the control in the app header reports the panel closed rather than merely looking unpressed, and that the panel is out of the document entirely while it is folded away rather than a column of no width.",
 			},
 		},
 	},
@@ -457,16 +452,11 @@ export const Closed = meta.story({
 		await expect(control).toHaveAttribute("aria-controls", "routines-panel")
 
 		const thread = slotIn(canvasElement, "sidebar-inset")
-		const panel = canvas.getByRole("complementary", { name: "Activity" })
 		await expect(
-			within(panel).queryByRole("button", { name: "Close activity" }),
-		).not.toBeInTheDocument()
-		await waitFor(
-			() => expect(panel.getBoundingClientRect().width).toBe(0),
-			FRAME_POLL,
-		)
+			canvas.queryByRole("complementary", { name: "Activity" }),
+		).toBeNull()
 		await expect(thread.getBoundingClientRect().width).toBe(
-			(panel.parentElement?.getBoundingClientRect().width ?? 0) -
+			(thread.parentElement?.getBoundingClientRect().width ?? 0) -
 				CARD_GUTTER * 2,
 		)
 	},
@@ -488,10 +478,7 @@ export const Toggling = meta.story({
 		await expect(args.onOpenChange).toHaveBeenCalledWith(true)
 
 		const panel = canvas.getByRole("complementary", { name: "Activity" })
-		await waitFor(
-			() => expect(panel.getBoundingClientRect().width).toBeGreaterThan(0),
-			FRAME_POLL,
-		)
+		await expect(panel.getBoundingClientRect().width).toBeGreaterThan(0)
 		await expect(
 			canvas.queryByRole("button", { name: "Activity" }),
 		).not.toBeInTheDocument()
@@ -928,12 +915,12 @@ export const InWorkspaceShell = meta.story({
 		docs: {
 			description: {
 				story:
-					"The panel where it really lives: inside the shell, opposite the workspace sidebar. This is the one to open when the two panels are suspected of sharing a context. Check that opening the routines panel leaves the sidebar on the other side expanded and exactly as wide as it was, and that widening the routines panel from its handle does not narrow the sidebar with it.",
+					"The panel where it really lives: inside the shell, opposite the workspace sidebar. This is the one to open when the two panels are suspected of sharing a context. Check that opening the routines panel leaves the sidebar on the other side expanded and exactly as wide as it was: each panel carries a provider of its own, so neither open state can reach the other.",
 			},
 		},
 	},
 	render: renderInShell,
-	play: async ({ canvas, canvasElement, userEvent }) => {
+	play: async ({ canvas, userEvent }) => {
 		const workspace = canvas.getByRole("complementary", { name: "Workspace" })
 		const widthBefore = workspace.getBoundingClientRect().width
 
@@ -944,16 +931,9 @@ export const InWorkspaceShell = meta.story({
 			FRAME_POLL,
 		)
 
-		const handle = handleIn(canvasElement, "right")
-		await expect(handle).not.toBeNull()
-		handle?.focus()
-		await userEvent.keyboard("{ArrowLeft}")
-
-		await waitFor(
-			() => expect(handle).toHaveAttribute("aria-valuenow", "336"),
-			FRAME_POLL,
-		)
-		await expect(workspace).toHaveAttribute("data-state", "expanded")
+		await expect(
+			workspace.closest("[data-slot=sidebar]")?.getAttribute("data-state"),
+		).toBe("expanded")
 		await expect(workspace.getBoundingClientRect().width).toBe(widthBefore)
 	},
 })
@@ -980,7 +960,7 @@ const cardIn = (canvasElement: HTMLElement) => {
 }
 
 const panelSurfaceIn = (panel: HTMLElement) =>
-	panel.querySelector<HTMLElement>('[data-slot="sidebar-panel"]') as HTMLElement
+	panel.querySelector<HTMLElement>('[data-slot="sidebar-inner"]') ?? panel
 
 const expectPanelOnShellSurface = async (panel: HTMLElement) => {
 	const surface = panelSurfaceIn(panel)
@@ -1024,10 +1004,10 @@ const expectShellSurfaceAround = async (canvasElement: HTMLElement) => {
 }
 
 const OPEN_ON_SHELL_SURFACE =
-	"The panel open on the shell surface: the surface reaches the trailing window edge and the thread floats on it as a single card, framed on the edge it shares with the panel exactly as on the edge it shares with the sidebar. Check that the panel paints no background and no border of its own, that the missions and the routines read against the shell surface as the sidebar rows do on the other side, and that the card keeps its gutter against the panel. Pick `OnShellSurfaceClosed` for the panel taking no room at all."
+	"The panel open on the shell surface: the surface reaches the trailing window edge and the thread floats on it as a single card, framed on the edge it shares with the panel exactly as on the edge it shares with the sidebar. Check that the panel paints no background and no border of its own, that the missions and the routines read against the shell surface as the sidebar rows do on the other side, and that the card keeps its gutter against the panel. Pick `OnShellSurfaceClosed` for the panel gone from the document."
 
 const CLOSED_ON_SHELL_SURFACE =
-	"The panel closed, which is what most of a session looks like: the thread card keeps the same gutter, radius, border and background it had before the panel existed, and the shell surface is all that shows around it. Check that the trailing gutter matches the leading one now that the panel takes no room. Pick `OnShellSurfaceOpen` for the panel holding room beside the card."
+	"The panel closed, which is what most of a session looks like: the thread card keeps the same gutter, radius, border and background it had before the panel existed, and the shell surface is all that shows around it. Check that the trailing gutter matches the leading one now that the panel is gone from the document. Pick `OnShellSurfaceOpen` for the panel holding room beside the card."
 
 export const OnShellSurfaceOpen = meta.story({
 	args: { isOpen: true },
@@ -1055,15 +1035,12 @@ export const OnShellSurfaceOpenDark = meta.story({
 })
 
 const expectShellSurfaceWithoutPanel = async (canvasElement: HTMLElement) => {
-	const panel = activityPanelIn(canvasElement)
 	const card = cardIn(canvasElement)
 
-	await expectPanelOnShellSurface(panel)
+	await expect(
+		within(canvasElement).queryByRole("complementary", { name: "Activity" }),
+	).toBeNull()
 	await expectCardFramed(card)
-
-	await waitFor(async () => {
-		await expect(panel.getBoundingClientRect().width).toBe(0)
-	}, FRAME_POLL)
 
 	const edges = card.getBoundingClientRect()
 	await expect(window.innerWidth - edges.right).toBe(CARD_GUTTER)
@@ -1114,14 +1091,13 @@ export const OnShellSurfaceTinted = meta.story({
 	),
 	play: async ({ canvas, canvasElement }) => {
 		const panel = activityPanelIn(canvasElement)
-		const sidebar = canvas.getByRole("complementary", { name: "Workspace" })
+		const shell = canvas.getByRole("main").parentElement as HTMLElement
 
 		await expect(paintOf(panelSurfaceIn(panel))).toBe(TRANSPARENT)
-		await expect(paintOf(panelSurfaceIn(sidebar))).toBe(TRANSPARENT)
 
 		await waitFor(async () => {
 			const tinted = paintOf(panel.parentElement as HTMLElement)
-			await expect(tinted).toBe(paintOf(sidebar.parentElement as HTMLElement))
+			await expect(tinted).toBe(paintOf(shell))
 			await expect(tinted).not.toBe(shellPaint())
 		}, FRAME_POLL)
 	},

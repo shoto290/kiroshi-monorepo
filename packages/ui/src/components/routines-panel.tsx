@@ -1,6 +1,18 @@
 "use client"
 
-import { type ReactNode, useEffect, useId, useRef, useState } from "react"
+import {
+	type ButtonHTMLAttributes,
+	type CSSProperties,
+	createContext,
+	type ReactNode,
+	type RefObject,
+	useContext,
+	useEffect,
+	useId,
+	useMemo,
+	useRef,
+	useState,
+} from "react"
 import { useTranslation } from "react-i18next"
 
 import { ContentCard } from "@workspace/ui/components/content-card"
@@ -11,16 +23,6 @@ import {
 	MissionRow,
 	type MissionRowModel,
 } from "@workspace/ui/components/mission-row"
-import {
-	AnimatedSidebar,
-	AnimatedSidebarContent,
-	AnimatedSidebarFooter,
-	AnimatedSidebarHeader,
-	AnimatedSidebarProvider,
-	AnimatedSidebarTrigger,
-	type AnimatedSidebarTriggerProps,
-	useAnimatedSidebar,
-} from "@workspace/ui/components/motion/animated-sidebar"
 import { Notice } from "@workspace/ui/components/notice"
 import {
 	ReportedRunRow,
@@ -42,10 +44,45 @@ import {
 	type RoutineRowModel,
 } from "@workspace/ui/components/routine-row"
 import { Button } from "@workspace/ui/components/ui/button"
+import {
+	Sidebar,
+	SidebarContent,
+	SidebarFooter,
+	SidebarHeader,
+	SidebarProvider,
+} from "@workspace/ui/components/ui/sidebar"
 import { cn } from "@workspace/ui/lib/utils"
 
 const ROUTINES_PANEL_ID = "routines-panel"
 const ROUTINES_PANEL_WIDTH = 320
+
+const PANEL_SHELL =
+	"surface-shell h-full min-h-0 min-w-0 flex-1 overflow-hidden"
+
+const PANEL_SURFACE = "h-full min-h-0 bg-transparent"
+
+type PanelWidthStyle = CSSProperties & { "--sidebar-width": string }
+
+const PANEL_WIDTH_STYLE: PanelWidthStyle = {
+	"--sidebar-width": `${ROUTINES_PANEL_WIDTH}px`,
+}
+
+type RoutinesPanelHandle = {
+	isOpen: boolean
+	onOpenChange: (isOpen: boolean) => void
+	closeRef: RefObject<HTMLButtonElement | null>
+	triggerRef: RefObject<HTMLButtonElement | null>
+}
+
+const RoutinesPanelContext = createContext<RoutinesPanelHandle | null>(null)
+
+const useRoutinesPanel = () => {
+	const handle = useContext(RoutinesPanelContext)
+	if (!handle) {
+		throw new Error("useRoutinesPanel must be used inside RoutinesPanel.")
+	}
+	return handle
+}
 
 const NEW_ROUTINE_KEY = "new-routine"
 const NEW_ROUTINE_OPENER = "new-routine-opener"
@@ -403,11 +440,9 @@ const headingOf = ({
 
 const RoutinesPanelSurface = (props: RoutinesPanelListProps) => {
 	const { t } = useTranslation("chat")
-	const { open, toggleSidebar, triggerRef } = useAnimatedSidebar()
+	const { closeRef, onOpenChange } = useRoutinesPanel()
 	const [isShowingRoutines, setShowingRoutines] = useState(false)
-	const wasOpen = useRef(open)
-	const surface = useRef<HTMLElement>(null)
-	const closeControl = useRef<HTMLButtonElement>(null)
+	const surface = useRef<HTMLDivElement>(null)
 	const openers = useRef<string[]>([])
 	const { form, detail, routines } = props
 	const heading = headingOf({
@@ -419,13 +454,6 @@ const RoutinesPanelSurface = (props: RoutinesPanelListProps) => {
 	const depth =
 		(detail?.open ? 1 : 0) + (form?.open ? 1 : 0) + (isShowingRoutines ? 1 : 0)
 	const shownDepth = useRef(depth)
-
-	useEffect(() => {
-		if (wasOpen.current === open) return
-		wasOpen.current = open
-		const landing = open ? closeControl.current : triggerRef.current
-		landing?.focus({ preventScroll: true })
-	}, [open, triggerRef])
 
 	useEffect(() => {
 		const hasPopped = depth < shownDepth.current
@@ -453,17 +481,15 @@ const RoutinesPanelSurface = (props: RoutinesPanelListProps) => {
 	}
 
 	return (
-		<AnimatedSidebar
-			ariaLabel={t("activity.panel.label")}
-			collapsible="offcanvas"
+		<Sidebar
+			aria-label={t("activity.panel.label")}
+			className={PANEL_SURFACE}
+			collapsible="none"
 			id={ROUTINES_PANEL_ID}
-			inert={!open}
-			panelClassName="h-full"
 			ref={surface}
-			side="right"
-			variant="inset"
+			role="complementary"
 		>
-			<AnimatedSidebarHeader>
+			<SidebarHeader>
 				<div className="flex h-7 items-center gap-2">
 					{heading ? (
 						<Button
@@ -489,21 +515,19 @@ const RoutinesPanelSurface = (props: RoutinesPanelListProps) => {
 							<Icons.Add aria-hidden="true" />
 						</Button>
 					) : null}
-					{open ? (
-						<Button
-							aria-label={t("activity.panel.close")}
-							data-slot="routines-panel-close"
-							onClick={toggleSidebar}
-							ref={closeControl}
-							size="icon-sm"
-							variant="ghost"
-						>
-							<Icons.SidePanel aria-hidden="true" />
-						</Button>
-					) : null}
+					<Button
+						aria-label={t("activity.panel.close")}
+						data-slot="routines-panel-close"
+						onClick={() => onOpenChange(false)}
+						ref={closeRef}
+						size="icon-sm"
+						variant="ghost"
+					>
+						<Icons.SidePanel aria-hidden="true" />
+					</Button>
 				</div>
-			</AnimatedSidebarHeader>
-			<AnimatedSidebarContent className="gap-4 px-2 pt-1 pb-2">
+			</SidebarHeader>
+			<SidebarContent className="gap-4 px-2 pt-1 pb-2">
 				<RoutinesPanelBody
 					{...props}
 					isShowingRoutines={isShowingRoutines}
@@ -513,9 +537,9 @@ const RoutinesPanelSurface = (props: RoutinesPanelListProps) => {
 						((routineId) => remember(routineId, () => detail.onOpen(routineId)))
 					}
 				/>
-			</AnimatedSidebarContent>
+			</SidebarContent>
 			{heading ? null : (
-				<AnimatedSidebarFooter className="p-2">
+				<SidebarFooter className="p-2">
 					<button
 						className="flex h-10 items-center gap-2.5 rounded-xl pe-3 ps-2.5 text-start outline-none transition-colors duration-150 hover:bg-muted/50 focus-visible:ring-3 focus-visible:ring-ring/30 motion-reduce:transition-none"
 						data-opens={ROUTINES_OPENER}
@@ -536,9 +560,9 @@ const RoutinesPanelSurface = (props: RoutinesPanelListProps) => {
 							{routines.length}
 						</span>
 					</button>
-				</AnimatedSidebarFooter>
+				</SidebarFooter>
 			)}
-		</AnimatedSidebar>
+		</Sidebar>
 	)
 }
 
@@ -547,35 +571,58 @@ const RoutinesPanel = ({
 	onOpenChange,
 	children,
 	...list
-}: RoutinesPanelProps) => (
-	<AnimatedSidebarProvider
-		className="h-full"
-		data-slot="routines-panel"
-		defaultWidth={ROUTINES_PANEL_WIDTH}
-		hasKeyboardShortcut={false}
-		onOpenChange={onOpenChange}
-		open={isOpen}
-	>
-		<ContentCard isLandmark={false}>{children}</ContentCard>
-		<RoutinesPanelSurface {...list} />
-	</AnimatedSidebarProvider>
-)
+}: RoutinesPanelProps) => {
+	const closeRef = useRef<HTMLButtonElement>(null)
+	const triggerRef = useRef<HTMLButtonElement>(null)
+	const wasOpen = useRef(isOpen)
+	const handle = useMemo<RoutinesPanelHandle>(
+		() => ({ closeRef, isOpen, onOpenChange, triggerRef }),
+		[isOpen, onOpenChange],
+	)
 
-const RoutinesPanelTrigger = (props: AnimatedSidebarTriggerProps) => {
-	const { t } = useTranslation("chat")
-	const { open } = useAnimatedSidebar()
-
-	if (open) return null
+	useEffect(() => {
+		if (wasOpen.current === isOpen) return
+		wasOpen.current = isOpen
+		const landing = isOpen ? closeRef.current : triggerRef.current
+		landing?.focus({ preventScroll: true })
+	}, [isOpen])
 
 	return (
-		<AnimatedSidebarTrigger
+		<RoutinesPanelContext.Provider value={handle}>
+			<SidebarProvider
+				className={PANEL_SHELL}
+				open={isOpen}
+				style={PANEL_WIDTH_STYLE}
+			>
+				<ContentCard isLandmark={false}>{children}</ContentCard>
+				{isOpen ? <RoutinesPanelSurface {...list} /> : null}
+			</SidebarProvider>
+		</RoutinesPanelContext.Provider>
+	)
+}
+
+type RoutinesPanelTriggerProps = ButtonHTMLAttributes<HTMLButtonElement>
+
+const RoutinesPanelTrigger = (props: RoutinesPanelTriggerProps) => {
+	const { t } = useTranslation("chat")
+	const { isOpen, onOpenChange, triggerRef } = useRoutinesPanel()
+
+	if (isOpen) return null
+
+	return (
+		<Button
 			{...props}
 			aria-controls={ROUTINES_PANEL_ID}
+			aria-expanded={isOpen}
 			aria-label={t("activity.panel.toggle")}
 			className="size-8"
+			onClick={() => onOpenChange(true)}
+			ref={triggerRef}
+			size="icon-sm"
+			variant="ghost"
 		>
 			<Icons.SidePanel aria-hidden="true" className="size-4" />
-		</AnimatedSidebarTrigger>
+		</Button>
 	)
 }
 
@@ -589,4 +636,5 @@ export {
 	type RoutinesPanelMissions,
 	type RoutinesPanelProps,
 	RoutinesPanelTrigger,
+	type RoutinesPanelTriggerProps,
 }

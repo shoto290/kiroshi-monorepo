@@ -20,10 +20,10 @@ const HOST_SIZES = [24, 40, 96]
 const AVATAR_HOST = "relative block rounded-full bg-muted"
 
 const SWITCHER_HOST =
-	"group/sidebar flex h-7 items-center gap-1 rounded-2xl bg-sidebar px-2 text-sm"
+	"group flex h-7 items-center gap-1 rounded-2xl bg-sidebar px-2 text-sm"
 
 const RAIL_HOST =
-	"group/sidebar relative flex size-7 items-center justify-center rounded-2xl bg-sidebar"
+	"group relative flex size-7 items-center justify-center rounded-2xl bg-sidebar"
 
 const ROW_HOST = "relative flex h-9 w-40 flex-col justify-center text-sm"
 
@@ -117,11 +117,11 @@ export const Placements = meta.story({
 					<BotBadgeDot badge="failed" placement="avatar" />
 				</span>
 			))}
-			<span className={SWITCHER_HOST} data-state="expanded">
+			<span className={SWITCHER_HOST} data-collapsible="">
 				<span>Perso</span>
 				<BotBadgeDot badge="attention" placement="switcher" />
 			</span>
-			<span className={RAIL_HOST} data-state="collapsed">
+			<span className={RAIL_HOST} data-collapsible="icon">
 				<span className="size-2.5 rounded-full bg-sidebar-foreground/30" />
 				<BotBadgeDot badge="attention" placement="switcher" />
 			</span>

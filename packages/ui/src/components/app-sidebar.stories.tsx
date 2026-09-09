@@ -363,7 +363,7 @@ const expectFooterAtColumnBottom = async (canvasElement: HTMLElement) => {
 		0,
 	)
 	await expect(bottomOf(footer)).toBeCloseTo(
-		bottomOf(slotIn(canvasElement, "sidebar-panel")),
+		bottomOf(slotIn(canvasElement, "sidebar-container")),
 		0,
 	)
 }
@@ -479,13 +479,20 @@ const expectMutedSecondaryText = async (row: HTMLElement, muted: string) => {
 }
 
 const railWidth = () => {
+	const shell = document.querySelector<HTMLElement>(
+		'[data-slot="sidebar-wrapper"]',
+	)
+	if (!shell) throw new Error("no sidebar wrapper to read the rail width from")
 	const probe = document.createElement("div")
 	probe.style.width = "var(--sidebar-width-icon)"
-	document.body.append(probe)
+	shell.append(probe)
 	const width = probe.getBoundingClientRect().width
 	probe.remove()
 	return width
 }
+
+const stateOf = (panel: HTMLElement) =>
+	panel.closest<HTMLElement>('[data-slot="sidebar"]')?.dataset.state
 
 const renderShell = (defaultOpen: boolean) => (args: AppSidebarProps) => (
 	<WorkspaceShell defaultOpen={defaultOpen} sidebar={<AppSidebar {...args} />}>
@@ -1754,7 +1761,7 @@ export const Toggle = meta.story({
 		docs: {
 			description: {
 				story:
-					"The collapse itself, driven from Cmd/Ctrl+B — the panel carries no trigger of its own, so the shortcut and whatever control the page mounts are the two ways in. Check that one press takes the panel to the rail and back, that focus stays exactly where it was instead of falling back to the page, and that the rows ride the width down without changing height or the column beside them reflowing twice. Pick `Collapsed` for the resting rail.",
+					"The collapse itself, driven from Cmd/Ctrl+B — the panel carries no trigger of its own, so the shortcut and whatever control the page mounts are the two ways in. Check that one press takes the panel to the rail and back, that focus stays exactly where it was instead of falling back to the page, and that the rows fold down to the icon square the rail leaves them and come back to the height they had. Pick `Collapsed` for the resting rail.",
 			},
 		},
 	},
@@ -1766,24 +1773,25 @@ export const Toggle = meta.story({
 		const rowHeight = row.getBoundingClientRect().height
 		const rail = railWidth()
 
-		await expect(panel).toHaveAttribute("data-state", "expanded")
+		await expect(stateOf(panel)).toBe("expanded")
 		await userEvent.tab()
 		await userEvent.tab()
 		await expect(button).toHaveFocus()
 
 		await userEvent.keyboard("{Meta>}b{/Meta}")
-		await expect(panel).toHaveAttribute("data-state", "collapsed")
+		await expect(stateOf(panel)).toBe("collapsed")
 		await expect(button).toHaveFocus()
 		await waitFor(async () => {
 			await expect(panel.getBoundingClientRect().width).toBeCloseTo(rail, 0)
 		}, FRAME_POLL)
-		await expect(row.getBoundingClientRect().height).toBe(rowHeight)
+		await expect(row.getBoundingClientRect().height).toBeLessThan(rowHeight)
 
 		await userEvent.keyboard("{Control>}b{/Control}")
-		await expect(panel).toHaveAttribute("data-state", "expanded")
+		await expect(stateOf(panel)).toBe("expanded")
 		await expect(button).toHaveFocus()
 		await waitFor(async () => {
 			await expect(panel.getBoundingClientRect().width).toBeGreaterThan(rail)
+			await expect(row.getBoundingClientRect().height).toBe(rowHeight)
 			const label = preview.closest("[aria-hidden]")
 			await expect(label && getComputedStyle(label).opacity).toBe("1")
 		}, FRAME_POLL)
@@ -1859,7 +1867,7 @@ export const Footer = meta.story({
 		},
 	},
 	play: async ({ canvasElement }) => {
-		const panel = slotIn(canvasElement, "sidebar-panel")
+		const panel = slotIn(canvasElement, "sidebar-container")
 		const list = slotIn(canvasElement, "sidebar-content")
 		const footer = slotIn(canvasElement, "sidebar-footer")
 
@@ -1891,7 +1899,7 @@ export const NoFooter = meta.story({
 		await expect(slotsIn(canvasElement, "sidebar-footer")).toHaveLength(0)
 		await expect(
 			bottomOf(slotIn(canvasElement, "sidebar-content")),
-		).toBeCloseTo(bottomOf(slotIn(canvasElement, "sidebar-panel")), 0)
+		).toBeCloseTo(bottomOf(slotIn(canvasElement, "sidebar-container")), 0)
 	},
 })
 
@@ -1923,7 +1931,7 @@ export const FooterOnRail = meta.story({
 		},
 	},
 	play: async ({ canvasElement }) => {
-		const panel = slotIn(canvasElement, "sidebar-panel")
+		const panel = slotIn(canvasElement, "sidebar-container")
 		const rail = railWidth()
 		await waitFor(async () => {
 			await expect(panel.getBoundingClientRect().width).toBeCloseTo(rail, 0)
@@ -2031,7 +2039,7 @@ export const WithUserOnRail = meta.story({
 		},
 	},
 	play: async ({ canvasElement }) => {
-		const panel = slotIn(canvasElement, "sidebar-panel")
+		const panel = slotIn(canvasElement, "sidebar-container")
 		const rail = railWidth()
 		await waitFor(async () => {
 			await expect(panel.getBoundingClientRect().width).toBeCloseTo(rail, 0)
@@ -2068,12 +2076,12 @@ export const DragRegion = meta.story({
 		docs: {
 			description: {
 				story:
-					'The panel as a frameless desktop window mounts it: the column is what the window is carried by. Check that the attribute lands on the panel itself, so the space between the rows drags the window, and that nothing the reader presses carries it — a row, the create button and the chip are buttons, and a button with no drag region of its own is what stops the drag. The resize handle is no button, so it says so itself: it carries `data-tauri-drag-region="false"`, which is what keeps a press on the panel edge sizing the sidebar instead of moving the window.',
+					"The panel as a frameless desktop window mounts it: the column is what the window is carried by. Check that the attribute lands on the panel itself, so the space between the rows drags the window, and that nothing the reader presses carries it — a row, the create button and the chip are buttons, and a button with no drag region of its own is what stops the drag.",
 			},
 		},
 	},
 	play: async ({ canvas, canvasElement }) => {
-		await expect(slotIn(canvasElement, "sidebar")).toHaveAttribute(
+		await expect(slotIn(canvasElement, "sidebar-container")).toHaveAttribute(
 			"data-tauri-drag-region",
 			"deep",
 		)
@@ -2087,10 +2095,6 @@ export const DragRegion = meta.story({
 			await expect(target.tagName).toBe("BUTTON")
 			await expect(target).not.toHaveAttribute("data-tauri-drag-region")
 		}
-
-		await expect(
-			slotIn(canvasElement, "sidebar-resize-handle"),
-		).toHaveAttribute("data-tauri-drag-region", "false")
 	},
 })
 
@@ -2877,7 +2881,7 @@ export const SpacesOnRail = meta.story({
 		},
 	},
 	play: async ({ canvas, canvasElement }) => {
-		const panel = slotIn(canvasElement, "sidebar-panel")
+		const panel = slotIn(canvasElement, "sidebar-container")
 		const rail = railWidth()
 		await waitFor(async () => {
 			await expect(panel.getBoundingClientRect().width).toBeCloseTo(rail, 0)
@@ -3085,12 +3089,12 @@ export const SpaceFlickMomentum = meta.story({
 		await carryTo(carousel, 0.6)
 		await expect(args.onSelectSpace).toHaveBeenCalledTimes(1)
 		await expect(args.onSelectSpace).toHaveBeenLastCalledWith("vocca")
-		await expect(carousel.scrollLeft).toBeCloseTo(0.6 * panel, 0)
+		await expect(Math.round(carousel.scrollLeft)).toBe(Math.round(0.6 * panel))
 		await expect(panelsIn(canvasElement)).toHaveLength(2)
 
 		await carryTo(carousel, 0.9)
 		await expect(args.onSelectSpace).toHaveBeenCalledTimes(1)
-		await expect(carousel.scrollLeft).toBeCloseTo(0.9 * panel, 0)
+		await expect(Math.round(carousel.scrollLeft)).toBe(Math.round(0.9 * panel))
 
 		await settleFlush(carousel)
 		await expect(args.onSelectSpace).toHaveBeenCalledTimes(1)
@@ -3259,7 +3263,7 @@ export const SpacesWithoutRosters = meta.story({
 		await expect(rowsIn(canvasElement)).toHaveLength(ROSTER.length)
 
 		const content = slotIn(canvasElement, "sidebar-content")
-		await expect(hasOverlayScrollbars(content)).toBe(true)
+		await expect(getComputedStyle(content).overflowY).toBe("auto")
 
 		await expect(content.scrollWidth).toBe(content.clientWidth)
 		await expect(args.onSelectSpace).not.toHaveBeenCalled()

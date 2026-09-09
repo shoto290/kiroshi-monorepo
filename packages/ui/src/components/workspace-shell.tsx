@@ -1,27 +1,29 @@
-import type { ReactNode } from "react"
+import type { CSSProperties, ReactNode } from "react"
 
 import {
 	type BotAvatarBlot,
 	blotTint,
 } from "@workspace/ui/components/bot-avatar"
 import { ContentCard } from "@workspace/ui/components/content-card"
-import {
-	AnimatedSidebarProvider,
-	type AnimatedSidebarProviderProps,
-} from "@workspace/ui/components/motion/animated-sidebar"
+import { SidebarProvider } from "@workspace/ui/components/ui/sidebar"
 
-interface WorkspaceShellProps
-	extends Pick<
-		AnimatedSidebarProviderProps,
-		| "open"
-		| "defaultOpen"
-		| "onOpenChange"
-		| "width"
-		| "defaultWidth"
-		| "onWidthChange"
-		| "isResizable"
-		| "className"
-	> {
+const SHELL = "surface-shell h-svh min-w-0 overflow-hidden"
+
+type ShellStyle = CSSProperties & {
+	"--sidebar-width-icon": string
+	"--space-tint"?: string
+}
+
+const shellStyle = (tint?: BotAvatarBlot | null): ShellStyle => ({
+	"--sidebar-width-icon": "var(--sidebar-rail)",
+	...(tint ? { "--space-tint": blotTint(tint) } : undefined),
+})
+
+interface WorkspaceShellProps {
+	open?: boolean
+	defaultOpen?: boolean
+	onOpenChange?: (open: boolean) => void
+	className?: string
 	sidebar?: ReactNode
 	spaceTint?: BotAvatarBlot | null
 	children: ReactNode
@@ -33,29 +35,20 @@ const WorkspaceShell = ({
 	open,
 	defaultOpen,
 	onOpenChange,
-	width,
-	defaultWidth,
-	onWidthChange,
-	isResizable,
 	children,
 	className,
 }: WorkspaceShellProps) => (
-	<AnimatedSidebarProvider
-		data-slot="workspace-shell"
-		open={open}
+	<SidebarProvider
+		className={className ? `${SHELL} ${className}` : SHELL}
+		data-space-tint={spaceTint ?? undefined}
 		defaultOpen={defaultOpen}
 		onOpenChange={onOpenChange}
-		width={width}
-		defaultWidth={defaultWidth}
-		onWidthChange={onWidthChange}
-		isResizable={isResizable}
-		data-space-tint={spaceTint ?? undefined}
-		style={spaceTint ? { "--space-tint": blotTint(spaceTint) } : undefined}
-		className={className}
+		open={open}
+		style={shellStyle(spaceTint)}
 	>
 		{sidebar}
 		<ContentCard>{children}</ContentCard>
-	</AnimatedSidebarProvider>
+	</SidebarProvider>
 )
 
 export { WorkspaceShell, type WorkspaceShellProps }

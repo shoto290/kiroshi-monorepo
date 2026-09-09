@@ -1,8 +1,9 @@
 import type { ReactNode } from "react"
 
-import { AnimatedSidebarInset } from "@workspace/ui/components/motion/animated-sidebar"
+import { SidebarInset } from "@workspace/ui/components/ui/sidebar"
 
-const CARD = "m-1 rounded-xl border border-border"
+const CARD =
+	"relative m-1 flex min-w-0 flex-1 flex-col overflow-hidden rounded-xl border border-border bg-background"
 
 const YIELDS_TO_NESTED_CARD = [
 	"has-[[data-content-card]]:m-0",
@@ -16,14 +17,17 @@ interface ContentCardProps {
 	children?: ReactNode
 }
 
-const ContentCard = ({ isLandmark, children }: ContentCardProps) => (
-	<AnimatedSidebarInset
-		isLandmark={isLandmark}
-		data-content-card=""
-		className={`${CARD} ${YIELDS_TO_NESTED_CARD}`}
-	>
-		{children}
-	</AnimatedSidebarInset>
-)
+const SURFACE = `${CARD} ${YIELDS_TO_NESTED_CARD}`
+
+const ContentCard = ({ isLandmark = true, children }: ContentCardProps) =>
+	isLandmark ? (
+		<SidebarInset className={SURFACE} data-content-card="">
+			{children}
+		</SidebarInset>
+	) : (
+		<div className={SURFACE} data-content-card="" data-slot="sidebar-inset">
+			{children}
+		</div>
+	)
 
 export { ContentCard, type ContentCardProps }

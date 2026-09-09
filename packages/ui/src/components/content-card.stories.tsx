@@ -2,7 +2,7 @@ import { expect } from "storybook/test"
 
 import preview from "@workspace/storybook/preview"
 import { ContentCard } from "@workspace/ui/components/content-card"
-import { AnimatedSidebarProvider } from "@workspace/ui/components/motion/animated-sidebar"
+import { SidebarProvider } from "@workspace/ui/components/ui/sidebar"
 
 const GUTTER = 4
 
@@ -45,9 +45,9 @@ const meta = preview.meta({
 
 export const Default = meta.story({
 	render: () => (
-		<AnimatedSidebarProvider>
+		<SidebarProvider>
 			<ContentCard>{CONTENT}</ContentCard>
-		</AnimatedSidebarProvider>
+		</SidebarProvider>
 	),
 	parameters: {
 		docs: {
@@ -65,13 +65,13 @@ export const Default = meta.story({
 
 export const WithNestedCard = meta.story({
 	render: () => (
-		<AnimatedSidebarProvider>
+		<SidebarProvider>
 			<ContentCard>
-				<AnimatedSidebarProvider>
+				<SidebarProvider>
 					<ContentCard isLandmark={false}>{CONTENT}</ContentCard>
-				</AnimatedSidebarProvider>
+				</SidebarProvider>
 			</ContentCard>
-		</AnimatedSidebarProvider>
+		</SidebarProvider>
 	),
 	parameters: {
 		docs: {

@@ -34,17 +34,16 @@ import { STILL_UNDER_REDUCED_MOTION } from "@workspace/ui/lib/reduced-motion"
 import { cn } from "@workspace/ui/lib/utils"
 
 const SWITCHER =
-	"relative mr-auto min-w-0 max-w-[62%] px-2 group-data-[state=collapsed]/sidebar:mr-0 group-data-[state=collapsed]/sidebar:size-7 group-data-[state=collapsed]/sidebar:px-0"
+	"relative mr-auto min-w-0 max-w-[62%] px-2 group-data-[collapsible=icon]:mr-0 group-data-[collapsible=icon]:size-7 group-data-[collapsible=icon]:px-0"
 
-const SWITCHER_NAME =
-	"min-w-0 truncate group-data-[state=collapsed]/sidebar:hidden"
+const SWITCHER_NAME = "min-w-0 truncate group-data-[collapsible=icon]:hidden"
 
-const SWITCHER_DOT = "hidden group-data-[state=collapsed]/sidebar:block"
+const SWITCHER_DOT = "hidden group-data-[collapsible=icon]:block"
 
 const DOT = "h-2.5 w-2.5 shrink-0 rounded-full"
 
 const DOTS =
-	"flex flex-wrap items-center justify-center group-data-[state=collapsed]/sidebar:hidden"
+	"flex flex-wrap items-center justify-center group-data-[collapsible=icon]:hidden"
 
 const DOT_BUTTON =
 	"group/space-dot relative grid size-5 shrink-0 place-items-center rounded-full outline-none focus-visible:ring-2 focus-visible:ring-ring/40"
