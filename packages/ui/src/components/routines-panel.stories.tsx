@@ -234,7 +234,7 @@ const verticalCentreOf = (element: HTMLElement) => {
 const resizeHandleIn = (canvas: ReturnType<typeof within>) =>
 	canvas.getByRole("separator", { name: "Resize sidebar" })
 
-const trailingInsetOf = (control: HTMLElement, host: HTMLElement) =>
+const trailingInsetOf = (control: Element, host: HTMLElement) =>
 	Math.round(
 		host.getBoundingClientRect().right - control.getBoundingClientRect().right,
 	)
@@ -493,7 +493,7 @@ export const Toggling = meta.story({
 		const openerCentre = verticalCentreOf(opener)
 		const card = slotIn(canvasElement, "sidebar-inset")
 		const openerGlyphInset =
-			trailingInsetOf(opener.querySelector("svg") as HTMLElement, card) +
+			trailingInsetOf(opener.querySelector("svg") as Element, card) +
 			CARD_GUTTER
 
 		await userEvent.click(opener)
@@ -508,7 +508,7 @@ export const Toggling = meta.story({
 		const close = within(panel).getByRole("button", { name: "Close activity" })
 		await expect(verticalCentreOf(close)).toBe(openerCentre)
 		await expect(
-			trailingInsetOf(close.querySelector("svg") as HTMLElement, panel),
+			trailingInsetOf(close.querySelector("svg") as Element, panel),
 		).toBe(openerGlyphInset)
 		await waitFor(() => expect(close).toHaveFocus(), FRAME_POLL)
 
