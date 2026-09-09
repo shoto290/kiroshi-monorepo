@@ -355,7 +355,7 @@ export const WithDialog = meta.story({
 					Companion settings
 				</Trigger>
 				<DialogSurface>
-					<DialogTitle>Bot settings</DialogTitle>
+					<DialogTitle>Companion settings</DialogTitle>
 					<DialogDescription>
 						Name the companion, point it at a folder and tell it how to behave.
 					</DialogDescription>

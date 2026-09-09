@@ -23,16 +23,16 @@ type DialogContentArgs = {
 const TypedDialogContent = DialogContent as ComponentType<DialogContentArgs>
 
 const LONG_DESCRIPTION =
-	"A working directory, a model and a set of instructions are what a bot is made of, and every one of them is editable from this dialog, which is why the description alone runs past a single line on a narrow window."
+	"A working directory, a model and a set of instructions are what a companion is made of, and every one of them is editable from this dialog, which is why the description alone runs past a single line on a narrow window."
 
 const DialogDemo = ({ description }: { description: string }) => (
 	<Dialog>
 		<DialogTrigger render={<Button variant="outline" />}>
-			Bot settings
+			Companion settings
 		</DialogTrigger>
 		<DialogContent>
 			<DialogHeader>
-				<DialogTitle>Bot settings</DialogTitle>
+				<DialogTitle>Companion settings</DialogTitle>
 				<DialogDescription>{description}</DialogDescription>
 			</DialogHeader>
 			<DialogFooter>
@@ -49,7 +49,7 @@ const meta = preview.meta({
 	title: "Overlays/Dialog",
 	component: TypedDialogContent,
 	render: () => (
-		<DialogDemo description="Name the bot and point it at a folder." />
+		<DialogDemo description="Name the companion and point it at a folder." />
 	),
 	parameters: {
 		layout: "centered",
@@ -80,7 +80,7 @@ export const Default = meta.story({
 		await userEvent.keyboard("{Enter}")
 		const dialog = await screen.findByRole("dialog")
 		await waitFor(() => expect(dialog).toBeVisible())
-		await expect(dialog).toHaveAccessibleName("Bot settings")
+		await expect(dialog).toHaveAccessibleName("Companion settings")
 
 		await userEvent.keyboard("{Escape}")
 		await waitFor(() => expect(screen.queryByRole("dialog")).toBe(null))
@@ -101,9 +101,9 @@ export const States = meta.story({
 		<Dialog defaultOpen>
 			<DialogContent>
 				<DialogHeader>
-					<DialogTitle>Delete bot</DialogTitle>
+					<DialogTitle>Delete companion</DialogTitle>
 					<DialogDescription>
-						This removes the bot and every conversation it holds.
+						This removes the companion and every conversation it holds.
 					</DialogDescription>
 				</DialogHeader>
 				<DialogFooter>
@@ -144,7 +144,9 @@ export const LongContent = meta.story({
 		},
 	},
 	play: async ({ canvas, userEvent }) => {
-		await userEvent.click(canvas.getByRole("button", { name: "Bot settings" }))
+		await userEvent.click(
+			canvas.getByRole("button", { name: "Companion settings" }),
+		)
 
 		const dialog = await screen.findByRole("dialog")
 		await waitFor(() => expect(dialog).toBeVisible())

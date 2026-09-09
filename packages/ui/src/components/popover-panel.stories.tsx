@@ -43,7 +43,8 @@ const anchorLabel = (side: PopoverPanelSide, align: PopoverPanelAlign) =>
 
 const PANEL_TITLE = "Release notes"
 
-const PANEL_NOTE = "Bots keep their transcript when the window is reopened."
+const PANEL_NOTE =
+	"Companions keep their transcript when the window is reopened."
 
 const PANEL = (
 	<>

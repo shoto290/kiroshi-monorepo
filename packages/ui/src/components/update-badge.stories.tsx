@@ -172,7 +172,7 @@ export const WithActiveBots = meta.story({
 		).toBeDisabled()
 		await expect(
 			within(panel).getByText(
-				"2 bots are still running. Stop them to restart.",
+				"2 companions are still running. Stop them to restart.",
 			),
 		).toBeVisible()
 	},
