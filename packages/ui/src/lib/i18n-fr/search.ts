@@ -12,15 +12,7 @@ const search = {
 	},
 	scope: "Tous les espaces",
 	seeAll: "Tout voir",
-	close: "Échap",
-	rank: "⌘{{rank}}",
 	solo: "fil en tête-à-tête",
-	hint: {
-		move: "Naviguer",
-		open: "Ouvrir",
-		rank: "Ouvrir par rang",
-		tab: "Changer d'onglet",
-	},
 	unavailable: {
 		title: "La recherche n'a pas pu être lue",
 		description:

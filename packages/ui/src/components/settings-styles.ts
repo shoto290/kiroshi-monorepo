@@ -33,8 +33,9 @@ const SETTINGS_TAG_CLASS =
 const SETTINGS_HEADER_CLASS =
 	"flex shrink-0 items-center gap-2.5 border-border border-b py-4 pr-14 pl-4"
 
-const BACKDROP_CLASS =
-	"fixed inset-0 z-50 bg-black/50 transition-opacity duration-150 data-ending-style:opacity-0 data-starting-style:opacity-0 motion-reduce:transition-none"
+const BACKDROP_CLASS = "fixed inset-0 z-50 bg-black/50"
+
+const DIALOG_BACKDROP_CLASS = `${BACKDROP_CLASS} transition-opacity duration-150 data-ending-style:opacity-0 data-starting-style:opacity-0 motion-reduce:transition-none`
 
 const POPUP_CLASS =
 	"border border-border bg-popover text-popover-foreground shadow-xl outline-none"
@@ -53,6 +54,7 @@ const SETTINGS_EMPTY_CLASS =
 export {
 	BACKDROP_CLASS,
 	DANGER_BLOCK_CLASS,
+	DIALOG_BACKDROP_CLASS,
 	DIALOG_POPUP_CLASS,
 	FIELD_CONTROL_CLASS,
 	FIELD_CONTROL_INVALID_CLASS,

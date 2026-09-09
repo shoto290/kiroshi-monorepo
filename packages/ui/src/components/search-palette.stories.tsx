@@ -383,8 +383,6 @@ export const OneKind = meta.story({
 		await expect(within(popup).getAllByRole("option")).toHaveLength(
 			MESSAGES.length,
 		)
-
-		await expect(slotsIn(body, "search-result-row-rank")).toHaveLength(0)
 	},
 })
 
@@ -483,7 +481,7 @@ export const ManyHits = meta.story({
 		docs: {
 			description: {
 				story:
-					"Eleven hits spread over the four kinds, more than the body can show at once. Check that the popup is exactly as tall as it is in `OneHit`, that the overflow is taken by the body alone — it scrolls, the query line and the tab row do not move — that the palette carries no bar of keyboard hints under it, and that no row is dropped to make the palette fit.",
+					"Eleven hits spread over the four kinds, more than the body can show at once. Check that the popup is exactly as tall as it is in `OneHit`, that the overflow is taken by the body alone — it scrolls, the query line and the tab row do not move, and that no row is dropped to make the palette fit.",
 			},
 		},
 	},
@@ -497,7 +495,6 @@ export const ManyHits = meta.story({
 		await expect(body.scrollHeight).toBeGreaterThan(body.clientHeight)
 		await expect(slotIn(popup, "search-palette-query")).toBeVisible()
 		await expect(slotIn(popup, "search-palette-tabs")).toBeVisible()
-		await expect(slotsIn(popup, "search-palette-footer")).toHaveLength(0)
 	},
 })
 

@@ -13,6 +13,7 @@ import {
 	shown,
 	slotIn,
 	slotsIn,
+	tokenLengthOf,
 } from "@workspace/storybook/story-utils"
 import {
 	AppSidebar,
@@ -548,15 +549,6 @@ const ON_SHELL_TOKENS = [
 const paintOf = (element: HTMLElement) =>
 	getComputedStyle(element).backgroundColor
 
-const tokenLengthOf = (token: string) => {
-	const probe = document.createElement("div")
-	probe.style.width = `var(${token})`
-	document.body.append(probe)
-	const length = getComputedStyle(probe).width
-	probe.remove()
-	return length
-}
-
 const tokenPaintsIn = (host: HTMLElement, className = "") =>
 	ON_SHELL_TOKENS.map((token) => {
 		const probe = document.createElement("div")
@@ -951,13 +943,14 @@ export const Identities = meta.story({
 		)
 		await expect(panelWidth()).toBe(EXPANDED_PANEL_WIDTH)
 		await expect(getComputedStyle(panel).borderInlineEndWidth).toBe("0px")
+		const surfaceRadius = tokenLengthOf("--radius-lg")
 		await expect(
 			getComputedStyle(rowButton(rows[0])).borderStartStartRadius,
-		).toBe(tokenLengthOf("--radius-lg"))
+		).toBe(surfaceRadius)
 		await expect(
 			getComputedStyle(canvas.getByRole("button", { name: "New bot" }))
 				.borderStartStartRadius,
-		).toBe(tokenLengthOf("--radius-lg"))
+		).toBe(surfaceRadius)
 
 		await expectAvatarDrawnAtCallSiteSize(rows[0])
 		await expectAvatarWholeInRow(rows[0])

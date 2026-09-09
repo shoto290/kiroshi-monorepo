@@ -7,6 +7,7 @@ import {
 	A11Y_SUBMENU_PORTAL_GUARD,
 	FRAME_POLL,
 	mergeA11y,
+	tokenLengthOf,
 } from "@workspace/storybook/story-utils"
 import { ContextMenuPressTrigger } from "@workspace/ui/components/context-menu-press-trigger"
 import { Icons } from "@workspace/ui/components/icons"
@@ -38,15 +39,6 @@ const SUBMENU_LABEL = "Move to"
 
 const LONG_LABEL =
 	"Everything this bot was asked to do since the beginning of the week"
-
-const radiusOf = (token: string) => {
-	const probe = document.createElement("div")
-	probe.style.width = `var(${token})`
-	document.body.append(probe)
-	const length = getComputedStyle(probe).width
-	probe.remove()
-	return length
-}
 
 const shownMenu = async (name: string) => {
 	const menu = await screen.findByRole("menu", { name })
@@ -183,7 +175,7 @@ export const Default = meta.story({
 		).toBeVisible()
 
 		await expect(getComputedStyle(menu).borderStartStartRadius).toBe(
-			radiusOf("--radius-lg"),
+			tokenLengthOf("--radius-lg"),
 		)
 
 		await userEvent.keyboard("{Escape}")

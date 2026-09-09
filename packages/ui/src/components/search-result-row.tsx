@@ -54,6 +54,8 @@ const ACTIVE_CLASS =
 
 const MATCH_CLASS = "rounded-xs bg-mark/40 px-[0.15em] py-[0.05em] text-inherit"
 
+const ROW_CLASS_NAME = cn(ROW_CLASS, ACTIVATION_CLASS, ACTIVE_CLASS)
+
 const isMessageKind = (identity: SearchResultIdentity) =>
 	identity.kind === "message" || identity.kind === "message-from-you"
 
@@ -112,12 +114,7 @@ const SearchResultRow = ({
 	return (
 		<button
 			aria-selected={isActive}
-			className={cn(
-				ROW_CLASS,
-				ACTIVATION_CLASS,
-				ACTIVE_CLASS,
-				"transition-none",
-			)}
+			className={ROW_CLASS_NAME}
 			data-active={isActive}
 			data-slot="search-result-row"
 			id={id}

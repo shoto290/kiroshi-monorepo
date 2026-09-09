@@ -1,10 +1,11 @@
 import { expect } from "storybook/test"
 
 import preview from "@workspace/storybook/preview"
-import { ContentCard } from "@workspace/ui/components/content-card"
+import {
+	CONTENT_CARD_GUTTER,
+	ContentCard,
+} from "@workspace/ui/components/content-card"
 import { SidebarProvider } from "@workspace/ui/components/ui/sidebar"
-
-const GUTTER = 8
 
 const CONTENT = (
 	<p className="p-4 text-sm">Whatever screen the shell hands the room to.</p>
@@ -24,9 +25,9 @@ const expectCarriesCard = async (card: HTMLElement) => {
 	)
 	await expect(painted.borderStartStartRadius).not.toBe("0px")
 	await expect(painted.overflow).toBe("hidden")
-	await expect(painted.marginTop).toBe(`${GUTTER}px`)
+	await expect(painted.marginTop).toBe(`${CONTENT_CARD_GUTTER}px`)
 	await expect(painted.marginInlineStart).toBe("0px")
-	await expect(painted.marginInlineEnd).toBe(`${GUTTER}px`)
+	await expect(painted.marginInlineEnd).toBe(`${CONTENT_CARD_GUTTER}px`)
 }
 
 const meta = preview.meta({

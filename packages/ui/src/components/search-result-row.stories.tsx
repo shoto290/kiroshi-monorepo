@@ -294,7 +294,6 @@ export const Active = meta.story({
 	render: (args) => (
 		<>
 			<Probe slot="muted-probe" tone="bg-muted" />
-			<Probe slot="background-probe" tone="bg-background" />
 			<ResultList>
 				<SearchResultRow {...args} />
 			</ResultList>
@@ -355,7 +354,7 @@ export const AsListboxOption = meta.story({
 		docs: {
 			description: {
 				story:
-					"The row as the palette owns it, with the wiring a reader needs around it: the query field is a combobox that owns the list through `aria-controls`, so the option it points at with `aria-activedescendant` is a logical descendant of the focused element and is actually announced. Check that the pointed id resolves inside the owned list to the option carrying the selected state, that its accessible name carries both the title and the chord its rank answers to, and that no row is in the tab order — one press of Tab leaves the field and lands past the whole list, because the palette drives the list from the arrow keys and never from Tab.",
+					"The row as the palette owns it, with the wiring a reader needs around it: the query field is a combobox that owns the list through `aria-controls`, so the option it points at with `aria-activedescendant` is a logical descendant of the focused element and is actually announced. Check that the pointed id resolves inside the owned list to the option carrying the selected state, that its accessible name carries the title, and that no row is in the tab order — one press of Tab leaves the field and lands past the whole list, because the palette drives the list from the arrow keys and never from Tab.",
 			},
 		},
 	},
@@ -549,7 +548,7 @@ export const InNarrowPalette = meta.story({
 		docs: {
 			description: {
 				story:
-					"The row squeezed to the 320px reflow floor. Check that the rank lane and the timestamp stay inside the row rather than overflowing it, which is the width where the title lane runs out of room first.",
+					"The row squeezed to the 320px reflow floor. Check that the timestamp stays inside the row rather than overflowing it, which is the width where the title lane runs out of room first.",
 			},
 		},
 	},

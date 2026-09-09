@@ -5,7 +5,7 @@ import { useRef, useState } from "react"
 import { useTranslation } from "react-i18next"
 
 import {
-	BACKDROP_CLASS,
+	DIALOG_BACKDROP_CLASS,
 	DIALOG_POPUP_CLASS,
 } from "@workspace/ui/components/settings-styles"
 import { Button, buttonVariants } from "@workspace/ui/components/ui/button"
@@ -69,7 +69,7 @@ const ActionFailureDialog = ({
 	return (
 		<AlertDialog.Root onOpenChange={requestChange} open={open ?? isOpen}>
 			<AlertDialog.Portal>
-				<AlertDialog.Backdrop className={BACKDROP_CLASS} />
+				<AlertDialog.Backdrop className={DIALOG_BACKDROP_CLASS} />
 				<AlertDialog.Popup
 					className={cn(
 						DIALOG_POPUP_CLASS,

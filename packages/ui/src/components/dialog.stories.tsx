@@ -2,6 +2,7 @@ import type { ComponentType, ReactNode } from "react"
 import { expect, screen, waitFor, within } from "storybook/test"
 
 import preview from "@workspace/storybook/preview"
+import { slotIn } from "@workspace/storybook/story-utils"
 import { Button } from "@workspace/ui/components/ui/button"
 import {
 	Dialog,
@@ -82,10 +83,7 @@ export const Default = meta.story({
 		await waitFor(() => expect(dialog).toBeVisible())
 		await expect(dialog).toHaveAccessibleName("Bot settings")
 
-		const overlay = document.body.querySelector<HTMLElement>(
-			'[data-slot="dialog-overlay"]',
-		)
-		if (!overlay) throw new Error("The dialog dims nothing behind it")
+		const overlay = slotIn(document.body, "dialog-overlay")
 		await expect(getComputedStyle(overlay).backdropFilter).toBe("none")
 
 		await userEvent.keyboard("{Escape}")

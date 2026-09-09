@@ -39,6 +39,11 @@ const RADII = [
 		className: "rounded-4xl",
 		computed: "calc(var(--radius-root) * 2.6)",
 	},
+	{
+		token: "--radius-bubble",
+		className: "rounded-bubble",
+		computed: "calc(var(--radius-root) * 1.8)",
+	},
 ]
 
 const SHADOWS = [

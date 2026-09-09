@@ -9,6 +9,7 @@ import {
 	slotsIn,
 } from "@workspace/storybook/story-utils"
 import { AppHeader } from "@workspace/ui/components/app-header"
+import { CONTENT_CARD_GUTTER } from "@workspace/ui/components/content-card"
 import { Icons } from "@workspace/ui/components/icons"
 import {
 	CLOSED_MISSION,
@@ -224,10 +225,6 @@ const WORKSPACE_SIDEBAR = (
 	</Sidebar>
 )
 
-const CARD_GUTTER = 8
-
-const CLOSE_GLYPH_INSET = 26
-
 const verticalCentreOf = (element: HTMLElement) => {
 	const box = element.getBoundingClientRect()
 	return Math.round(box.top + box.height / 2)
@@ -236,10 +233,13 @@ const verticalCentreOf = (element: HTMLElement) => {
 const resizeHandleIn = (canvas: ReturnType<typeof within>) =>
 	canvas.getByRole("separator", { name: "Resize sidebar" })
 
-const trailingInsetOf = (control: Element, host: HTMLElement) =>
-	Math.round(
-		host.getBoundingClientRect().right - control.getBoundingClientRect().right,
+const glyphInsetOf = (control: HTMLElement, host: HTMLElement) => {
+	const glyph = control.querySelector("svg")
+	if (!glyph) throw new Error("This control draws no icon")
+	return Math.round(
+		host.getBoundingClientRect().right - glyph.getBoundingClientRect().right,
 	)
+}
 
 const renderInShell = (args: RoutinesPanelProps) => (
 	<WorkspaceShell sidebar={WORKSPACE_SIDEBAR}>
@@ -473,7 +473,8 @@ export const Closed = meta.story({
 			canvas.queryByRole("complementary", { name: "Activity" }),
 		).toBeNull()
 		await expect(thread.getBoundingClientRect().width).toBe(
-			(thread.parentElement?.getBoundingClientRect().width ?? 0) - CARD_GUTTER,
+			(thread.parentElement?.getBoundingClientRect().width ?? 0) -
+				CONTENT_CARD_GUTTER,
 		)
 	},
 })
@@ -485,13 +486,16 @@ export const Toggling = meta.story({
 		docs: {
 			description: {
 				story:
-					"The way in and the way out, each in its own place. Check that the control in the app header opens the panel and then leaves the header, that the icon that closes it again sits on the same line the opener's icon sat on and the same distance in from the frame — the two controls are the same size, so the icons land together rather than the boxes around them — the two read as one control moving between two homes rather than two controls at two positions — that opening hands the keyboard to the close control inside the panel rather than dropping it on the body, that this control closes the panel, and that closing hands the keyboard back to the control in the app header.",
+					"The way in and the way out, each in its own place. Check that the control in the app header opens the panel and then leaves the header, that the icon that closes it again sits on the same line the opener's icon sat on and the same distance in from the frame, once the thread card's own gutter is counted — the two controls are the same size, so the icons land together rather than the boxes around them — the two read as one control moving between two homes rather than two controls at two positions — that opening hands the keyboard to the close control inside the panel rather than dropping it on the body, that this control closes the panel, and that closing hands the keyboard back to the control in the app header.",
 			},
 		},
 	},
-	play: async ({ args, canvas, userEvent }) => {
+	play: async ({ args, canvas, canvasElement, userEvent }) => {
 		const opener = canvas.getByRole("button", { name: "Activity" })
 		const openerCentre = verticalCentreOf(opener)
+		const openerGlyphInset =
+			glyphInsetOf(opener, slotIn(canvasElement, "sidebar-inset")) +
+			CONTENT_CARD_GUTTER
 
 		await userEvent.click(opener)
 		await expect(args.onOpenChange).toHaveBeenCalledWith(true)
@@ -504,9 +508,7 @@ export const Toggling = meta.story({
 
 		const close = within(panel).getByRole("button", { name: "Close activity" })
 		await expect(verticalCentreOf(close)).toBe(openerCentre)
-		await expect(
-			trailingInsetOf(close.querySelector("svg") as Element, panel),
-		).toBe(CLOSE_GLYPH_INSET)
+		await expect(glyphInsetOf(close, panel)).toBe(openerGlyphInset)
 		await waitFor(() => expect(close).toHaveFocus(), FRAME_POLL)
 
 		await userEvent.click(close)
@@ -1105,9 +1107,9 @@ const expectShellSurfaceWithoutPanel = async (canvasElement: HTMLElement) => {
 	await expectCardFramed(card)
 
 	const edges = card.getBoundingClientRect()
-	await expect(window.innerWidth - edges.right).toBe(CARD_GUTTER)
-	await expect(edges.top).toBe(CARD_GUTTER)
-	await expect(window.innerHeight - edges.bottom).toBe(CARD_GUTTER)
+	await expect(window.innerWidth - edges.right).toBe(CONTENT_CARD_GUTTER)
+	await expect(edges.top).toBe(CONTENT_CARD_GUTTER)
+	await expect(window.innerHeight - edges.bottom).toBe(CONTENT_CARD_GUTTER)
 }
 
 export const OnShellSurfaceClosed = meta.story({

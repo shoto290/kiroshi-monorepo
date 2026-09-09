@@ -9,6 +9,7 @@ import {
 	type AppSidebarBot,
 } from "@workspace/ui/components/app-sidebar"
 import { ConnectionStatus } from "@workspace/ui/components/connection-status"
+import { CONTENT_CARD_GUTTER } from "@workspace/ui/components/content-card"
 import { Icons } from "@workspace/ui/components/icons"
 import { PromptInput } from "@workspace/ui/components/prompt-input"
 import type { RosterBot } from "@workspace/ui/components/roster"
@@ -135,14 +136,12 @@ const paintFor = (value: string) =>
 		swatch.style.backgroundColor = value
 	})
 
-const CARD_GUTTER = 8
-
 const expectCardDetached = async (card: HTMLElement, leadingEdge: number) => {
 	const edges = card.getBoundingClientRect()
 	await expect(edges.left - leadingEdge).toBe(0)
-	await expect(window.innerWidth - edges.right).toBe(CARD_GUTTER)
-	await expect(edges.top).toBe(CARD_GUTTER)
-	await expect(window.innerHeight - edges.bottom).toBe(CARD_GUTTER)
+	await expect(window.innerWidth - edges.right).toBe(CONTENT_CARD_GUTTER)
+	await expect(edges.top).toBe(CONTENT_CARD_GUTTER)
+	await expect(window.innerHeight - edges.bottom).toBe(CONTENT_CARD_GUTTER)
 }
 
 const meta = preview.meta({

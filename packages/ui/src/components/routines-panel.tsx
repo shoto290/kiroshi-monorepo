@@ -524,14 +524,13 @@ const RoutinesPanelSurface = (props: RoutinesPanelListProps) => {
 					) : null}
 					<Button
 						aria-label={t("activity.panel.close")}
-						className="size-8"
 						data-slot="routines-panel-close"
 						onClick={() => onOpenChange(false)}
 						ref={closeRef}
-						size="icon-sm"
+						size="icon"
 						variant="ghost"
 					>
-						<Icons.SidePanel aria-hidden="true" className="size-4" />
+						<Icons.SidePanel aria-hidden="true" />
 					</Button>
 				</div>
 			</SidebarHeader>
@@ -629,13 +628,12 @@ const RoutinesPanelTrigger = (props: RoutinesPanelTriggerProps) => {
 			{...props}
 			aria-expanded={isOpen}
 			aria-label={t("activity.panel.toggle")}
-			className="size-8"
 			onClick={() => onOpenChange(true)}
 			ref={triggerRef}
-			size="icon-sm"
+			size="icon"
 			variant="ghost"
 		>
-			<Icons.SidePanel aria-hidden="true" className="size-4" />
+			<Icons.SidePanel aria-hidden="true" />
 		</Button>
 	)
 }

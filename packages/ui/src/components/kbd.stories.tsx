@@ -24,7 +24,7 @@ export const Default = meta.story({
 		docs: {
 			description: {
 				story:
-					"One key on its own. Check that a single character still reaches the 20px square the rank lane of a list is measured on, and that the cap ignores the pointer so it never eats a click meant for the row behind it.",
+					"One key on its own. Check that a single character still reaches the 20px square a cap in a list is measured on, and that the cap ignores the pointer so it never eats a click meant for the row behind it.",
 			},
 		},
 	},

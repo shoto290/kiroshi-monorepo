@@ -12,7 +12,7 @@ import {
 } from "@workspace/ui/components/search-result-row"
 import {
 	BACKDROP_CLASS,
-	DIALOG_POPUP_CLASS,
+	POPUP_CLASS,
 } from "@workspace/ui/components/settings-styles"
 import { ToggleSwitch } from "@workspace/ui/components/toggle-switch"
 import { Button } from "@workspace/ui/components/ui/button"
@@ -82,10 +82,10 @@ const RESTING_MARKS: Record<SearchRestingKind, ReactNode> = {
 
 const SHOWN_PER_KIND = 3
 
-const STILL = "transition-none"
-
-const POPUP_CLASS =
+const PALETTE_GEOMETRY_CLASS =
 	"-translate-x-1/2 fixed top-27 left-1/2 z-50 flex h-146 max-h-[calc(100vh-9rem)] w-160 max-w-[calc(100vw-3rem)] flex-col overflow-hidden rounded-2xl"
+
+const POPUP = cn(POPUP_CLASS, PALETTE_GEOMETRY_CLASS)
 
 const QUERY_LINE_CLASS =
 	"flex h-13 shrink-0 items-center gap-2.5 border-border border-b px-4"
@@ -99,7 +99,7 @@ const TAB_ROW_CLASS =
 const TAB_STRIP_CLASS =
 	"scrollbar-hide max-w-full overflow-x-auto bg-transparent p-0"
 
-const TAB_TRIGGER_CLASS = `h-7.5 shrink-0 py-0 ${STILL}`
+const TAB_TRIGGER_CLASS = "h-7.5 shrink-0 py-0 transition-none"
 
 const BODY_CLASS =
 	"flex min-h-0 flex-1 flex-col gap-0.5 overflow-y-auto p-2 outline-none focus-visible:ring-3 focus-visible:ring-ring/30 focus-visible:ring-inset"
@@ -174,11 +174,10 @@ const SearchPalette = ({
 	const sections = isRest ? restingSections : foundSections
 
 	const shown = sections.flatMap((section) => section.results)
-	const shownIds = new Set(shown.map((result) => result.id))
 	const rowId = (id: string) => `${listId}-${id}`
 	const sectionListId = (key: string) => `${listId}-${key}`
 	const activeId =
-		activeResultId && shownIds.has(activeResultId)
+		activeResultId && shown.some((result) => result.id === activeResultId)
 			? rowId(activeResultId)
 			: undefined
 
@@ -259,12 +258,12 @@ const SearchPalette = ({
 		<Dialog.Root onOpenChange={onOpenChange} open={open}>
 			<Dialog.Portal>
 				<Dialog.Backdrop
-					className={cn(BACKDROP_CLASS, STILL)}
+					className={BACKDROP_CLASS}
 					data-slot="search-palette-backdrop"
 				/>
 				<Dialog.Popup
 					aria-label={label}
-					className={cn(DIALOG_POPUP_CLASS, POPUP_CLASS, STILL)}
+					className={POPUP}
 					data-slot="search-palette"
 					initialFocus={input}
 				>

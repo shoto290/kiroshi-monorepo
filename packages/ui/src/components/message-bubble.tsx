@@ -114,7 +114,7 @@ function bubbleContentClass(
 	interactive: boolean,
 ) {
 	return cn(
-		"relative z-0 min-w-9 max-w-full break-words rounded-(--radius-bubble) py-2.5 text-sm leading-6 text-foreground",
+		"relative z-0 min-w-9 max-w-full break-words rounded-bubble py-2.5 text-sm leading-6 text-foreground",
 		MESSAGE_BUBBLE_INLINE_PADDING,
 		hasSurface(variant) && MENTION_OPENING_PADDING,
 		MARKDOWN_TYPESET_CLASS,

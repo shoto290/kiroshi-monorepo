@@ -5,6 +5,7 @@ import {
 	A11Y_FLOATING_FOCUS_GUARDS,
 	listExhaustively,
 	Row,
+	tokenLengthOf,
 } from "@workspace/storybook/story-utils"
 import {
 	PopoverPanel,
@@ -28,15 +29,6 @@ const TRIGGER_MODES = listExhaustively<PopoverPanelTriggerMode>({
 	click: true,
 	hover: true,
 })
-
-const scaleStepRadius = (host: HTMLElement, token: string) => {
-	const probe = host.ownerDocument.createElement("div")
-	probe.style.borderRadius = `var(${token})`
-	host.ownerDocument.body.append(probe)
-	const radius = getComputedStyle(probe).borderRadius
-	probe.remove()
-	return radius
-}
 
 const anchorLabel = (side: PopoverPanelSide, align: PopoverPanelAlign) =>
 	`${side} ${align}`
@@ -133,7 +125,7 @@ export const Open = meta.story({
 
 		await waitFor(async () => expect(panel).toBeVisible())
 		await expect(getComputedStyle(panel).borderRadius).toBe(
-			scaleStepRadius(canvasElement, "--radius-2xl"),
+			tokenLengthOf("--radius-2xl"),
 		)
 	},
 })

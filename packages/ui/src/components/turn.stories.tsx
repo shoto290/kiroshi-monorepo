@@ -367,8 +367,6 @@ export const Default = meta.story({
 	},
 })
 
-const pixelsOf = (length: string) => Number.parseFloat(length)
-
 export const Run = meta.story({
 	render: () => (
 		<div className="mx-auto flex max-w-2xl flex-col gap-6">
@@ -409,8 +407,8 @@ export const Run = meta.story({
 			'[data-slot="message-bubble-content"]',
 		)[1]
 		const corners = getComputedStyle(closing)
-		await expect(pixelsOf(corners.borderEndEndRadius)).toBeGreaterThan(
-			pixelsOf(corners.borderStartEndRadius) * 2,
+		await expect(Number.parseFloat(corners.borderEndEndRadius)).toBeGreaterThan(
+			Number.parseFloat(corners.borderStartEndRadius) * 2,
 		)
 	},
 })
