@@ -1,9 +1,10 @@
-import { describe, expect, it } from "bun:test"
+import { afterEach, describe, expect, it } from "bun:test"
 
 import {
 	authorizeMcpServer,
 	cancelMcpAuthorization,
 	OAUTH_STARTED,
+	type OauthAnswer,
 	revokeMcpToken,
 } from "./mcp-oauth"
 
@@ -13,6 +14,8 @@ const ACCESS_TOKEN = "granted-access-token"
 const REFRESH_TOKEN = "granted-refresh-token"
 const EXPIRES_IN = 3600
 const CODE = "the-authorization-code"
+const AUTHORIZATION_BUDGET_MS = 10_000
+const TIMEOUT_FLOW_MS = 2_000
 
 type Registration = {
 	redirectUris: string[]
@@ -102,31 +105,42 @@ const collect = (frame: Record<string, unknown>) => {
 	frames.push(frame)
 }
 
-const startedUrl = () => {
-	const started = frames.filter((frame) => frame.type === OAUTH_STARTED)
-	expect(started).toHaveLength(1)
-	return new URL(String(started[0]?.url))
+const startedFrames = () =>
+	frames.filter((frame) => frame.type === OAUTH_STARTED)
+
+let inFlight: Promise<OauthAnswer> | undefined
+
+const aFlow = (url: string, timeoutMs?: number) => {
+	frames.length = 0
+	inFlight = authorizeMcpServer({ url }, collect, timeoutMs)
+	return inFlight
 }
 
-const waitForRegistration = async (seen: Registration) => {
-	for (let attempt = 0; attempt < 200; attempt += 1) {
+const waitForAuthorization = async (seen: Registration) => {
+	const deadline = Date.now() + AUTHORIZATION_BUDGET_MS
+	while (Date.now() < deadline) {
+		const [started] = startedFrames()
 		const [redirect] = seen.redirectUris
-		if (redirect) {
-			return redirect
+		if (started && redirect) {
+			return { redirect, asked: new URL(String(started.url)) }
 		}
 		await Bun.sleep(10)
 	}
-	throw new Error("the flow never registered a client")
+	throw new Error("the flow never opened an authorization url")
 }
 
 describe("mcp oauth", () => {
+	afterEach(async () => {
+		cancelMcpAuthorization()
+		await inFlight
+		inFlight = undefined
+	})
+
 	it("drives discovery, registration, the redirect and the exchange", async () => {
-		frames.length = 0
 		const authority = anAuthorizationServer()
 		try {
-			const flow = authorizeMcpServer({ url: authority.url }, collect)
-			const redirect = await waitForRegistration(authority.seen)
-			const asked = startedUrl()
+			const flow = aFlow(authority.url)
+			const { redirect, asked } = await waitForAuthorization(authority.seen)
 			const landing = new URL(redirect)
 			landing.searchParams.set("code", CODE)
 			landing.searchParams.set("state", String(asked.searchParams.get("state")))
@@ -157,11 +171,10 @@ describe("mcp oauth", () => {
 	}, 20_000)
 
 	it("refuses a redirect on another path and keeps the flow waiting", async () => {
-		frames.length = 0
 		const authority = anAuthorizationServer()
 		try {
-			const flow = authorizeMcpServer({ url: authority.url }, collect)
-			const redirect = new URL(await waitForRegistration(authority.seen))
+			const flow = aFlow(authority.url)
+			const { redirect } = await waitForAuthorization(authority.seen)
 			const elsewhere = new URL(redirect)
 			elsewhere.pathname = "/elsewhere"
 			const answered = await fetch(elsewhere)
@@ -176,11 +189,11 @@ describe("mcp oauth", () => {
 	}, 20_000)
 
 	it("refuses a redirect carrying another state and keeps the flow waiting", async () => {
-		frames.length = 0
 		const authority = anAuthorizationServer()
 		try {
-			const flow = authorizeMcpServer({ url: authority.url }, collect)
-			const landing = new URL(await waitForRegistration(authority.seen))
+			const flow = aFlow(authority.url)
+			const { redirect } = await waitForAuthorization(authority.seen)
+			const landing = new URL(redirect)
 			landing.searchParams.set("code", CODE)
 			landing.searchParams.set("state", "not-the-state-of-this-flow")
 			const answered = await fetch(landing)
@@ -195,17 +208,13 @@ describe("mcp oauth", () => {
 	}, 20_000)
 
 	it("settles as failed when the redirect carries an error", async () => {
-		frames.length = 0
 		const authority = anAuthorizationServer()
 		try {
-			const flow = authorizeMcpServer({ url: authority.url }, collect)
-			const redirect = await waitForRegistration(authority.seen)
+			const flow = aFlow(authority.url)
+			const { redirect, asked } = await waitForAuthorization(authority.seen)
 			const landing = new URL(redirect)
 			landing.searchParams.set("error", "access_denied")
-			landing.searchParams.set(
-				"state",
-				String(startedUrl().searchParams.get("state")),
-			)
+			landing.searchParams.set("state", String(asked.searchParams.get("state")))
 			await fetch(landing)
 
 			expect(await flow).toEqual({
@@ -217,11 +226,10 @@ describe("mcp oauth", () => {
 	}, 20_000)
 
 	it("settles as timed out and frees the port it bound", async () => {
-		frames.length = 0
 		const authority = anAuthorizationServer()
 		try {
-			const flow = authorizeMcpServer({ url: authority.url }, collect, 50)
-			const redirect = await waitForRegistration(authority.seen)
+			const flow = aFlow(authority.url, TIMEOUT_FLOW_MS)
+			const { redirect } = await waitForAuthorization(authority.seen)
 
 			expect(await flow).toEqual({ error: { kind: "timedOut" } })
 			await expect(fetch(redirect)).rejects.toThrow()
@@ -231,11 +239,10 @@ describe("mcp oauth", () => {
 	}, 20_000)
 
 	it("refuses a second flow while one is running", async () => {
-		frames.length = 0
 		const authority = anAuthorizationServer()
 		try {
-			const flow = authorizeMcpServer({ url: authority.url }, collect)
-			await waitForRegistration(authority.seen)
+			const flow = aFlow(authority.url)
+			await waitForAuthorization(authority.seen)
 			const second = await authorizeMcpServer({ url: authority.url }, collect)
 			cancelMcpAuthorization()
 			await flow
@@ -247,16 +254,13 @@ describe("mcp oauth", () => {
 	}, 20_000)
 
 	it("refuses a redirect whose host header names neither loopback name", async () => {
-		frames.length = 0
 		const authority = anAuthorizationServer()
 		try {
-			const flow = authorizeMcpServer({ url: authority.url }, collect)
-			const landing = new URL(await waitForRegistration(authority.seen))
+			const flow = aFlow(authority.url)
+			const { redirect, asked } = await waitForAuthorization(authority.seen)
+			const landing = new URL(redirect)
 			landing.searchParams.set("code", CODE)
-			landing.searchParams.set(
-				"state",
-				String(startedUrl().searchParams.get("state")),
-			)
+			landing.searchParams.set("state", String(asked.searchParams.get("state")))
 			const rebound = await fetch(landing, {
 				headers: { Host: "granola.attacker.test" },
 			})
@@ -271,16 +275,13 @@ describe("mcp oauth", () => {
 	}, 20_000)
 
 	it("takes a redirect whose host header names localhost with the bound port", async () => {
-		frames.length = 0
 		const authority = anAuthorizationServer()
 		try {
-			const flow = authorizeMcpServer({ url: authority.url }, collect)
-			const landing = new URL(await waitForRegistration(authority.seen))
+			const flow = aFlow(authority.url)
+			const { redirect, asked } = await waitForAuthorization(authority.seen)
+			const landing = new URL(redirect)
 			landing.searchParams.set("code", CODE)
-			landing.searchParams.set(
-				"state",
-				String(startedUrl().searchParams.get("state")),
-			)
+			landing.searchParams.set("state", String(asked.searchParams.get("state")))
 			const answered = await fetch(landing, {
 				headers: { Host: `localhost:${landing.port}` },
 			})
@@ -295,12 +296,11 @@ describe("mcp oauth", () => {
 	}, 20_000)
 
 	it("refuses an authorization endpoint naming a scheme no browser may open", async () => {
-		frames.length = 0
 		const authority = anAuthorizationServer({
 			authorizationScheme: "file:///etc/passwd",
 		})
 		try {
-			const settled = await authorizeMcpServer({ url: authority.url }, collect)
+			const settled = await aFlow(authority.url)
 
 			expect(settled).toEqual({
 				error: {
@@ -308,7 +308,7 @@ describe("mcp oauth", () => {
 					detail: "the authorization server named the refused scheme file:",
 				},
 			})
-			expect(frames.filter((frame) => frame.type === OAUTH_STARTED)).toEqual([])
+			expect(startedFrames()).toEqual([])
 			expect(authority.seen.tokenRequests).toHaveLength(0)
 		} finally {
 			await authority.stop()
