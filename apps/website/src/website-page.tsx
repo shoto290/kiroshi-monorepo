@@ -82,7 +82,7 @@ type AppWindowProps = {
 const AppWindow = ({ children }: AppWindowProps) => (
 	<div className="relative hidden w-full shrink-0 justify-center lg:flex">
 		<div className="relative mt-[calc(var(--rise)*60/1120)] h-[700px] w-[calc(100%_-_320px)] max-w-[1760px] ultrawide:h-[720px]">
-			<div className="scene-frozen relative size-full overflow-clip rounded-[16px] border border-border bg-sidebar shadow-[0_-2px_60px_-14px_rgb(20_20_24/0.15)]">
+			<div className="scene-frozen relative size-full overflow-clip rounded-[16px] border border-border bg-sidebar shadow-[0_-2px_60px_-14px_rgb(20_20_24/0.15)] dark:shadow-[0_0_0_1px_rgb(255_255_255/0.16)]">
 				{children}
 			</div>
 		</div>
