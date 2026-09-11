@@ -1985,6 +1985,12 @@ const refusedConnectorScreen = (
 		),
 	)
 
+const expectTransportNoticeAlone = () => {
+	expect(screen.getByText(CONNECTOR_REFUSED_TITLE)).toBeTruthy()
+	expect(screen.queryByText(LEFT_OUT_TITLE)).toBeNull()
+	expect(screen.queryByText("ledger was left out")).toBeNull()
+}
+
 describe("ThreadScreen connector left out of a session", () => {
 	afterEach(cleanup)
 
@@ -2030,8 +2036,7 @@ describe("ThreadScreen connector left out of a session", () => {
 		render(refusedConnectorScreen(port))
 		await settle()
 
-		expect(screen.getByText(CONNECTOR_REFUSED_TITLE)).toBeTruthy()
-		expect(screen.queryByText(LEFT_OUT_TITLE)).toBeNull()
+		expectTransportNoticeAlone()
 	})
 
 	it("names the connector the rejection names when two wait for authorization", async () => {
@@ -2060,9 +2065,7 @@ describe("ThreadScreen connector left out of a session", () => {
 		render(refusedConnectorScreen(port))
 		await settle()
 
-		expect(screen.getByText(CONNECTOR_REFUSED_TITLE)).toBeTruthy()
-		expect(screen.queryByText(LEFT_OUT_TITLE)).toBeNull()
-		expect(screen.queryByText("ledger was left out")).toBeNull()
+		expectTransportNoticeAlone()
 	})
 
 	it("keeps the transport notice when the named server has no row", async () => {
@@ -2072,9 +2075,7 @@ describe("ThreadScreen connector left out of a session", () => {
 		render(refusedConnectorScreen(port))
 		await settle()
 
-		expect(screen.getByText(CONNECTOR_REFUSED_TITLE)).toBeTruthy()
-		expect(screen.queryByText(LEFT_OUT_TITLE)).toBeNull()
-		expect(screen.queryByText("ledger was left out")).toBeNull()
+		expectTransportNoticeAlone()
 	})
 
 	it("keeps the transport notice when a missing variable left the server out", async () => {
@@ -2085,9 +2086,7 @@ describe("ThreadScreen connector left out of a session", () => {
 		render(refusedConnectorScreen(port, undefined, VARIABLE_REFUSED))
 		await settle()
 
-		expect(screen.getByText(CONNECTOR_REFUSED_TITLE)).toBeTruthy()
-		expect(screen.queryByText(LEFT_OUT_TITLE)).toBeNull()
-		expect(screen.queryByText("ledger was left out")).toBeNull()
+		expectTransportNoticeAlone()
 	})
 
 	it("keeps the transport notice and reads nothing when the rejection names no server", async () => {
@@ -2097,8 +2096,7 @@ describe("ThreadScreen connector left out of a session", () => {
 		render(refusedConnectorScreen(port, undefined, UNNAMED_REFUSED))
 		await settle()
 
-		expect(screen.getByText(CONNECTOR_REFUSED_TITLE)).toBeTruthy()
-		expect(screen.queryByText(LEFT_OUT_TITLE)).toBeNull()
+		expectTransportNoticeAlone()
 		expect(port.calls).toEqual([])
 	})
 
