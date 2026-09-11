@@ -156,10 +156,10 @@ export const toTransportError = (reason: unknown): TransportError =>
 const failureOf = (reason: unknown): string | null => {
 	const failure = fieldIn(reason, "failure")
 	const kind = kindIn(failure)
-	const detail = fieldIn(failure, "detail")
 	if (kind === null) {
 		return null
 	}
+	const detail = fieldIn(failure, "detail")
 	return typeof detail === "string" ? `${kind}: ${detail}` : kind
 }
 
