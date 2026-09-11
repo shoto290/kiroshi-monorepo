@@ -3,6 +3,11 @@ import { expect, fn } from "storybook/test"
 
 import preview from "@workspace/storybook/preview"
 import {
+	expectCompanionPictureSquare,
+	slotsIn,
+	UPLOADED_AVATAR_IMAGE,
+} from "@workspace/storybook/story-utils"
+import {
 	CONVERSATION_BOTS,
 	LONG_NAMED_BOTS,
 } from "@workspace/ui/components/new-conversation-dialog/bots.fixtures"
@@ -122,6 +127,32 @@ export const Default = meta.story({
 
 		await userEvent.keyboard("{Escape}")
 		await expect(args.onDismiss).toHaveBeenCalled()
+	},
+})
+
+export const Pictured = meta.story({
+	args: {
+		bots: [
+			{ ...CONVERSATION_BOTS[0], image: UPLOADED_AVATAR_IMAGE },
+			...CONVERSATION_BOTS.slice(1),
+		],
+	},
+	parameters: {
+		docs: {
+			description: {
+				story:
+					"A companion wearing its picture, listed above companions drawn from a blot. Check that the picture fills its 24px slot as a rounded square with no border, that it adds nothing to the option's name, and that the rows below keep their animal over their blot.",
+			},
+		},
+	},
+	play: async ({ canvas }) => {
+		const [pictured, drawn] = canvas.getAllByRole("option")
+		const [picture] = slotsIn(pictured, "bot-identity-avatar")
+
+		await expectCompanionPictureSquare(picture)
+		await expect(getComputedStyle(picture).borderRadius).toBe("6px")
+		await expect(drawn.querySelector("img")).toBeNull()
+		await expect(slotsIn(drawn, "bot-avatar-blot")).toHaveLength(1)
 	},
 })
 

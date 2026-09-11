@@ -6,6 +6,7 @@ import {
 	A11Y_CONTRAST_AWAITING_DESIGN_DECISION,
 	A11Y_FLOATING_FOCUS_GUARDS,
 	A11Y_SUBMENU_PORTAL_GUARD,
+	expectCompanionPictureSquare,
 	FRAME_POLL,
 	hasOverlayScrollbars,
 	mergeA11y,
@@ -861,7 +862,7 @@ export const UploadedPictures = meta.story({
 		docs: {
 			description: {
 				story:
-					"Two companions wearing a picture their reader uploaded, beside one wearing its animal. A picture is a still image whatever the companion is doing, so the row that is running says so with its message line rather than by moving — and it lands in the same slot as a drawing, so the names and the timestamps stay on the column the rest of the roster holds. Check that a row with a picture draws no animal and no blot at all, and that the picture is decorative: the row is already named by its own text. Pick `Identities` for the animals a companion wears when it has no picture.",
+					"Two companions wearing a picture their reader uploaded, beside one wearing its animal. A picture is a still image whatever the companion is doing, so the row that is running says so with its message line rather than by moving — and it lands in the same slot as a drawing, so the names and the timestamps stay on the column the rest of the roster holds. Check that a row with a picture draws no animal and no blot at all, that the picture fills its slot as a rounded square with no border, and that the picture is decorative: the row is already named by its own text. Pick `Identities` for the animals a companion wears when it has no picture.",
 			},
 		},
 	},
@@ -874,6 +875,11 @@ export const UploadedPictures = meta.story({
 			UPLOADED_IMAGE,
 		)
 		await expect(wearing.querySelector("svg")).toBeNull()
+		for (const row of [wearing, running]) {
+			const [picture] = slotsIn(row, "bot-identity-avatar")
+			await expectCompanionPictureSquare(picture)
+			await expect(getComputedStyle(picture).borderRadius).toBe("10px")
+		}
 		await expect(drawn.querySelector("img")).toBeNull()
 		await expect(within(drawn).getByRole("img")).toBeVisible()
 		await expect(

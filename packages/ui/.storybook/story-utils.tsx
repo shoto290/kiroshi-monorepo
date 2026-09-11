@@ -3,6 +3,7 @@ import type { ComponentType, ReactNode } from "react"
 import type { ExtraProps } from "react-markdown"
 import { expect, waitFor } from "storybook/test"
 
+import { companionPictureRadius } from "@workspace/ui/components/bot-identity-avatar"
 import {
 	MARKDOWN_CODE_SURFACE_CLASS,
 	MARKDOWN_TYPESET_CLASS,
@@ -105,6 +106,29 @@ export const tokenLengthOf = (token: string) => {
 
 export const botIdentityAvatars = (canvasElement: HTMLElement) =>
 	slotsIn(canvasElement, "bot-identity-avatar")
+
+export const pictureOf = async (avatar: HTMLElement) => {
+	await waitFor(() => expect(avatar.querySelector("img")).not.toBeNull())
+	return avatar.querySelector("img") as HTMLImageElement
+}
+
+export const expectCompanionPictureSquare = async (avatar: HTMLElement) => {
+	const picture = await pictureOf(avatar)
+	const { width } = avatar.getBoundingClientRect()
+	const radius = `${companionPictureRadius(width)}px`
+
+	for (const layer of [avatar, picture]) {
+		const style = getComputedStyle(layer)
+		await expect(style.borderRadius).toBe(radius)
+		await expect(style.borderTopWidth).toBe("0px")
+		await expect(style.boxShadow).toBe("none")
+	}
+	await expect(getComputedStyle(avatar, "::after").display).toBe("none")
+	await expect(getComputedStyle(picture).objectFit).toBe("cover")
+	await expect(picture.getBoundingClientRect().width).toBe(width)
+	await expect(picture).toHaveAttribute("alt", "")
+	await expect(picture).toHaveAttribute("aria-hidden", "true")
+}
 
 export const UPLOADED_AVATAR_IMAGE =
 	"data:image/svg+xml;base64,PHN2ZyB4bWxucz0naHR0cDovL3d3dy53My5vcmcvMjAwMC9zdmcnIHZpZXdCb3g9JzAgMCA5NiA5Nic+PHJlY3Qgd2lkdGg9Jzk2JyBoZWlnaHQ9Jzk2JyBmaWxsPScjZThhMzNkJy8+PGNpcmNsZSBjeD0nNDgnIGN5PSczOCcgcj0nMTYnIGZpbGw9JyNmZmY3ZTgnLz48cmVjdCB4PScyMCcgeT0nNjAnIHdpZHRoPSc1NicgaGVpZ2h0PSc0MCcgcng9JzIwJyBmaWxsPScjZmZmN2U4Jy8+PC9zdmc+"

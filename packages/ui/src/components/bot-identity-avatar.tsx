@@ -12,10 +12,7 @@ import type { BotAvatarState } from "@workspace/ui/components/bot-avatar-data"
 import { type BotBadge, BotBadgeDot } from "@workspace/ui/components/bot-badge"
 import { drawnAnimal } from "@workspace/ui/components/bot-settings"
 import { Icons } from "@workspace/ui/components/icons"
-import {
-	AvatarFrame,
-	UPLOADED_IMAGE_SHAPE,
-} from "@workspace/ui/components/initials-avatar"
+import { AvatarFrame } from "@workspace/ui/components/initials-avatar"
 import { cn } from "@workspace/ui/lib/utils"
 
 const REST_STATE: BotAvatarState = "idle"
@@ -28,11 +25,17 @@ type ActivityIndicatorKind = Extract<
 const busyStateFor = (kind: ActivityIndicatorKind): BotAvatarState =>
 	kind === "waiting" ? "listening" : kind
 
-const avatarShape = (image?: string) => (image ? UPLOADED_IMAGE_SHAPE : "")
-
-const IMAGE_BORDER_CLASS = "border border-border"
-
 const DEFAULT_SIZE = 40
+
+const PICTURE_RADIUS_RATIO = 0.25
+
+const MIN_PICTURE_RADIUS = 6
+
+const companionPictureRadius = (size: number) =>
+	Math.max(MIN_PICTURE_RADIUS, size * PICTURE_RADIUS_RATIO)
+
+const pictureShapeStyle = (size: number, image?: string) =>
+	image ? { borderRadius: companionPictureRadius(size) } : undefined
 
 type BotIdentityAvatarProps = {
 	name?: string
@@ -63,7 +66,7 @@ function BotIdentityAvatar({
 		<AvatarFrame
 			className={className}
 			image={image}
-			imageClassName={IMAGE_BORDER_CLASS}
+			imageRadius={companionPictureRadius(size)}
 			overlay={
 				badge ? (
 					<BotBadgeDot
@@ -99,6 +102,7 @@ type BotStopProps =
 type BotStopButtonProps = {
 	name: string
 	image?: string
+	size?: number
 	onStop: () => void
 	children: ReactNode
 }
@@ -106,6 +110,7 @@ type BotStopButtonProps = {
 const BotStopButton = ({
 	name,
 	image,
+	size = DEFAULT_SIZE,
 	onStop,
 	children,
 }: BotStopButtonProps) => {
@@ -123,16 +128,14 @@ const BotStopButton = ({
 			onFocus={() => setArmed(true)}
 			onBlur={() => setArmed(false)}
 			className="relative block w-fit rounded-full outline-none focus-visible:ring-2 focus-visible:ring-ring"
+			style={pictureShapeStyle(size, image)}
 		>
 			{children}
 			<span
 				aria-hidden="true"
 				data-slot="bot-working-stop-glyph"
-				className={cn(
-					STOP_OVERLAY,
-					avatarShape(image),
-					armed ? "opacity-100" : "opacity-0",
-				)}
+				className={cn(STOP_OVERLAY, armed ? "opacity-100" : "opacity-0")}
+				style={pictureShapeStyle(size, image)}
 			>
 				<Icons.Stop className="size-1/2" />
 			</span>
@@ -142,10 +145,10 @@ const BotStopButton = ({
 
 export {
 	type ActivityIndicatorKind,
-	avatarShape,
 	BotIdentityAvatar,
 	type BotIdentityAvatarProps,
 	BotStopButton,
 	type BotStopButtonProps,
 	type BotStopProps,
+	companionPictureRadius,
 }

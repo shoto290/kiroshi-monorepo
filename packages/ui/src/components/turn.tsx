@@ -452,6 +452,7 @@ function AssistantTurn(props: AssistantTurnProps) {
 				image={gutterBot.image}
 				name={gutterBot.name}
 				onStop={props.onStop}
+				size={TURN_AVATAR_SIZE}
 			>
 				{mark}
 			</BotStopButton>
