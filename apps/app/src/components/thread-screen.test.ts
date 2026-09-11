@@ -1944,10 +1944,20 @@ describe("ThreadScreen", () => {
 	})
 })
 
-const CONNECTOR_REFUSED: ChatError = {
+const leftOutError = (detail: string): ChatError => ({
 	id: "serverEnvRejected-0",
-	error: { kind: "serverEnvRejected", detail: "atlas holds no token" },
-}
+	error: { kind: "serverEnvRejected", detail },
+})
+
+const CONNECTOR_REFUSED = leftOutError(
+	'the server "atlas" was left out: it is waiting for you to authorize it',
+)
+
+const VARIABLE_REFUSED = leftOutError(
+	'the server "atlas" was left out: ATLAS_TOKEN is defined by no scope',
+)
+
+const UNNAMED_REFUSED = leftOutError("the connector settings were refused")
 
 const CONNECTOR_REFUSED_TITLE = "Couldn't start a connector"
 
@@ -1960,6 +1970,7 @@ const SPEAKER_SPACE: EnvOwner = { kind: "space", id: SPACE }
 const refusedConnectorScreen = (
 	port: FakeConnectorPort,
 	onOpen: (owner: EnvOwner) => void = () => undefined,
+	refusal: ChatError = CONNECTOR_REFUSED,
 ) =>
 	createElement(
 		SessionConnectorsContext.Provider,
@@ -1969,7 +1980,7 @@ const refusedConnectorScreen = (
 				id: SPEAKER.id,
 				name: "Nyx",
 				said: "the first answer",
-				errors: [CONNECTOR_REFUSED],
+				errors: [refusal],
 			}),
 		),
 	)
@@ -2021,6 +2032,74 @@ describe("ThreadScreen connector left out of a session", () => {
 
 		expect(screen.getByText(CONNECTOR_REFUSED_TITLE)).toBeTruthy()
 		expect(screen.queryByText(LEFT_OUT_TITLE)).toBeNull()
+	})
+
+	it("names the connector the rejection names when two wait for authorization", async () => {
+		const port = createFakeConnectorPort()
+		port.rows.bot = [{ name: "ledger", status: "needsAuthorization" }]
+		port.rows.space = [{ name: "atlas", status: "needsAuthorization" }]
+		const onOpen = vi.fn()
+		render(refusedConnectorScreen(port, onOpen))
+		await settle()
+
+		expect(screen.getByText(LEFT_OUT_TITLE)).toBeTruthy()
+		expect(screen.queryByText("ledger was left out")).toBeNull()
+
+		fireEvent.click(screen.getByRole("button", { name: "Open Connectors" }))
+
+		expect(onOpen).toHaveBeenCalledWith(SPEAKER_SPACE)
+	})
+
+	it("keeps the transport notice when the named connector is not the one waiting", async () => {
+		const port = createFakeConnectorPort()
+		port.rows.bot = [
+			{ name: "atlas", status: "connected" },
+			{ name: "ledger", status: "needsAuthorization" },
+		]
+
+		render(refusedConnectorScreen(port))
+		await settle()
+
+		expect(screen.getByText(CONNECTOR_REFUSED_TITLE)).toBeTruthy()
+		expect(screen.queryByText(LEFT_OUT_TITLE)).toBeNull()
+		expect(screen.queryByText("ledger was left out")).toBeNull()
+	})
+
+	it("keeps the transport notice when the named server has no row", async () => {
+		const port = createFakeConnectorPort()
+		port.rows.bot = [{ name: "ledger", status: "needsAuthorization" }]
+
+		render(refusedConnectorScreen(port))
+		await settle()
+
+		expect(screen.getByText(CONNECTOR_REFUSED_TITLE)).toBeTruthy()
+		expect(screen.queryByText(LEFT_OUT_TITLE)).toBeNull()
+		expect(screen.queryByText("ledger was left out")).toBeNull()
+	})
+
+	it("keeps the transport notice when a missing variable left the server out", async () => {
+		const port = createFakeConnectorPort()
+		port.rows.bot = [{ name: "atlas", status: "connected" }]
+		port.rows.space = [{ name: "ledger", status: "needsAuthorization" }]
+
+		render(refusedConnectorScreen(port, undefined, VARIABLE_REFUSED))
+		await settle()
+
+		expect(screen.getByText(CONNECTOR_REFUSED_TITLE)).toBeTruthy()
+		expect(screen.queryByText(LEFT_OUT_TITLE)).toBeNull()
+		expect(screen.queryByText("ledger was left out")).toBeNull()
+	})
+
+	it("keeps the transport notice and reads nothing when the rejection names no server", async () => {
+		const port = createFakeConnectorPort()
+		port.rows.bot = [{ name: "atlas", status: "needsAuthorization" }]
+
+		render(refusedConnectorScreen(port, undefined, UNNAMED_REFUSED))
+		await settle()
+
+		expect(screen.getByText(CONNECTOR_REFUSED_TITLE)).toBeTruthy()
+		expect(screen.queryByText(LEFT_OUT_TITLE)).toBeNull()
+		expect(port.calls).toEqual([])
 	})
 
 	it("keeps the transport notice when the connectors could not be read", async () => {

@@ -32,21 +32,26 @@ export const SessionConnectorsContext = createContext<SessionConnectors | null>(
 const readingsOf = (port: ConnectorPort, owner: EnvOwner) =>
 	port.status(owner).then((rows) => rows.map((row) => ({ owner, row })))
 
-export const findConnectorNeedingAuthorization = async (
+const LEFT_OUT_SERVER = /^the server "(.+?)" was left out:/
+
+export const findLeftOutConnector = async (
 	port: ConnectorPort,
 	owners: EnvOwner[],
+	name: string,
 ): Promise<SessionConnector | null> => {
 	const readings = await Promise.all(
 		owners.map((owner) => readingsOf(port, owner)),
 	)
-	const needing = readings
-		.flat()
-		.find(({ row }) => row.status === "needsAuthorization")
-	return needing ? { name: needing.row.name, owner: needing.owner } : null
+	const named = readings.flat().find(({ row }) => row.name === name)
+	return named?.row.status === "needsAuthorization"
+		? { name, owner: named.owner }
+		: null
 }
 
-const rejectedErrorIdOf = (error: ChatError | undefined) =>
-	error?.error.kind === "serverEnvRejected" ? error.id : null
+const leftOutNameOf = (error: ChatError | undefined) =>
+	error?.error.kind === "serverEnvRejected"
+		? (LEFT_OUT_SERVER.exec(error.error.detail)?.[1] ?? null)
+		: null
 
 export const useSessionConnector = (
 	error: ChatError | undefined,
@@ -54,12 +59,13 @@ export const useSessionConnector = (
 ): LeftOutConnector | null => {
 	const connectors = useContext(SessionConnectorsContext)
 	const [reading, setReading] = useState<SessionReading | null>(null)
-	const errorId = rejectedErrorIdOf(error)
+	const name = leftOutNameOf(error)
+	const errorId = name ? error?.id : undefined
 	const port = connectors?.port
 	const spaceId = connectors?.spaceId
 
 	useEffect(() => {
-		if (!errorId || !port || !spaceId || !speakerId) {
+		if (!errorId || !name || !port || !spaceId || !speakerId) {
 			return
 		}
 		let isCurrent = true
@@ -68,16 +74,21 @@ export const useSessionConnector = (
 				setReading({ errorId, connector })
 			}
 		}
-		findConnectorNeedingAuthorization(port, [
-			{ kind: "bot", id: speakerId, spaceId },
-			{ kind: "space", id: spaceId },
-		]).then(land, () => land(null))
+		findLeftOutConnector(
+			port,
+			[
+				{ kind: "bot", id: speakerId, spaceId },
+				{ kind: "space", id: spaceId },
+			],
+			name,
+		).then(land, () => land(null))
 		return () => {
 			isCurrent = false
 		}
-	}, [errorId, port, spaceId, speakerId])
+	}, [errorId, name, port, spaceId, speakerId])
 
-	const connector = reading?.errorId === errorId ? reading.connector : null
+	const connector =
+		reading && reading.errorId === errorId ? reading.connector : null
 	if (!connector || !connectors) {
 		return null
 	}
