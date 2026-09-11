@@ -9,6 +9,7 @@ import {
 	isMcpServerDraftUnsaved,
 	toMcpServerDraft,
 } from "@workspace/ui/components/bot-settings"
+import type { McpConnectionSection } from "@workspace/ui/components/bot-settings-dialog/mcp-connection"
 import { McpServerEditor } from "@workspace/ui/components/bot-settings-dialog/mcp-server-editor"
 import { McpServersPanel } from "@workspace/ui/components/bot-settings-dialog/mcp-servers-panel"
 import type { EnvironmentSection } from "@workspace/ui/components/environment-panel"
@@ -24,6 +25,8 @@ type McpSessionProps = {
 	) => void
 	onServerDelete: (name: string) => void
 	onServerOpen?: (name: string | null) => void
+	onServerConnect?: (server: BotMcpServerItem) => void
+	serverConnection?: McpConnectionSection
 	serverEnvironment?: EnvironmentSection
 }
 
@@ -47,6 +50,8 @@ const useMcpSession = ({
 	onServerChange,
 	onServerDelete,
 	onServerOpen,
+	onServerConnect,
+	serverConnection,
 	serverEnvironment,
 }: McpSessionProps): McpSession => {
 	const [session, setSession] = useState<OpenedServer | null>(null)
@@ -76,6 +81,7 @@ const useMcpSession = ({
 
 	const editorFor = ({ draft, saved }: OpenedServer) => (
 		<McpServerEditor
+			connection={serverConnection}
 			draft={draft}
 			environment={saved ? serverEnvironment : undefined}
 			onBack={() => open(null)}
@@ -91,6 +97,7 @@ const useMcpSession = ({
 			<McpServersPanel
 				haveFailedToLoad={haveFailedToLoad}
 				onAdd={() => open({ draft: BLANK_MCP_SERVER_DRAFT })}
+				onConnect={onServerConnect}
 				onOpen={(opened) =>
 					open({
 						draft: toMcpServerDraft(opened),

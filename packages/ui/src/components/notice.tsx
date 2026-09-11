@@ -117,7 +117,12 @@ function Notice({
 							</Button>
 						) : null}
 						{action ? (
-							<Button size="sm" variant="ghost" onClick={action.onClick}>
+							<Button
+								className="bg-background/60"
+								size="sm"
+								variant="ghost"
+								onClick={action.onClick}
+							>
 								{action.label}
 							</Button>
 						) : null}

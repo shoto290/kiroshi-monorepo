@@ -1,3 +1,4 @@
+import { useTranslation } from "react-i18next"
 import { expect, fn } from "storybook/test"
 
 import preview from "@workspace/storybook/preview"
@@ -189,5 +190,44 @@ export const LongContent = meta.story({
 					"Reach for this when checking layout under a wrapping title, a multi-line description and a diagnostic longer than the notice. Check that the diagnostic truncates on one line instead of pushing the actions off the surface, and that the action row wraps rather than overflowing.",
 			},
 		},
+	},
+})
+
+const OPEN_CONNECTORS = fn()
+
+const LeftOutNotice = () => {
+	const { t } = useTranslation("bots")
+
+	return (
+		<Notice
+			action={{
+				label: t("connectors.connection.session.action"),
+				onClick: OPEN_CONNECTORS,
+			}}
+			description={t("connectors.connection.session.description")}
+			title={t("connectors.connection.session.title", { name: "atlas" })}
+			tone="warning"
+		/>
+	)
+}
+
+export const ConnectorLeftOut = meta.story({
+	render: () => <LeftOutNotice />,
+	parameters: {
+		docs: {
+			description: {
+				story:
+					"A session that ran without one of its connectors because nobody has authorized it yet. Reach for this to check the action surface: on the warning field, a ghost button would read as text, so it sits on the background at 60 percent and reads as a control at rest. Check the same in dark, where the field is darker than the surface it carries. Nothing failed here — use `TransportCrashed` for what did.",
+			},
+		},
+	},
+	play: async ({ canvas, userEvent }) => {
+		await expect(canvas.getByRole("status")).toBeVisible()
+
+		await userEvent.click(
+			canvas.getByRole("button", { name: "Open Connectors" }),
+		)
+
+		await expect(OPEN_CONNECTORS).toHaveBeenCalled()
 	},
 })

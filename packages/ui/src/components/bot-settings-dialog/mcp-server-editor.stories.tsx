@@ -390,3 +390,151 @@ export const WithConfirmation = meta.story({
 		await expect(args.onDelete).toHaveBeenCalledTimes(1)
 	},
 })
+
+export const NeedsAuthorization = meta.story({
+	args: { connection: { state: "needsAuthorization", onConnect: fn() } },
+	parameters: {
+		docs: {
+			description: {
+				story:
+					"A saved connector that signs in through the browser and has not been authorized yet. Reach for this to check the block the Connection section opens on: it stands above the trust notice, says where the token is kept — with the connector's secrets, never in the JSON under Advanced — and offers the one action that can be taken. Check that the state is readable from the title and the dot together, not from the amber field.",
+			},
+		},
+	},
+	play: async ({ args, canvas, userEvent }) => {
+		await expect(
+			canvas.getByText("Needs authorization", { selector: "p" }),
+		).toBeVisible()
+
+		await userEvent.click(canvas.getByRole("button", { name: "Connect" }))
+
+		await expect(args.connection?.onConnect).toHaveBeenCalledTimes(1)
+	},
+})
+
+export const Connecting = meta.story({
+	args: {
+		connection: {
+			state: "connecting",
+			host: "atlas.dev",
+			onCancel: fn(),
+			onReopen: fn(),
+		},
+	},
+	parameters: {
+		docs: {
+			description: {
+				story:
+					"The block while the reader is somewhere else — in the browser tab the connector opened. Reach for this over `NeedsAuthorization` to check the waiting state: the title names what is being waited on rather than repeating the state label, the spinner replaces the dot and holds still under reduced motion, and both ways out are offered, because a tab that was closed by accident should not need a cancel first.",
+			},
+		},
+	},
+	play: async ({ args, canvas, userEvent }) => {
+		await expect(canvas.getByText("Waiting for your browser")).toBeVisible()
+
+		await userEvent.click(
+			canvas.getByRole("button", { name: "Open the page again" }),
+		)
+		await expect(args.connection?.onReopen).toHaveBeenCalledTimes(1)
+
+		await userEvent.click(canvas.getByRole("button", { name: "Cancel" }))
+		await expect(args.connection?.onCancel).toHaveBeenCalledTimes(1)
+	},
+})
+
+export const Connected = meta.story({
+	args: {
+		connection: {
+			state: "connected",
+			authorizedAt: "4 March 2026",
+			onDisconnect: fn(),
+		},
+	},
+	parameters: {
+		docs: {
+			description: {
+				story:
+					"An authorized connector at rest. Check that the block goes quiet — the muted field, no amber, no red — and that it still says the two things the reader came for: when it was authorized and that the token renews itself. Disconnect is the only action, and it asks before it drops anything: `WithDisconnection` mounts that question.",
+			},
+		},
+	},
+	play: async ({ canvas }) => {
+		await expect(canvas.getByText("Connected", { selector: "p" })).toBeVisible()
+		await expect(
+			canvas.getByRole("button", { name: "Disconnect" }),
+		).toBeVisible()
+	},
+})
+
+export const ConnectionFailed = meta.story({
+	args: { connection: { state: "failed", onConnect: fn() } },
+	parameters: {
+		docs: {
+			description: {
+				story:
+					"The attempt came back refused. Reach for this to check the one block with no sentence under its title: nothing true can be said about why until the connector says it, so the block states the outcome and offers another attempt rather than guessing at a cause. Check that the red is the field and the dot, never the words.",
+			},
+		},
+	},
+	play: async ({ args, canvas, userEvent }) => {
+		await expect(canvas.getByText("Couldn’t connect")).toBeVisible()
+
+		await userEvent.click(canvas.getByRole("button", { name: "Retry" }))
+
+		await expect(args.connection?.onConnect).toHaveBeenCalledTimes(1)
+	},
+})
+
+export const UnsavedConnection = meta.story({
+	args: {
+		draft: BLANK_MCP_SERVER_DRAFT,
+		saved: undefined,
+		onDelete: undefined,
+		connection: { state: "needsAuthorization", onConnect: fn() },
+	},
+	parameters: {
+		docs: {
+			description: {
+				story:
+					"A connector being added, before anything is on the disk. Reach for this over `NeedsAuthorization` to check what the block does when authorizing cannot mean anything yet: the field goes muted rather than asking for attention, the sentence says what has to happen first, and Connect is present but out of reach so the order of operations is readable rather than discovered by a press that fails.",
+			},
+		},
+	},
+	play: async ({ canvas }) => {
+		await expect(
+			canvas.getByText("Available once this connector is saved."),
+		).toBeVisible()
+		await expect(canvas.getByRole("button", { name: "Connect" })).toBeDisabled()
+	},
+})
+
+export const WithDisconnection = meta.story({
+	args: {
+		connection: {
+			state: "connected",
+			authorizedAt: "4 March 2026",
+			onDisconnect: fn(),
+		},
+		defaultDisconnecting: true,
+	},
+	parameters: {
+		docs: {
+			description: {
+				story:
+					"Disconnect taken, with its question already up. Reach for this to check that it is a different question from `WithConfirmation`: removing a connector takes its configuration off the disk, disconnecting only drops the token and the tools it opened. Both name the connector and both put Cancel first. Check that accepting fires `onDisconnect` once.",
+			},
+		},
+	},
+	play: async ({ args, userEvent }) => {
+		const popup = await screen.findByRole("alertdialog")
+		await waitFor(() => expect(popup).toBeVisible())
+
+		await expect(popup).toHaveTextContent(`Disconnect ${LOCAL.name}?`)
+		await userEvent.click(
+			within(popup).getByRole("button", { name: "Disconnect" }),
+		)
+
+		await waitFor(() => expect(screen.queryByRole("alertdialog")).toBe(null))
+		await expect(args.connection?.onDisconnect).toHaveBeenCalledTimes(1)
+	},
+})

@@ -1,13 +1,31 @@
 import { expect, fn } from "storybook/test"
 
 import preview from "@workspace/storybook/preview"
+import type { BotMcpServerItem } from "@workspace/ui/components/bot-settings"
 import {
 	BOT_MCP_SERVERS,
 	LONG_MCP_SERVER,
 } from "@workspace/ui/components/bot-settings-dialog/mcp-servers.fixtures"
 import { McpServersPanel } from "@workspace/ui/components/bot-settings-dialog/mcp-servers-panel"
 
-const [LOCAL] = BOT_MCP_SERVERS
+const [LOCAL, REMOTE] = BOT_MCP_SERVERS
+
+const NEEDS_AUTHORIZATION = {
+	...LOCAL,
+	connection: "needsAuthorization",
+} satisfies BotMcpServerItem
+
+const CONNECTING = {
+	...LOCAL,
+	connection: "connecting",
+} satisfies BotMcpServerItem
+
+const CONNECTED = {
+	...LOCAL,
+	connection: "connected",
+} satisfies BotMcpServerItem
+
+const FAILED = { ...LOCAL, connection: "failed" } satisfies BotMcpServerItem
 
 const meta = preview.meta({
 	title: "Settings/Bot/McpServersPanel",
@@ -32,6 +50,7 @@ const meta = preview.meta({
 		servers: BOT_MCP_SERVERS,
 		onOpen: fn(),
 		onAdd: fn(),
+		onConnect: fn(),
 	},
 })
 
@@ -97,5 +116,100 @@ export const Unreadable = meta.story({
 		await expect(
 			canvas.queryByRole("button", { name: "Add connector" }),
 		).not.toBeInTheDocument()
+	},
+})
+
+export const NeedsAuthorization = meta.story({
+	args: { servers: [NEEDS_AUTHORIZATION] },
+	parameters: {
+		docs: {
+			description: {
+				story:
+					"A connector that answered, and answered that nobody has authorized it yet. Reach for this to check the one row state that asks for something: the amber dot and its label say so in two carriers rather than colour alone, and Connect stands in the action lane as a control of its own — pressing it authorizes rather than opening the connector, which is why it is not inside the row button. Use `Failed` for the state that already tried.",
+			},
+		},
+	},
+	play: async ({ args, canvas, userEvent }) => {
+		await expect(canvas.getByText("Needs authorization")).toBeVisible()
+
+		await userEvent.click(canvas.getByRole("button", { name: "Connect atlas" }))
+
+		await expect(args.onConnect).toHaveBeenCalledWith(NEEDS_AUTHORIZATION)
+	},
+})
+
+export const Connecting = meta.story({
+	args: { servers: [CONNECTING] },
+	parameters: {
+		docs: {
+			description: {
+				story:
+					"The row while a browser tab is open on the connector's own sign-in. Check that the lane says so on its own — a muted pulsing dot and a label that reads as unfinished — and that the action lane stays empty at its width rather than offering a second Connect on top of the one already in flight. The whole of what can be done from here is in the editor.",
+			},
+		},
+	},
+	play: async ({ canvas }) => {
+		await expect(canvas.getByText("Connecting…")).toBeVisible()
+		await expect(
+			canvas.queryByRole("button", { name: "Connect atlas" }),
+		).not.toBeInTheDocument()
+	},
+})
+
+export const Connected = meta.story({
+	args: { servers: [CONNECTED] },
+	parameters: {
+		docs: {
+			description: {
+				story:
+					"The resting state of an authorized connector. Check that it says Connected and asks for nothing: no action in the lane, because disconnecting is a decision taken in the editor behind a question, never a press away from a list.",
+			},
+		},
+	},
+	play: async ({ canvas }) => {
+		await expect(canvas.getByText("Connected")).toBeVisible()
+		await expect(
+			canvas.queryByRole("button", { name: /Connect atlas|Retry atlas/ }),
+		).not.toBeInTheDocument()
+	},
+})
+
+export const Failed = meta.story({
+	args: { servers: [FAILED] },
+	parameters: {
+		docs: {
+			description: {
+				story:
+					"A connector whose last attempt came back refused. Reach for this over `NeedsAuthorization` to check the state that has already been tried: the destructive dot, a label that says the attempt rather than the requirement, and Retry on the quieter button, because a second attempt is offered rather than asked for.",
+			},
+		},
+	},
+	play: async ({ args, canvas, userEvent }) => {
+		await expect(canvas.getByText("Couldn’t connect")).toBeVisible()
+
+		await userEvent.click(canvas.getByRole("button", { name: "Retry atlas" }))
+
+		await expect(args.onConnect).toHaveBeenCalledWith(FAILED)
+	},
+})
+
+export const Unanswered = meta.story({
+	args: { servers: [CONNECTED, REMOTE] },
+	parameters: {
+		docs: {
+			description: {
+				story:
+					"A connector no session has answered for yet, beside one that has. Reach for this to check that silence is drawn as silence: no dot, no label and no action on the second row, rather than a guess at connected or a spinner that would never end. Check that both lanes hold their width so the two chevrons stay on the same line.",
+			},
+		},
+	},
+	play: async ({ canvas }) => {
+		await expect(canvas.getByText("Connected")).toBeVisible()
+		await expect(
+			canvas.queryByRole("button", { name: /Connect ledger|Retry ledger/ }),
+		).not.toBeInTheDocument()
+		await expect(
+			canvas.getByRole("button", { name: "Open ledger" }),
+		).toBeVisible()
 	},
 })

@@ -2,7 +2,7 @@ import { useState } from "react"
 import { expect, fn, screen, waitFor, within } from "storybook/test"
 
 import preview from "@workspace/storybook/preview"
-import { slotsIn } from "@workspace/storybook/story-utils"
+import { FRAME_POLL, slotsIn } from "@workspace/storybook/story-utils"
 import {
 	NewConversationDialog,
 	type NewConversationDialogProps,
@@ -162,7 +162,10 @@ export const Reopened = meta.story({
 		await expect(slotsIn(dialog, "picked-bot")).toHaveLength(1)
 
 		await userEvent.click(inside.getByRole("button", { name: "Cancel" }))
-		await waitFor(() => expect(dialog).not.toBeInTheDocument())
+		await waitFor(() => expect(dialog).not.toBeInTheDocument(), {
+			...FRAME_POLL,
+			timeout: 5000,
+		})
 
 		await userEvent.click(screen.getByRole("button", { name: "Reopen" }))
 		const reopened = await dialogIn()

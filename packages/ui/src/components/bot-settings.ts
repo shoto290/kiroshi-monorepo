@@ -174,9 +174,19 @@ type BotCommitItem = {
 	diff?: string
 }
 
+type BotMcpConnectionState = (typeof MCP_CONNECTION_STATES)[number]
+
+const MCP_CONNECTION_STATES = [
+	"connected",
+	"needsAuthorization",
+	"connecting",
+	"failed",
+] as const
+
 type BotMcpServerItem = {
 	name: string
 	config: Record<string, unknown>
+	connection?: BotMcpConnectionState
 }
 
 type BotMcpTransport = (typeof MCP_TRANSPORTS)[number]
@@ -435,6 +445,7 @@ export {
 	type BotCommitAuthor,
 	type BotCommitItem,
 	type BotIdentity,
+	type BotMcpConnectionState,
 	type BotMcpServerDraft,
 	type BotMcpServerFields,
 	type BotMcpServerItem,
@@ -457,6 +468,7 @@ export {
 	isPermissionRule,
 	isSameFieldAnswer,
 	isSkillDraftUnsaved,
+	MCP_CONNECTION_STATES,
 	MCP_ENDPOINT_KINDS,
 	MCP_TRANSPORTS,
 	parseMcpServerConfig,

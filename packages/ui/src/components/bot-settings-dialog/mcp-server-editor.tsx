@@ -5,6 +5,7 @@ import { useState } from "react"
 import { useTranslation } from "react-i18next"
 
 import {
+	type BotMcpConnectionState,
 	type BotMcpServerDraft,
 	type BotMcpServerFields,
 	isMcpServerDraftUnsaved,
@@ -21,6 +22,10 @@ import {
 	toMcpServerConfigWith,
 	toMcpServerWrittenConfig,
 } from "@workspace/ui/components/bot-settings"
+import {
+	MCP_CONNECTION_DOT,
+	type McpConnectionSection,
+} from "@workspace/ui/components/bot-settings-dialog/mcp-connection"
 import { McpServerLaunch } from "@workspace/ui/components/bot-settings-dialog/mcp-server-launch"
 import { ConfirmDialog } from "@workspace/ui/components/confirm-dialog"
 import {
@@ -75,6 +80,148 @@ const EditorNotice = ({
 	</p>
 )
 
+const OpensBrowserIcon = () => (
+	<Icons.ExternalLink
+		aria-hidden="true"
+		className="size-3.5"
+		data-icon="inline-start"
+	/>
+)
+
+const QUIET_FIELD = "border-border bg-muted/60"
+
+const AUTHORIZATION_FIELD = {
+	connected: QUIET_FIELD,
+	needsAuthorization: "border-bot-badge-attention/45 bg-bot-badge-attention/8",
+	connecting: "border-bot-badge-attention/45 bg-bot-badge-attention/8",
+	failed: "border-destructive/45 bg-destructive/8",
+} satisfies Record<BotMcpConnectionState, string>
+
+type McpAuthorizationProps = McpConnectionSection & {
+	name: string
+	isSaved: boolean
+	defaultDisconnecting?: boolean
+}
+
+const McpAuthorization = ({
+	state,
+	host,
+	authorizedAt,
+	name,
+	isSaved,
+	defaultDisconnecting,
+	onConnect,
+	onCancel,
+	onReopen,
+	onDisconnect,
+}: McpAuthorizationProps) => {
+	const { t } = useTranslation("bots")
+	const isWaiting = isSaved && state === "connecting"
+
+	const readDescription = () => {
+		if (!isSaved) return t("connectors.connection.description.unsaved")
+		if (state === "needsAuthorization")
+			return t("connectors.connection.description.needsAuthorization", { name })
+		if (state === "connecting")
+			return host ? t("connectors.connection.description.connecting", { host }) : null
+		if (state === "connected")
+			return authorizedAt
+				? t("connectors.connection.description.connected", { date: authorizedAt })
+				: null
+		return null
+	}
+
+	const readActions = () => {
+		if (!isSaved)
+			return onConnect ? (
+				<Button disabled size="sm">
+					<OpensBrowserIcon />
+					{t("connectors.connection.connect")}
+				</Button>
+			) : null
+
+		if (state === "needsAuthorization")
+			return onConnect ? (
+				<Button onClick={onConnect} size="sm">
+					<OpensBrowserIcon />
+					{t("connectors.connection.connect")}
+				</Button>
+			) : null
+
+		if (state === "failed")
+			return onConnect ? (
+				<Button onClick={onConnect} size="sm" variant="outline">
+					{t("connectors.connection.retry")}
+				</Button>
+			) : null
+
+		if (state === "connecting")
+			return (
+				<>
+					{onReopen ? (
+						<Button onClick={onReopen} size="sm" variant="outline">
+							<OpensBrowserIcon />
+							{t("connectors.connection.reopen")}
+						</Button>
+					) : null}
+					{onCancel ? (
+						<Button onClick={onCancel} size="sm" variant="ghost">
+							{t("connectors.connection.cancel")}
+						</Button>
+					) : null}
+				</>
+			)
+
+		return onDisconnect ? (
+			<ConfirmDialog
+				confirmLabel={t("connectors.connection.disconnect")}
+				defaultOpen={defaultDisconnecting}
+				description={t("connectors.connection.confirm.description", { name })}
+				onConfirm={onDisconnect}
+				title={t("connectors.connection.confirm.title", { name })}
+				trigger={t("connectors.connection.disconnect")}
+				triggerClassName={buttonVariants({ variant: "outline", size: "sm" })}
+			/>
+		) : null
+	}
+
+	const description = readDescription()
+
+	return (
+		<div
+			className={cn(
+				"flex shrink-0 items-start gap-3 rounded-xl border p-3",
+				isSaved ? AUTHORIZATION_FIELD[state] : QUIET_FIELD,
+			)}
+		>
+			<span className="flex size-4 shrink-0 items-center justify-center">
+				{isWaiting ? (
+					<Icons.Loading
+						aria-hidden="true"
+						className="size-3.5 animate-spin text-bot-badge-attention motion-reduce:animate-none"
+					/>
+				) : (
+					<span
+						aria-hidden="true"
+						className={cn("size-2 rounded-full", MCP_CONNECTION_DOT[state])}
+					/>
+				)}
+			</span>
+			<div className="flex min-w-0 flex-1 flex-col gap-1">
+				<p className="font-medium text-foreground text-sm">
+					{isWaiting
+						? t("connectors.connection.waiting")
+						: t(`connectors.connection.state.${state}`)}
+				</p>
+				{description ? (
+					<p className="text-muted-foreground text-xs">{description}</p>
+				) : null}
+			</div>
+			<div className="flex shrink-0 items-center gap-2">{readActions()}</div>
+		</div>
+	)
+}
+
 type McpServerEditorProps = {
 	draft: BotMcpServerDraft
 	onDraftChange: (draft: BotMcpServerDraft) => void
@@ -82,9 +229,11 @@ type McpServerEditorProps = {
 	onBack: () => void
 	onSave: (config: Record<string, unknown>) => void
 	onDelete?: () => void
+	connection?: McpConnectionSection
 	environment?: EnvironmentSection
 	defaultSection?: string
 	defaultConfirming?: boolean
+	defaultDisconnecting?: boolean
 	defaultLeaving?: boolean
 	className?: string
 }
@@ -96,9 +245,11 @@ const McpServerEditor = ({
 	onBack,
 	onSave,
 	onDelete,
+	connection,
 	environment,
 	defaultSection,
 	defaultConfirming,
+	defaultDisconnecting,
 	defaultLeaving,
 	className,
 }: McpServerEditorProps) => {
@@ -270,6 +421,14 @@ const McpServerEditor = ({
 				</div>
 
 				<SettingsScrollingPanel value={FIRST_SECTION}>
+					{connection ? (
+						<McpAuthorization
+							{...connection}
+							defaultDisconnecting={defaultDisconnecting}
+							isSaved={isWritten}
+							name={name}
+						/>
+					) : null}
 					<EditorNotice icon={Icons.Alert} text={t("connectors.notice")} />
 					<SettingsField
 						hint={t("connectors.name.hint")}
