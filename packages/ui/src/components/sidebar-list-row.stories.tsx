@@ -136,19 +136,34 @@ const skinOf = (element: HTMLElement) => {
 
 const realPointer = async () => (await import("vitest/browser")).userEvent
 
+type RealPointer = Awaited<ReturnType<typeof realPointer>>
+
+const withRealPointer = async (
+	parkOn: HTMLElement,
+	run: (pointer: RealPointer) => Promise<void>,
+) => {
+	const pointer = await realPointer()
+	try {
+		await run(pointer)
+	} finally {
+		await pointer.unhover(parkOn)
+		await pointer.keyboard("{Shift}")
+	}
+}
+
 const holdPointerOn = async (
 	target: HTMLElement,
 	whileHeld: () => Promise<void>,
-) => {
-	const userEvent = await realPointer()
-	const pressed = new Promise((resolve) =>
-		target.addEventListener("pointerdown", resolve, { once: true }),
-	)
-	await Promise.all([
-		userEvent.click(target, { delay: PRESS_HOLD_MS }),
-		pressed.then(whileHeld),
-	])
-}
+) =>
+	withRealPointer(target, async (pointer) => {
+		const pressed = new Promise((resolve) =>
+			target.addEventListener("pointerdown", resolve, { once: true }),
+		)
+		await Promise.all([
+			pointer.click(target, { delay: PRESS_HOLD_MS }),
+			pressed.then(whileHeld),
+		])
+	})
 
 const meta = preview.meta({
 	title: "Navigation/SidebarListRow",
@@ -441,9 +456,12 @@ export const SkinMatchesMenuButton = meta.story({
 		const [row, bare, selectedRow, selectedBare] = rowsIn(canvasElement)
 		await expect(slotIn(bare, "roster-row-name")).toBeNull()
 
+		const parkPointer = canvas.getByRole("button", {
+			name: "Toggle the panel",
+		})
 		if (isInBrowserRunner())
-			await (await realPointer()).hover(
-				canvas.getByRole("button", { name: "Toggle the panel" }),
+			await withRealPointer(parkPointer, (pointer) =>
+				pointer.hover(parkPointer),
 			)
 
 		const rest = skinOf(bare)
@@ -461,14 +479,16 @@ export const SkinMatchesMenuButton = meta.story({
 		bare.blur()
 
 		if (!isInBrowserRunner()) return
-		const pointer = await realPointer()
-		await pointer.hover(row)
-		await waitFor(() => expect(row.matches(":hover")).toBe(true))
-		const hoveredRow = skinOf(row)
-		await pointer.hover(bare)
-		await waitFor(() => expect(bare.matches(":hover")).toBe(true))
-		await expect(hoveredRow).toEqual(skinOf(bare))
-		await expect(hoveredRow.background).not.toBe(rest.background)
+		await withRealPointer(bare, async (pointer) => {
+			await pointer.hover(row)
+			await waitFor(() => expect(row.matches(":hover")).toBe(true))
+			const hoveredRow = skinOf(row)
+			await pointer.hover(bare)
+			await waitFor(() => expect(bare.matches(":hover")).toBe(true))
+			await expect(hoveredRow).toEqual(skinOf(bare))
+			await expect(hoveredRow.background).not.toBe(rest.background)
+		})
+		await expect(bare.matches(":hover")).toBe(false)
 	},
 })
 
@@ -530,11 +550,11 @@ export const Pressed = meta.story({
 		docs: {
 			description: {
 				story:
-					"The row held down with the pointer beside a design system `Button` held the same way. The play holds a real pointer on each through the Vitest browser runner, so it only runs there; in Storybook, press the row by hand. Check the row moves by the displacement the `Button` moves by, transitions only its geometry and that displacement, and settles back on release.",
+					"The row held down with the pointer beside a design system `Button` held the same way. The play holds a real pointer on each through the Vitest browser runner, so it only runs there; in Storybook, press the row by hand. Check the row moves by the displacement the `Button` moves by, transitions only its geometry and that displacement, and settles back on release. The play then restores the page to keyboard input, because a real press leaves Chromium in mouse modality, where a later synthetic tab in another story file would focus without a ring.",
 			},
 		},
 	},
-	play: async ({ canvas, canvasElement }) => {
+	play: async ({ canvas, canvasElement, userEvent }) => {
 		const row = rowIn(canvasElement)
 		const button = canvas.getByRole("button", { name: "Press me" })
 
@@ -556,6 +576,11 @@ export const Pressed = meta.story({
 			await waitFor(() => expect(translateOf(row)).toBe(buttonDisplacement))
 		})
 		await waitFor(() => expect(translateOf(row)).toBe("none"))
+
+		row.blur()
+		await userEvent.tab()
+		await expect(row).toHaveFocus()
+		await expect(row.matches(":focus-visible")).toBe(true)
 	},
 })
 
