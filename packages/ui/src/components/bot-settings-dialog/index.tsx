@@ -21,6 +21,7 @@ import type {
 	BotSkillItem,
 } from "@workspace/ui/components/bot-settings"
 import { DangerZone } from "@workspace/ui/components/bot-settings-dialog/danger-zone"
+import type { McpConnectionSection } from "@workspace/ui/components/bot-settings-dialog/mcp-connection"
 import { MemoryPanel } from "@workspace/ui/components/bot-settings-dialog/memory-panel"
 import { PermissionsPanel } from "@workspace/ui/components/bot-settings-dialog/permissions-panel"
 import { RuntimeFields } from "@workspace/ui/components/bot-settings-dialog/runtime-fields"
@@ -92,7 +93,10 @@ type BotSettingsDialogProps = {
 	onEnvironmentSet: (write: EnvironmentWrite) => void | Promise<void>
 	onEnvironmentDelete: (name: string) => void | Promise<void>
 	onMcpServerOpen?: (name: string | null) => void
+	onServerConnect?: (server: BotMcpServerItem) => void
+	serverConnection?: McpConnectionSection
 	serverEnvironment?: EnvironmentSection
+	tab?: string
 	history?: PluginHistory
 	seed?: string
 	onDelete: () => void
@@ -130,7 +134,10 @@ const BotSettingsDialog = ({
 	onEnvironmentSet,
 	onEnvironmentDelete,
 	onMcpServerOpen,
+	onServerConnect,
+	serverConnection,
 	serverEnvironment,
+	tab,
 	history,
 	seed,
 	onDelete,
@@ -159,6 +166,8 @@ const BotSettingsDialog = ({
 		onServerCreate: onMcpServerCreate,
 		onServerDelete: onMcpServerDelete,
 		onServerOpen: onMcpServerOpen,
+		onServerConnect,
+		serverConnection,
 		serverEnvironment,
 	})
 
@@ -222,7 +231,7 @@ const BotSettingsDialog = ({
 				{skillSession.editor ?? mcpSession.editor ?? (
 					<Tabs.Root
 						className="flex min-h-0 flex-1"
-						defaultValue={showDanger ? DANGER_TAB : FIRST_TAB}
+						defaultValue={showDanger ? DANGER_TAB : (tab ?? FIRST_TAB)}
 						orientation="vertical"
 						ref={setTabs}
 					>
