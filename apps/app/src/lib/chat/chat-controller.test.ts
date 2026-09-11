@@ -388,7 +388,7 @@ describe("createChatController", () => {
 			expect(state.turn).toBe("failed")
 			expect(state.errors.at(-1)?.error).toEqual({
 				kind: "writeFailed",
-				detail: "the transcript store refused it (storage)",
+				detail: "the transcript store refused it (storage, poisonedConnection)",
 			})
 			expect(await reload(store)).toEqual([])
 		},
@@ -436,7 +436,7 @@ describe("createChatController", () => {
 		expect(spoken(state.messages)).toEqual([["user", "hello", "complete"]])
 		expect(state.errors.at(-1)?.error).toEqual({
 			kind: "writeFailed",
-			detail: "the transcript store refused it (storage)",
+			detail: "the transcript store refused it (storage, poisonedConnection)",
 		})
 		neverAheadOfStorage(state.messages, await reload(store))
 	})
@@ -980,6 +980,56 @@ describe("createChatController", () => {
 		)
 	})
 
+	it("sends a plain message in a solo thread its run was left behind in", async () => {
+		const store = referentialStore(createFakeTranscriptStore())
+		const elsewhere = await store.createSpace("Vocca")
+		await store.addBotToSpace(BOT, elsewhere.id)
+		const { controller, driver } = await bootedHarness({ store })
+		const submitSpy = vi.spyOn(driver, "submitPrompt")
+		await controller.send("hello")
+		await vi.runAllTimersAsync()
+		await controller.open(BOT, elsewhere.id)
+		await vi.runAllTimersAsync()
+		await controller.send("over here")
+		await vi.runAllTimersAsync()
+
+		await controller.open(BOT, null)
+		await vi.runAllTimersAsync()
+		await controller.send("back home")
+		await vi.runAllTimersAsync()
+
+		const state = controller.getState()
+		expect(state.errors).toEqual([])
+		expect(submitSpy.mock.lastCall?.[0].conversationId).toBe(
+			state.conversationId,
+		)
+		expect(spoken(await reload(store))).toEqual([
+			["user", "hello", "complete"],
+			["assistant", REPLY, "complete"],
+			["user", "back home", "complete"],
+			["assistant", REPLY, "complete"],
+		])
+	})
+
+	it("passes the first prompt of a run whose checkpoint the store refused", async () => {
+		const store: TranscriptStore = {
+			...createFakeTranscriptStore(),
+			captureCheckpoint: () => Promise.reject(REFUSED_REFERENCE),
+		}
+		const { controller, driver } = await bootedHarness({ store })
+		const submitSpy = vi.spyOn(driver, "submitPrompt")
+
+		await controller.send("hello")
+		await vi.runAllTimersAsync()
+
+		expect(submitSpy).toHaveBeenCalledTimes(1)
+		expect(controller.getState().errors.at(-1)?.error).toEqual({
+			kind: "writeFailed",
+			detail:
+				"the transcript store refused it (storage, sqlite: FOREIGN KEY constraint failed)",
+		})
+	})
+
 	it("keeps recording the turn still running in the thread left behind", async () => {
 		const store = createFakeTranscriptStore()
 		const elsewhere = await store.createSpace("Vocca")
@@ -1180,7 +1230,7 @@ describe("createChatController", () => {
 		expect(state.conversationId).toBe(FAKE_CHAT_ID)
 		expect(state.errors.at(-1)?.error).toEqual({
 			kind: "writeFailed",
-			detail: "the transcript store refused it (storage)",
+			detail: "the transcript store refused it (storage, poisonedConnection)",
 		})
 	})
 
@@ -2032,7 +2082,7 @@ describe("a run replaced under a conversation that carries on", () => {
 		expect(told(submitted)).toBe("second")
 		expect(controller.getState().errors.at(-1)?.error).toEqual({
 			kind: "writeFailed",
-			detail: "the transcript store refused it (storage)",
+			detail: "the transcript store refused it (storage, poisonedConnection)",
 		})
 		expect(spoken(controller.getState().messages).at(-1)).toEqual([
 			"assistant",
@@ -2050,7 +2100,7 @@ describe("a run replaced under a conversation that carries on", () => {
 		expect(occurrences(told(submitted), "third")).toBe(1)
 	})
 
-	it.each(["captureCheckpoint", "boundedContext"] as const)(
+	it.each(["boundedContext"] as const)(
 		"gives a run that was told nothing no prompt of its own when %s is refused",
 		async (member) => {
 			const store = refusingStoreAt(member)
@@ -2066,7 +2116,7 @@ describe("a run replaced under a conversation that carries on", () => {
 			expect(refused.turn).toBe("failed")
 			expect(refused.errors.at(-1)?.error).toEqual({
 				kind: "writeFailed",
-				detail: "the transcript store refused it (storage)",
+				detail: "the transcript store refused it (storage, poisonedConnection)",
 			})
 			expect(spoken(refused.messages).at(-1)).toEqual([
 				"user",
@@ -2478,7 +2528,7 @@ describe("every ending survives a launch", () => {
 describe("the provider session a run answered under", () => {
 	const REFUSED_BY_THE_STORE = {
 		kind: "writeFailed",
-		detail: "the transcript store refused it (storage)",
+		detail: "the transcript store refused it (storage, staleWrite)",
 	}
 
 	const STALE_WRITE = { kind: "storage", failure: { kind: "staleWrite" } }

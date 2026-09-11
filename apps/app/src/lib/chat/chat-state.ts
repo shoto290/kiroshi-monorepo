@@ -131,10 +131,15 @@ const TRANSPORT_KINDS: Record<TransportError["kind"], true> = {
 	unknownFailure: true,
 }
 
-const kindIn = (reason: unknown): string | null =>
-	typeof reason === "object" && reason !== null && "kind" in reason
-		? String((reason as { kind: unknown }).kind)
-		: null
+const fieldIn = (reason: unknown, field: string): unknown =>
+	typeof reason === "object" && reason !== null && field in reason
+		? (reason as Record<string, unknown>)[field]
+		: undefined
+
+const kindIn = (reason: unknown): string | null => {
+	const kind = fieldIn(reason, "kind")
+	return kind === undefined ? null : String(kind)
+}
 
 const isTransportError = (reason: unknown): reason is TransportError => {
 	const kind = kindIn(reason)
@@ -148,9 +153,25 @@ export const toTransportError = (reason: unknown): TransportError =>
 		? reason
 		: { kind: "unknownFailure", detail: detailOf(reason) }
 
+const failureOf = (reason: unknown): string | null => {
+	const failure = fieldIn(reason, "failure")
+	const kind = kindIn(failure)
+	const detail = fieldIn(failure, "detail")
+	if (kind === null) {
+		return null
+	}
+	return typeof detail === "string" ? `${kind}: ${detail}` : kind
+}
+
+const refusalOf = (reason: unknown): string => {
+	const failure = failureOf(reason)
+	const outer = detailOf(reason)
+	return failure === null ? outer : `${outer}, ${failure}`
+}
+
 export const toStoreError = (reason: unknown): TransportError => ({
 	kind: "writeFailed",
-	detail: `the transcript store refused it (${detailOf(reason)})`,
+	detail: `the transcript store refused it (${refusalOf(reason)})`,
 })
 
 export const toReadError = (reason: unknown): TransportError => ({

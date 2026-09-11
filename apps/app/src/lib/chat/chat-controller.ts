@@ -967,7 +967,7 @@ export function createChatController(
 		if (bot.run.carried || !conversationId || !runtime) {
 			return text
 		}
-		await capture(bot)
+		await capture(bot).catch((refusal) => reportStore(bot, refusal))
 		return store.boundedContext(
 			conversationId,
 			bot.id,
@@ -1075,6 +1075,14 @@ export function createChatController(
 			runtimeSessionId: null,
 		})
 
+	const isRunElsewhere = (bot: BotChat, conversationId: string) => {
+		const runtime = bot.state.runtime
+		return runtime !== null && runtime.conversationId !== conversationId
+	}
+
+	const runIn = async (bot: BotChat, conversationId: string) =>
+		!isRunElsewhere(bot, conversationId) || (await startFor(bot)) !== null
+
 	const sendPrompt = async (
 		bot: BotChat,
 		trimmed: string,
@@ -1087,7 +1095,7 @@ export function createChatController(
 		}
 		const isWritable =
 			(await loadLatest(bot)) && bot.state.conversationId === conversationId
-		if (!isWritable) {
+		if (!isWritable || !(await runIn(bot, conversationId))) {
 			return "unwritten"
 		}
 		await rotateIfDue(bot)
