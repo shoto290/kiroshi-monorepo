@@ -7,6 +7,8 @@ import {
 import type { NewAssistantMessage, NewUserMessage } from "./store-contract"
 import { botIdentity, message, named } from "./transcript-fixtures"
 
+import { FACES, newBotIdentity } from "../bots/bot-settings"
+
 const TURN = { id: "t-1", conversationId: FAKE_CHAT_ID, startedAt: 1 }
 
 const PROMPT: NewUserMessage = {
@@ -143,6 +145,92 @@ describe("createFakeTranscriptStore", () => {
 		expect(created.name).toBe("Nyx")
 		expect(created.model).toBe("opus")
 		expect(created.avatarAnimal).toBe("owl")
+	})
+
+	it("makes a companion from a trimmed draft, in the first face and blot its space leaves free", async () => {
+		const store = createFakeTranscriptStore()
+		const space = await store.createSpace("Lab")
+
+		const first = await store.createBotFromDraft(
+			{ name: " Quill ", job: " a writer ", description: " Write. " },
+			space.id,
+		)
+		const second = await store.createBotFromDraft(
+			{ name: "Scout", job: "", description: "" },
+			space.id,
+		)
+
+		expect(first).toMatchObject({
+			name: "Quill",
+			title: "a writer",
+			instructions: "Write.",
+			model: "sonnet",
+			avatarAnimal: "rabbit",
+			avatarBlot: "red",
+		})
+		expect(second).toMatchObject({
+			avatarAnimal: "cat",
+			avatarBlot: "yellow",
+		})
+	})
+
+	it("dresses a draft like the sidebar dresses a new companion in an empty space", async () => {
+		const store = createFakeTranscriptStore()
+		const space = await store.createSpace("Lab")
+
+		const drafted = await store.createBotFromDraft(
+			{ name: "Quill", job: "", description: "" },
+			space.id,
+		)
+
+		const fromTheSidebar = newBotIdentity([])
+		expect([drafted.avatarAnimal, drafted.avatarBlot]).toEqual([
+			fromTheSidebar.avatarAnimal,
+			fromTheSidebar.avatarBlot,
+		])
+	})
+
+	it("wraps on the crowd of the space once every face and blot is worn", async () => {
+		const store = createFakeTranscriptStore()
+		const space = await store.createSpace("Lab")
+		const draft = { name: "Quill", job: "", description: "" }
+		for (const face of FACES) {
+			await store.createBotFromDraft({ ...draft, name: face }, space.id)
+		}
+
+		const ninth = await store.createBotFromDraft(draft, space.id)
+		const tenth = await store.createBotFromDraft(draft, space.id)
+
+		expect([ninth.avatarAnimal, ninth.avatarBlot]).toEqual(["rabbit", "red"])
+		expect([tenth.avatarAnimal, tenth.avatarBlot]).toEqual(["cat", "yellow"])
+	})
+
+	it("refuses a draft without a name and makes no companion", async () => {
+		const store = createFakeTranscriptStore()
+		const [space] = await store.spaces()
+		const before = await store.bots()
+
+		await expect(
+			store.createBotFromDraft(
+				{ name: "  ", job: "a job", description: "A brief." },
+				space.id,
+			),
+		).rejects.toEqual({ kind: "namelessBot" })
+		expect(await store.bots()).toEqual(before)
+	})
+
+	it("makes each suggested companion from its name, job and description", async () => {
+		const store = createFakeTranscriptStore()
+		const [space] = await store.spaces()
+
+		for (const suggested of await store.suggestedBots()) {
+			const created = await store.createBotFromDraft(suggested, space.id)
+			expect([created.name, created.title, created.instructions]).toEqual([
+				suggested.name,
+				suggested.job,
+				suggested.description,
+			])
+		}
 	})
 
 	it("copies a companion under a fresh id, a name of its own and an empty transcript", async () => {

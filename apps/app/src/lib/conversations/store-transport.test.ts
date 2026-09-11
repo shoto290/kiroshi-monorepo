@@ -249,6 +249,26 @@ const WRITES: WriteCase[] = [
 		call: ["conversation_create_bot", { identity: IDENTITY, spaceId: "s-1" }],
 	},
 	{
+		member: "createBotFromDraft",
+		write: () =>
+			conversationStore.createBotFromDraft(
+				{ name: "Quill", job: "a writer", description: "Write." },
+				"s-1",
+			),
+		call: [
+			"conversation_create_bot_from_draft",
+			{
+				draft: { name: "Quill", job: "a writer", description: "Write." },
+				spaceId: "s-1",
+			},
+		],
+	},
+	{
+		member: "suggestedBots",
+		write: () => conversationStore.suggestedBots(),
+		call: ["conversation_suggested_bots"],
+	},
+	{
 		member: "duplicateBot",
 		write: () => conversationStore.duplicateBot("b-1"),
 		call: ["conversation_duplicate_bot", { botId: "b-1", spaceId: null }],

@@ -3,6 +3,7 @@ import { invoke } from "@tauri-apps/api/core"
 import type {
 	AvatarBlot,
 	Bot,
+	BotDraft,
 	BotHistoryEntry,
 	BotIdentity,
 	BotMcpServer,
@@ -25,6 +26,7 @@ import type {
 	Section,
 	Space,
 	SpacePreferences,
+	SuggestedBot,
 } from "./store-contract"
 import type { TranscriptStore } from "./store-port"
 import {
@@ -107,6 +109,11 @@ export const conversationStore: TranscriptStore = {
 			identity,
 			spaceId: spaceId ?? null,
 		}),
+
+	createBotFromDraft: (draft: BotDraft, spaceId: string) =>
+		invoke<Bot>("conversation_create_bot_from_draft", { draft, spaceId }),
+
+	suggestedBots: () => invoke<SuggestedBot[]>("conversation_suggested_bots"),
 
 	duplicateBot: (botId: string, spaceId?: string | null) =>
 		invoke<Bot>("conversation_duplicate_bot", {

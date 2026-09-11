@@ -38,6 +38,17 @@ export type BotIdentity = {
 	outputStyle: string
 }
 
+export type BotDraft = {
+	name: string
+	job: string
+	description: string
+}
+
+export type SuggestedBot = BotDraft & {
+	id: string
+	blurb: string
+}
+
 export type Bot = BotIdentity & {
 	id: string
 	createdAt: number
@@ -264,6 +275,7 @@ export type TranscriptStoreError =
 	| { kind: "conflict"; id: string; field: string }
 	| { kind: "invalidTransition"; id: string; from: string; to: string }
 	| { kind: "unknownBot"; id: string }
+	| { kind: "namelessBot" }
 	| { kind: "unknownConversation"; id: string }
 	| { kind: "foreignBot"; id: string }
 	| { kind: "unknownMessageSeq"; conversationId: string; seq: number }
