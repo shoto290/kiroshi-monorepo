@@ -2419,7 +2419,7 @@ const openRowMenu = async (canvasElement: HTMLElement, name: string) => {
 const SPACES_BRANCH = "Spaces"
 
 const LAST_SPACE_NOTE =
-	"A companion stays in at least one space. Delete the companion to remove it."
+	"A companion stays in at least one space. To remove a companion from its last space, delete the companion."
 
 const tintOf = (node: HTMLElement) => getComputedStyle(node).backgroundColor
 

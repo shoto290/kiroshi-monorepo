@@ -25,9 +25,10 @@ import { initialChatState } from "../chat/chat-state"
 import { createFakeMissions } from "../missions/fake-missions"
 
 const CLICK_FAILURE_TITLE =
-	"Clicking a notification will no longer open its conversation"
+	"Notifications won't open their conversation. Restart Kiroshi to fix it."
 
-const REVEAL_FAILURE_TITLE = "The window could not be brought to the front"
+const REVEAL_FAILURE_TITLE =
+	"Couldn't bring Kiroshi to the front. Switch to it yourself."
 
 const CONTROL_TITLE = "Positive control"
 

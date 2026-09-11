@@ -5,7 +5,7 @@ const common = {
 	spaces: {
 		unavailable: {
 			title: "Couldn't load your spaces",
-			description: "Retry.",
+			description: "Your companions are still there.",
 		},
 	},
 	dialog: {

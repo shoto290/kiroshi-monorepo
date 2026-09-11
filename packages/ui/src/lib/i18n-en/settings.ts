@@ -82,7 +82,7 @@ const settings = {
 		danger: {
 			delete: "Delete space",
 			description:
-				"Deleting this space deletes everything in it. This can't be undone.",
+				"Companions that are only in this space are deleted with it. This can't be undone.",
 			last: "You can't delete your last space.",
 			confirm: {
 				title: "Delete {{name}}?",

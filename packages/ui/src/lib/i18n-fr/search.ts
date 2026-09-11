@@ -14,7 +14,7 @@ const search = {
 	seeAll: "Tout voir",
 	solo: "conversation en tête-à-tête",
 	unavailable: {
-		title: "La recherche a échoué",
+		title: "Impossible de lancer la recherche",
 		description: "Modifiez votre recherche pour réessayer.",
 	},
 	rest: {

@@ -762,7 +762,8 @@ describe("startNotificationSource when a subscription breaks", () => {
 		const harness = await start({ notifications })
 
 		expect(harness.reportFailure).toHaveBeenCalledWith({
-			title: "Clicking a notification will no longer open its conversation",
+			title:
+				"Notifications won't open their conversation. Restart Kiroshi to fix it.",
 			description: "no listener",
 		})
 	})
@@ -773,7 +774,8 @@ describe("startNotificationSource when a subscription breaks", () => {
 		})
 
 		expect(harness.reportFailure).toHaveBeenCalledWith({
-			title: "Notifications may now appear while the app is in front",
+			title:
+				"Notifications may show while you're in Kiroshi. Restart Kiroshi to fix it.",
 			description: "no window",
 		})
 	})
@@ -786,7 +788,8 @@ describe("startNotificationSource when a subscription breaks", () => {
 		await Promise.resolve()
 
 		expect(harness.reportFailure).toHaveBeenCalledWith({
-			title: "A notification could not be shown",
+			title:
+				"Couldn't show a notification. Check Kiroshi's notification permission.",
 			description: REFUSAL,
 		})
 	})

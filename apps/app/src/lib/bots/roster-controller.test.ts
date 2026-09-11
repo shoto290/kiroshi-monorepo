@@ -823,7 +823,7 @@ describe("createRosterController on memberships", () => {
 			["default"],
 		)
 		expect(reportFailure).toHaveBeenCalledWith({
-			title: "A companion has to stay in at least one space.",
+			title: "A companion needs at least one space.",
 		})
 	})
 
@@ -845,8 +845,7 @@ describe("createRosterController on memberships", () => {
 			refusing.getState().rosters[elsewhere.id].map((bot) => bot.id),
 		).toEqual(["default"])
 		expect(reportFailure).toHaveBeenCalledWith({
-			title:
-				"This companion could not be removed from this space. Nothing changed, try again.",
+			title: "Couldn't remove this companion from the space. Retry.",
 		})
 	})
 })

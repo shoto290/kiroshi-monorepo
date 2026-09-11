@@ -82,7 +82,7 @@ const settings = {
 		danger: {
 			delete: "Supprimer l'espace",
 			description:
-				"Supprimer cet espace supprime tout ce qu'il contient. C'est irréversible.",
+				"Les compagnons présents uniquement dans cet espace sont supprimés avec lui. C'est irréversible.",
 			last: "Vous ne pouvez pas supprimer votre dernier espace.",
 			confirm: {
 				title: "Supprimer {{name}} ?",

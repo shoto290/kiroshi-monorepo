@@ -29,7 +29,7 @@ const bots = {
 		spaces: {
 			label: "Espaces",
 			lastSpace:
-				"Un compagnon reste dans au moins un espace. Supprimez le compagnon pour le retirer.",
+				"Un compagnon reste dans au moins un espace. Pour retirer un compagnon de son dernier espace, supprimez le compagnon.",
 		},
 		pin: "Épingler",
 		pinDrop: "Déposer ici pour épingler",
@@ -606,7 +606,7 @@ const bots = {
 	danger: {
 		delete: "Supprimer le compagnon",
 		description:
-			"Supprimer ce compagnon le retire de tous les espaces. C'est irréversible.",
+			"Le compagnon est supprimé partout, pas seulement retiré de ses espaces. C'est irréversible.",
 		confirm: {
 			title: "Supprimer {{name}} ?",
 		},

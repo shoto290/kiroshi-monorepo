@@ -106,11 +106,11 @@ const SPAWN_FAILURE: ChatError = {
 	error: { kind: "spawnFailed", detail: "no binary" },
 }
 
-const SPAWN_TITLE = "The agent is unavailable"
+const SPAWN_TITLE = "Couldn't reach the agent"
 
-const PINS_TITLE = "Pinned messages are out of date"
+const PINS_TITLE = "Couldn't sync pinned messages"
 
-const READ_TITLE = "Earlier messages not loaded"
+const READ_TITLE = "Couldn't load earlier messages"
 
 const SPACE = "personal"
 
@@ -120,10 +120,9 @@ const REPORT_TEXT = "Two tickets closed."
 
 const ROUTINE_TITLE = "Nightly report"
 
-const CAUSES_TITLE = "Routine reports could not be read"
+const CAUSES_TITLE = "Couldn't load routine reports"
 
-const CAUSES_SOLO_DESCRIPTION =
-	"The conversation is intact. What opened each report is missing until the next read."
+const CAUSES_SOLO_DESCRIPTION = "Reopen the conversation to retry."
 
 const BOT_TITLE = "Release manager"
 
@@ -568,7 +567,7 @@ const LANDED_SEQ = 80
 
 const LANDED_MESSAGE_ID = `m-t-${LANDED_SEQ}`
 
-const UNREACHABLE_TITLE = "That message could not be reached"
+const UNREACHABLE_TITLE = "Couldn't open that message"
 
 const textOfTurn = (index: number) => `Message ${index} of the long room`
 
@@ -646,9 +645,9 @@ const SCHEDULE_SOURCE = {
 
 const ROUTINES_TOGGLE = "Activity"
 
-const READ_ROUTINES_TITLE = "Routines could not be read"
+const READ_ROUTINES_TITLE = "Couldn't load routines"
 
-const READ_MISSIONS_TITLE = "Missions could not be read"
+const READ_MISSIONS_TITLE = "Couldn't load missions"
 
 const withoutMainConversation = (thread: BotThread): BotThread => ({
 	...thread,
@@ -771,7 +770,7 @@ const SUMMONS_CAUSE = "Opened by the mission"
 
 const SUMMONS_ANNOUNCEMENT = "Mission summons"
 
-const SUMMONS_AGAIN_CAUSE = "Opened by the coding agent's question"
+const SUMMONS_AGAIN_CAUSE = "Opened by the agent's question"
 
 const MISSION_ASKED: SpokenTurn = {
 	turnId: "t-asked",
@@ -1109,9 +1108,7 @@ describe("ThreadScreen", () => {
 		await settle()
 
 		await openRoutinesPanel()
-		expect(
-			screen.getByText("The activity of this conversation could not be read"),
-		).toBeTruthy()
+		expect(screen.getByText("Couldn't load the activity")).toBeTruthy()
 		expect(screen.queryByText(READ_MISSIONS_TITLE)).toBeNull()
 		expect(screen.queryByText(READ_ROUTINES_TITLE)).toBeNull()
 
@@ -1187,7 +1184,9 @@ describe("ThreadScreen", () => {
 		await settle()
 
 		expect(
-			screen.getByText(`The agent exited (code 1). ${refusal}`),
+			screen.getByText(
+				`The agent exited (code 1): ${refusal}. Restart the session.`,
+			),
 		).toBeTruthy()
 
 		unmount()
@@ -1208,7 +1207,9 @@ describe("ThreadScreen", () => {
 		await settle()
 
 		expect(
-			screen.getByText(`The agent exited (code unknown). ${refusal}`),
+			screen.getByText(
+				`The agent exited (code unknown): ${refusal}. Restart the session.`,
+			),
 		).toBeTruthy()
 
 		unmountUnknown()
@@ -1219,7 +1220,9 @@ describe("ThreadScreen", () => {
 		)
 		await settle()
 
-		expect(screen.getByText("The agent exited (code 1).")).toBeTruthy()
+		expect(
+			screen.getByText("The agent exited (code 1). Restart the session."),
+		).toBeTruthy()
 	})
 
 	it("leaves a dismissed companion failure dismissed when the reader returns", async () => {

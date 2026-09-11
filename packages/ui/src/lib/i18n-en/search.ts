@@ -14,7 +14,7 @@ const search = {
 	seeAll: "See all",
 	solo: "solo conversation",
 	unavailable: {
-		title: "Search failed",
+		title: "Couldn't run the search",
 		description: "Edit your search to retry.",
 	},
 	rest: {

@@ -7,7 +7,7 @@ const chat = {
 		},
 		unavailable: {
 			title: "Impossible de joindre l'agent",
-			description: "Réessayez.",
+			description: "L'agent intégré de Kiroshi n'a pas répondu. Réessayez.",
 		},
 		settings: "Réglages du compagnon",
 		hint: "Écrivez à un compagnon pour commencer.",
@@ -224,11 +224,11 @@ const chat = {
 				"L'agent n'a pas répondu en {{timeoutMs}} ms. Redémarrez la session.",
 			crashed: "L'agent s'est arrêté (code {{code}}). Redémarrez la session.",
 			crashedDetail:
-				"L'agent s'est arrêté (code {{code}}). Redémarrez la session. {{detail}}",
+				"L'agent s'est arrêté (code {{code}}) : {{detail}}. Redémarrez la session.",
 			crashedUnknownCode:
 				"L'agent s'est arrêté (code inconnu). Redémarrez la session.",
 			crashedUnknownCodeDetail:
-				"L'agent s'est arrêté (code inconnu). Redémarrez la session. {{detail}}",
+				"L'agent s'est arrêté (code inconnu) : {{detail}}. Redémarrez la session.",
 			resumeFailed:
 				"L'agent a démarré une nouvelle session. Continuez, vos messages sont toujours là.",
 			workingDirectoryRefused:
@@ -353,15 +353,18 @@ const chat = {
 		failure: {
 			missions: {
 				title: "Impossible de charger les missions",
-				description: "Réessayez.",
+				description:
+					"Les missions sont toujours là ; seule la liste n'a pas pu se charger.",
 			},
 			routines: {
 				title: "Impossible de charger les routines",
-				description: "Réessayez.",
+				description:
+					"Les routines continuent de tourner ; seule la liste n'a pas pu se charger.",
 			},
 			activity: {
 				title: "Impossible de charger l'activité",
-				description: "Réessayez.",
+				description:
+					"Les missions et les routines sont toujours là ; seule la liste n'a pas pu se charger.",
 			},
 			write: {
 				title: "Impossible de modifier la routine",
@@ -505,7 +508,8 @@ const chat = {
 				},
 				failure: {
 					title: "Impossible de charger les exécutions",
-					description: "Réessayez.",
+					description:
+						"La routine continue de tourner ; seul son historique n'a pas pu se charger.",
 				},
 			},
 		},
@@ -584,7 +588,8 @@ const chat = {
 		failure: {
 			read: {
 				title: "Impossible de charger cette mission",
-				description: "Réessayez.",
+				description:
+					"La mission est toujours là ; seule cette vue n'a pas pu se charger.",
 			},
 			send: {
 				title: "Impossible d'envoyer votre réponse",

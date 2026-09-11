@@ -13,7 +13,7 @@ describe("describeTransportError", () => {
 				kind: "binaryNotFound",
 				searched: ["/usr/bin", "/opt/bin"],
 			}),
-		).toBe("Kiroshi's built-in agent is unreachable.")
+		).toBe("Couldn't find the agent. Reinstall Kiroshi.")
 	})
 
 	it("keeps a signed-out subscription apart from an unreachable agent", () => {
@@ -25,10 +25,10 @@ describe("describeTransportError", () => {
 	it("names the exit code, and says so when the process left none", () => {
 		expect(
 			describeTransportError(t, { kind: "crashed", code: 1, detail: null }),
-		).toBe("The agent exited (code 1).")
+		).toBe("The agent exited (code 1). Restart the session.")
 		expect(
 			describeTransportError(t, { kind: "crashed", code: null, detail: null }),
-		).toBe("The agent exited (code unknown).")
+		).toBe("The agent exited (code unknown). Restart the session.")
 	})
 
 	it("reads back a detail the host sent unescaped", () => {
@@ -37,7 +37,7 @@ describe("describeTransportError", () => {
 				kind: "writeFailed",
 				detail: "pipe closed & gone",
 			}),
-		).toBe("The message could not be sent: pipe closed & gone")
+		).toBe("Couldn't send the message (pipe closed & gone). Retry.")
 	})
 
 	it("names the server left out and the variable it waited for", () => {
@@ -48,7 +48,7 @@ describe("describeTransportError", () => {
 					'the server "linear" was left out: LINEAR_KEY is defined by no scope',
 			}),
 		).toBe(
-			'the server "linear" was left out: LINEAR_KEY is defined by no scope. The conversation carries on with the other connectors.',
+			'the server "linear" was left out: LINEAR_KEY is defined by no scope. Check its secrets; the other connectors still run.',
 		)
 	})
 
@@ -59,7 +59,7 @@ describe("describeTransportError", () => {
 				path: "/tmp/gone",
 			}),
 		).toBe(
-			"/tmp/gone is not there any more. This companion is answering from the usual place instead.",
+			"/tmp/gone is gone, so the companion uses its default folder. Choose another in its settings.",
 		)
 	})
 })

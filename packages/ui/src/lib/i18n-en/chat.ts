@@ -7,7 +7,7 @@ const chat = {
 		},
 		unavailable: {
 			title: "Couldn't reach the agent",
-			description: "Retry.",
+			description: "Kiroshi's built-in agent didn't answer. Try again.",
 		},
 		settings: "Companion settings",
 		hint: "Message a companion to start.",
@@ -219,11 +219,11 @@ const chat = {
 				"The agent didn't answer within {{timeoutMs}} ms. Restart the session.",
 			crashed: "The agent exited (code {{code}}). Restart the session.",
 			crashedDetail:
-				"The agent exited (code {{code}}). Restart the session. {{detail}}",
+				"The agent exited (code {{code}}): {{detail}}. Restart the session.",
 			crashedUnknownCode:
 				"The agent exited (code unknown). Restart the session.",
 			crashedUnknownCodeDetail:
-				"The agent exited (code unknown). Restart the session. {{detail}}",
+				"The agent exited (code unknown): {{detail}}. Restart the session.",
 			resumeFailed:
 				"The agent started a new session. Keep going, your messages are still here.",
 			workingDirectoryRefused:
@@ -343,15 +343,16 @@ const chat = {
 		failure: {
 			missions: {
 				title: "Couldn't load missions",
-				description: "Retry.",
+				description: "The missions are still there; only the list didn't load.",
 			},
 			routines: {
 				title: "Couldn't load routines",
-				description: "Retry.",
+				description: "The routines keep running; only the list didn't load.",
 			},
 			activity: {
 				title: "Couldn't load the activity",
-				description: "Retry.",
+				description:
+					"Missions and routines are still there; only the list didn't load.",
 			},
 			write: {
 				title: "Couldn't update the routine",
@@ -490,7 +491,8 @@ const chat = {
 				},
 				failure: {
 					title: "Couldn't load runs",
-					description: "Retry.",
+					description:
+						"The routine keeps running; only its run history didn't load.",
 				},
 			},
 		},
@@ -569,7 +571,7 @@ const chat = {
 		failure: {
 			read: {
 				title: "Couldn't load this mission",
-				description: "Retry.",
+				description: "The mission is still there; only this view didn't load.",
 			},
 			send: {
 				title: "Couldn't send your answer",

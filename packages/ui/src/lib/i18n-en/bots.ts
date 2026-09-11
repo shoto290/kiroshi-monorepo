@@ -37,7 +37,7 @@ const bots = {
 		spaces: {
 			label: "Spaces",
 			lastSpace:
-				"A companion stays in at least one space. Delete the companion to remove it.",
+				"A companion stays in at least one space. To remove a companion from its last space, delete the companion.",
 		},
 		pin: "Pin",
 		pinDrop: "Drop here to pin",
@@ -606,7 +606,7 @@ const bots = {
 	danger: {
 		delete: "Delete companion",
 		description:
-			"Deleting this companion removes it from every space. This can't be undone.",
+			"The companion is deleted everywhere, not just removed from its spaces. This can't be undone.",
 		confirm: {
 			title: "Delete {{name}}?",
 		},
