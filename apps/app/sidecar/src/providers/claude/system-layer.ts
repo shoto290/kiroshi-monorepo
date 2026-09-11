@@ -83,8 +83,13 @@ const openingFor = (states: Set<ServerState>): string[] => {
 	return dropped ? LEFT_OUT_OPENING : STANDING_OPENING
 }
 
+export const leftOutLine = (detail: string): ServerLine => ({
+	detail,
+	state: "left-out",
+})
+
 export const leftOutLines = (details: string[]): ServerLine[] =>
-	details.map((detail) => ({ detail, state: "left-out" as const }))
+	details.map(leftOutLine)
 
 export const unavailableServersSection = (lines: ServerLine[]): string => {
 	const states = new Set(lines.map((line) => line.state))

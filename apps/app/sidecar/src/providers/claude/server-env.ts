@@ -1,7 +1,7 @@
 import type { Options } from "@anthropic-ai/claude-agent-sdk"
 
 import { sessionServers } from "./bundle-servers"
-import type { ServerLine } from "./system-layer"
+import { leftOutLine, type ServerLine } from "./system-layer"
 
 import type { ServerEnv, SessionRequest } from "../provider"
 
@@ -126,11 +126,6 @@ export const leftOutReason = (detail: string): string | undefined => {
 
 const UNREADABLE_STORE = "the environment store could not be read"
 
-const droppedLine = (detail: string): ServerLine => ({
-	detail,
-	state: "left-out",
-})
-
 export const resolveServers = (
 	servers: Servers,
 	env: ServerEnv,
@@ -147,7 +142,7 @@ export const resolveServers = (
 			continue
 		}
 		if (env.failure && needsTheStore(server)) {
-			rejections.push(droppedLine(leftOut(name, UNREADABLE_STORE)))
+			rejections.push(leftOutLine(leftOut(name, UNREADABLE_STORE)))
 			continue
 		}
 		if (!declaresVariable(server)) {
@@ -159,7 +154,7 @@ export const resolveServers = (
 		const [absent] = missing
 		if (absent) {
 			rejections.push(
-				droppedLine(leftOut(name, `${absent} is defined by no scope`)),
+				leftOutLine(leftOut(name, `${absent} is defined by no scope`)),
 			)
 			continue
 		}
@@ -168,7 +163,7 @@ export const resolveServers = (
 	if (env.failure && rejections.length) {
 		return {
 			servers: kept,
-			rejections: [droppedLine(env.failure), ...rejections],
+			rejections: [leftOutLine(env.failure), ...rejections],
 		}
 	}
 	return { servers: kept, rejections }
