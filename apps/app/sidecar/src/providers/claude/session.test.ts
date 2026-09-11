@@ -744,6 +744,12 @@ describe("layerFor", () => {
 		expect(section.split(AUTHORIZE_LINE)).toHaveLength(2)
 	})
 
+	it("opens the authorization line on the person alone, then keeps its two sentences", () => {
+		expect(AUTHORIZE_LINE).toBe(
+			"Only the person can authorize a server, and they do it in Settings, then Connectors. Say exactly that when they ask for something that server holds, and never ask them in the chat for a token, a password or an authorization.",
+		)
+	})
+
 	it("says nothing of authorization when no line waits on it", () => {
 		expect(unavailableServersSection(rejections)).not.toContain(AUTHORIZE_LINE)
 	})

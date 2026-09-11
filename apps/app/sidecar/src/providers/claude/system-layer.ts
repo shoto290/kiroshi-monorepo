@@ -55,7 +55,7 @@ const HOLDS_TOOLS_LINE =
 	"A server named as holding its tools has them for the rest of this session. Use it as you would any other, and tell the person it is there if they asked about it."
 
 export const AUTHORIZE_LINE =
-	"A server waiting to be authorized is authorized by the person, in Settings, then Connectors. Say exactly that when they ask for something that server holds, and never ask them in the chat for a token, a password or an authorization."
+	"Only the person can authorize a server, and they do it in Settings, then Connectors. Say exactly that when they ask for something that server holds, and never ask them in the chat for a token, a password or an authorization."
 
 const DROPPED_STATES = new Set<ServerState>(["left-out", "needs-auth"])
 
