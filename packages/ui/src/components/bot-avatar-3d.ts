@@ -309,21 +309,13 @@ type Loop = { points: Vec2[]; origin: Vec2 }
 const loopPath = ({ points, origin }: Loop) =>
 	`M${points.map((point) => `${round2(origin[0] + point[0])} ${round2(origin[1] + point[1])}`).join("L")}Z`
 
-const coverWithBite = (
-	frame: HalfPlaneFrame,
-	section: Section,
-	angles: Vec2,
-): Vec2[] => {
+type Bite = { cover: Vec2[]; tangent: Vec2; section: Section; angles: Vec2 }
+
+const coverWithBite = ({ cover, tangent, section, angles }: Bite): Vec2[] => {
 	const arc = sectionArc(section, angles[0], angles[1], SECTION_ARC_SAMPLES)
-	const along = (point: Vec2) => dot2(point, frame.tangent)
+	const along = (point: Vec2) => dot2(point, tangent)
 	if (along(arc[0]) > along(arc[arc.length - 1])) arc.reverse()
-	return [
-		framePoint(frame, -CLIP_REACH, 0),
-		...arc,
-		framePoint(frame, CLIP_REACH, 0),
-		framePoint(frame, CLIP_REACH, CLIP_REACH),
-		framePoint(frame, -CLIP_REACH, CLIP_REACH),
-	]
+	return [cover[0], ...arc, ...cover.slice(1)]
 }
 
 export const earSplitPath = ({ head, plate }: EarSplit) => {
@@ -353,7 +345,12 @@ export const earSplitPath = ({ head, plate }: EarSplit) => {
 	const middle = Math.atan2(alongMinor, alongMajor)
 	const half = Math.acos(-inward / swing)
 	return loopPath({
-		points: coverWithBite(frame, section, [middle - half, middle + half]),
+		points: coverWithBite({
+			cover,
+			tangent: frame.tangent,
+			section,
+			angles: [middle - half, middle + half],
+		}),
 		origin,
 	})
 }

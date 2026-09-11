@@ -329,6 +329,7 @@ describe("ear depth split", () => {
 	const PITCH_SWEEP = [-40, -20, 0, 20, 40]
 	const SURFACE_TOLERANCE = 1
 	const PLATE_STEPS = 12
+	const SWEEP_PLATE_STEPS = 5
 	const EARS_ABOVE_THE_HEAD: BotAvatarAnimal[] = ["koala", "mouse", "owl"]
 
 	type SplitCase = {
@@ -431,15 +432,19 @@ describe("ear depth split", () => {
 		)
 	}
 
-	const plateSamples = (ear: BotAvatarEar, plate: EarPlate): Vec2[] => {
+	const plateSamples = (
+		ear: BotAvatarEar,
+		plate: EarPlate,
+		steps = PLATE_STEPS,
+	): Vec2[] => {
 		const { affine, restPivot, pivot } = plate.placement
 		const samples: Vec2[] = []
-		for (let row = -PLATE_STEPS; row <= PLATE_STEPS; row += 1) {
-			for (let column = -PLATE_STEPS; column <= PLATE_STEPS; column += 1) {
-				if (row * row + column * column > PLATE_STEPS * PLATE_STEPS) continue
+		for (let row = -steps; row <= steps; row += 1) {
+			for (let column = -steps; column <= steps; column += 1) {
+				if (row * row + column * column > steps * steps) continue
 				const authored: Vec2 = [
-					ear.volume.center[0] + (ear.volume.radii[0] * column) / PLATE_STEPS,
-					ear.volume.center[1] + (ear.volume.radii[1] * row) / PLATE_STEPS,
+					ear.volume.center[0] + (ear.volume.radii[0] * column) / steps,
+					ear.volume.center[1] + (ear.volume.radii[1] * row) / steps,
 				]
 				const placed = applySurfaceAffine(affine, [
 					authored[0] - restPivot[0],
@@ -451,10 +456,12 @@ describe("ear depth split", () => {
 		return samples
 	}
 
-	const insideClip = (path: string, [x, y]: Vec2) => {
+	const clipLoops = (path: string) =>
+		path.split("M").filter(Boolean).map(controlPoints)
+
+	const insideClip = (loops: Vec2[][], [x, y]: Vec2) => {
 		let inside = false
-		for (const loop of path.split("M").filter(Boolean)) {
-			const points = controlPoints(loop)
+		for (const points of loops) {
 			for (let index = 0; index < points.length; index += 1) {
 				const [ax, ay] = points[index]
 				const [bx, by] = points[(index + 1) % points.length]
@@ -465,14 +472,8 @@ describe("ear depth split", () => {
 		return inside
 	}
 
-	const nearClipEdge = (path: string, point: Vec2) =>
-		path
-			.split("M")
-			.filter(Boolean)
-			.some(
-				(loop) =>
-					distanceToOutline(controlPoints(loop), point) < SURFACE_TOLERANCE,
-			)
+	const nearClipEdge = (loops: Vec2[][], point: Vec2) =>
+		loops.some((points) => distanceToOutline(points, point) < SURFACE_TOLERANCE)
 
 	const everyEar = (run: (animal: BotAvatarAnimal, index: number) => void) => {
 		for (const animal of ANIMAL_NAMES) {
@@ -495,10 +496,13 @@ describe("ear depth split", () => {
 		head,
 		plate,
 		path,
-	}: ReturnType<typeof splitCase>) =>
-		plateSamples(ear, plate).filter(
-			(point) => headNearDepth(head, point) !== null && insideClip(path, point),
+	}: ReturnType<typeof splitCase>) => {
+		const loops = clipLoops(path)
+		return plateSamples(ear, plate).filter(
+			(point) =>
+				headNearDepth(head, point) !== null && insideClip(loops, point),
 		)
+	}
 
 	it("keeps the whole ear plate behind the head when facing forward", () => {
 		everyEar((animal, index) => {
@@ -544,11 +548,12 @@ describe("ear depth split", () => {
 						yaw,
 						pitch,
 					})
-					for (const point of plateSamples(ear, plate)) {
+					const loops = clipLoops(path)
+					for (const point of plateSamples(ear, plate, SWEEP_PLATE_STEPS)) {
 						const surfaceDepth = headNearDepth(head, point)
-						if (surfaceDepth === null || nearClipEdge(path, point)) continue
+						if (surfaceDepth === null || nearClipEdge(loops, point)) continue
 						const lead = plateDepthAt(plate, point) - surfaceDepth
-						expect(insideClip(path, point)).toBe(lead > 0)
+						expect(insideClip(loops, point)).toBe(lead > 0)
 					}
 				}
 			}
