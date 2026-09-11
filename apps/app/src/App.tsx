@@ -50,6 +50,13 @@ import {
 	useBotPreviews,
 	useChat,
 } from "@/lib/chat/use-chat"
+import {
+	CONNECTORS_TAB,
+	toConnectorSettings,
+} from "@/lib/connectors/connector-settings"
+import { connectorTransport } from "@/lib/connectors/connector-transport"
+import { useConnectors } from "@/lib/connectors/use-connectors"
+import { SessionConnectorsContext } from "@/lib/connectors/use-session-connector"
 import { createConversationRuntimes } from "@/lib/conversations/conversation-runtimes"
 import { createTranscriptStore } from "@/lib/conversations/create-store"
 import {
@@ -60,7 +67,7 @@ import {
 	toRosterConversations,
 	unseatedBots,
 } from "@/lib/conversations/roster-conversations"
-import type { EnvScope } from "@/lib/conversations/store-contract"
+import type { EnvOwner, EnvScope } from "@/lib/conversations/store-contract"
 import {
 	useConversationPreviews,
 	useConversationWorkers,
@@ -161,6 +168,8 @@ export function App() {
 	const botEnvironment = useEnvironment(store)
 	const spaceEnvironment = useEnvironment(store)
 	const serverEnvironment = useEnvironment(store)
+	const botConnectors = useConnectors(connectorTransport)
+	const spaceConnectors = useConnectors(connectorTransport)
 	const history = useBotHistory(store)
 	const catalogue = useModelCatalogue()
 	const user = useUser()
@@ -261,10 +270,35 @@ export function App() {
 
 	const [isCreatingConversation, setIsCreatingConversation] = useState(false)
 	const [openedMcpServer, setOpenedMcpServer] = useState<EnvScope | null>(null)
+	const [settingsTab, setSettingsTab] = useState<string>()
+	const openedServerName =
+		openedMcpServer?.kind === "server" ? openedMcpServer.name : null
 
 	const { selectedSpaceId, isSettingsOpen: isSpaceEditing } = spaces.state
 	const selectedSpace = spaces.state.spaces.find(
 		(space) => space.id === selectedSpaceId,
+	)
+
+	const closeSettingsTab = () => setSettingsTab(undefined)
+
+	const openConnectorsOf = useCallback(
+		(owner: EnvOwner) => {
+			setSettingsTab(CONNECTORS_TAB)
+			if (owner.kind === "bot") {
+				roster.controller.edit(owner.id)
+			} else {
+				spaces.controller.setSettingsOpen(true)
+			}
+		},
+		[roster.controller, spaces.controller],
+	)
+	const sessionConnectors = useMemo(
+		() => ({
+			port: connectorTransport,
+			spaceId: selectedSpaceId,
+			onOpen: openConnectorsOf,
+		}),
+		[selectedSpaceId, openConnectorsOf],
 	)
 
 	const listedSpaces = spaces.state.spaces.map((space) => space.id).join(" ")
@@ -318,10 +352,12 @@ export function App() {
 		void skills.controller.open(settingsBotId)
 		void botMcpServers.controller.open(scope)
 		void botEnvironment.controller.open(scope)
+		void botConnectors.controller.open(scope)
 		void history.controller.open(settingsBotId)
 	}, [
 		history.controller,
 		botEnvironment.controller,
+		botConnectors.controller,
 		botMcpServers.controller,
 		skills.controller,
 		settingsBotId,
@@ -330,18 +366,15 @@ export function App() {
 
 	useEffect(() => {
 		if (isSpaceEditing && selectedSpaceId) {
-			void spaceEnvironment.controller.open({
-				kind: "space",
-				id: selectedSpaceId,
-			})
-			void spaceMcpServers.controller.open({
-				kind: "space",
-				id: selectedSpaceId,
-			})
+			const owner = { kind: "space", id: selectedSpaceId } as const
+			void spaceEnvironment.controller.open(owner)
+			void spaceMcpServers.controller.open(owner)
+			void spaceConnectors.controller.open(owner)
 		}
 	}, [
 		spaceEnvironment.controller,
 		spaceMcpServers.controller,
+		spaceConnectors.controller,
 		isSpaceEditing,
 		selectedSpaceId,
 	])
@@ -743,26 +776,28 @@ export function App() {
 					/>
 				}
 			>
-				<WorkspaceBody
-					activityPanel={activityPanel}
-					attachments={attachments}
-					bot={selected}
-					bots={bots}
-					chat={chat}
-					conversation={selectedConversation}
-					conversationRuntimes={conversationRuntimes}
-					drafts={drafts}
-					haveSpacesFailed={spaces.state.hasFailedToLoad}
-					isConversationSettingsOpen={isThreadConversationSettingsOpen}
-					isOverlayOpen={isOverlayOpen}
-					isSettingsOpen={isThreadSettingsOpen}
-					landings={messageLandings}
-					missions={openedMission}
-					onOpenConversationSettings={roster.controller.editConversation}
-					onRetrySpaces={loadSpaces}
-					onToggleSettings={toggleSettings}
-					readerName={preferences.displayName}
-				/>
+				<SessionConnectorsContext.Provider value={sessionConnectors}>
+					<WorkspaceBody
+						activityPanel={activityPanel}
+						attachments={attachments}
+						bot={selected}
+						bots={bots}
+						chat={chat}
+						conversation={selectedConversation}
+						conversationRuntimes={conversationRuntimes}
+						drafts={drafts}
+						haveSpacesFailed={spaces.state.hasFailedToLoad}
+						isConversationSettingsOpen={isThreadConversationSettingsOpen}
+						isOverlayOpen={isOverlayOpen}
+						isSettingsOpen={isThreadSettingsOpen}
+						landings={messageLandings}
+						missions={openedMission}
+						onOpenConversationSettings={roster.controller.editConversation}
+						onRetrySpaces={loadSpaces}
+						onToggleSettings={toggleSettings}
+						readerName={preferences.displayName}
+					/>
+				</SessionConnectorsContext.Provider>
 			</WorkspaceShell>
 			<NewConversationDialog
 				bots={rosterBots}
@@ -785,7 +820,12 @@ export function App() {
 						},
 					}}
 					haveMcpServersFailedToLoad={botMcpServers.state.hasFailedToLoad}
-					mcpServers={botMcpServers.state.servers}
+					{...toConnectorSettings({
+						servers: botMcpServers.state.servers,
+						connectors: botConnectors,
+						openedName: openedServerName,
+					})}
+					tab={settingsTab}
 					environment={toEnvironmentRows(botEnvironment.state.entries)}
 					hasEnvironmentFailedToRead={botEnvironment.state.hasFailedToRead}
 					onEnvironmentSet={({ name, value }) =>
@@ -824,7 +864,10 @@ export function App() {
 						void roster.controller.uploadAvatar(settingsBot.id, file)
 					}}
 					onBrowseWorkingDirectory={browseWorkingDirectory}
-					onClose={() => roster.controller.setEditing(false)}
+					onClose={() => {
+						closeSettingsTab()
+						roster.controller.setEditing(false)
+					}}
 					onDelete={() => {
 						void deleteBot(settingsBot.id)
 					}}
@@ -914,7 +957,12 @@ export function App() {
 					environment={toEnvironmentRows(spaceEnvironment.state.entries)}
 					hasEnvironmentFailedToRead={spaceEnvironment.state.hasFailedToRead}
 					haveMcpServersFailedToLoad={spaceMcpServers.state.hasFailedToLoad}
-					mcpServers={spaceMcpServers.state.servers}
+					{...toConnectorSettings({
+						servers: spaceMcpServers.state.servers,
+						connectors: spaceConnectors,
+						openedName: openedServerName,
+					})}
+					tab={settingsTab}
 					onMcpServerChange={spaceMcpServers.controller.rename}
 					onMcpServerCreate={spaceMcpServers.controller.create}
 					onMcpServerDelete={spaceMcpServers.controller.remove}
@@ -942,7 +990,10 @@ export function App() {
 						onRevert: spacePlugin.controller.revert,
 					}}
 					isDeletable={spaces.state.spaces.length > 1}
-					onClose={() => spaces.controller.setSettingsOpen(false)}
+					onClose={() => {
+						closeSettingsTab()
+						spaces.controller.setSettingsOpen(false)
+					}}
 					onDelete={() => {
 						void spaces.controller.remove(selectedSpace.id)
 					}}

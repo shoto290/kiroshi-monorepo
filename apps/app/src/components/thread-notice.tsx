@@ -83,6 +83,35 @@ export const TransportNotice = ({
 	)
 }
 
+type ConnectorSessionNoticeProps = {
+	name: string
+	onOpen: () => void
+	onDismiss: () => void
+}
+
+export const ConnectorSessionNotice = ({
+	name,
+	onOpen,
+	onDismiss,
+}: ConnectorSessionNoticeProps) => {
+	const t = useChatCopy()
+
+	return (
+		<Notice
+			action={{
+				label: t("connectors.connection.session.action", { ns: "bots" }),
+				onClick: onOpen,
+			}}
+			description={t("connectors.connection.session.description", {
+				ns: "bots",
+			})}
+			onDismiss={onDismiss}
+			title={t("connectors.connection.session.title", { ns: "bots", name })}
+			tone="warning"
+		/>
+	)
+}
+
 type HandoverNoticeProps = {
 	pair: [RosterBot, RosterBot]
 	onStop: () => void

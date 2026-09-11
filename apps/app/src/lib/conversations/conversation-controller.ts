@@ -296,6 +296,11 @@ export const createConversationController = (
 		errorCount += 1
 	}
 
+	const noteSpeakerFailure = (botId: string, error: TransportError) => {
+		latestError = { ...chatErrorOf(error, errorCount), botId }
+		errorCount += 1
+	}
+
 	const forgetFailure = () => {
 		latestError = null
 	}
@@ -537,7 +542,7 @@ export const createConversationController = (
 	}
 
 	const failSpeaker = (held: Speaker, error: TransportError) => {
-		noteFailure(error)
+		noteSpeakerFailure(held.botId, error)
 		if (needsFreshSession(error)) {
 			closeSpeaker(held, "failed")
 			return
@@ -723,7 +728,7 @@ export const createConversationController = (
 		} catch (reason) {
 			speakers.delete(held.botId)
 			void shutdownSpeaker(held)
-			noteFailure(toTransportError(reason))
+			noteSpeakerFailure(held.botId, toTransportError(reason))
 		}
 		sync()
 	}

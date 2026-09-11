@@ -33,13 +33,18 @@ import type {
 	ConversationThread,
 	Thread,
 } from "@/lib/chat/thread-contract"
+import {
+	createFakeConnectorPort,
+	type FakeConnectorPort,
+} from "@/lib/connectors/fake-connector-port"
+import { SessionConnectorsContext } from "@/lib/connectors/use-session-connector"
 import { createConversationRuntimes } from "@/lib/conversations/conversation-runtimes"
 import { createFakeTranscriptStore } from "@/lib/conversations/fake-transcript-store"
 import {
 	createScriptedDriver,
 	type ScriptedDriver,
 } from "@/lib/conversations/scripted-driver"
-import type { Bot } from "@/lib/conversations/store-contract"
+import type { Bot, EnvOwner } from "@/lib/conversations/store-contract"
 import type { TranscriptStore } from "@/lib/conversations/store-port"
 import type { TranscriptRole } from "@/lib/conversations/transcript-contract"
 import {
@@ -1936,5 +1941,172 @@ describe("ThreadScreen", () => {
 
 		expect(landings.getState()).toBeNull()
 		expect(screen.getAllByText(UNREACHABLE_TITLE).length).toBeGreaterThan(0)
+	})
+})
+
+const leftOutError = (detail: string): ChatError => ({
+	id: "serverEnvRejected-0",
+	error: { kind: "serverEnvRejected", detail },
+})
+
+const CONNECTOR_REFUSED = leftOutError(
+	'the server "atlas" was left out: it is waiting for you to authorize it',
+)
+
+const VARIABLE_REFUSED = leftOutError(
+	'the server "atlas" was left out: ATLAS_TOKEN is defined by no scope',
+)
+
+const UNNAMED_REFUSED = leftOutError("the connector settings were refused")
+
+const CONNECTOR_REFUSED_TITLE = "Couldn't start a connector"
+
+const LEFT_OUT_TITLE = "atlas was left out"
+
+const SPEAKER: EnvOwner = { kind: "bot", id: "bot-1", spaceId: SPACE }
+
+const SPEAKER_SPACE: EnvOwner = { kind: "space", id: SPACE }
+
+const refusedConnectorScreen = (
+	port: FakeConnectorPort,
+	onOpen: (owner: EnvOwner) => void = () => undefined,
+	refusal: ChatError = CONNECTOR_REFUSED,
+) =>
+	createElement(
+		SessionConnectorsContext.Provider,
+		{ value: { port, spaceId: SPACE, onOpen } },
+		screenOf(
+			threadOf({
+				id: SPEAKER.id,
+				name: "Nyx",
+				said: "the first answer",
+				errors: [refusal],
+			}),
+		),
+	)
+
+const expectTransportNoticeAlone = () => {
+	expect(screen.getByText(CONNECTOR_REFUSED_TITLE)).toBeTruthy()
+	expect(screen.queryByText(LEFT_OUT_TITLE)).toBeNull()
+	expect(screen.queryByText("ledger was left out")).toBeNull()
+}
+
+describe("ThreadScreen connector left out of a session", () => {
+	afterEach(cleanup)
+
+	it("reads the connectors of the speaking companion and of its space", async () => {
+		const port = createFakeConnectorPort()
+
+		render(refusedConnectorScreen(port))
+		await settle()
+
+		expect(port.calls).toEqual([
+			{ command: "status", owner: SPEAKER },
+			{ command: "status", owner: SPEAKER_SPACE },
+		])
+	})
+
+	it("names the connector waiting for authorization in place of the transport notice", async () => {
+		const port = createFakeConnectorPort()
+		port.rows.bot = [{ name: "atlas", status: "needsAuthorization" }]
+
+		render(refusedConnectorScreen(port))
+		await settle()
+
+		expect(screen.getByText(LEFT_OUT_TITLE)).toBeTruthy()
+		expect(screen.queryByText(CONNECTOR_REFUSED_TITLE)).toBeNull()
+	})
+
+	it("opens the connectors of the owner that declares it", async () => {
+		const port = createFakeConnectorPort()
+		port.rows.space = [{ name: "atlas", status: "needsAuthorization" }]
+		const onOpen = vi.fn()
+		render(refusedConnectorScreen(port, onOpen))
+		await settle()
+
+		fireEvent.click(screen.getByRole("button", { name: "Open Connectors" }))
+
+		expect(onOpen).toHaveBeenCalledWith(SPEAKER_SPACE)
+	})
+
+	it("keeps the transport notice when no connector waits for authorization", async () => {
+		const port = createFakeConnectorPort()
+		port.rows.bot = [{ name: "atlas", status: "connected" }]
+
+		render(refusedConnectorScreen(port))
+		await settle()
+
+		expectTransportNoticeAlone()
+	})
+
+	it("names the connector the rejection names when two wait for authorization", async () => {
+		const port = createFakeConnectorPort()
+		port.rows.bot = [{ name: "ledger", status: "needsAuthorization" }]
+		port.rows.space = [{ name: "atlas", status: "needsAuthorization" }]
+		const onOpen = vi.fn()
+		render(refusedConnectorScreen(port, onOpen))
+		await settle()
+
+		expect(screen.getByText(LEFT_OUT_TITLE)).toBeTruthy()
+		expect(screen.queryByText("ledger was left out")).toBeNull()
+
+		fireEvent.click(screen.getByRole("button", { name: "Open Connectors" }))
+
+		expect(onOpen).toHaveBeenCalledWith(SPEAKER_SPACE)
+	})
+
+	it("keeps the transport notice when the named connector is not the one waiting", async () => {
+		const port = createFakeConnectorPort()
+		port.rows.bot = [
+			{ name: "atlas", status: "connected" },
+			{ name: "ledger", status: "needsAuthorization" },
+		]
+
+		render(refusedConnectorScreen(port))
+		await settle()
+
+		expectTransportNoticeAlone()
+	})
+
+	it("keeps the transport notice when the named server has no row", async () => {
+		const port = createFakeConnectorPort()
+		port.rows.bot = [{ name: "ledger", status: "needsAuthorization" }]
+
+		render(refusedConnectorScreen(port))
+		await settle()
+
+		expectTransportNoticeAlone()
+	})
+
+	it("keeps the transport notice when a missing variable left the server out", async () => {
+		const port = createFakeConnectorPort()
+		port.rows.bot = [{ name: "atlas", status: "connected" }]
+		port.rows.space = [{ name: "ledger", status: "needsAuthorization" }]
+
+		render(refusedConnectorScreen(port, undefined, VARIABLE_REFUSED))
+		await settle()
+
+		expectTransportNoticeAlone()
+	})
+
+	it("keeps the transport notice and reads nothing when the rejection names no server", async () => {
+		const port = createFakeConnectorPort()
+		port.rows.bot = [{ name: "atlas", status: "needsAuthorization" }]
+
+		render(refusedConnectorScreen(port, undefined, UNNAMED_REFUSED))
+		await settle()
+
+		expectTransportNoticeAlone()
+		expect(port.calls).toEqual([])
+	})
+
+	it("keeps the transport notice when the connectors could not be read", async () => {
+		const port = createFakeConnectorPort()
+		port.refusals.status = { kind: "io", detail: "locked" }
+
+		render(refusedConnectorScreen(port))
+		await settle()
+
+		expect(screen.getByText(CONNECTOR_REFUSED_TITLE)).toBeTruthy()
 	})
 })

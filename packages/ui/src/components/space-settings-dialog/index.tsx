@@ -10,6 +10,7 @@ import type {
 	BotSkillItem,
 } from "@workspace/ui/components/bot-settings"
 import { DangerZone } from "@workspace/ui/components/bot-settings-dialog/danger-zone"
+import type { McpConnectionSection } from "@workspace/ui/components/bot-settings-dialog/mcp-connection"
 import { ConfirmDialog } from "@workspace/ui/components/confirm-dialog"
 import { DialogSurface } from "@workspace/ui/components/dialog-surface"
 import {
@@ -72,7 +73,10 @@ type SpaceSettingsDialogProps = {
 	) => void
 	onMcpServerDelete: (name: string) => void
 	onMcpServerOpen?: (name: string | null) => void
+	onServerConnect?: (server: BotMcpServerItem) => void
+	serverConnection?: McpConnectionSection
 	serverEnvironment?: EnvironmentSection
+	tab?: string
 	history: PluginHistory
 	onDelete: () => void
 	isDeletable?: boolean
@@ -100,7 +104,10 @@ const SpaceSettingsDialog = ({
 	onMcpServerChange,
 	onMcpServerDelete,
 	onMcpServerOpen,
+	onServerConnect,
+	serverConnection,
 	serverEnvironment,
+	tab,
 	history,
 	onDelete,
 	isDeletable = true,
@@ -126,6 +133,8 @@ const SpaceSettingsDialog = ({
 		onServerCreate: onMcpServerCreate,
 		onServerDelete: onMcpServerDelete,
 		onServerOpen: onMcpServerOpen,
+		onServerConnect,
+		serverConnection,
 		serverEnvironment,
 	})
 
@@ -175,7 +184,7 @@ const SpaceSettingsDialog = ({
 				{skillSession.editor ?? mcpSession.editor ?? (
 					<Tabs.Root
 						className="flex min-h-0 flex-1"
-						defaultValue={FIRST_TAB}
+						defaultValue={tab ?? FIRST_TAB}
 						orientation="vertical"
 						ref={setTabs}
 					>
