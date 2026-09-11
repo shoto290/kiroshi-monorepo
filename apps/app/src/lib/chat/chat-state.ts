@@ -24,6 +24,7 @@ import {
 export type ChatError = {
 	id: string
 	error: TransportError
+	botId?: string
 }
 
 export type OutboxEntry = {

@@ -44,6 +44,7 @@ import { FaceAvatar } from "@/components/face-avatar"
 import { ThreadComposer } from "@/components/thread-composer"
 import { botThreadMenu, conversationThreadMenu } from "@/components/thread-menu"
 import {
+	ConnectorSessionNotice,
 	HandoverNotice,
 	PinsNotice,
 	ThreadNotice,
@@ -121,6 +122,7 @@ import {
 	useThreadRoster,
 } from "@/lib/chat/use-thread-roster"
 import type { WorkingState } from "@/lib/chat/working-kind"
+import { useSessionConnector } from "@/lib/connectors/use-session-connector"
 import type { SpeakingBot } from "@/lib/conversations/conversation-controller"
 import type { ConversationRuntimes } from "@/lib/conversations/conversation-runtimes"
 import { leadOf } from "@/lib/conversations/roster-conversations"
@@ -211,6 +213,9 @@ const routinesScopeOf = (
 			}
 		: { conversationId: mainConversationId, leadBotId: facts.bot?.id }
 }
+
+const speakerIdOf = (thread: LoadedThread, error: ChatError | undefined) =>
+	thread.kind === "bot" ? thread.bot.id : error?.botId
 
 const isClosedMission = (seat: ThreadMission | null): boolean =>
 	seat !== null && seat.mission.closedAt !== null
@@ -852,6 +857,7 @@ type ThreadNoticesProps = {
 	bots: RosterBot[]
 	loopingPair: [string, string] | null
 	error?: ChatError
+	speakerId?: string
 	onDismissError: (id: string) => void
 	onRestart?: (id: string) => void
 	onStop: () => void
@@ -863,10 +869,12 @@ const ThreadNotices = ({
 	bots,
 	loopingPair,
 	error,
+	speakerId,
 	onDismissError,
 	onRestart,
 	onStop,
 }: ThreadNoticesProps) => {
+	const leftOut = useSessionConnector(error, speakerId)
 	const looping = loopingPair?.map((botId) =>
 		bots.find((seated) => seated.id === botId),
 	)
@@ -876,7 +884,14 @@ const ThreadNotices = ({
 			onDismissRefusal={staged.dismissRefusal}
 			refusal={staged.refusal}
 		>
-			{error ? (
+			{error && leftOut ? (
+				<ConnectorSessionNotice
+					name={leftOut.name}
+					onDismiss={() => onDismissError(error.id)}
+					onOpen={leftOut.open}
+				/>
+			) : null}
+			{error && !leftOut ? (
 				<TransportNotice
 					error={error}
 					onDismiss={onDismissError}
@@ -1143,6 +1158,7 @@ function ThreadView({
 				<ThreadNotices
 					bots={bots}
 					error={facts.latestError}
+					speakerId={speakerIdOf(thread, facts.latestError)}
 					loopingPair={facts.loopingPair}
 					onDismissError={controller.dismissError}
 					onRestart={botController ? restartAfterError : undefined}
