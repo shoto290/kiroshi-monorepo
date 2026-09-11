@@ -237,8 +237,9 @@ const chat = {
 			settingsRejected:
 				"Impossible d'appliquer settings.json ({{detail}}). Corrigez-le, puis redémarrez la session.",
 			serverEnvRejected:
-				"{{detail}}. Vérifiez ses secrets ; les autres connecteurs tournent toujours.",
-			notStarted: "Aucune session en cours. Redémarrez la session.",
+				"{{detail}}. Les autres connecteurs tournent toujours, corrigez celui-ci puis redémarrez la session.",
+			notStarted:
+				"Aucune session en cours. Démarrez une session pour continuer.",
 			turnAlreadyRunning:
 				"Un tour est déjà en cours. Attendez-le ou arrêtez-le.",
 			transitionInProgress: "La session change déjà. Patientez un instant.",
@@ -318,7 +319,8 @@ const chat = {
 		},
 		danger: {
 			delete: "Supprimer la conversation",
-			description: "Ses compagnons restent dans l'espace. C'est irréversible.",
+			description:
+				"Ses messages sont supprimés ; ses compagnons restent dans l'espace. C'est irréversible.",
 			confirm: {
 				title: "Supprimer {{name}} ?",
 			},
@@ -520,7 +522,7 @@ const chat = {
 		confirm: {
 			title: "Supprimer {{title}} ?",
 			description:
-				"Ses rapports passés restent dans la conversation. C'est irréversible.",
+				"Son historique d'exécutions est supprimé ; ses rapports passés restent dans la conversation. C'est irréversible.",
 			label: "Supprimer la routine",
 			failure: "Impossible de supprimer la routine. Réessayez.",
 		},

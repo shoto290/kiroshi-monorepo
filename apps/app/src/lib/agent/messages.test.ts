@@ -48,7 +48,7 @@ describe("describeTransportError", () => {
 					'the server "linear" was left out: LINEAR_KEY is defined by no scope',
 			}),
 		).toBe(
-			'the server "linear" was left out: LINEAR_KEY is defined by no scope. Check its secrets; the other connectors still run.',
+			'the server "linear" was left out: LINEAR_KEY is defined by no scope. The other connectors still run, so fix this one and restart the session.',
 		)
 	})
 

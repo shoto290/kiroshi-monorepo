@@ -232,8 +232,8 @@ const chat = {
 			settingsRejected:
 				"Couldn't apply settings.json ({{detail}}). Fix it, then restart the session.",
 			serverEnvRejected:
-				"{{detail}}. Check its secrets; the other connectors still run.",
-			notStarted: "No session is running. Restart the session.",
+				"{{detail}}. The other connectors still run, so fix this one and restart the session.",
+			notStarted: "No session is running. Start a session to continue.",
 			turnAlreadyRunning: "A turn is already running. Wait for it or stop it.",
 			transitionInProgress: "The session is already changing. Wait a moment.",
 			noActiveTurn: "There's no turn to stop.",
@@ -308,7 +308,8 @@ const chat = {
 		},
 		danger: {
 			delete: "Delete conversation",
-			description: "Its companions stay in the space. This can't be undone.",
+			description:
+				"Its messages are deleted; its companions stay in the space. This can't be undone.",
 			confirm: {
 				title: "Delete {{name}}?",
 			},
@@ -503,7 +504,7 @@ const chat = {
 		confirm: {
 			title: "Delete {{title}}?",
 			description:
-				"Its past reports stay in the conversation. This can't be undone.",
+				"Its run history is deleted; its past reports stay in the conversation. This can't be undone.",
 			label: "Delete routine",
 			failure: "Couldn't delete the routine. Retry.",
 		},
