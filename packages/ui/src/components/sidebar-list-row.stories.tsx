@@ -48,7 +48,7 @@ const BOX_ON_B1E22DA1 = {
 
 const PRESS_HOLD_MS = 800
 
-const PHRASING_ONLY = ":not(span, svg, svg *, img, button)"
+const NON_PHRASING = ":not(span, svg, svg *, img, button)"
 
 const AVATAR = <BotIdentityAvatar name="Atlas" seed="atlas" size={40} />
 
@@ -221,7 +221,7 @@ export const NameOnly = meta.story({
 
 		await expect(row.tagName).toBe("BUTTON")
 		await expect(row).toHaveAccessibleName("Atlas")
-		await expect(row.querySelectorAll(PHRASING_ONLY)).toHaveLength(0)
+		await expect(row.querySelectorAll(NON_PHRASING)).toHaveLength(0)
 		for (const slot of [
 			"roster-row-timestamp",
 			"roster-row-preview",

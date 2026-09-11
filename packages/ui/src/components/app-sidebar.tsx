@@ -333,6 +333,12 @@ const workingBotOf = ({ participants, lastSpeaker }: AppSidebarConversation) =>
 	participants.find((bot) => isBusy(bot) && bot.name === lastSpeaker) ??
 	participants.find(isBusy)
 
+const botPreviewOf = (t: TFunction<"bots">, bot: AppSidebarBot) => {
+	if (isBusy(bot))
+		return t("roster.working", { pose: t(`roster.pose.${poseOf(bot)}`) })
+	return bot.lastMessage ? toPlainText(bot.lastMessage) : ""
+}
+
 const previewOf = (
 	t: TFunction<"bots">,
 	conversation: AppSidebarConversation,
@@ -692,7 +698,6 @@ const BotRosterRow = ({
 	onCreateSectionFor,
 }: BotRosterRowProps) => {
 	const { t } = useTranslation("bots")
-	const pose = poseOf(bot)
 	const working = isBusy(bot)
 	const { avatarBadge, rowBadge } = useRosterBadgePlacement(bot.badge)
 	const rowRef = useRef<HTMLElement | null>(null)
@@ -729,13 +734,7 @@ const BotRosterRow = ({
 							if (lift.hasJustDropped()) return
 							onSelect?.(bot.id)
 						}}
-						preview={
-							working
-								? t("roster.working", { pose: t(`roster.pose.${pose}`) })
-								: bot.lastMessage
-									? toPlainText(bot.lastMessage)
-									: ""
-						}
+						preview={botPreviewOf(t, bot)}
 						strips={missionStripsOf(bot.missions)}
 						timestamp={bot.timestamp ?? ""}
 						trailing={
