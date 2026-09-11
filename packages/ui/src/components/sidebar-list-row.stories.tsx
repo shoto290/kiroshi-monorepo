@@ -1,0 +1,485 @@
+import type { ReactNode } from "react"
+import { expect, fn, screen, waitFor } from "storybook/test"
+
+import preview from "@workspace/storybook/preview"
+import { A11Y_CONTRAST_AWAITING_DESIGN_DECISION } from "@workspace/storybook/story-utils"
+import {
+	BotMissionStrip,
+	BotTitleBadge,
+} from "@workspace/ui/components/bot-badge"
+import { BotIdentityAvatar } from "@workspace/ui/components/bot-identity-avatar"
+import { SidebarListRow } from "@workspace/ui/components/sidebar-list-row"
+import { Button } from "@workspace/ui/components/ui/button"
+import {
+	Sidebar,
+	SidebarContent,
+	SidebarGroup,
+	SidebarGroupContent,
+	SidebarInset,
+	SidebarMenu,
+	SidebarMenuItem,
+	SidebarProvider,
+	SidebarTrigger,
+} from "@workspace/ui/components/ui/sidebar"
+
+const BOX_ON_B1E22DA1 = {
+	open: {
+		height: 52,
+		padding: "6px 12px 6px 6px",
+		gap: "10px",
+		radius: "10px",
+		border: "0px",
+	},
+	openWithStrips: {
+		height: 108,
+		padding: "6px 6px 6px 6px",
+		gap: "4px",
+		radius: "10px",
+		border: "0px",
+	},
+	rail: {
+		height: 44,
+		padding: "8px 8px 8px 8px",
+		gap: "0px",
+		radius: "10px",
+		border: "0px",
+	},
+}
+
+const PRESS_HOLD_MS = 800
+
+const PHRASING_ONLY = ":not(span, svg, svg *, img, button)"
+
+const AVATAR = <BotIdentityAvatar name="Atlas" seed="atlas" size={40} />
+
+const STRIPS = [
+	<BotMissionStrip
+		key="waiting"
+		state="waiting"
+		ticket={{ platform: "linear", externalId: "OPE-64", title: "Pin the room" }}
+	/>,
+	<BotMissionStrip
+		key="working"
+		state="working"
+		ticket={{
+			platform: "github",
+			externalId: "#4172",
+			title: "Resume the turn",
+		}}
+	/>,
+]
+
+interface ShellProps {
+	isOpen?: boolean
+	children: ReactNode
+}
+
+const Shell = ({ isOpen = true, children }: ShellProps) => (
+	<SidebarProvider defaultOpen={isOpen}>
+		<Sidebar aria-label="Conversations" collapsible="icon" role="complementary">
+			<SidebarContent>
+				<SidebarGroup>
+					<SidebarGroupContent>
+						<SidebarMenu>{children}</SidebarMenu>
+					</SidebarGroupContent>
+				</SidebarGroup>
+			</SidebarContent>
+		</Sidebar>
+		<SidebarInset>
+			<SidebarTrigger aria-label="Toggle the panel" />
+		</SidebarInset>
+	</SidebarProvider>
+)
+
+const rowsIn = (canvasElement: HTMLElement) =>
+	Array.from(
+		canvasElement.querySelectorAll<HTMLElement>(
+			'[data-slot="sidebar-menu-button"]',
+		),
+	)
+
+const rowIn = (canvasElement: HTMLElement) => {
+	const [row] = rowsIn(canvasElement)
+	if (!row) throw new Error("No sidebar list row rendered")
+	return row
+}
+
+const slotIn = (row: HTMLElement, slot: string) =>
+	row.querySelector<HTMLElement>(`[data-slot="${slot}"]`)
+
+const boxOf = (row: HTMLElement) => {
+	const style = getComputedStyle(row)
+	return {
+		height: row.getBoundingClientRect().height,
+		padding: [
+			style.paddingTop,
+			style.paddingRight,
+			style.paddingBottom,
+			style.paddingLeft,
+		].join(" "),
+		gap: style.gap,
+		radius: style.borderRadius,
+		border: style.borderTopWidth,
+	}
+}
+
+const translateOf = (element: HTMLElement) =>
+	getComputedStyle(element).translate
+
+const isInBrowserRunner = () => "__vitest_browser__" in globalThis
+
+const holdPointerOn = async (
+	target: HTMLElement,
+	whileHeld: () => Promise<void>,
+) => {
+	const { userEvent } = await import("vitest/browser")
+	const pressed = new Promise((resolve) =>
+		target.addEventListener("pointerdown", resolve, { once: true }),
+	)
+	await Promise.all([
+		userEvent.click(target, { delay: PRESS_HOLD_MS }),
+		pressed.then(whileHeld),
+	])
+}
+
+const meta = preview.meta({
+	title: "Navigation/SidebarListRow",
+	component: SidebarListRow,
+	parameters: {
+		layout: "fullscreen",
+		docs: {
+			description: {
+				component:
+					'The one row both roster lists of the left sidebar draw, a companion and a group conversation alike. Its root is the registry `Item` rendered as the sidebar menu button, so it keeps `data-slot="sidebar-menu-button"`, the sidebar tokens for hover, focus, active and selected, and gains the one pixel press the design system `Button` gives. Its structure is fixed and every part but the name is optional: a leading media (an avatar, an avatar group or an icon), a name line with a trailing slot beside the name and a timestamp at its end, a preview line, a badge dot and a strip area under both lines. A slot given nothing draws no box and no spacing; a slot given an empty string keeps its box, which is how the roster holds its timestamp column for a companion nobody has talked to yet. On the icon rail only the media is drawn, and the row keeps its name through `aria-label` and a hint.',
+			},
+		},
+	},
+	args: {
+		name: "Atlas",
+		onSelect: fn(),
+	},
+	render: (args) => (
+		<Shell>
+			<SidebarMenuItem>
+				<SidebarListRow {...args} />
+			</SidebarMenuItem>
+		</Shell>
+	),
+})
+
+export const OnRail = meta.story({
+	args: {
+		media: <BotIdentityAvatar badge="attention" name="Atlas" seed="atlas" />,
+		timestamp: "09:24",
+		preview: "Pulled the papers for the brief.",
+		strips: STRIPS,
+	},
+	render: (args) => (
+		<Shell isOpen={false}>
+			<SidebarMenuItem>
+				<SidebarListRow {...args} />
+			</SidebarMenuItem>
+		</Shell>
+	),
+	parameters: {
+		docs: {
+			description: {
+				story:
+					"The row once the panel is down to its icon rail. Check that only the media is drawn, with the badge it carries, that the name line and the preview leave the picture and the accessibility tree while the strips are not drawn at all, and that the row is still reached by the name `Atlas` and named again in a hint on hover. Pick `WithStrips` for the strips the open panel draws.",
+			},
+		},
+	},
+	play: async ({ canvasElement, userEvent }) => {
+		const row = rowIn(canvasElement)
+
+		await waitFor(() => expect(row).toHaveAccessibleName("Atlas"))
+		await expect(slotIn(row, "bot-identity-avatar")).toBeVisible()
+		await expect(
+			slotIn(row, "roster-row-name")?.closest("[aria-hidden='true']"),
+		).not.toBeNull()
+		await expect(
+			slotIn(row, "roster-row-preview")?.closest("[aria-hidden='true']"),
+		).not.toBeNull()
+		await expect(slotIn(row, "roster-row-missions")).toBeNull()
+
+		await userEvent.hover(row)
+		await expect(await screen.findByRole("tooltip")).toHaveTextContent("Atlas")
+	},
+})
+
+export const NameOnly = meta.story({
+	parameters: {
+		docs: {
+			description: {
+				story:
+					'The row given its name and nothing else, the one required part. Check the root is a `button` carrying `data-slot="sidebar-menu-button"`, that no other slot draws a box, and that nothing inside the button is a block element. Pick `WithTrailingBadgeAndTimestamp` for a full name line.',
+			},
+		},
+	},
+	play: async ({ args, canvasElement, userEvent }) => {
+		const row = rowIn(canvasElement)
+
+		await expect(row.tagName).toBe("BUTTON")
+		await expect(row).toHaveAccessibleName("Atlas")
+		await expect(row.querySelectorAll(PHRASING_ONLY)).toHaveLength(0)
+		for (const slot of [
+			"roster-row-timestamp",
+			"roster-row-preview",
+			"roster-row-missions",
+			"bot-activity-dot",
+		])
+			await expect(slotIn(row, slot)).toBeNull()
+
+		await userEvent.click(row)
+		await expect(args.onSelect).toHaveBeenCalledOnce()
+	},
+})
+
+export const WithTrailingBadgeAndTimestamp = meta.story({
+	args: {
+		media: AVATAR,
+		timestamp: "09:24",
+		trailing: (
+			<BotTitleBadge
+				className="max-w-16"
+				data-slot="roster-row-badge"
+				title="Research"
+			/>
+		),
+	},
+	parameters: {
+		docs: {
+			description: {
+				story:
+					"A name line carrying a title badge beside the name and the time of the last message at its end. Check the badge sits right after the name and the timestamp is pushed to the end of the line. Pick `LongContent` for a name that has to give way to both.",
+			},
+		},
+	},
+	play: async ({ canvasElement }) => {
+		const row = rowIn(canvasElement)
+		const name = slotIn(row, "roster-row-name")
+		const badge = slotIn(row, "roster-row-badge")
+
+		await expect(name?.nextElementSibling).toBe(badge)
+		await expect(slotIn(row, "roster-row-timestamp")).toHaveTextContent("09:24")
+	},
+})
+
+export const WithPreview = meta.story({
+	args: {
+		media: AVATAR,
+		timestamp: "09:24",
+		preview: "Pulled the papers for the brief, drafting the summary now.",
+	},
+	parameters: {
+		docs: {
+			description: {
+				story:
+					"A row at rest with its last message on the preview line. Check the preview is one clipped muted line under the name and carries no shimmer. Pick `WorkingPreview` for a companion at work.",
+			},
+		},
+	},
+	play: async ({ canvasElement }) => {
+		const preview = slotIn(rowIn(canvasElement), "roster-row-preview")
+
+		await expect(preview).toHaveTextContent("Pulled the papers")
+		await expect(preview?.children).toHaveLength(0)
+	},
+})
+
+export const WorkingPreview = meta.story({
+	args: {
+		media: <BotIdentityAvatar name="Atlas" seed="atlas" size={40} working />,
+		timestamp: "09:24",
+		preview: "Thinking",
+		isWorking: true,
+	},
+	parameters: {
+		docs: {
+			description: {
+				story:
+					"A companion at work: the preview line runs the working shimmer the roster uses on its busy rows. Check the shimmer wraps the preview text and not the name. Pick `WithPreview` for the same line at rest.",
+			},
+		},
+	},
+	play: async ({ canvasElement }) => {
+		const preview = slotIn(rowIn(canvasElement), "roster-row-preview")
+
+		await expect(preview?.children).toHaveLength(1)
+		await expect(preview?.firstElementChild).toHaveTextContent("Thinking")
+	},
+})
+
+export const WithBadgeDot = meta.story({
+	args: {
+		media: AVATAR,
+		timestamp: "09:24",
+		preview: "Waiting on your answer.",
+		badge: "attention",
+	},
+	parameters: {
+		docs: {
+			description: {
+				story:
+					"A row whose companion is asking for the reader. Check the badge dot sits at the end of the preview line, inside the row, without pushing the preview or the timestamp. Pick `OnRail` for the badge the rail moves onto the avatar.",
+			},
+		},
+	},
+	play: async ({ canvasElement }) => {
+		const row = rowIn(canvasElement)
+		const dot = slotIn(row, "bot-activity-dot")
+
+		await expect(dot).not.toBeNull()
+		await expect(dot?.getBoundingClientRect().right).toBeLessThanOrEqual(
+			row.getBoundingClientRect().right,
+		)
+	},
+})
+
+export const WithStrips = meta.story({
+	args: {
+		media: AVATAR,
+		timestamp: "09:24",
+		preview: "Two missions open.",
+		strips: STRIPS,
+	},
+	parameters: {
+		a11y: A11Y_CONTRAST_AWAITING_DESIGN_DECISION,
+		docs: {
+			description: {
+				story:
+					"A row carrying open missions: the strips hang under both lines, one per mission, in the row's own box. Check the avatar stays centred on the name and preview rather than on the whole row. Pick `OnRail` for the rail that drops them.",
+			},
+		},
+	},
+	play: async ({ canvasElement }) => {
+		const strips = slotIn(rowIn(canvasElement), "roster-row-missions")
+
+		await expect(strips?.children).toHaveLength(STRIPS.length)
+	},
+})
+
+export const LongContent = meta.story({
+	args: {
+		media: AVATAR,
+		name: "Atlas the quarterly infrastructure capacity planner",
+		timestamp: "Tue",
+		preview:
+			"Pulled every capacity report since January and flagged the three regions that will run out first.",
+		trailing: (
+			<BotTitleBadge
+				className="max-w-16"
+				data-slot="roster-row-badge"
+				title="Ops"
+			/>
+		),
+	},
+	parameters: {
+		docs: {
+			description: {
+				story:
+					"A name longer than the room left by a title badge and a timestamp. Check the name alone is cut with an ellipsis while the badge and the timestamp stay whole at their own width, and the preview clips to one line. Pick `WithTrailingBadgeAndTimestamp` for the same line when everything fits.",
+			},
+		},
+	},
+	play: async ({ canvasElement }) => {
+		const row = rowIn(canvasElement)
+		const name = slotIn(row, "roster-row-name")
+		const badge = slotIn(row, "roster-row-badge")
+		const timestamp = slotIn(row, "roster-row-timestamp")
+		if (!name || !badge || !timestamp) throw new Error("Missing name line slot")
+
+		await expect(name.scrollWidth).toBeGreaterThan(name.clientWidth)
+		await expect(badge.scrollWidth).toBeLessThanOrEqual(badge.clientWidth)
+		await expect(timestamp.scrollWidth).toBeLessThanOrEqual(
+			timestamp.clientWidth,
+		)
+	},
+})
+
+export const Pressed = meta.story({
+	args: {
+		media: AVATAR,
+		timestamp: "09:24",
+		preview: "Pulled the papers for the brief.",
+	},
+	render: (args) => (
+		<Shell>
+			<SidebarMenuItem>
+				<SidebarListRow {...args} />
+			</SidebarMenuItem>
+			<SidebarMenuItem>
+				<Button>Press me</Button>
+			</SidebarMenuItem>
+		</Shell>
+	),
+	parameters: {
+		docs: {
+			description: {
+				story:
+					"The row held down with the pointer beside a design system `Button` held the same way. The play holds a real pointer on each through the Vitest browser runner, so it only runs there; in Storybook, press the row by hand. Check the row moves by the displacement the `Button` moves by, transitions only its geometry and that displacement, and settles back on release.",
+			},
+		},
+	},
+	play: async ({ canvas, canvasElement }) => {
+		const row = rowIn(canvasElement)
+		const button = canvas.getByRole("button", { name: "Press me" })
+
+		await waitFor(() =>
+			expect(getComputedStyle(row).transitionProperty).toBe(
+				"width, height, padding, translate",
+			),
+		)
+		if (!isInBrowserRunner()) return
+
+		let buttonDisplacement = ""
+		await holdPointerOn(button, async () => {
+			await waitFor(() => expect(translateOf(button)).not.toBe("none"))
+			buttonDisplacement = translateOf(button)
+		})
+
+		await expect(translateOf(row)).toBe("none")
+		await holdPointerOn(row, async () => {
+			await waitFor(() => expect(translateOf(row)).toBe(buttonDisplacement))
+		})
+		await waitFor(() => expect(translateOf(row)).toBe("none"))
+	},
+})
+
+export const BoxMetrics = meta.story({
+	args: {
+		media: AVATAR,
+		timestamp: "09:24",
+		preview: "Pulled the papers for the brief.",
+	},
+	render: (args) => (
+		<Shell>
+			<SidebarMenuItem>
+				<SidebarListRow {...args} />
+			</SidebarMenuItem>
+			<SidebarMenuItem>
+				<SidebarListRow {...args} name="Launch review" strips={STRIPS} />
+			</SidebarMenuItem>
+		</Shell>
+	),
+	parameters: {
+		docs: {
+			description: {
+				story:
+					"The row box against the numbers measured on the roster at commit b1e22da1: 52px open, 108px open with two strips, 44px on the rail, with the padding, gaps and 10px corner of that commit and no border box. Check that rebuilding the row on `Item` moved none of them. Pick `OnRail` for what the rail draws.",
+			},
+		},
+	},
+	play: async ({ canvas, canvasElement, userEvent }) => {
+		const [plain, stripped] = rowsIn(canvasElement)
+
+		await expect(boxOf(plain)).toEqual(BOX_ON_B1E22DA1.open)
+		await expect(boxOf(stripped)).toEqual(BOX_ON_B1E22DA1.openWithStrips)
+
+		await userEvent.click(
+			canvas.getByRole("button", { name: "Toggle the panel" }),
+		)
+		await waitFor(() => expect(boxOf(plain)).toEqual(BOX_ON_B1E22DA1.rail))
+		await expect(boxOf(stripped)).toEqual(BOX_ON_B1E22DA1.rail)
+	},
+})

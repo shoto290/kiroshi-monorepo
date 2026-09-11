@@ -1,6 +1,11 @@
 "use client"
 
-import type { AriaAttributes, HTMLAttributes, ReactNode } from "react"
+import type {
+	AriaAttributes,
+	ComponentProps,
+	HTMLAttributes,
+	ReactNode,
+} from "react"
 
 import { TooltipHint } from "@workspace/ui/components/tooltip-hint"
 import {
@@ -39,6 +44,7 @@ interface SidebarMenuRowProps extends SidebarMenuRowElementProps {
 	isActive?: boolean
 	onSelect?: () => void
 	className?: string
+	render?: ComponentProps<typeof SidebarMenuButton>["render"]
 }
 
 const SidebarMenuRow = ({
@@ -50,6 +56,7 @@ const SidebarMenuRow = ({
 	isActive = false,
 	onSelect,
 	className,
+	render,
 	...elementProps
 }: SidebarMenuRowProps) => {
 	const { isMobile, setOpenMobile, state } = useSidebar()
@@ -85,6 +92,7 @@ const SidebarMenuRow = ({
 				onSelect?.()
 				if (isMobile) setOpenMobile(false)
 			}}
+			render={render}
 		>
 			{below ? (
 				<>
