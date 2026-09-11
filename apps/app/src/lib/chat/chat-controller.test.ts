@@ -18,6 +18,7 @@ import type {
 	AgentCommand,
 	AgentEvent,
 	ChatMessage,
+	QuestionRequest,
 	RuntimeScope,
 	ScopedEvent,
 } from "../agent/contract"
@@ -25,6 +26,10 @@ import {
 	createFakeTranscriptStore,
 	FAKE_CHAT_ID,
 } from "../conversations/fake-transcript-store"
+import type {
+	NewAssistantMessage,
+	NewUserMessage,
+} from "../conversations/store-contract"
 import type { TranscriptStore } from "../conversations/store-port"
 import {
 	TRANSCRIPT_PAGE_SIZE,
@@ -130,6 +135,18 @@ const spokenAnswer = (text: string): AgentEvent[] => [
 	},
 ]
 
+const ASKED: QuestionRequest = {
+	id: "ask-1",
+	questions: [
+		{
+			header: "Framework",
+			question: "Which framework should it use?",
+			multiSelect: false,
+			options: [{ label: "React", description: null, preview: null }],
+		},
+	],
+}
+
 const EVOLUTION: AgentEvent = {
 	type: "botEvolved",
 	bundle: "bot",
@@ -162,6 +179,46 @@ const recordingStore = (base: TranscriptStore) => {
 		},
 	}
 	return { store, recorded }
+}
+
+const REFUSED_REFERENCE = {
+	kind: "storage",
+	failure: { kind: "sqlite", detail: "FOREIGN KEY constraint failed" },
+} as const
+
+const referentialStore = (base: TranscriptStore) => {
+	const conversationOf = new Map<string, string>()
+	const takes = ({
+		id,
+		conversationId,
+		turnId,
+		repliedToMessageId,
+	}: NewUserMessage | NewAssistantMessage) => {
+		const referenced = [turnId, repliedToMessageId].filter(
+			(key) => key !== null,
+		)
+		if (referenced.some((key) => conversationOf.get(key) !== conversationId)) {
+			return false
+		}
+		conversationOf.set(id, conversationId)
+		return true
+	}
+	const store: TranscriptStore = {
+		...base,
+		startTurn: (turn) => {
+			conversationOf.set(turn.id, turn.conversationId)
+			return base.startTurn(turn)
+		},
+		appendUserMessage: (message) =>
+			takes(message)
+				? base.appendUserMessage(message)
+				: Promise.reject(REFUSED_REFERENCE),
+		openAssistantMessage: (message) =>
+			takes(message)
+				? base.openAssistantMessage(message)
+				: Promise.reject(REFUSED_REFERENCE),
+	}
+	return store
 }
 
 const deferred = () => {
@@ -837,6 +894,164 @@ describe("createChatController", () => {
 		)
 		expect(answered?.role).toBe("user")
 		expect(answered?.content).toBe("never mind, do it your way")
+	})
+
+	it("answers a question raised before any assistant text was published", async () => {
+		const store = referentialStore(createFakeTranscriptStore())
+		const { controller } = await bootedHarness({ store })
+		await controller.send("pick one /question")
+		await vi.runAllTimersAsync()
+
+		const asked = controller.getState().question
+		expect(asked).not.toBeNull()
+
+		await controller.send("never mind, do it your way")
+		await vi.runAllTimersAsync()
+
+		const state = controller.getState()
+		expect(state.errors).toEqual([])
+		const answered = state.messages.find(
+			(message) => message.content === "never mind, do it your way",
+		)
+		expect(answered?.role).toBe("user")
+		expect(answered?.repliedToMessageId).toBe(
+			questionMessageIdOf(asked?.id ?? ""),
+		)
+		expect(spoken(await reload(store))).toEqual(spoken(state.messages))
+	})
+
+	it("writes an answer to the thread of its turn after the reader left it", async () => {
+		const store = referentialStore(createFakeTranscriptStore())
+		const elsewhere = await store.createSpace("Vocca")
+		await store.addBotToSpace(BOT, elsewhere.id)
+		const { controller } = await bootedHarness({ store })
+		await controller.send("pick one /question")
+		await vi.runAllTimersAsync()
+
+		const asked = controller.getState().question
+		expect(asked).not.toBeNull()
+
+		await controller.open(BOT, elsewhere.id)
+		await vi.runAllTimersAsync()
+		await controller.send("never mind, do it your way")
+		await vi.runAllTimersAsync()
+
+		const state = controller.getState()
+		expect(state.errors).toEqual([])
+		expect(state.messages).toEqual([])
+		const answered = (await reload(store)).find(
+			(message) => message.content === "never mind, do it your way",
+		)
+		expect(answered?.role).toBe("user")
+		expect(answered?.repliedToMessageId).toBe(
+			questionMessageIdOf(asked?.id ?? ""),
+		)
+	})
+
+	it("points an answer at an asking row still on its way to the store", async () => {
+		const asking = deferred()
+		const base = createFakeTranscriptStore()
+		const store = referentialStore({
+			...base,
+			openAssistantMessage: (message) =>
+				asking.promise.then(() => base.openAssistantMessage(message)),
+		})
+		const { controller } = await bootedHarness({ store })
+		await controller.send("pick one /question")
+		await vi.runAllTimersAsync()
+
+		const asked = controller.getState().question
+		expect(asked).not.toBeNull()
+		expect(
+			controller.getState().messages.map((message) => message.id),
+		).not.toContain(questionMessageIdOf(asked?.id ?? ""))
+
+		await controller.send("never mind, do it your way")
+		asking.release()
+		await vi.runAllTimersAsync()
+
+		const state = controller.getState()
+		expect(state.errors).toEqual([])
+		const answered = state.messages.find(
+			(message) => message.content === "never mind, do it your way",
+		)
+		expect(answered?.repliedToMessageId).toBe(
+			questionMessageIdOf(asked?.id ?? ""),
+		)
+	})
+
+	it("keeps recording the turn still running in the thread left behind", async () => {
+		const store = createFakeTranscriptStore()
+		const elsewhere = await store.createSpace("Vocca")
+		await store.addBotToSpace(BOT, elsewhere.id)
+		const { controller } = await bootedHarness({ store })
+
+		await controller.send("hello")
+		await controller.open(BOT, elsewhere.id)
+		await vi.runAllTimersAsync()
+
+		expect(spoken(await reload(store))).toEqual([
+			["user", "hello", "complete"],
+			["assistant", REPLY, "complete"],
+		])
+	})
+
+	it("answers a question the store never took the asking for", async () => {
+		const answerQuestion = vi.fn(() => Promise.resolve())
+		let listen: ((event: ScopedEvent) => void) | null = null
+		let hasAsked = false
+		const askWhileThePromptIsWritten = () => {
+			if (hasAsked) {
+				return
+			}
+			hasAsked = true
+			listen?.({
+				scope: runOf(controller),
+				event: { type: "questionRequested", request: ASKED },
+			})
+		}
+		const base = createFakeTranscriptStore()
+		const asking: TranscriptStore = {
+			...base,
+			appendUserMessage: (message) => {
+				askWhileThePromptIsWritten()
+				return base.appendUserMessage(message)
+			},
+		}
+		const store = referentialStore(asking)
+		const { controller } = await bootedHarness({
+			store,
+			driver: (fake) => ({
+				...fake,
+				subscribe: (onEvent) => {
+					listen = onEvent
+					return fake.subscribe(onEvent)
+				},
+				submitPrompt: () => Promise.resolve(),
+				answerQuestion,
+			}),
+		})
+
+		await controller.send("pick one")
+		await vi.runAllTimersAsync()
+		expect(controller.getState().question?.id).toBe(ASKED.id)
+		expect(
+			controller.getState().messages.map((message) => message.id),
+		).not.toContain(questionMessageIdOf(ASKED.id))
+
+		await controller.send("never mind, do it your way")
+		await vi.runAllTimersAsync()
+
+		expect(answerQuestion).toHaveBeenCalledWith(expect.anything(), ASKED.id, {
+			"Which framework should it use?": "never mind, do it your way",
+		})
+		const state = controller.getState()
+		expect(state.errors).toEqual([])
+		const answered = state.messages.at(-1)
+		expect(answered?.role).toBe("user")
+		expect(answered?.content).toBe("never mind, do it your way")
+		expect(answered?.repliedToMessageId).toBeNull()
+		expect(spoken(await reload(store))).toEqual(spoken(state.messages))
 	})
 
 	it("leaves no permission activity pending after either decision", async () => {

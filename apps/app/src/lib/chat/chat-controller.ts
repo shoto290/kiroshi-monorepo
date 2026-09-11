@@ -51,6 +51,7 @@ import type {
 import type {
 	MessagePin,
 	MessageReference,
+	NewUserMessage,
 } from "../conversations/store-contract"
 import type { TranscriptStore } from "../conversations/store-port"
 import type {
@@ -135,11 +136,13 @@ const NO_LANDED_MESSAGES: TranscriptMessage[] = []
 
 type PromptOutcome = "submitted" | "unwritten" | "refused"
 
+type ActiveTurn = { id: string; promptId: string; conversationId: string }
+
 type BotChat = {
 	id: string
 	state: ChatState
 	run: LiveRun
-	activeTurn: { id: string; promptId: string } | null
+	activeTurn: ActiveTurn | null
 	heldReply: ChatMessage | null
 	openMessages: Map<string, number>
 	settledMessages: Set<string>
@@ -1103,7 +1106,7 @@ export function createChatController(
 		}
 
 		showPrompt(said)
-		bot.activeTurn = { id: said.turnId, promptId: said.id }
+		bot.activeTurn = { id: said.turnId, promptId: said.id, conversationId }
 		return (await submit(bot, said.id, trimmed)) ? "submitted" : "refused"
 	}
 
@@ -1205,7 +1208,11 @@ export function createChatController(
 		}
 		dispatch(bot, { type: "promptRetried", id })
 		await rotateIfDue(bot)
-		bot.activeTurn = { id: target.turnId, promptId: id }
+		bot.activeTurn = {
+			id: target.turnId,
+			promptId: id,
+			conversationId: target.conversationId,
+		}
 		await submit(bot, id, target.content)
 	}
 
@@ -1259,45 +1266,46 @@ export function createChatController(
 			.catch((reason) => report(bot, reason))
 	}
 
+	const issuedAskingOf = (bot: BotChat, request: QuestionRequest) => {
+		const id = questionMessageIdOf(request.id)
+		return isUnwritten(bot, id) ? null : id
+	}
+
+	const showAnswerInOpenThread = (bot: BotChat, answered: NewUserMessage) => {
+		if (bot.state.conversationId !== answered.conversationId) {
+			return
+		}
+		transcript.append({
+			...answered,
+			role: "user",
+			completion: "complete",
+			runtimeSessionId: null,
+		})
+	}
+
 	const recordAnswers = (
 		bot: BotChat,
 		request: QuestionRequest,
 		answers: QuestionAnswers,
 	) => {
-		const conversationId = bot.state.conversationId
 		const turn = bot.activeTurn
 		const content = answeredText(request, answers)
-		if (!conversationId || !turn || content.length === 0) {
+		if (!turn || content.length === 0) {
 			return
 		}
-		const id = newId()
-		const createdAt = now()
-		const repliedToMessageId = questionMessageIdOf(request.id)
+		const answered: NewUserMessage = {
+			id: newId(),
+			conversationId: turn.conversationId,
+			turnId: turn.id,
+			authorBotId: null,
+			repliedToMessageId: issuedAskingOf(bot, request),
+			content,
+			createdAt: now(),
+		}
 		write(
 			bot,
-			() =>
-				store.appendUserMessage({
-					id,
-					conversationId,
-					turnId: turn.id,
-					authorBotId: null,
-					repliedToMessageId,
-					content,
-					createdAt,
-				}),
-			() =>
-				transcript.append({
-					id,
-					conversationId,
-					turnId: turn.id,
-					role: "user",
-					content,
-					completion: "complete",
-					createdAt,
-					authorBotId: null,
-					repliedToMessageId,
-					runtimeSessionId: null,
-				}),
+			() => store.appendUserMessage(answered),
+			() => showAnswerInOpenThread(bot, answered),
 		)
 	}
 
