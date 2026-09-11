@@ -1,8 +1,9 @@
+use std::collections::BTreeMap;
 use std::path::Path;
 
 use crate::agent::protocol::OauthCredentials;
 use crate::environment::contract::{
-	EnvError, EnvScope, Values, OAUTH_ACCESS_TOKEN, OAUTH_CLIENT_ID, OAUTH_CLIENT_SECRET,
+	EnvError, EnvOwner, EnvScope, Values, OAUTH_ACCESS_TOKEN, OAUTH_CLIENT_ID, OAUTH_CLIENT_SECRET,
 	OAUTH_EXPIRES_AT, OAUTH_REFRESH_TOKEN, RESERVED_NAMES,
 };
 use crate::environment::store;
@@ -11,6 +12,27 @@ const AN_UNREADABLE_EXPIRY_HAS_PASSED: i64 = i64::MIN;
 
 pub fn expires_at(held: &Values) -> Option<i64> {
 	held.get(OAUTH_EXPIRES_AT).map(|at| at.parse().unwrap_or(AN_UNREADABLE_EXPIRY_HAS_PASSED))
+}
+
+pub struct ServedGrant {
+	pub scope: EnvScope,
+	pub held: Values,
+}
+
+pub type ServedGrants = BTreeMap<String, ServedGrant>;
+
+pub fn served(root: &Path, owner: &EnvOwner) -> Result<ServedGrants, EnvError> {
+	let mut served = ServedGrants::new();
+	for scope in store::server_scopes(root, owner)? {
+		let held = store::values(root, &scope)?;
+		let EnvScope::Server { name, .. } = &scope else {
+			continue;
+		};
+		if held.contains_key(OAUTH_ACCESS_TOKEN) {
+			served.insert(name.clone(), ServedGrant { scope: scope.clone(), held });
+		}
+	}
+	Ok(served)
 }
 
 fn named(held: &OauthCredentials, name: &str) -> Option<String> {
@@ -155,6 +177,29 @@ mod tests {
 		let kept = store::values(&root, &scope).expect("the scope is readable");
 		assert_eq!(kept.get("GRANOLA_REGION").map(String::as_str), Some("eu"));
 		assert!(RESERVED_NAMES.iter().all(|name| !kept.contains_key(*name)));
+	}
+
+	#[test]
+	fn the_bot_grant_is_the_one_served_when_the_space_holds_one_too() {
+		let root = a_root("served");
+		let bot = EnvOwner::Bot { id: "b1".to_owned(), space_id: "s1".to_owned() };
+		let space = EnvScope::Server {
+			name: "granola".to_owned(),
+			owner: EnvOwner::Space { id: "s1".to_owned() },
+		};
+		store(&root, &space, &a_bare_grant()).expect("the space grant is written");
+		store(&root, &a_server(), &a_full_grant()).expect("the bot grant is written");
+
+		let served = served(&root, &bot).expect("the grants are readable");
+
+		let grant = served.get("granola").expect("granola is served a grant");
+		assert_eq!(grant.scope, a_server());
+		assert_eq!(grant.held.get(OAUTH_ACCESS_TOKEN).map(String::as_str), Some("granted"));
+		assert_eq!(
+			store::resolve(&root, &bot).expect("the env resolves").per_server["granola"]
+				[OAUTH_ACCESS_TOKEN],
+			"granted"
+		);
 	}
 
 	#[test]

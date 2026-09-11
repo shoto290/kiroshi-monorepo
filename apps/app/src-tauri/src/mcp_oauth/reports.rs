@@ -55,6 +55,13 @@ impl ConnectorReports {
 			.insert((bot_id.to_owned(), name.to_owned()), standing);
 	}
 
+	pub fn forget(&self, name: &str) {
+		self.held
+			.lock()
+			.unwrap_or_else(PoisonError::into_inner)
+			.retain(|(_, held), _| held != name);
+	}
+
 	pub fn last(&self, bot_id: &str, name: &str) -> Option<Standing> {
 		self.held
 			.lock()
@@ -153,5 +160,19 @@ mod tests {
 		assert_eq!(reports.last("b1", "granola"), Some(Standing::Holding));
 		assert_eq!(reports.last("b2", "granola"), Some(Standing::Holding));
 		assert_eq!(reports.last("b1", "clock"), None);
+	}
+
+	#[test]
+	fn forgetting_a_server_drops_its_standing_for_every_bot_and_keeps_the_rest() {
+		let reports = ConnectorReports::default();
+		reports.record("b1", "granola", Standing::NeedsAuth);
+		reports.record("b2", "granola", Standing::Holding);
+		reports.record("b1", "clock", Standing::Holding);
+
+		reports.forget("granola");
+
+		assert_eq!(reports.last("b1", "granola"), None);
+		assert_eq!(reports.last("b2", "granola"), None);
+		assert_eq!(reports.last("b1", "clock"), Some(Standing::Holding));
 	}
 }

@@ -4,7 +4,7 @@ use std::path::{Path, PathBuf};
 
 use tokio::sync::Mutex;
 
-use super::credentials;
+use super::credentials::{self, ServedGrant};
 use crate::agent::contract::TransportError;
 use crate::agent::protocol::{
 	Authorized, OauthCredentials, OauthFailure, OauthFailureKind, RefreshRequest,
@@ -69,20 +69,20 @@ where
 	Exchanged: Future<Output = Result<Authorized, TransportError>>,
 {
 	let mut awaiting = BTreeSet::new();
-	for scope in store::server_scopes(root, owner)? {
-		let EnvScope::Server { name, .. } = &scope else {
+	for (name, ServedGrant { scope, held }) in credentials::served(root, owner)? {
+		let Some(url) = urls.get(&name) else {
 			continue;
 		};
-		let Some(url) = urls.get(name) else {
-			continue;
-		};
-		let awaits = match standing(&store::values(root, &scope)?, url, now) {
+		let awaits = match standing(&held, url, now) {
 			Standing::Served => false,
 			Standing::Expired => true,
-			Standing::Refreshable(request) => awaits_after(root, &scope, exchange(request).await),
+			Standing::Refreshable(request) => {
+				let sent = request.refresh_token.clone();
+				awaits_after(root, &scope, &sent, exchange(request).await)
+			}
 		};
 		if awaits {
-			awaiting.insert(name.clone());
+			awaiting.insert(name);
 		}
 	}
 	Ok(awaiting)
@@ -107,16 +107,18 @@ fn standing(held: &Values, url: &str, now: i64) -> Standing {
 	}
 }
 
-fn awaits_after(root: &Path, scope: &EnvScope, answer: Result<Authorized, TransportError>) -> bool {
+fn awaits_after(
+	root: &Path,
+	scope: &EnvScope,
+	sent: &str,
+	answer: Result<Authorized, TransportError>,
+) -> bool {
 	match answer {
 		Ok(Authorized { credentials: Some(grant), .. }) => renewal_lost(root, scope, &grant),
 		Ok(Authorized {
 			error: Some(OauthFailure { kind: OauthFailureKind::Rejected, detail }),
 			..
-		}) => {
-			forgotten(root, scope, detail);
-			true
-		}
+		}) => refused(root, scope, sent, detail),
 		Ok(Authorized { error, .. }) => {
 			let detail = error.and_then(|failure| failure.detail);
 			eprintln!("the grant of {scope:?} was not refreshed: {}", reason(detail));
@@ -137,8 +139,22 @@ fn renewal_lost(root: &Path, scope: &EnvScope, grant: &OauthCredentials) -> bool
 	true
 }
 
-fn forgotten(root: &Path, scope: &EnvScope, detail: Option<String>) {
+fn refused(root: &Path, scope: &EnvScope, sent: &str, detail: Option<String>) -> bool {
 	eprintln!("the authorization server refused to refresh {scope:?}: {}", reason(detail));
+	match store::values(root, scope) {
+		Ok(held) if held.get(OAUTH_REFRESH_TOKEN).map(String::as_str) == Some(sent) => {
+			forgotten(root, scope);
+			true
+		}
+		Ok(_) => false,
+		Err(error) => {
+			eprintln!("the grant of {scope:?} could not be read again, so it stands: {error:?}");
+			false
+		}
+	}
+}
+
+fn forgotten(root: &Path, scope: &EnvScope) {
 	if let Err(error) = credentials::forget(root, scope) {
 		eprintln!("the refused grant of {scope:?} could not be deleted: {error:?}");
 	}
@@ -332,6 +348,76 @@ mod tests {
 		assert_eq!(undeclared.expect("the pass reads the store"), BTreeSet::new());
 		assert_eq!(asked.get(), 0);
 		assert_eq!(held(&root).len(), RESERVED_NAMES.len());
+	}
+
+	fn granola_of_the_space() -> EnvScope {
+		EnvScope::Server {
+			name: "granola".to_owned(),
+			owner: EnvOwner::Space { id: "s1".to_owned() },
+		}
+	}
+
+	#[tokio::test]
+	async fn a_live_bot_grant_keeps_the_server_in_and_sends_no_refresh_for_the_space() {
+		let root = a_root("space-shadowed");
+		credentials::store(&root, &granola_of_the_space(), &a_grant(NOW, Some("space-refresh")))
+			.expect("the space grant is written");
+		credentials::store(&root, &granola(), &a_grant(NOW + 3_600_000, Some("held-refresh")))
+			.expect("the bot grant is written");
+		let space_before =
+			store::values(&root, &granola_of_the_space()).expect("the scope is readable");
+		let asked = Cell::new(0);
+
+		let awaiting = awaiting_authorization(&root, &a_bot(), &declared(), NOW, |_| {
+			asked.set(asked.get() + 1);
+			async { answering(OauthFailureKind::Rejected) }
+		})
+		.await
+		.expect("the pass reads the store");
+
+		assert!(awaiting.is_empty());
+		assert_eq!(asked.get(), 0);
+		assert_eq!(
+			store::values(&root, &granola_of_the_space()).expect("the scope is readable"),
+			space_before
+		);
+	}
+
+	#[tokio::test]
+	async fn the_standing_is_read_from_the_served_bot_grant_and_not_the_live_space_one() {
+		let root = a_root("bot-served");
+		credentials::store(&root, &granola_of_the_space(), &a_grant(NOW + 3_600_000, None))
+			.expect("the space grant is written");
+		credentials::store(&root, &granola(), &a_grant(NOW, None))
+			.expect("the bot grant is written");
+
+		let awaiting = awaiting_authorization(&root, &a_bot(), &declared(), NOW, |_| async {
+			answering(OauthFailureKind::Failed)
+		})
+		.await
+		.expect("the pass reads the store");
+
+		assert_eq!(awaiting, BTreeSet::from(["granola".to_owned()]));
+	}
+
+	#[tokio::test]
+	async fn a_refusal_leaves_a_grant_that_moved_under_the_refresh_as_it_stands() {
+		let root = a_root("moved");
+		credentials::store(&root, &granola(), &a_grant(NOW, Some("held-refresh")))
+			.expect("the grant is written");
+
+		let awaiting = awaiting_authorization(&root, &a_bot(), &declared(), NOW, |_| {
+			credentials::store(&root, &granola(), &renewed()).expect("a connect lands meanwhile");
+			async { answering(OauthFailureKind::Rejected) }
+		})
+		.await
+		.expect("the pass reads the store");
+
+		assert!(awaiting.is_empty());
+		let kept = held(&root);
+		assert_eq!(kept.get(OAUTH_ACCESS_TOKEN).map(String::as_str), Some("renewed-access"));
+		assert_eq!(kept.get(OAUTH_REFRESH_TOKEN).map(String::as_str), Some("renewed-refresh"));
+		assert_eq!(kept.len(), RESERVED_NAMES.len());
 	}
 
 	#[test]

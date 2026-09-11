@@ -1,10 +1,11 @@
+use std::path::Path;
 use std::sync::{Mutex, MutexGuard, PoisonError};
 
 use tauri::{AppHandle, Manager, Runtime};
 use tauri_plugin_opener::OpenerExt;
 
 use super::contract::{Disconnected, OauthError};
-use super::credentials;
+use super::credentials::{self, ServedGrants};
 use super::reports::{ConnectorReports, Standing};
 use super::status::{status, ConnectorRow, Evidence};
 use crate::agent::commands::AgentState;
@@ -108,11 +109,23 @@ pub async fn mcp_oauth_connect<R: Runtime>(
 	url: String,
 ) -> Result<(), OauthError> {
 	let state = app.state::<McpOauthState>();
-	let scope = EnvScope::Server { name, owner };
+	let scope = EnvScope::Server { name: name.clone(), owner };
 	let _running = state.begin(Flow::Authorizing(scope.clone()))?;
 	let root = writable_root(&app)?;
 	let credentials = granted(&app, &url).await?;
-	Ok(credentials::store(&root, &scope, &credentials)?)
+	kept(&root, &scope, &name, &credentials, &app.state::<ConnectorReports>())
+}
+
+fn kept(
+	root: &Path,
+	scope: &EnvScope,
+	name: &str,
+	grant: &OauthCredentials,
+	reports: &ConnectorReports,
+) -> Result<(), OauthError> {
+	credentials::store(root, scope, grant)?;
+	reports.forget(name);
+	Ok(())
 }
 
 #[tauri::command]
@@ -132,11 +145,21 @@ pub async fn mcp_oauth_disconnect<R: Runtime>(
 ) -> Result<Disconnected, OauthError> {
 	let state = app.state::<McpOauthState>();
 	let _running = state.begin(Flow::Revoking)?;
-	let root = writable_root(&app)?;
-	let scope = EnvScope::Server { name, owner };
-	let held = store::values(&root, &scope)?;
-	let revocation = revoked(&app, &url, &held).await;
-	credentials::forget(&root, &scope)?;
+	let scope = EnvScope::Server { name: name.clone(), owner };
+	let settled = disconnected(&app, &scope, &url).await;
+	app.state::<ConnectorReports>().forget(&name);
+	settled
+}
+
+async fn disconnected<R: Runtime>(
+	app: &AppHandle<R>,
+	scope: &EnvScope,
+	url: &str,
+) -> Result<Disconnected, OauthError> {
+	let root = writable_root(app)?;
+	let held = store::values(&root, scope)?;
+	let revocation = revoked(app, url, &held).await;
+	credentials::forget(&root, scope)?;
 	Ok(revocation)
 }
 
@@ -146,21 +169,36 @@ pub async fn mcp_connector_status<R: Runtime>(
 	owner: EnvOwner,
 ) -> Result<Vec<ConnectorRow>, EnvError> {
 	let root = writable_root(&app)?;
-	let served = store::resolve(&root, &owner)?;
-	let flows = app.state::<McpOauthState>();
-	let reports = app.state::<ConnectorReports>();
-	let now = now_ms();
-	let row = |server: McpServer| {
-		let scope = EnvScope::Server { name: server.name.clone(), owner: owner.clone() };
+	let grants = credentials::served(&root, &owner)?;
+	let readings = Readings {
+		owner: &owner,
+		flows: &app.state::<McpOauthState>(),
+		reports: &app.state::<ConnectorReports>(),
+		grants: &grants,
+		now: now_ms(),
+	};
+	Ok(declared_servers(&app, &owner)?.into_iter().map(|server| readings.row(server)).collect())
+}
+
+struct Readings<'a> {
+	owner: &'a EnvOwner,
+	flows: &'a McpOauthState,
+	reports: &'a ConnectorReports,
+	grants: &'a ServedGrants,
+	now: i64,
+}
+
+impl Readings<'_> {
+	fn row(&self, server: McpServer) -> ConnectorRow {
+		let scope = EnvScope::Server { name: server.name.clone(), owner: self.owner.clone() };
 		let evidence = Evidence {
-			is_authorizing: flows.is_authorizing(&scope),
-			reported: last_reported(&reports, &owner, &server.name),
-			held: served.per_server.get(&server.name).cloned().unwrap_or_default(),
+			is_authorizing: self.flows.is_authorizing(&scope),
+			reported: last_reported(self.reports, self.owner, &server.name),
+			held: self.grants.get(&server.name).map(|grant| grant.held.clone()).unwrap_or_default(),
 			declares_url: server.url().is_some(),
 		};
-		ConnectorRow { status: status(evidence, now), name: server.name }
-	};
-	Ok(declared_servers(&app, &owner)?.into_iter().map(row).collect())
+		ConnectorRow { status: status(evidence, self.now), name: server.name }
+	}
 }
 
 fn last_reported(reports: &ConnectorReports, owner: &EnvOwner, name: &str) -> Option<Standing> {
@@ -206,6 +244,7 @@ async fn revoked<R: Runtime>(app: &AppHandle<R>, url: &str, held: &Values) -> Di
 #[cfg(test)]
 mod tests {
 	use super::*;
+	use crate::mcp_oauth::status::ConnectorStatus;
 
 	fn a_server(name: &str) -> EnvScope {
 		EnvScope::Server {
@@ -244,6 +283,75 @@ mod tests {
 		drop(running);
 
 		assert!(!state.is_authorizing(&a_server("granola")));
+	}
+
+	fn a_live_grant() -> OauthCredentials {
+		OauthCredentials {
+			access_token: "granted".to_owned(),
+			refresh_token: Some("renewable".to_owned()),
+			expires_at: Some(now_ms() + 3_600_000),
+			client_id: "registered".to_owned(),
+			client_secret: None,
+		}
+	}
+
+	#[test]
+	fn a_server_a_session_reported_waiting_reads_connected_once_the_person_authorizes_it() {
+		let root = std::env::temp_dir().join("kiroshi-mcp-oauth-connect-clears");
+		let _ = std::fs::remove_dir_all(&root);
+		let owner = EnvOwner::Bot { id: "b1".to_owned(), space_id: "s1".to_owned() };
+		let reports = ConnectorReports::default();
+		reports.record("b1", "granola", Standing::NeedsAuth);
+		reports.record("b2", "granola", Standing::NeedsAuth);
+		reports.record("b1", "clock", Standing::Holding);
+
+		kept(&root, &a_server("granola"), "granola", &a_live_grant(), &reports)
+			.expect("the grant is stored");
+
+		let grants = credentials::served(&root, &owner).expect("the grants are readable");
+		let readings = Readings {
+			owner: &owner,
+			flows: &McpOauthState::default(),
+			reports: &reports,
+			grants: &grants,
+			now: now_ms(),
+		};
+		let granola = McpServer {
+			name: "granola".to_owned(),
+			config: serde_json::json!({ "url": "https://mcp.granola.test/mcp" }),
+		};
+		assert_eq!(readings.row(granola).status, ConnectorStatus::Connected);
+		assert_eq!(reports.last("b2", "granola"), None);
+		assert_eq!(reports.last("b1", "clock"), Some(Standing::Holding));
+	}
+
+	#[tokio::test]
+	async fn a_settled_disconnect_forgets_every_standing_of_that_server() {
+		let app = tauri::test::mock_app();
+		app.manage(McpOauthState::default());
+		app.manage(ConnectorReports::default());
+		let reports = app.state::<ConnectorReports>();
+		reports.record("b-disconnect-test", "granola", Standing::Holding);
+		reports.record("b-other", "granola", Standing::NeedsAuth);
+		reports.record("b-disconnect-test", "clock", Standing::Holding);
+		let owner =
+			EnvOwner::Bot { id: "b-disconnect-test".to_owned(), space_id: "s-test".to_owned() };
+
+		let settled = mcp_oauth_disconnect(
+			app.handle().clone(),
+			owner,
+			"granola".to_owned(),
+			"https://mcp.granola.test/mcp".to_owned(),
+		)
+		.await;
+
+		assert_eq!(
+			settled,
+			Ok(Disconnected { revoked: false, detail: Some(NOTHING_STORED.to_owned()) })
+		);
+		assert_eq!(reports.last("b-disconnect-test", "granola"), None);
+		assert_eq!(reports.last("b-other", "granola"), None);
+		assert_eq!(reports.last("b-disconnect-test", "clock"), Some(Standing::Holding));
 	}
 
 	#[test]
