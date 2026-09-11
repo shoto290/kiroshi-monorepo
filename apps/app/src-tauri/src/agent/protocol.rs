@@ -351,3 +351,95 @@ pub struct Titled {
 	#[serde(default)]
 	pub title: Option<String>,
 }
+
+pub const OAUTH_AUTHORIZE: &str = "mcp_oauth_authorize";
+pub const OAUTH_STARTED: &str = "oauth_started";
+pub const OAUTH_CANCEL: &str = "mcp_oauth_cancel";
+pub const OAUTH_REVOKE: &str = "mcp_oauth_revoke";
+
+#[derive(Debug, Clone, Serialize)]
+#[serde(rename_all = "camelCase")]
+pub struct RevocationRequest {
+	pub url: String,
+	pub token: String,
+	#[serde(skip_serializing_if = "Option::is_none")]
+	pub refresh_token: Option<String>,
+	#[serde(skip_serializing_if = "Option::is_none")]
+	pub client_id: Option<String>,
+	#[serde(skip_serializing_if = "Option::is_none")]
+	pub client_secret: Option<String>,
+}
+
+pub fn oauth_authorize_command(url: &str) -> Value {
+	serde_json::json!({ "type": OAUTH_AUTHORIZE, "url": url })
+}
+
+pub fn oauth_cancel_command() -> Value {
+	serde_json::json!({ "type": OAUTH_CANCEL })
+}
+
+pub fn oauth_revoke_command(request: &RevocationRequest) -> Value {
+	let mut frame = serde_json::json!({ "type": OAUTH_REVOKE });
+	if let (Some(frame), Ok(Value::Object(body))) =
+		(frame.as_object_mut(), serde_json::to_value(request))
+	{
+		frame.extend(body);
+	}
+	frame
+}
+
+#[derive(Debug, Clone, Deserialize)]
+#[serde(rename_all = "camelCase")]
+pub struct OauthStarted {
+	pub url: String,
+}
+
+#[derive(Debug, Clone, Copy, PartialEq, Eq, Deserialize)]
+#[serde(rename_all = "camelCase")]
+pub enum OauthFailureKind {
+	Busy,
+	Cancelled,
+	TimedOut,
+	Denied,
+	#[serde(other)]
+	Failed,
+}
+
+#[derive(Debug, Clone, Deserialize)]
+#[serde(rename_all = "camelCase")]
+pub struct OauthFailure {
+	pub kind: OauthFailureKind,
+	#[serde(default)]
+	pub detail: Option<String>,
+}
+
+#[derive(Debug, Clone, Deserialize)]
+#[serde(rename_all = "camelCase")]
+pub struct OauthCredentials {
+	pub access_token: String,
+	#[serde(default)]
+	pub refresh_token: Option<String>,
+	#[serde(default)]
+	pub expires_at: Option<i64>,
+	pub client_id: String,
+	#[serde(default)]
+	pub client_secret: Option<String>,
+}
+
+#[derive(Debug, Clone, Deserialize)]
+#[serde(rename_all = "camelCase")]
+pub struct Authorized {
+	#[serde(default)]
+	pub credentials: Option<OauthCredentials>,
+	#[serde(default)]
+	pub error: Option<OauthFailure>,
+}
+
+#[derive(Debug, Clone, Deserialize)]
+#[serde(rename_all = "camelCase")]
+pub struct Revoked {
+	#[serde(default, deserialize_with = "null_as_default")]
+	pub revoked: bool,
+	#[serde(default)]
+	pub detail: Option<String>,
+}

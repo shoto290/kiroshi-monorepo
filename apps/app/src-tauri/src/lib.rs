@@ -6,6 +6,7 @@ pub mod commands;
 pub mod conversations;
 pub mod db;
 pub mod environment;
+pub mod mcp_oauth;
 pub mod missions;
 pub mod notifications;
 pub mod routines;
@@ -42,6 +43,7 @@ pub fn run() {
 		.plugin(tauri_plugin_notification::init())
 		.plugin(tauri_plugin_os::init())
 		.manage(AgentState::default())
+		.manage(mcp_oauth::commands::McpOauthState::default())
 		.setup(|app| {
 			app.manage(db::bootstrap(app.handle()));
 			if let Some(window) = app.get_webview_window("main") {

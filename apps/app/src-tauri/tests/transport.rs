@@ -10,7 +10,7 @@ use kiroshi_app::agent::contract::{
 	PermissionDecision, PermissionRequest, QuestionRequest, TransportError, TurnOutcome, TurnState,
 };
 use kiroshi_app::agent::session::{EventSink, Session, SessionOptions, PARTIAL_MESSAGES};
-use kiroshi_app::agent::sidecar::{self, Sidecar, SidecarOptions, SHUTDOWN_GRACE};
+use kiroshi_app::agent::sidecar::{self, Opening, Sidecar, SidecarOptions, SHUTDOWN_GRACE};
 use tokio::sync::mpsc;
 
 const FAKE_SIDECAR: &str = env!("CARGO_BIN_EXE_fake_sidecar");
@@ -889,4 +889,77 @@ async fn terminating_takes_the_whole_process_group_down() {
 #[cfg(unix)]
 fn is_alive(pid: i32) -> bool {
 	unsafe { libc::kill(pid, 0) == 0 }
+}
+
+fn a_cancel_file(name: &str) -> PathBuf {
+	let path =
+		std::env::temp_dir().join(format!("kiroshi-oauth-cancel-{name}-{}", std::process::id()));
+	let _ = std::fs::remove_file(&path);
+	path
+}
+
+#[tokio::test]
+async fn a_flow_the_sidecar_settles_before_it_opens_a_url_answers_that_reason() {
+	let sidecar = sidecar_with(&[("FAKE_AGENT_OAUTH_SETTLES_FIRST", "1")]).await;
+
+	let mut flow = sidecar.begin_oauth("https://mcp.granola.test/mcp").expect("the flow starts");
+	let opened = tokio::time::timeout(DEADLINE, flow.opened())
+		.await
+		.expect("no separate oauth_started deadline holds the flow")
+		.expect("the settle reaches the caller");
+
+	match opened {
+		Opening::Settled(settled) => {
+			assert!(settled.credentials.is_none());
+			assert_eq!(
+				settled.error.expect("the settle names a reason").detail.as_deref(),
+				Some("discovery was refused")
+			);
+		}
+		Opening::Authorization(url) => panic!("the flow named a url it never had: {url}"),
+	}
+}
+
+#[tokio::test]
+async fn a_flow_dropped_before_it_settled_cancels_itself_on_the_sidecar() {
+	let cancel_file = a_cancel_file("dropped");
+	let sidecar = sidecar_with(&[(
+		"FAKE_AGENT_OAUTH_CANCEL_FILE",
+		cancel_file.to_str().expect("a printable path"),
+	)])
+	.await;
+
+	let mut flow = sidecar.begin_oauth("https://mcp.granola.test/mcp").expect("the flow starts");
+	let opened = tokio::time::timeout(DEADLINE, flow.opened())
+		.await
+		.expect("the url arrives")
+		.expect("the url reaches the caller");
+	assert!(matches!(opened, Opening::Authorization(_)));
+
+	drop(flow);
+
+	poll_until("the cancel to reach the sidecar", || cancel_file.is_file()).await;
+	let _ = std::fs::remove_file(&cancel_file);
+}
+
+#[tokio::test]
+async fn a_flow_the_caller_saw_settle_sends_no_cancel() {
+	let cancel_file = a_cancel_file("settled");
+	let sidecar = sidecar_with(&[
+		("FAKE_AGENT_OAUTH_SETTLES_FIRST", "1"),
+		("FAKE_AGENT_OAUTH_CANCEL_FILE", cancel_file.to_str().expect("a printable path")),
+	])
+	.await;
+
+	let mut flow = sidecar.begin_oauth("https://mcp.granola.test/mcp").expect("the flow starts");
+	let opened = tokio::time::timeout(DEADLINE, flow.opened())
+		.await
+		.expect("the settle arrives")
+		.expect("the settle reaches the caller");
+	assert!(matches!(opened, Opening::Settled(_)));
+
+	drop(flow);
+	tokio::time::sleep(SETTLE).await;
+
+	assert!(!cancel_file.is_file(), "a settled flow asked the sidecar to cancel");
 }

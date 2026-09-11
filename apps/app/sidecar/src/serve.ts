@@ -2,6 +2,11 @@ import { describeProvider } from "./describe"
 import { describeError } from "./describe-error"
 import type { HostError } from "./host"
 import { closeHostChannel, openHostChannel, settleHostAnswer } from "./host"
+import {
+	authorizeMcpServer,
+	cancelMcpAuthorization,
+	revokeMcpToken,
+} from "./mcp-oauth"
 import { readLines } from "./read-lines"
 
 import type {
@@ -32,6 +37,11 @@ type Command = {
 	serverEnv?: ServerEnv
 	outputSchema?: Record<string, unknown>
 	text?: string
+	url?: string
+	token?: string
+	refreshToken?: string
+	clientId?: string
+	clientSecret?: string
 	requestId?: string
 	decision?: PermissionDecision
 	result?: unknown
@@ -56,6 +66,10 @@ export const sessionRequest = (command: Command): SessionRequest => ({
 	serverEnv: command.serverEnv,
 	outputSchema: command.outputSchema,
 })
+
+const AUTHORIZE = "mcp_oauth_authorize"
+const CANCEL = "mcp_oauth_cancel"
+const REVOKE = "mcp_oauth_revoke"
 
 const write = (payload: unknown) => {
 	process.stdout.write(`${JSON.stringify(payload)}\n`)
@@ -100,7 +114,8 @@ export const serve = async (requestedId?: string) => {
 		closeHostChannel(session)
 	}
 
-	const answerHost = async ({ type, text }: Command) => {
+	const answerHost = async (command: Command) => {
+		const { type, text } = command
 		switch (type) {
 			case "check":
 				return write({ type, ...(await provider.authenticate()) })
@@ -113,6 +128,12 @@ export const serve = async (requestedId?: string) => {
 					type,
 					title: await provider.title(text ?? "").catch(() => null),
 				})
+			case AUTHORIZE:
+				return write({ type, ...(await authorizeMcpServer(command, write)) })
+			case CANCEL:
+				return cancelMcpAuthorization()
+			case REVOKE:
+				return write({ type, ...(await revokeMcpToken(command)) })
 		}
 	}
 

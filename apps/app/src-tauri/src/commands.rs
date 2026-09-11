@@ -1,8 +1,8 @@
 use tauri::Runtime;
 
 use crate::{
-	agent, attachments, conversations, environment, missions, notifications, routines, search,
-	sections, spaces, user,
+	agent, attachments, conversations, environment, mcp_oauth, missions, notifications, routines,
+	search, sections, spaces, user,
 };
 
 pub fn invoke_handler<R: Runtime>() -> impl Fn(tauri::ipc::Invoke<R>) -> bool + Send + Sync + 'static
@@ -71,6 +71,9 @@ pub fn invoke_handler<R: Runtime>() -> impl Fn(tauri::ipc::Invoke<R>) -> bool + 
 		environment::commands::env_set,
 		environment::commands::env_delete,
 		environment::commands::env_list,
+		mcp_oauth::commands::mcp_oauth_connect,
+		mcp_oauth::commands::mcp_oauth_cancel,
+		mcp_oauth::commands::mcp_oauth_disconnect,
 		missions::commands::mission_open,
 		missions::commands::mission_note,
 		missions::commands::mission_escalate,

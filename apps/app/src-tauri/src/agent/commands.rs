@@ -324,7 +324,7 @@ impl AgentState {
 		self.gate.lock().expect("gate").quitting = true;
 	}
 
-	async fn sidecar(&self) -> Result<Arc<Sidecar>, TransportError> {
+	pub async fn sidecar(&self) -> Result<Arc<Sidecar>, TransportError> {
 		let mut slot = self.sidecar.lock().await;
 		if let Some(running) = slot.as_ref().filter(|running| running.is_live()) {
 			return Ok(running.clone());

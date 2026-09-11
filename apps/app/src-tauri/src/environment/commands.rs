@@ -5,7 +5,7 @@ use tauri::{AppHandle, Runtime};
 use super::contract::{EnvEntry, EnvError, EnvScope};
 use super::store;
 
-fn writable_root<R: Runtime>(app: &AppHandle<R>) -> Result<PathBuf, EnvError> {
+pub fn writable_root<R: Runtime>(app: &AppHandle<R>) -> Result<PathBuf, EnvError> {
 	store::root(app).ok_or_else(|| EnvError::Unwritable {
 		detail: "the application data directory is unavailable".to_owned(),
 	})

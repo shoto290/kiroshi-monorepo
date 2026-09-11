@@ -5,6 +5,24 @@ use serde::{Deserialize, Serialize};
 pub type Values = BTreeMap<String, String>;
 pub type PerServer = BTreeMap<String, Values>;
 
+pub const OAUTH_ACCESS_TOKEN: &str = "KIROSHI_OAUTH_ACCESS_TOKEN";
+pub const OAUTH_REFRESH_TOKEN: &str = "KIROSHI_OAUTH_REFRESH_TOKEN";
+pub const OAUTH_EXPIRES_AT: &str = "KIROSHI_OAUTH_EXPIRES_AT";
+pub const OAUTH_CLIENT_ID: &str = "KIROSHI_OAUTH_CLIENT_ID";
+pub const OAUTH_CLIENT_SECRET: &str = "KIROSHI_OAUTH_CLIENT_SECRET";
+
+pub const RESERVED_NAMES: [&str; 5] = [
+	OAUTH_ACCESS_TOKEN,
+	OAUTH_REFRESH_TOKEN,
+	OAUTH_EXPIRES_AT,
+	OAUTH_CLIENT_ID,
+	OAUTH_CLIENT_SECRET,
+];
+
+pub fn is_reserved(name: &str) -> bool {
+	RESERVED_NAMES.contains(&name)
+}
+
 #[derive(Debug, Clone, PartialEq, Eq, Serialize, Deserialize)]
 #[serde(tag = "kind", rename_all = "camelCase")]
 pub enum EnvOwner {
@@ -110,6 +128,15 @@ mod tests {
 				.expect("the scope deserializes"),
 			EnvScope::Space { id: "s1".to_owned() }
 		);
+	}
+
+	#[test]
+	fn every_name_a_grant_writes_is_reserved_and_opens_with_the_one_prefix() {
+		assert_eq!(RESERVED_NAMES.len(), 5);
+		assert!(RESERVED_NAMES.iter().all(|name| name.starts_with("KIROSHI_OAUTH_")));
+		assert!(RESERVED_NAMES.iter().all(|name| is_reserved(name)));
+		assert!(!is_reserved("KIROSHI_OAUTH"));
+		assert!(!is_reserved("GRANOLA_REGION"));
 	}
 
 	#[test]

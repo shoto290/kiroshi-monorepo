@@ -40,8 +40,9 @@ first, as `crashed`.
 
 ## Host → sidecar
 
-Three commands name no session, because they are about the install rather than
-about a conversation. Each is asked once per launch and cached by the host.
+Six commands name no session, because they are about the install or about one MCP
+server rather than about a conversation. The first three are asked once per launch
+and cached by the host.
 
 Each is answered under the type it was asked, so one name stands for the ask and
 its answer both.
@@ -51,6 +52,63 @@ its answer both.
 | `check` | `{"type":"check","authenticated":bool,"detail"?:string}` | the `CheckReport` |
 | `models` | `{"type":"models","models":[…]}` | the model catalogue |
 | `tools` | `{"type":"tools","tools":[…]}` | the tool catalogue |
+| `mcp_oauth_authorize` | `{"type":"mcp_oauth_authorize","credentials"?:{…},"error"?:{"kind":…}}` | the grant `mcp_oauth_connect` stores |
+| `mcp_oauth_cancel` | — | the pending `mcp_oauth_authorize`, settled `cancelled` |
+| `mcp_oauth_revoke` | `{"type":"mcp_oauth_revoke","revoked":bool,"detail"?:string}` | the `Disconnected` a `mcp_oauth_disconnect` answers |
+
+`mcp_oauth_authorize` carries the `url` of an HTTP MCP server and runs the OAuth 2.1
+flow of `@modelcontextprotocol/sdk` against it: RFC 9728 discovery, dynamic client
+registration, PKCE, and the code exchange. A client is registered for every flow and
+never reused, because the `redirect_uri` of the registration names the port that flow
+bound. The redirect listener binds `127.0.0.1` on a port the operating system picks,
+and nothing else: `http://127.0.0.1:<port>/oauth/callback`.
+
+Once the authorization url is built, the sidecar writes one sessionless frame naming
+it, before the flow settles:
+
+```json
+{"type":"oauth_started","url":"https://…/authorize?…"}
+```
+
+The host opens that url in the person's browser. A request reaching the listener whose
+`Host` header names neither `127.0.0.1` nor `localhost`, with or without a port, is
+answered `400` and leaves the flow waiting: nothing else than the loopback names that
+port, so a name resolved to it is a rebinding attempt. So is a request on another path,
+or one carrying a state other than the one that flow generated. A redirect carrying an
+`error` parameter settles the ask as `denied`, naming it. No redirect within 300000 ms
+settles it as `timedOut`, and a `mcp_oauth_cancel` settles it as `cancelled`. However a
+flow settles, its listener is closed and its port freed. One flow at a time: a second
+`mcp_oauth_authorize` is answered `busy`, since one queue of pending answers per command
+type would cross two flows' answers.
+
+An authorization url the metadata builds under a scheme other than `http` or `https` is
+refused before any frame is written: the ask settles naming that scheme and no
+`oauth_started` crosses, since the SDK's own metadata schema turns away `javascript:`,
+`data:` and `vbscript:` and nothing else. The host refuses the same url a second time
+before it reaches a browser, `refusedUrl` naming it.
+
+Once the redirect is answered, the flow settles on the next turn of the loop and the
+listener is closed with its connections rather than waiting on one: a browser holding the
+socket open never delays the connect.
+
+The host holds one deadline for the whole flow and none of its own for `oauth_started`:
+a flow the sidecar settles before it ever built a url, discovery having been refused,
+fails the connect with that reason rather than waiting. Outlasting that deadline is
+`flowTimedOut`, a reason of the flow's own, never the `startupTimeout` a sidecar that
+never announced itself gives. A flow the host lets go of before it saw the settle sends
+`mcp_oauth_cancel` on its way out, so an abandoned invoke never leaves a listener bound.
+
+`credentials` carries `accessToken`, `refreshToken`, `expiresAt` (milliseconds since
+the epoch, and only when the token answer named an `expires_in`), `clientId` and
+`clientSecret`. It is the only place a token, a code verifier or a client secret is
+ever written: nothing of them reaches stderr, disk or any other frame.
+
+`mcp_oauth_revoke` carries the `url`, the `token`, the `refreshToken`, and the `clientId`
+and `clientSecret` the flow registered. It discovers the authorization server again and
+posts each token it was given to the `revocation_endpoint` the metadata advertises, per
+RFC 7009, under its own `token_type_hint`: `access_token`, then `refresh_token`. A
+metadata naming none is answered `{"revoked":false,"detail":…}` rather than a failure,
+and so is the first post to answer a status outside 2xx, that status named.
 
 `check` reads the provider's own credential store; `detail` says the question
 could not be answered at all, which reaches the frontend as `authCheckFailed`
@@ -151,6 +209,16 @@ Every other command names its session.
   nor default leaves its server out of the options and rides a `server_env_rejected`
   frame naming the server and the variable. `failure`, set when the store could not be
   read, leaves out every server declaring a variable and rides the same frame. A server
+  carrying a `url` whose own scope holds `KIROSHI_OAUTH_ACCESS_TOKEN` is handed the header
+  `Authorization: Bearer <that token>`, a server declaring no `${` included; a server
+  already declaring a header named `authorization` under any letter case keeps the value
+  the person wrote. No `.mcp.json` on disk is rewritten for any of it. The five
+  `KIROSHI_OAUTH_` names are the store's own: `env_list` leaves every one of them out of a
+  server scope, so a grant never reads as a variable the person wrote. A `failure` leaves
+  out a server carrying a `url` and no `authorization` header of its own even when it
+  declares no `${`, because the grant it would have been handed is exactly what could not
+  be read: connecting it unauthorized would only settle `needs-auth`. One carrying its own
+  `authorization` header needs nothing of the store and is kept. A server
   the options did keep is read once the session is initialized, for the 5000 ms of the
   poll budget. What that budget settles rides the first prompt: a server it read
   `needs-auth` as waiting for its authorization, on a frame of its own, one it read failed

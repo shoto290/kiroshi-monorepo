@@ -12,6 +12,9 @@ const EXPANDED_FIELDS = ["command", "args", "env", "url", "headers"] as const
 const PLACEHOLDER = /\$\{([A-Z_][A-Z0-9_]*)(?::-([^}]*))?\}/g
 const OPENING = "${"
 
+const ACCESS_TOKEN = "KIROSHI_OAUTH_ACCESS_TOKEN"
+const AUTHORIZATION = "authorization"
+
 export type ResolvedServers = {
 	servers: Servers
 	rejections: string[]
@@ -75,6 +78,34 @@ const expandServer = (
 	return { ...server, ...Object.fromEntries(expanded) } as Server
 }
 
+const declaredHeaders = (server: Server): Values => {
+	const declared = (server as Record<string, unknown>).headers
+	return declared && typeof declared === "object" ? (declared as Values) : {}
+}
+
+const carriesUrl = (server: Server): boolean =>
+	typeof (server as Record<string, unknown>).url === "string"
+
+const declaresAuthorization = (server: Server): boolean =>
+	Object.keys(declaredHeaders(server)).some(
+		(held) => held.toLowerCase() === AUTHORIZATION,
+	)
+
+const needsTheStore = (server: Server): boolean =>
+	declaresVariable(server) ||
+	(carriesUrl(server) && !declaresAuthorization(server))
+
+const authorized = (server: Server, own: Values | undefined): Server => {
+	const token = own?.[ACCESS_TOKEN]
+	if (!token || !carriesUrl(server) || declaresAuthorization(server)) {
+		return server
+	}
+	return {
+		...server,
+		headers: { ...declaredHeaders(server), Authorization: `Bearer ${token}` },
+	} as Server
+}
+
 const LEFT_OUT = "was left out"
 
 export const leftOut = (name: string, reason: string) =>
@@ -89,26 +120,23 @@ export const resolveServers = (
 	const kept: Servers = {}
 	const rejections: string[] = []
 	for (const [name, server] of Object.entries(servers)) {
-		if (!declaresVariable(server)) {
-			kept[name] = server
-			continue
-		}
-		if (env.failure) {
+		const own = env.perServer?.[name]
+		if (env.failure && needsTheStore(server)) {
 			rejections.push(leftOut(name, UNREADABLE_STORE))
 			continue
 		}
+		if (!declaresVariable(server)) {
+			kept[name] = authorized(server, own)
+			continue
+		}
 		const missing: string[] = []
-		const expanded = expandServer(
-			server,
-			{ ...env.base, ...env.perServer?.[name] },
-			missing,
-		)
+		const expanded = expandServer(server, { ...env.base, ...own }, missing)
 		const [absent] = missing
 		if (absent) {
 			rejections.push(leftOut(name, `${absent} is defined by no scope`))
 			continue
 		}
-		kept[name] = expanded
+		kept[name] = authorized(expanded, own)
 	}
 	if (env.failure && rejections.length) {
 		return { servers: kept, rejections: [env.failure, ...rejections] }
