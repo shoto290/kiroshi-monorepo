@@ -1,4 +1,4 @@
-use std::collections::{HashMap, HashSet};
+use std::collections::{BTreeSet, HashMap, HashSet};
 use std::path::{Path, PathBuf};
 use std::sync::Arc;
 
@@ -18,7 +18,7 @@ use crate::conversations::commands::space_of_the_conversation;
 use crate::db;
 use crate::db::repositories::conversations::Bot as StoredBot;
 use crate::db::repositories::runtime_context::ParticipantKey;
-use crate::environment::contract::{EnvOwner, ResolvedEnv};
+use crate::environment::contract::{EnvError, EnvOwner, ResolvedEnv};
 use crate::environment::store as environment;
 use crate::mcp_oauth::refresh;
 use crate::mcp_oauth::reports::ConnectorHost;
@@ -468,10 +468,15 @@ async fn served_environment<R: Runtime>(
 	};
 	let owner = EnvOwner::Bot { id: bot_id.to_owned(), space_id: space_id.to_owned() };
 	let needs_authorization = refresh::before_open(&root, &owner, serving, sidecar).await;
-	environment::resolve(&root, &owner).map_or_else(
-		|_| ResolvedEnv::failed(ENV_UNREADABLE),
-		|resolved| ResolvedEnv { needs_authorization, ..resolved },
-	)
+	awaiting_served(environment::resolve(&root, &owner), needs_authorization)
+}
+
+fn awaiting_served(
+	resolved: Result<ResolvedEnv, EnvError>,
+	needs_authorization: BTreeSet<String>,
+) -> ResolvedEnv {
+	let resolved = resolved.unwrap_or_else(|_| ResolvedEnv::failed(ENV_UNREADABLE));
+	ResolvedEnv { needs_authorization, ..resolved }
 }
 
 async fn runtime_identity<R: Runtime>(
@@ -804,6 +809,29 @@ pub async fn agent_shutdown<R: Runtime>(
 mod tests {
 	use super::*;
 	use crate::db::repositories::runtime_context::RuntimeSessionStatus;
+
+	#[test]
+	fn the_names_awaiting_authorization_reach_the_session_when_the_store_cannot_be_read() {
+		let awaiting = BTreeSet::from(["granola".to_owned()]);
+
+		let served = awaiting_served(
+			Err(EnvError::Unreadable { detail: "the disk is gone".to_owned() }),
+			awaiting.clone(),
+		);
+
+		assert_eq!(served.needs_authorization, awaiting);
+		assert_eq!(served.failure.as_deref(), Some(ENV_UNREADABLE));
+	}
+
+	#[test]
+	fn the_names_awaiting_authorization_ride_a_store_that_was_read() {
+		let awaiting = BTreeSet::from(["granola".to_owned()]);
+
+		let served = awaiting_served(Ok(ResolvedEnv::default()), awaiting.clone());
+
+		assert_eq!(served.needs_authorization, awaiting);
+		assert_eq!(served.failure, None);
+	}
 
 	fn a_fresh_app_data(name: &str) -> PathBuf {
 		let app_data = std::env::temp_dir().join(format!("kiroshi-app-data-{name}"));

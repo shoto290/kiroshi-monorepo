@@ -88,6 +88,21 @@ describe("resolveServers", () => {
 		)
 	})
 
+	it("still leaves out a server waiting for authorization when the store could not be read", () => {
+		const { rejections } = resolveServers(
+			{ granola },
+			{
+				needsAuthorization: ["granola"],
+				failure: "the environment store could not be read",
+			},
+		)
+
+		expect(rejections).toContainEqual({
+			detail: leftOut("granola", AWAITING_AUTH),
+			state: "needs-auth",
+		})
+	})
+
 	it("leaves out a server the host named as needing authorization, as a read of needs-auth would", () => {
 		const { servers, rejections } = resolveServers(
 			{ granola, plain },
