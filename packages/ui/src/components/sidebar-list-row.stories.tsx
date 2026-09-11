@@ -17,6 +17,7 @@ import {
 	SidebarGroupContent,
 	SidebarInset,
 	SidebarMenu,
+	SidebarMenuButton,
 	SidebarMenuItem,
 	SidebarProvider,
 	SidebarTrigger,
@@ -127,6 +128,13 @@ const translateOf = (element: HTMLElement) =>
 	getComputedStyle(element).translate
 
 const isInBrowserRunner = () => "__vitest_browser__" in globalThis
+
+const skinOf = (element: HTMLElement) => {
+	const style = getComputedStyle(element)
+	return { background: style.backgroundColor, ring: style.boxShadow }
+}
+
+const realPointer = async () => (await import("vitest/browser")).userEvent
 
 const holdPointerOn = async (
 	target: HTMLElement,
@@ -356,6 +364,111 @@ export const WithStrips = meta.story({
 		const strips = slotIn(rowIn(canvasElement), "roster-row-missions")
 
 		await expect(strips?.children).toHaveLength(STRIPS.length)
+	},
+})
+
+export const AllSlots = meta.story({
+	args: {
+		media: AVATAR,
+		trailing: (
+			<BotTitleBadge
+				className="max-w-16"
+				data-slot="roster-row-badge"
+				title="Research"
+			/>
+		),
+		timestamp: "09:24",
+		preview: "Pulled the papers for the brief.",
+		badge: "attention",
+		strips: STRIPS,
+	},
+	parameters: {
+		a11y: A11Y_CONTRAST_AWAITING_DESIGN_DECISION,
+		docs: {
+			description: {
+				story:
+					"The row carrying every slot at once: media, a trailing badge, a timestamp, a preview, a badge dot and strips. Check that with all of them drawn nothing inside the button is a block element, since a `button` may only hold phrasing content. Pick `NameOnly` for the same rule on the bare row.",
+			},
+		},
+	},
+	play: async ({ canvasElement }) => {
+		const row = rowIn(canvasElement)
+
+		for (const slot of [
+			"bot-identity-avatar",
+			"roster-row-badge",
+			"roster-row-timestamp",
+			"roster-row-preview",
+			"bot-activity-dot",
+			"roster-row-missions",
+		])
+			await expect(slotIn(row, slot)).not.toBeNull()
+		await expect(row.querySelectorAll(NON_PHRASING)).toHaveLength(0)
+	},
+})
+
+export const SkinMatchesMenuButton = meta.story({
+	args: {
+		media: AVATAR,
+		timestamp: "09:24",
+		preview: "Pulled the papers for the brief.",
+	},
+	render: (args) => (
+		<Shell>
+			<SidebarMenuItem>
+				<SidebarListRow {...args} />
+			</SidebarMenuItem>
+			<SidebarMenuItem>
+				<SidebarMenuButton>Launch review</SidebarMenuButton>
+			</SidebarMenuItem>
+			<SidebarMenuItem>
+				<SidebarListRow {...args} isActive name="Beacon" />
+			</SidebarMenuItem>
+			<SidebarMenuItem>
+				<SidebarMenuButton isActive>Transport migration</SidebarMenuButton>
+			</SidebarMenuItem>
+		</Shell>
+	),
+	parameters: {
+		docs: {
+			description: {
+				story:
+					"The row beside a bare registry sidebar menu button in the same panel, each at rest and selected. The play reads the background and the ring off both rendered elements at rest, on keyboard focus, under a real pointer hover and while selected, and requires them equal, so an `Item` class that survived the merge cannot repaint the row. The hover step needs the Vitest browser runner; in Storybook, hover both by hand.",
+			},
+		},
+	},
+	play: async ({ canvas, canvasElement, userEvent }) => {
+		const [row, bare, selectedRow, selectedBare] = rowsIn(canvasElement)
+		await expect(slotIn(bare, "roster-row-name")).toBeNull()
+
+		if (isInBrowserRunner())
+			await (await realPointer()).hover(
+				canvas.getByRole("button", { name: "Toggle the panel" }),
+			)
+
+		const rest = skinOf(bare)
+		await expect(skinOf(row)).toEqual(rest)
+		await expect(skinOf(selectedRow)).toEqual(skinOf(selectedBare))
+		await expect(skinOf(selectedBare).background).not.toBe(rest.background)
+
+		await userEvent.tab()
+		await expect(row.matches(":focus-visible")).toBe(true)
+		const focusedRow = skinOf(row)
+		await userEvent.tab()
+		await expect(bare.matches(":focus-visible")).toBe(true)
+		await expect(focusedRow).toEqual(skinOf(bare))
+		await expect(focusedRow.ring).not.toBe(rest.ring)
+		bare.blur()
+
+		if (!isInBrowserRunner()) return
+		const pointer = await realPointer()
+		await pointer.hover(row)
+		await waitFor(() => expect(row.matches(":hover")).toBe(true))
+		const hoveredRow = skinOf(row)
+		await pointer.hover(bare)
+		await waitFor(() => expect(bare.matches(":hover")).toBe(true))
+		await expect(hoveredRow).toEqual(skinOf(bare))
+		await expect(hoveredRow.background).not.toBe(rest.background)
 	},
 })
 
