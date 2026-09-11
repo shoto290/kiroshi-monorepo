@@ -11,10 +11,8 @@
       (() => {
         const root = document.documentElement
         const darkQuery = window.matchMedia("(prefers-color-scheme: dark)")
-        const applyScheme = () => {
+        const applyScheme = () =>
           root.classList.toggle("dark", darkQuery.matches)
-          root.classList.toggle("light", !darkQuery.matches)
-        }
 
         applyScheme()
         darkQuery.addEventListener("change", applyScheme)
