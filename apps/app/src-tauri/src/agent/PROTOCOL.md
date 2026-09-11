@@ -59,7 +59,10 @@ its answer both.
 
 `mcp_oauth_refresh` answers `rejected` only when the token endpoint names `invalid_grant`,
 `invalid_client` or `unauthorized_client`. Any other OAuth error, an answer carrying none,
-and an authority that was never reached are `failed`, and the stored grant stands.
+and an authority that was never reached are `failed`, and the stored grant stands. The
+sidecar bounds the whole refresh at 10000 ms and answers `failed` once it outlasts that.
+The host waits 12000 ms, longer than the sidecar's bound, so an answer never lands late on
+the ask of the next refresh.
 
 `mcp_oauth_authorize` carries the `url` of an HTTP MCP server and runs the OAuth 2.1
 flow of `@modelcontextprotocol/sdk` against it: RFC 9728 discovery, dynamic client

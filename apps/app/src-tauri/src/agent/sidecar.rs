@@ -36,7 +36,7 @@ pub const OAUTH_FLOW_TIMEOUT: Duration = Duration::from_secs(310);
 
 const OAUTH_REVOKE_TIMEOUT: Duration = Duration::from_secs(60);
 
-const OAUTH_REFRESH_TIMEOUT: Duration = Duration::from_secs(60);
+const OAUTH_REFRESH_TIMEOUT: Duration = Duration::from_secs(12);
 
 pub const SHUTDOWN_GRACE: Duration = Duration::from_secs(3);
 const TERMINATE_GRACE: Duration = Duration::from_millis(500);

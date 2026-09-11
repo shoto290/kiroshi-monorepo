@@ -5,6 +5,7 @@ import {
 	cancelMcpAuthorization,
 	OAUTH_STARTED,
 	type OauthAnswer,
+	REFRESH_TIMEOUT_MS,
 	refreshMcpToken,
 	revokeMcpToken,
 } from "./mcp-oauth"
@@ -17,6 +18,7 @@ const EXPIRES_IN = 3600
 const CODE = "the-authorization-code"
 const HELD_REFRESH_TOKEN = "held-refresh-token"
 const REFUSED_GRANT = "the refresh token was revoked"
+const HANG_BOUND_MS = 300
 const AUTHORIZATION_BUDGET_MS = 10_000
 const TIMEOUT_FLOW_MS = 2_000
 
@@ -46,11 +48,13 @@ const anAuthorizationServer = ({
 	revocable = true,
 	revocationStatus = 200,
 	tokenRefusal,
+	tokenHangs = false,
 	authorizationScheme = "",
 }: {
 	revocable?: boolean
 	revocationStatus?: number
 	tokenRefusal?: TokenRefusal
+	tokenHangs?: boolean
 	authorizationScheme?: string
 } = {}): Authority => {
 	const seen: Registration = {
@@ -91,6 +95,9 @@ const anAuthorizationServer = ({
 			}
 			if (asked.pathname === "/token") {
 				seen.tokenRequests.push(new URLSearchParams(await request.text()))
+				if (tokenHangs) {
+					return new Promise<Response>(() => {})
+				}
 				if (tokenRefusal) {
 					return new Response(tokenRefusal.body, {
 						status: tokenRefusal.status,
@@ -470,6 +477,31 @@ describe("mcp oauth", () => {
 		})
 
 		expect(answered).toMatchObject({ error: { kind: "failed" } })
+	}, 20_000)
+
+	it("bounds a refresh at ten seconds", () => {
+		expect(REFRESH_TIMEOUT_MS).toBe(10_000)
+	})
+
+	it("answers failed once a hanging authority outlasts the bound", async () => {
+		const authority = anAuthorizationServer({ tokenHangs: true })
+		try {
+			const started = Date.now()
+			const answered = await refreshMcpToken(
+				{
+					url: authority.url,
+					refreshToken: HELD_REFRESH_TOKEN,
+					clientId: CLIENT_ID,
+				},
+				HANG_BOUND_MS,
+			)
+
+			expect(answered).toMatchObject({ error: { kind: "failed" } })
+			expect(Date.now() - started).toBeLessThan(HANG_BOUND_MS + 2_000)
+			expect(authority.seen.tokenRequests).toHaveLength(1)
+		} finally {
+			await authority.stop()
+		}
 	}, 20_000)
 
 	it("answers failed when the authority cannot be reached", async () => {

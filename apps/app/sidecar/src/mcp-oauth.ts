@@ -23,6 +23,7 @@ const OPENABLE_SCHEMES = new Set(["http:", "https:"])
 const REDIRECT_PATH = "/oauth/callback"
 const CLIENT_NAME = "Kiroshi"
 const REQUEST_TIMEOUT_MS = 30_000
+export const REFRESH_TIMEOUT_MS = 10_000
 const GRANTED = "Authorization granted. You can close this tab."
 const DENIED = "Authorization was refused. You can close this tab."
 const REFUSED = "This is not the redirect this flow is waiting for."
@@ -106,6 +107,11 @@ let running: Settle | undefined
 
 const timedFetch: FetchLike = (input, init) =>
 	fetch(input, { ...init, signal: AbortSignal.timeout(REQUEST_TIMEOUT_MS) })
+
+const fetchWithin =
+	(deadline: AbortSignal): FetchLike =>
+	(input, init) =>
+		fetch(input, { ...init, signal: deadline })
 
 const refused = () => new Response(REFUSED, { status: 400 })
 
@@ -353,12 +359,10 @@ const refreshFailure = (error: unknown): OauthFailure => {
 	}
 }
 
-export const refreshMcpToken = async ({
-	url,
-	refreshToken,
-	clientId,
-	clientSecret,
-}: RefreshRequest): Promise<OauthAnswer> => {
+export const refreshMcpToken = async (
+	{ url, refreshToken, clientId, clientSecret }: RefreshRequest,
+	timeoutMs = REFRESH_TIMEOUT_MS,
+): Promise<OauthAnswer> => {
 	if (!url || !refreshToken || !clientId) {
 		return {
 			error: {
@@ -367,10 +371,9 @@ export const refreshMcpToken = async ({
 			},
 		}
 	}
+	const fetchFn = fetchWithin(AbortSignal.timeout(timeoutMs))
 	try {
-		const discovered = await discoverOAuthServerInfo(url, {
-			fetchFn: timedFetch,
-		})
+		const discovered = await discoverOAuthServerInfo(url, { fetchFn })
 		const client = { client_id: clientId, client_secret: clientSecret }
 		const tokens = await refreshAuthorization(
 			discovered.authorizationServerUrl,
@@ -378,7 +381,7 @@ export const refreshMcpToken = async ({
 				metadata: discovered.authorizationServerMetadata,
 				clientInformation: client,
 				refreshToken,
-				fetchFn: timedFetch,
+				fetchFn,
 			},
 		)
 		return { credentials: credentialsOf(tokens, client) }
