@@ -1075,13 +1075,15 @@ export function createChatController(
 			runtimeSessionId: null,
 		})
 
-	const isRunElsewhere = (bot: BotChat, conversationId: string) => {
+	const isRunOutsideOpenThread = (bot: BotChat) => {
 		const runtime = bot.state.runtime
-		return runtime !== null && runtime.conversationId !== conversationId
+		return (
+			runtime !== null && runtime.conversationId !== bot.state.conversationId
+		)
 	}
 
-	const runIn = async (bot: BotChat, conversationId: string) =>
-		!isRunElsewhere(bot, conversationId) || (await startFor(bot)) !== null
+	const runInOpenThread = async (bot: BotChat) =>
+		!isRunOutsideOpenThread(bot) || (await startFor(bot)) !== null
 
 	const sendPrompt = async (
 		bot: BotChat,
@@ -1095,7 +1097,7 @@ export function createChatController(
 		}
 		const isWritable =
 			(await loadLatest(bot)) && bot.state.conversationId === conversationId
-		if (!isWritable || !(await runIn(bot, conversationId))) {
+		if (!isWritable || !(await runInOpenThread(bot))) {
 			return "unwritten"
 		}
 		await rotateIfDue(bot)
@@ -1186,9 +1188,12 @@ export function createChatController(
 			return
 		}
 		const asked = bot.state.question
-		if (asked) {
+		if (asked && !isRunOutsideOpenThread(bot)) {
 			await answer(bot, asked.id, answersFromText(asked, trimmed))
 			return
+		}
+		if (asked) {
+			await runInOpenThread(bot)
 		}
 		const outcome = canSend(bot)
 			? await claim(bot, () => sendPrompt(bot, trimmed, repliedTo))
@@ -1211,7 +1216,7 @@ export function createChatController(
 			return
 		}
 		const target = bot.state.messages.find((message) => message.id === id)
-		if (target?.role !== "user") {
+		if (target?.role !== "user" || !(await runInOpenThread(bot))) {
 			return
 		}
 		dispatch(bot, { type: "promptRetried", id })
@@ -1320,7 +1325,7 @@ export function createChatController(
 	const answer = async (bot: BotChat, id: string, answers: QuestionAnswers) => {
 		const runtime = bot.state.runtime
 		const request = bot.state.question
-		if (!runtime || request?.id !== id) {
+		if (!runtime || request?.id !== id || isRunOutsideOpenThread(bot)) {
 			return
 		}
 		const conversationId = bot.state.conversationId

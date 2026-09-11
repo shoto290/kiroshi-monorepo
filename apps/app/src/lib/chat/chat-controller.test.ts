@@ -920,32 +920,92 @@ describe("createChatController", () => {
 		expect(spoken(await reload(store))).toEqual(spoken(state.messages))
 	})
 
-	it("writes an answer to the thread of its turn after the reader left it", async () => {
-		const store = referentialStore(createFakeTranscriptStore())
+	const askedInAThreadLeftBehind = async (store: TranscriptStore) => {
 		const elsewhere = await store.createSpace("Vocca")
 		await store.addBotToSpace(BOT, elsewhere.id)
-		const { controller } = await bootedHarness({ store })
-		await controller.send("pick one /question")
+		const harness = await bootedHarness({ store })
+		await harness.controller.send("pick one /question")
 		await vi.runAllTimersAsync()
+		const asked = harness.controller.getState().question
+		await harness.controller.open(BOT, elsewhere.id)
+		await vi.runAllTimersAsync()
+		return { ...harness, asked }
+	}
 
-		const asked = controller.getState().question
+	it("sends a message as a plain prompt when the question belongs to a thread left behind", async () => {
+		const store = referentialStore(createFakeTranscriptStore())
+		const { controller, driver, asked } = await askedInAThreadLeftBehind(store)
 		expect(asked).not.toBeNull()
+		const submitSpy = vi.spyOn(driver, "submitPrompt")
 
-		await controller.open(BOT, elsewhere.id)
-		await vi.runAllTimersAsync()
 		await controller.send("never mind, do it your way")
 		await vi.runAllTimersAsync()
 
 		const state = controller.getState()
 		expect(state.errors).toEqual([])
-		expect(state.messages).toEqual([])
-		const answered = (await reload(store)).find(
-			(message) => message.content === "never mind, do it your way",
+		expect(submitSpy.mock.lastCall?.[0].conversationId).toBe(
+			state.conversationId,
 		)
-		expect(answered?.role).toBe("user")
-		expect(answered?.repliedToMessageId).toBe(
-			questionMessageIdOf(asked?.id ?? ""),
+		expect(spoken(state.messages)).toEqual([
+			["user", "never mind, do it your way", "complete"],
+			["assistant", REPLY, "complete"],
+		])
+		expect(
+			(await reload(store)).map((message) => message.content),
+		).not.toContain("never mind, do it your way")
+	})
+
+	it("writes nothing when a question of a thread left behind is answered from the selector", async () => {
+		const store = referentialStore(createFakeTranscriptStore())
+		const { controller, driver, asked } = await askedInAThreadLeftBehind(store)
+		const answerSpy = vi.spyOn(driver, "answerQuestion")
+		const shown = controller.getState()
+		const leftBehind = spoken(await reload(store))
+
+		await controller.answer(asked?.id ?? "", { Framework: "React" })
+		await vi.runAllTimersAsync()
+
+		expect(answerSpy).not.toHaveBeenCalled()
+		expect(controller.getState()).toBe(shown)
+		expect(spoken(await reload(store))).toEqual(leftBehind)
+	})
+
+	it("opens a run in the open thread before retrying a prompt of it", async () => {
+		let isRefusing = true
+		const base = referentialStore(createFakeTranscriptStore())
+		const store: TranscriptStore = {
+			...base,
+			boundedContext: (...context) =>
+				isRefusing
+					? Promise.reject(REFUSED_REFERENCE)
+					: base.boundedContext(...context),
+		}
+		const elsewhere = await store.createSpace("Vocca")
+		await store.addBotToSpace(BOT, elsewhere.id)
+		const { controller, driver } = await bootedHarness({ store })
+		await controller.send("hello")
+		await vi.runAllTimersAsync()
+		const rejected = controller.getState().rejectedPromptId
+		isRefusing = false
+		await controller.open(BOT, elsewhere.id)
+		await controller.start()
+		await controller.open(BOT, null)
+		await vi.runAllTimersAsync()
+		const submitSpy = vi.spyOn(driver, "submitPrompt")
+		const refusals = controller.getState().errors.length
+
+		await controller.retry(rejected ?? "")
+		await vi.runAllTimersAsync()
+
+		const state = controller.getState()
+		expect(state.errors).toHaveLength(refusals)
+		expect(submitSpy.mock.lastCall?.[0].conversationId).toBe(
+			state.conversationId,
 		)
+		expect(spoken(await reload(store))).toEqual([
+			["user", "hello", "complete"],
+			["assistant", REPLY, "complete"],
+		])
 	})
 
 	it("points an answer at an asking row still on its way to the store", async () => {
