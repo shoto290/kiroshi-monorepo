@@ -207,22 +207,33 @@ const SUGGESTED_BOTS: SuggestedBot[] = [
 		id: "writer",
 		name: "Quill",
 		job: "a writing partner",
-		description: "Help me draft and polish what I write.",
-		blurb: "Drafts and edits.",
+		description:
+			"Help me draft, tighten and polish what I write. Keep my voice, cut the filler, and say plainly when a sentence does not work.",
+		blurb: "Drafts, edits and keeps your voice.",
 	},
 	{
 		id: "researcher",
 		name: "Scout",
 		job: "a research assistant",
-		description: "Find sources and sum them up.",
-		blurb: "Finds sources.",
+		description:
+			"Dig into the questions I bring. Find sources, weigh them, give me the short answer first and the evidence after. Say so when you are unsure.",
+		blurb: "Finds sources and sums them up.",
 	},
 	{
 		id: "coder",
 		name: "Byte",
 		job: "a coding companion",
-		description: "Pair with me on code.",
-		blurb: "Reads and writes code.",
+		description:
+			"Pair with me on code. Read the project before changing it, keep changes small, and lay out the tradeoffs when there is more than one way.",
+		blurb: "Reads, writes and reviews code.",
+	},
+	{
+		id: "planner",
+		name: "Compass",
+		job: "a planning assistant",
+		description:
+			"Help me turn goals into plans. Break the work into next steps, keep track of what is still open, and nudge me when something slips.",
+		blurb: "Turns goals into next steps.",
 	},
 ]
 
