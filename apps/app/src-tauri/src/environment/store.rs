@@ -85,7 +85,17 @@ pub fn resolve(root: &Path, owner: &EnvOwner) -> Result<ResolvedEnv, EnvError> {
 			per_server.entry(name).or_default().extend(own);
 		}
 	}
-	Ok(ResolvedEnv { base, per_server, failure: None })
+	Ok(ResolvedEnv { base, per_server, ..ResolvedEnv::default() })
+}
+
+pub fn server_scopes(root: &Path, owner: &EnvOwner) -> Result<Vec<EnvScope>, EnvError> {
+	let mut scopes = Vec::new();
+	for held in owners(owner) {
+		for name in server_names(root, &held)? {
+			scopes.push(EnvScope::Server { name, owner: held.clone() });
+		}
+	}
+	Ok(scopes)
 }
 
 pub fn copy_owner(root: &Path, source: &EnvOwner, target: &EnvOwner) -> Result<(), EnvError> {

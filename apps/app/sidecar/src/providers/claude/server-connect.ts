@@ -1,6 +1,6 @@
 import type { McpServerStatus } from "@anthropic-ai/claude-agent-sdk"
 
-import { leftOut } from "./server-env"
+import { AWAITING_AUTH, leftOut } from "./server-env"
 import type { ServerLine, ServerState } from "./system-layer"
 
 import type { ServerEnv } from "../provider"
@@ -80,7 +80,6 @@ const REASON_LIMIT = 300
 const SECRET_FLOOR = 8
 const REDACTED = "[redacted]"
 const NO_READ = "no status read ever named it"
-const AWAITING_AUTH = "it is waiting for you to authorize it"
 const DISABLED = "it is disabled in this session"
 const STILL_CONNECTING = "is still connecting"
 const HOLDS_TOOLS = "holds its tools"
@@ -246,6 +245,9 @@ const openingLine = (
 	if (named.status === "failed") {
 		return news(dialling(name), "reconnecting")
 	}
+	if (named.status === "needs-auth") {
+		return awaitingAuth(name)
+	}
 	const detail = lineFor(name, named, undefined, secrets)
 	return named.status === "pending"
 		? news(detail, "connecting")
@@ -258,9 +260,6 @@ const lineFor = (
 	answer: Answer | undefined,
 	secrets: string[],
 ): string => {
-	if (status === "needs-auth") {
-		return leftOut(name, AWAITING_AUTH)
-	}
 	if (status === "pending") {
 		return `the server "${name}" ${STILL_CONNECTING} after ${spent} ms`
 	}
@@ -358,12 +357,18 @@ const news = (detail: string, state: ServerState): ReportedLine => ({
 	notice: false,
 })
 
+const awaitingAuth = (name: string): ReportedLine => ({
+	detail: leftOut(name, AWAITING_AUTH),
+	state: "needs-auth",
+	notice: true,
+})
+
 const SETTLED_LINE: Partial<
 	Record<ServerStatus["status"], (name: string) => ReportedLine>
 > = {
 	connected: (name) => news(reachedLine(name), "holding"),
 	disabled: (name) => notice(leftOut(name, DISABLED)),
-	"needs-auth": (name) => notice(leftOut(name, AWAITING_AUTH)),
+	"needs-auth": awaitingAuth,
 }
 
 const readLine = (

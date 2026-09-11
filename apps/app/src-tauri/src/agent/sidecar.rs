@@ -14,8 +14,8 @@ use tokio::task::JoinHandle;
 
 use super::contract::TransportError;
 use super::protocol::{
-	self, Authorized, Catalogue, Checked, OauthStarted, Ready, RevocationRequest, Revoked, Titled,
-	ToolCatalogue,
+	self, Authorized, Catalogue, Checked, OauthStarted, Ready, RefreshRequest, RevocationRequest,
+	Revoked, Titled, ToolCatalogue,
 };
 
 pub const SIDECAR_OVERRIDE_ENV: &str = "KIROSHI_AGENT_SIDECAR";
@@ -35,6 +35,8 @@ const TITLE_TIMEOUT: Duration = Duration::from_secs(60);
 pub const OAUTH_FLOW_TIMEOUT: Duration = Duration::from_secs(310);
 
 const OAUTH_REVOKE_TIMEOUT: Duration = Duration::from_secs(60);
+
+const OAUTH_REFRESH_TIMEOUT: Duration = Duration::from_secs(12);
 
 pub const SHUTDOWN_GRACE: Duration = Duration::from_secs(3);
 const TERMINATE_GRACE: Duration = Duration::from_millis(500);
@@ -298,6 +300,21 @@ impl Sidecar {
 				protocol::OAUTH_REVOKE,
 				protocol::oauth_revoke_command(request),
 				OAUTH_REVOKE_TIMEOUT,
+			)
+			.await?;
+		serde_json::from_value(answer)
+			.map_err(|error| TransportError::InvalidFrame { detail: error.to_string() })
+	}
+
+	pub async fn refresh_oauth(
+		&self,
+		request: &RefreshRequest,
+	) -> Result<Authorized, TransportError> {
+		let answer = self
+			.ask_with(
+				protocol::OAUTH_REFRESH,
+				protocol::oauth_refresh_command(request),
+				OAUTH_REFRESH_TIMEOUT,
 			)
 			.await?;
 		serde_json::from_value(answer)

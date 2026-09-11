@@ -356,6 +356,7 @@ pub const OAUTH_AUTHORIZE: &str = "mcp_oauth_authorize";
 pub const OAUTH_STARTED: &str = "oauth_started";
 pub const OAUTH_CANCEL: &str = "mcp_oauth_cancel";
 pub const OAUTH_REVOKE: &str = "mcp_oauth_revoke";
+pub const OAUTH_REFRESH: &str = "mcp_oauth_refresh";
 
 #[derive(Debug, Clone, Serialize)]
 #[serde(rename_all = "camelCase")]
@@ -378,8 +379,27 @@ pub fn oauth_cancel_command() -> Value {
 	serde_json::json!({ "type": OAUTH_CANCEL })
 }
 
+#[derive(Debug, Clone, PartialEq, Eq, Serialize)]
+#[serde(rename_all = "camelCase")]
+pub struct RefreshRequest {
+	pub url: String,
+	pub refresh_token: String,
+	#[serde(skip_serializing_if = "Option::is_none")]
+	pub client_id: Option<String>,
+	#[serde(skip_serializing_if = "Option::is_none")]
+	pub client_secret: Option<String>,
+}
+
 pub fn oauth_revoke_command(request: &RevocationRequest) -> Value {
-	let mut frame = serde_json::json!({ "type": OAUTH_REVOKE });
+	command_carrying(OAUTH_REVOKE, request)
+}
+
+pub fn oauth_refresh_command(request: &RefreshRequest) -> Value {
+	command_carrying(OAUTH_REFRESH, request)
+}
+
+fn command_carrying(kind: &str, request: &impl Serialize) -> Value {
+	let mut frame = serde_json::json!({ "type": kind });
 	if let (Some(frame), Ok(Value::Object(body))) =
 		(frame.as_object_mut(), serde_json::to_value(request))
 	{
@@ -401,6 +421,7 @@ pub enum OauthFailureKind {
 	Cancelled,
 	TimedOut,
 	Denied,
+	Rejected,
 	#[serde(other)]
 	Failed,
 }

@@ -696,7 +696,7 @@ mod tests {
 			base: [("TOKEN".to_owned(), "held".to_owned())].into(),
 			per_server: [("clock".to_owned(), [("TOKEN".to_owned(), "narrow".to_owned())].into())]
 				.into(),
-			failure: None,
+			..ResolvedEnv::default()
 		};
 		let request = options().serving(resolved.clone()).open_request(true);
 

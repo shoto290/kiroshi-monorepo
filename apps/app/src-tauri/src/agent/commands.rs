@@ -1,4 +1,4 @@
-use std::collections::{HashMap, HashSet};
+use std::collections::{BTreeSet, HashMap, HashSet};
 use std::path::{Path, PathBuf};
 use std::sync::Arc;
 
@@ -18,8 +18,10 @@ use crate::conversations::commands::space_of_the_conversation;
 use crate::db;
 use crate::db::repositories::conversations::Bot as StoredBot;
 use crate::db::repositories::runtime_context::ParticipantKey;
-use crate::environment::contract::{EnvOwner, ResolvedEnv};
+use crate::environment::contract::{EnvError, EnvOwner, ResolvedEnv};
 use crate::environment::store as environment;
+use crate::mcp_oauth::refresh;
+use crate::mcp_oauth::reports::ConnectorHost;
 use crate::missions::host::MissionHost;
 use crate::private_files;
 use crate::routines::host::RoutineHost;
@@ -454,18 +456,34 @@ struct RuntimeIdentity {
 
 const ENV_UNREADABLE: &str = "the environment store could not be read";
 
-fn served_environment<R: Runtime>(app: &AppHandle<R>, bot_id: &str, space_id: &str) -> ResolvedEnv {
+async fn served_environment<R: Runtime>(
+	app: &AppHandle<R>,
+	sidecar: &Sidecar,
+	bot_id: &str,
+	space_id: &str,
+	serving: &[PathBuf],
+) -> ResolvedEnv {
 	let Some(root) = environment::root(app) else {
 		return ResolvedEnv::failed(ENV_UNREADABLE);
 	};
 	let owner = EnvOwner::Bot { id: bot_id.to_owned(), space_id: space_id.to_owned() };
-	environment::resolve(&root, &owner).unwrap_or_else(|_| ResolvedEnv::failed(ENV_UNREADABLE))
+	let needs_authorization = refresh::before_open(&root, &owner, serving, sidecar).await;
+	awaiting_served(environment::resolve(&root, &owner), needs_authorization)
+}
+
+fn awaiting_served(
+	resolved: Result<ResolvedEnv, EnvError>,
+	needs_authorization: BTreeSet<String>,
+) -> ResolvedEnv {
+	let resolved = resolved.unwrap_or_else(|_| ResolvedEnv::failed(ENV_UNREADABLE));
+	ResolvedEnv { needs_authorization, ..resolved }
 }
 
 async fn runtime_identity<R: Runtime>(
 	app: &AppHandle<R>,
 	state: &db::DatabaseState,
 	scope: &RuntimeScope,
+	sidecar: &Sidecar,
 ) -> RuntimeIdentity {
 	let Ok(database) = state.as_ref() else {
 		return RuntimeIdentity::default();
@@ -496,7 +514,12 @@ async fn runtime_identity<R: Runtime>(
 	if let Some(root) = root.as_deref() {
 		reconcile_bot(database, root, &bot).await;
 	}
-	let server_env = served_environment(app, &bot.id, &space_id);
+	let serving: Vec<PathBuf> =
+		[system.clone(), space.clone(), root.as_deref().map(|root| bundles::dir(root, &bot.id))]
+			.into_iter()
+			.flatten()
+			.collect();
+	let server_env = served_environment(app, sidecar, &bot.id, &space_id, &serving).await;
 	RuntimeIdentity { bundle, working_dir: bot.working_dir, server_env }
 }
 
@@ -584,7 +607,7 @@ pub async fn agent_start_or_resume_session<R: Runtime>(
 	}
 
 	let sidecar = state.sidecar().await?;
-	let identity = runtime_identity(&app, &database, &scope).await;
+	let identity = runtime_identity(&app, &database, &scope, &sidecar).await;
 	let anywhere = cwd.map(PathBuf::from).unwrap_or_else(|| its_own_directory(&app, &scope.bot_id));
 	let (working_dir, refused_dir) = where_it_runs(identity.working_dir, anywhere);
 
@@ -609,6 +632,7 @@ pub async fn agent_start_or_resume_session<R: Runtime>(
 			scope.conversation_id.clone(),
 			scope.bot_id.clone(),
 		)))
+		.hosting(Arc::new(ConnectorHost::new(app.clone(), scope.bot_id.clone())))
 		.answering(output_schema);
 
 	let refused_id = resume.clone();
@@ -785,6 +809,29 @@ pub async fn agent_shutdown<R: Runtime>(
 mod tests {
 	use super::*;
 	use crate::db::repositories::runtime_context::RuntimeSessionStatus;
+
+	#[test]
+	fn the_names_awaiting_authorization_reach_the_session_when_the_store_cannot_be_read() {
+		let awaiting = BTreeSet::from(["granola".to_owned()]);
+
+		let served = awaiting_served(
+			Err(EnvError::Unreadable { detail: "the disk is gone".to_owned() }),
+			awaiting.clone(),
+		);
+
+		assert_eq!(served.needs_authorization, awaiting);
+		assert_eq!(served.failure.as_deref(), Some(ENV_UNREADABLE));
+	}
+
+	#[test]
+	fn the_names_awaiting_authorization_ride_a_store_that_was_read() {
+		let awaiting = BTreeSet::from(["granola".to_owned()]);
+
+		let served = awaiting_served(Ok(ResolvedEnv::default()), awaiting.clone());
+
+		assert_eq!(served.needs_authorization, awaiting);
+		assert_eq!(served.failure, None);
+	}
 
 	fn a_fresh_app_data(name: &str) -> PathBuf {
 		let app_data = std::env::temp_dir().join(format!("kiroshi-app-data-{name}"));

@@ -3,7 +3,13 @@ import { mkdtempSync, rmSync, writeFileSync } from "node:fs"
 import { tmpdir } from "node:os"
 import { join } from "node:path"
 
-import { leftOut, resolvedServers, resolveServers } from "./server-env"
+import {
+	AWAITING_AUTH,
+	leftOut,
+	resolvedServers,
+	resolveServers,
+} from "./server-env"
+import { leftOutLines } from "./system-layer"
 
 import type { ServerEnv } from "../provider"
 
@@ -75,9 +81,42 @@ describe("resolveServers", () => {
 		const { servers, rejections } = resolveServers({ probe, plain }, {})
 
 		expect(Object.keys(servers)).toEqual(["plain"])
+		expect(rejections).toEqual(
+			leftOutLines([
+				'the server "probe" was left out: RUNNER is defined by no scope',
+			]),
+		)
+	})
+
+	it("still leaves out a server waiting for authorization when the store could not be read", () => {
+		const { rejections } = resolveServers(
+			{ granola },
+			{
+				needsAuthorization: ["granola"],
+				failure: "the environment store could not be read",
+			},
+		)
+
+		expect(rejections).toContainEqual({
+			detail: leftOut("granola", AWAITING_AUTH),
+			state: "needs-auth",
+		})
+	})
+
+	it("leaves out a server the host named as needing authorization, as a read of needs-auth would", () => {
+		const { servers, rejections } = resolveServers(
+			{ granola, plain },
+			{
+				perServer: { granola: { [ACCESS_TOKEN]: "stale" } },
+				needsAuthorization: ["granola"],
+			},
+		)
+
+		expect(Object.keys(servers)).toEqual(["plain"])
 		expect(rejections).toEqual([
-			'the server "probe" was left out: RUNNER is defined by no scope',
+			{ detail: leftOut("granola", AWAITING_AUTH), state: "needs-auth" },
 		])
+		expect(JSON.stringify(rejections)).not.toContain("stale")
 	})
 
 	it("keeps a resolved value out of what it reports", () => {
@@ -97,10 +136,12 @@ describe("resolveServers", () => {
 		)
 
 		expect(Object.keys(servers)).toEqual(["plain"])
-		expect(rejections).toEqual([
-			"the environment store could not be read",
-			'the server "probe" was left out: the environment store could not be read',
-		])
+		expect(rejections).toEqual(
+			leftOutLines([
+				"the environment store could not be read",
+				'the server "probe" was left out: the environment store could not be read',
+			]),
+		)
 	})
 
 	it("reports nothing and keeps every server when the store failure costs none", () => {
@@ -217,10 +258,12 @@ describe("resolvedServers", () => {
 		)
 
 		expect(servers.granola).toBeUndefined()
-		expect(rejections).toEqual([
-			"the keychain is locked",
-			leftOut("granola", "the environment store could not be read"),
-		])
+		expect(rejections).toEqual(
+			leftOutLines([
+				"the keychain is locked",
+				leftOut("granola", "the environment store could not be read"),
+			]),
+		)
 	})
 
 	it("keeps a url server holding an authorization header of its own when the store failed", () => {

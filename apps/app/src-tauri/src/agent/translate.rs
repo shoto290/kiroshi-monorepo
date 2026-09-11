@@ -16,7 +16,7 @@ use super::protocol::{
 };
 use super::redact;
 
-pub(super) fn now_ms() -> i64 {
+pub(crate) fn now_ms() -> i64 {
 	SystemTime::now()
 		.duration_since(UNIX_EPOCH)
 		.map(|elapsed| elapsed.as_millis() as i64)

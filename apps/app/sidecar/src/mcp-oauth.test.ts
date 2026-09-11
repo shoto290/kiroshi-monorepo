@@ -5,6 +5,8 @@ import {
 	cancelMcpAuthorization,
 	OAUTH_STARTED,
 	type OauthAnswer,
+	REFRESH_TIMEOUT_MS,
+	refreshMcpToken,
 	revokeMcpToken,
 } from "./mcp-oauth"
 
@@ -14,6 +16,9 @@ const ACCESS_TOKEN = "granted-access-token"
 const REFRESH_TOKEN = "granted-refresh-token"
 const EXPIRES_IN = 3600
 const CODE = "the-authorization-code"
+const HELD_REFRESH_TOKEN = "held-refresh-token"
+const REFUSED_GRANT = "the refresh token was revoked"
+const HANG_BOUND_MS = 300
 const AUTHORIZATION_BUDGET_MS = 10_000
 const TIMEOUT_FLOW_MS = 2_000
 
@@ -22,6 +27,16 @@ type Registration = {
 	tokenRequests: URLSearchParams[]
 	revocations: URLSearchParams[]
 }
+
+type TokenRefusal = {
+	status: number
+	body: string
+}
+
+const refusedWith = (error: string): TokenRefusal => ({
+	status: 400,
+	body: JSON.stringify({ error, error_description: REFUSED_GRANT }),
+})
 
 type Authority = {
 	url: string
@@ -32,10 +47,14 @@ type Authority = {
 const anAuthorizationServer = ({
 	revocable = true,
 	revocationStatus = 200,
+	tokenRefusal,
+	tokenHangs = false,
 	authorizationScheme = "",
 }: {
 	revocable?: boolean
 	revocationStatus?: number
+	tokenRefusal?: TokenRefusal
+	tokenHangs?: boolean
 	authorizationScheme?: string
 } = {}): Authority => {
 	const seen: Registration = {
@@ -76,6 +95,14 @@ const anAuthorizationServer = ({
 			}
 			if (asked.pathname === "/token") {
 				seen.tokenRequests.push(new URLSearchParams(await request.text()))
+				if (tokenHangs) {
+					return new Promise<Response>(() => {})
+				}
+				if (tokenRefusal) {
+					return new Response(tokenRefusal.body, {
+						status: tokenRefusal.status,
+					})
+				}
 				return Response.json({
 					access_token: ACCESS_TOKEN,
 					refresh_token: REFRESH_TOKEN,
@@ -374,6 +401,121 @@ describe("mcp oauth", () => {
 		} finally {
 			await authority.stop()
 		}
+	}, 20_000)
+
+	it("exchanges the refresh token and answers the grant it came back with", async () => {
+		const authority = anAuthorizationServer()
+		try {
+			const before = Date.now()
+			const answered = await refreshMcpToken({
+				url: authority.url,
+				refreshToken: HELD_REFRESH_TOKEN,
+				clientId: CLIENT_ID,
+				clientSecret: CLIENT_SECRET,
+			})
+			const [posted] = authority.seen.tokenRequests
+
+			expect(posted?.get("grant_type")).toBe("refresh_token")
+			expect(posted?.get("refresh_token")).toBe(HELD_REFRESH_TOKEN)
+			expect(answered).toEqual({
+				credentials: {
+					accessToken: ACCESS_TOKEN,
+					refreshToken: REFRESH_TOKEN,
+					expiresAt: expect.any(Number),
+					clientId: CLIENT_ID,
+					clientSecret: CLIENT_SECRET,
+				},
+			})
+			const expiresAt =
+				"credentials" in answered ? (answered.credentials.expiresAt ?? 0) : 0
+			expect(expiresAt).toBeGreaterThanOrEqual(before + EXPIRES_IN * 1000)
+		} finally {
+			await authority.stop()
+		}
+	}, 20_000)
+
+	const refreshedAgainst = async (tokenRefusal: TokenRefusal) => {
+		const authority = anAuthorizationServer({ tokenRefusal })
+		try {
+			return await refreshMcpToken({
+				url: authority.url,
+				refreshToken: HELD_REFRESH_TOKEN,
+				clientId: CLIENT_ID,
+			})
+		} finally {
+			await authority.stop()
+		}
+	}
+
+	for (const code of [
+		"invalid_grant",
+		"invalid_client",
+		"unauthorized_client",
+	]) {
+		it(`answers rejected with the reason a token endpoint refusing ${code} gave`, async () => {
+			expect(await refreshedAgainst(refusedWith(code))).toEqual({
+				error: { kind: "rejected", detail: `${code}: ${REFUSED_GRANT}` },
+			})
+		}, 20_000)
+	}
+
+	it("answers failed when the token endpoint names any other OAuth error", async () => {
+		expect(
+			await refreshedAgainst(refusedWith("temporarily_unavailable")),
+		).toEqual({
+			error: {
+				kind: "failed",
+				detail: `temporarily_unavailable: ${REFUSED_GRANT}`,
+			},
+		})
+	}, 20_000)
+
+	it("answers failed when the token endpoint answers outside 2xx with no OAuth error", async () => {
+		const answered = await refreshedAgainst({
+			status: 503,
+			body: "<html>Service Unavailable</html>",
+		})
+
+		expect(answered).toMatchObject({ error: { kind: "failed" } })
+	}, 20_000)
+
+	it("bounds a refresh at ten seconds", () => {
+		expect(REFRESH_TIMEOUT_MS).toBe(10_000)
+	})
+
+	it("answers failed once a hanging authority outlasts the bound", async () => {
+		const authority = anAuthorizationServer({ tokenHangs: true })
+		try {
+			const started = Date.now()
+			const answered = await refreshMcpToken(
+				{
+					url: authority.url,
+					refreshToken: HELD_REFRESH_TOKEN,
+					clientId: CLIENT_ID,
+				},
+				HANG_BOUND_MS,
+			)
+
+			expect(answered).toMatchObject({ error: { kind: "failed" } })
+			expect(Date.now() - started).toBeLessThan(HANG_BOUND_MS + 2_000)
+			expect(authority.seen.tokenRequests).toHaveLength(1)
+		} finally {
+			await authority.stop()
+		}
+	}, 20_000)
+
+	it("answers failed when the authority cannot be reached", async () => {
+		const authority = anAuthorizationServer()
+		await authority.stop()
+
+		const answered = await refreshMcpToken({
+			url: authority.url,
+			refreshToken: HELD_REFRESH_TOKEN,
+			clientId: CLIENT_ID,
+		})
+
+		expect(answered).toMatchObject({ error: { kind: "failed" } })
+		expect(authority.seen.tokenRequests).toHaveLength(0)
 	}, 20_000)
 
 	it("answers that no revocation endpoint was advertised", async () => {

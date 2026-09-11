@@ -72,7 +72,9 @@ impl From<OauthFailure> for OauthError {
 			OauthFailureKind::TimedOut => Self::TimedOut,
 			OauthFailureKind::Denied => Self::Denied { detail: detail() },
 			OauthFailureKind::Busy => Self::AlreadyRunning,
-			OauthFailureKind::Failed => Self::Failed { detail: detail() },
+			OauthFailureKind::Rejected | OauthFailureKind::Failed => {
+				Self::Failed { detail: detail() }
+			}
 		}
 	}
 }

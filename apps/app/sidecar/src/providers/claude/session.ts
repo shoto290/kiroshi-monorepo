@@ -19,7 +19,12 @@ import {
 	type ReportedLine,
 	unconnectedServers,
 } from "./server-connect"
-import { type ResolvedServers, resolvedServers } from "./server-env"
+import {
+	type ResolvedServers,
+	resolvedServers,
+	serverNamed,
+} from "./server-env"
+import { recordStanding } from "./server-standing"
 import { inheritedEnv } from "./session-env"
 import {
 	layerFor,
@@ -40,7 +45,6 @@ const ABANDONED = "The session ended before this was answered."
 const ENDED = "the agent ended"
 const DISABLE_AUTO_MEMORY = "CLAUDE_CODE_DISABLE_AUTO_MEMORY"
 const SLASH_COMMAND = /^\/[^\s/]+(\s|$)/
-const SERVER_NAMED = /^the server "([^"]+)"/
 export const CLASSIFY_ASK_USER_QUESTION =
 	"CLAUDE_CODE_AUTO_MODE_CLASSIFY_ASK_USER_QUESTION"
 
@@ -172,19 +176,25 @@ export type ConnectionReport = {
 	emit: EmitFrame
 	push: (text: string) => void
 	pass: ConnectPass
+	record?: (line: ServerLine) => void
 }
 
 const latest = (lines: WaitingLine[]): WaitingLine[] => {
 	const named = new Map<string, WaitingLine>()
 	for (const line of lines) {
-		const key = SERVER_NAMED.exec(line.detail)?.[1] ?? line.detail
+		const key = serverNamed(line.detail) ?? line.detail
 		named.delete(key)
 		named.set(key, line)
 	}
 	return [...named.values()]
 }
 
-export const reportConnections = ({ emit, push, pass }: ConnectionReport) => {
+export const reportConnections = ({
+	emit,
+	push,
+	pass,
+	record,
+}: ConnectionReport) => {
 	const abandoning = new AbortController()
 	const { signal } = abandoning
 	const held: string[] = []
@@ -202,6 +212,7 @@ export const reportConnections = ({ emit, push, pass }: ConnectionReport) => {
 		if (notice) {
 			framed(detail)
 		}
+		record?.({ detail, state })
 		waiting.push({ detail, state, owing: false })
 	}
 
@@ -228,6 +239,9 @@ export const reportConnections = ({ emit, push, pass }: ConnectionReport) => {
 	const release = (settled: ReportedLine[]) => {
 		if (signal.aborted) {
 			return
+		}
+		for (const { detail, state } of settled) {
+			record?.({ detail, state })
 		}
 		waiting.push(
 			...settled.map(({ detail, state, notice }) => ({
@@ -282,8 +296,10 @@ export const openClaudeSession = async (
 		emit({ type: "settings_rejected", detail: botSettings.rejection })
 	}
 	const resolved = resolvedServers(request)
-	for (const detail of resolved.rejections) {
-		emit({ type: "server_env_rejected", detail })
+	const record = recordStanding(request.session)
+	for (const line of resolved.rejections) {
+		emit({ type: "server_env_rejected", detail: line.detail })
+		record(line)
 	}
 	const options = buildOptions(
 		request,
@@ -336,6 +352,7 @@ export const openClaudeSession = async (
 			},
 			env: request.serverEnv,
 		},
+		record,
 	})
 
 	return {

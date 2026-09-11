@@ -2,9 +2,12 @@ import {
 	auth,
 	discoverOAuthServerInfo,
 	type OAuthClientProvider,
+	refreshAuthorization,
 } from "@modelcontextprotocol/sdk/client/auth.js"
+import { OAuthError } from "@modelcontextprotocol/sdk/server/auth/errors.js"
 import type {
 	AuthorizationServerMetadata,
+	OAuthClientInformation,
 	OAuthClientInformationFull,
 	OAuthClientMetadata,
 	OAuthTokens,
@@ -20,6 +23,7 @@ const OPENABLE_SCHEMES = new Set(["http:", "https:"])
 const REDIRECT_PATH = "/oauth/callback"
 const CLIENT_NAME = "Kiroshi"
 const REQUEST_TIMEOUT_MS = 30_000
+export const REFRESH_TIMEOUT_MS = 10_000
 const GRANTED = "Authorization granted. You can close this tab."
 const DENIED = "Authorization was refused. You can close this tab."
 const REFUSED = "This is not the redirect this flow is waiting for."
@@ -35,6 +39,7 @@ export type OauthFailureKind =
 	| "cancelled"
 	| "timedOut"
 	| "denied"
+	| "rejected"
 	| "failed"
 
 export type OauthFailure = {
@@ -71,6 +76,13 @@ export type RevokeRequest = {
 	clientSecret?: string
 }
 
+export type RefreshRequest = {
+	url?: string
+	refreshToken?: string
+	clientId?: string
+	clientSecret?: string
+}
+
 type Emit = (frame: Record<string, unknown>) => void
 
 type Redirect = { code: string } | { failure: OauthFailure }
@@ -95,6 +107,11 @@ let running: Settle | undefined
 
 const timedFetch: FetchLike = (input, init) =>
 	fetch(input, { ...init, signal: AbortSignal.timeout(REQUEST_TIMEOUT_MS) })
+
+const fetchWithin =
+	(deadline: AbortSignal): FetchLike =>
+	(input, init) =>
+		fetch(input, { ...init, signal: deadline })
 
 const refused = () => new Response(REFUSED, { status: 400 })
 
@@ -176,7 +193,7 @@ const clientProvider = (
 
 const credentialsOf = (
 	tokens: OAuthTokens,
-	client: OAuthClientInformationFull,
+	client: OAuthClientInformation,
 ): OauthCredentials => ({
 	accessToken: tokens.access_token,
 	refreshToken: tokens.refresh_token,
@@ -321,6 +338,56 @@ const posted = async (
 		}
 	}
 	return { revoked: true }
+}
+
+const REFUSED_GRANT_CODES = new Set([
+	"invalid_grant",
+	"invalid_client",
+	"unauthorized_client",
+])
+
+const oauthDetail = (error: OAuthError) =>
+	[error.errorCode, error.message].filter(Boolean).join(": ")
+
+const refreshFailure = (error: unknown): OauthFailure => {
+	if (!(error instanceof OAuthError)) {
+		return { kind: "failed", detail: describeError(error) }
+	}
+	return {
+		kind: REFUSED_GRANT_CODES.has(error.errorCode) ? "rejected" : "failed",
+		detail: oauthDetail(error),
+	}
+}
+
+export const refreshMcpToken = async (
+	{ url, refreshToken, clientId, clientSecret }: RefreshRequest,
+	timeoutMs = REFRESH_TIMEOUT_MS,
+): Promise<OauthAnswer> => {
+	if (!url || !refreshToken || !clientId) {
+		return {
+			error: {
+				kind: "failed",
+				detail: "no server url, refresh token or client id was named",
+			},
+		}
+	}
+	const fetchFn = fetchWithin(AbortSignal.timeout(timeoutMs))
+	try {
+		const discovered = await discoverOAuthServerInfo(url, { fetchFn })
+		const client = { client_id: clientId, client_secret: clientSecret }
+		const tokens = await refreshAuthorization(
+			discovered.authorizationServerUrl,
+			{
+				metadata: discovered.authorizationServerMetadata,
+				clientInformation: client,
+				refreshToken,
+				fetchFn,
+			},
+		)
+		return { credentials: credentialsOf(tokens, client) }
+	} catch (error) {
+		return { error: refreshFailure(error) }
+	}
 }
 
 export const revokeMcpToken = async (

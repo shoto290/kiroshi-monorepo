@@ -5,6 +5,7 @@ import { closeHostChannel, openHostChannel, settleHostAnswer } from "./host"
 import {
 	authorizeMcpServer,
 	cancelMcpAuthorization,
+	refreshMcpToken,
 	revokeMcpToken,
 } from "./mcp-oauth"
 import { readLines } from "./read-lines"
@@ -70,6 +71,7 @@ export const sessionRequest = (command: Command): SessionRequest => ({
 const AUTHORIZE = "mcp_oauth_authorize"
 const CANCEL = "mcp_oauth_cancel"
 const REVOKE = "mcp_oauth_revoke"
+const REFRESH = "mcp_oauth_refresh"
 
 const write = (payload: unknown) => {
 	process.stdout.write(`${JSON.stringify(payload)}\n`)
@@ -134,6 +136,8 @@ export const serve = async (requestedId?: string) => {
 				return cancelMcpAuthorization()
 			case REVOKE:
 				return write({ type, ...(await revokeMcpToken(command)) })
+			case REFRESH:
+				return write({ type, ...(await refreshMcpToken(command)) })
 		}
 	}
 

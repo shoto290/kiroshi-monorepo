@@ -1,6 +1,7 @@
 import type { Options } from "@anthropic-ai/claude-agent-sdk"
 
 import { sessionServers } from "./bundle-servers"
+import { leftOutLine, type ServerLine } from "./system-layer"
 
 import type { ServerEnv, SessionRequest } from "../provider"
 
@@ -17,7 +18,7 @@ const AUTHORIZATION = "authorization"
 
 export type ResolvedServers = {
 	servers: Servers
-	rejections: string[]
+	rejections: ServerLine[]
 }
 
 const declaredFields = (server: Server): [string, unknown][] => {
@@ -107,9 +108,21 @@ const authorized = (server: Server, own: Values | undefined): Server => {
 }
 
 const LEFT_OUT = "was left out"
+const LEFT_OUT_SEPARATOR = `${LEFT_OUT}: `
+const SERVER_NAMED = /^the server "([^"]+)"/
+
+export const AWAITING_AUTH = "it is waiting for you to authorize it"
 
 export const leftOut = (name: string, reason: string) =>
-	`the server "${name}" ${LEFT_OUT}: ${reason}`
+	`the server "${name}" ${LEFT_OUT_SEPARATOR}${reason}`
+
+export const serverNamed = (detail: string): string | undefined =>
+	SERVER_NAMED.exec(detail)?.[1]
+
+export const leftOutReason = (detail: string): string | undefined => {
+	const at = detail.indexOf(LEFT_OUT_SEPARATOR)
+	return at < 0 ? undefined : detail.slice(at + LEFT_OUT_SEPARATOR.length)
+}
 
 const UNREADABLE_STORE = "the environment store could not be read"
 
@@ -118,11 +131,18 @@ export const resolveServers = (
 	env: ServerEnv,
 ): ResolvedServers => {
 	const kept: Servers = {}
-	const rejections: string[] = []
+	const rejections: ServerLine[] = []
 	for (const [name, server] of Object.entries(servers)) {
 		const own = env.perServer?.[name]
+		if (env.needsAuthorization?.includes(name)) {
+			rejections.push({
+				detail: leftOut(name, AWAITING_AUTH),
+				state: "needs-auth",
+			})
+			continue
+		}
 		if (env.failure && needsTheStore(server)) {
-			rejections.push(leftOut(name, UNREADABLE_STORE))
+			rejections.push(leftOutLine(leftOut(name, UNREADABLE_STORE)))
 			continue
 		}
 		if (!declaresVariable(server)) {
@@ -133,13 +153,18 @@ export const resolveServers = (
 		const expanded = expandServer(server, { ...env.base, ...own }, missing)
 		const [absent] = missing
 		if (absent) {
-			rejections.push(leftOut(name, `${absent} is defined by no scope`))
+			rejections.push(
+				leftOutLine(leftOut(name, `${absent} is defined by no scope`)),
+			)
 			continue
 		}
 		kept[name] = authorized(expanded, own)
 	}
 	if (env.failure && rejections.length) {
-		return { servers: kept, rejections: [env.failure, ...rejections] }
+		return {
+			servers: kept,
+			rejections: [leftOutLine(env.failure), ...rejections],
+		}
 	}
 	return { servers: kept, rejections }
 }
