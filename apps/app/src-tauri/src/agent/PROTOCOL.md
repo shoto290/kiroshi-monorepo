@@ -55,6 +55,11 @@ its answer both.
 | `mcp_oauth_authorize` | `{"type":"mcp_oauth_authorize","credentials"?:{…},"error"?:{"kind":…}}` | the grant `mcp_oauth_connect` stores |
 | `mcp_oauth_cancel` | — | the pending `mcp_oauth_authorize`, settled `cancelled` |
 | `mcp_oauth_revoke` | `{"type":"mcp_oauth_revoke","revoked":bool,"detail"?:string}` | the `Disconnected` a `mcp_oauth_disconnect` answers |
+| `mcp_oauth_refresh` | `{"type":"mcp_oauth_refresh","credentials"?:{…},"error"?:{"kind":"rejected"\|"failed",…}}` | the grant written before a session opens, or its deletion on `rejected` |
+
+`mcp_oauth_refresh` answers `rejected` only when the token endpoint names `invalid_grant`,
+`invalid_client` or `unauthorized_client`. Any other OAuth error, an answer carrying none,
+and an authority that was never reached are `failed`, and the stored grant stands.
 
 `mcp_oauth_authorize` carries the `url` of an HTTP MCP server and runs the OAuth 2.1
 flow of `@modelcontextprotocol/sdk` against it: RFC 9728 discovery, dynamic client

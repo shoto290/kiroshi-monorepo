@@ -334,13 +334,24 @@ const posted = async (
 	return { revoked: true }
 }
 
-const refreshFailure = (error: unknown): OauthFailure =>
-	error instanceof OAuthError
-		? {
-				kind: "rejected",
-				detail: [error.errorCode, error.message].filter(Boolean).join(": "),
-			}
-		: { kind: "failed", detail: describeError(error) }
+const REFUSED_GRANT_CODES = new Set([
+	"invalid_grant",
+	"invalid_client",
+	"unauthorized_client",
+])
+
+const oauthDetail = (error: OAuthError) =>
+	[error.errorCode, error.message].filter(Boolean).join(": ")
+
+const refreshFailure = (error: unknown): OauthFailure => {
+	if (!(error instanceof OAuthError)) {
+		return { kind: "failed", detail: describeError(error) }
+	}
+	return {
+		kind: REFUSED_GRANT_CODES.has(error.errorCode) ? "rejected" : "failed",
+		detail: oauthDetail(error),
+	}
+}
 
 export const refreshMcpToken = async ({
 	url,

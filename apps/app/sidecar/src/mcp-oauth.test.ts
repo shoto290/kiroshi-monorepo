@@ -26,6 +26,16 @@ type Registration = {
 	revocations: URLSearchParams[]
 }
 
+type TokenRefusal = {
+	status: number
+	body: string
+}
+
+const refusedWith = (error: string): TokenRefusal => ({
+	status: 400,
+	body: JSON.stringify({ error, error_description: REFUSED_GRANT }),
+})
+
 type Authority = {
 	url: string
 	seen: Registration
@@ -35,12 +45,12 @@ type Authority = {
 const anAuthorizationServer = ({
 	revocable = true,
 	revocationStatus = 200,
-	tokenStatus = 200,
+	tokenRefusal,
 	authorizationScheme = "",
 }: {
 	revocable?: boolean
 	revocationStatus?: number
-	tokenStatus?: number
+	tokenRefusal?: TokenRefusal
 	authorizationScheme?: string
 } = {}): Authority => {
 	const seen: Registration = {
@@ -81,14 +91,10 @@ const anAuthorizationServer = ({
 			}
 			if (asked.pathname === "/token") {
 				seen.tokenRequests.push(new URLSearchParams(await request.text()))
-				if (tokenStatus !== 200) {
-					return Response.json(
-						{
-							error: "invalid_grant",
-							error_description: REFUSED_GRANT,
-						},
-						{ status: tokenStatus },
-					)
+				if (tokenRefusal) {
+					return new Response(tokenRefusal.body, {
+						status: tokenRefusal.status,
+					})
 				}
 				return Response.json({
 					access_token: ACCESS_TOKEN,
@@ -421,24 +427,49 @@ describe("mcp oauth", () => {
 		}
 	}, 20_000)
 
-	it("answers rejected with the reason a token endpoint outside 2xx gave", async () => {
-		const authority = anAuthorizationServer({ tokenStatus: 400 })
+	const refreshedAgainst = async (tokenRefusal: TokenRefusal) => {
+		const authority = anAuthorizationServer({ tokenRefusal })
 		try {
-			const answered = await refreshMcpToken({
+			return await refreshMcpToken({
 				url: authority.url,
 				refreshToken: HELD_REFRESH_TOKEN,
 				clientId: CLIENT_ID,
 			})
-
-			expect(answered).toEqual({
-				error: {
-					kind: "rejected",
-					detail: `invalid_grant: ${REFUSED_GRANT}`,
-				},
-			})
 		} finally {
 			await authority.stop()
 		}
+	}
+
+	for (const code of [
+		"invalid_grant",
+		"invalid_client",
+		"unauthorized_client",
+	]) {
+		it(`answers rejected with the reason a token endpoint refusing ${code} gave`, async () => {
+			expect(await refreshedAgainst(refusedWith(code))).toEqual({
+				error: { kind: "rejected", detail: `${code}: ${REFUSED_GRANT}` },
+			})
+		}, 20_000)
+	}
+
+	it("answers failed when the token endpoint names any other OAuth error", async () => {
+		expect(
+			await refreshedAgainst(refusedWith("temporarily_unavailable")),
+		).toEqual({
+			error: {
+				kind: "failed",
+				detail: `temporarily_unavailable: ${REFUSED_GRANT}`,
+			},
+		})
+	}, 20_000)
+
+	it("answers failed when the token endpoint answers outside 2xx with no OAuth error", async () => {
+		const answered = await refreshedAgainst({
+			status: 503,
+			body: "<html>Service Unavailable</html>",
+		})
+
+		expect(answered).toMatchObject({ error: { kind: "failed" } })
 	}, 20_000)
 
 	it("answers failed when the authority cannot be reached", async () => {
