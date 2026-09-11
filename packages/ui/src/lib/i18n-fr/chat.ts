@@ -233,8 +233,7 @@ const chat = {
 				"L'agent a démarré une nouvelle session. Continuez, vos messages sont toujours là.",
 			workingDirectoryRefused:
 				"{{path}} n'existe plus, le compagnon utilise son dossier par défaut. Choisissez-en un autre dans ses réglages.",
-			invalidFrame:
-				"Trame illisible ignorée ({{detail}}). Continuez, rien d'autre n'a changé.",
+			invalidFrame: "Trame illisible ignorée ({{detail}}). Continuez.",
 			settingsRejected:
 				"Impossible d'appliquer settings.json ({{detail}}). Corrigez-le, puis redémarrez la session.",
 			serverEnvRejected:
@@ -275,7 +274,7 @@ const chat = {
 	newConversation: {
 		title: "Nouvelle conversation",
 		description:
-			"Choisissez les participants ; le premier compagnon choisi mène. Nommez la conversation maintenant, ou laissez votre premier message la nommer.",
+			"Choisissez les participants. Le premier compagnon choisi mène.",
 		name: {
 			label: "Nom",
 			placeholder: "Laissez vide pour la nommer d'après votre premier message",

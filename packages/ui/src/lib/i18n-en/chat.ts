@@ -228,8 +228,7 @@ const chat = {
 				"The agent started a new session. Keep going, your messages are still here.",
 			workingDirectoryRefused:
 				"{{path}} is gone, so the companion uses its default folder. Choose another in its settings.",
-			invalidFrame:
-				"Skipped an unreadable frame ({{detail}}). Keep going, nothing else changed.",
+			invalidFrame: "Skipped an unreadable frame ({{detail}}). Keep going.",
 			settingsRejected:
 				"Couldn't apply settings.json ({{detail}}). Fix it, then restart the session.",
 			serverEnvRejected:
@@ -265,8 +264,7 @@ const chat = {
 	},
 	newConversation: {
 		title: "New conversation",
-		description:
-			"Pick who joins; the first companion you pick leads. Name the conversation now, or let your first message name it.",
+		description: "Pick who joins. The first companion you pick leads.",
 		name: {
 			label: "Name",
 			placeholder: "Leave empty to name it from your first message",
