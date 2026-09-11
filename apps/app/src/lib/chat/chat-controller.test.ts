@@ -388,7 +388,7 @@ describe("createChatController", () => {
 			expect(state.turn).toBe("failed")
 			expect(state.errors.at(-1)?.error).toEqual({
 				kind: "writeFailed",
-				detail: "the transcript store refused it (storage)",
+				detail: "the transcript store refused it (storage, poisonedConnection)",
 			})
 			expect(await reload(store)).toEqual([])
 		},
@@ -436,7 +436,7 @@ describe("createChatController", () => {
 		expect(spoken(state.messages)).toEqual([["user", "hello", "complete"]])
 		expect(state.errors.at(-1)?.error).toEqual({
 			kind: "writeFailed",
-			detail: "the transcript store refused it (storage)",
+			detail: "the transcript store refused it (storage, poisonedConnection)",
 		})
 		neverAheadOfStorage(state.messages, await reload(store))
 	})
@@ -920,32 +920,96 @@ describe("createChatController", () => {
 		expect(spoken(await reload(store))).toEqual(spoken(state.messages))
 	})
 
-	it("writes an answer to the thread of its turn after the reader left it", async () => {
-		const store = referentialStore(createFakeTranscriptStore())
+	const spaceElsewhere = async (store: TranscriptStore) => {
 		const elsewhere = await store.createSpace("Vocca")
 		await store.addBotToSpace(BOT, elsewhere.id)
-		const { controller } = await bootedHarness({ store })
-		await controller.send("pick one /question")
-		await vi.runAllTimersAsync()
+		return elsewhere.id
+	}
 
-		const asked = controller.getState().question
+	const askedInAThreadLeftBehind = async (store: TranscriptStore) => {
+		const elsewhere = await spaceElsewhere(store)
+		const harness = await bootedHarness({ store })
+		await harness.controller.send("pick one /question")
+		await vi.runAllTimersAsync()
+		const asked = harness.controller.getState().question
+		await harness.controller.open(BOT, elsewhere)
+		await vi.runAllTimersAsync()
+		return { ...harness, asked }
+	}
+
+	it("sends a message as a plain prompt when the question belongs to a thread left behind", async () => {
+		const store = referentialStore(createFakeTranscriptStore())
+		const { controller, driver, asked } = await askedInAThreadLeftBehind(store)
 		expect(asked).not.toBeNull()
+		const submitSpy = vi.spyOn(driver, "submitPrompt")
 
-		await controller.open(BOT, elsewhere.id)
-		await vi.runAllTimersAsync()
 		await controller.send("never mind, do it your way")
 		await vi.runAllTimersAsync()
 
 		const state = controller.getState()
 		expect(state.errors).toEqual([])
-		expect(state.messages).toEqual([])
-		const answered = (await reload(store)).find(
-			(message) => message.content === "never mind, do it your way",
+		expect(submitSpy.mock.lastCall?.[0].conversationId).toBe(
+			state.conversationId,
 		)
-		expect(answered?.role).toBe("user")
-		expect(answered?.repliedToMessageId).toBe(
-			questionMessageIdOf(asked?.id ?? ""),
+		expect(spoken(state.messages)).toEqual([
+			["user", "never mind, do it your way", "complete"],
+			["assistant", REPLY, "complete"],
+		])
+		expect(
+			(await reload(store)).map((message) => message.content),
+		).not.toContain("never mind, do it your way")
+	})
+
+	it("writes nothing when a question of a thread left behind is answered from the selector", async () => {
+		const store = referentialStore(createFakeTranscriptStore())
+		const { controller, driver, asked } = await askedInAThreadLeftBehind(store)
+		const answerSpy = vi.spyOn(driver, "answerQuestion")
+		const shown = controller.getState()
+		const leftBehind = spoken(await reload(store))
+
+		await controller.answer(asked?.id ?? "", { Framework: "React" })
+		await vi.runAllTimersAsync()
+
+		expect(answerSpy).not.toHaveBeenCalled()
+		expect(controller.getState()).toBe(shown)
+		expect(spoken(await reload(store))).toEqual(leftBehind)
+	})
+
+	it("opens a run in the open thread before retrying a prompt of it", async () => {
+		let isRefusing = true
+		const base = referentialStore(createFakeTranscriptStore())
+		const store: TranscriptStore = {
+			...base,
+			boundedContext: (...context) =>
+				isRefusing
+					? Promise.reject(REFUSED_REFERENCE)
+					: base.boundedContext(...context),
+		}
+		const elsewhere = await spaceElsewhere(store)
+		const { controller, driver } = await bootedHarness({ store })
+		await controller.send("hello")
+		await vi.runAllTimersAsync()
+		const rejected = controller.getState().rejectedPromptId
+		isRefusing = false
+		await controller.open(BOT, elsewhere)
+		await controller.start()
+		await controller.open(BOT, null)
+		await vi.runAllTimersAsync()
+		const submitSpy = vi.spyOn(driver, "submitPrompt")
+		const refusals = controller.getState().errors.length
+
+		await controller.retry(rejected ?? "")
+		await vi.runAllTimersAsync()
+
+		const state = controller.getState()
+		expect(state.errors).toHaveLength(refusals)
+		expect(submitSpy.mock.lastCall?.[0].conversationId).toBe(
+			state.conversationId,
 		)
+		expect(spoken(await reload(store))).toEqual([
+			["user", "hello", "complete"],
+			["assistant", REPLY, "complete"],
+		])
 	})
 
 	it("points an answer at an asking row still on its way to the store", async () => {
@@ -978,6 +1042,55 @@ describe("createChatController", () => {
 		expect(answered?.repliedToMessageId).toBe(
 			questionMessageIdOf(asked?.id ?? ""),
 		)
+	})
+
+	it("sends a plain message in a solo thread its run was left behind in", async () => {
+		const store = referentialStore(createFakeTranscriptStore())
+		const elsewhere = await spaceElsewhere(store)
+		const { controller, driver } = await bootedHarness({ store })
+		const submitSpy = vi.spyOn(driver, "submitPrompt")
+		await controller.send("hello")
+		await vi.runAllTimersAsync()
+		await controller.open(BOT, elsewhere)
+		await vi.runAllTimersAsync()
+		await controller.send("over here")
+		await vi.runAllTimersAsync()
+
+		await controller.open(BOT, null)
+		await vi.runAllTimersAsync()
+		await controller.send("back home")
+		await vi.runAllTimersAsync()
+
+		const state = controller.getState()
+		expect(state.errors).toEqual([])
+		expect(submitSpy.mock.lastCall?.[0].conversationId).toBe(
+			state.conversationId,
+		)
+		expect(spoken(await reload(store))).toEqual([
+			["user", "hello", "complete"],
+			["assistant", REPLY, "complete"],
+			["user", "back home", "complete"],
+			["assistant", REPLY, "complete"],
+		])
+	})
+
+	it("passes the first prompt of a run whose checkpoint the store refused", async () => {
+		const store: TranscriptStore = {
+			...createFakeTranscriptStore(),
+			captureCheckpoint: () => Promise.reject(REFUSED_REFERENCE),
+		}
+		const { controller, driver } = await bootedHarness({ store })
+		const submitSpy = vi.spyOn(driver, "submitPrompt")
+
+		await controller.send("hello")
+		await vi.runAllTimersAsync()
+
+		expect(submitSpy).toHaveBeenCalledTimes(1)
+		expect(controller.getState().errors.at(-1)?.error).toEqual({
+			kind: "writeFailed",
+			detail:
+				"the transcript store refused it (storage, sqlite: FOREIGN KEY constraint failed)",
+		})
 	})
 
 	it("keeps recording the turn still running in the thread left behind", async () => {
@@ -1180,7 +1293,7 @@ describe("createChatController", () => {
 		expect(state.conversationId).toBe(FAKE_CHAT_ID)
 		expect(state.errors.at(-1)?.error).toEqual({
 			kind: "writeFailed",
-			detail: "the transcript store refused it (storage)",
+			detail: "the transcript store refused it (storage, poisonedConnection)",
 		})
 	})
 
@@ -2032,7 +2145,7 @@ describe("a run replaced under a conversation that carries on", () => {
 		expect(told(submitted)).toBe("second")
 		expect(controller.getState().errors.at(-1)?.error).toEqual({
 			kind: "writeFailed",
-			detail: "the transcript store refused it (storage)",
+			detail: "the transcript store refused it (storage, poisonedConnection)",
 		})
 		expect(spoken(controller.getState().messages).at(-1)).toEqual([
 			"assistant",
@@ -2050,7 +2163,7 @@ describe("a run replaced under a conversation that carries on", () => {
 		expect(occurrences(told(submitted), "third")).toBe(1)
 	})
 
-	it.each(["captureCheckpoint", "boundedContext"] as const)(
+	it.each(["boundedContext"] as const)(
 		"gives a run that was told nothing no prompt of its own when %s is refused",
 		async (member) => {
 			const store = refusingStoreAt(member)
@@ -2066,7 +2179,7 @@ describe("a run replaced under a conversation that carries on", () => {
 			expect(refused.turn).toBe("failed")
 			expect(refused.errors.at(-1)?.error).toEqual({
 				kind: "writeFailed",
-				detail: "the transcript store refused it (storage)",
+				detail: "the transcript store refused it (storage, poisonedConnection)",
 			})
 			expect(spoken(refused.messages).at(-1)).toEqual([
 				"user",
@@ -2478,7 +2591,7 @@ describe("every ending survives a launch", () => {
 describe("the provider session a run answered under", () => {
 	const REFUSED_BY_THE_STORE = {
 		kind: "writeFailed",
-		detail: "the transcript store refused it (storage)",
+		detail: "the transcript store refused it (storage, staleWrite)",
 	}
 
 	const STALE_WRITE = { kind: "storage", failure: { kind: "staleWrite" } }
