@@ -920,14 +920,19 @@ describe("createChatController", () => {
 		expect(spoken(await reload(store))).toEqual(spoken(state.messages))
 	})
 
-	const askedInAThreadLeftBehind = async (store: TranscriptStore) => {
+	const spaceElsewhere = async (store: TranscriptStore) => {
 		const elsewhere = await store.createSpace("Vocca")
 		await store.addBotToSpace(BOT, elsewhere.id)
+		return elsewhere.id
+	}
+
+	const askedInAThreadLeftBehind = async (store: TranscriptStore) => {
+		const elsewhere = await spaceElsewhere(store)
 		const harness = await bootedHarness({ store })
 		await harness.controller.send("pick one /question")
 		await vi.runAllTimersAsync()
 		const asked = harness.controller.getState().question
-		await harness.controller.open(BOT, elsewhere.id)
+		await harness.controller.open(BOT, elsewhere)
 		await vi.runAllTimersAsync()
 		return { ...harness, asked }
 	}
@@ -980,14 +985,13 @@ describe("createChatController", () => {
 					? Promise.reject(REFUSED_REFERENCE)
 					: base.boundedContext(...context),
 		}
-		const elsewhere = await store.createSpace("Vocca")
-		await store.addBotToSpace(BOT, elsewhere.id)
+		const elsewhere = await spaceElsewhere(store)
 		const { controller, driver } = await bootedHarness({ store })
 		await controller.send("hello")
 		await vi.runAllTimersAsync()
 		const rejected = controller.getState().rejectedPromptId
 		isRefusing = false
-		await controller.open(BOT, elsewhere.id)
+		await controller.open(BOT, elsewhere)
 		await controller.start()
 		await controller.open(BOT, null)
 		await vi.runAllTimersAsync()
@@ -1042,13 +1046,12 @@ describe("createChatController", () => {
 
 	it("sends a plain message in a solo thread its run was left behind in", async () => {
 		const store = referentialStore(createFakeTranscriptStore())
-		const elsewhere = await store.createSpace("Vocca")
-		await store.addBotToSpace(BOT, elsewhere.id)
+		const elsewhere = await spaceElsewhere(store)
 		const { controller, driver } = await bootedHarness({ store })
 		const submitSpy = vi.spyOn(driver, "submitPrompt")
 		await controller.send("hello")
 		await vi.runAllTimersAsync()
-		await controller.open(BOT, elsewhere.id)
+		await controller.open(BOT, elsewhere)
 		await vi.runAllTimersAsync()
 		await controller.send("over here")
 		await vi.runAllTimersAsync()
