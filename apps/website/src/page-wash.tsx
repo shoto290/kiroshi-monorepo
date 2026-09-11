@@ -18,7 +18,7 @@ export const PageWash = () => {
 	return (
 		<GrainGradient
 			aria-hidden="true"
-			className="pointer-events-none fixed inset-x-0 top-0 h-dvh"
+			className="pointer-events-none fixed inset-x-0 top-0 h-dvh dark:opacity-25"
 			colorBack={WASH_COLOR_BACK}
 			colors={WASH_COLORS}
 			intensity={0.66}
