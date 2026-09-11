@@ -110,14 +110,10 @@ const EarLayer = ({ animal, ears, layer, weight, splitId }: EarLayerProps) => {
 		<g>
 			{ears.map((ear, index) => (
 				<g
-					data-part={PARTS.ear(index, layer)}
+					clipPath={layer === "front" ? `url(#${splitId}-${index})` : undefined}
 					key={`${animal}-ear-${ear.pivot[0]}`}
 				>
-					<g
-						clipPath={
-							layer === "front" ? `url(#${splitId}-${index})` : undefined
-						}
-					>
+					<g data-part={PARTS.ear(index, layer)}>
 						{ear.shapes.map((shape) => (
 							<Shape key={shapeKey(shape)} shape={shape} weight={weight} />
 						))}
@@ -310,7 +306,7 @@ function BotAvatar({
 							id={`${splitId}-${index}`}
 							key={`${animal}-split-${ear.pivot[0]}`}
 						>
-							<path data-part={PARTS.earSplit(index)} d="" />
+							<path clipRule="evenodd" d="" data-part={PARTS.earSplit(index)} />
 						</clipPath>
 					))}
 				</defs>

@@ -15,12 +15,19 @@ import {
 	STATE_POOLS,
 	STATE_POSES,
 } from "@workspace/ui/components/bot-avatar-data"
+import { PARTS } from "@workspace/ui/components/bot-avatar-engine"
 
 const BOT_AVATAR_ANIMALS = Object.keys(ANIMALS) as BotAvatarAnimal[]
 const BOT_AVATAR_STATES = Object.keys(STATE_POOLS) as BotAvatarState[]
 const YAW_SWEEP = [-60, -40, -20, 0, 20, 40, 60]
 const PITCH_SWEEP = [-40, -25, -12, 0, 12, 25, 40]
 const WELD_SIZE = 88
+const SPLIT_SIZE = 240
+const HALF_PLANE_EDGES = 3
+const SPLIT_SWEEP = [
+	...YAW_SWEEP.map((angle) => ({ axis: "yaw", angle })),
+	...PITCH_SWEEP.map((angle) => ({ axis: "pitch", angle })),
+]
 const BLOT_SEEDS = [
 	"bot-1",
 	"bot-2",
@@ -220,6 +227,57 @@ export const EarWeld = meta.story({
 			))}
 		</div>
 	),
+})
+
+export const EarSplit = meta.story({
+	name: "Ear Split",
+	parameters: {
+		layout: "fullscreen",
+		docs: {
+			description: {
+				story:
+					"The front ear cut, rabbit at full size, swept across yaw then pitch. Facing forward every ear sits behind the head, so the cut is empty and the head outline draws over both ears. Once the head turns, the part of an ear plate that rises in front of the round head is drawn over it, and the edge of that part follows the curve where the plate meets the head surface instead of a straight line. Check that the near ear passes in front along the round of the skull and that the far ear stays tucked behind it.",
+			},
+		},
+	},
+	render: () => (
+		<div className="flex flex-wrap gap-4 p-8">
+			{SPLIT_SWEEP.map(({ axis, angle }) => (
+				<LabeledCell key={`${axis}-${angle}`} label={`${axis} ${angle}°`}>
+					<BotAvatar
+						animal="rabbit"
+						animated={false}
+						pitch={axis === "pitch" ? angle : 0}
+						roll={0}
+						size={SPLIT_SIZE}
+						yaw={axis === "yaw" ? angle : 0}
+					/>
+				</LabeledCell>
+			))}
+		</div>
+	),
+	play: async ({ canvasElement }) => {
+		const avatars = Array.from(canvasElement.querySelectorAll("svg"))
+		await expect(avatars).toHaveLength(SPLIT_SWEEP.length)
+		for (const [cell, avatar] of avatars.entries()) {
+			const clips = ANIMALS.rabbit.ears.map(
+				(_, ear) =>
+					avatar
+						.querySelector(`[data-part="${PARTS.earSplit(ear)}"]`)
+						?.getAttribute("d") ?? "",
+			)
+			if (SPLIT_SWEEP[cell].angle === 0) {
+				await expect(clips).toEqual(["", ""])
+				continue
+			}
+			for (const clip of clips) {
+				await expect(clip.match(/L/g)?.length ?? 0).toBeGreaterThan(
+					HALF_PLANE_EDGES,
+				)
+				await expect(clip).not.toMatch(/\.\d{3}/)
+			}
+		}
+	},
 })
 
 export const Wireframe = meta.story({
