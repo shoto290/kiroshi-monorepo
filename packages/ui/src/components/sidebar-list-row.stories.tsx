@@ -140,7 +140,7 @@ const holdPointerOn = async (
 	target: HTMLElement,
 	whileHeld: () => Promise<void>,
 ) => {
-	const { userEvent } = await import("vitest/browser")
+	const userEvent = await realPointer()
 	const pressed = new Promise((resolve) =>
 		target.addEventListener("pointerdown", resolve, { once: true }),
 	)
