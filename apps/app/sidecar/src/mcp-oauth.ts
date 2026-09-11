@@ -2,9 +2,12 @@ import {
 	auth,
 	discoverOAuthServerInfo,
 	type OAuthClientProvider,
+	refreshAuthorization,
 } from "@modelcontextprotocol/sdk/client/auth.js"
+import { OAuthError } from "@modelcontextprotocol/sdk/server/auth/errors.js"
 import type {
 	AuthorizationServerMetadata,
+	OAuthClientInformation,
 	OAuthClientInformationFull,
 	OAuthClientMetadata,
 	OAuthTokens,
@@ -35,6 +38,7 @@ export type OauthFailureKind =
 	| "cancelled"
 	| "timedOut"
 	| "denied"
+	| "rejected"
 	| "failed"
 
 export type OauthFailure = {
@@ -66,6 +70,13 @@ export type AuthorizeRequest = {
 export type RevokeRequest = {
 	url?: string
 	token?: string
+	refreshToken?: string
+	clientId?: string
+	clientSecret?: string
+}
+
+export type RefreshRequest = {
+	url?: string
 	refreshToken?: string
 	clientId?: string
 	clientSecret?: string
@@ -176,7 +187,7 @@ const clientProvider = (
 
 const credentialsOf = (
 	tokens: OAuthTokens,
-	client: OAuthClientInformationFull,
+	client: OAuthClientInformation,
 ): OauthCredentials => ({
 	accessToken: tokens.access_token,
 	refreshToken: tokens.refresh_token,
@@ -321,6 +332,48 @@ const posted = async (
 		}
 	}
 	return { revoked: true }
+}
+
+const refreshFailure = (error: unknown): OauthFailure =>
+	error instanceof OAuthError
+		? {
+				kind: "rejected",
+				detail: [error.errorCode, error.message].filter(Boolean).join(": "),
+			}
+		: { kind: "failed", detail: describeError(error) }
+
+export const refreshMcpToken = async ({
+	url,
+	refreshToken,
+	clientId,
+	clientSecret,
+}: RefreshRequest): Promise<OauthAnswer> => {
+	if (!url || !refreshToken || !clientId) {
+		return {
+			error: {
+				kind: "failed",
+				detail: "no server url, refresh token or client id was named",
+			},
+		}
+	}
+	try {
+		const discovered = await discoverOAuthServerInfo(url, {
+			fetchFn: timedFetch,
+		})
+		const client = { client_id: clientId, client_secret: clientSecret }
+		const tokens = await refreshAuthorization(
+			discovered.authorizationServerUrl,
+			{
+				metadata: discovered.authorizationServerMetadata,
+				clientInformation: client,
+				refreshToken,
+				fetchFn: timedFetch,
+			},
+		)
+		return { credentials: credentialsOf(tokens, client) }
+	} catch (error) {
+		return { error: refreshFailure(error) }
+	}
 }
 
 export const revokeMcpToken = async (

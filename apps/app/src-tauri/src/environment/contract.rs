@@ -1,4 +1,4 @@
-use std::collections::BTreeMap;
+use std::collections::{BTreeMap, BTreeSet};
 
 use serde::{Deserialize, Serialize};
 
@@ -67,6 +67,8 @@ pub struct EnvEntry {
 pub struct ResolvedEnv {
 	pub base: Values,
 	pub per_server: PerServer,
+	#[serde(skip_serializing_if = "BTreeSet::is_empty")]
+	pub needs_authorization: BTreeSet<String>,
 	#[serde(skip_serializing_if = "Option::is_none")]
 	pub failure: Option<String>,
 }
@@ -77,7 +79,10 @@ impl ResolvedEnv {
 	}
 
 	pub fn is_untouched(&self) -> bool {
-		self.base.is_empty() && self.per_server.is_empty() && self.failure.is_none()
+		self.base.is_empty()
+			&& self.per_server.is_empty()
+			&& self.needs_authorization.is_empty()
+			&& self.failure.is_none()
 	}
 }
 

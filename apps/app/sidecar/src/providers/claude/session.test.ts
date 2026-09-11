@@ -14,7 +14,7 @@ import {
 	POLL_BUDGET_MS,
 	type ServerStatus,
 } from "./server-connect"
-import { leftOut } from "./server-env"
+import { AWAITING_AUTH, leftOut } from "./server-env"
 import {
 	buildOptions,
 	CLASSIFY_ASK_USER_QUESTION,
@@ -23,6 +23,7 @@ import {
 	stopTurn,
 } from "./session"
 import {
+	AUTHORIZE_LINE,
 	bundleLine,
 	KIROSHI_LAYER,
 	layerFor,
@@ -55,10 +56,12 @@ const request = {
 	identity,
 }
 
-const rejections = [
+const rejectedDetails = [
 	'the server "clock" was left out: TOKEN is defined by no scope',
 	'the server "probe" was left out: RUNNER is defined by no scope',
 ]
+
+const rejections = leftOutLines(rejectedDetails)
 
 const appended = (options: ReturnType<typeof buildOptions>): string =>
 	(options.systemPrompt as { append: string }).append
@@ -351,10 +354,8 @@ describe("buildOptions", () => {
 		)
 
 		expect(append).toBe(layerFor(request, rejections))
-		expect(
-			append.endsWith(unavailableServersSection(leftOutLines(rejections))),
-		).toBe(true)
-		for (const detail of rejections) {
+		expect(append.endsWith(unavailableServersSection(rejections))).toBe(true)
+		for (const detail of rejectedDetails) {
 			expect(append).toContain(detail)
 		}
 	})
@@ -378,7 +379,7 @@ describe("buildOptions", () => {
 			appended(
 				buildOptions(request, undefined, undefined, {
 					servers: {},
-					rejections: [failure],
+					rejections: leftOutLines([failure]),
 				}),
 			),
 		).toContain(failure)
@@ -424,7 +425,7 @@ describe("buildOptions", () => {
 			"clock",
 			KIROSHI_SERVER,
 		])
-		expect(appended(options)).toContain(rejections[0] ?? "")
+		expect(appended(options)).toContain(rejectedDetails[0] ?? "")
 	})
 
 	it("keeps the value a scope defines out of that section", () => {
@@ -582,13 +583,13 @@ describe("layerFor", () => {
 				KIROSHI_LAYER,
 				bundleLine("/bots/b1"),
 				`# learn\n\n${skillLine(join(system, "skills", "learn"))}\n\nRules.`,
-				unavailableServersSection(leftOutLines(rejections)),
+				unavailableServersSection(rejections),
 			].join("\n\n"),
 		)
 	})
 
 	it("tells the bot to answer with the tools it holds and to give the reason listed", () => {
-		const section = unavailableServersSection(leftOutLines(rejections))
+		const section = unavailableServersSection(rejections)
 
 		expect(section).toContain("Answer the person with the tools you still hold")
 		expect(section).toContain("give them the reason listed for it")
@@ -718,6 +719,35 @@ describe("layerFor", () => {
 		expect(section).toContain("give them the reason listed for it")
 	})
 
+	it("reads a server waiting for authorization as left out, and says once where it is authorized", () => {
+		const section = unavailableServersSection([
+			{ detail: leftOut("granola", AWAITING_AUTH), state: "needs-auth" },
+			{ detail: leftOut("notion", AWAITING_AUTH), state: "needs-auth" },
+		])
+
+		expect(section).toContain("# Servers left out of this session")
+		expect(section).toContain("tell them that server is unavailable")
+		expect(section.split(AUTHORIZE_LINE)).toHaveLength(2)
+	})
+
+	it("reads a server waiting for authorization beside one holding its tools as a mixed section", () => {
+		const section = unavailableServersSection([
+			{ detail: leftOut("granola", AWAITING_AUTH), state: "needs-auth" },
+			{
+				detail:
+					'the server "superset" connected, and holds its tools for the rest of this session',
+				state: "holding",
+			},
+		])
+
+		expect(section).toContain("on this opening alone")
+		expect(section.split(AUTHORIZE_LINE)).toHaveLength(2)
+	})
+
+	it("says nothing of authorization when no line waits on it", () => {
+		expect(unavailableServersSection(rejections)).not.toContain(AUTHORIZE_LINE)
+	})
+
 	it("opens on the identity the host rendered, above the Kiroshi sentences", () => {
 		expect(layerFor({ identity, pluginPath: "/bots/b1" })).toBe(
 			[identity, KIROSHI_LAYER, bundleLine("/bots/b1")].join("\n\n"),
@@ -732,7 +762,7 @@ describe("reportConnections", () => {
 	const detail =
 		'the server "superset" was left out: it is waiting for you to authorize it'
 
-	const section = unavailableServersSection(leftOutLines([detail]))
+	const section = unavailableServersSection([{ detail, state: "needs-auth" }])
 
 	type Report = {
 		emitted: string[]

@@ -44,6 +44,7 @@ pub fn run() {
 		.plugin(tauri_plugin_os::init())
 		.manage(AgentState::default())
 		.manage(mcp_oauth::commands::McpOauthState::default())
+		.manage(mcp_oauth::reports::ConnectorReports::default())
 		.setup(|app| {
 			app.manage(db::bootstrap(app.handle()));
 			if let Some(window) = app.get_webview_window("main") {

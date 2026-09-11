@@ -1009,6 +1009,12 @@ pub struct McpServer {
 	pub config: serde_json::Value,
 }
 
+impl McpServer {
+	pub fn url(&self) -> Option<&str> {
+		self.config.get("url").and_then(serde_json::Value::as_str)
+	}
+}
+
 pub fn mcp_servers(root: &Path, bot_id: &str) -> Vec<McpServer> {
 	mcp_servers_at(&dir(root, bot_id))
 }

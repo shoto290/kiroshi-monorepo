@@ -4,6 +4,7 @@ import {
 	type ConnectPass,
 	type ConnectPort,
 	POLL_BUDGET_MS,
+	type ReportedLine,
 	type ServerStatus,
 	UNNAMED_GRACE_MS,
 	unconnectedServers,
@@ -410,10 +411,15 @@ describe("unconnectedServers", () => {
 	it("names a server waiting for authorization, and reconnects it by no call", async () => {
 		const port = portReading([[{ name: "superset", status: "needs-auth" }]])
 
-		const details = await reportedLines({ names: ["superset"], port })
+		const lines = await unconnectedServers({ names: ["superset"], port })
 
-		expect(details).toEqual([
-			'the server "superset" was left out: it is waiting for you to authorize it',
+		expect(lines).toEqual([
+			{
+				detail:
+					'the server "superset" was left out: it is waiting for you to authorize it',
+				state: "needs-auth",
+				notice: true,
+			},
 		])
 		expect(port.reconnected).toEqual([])
 		expect(port.reads).toBe(1)
@@ -494,6 +500,33 @@ describe("watching a server left connecting", () => {
 
 		return { reported, reconnected, spentReads, reads: () => reads }
 	}
+
+	it("marks a server a later read settles as waiting for authorization as needs-auth", async () => {
+		const reported: ReportedLine[] = []
+		let time = 0
+
+		await unconnectedServers({
+			names: ["superset"],
+			port: {
+				status: async () => (time <= LAST_POLL_MS ? pending : awaiting),
+				reconnect: async () => {},
+			},
+			now: () => time,
+			wait: async (ms) => {
+				time += ms
+			},
+			report: (line) => reported.push(line),
+		})
+		await settling()
+
+		expect(reported).toEqual([
+			{
+				detail: `${leftOut}it is waiting for you to authorize it`,
+				state: "needs-auth",
+				notice: true,
+			},
+		])
+	})
 
 	it("reconnects a server the CLI settles failed after the budget, once", async () => {
 		const { reported, reconnected } = await watched(

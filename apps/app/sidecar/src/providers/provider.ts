@@ -8,6 +8,7 @@ export type ProviderCapability =
 export type ServerEnv = {
 	base?: Record<string, string>
 	perServer?: Record<string, Record<string, string>>
+	needsAuthorization?: string[]
 	failure?: string
 }
 

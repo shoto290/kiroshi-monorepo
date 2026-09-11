@@ -36,7 +36,12 @@ export const userLine = (userPluginPath: string): string =>
 export const spaceLine = (spacePluginPath: string): string =>
 	`What you learn about the project this space is for lives in ${spacePluginPath}, the directory every bot of this space reads, and that is where you write it.`
 
-export type ServerState = "left-out" | "connecting" | "reconnecting" | "holding"
+export type ServerState =
+	| "left-out"
+	| "needs-auth"
+	| "connecting"
+	| "reconnecting"
+	| "holding"
 
 export type ServerLine = {
 	detail: string
@@ -48,6 +53,11 @@ const CONNECTING_LINE =
 
 const HOLDS_TOOLS_LINE =
 	"A server named as holding its tools has them for the rest of this session. Use it as you would any other, and tell the person it is there if they asked about it."
+
+export const AUTHORIZE_LINE =
+	"A server waiting to be authorized is authorized by the person, in Settings, then Connectors. Say exactly that when they ask for something that server holds, and never ask them in the chat for a token, a password or an authorization."
+
+const DROPPED_STATES = new Set<ServerState>(["left-out", "needs-auth"])
 
 const LEFT_OUT_OPENING = [
 	"# Servers left out of this session",
@@ -65,8 +75,8 @@ const STANDING_OPENING = [
 ]
 
 const openingFor = (states: Set<ServerState>): string[] => {
-	const dropped = states.has("left-out")
-	const standing = [...states].some((state) => state !== "left-out")
+	const dropped = [...states].some((state) => DROPPED_STATES.has(state))
+	const standing = [...states].some((state) => !DROPPED_STATES.has(state))
 	if (dropped && standing) {
 		return MIXED_OPENING
 	}
@@ -83,6 +93,7 @@ export const unavailableServersSection = (lines: ServerLine[]): string => {
 		title,
 		lines.map(({ detail }) => `- ${detail}`).join("\n"),
 		opening,
+		...(states.has("needs-auth") ? [AUTHORIZE_LINE] : []),
 		...(states.has("connecting") || states.has("reconnecting")
 			? [CONNECTING_LINE]
 			: []),
@@ -110,7 +121,7 @@ export const layerFor = (
 		userPluginPath,
 		spacePluginPath,
 	}: LayerContext,
-	rejections: string[] = [],
+	rejections: ServerLine[] = [],
 ): string =>
 	[
 		...(identity ? [identity] : []),
@@ -121,7 +132,5 @@ export const layerFor = (
 		...(systemPluginPath
 			? preloadedSkills(systemPluginPath).map(skillSection)
 			: []),
-		...(rejections.length
-			? [unavailableServersSection(leftOutLines(rejections))]
-			: []),
+		...(rejections.length ? [unavailableServersSection(rejections)] : []),
 	].join("\n\n")

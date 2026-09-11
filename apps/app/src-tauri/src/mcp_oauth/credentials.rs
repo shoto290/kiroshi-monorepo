@@ -2,10 +2,16 @@ use std::path::Path;
 
 use crate::agent::protocol::OauthCredentials;
 use crate::environment::contract::{
-	EnvError, EnvScope, OAUTH_ACCESS_TOKEN, OAUTH_CLIENT_ID, OAUTH_CLIENT_SECRET,
+	EnvError, EnvScope, Values, OAUTH_ACCESS_TOKEN, OAUTH_CLIENT_ID, OAUTH_CLIENT_SECRET,
 	OAUTH_EXPIRES_AT, OAUTH_REFRESH_TOKEN, RESERVED_NAMES,
 };
 use crate::environment::store;
+
+const AN_UNREADABLE_EXPIRY_HAS_PASSED: i64 = i64::MIN;
+
+pub fn expires_at(held: &Values) -> Option<i64> {
+	held.get(OAUTH_EXPIRES_AT).map(|at| at.parse().unwrap_or(AN_UNREADABLE_EXPIRY_HAS_PASSED))
+}
 
 fn named(held: &OauthCredentials, name: &str) -> Option<String> {
 	match name {
