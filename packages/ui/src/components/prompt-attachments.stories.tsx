@@ -20,7 +20,7 @@ const StagedComposer = () => {
 
 	return (
 		<PromptInput
-			aria-label="Prompt"
+			aria-label="Message"
 			defaultValue="Compare these two against the spec"
 			leading={<PromptAttachButton onAttach={attach} />}
 			attachments={<PromptAttachments items={items} onRemove={remove} />}
@@ -120,7 +120,7 @@ export const InComposer = meta.story({
 		},
 	},
 	play: async ({ canvas, userEvent }) => {
-		const composer = canvas.getByRole("textbox", { name: "Prompt" })
+		const composer = canvas.getByRole("textbox", { name: "Message" })
 		const form = composer.closest("form")
 
 		await expect(form?.dataset.expanded).toBe("true")

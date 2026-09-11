@@ -28,23 +28,23 @@ const PermissionsPanel = ({
 		onPermissionsChange({ ...permissions, ...fields })
 
 	const modeOptions = BOT_PERMISSION_MODES.map((mode) => ({
-		label: t(`permissions.mode.option.${mode}.label`),
+		label: t(`approvals.mode.option.${mode}.label`),
 		value: mode,
 	}))
 
 	const ruleList = (list: BotPermissionRuleList) => (
 		<SettingsListField
-			addLabel={t("permissions.rule.add")}
-			emptyLabel={t(`permissions.rule.${list}.empty`)}
-			hint={t(`permissions.rule.${list}.hint`)}
-			invalidMessage={t("permissions.rule.invalid")}
+			addLabel={t("approvals.rule.add")}
+			emptyLabel={t(`approvals.rule.${list}.empty`)}
+			hint={t(`approvals.rule.${list}.hint`)}
+			invalidMessage={t("approvals.rule.invalid")}
 			isItemValid={isPermissionRule}
 			items={permissions[list]}
 			key={list}
-			label={t(`permissions.rule.${list}.label`)}
+			label={t(`approvals.rule.${list}.label`)}
 			onItemsChange={(rules) => patch({ [list]: rules })}
-			placeholder={t("permissions.rule.placeholder")}
-			removeLabel={(rule) => t("permissions.rule.remove", { rule })}
+			placeholder={t("approvals.rule.placeholder")}
+			removeLabel={(rule) => t("approvals.rule.remove", { rule })}
 		/>
 	)
 
@@ -52,9 +52,9 @@ const PermissionsPanel = ({
 		<>
 			<SettingsSelect
 				hint={t(
-					`permissions.mode.option.${readBotPermissionMode(permissions.defaultMode)}.hint`,
+					`approvals.mode.option.${readBotPermissionMode(permissions.defaultMode)}.hint`,
 				)}
-				label={t("permissions.mode.label")}
+				label={t("approvals.mode.label")}
 				onValueChange={(mode) =>
 					patch({ defaultMode: readBotPermissionMode(mode) })
 				}

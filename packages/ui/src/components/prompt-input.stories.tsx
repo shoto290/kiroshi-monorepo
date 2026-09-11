@@ -147,7 +147,7 @@ export const Playground = meta.story({
 		},
 	},
 	play: async ({ args, canvas, userEvent }) => {
-		const textarea = canvas.getByRole("textbox", { name: "Prompt" })
+		const textarea = canvas.getByRole("textbox", { name: "Message" })
 
 		await userEvent.click(textarea)
 		await userEvent.type(textarea, "Draft the changelog")
@@ -182,8 +182,8 @@ export const Default = meta.story({
 		},
 	},
 	play: async ({ args, canvas, userEvent }) => {
-		const textarea = canvas.getByRole("textbox", { name: "Prompt" })
-		const send = canvas.getByRole("button", { name: "Send prompt" })
+		const textarea = canvas.getByRole("textbox", { name: "Message" })
+		const send = canvas.getByRole("button", { name: "Send" })
 
 		await userEvent.click(textarea)
 		await expect(textarea).toHaveFocus()
@@ -213,10 +213,10 @@ export const WithControls = meta.story({
 		},
 	},
 	play: async ({ canvas }) => {
-		const textarea = canvas.getByRole("textbox", { name: "Prompt" })
+		const textarea = canvas.getByRole("textbox", { name: "Message" })
 		const addContext = canvas.getByRole("button", { name: "Add context" })
 		const search = canvas.getByRole("button", { name: "Search the web" })
-		const send = canvas.getByRole("button", { name: "Send prompt" })
+		const send = canvas.getByRole("button", { name: "Send" })
 
 		await expect(isExpanded(textarea)).toBe(false)
 		await expect(isBefore(addContext, textarea)).toBe(true)
@@ -240,10 +240,10 @@ export const FullWidthLine = meta.story({
 		},
 	},
 	play: async ({ canvas }) => {
-		const textarea = canvas.getByRole("textbox", { name: "Prompt" })
+		const textarea = canvas.getByRole("textbox", { name: "Message" })
 		const addContext = canvas.getByRole("button", { name: "Add context" })
 		const search = canvas.getByRole("button", { name: "Search the web" })
-		const send = canvas.getByRole("button", { name: "Send prompt" })
+		const send = canvas.getByRole("button", { name: "Send" })
 
 		await expect(isExpanded(textarea)).toBe(true)
 		await expect(rowsOf(textarea)).toBe(1)
@@ -270,8 +270,8 @@ export const LongContent = meta.story({
 		},
 	},
 	play: async ({ canvas }) => {
-		const textarea = canvas.getByRole("textbox", { name: "Prompt" })
-		const send = canvas.getByRole("button", { name: "Send prompt" })
+		const textarea = canvas.getByRole("textbox", { name: "Message" })
+		const send = canvas.getByRole("button", { name: "Send" })
 		const addContext = canvas.getByRole("button", { name: "Add context" })
 
 		await expect(isExpanded(textarea)).toBe(true)
@@ -293,10 +293,10 @@ export const Empty = meta.story({
 	},
 	play: async ({ canvas }) => {
 		await expect(
-			canvas.queryByRole("button", { name: "Send prompt" }),
+			canvas.queryByRole("button", { name: "Send" }),
 		).not.toBeInTheDocument()
 		await expect(
-			isExpanded(canvas.getByRole("textbox", { name: "Prompt" })),
+			isExpanded(canvas.getByRole("textbox", { name: "Message" })),
 		).toBe(false)
 	},
 })
@@ -333,9 +333,9 @@ export const States = meta.story({
 		await expect(
 			canvas.getByRole("textbox", { name: "Disabled prompt" }),
 		).toBeDisabled()
-		await expect(
-			canvas.getAllByRole("button", { name: "Send prompt" }),
-		).toHaveLength(2)
+		await expect(canvas.getAllByRole("button", { name: "Send" })).toHaveLength(
+			2,
+		)
 
 		const addContext = canvas.getByRole("button", { name: "Add context" })
 		const remove = canvas.getByRole("button", {
@@ -361,7 +361,7 @@ export const Overflow = meta.story({
 		},
 	},
 	play: async ({ canvas }) => {
-		const textarea = canvas.getByRole("textbox", { name: "Prompt" })
+		const textarea = canvas.getByRole("textbox", { name: "Message" })
 
 		await expect(isExpanded(textarea)).toBe(true)
 		await expect(textarea.scrollHeight).toBeGreaterThan(textarea.clientHeight)
@@ -383,7 +383,7 @@ export const WithAttachments = meta.story({
 		},
 	},
 	play: async ({ args, canvas }) => {
-		const textarea = canvas.getByRole("textbox", { name: "Prompt" })
+		const textarea = canvas.getByRole("textbox", { name: "Message" })
 		const form = formOf(textarea)
 		const chip = canvas.getAllByRole("listitem")[0]
 
@@ -416,7 +416,7 @@ export const DragOver = meta.story({
 		},
 	},
 	play: async ({ canvas }) => {
-		const textarea = canvas.getByRole("textbox", { name: "Prompt" })
+		const textarea = canvas.getByRole("textbox", { name: "Message" })
 		const form = formOf(textarea)
 
 		await expect(drag("dragover", form, draggingFile())).toBe(true)
@@ -448,12 +448,12 @@ export const MarkedFromOutside = meta.story({
 	},
 	render: (args) => (
 		<div className="flex flex-col gap-4">
-			<PromptInput {...args} aria-label="Prompt" />
+			<PromptInput {...args} aria-label="Message" />
 			<PromptInput {...args} disabled aria-label="Disabled prompt" />
 		</div>
 	),
 	play: async ({ canvas }) => {
-		const form = formOf(canvas.getByRole("textbox", { name: "Prompt" }))
+		const form = formOf(canvas.getByRole("textbox", { name: "Message" }))
 		const disabled = formOf(
 			canvas.getByRole("textbox", { name: "Disabled prompt" }),
 		)
@@ -479,7 +479,7 @@ export const FilesOnly = meta.story({
 		},
 	},
 	play: async ({ args, canvas, userEvent }) => {
-		const send = await canvas.findByRole("button", { name: "Send prompt" })
+		const send = await canvas.findByRole("button", { name: "Send" })
 
 		await expect(send).toBeEnabled()
 		await userEvent.click(send)

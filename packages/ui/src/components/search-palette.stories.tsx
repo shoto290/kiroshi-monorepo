@@ -391,7 +391,7 @@ export const ChangingTab = meta.story({
 		docs: {
 			description: {
 				story:
-					"The gesture that swaps the body: the All tab, then Chats, then back through See all. Check that the press reports the tab it selects and that the body follows it — grouped and cut on All, flat and whole on a kind — and that See all is nothing more than that same gesture drawn on the head of the kind that overflows.",
+					"The gesture that swaps the body: the All tab, then Conversations, then back through See all. Check that the press reports the tab it selects and that the body follows it — grouped and cut on All, flat and whole on a kind — and that See all is nothing more than that same gesture drawn on the head of the kind that overflows.",
 			},
 		},
 	},
@@ -400,7 +400,7 @@ export const ChangingTab = meta.story({
 		const body = bodyOf(popup)
 		const reader = within(popup)
 
-		await userEvent.click(reader.getByRole("tab", { name: "Chats" }))
+		await userEvent.click(reader.getByRole("tab", { name: "Conversations" }))
 		await expect(args.onTabChange).toHaveBeenCalledWith("chats")
 		await waitFor(async () => {
 			await expect(slotsIn(body, "search-palette-section-head")).toHaveLength(0)
@@ -446,7 +446,7 @@ export const AcrossSpaces = meta.story({
 			marks.filter((tint) => tint.dataset.tint === undefined),
 		).toHaveLength(UNTINTED_RESULTS)
 		await expect(
-			reader.getByRole("listbox", { name: "Chats" }).textContent,
+			reader.getByRole("listbox", { name: "Conversations" }).textContent,
 		).toContain(OTHER_SPACE.name)
 
 		await userEvent.click(reader.getByRole("switch", { name: "All spaces" }))
@@ -514,7 +514,7 @@ export const Resting = meta.story({
 		const heads = slotsIn(body, "search-palette-section-head")
 
 		await expect(heads.map((head) => head.textContent)).toEqual([
-			"Recent chatsSee all",
+			"Recent conversationsSee all",
 			"Recent missions",
 			"RoutinesSee all",
 		])
@@ -565,7 +565,7 @@ export const RestingOneKind = meta.story({
 		docs: {
 			description: {
 				story:
-					"The Chats tab with nothing typed. Check that every resting chat the host handed over is drawn rather than the three the All tab keeps, that the one head naming the kind carries no count and no See all — the tab the See all would move to is the one the reader is already on — and that the popup keeps the height it has everywhere else. Pick `Resting` for the three kinds side by side.",
+					"The Conversations tab with nothing typed. Check that every resting conversation the host handed over is drawn rather than the three the All tab keeps, that the one head naming the kind carries no count and no See all — the tab the See all would move to is the one the reader is already on — and that the popup keeps the height it has everywhere else. Pick `Resting` for the three kinds side by side.",
 			},
 		},
 	},
@@ -574,7 +574,7 @@ export const RestingOneKind = meta.story({
 		const body = bodyOf(popup)
 		const [head] = slotsIn(body, "search-palette-section-head")
 
-		await expect(head?.textContent).toBe("Recent chats")
+		await expect(head?.textContent).toBe("Recent conversations")
 		await expect(within(popup).getAllByRole("option")).toHaveLength(
 			RESTING_CHATS.length,
 		)
@@ -662,7 +662,7 @@ export const RestingLoading = meta.story({
 		docs: {
 			description: {
 				story:
-					"The Chats tab at rest while the resting rows are still being read. Check that the body stays bare: the panel states that nothing has ever been opened here, which is a claim the palette cannot make until the read comes back. Pick `RestingKindEmpty` for the same tab once it has.",
+					"The Conversations tab at rest while the resting rows are still being read. Check that the body stays bare: the panel states that nothing has ever been opened here, which is a claim the palette cannot make until the read comes back. Pick `RestingKindEmpty` for the same tab once it has.",
 			},
 		},
 	},
@@ -693,7 +693,7 @@ export const Empty = meta.story({
 		await expect(reader.getByText("Nothing here matches")).toBeVisible()
 		await expect(
 			reader.getByText(
-				`No message, chat, mission or routine in ${SPACE.name}`,
+				`No message, conversation, mission or routine in ${SPACE.name}`,
 				{
 					exact: false,
 				},
@@ -794,7 +794,7 @@ export const Narrow = meta.story({
 		await expect(strip.clientHeight).toBe(strip.offsetHeight)
 		await expect(reader.getByRole("switch")).toBeVisible()
 
-		await userEvent.click(reader.getByRole("tab", { name: "Chats" }))
+		await userEvent.click(reader.getByRole("tab", { name: "Conversations" }))
 		await expect(args.onTabChange).toHaveBeenCalledWith("chats")
 	},
 })
@@ -825,7 +825,7 @@ export const ArrowKeyTabs = meta.story({
 		await userEvent.keyboard("{Enter}")
 		await expect(args.onTabChange).toHaveBeenCalledWith("messages")
 
-		reader.getByRole("tab", { name: "Chats" }).focus()
+		reader.getByRole("tab", { name: "Conversations" }).focus()
 		await userEvent.keyboard(" ")
 		await expect(args.onTabChange).toHaveBeenLastCalledWith("chats")
 	},
@@ -847,7 +847,7 @@ export const ReducedMotion = meta.story({
 			await expect(getComputedStyle(tab).transitionDuration).toBe("0s")
 		}
 
-		await userEvent.click(reader.getByRole("tab", { name: "Chats" }))
+		await userEvent.click(reader.getByRole("tab", { name: "Conversations" }))
 		await expect(args.onTabChange).toHaveBeenCalledWith("chats")
 	},
 })

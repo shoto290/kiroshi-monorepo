@@ -28,7 +28,7 @@ const common = {
 	},
 	notification: {
 		question: "Asked you a question",
-		permission: "Wants your permission",
+		approval: "Wants your approval",
 		finishedTurn: "Finished its turn",
 		mission: {
 			question: "Asked you a question on {{ticket}}",

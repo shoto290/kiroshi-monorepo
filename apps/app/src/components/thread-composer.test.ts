@@ -50,7 +50,7 @@ const type = (text: string) => {
 }
 
 const send = async () => {
-	fireEvent.click(screen.getByRole("button", { name: "Send prompt" }))
+	fireEvent.click(screen.getByRole("button", { name: "Send" }))
 	await act(async () => {
 		await Promise.resolve()
 	})
@@ -80,7 +80,7 @@ describe("ThreadComposer", () => {
 		)
 
 		type("ship it")
-		fireEvent.click(screen.getByRole("button", { name: "Send prompt" }))
+		fireEvent.click(screen.getByRole("button", { name: "Send" }))
 		type("and then this")
 		await act(async () => {
 			release(true)

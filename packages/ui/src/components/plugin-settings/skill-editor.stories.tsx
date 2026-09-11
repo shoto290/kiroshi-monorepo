@@ -259,7 +259,7 @@ export const Empty = meta.story({
 
 		await userEvent.click(canvas.getByRole("tab", { name: "Triggering" }))
 		await expect(
-			canvas.getByRole("switch", { name: "Let a reader invoke it" }),
+			canvas.getByRole("switch", { name: "Let you invoke it" }),
 		).toBeChecked()
 		await expect(
 			canvas.getByRole("switch", {

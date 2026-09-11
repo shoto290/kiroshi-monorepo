@@ -12,7 +12,7 @@ const search = {
 	},
 	scope: "Tous les espaces",
 	seeAll: "Tout voir",
-	solo: "fil en tête-à-tête",
+	solo: "conversation en tête-à-tête",
 	unavailable: {
 		title: "La recherche n'a pas pu être lue",
 		description:

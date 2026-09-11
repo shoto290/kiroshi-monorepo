@@ -1,30 +1,30 @@
 const chat = {
 	emptyState: {
 		ready: {
-			title: "Start with Claude Code",
+			title: "Start with the agent",
 			description:
 				"Kiroshi talks to its built-in agent. Nothing leaves your device.",
 		},
 		unavailable: {
-			title: "Claude Code is not available",
+			title: "The agent is not available",
 			description: "Kiroshi cannot reach its built-in agent.",
 		},
 		settings: "Companion settings",
-		hint: "Type your first prompt in the composer below",
+		hint: "Type your first message in the composer below",
 		setup: "Try again",
 	},
 	conversationEmptyState: {
 		description_one:
-			"{{count}} companion is seated here and waiting on your first message.",
+			"{{count}} companion is here and waiting on your first message.",
 		description_other:
-			"{{count}} companions are seated here and waiting on your first message.",
+			"{{count}} companions are here and waiting on your first message.",
 		hint: "Type your first message in the composer below",
 	},
 	connection: {
-		checking: "Checking Claude Code…",
-		ready: "Claude Code ready",
-		unavailable: "Claude Code unavailable",
-		crashed: "Claude Code stopped",
+		checking: "Checking the agent…",
+		ready: "Agent ready",
+		unavailable: "Agent unavailable",
+		crashed: "Agent stopped",
 	},
 	transcript: {
 		label: "Conversation",
@@ -39,7 +39,7 @@ const chat = {
 			unavailable: {
 				title: "That message could not be reached",
 				description:
-					"The thread is intact. Open the search result again to try landing on it.",
+					"The conversation is intact. Open the search result again to try landing on it.",
 			},
 		},
 		message: {
@@ -63,7 +63,7 @@ const chat = {
 				description:
 					"The conversation is intact. What opened each report is missing until the next read.",
 				soloDescription:
-					"The thread is intact. What opened each report is missing until the next read.",
+					"The conversation is intact. What opened each report is missing until the next read.",
 			},
 		},
 		mention: {
@@ -79,7 +79,7 @@ const chat = {
 		unpin: "Unpin",
 		copied: "Copied",
 		retry: "Retry",
-		cancel: "Cancel this prompt",
+		cancel: "Cancel this message",
 		footer: {
 			cancelled: "Stopped",
 			failed: "This response failed",
@@ -132,9 +132,9 @@ const chat = {
 		attach: "Attach files",
 	},
 	composer: {
-		label: "Prompt",
-		placeholder: "Ask the agent to do something…",
-		send: "Send prompt",
+		label: "Message",
+		placeholder: "Message",
+		send: "Send",
 		commands: "Commands",
 		mentions: "Companions",
 		mentioned_one: "{{count}} mention in the draft",
@@ -184,12 +184,12 @@ const chat = {
 		todo: "To do",
 	},
 	screen: {
-		label: "Claude Code conversation",
+		label: "Agent conversation",
 		identity: "{{name}} — companion settings",
 		conversationIdentity: "{{name}} — conversation settings",
-		placeholder: "Ask {{name}} to do something…",
-		permission: {
-			description: "Claude Code is waiting on you before it runs this tool.",
+		placeholder: "Message {{name}}",
+		approval: {
+			description: "The agent is waiting on you before it runs this tool.",
 			path: "Path",
 		},
 		question: {
@@ -197,19 +197,19 @@ const chat = {
 		},
 		attachmentsRefused: "Files not attached",
 		restart: "Restart session",
-		handover: {
+		handoff: {
 			title: "{{first}} and {{second}} keep handing the turn to each other",
 			description:
 				"They have passed it back and forth three times. The turn carries on until you stop it.",
 			stop: "Stop the turn",
 		},
 		notice: {
-			crashed: "Claude Code stopped",
+			crashed: "The agent stopped",
 			resumeFailed: "Previous conversation could not be resumed",
 			workingDirectoryRefused: "The companion's folder was not found",
 			settingsRejected: "The companion's settings were not applied",
-			serverEnvRejected: "A server was left out",
-			unavailable: "Claude Code is unavailable",
+			serverEnvRejected: "A connector was left out",
+			unavailable: "The agent is unavailable",
 			failed: "That request did not go through",
 			readFailed: "Earlier messages not loaded",
 		},
@@ -218,29 +218,29 @@ const chat = {
 			notAuthenticated:
 				"Your Claude subscription is not signed in. Sign in to Claude, then start the conversation again.",
 			authCheckFailed: "The sign-in check failed: {{detail}}",
-			spawnFailed: "Claude Code could not be started: {{detail}}",
-			startupTimeout: "Claude Code did not answer within {{timeoutMs}} ms.",
-			crashed: "Claude Code exited (code {{code}}).",
-			crashedDetail: "Claude Code exited (code {{code}}). {{detail}}",
-			crashedUnknownCode: "Claude Code exited (code unknown).",
-			crashedUnknownCodeDetail: "Claude Code exited (code unknown). {{detail}}",
+			spawnFailed: "The agent could not be started: {{detail}}",
+			startupTimeout: "The agent did not answer within {{timeoutMs}} ms.",
+			crashed: "The agent exited (code {{code}}).",
+			crashedDetail: "The agent exited (code {{code}}). {{detail}}",
+			crashedUnknownCode: "The agent exited (code unknown).",
+			crashedUnknownCodeDetail: "The agent exited (code unknown). {{detail}}",
 			resumeFailed:
-				"That conversation could not be resumed. Claude Code started a new one; your messages are still here.",
+				"That conversation could not be resumed. The agent started a new one; your messages are still here.",
 			workingDirectoryRefused:
 				"{{path}} is not there any more. This companion is answering from the usual place instead.",
 			invalidFrame: "An unreadable frame was skipped: {{detail}}",
 			settingsRejected:
 				"This companion's settings.json was not applied: {{detail}}",
 			serverEnvRejected:
-				"{{detail}}. The conversation carries on with the other servers.",
+				"{{detail}}. The conversation carries on with the other connectors.",
 			notStarted: "No session is running.",
 			turnAlreadyRunning: "A turn is already running.",
 			transitionInProgress: "A session change is already in progress.",
 			noActiveTurn: "There is no turn to interrupt.",
 			staleRuntimeSession:
 				"That session has been replaced. The one running now took its place.",
-			unknownPermission: "Unknown permission request ({{id}}).",
-			writeFailed: "The prompt could not be sent: {{detail}}",
+			unknownPermission: "Unknown approval request ({{id}}).",
+			writeFailed: "The message could not be sent: {{detail}}",
 			readFailed: "The earlier messages could not be read: {{detail}}",
 			unknownFailure: "Something went wrong: {{detail}}",
 		},
@@ -250,10 +250,10 @@ const chat = {
 			unknownConversation:
 				"This conversation is not on the record any more. Reopen the companion and attach them again.",
 			tooMany:
-				"A prompt carries {{limit}} files at most, and {{staged}} are staged.",
+				"A message carries {{limit}} files at most, and {{staged}} are staged.",
 			tooLarge: "{{name}} is over the {{limit}} a single file may weigh.",
 			tooLargeTogether:
-				"The staged files come to {{bytes}}, over the {{limit}} one prompt may carry.",
+				"The staged files come to {{bytes}}, over the {{limit}} one message may carry.",
 			unwritable: "The files could not be written down: {{detail}}",
 		},
 	},
@@ -302,7 +302,7 @@ const chat = {
 			lead: "Lead",
 			promote: "Give the lead to {{name}}",
 			dismiss: "Dismiss {{name}}",
-			last: "The last companion seated stays in the conversation.",
+			last: "The last companion stays in the conversation.",
 			all: "Every companion of the space is already in this conversation.",
 		},
 		danger: {
@@ -520,10 +520,10 @@ const chat = {
 	missions: {
 		state: {
 			working: "Working",
-			waiting_bot: "Waiting for the companion",
+			waiting_bot: "Working",
 			waiting_human: "Waiting for you",
 			ready_to_merge: "Ready to merge",
-			failed: "Failed",
+			failed: "Blocked",
 			done: "Done",
 		},
 		event: {
@@ -563,11 +563,11 @@ const chat = {
 			openedAt: "opened {{time}}",
 		},
 		feed: {
-			label: "Mission thread",
+			label: "Mission conversation",
 		},
 		summons: {
 			working: "Opened by the mission",
-			waiting_bot: "Opened by the blocked coding agent",
+			waiting_bot: "Opened by the coding agent's question",
 		},
 		composer: {
 			placeholder: "Answer this mission…",
@@ -585,7 +585,7 @@ const chat = {
 			run: {
 				title: "The companion could not be run on its mission",
 				description:
-					"Nothing was changed on the mission. Open its thread to see where it stands.",
+					"Nothing was changed on the mission. Open its conversation to see where it stands.",
 			},
 		},
 	},

@@ -21,7 +21,7 @@ describe("notificationWordsFor", () => {
 		)
 		expect(
 			notificationWordsFor({ name: "Nyx", event: "permission" }).body,
-		).toBe("Wants your permission")
+		).toBe("Wants your approval")
 		expect(
 			notificationWordsFor({ name: "Nyx", event: "finishedTurn" }).body,
 		).toBe("Finished its turn")
@@ -35,7 +35,7 @@ describe("notificationWordsFor", () => {
 		)
 		expect(
 			notificationWordsFor({ name: "Nyx", event: "permission" }).body,
-		).toBe("Demande votre permission")
+		).toBe("Demande votre autorisation")
 		expect(
 			notificationWordsFor({ name: "Nyx", event: "finishedTurn" }).body,
 		).toBe("A terminé son tour")

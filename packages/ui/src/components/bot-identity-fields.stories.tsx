@@ -159,7 +159,7 @@ export const TakesTheBlotOff = meta.story({
 		},
 	},
 	play: async ({ args, canvas, canvasElement, userEvent }) => {
-		await userEvent.click(canvas.getByRole("radio", { name: "No blot" }))
+		await userEvent.click(canvas.getByRole("radio", { name: "No colour" }))
 
 		await expect(args.onIdentityChange).toHaveBeenCalledWith({
 			animal: "owl",

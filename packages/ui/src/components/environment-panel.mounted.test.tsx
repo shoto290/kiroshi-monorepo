@@ -8,7 +8,7 @@ import { EnvironmentPanel } from "@workspace/ui/components/environment-panel"
 
 import "@workspace/ui/lib/i18n"
 
-const NOTICE = "Variables could not be read"
+const NOTICE = "Secrets could not be read"
 
 const panel = (hasFailedToRead: boolean, entries = BOT_ENVIRONMENT) =>
 	render(
@@ -38,10 +38,10 @@ describe("EnvironmentPanel", () => {
 		expect(screen.getByText("BOT_SEED")).toBeTruthy()
 	})
 
-	it("reports the failure instead of asking for a first variable", () => {
+	it("reports the failure instead of asking for a first secret", () => {
 		panel(true, [])
 
 		expect(screen.getByText(NOTICE)).toBeTruthy()
-		expect(screen.queryByRole("button", { name: "Add variable" })).toBe(null)
+		expect(screen.queryByRole("button", { name: "Add secret" })).toBe(null)
 	})
 })

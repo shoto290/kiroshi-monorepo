@@ -31,7 +31,7 @@ const SpaceFields = ({ value, onValueChange, className }: SpaceFieldsProps) => {
 
 	const tintLabel = (tint?: BotAvatarBlot) =>
 		tint
-			? t(`identity.blot.option.${tint}`, { ns: "bots" })
+			? t(`identity.colour.option.${tint}`, { ns: "bots" })
 			: t("space.colour.none")
 
 	return (

@@ -49,7 +49,7 @@ export const Default = meta.story({
 		await expect(canvas.getByRole("heading", { name: BOT.name })).toBeVisible()
 		await expect(botIdentityAvatars(canvasElement)).toHaveLength(1)
 		await expect(
-			canvas.getByText(/Type your first prompt in the composer below/),
+			canvas.getByText(/Type your first message in the composer below/),
 		).toBeVisible()
 		await expect(canvas.queryByRole("button")).toBeNull()
 	},
@@ -61,7 +61,7 @@ export const WithSettings = meta.story({
 		docs: {
 			description: {
 				story:
-					"Reach for this on the empty conversation of a host that can open the companion's settings: nothing has been said yet, so describing the companion is still worth offering beside the first prompt. Check that the action sits under the copy and above the arrow hint, that it reads as secondary — the first prompt is still the point of the screen — and that it names the settings exactly as the bar above and the roster row's menu do, so the same door is not called three things. Pick `Default` for a host that offers no way in from here.",
+					"Reach for this on the empty conversation of a host that can open the companion's settings: nothing has been said yet, so describing the companion is still worth offering beside the first message. Check that the action sits under the copy and above the arrow hint, that it reads as secondary — the first message is still the point of the screen — and that it names the settings exactly as the bar above and the roster row's menu do, so the same door is not called three things. Pick `Default` for a host that offers no way in from here.",
 			},
 		},
 	},
@@ -69,7 +69,7 @@ export const WithSettings = meta.story({
 		const settings = canvas.getByRole("button", { name: "Companion settings" })
 
 		await expect(
-			canvas.getByText(/Type your first prompt in the composer below/),
+			canvas.getByText(/Type your first message in the composer below/),
 		).toBeVisible()
 		await userEvent.click(settings)
 		await expect(args.onOpenSettings).toHaveBeenCalled()
@@ -127,7 +127,7 @@ export const Unnamed = meta.story({
 	},
 	play: async ({ canvas }) => {
 		await expect(
-			canvas.getByRole("heading", { name: "Start with Claude Code" }),
+			canvas.getByRole("heading", { name: "Start with the agent" }),
 		).toBeVisible()
 	},
 })

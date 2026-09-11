@@ -135,7 +135,7 @@ export const Failed = meta.story({
 	},
 	play: async ({ canvasElement }) => {
 		await expect(slotIn(canvasElement, "mission-state-pill")).toHaveTextContent(
-			"Failed",
+			"Blocked",
 		)
 	},
 })

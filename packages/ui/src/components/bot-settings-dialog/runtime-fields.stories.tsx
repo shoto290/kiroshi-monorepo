@@ -49,7 +49,7 @@ const meta = preview.meta({
 		docs: {
 			description: {
 				component:
-					"What a companion runs on: the model behind it, the answer style it writes in, and the folder it works in. All three are pickers, never text, because none is something a reader can type correctly — a mistyped model is a companion that never answers and a mistyped path is a companion working nowhere. What the companion is allowed to do is not here: that is the permissions panel next door. No field owns anything either: the model list comes from the host, and pressing the folder hands the ask back rather than opening a picker itself, which is what keeps the native dialog on the app's side of the line.",
+					"What a companion runs on: the model behind it, the answer style it writes in, and the folder it works in. All three are pickers, never text, because none is something a reader can type correctly — a mistyped model is a companion that never answers and a mistyped path is a companion working nowhere. What the companion is allowed to do is not here: that is the approvals panel next door. No field owns anything either: the model list comes from the host, and pressing the folder hands the ask back rather than opening a picker itself, which is what keeps the native dialog on the app's side of the line.",
 			},
 		},
 	},
@@ -206,7 +206,7 @@ export const LongPath = meta.story({
 		},
 	},
 	play: async ({ args, canvas, userEvent }) => {
-		const folder = canvas.getByRole("button", { name: /Working directory/ })
+		const folder = canvas.getByRole("button", { name: /Folder/ })
 
 		await expect(folder).toHaveAttribute("title", LONG_PATH)
 

@@ -302,7 +302,7 @@ const openBot = async (
 }
 
 const promptOneTurn = async (text: string) => {
-	const input = screen.getByRole("textbox", { name: "Prompt" })
+	const input = screen.getByRole("textbox", { name: "Message" })
 	fireEvent.change(input, { target: { value: text } })
 	await act(async () => {
 		fireEvent.keyDown(input, { key: "Enter" })

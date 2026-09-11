@@ -25,10 +25,10 @@ describe("describeTransportError", () => {
 	it("names the exit code, and says so when the process left none", () => {
 		expect(
 			describeTransportError(t, { kind: "crashed", code: 1, detail: null }),
-		).toBe("Claude Code exited (code 1).")
+		).toBe("The agent exited (code 1).")
 		expect(
 			describeTransportError(t, { kind: "crashed", code: null, detail: null }),
-		).toBe("Claude Code exited (code unknown).")
+		).toBe("The agent exited (code unknown).")
 	})
 
 	it("reads back a detail the host sent unescaped", () => {
@@ -37,7 +37,7 @@ describe("describeTransportError", () => {
 				kind: "writeFailed",
 				detail: "pipe closed & gone",
 			}),
-		).toBe("The prompt could not be sent: pipe closed & gone")
+		).toBe("The message could not be sent: pipe closed & gone")
 	})
 
 	it("names the server left out and the variable it waited for", () => {
@@ -48,7 +48,7 @@ describe("describeTransportError", () => {
 					'the server "linear" was left out: LINEAR_KEY is defined by no scope',
 			}),
 		).toBe(
-			'the server "linear" was left out: LINEAR_KEY is defined by no scope. The conversation carries on with the other servers.',
+			'the server "linear" was left out: LINEAR_KEY is defined by no scope. The conversation carries on with the other connectors.',
 		)
 	})
 

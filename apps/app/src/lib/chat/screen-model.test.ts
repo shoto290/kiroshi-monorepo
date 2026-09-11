@@ -435,9 +435,9 @@ describe("notices", () => {
 
 		expect(
 			noticeTitleFor(t, { kind: "crashed", code: null, detail: null }),
-		).toBe("Claude Code stopped")
+		).toBe("The agent stopped")
 		expect(noticeTitleFor(t, { kind: "binaryNotFound", searched: [] })).toBe(
-			"Claude Code is unavailable",
+			"The agent is unavailable",
 		)
 		expect(noticeTitleFor(t, { kind: "noActiveTurn" })).toBe(
 			"That request did not go through",
@@ -451,7 +451,7 @@ describe("notices", () => {
 				'the server "linear" was left out: LINEAR_KEY is defined by no scope',
 		} as const
 		expect(needsFreshSession(leftOut)).toBe(false)
-		expect(noticeTitleFor(t, leftOut)).toBe("A server was left out")
+		expect(noticeTitleFor(t, leftOut)).toBe("A connector was left out")
 	})
 
 	it("keeps a refused resume out of the session-ending errors", () => {

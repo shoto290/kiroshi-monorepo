@@ -618,7 +618,7 @@ export const Pending = meta.story({
 	play: async ({ canvas, canvasElement, userEvent }) => {
 		cancelQueued.mockClear()
 
-		const cancel = canvas.getByRole("button", { name: "Cancel this prompt" })
+		const cancel = canvas.getByRole("button", { name: "Cancel this message" })
 
 		await expect(slotsIn(canvasElement, "turn-pending-spinner")).toHaveLength(1)
 		await expect(cancel).toBeVisible()

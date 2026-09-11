@@ -128,7 +128,7 @@ export const Default = meta.story({
 	},
 	play: async ({ canvas, canvasElement }) => {
 		await expect(canvas.getByRole("banner")).toBeVisible()
-		await expect(canvas.getByRole("textbox", { name: "Prompt" })).toBeVisible()
+		await expect(canvas.getByRole("textbox", { name: "Message" })).toBeVisible()
 		await expect(
 			canvasElement.querySelector('[data-slot="message-scroller-older"]'),
 		).toBeNull()
@@ -252,12 +252,12 @@ export const Error = meta.story({
 		header: <AppHeader trailing={<ConnectionStatus state="crashed" />} />,
 		notice: (
 			<Notice
-				title="Claude Code stopped"
-				description="Claude Code exited (code 1)."
+				title="The agent stopped"
+				description="The agent exited (code 1)."
 				retry={{ label: "Restart session", onRetry: fn() }}
 			/>
 		),
-		composer: <PromptInput disabled placeholder="Waiting for Claude Code…" />,
+		composer: <PromptInput disabled placeholder="Waiting for the agent…" />,
 		children: (
 			<>
 				<UserTurn>How is this workspace laid out?</UserTurn>

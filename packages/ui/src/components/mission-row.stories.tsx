@@ -134,7 +134,7 @@ export const Failed = meta.story({
 	},
 	play: async ({ canvas, canvasElement }) => {
 		await expect(dotIn(canvasElement)).toHaveAttribute("data-badge", "failed")
-		await expect(canvas.getByText("Failed")).toBeVisible()
+		await expect(canvas.getByText("Blocked")).toBeVisible()
 		await expect(canvas.getByText("3d")).toBeVisible()
 	},
 })

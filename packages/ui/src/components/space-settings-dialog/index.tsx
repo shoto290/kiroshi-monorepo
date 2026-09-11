@@ -140,9 +140,9 @@ const SpaceSettingsDialog = ({
 
 	const leaveCopy = mcpSession.isOpen
 		? {
-				title: t("mcp.leave.title", { ns: "bots" }),
-				description: t("mcp.leave.description", { ns: "bots" }),
-				action: t("mcp.leave.action", { ns: "bots" }),
+				title: t("connectors.leave.title", { ns: "bots" }),
+				description: t("connectors.leave.description", { ns: "bots" }),
+				action: t("connectors.leave.action", { ns: "bots" }),
 			}
 		: {
 				title: t("skills.leave.title", { ns: "bots" }),
@@ -189,7 +189,7 @@ const SpaceSettingsDialog = ({
 							<SettingsRailItem
 								icon={Icons.Json}
 								iconsOnly={iconsOnly}
-								label={t("rail.environment")}
+								label={t("rail.secrets")}
 								value="environment"
 							/>
 							<SettingsRailItem
@@ -201,7 +201,7 @@ const SpaceSettingsDialog = ({
 							<SettingsRailItem
 								icon={Icons.Server}
 								iconsOnly={iconsOnly}
-								label={t("rail.mcp")}
+								label={t("rail.connectors")}
 								value="mcp"
 							/>
 							<SettingsRailItem

@@ -132,7 +132,7 @@ export const InFrench = meta.story({
 		).toBeVisible()
 		await expect(
 			canvas.getByRole("switch", {
-				name: "Un compagnon demande une permission",
+				name: "Un compagnon demande une autorisation",
 			}),
 		).toBeVisible()
 		await expect(

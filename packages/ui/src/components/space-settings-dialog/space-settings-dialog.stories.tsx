@@ -58,7 +58,7 @@ const meta = preview.meta({
 		docs: {
 			description: {
 				component:
-					"Everything a space is, in one overlay — the reader's own settings, told about a work area instead of a person. A breadcrumb heads it with the space's tint dot and its name, so the dialog is visibly the one that space opened. Down the left is a rail of five entries: the space itself, what it is called and the tint it wears; its environment, the variables every companion in it starts with; its skills, the plugin every companion in it reads before answering; its MCP servers, the ones every companion in it inherits; its history, everything ever written into that plugin. Below a separator sits the danger zone, set apart in destructive tone exactly as a companion's settings sets it apart, because a space takes its companions with it. It opens on the space every time. Same contract as a companion's settings and for the same reason: fully controlled, saving as you type, no draft, no debounce — closing it is never a question, except while a skill or a server is half written.",
+					"Everything a space is, in one overlay — the reader's own settings, told about a work area instead of a person. A breadcrumb heads it with the space's tint dot and its name, so the dialog is visibly the one that space opened. Down the left is a rail of five entries: the space itself, what it is called and the tint it wears; its secrets, the ones every companion in it starts with; its skills, the plugin every companion in it reads before answering; its connectors, the ones every companion in it inherits; its history, everything ever written into that plugin. Below a separator sits the danger zone, set apart in destructive tone exactly as a companion's settings sets it apart, because a space takes its companions with it. It opens on the space every time. Same contract as a companion's settings and for the same reason: fully controlled, saving as you type, no draft, no debounce — closing it is never a question, except while a skill or a connector is half written.",
 			},
 		},
 	},
@@ -128,18 +128,16 @@ export const Environment = meta.story({
 		docs: {
 			description: {
 				story:
-					"The variables the space hands to every companion in it — the same panel a companion's settings draws, read at space scope, so each name is the space's own and every one of them can be replaced or removed here. A name a companion redefines is still listed, marked as served from the companion, because the space is where it was written even when it is not the value that runs. Check that adding a name reports it, and that the panel never shows a value back.",
+					"The secrets the space hands to every companion in it — the same panel a companion's settings draws, read at space scope, so each name is the space's own and every one of them can be replaced or removed here. A name a companion redefines is still listed, marked as served from the companion, because the space is where it was written even when it is not the value that runs. Check that adding a name reports it, and that the panel never shows a value back.",
 			},
 		},
 	},
 	play: async ({ args, userEvent }) => {
 		const dialog = await dialogIn()
 
-		await userEvent.click(
-			within(dialog).getByRole("tab", { name: "Environment" }),
-		)
+		await userEvent.click(within(dialog).getByRole("tab", { name: "Secrets" }))
 		const panel = await within(dialog).findByRole("tabpanel", {
-			name: "Environment",
+			name: "Secrets",
 		})
 
 		await expect(within(panel).getByText("ATLAS_TOKEN")).toBeVisible()
@@ -148,16 +146,16 @@ export const Environment = meta.story({
 		).toBeVisible()
 
 		await userEvent.click(
-			within(panel).getByRole("button", { name: "Add variable" }),
+			within(panel).getByRole("button", { name: "Add secret" }),
 		)
 		const write = await screen.findByRole("dialog", {
-			name: "Add a variable",
+			name: "Add a secret",
 		})
 
 		await userEvent.type(within(write).getByLabelText("Name"), "RELEASE_DESK")
 		await userEvent.type(within(write).getByLabelText("Value"), "sk-live")
 		await userEvent.click(
-			within(write).getByRole("button", { name: "Save variable" }),
+			within(write).getByRole("button", { name: "Save secret" }),
 		)
 
 		await expect(args.onEnvironmentSet).toHaveBeenCalledWith({
@@ -210,19 +208,19 @@ export const McpServers = meta.story({
 		const dialog = await dialogIn()
 
 		await userEvent.click(
-			within(dialog).getByRole("tab", { name: "MCP servers" }),
+			within(dialog).getByRole("tab", { name: "Connectors" }),
 		)
 		const panel = await within(dialog).findByRole("tabpanel", {
-			name: "MCP servers",
+			name: "Connectors",
 		})
 
 		await userEvent.click(within(panel).getByRole("button", { name: /atlas/ }))
-		const back = within(dialog).getByRole("button", { name: "All servers" })
+		const back = within(dialog).getByRole("button", { name: "All connectors" })
 		await expect(back).toBeVisible()
 
 		await userEvent.click(back)
 		await expect(
-			within(dialog).getByRole("tab", { name: "MCP servers" }),
+			within(dialog).getByRole("tab", { name: "Connectors" }),
 		).toBeVisible()
 	},
 })
@@ -241,17 +239,17 @@ export const McpServersUnavailable = meta.story({
 		const dialog = await dialogIn()
 
 		await userEvent.click(
-			within(dialog).getByRole("tab", { name: "MCP servers" }),
+			within(dialog).getByRole("tab", { name: "Connectors" }),
 		)
 		const panel = await within(dialog).findByRole("tabpanel", {
-			name: "MCP servers",
+			name: "Connectors",
 		})
 
 		await expect(
-			within(panel).getByText("These MCP servers could not be read."),
+			within(panel).getByText("These connectors could not be read."),
 		).toBeVisible()
 		await expect(
-			within(panel).queryByRole("button", { name: "Add server" }),
+			within(panel).queryByRole("button", { name: "Add connector" }),
 		).toBe(null)
 	},
 })

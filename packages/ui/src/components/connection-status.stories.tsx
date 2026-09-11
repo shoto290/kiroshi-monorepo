@@ -44,7 +44,7 @@ export const Default = meta.story({
 	},
 	play: async ({ canvas }) => {
 		await expect(canvas.getByRole("status")).toHaveTextContent(
-			"Claude Code ready v2.1.233",
+			"Agent ready v2.1.233",
 		)
 		await expect(canvas.getByRole("status")).toHaveClass("sr-only")
 	},
@@ -83,7 +83,7 @@ export const ZeroValue = meta.story({
 	},
 	play: async ({ canvas }) => {
 		await expect(canvas.getByRole("status")).toHaveTextContent(
-			"Checking Claude Code…",
+			"Checking the agent…",
 		)
 		await expect(canvas.queryByText(/^v/)).toBeNull()
 	},

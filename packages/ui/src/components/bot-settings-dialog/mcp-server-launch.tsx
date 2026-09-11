@@ -69,7 +69,7 @@ const McpServerLaunch = ({ config }: McpServerLaunchProps) => {
 
 	return (
 		<section className="flex shrink-0 flex-col gap-2 rounded-xl border border-border bg-muted/40 p-3">
-			<h3 className={FIELD_LABEL_CLASS}>{t("mcp.launch.label")}</h3>
+			<h3 className={FIELD_LABEL_CLASS}>{t("connectors.launch.label")}</h3>
 
 			{command ? <LaunchLine icon={Icons.Terminal} text={command} /> : null}
 
@@ -77,14 +77,14 @@ const McpServerLaunch = ({ config }: McpServerLaunchProps) => {
 
 			{!command && !url ? (
 				<p className="text-muted-foreground text-xs leading-relaxed">
-					{t("mcp.launch.unknown")}
+					{t("connectors.launch.unknown")}
 				</p>
 			) : null}
 
 			{environment.length > 0 ? (
 				<>
 					<h4 className="pt-1 font-medium text-muted-foreground text-xs">
-						{t("mcp.launch.environment")}
+						{t("connectors.launch.secrets")}
 					</h4>
 					<ul className="flex list-none flex-col gap-1 p-0">
 						{environment.map((variable) => {
@@ -100,7 +100,9 @@ const McpServerLaunch = ({ config }: McpServerLaunchProps) => {
 									</span>
 									<Button
 										aria-label={t(
-											isRevealed ? "mcp.launch.conceal" : "mcp.launch.reveal",
+											isRevealed
+												? "connectors.launch.conceal"
+												: "connectors.launch.reveal",
 											{ name: variable.name },
 										)}
 										onClick={() => toggle(variable.name)}

@@ -94,9 +94,9 @@ export const HandoverNotice = ({ pair, onStop }: HandoverNoticeProps) => {
 
 	return (
 		<Notice
-			action={{ label: t("screen.handover.stop"), onClick: onStop }}
-			description={t("screen.handover.description")}
-			title={t("screen.handover.title", named)}
+			action={{ label: t("screen.handoff.stop"), onClick: onStop }}
+			description={t("screen.handoff.description")}
+			title={t("screen.handoff.title", named)}
 			tone="warning"
 		/>
 	)

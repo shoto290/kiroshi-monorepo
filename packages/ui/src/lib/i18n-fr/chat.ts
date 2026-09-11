@@ -1,16 +1,16 @@
 const chat = {
 	emptyState: {
 		ready: {
-			title: "Commencer avec Claude Code",
+			title: "Commencer avec l'agent",
 			description:
 				"Kiroshi dialogue avec son agent intégré. Rien ne quitte votre appareil.",
 		},
 		unavailable: {
-			title: "Claude Code n'est pas disponible",
+			title: "L'agent n'est pas disponible",
 			description: "Kiroshi n'atteint pas son agent intégré.",
 		},
 		settings: "Réglages du compagnon",
-		hint: "Saisissez votre première invite dans le champ ci-dessous",
+		hint: "Saisissez votre premier message dans le champ ci-dessous",
 		setup: "Réessayer",
 	},
 	conversationEmptyState: {
@@ -23,10 +23,10 @@ const chat = {
 		hint: "Saisissez votre premier message dans le champ ci-dessous",
 	},
 	connection: {
-		checking: "Vérification de Claude Code…",
-		ready: "Claude Code est prêt",
-		unavailable: "Claude Code indisponible",
-		crashed: "Claude Code s'est arrêté",
+		checking: "Vérification de l'agent…",
+		ready: "Agent prêt",
+		unavailable: "Agent indisponible",
+		crashed: "Agent arrêté",
 	},
 	transcript: {
 		label: "Conversation",
@@ -66,7 +66,7 @@ const chat = {
 				description:
 					"La conversation est intacte. Ce qui a déclenché chaque rapport manque jusqu'à la prochaine lecture.",
 				soloDescription:
-					"Le fil est intact. Ce qui a déclenché chaque rapport manque jusqu'à la prochaine lecture.",
+					"La conversation est intacte. Ce qui a déclenché chaque rapport manque jusqu'à la prochaine lecture.",
 			},
 		},
 		mention: {
@@ -83,7 +83,7 @@ const chat = {
 		unpin: "Retirer l'épingle",
 		copied: "Copié",
 		retry: "Réessayer",
-		cancel: "Annuler cette invite",
+		cancel: "Annuler ce message",
 		footer: {
 			cancelled: "Arrêté",
 			failed: "Cette réponse a échoué",
@@ -137,9 +137,9 @@ const chat = {
 		attach: "Joindre des fichiers",
 	},
 	composer: {
-		label: "Invite",
-		placeholder: "Demandez à l'agent de faire quelque chose…",
-		send: "Envoyer l'invite",
+		label: "Message",
+		placeholder: "Message",
+		send: "Envoyer",
 		commands: "Commandes",
 		mentions: "Compagnons",
 		mentioned_one: "{{count}} mention dans le brouillon",
@@ -190,12 +190,12 @@ const chat = {
 		todo: "À faire",
 	},
 	screen: {
-		label: "Conversation Claude Code",
+		label: "Conversation avec l'agent",
 		identity: "{{name}} — réglages du compagnon",
 		conversationIdentity: "{{name}} — réglages de la conversation",
-		placeholder: "Demandez à {{name}} de faire quelque chose…",
-		permission: {
-			description: "Claude Code attend votre accord avant de lancer cet outil.",
+		placeholder: "Message à {{name}}",
+		approval: {
+			description: "L'agent attend votre accord avant de lancer cet outil.",
 			path: "Chemin",
 		},
 		question: {
@@ -203,19 +203,19 @@ const chat = {
 		},
 		attachmentsRefused: "Fichiers non joints",
 		restart: "Redémarrer la session",
-		handover: {
+		handoff: {
 			title: "{{first}} et {{second}} n'arrêtent pas de se passer le tour",
 			description:
 				"Ils se le sont renvoyé trois fois. Le tour continue tant que vous ne l'arrêtez pas.",
 			stop: "Arrêter le tour",
 		},
 		notice: {
-			crashed: "Claude Code s'est arrêté",
+			crashed: "L'agent s'est arrêté",
 			resumeFailed: "La conversation précédente n'a pas pu être reprise",
 			workingDirectoryRefused: "Le dossier du compagnon est introuvable",
 			settingsRejected: "Les réglages du compagnon n'ont pas été appliqués",
-			serverEnvRejected: "Un serveur a été laissé de côté",
-			unavailable: "Claude Code est indisponible",
+			serverEnvRejected: "Un connecteur a été laissé de côté",
+			unavailable: "L'agent est indisponible",
 			failed: "Cette demande n'est pas passée",
 			readFailed: "Messages précédents non chargés",
 		},
@@ -224,22 +224,22 @@ const chat = {
 			notAuthenticated:
 				"Votre abonnement Claude n'est pas connecté. Connectez-vous à Claude, puis reprenez la conversation.",
 			authCheckFailed: "La vérification de la connexion a échoué : {{detail}}",
-			spawnFailed: "Claude Code n'a pas pu être démarré : {{detail}}",
-			startupTimeout: "Claude Code n'a pas répondu en {{timeoutMs}} ms.",
-			crashed: "Claude Code s'est arrêté (code {{code}}).",
-			crashedDetail: "Claude Code s'est arrêté (code {{code}}). {{detail}}",
-			crashedUnknownCode: "Claude Code s'est arrêté (code inconnu).",
+			spawnFailed: "L'agent n'a pas pu être démarré : {{detail}}",
+			startupTimeout: "L'agent n'a pas répondu en {{timeoutMs}} ms.",
+			crashed: "L'agent s'est arrêté (code {{code}}).",
+			crashedDetail: "L'agent s'est arrêté (code {{code}}). {{detail}}",
+			crashedUnknownCode: "L'agent s'est arrêté (code inconnu).",
 			crashedUnknownCodeDetail:
-				"Claude Code s'est arrêté (code inconnu). {{detail}}",
+				"L'agent s'est arrêté (code inconnu). {{detail}}",
 			resumeFailed:
-				"Cette conversation n'a pas pu être reprise. Claude Code en a démarré une nouvelle ; vos messages sont toujours là.",
+				"Cette conversation n'a pas pu être reprise. L'agent en a démarré une nouvelle ; vos messages sont toujours là.",
 			workingDirectoryRefused:
 				"{{path}} n'existe plus. Ce compagnon répond depuis l'emplacement habituel à la place.",
 			invalidFrame: "Une trame illisible a été ignorée : {{detail}}",
 			settingsRejected:
 				"Le settings.json de ce compagnon n'a pas été appliqué : {{detail}}",
 			serverEnvRejected:
-				"{{detail}}. La conversation continue avec les autres serveurs.",
+				"{{detail}}. La conversation continue avec les autres connecteurs.",
 			notStarted: "Aucune session n'est en cours.",
 			turnAlreadyRunning: "Un tour est déjà en cours.",
 			transitionInProgress: "Un changement de session est déjà en cours.",
@@ -247,7 +247,7 @@ const chat = {
 			staleRuntimeSession:
 				"Cette session a été remplacée. Celle qui tourne maintenant a pris sa place.",
 			unknownPermission: "Demande d'autorisation inconnue ({{id}}).",
-			writeFailed: "L'invite n'a pas pu être envoyée : {{detail}}",
+			writeFailed: "Le message n'a pas pu être envoyé : {{detail}}",
 			readFailed: "Les messages précédents n'ont pas pu être lus : {{detail}}",
 			unknownFailure: "Quelque chose s'est mal passé : {{detail}}",
 		},
@@ -257,10 +257,10 @@ const chat = {
 			unknownConversation:
 				"Cette conversation n'est plus enregistrée. Rouvrez le compagnon et joignez-les à nouveau.",
 			tooMany:
-				"Une invite porte {{limit}} fichiers au maximum, et {{staged}} sont en attente.",
+				"Un message porte {{limit}} fichiers au maximum, et {{staged}} sont en attente.",
 			tooLarge: "{{name}} dépasse les {{limit}} qu'un seul fichier peut peser.",
 			tooLargeTogether:
-				"Les fichiers en attente totalisent {{bytes}}, au-delà des {{limit}} qu'une invite peut porter.",
+				"Les fichiers en attente totalisent {{bytes}}, au-delà des {{limit}} qu'un message peut porter.",
 			unwritable: "Les fichiers n'ont pas pu être enregistrés : {{detail}}",
 		},
 	},
@@ -533,10 +533,10 @@ const chat = {
 	missions: {
 		state: {
 			working: "En cours",
-			waiting_bot: "En attente du compagnon",
+			waiting_bot: "En cours",
 			waiting_human: "En attente de vous",
 			ready_to_merge: "Prête à fusionner",
-			failed: "En échec",
+			failed: "Bloquée",
 			done: "Terminée",
 		},
 		event: {
@@ -576,11 +576,11 @@ const chat = {
 			openedAt: "ouverte {{time}}",
 		},
 		feed: {
-			label: "Fil de la mission",
+			label: "Conversation de la mission",
 		},
 		summons: {
 			working: "Ouvert par la mission",
-			waiting_bot: "Ouvert par l'agent de code bloqué",
+			waiting_bot: "Ouvert par la question de l'agent de code",
 		},
 		composer: {
 			placeholder: "Répondre à cette mission…",
@@ -598,7 +598,7 @@ const chat = {
 			run: {
 				title: "Le compagnon n'a pas pu être lancé sur sa mission",
 				description:
-					"Rien n'a été modifié sur la mission. Ouvrez son fil pour voir où elle en est.",
+					"Rien n'a été modifié sur la mission. Ouvrez sa conversation pour voir où elle en est.",
 			},
 		},
 	},

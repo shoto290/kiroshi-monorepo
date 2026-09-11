@@ -47,7 +47,7 @@ describe("the runtime", () => {
 	it("reads French once fr is active", () => {
 		activateLanguage("fr")
 
-		expect(i18n.t("composer.send")).toBe("Envoyer l'invite")
+		expect(i18n.t("composer.send")).toBe("Envoyer")
 		expect(i18n.t("common:sidebar.close")).toBe("Fermer la barre latérale")
 	})
 

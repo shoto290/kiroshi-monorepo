@@ -99,14 +99,14 @@ const CRASH: ChatError = {
 
 const NO_ERRORS: ChatError[] = []
 
-const CRASH_TITLE = "Claude Code stopped"
+const CRASH_TITLE = "The agent stopped"
 
 const SPAWN_FAILURE: ChatError = {
 	id: "spawnFailed-1",
 	error: { kind: "spawnFailed", detail: "no binary" },
 }
 
-const SPAWN_TITLE = "Claude Code is unavailable"
+const SPAWN_TITLE = "The agent is unavailable"
 
 const PINS_TITLE = "Pinned messages are out of date"
 
@@ -123,7 +123,7 @@ const ROUTINE_TITLE = "Nightly report"
 const CAUSES_TITLE = "Routine reports could not be read"
 
 const CAUSES_SOLO_DESCRIPTION =
-	"The thread is intact. What opened each report is missing until the next read."
+	"The conversation is intact. What opened each report is missing until the next read."
 
 const BOT_TITLE = "Release manager"
 
@@ -771,7 +771,7 @@ const SUMMONS_CAUSE = "Opened by the mission"
 
 const SUMMONS_ANNOUNCEMENT = "Mission summons"
 
-const SUMMONS_AGAIN_CAUSE = "Opened by the blocked coding agent"
+const SUMMONS_AGAIN_CAUSE = "Opened by the coding agent's question"
 
 const MISSION_ASKED: SpokenTurn = {
 	turnId: "t-asked",
@@ -1187,7 +1187,7 @@ describe("ThreadScreen", () => {
 		await settle()
 
 		expect(
-			screen.getByText(`Claude Code exited (code 1). ${refusal}`),
+			screen.getByText(`The agent exited (code 1). ${refusal}`),
 		).toBeTruthy()
 
 		unmount()
@@ -1208,7 +1208,7 @@ describe("ThreadScreen", () => {
 		await settle()
 
 		expect(
-			screen.getByText(`Claude Code exited (code unknown). ${refusal}`),
+			screen.getByText(`The agent exited (code unknown). ${refusal}`),
 		).toBeTruthy()
 
 		unmountUnknown()
@@ -1219,7 +1219,7 @@ describe("ThreadScreen", () => {
 		)
 		await settle()
 
-		expect(screen.getByText("Claude Code exited (code 1).")).toBeTruthy()
+		expect(screen.getByText("The agent exited (code 1).")).toBeTruthy()
 	})
 
 	it("leaves a dismissed companion failure dismissed when the reader returns", async () => {

@@ -74,7 +74,7 @@ export const Variants = meta.story({
 export const ClaudeCodeUnavailable = meta.story({
 	args: {
 		tone: "warning",
-		title: "Claude Code isn't available",
+		title: "The agent isn't available",
 		description:
 			"Kiroshi could not find the claude binary on this machine. Install it, or point Kiroshi at an existing install, then start a new session.",
 		detail: "spawn claude ENOENT",
@@ -99,7 +99,7 @@ export const ClaudeCodeUnavailable = meta.story({
 
 export const TransportCrashed = meta.story({
 	args: {
-		title: "The Claude Code transport crashed",
+		title: "The agent transport crashed",
 		description:
 			"The session process exited before the turn completed. Reconnect to start a fresh transport — the conversation history is kept.",
 		detail: "exit code 134 · SIGABRT",

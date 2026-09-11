@@ -80,7 +80,7 @@ export const WithoutHint = meta.story({
 	args: {
 		hint: undefined,
 		action: <Button onClick={fn()}>Try again</Button>,
-		title: "Claude Code is not available",
+		title: "The agent is not available",
 		description: "Kiroshi cannot reach its built-in agent.",
 		mark: null,
 	},
@@ -103,7 +103,7 @@ export const LongContent = meta.story({
 		title:
 			"Ship the December release, then plan the January retrospective with everyone involved",
 		description:
-			"Six companions are seated here and waiting on your first message, and every one of them reads the whole room before answering.",
+			"Six companions are here and waiting on your first message, and every one of them reads the whole room before answering.",
 	},
 	parameters: {
 		docs: {

@@ -40,9 +40,7 @@ export const Default = meta.story({
 	},
 	play: async ({ canvas }) => {
 		await expect(canvas.getByRole("banner")).toBeVisible()
-		await expect(canvas.getByRole("status")).toHaveTextContent(
-			"Claude Code ready",
-		)
+		await expect(canvas.getByRole("status")).toHaveTextContent("Agent ready")
 	},
 })
 
