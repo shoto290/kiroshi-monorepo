@@ -837,6 +837,7 @@ mod tests {
 				(MissionEventKind::Answered, MissionState::Working),
 				(MissionEventKind::Escalated, MissionState::WaitingHuman),
 				(MissionEventKind::Ready, MissionState::ReadyToMerge),
+				(MissionEventKind::ChecksFailed, MissionState::WaitingBot),
 				(MissionEventKind::Failed, MissionState::Failed),
 				(MissionEventKind::Closed, MissionState::Done),
 			],

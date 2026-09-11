@@ -14,18 +14,20 @@ pub enum MissionEventKind {
 	Answered,
 	Escalated,
 	Ready,
+	ChecksFailed,
 	Failed,
 	Closed,
 }
 
 impl MissionEventKind {
-	pub const ALL: [MissionEventKind; 8] = [
+	pub const ALL: [MissionEventKind; 9] = [
 		MissionEventKind::Opened,
 		MissionEventKind::Note,
 		MissionEventKind::AgentAsked,
 		MissionEventKind::Answered,
 		MissionEventKind::Escalated,
 		MissionEventKind::Ready,
+		MissionEventKind::ChecksFailed,
 		MissionEventKind::Failed,
 		MissionEventKind::Closed,
 	];
@@ -33,7 +35,9 @@ impl MissionEventKind {
 	pub fn state(self) -> Option<MissionState> {
 		match self {
 			MissionEventKind::Opened | MissionEventKind::Answered => Some(MissionState::Working),
-			MissionEventKind::AgentAsked => Some(MissionState::WaitingBot),
+			MissionEventKind::AgentAsked | MissionEventKind::ChecksFailed => {
+				Some(MissionState::WaitingBot)
+			}
 			MissionEventKind::Escalated => Some(MissionState::WaitingHuman),
 			MissionEventKind::Ready => Some(MissionState::ReadyToMerge),
 			MissionEventKind::Failed => Some(MissionState::Failed),

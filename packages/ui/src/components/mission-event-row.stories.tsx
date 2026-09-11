@@ -32,6 +32,7 @@ const MISSION_EVENT_KINDS = listExhaustively<MissionEventKind>({
 	answered: true,
 	escalated: true,
 	ready: true,
+	checks_failed: true,
 	failed: true,
 	closed: true,
 })
