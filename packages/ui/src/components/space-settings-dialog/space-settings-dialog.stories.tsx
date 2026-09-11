@@ -246,7 +246,9 @@ export const McpServersUnavailable = meta.story({
 		})
 
 		await expect(
-			within(panel).getByText("These connectors could not be read."),
+			within(panel).getByText(
+				"Couldn't load connectors. Reopen settings to retry.",
+			),
 		).toBeVisible()
 		await expect(
 			within(panel).queryByRole("button", { name: "Add connector" }),

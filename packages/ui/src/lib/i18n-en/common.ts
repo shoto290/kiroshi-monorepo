@@ -4,9 +4,8 @@ const common = {
 	},
 	spaces: {
 		unavailable: {
-			title: "Spaces could not be read",
-			description:
-				"Your companions are safe on the record. Try again to open your spaces.",
+			title: "Couldn't load your spaces",
+			description: "Retry.",
 		},
 	},
 	dialog: {
@@ -36,10 +35,12 @@ const common = {
 			ready_to_merge: "{{ticket}} is ready to merge",
 		},
 		failure: {
-			clicks: "Clicking a notification will no longer open its conversation",
-			focus: "Notifications may now appear while the app is in front",
-			reveal: "The window could not be brought to the front",
-			send: "A notification could not be shown",
+			clicks:
+				"Notifications won't open their conversation. Restart Kiroshi to fix it.",
+			focus:
+				"Notifications may show while you're in Kiroshi. Restart Kiroshi to fix it.",
+			reveal: "Couldn't bring Kiroshi to the front. Switch to it yourself.",
+			send: "Couldn't show a notification. Check Kiroshi's notification permission.",
 		},
 	},
 	update: {
@@ -52,8 +53,7 @@ const common = {
 		panel: {
 			title: "Update ready",
 			version: "Version {{version}}",
-			botsBusy_one:
-				"{{count}} companion is still running. Stop them to restart.",
+			botsBusy_one: "{{count}} companion is still running. Stop it to restart.",
 			botsBusy_other:
 				"{{count}} companions are still running. Stop them to restart.",
 			restart: "Restart now",

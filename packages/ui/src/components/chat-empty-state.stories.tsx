@@ -49,7 +49,7 @@ export const Default = meta.story({
 		await expect(canvas.getByRole("heading", { name: BOT.name })).toBeVisible()
 		await expect(botIdentityAvatars(canvasElement)).toHaveLength(1)
 		await expect(
-			canvas.getByText(/Type your first message in the composer below/),
+			canvas.getByText(/Message a companion to start\./),
 		).toBeVisible()
 		await expect(canvas.queryByRole("button")).toBeNull()
 	},
@@ -69,7 +69,7 @@ export const WithSettings = meta.story({
 		const settings = canvas.getByRole("button", { name: "Companion settings" })
 
 		await expect(
-			canvas.getByText(/Type your first message in the composer below/),
+			canvas.getByText(/Message a companion to start\./),
 		).toBeVisible()
 		await userEvent.click(settings)
 		await expect(args.onOpenSettings).toHaveBeenCalled()

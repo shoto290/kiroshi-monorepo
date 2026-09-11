@@ -18,7 +18,7 @@ const bots = {
 			preview: "{{name}}: {{text}}",
 		},
 		empty: "No companions yet",
-		unavailable: "Your companions could not be read.",
+		unavailable: "Couldn't load your companions. Restart Kiroshi to retry.",
 		mission: {
 			state: {
 				waiting: "waiting for you",
@@ -27,9 +27,8 @@ const bots = {
 				working: "working",
 			},
 			unavailable: {
-				title: "Missions could not be read",
-				description:
-					"Your companions are intact. Each line reads without its mission until the next read.",
+				title: "Couldn't load missions",
+				description: "Restart Kiroshi to retry.",
 			},
 		},
 		actions: "Actions for {{name}}",
@@ -38,7 +37,7 @@ const bots = {
 		spaces: {
 			label: "Spaces",
 			lastSpace:
-				"The last space a companion is in stays. Delete the companion to be rid of it.",
+				"A companion stays in at least one space. Delete the companion to remove it.",
 		},
 		pin: "Pin",
 		pinDrop: "Drop here to pin",
@@ -82,9 +81,8 @@ const bots = {
 		settings: "Space settings",
 		shortcut: "⌘{{rank}}",
 		remove: {
-			lastSpace: "A companion has to stay in at least one space.",
-			failed:
-				"This companion could not be removed from this space. Nothing changed, try again.",
+			lastSpace: "A companion needs at least one space.",
+			failed: "Couldn't remove this companion from the space. Retry.",
 		},
 	},
 	dialog: {
@@ -116,35 +114,35 @@ const bots = {
 		},
 		memory: {
 			label: "Memory",
-			hint: "What the companion has written down for itself across conversations. Correct it or wipe it — it keeps writing either way.",
-			empty: "This companion has not written anything down yet.",
+			hint: "What this companion remembers across conversations. Edit it or clear it; it keeps learning either way.",
+			empty: "This companion has no memories yet.",
 			save: "Save memory",
 			clear: {
 				action: "Clear",
 				title: "Clear this companion's memory?",
 				description:
-					"Everything the companion has written down for itself is removed. It starts learning again from the next conversation.",
+					"It starts learning again from your next conversation. This can't be undone.",
 				confirm: "Clear the memory",
 			},
 		},
 	},
 	history: {
-		empty: "Nothing has been changed here yet.",
-		unavailable: "This history could not be read.",
+		empty: "No changes yet.",
+		unavailable: "Couldn't load the history. Reopen settings to retry.",
 		author: {
 			user: "You",
 		},
 		diff: {
 			show: "Show changes",
 			hide: "Hide changes",
-			loading: "Loading the changes…",
+			loading: "Loading changes…",
 			filename: "Changes",
 		},
 		undo: {
 			action: "Undo",
 			title: "Undo “{{title}}”?",
 			description:
-				"Everything goes back to how it was before this change. It is written as a new change, so the history keeps both.",
+				"Everything goes back to how it was before this change. The undo is added to the history.",
 			confirm: "Undo this change",
 		},
 	},
@@ -166,69 +164,69 @@ const bots = {
 		empty: {
 			title: "No skills yet",
 			description:
-				"A skill is a piece of know-how to carry. Write one and choose whether it travels in every prompt.",
+				"Write a skill this companion can reuse, and choose whether it loads on every turn.",
 		},
 		name: {
 			label: "Name",
 			placeholder: "release-notes",
-			hint: "Lowercase letters, numbers and hyphens. It is the skill's identity — the description below is what the companion reads.",
+			hint: "Lowercase letters, numbers and hyphens. The companion reads the description, not the name.",
 		},
 		description: {
 			label: "Description",
-			placeholder: "When this companion should reach for it",
+			placeholder: "When this companion should use it",
 		},
 		whenToUse: {
 			label: "When to use",
-			placeholder: "The turns this skill is the right answer to",
+			placeholder: "The requests this skill answers",
 		},
 		budget: {
 			label: "{{used}} of {{max}} characters",
-			hint: "The description and when to use are read as one paragraph, and they are budgeted as one.",
-			over: "Over the budget by {{over}} characters. Shorten either field before saving.",
+			hint: "The description and when to use share one character budget.",
+			over: "{{over}} characters over. Shorten either field to save.",
 		},
 		body: {
 			label: "Body",
-			placeholder: "The markdown this skill is written in",
+			placeholder: "Write the skill in markdown",
 		},
 		argumentHint: {
 			label: "Argument hint",
 			placeholder: "[version] [--draft]",
-			hint: "What you are prompted for when you invoke this skill by hand.",
+			hint: "What you're asked for when you run this skill yourself.",
 		},
 		arguments: {
 			label: "Arguments",
-			placeholder: "One argument a line",
+			placeholder: "One argument per line",
 		},
 		paths: {
 			label: "Paths",
 			placeholder: "docs/**/*.md",
-			hint: "One glob a line. The files whose presence makes this skill worth reaching for.",
+			hint: "One glob per line. The files that make this skill relevant.",
 		},
 		modelInvocation: {
 			label: "Keep the companion from reaching for it",
 			description:
-				"Left off, the companion decides on its own from the description. Turned on, only you may invoke it.",
+				"Off, the companion decides from the description. On, only you can run it.",
 		},
 		userInvocable: {
 			label: "Let you invoke it",
 			description:
-				"It appears in the command menu, invoked by name with the arguments above.",
+				"It shows in the command menu. Run it by name with the arguments above.",
 		},
 		preloaded: {
 			label: "Preload this skill",
 			tag: "Preloaded",
 			description:
-				"A preloaded skill is in this companion's prompt on every turn. Left off, it stays on the disk as text the companion may go and read.",
+				"On, it's in this companion's prompt every turn. Off, the companion reads it only when needed.",
 		},
 		system: {
 			tag: "System",
 			notice:
-				"The host writes this skill and keeps it up to date. It is here to be read: what it says is decided where it is generated, not in this dialog.",
+				"Kiroshi writes this skill and keeps it current. It's read-only here.",
 		},
 		model: {
 			label: "Model",
 			placeholder: "The companion's own",
-			hint: "Left empty, this skill's turn runs on the model the companion runs on.",
+			hint: "Leave empty to use the companion's model.",
 		},
 		effort: {
 			label: "Effort",
@@ -241,8 +239,8 @@ const bots = {
 		},
 		context: {
 			label: "Context",
-			default: "The conversation it was reached from",
-			hint: "A fork runs the skill in a copy of the conversation, with a runner of its own — which is the only place an agent and a background run mean anything.",
+			default: "The conversation it runs from",
+			hint: "Fork runs the skill in a copy of the conversation. Agent and Run in the background only apply to a fork.",
 			option: {
 				shared: "Shared",
 				fork: "Fork",
@@ -251,22 +249,22 @@ const bots = {
 		shell: {
 			label: "Shell",
 			placeholder: "/bin/zsh",
-			hint: "What this skill's commands run in. Left empty, the machine's own.",
+			hint: "The shell this skill's commands run in. Leave empty to use your default.",
 		},
 		agent: {
 			label: "Agent",
 			placeholder: "The companion itself",
-			hint: "Who the forked run is handed to.",
+			hint: "Who runs the fork.",
 		},
 		background: {
 			label: "Run in the background",
 			description:
-				"The fork is left to finish on its own, and the conversation carries on without waiting for it.",
+				"The fork finishes on its own while the conversation continues.",
 		},
 		allowedTools: {
 			label: "Allowed tools",
 			placeholder: "Read\nGrep",
-			hint: "One tool a name a line. Left empty, this skill's turn may use everything the companion may.",
+			hint: "One tool name per line. Leave empty to allow every tool the companion has.",
 		},
 		disallowedTools: {
 			label: "Disallowed tools",
@@ -275,7 +273,7 @@ const bots = {
 		hooks: {
 			label: "Hooks",
 			placeholder: '{\n  "PreToolUse": []\n}',
-			hint: "What runs around this skill's turn, as the bundle spells it.",
+			hint: "What runs around this skill's turn, as the bundle defines it.",
 		},
 		license: {
 			label: "License",
@@ -284,23 +282,23 @@ const bots = {
 		compatibility: {
 			label: "Compatibility",
 			placeholder: ">=1.4",
-			hint: "What this skill needs of the runtime around it.",
+			hint: "What this skill needs from its runtime.",
 		},
 		metadata: {
 			label: "Metadata",
 			placeholder: '{\n  "author": "Ada Martin"\n}',
-			hint: "Anything the bundle carries that nothing here reads. It is kept as it is.",
+			hint: "Extra bundle data Kiroshi doesn't use. It's kept as is.",
 		},
 		leave: {
 			title: "Leave without saving?",
 			description:
-				"Everything typed since this skill was opened goes with it. The skill on the disk is left as it was.",
+				"You'll lose your unsaved changes. The saved skill stays as it is.",
 			action: "Leave",
 		},
 		delete: {
 			action: "Delete skill",
 			description:
-				"Its description and its body go with it. This cannot be undone.",
+				"The companion can no longer use this skill. This can't be undone.",
 			confirm: {
 				title: "Delete {{name}}?",
 			},
@@ -308,12 +306,12 @@ const bots = {
 		files: {
 			back: "All files",
 			save: "Save file",
-			loading: "Loading the file…",
+			loading: "Loading file…",
 			retry: "Try again",
 			add: {
 				label: "New file",
 				placeholder: "reference/api.md",
-				hint: "A path under the skill's own directory. It is created empty and opened.",
+				hint: "A path inside the skill's folder. The file opens empty.",
 				action: "Add file",
 			},
 			text: {
@@ -321,14 +319,14 @@ const bots = {
 				placeholder: "What this file holds",
 			},
 			failure: {
-				read: "This file could not be read.",
-				write: "This file could not be saved. What you typed is still here.",
-				delete: "This file could not be deleted.",
+				read: "Couldn't open this file. Retry.",
+				write: "Couldn't save this file. Save again; your text is still here.",
+				delete: "Couldn't delete this file. Retry.",
 			},
 			delete: {
 				action: "Delete file",
 				description:
-					"The file goes from the skill's directory. This cannot be undone.",
+					"The file is deleted from the skill's folder. This can't be undone.",
 				confirm: {
 					title: "Delete {{path}}?",
 				},
@@ -348,29 +346,28 @@ const bots = {
 			advanced: "Advanced",
 		},
 		notice:
-			"A connector is a program this companion starts on your machine, under your account, the next time it runs. Add one only from a source you trust.",
+			"This companion runs connectors on your machine, under your account. Only add ones you trust.",
 		empty: {
 			title: "No connectors yet",
 			description:
-				"An MCP connector gives this companion tools it does not have on its own. Adding one lets this companion start that program on your machine.",
+				"Add an MCP connector to give this companion new tools. It runs on your machine.",
 		},
-		unavailable: "These connectors could not be read.",
+		unavailable: "Couldn't load connectors. Reopen settings to retry.",
 		name: {
 			label: "Name",
 			placeholder: "atlas",
-			hint: "Lowercase letters, numbers and hyphens. It is what the connector is declared under and what the companion connects to it as.",
+			hint: "Lowercase letters, numbers and hyphens. The companion knows the connector by this name.",
 		},
 		config: {
 			label: "Configuration",
 			placeholder:
 				'{\n  "command": "npx",\n  "args": ["-y", "@scope/server"]\n}',
-			hint: "JSON, copied from the connector's own instructions. A local connector names a command, its arguments and its secrets; a remote one names a URL.",
-			invalid:
-				"This is not a JSON object, so there is nothing to save yet. Check the braces, the commas and the quotes.",
+			hint: "Paste the JSON from the connector's instructions. A local connector names a command, a remote one a URL.",
+			invalid: "This isn't a JSON object. Check the braces, commas and quotes.",
 		},
 		transport: {
 			label: "Transport",
-			hint: "It decides what the rest of the configuration says: a local connector names a command to run, a remote one an address to reach.",
+			hint: "A local connector runs a command. A remote one connects to a URL.",
 			option: {
 				local: "Started on this machine",
 				remote: "Reached over the network",
@@ -379,21 +376,21 @@ const bots = {
 		command: {
 			label: "Command",
 			placeholder: "npx",
-			hint: "The program this companion starts. It runs under your account, with what you can reach.",
+			hint: "The program this companion starts. It runs with your account's access.",
 		},
 		args: {
 			label: "Arguments",
 			placeholder: "-y\n@scope/server",
-			hint: "One argument a line, in the order the command takes them.",
+			hint: "One argument per line, in order.",
 		},
 		url: {
 			label: "URL",
 			placeholder: "https://example.com/mcp",
-			hint: "The address this companion connects to. Nothing is started on your machine.",
+			hint: "The address this companion connects to. Nothing runs on your machine.",
 		},
 		endpoint: {
 			label: "Endpoint",
-			hint: "The kind of endpoint the address is reached on. A remote connector written without one is skipped, so it is always saved beside the URL. Streamable HTTP is the same endpoint as HTTP, and a file already spelling it that way is left alone.",
+			hint: "How Kiroshi reaches the URL. Streamable HTTP counts as HTTP.",
 			option: {
 				http: "HTTP",
 				sse: "Server-sent events",
@@ -403,30 +400,29 @@ const bots = {
 		headers: {
 			label: "Headers",
 			placeholder: "Authorization: Bearer token",
-			hint: "One header a line, as name and value. This is where a connector asks for a key.",
+			hint: "One header per line, as name and value. Put the connector's key here.",
 		},
 		secrets: {
 			label: "Secrets",
 			placeholder: "ATLAS_TOKEN=sk-...",
-			hint: "One name and value a line. The connector starts with these, and nothing else this companion holds.",
+			hint: "One name and value per line. The connector gets these secrets and no others.",
 		},
 		leave: {
 			title: "Leave without saving?",
 			description:
-				"Everything typed since this connector was opened goes with it. The connector on the disk is left as it was.",
+				"You'll lose your unsaved changes. The saved connector stays as it is.",
 			action: "Leave",
 		},
 		launch: {
 			label: "What this starts",
 			secrets: "Secrets",
-			unknown: "This configuration names nothing to start or connect to.",
+			unknown: "Add a command or a URL to this configuration.",
 			reveal: "Show the value of {{name}}",
 			conceal: "Hide the value of {{name}}",
 		},
 		delete: {
 			action: "Remove connector",
-			description:
-				"This companion stops starting it, and its configuration goes with it. This cannot be undone.",
+			description: "This companion stops starting it. This can't be undone.",
 			confirm: {
 				title: "Remove {{name}}?",
 			},
@@ -435,16 +431,15 @@ const bots = {
 	secrets: {
 		add: "Add secret",
 		notice:
-			"A value is written once and handed to what starts here. Nothing reads it back, so it is never shown again — not here, not anywhere.",
+			"Kiroshi passes each value to what runs here and never shows it again.",
 		unreadable: {
-			title: "Secrets could not be read",
-			description:
-				"Nothing was lost. What is stored here is still on the disk, and this list will show it again once it can be read.",
+			title: "Couldn't load secrets",
+			description: "Reopen settings to retry.",
 		},
 		empty: {
 			title: "No secrets yet",
 			description:
-				"A secret is a name and a value handed to what starts here. The value is written once and never shown again.",
+				"Add a secret to pass a value to what runs here. You won't see the value again.",
 		},
 		scope: {
 			space: "Space",
@@ -462,33 +457,32 @@ const bots = {
 			add: {
 				title: "Add a secret",
 				description:
-					"The value is handed to what starts here and is never shown again.",
+					"The value goes to what runs here. You won't see it again.",
 			},
 			replace: {
 				title: "Replace a value",
 				description:
-					"The value stored under {{name}} is replaced by what is typed here. The one held today is not shown, and nothing here reads it.",
+					"Type a new value for {{name}}. The current one stays hidden.",
 			},
 			name: {
 				label: "Name",
 				placeholder: "ATLAS_TOKEN",
-				hint: "Capital letters, digits and underscores. It is the name the program reads the secret under.",
+				hint: "Capital letters, digits and underscores. Programs read the secret by this name.",
 				invalid:
-					"A name takes capital letters, digits and underscores, and starts with a letter or an underscore.",
+					"Use capital letters, digits and underscores, starting with a letter or an underscore.",
 			},
 			value: {
 				label: "Value",
-				hint: "Typed once. It leaves this field for the disk and is never read back.",
+				hint: "Saved once and never shown again.",
 			},
 			submit: "Save secret",
-			failed: "This could not be written. Nothing changed — try again.",
+			failed: "Couldn't save this secret. Retry.",
 		},
 		remove: {
 			title: "Remove {{name}}?",
-			description:
-				"The name and its value go with it, and what starts here stops being handed them. This cannot be undone.",
+			description: "Nothing here receives it anymore. This can't be undone.",
 			action: "Remove secret",
-			failed: "This could not be removed. Nothing changed — try again.",
+			failed: "Couldn't remove this secret. Retry.",
 		},
 	},
 	runtime: {
@@ -505,7 +499,7 @@ const bots = {
 				},
 				default: {
 					label: "Standard",
-					hint: "Claude's standard answers.",
+					hint: "The agent's standard answers.",
 				},
 			} as const satisfies Record<
 				BotOutputStyle,
@@ -528,19 +522,19 @@ const bots = {
 				},
 				default: {
 					label: "Ask every time",
-					hint: "Every tool the rules below do not settle is put to you.",
+					hint: "You approve every tool the rules below don't cover.",
 				},
 				acceptEdits: {
 					label: "Accept edits",
-					hint: "File edits go through without asking; everything else is put to you.",
+					hint: "File edits go through. You approve everything else.",
 				},
 				plan: {
 					label: "Plan first",
-					hint: "The companion reads and plans, and changes nothing until you say so.",
+					hint: "The companion reads and plans, and changes nothing until you approve.",
 				},
 				dontAsk: {
 					label: "Never ask",
-					hint: "Nothing is put to you: only the deny rules below hold the companion back.",
+					hint: "You're never asked. Only the deny rules below stop the companion.",
 				},
 			} as const satisfies Record<
 				BotPermissionMode,
@@ -555,17 +549,17 @@ const bots = {
 			allow: {
 				label: "Allowed",
 				hint: "Runs without asking you.",
-				empty: "Nothing is allowed outright.",
+				empty: "No allow rules yet.",
 			},
 			ask: {
 				label: "Asked",
-				hint: "Put to you every time, whatever the mode says.",
-				empty: "Nothing is put to you on its own.",
+				hint: "Asks you every time, whatever the mode.",
+				empty: "No ask rules yet.",
 			},
 			deny: {
 				label: "Denied",
-				hint: "Refused outright, whatever the mode says.",
-				empty: "Nothing is refused outright.",
+				hint: "Always refused, whatever the mode.",
+				empty: "No deny rules yet.",
 			},
 		},
 	},
@@ -612,7 +606,7 @@ const bots = {
 	danger: {
 		delete: "Delete companion",
 		description:
-			"Its avatar, instructions and folder go with it. This cannot be undone.",
+			"Deleting this companion removes it from every space. This can't be undone.",
 		confirm: {
 			title: "Delete {{name}}?",
 		},

@@ -49,7 +49,7 @@ export const Default = meta.story({
 	},
 	play: async ({ args, canvas }) => {
 		const button = canvas.getByRole("button", {
-			name: "Billing migration — conversation settings",
+			name: "Billing migration · conversation settings",
 		})
 
 		await expect(button).toHaveAttribute("aria-expanded", "false")

@@ -646,9 +646,9 @@ export const RoutinesReadFailed = meta.story({
 		},
 	},
 	play: async ({ args, canvas, canvasElement, userEvent }) => {
-		await expect(canvas.getByText("Routines could not be read")).toBeVisible()
+		await expect(canvas.getByText("Couldn't load routines")).toBeVisible()
 		await expect(
-			canvas.queryByText("Missions could not be read"),
+			canvas.queryByText("Couldn't load missions"),
 		).not.toBeInTheDocument()
 		await expect(slotsIn(canvasElement, "routine-row")).toHaveLength(0)
 
@@ -669,9 +669,9 @@ export const MissionsReadFailed = meta.story({
 		},
 	},
 	play: async ({ canvas, canvasElement }) => {
-		await expect(canvas.getByText("Missions could not be read")).toBeVisible()
+		await expect(canvas.getByText("Couldn't load missions")).toBeVisible()
 		await expect(
-			canvas.queryByText("Routines could not be read"),
+			canvas.queryByText("Couldn't load routines"),
 		).not.toBeInTheDocument()
 		await expect(
 			within(slotIn(canvasElement, "routines-entry")).getByText(
@@ -696,9 +696,7 @@ export const ActivityReadFailed = meta.story({
 		},
 	},
 	play: async ({ args, canvas, canvasElement, userEvent }) => {
-		await expect(
-			canvas.getByText("The activity of this conversation could not be read"),
-		).toBeVisible()
+		await expect(canvas.getByText("Couldn't load the activity")).toBeVisible()
 		await expect(slotsIn(canvasElement, "chat-notice")).toHaveLength(1)
 		await expect(
 			canvas.queryByText("Nothing is running here"),
@@ -722,11 +720,9 @@ export const WriteFailed = meta.story({
 	},
 	play: async ({ canvas, canvasElement, userEvent }) => {
 		await openRoutines(canvasElement, userEvent)
+		await expect(canvas.getByText("Couldn't update the routine")).toBeVisible()
 		await expect(
-			canvas.getByText("The routine could not be changed"),
-		).toBeVisible()
-		await expect(
-			canvas.queryByText("Routines could not be read"),
+			canvas.queryByText("Couldn't load routines"),
 		).not.toBeInTheDocument()
 		await expect(slotsIn(canvasElement, "routine-row")).toHaveLength(
 			ROUTINES.length,
@@ -893,9 +889,7 @@ export const RunNowFailed = meta.story({
 		},
 	},
 	play: async ({ canvas, canvasElement }) => {
-		await expect(
-			canvas.getByText("The routine could not be changed"),
-		).toBeVisible()
+		await expect(canvas.getByText("Couldn't update the routine")).toBeVisible()
 		await expect(slotIn(canvasElement, "routine-detail")).toBeVisible()
 		await expect(slotsIn(canvasElement, "routine-run")).toHaveLength(
 			DIGEST_RUNS.length,

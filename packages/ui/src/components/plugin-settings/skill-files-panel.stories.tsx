@@ -162,7 +162,7 @@ export const Loading = meta.story({
 		},
 	},
 	play: async ({ canvas }) => {
-		await expect(canvas.getByText("Loading the file…")).toBeVisible()
+		await expect(canvas.getByText("Loading file…")).toBeVisible()
 	},
 })
 

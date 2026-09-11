@@ -161,7 +161,7 @@ export const Empty = meta.story({
 		const panel = await opaque(await body.findByRole("dialog", { name: TITLE }))
 
 		await expect(
-			within(panel).getByText("No message is pinned in this conversation yet."),
+			within(panel).getByText("No pinned messages in this conversation yet."),
 		).toBeVisible()
 		await expect(within(panel).queryByRole("listitem")).not.toBeInTheDocument()
 	},
@@ -218,7 +218,7 @@ export const Unpinning = meta.story({
 		}
 
 		await expect(
-			within(panel).getByText("No message is pinned in this conversation yet."),
+			within(panel).getByText("No pinned messages in this conversation yet."),
 		).toBeVisible()
 		await expect(trigger).toHaveAccessibleName(TITLE)
 	},

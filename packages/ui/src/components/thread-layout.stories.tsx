@@ -253,7 +253,7 @@ export const Error = meta.story({
 		notice: (
 			<Notice
 				title="The agent stopped"
-				description="The agent exited (code 1)."
+				description="The agent exited (code 1). Restart the session."
 				retry={{ label: "Restart session", onRetry: fn() }}
 			/>
 		),

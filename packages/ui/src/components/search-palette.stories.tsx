@@ -692,12 +692,9 @@ export const Empty = meta.story({
 		await expect(reader.getByRole("listbox")).toBeEmptyDOMElement()
 		await expect(reader.getByText("Nothing here matches")).toBeVisible()
 		await expect(
-			reader.getByText(
-				`No message, conversation, mission or routine in ${SPACE.name}`,
-				{
-					exact: false,
-				},
-			),
+			reader.getByText(`No results for “${QUERY}” in ${SPACE.name}`, {
+				exact: false,
+			}),
 		).toHaveTextContent(`“${QUERY}”`)
 
 		await userEvent.click(

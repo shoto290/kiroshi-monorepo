@@ -720,7 +720,9 @@ export const UnreadableRoster = meta.story({
 	play: async ({ canvas, canvasElement }) => {
 		await expect(rowsIn(canvasElement)).toHaveLength(0)
 		await expect(
-			canvas.getByText("Your companions could not be read."),
+			canvas.getByText(
+				"Couldn't load your companions. Restart Kiroshi to retry.",
+			),
 		).toBeVisible()
 		await expect(
 			canvas.queryByText("No companions yet"),
@@ -2417,7 +2419,7 @@ const openRowMenu = async (canvasElement: HTMLElement, name: string) => {
 const SPACES_BRANCH = "Spaces"
 
 const LAST_SPACE_NOTE =
-	"The last space a companion is in stays. Delete the companion to be rid of it."
+	"A companion stays in at least one space. Delete the companion to remove it."
 
 const tintOf = (node: HTMLElement) => getComputedStyle(node).backgroundColor
 

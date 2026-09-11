@@ -227,7 +227,7 @@ export const Masked = meta.story({
 		label: "Value",
 		masked: true,
 		value: "",
-		hint: "Typed once. It leaves this field for the disk and is never read back.",
+		hint: "Saved once and never shown again.",
 	},
 	parameters: {
 		docs: {

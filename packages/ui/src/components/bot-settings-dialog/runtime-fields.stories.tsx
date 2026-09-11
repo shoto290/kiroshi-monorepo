@@ -124,7 +124,7 @@ export const StandardAnswers = meta.story({
 		docs: {
 			description: {
 				story:
-					"Claude's standard answers. The value the host stores raw is `default`, and the reader never sees it — the trigger reads `Standard` and the hint changes with it. Check that picking reports the raw value rather than the label.",
+					"The agent's standard answers. The value the host stores raw is `default`, and the reader never sees it — the trigger reads `Standard` and the hint changes with it. Check that picking reports the raw value rather than the label.",
 			},
 		},
 	},

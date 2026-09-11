@@ -29,7 +29,7 @@ const meta = preview.meta({
 		triggerClassName: buttonVariants({ variant: "destructive", size: "sm" }),
 		title: "Delete Release notes?",
 		description:
-			"Its description and its body go with it. This cannot be undone.",
+			"The companion can no longer use this skill. This can't be undone.",
 		confirmLabel: "Delete skill",
 		onConfirm: fn(),
 	},
@@ -124,7 +124,7 @@ export const Confirmed = meta.story({
 export const Rejected = meta.story({
 	args: {
 		defaultOpen: true,
-		failureLabel: "This could not be removed. Nothing changed — try again.",
+		failureLabel: "Couldn't remove this secret. Retry.",
 		onConfirm: fn(() => Promise.reject(new Error("removal refused"))),
 	},
 	parameters: {
@@ -143,9 +143,7 @@ export const Rejected = meta.story({
 		)
 
 		await expect(
-			await within(popup).findByText(
-				"This could not be removed. Nothing changed — try again.",
-			),
+			await within(popup).findByText("Couldn't remove this secret. Retry."),
 		).toBeVisible()
 		await expect(popup).toBeVisible()
 		await expect(args.onConfirm).toHaveBeenCalledTimes(1)

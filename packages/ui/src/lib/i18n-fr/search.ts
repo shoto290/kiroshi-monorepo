@@ -14,9 +14,8 @@ const search = {
 	seeAll: "Tout voir",
 	solo: "conversation en tête-à-tête",
 	unavailable: {
-		title: "La recherche n'a pas pu être lue",
-		description:
-			"Rien n'est perdu. Les derniers résultats restent à l'écran jusqu'à la prochaine lecture.",
+		title: "La recherche a échoué",
+		description: "Modifiez votre recherche pour réessayer.",
 	},
 	rest: {
 		chats: "Conversations récentes",
@@ -24,7 +23,7 @@ const search = {
 		routines: "Routines",
 		messages: {
 			title: "Rechercher dans tous les messages",
-			body: "Tapez un mot et tous les messages de {{space}} sont lus. Les messages se comparent par mots entiers : « rout » ne trouvera pas « routine ».",
+			body: "Tapez un mot pour chercher dans tous les messages de {{space}}. Mots entiers seulement : « rout » ne trouve pas « routine ».",
 		},
 		none: {
 			chats: "Aucune conversation ici",
@@ -32,19 +31,18 @@ const search = {
 			routines: "Aucune routine ici",
 			body: {
 				chats:
-					"Rien n'a été ouvert dans {{space}}. Élargissez à tous les espaces pour retrouver une conversation ailleurs.",
+					"Aucune conversation dans {{space}}. Cherchez dans tous les espaces pour en trouver une.",
 				missions:
-					"Aucune mission n'a été ouverte dans {{space}}. Élargissez à tous les espaces pour retrouver une mission ailleurs.",
+					"Aucune mission dans {{space}}. Cherchez dans tous les espaces pour en trouver une.",
 				routines:
-					"Rien ne tourne tout seul dans {{space}}. Élargissez à tous les espaces pour retrouver une routine ailleurs.",
+					"Aucune routine dans {{space}}. Cherchez dans tous les espaces pour en trouver une.",
 			},
 		},
 		action: "Chercher dans tous les espaces",
 	},
 	empty: {
 		title: "Rien ne correspond ici",
-		description:
-			"Aucun message, conversation, mission ou routine dans {{space}} ne répond à « {{query}} ».",
+		description: "Aucun résultat pour « {{query}} » dans {{space}}.",
 		action: "Rechercher dans tous les espaces",
 	},
 }

@@ -32,7 +32,7 @@ const meta = preview.meta({
 		mark: MARK,
 		title: "Nest Keeper",
 		description:
-			"Kiroshi talks to its built-in agent. Nothing leaves your device.",
+			"Kiroshi talks to the agent directly. Nothing leaves your device.",
 		hint: "Type your first prompt in the composer below",
 	},
 })
@@ -80,8 +80,8 @@ export const WithoutHint = meta.story({
 	args: {
 		hint: undefined,
 		action: <Button onClick={fn()}>Try again</Button>,
-		title: "The agent is not available",
-		description: "Kiroshi cannot reach its built-in agent.",
+		title: "Couldn't reach the agent",
+		description: "Retry.",
 		mark: null,
 	},
 	parameters: {
