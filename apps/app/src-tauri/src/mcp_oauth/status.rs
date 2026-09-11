@@ -3,7 +3,7 @@ use serde::Serialize;
 use super::credentials;
 use super::reports::Standing;
 use crate::environment::contract::{
-	Values, OAUTH_ACCESS_TOKEN, OAUTH_CLIENT_SECRET, OAUTH_REFRESH_TOKEN,
+	EnvScope, Values, OAUTH_ACCESS_TOKEN, OAUTH_CLIENT_SECRET, OAUTH_REFRESH_TOKEN,
 };
 
 const REDACTED: &str = "[redacted]";
@@ -14,6 +14,8 @@ const SECRET_NAMES: [&str; 3] = [OAUTH_ACCESS_TOKEN, OAUTH_REFRESH_TOKEN, OAUTH_
 #[serde(rename_all = "camelCase")]
 pub struct ConnectorRow {
 	pub name: String,
+	#[serde(skip_serializing_if = "Option::is_none")]
+	pub scope: Option<EnvScope>,
 	#[serde(flatten)]
 	pub status: ConnectorStatus,
 }
@@ -154,9 +156,14 @@ mod tests {
 			reason: Some("it answered held-access, held-refresh and held-secret".to_owned()),
 		};
 		let rows = [
-			ConnectorRow { name: "granola".to_owned(), status: status(reported(quoting), NOW) },
+			ConnectorRow {
+				name: "granola".to_owned(),
+				scope: None,
+				status: status(reported(quoting), NOW),
+			},
 			ConnectorRow {
 				name: "notion".to_owned(),
+				scope: None,
 				status: status(unreported(a_grant(None), true), NOW),
 			},
 		];

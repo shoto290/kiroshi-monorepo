@@ -145,22 +145,31 @@ pub async fn mcp_oauth_disconnect<R: Runtime>(
 ) -> Result<Disconnected, OauthError> {
 	let state = app.state::<McpOauthState>();
 	let _running = state.begin(Flow::Revoking)?;
-	let scope = EnvScope::Server { name: name.clone(), owner };
-	let settled = disconnected(&app, &scope, &url).await;
+	let settled = disconnected(&app, &owner, &name, &url).await;
 	app.state::<ConnectorReports>().forget(&name);
 	settled
 }
 
 async fn disconnected<R: Runtime>(
 	app: &AppHandle<R>,
-	scope: &EnvScope,
+	owner: &EnvOwner,
+	name: &str,
 	url: &str,
 ) -> Result<Disconnected, OauthError> {
 	let root = writable_root(app)?;
-	let held = store::values(&root, scope)?;
+	let scope = held_at(&root, owner, name)?;
+	let held = store::values(&root, &scope)?;
 	let revocation = revoked(app, url, &held).await;
-	credentials::forget(&root, scope)?;
+	credentials::forget(&root, &scope)?;
 	Ok(revocation)
+}
+
+fn held_at(root: &Path, owner: &EnvOwner, name: &str) -> Result<EnvScope, EnvError> {
+	let served = credentials::served(root, owner)?.remove(name);
+	Ok(served.map_or_else(
+		|| EnvScope::Server { name: name.to_owned(), owner: owner.clone() },
+		|grant| grant.scope,
+	))
 }
 
 #[tauri::command]
@@ -190,14 +199,19 @@ struct Readings<'a> {
 
 impl Readings<'_> {
 	fn row(&self, server: McpServer) -> ConnectorRow {
-		let scope = EnvScope::Server { name: server.name.clone(), owner: self.owner.clone() };
+		let named = EnvScope::Server { name: server.name.clone(), owner: self.owner.clone() };
+		let grant = self.grants.get(&server.name);
 		let evidence = Evidence {
-			is_authorizing: self.flows.is_authorizing(&scope),
+			is_authorizing: self.flows.is_authorizing(&named),
 			reported: last_reported(self.reports, self.owner, &server.name),
-			held: self.grants.get(&server.name).map(|grant| grant.held.clone()).unwrap_or_default(),
+			held: grant.map(|grant| grant.held.clone()).unwrap_or_default(),
 			declares_url: server.url().is_some(),
 		};
-		ConnectorRow { status: status(evidence, self.now), name: server.name }
+		ConnectorRow {
+			status: status(evidence, self.now),
+			scope: grant.map(|grant| grant.scope.clone()),
+			name: server.name,
+		}
 	}
 }
 
@@ -323,6 +337,77 @@ mod tests {
 		assert_eq!(readings.row(granola).status, ConnectorStatus::Connected);
 		assert_eq!(reports.last("b2", "granola"), None);
 		assert_eq!(reports.last("b1", "clock"), Some(Standing::Holding));
+	}
+
+	fn a_bot() -> EnvOwner {
+		EnvOwner::Bot { id: "b1".to_owned(), space_id: "s1".to_owned() }
+	}
+
+	fn granola_of_the_space() -> EnvScope {
+		EnvScope::Server {
+			name: "granola".to_owned(),
+			owner: EnvOwner::Space { id: "s1".to_owned() },
+		}
+	}
+
+	fn a_root(name: &str) -> std::path::PathBuf {
+		let root = std::env::temp_dir().join(format!("kiroshi-mcp-oauth-commands-{name}"));
+		let _ = std::fs::remove_dir_all(&root);
+		root
+	}
+
+	fn read_row(root: &Path, owner: &EnvOwner) -> ConnectorRow {
+		let grants = credentials::served(root, owner).expect("the grants are readable");
+		let readings = Readings {
+			owner,
+			flows: &McpOauthState::default(),
+			reports: &ConnectorReports::default(),
+			grants: &grants,
+			now: now_ms(),
+		};
+		readings.row(McpServer {
+			name: "granola".to_owned(),
+			config: serde_json::json!({ "url": "https://mcp.granola.test/mcp" }),
+		})
+	}
+
+	#[test]
+	fn a_row_names_the_broader_scope_a_bot_holding_no_grant_is_served_from() {
+		let root = a_root("row-broader");
+		credentials::store(&root, &granola_of_the_space(), &a_live_grant())
+			.expect("the space grant is written");
+
+		let row = read_row(&root, &a_bot());
+
+		assert_eq!(row.scope, Some(granola_of_the_space()));
+		assert_eq!(row.status, ConnectorStatus::Connected);
+	}
+
+	#[test]
+	fn a_connect_stores_at_the_owner_named_and_the_row_then_names_that_owner() {
+		let root = a_root("row-named");
+		credentials::store(&root, &granola_of_the_space(), &a_live_grant())
+			.expect("the space grant is written");
+
+		kept(&root, &a_server("granola"), "granola", &a_live_grant(), &ConnectorReports::default())
+			.expect("the grant is stored");
+
+		assert_eq!(read_row(&root, &a_bot()).scope, Some(a_server("granola")));
+		assert!(store::values(&root, &a_server("granola"))
+			.expect("the scope is readable")
+			.contains_key(OAUTH_ACCESS_TOKEN));
+	}
+
+	#[test]
+	fn a_disconnect_acts_on_the_broader_grant_a_bot_is_served_and_else_on_the_owner_named() {
+		let root = a_root("held-at");
+
+		assert_eq!(held_at(&root, &a_bot(), "granola"), Ok(a_server("granola")));
+
+		credentials::store(&root, &granola_of_the_space(), &a_live_grant())
+			.expect("the space grant is written");
+
+		assert_eq!(held_at(&root, &a_bot(), "granola"), Ok(granola_of_the_space()));
 	}
 
 	#[tokio::test]
