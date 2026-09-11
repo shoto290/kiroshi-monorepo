@@ -86,8 +86,6 @@ export const createConnectorsController = (
 		}
 	}
 
-	const openOwner = () => state.owner
-
 	return {
 		getState: () => state,
 
@@ -104,7 +102,7 @@ export const createConnectorsController = (
 		},
 
 		connect: async (name, url) => {
-			const owner = openOwner()
+			const owner = state.owner
 			if (!owner) {
 				return
 			}
@@ -117,7 +115,7 @@ export const createConnectorsController = (
 		},
 
 		cancel: async () => {
-			const owner = openOwner()
+			const owner = state.owner
 			if (!owner) {
 				return
 			}
@@ -128,7 +126,7 @@ export const createConnectorsController = (
 		},
 
 		disconnect: async (name, url) => {
-			const owner = openOwner()
+			const owner = state.owner
 			if (!owner) {
 				return
 			}

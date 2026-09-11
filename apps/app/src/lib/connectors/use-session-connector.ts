@@ -30,9 +30,7 @@ export const SessionConnectorsContext = createContext<SessionConnectors | null>(
 )
 
 const readingsOf = (port: ConnectorPort, owner: EnvOwner) =>
-	port
-		.status(owner)
-		.then((rows) => rows.map((row) => ({ name: row.name, owner, row })))
+	port.status(owner).then((rows) => rows.map((row) => ({ owner, row })))
 
 export const findConnectorNeedingAuthorization = async (
 	port: ConnectorPort,
@@ -44,7 +42,7 @@ export const findConnectorNeedingAuthorization = async (
 	const needing = readings
 		.flat()
 		.find(({ row }) => row.status === "needsAuthorization")
-	return needing ? { name: needing.name, owner: needing.owner } : null
+	return needing ? { name: needing.row.name, owner: needing.owner } : null
 }
 
 const rejectedErrorIdOf = (error: ChatError | undefined) =>
