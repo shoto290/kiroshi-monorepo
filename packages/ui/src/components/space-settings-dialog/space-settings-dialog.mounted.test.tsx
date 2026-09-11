@@ -84,7 +84,9 @@ describe("SpaceSettingsDialog connectors", () => {
 		const panel = await pick("Connectors")
 
 		expect(
-			within(panel).getByText("These connectors could not be read."),
+			within(panel).getByText(
+				"Couldn't load connectors. Reopen settings to retry.",
+			),
 		).toBeTruthy()
 		expect(screen.queryByRole("button", { name: "Add connector" })).toBe(null)
 	})

@@ -107,7 +107,7 @@ describe("a refused store", () => {
 	it("names the count limit the call was refused on", () => {
 		expect(
 			describeAttachmentError(t, { kind: "tooMany", count: 21, limit: 20 }),
-		).toBe("A message carries 20 files at most, and 21 are staged.")
+		).toBe("A message takes up to 20 files, and 21 are staged. Remove some.")
 	})
 
 	it("names the total size limit the call was refused on", () => {
@@ -118,7 +118,7 @@ describe("a refused store", () => {
 				limit: 100 * 1024 * 1024,
 			}),
 		).toBe(
-			"The staged files come to 210 MB, over the 100 MB one message may carry.",
+			"These files total 210 MB, over the 100 MB message limit. Remove some.",
 		)
 	})
 
@@ -130,7 +130,7 @@ describe("a refused store", () => {
 				bytes: 21 * 1024 * 1024,
 				limit: 20 * 1024 * 1024,
 			}),
-		).toBe("huge.bin is over the 20 MB a single file may weigh.")
+		).toBe("huge.bin is over the 20 MB file limit. Attach a smaller one.")
 	})
 
 	it("reads a refusal the host sent as it was sent", () => {

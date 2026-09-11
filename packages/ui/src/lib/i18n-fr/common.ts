@@ -1,12 +1,11 @@
 const common = {
 	boot: {
-		status: "Démarrage d'Kiroshi",
+		status: "Démarrage de Kiroshi",
 	},
 	spaces: {
 		unavailable: {
-			title: "Les espaces n'ont pas pu être lus",
-			description:
-				"Vos compagnons sont intacts. Réessayez pour ouvrir vos espaces.",
+			title: "Impossible de charger vos espaces",
+			description: "Vos compagnons sont toujours là.",
 		},
 	},
 	dialog: {
@@ -36,11 +35,13 @@ const common = {
 			ready_to_merge: "{{ticket}} est prête à fusionner",
 		},
 		failure: {
-			clicks: "Cliquer sur une notification n'ouvrira plus sa conversation",
+			clicks:
+				"Les notifications n'ouvriront plus leur conversation. Redémarrez Kiroshi pour corriger.",
 			focus:
-				"Des notifications peuvent désormais apparaître alors que l'app est au premier plan",
-			reveal: "La fenêtre n'a pas pu être mise au premier plan",
-			send: "Une notification n'a pas pu être affichée",
+				"Des notifications peuvent s'afficher pendant que vous êtes dans Kiroshi. Redémarrez Kiroshi pour corriger.",
+			reveal:
+				"Impossible de mettre Kiroshi au premier plan. Basculez-y vous-même.",
+			send: "Impossible d'afficher une notification. Vérifiez l'autorisation de notification de Kiroshi.",
 		},
 	},
 	update: {

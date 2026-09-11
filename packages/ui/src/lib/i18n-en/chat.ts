@@ -3,22 +3,20 @@ const chat = {
 		ready: {
 			title: "Start with the agent",
 			description:
-				"Kiroshi talks to its built-in agent. Nothing leaves your device.",
+				"Kiroshi talks to the agent directly. Nothing leaves your device.",
 		},
 		unavailable: {
-			title: "The agent is not available",
-			description: "Kiroshi cannot reach its built-in agent.",
+			title: "Couldn't reach the agent",
+			description: "Kiroshi's built-in agent didn't answer. Try again.",
 		},
 		settings: "Companion settings",
-		hint: "Type your first message in the composer below",
+		hint: "Message a companion to start.",
 		setup: "Try again",
 	},
 	conversationEmptyState: {
-		description_one:
-			"{{count}} companion is here and waiting on your first message.",
-		description_other:
-			"{{count}} companions are here and waiting on your first message.",
-		hint: "Type your first message in the composer below",
+		description_one: "{{count}} companion is ready.",
+		description_other: "{{count}} companions are ready.",
+		hint: "Message a companion to start.",
 	},
 	connection: {
 		checking: "Checking the agent…",
@@ -37,9 +35,8 @@ const chat = {
 		startOfHistory: "Beginning of the conversation",
 		landing: {
 			unavailable: {
-				title: "That message could not be reached",
-				description:
-					"The conversation is intact. Open the search result again to try landing on it.",
+				title: "Couldn't open that message",
+				description: "Open the search result again.",
 			},
 		},
 		message: {
@@ -59,11 +56,9 @@ const chat = {
 			label: "Routine report",
 			mission: "Mission summons",
 			unavailable: {
-				title: "Routine reports could not be read",
-				description:
-					"The conversation is intact. What opened each report is missing until the next read.",
-				soloDescription:
-					"The conversation is intact. What opened each report is missing until the next read.",
+				title: "Couldn't load routine reports",
+				description: "Reopen the conversation to retry.",
+				soloDescription: "Reopen the conversation to retry.",
 			},
 		},
 		mention: {
@@ -97,11 +92,10 @@ const chat = {
 		jump: "Jump",
 		jumpTo: "Jump to the message from {{author}}",
 		unpin: "Unpin the message from {{author}}",
-		empty: "No message is pinned in this conversation yet.",
+		empty: "No pinned messages in this conversation yet.",
 		unavailable: {
-			title: "Pinned messages are out of date",
-			description:
-				"The pins could not be read or changed. Try again in a moment.",
+			title: "Couldn't sync pinned messages",
+			description: "Try again in a moment.",
 		},
 	},
 	working: {
@@ -167,7 +161,7 @@ const chat = {
 		copied: "Copied",
 		copyTooltip: "Copy",
 		copyAnnounced: "Code copied to clipboard",
-		copyFailed: "Copying the code failed",
+		copyFailed: "Couldn't copy the code. Try again.",
 		writing: "Writing",
 		ready: "Ready",
 	},
@@ -185,76 +179,84 @@ const chat = {
 	},
 	screen: {
 		label: "Agent conversation",
-		identity: "{{name}} — companion settings",
-		conversationIdentity: "{{name}} — conversation settings",
+		identity: "{{name}} · companion settings",
+		conversationIdentity: "{{name}} · conversation settings",
 		placeholder: "Message {{name}}",
 		approval: {
-			description: "The agent is waiting on you before it runs this tool.",
+			description: "The agent needs your approval to run this tool.",
 			path: "Path",
 		},
 		question: {
 			recall: "{{author}} is waiting on your answer",
 		},
-		attachmentsRefused: "Files not attached",
+		attachmentsRefused: "Couldn't attach files",
 		restart: "Restart session",
 		handoff: {
 			title: "{{first}} and {{second}} keep handing the turn to each other",
 			description:
-				"They have passed it back and forth three times. The turn carries on until you stop it.",
+				"They've passed it back and forth three times. Stop the turn to break the loop.",
 			stop: "Stop the turn",
 		},
 		notice: {
 			crashed: "The agent stopped",
-			resumeFailed: "Previous conversation could not be resumed",
-			workingDirectoryRefused: "The companion's folder was not found",
-			settingsRejected: "The companion's settings were not applied",
-			serverEnvRejected: "A connector was left out",
-			unavailable: "The agent is unavailable",
-			failed: "That request did not go through",
-			readFailed: "Earlier messages not loaded",
+			resumeFailed: "Couldn't resume the conversation",
+			workingDirectoryRefused: "Couldn't find the companion's folder",
+			settingsRejected: "Couldn't apply the companion's settings",
+			serverEnvRejected: "Couldn't start a connector",
+			unavailable: "Couldn't reach the agent",
+			failed: "Couldn't send that request",
+			readFailed: "Couldn't load earlier messages",
 		},
 		transport: {
-			binaryNotFound: "Kiroshi's built-in agent is unreachable.",
+			binaryNotFound: "Couldn't find the agent. Reinstall Kiroshi.",
 			notAuthenticated:
-				"Your Claude subscription is not signed in. Sign in to Claude, then start the conversation again.",
-			authCheckFailed: "The sign-in check failed: {{detail}}",
-			spawnFailed: "The agent could not be started: {{detail}}",
-			startupTimeout: "The agent did not answer within {{timeoutMs}} ms.",
-			crashed: "The agent exited (code {{code}}).",
-			crashedDetail: "The agent exited (code {{code}}). {{detail}}",
-			crashedUnknownCode: "The agent exited (code unknown).",
-			crashedUnknownCodeDetail: "The agent exited (code unknown). {{detail}}",
+				"You're signed out of your Claude subscription. Sign in to Claude, then restart the conversation.",
+			authCheckFailed:
+				"Couldn't check your sign-in ({{detail}}). Restart the session.",
+			spawnFailed:
+				"Couldn't start the agent ({{detail}}). Restart the session.",
+			startupTimeout:
+				"The agent didn't answer within {{timeoutMs}} ms. Restart the session.",
+			crashed: "The agent exited (code {{code}}). Restart the session.",
+			crashedDetail:
+				"The agent exited (code {{code}}): {{detail}}. Restart the session.",
+			crashedUnknownCode:
+				"The agent exited (code unknown). Restart the session.",
+			crashedUnknownCodeDetail:
+				"The agent exited (code unknown): {{detail}}. Restart the session.",
 			resumeFailed:
-				"That conversation could not be resumed. The agent started a new one; your messages are still here.",
+				"The agent started a new session. Keep going, your messages are still here.",
 			workingDirectoryRefused:
-				"{{path}} is not there any more. This companion is answering from the usual place instead.",
-			invalidFrame: "An unreadable frame was skipped: {{detail}}",
+				"{{path}} is gone, so the companion uses its default folder. Choose another in its settings.",
+			invalidFrame: "Skipped an unreadable frame ({{detail}}). Keep going.",
 			settingsRejected:
-				"This companion's settings.json was not applied: {{detail}}",
+				"Couldn't apply settings.json ({{detail}}). Fix it, then restart the session.",
 			serverEnvRejected:
-				"{{detail}}. The conversation carries on with the other connectors.",
-			notStarted: "No session is running.",
-			turnAlreadyRunning: "A turn is already running.",
-			transitionInProgress: "A session change is already in progress.",
-			noActiveTurn: "There is no turn to interrupt.",
+				"{{detail}}. The other connectors still run, so fix this one and restart the session.",
+			notStarted: "No session is running. Start a session to continue.",
+			turnAlreadyRunning: "A turn is already running. Wait for it or stop it.",
+			transitionInProgress: "The session is already changing. Wait a moment.",
+			noActiveTurn: "There's no turn to stop.",
 			staleRuntimeSession:
-				"That session has been replaced. The one running now took its place.",
-			unknownPermission: "Unknown approval request ({{id}}).",
-			writeFailed: "The message could not be sent: {{detail}}",
-			readFailed: "The earlier messages could not be read: {{detail}}",
-			unknownFailure: "Something went wrong: {{detail}}",
+				"That session was replaced. Keep going in the current one.",
+			unknownPermission:
+				"Couldn't match this approval request ({{id}}). Dismiss it.",
+			writeFailed: "Couldn't send the message ({{detail}}). Retry.",
+			readFailed: "Couldn't load earlier messages ({{detail}}). Retry.",
+			unknownFailure: "Something went wrong ({{detail}}). Retry.",
 		},
 		attachment: {
 			megabytes: "{{size}} MB",
-			storage: "The files could not be written down ({{failure}}).",
+			storage: "Couldn't save the files ({{failure}}). Attach them again.",
 			unknownConversation:
-				"This conversation is not on the record any more. Reopen the companion and attach them again.",
+				"This conversation no longer exists. Reopen the companion and attach them again.",
 			tooMany:
-				"A message carries {{limit}} files at most, and {{staged}} are staged.",
-			tooLarge: "{{name}} is over the {{limit}} a single file may weigh.",
+				"A message takes up to {{limit}} files, and {{staged}} are staged. Remove some.",
+			tooLarge:
+				"{{name}} is over the {{limit}} file limit. Attach a smaller one.",
 			tooLargeTogether:
-				"The staged files come to {{bytes}}, over the {{limit}} one message may carry.",
-			unwritable: "The files could not be written down: {{detail}}",
+				"These files total {{bytes}}, over the {{limit}} message limit. Remove some.",
+			unwritable: "Couldn't save the files ({{detail}}). Attach them again.",
 		},
 	},
 	namelessConversation: {
@@ -262,11 +264,10 @@ const chat = {
 	},
 	newConversation: {
 		title: "New conversation",
-		description:
-			"Pick who takes part. The first companion you pick leads the conversation. Name it now, or let your first message name it.",
+		description: "Pick who joins. The first companion you pick leads.",
 		name: {
 			label: "Name",
-			placeholder: "Left empty, your first message names it",
+			placeholder: "Leave empty to name it from your first message",
 		},
 		search: {
 			label: "Companions",
@@ -302,13 +303,13 @@ const chat = {
 			lead: "Lead",
 			promote: "Give the lead to {{name}}",
 			dismiss: "Dismiss {{name}}",
-			last: "The last companion stays in the conversation.",
-			all: "Every companion of the space is already in this conversation.",
+			last: "A conversation needs at least one companion.",
+			all: "Every companion in this space is already in this conversation.",
 		},
 		danger: {
 			delete: "Delete conversation",
 			description:
-				"The conversation and everything said in it go with it. The companions stay in the space.",
+				"Its messages are deleted; its companions stay in the space. This can't be undone.",
 			confirm: {
 				title: "Delete {{name}}?",
 			},
@@ -338,27 +339,25 @@ const chat = {
 		empty: {
 			title: "Nothing is running here",
 			description:
-				"The missions a companion opens in this conversation, and what its routines report, land here.",
+				"Missions and routine reports in this conversation show up here.",
 		},
 		failure: {
 			missions: {
-				title: "Missions could not be read",
-				description:
-					"Nothing was changed. Try again to read the missions of this conversation.",
+				title: "Couldn't load missions",
+				description: "The missions are still there; only the list didn't load.",
 			},
 			routines: {
-				title: "Routines could not be read",
-				description: "Nothing was changed. Try again to read the routines.",
+				title: "Couldn't load routines",
+				description: "The routines keep running; only the list didn't load.",
 			},
 			activity: {
-				title: "The activity of this conversation could not be read",
+				title: "Couldn't load the activity",
 				description:
-					"Nothing was changed. Try again to read its missions and its routines.",
+					"Missions and routines are still there; only the list didn't load.",
 			},
 			write: {
-				title: "The routine could not be changed",
-				description:
-					"The change was not saved. Read the routines again to see where they stand.",
+				title: "Couldn't update the routine",
+				description: "Your change wasn't saved. Retry.",
 			},
 		},
 	},
@@ -378,8 +377,8 @@ const chat = {
 			},
 			source: {
 				label: "Trigger",
-				placeholder: "Pick what fires this routine",
-				tied: "The key and the configuration of a routine are tied to its trigger, so the trigger of a saved routine cannot be changed.",
+				placeholder: "Pick what triggers this routine",
+				tied: "You can't change the trigger of a saved routine.",
 			},
 			expression: {
 				label: "Cron expression",
@@ -395,10 +394,10 @@ const chat = {
 				header: "Header name",
 				copy: "Copy the {{field}} of this routine",
 				copied: "{{field}} copied",
-				reading: "The address and the key are being read.",
-				pending:
-					"The address, the key and the header name are available once the routine is saved.",
-				failure: "The address and the key of this routine could not be read.",
+				reading: "Loading the address and key…",
+				pending: "Save the routine to get its address, key and header name.",
+				failure:
+					"Couldn't load the address and key. Reopen the routine to retry.",
 			},
 			filter: {
 				label: "Filter",
@@ -431,9 +430,9 @@ const chat = {
 					exists: "is present",
 					not_exists: "is absent",
 					equals: "equals",
-					not_equals: "does not equal",
+					not_equals: "doesn't equal",
 					contains: "contains",
-					not_contains: "does not contain",
+					not_contains: "doesn't contain",
 					starts_with: "starts with",
 					ends_with: "ends with",
 					gt: "is greater than",
@@ -450,11 +449,11 @@ const chat = {
 				blankTitle: "A routine needs a title.",
 				blankInstruction: "A routine needs an instruction.",
 				blankValue: "This row needs a value.",
-				untypedComparison:
-					"This comparison needs a field the trigger declares.",
-				unreadableExpression: "This expression cannot be read as a schedule.",
+				untypedComparison: "Pick a field the trigger declares.",
+				unreadableExpression:
+					"Couldn't read this as a schedule. Check the cron expression.",
 				unsupportedOperator:
-					"{{operator}} does not fit a field declared as {{fieldType}}.",
+					"{{operator}} doesn't fit a {{fieldType}} field. Pick another operator.",
 			},
 		},
 		detail: {
@@ -463,17 +462,16 @@ const chat = {
 			runNow: {
 				action: "Run now",
 				refusal: {
-					disabled: "This routine is off, so no run was started.",
-					filter:
-						"The filter of this routine let nothing through, so no run was started.",
+					disabled: "This routine is off. Turn it on to run it.",
+					filter: "Nothing ran: the filter let nothing through.",
 					dedupeValueMissing:
-						"This trigger carries nothing to tell one event from another, so no run was started.",
-					alreadySeen: "This event was already run, so no run was started.",
+						"Nothing ran: this trigger can't tell events apart.",
+					alreadySeen: "Nothing ran: this event already ran.",
 				},
 			},
 			history: {
 				label: "Run history",
-				reading: "Reading the runs of this routine.",
+				reading: "Loading runs…",
 				counted_one: "{{count}} run",
 				counted_other: "{{count}} runs",
 				page_one: "Last {{count}} run read",
@@ -490,13 +488,12 @@ const chat = {
 				},
 				empty: {
 					title: "No run recorded",
-					description:
-						"No run of this routine was recorded. Runs land here as they happen.",
+					description: "Runs show up here as they happen.",
 				},
 				failure: {
-					title: "The runs could not be read",
+					title: "Couldn't load runs",
 					description:
-						"Nothing was changed. Try again to read the runs of this routine.",
+						"The routine keeps running; only its run history didn't load.",
 				},
 			},
 		},
@@ -507,14 +504,14 @@ const chat = {
 		confirm: {
 			title: "Delete {{title}}?",
 			description:
-				"The routine and its run history go with it. Nothing it already said is touched.",
+				"Its run history is deleted; its past reports stay in the conversation. This can't be undone.",
 			label: "Delete routine",
-			failure: "The routine could not be deleted. Try again.",
+			failure: "Couldn't delete the routine. Retry.",
 		},
 		empty: {
 			title: "No routine yet",
 			description:
-				"A routine runs a companion on its own, on a schedule or when a file it watches changes.",
+				"Set a routine to run a companion on a schedule or when a file changes.",
 		},
 	},
 	missions: {
@@ -530,7 +527,7 @@ const chat = {
 			source: {
 				bot: "The companion",
 				reader: "You",
-				agent: "The coding agent",
+				agent: "The agent",
 				github: "GitHub",
 			},
 			line: {
@@ -567,25 +564,23 @@ const chat = {
 		},
 		summons: {
 			working: "Opened by the mission",
-			waiting_bot: "Opened by the coding agent's question",
+			waiting_bot: "Opened by the agent's question",
 		},
 		composer: {
 			placeholder: "Answer this mission…",
 		},
 		failure: {
 			read: {
-				title: "The mission could not be read",
-				description: "Nothing was changed. Try again to read this mission.",
+				title: "Couldn't load this mission",
+				description: "The mission is still there; only this view didn't load.",
 			},
 			send: {
-				title: "The answer did not reach the companion",
-				description:
-					"Nothing was recorded on the mission. Send your answer again.",
+				title: "Couldn't send your answer",
+				description: "Send it again.",
 			},
 			run: {
-				title: "The companion could not be run on its mission",
-				description:
-					"Nothing was changed on the mission. Open its conversation to see where it stands.",
+				title: "Couldn't run the companion on its mission",
+				description: "Open its conversation to check on it.",
 			},
 		},
 	},

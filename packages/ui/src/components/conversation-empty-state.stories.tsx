@@ -61,9 +61,7 @@ export const Default = meta.story({
 			canvas.getByRole("heading", { name: "Ship the December release" }),
 		).toBeVisible()
 		await expect(botIdentityAvatars(canvasElement)).toHaveLength(3)
-		await expect(
-			canvas.getByText(/3 companions are here and waiting/),
-		).toBeVisible()
+		await expect(canvas.getByText(/3 companions are ready/)).toBeVisible()
 	},
 })
 
@@ -78,9 +76,7 @@ export const SingleBot = meta.story({
 		},
 	},
 	play: async ({ canvas }) => {
-		await expect(
-			canvas.getByText(/1 companion is here and waiting/),
-		).toBeVisible()
+		await expect(canvas.getByText(/1 companion is ready/)).toBeVisible()
 	},
 })
 

@@ -9,7 +9,8 @@ const bots = {
 			preview: "{{name}} : {{text}}",
 		},
 		empty: "Aucun compagnon pour l'instant",
-		unavailable: "Vos compagnons n'ont pas pu être lus.",
+		unavailable:
+			"Impossible de charger vos compagnons. Redémarrez Kiroshi pour réessayer.",
 		mission: {
 			state: {
 				waiting: "en attente de vous",
@@ -18,9 +19,8 @@ const bots = {
 				working: "en cours",
 			},
 			unavailable: {
-				title: "Les missions n'ont pas pu être lues",
-				description:
-					"Vos compagnons sont intacts. Chaque ligne s'affiche sans sa mission jusqu'à la prochaine lecture.",
+				title: "Impossible de charger les missions",
+				description: "Redémarrez Kiroshi pour réessayer.",
 			},
 		},
 		actions: "Actions pour {{name}}",
@@ -29,7 +29,7 @@ const bots = {
 		spaces: {
 			label: "Espaces",
 			lastSpace:
-				"Le dernier espace d'un compagnon y reste. Supprimez le compagnon pour vous en défaire.",
+				"Un compagnon reste dans au moins un espace. Pour retirer un compagnon de son dernier espace, supprimez le compagnon.",
 		},
 		pin: "Épingler",
 		pinDrop: "Déposer ici pour épingler",
@@ -73,9 +73,8 @@ const bots = {
 		settings: "Réglages des espaces",
 		shortcut: "⌘{{rank}}",
 		remove: {
-			lastSpace: "Un compagnon doit rester dans au moins un espace.",
-			failed:
-				"Ce compagnon n'a pas pu être retiré de cet espace. Rien n'a changé, réessayez.",
+			lastSpace: "Un compagnon a besoin d'au moins un espace.",
+			failed: "Impossible de retirer ce compagnon de l'espace. Réessayez.",
 		},
 	},
 	dialog: {
@@ -108,21 +107,22 @@ const bots = {
 		},
 		memory: {
 			label: "Mémoire",
-			hint: "Ce que le compagnon a noté pour lui-même au fil des conversations. Corrigez-la ou effacez-la — il continue d'écrire.",
-			empty: "Ce compagnon n'a encore rien noté.",
+			hint: "Ce dont ce compagnon se souvient d'une conversation à l'autre. Modifiez-la ou effacez-la ; il continue d'apprendre.",
+			empty: "Ce compagnon n'a encore aucun souvenir.",
 			save: "Enregistrer la mémoire",
 			clear: {
 				action: "Effacer",
 				title: "Effacer la mémoire de ce compagnon ?",
 				description:
-					"Tout ce que le compagnon a noté pour lui-même est supprimé. Il recommence à apprendre dès la prochaine conversation.",
+					"Il recommence à apprendre dès votre prochaine conversation. C'est irréversible.",
 				confirm: "Effacer la mémoire",
 			},
 		},
 	},
 	history: {
-		empty: "Rien n'a encore été modifié ici.",
-		unavailable: "Cet historique n'a pas pu être lu.",
+		empty: "Aucune modification pour l'instant.",
+		unavailable:
+			"Impossible de charger l'historique. Rouvrez les réglages pour réessayer.",
 		author: {
 			user: "Vous",
 		},
@@ -134,9 +134,9 @@ const bots = {
 		},
 		undo: {
 			action: "Annuler",
-			title: "Annuler « {{title}} » ?",
+			title: "Annuler « {{title}} » ?",
 			description:
-				"Tout revient à l'état d'avant cette modification. C'est écrit comme une nouvelle modification : l'historique garde les deux.",
+				"Tout revient à l'état d'avant cette modification. L'annulation s'ajoute à l'historique.",
 			confirm: "Annuler cette modification",
 		},
 	},
@@ -158,34 +158,34 @@ const bots = {
 		empty: {
 			title: "Aucune compétence",
 			description:
-				"Une compétence est un savoir-faire à porter. Écrivez-en une et choisissez si elle voyage dans chaque invite.",
+				"Écrivez une compétence que ce compagnon peut réutiliser, et choisissez si elle se charge à chaque tour.",
 		},
 		name: {
 			label: "Nom",
 			placeholder: "notes-de-version",
-			hint: "Minuscules, chiffres et traits d'union. C'est l'identité de la compétence — c'est la description ci-dessous que le compagnon lit.",
+			hint: "Minuscules, chiffres et traits d'union. Le compagnon lit la description, pas le nom.",
 		},
 		description: {
 			label: "Description",
-			placeholder: "Quand ce compagnon doit y recourir",
+			placeholder: "Quand ce compagnon doit l'utiliser",
 		},
 		whenToUse: {
 			label: "Quand l'utiliser",
-			placeholder: "Les tours auxquels cette compétence est la bonne réponse",
+			placeholder: "Les demandes auxquelles cette compétence répond",
 		},
 		budget: {
 			label: "{{used}} caractères sur {{max}}",
-			hint: "La description et le quand l'utiliser se lisent comme un seul paragraphe : ils partagent le même budget.",
-			over: "Budget dépassé de {{over}} caractères. Raccourcissez l'un des deux champs avant d'enregistrer.",
+			hint: "La description et le quand l'utiliser partagent un même budget de caractères.",
+			over: "{{over}} caractères de trop. Raccourcissez l'un des deux champs pour enregistrer.",
 		},
 		body: {
 			label: "Contenu",
-			placeholder: "Le markdown dans lequel cette compétence est écrite",
+			placeholder: "Écrivez la compétence en markdown",
 		},
 		argumentHint: {
 			label: "Indication d'arguments",
 			placeholder: "[version] [--brouillon]",
-			hint: "Ce qui vous est proposé quand vous invoquez cette compétence à la main.",
+			hint: "Ce qui vous est demandé quand vous lancez cette compétence vous-même.",
 		},
 		arguments: {
 			label: "Arguments",
@@ -194,33 +194,33 @@ const bots = {
 		paths: {
 			label: "Chemins",
 			placeholder: "docs/**/*.md",
-			hint: "Un motif par ligne. Les fichiers dont la présence rend cette compétence pertinente.",
+			hint: "Un motif par ligne. Les fichiers qui rendent cette compétence pertinente.",
 		},
 		modelInvocation: {
 			label: "Empêcher le compagnon d'y recourir",
 			description:
-				"Sinon, le compagnon décide seul à partir de la description. Activé, vous seul pouvez l'invoquer.",
+				"Désactivé, le compagnon décide d'après la description. Activé, vous seul pouvez la lancer.",
 		},
 		userInvocable: {
 			label: "Vous laisser l'invoquer",
 			description:
-				"Elle apparaît dans le menu de commandes, invoquée par son nom avec les arguments ci-dessus.",
+				"Elle apparaît dans le menu de commandes. Lancez-la par son nom avec les arguments ci-dessus.",
 		},
 		preloaded: {
 			label: "Précharger cette compétence",
 			tag: "Préchargée",
 			description:
-				"Une compétence préchargée est dans l'invite de ce compagnon à chaque tour. Sinon, elle reste sur le disque comme un texte que le compagnon peut aller lire.",
+				"Activé, elle est dans l'invite de ce compagnon à chaque tour. Désactivé, le compagnon la lit seulement au besoin.",
 		},
 		system: {
 			tag: "Système",
 			notice:
-				"L'hôte écrit cette compétence et la tient à jour. Elle est ici pour être lue : ce qu'elle dit se décide là où elle est générée, pas dans cette fenêtre.",
+				"Kiroshi écrit cette compétence et la tient à jour. Elle est en lecture seule ici.",
 		},
 		model: {
 			label: "Modèle",
 			placeholder: "Celui du compagnon",
-			hint: "Laissé vide, le tour de cette compétence tourne sur le modèle du compagnon.",
+			hint: "Laissez vide pour utiliser le modèle du compagnon.",
 		},
 		effort: {
 			label: "Effort",
@@ -233,8 +233,8 @@ const bots = {
 		},
 		context: {
 			label: "Contexte",
-			default: "La conversation d'où elle est appelée",
-			hint: "Un fork exécute la compétence dans une copie de la conversation, avec son propre moteur — le seul endroit où un agent et une exécution en arrière-plan ont un sens.",
+			default: "La conversation d'où elle est lancée",
+			hint: "Fork lance la compétence dans une copie de la conversation. Agent et Exécuter en arrière-plan ne valent que pour un fork.",
 			option: {
 				shared: "Partagé",
 				fork: "Fork",
@@ -243,22 +243,22 @@ const bots = {
 		shell: {
 			label: "Shell",
 			placeholder: "/bin/zsh",
-			hint: "Ce dans quoi les commandes de cette compétence s'exécutent. Laissé vide, celui de la machine.",
+			hint: "Le shell des commandes de cette compétence. Laissez vide pour utiliser celui par défaut.",
 		},
 		agent: {
 			label: "Agent",
 			placeholder: "Le compagnon lui-même",
-			hint: "À qui l'exécution forkée est confiée.",
+			hint: "Qui exécute le fork.",
 		},
 		background: {
 			label: "Exécuter en arrière-plan",
 			description:
-				"Le fork finit de son côté, et la conversation continue sans l'attendre.",
+				"Le fork se termine de son côté pendant que la conversation continue.",
 		},
 		allowedTools: {
 			label: "Outils autorisés",
 			placeholder: "Read\nGrep",
-			hint: "Un nom d'outil par ligne. Laissé vide, le tour de cette compétence peut utiliser tout ce que le compagnon peut utiliser.",
+			hint: "Un nom d'outil par ligne. Laissez vide pour autoriser tous les outils du compagnon.",
 		},
 		disallowedTools: {
 			label: "Outils interdits",
@@ -267,7 +267,7 @@ const bots = {
 		hooks: {
 			label: "Hooks",
 			placeholder: '{\n  "PreToolUse": []\n}',
-			hint: "Ce qui s'exécute autour du tour de cette compétence, tel que le bundle l'écrit.",
+			hint: "Ce qui s'exécute autour du tour de cette compétence, tel que le bundle le définit.",
 		},
 		license: {
 			label: "Licence",
@@ -276,23 +276,23 @@ const bots = {
 		compatibility: {
 			label: "Compatibilité",
 			placeholder: ">=1.4",
-			hint: "Ce que cette compétence exige de l'environnement autour d'elle.",
+			hint: "Ce que cette compétence exige de son environnement.",
 		},
 		metadata: {
 			label: "Métadonnées",
 			placeholder: '{\n  "author": "Ada Martin"\n}',
-			hint: "Tout ce que le bundle porte et que rien ici ne lit. C'est conservé tel quel.",
+			hint: "Données du bundle que Kiroshi n'utilise pas. Elles sont conservées telles quelles.",
 		},
 		leave: {
 			title: "Quitter sans enregistrer ?",
 			description:
-				"Tout ce qui a été écrit depuis l'ouverture de cette compétence part avec. La compétence sur le disque reste telle quelle.",
+				"Vous perdrez vos modifications non enregistrées. La compétence enregistrée reste telle quelle.",
 			action: "Quitter",
 		},
 		delete: {
 			action: "Supprimer la compétence",
 			description:
-				"Sa description et son contenu partent avec elle. C'est irréversible.",
+				"Le compagnon ne pourra plus utiliser cette compétence. C'est irréversible.",
 			confirm: {
 				title: "Supprimer {{name}} ?",
 			},
@@ -305,7 +305,7 @@ const bots = {
 			add: {
 				label: "Nouveau fichier",
 				placeholder: "reference/api.md",
-				hint: "Un chemin dans le dossier de la compétence. Il est créé vide puis ouvert.",
+				hint: "Un chemin dans le dossier de la compétence. Le fichier s'ouvre vide.",
 				action: "Ajouter le fichier",
 			},
 			text: {
@@ -313,15 +313,15 @@ const bots = {
 				placeholder: "Ce que ce fichier contient",
 			},
 			failure: {
-				read: "Ce fichier n'a pas pu être lu.",
+				read: "Impossible d'ouvrir ce fichier. Réessayez.",
 				write:
-					"Ce fichier n'a pas pu être enregistré. Ce que vous avez écrit est toujours là.",
-				delete: "Ce fichier n'a pas pu être supprimé.",
+					"Impossible d'enregistrer ce fichier. Enregistrez à nouveau ; votre texte est toujours là.",
+				delete: "Impossible de supprimer ce fichier. Réessayez.",
 			},
 			delete: {
 				action: "Supprimer le fichier",
 				description:
-					"Le fichier part du dossier de la compétence. C'est irréversible.",
+					"Le fichier est supprimé du dossier de la compétence. C'est irréversible.",
 				confirm: {
 					title: "Supprimer {{path}} ?",
 				},
@@ -382,29 +382,30 @@ const bots = {
 			},
 		},
 		notice:
-			"Un connecteur est un programme que ce compagnon démarre sur votre machine, sous votre compte, à sa prochaine exécution. N'en ajoutez un que depuis une source de confiance.",
+			"Ce compagnon lance ses connecteurs sur votre machine, sous votre compte. Ajoutez seulement ceux en qui vous avez confiance.",
 		empty: {
 			title: "Aucun connecteur",
 			description:
-				"Un connecteur MCP donne à ce compagnon des outils qu'il n'a pas seul. En ajouter un l'autorise à démarrer ce programme sur votre machine.",
+				"Ajoutez un connecteur MCP pour donner de nouveaux outils à ce compagnon. Il tourne sur votre machine.",
 		},
-		unavailable: "Ces connecteurs n'ont pas pu être lus.",
+		unavailable:
+			"Impossible de charger les connecteurs. Rouvrez les réglages pour réessayer.",
 		name: {
 			label: "Nom",
 			placeholder: "atlas",
-			hint: "Minuscules, chiffres et traits d'union. C'est le nom sous lequel le connecteur est déclaré et celui par lequel le compagnon s'y connecte.",
+			hint: "Minuscules, chiffres et traits d'union. Le compagnon connaît le connecteur sous ce nom.",
 		},
 		config: {
 			label: "Configuration",
 			placeholder:
 				'{\n  "command": "npx",\n  "args": ["-y", "@scope/server"]\n}',
-			hint: "Du JSON, repris des instructions du connecteur. Un connecteur local nomme une commande, ses arguments et ses secrets ; un connecteur distant nomme une URL.",
+			hint: "Collez le JSON des instructions du connecteur. Un connecteur local nomme une commande, un connecteur distant une URL.",
 			invalid:
-				"Ce n'est pas un objet JSON, il n'y a donc rien à enregistrer. Vérifiez les accolades, les virgules et les guillemets.",
+				"Ce n'est pas un objet JSON. Vérifiez les accolades, les virgules et les guillemets.",
 		},
 		transport: {
 			label: "Transport",
-			hint: "C'est lui qui décide de ce que dit le reste de la configuration : un connecteur local nomme une commande à lancer, un connecteur distant une adresse à joindre.",
+			hint: "Un connecteur local lance une commande. Un connecteur distant se connecte à une URL.",
 			option: {
 				local: "Démarré sur cette machine",
 				remote: "Joint par le réseau",
@@ -413,21 +414,21 @@ const bots = {
 		command: {
 			label: "Commande",
 			placeholder: "npx",
-			hint: "Le programme que ce compagnon démarre. Il tourne sous votre compte, avec ce que vous pouvez atteindre.",
+			hint: "Le programme que ce compagnon démarre. Il tourne avec les accès de votre compte.",
 		},
 		args: {
 			label: "Arguments",
 			placeholder: "-y\n@scope/server",
-			hint: "Un argument par ligne, dans l'ordre où la commande les prend.",
+			hint: "Un argument par ligne, dans l'ordre.",
 		},
 		url: {
 			label: "URL",
 			placeholder: "https://exemple.com/mcp",
-			hint: "L'adresse à laquelle ce compagnon se connecte. Rien n'est démarré sur votre machine.",
+			hint: "L'adresse à laquelle ce compagnon se connecte. Rien ne tourne sur votre machine.",
 		},
 		endpoint: {
 			label: "Point d'accès",
-			hint: "Le type de point d'accès sur lequel l'adresse est jointe. Un connecteur distant écrit sans lui est ignoré, il est donc toujours enregistré à côté de l'URL. Streamable HTTP est le même point d'accès que HTTP, et un fichier qui l'écrit déjà ainsi est laissé tel quel.",
+			hint: "La façon dont Kiroshi joint l'URL. Streamable HTTP compte comme HTTP.",
 			option: {
 				http: "HTTP",
 				sse: "Événements envoyés par le serveur",
@@ -437,30 +438,29 @@ const bots = {
 		headers: {
 			label: "En-têtes",
 			placeholder: "Authorization: Bearer jeton",
-			hint: "Un en-tête par ligne, nom et valeur. C'est ici qu'un connecteur demande une clé.",
+			hint: "Un en-tête par ligne, nom et valeur. Mettez ici la clé du connecteur.",
 		},
 		secrets: {
 			label: "Secrets",
 			placeholder: "ATLAS_TOKEN=sk-...",
-			hint: "Un nom et une valeur par ligne. Le connecteur démarre avec ceux-ci, et rien d'autre de ce que ce compagnon détient.",
+			hint: "Un nom et une valeur par ligne. Le connecteur reçoit ces secrets et aucun autre.",
 		},
 		leave: {
 			title: "Partir sans enregistrer ?",
 			description:
-				"Tout ce qui a été tapé depuis l'ouverture de ce connecteur part avec. Le connecteur sur le disque reste tel qu'il était.",
+				"Vous perdrez vos modifications non enregistrées. Le connecteur enregistré reste tel quel.",
 			action: "Partir",
 		},
 		launch: {
 			label: "Ce que cela démarre",
 			secrets: "Secrets",
-			unknown: "Cette configuration ne nomme rien à démarrer ni à joindre.",
+			unknown: "Ajoutez une commande ou une URL à cette configuration.",
 			reveal: "Afficher la valeur de {{name}}",
 			conceal: "Masquer la valeur de {{name}}",
 		},
 		delete: {
 			action: "Retirer le connecteur",
-			description:
-				"Ce compagnon cesse de le démarrer et sa configuration part avec lui. C'est irréversible.",
+			description: "Ce compagnon cesse de le démarrer. C'est irréversible.",
 			confirm: {
 				title: "Retirer {{name}} ?",
 			},
@@ -469,16 +469,15 @@ const bots = {
 	secrets: {
 		add: "Ajouter un secret",
 		notice:
-			"Une valeur est écrite une fois et remise à ce qui démarre ici. Rien ne la relit, elle n'est donc jamais réaffichée — ni ici, ni ailleurs.",
+			"Kiroshi transmet chaque valeur à ce qui tourne ici et ne l'affiche plus jamais.",
 		unreadable: {
-			title: "Les secrets n'ont pas pu être lus",
-			description:
-				"Rien n'est perdu. Ce qui est enregistré ici est toujours sur le disque, et cette liste le montrera de nouveau dès qu'elle pourra le lire.",
+			title: "Impossible de charger les secrets",
+			description: "Rouvrez les réglages pour réessayer.",
 		},
 		empty: {
 			title: "Aucun secret",
 			description:
-				"Un secret est un nom et une valeur remis à ce qui démarre ici. La valeur est écrite une fois et n'est jamais réaffichée.",
+				"Ajoutez un secret pour transmettre une valeur à ce qui tourne ici. Vous ne la reverrez plus.",
 		},
 		scope: {
 			space: "Espace",
@@ -496,33 +495,32 @@ const bots = {
 			add: {
 				title: "Ajouter un secret",
 				description:
-					"La valeur est remise à ce qui démarre ici et n'est jamais réaffichée.",
+					"La valeur est transmise à ce qui tourne ici. Vous ne la reverrez plus.",
 			},
 			replace: {
 				title: "Remplacer une valeur",
 				description:
-					"La valeur stockée sous {{name}} est remplacée par celle saisie ici. Celle d'aujourd'hui n'est pas affichée et rien ici ne la lit.",
+					"Saisissez une nouvelle valeur pour {{name}}. L'actuelle reste masquée.",
 			},
 			name: {
 				label: "Nom",
 				placeholder: "ATLAS_TOKEN",
-				hint: "Majuscules, chiffres et tirets bas. C'est le nom sous lequel le programme lit le secret.",
+				hint: "Majuscules, chiffres et tirets bas. Les programmes lisent le secret sous ce nom.",
 				invalid:
-					"Un nom prend des majuscules, des chiffres et des tirets bas, et commence par une lettre ou un tiret bas.",
+					"Utilisez des majuscules, des chiffres et des tirets bas, en commençant par une lettre ou un tiret bas.",
 			},
 			value: {
 				label: "Valeur",
-				hint: "Saisie une fois. Elle quitte ce champ pour le disque et n'est jamais relue.",
+				hint: "Enregistrée une fois, jamais réaffichée.",
 			},
 			submit: "Enregistrer le secret",
-			failed: "L'écriture a échoué. Rien n'a changé — réessayez.",
+			failed: "Impossible d'enregistrer ce secret. Réessayez.",
 		},
 		remove: {
 			title: "Retirer {{name}} ?",
-			description:
-				"Le nom et sa valeur partent avec lui, et ce qui démarre ici cesse de les recevoir. C'est irréversible.",
+			description: "Plus rien ici ne le reçoit. C'est irréversible.",
 			action: "Retirer le secret",
-			failed: "La suppression a échoué. Rien n'a changé — réessayez.",
+			failed: "Impossible de retirer ce secret. Réessayez.",
 		},
 	},
 	runtime: {
@@ -539,7 +537,7 @@ const bots = {
 				},
 				default: {
 					label: "Standard",
-					hint: "Les réponses standard de Claude.",
+					hint: "Les réponses standard de l'agent.",
 				},
 			},
 		},
@@ -559,19 +557,19 @@ const bots = {
 				},
 				default: {
 					label: "Demander à chaque fois",
-					hint: "Tout outil que les règles ci-dessous ne tranchent pas vous est soumis.",
+					hint: "Vous validez chaque outil que les règles ci-dessous ne couvrent pas.",
 				},
 				acceptEdits: {
 					label: "Accepter les modifications",
-					hint: "Les modifications de fichiers passent sans demander ; le reste vous est soumis.",
+					hint: "Les modifications de fichiers passent. Vous validez tout le reste.",
 				},
 				plan: {
 					label: "Planifier d'abord",
-					hint: "Le compagnon lit et planifie, et ne change rien tant que vous ne l'avez pas dit.",
+					hint: "Le compagnon lit et planifie, et ne change rien sans votre accord.",
 				},
 				dontAsk: {
 					label: "Ne jamais demander",
-					hint: "Rien ne vous est soumis : seules les règles refusées retiennent le compagnon.",
+					hint: "Rien ne vous est demandé. Seules les règles de refus ci-dessous arrêtent le compagnon.",
 				},
 			},
 		},
@@ -583,25 +581,25 @@ const bots = {
 			allow: {
 				label: "Autorisé",
 				hint: "S'exécute sans vous demander.",
-				empty: "Rien n'est autorisé d'emblée.",
+				empty: "Aucune règle d'autorisation.",
 			},
 			ask: {
 				label: "Soumis",
-				hint: "Vous est soumis à chaque fois, quel que soit le mode.",
-				empty: "Rien ne vous est soumis d'office.",
+				hint: "Vous est demandé à chaque fois, quel que soit le mode.",
+				empty: "Aucune règle de demande.",
 			},
 			deny: {
 				label: "Refusé",
-				hint: "Refusé d'emblée, quel que soit le mode.",
-				empty: "Rien n'est refusé d'emblée.",
+				hint: "Toujours refusé, quel que soit le mode.",
+				empty: "Aucune règle de refus.",
 			},
 		},
 		directories: {
 			label: "Autres dossiers",
-			hint: "Les dossiers que le compagnon peut atteindre en plus de son dossier de travail.",
+			hint: "Les dossiers que le compagnon peut atteindre en plus du sien.",
 			placeholder: "/Users/vous/notes",
 			add: "Ajouter",
-			empty: "Aucun dossier en plus du dossier de travail.",
+			empty: "Aucun dossier en plus du sien.",
 			invalid: "Indiquez le chemin complet du dossier.",
 			remove: "Retirer le dossier {{path}}",
 		},
@@ -649,9 +647,9 @@ const bots = {
 	danger: {
 		delete: "Supprimer le compagnon",
 		description:
-			"Son avatar, ses instructions et son dossier partent avec lui. C'est irréversible.",
+			"Le compagnon est supprimé partout, pas seulement retiré de ses espaces. C'est irréversible.",
 		confirm: {
-			title: "Supprimer {{name}} ?",
+			title: "Supprimer {{name}} ?",
 		},
 	},
 } as const

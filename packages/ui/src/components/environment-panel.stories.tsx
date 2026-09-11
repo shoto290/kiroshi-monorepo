@@ -136,7 +136,7 @@ export const Unreadable = meta.story({
 		},
 	},
 	play: async ({ canvas }) => {
-		await expect(canvas.getByText("Secrets could not be read")).toBeVisible()
+		await expect(canvas.getByText("Couldn't load secrets")).toBeVisible()
 		await expect(canvas.queryByRole("button", { name: "Add secret" })).toBe(
 			null,
 		)
@@ -154,7 +154,7 @@ export const UnreadableWithEntries = meta.story({
 		},
 	},
 	play: async ({ canvas }) => {
-		await expect(canvas.getByText("Secrets could not be read")).toBeVisible()
+		await expect(canvas.getByText("Couldn't load secrets")).toBeVisible()
 		await expect(canvas.getByText("BOT_SEED")).toBeVisible()
 		await expect(
 			canvas.getByRole("button", { name: "Add secret" }),
@@ -183,7 +183,7 @@ export const RefusedName = meta.story({
 
 		await expect(
 			within(write).getByText(
-				"A name takes capital letters, digits and underscores, and starts with a letter or an underscore.",
+				"Use capital letters, digits and underscores, starting with a letter or an underscore.",
 			),
 		).toBeVisible()
 		await expect(args.onSet).not.toHaveBeenCalled()
@@ -213,9 +213,7 @@ export const Error = meta.story({
 		)
 
 		await expect(
-			await within(write).findByText(
-				"This could not be written. Nothing changed — try again.",
-			),
+			await within(write).findByText("Couldn't save this secret. Retry."),
 		).toBeVisible()
 		await expect(within(write).getByLabelText("Name")).toHaveValue("NEW_TOKEN")
 		await expect(within(write).getByLabelText("Value")).toHaveValue("s3cret")
@@ -246,9 +244,7 @@ export const RejectedDelete = meta.story({
 		)
 
 		await expect(
-			await within(question).findByText(
-				"This could not be removed. Nothing changed — try again.",
-			),
+			await within(question).findByText("Couldn't remove this secret. Retry."),
 		).toBeVisible()
 		await expect(question).toHaveTextContent("Remove BOT_SEED?")
 	},

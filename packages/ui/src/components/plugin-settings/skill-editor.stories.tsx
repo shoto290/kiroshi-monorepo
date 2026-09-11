@@ -130,7 +130,9 @@ export const OverBudget = meta.story({
 		},
 	},
 	play: async ({ canvas }) => {
-		await expect(canvas.getByText(/Over the budget by/)).toBeVisible()
+		await expect(
+			canvas.getByText(/characters over\. Shorten either field to save\./),
+		).toBeVisible()
 		await expect(
 			canvas.getByRole("button", { name: "Save skill" }),
 		).toBeDisabled()

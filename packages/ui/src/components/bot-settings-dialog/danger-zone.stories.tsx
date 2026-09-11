@@ -144,8 +144,7 @@ export const Inert = meta.story({
 	args: {
 		deleteLabel: "Delete space",
 		confirmTitle: "Delete Release desk?",
-		disabledReason:
-			"The last space cannot be deleted — the app always keeps one.",
+		disabledReason: "You can't delete your last space.",
 	},
 	parameters: {
 		docs: {

@@ -111,7 +111,7 @@ export const Unreadable = meta.story({
 	},
 	play: async ({ canvas }) => {
 		await expect(
-			canvas.getByText("These connectors could not be read."),
+			canvas.getByText("Couldn't load connectors. Reopen settings to retry."),
 		).toBeVisible()
 		await expect(
 			canvas.queryByRole("button", { name: "Add connector" }),

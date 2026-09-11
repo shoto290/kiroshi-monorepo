@@ -3,24 +3,21 @@ const chat = {
 		ready: {
 			title: "Commencer avec l'agent",
 			description:
-				"Kiroshi dialogue avec son agent intégré. Rien ne quitte votre appareil.",
+				"Kiroshi dialogue directement avec l'agent. Rien ne quitte votre appareil.",
 		},
 		unavailable: {
-			title: "L'agent n'est pas disponible",
-			description: "Kiroshi n'atteint pas son agent intégré.",
+			title: "Impossible de joindre l'agent",
+			description: "L'agent intégré de Kiroshi n'a pas répondu. Réessayez.",
 		},
 		settings: "Réglages du compagnon",
-		hint: "Saisissez votre premier message dans le champ ci-dessous",
+		hint: "Écrivez à un compagnon pour commencer.",
 		setup: "Réessayer",
 	},
 	conversationEmptyState: {
-		description_one:
-			"{{count}} compagnon est présent ici et attend votre premier message.",
-		description_many:
-			"{{count}} compagnons sont présents ici et attendent votre premier message.",
-		description_other:
-			"{{count}} compagnons sont présents ici et attendent votre premier message.",
-		hint: "Saisissez votre premier message dans le champ ci-dessous",
+		description_one: "{{count}} compagnon est prêt.",
+		description_many: "{{count}} compagnons sont prêts.",
+		description_other: "{{count}} compagnons sont prêts.",
+		hint: "Écrivez à un compagnon pour commencer.",
 	},
 	connection: {
 		checking: "Vérification de l'agent…",
@@ -40,9 +37,8 @@ const chat = {
 		startOfHistory: "Début de la conversation",
 		landing: {
 			unavailable: {
-				title: "Ce message n'a pas pu être atteint",
-				description:
-					"La conversation est intacte. Ouvrez à nouveau le résultat de recherche pour y arriver.",
+				title: "Impossible d'ouvrir ce message",
+				description: "Ouvrez à nouveau le résultat de recherche.",
 			},
 		},
 		message: {
@@ -62,11 +58,9 @@ const chat = {
 			label: "Rapport de routine",
 			mission: "Convocation de mission",
 			unavailable: {
-				title: "Les rapports de routine n'ont pas pu être lus",
-				description:
-					"La conversation est intacte. Ce qui a déclenché chaque rapport manque jusqu'à la prochaine lecture.",
-				soloDescription:
-					"La conversation est intacte. Ce qui a déclenché chaque rapport manque jusqu'à la prochaine lecture.",
+				title: "Impossible de charger les rapports de routine",
+				description: "Rouvrez la conversation pour réessayer.",
+				soloDescription: "Rouvrez la conversation pour réessayer.",
 			},
 		},
 		mention: {
@@ -102,11 +96,10 @@ const chat = {
 		jump: "Aller",
 		jumpTo: "Aller au message de {{author}}",
 		unpin: "Retirer l'épingle du message de {{author}}",
-		empty: "Aucun message n'est épinglé dans cette conversation.",
+		empty: "Aucun message épinglé dans cette conversation.",
 		unavailable: {
-			title: "Les messages épinglés ne sont pas à jour",
-			description:
-				"Les épingles n'ont pas pu être lues ou modifiées. Réessayez dans un instant.",
+			title: "Impossible de synchroniser les messages épinglés",
+			description: "Réessayez dans un instant.",
 		},
 	},
 	working: {
@@ -147,7 +140,7 @@ const chat = {
 		mentioned_other: "{{count}} mentions dans le brouillon",
 	},
 	toolApproval: {
-		title: "Autoriser cet outil à s'exécuter ?",
+		title: "Autoriser cet outil à s'exécuter ?",
 		status: {
 			pending: "Autorisation requise",
 			allowed: "Autorisé une fois",
@@ -173,7 +166,7 @@ const chat = {
 		copied: "Copié",
 		copyTooltip: "Copier",
 		copyAnnounced: "Code copié dans le presse-papiers",
-		copyFailed: "La copie du code a échoué",
+		copyFailed: "Impossible de copier le code. Réessayez.",
 		writing: "Écriture",
 		ready: "Prêt",
 	},
@@ -191,77 +184,89 @@ const chat = {
 	},
 	screen: {
 		label: "Conversation avec l'agent",
-		identity: "{{name}} — réglages du compagnon",
-		conversationIdentity: "{{name}} — réglages de la conversation",
+		identity: "{{name}} · réglages du compagnon",
+		conversationIdentity: "{{name}} · réglages de la conversation",
 		placeholder: "Message à {{name}}",
 		approval: {
-			description: "L'agent attend votre accord avant de lancer cet outil.",
+			description: "L'agent attend votre autorisation pour lancer cet outil.",
 			path: "Chemin",
 		},
 		question: {
 			recall: "{{author}} attend votre réponse",
 		},
-		attachmentsRefused: "Fichiers non joints",
+		attachmentsRefused: "Impossible de joindre les fichiers",
 		restart: "Redémarrer la session",
 		handoff: {
 			title: "{{first}} et {{second}} n'arrêtent pas de se passer le tour",
 			description:
-				"Ils se le sont renvoyé trois fois. Le tour continue tant que vous ne l'arrêtez pas.",
+				"Ils se le sont renvoyé trois fois. Arrêtez le tour pour casser la boucle.",
 			stop: "Arrêter le tour",
 		},
 		notice: {
 			crashed: "L'agent s'est arrêté",
-			resumeFailed: "La conversation précédente n'a pas pu être reprise",
-			workingDirectoryRefused: "Le dossier du compagnon est introuvable",
-			settingsRejected: "Les réglages du compagnon n'ont pas été appliqués",
-			serverEnvRejected: "Un connecteur a été laissé de côté",
-			unavailable: "L'agent est indisponible",
-			failed: "Cette demande n'est pas passée",
-			readFailed: "Messages précédents non chargés",
+			resumeFailed: "Impossible de reprendre la conversation",
+			workingDirectoryRefused: "Impossible de trouver le dossier du compagnon",
+			settingsRejected: "Impossible d'appliquer les réglages du compagnon",
+			serverEnvRejected: "Impossible de démarrer un connecteur",
+			unavailable: "Impossible de joindre l'agent",
+			failed: "Impossible d'envoyer cette demande",
+			readFailed: "Impossible de charger les messages précédents",
 		},
 		transport: {
-			binaryNotFound: "L'agent intégré d'Kiroshi est injoignable.",
+			binaryNotFound: "Impossible de trouver l'agent. Réinstallez Kiroshi.",
 			notAuthenticated:
-				"Votre abonnement Claude n'est pas connecté. Connectez-vous à Claude, puis reprenez la conversation.",
-			authCheckFailed: "La vérification de la connexion a échoué : {{detail}}",
-			spawnFailed: "L'agent n'a pas pu être démarré : {{detail}}",
-			startupTimeout: "L'agent n'a pas répondu en {{timeoutMs}} ms.",
-			crashed: "L'agent s'est arrêté (code {{code}}).",
-			crashedDetail: "L'agent s'est arrêté (code {{code}}). {{detail}}",
-			crashedUnknownCode: "L'agent s'est arrêté (code inconnu).",
+				"Vous êtes déconnecté de votre abonnement Claude. Connectez-vous à Claude, puis relancez la conversation.",
+			authCheckFailed:
+				"Impossible de vérifier votre connexion ({{detail}}). Redémarrez la session.",
+			spawnFailed:
+				"Impossible de démarrer l'agent ({{detail}}). Redémarrez la session.",
+			startupTimeout:
+				"L'agent n'a pas répondu en {{timeoutMs}} ms. Redémarrez la session.",
+			crashed: "L'agent s'est arrêté (code {{code}}). Redémarrez la session.",
+			crashedDetail:
+				"L'agent s'est arrêté (code {{code}}) : {{detail}}. Redémarrez la session.",
+			crashedUnknownCode:
+				"L'agent s'est arrêté (code inconnu). Redémarrez la session.",
 			crashedUnknownCodeDetail:
-				"L'agent s'est arrêté (code inconnu). {{detail}}",
+				"L'agent s'est arrêté (code inconnu) : {{detail}}. Redémarrez la session.",
 			resumeFailed:
-				"Cette conversation n'a pas pu être reprise. L'agent en a démarré une nouvelle ; vos messages sont toujours là.",
+				"L'agent a démarré une nouvelle session. Continuez, vos messages sont toujours là.",
 			workingDirectoryRefused:
-				"{{path}} n'existe plus. Ce compagnon répond depuis l'emplacement habituel à la place.",
-			invalidFrame: "Une trame illisible a été ignorée : {{detail}}",
+				"{{path}} n'existe plus, le compagnon utilise son dossier par défaut. Choisissez-en un autre dans ses réglages.",
+			invalidFrame: "Trame illisible ignorée ({{detail}}). Continuez.",
 			settingsRejected:
-				"Le settings.json de ce compagnon n'a pas été appliqué : {{detail}}",
+				"Impossible d'appliquer settings.json ({{detail}}). Corrigez-le, puis redémarrez la session.",
 			serverEnvRejected:
-				"{{detail}}. La conversation continue avec les autres connecteurs.",
-			notStarted: "Aucune session n'est en cours.",
-			turnAlreadyRunning: "Un tour est déjà en cours.",
-			transitionInProgress: "Un changement de session est déjà en cours.",
-			noActiveTurn: "Il n'y a aucun tour à interrompre.",
+				"{{detail}}. Les autres connecteurs tournent toujours, corrigez celui-ci puis redémarrez la session.",
+			notStarted:
+				"Aucune session en cours. Démarrez une session pour continuer.",
+			turnAlreadyRunning:
+				"Un tour est déjà en cours. Attendez-le ou arrêtez-le.",
+			transitionInProgress: "La session change déjà. Patientez un instant.",
+			noActiveTurn: "Aucun tour à arrêter.",
 			staleRuntimeSession:
-				"Cette session a été remplacée. Celle qui tourne maintenant a pris sa place.",
-			unknownPermission: "Demande d'autorisation inconnue ({{id}}).",
-			writeFailed: "Le message n'a pas pu être envoyé : {{detail}}",
-			readFailed: "Les messages précédents n'ont pas pu être lus : {{detail}}",
-			unknownFailure: "Quelque chose s'est mal passé : {{detail}}",
+				"Cette session a été remplacée. Continuez dans la session actuelle.",
+			unknownPermission:
+				"Demande d'autorisation introuvable ({{id}}). Ignorez-la.",
+			writeFailed: "Impossible d'envoyer le message ({{detail}}). Réessayez.",
+			readFailed:
+				"Impossible de charger les messages précédents ({{detail}}). Réessayez.",
+			unknownFailure: "Une erreur est survenue ({{detail}}). Réessayez.",
 		},
 		attachment: {
-			megabytes: "{{size}} Mo",
-			storage: "Les fichiers n'ont pas pu être enregistrés ({{failure}}).",
+			megabytes: "{{size}} Mo",
+			storage:
+				"Impossible d'enregistrer les fichiers ({{failure}}). Joignez-les à nouveau.",
 			unknownConversation:
-				"Cette conversation n'est plus enregistrée. Rouvrez le compagnon et joignez-les à nouveau.",
+				"Cette conversation n'existe plus. Rouvrez le compagnon et joignez-les à nouveau.",
 			tooMany:
-				"Un message porte {{limit}} fichiers au maximum, et {{staged}} sont en attente.",
-			tooLarge: "{{name}} dépasse les {{limit}} qu'un seul fichier peut peser.",
+				"Un message accepte {{limit}} fichiers au maximum, et {{staged}} sont en attente. Retirez-en.",
+			tooLarge:
+				"{{name}} dépasse la limite de {{limit}} par fichier. Joignez un fichier plus léger.",
 			tooLargeTogether:
-				"Les fichiers en attente totalisent {{bytes}}, au-delà des {{limit}} qu'un message peut porter.",
-			unwritable: "Les fichiers n'ont pas pu être enregistrés : {{detail}}",
+				"Ces fichiers totalisent {{bytes}}, au-delà de la limite de {{limit}} par message. Retirez-en.",
+			unwritable:
+				"Impossible d'enregistrer les fichiers ({{detail}}). Joignez-les à nouveau.",
 		},
 	},
 	namelessConversation: {
@@ -270,10 +275,10 @@ const chat = {
 	newConversation: {
 		title: "Nouvelle conversation",
 		description:
-			"Choisissez les participants. Le premier compagnon choisi mène la conversation. Nommez-la maintenant, ou laissez votre premier message la nommer.",
+			"Choisissez les participants. Le premier compagnon choisi mène.",
 		name: {
 			label: "Nom",
-			placeholder: "Laissé vide, votre premier message la nomme",
+			placeholder: "Laissez vide pour la nommer d'après votre premier message",
 		},
 		search: {
 			label: "Compagnons",
@@ -309,13 +314,13 @@ const chat = {
 			lead: "Meneur",
 			promote: "Confier la conduite à {{name}}",
 			dismiss: "Retirer {{name}}",
-			last: "Le dernier compagnon reste dans la conversation.",
+			last: "Une conversation a besoin d'au moins un compagnon.",
 			all: "Tous les compagnons de l'espace sont déjà dans cette conversation.",
 		},
 		danger: {
 			delete: "Supprimer la conversation",
 			description:
-				"La conversation et tout ce qui s'y est dit disparaissent. Les compagnons restent dans l'espace.",
+				"Ses messages sont supprimés ; ses compagnons restent dans l'espace. C'est irréversible.",
 			confirm: {
 				title: "Supprimer {{name}} ?",
 			},
@@ -345,27 +350,27 @@ const chat = {
 		empty: {
 			title: "Rien ne tourne ici",
 			description:
-				"Les missions qu'un compagnon ouvre dans cette conversation, et ce que ses routines rapportent, arrivent ici.",
+				"Les missions et les rapports de routine de cette conversation s'affichent ici.",
 		},
 		failure: {
 			missions: {
-				title: "Les missions n'ont pas pu être lues",
+				title: "Impossible de charger les missions",
 				description:
-					"Rien n'a été modifié. Réessayez pour lire les missions de cette conversation.",
+					"Les missions sont toujours là ; seule la liste n'a pas pu se charger.",
 			},
 			routines: {
-				title: "Les routines n'ont pas pu être lues",
-				description: "Rien n'a été modifié. Réessayez pour lire les routines.",
+				title: "Impossible de charger les routines",
+				description:
+					"Les routines continuent de tourner ; seule la liste n'a pas pu se charger.",
 			},
 			activity: {
-				title: "L'activité de cette conversation n'a pas pu être lue",
+				title: "Impossible de charger l'activité",
 				description:
-					"Rien n'a été modifié. Réessayez pour lire ses missions et ses routines.",
+					"Les missions et les routines sont toujours là ; seule la liste n'a pas pu se charger.",
 			},
 			write: {
-				title: "La routine n'a pas pu être modifiée",
-				description:
-					"La modification n'a pas été enregistrée. Relisez les routines pour voir où elles en sont.",
+				title: "Impossible de modifier la routine",
+				description: "Votre modification n'est pas enregistrée. Réessayez.",
 			},
 		},
 	},
@@ -387,7 +392,7 @@ const chat = {
 			source: {
 				label: "Déclencheur",
 				placeholder: "Choisissez ce qui déclenche cette routine",
-				tied: "La clé et la configuration d'une routine tiennent à son déclencheur : celui d'une routine enregistrée ne peut plus changer.",
+				tied: "Vous ne pouvez pas changer le déclencheur d'une routine enregistrée.",
 			},
 			expression: {
 				label: "Expression cron",
@@ -403,10 +408,11 @@ const chat = {
 				header: "Nom de l'en-tête",
 				copy: "Copier {{field}} de cette routine",
 				copied: "{{field}} copié",
-				reading: "L'adresse et la clé sont en cours de lecture.",
+				reading: "Chargement de l'adresse et de la clé…",
 				pending:
-					"L'adresse, la clé et le nom de l'en-tête seront disponibles une fois la routine enregistrée.",
-				failure: "L'adresse et la clé de cette routine n'ont pas pu être lues.",
+					"Enregistrez la routine pour obtenir son adresse, sa clé et son nom d'en-tête.",
+				failure:
+					"Impossible de charger l'adresse et la clé. Rouvrez la routine pour réessayer.",
 			},
 			filter: {
 				label: "Filtre",
@@ -458,12 +464,11 @@ const chat = {
 				blankTitle: "Une routine a besoin d'un titre.",
 				blankInstruction: "Une routine a besoin d'une instruction.",
 				blankValue: "Cette ligne a besoin d'une valeur.",
-				untypedComparison:
-					"Cette comparaison a besoin d'un champ déclaré par le déclencheur.",
+				untypedComparison: "Choisissez un champ déclaré par le déclencheur.",
 				unreadableExpression:
-					"Cette expression n'est pas lisible comme un horaire.",
+					"Impossible de lire cet horaire. Vérifiez l'expression cron.",
 				unsupportedOperator:
-					"{{operator}} ne convient pas à un champ déclaré {{fieldType}}.",
+					"{{operator}} ne convient pas à un champ {{fieldType}}. Choisissez un autre opérateur.",
 			},
 		},
 		detail: {
@@ -472,18 +477,16 @@ const chat = {
 			runNow: {
 				action: "Exécuter maintenant",
 				refusal: {
-					disabled: "Cette routine est éteinte, aucune exécution n'a démarré.",
-					filter:
-						"Le filtre de cette routine n'a rien laissé passer, aucune exécution n'a démarré.",
+					disabled: "Cette routine est désactivée. Activez-la pour l'exécuter.",
+					filter: "Rien n'a tourné : le filtre n'a rien laissé passer.",
 					dedupeValueMissing:
-						"Ce déclencheur ne porte rien qui distingue un événement d'un autre, aucune exécution n'a démarré.",
-					alreadySeen:
-						"Cet événement a déjà été exécuté, aucune exécution n'a démarré.",
+						"Rien n'a tourné : ce déclencheur ne distingue pas les événements.",
+					alreadySeen: "Rien n'a tourné : cet événement a déjà été exécuté.",
 				},
 			},
 			history: {
 				label: "Historique des exécutions",
-				reading: "Lecture des exécutions de cette routine.",
+				reading: "Chargement des exécutions…",
 				counted_one: "{{count}} exécution",
 				counted_many: "{{count}} exécutions",
 				counted_other: "{{count}} exécutions",
@@ -503,13 +506,12 @@ const chat = {
 				},
 				empty: {
 					title: "Aucune exécution enregistrée",
-					description:
-						"Aucune exécution de cette routine n'a été enregistrée. Les exécutions apparaissent ici au fil de l'eau.",
+					description: "Les exécutions s'affichent ici au fur et à mesure.",
 				},
 				failure: {
-					title: "Les exécutions n'ont pas pu être lues",
+					title: "Impossible de charger les exécutions",
 					description:
-						"Rien n'a été modifié. Réessayez pour lire les exécutions de cette routine.",
+						"La routine continue de tourner ; seul son historique n'a pas pu se charger.",
 				},
 			},
 		},
@@ -520,14 +522,14 @@ const chat = {
 		confirm: {
 			title: "Supprimer {{title}} ?",
 			description:
-				"La routine et l'historique de ses exécutions disparaissent. Ce qu'elle a déjà dit reste.",
+				"Son historique d'exécutions est supprimé ; ses rapports passés restent dans la conversation. C'est irréversible.",
 			label: "Supprimer la routine",
-			failure: "La routine n'a pas pu être supprimée. Réessayez.",
+			failure: "Impossible de supprimer la routine. Réessayez.",
 		},
 		empty: {
 			title: "Aucune routine",
 			description:
-				"Une routine fait travailler un compagnon toute seule, sur un horaire ou quand un fichier qu'elle surveille change.",
+				"Créez une routine pour faire travailler un compagnon selon un horaire ou quand un fichier change.",
 		},
 	},
 	missions: {
@@ -543,7 +545,7 @@ const chat = {
 			source: {
 				bot: "Le compagnon",
 				reader: "Vous",
-				agent: "L'agent de code",
+				agent: "L'agent",
 				github: "GitHub",
 			},
 			line: {
@@ -580,25 +582,24 @@ const chat = {
 		},
 		summons: {
 			working: "Ouvert par la mission",
-			waiting_bot: "Ouvert par la question de l'agent de code",
+			waiting_bot: "Ouvert par la question de l'agent",
 		},
 		composer: {
 			placeholder: "Répondre à cette mission…",
 		},
 		failure: {
 			read: {
-				title: "La mission n'a pas pu être lue",
-				description: "Rien n'a été modifié. Réessayez pour lire cette mission.",
+				title: "Impossible de charger cette mission",
+				description:
+					"La mission est toujours là ; seule cette vue n'a pas pu se charger.",
 			},
 			send: {
-				title: "La réponse n'est pas parvenue au compagnon",
-				description:
-					"Rien n'a été enregistré sur la mission. Renvoyez votre réponse.",
+				title: "Impossible d'envoyer votre réponse",
+				description: "Renvoyez-la.",
 			},
 			run: {
-				title: "Le compagnon n'a pas pu être lancé sur sa mission",
-				description:
-					"Rien n'a été modifié sur la mission. Ouvrez sa conversation pour voir où elle en est.",
+				title: "Impossible de lancer le compagnon sur sa mission",
+				description: "Ouvrez sa conversation pour vérifier.",
 			},
 		},
 	},

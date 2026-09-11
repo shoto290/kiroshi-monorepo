@@ -97,7 +97,7 @@ describe("RoutinesPanel", () => {
 
 		const field = screen.getByLabelText("Cron expression")
 		const message = screen.getByText(
-			"This expression cannot be read as a schedule.",
+			"Couldn't read this as a schedule. Check the cron expression.",
 		)
 
 		expect(field.getAttribute("aria-invalid")).toBe("true")
@@ -126,7 +126,7 @@ describe("RoutinesPanel", () => {
 			within(screen.getByRole("group", { name: `Row ${rank}` }))
 		const refused = rowOf(2).getByRole("combobox", { name: "Operator" })
 		const message = screen.getByText(
-			"is greater than does not fit a field declared as boolean.",
+			"is greater than doesn't fit a boolean field. Pick another operator.",
 		)
 
 		expect(refused.getAttribute("aria-invalid")).toBe("true")
@@ -205,9 +205,7 @@ describe("RoutinesPanel", () => {
 		fireEvent.click(screen.getByRole("button", { name: "Save routine" }))
 
 		const operator = screen.getByRole("combobox", { name: "Operator" })
-		const message = screen.getByText(
-			"This comparison needs a field the trigger declares.",
-		)
+		const message = screen.getByText("Pick a field the trigger declares.")
 
 		expect(onSave).not.toHaveBeenCalled()
 		expect(operator.getAttribute("aria-invalid")).toBe("true")

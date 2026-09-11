@@ -52,7 +52,7 @@ export const Default = meta.story({
 	},
 	play: async ({ args, canvas }) => {
 		const button = canvas.getByRole("button", {
-			name: "Nest — companion settings",
+			name: "Nest · companion settings",
 		})
 
 		await expect(button).toHaveAttribute("aria-expanded", "false")

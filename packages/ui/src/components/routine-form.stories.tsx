@@ -168,7 +168,7 @@ export const BeforeItsFirstWrite = meta.story({
 	play: async ({ canvas }) => {
 		await expect(
 			canvas.getByText(
-				"The address, the key and the header name are available once the routine is saved.",
+				"Save the routine to get its address, key and header name.",
 			),
 		).toBeVisible()
 		await expect(
@@ -188,21 +188,19 @@ export const KeyStillReading = meta.story({
 		},
 	},
 	play: async ({ canvas }) => {
-		await expect(
-			canvas.getByText("The address and the key are being read."),
-		).toBeVisible()
+		await expect(canvas.getByText("Loading the address and key…")).toBeVisible()
 		await expect(
 			canvas.queryByText(
-				"The address, the key and the header name are available once the routine is saved.",
+				"Save the routine to get its address, key and header name.",
 			),
 		).not.toBeInTheDocument()
 		await expect(
 			canvas.queryByText(
-				"The address and the key of this routine could not be read.",
+				"Couldn't load the address and key. Reopen the routine to retry.",
 			),
 		).not.toBeInTheDocument()
 		await expect(canvas.getByLabelText("Key")).toHaveAccessibleDescription(
-			"The address and the key are being read.",
+			"Loading the address and key…",
 		)
 	},
 })
@@ -240,15 +238,13 @@ export const KeyReadFailingWhileOpen = meta.story({
 		const region = canvas.getByRole("status")
 		const form = slotIn(canvasElement, "routine-form")
 
-		await expect(region).toHaveTextContent(
-			"The address and the key are being read.",
-		)
+		await expect(region).toHaveTextContent("Loading the address and key…")
 
 		await userEvent.click(canvas.getByRole("button", { name: FAIL_THE_READ }))
 
 		await expect(canvas.getByRole("status")).toBe(region)
 		await expect(region).toHaveTextContent(
-			"The address and the key of this routine could not be read.",
+			"Couldn't load the address and key. Reopen the routine to retry.",
 		)
 		await expect(slotIn(canvasElement, "routine-form")).toBe(form)
 	},
@@ -288,7 +284,7 @@ export const Refused = meta.story({
 	play: async ({ canvas }) => {
 		const field = canvas.getByRole("textbox", { name: "Cron expression" })
 		const message = canvas.getByText(
-			"This expression cannot be read as a schedule.",
+			"Couldn't read this as a schedule. Check the cron expression.",
 		)
 
 		await expect(field).toHaveAttribute("aria-invalid", "true")
@@ -334,7 +330,7 @@ export const KeyUnreadable = meta.story({
 	play: async ({ canvas }) => {
 		await expect(
 			canvas.getByText(
-				"The address and the key of this routine could not be read.",
+				"Couldn't load the address and key. Reopen the routine to retry.",
 			),
 		).toBeVisible()
 		await expect(canvas.getByDisplayValue("Deploy report")).toBeVisible()
@@ -641,7 +637,7 @@ export const FilterRefusedForItsOperator = meta.story({
 			canvas.getByRole("group", { name: "Row 2" }),
 		).getByRole("combobox", { name: "Operator" })
 		const message = canvas.getByText(
-			"is greater than does not fit a field declared as boolean.",
+			"is greater than doesn't fit a boolean field. Pick another operator.",
 		)
 
 		await expect(refused).toHaveAttribute("aria-invalid", "true")
@@ -688,7 +684,7 @@ export const FilterRefusedThenEdited = meta.story({
 		).not.toHaveAttribute("aria-invalid")
 		await expect(
 			canvas.queryByText(
-				"is greater than does not fit a field declared as boolean.",
+				"is greater than doesn't fit a boolean field. Pick another operator.",
 			),
 		).not.toBeInTheDocument()
 	},
@@ -774,7 +770,7 @@ export const FilterRefusedThenMovedToAnotherSource = meta.story({
 
 		await expect(
 			canvas.queryByText(
-				"is greater than does not fit a field declared as boolean.",
+				"is greater than doesn't fit a boolean field. Pick another operator.",
 			),
 		).not.toBeInTheDocument()
 		await expect(

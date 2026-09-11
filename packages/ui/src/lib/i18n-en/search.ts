@@ -14,9 +14,8 @@ const search = {
 	seeAll: "See all",
 	solo: "solo conversation",
 	unavailable: {
-		title: "Search could not be read",
-		description:
-			"Nothing was lost. The last results stay on screen until the next read.",
+		title: "Couldn't run the search",
+		description: "Edit your search to retry.",
 	},
 	rest: {
 		chats: "Recent conversations",
@@ -24,7 +23,7 @@ const search = {
 		routines: "Routines",
 		messages: {
 			title: "Search every message",
-			body: "Type a word and every message in {{space}} is read. Messages match whole words, so “rout” will not find “routine”.",
+			body: "Type a word to search every message in {{space}}. Whole words only: “rout” won't find “routine”.",
 		},
 		none: {
 			chats: "No conversation here yet",
@@ -32,19 +31,18 @@ const search = {
 			routines: "No routine here yet",
 			body: {
 				chats:
-					"Nothing has been opened in {{space}}. A conversation in another space is one switch away.",
+					"No conversations in {{space}} yet. Look in all spaces to find one.",
 				missions:
-					"No mission has been opened in {{space}}. A mission in another space is one switch away.",
+					"No missions in {{space}} yet. Look in all spaces to find one.",
 				routines:
-					"Nothing runs on its own in {{space}}. A routine set in another space is one switch away.",
+					"No routines in {{space}} yet. Look in all spaces to find one.",
 			},
 		},
 		action: "Look in all spaces",
 	},
 	empty: {
 		title: "Nothing here matches",
-		description:
-			"No message, conversation, mission or routine in {{space}} answers to “{{query}}”.",
+		description: "No results for “{{query}}” in {{space}}.",
 		action: "Search all spaces",
 	},
 }

@@ -65,7 +65,7 @@ export const Empty = meta.story({
 	},
 	play: async ({ canvas }) => {
 		await expect(
-			canvas.getByText("This companion has not written anything down yet."),
+			canvas.getByText("This companion has no memories yet."),
 		).toBeVisible()
 		await expect(canvas.queryByLabelText("Memory")).not.toBeInTheDocument()
 		await expect(

@@ -36,24 +36,23 @@ const settings = {
 		event: {
 			question: {
 				label: "Un compagnon pose une question",
-				description:
-					"Il s'est arrêté et attend une réponse que vous seul pouvez donner.",
+				description: "Il attend votre réponse pour continuer.",
 			},
 			permission: {
 				label: "Un compagnon demande une autorisation",
 				description:
-					"Il veut lancer quelque chose ou modifier un fichier, et attend votre accord.",
+					"Il attend votre autorisation pour lancer une commande ou modifier un fichier.",
 			},
 			turn: {
 				label: "Un compagnon termine son tour",
-				description: "Il a dit tout ce qu'il avait à dire et s'est tu.",
+				description: "Il a fini et attend votre prochain message.",
 			},
 		},
 		sound: {
 			label: "Son",
 			switch: "Jouer un son",
 			description:
-				"Un bref carillon à chaque notification, joué par l'application elle-même — pour l'entendre là où le système afficherait la notification en silence.",
+				"Kiroshi joue un bref carillon à chaque notification, même quand votre système l'affiche en silence.",
 		},
 	},
 	language: {
@@ -83,8 +82,8 @@ const settings = {
 		danger: {
 			delete: "Supprimer l'espace",
 			description:
-				"Ses compagnons et son plugin partent avec lui. C'est irréversible.",
-			last: "Le dernier espace ne peut pas être supprimé — l'application en garde toujours un.",
+				"Les compagnons présents uniquement dans cet espace sont supprimés avec lui. C'est irréversible.",
+			last: "Vous ne pouvez pas supprimer votre dernier espace.",
 			confirm: {
 				title: "Supprimer {{name}} ?",
 			},

@@ -119,7 +119,7 @@ export const Error = meta.story({
 
 export const WithHint = meta.story({
 	args: {
-		hint: "Left empty, this skill's turn runs on the model the companion runs on.",
+		hint: "Leave empty to use the companion's model.",
 		placeholder: "The companion's own",
 		value: "",
 	},

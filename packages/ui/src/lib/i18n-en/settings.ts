@@ -36,24 +36,23 @@ const settings = {
 		event: {
 			question: {
 				label: "A companion asks a question",
-				description:
-					"It has stopped and is waiting on an answer only you can give.",
+				description: "It's paused until you answer.",
 			},
 			permission: {
 				label: "A companion asks for approval",
 				description:
-					"It wants leave to run something or change a file, and waits until you say.",
+					"It's waiting for your approval to run a command or edit a file.",
 			},
 			turn: {
 				label: "A companion finishes its turn",
-				description: "It has said everything it had to say and gone quiet.",
+				description: "It's done and waiting for your next message.",
 			},
 		},
 		sound: {
 			label: "Sound",
 			switch: "Play a sound",
 			description:
-				"A short chime with every notification, played by the app itself — so it is heard where the system would show a notification silently.",
+				"Kiroshi plays a short chime with every notification, even when your system shows it silently.",
 		},
 	},
 	language: {
@@ -83,8 +82,8 @@ const settings = {
 		danger: {
 			delete: "Delete space",
 			description:
-				"Its companions and its plugin go with it. This cannot be undone.",
-			last: "The last space cannot be deleted — the app always keeps one.",
+				"Companions that are only in this space are deleted with it. This can't be undone.",
+			last: "You can't delete your last space.",
 			confirm: {
 				title: "Delete {{name}}?",
 			},

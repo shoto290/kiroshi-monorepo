@@ -92,9 +92,9 @@ const A_MINUTE = 60_000
 
 const BACK = "Back to the conversation"
 
-const READ_FAILURE_TITLE = "The mission could not be read"
+const READ_FAILURE_TITLE = "Couldn't load this mission"
 
-const SEND_FAILURE_TITLE = "The answer did not reach the companion"
+const SEND_FAILURE_TITLE = "Couldn't send your answer"
 
 const missionOf = (bot: Bot, origin: Conversation): Mission => ({
 	id: "m-1",

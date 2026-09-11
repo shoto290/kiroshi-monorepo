@@ -84,9 +84,7 @@ export const Empty = meta.story({
 		},
 	},
 	play: async ({ canvas }) => {
-		await expect(
-			canvas.getByText("Nothing has been changed here yet."),
-		).toBeVisible()
+		await expect(canvas.getByText("No changes yet.")).toBeVisible()
 		await expect(canvas.queryAllByRole("listitem")).toHaveLength(0)
 	},
 })
@@ -195,7 +193,7 @@ export const DiffLoading = meta.story({
 	play: async ({ canvas, userEvent }) => {
 		await userEvent.click(canvas.getByRole("button", { name: "Show changes" }))
 
-		await expect(canvas.getByText("Loading the changes…")).toBeVisible()
+		await expect(canvas.getByText("Loading changes…")).toBeVisible()
 	},
 })
 
@@ -240,7 +238,7 @@ export const Unreadable = meta.story({
 	},
 	play: async ({ canvas }) => {
 		await expect(
-			canvas.getByText("This history could not be read."),
+			canvas.getByText("Couldn't load the history. Reopen settings to retry."),
 		).toBeVisible()
 		await expect(canvas.queryAllByRole("listitem")).toHaveLength(0)
 	},
