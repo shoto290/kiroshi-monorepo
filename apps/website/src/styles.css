@@ -20,3 +20,8 @@
 .scene-frozen [data-overlayscrollbars-viewport] {
 	overflow: hidden;
 }
+
+.scene-frozen [data-slot="sidebar-container"] {
+	position: absolute;
+	height: auto;
+}
