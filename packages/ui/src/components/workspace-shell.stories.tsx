@@ -641,7 +641,7 @@ const boxedHost = (height: string) => (Story: () => ReactNode) => (
 	</div>
 )
 
-const hostIn = (canvasElement: HTMLElement) =>
+const hostEdges = (canvasElement: HTMLElement) =>
 	(
 		canvasElement.querySelector("[data-boxed-host]") as HTMLElement
 	).getBoundingClientRect()
@@ -650,7 +650,7 @@ const expectSidebarFillingHost = async (
 	canvas: ReturnType<typeof within>,
 	canvasElement: HTMLElement,
 ) => {
-	const host = hostIn(canvasElement)
+	const host = hostEdges(canvasElement)
 	const sidebar = canvas
 		.getByRole("complementary", { name: "Workspace" })
 		.getBoundingClientRect()
@@ -673,7 +673,7 @@ export const BoxedHost = meta.story({
 		},
 	},
 	play: async ({ canvas, canvasElement, userEvent }) => {
-		const host = hostIn(canvasElement)
+		const host = hostEdges(canvasElement)
 		const sidebar = canvas.getByRole("complementary", { name: "Workspace" })
 		const composer = canvas.getByRole("textbox", { name: "Message" })
 
@@ -710,7 +710,7 @@ export const TallHost = meta.story({
 		},
 	},
 	play: async ({ canvas, canvasElement, userEvent }) => {
-		const host = hostIn(canvasElement)
+		const host = hostEdges(canvasElement)
 		const sidebar = canvas.getByRole("complementary", { name: "Workspace" })
 
 		await expect(host.height).toBeGreaterThan(window.innerHeight)
