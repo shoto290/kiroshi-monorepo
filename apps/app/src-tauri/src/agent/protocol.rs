@@ -355,7 +355,11 @@ pub struct SignedIn {
 	pub error: Option<SignInFailure>,
 }
 
-pub fn ask_command(kind: &str, connection: &Values) -> Value {
+pub fn ask_command(kind: &str) -> Value {
+	serde_json::json!({ "type": kind })
+}
+
+pub fn sourced_command(kind: &str, connection: &Values) -> Value {
 	serde_json::json!({ "type": kind, "connection": connection })
 }
 

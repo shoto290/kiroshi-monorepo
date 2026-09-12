@@ -267,7 +267,7 @@ impl Sidecar {
 		connection: &Values,
 		timeout: Duration,
 	) -> Result<Value, TransportError> {
-		self.ask_with(kind, protocol::ask_command(kind, connection), timeout).await
+		self.ask_with(kind, protocol::sourced_command(kind, connection), timeout).await
 	}
 
 	async fn ask_with(
