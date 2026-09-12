@@ -77,11 +77,9 @@ export const createHistoryController = (
 		}
 	}
 
-	const openBotId = () => state.botId ?? ""
-
 	const readFiles = createHistoryFilesReader(
 		(oldestCommitId, newestCommitId) =>
-			store.botHistoryDiff(openBotId(), oldestCommitId, newestCommitId),
+			store.botHistoryDiff(state.botId ?? "", oldestCommitId, newestCommitId),
 		{
 			run: (task) => onOpenBot(task),
 			getState: () => state,

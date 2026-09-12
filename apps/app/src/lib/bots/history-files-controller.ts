@@ -14,26 +14,19 @@ export const initialHistoryFilesState: HistoryFilesState = {
 	haveFilesFailedToRead: false,
 }
 
-export type HistoryFilesRead = (
-	oldestCommitId: string,
-	newestCommitId: string,
-) => Promise<BotChangedFile[]>
-
 export type HistoryFilesHost = {
 	run: (task: () => Promise<void>) => void
 	getState: () => HistoryFilesState
 	setState: (fields: Partial<HistoryFilesState>) => void
 }
 
-export type HistoryFilesReader = (
-	oldestCommitId: string,
-	newestCommitId: string,
-) => void
-
 export const createHistoryFilesReader = (
-	read: HistoryFilesRead,
+	read: (
+		oldestCommitId: string,
+		newestCommitId: string,
+	) => Promise<BotChangedFile[]>,
 	host: HistoryFilesHost,
-): HistoryFilesReader => {
+) => {
 	const applyToRun = (runId: string, fields: Partial<HistoryFilesState>) => {
 		if (host.getState().openedRunId === runId) {
 			host.setState(fields)

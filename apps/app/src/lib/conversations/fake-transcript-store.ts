@@ -563,7 +563,7 @@ export const createFakeTranscriptStore = (
 		skillId: string,
 		change: (skill: BotSkill) => BotSkill,
 		verb = "saved from settings",
-		touched?: string[],
+		touched = [skillPath(skillId)],
 	): Promise<BotSkill> => {
 		if (!isPluginOwner(botId) && !bots.has(botId)) {
 			return refuse({ kind: "unknownBot", id: botId })
@@ -581,11 +581,7 @@ export const createFakeTranscriptStore = (
 			botId,
 			held.map((skill) => (skill.id === skillId ? written : skill)),
 		)
-		recorded(
-			botId,
-			`Skill "${written.name}" ${verb}`,
-			touched ?? [skillPath(skillId)],
-		)
+		recorded(botId, `Skill "${written.name}" ${verb}`, touched)
 		return Promise.resolve(withFiles(botId, written))
 	}
 
