@@ -9,10 +9,21 @@ import {
 	within,
 } from "@testing-library/react"
 import { createElement, useState, useSyncExternalStore } from "react"
-import { afterEach, beforeEach, describe, expect, it, vi } from "vitest"
+import {
+	afterEach,
+	beforeEach,
+	describe,
+	expect,
+	it,
+	type Mock,
+	vi,
+} from "vitest"
 
 import type { MissionEventModel } from "@workspace/ui/components/mission"
-import { NoticeSurface } from "@workspace/ui/components/notice-surface"
+import {
+	type NoticeMessage,
+	NoticeSurface,
+} from "@workspace/ui/components/notice-surface"
 import "@workspace/ui/lib/i18n"
 
 import { ThreadScreen } from "@/components/thread-screen"
@@ -59,6 +70,11 @@ import {
 	createFakeOnboardingPort,
 	type FakeOnboardingPort,
 } from "@/lib/onboarding/fake-onboarding-port"
+import {
+	createFakeOnboardingWorld,
+	type FakeOnboardingWorld,
+	SUGGESTED_WRITER,
+} from "@/lib/onboarding/fake-onboarding-world"
 import {
 	createOnboardingController,
 	type OnboardingController,
@@ -200,6 +216,7 @@ const stubController = (
 	start: async () => null,
 	preflight: async () => null,
 	open: async () => null,
+	openAside: async () => null,
 	close: async () => undefined,
 	enter: () => undefined,
 	leave: () => undefined,
@@ -2150,6 +2167,10 @@ const SETTLED_PILL = "Claude account connected"
 
 const TEST_TITLE = "That's it working. One thing left."
 
+const PICKER_TITLE = "Who should join first?"
+
+const PICKER_REQUEST_LABEL = "Or say what you need in your own words"
+
 const EMPTY_STATE_TITLE = "Start with the agent"
 
 const ONBOARDING_EMAIL = "reader@example.com"
@@ -2164,19 +2185,22 @@ const AUTHENTICATED_ANONYMOUSLY = {
 
 type OnboardingFixture = {
 	port: FakeOnboardingPort
+	world: FakeOnboardingWorld
 	controller: OnboardingController
+	reportFailure: Mock<(notice: NoticeMessage) => void>
 	solo: Solo
 }
 
 const onboardingOf = async (): Promise<OnboardingFixture> => {
 	const solo = await soloOf({})
 	const port = createFakeOnboardingPort()
-	const controller = createOnboardingController(port, {
-		send: (text) => solo.thread().chat.controller.send(text),
-		markFirstRunDone: async () => undefined,
-	})
+	const world = createFakeOnboardingWorld()
+	world.homeBot = solo.thread().bot.id
+	world.send = (text) => solo.thread().chat.controller.send(text)
+	const reportFailure = vi.fn<(notice: NoticeMessage) => void>()
+	const controller = createOnboardingController(port, world, { reportFailure })
 
-	return { port, controller, solo }
+	return { port, world, controller, reportFailure, solo }
 }
 
 const onboardingScreen = ({ controller, solo }: OnboardingFixture) =>
@@ -2198,6 +2222,17 @@ const renderOnboarding = async (fixture: OnboardingFixture) => {
 const press = async (name: string) => {
 	await act(async () => {
 		fireEvent.click(screen.getByRole("button", { name }))
+	})
+	await settle()
+}
+
+const type = async (label: string, text: string) => {
+	const field = screen.getByLabelText(label)
+	await act(async () => {
+		fireEvent.change(field, { target: { value: text } })
+	})
+	await act(async () => {
+		fireEvent.keyDown(field, { key: "Enter" })
 	})
 	await settle()
 }
@@ -2299,6 +2334,158 @@ describe("the first run in a solo thread", () => {
 		expect(screen.queryByText(onboardingSummonsFor("greeting"))).toBeNull()
 		expect(screen.getByText("the walls hold")).toBeTruthy()
 		expect(screen.getByText(TEST_TITLE)).toBeTruthy()
+	})
+
+	const answeredPicker = async () => {
+		const fixture = await onboardingOf()
+		fixture.port.report = AUTHENTICATED_ANONYMOUSLY
+		const rerender = await renderOnboarding(fixture)
+		await press("Start")
+		await fixture.solo.push(SAID_AND_LANDED)
+		rerender()
+		await settle()
+
+		return { ...fixture, rerender }
+	}
+
+	const openedPicker = async () => {
+		const fixture = await answeredPicker()
+		await press("Pick my first companion")
+
+		return fixture
+	}
+
+	it("shows one option per suggestion when the reader picks a companion", async () => {
+		const fixture = await answeredPicker()
+
+		await press("Pick my first companion")
+
+		expect(screen.getByText(PICKER_TITLE)).toBeTruthy()
+		expect(screen.getAllByRole("radio")).toHaveLength(
+			fixture.world.suggestions.length,
+		)
+	})
+
+	it("keeps the test card and reports the reason when the suggestions refuse to load", async () => {
+		const fixture = await answeredPicker()
+		fixture.world.refusals.suggest = {
+			kind: "storage",
+			detail: "disk is full",
+		}
+
+		await press("Pick my first companion")
+
+		expect(fixture.reportFailure).toHaveBeenCalledWith({
+			title: "Couldn't load the suggested companions",
+			description: "disk is full",
+		})
+		expect(screen.getByText(TEST_TITLE)).toBeTruthy()
+		expect(screen.queryByText(PICKER_TITLE)).toBeNull()
+	})
+
+	it("shows no picker and reports the reason when nothing is suggested", async () => {
+		const fixture = await answeredPicker()
+		fixture.world.suggestions.length = 0
+
+		await press("Pick my first companion")
+
+		expect(fixture.reportFailure).toHaveBeenCalledWith({
+			title: "Couldn't load the suggested companions",
+			description: "the agent suggested no companion",
+		})
+		expect(screen.queryByText(PICKER_TITLE)).toBeNull()
+		expect(screen.getByText(TEST_TITLE)).toBeTruthy()
+	})
+
+	it("hands the reader over to the companion it created", async () => {
+		const fixture = await openedPicker()
+
+		await press(`Add ${SUGGESTED_WRITER.name}`)
+
+		expect(fixture.world.drafted).toHaveLength(1)
+		expect(fixture.world.greetings).toHaveLength(1)
+		expect(
+			screen.getByRole("button", { name: `Open ${SUGGESTED_WRITER.name}` }),
+		).toBeTruthy()
+		expect(screen.queryByText(PICKER_TITLE)).toBeNull()
+	})
+
+	it("keeps the picker and reports the reason when the creation is refused", async () => {
+		const fixture = await openedPicker()
+		fixture.world.refusals.create = { kind: "storage", detail: "disk is full" }
+
+		await press(`Add ${SUGGESTED_WRITER.name}`)
+
+		expect(fixture.reportFailure).toHaveBeenCalledWith({
+			title: `Couldn't add ${SUGGESTED_WRITER.name}`,
+			description: "disk is full",
+		})
+		expect(screen.getByText(PICKER_TITLE)).toBeTruthy()
+		expect(
+			screen.queryByRole("button", { name: "Paste a key instead" }),
+		).toBeNull()
+		expect(fixture.world.firstRunDone).toBe(0)
+	})
+
+	it("hands off anyway when the first turn fails to start", async () => {
+		const fixture = await openedPicker()
+		fixture.world.refusals.greet = {
+			kind: "crashed",
+			detail: "the agent stopped",
+		}
+
+		await press(`Add ${SUGGESTED_WRITER.name}`)
+
+		expect(fixture.reportFailure).toHaveBeenCalledWith({
+			title: `${SUGGESTED_WRITER.name} couldn't say hello`,
+			description: "the agent stopped",
+		})
+		expect(
+			screen.getByRole("button", { name: `Open ${SUGGESTED_WRITER.name}` }),
+		).toBeTruthy()
+		expect(screen.queryByText(PICKER_TITLE)).toBeNull()
+	})
+
+	it("leaves the reader where they are when they stay on the handoff", async () => {
+		const fixture = await openedPicker()
+		await press(`Add ${SUGGESTED_WRITER.name}`)
+
+		await press("Stay here")
+
+		expect(fixture.world.opened).toEqual([])
+		expect(fixture.world.firstRunDone).toBe(1)
+		expect(screen.queryByText(SETTLED_PILL)).toBeNull()
+	})
+
+	it("opens the created companion from the handoff", async () => {
+		const fixture = await openedPicker()
+		await press(`Add ${SUGGESTED_WRITER.name}`)
+
+		await press(`Open ${SUGGESTED_WRITER.name}`)
+
+		expect(fixture.world.opened).toHaveLength(1)
+		expect(fixture.world.firstRunDone).toBe(1)
+	})
+
+	it("hands the typed words to the companion the run started in", async () => {
+		const fixture = await openedPicker()
+
+		await type(PICKER_REQUEST_LABEL, "someone who drafts my emails")
+		fixture.rerender()
+		await settle()
+
+		expect(fixture.world.drafted).toEqual([])
+		expect(screen.queryByText(PICKER_TITLE)).toBeNull()
+		expect(screen.getByText("someone who drafts my emails")).toBeTruthy()
+	})
+
+	it("ends the run when the reader skips the picker", async () => {
+		const fixture = await openedPicker()
+
+		await press("Skip for now")
+
+		expect(screen.queryByText(PICKER_TITLE)).toBeNull()
+		expect(fixture.world.firstRunDone).toBe(1)
 	})
 
 	it("leaves no onboarding card once the test card is taken", async () => {

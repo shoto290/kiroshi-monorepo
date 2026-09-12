@@ -27,6 +27,11 @@ import { MissionEventRow } from "@workspace/ui/components/mission-event-row"
 import { MissionHeader } from "@workspace/ui/components/mission-header"
 import { MissionTurn } from "@workspace/ui/components/mission-turn"
 import { OnboardingConnectionCard } from "@workspace/ui/components/onboarding-connection-card"
+import { OnboardingHandoffCard } from "@workspace/ui/components/onboarding-handoff-card"
+import {
+	type OnboardingCompanion,
+	OnboardingPickerCard,
+} from "@workspace/ui/components/onboarding-picker-card"
 import { OnboardingSettledPill } from "@workspace/ui/components/onboarding-settled-pill"
 import { OnboardingTestCard } from "@workspace/ui/components/onboarding-test-card"
 import { OnboardingWelcomeCard } from "@workspace/ui/components/onboarding-welcome-card"
@@ -808,6 +813,36 @@ const ThreadConnectionCard = ({
 	)
 }
 
+type ThreadPickerCardProps = {
+	controller: OnboardingController
+	picks: OnboardingCompanion[]
+	isBusy: boolean
+}
+
+const ThreadPickerCard = ({
+	controller,
+	picks,
+	isBusy,
+}: ThreadPickerCardProps) => {
+	const [chosenId, setChosenId] = useState<string | null>(null)
+	const [request, setRequest] = useState("")
+	const picked = chosenId ?? picks[0]?.id ?? ""
+
+	return (
+		<OnboardingPickerCard
+			companions={picks}
+			disabled={isBusy}
+			onAdd={() => void controller.addCompanion(picked)}
+			onRequestChange={setRequest}
+			onRequestSubmit={(typed) => void controller.askInOwnWords(typed)}
+			onSkip={() => void controller.finish()}
+			onValueChange={setChosenId}
+			request={request}
+			value={picked}
+		/>
+	)
+}
+
 type ThreadOnboardingProps = {
 	tail: OnboardingTail
 }
@@ -845,7 +880,25 @@ const ThreadOnboarding = ({ tail }: ThreadOnboardingProps) => {
 				<OnboardingTestCard
 					disabled={isBusy}
 					onKeepTalking={() => void controller.finish()}
-					onPickCompanion={() => void controller.finish()}
+					onPickCompanion={() => void controller.pickCompanion()}
+				/>
+			) : null}
+			{tail.picks ? (
+				<ThreadPickerCard
+					controller={controller}
+					isBusy={isBusy}
+					picks={tail.picks}
+				/>
+			) : null}
+			{tail.handoff ? (
+				<OnboardingHandoffCard
+					animal={tail.handoff.animal}
+					blot={tail.handoff.blot ?? undefined}
+					description={tail.handoff.description}
+					disabled={isBusy}
+					name={tail.handoff.name}
+					onOpen={() => void controller.openCompanion()}
+					onStay={() => void controller.finish()}
 				/>
 			) : null}
 		</MessageBubbleGroup>
@@ -955,7 +1008,9 @@ const onboardingTailFor = (
 	thread: LoadedThread,
 	onboarding: Onboarding | undefined,
 ): OnboardingTail | null =>
-	thread.kind === "bot" ? onboardingTailOf(onboarding, thread.state) : null
+	thread.kind === "bot"
+		? onboardingTailOf(onboarding, thread.state, thread.bot.id)
+		: null
 
 const showsEmptyState = (
 	rows: TranscriptItem[],

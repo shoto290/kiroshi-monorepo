@@ -139,6 +139,40 @@ describe("createRosterController", () => {
 		expect(listed).not.toHaveBeenCalled()
 	})
 
+	it("seats a drafted companion without moving the reader to it", async () => {
+		const controller = await loaded(createFakeTranscriptStore())
+
+		const written = await controller.createFromDraft({
+			name: "Scout",
+			job: "a research assistant",
+			description: "Dig into the questions I bring.",
+		})
+
+		expect(names(controller.getState().bots)).toEqual(["Claude", "Scout"])
+		expect(controller.getState().selectedBotId).toBe("default")
+		expect(written.title).toBe("a research assistant")
+	})
+
+	it("refuses a drafted companion while the roster is in no space", async () => {
+		const controller = createRosterController(createFakeTranscriptStore())
+
+		await expect(
+			controller.createFromDraft({
+				name: "Scout",
+				job: "a research assistant",
+				description: "Dig into the questions I bring.",
+			}),
+		).rejects.toEqual({ kind: "unknownSpace", id: "" })
+	})
+
+	it("refuses a drafted companion the store turns down", async () => {
+		const controller = await loaded(createFakeTranscriptStore())
+
+		await expect(
+			controller.createFromDraft({ name: " ", job: "", description: "" }),
+		).rejects.toEqual({ kind: "namelessBot" })
+	})
+
 	it("opens on nothing when the record holds no companion", async () => {
 		const controller = await loaded(await anEmptyStore())
 

@@ -20,10 +20,12 @@ import {
 } from "../conversations/roster-conversations"
 import type {
 	Bot,
+	BotDraft,
 	Conversation,
 	ConversationDraft,
 	Participant,
 	RosterPin,
+	SpaceError,
 } from "../conversations/store-contract"
 import type { TranscriptStore } from "../conversations/store-port"
 import {
@@ -78,6 +80,7 @@ export type RosterController = {
 	select: (id: string) => void
 	selectConversation: (id: string) => void
 	create: () => Promise<void>
+	createFromDraft: (draft: BotDraft) => Promise<Bot>
 	createConversation: (draft: NewConversation) => Promise<Conversation | null>
 	duplicate: (id: string, spaceId?: string) => Promise<Bot | null>
 	edit: (id: string) => void
@@ -253,6 +256,8 @@ const withoutThreadsOf = (
 		Object.entries(soloThreads).filter(([, line]) => !holds(line)),
 	)
 
+const NO_SPACE = { kind: "unknownSpace", id: "" } satisfies SpaceError
+
 const namesTheLastSpace = (reason: unknown): boolean =>
 	typeof reason === "object" &&
 	reason !== null &&
@@ -365,6 +370,16 @@ export const createRosterController = (
 		if (spaceId) {
 			void readPreviews([{ spaceId, botId: written.id }])
 		}
+	}
+
+	const enrol = (written: Bot, spaceId: string) => {
+		set({
+			rosters: withRoster(spaceId, [
+				...rosterIn(state.rosters, spaceId),
+				written,
+			]),
+		})
+		void readPreviews([{ spaceId, botId: written.id }])
 	}
 
 	const admitConversation = (written: Conversation, spaceId: string) => {
@@ -646,6 +661,17 @@ export const createRosterController = (
 					state.spaceId,
 				)
 			}).catch(reload),
+
+		createFromDraft: (draft: BotDraft) =>
+			enqueue(async () => {
+				const spaceId = state.spaceId
+				if (!spaceId) {
+					throw NO_SPACE
+				}
+				const written = await store.createBotFromDraft(draft, spaceId)
+				enrol(written, spaceId)
+				return written
+			}),
 
 		createConversation: ({ title, botIds }: NewConversation) =>
 			enqueue(async () => {

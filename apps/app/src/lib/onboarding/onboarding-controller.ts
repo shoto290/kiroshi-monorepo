@@ -1,3 +1,9 @@
+import {
+	type NoticeMessage,
+	raiseFailureNotice,
+} from "@workspace/ui/components/notice-surface"
+import { i18n } from "@workspace/ui/lib/i18n"
+
 import { exitDetailOf, isNotRunning } from "./onboarding-failure"
 import type { OnboardingPort } from "./onboarding-port"
 import {
@@ -6,6 +12,13 @@ import {
 } from "./onboarding-summons"
 
 import type { CheckReport } from "../agent/contract"
+import type {
+	AvatarAnimal,
+	AvatarBlot,
+	Bot,
+	BotDraft,
+	SuggestedBot,
+} from "../conversations/store-contract"
 
 export type ConnectionCard =
 	| { state: "detected"; account: string }
@@ -13,7 +26,21 @@ export type ConnectionCard =
 	| { state: "waiting"; signInUrl: string }
 	| { state: "failed"; exitDetail: string }
 
-export type OnboardingStep = "welcome" | "connection" | "summoned" | "done"
+export type OnboardingStep =
+	| "welcome"
+	| "connection"
+	| "summoned"
+	| "picking"
+	| "handoff"
+	| "done"
+
+export type OnboardingHandoff = {
+	botId: string
+	name: string
+	description: string
+	animal: AvatarAnimal
+	blot: AvatarBlot | null
+}
 
 export type OnboardingState = {
 	step: OnboardingStep
@@ -21,10 +48,18 @@ export type OnboardingState = {
 	hasSettled: boolean
 	summons: string | null
 	isBusy: boolean
+	homeBotId: string | null
+	suggestions: SuggestedBot[]
+	handoff: OnboardingHandoff | null
 }
 
 export type OnboardingWorld = {
+	homeBotId: () => string | null
 	send: (text: string) => Promise<void>
+	suggest: () => Promise<SuggestedBot[]>
+	create: (draft: BotDraft) => Promise<Bot>
+	greet: (botId: string, text: string) => Promise<void>
+	open: (botId: string) => void
 	markFirstRunDone: () => Promise<void>
 }
 
@@ -40,6 +75,10 @@ export type OnboardingController = {
 	submitApiKey: (apiKey: string) => Promise<void>
 	pasteKeyInstead: () => Promise<void>
 	summonAgain: () => Promise<void>
+	pickCompanion: () => Promise<void>
+	addCompanion: (pickId: string) => Promise<void>
+	askInOwnWords: (request: string) => Promise<void>
+	openCompanion: () => Promise<void>
 	finish: () => Promise<void>
 }
 
@@ -49,16 +88,40 @@ const initialOnboardingState: OnboardingState = {
 	hasSettled: false,
 	summons: null,
 	isBusy: false,
+	homeBotId: null,
+	suggestions: [],
+	handoff: null,
 }
+
+const NO_SUGGESTION = { kind: "noSuggestion" } as const
+
+const draftOf = ({ name, job, description }: SuggestedBot): BotDraft => ({
+	name,
+	job,
+	description,
+})
+
+const handoffOf = (created: Bot, description: string): OnboardingHandoff => ({
+	botId: created.id,
+	name: created.name,
+	description,
+	animal: created.avatarAnimal,
+	blot: created.avatarBlot,
+})
 
 const ACCOUNT_PLAN_SEPARATOR = " · "
 
 const accountLineOf = (email: string, plan: string | null | undefined) =>
 	plan ? `${email}${ACCOUNT_PLAN_SEPARATOR}${plan}` : email
 
+export type OnboardingControllerOptions = {
+	reportFailure?: (notice: NoticeMessage) => void
+}
+
 export const createOnboardingController = (
 	port: OnboardingPort,
 	world: OnboardingWorld,
+	{ reportFailure = raiseFailureNotice }: OnboardingControllerOptions = {},
 ): OnboardingController => {
 	let state = initialOnboardingState
 	let asked: OnboardingSummons = "greeting"
@@ -123,7 +186,71 @@ export const createOnboardingController = (
 
 	const askFor = (summons: OnboardingSummons) => {
 		asked = summons
+		set({ homeBotId: world.homeBotId() })
 		return readAccount()
+	}
+
+	const finishRun = () => {
+		set({ step: "done", card: null })
+		return world.markFirstRunDone()
+	}
+
+	const report = (title: string, reason: unknown) => {
+		reportFailure({ title, description: exitDetailOf(reason) })
+	}
+
+	const readSuggestions = async () => {
+		set({ isBusy: true })
+		try {
+			const read = await world.suggest()
+			if (read.length === 0) {
+				throw NO_SUGGESTION
+			}
+			set({ step: "picking", card: null, suggestions: read })
+		} catch (reason) {
+			report(i18n.t("chat:onboarding.picker.failure.suggestions"), reason)
+		} finally {
+			set({ isBusy: false })
+		}
+	}
+
+	const greet = async (created: Bot) => {
+		try {
+			await world.greet(created.id, onboardingSummonsFor("arrival"))
+		} catch (reason) {
+			report(
+				i18n.t("chat:onboarding.handoff.failure", { name: created.name }),
+				reason,
+			)
+		}
+	}
+
+	const addCompanion = async (pickId: string) => {
+		const pick = state.suggestions.find(({ id }) => id === pickId)
+		if (!pick || state.isBusy) {
+			return
+		}
+		set({ isBusy: true })
+		try {
+			const created = await world.create(draftOf(pick))
+			set({ step: "handoff", handoff: handoffOf(created, pick.blurb) })
+			await greet(created)
+		} catch (reason) {
+			report(
+				i18n.t("chat:onboarding.picker.failure.add", { name: pick.name }),
+				reason,
+			)
+		} finally {
+			set({ isBusy: false })
+		}
+	}
+
+	const openCompanion = async () => {
+		const opened = state.handoff
+		if (opened) {
+			world.open(opened.botId)
+		}
+		await finishRun()
 	}
 
 	const openAttempt = () => {
@@ -226,9 +353,17 @@ export const createOnboardingController = (
 
 		summonAgain: settle,
 
-		finish: () => {
-			set({ step: "done", card: null })
-			return world.markFirstRunDone()
+		pickCompanion: readSuggestions,
+
+		addCompanion,
+
+		askInOwnWords: async (request) => {
+			await world.send(request)
+			await finishRun()
 		},
+
+		openCompanion,
+
+		finish: finishRun,
 	}
 }
