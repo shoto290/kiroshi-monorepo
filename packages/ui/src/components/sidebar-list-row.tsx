@@ -13,6 +13,7 @@ import {
 } from "@workspace/ui/components/sidebar-menu-row"
 import { Item } from "@workspace/ui/components/ui/item"
 import { useSidebar } from "@workspace/ui/components/ui/sidebar"
+import { cn } from "@workspace/ui/lib/utils"
 
 const ROW =
 	"flex-nowrap border-0 py-1.5 pl-1.5 transition-[width,height,padding,translate] focus-visible:ring-sidebar-ring active:translate-y-px aria-expanded:bg-sidebar-accent/70 group-data-[collapsible=icon]:pl-0"
@@ -45,10 +46,12 @@ interface SidebarListRowProps extends SidebarListRowElementProps {
 	media?: ReactNode
 	trailing?: ReactNode
 	timestamp?: string
-	preview?: string
+	preview?: ReactNode
 	isWorking?: boolean
+	isNameMuted?: boolean
 	badge?: BotBadge
 	strips?: ReactNode
+	"data-opens"?: string
 }
 
 const SidebarListRow = ({
@@ -58,6 +61,7 @@ const SidebarListRow = ({
 	timestamp,
 	preview,
 	isWorking = false,
+	isNameMuted = false,
 	badge,
 	strips,
 	...rowProps
@@ -83,7 +87,10 @@ const SidebarListRow = ({
 		>
 			<span className={STACK}>
 				<span className={NAME_LINE}>
-					<span className="truncate" data-slot="roster-row-name">
+					<span
+						className={cn("truncate", isNameMuted && "text-muted-foreground")}
+						data-slot="roster-row-name"
+					>
 						{name}
 					</span>
 					{trailing}
