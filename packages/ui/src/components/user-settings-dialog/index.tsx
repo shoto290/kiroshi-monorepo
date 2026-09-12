@@ -15,11 +15,12 @@ import {
 	displayNameOf,
 	InitialsAvatar,
 } from "@workspace/ui/components/initials-avatar"
-import {
-	HistoryPanel,
-	type PluginHistory,
-} from "@workspace/ui/components/plugin-settings/history-panel"
+import type { PluginHistory } from "@workspace/ui/components/plugin-settings/history-panel"
 import type { PluginSkillFiles } from "@workspace/ui/components/plugin-settings/skill-files-panel"
+import {
+	HISTORY_TAB,
+	useHistorySession,
+} from "@workspace/ui/components/plugin-settings/use-history-session"
 import { useSkillSession } from "@workspace/ui/components/plugin-settings/use-skill-session"
 import { ProfilePictureField } from "@workspace/ui/components/profile-picture-field"
 import { SettingsField } from "@workspace/ui/components/settings-field"
@@ -40,6 +41,7 @@ import { AppearanceFields } from "@workspace/ui/components/user-settings-dialog/
 import { LanguageFields } from "@workspace/ui/components/user-settings-dialog/language-fields"
 import { NotificationFields } from "@workspace/ui/components/user-settings-dialog/notification-fields"
 import { useIsNarrowerThan } from "@workspace/ui/hooks/use-is-narrower-than"
+import { useSettingsTab } from "@workspace/ui/hooks/use-settings-tab"
 import type { Language } from "@workspace/ui/lib/i18n"
 import { cn } from "@workspace/ui/lib/utils"
 
@@ -97,6 +99,12 @@ const UserSettingsDialog = ({
 		onSkillDelete,
 		onSkillPreloadedChange,
 	})
+	const historySession = useHistorySession({
+		history,
+		companionName: t("plugin.author.bot"),
+		readerImage: value.image,
+	})
+	const activeTab = useSettingsTab(open, FIRST_TAB)
 
 	const patch = (fields: Partial<UserSettingsValue>) =>
 		onValueChange({ ...value, ...fields })
@@ -109,6 +117,7 @@ const UserSettingsDialog = ({
 
 	const leave = () => {
 		skillSession.discard()
+		historySession.discard()
 		onClose()
 	}
 
@@ -140,11 +149,12 @@ const UserSettingsDialog = ({
 					</DialogTitle>
 				</header>
 
-				{skillSession.editor ?? (
+				{skillSession.editor ?? historySession.page ?? (
 					<Tabs.Root
 						className="flex min-h-0 flex-1"
-						defaultValue={FIRST_TAB}
+						onValueChange={activeTab.onValueChange}
 						orientation="vertical"
+						value={activeTab.value}
 						ref={setTabs}
 					>
 						<SettingsRail iconsOnly={iconsOnly}>
@@ -182,7 +192,7 @@ const UserSettingsDialog = ({
 								icon={Icons.History}
 								iconsOnly={iconsOnly}
 								label={t("rail.history")}
-								value="history"
+								value={HISTORY_TAB}
 							/>
 						</SettingsRail>
 
@@ -235,12 +245,8 @@ const UserSettingsDialog = ({
 							{skillSession.panel}
 						</Tabs.Panel>
 
-						<SettingsScrollingPanel isFlush value="history">
-							<HistoryPanel
-								{...history}
-								companionName={t("plugin.author.bot")}
-								readerImage={value.image}
-							/>
+						<SettingsScrollingPanel isFlush value={HISTORY_TAB}>
+							{historySession.panel}
 						</SettingsScrollingPanel>
 					</Tabs.Root>
 				)}

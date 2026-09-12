@@ -32,6 +32,11 @@ type HistoryDay = {
 	changes: HistoryChange[]
 }
 
+type HistoryChangeFile = {
+	path: string
+	patch: string
+}
+
 type PluginHistory = {
 	days: HistoryDay[]
 	oldestDate: string
@@ -39,6 +44,9 @@ type PluginHistory = {
 	onUndo: (change: HistoryChange) => void
 	onSearchChange?: (text: string) => void
 	onOpen?: (change: HistoryChange) => void
+	files?: HistoryChangeFile[]
+	areFilesReading?: boolean
+	haveFilesFailedToRead?: boolean
 }
 
 type HistoryPanelProps = PluginHistory & {
@@ -344,6 +352,7 @@ const HistoryPanel = ({
 
 export {
 	type HistoryChange,
+	type HistoryChangeFile,
 	type HistoryDay,
 	HistoryPanel,
 	type HistoryPanelProps,

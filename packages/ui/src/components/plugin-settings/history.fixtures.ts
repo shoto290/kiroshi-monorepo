@@ -1,5 +1,6 @@
 import type {
 	HistoryChange,
+	HistoryChangeFile,
 	HistoryDay,
 } from "@workspace/ui/components/plugin-settings/history-panel"
 
@@ -157,4 +158,28 @@ export const LONG_SIGNALLED_DAYS: HistoryDay[] = [
 			},
 		],
 	},
+]
+
+export const DEEP_PATH_PATCH = `diff --git a/skills/release-notes/references/wording/house-style.md b/skills/release-notes/references/wording/house-style.md
+index 2f1b904..c40de81 100644
+--- a/skills/release-notes/references/wording/house-style.md
++++ b/skills/release-notes/references/wording/house-style.md
+@@ -1,3 +1,3 @@
+ # House style
+ 
+-List the pull requests that landed.
++Name what changed for the reader, never the pull request that carried it.`
+
+export const ONE_CHANGE_FILE: HistoryChangeFile[] = [
+	{ path: "AGENTS.md", patch: WIDE_LINE_PATCH },
+]
+
+export const MANY_CHANGE_FILES: HistoryChangeFile[] = [
+	{ path: "AGENTS.md", patch: WIDE_LINE_PATCH },
+	{
+		path: "skills/release-notes/references/wording/house-style.md",
+		patch: DEEP_PATH_PATCH,
+	},
+	{ path: "skills/release-notes/SKILL.md", patch: ADDED_SKILL_PATCH },
+	{ path: "bot.json", patch: MODEL_PATCH },
 ]
