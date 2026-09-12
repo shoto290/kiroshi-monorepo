@@ -30,6 +30,7 @@ const PREFERENCES = {
 	language: null,
 	sidebarWidth: null,
 	activityPanelOpen: false,
+	firstRunDone: false,
 	lastSpaceId: null,
 	lastBotIdBySpace: {},
 } as const

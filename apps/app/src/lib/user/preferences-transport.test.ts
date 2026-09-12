@@ -22,6 +22,7 @@ const RECORD: UserPreferences = {
 	notifyWithSound: true,
 	sidebarWidth: null,
 	activityPanelOpen: false,
+	firstRunDone: false,
 	lastSpaceId: null,
 	lastBotIdBySpace: {},
 }
@@ -37,6 +38,7 @@ const DEFAULTS: UserPreferences = {
 	notifyWithSound: true,
 	sidebarWidth: null,
 	activityPanelOpen: false,
+	firstRunDone: false,
 	lastSpaceId: null,
 	lastBotIdBySpace: {},
 }

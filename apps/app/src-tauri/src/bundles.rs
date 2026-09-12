@@ -10,6 +10,7 @@ use crate::db::repositories::conversations::{AvatarBlot, Bot};
 use crate::private_files;
 
 mod git;
+pub mod shoto;
 pub mod space;
 pub mod system;
 pub mod user;
@@ -904,6 +905,16 @@ pub fn create_skill(root: &Path, bot: &Bot, draft: &SkillDraft) -> std::io::Resu
 	let skill = written_skill(root, bot, &path, drafted(None, draft)?)?;
 	recorded(&bundle, SKILL_SUBJECT, &skill.name, "created from settings").map_err(unrecorded)?;
 	Ok(skill)
+}
+
+pub fn write_skills(root: &Path, bot: &Bot, skills: &[(&str, &[u8])]) -> std::io::Result<()> {
+	let bundle = dir(root, &bot.id);
+	let _serialised = serialised(&bundle);
+	for (id, body) in skills {
+		private_files::replace(&bundle.join(SKILLS_DIR).join(id).join(SKILL_NAME), body)?;
+	}
+	rewrite_agent(root, bot)?;
+	recorded(&bundle, BOT_SUBJECT, &bot.name, "created at first launch").map_err(unrecorded)
 }
 
 pub fn create_skill_at(bundle: &Path, draft: &SkillDraft) -> std::io::Result<Skill> {

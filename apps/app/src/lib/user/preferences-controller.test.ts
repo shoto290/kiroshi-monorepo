@@ -21,6 +21,7 @@ const DEFAULTS: UserPreferences = {
 	notifyWithSound: true,
 	sidebarWidth: null,
 	activityPanelOpen: false,
+	firstRunDone: false,
 	lastSpaceId: null,
 	lastBotIdBySpace: {},
 }
@@ -522,6 +523,19 @@ describe("the activity panel the reader opens", () => {
 		await controller.setActivityPanelOpen(false)
 
 		expect(controller.getState().preferences.activityPanelOpen).toBe(true)
+	})
+})
+
+describe("the first run the reader has been through", () => {
+	it("is mirrored and written into the record once it is marked done", async () => {
+		const host = aHost()
+		const controller = await loaded()
+
+		expect(controller.getState().preferences.firstRunDone).toBe(false)
+		await controller.markFirstRunDone()
+
+		expect(controller.getState().preferences.firstRunDone).toBe(true)
+		expect(host()).toEqual({ ...DEFAULTS, firstRunDone: true })
 	})
 })
 
