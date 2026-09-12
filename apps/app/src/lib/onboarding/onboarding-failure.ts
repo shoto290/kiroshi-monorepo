@@ -1,8 +1,6 @@
 const NOT_RUNNING = "notRunning"
 
-const NO_DETAIL = "the turn ended with no reason"
-
-const NO_KNOWN_REASON = "the agent gave no reason"
+const NO_REASON = "the agent gave no reason"
 
 const SENTENCE_OF: Record<string, string> = {
 	alreadyRunning: "a sign-in is already running",
@@ -30,16 +28,13 @@ export const isNotRunning = (reason: unknown): boolean =>
 	fieldIn(reason, "kind") === NOT_RUNNING
 
 export const exitDetailOf = (reason: unknown): string => {
-	if (reason === undefined || reason === null) {
-		return NO_DETAIL
-	}
 	const detail = fieldIn(reason, "detail")
 	if (detail) {
 		return detail
 	}
 	const kind = fieldIn(reason, "kind")
 	if (kind) {
-		return SENTENCE_OF[kind] ?? NO_KNOWN_REASON
+		return SENTENCE_OF[kind] ?? NO_REASON
 	}
-	return reason instanceof Error ? reason.message : NO_KNOWN_REASON
+	return reason instanceof Error ? reason.message : NO_REASON
 }
