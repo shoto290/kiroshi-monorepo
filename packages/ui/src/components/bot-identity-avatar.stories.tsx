@@ -323,7 +323,7 @@ export const Uploaded = meta.story({
 	},
 	play: async ({ canvasElement }) => {
 		for (const avatar of botIdentityAvatars(canvasElement)) {
-			await expect(avatar.querySelector("img")).toHaveAttribute(
+			await expect(await pictureOf(avatar)).toHaveAttribute(
 				"src",
 				UPLOADED_AVATAR_IMAGE,
 			)
@@ -346,7 +346,7 @@ export const UploadedWorking = meta.story({
 	},
 	play: async ({ canvasElement }) => {
 		for (const avatar of botIdentityAvatars(canvasElement)) {
-			await expect(avatar.querySelector("img")).toHaveAttribute(
+			await expect(await pictureOf(avatar)).toHaveAttribute(
 				"src",
 				UPLOADED_AVATAR_IMAGE,
 			)
@@ -437,7 +437,7 @@ export const BoundToOneBot = meta.story({
 			canvas.getByRole("button", { name: "Change the companion" }),
 		)
 		for (const avatar of drawn()) {
-			await expect(avatar.querySelector("img")).toHaveAttribute(
+			await expect(await pictureOf(avatar)).toHaveAttribute(
 				"src",
 				UPLOADED_AVATAR_IMAGE,
 			)

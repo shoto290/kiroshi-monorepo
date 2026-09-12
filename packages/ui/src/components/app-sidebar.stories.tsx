@@ -10,6 +10,7 @@ import {
 	FRAME_POLL,
 	hasOverlayScrollbars,
 	mergeA11y,
+	pictureOf,
 	settled,
 	shown,
 	slotIn,
@@ -870,7 +871,7 @@ export const UploadedPictures = meta.story({
 		const rows = rowsIn(canvasElement)
 		const [wearing, running, drawn] = rows
 
-		await expect(wearing.querySelector("img")).toHaveAttribute(
+		await expect(await pictureOf(wearing)).toHaveAttribute(
 			"src",
 			UPLOADED_IMAGE,
 		)

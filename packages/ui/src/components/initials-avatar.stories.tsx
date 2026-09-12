@@ -2,6 +2,7 @@ import { expect } from "storybook/test"
 
 import preview from "@workspace/storybook/preview"
 import {
+	pictureOf,
 	slotsIn,
 	UPLOADED_AVATAR_IMAGE,
 } from "@workspace/storybook/story-utils"
@@ -50,10 +51,10 @@ export const WithPicture = meta.story({
 	},
 	play: async ({ canvasElement }) => {
 		const [avatar] = slotsIn(canvasElement, "user-avatar")
-		const image = avatar.querySelector("img")
+		const image = await pictureOf(avatar)
 
 		await expect(image).toHaveAttribute("aria-hidden", "true")
-		await expect(getComputedStyle(image as Element).objectFit).toBe("cover")
+		await expect(getComputedStyle(image).objectFit).toBe("cover")
 	},
 })
 

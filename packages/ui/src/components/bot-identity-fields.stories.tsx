@@ -4,6 +4,7 @@ import { expect, fn } from "storybook/test"
 import preview from "@workspace/storybook/preview"
 import {
 	botIdentityAvatars,
+	pictureOf,
 	slotsIn,
 	UPLOADED_AVATAR_IMAGE,
 } from "@workspace/storybook/story-utils"
@@ -184,7 +185,7 @@ export const WithPicture = meta.story({
 	play: async ({ canvas, canvasElement }) => {
 		const preview = previewAvatar(canvasElement)
 
-		await expect(preview.querySelector("img")).toHaveAttribute(
+		await expect(await pictureOf(preview)).toHaveAttribute(
 			"src",
 			UPLOADED_AVATAR_IMAGE,
 		)
@@ -206,7 +207,7 @@ export const RemovesThePicture = meta.story({
 	play: async ({ args, canvas, canvasElement, userEvent }) => {
 		const field = pictureField(canvasElement)
 
-		await expect(field.querySelector("img")).toHaveAttribute(
+		await expect(await pictureOf(field)).toHaveAttribute(
 			"src",
 			UPLOADED_AVATAR_IMAGE,
 		)

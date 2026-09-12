@@ -11,6 +11,7 @@ import {
 import preview from "@workspace/storybook/preview"
 import {
 	A11Y_CONTRAST_AWAITING_DESIGN_DECISION,
+	pictureOf,
 	slotsIn,
 	UPLOADED_AVATAR_IMAGE,
 	widthInRems,
@@ -593,7 +594,7 @@ export const Working = meta.story({
 		const dialog = await dialogIn()
 		const avatar = avatarIn(dialog)
 
-		await expect(avatar.querySelector("img")).toHaveAttribute(
+		await expect(await pictureOf(avatar)).toHaveAttribute(
 			"src",
 			UPLOADED_AVATAR_IMAGE,
 		)

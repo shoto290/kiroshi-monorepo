@@ -43,7 +43,7 @@ export const Default = meta.story({
 		},
 	},
 	play: async ({ canvas }) => {
-		const image = canvas.getByAltText(NAME)
+		const image = await canvas.findByAltText(NAME)
 
 		await expect(getComputedStyle(image).objectFit).toBe("cover")
 	},

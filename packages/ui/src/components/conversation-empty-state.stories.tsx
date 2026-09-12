@@ -3,6 +3,7 @@ import { expect } from "storybook/test"
 import preview from "@workspace/storybook/preview"
 import {
 	botIdentityAvatars,
+	pictureOf,
 	UPLOADED_AVATAR_IMAGE,
 } from "@workspace/storybook/story-utils"
 import { ConversationEmptyState } from "@workspace/ui/components/conversation-empty-state"
@@ -95,7 +96,7 @@ export const WithPicture = meta.story({
 	play: async ({ canvasElement }) => {
 		const [avatar] = botIdentityAvatars(canvasElement)
 
-		await expect(avatar?.querySelector("img")).toHaveAttribute(
+		await expect(await pictureOf(avatar)).toHaveAttribute(
 			"src",
 			UPLOADED_AVATAR_IMAGE,
 		)

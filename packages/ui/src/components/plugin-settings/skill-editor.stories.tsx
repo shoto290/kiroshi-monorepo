@@ -2,7 +2,10 @@ import { useState } from "react"
 import { expect, fn, screen, waitFor, within } from "storybook/test"
 
 import preview from "@workspace/storybook/preview"
-import { A11Y_CONTRAST_AWAITING_DESIGN_DECISION } from "@workspace/storybook/story-utils"
+import {
+	A11Y_CONTRAST_AWAITING_DESIGN_DECISION,
+	FRAME_POLL,
+} from "@workspace/storybook/story-utils"
 import { BLANK_SKILL_DRAFT } from "@workspace/ui/components/bot-settings"
 import {
 	SkillEditor,
@@ -318,6 +321,11 @@ export const IconRail = meta.story({
 		},
 	},
 	play: async ({ canvas, userEvent }) => {
+		await waitFor(
+			() => expect(canvas.getByText("All skills")).toHaveClass("sr-only"),
+			FRAME_POLL,
+		)
+
 		await userEvent.hover(canvas.getByRole("button", { name: "All skills" }))
 		await expect(await screen.findByRole("tooltip")).toHaveTextContent(
 			"All skills",
