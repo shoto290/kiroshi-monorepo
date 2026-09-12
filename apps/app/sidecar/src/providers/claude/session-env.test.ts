@@ -1,7 +1,13 @@
 import { describe, expect, it } from "bun:test"
 
 import { EXECUTABLE_OVERRIDE_ENV } from "./executable"
-import { inheritedEnv } from "./session-env"
+import {
+	CLASSIFY_ASK_USER_QUESTION,
+	CONNECTION_KEYS,
+	connectionEnv,
+	inheritedEnv,
+	sessionEnv,
+} from "./session-env"
 
 describe("inheritedEnv", () => {
 	it("keeps every allowed key the sidecar carries", () => {
@@ -63,5 +69,55 @@ describe("inheritedEnv", () => {
 
 	it("omits an allowed key the sidecar does not carry", () => {
 		expect(inheritedEnv({ PATH: "/usr/bin" })).not.toHaveProperty("HOME")
+	})
+
+	it("carries the config directory the host names", () => {
+		const source = { PATH: "/usr/bin", CLAUDE_CONFIG_DIR: "/tmp/claude-config" }
+
+		expect(inheritedEnv(source)).toEqual(source)
+	})
+})
+
+describe("connectionEnv", () => {
+	it("keeps the two connection names and no other name of the base", () => {
+		const base = {
+			ANTHROPIC_API_KEY: "sk-stored",
+			CLAUDE_CODE_OAUTH_TOKEN: "token",
+			LINEAR_KEY: "lin",
+		}
+
+		expect(connectionEnv(base)).toEqual({
+			ANTHROPIC_API_KEY: "sk-stored",
+			CLAUDE_CODE_OAUTH_TOKEN: "token",
+		})
+	})
+
+	it("carries nothing while the base holds no connection name", () => {
+		expect(connectionEnv({ LINEAR_KEY: "lin" })).toEqual({})
+		expect(connectionEnv()).toEqual({})
+	})
+})
+
+describe("sessionEnv", () => {
+	it("is the allowlist, the stored source and the session switches", () => {
+		const env = sessionEnv(
+			{ ANTHROPIC_API_KEY: "sk-stored", LINEAR_KEY: "lin" },
+			{ PATH: "/usr/bin", CLAUDE_CODE_OAUTH_TOKEN: "from-the-host" },
+		)
+
+		expect(env).toEqual({
+			PATH: "/usr/bin",
+			ANTHROPIC_API_KEY: "sk-stored",
+			CLAUDE_CODE_DISABLE_AUTO_MEMORY: "1",
+			[CLASSIFY_ASK_USER_QUESTION]: "0",
+		})
+	})
+
+	it("reads no connection source from the host environment", () => {
+		const host = { PATH: "/usr/bin", ANTHROPIC_API_KEY: "sk-host" }
+
+		for (const key of CONNECTION_KEYS) {
+			expect(sessionEnv(undefined, host)).not.toHaveProperty(key)
+		}
 	})
 })

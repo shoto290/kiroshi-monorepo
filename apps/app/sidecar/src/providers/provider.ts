@@ -58,6 +58,7 @@ export type ProviderAccount = {
 
 export type ProviderAuth = {
 	authenticated: boolean
+	authMethod?: string
 	detail?: string
 	account?: ProviderAccount
 }
@@ -77,7 +78,7 @@ export type AgentProvider = {
 	sdkVersion: string
 	capabilities: ProviderCapability[]
 	assertReady: () => void
-	authenticate: () => Promise<ProviderAuth>
+	authenticate: (connection?: Record<string, string>) => Promise<ProviderAuth>
 	signIn: (emit: EmitFrame) => Promise<SignInAnswer>
 	enterSignInCode: (text: string) => void
 	cancelSignIn: () => void

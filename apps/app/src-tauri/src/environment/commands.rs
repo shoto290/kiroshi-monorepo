@@ -2,8 +2,8 @@ use std::path::PathBuf;
 
 use tauri::{AppHandle, Runtime};
 
-use super::contract::{is_reserved, EnvEntry, EnvError, EnvScope};
-use super::store;
+use super::contract::{is_reserved, ConnectionKind, EnvEntry, EnvError, EnvScope};
+use super::{connection, store};
 
 pub fn writable_root<R: Runtime>(app: &AppHandle<R>) -> Result<PathBuf, EnvError> {
 	store::root(app).ok_or_else(|| EnvError::Unwritable {
@@ -50,6 +50,27 @@ pub async fn env_list<R: Runtime>(
 	store::list(&writable_root(&app)?, &scope)
 }
 
+#[tauri::command]
+pub async fn connection_set<R: Runtime>(
+	app: AppHandle<R>,
+	kind: ConnectionKind,
+	value: String,
+) -> Result<(), EnvError> {
+	connection::hold(&writable_root(&app)?, kind, &value)
+}
+
+#[tauri::command]
+pub async fn connection_clear<R: Runtime>(app: AppHandle<R>) -> Result<(), EnvError> {
+	connection::clear(&writable_root(&app)?)
+}
+
+#[tauri::command]
+pub async fn connection_kind<R: Runtime>(
+	app: AppHandle<R>,
+) -> Result<Option<ConnectionKind>, EnvError> {
+	connection::held_kind(&writable_root(&app)?)
+}
+
 #[cfg(test)]
 mod tests {
 	use std::fs;
@@ -57,7 +78,7 @@ mod tests {
 	use super::*;
 	use crate::agent::protocol::OauthCredentials;
 	use crate::environment::contract::{
-		EnvOwner, OAUTH_ACCESS_TOKEN, OAUTH_REFRESH_TOKEN, RESERVED_NAMES,
+		EnvOwner, CONNECTION_NAMES, OAUTH_ACCESS_TOKEN, OAUTH_REFRESH_TOKEN, RESERVED_NAMES,
 	};
 	use crate::mcp_oauth::credentials;
 
@@ -120,6 +141,29 @@ mod tests {
 		let kept = store::values(&root, &scope).expect("the scope is readable");
 		assert_eq!(kept.get(OAUTH_ACCESS_TOKEN).map(String::as_str), Some("held"));
 		assert_eq!(kept.get(OAUTH_REFRESH_TOKEN), None);
+	}
+
+	#[test]
+	fn both_connection_names_are_refused_at_every_scope_and_the_held_source_stands() {
+		let root = a_root("connection-names");
+		connection::hold(&root, ConnectionKind::ApiKey, "sk-held").expect("the key is stored");
+		let held = connection::held(&root).expect("the store reads");
+		let narrower =
+			[EnvScope::Space { id: "s1".to_owned() }, EnvScope::from(&a_bot()), a_server()];
+
+		for scope in narrower.iter().chain([&EnvScope::Person]) {
+			for name in CONNECTION_NAMES {
+				assert_eq!(
+					set_by_the_person(&root, scope, name, "typed"),
+					Err(EnvError::InvalidName { name: name.to_owned() })
+				);
+			}
+		}
+
+		for scope in &narrower {
+			assert!(store::values(&root, scope).expect("the scope is readable").is_empty());
+		}
+		assert_eq!(connection::held(&root).expect("the store reads"), held);
 	}
 
 	#[test]

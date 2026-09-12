@@ -3,7 +3,7 @@ use serde::{Deserialize, Deserializer, Serialize};
 use serde_json::Value;
 
 use super::contract::{Account, AgentCommand};
-use crate::environment::contract::ResolvedEnv;
+use crate::environment::contract::{ResolvedEnv, Values};
 
 fn null_as_default<'de, D, T>(deserializer: D) -> Result<T, D::Error>
 where
@@ -357,6 +357,10 @@ pub fn ask_command(kind: &str) -> Value {
 	serde_json::json!({ "type": kind })
 }
 
+pub fn check_command(connection: &Values) -> Value {
+	serde_json::json!({ "type": CHECK, "connection": connection })
+}
+
 pub fn title_command(text: &str) -> Value {
 	serde_json::json!({ "type": TITLE, "text": text })
 }
@@ -370,6 +374,8 @@ pub struct Checked {
 	pub detail: Option<String>,
 	#[serde(default)]
 	pub account: Option<Account>,
+	#[serde(default)]
+	pub auth_method: Option<String>,
 }
 
 #[derive(Debug, Clone, Deserialize)]

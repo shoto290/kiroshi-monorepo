@@ -545,7 +545,7 @@ fn serve() {
 
 fn answer_the_host(command: &Value) {
 	match command["type"].as_str() {
-		Some("check") => emit_raw(&checked().to_string()),
+		Some("check") => emit_raw(&checked(&command["connection"]).to_string()),
 		Some("models") => emit_raw(&json!({ "type": "models", "models": models() }).to_string()),
 		Some("tools") => emit_raw(&json!({ "type": "tools", "tools": tools() }).to_string()),
 		Some("title") => {
@@ -634,18 +634,29 @@ fn on_oauth_cancel() {
 	);
 }
 
-fn checked() -> Value {
+fn checked(connection: &Value) -> Value {
 	if let Ok(detail) = std::env::var("FAKE_AGENT_CHECK_FAILS") {
 		return json!({ "type": "check", "authenticated": false, "detail": detail });
 	}
 	if std::env::var("FAKE_AGENT_SIGNED_OUT").is_ok() {
 		return json!({ "type": "check", "authenticated": false });
 	}
-	json!({
+	let mut answer = json!({
 		"type": "check",
 		"authenticated": true,
 		"account": { "email": "bean@example.test", "plan": "max" }
-	})
+	});
+	if let Some(method) = method_of(connection) {
+		answer["authMethod"] = json!(method);
+	}
+	answer
+}
+
+fn method_of(connection: &Value) -> Option<&'static str> {
+	if connection.get("ANTHROPIC_API_KEY").is_some() {
+		return Some("api_key");
+	}
+	connection.get("CLAUDE_CODE_OAUTH_TOKEN").map(|_| "oauth_token")
 }
 
 fn models() -> Vec<String> {

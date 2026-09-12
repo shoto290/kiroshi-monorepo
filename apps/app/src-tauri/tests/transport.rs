@@ -11,6 +11,7 @@ use kiroshi_app::agent::contract::{
 };
 use kiroshi_app::agent::session::{EventSink, Session, SessionOptions, PARTIAL_MESSAGES};
 use kiroshi_app::agent::sidecar::{self, Opening, Sidecar, SidecarOptions, SHUTDOWN_GRACE};
+use kiroshi_app::environment::contract::Values;
 use tokio::sync::mpsc;
 
 const FAKE_SIDECAR: &str = env!("CARGO_BIN_EXE_fake_sidecar");
@@ -208,7 +209,9 @@ async fn streams_a_normal_turn_and_closes_it() {
 async fn the_install_is_asked_of_the_sidecar_the_sessions_are_served_from() {
 	let live = sidecar_with(&[("FAKE_AGENT_MODELS", "quasar,nimbus-preview")]).await;
 
-	assert!(live.checked().await.expect("the sign-in probe answers").authenticated);
+	assert!(
+		live.checked(&Values::new()).await.expect("the sign-in probe answers").authenticated
+	);
 	assert_eq!(live.catalogue().await.expect("the catalogue answers"), ["quasar", "nimbus-preview"]);
 
 	let mut harness = start_on(live, options("normal")).await.expect("session starts");
@@ -234,7 +237,7 @@ async fn an_ask_on_a_dead_sidecar_is_refused_rather_than_left_hanging() {
 	gone.shutdown().await;
 
 	assert!(matches!(
-		gone.checked().await,
+		gone.checked(&Values::new()).await,
 		Err(TransportError::WriteFailed { .. }) | Err(TransportError::Crashed { .. })
 	));
 	assert!(matches!(

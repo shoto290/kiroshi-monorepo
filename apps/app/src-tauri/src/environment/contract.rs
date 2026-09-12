@@ -19,8 +19,39 @@ pub const RESERVED_NAMES: [&str; 5] = [
 	OAUTH_CLIENT_SECRET,
 ];
 
+pub const API_KEY: &str = "ANTHROPIC_API_KEY";
+pub const SUBSCRIPTION_TOKEN: &str = "CLAUDE_CODE_OAUTH_TOKEN";
+
+pub const CONNECTION_NAMES: [&str; 2] = [API_KEY, SUBSCRIPTION_TOKEN];
+
 pub fn is_reserved(name: &str) -> bool {
-	RESERVED_NAMES.contains(&name)
+	RESERVED_NAMES.contains(&name) || is_a_connection_name(name)
+}
+
+pub fn is_a_connection_name(name: &str) -> bool {
+	CONNECTION_NAMES.contains(&name)
+}
+
+#[derive(Debug, Clone, Copy, PartialEq, Eq, Serialize, Deserialize)]
+#[serde(rename_all = "camelCase")]
+pub enum ConnectionKind {
+	ApiKey,
+	SubscriptionToken,
+}
+
+impl ConnectionKind {
+	pub fn name(self) -> &'static str {
+		match self {
+			ConnectionKind::ApiKey => API_KEY,
+			ConnectionKind::SubscriptionToken => SUBSCRIPTION_TOKEN,
+		}
+	}
+
+	pub fn named(name: &str) -> Option<Self> {
+		[ConnectionKind::ApiKey, ConnectionKind::SubscriptionToken]
+			.into_iter()
+			.find(|kind| kind.name() == name)
+	}
 }
 
 #[derive(Debug, Clone, PartialEq, Eq, Serialize, Deserialize)]
@@ -41,6 +72,8 @@ pub enum EnvScope {
 	Bot { id: String, space_id: String },
 	#[serde(rename_all = "camelCase")]
 	Server { name: String, owner: EnvOwner },
+	#[serde(skip_deserializing)]
+	Person,
 }
 
 impl From<&EnvOwner> for EnvScope {
@@ -90,13 +123,22 @@ impl ResolvedEnv {
 #[serde(tag = "kind", rename_all = "camelCase")]
 pub enum EnvError {
 	#[serde(rename_all = "camelCase")]
-	InvalidName { name: String },
+	InvalidName {
+		name: String,
+	},
 	#[serde(rename_all = "camelCase")]
-	InvalidScope { detail: String },
+	InvalidScope {
+		detail: String,
+	},
 	#[serde(rename_all = "camelCase")]
-	Unreadable { detail: String },
+	Unreadable {
+		detail: String,
+	},
 	#[serde(rename_all = "camelCase")]
-	Unwritable { detail: String },
+	Unwritable {
+		detail: String,
+	},
+	EmptyValue,
 }
 
 #[cfg(test)]
@@ -142,6 +184,34 @@ mod tests {
 		assert!(RESERVED_NAMES.iter().all(|name| is_reserved(name)));
 		assert!(!is_reserved("KIROSHI_OAUTH"));
 		assert!(!is_reserved("GRANOLA_REGION"));
+	}
+
+	#[test]
+	fn both_connection_names_are_reserved_and_each_names_its_kind() {
+		assert!(CONNECTION_NAMES.iter().all(|name| is_reserved(name)));
+		assert_eq!(ConnectionKind::named(API_KEY), Some(ConnectionKind::ApiKey));
+		assert_eq!(
+			ConnectionKind::named(SUBSCRIPTION_TOKEN),
+			Some(ConnectionKind::SubscriptionToken)
+		);
+		assert_eq!(ConnectionKind::named("GRANOLA_REGION"), None);
+		assert_eq!(
+			to_value(ConnectionKind::SubscriptionToken).expect("the kind serializes"),
+			json!("subscriptionToken")
+		);
+	}
+
+	#[test]
+	fn the_scope_wider_than_every_space_cannot_be_named_by_the_front() {
+		assert!(from_value::<EnvScope>(json!({ "kind": "person" })).is_err());
+	}
+
+	#[test]
+	fn an_empty_value_crosses_as_its_own_kind() {
+		assert_eq!(
+			to_value(EnvError::EmptyValue).expect("the error"),
+			json!({ "kind": "emptyValue" })
+		);
 	}
 
 	#[test]

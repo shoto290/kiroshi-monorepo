@@ -19,6 +19,7 @@ use crate::conversations::commands::space_of_the_conversation;
 use crate::db;
 use crate::db::repositories::conversations::Bot as StoredBot;
 use crate::db::repositories::runtime_context::ParticipantKey;
+use crate::environment::connection;
 use crate::environment::contract::{EnvError, EnvOwner, ResolvedEnv};
 use crate::environment::store as environment;
 use crate::mcp_oauth::refresh;
@@ -417,25 +418,35 @@ pub async fn agent_check<R: Runtime>(
 		scope.clone(),
 		AgentEvent::ConnectionChanged { state: ConnectionState::Checking },
 	);
-	let report = check(app.state::<AgentState>().inner()).await;
+	let env_root = environment::root(&app);
+	let report = check(app.state::<AgentState>().inner(), env_root.as_deref()).await;
 	announce(&app, scope, AgentEvent::ConnectionChanged { state: report.connection });
 	report
 }
 
-pub async fn check(state: &AgentState) -> CheckReport {
+pub async fn check(state: &AgentState, env_root: Option<&Path>) -> CheckReport {
 	let sidecar = match state.sidecar().await {
 		Ok(sidecar) => sidecar,
 		Err(error) => return reported(None, Err(error)),
 	};
 	let version = sidecar.version().to_owned();
-	reported(Some(version), sidecar.checked().await)
+	let connection = match env_root.map(connection::held).transpose() {
+		Ok(held) => held.unwrap_or_default(),
+		Err(error) => {
+			let detail = format!("{ENV_UNREADABLE}: {error:?}");
+			return reported(Some(version), Err(TransportError::AuthCheckFailed { detail }));
+		}
+	};
+	reported(Some(version), sidecar.checked(&connection).await)
 }
 
 fn reported(binary_version: Option<String>, probe: Result<Checked, TransportError>) -> CheckReport {
-	let (account, error) = match probe {
-		Ok(Checked { authenticated: true, account, .. }) => (account, None),
-		Ok(Checked { account, .. }) => (account, Some(TransportError::NotAuthenticated)),
-		Err(error) => (None, Some(error)),
+	let (auth_method, account, error) = match probe {
+		Ok(checked) if checked.authenticated => (checked.auth_method, checked.account, None),
+		Ok(checked) => {
+			(checked.auth_method, checked.account, Some(TransportError::NotAuthenticated))
+		}
+		Err(error) => (None, None, Some(error)),
 	};
 	CheckReport {
 		connection: match error {
@@ -444,6 +455,7 @@ fn reported(binary_version: Option<String>, probe: Result<Checked, TransportErro
 		},
 		binary_version,
 		authenticated: error.is_none(),
+		auth_method,
 		error,
 		account,
 	}
@@ -456,7 +468,7 @@ struct RuntimeIdentity {
 	server_env: ResolvedEnv,
 }
 
-const ENV_UNREADABLE: &str = "the environment store could not be read";
+pub const ENV_UNREADABLE: &str = "the environment store could not be read";
 
 async fn served_environment<R: Runtime>(
 	app: &AppHandle<R>,

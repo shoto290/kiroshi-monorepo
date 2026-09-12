@@ -17,11 +17,11 @@ import {
 import { AWAITING_AUTH, leftOut } from "./server-env"
 import {
 	buildOptions,
-	CLASSIFY_ASK_USER_QUESTION,
 	dialledServers,
 	reportConnections,
 	stopTurn,
 } from "./session"
+import { CLASSIFY_ASK_USER_QUESTION, CONNECTION_KEYS } from "./session-env"
 import {
 	AUTHORIZE_LINE,
 	bundleLine,
@@ -179,6 +179,25 @@ describe("buildOptions", () => {
 		expect(env.KIROSHI_SECRET_TOKEN).toBeUndefined()
 		expect(env.PATH).toBe(process.env.PATH)
 		expect(env[EXECUTABLE_OVERRIDE_ENV]).toBe(claudeSourceExecutable())
+	})
+
+	it("hands the agent the connection names of the resolved base and no other name of it", () => {
+		const serverEnv = {
+			base: { CLAUDE_CODE_OAUTH_TOKEN: "stored-token", LINEAR_KEY: "lin" },
+		}
+
+		const env = buildOptions({ ...request, serverEnv }, undefined).env ?? {}
+
+		expect(env.CLAUDE_CODE_OAUTH_TOKEN).toBe("stored-token")
+		expect(env.LINEAR_KEY).toBeUndefined()
+	})
+
+	it("hands the agent no connection name while none is stored", () => {
+		const env = buildOptions(request, undefined).env ?? {}
+
+		for (const key of CONNECTION_KEYS) {
+			expect(env).not.toHaveProperty(key)
+		}
 	})
 
 	it("names no tool in the layer, so it grants no capability", () => {

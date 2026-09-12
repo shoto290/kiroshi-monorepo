@@ -37,6 +37,7 @@ type Command = {
 	partialMessages?: boolean
 	serverEnv?: ServerEnv
 	outputSchema?: Record<string, unknown>
+	connection?: Record<string, string>
 	text?: string
 	url?: string
 	token?: string
@@ -123,7 +124,10 @@ export const serve = async (requestedId?: string) => {
 		const { type, text } = command
 		switch (type) {
 			case "check":
-				return write({ type, ...(await provider.authenticate()) })
+				return write({
+					type,
+					...(await provider.authenticate(command.connection)),
+				})
 			case "models":
 				return write({ type, models: await provider.models().catch(() => []) })
 			case "tools":

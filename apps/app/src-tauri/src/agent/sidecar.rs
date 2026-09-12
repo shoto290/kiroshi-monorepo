@@ -19,6 +19,7 @@ use super::protocol::{
 	self, Authorized, Catalogue, Checked, OauthStarted, Ready, RefreshRequest, RevocationRequest,
 	Revoked, SignedIn, Titled, ToolCatalogue,
 };
+use crate::environment::contract::Values;
 
 pub const SIDECAR_OVERRIDE_ENV: &str = "KIROSHI_AGENT_SIDECAR";
 
@@ -223,8 +224,10 @@ impl Sidecar {
 		self.routes.lock().expect("routes").remove(key);
 	}
 
-	pub async fn checked(&self) -> Result<Checked, TransportError> {
-		let answer = self.ask(protocol::CHECK, CHECK_TIMEOUT).await?;
+	pub async fn checked(&self, connection: &Values) -> Result<Checked, TransportError> {
+		let answer = self
+			.ask_with(protocol::CHECK, protocol::check_command(connection), CHECK_TIMEOUT)
+			.await?;
 		let mut checked: Checked = serde_json::from_value(answer)
 			.map_err(|error| TransportError::AuthCheckFailed { detail: error.to_string() })?;
 		match checked.detail.take() {

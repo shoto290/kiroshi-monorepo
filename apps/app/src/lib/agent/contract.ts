@@ -118,6 +118,7 @@ export type CheckReport = {
 	connection: ConnectionState
 	binaryVersion: string | null
 	authenticated: boolean
+	authMethod?: string
 	error: TransportError | null
 	account?: Account
 }
