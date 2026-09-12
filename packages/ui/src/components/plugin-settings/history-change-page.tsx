@@ -139,6 +139,50 @@ const HistoryChangePage = ({
 			.join(", ")
 	}
 
+	const bodyOf = () => {
+		if (haveFilesFailedToRead)
+			return (
+				<div className={cn(BODY_CLASS, "min-h-0 flex-1")}>
+					<Notice title={t("history.change.unavailable")} />
+				</div>
+			)
+
+		if (areFilesReading)
+			return (
+				<div
+					className={cn(
+						BODY_CLASS,
+						"min-h-0 flex-1 flex-row items-center gap-2 text-muted-foreground text-xs/4",
+					)}
+				>
+					<Icons.Loading
+						aria-hidden="true"
+						className="size-3.5 animate-spin motion-reduce:animate-none"
+					/>
+					{t("history.diff.loading")}
+				</div>
+			)
+
+		return files.map((file) => (
+			<SettingsScrollingPanel isFlush key={file.path} value={file.path}>
+				<div className={BODY_CLASS}>
+					{reason ? (
+						<p className="text-foreground text-sm/5">{reason}</p>
+					) : null}
+					<div className="flex items-baseline gap-2">
+						<span className="min-w-0 break-words font-mono text-foreground text-xs/4">
+							{file.path}
+						</span>
+						<span className="shrink-0 text-muted-foreground text-xs/4">
+							{countedIn(file.patch)}
+						</span>
+					</div>
+					<CommitDiff patch={file.patch} />
+				</div>
+			</SettingsScrollingPanel>
+		))
+	}
+
 	return (
 		<Tabs.Root
 			className={cn("flex min-h-0 flex-1", className)}
@@ -172,47 +216,7 @@ const HistoryChangePage = ({
 					<p className="text-muted-foreground text-xs/4">{meta}</p>
 				</header>
 
-				{haveFilesFailedToRead ? (
-					<div className={cn(BODY_CLASS, "min-h-0 flex-1")}>
-						<Notice title={t("history.change.unavailable")} />
-					</div>
-				) : null}
-
-				{!haveFilesFailedToRead && areFilesReading ? (
-					<div
-						className={cn(
-							BODY_CLASS,
-							"min-h-0 flex-1 flex-row items-center gap-2 text-muted-foreground text-xs/4",
-						)}
-					>
-						<Icons.Loading
-							aria-hidden="true"
-							className="size-3.5 animate-spin motion-reduce:animate-none"
-						/>
-						{t("history.diff.loading")}
-					</div>
-				) : null}
-
-				{!haveFilesFailedToRead && !areFilesReading
-					? files.map((file) => (
-							<SettingsScrollingPanel isFlush key={file.path} value={file.path}>
-								<div className={BODY_CLASS}>
-									{reason ? (
-										<p className="text-foreground text-sm/5">{reason}</p>
-									) : null}
-									<div className="flex items-baseline gap-2">
-										<span className="min-w-0 break-words font-mono text-foreground text-xs/4">
-											{file.path}
-										</span>
-										<span className="shrink-0 text-muted-foreground text-xs/4">
-											{countedIn(file.patch)}
-										</span>
-									</div>
-									<CommitDiff patch={file.patch} />
-								</div>
-							</SettingsScrollingPanel>
-						))
-					: null}
+				{bodyOf()}
 
 				<div className={FOOT_CLASS}>
 					<ConfirmDialog
