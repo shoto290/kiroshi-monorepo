@@ -68,6 +68,11 @@ const chatWith = (overrides: Partial<ChatState> = {}): ChatState => ({
 	...overrides,
 })
 
+const tailOf = (
+	controller: OnboardingController,
+	chat: ChatState = chatWith(),
+) => onboardingTailOf(onboardingOf(controller), chat, HOME_BOT)
+
 const summonsAsked = message({
 	id: "m-summons",
 	turnId: SUMMONS_TURN,
@@ -88,9 +93,7 @@ describe("the onboarding tail", () => {
 		const controller = controllerOf()
 		await controller.finish()
 
-		expect(
-			onboardingTailOf(onboardingOf(controller), chatWith(), HOME_BOT),
-		).toBeNull()
+		expect(tailOf(controller)).toBeNull()
 	})
 
 	it("stands down when no onboarding is running", () => {
@@ -98,11 +101,7 @@ describe("the onboarding tail", () => {
 	})
 
 	it("shows the welcome card before any step is taken", () => {
-		const tail = onboardingTailOf(
-			onboardingOf(controllerOf()),
-			chatWith(),
-			HOME_BOT,
-		)
+		const tail = tailOf(controllerOf())
 
 		expect(tail?.hasWelcome).toBe(true)
 		expect(tail?.hasPill).toBe(false)
@@ -110,11 +109,7 @@ describe("the onboarding tail", () => {
 
 	it("shows the pill alone while the summoned turn is pending", async () => {
 		const controller = await settled()
-		const tail = onboardingTailOf(
-			onboardingOf(controller),
-			chatWith({ messages: [summonsAsked] }),
-			HOME_BOT,
-		)
+		const tail = tailOf(controller, chatWith({ messages: [summonsAsked] }))
 
 		expect(tail?.hasPill).toBe(true)
 		expect(tail?.hasTest).toBe(false)
@@ -123,10 +118,9 @@ describe("the onboarding tail", () => {
 
 	it("shows the test card once the answer landed", async () => {
 		const controller = await settled()
-		const tail = onboardingTailOf(
-			onboardingOf(controller),
+		const tail = tailOf(
+			controller,
 			chatWith({ messages: [summonsAsked, answered] }),
-			HOME_BOT,
 		)
 
 		expect(tail?.hasTest).toBe(true)
@@ -135,8 +129,8 @@ describe("the onboarding tail", () => {
 
 	it("shows the failure detail and no test card when the turn failed", async () => {
 		const controller = await settled()
-		const tail = onboardingTailOf(
-			onboardingOf(controller),
+		const tail = tailOf(
+			controller,
 			chatWith({
 				messages: [summonsAsked],
 				turn: "failed",
@@ -147,7 +141,6 @@ describe("the onboarding tail", () => {
 					},
 				],
 			}),
-			HOME_BOT,
 		)
 
 		expect(tail?.turnFailure).toBe("the agent stopped")
@@ -165,11 +158,7 @@ describe("the onboarding tail", () => {
 	it("shows the picker options once the reader picked", async () => {
 		const controller = await settled()
 		await controller.pickCompanion()
-		const tail = onboardingTailOf(
-			onboardingOf(controller),
-			chatWith(),
-			HOME_BOT,
-		)
+		const tail = tailOf(controller)
 
 		expect(tail?.picks).toHaveLength(world.suggestions.length)
 		expect(tail?.hasTest).toBe(false)
@@ -181,11 +170,7 @@ describe("the onboarding tail", () => {
 		await controller.pickCompanion()
 		world.refusals.create = { kind: "storage", detail: "disk is full" }
 		await controller.addCompanion(SUGGESTED_SCOUT.id)
-		const tail = onboardingTailOf(
-			onboardingOf(controller),
-			chatWith(),
-			HOME_BOT,
-		)
+		const tail = tailOf(controller)
 
 		expect(tail?.picks).toHaveLength(world.suggestions.length)
 		expect(tail?.handoff).toBeNull()
@@ -195,11 +180,7 @@ describe("the onboarding tail", () => {
 		const controller = await settled()
 		await controller.pickCompanion()
 		await controller.addCompanion(SUGGESTED_SCOUT.id)
-		const tail = onboardingTailOf(
-			onboardingOf(controller),
-			chatWith(),
-			HOME_BOT,
-		)
+		const tail = tailOf(controller)
 
 		expect(tail?.handoff?.name).toBe(SUGGESTED_SCOUT.name)
 		expect(tail?.picks).toBeNull()

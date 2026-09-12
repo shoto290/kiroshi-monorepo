@@ -189,7 +189,7 @@ export const createOnboardingController = (
 	}
 
 	const finishRun = () => {
-		set({ step: "done", card: null, suggestions: [] })
+		set({ step: "done", card: null })
 		return world.markFirstRunDone()
 	}
 
