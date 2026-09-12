@@ -18,6 +18,7 @@ export type HistoryRange = (
 ) => void
 
 export type HistoryViewSource = HistoryFilesState & {
+	isOpen: boolean
 	commits: BotHistoryEntry[]
 	hasFailedToLoad: boolean
 	onOpenRun: HistoryRange
@@ -25,6 +26,7 @@ export type HistoryViewSource = HistoryFilesState & {
 }
 
 export const useHistoryView = ({
+	isOpen,
 	commits,
 	files,
 	areFilesReading,
@@ -34,6 +36,10 @@ export const useHistoryView = ({
 	onUndoRun,
 }: HistoryViewSource): PluginHistory => {
 	const [searchText, setSearchText] = useState("")
+
+	if (!isOpen && searchText) {
+		setSearchText("")
+	}
 
 	const runs = toHistoryRuns(commits)
 

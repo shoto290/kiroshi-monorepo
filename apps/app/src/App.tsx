@@ -298,6 +298,7 @@ export function App() {
 
 	const botHistory = useHistoryView({
 		...history.state,
+		isOpen: isEditing,
 		onOpenRun: history.controller.openFiles,
 		onUndoRun: (oldestCommitId, newestCommitId) => {
 			history.controller.revert(oldestCommitId, newestCommitId)
@@ -307,12 +308,14 @@ export function App() {
 
 	const spaceHistory = useHistoryView({
 		...spacePlugin.state,
+		isOpen: isSpaceEditing,
 		onOpenRun: spacePlugin.controller.openFiles,
 		onUndoRun: spacePlugin.controller.revert,
 	})
 
 	const userHistory = useHistoryView({
 		...userPlugin.state,
+		isOpen: user.state.isSettingsOpen,
 		onOpenRun: userPlugin.controller.openFiles,
 		onUndoRun: userPlugin.controller.revert,
 	})
