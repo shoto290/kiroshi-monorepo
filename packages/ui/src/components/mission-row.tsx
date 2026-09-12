@@ -52,19 +52,12 @@ const MissionRow = ({
 }: MissionRowProps) => {
 	const { t } = useTranslation("chat")
 	const { Mark, isNamed } = missionTicketPlatform(ticket.platform)
-	const hasTicket = isTicketed(ticket)
+	const isWorking = state === "working"
 	const parts = [
-		...(hasTicket
-			? [
-					{
-						key: "ticket",
-						text: isNamed ? ticket.externalId : ticket.title,
-					},
-				]
-			: []),
-		{ key: "bot", text: bot.name },
-		{ key: "state", text: t(`missions.state.${state}`) },
-	].filter((part) => part.text !== "")
+		isNamed ? ticket.externalId : ticket.title,
+		bot.name,
+		t(`missions.state.${state}`),
+	].filter((part) => part !== "")
 
 	return (
 		<li data-slot="mission-row">
@@ -72,28 +65,25 @@ const MissionRow = ({
 				badge={BADGE_OF[state]}
 				data-opens={id}
 				isNameMuted={state === "done"}
-				isWorking={state === "working"}
+				isWorking={isWorking}
 				media={
 					<BotIdentityAvatar
 						{...bot}
 						kind="working"
 						size={MISSION_AVATAR_SIZE}
-						working={state === "working"}
+						working={isWorking}
 					/>
 				}
 				name={objective}
 				onSelect={onOpen}
 				preview={
 					<>
-						{hasTicket ? (
+						{isTicketed(ticket) ? (
 							<Mark aria-hidden="true" className={MARK_CLASS} />
 						) : null}
 						{parts.map((part, index) => (
-							<span
-								className={index === 0 ? undefined : DOT_CLASS}
-								key={part.key}
-							>
-								{part.text}
+							<span className={index === 0 ? undefined : DOT_CLASS} key={part}>
+								{part}
 							</span>
 						))}
 					</>
