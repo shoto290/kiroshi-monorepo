@@ -37,8 +37,9 @@ const UNDO_CLASS = "shrink-0 rounded-md font-medium text-xs/4"
 
 const FILE_ROW_CLASS = cn(RAIL_ITEM_CLASS, "relative overflow-hidden")
 
-const GHOST_CLASS =
-	"pointer-events-none invisible absolute top-0 w-max whitespace-nowrap"
+const CANDIDATES_CLASS = "pointer-events-none invisible absolute top-0 w-max"
+
+const CANDIDATE_CLASS = "block w-max whitespace-nowrap"
 
 const foldsOf = (path: string) => {
 	const segments = path.split("/")
@@ -73,9 +74,9 @@ const HistoryFileTab = ({ path }: HistoryFileTabProps) => {
 
 	const row = (
 		<Tabs.Tab className={FILE_ROW_CLASS} data-slot="history-file" value={path}>
-			<span aria-hidden="true" className={GHOST_CLASS} ref={setCandidates}>
+			<span aria-hidden="true" className={CANDIDATES_CLASS} ref={setCandidates}>
 				{folds.map((fold) => (
-					<span className="block w-max whitespace-nowrap" key={fold}>
+					<span className={CANDIDATE_CLASS} key={fold}>
 						{fold}
 					</span>
 				))}
