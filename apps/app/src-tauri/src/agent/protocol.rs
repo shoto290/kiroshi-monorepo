@@ -2,7 +2,7 @@
 use serde::{Deserialize, Deserializer, Serialize};
 use serde_json::Value;
 
-use super::contract::AgentCommand;
+use super::contract::{Account, AgentCommand};
 use crate::environment::contract::ResolvedEnv;
 
 fn null_as_default<'de, D, T>(deserializer: D) -> Result<T, D::Error>
@@ -313,6 +313,45 @@ pub const CHECK: &str = "check";
 pub const MODELS: &str = "models";
 pub const TOOLS: &str = "tools";
 pub const TITLE: &str = "title";
+pub const SIGN_IN: &str = "sign_in";
+pub const SIGN_IN_STARTED: &str = "sign_in_started";
+pub const SIGN_IN_CODE: &str = "sign_in_code";
+pub const SIGN_IN_CANCEL: &str = "sign_in_cancel";
+
+pub fn sign_in_code_command(text: &str) -> Value {
+	serde_json::json!({ "type": SIGN_IN_CODE, "text": text })
+}
+
+pub fn sign_in_cancel_command() -> Value {
+	serde_json::json!({ "type": SIGN_IN_CANCEL })
+}
+
+#[derive(Debug, Clone, Copy, PartialEq, Eq, Deserialize)]
+#[serde(rename_all = "camelCase")]
+pub enum SignInFailureKind {
+	Busy,
+	Cancelled,
+	TimedOut,
+	#[serde(other)]
+	Failed,
+}
+
+#[derive(Debug, Clone, Deserialize)]
+#[serde(rename_all = "camelCase")]
+pub struct SignInFailure {
+	pub kind: SignInFailureKind,
+	#[serde(default)]
+	pub detail: Option<String>,
+}
+
+#[derive(Debug, Clone, Deserialize)]
+#[serde(rename_all = "camelCase")]
+pub struct SignedIn {
+	#[serde(default, deserialize_with = "null_as_default")]
+	pub signed_in: bool,
+	#[serde(default)]
+	pub error: Option<SignInFailure>,
+}
 
 pub fn ask_command(kind: &str) -> Value {
 	serde_json::json!({ "type": kind })
@@ -329,6 +368,8 @@ pub struct Checked {
 	pub authenticated: bool,
 	#[serde(default)]
 	pub detail: Option<String>,
+	#[serde(default)]
+	pub account: Option<Account>,
 }
 
 #[derive(Debug, Clone, Deserialize)]

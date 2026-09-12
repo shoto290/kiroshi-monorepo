@@ -2,6 +2,11 @@ import { authenticateClaude } from "./auth"
 import { resolveExecutable } from "./executable"
 import { claudeModels } from "./models"
 import { openClaudeSession } from "./session"
+import {
+	cancelClaudeSignIn,
+	enterClaudeSignInCode,
+	signInClaude,
+} from "./sign-in"
 import { claudeTitle } from "./title"
 import { claudeTools } from "./tools"
 
@@ -23,6 +28,9 @@ export const claudeProvider: AgentProvider = {
 		resolveExecutable()
 	},
 	authenticate: authenticateClaude,
+	signIn: signInClaude,
+	enterSignInCode: enterClaudeSignInCode,
+	cancelSignIn: cancelClaudeSignIn,
 	models: claudeModels,
 	tools: claudeTools,
 	title: claudeTitle,

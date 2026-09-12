@@ -51,10 +51,25 @@ export type AgentSession = {
 	close: () => Promise<void>
 }
 
+export type ProviderAccount = {
+	email?: string
+	plan?: string
+}
+
 export type ProviderAuth = {
 	authenticated: boolean
 	detail?: string
+	account?: ProviderAccount
 }
+
+export type SignInFailure = {
+	kind: "busy" | "cancelled" | "timedOut" | "failed"
+	detail?: string
+}
+
+export type SignInAnswer =
+	| { signedIn: true }
+	| { signedIn: false; error: SignInFailure }
 
 export type AgentProvider = {
 	id: string
@@ -63,6 +78,9 @@ export type AgentProvider = {
 	capabilities: ProviderCapability[]
 	assertReady: () => void
 	authenticate: () => Promise<ProviderAuth>
+	signIn: (emit: EmitFrame) => Promise<SignInAnswer>
+	enterSignInCode: (text: string) => void
+	cancelSignIn: () => void
 	models: () => Promise<string[]>
 	tools: () => Promise<string[]>
 	title: (text: string) => Promise<string | null>

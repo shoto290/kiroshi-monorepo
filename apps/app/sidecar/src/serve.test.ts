@@ -115,7 +115,7 @@ describe("serve", () => {
 	)
 
 	it(
-		"answers the sign-in probe with a verdict and no identity",
+		"answers the sign-in probe with a verdict and at most an email and a plan",
 		async () => {
 			const { lines } = await served([JSON.stringify({ type: "check" })])
 			const checked = lines.at(-1)
@@ -124,7 +124,13 @@ describe("serve", () => {
 			expect(typeof checked.authenticated).toBe("boolean")
 			expect(
 				Object.keys(checked).filter(
-					(key) => !["type", "authenticated", "detail"].includes(key),
+					(key) =>
+						!["type", "authenticated", "detail", "account"].includes(key),
+				),
+			).toEqual([])
+			expect(
+				Object.keys(checked.account ?? {}).filter(
+					(key) => !["email", "plan"].includes(key),
 				),
 			).toEqual([])
 		},

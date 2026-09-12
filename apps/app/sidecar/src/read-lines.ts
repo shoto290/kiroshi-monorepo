@@ -1,7 +1,9 @@
 import { asAsyncIterable, yielded } from "./async-iterable"
 
-export const readLines = (): AsyncIterable<string> => {
-	const reader = Bun.stdin.stream().getReader()
+export const readLines = (
+	stream: ReadableStream<Uint8Array> = Bun.stdin.stream(),
+): AsyncIterable<string> => {
+	const reader = stream.getReader()
 	const decoder = new TextDecoder()
 	const pending: string[] = []
 	let buffer = ""

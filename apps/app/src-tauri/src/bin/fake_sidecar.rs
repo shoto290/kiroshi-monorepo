@@ -557,8 +557,55 @@ fn answer_the_host(command: &Value) {
 		Some("mcp_oauth_revoke") => {
 			emit_raw(&json!({ "type": "mcp_oauth_revoke", "revoked": true }).to_string())
 		}
+		Some("sign_in") => {
+			emit_raw(&json!({ "type": "sign_in_started", "url": sign_in_url() }).to_string())
+		}
+		Some("sign_in_code") => {
+			record_sign_in_frame("sign_in_code");
+			on_sign_in_code(command["text"].as_str().unwrap_or(""))
+		}
+		Some("sign_in_cancel") => {
+			record_sign_in_frame("sign_in_cancel");
+			on_sign_in_cancel()
+		}
 		_ => {}
 	}
+}
+
+const SIGN_IN_URL: &str = "https://claude.test/oauth/authorize?state=fake";
+
+const ACCEPTED_CODE: &str = "accepted-code";
+
+fn sign_in_url() -> String {
+	std::env::var("FAKE_AGENT_SIGN_IN_URL").unwrap_or_else(|_| SIGN_IN_URL.to_owned())
+}
+
+fn record_sign_in_frame(kind: &str) {
+	let Ok(path) = std::env::var("FAKE_AGENT_SIGN_IN_RECEIVED_FILE") else { return };
+	let Ok(mut file) = std::fs::OpenOptions::new().create(true).append(true).open(path) else {
+		return;
+	};
+	let _ = writeln!(file, "{kind}");
+}
+
+fn on_sign_in_code(text: &str) {
+	let answer = if text == ACCEPTED_CODE {
+		json!({ "type": "sign_in", "signedIn": true })
+	} else {
+		json!({
+			"type": "sign_in",
+			"signedIn": false,
+			"error": { "kind": "failed", "detail": "the code was refused" }
+		})
+	};
+	emit_raw(&answer.to_string());
+}
+
+fn on_sign_in_cancel() {
+	emit_raw(
+		&json!({ "type": "sign_in", "signedIn": false, "error": { "kind": "cancelled" } })
+			.to_string(),
+	);
 }
 
 const OAUTH_AUTHORIZATION_URL: &str = "https://authority.test/authorize?state=fake";
@@ -591,9 +638,13 @@ fn checked() -> Value {
 	if let Ok(detail) = std::env::var("FAKE_AGENT_CHECK_FAILS") {
 		return json!({ "type": "check", "authenticated": false, "detail": detail });
 	}
+	if std::env::var("FAKE_AGENT_SIGNED_OUT").is_ok() {
+		return json!({ "type": "check", "authenticated": false });
+	}
 	json!({
 		"type": "check",
-		"authenticated": std::env::var("FAKE_AGENT_SIGNED_OUT").is_err()
+		"authenticated": true,
+		"account": { "email": "bean@example.test", "plan": "max" }
 	})
 }
 

@@ -26,7 +26,7 @@ const NO_BUNDLES: &str = "the bundle directory is unavailable";
 
 const OPENABLE_SCHEMES: [&str; 2] = ["http://", "https://"];
 
-fn is_openable(url: &str) -> bool {
+pub(crate) fn is_openable(url: &str) -> bool {
 	let lowered = url.to_ascii_lowercase();
 	OPENABLE_SCHEMES.iter().any(|scheme| lowered.starts_with(scheme))
 }
