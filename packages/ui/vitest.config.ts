@@ -6,6 +6,11 @@ import { reactCompilerPreset } from "@vitejs/plugin-react"
 import { playwright } from "@vitest/browser-playwright"
 import { defineConfig } from "vitest/config"
 
+const NO_PAGE_OR_POINTER_SHARED_BETWEEN_STORY_FILES = {
+	isolate: true,
+	fileParallelism: false,
+}
+
 export default defineConfig({
 	test: {
 		projects: [
@@ -27,10 +32,7 @@ export default defineConfig({
 				test: {
 					name: "storybook",
 					setupFiles: [".storybook/vitest.setup.ts"],
-					// OPE-163: isolate keeps one story file's page out of the next one's,
-					// fileParallelism keeps them off each other's single real pointer.
-					isolate: true,
-					fileParallelism: false,
+					...NO_PAGE_OR_POINTER_SHARED_BETWEEN_STORY_FILES,
 					browser: {
 						enabled: true,
 						headless: true,
