@@ -1,7 +1,12 @@
+import type { CSSProperties, ReactNode } from "react"
 import { expect, fn } from "storybook/test"
 
 import preview from "@workspace/storybook/preview"
-import { slotIn } from "@workspace/storybook/story-utils"
+import {
+	A11Y_CONTRAST_AWAITING_DESIGN_DECISION,
+	slotIn,
+} from "@workspace/storybook/story-utils"
+import { BotIdentityAvatar } from "@workspace/ui/components/bot-identity-avatar"
 import { MissionRow } from "@workspace/ui/components/mission-row"
 import {
 	CLOSED_MISSION,
@@ -13,12 +18,66 @@ import {
 	WORKING_MISSION,
 } from "@workspace/ui/components/missions.fixtures"
 import { ROUTINES_PANEL_WIDTH } from "@workspace/ui/components/routines-panel"
+import { SidebarListRow } from "@workspace/ui/components/sidebar-list-row"
+import { Sidebar, SidebarProvider } from "@workspace/ui/components/ui/sidebar"
 
 const LONG_OBJECTIVE =
 	"Rewrite the changelog parser so it reads every package of the workspace in one pass"
 
+const PANEL_WIDTH = {
+	"--sidebar-width": `${ROUTINES_PANEL_WIDTH}px`,
+} as CSSProperties
+
+const Panel = ({ children }: { children: ReactNode }) => (
+	<SidebarProvider style={PANEL_WIDTH}>
+		<Sidebar collapsible="none">
+			<ul className="flex flex-col gap-0.5">{children}</ul>
+		</Sidebar>
+	</SidebarProvider>
+)
+
+const rowsIn = (canvasElement: HTMLElement) =>
+	Array.from(
+		canvasElement.querySelectorAll<HTMLElement>(
+			'[data-slot="sidebar-menu-button"]',
+		),
+	)
+
+const rowIn = (canvasElement: HTMLElement) => {
+	const [row] = rowsIn(canvasElement)
+	if (!row) throw new Error("No mission row rendered")
+	return row
+}
+
+const previewIn = (canvasElement: HTMLElement) =>
+	slotIn(canvasElement, "roster-row-preview")
+
+const firstPartIn = (canvasElement: HTMLElement) => {
+	const part = previewIn(canvasElement).querySelector("span")
+	if (!part) throw new Error("The preview line writes no part")
+	return part
+}
+
 const dotIn = (canvasElement: HTMLElement) =>
 	canvasElement.querySelector<HTMLElement>('[data-slot="bot-activity-dot"]')
+
+const colorOf = (element: Element) => getComputedStyle(element).color
+
+const boxOf = (row: HTMLElement) => {
+	const style = getComputedStyle(row)
+	return {
+		height: row.getBoundingClientRect().height,
+		padding: [
+			style.paddingTop,
+			style.paddingRight,
+			style.paddingBottom,
+			style.paddingLeft,
+		].join(" "),
+		gap: style.gap,
+		radius: style.borderRadius,
+		border: style.borderTopWidth,
+	}
+}
 
 const meta = preview.meta({
 	title: "Conversation/Missions/MissionRow",
@@ -28,7 +87,7 @@ const meta = preview.meta({
 		docs: {
 			description: {
 				component:
-					"One mission of a conversation, as it reads in the activity panel: a bare row with no border and no surface under it, the companion's blot carrying the state as its badge dot, what the mission is for on the first line with the time at the trailing edge, then the platform, the ticket, the companion and the state word on a second line that truncates rather than wraps. The whole row is the way into the mission. Reach for it inside `RoutinesPanel`; on its own it is only useful to check one row's states.",
+					"One mission of a conversation, as it reads in the activity panel. It is the `SidebarListRow` the left sidebar draws for a companion, fed mission data: the companion's blot as the leading media, the objective on the name line with the time at its end, the state as the row badge dot, and a preview line writing the platform mark, the ticket, the companion and the state word. Only the media differs from a roster row, kept at the mission avatar size, so the row is shorter. Reach for it inside `RoutinesPanel`; on its own it is only useful to check one row's states.",
 			},
 		},
 	},
@@ -37,12 +96,9 @@ const meta = preview.meta({
 		onOpen: fn(),
 	},
 	render: (args) => (
-		<ul
-			className="flex flex-col gap-0.5"
-			style={{ width: ROUTINES_PANEL_WIDTH }}
-		>
+		<Panel>
 			<MissionRow {...args} />
-		</ul>
+		</Panel>
 	),
 })
 
@@ -51,7 +107,7 @@ export const Working = meta.story({
 		docs: {
 			description: {
 				story:
-					"A mission its companion is working on. Check that the blot holds the working pose the same mission carries on its thread card, that no badge dot is drawn on it, that no state word is added after the companion name, that the ticket identifier and the age read on their own lines, and that the row reports the mission it belongs to when it is pressed.",
+					"A mission its companion is working on. Check that the blot holds the working pose the same mission carries on its thread card, that no badge dot is drawn on it, that the preview line runs the working shimmer a roster row runs for a busy companion, that the ticket identifier, the companion and the state word read on that line, and that the row reports the mission it belongs to when it is pressed.",
 			},
 		},
 	},
@@ -62,8 +118,15 @@ export const Working = meta.story({
 		await expect(dotIn(canvasElement)).toBeNull()
 		await expect(canvas.getByText("OPE-42")).toBeVisible()
 		await expect(canvas.getByText("Ada Martin")).toBeVisible()
+		await expect(canvas.getByText("Working")).toBeVisible()
 		await expect(canvas.getByText("1h")).toBeVisible()
+		await expect(previewIn(canvasElement).firstElementChild).toHaveAttribute(
+			"data-slot",
+			"text-shimmer",
+		)
 
+		const row = rowIn(canvasElement)
+		await expect(row).toHaveAttribute("data-opens", WORKING_MISSION.id)
 		await userEvent.click(canvas.getByText(WORKING_MISSION.objective))
 		await expect(args.onOpen).toHaveBeenCalled()
 	},
@@ -75,15 +138,19 @@ export const WaitingForItsBot = meta.story({
 		docs: {
 			description: {
 				story:
-					"A mission whose companion has not picked it up yet, on a platform that names no identifier. Check that no badge dot is drawn, that no state word is added, and that the ticket title takes the place of the missing identifier right after the platform mark.",
+					"A mission whose companion has not picked it up yet, on a platform that names no identifier. Check that no badge dot is drawn, that the ticket title takes the place of the missing identifier right after the platform mark, that the state word still reads the work as in progress, and that the line, longer than the panel is wide, is cut rather than wrapped.",
 			},
 		},
 	},
 	play: async ({ canvas, canvasElement }) => {
+		const line = previewIn(canvasElement)
+
 		await expect(dotIn(canvasElement)).toBeNull()
-		await expect(
-			canvas.getByText(WAITING_BOT_MISSION.ticket.title),
-		).toBeVisible()
+		await expect(firstPartIn(canvasElement)).toHaveTextContent(
+			WAITING_BOT_MISSION.ticket.title,
+		)
+		await expect(canvas.getByText("Working")).toBeVisible()
+		await expect(line.scrollWidth).toBeGreaterThan(line.clientWidth)
 	},
 })
 
@@ -93,7 +160,7 @@ export const WaitingOnYou = meta.story({
 		docs: {
 			description: {
 				story:
-					"A mission stopped on a question only a person can answer. Check that the attention dot is drawn on the blot, that it names the wait for a screen reader rather than leaving colour to carry it alone, and that no state word is written beside the companion name.",
+					"A mission stopped on a question only a person can answer. Check that the attention dot is drawn on the row, and that the wait is written once in text at the end of the preview line rather than repeated for a screen reader.",
 			},
 		},
 	},
@@ -102,7 +169,7 @@ export const WaitingOnYou = meta.story({
 			"data-badge",
 			"attention",
 		)
-		await expect(canvas.getByText("Waiting for you")).toBeInTheDocument()
+		await expect(canvas.getAllByText("Waiting for you")).toHaveLength(1)
 	},
 })
 
@@ -112,7 +179,7 @@ export const ReadyToMerge = meta.story({
 		docs: {
 			description: {
 				story:
-					"A mission whose work is done and waiting to be merged. Check that the done dot replaces the attention one rather than adding to it, and that the state word is written once, at the end of the second line, rather than repeated for a screen reader.",
+					"A mission whose work is done and waiting to be merged. Check that the done dot replaces the attention one rather than adding to it, and that the state word is written once, at the end of the preview line.",
 			},
 		},
 	},
@@ -145,7 +212,7 @@ export const Closed = meta.story({
 		docs: {
 			description: {
 				story:
-					"A mission closed earlier today. Check that the blot rests rather than holding the working pose, that the objective drops to the muted colour at regular weight, that no badge dot is drawn on it, that the time of day it closed takes the place of an age, and that the state word says it is done.",
+					"A mission closed earlier today. Check that the blot rests rather than holding the working pose, that the objective drops to the muted foreground the preview line already reads in, that no badge dot is drawn, that the time of day it closed takes the place of an age, and that the state word says it is done.",
 			},
 		},
 	},
@@ -156,6 +223,9 @@ export const Closed = meta.story({
 		await expect(dotIn(canvasElement)).toBeNull()
 		await expect(canvas.getByText("09:12")).toBeVisible()
 		await expect(canvas.getByText("Done")).toBeVisible()
+		await expect(colorOf(slotIn(canvasElement, "roster-row-name"))).toBe(
+			colorOf(previewIn(canvasElement)),
+		)
 	},
 })
 
@@ -165,15 +235,15 @@ export const WithoutATicket = meta.story({
 		docs: {
 			description: {
 				story:
-					"A mission opened with no ticket at all, which the store keeps as empty strings rather than as nothing. Check that the meta line opens on the companion name with no separator in front of it, and that the bookmark mark still stands for the platform no read named.",
+					"A mission opened with no ticket at all, which the store keeps as empty strings rather than as nothing. Check that the preview line opens on the companion name, with no platform mark in front of it and no separator before it.",
 			},
 		},
 	},
 	play: async ({ canvasElement }) => {
-		const first = slotIn(canvasElement, "activity-row-parts")
-			.firstElementChild as HTMLElement
+		const first = firstPartIn(canvasElement)
 
 		await expect(first).toHaveTextContent(UNTICKETED_MISSION.bot.name)
+		await expect(previewIn(canvasElement).querySelector("svg")).toBeNull()
 		await expect(getComputedStyle(first, "::before").content).toBe("none")
 	},
 })
@@ -184,19 +254,66 @@ export const LongContent = meta.story({
 		docs: {
 			description: {
 				story:
-					"An objective no reader would write, in a panel at its 320px width. Check that the objective and the line under it each stay on one line and end in an ellipsis, that the row keeps its height, and that the badge dot is not squeezed to make room for them.",
+					"An objective no reader would write, in a panel at its 320px width. Check that the objective and the line under it each stay on one line and end in an ellipsis, that the row keeps its height, and that the blot is not squeezed to make room for them.",
 			},
 		},
 	},
 	play: async ({ canvas, canvasElement }) => {
 		const objective = canvas.getByText(LONG_OBJECTIVE)
-		const row = slotIn(canvasElement, "mission-row")
+		const line = previewIn(canvasElement)
 
 		await expect(objective.scrollWidth).toBeGreaterThan(objective.clientWidth)
-		await expect(row.getBoundingClientRect().height).toBe(52)
+		for (const clipped of [objective, line]) {
+			await expect(getComputedStyle(clipped).whiteSpace).toBe("nowrap")
+			await expect(getComputedStyle(clipped).textOverflow).toBe("ellipsis")
+		}
+		await expect(objective.clientHeight).toBe(20)
+		await expect(line.clientHeight).toBe(16)
+		await expect(boxOf(rowIn(canvasElement)).height).toBe(48)
 		await expect(
 			slotIn(canvasElement, "bot-identity-avatar").getBoundingClientRect()
 				.width,
 		).toBe(32)
+	},
+})
+
+export const BoxMatchesARosterRow = meta.story({
+	parameters: {
+		a11y: A11Y_CONTRAST_AWAITING_DESIGN_DECISION,
+		docs: {
+			description: {
+				story:
+					"The mission row beside the roster row of the left sidebar, both drawn by `SidebarListRow`. Check that the two boxes share their padding, their leading gap, their corner and their borderless edge, and that only the height differs: 48px on the mission avatar against the 52px the roster draws on its 40px one.",
+			},
+		},
+	},
+	render: (args) => (
+		<Panel>
+			<MissionRow {...args} />
+			<li>
+				<SidebarListRow
+					media={<BotIdentityAvatar name="Atlas" seed="atlas" size={40} />}
+					name="Atlas"
+					preview="Pulled the papers for the brief."
+					timestamp="09:24"
+				/>
+			</li>
+		</Panel>
+	),
+	play: async ({ canvasElement }) => {
+		const [mission, roster] = rowsIn(canvasElement)
+		if (!mission || !roster) throw new Error("Both rows are not rendered")
+
+		const missionBox = boxOf(mission)
+		const rosterBox = boxOf(roster)
+
+		await expect(missionBox.padding).toBe("6px 12px 6px 6px")
+		await expect(missionBox.gap).toBe("10px")
+		await expect(missionBox).toEqual({
+			...rosterBox,
+			height: missionBox.height,
+		})
+		await expect(missionBox.height).toBe(48)
+		await expect(rosterBox.height).toBe(52)
 	},
 })
