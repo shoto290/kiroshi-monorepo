@@ -134,6 +134,10 @@ const bots = {
 		retouches_many: "({{count}} fois)",
 		retouches_other: "({{count}} fois)",
 		undone: "Annulée plus haut",
+		day: {
+			today: "Aujourd'hui",
+			yesterday: "Hier",
+		},
 		search: {
 			label: "Rechercher dans l'historique",
 			placeholder: "Rechercher dans l'historique",

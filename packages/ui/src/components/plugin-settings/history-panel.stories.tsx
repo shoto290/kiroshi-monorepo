@@ -6,6 +6,7 @@ import {
 	HISTORY_DAYS,
 	HISTORY_OLDEST_DATE,
 	LONG_SENTENCE_DAYS,
+	LONG_SIGNALLED_DAYS,
 } from "@workspace/ui/components/plugin-settings/history.fixtures"
 import {
 	HistoryPanel,
@@ -104,9 +105,12 @@ export const Retouched = meta.story({
 		},
 	},
 	play: async ({ canvas }) => {
-		await expect(
-			canvas.getByText("Tightened the wording of the instructions"),
-		).toHaveTextContent("(4 goes)")
+		const row = canvas
+			.getAllByRole("listitem")
+			.find((item) => item.textContent?.includes("Tightened the wording"))
+		if (!row) throw new Error("The retouched change is missing from the list")
+
+		await expect(row).toHaveTextContent("(4 goes)")
 	},
 })
 
@@ -153,7 +157,9 @@ export const HoveredRow = meta.story({
 		const undo = reserved.querySelector("button")
 		if (!undo) throw new Error("The row reserved no undo control")
 
-		await expect(getComputedStyle(undo).opacity).toBe("0")
+		await expect(getComputedStyle(undo).opacity).toBe(
+			matchMedia("(hover: hover)").matches ? "0" : "1",
+		)
 		await expect(undone.querySelector("button")).toBeNull()
 		await expect(reserved.getBoundingClientRect().height).toBe(
 			undone.getBoundingClientRect().height,
@@ -267,6 +273,57 @@ export const LongContent = meta.story({
 	},
 })
 
+export const LongContentWithSignals = meta.story({
+	args: { days: LONG_SIGNALLED_DAYS },
+	parameters: {
+		docs: {
+			description: {
+				story:
+					"The hardest line to lay out: a sentence nobody wrote to fit, carrying both a run count and the note saying a later change took it back. Only the sentence is clamped — both signals hold their full width beside it, because a count the reader cannot see is a count that is not there. Reach for `LongContent` when the sentence is long but carries neither signal.",
+			},
+		},
+	},
+	play: async ({ canvasElement }) => {
+		const row = firstRow(canvasElement)
+
+		await expect(row).toHaveTextContent("(4 goes)")
+		await expect(row).toHaveTextContent("Undone above")
+
+		const edge = row.getBoundingClientRect().right
+
+		for (const slot of ["history-retouches", "history-undone"]) {
+			const signal = row.querySelector(`[data-slot='${slot}']`)
+			if (!signal) throw new Error(`The row dropped its ${slot} signal`)
+
+			const box = signal.getBoundingClientRect()
+			await expect(box.width).toBeGreaterThan(0)
+			await expect(box.right).toBeLessThanOrEqual(edge)
+		}
+	},
+})
+
+export const SearchReturnsFocus = meta.story({
+	parameters: {
+		docs: {
+			description: {
+				story:
+					"Closing the search, by the clear control or by Escape. The sentence comes back and focus lands on the control that opened the field rather than falling to the top of the document, so a reader who never touches a pointer keeps their place in the head row.",
+			},
+		},
+	},
+	play: async ({ canvas, userEvent }) => {
+		const trigger = canvas.getByRole("button", { name: "Search the history" })
+		await userEvent.click(trigger)
+
+		await userEvent.keyboard("{Escape}")
+
+		await expect(
+			canvas.getByRole("button", { name: "Search the history" }),
+		).toHaveFocus()
+		await expect(canvas.queryByRole("textbox")).toBeNull()
+	},
+})
+
 export const SearchWithoutMatch = meta.story({
 	render: (args) => <NarrowingHost {...args} />,
 	parameters: {
@@ -294,6 +351,9 @@ export const SearchWithoutMatch = meta.story({
 		)
 		await expect(args.onSearchChange).toHaveBeenLastCalledWith("")
 		await expect(canvas.queryByRole("textbox")).toBeNull()
+		await expect(
+			canvas.getByRole("button", { name: "Search the history" }),
+		).toHaveFocus()
 	},
 })
 

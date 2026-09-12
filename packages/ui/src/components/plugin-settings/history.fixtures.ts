@@ -143,3 +143,18 @@ export const LONG_SENTENCE_DAYS: HistoryDay[] = [
 		changes: [LONG_SENTENCE_CHANGE],
 	},
 ]
+
+export const LONG_SIGNALLED_DAYS: HistoryDay[] = [
+	{
+		id: "2026-03-04",
+		label: "Today",
+		changes: [
+			{
+				...LONG_SENTENCE_CHANGE,
+				id: "change-long-signalled",
+				retouchCount: 4,
+				isUndone: true,
+			},
+		],
+	},
+]

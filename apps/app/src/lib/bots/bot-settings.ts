@@ -2,14 +2,12 @@ import type { AppSidebarBot } from "@workspace/ui/components/app-sidebar"
 import {
 	BLANK_BOT_PERMISSIONS,
 	BLOT_TINTS,
-	type BotCommitItem,
 	type BotModelOption,
 	type BotPermissions,
 	type BotSettingsValue,
 	DEFAULT_BOT_OUTPUT_STYLE,
 } from "@workspace/ui/components/bot-settings"
 
-import type { BotCommit } from "./history-controller"
 import { rosterTimestamp } from "./roster-timestamp"
 
 import { avatarSrc } from "../host"
@@ -141,15 +139,6 @@ export const toSettingsValue = (bot: Bot): BotSettingsValue => ({
 	model: bot.model,
 	workingDirectory: bot.workingDir ?? "",
 	permissions: bot.permissions,
-})
-
-export const toCommitItem = (commit: BotCommit): BotCommitItem => ({
-	id: commit.id,
-	at: commit.timestamp * 1000,
-	author: commit.author,
-	title: commit.title,
-	body: commit.body,
-	diff: commit.diff,
 })
 
 export const toIdentity = (value: BotSettingsValue, bot: Bot): BotIdentity => ({

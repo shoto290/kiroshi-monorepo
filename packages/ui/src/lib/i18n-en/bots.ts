@@ -137,6 +137,10 @@ const bots = {
 		retouches_one: "(1 go)",
 		retouches_other: "({{count}} goes)",
 		undone: "Undone above",
+		day: {
+			today: "Today",
+			yesterday: "Yesterday",
+		},
 		search: {
 			label: "Search the history",
 			placeholder: "Search the history",

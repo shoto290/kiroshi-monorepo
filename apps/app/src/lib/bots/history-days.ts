@@ -2,55 +2,70 @@ import type {
 	HistoryChange,
 	HistoryDay,
 } from "@workspace/ui/components/plugin-settings/history-panel"
+import { i18n } from "@workspace/ui/lib/i18n"
 
 import type { BotCommit } from "./history-controller"
 
-const LOCALE = "en-US"
+const format = (options: Intl.DateTimeFormatOptions) =>
+	new Intl.DateTimeFormat(i18n.language, options)
 
-const DAY = new Intl.DateTimeFormat(LOCALE, {
-	weekday: "long",
-	month: "long",
-	day: "numeric",
-})
+const dayKeyOf = (at: Date) =>
+	`${at.getFullYear()}-${at.getMonth()}-${at.getDate()}`
 
-const FULL_DATE = new Intl.DateTimeFormat(LOCALE, {
-	year: "numeric",
-	month: "long",
-	day: "numeric",
-})
+const dayBefore = (now: Date) => {
+	const before = new Date(now)
+	before.setDate(now.getDate() - 1)
+	return before
+}
 
-const TIME = new Intl.DateTimeFormat(LOCALE, {
-	hour: "2-digit",
-	minute: "2-digit",
-	hour12: false,
-})
+const dayLabelOf = (at: Date, now: Date) => {
+	if (dayKeyOf(at) === dayKeyOf(now)) return i18n.t("bots:history.day.today")
+	if (dayKeyOf(at) === dayKeyOf(dayBefore(now)))
+		return i18n.t("bots:history.day.yesterday")
 
-const toChange = (commit: BotCommit): HistoryChange => ({
+	return format({ day: "numeric", month: "long" }).format(at)
+}
+
+const toChange = (commit: BotCommit, at: Date): HistoryChange => ({
 	id: commit.id,
 	author: commit.author,
 	sentence: commit.title,
 	detail: commit.body || undefined,
-	at: new Date(commit.timestamp * 1000).toISOString(),
-	time: TIME.format(commit.timestamp * 1000),
+	at: at.toISOString(),
+	time: format({ hour: "2-digit", minute: "2-digit", hour12: false }).format(
+		at,
+	),
 })
 
-export const toHistoryDays = (commits: BotCommit[]): HistoryDay[] => {
+export const toHistoryDays = (
+	commits: BotCommit[],
+	now = new Date(),
+): HistoryDay[] => {
 	const days: HistoryDay[] = []
 
 	for (const commit of [...commits].sort((a, b) => b.timestamp - a.timestamp)) {
-		const at = commit.timestamp * 1000
-		const id = new Date(at).toISOString().slice(0, 10)
+		const at = new Date(commit.timestamp * 1000)
+		const id = dayKeyOf(at)
 		const last = days.at(-1)
 
-		if (last?.id === id) last.changes.push(toChange(commit))
-		else days.push({ id, label: DAY.format(at), changes: [toChange(commit)] })
+		if (last?.id === id) last.changes.push(toChange(commit, at))
+		else
+			days.push({
+				id,
+				label: dayLabelOf(at, now),
+				changes: [toChange(commit, at)],
+			})
 	}
 
 	return days
 }
 
 export const oldestHistoryDate = (commits: BotCommit[]): string => {
+	if (commits.length === 0) return ""
+
 	const oldest = Math.min(...commits.map((commit) => commit.timestamp))
 
-	return commits.length === 0 ? "" : FULL_DATE.format(oldest * 1000)
+	return format({ year: "numeric", month: "long", day: "numeric" }).format(
+		oldest * 1000,
+	)
 }

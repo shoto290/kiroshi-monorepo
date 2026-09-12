@@ -1,6 +1,6 @@
 "use client"
 
-import { useCallback, useState } from "react"
+import { useCallback, useRef, useState } from "react"
 import { useTranslation } from "react-i18next"
 
 import { BotIdentityAvatar } from "@workspace/ui/components/bot-identity-avatar"
@@ -70,12 +70,14 @@ const ROW_CONTROL_CLASS =
 
 const SENTENCE_CLASS = "min-w-0 flex-1 truncate text-foreground text-sm/5"
 
-const UNDONE_CLASS = "text-muted-foreground before:mx-1 before:content-['·']"
+const SUFFIX_CLASS = "shrink-0 text-sm/5"
+
+const UNDONE_CLASS = `${SUFFIX_CLASS} text-muted-foreground before:me-1 before:content-['·']`
 
 const UNDO_SLOT_CLASS = "relative z-10 grid size-6 shrink-0 place-items-center"
 
 const UNDO_CONTROL_CLASS =
-	"rounded-md bg-background text-muted-foreground opacity-0 transition-opacity duration-150 [[data-slot=history-change]:hover_&]:opacity-100 group-has-[:focus-visible]/row:opacity-100 motion-reduce:transition-none"
+	"rounded-md bg-background text-muted-foreground transition-opacity duration-150 [@media(hover:hover)]:opacity-0 group-hover/row:opacity-100 group-has-[:focus-visible]/row:opacity-100 motion-reduce:transition-none"
 
 const TIME_CLASS =
 	"w-10 shrink-0 text-end text-muted-foreground text-xs/4 tabular-nums"
@@ -126,10 +128,18 @@ const HistoryPanel = ({
 	const [isSearching, setSearching] = useState(false)
 	const [undoing, setUndoing] = useState<HistoryChange | null>(null)
 
+	const isReturningFocus = useRef(false)
+
 	const focusField = useCallback(
 		(field: HTMLInputElement | null) => field?.focus(),
 		[],
 	)
+
+	const focusTrigger = useCallback((trigger: HTMLButtonElement | null) => {
+		if (!trigger || !isReturningFocus.current) return
+		isReturningFocus.current = false
+		trigger.focus()
+	}, [])
 
 	const search = (text: string) => {
 		setSearchText(text)
@@ -137,6 +147,7 @@ const HistoryPanel = ({
 	}
 
 	const closeSearch = () => {
+		isReturningFocus.current = true
 		setSearching(false)
 		search("")
 	}
@@ -177,6 +188,9 @@ const HistoryPanel = ({
 							aria-label={t("history.search.label")}
 							className="h-7 min-w-0 flex-1"
 							onChange={(event) => search(event.target.value)}
+							onKeyDown={(event) => {
+								if (event.key === "Escape") closeSearch()
+							}}
 							placeholder={t("history.search.placeholder")}
 							ref={focusField}
 							value={searchText}
@@ -203,6 +217,7 @@ const HistoryPanel = ({
 							aria-label={t("history.search.label")}
 							className={SEARCH_CONTROL_CLASS}
 							onClick={() => setSearching(true)}
+							ref={focusTrigger}
 							size="icon-sm"
 							variant="ghost"
 						>
@@ -256,22 +271,25 @@ const HistoryPanel = ({
 													? companionName
 													: t("history.author.user")}
 											</span>
-											<span className={SENTENCE_CLASS}>
-												{change.sentence}
-												{change.retouchCount === undefined ? null : (
-													<span>
-														{" "}
-														{t("history.retouches", {
-															count: change.retouchCount,
-														})}
-													</span>
-												)}
-												{change.isUndone ? (
-													<span className={UNDONE_CLASS}>
-														{t("history.undone")}
-													</span>
-												) : null}
-											</span>
+											<span className={SENTENCE_CLASS}>{change.sentence}</span>
+											{change.retouchCount ? (
+												<span
+													className={`${SUFFIX_CLASS} text-foreground`}
+													data-slot="history-retouches"
+												>
+													{t("history.retouches", {
+														count: change.retouchCount,
+													})}
+												</span>
+											) : null}
+											{change.isUndone ? (
+												<span
+													className={UNDONE_CLASS}
+													data-slot="history-undone"
+												>
+													{t("history.undone")}
+												</span>
+											) : null}
 										</div>
 										{change.detail ? (
 											<p className="truncate text-muted-foreground text-xs/4">
