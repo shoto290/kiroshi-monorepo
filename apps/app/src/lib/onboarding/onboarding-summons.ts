@@ -9,6 +9,8 @@ const SUMMONS_OF = {
 		"Say hello to the person who just connected you, in a sentence or two.",
 	purpose:
 		"Say what you are for and what you can do here, before anything else.",
+	arrival:
+		"Introduce yourself to the person who just added you, in a sentence or two, and say what you can start on.",
 } as const
 
 export type OnboardingSummons = keyof typeof SUMMONS_OF

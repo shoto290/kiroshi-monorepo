@@ -86,6 +86,10 @@ export type ChatController = {
 	start: (resume?: string) => Promise<SessionHandle | null>
 	preflight: (resume?: string) => Promise<SessionHandle | null>
 	open: (botId: string, spaceId: string | null) => Promise<SessionHandle | null>
+	openAside: (
+		botId: string,
+		spaceId: string | null,
+	) => Promise<SessionHandle | null>
 	close: (botId: string) => Promise<void>
 	enter: (botId: string) => void
 	leave: (botId: string) => void
@@ -820,11 +824,12 @@ export function createChatController(
 		publish()
 	}
 
+	const openAside = (botId: string, spaceId: string | null) =>
+		transitionFor(botId, `open:${spaceId}`, () => runOpen(botId, spaceId))
+
 	const open = (botId: string, spaceId: string | null) => {
 		choose(botId)
-		return transitionFor(botId, `open:${spaceId}`, () =>
-			runOpen(botId, spaceId),
-		)
+		return openAside(botId, spaceId)
 	}
 
 	const close = (botId: string) => {
@@ -1379,6 +1384,7 @@ export function createChatController(
 		start: (resume) => onSelected((bot) => startFor(bot, resume), null),
 		preflight: (resume) => onSelected((bot) => preflightFor(bot, resume), null),
 		open,
+		openAside,
 		close,
 		enter: enterThread,
 		leave: leaveThread,

@@ -2,9 +2,13 @@ import { describe, expect, it } from "vitest"
 
 import { createFakeOnboardingPort } from "./fake-onboarding-port"
 import {
+	createFakeOnboardingWorld,
+	type FakeOnboardingWorld,
+	SUGGESTED_SCOUT,
+} from "./fake-onboarding-world"
+import {
 	createOnboardingController,
 	type OnboardingController,
-	type OnboardingWorld,
 } from "./onboarding-controller"
 import {
 	onboardingSummonsFor,
@@ -21,13 +25,16 @@ const GREETING = onboardingSummonsFor("greeting")
 
 const SUMMONS_TURN = "t-summons"
 
-const NOWHERE: OnboardingWorld = {
-	send: async () => undefined,
-	markFirstRunDone: async () => undefined,
-}
+const HOME_BOT = "bot-home"
 
-const controllerOf = (): OnboardingController =>
-	createOnboardingController(createFakeOnboardingPort(), NOWHERE)
+const OTHER_BOT = "bot-other"
+
+let world: FakeOnboardingWorld
+
+const controllerOf = (): OnboardingController => {
+	world = createFakeOnboardingWorld()
+	return createOnboardingController(createFakeOnboardingPort(), world)
+}
 
 const settled = async (): Promise<OnboardingController> => {
 	const port = createFakeOnboardingPort()
@@ -38,7 +45,8 @@ const settled = async (): Promise<OnboardingController> => {
 		error: null,
 		account: { email: null, plan: null },
 	}
-	const controller = createOnboardingController(port, NOWHERE)
+	world = createFakeOnboardingWorld()
+	const controller = createOnboardingController(port, world)
 	await controller.start()
 
 	return controller
@@ -74,15 +82,21 @@ describe("the onboarding tail", () => {
 		const controller = controllerOf()
 		await controller.finish()
 
-		expect(onboardingTailOf(onboardingOf(controller), chatWith())).toBeNull()
+		expect(
+			onboardingTailOf(onboardingOf(controller), chatWith(), HOME_BOT),
+		).toBeNull()
 	})
 
 	it("stands down when no onboarding is running", () => {
-		expect(onboardingTailOf(undefined, chatWith())).toBeNull()
+		expect(onboardingTailOf(undefined, chatWith(), HOME_BOT)).toBeNull()
 	})
 
 	it("shows the welcome card before any step is taken", () => {
-		const tail = onboardingTailOf(onboardingOf(controllerOf()), chatWith())
+		const tail = onboardingTailOf(
+			onboardingOf(controllerOf()),
+			chatWith(),
+			HOME_BOT,
+		)
 
 		expect(tail?.hasWelcome).toBe(true)
 		expect(tail?.hasPill).toBe(false)
@@ -93,6 +107,7 @@ describe("the onboarding tail", () => {
 		const tail = onboardingTailOf(
 			onboardingOf(controller),
 			chatWith({ messages: [summonsAsked] }),
+			HOME_BOT,
 		)
 
 		expect(tail?.hasPill).toBe(true)
@@ -105,6 +120,7 @@ describe("the onboarding tail", () => {
 		const tail = onboardingTailOf(
 			onboardingOf(controller),
 			chatWith({ messages: [summonsAsked, answered] }),
+			HOME_BOT,
 		)
 
 		expect(tail?.hasTest).toBe(true)
@@ -125,10 +141,62 @@ describe("the onboarding tail", () => {
 					},
 				],
 			}),
+			HOME_BOT,
 		)
 
 		expect(tail?.turnFailure).toBe("the agent stopped")
 		expect(tail?.hasTest).toBe(false)
+	})
+
+	it("stands down in a conversation the onboarding did not start in", async () => {
+		const controller = await settled()
+
+		expect(
+			onboardingTailOf(onboardingOf(controller), chatWith(), OTHER_BOT),
+		).toBeNull()
+	})
+
+	it("shows the picker options once the reader picked", async () => {
+		const controller = await settled()
+		await controller.pickCompanion()
+		const tail = onboardingTailOf(
+			onboardingOf(controller),
+			chatWith(),
+			HOME_BOT,
+		)
+
+		expect(tail?.picks).toHaveLength(world.suggestions.length)
+		expect(tail?.hasTest).toBe(false)
+		expect(tail?.handoff).toBeNull()
+	})
+
+	it("keeps the picker under the reason when the creation is refused", async () => {
+		const controller = await settled()
+		await controller.pickCompanion()
+		world.refusals.create = { kind: "storage", detail: "disk is full" }
+		await controller.addCompanion(SUGGESTED_SCOUT.id)
+		const tail = onboardingTailOf(
+			onboardingOf(controller),
+			chatWith(),
+			HOME_BOT,
+		)
+
+		expect(tail?.pickFailure).toBe("disk is full")
+		expect(tail?.picks).toHaveLength(world.suggestions.length)
+	})
+
+	it("shows the handoff once the companion is created", async () => {
+		const controller = await settled()
+		await controller.pickCompanion()
+		await controller.addCompanion(SUGGESTED_SCOUT.id)
+		const tail = onboardingTailOf(
+			onboardingOf(controller),
+			chatWith(),
+			HOME_BOT,
+		)
+
+		expect(tail?.handoff?.name).toBe(SUGGESTED_SCOUT.name)
+		expect(tail?.picks).toBeNull()
 	})
 })
 
@@ -158,6 +226,14 @@ describe("the summons row", () => {
 		])
 
 		expect(kept.map(({ text }) => text)).toEqual(["Hello."])
+	})
+
+	it("drops the summons that opened the created companion thread", () => {
+		const kept = withoutOnboardingSummons([
+			rowOf({ text: onboardingSummonsFor("arrival") }),
+		])
+
+		expect(kept).toHaveLength(0)
 	})
 
 	it("keeps a reader line that only looks like one", () => {

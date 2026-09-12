@@ -60,6 +60,11 @@ import {
 	type FakeOnboardingPort,
 } from "@/lib/onboarding/fake-onboarding-port"
 import {
+	createFakeOnboardingWorld,
+	type FakeOnboardingWorld,
+	SUGGESTED_WRITER,
+} from "@/lib/onboarding/fake-onboarding-world"
+import {
 	createOnboardingController,
 	type OnboardingController,
 } from "@/lib/onboarding/onboarding-controller"
@@ -200,6 +205,7 @@ const stubController = (
 	start: async () => null,
 	preflight: async () => null,
 	open: async () => null,
+	openAside: async () => null,
 	close: async () => undefined,
 	enter: () => undefined,
 	leave: () => undefined,
@@ -2150,6 +2156,10 @@ const SETTLED_PILL = "Claude account connected"
 
 const TEST_TITLE = "That's it working. One thing left."
 
+const PICKER_TITLE = "Who should join first?"
+
+const PICKER_REQUEST_LABEL = "Or say what you need in your own words"
+
 const EMPTY_STATE_TITLE = "Start with the agent"
 
 const ONBOARDING_EMAIL = "reader@example.com"
@@ -2164,6 +2174,7 @@ const AUTHENTICATED_ANONYMOUSLY = {
 
 type OnboardingFixture = {
 	port: FakeOnboardingPort
+	world: FakeOnboardingWorld
 	controller: OnboardingController
 	solo: Solo
 }
@@ -2171,12 +2182,12 @@ type OnboardingFixture = {
 const onboardingOf = async (): Promise<OnboardingFixture> => {
 	const solo = await soloOf({})
 	const port = createFakeOnboardingPort()
-	const controller = createOnboardingController(port, {
-		send: (text) => solo.thread().chat.controller.send(text),
-		markFirstRunDone: async () => undefined,
-	})
+	const world = createFakeOnboardingWorld()
+	world.homeBot = solo.thread().bot.id
+	world.send = (text) => solo.thread().chat.controller.send(text)
+	const controller = createOnboardingController(port, world)
 
-	return { port, controller, solo }
+	return { port, world, controller, solo }
 }
 
 const onboardingScreen = ({ controller, solo }: OnboardingFixture) =>
@@ -2198,6 +2209,17 @@ const renderOnboarding = async (fixture: OnboardingFixture) => {
 const press = async (name: string) => {
 	await act(async () => {
 		fireEvent.click(screen.getByRole("button", { name }))
+	})
+	await settle()
+}
+
+const type = async (label: string, text: string) => {
+	const field = screen.getByLabelText(label)
+	await act(async () => {
+		fireEvent.change(field, { target: { value: text } })
+	})
+	await act(async () => {
+		fireEvent.keyDown(field, { key: "Enter" })
 	})
 	await settle()
 }
@@ -2299,6 +2321,123 @@ describe("the first run in a solo thread", () => {
 		expect(screen.queryByText(onboardingSummonsFor("greeting"))).toBeNull()
 		expect(screen.getByText("the walls hold")).toBeTruthy()
 		expect(screen.getByText(TEST_TITLE)).toBeTruthy()
+	})
+
+	const answeredPicker = async () => {
+		const fixture = await onboardingOf()
+		fixture.port.report = AUTHENTICATED_ANONYMOUSLY
+		const rerender = await renderOnboarding(fixture)
+		await press("Start")
+		await fixture.solo.push(SAID_AND_LANDED)
+		rerender()
+		await settle()
+
+		return { ...fixture, rerender }
+	}
+
+	it("shows one option per suggestion when the reader picks a companion", async () => {
+		const fixture = await answeredPicker()
+
+		await press("Pick my first companion")
+
+		expect(screen.getByText(PICKER_TITLE)).toBeTruthy()
+		expect(screen.getAllByRole("radio")).toHaveLength(
+			fixture.world.suggestions.length,
+		)
+	})
+
+	it("shows the reason when the suggestions refuse to load", async () => {
+		const fixture = await answeredPicker()
+		fixture.world.refusals.suggest = {
+			kind: "storage",
+			detail: "disk is full",
+		}
+
+		await press("Pick my first companion")
+
+		expect(screen.getByText("disk is full")).toBeTruthy()
+	})
+
+	it("keeps the free field reachable when no companion is suggested", async () => {
+		const fixture = await answeredPicker()
+		fixture.world.suggestions.length = 0
+
+		await press("Pick my first companion")
+
+		expect(screen.queryAllByRole("radio")).toEqual([])
+		expect(screen.getByLabelText(PICKER_REQUEST_LABEL)).toBeTruthy()
+	})
+
+	it("hands the reader over to the companion it created", async () => {
+		const fixture = await answeredPicker()
+		await press("Pick my first companion")
+
+		await press(`Add ${SUGGESTED_WRITER.name}`)
+
+		expect(fixture.world.drafted).toHaveLength(1)
+		expect(fixture.world.greetings).toHaveLength(1)
+		expect(
+			screen.getByRole("button", { name: `Open ${SUGGESTED_WRITER.name}` }),
+		).toBeTruthy()
+		expect(screen.queryByText(PICKER_TITLE)).toBeNull()
+	})
+
+	it("keeps the picker under the reason when the creation is refused", async () => {
+		const fixture = await answeredPicker()
+		await press("Pick my first companion")
+		fixture.world.refusals.create = { kind: "storage", detail: "disk is full" }
+
+		await press(`Add ${SUGGESTED_WRITER.name}`)
+
+		expect(screen.getByText("disk is full")).toBeTruthy()
+		expect(screen.getByText(PICKER_TITLE)).toBeTruthy()
+		expect(fixture.world.firstRunDone).toBe(0)
+	})
+
+	it("leaves the reader where they are when they stay on the handoff", async () => {
+		const fixture = await answeredPicker()
+		await press("Pick my first companion")
+		await press(`Add ${SUGGESTED_WRITER.name}`)
+
+		await press("Stay here")
+
+		expect(fixture.world.opened).toEqual([])
+		expect(fixture.world.firstRunDone).toBe(1)
+		expect(screen.queryByText(SETTLED_PILL)).toBeNull()
+	})
+
+	it("opens the created companion from the handoff", async () => {
+		const fixture = await answeredPicker()
+		await press("Pick my first companion")
+		await press(`Add ${SUGGESTED_WRITER.name}`)
+
+		await press(`Open ${SUGGESTED_WRITER.name}`)
+
+		expect(fixture.world.opened).toHaveLength(1)
+		expect(fixture.world.firstRunDone).toBe(1)
+	})
+
+	it("hands the typed words to the companion the run started in", async () => {
+		const fixture = await answeredPicker()
+		await press("Pick my first companion")
+
+		await type(PICKER_REQUEST_LABEL, "someone who drafts my emails")
+		fixture.rerender()
+		await settle()
+
+		expect(fixture.world.drafted).toEqual([])
+		expect(screen.queryByText(PICKER_TITLE)).toBeNull()
+		expect(screen.getByText("someone who drafts my emails")).toBeTruthy()
+	})
+
+	it("ends the run when the reader skips the picker", async () => {
+		const fixture = await answeredPicker()
+		await press("Pick my first companion")
+
+		await press("Skip for now")
+
+		expect(screen.queryByText(PICKER_TITLE)).toBeNull()
+		expect(fixture.world.firstRunDone).toBe(1)
 	})
 
 	it("leaves no onboarding card once the test card is taken", async () => {

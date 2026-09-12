@@ -5,6 +5,12 @@ import {
 	type FakeOnboardingPort,
 } from "./fake-onboarding-port"
 import {
+	createFakeOnboardingWorld,
+	type FakeOnboardingWorld,
+	SUGGESTED_SCOUT,
+	SUGGESTED_WRITER,
+} from "./fake-onboarding-world"
+import {
 	createOnboardingController,
 	type OnboardingController,
 } from "./onboarding-controller"
@@ -46,23 +52,14 @@ const refusedRead = (error: TransportError): CheckReport => ({
 })
 
 let port: FakeOnboardingPort
+let world: FakeOnboardingWorld
 let controller: OnboardingController
-let sent: string[]
-let firstRunDone: number
 
 const createController = () => {
 	port = createFakeOnboardingPort()
-	sent = []
-	firstRunDone = 0
+	world = createFakeOnboardingWorld()
 
-	return createOnboardingController(port, {
-		send: async (text) => {
-			sent.push(text)
-		},
-		markFirstRunDone: async () => {
-			firstRunDone += 1
-		},
-	})
+	return createOnboardingController(port, world)
 }
 
 const commands = () => port.calls.map(({ command }) => command)
@@ -340,7 +337,7 @@ describe("the summons", () => {
 
 		await controller.start()
 
-		expect(sent).toEqual([onboardingSummonsFor("greeting")])
+		expect(world.sent).toEqual([onboardingSummonsFor("greeting")])
 	})
 
 	it("asks what the companion is for when the reader wanted to hear more", async () => {
@@ -348,7 +345,7 @@ describe("the summons", () => {
 
 		await controller.tellMore()
 
-		expect(sent).toEqual([onboardingSummonsFor("purpose")])
+		expect(world.sent).toEqual([onboardingSummonsFor("purpose")])
 	})
 
 	it("keeps the pill on screen once the connection settled", async () => {
@@ -366,7 +363,7 @@ describe("the summons", () => {
 
 		await controller.summonAgain()
 
-		expect(sent).toHaveLength(2)
+		expect(world.sent).toHaveLength(2)
 	})
 })
 
@@ -379,6 +376,155 @@ describe("the end of the first run", () => {
 
 		expect(controller.getState().step).toBe("done")
 		expect(controller.getState().card).toBeNull()
-		expect(firstRunDone).toBe(1)
+		expect(world.firstRunDone).toBe(1)
+	})
+})
+
+describe("the first companion", () => {
+	beforeEach(async () => {
+		port.report = authenticated({ email: null, plan: null })
+		await controller.start()
+	})
+
+	it("shows one option per suggestion when the reader picks", async () => {
+		await controller.pickCompanion()
+
+		expect(controller.getState().step).toBe("picking")
+		expect(controller.getState().picks).toEqual([
+			{
+				id: SUGGESTED_WRITER.id,
+				name: SUGGESTED_WRITER.name,
+				role: SUGGESTED_WRITER.job,
+				description: SUGGESTED_WRITER.blurb,
+			},
+			{
+				id: SUGGESTED_SCOUT.id,
+				name: SUGGESTED_SCOUT.name,
+				role: SUGGESTED_SCOUT.job,
+				description: SUGGESTED_SCOUT.blurb,
+			},
+		])
+	})
+
+	it("shows the reason and leaves the first run open when the suggestions refuse to load", async () => {
+		world.refusals.suggest = { kind: "storage", detail: "disk is full" }
+
+		await controller.pickCompanion()
+
+		expect(controller.getState().pickFailure).toBe("disk is full")
+		expect(controller.getState().picks).toEqual([])
+		expect(world.firstRunDone).toBe(0)
+	})
+
+	it("creates the companion from the name, the job and the description", async () => {
+		await controller.pickCompanion()
+
+		await controller.addCompanion(SUGGESTED_SCOUT.id)
+
+		expect(world.drafted).toEqual([
+			{
+				name: SUGGESTED_SCOUT.name,
+				job: SUGGESTED_SCOUT.job,
+				description: SUGGESTED_SCOUT.description,
+			},
+		])
+	})
+
+	it("hands off to the created companion", async () => {
+		await controller.pickCompanion()
+
+		await controller.addCompanion(SUGGESTED_SCOUT.id)
+
+		expect(controller.getState().step).toBe("handoff")
+		expect(controller.getState().handoff).toEqual({
+			botId: "bot-scout",
+			name: SUGGESTED_SCOUT.name,
+			description: SUGGESTED_SCOUT.blurb,
+			animal: "owl",
+			blot: "cyan",
+		})
+	})
+
+	it("starts the created companion first turn in its own conversation", async () => {
+		await controller.pickCompanion()
+
+		await controller.addCompanion(SUGGESTED_SCOUT.id)
+
+		expect(world.greetings).toEqual([
+			{ botId: "bot-scout", text: onboardingSummonsFor("arrival") },
+		])
+		expect(world.sent).toHaveLength(1)
+	})
+
+	it("keeps the picker reachable and the first run open when the creation is refused", async () => {
+		await controller.pickCompanion()
+		world.refusals.create = { kind: "namelessBot", detail: "no name" }
+
+		await controller.addCompanion(SUGGESTED_SCOUT.id)
+
+		expect(controller.getState().step).toBe("picking")
+		expect(controller.getState().picks).toHaveLength(2)
+		expect(controller.getState().pickFailure).toBe("no name")
+		expect(world.firstRunDone).toBe(0)
+	})
+
+	it("holds the picker busy while the creation is in flight", async () => {
+		await controller.pickCompanion()
+		let created: (() => void) | undefined
+		world.create = async (draft) => {
+			await new Promise<void>((resolve) => {
+				created = resolve
+			})
+			world.drafted.push(draft)
+			throw { kind: "cancelled" }
+		}
+
+		const adding = controller.addCompanion(SUGGESTED_SCOUT.id)
+		expect(controller.getState().isBusy).toBe(true)
+
+		created?.()
+		await adding
+		expect(controller.getState().isBusy).toBe(false)
+	})
+
+	it("selects the created companion and ends the first run when the reader opens it", async () => {
+		await controller.pickCompanion()
+		await controller.addCompanion(SUGGESTED_SCOUT.id)
+
+		await controller.openCompanion()
+
+		expect(world.opened).toEqual(["bot-scout"])
+		expect(controller.getState().step).toBe("done")
+		expect(world.firstRunDone).toBe(1)
+	})
+
+	it("ends the first run and moves nobody when the reader stays", async () => {
+		await controller.pickCompanion()
+		await controller.addCompanion(SUGGESTED_SCOUT.id)
+
+		await controller.finish()
+
+		expect(world.opened).toEqual([])
+		expect(world.firstRunDone).toBe(1)
+	})
+
+	it("sends the typed words to the companion the onboarding runs in", async () => {
+		await controller.pickCompanion()
+
+		await controller.askInOwnWords("someone who drafts my emails")
+
+		expect(world.sent.at(-1)).toBe("someone who drafts my emails")
+		expect(world.drafted).toEqual([])
+		expect(controller.getState().step).toBe("done")
+		expect(world.firstRunDone).toBe(1)
+	})
+
+	it("ends the first run when the reader skips the picker", async () => {
+		await controller.pickCompanion()
+
+		await controller.finish()
+
+		expect(controller.getState().step).toBe("done")
+		expect(world.firstRunDone).toBe(1)
 	})
 })
