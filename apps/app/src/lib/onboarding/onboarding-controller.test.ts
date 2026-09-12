@@ -413,12 +413,27 @@ describe("the first companion", () => {
 		expect(world.firstRunDone).toBe(0)
 	})
 
-	it("stays on the test step when nothing is suggested", async () => {
+	it("reports the reason and stays on the test step when nothing is suggested", async () => {
 		world.suggestions.length = 0
 
 		await controller.pickCompanion()
 
+		expect(reportFailure).toHaveBeenCalledWith({
+			title: "Couldn't load the suggested companions",
+			description: "the agent suggested no companion",
+		})
 		expect(controller.getState().step).toBe("summoned")
+	})
+
+	it("opens the picker on a second press once a suggestion lands", async () => {
+		world.suggestions.length = 0
+		await controller.pickCompanion()
+		world.suggestions.push(SUGGESTED_WRITER)
+
+		await controller.pickCompanion()
+
+		expect(controller.getState().step).toBe("picking")
+		expect(controller.getState().suggestions).toEqual([SUGGESTED_WRITER])
 	})
 
 	it("creates the companion from the name, the job and the description", async () => {

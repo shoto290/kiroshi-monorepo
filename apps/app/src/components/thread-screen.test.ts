@@ -2376,12 +2376,16 @@ describe("the first run in a solo thread", () => {
 		expect(screen.queryByText(PICKER_TITLE)).toBeNull()
 	})
 
-	it("shows no picker when nothing is suggested", async () => {
+	it("shows no picker and reports the reason when nothing is suggested", async () => {
 		const fixture = await answeredPicker()
 		fixture.world.suggestions.length = 0
 
 		await press("Pick my first companion")
 
+		expect(fixture.reportFailure).toHaveBeenCalledWith({
+			title: "Couldn't load the suggested companions",
+			description: "the agent suggested no companion",
+		})
 		expect(screen.queryByText(PICKER_TITLE)).toBeNull()
 		expect(screen.getByText(TEST_TITLE)).toBeTruthy()
 	})

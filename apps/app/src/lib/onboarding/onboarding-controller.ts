@@ -93,6 +93,8 @@ const initialOnboardingState: OnboardingState = {
 	handoff: null,
 }
 
+const NO_SUGGESTION = { kind: "noSuggestion" } as const
+
 const draftOf = ({ name, job, description }: SuggestedBot): BotDraft => ({
 	name,
 	job,
@@ -201,9 +203,10 @@ export const createOnboardingController = (
 		set({ isBusy: true })
 		try {
 			const read = await world.suggest()
-			if (read.length > 0) {
-				set({ step: "picking", card: null, suggestions: read })
+			if (read.length === 0) {
+				throw NO_SUGGESTION
 			}
+			set({ step: "picking", card: null, suggestions: read })
 		} catch (reason) {
 			report(i18n.t("chat:onboarding.picker.failure.suggestions"), reason)
 		} finally {
