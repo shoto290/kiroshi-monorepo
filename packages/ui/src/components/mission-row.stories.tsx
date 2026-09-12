@@ -5,6 +5,7 @@ import preview from "@workspace/storybook/preview"
 import {
 	A11Y_CONTRAST_AWAITING_DESIGN_DECISION,
 	slotIn,
+	slotsIn,
 } from "@workspace/storybook/story-utils"
 import { BotIdentityAvatar } from "@workspace/ui/components/bot-identity-avatar"
 import { MissionRow } from "@workspace/ui/components/mission-row"
@@ -52,16 +53,29 @@ const rowIn = (canvasElement: HTMLElement) => {
 const previewIn = (canvasElement: HTMLElement) =>
 	slotIn(canvasElement, "roster-row-preview")
 
+const partsIn = (canvasElement: HTMLElement) =>
+	slotsIn(previewIn(canvasElement), "mission-row-part")
+
 const firstPartIn = (canvasElement: HTMLElement) => {
-	const part = previewIn(canvasElement).querySelector("span")
+	const [part] = partsIn(canvasElement)
 	if (!part) throw new Error("The preview line writes no part")
 	return part
 }
+
+const separatorOf = (part: Element) =>
+	getComputedStyle(part, "::before").content
 
 const dotIn = (canvasElement: HTMLElement) =>
 	canvasElement.querySelector<HTMLElement>('[data-slot="bot-activity-dot"]')
 
 const colorOf = (element: Element) => getComputedStyle(element).color
+
+const weightOf = (element: Element) => getComputedStyle(element).fontWeight
+
+const figuresOf = (element: Element) =>
+	getComputedStyle(element).fontVariantNumeric
+
+const MEDIUM_WEIGHT = "500"
 
 const boxOf = (row: HTMLElement) => {
 	const style = getComputedStyle(row)
@@ -107,7 +121,7 @@ export const Working = meta.story({
 		docs: {
 			description: {
 				story:
-					"A mission its companion is working on. Check that the blot holds the working pose the same mission carries on its thread card, that no badge dot is drawn on it, that the preview line runs the working shimmer a roster row runs for a busy companion, that the ticket identifier, the companion and the state word read on that line, and that the row reports the mission it belongs to when it is pressed.",
+					"A mission its companion is working on. Check that the blot holds the working pose the same mission carries on its thread card, that no badge dot is drawn on it, that the preview line runs the working shimmer a roster row runs for a busy companion, that the ticket identifier keeps the medium weight and the tabular figures of the row this one replaced while the companion and the state word stay at the line's own weight, that all three read in the colour of the line, shimmer or not, and that the row reports the mission it belongs to when it is pressed.",
 			},
 		},
 	},
@@ -116,14 +130,27 @@ export const Working = meta.story({
 			canvas.getByRole("img", { name: "Companion avatar owl, working" }),
 		).toBeVisible()
 		await expect(dotIn(canvasElement)).toBeNull()
-		await expect(canvas.getByText("OPE-42")).toBeVisible()
-		await expect(canvas.getByText("Ada Martin")).toBeVisible()
-		await expect(canvas.getByText("Working")).toBeVisible()
 		await expect(canvas.getByText("1h")).toBeVisible()
-		await expect(previewIn(canvasElement).firstElementChild).toHaveAttribute(
+
+		const line = previewIn(canvasElement)
+		const identifier = canvas.getByText("OPE-42")
+		await expect(line.firstElementChild).toHaveAttribute(
 			"data-slot",
 			"text-shimmer",
 		)
+		await expect(identifier).toBeVisible()
+		await expect(figuresOf(identifier)).toBe("tabular-nums")
+		await expect(weightOf(identifier)).toBe(MEDIUM_WEIGHT)
+		for (const rest of [
+			canvas.getByText("Ada Martin"),
+			canvas.getByText("Working"),
+		]) {
+			await expect(rest).toBeVisible()
+			await expect(figuresOf(rest)).toBe("normal")
+			await expect(weightOf(rest)).toBe(weightOf(line))
+			await expect(colorOf(rest)).toBe(colorOf(line))
+		}
+		await expect(colorOf(identifier)).toBe(colorOf(line))
 
 		const row = rowIn(canvasElement)
 		await expect(row).toHaveAttribute("data-opens", WORKING_MISSION.id)
@@ -151,6 +178,38 @@ export const WaitingForItsBot = meta.story({
 		)
 		await expect(canvas.getByText("Working")).toBeVisible()
 		await expect(line.scrollWidth).toBeGreaterThan(line.clientWidth)
+	},
+})
+
+export const PartsRepeatingTheSameWords = meta.story({
+	args: {
+		...WAITING_BOT_MISSION,
+		ticket: {
+			...WAITING_BOT_MISSION.ticket,
+			title: WAITING_BOT_MISSION.bot.name,
+		},
+	},
+	parameters: {
+		docs: {
+			description: {
+				story:
+					"A ticket titled after the companion running it, so the line writes the same words twice. Check that both parts are drawn, each opened by its own separator, since a part is kept by the slot it fills rather than by the text it writes.",
+			},
+		},
+	},
+	play: async ({ canvas, canvasElement }) => {
+		const twins = canvas.getAllByText(WAITING_BOT_MISSION.bot.name)
+		const parts = partsIn(canvasElement)
+
+		await expect(twins).toHaveLength(2)
+		await expect(parts.map((part) => part.textContent)).toEqual([
+			WAITING_BOT_MISSION.bot.name,
+			WAITING_BOT_MISSION.bot.name,
+			"Working",
+		])
+		await expect(separatorOf(parts[0] as Element)).toBe("none")
+		for (const opened of parts.slice(1))
+			await expect(separatorOf(opened)).toBe('"·"')
 	},
 })
 
@@ -244,7 +303,7 @@ export const WithoutATicket = meta.story({
 
 		await expect(first).toHaveTextContent(UNTICKETED_MISSION.bot.name)
 		await expect(previewIn(canvasElement).querySelector("svg")).toBeNull()
-		await expect(getComputedStyle(first, "::before").content).toBe("none")
+		await expect(separatorOf(first)).toBe("none")
 	},
 })
 

@@ -15,6 +15,7 @@ import {
 } from "@workspace/ui/components/mission"
 import { missionTicketPlatform } from "@workspace/ui/components/mission-marks"
 import { SidebarListRow } from "@workspace/ui/components/sidebar-list-row"
+import { cn } from "@workspace/ui/lib/utils"
 
 type MissionRowModel = {
 	id: string
@@ -38,6 +39,8 @@ const BADGE_OF: Partial<Record<MissionState, BotBadge>> = {
 const MARK_CLASS =
 	"me-[5px] inline-block size-[11px]! align-[-1px] text-muted-foreground"
 
+const IDENTIFIER_CLASS = "font-medium tabular-nums"
+
 const isTicketed = ({ platform, externalId, title }: BotMissionTicket) =>
 	Boolean(platform || externalId || title)
 
@@ -54,10 +57,14 @@ const MissionRow = ({
 	const { Mark, isNamed } = missionTicketPlatform(ticket.platform)
 	const isWorking = state === "working"
 	const parts = [
-		isNamed ? ticket.externalId : ticket.title,
-		bot.name,
-		t(`missions.state.${state}`),
-	].filter((part) => part !== "")
+		{
+			slot: "ticket",
+			text: isNamed ? ticket.externalId : ticket.title,
+			className: isNamed ? IDENTIFIER_CLASS : undefined,
+		},
+		{ slot: "bot", text: bot.name },
+		{ slot: "state", text: t(`missions.state.${state}`) },
+	].filter((part) => part.text !== "")
 
 	return (
 		<li data-slot="mission-row">
@@ -82,8 +89,12 @@ const MissionRow = ({
 							<Mark aria-hidden="true" className={MARK_CLASS} />
 						) : null}
 						{parts.map((part, index) => (
-							<span className={index === 0 ? undefined : DOT_CLASS} key={part}>
-								{part}
+							<span
+								className={cn(index > 0 && DOT_CLASS, part.className)}
+								data-slot="mission-row-part"
+								key={part.slot}
+							>
+								{part.text}
 							</span>
 						))}
 					</>

@@ -129,6 +129,8 @@ const translateOf = (element: HTMLElement) =>
 
 const isInBrowserRunner = () => "__vitest_browser__" in globalThis
 
+const colorOf = (element: HTMLElement) => getComputedStyle(element).color
+
 const skinOf = (element: HTMLElement) => {
 	const style = getComputedStyle(element)
 	return { background: style.backgroundColor, ring: style.boxShadow }
@@ -330,6 +332,82 @@ export const WorkingPreview = meta.story({
 
 		await expect(preview?.children).toHaveLength(1)
 		await expect(preview?.firstElementChild).toHaveTextContent("Thinking")
+	},
+})
+
+export const MutedName = meta.story({
+	args: {
+		media: AVATAR,
+		timestamp: "09:12",
+		preview: "Closed earlier today.",
+		isNameMuted: true,
+	},
+	render: (args) => (
+		<Shell>
+			<SidebarMenuItem>
+				<SidebarListRow {...args} />
+			</SidebarMenuItem>
+			<SidebarMenuItem>
+				<SidebarListRow {...args} isNameMuted={false} name="Beacon" />
+			</SidebarMenuItem>
+		</Shell>
+	),
+	parameters: {
+		docs: {
+			description: {
+				story:
+					"A row whose name no longer speaks for something live, beside the same row at full strength: the activity panel asks for this on a mission that is done. Check the muted name reads in the colour its preview line reads in, and that the row beside it keeps the name colour of the sidebar. Pick `WithPreview` for the line that colour is taken from.",
+			},
+		},
+	},
+	play: async ({ canvasElement }) => {
+		const [muted, plain] = rowsIn(canvasElement)
+		if (!muted || !plain) throw new Error("Both rows are not rendered")
+		const mutedName = slotIn(muted, "roster-row-name")
+		const mutedPreview = slotIn(muted, "roster-row-preview")
+		const plainName = slotIn(plain, "roster-row-name")
+		if (!mutedName || !mutedPreview || !plainName)
+			throw new Error("Missing name line slot")
+
+		await expect(colorOf(mutedName)).toBe(colorOf(mutedPreview))
+		await expect(colorOf(mutedName)).not.toBe(colorOf(plainName))
+	},
+})
+
+export const PreviewFromNodes = meta.story({
+	args: {
+		media: AVATAR,
+		timestamp: "09:24",
+		preview: (
+			<>
+				<span className="font-medium tabular-nums" data-slot="preview-lead">
+					OPE-64
+				</span>
+				<span className="before:mx-1 before:content-['·']">Pin the room</span>
+			</>
+		),
+	},
+	parameters: {
+		docs: {
+			description: {
+				story:
+					"A preview line built from nodes rather than from one string, the way a mission row writes its ticket, its companion and its state. Check that every node lands inside the single preview line, that the line still clips to one row rather than wrapping, and that nothing inside the button is a block element. Pick `WithPreview` for the same slot given plain text.",
+			},
+		},
+	},
+	play: async ({ canvasElement }) => {
+		const row = rowIn(canvasElement)
+		const preview = slotIn(row, "roster-row-preview")
+		if (!preview) throw new Error("The row draws no preview line")
+
+		await expect(preview.children).toHaveLength(2)
+		await expect(preview).toHaveTextContent("Pin the room")
+		await expect(slotIn(row, "preview-lead")).toHaveTextContent("OPE-64")
+		await expect(
+			getComputedStyle(preview.children[1] as Element, "::before").content,
+		).toBe('"·"')
+		await expect(preview.clientHeight).toBe(16)
+		await expect(row.querySelectorAll(NON_PHRASING)).toHaveLength(0)
 	},
 })
 
