@@ -109,7 +109,6 @@ const frozenBeat = () => {
 
 type SceneTimeline = {
 	frame: SceneFrame
-	isStill: boolean
 	engage: () => void
 	restart: () => void
 }
@@ -217,7 +216,7 @@ export const useSceneTimeline = ({
 		}
 	}, [answers, isEngaged, stillAt])
 
-	return { frame: timeline.frame, isStill: timeline.isStill, engage, restart }
+	return { frame: timeline.frame, engage, restart }
 }
 
 export type { SceneAnswers, SceneFrame }
