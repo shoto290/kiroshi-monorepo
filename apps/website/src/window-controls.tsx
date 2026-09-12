@@ -3,7 +3,7 @@ const CONTROL_COLORS = ["#FF5F57", "#FEBC2E", "#28C840"]
 export const WindowControls = () => (
 	<span
 		aria-hidden="true"
-		className="absolute top-[18px] left-3 flex items-center gap-2"
+		className="absolute top-[18px] left-3 z-20 flex items-center gap-2"
 	>
 		{CONTROL_COLORS.map((color) => (
 			<span

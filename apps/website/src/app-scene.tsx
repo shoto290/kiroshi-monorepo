@@ -242,7 +242,6 @@ export const AppScene = () => {
 			<WindowControls />
 			<RosterProvider bots={SCENE_BOTS}>
 				<WorkspaceShell
-					className="h-full"
 					defaultOpen
 					isLandmark={false}
 					sidebar={
