@@ -1,7 +1,8 @@
 import { useState } from "react"
-import { expect, fn, screen } from "storybook/test"
+import { expect, fn, screen, waitFor } from "storybook/test"
 
 import preview from "@workspace/storybook/preview"
+import { FRAME_POLL } from "@workspace/storybook/story-utils"
 import {
 	type BotModelOption,
 	DEFAULT_BOT_OUTPUT_STYLE,
@@ -138,6 +139,10 @@ export const StandardAnswers = meta.story({
 			await screen.findByRole("option", { name: "Concise" }),
 		)
 
+		await waitFor(async () => {
+			await expect(screen.queryByRole("listbox")).toBeNull()
+		}, FRAME_POLL)
+
 		await expect(args.onOutputStyleChange).toHaveBeenCalledWith("Concise")
 		await expect(style).toHaveTextContent("Concise")
 	},
@@ -172,6 +177,10 @@ export const PickingAModel = meta.story({
 		await userEvent.click(
 			await screen.findByRole("option", { name: "Nest Opus 4.1" }),
 		)
+
+		await waitFor(async () => {
+			await expect(screen.queryByRole("listbox")).toBeNull()
+		}, FRAME_POLL)
 
 		await expect(args.onModelChange).toHaveBeenCalledWith("nest-opus-4-1")
 		await expect(

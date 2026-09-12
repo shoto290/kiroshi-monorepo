@@ -3,6 +3,7 @@ import { expect } from "storybook/test"
 import preview from "@workspace/storybook/preview"
 import {
 	botIdentityAvatars,
+	pictureOf,
 	Row,
 	slotsIn,
 	UPLOADED_AVATAR_IMAGE,
@@ -270,7 +271,7 @@ export const Uploaded = meta.story({
 		const frame = frameOf(canvasElement)
 		const [uploaded] = heldIn(frame)
 
-		await expect(uploaded.querySelector("img")).toBeVisible()
+		await expect(await pictureOf(uploaded)).toBeVisible()
 	},
 })
 

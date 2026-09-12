@@ -27,8 +27,8 @@ export default defineConfig({
 				test: {
 					name: "storybook",
 					setupFiles: [".storybook/vitest.setup.ts"],
-					isolate: false,
-					retry: 2,
+					isolate: true,
+					fileParallelism: false,
 					browser: {
 						enabled: true,
 						headless: true,
