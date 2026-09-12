@@ -24,9 +24,10 @@ export const useReaderAvatar = () => {
 		})
 
 		loadedPicture(AUTHOR_X_AVATAR_URL).then((url) => {
-			if (!(url && listening)) return
-			isLiveDrawn = true
-			setAvatar(url)
+			if (url && listening) {
+				isLiveDrawn = true
+				setAvatar(url)
+			}
 		})
 
 		return () => {
