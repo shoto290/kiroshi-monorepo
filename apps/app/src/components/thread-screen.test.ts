@@ -2348,6 +2348,13 @@ describe("the first run in a solo thread", () => {
 		return { ...fixture, rerender }
 	}
 
+	const openedPicker = async () => {
+		const fixture = await answeredPicker()
+		await press("Pick my first companion")
+
+		return fixture
+	}
+
 	it("shows one option per suggestion when the reader picks a companion", async () => {
 		const fixture = await answeredPicker()
 
@@ -2391,8 +2398,7 @@ describe("the first run in a solo thread", () => {
 	})
 
 	it("hands the reader over to the companion it created", async () => {
-		const fixture = await answeredPicker()
-		await press("Pick my first companion")
+		const fixture = await openedPicker()
 
 		await press(`Add ${SUGGESTED_WRITER.name}`)
 
@@ -2405,8 +2411,7 @@ describe("the first run in a solo thread", () => {
 	})
 
 	it("keeps the picker and reports the reason when the creation is refused", async () => {
-		const fixture = await answeredPicker()
-		await press("Pick my first companion")
+		const fixture = await openedPicker()
 		fixture.world.refusals.create = { kind: "storage", detail: "disk is full" }
 
 		await press(`Add ${SUGGESTED_WRITER.name}`)
@@ -2423,8 +2428,7 @@ describe("the first run in a solo thread", () => {
 	})
 
 	it("hands off anyway when the first turn fails to start", async () => {
-		const fixture = await answeredPicker()
-		await press("Pick my first companion")
+		const fixture = await openedPicker()
 		fixture.world.refusals.greet = {
 			kind: "crashed",
 			detail: "the agent stopped",
@@ -2443,8 +2447,7 @@ describe("the first run in a solo thread", () => {
 	})
 
 	it("leaves the reader where they are when they stay on the handoff", async () => {
-		const fixture = await answeredPicker()
-		await press("Pick my first companion")
+		const fixture = await openedPicker()
 		await press(`Add ${SUGGESTED_WRITER.name}`)
 
 		await press("Stay here")
@@ -2455,8 +2458,7 @@ describe("the first run in a solo thread", () => {
 	})
 
 	it("opens the created companion from the handoff", async () => {
-		const fixture = await answeredPicker()
-		await press("Pick my first companion")
+		const fixture = await openedPicker()
 		await press(`Add ${SUGGESTED_WRITER.name}`)
 
 		await press(`Open ${SUGGESTED_WRITER.name}`)
@@ -2466,8 +2468,7 @@ describe("the first run in a solo thread", () => {
 	})
 
 	it("hands the typed words to the companion the run started in", async () => {
-		const fixture = await answeredPicker()
-		await press("Pick my first companion")
+		const fixture = await openedPicker()
 
 		await type(PICKER_REQUEST_LABEL, "someone who drafts my emails")
 		fixture.rerender()
@@ -2479,8 +2480,7 @@ describe("the first run in a solo thread", () => {
 	})
 
 	it("ends the run when the reader skips the picker", async () => {
-		const fixture = await answeredPicker()
-		await press("Pick my first companion")
+		const fixture = await openedPicker()
 
 		await press("Skip for now")
 
