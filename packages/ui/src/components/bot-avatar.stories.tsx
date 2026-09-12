@@ -1,6 +1,6 @@
-import type { ReactNode } from "react"
+import { type ReactNode, useEffect, useRef } from "react"
 import { useArgs } from "storybook/preview-api"
-import { expect } from "storybook/test"
+import { expect, waitFor } from "storybook/test"
 
 import preview from "@workspace/storybook/preview"
 import { slotsIn } from "@workspace/storybook/story-utils"
@@ -15,13 +15,18 @@ import {
 	STATE_POOLS,
 	STATE_POSES,
 } from "@workspace/ui/components/bot-avatar-data"
-import { PARTS } from "@workspace/ui/components/bot-avatar-engine"
+import {
+	BotAvatarEngine,
+	PARTS,
+} from "@workspace/ui/components/bot-avatar-engine"
 import {
 	GAZE_CADENCE,
+	GAZE_DART_DURATION,
 	GAZE_PITCH_DOWN_LIMIT,
 	GAZE_PITCH_UP_LIMIT,
 	GAZE_YAW_LIMIT,
 } from "@workspace/ui/components/bot-avatar-gaze"
+import { Button } from "@workspace/ui/components/ui/button"
 
 const BOT_AVATAR_ANIMALS = Object.keys(ANIMALS) as BotAvatarAnimal[]
 const BOT_AVATAR_STATES = Object.keys(STATE_POOLS) as BotAvatarState[]
@@ -62,6 +67,44 @@ const rigLean = (avatar: SVGSVGElement) =>
 			?.getAttribute("transform")
 			?.match(/translate\((-?\d*\.?\d+)/)?.[1] ?? Number.NaN,
 	)
+
+const LIVE_GAZE_STATE: BotAvatarState = "listening"
+const LIVE_GAZE_SETTLE_MS = 1000
+const LIVE_GAZE_PIN = { yaw: GAZE_YAW_LIMIT, pitch: 0 }
+
+const settle = (ms: number) =>
+	new Promise((resolve) => {
+		setTimeout(resolve, ms)
+	})
+
+function LiveGazeBench() {
+	const host = useRef<HTMLDivElement>(null)
+	const live = useRef<BotAvatarEngine | null>(null)
+
+	useEffect(() => {
+		const svg = host.current?.querySelector("svg")
+		if (!svg) return
+		const engine = new BotAvatarEngine(ANIMALS.rabbit)
+		engine.bind(svg)
+		engine.setState(LIVE_GAZE_STATE)
+		engine.setGaze(LIVE_GAZE_PIN)
+		engine.start()
+		live.current = engine
+		return () => {
+			engine.stop()
+			live.current = null
+		}
+	}, [])
+
+	return (
+		<div className="flex flex-col items-center gap-4" ref={host}>
+			<BotAvatar animated={false} size={SPLIT_SIZE} state={LIVE_GAZE_STATE} />
+			<Button onClick={() => live.current?.setGaze(null)} variant="outline">
+				Look back to centre
+			</Button>
+		</div>
+	)
+}
 
 const eyeCentre = (avatar: SVGSVGElement) => {
 	const d =
@@ -605,5 +648,39 @@ export const GazeExtremes = meta.story({
 		await expect(Math.abs(leans[0] - leans[2])).toBeLessThan(
 			Math.abs(left.x - centre.x),
 		)
+	},
+})
+
+export const GazeFollow = meta.story({
+	name: "Gaze Follow",
+	parameters: {
+		docs: {
+			description: {
+				story:
+					"The only bench where the gaze runs live. The test browser asks for reduced motion, which stops the avatar's own engine, so this story binds a second engine to the rendered rig and drives it itself — nothing else in the file animates under test. The rabbit opens pinned at the far right of its gaze; the button releases the pin and the companion looks home. Watch the order rather than the distance: the eyes cross first in 80 ms flat, the head only starts leaning 90 ms later, and it never travels as far as they do. Reach for this after touching the dart, the head delay or the head spring.",
+			},
+		},
+	},
+	render: () => <LiveGazeBench />,
+	play: async ({ canvas, canvasElement, userEvent }) => {
+		const avatar = canvasElement.querySelector("svg") as SVGSVGElement
+
+		await settle(LIVE_GAZE_SETTLE_MS)
+		const pinnedReach = eyeCentre(avatar).x
+		const pinnedLean = rigLean(avatar)
+		await expect(pinnedLean).toBeGreaterThan(0)
+
+		await userEvent.click(canvas.getByRole("button"))
+		await settle(GAZE_DART_DURATION)
+		const dartedReach = eyeCentre(avatar).x
+		const dartedLean = rigLean(avatar)
+		await waitFor(() => expect(rigLean(avatar)).toBeLessThan(dartedLean))
+		const followedLean = rigLean(avatar)
+
+		const eyeTravel = Math.abs(dartedReach - pinnedReach)
+		await expect(dartedReach).toBeLessThan(pinnedReach)
+		await expect(followedLean).toBeLessThan(pinnedLean)
+		await expect(Math.abs(dartedLean - pinnedLean)).toBeLessThan(eyeTravel)
+		await expect(Math.abs(followedLean - pinnedLean)).toBeLessThan(eyeTravel)
 	},
 })

@@ -51,7 +51,6 @@ import {
 	GAZE_AXES,
 	GAZE_CADENCE,
 	GAZE_CENTRE,
-	GAZE_DART_DURATION,
 	GAZE_HEAD_DELAY,
 	GAZE_HEAD_SPRING_DAMPING,
 	GAZE_HEAD_SPRING_FREQUENCY,
@@ -344,7 +343,7 @@ export class BotAvatarEngine {
 			this.scheduleAll()
 			this.applyBoil()
 		}
-		if (!GAZE_CADENCE[state] && this.gazeHeld === null) {
+		if (!this.glanceCadence() && this.gazeHeld === null) {
 			this.startDart({ ...GAZE_CENTRE })
 		}
 	}
@@ -366,7 +365,12 @@ export class BotAvatarEngine {
 			this.invalidate()
 			return
 		}
-		if (wasHeld && this.release !== null) this.scheduleGlance()
+		if (!wasHeld) return
+		if (!this.glanceCadence()) {
+			this.startDart({ ...GAZE_CENTRE })
+			return
+		}
+		if (this.release !== null) this.scheduleGlance()
 	}
 
 	setPerspective(perspective: number) {
@@ -500,8 +504,12 @@ export class BotAvatarEngine {
 		})
 	}
 
+	private glanceCadence() {
+		return GAZE_CADENCE[this.state]
+	}
+
 	private scheduleGlance() {
-		const cadence = GAZE_CADENCE[this.state]
+		const cadence = this.glanceCadence()
 		if (!cadence || this.gazeHeld !== null) return
 		this.schedule(glanceDelay(cadence, Math.random), () => {
 			this.startDart(this.nextGazeTarget(cadence))
@@ -535,9 +543,6 @@ export class BotAvatarEngine {
 		this.gazeFrom = { ...this.gaze }
 		this.gazeTarget = target
 		this.gazeDartAt = performance.now()
-		this.schedule(GAZE_HEAD_DELAY, () => {
-			this.headGazeTarget = headGazeFor(target)
-		})
 		if (!blinksWithDart(gazeTravel(this.gazeFrom, target), Math.random)) return
 		this.schedule(blinkDelay(Math.random), () => {
 			this.blinkStart = performance.now()
@@ -549,7 +554,10 @@ export class BotAvatarEngine {
 		if (this.gazeDartAt !== null) {
 			const elapsed = now - this.gazeDartAt
 			this.gaze = gazeAlong(this.gazeFrom, this.gazeTarget, elapsed)
-			if (elapsed >= GAZE_DART_DURATION) this.gazeDartAt = null
+			if (elapsed >= GAZE_HEAD_DELAY) {
+				this.headGazeTarget = headGazeFor(this.gazeTarget)
+				this.gazeDartAt = null
+			}
 		}
 		for (const axis of GAZE_AXES) {
 			const [next, velocity] = springStep(
