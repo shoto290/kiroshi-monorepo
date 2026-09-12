@@ -1,10 +1,11 @@
 "use client"
 
-import type { ReactNode } from "react"
+import { type ReactNode, useState } from "react"
 import { useTranslation } from "react-i18next"
 
 import { Icons } from "@workspace/ui/components/icons"
 import {
+	ONBOARDING_LABEL_TYPE,
 	ONBOARDING_LINE_TYPE,
 	ONBOARDING_STEP_COUNT,
 	OnboardingAction,
@@ -13,6 +14,7 @@ import {
 	OnboardingField,
 } from "@workspace/ui/components/onboarding-card"
 import { Button } from "@workspace/ui/components/ui/button"
+import { useCopyText } from "@workspace/ui/hooks/use-copy-text"
 import { cn } from "@workspace/ui/lib/utils"
 
 type OnboardingStatusTone = "ok" | "failed"
@@ -49,6 +51,117 @@ const OnboardingStatus = ({ tone, title, children }: OnboardingStatusProps) => (
 	</div>
 )
 
+const LINK_ROW_CLASS =
+	"flex h-8.5 items-center gap-2 rounded-control border border-border ps-3 pe-1.5 has-[input:focus-visible]:border-ring has-[input:focus-visible]:ring-3 has-[input:focus-visible]:ring-ring/30"
+
+type OnboardingWaitingProps = {
+	signInUrl: string
+	code: string
+	onCodeChange: (code: string) => void
+	onCodeSubmit: (code: string) => void
+	onPasteKey: () => void
+	disabled?: boolean
+}
+
+const OnboardingWaiting = ({
+	signInUrl,
+	code,
+	onCodeChange,
+	onCodeSubmit,
+	onPasteKey,
+	disabled,
+}: OnboardingWaitingProps) => {
+	const { t } = useTranslation("chat")
+	const { copied, copy } = useCopyText(signInUrl)
+	const [hasFailedToCopy, setHasFailedToCopy] = useState(false)
+
+	const hasCopied = copied && !hasFailedToCopy
+
+	const copyLink = () => {
+		setHasFailedToCopy(false)
+		copy().catch(() => setHasFailedToCopy(true))
+	}
+
+	const submitCode = (value: string) => {
+		if (value.trim() === "") return
+		onCodeSubmit(value)
+	}
+
+	return (
+		<>
+			<div className="flex items-center gap-2" data-slot="onboarding-status">
+				<span
+					aria-hidden="true"
+					className="size-1.5 shrink-0 rounded-full bg-bot-badge-attention"
+					data-slot="onboarding-status-dot"
+				/>
+				<p className={cn("min-w-0 truncate", ONBOARDING_LABEL_TYPE)}>
+					{t("onboarding.connection.waiting.title")}
+				</p>
+			</div>
+			<div className={LINK_ROW_CLASS} data-slot="onboarding-link">
+				<input
+					aria-label={t("onboarding.connection.waiting.linkLabel")}
+					className="min-w-0 flex-1 truncate bg-transparent font-mono text-xs leading-4 outline-none"
+					readOnly
+					value={signInUrl}
+				/>
+				<Button
+					aria-label={t(
+						hasCopied
+							? "onboarding.connection.waiting.copiedLink"
+							: "onboarding.connection.waiting.copyLink",
+					)}
+					className="shrink-0 rounded-md text-foreground"
+					disabled={disabled}
+					onClick={copyLink}
+					size="xs"
+					type="button"
+					variant="secondary"
+				>
+					{t(
+						hasCopied
+							? "onboarding.connection.waiting.copied"
+							: "onboarding.connection.waiting.copy",
+					)}
+				</Button>
+			</div>
+			<span aria-live="polite" className="sr-only">
+				{hasCopied ? t("onboarding.connection.waiting.copiedLink") : null}
+				{hasFailedToCopy ? t("onboarding.connection.waiting.copyFailed") : null}
+			</span>
+			<OnboardingField
+				action={
+					<OnboardingAction
+						className="min-h-8.5"
+						disabled={disabled}
+						emphasis="primary"
+						onClick={() => submitCode(code)}
+					>
+						{t("onboarding.connection.waiting.continue")}
+					</OnboardingAction>
+				}
+				disabled={disabled}
+				family="mono"
+				label={t("onboarding.connection.waiting.codeLabel")}
+				onSubmit={submitCode}
+				onValueChange={onCodeChange}
+				placeholder={t("onboarding.connection.waiting.codePlaceholder")}
+				value={code}
+			/>
+			<OnboardingActions>
+				<OnboardingAction
+					disabled={disabled}
+					emphasis="secondary"
+					onClick={onPasteKey}
+				>
+					{t("onboarding.connection.failed.pasteKey")}
+				</OnboardingAction>
+			</OnboardingActions>
+		</>
+	)
+}
+
 type OnboardingConnectionCardProps = {
 	className?: string
 	disabled?: boolean
@@ -65,6 +178,14 @@ type OnboardingConnectionCardProps = {
 			onApiKeyChange: (apiKey: string) => void
 			onApiKeySubmit: (apiKey: string) => void
 			onSignIn: () => void
+	  }
+	| {
+			state: "waiting"
+			signInUrl: string
+			code: string
+			onCodeChange: (code: string) => void
+			onCodeSubmit: (code: string) => void
+			onPasteKey: () => void
 	  }
 	| {
 			state: "failed"
@@ -139,6 +260,16 @@ const OnboardingConnectionCard = ({
 						value={props.apiKey}
 					/>
 				</>
+			) : null}
+			{props.state === "waiting" ? (
+				<OnboardingWaiting
+					code={props.code}
+					disabled={disabled}
+					onCodeChange={props.onCodeChange}
+					onCodeSubmit={props.onCodeSubmit}
+					onPasteKey={props.onPasteKey}
+					signInUrl={props.signInUrl}
+				/>
 			) : null}
 			{props.state === "failed" ? (
 				<>
