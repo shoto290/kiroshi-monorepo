@@ -30,6 +30,8 @@ export const AUTHOR_URL = `https://github.com/${AUTHOR_SLUG}`
 
 export const AUTHOR_X_URL = `https://x.com/${AUTHOR_SLUG}`
 
+export const AUTHOR_X_AVATAR_URL = `https://unavatar.io/x/${AUTHOR_SLUG}`
+
 export const REPOSITORY_URL = `https://github.com/${REPOSITORY_SLUG}`
 
 export const RELEASES_URL = `${REPOSITORY_URL}/releases`
@@ -43,7 +45,7 @@ export const SCENE_COPY = {
 		veille: "Veille",
 	},
 	sceneLabel: "Live demonstration of the Kiroshi app",
-	reader: "Steve",
+	reader: "Shoto",
 	threadTitle: "Version 015",
 	composerPlaceholder: "Message the room, or @ a companion...",
 	conversation: {
