@@ -6,7 +6,9 @@ import { useTranslation } from "react-i18next"
 import { Icons } from "@workspace/ui/components/icons"
 import {
 	ONBOARDING_LINE_TYPE,
+	ONBOARDING_RULE,
 	ONBOARDING_STEP_COUNT,
+	ONBOARDING_STEP_TYPE,
 	OnboardingAction,
 	OnboardingActions,
 	OnboardingCard,
@@ -16,7 +18,7 @@ import { Button } from "@workspace/ui/components/ui/button"
 import { useCopyText } from "@workspace/ui/hooks/use-copy-text"
 import { cn } from "@workspace/ui/lib/utils"
 
-type OnboardingStatusTone = "ok" | "waiting" | "failed"
+type OnboardingStatusTone = "ok" | "failed"
 
 const STATUS_TONE: Record<
 	OnboardingStatusTone,
@@ -26,11 +28,6 @@ const STATUS_TONE: Record<
 		row: "items-start",
 		dot: "mt-1.25 size-2 bg-bot-badge-done",
 		column: "gap-0.5",
-	},
-	waiting: {
-		row: "items-center",
-		dot: "size-1.5 bg-bot-badge-attention",
-		column: "gap-0",
 	},
 	failed: {
 		row: "items-start",
@@ -117,27 +114,28 @@ const OnboardingWaiting = ({
 
 	return (
 		<>
-			<OnboardingStatus
-				title={t("onboarding.connection.waiting.title")}
-				tone="waiting"
-			/>
-			<div className={LINK_ROW_CLASS} data-slot="onboarding-link">
-				<input
-					aria-label={t("onboarding.connection.waiting.linkLabel")}
-					className="min-w-0 flex-1 truncate bg-transparent font-mono text-xs leading-4 outline-none"
-					readOnly
-					value={signInUrl}
-				/>
-				<Button
-					aria-label={copyControl.name}
-					className="shrink-0 rounded-md text-foreground"
-					onClick={copyLink}
-					size="xs"
-					type="button"
-					variant="secondary"
-				>
-					{copyControl.label}
-				</Button>
+			<div className="flex flex-col gap-1.5">
+				<p className={ONBOARDING_STEP_TYPE}>
+					{t("onboarding.connection.waiting.linkStep")}
+				</p>
+				<div className={LINK_ROW_CLASS} data-slot="onboarding-link">
+					<input
+						aria-label={t("onboarding.connection.waiting.linkLabel")}
+						className="min-w-0 flex-1 truncate bg-transparent font-mono text-xs leading-4 outline-none"
+						readOnly
+						value={signInUrl}
+					/>
+					<Button
+						aria-label={copyControl.name}
+						className="shrink-0 rounded-md text-foreground"
+						onClick={copyLink}
+						size="xs"
+						type="button"
+						variant="secondary"
+					>
+						{copyControl.label}
+					</Button>
+				</div>
 			</div>
 			<span aria-live="polite" className="sr-only">
 				{hasFailedToCopy ? t("onboarding.connection.waiting.copyFailed") : null}
@@ -155,6 +153,7 @@ const OnboardingWaiting = ({
 				}
 				disabled={disabled}
 				family="mono"
+				hasRule={false}
 				inputRef={codeField}
 				label={t("onboarding.connection.waiting.codeLabel")}
 				onSubmit={submitCode}
@@ -162,7 +161,7 @@ const OnboardingWaiting = ({
 				placeholder={t("onboarding.connection.waiting.codePlaceholder")}
 				value={code}
 			/>
-			<OnboardingActions>
+			<OnboardingActions className={ONBOARDING_RULE}>
 				<OnboardingAction
 					disabled={disabled}
 					emphasis="secondary"

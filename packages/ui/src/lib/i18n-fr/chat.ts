@@ -629,7 +629,7 @@ const chat = {
 				keyPlaceholder: "sk-ant-…",
 			},
 			waiting: {
-				title: "Votre navigateur ne s'est pas ouvert",
+				linkStep: "Ouvrez ce lien et connectez-vous",
 				linkLabel: "Lien de connexion",
 				copy: "Copier",
 				copyLink: "Copier le lien de connexion",
@@ -637,7 +637,7 @@ const chat = {
 				copiedLink: "Lien de connexion copié",
 				copyFailed:
 					"Copie impossible. Sélectionnez le lien et copiez-le vous-même.",
-				codeLabel: "Puis collez le code que votre navigateur vous rend",
+				codeLabel: "Puis collez le code qu'il vous donne",
 				codePlaceholder: "code#state",
 				continue: "Continuer",
 			},

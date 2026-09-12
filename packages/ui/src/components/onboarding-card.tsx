@@ -16,6 +16,11 @@ const ONBOARDING_LABEL_TYPE = "text-compact font-medium leading-4"
 
 const ONBOARDING_LINE_TYPE = "text-compact leading-4.5"
 
+const ONBOARDING_STEP_TYPE =
+	"wrap-break-word ps-1 text-muted-foreground text-xs"
+
+const ONBOARDING_RULE = "border-border border-t pt-2.5"
+
 const ONBOARDING_STEP_COUNT = 3
 
 type OnboardingCardWidth = "default" | "wide"
@@ -149,6 +154,7 @@ type OnboardingFieldProps = {
 	disabled?: boolean
 	action?: ReactNode
 	inputRef?: RefObject<HTMLInputElement | null>
+	hasRule?: boolean
 }
 
 const OnboardingField = ({
@@ -162,6 +168,7 @@ const OnboardingField = ({
 	disabled,
 	action,
 	inputRef,
+	hasRule = true,
 }: OnboardingFieldProps) => {
 	const fieldId = useId()
 	const submitOnEnter = (event: KeyboardEvent<HTMLInputElement>) => {
@@ -172,13 +179,10 @@ const OnboardingField = ({
 
 	return (
 		<div
-			className="flex flex-col gap-1.5 border-border border-t pt-2.5"
+			className={cn("flex flex-col gap-1.5", hasRule && ONBOARDING_RULE)}
 			data-slot="onboarding-field"
 		>
-			<label
-				className="wrap-break-word ps-1 text-muted-foreground text-xs"
-				htmlFor={fieldId}
-			>
+			<label className={ONBOARDING_STEP_TYPE} htmlFor={fieldId}>
 				{label}
 			</label>
 			<div className="flex items-center gap-2">
@@ -208,7 +212,9 @@ const OnboardingField = ({
 export {
 	ONBOARDING_LABEL_TYPE,
 	ONBOARDING_LINE_TYPE,
+	ONBOARDING_RULE,
 	ONBOARDING_STEP_COUNT,
+	ONBOARDING_STEP_TYPE,
 	OnboardingAction,
 	type OnboardingActionEmphasis,
 	type OnboardingActionProps,
