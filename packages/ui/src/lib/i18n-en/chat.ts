@@ -586,6 +586,53 @@ const chat = {
 			},
 		},
 	},
+	onboarding: {
+		steps_one: "{{count}} step",
+		steps_other: "{{count}} steps",
+		step: "{{step}} of {{total}}",
+		welcome: {
+			title: "Ready when you are",
+			start: "Start",
+			more: "Tell me more first",
+		},
+		connection: {
+			title: "Your Claude account",
+			detected: {
+				subtitle: "Found on this machine, under your own login",
+				use: "Use this account",
+				another: "Use another account",
+			},
+			offer: {
+				signIn: "Sign in with Claude",
+				note: "Opens your browser once, then comes back here.",
+				keyLabel: "Or paste an API key and pay per use",
+				keyPlaceholder: "sk-ant-…",
+			},
+			failed: {
+				title: "Couldn't sign you in",
+				retry: "Try again",
+				pasteKey: "Paste a key instead",
+			},
+			settled: "Claude account connected",
+		},
+		test: {
+			title: "That's it working. One thing left.",
+			pick: "Pick my first companion",
+			keepTalking: "Keep talking",
+		},
+		picker: {
+			title: "Who should join first?",
+			option: "{{name}}, {{role}}",
+			requestLabel: "Or say what you need in your own words",
+			requestPlaceholder: "Someone who drafts my emails…",
+			add: "Add {{name}}",
+			skip: "Skip for now",
+		},
+		handoff: {
+			open: "Open {{name}}",
+			stay: "Stay here",
+		},
+	},
 } as const
 
 export { chat }

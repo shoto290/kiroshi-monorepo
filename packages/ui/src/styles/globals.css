@@ -152,6 +152,10 @@
 	--radius-3xl: calc(var(--radius-root) * 2.2);
 	--radius-4xl: calc(var(--radius-root) * 2.6);
 	--radius-bubble: calc(var(--radius-root) * 1.8);
+	--radius-card: calc(var(--radius-root) * 2);
+	--radius-control: calc(var(--radius-root) * 1.2);
+	--radius-control-lg: calc(var(--radius-root) * 1.4);
+	--text-compact: 0.8125rem;
 	--color-sidebar: var(--sidebar);
 	--color-sidebar-foreground: var(--sidebar-foreground);
 	--color-sidebar-primary: var(--sidebar-primary);
