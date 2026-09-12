@@ -193,7 +193,6 @@ mod tests {
 	async fn a_companion(database: &db::Database) -> StoredBot {
 		let mut identity = identity(Path::new("kept.png"));
 		identity.name = "Kept".to_owned();
-		identity.avatar_image_path = None;
 		database
 			.conversations()
 			.create_bot(identity.into(), personal_space(), None)
