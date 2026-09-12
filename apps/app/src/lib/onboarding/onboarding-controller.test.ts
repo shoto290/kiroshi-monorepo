@@ -390,19 +390,9 @@ describe("the first companion", () => {
 		await controller.pickCompanion()
 
 		expect(controller.getState().step).toBe("picking")
-		expect(controller.getState().picks).toEqual([
-			{
-				id: SUGGESTED_WRITER.id,
-				name: SUGGESTED_WRITER.name,
-				role: SUGGESTED_WRITER.job,
-				description: SUGGESTED_WRITER.blurb,
-			},
-			{
-				id: SUGGESTED_SCOUT.id,
-				name: SUGGESTED_SCOUT.name,
-				role: SUGGESTED_SCOUT.job,
-				description: SUGGESTED_SCOUT.blurb,
-			},
+		expect(controller.getState().suggestions).toEqual([
+			SUGGESTED_WRITER,
+			SUGGESTED_SCOUT,
 		])
 	})
 
@@ -412,7 +402,7 @@ describe("the first companion", () => {
 		await controller.pickCompanion()
 
 		expect(controller.getState().pickFailure).toBe("disk is full")
-		expect(controller.getState().picks).toEqual([])
+		expect(controller.getState().suggestions).toEqual([])
 		expect(world.firstRunDone).toBe(0)
 	})
 
@@ -463,7 +453,7 @@ describe("the first companion", () => {
 		await controller.addCompanion(SUGGESTED_SCOUT.id)
 
 		expect(controller.getState().step).toBe("picking")
-		expect(controller.getState().picks).toHaveLength(2)
+		expect(controller.getState().suggestions).toHaveLength(2)
 		expect(controller.getState().pickFailure).toBe("no name")
 		expect(world.firstRunDone).toBe(0)
 	})

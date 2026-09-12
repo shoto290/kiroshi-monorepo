@@ -10,6 +10,7 @@ import { type SummonOutcome, summonOutcomeOf } from "./onboarding-summons"
 import type { Onboarding } from "./use-onboarding"
 
 import type { ChatState } from "../chat/chat-state"
+import type { SuggestedBot } from "../conversations/store-contract"
 
 export type OnboardingTail = {
 	controller: OnboardingController
@@ -23,6 +24,18 @@ export type OnboardingTail = {
 	handoff: OnboardingHandoff | null
 	pickFailure: string | null
 }
+
+const pickOf = ({
+	id,
+	name,
+	job,
+	blurb,
+}: SuggestedBot): OnboardingCompanion => ({
+	id,
+	name,
+	role: job,
+	description: blurb,
+})
 
 const PENDING: SummonOutcome = { kind: "pending" }
 
@@ -56,7 +69,7 @@ export const onboardingTailOf = (
 		hasPill: state.hasSettled,
 		hasTest: outcome.kind === "answered",
 		isBusy: state.isBusy,
-		picks: state.step === "picking" ? state.picks : null,
+		picks: state.step === "picking" ? state.suggestions.map(pickOf) : null,
 		handoff: state.step === "handoff" ? state.handoff : null,
 		pickFailure: state.pickFailure,
 	}

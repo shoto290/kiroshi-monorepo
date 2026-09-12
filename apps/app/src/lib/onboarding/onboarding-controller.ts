@@ -1,5 +1,3 @@
-import type { OnboardingCompanion } from "@workspace/ui/components/onboarding-picker-card"
-
 import { exitDetailOf, isNotRunning } from "./onboarding-failure"
 import type { OnboardingPort } from "./onboarding-port"
 import {
@@ -45,7 +43,7 @@ export type OnboardingState = {
 	summons: string | null
 	isBusy: boolean
 	homeBotId: string | null
-	picks: OnboardingCompanion[]
+	suggestions: SuggestedBot[]
 	handoff: OnboardingHandoff | null
 	pickFailure: string | null
 }
@@ -86,22 +84,10 @@ const initialOnboardingState: OnboardingState = {
 	summons: null,
 	isBusy: false,
 	homeBotId: null,
-	picks: [],
+	suggestions: [],
 	handoff: null,
 	pickFailure: null,
 }
-
-const pickOf = ({
-	id,
-	name,
-	job,
-	blurb,
-}: SuggestedBot): OnboardingCompanion => ({
-	id,
-	name,
-	role: job,
-	description: blurb,
-})
 
 const draftOf = ({ name, job, description }: SuggestedBot): BotDraft => ({
 	name,
@@ -128,7 +114,6 @@ export const createOnboardingController = (
 ): OnboardingController => {
 	let state = initialOnboardingState
 	let asked: OnboardingSummons = "greeting"
-	let suggested: SuggestedBot[] = []
 	let attempt = 0
 	const listeners = new Set<() => void>()
 
@@ -195,20 +180,20 @@ export const createOnboardingController = (
 	}
 
 	const finishRun = () => {
-		set({ step: "done", card: null, picks: [], pickFailure: null })
+		set({ step: "done", card: null, suggestions: [], pickFailure: null })
 		return world.markFirstRunDone()
 	}
 
 	const readSuggestions = async () => {
 		set({ isBusy: true, pickFailure: null })
 		try {
-			suggested = await world.suggest()
-			set({ step: "picking", card: null, picks: suggested.map(pickOf) })
+			const read = await world.suggest()
+			set({ step: "picking", card: null, suggestions: read })
 		} catch (reason) {
 			set({
 				step: "picking",
 				card: null,
-				picks: [],
+				suggestions: [],
 				pickFailure: exitDetailOf(reason),
 			})
 		} finally {
@@ -217,7 +202,7 @@ export const createOnboardingController = (
 	}
 
 	const addCompanion = async (pickId: string) => {
-		const pick = suggested.find(({ id }) => id === pickId)
+		const pick = state.suggestions.find(({ id }) => id === pickId)
 		if (!pick) {
 			return
 		}
