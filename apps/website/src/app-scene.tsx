@@ -9,6 +9,7 @@ import {
 import { HeaderConversationButton } from "@workspace/ui/components/header-conversation-button"
 import { HeaderIdentityButton } from "@workspace/ui/components/header-identity-button"
 import { Markdown } from "@workspace/ui/components/markdown"
+import { MessageFooter } from "@workspace/ui/components/message"
 import { MissionTurn } from "@workspace/ui/components/mission-turn"
 import {
 	type PinnedMessage,
@@ -23,7 +24,11 @@ import {
 } from "@workspace/ui/components/routines-panel"
 import { ThreadLayout } from "@workspace/ui/components/thread-layout"
 import type { TranscriptItem } from "@workspace/ui/components/transcript"
-import { AssistantTurn, UserTurn } from "@workspace/ui/components/turn"
+import {
+	AssistantTurn,
+	TURN_AVATAR_SIZE,
+	UserTurn,
+} from "@workspace/ui/components/turn"
 import { WorkspaceShell } from "@workspace/ui/components/workspace-shell"
 
 import { SCENE_COPY } from "./copy"
@@ -47,6 +52,8 @@ const ROW_ENTER =
 // The fold at 1440x900 reveals 359px of the shell: the scene reclaims one
 // spacing step of the thread layout's top padding to keep its newest row inside.
 const TRANSCRIPT_INSET = "pt-4"
+
+const TURN_COLUMNS = { gridTemplateColumns: `${TURN_AVATAR_SIZE}px 1fr` }
 
 const NO_PINS: PinnedMessage[] = []
 
@@ -120,6 +127,14 @@ const loopRows = (loop: SceneLoop, frame: SceneFrame): TranscriptItem[] => {
 	return rows
 }
 
+type TurnNoteProps = { children: ReactNode }
+
+const TurnNote = ({ children }: TurnNoteProps) => (
+	<div className="grid gap-x-2" style={TURN_COLUMNS}>
+		<MessageFooter className="col-start-2 pt-1.5">{children}</MessageFooter>
+	</div>
+)
+
 const turnRow = (turn: SceneTurn, rank: number): TranscriptItem => {
 	const key = `turn-${rank}`
 
@@ -141,9 +156,12 @@ const turnRow = (turn: SceneTurn, rank: number): TranscriptItem => {
 
 	return sceneRow(
 		key,
-		<AssistantTurn author={turn.bot} cause={turn.cause}>
-			<Markdown>{turn.text}</Markdown>
-		</AssistantTurn>,
+		<>
+			<AssistantTurn author={turn.bot} cause={turn.cause}>
+				<Markdown>{turn.text}</Markdown>
+			</AssistantTurn>
+			{turn.note ? <TurnNote>{turn.note}</TurnNote> : null}
+		</>,
 	)
 }
 
