@@ -660,19 +660,21 @@ export const BoxedHost = meta.story({
 	play: async ({ canvas, canvasElement, userEvent }) => {
 		const host = canvasElement.querySelector("[data-boxed-host]") as HTMLElement
 		const sidebar = canvas.getByRole("complementary", { name: "Workspace" })
-		const main = canvas.getByRole("main")
+		const composer = canvas.getByRole("textbox", { name: "Message" })
 		const box = host.getBoundingClientRect()
+		const expectSidebarFillingHost = async () => {
+			await expect(sidebar.getBoundingClientRect().top).toBe(box.top)
+			await expect(sidebar.getBoundingClientRect().bottom).toBe(box.bottom)
+		}
 
 		await expect(box.bottom).toBeLessThan(window.innerHeight)
-		await expect(sidebar.getBoundingClientRect().bottom).toBe(box.bottom)
-		await expect(sidebar.getBoundingClientRect().top).toBe(box.top)
-		await expect(main.getBoundingClientRect().bottom).toBe(
+		await expectSidebarFillingHost()
+		await expect(canvas.getByRole("main").getBoundingClientRect().bottom).toBe(
 			box.bottom - CONTENT_CARD_GUTTER,
 		)
-		await expect(
-			canvas.getByRole("textbox", { name: "Message" }).getBoundingClientRect()
-				.bottom,
-		).toBeLessThan(box.bottom)
+		await expect(composer.getBoundingClientRect().bottom).toBeLessThan(
+			box.bottom,
+		)
 
 		await userEvent.click(
 			canvas.getByRole("button", { name: "Toggle workspace" }),
@@ -680,7 +682,6 @@ export const BoxedHost = meta.story({
 		await waitFor(async () => {
 			await expect(stateOf(sidebar)).toBe("collapsed")
 		}, FRAME_POLL)
-		await expect(sidebar.getBoundingClientRect().bottom).toBe(box.bottom)
-		await expect(sidebar.getBoundingClientRect().top).toBe(box.top)
+		await expectSidebarFillingHost()
 	},
 })
