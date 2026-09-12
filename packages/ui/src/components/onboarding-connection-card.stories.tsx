@@ -2,7 +2,7 @@ import { useState } from "react"
 import { expect, fn, spyOn } from "storybook/test"
 
 import preview from "@workspace/storybook/preview"
-import { slotIn } from "@workspace/storybook/story-utils"
+import { slotIn, slotsIn } from "@workspace/storybook/story-utils"
 import { OnboardingConnectionCard } from "@workspace/ui/components/onboarding-connection-card"
 import { i18n } from "@workspace/ui/lib/i18n"
 
@@ -72,7 +72,7 @@ const meta = preview.meta({
 		docs: {
 			description: {
 				component:
-					"The first step of onboarding, in the four shapes it takes: the account already on the machine, the offer to sign in or pay per use, the sign-in still waiting on a browser that never opened, and the attempt that failed. One card, one title, one counter — the fallback and the failure are drawn inside it rather than beside it.",
+					"The first step of onboarding, in the four shapes it takes: the account already on the machine, the offer to sign in or pay per use, the sign-in in progress with the link to open and the code to paste back, and the attempt that failed. One card, one title, one counter — the sign-in step and the failure are drawn inside it rather than beside it.",
 			},
 		},
 	},
@@ -190,7 +190,7 @@ export const Waiting = meta.story({
 		docs: {
 			description: {
 				story:
-					"The sign-in was asked for and the browser stayed shut, so the card hands the work back: the link to open, and the field that takes the code back. Check that the dot reads as waiting rather than as a failure, that the link is read only and copies whole, that a refused copy says so in the polite region while a copy that worked is announced by the control alone, that Continue on an empty field sends the person back to it rather than submitting, and that Enter and Continue submit the same value. Pick `Error` for the attempt that came back with an exit code.",
+					"The sign-in in progress, drawn as the two steps it really is: open this link, then paste the code back. Check that nothing here reads as an alert — no dot, no status line — that the two step lines carry the same type and start padding as any onboarding field label, that the only rule sits above the footer, that the link is read only, carries the step line as its description while keeping its own name, and copies whole, that a refused copy says so in the polite region while a copy that worked is announced by the control alone, that Continue on an empty field sends the person back to it rather than submitting, and that Enter and Continue submit the same value. Pick `Error` for the attempt that came back with an exit code.",
 			},
 		},
 	},
@@ -199,12 +199,18 @@ export const Waiting = meta.story({
 
 		await expect(canvas.getByText("Your Claude account")).toBeVisible()
 		await expect(canvas.getByText("1 of 3")).toBeVisible()
-		await expect(canvas.getByText("Your browser didn't open")).toBeVisible()
+		await expect(slotsIn(canvasElement, "onboarding-status")).toHaveLength(0)
+		await expect(slotsIn(canvasElement, "onboarding-status-dot")).toHaveLength(
+			0,
+		)
 
+		const linkStep = canvas.getByText("Open this link and sign in")
 		const link = canvas.getByLabelText("Sign-in link")
 
 		await expect(link).toHaveAttribute("readonly")
 		await expect(link).toHaveValue(SIGN_IN_URL)
+		await expect(link).toHaveAccessibleName("Sign-in link")
+		await expect(link).toHaveAccessibleDescription("Open this link and sign in")
 
 		const writeText = spyOn(navigator.clipboard, "writeText").mockRejectedValue(
 			new DOMException("Write permission denied.", "NotAllowedError"),
@@ -236,11 +242,28 @@ export const Waiting = meta.story({
 
 		writeText.mockRestore()
 
-		const field = canvas.getByLabelText(
-			"Then paste the code your browser gives back",
-		)
+		const field = canvas.getByLabelText("Then paste the code it gives you")
+		const codeStep = canvas.getByText("Then paste the code it gives you")
 		const submit = canvas.getByRole("button", { name: "Continue" })
 		const exit = canvas.getByRole("button", { name: "Paste a key instead" })
+
+		const muted = getComputedStyle(canvas.getByText("1 of 3")).color
+
+		for (const step of [linkStep, codeStep]) {
+			const type = getComputedStyle(step)
+
+			await expect(type.fontSize).toBe("12px")
+			await expect(type.lineHeight).toBe("16px")
+			await expect(type.paddingInlineStart).toBe("4px")
+			await expect(type.color).toBe(muted)
+		}
+
+		const codeBlock = slotIn(canvasElement, "onboarding-field")
+		const footer = slotIn(canvasElement, "onboarding-actions")
+
+		await expect(getComputedStyle(codeBlock).borderTopWidth).toBe("0px")
+		await expect(getComputedStyle(footer).borderTopWidth).toBe("1px")
+		await expect(getComputedStyle(footer).paddingTop).toBe("10px")
 
 		await userEvent.click(submit)
 		await expect(waitingSubmit).not.toHaveBeenCalled()
@@ -256,7 +279,14 @@ export const Waiting = meta.story({
 		await expect(waitingSubmit).toHaveBeenLastCalledWith("abc123#8f3c1a")
 
 		await expect(
-			link.compareDocumentPosition(field) & Node.DOCUMENT_POSITION_FOLLOWING,
+			linkStep.compareDocumentPosition(link) & Node.DOCUMENT_POSITION_FOLLOWING,
+		).toBeTruthy()
+		await expect(
+			link.compareDocumentPosition(codeStep) & Node.DOCUMENT_POSITION_FOLLOWING,
+		).toBeTruthy()
+		await expect(
+			codeStep.compareDocumentPosition(field) &
+				Node.DOCUMENT_POSITION_FOLLOWING,
 		).toBeTruthy()
 		await expect(
 			submit.compareDocumentPosition(exit) & Node.DOCUMENT_POSITION_FOLLOWING,
@@ -271,10 +301,6 @@ export const Waiting = meta.story({
 		await expect(submit).toHaveFocus()
 		await userEvent.tab()
 		await expect(exit).toHaveFocus()
-
-		await expect(slotIn(canvasElement, "onboarding-status-dot")).toHaveClass(
-			"bg-bot-badge-attention",
-		)
 	},
 })
 
@@ -288,7 +314,7 @@ export const WaitingWithALongLink = meta.story({
 		docs: {
 			description: {
 				story:
-					"The same waiting card at 320 pixels, with a link far longer than its row. Check that the link stays on one line and is cut rather than wrapped, that the copy control keeps its full size beside it instead of being squeezed, that nothing scrolls sideways, and above all that copying writes the whole link and not the piece on screen.",
+					"The same sign-in step at 320 pixels, with a link far longer than its row. Check that the link stays on one line and is cut rather than wrapped, that the copy control keeps its full size beside it instead of being squeezed, that nothing scrolls sideways, and above all that copying writes the whole link and not the piece on screen.",
 			},
 		},
 	},
@@ -319,7 +345,7 @@ export const WaitingWithoutAClipboard = meta.story({
 		docs: {
 			description: {
 				story:
-					"The same waiting card in a browser that exposes no clipboard at all. Check that the control reads as uncopied rather than claiming a copy that never happened, and that the polite region tells the person to select the link and copy it by hand. Pick `Waiting` for the browser that has a clipboard but refuses the write.",
+					"The same sign-in step in a browser that exposes no clipboard at all. Check that the control reads as uncopied rather than claiming a copy that never happened, and that the polite region tells the person to select the link and copy it by hand. Pick `Waiting` for the browser that has a clipboard but refuses the write.",
 			},
 		},
 	},
@@ -361,25 +387,32 @@ export const WaitingInFrench = meta.story({
 		docs: {
 			description: {
 				story:
-					"The waiting card at 320 pixels in French, the longest the status line gets in a bundled language — long enough to be worth measuring, still short enough to hold one row at this width. Check that the line is laid out to wrap rather than to be cut, that it carries the same size and line height as the settled and failed status lines, that it is readable whole, and that the code label and the two controls under it hold the width without scrolling sideways. Pick `LongContent` for the status line that does run to several rows.",
+					"The sign-in step at 320 pixels in French, where both step lines run longer than their English originals. Check that each line is laid out to wrap rather than to be cut, that both keep the field label type at 12 over 16, that both are readable whole, and that the row under each holds the width without scrolling sideways. Pick `Waiting` for the same step in English at full width.",
 			},
 		},
 	},
 	play: async ({ canvas, canvasElement }) => {
-		const title = canvas.getByText("Votre navigateur ne s'est pas ouvert")
-		const type = getComputedStyle(title)
+		const steps = [
+			canvas.getByText("Ouvrez ce lien et connectez-vous"),
+			canvas.getByText("Puis collez le code qu'il vous donne"),
+		]
 
-		await expect(type.whiteSpace).toBe("normal")
-		await expect(type.overflowWrap).toBe("break-word")
-		await expect(type.fontSize).toBe("13px")
-		await expect(type.lineHeight).toBe("18px")
-		await expect(title.scrollWidth).toBeLessThanOrEqual(title.clientWidth)
-		await expect(title.scrollHeight).toBe(title.clientHeight)
-		await expect(
-			canvas.getByText("Puis collez le code que votre navigateur vous rend"),
-		).toBeVisible()
+		for (const step of steps) {
+			const type = getComputedStyle(step)
+
+			await expect(type.whiteSpace).toBe("normal")
+			await expect(type.overflowWrap).toBe("break-word")
+			await expect(type.fontSize).toBe("12px")
+			await expect(type.lineHeight).toBe("16px")
+			await expect(step.scrollWidth).toBeLessThanOrEqual(step.clientWidth)
+			await expect(step.scrollHeight).toBe(step.clientHeight)
+		}
+
 		await expect(
 			canvas.getByRole("button", { name: "Continuer" }),
+		).toBeVisible()
+		await expect(
+			canvas.getByRole("button", { name: "Coller une clé à la place" }),
 		).toBeVisible()
 		await expect(canvasElement.scrollWidth).toBeLessThanOrEqual(
 			canvasElement.clientWidth,
@@ -393,14 +426,12 @@ export const WaitingDisabled = meta.story({
 		docs: {
 			description: {
 				story:
-					"The waiting card while the app is busy with the code it was already handed. Check that the code field, Continue and the exit all read as disabled and that the field takes no typing, so a code cannot be half-entered into a card that is no longer listening — and that the copy control keeps working anyway, because this state exists so the person can finish signing in outside the app and the clipboard waits on nothing the app is doing. Pick `Waiting` for the same card once the app is free again.",
+					"The sign-in step while the app is busy with the code it was already handed. Check that the code field, Continue and the exit all read as disabled and that the field takes no typing, so a code cannot be half-entered into a card that is no longer listening — and that the copy control keeps working anyway, because this step exists so the person can finish signing in outside the app and the clipboard waits on nothing the app is doing. Pick `Waiting` for the same step once the app is free again.",
 			},
 		},
 	},
 	play: async ({ canvas, userEvent }) => {
-		const field = canvas.getByLabelText(
-			"Then paste the code your browser gives back",
-		)
+		const field = canvas.getByLabelText("Then paste the code it gives you")
 
 		await expect(field).toBeDisabled()
 		await expect(

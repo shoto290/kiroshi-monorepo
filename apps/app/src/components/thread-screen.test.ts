@@ -2264,7 +2264,7 @@ describe("the first run in a solo thread", () => {
 		})
 		await settle()
 
-		expect(screen.getByText("Your browser didn't open")).toBeTruthy()
+		expect(screen.getByText("Open this link and sign in")).toBeTruthy()
 		expect(fixture.port.calls).toContainEqual({
 			command: "openSignInUrl",
 			value: SIGN_IN_LINK,
