@@ -36,10 +36,6 @@ export const Default = meta.story({
 		await userEvent.tab()
 		await expect(more).toHaveFocus()
 
-		const label = start.firstElementChild as HTMLElement
-
-		await expect(getComputedStyle(label).fontSize).toBe("13px")
-
 		await userEvent.click(start)
 		await expect(args.onStart).toHaveBeenCalledTimes(1)
 	},

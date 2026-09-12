@@ -177,7 +177,7 @@ const OnboardingField = ({
 				id={fieldId}
 				onChange={(event) => onValueChange(event.target.value)}
 				onKeyDown={(event) => {
-					if (event.key !== "Enter") return
+					if (event.key !== "Enter" || event.nativeEvent.isComposing) return
 					event.preventDefault()
 					onSubmit(value)
 				}}

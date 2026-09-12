@@ -70,7 +70,10 @@ const OnboardingPickerCard = ({
 			>
 				{companions.map((companion) => (
 					<label
-						className="flex cursor-pointer items-start gap-2.5 rounded-control-lg border border-border bg-background px-3 py-2.5 has-data-checked:border-foreground has-data-checked:bg-secondary"
+						className={cn(
+							"flex items-start gap-2.5 rounded-control-lg border border-border bg-background px-3 py-2.5 has-data-checked:border-foreground has-data-checked:bg-secondary",
+							disabled ? "cursor-default" : "cursor-pointer",
+						)}
 						data-slot="onboarding-option"
 						htmlFor={idOf(companion.id)}
 						key={companion.id}

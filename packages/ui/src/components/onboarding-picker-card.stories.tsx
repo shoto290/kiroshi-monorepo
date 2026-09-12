@@ -1,7 +1,8 @@
 import { useState } from "react"
-import { expect, fn } from "storybook/test"
+import { expect, fireEvent, fn } from "storybook/test"
 
 import preview from "@workspace/storybook/preview"
+import { slotIn } from "@workspace/storybook/story-utils"
 import {
 	type OnboardingCompanion,
 	OnboardingPickerCard,
@@ -94,10 +95,22 @@ export const Default = meta.story({
 		},
 	},
 	render: (args) => <PickerHost {...args} />,
-	play: async ({ canvas, userEvent }) => {
-		await expect(
-			canvas.getByRole("button", { name: "Add Scout" }),
-		).toBeVisible()
+	play: async ({ canvas, canvasElement, userEvent }) => {
+		const add = canvas.getByRole("button", { name: "Add Scout" })
+		const card = slotIn(canvasElement, "onboarding-card")
+		const field = canvas.getByLabelText(
+			"Or say what you need in your own words",
+		)
+		const label = add.firstElementChild as HTMLElement
+
+		await expect(add).toBeVisible()
+		await expect(getComputedStyle(card).borderRadius).toBe("20px")
+		await expect(getComputedStyle(field).borderRadius).toBe("12px")
+		await expect(getComputedStyle(add).borderRadius).toBe("12px")
+		await expect(getComputedStyle(label).fontSize).toBe("13px")
+		await expect(getComputedStyle(label).color).toBe(
+			getComputedStyle(card).getPropertyValue("--primary-foreground").trim(),
+		)
 
 		await userEvent.tab()
 		await expect(canvas.getByRole("radio", { name: /Scout/ })).toHaveFocus()
@@ -134,6 +147,10 @@ export const NothingSelected = meta.story({
 		)
 
 		await userEvent.type(request, "Someone who drafts my emails")
+
+		fireEvent.keyDown(request, { key: "Enter", isComposing: true })
+		await expect(args.onRequestSubmit).not.toHaveBeenCalled()
+
 		await userEvent.keyboard("{Enter}")
 		await expect(args.onRequestSubmit).toHaveBeenCalledWith(
 			"Someone who drafts my emails",
@@ -158,7 +175,17 @@ export const Disabled = meta.story({
 			"Or say what you need in your own words",
 		)
 
+		const option = ledger.closest(
+			'[data-slot="onboarding-option"]',
+		) as HTMLElement
+		const name = canvas.getByText("Ledger, who keeps things in order")
+
 		await expect(request).toBeDisabled()
+		await expect(getComputedStyle(option).cursor).toBe("default")
+		await expect(getComputedStyle(name).color).toBe(
+			getComputedStyle(option).getPropertyValue("--foreground").trim(),
+		)
+		await expect(getComputedStyle(name).opacity).toBe("1")
 
 		ledger.focus()
 		await userEvent.keyboard("{ArrowDown}")
