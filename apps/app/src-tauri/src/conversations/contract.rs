@@ -821,80 +821,40 @@ impl From<&DatabaseError> for StorageFailure {
 #[serde(tag = "kind", rename_all = "camelCase")]
 pub enum TranscriptStoreError {
 	#[serde(rename_all = "camelCase")]
-	Unavailable {
-		failure: StorageFailure,
-	},
+	Unavailable { failure: StorageFailure },
 	#[serde(rename_all = "camelCase")]
-	Storage {
-		failure: StorageFailure,
-	},
+	Storage { failure: StorageFailure },
 	#[serde(rename_all = "camelCase")]
-	Conflict {
-		id: String,
-		field: String,
-	},
+	Conflict { id: String, field: String },
 	#[serde(rename_all = "camelCase")]
-	InvalidTransition {
-		id: String,
-		from: String,
-		to: String,
-	},
+	InvalidTransition { id: String, from: String, to: String },
 	#[serde(rename_all = "camelCase")]
-	UnknownBot {
-		id: String,
-	},
+	UnknownBot { id: String },
 	NamelessBot,
 	#[serde(rename_all = "camelCase")]
-	UnknownConversation {
-		id: String,
-	},
+	UnknownConversation { id: String },
 	#[serde(rename_all = "camelCase")]
-	ForeignBot {
-		id: String,
-	},
+	ForeignBot { id: String },
 	#[serde(rename_all = "camelCase")]
-	SeveralSpaces {
-		id: String,
-	},
+	SeveralSpaces { id: String },
 	#[serde(rename_all = "camelCase")]
-	UnknownParticipant {
-		conversation_id: String,
-		bot_id: String,
-	},
+	UnknownParticipant { conversation_id: String, bot_id: String },
 	#[serde(rename_all = "camelCase")]
-	UnknownMessage {
-		id: String,
-	},
+	UnknownMessage { id: String },
 	#[serde(rename_all = "camelCase")]
-	UnknownMessageSeq {
-		conversation_id: String,
-		seq: i64,
-	},
+	UnknownMessageSeq { conversation_id: String, seq: i64 },
 	#[serde(rename_all = "camelCase")]
-	RejectedAvatarImage {
-		reason: AvatarRejection,
-	},
+	RejectedAvatarImage { reason: AvatarRejection },
 	#[serde(rename_all = "camelCase")]
-	UnwritableBundle {
-		detail: String,
-	},
+	UnwritableBundle { detail: String },
 	#[serde(rename_all = "camelCase")]
-	UnwritableEnvironment {
-		failure: EnvError,
-	},
+	UnwritableEnvironment { failure: EnvError },
 	#[serde(rename_all = "camelCase")]
-	SystemSkill {
-		id: String,
-	},
+	SystemSkill { id: String },
 	#[serde(rename_all = "camelCase")]
-	UnreadableHistory {
-		detail: String,
-	},
+	UnreadableHistory { detail: String },
 	#[serde(rename_all = "camelCase")]
-	UnreadableSources {
-		path: String,
-		reason: String,
-	},
+	UnreadableSources { path: String, reason: String },
 }
 
 #[derive(Debug, Clone, PartialEq, Eq, Serialize, Deserialize)]

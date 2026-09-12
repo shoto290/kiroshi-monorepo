@@ -126,7 +126,7 @@ pub fn changed_files(
 	let repository = Repository::open(bundle)?;
 	let run = run(&repository, oldest_id, newest_id)?;
 	let (newest, oldest) = ends(&run)?;
-	let diff = spanned(&repository, oldest, newest)?;
+	let diff = traced(&repository, oldest, newest)?;
 	files(&diff)
 }
 
@@ -199,7 +199,15 @@ fn spanned<'r>(
 ) -> Result<Diff<'r>, git2::Error> {
 	let before = before(repository, oldest)?;
 	let after = newest.tree()?;
-	let mut diff = repository.diff_tree_to_tree(Some(&before), Some(&after), None)?;
+	repository.diff_tree_to_tree(Some(&before), Some(&after), None)
+}
+
+fn traced<'r>(
+	repository: &'r Repository,
+	oldest: &Commit<'r>,
+	newest: &Commit<'r>,
+) -> Result<Diff<'r>, git2::Error> {
+	let mut diff = spanned(repository, oldest, newest)?;
 	diff.find_similar(Some(DiffFindOptions::new().renames(true)))?;
 	Ok(diff)
 }
@@ -363,7 +371,7 @@ fn touched(repository: &Repository, commit: &Commit) -> Result<Vec<String>, git2
 #[cfg(test)]
 mod tests {
 	use super::*;
-	use git2::DiffFormat;
+	use git2::{DiffFormat, DiffOptions};
 
 	fn a_bundle(name: &str) -> std::path::PathBuf {
 		let bundle = std::env::temp_dir().join(format!("kiroshi-git-{name}"));
@@ -398,7 +406,7 @@ mod tests {
 	fn whole_patch(bundle: &Path, commit_id: &str) -> String {
 		let repository = Repository::open(bundle).expect("the bundle opens");
 		let commit = found(&repository, commit_id).expect("the change is there");
-		let diff = spanned(&repository, &commit, &commit).expect("the diff reads");
+		let diff = traced(&repository, &commit, &commit).expect("the diff reads");
 		let mut text = String::new();
 		diff.print(DiffFormat::Patch, |_, _, line| {
 			if matches!(line.origin(), '+' | '-' | ' ') {
@@ -487,6 +495,13 @@ mod tests {
 		assert_eq!(files[1].change, FileChange::Renamed);
 		assert_eq!(files[1].previous_path.as_deref(), Some("about.md"));
 		assert_eq!(files[0].previous_path, None);
+		assert_eq!(
+			files[1].patch,
+			"diff --git a/about.md b/profile.md\n\
+			 similarity index 100%\n\
+			 rename from about.md\n\
+			 rename to profile.md\n"
+		);
 
 		let _ = fs::remove_dir_all(&bundle);
 	}
@@ -503,6 +518,32 @@ mod tests {
 		assert_eq!(paths_of(&files), vec!["about.md", "notes.md"]);
 		assert_eq!(files[1].change, FileChange::Deleted);
 		assert!(files[1].patch.contains("-Bakes."), "got {}", files[1].patch);
+
+		let _ = fs::remove_dir_all(&bundle);
+	}
+
+	#[test]
+	fn a_file_git_prints_no_patch_for_comes_back_with_an_empty_patch() {
+		let bundle = a_bundle("no-patch");
+		writes(&bundle, &[("about.md", "Figs.\n"), ("notes.md", "Bakes.\n")], "The first write");
+		let edited = writes(&bundle, &[("about.md", "Dates.\n")], "The second write");
+		let repository = Repository::open(&bundle).expect("the bundle opens");
+		let commit = found(&repository, &edited).expect("the change is there");
+		let mut options = DiffOptions::new();
+		options.include_unmodified(true);
+		let diff = repository
+			.diff_tree_to_tree(
+				Some(&before(&repository, &commit).expect("the tree reads")),
+				Some(&commit.tree().expect("the tree reads")),
+				Some(&mut options),
+			)
+			.expect("the diff reads");
+
+		let files = files(&diff).expect("the files read");
+
+		assert_eq!(paths_of(&files), vec!["about.md", "notes.md"]);
+		assert_eq!(files[1].patch, "");
+		assert!(!files[0].patch.is_empty(), "got {}", files[0].patch);
 
 		let _ = fs::remove_dir_all(&bundle);
 	}
