@@ -883,15 +883,6 @@ const ThreadOnboarding = ({ tail }: ThreadOnboardingProps) => {
 					onPickCompanion={() => void controller.pickCompanion()}
 				/>
 			) : null}
-			{tail.pickFailure ? (
-				<OnboardingConnectionCard
-					disabled={isBusy}
-					exitDetail={tail.pickFailure}
-					onPasteKey={() => void controller.pasteKeyInstead()}
-					onRetry={() => void controller.pickCompanion()}
-					state="failed"
-				/>
-			) : null}
 			{tail.picks ? (
 				<ThreadPickerCard
 					controller={controller}

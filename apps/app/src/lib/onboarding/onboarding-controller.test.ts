@@ -1,4 +1,6 @@
-import { beforeEach, describe, expect, it } from "vitest"
+import { beforeEach, describe, expect, it, type Mock, vi } from "vitest"
+
+import type { NoticeMessage } from "@workspace/ui/components/notice-surface"
 
 import {
 	createFakeOnboardingPort,
@@ -54,12 +56,14 @@ const refusedRead = (error: TransportError): CheckReport => ({
 let port: FakeOnboardingPort
 let world: FakeOnboardingWorld
 let controller: OnboardingController
+let reportFailure: Mock<(notice: NoticeMessage) => void>
 
 const createController = () => {
 	port = createFakeOnboardingPort()
 	world = createFakeOnboardingWorld()
+	reportFailure = vi.fn<(notice: NoticeMessage) => void>()
 
-	return createOnboardingController(port, world)
+	return createOnboardingController(port, world, { reportFailure })
 }
 
 const commands = () => port.calls.map(({ command }) => command)
@@ -396,14 +400,25 @@ describe("the first companion", () => {
 		])
 	})
 
-	it("shows the reason and leaves the first run open when the suggestions refuse to load", async () => {
+	it("reports the reason and stays on the test step when the suggestions refuse to load", async () => {
 		world.refusals.suggest = { kind: "storage", detail: "disk is full" }
 
 		await controller.pickCompanion()
 
-		expect(controller.getState().pickFailure).toBe("disk is full")
-		expect(controller.getState().suggestions).toEqual([])
+		expect(reportFailure).toHaveBeenCalledWith({
+			title: "Couldn't load the suggested companions",
+			description: "disk is full",
+		})
+		expect(controller.getState().step).toBe("summoned")
 		expect(world.firstRunDone).toBe(0)
+	})
+
+	it("stays on the test step when nothing is suggested", async () => {
+		world.suggestions.length = 0
+
+		await controller.pickCompanion()
+
+		expect(controller.getState().step).toBe("summoned")
 	})
 
 	it("creates the companion from the name, the job and the description", async () => {
@@ -446,16 +461,44 @@ describe("the first companion", () => {
 		expect(world.sent).toHaveLength(1)
 	})
 
-	it("keeps the picker reachable and the first run open when the creation is refused", async () => {
+	it("keeps the picker reachable and reports the reason when the creation is refused", async () => {
 		await controller.pickCompanion()
 		world.refusals.create = { kind: "namelessBot", detail: "no name" }
 
 		await controller.addCompanion(SUGGESTED_SCOUT.id)
 
+		expect(reportFailure).toHaveBeenCalledWith({
+			title: `Couldn't add ${SUGGESTED_SCOUT.name}`,
+			description: "no name",
+		})
 		expect(controller.getState().step).toBe("picking")
 		expect(controller.getState().suggestions).toHaveLength(2)
-		expect(controller.getState().pickFailure).toBe("no name")
 		expect(world.firstRunDone).toBe(0)
+	})
+
+	it("hands off anyway and reports the reason when the first turn fails to start", async () => {
+		await controller.pickCompanion()
+		world.refusals.greet = { kind: "crashed", detail: "the agent stopped" }
+
+		await controller.addCompanion(SUGGESTED_SCOUT.id)
+
+		expect(reportFailure).toHaveBeenCalledWith({
+			title: `${SUGGESTED_SCOUT.name} couldn't say hello`,
+			description: "the agent stopped",
+		})
+		expect(controller.getState().step).toBe("handoff")
+		expect(controller.getState().handoff?.name).toBe(SUGGESTED_SCOUT.name)
+	})
+
+	it("writes one companion per press of add", async () => {
+		await controller.pickCompanion()
+
+		await Promise.all([
+			controller.addCompanion(SUGGESTED_SCOUT.id),
+			controller.addCompanion(SUGGESTED_SCOUT.id),
+		])
+
+		expect(world.drafted).toHaveLength(1)
 	})
 
 	it("holds the picker busy while the creation is in flight", async () => {

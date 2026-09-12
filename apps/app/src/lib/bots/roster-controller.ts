@@ -25,6 +25,7 @@ import type {
 	ConversationDraft,
 	Participant,
 	RosterPin,
+	SpaceError,
 } from "../conversations/store-contract"
 import type { TranscriptStore } from "../conversations/store-port"
 import {
@@ -254,6 +255,8 @@ const withoutThreadsOf = (
 	Object.fromEntries(
 		Object.entries(soloThreads).filter(([, line]) => !holds(line)),
 	)
+
+const NO_SPACE = { kind: "unknownSpace", id: "" } satisfies SpaceError
 
 const namesTheLastSpace = (reason: unknown): boolean =>
 	typeof reason === "object" &&
@@ -661,7 +664,10 @@ export const createRosterController = (
 
 		createFromDraft: (draft: BotDraft) =>
 			enqueue(async () => {
-				const spaceId = state.spaceId ?? ""
+				const spaceId = state.spaceId
+				if (!spaceId) {
+					throw NO_SPACE
+				}
 				const written = await store.createBotFromDraft(draft, spaceId)
 				enrol(written, spaceId)
 				return written

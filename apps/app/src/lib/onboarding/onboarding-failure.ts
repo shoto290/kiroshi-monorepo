@@ -14,6 +14,7 @@ const SENTENCE_OF: Record<string, string> = {
 	spawnFailed: "the agent could not be started",
 	startupTimeout: "the agent did not start in time",
 	crashed: "the agent stopped",
+	unknownSpace: "the roster is in no space",
 }
 
 const fieldIn = (reason: unknown, field: string): string | null => {

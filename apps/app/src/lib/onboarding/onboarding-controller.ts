@@ -1,3 +1,9 @@
+import {
+	type NoticeMessage,
+	raiseFailureNotice,
+} from "@workspace/ui/components/notice-surface"
+import { i18n } from "@workspace/ui/lib/i18n"
+
 import { exitDetailOf, isNotRunning } from "./onboarding-failure"
 import type { OnboardingPort } from "./onboarding-port"
 import {
@@ -45,7 +51,6 @@ export type OnboardingState = {
 	homeBotId: string | null
 	suggestions: SuggestedBot[]
 	handoff: OnboardingHandoff | null
-	pickFailure: string | null
 }
 
 export type OnboardingWorld = {
@@ -86,7 +91,6 @@ const initialOnboardingState: OnboardingState = {
 	homeBotId: null,
 	suggestions: [],
 	handoff: null,
-	pickFailure: null,
 }
 
 const draftOf = ({ name, job, description }: SuggestedBot): BotDraft => ({
@@ -108,9 +112,14 @@ const ACCOUNT_PLAN_SEPARATOR = " · "
 const accountLineOf = (email: string, plan: string | null | undefined) =>
 	plan ? `${email}${ACCOUNT_PLAN_SEPARATOR}${plan}` : email
 
+export type OnboardingControllerOptions = {
+	reportFailure?: (notice: NoticeMessage) => void
+}
+
 export const createOnboardingController = (
 	port: OnboardingPort,
 	world: OnboardingWorld,
+	{ reportFailure = raiseFailureNotice }: OnboardingControllerOptions = {},
 ): OnboardingController => {
 	let state = initialOnboardingState
 	let asked: OnboardingSummons = "greeting"
@@ -180,39 +189,54 @@ export const createOnboardingController = (
 	}
 
 	const finishRun = () => {
-		set({ step: "done", card: null, suggestions: [], pickFailure: null })
+		set({ step: "done", card: null, suggestions: [] })
 		return world.markFirstRunDone()
 	}
 
+	const report = (title: string, reason: unknown) => {
+		reportFailure({ title, description: exitDetailOf(reason) })
+	}
+
 	const readSuggestions = async () => {
-		set({ isBusy: true, pickFailure: null })
+		set({ isBusy: true })
 		try {
 			const read = await world.suggest()
-			set({ step: "picking", card: null, suggestions: read })
+			if (read.length > 0) {
+				set({ step: "picking", card: null, suggestions: read })
+			}
 		} catch (reason) {
-			set({
-				step: "picking",
-				card: null,
-				suggestions: [],
-				pickFailure: exitDetailOf(reason),
-			})
+			report(i18n.t("chat:onboarding.picker.failure.suggestions"), reason)
 		} finally {
 			set({ isBusy: false })
 		}
 	}
 
+	const greet = async (created: Bot) => {
+		try {
+			await world.greet(created.id, onboardingSummonsFor("arrival"))
+		} catch (reason) {
+			report(
+				i18n.t("chat:onboarding.handoff.failure", { name: created.name }),
+				reason,
+			)
+		}
+	}
+
 	const addCompanion = async (pickId: string) => {
 		const pick = state.suggestions.find(({ id }) => id === pickId)
-		if (!pick) {
+		if (!pick || state.isBusy) {
 			return
 		}
-		set({ isBusy: true, pickFailure: null })
+		set({ isBusy: true })
 		try {
 			const created = await world.create(draftOf(pick))
-			await world.greet(created.id, onboardingSummonsFor("arrival"))
 			set({ step: "handoff", handoff: handoffOf(created, pick.blurb) })
+			await greet(created)
 		} catch (reason) {
-			set({ pickFailure: exitDetailOf(reason) })
+			report(
+				i18n.t("chat:onboarding.picker.failure.add", { name: pick.name }),
+				reason,
+			)
 		} finally {
 			set({ isBusy: false })
 		}

@@ -9,10 +9,21 @@ import {
 	within,
 } from "@testing-library/react"
 import { createElement, useState, useSyncExternalStore } from "react"
-import { afterEach, beforeEach, describe, expect, it, vi } from "vitest"
+import {
+	afterEach,
+	beforeEach,
+	describe,
+	expect,
+	it,
+	type Mock,
+	vi,
+} from "vitest"
 
 import type { MissionEventModel } from "@workspace/ui/components/mission"
-import { NoticeSurface } from "@workspace/ui/components/notice-surface"
+import {
+	type NoticeMessage,
+	NoticeSurface,
+} from "@workspace/ui/components/notice-surface"
 import "@workspace/ui/lib/i18n"
 
 import { ThreadScreen } from "@/components/thread-screen"
@@ -2176,6 +2187,7 @@ type OnboardingFixture = {
 	port: FakeOnboardingPort
 	world: FakeOnboardingWorld
 	controller: OnboardingController
+	reportFailure: Mock<(notice: NoticeMessage) => void>
 	solo: Solo
 }
 
@@ -2185,9 +2197,10 @@ const onboardingOf = async (): Promise<OnboardingFixture> => {
 	const world = createFakeOnboardingWorld()
 	world.homeBot = solo.thread().bot.id
 	world.send = (text) => solo.thread().chat.controller.send(text)
-	const controller = createOnboardingController(port, world)
+	const reportFailure = vi.fn<(notice: NoticeMessage) => void>()
+	const controller = createOnboardingController(port, world, { reportFailure })
 
-	return { port, world, controller, solo }
+	return { port, world, controller, reportFailure, solo }
 }
 
 const onboardingScreen = ({ controller, solo }: OnboardingFixture) =>
@@ -2346,7 +2359,7 @@ describe("the first run in a solo thread", () => {
 		)
 	})
 
-	it("shows the reason when the suggestions refuse to load", async () => {
+	it("keeps the test card and reports the reason when the suggestions refuse to load", async () => {
 		const fixture = await answeredPicker()
 		fixture.world.refusals.suggest = {
 			kind: "storage",
@@ -2355,17 +2368,22 @@ describe("the first run in a solo thread", () => {
 
 		await press("Pick my first companion")
 
-		expect(screen.getByText("disk is full")).toBeTruthy()
+		expect(fixture.reportFailure).toHaveBeenCalledWith({
+			title: "Couldn't load the suggested companions",
+			description: "disk is full",
+		})
+		expect(screen.getByText(TEST_TITLE)).toBeTruthy()
+		expect(screen.queryByText(PICKER_TITLE)).toBeNull()
 	})
 
-	it("keeps the free field reachable when no companion is suggested", async () => {
+	it("shows no picker when nothing is suggested", async () => {
 		const fixture = await answeredPicker()
 		fixture.world.suggestions.length = 0
 
 		await press("Pick my first companion")
 
-		expect(screen.queryAllByRole("radio")).toEqual([])
-		expect(screen.getByLabelText(PICKER_REQUEST_LABEL)).toBeTruthy()
+		expect(screen.queryByText(PICKER_TITLE)).toBeNull()
+		expect(screen.getByText(TEST_TITLE)).toBeTruthy()
 	})
 
 	it("hands the reader over to the companion it created", async () => {
@@ -2382,16 +2400,42 @@ describe("the first run in a solo thread", () => {
 		expect(screen.queryByText(PICKER_TITLE)).toBeNull()
 	})
 
-	it("keeps the picker under the reason when the creation is refused", async () => {
+	it("keeps the picker and reports the reason when the creation is refused", async () => {
 		const fixture = await answeredPicker()
 		await press("Pick my first companion")
 		fixture.world.refusals.create = { kind: "storage", detail: "disk is full" }
 
 		await press(`Add ${SUGGESTED_WRITER.name}`)
 
-		expect(screen.getByText("disk is full")).toBeTruthy()
+		expect(fixture.reportFailure).toHaveBeenCalledWith({
+			title: `Couldn't add ${SUGGESTED_WRITER.name}`,
+			description: "disk is full",
+		})
 		expect(screen.getByText(PICKER_TITLE)).toBeTruthy()
+		expect(
+			screen.queryByRole("button", { name: "Paste a key instead" }),
+		).toBeNull()
 		expect(fixture.world.firstRunDone).toBe(0)
+	})
+
+	it("hands off anyway when the first turn fails to start", async () => {
+		const fixture = await answeredPicker()
+		await press("Pick my first companion")
+		fixture.world.refusals.greet = {
+			kind: "crashed",
+			detail: "the agent stopped",
+		}
+
+		await press(`Add ${SUGGESTED_WRITER.name}`)
+
+		expect(fixture.reportFailure).toHaveBeenCalledWith({
+			title: `${SUGGESTED_WRITER.name} couldn't say hello`,
+			description: "the agent stopped",
+		})
+		expect(
+			screen.getByRole("button", { name: `Open ${SUGGESTED_WRITER.name}` }),
+		).toBeTruthy()
+		expect(screen.queryByText(PICKER_TITLE)).toBeNull()
 	})
 
 	it("leaves the reader where they are when they stay on the handoff", async () => {

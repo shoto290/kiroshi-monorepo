@@ -639,10 +639,15 @@ const chat = {
 			requestPlaceholder: "Someone who drafts my emails…",
 			add: "Add {{name}}",
 			skip: "Skip for now",
+			failure: {
+				suggestions: "Couldn't load the suggested companions",
+				add: "Couldn't add {{name}}",
+			},
 		},
 		handoff: {
 			open: "Open {{name}}",
 			stay: "Stay here",
+			failure: "{{name}} couldn't say hello",
 		},
 	},
 } as const

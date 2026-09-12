@@ -22,7 +22,6 @@ export type OnboardingTail = {
 	isBusy: boolean
 	picks: OnboardingCompanion[] | null
 	handoff: OnboardingHandoff | null
-	pickFailure: string | null
 }
 
 const pickOf = ({
@@ -71,6 +70,5 @@ export const onboardingTailOf = (
 		isBusy: state.isBusy,
 		picks: state.step === "picking" ? state.suggestions.map(pickOf) : null,
 		handoff: state.step === "handoff" ? state.handoff : null,
-		pickFailure: state.pickFailure,
 	}
 }

@@ -31,9 +31,13 @@ const OTHER_BOT = "bot-other"
 
 let world: FakeOnboardingWorld
 
+const IGNORED_FAILURE = () => undefined
+
 const controllerOf = (): OnboardingController => {
 	world = createFakeOnboardingWorld()
-	return createOnboardingController(createFakeOnboardingPort(), world)
+	return createOnboardingController(createFakeOnboardingPort(), world, {
+		reportFailure: IGNORED_FAILURE,
+	})
 }
 
 const settled = async (): Promise<OnboardingController> => {
@@ -46,7 +50,9 @@ const settled = async (): Promise<OnboardingController> => {
 		account: { email: null, plan: null },
 	}
 	world = createFakeOnboardingWorld()
-	const controller = createOnboardingController(port, world)
+	const controller = createOnboardingController(port, world, {
+		reportFailure: IGNORED_FAILURE,
+	})
 	await controller.start()
 
 	return controller
@@ -170,7 +176,7 @@ describe("the onboarding tail", () => {
 		expect(tail?.handoff).toBeNull()
 	})
 
-	it("keeps the picker under the reason when the creation is refused", async () => {
+	it("keeps the picker on screen when the creation is refused", async () => {
 		const controller = await settled()
 		await controller.pickCompanion()
 		world.refusals.create = { kind: "storage", detail: "disk is full" }
@@ -181,8 +187,8 @@ describe("the onboarding tail", () => {
 			HOME_BOT,
 		)
 
-		expect(tail?.pickFailure).toBe("disk is full")
 		expect(tail?.picks).toHaveLength(world.suggestions.length)
+		expect(tail?.handoff).toBeNull()
 	})
 
 	it("shows the handoff once the companion is created", async () => {
@@ -197,6 +203,7 @@ describe("the onboarding tail", () => {
 
 		expect(tail?.handoff?.name).toBe(SUGGESTED_SCOUT.name)
 		expect(tail?.picks).toBeNull()
+		expect(tail?.hasTest).toBe(false)
 	})
 })
 

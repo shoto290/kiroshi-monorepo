@@ -153,6 +153,18 @@ describe("createRosterController", () => {
 		expect(written.title).toBe("a research assistant")
 	})
 
+	it("refuses a drafted companion while the roster is in no space", async () => {
+		const controller = createRosterController(createFakeTranscriptStore())
+
+		await expect(
+			controller.createFromDraft({
+				name: "Scout",
+				job: "a research assistant",
+				description: "Dig into the questions I bring.",
+			}),
+		).rejects.toEqual({ kind: "unknownSpace", id: "" })
+	})
+
 	it("refuses a drafted companion the store turns down", async () => {
 		const controller = await loaded(createFakeTranscriptStore())
 
