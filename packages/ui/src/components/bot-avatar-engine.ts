@@ -512,6 +512,7 @@ export class BotAvatarEngine {
 		const cadence = this.glanceCadence()
 		if (!cadence || this.gazeHeld !== null) return
 		this.schedule(glanceDelay(cadence, Math.random), () => {
+			if (this.gazeHeld !== null) return
 			this.startDart(this.nextGazeTarget(cadence))
 			this.scheduleGlance()
 		})

@@ -3,10 +3,12 @@
 import { afterEach, beforeEach, describe, expect, it, vi } from "vitest"
 
 import { ANIMALS } from "@workspace/ui/components/bot-avatar-animals"
+import type { BotAvatarState } from "@workspace/ui/components/bot-avatar-data"
 import {
 	BotAvatarEngine,
 	PARTS,
 } from "@workspace/ui/components/bot-avatar-engine"
+import type { BotAvatarGaze } from "@workspace/ui/components/bot-avatar-gaze"
 import {
 	GAZE_DART_DURATION,
 	GAZE_HEAD_DELAY,
@@ -30,6 +32,9 @@ const SETTLE_MS = 2000
 const INSIDE_HEAD_DELAY_MS = GAZE_HEAD_DELAY / 2
 const AFTER_HEAD_DELAY_MS = 400
 const PINNED_GAZE = { yaw: GAZE_YAW_LIMIT, pitch: 0 }
+const HALFWAY_DRAW = 0.5
+const BEFORE_GLANCE_MS = 400
+const PAST_GLANCE_MS = 1600
 
 const numbersIn = (value: string) =>
 	(value.match(/-?\d*\.?\d+/g) ?? []).map(Number)
@@ -49,13 +54,21 @@ const headLean = (svg: SVGSVGElement) =>
 			?.getAttribute("transform") ?? "",
 	)[0]
 
-const mountRig = () => {
+type MountedRig = {
+	state?: BotAvatarState
+	pin?: BotAvatarGaze | null
+}
+
+const mountRig = ({
+	state = RESTING_STATE,
+	pin = PINNED_GAZE,
+}: MountedRig = {}) => {
 	document.body.innerHTML = RIG_MARKUP
 	const svg = document.querySelector("svg") as unknown as SVGSVGElement
 	const engine = new BotAvatarEngine(ANIMALS.rabbit)
 	engine.bind(svg)
-	engine.setState(RESTING_STATE)
-	engine.setGaze(PINNED_GAZE)
+	engine.setState(state)
+	engine.setGaze(pin)
 	engine.start()
 	return { engine, svg }
 }
@@ -70,6 +83,7 @@ describe("the gaze layer on a running engine", () => {
 	afterEach(() => {
 		document.body.innerHTML = ""
 		vi.useRealTimers()
+		vi.restoreAllMocks()
 	})
 
 	it("darts the eyes home and only then turns the head after them", () => {
@@ -93,6 +107,28 @@ describe("the gaze layer on a running engine", () => {
 		expect(followedLean).toBeLessThan(pinnedLean)
 		expect(Math.abs(followedLean - pinnedLean)).toBeLessThan(
 			Math.abs(dartedReach - pinnedReach),
+		)
+	})
+
+	it("holds a pinned gaze through a glance scheduled before the pin", () => {
+		vi.spyOn(Math, "random").mockReturnValue(HALFWAY_DRAW)
+		const { engine, svg } = mountRig({ state: GLANCING_STATE, pin: null })
+		advance(BEFORE_GLANCE_MS)
+		const centredReach = eyeReach(svg)
+
+		engine.setGaze(PINNED_GAZE)
+		advance(BEFORE_GLANCE_MS)
+		const pinnedReach = eyeReach(svg)
+		const pinnedLean = headLean(svg)
+
+		advance(PAST_GLANCE_MS)
+		const heldReach = eyeReach(svg)
+		const heldLean = headLean(svg)
+		engine.stop()
+
+		expect(heldLean).toBe(pinnedLean)
+		expect(Math.abs(heldReach - pinnedReach)).toBeLessThan(
+			Math.abs(pinnedReach - centredReach) / 4,
 		)
 	})
 
