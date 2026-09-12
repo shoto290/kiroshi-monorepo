@@ -197,6 +197,7 @@ struct Runs {
 
 #[derive(Debug, Clone, Deserialize)]
 struct CheckRun {
+	name: String,
 	status: String,
 	conclusion: Option<String>,
 }
@@ -213,6 +214,17 @@ enum Checks {
 impl Checks {
 	fn settled(self) -> bool {
 		matches!(self, Checks::Passed | Checks::Failed)
+	}
+}
+
+struct Settled {
+	checks: Checks,
+	failed: Vec<String>,
+}
+
+impl Settled {
+	fn holding(checks: Checks) -> Self {
+		Self { checks, failed: Vec::new() }
 	}
 }
 
@@ -311,12 +323,12 @@ async fn settling(
 	let Some(standing) = held.filter(|held| !held.checks.settled()) else {
 		return Ok(None);
 	};
-	let Some(checks) = learned_checks(reach, kept, &mission.repository, &standing.head_sha).await?
+	let Some(settled) = learned_checks(reach, kept, &mission.repository, &standing.head_sha).await?
 	else {
 		return Ok(None);
 	};
-	let fresh = Fingerprint { checks, ..standing.clone() };
-	recorded(database, &mission.id, Some(&standing), fresh, None).await
+	let fresh = Fingerprint { checks: settled.checks, ..standing.clone() };
+	recorded(database, &mission.id, Some(&standing), fresh, None, &settled.failed).await
 }
 
 async fn listed(
@@ -332,16 +344,23 @@ async fn listed(
 		kept.remember(&mission.id, etag);
 		return Ok(None);
 	};
-	let checks = match asks_for_checks(held.as_ref(), &pull) {
-		false => held.as_ref().map_or(Checks::None, |held| held.checks),
+	let settled = match asks_for_checks(held.as_ref(), &pull) {
+		false => Settled::holding(held.as_ref().map_or(Checks::None, |held| held.checks)),
 		true => match learned_checks(reach, kept, &mission.repository, &pull.head.sha).await? {
-			Some(checks) => checks,
+			Some(settled) => settled,
 			None => return Ok(None),
 		},
 	};
-	let fresh = Fingerprint::of(&pull, checks);
-	let written =
-		recorded(database, &mission.id, held.as_ref(), fresh, Some(&pull.html_url)).await?;
+	let fresh = Fingerprint::of(&pull, settled.checks);
+	let written = recorded(
+		database,
+		&mission.id,
+		held.as_ref(),
+		fresh,
+		Some(&pull.html_url),
+		&settled.failed,
+	)
+	.await?;
 	kept.remember(&mission.id, etag);
 	Ok(written)
 }
@@ -351,7 +370,7 @@ async fn learned_checks(
 	kept: &mut Kept,
 	repository: &str,
 	head_sha: &str,
-) -> Result<Option<Checks>, Failure> {
+) -> Result<Option<Settled>, Failure> {
 	match reach.checks(repository, head_sha).await? {
 		Answer::Read { held: runs, .. } => Ok(Some(concluded(&runs))),
 		Answer::Unchanged => Ok(None),
@@ -368,11 +387,12 @@ async fn recorded(
 	held: Option<&Fingerprint>,
 	fresh: Fingerprint,
 	url: Option<&str>,
+	failed: &[String],
 ) -> Result<Option<Mission>, Failure> {
 	if held == Some(&fresh) {
 		return Ok(None);
 	}
-	let entries = appended(held, &fresh, url);
+	let entries = appended(held, &fresh, url, failed);
 	let stored = serde_json::to_string(&fresh)
 		.map_err(|error| Failure::Unreadable(format!("no fingerprint: {error}")))?;
 	Ok(database.missions().record_github(mission_id.to_owned(), entries, stored).await?)
@@ -391,6 +411,7 @@ fn appended(
 	held: Option<&Fingerprint>,
 	fresh: &Fingerprint,
 	url: Option<&str>,
+	failed: &[String],
 ) -> Vec<MissionEntry> {
 	let mut entries = Vec::new();
 	if let Some(url) = url.filter(|_| held.is_none_or(|held| held.number != fresh.number)) {
@@ -399,8 +420,13 @@ fn appended(
 			json!({ "pullRequest": fresh.number, "url": url }),
 		));
 	}
-	if let Some(kind) = moved_checks(held, fresh) {
-		entries.push(entry(kind, json!({ "pullRequest": fresh.number })));
+	match moved_checks(held, fresh) {
+		Some(MissionEventKind::ChecksFailed) => entries.push(entry(
+			MissionEventKind::ChecksFailed,
+			json!({ "pullRequest": fresh.number, "checks": failed }),
+		)),
+		Some(kind) => entries.push(entry(kind, json!({ "pullRequest": fresh.number }))),
+		None => (),
 	}
 	if fresh.merged && held.is_none_or(|held| !held.merged) {
 		entries.push(entry(
@@ -415,30 +441,36 @@ fn appended(
 }
 
 fn moved_checks(held: Option<&Fingerprint>, fresh: &Fingerprint) -> Option<MissionEventKind> {
-	if held.is_some_and(|held| held.checks == fresh.checks) {
+	if held.is_some_and(|held| settled_alike(held, fresh)) {
 		return None;
 	}
 	match fresh.checks {
 		Checks::Passed => Some(MissionEventKind::Ready),
-		Checks::Failed => Some(MissionEventKind::Failed),
+		Checks::Failed => Some(MissionEventKind::ChecksFailed),
 		Checks::None | Checks::Pending => None,
 	}
+}
+
+fn settled_alike(held: &Fingerprint, fresh: &Fingerprint) -> bool {
+	held.checks == fresh.checks && held.head_sha == fresh.head_sha && held.number == fresh.number
 }
 
 fn entry(kind: MissionEventKind, payload: serde_json::Value) -> MissionEntry {
 	MissionEntry { kind, source: SOURCE.to_owned(), payload }
 }
 
-fn concluded(runs: &Runs) -> Checks {
-	if runs.check_runs.is_empty() {
-		return Checks::None;
+fn concluded(runs: &Runs) -> Settled {
+	let failed: Vec<String> =
+		runs.check_runs.iter().filter(|run| failed(run)).map(|run| run.name.clone()).collect();
+	if !failed.is_empty() {
+		return Settled { checks: Checks::Failed, failed };
 	}
-	if runs.check_runs.iter().any(failed) {
-		return Checks::Failed;
+	if runs.check_runs.is_empty() {
+		return Settled::holding(Checks::None);
 	}
 	match runs.check_runs.iter().all(|run| run.status == "completed") {
-		true => Checks::Passed,
-		false => Checks::Pending,
+		true => Settled::holding(Checks::Passed),
+		false => Settled::holding(Checks::Pending),
 	}
 }
 
@@ -542,6 +574,8 @@ mod tests {
 	const A_REPOSITORY: &str = "shoto290/kiroshi-monorepo";
 
 	const HIDDEN_REPOSITORY: &str = "shoto290/Hidden";
+
+	const A_CHECK: &str = "build";
 
 	const A_PULL_URL: &str = "https://github.test/shoto290/kiroshi-monorepo/pull/7";
 
@@ -736,7 +770,11 @@ mod tests {
 	}
 
 	fn a_run(status: &str, conclusion: Option<&str>) -> Value {
-		json!({ "check_runs": [{ "status": status, "conclusion": conclusion }] })
+		a_run_named(A_CHECK, status, conclusion)
+	}
+
+	fn a_run_named(name: &str, status: &str, conclusion: Option<&str>) -> Value {
+		json!({ "check_runs": [{ "name": name, "status": status, "conclusion": conclusion }] })
 	}
 
 	async fn planted() -> (Database, PathBuf) {
@@ -789,6 +827,14 @@ mod tests {
 
 	async fn events_of(database: &Database, mission_id: &str) -> Vec<MissionEvent> {
 		database.missions().detail(mission_id.to_owned()).await.expect("the mission reads").events
+	}
+
+	async fn red_checks_of(database: &Database, mission_id: &str) -> usize {
+		from_github(database, mission_id)
+			.await
+			.into_iter()
+			.filter(|(kind, _)| *kind == MissionEventKind::ChecksFailed)
+			.count()
 	}
 
 	async fn from_github(database: &Database, mission_id: &str) -> Vec<(MissionEventKind, Value)> {
@@ -953,7 +999,8 @@ mod tests {
 	}
 
 	#[tokio::test]
-	async fn a_listing_answered_not_modified_carries_the_checks_to_failed_and_appends_failed() {
+	async fn a_listing_answered_not_modified_carries_the_checks_to_failed_and_appends_checks_failed()
+	{
 		let (database, dir) = planted().await;
 		let mission = an_armed_mission(&database).await;
 		let stub = Stub::holding(a_pull("open", "abc", false), "\"one\"").await;
@@ -966,9 +1013,16 @@ mod tests {
 
 		assert_eq!(
 			from_github(&database, &mission.id).await.last(),
-			Some(&(MissionEventKind::Failed, json!({ "pullRequest": 7 }))),
+			Some(&(
+				MissionEventKind::ChecksFailed,
+				json!({ "pullRequest": 7, "checks": [A_CHECK] }),
+			)),
 		);
-		assert_eq!(state_of(&database, &mission.id).await, (MissionState::Failed, false));
+		assert_eq!(
+			state_of(&database, &mission.id).await,
+			(MissionState::WaitingBot, false),
+			"a red check closed the mission instead of handing it back to the bot"
+		);
 
 		stub.stop.send_replace(true);
 		std::fs::remove_dir_all(&dir).expect("cleanup");
@@ -1072,7 +1126,7 @@ mod tests {
 	}
 
 	#[tokio::test]
-	async fn a_check_run_concluded_in_failure_appends_failed() {
+	async fn a_check_run_concluded_in_failure_appends_checks_failed_naming_every_red_check() {
 		let (database, dir) = planted().await;
 		let mission = an_armed_mission(&database).await;
 		let stub = Stub::holding(a_pull("open", "abc", false), "\"one\"").await;
@@ -1081,14 +1135,105 @@ mod tests {
 		walked(&stub, &database, &mut kept, &clock).await;
 
 		stub.answering(a_pull("open", "def", false), "\"two\"").await;
-		stub.checking(a_run("completed", Some("failure"))).await;
+		stub.checking(json!({
+			"check_runs": [
+				{ "name": A_CHECK, "status": "completed", "conclusion": "failure" },
+				{ "name": "lint", "status": "completed", "conclusion": "success" },
+				{ "name": "types", "status": "completed", "conclusion": "timed_out" },
+			]
+		}))
+		.await;
 		walked(&stub, &database, &mut kept, &clock).await;
 
 		assert_eq!(
 			from_github(&database, &mission.id).await.last(),
-			Some(&(MissionEventKind::Failed, json!({ "pullRequest": 7 }))),
+			Some(&(
+				MissionEventKind::ChecksFailed,
+				json!({ "pullRequest": 7, "checks": [A_CHECK, "types"] }),
+			)),
 		);
-		assert_eq!(state_of(&database, &mission.id).await, (MissionState::Failed, false));
+		assert_eq!(state_of(&database, &mission.id).await, (MissionState::WaitingBot, false));
+
+		stub.stop.send_replace(true);
+		std::fs::remove_dir_all(&dir).expect("cleanup");
+	}
+
+	#[tokio::test]
+	async fn the_same_red_checks_polled_again_on_the_same_head_sha_append_nothing_more() {
+		let (database, dir) = planted().await;
+		let mission = an_armed_mission(&database).await;
+		let stub = Stub::holding(a_pull("open", "abc", false), "\"one\"").await;
+		let clock = Ticking::at(NOON);
+		let mut kept = Kept::default();
+		stub.checking(a_run("completed", Some("failure"))).await;
+		walked(&stub, &database, &mut kept, &clock).await;
+
+		stub.answering(a_pull("open", "abc", false), "\"two\"").await;
+		walked(&stub, &database, &mut kept, &clock).await;
+		stub.answering(a_pull("open", "abc", false), "\"three\"").await;
+		walked(&stub, &database, &mut kept, &clock).await;
+
+		assert_eq!(
+			red_checks_of(&database, &mission.id).await,
+			1,
+			"the same red fingerprint was appended more than once"
+		);
+
+		stub.stop.send_replace(true);
+		std::fs::remove_dir_all(&dir).expect("cleanup");
+	}
+
+	#[tokio::test]
+	async fn red_checks_on_a_head_sha_the_fingerprint_never_held_append_a_second_checks_failed() {
+		let (database, dir) = planted().await;
+		let mission = an_armed_mission(&database).await;
+		let stub = Stub::holding(a_pull("open", "abc", false), "\"one\"").await;
+		let clock = Ticking::at(NOON);
+		let mut kept = Kept::default();
+		stub.checking(a_run("completed", Some("failure"))).await;
+		walked(&stub, &database, &mut kept, &clock).await;
+
+		stub.answering(a_pull("open", "def", false), "\"two\"").await;
+		stub.checking(a_run_named("lint", "completed", Some("failure"))).await;
+		walked(&stub, &database, &mut kept, &clock).await;
+
+		assert_eq!(
+			red_checks_of(&database, &mission.id).await,
+			2,
+			"a red check on a fresh head sha was swallowed as the settlement already held"
+		);
+		assert_eq!(
+			from_github(&database, &mission.id).await.last(),
+			Some(&(
+				MissionEventKind::ChecksFailed,
+				json!({ "pullRequest": 7, "checks": ["lint"] }),
+			)),
+		);
+		assert_eq!(state_of(&database, &mission.id).await, (MissionState::WaitingBot, false));
+
+		stub.stop.send_replace(true);
+		std::fs::remove_dir_all(&dir).expect("cleanup");
+	}
+
+	#[tokio::test]
+	async fn checks_passing_after_a_red_check_append_ready_and_the_mission_reads_ready_to_merge() {
+		let (database, dir) = planted().await;
+		let mission = an_armed_mission(&database).await;
+		let stub = Stub::holding(a_pull("open", "abc", false), "\"one\"").await;
+		let clock = Ticking::at(NOON);
+		let mut kept = Kept::default();
+		stub.checking(a_run("completed", Some("failure"))).await;
+		walked(&stub, &database, &mut kept, &clock).await;
+
+		stub.answering(a_pull("open", "def", false), "\"two\"").await;
+		stub.checking(a_run("completed", Some("success"))).await;
+		walked(&stub, &database, &mut kept, &clock).await;
+
+		assert_eq!(
+			from_github(&database, &mission.id).await.last(),
+			Some(&(MissionEventKind::Ready, json!({ "pullRequest": 7 }))),
+		);
+		assert_eq!(state_of(&database, &mission.id).await, (MissionState::ReadyToMerge, false));
 
 		stub.stop.send_replace(true);
 		std::fs::remove_dir_all(&dir).expect("cleanup");

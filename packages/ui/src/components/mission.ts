@@ -10,6 +10,7 @@ type MissionEventKind =
 	| "answered"
 	| "escalated"
 	| "ready"
+	| "checks_failed"
 	| "failed"
 	| "closed"
 

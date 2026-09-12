@@ -38,6 +38,7 @@ const MIGRATIONS: &[Migration] = &[
 	Migration { version: 29, statements: MESSAGE_SEARCH },
 	Migration { version: 30, statements: BOT_SPACES },
 	Migration { version: 31, statements: SOLO_THREAD_PER_SPACE },
+	Migration { version: 32, statements: MISSION_CHECKS_FAILED },
 ];
 
 const CONVERSATIONS_SCHEMA: &str = "
@@ -693,6 +694,52 @@ WHERE kind = 'main' AND space_id IS NULL;
 CREATE INDEX conversation_participants_of_bot ON conversation_participants (bot_id);
 ";
 
+const MISSION_CHECKS_FAILED: &str = "
+DROP TRIGGER mission_events_are_written_once;
+DROP TRIGGER mission_events_outlive_their_mission;
+
+PRAGMA legacy_alter_table = ON;
+ALTER TABLE mission_events RENAME TO mission_events_without_checks_failed;
+PRAGMA legacy_alter_table = OFF;
+
+CREATE TABLE mission_events (
+	id TEXT PRIMARY KEY,
+	mission_id TEXT NOT NULL REFERENCES missions (id) ON DELETE CASCADE,
+	seq INTEGER NOT NULL,
+	kind TEXT NOT NULL CHECK (kind IN
+		('opened', 'note', 'agent_asked', 'answered', 'escalated', 'ready', 'checks_failed',
+			'failed', 'closed')),
+	source TEXT NOT NULL,
+	payload TEXT NOT NULL,
+	created_at INTEGER NOT NULL,
+	delivery_id TEXT NOT NULL DEFAULT '',
+	UNIQUE (mission_id, seq)
+);
+
+INSERT INTO mission_events
+		(id, mission_id, seq, kind, source, payload, created_at, delivery_id)
+	SELECT id, mission_id, seq, kind, source, payload, created_at, delivery_id
+	FROM mission_events_without_checks_failed;
+
+DROP TABLE mission_events_without_checks_failed;
+
+CREATE UNIQUE INDEX mission_events_one_event_per_delivery
+	ON mission_events (mission_id, delivery_id) WHERE delivery_id <> '';
+
+CREATE TRIGGER mission_events_are_written_once
+BEFORE UPDATE ON mission_events
+BEGIN
+	SELECT RAISE(ABORT, 'a mission event records one moment: append a new one, never edit it');
+END;
+
+CREATE TRIGGER mission_events_outlive_their_mission
+BEFORE DELETE ON mission_events
+WHEN EXISTS (SELECT 1 FROM missions WHERE id = OLD.mission_id)
+BEGIN
+	SELECT RAISE(ABORT, 'a mission event is never erased while its mission stands');
+END;
+";
+
 pub fn latest_version() -> u32 {
 	MIGRATIONS.last().map_or(0, |migration| migration.version)
 }
@@ -780,6 +827,7 @@ mod tests {
 	const MESSAGE_SEARCH_STEP: u32 = 29;
 	const BOT_SPACES_STEP: u32 = 30;
 	const SOLO_THREAD_PER_SPACE_STEP: u32 = 31;
+	const MISSION_CHECKS_FAILED_STEP: u32 = 32;
 
 	const A_LIVE_SESSION: &str = "INSERT INTO runtime_sessions
 		(id, conversation_id, bot_id, provider_session_id, seq, status, started_at)
@@ -918,6 +966,106 @@ mod tests {
 
 		drop(connection);
 		fs::remove_dir_all(&dir).expect("cleanup");
+	}
+
+	#[test]
+	fn mission_events_stored_before_the_checks_failed_step_keep_their_rows_and_their_triggers() {
+		let dir = temp_dir();
+		let mut connection = open(&dir.join(FILE_NAME)).expect("open");
+		apply_each(&mut connection, shipped_before(MISSION_CHECKS_FAILED_STEP))
+			.expect("the shipped schema");
+		connection
+			.execute_batch(
+				"INSERT INTO bots (id, name, model, created_at)
+					VALUES ('b1', 'First', 'sonnet', 1);
+				INSERT INTO conversations (id, kind, title, created_at, updated_at)
+					VALUES ('c1', 'main', 'Chat', 1, 1), ('c2', 'mission', 'Fix it', 1, 1);
+				INSERT INTO conversation_participants
+					(conversation_id, bot_id, role, joined_at, join_seq)
+					VALUES ('c1', 'b1', 'assistant', 1, 0);
+				INSERT INTO missions (id, origin_conversation_id, bot_id, thread_conversation_id,
+					objective, ticket_platform, ticket_external_id, ticket_url, ticket_title,
+					tools, opened_at)
+					VALUES ('m1', 'c1', 'b1', 'c2', 'Fix it', 'github', '42',
+						'https://kiroshi.test/tickets/42', 'Crash', '[]', 1);
+				INSERT INTO mission_events
+					(id, mission_id, seq, kind, source, payload, created_at, delivery_id)
+					VALUES ('e1', 'm1', 1, 'opened', 'bot', '{\"pullRequest\":7}', 1, 'd1'),
+						('e2', 'm1', 2, 'ready', 'github', '{}', 2, '');",
+			)
+			.expect("the mission events this build upgrades from");
+
+		apply(&mut connection).expect("the file comes up to this build");
+
+		assert_eq!(version(&connection).expect("version"), latest_version());
+		assert_eq!(
+			events_of(&connection, "m1"),
+			vec![
+				(
+					"e1".to_owned(),
+					1,
+					"opened".to_owned(),
+					"bot".to_owned(),
+					"{\"pullRequest\":7}".to_owned(),
+					1,
+					"d1".to_owned(),
+				),
+				(
+					"e2".to_owned(),
+					2,
+					"ready".to_owned(),
+					"github".to_owned(),
+					"{}".to_owned(),
+					2,
+					String::new(),
+				),
+			],
+			"the step rewrote the events it was only meant to carry over"
+		);
+		let red = write(
+			&connection,
+			"INSERT INTO mission_events (id, mission_id, seq, kind, source, payload, created_at)
+				VALUES ('e3', 'm1', 3, 'checks_failed', 'github', '{}', 3)",
+		);
+		let edit = write(&connection, "UPDATE mission_events SET source = 'human' WHERE id = 'e1'");
+		let erase = write(&connection, "DELETE FROM mission_events WHERE id = 'e1'");
+
+		assert!(red.is_ok(), "a red check had no word in the schema: {red:?}");
+		assert!(edit.is_err(), "a mission event was edited after the rebuild");
+		assert!(erase.is_err(), "a mission event was erased after the rebuild");
+		assert!(
+			has_index(&connection, "mission_events_one_event_per_delivery"),
+			"the rebuild dropped the index holding one event per delivery"
+		);
+
+		drop(connection);
+		fs::remove_dir_all(&dir).expect("cleanup");
+	}
+
+	fn events_of(
+		connection: &Connection,
+		mission_id: &str,
+	) -> Vec<(String, i64, String, String, String, i64, String)> {
+		let mut statement = connection
+			.prepare(
+				"SELECT id, seq, kind, source, payload, created_at, delivery_id
+					FROM mission_events WHERE mission_id = ?1 ORDER BY seq",
+			)
+			.expect("the events read");
+		let rows = statement
+			.query_map([mission_id], |row| {
+				Ok((
+					row.get(0)?,
+					row.get(1)?,
+					row.get(2)?,
+					row.get(3)?,
+					row.get(4)?,
+					row.get(5)?,
+					row.get(6)?,
+				))
+			})
+			.expect("the events map");
+		rows.map(|row| row.expect("an event row")).collect()
 	}
 
 	#[test]
