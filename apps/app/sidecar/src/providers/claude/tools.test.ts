@@ -1,6 +1,27 @@
 import { describe, expect, it } from "bun:test"
 
-import { builtInTools } from "./tools"
+import { claudeSourceExecutable } from "./build"
+import { EXECUTABLE_OVERRIDE_ENV } from "./executable"
+import { CONNECTION_KEYS } from "./session-env"
+import { builtInTools, toolsOptions } from "./tools"
+
+process.env[EXECUTABLE_OVERRIDE_ENV] = claudeSourceExecutable()
+
+describe("toolsOptions", () => {
+	it("spawns the binary with the held source", () => {
+		const env = toolsOptions({ CLAUDE_CODE_OAUTH_TOKEN: "held-token" }).env
+
+		expect(env.CLAUDE_CODE_OAUTH_TOKEN).toBe("held-token")
+	})
+
+	it("spawns the binary with neither name while no source is held", () => {
+		const env = toolsOptions().env
+
+		for (const key of CONNECTION_KEYS) {
+			expect(env).not.toHaveProperty(key)
+		}
+	})
+})
 
 describe("builtInTools", () => {
 	it("keeps the install's own tools, in the order the session named them", () => {

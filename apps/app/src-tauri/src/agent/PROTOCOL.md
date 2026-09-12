@@ -49,7 +49,7 @@ its answer both.
 
 | `type` | Answered with | Becomes |
 | --- | --- | --- |
-| `check` | `{"type":"check","authenticated":bool,"detail"?:string,"account"?:{"email"?:string,"plan"?:string}}` | the `CheckReport`, its `account` included |
+| `check` | `{"type":"check","authenticated":bool,"authMethod"?:string,"detail"?:string,"account"?:{"email"?:string,"plan"?:string}}` | the `CheckReport`, its `account` included |
 | `sign_in` | `{"type":"sign_in","signedIn":bool,"error"?:{"kind":"busy"\|"cancelled"\|"timedOut"\|"failed","detail"?:string}}` | the outcome `agent_sign_in` resolves on |
 | `sign_in_code` | nothing | the `text` it carries, written to the stdin of the running sign-in |
 | `sign_in_cancel` | nothing | the pending `sign_in`, its child killed and the ask settled `cancelled` |
@@ -164,7 +164,12 @@ RFC 7009, under its own `token_type_hint`: `access_token`, then `refresh_token`.
 metadata naming none is answered `{"revoked":false,"detail":…}` rather than a failure,
 and so is the first post to answer a status outside 2xx, that status named.
 
-`check` reads the provider's own credential store; `detail` says the question
+`check`, `models`, `tools` and `title` each carry `connection`, the held connection
+source: one name at the most, `ANTHROPIC_API_KEY` or `CLAUDE_CODE_OAUTH_TOKEN`, read
+from the connection scope alone. Each spawns the binary with that source, under the
+environment a session gets, and reads the provider's own credential store when the
+field is absent; `authMethod` is the method the probe names, carried to the
+`CheckReport` unchanged and left out when it names none. `detail` says the question
 could not be answered at all, which reaches the frontend as `authCheckFailed`
 rather than as `notAuthenticated`. `models` is `Query.supportedModels()`, asked of
 a session opened for nothing else and closed again — there is no file to read and
@@ -254,6 +259,10 @@ Every other command names its session.
   credential paths, the environment files and the sandbox itself.
 - `env` is the SDK's `env`: variables for the agent this session runs, not for
   the sidecar.
+- `connection` is the held connection source, one name at the most: `ANTHROPIC_API_KEY`
+  or `CLAUDE_CODE_OAUTH_TOKEN`, absent while none is held. The environment of the agent
+  process is the sidecar's allowlist, `CLAUDE_CONFIG_DIR` among it, plus that field alone,
+  never a name of `serverEnv`. While the field is absent the agent gets neither name.
 - `serverEnv` is what the environment store serves this bot's MCP servers, read once
   when the session opens: `base`, the space scope under the bot scope, and `perServer`,
   one overlay per server name holding that server's own scope — the narrowest
@@ -267,8 +276,16 @@ Every other command names its session.
   `Authorization: Bearer <that token>`, a server declaring no `${` included; a server
   already declaring a header named `authorization` under any letter case keeps the value
   the person wrote. No `.mcp.json` on disk is rewritten for any of it. The five
-  `KIROSHI_OAUTH_` names are the store's own: `env_list` leaves every one of them out of a
-  server scope, so a grant never reads as a variable the person wrote. A `failure` leaves
+  `KIROSHI_OAUTH_` names and the two connection names are the store's own: `env_list`
+  leaves every one of them out at every scope, so neither a grant nor a connection source
+  reads as a variable the person wrote. The connection source lives at the connection
+  scope, wider than every space, written by `connection_set` and removed by
+  `connection_clear` alone; `connection_kind` names which of the two is held without
+  returning its value. Neither name ever reaches `base` or an overlay, not even when a
+  space scope or a bot scope still holds one on disk: the session is handed the value of
+  the connection scope and no value of that narrower scope. A server declaring
+  `${ANTHROPIC_API_KEY}` or `${CLAUDE_CODE_OAUTH_TOKEN}` is therefore left out of the
+  session, that name reported as defined by no scope. A `failure` leaves
   out a server carrying a `url` and no `authorization` header of its own even when it
   declares no `${`, because the grant it would have been handed is exactly what could not
   be read: connecting it unauthorized would only settle `needs-auth`. One carrying its own

@@ -286,6 +286,8 @@ pub struct CheckReport {
 	pub connection: ConnectionState,
 	pub binary_version: Option<String>,
 	pub authenticated: bool,
+	#[serde(default, skip_serializing_if = "Option::is_none")]
+	pub auth_method: Option<String>,
 	pub error: Option<TransportError>,
 	#[serde(default, skip_serializing_if = "Option::is_none")]
 	pub account: Option<Account>,

@@ -17,11 +17,11 @@ import {
 import { AWAITING_AUTH, leftOut } from "./server-env"
 import {
 	buildOptions,
-	CLASSIFY_ASK_USER_QUESTION,
 	dialledServers,
 	reportConnections,
 	stopTurn,
 } from "./session"
+import { CLASSIFY_ASK_USER_QUESTION, CONNECTION_KEYS } from "./session-env"
 import {
 	AUTHORIZE_LINE,
 	bundleLine,
@@ -179,6 +179,40 @@ describe("buildOptions", () => {
 		expect(env.KIROSHI_SECRET_TOKEN).toBeUndefined()
 		expect(env.PATH).toBe(process.env.PATH)
 		expect(env[EXECUTABLE_OVERRIDE_ENV]).toBe(claudeSourceExecutable())
+	})
+
+	it("hands the agent the held source of the connection field alone", () => {
+		const connection = { CLAUDE_CODE_OAUTH_TOKEN: "stored-token" }
+		const serverEnv = { base: { LINEAR_KEY: "lin" } }
+
+		const env =
+			buildOptions({ ...request, connection, serverEnv }, undefined).env ?? {}
+
+		expect(env.CLAUDE_CODE_OAUTH_TOKEN).toBe("stored-token")
+		expect(env.LINEAR_KEY).toBeUndefined()
+	})
+
+	it("hands the agent neither name when the base carries both and no source is held", () => {
+		const serverEnv = {
+			base: {
+				ANTHROPIC_API_KEY: "sk-from-the-base",
+				CLAUDE_CODE_OAUTH_TOKEN: "token-from-the-base",
+			},
+		}
+
+		const env = buildOptions({ ...request, serverEnv }, undefined).env ?? {}
+
+		for (const key of CONNECTION_KEYS) {
+			expect(env).not.toHaveProperty(key)
+		}
+	})
+
+	it("hands the agent no connection name while none is held", () => {
+		const env = buildOptions(request, undefined).env ?? {}
+
+		for (const key of CONNECTION_KEYS) {
+			expect(env).not.toHaveProperty(key)
+		}
 	})
 
 	it("names no tool in the layer, so it grants no capability", () => {

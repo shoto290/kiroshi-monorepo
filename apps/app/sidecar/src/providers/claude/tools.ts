@@ -4,6 +4,7 @@ import { query } from "@anthropic-ai/claude-agent-sdk"
 
 import { resolveExecutable } from "./executable"
 import { createPromptStream } from "./prompt-stream"
+import { sessionEnv } from "./session-env"
 
 const MCP_PREFIX = "mcp__"
 
@@ -12,15 +13,18 @@ const OPENING = "."
 export const builtInTools = (named: string[]) =>
 	named.filter((tool) => !tool.startsWith(MCP_PREFIX))
 
-export const claudeTools = async () => {
+export const toolsOptions = (connection?: Record<string, string>) => ({
+	cwd: tmpdir(),
+	pathToClaudeCodeExecutable: resolveExecutable(),
+	env: sessionEnv(connection),
+	stderr: () => {},
+})
+
+export const claudeTools = async (connection?: Record<string, string>) => {
 	const prompts = createPromptStream()
 	const run = query({
 		prompt: prompts.stream,
-		options: {
-			cwd: tmpdir(),
-			pathToClaudeCodeExecutable: resolveExecutable(),
-			stderr: () => {},
-		},
+		options: toolsOptions(connection),
 	})
 	try {
 		prompts.push(OPENING)

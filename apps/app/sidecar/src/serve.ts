@@ -37,6 +37,7 @@ type Command = {
 	partialMessages?: boolean
 	serverEnv?: ServerEnv
 	outputSchema?: Record<string, unknown>
+	connection?: Record<string, string>
 	text?: string
 	url?: string
 	token?: string
@@ -65,6 +66,7 @@ export const sessionRequest = (command: Command): SessionRequest => ({
 	conversationId: command.conversationId,
 	partialMessages: command.partialMessages ?? false,
 	serverEnv: command.serverEnv,
+	connection: command.connection,
 	outputSchema: command.outputSchema,
 })
 
@@ -123,15 +125,26 @@ export const serve = async (requestedId?: string) => {
 		const { type, text } = command
 		switch (type) {
 			case "check":
-				return write({ type, ...(await provider.authenticate()) })
+				return write({
+					type,
+					...(await provider.authenticate(command.connection)),
+				})
 			case "models":
-				return write({ type, models: await provider.models().catch(() => []) })
+				return write({
+					type,
+					models: await provider.models(command.connection).catch(() => []),
+				})
 			case "tools":
-				return write({ type, tools: await provider.tools().catch(() => []) })
+				return write({
+					type,
+					tools: await provider.tools(command.connection).catch(() => []),
+				})
 			case "title":
 				return write({
 					type,
-					title: await provider.title(text ?? "").catch(() => null),
+					title: await provider
+						.title(text ?? "", command.connection)
+						.catch(() => null),
 				})
 			case SIGN_IN:
 				return write({ type, ...(await provider.signIn(write)) })

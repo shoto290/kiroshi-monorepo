@@ -125,7 +125,13 @@ describe("serve", () => {
 			expect(
 				Object.keys(checked).filter(
 					(key) =>
-						!["type", "authenticated", "detail", "account"].includes(key),
+						![
+							"type",
+							"authenticated",
+							"authMethod",
+							"detail",
+							"account",
+						].includes(key),
 				),
 			).toEqual([])
 			expect(

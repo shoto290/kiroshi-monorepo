@@ -11,6 +11,9 @@ use kiroshi_app::agent::session::{Bundle, EventSink, Session, SessionOptions};
 use kiroshi_app::agent::sidecar::{self, Sidecar, SidecarOptions};
 use kiroshi_app::bundles;
 use kiroshi_app::db::repositories::conversations::{AvatarAnimal, Bot};
+use kiroshi_app::environment::connection;
+use kiroshi_app::environment::contract::{ConnectionKind, EnvOwner, ResolvedEnv, API_KEY};
+use kiroshi_app::environment::store;
 use tokio::sync::mpsc;
 
 const TURN_TIMEOUT: Duration = Duration::from_secs(180);
@@ -39,6 +42,15 @@ async fn started_on(
 }
 
 async fn started_with(resume: Option<String>, bundle: Option<Bundle>, cwd: PathBuf) -> Live {
+	opened(resume, bundle, cwd, ResolvedEnv::default()).await
+}
+
+async fn opened(
+	resume: Option<String>,
+	bundle: Option<Bundle>,
+	cwd: PathBuf,
+	server_env: ResolvedEnv,
+) -> Live {
 	let (tx, events) = mpsc::unbounded_channel();
 	let sink: Arc<dyn EventSink> = Arc::new(tx);
 	let sidecar = Sidecar::start(SidecarOptions::new(
@@ -46,7 +58,7 @@ async fn started_with(resume: Option<String>, bundle: Option<Bundle>, cwd: PathB
 	))
 	.await
 	.expect("the sidecar announces itself");
-	let options = SessionOptions::new(cwd).resuming(resume).bundled(bundle);
+	let options = SessionOptions::new(cwd).resuming(resume).bundled(bundle).serving(server_env);
 	let session = Session::start(sidecar.clone(), options, sink).await.expect("session starts");
 	Live { session, sidecar, events }
 }
@@ -148,6 +160,19 @@ impl Live {
 	async fn run_turn(&mut self, prompt: &str) -> Vec<AgentEvent> {
 		self.session.submit_prompt(prompt).await.expect("prompt accepted");
 		self.collect().await
+	}
+
+	async fn collect_until_settled(&mut self) -> Vec<AgentEvent> {
+		let mut seen = Vec::new();
+		let deadline = tokio::time::Instant::now() + TURN_TIMEOUT;
+		while let Ok(Some(event)) = tokio::time::timeout_at(deadline, self.events.recv()).await {
+			let settled = matches!(event, AgentEvent::TurnEnded { .. } | AgentEvent::Failed { .. });
+			seen.push(event);
+			if settled {
+				break;
+			}
+		}
+		seen
 	}
 
 	async fn collect(&mut self) -> Vec<AgentEvent> {
@@ -616,14 +641,14 @@ async fn a_bot_denied_the_write_by_its_settings_writes_nothing_and_asks_nothing(
 #[ignore = "needs a signed-in subscription and the network"]
 async fn the_check_report_carries_no_identity() {
 	let state = kiroshi_app::agent::AgentState::default();
-	let report = check(&state).await;
+	let report = check(&state, None).await;
 	assert_eq!(report.connection, ConnectionState::Ready, "expected a signed-in install");
 	assert!(report.authenticated, "expected a signed-in install");
 	assert!(report.binary_version.is_some(), "the sidecar announced no version");
 
 	let serialized = serde_json::to_string(&report).expect("report serializes");
 	assert!(!serialized.contains('@'), "an email reached the contract: {serialized}");
-	for forbidden in ["orgId", "orgName", "subscriptionType", "apiProvider", "authMethod"] {
+	for forbidden in ["orgId", "orgName", "subscriptionType", "apiProvider"] {
 		assert!(!serialized.contains(forbidden), "{forbidden} reached the contract: {serialized}");
 	}
 }
@@ -719,4 +744,37 @@ fn group_alive(pid: u32) -> bool {
 #[cfg(not(unix))]
 fn group_alive(_pid: u32) -> bool {
 	false
+}
+
+const REFUSED_KEY: &str = "sk-ant-api03-kiroshi-refused-on-purpose";
+
+fn surfaced(events: &[AgentEvent]) -> String {
+	let failures = events.iter().filter_map(|event| match event {
+		AgentEvent::Failed { error } => Some(format!("{error:?}")),
+		_ => None,
+	});
+	std::iter::once(text(events)).chain(failures).collect::<Vec<_>>().join(" ")
+}
+
+#[tokio::test]
+#[ignore = "needs the network and a throwaway CLAUDE_CONFIG_DIR"]
+async fn a_refused_api_key_surfaces_the_failure_text_of_the_binary() {
+	let config = a_directory("refused-key-config");
+	std::env::set_var("CLAUDE_CONFIG_DIR", &config);
+	let root = a_directory("refused-key-store");
+	connection::clear(&root).expect("the store starts empty");
+	connection::hold(&root, ConnectionKind::ApiKey, REFUSED_KEY).expect("the key is stored");
+	let owner = EnvOwner::Bot { id: "live-bot".to_owned(), space_id: "live-space".to_owned() };
+	let resolved = store::resolve(&root, &owner).expect("the store reads");
+	assert_eq!(resolved.base.get(API_KEY).map(String::as_str), Some(REFUSED_KEY));
+
+	let mut live = opened(None, None, std::env::temp_dir(), resolved).await;
+	live.session.submit_prompt("Reply with exactly: OK").await.expect("prompt accepted");
+	let events = live.collect_until_settled().await;
+	live.sidecar.shutdown().await;
+	std::env::remove_var("CLAUDE_CONFIG_DIR");
+
+	let read = surfaced(&events);
+	println!("the binary surfaced: {read}");
+	assert!(read.contains("401"), "the refusal did not reach the reader: {read}");
 }

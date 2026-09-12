@@ -3,7 +3,7 @@ use serde::{Deserialize, Deserializer, Serialize};
 use serde_json::Value;
 
 use super::contract::{Account, AgentCommand};
-use crate::environment::contract::ResolvedEnv;
+use crate::environment::contract::{ResolvedEnv, Values};
 
 fn null_as_default<'de, D, T>(deserializer: D) -> Result<T, D::Error>
 where
@@ -61,6 +61,8 @@ pub struct OpenRequest {
 	pub env: std::collections::BTreeMap<String, String>,
 	#[serde(skip_serializing_if = "ResolvedEnv::is_untouched")]
 	pub server_env: ResolvedEnv,
+	#[serde(skip_serializing_if = "std::collections::BTreeMap::is_empty")]
+	pub connection: Values,
 	#[serde(skip_serializing_if = "Option::is_none")]
 	pub output_schema: Option<Value>,
 }
@@ -357,8 +359,12 @@ pub fn ask_command(kind: &str) -> Value {
 	serde_json::json!({ "type": kind })
 }
 
-pub fn title_command(text: &str) -> Value {
-	serde_json::json!({ "type": TITLE, "text": text })
+pub fn sourced_command(kind: &str, connection: &Values) -> Value {
+	serde_json::json!({ "type": kind, "connection": connection })
+}
+
+pub fn title_command(text: &str, connection: &Values) -> Value {
+	serde_json::json!({ "type": TITLE, "text": text, "connection": connection })
 }
 
 #[derive(Debug, Clone, Deserialize)]
@@ -370,6 +376,8 @@ pub struct Checked {
 	pub detail: Option<String>,
 	#[serde(default)]
 	pub account: Option<Account>,
+	#[serde(default)]
+	pub auth_method: Option<String>,
 }
 
 #[derive(Debug, Clone, Deserialize)]

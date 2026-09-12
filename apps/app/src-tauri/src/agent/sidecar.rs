@@ -19,6 +19,7 @@ use super::protocol::{
 	self, Authorized, Catalogue, Checked, OauthStarted, Ready, RefreshRequest, RevocationRequest,
 	Revoked, SignedIn, Titled, ToolCatalogue,
 };
+use crate::environment::contract::Values;
 
 pub const SIDECAR_OVERRIDE_ENV: &str = "KIROSHI_AGENT_SIDECAR";
 
@@ -223,8 +224,8 @@ impl Sidecar {
 		self.routes.lock().expect("routes").remove(key);
 	}
 
-	pub async fn checked(&self) -> Result<Checked, TransportError> {
-		let answer = self.ask(protocol::CHECK, CHECK_TIMEOUT).await?;
+	pub async fn checked(&self, connection: &Values) -> Result<Checked, TransportError> {
+		let answer = self.ask(protocol::CHECK, connection, CHECK_TIMEOUT).await?;
 		let mut checked: Checked = serde_json::from_value(answer)
 			.map_err(|error| TransportError::AuthCheckFailed { detail: error.to_string() })?;
 		match checked.detail.take() {
@@ -233,30 +234,40 @@ impl Sidecar {
 		}
 	}
 
-	pub async fn catalogue(&self) -> Result<Vec<String>, TransportError> {
-		let answer = self.ask(protocol::MODELS, CATALOGUE_TIMEOUT).await?;
+	pub async fn catalogue(&self, connection: &Values) -> Result<Vec<String>, TransportError> {
+		let answer = self.ask(protocol::MODELS, connection, CATALOGUE_TIMEOUT).await?;
 		let catalogue: Catalogue = serde_json::from_value(answer)
 			.map_err(|error| TransportError::InvalidFrame { detail: error.to_string() })?;
 		Ok(catalogue.models)
 	}
 
-	pub async fn tools(&self) -> Result<Vec<String>, TransportError> {
-		let answer = self.ask(protocol::TOOLS, CATALOGUE_TIMEOUT).await?;
+	pub async fn tools(&self, connection: &Values) -> Result<Vec<String>, TransportError> {
+		let answer = self.ask(protocol::TOOLS, connection, CATALOGUE_TIMEOUT).await?;
 		let catalogue: ToolCatalogue = serde_json::from_value(answer)
 			.map_err(|error| TransportError::InvalidFrame { detail: error.to_string() })?;
 		Ok(catalogue.tools)
 	}
 
-	pub async fn title(&self, text: &str) -> Result<Option<String>, TransportError> {
-		let answer =
-			self.ask_with(protocol::TITLE, protocol::title_command(text), TITLE_TIMEOUT).await?;
+	pub async fn title(
+		&self,
+		text: &str,
+		connection: &Values,
+	) -> Result<Option<String>, TransportError> {
+		let answer = self
+			.ask_with(protocol::TITLE, protocol::title_command(text, connection), TITLE_TIMEOUT)
+			.await?;
 		let titled: Titled = serde_json::from_value(answer)
 			.map_err(|error| TransportError::InvalidFrame { detail: error.to_string() })?;
 		Ok(titled.title)
 	}
 
-	async fn ask(&self, kind: &str, timeout: Duration) -> Result<Value, TransportError> {
-		self.ask_with(kind, protocol::ask_command(kind), timeout).await
+	async fn ask(
+		&self,
+		kind: &str,
+		connection: &Values,
+		timeout: Duration,
+	) -> Result<Value, TransportError> {
+		self.ask_with(kind, protocol::sourced_command(kind, connection), timeout).await
 	}
 
 	async fn ask_with(

@@ -37,6 +37,19 @@ const held: ServerEnv = {
 }
 
 describe("resolveServers", () => {
+	it("leaves out a server referencing a connection name, defined by no scope", () => {
+		for (const name of ["ANTHROPIC_API_KEY", "CLAUDE_CODE_OAUTH_TOKEN"]) {
+			const server = { command: "run", args: [`\${${name}}`] }
+
+			const { servers, rejections } = resolveServers({ probe: server }, held)
+
+			expect(servers).toEqual({})
+			expect(rejections).toEqual(
+				leftOutLines([leftOut("probe", `${name} is defined by no scope`)]),
+			)
+		}
+	})
+
 	it("expands every declared field from the base under the server's own overlay", () => {
 		const { servers, rejections } = resolveServers({ probe }, held)
 

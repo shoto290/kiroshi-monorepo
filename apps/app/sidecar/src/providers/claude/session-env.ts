@@ -1,5 +1,11 @@
 import { EXECUTABLE_OVERRIDE_ENV } from "./executable"
 
+const DISABLE_AUTO_MEMORY = "CLAUDE_CODE_DISABLE_AUTO_MEMORY"
+export const CLASSIFY_ASK_USER_QUESTION =
+	"CLAUDE_CODE_AUTO_MODE_CLASSIFY_ASK_USER_QUESTION"
+
+export const CONNECTION_KEYS = ["ANTHROPIC_API_KEY", "CLAUDE_CODE_OAUTH_TOKEN"]
+
 const INHERITED_KEYS = [
 	"PATH",
 	"HOME",
@@ -27,15 +33,35 @@ const INHERITED_KEYS = [
 	"TMP",
 	"PATHEXT",
 	"ComSpec",
+	"CLAUDE_CONFIG_DIR",
 	EXECUTABLE_OVERRIDE_ENV,
 ]
 
-export const inheritedEnv = (
-	source: NodeJS.ProcessEnv = process.env,
+const picked = (
+	keys: string[],
+	source: Record<string, string | undefined>,
 ): Record<string, string> =>
 	Object.fromEntries(
-		INHERITED_KEYS.flatMap((key) => {
+		keys.flatMap((key) => {
 			const value = source[key]
 			return value === undefined ? [] : [[key, value] as const]
 		}),
 	)
+
+export const inheritedEnv = (
+	source: NodeJS.ProcessEnv = process.env,
+): Record<string, string> => picked(INHERITED_KEYS, source)
+
+export const connectionEnv = (
+	base: Record<string, string> = {},
+): Record<string, string> => picked(CONNECTION_KEYS, base)
+
+export const sessionEnv = (
+	base?: Record<string, string>,
+	source: NodeJS.ProcessEnv = process.env,
+): Record<string, string> => ({
+	...inheritedEnv(source),
+	...connectionEnv(base),
+	[DISABLE_AUTO_MEMORY]: "1",
+	[CLASSIFY_ASK_USER_QUESTION]: "0",
+})

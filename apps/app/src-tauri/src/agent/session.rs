@@ -15,7 +15,7 @@ use super::contract::{
 use super::protocol::{self, ClosedFrame, Frame, HostAnswer, HostRequestFrame, OpenRequest};
 use super::sidecar::Sidecar;
 use super::translate::Translator;
-use crate::environment::contract::ResolvedEnv;
+use crate::environment::contract::{ResolvedEnv, Values};
 
 pub const DEFAULT_STARTUP_TIMEOUT: Duration = Duration::from_secs(30);
 
@@ -102,6 +102,7 @@ pub struct SessionOptions {
 	pub startup_timeout: Duration,
 	pub extra_env: Vec<(String, String)>,
 	pub server_env: ResolvedEnv,
+	pub connection: Values,
 	pub output_schema: Option<serde_json::Value>,
 	pub hosts: Vec<Arc<dyn HostRequests>>,
 }
@@ -117,6 +118,7 @@ impl SessionOptions {
 			startup_timeout: DEFAULT_STARTUP_TIMEOUT,
 			extra_env: Vec::new(),
 			server_env: ResolvedEnv::default(),
+			connection: Values::new(),
 			output_schema: None,
 			hosts: Vec::new(),
 		}
@@ -152,6 +154,11 @@ impl SessionOptions {
 		self
 	}
 
+	pub fn connected(mut self, connection: Values) -> Self {
+		self.connection = connection;
+		self
+	}
+
 	pub fn hosting(mut self, host: Arc<dyn HostRequests>) -> Self {
 		self.hosts.push(host);
 		self
@@ -179,6 +186,7 @@ impl SessionOptions {
 			partial_messages,
 			env: self.extra_env.iter().cloned().collect(),
 			server_env: self.server_env.clone(),
+			connection: self.connection.clone(),
 			output_schema: self.output_schema.clone(),
 		}
 	}
@@ -707,6 +715,56 @@ mod tests {
 				"base": { "TOKEN": "held" },
 				"perServer": { "clock": { "TOKEN": "narrow" } }
 			})
+		);
+	}
+
+	#[test]
+	fn a_run_serves_neither_connection_name_and_carries_the_held_source_alone() {
+		use crate::environment::connection;
+		use crate::environment::contract::{
+			ConnectionKind, EnvOwner, EnvScope, API_KEY, CONNECTION_NAMES, SUBSCRIPTION_TOKEN,
+		};
+		use crate::environment::store;
+
+		let root = std::env::temp_dir().join("kiroshi-session-connection");
+		let _ = std::fs::remove_dir_all(&root);
+		let owner = EnvOwner::Bot { id: "b1".to_owned(), space_id: "s1".to_owned() };
+		let space = EnvScope::Space { id: "s1".to_owned() };
+		let server = EnvScope::Server { name: "clock".to_owned(), owner: owner.clone() };
+		store::set(&root, &space, API_KEY, "from-the-space").expect("the space keeps it");
+		store::set(&root, &EnvScope::from(&owner), SUBSCRIPTION_TOKEN, "from-the-bot")
+			.expect("the bot keeps it");
+		store::set(&root, &server, API_KEY, "from-the-server").expect("the server keeps it");
+		store::set(&root, &server, "TOKEN", "clock").expect("the server keeps it");
+		connection::hold(&root, ConnectionKind::ApiKey, "sk-held").expect("the key is held");
+
+		let request = options()
+			.serving(store::resolve(&root, &owner).expect("the store reads"))
+			.connected(connection::held(&root).expect("the store reads"))
+			.open_request(true);
+
+		for name in CONNECTION_NAMES {
+			assert_eq!(request.server_env.base.get(name), None, "{name} reached the base");
+			assert!(
+				request.server_env.per_server.values().all(|own| !own.contains_key(name)),
+				"{name} reached an overlay"
+			);
+		}
+		assert_eq!(request.server_env.per_server["clock"]["TOKEN"], "clock");
+		assert_eq!(
+			serde_json::to_value(&request).expect("the request serializes")["connection"],
+			serde_json::json!({ "ANTHROPIC_API_KEY": "sk-held" })
+		);
+	}
+
+	#[test]
+	fn a_run_opened_with_no_source_held_leaves_the_connection_field_out() {
+		let request = options().open_request(true);
+
+		assert!(request.connection.is_empty());
+		assert_eq!(
+			serde_json::to_value(&request).expect("the request serializes").get("connection"),
+			None
 		);
 	}
 

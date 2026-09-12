@@ -25,7 +25,7 @@ import {
 	serverNamed,
 } from "./server-env"
 import { recordStanding } from "./server-standing"
-import { inheritedEnv } from "./session-env"
+import { sessionEnv } from "./session-env"
 import {
 	layerFor,
 	type ServerLine,
@@ -43,10 +43,7 @@ import { describeError } from "../../describe-error"
 
 const ABANDONED = "The session ended before this was answered."
 const ENDED = "the agent ended"
-const DISABLE_AUTO_MEMORY = "CLAUDE_CODE_DISABLE_AUTO_MEMORY"
 const SLASH_COMMAND = /^\/[^\s/]+(\s|$)/
-export const CLASSIFY_ASK_USER_QUESTION =
-	"CLAUDE_CODE_AUTO_MODE_CLASSIFY_ASK_USER_QUESTION"
 
 const described = (commands: SlashCommand[]): AgentCommand[] =>
 	commands.map(({ name, description }) => ({
@@ -130,11 +127,7 @@ export const buildOptions = (
 			preset: "claude_code",
 			append: layerFor(request, resolved.rejections),
 		},
-		env: {
-			...inheritedEnv(),
-			[DISABLE_AUTO_MEMORY]: "1",
-			[CLASSIFY_ASK_USER_QUESTION]: "0",
-		},
+		env: sessionEnv(request.connection),
 		managedSettings,
 		settingSources: [],
 		strictMcpConfig: true,

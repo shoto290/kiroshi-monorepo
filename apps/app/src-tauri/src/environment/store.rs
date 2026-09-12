@@ -5,7 +5,8 @@ use std::sync::{Mutex, PoisonError};
 use tauri::{AppHandle, Manager, Runtime};
 
 use super::contract::{
-	is_reserved, EnvEntry, EnvError, EnvOwner, EnvScope, PerServer, ResolvedEnv, Values,
+	is_a_connection_name, is_reserved, EnvEntry, EnvError, EnvOwner, EnvScope, PerServer,
+	ResolvedEnv, Values,
 };
 use crate::private_files;
 
@@ -14,6 +15,7 @@ const FILE_NAME: &str = ".env";
 const SPACE_DIR: &str = "space";
 const BOT_DIR: &str = "bot";
 const SERVER_DIR: &str = "server";
+const PERSON_DIR: &str = "person";
 
 static WRITES: Mutex<()> = Mutex::new(());
 
@@ -24,9 +26,7 @@ pub fn root<R: Runtime>(app: &AppHandle<R>) -> Option<PathBuf> {
 }
 
 pub fn set(root: &Path, scope: &EnvScope, name: &str, value: &str) -> Result<(), EnvError> {
-	if !is_a_name(name) {
-		return Err(EnvError::InvalidName { name: name.to_owned() });
-	}
+	admitted(scope, name)?;
 	let path = file(root, scope)?;
 	let _serialised = WRITES.lock().unwrap_or_else(PoisonError::into_inner);
 	let mut kept = stored(&path)?;
@@ -37,16 +37,44 @@ pub fn set(root: &Path, scope: &EnvScope, name: &str, value: &str) -> Result<(),
 	written(&path, &kept)
 }
 
+pub fn set_one_of(
+	root: &Path,
+	scope: &EnvScope,
+	family: &[&str],
+	name: &str,
+	value: &str,
+) -> Result<(), EnvError> {
+	admitted(scope, name)?;
+	let path = file(root, scope)?;
+	let _serialised = WRITES.lock().unwrap_or_else(PoisonError::into_inner);
+	let mut kept = stored(&path)?;
+	kept.retain(|(defined, _)| !family.contains(&defined.as_str()));
+	kept.push((name.to_owned(), value.to_owned()));
+	written(&path, &kept)
+}
+
 pub fn delete(root: &Path, scope: &EnvScope, name: &str) -> Result<(), EnvError> {
+	delete_all(root, scope, &[name])
+}
+
+pub fn delete_all(root: &Path, scope: &EnvScope, names: &[&str]) -> Result<(), EnvError> {
 	let path = file(root, scope)?;
 	let _serialised = WRITES.lock().unwrap_or_else(PoisonError::into_inner);
 	let mut kept = stored(&path)?;
 	let held = kept.len();
-	kept.retain(|(defined, _)| defined != name);
+	kept.retain(|(defined, _)| !names.contains(&defined.as_str()));
 	if kept.len() == held {
 		return Ok(());
 	}
 	written(&path, &kept)
+}
+
+fn admitted(scope: &EnvScope, name: &str) -> Result<(), EnvError> {
+	let only_a_connection = matches!(scope, EnvScope::Person);
+	if !is_a_name(name) || (only_a_connection && !is_a_connection_name(name)) {
+		return Err(EnvError::InvalidName { name: name.to_owned() });
+	}
+	Ok(())
 }
 
 pub fn values(root: &Path, scope: &EnvScope) -> Result<Values, EnvError> {
@@ -56,9 +84,8 @@ pub fn values(root: &Path, scope: &EnvScope) -> Result<Values, EnvError> {
 pub fn list(root: &Path, scope: &EnvScope) -> Result<Vec<EnvEntry>, EnvError> {
 	let mut entries: Vec<EnvEntry> = Vec::new();
 	for step in chain(scope) {
-		let owned_by_a_server = matches!(step, EnvScope::Server { .. });
 		for (name, _) in stored(&file(root, &step)?)? {
-			if owned_by_a_server && is_reserved(&name) {
+			if is_reserved(&name) {
 				continue;
 			}
 			let served_from = serving(&entries, &name).unwrap_or_else(|| step.clone());
@@ -74,11 +101,13 @@ pub fn resolve(root: &Path, owner: &EnvOwner) -> Result<ResolvedEnv, EnvError> {
 	for step in chain(&EnvScope::from(owner)).into_iter().rev() {
 		base.extend(stored(&file(root, &step)?)?);
 	}
+	base.retain(|name, _| !is_a_connection_name(name));
 	let mut per_server = PerServer::new();
 	for held in owners(owner) {
 		for name in server_names(root, &held)? {
 			let scope = EnvScope::Server { name: name.clone(), owner: held.clone() };
-			let own = stored(&file(root, &scope)?)?;
+			let mut own = stored(&file(root, &scope)?)?;
+			own.retain(|(name, _)| !is_a_connection_name(name));
 			if own.is_empty() {
 				continue;
 			}
@@ -191,7 +220,7 @@ fn chain(scope: &EnvScope) -> Vec<EnvScope> {
 
 fn broader(scope: &EnvScope) -> Option<EnvScope> {
 	match scope {
-		EnvScope::Space { .. } => None,
+		EnvScope::Space { .. } | EnvScope::Person => None,
 		EnvScope::Bot { space_id, .. } => Some(EnvScope::Space { id: space_id.clone() }),
 		EnvScope::Server { owner, .. } => Some(owner.into()),
 	}
@@ -206,6 +235,7 @@ fn scope_dir(root: &Path, scope: &EnvScope) -> Result<PathBuf, EnvError> {
 		EnvScope::Space { id } => Ok(root.join(SPACE_DIR).join(segment(id)?)),
 		EnvScope::Bot { id, .. } => Ok(root.join(BOT_DIR).join(segment(id)?)),
 		EnvScope::Server { name, owner } => Ok(servers_dir(root, owner)?.join(segment(name)?)),
+		EnvScope::Person => Ok(root.join(PERSON_DIR)),
 	}
 }
 

@@ -1,8 +1,10 @@
 
-use kiroshi_app::agent::commands::{check, terminate_session};
-use kiroshi_app::agent::contract::{Account, ConnectionState, TransportError};
+use kiroshi_app::agent::commands::{check, terminate_session, ENV_UNREADABLE};
+use kiroshi_app::agent::contract::{Account, CheckReport, ConnectionState, TransportError};
 use kiroshi_app::agent::sidecar::SIDECAR_OVERRIDE_ENV;
 use kiroshi_app::agent::AgentState;
+use kiroshi_app::environment::connection;
+use kiroshi_app::environment::contract::ConnectionKind;
 
 const FAKE_SIDECAR: &str = env!("CARGO_BIN_EXE_fake_sidecar");
 
@@ -27,7 +29,7 @@ fn a_signed_in_install_reports_the_account_the_sidecar_named() {
 
 	let state = AgentState::default();
 	runtime().block_on(async {
-		let report = check(&state).await;
+		let report = check(&state, None).await;
 
 		assert_eq!(report.connection, ConnectionState::Ready);
 		assert_eq!(
@@ -52,7 +54,7 @@ fn a_report_naming_no_account_carries_no_account_field_at_all() {
 
 	let state = AgentState::default();
 	runtime().block_on(async {
-		let report = check(&state).await;
+		let report = check(&state, None).await;
 		let crossed = serde_json::to_value(&report).expect("the report serializes");
 
 		assert_eq!(report.account, None);
@@ -73,7 +75,7 @@ fn a_signed_out_install_is_reported_as_a_sign_in_and_not_as_a_missing_sidecar() 
 
 	let state = AgentState::default();
 	runtime().block_on(async {
-		let report = check(&state).await;
+		let report = check(&state, None).await;
 
 		assert_eq!(report.connection, ConnectionState::Unavailable);
 		assert!(!report.authenticated);
@@ -98,7 +100,7 @@ fn a_host_with_no_sidecar_reports_neither_a_version_nor_a_sign_in() {
 
 	let state = AgentState::default();
 	runtime().block_on(async {
-		let report = check(&state).await;
+		let report = check(&state, None).await;
 
 		assert_eq!(report.connection, ConnectionState::Unavailable);
 		assert!(!report.authenticated);
@@ -125,7 +127,7 @@ fn a_sidecar_that_died_before_ready_is_reported_with_what_it_wrote() {
 
 	let state = AgentState::default();
 	runtime().block_on(async {
-		let report = check(&state).await;
+		let report = check(&state, None).await;
 
 		assert_eq!(report.connection, ConnectionState::Unavailable);
 		let Some(TransportError::Crashed { detail, .. }) = report.error else {
@@ -153,7 +155,7 @@ fn a_probe_that_could_not_run_is_reported_apart_from_a_refusal() {
 
 	let state = AgentState::default();
 	runtime().block_on(async {
-		let report = check(&state).await;
+		let report = check(&state, None).await;
 
 		assert_eq!(report.connection, ConnectionState::Unavailable);
 		assert!(matches!(report.error, Some(TransportError::AuthCheckFailed { .. })));
@@ -163,4 +165,83 @@ fn a_probe_that_could_not_run_is_reported_apart_from_a_refusal() {
 
 	std::env::remove_var("FAKE_AGENT_CHECK_FAILS");
 	std::env::remove_var(SIDECAR_OVERRIDE_ENV);
+}
+
+fn a_root(name: &str) -> std::path::PathBuf {
+	let root = std::env::temp_dir().join(format!("kiroshi-connection-check-{name}"));
+	let _ = std::fs::remove_dir_all(&root);
+	root
+}
+
+fn reported_with(root: &std::path::Path) -> CheckReport {
+	let _serial = serial();
+	std::env::set_var(SIDECAR_OVERRIDE_ENV, FAKE_SIDECAR);
+	let state = AgentState::default();
+	let report = runtime().block_on(async {
+		let report = check(&state, Some(root)).await;
+		terminate_session(&state).await;
+		report
+	});
+	std::env::remove_var(SIDECAR_OVERRIDE_ENV);
+	report
+}
+
+#[test]
+fn a_stored_api_key_reaches_the_probe_and_the_method_it_names_reaches_the_report() {
+	let root = a_root("api-key");
+	connection::hold(&root, ConnectionKind::ApiKey, "sk-stored").expect("the key is stored");
+
+	let report = reported_with(&root);
+
+	assert!(report.authenticated);
+	assert_eq!(report.auth_method.as_deref(), Some("api_key"));
+	assert_eq!(
+		serde_json::to_value(&report).expect("the report serializes")["authMethod"],
+		serde_json::json!("api_key")
+	);
+}
+
+#[test]
+fn a_replacing_token_is_the_only_source_the_probe_sees() {
+	let root = a_root("token");
+	connection::hold(&root, ConnectionKind::ApiKey, "sk-stored").expect("the key is stored");
+	connection::hold(&root, ConnectionKind::SubscriptionToken, "token")
+		.expect("the token is stored");
+
+	let report = reported_with(&root);
+
+	assert_eq!(report.auth_method.as_deref(), Some("oauth_token"));
+}
+
+#[test]
+fn a_probe_naming_no_method_leaves_it_absent_and_the_verdict_as_it_stands() {
+	let root = a_root("none");
+	connection::hold(&root, ConnectionKind::ApiKey, "sk-stored").expect("the key is stored");
+	connection::clear(&root).expect("the connection is cleared");
+
+	let report = reported_with(&root);
+
+	assert!(report.authenticated);
+	assert_eq!(report.connection, ConnectionState::Ready);
+	assert_eq!(report.auth_method, None);
+	assert!(
+		serde_json::to_value(&report).expect("the report serializes").get("authMethod").is_none(),
+		"an absent method crossed to the front"
+	);
+}
+
+#[test]
+fn a_connection_store_that_cannot_be_read_fails_the_check_rather_than_probing_without_it() {
+	let root = a_root("unreadable");
+	std::fs::create_dir_all(root.join("person")).expect("the scope directory is made");
+	std::fs::write(root.join("person/.env"), "ANTHROPIC_API_KEY=\"unterminated\n")
+		.expect("the file is planted");
+
+	let report = reported_with(&root);
+
+	assert!(!report.authenticated);
+	let Some(TransportError::AuthCheckFailed { detail }) = report.error else {
+		panic!("a connection store that could not be read was not reported as a failed check");
+	};
+	assert!(detail.starts_with(ENV_UNREADABLE), "the read failure was replaced: {detail}");
 }

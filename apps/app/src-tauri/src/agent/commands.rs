@@ -19,7 +19,8 @@ use crate::conversations::commands::space_of_the_conversation;
 use crate::db;
 use crate::db::repositories::conversations::Bot as StoredBot;
 use crate::db::repositories::runtime_context::ParticipantKey;
-use crate::environment::contract::{EnvError, EnvOwner, ResolvedEnv};
+use crate::environment::connection;
+use crate::environment::contract::{EnvError, EnvOwner, ResolvedEnv, Values};
 use crate::environment::store as environment;
 use crate::mcp_oauth::refresh;
 use crate::mcp_oauth::reports::ConnectorHost;
@@ -309,8 +310,40 @@ pub struct AgentState {
 	gate: std::sync::Mutex<Gate>,
 	live: Arc<Live>,
 	sidecar: Mutex<Option<Arc<Sidecar>>>,
-	models: Mutex<Option<Vec<String>>>,
-	tools: Mutex<Option<Vec<String>>>,
+	models: Catalogue,
+	tools: Catalogue,
+}
+
+#[derive(Default)]
+struct Catalogue {
+	computed: Mutex<Option<ComputedCatalogue>>,
+}
+
+struct ComputedCatalogue {
+	source: Values,
+	list: Vec<String>,
+}
+
+impl Catalogue {
+	async fn served<Computing>(
+		&self,
+		connection: &Values,
+		computing: impl FnOnce() -> Computing,
+	) -> Vec<String>
+	where
+		Computing: std::future::Future<Output = Vec<String>>,
+	{
+		let mut computed = self.computed.lock().await;
+		if let Some(held) = computed.as_ref().filter(|held| &held.source == connection) {
+			return held.list.clone();
+		}
+		let list = computing().await;
+		*computed = match list.is_empty() {
+			true => None,
+			false => Some(ComputedCatalogue { source: connection.clone(), list: list.clone() }),
+		};
+		list
+	}
 }
 
 impl AgentState {
@@ -341,39 +374,37 @@ impl AgentState {
 		self.sidecar.lock().await.take()
 	}
 
-	async fn models(&self) -> Vec<String> {
-		let mut cached = self.models.lock().await;
-		if let Some(found) = cached.as_ref() {
-			return found.clone();
-		}
-		let Ok(sidecar) = self.sidecar().await else {
-			return Vec::new();
-		};
-		let Ok(offered) = sidecar.catalogue().await else {
-			return Vec::new();
-		};
-		*cached = Some(offered.clone());
-		offered
+	async fn models(&self, connection: &Values) -> Vec<String> {
+		self.models
+			.served(connection, || async {
+				let Ok(sidecar) = self.sidecar().await else {
+					return Vec::new();
+				};
+				let Ok(offered) = sidecar.catalogue(connection).await else {
+					return Vec::new();
+				};
+				offered
+			})
+			.await
 	}
 
-	async fn tools(&self) -> Vec<String> {
-		let mut cached = self.tools.lock().await;
-		if let Some(found) = cached.as_ref() {
-			return found.clone();
-		}
-		let Ok(sidecar) = self.sidecar().await else {
-			return Vec::new();
-		};
-		let Ok(offered) = sidecar.tools().await else {
-			return Vec::new();
-		};
-		*cached = Some(offered.clone());
-		offered
+	async fn tools(&self, connection: &Values) -> Vec<String> {
+		self.tools
+			.served(connection, || async {
+				let Ok(sidecar) = self.sidecar().await else {
+					return Vec::new();
+				};
+				let Ok(offered) = sidecar.tools(connection).await else {
+					return Vec::new();
+				};
+				offered
+			})
+			.await
 	}
 
-	async fn title(&self, text: &str) -> Option<String> {
+	async fn title(&self, text: &str, connection: &Values) -> Option<String> {
 		let sidecar = self.sidecar().await.ok()?;
-		sidecar.title(text).await.ok().flatten()
+		sidecar.title(text, connection).await.ok().flatten()
 	}
 }
 
@@ -394,17 +425,30 @@ fn stale(scope: &RuntimeScope) -> TransportError {
 
 #[tauri::command]
 pub async fn agent_models<R: Runtime>(app: AppHandle<R>) -> Vec<String> {
-	app.state::<AgentState>().models().await
+	app.state::<AgentState>().models(&held_connection(&app)).await
 }
 
 #[tauri::command]
 pub async fn agent_tools<R: Runtime>(app: AppHandle<R>) -> Vec<String> {
-	app.state::<AgentState>().tools().await
+	app.state::<AgentState>().tools(&held_connection(&app)).await
 }
 
 #[tauri::command]
 pub async fn agent_title<R: Runtime>(app: AppHandle<R>, text: String) -> Option<String> {
-	app.state::<AgentState>().title(&text).await
+	app.state::<AgentState>().title(&text, &held_connection(&app)).await
+}
+
+fn held_connection<R: Runtime>(app: &AppHandle<R>) -> Values {
+	let Some(root) = environment::root(app) else {
+		return Values::new();
+	};
+	match connection::held(&root) {
+		Ok(held) => held,
+		Err(failure) => {
+			eprintln!("{ENV_UNREADABLE}: {failure:?}");
+			Values::new()
+		}
+	}
 }
 
 #[tauri::command]
@@ -417,25 +461,35 @@ pub async fn agent_check<R: Runtime>(
 		scope.clone(),
 		AgentEvent::ConnectionChanged { state: ConnectionState::Checking },
 	);
-	let report = check(app.state::<AgentState>().inner()).await;
+	let env_root = environment::root(&app);
+	let report = check(app.state::<AgentState>().inner(), env_root.as_deref()).await;
 	announce(&app, scope, AgentEvent::ConnectionChanged { state: report.connection });
 	report
 }
 
-pub async fn check(state: &AgentState) -> CheckReport {
+pub async fn check(state: &AgentState, env_root: Option<&Path>) -> CheckReport {
 	let sidecar = match state.sidecar().await {
 		Ok(sidecar) => sidecar,
 		Err(error) => return reported(None, Err(error)),
 	};
 	let version = sidecar.version().to_owned();
-	reported(Some(version), sidecar.checked().await)
+	let connection = match env_root.map(connection::held).transpose() {
+		Ok(held) => held.unwrap_or_default(),
+		Err(error) => {
+			let detail = format!("{ENV_UNREADABLE}: {error:?}");
+			return reported(Some(version), Err(TransportError::AuthCheckFailed { detail }));
+		}
+	};
+	reported(Some(version), sidecar.checked(&connection).await)
 }
 
 fn reported(binary_version: Option<String>, probe: Result<Checked, TransportError>) -> CheckReport {
-	let (account, error) = match probe {
-		Ok(Checked { authenticated: true, account, .. }) => (account, None),
-		Ok(Checked { account, .. }) => (account, Some(TransportError::NotAuthenticated)),
-		Err(error) => (None, Some(error)),
+	let (auth_method, account, error) = match probe {
+		Ok(checked) if checked.authenticated => (checked.auth_method, checked.account, None),
+		Ok(checked) => {
+			(checked.auth_method, checked.account, Some(TransportError::NotAuthenticated))
+		}
+		Err(error) => (None, None, Some(error)),
 	};
 	CheckReport {
 		connection: match error {
@@ -444,6 +498,7 @@ fn reported(binary_version: Option<String>, probe: Result<Checked, TransportErro
 		},
 		binary_version,
 		authenticated: error.is_none(),
+		auth_method,
 		error,
 		account,
 	}
@@ -456,7 +511,7 @@ struct RuntimeIdentity {
 	server_env: ResolvedEnv,
 }
 
-const ENV_UNREADABLE: &str = "the environment store could not be read";
+pub const ENV_UNREADABLE: &str = "the environment store could not be read";
 
 async fn served_environment<R: Runtime>(
 	app: &AppHandle<R>,
@@ -622,6 +677,7 @@ pub async fn agent_start_or_resume_session<R: Runtime>(
 	let options = SessionOptions::new(working_dir)
 		.bundled(identity.bundle)
 		.serving(identity.server_env)
+		.connected(held_connection(&app))
 		.with_app_data(app.path().app_data_dir().ok())
 		.in_conversation(scope.conversation_id.clone())
 		.hosting(Arc::new(RoutineHost::new(
@@ -811,6 +867,54 @@ pub async fn agent_shutdown<R: Runtime>(
 mod tests {
 	use super::*;
 	use crate::db::repositories::runtime_context::RuntimeSessionStatus;
+
+	fn a_source(name: &str, value: &str) -> Values {
+		Values::from([(name.to_owned(), value.to_owned())])
+	}
+
+	async fn computed(
+		catalogue: &Catalogue,
+		connection: &Values,
+		asks: &std::sync::atomic::AtomicUsize,
+		list: &[&str],
+	) -> Vec<String> {
+		catalogue
+			.served(connection, || async {
+				asks.fetch_add(1, std::sync::atomic::Ordering::Relaxed);
+				list.iter().map(|named| (*named).to_owned()).collect()
+			})
+			.await
+	}
+
+	#[tokio::test]
+	async fn a_catalogue_is_computed_again_once_the_held_source_changes() {
+		let catalogue = Catalogue::default();
+		let asks = std::sync::atomic::AtomicUsize::new(0);
+		let key = a_source("ANTHROPIC_API_KEY", "sk-held");
+		let token = a_source("CLAUDE_CODE_OAUTH_TOKEN", "held-token");
+
+		assert_eq!(computed(&catalogue, &key, &asks, &["quasar"]).await, ["quasar"]);
+		assert_eq!(computed(&catalogue, &token, &asks, &["nimbus"]).await, ["nimbus"]);
+		assert_eq!(asks.load(std::sync::atomic::Ordering::Relaxed), 2);
+
+		assert_eq!(computed(&catalogue, &token, &asks, &["never asked"]).await, ["nimbus"]);
+		assert_eq!(
+			asks.load(std::sync::atomic::Ordering::Relaxed),
+			2,
+			"the sidecar was asked for a list already computed with that source"
+		);
+	}
+
+	#[tokio::test]
+	async fn an_empty_list_is_computed_again_on_the_next_ask() {
+		let catalogue = Catalogue::default();
+		let asks = std::sync::atomic::AtomicUsize::new(0);
+		let nothing_held = Values::new();
+
+		assert!(computed(&catalogue, &nothing_held, &asks, &[]).await.is_empty());
+		assert_eq!(computed(&catalogue, &nothing_held, &asks, &["quasar"]).await, ["quasar"]);
+		assert_eq!(asks.load(std::sync::atomic::Ordering::Relaxed), 2);
+	}
 
 	#[test]
 	fn the_names_awaiting_authorization_reach_the_session_when_the_store_cannot_be_read() {
