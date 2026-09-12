@@ -15,6 +15,7 @@ import type { ConversationRuntimes } from "@/lib/conversations/conversation-runt
 import type { Bot, Conversation } from "@/lib/conversations/store-contract"
 import { hasOverlayWindowControls } from "@/lib/host"
 import type { OpenedMissionController } from "@/lib/missions/opened-mission-controller"
+import type { Onboarding } from "@/lib/onboarding/use-onboarding"
 import type { MessageLandingController } from "@/lib/search/message-landing-controller"
 
 type WorkspaceBodyProps = {
@@ -36,6 +37,7 @@ type WorkspaceBodyProps = {
 	isConversationSettingsOpen: boolean
 	onOpenConversationSettings: (conversationId: string) => void
 	missions: OpenedMissionController
+	onboarding?: Onboarding
 }
 
 const threadOf = ({
@@ -135,6 +137,7 @@ export function WorkspaceBody(props: WorkspaceBodyProps) {
 			bots={props.bots}
 			drafts={props.drafts}
 			landings={props.landings}
+			onboarding={props.onboarding}
 			onOpenMission={openMission}
 			readerName={props.readerName}
 			runtimes={props.conversationRuntimes}

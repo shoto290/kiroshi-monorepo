@@ -88,6 +88,8 @@ import { useMissionBoard } from "@/lib/missions/use-mission-board"
 import { useMissionRunDriver } from "@/lib/missions/use-mission-run-driver"
 import { useWaitingMissions } from "@/lib/missions/use-waiting-missions"
 import { useNotifications } from "@/lib/notifications/use-notifications"
+import { onboardingTransport } from "@/lib/onboarding/onboarding-transport"
+import { useOnboarding } from "@/lib/onboarding/use-onboarding"
 import { createOpenedRoutineController } from "@/lib/routines/opened-routine-controller"
 import { useRunDriver } from "@/lib/routines/use-run-driver"
 import { createMessageLandingController } from "@/lib/search/message-landing-controller"
@@ -177,6 +179,10 @@ export function App() {
 	const spaces = useSpaces(store)
 	const spacePlugin = useSpacePlugin(store)
 	const preferences = user.state.preferences
+	const onboarding = useOnboarding(onboardingTransport, {
+		send: chat.controller.send,
+		markFirstRunDone: user.controller.markFirstRunDone,
+	})
 
 	const updater = useUpdater()
 
@@ -792,6 +798,7 @@ export function App() {
 						isSettingsOpen={isThreadSettingsOpen}
 						landings={messageLandings}
 						missions={openedMission}
+						onboarding={preferences.firstRunDone ? undefined : onboarding}
 						onOpenConversationSettings={roster.controller.editConversation}
 						onRetrySpaces={loadSpaces}
 						onToggleSettings={toggleSettings}

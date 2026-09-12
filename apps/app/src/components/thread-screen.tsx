@@ -4,6 +4,7 @@ import {
 	useEffect,
 	useMemo,
 	useRef,
+	useState,
 	useSyncExternalStore,
 } from "react"
 
@@ -16,6 +17,7 @@ import { HeaderConversationButton } from "@workspace/ui/components/header-conver
 import { HeaderIdentityButton } from "@workspace/ui/components/header-identity-button"
 import { InitialsAvatar } from "@workspace/ui/components/initials-avatar"
 import type { MessageAuthor } from "@workspace/ui/components/message"
+import { MessageBubbleGroup } from "@workspace/ui/components/message-bubble"
 import {
 	MessageQuote,
 	type QuotedMessage,
@@ -24,6 +26,10 @@ import type { MissionBot } from "@workspace/ui/components/mission"
 import { MissionEventRow } from "@workspace/ui/components/mission-event-row"
 import { MissionHeader } from "@workspace/ui/components/mission-header"
 import { MissionTurn } from "@workspace/ui/components/mission-turn"
+import { OnboardingConnectionCard } from "@workspace/ui/components/onboarding-connection-card"
+import { OnboardingSettledPill } from "@workspace/ui/components/onboarding-settled-pill"
+import { OnboardingTestCard } from "@workspace/ui/components/onboarding-test-card"
+import { OnboardingWelcomeCard } from "@workspace/ui/components/onboarding-welcome-card"
 import {
 	PINNED_AVATAR_SIZE,
 	type PinnedMessage,
@@ -144,6 +150,16 @@ import {
 import { toMissionCard } from "@/lib/missions/missions-model"
 import { useMissionSendFailure } from "@/lib/missions/use-mission-failure-notices"
 import { useMissions } from "@/lib/missions/use-missions"
+import type {
+	ConnectionCard,
+	OnboardingController,
+} from "@/lib/onboarding/onboarding-controller"
+import { withoutOnboardingSummons } from "@/lib/onboarding/onboarding-summons"
+import {
+	type OnboardingTail,
+	onboardingTailOf,
+} from "@/lib/onboarding/onboarding-tail"
+import type { Onboarding } from "@/lib/onboarding/use-onboarding"
 import type { ReportedRun } from "@/lib/routines/routine-contract"
 import type { MessageLandingController } from "@/lib/search/message-landing-controller"
 
@@ -600,6 +616,7 @@ const withSummonsCauses = (
 type ReadRunsProps = {
 	messages: TranscriptMessage[]
 	missionSeat: ThreadMission | null
+	isSoloThread: boolean
 	causes: ThreadCauses
 	t: ChatCopy
 }
@@ -612,12 +629,14 @@ type ReadRuns = {
 const readRuns = ({
 	messages,
 	missionSeat,
+	isSoloThread,
 	causes,
 	t,
 }: ReadRunsProps): ReadRuns => {
 	const rows = toTranscriptRows(messages)
 	if (!missionSeat) {
-		return { runs: toRuns(rows, causes), causes }
+		const kept = isSoloThread ? withoutOnboardingSummons(rows) : rows
+		return { runs: toRuns(kept, causes), causes }
 	}
 	const summoned = withoutMissionSummons(rows, missionSeat.mission.botId)
 	const summonedCauses = withSummonsCauses(causes, summoned.summonsCauses, t)
@@ -725,10 +744,119 @@ const withMissionEvents = ({
 		},
 	])
 
+type ThreadConnectionCardProps = {
+	card: ConnectionCard
+	controller: OnboardingController
+	isBusy: boolean
+}
+
+const ThreadConnectionCard = ({
+	card,
+	controller,
+	isBusy,
+}: ThreadConnectionCardProps) => {
+	const [apiKey, setApiKey] = useState("")
+	const [code, setCode] = useState("")
+
+	if (card.state === "detected") {
+		return (
+			<OnboardingConnectionCard
+				account={card.account}
+				disabled={isBusy}
+				onUseAccount={() => void controller.acceptAccount()}
+				onUseAnotherAccount={controller.changeAccount}
+				state="detected"
+			/>
+		)
+	}
+
+	if (card.state === "offer") {
+		return (
+			<OnboardingConnectionCard
+				apiKey={apiKey}
+				disabled={isBusy}
+				onApiKeyChange={setApiKey}
+				onApiKeySubmit={(submitted) => void controller.submitApiKey(submitted)}
+				onSignIn={() => void controller.signIn()}
+				state="offer"
+			/>
+		)
+	}
+
+	if (card.state === "waiting") {
+		return (
+			<OnboardingConnectionCard
+				code={code}
+				disabled={isBusy}
+				onCodeChange={setCode}
+				onCodeSubmit={(submitted) => void controller.submitCode(submitted)}
+				onPasteKey={() => void controller.pasteKeyInstead()}
+				signInUrl={card.signInUrl}
+				state="waiting"
+			/>
+		)
+	}
+
+	return (
+		<OnboardingConnectionCard
+			disabled={isBusy}
+			exitDetail={card.exitDetail}
+			onPasteKey={() => void controller.pasteKeyInstead()}
+			onRetry={() => void controller.signIn()}
+			state="failed"
+		/>
+	)
+}
+
+type ThreadOnboardingProps = {
+	tail: OnboardingTail
+}
+
+const ThreadOnboarding = ({ tail }: ThreadOnboardingProps) => {
+	const { controller, isBusy } = tail
+
+	return (
+		<MessageBubbleGroup spacing="default">
+			{tail.hasWelcome ? (
+				<OnboardingWelcomeCard
+					disabled={isBusy}
+					onStart={() => void controller.start()}
+					onTellMore={() => void controller.tellMore()}
+				/>
+			) : null}
+			{tail.hasPill ? <OnboardingSettledPill /> : null}
+			{tail.card ? (
+				<ThreadConnectionCard
+					card={tail.card}
+					controller={controller}
+					isBusy={isBusy}
+				/>
+			) : null}
+			{tail.turnFailure ? (
+				<OnboardingConnectionCard
+					disabled={isBusy}
+					exitDetail={tail.turnFailure}
+					onPasteKey={() => void controller.pasteKeyInstead()}
+					onRetry={() => void controller.summonAgain()}
+					state="failed"
+				/>
+			) : null}
+			{tail.hasTest ? (
+				<OnboardingTestCard
+					disabled={isBusy}
+					onKeepTalking={() => void controller.finish()}
+					onPickCompanion={() => void controller.finish()}
+				/>
+			) : null}
+		</MessageBubbleGroup>
+	)
+}
+
 type BotThreadTailProps = {
 	thread: LoadedBotThread
 	face: ThreadFace
 	botWork: WorkingState | null
+	onboarding: OnboardingTail | null
 	onStop: () => void
 }
 
@@ -736,6 +864,7 @@ const BotThreadTail = ({
 	thread,
 	face,
 	botWork,
+	onboarding,
 	onStop,
 }: BotThreadTailProps) => {
 	const stop: BotStopProps = canStopTurn(thread.state.turn)
@@ -756,6 +885,7 @@ const BotThreadTail = ({
 					))}
 				</TurnGroup>
 			) : null}
+			{onboarding ? <ThreadOnboarding tail={onboarding} /> : null}
 		</>
 	)
 }
@@ -821,10 +951,22 @@ const ConversationThreadTail = ({
 	)
 }
 
+const onboardingTailFor = (
+	thread: LoadedThread,
+	onboarding: Onboarding | undefined,
+): OnboardingTail | null =>
+	thread.kind === "bot" ? onboardingTailOf(onboarding, thread.state) : null
+
+const showsEmptyState = (
+	rows: TranscriptItem[],
+	onboarding: OnboardingTail | null,
+) => rows.length === 0 && !onboarding
+
 type ThreadTailProps = {
 	thread: LoadedThread
 	botWork: WorkingState | null
 	bots: RosterBot[]
+	onboarding: OnboardingTail | null
 	refusedQuote?: QuotedMessage
 	onStop: () => void
 }
@@ -833,6 +975,7 @@ const ThreadTail = ({
 	thread,
 	botWork,
 	bots,
+	onboarding,
 	refusedQuote,
 	onStop,
 }: ThreadTailProps) =>
@@ -840,6 +983,7 @@ const ThreadTail = ({
 		<BotThreadTail
 			botWork={botWork}
 			face={faceOfBot(thread.bot)}
+			onboarding={onboarding}
 			onStop={onStop}
 			thread={thread}
 		/>
@@ -930,6 +1074,7 @@ type ThreadViewProps = {
 	drafts: DraftsController
 	landings: MessageLandingController
 	readerName: string
+	onboarding?: Onboarding
 	onOpenMission: (missionId: string) => void
 }
 
@@ -942,6 +1087,7 @@ function ThreadView({
 	drafts,
 	landings,
 	readerName,
+	onboarding,
 	onOpenMission,
 }: ThreadViewProps) {
 	const t = useChatCopy()
@@ -1070,6 +1216,7 @@ function ThreadView({
 	const { runs, causes } = readRuns({
 		messages: state.messages,
 		missionSeat,
+		isSoloThread,
 		causes: facts.causes,
 		t,
 	})
@@ -1120,6 +1267,7 @@ function ThreadView({
 	const refusedTarget = repliedToRefusal
 		? quotes.get(repliedToRefusal)
 		: undefined
+	const onboardingTail = onboardingTailFor(thread, onboarding)
 
 	const layout = (
 		<ThreadLayout
@@ -1203,7 +1351,7 @@ function ThreadView({
 			scrollerRef={scrollerRef}
 			transcriptKey={facts.id}
 		>
-			{transcriptRows.length === 0 ? (
+			{showsEmptyState(transcriptRows, onboardingTail) ? (
 				<ThreadEmptyState
 					botImage={botImage}
 					onRestart={restart}
@@ -1215,6 +1363,7 @@ function ThreadView({
 			<ThreadTail
 				botWork={facts.botWork}
 				bots={bots}
+				onboarding={onboardingTail}
 				onStop={stop}
 				refusedQuote={refusedTarget ? toQuote(refusedTarget) : undefined}
 				thread={thread}
@@ -1247,6 +1396,7 @@ type ThreadScreenProps = {
 	drafts: DraftsController
 	landings: MessageLandingController
 	readerName: string
+	onboarding?: Onboarding
 	onOpenMission: (missionId: string) => void
 }
 
@@ -1300,6 +1450,7 @@ function BotThreadView({
 	drafts,
 	landings,
 	readerName,
+	onboarding,
 	onOpenMission,
 }: BotThreadViewProps) {
 	const { controller } = thread.chat
@@ -1317,6 +1468,7 @@ function BotThreadView({
 			bots={bots}
 			drafts={drafts}
 			landings={landings}
+			onboarding={onboarding}
 			onOpenMission={onOpenMission}
 			readerName={readerName}
 			runtimes={runtimes}
@@ -1334,6 +1486,7 @@ export function ThreadScreen({
 	drafts,
 	landings,
 	readerName,
+	onboarding,
 	onOpenMission,
 }: ThreadScreenProps) {
 	if (thread.kind === "conversation") {
@@ -1361,6 +1514,7 @@ export function ThreadScreen({
 			drafts={drafts}
 			key={thread.bot.id}
 			landings={landings}
+			onboarding={onboarding}
 			onOpenMission={onOpenMission}
 			readerName={readerName}
 			runtimes={runtimes}
