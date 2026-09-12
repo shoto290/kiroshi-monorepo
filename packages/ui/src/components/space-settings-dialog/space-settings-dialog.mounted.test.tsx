@@ -14,7 +14,10 @@ import {
 	SERVER_ENVIRONMENT,
 	SPACE_ENVIRONMENT,
 } from "@workspace/ui/components/environment.fixtures"
-import { BOT_COMMITS } from "@workspace/ui/components/plugin-settings/history.fixtures"
+import {
+	HISTORY_DAYS,
+	HISTORY_OLDEST_DATE,
+} from "@workspace/ui/components/plugin-settings/history.fixtures"
 import { BOT_SKILLS } from "@workspace/ui/components/plugin-settings/skills.fixtures"
 import {
 	SpaceSettingsDialog,
@@ -33,7 +36,11 @@ const spaceDialog = (overrides: Partial<SpaceSettingsDialogProps> = {}) =>
 	render(
 		<SpaceSettingsDialog
 			environment={SPACE_ENVIRONMENT}
-			history={{ commits: BOT_COMMITS, onLoadDiff: vi.fn(), onRevert: vi.fn() }}
+			history={{
+				days: HISTORY_DAYS,
+				oldestDate: HISTORY_OLDEST_DATE,
+				onUndo: vi.fn(),
+			}}
 			mcpServers={BOT_MCP_SERVERS}
 			onClose={vi.fn()}
 			onDelete={vi.fn()}

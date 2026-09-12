@@ -8,7 +8,10 @@ import {
 	UPLOADED_AVATAR_IMAGE,
 	widthInRems,
 } from "@workspace/storybook/story-utils"
-import { BOT_COMMITS } from "@workspace/ui/components/plugin-settings/history.fixtures"
+import {
+	HISTORY_DAYS,
+	HISTORY_OLDEST_DATE,
+} from "@workspace/ui/components/plugin-settings/history.fixtures"
 import {
 	BOT_SKILLS,
 	LONG_SKILL,
@@ -97,9 +100,9 @@ const meta = preview.meta({
 		onSkillPreloadedChange: fn(),
 		onSkillDelete: fn(),
 		history: {
-			commits: BOT_COMMITS,
-			onLoadDiff: fn(),
-			onRevert: fn(),
+			days: HISTORY_DAYS,
+			oldestDate: HISTORY_OLDEST_DATE,
+			onUndo: fn(),
 		},
 	},
 	render: (args) => <DialogHost {...args} />,
@@ -392,7 +395,7 @@ export const History = meta.story({
 			},
 		},
 	},
-	play: async ({ args, userEvent }) => {
+	play: async ({ userEvent }) => {
 		const dialog = await dialogIn()
 
 		await userEvent.click(within(dialog).getByRole("tab", { name: "History" }))
@@ -401,9 +404,6 @@ export const History = meta.story({
 		})
 
 		await expect(within(panel).getAllByText("You").length).toBeGreaterThan(0)
-		await userEvent.click(
-			within(panel).getAllByRole("button", { name: "Show changes" })[0],
-		)
-		await expect(args.history.onLoadDiff).toHaveBeenCalled()
+		await expect(within(panel).getAllByRole("listitem")).toHaveLength(6)
 	},
 })

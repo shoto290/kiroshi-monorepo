@@ -366,13 +366,11 @@ const BotSettingsDialog = ({
 						</Tabs.Panel>
 
 						{history ? (
-							<SettingsScrollingPanel value="history">
+							<SettingsScrollingPanel isFlush value="history">
 								<HistoryPanel
-									authorName={botName}
-									commits={history.commits}
-									haveFailedToLoad={history.haveFailedToLoad}
-									onLoadDiff={history.onLoadDiff}
-									onRevert={history.onRevert}
+									{...history}
+									companion={value.identity}
+									companionName={botName}
 								/>
 							</SettingsScrollingPanel>
 						) : null}

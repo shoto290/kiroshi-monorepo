@@ -1,116 +1,158 @@
 "use client"
 
-import { parsePatchFiles } from "@pierre/diffs"
-import { PatchDiff } from "@pierre/diffs/react"
-import { useId, useMemo, useRef, useState } from "react"
+import { useCallback, useRef, useState } from "react"
 import { useTranslation } from "react-i18next"
 
-import type { BotCommitItem } from "@workspace/ui/components/bot-settings"
-import { CodeBlock } from "@workspace/ui/components/code-block"
+import { BotIdentityAvatar } from "@workspace/ui/components/bot-identity-avatar"
+import type {
+	BotCommitAuthor,
+	BotIdentity,
+} from "@workspace/ui/components/bot-settings"
 import { ConfirmDialog } from "@workspace/ui/components/confirm-dialog"
 import { Icons } from "@workspace/ui/components/icons"
+import { InitialsAvatar } from "@workspace/ui/components/initials-avatar"
 import { SETTINGS_EMPTY_CLASS } from "@workspace/ui/components/settings-styles"
 import { Button } from "@workspace/ui/components/ui/button"
-import { useColorScheme } from "@workspace/ui/hooks/use-color-scheme"
-import { toRelativeTime } from "@workspace/ui/lib/relative-time"
-import { cn } from "@workspace/ui/lib/utils"
+import { Input } from "@workspace/ui/components/ui/input"
+
+type HistoryChange = {
+	id: string
+	author: BotCommitAuthor
+	sentence: string
+	detail?: string
+	at: string
+	time: string
+	retouchCount?: number
+	isUndone?: boolean
+}
+
+type HistoryDay = {
+	id: string
+	label: string
+	changes: HistoryChange[]
+}
 
 type PluginHistory = {
-	commits: BotCommitItem[]
+	days: HistoryDay[]
+	oldestDate: string
 	haveFailedToLoad?: boolean
-	onLoadDiff: (commitId: string) => void
-	onRevert: (commitId: string) => void
+	onUndo: (change: HistoryChange) => void
+	onSearchChange?: (text: string) => void
+	onOpen?: (change: HistoryChange) => void
 }
 
 type HistoryPanelProps = PluginHistory & {
-	authorName: string
+	companionName: string
+	companion?: BotIdentity
+	readerImage?: string
 }
+
+const AUTHOR_MARK_SIZE = 20
+
+const HEAD_CLASS = "flex shrink-0 items-center gap-3 px-5 pt-4 pb-3"
+
+const HEAD_SENTENCE_CLASS = "min-w-0 flex-1 text-muted-foreground text-xs/4"
+
+const SEARCH_CONTROL_CLASS = "rounded-md text-muted-foreground"
+
+const DAY_CLASS = "[&:not(:first-child)]:pt-2"
+
+const DAY_HEADING_ROW_CLASS = "flex items-center gap-2.5 px-2 pt-1.5 pb-2"
+
+const DAY_HEADING_CLASS =
+	"shrink-0 font-medium text-[11px]/[14px] text-muted-foreground uppercase tracking-[0.07em]"
 
 const ROW_CLASS =
-	"flex flex-col gap-2 rounded-xl border border-border px-3 py-2.5"
+	"group/row relative flex list-none items-start gap-2.5 rounded-lg px-2 py-[7px] hover:bg-muted has-[:focus-visible]:bg-muted"
 
-const SEPARATOR_CLASS = "before:mr-1.5 before:content-['·']"
+const ROW_CONTROL_CLASS =
+	"absolute inset-0 cursor-pointer rounded-lg outline-none focus-visible:ring-2 focus-visible:ring-ring"
 
-const PATCH_THEME = {
-	dark: "github-dark-high-contrast",
-	light: "github-light-high-contrast",
+const SENTENCE_CLASS = "min-w-0 flex-1 truncate text-foreground text-sm/5"
+
+const SUFFIX_CLASS = "shrink-0 text-sm/5"
+
+const UNDONE_CLASS = `${SUFFIX_CLASS} text-muted-foreground before:me-1 before:content-['·']`
+
+const UNDO_SLOT_CLASS = "relative z-10 grid size-6 shrink-0 place-items-center"
+
+const UNDO_CONTROL_CLASS =
+	"rounded-md bg-background text-muted-foreground transition-opacity duration-150 [@media(hover:hover)]:opacity-0 group-hover/row:opacity-100 group-has-[:focus-visible]/row:opacity-100 motion-reduce:transition-none"
+
+const TIME_CLASS =
+	"w-10 shrink-0 text-end text-muted-foreground text-xs/4 tabular-nums"
+
+type AuthorMarkProps = {
+	author: BotCommitAuthor
+	companionName: string
+	companion?: BotIdentity
+	readerImage?: string
 }
 
-const holdsOneFile = (patch: string) => {
-	try {
-		const patches = parsePatchFiles(patch)
-		return patches.length === 1 && patches[0]?.files.length === 1
-	} catch {
-		return false
-	}
-}
-
-type CommitDiffProps = {
-	patch: string
-}
-
-const CommitDiff = ({ patch }: CommitDiffProps) => {
-	const { t } = useTranslation("bots")
-	const frame = useRef<HTMLDivElement>(null)
-	const themeType = useColorScheme(frame)
-	const isReadable = useMemo(() => holdsOneFile(patch), [patch])
-
-	if (!isReadable) {
-		return (
-			<CodeBlock
-				code={patch}
-				filename={t("history.diff.filename")}
-				language="diff"
-				showLineNumbers={false}
-				wrap
-			/>
-		)
-	}
-
-	return (
-		<div
-			aria-label={t("history.diff.filename")}
-			className="min-w-0 overflow-hidden rounded-xl border"
-			ref={frame}
-			role="group"
-		>
-			<PatchDiff
-				options={{
-					diffStyle: "unified",
-					overflow: "wrap",
-					theme: PATCH_THEME,
-					themeType,
-				}}
-				patch={patch}
-			/>
-		</div>
+const AuthorMark = ({
+	author,
+	companionName,
+	companion,
+	readerImage,
+}: AuthorMarkProps) =>
+	author === "bot" ? (
+		<BotIdentityAvatar
+			animal={companion?.animal}
+			blot={companion?.blot}
+			className="shrink-0"
+			image={companion?.image}
+			name={companionName}
+			size={AUTHOR_MARK_SIZE}
+		/>
+	) : (
+		<InitialsAvatar
+			className="shrink-0"
+			image={readerImage}
+			size={AUTHOR_MARK_SIZE}
+		/>
 	)
-}
 
 const HistoryPanel = ({
-	commits,
+	days,
+	oldestDate,
 	haveFailedToLoad = false,
-	authorName,
-	onLoadDiff,
-	onRevert,
+	onUndo,
+	onSearchChange,
+	onOpen,
+	companionName,
+	companion,
+	readerImage,
 }: HistoryPanelProps) => {
-	const { t, i18n } = useTranslation("bots")
-	const panelId = useId()
-	const [expanded, setExpanded] = useState<string[]>([])
-	const [reverting, setReverting] = useState<BotCommitItem | null>(null)
+	const { t } = useTranslation("bots")
+	const [searchText, setSearchText] = useState("")
+	const [isSearching, setSearching] = useState(false)
+	const [undoing, setUndoing] = useState<HistoryChange | null>(null)
 
-	const newestFirst = [...commits].sort((a, b) => b.at - a.at)
-	const now = Date.now()
+	const isReturningFocus = useRef(false)
 
-	const toggle = (commit: BotCommitItem) => {
-		if (expanded.includes(commit.id)) {
-			setExpanded(expanded.filter((id) => id !== commit.id))
-			return
-		}
+	const focusField = useCallback(
+		(field: HTMLInputElement | null) => field?.focus(),
+		[],
+	)
 
-		setExpanded([...expanded, commit.id])
-		onLoadDiff(commit.id)
+	const focusTrigger = useCallback((trigger: HTMLButtonElement | null) => {
+		if (!trigger || !isReturningFocus.current) return
+		isReturningFocus.current = false
+		trigger.focus()
+	}, [])
+
+	const search = (text: string) => {
+		setSearchText(text)
+		onSearchChange?.(text)
 	}
+
+	const closeSearch = () => {
+		isReturningFocus.current = true
+		setSearching(false)
+		search("")
+	}
+
+	const changeCount = days.reduce((total, day) => total + day.changes.length, 0)
 
 	if (haveFailedToLoad) {
 		return (
@@ -123,7 +165,7 @@ const HistoryPanel = ({
 		)
 	}
 
-	if (newestFirst.length === 0) {
+	if (changeCount === 0 && !isSearching) {
 		return (
 			<div className={SETTINGS_EMPTY_CLASS}>
 				<Icons.History
@@ -139,93 +181,171 @@ const HistoryPanel = ({
 
 	return (
 		<>
-			<ul className="flex min-h-0 flex-1 list-none flex-col gap-2 p-0">
-				{newestFirst.map((commit) => {
-					const isOpen = expanded.includes(commit.id)
-					const diffId = `${panelId}-${commit.id}`
+			<div className={HEAD_CLASS}>
+				{isSearching ? (
+					<>
+						<Input
+							aria-label={t("history.search.label")}
+							className="h-7 min-w-0 flex-1"
+							onChange={(event) => search(event.target.value)}
+							onKeyDown={(event) => {
+								if (event.key === "Escape") closeSearch()
+							}}
+							placeholder={t("history.search.placeholder")}
+							ref={focusField}
+							value={searchText}
+						/>
+						<Button
+							aria-label={t("history.search.clear")}
+							className={SEARCH_CONTROL_CLASS}
+							onClick={closeSearch}
+							size="icon-sm"
+							variant="ghost"
+						>
+							<Icons.Close aria-hidden="true" />
+						</Button>
+					</>
+				) : (
+					<>
+						<p className={HEAD_SENTENCE_CLASS}>
+							{t("history.summary", {
+								count: changeCount,
+								date: oldestDate,
+							})}
+						</p>
+						<Button
+							aria-label={t("history.search.label")}
+							className={SEARCH_CONTROL_CLASS}
+							onClick={() => setSearching(true)}
+							ref={focusTrigger}
+							size="icon-sm"
+							variant="ghost"
+						>
+							<Icons.Search aria-hidden="true" />
+						</Button>
+					</>
+				)}
+			</div>
 
-					return (
-						<li className={ROW_CLASS} key={commit.id}>
-							<div className="flex items-start gap-3">
-								<div className="flex min-w-0 flex-1 flex-col gap-0.5">
-									<span className="font-medium text-foreground text-sm">
-										{commit.title}
-									</span>
-									{commit.body ? (
-										<p className="text-muted-foreground text-sm">
-											{commit.body}
-										</p>
-									) : null}
-									<span className="flex min-w-0 items-baseline text-muted-foreground text-xs">
-										<span className="truncate">
-											{commit.author === "user"
-												? t("history.author.user")
-												: authorName}
-										</span>
-										<span className={SEPARATOR_CLASS}>
-											{toRelativeTime(commit.at, i18n.language, now)}
-										</span>
-									</span>
-								</div>
-								<Button
-									onClick={() => setReverting(commit)}
-									size="sm"
-									variant="outline"
+			<div className="flex flex-col px-3 pb-5">
+				{changeCount === 0 ? (
+					<p className="px-2 py-1.5 text-muted-foreground text-sm">
+						{t("history.noMatch", { text: searchText })}
+					</p>
+				) : null}
+
+				{days.map((day) => (
+					<section className={DAY_CLASS} data-slot="history-day" key={day.id}>
+						<div className={DAY_HEADING_ROW_CLASS}>
+							<h3 className={DAY_HEADING_CLASS}>{day.label}</h3>
+							<span aria-hidden="true" className="h-px flex-1 bg-border" />
+						</div>
+
+						<ul className="flex flex-col p-0">
+							{day.changes.map((change) => (
+								<li
+									className={ROW_CLASS}
+									data-slot="history-change"
+									key={change.id}
 								>
-									<Icons.Restart aria-hidden="true" className="size-3.5" />
-									{t("history.undo.action")}
-								</Button>
-							</div>
+									{onOpen ? (
+										<button
+											aria-label={change.sentence}
+											className={ROW_CONTROL_CLASS}
+											onClick={() => onOpen(change)}
+											type="button"
+										/>
+									) : null}
 
-							<button
-								aria-controls={diffId}
-								aria-expanded={isOpen}
-								className="-mx-1 flex w-fit cursor-pointer items-center gap-1 rounded-lg px-1 py-0.5 text-muted-foreground text-xs outline-none hover:text-foreground focus-visible:ring-2 focus-visible:ring-ring"
-								onClick={() => toggle(commit)}
-								type="button"
-							>
-								<Icons.Expand
-									aria-hidden="true"
-									className={cn(
-										"size-3.5 transition-transform duration-150 motion-reduce:transition-none",
-										isOpen && "rotate-180",
-									)}
-								/>
-								{isOpen ? t("history.diff.hide") : t("history.diff.show")}
-							</button>
+									<AuthorMark
+										author={change.author}
+										companion={companion}
+										companionName={companionName}
+										readerImage={readerImage}
+									/>
 
-							{isOpen ? (
-								<div id={diffId}>
-									{commit.diff === undefined ? (
-										<span className="flex items-center gap-2 text-muted-foreground text-xs">
-											<Icons.Loading
-												aria-hidden="true"
-												className="size-3.5 animate-spin motion-reduce:animate-none"
-											/>
-											{t("history.diff.loading")}
-										</span>
-									) : (
-										<CommitDiff patch={commit.diff} />
-									)}
-								</div>
-							) : null}
-						</li>
-					)
-				})}
-			</ul>
+									<div className="flex min-w-0 flex-1 flex-col gap-0.5">
+										<div className="flex min-w-0 items-baseline gap-[5px]">
+											<span className="shrink-0 font-medium text-foreground text-sm/5">
+												{change.author === "bot"
+													? companionName
+													: t("history.author.user")}
+											</span>
+											<span className={SENTENCE_CLASS}>{change.sentence}</span>
+											{change.retouchCount ? (
+												<span
+													className={`${SUFFIX_CLASS} text-foreground`}
+													data-slot="history-retouches"
+												>
+													{t("history.retouches", {
+														count: change.retouchCount,
+													})}
+												</span>
+											) : null}
+											{change.isUndone ? (
+												<span
+													className={UNDONE_CLASS}
+													data-slot="history-undone"
+												>
+													{t("history.undone")}
+												</span>
+											) : null}
+										</div>
+										{change.detail ? (
+											<p className="truncate text-muted-foreground text-xs/4">
+												{change.detail}
+											</p>
+										) : null}
+									</div>
+
+									<div className="flex h-5 shrink-0 items-center gap-2">
+										<div className={UNDO_SLOT_CLASS}>
+											{change.isUndone ? null : (
+												<Button
+													aria-label={t("history.undo.label", {
+														title: change.sentence,
+													})}
+													className={UNDO_CONTROL_CLASS}
+													onClick={() => setUndoing(change)}
+													size="icon-xs"
+													variant="ghost"
+												>
+													<Icons.Restart
+														aria-hidden="true"
+														className="size-3.5"
+													/>
+												</Button>
+											)}
+										</div>
+										<time className={TIME_CLASS} dateTime={change.at}>
+											{change.time}
+										</time>
+									</div>
+								</li>
+							))}
+						</ul>
+					</section>
+				))}
+			</div>
 
 			<ConfirmDialog
 				confirmLabel={t("history.undo.confirm")}
 				description={t("history.undo.description")}
 				onConfirm={() => {
-					if (reverting) onRevert(reverting.id)
+					if (undoing) onUndo(undoing)
 				}}
-				onOpenChange={(open) => !open && setReverting(null)}
-				open={Boolean(reverting)}
-				title={t("history.undo.title", { title: reverting?.title ?? "" })}
+				onOpenChange={(open) => !open && setUndoing(null)}
+				open={Boolean(undoing)}
+				title={t("history.undo.title", { title: undoing?.sentence ?? "" })}
 			/>
 		</>
 	)
 }
 
-export { HistoryPanel, type HistoryPanelProps, type PluginHistory }
+export {
+	type HistoryChange,
+	type HistoryDay,
+	HistoryPanel,
+	type HistoryPanelProps,
+	type PluginHistory,
+}

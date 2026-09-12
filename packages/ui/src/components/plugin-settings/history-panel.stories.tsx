@@ -1,29 +1,48 @@
-import { expect, fn, screen, waitFor, within } from "storybook/test"
+import { useState } from "react"
+import { expect, fn, screen, within } from "storybook/test"
 
 import preview from "@workspace/storybook/preview"
 import {
-	ADDED_SKILL_COMMIT,
-	AWAITING_DIFF_COMMIT,
-	BOT_COMMITS,
-	UNREADABLE_DIFF_COMMIT,
-	WIDE_LINE_COMMIT,
+	HISTORY_DAYS,
+	HISTORY_OLDEST_DATE,
+	LONG_SENTENCE_DAYS,
+	LONG_SIGNALLED_DAYS,
 } from "@workspace/ui/components/plugin-settings/history.fixtures"
-import { HistoryPanel } from "@workspace/ui/components/plugin-settings/history-panel"
+import {
+	HistoryPanel,
+	type HistoryPanelProps,
+} from "@workspace/ui/components/plugin-settings/history-panel"
 
-const [NEWEST] = BOT_COMMITS
+const NarrowingHost = ({ onSearchChange, ...props }: HistoryPanelProps) => {
+	const [text, setText] = useState("")
 
-const patchElement = (canvasElement: HTMLElement) => {
-	const patch = canvasElement.querySelector("diffs-container")
-	if (!patch) throw new Error("The diff was never rendered as a patch")
-	return patch
+	return (
+		<HistoryPanel
+			{...props}
+			days={text === "" ? props.days : []}
+			onSearchChange={(next) => {
+				setText(next)
+				onSearchChange?.(next)
+			}}
+		/>
+	)
 }
 
-const readPatch = async (canvasElement: HTMLElement) =>
-	await waitFor(() => {
-		const text = patchElement(canvasElement).shadowRoot?.textContent ?? ""
-		if (text.trim() === "") throw new Error("The patch is still being read")
-		return text
-	})
+const ROW_SELECTOR = "[data-slot='history-change']"
+
+const firstRow = (canvasElement: HTMLElement) => {
+	const row = canvasElement.querySelector<HTMLElement>(ROW_SELECTOR)
+	if (!row) throw new Error("The timeline rendered no change row")
+	return row
+}
+
+const rowHolding = (canvasElement: HTMLElement, text: string) => {
+	const row = [
+		...canvasElement.querySelectorAll<HTMLElement>(ROW_SELECTOR),
+	].find((candidate) => candidate.textContent?.includes(text))
+	if (!row) throw new Error(`No row holds "${text}"`)
+	return row
+}
 
 const meta = preview.meta({
 	title: "Settings/Plugins/HistoryPanel",
@@ -33,22 +52,23 @@ const meta = preview.meta({
 		docs: {
 			description: {
 				component:
-					"Everything that has ever changed in a companion's bundle, newest first, written for a reader who does not read diffs: the title leads, the body says what it meant, and under both is who made the change and how long ago. The diff is secondary and stays folded away — opening one asks the host for it and shows it once it arrives, so nothing is fetched for a commit nobody opened. Undo asks its question first and is answered upstream as a new commit: nothing in this list is ever removed.",
+					"Everything that has ever changed in a bundle, read as a timeline rather than as a log: one section per day, one plain line per change, newest first. The panel is handed its days already grouped and already matched — it groups nothing and matches nothing, it renders what it is given and emits the search text so the host can narrow it. Each row is one line: who, what they changed, and when. Undo lives in a slot that is reserved on every row and only drawn under the pointer or under keyboard focus, so the list never moves and the control is never out of reach.",
 			},
 		},
 	},
 	decorators: [
 		(Story) => (
-			<div className="flex h-[28rem] w-[36rem] flex-col gap-4 overflow-y-auto p-5">
+			<div className="flex h-[28rem] w-[622px] flex-col overflow-y-auto">
 				<Story />
 			</div>
 		),
 	],
 	args: {
-		commits: BOT_COMMITS,
-		authorName: "Nest Keeper",
-		onLoadDiff: fn(),
-		onRevert: fn(),
+		days: HISTORY_DAYS,
+		oldestDate: HISTORY_OLDEST_DATE,
+		companionName: "Nest Keeper",
+		onUndo: fn(),
+		onSearchChange: fn(),
 	},
 })
 
@@ -57,29 +77,290 @@ export const Default = meta.story({
 		docs: {
 			description: {
 				story:
-					"A bundle both hands have written in. Check the order first — newest at the top, whatever order the host handed them in — then that each row says who and when in the reader's own words: their own changes are signed `You`, the companion's carry the companion's name, and the moment is a distance rather than a timestamp. A commit with no body keeps its row without an empty line in it.",
+					"Three days of a bundle both hands have written in. Check the shape first — a heading and a rule per day, then one row per change — then that a row with no second line sits shorter than its neighbours without an empty line inside it, and that the head sentence counts the changes, dates the oldest and says what undoing writes.",
 			},
 		},
 	},
 	play: async ({ canvas }) => {
-		const titles = canvas
-			.getAllByRole("listitem")
-			.map((row) => row.textContent ?? "")
+		const days = canvas.getAllByRole("heading", { level: 3 })
+		await expect(days.map((day) => day.textContent)).toEqual([
+			"Today",
+			"Yesterday",
+			"19 February",
+		])
 
-		await expect(titles[0]).toContain("Switched the model to Claude Sonnet 4.5")
-		await expect(titles[0]).toContain("Nest Keeper")
-		await expect(titles[1]).toContain("You")
-		await expect(canvas.getByText("Created the bundle")).toBeVisible()
+		await expect(canvas.getAllByRole("listitem")).toHaveLength(6)
+		await expect(
+			canvas.getByText(/Lists 6 changes since 19 February 2026/),
+		).toBeVisible()
+		await expect(
+			canvas.getByText("Switched the model to Claude Sonnet 4.5"),
+		).toBeVisible()
+
+		const time = canvas.getByText("09:42")
+		await expect(time.tagName).toBe("TIME")
+		await expect(time).toHaveAttribute("datetime", "2026-03-04T09:42:00Z")
 	},
 })
 
-export const Empty = meta.story({
-	args: { commits: [] },
+export const Retouched = meta.story({
 	parameters: {
 		docs: {
 			description: {
 				story:
-					"A plugin nobody has changed yet. One sentence and nothing else — there is no action to offer here, because a change is made on the other tabs rather than on this one.",
+					"A run of retouches the host kept as one change rather than five near-identical rows. The number of goes closes the sentence at the sentence's own weight, so it reads as part of the line instead of a badge bolted onto it.",
+			},
+		},
+	},
+	play: async ({ canvasElement }) => {
+		await expect(
+			rowHolding(canvasElement, "Tightened the wording"),
+		).toHaveTextContent("(4 goes)")
+	},
+})
+
+export const Undone = meta.story({
+	parameters: {
+		docs: {
+			description: {
+				story:
+					"A change a later one has already taken back. The row stays in the list — nothing is ever removed from a history — and says so with a muted note after the sentence. Its undo slot stays reserved but empty: there is nothing left to undo on this line.",
+			},
+		},
+	},
+	play: async ({ canvasElement }) => {
+		const row = rowHolding(canvasElement, "twelve calls")
+
+		await expect(row).toHaveTextContent("Undone above")
+		await expect(
+			within(row).queryByRole("button", { name: /^Undo/ }),
+		).toBeNull()
+	},
+})
+
+export const HoveredRow = meta.story({
+	parameters: {
+		pseudo: { hover: `${ROW_SELECTOR}:first-child` },
+		docs: {
+			description: {
+				story:
+					"The row under the pointer, with the undo control drawn in the slot every row reserves for it. Check the tint by eye — it follows the row radius — and read the assertions for the invariant behind it: a row that shows the control and a row that never will are exactly the same height, so nothing below moves when the pointer arrives. `UndoByKeyboard` covers the same slot reached without a pointer, and is where the control being drawn is actually proven, since the test runner has no pointer to hover with.",
+			},
+		},
+	},
+	play: async ({ canvasElement }) => {
+		const reserved = rowHolding(canvasElement, "release-notes")
+		const undone = rowHolding(canvasElement, "twelve calls")
+		const undo = reserved.querySelector("button")
+		if (!undo) throw new Error("The row reserved no undo control")
+
+		await expect(getComputedStyle(undo).opacity).toBe(
+			matchMedia("(hover: hover)").matches ? "0" : "1",
+		)
+		await expect(undone.querySelector("button")).toBeNull()
+		await expect(reserved.getBoundingClientRect().height).toBe(
+			undone.getBoundingClientRect().height,
+		)
+	},
+})
+
+export const UndoByKeyboard = meta.story({
+	parameters: {
+		docs: {
+			description: {
+				story:
+					"The same undo control with no pointer anywhere near it. Tab reaches it on the first row, the row tints as if hovered, and the control is drawn — proof that hiding it is a matter of paint, not of removing it from the tab order or the accessibility tree. Its name carries the change it undoes, so a screen reader never hears six identical `Undo` buttons.",
+			},
+		},
+	},
+	play: async ({ canvasElement, userEvent }) => {
+		await userEvent.tab()
+		await userEvent.tab()
+
+		const undo = canvasElement.querySelector<HTMLButtonElement>(
+			`${ROW_SELECTOR} button`,
+		)
+		if (!undo) throw new Error("The first row is missing its undo control")
+
+		await expect(undo).toHaveFocus()
+		await expect(undo).toHaveAccessibleName(
+			"Undo “Switched the model to Claude Sonnet 4.5”",
+		)
+		await expect(getComputedStyle(undo).opacity).toBe("1")
+	},
+})
+
+export const Undoing = meta.story({
+	parameters: {
+		docs: {
+			description: {
+				story:
+					"The one action a row carries. It never acts on the press: the question names the change it was asked on, says what the undo writes, and says the undo can itself be undone. Only the second press reports it.",
+			},
+		},
+	},
+	play: async ({ args, canvasElement, userEvent }) => {
+		const undo = firstRow(canvasElement).querySelector("button")
+		if (!undo) throw new Error("The first row is missing its undo control")
+
+		await userEvent.click(undo)
+
+		const question = await screen.findByRole("alertdialog")
+		await expect(question).toHaveTextContent(
+			"Undo “Switched the model to Claude Sonnet 4.5”?",
+		)
+		await expect(question).toHaveTextContent("you can undo it too")
+		await expect(args.onUndo).not.toHaveBeenCalled()
+
+		await userEvent.click(
+			within(question).getByRole("button", { name: "Undo this change" }),
+		)
+
+		await expect(args.onUndo).toHaveBeenCalledWith(
+			expect.objectContaining({ id: "change-6" }),
+		)
+	},
+})
+
+export const WithOpenCallback = meta.story({
+	args: { onOpen: fn() },
+	parameters: {
+		docs: {
+			description: {
+				story:
+					"The list wired to a host that has somewhere to send a reader. Each row becomes one button named after its own sentence, and the undo stays a sibling of that button rather than a button inside a button. Without the callback — every other story here — the rows are static text carrying no button role at all.",
+			},
+		},
+	},
+	play: async ({ args, canvas, canvasElement, userEvent }) => {
+		const row = canvas.getByRole("button", {
+			name: "Switched the model to Claude Sonnet 4.5",
+		})
+		const undo = within(firstRow(canvasElement)).getByRole("button", {
+			name: /^Undo/,
+		})
+
+		await expect(row.contains(undo)).toBe(false)
+
+		await userEvent.click(row)
+		await expect(args.onOpen).toHaveBeenCalledWith(
+			expect.objectContaining({ id: "change-6" }),
+		)
+	},
+})
+
+export const LongContent = meta.story({
+	args: { days: LONG_SENTENCE_DAYS },
+	parameters: {
+		docs: {
+			description: {
+				story:
+					"A change nobody wrote to fit. The sentence is clamped to one line while the author name, the undo slot and the time hold their full width, so the trailing column never drifts and the panel never scrolls sideways.",
+			},
+		},
+	},
+	play: async ({ canvasElement }) => {
+		const row = firstRow(canvasElement)
+
+		await expect(within(row).getByText("11:30")).toBeVisible()
+		await expect(within(row).getByText("Nest Keeper")).toBeVisible()
+		await expect(canvasElement.scrollWidth).toBeLessThanOrEqual(
+			canvasElement.clientWidth,
+		)
+	},
+})
+
+export const LongContentWithSignals = meta.story({
+	args: { days: LONG_SIGNALLED_DAYS },
+	parameters: {
+		docs: {
+			description: {
+				story:
+					"The hardest line to lay out: a sentence nobody wrote to fit, carrying both a run count and the note saying a later change took it back. Only the sentence is clamped — both signals hold their full width beside it, because a count the reader cannot see is a count that is not there. Reach for `LongContent` when the sentence is long but carries neither signal.",
+			},
+		},
+	},
+	play: async ({ canvasElement }) => {
+		const row = firstRow(canvasElement)
+
+		await expect(row).toHaveTextContent("(4 goes)")
+		await expect(row).toHaveTextContent("Undone above")
+
+		const edge = row.getBoundingClientRect().right
+
+		for (const slot of ["history-retouches", "history-undone"]) {
+			const signal = row.querySelector(`[data-slot='${slot}']`)
+			if (!signal) throw new Error(`The row dropped its ${slot} signal`)
+
+			const box = signal.getBoundingClientRect()
+			await expect(box.width).toBeGreaterThan(0)
+			await expect(box.right).toBeLessThanOrEqual(edge)
+		}
+	},
+})
+
+export const SearchReturnsFocus = meta.story({
+	parameters: {
+		docs: {
+			description: {
+				story:
+					"Closing the search, by the clear control or by Escape. The sentence comes back and focus lands on the control that opened the field rather than falling to the top of the document, so a reader who never touches a pointer keeps their place in the head row.",
+			},
+		},
+	},
+	play: async ({ canvas, userEvent }) => {
+		const trigger = canvas.getByRole("button", { name: "Search the history" })
+		await userEvent.click(trigger)
+
+		await userEvent.keyboard("{Escape}")
+
+		await expect(
+			canvas.getByRole("button", { name: "Search the history" }),
+		).toHaveFocus()
+		await expect(canvas.queryByRole("textbox")).toBeNull()
+	},
+})
+
+export const SearchWithoutMatch = meta.story({
+	render: (args) => <NarrowingHost {...args} />,
+	parameters: {
+		docs: {
+			description: {
+				story:
+					"The search opened on a word the host matched nothing against. Opening it puts a field where the sentence was and moves focus into it; every keystroke is emitted so the host can narrow the days it hands back. With none left, the panel says nothing matches that text instead of falling back to the first-run empty state, which would read as a bundle nobody has ever touched.",
+			},
+		},
+	},
+	play: async ({ args, canvas, userEvent }) => {
+		await userEvent.click(
+			canvas.getByRole("button", { name: "Search the history" }),
+		)
+
+		const field = canvas.getByRole("textbox", { name: "Search the history" })
+		await expect(field).toHaveFocus()
+
+		await userEvent.type(field, "budget")
+		await expect(args.onSearchChange).toHaveBeenLastCalledWith("budget")
+		await expect(canvas.getByText("No change matches “budget”.")).toBeVisible()
+
+		await userEvent.click(
+			canvas.getByRole("button", { name: "Clear the search" }),
+		)
+		await expect(args.onSearchChange).toHaveBeenLastCalledWith("")
+		await expect(canvas.queryByRole("textbox")).toBeNull()
+		await expect(
+			canvas.getByRole("button", { name: "Search the history" }),
+		).toHaveFocus()
+	},
+})
+
+export const Empty = meta.story({
+	args: { days: [], oldestDate: "" },
+	parameters: {
+		docs: {
+			description: {
+				story:
+					"A bundle nobody has changed yet. One sentence and nothing else — no head row either, because there is no count to give and no date to date it from. `SearchWithoutMatch` covers the other way the list comes back empty.",
 			},
 		},
 	},
@@ -89,150 +370,13 @@ export const Empty = meta.story({
 	},
 })
 
-export const ExpandedDiff = meta.story({
-	parameters: {
-		docs: {
-			description: {
-				story:
-					"A commit opened on the patch that edits a file. Check that opening it asks the host for the diff exactly once, that the patch is drawn as a diff — one column, the old line above the new one, each side told apart by its colour rather than by counting the leading characters — and that the disclosure says `Hide changes` once it is open. The rest of the list is untouched: opening one commit closes none.",
-			},
-		},
-	},
-	play: async ({ args, canvas, canvasElement, userEvent }) => {
-		const [first] = canvas.getAllByRole("button", { name: "Show changes" })
-		if (!first) throw new Error("The list is missing its disclosures")
-
-		await userEvent.click(first)
-
-		await expect(args.onLoadDiff).toHaveBeenCalledWith(NEWEST?.id)
-		await expect(first).toHaveAttribute("aria-expanded", "true")
-		await expect(canvas.getByRole("group", { name: /Changes/ })).toBeVisible()
-
-		const patch = await readPatch(canvasElement)
-		await expect(patch).toContain('"model": "sonnet-4-5",')
-		await expect(patch).toContain('"model": "haiku-4-5",')
-		await expect(patch).toContain("bot.json")
-		await expect(
-			canvas.getAllByRole("button", { name: "Show changes" }),
-		).toHaveLength(3)
-	},
-})
-
-export const AddedFileDiff = meta.story({
-	args: { commits: [ADDED_SKILL_COMMIT] },
-	parameters: {
-		docs: {
-			description: {
-				story:
-					"A commit opened on the patch that adds a file. There is no old side to read against, so every line is an addition and the header carries the path the file was written to.",
-			},
-		},
-	},
-	play: async ({ canvas, canvasElement, userEvent }) => {
-		await userEvent.click(canvas.getByRole("button", { name: "Show changes" }))
-
-		const patch = await readPatch(canvasElement)
-		await expect(patch).toContain("skills/release-notes/SKILL.md")
-		await expect(patch).toContain("One line per change, in the past tense.")
-	},
-})
-
-export const WideLineDiff = meta.story({
-	args: { commits: [WIDE_LINE_COMMIT] },
-	parameters: {
-		docs: {
-			description: {
-				story:
-					"A patch carrying a line far wider than the panel. The line wraps instead of running off the edge, so nothing sends the row — or the dialog around it — sideways.",
-			},
-		},
-	},
-	play: async ({ canvas, canvasElement, userEvent }) => {
-		await userEvent.click(canvas.getByRole("button", { name: "Show changes" }))
-
-		await readPatch(canvasElement)
-
-		const patch = patchElement(canvasElement)
-		await expect(patch.scrollWidth).toBeLessThanOrEqual(patch.clientWidth)
-		await expect(canvasElement.scrollWidth).toBeLessThanOrEqual(
-			canvasElement.clientWidth,
-		)
-	},
-})
-
-export const UnreadableDiff = meta.story({
-	args: { commits: [UNREADABLE_DIFF_COMMIT] },
-	parameters: {
-		docs: {
-			description: {
-				story:
-					"A commit whose diff is not a patch. Rather than an empty frame, the row falls back to showing whatever the host handed over as plain text, so a reader still sees the note behind the change.",
-			},
-		},
-	},
-	play: async ({ canvas, canvasElement, userEvent }) => {
-		await userEvent.click(canvas.getByRole("button", { name: "Show changes" }))
-
-		await expect(
-			canvas.getByRole("group", { name: /Changes/ }),
-		).toHaveTextContent("restored from a snapshot")
-		await expect(canvasElement.querySelector("diffs-container")).toBeNull()
-	},
-})
-
-export const DiffLoading = meta.story({
-	args: { commits: [AWAITING_DIFF_COMMIT] },
-	parameters: {
-		docs: {
-			description: {
-				story:
-					"A commit opened while its diff is still being read. The row says so in place of the code block rather than collapsing back or holding an empty frame, and the spinner stops for a reader who asked for less motion.",
-			},
-		},
-	},
-	play: async ({ canvas, userEvent }) => {
-		await userEvent.click(canvas.getByRole("button", { name: "Show changes" }))
-
-		await expect(canvas.getByText("Loading changes…")).toBeVisible()
-	},
-})
-
-export const Undoing = meta.story({
-	parameters: {
-		docs: {
-			description: {
-				story:
-					"The one action a row carries. Check that it never acts on the press: the question names the commit it was asked on and says what undoing does, and only the second press reports it. Cancelling reports nothing.",
-			},
-		},
-	},
-	play: async ({ args, canvas, userEvent }) => {
-		const [undo] = canvas.getAllByRole("button", { name: "Undo" })
-		if (!undo) throw new Error("The list is missing its undo")
-
-		await userEvent.click(undo)
-
-		const question = await screen.findByRole("alertdialog")
-		await expect(question).toHaveTextContent(
-			"Undo “Switched the model to Claude Sonnet 4.5”?",
-		)
-		await expect(args.onRevert).not.toHaveBeenCalled()
-
-		await userEvent.click(
-			within(question).getByRole("button", { name: "Undo this change" }),
-		)
-
-		await expect(args.onRevert).toHaveBeenCalledWith(NEWEST?.id)
-	},
-})
-
 export const Unreadable = meta.story({
-	args: { commits: [], haveFailedToLoad: true },
+	args: { days: [], oldestDate: "", haveFailedToLoad: true },
 	parameters: {
 		docs: {
 			description: {
 				story:
-					"The read of this plugin's history came back refused. The panel says so instead of showing the empty state, so nobody reads a lost history as a plugin nobody has changed.",
+					"The read of this bundle's history came back refused. The panel says so instead of showing the empty state, so a lost history is never read as a bundle nobody has touched.",
 			},
 		},
 	},
