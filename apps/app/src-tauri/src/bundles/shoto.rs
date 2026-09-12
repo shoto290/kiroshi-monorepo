@@ -80,6 +80,25 @@ mod tests {
 		assert_eq!(text, text.trim(), "the persona carries blank edges");
 	}
 
+	fn denies_a_browser(sentence: &str) -> bool {
+		sentence.contains("browser")
+			&& ["does not", "did not", "doesn't", "didn't", "no browser"]
+				.iter()
+				.any(|missing| sentence.contains(missing))
+	}
+
+	#[test]
+	fn no_embedded_text_frames_the_pasted_code_as_a_repair() {
+		for (id, bytes) in SKILLS.iter().chain(&[(PERSONA_NAME, PERSONA)]) {
+			let text = String::from_utf8_lossy(bytes).to_lowercase();
+
+			assert!(!text.contains("fallback"), "{id} names a fallback");
+			for sentence in text.split(['.', '\n']) {
+				assert!(!denies_a_browser(sentence), "{id} pairs a browser with not opening");
+			}
+		}
+	}
+
 	#[test]
 	fn every_skill_carries_its_name_and_its_description() {
 		for (id, bytes) in SKILLS {
