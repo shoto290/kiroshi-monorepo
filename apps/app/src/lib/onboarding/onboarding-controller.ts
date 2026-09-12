@@ -91,6 +91,10 @@ export const createOnboardingController = (
 	}
 
 	const show = async (report: CheckReport) => {
+		if (report.error && report.error.kind !== "notAuthenticated") {
+			showFailed(report.error)
+			return
+		}
 		if (!report.authenticated) {
 			showCard({ state: "offer" })
 			return

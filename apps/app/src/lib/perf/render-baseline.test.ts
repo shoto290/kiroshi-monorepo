@@ -14,6 +14,7 @@ import { createFakeChatDriver } from "@/lib/chat/fake-driver"
 import { createFakeTranscriptStore } from "@/lib/conversations/fake-transcript-store"
 import type { TranscriptStore } from "@/lib/conversations/store-port"
 import { type FakeLayout, fakeLayout } from "@/lib/perf/fake-layout"
+import { readMirror, writeMirror } from "@/lib/user/preferences-mirror"
 
 const harness = vi.hoisted(
 	(): { store: TranscriptStore | null; driver: FakeChatDriver | null } => ({
@@ -323,9 +324,14 @@ const streamOneTurn = async (text: string, watch: TurnWatch) => {
 	await settle(STEP_MS)
 }
 
+const seedFirstRunDone = () => {
+	writeMirror({ ...readMirror(), firstRunDone: true })
+}
+
 const mountApp = async (replyFor?: (prompt: string) => string) => {
 	const frames = takeFrameClock()
 	layout = fakeLayout()
+	seedFirstRunDone()
 	const store = createFakeTranscriptStore()
 	harness.store = store
 	harness.driver = createFakeChatDriver({ stepMs: STEP_MS, replyFor })
@@ -369,6 +375,7 @@ type SeededThread = {
 
 const seedThreadApp = async ({ messages, pageSize }: SeededThread) => {
 	layout = fakeLayout()
+	seedFirstRunDone()
 	const store = createFakeTranscriptStore({ pageSize })
 	const [space] = await store.spaces()
 	const bot = await store.createBot(
@@ -648,7 +655,7 @@ describe("PRF1 render baseline", () => {
 			  },
 			  "grown": 80,
 			  "reopened": {
-			    "commits": 6,
+			    "commits": 7,
 			    "markdownProcessors": 20,
 			    "tasksToLastMessage": 0,
 			  },

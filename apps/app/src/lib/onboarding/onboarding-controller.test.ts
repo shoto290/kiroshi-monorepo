@@ -10,7 +10,7 @@ import {
 } from "./onboarding-controller"
 import { onboardingSummonsFor } from "./onboarding-summons"
 
-import type { CheckReport } from "../agent/contract"
+import type { CheckReport, TransportError } from "../agent/contract"
 
 const SIGN_IN_URL = "https://claude.ai/oauth/authorize?code=true"
 
@@ -35,8 +35,15 @@ const NOT_AUTHENTICATED: CheckReport = {
 	connection: "ready",
 	binaryVersion: null,
 	authenticated: false,
-	error: null,
+	error: { kind: "notAuthenticated" },
 }
+
+const refusedRead = (error: TransportError): CheckReport => ({
+	connection: "unavailable",
+	binaryVersion: null,
+	authenticated: false,
+	error,
+})
 
 let port: FakeOnboardingPort
 let controller: OnboardingController
@@ -128,14 +135,25 @@ describe("reading the account", () => {
 		expect(controller.getState().card).toEqual({ state: "offer" })
 	})
 
-	it("fails visibly when the check is refused", async () => {
-		port.refusals.check = { kind: "authCheckFailed", detail: "no keychain" }
+	it("fails visibly when the report carries a reason of its own", async () => {
+		port.report = refusedRead({ kind: "spawnFailed", detail: "no binary" })
 
 		await controller.start()
 
 		expect(controller.getState().card).toEqual({
 			state: "failed",
-			exitDetail: "no keychain",
+			exitDetail: "no binary",
+		})
+	})
+
+	it("says in words what a report with no detail carries", async () => {
+		port.report = refusedRead({ kind: "binaryNotFound", searched: [] })
+
+		await controller.start()
+
+		expect(controller.getState().card).toEqual({
+			state: "failed",
+			exitDetail: "the agent binary was not found",
 		})
 	})
 })
@@ -218,7 +236,7 @@ describe("signing in", () => {
 		})
 	})
 
-	it("shows the kind when the rejection carries no detail", async () => {
+	it("says in words what a rejection with no detail carries", async () => {
 		const signingIn = controller.signIn()
 		await Promise.resolve()
 		port.refuseSignIn({ kind: "timedOut" })
@@ -226,7 +244,7 @@ describe("signing in", () => {
 
 		expect(controller.getState().card).toEqual({
 			state: "failed",
-			exitDetail: "timedOut",
+			exitDetail: "the sign-in timed out",
 		})
 	})
 

@@ -33,7 +33,7 @@ const NOT_AUTHENTICATED: CheckReport = {
 	connection: "ready",
 	binaryVersion: null,
 	authenticated: false,
-	error: null,
+	error: { kind: "notAuthenticated" },
 }
 
 export const createFakeOnboardingPort = (): FakeOnboardingPort => {
