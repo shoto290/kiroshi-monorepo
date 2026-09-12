@@ -119,7 +119,22 @@ export type CheckReport = {
 	binaryVersion: string | null
 	authenticated: boolean
 	error: TransportError | null
+	account?: Account
 }
+
+export type Account = {
+	email: string | null
+	plan: string | null
+}
+
+export type SignInError =
+	| { kind: "alreadyRunning" }
+	| { kind: "cancelled" }
+	| { kind: "timedOut" }
+	| { kind: "refusedUrl"; url: string }
+	| { kind: "flowTimedOut"; timeoutMs: number }
+	| { kind: "failed"; detail: string }
+	| { kind: "transport"; error: TransportError }
 
 export type SessionHandle = {
 	resumed: boolean

@@ -72,6 +72,9 @@ const AUTHORIZE = "mcp_oauth_authorize"
 const CANCEL = "mcp_oauth_cancel"
 const REVOKE = "mcp_oauth_revoke"
 const REFRESH = "mcp_oauth_refresh"
+const SIGN_IN = "sign_in"
+const SIGN_IN_CODE = "sign_in_code"
+const SIGN_IN_CANCEL = "sign_in_cancel"
 
 const write = (payload: unknown) => {
 	process.stdout.write(`${JSON.stringify(payload)}\n`)
@@ -130,6 +133,15 @@ export const serve = async (requestedId?: string) => {
 					type,
 					title: await provider.title(text ?? "").catch(() => null),
 				})
+			case SIGN_IN:
+				return write({ type, ...(await provider.signIn(write)) })
+			case SIGN_IN_CODE:
+				if (typeof text === "string") {
+					provider.enterSignInCode(text)
+				}
+				return
+			case SIGN_IN_CANCEL:
+				return provider.cancelSignIn()
 			case AUTHORIZE:
 				return write({ type, ...(await authorizeMcpServer(command, write)) })
 			case CANCEL:

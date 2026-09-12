@@ -40,7 +40,7 @@ first, as `crashed`.
 
 ## Host → sidecar
 
-Six commands name no session, because they are about the install or about one MCP
+These commands name no session, because they are about the install or about one MCP
 server rather than about a conversation. The first three are asked once per launch
 and cached by the host.
 
@@ -49,7 +49,10 @@ its answer both.
 
 | `type` | Answered with | Becomes |
 | --- | --- | --- |
-| `check` | `{"type":"check","authenticated":bool,"detail"?:string}` | the `CheckReport` |
+| `check` | `{"type":"check","authenticated":bool,"detail"?:string,"account"?:{"email"?:string,"plan"?:string}}` | the `CheckReport`, its `account` included |
+| `sign_in` | `{"type":"sign_in","signedIn":bool,"error"?:{"kind":"busy"\|"cancelled"\|"timedOut"\|"failed","detail"?:string}}` | the outcome `agent_sign_in` resolves on |
+| `sign_in_code` | nothing | the `text` it carries, written to the stdin of the running sign-in |
+| `sign_in_cancel` | nothing | the pending `sign_in`, its child killed and the ask settled `cancelled` |
 | `models` | `{"type":"models","models":[…]}` | the model catalogue |
 | `tools` | `{"type":"tools","tools":[…]}` | the tool catalogue |
 | `mcp_oauth_authorize` | `{"type":"mcp_oauth_authorize","credentials"?:{…},"error"?:{"kind":…}}` | the grant `mcp_oauth_connect` stores |
@@ -63,6 +66,43 @@ and an authority that was never reached are `failed`, and the stored grant stand
 sidecar bounds the whole refresh at 10000 ms and answers `failed` once it outlasts that.
 The host waits 12000 ms, longer than the sidecar's bound, so an answer never lands late on
 the ask of the next refresh.
+
+`sign_in` spawns the bundled executable as `auth login`, its stdin, stdout and stderr
+piped, with the environment a session is given (`inheritedEnv`) and nothing else in it.
+`auth status`, the probe behind `check`, is spawned with the same environment. Neither
+spawn sets `CLAUDE_CONFIG_DIR`: the credential lands where the binary keeps it, and the
+host keeps no copy. When the child writes the stdout line offering a url to visit, the
+sidecar writes one sessionless frame naming it, the terminal hyperlink markup around it
+read past, before the ask settles:
+
+```json
+{"type":"sign_in_started","url":"https://claude.com/cai/oauth/authorize?…"}
+```
+
+A child exiting with status 0 answers `{"signedIn":true}`. Any other status answers
+`failed`, its `detail` the reason the child printed on the line reporting the failed login
+(`Login failed: …`), or the exit status when it printed no such line. `sign_in_code`
+writes its `text` and one newline to the child's stdin, the code the person pasted from
+the page the url opened. `sign_in_cancel` kills the child and settles the ask
+`cancelled`. A child still running 300000 ms after it was spawned is killed and the ask
+settles `timedOut`. One sign-in at a time: a second `sign_in` is answered `busy` and the
+running one is left alone. Nothing of the child's output reaches any frame except the url
+of `sign_in_started` and the `detail` of a failed answer.
+
+`agent_sign_in` asks for a sign-in, emits the url of `sign_in_started` on
+`agent://sign-in-started` as `{"url":…}`, and resolves on the settle: nothing on
+`signedIn`, a `SignInError` otherwise (`alreadyRunning`, `cancelled`, `timedOut`,
+`failed`, `refusedUrl`, `flowTimedOut`, `transport`). A url under a scheme other than
+`http` or `https` emits nothing and resolves `refusedUrl`, naming it. The host opens no
+browser: measured against the bundled binary with its stdout a pipe, `auth login` opens
+one itself (it runs `$BROWSER`, or `open` when that is unset, on a url whose callback is
+its own loopback listener), so a second opener would show the page twice. The emitted url
+is the one to paste a code from when that browser never appeared. The host holds the
+310000 ms deadline of the MCP flow, longer than the sidecar's bound, and refuses a second
+`agent_sign_in` while one runs as `alreadyRunning`. A sign-in the host lets go of before
+it saw the settle sends `sign_in_cancel` on its way out, so a dropped invoke leaves no
+child running. `agent_sign_in_code` and `agent_sign_in_cancel` reach the running sign-in
+and do nothing when none runs.
 
 `mcp_oauth_authorize` carries the `url` of an HTTP MCP server and runs the OAuth 2.1
 flow of `@modelcontextprotocol/sdk` against it: RFC 9728 discovery, dynamic client
@@ -430,8 +470,11 @@ has no deadline of its own.
 The sidecar's stderr is read so the pipe never fills and then discarded unread —
 it is the one channel that could carry an environment value. The sign-in probe
 returns an email, an org id, an org name and a subscription type; the provider
-module reduces it to one boolean before it reaches the pipe, so the host never
-holds any of the rest. Search locations are reported as labels
+module keeps the email and the subscription type, as the `email` and the `plan` of
+`account`, and drops the org id and the org name before it reaches the pipe. The host
+holds that email and that plan, on `CheckReport.account`, and nothing else of the
+account: no token, no credential, no org. The output of `auth login` reaches no frame
+but the url of `sign_in_started` and the reason a failed sign-in gave. Search locations are reported as labels
 (`$KIROSHI_AGENT_SIDECAR`, the app's own directory) rather than raw environment
 values, and `redact` collapses the home directory out of every path *and* every
 shell command before it crosses to React. There is no logging statement anywhere

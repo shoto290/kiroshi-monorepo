@@ -287,6 +287,45 @@ pub struct CheckReport {
 	pub binary_version: Option<String>,
 	pub authenticated: bool,
 	pub error: Option<TransportError>,
+	#[serde(default, skip_serializing_if = "Option::is_none")]
+	pub account: Option<Account>,
+}
+
+#[derive(Debug, Clone, PartialEq, Eq, Serialize, Deserialize)]
+#[serde(rename_all = "camelCase")]
+pub struct Account {
+	pub email: Option<String>,
+	pub plan: Option<String>,
+}
+
+#[derive(Debug, Clone, PartialEq, Eq, Serialize)]
+#[serde(rename_all = "camelCase")]
+pub struct SignInStarted {
+	pub url: String,
+}
+
+#[derive(Debug, Clone, PartialEq, Eq, Serialize)]
+#[serde(tag = "kind", rename_all = "camelCase")]
+pub enum SignInError {
+	AlreadyRunning,
+	Cancelled,
+	TimedOut,
+	#[serde(rename_all = "camelCase")]
+	RefusedUrl {
+		url: String,
+	},
+	#[serde(rename_all = "camelCase")]
+	FlowTimedOut {
+		timeout_ms: u64,
+	},
+	#[serde(rename_all = "camelCase")]
+	Failed {
+		detail: String,
+	},
+	#[serde(rename_all = "camelCase")]
+	Transport {
+		error: TransportError,
+	},
 }
 
 #[derive(Debug, Clone, PartialEq, Eq, Serialize, Deserialize)]

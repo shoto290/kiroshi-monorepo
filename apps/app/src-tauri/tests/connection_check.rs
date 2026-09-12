@@ -1,6 +1,6 @@
 
 use kiroshi_app::agent::commands::{check, terminate_session};
-use kiroshi_app::agent::contract::{ConnectionState, TransportError};
+use kiroshi_app::agent::contract::{Account, ConnectionState, TransportError};
 use kiroshi_app::agent::sidecar::SIDECAR_OVERRIDE_ENV;
 use kiroshi_app::agent::AgentState;
 
@@ -18,6 +18,51 @@ fn runtime() -> tokio::runtime::Runtime {
 
 fn not_a_sidecar() -> &'static str {
 	concat!(env!("CARGO_MANIFEST_DIR"), "/Cargo.toml")
+}
+
+#[test]
+fn a_signed_in_install_reports_the_account_the_sidecar_named() {
+	let _serial = serial();
+	std::env::set_var(SIDECAR_OVERRIDE_ENV, FAKE_SIDECAR);
+
+	let state = AgentState::default();
+	runtime().block_on(async {
+		let report = check(&state).await;
+
+		assert_eq!(report.connection, ConnectionState::Ready);
+		assert_eq!(
+			report.account,
+			Some(Account {
+				email: Some("bean@example.test".to_owned()),
+				plan: Some("max".to_owned()),
+			})
+		);
+
+		terminate_session(&state).await;
+	});
+
+	std::env::remove_var(SIDECAR_OVERRIDE_ENV);
+}
+
+#[test]
+fn a_report_naming_no_account_carries_no_account_field_at_all() {
+	let _serial = serial();
+	std::env::set_var(SIDECAR_OVERRIDE_ENV, FAKE_SIDECAR);
+	std::env::set_var("FAKE_AGENT_SIGNED_OUT", "1");
+
+	let state = AgentState::default();
+	runtime().block_on(async {
+		let report = check(&state).await;
+		let crossed = serde_json::to_value(&report).expect("the report serializes");
+
+		assert_eq!(report.account, None);
+		assert!(crossed.get("account").is_none(), "an absent account crossed as a field");
+
+		terminate_session(&state).await;
+	});
+
+	std::env::remove_var("FAKE_AGENT_SIGNED_OUT");
+	std::env::remove_var(SIDECAR_OVERRIDE_ENV);
 }
 
 #[test]

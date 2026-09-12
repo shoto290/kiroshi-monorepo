@@ -10,6 +10,9 @@ pub fn invoke_handler<R: Runtime>() -> impl Fn(tauri::ipc::Invoke<R>) -> bool + 
 	tauri::generate_handler![
 		attachments::commands::chat_store_attachments,
 		agent::commands::agent_check,
+		agent::sign_in::agent_sign_in,
+		agent::sign_in::agent_sign_in_code,
+		agent::sign_in::agent_sign_in_cancel,
 		agent::commands::agent_models,
 		agent::commands::agent_tools,
 		agent::commands::agent_title,

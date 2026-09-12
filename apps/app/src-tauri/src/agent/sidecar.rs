@@ -1,11 +1,13 @@
 
 use std::collections::HashMap;
+use std::marker::PhantomData;
 use std::path::PathBuf;
 use std::process::Stdio;
 use std::sync::atomic::{AtomicBool, Ordering};
 use std::sync::Arc;
 use std::time::Duration;
 
+use serde::de::DeserializeOwned;
 use serde_json::Value;
 use tokio::io::{AsyncBufReadExt, AsyncReadExt, AsyncWriteExt, BufReader};
 use tokio::process::{Child, Command};
@@ -15,7 +17,7 @@ use tokio::task::JoinHandle;
 use super::contract::TransportError;
 use super::protocol::{
 	self, Authorized, Catalogue, Checked, OauthStarted, Ready, RefreshRequest, RevocationRequest,
-	Revoked, Titled, ToolCatalogue,
+	Revoked, SignedIn, Titled, ToolCatalogue,
 };
 
 pub const SIDECAR_OVERRIDE_ENV: &str = "KIROSHI_AGENT_SIDECAR";
@@ -221,13 +223,13 @@ impl Sidecar {
 		self.routes.lock().expect("routes").remove(key);
 	}
 
-	pub async fn authenticated(&self) -> Result<bool, TransportError> {
+	pub async fn checked(&self) -> Result<Checked, TransportError> {
 		let answer = self.ask(protocol::CHECK, CHECK_TIMEOUT).await?;
-		let checked: Checked = serde_json::from_value(answer)
+		let mut checked: Checked = serde_json::from_value(answer)
 			.map_err(|error| TransportError::AuthCheckFailed { detail: error.to_string() })?;
-		match checked.detail {
+		match checked.detail.take() {
 			Some(detail) => Err(TransportError::AuthCheckFailed { detail }),
-			None => Ok(checked.authenticated),
+			None => Ok(checked),
 		}
 	}
 
@@ -275,20 +277,42 @@ impl Sidecar {
 	}
 
 	pub fn begin_oauth(self: &Arc<Self>, url: &str) -> Result<OauthFlow, TransportError> {
-		let started = self.expect(protocol::OAUTH_STARTED);
-		let settled = self.expect(protocol::OAUTH_AUTHORIZE);
-		self.send(protocol::oauth_authorize_command(url))?;
+		self.begin_flow(&OAUTH_FLOW, protocol::oauth_authorize_command(url))
+	}
+
+	pub fn cancel_oauth(&self) -> Result<(), TransportError> {
+		self.send(protocol::oauth_cancel_command())
+	}
+
+	pub fn begin_sign_in(self: &Arc<Self>) -> Result<OauthFlow<SignedIn>, TransportError> {
+		self.begin_flow(&SIGN_IN_FLOW, protocol::ask_command(protocol::SIGN_IN))
+	}
+
+	pub fn enter_sign_in_code(&self, text: &str) -> Result<(), TransportError> {
+		self.send(protocol::sign_in_code_command(text))
+	}
+
+	pub fn cancel_sign_in(&self) -> Result<(), TransportError> {
+		self.send(protocol::sign_in_cancel_command())
+	}
+
+	fn begin_flow<T>(
+		self: &Arc<Self>,
+		kind: &FlowKind,
+		command: Value,
+	) -> Result<OauthFlow<T>, TransportError> {
+		let started = self.expect(kind.started);
+		let settled = self.expect(kind.settled);
+		self.send(command)?;
 		Ok(OauthFlow {
 			sidecar: self.clone(),
 			started,
 			settled,
 			deadline: tokio::time::Instant::now() + OAUTH_FLOW_TIMEOUT,
 			answered: false,
+			cancel: kind.cancel,
+			settles_as: PhantomData,
 		})
-	}
-
-	pub fn cancel_oauth(&self) -> Result<(), TransportError> {
-		self.send(protocol::oauth_cancel_command())
 	}
 
 	pub async fn revoke_oauth(
@@ -386,17 +410,37 @@ impl From<TransportError> for OauthFlowError {
 	}
 }
 
-pub enum Opening {
+pub enum Opening<T = Authorized> {
 	Authorization(String),
-	Settled(Authorized),
+	Settled(T),
 }
 
-pub struct OauthFlow {
+struct FlowKind {
+	started: &'static str,
+	settled: &'static str,
+	cancel: fn() -> Value,
+}
+
+const OAUTH_FLOW: FlowKind = FlowKind {
+	started: protocol::OAUTH_STARTED,
+	settled: protocol::OAUTH_AUTHORIZE,
+	cancel: protocol::oauth_cancel_command,
+};
+
+const SIGN_IN_FLOW: FlowKind = FlowKind {
+	started: protocol::SIGN_IN_STARTED,
+	settled: protocol::SIGN_IN,
+	cancel: protocol::sign_in_cancel_command,
+};
+
+pub struct OauthFlow<T = Authorized> {
 	sidecar: Arc<Sidecar>,
 	started: oneshot::Receiver<Value>,
 	settled: oneshot::Receiver<Value>,
 	deadline: tokio::time::Instant,
 	answered: bool,
+	cancel: fn() -> Value,
+	settles_as: PhantomData<T>,
 }
 
 type Frame = Result<Value, oneshot::error::RecvError>;
@@ -406,8 +450,8 @@ enum Raced {
 	Settled(Frame),
 }
 
-impl OauthFlow {
-	pub async fn opened(&mut self) -> Result<Opening, OauthFlowError> {
+impl<T: DeserializeOwned> OauthFlow<T> {
+	pub async fn opened(&mut self) -> Result<Opening<T>, OauthFlowError> {
 		let deadline = self.deadline;
 		let started = &mut self.started;
 		let settled = &mut self.settled;
@@ -431,7 +475,7 @@ impl OauthFlow {
 		}
 	}
 
-	pub async fn settled(&mut self) -> Result<Authorized, OauthFlowError> {
+	pub async fn settled(&mut self) -> Result<T, OauthFlowError> {
 		let deadline = self.deadline;
 		let answer = tokio::time::timeout_at(deadline, &mut self.settled)
 			.await
@@ -441,13 +485,13 @@ impl OauthFlow {
 	}
 }
 
-impl Drop for OauthFlow {
+impl<T> Drop for OauthFlow<T> {
 	fn drop(&mut self) {
 		if self.answered {
 			return;
 		}
 		// A sidecar that refuses the write holds no flow left to cancel.
-		let _ = self.sidecar.cancel_oauth();
+		let _ = self.sidecar.send((self.cancel)());
 	}
 }
 

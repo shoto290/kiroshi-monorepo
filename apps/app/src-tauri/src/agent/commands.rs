@@ -9,6 +9,7 @@ use super::contract::{
 	AgentEvent, CheckReport, ConnectionState, EvolvedBundle, LiveSession, PermissionDecision,
 	RuntimeScope, ScopedEvent, SessionHandle, TransportError,
 };
+use super::protocol::Checked;
 use super::redact;
 use super::session::{Bundle, EventSink, GatedSink, Session, SessionOptions};
 use super::sidecar::{self, Sidecar, SidecarOptions};
@@ -427,14 +428,14 @@ pub async fn check(state: &AgentState) -> CheckReport {
 		Err(error) => return reported(None, Err(error)),
 	};
 	let version = sidecar.version().to_owned();
-	reported(Some(version), sidecar.authenticated().await)
+	reported(Some(version), sidecar.checked().await)
 }
 
-fn reported(binary_version: Option<String>, probe: Result<bool, TransportError>) -> CheckReport {
-	let error = match probe {
-		Ok(true) => None,
-		Ok(false) => Some(TransportError::NotAuthenticated),
-		Err(error) => Some(error),
+fn reported(binary_version: Option<String>, probe: Result<Checked, TransportError>) -> CheckReport {
+	let (account, error) = match probe {
+		Ok(Checked { authenticated: true, account, .. }) => (account, None),
+		Ok(Checked { account, .. }) => (account, Some(TransportError::NotAuthenticated)),
+		Err(error) => (None, Some(error)),
 	};
 	CheckReport {
 		connection: match error {
@@ -444,6 +445,7 @@ fn reported(binary_version: Option<String>, probe: Result<bool, TransportError>)
 		binary_version,
 		authenticated: error.is_none(),
 		error,
+		account,
 	}
 }
 
