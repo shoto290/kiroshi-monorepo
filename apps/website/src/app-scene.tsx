@@ -141,7 +141,7 @@ const turnRow = (turn: SceneTurn, rank: number): TranscriptItem => {
 
 	return sceneRow(
 		key,
-		<AssistantTurn author={turn.bot} cause={turn.cause}>
+		<AssistantTurn author={turn.bot} cause={turn.cause} footer={turn.note}>
 			<Markdown>{turn.text}</Markdown>
 		</AssistantTurn>,
 	)

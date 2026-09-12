@@ -21,7 +21,13 @@ import {
 
 type SceneTurn =
 	| { kind: "reader"; text: string }
-	| { kind: "bot"; bot: RosterBot; text: string; cause?: TurnCause }
+	| {
+			kind: "bot"
+			bot: RosterBot
+			text: string
+			cause?: TurnCause
+			note?: string
+	  }
 	| { kind: "mission"; mission: MissionCardModel }
 
 type SceneExchange = {
@@ -32,10 +38,11 @@ type SceneExchange = {
 
 const asks = (text: string): SceneTurn => ({ kind: "reader", text })
 
-const says = (bot: RosterBot, text: string): SceneTurn => ({
+const says = (bot: RosterBot, text: string, note?: string): SceneTurn => ({
 	kind: "bot",
 	bot,
 	text,
+	note,
 })
 
 const reports = (bot: RosterBot, text: string, title: string): SceneTurn => ({
@@ -63,7 +70,10 @@ const EXCHANGES: Record<string, SceneExchange> = {
 	},
 	[OLIVE.id]: {
 		bot: OLIVE,
-		turns: [asks(COPY.olive.ask), says(OLIVE, COPY.olive.answer)],
+		turns: [
+			asks(COPY.olive.ask),
+			says(OLIVE, COPY.olive.answer, COPY.olive.note),
+		],
 	},
 	[PIP.id]: {
 		bot: PIP,
@@ -113,7 +123,10 @@ const EXCHANGES: Record<string, SceneExchange> = {
 	},
 	[SABLE.id]: {
 		bot: SABLE,
-		turns: [asks(COPY.sable.ask), says(SABLE, COPY.sable.answer)],
+		turns: [
+			asks(COPY.sable.ask),
+			says(SABLE, COPY.sable.answer, COPY.sable.note),
+		],
 	},
 	[JUNO.id]: {
 		bot: JUNO,

@@ -210,6 +210,7 @@ export const SCENE_COPY = {
 			ask: "We don't eat meat on weekdays.",
 			answer:
 				"Kept. Weekday dinners are meat-free from now on, and Thursday's redone.",
+			note: "Olive kept a skill. You can read it, and undo it, in its History.",
 		},
 		pip: {
 			cause: "Every morning at 8",
@@ -248,6 +249,7 @@ export const SCENE_COPY = {
 		sable: {
 			ask: "Empty states always say what to do next, never just that it's empty.",
 			answer: "Kept. I've redone the three empty states in the file to say it.",
+			note: "Sable kept a skill. You can read it, and undo it, in its History.",
 		},
 		juno: {
 			cause: "Every weekday at 9",

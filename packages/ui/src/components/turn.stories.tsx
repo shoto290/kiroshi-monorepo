@@ -46,6 +46,9 @@ const jumpToQuoted = fn()
 
 const QUESTION = "Is any of that destructive?"
 
+const KEPT_SKILL =
+	"Atlas kept a skill. You can read it, and undo it, in its History."
+
 const QUOTED_BOT = {
 	author: "Skippy",
 	excerpt: ANSWER,
@@ -336,7 +339,7 @@ const meta = preview.meta({
 		docs: {
 			description: {
 				component:
-					"The two transcript rows, one per side. `UserTurn` is a bubble that can offer a retry when the prompt never reached Claude, and that holds the wait for a prompt written while another turn runs — `queued` draws it a step back from a sent prompt, with its own way out; `AssistantTurn` is a bubble on the other side with a gutter for the companion's avatar. Only the companions are named here — the reader's side carries no avatar at all. A long answer arrives as a run of rows, one per paragraph: wrap those in `TurnGroup` and it tells each row where it sits, so nothing counts rows by hand, and pass `identity` on the row that closes the run — a row with no `identity` falls back to the `author` it closes its run with, and both draw the same companion avatar. A block that already draws its own frame — a table — takes `bare`, which drops the bubble behind it rather than boxing the same grid twice. `copyText` is per bubble and holds that bubble's own words — a row handed an empty one, as a turn that stopped before writing is, offers no copy at all. Both take the transport's completion verbatim as `state`, so a screen maps nothing. A row given `onReply` reveals a second action ahead of copy, and a row given `repliedTo` is wrapped in the quote of the message it answers — both report to the screen and neither knows what is being quoted. `messageId` anchors the row so the scroller can be asked to bring it back, and it is set once per message: a message split into a run puts it on the group instead of on every paragraph. `stoppable` comes in from the screen and turns the gutter avatar into the stop for that one companion, so a wave is ended one seat at a time; it is never read off `state`, since a turn can be read back as `streaming` from a crash and stop nothing, and a row the screen still holds a seat for carries its stop whatever state it landed in, and it is named and shaped after the very identity the gutter draws, since a stop named after another companion stops the wrong one. Neither scrolls or animates the list — that belongs to the scroller around them.",
+					"The two transcript rows, one per side. `UserTurn` is a bubble that can offer a retry when the prompt never reached Claude, and that holds the wait for a prompt written while another turn runs — `queued` draws it a step back from a sent prompt, with its own way out; `AssistantTurn` is a bubble on the other side with a gutter for the companion's avatar. Only the companions are named here — the reader's side carries no avatar at all. A long answer arrives as a run of rows, one per paragraph: wrap those in `TurnGroup` and it tells each row where it sits, so nothing counts rows by hand, and pass `identity` on the row that closes the run — a row with no `identity` falls back to the `author` it closes its run with, and both draw the same companion avatar. A block that already draws its own frame — a table — takes `bare`, which drops the bubble behind it rather than boxing the same grid twice. `copyText` is per bubble and holds that bubble's own words — a row handed an empty one, as a turn that stopped before writing is, offers no copy at all. Both take the transport's completion verbatim as `state`, so a screen maps nothing. A row given `onReply` reveals a second action ahead of copy, and a row given `repliedTo` is wrapped in the quote of the message it answers — both report to the screen and neither knows what is being quoted. `messageId` anchors the row so the scroller can be asked to bring it back, and it is set once per message: a message split into a run puts it on the group instead of on every paragraph. `stoppable` comes in from the screen and turns the gutter avatar into the stop for that one companion, so a wave is ended one seat at a time; it is never read off `state`, since a turn can be read back as `streaming` from a crash and stop nothing, and a row the screen still holds a seat for carries its stop whatever state it landed in, and it is named and shaped after the very identity the gutter draws, since a stop named after another companion stops the wrong one. `footer` puts a line of the screen's own under the bubble, in the very slot a completion label uses, so a row never carries two footers and the label wins whenever the state produces one. Neither scrolls or animates the list — that belongs to the scroller around them.",
 			},
 		},
 	},
@@ -1462,5 +1465,81 @@ export const ReportedByLongTitle = meta.story({
 		await expect(title.scrollWidth).toBeGreaterThan(title.clientWidth)
 		await expect(title.getBoundingClientRect().height).toBeLessThan(24)
 		await expect(icon.getBoundingClientRect().width).toBeCloseTo(12, 0)
+	},
+})
+
+export const Footnoted = meta.story({
+	parameters: {
+		docs: {
+			description: {
+				story:
+					"A row the screen hands a line to put under the bubble — here, the trace a companion leaves when it keeps a skill. The node lands in the slot a turn already reserves for the state it ended in, so a note and a completion label never draw two footers, and the state wins: the stopped row below writes `Stopped` and drops the note it was given. Check that the line sits under the bubble and outside it, quieter than the answer, and starts exactly where the bubble does. Pick `Variants` for the labels the state produces on its own.",
+			},
+		},
+	},
+	render: () => (
+		<div className="mx-auto flex max-w-2xl flex-col gap-6">
+			<AssistantTurn copyText={ANSWER} footer={KEPT_SKILL} identity={BOT}>
+				{ANSWER}
+			</AssistantTurn>
+			<AssistantTurn
+				copyText={ANSWER}
+				footer={KEPT_SKILL}
+				identity={BOT}
+				state="cancelled"
+			>
+				{ANSWER}
+			</AssistantTurn>
+		</div>
+	),
+	play: async ({ canvasElement }) => {
+		const [noted, stopped] = slotsIn(canvasElement, "message-footer")
+
+		await expect(noted).toHaveTextContent(KEPT_SKILL)
+		await expect(stopped).toHaveTextContent("Stopped")
+		await expect(stopped).not.toHaveTextContent(KEPT_SKILL)
+
+		const bubble = slotIn(canvasElement, "message-bubble")
+
+		await expect(noted.getBoundingClientRect().left).toBeCloseTo(
+			bubble.getBoundingClientRect().left,
+			0,
+		)
+		await expect(noted.getBoundingClientRect().top).toBeGreaterThanOrEqual(
+			bubble.getBoundingClientRect().bottom,
+		)
+	},
+})
+
+export const FootnotedSqueezed = meta.story({
+	parameters: {
+		docs: {
+			description: {
+				story:
+					"The same note in a container squeezed to 320 pixels. Check that it wraps inside the content column instead of widening the row, that every line still starts where the bubble does, and that nothing scrolls sideways.",
+			},
+		},
+	},
+	render: () => (
+		<div className="w-[320px]">
+			<AssistantTurn copyText={ANSWER} footer={KEPT_SKILL} identity={BOT}>
+				{ANSWER}
+			</AssistantTurn>
+		</div>
+	),
+	play: async ({ canvasElement }) => {
+		const note = slotIn(canvasElement, "message-footer")
+		const bubble = slotIn(canvasElement, "message-bubble")
+		const column = slotIn(canvasElement, "message").parentElement as HTMLElement
+
+		await expect(note.getBoundingClientRect().height).toBeGreaterThan(20)
+		await expect(note.getBoundingClientRect().left).toBeCloseTo(
+			bubble.getBoundingClientRect().left,
+			0,
+		)
+		await expect(note.getBoundingClientRect().right).toBeLessThanOrEqual(
+			column.getBoundingClientRect().right,
+		)
+		await expect(column.scrollWidth).toBeLessThanOrEqual(column.clientWidth)
 	},
 })
