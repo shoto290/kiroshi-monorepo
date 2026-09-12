@@ -150,7 +150,7 @@ pub fn revert(bundle: &Path, oldest_id: &str, newest_id: &str) -> Result<String,
 		Some(HEAD),
 		&signature,
 		&signature,
-		&message(&undone(newest), &also(&run)),
+		&message(&undone(newest), &others(&run)),
 		&tree,
 		&[&head],
 	)?;
@@ -236,7 +236,7 @@ fn changed(diff: &Diff, index: usize, delta: &DiffDelta) -> Result<ChangedFile, 
 
 fn changing(status: Delta) -> FileChange {
 	match status {
-		Delta::Added | Delta::Copied | Delta::Untracked => FileChange::Added,
+		Delta::Added => FileChange::Added,
 		Delta::Deleted => FileChange::Deleted,
 		Delta::Renamed => FileChange::Renamed,
 		_ => FileChange::Modified,
@@ -263,7 +263,7 @@ fn patched(diff: &Diff, index: usize) -> Result<String, git2::Error> {
 	Ok(String::from_utf8_lossy(&patch.to_buf()?).into_owned())
 }
 
-fn also(run: &[Commit]) -> String {
+fn others(run: &[Commit]) -> String {
 	run.iter().skip(1).map(summary).collect::<Vec<String>>().join("\n")
 }
 
