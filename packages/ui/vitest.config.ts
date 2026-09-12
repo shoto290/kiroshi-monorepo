@@ -27,6 +27,8 @@ export default defineConfig({
 				test: {
 					name: "storybook",
 					setupFiles: [".storybook/vitest.setup.ts"],
+					// OPE-163: isolate keeps one story file's page out of the next one's,
+					// fileParallelism keeps them off each other's single real pointer.
 					isolate: true,
 					fileParallelism: false,
 					browser: {
