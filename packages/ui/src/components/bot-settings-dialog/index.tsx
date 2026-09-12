@@ -34,11 +34,12 @@ import {
 	type EnvironmentWrite,
 } from "@workspace/ui/components/environment-panel"
 import { Icons } from "@workspace/ui/components/icons"
-import {
-	HistoryPanel,
-	type PluginHistory,
-} from "@workspace/ui/components/plugin-settings/history-panel"
+import type { PluginHistory } from "@workspace/ui/components/plugin-settings/history-panel"
 import type { PluginSkillFiles } from "@workspace/ui/components/plugin-settings/skill-files-panel"
+import {
+	HISTORY_TAB,
+	useHistorySession,
+} from "@workspace/ui/components/plugin-settings/use-history-session"
 import { useMcpSession } from "@workspace/ui/components/plugin-settings/use-mcp-session"
 import { useSkillSession } from "@workspace/ui/components/plugin-settings/use-skill-session"
 import { SettingsField } from "@workspace/ui/components/settings-field"
@@ -170,6 +171,11 @@ const BotSettingsDialog = ({
 		serverConnection,
 		serverEnvironment,
 	})
+	const historySession = useHistorySession({
+		history,
+		companion: value.identity,
+		companionName: botName,
+	})
 
 	const patch = (fields: Partial<BotSettingsValue>) =>
 		onValueChange({ ...value, ...fields })
@@ -177,6 +183,7 @@ const BotSettingsDialog = ({
 	const leave = () => {
 		skillSession.discard()
 		mcpSession.discard()
+		historySession.discard()
 		onClose()
 	}
 
@@ -228,10 +235,13 @@ const BotSettingsDialog = ({
 					</DialogTitle>
 				</header>
 
-				{skillSession.editor ?? mcpSession.editor ?? (
+				{skillSession.editor ?? mcpSession.editor ?? historySession.page ?? (
 					<Tabs.Root
 						className="flex min-h-0 flex-1"
-						defaultValue={showDanger ? DANGER_TAB : (tab ?? FIRST_TAB)}
+						defaultValue={
+							historySession.returnTab ??
+							(showDanger ? DANGER_TAB : (tab ?? FIRST_TAB))
+						}
 						orientation="vertical"
 						ref={setTabs}
 					>
@@ -277,7 +287,7 @@ const BotSettingsDialog = ({
 									icon={Icons.History}
 									iconsOnly={iconsOnly}
 									label={t("dialog.tab.history")}
-									value="history"
+									value={HISTORY_TAB}
 								/>
 							) : null}
 							<SettingsRailItem
@@ -366,12 +376,8 @@ const BotSettingsDialog = ({
 						</Tabs.Panel>
 
 						{history ? (
-							<SettingsScrollingPanel isFlush value="history">
-								<HistoryPanel
-									{...history}
-									companion={value.identity}
-									companionName={botName}
-								/>
+							<SettingsScrollingPanel isFlush value={HISTORY_TAB}>
+								{historySession.panel}
 							</SettingsScrollingPanel>
 						) : null}
 

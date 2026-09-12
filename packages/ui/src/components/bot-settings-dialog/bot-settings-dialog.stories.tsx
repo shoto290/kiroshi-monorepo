@@ -32,6 +32,7 @@ import { BOT_ENVIRONMENT } from "@workspace/ui/components/environment.fixtures"
 import {
 	HISTORY_DAYS,
 	HISTORY_OLDEST_DATE,
+	MANY_CHANGE_FILES,
 } from "@workspace/ui/components/plugin-settings/history.fixtures"
 import {
 	BOT_SKILLS,
@@ -556,6 +557,52 @@ export const History = meta.story({
 
 		await expect(
 			within(panel).getByRole("heading", { level: 3, name: "Today" }),
+		).toBeVisible()
+	},
+})
+
+export const HistoryChange = meta.story({
+	args: {
+		history: {
+			days: HISTORY_DAYS,
+			oldestDate: HISTORY_OLDEST_DATE,
+			files: MANY_CHANGE_FILES,
+			onUndo: fn(),
+			onOpen: fn(),
+		},
+	},
+	parameters: {
+		docs: {
+			description: {
+				story:
+					"One change of that history, opened from the list. Reach for this to check the push rather than the page: the dialog stays open and swaps its whole body for the change, the rail becomes that change's files, and Back returns to the list still on History rather than dropping the reader back on General. Pick `Settings/Plugins/HistoryChangePage` for the states the page itself takes.",
+			},
+		},
+	},
+	play: async ({ args, userEvent }) => {
+		const dialog = await dialogIn()
+		const panel = await openTab(dialog, "History", userEvent)
+
+		await userEvent.click(
+			within(panel).getByRole("button", {
+				name: "Switched the model to Claude Sonnet 4.5",
+			}),
+		)
+
+		await expect(args.history?.onOpen).toHaveBeenCalledTimes(1)
+		await expect(
+			within(dialog).getByRole("tab", { name: "AGENTS.md" }),
+		).toBeVisible()
+
+		await userEvent.click(
+			within(dialog).getByRole("button", { name: "History" }),
+		)
+
+		await expect(
+			within(railIn(dialog)).getByRole("tab", { name: "History" }),
+		).toHaveAttribute("aria-selected", "true")
+		await expect(
+			within(dialog).getByRole("heading", { level: 3, name: "Today" }),
 		).toBeVisible()
 	},
 })

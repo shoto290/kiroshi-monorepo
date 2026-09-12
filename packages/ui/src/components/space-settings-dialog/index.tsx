@@ -20,11 +20,12 @@ import {
 	type EnvironmentWrite,
 } from "@workspace/ui/components/environment-panel"
 import { Icons } from "@workspace/ui/components/icons"
-import {
-	HistoryPanel,
-	type PluginHistory,
-} from "@workspace/ui/components/plugin-settings/history-panel"
+import type { PluginHistory } from "@workspace/ui/components/plugin-settings/history-panel"
 import type { PluginSkillFiles } from "@workspace/ui/components/plugin-settings/skill-files-panel"
+import {
+	HISTORY_TAB,
+	useHistorySession,
+} from "@workspace/ui/components/plugin-settings/use-history-session"
 import { useMcpSession } from "@workspace/ui/components/plugin-settings/use-mcp-session"
 import { useSkillSession } from "@workspace/ui/components/plugin-settings/use-skill-session"
 import {
@@ -137,10 +138,15 @@ const SpaceSettingsDialog = ({
 		serverConnection,
 		serverEnvironment,
 	})
+	const historySession = useHistorySession({
+		history,
+		companionName: t("plugin.author.bot"),
+	})
 
 	const leave = () => {
 		skillSession.discard()
 		mcpSession.discard()
+		historySession.discard()
 		onClose()
 	}
 
@@ -181,10 +187,10 @@ const SpaceSettingsDialog = ({
 					</DialogTitle>
 				</header>
 
-				{skillSession.editor ?? mcpSession.editor ?? (
+				{skillSession.editor ?? mcpSession.editor ?? historySession.page ?? (
 					<Tabs.Root
 						className="flex min-h-0 flex-1"
-						defaultValue={tab ?? FIRST_TAB}
+						defaultValue={historySession.returnTab ?? tab ?? FIRST_TAB}
 						orientation="vertical"
 						ref={setTabs}
 					>
@@ -217,7 +223,7 @@ const SpaceSettingsDialog = ({
 								icon={Icons.History}
 								iconsOnly={iconsOnly}
 								label={t("rail.history")}
-								value="history"
+								value={HISTORY_TAB}
 							/>
 							<SettingsRailSeparator />
 							<SettingsRailItem
@@ -251,11 +257,8 @@ const SpaceSettingsDialog = ({
 							{mcpSession.panel}
 						</Tabs.Panel>
 
-						<SettingsScrollingPanel isFlush value="history">
-							<HistoryPanel
-								{...history}
-								companionName={t("plugin.author.bot")}
-							/>
+						<SettingsScrollingPanel isFlush value={HISTORY_TAB}>
+							{historySession.panel}
 						</SettingsScrollingPanel>
 
 						<SettingsScrollingPanel value={DANGER_TAB}>

@@ -160,6 +160,24 @@ const bots = {
 				"Tout revient à l'état d'avant cette modification. L'annulation est une modification à part entière : vous pouvez l'annuler aussi.",
 			confirm: "Annuler cette modification",
 		},
+		change: {
+			back: "Historique",
+			date: "{{day}}, {{time}}",
+			added_one: "1 ligne ajoutée",
+			added_many: "{{count}} lignes ajoutées",
+			added_other: "{{count}} lignes ajoutées",
+			removed_one: "1 ligne supprimée",
+			removed_many: "{{count}} lignes supprimées",
+			removed_other: "{{count}} lignes supprimées",
+			consequence_one:
+				"Remet tout dans l'état d'avant cette modification, sur 1 fichier, et écrit cela comme une nouvelle modification que vous pouvez annuler aussi.",
+			consequence_many:
+				"Remet tout dans l'état d'avant cette modification, sur {{count}} fichiers, et écrit cela comme une nouvelle modification que vous pouvez annuler aussi.",
+			consequence_other:
+				"Remet tout dans l'état d'avant cette modification, sur {{count}} fichiers, et écrit cela comme une nouvelle modification que vous pouvez annuler aussi.",
+			unavailable:
+				"Impossible de lire les fichiers de cette modification. Revenez en arrière et rouvrez-la pour réessayer.",
+		},
 	},
 	skills: {
 		untitled: "Compétence sans titre",
