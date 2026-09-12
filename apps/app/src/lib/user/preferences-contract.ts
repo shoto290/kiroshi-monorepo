@@ -20,6 +20,7 @@ export type UserPreferences = {
 	notifyWithSound: boolean
 	sidebarWidth: number | null
 	activityPanelOpen: boolean
+	firstRunDone: boolean
 	lastSpaceId: string | null
 	lastBotIdBySpace: BotIdBySpace
 }

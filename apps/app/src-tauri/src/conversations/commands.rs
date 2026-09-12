@@ -9,6 +9,7 @@ use super::contract::{
 	PinnedBubble, RuntimeSession, Skill, SkillDraft, SuggestedBot, TerminalCompletion,
 	TranscriptPage, TranscriptStoreError, TranscriptWindow,
 };
+use super::seed;
 use crate::agent::contract::AgentCommand;
 use crate::attachments;
 use crate::avatars;
@@ -114,6 +115,7 @@ pub async fn list_bundles_at_launch<R: Runtime>(app: &AppHandle<R>) {
 		return;
 	};
 	lay_down_space_plugins(app, database).await;
+	seed::plant_first_companion(app, database).await;
 	list_bundles(bundles::root(app).as_deref(), database).await;
 }
 
@@ -233,7 +235,7 @@ fn unworn<T: Copy + PartialEq>(declared: &[T], worn: &[T], crowd: usize) -> T {
 		.unwrap_or(declared[crowd % declared.len()])
 }
 
-async fn create_bundled_bot<R: Runtime>(
+pub(super) async fn create_bundled_bot<R: Runtime>(
 	app: &AppHandle<R>,
 	database: &db::Database,
 	identity: BotIdentity,

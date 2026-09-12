@@ -50,6 +50,8 @@ pub struct UserPreferences {
 	pub sidebar_width: Option<u32>,
 	#[serde(default)]
 	pub activity_panel_open: bool,
+	#[serde(default)]
+	pub first_run_done: bool,
 	pub last_space_id: Option<String>,
 	#[serde(default)]
 	pub last_bot_id_by_space: BTreeMap<String, String>,
@@ -74,6 +76,7 @@ impl UserPreferences {
 			notify_with_sound: preferences.notify_with_sound,
 			sidebar_width: preferences.sidebar_width,
 			activity_panel_open: preferences.activity_panel_open,
+			first_run_done: preferences.first_run_done,
 			last_space_id: preferences.last_space_id,
 			last_bot_id_by_space: preferences.last_bot_id_by_space,
 		}
@@ -93,6 +96,7 @@ impl From<UserPreferences> for user::Preferences {
 			notify_with_sound: preferences.notify_with_sound,
 			sidebar_width: preferences.sidebar_width,
 			activity_panel_open: preferences.activity_panel_open,
+			first_run_done: preferences.first_run_done,
 			last_space_id: preferences.last_space_id,
 			last_bot_id_by_space: preferences.last_bot_id_by_space,
 		}

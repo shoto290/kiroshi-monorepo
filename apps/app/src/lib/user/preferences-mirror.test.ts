@@ -25,6 +25,7 @@ const RECORD: UserPreferences = {
 	notifyWithSound: true,
 	sidebarWidth: null,
 	activityPanelOpen: false,
+	firstRunDone: false,
 	lastSpaceId: null,
 	lastBotIdBySpace: {},
 }
@@ -34,6 +35,7 @@ const MIRRORED: MirroredPreferences = {
 	language: null,
 	sidebarWidth: null,
 	activityPanelOpen: false,
+	firstRunDone: false,
 	lastSpaceId: null,
 	lastBotIdBySpace: {},
 }
@@ -85,6 +87,7 @@ describe("the mirror", () => {
 			language: null,
 			sidebarWidth: null,
 			activityPanelOpen: false,
+			firstRunDone: false,
 			lastSpaceId: null,
 			lastBotIdBySpace: {},
 		})
@@ -160,6 +163,17 @@ describe("the mirror", () => {
 		expect(readMirror().activityPanelOpen).toBe(false)
 	})
 
+	it("reads a first run nobody has been through as not done", () => {
+		expect(readMirror().firstRunDone).toBe(false)
+	})
+
+	it("holds the first run the reader has been through", () => {
+		writeMirror({ ...MIRRORED, firstRunDone: true })
+
+		expect(isMirrorKey("firstRunDone")).toBe(true)
+		expect(readMirror().firstRunDone).toBe(true)
+	})
+
 	it("drops the single companion an older build left behind", () => {
 		localStorage.setItem("lastBotId", "nyx")
 
@@ -196,6 +210,7 @@ describe("the record the host holds", () => {
 			language: "fr",
 			sidebarWidth: 320,
 			activityPanelOpen: false,
+			firstRunDone: false,
 			lastSpaceId: "vocca",
 			lastBotIdBySpace: {},
 		})
@@ -213,6 +228,7 @@ describe("the record the host holds", () => {
 			language: null,
 			sidebarWidth: null,
 			activityPanelOpen: false,
+			firstRunDone: false,
 			lastSpaceId: null,
 			lastBotIdBySpace: {},
 		})
@@ -265,6 +281,7 @@ describe("sameMirror", () => {
 			language: "fr",
 			sidebarWidth: 320,
 			activityPanelOpen: false,
+			firstRunDone: false,
 			lastSpaceId: "vocca",
 			lastBotIdBySpace: {},
 		} as const

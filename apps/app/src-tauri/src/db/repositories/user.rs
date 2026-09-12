@@ -14,9 +14,12 @@ const NOTIFY_ON_FINISHED_TURN_KEY: &str = "user.notify_on_finished_turn";
 const NOTIFY_WITH_SOUND_KEY: &str = "user.notify_with_sound";
 const SIDEBAR_WIDTH_KEY: &str = "user.sidebar_width";
 const ACTIVITY_PANEL_OPEN_KEY: &str = "user.activity_panel_open";
+const FIRST_RUN_DONE_KEY: &str = "user.first_run_done";
 const LAST_SPACE_ID_KEY: &str = "user.last_space_id";
 const LAST_BOT_ID_BY_SPACE_KEY: &str = "user.last_bot_id_by_space";
 const DROPPED_LAST_BOT_ID_KEY: &str = "user.last_bot_id";
+
+const FIRST_COMPANION_SEEDED_KEY: &str = "app.first_companion_seeded";
 
 const SWITCH_ON: &str = "on";
 const SWITCH_OFF: &str = "off";
@@ -72,6 +75,7 @@ pub struct Preferences {
 	pub notify_with_sound: bool,
 	pub sidebar_width: Option<u32>,
 	pub activity_panel_open: bool,
+	pub first_run_done: bool,
 	pub last_space_id: Option<String>,
 	pub last_bot_id_by_space: BTreeMap<String, String>,
 }
@@ -89,6 +93,7 @@ impl Default for Preferences {
 			notify_with_sound: true,
 			sidebar_width: None,
 			activity_panel_open: false,
+			first_run_done: false,
 			last_space_id: None,
 			last_bot_id_by_space: BTreeMap::new(),
 		}
@@ -148,6 +153,29 @@ impl UserRepository {
 	pub async fn avatar_image_path(&self) -> Result<Option<String>, DatabaseError> {
 		self.access.call(|connection| setting_in(connection, AVATAR_IMAGE_PATH_KEY)).await
 	}
+
+	pub async fn is_first_companion_seeded(&self) -> Result<bool, DatabaseError> {
+		self.access.call(|connection| switch_on_in(connection, FIRST_COMPANION_SEEDED_KEY)).await
+	}
+
+	pub async fn mark_first_companion_seeded(&self) -> Result<(), DatabaseError> {
+		self.mark_switch_on(FIRST_COMPANION_SEEDED_KEY).await
+	}
+
+	pub async fn mark_first_run_done(&self) -> Result<(), DatabaseError> {
+		self.mark_switch_on(FIRST_RUN_DONE_KEY).await
+	}
+
+	async fn mark_switch_on(&self, key: &'static str) -> Result<(), DatabaseError> {
+		self.access
+			.call_mut(move |connection| {
+				let transaction = write_transaction(connection)?;
+				write_switch_in(&transaction, key, true)?;
+				transaction.commit()?;
+				Ok(())
+			})
+			.await
+	}
 }
 
 fn write_transaction(connection: &mut Connection) -> Result<Transaction<'_>, DatabaseError> {
@@ -169,6 +197,7 @@ fn stored_in(connection: &Connection) -> Result<Preferences, DatabaseError> {
 		sidebar_width: setting_in(connection, SIDEBAR_WIDTH_KEY)?
 			.and_then(|stored| stored.parse().ok()),
 		activity_panel_open: switch_on_in(connection, ACTIVITY_PANEL_OPEN_KEY)?,
+		first_run_done: switch_on_in(connection, FIRST_RUN_DONE_KEY)?,
 		last_space_id: setting_in(connection, LAST_SPACE_ID_KEY)?,
 		last_bot_id_by_space: setting_in(connection, LAST_BOT_ID_BY_SPACE_KEY)?
 			.and_then(|stored| serde_json::from_str(&stored).ok())
@@ -200,6 +229,7 @@ fn write_in(transaction: &Transaction<'_>, preferences: &Preferences) -> Result<
 	let width = preferences.sidebar_width.map(|width| width.to_string());
 	write_optional_in(transaction, SIDEBAR_WIDTH_KEY, width.as_deref())?;
 	write_switch_in(transaction, ACTIVITY_PANEL_OPEN_KEY, preferences.activity_panel_open)?;
+	write_switch_in(transaction, FIRST_RUN_DONE_KEY, preferences.first_run_done)?;
 	write_optional_in(transaction, LAST_SPACE_ID_KEY, preferences.last_space_id.as_deref())?;
 	let bots_by_space = bots_by_space_as_stored(&preferences.last_bot_id_by_space);
 	write_optional_in(transaction, LAST_BOT_ID_BY_SPACE_KEY, bots_by_space.as_deref())?;
@@ -264,6 +294,7 @@ mod tests {
 			notify_with_sound: false,
 			sidebar_width: Some(320),
 			activity_panel_open: true,
+			first_run_done: true,
 			last_space_id: Some("space-one".to_owned()),
 			last_bot_id_by_space: BTreeMap::from([
 				("space-one".to_owned(), "bot-one".to_owned()),
@@ -296,6 +327,7 @@ mod tests {
 				notify_with_sound: true,
 				sidebar_width: None,
 				activity_panel_open: false,
+				first_run_done: false,
 				last_space_id: None,
 				last_bot_id_by_space: BTreeMap::new(),
 			}
@@ -463,6 +495,55 @@ mod tests {
 		let database = open(&dir);
 
 		assert!(!database.user().preferences().await.expect("the record").activity_panel_open);
+	}
+
+	#[tokio::test]
+	async fn a_first_run_that_was_marked_done_is_still_done_after_the_file_is_reopened() {
+		let dir = temp_dir();
+		{
+			let database = open(&dir);
+			assert!(
+				!database.user().preferences().await.expect("the record").first_run_done,
+				"a first run nobody has been through reads as done"
+			);
+			database
+				.user()
+				.set_preferences(Preferences { first_run_done: true, ..Preferences::default() })
+				.await
+				.expect("the write");
+		}
+
+		let database = open(&dir);
+
+		assert!(database.user().preferences().await.expect("the record").first_run_done);
+	}
+
+	#[tokio::test]
+	async fn the_seed_marker_is_off_until_it_is_marked_and_stays_out_of_the_record() {
+		let dir = temp_dir();
+		let database = open(&dir);
+
+		assert!(!database.user().is_first_companion_seeded().await.expect("the marker"));
+
+		database.user().mark_first_companion_seeded().await.expect("the mark");
+
+		assert!(database.user().is_first_companion_seeded().await.expect("the marker"));
+		assert_eq!(setting(&database, FIRST_COMPANION_SEEDED_KEY).await, Some("on".to_owned()));
+		assert!(
+			!database.user().preferences().await.expect("the record").first_run_done,
+			"the seed marker was read as the first run flag"
+		);
+	}
+
+	#[tokio::test]
+	async fn a_write_of_the_record_leaves_the_seed_marker_alone() {
+		let dir = temp_dir();
+		let database = open(&dir);
+		database.user().mark_first_companion_seeded().await.expect("the mark");
+
+		database.user().set_preferences(Preferences::default()).await.expect("the write");
+
+		assert!(database.user().is_first_companion_seeded().await.expect("the marker"));
 	}
 
 	#[tokio::test]

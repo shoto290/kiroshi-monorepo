@@ -14,6 +14,7 @@ const RECORD: ReaderPreferences = {
 	notifyWithSound: true,
 	sidebarWidth: null,
 	activityPanelOpen: false,
+	firstRunDone: false,
 	lastSpaceId: null,
 	lastBotIdBySpace: {},
 }

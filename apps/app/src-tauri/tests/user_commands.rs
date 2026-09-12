@@ -114,6 +114,7 @@ fn a_record(picture: Value) -> Value {
 		"notifyWithSound": false,
 		"sidebarWidth": 320,
 		"activityPanelOpen": true,
+		"firstRunDone": true,
 		"lastSpaceId": "space-one",
 		"lastBotIdBySpace": { "space-one": "bot-one", "space-two": "bot-two" },
 	})
@@ -176,6 +177,7 @@ fn a_record_nobody_has_written_crosses_as_the_defaults() {
 			"notifyWithSound": true,
 			"sidebarWidth": null,
 			"activityPanelOpen": false,
+			"firstRunDone": false,
 			"lastSpaceId": null,
 			"lastBotIdBySpace": {},
 		})

@@ -15,6 +15,7 @@ const COLOR_SCHEME_KEY = "theme"
 const LANGUAGE_KEY = "language"
 const SIDEBAR_WIDTH_KEY = "sidebarWidth"
 const ACTIVITY_PANEL_OPEN_KEY = "activityPanelOpen"
+const FIRST_RUN_DONE_KEY = "firstRunDone"
 const LAST_SPACE_KEY = "lastSpaceId"
 const LAST_BOT_BY_SPACE_KEY = "lastBotIdBySpace"
 const DROPPED_LAST_BOT_KEY = "lastBotId"
@@ -23,14 +24,15 @@ const COLOR_SCHEMES: ColorScheme[] = ["system", "light", "dark"]
 
 const DEFAULT_COLOR_SCHEME: ColorScheme = "system"
 
-const PANEL_OPEN = "on"
-const PANEL_CLOSED = "off"
+const SWITCH_ON = "on"
+const SWITCH_OFF = "off"
 
 export type MirroredPreferences = {
 	colorScheme: ColorScheme
 	language: Language | null
 	sidebarWidth: number | null
 	activityPanelOpen: boolean
+	firstRunDone: boolean
 	lastSpaceId: string | null
 	lastBotIdBySpace: BotIdBySpace
 }
@@ -85,6 +87,7 @@ export const mirrorOf = (record: UserPreferences): MirroredPreferences => ({
 	language: languageOf(record.language),
 	sidebarWidth: record.sidebarWidth ?? null,
 	activityPanelOpen: record.activityPanelOpen === true,
+	firstRunDone: record.firstRunDone === true,
 	lastSpaceId: record.lastSpaceId ?? null,
 	lastBotIdBySpace: botIdBySpaceOf(record.lastBotIdBySpace),
 })
@@ -97,6 +100,7 @@ export const sameMirror = (
 	one.language === other.language &&
 	one.sidebarWidth === other.sidebarWidth &&
 	one.activityPanelOpen === other.activityPanelOpen &&
+	one.firstRunDone === other.firstRunDone &&
 	one.lastSpaceId === other.lastSpaceId &&
 	sameBotIdBySpace(one.lastBotIdBySpace, other.lastBotIdBySpace)
 
@@ -105,7 +109,8 @@ export const readMirror = (): MirroredPreferences => ({
 	language: languageOf(localStorage.getItem(LANGUAGE_KEY)),
 	sidebarWidth: widthOf(localStorage.getItem(SIDEBAR_WIDTH_KEY)),
 	activityPanelOpen:
-		localStorage.getItem(ACTIVITY_PANEL_OPEN_KEY) === PANEL_OPEN,
+		localStorage.getItem(ACTIVITY_PANEL_OPEN_KEY) === SWITCH_ON,
+	firstRunDone: localStorage.getItem(FIRST_RUN_DONE_KEY) === SWITCH_ON,
 	lastSpaceId: localStorage.getItem(LAST_SPACE_KEY),
 	lastBotIdBySpace: parseBotIdBySpace(
 		localStorage.getItem(LAST_BOT_BY_SPACE_KEY),
@@ -127,7 +132,11 @@ export const writeMirror = (mirrored: MirroredPreferences) => {
 	keep(SIDEBAR_WIDTH_KEY, mirrored.sidebarWidth)
 	localStorage.setItem(
 		ACTIVITY_PANEL_OPEN_KEY,
-		mirrored.activityPanelOpen ? PANEL_OPEN : PANEL_CLOSED,
+		mirrored.activityPanelOpen ? SWITCH_ON : SWITCH_OFF,
+	)
+	localStorage.setItem(
+		FIRST_RUN_DONE_KEY,
+		mirrored.firstRunDone ? SWITCH_ON : SWITCH_OFF,
 	)
 	keep(LAST_SPACE_KEY, mirrored.lastSpaceId)
 	keep(LAST_BOT_BY_SPACE_KEY, JSON.stringify(mirrored.lastBotIdBySpace))
@@ -139,6 +148,7 @@ const MIRROR_KEYS = [
 	LANGUAGE_KEY,
 	SIDEBAR_WIDTH_KEY,
 	ACTIVITY_PANEL_OPEN_KEY,
+	FIRST_RUN_DONE_KEY,
 	LAST_SPACE_KEY,
 	LAST_BOT_BY_SPACE_KEY,
 ]

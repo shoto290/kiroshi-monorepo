@@ -47,6 +47,7 @@ export type UserController = {
 	setLanguage: (language: Language | null) => Promise<void>
 	setSidebarWidth: (sidebarWidth: number) => Promise<void>
 	setActivityPanelOpen: (activityPanelOpen: boolean) => Promise<void>
+	markFirstRunDone: () => Promise<void>
 	setLastBot: (opened: LastBotOpened) => Promise<void>
 	setLastSpace: (lastSpaceId: string) => Promise<void>
 	uploadPicture: (file: File) => Promise<void>
@@ -209,6 +210,8 @@ export const createUserController = (): UserController => {
 
 		setActivityPanelOpen: (activityPanelOpen: boolean) =>
 			changeMirrored({ activityPanelOpen }),
+
+		markFirstRunDone: () => changeMirrored({ firstRunDone: true }),
 
 		setLastBot: (opened: LastBotOpened) =>
 			changeMirrored({ lastBotIdBySpace: botIdBySpaceWith(opened) }),
