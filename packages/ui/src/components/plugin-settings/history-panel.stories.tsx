@@ -36,6 +36,14 @@ const firstRow = (canvasElement: HTMLElement) => {
 	return row
 }
 
+const rowHolding = (canvasElement: HTMLElement, text: string) => {
+	const row = [
+		...canvasElement.querySelectorAll<HTMLElement>(ROW_SELECTOR),
+	].find((candidate) => candidate.textContent?.includes(text))
+	if (!row) throw new Error(`No row holds "${text}"`)
+	return row
+}
+
 const meta = preview.meta({
 	title: "Settings/Plugins/HistoryPanel",
 	component: HistoryPanel,
@@ -104,13 +112,10 @@ export const Retouched = meta.story({
 			},
 		},
 	},
-	play: async ({ canvas }) => {
-		const row = canvas
-			.getAllByRole("listitem")
-			.find((item) => item.textContent?.includes("Tightened the wording"))
-		if (!row) throw new Error("The retouched change is missing from the list")
-
-		await expect(row).toHaveTextContent("(4 goes)")
+	play: async ({ canvasElement }) => {
+		await expect(
+			rowHolding(canvasElement, "Tightened the wording"),
+		).toHaveTextContent("(4 goes)")
 	},
 })
 
@@ -123,11 +128,8 @@ export const Undone = meta.story({
 			},
 		},
 	},
-	play: async ({ canvas }) => {
-		const row = canvas
-			.getAllByRole("listitem")
-			.find((item) => item.textContent?.includes("twelve calls"))
-		if (!row) throw new Error("The undone change is missing from the list")
+	play: async ({ canvasElement }) => {
+		const row = rowHolding(canvasElement, "twelve calls")
 
 		await expect(row).toHaveTextContent("Undone above")
 		await expect(
@@ -147,13 +149,8 @@ export const HoveredRow = meta.story({
 		},
 	},
 	play: async ({ canvasElement }) => {
-		const rows = [...canvasElement.querySelectorAll(ROW_SELECTOR)]
-		const reserved = rows.find((row) =>
-			row.textContent?.includes("release-notes"),
-		)
-		const undone = rows.find((row) => row.textContent?.includes("twelve calls"))
-		if (!reserved || !undone) throw new Error("The timeline lost a row")
-
+		const reserved = rowHolding(canvasElement, "release-notes")
+		const undone = rowHolding(canvasElement, "twelve calls")
 		const undo = reserved.querySelector("button")
 		if (!undo) throw new Error("The row reserved no undo control")
 

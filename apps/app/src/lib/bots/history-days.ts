@@ -19,8 +19,10 @@ const dayBefore = (now: Date) => {
 }
 
 const dayLabelOf = (at: Date, now: Date) => {
-	if (dayKeyOf(at) === dayKeyOf(now)) return i18n.t("bots:history.day.today")
-	if (dayKeyOf(at) === dayKeyOf(dayBefore(now)))
+	const key = dayKeyOf(at)
+
+	if (key === dayKeyOf(now)) return i18n.t("bots:history.day.today")
+	if (key === dayKeyOf(dayBefore(now)))
 		return i18n.t("bots:history.day.yesterday")
 
 	return format({ day: "numeric", month: "long" }).format(at)
