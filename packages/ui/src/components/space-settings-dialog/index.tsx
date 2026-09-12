@@ -43,6 +43,7 @@ import { SpaceFields } from "@workspace/ui/components/space-settings-dialog/spac
 import { SpaceTint } from "@workspace/ui/components/space-tint"
 import { Dialog, DialogTitle } from "@workspace/ui/components/ui/dialog"
 import { useIsNarrowerThan } from "@workspace/ui/hooks/use-is-narrower-than"
+import { useSettingsTab } from "@workspace/ui/hooks/use-settings-tab"
 import { cn } from "@workspace/ui/lib/utils"
 
 const FIRST_TAB = "space"
@@ -142,6 +143,7 @@ const SpaceSettingsDialog = ({
 		history,
 		companionName: t("plugin.author.bot"),
 	})
+	const activeTab = useSettingsTab(open, tab ?? FIRST_TAB)
 
 	const leave = () => {
 		skillSession.discard()
@@ -190,8 +192,9 @@ const SpaceSettingsDialog = ({
 				{skillSession.editor ?? mcpSession.editor ?? historySession.page ?? (
 					<Tabs.Root
 						className="flex min-h-0 flex-1"
-						defaultValue={historySession.returnTab ?? tab ?? FIRST_TAB}
+						onValueChange={activeTab.onValueChange}
 						orientation="vertical"
+						value={activeTab.value}
 						ref={setTabs}
 					>
 						<SettingsRail iconsOnly={iconsOnly}>

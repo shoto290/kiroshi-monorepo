@@ -18,12 +18,12 @@ import {
 } from "@workspace/ui/components/settings-rail"
 import { TooltipHint } from "@workspace/ui/components/tooltip-hint"
 import { buttonVariants } from "@workspace/ui/components/ui/button"
-import { useFitsWidth } from "@workspace/ui/hooks/use-fits-width"
+import { useFittingCandidate } from "@workspace/ui/hooks/use-fitting-candidate"
 import { cn } from "@workspace/ui/lib/utils"
 
 const META_SEPARATOR = " · "
 
-const FOLDED_FOLDERS = "…"
+const FOLD_MARK = "…"
 
 const BODY_CLASS = "flex flex-col gap-4 px-5 py-4"
 
@@ -40,9 +40,12 @@ const FILE_ROW_CLASS = cn(RAIL_ITEM_CLASS, "relative overflow-hidden")
 const GHOST_CLASS =
 	"pointer-events-none invisible absolute top-0 w-max whitespace-nowrap"
 
-const fileNameOf = (path: string) => {
-	const cut = path.lastIndexOf("/")
-	return cut === -1 ? path : `${FOLDED_FOLDERS}${path.slice(cut)}`
+const foldsOf = (path: string) => {
+	const segments = path.split("/")
+
+	return segments.map((_, dropped) =>
+		dropped === 0 ? path : `${FOLD_MARK}/${segments.slice(dropped).join("/")}`,
+	)
 }
 
 const countChangedLines = (patch: string) => {
@@ -63,22 +66,27 @@ type HistoryFileTabProps = {
 }
 
 const HistoryFileTab = ({ path }: HistoryFileTabProps) => {
-	const [ghost, setGhost] = useState<HTMLElement | null>(null)
+	const [candidates, setCandidates] = useState<HTMLElement | null>(null)
 	const [label, setLabel] = useState<HTMLElement | null>(null)
-	const fits = useFitsWidth(ghost, label)
+	const folds = foldsOf(path)
+	const fitting = useFittingCandidate(candidates, label)
 
 	const row = (
 		<Tabs.Tab className={FILE_ROW_CLASS} data-slot="history-file" value={path}>
-			<span aria-hidden="true" className={GHOST_CLASS} ref={setGhost}>
-				{path}
+			<span aria-hidden="true" className={GHOST_CLASS} ref={setCandidates}>
+				{folds.map((fold) => (
+					<span className="block w-max whitespace-nowrap" key={fold}>
+						{fold}
+					</span>
+				))}
 			</span>
 			<span className="block min-w-0 flex-1 truncate" ref={setLabel}>
-				{fits ? path : fileNameOf(path)}
+				{folds[fitting] ?? path}
 			</span>
 		</Tabs.Tab>
 	)
 
-	return fits ? (
+	return fitting === 0 ? (
 		row
 	) : (
 		<TooltipHint content={path} side="right">
@@ -140,14 +148,7 @@ const HistoryChangePage = ({
 	}
 
 	const bodyOf = () => {
-		if (haveFilesFailedToRead)
-			return (
-				<div className={cn(BODY_CLASS, "min-h-0 flex-1")}>
-					<Notice title={t("history.change.unavailable")} />
-				</div>
-			)
-
-		if (areFilesReading)
+		if (areFilesReading && !haveFilesFailedToRead)
 			return (
 				<div
 					className={cn(
@@ -160,6 +161,13 @@ const HistoryChangePage = ({
 						className="size-3.5 animate-spin motion-reduce:animate-none"
 					/>
 					{t("history.diff.loading")}
+				</div>
+			)
+
+		if (haveFilesFailedToRead || files.length === 0)
+			return (
+				<div className={cn(BODY_CLASS, "min-h-0 flex-1")}>
+					<Notice title={t("history.change.unavailable")} />
 				</div>
 			)
 
@@ -236,7 +244,11 @@ const HistoryChangePage = ({
 						)}
 					/>
 					<p className="min-w-0 flex-1 text-muted-foreground text-xs/4">
-						{t("history.change.consequence", { count: files.length })}
+						{files.length === 0
+							? t("history.change.consequence.uncounted")
+							: t("history.change.consequence.counted", {
+									count: files.length,
+								})}
 					</p>
 				</div>
 			</div>

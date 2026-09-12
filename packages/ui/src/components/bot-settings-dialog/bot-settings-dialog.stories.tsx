@@ -607,6 +607,56 @@ export const HistoryChange = meta.story({
 	},
 })
 
+export const PushedPages = meta.story({
+	args: {
+		history: {
+			days: HISTORY_DAYS,
+			oldestDate: HISTORY_OLDEST_DATE,
+			files: MANY_CHANGE_FILES,
+			onUndo: fn(),
+			onOpen: fn(),
+		},
+	},
+	parameters: {
+		docs: {
+			description: {
+				story:
+					"Two pushed pages, one after the other, in one opening of the dialog. Reach for this when a push changes where the dialog lands on the way back: returning from a history change must leave the reader on History, and the skill push that follows must leave them on Skills rather than inheriting History from the push before it. The dialog holds one tab selection for the whole opening, so every push reads it and every return restores it.",
+			},
+		},
+	},
+	play: async ({ userEvent }) => {
+		const dialog = await dialogIn()
+		const history = await openTab(dialog, "History", userEvent)
+
+		await userEvent.click(
+			within(history).getByRole("button", {
+				name: "Switched the model to Claude Sonnet 4.5",
+			}),
+		)
+		await userEvent.click(
+			within(dialog).getByRole("button", { name: "History" }),
+		)
+
+		await expect(
+			within(railIn(dialog)).getByRole("tab", { name: "History" }),
+		).toHaveAttribute("aria-selected", "true")
+
+		const skills = await openTab(dialog, "Skills", userEvent)
+
+		await userEvent.click(
+			within(skills).getByRole("button", { name: /release-notes/ }),
+		)
+		await userEvent.click(
+			within(dialog).getByRole("button", { name: "All skills" }),
+		)
+
+		await expect(
+			within(railIn(dialog)).getByRole("tab", { name: "Skills" }),
+		).toHaveAttribute("aria-selected", "true")
+	},
+})
+
 export const WithoutHistory = meta.story({
 	args: { history: undefined },
 	parameters: {

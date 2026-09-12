@@ -169,12 +169,16 @@ const bots = {
 			removed_one: "1 ligne supprimée",
 			removed_many: "{{count}} lignes supprimées",
 			removed_other: "{{count}} lignes supprimées",
-			consequence_one:
-				"Remet tout dans l'état d'avant cette modification, sur 1 fichier, et écrit cela comme une nouvelle modification que vous pouvez annuler aussi.",
-			consequence_many:
-				"Remet tout dans l'état d'avant cette modification, sur {{count}} fichiers, et écrit cela comme une nouvelle modification que vous pouvez annuler aussi.",
-			consequence_other:
-				"Remet tout dans l'état d'avant cette modification, sur {{count}} fichiers, et écrit cela comme une nouvelle modification que vous pouvez annuler aussi.",
+			consequence: {
+				counted_one:
+					"Remet tout dans l'état d'avant cette modification, sur 1 fichier, et écrit cela comme une nouvelle modification que vous pouvez annuler aussi.",
+				counted_many:
+					"Remet tout dans l'état d'avant cette modification, sur {{count}} fichiers, et écrit cela comme une nouvelle modification que vous pouvez annuler aussi.",
+				counted_other:
+					"Remet tout dans l'état d'avant cette modification, sur {{count}} fichiers, et écrit cela comme une nouvelle modification que vous pouvez annuler aussi.",
+				uncounted:
+					"Remet tout dans l'état d'avant cette modification, et écrit cela comme une nouvelle modification que vous pouvez annuler aussi.",
+			},
 			unavailable:
 				"Impossible de lire les fichiers de cette modification. Revenez en arrière et rouvrez-la pour réessayer.",
 		},

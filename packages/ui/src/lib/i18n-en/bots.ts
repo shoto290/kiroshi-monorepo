@@ -170,10 +170,14 @@ const bots = {
 			added_other: "{{count}} lines added",
 			removed_one: "1 line removed",
 			removed_other: "{{count}} lines removed",
-			consequence_one:
-				"Puts everything back to how it read before this change, across 1 file, and writes that as a new change you can undo too.",
-			consequence_other:
-				"Puts everything back to how it read before this change, across {{count}} files, and writes that as a new change you can undo too.",
+			consequence: {
+				counted_one:
+					"Puts everything back to how it read before this change, across 1 file, and writes that as a new change you can undo too.",
+				counted_other:
+					"Puts everything back to how it read before this change, across {{count}} files, and writes that as a new change you can undo too.",
+				uncounted:
+					"Puts everything back to how it read before this change, and writes that as a new change you can undo too.",
+			},
 			unavailable:
 				"Couldn't read the files of this change. Go back and open it again to retry.",
 		},

@@ -56,6 +56,7 @@ import { SETTINGS_HEADER_CLASS } from "@workspace/ui/components/settings-styles"
 import { Dialog, DialogTitle } from "@workspace/ui/components/ui/dialog"
 import { useIsNarrowerThan } from "@workspace/ui/hooks/use-is-narrower-than"
 import { useSettingsShortcut } from "@workspace/ui/hooks/use-settings-shortcut"
+import { useSettingsTab } from "@workspace/ui/hooks/use-settings-tab"
 import { cn } from "@workspace/ui/lib/utils"
 
 const FIRST_TAB = "general"
@@ -176,6 +177,10 @@ const BotSettingsDialog = ({
 		companion: value.identity,
 		companionName: botName,
 	})
+	const activeTab = useSettingsTab(
+		open,
+		showDanger ? DANGER_TAB : (tab ?? FIRST_TAB),
+	)
 
 	const patch = (fields: Partial<BotSettingsValue>) =>
 		onValueChange({ ...value, ...fields })
@@ -238,11 +243,9 @@ const BotSettingsDialog = ({
 				{skillSession.editor ?? mcpSession.editor ?? historySession.page ?? (
 					<Tabs.Root
 						className="flex min-h-0 flex-1"
-						defaultValue={
-							historySession.returnTab ??
-							(showDanger ? DANGER_TAB : (tab ?? FIRST_TAB))
-						}
+						onValueChange={activeTab.onValueChange}
 						orientation="vertical"
+						value={activeTab.value}
 						ref={setTabs}
 					>
 						<SettingsRail iconsOnly={iconsOnly}>

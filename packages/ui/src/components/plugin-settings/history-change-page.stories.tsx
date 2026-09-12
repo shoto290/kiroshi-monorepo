@@ -74,7 +74,7 @@ export const LongContent = meta.story({
 		docs: {
 			description: {
 				story:
-					"A change spread over four files, one of them nested deep enough that its path outgrows the rail. Reach for this to check the two things a narrow rail owes a reader: the row drops its leading folders for an ellipsis and keeps the file name whole, and the whole path is still readable in a tooltip on that row. Check too that the first file is chosen on open and that the arrow keys walk the rail without the pointer.",
+					"A change spread over four files, one of them nested deep enough that its path outgrows the rail. Reach for this to check what a narrow rail owes a reader: the row folds on a segment boundary, dropping leading folders one at a time until the rest fits, so more than the bare file name survives behind the fold mark, and the whole path is still readable in a tooltip on that row. Check too that the first file is chosen on open and that the arrow keys walk the rail without the pointer.",
 			},
 		},
 	},
@@ -85,7 +85,7 @@ export const LongContent = meta.story({
 		).toHaveAttribute("aria-selected", "true")
 
 		const deep = await waitFor(() =>
-			canvas.getByRole("tab", { name: "…/house-style.md" }),
+			canvas.getByRole("tab", { name: /^…\/[^/]+\/.*house-style\.md$/ }),
 		)
 
 		await userEvent.tab()
@@ -102,6 +102,30 @@ export const LongContent = meta.story({
 		await expect(
 			await within(document.body).findByRole("tooltip"),
 		).toHaveTextContent(DEEP_PATH)
+	},
+})
+
+export const Empty = meta.story({
+	args: { files: [] },
+	parameters: {
+		docs: {
+			description: {
+				story:
+					"A change the host answered with no file at all, and no flag to explain it. Check that the panel says the same thing it says on a failed read rather than drawing an empty frame, that the rail holds Back and nothing else, and above all that the foot sentence still says what Undo puts back while naming no file count — `Default` is the story where that count is real.",
+			},
+		},
+	},
+	play: async ({ canvas }) => {
+		await expect(canvas.queryAllByRole("tab")).toHaveLength(0)
+		await expect(
+			canvas.getByText(/Couldn't read the files of this change/),
+		).toBeVisible()
+
+		const foot = canvas.getByText(
+			"Puts everything back to how it read before this change, and writes that as a new change you can undo too.",
+		)
+		await expect(foot).toBeVisible()
+		await expect(foot).not.toHaveTextContent(/file/)
 	},
 })
 

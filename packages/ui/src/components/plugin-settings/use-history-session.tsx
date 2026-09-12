@@ -23,7 +23,6 @@ type HistorySessionProps = {
 type HistorySession = {
 	panel: ReactNode
 	page: ReactNode
-	returnTab?: string
 	discard: () => void
 }
 
@@ -35,22 +34,13 @@ const useHistorySession = ({
 }: HistorySessionProps): HistorySession => {
 	const { t } = useTranslation("bots")
 	const [opened, setOpened] = useState<HistoryChange | null>(null)
-	const [returnTab, setReturnTab] = useState<string | undefined>(undefined)
 
 	const open = (change: HistoryChange) => {
 		setOpened(change)
 		history?.onOpen?.(change)
 	}
 
-	const back = () => {
-		setOpened(null)
-		setReturnTab(HISTORY_TAB)
-	}
-
-	const discard = () => {
-		setOpened(null)
-		setReturnTab(undefined)
-	}
+	const close = () => setOpened(null)
 
 	const dateOf = (change: HistoryChange) => {
 		const day = history?.days.find((it) =>
@@ -71,7 +61,7 @@ const useHistorySession = ({
 			date={dateOf(change)}
 			files={opening.files ?? []}
 			haveFilesFailedToRead={opening.haveFilesFailedToRead}
-			onBack={back}
+			onBack={close}
 			onUndo={() => opening.onUndo(change)}
 			reason={change.detail}
 			retouchCount={change.retouchCount}
@@ -90,8 +80,7 @@ const useHistorySession = ({
 			/>
 		) : null,
 		page: history && opened ? pageFor(opened, history) : null,
-		returnTab,
-		discard,
+		discard: close,
 	}
 }
 

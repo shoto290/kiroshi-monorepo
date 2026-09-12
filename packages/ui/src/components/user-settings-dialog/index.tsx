@@ -41,6 +41,7 @@ import { AppearanceFields } from "@workspace/ui/components/user-settings-dialog/
 import { LanguageFields } from "@workspace/ui/components/user-settings-dialog/language-fields"
 import { NotificationFields } from "@workspace/ui/components/user-settings-dialog/notification-fields"
 import { useIsNarrowerThan } from "@workspace/ui/hooks/use-is-narrower-than"
+import { useSettingsTab } from "@workspace/ui/hooks/use-settings-tab"
 import type { Language } from "@workspace/ui/lib/i18n"
 import { cn } from "@workspace/ui/lib/utils"
 
@@ -103,6 +104,7 @@ const UserSettingsDialog = ({
 		companionName: t("plugin.author.bot"),
 		readerImage: value.image,
 	})
+	const activeTab = useSettingsTab(open, FIRST_TAB)
 
 	const patch = (fields: Partial<UserSettingsValue>) =>
 		onValueChange({ ...value, ...fields })
@@ -150,8 +152,9 @@ const UserSettingsDialog = ({
 				{skillSession.editor ?? historySession.page ?? (
 					<Tabs.Root
 						className="flex min-h-0 flex-1"
-						defaultValue={historySession.returnTab ?? FIRST_TAB}
+						onValueChange={activeTab.onValueChange}
 						orientation="vertical"
+						value={activeTab.value}
 						ref={setTabs}
 					>
 						<SettingsRail iconsOnly={iconsOnly}>
