@@ -20,7 +20,7 @@ use crate::db;
 use crate::db::repositories::conversations::Bot as StoredBot;
 use crate::db::repositories::runtime_context::ParticipantKey;
 use crate::environment::connection;
-use crate::environment::contract::{EnvError, EnvOwner, ResolvedEnv};
+use crate::environment::contract::{EnvError, EnvOwner, ResolvedEnv, Values};
 use crate::environment::store as environment;
 use crate::mcp_oauth::refresh;
 use crate::mcp_oauth::reports::ConnectorHost;
@@ -342,7 +342,7 @@ impl AgentState {
 		self.sidecar.lock().await.take()
 	}
 
-	async fn models(&self) -> Vec<String> {
+	async fn models(&self, connection: &Values) -> Vec<String> {
 		let mut cached = self.models.lock().await;
 		if let Some(found) = cached.as_ref() {
 			return found.clone();
@@ -350,14 +350,14 @@ impl AgentState {
 		let Ok(sidecar) = self.sidecar().await else {
 			return Vec::new();
 		};
-		let Ok(offered) = sidecar.catalogue().await else {
+		let Ok(offered) = sidecar.catalogue(connection).await else {
 			return Vec::new();
 		};
 		*cached = Some(offered.clone());
 		offered
 	}
 
-	async fn tools(&self) -> Vec<String> {
+	async fn tools(&self, connection: &Values) -> Vec<String> {
 		let mut cached = self.tools.lock().await;
 		if let Some(found) = cached.as_ref() {
 			return found.clone();
@@ -365,16 +365,16 @@ impl AgentState {
 		let Ok(sidecar) = self.sidecar().await else {
 			return Vec::new();
 		};
-		let Ok(offered) = sidecar.tools().await else {
+		let Ok(offered) = sidecar.tools(connection).await else {
 			return Vec::new();
 		};
 		*cached = Some(offered.clone());
 		offered
 	}
 
-	async fn title(&self, text: &str) -> Option<String> {
+	async fn title(&self, text: &str, connection: &Values) -> Option<String> {
 		let sidecar = self.sidecar().await.ok()?;
-		sidecar.title(text).await.ok().flatten()
+		sidecar.title(text, connection).await.ok().flatten()
 	}
 }
 
@@ -395,17 +395,30 @@ fn stale(scope: &RuntimeScope) -> TransportError {
 
 #[tauri::command]
 pub async fn agent_models<R: Runtime>(app: AppHandle<R>) -> Vec<String> {
-	app.state::<AgentState>().models().await
+	app.state::<AgentState>().models(&held_connection(&app)).await
 }
 
 #[tauri::command]
 pub async fn agent_tools<R: Runtime>(app: AppHandle<R>) -> Vec<String> {
-	app.state::<AgentState>().tools().await
+	app.state::<AgentState>().tools(&held_connection(&app)).await
 }
 
 #[tauri::command]
 pub async fn agent_title<R: Runtime>(app: AppHandle<R>, text: String) -> Option<String> {
-	app.state::<AgentState>().title(&text).await
+	app.state::<AgentState>().title(&text, &held_connection(&app)).await
+}
+
+fn held_connection<R: Runtime>(app: &AppHandle<R>) -> Values {
+	let Some(root) = environment::root(app) else {
+		return Values::new();
+	};
+	match connection::held(&root) {
+		Ok(held) => held,
+		Err(failure) => {
+			eprintln!("{ENV_UNREADABLE}: {failure:?}");
+			Values::new()
+		}
+	}
 }
 
 #[tauri::command]
@@ -634,6 +647,7 @@ pub async fn agent_start_or_resume_session<R: Runtime>(
 	let options = SessionOptions::new(working_dir)
 		.bundled(identity.bundle)
 		.serving(identity.server_env)
+		.connected(held_connection(&app))
 		.with_app_data(app.path().app_data_dir().ok())
 		.in_conversation(scope.conversation_id.clone())
 		.hosting(Arc::new(RoutineHost::new(

@@ -28,6 +28,7 @@ export type SessionRequest = {
 	conversationId?: string
 	partialMessages: boolean
 	serverEnv?: ServerEnv
+	connection?: Record<string, string>
 	outputSchema?: Record<string, unknown>
 }
 
@@ -82,9 +83,12 @@ export type AgentProvider = {
 	signIn: (emit: EmitFrame) => Promise<SignInAnswer>
 	enterSignInCode: (text: string) => void
 	cancelSignIn: () => void
-	models: () => Promise<string[]>
-	tools: () => Promise<string[]>
-	title: (text: string) => Promise<string | null>
+	models: (connection?: Record<string, string>) => Promise<string[]>
+	tools: (connection?: Record<string, string>) => Promise<string[]>
+	title: (
+		text: string,
+		connection?: Record<string, string>,
+	) => Promise<string | null>
 	open: (request: SessionRequest, emit: EmitFrame) => Promise<AgentSession>
 }
 

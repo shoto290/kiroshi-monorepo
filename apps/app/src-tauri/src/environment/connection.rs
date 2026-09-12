@@ -22,9 +22,8 @@ pub fn held_kind(root: &Path) -> Result<Option<ConnectionKind>, EnvError> {
 }
 
 pub fn held(root: &Path) -> Result<Values, EnvError> {
-	let mut values = store::values(root, &EnvScope::Person)?;
-	values.retain(|name, _| is_a_connection_name(name));
-	Ok(values)
+	let values = store::values(root, &EnvScope::Person)?;
+	Ok(values.into_iter().find(|(name, _)| is_a_connection_name(name)).into_iter().collect())
 }
 
 #[cfg(test)]
@@ -151,15 +150,39 @@ mod tests {
 	}
 
 	#[test]
-	fn every_companion_of_every_space_resolves_the_source_in_its_base() {
+	fn a_held_source_stays_out_of_the_environment_resolved_for_a_companion() {
 		let root = a_root("resolved");
 		hold(&root, ConnectionKind::SubscriptionToken, "token").expect("the token is stored");
 		let other = EnvOwner::Bot { id: "b9".to_owned(), space_id: "s9".to_owned() };
 
 		for owner in [a_bot(), other, EnvOwner::Space { id: "s2".to_owned() }] {
 			let resolved = store::resolve(&root, &owner).expect("the store reads");
-			assert_eq!(resolved.base.get(SUBSCRIPTION_TOKEN).map(String::as_str), Some("token"));
+			assert_eq!(resolved.base.get(SUBSCRIPTION_TOKEN), None);
+			assert_eq!(resolved.base.get(API_KEY), None);
 		}
+	}
+
+	#[test]
+	fn a_name_a_narrower_scope_still_holds_reaches_neither_the_base_nor_an_overlay() {
+		let root = a_root("legacy");
+		let space = EnvScope::Space { id: "s1".to_owned() };
+		let bot = EnvScope::from(&a_bot());
+		let server = EnvScope::Server { name: "clock".to_owned(), owner: a_bot() };
+		store::set(&root, &space, API_KEY, "from-the-space").expect("the space keeps it");
+		store::set(&root, &bot, SUBSCRIPTION_TOKEN, "from-the-bot").expect("the bot keeps it");
+		store::set(&root, &server, API_KEY, "from-the-server").expect("the server keeps it");
+		hold(&root, ConnectionKind::ApiKey, "sk-held").expect("the key is stored");
+
+		let resolved = store::resolve(&root, &a_bot()).expect("the store reads");
+
+		for name in CONNECTION_NAMES {
+			assert_eq!(resolved.base.get(name), None, "{name} reached the base");
+			assert!(
+				resolved.per_server.values().all(|overlay| !overlay.contains_key(name)),
+				"{name} reached an overlay"
+			);
+		}
+		assert_eq!(held(&root).expect("the store reads"), holding(&[(API_KEY, "sk-held")]));
 	}
 
 	#[test]

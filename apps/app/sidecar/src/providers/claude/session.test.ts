@@ -181,18 +181,33 @@ describe("buildOptions", () => {
 		expect(env[EXECUTABLE_OVERRIDE_ENV]).toBe(claudeSourceExecutable())
 	})
 
-	it("hands the agent the connection names of the resolved base and no other name of it", () => {
-		const serverEnv = {
-			base: { CLAUDE_CODE_OAUTH_TOKEN: "stored-token", LINEAR_KEY: "lin" },
-		}
+	it("hands the agent the held source of the connection field alone", () => {
+		const connection = { CLAUDE_CODE_OAUTH_TOKEN: "stored-token" }
+		const serverEnv = { base: { LINEAR_KEY: "lin" } }
 
-		const env = buildOptions({ ...request, serverEnv }, undefined).env ?? {}
+		const env =
+			buildOptions({ ...request, connection, serverEnv }, undefined).env ?? {}
 
 		expect(env.CLAUDE_CODE_OAUTH_TOKEN).toBe("stored-token")
 		expect(env.LINEAR_KEY).toBeUndefined()
 	})
 
-	it("hands the agent no connection name while none is stored", () => {
+	it("hands the agent neither name when the base carries both and no source is held", () => {
+		const serverEnv = {
+			base: {
+				ANTHROPIC_API_KEY: "sk-from-the-base",
+				CLAUDE_CODE_OAUTH_TOKEN: "token-from-the-base",
+			},
+		}
+
+		const env = buildOptions({ ...request, serverEnv }, undefined).env ?? {}
+
+		for (const key of CONNECTION_KEYS) {
+			expect(env).not.toHaveProperty(key)
+		}
+	})
+
+	it("hands the agent no connection name while none is held", () => {
 		const env = buildOptions(request, undefined).env ?? {}
 
 		for (const key of CONNECTION_KEYS) {

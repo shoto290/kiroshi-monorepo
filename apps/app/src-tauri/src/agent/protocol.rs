@@ -61,6 +61,8 @@ pub struct OpenRequest {
 	pub env: std::collections::BTreeMap<String, String>,
 	#[serde(skip_serializing_if = "ResolvedEnv::is_untouched")]
 	pub server_env: ResolvedEnv,
+	#[serde(skip_serializing_if = "std::collections::BTreeMap::is_empty")]
+	pub connection: Values,
 	#[serde(skip_serializing_if = "Option::is_none")]
 	pub output_schema: Option<Value>,
 }
@@ -353,16 +355,12 @@ pub struct SignedIn {
 	pub error: Option<SignInFailure>,
 }
 
-pub fn ask_command(kind: &str) -> Value {
-	serde_json::json!({ "type": kind })
+pub fn ask_command(kind: &str, connection: &Values) -> Value {
+	serde_json::json!({ "type": kind, "connection": connection })
 }
 
-pub fn check_command(connection: &Values) -> Value {
-	serde_json::json!({ "type": CHECK, "connection": connection })
-}
-
-pub fn title_command(text: &str) -> Value {
-	serde_json::json!({ "type": TITLE, "text": text })
+pub fn title_command(text: &str, connection: &Values) -> Value {
+	serde_json::json!({ "type": TITLE, "text": text, "connection": connection })
 }
 
 #[derive(Debug, Clone, Deserialize)]

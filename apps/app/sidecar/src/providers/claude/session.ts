@@ -127,7 +127,7 @@ export const buildOptions = (
 			preset: "claude_code",
 			append: layerFor(request, resolved.rejections),
 		},
-		env: sessionEnv(request.serverEnv?.base),
+		env: sessionEnv(request.connection),
 		managedSettings,
 		settingSources: [],
 		strictMcpConfig: true,

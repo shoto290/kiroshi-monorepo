@@ -101,11 +101,13 @@ pub fn resolve(root: &Path, owner: &EnvOwner) -> Result<ResolvedEnv, EnvError> {
 	for step in chain(&EnvScope::from(owner)).into_iter().rev() {
 		base.extend(stored(&file(root, &step)?)?);
 	}
+	base.retain(|name, _| !is_a_connection_name(name));
 	let mut per_server = PerServer::new();
 	for held in owners(owner) {
 		for name in server_names(root, &held)? {
 			let scope = EnvScope::Server { name: name.clone(), owner: held.clone() };
-			let own = stored(&file(root, &scope)?)?;
+			let mut own = stored(&file(root, &scope)?)?;
+			own.retain(|(name, _)| !is_a_connection_name(name));
 			if own.is_empty() {
 				continue;
 			}
@@ -218,8 +220,7 @@ fn chain(scope: &EnvScope) -> Vec<EnvScope> {
 
 fn broader(scope: &EnvScope) -> Option<EnvScope> {
 	match scope {
-		EnvScope::Person => None,
-		EnvScope::Space { .. } => Some(EnvScope::Person),
+		EnvScope::Space { .. } | EnvScope::Person => None,
 		EnvScope::Bot { space_id, .. } => Some(EnvScope::Space { id: space_id.clone() }),
 		EnvScope::Server { owner, .. } => Some(owner.into()),
 	}

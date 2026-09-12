@@ -4,6 +4,7 @@ import { query } from "@anthropic-ai/claude-agent-sdk"
 
 import { resolveExecutable } from "./executable"
 import { createPromptStream } from "./prompt-stream"
+import { sessionEnv } from "./session-env"
 
 const TITLE_LIMIT = 60
 
@@ -24,21 +25,27 @@ export const shortTitle = (answer: string): string | null => {
 
 const asked = (text: string) => `${INSTRUCTIONS}\n\n${text}`
 
-export const claudeTitle = async (text: string): Promise<string | null> => {
+export const titleOptions = (connection?: Record<string, string>) => ({
+	cwd: tmpdir(),
+	allowedTools: [],
+	settingSources: [],
+	persistSession: false,
+	pathToClaudeCodeExecutable: resolveExecutable(),
+	env: sessionEnv(connection),
+	stderr: () => {},
+})
+
+export const claudeTitle = async (
+	text: string,
+	connection?: Record<string, string>,
+): Promise<string | null> => {
 	if (!text.trim()) {
 		return null
 	}
 	const prompts = createPromptStream()
 	const run = query({
 		prompt: prompts.stream,
-		options: {
-			cwd: tmpdir(),
-			allowedTools: [],
-			settingSources: [],
-			persistSession: false,
-			pathToClaudeCodeExecutable: resolveExecutable(),
-			stderr: () => {},
-		},
+		options: titleOptions(connection),
 	})
 	try {
 		prompts.push(asked(text))
