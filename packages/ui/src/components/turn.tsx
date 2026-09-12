@@ -116,6 +116,7 @@ type AssistantTurnProps = BotStopProps & {
 	cause?: TurnCause
 	identity?: RosterBot
 	carriesMark?: boolean
+	footer?: ReactNode
 	className?: string
 }
 
@@ -426,13 +427,14 @@ function AssistantTurn(props: AssistantTurnProps) {
 		cause,
 		identity,
 		carriesMark = false,
+		footer,
 		className,
 	} = props
 	const { t } = useTranslation("chat")
 	const markedBotId = carriesMark ? (botId ?? author?.id) : undefined
 	const markId = useMarkId(markedBotId)
 	const footerKey = TURN_FOOTER_KEY[state]
-	const footer = footerKey ? t(footerKey) : undefined
+	const shownFooter = footerKey ? t(footerKey) : footer
 	const anchor = useMessageAnchor(messageId)
 	const actions = useTurnActions({ copyText, onReply, onPin, pinned })
 	const gutterBot = identity ?? (closesRun(run) ? author : undefined)
@@ -509,9 +511,9 @@ function AssistantTurn(props: AssistantTurnProps) {
 						</TurnBody>
 					</MessageActions>
 				</MessageBubble>
-				{footer ? (
+				{shownFooter ? (
 					<MessageFooter className="col-start-2 row-start-3 pt-1.5">
-						{footer}
+						{shownFooter}
 					</MessageFooter>
 				) : null}
 			</MessageContent>

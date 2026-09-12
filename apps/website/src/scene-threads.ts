@@ -123,7 +123,10 @@ const EXCHANGES: Record<string, SceneExchange> = {
 	},
 	[SABLE.id]: {
 		bot: SABLE,
-		turns: [asks(COPY.sable.ask), says(SABLE, COPY.sable.answer)],
+		turns: [
+			asks(COPY.sable.ask),
+			says(SABLE, COPY.sable.answer, COPY.sable.note),
+		],
 	},
 	[JUNO.id]: {
 		bot: JUNO,
