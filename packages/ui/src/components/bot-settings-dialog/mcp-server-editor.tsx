@@ -123,10 +123,14 @@ const McpAuthorization = ({
 		if (state === "needsAuthorization")
 			return t("connectors.connection.description.needsAuthorization", { name })
 		if (state === "connecting")
-			return host ? t("connectors.connection.description.connecting", { host }) : null
+			return host
+				? t("connectors.connection.description.connecting", { host })
+				: null
 		if (state === "connected")
 			return authorizedAt
-				? t("connectors.connection.description.connected", { date: authorizedAt })
+				? t("connectors.connection.description.connected", {
+						date: authorizedAt,
+					})
 				: null
 		return null
 	}
