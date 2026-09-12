@@ -42,6 +42,28 @@ import {
 	STATE_POSES,
 } from "@workspace/ui/components/bot-avatar-data"
 import {
+	type BotAvatarGaze,
+	type BotAvatarGazeCadence,
+	blinkDelay,
+	blinksWithDart,
+	clampGaze,
+	drawGazeTarget,
+	GAZE_AXES,
+	GAZE_CADENCE,
+	GAZE_CENTRE,
+	GAZE_DART_DURATION,
+	GAZE_HEAD_DELAY,
+	GAZE_HEAD_SPRING_DAMPING,
+	GAZE_HEAD_SPRING_FREQUENCY,
+	gazeAlong,
+	gazeTravel,
+	glanceDelay,
+	headGazeAsPose,
+	headGazeFor,
+	isGazeCentred,
+	rigFromHeadGaze,
+} from "@workspace/ui/components/bot-avatar-gaze"
+import {
 	type BotAvatarEarRest,
 	type BotAvatarSilhouette,
 	botAvatarSilhouette,
@@ -68,7 +90,7 @@ const POSE_SPRING_FREQUENCY = 9
 const POSE_SPRING_DAMPING = 0.9
 const EAR_WIGGLE_VELOCITY_LIMIT = 3
 const EAR_WIGGLE_DEGREES = 1.8
-const EAR_WIGGLE_FACE_DRIFT = 0.08
+const EAR_WIGGLE_GAZE_DRIFT = 0.08
 const EAR_SWAY_DEGREES = 1.6
 const EAR_SWAY_RATE = 0.0008
 const EAR_SWAY_STAGGER = 2.3
@@ -124,8 +146,6 @@ const centroid = (ring: number[][]) => {
 	}
 	return [x / ring.length, y / ring.length]
 }
-
-const EYE_HOME = centroid(EXPRESSIONS.flat(2) as unknown as number[][])
 
 const ringHeight = (ring: number[][]) => {
 	let min = Number.POSITIVE_INFINITY
@@ -237,8 +257,17 @@ export class BotAvatarEngine {
 	private eyeVisible = [true, true]
 	private boilIndex = 0
 	private eyesDirty = true
-	private faceDx = 0
-	private faceDy = 0
+	private gaze: BotAvatarGaze = { ...GAZE_CENTRE }
+	private gazeFrom: BotAvatarGaze = { ...GAZE_CENTRE }
+	private gazeTarget: BotAvatarGaze = { ...GAZE_CENTRE }
+	private gazeDartAt: number | null = null
+	private gazeHeld: BotAvatarGaze | null = null
+	private gazeWasCentred = true
+	private headGaze: BotAvatarGaze = { ...GAZE_CENTRE }
+	private headGazeTarget: BotAvatarGaze = { ...GAZE_CENTRE }
+	private headGazeVelocity: BotAvatarGaze = { ...GAZE_CENTRE }
+	private displayGaze: BotAvatarGaze = { ...GAZE_CENTRE }
+	private renderedGaze: BotAvatarGaze = { yaw: 9, pitch: 9 }
 	private timers: ReturnType<typeof setTimeout>[] = []
 	private boilTimer: ReturnType<typeof setInterval> | null = null
 	private basePose: Partial<EulerAngles> = {}
@@ -315,6 +344,9 @@ export class BotAvatarEngine {
 			this.scheduleAll()
 			this.applyBoil()
 		}
+		if (!GAZE_CADENCE[state] && this.gazeHeld === null) {
+			this.startDart({ ...GAZE_CENTRE })
+		}
 	}
 
 	setOrientation({ yaw, pitch, roll }: BotAvatarOrientation) {
@@ -324,6 +356,21 @@ export class BotAvatarEngine {
 			roll: roll === undefined ? undefined : toRadians(roll),
 		}
 		this.invalidate()
+	}
+
+	setGaze(gaze: BotAvatarGaze | null) {
+		const wasHeld = this.gazeHeld !== null
+		this.gazeHeld = gaze && clampGaze(gaze)
+		if (this.gazeHeld) {
+			this.gaze = { ...this.gazeHeld }
+			this.gazeFrom = { ...this.gazeHeld }
+			this.gazeTarget = { ...this.gazeHeld }
+			this.gazeDartAt = null
+			this.headGazeTarget = headGazeFor(this.gazeHeld)
+			this.invalidate()
+			return
+		}
+		if (wasHeld && this.release !== null) this.scheduleGlance()
 	}
 
 	setPerspective(perspective: number) {
@@ -338,6 +385,7 @@ export class BotAvatarEngine {
 
 	private invalidate() {
 		this.renderedPose = { yaw: 9, pitch: 9, roll: 9 }
+		this.renderedGaze = { yaw: 9, pitch: 9 }
 	}
 
 	private write(el: Element | null | undefined, name: string, value: string) {
@@ -380,6 +428,13 @@ export class BotAvatarEngine {
 		this.morph = 1
 		this.velocity = 0
 		this.ambient = { ...NEUTRAL_POSE }
+		this.gaze = { ...(this.gazeHeld ?? GAZE_CENTRE) }
+		this.gazeFrom = { ...this.gaze }
+		this.gazeTarget = { ...this.gaze }
+		this.gazeDartAt = null
+		this.headGaze = headGazeFor(this.gaze)
+		this.headGazeTarget = { ...this.headGaze }
+		this.headGazeVelocity = { ...GAZE_CENTRE }
 		this.pose = {
 			yaw: this.restPose("yaw"),
 			pitch: this.restPose("pitch"),
@@ -396,6 +451,7 @@ export class BotAvatarEngine {
 	}
 
 	private scheduleAll() {
+		this.scheduleGlance()
 		this.scheduleExpression()
 		this.scheduleBlink()
 		this.scheduleEarTwitch()
@@ -450,6 +506,65 @@ export class BotAvatarEngine {
 			this.selectExpression(next)
 			this.scheduleExpression()
 		})
+	}
+
+	private scheduleGlance() {
+		const cadence = GAZE_CADENCE[this.state]
+		if (!cadence || this.gazeHeld !== null) return
+		this.schedule(glanceDelay(cadence, Math.random), () => {
+			this.startDart(this.nextGazeTarget(cadence))
+			this.scheduleGlance()
+		})
+	}
+
+	private nextGazeTarget(cadence: BotAvatarGazeCadence): BotAvatarGaze {
+		if (cadence.returnsToCentre && !this.gazeWasCentred) {
+			this.gazeWasCentred = true
+			return { ...GAZE_CENTRE }
+		}
+		const target = drawGazeTarget(cadence, Math.random)
+		this.gazeWasCentred = isGazeCentred(target)
+		return target
+	}
+
+	private startDart(target: BotAvatarGaze) {
+		this.gazeFrom = { ...this.gaze }
+		this.gazeTarget = target
+		if (this.release === null) {
+			this.gaze = { ...target }
+			this.headGazeTarget = headGazeFor(target)
+			this.gazeDartAt = null
+			return
+		}
+		this.gazeDartAt = performance.now()
+		this.schedule(GAZE_HEAD_DELAY, () => {
+			this.headGazeTarget = headGazeFor(target)
+		})
+		if (!blinksWithDart(gazeTravel(this.gazeFrom, target), Math.random)) return
+		this.schedule(blinkDelay(Math.random), () => {
+			this.blinkStart = performance.now()
+			this.eyesDirty = true
+		})
+	}
+
+	private stepGaze(now: number, dt: number) {
+		if (this.gazeDartAt !== null) {
+			const elapsed = now - this.gazeDartAt
+			this.gaze = gazeAlong(this.gazeFrom, this.gazeTarget, elapsed)
+			if (elapsed >= GAZE_DART_DURATION) this.gazeDartAt = null
+		}
+		for (const axis of GAZE_AXES) {
+			const [next, velocity] = springStep(
+				this.headGaze[axis],
+				this.headGazeVelocity[axis],
+				this.headGazeTarget[axis],
+				GAZE_HEAD_SPRING_FREQUENCY,
+				GAZE_HEAD_SPRING_DAMPING,
+				dt,
+			)
+			this.headGaze[axis] = Number.isFinite(next) ? next : 0
+			this.headGazeVelocity[axis] = Number.isFinite(velocity) ? velocity : 0
+		}
 	}
 
 	private scheduleBlink() {
@@ -532,16 +647,25 @@ export class BotAvatarEngine {
 	}
 
 	private quantizePose() {
+		const headPose = headGazeAsPose(this.headGaze)
 		for (const axis of POSE_AXES) {
-			this.displayPose[axis] = quantize(this.pose[axis], RADIAN_STEP)
+			this.displayPose[axis] = quantize(
+				this.pose[axis] + headPose[axis],
+				RADIAN_STEP,
+			)
+		}
+		for (const axis of GAZE_AXES) {
+			this.displayGaze[axis] = quantize(this.gaze[axis], DEGREE_STEP)
 		}
 	}
 
-	private poseMoved() {
+	private viewMoved() {
 		return (
 			this.displayPose.yaw !== this.renderedPose.yaw ||
 			this.displayPose.pitch !== this.renderedPose.pitch ||
-			this.displayPose.roll !== this.renderedPose.roll
+			this.displayPose.roll !== this.renderedPose.roll ||
+			this.displayGaze.yaw !== this.renderedGaze.yaw ||
+			this.displayGaze.pitch !== this.renderedGaze.pitch
 		)
 	}
 
@@ -549,6 +673,7 @@ export class BotAvatarEngine {
 		const dt = Math.min((now - this.lastFrame) / 1000, 0.1)
 		this.lastFrame = now
 		this.stepPose(now, dt)
+		this.stepGaze(now, dt)
 		;[this.morph, this.velocity] = springStep(
 			this.morph,
 			this.velocity,
@@ -600,7 +725,7 @@ export class BotAvatarEngine {
 				EAR_WIGGLE_VELOCITY_LIMIT,
 			) *
 				EAR_WIGGLE_DEGREES +
-			this.faceDx * EAR_WIGGLE_FACE_DRIFT
+			this.headGaze.yaw * EAR_WIGGLE_GAZE_DRIFT
 		for (let index = 0; index < this.animal.ears.length; index += 1) {
 			const ear = this.animal.ears[index]
 			const el = parts.ears[index]
@@ -680,19 +805,21 @@ export class BotAvatarEngine {
 			Math.min(1, 64 / Math.max(1, eyesHeight(rings) * animal.scale))
 		const offsetY = animal.faceY - this.surface.center[1]
 		const [rx, ry, rz] = this.surface.radii
-		const eyeCentroids: number[][] = []
+		const gazeLongitude = toRadians(this.displayGaze.yaw)
+		const gazeLatitude = toRadians(this.displayGaze.pitch)
 		rings.forEach((ring, index) => {
 			const middle = centroid(ring)
-			eyeCentroids.push(middle)
 			const middleY = (middle[1] - CENTER) * faceScale + offsetY
 			const points: Vec2[] = []
 			const visible: boolean[] = []
 			for (const vertex of ring) {
-				const longitude = ((vertex[0] - CENTER) * faceScale) / rx
+				const longitude =
+					((vertex[0] - CENTER) * faceScale) / rx + gazeLongitude
 				const latitude =
 					(middleY +
 						((vertex[1] - CENTER) * faceScale + offsetY - middleY) * blink) /
-					ry
+						ry +
+					gazeLatitude
 				const cosLatitude = Math.cos(latitude)
 				const point: Vec3 = [
 					rx * cosLatitude * Math.sin(longitude),
@@ -715,8 +842,6 @@ export class BotAvatarEngine {
 			}
 			this.writeEye(index, points, visible)
 		})
-		this.faceDx = (eyeCentroids[0][0] + eyeCentroids[1][0]) / 2 - EYE_HOME[0]
-		this.faceDy = (eyeCentroids[0][1] + eyeCentroids[1][1]) / 2 - EYE_HOME[1]
 	}
 
 	private writeEye(index: number, points: Vec2[], visible: boolean[]) {
@@ -808,7 +933,6 @@ export class BotAvatarEngine {
 	private render(now: number) {
 		const parts = this.parts
 		if (!parts) return
-		const animal = this.animal
 		const settled =
 			this.morph > 0.999 &&
 			Math.abs(this.velocity) < 0.001 &&
@@ -830,10 +954,12 @@ export class BotAvatarEngine {
 			welds[index][0] = weld[0]
 			welds[index][1] = weld[1]
 		}
-		if (!settled || this.eyesDirty || this.poseMoved()) {
+		if (!settled || this.eyesDirty || this.viewMoved()) {
 			this.renderedPose.yaw = this.displayPose.yaw
 			this.renderedPose.pitch = this.displayPose.pitch
 			this.renderedPose.roll = this.displayPose.roll
+			this.renderedGaze.yaw = this.displayGaze.yaw
+			this.renderedGaze.pitch = this.displayGaze.pitch
 			this.renderHead(headAffine)
 			this.renderEyes(rotation, now)
 			this.renderWire(rotation, welds)
@@ -844,12 +970,10 @@ export class BotAvatarEngine {
 			clamp(this.velocity * 0.025, -0.09, 0.13),
 			SCALE_STEP,
 		)
-		const rigDx = quantize(this.faceDx * animal.scale * 0.5, UNIT_STEP)
-		const rigDy = quantize(
-			this.faceDy * animal.scale * 0.5 + breath * 1.3,
-			UNIT_STEP,
-		)
-		const tilt = quantize(this.faceDx * 0.12, DEGREE_STEP)
+		const rig = rigFromHeadGaze(this.headGaze.yaw)
+		const rigDx = quantize(rig.translation, UNIT_STEP)
+		const rigDy = quantize(breath * 1.3, UNIT_STEP)
+		const tilt = quantize(rig.tilt, DEGREE_STEP)
 		this.write(
 			parts.rig,
 			"transform",
