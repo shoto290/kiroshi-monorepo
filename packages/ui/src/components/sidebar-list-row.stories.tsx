@@ -400,12 +400,14 @@ export const PreviewFromNodes = meta.story({
 		const preview = slotIn(row, "roster-row-preview")
 		if (!preview) throw new Error("The row draws no preview line")
 
+		const [lead, opened] = Array.from(preview.children)
+		if (!lead || !opened) throw new Error("The preview line writes no node")
+
 		await expect(preview.children).toHaveLength(2)
-		await expect(preview).toHaveTextContent("Pin the room")
-		await expect(slotIn(row, "preview-lead")).toHaveTextContent("OPE-64")
-		await expect(
-			getComputedStyle(preview.children[1] as Element, "::before").content,
-		).toBe('"·"')
+		await expect(lead).toBe(slotIn(row, "preview-lead"))
+		await expect(lead).toHaveTextContent("OPE-64")
+		await expect(opened).toHaveTextContent("Pin the room")
+		await expect(getComputedStyle(opened, "::before").content).toBe('"·"')
 		await expect(preview.clientHeight).toBe(16)
 		await expect(row.querySelectorAll(NON_PHRASING)).toHaveLength(0)
 	},

@@ -198,18 +198,19 @@ export const PartsRepeatingTheSameWords = meta.story({
 		},
 	},
 	play: async ({ canvas, canvasElement }) => {
-		const twins = canvas.getAllByText(WAITING_BOT_MISSION.bot.name)
-		const parts = partsIn(canvasElement)
+		const [ticket, ...opened] = partsIn(canvasElement)
+		if (!ticket) throw new Error("The preview line writes no part")
 
-		await expect(twins).toHaveLength(2)
-		await expect(parts.map((part) => part.textContent)).toEqual([
+		await expect(
+			canvas.getAllByText(WAITING_BOT_MISSION.bot.name),
+		).toHaveLength(2)
+		await expect([ticket, ...opened].map((part) => part.textContent)).toEqual([
 			WAITING_BOT_MISSION.bot.name,
 			WAITING_BOT_MISSION.bot.name,
 			"Working",
 		])
-		await expect(separatorOf(parts[0] as Element)).toBe("none")
-		for (const opened of parts.slice(1))
-			await expect(separatorOf(opened)).toBe('"·"')
+		await expect(separatorOf(ticket)).toBe("none")
+		for (const part of opened) await expect(separatorOf(part)).toBe('"·"')
 	},
 })
 
