@@ -245,15 +245,15 @@ export const Waiting = meta.story({
 		const submit = canvas.getByRole("button", { name: "Continue" })
 		const exit = canvas.getByRole("button", { name: "Paste a key instead" })
 
+		const muted = getComputedStyle(canvas.getByText("1 of 3")).color
+
 		for (const step of [linkStep, codeStep]) {
 			const type = getComputedStyle(step)
 
 			await expect(type.fontSize).toBe("12px")
 			await expect(type.lineHeight).toBe("16px")
 			await expect(type.paddingInlineStart).toBe("4px")
-			await expect(type.color).toBe(
-				getComputedStyle(canvas.getByText("1 of 3")).color,
-			)
+			await expect(type.color).toBe(muted)
 		}
 
 		const codeBlock = slotIn(canvasElement, "onboarding-field")
