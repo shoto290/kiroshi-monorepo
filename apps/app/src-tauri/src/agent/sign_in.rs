@@ -107,7 +107,7 @@ pub async fn agent_sign_in_code<R: Runtime>(
 	text: String,
 ) -> Result<(), SignInError> {
 	if !app.state::<SignInState>().is_running() {
-		return Ok(());
+		return Err(SignInError::NotRunning);
 	}
 	Ok(app.state::<AgentState>().sidecar().await?.enter_sign_in_code(&text)?)
 }
@@ -115,7 +115,7 @@ pub async fn agent_sign_in_code<R: Runtime>(
 #[tauri::command]
 pub async fn agent_sign_in_cancel<R: Runtime>(app: AppHandle<R>) -> Result<(), SignInError> {
 	if !app.state::<SignInState>().is_running() {
-		return Ok(());
+		return Err(SignInError::NotRunning);
 	}
 	Ok(app.state::<AgentState>().sidecar().await?.cancel_sign_in()?)
 }
@@ -146,6 +146,10 @@ mod tests {
 		assert_eq!(
 			to_value(SignInError::AlreadyRunning).expect("the error serializes"),
 			json!({ "kind": "alreadyRunning" })
+		);
+		assert_eq!(
+			to_value(SignInError::NotRunning).expect("the error serializes"),
+			json!({ "kind": "notRunning" })
 		);
 		assert_eq!(
 			to_value(SignInError::RefusedUrl { url: "javascript:alert(1)".to_owned() })

@@ -55,6 +55,12 @@ describe("inheritedEnv", () => {
 		expect(env).toEqual({ PATH: "/usr/bin" })
 	})
 
+	it("drops BROWSER, which the sign-in sets to a command opening nothing", () => {
+		expect(inheritedEnv({ PATH: "/usr/bin", BROWSER: "open" })).toEqual({
+			PATH: "/usr/bin",
+		})
+	})
+
 	it("omits an allowed key the sidecar does not carry", () => {
 		expect(inheritedEnv({ PATH: "/usr/bin" })).not.toHaveProperty("HOME")
 	})

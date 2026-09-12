@@ -1,4 +1,4 @@
-use std::path::PathBuf;
+use std::path::{Path, PathBuf};
 use std::time::Duration;
 
 use kiroshi_app::agent::commands::terminate_session;
@@ -82,11 +82,19 @@ async fn wind_down(app: &App<MockRuntime>) {
 	terminate_session(app.state::<AgentState>().inner()).await;
 }
 
-fn a_cancel_file(name: &str) -> PathBuf {
-	let path =
-		std::env::temp_dir().join(format!("kiroshi-sign-in-cancel-{name}-{}", std::process::id()));
+fn a_received_file(name: &str) -> PathBuf {
+	let path = std::env::temp_dir()
+		.join(format!("kiroshi-sign-in-received-{name}-{}", std::process::id()));
 	let _ = std::fs::remove_file(&path);
 	path
+}
+
+fn records_received(path: &Path) -> (&'static str, String) {
+	("FAKE_AGENT_SIGN_IN_RECEIVED_FILE", path.to_str().expect("a printable path").to_owned())
+}
+
+fn received(path: &Path) -> String {
+	std::fs::read_to_string(path).unwrap_or_default()
 }
 
 #[test]
@@ -178,11 +186,8 @@ fn a_url_no_browser_may_be_handed_is_refused_and_never_emitted() {
 #[test]
 fn a_dropped_invoke_leaves_no_sign_in_running_in_the_sidecar() {
 	let _serial = serial();
-	let cancel_file = a_cancel_file("dropped");
-	let _env = ScopedEnv::set(&[(
-		"FAKE_AGENT_SIGN_IN_CANCEL_FILE",
-		cancel_file.to_str().expect("a printable path").to_owned(),
-	)]);
+	let cancel_file = a_received_file("dropped");
+	let _env = ScopedEnv::set(&[records_received(&cancel_file)]);
 	let app = an_app();
 	let mut urls = started_urls(&app);
 	let handle = app.handle().clone();
@@ -206,5 +211,33 @@ fn a_dropped_invoke_leaves_no_sign_in_running_in_the_sidecar() {
 
 		assert!(cancelled.is_ok(), "the dropped invoke left its sign-in running");
 		assert_eq!(reopened, json!({ "url": FAKE_URL }));
+	});
+}
+
+#[test]
+fn a_code_and_a_cancel_while_no_sign_in_runs_are_refused_and_reach_no_sidecar() {
+	let _serial = serial();
+	let received_file = a_received_file("idle");
+	let _env = ScopedEnv::set(&[records_received(&received_file)]);
+	let app = an_app();
+	let mut urls = started_urls(&app);
+	let handle = app.handle().clone();
+
+	tauri::async_runtime::block_on(async {
+		let signing = tauri::async_runtime::spawn(agent_sign_in(handle.clone()));
+		first_url(&mut urls).await;
+		agent_sign_in_cancel(handle.clone()).await.expect("the cancel reaches the sidecar");
+		let _ = timeout(DEADLINE, signing).await.expect("the sign-in settles");
+
+		let code = agent_sign_in_code(handle.clone(), ACCEPTED_CODE.to_owned()).await;
+		let cancel = agent_sign_in_cancel(handle).await;
+		tokio::time::sleep(QUIET).await;
+		let recorded = received(&received_file);
+		wind_down(&app).await;
+		let _ = std::fs::remove_file(&received_file);
+
+		assert_eq!(code, Err(SignInError::NotRunning));
+		assert_eq!(cancel, Err(SignInError::NotRunning));
+		assert_eq!(recorded, "sign_in_cancel\n", "the sidecar received a frame of an idle flow");
 	});
 }

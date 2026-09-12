@@ -11,6 +11,8 @@ export const SIGN_IN_STARTED = "sign_in_started"
 
 export const SIGN_IN_TIMEOUT_MS = 300_000
 
+export const NO_BROWSER = "true"
+
 const URL_LINE = /visit:.*?(https?:\/\/[!-~]+)/
 
 const FAILURE_LINE = /login failed:\s*(.+)$/i
@@ -34,7 +36,7 @@ const spawnLogin = (): Login =>
 		stdin: "pipe",
 		stdout: "pipe",
 		stderr: "pipe",
-		env: inheritedEnv(),
+		env: { ...inheritedEnv(), BROWSER: NO_BROWSER },
 	})
 
 const eachLine = async (

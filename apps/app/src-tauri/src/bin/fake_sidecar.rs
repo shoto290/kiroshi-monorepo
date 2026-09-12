@@ -560,8 +560,14 @@ fn answer_the_host(command: &Value) {
 		Some("sign_in") => {
 			emit_raw(&json!({ "type": "sign_in_started", "url": sign_in_url() }).to_string())
 		}
-		Some("sign_in_code") => on_sign_in_code(command["text"].as_str().unwrap_or("")),
-		Some("sign_in_cancel") => on_sign_in_cancel(),
+		Some("sign_in_code") => {
+			record_sign_in_frame("sign_in_code");
+			on_sign_in_code(command["text"].as_str().unwrap_or(""))
+		}
+		Some("sign_in_cancel") => {
+			record_sign_in_frame("sign_in_cancel");
+			on_sign_in_cancel()
+		}
 		_ => {}
 	}
 }
@@ -572,6 +578,14 @@ const ACCEPTED_CODE: &str = "accepted-code";
 
 fn sign_in_url() -> String {
 	std::env::var("FAKE_AGENT_SIGN_IN_URL").unwrap_or_else(|_| SIGN_IN_URL.to_owned())
+}
+
+fn record_sign_in_frame(kind: &str) {
+	let Ok(path) = std::env::var("FAKE_AGENT_SIGN_IN_RECEIVED_FILE") else { return };
+	let Ok(mut file) = std::fs::OpenOptions::new().create(true).append(true).open(path) else {
+		return;
+	};
+	let _ = writeln!(file, "{kind}");
 }
 
 fn on_sign_in_code(text: &str) {
@@ -588,9 +602,6 @@ fn on_sign_in_code(text: &str) {
 }
 
 fn on_sign_in_cancel() {
-	if let Ok(path) = std::env::var("FAKE_AGENT_SIGN_IN_CANCEL_FILE") {
-		let _ = std::fs::write(path, "cancelled");
-	}
 	emit_raw(
 		&json!({ "type": "sign_in", "signedIn": false, "error": { "kind": "cancelled" } })
 			.to_string(),

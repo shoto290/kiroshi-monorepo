@@ -129,6 +129,7 @@ export type Account = {
 
 export type SignInError =
 	| { kind: "alreadyRunning" }
+	| { kind: "notRunning" }
 	| { kind: "cancelled" }
 	| { kind: "timedOut" }
 	| { kind: "refusedUrl"; url: string }

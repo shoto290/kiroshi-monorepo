@@ -9,6 +9,7 @@ import { inheritedEnv } from "./session-env"
 import {
 	cancelClaudeSignIn,
 	enterClaudeSignInCode,
+	NO_BROWSER,
 	SIGN_IN_STARTED,
 	SIGN_IN_TIMEOUT_MS,
 	signInClaude,
@@ -159,7 +160,7 @@ describe("sign in with claude", () => {
 		})
 	})
 
-	it("spawns auth login with the inherited environment and nothing else", async () => {
+	it("spawns auth login with the inherited environment and a browser that opens nothing", async () => {
 		const heldConfigDir = process.env[CONFIG_DIR_KEY]
 		process.env[CONFIG_DIR_KEY] = directory
 		process.env[OUTSIDE_KEY] = "outside"
@@ -171,7 +172,10 @@ describe("sign in with claude", () => {
 		try {
 			expect(await aSignIn()).toEqual({ signedIn: true })
 			expect(readFileSync(recorded("args"), "utf8")).toBe("auth\nlogin\n")
-			expect(recordedEnv(recorded("env"))).toEqual(inheritedEnv())
+			expect(recordedEnv(recorded("env"))).toEqual({
+				...inheritedEnv(),
+				BROWSER: NO_BROWSER,
+			})
 		} finally {
 			restore(CONFIG_DIR_KEY, heldConfigDir)
 			delete process.env[OUTSIDE_KEY]

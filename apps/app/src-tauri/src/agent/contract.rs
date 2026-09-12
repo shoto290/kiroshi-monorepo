@@ -308,6 +308,7 @@ pub struct SignInStarted {
 #[serde(tag = "kind", rename_all = "camelCase")]
 pub enum SignInError {
 	AlreadyRunning,
+	NotRunning,
 	Cancelled,
 	TimedOut,
 	#[serde(rename_all = "camelCase")]

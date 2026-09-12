@@ -68,10 +68,15 @@ The host waits 12000 ms, longer than the sidecar's bound, so an answer never lan
 the ask of the next refresh.
 
 `sign_in` spawns the bundled executable as `auth login`, its stdin, stdout and stderr
-piped, with the environment a session is given (`inheritedEnv`) and nothing else in it.
-`auth status`, the probe behind `check`, is spawned with the same environment. Neither
-spawn sets `CLAUDE_CONFIG_DIR`: the credential lands where the binary keeps it, and the
-host keeps no copy. When the child writes the stdout line offering a url to visit, the
+piped, with the environment a session is given (`inheritedEnv`), `BROWSER` set to `true`,
+and nothing else in it. `BROWSER` is none of the keys `inheritedEnv` reads from the host
+environment, so the value the sign-in sets is the only one the child ever sees, and `true`
+opens nothing: the binary opens no browser of its own, the url of `sign_in_started` is the
+only url of the flow and the one url a person visits, and the flow completes through
+`sign_in_code`, the code that url ends on, never through the loopback callback of a second
+url the binary would have opened. `auth status`, the probe behind `check`, is spawned with
+the same environment and no `BROWSER` in it. Neither spawn sets `CLAUDE_CONFIG_DIR`: the
+credential lands where the binary keeps it, and the host keeps no copy. When the child writes the stdout line offering a url to visit, the
 sidecar writes one sessionless frame naming it, the terminal hyperlink markup around it
 read past, before the ask settles:
 
@@ -92,17 +97,18 @@ of `sign_in_started` and the `detail` of a failed answer.
 `agent_sign_in` asks for a sign-in, emits the url of `sign_in_started` on
 `agent://sign-in-started` as `{"url":…}`, and resolves on the settle: nothing on
 `signedIn`, a `SignInError` otherwise (`alreadyRunning`, `cancelled`, `timedOut`,
-`failed`, `refusedUrl`, `flowTimedOut`, `transport`). A url under a scheme other than
-`http` or `https` emits nothing and resolves `refusedUrl`, naming it. The host opens no
-browser: measured against the bundled binary with its stdout a pipe, `auth login` opens
-one itself (it runs `$BROWSER`, or `open` when that is unset, on a url whose callback is
-its own loopback listener), so a second opener would show the page twice. The emitted url
-is the one to paste a code from when that browser never appeared. The host holds the
-310000 ms deadline of the MCP flow, longer than the sidecar's bound, and refuses a second
-`agent_sign_in` while one runs as `alreadyRunning`. A sign-in the host lets go of before
+`failed`, `notRunning`, `refusedUrl`, `flowTimedOut`, `transport`). A url under a scheme
+other than `http` or `https` emits nothing and resolves `refusedUrl`, naming it. The host
+opens no browser either: the emitted url is the only one of the flow, the front is the one
+place it is opened, and the code the page it lands on ends with comes back through
+`agent_sign_in_code`. The host holds the 310000 ms deadline of the MCP flow, longer than
+the sidecar's bound, and refuses a second `agent_sign_in` while one runs as
+`alreadyRunning`. A sign-in the host lets go of before
 it saw the settle sends `sign_in_cancel` on its way out, so a dropped invoke leaves no
-child running. `agent_sign_in_code` and `agent_sign_in_cancel` reach the running sign-in
-and do nothing when none runs.
+child running. `agent_sign_in_code` and `agent_sign_in_cancel` reach the running sign-in,
+and resolve `notRunning` without sending anything to the sidecar when none runs: the host
+holds that state, and `sign_in_code` and `sign_in_cancel` answer nothing that could
+report it.
 
 `mcp_oauth_authorize` carries the `url` of an HTTP MCP server and runs the OAuth 2.1
 flow of `@modelcontextprotocol/sdk` against it: RFC 9728 discovery, dynamic client
