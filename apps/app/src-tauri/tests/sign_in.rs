@@ -93,10 +93,6 @@ fn records_received(path: &Path) -> (&'static str, String) {
 	("FAKE_AGENT_SIGN_IN_RECEIVED_FILE", path.to_str().expect("a printable path").to_owned())
 }
 
-fn received(path: &Path) -> String {
-	std::fs::read_to_string(path).unwrap_or_default()
-}
-
 #[test]
 fn a_sign_in_emits_the_url_and_resolves_once_the_pasted_code_is_accepted() {
 	let _serial = serial();
@@ -186,8 +182,8 @@ fn a_url_no_browser_may_be_handed_is_refused_and_never_emitted() {
 #[test]
 fn a_dropped_invoke_leaves_no_sign_in_running_in_the_sidecar() {
 	let _serial = serial();
-	let cancel_file = a_received_file("dropped");
-	let _env = ScopedEnv::set(&[records_received(&cancel_file)]);
+	let received_file = a_received_file("dropped");
+	let _env = ScopedEnv::set(&[records_received(&received_file)]);
 	let app = an_app();
 	let mut urls = started_urls(&app);
 	let handle = app.handle().clone();
@@ -197,7 +193,7 @@ fn a_dropped_invoke_leaves_no_sign_in_running_in_the_sidecar() {
 		first_url(&mut urls).await;
 		signing.abort();
 		let cancelled = timeout(DEADLINE, async {
-			while !cancel_file.is_file() {
+			while !received_file.is_file() {
 				tokio::time::sleep(POLL).await;
 			}
 		})
@@ -207,7 +203,7 @@ fn a_dropped_invoke_leaves_no_sign_in_running_in_the_sidecar() {
 		agent_sign_in_cancel(handle).await.expect("the cancel reaches the sidecar");
 		let _ = timeout(DEADLINE, again).await;
 		wind_down(&app).await;
-		let _ = std::fs::remove_file(&cancel_file);
+		let _ = std::fs::remove_file(&received_file);
 
 		assert!(cancelled.is_ok(), "the dropped invoke left its sign-in running");
 		assert_eq!(reopened, json!({ "url": FAKE_URL }));
@@ -232,7 +228,8 @@ fn a_code_and_a_cancel_while_no_sign_in_runs_are_refused_and_reach_no_sidecar() 
 		let code = agent_sign_in_code(handle.clone(), ACCEPTED_CODE.to_owned()).await;
 		let cancel = agent_sign_in_cancel(handle).await;
 		tokio::time::sleep(QUIET).await;
-		let recorded = received(&received_file);
+		let recorded =
+			std::fs::read_to_string(&received_file).expect("the sidecar recorded what it received");
 		wind_down(&app).await;
 		let _ = std::fs::remove_file(&received_file);
 
