@@ -18,13 +18,10 @@ import { cn } from "@workspace/ui/lib/utils"
 
 type OnboardingStatusTone = "ok" | "waiting" | "failed"
 
-type OnboardingStatusShape = {
-	row: string
-	dot: string
-	column: string
-}
-
-const STATUS_TONE: Record<OnboardingStatusTone, OnboardingStatusShape> = {
+const STATUS_TONE: Record<
+	OnboardingStatusTone,
+	{ row: string; dot: string; column: string }
+> = {
 	ok: {
 		row: "items-start",
 		dot: "mt-1.25 size-2 bg-bot-badge-done",
