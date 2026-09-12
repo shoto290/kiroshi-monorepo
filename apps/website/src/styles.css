@@ -20,3 +20,11 @@
 .scene-frozen [data-overlayscrollbars-viewport] {
 	overflow: hidden;
 }
+
+@utility on-wash {
+	--muted-foreground: oklch(0.4 0.016 285.938);
+
+	&:is(.dark *) {
+		--muted-foreground: oklch(0.78 0.015 286.067);
+	}
+}
