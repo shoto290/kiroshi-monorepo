@@ -632,3 +632,55 @@ export const TallContent = meta.story({
 		await expect(sidebar.getBoundingClientRect().top).toBe(0)
 	},
 })
+
+export const BoxedHost = meta.story({
+	args: {
+		sidebar: SIDEBAR,
+	},
+	decorators: [
+		(Story) => (
+			<div className="p-6">
+				<div
+					className="h-[420px] rounded-2xl ring-1 ring-border"
+					data-boxed-host
+				>
+					<Story />
+				</div>
+			</div>
+		),
+	],
+	parameters: {
+		docs: {
+			description: {
+				story:
+					"The same shell mounted in a host that boxes it — a product page showing the app in a frame rather than a window that owns the screen. Check that the sidebar, the card and the composer all land inside that box, that the sidebar reaches its bottom edge exactly rather than running to the bottom of the window behind it, and that collapsing it to the rail keeps that edge. A host that constrains no height still gets the full window: `Default` covers that.",
+			},
+		},
+	},
+	play: async ({ canvas, canvasElement, userEvent }) => {
+		const host = canvasElement.querySelector("[data-boxed-host]") as HTMLElement
+		const sidebar = canvas.getByRole("complementary", { name: "Workspace" })
+		const main = canvas.getByRole("main")
+		const box = host.getBoundingClientRect()
+
+		await expect(box.bottom).toBeLessThan(window.innerHeight)
+		await expect(sidebar.getBoundingClientRect().bottom).toBe(box.bottom)
+		await expect(sidebar.getBoundingClientRect().top).toBe(box.top)
+		await expect(main.getBoundingClientRect().bottom).toBe(
+			box.bottom - CONTENT_CARD_GUTTER,
+		)
+		await expect(
+			canvas.getByRole("textbox", { name: "Message" }).getBoundingClientRect()
+				.bottom,
+		).toBeLessThan(box.bottom)
+
+		await userEvent.click(
+			canvas.getByRole("button", { name: "Toggle workspace" }),
+		)
+		await waitFor(async () => {
+			await expect(stateOf(sidebar)).toBe("collapsed")
+		}, FRAME_POLL)
+		await expect(sidebar.getBoundingClientRect().bottom).toBe(box.bottom)
+		await expect(sidebar.getBoundingClientRect().top).toBe(box.top)
+	},
+})

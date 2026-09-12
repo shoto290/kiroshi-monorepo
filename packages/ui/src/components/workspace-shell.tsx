@@ -9,8 +9,10 @@ import { SidebarResizeProvider } from "@workspace/ui/components/sidebar-resize"
 import { SidebarProvider } from "@workspace/ui/components/ui/sidebar"
 import { cn } from "@workspace/ui/lib/utils"
 
-const SHELL =
-	"surface-shell h-svh min-w-0 overflow-hidden data-[resizing=true]:cursor-col-resize data-[resizing=true]:select-none"
+const SIDEBAR_INSIDE_SHELL =
+	"**:data-[slot=sidebar-container]:absolute **:data-[slot=sidebar-container]:h-auto"
+
+const SHELL = `surface-shell relative h-svh max-h-full min-h-0 min-w-0 overflow-hidden ${SIDEBAR_INSIDE_SHELL} data-[resizing=true]:cursor-col-resize data-[resizing=true]:select-none`
 
 type ShellStyle = CSSProperties & {
 	"--sidebar-width": string
