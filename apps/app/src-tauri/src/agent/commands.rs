@@ -310,8 +310,40 @@ pub struct AgentState {
 	gate: std::sync::Mutex<Gate>,
 	live: Arc<Live>,
 	sidecar: Mutex<Option<Arc<Sidecar>>>,
-	models: Mutex<Option<Vec<String>>>,
-	tools: Mutex<Option<Vec<String>>>,
+	models: Catalogue,
+	tools: Catalogue,
+}
+
+#[derive(Default)]
+struct Catalogue {
+	computed: Mutex<Option<ComputedCatalogue>>,
+}
+
+struct ComputedCatalogue {
+	source: Values,
+	list: Vec<String>,
+}
+
+impl Catalogue {
+	async fn served<Computing>(
+		&self,
+		connection: &Values,
+		computing: impl FnOnce() -> Computing,
+	) -> Vec<String>
+	where
+		Computing: std::future::Future<Output = Vec<String>>,
+	{
+		let mut computed = self.computed.lock().await;
+		if let Some(held) = computed.as_ref().filter(|held| &held.source == connection) {
+			return held.list.clone();
+		}
+		let list = computing().await;
+		*computed = match list.is_empty() {
+			true => None,
+			false => Some(ComputedCatalogue { source: connection.clone(), list: list.clone() }),
+		};
+		list
+	}
 }
 
 impl AgentState {
@@ -343,33 +375,31 @@ impl AgentState {
 	}
 
 	async fn models(&self, connection: &Values) -> Vec<String> {
-		let mut cached = self.models.lock().await;
-		if let Some(found) = cached.as_ref() {
-			return found.clone();
-		}
-		let Ok(sidecar) = self.sidecar().await else {
-			return Vec::new();
-		};
-		let Ok(offered) = sidecar.catalogue(connection).await else {
-			return Vec::new();
-		};
-		*cached = Some(offered.clone());
-		offered
+		self.models
+			.served(connection, || async {
+				let Ok(sidecar) = self.sidecar().await else {
+					return Vec::new();
+				};
+				let Ok(offered) = sidecar.catalogue(connection).await else {
+					return Vec::new();
+				};
+				offered
+			})
+			.await
 	}
 
 	async fn tools(&self, connection: &Values) -> Vec<String> {
-		let mut cached = self.tools.lock().await;
-		if let Some(found) = cached.as_ref() {
-			return found.clone();
-		}
-		let Ok(sidecar) = self.sidecar().await else {
-			return Vec::new();
-		};
-		let Ok(offered) = sidecar.tools(connection).await else {
-			return Vec::new();
-		};
-		*cached = Some(offered.clone());
-		offered
+		self.tools
+			.served(connection, || async {
+				let Ok(sidecar) = self.sidecar().await else {
+					return Vec::new();
+				};
+				let Ok(offered) = sidecar.tools(connection).await else {
+					return Vec::new();
+				};
+				offered
+			})
+			.await
 	}
 
 	async fn title(&self, text: &str, connection: &Values) -> Option<String> {
@@ -837,6 +867,54 @@ pub async fn agent_shutdown<R: Runtime>(
 mod tests {
 	use super::*;
 	use crate::db::repositories::runtime_context::RuntimeSessionStatus;
+
+	fn a_source(name: &str, value: &str) -> Values {
+		Values::from([(name.to_owned(), value.to_owned())])
+	}
+
+	async fn computed(
+		catalogue: &Catalogue,
+		connection: &Values,
+		asks: &std::sync::atomic::AtomicUsize,
+		list: &[&str],
+	) -> Vec<String> {
+		catalogue
+			.served(connection, || async {
+				asks.fetch_add(1, std::sync::atomic::Ordering::Relaxed);
+				list.iter().map(|named| (*named).to_owned()).collect()
+			})
+			.await
+	}
+
+	#[tokio::test]
+	async fn a_catalogue_is_computed_again_once_the_held_source_changes() {
+		let catalogue = Catalogue::default();
+		let asks = std::sync::atomic::AtomicUsize::new(0);
+		let key = a_source("ANTHROPIC_API_KEY", "sk-held");
+		let token = a_source("CLAUDE_CODE_OAUTH_TOKEN", "held-token");
+
+		assert_eq!(computed(&catalogue, &key, &asks, &["quasar"]).await, ["quasar"]);
+		assert_eq!(computed(&catalogue, &token, &asks, &["nimbus"]).await, ["nimbus"]);
+		assert_eq!(asks.load(std::sync::atomic::Ordering::Relaxed), 2);
+
+		assert_eq!(computed(&catalogue, &token, &asks, &["never asked"]).await, ["nimbus"]);
+		assert_eq!(
+			asks.load(std::sync::atomic::Ordering::Relaxed),
+			2,
+			"the sidecar was asked for a list already computed with that source"
+		);
+	}
+
+	#[tokio::test]
+	async fn an_empty_list_is_computed_again_on_the_next_ask() {
+		let catalogue = Catalogue::default();
+		let asks = std::sync::atomic::AtomicUsize::new(0);
+		let nothing_held = Values::new();
+
+		assert!(computed(&catalogue, &nothing_held, &asks, &[]).await.is_empty());
+		assert_eq!(computed(&catalogue, &nothing_held, &asks, &["quasar"]).await, ["quasar"]);
+		assert_eq!(asks.load(std::sync::atomic::Ordering::Relaxed), 2);
+	}
 
 	#[test]
 	fn the_names_awaiting_authorization_reach_the_session_when_the_store_cannot_be_read() {
