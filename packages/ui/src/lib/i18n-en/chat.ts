@@ -608,6 +608,18 @@ const chat = {
 				keyLabel: "Or paste an API key and pay per use",
 				keyPlaceholder: "sk-ant-…",
 			},
+			waiting: {
+				title: "Your browser didn't open",
+				linkLabel: "Sign-in link",
+				copy: "Copy",
+				copyLink: "Copy the sign-in link",
+				copied: "Copied",
+				copiedLink: "Sign-in link copied",
+				copyFailed: "Couldn't copy. Select the link and copy it yourself.",
+				codeLabel: "Then paste the code your browser gives back",
+				codePlaceholder: "code#state",
+				continue: "Continue",
+			},
 			failed: {
 				title: "Couldn't sign you in",
 				retry: "Try again",

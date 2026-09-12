@@ -4,6 +4,7 @@ import {
 	type ComponentProps,
 	type KeyboardEvent,
 	type ReactNode,
+	type RefObject,
 	useId,
 } from "react"
 
@@ -146,6 +147,8 @@ type OnboardingFieldProps = {
 	family: OnboardingFieldFamily
 	type?: "text" | "password"
 	disabled?: boolean
+	action?: ReactNode
+	inputRef?: RefObject<HTMLInputElement | null>
 }
 
 const OnboardingField = ({
@@ -157,6 +160,8 @@ const OnboardingField = ({
 	family,
 	type = "text",
 	disabled,
+	action,
+	inputRef,
 }: OnboardingFieldProps) => {
 	const fieldId = useId()
 	const submitOnEnter = (event: KeyboardEvent<HTMLInputElement>) => {
@@ -176,22 +181,26 @@ const OnboardingField = ({
 			>
 				{label}
 			</label>
-			<Input
-				autoComplete="off"
-				className={cn(
-					"h-auto min-h-8.5 rounded-control border-border bg-background px-3 md:text-compact",
-					ONBOARDING_LINE_TYPE,
-					family === "mono" && "font-mono",
-				)}
-				disabled={disabled}
-				id={fieldId}
-				onChange={(event) => onValueChange(event.target.value)}
-				onKeyDown={submitOnEnter}
-				placeholder={placeholder}
-				spellCheck={false}
-				type={type}
-				value={value}
-			/>
+			<div className="flex items-center gap-2">
+				<Input
+					autoComplete="off"
+					className={cn(
+						"h-auto min-h-8.5 min-w-0 flex-1 rounded-control border-border bg-background px-3 md:text-compact",
+						ONBOARDING_LINE_TYPE,
+						family === "mono" && "font-mono",
+					)}
+					disabled={disabled}
+					id={fieldId}
+					onChange={(event) => onValueChange(event.target.value)}
+					onKeyDown={submitOnEnter}
+					placeholder={placeholder}
+					ref={inputRef}
+					spellCheck={false}
+					type={type}
+					value={value}
+				/>
+				{action}
+			</div>
 		</div>
 	)
 }

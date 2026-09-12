@@ -628,6 +628,19 @@ const chat = {
 				keyLabel: "Ou collez une clé API et payez à l'usage",
 				keyPlaceholder: "sk-ant-…",
 			},
+			waiting: {
+				title: "Votre navigateur ne s'est pas ouvert",
+				linkLabel: "Lien de connexion",
+				copy: "Copier",
+				copyLink: "Copier le lien de connexion",
+				copied: "Copié",
+				copiedLink: "Lien de connexion copié",
+				copyFailed:
+					"Copie impossible. Sélectionnez le lien et copiez-le vous-même.",
+				codeLabel: "Puis collez le code que votre navigateur vous rend",
+				codePlaceholder: "code#state",
+				continue: "Continuer",
+			},
 			failed: {
 				title: "Impossible de vous connecter",
 				retry: "Réessayer",

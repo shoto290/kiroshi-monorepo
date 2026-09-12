@@ -16,7 +16,7 @@ export function useCopyText(text: string, resetMs = COPIED_RESET_MS) {
 	)
 
 	const copy = useCallback(async () => {
-		await navigator.clipboard?.writeText(text)
+		await navigator.clipboard.writeText(text)
 		setCopied(true)
 		window.clearTimeout(timer.current)
 		timer.current = window.setTimeout(() => setCopied(false), resetMs)
