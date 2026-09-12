@@ -7,7 +7,11 @@ import {
 	BotAvatarEngine,
 	PARTS,
 } from "@workspace/ui/components/bot-avatar-engine"
-import { GAZE_YAW_LIMIT } from "@workspace/ui/components/bot-avatar-gaze"
+import {
+	GAZE_DART_DURATION,
+	GAZE_HEAD_DELAY,
+	GAZE_YAW_LIMIT,
+} from "@workspace/ui/components/bot-avatar-gaze"
 
 const RIG_MARKUP = `
 <svg viewBox="0 0 240 240" xmlns="http://www.w3.org/2000/svg">
@@ -23,7 +27,7 @@ const RIG_MARKUP = `
 const RESTING_STATE = "listening"
 const GLANCING_STATE = "thinking"
 const SETTLE_MS = 2000
-const HEAD_DELAY_WINDOW_MS = 48
+const INSIDE_HEAD_DELAY_MS = GAZE_HEAD_DELAY / 2
 const AFTER_HEAD_DELAY_MS = 400
 const PINNED_GAZE = { yaw: GAZE_YAW_LIMIT, pitch: 0 }
 
@@ -75,7 +79,7 @@ describe("the gaze layer on a running engine", () => {
 		const pinnedLean = headLean(svg)
 
 		engine.setGaze(null)
-		advance(80)
+		advance(GAZE_DART_DURATION)
 		const dartedReach = eyeReach(svg)
 		const dartedLean = headLean(svg)
 
@@ -98,7 +102,7 @@ describe("the gaze layer on a running engine", () => {
 		const pinnedLean = headLean(svg)
 
 		engine.setGaze(null)
-		advance(HEAD_DELAY_WINDOW_MS)
+		advance(INSIDE_HEAD_DELAY_MS)
 		engine.setState(GLANCING_STATE)
 		advance(AFTER_HEAD_DELAY_MS)
 		const followedLean = headLean(svg)
