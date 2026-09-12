@@ -8,7 +8,7 @@ import {
 	screen,
 	within,
 } from "@testing-library/react"
-import { createElement, useState } from "react"
+import { createElement, useState, useSyncExternalStore } from "react"
 import { afterEach, beforeEach, describe, expect, it, vi } from "vitest"
 
 import type { MissionEventModel } from "@workspace/ui/components/mission"
@@ -16,7 +16,7 @@ import { NoticeSurface } from "@workspace/ui/components/notice-surface"
 import "@workspace/ui/lib/i18n"
 
 import { ThreadScreen } from "@/components/thread-screen"
-import type { AgentEvent } from "@/lib/agent/contract"
+import type { AgentEvent, CheckReport } from "@/lib/agent/contract"
 import { createAttachmentsController } from "@/lib/chat/attachments-controller"
 import {
 	type ChatController,
@@ -55,6 +55,16 @@ import {
 import type { Mission, MissionChanged } from "@/lib/missions/mission-contract"
 import { missionSummonsFor } from "@/lib/missions/mission-summons"
 import { missionsTransport } from "@/lib/missions/missions-transport"
+import {
+	createFakeOnboardingPort,
+	type FakeOnboardingPort,
+} from "@/lib/onboarding/fake-onboarding-port"
+import {
+	createOnboardingController,
+	type OnboardingController,
+} from "@/lib/onboarding/onboarding-controller"
+import { onboardingSummonsFor } from "@/lib/onboarding/onboarding-summons"
+import type { Onboarding } from "@/lib/onboarding/use-onboarding"
 import { type FakeLayout, fakeLayout } from "@/lib/perf/fake-layout"
 import { createOpenedRoutineController } from "@/lib/routines/opened-routine-controller"
 import type { Routine } from "@/lib/routines/routine-contract"
@@ -289,6 +299,7 @@ type ThreadScreenHarnessProps = {
 	thread: Thread
 	bots: Bot[]
 	landings: MessageLandingController
+	onboarding?: OnboardingController
 	onOpenMission: (missionId: string) => void
 }
 
@@ -296,9 +307,14 @@ const ThreadScreenHarness = ({
 	thread,
 	bots,
 	landings,
+	onboarding,
 	onOpenMission,
 }: ThreadScreenHarnessProps) => {
 	const [isOpen, setOpen] = useState(false)
+	const onboardingState = useSyncExternalStore(
+		onboarding ? onboarding.subscribe : NEVER_CHANGES,
+		onboarding ? onboarding.getState : NO_ONBOARDING_STATE,
+	)
 
 	return createElement(ThreadScreen, {
 		activityPanel: {
@@ -310,6 +326,13 @@ const ThreadScreenHarness = ({
 		bots,
 		drafts: createDraftsController(),
 		landings,
+		onboarding:
+			onboarding && onboardingState
+				? ({
+						state: onboardingState,
+						controller: onboarding,
+					} satisfies Onboarding)
+				: undefined,
 		onOpenMission,
 		readerName: "Reader",
 		runtimes: runtimesOf(thread),
@@ -317,15 +340,21 @@ const ThreadScreenHarness = ({
 	})
 }
 
+const NEVER_CHANGES = () => () => undefined
+
+const NO_ONBOARDING_STATE = () => null
+
 const screenOf = (
 	thread: Thread,
 	bots: Bot[] = NO_BOT_RECORDS,
 	onOpenMission: (missionId: string) => void = () => undefined,
 	landings: MessageLandingController = createMessageLandingController(),
+	onboarding?: OnboardingController,
 ) =>
 	createElement(ThreadScreenHarness, {
 		bots,
 		landings,
+		onboarding,
 		onOpenMission,
 		thread,
 	})
@@ -2108,5 +2137,182 @@ describe("ThreadScreen connector left out of a session", () => {
 		await settle()
 
 		expect(screen.getByText(CONNECTOR_REFUSED_TITLE)).toBeTruthy()
+	})
+})
+
+const SIGN_IN_LINK = "https://claude.ai/oauth/authorize?code=true"
+
+const WELCOME_TITLE = "Ready when you are"
+
+const CONNECTION_TITLE = "Your Claude account"
+
+const SETTLED_PILL = "Claude account connected"
+
+const TEST_TITLE = "That's it working. One thing left."
+
+const EMPTY_STATE_TITLE = "Start with the agent"
+
+const ONBOARDING_EMAIL = "reader@example.com"
+
+const AUTHENTICATED_ANONYMOUSLY = {
+	connection: "ready",
+	binaryVersion: null,
+	authenticated: true,
+	error: null,
+	account: { email: null, plan: null },
+} satisfies CheckReport
+
+type OnboardingFixture = {
+	port: FakeOnboardingPort
+	controller: OnboardingController
+	solo: Solo
+}
+
+const onboardingOf = async (): Promise<OnboardingFixture> => {
+	const solo = await soloOf({})
+	const port = createFakeOnboardingPort()
+	const controller = createOnboardingController(port, {
+		send: (text) => solo.thread().chat.controller.send(text),
+		markFirstRunDone: async () => undefined,
+	})
+
+	return { port, controller, solo }
+}
+
+const onboardingScreen = ({ controller, solo }: OnboardingFixture) =>
+	screenOf(
+		solo.thread(),
+		NO_BOT_RECORDS,
+		() => undefined,
+		createMessageLandingController(),
+		controller,
+	)
+
+const renderOnboarding = async (fixture: OnboardingFixture) => {
+	const { rerender } = render(onboardingScreen(fixture))
+	await settle()
+
+	return () => rerender(onboardingScreen(fixture))
+}
+
+const press = async (name: string) => {
+	await act(async () => {
+		fireEvent.click(screen.getByRole("button", { name }))
+	})
+	await settle()
+}
+
+describe("the first run in a solo thread", () => {
+	let layout: FakeLayout
+
+	beforeEach(() => {
+		layout = fakeLayout()
+		vi.clearAllMocks()
+		listRoutines.mockResolvedValue([])
+		listRuns.mockResolvedValue([])
+		listSources.mockResolvedValue([SCHEDULE_SOURCE])
+		listMissions.mockResolvedValue({ open: [], done: [] })
+		listenToMissions.mockResolvedValue(() => undefined)
+	})
+
+	afterEach(() => {
+		cleanup()
+		layout.restore()
+	})
+
+	it("shows the welcome card instead of the chat empty state", async () => {
+		const fixture = await onboardingOf()
+		await renderOnboarding(fixture)
+
+		expect(screen.getByText(WELCOME_TITLE)).toBeTruthy()
+		expect(screen.queryByText(EMPTY_STATE_TITLE)).toBeNull()
+	})
+
+	it("names the account the check found", async () => {
+		const fixture = await onboardingOf()
+		fixture.port.report = {
+			...AUTHENTICATED_ANONYMOUSLY,
+			account: { email: ONBOARDING_EMAIL, plan: "Max" },
+		}
+		await renderOnboarding(fixture)
+
+		await press("Start")
+
+		expect(screen.getByText(CONNECTION_TITLE)).toBeTruthy()
+		expect(screen.getByText(`${ONBOARDING_EMAIL} · Max`)).toBeTruthy()
+	})
+
+	it("offers the sign-in when nobody is authenticated", async () => {
+		const fixture = await onboardingOf()
+		await renderOnboarding(fixture)
+
+		await press("Start")
+
+		expect(
+			screen.getByRole("button", { name: "Sign in with Claude" }),
+		).toBeTruthy()
+	})
+
+	it("waits on the url the sign-in announced", async () => {
+		const fixture = await onboardingOf()
+		await renderOnboarding(fixture)
+		await press("Start")
+
+		await press("Sign in with Claude")
+		await act(async () => {
+			fixture.port.announceStarted(SIGN_IN_LINK)
+		})
+		await settle()
+
+		expect(screen.getByText("Your browser didn't open")).toBeTruthy()
+		expect(fixture.port.calls).toContainEqual({
+			command: "openSignInUrl",
+			value: SIGN_IN_LINK,
+		})
+	})
+
+	it("shows the settled pill and no card once the connection settles", async () => {
+		const fixture = await onboardingOf()
+		fixture.port.report = {
+			...AUTHENTICATED_ANONYMOUSLY,
+			account: { email: ONBOARDING_EMAIL, plan: null },
+		}
+		await renderOnboarding(fixture)
+		await press("Start")
+
+		await press("Use this account")
+
+		expect(screen.getByText(SETTLED_PILL)).toBeTruthy()
+		expect(screen.queryByText(CONNECTION_TITLE)).toBeNull()
+	})
+
+	it("keeps the summons out of the rows and shows the test card under the answer", async () => {
+		const fixture = await onboardingOf()
+		fixture.port.report = AUTHENTICATED_ANONYMOUSLY
+		const rerender = await renderOnboarding(fixture)
+		await press("Start")
+
+		await fixture.solo.push(SAID_AND_LANDED)
+		rerender()
+		await settle()
+
+		expect(screen.queryByText(onboardingSummonsFor("greeting"))).toBeNull()
+		expect(screen.getByText("the walls hold")).toBeTruthy()
+		expect(screen.getByText(TEST_TITLE)).toBeTruthy()
+	})
+
+	it("leaves no onboarding card once the test card is taken", async () => {
+		const fixture = await onboardingOf()
+		fixture.port.report = AUTHENTICATED_ANONYMOUSLY
+		const rerender = await renderOnboarding(fixture)
+		await press("Start")
+		await fixture.solo.push(SAID_AND_LANDED)
+		rerender()
+		await settle()
+
+		await press("Keep talking")
+
+		expect(screen.queryByText(TEST_TITLE)).toBeNull()
+		expect(screen.queryByText(SETTLED_PILL)).toBeNull()
 	})
 })
