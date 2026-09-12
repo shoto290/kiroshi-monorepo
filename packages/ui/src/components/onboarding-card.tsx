@@ -14,7 +14,7 @@ const ONBOARDING_STEP_COUNT = 3
 
 type OnboardingCardWidth = "default" | "wide"
 
-const CARD_WIDTH: Record<OnboardingCardWidth, string> = {
+const CARD_SHAPE: Record<OnboardingCardWidth, string> = {
 	default: "max-w-105 gap-3",
 	wide: "max-w-115 gap-2.5",
 }
@@ -43,7 +43,7 @@ const OnboardingCard = ({
 		<div
 			className={cn(
 				"flex w-full min-w-0 flex-col rounded-card border border-border bg-background p-3.5 text-foreground",
-				CARD_WIDTH[width],
+				CARD_SHAPE[width],
 				className,
 			)}
 			data-slot="onboarding-card"
