@@ -15,8 +15,7 @@ const PERSONAL_SPACE_ID: &str = "personal";
 
 #[derive(Debug)]
 enum Refusal {
-	NoAvatarsDir,
-	NoBundleRoot,
+	NoDataDir,
 	NoPersonalSpace,
 	Picture(avatars::Rejection),
 	Bundle(std::io::Error),
@@ -27,8 +26,7 @@ enum Refusal {
 impl Refusal {
 	fn reason(&self) -> String {
 		match self {
-			Refusal::NoAvatarsDir => "the avatars directory is unknown".to_owned(),
-			Refusal::NoBundleRoot => "the bundle root is unknown".to_owned(),
+			Refusal::NoDataDir => "the data directory is unknown".to_owned(),
 			Refusal::NoPersonalSpace => "the personal space is missing".to_owned(),
 			Refusal::Picture(rejection) => format!("its picture was refused: {rejection:?}"),
 			Refusal::Bundle(failure) => format!("its bundle was not written: {failure}"),
@@ -74,8 +72,8 @@ pub(super) async fn plant_first_companion<R: Runtime>(app: &AppHandle<R>, databa
 }
 
 async fn plant<R: Runtime>(app: &AppHandle<R>, database: &db::Database) -> Result<(), Refusal> {
-	let dir = avatars::dir(app).ok_or(Refusal::NoAvatarsDir)?;
-	let root = bundles::root(app).ok_or(Refusal::NoBundleRoot)?;
+	let dir = avatars::dir(app).ok_or(Refusal::NoDataDir)?;
+	let root = bundles::root(app).ok_or(Refusal::NoDataDir)?;
 	if !holds_personal_space(database).await? {
 		return Err(Refusal::NoPersonalSpace);
 	}
@@ -83,7 +81,7 @@ async fn plant<R: Runtime>(app: &AppHandle<R>, database: &db::Database) -> Resul
 	let path = avatars::minted_path(&dir);
 	avatars::write(&path, &picture)?;
 
-	let created = create_bundled_bot(app, database, identity(&path), space()).await?;
+	let created = create_bundled_bot(app, database, identity(&path), personal_space()).await?;
 	match furnished(&root, database, &created.id).await {
 		Ok(()) => Ok(()),
 		Err(refusal) => {
@@ -111,7 +109,7 @@ async fn holds_personal_space(database: &db::Database) -> Result<bool, DatabaseE
 	Ok(database.spaces().list().await?.iter().any(|space| space.id == PERSONAL_SPACE_ID))
 }
 
-fn space() -> Option<String> {
+fn personal_space() -> Option<String> {
 	Some(PERSONAL_SPACE_ID.to_owned())
 }
 
@@ -164,7 +162,7 @@ mod tests {
 
 	async fn planted(app: &App<MockRuntime>, database: &db::Database) -> Vec<StoredBot> {
 		plant_first_companion(app.handle(), database).await;
-		database.conversations().bots(space()).await.expect("the roster reads")
+		database.conversations().bots(personal_space()).await.expect("the roster reads")
 	}
 
 	fn bundle_of(app: &App<MockRuntime>, bot: &StoredBot) -> PathBuf {
