@@ -4,6 +4,7 @@ import { expect, fireEvent, fn, screen, waitFor, within } from "storybook/test"
 import preview from "@workspace/storybook/preview"
 import {
 	botIdentityAvatars,
+	expectCompanionPictureSquare,
 	shown,
 	slotIn,
 	slotsIn,
@@ -1226,17 +1227,53 @@ export const StreamingStoppablePicture = meta.story({
 		docs: {
 			description: {
 				story:
-					"The same stop on a companion that uploaded its own picture. Name and veil both come from the identity the gutter draws, so neither can drift from the face under them. Check that the control is named after that companion and that the veil holds to the circle of the picture instead of squaring off its corners.",
+					"The same stop on a companion that uploaded its own picture. Name and veil both come from the identity the gutter draws, so neither can drift from the face under them. Check that the control is named after that companion and that the veil holds to the rounded square of the picture, corner for corner.",
 			},
 		},
 	},
 	play: async ({ canvas, canvasElement }) => {
 		const [glyph] = slotsIn(canvasElement, "bot-working-stop-glyph")
 
+		const [picture] = botIdentityAvatars(canvasElement)
+
 		await expect(
 			canvas.getByRole("button", { name: "Stop Atlas" }),
 		).toBeVisible()
-		await expect(glyph).toHaveClass("rounded-full")
+		await expectCompanionPictureSquare(picture)
+		await expect(getComputedStyle(glyph).borderRadius).toBe("10px")
+	},
+})
+
+export const PictureBesideBlot = meta.story({
+	render: () => (
+		<div className="mx-auto flex max-w-2xl flex-col gap-6">
+			{[PICTURED, SECOND].map((author) => (
+				<AssistantTurn
+					author={author}
+					copyText={ANSWER}
+					key={author.id}
+					state="complete"
+				>
+					{ANSWER}
+				</AssistantTurn>
+			))}
+		</div>
+	),
+	parameters: {
+		docs: {
+			description: {
+				story:
+					"The gutter of a companion wearing its picture above the gutter of one drawn from a blot. Check that the picture fills its 40px slot as a rounded square with no border, and that the drawn companion below keeps its animal over its blot.",
+			},
+		},
+	},
+	play: async ({ canvasElement }) => {
+		const [picture, drawn] = botIdentityAvatars(canvasElement)
+
+		await expectCompanionPictureSquare(picture)
+		await expect(getComputedStyle(picture).borderRadius).toBe("10px")
+		await expect(drawn.querySelector("img")).toBeNull()
+		await expect(slotsIn(drawn, "bot-avatar-blot")).toHaveLength(1)
 	},
 })
 

@@ -4,6 +4,8 @@ import { expect, within } from "storybook/test"
 import preview from "@workspace/storybook/preview"
 import {
 	botIdentityAvatars,
+	expectCompanionPictureSquare,
+	pictureOf,
 	Row,
 	slotsIn,
 	UPLOADED_AVATAR_IMAGE,
@@ -15,9 +17,23 @@ import {
 	BotIdentityAvatar,
 	type BotIdentityAvatarProps,
 } from "@workspace/ui/components/bot-identity-avatar"
+import { InitialsAvatar } from "@workspace/ui/components/initials-avatar"
 import { Button } from "@workspace/ui/components/ui/button"
 
 const SIZES = [40, 96, 24]
+
+const DRAWN_PICTURE_SLOTS = [
+	{ size: 40, radius: "10px" },
+	{ size: 20, radius: "6px" },
+]
+
+const DrawnPictureSlots = (props: BotIdentityAvatarProps) => (
+	<Row>
+		{DRAWN_PICTURE_SLOTS.map(({ size }) => (
+			<BotIdentityAvatar {...props} key={size} size={size} />
+		))}
+	</Row>
+)
 
 const blotShapeOf = (avatar: HTMLElement) =>
 	slotsIn(avatar, "bot-avatar-blot")[0]?.getAttribute("transform")
@@ -312,6 +328,7 @@ export const Uploaded = meta.story({
 				UPLOADED_AVATAR_IMAGE,
 			)
 			await expect(avatar.querySelector("svg")).toBeNull()
+			await expectCompanionPictureSquare(avatar)
 		}
 	},
 })
@@ -336,6 +353,65 @@ export const UploadedWorking = meta.story({
 			await expect(
 				avatar.querySelector('[data-slot="bot-activity-dot"]'),
 			).toBeNull()
+			await expectCompanionPictureSquare(avatar)
+		}
+	},
+})
+
+export const UploadedAtDrawnSizes = meta.story({
+	args: { image: UPLOADED_AVATAR_IMAGE },
+	render: (args) => (
+		<Row>
+			<DrawnPictureSlots {...args} />
+			<InitialsAvatar
+				image={UPLOADED_AVATAR_IMAGE}
+				name="Ada Martin"
+				size={40}
+			/>
+		</Row>
+	),
+	parameters: {
+		docs: {
+			description: {
+				story:
+					"A companion picture at the two slot sizes the artboards draw, the roster line at 40px and the header identity at 20px, beside the reader's own picture. A companion picture is a rounded square whose corner is a quarter of its slot, never under 6px; the reader's stays a circle. Check a 10px corner at 40px, a 6px corner at 20px, no border on either, and a round reader.",
+			},
+		},
+	},
+	play: async ({ canvasElement }) => {
+		const avatars = botIdentityAvatars(canvasElement)
+
+		for (const [index, { radius }] of DRAWN_PICTURE_SLOTS.entries()) {
+			await expectCompanionPictureSquare(avatars[index])
+			await expect(getComputedStyle(avatars[index]).borderRadius).toBe(radius)
+		}
+
+		const [reader] = slotsIn(canvasElement, "user-avatar")
+		await expect(await pictureOf(reader)).toHaveClass("rounded-full")
+	},
+})
+
+export const UploadedBadged = meta.story({
+	args: { image: UPLOADED_AVATAR_IMAGE, badge: "attention" },
+	render: (args) => <DrawnPictureSlots {...args} />,
+	parameters: {
+		docs: {
+			description: {
+				story:
+					"A companion picture carrying a badge at both drawn slot sizes. Check that the dot sits in the corner of the rounded square without leaving the slot.",
+			},
+		},
+	},
+	play: async ({ canvasElement }) => {
+		for (const avatar of botIdentityAvatars(canvasElement)) {
+			const slot = avatar.getBoundingClientRect()
+			const dot = activityDotOf(avatar).getBoundingClientRect()
+
+			await expectCompanionPictureSquare(avatar)
+			await expect(dot.left).toBeGreaterThanOrEqual(slot.left)
+			await expect(dot.top).toBeGreaterThanOrEqual(slot.top)
+			await expect(dot.right).toBeLessThanOrEqual(slot.right)
+			await expect(dot.bottom).toBeLessThanOrEqual(slot.bottom)
 		}
 	},
 })

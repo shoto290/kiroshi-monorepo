@@ -4,6 +4,7 @@ import { expect, fn, screen, waitFor } from "storybook/test"
 import preview from "@workspace/storybook/preview"
 import {
 	botIdentityAvatars,
+	expectCompanionPictureSquare,
 	slotIn,
 	slotsIn,
 	UPLOADED_AVATAR_IMAGE,
@@ -632,7 +633,7 @@ export const Stop = meta.story({
 		docs: {
 			description: {
 				story:
-					"Interrupting the run, from the row that is running it: the first two avatars are `stoppable` and become controls, the last is not and stays a drawing. Check that the veil covers the drawn avatar corner to corner and holds to the circle of the uploaded picture, that it appears the instant the avatar is pointed at with no fade — pointing at the words beside it reveals them and nothing else — that Tab reaches each control and lights the same glyph, and that the last row exposes no button at all.",
+					"Interrupting the run, from the row that is running it: the first two avatars are `stoppable` and become controls, the last is not and stays a drawing. Check that the veil covers the drawn avatar corner to corner and holds to the rounded square of the uploaded picture, that it appears the instant the avatar is pointed at with no fade — pointing at the words beside it reveals them and nothing else — that Tab reaches each control and lights the same glyph, and that the last row exposes no button at all.",
 			},
 		},
 	},
@@ -647,8 +648,13 @@ export const Stop = meta.story({
 		const label = canvas.getAllByText("Atlas · Bash · npm test")[0]
 
 		await expect(canvas.getAllByRole("button")).toHaveLength(2)
-		await expect(glyph).not.toHaveClass("rounded-full")
-		await expect(uploadedGlyph).toHaveClass("rounded-full")
+		const [, picture] = botIdentityAvatars(canvasElement)
+
+		await expect(getComputedStyle(glyph).borderRadius).toBe("0px")
+		await expectCompanionPictureSquare(picture)
+		await expect(getComputedStyle(uploadedGlyph).borderRadius).toBe(
+			getComputedStyle(picture).borderRadius,
+		)
 
 		await userEvent.hover(uploaded)
 		await waitFor(() => expect(uploadedGlyph).toBeVisible())
