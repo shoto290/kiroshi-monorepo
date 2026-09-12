@@ -3,6 +3,7 @@ import {
 	affineTransform,
 	clamp,
 	conicAffine,
+	type EarPlate,
 	type EulerAngles,
 	earSplitPath,
 	ellipseToPath,
@@ -615,13 +616,16 @@ export class BotAvatarEngine {
 			)
 			const hinged = quatMultiply(rotation, twist)
 			const anchor = rotateVec3(rotation, rest.anchor)
+			const squash = quantize(
+				Math.max(EAR_PLATE_SQUASH_FLOOR, phys.sy),
+				SCALE_STEP,
+			)
 			const plate: Vec3 = [
 				ear.volume.radii[0],
-				ear.volume.radii[1] *
-					quantize(Math.max(EAR_PLATE_SQUASH_FLOOR, phys.sy), SCALE_STEP),
+				ear.volume.radii[1] * squash,
 				ear.volume.radii[2],
 			]
-			const transform = affineTransform({
+			const placement = {
 				affine: conicAffine({
 					restRadii: [ear.volume.radii[0], ear.volume.radii[1]],
 					current: projectConic({
@@ -634,23 +638,33 @@ export class BotAvatarEngine {
 				}),
 				restPivot: rest.attachRest,
 				pivot: welds[index],
-			})
+			}
+			const transform = affineTransform(placement)
 			this.write(el.back, "transform", transform)
 			this.write(el.front, "transform", transform)
-			this.writeEarSplit(index, hinged, anchor[2])
+			this.writeEarSplit(index, rotation, {
+				rotation: hinged,
+				depth: anchor[2],
+				center: ear.volume.center,
+				squash,
+				placement,
+			})
 		}
 	}
 
-	private writeEarSplit(index: number, hinged: Quat, depth: number) {
+	private writeEarSplit(index: number, rotation: Quat, plate: EarPlate) {
 		const split = this.parts?.ears[index]?.split
 		if (!split) return
 		this.write(
 			split,
 			"d",
 			earSplitPath({
-				rotation: hinged,
-				plateCenter: this.animal.ears[index].volume.center,
-				depth,
+				head: {
+					radii: this.surface.radii,
+					rotation,
+					center: this.surface.center,
+				},
+				plate,
 			}),
 		)
 	}

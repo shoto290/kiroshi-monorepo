@@ -1,19 +1,20 @@
 import { describe, expect, it } from "vitest"
 
 import {
-	AXIS_Z,
 	affineTransform,
 	applySurfaceAffine,
 	conicAffine,
+	type EarPlate,
 	earSplitPath,
+	type HeadVolume,
 	IDENTITY_AFFINE,
 	IDENTITY_QUAT,
 	inPlaneSpin,
 	ORIGIN,
 	projectConic,
-	quatFromAxisAngle,
+	type Quat,
 	quatFromEuler,
-	quatMultiply,
+	rotatedZ,
 	rotateVec3,
 	type SurfaceAffine,
 	toRadians,
@@ -324,29 +325,294 @@ describe("ear volume authoring", () => {
 })
 
 describe("ear depth split", () => {
-	const splitFor = (yaw: number) => {
-		const definition = definitionOf("cat")
+	const SPLIT_PERSPECTIVE = 0.55
+	const PITCH_SWEEP = [-40, -20, 0, 20, 40]
+	const SURFACE_TOLERANCE = 1
+	const PLATE_STEPS = 12
+	const SWEEP_PLATE_STEPS = 5
+	const EARS_ABOVE_THE_HEAD: BotAvatarAnimal[] = ["koala", "mouse", "owl"]
+
+	type SplitCase = {
+		animal: BotAvatarAnimal
+		index: number
+		yaw: number
+		pitch: number
+		perspective?: number
+	}
+
+	const splitCase = ({
+		animal,
+		index,
+		yaw,
+		pitch,
+		perspective = SPLIT_PERSPECTIVE,
+	}: SplitCase) => {
+		const definition = definitionOf(animal)
 		const surface = botAvatarSilhouette(definition)
-		const ear = definition.ears[0]
-		const rotation = quatFromEuler({ yaw: toRadians(yaw), pitch: 0, roll: 0 })
-		const hinged = quatMultiply(rotation, quatFromAxisAngle(AXIS_Z, 0))
-		const anchor = rotateVec3(rotation, [
-			ear.volume.center[0] - surface.center[0],
-			ear.volume.center[1] - surface.center[1],
-			ear.depth,
-		])
-		return earSplitPath({
-			rotation: hinged,
-			plateCenter: ear.volume.center,
-			depth: anchor[2],
+		const ear = definition.ears[index]
+		const rest = surface.earRests[index]
+		const rotation = quatFromEuler({
+			yaw: toRadians(yaw),
+			pitch: toRadians(pitch),
+			roll: 0,
 		})
+		const anchor = rotateVec3(rotation, rest.anchor)
+		const placement = {
+			affine: conicAffine({
+				restRadii: [ear.volume.radii[0], ear.volume.radii[1]],
+				current: projectConic({
+					radii: ear.volume.radii,
+					rotation,
+					center: anchor,
+					perspective,
+				}),
+				spin: inPlaneSpin(rotation),
+			}),
+			restPivot: rest.attachRest,
+			pivot: weldToSilhouette({
+				surface,
+				attach: rest.attach,
+				affine: headSurfaceAffine({ surface, rotation, perspective }),
+			}),
+		}
+		const head: HeadVolume = {
+			radii: surface.radii,
+			rotation,
+			center: surface.center,
+		}
+		const plate: EarPlate = {
+			rotation,
+			depth: anchor[2],
+			center: ear.volume.center,
+			squash: 1,
+			placement,
+		}
+		return { ear, head, plate, path: earSplitPath({ head, plate }) }
+	}
+
+	const headNearDepth = ({ radii, rotation, center }: HeadVolume, at: Vec2) => {
+		const inverse: Quat = [
+			rotation[0],
+			-rotation[1],
+			-rotation[2],
+			-rotation[3],
+		]
+		const base = rotateVec3(inverse, [at[0] - center[0], at[1] - center[1], 0])
+		const ray = rotateVec3(inverse, [0, 0, 1])
+		let a = 0
+		let b = 0
+		let c = -1
+		for (let axis = 0; axis < 3; axis += 1) {
+			const weight = 1 / (radii[axis] * radii[axis])
+			a += ray[axis] * ray[axis] * weight
+			b += base[axis] * ray[axis] * weight
+			c += base[axis] * base[axis] * weight
+		}
+		const discriminant = b * b - a * c
+		return discriminant < 0 ? null : (-b + Math.sqrt(discriminant)) / a
+	}
+
+	const plateDepthAt = (plate: EarPlate, at: Vec2) => {
+		const { affine, restPivot, pivot } = plate.placement
+		const unspun = applySurfaceAffine({ spin: -affine.spin, sx: 1, sy: 1 }, [
+			at[0] - pivot[0],
+			at[1] - pivot[1],
+		])
+		const authored: Vec2 = [
+			restPivot[0] + unspun[0] / affine.sx,
+			restPivot[1] + unspun[1] / affine.sy,
+		]
+		return (
+			plate.depth +
+			rotatedZ(plate.rotation, [
+				authored[0] - plate.center[0],
+				(authored[1] - plate.center[1]) * plate.squash,
+				0,
+			])
+		)
+	}
+
+	const plateSamples = (
+		ear: BotAvatarEar,
+		plate: EarPlate,
+		steps = PLATE_STEPS,
+	): Vec2[] => {
+		const { affine, restPivot, pivot } = plate.placement
+		const samples: Vec2[] = []
+		for (let row = -steps; row <= steps; row += 1) {
+			for (let column = -steps; column <= steps; column += 1) {
+				if (row * row + column * column > steps * steps) continue
+				const authored: Vec2 = [
+					ear.volume.center[0] + (ear.volume.radii[0] * column) / steps,
+					ear.volume.center[1] + (ear.volume.radii[1] * row) / steps,
+				]
+				const placed = applySurfaceAffine(affine, [
+					authored[0] - restPivot[0],
+					authored[1] - restPivot[1],
+				])
+				samples.push([pivot[0] + placed[0], pivot[1] + placed[1]])
+			}
+		}
+		return samples
+	}
+
+	const clipLoops = (path: string) =>
+		path.split("M").filter(Boolean).map(controlPoints)
+
+	const insideClip = (loops: Vec2[][], [x, y]: Vec2) => {
+		let inside = false
+		for (const points of loops) {
+			for (let index = 0; index < points.length; index += 1) {
+				const [ax, ay] = points[index]
+				const [bx, by] = points[(index + 1) % points.length]
+				if (ay > y === by > y) continue
+				if (x < ax + ((y - ay) * (bx - ax)) / (by - ay)) inside = !inside
+			}
+		}
+		return inside
+	}
+
+	const nearClipEdge = (loops: Vec2[][], point: Vec2) =>
+		loops.some((points) => distanceToOutline(points, point) < SURFACE_TOLERANCE)
+
+	const everyEar = (run: (animal: BotAvatarAnimal, index: number) => void) => {
+		for (const animal of ANIMAL_NAMES) {
+			definitionOf(animal).ears.forEach((_, index) => {
+				run(animal, index)
+			})
+		}
+	}
+
+	const nearAndFar = (animal: BotAvatarAnimal, yaw: number) => {
+		const cases = definitionOf(animal).ears.map((_, index) =>
+			splitCase({ animal, index, yaw, pitch: 0 }),
+		)
+		const byDepth = [...cases].sort((a, b) => b.plate.depth - a.plate.depth)
+		return { near: byDepth[0], far: byDepth.length > 1 ? byDepth.at(-1) : null }
+	}
+
+	const coveredOverHead = ({
+		ear,
+		head,
+		plate,
+		path,
+	}: ReturnType<typeof splitCase>) => {
+		const loops = clipLoops(path)
+		return plateSamples(ear, plate).filter(
+			(point) =>
+				headNearDepth(head, point) !== null && insideClip(loops, point),
+		)
 	}
 
 	it("keeps the whole ear plate behind the head when facing forward", () => {
-		expect(splitFor(0)).toBe("")
+		everyEar((animal, index) => {
+			for (const perspective of [0, SPLIT_PERSPECTIVE]) {
+				expect(
+					splitCase({ animal, index, yaw: 0, pitch: 0, perspective }).path,
+				).toBe("")
+			}
+		})
 	})
 
 	it("brings part of the near ear plate in front once the head turns", () => {
-		expect(splitFor(55).startsWith("M")).toBe(true)
+		for (const yaw of [40, 55, -40, -55]) {
+			const { near } = nearAndFar("rabbit", yaw)
+			expect(coveredOverHead(near).length).toBeGreaterThan(0)
+		}
+	})
+
+	it("lays every boundary point inside the head on the head near surface", () => {
+		everyEar((animal, index) => {
+			for (const yaw of SWEEP) {
+				for (const pitch of PITCH_SWEEP) {
+					const { head, plate, path } = splitCase({ animal, index, yaw, pitch })
+					for (const point of controlPoints(path)) {
+						const surfaceDepth = headNearDepth(head, point)
+						if (surfaceDepth === null) continue
+						expect(
+							Math.abs(plateDepthAt(plate, point) - surfaceDepth),
+						).toBeLessThan(SURFACE_TOLERANCE)
+					}
+				}
+			}
+		})
+	})
+
+	it("draws the plate where it is nearer than the head surface and hides it where it is farther", () => {
+		everyEar((animal, index) => {
+			for (const yaw of SWEEP) {
+				for (const pitch of PITCH_SWEEP) {
+					const { ear, head, plate, path } = splitCase({
+						animal,
+						index,
+						yaw,
+						pitch,
+					})
+					const loops = clipLoops(path)
+					for (const point of plateSamples(ear, plate, SWEEP_PLATE_STEPS)) {
+						const surfaceDepth = headNearDepth(head, point)
+						if (surfaceDepth === null || nearClipEdge(loops, point)) continue
+						const lead = plateDepthAt(plate, point) - surfaceDepth
+						expect(insideClip(loops, point)).toBe(lead > 0)
+					}
+				}
+			}
+		})
+	})
+
+	it("draws the near ear over the head from 40 degrees of yaw", () => {
+		for (const animal of ANIMAL_NAMES) {
+			for (const yaw of [40, 60, -40, -60]) {
+				const { near, far } = nearAndFar(animal, yaw)
+				if (!far) continue
+				const covered = coveredOverHead(near).length
+				if (EARS_ABOVE_THE_HEAD.includes(animal)) expect(covered).toBe(0)
+				else expect(covered).toBeGreaterThan(0)
+			}
+		}
+	})
+
+	it("keeps the far ear behind the head from 40 degrees of yaw", () => {
+		for (const animal of ANIMAL_NAMES) {
+			for (const yaw of [40, 60, -40, -60]) {
+				const { far } = nearAndFar(animal, yaw)
+				if (far) expect(coveredOverHead(far)).toEqual([])
+			}
+		}
+	})
+
+	it("writes the same path for the same pose with two decimals at most", () => {
+		const first = splitCase({ animal: "rabbit", index: 0, yaw: 47, pitch: -13 })
+		const second = splitCase({
+			animal: "rabbit",
+			index: 0,
+			yaw: 47,
+			pitch: -13,
+		})
+		expect(first.path).toBe(second.path)
+		expect(first.path).not.toBe("")
+		expect(first.path).not.toMatch(/\.\d{3}/)
+	})
+
+	it("writes an empty path when the ear plate or the head has no area", () => {
+		const { head, plate } = splitCase({
+			animal: "rabbit",
+			index: 0,
+			yaw: 50,
+			pitch: 0,
+		})
+		const flatPlate: EarPlate = {
+			...plate,
+			placement: {
+				...plate.placement,
+				affine: { ...plate.placement.affine, sy: 0 },
+			},
+		}
+		const flatHead: HeadVolume = {
+			...head,
+			radii: [head.radii[0], 0, head.radii[2]],
+		}
+		expect(earSplitPath({ head, plate: flatPlate })).toBe("")
+		expect(earSplitPath({ head: flatHead, plate })).toBe("")
 	})
 })

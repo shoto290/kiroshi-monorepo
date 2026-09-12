@@ -131,42 +131,227 @@ export const viewDepthRow = (rotation: Quat): Vec3 => [
 ]
 
 const CLIP_REACH = 4096
-const FULL_COVER = `M${-CLIP_REACH} ${-CLIP_REACH}H${CLIP_REACH}V${CLIP_REACH}H${-CLIP_REACH}Z`
+const DEGENERATE_AREA = 1e-9
+const SECTION_LOOP_SAMPLES = 48
+const SECTION_ARC_SAMPLES = 32
 
-const halfPlaneCorner = (
-	foot: Vec2,
-	tangent: Vec2,
-	unit: Vec2,
-	alongTangent: number,
-	alongNormal: number,
-) =>
-	`${round2(foot[0] + tangent[0] * alongTangent + unit[0] * alongNormal)} ${round2(foot[1] + tangent[1] * alongTangent + unit[1] * alongNormal)}`
-
+type Matrix3 = [Vec3, Vec3, Vec3]
 type HalfPlane = { normal: Vec2; offset: number }
+type HalfPlaneFrame = { foot: Vec2; unit: Vec2; tangent: Vec2 }
+type DepthPlane = { gradient: Vec2; offset: number }
+type Section = { center: Vec2; major: Vec2; minor: Vec2 }
 
-export const halfPlanePath = ({ normal, offset }: HalfPlane) => {
-	const length = Math.hypot(normal[0], normal[1])
-	if (length < 1e-9 || Math.abs(offset) / length > CLIP_REACH) {
-		return offset > 0 ? FULL_COVER : ""
-	}
-	const unit: Vec2 = [normal[0] / length, normal[1] / length]
-	const tangent: Vec2 = [-unit[1], unit[0]]
-	const foot: Vec2 = [
-		(-offset / length) * unit[0],
-		(-offset / length) * unit[1],
-	]
-	const at = (alongTangent: number, alongNormal: number) =>
-		halfPlaneCorner(foot, tangent, unit, alongTangent, alongNormal)
-	return `M${at(-CLIP_REACH, 0)}L${at(CLIP_REACH, 0)}L${at(CLIP_REACH, CLIP_REACH)}L${at(-CLIP_REACH, CLIP_REACH)}Z`
+export type HeadVolume = { radii: Vec3; rotation: Quat; center: Vec2 }
+
+export type EarPlate = {
+	rotation: Quat
+	depth: number
+	center: Vec2
+	squash: number
+	placement: AffineWarp
 }
 
-type EarSplit = { rotation: Quat; plateCenter: Vec2; depth: number }
+type EarSplit = { head: HeadVolume; plate: EarPlate }
 
-export const earSplitPath = ({ rotation, plateCenter, depth }: EarSplit) => {
-	const row = viewDepthRow(rotation)
-	return halfPlanePath({
-		normal: [row[0], row[1]],
-		offset: depth - row[0] * plateCenter[0] - row[1] * plateCenter[1],
+const dot3 = (a: Vec3, b: Vec3) => a[0] * b[0] + a[1] * b[1] + a[2] * b[2]
+
+const dot2 = (a: Vec2, b: Vec2) => a[0] * b[0] + a[1] * b[1]
+
+const headQuadric = ({ radii, rotation }: HeadVolume): Matrix3 => {
+	const quadric: Matrix3 = [
+		[0, 0, 0],
+		[0, 0, 0],
+		[0, 0, 0],
+	]
+	UNIT_AXES.forEach((axis, index) => {
+		const direction = rotateVec3(rotation, axis)
+		const weight = 1 / (radii[index] * radii[index])
+		for (let row = 0; row < 3; row += 1) {
+			for (let column = 0; column < 3; column += 1) {
+				quadric[row][column] += weight * direction[row] * direction[column]
+			}
+		}
+	})
+	return quadric
+}
+
+const plateDepthPlane = ({ head, plate }: EarSplit): DepthPlane => {
+	const { affine, restPivot, pivot } = plate.placement
+	const row = viewDepthRow(plate.rotation)
+	const slope: Vec2 = [row[0], row[1] * plate.squash]
+	const gradient = applySurfaceAffine({ spin: affine.spin, sx: 1, sy: 1 }, [
+		slope[0] / affine.sx,
+		slope[1] / affine.sy,
+	])
+	return {
+		gradient,
+		offset:
+			plate.depth +
+			dot2(slope, [
+				restPivot[0] - plate.center[0],
+				restPivot[1] - plate.center[1],
+			]) +
+			dot2(gradient, [head.center[0] - pivot[0], head.center[1] - pivot[1]]),
+	}
+}
+
+const frontOfRim = (quadric: Matrix3, depth: DepthPlane): HalfPlane => {
+	const [zx, zy, zz] = quadric[2]
+	return {
+		normal: [depth.gradient[0] + zx / zz, depth.gradient[1] + zy / zz],
+		offset: depth.offset,
+	}
+}
+
+const planeSection = (
+	quadric: Matrix3,
+	{ gradient, offset }: DepthPlane,
+): Section | null => {
+	const alongX: Vec3 = [1, 0, gradient[0]]
+	const alongY: Vec3 = [0, 1, gradient[1]]
+	const quadricX: Vec3 = [
+		dot3(quadric[0], alongX),
+		dot3(quadric[1], alongX),
+		dot3(quadric[2], alongX),
+	]
+	const quadricY: Vec3 = [
+		dot3(quadric[0], alongY),
+		dot3(quadric[1], alongY),
+		dot3(quadric[2], alongY),
+	]
+	const xx = dot3(alongX, quadricX)
+	const xy = dot3(alongX, quadricY)
+	const yy = dot3(alongY, quadricY)
+	const linear: Vec2 = [offset * quadricX[2], offset * quadricY[2]]
+	const determinant = xx * yy - xy * xy
+	const center: Vec2 = [
+		-(yy * linear[0] - xy * linear[1]) / determinant,
+		-(xx * linear[1] - xy * linear[0]) / determinant,
+	]
+	const level = 1 - offset * offset * quadric[2][2] - dot2(linear, center)
+	if (!(level > 0)) return null
+	const radius = Math.sqrt(level)
+	const u11 = Math.sqrt(xx)
+	const u22 = Math.sqrt(determinant / xx)
+	return {
+		center,
+		major: [radius / u11, 0],
+		minor: [(-radius * xy) / (xx * u22), radius / u22],
+	}
+}
+
+const sectionPoint = (
+	{ center, major, minor }: Section,
+	angle: number,
+): Vec2 => {
+	const cos = Math.cos(angle)
+	const sin = Math.sin(angle)
+	return [
+		center[0] + major[0] * cos + minor[0] * sin,
+		center[1] + major[1] * cos + minor[1] * sin,
+	]
+}
+
+const sectionArc = (
+	section: Section,
+	from: number,
+	to: number,
+	samples: number,
+) =>
+	Array.from({ length: samples + 1 }, (_, step) =>
+		sectionPoint(section, from + ((to - from) * step) / samples),
+	)
+
+const halfPlaneFrame = ({
+	normal,
+	offset,
+}: HalfPlane): HalfPlaneFrame | null => {
+	const length = Math.hypot(normal[0], normal[1])
+	if (length < 1e-9 || Math.abs(offset) / length > CLIP_REACH) return null
+	const unit: Vec2 = [normal[0] / length, normal[1] / length]
+	return {
+		unit,
+		tangent: [-unit[1], unit[0]],
+		foot: [(-offset / length) * unit[0], (-offset / length) * unit[1]],
+	}
+}
+
+const framePoint = (
+	{ foot, unit, tangent }: HalfPlaneFrame,
+	alongTangent: number,
+	alongNormal: number,
+): Vec2 => [
+	foot[0] + tangent[0] * alongTangent + unit[0] * alongNormal,
+	foot[1] + tangent[1] * alongTangent + unit[1] * alongNormal,
+]
+
+const FULL_COVER: Vec2[] = [
+	[-CLIP_REACH, -CLIP_REACH],
+	[CLIP_REACH, -CLIP_REACH],
+	[CLIP_REACH, CLIP_REACH],
+	[-CLIP_REACH, CLIP_REACH],
+]
+
+const halfPlaneCover = (plane: HalfPlane, frame: HalfPlaneFrame | null) => {
+	if (frame) {
+		return [
+			framePoint(frame, -CLIP_REACH, 0),
+			framePoint(frame, CLIP_REACH, 0),
+			framePoint(frame, CLIP_REACH, CLIP_REACH),
+			framePoint(frame, -CLIP_REACH, CLIP_REACH),
+		]
+	}
+	return plane.offset > 0 ? FULL_COVER : null
+}
+
+type Loop = { points: Vec2[]; origin: Vec2 }
+
+const loopPath = ({ points, origin }: Loop) =>
+	`M${points.map((point) => `${round2(origin[0] + point[0])} ${round2(origin[1] + point[1])}`).join("L")}Z`
+
+type Bite = { cover: Vec2[]; tangent: Vec2; section: Section; angles: Vec2 }
+
+const coverWithBite = ({ cover, tangent, section, angles }: Bite): Vec2[] => {
+	const arc = sectionArc(section, angles[0], angles[1], SECTION_ARC_SAMPLES)
+	const along = (point: Vec2) => dot2(point, tangent)
+	if (along(arc[0]) > along(arc[arc.length - 1])) arc.reverse()
+	return [cover[0], ...arc, ...cover.slice(1)]
+}
+
+export const earSplitPath = ({ head, plate }: EarSplit) => {
+	const { sx, sy } = plate.placement.affine
+	if (Math.min(...head.radii) <= 0 || !(Math.abs(sx * sy) > DEGENERATE_AREA)) {
+		return ""
+	}
+	const quadric = headQuadric(head)
+	const depth = plateDepthPlane({ head, plate })
+	const front = frontOfRim(quadric, depth)
+	const frame = halfPlaneFrame(front)
+	const cover = halfPlaneCover(front, frame)
+	if (!cover) return ""
+	const origin = head.center
+	const coverPath = loopPath({ points: cover, origin })
+	const section = planeSection(quadric, depth)
+	if (!section) return coverPath
+	const inward = dot2(front.normal, section.center) + front.offset
+	const alongMajor = dot2(front.normal, section.major)
+	const alongMinor = dot2(front.normal, section.minor)
+	const swing = Math.hypot(alongMajor, alongMinor)
+	if (inward + swing <= 0) return coverPath
+	if (inward - swing >= 0 || !frame) {
+		const hole = sectionArc(section, 0, 2 * Math.PI, SECTION_LOOP_SAMPLES)
+		return coverPath + loopPath({ points: hole.slice(0, -1), origin })
+	}
+	const middle = Math.atan2(alongMinor, alongMajor)
+	const half = Math.acos(-inward / swing)
+	return loopPath({
+		points: coverWithBite({
+			cover,
+			tangent: frame.tangent,
+			section,
+			angles: [middle - half, middle + half],
+		}),
+		origin,
 	})
 }
 
