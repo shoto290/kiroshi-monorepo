@@ -11,6 +11,8 @@ const ONBOARDING_LABEL_TYPE =
 
 const ONBOARDING_LINE_TYPE = "text-(length:--text-compact) leading-4.5"
 
+const ONBOARDING_STEP_COUNT = 3
+
 type OnboardingCardWidth = "default" | "wide"
 
 const CARD_WIDTH: Record<OnboardingCardWidth, string> = {
@@ -178,6 +180,7 @@ const OnboardingField = ({
 export {
 	ONBOARDING_LABEL_TYPE,
 	ONBOARDING_LINE_TYPE,
+	ONBOARDING_STEP_COUNT,
 	OnboardingAction,
 	type OnboardingActionEmphasis,
 	type OnboardingActionProps,

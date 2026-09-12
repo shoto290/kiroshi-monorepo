@@ -3,12 +3,11 @@
 import { useTranslation } from "react-i18next"
 
 import {
+	ONBOARDING_STEP_COUNT,
 	OnboardingAction,
 	OnboardingActions,
 	OnboardingCard,
 } from "@workspace/ui/components/onboarding-card"
-
-const ONBOARDING_STEP_COUNT = 3
 
 type OnboardingWelcomeCardProps = {
 	onStart: () => void
@@ -51,8 +50,4 @@ const OnboardingWelcomeCard = ({
 	)
 }
 
-export {
-	ONBOARDING_STEP_COUNT,
-	OnboardingWelcomeCard,
-	type OnboardingWelcomeCardProps,
-}
+export { OnboardingWelcomeCard, type OnboardingWelcomeCardProps }

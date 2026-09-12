@@ -5,12 +5,12 @@ import { useTranslation } from "react-i18next"
 
 import {
 	ONBOARDING_LINE_TYPE,
+	ONBOARDING_STEP_COUNT,
 	OnboardingAction,
 	OnboardingActions,
 	OnboardingCard,
 	OnboardingField,
 } from "@workspace/ui/components/onboarding-card"
-import { ONBOARDING_STEP_COUNT } from "@workspace/ui/components/onboarding-welcome-card"
 import {
 	RadioGroup,
 	RadioGroupItem,
@@ -50,6 +50,7 @@ const OnboardingPickerCard = ({
 	const { t } = useTranslation("chat")
 	const optionId = useId()
 	const selected = companions.find((companion) => companion.id === value)
+	const idOf = (companionId: string) => `${optionId}-${companionId}`
 
 	return (
 		<OnboardingCard
@@ -68,11 +69,11 @@ const OnboardingPickerCard = ({
 					<label
 						className="flex cursor-pointer items-start gap-2.5 rounded-(--radius-control-lg) border border-border bg-background px-3 py-2.5 has-data-checked:border-foreground has-data-checked:bg-secondary"
 						data-slot="onboarding-option"
-						htmlFor={`${optionId}-${companion.id}`}
+						htmlFor={idOf(companion.id)}
 						key={companion.id}
 					>
 						<RadioGroupItem
-							aria-describedby={`${optionId}-${companion.id}-description`}
+							aria-describedby={`${idOf(companion.id)}-description`}
 							className="mt-px"
 							id={`${optionId}-${companion.id}`}
 							value={companion.id}
@@ -91,7 +92,7 @@ const OnboardingPickerCard = ({
 							</span>
 							<span
 								className="wrap-break-word text-muted-foreground text-xs"
-								id={`${optionId}-${companion.id}-description`}
+								id={`${idOf(companion.id)}-description`}
 							>
 								{companion.description}
 							</span>

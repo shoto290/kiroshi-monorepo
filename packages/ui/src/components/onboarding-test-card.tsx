@@ -3,11 +3,11 @@
 import { useTranslation } from "react-i18next"
 
 import {
+	ONBOARDING_STEP_COUNT,
 	OnboardingAction,
 	OnboardingActions,
 	OnboardingCard,
 } from "@workspace/ui/components/onboarding-card"
-import { ONBOARDING_STEP_COUNT } from "@workspace/ui/components/onboarding-welcome-card"
 
 type OnboardingTestCardProps = {
 	onPickCompanion: () => void

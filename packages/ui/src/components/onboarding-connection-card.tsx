@@ -6,12 +6,12 @@ import { useTranslation } from "react-i18next"
 import { Icons } from "@workspace/ui/components/icons"
 import {
 	ONBOARDING_LINE_TYPE,
+	ONBOARDING_STEP_COUNT,
 	OnboardingAction,
 	OnboardingActions,
 	OnboardingCard,
 	OnboardingField,
 } from "@workspace/ui/components/onboarding-card"
-import { ONBOARDING_STEP_COUNT } from "@workspace/ui/components/onboarding-welcome-card"
 import { Button } from "@workspace/ui/components/ui/button"
 import { cn } from "@workspace/ui/lib/utils"
 
