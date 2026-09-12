@@ -162,6 +162,8 @@ type BotAvatarProps = {
 	yaw?: number
 	pitch?: number
 	roll?: number
+	gazeYaw?: number
+	gazePitch?: number
 	perspective?: number
 	ink?: BotAvatarInk
 	blot?: BotAvatarBlot
@@ -180,6 +182,8 @@ function BotAvatar({
 	yaw,
 	pitch,
 	roll,
+	gazeYaw,
+	gazePitch,
 	perspective = 0.55,
 	ink = "bold",
 	blot,
@@ -204,6 +208,13 @@ function BotAvatar({
 	const isAnimated = animated && !prefersReducedMotion
 
 	const engine = useMemo(() => new BotAvatarEngine(definition), [definition])
+	const heldGaze = useMemo(
+		() =>
+			gazeYaw === undefined && gazePitch === undefined
+				? null
+				: { yaw: gazeYaw ?? 0, pitch: gazePitch ?? 0 },
+		[gazeYaw, gazePitch],
+	)
 
 	// biome-ignore lint/correctness/useExhaustiveDependencies: mount-time setup — the effects below own every later change
 	useLayoutEffect(() => {
@@ -213,6 +224,7 @@ function BotAvatar({
 		engine.setPerspective(perspective)
 		engine.setWireframe(wireframe)
 		engine.setOrientation({ yaw, pitch, roll })
+		engine.setGaze(heldGaze)
 		if (!isAnimated) {
 			engine.renderStatic()
 			return
@@ -230,8 +242,9 @@ function BotAvatar({
 		engine.setPerspective(perspective)
 		engine.setWireframe(wireframe)
 		engine.setOrientation({ yaw, pitch, roll })
+		engine.setGaze(heldGaze)
 		if (!isAnimated) engine.renderStatic()
-	}, [engine, yaw, pitch, roll, perspective, wireframe, isAnimated])
+	}, [engine, yaw, pitch, roll, heldGaze, perspective, wireframe, isAnimated])
 
 	const startDrag = (event: AvatarPointerEvent) => {
 		if (!interactive) return
