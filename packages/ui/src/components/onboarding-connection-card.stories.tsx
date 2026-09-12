@@ -190,7 +190,7 @@ export const Waiting = meta.story({
 		docs: {
 			description: {
 				story:
-					"The sign-in in progress, drawn as the two steps it really is: open this link, then paste the code back. Check that nothing here reads as an alert — no dot, no status line — that the two step lines carry the same type and start padding as any onboarding field label, that the only rule sits above the footer, that the link is read only and copies whole, that a refused copy says so in the polite region while a copy that worked is announced by the control alone, that Continue on an empty field sends the person back to it rather than submitting, and that Enter and Continue submit the same value. Pick `Error` for the attempt that came back with an exit code.",
+					"The sign-in in progress, drawn as the two steps it really is: open this link, then paste the code back. Check that nothing here reads as an alert — no dot, no status line — that the two step lines carry the same type and start padding as any onboarding field label, that the only rule sits above the footer, that the link is read only, carries the step line as its description while keeping its own name, and copies whole, that a refused copy says so in the polite region while a copy that worked is announced by the control alone, that Continue on an empty field sends the person back to it rather than submitting, and that Enter and Continue submit the same value. Pick `Error` for the attempt that came back with an exit code.",
 			},
 		},
 	},
@@ -209,6 +209,8 @@ export const Waiting = meta.story({
 
 		await expect(link).toHaveAttribute("readonly")
 		await expect(link).toHaveValue(SIGN_IN_URL)
+		await expect(link).toHaveAccessibleName("Sign-in link")
+		await expect(link).toHaveAccessibleDescription("Open this link and sign in")
 
 		const writeText = spyOn(navigator.clipboard, "writeText").mockRejectedValue(
 			new DOMException("Write permission denied.", "NotAllowedError"),

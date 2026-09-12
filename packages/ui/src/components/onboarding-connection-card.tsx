@@ -1,6 +1,6 @@
 "use client"
 
-import { type ReactNode, useRef, useState } from "react"
+import { type ReactNode, useId, useRef, useState } from "react"
 import { useTranslation } from "react-i18next"
 
 import { Icons } from "@workspace/ui/components/icons"
@@ -86,6 +86,7 @@ const OnboardingWaiting = ({
 	const { copied, copy } = useCopyText(signInUrl)
 	const [hasFailedToCopy, setHasFailedToCopy] = useState(false)
 	const codeField = useRef<HTMLInputElement>(null)
+	const linkStepId = useId()
 
 	const hasCopied = copied && !hasFailedToCopy
 	const copyControl = hasCopied
@@ -115,11 +116,12 @@ const OnboardingWaiting = ({
 	return (
 		<>
 			<div className="flex flex-col gap-1.5">
-				<p className={ONBOARDING_STEP_TYPE}>
+				<p className={ONBOARDING_STEP_TYPE} id={linkStepId}>
 					{t("onboarding.connection.waiting.linkStep")}
 				</p>
 				<div className={LINK_ROW_CLASS} data-slot="onboarding-link">
 					<input
+						aria-describedby={linkStepId}
 						aria-label={t("onboarding.connection.waiting.linkLabel")}
 						className="min-w-0 flex-1 truncate bg-transparent font-mono text-xs leading-4 outline-none"
 						readOnly
@@ -257,7 +259,7 @@ const OnboardingConnectionCard = ({
 							<Icons.Claude className="size-3.5" />
 							{t("onboarding.connection.offer.signIn")}
 						</Button>
-						<p className="wrap-break-word ps-1 text-muted-foreground text-xs">
+						<p className={ONBOARDING_STEP_TYPE}>
 							{t("onboarding.connection.offer.note")}
 						</p>
 					</div>
