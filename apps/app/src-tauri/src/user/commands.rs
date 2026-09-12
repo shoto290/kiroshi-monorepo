@@ -7,7 +7,9 @@ use super::contract::{UserPreferences, UserPreferencesError};
 use crate::avatars;
 use crate::bundles;
 use crate::conversations::commands::{bundled, recounted};
-use crate::conversations::contract::{BotHistoryEntry, Skill, SkillDraft, TranscriptStoreError};
+use crate::conversations::contract::{
+	BotChangedFile, BotHistoryEntry, Skill, SkillDraft, TranscriptStoreError,
+};
 use crate::db;
 
 fn ready(state: &db::DatabaseState) -> Result<&db::Database, UserPreferencesError> {
@@ -163,19 +165,22 @@ pub async fn user_plugin_history<R: Runtime>(
 #[tauri::command]
 pub async fn user_plugin_history_diff<R: Runtime>(
 	app: AppHandle<R>,
-	commit_id: String,
-) -> Result<String, TranscriptStoreError> {
+	oldest_commit_id: String,
+	newest_commit_id: String,
+) -> Result<Vec<BotChangedFile>, TranscriptStoreError> {
 	let path = plugin_path(&app)?;
-	recounted(bundles::user::diff(&path, &commit_id))
+	recounted(bundles::user::changed_files(&path, &oldest_commit_id, &newest_commit_id))
+		.map(|files| files.into_iter().map(BotChangedFile::from).collect())
 }
 
 #[tauri::command]
 pub async fn user_plugin_revert<R: Runtime>(
 	app: AppHandle<R>,
-	commit_id: String,
+	oldest_commit_id: String,
+	newest_commit_id: String,
 ) -> Result<Vec<BotHistoryEntry>, TranscriptStoreError> {
 	let path = plugin_path(&app)?;
-	bundles::user::revert(&path, &commit_id)
+	bundles::user::revert(&path, &oldest_commit_id, &newest_commit_id)
 		.map_err(|error| TranscriptStoreError::UnwritableBundle { detail: error.to_string() })?;
 	read_history(&path)
 }

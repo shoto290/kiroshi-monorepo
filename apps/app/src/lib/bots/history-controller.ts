@@ -1,3 +1,5 @@
+import { joinedPatches } from "./changed-files"
+
 import { createQueue } from "../queue"
 import type { BotHistoryEntry } from "../conversations/store-contract"
 import type { TranscriptStore } from "../conversations/store-port"
@@ -15,8 +17,8 @@ export type HistoryController = {
 	subscribe: (listener: () => void) => () => void
 	open: (botId: string) => Promise<void>
 	reload: () => void
-	loadDiff: (commitId: string) => void
-	revert: (commitId: string) => void
+	loadDiff: (oldestCommitId: string, newestCommitId: string) => void
+	revert: (oldestCommitId: string, newestCommitId: string) => void
 }
 
 const INITIAL_STATE: HistoryState = {
@@ -89,24 +91,28 @@ export const createHistoryController = (
 
 		reload,
 
-		loadDiff: (commitId: string) => {
-			const known = state.commits.find((commit) => commit.id === commitId)
+		loadDiff: (oldestCommitId: string, newestCommitId: string) => {
+			const known = state.commits.find((commit) => commit.id === newestCommitId)
 			if (known?.diff !== undefined) {
 				return
 			}
 			onOpenBot(async (botId) => {
-				const diff = await store.botHistoryDiff(botId, commitId)
+				const diff = joinedPatches(
+					await store.botHistoryDiff(botId, oldestCommitId, newestCommitId),
+				)
 				applyTo(botId, {
 					commits: state.commits.map((commit) =>
-						commit.id === commitId ? { ...commit, diff } : commit,
+						commit.id === newestCommitId ? { ...commit, diff } : commit,
 					),
 				})
 			})
 		},
 
-		revert: (commitId: string) =>
+		revert: (oldestCommitId: string, newestCommitId: string) =>
 			onOpenBot(async (botId) =>
-				applyTo(botId, { commits: await store.revertBot(botId, commitId) }),
+				applyTo(botId, {
+					commits: await store.revertBot(botId, oldestCommitId, newestCommitId),
+				}),
 			),
 	}
 }

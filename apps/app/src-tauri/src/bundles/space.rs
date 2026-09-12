@@ -4,8 +4,8 @@ use std::path::{Path, PathBuf};
 use tauri::{AppHandle, Manager, Runtime};
 
 use super::{
-	drafted, git, learned, Author, Evolution, HistoryEntry, McpServer, Skill, SkillDraft,
-	SkillFront, LEARNED_NAME, MANIFEST_DIR, MANIFEST_NAME, KIROSHI_KEY, PRELOAD_KEY,
+	drafted, git, learned, Author, ChangedFile, Evolution, HistoryEntry, McpServer, Skill,
+	SkillDraft, SkillFront, LEARNED_NAME, MANIFEST_DIR, MANIFEST_NAME, KIROSHI_KEY, PRELOAD_KEY,
 	SERVER_SUBJECT, SKILLS_DIR, SKILL_NAME, VERSION,
 };
 use crate::private_files;
@@ -137,12 +137,20 @@ pub fn history(path: &Path) -> Result<Vec<HistoryEntry>, git2::Error> {
 	super::history_at(path)
 }
 
-pub fn diff(path: &Path, commit_id: &str) -> Result<String, git2::Error> {
-	super::diff_at(path, commit_id)
+pub fn changed_files(
+	path: &Path,
+	oldest_commit_id: &str,
+	newest_commit_id: &str,
+) -> Result<Vec<ChangedFile>, git2::Error> {
+	super::changed_files_at(path, oldest_commit_id, newest_commit_id)
 }
 
-pub fn revert(path: &Path, commit_id: &str) -> Result<String, git2::Error> {
-	super::revert_at(path, commit_id)
+pub fn revert(
+	path: &Path,
+	oldest_commit_id: &str,
+	newest_commit_id: &str,
+) -> Result<String, git2::Error> {
+	super::revert_at(path, oldest_commit_id, newest_commit_id)
 }
 
 fn kept(path: &Path, bytes: &[u8]) -> std::io::Result<()> {
@@ -310,7 +318,7 @@ mod tests {
 			.expect("the edit lands");
 		let latest = history(&path).expect("the history reads")[0].id.clone();
 
-		revert(&path, &latest).expect("the change is undone");
+		revert(&path, &latest, &latest).expect("the change is undone");
 
 		let text = fs::read_to_string(about_file(&path)).expect("the skill reads");
 		assert!(!text.contains("apps/api"), "got {text}");
@@ -406,16 +414,18 @@ mod tests {
 	}
 
 	#[test]
-	fn the_diff_of_a_commit_reads_what_that_commit_changed() {
+	fn the_diff_of_a_commit_reads_the_files_that_commit_changed() {
 		let path = a_path("diffed");
 		lay_down_at(&path).expect("the plugin is laid down");
 		update_skill(&path, ABOUT_ID, &a_draft(ABOUT_ID, "The API lives in apps/api."))
 			.expect("the edit lands");
 		let latest = history(&path).expect("the history reads")[0].id.clone();
 
-		let patch = diff(&path, &latest).expect("the diff reads");
+		let files = changed_files(&path, &latest, &latest).expect("the diff reads");
 
-		assert!(patch.contains("apps/api"), "got {patch}");
+		let touched = files.iter().find(|file| file.path.contains(ABOUT_ID));
+		let touched = touched.expect("the edited skill is among the files");
+		assert!(touched.patch.contains("apps/api"), "got {}", touched.patch);
 
 		let _ = fs::remove_dir_all(&path);
 	}

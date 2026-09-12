@@ -3,6 +3,7 @@ import { invoke } from "@tauri-apps/api/core"
 import type {
 	AvatarBlot,
 	Bot,
+	BotChangedFile,
 	BotDraft,
 	BotHistoryEntry,
 	BotIdentity,
@@ -228,11 +229,23 @@ export const conversationStore: TranscriptStore = {
 	botHistory: (botId: string) =>
 		invoke<BotHistoryEntry[]>("conversation_bot_history", { botId }),
 
-	botHistoryDiff: (botId: string, commitId: string) =>
-		invoke<string>("conversation_bot_history_diff", { botId, commitId }),
+	botHistoryDiff: (
+		botId: string,
+		oldestCommitId: string,
+		newestCommitId: string,
+	) =>
+		invoke<BotChangedFile[]>("conversation_bot_history_diff", {
+			botId,
+			oldestCommitId,
+			newestCommitId,
+		}),
 
-	revertBot: (botId: string, commitId: string) =>
-		invoke<BotHistoryEntry[]>("conversation_bot_revert", { botId, commitId }),
+	revertBot: (botId: string, oldestCommitId: string, newestCommitId: string) =>
+		invoke<BotHistoryEntry[]>("conversation_bot_revert", {
+			botId,
+			oldestCommitId,
+			newestCommitId,
+		}),
 
 	userPluginSkills: () => invoke<BotSkill[]>("user_plugin_skills"),
 
@@ -262,11 +275,17 @@ export const conversationStore: TranscriptStore = {
 
 	userPluginHistory: () => invoke<BotHistoryEntry[]>("user_plugin_history"),
 
-	userPluginHistoryDiff: (commitId: string) =>
-		invoke<string>("user_plugin_history_diff", { commitId }),
+	userPluginHistoryDiff: (oldestCommitId: string, newestCommitId: string) =>
+		invoke<BotChangedFile[]>("user_plugin_history_diff", {
+			oldestCommitId,
+			newestCommitId,
+		}),
 
-	revertUserPlugin: (commitId: string) =>
-		invoke<BotHistoryEntry[]>("user_plugin_revert", { commitId }),
+	revertUserPlugin: (oldestCommitId: string, newestCommitId: string) =>
+		invoke<BotHistoryEntry[]>("user_plugin_revert", {
+			oldestCommitId,
+			newestCommitId,
+		}),
 
 	spacePluginSkills: (spaceId: string) =>
 		invoke<BotSkill[]>("space_plugin_skills", { spaceId }),
@@ -321,11 +340,27 @@ export const conversationStore: TranscriptStore = {
 	spacePluginHistory: (spaceId: string) =>
 		invoke<BotHistoryEntry[]>("space_plugin_history", { spaceId }),
 
-	spacePluginHistoryDiff: (spaceId: string, commitId: string) =>
-		invoke<string>("space_plugin_history_diff", { spaceId, commitId }),
+	spacePluginHistoryDiff: (
+		spaceId: string,
+		oldestCommitId: string,
+		newestCommitId: string,
+	) =>
+		invoke<BotChangedFile[]>("space_plugin_history_diff", {
+			spaceId,
+			oldestCommitId,
+			newestCommitId,
+		}),
 
-	revertSpacePlugin: (spaceId: string, commitId: string) =>
-		invoke<BotHistoryEntry[]>("space_plugin_revert", { spaceId, commitId }),
+	revertSpacePlugin: (
+		spaceId: string,
+		oldestCommitId: string,
+		newestCommitId: string,
+	) =>
+		invoke<BotHistoryEntry[]>("space_plugin_revert", {
+			spaceId,
+			oldestCommitId,
+			newestCommitId,
+		}),
 
 	recordBotCommands: (botId: string, commands: AgentCommand[]) =>
 		invoke<void>("conversation_record_bot_commands", { botId, commands }),

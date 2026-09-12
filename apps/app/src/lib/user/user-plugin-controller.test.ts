@@ -89,7 +89,7 @@ describe("user plugin controller", () => {
 		const controller = await opened(store)
 		const [latest] = controller.getState().commits
 
-		controller.revert(latest.id)
+		controller.revert(latest.id, latest.id)
 		await settled()
 
 		expect(controller.getState().commits[0].title).toContain("Undone")
@@ -101,7 +101,7 @@ describe("user plugin controller", () => {
 		const controller = await opened(store)
 		const [latest] = controller.getState().commits
 
-		controller.loadDiff(latest.id)
+		controller.loadDiff(latest.id, latest.id)
 		await settled()
 
 		expect(controller.getState().commits[0].diff).toContain(latest.title)

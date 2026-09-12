@@ -1,6 +1,7 @@
 import type {
 	AvatarBlot,
 	Bot,
+	BotChangedFile,
 	BotDraft,
 	BotHistoryEntry,
 	BotIdentity,
@@ -109,8 +110,16 @@ export type TranscriptStore = TranscriptPort & {
 	) => Promise<void>
 	deleteEnvironmentVariable: (scope: EnvScope, name: string) => Promise<void>
 	botHistory: (botId: string) => Promise<BotHistoryEntry[]>
-	botHistoryDiff: (botId: string, commitId: string) => Promise<string>
-	revertBot: (botId: string, commitId: string) => Promise<BotHistoryEntry[]>
+	botHistoryDiff: (
+		botId: string,
+		oldestCommitId: string,
+		newestCommitId: string,
+	) => Promise<BotChangedFile[]>
+	revertBot: (
+		botId: string,
+		oldestCommitId: string,
+		newestCommitId: string,
+	) => Promise<BotHistoryEntry[]>
 	userPluginSkills: () => Promise<BotSkill[]>
 	createUserPluginSkill: (draft: BotSkillDraft) => Promise<BotSkill>
 	updateUserPluginSkill: (
@@ -130,8 +139,14 @@ export type TranscriptStore = TranscriptPort & {
 	) => Promise<BotSkill>
 	deleteUserPluginSkillFile: (skillId: string, path: string) => Promise<void>
 	userPluginHistory: () => Promise<BotHistoryEntry[]>
-	userPluginHistoryDiff: (commitId: string) => Promise<string>
-	revertUserPlugin: (commitId: string) => Promise<BotHistoryEntry[]>
+	userPluginHistoryDiff: (
+		oldestCommitId: string,
+		newestCommitId: string,
+	) => Promise<BotChangedFile[]>
+	revertUserPlugin: (
+		oldestCommitId: string,
+		newestCommitId: string,
+	) => Promise<BotHistoryEntry[]>
 	spacePluginSkills: (spaceId: string) => Promise<BotSkill[]>
 	createSpacePluginSkill: (
 		spaceId: string,
@@ -165,10 +180,15 @@ export type TranscriptStore = TranscriptPort & {
 		path: string,
 	) => Promise<void>
 	spacePluginHistory: (spaceId: string) => Promise<BotHistoryEntry[]>
-	spacePluginHistoryDiff: (spaceId: string, commitId: string) => Promise<string>
+	spacePluginHistoryDiff: (
+		spaceId: string,
+		oldestCommitId: string,
+		newestCommitId: string,
+	) => Promise<BotChangedFile[]>
 	revertSpacePlugin: (
 		spaceId: string,
-		commitId: string,
+		oldestCommitId: string,
+		newestCommitId: string,
 	) => Promise<BotHistoryEntry[]>
 	recordBotCommands: (botId: string, commands: AgentCommand[]) => Promise<void>
 	botCommands: (botId: string) => Promise<AgentCommand[]>

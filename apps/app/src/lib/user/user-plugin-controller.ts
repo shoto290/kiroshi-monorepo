@@ -1,4 +1,5 @@
 import { createQueue } from "../queue"
+import { joinedPatches } from "../bots/changed-files"
 import type { BotCommit } from "../bots/history-controller"
 import {
 	createSkillFilesController,
@@ -23,8 +24,8 @@ export type UserPluginController = SkillFilesController & {
 	saveSkill: (skillId: string, draft: BotSkillDraft) => void
 	setSkillPreloaded: (skillId: string, isPreloaded: boolean) => void
 	removeSkill: (skillId: string) => void
-	loadDiff: (commitId: string) => void
-	revert: (commitId: string) => void
+	loadDiff: (oldestCommitId: string, newestCommitId: string) => void
+	revert: (oldestCommitId: string, newestCommitId: string) => void
 }
 
 export const initialUserPluginState: UserPluginState = {
@@ -141,24 +142,28 @@ export const createUserPluginController = (
 				await readHistory()
 			}),
 
-		loadDiff: (commitId: string) => {
-			const known = state.commits.find((commit) => commit.id === commitId)
+		loadDiff: (oldestCommitId: string, newestCommitId: string) => {
+			const known = state.commits.find((commit) => commit.id === newestCommitId)
 			if (known?.diff !== undefined) {
 				return
 			}
 			run(async () => {
-				const diff = await store.userPluginHistoryDiff(commitId)
+				const diff = joinedPatches(
+					await store.userPluginHistoryDiff(oldestCommitId, newestCommitId),
+				)
 				set({
 					commits: state.commits.map((commit) =>
-						commit.id === commitId ? { ...commit, diff } : commit,
+						commit.id === newestCommitId ? { ...commit, diff } : commit,
 					),
 				})
 			})
 		},
 
-		revert: (commitId: string) =>
+		revert: (oldestCommitId: string, newestCommitId: string) =>
 			run(async () => {
-				set({ commits: await store.revertUserPlugin(commitId) })
+				set({
+					commits: await store.revertUserPlugin(oldestCommitId, newestCommitId),
+				})
 				set({ skills: await store.userPluginSkills() })
 			}),
 	}

@@ -831,9 +831,10 @@ export function App() {
 					history={{
 						commits: history.state.commits.map(toCommitItem),
 						haveFailedToLoad: history.state.hasFailedToLoad,
-						onLoadDiff: history.controller.loadDiff,
+						onLoadDiff: (commitId) =>
+							history.controller.loadDiff(commitId, commitId),
 						onRevert: (commitId) => {
-							history.controller.revert(commitId)
+							history.controller.revert(commitId, commitId)
 							chat.controller.redescribe(settingsBot.id)
 						},
 					}}
@@ -1004,8 +1005,10 @@ export function App() {
 					}}
 					history={{
 						commits: spacePlugin.state.commits.map(toCommitItem),
-						onLoadDiff: spacePlugin.controller.loadDiff,
-						onRevert: spacePlugin.controller.revert,
+						onLoadDiff: (commitId) =>
+							spacePlugin.controller.loadDiff(commitId, commitId),
+						onRevert: (commitId) =>
+							spacePlugin.controller.revert(commitId, commitId),
 					}}
 					isDeletable={spaces.state.spaces.length > 1}
 					onClose={() => {
@@ -1049,8 +1052,10 @@ export function App() {
 			<UserSettingsDialog
 				history={{
 					commits: userPlugin.state.commits.map(toCommitItem),
-					onLoadDiff: userPlugin.controller.loadDiff,
-					onRevert: userPlugin.controller.revert,
+					onLoadDiff: (commitId) =>
+						userPlugin.controller.loadDiff(commitId, commitId),
+					onRevert: (commitId) =>
+						userPlugin.controller.revert(commitId, commitId),
 				}}
 				onClose={() => user.controller.setSettingsOpen(false)}
 				language={preferences.language}

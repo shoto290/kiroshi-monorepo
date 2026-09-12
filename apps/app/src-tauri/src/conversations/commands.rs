@@ -4,10 +4,10 @@ use tauri::{AppHandle, Manager, Runtime, State};
 
 use super::context;
 use super::contract::{
-	AvatarAnimal, AvatarBlot, Bot, BotDraft, BotHistoryEntry, BotIdentity, Chat, ContextCheckpoint,
-	Conversation, McpServer, MessageReference, NewAssistantMessage, NewTurn, NewUserMessage,
-	PinnedBubble, RuntimeSession, Skill, SkillDraft, SuggestedBot, TerminalCompletion,
-	TranscriptPage, TranscriptStoreError, TranscriptWindow,
+	AvatarAnimal, AvatarBlot, Bot, BotChangedFile, BotDraft, BotHistoryEntry, BotIdentity, Chat,
+	ContextCheckpoint, Conversation, McpServer, MessageReference, NewAssistantMessage, NewTurn,
+	NewUserMessage, PinnedBubble, RuntimeSession, Skill, SkillDraft, SuggestedBot,
+	TerminalCompletion, TranscriptPage, TranscriptStoreError, TranscriptWindow,
 };
 use super::seed;
 use crate::agent::contract::AgentCommand;
@@ -720,20 +720,23 @@ pub async fn conversation_bot_history<R: Runtime>(
 pub async fn conversation_bot_history_diff<R: Runtime>(
 	app: AppHandle<R>,
 	bot_id: String,
-	commit_id: String,
-) -> Result<String, TranscriptStoreError> {
+	oldest_commit_id: String,
+	newest_commit_id: String,
+) -> Result<Vec<BotChangedFile>, TranscriptStoreError> {
 	let root = writable_root(&app)?;
-	recounted(bundles::diff(&root, &bot_id, &commit_id))
+	recounted(bundles::changed_files(&root, &bot_id, &oldest_commit_id, &newest_commit_id))
+		.map(|files| files.into_iter().map(BotChangedFile::from).collect())
 }
 
 #[tauri::command]
 pub async fn conversation_bot_revert<R: Runtime>(
 	app: AppHandle<R>,
 	bot_id: String,
-	commit_id: String,
+	oldest_commit_id: String,
+	newest_commit_id: String,
 ) -> Result<Vec<BotHistoryEntry>, TranscriptStoreError> {
 	let root = writable_root(&app)?;
-	bundles::revert(&root, &bot_id, &commit_id)
+	bundles::revert(&root, &bot_id, &oldest_commit_id, &newest_commit_id)
 		.map_err(|error| TranscriptStoreError::UnwritableBundle { detail: error.to_string() })?;
 	read_history(&root, &bot_id)
 }
