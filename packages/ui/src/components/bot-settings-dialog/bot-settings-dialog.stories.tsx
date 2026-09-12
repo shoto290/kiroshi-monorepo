@@ -29,7 +29,10 @@ import {
 import { BOT_MCP_SERVERS } from "@workspace/ui/components/bot-settings-dialog/mcp-servers.fixtures"
 import { BOT_MEMORY } from "@workspace/ui/components/bot-settings-dialog/memory.fixtures"
 import { BOT_ENVIRONMENT } from "@workspace/ui/components/environment.fixtures"
-import { BOT_COMMITS } from "@workspace/ui/components/plugin-settings/history.fixtures"
+import {
+	HISTORY_DAYS,
+	HISTORY_OLDEST_DATE,
+} from "@workspace/ui/components/plugin-settings/history.fixtures"
 import {
 	BOT_SKILLS,
 	LONG_SKILL,
@@ -170,9 +173,9 @@ const meta = preview.meta({
 		onSkillPreloadedChange: fn(),
 		onSkillDelete: fn(),
 		history: {
-			commits: BOT_COMMITS,
-			onLoadDiff: fn(),
-			onRevert: fn(),
+			days: HISTORY_DAYS,
+			oldestDate: HISTORY_OLDEST_DATE,
+			onUndo: fn(),
 		},
 	},
 	argTypes: {
@@ -542,7 +545,7 @@ export const History = meta.story({
 			},
 		},
 	},
-	play: async ({ args, userEvent }) => {
+	play: async ({ userEvent }) => {
 		const dialog = await dialogIn()
 		const panel = await openTab(dialog, "History", userEvent)
 
@@ -551,13 +554,9 @@ export const History = meta.story({
 			"Switched the model to Claude Sonnet 4.5",
 		)
 
-		const [changes] = within(panel).getAllByRole("button", {
-			name: "Show changes",
-		})
-		if (!changes) throw new Error("The history is missing its disclosures")
-
-		await userEvent.click(changes)
-		await expect(args.history?.onLoadDiff).toHaveBeenCalledWith("commit-4")
+		await expect(
+			within(panel).getByRole("heading", { level: 3, name: "Today" }),
+		).toBeVisible()
 	},
 })
 

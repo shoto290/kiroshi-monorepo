@@ -123,6 +123,22 @@ const bots = {
 		empty: "Aucune modification pour l'instant.",
 		unavailable:
 			"Impossible de charger l'historique. Rouvrez les réglages pour réessayer.",
+		summary_one:
+			"Liste 1 modification depuis le {{date}}. Annuler une modification en écrit une nouvelle : rien n'est jamais supprimé.",
+		summary_many:
+			"Liste {{count}} modifications depuis le {{date}}. Annuler une modification en écrit une nouvelle : rien n'est jamais supprimé.",
+		summary_other:
+			"Liste {{count}} modifications depuis le {{date}}. Annuler une modification en écrit une nouvelle : rien n'est jamais supprimé.",
+		noMatch: "Aucune modification ne correspond à « {{text}} ».",
+		retouches_one: "(1 fois)",
+		retouches_many: "({{count}} fois)",
+		retouches_other: "({{count}} fois)",
+		undone: "Annulée plus haut",
+		search: {
+			label: "Rechercher dans l'historique",
+			placeholder: "Rechercher dans l'historique",
+			clear: "Effacer la recherche",
+		},
 		author: {
 			user: "Vous",
 		},
@@ -134,9 +150,10 @@ const bots = {
 		},
 		undo: {
 			action: "Annuler",
+			label: "Annuler « {{title}} »",
 			title: "Annuler « {{title}} » ?",
 			description:
-				"Tout revient à l'état d'avant cette modification. L'annulation s'ajoute à l'historique.",
+				"Tout revient à l'état d'avant cette modification. L'annulation est une modification à part entière : vous pouvez l'annuler aussi.",
 			confirm: "Annuler cette modification",
 		},
 	},

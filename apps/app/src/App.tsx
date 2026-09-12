@@ -19,10 +19,10 @@ import { WorkspaceBody } from "@/components/workspace-body"
 import {
 	changesRuntime,
 	modelOptionsFor,
-	toCommitItem,
 	toRosterBots,
 	toSettingsValue,
 } from "@/lib/bots/bot-settings"
+import { oldestHistoryDate, toHistoryDays } from "@/lib/bots/history-days"
 import { toSkillDraft, toSkillFiles, toSkillItem } from "@/lib/bots/skill-draft"
 import { useBotHistory } from "@/lib/bots/use-bot-history"
 import { useBotSkills } from "@/lib/bots/use-bot-skills"
@@ -829,12 +829,11 @@ export function App() {
 			{settingsBot ? (
 				<BotSettingsDialog
 					history={{
-						commits: history.state.commits.map(toCommitItem),
+						days: toHistoryDays(history.state.commits),
+						oldestDate: oldestHistoryDate(history.state.commits),
 						haveFailedToLoad: history.state.hasFailedToLoad,
-						onLoadDiff: (commitId) =>
-							history.controller.loadDiff(commitId, commitId),
-						onRevert: (commitId) => {
-							history.controller.revert(commitId, commitId)
+						onUndo: (change) => {
+							history.controller.revert(change.id, change.id)
 							chat.controller.redescribe(settingsBot.id)
 						},
 					}}
@@ -1004,11 +1003,10 @@ export function App() {
 						onDelete: serverEnvironment.controller.remove,
 					}}
 					history={{
-						commits: spacePlugin.state.commits.map(toCommitItem),
-						onLoadDiff: (commitId) =>
-							spacePlugin.controller.loadDiff(commitId, commitId),
-						onRevert: (commitId) =>
-							spacePlugin.controller.revert(commitId, commitId),
+						days: toHistoryDays(spacePlugin.state.commits),
+						oldestDate: oldestHistoryDate(spacePlugin.state.commits),
+						onUndo: (change) =>
+							spacePlugin.controller.revert(change.id, change.id),
 					}}
 					isDeletable={spaces.state.spaces.length > 1}
 					onClose={() => {
@@ -1051,11 +1049,10 @@ export function App() {
 			) : null}
 			<UserSettingsDialog
 				history={{
-					commits: userPlugin.state.commits.map(toCommitItem),
-					onLoadDiff: (commitId) =>
-						userPlugin.controller.loadDiff(commitId, commitId),
-					onRevert: (commitId) =>
-						userPlugin.controller.revert(commitId, commitId),
+					days: toHistoryDays(userPlugin.state.commits),
+					oldestDate: oldestHistoryDate(userPlugin.state.commits),
+					onUndo: (change) =>
+						userPlugin.controller.revert(change.id, change.id),
 				}}
 				onClose={() => user.controller.setSettingsOpen(false)}
 				language={preferences.language}

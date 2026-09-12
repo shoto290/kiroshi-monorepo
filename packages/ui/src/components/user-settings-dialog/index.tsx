@@ -235,12 +235,11 @@ const UserSettingsDialog = ({
 							{skillSession.panel}
 						</Tabs.Panel>
 
-						<SettingsScrollingPanel value="history">
+						<SettingsScrollingPanel isFlush value="history">
 							<HistoryPanel
-								authorName={t("plugin.author.bot")}
-								commits={history.commits}
-								onLoadDiff={history.onLoadDiff}
-								onRevert={history.onRevert}
+								{...history}
+								companionName={t("plugin.author.bot")}
+								readerImage={value.image}
 							/>
 						</SettingsScrollingPanel>
 					</Tabs.Root>

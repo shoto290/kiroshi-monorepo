@@ -9,7 +9,10 @@ import {
 import { BLOT_TINTS } from "@workspace/ui/components/bot-settings"
 import { BOT_MCP_SERVERS } from "@workspace/ui/components/bot-settings-dialog/mcp-servers.fixtures"
 import { SPACE_ENVIRONMENT } from "@workspace/ui/components/environment.fixtures"
-import { BOT_COMMITS } from "@workspace/ui/components/plugin-settings/history.fixtures"
+import {
+	HISTORY_DAYS,
+	HISTORY_OLDEST_DATE,
+} from "@workspace/ui/components/plugin-settings/history.fixtures"
 import { BOT_SKILLS } from "@workspace/ui/components/plugin-settings/skills.fixtures"
 import {
 	SpaceSettingsDialog,
@@ -80,9 +83,9 @@ const meta = preview.meta({
 		onMcpServerChange: fn(),
 		onMcpServerDelete: fn(),
 		history: {
-			commits: BOT_COMMITS,
-			onLoadDiff: fn(),
-			onRevert: fn(),
+			days: HISTORY_DAYS,
+			oldestDate: HISTORY_OLDEST_DATE,
+			onUndo: fn(),
 		},
 		onDelete: fn(),
 	},
@@ -265,7 +268,7 @@ export const History = meta.story({
 			},
 		},
 	},
-	play: async ({ args, userEvent }) => {
+	play: async ({ userEvent }) => {
 		const dialog = await dialogIn()
 
 		await userEvent.click(within(dialog).getByRole("tab", { name: "History" }))
@@ -277,11 +280,7 @@ export const History = meta.story({
 		await expect(
 			within(panel).getAllByText("A companion").length,
 		).toBeGreaterThan(0)
-
-		await userEvent.click(
-			within(panel).getAllByRole("button", { name: "Show changes" })[0],
-		)
-		await expect(args.history.onLoadDiff).toHaveBeenCalled()
+		await expect(within(panel).getAllByRole("listitem")).toHaveLength(6)
 	},
 })
 

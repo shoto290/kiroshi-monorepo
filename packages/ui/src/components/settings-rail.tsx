@@ -31,12 +31,15 @@ const SETTINGS_SCROLLING_PANEL_CLASS = cn(
 	"overflow-y-auto",
 )
 
+const SETTINGS_FLUSH_PANEL_CLASS = "gap-0 p-0"
+
 type SettingsScrollingPanelProps = Omit<
 	ComponentProps<typeof Tabs.Panel>,
 	"className"
->
+> & { isFlush?: boolean }
 
 const SettingsScrollingPanel = ({
+	isFlush = false,
 	ref,
 	...props
 }: SettingsScrollingPanelProps) => {
@@ -46,7 +49,10 @@ const SettingsScrollingPanel = ({
 	return (
 		<Tabs.Panel
 			{...props}
-			className={SETTINGS_SCROLLING_PANEL_CLASS}
+			className={cn(
+				SETTINGS_SCROLLING_PANEL_CLASS,
+				isFlush && SETTINGS_FLUSH_PANEL_CLASS,
+			)}
 			ref={mergeRefs<HTMLDivElement>(panel, ref)}
 		/>
 	)

@@ -129,6 +129,19 @@ const bots = {
 	history: {
 		empty: "No changes yet.",
 		unavailable: "Couldn't load the history. Reopen settings to retry.",
+		summary_one:
+			"Lists 1 change since {{date}}. Undoing one writes a new change, so nothing's ever removed.",
+		summary_other:
+			"Lists {{count}} changes since {{date}}. Undoing one writes a new change, so nothing's ever removed.",
+		noMatch: "No change matches “{{text}}”.",
+		retouches_one: "(1 go)",
+		retouches_other: "({{count}} goes)",
+		undone: "Undone above",
+		search: {
+			label: "Search the history",
+			placeholder: "Search the history",
+			clear: "Clear the search",
+		},
 		author: {
 			user: "You",
 		},
@@ -140,9 +153,10 @@ const bots = {
 		},
 		undo: {
 			action: "Undo",
+			label: "Undo “{{title}}”",
 			title: "Undo “{{title}}”?",
 			description:
-				"Everything goes back to how it was before this change. The undo is added to the history.",
+				"Everything goes back to how it was before this change. The undo is a change of its own, so you can undo it too.",
 			confirm: "Undo this change",
 		},
 	},

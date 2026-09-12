@@ -47,7 +47,7 @@ const SpaceConnectors = ({ port }: SpaceConnectorsProps) => {
 	return createElement(SpaceSettingsDialog, {
 		...toConnectorSettings({ servers: SERVERS, connectors, openedName }),
 		environment: [],
-		history: { commits: [], onLoadDiff: vi.fn(), onRevert: vi.fn() },
+		history: { days: [], oldestDate: "", onUndo: vi.fn() },
 		onClose: vi.fn(),
 		onDelete: vi.fn(),
 		onEnvironmentDelete: vi.fn(),
