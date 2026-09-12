@@ -15,7 +15,7 @@ import {
 	PinnedMessages,
 } from "@workspace/ui/components/pinned-messages"
 import { PromptInput } from "@workspace/ui/components/prompt-input"
-import { RosterProvider } from "@workspace/ui/components/roster"
+import { type RosterBot, RosterProvider } from "@workspace/ui/components/roster"
 import {
 	type EarlierTodayRow,
 	RoutinesPanel,
@@ -36,7 +36,7 @@ import {
 	SPACES,
 	spaceOf,
 } from "./scene-cast"
-import { exchangeOf, type SceneExchange, type SceneTurn } from "./scene-threads"
+import { exchangeOf, type SceneTurn } from "./scene-threads"
 import { useReaderAvatar } from "./use-reader-avatar"
 import { type SceneFrame, useSceneTimeline } from "./use-scene-timeline"
 import { WindowControls } from "./window-controls"
@@ -147,24 +147,21 @@ const turnRow = (turn: SceneTurn, rank: number): TranscriptItem => {
 	)
 }
 
-const exchangeRows = (exchange: SceneExchange): TranscriptItem[] =>
-	exchange.turns.map(turnRow)
-
 type ThreadTitleProps = {
-	exchange?: SceneExchange
+	bot?: RosterBot
 	conversation: AppSidebarConversation
 	onOpen: () => void
 }
 
-const ThreadTitle = ({ exchange, conversation, onOpen }: ThreadTitleProps) =>
-	exchange?.bot ? (
+const ThreadTitle = ({ bot, conversation, onOpen }: ThreadTitleProps) =>
+	bot ? (
 		<HeaderIdentityButton
-			animal={exchange.bot.animal}
-			blot={exchange.bot.blot}
+			animal={bot.animal}
+			blot={bot.blot}
 			connection="ready"
-			name={exchange.bot.name}
+			name={bot.name}
 			onOpenSettings={onOpen}
-			seed={exchange.bot.id}
+			seed={bot.id}
 		/>
 	) : (
 		<HeaderConversationButton
@@ -305,10 +302,10 @@ export const AppScene = () => {
 								<AppHeader
 									leading={
 										<ThreadTitle
+											bot={exchange?.bot}
 											conversation={
 												exchange?.conversation ?? space.defaultConversation
 											}
-											exchange={exchange}
 											onOpen={engage}
 										/>
 									}
@@ -325,7 +322,9 @@ export const AppScene = () => {
 								/>
 							}
 							rows={
-								exchange ? exchangeRows(exchange) : loopRows(space.loop, frame)
+								exchange
+									? exchange.turns.map(turnRow)
+									: loopRows(space.loop, frame)
 							}
 						>
 							{exchange ? null : (
