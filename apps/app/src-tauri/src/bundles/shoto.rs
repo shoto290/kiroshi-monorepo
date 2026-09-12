@@ -80,14 +80,6 @@ mod tests {
 		assert_eq!(text, text.trim(), "the persona carries blank edges");
 	}
 
-	fn embedded_texts() -> Vec<(&'static str, String)> {
-		let mut texts = vec![(PERSONA_NAME, String::from_utf8_lossy(PERSONA).to_lowercase())];
-		texts.extend(
-			SKILLS.iter().map(|(id, bytes)| (*id, String::from_utf8_lossy(bytes).to_lowercase())),
-		);
-		texts
-	}
-
 	fn denies_a_browser(sentence: &str) -> bool {
 		sentence.contains("browser")
 			&& ["does not", "did not", "doesn't", "didn't", "no browser"]
@@ -97,7 +89,9 @@ mod tests {
 
 	#[test]
 	fn no_embedded_text_frames_the_pasted_code_as_a_repair() {
-		for (id, text) in embedded_texts() {
+		for (id, bytes) in SKILLS.iter().chain(&[(PERSONA_NAME, PERSONA)]) {
+			let text = String::from_utf8_lossy(bytes).to_lowercase();
+
 			assert!(!text.contains("fallback"), "{id} names a fallback");
 			for sentence in text.split(['.', '\n']) {
 				assert!(!denies_a_browser(sentence), "{id} pairs a browser with not opening");
