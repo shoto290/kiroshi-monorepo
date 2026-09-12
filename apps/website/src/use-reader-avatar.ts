@@ -4,22 +4,31 @@ import { AUTHOR_X_AVATAR_URL } from "./copy"
 
 import committedReaderAvatar from "./assets/reader-avatar.jpg"
 
-const drawableAvatar = () =>
-	new Promise<string>((settle) => {
+const loadedPicture = (url: string) =>
+	new Promise<string | null>((settle) => {
 		const picture = new Image()
-		picture.onload = () => settle(AUTHOR_X_AVATAR_URL)
-		picture.onerror = () => settle(committedReaderAvatar)
-		picture.src = AUTHOR_X_AVATAR_URL
+		picture.onload = () => settle(url)
+		picture.onerror = () => settle(null)
+		picture.src = url
 	})
 
 export const useReaderAvatar = () => {
-	const [avatar, setAvatar] = useState(committedReaderAvatar)
+	const [avatar, setAvatar] = useState<string>()
 
 	useEffect(() => {
 		let listening = true
-		drawableAvatar().then((url) => {
-			if (listening) setAvatar(url)
+		let isLiveDrawn = false
+
+		loadedPicture(committedReaderAvatar).then((url) => {
+			if (url && listening && !isLiveDrawn) setAvatar(url)
 		})
+
+		loadedPicture(AUTHOR_X_AVATAR_URL).then((url) => {
+			if (!(url && listening)) return
+			isLiveDrawn = true
+			setAvatar(url)
+		})
+
 		return () => {
 			listening = false
 		}
