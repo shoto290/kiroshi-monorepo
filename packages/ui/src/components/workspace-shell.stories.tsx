@@ -633,47 +633,57 @@ export const TallContent = meta.story({
 	},
 })
 
+const boxedHost = (height: string) => (Story: () => ReactNode) => (
+	<div className="p-6">
+		<div className={`${height} rounded-2xl ring-1 ring-border`} data-boxed-host>
+			<Story />
+		</div>
+	</div>
+)
+
+const hostIn = (canvasElement: HTMLElement) =>
+	(
+		canvasElement.querySelector("[data-boxed-host]") as HTMLElement
+	).getBoundingClientRect()
+
+const expectSidebarFillingHost = async (
+	canvas: ReturnType<typeof within>,
+	canvasElement: HTMLElement,
+) => {
+	const host = hostIn(canvasElement)
+	const sidebar = canvas
+		.getByRole("complementary", { name: "Workspace" })
+		.getBoundingClientRect()
+
+	await expect(sidebar.top).toBe(host.top)
+	await expect(sidebar.bottom).toBe(host.bottom)
+}
+
 export const BoxedHost = meta.story({
 	args: {
 		sidebar: SIDEBAR,
 	},
-	decorators: [
-		(Story) => (
-			<div className="p-6">
-				<div
-					className="h-[420px] rounded-2xl ring-1 ring-border"
-					data-boxed-host
-				>
-					<Story />
-				</div>
-			</div>
-		),
-	],
+	decorators: [boxedHost("h-[420px]")],
 	parameters: {
 		docs: {
 			description: {
 				story:
-					"The same shell mounted in a host that boxes it — a product page showing the app in a frame rather than a window that owns the screen. Check that the sidebar, the card and the composer all land inside that box, that the sidebar reaches its bottom edge exactly rather than running to the bottom of the window behind it, and that collapsing it to the rail keeps that edge. A host that constrains no height still gets the full window: `Default` covers that.",
+					"The same shell mounted in a host shorter than the window — a product page showing the app in a frame rather than a window that owns the screen. Check that the sidebar, the card and the composer all land inside that frame, that the sidebar holds both its edges on the frame rather than running to the bottom of the window behind it, and that collapsing it to the rail keeps them. Pick `TallHost` for a frame taller than the window, `Default` for a host that constrains no height at all.",
 			},
 		},
 	},
 	play: async ({ canvas, canvasElement, userEvent }) => {
-		const host = canvasElement.querySelector("[data-boxed-host]") as HTMLElement
+		const host = hostIn(canvasElement)
 		const sidebar = canvas.getByRole("complementary", { name: "Workspace" })
 		const composer = canvas.getByRole("textbox", { name: "Message" })
-		const box = host.getBoundingClientRect()
-		const expectSidebarFillingHost = async () => {
-			await expect(sidebar.getBoundingClientRect().top).toBe(box.top)
-			await expect(sidebar.getBoundingClientRect().bottom).toBe(box.bottom)
-		}
 
-		await expect(box.bottom).toBeLessThan(window.innerHeight)
-		await expectSidebarFillingHost()
+		await expect(host.bottom).toBeLessThan(window.innerHeight)
+		await expectSidebarFillingHost(canvas, canvasElement)
 		await expect(canvas.getByRole("main").getBoundingClientRect().bottom).toBe(
-			box.bottom - CONTENT_CARD_GUTTER,
+			host.bottom - CONTENT_CARD_GUTTER,
 		)
 		await expect(composer.getBoundingClientRect().bottom).toBeLessThan(
-			box.bottom,
+			host.bottom,
 		)
 
 		await userEvent.click(
@@ -682,6 +692,39 @@ export const BoxedHost = meta.story({
 		await waitFor(async () => {
 			await expect(stateOf(sidebar)).toBe("collapsed")
 		}, FRAME_POLL)
-		await expectSidebarFillingHost()
+		await expectSidebarFillingHost(canvas, canvasElement)
+	},
+})
+
+export const TallHost = meta.story({
+	args: {
+		sidebar: SIDEBAR,
+	},
+	decorators: [boxedHost("h-[1400px]")],
+	parameters: {
+		docs: {
+			description: {
+				story:
+					"The same frame, this time taller than the window it is read in — the marketing page on a laptop, where the app window keeps its designed height and the page scrolls to it. Check that the shell grows to the whole frame instead of stopping at the window edge, leaving a band of page showing underneath, and that the sidebar holds both edges of the frame expanded and collapsed. Pick `BoxedHost` for a frame the window can hold whole.",
+			},
+		},
+	},
+	play: async ({ canvas, canvasElement, userEvent }) => {
+		const host = hostIn(canvasElement)
+		const sidebar = canvas.getByRole("complementary", { name: "Workspace" })
+
+		await expect(host.height).toBeGreaterThan(window.innerHeight)
+		await expectSidebarFillingHost(canvas, canvasElement)
+		await expect(canvas.getByRole("main").getBoundingClientRect().bottom).toBe(
+			host.bottom - CONTENT_CARD_GUTTER,
+		)
+
+		await userEvent.click(
+			canvas.getByRole("button", { name: "Toggle workspace" }),
+		)
+		await waitFor(async () => {
+			await expect(stateOf(sidebar)).toBe("collapsed")
+		}, FRAME_POLL)
+		await expectSidebarFillingHost(canvas, canvasElement)
 	},
 })
