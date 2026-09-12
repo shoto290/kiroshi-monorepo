@@ -15,7 +15,7 @@ pub mod space;
 pub mod system;
 pub mod user;
 
-pub use git::{Author, HistoryEntry};
+pub use git::{Author, ChangedFile, FileChange, HistoryEntry};
 
 const DIR_NAME: &str = "bots";
 
@@ -633,21 +633,39 @@ pub fn history_at(bundle: &Path) -> Result<Vec<HistoryEntry>, git2::Error> {
 	git::history(bundle)
 }
 
-pub fn diff(root: &Path, bot_id: &str, commit_id: &str) -> Result<String, git2::Error> {
-	diff_at(&dir(root, bot_id), commit_id)
+pub fn changed_files(
+	root: &Path,
+	bot_id: &str,
+	oldest_commit_id: &str,
+	newest_commit_id: &str,
+) -> Result<Vec<ChangedFile>, git2::Error> {
+	changed_files_at(&dir(root, bot_id), oldest_commit_id, newest_commit_id)
 }
 
-pub fn diff_at(bundle: &Path, commit_id: &str) -> Result<String, git2::Error> {
-	git::diff(bundle, commit_id)
+pub fn changed_files_at(
+	bundle: &Path,
+	oldest_commit_id: &str,
+	newest_commit_id: &str,
+) -> Result<Vec<ChangedFile>, git2::Error> {
+	git::changed_files(bundle, oldest_commit_id, newest_commit_id)
 }
 
-pub fn revert(root: &Path, bot_id: &str, commit_id: &str) -> Result<String, git2::Error> {
-	revert_at(&dir(root, bot_id), commit_id)
+pub fn revert(
+	root: &Path,
+	bot_id: &str,
+	oldest_commit_id: &str,
+	newest_commit_id: &str,
+) -> Result<String, git2::Error> {
+	revert_at(&dir(root, bot_id), oldest_commit_id, newest_commit_id)
 }
 
-pub fn revert_at(bundle: &Path, commit_id: &str) -> Result<String, git2::Error> {
+pub fn revert_at(
+	bundle: &Path,
+	oldest_commit_id: &str,
+	newest_commit_id: &str,
+) -> Result<String, git2::Error> {
 	let _serialised = serialised(bundle);
-	git::revert(bundle, commit_id)
+	git::revert(bundle, oldest_commit_id, newest_commit_id)
 }
 
 pub fn remove(root: &Path, bot_id: &str) {
@@ -3795,6 +3813,14 @@ mod tests {
 			.expect("the bundle takes the old name");
 	}
 
+	fn patch_of(root: &Path, bot_id: &str, commit_id: &str) -> String {
+		changed_files(root, bot_id, commit_id, commit_id)
+			.expect("the diff reads")
+			.into_iter()
+			.map(|file| file.patch)
+			.collect()
+	}
+
 	fn titles(root: &Path, bot_id: &str) -> Vec<String> {
 		history(root, bot_id)
 			.expect("the history reads")
@@ -3816,7 +3842,7 @@ mod tests {
 		assert!(entry.timestamp > 0, "got {}", entry.timestamp);
 		assert!(entry.body.is_empty(), "got {}", entry.body);
 
-		let shown = diff(&root, &bot.id, &entry.id).expect("the diff reads");
+		let shown = patch_of(&root, &bot.id, &entry.id);
 		assert!(shown.contains("Bake at 220 degrees."), "got {shown}");
 		assert!(shown.contains("plugin.json"), "got {shown}");
 
@@ -3898,7 +3924,7 @@ mod tests {
 			.expect("the exclude file is there");
 		assert!(excluded.lines().any(|line| line == ".learned.md"), "got {excluded}");
 		for entry in history(&root, &bot.id).expect("the history reads") {
-			let shown = diff(&root, &bot.id, &entry.id).expect("the diff reads");
+			let shown = patch_of(&root, &bot.id, &entry.id);
 			assert!(!shown.contains("Bean likes figs."), "got {shown}");
 		}
 
@@ -3967,7 +3993,7 @@ mod tests {
 				.expect("the skill is created");
 		let created = history(&root, &bot.id).expect("the history reads")[0].id.clone();
 
-		revert(&root, &bot.id, &created).expect("the write is undone");
+		revert(&root, &bot.id, &created, &created).expect("the write is undone");
 
 		let titles = titles(&root, &bot.id);
 		assert_eq!(titles[0], "Change undone: Skill \"Kneading\" created from settings");
@@ -4335,7 +4361,7 @@ mod tests {
 	}
 
 	fn whole_copy_or_none(root: &Path, bot_id: &str, commit_id: &str) {
-		let patch = diff(root, bot_id, commit_id).expect("the diff reads");
+		let patch = patch_of(root, bot_id, commit_id);
 		let landed = (0..BULK_SKILLS)
 			.filter(|index| patch.contains(&format!("{SKILLS_DIR}/{}/", bulk_label(*index))))
 			.count();
@@ -4448,7 +4474,7 @@ mod tests {
 			let ready = std::sync::Arc::clone(&ready);
 			move || {
 				ready.wait();
-				revert(&root, &bot_id, &undone).expect("the write is undone");
+				revert(&root, &bot_id, &undone, &undone).expect("the write is undone");
 			}
 		});
 		saving.join().expect("the save ran");
@@ -4481,7 +4507,7 @@ mod tests {
 				let ready = std::sync::Arc::clone(&ready);
 				std::thread::spawn(move || {
 					ready.wait();
-					revert(&root, &bot_id, &commit_id).expect("the write is undone");
+					revert(&root, &bot_id, &commit_id, &commit_id).expect("the write is undone");
 				})
 			})
 			.collect();
@@ -4608,8 +4634,9 @@ They said figs, not dates.
 		let bot = a_bot("Bean", "Answer briefly.");
 
 		assert!(history(&root, &bot.id).is_err());
-		assert!(diff(&root, &bot.id, "0000000000000000000000000000000000000000").is_err());
-		assert!(revert(&root, &bot.id, "0000000000000000000000000000000000000000").is_err());
+		let absent = "0000000000000000000000000000000000000000";
+		assert!(changed_files(&root, &bot.id, absent, absent).is_err());
+		assert!(revert(&root, &bot.id, absent, absent).is_err());
 
 		let _ = fs::remove_dir_all(&root);
 	}

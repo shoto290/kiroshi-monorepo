@@ -9,6 +9,7 @@ import type {
 	AvatarAnimal,
 	AvatarBlot,
 	Bot,
+	BotChangedFile,
 	BotDraft,
 	BotHistoryEntry,
 	BotIdentity,
@@ -379,14 +380,12 @@ export const createFakeTranscriptStore = (
 			author: "user",
 			title,
 			body: "",
+			paths: [],
 		}
 		history.set(botId, [entry, ...(history.get(botId) ?? [])])
 	}
 
 	const historyOf = (botId: string) => [...(history.get(botId) ?? [])]
-
-	const historyEntry = (botId: string, commitId: string) =>
-		history.get(botId)?.find((entry) => entry.id === commitId)
 
 	const filesKey = (owner: string, skillId: string) => `${owner}/${skillId}`
 
@@ -501,13 +500,50 @@ export const createFakeTranscriptStore = (
 			)
 		})
 
-	const undo = (owner: string, commitId: string) => {
-		const entry = historyEntry(owner, commitId)
-		if (!entry) {
+	const undo = (
+		owner: string,
+		oldestCommitId: string,
+		newestCommitId: string,
+	) => {
+		const run = runOf(owner, oldestCommitId, newestCommitId)
+		if (!run) {
 			return refuse({ kind: "unwritableBundle", detail: "no such commit" })
 		}
-		recorded(owner, `Undone: ${entry.title}`)
+		recorded(owner, `Undone: ${run[0].title}`)
 		return Promise.resolve(historyOf(owner))
+	}
+
+	const runOf = (
+		owner: string,
+		oldestCommitId: string,
+		newestCommitId: string,
+	) => {
+		const entries = history.get(owner) ?? []
+		const newest = entries.findIndex((entry) => entry.id === newestCommitId)
+		const oldest = entries.findIndex((entry) => entry.id === oldestCommitId)
+		if (newest < 0 || oldest < newest) {
+			return null
+		}
+		return entries.slice(newest, oldest + 1)
+	}
+
+	const changedFiles = (
+		owner: string,
+		oldestCommitId: string,
+		newestCommitId: string,
+	): Promise<BotChangedFile[]> => {
+		const run = runOf(owner, oldestCommitId, newestCommitId)
+		if (!run) {
+			return refuse({ kind: "unwritableBundle", detail: "no such commit" })
+		}
+		return Promise.resolve(
+			run.map((entry) => ({
+				path: `${entry.id}.md`,
+				previousPath: null,
+				change: "modified" as const,
+				patch: `@@ ${entry.title} @@`,
+			})),
+		)
 	}
 
 	const writeSkill = (
@@ -1189,14 +1225,17 @@ export const createFakeTranscriptStore = (
 
 		botHistory: (botId: string) => Promise.resolve(historyOf(botId)),
 
-		botHistoryDiff: (botId: string, commitId: string) => {
-			const entry = historyEntry(botId, commitId)
-			return entry
-				? Promise.resolve(`@@ ${entry.title} @@`)
-				: refuse({ kind: "unwritableBundle", detail: "no such commit" })
-		},
+		botHistoryDiff: (
+			botId: string,
+			oldestCommitId: string,
+			newestCommitId: string,
+		) => changedFiles(botId, oldestCommitId, newestCommitId),
 
-		revertBot: (botId: string, commitId: string) => undo(botId, commitId),
+		revertBot: (
+			botId: string,
+			oldestCommitId: string,
+			newestCommitId: string,
+		) => undo(botId, oldestCommitId, newestCommitId),
 
 		userPluginSkills: () => listSkills(USER_PLUGIN),
 
@@ -1222,14 +1261,11 @@ export const createFakeTranscriptStore = (
 
 		userPluginHistory: () => Promise.resolve(historyOf(USER_PLUGIN)),
 
-		userPluginHistoryDiff: (commitId: string) => {
-			const entry = historyEntry(USER_PLUGIN, commitId)
-			return entry
-				? Promise.resolve(`@@ ${entry.title} @@`)
-				: refuse({ kind: "unwritableBundle", detail: "no such commit" })
-		},
+		userPluginHistoryDiff: (oldestCommitId: string, newestCommitId: string) =>
+			changedFiles(USER_PLUGIN, oldestCommitId, newestCommitId),
 
-		revertUserPlugin: (commitId: string) => undo(USER_PLUGIN, commitId),
+		revertUserPlugin: (oldestCommitId: string, newestCommitId: string) =>
+			undo(USER_PLUGIN, oldestCommitId, newestCommitId),
 
 		spacePluginSkills: (spaceId: string) => listSkills(spacePlugin(spaceId)),
 
@@ -1278,15 +1314,17 @@ export const createFakeTranscriptStore = (
 		spacePluginHistory: (spaceId: string) =>
 			Promise.resolve(historyOf(spacePlugin(spaceId))),
 
-		spacePluginHistoryDiff: (spaceId: string, commitId: string) => {
-			const entry = historyEntry(spacePlugin(spaceId), commitId)
-			return entry
-				? Promise.resolve(`@@ ${entry.title} @@`)
-				: refuse({ kind: "unwritableBundle", detail: "no such commit" })
-		},
+		spacePluginHistoryDiff: (
+			spaceId: string,
+			oldestCommitId: string,
+			newestCommitId: string,
+		) => changedFiles(spacePlugin(spaceId), oldestCommitId, newestCommitId),
 
-		revertSpacePlugin: (spaceId: string, commitId: string) =>
-			undo(spacePlugin(spaceId), commitId),
+		revertSpacePlugin: (
+			spaceId: string,
+			oldestCommitId: string,
+			newestCommitId: string,
+		) => undo(spacePlugin(spaceId), oldestCommitId, newestCommitId),
 
 		recordBotCommands: (botId: string, listed: AgentCommand[]) => {
 			if (!bots.has(botId)) {

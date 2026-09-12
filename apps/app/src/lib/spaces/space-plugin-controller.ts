@@ -1,4 +1,5 @@
 import { createQueue } from "../queue"
+import { joinedPatches } from "../bots/changed-files"
 import type { BotCommit } from "../bots/history-controller"
 import {
 	createSkillFilesController,
@@ -24,8 +25,8 @@ export type SpacePluginController = SkillFilesController & {
 	saveSkill: (skillId: string, draft: BotSkillDraft) => void
 	setSkillPreloaded: (skillId: string, isPreloaded: boolean) => void
 	removeSkill: (skillId: string) => void
-	loadDiff: (commitId: string) => void
-	revert: (commitId: string) => void
+	loadDiff: (oldestCommitId: string, newestCommitId: string) => void
+	revert: (oldestCommitId: string, newestCommitId: string) => void
 }
 
 export const initialSpacePluginState: SpacePluginState = {
@@ -164,24 +165,36 @@ export const createSpacePluginController = (
 				await readHistory(spaceId)
 			}),
 
-		loadDiff: (commitId: string) => {
-			const known = state.commits.find((commit) => commit.id === commitId)
+		loadDiff: (oldestCommitId: string, newestCommitId: string) => {
+			const known = state.commits.find((commit) => commit.id === newestCommitId)
 			if (known?.diff !== undefined) {
 				return
 			}
 			run(async (spaceId) => {
-				const diff = await store.spacePluginHistoryDiff(spaceId, commitId)
+				const diff = joinedPatches(
+					await store.spacePluginHistoryDiff(
+						spaceId,
+						oldestCommitId,
+						newestCommitId,
+					),
+				)
 				set({
 					commits: state.commits.map((commit) =>
-						commit.id === commitId ? { ...commit, diff } : commit,
+						commit.id === newestCommitId ? { ...commit, diff } : commit,
 					),
 				})
 			})
 		},
 
-		revert: (commitId: string) =>
+		revert: (oldestCommitId: string, newestCommitId: string) =>
 			run(async (spaceId) => {
-				set({ commits: await store.revertSpacePlugin(spaceId, commitId) })
+				set({
+					commits: await store.revertSpacePlugin(
+						spaceId,
+						oldestCommitId,
+						newestCommitId,
+					),
+				})
 				set({ skills: await store.spacePluginSkills(spaceId) })
 			}),
 	}

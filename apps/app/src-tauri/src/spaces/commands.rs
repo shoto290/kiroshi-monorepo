@@ -6,7 +6,7 @@ use super::contract::{Space, SpaceError, SpacePreferences};
 use crate::bundles;
 use crate::conversations::commands::{bundled, list_bundles, recounted};
 use crate::conversations::contract::{
-	AvatarBlot, BotHistoryEntry, Skill, SkillDraft, TranscriptStoreError,
+	AvatarBlot, BotChangedFile, BotHistoryEntry, Skill, SkillDraft, TranscriptStoreError,
 };
 use crate::db;
 use crate::environment;
@@ -246,20 +246,23 @@ pub async fn space_plugin_history<R: Runtime>(
 pub async fn space_plugin_history_diff<R: Runtime>(
 	app: AppHandle<R>,
 	space_id: String,
-	commit_id: String,
-) -> Result<String, TranscriptStoreError> {
+	oldest_commit_id: String,
+	newest_commit_id: String,
+) -> Result<Vec<BotChangedFile>, TranscriptStoreError> {
 	let path = plugin_path(&app, &space_id)?;
-	recounted(bundles::space::diff(&path, &commit_id))
+	recounted(bundles::space::changed_files(&path, &oldest_commit_id, &newest_commit_id))
+		.map(|files| files.into_iter().map(BotChangedFile::from).collect())
 }
 
 #[tauri::command]
 pub async fn space_plugin_revert<R: Runtime>(
 	app: AppHandle<R>,
 	space_id: String,
-	commit_id: String,
+	oldest_commit_id: String,
+	newest_commit_id: String,
 ) -> Result<Vec<BotHistoryEntry>, TranscriptStoreError> {
 	let path = plugin_path(&app, &space_id)?;
-	bundles::space::revert(&path, &commit_id)
+	bundles::space::revert(&path, &oldest_commit_id, &newest_commit_id)
 		.map_err(|error| TranscriptStoreError::UnwritableBundle { detail: error.to_string() })?;
 	read_history(&path)
 }

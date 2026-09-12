@@ -4,9 +4,9 @@ use std::path::{Path, PathBuf};
 use tauri::{AppHandle, Manager, Runtime};
 
 use super::{
-	drafted, git, learned, unrecorded, Author, Evolution, HistoryEntry, Skill, SkillDraft,
-	SkillFront, LEARNED_NAME, MANIFEST_DIR, MANIFEST_NAME, KIROSHI_KEY, PRELOAD_KEY, SKILLS_DIR,
-	SKILL_NAME, VERSION,
+	drafted, git, learned, unrecorded, Author, ChangedFile, Evolution, HistoryEntry, Skill,
+	SkillDraft, SkillFront, LEARNED_NAME, MANIFEST_DIR, MANIFEST_NAME, KIROSHI_KEY, PRELOAD_KEY,
+	SKILLS_DIR, SKILL_NAME, VERSION,
 };
 use crate::private_files;
 
@@ -97,12 +97,20 @@ pub fn history(path: &Path) -> Result<Vec<HistoryEntry>, git2::Error> {
 	super::history_at(path)
 }
 
-pub fn diff(path: &Path, commit_id: &str) -> Result<String, git2::Error> {
-	super::diff_at(path, commit_id)
+pub fn changed_files(
+	path: &Path,
+	oldest_commit_id: &str,
+	newest_commit_id: &str,
+) -> Result<Vec<ChangedFile>, git2::Error> {
+	super::changed_files_at(path, oldest_commit_id, newest_commit_id)
 }
 
-pub fn revert(path: &Path, commit_id: &str) -> Result<String, git2::Error> {
-	super::revert_at(path, commit_id)
+pub fn revert(
+	path: &Path,
+	oldest_commit_id: &str,
+	newest_commit_id: &str,
+) -> Result<String, git2::Error> {
+	super::revert_at(path, oldest_commit_id, newest_commit_id)
 }
 
 fn kept(path: &Path, bytes: &[u8]) -> std::io::Result<()> {
@@ -267,7 +275,7 @@ mod tests {
 		update_skill(&path, ABOUT_ID, &a_draft(ABOUT_ID, "They like figs.")).expect("the edit lands");
 		let latest = history(&path).expect("the history reads")[0].id.clone();
 
-		revert(&path, &latest).expect("the change is undone");
+		revert(&path, &latest, &latest).expect("the change is undone");
 
 		let text = fs::read_to_string(about_file(&path)).expect("the skill reads");
 		assert!(!text.contains("figs"), "got {text}");

@@ -4,7 +4,8 @@ use std::path::Path;
 
 use git2::build::CheckoutBuilder;
 use git2::{
-	Commit, Diff, DiffFormat, IndexAddOption, Oid, Repository, Signature, Sort, StatusOptions, Tree,
+	Commit, Delta, Diff, DiffDelta, DiffFindOptions, IndexAddOption, Oid, Patch, Repository,
+	Signature, Sort, StatusOptions, Tree,
 };
 
 use super::LEARNED_NAME;
@@ -26,6 +27,11 @@ const HEAD: &str = "HEAD";
 
 const UNDONE: &str = "Change undone";
 
+const NOT_CONSECUTIVE: &str = "these two changes do not follow one another";
+const UNNAMED: &str = "this change holds a file with no path";
+const NOTHING_TO_UNDO: &str = "this bundle has no write to undo";
+const CONFLICTED: &str = "this write cannot be undone on top of the later ones";
+
 #[derive(Debug, Clone, Copy, PartialEq, Eq)]
 pub enum Author {
 	User,
@@ -39,6 +45,23 @@ pub struct HistoryEntry {
 	pub author: Author,
 	pub title: String,
 	pub body: String,
+	pub paths: Vec<String>,
+}
+
+#[derive(Debug, Clone, Copy, PartialEq, Eq)]
+pub enum FileChange {
+	Added,
+	Modified,
+	Deleted,
+	Renamed,
+}
+
+#[derive(Debug, Clone, PartialEq, Eq)]
+pub struct ChangedFile {
+	pub path: String,
+	pub previous_path: Option<String>,
+	pub change: FileChange,
+	pub patch: String,
 }
 
 pub fn commit(
@@ -89,31 +112,37 @@ pub fn history(bundle: &Path) -> Result<Vec<HistoryEntry>, git2::Error> {
 	let mut walk = repository.revwalk()?;
 	walk.set_sorting(Sort::TOPOLOGICAL | Sort::TIME)?;
 	walk.push(head.id())?;
-	Ok(walk
-		.filter_map(Result::ok)
+	walk.filter_map(Result::ok)
 		.filter_map(|id| repository.find_commit(id).ok())
-		.map(|commit| entry(&commit))
-		.collect())
+		.map(|commit| entry(&repository, &commit))
+		.collect()
 }
 
-pub fn diff(bundle: &Path, commit_id: &str) -> Result<String, git2::Error> {
+pub fn changed_files(
+	bundle: &Path,
+	oldest_id: &str,
+	newest_id: &str,
+) -> Result<Vec<ChangedFile>, git2::Error> {
 	let repository = Repository::open(bundle)?;
-	let commit = repository.find_commit(Oid::from_str(commit_id)?)?;
-	let parent = commit.parent(0).ok();
-	let before = parent.as_ref().map(Commit::tree).transpose()?;
-	let after = commit.tree()?;
-	let diff = repository.diff_tree_to_tree(before.as_ref(), Some(&after), None)?;
-	printed(&diff)
+	let run = run(&repository, oldest_id, newest_id)?;
+	let (newest, oldest) = ends(&run)?;
+	let diff = traced(&repository, oldest, newest)?;
+	files(&diff)
 }
 
-pub fn revert(bundle: &Path, commit_id: &str) -> Result<String, git2::Error> {
+pub fn revert(bundle: &Path, oldest_id: &str, newest_id: &str) -> Result<String, git2::Error> {
 	let repository = Repository::open(bundle)?;
-	let commit = repository.find_commit(Oid::from_str(commit_id)?)?;
-	let head = head(&repository)
-		.ok_or_else(|| git2::Error::from_str("this bundle has no write to undo"))?;
-	let mut index = repository.revert_commit(&commit, &head, 0, None)?;
+	let run = run(&repository, oldest_id, newest_id)?;
+	let (newest, oldest) = ends(&run)?;
+	let head = head(&repository).ok_or_else(|| git2::Error::from_str(NOTHING_TO_UNDO))?;
+	let mut index = repository.merge_trees(
+		&newest.tree()?,
+		&head.tree()?,
+		&before(&repository, oldest)?,
+		None,
+	)?;
 	if index.has_conflicts() {
-		return Err(git2::Error::from_str("this write cannot be undone on top of the later ones"));
+		return Err(git2::Error::from_str(CONFLICTED));
 	}
 	let tree = repository.find_tree(index.write_tree_to(&repository)?)?;
 	let signature = signed(Author::User)?;
@@ -121,12 +150,129 @@ pub fn revert(bundle: &Path, commit_id: &str) -> Result<String, git2::Error> {
 		Some(HEAD),
 		&signature,
 		&signature,
-		&message(&undone(&commit), ""),
+		&message(&undone(newest), &others(&run)),
 		&tree,
 		&[&head],
 	)?;
 	repository.checkout_head(Some(CheckoutBuilder::new().force()))?;
 	Ok(id.to_string())
+}
+
+fn run<'r>(
+	repository: &'r Repository,
+	oldest_id: &str,
+	newest_id: &str,
+) -> Result<Vec<Commit<'r>>, git2::Error> {
+	let oldest = found(repository, oldest_id)?;
+	let mut walked = found(repository, newest_id)?;
+	let mut run = Vec::new();
+	loop {
+		let reached = walked.id() == oldest.id();
+		run.push(walked.clone());
+		if reached {
+			return Ok(run);
+		}
+		match walked.parent(0) {
+			Ok(parent) => walked = parent,
+			Err(_) => return Err(git2::Error::from_str(NOT_CONSECUTIVE)),
+		}
+	}
+}
+
+fn ends<'a, 'r>(run: &'a [Commit<'r>]) -> Result<(&'a Commit<'r>, &'a Commit<'r>), git2::Error> {
+	run.first().zip(run.last()).ok_or_else(|| git2::Error::from_str(NOT_CONSECUTIVE))
+}
+
+fn found<'r>(repository: &'r Repository, commit_id: &str) -> Result<Commit<'r>, git2::Error> {
+	let id = Oid::from_str(commit_id).map_err(|_| unknown(commit_id))?;
+	repository.find_commit(id).map_err(|_| unknown(commit_id))
+}
+
+fn unknown(commit_id: &str) -> git2::Error {
+	git2::Error::from_str(&format!("this history holds no change named {commit_id}"))
+}
+
+fn spanned<'r>(
+	repository: &'r Repository,
+	oldest: &Commit<'r>,
+	newest: &Commit<'r>,
+) -> Result<Diff<'r>, git2::Error> {
+	let before = before(repository, oldest)?;
+	let after = newest.tree()?;
+	repository.diff_tree_to_tree(Some(&before), Some(&after), None)
+}
+
+fn traced<'r>(
+	repository: &'r Repository,
+	oldest: &Commit<'r>,
+	newest: &Commit<'r>,
+) -> Result<Diff<'r>, git2::Error> {
+	let mut diff = spanned(repository, oldest, newest)?;
+	diff.find_similar(Some(DiffFindOptions::new().renames(true)))?;
+	Ok(diff)
+}
+
+fn before<'r>(repository: &'r Repository, commit: &Commit<'r>) -> Result<Tree<'r>, git2::Error> {
+	match commit.parent(0) {
+		Ok(parent) => parent.tree(),
+		Err(_) => repository.find_tree(repository.treebuilder(None)?.write()?),
+	}
+}
+
+fn files(diff: &Diff) -> Result<Vec<ChangedFile>, git2::Error> {
+	let mut files = diff
+		.deltas()
+		.enumerate()
+		.map(|(index, delta)| changed(diff, index, &delta))
+		.collect::<Result<Vec<ChangedFile>, git2::Error>>()?;
+	files.sort_by(|one, other| one.path.cmp(&other.path));
+	Ok(files)
+}
+
+fn changed(diff: &Diff, index: usize, delta: &DiffDelta) -> Result<ChangedFile, git2::Error> {
+	let change = changing(delta.status());
+	Ok(ChangedFile {
+		path: named(delta)?,
+		previous_path: match change {
+			FileChange::Renamed => delta.old_file().path().map(printable),
+			_ => None,
+		},
+		change,
+		patch: patched(diff, index)?,
+	})
+}
+
+fn changing(status: Delta) -> FileChange {
+	match status {
+		Delta::Added => FileChange::Added,
+		Delta::Deleted => FileChange::Deleted,
+		Delta::Renamed => FileChange::Renamed,
+		_ => FileChange::Modified,
+	}
+}
+
+fn named(delta: &DiffDelta) -> Result<String, git2::Error> {
+	delta
+		.new_file()
+		.path()
+		.or_else(|| delta.old_file().path())
+		.map(printable)
+		.ok_or_else(|| git2::Error::from_str(UNNAMED))
+}
+
+fn printable(path: &Path) -> String {
+	path.to_string_lossy().into_owned()
+}
+
+fn patched(diff: &Diff, index: usize) -> Result<String, git2::Error> {
+	let Some(mut patch) = Patch::from_diff(diff, index)? else {
+		return Ok(String::new());
+	};
+	Ok(String::from_utf8_lossy(&patch.to_buf()?).into_owned())
+}
+
+fn others(run: &[Commit]) -> String {
+	run.iter().skip(1).map(summary).collect::<Vec<String>>().join("\n")
 }
 
 fn opened(bundle: &Path) -> Result<Repository, git2::Error> {
@@ -198,24 +344,316 @@ fn summary(commit: &Commit) -> String {
 	commit.summary().ok().flatten().unwrap_or_default().to_owned()
 }
 
-fn entry(commit: &Commit) -> HistoryEntry {
-	HistoryEntry {
+fn entry(repository: &Repository, commit: &Commit) -> Result<HistoryEntry, git2::Error> {
+	Ok(HistoryEntry {
 		id: commit.id().to_string(),
 		timestamp: commit.time().seconds(),
 		author: authored(commit.author().email().unwrap_or_default()),
 		title: summary(commit),
 		body: commit.body().ok().flatten().unwrap_or_default().trim().to_owned(),
-	}
+		paths: touched(repository, commit)?,
+	})
 }
 
-fn printed(diff: &Diff) -> Result<String, git2::Error> {
-	let mut text = String::new();
-	diff.print(DiffFormat::Patch, |_, _, line| {
-		if matches!(line.origin(), '+' | '-' | ' ') {
-			text.push(line.origin());
+fn touched(repository: &Repository, commit: &Commit) -> Result<Vec<String>, git2::Error> {
+	let diff = spanned(repository, commit, commit)?;
+	let mut paths: Vec<String> = diff
+		.deltas()
+		.flat_map(|delta| [delta.old_file().path(), delta.new_file().path()])
+		.flatten()
+		.map(printable)
+		.collect();
+	paths.sort();
+	paths.dedup();
+	Ok(paths)
+}
+
+#[cfg(test)]
+mod tests {
+	use super::*;
+	use git2::{DiffFormat, DiffOptions};
+
+	fn a_bundle(name: &str) -> std::path::PathBuf {
+		let bundle = std::env::temp_dir().join(format!("kiroshi-git-{name}"));
+		let _ = fs::remove_dir_all(&bundle);
+		fs::create_dir_all(&bundle).expect("the bundle is laid down");
+		bundle
+	}
+
+	fn writes(bundle: &Path, files: &[(&str, &str)], title: &str) -> String {
+		for (path, text) in files {
+			fs::write(bundle.join(path), text).expect("the file lands");
 		}
-		text.push_str(&String::from_utf8_lossy(line.content()));
-		true
-	})?;
-	Ok(text)
+		commit(bundle, Author::User, title, "")
+			.expect("the write is recorded")
+			.expect("the write moved the tree")
+	}
+
+	fn drops(bundle: &Path, path: &str, title: &str) -> String {
+		fs::remove_file(bundle.join(path)).expect("the file goes");
+		commit(bundle, Author::User, title, "")
+			.expect("the write is recorded")
+			.expect("the write moved the tree")
+	}
+
+	fn renames(bundle: &Path, from: &str, to: &str, title: &str) -> String {
+		fs::rename(bundle.join(from), bundle.join(to)).expect("the file moves");
+		commit(bundle, Author::User, title, "")
+			.expect("the write is recorded")
+			.expect("the write moved the tree")
+	}
+
+	fn whole_patch(bundle: &Path, commit_id: &str) -> String {
+		let repository = Repository::open(bundle).expect("the bundle opens");
+		let commit = found(&repository, commit_id).expect("the change is there");
+		let diff = traced(&repository, &commit, &commit).expect("the diff reads");
+		let mut text = String::new();
+		diff.print(DiffFormat::Patch, |_, _, line| {
+			if matches!(line.origin(), '+' | '-' | ' ') {
+				text.push(line.origin());
+			}
+			text.push_str(&String::from_utf8_lossy(line.content()));
+			true
+		})
+		.expect("the diff prints");
+		text
+	}
+
+	fn paths_of(files: &[ChangedFile]) -> Vec<&str> {
+		files.iter().map(|file| file.path.as_str()).collect()
+	}
+
+	#[test]
+	fn one_changed_file_carries_its_own_patch() {
+		let bundle = a_bundle("one-file");
+		writes(&bundle, &[("about.md", "Figs.\n")], "The first write");
+		let edited = writes(&bundle, &[("about.md", "Dates.\n")], "The second write");
+
+		let files = changed_files(&bundle, &edited, &edited).expect("the diff reads");
+
+		assert_eq!(paths_of(&files), vec!["about.md"]);
+		assert_eq!(files[0].change, FileChange::Modified);
+		assert_eq!(files[0].previous_path, None);
+		assert!(files[0].patch.contains("+Dates."), "got {}", files[0].patch);
+		assert!(!files[0].patch.contains("Bakes."), "got {}", files[0].patch);
+
+		let _ = fs::remove_dir_all(&bundle);
+	}
+
+	#[test]
+	fn several_changed_files_come_back_sorted_and_join_into_the_whole_patch() {
+		let bundle = a_bundle("several-files");
+		writes(&bundle, &[("about.md", "Figs.\n")], "The first write");
+		let edited = writes(
+			&bundle,
+			&[("about.md", "Dates.\n"), ("notes.md", "Bakes.\n"), ("agenda.md", "Sunday.\n")],
+			"The second write",
+		);
+
+		let files = changed_files(&bundle, &edited, &edited).expect("the diff reads");
+
+		assert_eq!(paths_of(&files), vec!["about.md", "agenda.md", "notes.md"]);
+		assert_eq!(files[1].change, FileChange::Added);
+		let joined: String = files.iter().map(|file| file.patch.clone()).collect();
+		assert_eq!(joined, whole_patch(&bundle, &edited));
+
+		let _ = fs::remove_dir_all(&bundle);
+	}
+
+	#[test]
+	fn a_run_of_three_reads_as_one_file_per_path() {
+		let bundle = a_bundle("run-of-three");
+		writes(&bundle, &[("about.md", "Figs.\n")], "The first write");
+		let oldest = writes(&bundle, &[("about.md", "Dates.\n")], "The second write");
+		writes(&bundle, &[("about.md", "Plums.\n"), ("notes.md", "Bakes.\n")], "The third write");
+		let newest = writes(&bundle, &[("about.md", "Pears.\n")], "The fourth write");
+
+		let files = changed_files(&bundle, &oldest, &newest).expect("the diff reads");
+
+		assert_eq!(paths_of(&files), vec!["about.md", "notes.md"]);
+		assert!(files[0].patch.contains("-Figs."), "got {}", files[0].patch);
+		assert!(files[0].patch.contains("+Pears."), "got {}", files[0].patch);
+		assert!(!files[0].patch.contains("Dates."), "got {}", files[0].patch);
+
+		let _ = fs::remove_dir_all(&bundle);
+	}
+
+	#[test]
+	fn a_run_holding_a_rename_names_the_path_it_came_from() {
+		let bundle = a_bundle("run-rename");
+		writes(
+			&bundle,
+			&[("about.md", "Figs and dates and plums and pears.\n")],
+			"The first write",
+		);
+		let oldest = writes(&bundle, &[("notes.md", "Bakes.\n")], "The second write");
+		let newest = renames(&bundle, "about.md", "profile.md", "The third write");
+
+		let files = changed_files(&bundle, &oldest, &newest).expect("the diff reads");
+
+		assert_eq!(paths_of(&files), vec!["notes.md", "profile.md"]);
+		assert_eq!(files[1].change, FileChange::Renamed);
+		assert_eq!(files[1].previous_path.as_deref(), Some("about.md"));
+		assert_eq!(files[0].previous_path, None);
+		assert_eq!(
+			files[1].patch,
+			"diff --git a/about.md b/profile.md\n\
+			 similarity index 100%\n\
+			 rename from about.md\n\
+			 rename to profile.md\n"
+		);
+
+		let _ = fs::remove_dir_all(&bundle);
+	}
+
+	#[test]
+	fn a_run_holding_a_deletion_reads_the_file_as_deleted() {
+		let bundle = a_bundle("run-deletion");
+		writes(&bundle, &[("about.md", "Figs.\n"), ("notes.md", "Bakes.\n")], "The first write");
+		let oldest = writes(&bundle, &[("about.md", "Dates.\n")], "The second write");
+		let newest = drops(&bundle, "notes.md", "The third write");
+
+		let files = changed_files(&bundle, &oldest, &newest).expect("the diff reads");
+
+		assert_eq!(paths_of(&files), vec!["about.md", "notes.md"]);
+		assert_eq!(files[1].change, FileChange::Deleted);
+		assert!(files[1].patch.contains("-Bakes."), "got {}", files[1].patch);
+
+		let _ = fs::remove_dir_all(&bundle);
+	}
+
+	#[test]
+	fn a_file_git_prints_no_patch_for_comes_back_with_an_empty_patch() {
+		let bundle = a_bundle("no-patch");
+		writes(&bundle, &[("about.md", "Figs.\n"), ("notes.md", "Bakes.\n")], "The first write");
+		let edited = writes(&bundle, &[("about.md", "Dates.\n")], "The second write");
+		let repository = Repository::open(&bundle).expect("the bundle opens");
+		let commit = found(&repository, &edited).expect("the change is there");
+		let mut options = DiffOptions::new();
+		options.include_unmodified(true);
+		let diff = repository
+			.diff_tree_to_tree(
+				Some(&before(&repository, &commit).expect("the tree reads")),
+				Some(&commit.tree().expect("the tree reads")),
+				Some(&mut options),
+			)
+			.expect("the diff reads");
+
+		let files = files(&diff).expect("the files read");
+
+		assert_eq!(paths_of(&files), vec!["about.md", "notes.md"]);
+		assert_eq!(files[1].patch, "");
+		assert!(!files[0].patch.is_empty(), "got {}", files[0].patch);
+
+		let _ = fs::remove_dir_all(&bundle);
+	}
+
+	#[test]
+	fn a_pair_that_does_not_follow_one_another_is_refused() {
+		let bundle = a_bundle("not-consecutive");
+		let oldest = writes(&bundle, &[("about.md", "Figs.\n")], "The first write");
+		let newest = writes(&bundle, &[("about.md", "Dates.\n")], "The second write");
+
+		let refused = changed_files(&bundle, &newest, &oldest);
+
+		assert_eq!(
+			refused.expect_err("it is refused").message(),
+			"these two changes do not follow one another"
+		);
+		assert!(revert(&bundle, &newest, &oldest).is_err(), "the undo is refused too");
+
+		let _ = fs::remove_dir_all(&bundle);
+	}
+
+	#[test]
+	fn an_id_that_names_no_change_is_refused() {
+		let bundle = a_bundle("unknown-id");
+		let only = writes(&bundle, &[("about.md", "Figs.\n")], "The first write");
+		let absent = "0000000000000000000000000000000000000000";
+
+		assert!(changed_files(&bundle, absent, &only).is_err());
+		assert!(changed_files(&bundle, &only, absent).is_err());
+		assert!(revert(&bundle, absent, absent).is_err());
+
+		let _ = fs::remove_dir_all(&bundle);
+	}
+
+	#[test]
+	fn undoing_a_run_puts_every_path_it_touched_back_and_leaves_the_others() {
+		let bundle = a_bundle("undo-run");
+		writes(&bundle, &[("about.md", "Figs.\n"), ("notes.md", "Bakes.\n")], "The first write");
+		let oldest = writes(&bundle, &[("about.md", "Dates.\n")], "The second write");
+		writes(&bundle, &[("about.md", "Plums.\n")], "The third write");
+		let newest = writes(&bundle, &[("about.md", "Pears.\n")], "The fourth write");
+		writes(&bundle, &[("notes.md", "Kneads.\n")], "The fifth write");
+
+		revert(&bundle, &oldest, &newest).expect("the run is undone");
+
+		assert_eq!(fs::read_to_string(bundle.join("about.md")).expect("the file reads"), "Figs.\n");
+		assert_eq!(
+			fs::read_to_string(bundle.join("notes.md")).expect("the file reads"),
+			"Kneads.\n"
+		);
+		let listed = history(&bundle).expect("the history reads");
+		assert_eq!(listed[0].title, "Change undone: The fourth write");
+		assert_eq!(listed[0].body, "The third write\nThe second write");
+		assert_eq!(listed[0].paths, vec!["about.md"]);
+
+		let _ = fs::remove_dir_all(&bundle);
+	}
+
+	#[test]
+	fn undoing_one_change_keeps_the_title_it_has_always_had() {
+		let bundle = a_bundle("undo-one");
+		writes(&bundle, &[("about.md", "Figs.\n")], "The first write");
+		let only = writes(&bundle, &[("about.md", "Dates.\n")], "The second write");
+
+		revert(&bundle, &only, &only).expect("the change is undone");
+
+		let listed = history(&bundle).expect("the history reads");
+		assert_eq!(listed[0].title, "Change undone: The second write");
+		assert!(listed[0].body.is_empty(), "got {}", listed[0].body);
+
+		let _ = fs::remove_dir_all(&bundle);
+	}
+
+	#[test]
+	fn an_undo_that_conflicts_with_a_later_change_writes_nothing() {
+		let bundle = a_bundle("undo-conflict");
+		writes(&bundle, &[("about.md", "Figs.\n")], "The first write");
+		let undone = writes(&bundle, &[("about.md", "Dates.\n")], "The second write");
+		let after = writes(&bundle, &[("about.md", "Plums.\n")], "The third write");
+
+		let refused = revert(&bundle, &undone, &undone);
+
+		assert_eq!(
+			refused.expect_err("it is refused").message(),
+			"this write cannot be undone on top of the later ones"
+		);
+		assert_eq!(history(&bundle).expect("the history reads")[0].id, after);
+		assert_eq!(
+			fs::read_to_string(bundle.join("about.md")).expect("the file reads"),
+			"Plums.\n"
+		);
+
+		let _ = fs::remove_dir_all(&bundle);
+	}
+
+	#[test]
+	fn a_listed_entry_carries_the_sorted_paths_it_changed() {
+		let bundle = a_bundle("listed-paths");
+		writes(
+			&bundle,
+			&[("about.md", "Figs and dates and plums and pears.\n")],
+			"The first write",
+		);
+		renames(&bundle, "about.md", "profile.md", "The second write");
+
+		let listed = history(&bundle).expect("the history reads");
+
+		assert_eq!(listed[0].paths, vec!["about.md", "profile.md"]);
+		assert_eq!(listed[1].paths, vec!["about.md"]);
+
+		let _ = fs::remove_dir_all(&bundle);
+	}
 }

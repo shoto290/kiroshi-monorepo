@@ -155,6 +155,16 @@ export type BotHistoryEntry = {
 	author: BotHistoryAuthor
 	title: string
 	body: string
+	paths: string[]
+}
+
+export type BotFileChange = "added" | "modified" | "deleted" | "renamed"
+
+export type BotChangedFile = {
+	path: string
+	previousPath: string | null
+	change: BotFileChange
+	patch: string
 }
 
 export type Chat = { id: string; createdAt: number; updatedAt: number }

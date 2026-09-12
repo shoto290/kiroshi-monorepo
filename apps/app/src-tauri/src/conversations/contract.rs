@@ -287,6 +287,47 @@ pub struct BotHistoryEntry {
 	pub author: HistoryAuthor,
 	pub title: String,
 	pub body: String,
+	pub paths: Vec<String>,
+}
+
+#[derive(Debug, Clone, PartialEq, Eq, Serialize, Deserialize)]
+#[serde(rename_all = "camelCase")]
+pub struct BotChangedFile {
+	pub path: String,
+	pub previous_path: Option<String>,
+	pub change: HistoryFileChange,
+	pub patch: String,
+}
+
+#[derive(Debug, Clone, Copy, PartialEq, Eq, Serialize, Deserialize)]
+#[serde(rename_all = "camelCase")]
+pub enum HistoryFileChange {
+	Added,
+	Modified,
+	Deleted,
+	Renamed,
+}
+
+impl From<bundles::FileChange> for HistoryFileChange {
+	fn from(change: bundles::FileChange) -> Self {
+		match change {
+			bundles::FileChange::Added => HistoryFileChange::Added,
+			bundles::FileChange::Modified => HistoryFileChange::Modified,
+			bundles::FileChange::Deleted => HistoryFileChange::Deleted,
+			bundles::FileChange::Renamed => HistoryFileChange::Renamed,
+		}
+	}
+}
+
+impl From<bundles::ChangedFile> for BotChangedFile {
+	fn from(file: bundles::ChangedFile) -> Self {
+		Self {
+			path: file.path,
+			previous_path: file.previous_path,
+			change: file.change.into(),
+			patch: file.patch,
+		}
+	}
 }
 
 #[derive(Debug, Clone, Copy, PartialEq, Eq, Serialize, Deserialize)]
@@ -313,6 +354,7 @@ impl From<bundles::HistoryEntry> for BotHistoryEntry {
 			author: entry.author.into(),
 			title: entry.title,
 			body: entry.body,
+			paths: entry.paths,
 		}
 	}
 }

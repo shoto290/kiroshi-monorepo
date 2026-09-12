@@ -1,5 +1,6 @@
 import { describe, expect, it, vi } from "vitest"
 
+import { joinedPatches } from "./changed-files"
 import { createHistoryController } from "./history-controller"
 
 import { createFakeTranscriptStore } from "../conversations/fake-transcript-store"
@@ -54,11 +55,13 @@ describe("history controller", () => {
 		const controller = await written(store)
 		const [commit] = controller.getState().commits
 
-		controller.loadDiff(commit.id)
+		controller.loadDiff(commit.id, commit.id)
 		await settled()
 
 		expect(controller.getState().commits[0].diff).toBe(
-			await store.botHistoryDiff("default", commit.id),
+			joinedPatches(
+				await store.botHistoryDiff("default", commit.id, commit.id),
+			),
 		)
 	})
 
@@ -67,17 +70,17 @@ describe("history controller", () => {
 		const asked: string[] = []
 		const counted: TranscriptStore = {
 			...store,
-			botHistoryDiff: (botId, commitId) => {
-				asked.push(commitId)
-				return store.botHistoryDiff(botId, commitId)
+			botHistoryDiff: (botId, oldestCommitId, newestCommitId) => {
+				asked.push(newestCommitId)
+				return store.botHistoryDiff(botId, oldestCommitId, newestCommitId)
 			},
 		}
 		const controller = await written(counted)
 		const [commit] = controller.getState().commits
 
-		controller.loadDiff(commit.id)
+		controller.loadDiff(commit.id, commit.id)
 		await settled()
-		controller.loadDiff(commit.id)
+		controller.loadDiff(commit.id, commit.id)
 		await settled()
 
 		expect(asked).toEqual([commit.id])
@@ -88,7 +91,7 @@ describe("history controller", () => {
 		const controller = await written(store)
 		const [commit] = controller.getState().commits
 
-		controller.revert(commit.id)
+		controller.revert(commit.id, commit.id)
 		await settled()
 
 		expect(controller.getState().commits).toMatchObject([
@@ -106,7 +109,7 @@ describe("history controller", () => {
 		const controller = await written(refusing)
 		const [commit] = controller.getState().commits
 
-		controller.revert(commit.id)
+		controller.revert(commit.id, commit.id)
 		await settled()
 
 		expect(controller.getState().commits).toMatchObject([{ id: commit.id }])
@@ -118,15 +121,15 @@ describe("history controller", () => {
 		const asked: string[] = []
 		const counted: TranscriptStore = {
 			...store,
-			botHistoryDiff: (botId, commitId) => {
-				asked.push(commitId)
-				return store.botHistoryDiff(botId, commitId)
+			botHistoryDiff: (botId, oldestCommitId, newestCommitId) => {
+				asked.push(newestCommitId)
+				return store.botHistoryDiff(botId, oldestCommitId, newestCommitId)
 			},
 		}
 		const controller = createHistoryController(counted)
 
-		controller.loadDiff("commit-1")
-		controller.revert("commit-1")
+		controller.loadDiff("commit-1", "commit-1")
+		controller.revert("commit-1", "commit-1")
 		await settled()
 
 		expect(asked).toEqual([])
