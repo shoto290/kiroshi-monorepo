@@ -362,11 +362,7 @@ export class BotAvatarEngine {
 		const wasHeld = this.gazeHeld !== null
 		this.gazeHeld = gaze && clampGaze(gaze)
 		if (this.gazeHeld) {
-			this.gaze = { ...this.gazeHeld }
-			this.gazeFrom = { ...this.gazeHeld }
-			this.gazeTarget = { ...this.gazeHeld }
-			this.gazeDartAt = null
-			this.headGazeTarget = headGazeFor(this.gazeHeld)
+			this.holdGaze(this.gazeHeld)
 			this.invalidate()
 			return
 		}
@@ -428,12 +424,8 @@ export class BotAvatarEngine {
 		this.morph = 1
 		this.velocity = 0
 		this.ambient = { ...NEUTRAL_POSE }
-		this.gaze = { ...(this.gazeHeld ?? GAZE_CENTRE) }
-		this.gazeFrom = { ...this.gaze }
-		this.gazeTarget = { ...this.gaze }
-		this.gazeDartAt = null
-		this.headGaze = headGazeFor(this.gaze)
-		this.headGazeTarget = { ...this.headGaze }
+		this.holdGaze(this.gazeHeld ?? GAZE_CENTRE)
+		this.headGaze = { ...this.headGazeTarget }
 		this.headGazeVelocity = { ...GAZE_CENTRE }
 		this.pose = {
 			yaw: this.restPose("yaw"),
@@ -527,15 +519,21 @@ export class BotAvatarEngine {
 		return target
 	}
 
+	private holdGaze(target: BotAvatarGaze) {
+		this.gaze = { ...target }
+		this.gazeFrom = { ...target }
+		this.gazeTarget = { ...target }
+		this.gazeDartAt = null
+		this.headGazeTarget = headGazeFor(target)
+	}
+
 	private startDart(target: BotAvatarGaze) {
-		this.gazeFrom = { ...this.gaze }
-		this.gazeTarget = target
 		if (this.release === null) {
-			this.gaze = { ...target }
-			this.headGazeTarget = headGazeFor(target)
-			this.gazeDartAt = null
+			this.holdGaze(target)
 			return
 		}
+		this.gazeFrom = { ...this.gaze }
+		this.gazeTarget = target
 		this.gazeDartAt = performance.now()
 		this.schedule(GAZE_HEAD_DELAY, () => {
 			this.headGazeTarget = headGazeFor(target)

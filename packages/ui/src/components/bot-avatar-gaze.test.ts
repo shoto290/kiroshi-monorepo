@@ -28,8 +28,8 @@ import {
 	rigFromHeadGaze,
 } from "@workspace/ui/components/bot-avatar-gaze"
 
-const DRAWS = 30000
-const CENTRE_TOLERANCE = 0.02
+const DRAWS = 9000
+const CENTRE_SHARE_BOUNDS = [0.32, 0.35]
 const EPSILON = 1e-9
 
 const seeded = (seed: number): BotAvatarRandom => {
@@ -125,7 +125,8 @@ describe("bot avatar gaze", () => {
 			if (isGazeCentred(drawGazeTarget(cadence, random))) centred += 1
 		}
 
-		expect(centred / DRAWS).toBeCloseTo(1 / 3, CENTRE_TOLERANCE)
+		expect(centred / DRAWS).toBeGreaterThan(CENTRE_SHARE_BOUNDS[0])
+		expect(centred / DRAWS).toBeLessThan(CENTRE_SHARE_BOUNDS[1])
 		expect(drawGazeTarget(cadence, constant(0))).toEqual({ yaw: 0, pitch: 0 })
 	})
 
