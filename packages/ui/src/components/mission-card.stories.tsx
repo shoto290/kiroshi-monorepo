@@ -19,6 +19,12 @@ const UNTITLED_TICKET_MISSION_CARD = {
 	ticket: { ...WAITING_MISSION_CARD.ticket, title: "" },
 }
 
+const UNTICKETED_MISSION_CARD = {
+	...WORKING_MISSION_CARD,
+	tools: [],
+	ticket: { platform: "", externalId: "", title: "", url: "" },
+}
+
 const UNLINKABLE_MISSION_CARD = {
 	...WAITING_MISSION_CARD,
 	ticket: { ...WAITING_MISSION_CARD.ticket, url: "" },
@@ -118,6 +124,24 @@ export const IdentifierWithoutTitle = meta.story({
 			UNTITLED_TICKET_MISSION_CARD.ticket.externalId,
 		)
 		await expect(empty).toHaveLength(0)
+	},
+})
+
+export const WithoutTicket = meta.story({
+	args: UNTICKETED_MISSION_CARD,
+	parameters: {
+		docs: {
+			description: {
+				story:
+					"A mission opened against nothing, which is what a companion working outside a tracker carries. Check that the card stops after the objective, with no stand-in mark and no line held open where the ticket would be, and that the running state stays announced to a screen reader alone. Pick `Default` for the same card with a ticket under the objective.",
+			},
+		},
+	},
+	play: async ({ canvas, canvasElement }) => {
+		await expect(slotsIn(canvasElement, "mission-ticket-line")).toHaveLength(0)
+		await expect(
+			canvas.getByText(UNTICKETED_MISSION_CARD.objective),
+		).toBeVisible()
 	},
 })
 

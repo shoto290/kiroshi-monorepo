@@ -2,7 +2,10 @@ import { type ReactNode, useState } from "react"
 
 import { ActivityIndicator } from "@workspace/ui/components/activity-indicator"
 import { AppHeader } from "@workspace/ui/components/app-header"
-import { AppSidebar } from "@workspace/ui/components/app-sidebar"
+import {
+	AppSidebar,
+	type AppSidebarConversation,
+} from "@workspace/ui/components/app-sidebar"
 import { HeaderConversationButton } from "@workspace/ui/components/header-conversation-button"
 import { HeaderIdentityButton } from "@workspace/ui/components/header-identity-button"
 import { Markdown } from "@workspace/ui/components/markdown"
@@ -13,7 +16,6 @@ import {
 } from "@workspace/ui/components/pinned-messages"
 import { PromptInput } from "@workspace/ui/components/prompt-input"
 import { RosterProvider } from "@workspace/ui/components/roster"
-import type { RoutineRowModel } from "@workspace/ui/components/routine-row"
 import {
 	type EarlierTodayRow,
 	RoutinesPanel,
@@ -26,22 +28,15 @@ import { WorkspaceShell } from "@workspace/ui/components/workspace-shell"
 
 import { SCENE_COPY } from "./copy"
 import {
-	CONVERSATION_BOTS,
-	CONVERSATION_ID,
 	CONVERSATIONS_BY_SPACE,
-	HAPPY,
-	ICHI,
-	MISSION,
-	NI,
-	PANEL_MISSIONS,
+	PERSONAL,
 	READER,
 	ROSTER_BY_SPACE,
-	ROSTER_ROWS,
-	SCENE_BOTS,
-	SELECTED_SPACE,
+	type SceneLoop,
 	SPACES,
+	spaceOf,
 } from "./scene-cast"
-import { type SceneThread, threadOf } from "./scene-threads"
+import { exchangeOf, type SceneExchange, type SceneTurn } from "./scene-threads"
 import { useReaderAvatar } from "./use-reader-avatar"
 import { type SceneFrame, useSceneTimeline } from "./use-scene-timeline"
 import { WindowControls } from "./window-controls"
@@ -54,8 +49,6 @@ const ROW_ENTER =
 const TRANSCRIPT_INSET = "pt-4"
 
 const NO_PINS: PinnedMessage[] = []
-
-const NO_ROUTINES: RoutineRowModel[] = []
 
 const NO_ACTIVITY: EarlierTodayRow[] = []
 
@@ -74,51 +67,40 @@ const sceneRow = (
 	),
 })
 
-const scriptedRows = (frame: SceneFrame): TranscriptItem[] => {
+const loopRows = (loop: SceneLoop, frame: SceneFrame): TranscriptItem[] => {
+	const [first, second] = loop.speakers
 	const rows: TranscriptItem[] = []
-
-	if (frame.openingOpacity > 0) {
-		rows.push(
-			sceneRow(
-				"opening",
-				<AssistantTurn author={HAPPY}>
-					<Markdown>{SCENE_COPY.opening}</Markdown>
-				</AssistantTurn>,
-				frame.openingOpacity,
-			),
-		)
-	}
 
 	if (frame.requestOpacity > 0) {
 		rows.push(
 			sceneRow(
 				"request",
 				<UserTurn>
-					<Markdown>{SCENE_COPY.request}</Markdown>
+					<Markdown>{loop.request}</Markdown>
 				</UserTurn>,
 				frame.requestOpacity,
 			),
 		)
 	}
 
-	if (frame.hasIchiAnswer && frame.ichiAnswerOpacity > 0) {
+	if (frame.hasFirstAnswer && frame.firstAnswerOpacity > 0) {
 		rows.push(
 			sceneRow(
-				"ichi-answer",
-				<AssistantTurn author={ICHI}>
-					<Markdown>{SCENE_COPY.ichiAnswer.slice(0, frame.ichiTyped)}</Markdown>
+				"first-answer",
+				<AssistantTurn author={first}>
+					<Markdown>{loop.answers[0].slice(0, frame.firstTyped)}</Markdown>
 				</AssistantTurn>,
-				frame.ichiAnswerOpacity,
+				frame.firstAnswerOpacity,
 			),
 		)
 	}
 
-	if (frame.hasNiAnswer) {
+	if (frame.hasSecondAnswer) {
 		rows.push(
 			sceneRow(
-				"ni-answer",
-				<AssistantTurn author={NI}>
-					<Markdown>{SCENE_COPY.niAnswer.slice(0, frame.niTyped)}</Markdown>
+				"second-answer",
+				<AssistantTurn author={second}>
+					<Markdown>{loop.answers[1].slice(0, frame.secondTyped)}</Markdown>
 				</AssistantTurn>,
 				frame.closingOpacity,
 			),
@@ -129,7 +111,7 @@ const scriptedRows = (frame: SceneFrame): TranscriptItem[] => {
 		rows.push(
 			sceneRow(
 				"mission",
-				<MissionTurn mission={MISSION} onOpen={doNothing} />,
+				<MissionTurn mission={loop.mission} onOpen={doNothing} />,
 				frame.closingOpacity,
 			),
 		)
@@ -138,85 +120,109 @@ const scriptedRows = (frame: SceneFrame): TranscriptItem[] => {
 	return rows
 }
 
-const threadRows = (thread: SceneThread): TranscriptItem[] => [
-	sceneRow(
-		"ask",
-		<UserTurn>
-			<Markdown>{thread.ask}</Markdown>
-		</UserTurn>,
-	),
-	sceneRow(
-		"answer",
-		<AssistantTurn author={thread.bot}>
-			<Markdown>{thread.answer}</Markdown>
+const turnRow = (turn: SceneTurn, rank: number): TranscriptItem => {
+	const key = `turn-${rank}`
+
+	if (turn.kind === "reader") {
+		return sceneRow(
+			key,
+			<UserTurn>
+				<Markdown>{turn.text}</Markdown>
+			</UserTurn>,
+		)
+	}
+
+	if (turn.kind === "mission") {
+		return sceneRow(
+			key,
+			<MissionTurn mission={turn.mission} onOpen={doNothing} />,
+		)
+	}
+
+	return sceneRow(
+		key,
+		<AssistantTurn author={turn.bot} cause={turn.cause}>
+			<Markdown>{turn.text}</Markdown>
 		</AssistantTurn>,
-	),
-]
+	)
+}
+
+const exchangeRows = (exchange: SceneExchange): TranscriptItem[] =>
+	exchange.turns.map(turnRow)
 
 type ThreadTitleProps = {
-	thread?: SceneThread
+	exchange?: SceneExchange
+	conversation: AppSidebarConversation
 	onOpen: () => void
 }
 
-const ThreadTitle = ({ thread, onOpen }: ThreadTitleProps) =>
-	thread ? (
+const ThreadTitle = ({ exchange, conversation, onOpen }: ThreadTitleProps) =>
+	exchange?.bot ? (
 		<HeaderIdentityButton
-			animal={thread.bot.animal}
-			blot={thread.bot.blot}
+			animal={exchange.bot.animal}
+			blot={exchange.bot.blot}
 			connection="ready"
-			name={thread.bot.name}
+			name={exchange.bot.name}
 			onOpenSettings={onOpen}
-			seed={thread.bot.id}
+			seed={exchange.bot.id}
 		/>
 	) : (
 		<HeaderConversationButton
-			bots={CONVERSATION_BOTS}
-			name={SCENE_COPY.threadTitle}
+			bots={conversation.participants}
+			name={conversation.name}
 			onOpenSettings={onOpen}
 		/>
 	)
 
 type WorkingRowsProps = {
+	loop: SceneLoop
 	frame: SceneFrame
 }
 
-const WorkingRows = ({ frame }: WorkingRowsProps) => (
-	<>
-		{frame.hasIchiAnswer ? null : (
-			<ActivityIndicator
-				animal={ICHI.animal}
-				blot={ICHI.blot}
-				botId={ICHI.id}
-				className={ROW_ENTER}
-				elapsedSeconds={frame.elapsedSeconds}
-				kind="thinking"
-				name={ICHI.name}
-				seed={ICHI.id}
-			/>
-		)}
-		{frame.hasNiAnswer ? null : (
-			<ActivityIndicator
-				animal={NI.animal}
-				blot={NI.blot}
-				botId={NI.id}
-				className={ROW_ENTER}
-				elapsedSeconds={frame.elapsedSeconds}
-				kind={frame.hasIchiAnswer ? "writing" : "thinking"}
-				name={NI.name}
-				seed={NI.id}
-			/>
-		)}
-	</>
-)
+const WorkingRows = ({ loop, frame }: WorkingRowsProps) => {
+	const [first, second] = loop.speakers
+
+	return (
+		<>
+			{frame.hasFirstAnswer ? null : (
+				<ActivityIndicator
+					animal={first.animal}
+					blot={first.blot}
+					botId={first.id}
+					className={ROW_ENTER}
+					elapsedSeconds={frame.elapsedSeconds}
+					kind="thinking"
+					name={first.name}
+					seed={first.id}
+				/>
+			)}
+			{frame.hasSecondAnswer ? null : (
+				<ActivityIndicator
+					animal={second.animal}
+					blot={second.blot}
+					botId={second.id}
+					className={ROW_ENTER}
+					elapsedSeconds={frame.elapsedSeconds}
+					kind={frame.hasFirstAnswer ? "writing" : "thinking"}
+					name={second.name}
+					seed={second.id}
+				/>
+			)}
+		</>
+	)
+}
 
 export const AppScene = () => {
-	const [selectedId, setSelectedId] = useState(CONVERSATION_ID)
+	const [spaceId, setSpaceId] = useState(PERSONAL.id)
+	const [selectedId, setSelectedId] = useState(PERSONAL.defaultConversation.id)
 	const [isPanelOpen, setPanelOpen] = useState(false)
 	const [draft, setDraft] = useState("")
 	const readerAvatar = useReaderAvatar()
+	const space = spaceOf(spaceId)
 	const { frame, engage } = useSceneTimeline({
+		answers: space.loop.answers,
 		onIdle: () => {
-			setSelectedId(CONVERSATION_ID)
+			setSelectedId(space.defaultConversation.id)
 			setPanelOpen(false)
 			setDraft("")
 		},
@@ -225,11 +231,16 @@ export const AppScene = () => {
 		engage()
 		setSelectedId(id)
 	}
+	const selectSpace = (id: string) => {
+		engage()
+		setSpaceId(id)
+		setSelectedId(spaceOf(id).defaultConversation.id)
+	}
 	const openPanel = (isOpen: boolean) => {
 		engage()
 		setPanelOpen(isOpen)
 	}
-	const thread = threadOf(selectedId)
+	const exchange = exchangeOf(selectedId)
 
 	return (
 		<section
@@ -240,13 +251,13 @@ export const AppScene = () => {
 			onPointerDown={engage}
 		>
 			<WindowControls />
-			<RosterProvider bots={SCENE_BOTS}>
+			<RosterProvider bots={space.bots}>
 				<WorkspaceShell
 					defaultOpen
 					isLandmark={false}
 					sidebar={
 						<AppSidebar
-							bots={ROSTER_ROWS}
+							bots={space.rows}
 							botsBySpaceId={ROSTER_BY_SPACE}
 							conversationsBySpaceId={CONVERSATIONS_BY_SPACE}
 							insetWindowControls
@@ -255,14 +266,15 @@ export const AppScene = () => {
 							onOpenSearch={engage}
 							onSelectBot={select}
 							onSelectConversation={select}
-							selectedBotId={thread ? selectedId : undefined}
-							selectedConversationId={thread ? undefined : CONVERSATION_ID}
-							selectedSpaceId={SELECTED_SPACE.id}
+							onSelectSpace={selectSpace}
+							selectedBotId={exchange?.bot ? selectedId : undefined}
+							selectedConversationId={exchange?.bot ? undefined : selectedId}
+							selectedSpaceId={space.id}
 							spaces={SPACES}
 							user={{ ...READER, image: readerAvatar }}
 						/>
 					}
-					spaceTint={SELECTED_SPACE.colour}
+					spaceTint={space.colour}
 				>
 					<RoutinesPanel
 						failure={null}
@@ -270,13 +282,13 @@ export const AppScene = () => {
 						missions={{
 							earlierToday: NO_ACTIVITY,
 							onOpen: doNothing,
-							open: PANEL_MISSIONS,
+							open: space.missions,
 						}}
 						onDelete={doNothing}
 						onEnabledChange={doNothing}
 						onOpenChange={openPanel}
 						onRetry={doNothing}
-						routines={NO_ROUTINES}
+						routines={space.routines}
 					>
 						<ThreadLayout
 							autoScroll={false}
@@ -291,7 +303,15 @@ export const AppScene = () => {
 							contentClassName={TRANSCRIPT_INSET}
 							header={
 								<AppHeader
-									leading={<ThreadTitle onOpen={engage} thread={thread} />}
+									leading={
+										<ThreadTitle
+											conversation={
+												exchange?.conversation ?? space.defaultConversation
+											}
+											exchange={exchange}
+											onOpen={engage}
+										/>
+									}
 									trailing={
 										<>
 											<PinnedMessages
@@ -304,9 +324,13 @@ export const AppScene = () => {
 									}
 								/>
 							}
-							rows={thread ? threadRows(thread) : scriptedRows(frame)}
+							rows={
+								exchange ? exchangeRows(exchange) : loopRows(space.loop, frame)
+							}
 						>
-							{thread ? null : <WorkingRows frame={frame} />}
+							{exchange ? null : (
+								<WorkingRows frame={frame} loop={space.loop} />
+							)}
 						</ThreadLayout>
 					</RoutinesPanel>
 				</WorkspaceShell>

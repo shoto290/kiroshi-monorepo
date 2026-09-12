@@ -1,33 +1,134 @@
+import type { AppSidebarConversation } from "@workspace/ui/components/app-sidebar"
+import type { MissionCardModel } from "@workspace/ui/components/mission"
 import type { RosterBot } from "@workspace/ui/components/roster"
+import type { TurnCause } from "@workspace/ui/components/turn"
 
-import { SCENE_COPY } from "./copy"
-import { HAPPY, ICHI, NI, REI, SAN } from "./scene-cast"
+import { ROUTINE_TRIGGER_SOURCE, SCENE_COPY } from "./copy"
+import {
+	ASH,
+	IVY,
+	JUNO,
+	MOCHI,
+	MOVE,
+	OLIVE,
+	PIP,
+	SABLE,
+	sceneMission,
+	TOMO,
+	TRIAGE,
+	WREN,
+} from "./scene-cast"
 
-type BotThreadCopy = {
-	ask: string
-	preview: string
+type SceneTurn =
+	| { kind: "reader"; text: string }
+	| { kind: "bot"; bot: RosterBot; text: string; cause?: TurnCause }
+	| { kind: "mission"; mission: MissionCardModel }
+
+type SceneExchange = {
+	bot?: RosterBot
+	conversation?: AppSidebarConversation
+	turns: SceneTurn[]
 }
 
-type SceneThread = {
-	bot: RosterBot
-	ask: string
-	answer: string
-}
+const asks = (text: string): SceneTurn => ({ kind: "reader", text })
 
-const botThread = (bot: RosterBot, copy: BotThreadCopy): SceneThread => ({
+const says = (bot: RosterBot, text: string): SceneTurn => ({
+	kind: "bot",
 	bot,
-	ask: copy.ask,
-	answer: copy.preview,
+	text,
 })
 
-const BOT_THREADS: Record<string, SceneThread> = {
-	[ICHI.id]: botThread(ICHI, SCENE_COPY.ichi),
-	[NI.id]: botThread(NI, SCENE_COPY.ni),
-	[SAN.id]: botThread(SAN, SCENE_COPY.san),
-	[REI.id]: botThread(REI, SCENE_COPY.rei),
-	[HAPPY.id]: botThread(HAPPY, SCENE_COPY.happy),
+const reports = (bot: RosterBot, text: string, title: string): SceneTurn => ({
+	kind: "bot",
+	bot,
+	text,
+	cause: { routineTitle: title, triggerSourceId: ROUTINE_TRIGGER_SOURCE },
+})
+
+const opens = (mission: MissionCardModel): SceneTurn => ({
+	kind: "mission",
+	mission,
+})
+
+const COPY = SCENE_COPY.exchanges
+
+const EXCHANGES: Record<string, SceneExchange> = {
+	[MOCHI.id]: {
+		bot: MOCHI,
+		turns: [
+			asks(COPY.mochi.ask),
+			says(MOCHI, COPY.mochi.answer),
+			says(TOMO, COPY.mochi.handoff),
+		],
+	},
+	[OLIVE.id]: {
+		bot: OLIVE,
+		turns: [asks(COPY.olive.ask), says(OLIVE, COPY.olive.answer)],
+	},
+	[PIP.id]: {
+		bot: PIP,
+		turns: [
+			reports(PIP, COPY.pip.report, COPY.pip.cause),
+			asks(COPY.pip.ask),
+			says(PIP, COPY.pip.answer),
+		],
+	},
+	[TOMO.id]: {
+		bot: TOMO,
+		turns: [
+			asks(COPY.tomo.ask),
+			opens(sceneMission({ bot: TOMO, objective: COPY.tomo.missionObjective })),
+			says(TOMO, COPY.tomo.answer),
+		],
+	},
+	[ASH.id]: {
+		bot: ASH,
+		turns: [asks(COPY.ash.ask), says(ASH, COPY.ash.answer)],
+	},
+	[MOVE.id]: {
+		conversation: MOVE,
+		turns: [says(MOCHI, COPY.move.answer)],
+	},
+	[WREN.id]: {
+		bot: WREN,
+		turns: [
+			asks(COPY.wren.ask),
+			opens(
+				sceneMission({
+					bot: WREN,
+					objective: COPY.wren.missionObjective,
+					externalId: COPY.wren.missionTicket,
+				}),
+			),
+			says(WREN, COPY.wren.answer),
+		],
+	},
+	[IVY.id]: {
+		bot: IVY,
+		turns: [
+			asks(COPY.ivy.ask),
+			says(IVY, COPY.ivy.answer),
+			says(SABLE, COPY.ivy.handoff),
+		],
+	},
+	[SABLE.id]: {
+		bot: SABLE,
+		turns: [asks(COPY.sable.ask), says(SABLE, COPY.sable.answer)],
+	},
+	[JUNO.id]: {
+		bot: JUNO,
+		turns: [
+			reports(JUNO, COPY.juno.report, COPY.juno.cause),
+			asks(COPY.juno.ask),
+			says(JUNO, COPY.juno.answer),
+		],
+	},
+	[TRIAGE.id]: {
+		conversation: TRIAGE,
+		turns: [says(IVY, COPY.triage.answer)],
+	},
 }
 
-const threadOf = (botId: string): SceneThread | undefined => BOT_THREADS[botId]
+const exchangeOf = (id: string): SceneExchange | undefined => EXCHANGES[id]
 
-export { type SceneThread, threadOf }
+export { exchangeOf, type SceneExchange, type SceneTurn }
