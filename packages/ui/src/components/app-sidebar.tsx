@@ -29,7 +29,6 @@ import type { BotAvatarAnimal } from "@workspace/ui/components/bot-avatar-animal
 import type { BotAvatarState } from "@workspace/ui/components/bot-avatar-data"
 import {
 	type BotBadge,
-	BotBadgeDot,
 	type BotMissionState,
 	BotMissionStrip,
 	type BotMissionTicket,
@@ -42,11 +41,7 @@ import {
 import { BOT_IDENTITY_ANIMALS } from "@workspace/ui/components/bot-settings"
 import { ContextMenuPressTrigger } from "@workspace/ui/components/context-menu-press-trigger"
 import { Icons } from "@workspace/ui/components/icons"
-import {
-	TextShimmer,
-	WORKING_SHIMMER_DURATION,
-} from "@workspace/ui/components/motion/text-shimmer"
-import { SidebarMenuRow } from "@workspace/ui/components/sidebar-menu-row"
+import { SidebarListRow } from "@workspace/ui/components/sidebar-list-row"
 import { SidebarResizeHandle } from "@workspace/ui/components/sidebar-resize"
 import { SidebarSearchField } from "@workspace/ui/components/sidebar-search-field"
 import { type Space, spaceAtRank } from "@workspace/ui/components/space"
@@ -109,22 +104,8 @@ const NO_WINDOW_CONTROLS_INSET = "pl-2.5"
 
 const ROW_AVATAR_SIZE = 40
 
-const TIMESTAMP_SLOT =
-	"h-5 w-11 shrink-0 truncate text-right text-[11px] text-muted-foreground leading-5 tabular-nums"
-
-const TRAILING_SLOT = "ml-auto flex shrink-0 items-center gap-1.5"
-
-const NAME_LINE = "flex h-5 min-w-0 items-center gap-1.5"
-
-const ROW_STACK = "relative flex h-9 min-w-0 flex-col justify-center"
-
 const ROW_ITEM =
 	"flex flex-col gap-1 group-data-[collapsible=icon]:items-center"
-
-const MISSION_STRIPS = "flex flex-col gap-1"
-
-const PREVIEW_LINE =
-	"h-4 truncate pe-3.5 text-muted-foreground text-xs leading-4 empty:h-0"
 
 const DESTINATION_NAME = "min-w-0 truncate"
 
@@ -144,9 +125,6 @@ const sidebarRegionOf = (row: HTMLElement | null) => {
 
 const LAST_SPACE_NOTE =
 	"px-2.5 pt-0.5 pb-1.5 text-[11px] text-muted-foreground leading-[15px]"
-
-const ROW =
-	"py-1.5 pl-1.5 aria-expanded:bg-sidebar-accent/70 group-data-[collapsible=icon]:pl-0"
 
 const FOOTER_INSET = "group-data-[collapsible=icon]:px-0"
 
@@ -297,18 +275,16 @@ interface AppSidebarRowMission {
 }
 
 const missionStripsOf = (missions: AppSidebarRowMission[] | undefined) =>
-	missions?.length ? (
-		<span className={MISSION_STRIPS} data-slot="roster-row-missions">
-			{missions.map(({ id, state, ticket, objective }) => (
+	missions?.length
+		? missions.map(({ id, state, ticket, objective }) => (
 				<BotMissionStrip
 					key={id}
 					objective={objective}
 					state={state}
 					ticket={ticket}
 				/>
-			))}
-		</span>
-	) : undefined
+			))
+		: undefined
 
 interface AppSidebarBot {
 	id: string
@@ -357,22 +333,11 @@ const workingBotOf = ({ participants, lastSpeaker }: AppSidebarConversation) =>
 	participants.find((bot) => isBusy(bot) && bot.name === lastSpeaker) ??
 	participants.find(isBusy)
 
-interface RowPreviewProps {
-	isWorking: boolean
-	children: ReactNode
+const botPreviewOf = (t: TFunction<"bots">, bot: AppSidebarBot) => {
+	if (isBusy(bot))
+		return t("roster.working", { pose: t(`roster.pose.${poseOf(bot)}`) })
+	return bot.lastMessage ? toPlainText(bot.lastMessage) : ""
 }
-
-const RowPreview = ({ isWorking, children }: RowPreviewProps) => (
-	<span className={PREVIEW_LINE} data-slot="roster-row-preview">
-		{isWorking ? (
-			<TextShimmer className="inline" duration={WORKING_SHIMMER_DURATION}>
-				{children}
-			</TextShimmer>
-		) : (
-			children
-		)}
-	</span>
-)
 
 const previewOf = (
 	t: TFunction<"bots">,
@@ -609,7 +574,6 @@ const useRosterBadgePlacement = (badge?: BotBadge) => {
 	const isCollapsed = state === "collapsed"
 
 	return {
-		isCollapsed,
 		avatarBadge: isCollapsed ? badge : undefined,
 		rowBadge: isCollapsed ? undefined : badge,
 	}
@@ -734,12 +698,8 @@ const BotRosterRow = ({
 	onCreateSectionFor,
 }: BotRosterRowProps) => {
 	const { t } = useTranslation("bots")
-	const pose = poseOf(bot)
 	const working = isBusy(bot)
-	const { isCollapsed, avatarBadge, rowBadge } = useRosterBadgePlacement(
-		bot.badge,
-	)
-	const strips = isCollapsed ? undefined : missionStripsOf(bot.missions)
+	const { avatarBadge, rowBadge } = useRosterBadgePlacement(bot.badge)
 	const rowRef = useRef<HTMLElement | null>(null)
 
 	const focusAfterClose = useRef<HTMLElement | null>(null)
@@ -763,52 +723,28 @@ const BotRosterRow = ({
 			<InsertionLine edge={insertion} />
 			<ContextMenu>
 				<ContextMenuTrigger>
-					<SidebarMenuRow
+					<SidebarListRow
 						{...lift.handlersFor(bot.id)}
-						below={strips}
-						className={ROW}
-						icon={<BotRowAvatar badge={avatarBadge} bot={bot} />}
+						badge={rowBadge}
 						isActive={isSelected}
-						isIconDecorative={false}
-						label={bot.name}
+						isWorking={working}
+						media={<BotRowAvatar badge={avatarBadge} bot={bot} />}
+						name={bot.name}
 						onSelect={() => {
 							if (lift.hasJustDropped()) return
 							onSelect?.(bot.id)
 						}}
-					>
-						<span className={ROW_STACK}>
-							<span className={NAME_LINE}>
-								<span className="truncate" data-slot="roster-row-name">
-									{bot.name}
-								</span>
-								<BotTitleBadge
-									className="max-w-16"
-									data-slot="roster-row-badge"
-									title={bot.title}
-								/>
-								<span className={TRAILING_SLOT}>
-									<span
-										className={TIMESTAMP_SLOT}
-										data-slot="roster-row-timestamp"
-									>
-										{bot.timestamp}
-									</span>
-								</span>
-							</span>
-							<RowPreview isWorking={working}>
-								{working
-									? t("roster.working", { pose: t(`roster.pose.${pose}`) })
-									: bot.lastMessage && toPlainText(bot.lastMessage)}
-							</RowPreview>
-							{rowBadge ? (
-								<BotBadgeDot
-									badge={rowBadge}
-									data-slot="bot-activity-dot"
-									placement="row"
-								/>
-							) : null}
-						</span>
-					</SidebarMenuRow>
+						preview={botPreviewOf(t, bot)}
+						strips={missionStripsOf(bot.missions)}
+						timestamp={bot.timestamp ?? ""}
+						trailing={
+							<BotTitleBadge
+								className="max-w-16"
+								data-slot="roster-row-badge"
+								title={bot.title}
+							/>
+						}
+					/>
 				</ContextMenuTrigger>
 				<ContextMenuContent
 					aria-label={t("roster.actions", { name: bot.name })}
@@ -903,12 +839,9 @@ const ConversationRosterRow = ({
 	onCreateSectionFor,
 }: ConversationRosterRowProps) => {
 	const { t } = useTranslation("bots")
-	const { isCollapsed, avatarBadge, rowBadge } = useRosterBadgePlacement(
+	const { avatarBadge, rowBadge } = useRosterBadgePlacement(
 		badgeOf(conversation),
 	)
-	const strips = isCollapsed
-		? undefined
-		: missionStripsOf(conversation.missions)
 
 	return (
 		<SidebarMenuItem
@@ -920,51 +853,27 @@ const ConversationRosterRow = ({
 			<InsertionLine edge={insertion} />
 			<ContextMenu>
 				<ContextMenuTrigger>
-					<SidebarMenuRow
+					<SidebarListRow
 						{...lift.handlersFor(conversation.id)}
-						below={strips}
-						className={ROW}
-						icon={
+						badge={rowBadge}
+						isActive={isSelected}
+						isWorking={Boolean(workingBotOf(conversation))}
+						media={
 							<AvatarGroup
 								badge={avatarBadge}
 								participants={heldBotsOf(conversation)}
 								size={ROW_AVATAR_SIZE}
 							/>
 						}
-						isActive={isSelected}
-						isIconDecorative={false}
-						label={conversation.name}
+						name={conversation.name}
 						onSelect={() => {
 							if (lift.hasJustDropped()) return
 							onSelect?.(conversation.id)
 						}}
-					>
-						<span className={ROW_STACK}>
-							<span className={NAME_LINE}>
-								<span className="truncate" data-slot="roster-row-name">
-									{conversation.name}
-								</span>
-								<span className={TRAILING_SLOT}>
-									<span
-										className={TIMESTAMP_SLOT}
-										data-slot="roster-row-timestamp"
-									>
-										{conversation.timestamp}
-									</span>
-								</span>
-							</span>
-							<RowPreview isWorking={Boolean(workingBotOf(conversation))}>
-								{previewOf(t, conversation)}
-							</RowPreview>
-							{rowBadge ? (
-								<BotBadgeDot
-									badge={rowBadge}
-									data-slot="bot-activity-dot"
-									placement="row"
-								/>
-							) : null}
-						</span>
-					</SidebarMenuRow>
+						preview={previewOf(t, conversation) ?? ""}
+						strips={missionStripsOf(conversation.missions)}
+						timestamp={conversation.timestamp ?? ""}
+					/>
 				</ContextMenuTrigger>
 				<ContextMenuContent
 					aria-label={t("roster.actions", { name: conversation.name })}
