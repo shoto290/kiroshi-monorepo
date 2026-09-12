@@ -603,6 +603,54 @@ const chat = {
 			},
 		},
 	},
+	onboarding: {
+		steps_one: "{{count}} étape",
+		steps_many: "{{count}} étapes",
+		steps_other: "{{count}} étapes",
+		step: "{{step}} sur {{total}}",
+		welcome: {
+			title: "Prêt quand vous l'êtes",
+			start: "Commencer",
+			more: "Dites-m'en plus d'abord",
+		},
+		connection: {
+			title: "Votre compte Claude",
+			detected: {
+				subtitle: "Trouvé sur cette machine, sous votre propre session",
+				use: "Utiliser ce compte",
+				another: "Utiliser un autre compte",
+			},
+			offer: {
+				signIn: "Se connecter avec Claude",
+				note: "Ouvre votre navigateur une fois, puis revient ici.",
+				keyLabel: "Ou collez une clé API et payez à l'usage",
+				keyPlaceholder: "sk-ant-…",
+			},
+			failed: {
+				title: "Impossible de vous connecter",
+				retry: "Réessayer",
+				pasteKey: "Coller une clé à la place",
+			},
+			settled: "Compte Claude connecté",
+		},
+		test: {
+			title: "Tout fonctionne. Plus qu'une chose.",
+			pick: "Choisir mon premier compagnon",
+			keepTalking: "Continuer à discuter",
+		},
+		picker: {
+			title: "Qui doit arriver en premier ?",
+			option: "{{name}}, {{role}}",
+			requestLabel: "Ou dites ce dont vous avez besoin, avec vos mots",
+			requestPlaceholder: "Quelqu'un qui rédige mes e-mails…",
+			add: "Ajouter {{name}}",
+			skip: "Plus tard",
+		},
+		handoff: {
+			open: "Ouvrir {{name}}",
+			stay: "Rester ici",
+		},
+	},
 } as const
 
 export { chat }
