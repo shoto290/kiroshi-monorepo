@@ -306,6 +306,10 @@ impl ConversationsRepository {
 		self.call(move |connection| Ok(bots_of(connection, space_id.as_deref())?)).await
 	}
 
+	pub async fn holds_a_bot(&self) -> Result<bool, DatabaseError> {
+		self.call(|connection| Ok(counted_bots(connection)? > 0)).await
+	}
+
 	pub async fn create_bot(
 		&self,
 		identity: BotIdentity,
@@ -630,6 +634,10 @@ fn bots_statement(space_id: Option<&str>) -> String {
 			"{BOT_COLUMNS} WHERE bots.deleted_at IS NULL AND {OLDEST_MEMBERSHIP} {BOT_ORDER}"
 		),
 	}
+}
+
+fn counted_bots(connection: &Connection) -> rusqlite::Result<i64> {
+	connection.query_row("SELECT count(*) FROM bots", [], |row| row.get(0))
 }
 
 fn bots_of(connection: &Connection, space_id: Option<&str>) -> rusqlite::Result<Vec<Bot>> {

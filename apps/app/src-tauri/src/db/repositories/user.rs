@@ -159,10 +159,18 @@ impl UserRepository {
 	}
 
 	pub async fn mark_first_companion_seeded(&self) -> Result<(), DatabaseError> {
+		self.mark_switch_on(FIRST_COMPANION_SEEDED_KEY).await
+	}
+
+	pub async fn mark_first_run_done(&self) -> Result<(), DatabaseError> {
+		self.mark_switch_on(FIRST_RUN_DONE_KEY).await
+	}
+
+	async fn mark_switch_on(&self, key: &'static str) -> Result<(), DatabaseError> {
 		self.access
-			.call_mut(|connection| {
+			.call_mut(move |connection| {
 				let transaction = write_transaction(connection)?;
-				write_switch_in(&transaction, FIRST_COMPANION_SEEDED_KEY, true)?;
+				write_switch_in(&transaction, key, true)?;
 				transaction.commit()?;
 				Ok(())
 			})

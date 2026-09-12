@@ -61,14 +61,24 @@ impl From<DatabaseError> for Refusal {
 }
 
 pub(super) async fn plant_first_companion<R: Runtime>(app: &AppHandle<R>, database: &db::Database) {
-	match database.user().is_first_companion_seeded().await {
-		Ok(true) => return,
-		Ok(false) => {}
-		Err(failure) => return report(&Refusal::Database(failure)),
-	}
-	if let Err(refusal) = plant(app, database).await {
+	if let Err(refusal) = seed(app, database).await {
 		report(&refusal);
 	}
+}
+
+async fn seed<R: Runtime>(app: &AppHandle<R>, database: &db::Database) -> Result<(), Refusal> {
+	if database.user().is_first_companion_seeded().await? {
+		return Ok(());
+	}
+	if database.conversations().holds_a_bot().await? {
+		return adopt(database).await;
+	}
+	plant(app, database).await
+}
+
+async fn adopt(database: &db::Database) -> Result<(), Refusal> {
+	database.user().mark_first_run_done().await?;
+	Ok(database.user().mark_first_companion_seeded().await?)
 }
 
 async fn plant<R: Runtime>(app: &AppHandle<R>, database: &db::Database) -> Result<(), Refusal> {
@@ -142,7 +152,7 @@ mod tests {
 	use tauri::{App, Manager};
 
 	use super::*;
-	use crate::db::repositories::conversations::Bot as StoredBot;
+	use crate::db::repositories::conversations::{Bot as StoredBot, ConversationDraft};
 
 	fn a_host(name: &str) -> App<MockRuntime> {
 		let mut context = mock_context(noop_assets());
@@ -163,6 +173,32 @@ mod tests {
 	async fn planted(app: &App<MockRuntime>, database: &db::Database) -> Vec<StoredBot> {
 		plant_first_companion(app.handle(), database).await;
 		database.conversations().bots(personal_space()).await.expect("the roster reads")
+	}
+
+	async fn a_companion_seated_in_a_mission(database: &db::Database) -> StoredBot {
+		let kept = a_companion(database).await;
+		database
+			.conversations()
+			.create_conversation(ConversationDraft {
+				space_id: PERSONAL_SPACE_ID.to_owned(),
+				section_id: None,
+				title: "A mission".to_owned(),
+				bot_ids: vec![kept.id.clone()],
+			})
+			.await
+			.expect("the mission is created");
+		kept
+	}
+
+	async fn a_companion(database: &db::Database) -> StoredBot {
+		let mut identity = identity(Path::new("kept.png"));
+		identity.name = "Kept".to_owned();
+		identity.avatar_image_path = None;
+		database
+			.conversations()
+			.create_bot(identity.into(), personal_space(), None)
+			.await
+			.expect("the companion is created")
 	}
 
 	fn bundle_of(app: &App<MockRuntime>, bot: &StoredBot) -> PathBuf {
@@ -186,6 +222,7 @@ mod tests {
 		assert_eq!(shoto.instructions, shoto::persona());
 		assert_eq!(shoto.avatar_blot, None);
 		assert!(database.user().is_first_companion_seeded().await.expect("the marker"));
+		assert!(!database.user().preferences().await.expect("the preferences").first_run_done);
 	}
 
 	#[tokio::test]
@@ -260,5 +297,34 @@ mod tests {
 		assert!(!database.user().is_first_companion_seeded().await.expect("the marker"));
 		let dir = avatars::dir(app.handle()).expect("the avatars directory");
 		assert_eq!(fs::read_dir(&dir).expect("the directory reads").count(), 0);
+	}
+
+	#[tokio::test]
+	async fn a_database_that_already_holds_a_companion_receives_no_second_one() {
+		let app = a_host("adopted");
+		let database = database_of(&app);
+		a_companion(database).await;
+
+		let roster = planted(&app, database).await;
+
+		assert_eq!(roster.len(), 1, "a second companion was planted");
+		assert_ne!(roster[0].name, shoto::NAME);
+		assert!(!bundle_of(&app, &roster[0]).exists(), "a bundle was written");
+		assert!(database.user().is_first_companion_seeded().await.expect("the marker"));
+		assert!(database.user().preferences().await.expect("the preferences").first_run_done);
+	}
+
+	#[tokio::test]
+	async fn a_database_whose_retired_companion_still_holds_a_row_receives_no_replacement() {
+		let app = a_host("emptied");
+		let database = database_of(&app);
+		let retired = a_companion_seated_in_a_mission(database).await;
+		database.conversations().delete_bot(retired.id).await.expect("the deletion");
+
+		plant_first_companion(app.handle(), database).await;
+
+		assert_eq!(database.conversations().bots(None).await.expect("the roster").len(), 0);
+		assert!(database.user().is_first_companion_seeded().await.expect("the marker"));
+		assert!(database.user().preferences().await.expect("the preferences").first_run_done);
 	}
 }
