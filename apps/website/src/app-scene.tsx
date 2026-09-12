@@ -216,7 +216,7 @@ export const AppScene = () => {
 	const [draft, setDraft] = useState("")
 	const readerAvatar = useReaderAvatar()
 	const space = spaceOf(spaceId)
-	const { frame, engage } = useSceneTimeline({
+	const { frame, engage, restart } = useSceneTimeline({
 		answers: space.loop.answers,
 		onIdle: () => {
 			setSelectedId(space.defaultConversation.id)
@@ -229,7 +229,7 @@ export const AppScene = () => {
 		setSelectedId(id)
 	}
 	const selectSpace = (id: string) => {
-		engage()
+		restart()
 		setSpaceId(id)
 		setSelectedId(spaceOf(id).defaultConversation.id)
 	}

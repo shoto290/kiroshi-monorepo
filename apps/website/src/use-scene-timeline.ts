@@ -82,6 +82,21 @@ const isSameFrame = (one: SceneFrame, other: SceneFrame) =>
 	one.hasMission === other.hasMission &&
 	one.closingOpacity === other.closingOpacity
 
+type StillElapsedInput = {
+	answers: SceneAnswers
+	beat: number | null
+	prefersReducedMotion: boolean
+}
+
+const stillElapsed = ({
+	answers,
+	beat,
+	prefersReducedMotion,
+}: StillElapsedInput) => {
+	if (beat !== null) return beatElapsed(answers)[beat - 1]
+	return prefersReducedMotion ? missionAtOf(answers) : null
+}
+
 const frozenBeat = () => {
 	const asked = new URLSearchParams(window.location.search).get(
 		FROZEN_STATE_PARAMETER,
@@ -96,16 +111,22 @@ type SceneTimeline = {
 	frame: SceneFrame
 	isStill: boolean
 	engage: () => void
+	restart: () => void
 }
 
-type SceneTimelineState = Omit<SceneTimeline, "engage">
+type SceneTimelineState = {
+	frame: SceneFrame
+	isStill: boolean
+	answers: SceneAnswers
+}
 
-const stillTimeline = (
-	elapsed: number,
+const timelineAt = (
 	answers: SceneAnswers,
+	stillAt: number | null,
 ): SceneTimelineState => ({
-	frame: frameAt(elapsed, answers),
-	isStill: true,
+	frame: frameAt(stillAt ?? 0, answers),
+	isStill: stillAt !== null,
+	answers,
 })
 
 type SceneTimelineInput = {
@@ -122,12 +143,12 @@ export const useSceneTimeline = ({
 	const [isEngaged, setIsEngaged] = useState(false)
 	const idleRef = useRef<number | undefined>(undefined)
 	const onIdleRef = useRef(onIdle)
-	const isStill = prefersReducedMotion || beat !== null
-	const stillAt =
-		beat === null ? missionAtOf(answers) : beatElapsed(answers)[beat - 1]
+	const stillAt = stillElapsed({ answers, beat, prefersReducedMotion })
 	const [timeline, setTimeline] = useState<SceneTimelineState>(() =>
-		stillTimeline(stillAt, answers),
+		timelineAt(answers, stillAt),
 	)
+
+	if (timeline.answers !== answers) setTimeline(timelineAt(answers, stillAt))
 
 	onIdleRef.current = onIdle
 
@@ -140,13 +161,18 @@ export const useSceneTimeline = ({
 		}, IDLE_MS)
 	}, [])
 
+	const restart = useCallback(() => {
+		window.clearTimeout(idleRef.current)
+		setIsEngaged(false)
+	}, [])
+
 	useEffect(() => () => window.clearTimeout(idleRef.current), [])
 
 	useEffect(() => {
 		if (isEngaged) return
 
-		if (isStill) {
-			setTimeline(stillTimeline(stillAt, answers))
+		if (stillAt !== null) {
+			setTimeline(timelineAt(answers, stillAt))
 			return
 		}
 
@@ -162,7 +188,7 @@ export const useSceneTimeline = ({
 			setTimeline((current) =>
 				isSameFrame(current.frame, frame) && !current.isStill
 					? current
-					: { frame, isStill: false },
+					: { frame, isStill: false, answers },
 			)
 			request = requestAnimationFrame(advance)
 		}
@@ -189,9 +215,9 @@ export const useSceneTimeline = ({
 			stop()
 			document.removeEventListener("visibilitychange", onVisibilityChange)
 		}
-	}, [answers, isEngaged, isStill, stillAt])
+	}, [answers, isEngaged, stillAt])
 
-	return { ...timeline, engage }
+	return { frame: timeline.frame, isStill: timeline.isStill, engage, restart }
 }
 
 export type { SceneAnswers, SceneFrame }
