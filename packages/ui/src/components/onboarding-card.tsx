@@ -1,6 +1,11 @@
 "use client"
 
-import { type ComponentProps, type ReactNode, useId } from "react"
+import {
+	type ComponentProps,
+	type KeyboardEvent,
+	type ReactNode,
+	useId,
+} from "react"
 
 import { Button } from "@workspace/ui/components/ui/button"
 import { Input } from "@workspace/ui/components/ui/input"
@@ -154,6 +159,11 @@ const OnboardingField = ({
 	disabled,
 }: OnboardingFieldProps) => {
 	const fieldId = useId()
+	const submitOnEnter = (event: KeyboardEvent<HTMLInputElement>) => {
+		if (event.key !== "Enter" || event.nativeEvent.isComposing) return
+		event.preventDefault()
+		onSubmit(value)
+	}
 
 	return (
 		<div
@@ -176,11 +186,7 @@ const OnboardingField = ({
 				disabled={disabled}
 				id={fieldId}
 				onChange={(event) => onValueChange(event.target.value)}
-				onKeyDown={(event) => {
-					if (event.key !== "Enter" || event.nativeEvent.isComposing) return
-					event.preventDefault()
-					onSubmit(value)
-				}}
+				onKeyDown={submitOnEnter}
 				placeholder={placeholder}
 				spellCheck={false}
 				type={type}
