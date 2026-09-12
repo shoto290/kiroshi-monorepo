@@ -30,6 +30,7 @@ type OnboardingPickerCardProps = {
 	onValueChange: (companionId: string) => void
 	request: string
 	onRequestChange: (request: string) => void
+	onRequestSubmit: (request: string) => void
 	onAdd: () => void
 	onSkip: () => void
 	disabled?: boolean
@@ -42,6 +43,7 @@ const OnboardingPickerCard = ({
 	onValueChange,
 	request,
 	onRequestChange,
+	onRequestSubmit,
 	onAdd,
 	onSkip,
 	disabled,
@@ -62,12 +64,13 @@ const OnboardingPickerCard = ({
 			<RadioGroup
 				aria-label={t("onboarding.picker.title")}
 				className="gap-1.5"
+				disabled={disabled}
 				onValueChange={onValueChange}
 				value={value}
 			>
 				{companions.map((companion) => (
 					<label
-						className="flex cursor-pointer items-start gap-2.5 rounded-(--radius-control-lg) border border-border bg-background px-3 py-2.5 has-data-checked:border-foreground has-data-checked:bg-secondary"
+						className="flex cursor-pointer items-start gap-2.5 rounded-control-lg border border-border bg-background px-3 py-2.5 has-data-checked:border-foreground has-data-checked:bg-secondary"
 						data-slot="onboarding-option"
 						htmlFor={idOf(companion.id)}
 						key={companion.id}
@@ -101,8 +104,10 @@ const OnboardingPickerCard = ({
 				))}
 			</RadioGroup>
 			<OnboardingField
+				disabled={disabled}
 				family="sans"
 				label={t("onboarding.picker.requestLabel")}
+				onSubmit={onRequestSubmit}
 				onValueChange={onRequestChange}
 				placeholder={t("onboarding.picker.requestPlaceholder")}
 				value={request}

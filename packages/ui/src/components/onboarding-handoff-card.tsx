@@ -13,7 +13,7 @@ import {
 } from "@workspace/ui/components/onboarding-card"
 import { cn } from "@workspace/ui/lib/utils"
 
-const HANDOFF_AVATAR_SIZE = 40
+const HANDOFF_AVATAR_SIZE = 32
 
 type OnboardingHandoffCardProps = {
 	name: string
@@ -43,15 +43,14 @@ const OnboardingHandoffCard = ({
 	return (
 		<OnboardingCard className={className}>
 			<div className="flex items-center gap-2.5" data-slot="onboarding-handoff">
-				<span className="flex size-8 shrink-0 items-center justify-center">
-					<BotIdentityAvatar
-						animal={animal}
-						blot={blot}
-						name={name}
-						seed={seed}
-						size={HANDOFF_AVATAR_SIZE}
-					/>
-				</span>
+				<BotIdentityAvatar
+					animal={animal}
+					blot={blot}
+					className="shrink-0"
+					name={name}
+					seed={seed}
+					size={HANDOFF_AVATAR_SIZE}
+				/>
 				<span className="flex min-w-0 flex-col gap-0.5">
 					<span
 						className={cn("wrap-break-word font-medium", ONBOARDING_LINE_TYPE)}

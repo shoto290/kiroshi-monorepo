@@ -6,10 +6,9 @@ import { Button } from "@workspace/ui/components/ui/button"
 import { Input } from "@workspace/ui/components/ui/input"
 import { cn } from "@workspace/ui/lib/utils"
 
-const ONBOARDING_LABEL_TYPE =
-	"text-(length:--text-compact) leading-4 font-medium"
+const ONBOARDING_LABEL_TYPE = "text-compact font-medium leading-4"
 
-const ONBOARDING_LINE_TYPE = "text-(length:--text-compact) leading-4.5"
+const ONBOARDING_LINE_TYPE = "text-compact leading-4.5"
 
 const ONBOARDING_STEP_COUNT = 3
 
@@ -36,17 +35,19 @@ const OnboardingCard = ({
 	children,
 }: OnboardingCardProps) => {
 	const titleId = useId()
+	const grouping = title
+		? { role: "group" as const, "aria-labelledby": titleId }
+		: {}
 
 	return (
 		<div
-			aria-labelledby={title ? titleId : undefined}
 			className={cn(
-				"flex w-full min-w-0 flex-col rounded-(--radius-card) border border-border bg-background p-3.5 text-foreground",
+				"flex w-full min-w-0 flex-col rounded-card border border-border bg-background p-3.5 text-foreground",
 				CARD_WIDTH[width],
 				className,
 			)}
 			data-slot="onboarding-card"
-			role="group"
+			{...grouping}
 		>
 			{title ? (
 				<div
@@ -111,12 +112,12 @@ type OnboardingActionProps = Omit<
 const OnboardingAction = ({
 	emphasis,
 	className,
+	children,
 	...props
 }: OnboardingActionProps) => (
 	<Button
 		className={cn(
-			"h-auto min-h-8 max-w-full whitespace-normal rounded-(--radius-control) py-1.5 text-center",
-			ONBOARDING_LABEL_TYPE,
+			"h-auto min-h-8 max-w-full whitespace-normal rounded-control py-1.5 text-center",
 			ACTION_EMPHASIS[emphasis].className,
 			className,
 		)}
@@ -124,7 +125,9 @@ const OnboardingAction = ({
 		type="button"
 		variant={ACTION_EMPHASIS[emphasis].variant}
 		{...props}
-	/>
+	>
+		<span className={ONBOARDING_LABEL_TYPE}>{children}</span>
+	</Button>
 )
 
 type OnboardingFieldFamily = "mono" | "sans"
@@ -134,8 +137,10 @@ type OnboardingFieldProps = {
 	placeholder: string
 	value: string
 	onValueChange: (value: string) => void
+	onSubmit: (value: string) => void
 	family: OnboardingFieldFamily
 	type?: "text" | "password"
+	disabled?: boolean
 }
 
 const OnboardingField = ({
@@ -143,8 +148,10 @@ const OnboardingField = ({
 	placeholder,
 	value,
 	onValueChange,
+	onSubmit,
 	family,
 	type = "text",
+	disabled,
 }: OnboardingFieldProps) => {
 	const fieldId = useId()
 
@@ -162,12 +169,18 @@ const OnboardingField = ({
 			<Input
 				autoComplete="off"
 				className={cn(
-					"h-auto min-h-8.5 rounded-(--radius-control) border-border bg-background px-3 md:text-(length:--text-compact)",
+					"h-auto min-h-8.5 rounded-control border-border bg-background px-3 md:text-compact",
 					ONBOARDING_LINE_TYPE,
 					family === "mono" && "font-mono",
 				)}
+				disabled={disabled}
 				id={fieldId}
 				onChange={(event) => onValueChange(event.target.value)}
+				onKeyDown={(event) => {
+					if (event.key !== "Enter") return
+					event.preventDefault()
+					onSubmit(value)
+				}}
 				placeholder={placeholder}
 				spellCheck={false}
 				type={type}

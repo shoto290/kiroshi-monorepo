@@ -1,3 +1,4 @@
+import { useState } from "react"
 import { expect, fn } from "storybook/test"
 
 import preview from "@workspace/storybook/preview"
@@ -13,6 +14,23 @@ const EXIT_DETAIL = "auth login exited with code 1"
 
 const LONG_EXIT_DETAIL =
 	"auth login exited with code 1: no browser answered the callback on localhost:54545 before the attempt timed out"
+
+type OfferHostProps = { disabled?: boolean }
+
+const OfferHost = ({ disabled }: OfferHostProps) => {
+	const [apiKey, setApiKey] = useState("")
+
+	return (
+		<OnboardingConnectionCard
+			apiKey={apiKey}
+			disabled={disabled}
+			onApiKeyChange={setApiKey}
+			onApiKeySubmit={fn()}
+			onSignIn={fn()}
+			state="offer"
+		/>
+	)
+}
 
 const meta = preview.meta({
 	title: "Conversation/Onboarding/OnboardingConnectionCard",
@@ -79,14 +97,7 @@ export const Offer = meta.story({
 			},
 		},
 	},
-	render: () => (
-		<OnboardingConnectionCard
-			apiKey=""
-			onApiKeyChange={fn()}
-			onSignIn={fn()}
-			state="offer"
-		/>
-	),
+	render: () => <OfferHost />,
 	play: async ({ canvas, canvasElement, userEvent }) => {
 		const signIn = canvas.getByRole("button", {
 			name: "Sign in with Claude",
@@ -105,10 +116,37 @@ export const Offer = meta.story({
 
 		await userEvent.tab()
 		await expect(signIn).toHaveFocus()
+		const key = canvas.getByLabelText("Or paste an API key and pay per use")
+
 		await userEvent.tab()
+		await expect(key).toHaveFocus()
+
+		await userEvent.type(key, "sk-ant-test")
+		await expect(key).toHaveValue("sk-ant-test")
+	},
+})
+
+export const OfferDisabled = meta.story({
+	render: () => <OfferHost disabled />,
+	parameters: {
+		docs: {
+			description: {
+				story:
+					"The offer while the app is answering the sign-in already asked for. Check that the button and the key field both wear the primitive's own disabled treatment, and above all that the field takes no typing, so a key cannot be half-entered into a card that is no longer listening. Pick `Offer` for the same card once the app is free again.",
+			},
+		},
+	},
+	play: async ({ canvas, userEvent }) => {
+		const key = canvas.getByLabelText("Or paste an API key and pay per use")
+
+		await expect(key).toBeDisabled()
 		await expect(
-			canvas.getByLabelText("Or paste an API key and pay per use"),
-		).toHaveFocus()
+			canvas.getByRole("button", { name: "Sign in with Claude" }),
+		).toBeDisabled()
+
+		key.focus()
+		await userEvent.keyboard("sk-ant-test")
+		await expect(key).toHaveValue("")
 	},
 })
 

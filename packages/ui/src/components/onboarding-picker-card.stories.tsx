@@ -37,11 +37,15 @@ const LONG_COMPANIONS: OnboardingCompanion[] = COMPANIONS.map((companion) => ({
 
 type PickerHostProps = Omit<
 	OnboardingPickerCardProps,
-	"onRequestChange" | "onValueChange" | "request" | "value"
+	"onRequestChange" | "onValueChange" | "request"
 >
 
-const PickerHost = ({ companions, ...props }: PickerHostProps) => {
-	const [value, setValue] = useState(companions[0]?.id ?? "")
+const PickerHost = ({
+	companions,
+	value: initialValue,
+	...props
+}: PickerHostProps) => {
+	const [value, setValue] = useState(initialValue)
 	const [request, setRequest] = useState("")
 
 	return (
@@ -74,6 +78,7 @@ const meta = preview.meta({
 		onValueChange: fn(),
 		request: "",
 		onRequestChange: fn(),
+		onRequestSubmit: fn(),
 		onAdd: fn(),
 		onSkip: fn(),
 	},
@@ -107,6 +112,61 @@ export const Default = meta.story({
 		await expect(
 			canvas.getByLabelText("Or say what you need in your own words"),
 		).toHaveFocus()
+	},
+})
+
+export const NothingSelected = meta.story({
+	args: { value: "" },
+	parameters: {
+		docs: {
+			description: {
+				story:
+					"The reader wants none of the three and says so in their own words. Check that no primary exit is drawn while nobody is selected, since it would have no name to carry, that Skip for now is still reachable, and that pressing Enter in the field reports what was typed rather than losing it.",
+			},
+		},
+	},
+	render: (args) => <PickerHost {...args} />,
+	play: async ({ args, canvas, userEvent }) => {
+		await expect(canvas.queryByRole("button", { name: /^Add/ })).toBeNull()
+
+		const request = canvas.getByLabelText(
+			"Or say what you need in your own words",
+		)
+
+		await userEvent.type(request, "Someone who drafts my emails")
+		await userEvent.keyboard("{Enter}")
+		await expect(args.onRequestSubmit).toHaveBeenCalledWith(
+			"Someone who drafts my emails",
+		)
+	},
+})
+
+export const Disabled = meta.story({
+	args: { disabled: true },
+	parameters: {
+		docs: {
+			description: {
+				story:
+					"The picker while the app is answering the companion already asked for. Check that the options wear the primitive's own disabled treatment and refuse a new selection, that the own-words field takes no typing, and that the copy stays readable rather than dimming with the controls.",
+			},
+		},
+	},
+	render: (args) => <PickerHost {...args} />,
+	play: async ({ canvas, userEvent }) => {
+		const ledger = canvas.getByRole("radio", { name: /Ledger/ })
+		const request = canvas.getByLabelText(
+			"Or say what you need in your own words",
+		)
+
+		await expect(request).toBeDisabled()
+
+		ledger.focus()
+		await userEvent.keyboard("{ArrowDown}")
+		await expect(ledger).not.toBeChecked()
+
+		request.focus()
+		await userEvent.keyboard("Someone else")
+		await expect(request).toHaveValue("")
 	},
 })
 

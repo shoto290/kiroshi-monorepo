@@ -1,6 +1,7 @@
 import { expect, fn } from "storybook/test"
 
 import preview from "@workspace/storybook/preview"
+import { slotIn } from "@workspace/storybook/story-utils"
 import { OnboardingHandoffCard } from "@workspace/ui/components/onboarding-handoff-card"
 
 const meta = preview.meta({
@@ -33,7 +34,13 @@ export const Default = meta.story({
 			},
 		},
 	},
-	play: async ({ args, canvas, userEvent }) => {
+	play: async ({ args, canvas, canvasElement, userEvent }) => {
+		const avatar = slotIn(canvasElement, "bot-identity-avatar")
+		const avatarBox = avatar.getBoundingClientRect()
+
+		await expect(avatarBox.width).toBe(32)
+		await expect(avatarBox.height).toBe(32)
+
 		await expect(canvas.getByText("Scout")).toBeVisible()
 		await expect(
 			canvas.getByText("Looks things up and reports back short"),

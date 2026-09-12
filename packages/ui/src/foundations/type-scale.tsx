@@ -1,7 +1,7 @@
 const TEXT_SIZES = [
 	{ className: "text-xs", size: "0.75rem", lineHeight: "1rem" },
 	{
-		className: "text-(length:--text-compact) leading-4",
+		className: "text-compact leading-4",
 		size: "0.8125rem",
 		lineHeight: "1rem",
 	},

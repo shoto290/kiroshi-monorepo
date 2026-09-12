@@ -63,6 +63,7 @@ type OnboardingConnectionCardProps = {
 			state: "offer"
 			apiKey: string
 			onApiKeyChange: (apiKey: string) => void
+			onApiKeySubmit: (apiKey: string) => void
 			onSignIn: () => void
 	  }
 	| {
@@ -115,7 +116,7 @@ const OnboardingConnectionCard = ({
 				<>
 					<div className="flex flex-col gap-1.5">
 						<Button
-							className="h-auto min-h-10 gap-2 whitespace-normal rounded-(--radius-control-lg) py-2 text-center text-sm leading-5"
+							className="h-auto min-h-10 gap-2 whitespace-normal rounded-control-lg py-2 text-center text-sm leading-5"
 							disabled={disabled}
 							onClick={props.onSignIn}
 							type="button"
@@ -128,8 +129,10 @@ const OnboardingConnectionCard = ({
 						</p>
 					</div>
 					<OnboardingField
+						disabled={disabled}
 						family="mono"
 						label={t("onboarding.connection.offer.keyLabel")}
+						onSubmit={props.onApiKeySubmit}
 						onValueChange={props.onApiKeyChange}
 						placeholder={t("onboarding.connection.offer.keyPlaceholder")}
 						type="password"
