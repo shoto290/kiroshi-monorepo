@@ -122,40 +122,46 @@ export const createOnboardingController = (
 		return readAccount()
 	}
 
-	const isAbandoned = (mine: number) => mine !== attempt
+	const openAttempt = () => {
+		attempt += 1
+		const mine = attempt
+		const isLive = () => mine === attempt
 
-	const showFailedUnlessAbandoned = (mine: number, reason: unknown) => {
-		if (!isAbandoned(mine)) {
-			showFailed(reason)
+		return {
+			isLive,
+			fail: (reason: unknown) => {
+				if (isLive()) {
+					showFailed(reason)
+				}
+			},
 		}
 	}
 
-	const waitingOn = (mine: number) => (signInUrl: string) => {
-		if (isAbandoned(mine)) {
+	type Attempt = ReturnType<typeof openAttempt>
+
+	const waitingOn = (live: Attempt) => (signInUrl: string) => {
+		if (!live.isLive()) {
 			return
 		}
 		showCard({ state: "waiting", signInUrl })
-		port
-			.openSignInUrl(signInUrl)
-			.catch((reason: unknown) => showFailedUnlessAbandoned(mine, reason))
+		port.openSignInUrl(signInUrl).catch(live.fail)
 	}
 
 	const signIn = async () => {
-		attempt += 1
-		const mine = attempt
+		const live = openAttempt()
 		set({ isBusy: true })
 		let stopListening: (() => void) | undefined
 		try {
-			stopListening = await port.onSignInStarted(waitingOn(mine))
+			stopListening = await port.onSignInStarted(waitingOn(live))
 			await port.signIn()
-			if (!isAbandoned(mine)) {
+			if (live.isLive()) {
 				await settle()
 			}
 		} catch (reason) {
-			showFailedUnlessAbandoned(mine, reason)
+			live.fail(reason)
 		} finally {
 			stopListening?.()
-			if (!isAbandoned(mine)) {
+			if (live.isLive()) {
 				set({ isBusy: false })
 			}
 		}

@@ -24,13 +24,12 @@ export type FakeOnboardingPort = OnboardingPort & {
 	calls: OnboardingCall[]
 	report: CheckReport
 	refusals: Partial<Record<OnboardingCommand, unknown>>
-	isListening: () => boolean
 	announceStarted: (url: string) => void
 	completeSignIn: () => void
 	refuseSignIn: (reason: unknown) => void
 }
 
-const AUTHENTICATED_NOWHERE: CheckReport = {
+const NOT_AUTHENTICATED: CheckReport = {
 	connection: "ready",
 	binaryVersion: null,
 	authenticated: false,
@@ -58,7 +57,7 @@ export const createFakeOnboardingPort = (): FakeOnboardingPort => {
 
 	const fake: FakeOnboardingPort = {
 		calls: [],
-		report: AUTHENTICATED_NOWHERE,
+		report: NOT_AUTHENTICATED,
 		refusals: {},
 
 		check: async () => {
@@ -96,8 +95,6 @@ export const createFakeOnboardingPort = (): FakeOnboardingPort => {
 				announce = null
 			}
 		},
-
-		isListening: () => announce !== null,
 
 		announceStarted: (url) => announce?.(url),
 

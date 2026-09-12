@@ -4,6 +4,7 @@ import { createFakeOnboardingPort } from "./fake-onboarding-port"
 import {
 	createOnboardingController,
 	type OnboardingController,
+	type OnboardingWorld,
 } from "./onboarding-controller"
 import {
 	onboardingSummonsFor,
@@ -20,11 +21,13 @@ const GREETING = onboardingSummonsFor("greeting")
 
 const SUMMONS_TURN = "t-summons"
 
+const NOWHERE: OnboardingWorld = {
+	send: async () => undefined,
+	markFirstRunDone: async () => undefined,
+}
+
 const controllerOf = (): OnboardingController =>
-	createOnboardingController(createFakeOnboardingPort(), {
-		send: async () => undefined,
-		markFirstRunDone: async () => undefined,
-	})
+	createOnboardingController(createFakeOnboardingPort(), NOWHERE)
 
 const settled = async (): Promise<OnboardingController> => {
 	const port = createFakeOnboardingPort()
@@ -35,10 +38,7 @@ const settled = async (): Promise<OnboardingController> => {
 		error: null,
 		account: { email: null, plan: null },
 	}
-	const controller = createOnboardingController(port, {
-		send: async () => undefined,
-		markFirstRunDone: async () => undefined,
-	})
+	const controller = createOnboardingController(port, NOWHERE)
 	await controller.start()
 
 	return controller
