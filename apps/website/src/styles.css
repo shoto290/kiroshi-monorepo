@@ -20,3 +20,16 @@
 .scene-frozen [data-overlayscrollbars-viewport] {
 	overflow: hidden;
 }
+
+@utility on-wash {
+	/* Measured against the darkest pixel of the running wash behind the hero
+	   column and the footer, over 320 to 2560, six scroll positions, both
+	   schemes, animated and still: floor 4.60 in light, 4.85 in dark. Lowering
+	   either value spends that margin, so neither moves without a new sweep. */
+	--muted-foreground: oklch(0.4 0.016 285.938);
+	--color-muted-foreground: var(--muted-foreground);
+
+	&:is(.dark *) {
+		--muted-foreground: oklch(0.78 0.015 286.067);
+	}
+}

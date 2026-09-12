@@ -70,7 +70,9 @@ const Fineprint = ({
 			<Icons.Claude className="shrink-0 text-[#D97757]" size={13} />
 			{subscription}
 		</span>
-		<span className="opacity-[0.55]">{separator}</span>
+		<span aria-hidden="true" className="opacity-[0.55]">
+			{separator}
+		</span>
 		<span>{license}</span>
 	</p>
 )
@@ -111,7 +113,7 @@ type CreditProps = {
 }
 
 const Credit = ({ handle, label, separator }: CreditProps) => (
-	<footer className="relative z-10 mt-auto flex w-full shrink-0 justify-center px-7 pt-12 pb-8 lg:pt-16 lg:pb-10">
+	<footer className="on-wash relative z-10 mt-auto flex w-full shrink-0 justify-center px-7 pt-12 pb-8 lg:pt-16 lg:pb-10">
 		<p className="flex flex-wrap items-center justify-center gap-1.5 font-mono text-xs leading-4 tracking-[0.08em] text-muted-foreground lg:gap-2">
 			<a
 				className={CREDIT_LINK}
@@ -122,7 +124,9 @@ const Credit = ({ handle, label, separator }: CreditProps) => (
 				<Icons.GitHub className="shrink-0" size={13} />
 				{label}
 			</a>
-			<span className="opacity-[0.55]">{separator}</span>
+			<span aria-hidden="true" className="opacity-[0.55]">
+				{separator}
+			</span>
 			<a
 				className={CREDIT_LINK}
 				href={AUTHOR_X_URL}
@@ -145,7 +149,7 @@ export const WebsitePage = ({ children }: WebsitePageProps) => (
 		className={`${VIEWPORT_RISE} relative flex min-h-dvh w-full flex-col items-center overflow-x-clip bg-background`}
 	>
 		<PageWash />
-		<div className="relative z-10 flex w-full shrink-0 flex-col items-center gap-4 px-7 pt-33 text-center lg:min-h-[60dvh] lg:justify-center lg:gap-[18px] lg:pt-7 ultrawide:gap-5 ultrawide:pt-10">
+		<div className="on-wash relative z-10 flex w-full shrink-0 flex-col items-center gap-4 px-7 pt-33 text-center lg:min-h-[60dvh] lg:justify-center lg:gap-[18px] lg:pt-7 ultrawide:gap-5 ultrawide:pt-10">
 			<AppIconMark
 				className="lg:max-ultrawide:size-18 ultrawide:size-20"
 				size={64}
