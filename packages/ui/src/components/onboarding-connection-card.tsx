@@ -76,6 +76,15 @@ const OnboardingWaiting = ({
 	const [hasFailedToCopy, setHasFailedToCopy] = useState(false)
 
 	const hasCopied = copied && !hasFailedToCopy
+	const copyControl = hasCopied
+		? {
+				name: t("onboarding.connection.waiting.copiedLink"),
+				label: t("onboarding.connection.waiting.copied"),
+			}
+		: {
+				name: t("onboarding.connection.waiting.copyLink"),
+				label: t("onboarding.connection.waiting.copy"),
+			}
 
 	const copyLink = () => {
 		setHasFailedToCopy(false)
@@ -107,11 +116,7 @@ const OnboardingWaiting = ({
 					value={signInUrl}
 				/>
 				<Button
-					aria-label={t(
-						hasCopied
-							? "onboarding.connection.waiting.copiedLink"
-							: "onboarding.connection.waiting.copyLink",
-					)}
+					aria-label={copyControl.name}
 					className="shrink-0 rounded-md text-foreground"
 					disabled={disabled}
 					onClick={copyLink}
@@ -119,11 +124,7 @@ const OnboardingWaiting = ({
 					type="button"
 					variant="secondary"
 				>
-					{t(
-						hasCopied
-							? "onboarding.connection.waiting.copied"
-							: "onboarding.connection.waiting.copy",
-					)}
+					{copyControl.label}
 				</Button>
 			</div>
 			<span aria-live="polite" className="sr-only">
