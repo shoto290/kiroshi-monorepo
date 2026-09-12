@@ -4,9 +4,10 @@ use tauri::{AppHandle, Manager, Runtime, State};
 
 use super::context;
 use super::contract::{
-	Bot, BotHistoryEntry, BotIdentity, Chat, ContextCheckpoint, Conversation, McpServer,
-	MessageReference, NewAssistantMessage, NewTurn, NewUserMessage, PinnedBubble, RuntimeSession,
-	Skill, SkillDraft, TerminalCompletion, TranscriptPage, TranscriptStoreError, TranscriptWindow,
+	AvatarAnimal, AvatarBlot, Bot, BotDraft, BotHistoryEntry, BotIdentity, Chat, ContextCheckpoint,
+	Conversation, McpServer, MessageReference, NewAssistantMessage, NewTurn, NewUserMessage,
+	PinnedBubble, RuntimeSession, Skill, SkillDraft, SuggestedBot, TerminalCompletion,
+	TranscriptPage, TranscriptStoreError, TranscriptWindow,
 };
 use crate::agent::contract::AgentCommand;
 use crate::attachments;
@@ -15,6 +16,7 @@ use crate::bundles;
 use crate::db;
 use crate::db::repositories::conversations::{
 	Bot as StoredBot, Conversation as StoredConversation, ConversationDraft, ConversationEdit,
+	DEFAULT_BOT_MODEL,
 };
 use crate::db::repositories::messages::{MessagePageQuery, MessagesAroundQuery};
 use crate::db::repositories::runtime_context::{Handover, ParticipantKey};
@@ -23,6 +25,37 @@ use crate::environment::contract::EnvOwner;
 use crate::spaces::commands::plugin_path;
 
 const DUPLICATE_SUFFIX: &str = " copy";
+
+const SUGGESTED_BOTS: [SuggestedBot; 4] = [
+	SuggestedBot {
+		id: "writer",
+		name: "Quill",
+		job: "a writing partner",
+		description: "Help me draft, tighten and polish what I write. Keep my voice, cut the filler, and say plainly when a sentence does not work.",
+		blurb: "Drafts, edits and keeps your voice.",
+	},
+	SuggestedBot {
+		id: "researcher",
+		name: "Scout",
+		job: "a research assistant",
+		description: "Dig into the questions I bring. Find sources, weigh them, give me the short answer first and the evidence after. Say so when you are unsure.",
+		blurb: "Finds sources and sums them up.",
+	},
+	SuggestedBot {
+		id: "coder",
+		name: "Byte",
+		job: "a coding companion",
+		description: "Pair with me on code. Read the project before changing it, keep changes small, and lay out the tradeoffs when there is more than one way.",
+		blurb: "Reads, writes and reviews code.",
+	},
+	SuggestedBot {
+		id: "planner",
+		name: "Compass",
+		job: "a planning assistant",
+		description: "Help me turn goals into plans. Break the work into next steps, keep track of what is still open, and nudge me when something slips.",
+		blurb: "Turns goals into next steps.",
+	},
+];
 
 pub(crate) fn ready(state: &db::DatabaseState) -> Result<&db::Database, TranscriptStoreError> {
 	state.as_ref().map_err(|failure| TranscriptStoreError::Unavailable { failure: failure.into() })
@@ -145,9 +178,69 @@ pub async fn conversation_create_bot<R: Runtime>(
 	identity: BotIdentity,
 	space_id: Option<String>,
 ) -> Result<Bot, TranscriptStoreError> {
-	let dir = avatars::dir(&app);
-	let bundle_root = bundles::root(&app);
+	create_bundled_bot(&app, ready(&state)?, identity, space_id).await
+}
+
+#[tauri::command]
+pub async fn conversation_create_bot_from_draft<R: Runtime>(
+	app: AppHandle<R>,
+	state: State<'_, db::DatabaseState>,
+	draft: BotDraft,
+	space_id: String,
+) -> Result<Bot, TranscriptStoreError> {
 	let database = ready(&state)?;
+	let worn = database.conversations().bots(Some(space_id.clone())).await?;
+	let identity = drafted_identity(draft, &worn)?;
+	create_bundled_bot(&app, database, identity, Some(space_id)).await
+}
+
+#[tauri::command]
+pub fn conversation_suggested_bots() -> Vec<SuggestedBot> {
+	SUGGESTED_BOTS.to_vec()
+}
+
+fn drafted_identity(
+	draft: BotDraft,
+	worn: &[StoredBot],
+) -> Result<BotIdentity, TranscriptStoreError> {
+	let name = draft.name.trim();
+	if name.is_empty() {
+		return Err(TranscriptStoreError::NamelessBot);
+	}
+	let animals: Vec<AvatarAnimal> = worn.iter().map(|bot| bot.avatar_animal.into()).collect();
+	let blots: Vec<AvatarBlot> =
+		worn.iter().filter_map(|bot| bot.avatar_blot.map(Into::into)).collect();
+	Ok(BotIdentity {
+		name: name.to_owned(),
+		title: draft.job.trim().to_owned(),
+		model: DEFAULT_BOT_MODEL.to_owned(),
+		avatar_animal: unworn(AvatarAnimal::ALL, &animals, worn.len()),
+		avatar_blot: Some(unworn(AvatarBlot::ALL, &blots, worn.len())),
+		avatar_image_path: None,
+		working_dir: None,
+		instructions: draft.description.trim().to_owned(),
+		denied_tools: Vec::new(),
+		permissions: bundles::BotPermissions::default(),
+		output_style: bundles::DEFAULT_OUTPUT_STYLE.to_owned(),
+	})
+}
+
+fn unworn<T: Copy + PartialEq>(declared: &[T], worn: &[T], crowd: usize) -> T {
+	declared
+		.iter()
+		.copied()
+		.find(|variant| !worn.contains(variant))
+		.unwrap_or(declared[crowd % declared.len()])
+}
+
+async fn create_bundled_bot<R: Runtime>(
+	app: &AppHandle<R>,
+	database: &db::Database,
+	identity: BotIdentity,
+	space_id: Option<String>,
+) -> Result<Bot, TranscriptStoreError> {
+	let dir = avatars::dir(app);
+	let bundle_root = bundles::root(app);
 	let output_style = identity.output_style.clone();
 	let permissions = identity.permissions.clone();
 	let created = database.conversations().create_bot(identity.into(), space_id, None).await?;
@@ -980,7 +1073,9 @@ mod tests {
 	use std::fs;
 
 	use super::*;
-	use crate::db::repositories::conversations::AvatarAnimal;
+	use crate::db::repositories::conversations::{AvatarAnimal, AvatarBlot as StoredBlot};
+	use tauri::test::{mock_builder, mock_context, noop_assets, MockRuntime};
+	use tauri::App;
 
 	fn a_bot() -> StoredBot {
 		StoredBot {
@@ -999,6 +1094,191 @@ mod tests {
 			denied_tools: Vec::new(),
 			permissions: None,
 			created_at: 1,
+		}
+	}
+
+	fn a_draft(name: &str, job: &str, description: &str) -> BotDraft {
+		BotDraft {
+			name: name.to_owned(),
+			job: job.to_owned(),
+			description: description.to_owned(),
+		}
+	}
+
+	fn wearing(animal: AvatarAnimal, blot: Option<StoredBlot>) -> StoredBot {
+		StoredBot { avatar_animal: animal, avatar_blot: blot, ..a_bot() }
+	}
+
+	fn a_host(name: &str) -> App<MockRuntime> {
+		let mut context = mock_context(noop_assets());
+		context.config_mut().identifier =
+			format!("com.kiroshi.conversation-commands-{name}-{}", std::process::id()).into();
+		let app = mock_builder().build(context).expect("the app builds");
+		if let Ok(dir) = app.path().app_data_dir() {
+			let _ = fs::remove_dir_all(&dir);
+		}
+		app.manage(db::bootstrap(app.handle()));
+		app
+	}
+
+	async fn first_space(app: &App<MockRuntime>) -> String {
+		let state = app.state::<db::DatabaseState>();
+		let spaces = ready(&state).expect("the database opens").spaces().list().await;
+		spaces.expect("the spaces read").remove(0).id
+	}
+
+	async fn bot_ids(app: &App<MockRuntime>) -> Vec<String> {
+		let state = app.state::<db::DatabaseState>();
+		let bots = ready(&state).expect("the database opens").conversations().bots(None).await;
+		bots.expect("the bots read").into_iter().map(|bot| bot.id).collect()
+	}
+
+	async fn created_from(
+		app: &App<MockRuntime>,
+		draft: BotDraft,
+	) -> Result<Bot, TranscriptStoreError> {
+		let space = first_space(app).await;
+		conversation_create_bot_from_draft(app.handle().clone(), app.state(), draft, space).await
+	}
+
+	#[test]
+	fn a_draft_becomes_a_trimmed_identity_on_the_defaults() {
+		use crate::conversations::contract;
+
+		assert_eq!(
+			drafted_identity(a_draft("  Quill ", " a writing partner\n", "\tWrite well. "), &[]),
+			Ok(BotIdentity {
+				name: "Quill".to_owned(),
+				title: "a writing partner".to_owned(),
+				model: "sonnet".to_owned(),
+				avatar_animal: contract::AvatarAnimal::Rabbit,
+				avatar_blot: Some(contract::AvatarBlot::Red),
+				avatar_image_path: None,
+				working_dir: None,
+				instructions: "Write well.".to_owned(),
+				denied_tools: Vec::new(),
+				permissions: bundles::BotPermissions::default(),
+				output_style: bundles::DEFAULT_OUTPUT_STYLE.to_owned(),
+			})
+		);
+	}
+
+	#[test]
+	fn a_draft_without_a_name_is_refused() {
+		assert_eq!(
+			drafted_identity(a_draft(" \n\t", "a job", "A brief."), &[]),
+			Err(TranscriptStoreError::NamelessBot)
+		);
+	}
+
+	#[test]
+	fn a_draft_wears_the_first_face_and_blot_no_bot_of_the_space_wears() {
+		use crate::conversations::contract;
+
+		let worn = [
+			wearing(AvatarAnimal::Cat, Some(StoredBlot::Red)),
+			wearing(AvatarAnimal::Rabbit, None),
+			wearing(AvatarAnimal::Dog, Some(StoredBlot::Green)),
+		];
+
+		let identity = drafted_identity(a_draft("Quill", "", ""), &worn).expect("it is named");
+
+		assert_eq!(identity.avatar_animal, contract::AvatarAnimal::Bear);
+		assert_eq!(identity.avatar_blot, Some(contract::AvatarBlot::Yellow));
+	}
+
+	#[test]
+	fn a_draft_wraps_on_the_crowd_of_the_space_when_every_face_and_blot_is_worn() {
+		use crate::conversations::contract;
+
+		let mut worn: Vec<StoredBot> = contract::AvatarAnimal::ALL
+			.iter()
+			.copied()
+			.zip(contract::AvatarBlot::ALL.iter().copied())
+			.map(|(animal, blot)| wearing(animal.into(), Some(blot.into())))
+			.collect();
+
+		let eighth = drafted_identity(a_draft("Quill", "", ""), &worn).expect("it is named");
+		worn.push(wearing(AvatarAnimal::Rabbit, Some(StoredBlot::Red)));
+		let ninth = drafted_identity(a_draft("Quill", "", ""), &worn).expect("it is named");
+
+		assert_eq!(eighth.avatar_animal, contract::AvatarAnimal::Rabbit);
+		assert_eq!(eighth.avatar_blot, Some(contract::AvatarBlot::Red));
+		assert_eq!(ninth.avatar_animal, contract::AvatarAnimal::Cat);
+		assert_eq!(ninth.avatar_blot, Some(contract::AvatarBlot::Yellow));
+	}
+
+	#[tokio::test]
+	async fn a_bot_from_a_draft_lands_in_the_space_with_its_bundle() {
+		let app = a_host("drafted");
+		let space = first_space(&app).await;
+
+		let created = created_from(&app, a_draft(" Quill ", " a writing partner ", " Write. "))
+			.await
+			.expect("the bot is created");
+
+		assert_eq!(
+			(created.name.as_str(), created.title.as_str(), created.instructions.as_str()),
+			("Quill", "a writing partner", "Write.")
+		);
+		let state = app.state::<db::DatabaseState>();
+		let held = ready(&state).expect("the database opens").conversations();
+		let listed = held.bots(Some(space)).await.expect("the space reads");
+		assert!(listed.iter().any(|bot| bot.id == created.id));
+		let root = bundles::root(app.handle()).expect("the bundle root is named");
+		assert!(bundles::dir(&root, &created.id).is_dir());
+	}
+
+	#[tokio::test]
+	async fn a_nameless_draft_leaves_no_row_behind() {
+		let app = a_host("nameless");
+		let before = bot_ids(&app).await;
+
+		let failure = created_from(&app, a_draft("  ", "a job", "A brief."))
+			.await
+			.expect_err("the draft is refused");
+
+		assert_eq!(failure, TranscriptStoreError::NamelessBot);
+		assert_eq!(bot_ids(&app).await, before);
+	}
+
+	#[tokio::test]
+	async fn a_draft_whose_bundle_cannot_be_written_leaves_no_row_behind() {
+		let app = a_host("unbundled");
+		let before = bot_ids(&app).await;
+		let root = bundles::root(app.handle()).expect("the bundle root is named");
+		let _ = fs::remove_dir_all(&root);
+		fs::create_dir_all(root.parent().expect("the root has a parent"))
+			.expect("the data dir stands");
+		fs::write(&root, "not a directory").expect("the blocking file lands");
+
+		let failure = created_from(&app, a_draft("Quill", "a job", "A brief."))
+			.await
+			.expect_err("the bundle is refused");
+
+		assert!(matches!(failure, TranscriptStoreError::UnwritableBundle { .. }), "got {failure:?}");
+		assert_eq!(bot_ids(&app).await, before);
+	}
+
+	#[tokio::test]
+	async fn every_suggested_bot_is_distinct_complete_and_creates_what_it_describes() {
+		let app = a_host("suggested");
+		let suggested = conversation_suggested_bots();
+		let ids: std::collections::HashSet<&str> = suggested.iter().map(|bot| bot.id).collect();
+
+		assert!(suggested.len() >= 3);
+		assert_eq!(ids.len(), suggested.len());
+		for bot in suggested {
+			assert!([bot.name, bot.job, bot.description, bot.blurb]
+				.iter()
+				.all(|field| !field.trim().is_empty()));
+			let created = created_from(&app, a_draft(bot.name, bot.job, bot.description))
+				.await
+				.expect("the suggestion is created");
+			assert_eq!(
+				(created.name.as_str(), created.title.as_str(), created.instructions.as_str()),
+				(bot.name, bot.job, bot.description)
+			);
 		}
 	}
 

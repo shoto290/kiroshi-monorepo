@@ -14,7 +14,7 @@ use crate::db::{Access, DatabaseError};
 
 pub const DEFAULT_BOT_ID: &str = "default";
 const DEFAULT_BOT_NAME: &str = "Claude";
-const DEFAULT_BOT_MODEL: &str = "sonnet";
+pub const DEFAULT_BOT_MODEL: &str = "sonnet";
 const PARTICIPANT_ROLE: &str = "assistant";
 const LEAD_ROLE: &str = "lead";
 const CHAT_TITLE: &str = "Chat";

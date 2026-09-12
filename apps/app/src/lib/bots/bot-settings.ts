@@ -43,7 +43,7 @@ export const modelOptionsFor = (
 	return values.map((value) => ({ label: value, value }))
 }
 
-const FACES = [
+export const FACES = [
 	"rabbit",
 	"cat",
 	"bear",

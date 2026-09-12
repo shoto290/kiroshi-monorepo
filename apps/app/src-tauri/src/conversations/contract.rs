@@ -8,18 +8,30 @@ use crate::db::repositories::{conversations, messages, runtime_context};
 use crate::db::DatabaseError;
 use crate::environment::contract::EnvError;
 
-#[derive(Debug, Clone, Copy, PartialEq, Eq, Serialize, Deserialize)]
-#[serde(rename_all = "camelCase")]
-pub enum AvatarAnimal {
-	Cat,
+macro_rules! avatar_palette {
+	($name:ident { $($variant:ident),+ $(,)? }) => {
+		#[derive(Debug, Clone, Copy, PartialEq, Eq, Serialize, Deserialize)]
+		#[serde(rename_all = "camelCase")]
+		pub enum $name {
+			$($variant),+
+		}
+
+		impl $name {
+			pub const ALL: &'static [$name] = &[$($name::$variant),+];
+		}
+	};
+}
+
+avatar_palette!(AvatarAnimal {
 	Rabbit,
+	Cat,
 	Bear,
 	Chick,
 	Dog,
 	Mouse,
 	Owl,
 	Koala,
-}
+});
 
 impl From<conversations::AvatarAnimal> for AvatarAnimal {
 	fn from(animal: conversations::AvatarAnimal) -> Self {
@@ -51,9 +63,7 @@ impl From<AvatarAnimal> for conversations::AvatarAnimal {
 	}
 }
 
-#[derive(Debug, Clone, Copy, PartialEq, Eq, Serialize, Deserialize)]
-#[serde(rename_all = "camelCase")]
-pub enum AvatarBlot {
+avatar_palette!(AvatarBlot {
 	Red,
 	Yellow,
 	Green,
@@ -62,7 +72,7 @@ pub enum AvatarBlot {
 	Purple,
 	Pink,
 	Orange,
-}
+});
 
 impl From<conversations::AvatarBlot> for AvatarBlot {
 	fn from(blot: conversations::AvatarBlot) -> Self {
@@ -199,6 +209,24 @@ impl From<BotIdentity> for conversations::BotIdentity {
 			denied_tools: identity.denied_tools,
 		}
 	}
+}
+
+#[derive(Debug, Clone, PartialEq, Eq, Serialize, Deserialize)]
+#[serde(rename_all = "camelCase")]
+pub struct BotDraft {
+	pub name: String,
+	pub job: String,
+	pub description: String,
+}
+
+#[derive(Debug, Clone, Copy, PartialEq, Eq, Serialize)]
+#[serde(rename_all = "camelCase")]
+pub struct SuggestedBot {
+	pub id: &'static str,
+	pub name: &'static str,
+	pub job: &'static str,
+	pub description: &'static str,
+	pub blurb: &'static str,
 }
 
 #[derive(Debug, Clone, PartialEq, Serialize, Deserialize)]
@@ -760,6 +788,7 @@ pub enum TranscriptStoreError {
 	InvalidTransition { id: String, from: String, to: String },
 	#[serde(rename_all = "camelCase")]
 	UnknownBot { id: String },
+	NamelessBot,
 	#[serde(rename_all = "camelCase")]
 	UnknownConversation { id: String },
 	#[serde(rename_all = "camelCase")]

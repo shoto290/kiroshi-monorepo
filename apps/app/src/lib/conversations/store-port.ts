@@ -1,6 +1,7 @@
 import type {
 	AvatarBlot,
 	Bot,
+	BotDraft,
 	BotHistoryEntry,
 	BotIdentity,
 	BotMcpServer,
@@ -23,6 +24,7 @@ import type {
 	Section,
 	Space,
 	SpacePreferences,
+	SuggestedBot,
 } from "./store-contract"
 import type { TerminalCompletion } from "./transcript-contract"
 import type { TranscriptPort } from "./transcript-port"
@@ -49,6 +51,8 @@ export type TranscriptStore = TranscriptPort & {
 	moveBotToSpace: (botId: string, spaceId: string) => Promise<void>
 	bots: (spaceId?: string | null) => Promise<Bot[]>
 	createBot: (identity: BotIdentity, spaceId?: string | null) => Promise<Bot>
+	createBotFromDraft: (draft: BotDraft, spaceId: string) => Promise<Bot>
+	suggestedBots: () => Promise<SuggestedBot[]>
 	duplicateBot: (botId: string, spaceId?: string | null) => Promise<Bot>
 	updateBot: (id: string, identity: BotIdentity) => Promise<Bot>
 	deleteBot: (id: string) => Promise<void>

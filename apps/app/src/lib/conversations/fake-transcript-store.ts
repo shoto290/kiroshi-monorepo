@@ -1,12 +1,15 @@
 import {
 	BLANK_BOT_PERMISSIONS,
+	BLOT_TINTS,
 	DEFAULT_BOT_OUTPUT_STYLE,
 } from "@workspace/ui/components/bot-settings"
 
 import { createFakeTranscriptPort } from "./fake-transcript-port"
 import type {
+	AvatarAnimal,
 	AvatarBlot,
 	Bot,
+	BotDraft,
 	BotHistoryEntry,
 	BotIdentity,
 	BotMcpServer,
@@ -34,6 +37,7 @@ import type {
 	Space,
 	SpaceError,
 	SpacePreferences,
+	SuggestedBot,
 	TranscriptStoreError,
 } from "./store-contract"
 import type { TranscriptStore } from "./store-port"
@@ -47,7 +51,7 @@ import {
 } from "./transcript-contract"
 
 import type { AgentCommand } from "@/lib/agent/contract"
-import { deniesChanges } from "../bots/bot-settings"
+import { deniesChanges, FACES } from "../bots/bot-settings"
 import { messageUri } from "../links/message-uri"
 
 export type FakeTranscriptStoreOptions = {
@@ -197,6 +201,49 @@ const scopeChain = (scope: EnvScope): EnvScope[] => {
 	}
 	return [scope, ...scopeChain(scope.owner)]
 }
+
+const SUGGESTED_BOTS: SuggestedBot[] = [
+	{
+		id: "writer",
+		name: "Quill",
+		job: "a writing partner",
+		description:
+			"Help me draft, tighten and polish what I write. Keep my voice, cut the filler, and say plainly when a sentence does not work.",
+		blurb: "Drafts, edits and keeps your voice.",
+	},
+	{
+		id: "researcher",
+		name: "Scout",
+		job: "a research assistant",
+		description:
+			"Dig into the questions I bring. Find sources, weigh them, give me the short answer first and the evidence after. Say so when you are unsure.",
+		blurb: "Finds sources and sums them up.",
+	},
+	{
+		id: "coder",
+		name: "Byte",
+		job: "a coding companion",
+		description:
+			"Pair with me on code. Read the project before changing it, keep changes small, and lay out the tradeoffs when there is more than one way.",
+		blurb: "Reads, writes and reviews code.",
+	},
+	{
+		id: "planner",
+		name: "Compass",
+		job: "a planning assistant",
+		description:
+			"Help me turn goals into plans. Break the work into next steps, keep track of what is still open, and nudge me when something slips.",
+		blurb: "Turns goals into next steps.",
+	},
+]
+
+const unworn = <T>(
+	declared: readonly T[],
+	worn: readonly (T | null)[],
+	crowd: number,
+) =>
+	declared.find((variant) => !worn.includes(variant)) ??
+	declared[crowd % declared.length]
 
 export const createFakeTranscriptStore = (
 	options: FakeTranscriptStoreOptions = {},
@@ -913,6 +960,44 @@ export const createFakeTranscriptStore = (
 				},
 				spaceId ?? firstSpace(),
 			),
+
+		createBotFromDraft: (draft: BotDraft, spaceId: string) => {
+			const name = draft.name.trim()
+			if (!name) {
+				return refuse({ kind: "namelessBot" })
+			}
+			const worn = [...bots.values()].filter((bot) => isIn(bot.id, spaceId))
+			return mint(
+				{
+					name,
+					title: draft.job.trim(),
+					model: "sonnet",
+					avatarAnimal: unworn<AvatarAnimal>(
+						FACES,
+						worn.map((bot) => bot.avatarAnimal),
+						worn.length,
+					),
+					avatarBlot: unworn<AvatarBlot>(
+						BLOT_TINTS,
+						worn.map((bot) => bot.avatarBlot),
+						worn.length,
+					),
+					avatarImagePath: null,
+					workingDir: null,
+					instructions: draft.description.trim(),
+					deniedTools: [],
+					permissions: BLANK_BOT_PERMISSIONS,
+					outputStyle: DEFAULT_BOT_OUTPUT_STYLE,
+					changesNothing: false,
+					memory: "",
+					sectionId: null,
+					pinPosition: null,
+				},
+				spaceId,
+			)
+		},
+
+		suggestedBots: () => Promise.resolve(SUGGESTED_BOTS),
 
 		duplicateBot: (botId: string, spaceId?: string | null) => {
 			const source = bots.get(botId)
