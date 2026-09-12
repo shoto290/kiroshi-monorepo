@@ -58,6 +58,7 @@ const MissionCard = ({
 	className,
 }: MissionCardProps) => {
 	const { t } = useTranslation("chat")
+	const hasTicket = Boolean(ticket.externalId || ticket.title)
 
 	return (
 		<MessageBubble className={className} variant="soft">
@@ -87,7 +88,7 @@ const MissionCard = ({
 						>
 							{objective}
 						</span>
-						<MissionTicketLine ticket={ticket} />
+						{hasTicket ? <MissionTicketLine ticket={ticket} /> : null}
 					</span>
 				</span>
 			</MessageBubbleContent>

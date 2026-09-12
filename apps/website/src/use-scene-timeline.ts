@@ -2,31 +2,33 @@ import { useCallback, useEffect, useRef, useState } from "react"
 
 import { usePrefersReducedMotion } from "@workspace/ui/hooks/use-prefers-reduced-motion"
 
-import { SCENE_COPY } from "./copy"
-
 const CHARACTERS_PER_SECOND = 30
 
 const typingMs = (text: string) => (text.length / CHARACTERS_PER_SECOND) * 1000
 
-const ICHI_ANSWER_AT = 2400
-const NI_ANSWER_AT = 6000
+const FIRST_ANSWER_AT = 2400
+const SECOND_ANSWER_AT = 6000
 const MISSION_DELAY = 1000
-const MISSION_AT = NI_ANSWER_AT + typingMs(SCENE_COPY.niAnswer) + MISSION_DELAY
 const IDLE_MS = 8000
 
 const CLOSING_AT = 13000
 const FADE_MS = 400
 const LOOP_MS = CLOSING_AT + FADE_MS
 
-const FROZEN_ELAPSED = [
+const FROZEN_STATE_PARAMETER = "state"
+
+type SceneAnswers = readonly [string, string]
+
+const missionAtOf = (answers: SceneAnswers) =>
+	SECOND_ANSWER_AT + typingMs(answers[1]) + MISSION_DELAY
+
+const beatElapsed = (answers: SceneAnswers) => [
 	0,
-	ICHI_ANSWER_AT + typingMs(SCENE_COPY.ichiAnswer),
-	NI_ANSWER_AT + typingMs(SCENE_COPY.niAnswer),
-	MISSION_AT,
+	FIRST_ANSWER_AT + typingMs(answers[0]),
+	SECOND_ANSWER_AT + typingMs(answers[1]),
+	missionAtOf(answers),
 	CLOSING_AT + FADE_MS / 2,
 ]
-
-const FROZEN_STATE_PARAMETER = "state"
 
 const typedCount = (text: string, sinceMs: number) =>
 	Math.min(text.length, Math.floor((sinceMs * CHARACTERS_PER_SECOND) / 1000))
@@ -38,91 +40,114 @@ const fadeOutEndingAt = (elapsed: number, gone: number) => {
 
 type SceneFrame = {
 	elapsedSeconds: number
-	openingOpacity: number
 	requestOpacity: number
-	ichiAnswerOpacity: number
-	ichiTyped: number
-	niTyped: number
-	hasIchiAnswer: boolean
-	hasNiAnswer: boolean
+	firstAnswerOpacity: number
+	firstTyped: number
+	secondTyped: number
+	hasFirstAnswer: boolean
+	hasSecondAnswer: boolean
 	hasMission: boolean
 	closingOpacity: number
 }
 
-const frameAt = (elapsed: number): SceneFrame => {
-	const hasIchiAnswer = elapsed >= ICHI_ANSWER_AT
-	const hasNiAnswer = elapsed >= NI_ANSWER_AT
+const frameAt = (elapsed: number, answers: SceneAnswers): SceneFrame => {
+	const hasFirstAnswer = elapsed >= FIRST_ANSWER_AT
+	const hasSecondAnswer = elapsed >= SECOND_ANSWER_AT
 
 	return {
 		elapsedSeconds: Math.floor(elapsed / 1000),
-		openingOpacity: fadeOutEndingAt(elapsed, ICHI_ANSWER_AT),
-		requestOpacity: fadeOutEndingAt(elapsed, NI_ANSWER_AT),
-		ichiAnswerOpacity: fadeOutEndingAt(elapsed, MISSION_AT),
-		ichiTyped: hasIchiAnswer
-			? typedCount(SCENE_COPY.ichiAnswer, elapsed - ICHI_ANSWER_AT)
+		requestOpacity: fadeOutEndingAt(elapsed, SECOND_ANSWER_AT),
+		firstAnswerOpacity: fadeOutEndingAt(elapsed, missionAtOf(answers)),
+		firstTyped: hasFirstAnswer
+			? typedCount(answers[0], elapsed - FIRST_ANSWER_AT)
 			: 0,
-		niTyped: hasNiAnswer
-			? typedCount(SCENE_COPY.niAnswer, elapsed - NI_ANSWER_AT)
+		secondTyped: hasSecondAnswer
+			? typedCount(answers[1], elapsed - SECOND_ANSWER_AT)
 			: 0,
-		hasIchiAnswer,
-		hasNiAnswer,
-		hasMission: elapsed >= MISSION_AT,
+		hasFirstAnswer,
+		hasSecondAnswer,
+		hasMission: elapsed >= missionAtOf(answers),
 		closingOpacity: fadeOutEndingAt(elapsed, LOOP_MS),
 	}
 }
 
 const isSameFrame = (one: SceneFrame, other: SceneFrame) =>
 	one.elapsedSeconds === other.elapsedSeconds &&
-	one.openingOpacity === other.openingOpacity &&
 	one.requestOpacity === other.requestOpacity &&
-	one.ichiAnswerOpacity === other.ichiAnswerOpacity &&
-	one.ichiTyped === other.ichiTyped &&
-	one.niTyped === other.niTyped &&
-	one.hasIchiAnswer === other.hasIchiAnswer &&
-	one.hasNiAnswer === other.hasNiAnswer &&
+	one.firstAnswerOpacity === other.firstAnswerOpacity &&
+	one.firstTyped === other.firstTyped &&
+	one.secondTyped === other.secondTyped &&
+	one.hasFirstAnswer === other.hasFirstAnswer &&
+	one.hasSecondAnswer === other.hasSecondAnswer &&
 	one.hasMission === other.hasMission &&
 	one.closingOpacity === other.closingOpacity
 
-const frozenElapsed = () => {
+type StillElapsedInput = {
+	answers: SceneAnswers
+	beat: number | null
+	prefersReducedMotion: boolean
+}
+
+const stillElapsed = ({
+	answers,
+	beat,
+	prefersReducedMotion,
+}: StillElapsedInput) => {
+	if (beat !== null) return beatElapsed(answers)[beat - 1]
+	return prefersReducedMotion ? missionAtOf(answers) : null
+}
+
+const frozenBeat = () => {
 	const asked = new URLSearchParams(window.location.search).get(
 		FROZEN_STATE_PARAMETER,
 	)
 	if (asked === null) return null
 
 	const rank = Number.parseInt(asked, 10)
-	return FROZEN_ELAPSED[rank - 1] ?? null
+	return rank >= 1 && rank <= 5 ? rank : null
 }
 
 type SceneTimeline = {
 	frame: SceneFrame
-	isStill: boolean
 	engage: () => void
+	restart: () => void
 }
 
-type SceneTimelineState = Omit<SceneTimeline, "engage">
+type SceneTimelineState = {
+	frame: SceneFrame
+	isStill: boolean
+	answers: SceneAnswers
+}
 
-const stillTimeline = (elapsed: number): SceneTimelineState => ({
-	frame: frameAt(elapsed),
-	isStill: true,
+const timelineAt = (
+	answers: SceneAnswers,
+	stillAt: number | null,
+): SceneTimelineState => ({
+	frame: frameAt(stillAt ?? 0, answers),
+	isStill: stillAt !== null,
+	answers,
 })
 
 type SceneTimelineInput = {
+	answers: SceneAnswers
 	onIdle: () => void
 }
 
 export const useSceneTimeline = ({
+	answers,
 	onIdle,
 }: SceneTimelineInput): SceneTimeline => {
 	const prefersReducedMotion = usePrefersReducedMotion()
-	const [frozenAt] = useState(frozenElapsed)
+	const [beat] = useState(frozenBeat)
 	const [isEngaged, setIsEngaged] = useState(false)
 	const idleRef = useRef<number | undefined>(undefined)
 	const onIdleRef = useRef(onIdle)
-	const isStill = prefersReducedMotion || frozenAt !== null
-	const stillAt = frozenAt ?? MISSION_AT
+	const stillAt = stillElapsed({ answers, beat, prefersReducedMotion })
 	const [timeline, setTimeline] = useState<SceneTimelineState>(() =>
-		stillTimeline(stillAt),
+		timelineAt(answers, stillAt),
 	)
+
+	if (timeline.answers !== answers) setTimeline(timelineAt(answers, stillAt))
 
 	onIdleRef.current = onIdle
 
@@ -135,13 +160,18 @@ export const useSceneTimeline = ({
 		}, IDLE_MS)
 	}, [])
 
+	const restart = useCallback(() => {
+		window.clearTimeout(idleRef.current)
+		setIsEngaged(false)
+	}, [])
+
 	useEffect(() => () => window.clearTimeout(idleRef.current), [])
 
 	useEffect(() => {
 		if (isEngaged) return
 
-		if (isStill) {
-			setTimeline(stillTimeline(stillAt))
+		if (stillAt !== null) {
+			setTimeline(timelineAt(answers, stillAt))
 			return
 		}
 
@@ -153,11 +183,11 @@ export const useSceneTimeline = ({
 			elapsed = (elapsed + (now - lastFrameAt)) % LOOP_MS
 			lastFrameAt = now
 
-			const frame = frameAt(elapsed)
+			const frame = frameAt(elapsed, answers)
 			setTimeline((current) =>
 				isSameFrame(current.frame, frame) && !current.isStill
 					? current
-					: { frame, isStill: false },
+					: { frame, isStill: false, answers },
 			)
 			request = requestAnimationFrame(advance)
 		}
@@ -184,9 +214,9 @@ export const useSceneTimeline = ({
 			stop()
 			document.removeEventListener("visibilitychange", onVisibilityChange)
 		}
-	}, [isEngaged, isStill, stillAt])
+	}, [answers, isEngaged, stillAt])
 
-	return { ...timeline, engage }
+	return { frame: timeline.frame, engage, restart }
 }
 
-export type { SceneFrame }
+export type { SceneAnswers, SceneFrame }
