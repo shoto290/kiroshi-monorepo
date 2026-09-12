@@ -30,9 +30,9 @@ const NarrowingHost = ({ onSearchChange, ...props }: HistoryPanelProps) => {
 const ROW_SELECTOR = "[data-slot='history-change']"
 
 const firstRow = (canvasElement: HTMLElement) => {
-	const row = canvasElement.querySelector(ROW_SELECTOR)
+	const row = canvasElement.querySelector<HTMLElement>(ROW_SELECTOR)
 	if (!row) throw new Error("The timeline rendered no change row")
-	return row as HTMLElement
+	return row
 }
 
 const meta = preview.meta({
