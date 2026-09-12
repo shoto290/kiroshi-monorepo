@@ -1,11 +1,10 @@
 "use client"
 
-import { type ReactNode, useState } from "react"
+import { type ReactNode, useRef, useState } from "react"
 import { useTranslation } from "react-i18next"
 
 import { Icons } from "@workspace/ui/components/icons"
 import {
-	ONBOARDING_LABEL_TYPE,
 	ONBOARDING_LINE_TYPE,
 	ONBOARDING_STEP_COUNT,
 	OnboardingAction,
@@ -17,16 +16,30 @@ import { Button } from "@workspace/ui/components/ui/button"
 import { useCopyText } from "@workspace/ui/hooks/use-copy-text"
 import { cn } from "@workspace/ui/lib/utils"
 
-type OnboardingStatusTone = "ok" | "failed"
+type OnboardingStatusTone = "ok" | "waiting" | "failed"
 
-const STATUS_DOT: Record<OnboardingStatusTone, string> = {
-	ok: "bg-bot-badge-done",
-	failed: "bg-destructive",
+type OnboardingStatusShape = {
+	row: string
+	dot: string
+	column: string
 }
 
-const STATUS_GAP: Record<OnboardingStatusTone, string> = {
-	ok: "gap-0.5",
-	failed: "gap-1",
+const STATUS_TONE: Record<OnboardingStatusTone, OnboardingStatusShape> = {
+	ok: {
+		row: "items-start",
+		dot: "mt-1.25 size-2 bg-bot-badge-done",
+		column: "gap-0.5",
+	},
+	waiting: {
+		row: "items-center",
+		dot: "size-1.5 bg-bot-badge-attention",
+		column: "gap-0",
+	},
+	failed: {
+		row: "items-start",
+		dot: "mt-1.25 size-2 bg-destructive",
+		column: "gap-1",
+	},
 }
 
 type OnboardingStatusProps = {
@@ -35,21 +48,25 @@ type OnboardingStatusProps = {
 	children?: ReactNode
 }
 
-const OnboardingStatus = ({ tone, title, children }: OnboardingStatusProps) => (
-	<div className="flex items-start gap-2" data-slot="onboarding-status">
-		<span
-			aria-hidden="true"
-			className={cn("mt-1.25 size-2 shrink-0 rounded-full", STATUS_DOT[tone])}
-			data-slot="onboarding-status-dot"
-		/>
-		<div className={cn("flex min-w-0 flex-col", STATUS_GAP[tone])}>
-			<p className={cn("wrap-break-word font-medium", ONBOARDING_LINE_TYPE)}>
-				{title}
-			</p>
-			{children}
+const OnboardingStatus = ({ tone, title, children }: OnboardingStatusProps) => {
+	const { row, dot, column } = STATUS_TONE[tone]
+
+	return (
+		<div className={cn("flex gap-2", row)} data-slot="onboarding-status">
+			<span
+				aria-hidden="true"
+				className={cn("shrink-0 rounded-full", dot)}
+				data-slot="onboarding-status-dot"
+			/>
+			<div className={cn("flex min-w-0 flex-col", column)}>
+				<p className={cn("wrap-break-word font-medium", ONBOARDING_LINE_TYPE)}>
+					{title}
+				</p>
+				{children}
+			</div>
 		</div>
-	</div>
-)
+	)
+}
 
 const LINK_ROW_CLASS =
 	"flex h-8.5 items-center gap-2 rounded-control border border-border ps-3 pe-1.5 has-[input:focus-visible]:border-ring has-[input:focus-visible]:ring-3 has-[input:focus-visible]:ring-ring/30"
@@ -74,6 +91,7 @@ const OnboardingWaiting = ({
 	const { t } = useTranslation("chat")
 	const { copied, copy } = useCopyText(signInUrl)
 	const [hasFailedToCopy, setHasFailedToCopy] = useState(false)
+	const codeField = useRef<HTMLInputElement>(null)
 
 	const hasCopied = copied && !hasFailedToCopy
 	const copyControl = hasCopied
@@ -92,22 +110,20 @@ const OnboardingWaiting = ({
 	}
 
 	const submitCode = (value: string) => {
-		if (value.trim() === "") return
+		if (value.trim() === "") {
+			codeField.current?.focus()
+			return
+		}
+
 		onCodeSubmit(value)
 	}
 
 	return (
 		<>
-			<div className="flex items-center gap-2" data-slot="onboarding-status">
-				<span
-					aria-hidden="true"
-					className="size-1.5 shrink-0 rounded-full bg-bot-badge-attention"
-					data-slot="onboarding-status-dot"
-				/>
-				<p className={cn("min-w-0 truncate", ONBOARDING_LABEL_TYPE)}>
-					{t("onboarding.connection.waiting.title")}
-				</p>
-			</div>
+			<OnboardingStatus
+				title={t("onboarding.connection.waiting.title")}
+				tone="waiting"
+			/>
 			<div className={LINK_ROW_CLASS} data-slot="onboarding-link">
 				<input
 					aria-label={t("onboarding.connection.waiting.linkLabel")}
@@ -118,7 +134,6 @@ const OnboardingWaiting = ({
 				<Button
 					aria-label={copyControl.name}
 					className="shrink-0 rounded-md text-foreground"
-					disabled={disabled}
 					onClick={copyLink}
 					size="xs"
 					type="button"
@@ -128,7 +143,6 @@ const OnboardingWaiting = ({
 				</Button>
 			</div>
 			<span aria-live="polite" className="sr-only">
-				{hasCopied ? t("onboarding.connection.waiting.copiedLink") : null}
 				{hasFailedToCopy ? t("onboarding.connection.waiting.copyFailed") : null}
 			</span>
 			<OnboardingField
@@ -144,6 +158,7 @@ const OnboardingWaiting = ({
 				}
 				disabled={disabled}
 				family="mono"
+				inputRef={codeField}
 				label={t("onboarding.connection.waiting.codeLabel")}
 				onSubmit={submitCode}
 				onValueChange={onCodeChange}

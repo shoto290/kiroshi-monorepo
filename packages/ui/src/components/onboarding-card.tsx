@@ -4,6 +4,7 @@ import {
 	type ComponentProps,
 	type KeyboardEvent,
 	type ReactNode,
+	type RefObject,
 	useId,
 } from "react"
 
@@ -147,6 +148,7 @@ type OnboardingFieldProps = {
 	type?: "text" | "password"
 	disabled?: boolean
 	action?: ReactNode
+	inputRef?: RefObject<HTMLInputElement | null>
 }
 
 const OnboardingField = ({
@@ -159,6 +161,7 @@ const OnboardingField = ({
 	type = "text",
 	disabled,
 	action,
+	inputRef,
 }: OnboardingFieldProps) => {
 	const fieldId = useId()
 	const submitOnEnter = (event: KeyboardEvent<HTMLInputElement>) => {
@@ -191,6 +194,7 @@ const OnboardingField = ({
 					onChange={(event) => onValueChange(event.target.value)}
 					onKeyDown={submitOnEnter}
 					placeholder={placeholder}
+					ref={inputRef}
 					spellCheck={false}
 					type={type}
 					value={value}

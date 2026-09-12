@@ -4,6 +4,7 @@ import { expect, fn, spyOn } from "storybook/test"
 import preview from "@workspace/storybook/preview"
 import { slotIn } from "@workspace/storybook/story-utils"
 import { OnboardingConnectionCard } from "@workspace/ui/components/onboarding-connection-card"
+import { i18n } from "@workspace/ui/lib/i18n"
 
 const ACCOUNT_LINE = "Signed in with your Claude subscription"
 
@@ -189,7 +190,7 @@ export const Waiting = meta.story({
 		docs: {
 			description: {
 				story:
-					"The sign-in was asked for and the browser stayed shut, so the card hands the work back: the link to open, and the field that takes the code back. Check that the dot reads as waiting rather than as a failure, that the link is read only and copies whole, that a refused copy says so instead of pretending, that Continue does nothing on an empty field, and that Enter and Continue submit the same value. Pick `Error` for the attempt that came back with an exit code.",
+					"The sign-in was asked for and the browser stayed shut, so the card hands the work back: the link to open, and the field that takes the code back. Check that the dot reads as waiting rather than as a failure, that the link is read only and copies whole, that a refused copy says so in the polite region while a copy that worked is announced by the control alone, that Continue on an empty field sends the person back to it rather than submitting, and that Enter and Continue submit the same value. Pick `Error` for the attempt that came back with an exit code.",
 			},
 		},
 	},
@@ -222,11 +223,16 @@ export const Waiting = meta.story({
 		await userEvent.click(copy)
 		await expect(writeText).toHaveBeenLastCalledWith(SIGN_IN_URL)
 		await expect(
-			await canvas.findByText("Sign-in link copied"),
-		).toBeInTheDocument()
-		await expect(
-			canvas.getByRole("button", { name: "Sign-in link copied" }),
+			await canvas.findByRole("button", { name: "Sign-in link copied" }),
 		).toHaveTextContent(/^Copied$/)
+		await expect(
+			canvas.queryByText("Sign-in link copied"),
+		).not.toBeInTheDocument()
+		await expect(
+			canvas.queryByText(
+				"Couldn't copy. Select the link and copy it yourself.",
+			),
+		).not.toBeInTheDocument()
 
 		writeText.mockRestore()
 
@@ -238,6 +244,7 @@ export const Waiting = meta.story({
 
 		await userEvent.click(submit)
 		await expect(waitingSubmit).not.toHaveBeenCalled()
+		await expect(field).toHaveFocus()
 
 		await userEvent.type(field, "abc123#8f3c1a")
 		await expect(field).toHaveValue("abc123#8f3c1a")
@@ -306,13 +313,87 @@ export const WaitingWithALongLink = meta.story({
 	},
 })
 
+export const WaitingWithoutAClipboard = meta.story({
+	render: () => <WaitingHost />,
+	parameters: {
+		docs: {
+			description: {
+				story:
+					"The same waiting card in a browser that exposes no clipboard at all. Check that the control reads as uncopied rather than claiming a copy that never happened, and that the polite region tells the person to select the link and copy it by hand. Pick `Waiting` for the browser that has a clipboard but refuses the write.",
+			},
+		},
+	},
+	play: async ({ canvas, userEvent }) => {
+		Object.defineProperty(navigator, "clipboard", {
+			configurable: true,
+			value: undefined,
+		})
+
+		const copy = canvas.getByRole("button", { name: "Copy the sign-in link" })
+
+		await userEvent.click(copy)
+		Reflect.deleteProperty(navigator, "clipboard")
+
+		await expect(
+			await canvas.findByText(
+				"Couldn't copy. Select the link and copy it yourself.",
+			),
+		).toBeInTheDocument()
+		await expect(copy).toHaveTextContent(/^Copy$/)
+		await expect(navigator.clipboard).toBeDefined()
+	},
+})
+
+export const WaitingInFrench = meta.story({
+	beforeEach: async () => {
+		await i18n.changeLanguage("fr")
+
+		return async () => {
+			await i18n.changeLanguage("en")
+		}
+	},
+	render: () => (
+		<div className="w-80 max-w-full">
+			<WaitingHost />
+		</div>
+	),
+	parameters: {
+		docs: {
+			description: {
+				story:
+					"The waiting card at 320 pixels in French, the longest the status line gets in a bundled language — long enough to be worth measuring, still short enough to hold one row at this width. Check that the line is laid out to wrap rather than to be cut, that it carries the same size and line height as the settled and failed status lines, that it is readable whole, and that the code label and the two controls under it hold the width without scrolling sideways. Pick `LongContent` for the status line that does run to several rows.",
+			},
+		},
+	},
+	play: async ({ canvas, canvasElement }) => {
+		const title = canvas.getByText("Votre navigateur ne s'est pas ouvert")
+		const type = getComputedStyle(title)
+
+		await expect(type.whiteSpace).toBe("normal")
+		await expect(type.overflowWrap).toBe("break-word")
+		await expect(type.fontSize).toBe("13px")
+		await expect(type.lineHeight).toBe("18px")
+		await expect(title.scrollWidth).toBeLessThanOrEqual(title.clientWidth)
+		await expect(title.scrollHeight).toBe(title.clientHeight)
+		await expect(
+			canvas.getByText("Puis collez le code que votre navigateur vous rend"),
+		).toBeVisible()
+		await expect(
+			canvas.getByRole("button", { name: "Continuer" }),
+		).toBeVisible()
+		await expect(canvasElement.scrollWidth).toBeLessThanOrEqual(
+			canvasElement.clientWidth,
+		)
+	},
+})
+
 export const WaitingDisabled = meta.story({
 	render: () => <WaitingHost disabled />,
 	parameters: {
 		docs: {
 			description: {
 				story:
-					"The waiting card while the app is busy with the code it was already handed. Check that the copy control, the code field, Continue and the exit all read as disabled, that the field takes no typing so a code cannot be half-entered into a card that is no longer listening, and that the link itself stays selectable so the person can still copy it by hand. Pick `Waiting` for the same card once the app is free again.",
+					"The waiting card while the app is busy with the code it was already handed. Check that the code field, Continue and the exit all read as disabled and that the field takes no typing, so a code cannot be half-entered into a card that is no longer listening — and that the copy control keeps working anyway, because this state exists so the person can finish signing in outside the app and the clipboard waits on nothing the app is doing. Pick `Waiting` for the same card once the app is free again.",
 			},
 		},
 	},
@@ -322,9 +403,6 @@ export const WaitingDisabled = meta.story({
 		)
 
 		await expect(field).toBeDisabled()
-		await expect(
-			canvas.getByRole("button", { name: "Copy the sign-in link" }),
-		).toBeDisabled()
 		await expect(
 			canvas.getByRole("button", { name: "Continue" }),
 		).toBeDisabled()
@@ -336,6 +414,21 @@ export const WaitingDisabled = meta.story({
 		field.focus()
 		await userEvent.keyboard("abc123#8f3c1a")
 		await expect(field).toHaveValue("")
+
+		const writeText = spyOn(
+			navigator.clipboard,
+			"writeText",
+		).mockResolvedValue()
+		const copy = canvas.getByRole("button", { name: "Copy the sign-in link" })
+
+		await expect(copy).not.toBeDisabled()
+		await userEvent.click(copy)
+		await expect(writeText).toHaveBeenCalledWith(SIGN_IN_URL)
+		await expect(
+			await canvas.findByRole("button", { name: "Sign-in link copied" }),
+		).toHaveTextContent(/^Copied$/)
+
+		writeText.mockRestore()
 	},
 })
 
