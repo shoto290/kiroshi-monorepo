@@ -42,6 +42,7 @@ import {
 	SPACES,
 } from "./scene-cast"
 import { type SceneThread, threadOf } from "./scene-threads"
+import { useReaderAvatar } from "./use-reader-avatar"
 import { type SceneFrame, useSceneTimeline } from "./use-scene-timeline"
 import { WindowControls } from "./window-controls"
 
@@ -212,6 +213,7 @@ export const AppScene = () => {
 	const [selectedId, setSelectedId] = useState(CONVERSATION_ID)
 	const [isPanelOpen, setPanelOpen] = useState(false)
 	const [draft, setDraft] = useState("")
+	const readerAvatar = useReaderAvatar()
 	const { frame, engage } = useSceneTimeline({
 		onIdle: () => {
 			setSelectedId(CONVERSATION_ID)
@@ -258,7 +260,7 @@ export const AppScene = () => {
 							selectedConversationId={thread ? undefined : CONVERSATION_ID}
 							selectedSpaceId={SELECTED_SPACE.id}
 							spaces={SPACES}
-							user={READER}
+							user={{ ...READER, image: readerAvatar }}
 						/>
 					}
 					spaceTint={SELECTED_SPACE.colour}
