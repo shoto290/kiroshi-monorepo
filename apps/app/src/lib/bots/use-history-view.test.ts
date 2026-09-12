@@ -3,6 +3,8 @@
 import { act, cleanup, renderHook } from "@testing-library/react"
 import { afterEach, describe, expect, it, vi } from "vitest"
 
+import type { HistoryDay } from "@workspace/ui/components/plugin-settings/history-panel"
+
 import { initialHistoryFilesState } from "./history-files-controller"
 import { useHistoryView } from "./use-history-view"
 
@@ -54,7 +56,7 @@ const viewOf = (commits: BotHistoryEntry[]) => {
 	return { result, rerender, onOpenRun, onUndoRun }
 }
 
-const linesOf = (days: { changes: { id: string }[] }[]) =>
+const linesOf = (days: HistoryDay[]) =>
 	days.flatMap((day) => day.changes.map((change) => change.id))
 
 describe("history view", () => {
