@@ -2,7 +2,10 @@ import {
 	ApplicationCard,
 	type ApplicationCardProps,
 } from "@workspace/ui/components/application-card"
-import { ApplicationInstall as ApplicationInstallBubble } from "@workspace/ui/components/application-install"
+import {
+	ApplicationInstall as ApplicationInstallBubble,
+	type ApplicationInstallControl,
+} from "@workspace/ui/components/application-install"
 import { Icons } from "@workspace/ui/components/icons"
 import {
 	MessageBubble,
@@ -52,6 +55,10 @@ const InstallPiece = ({
 		icon: Icons.Settings,
 		onSelect: onOpenSettings,
 	}
+	const leading: ApplicationInstallControl = {
+		...openSettings,
+		emphasis: "primary",
+	}
 
 	if (install.install.kind === "nothing") {
 		return <ApplicationCard {...card} status="connected" />
@@ -61,7 +68,7 @@ const InstallPiece = ({
 		return (
 			<ApplicationInstallBubble
 				application={{ ...card, status: "signIn" }}
-				leading={{ ...openSettings, emphasis: "primary" }}
+				leading={leading}
 			/>
 		)
 	}
@@ -98,7 +105,7 @@ const InstallPiece = ({
 	return (
 		<ApplicationInstallBubble
 			application={{ ...card, description: secret, status: "apiKey" }}
-			leading={{ ...openSettings, emphasis: "primary" }}
+			leading={leading}
 		/>
 	)
 }
