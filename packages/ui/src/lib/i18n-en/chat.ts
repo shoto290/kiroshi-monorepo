@@ -187,6 +187,9 @@ const chat = {
 	applicationInstall: {
 		address: "Sign-in address",
 		copyFailed: "Couldn't copy",
+		openSettings: "Open Settings",
+		secret: "Its key goes in {{secret}}.",
+		unreadable: "Couldn't read the applications added to this conversation.",
 	},
 	code: {
 		snippet: "Code snippet",

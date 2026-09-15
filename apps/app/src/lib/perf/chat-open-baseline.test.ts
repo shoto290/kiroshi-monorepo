@@ -38,6 +38,20 @@ vi.mock("@/lib/chat/create-driver", () => ({
 	createChatDriver: () => harness.driver,
 }))
 
+vi.mock("@/lib/applications/application-transport", async (importOriginal) => {
+	const actual =
+		await importOriginal<
+			typeof import("@/lib/applications/application-transport")
+		>()
+	return {
+		...actual,
+		applicationTransport: {
+			...actual.applicationTransport,
+			installs: async () => [],
+		},
+	}
+})
+
 vi.mock("@workspace/ui/components/markdown", async (importOriginal) => {
 	const actual =
 		await importOriginal<typeof import("@workspace/ui/components/markdown")>()

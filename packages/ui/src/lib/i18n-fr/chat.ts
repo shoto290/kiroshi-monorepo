@@ -200,6 +200,10 @@ const chat = {
 	applicationInstall: {
 		address: "Adresse de connexion",
 		copyFailed: "Copie impossible",
+		openSettings: "Ouvrir les réglages",
+		secret: "Sa clé va dans {{secret}}.",
+		unreadable:
+			"Impossible de lire les applications ajoutées à cette conversation.",
 	},
 	code: {
 		snippet: "Extrait de code",

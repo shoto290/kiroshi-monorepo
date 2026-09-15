@@ -1,6 +1,7 @@
 import {
 	type RefObject,
 	useCallback,
+	useContext,
 	useEffect,
 	useMemo,
 	useRef,
@@ -44,6 +45,7 @@ import type {
 import { type TurnCauseKind, TurnGroup } from "@workspace/ui/components/turn"
 import { type ChatCopy, useChatCopy } from "@workspace/ui/hooks/use-chat-copy"
 
+import { ApplicationInstallRow } from "@/components/application-install-row"
 import { FaceAvatar } from "@/components/face-avatar"
 import { type PromptHandle, ThreadComposer } from "@/components/thread-composer"
 import { botThreadMenu, conversationThreadMenu } from "@/components/thread-menu"
@@ -58,6 +60,17 @@ import {
 	ThreadRoutines,
 } from "@/components/thread-routines"
 import { QueuedTurn, RefusedTurn, ThreadTurn } from "@/components/thread-turn"
+import type { ApplicationInstall } from "@/lib/applications/application-port"
+import {
+	isLeftOutOf,
+	type RefusingSession,
+} from "@/lib/applications/install-refusal"
+import { installScopeOf } from "@/lib/applications/use-application-installs"
+import {
+	type ConversationApplications,
+	ConversationApplicationsContext,
+	useConversationInstalls,
+} from "@/lib/applications/use-conversation-installs"
 import type { AttachmentsOwner } from "@/lib/chat/attachments-contract"
 import type { AttachmentsController } from "@/lib/chat/attachments-controller"
 import type { ChatError } from "@/lib/chat/chat-state"
@@ -124,8 +137,14 @@ import {
 } from "@/lib/chat/use-thread-roster"
 import type { WorkingState } from "@/lib/chat/working-kind"
 import {
+	type SessionConnectors,
+	SessionConnectorsContext,
+} from "@/lib/connectors/use-session-connector"
+import {
 	type PlacedArrival,
+	type PlacedBySeq,
 	placeArrivals,
+	placeBySeq,
 } from "@/lib/conversations/arrival-transcript"
 import type { SpeakingBot } from "@/lib/conversations/conversation-controller"
 import type { ConversationRuntimes } from "@/lib/conversations/conversation-runtimes"
@@ -768,6 +787,49 @@ const arrivalRowsAfter = (placed: PlacedArrival[], bots: Bot[]): RowsAfterRun =>
 		]
 	})
 
+type InstallRowsSource = {
+	placed: PlacedBySeq<ApplicationInstall>[]
+	applications: ConversationApplications | null
+	connectors: SessionConnectors | null
+	error: ChatError | undefined
+	companionId: string | undefined
+}
+
+const installRowsAfter = ({
+	placed,
+	applications,
+	connectors,
+	error,
+	companionId,
+}: InstallRowsSource): RowsAfterRun => {
+	const session: RefusingSession = {
+		error,
+		companionId,
+		spaceId: connectors?.spaceId,
+	}
+	return rowsPlacedAfter(placed, ({ anchored: install }) => {
+		const scope = installScopeOf(install)
+		if (!applications || !scope) {
+			return []
+		}
+		return [
+			{
+				key: `install-${install.id}`,
+				render: () => (
+					<ApplicationInstallRow
+						curated={applications.curated.find(
+							({ name }) => name === install.application,
+						)}
+						install={install}
+						isLeftOut={isLeftOutOf({ install, scope }, session)}
+						onOpenSettings={() => applications.onOpen(scope)}
+					/>
+				),
+			},
+		]
+	})
+}
+
 type MissionCardRowsProps = {
 	placed: PlacedMission[]
 	authors: ThreadAuthors
@@ -1078,6 +1140,9 @@ function ThreadView({
 	const pins = usePinnedMessages(controller, state.conversationId)
 	const routinesScope = routinesScopeOf(facts, state.conversationId)
 	const missions = useMissions(routinesScope.conversationId)
+	const applications = useContext(ConversationApplicationsContext)
+	const sessionConnectors = useContext(SessionConnectorsContext)
+	const installs = useConversationInstalls(state.conversationId)
 	const { highlightedMessageId, jumpToMessage, landOnMessage } = useThreadJump(
 		controller,
 		scrollerRef,
@@ -1240,8 +1305,21 @@ function ThreadView({
 		}),
 		known,
 	)
+	const installsAfter = installRowsAfter({
+		applications,
+		companionId: speakerIdOf(thread, facts.latestError),
+		connectors: sessionConnectors,
+		error: facts.latestError,
+		placed: placeBySeq({
+			anchored: installs,
+			hasOlder: state.hasOlder,
+			messages: state.messages,
+			runs,
+		}),
+	})
 	const transcriptRows = interleavedWithRuns(runRows, (runIndex) => [
 		...arrivalsAfter(runIndex),
+		...installsAfter(runIndex),
 		...missionRowsAfter(runIndex),
 	])
 	const refusedTarget = repliedToRefusal

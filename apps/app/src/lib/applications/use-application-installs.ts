@@ -8,7 +8,7 @@ export type AnnouncedInstall = {
 	scope: ReopenedScope
 }
 
-const scopeOf = ({
+export const installScopeOf = ({
 	scope,
 	destinationId,
 }: ApplicationInstalled): ReopenedScope | null => {
@@ -38,7 +38,7 @@ export const useApplicationInstalls = (
 
 		const listening = port
 			.onInstalled((installed) => {
-				const scope = scopeOf(installed)
+				const scope = installScopeOf(installed)
 				if (!isListening || !scope) {
 					return
 				}

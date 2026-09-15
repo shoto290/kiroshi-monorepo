@@ -22,9 +22,14 @@ import {
 	toServerEnvironmentSection,
 } from "@/lib/applications/application-settings"
 import { applicationTransport } from "@/lib/applications/application-transport"
-import { createSessionReopener } from "@/lib/applications/session-reopening"
+import {
+	createSessionReopener,
+	type ReopenedScope,
+	scopeOfOwner,
+} from "@/lib/applications/session-reopening"
 import { useApplicationInstalls } from "@/lib/applications/use-application-installs"
 import { useApplications } from "@/lib/applications/use-applications"
+import { ConversationApplicationsContext } from "@/lib/applications/use-conversation-installs"
 import {
 	changesRuntime,
 	modelOptionsFor,
@@ -393,17 +398,37 @@ export function App() {
 
 	const closeSettingsTab = () => setSettingsTab(undefined)
 
-	const openConnectorsOf = useCallback(
-		(owner: EnvOwner) => {
+	const openApplicationsOf = useCallback(
+		(scope: ReopenedScope) => {
+			if (scope.kind === "user") {
+				user.controller.setSettingsOpen(true)
+				return
+			}
 			setSettingsTab(CONNECTORS_TAB)
-			if (owner.kind === "bot") {
-				roster.controller.edit(owner.id)
+			if (scope.kind === "companion") {
+				roster.controller.edit(scope.id)
 			} else {
 				spaces.controller.setSettingsOpen(true)
 			}
 		},
-		[roster.controller, spaces.controller],
+		[roster.controller, spaces.controller, user.controller],
 	)
+	const openConnectorsOf = useCallback(
+		(owner: EnvOwner) => openApplicationsOf(scopeOfOwner(owner)),
+		[openApplicationsOf],
+	)
+	const conversationApplications = useMemo(
+		() => ({
+			port: applicationTransport,
+			curated: applications.state.curated,
+			onOpen: openApplicationsOf,
+		}),
+		[applications.state.curated, openApplicationsOf],
+	)
+
+	useEffect(() => {
+		void applications.controller.open()
+	}, [applications.controller])
 	const sessionConnectors = useMemo(
 		() => ({
 			port: connectorTransport,
@@ -922,28 +947,32 @@ export function App() {
 			>
 				<ConversationSeatingContext.Provider value={conversationSeating}>
 					<SessionConnectorsContext.Provider value={sessionConnectors}>
-						<WorkspaceBody
-							activityPanel={activityPanel}
-							attachments={attachments}
-							bot={selected}
-							bots={bots}
-							chat={chat}
-							conversation={selectedConversation}
-							conversationRuntimes={conversationRuntimes}
-							drafts={drafts}
-							haveSpacesFailed={spaces.state.hasFailedToLoad}
-							isConversationSettingsOpen={isThreadConversationSettingsOpen}
-							isOverlayOpen={isOverlayOpen}
-							isSettingsOpen={isThreadSettingsOpen}
-							landings={messageLandings}
-							missions={openedMission}
-							onboarding={preferences.firstRunDone ? undefined : onboarding}
-							onOpenConversationSettings={roster.controller.editConversation}
-							onRetrySpaces={loadSpaces}
-							onToggleSettings={toggleSettings}
-							readerName={preferences.displayName}
-							signIn={signIn}
-						/>
+						<ConversationApplicationsContext.Provider
+							value={conversationApplications}
+						>
+							<WorkspaceBody
+								activityPanel={activityPanel}
+								attachments={attachments}
+								bot={selected}
+								bots={bots}
+								chat={chat}
+								conversation={selectedConversation}
+								conversationRuntimes={conversationRuntimes}
+								drafts={drafts}
+								haveSpacesFailed={spaces.state.hasFailedToLoad}
+								isConversationSettingsOpen={isThreadConversationSettingsOpen}
+								isOverlayOpen={isOverlayOpen}
+								isSettingsOpen={isThreadSettingsOpen}
+								landings={messageLandings}
+								missions={openedMission}
+								onboarding={preferences.firstRunDone ? undefined : onboarding}
+								onOpenConversationSettings={roster.controller.editConversation}
+								onRetrySpaces={loadSpaces}
+								onToggleSettings={toggleSettings}
+								readerName={preferences.displayName}
+								signIn={signIn}
+							/>
+						</ConversationApplicationsContext.Provider>
 					</SessionConnectorsContext.Provider>
 				</ConversationSeatingContext.Provider>
 			</WorkspaceShell>

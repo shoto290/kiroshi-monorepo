@@ -8,11 +8,23 @@ export type PlacedArrival = {
 	runIndex: number
 }
 
-type ArrivalPlacement = {
+export type PlacedBySeq<Anchored> = {
+	anchored: Anchored
+	runIndex: number
+}
+
+type TranscriptWindow = {
 	runs: TranscriptRow[][]
 	messages: TranscriptMessage[]
-	arrivals: CompanionArrival[]
 	hasOlder: boolean
+}
+
+type SeqPlacement<Anchored> = TranscriptWindow & {
+	anchored: Anchored[]
+}
+
+type ArrivalPlacement = TranscriptWindow & {
+	arrivals: CompanionArrival[]
 }
 
 const newestSeqOf = (
@@ -30,23 +42,31 @@ const lastRunAtOrBelow = (newestSeqs: number[], lastMessageSeq: number) =>
 		BEFORE_FIRST_RUN,
 	)
 
-export const placeArrivals = ({
+export const placeBySeq = <Anchored extends { lastMessageSeq: number }>({
 	runs,
 	messages,
-	arrivals,
+	anchored,
 	hasOlder,
-}: ArrivalPlacement): PlacedArrival[] => {
+}: SeqPlacement<Anchored>): PlacedBySeq<Anchored>[] => {
 	const seqs = new Map(messages.map(({ id, seq }) => [id, seq]))
 	const newestSeqs = runs.map((run) => newestSeqOf(run, seqs))
 	const maskedBelow = hasOlder ? (messages[0]?.seq ?? null) : null
 
-	return arrivals
+	return anchored
 		.filter(
 			({ lastMessageSeq }) =>
 				maskedBelow === null || lastMessageSeq >= maskedBelow,
 		)
-		.map((arrival) => ({
-			arrival,
-			runIndex: lastRunAtOrBelow(newestSeqs, arrival.lastMessageSeq),
+		.map((record) => ({
+			anchored: record,
+			runIndex: lastRunAtOrBelow(newestSeqs, record.lastMessageSeq),
 		}))
 }
+
+export const placeArrivals = ({
+	arrivals,
+	...window
+}: ArrivalPlacement): PlacedArrival[] =>
+	placeBySeq({ ...window, anchored: arrivals }).map(
+		({ anchored, runIndex }) => ({ arrival: anchored, runIndex }),
+	)
