@@ -20,9 +20,16 @@ const CARD_BOTTOM_INSET = 13
 
 const ROW_GAP = 8
 
+const ROW_NAME_LINE = 18
+
+const ROW_TEXT_LINE = 16
+
 const slotsOf = (root: Element, slot: string) => [
 	...root.querySelectorAll(`[data-slot="${slot}"]`),
 ]
+
+const heightOf = (element: Element) =>
+	Math.round(element.getBoundingClientRect().height)
 
 const boxOf = (element: Element) => {
 	const rect = element.getBoundingClientRect()
@@ -423,7 +430,7 @@ export const RegistrySkeletonLandsOnRow = meta.story({
 		docs: {
 			description: {
 				story:
-					"The registry answering. Check that the first row lands exactly where its skeleton stood: same edges, same padding, same height, and name, description, meta and setup each on the left edge and the line center of the bar they replace, so the list does not jump.",
+					"The registry answering. Check that the first row lands exactly where its skeleton stood: same edges, same padding, same height, and name, description, meta and setup each on the left edge and the line center of the bar they replace. Each text line is held at the height its skeleton line declares, so a font the platform substitutes cannot grow the row.",
 			},
 		},
 	},
@@ -450,13 +457,20 @@ export const RegistrySkeletonLandsOnRow = meta.story({
 
 		const setupLine = within(row).getByText("Signs you in")
 		const [setupGlyph] = setupLine.getElementsByTagName("svg")
+		const [nameLine] = slotsOf(row, "catalogue-row-name")
+		const [descriptionLine] = slotsOf(row, "catalogue-row-description")
+		const [metaLine] = slotsOf(row, "application-meta")
 
 		await expect(boxOf(within(row).getByText("Slack"))).toEqual(name)
 		await expect(
 			boxOf(within(row).getByText("Reads channels and posts messages as you.")),
 		).toEqual(description)
-		await expect(boxOf(slotsOf(row, "application-meta")[0])).toEqual(meta)
+		await expect(boxOf(metaLine)).toEqual(meta)
 		await expect(boxOf(setupGlyph).center).toBe(setup.center)
+
+		await expect(heightOf(nameLine)).toBe(ROW_NAME_LINE)
+		await expect(heightOf(descriptionLine)).toBe(ROW_TEXT_LINE)
+		await expect(heightOf(metaLine)).toBe(ROW_TEXT_LINE)
 	},
 })
 

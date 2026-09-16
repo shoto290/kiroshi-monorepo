@@ -148,14 +148,20 @@ const CatalogueRow = ({ application, onPick }: CatalogueRowProps) => {
 			>
 				<ApplicationMark mark={application.mark} size="sm" />
 				<span className="flex min-w-0 flex-1 flex-col gap-0.5">
-					<span className="flex min-w-0 items-center gap-1.5">
+					<span
+						className="flex h-4.5 min-w-0 items-center gap-1.5"
+						data-slot="catalogue-row-name"
+					>
 						<span className="truncate font-medium text-[13px]/4.5 text-foreground">
 							{application.name}
 						</span>
 						{application.isVerified ? <ApplicationVerifiedPill /> : null}
 					</span>
 					{application.description ? (
-						<span className="truncate text-muted-foreground text-xs/4">
+						<span
+							className="h-4 truncate text-muted-foreground text-xs/4"
+							data-slot="catalogue-row-description"
+						>
 							{application.description}
 						</span>
 					) : null}

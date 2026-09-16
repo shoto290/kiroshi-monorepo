@@ -97,7 +97,7 @@ const ApplicationMetaLine = ({
 
 	return (
 		<span
-			className="flex min-w-0 items-center gap-1.25 text-muted-foreground text-xs/4"
+			className="flex h-4 min-w-0 items-center gap-1.25 text-muted-foreground text-xs/4"
 			data-slot="application-meta"
 		>
 			{parts.map((part, index) => (
