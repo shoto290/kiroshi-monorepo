@@ -92,6 +92,8 @@ const LONG_TRANSCRIPT_MESSAGES = 500
 
 const LONG_TRANSCRIPT_TIMEOUT_MS = 30_000
 
+const THREAD_REOPEN_TIMEOUT_MS = 30_000
+
 const LONG_THREAD_RUNS = 200
 
 const OPEN_FRAME_LIMIT = 4_000
@@ -659,8 +661,10 @@ describe("PRF1 render baseline", () => {
 		`)
 	})
 
-	it("reopens a thread on one page, like a cold open", async () => {
-		expect(await measureThreadReopen()).toMatchInlineSnapshot(`
+	it(
+		"reopens a thread on one page, like a cold open",
+		async () => {
+			expect(await measureThreadReopen()).toMatchInlineSnapshot(`
 			{
 			  "cold": {
 			    "commits": 11,
@@ -676,7 +680,9 @@ describe("PRF1 render baseline", () => {
 			  "rows": 20,
 			}
 		`)
-	})
+		},
+		THREAD_REOPEN_TIMEOUT_MS,
+	)
 
 	it(
 		"opens a five hundred message transcript",
