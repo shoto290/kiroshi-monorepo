@@ -462,9 +462,7 @@ export const RegistrySkeletonLandsOnRow = meta.story({
 		const [metaLine] = slotsOf(row, "application-meta")
 
 		await expect(boxOf(within(row).getByText("Slack"))).toEqual(name)
-		await expect(
-			boxOf(within(row).getByText("Reads channels and posts messages as you.")),
-		).toEqual(description)
+		await expect(boxOf(descriptionLine)).toEqual(description)
 		await expect(boxOf(metaLine)).toEqual(meta)
 		await expect(boxOf(setupGlyph).center).toBe(setup.center)
 
