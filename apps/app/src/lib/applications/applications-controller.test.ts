@@ -44,6 +44,19 @@ const LINEAR: Application = {
 	install: { kind: "oauth" },
 }
 
+const REFUSED: Application = {
+	name: "@owner/queried",
+	title: "Queried",
+	description: "Asks a key its url would carry.",
+	config: { type: "http", url: "https://queried.test/mcp" },
+	tools: ["search"],
+	install: {
+		kind: "refused",
+		field: "apiKey",
+		reason: 'the required field "apiKey" names no header to carry it',
+	},
+}
+
 const targetOf = (overrides: Partial<InstallTarget> = {}): InstallTarget => ({
 	owner: USER,
 	declared: [],
@@ -308,6 +321,22 @@ describe("applications controller", () => {
 
 		expect(controller.getState().failure).toContain("the bundle is read only")
 		expect(controller.getState().picked).toEqual(PAPER)
+		expect(await store.userPluginMcpServers()).toEqual([])
+	})
+
+	it("shows the reason of a refused install and declares no server", async () => {
+		const port = createFakeApplicationPort()
+		port.curated = [REFUSED]
+		const store = createFakeTranscriptStore()
+		const declare = vi.spyOn(store, "setUserPluginMcpServer")
+		const controller = controllerOn(port, store)
+		await controller.open()
+		controller.pick("@owner/queried")
+
+		await controller.install(targetOf())
+
+		expect(controller.getState().failure).toContain("apiKey")
+		expect(declare).not.toHaveBeenCalled()
 		expect(await store.userPluginMcpServers()).toEqual([])
 	})
 

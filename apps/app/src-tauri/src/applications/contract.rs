@@ -38,6 +38,14 @@ pub enum Install {
 		description: Option<String>,
 	},
 	Oauth,
+	Refused(InstallRefusal),
+}
+
+#[derive(Debug, Clone, PartialEq, Eq, Serialize, Deserialize)]
+#[serde(rename_all = "camelCase")]
+pub struct InstallRefusal {
+	pub field: String,
+	pub reason: String,
 }
 
 #[derive(Debug, Clone, PartialEq, Eq, Serialize, Deserialize)]
@@ -173,12 +181,15 @@ pub enum InstallCase {
 	Oauth,
 }
 
-impl From<Install> for InstallCase {
-	fn from(install: Install) -> Self {
+impl TryFrom<Install> for InstallCase {
+	type Error = InstallRefusal;
+
+	fn try_from(install: Install) -> Result<Self, Self::Error> {
 		match install {
-			Install::Nothing => InstallCase::Nothing,
-			Install::Key { secret, .. } => InstallCase::Key { secret },
-			Install::Oauth => InstallCase::Oauth,
+			Install::Nothing => Ok(InstallCase::Nothing),
+			Install::Key { secret, .. } => Ok(InstallCase::Key { secret }),
+			Install::Oauth => Ok(InstallCase::Oauth),
+			Install::Refused(refusal) => Err(refusal),
 		}
 	}
 }
@@ -225,6 +236,8 @@ pub enum ApplicationCallError {
 	UnknownScope { scope: String },
 	#[serde(rename_all = "camelCase")]
 	UnknownApplication { application: String },
+	#[serde(rename_all = "camelCase")]
+	ApplicationRefused { application: String, reason: String },
 	#[serde(rename_all = "camelCase")]
 	ConversationWithoutSpace { conversation_id: String },
 	#[serde(rename_all = "camelCase")]
@@ -365,10 +378,35 @@ mod tests {
 	}
 
 	#[test]
+	fn a_refusing_install_crosses_with_its_field_and_its_reason_beside_its_kind() {
+		let refusal =
+			InstallRefusal { field: "apiKey".to_owned(), reason: "it names no header.".to_owned() };
+
+		assert_eq!(
+			to_value(Install::Refused(refusal.clone())).expect("it serialises"),
+			json!({ "kind": "refused", "field": "apiKey", "reason": "it names no header." })
+		);
+		assert_eq!(InstallCase::try_from(Install::Refused(refusal.clone())), Err(refusal));
+		assert_eq!(InstallCase::try_from(Install::Oauth), Ok(InstallCase::Oauth));
+	}
+
+	#[test]
 	fn every_error_names_its_kind() {
 		assert_eq!(
 			to_value(ApplicationsError::RegistryRefused { status: 503 }).expect("it serialises"),
 			json!({ "kind": "registryRefused", "status": 503 })
+		);
+		assert_eq!(
+			to_value(ApplicationCallError::ApplicationRefused {
+				application: "@owner/keyed".to_owned(),
+				reason: "it names no header.".to_owned(),
+			})
+			.expect("it serialises"),
+			json!({
+				"kind": "applicationRefused",
+				"application": "@owner/keyed",
+				"reason": "it names no header.",
+			})
 		);
 		assert_eq!(
 			to_value(ApplicationsError::RegistryTimedOut).expect("it serialises"),

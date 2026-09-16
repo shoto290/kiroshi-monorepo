@@ -207,6 +207,9 @@ export const createApplicationsController = (
 		target: InstallTarget,
 		key: string,
 	) => {
+		if (application.install.kind === "refused") {
+			throw new Error(application.install.reason)
+		}
 		const { owner } = target
 		const wasDeclared = await isDeclaredUnder(owner, application.name)
 		await declareServer(store, owner, application.name, application.config)

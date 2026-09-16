@@ -79,6 +79,7 @@ const PENDING_POLL = 250
 const REASON_LIMIT = 300
 const SECRET_FLOOR = 8
 const REDACTED = "[redacted]"
+const URL_PAST_ITS_PATH = /(https?:\/\/[^\s"'<>]*?)[?#][^\s"'<>]*/gi
 const NO_READ = "no status read ever named it"
 const DISABLED = "it is disabled in this session"
 const STILL_CONNECTING = "is still connecting"
@@ -223,10 +224,14 @@ const storedValues = ({ base, perServer }: ServerEnv): string[] =>
 		...Object.values(perServer ?? {}).flatMap((scope) => Object.values(scope)),
 	].filter((value) => value.length >= SECRET_FLOOR)
 
+const withoutQuery = (reason: string): string =>
+	reason.replace(URL_PAST_ITS_PATH, "$1")
+
+const redacted = (reason: string, secrets: string[]): string =>
+	secrets.reduce((held, secret) => held.split(secret).join(REDACTED), reason)
+
 const readable = (reason: string, secrets: string[]): string =>
-	secrets
-		.reduce((held, secret) => held.split(secret).join(REDACTED), reason)
-		.slice(0, REASON_LIMIT)
+	redacted(withoutQuery(reason), secrets).slice(0, REASON_LIMIT)
 
 const reachedLine = (name: string): string =>
 	`the server "${name}" connected, and ${HOLDS_TOOLS} for the rest of this session`
