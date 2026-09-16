@@ -644,6 +644,39 @@ const meta = preview.meta({
 	},
 })
 
+export const WithUser = meta.story({
+	parameters: {
+		docs: {
+			description: {
+				story:
+					"The reader themselves, pinned under the list, which is the only way into their own settings, so a host that has an account to show always hands one down. Check that the chip opens the region with the picture leading and the name beside it, that it covers the whole row since nothing else is drawn there, and that activating it fires the open event once. Check then the two lanes this panel actually draws: the roster sits 9px in from the panel edge and leaves the same 9px on the trailing side, where the pinned region insets the chip by 8px, so the chip starts 1px short of the column the row above it starts on. That 1px is the carousel panel's `px-[9px]` read against the footer's `p-2`, and it is an open spacing question this panel cannot settle on its own: the fix is one inset chosen once, for the roster lane and the pinned region together, not a nudge inside either. Pick `WithUserAndFooter` for the same chip sharing the row, `WithSearch` for the field that does land on the roster lane.",
+			},
+		},
+	},
+	play: async ({ args, canvas, canvasElement, userEvent }) => {
+		const footer = slotIn(canvasElement, "sidebar-footer")
+		const chip = within(footer).getByRole("button", { name: READER_NAME })
+		const inner = slotIn(canvasElement, "sidebar-inner").getBoundingClientRect()
+		const chipBox = chip.getBoundingClientRect()
+		const rowBox = rowButton(rowsIn(canvasElement)[0]).getBoundingClientRect()
+		const card = canvas.getByRole("main").getBoundingClientRect()
+		const rosterLane = rowBox.left - inner.left
+		const chipLane = chipBox.left - inner.left
+		await expect(rosterLane).toBe(ROSTER_LANE)
+		await expect(card.left - rowBox.right).toBe(rosterLane)
+		await expect(rosterLane - chipLane).toBe(CHIP_LANE_DRIFT)
+
+		await expect(chip.getBoundingClientRect().width).toBeCloseTo(
+			footerRowWidth(footer),
+			0,
+		)
+		await expectFooterAtColumnBottom(canvasElement)
+
+		await userEvent.click(chip)
+		await expect(args.onOpenUserSettings).toHaveBeenCalledTimes(1)
+	},
+})
+
 export const Roster = meta.story({
 	tags: ["test-only"],
 	parameters: {
@@ -2225,39 +2258,6 @@ export const FooterOnRail = meta.story({
 		await expect(buttonBox.left).toBeGreaterThanOrEqual(panelBox.left)
 		await expect(buttonBox.right).toBeLessThanOrEqual(panelBox.right)
 		await expectFooterAtColumnBottom(canvasElement)
-	},
-})
-
-export const WithUser = meta.story({
-	parameters: {
-		docs: {
-			description: {
-				story:
-					"The reader themselves, pinned under the list, which is the only way into their own settings, so a host that has an account to show always hands one down. Check that the chip opens the region with the picture leading and the name beside it, that it covers the whole row since nothing else is drawn there, and that activating it fires the open event once. Check then the two lanes this panel actually draws: the roster sits 9px in from the panel edge and leaves the same 9px on the trailing side, where the pinned region insets the chip by 8px, so the chip starts 1px short of the column the row above it starts on. That 1px is the carousel panel's `px-[9px]` read against the footer's `p-2`, and it is an open spacing question this panel cannot settle on its own: the fix is one inset chosen once, for the roster lane and the pinned region together, not a nudge inside either. Pick `WithUserAndFooter` for the same chip sharing the row, `WithSearch` for the field that does land on the roster lane.",
-			},
-		},
-	},
-	play: async ({ args, canvas, canvasElement, userEvent }) => {
-		const footer = slotIn(canvasElement, "sidebar-footer")
-		const chip = within(footer).getByRole("button", { name: READER_NAME })
-		const inner = slotIn(canvasElement, "sidebar-inner").getBoundingClientRect()
-		const chipBox = chip.getBoundingClientRect()
-		const rowBox = rowButton(rowsIn(canvasElement)[0]).getBoundingClientRect()
-		const card = canvas.getByRole("main").getBoundingClientRect()
-		const rosterLane = rowBox.left - inner.left
-		const chipLane = chipBox.left - inner.left
-		await expect(rosterLane).toBe(ROSTER_LANE)
-		await expect(card.left - rowBox.right).toBe(rosterLane)
-		await expect(rosterLane - chipLane).toBe(CHIP_LANE_DRIFT)
-
-		await expect(chip.getBoundingClientRect().width).toBeCloseTo(
-			footerRowWidth(footer),
-			0,
-		)
-		await expectFooterAtColumnBottom(canvasElement)
-
-		await userEvent.click(chip)
-		await expect(args.onOpenUserSettings).toHaveBeenCalledTimes(1)
 	},
 })
 
