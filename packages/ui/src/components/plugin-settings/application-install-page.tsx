@@ -452,7 +452,8 @@ const ApplicationInstallPage = ({
 	useOverlayScrollbars(body)
 	const [key, setKey] = useState("")
 	const isPackage = !application.description
-	const { host } = application
+	const { host, refusal } = application
+	const isRefused = application.setup === "unavailable"
 	const hostedSource =
 		host === undefined ? undefined : (application.source ?? host)
 
@@ -482,9 +483,9 @@ const ApplicationInstallPage = ({
 			return <NothingToSetUp isHosted={host !== undefined} />
 		}
 
-		if (application.setup === "unavailable") {
-			return application.refusal ? (
-				<RefusedNotice name={application.name} refusal={application.refusal} />
+		if (isRefused) {
+			return refusal ? (
+				<RefusedNotice name={application.name} refusal={refusal} />
 			) : null
 		}
 
@@ -571,7 +572,7 @@ const ApplicationInstallPage = ({
 						</div>
 					</Tabs.Panel>
 
-					{application.setup === "unavailable" ? null : (
+					{isRefused ? null : (
 						<div className="col-start-1 row-start-2 flex items-center border-border border-b px-5 pb-3 @sm:col-start-2 @sm:row-start-1 @sm:ps-0 @sm:pt-3">
 							<InstallAction
 								isHosted={host !== undefined}

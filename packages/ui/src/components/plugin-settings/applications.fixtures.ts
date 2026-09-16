@@ -244,18 +244,17 @@ export const HOSTED_NOTHING_INSTALL: InstallableApplication = {
 	setup: "none",
 }
 
-export const REFUSED_APPLICATION: CatalogueApplication = {
+export const REFUSED_APPLICATION = {
 	id: "smithery/queried",
 	name: "Queried",
 	description: "Asks for a key its url would carry.",
 	setup: "unavailable",
 	source: "Smithery",
 	packageIdentity: "https://queried.run.tools/mcp",
-}
+} as const satisfies CatalogueApplication
 
 export const REFUSED_INSTALL: InstallableApplication = {
 	...REFUSED_APPLICATION,
-	packageIdentity: "https://queried.run.tools/mcp",
 	tools: ["search_records", "read_record"],
 	refusal: {
 		field: "apiKey",
