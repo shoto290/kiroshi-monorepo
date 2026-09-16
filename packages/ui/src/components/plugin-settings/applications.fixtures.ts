@@ -116,9 +116,9 @@ export const REGISTRY_APPLICATIONS: CatalogueApplication[] = [
 	},
 ]
 
-export const SLACK_MARK = markOf("#4a154b", "S")
+const SLACK_MARK = markOf("#4a154b", "S")
 
-export const UNREACHABLE_MARK = "data:image/png;base64,Tm90QW5JbWFnZQ=="
+const UNREACHABLE_MARK = "data:image/png;base64,Tm90QW5JbWFnZQ=="
 
 export const REGISTRY_RESULTS: CatalogueApplication[] = [
 	{
