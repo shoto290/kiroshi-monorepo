@@ -51,10 +51,10 @@ const CARD_SLOT_CLASS = "flex w-46.5 shrink-0"
 const CARD_SHELL_CLASS =
 	"flex w-full min-w-0 flex-col gap-2 rounded-xl border border-border p-3"
 
-const ROW_LIST_CLASS = "flex list-none flex-col gap-2.25 p-0"
+const ROW_LIST_CLASS = "flex list-none flex-col gap-2 p-0"
 
 const ROW_SHELL_CLASS =
-	"flex w-full min-w-0 items-start gap-2.5 rounded-lg border border-border px-3 py-2"
+	"flex w-full min-w-0 items-start gap-2.5 rounded-lg border border-border p-3"
 
 const SETUP_ICON = {
 	signIn: Icons.ExternalLink,
@@ -208,34 +208,90 @@ const SkeletonBar = ({ className, isFaint = false }: SkeletonBarProps) => (
 	/>
 )
 
+type SkeletonLineProps = {
+	line: string
+	bar: string
+	isFaint?: boolean
+}
+
+const SkeletonLine = ({ line, bar, isFaint = false }: SkeletonLineProps) => (
+	<div className={cn("flex items-center", line)}>
+		<SkeletonBar className={bar} isFaint={isFaint} />
+	</div>
+)
+
 const SkeletonMark = () => (
 	<Skeleton className="size-7 shrink-0 rounded-md bg-border motion-reduce:animate-none" />
 )
 
-const CARD_SKELETONS = ["one", "two", "three", "four", "five", "six"]
+type CardSkeleton = {
+	rank: string
+	name: string
+	description: string
+	setup: string
+}
 
-const ROW_SKELETONS = ["one", "two", "three"]
+const CARD_SKELETONS: CardSkeleton[] = [
+	{ rank: "one", name: "w-16.5", description: "w-28", setup: "w-19.5" },
+	{ rank: "two", name: "w-12", description: "w-34.5", setup: "w-16.5" },
+	{ rank: "three", name: "w-18.5", description: "w-23", setup: "w-22.5" },
+	{ rank: "four", name: "w-13.5", description: "w-31.5", setup: "w-18" },
+	{ rank: "five", name: "w-15.5", description: "w-21", setup: "w-15" },
+	{ rank: "six", name: "w-11", description: "w-32.5", setup: "w-21.5" },
+]
+
+type RowSkeleton = {
+	rank: string
+	name: string
+	description: string
+	meta: string
+	setup: string
+}
+
+const ROW_SKELETONS: RowSkeleton[] = [
+	{
+		rank: "one",
+		name: "w-33",
+		description: "w-51.5",
+		meta: "w-39.5",
+		setup: "w-24.5",
+	},
+	{
+		rank: "two",
+		name: "w-24",
+		description: "w-43",
+		meta: "w-29.5",
+		setup: "w-20.5",
+	},
+	{
+		rank: "three",
+		name: "w-37",
+		description: "w-56",
+		meta: "w-47.5",
+		setup: "w-17.5",
+	},
+]
 
 const CatalogueCardSkeletons = () => (
 	<ul aria-hidden="true" className="flex list-none flex-wrap gap-3 p-0">
-		{CARD_SKELETONS.map((rank) => (
+		{CARD_SKELETONS.map((card) => (
 			<li
 				className={CARD_SLOT_CLASS}
 				data-slot="catalogue-card-skeleton"
-				key={rank}
+				key={card.rank}
 			>
 				<div className={CARD_SHELL_CLASS}>
 					<div className="flex items-center gap-2.5">
 						<SkeletonMark />
-						<SkeletonBar className="h-3 w-16.5" />
+						<SkeletonBar className={cn("h-3", card.name)} />
 					</div>
 					<div className="flex flex-1 flex-col gap-1.5 pt-0.5">
 						<SkeletonBar className="h-2.25 w-40" />
-						<SkeletonBar className="h-2.25 w-28" isFaint />
+						<SkeletonBar className={cn("h-2.25", card.description)} isFaint />
 					</div>
 					<div className="flex items-center gap-1.25 pt-2">
 						<SkeletonBar className="size-3.25 shrink-0" isFaint />
-						<SkeletonBar className="h-2.25 w-19.5" isFaint />
+						<SkeletonBar className={cn("h-2.25", card.setup)} isFaint />
 					</div>
 				</div>
 			</li>
@@ -245,16 +301,22 @@ const CatalogueCardSkeletons = () => (
 
 const CatalogueRowSkeletons = () => (
 	<ul aria-hidden="true" className={ROW_LIST_CLASS}>
-		{ROW_SKELETONS.map((rank) => (
-			<li className="flex" data-slot="catalogue-row-skeleton" key={rank}>
+		{ROW_SKELETONS.map((row) => (
+			<li className="flex" data-slot="catalogue-row-skeleton" key={row.rank}>
 				<div className={ROW_SHELL_CLASS}>
 					<SkeletonMark />
-					<div className="flex min-w-0 flex-1 flex-col gap-1.5">
-						<SkeletonBar className="h-2.75 w-33" />
-						<SkeletonBar className="h-2.25 w-51.5" isFaint />
-						<SkeletonBar className="h-2.25 w-39.5" isFaint />
+					<div className="flex min-w-0 flex-1 flex-col gap-0.5">
+						<SkeletonLine bar={cn("h-2.75", row.name)} line="h-4.5" />
+						<SkeletonLine
+							bar={cn("h-2.25", row.description)}
+							isFaint
+							line="h-4"
+						/>
+						<SkeletonLine bar={cn("h-2.25", row.meta)} isFaint line="h-4" />
 					</div>
-					<SkeletonBar className="h-2.25 w-24.5 shrink-0" isFaint />
+					<div className="shrink-0 pt-px">
+						<SkeletonBar className={cn("h-2.25", row.setup)} isFaint />
+					</div>
 				</div>
 			</li>
 		))}
@@ -273,7 +335,7 @@ const CatalogueSection = ({
 	children,
 }: CatalogueSectionProps) => (
 	<section className="flex shrink-0 flex-col gap-2">
-		<div className="flex flex-wrap items-baseline gap-x-2">
+		<div className="flex flex-wrap items-baseline gap-x-2 px-2">
 			<h3 className="font-medium text-foreground text-sm">{title}</h3>
 			<p className="text-muted-foreground text-xs">{subtitle}</p>
 		</div>

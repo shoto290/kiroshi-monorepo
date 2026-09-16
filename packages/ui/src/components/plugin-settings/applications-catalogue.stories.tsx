@@ -18,9 +18,7 @@ import {
 
 const CARD_BOTTOM_INSET = 13
 
-const ROW_GAP = 9
-
-const ROW_SKELETON_HEIGHT = 59
+const ROW_GAP = 8
 
 const slotsOf = (canvasElement: HTMLElement, slot: string) => [
 	...canvasElement.querySelectorAll(`[data-slot="${slot}"]`),
@@ -51,6 +49,21 @@ const CatalogueHost = (props: ApplicationsCatalogueProps) => {
 			}}
 			query={query}
 			registry={isTyped ? matching(props.registry, query) : []}
+		/>
+	)
+}
+
+const RegistryLandingHost = (props: ApplicationsCatalogueProps) => {
+	const [query, setQuery] = useState("")
+	const isSearching = query === ""
+
+	return (
+		<ApplicationsCatalogue
+			{...props}
+			isRegistrySearching={isSearching}
+			onQueryChange={setQuery}
+			query={query}
+			registry={isSearching ? [] : props.registry}
 		/>
 	)
 }
@@ -345,7 +358,7 @@ export const CatalogueLoading = meta.story({
 		docs: {
 			description: {
 				story:
-					"The catalogue opening, nothing typed yet. Check that both sections draw skeletons: six card skeletons, three row skeletons of three bars each, nine apart, the em dash where the Everything count goes, the body marked busy and the polite line saying the catalogue is loading, announced from outside the busy body.",
+					"The catalogue opening, nothing typed yet. Check that both sections draw skeletons: six card skeletons, three row skeletons of three bars each, eight apart, the em dash where the Everything count goes, the body marked busy and the polite line saying the catalogue is loading, announced from outside the busy body.",
 			},
 		},
 	},
@@ -361,7 +374,6 @@ export const CatalogueLoading = meta.story({
 		).not.toBeInTheDocument()
 
 		const [first, second] = rows.map((row) => row.getBoundingClientRect())
-		await expect(Math.round(first.height)).toBe(ROW_SKELETON_HEIGHT)
 		await expect(Math.round(second.top - first.bottom)).toBe(ROW_GAP)
 
 		const everything = canvas.getByRole("tab", { name: "Everything" })
@@ -377,6 +389,36 @@ export const CatalogueLoading = meta.story({
 
 		const [bar] = slotsOf(canvasElement, "skeleton")
 		await expect(bar).toHaveClass("motion-reduce:animate-none")
+	},
+})
+
+export const RegistrySkeletonLandsOnRow = meta.story({
+	args: { curated: [], registry: REGISTRY_RESULTS },
+	render: (args) => <RegistryLandingHost {...args} />,
+	parameters: {
+		docs: {
+			description: {
+				story:
+					"The registry answering. Check that the first row lands exactly where its skeleton stood: same edges, same padding, same height, so the list does not jump.",
+			},
+		},
+	},
+	play: async ({ canvas, canvasElement, userEvent }) => {
+		const [skeleton] = slotsOf(canvasElement, "catalogue-row-skeleton")
+		const before = skeleton.getBoundingClientRect()
+
+		await userEvent.type(
+			canvas.getByRole("textbox", { name: "Search applications" }),
+			"s",
+		)
+
+		const [row] = canvas.getAllByRole("listitem")
+		const after = row.getBoundingClientRect()
+
+		await expect(Math.round(after.top)).toBe(Math.round(before.top))
+		await expect(Math.round(after.left)).toBe(Math.round(before.left))
+		await expect(Math.round(after.width)).toBe(Math.round(before.width))
+		await expect(Math.round(after.height)).toBe(Math.round(before.height))
 	},
 })
 
@@ -456,7 +498,7 @@ export const RegistryResultHovered = meta.story({
 		docs: {
 			description: {
 				story:
-					"The pill against the row it sits in. At rest the row carries no surface of its own and the pill carries the muted one E4c draws. Under the pointer the row takes that same muted surface, so the pill leaves it for the page surface and keeps reading as a pill. The test browser places no real pointer, so the hovered pair is read off the classes that draw it; hover the row in Storybook to see it.",
+					"The row under the pointer. At rest the row carries no surface of its own and the pill carries the muted one E4c draws. Under the pointer the row takes that same muted surface, so the pill leaves it for the page surface, the mark keeps the frame that separates it from the surface and the setup line keeps a color of its own. The test browser places no real pointer, so the hovered pair is read off the classes that draw it; hover the row in Storybook to see it.",
 			},
 		},
 	},
@@ -464,16 +506,19 @@ export const RegistryResultHovered = meta.story({
 		const [row] = canvas.getAllByRole("listitem")
 		const pill = within(row).getByText("Verified")
 		const button = within(row).getByRole("button")
+		const [mark] = slotsOf(row, "application-mark")
+		const setup = within(row).getByText("Signs you in")
+		const hovered = getComputedStyle(pill).backgroundColor
 
 		await expect(getComputedStyle(button).backgroundColor).toBe(
 			"rgba(0, 0, 0, 0)",
 		)
-		await expect(getComputedStyle(pill).backgroundColor).not.toBe(
-			getComputedStyle(button).backgroundColor,
-		)
+		await expect(hovered).not.toBe(getComputedStyle(button).backgroundColor)
 
 		await expect(button).toHaveClass("group", "hover:bg-muted")
 		await expect(pill).toHaveClass("bg-muted", "group-hover:bg-background")
+		await expect(getComputedStyle(mark).borderTopColor).not.toBe(hovered)
+		await expect(getComputedStyle(setup).color).not.toBe(hovered)
 
 		await userEvent.hover(button)
 		await expect(pill).toBeVisible()
