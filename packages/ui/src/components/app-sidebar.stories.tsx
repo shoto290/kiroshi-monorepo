@@ -292,6 +292,20 @@ const READER: UserChipIdentity = {
 	image: UPLOADED_IMAGE,
 }
 
+const HOME = SPACES[0].id
+
+const HOME_SPACES: Space[] = [SPACES[0]]
+
+const inHome = <T,>(held: T[]): Record<string, T[]> => ({ [HOME]: held })
+
+const NO_ROOMS: AppSidebarConversation[] = []
+
+const NO_SECTIONS_YET: AppSidebarSection[] = []
+
+const CREATE = "Create"
+
+const SPACES_BRANCH = "Spaces"
+
 const SilentSlot = () => null
 
 const SILENT_FOOTER_CONTENT = <SilentSlot />
@@ -306,6 +320,12 @@ const footerRowWidth = (footer: HTMLElement) => {
 }
 
 const verticalCentreOf = (box: DOMRect) => box.top + box.height / 2
+
+const ROSTER_LANE = 9
+
+const FOOTER_LANE = 8
+
+const CHIP_LANE_DRIFT = ROSTER_LANE - FOOTER_LANE
 
 const withoutTitle = (bot: AppSidebarBot): AppSidebarBot => ({
 	...bot,
@@ -334,6 +354,25 @@ const rowFor = (canvasElement: HTMLElement, name: string) => {
 }
 
 const rowButton = (row: HTMLElement) => slotIn(row, "sidebar-menu-button")
+
+const carouselIn = (canvasElement: HTMLElement) =>
+	slotIn(canvasElement, "space-carousel")
+
+const panelsIn = (canvasElement: HTMLElement) =>
+	slotsIn(canvasElement, "space-panel")
+
+const panelInView = (canvasElement: HTMLElement) => {
+	const panel = panelsIn(canvasElement).find(
+		(box) => !box.hasAttribute("inert"),
+	)
+	if (!panel) throw new Error("No space panel is in view")
+	return panel
+}
+
+const searchFieldIn = (canvasElement: HTMLElement) =>
+	within(slotIn(canvasElement, "sidebar-search-field")).getByRole("button", {
+		name: /Search/,
+	})
 
 const avatarDrawingIn = (row: HTMLElement) => {
 	const drawing = slotIn(row, "bot-identity-avatar").querySelector("svg")
@@ -571,20 +610,30 @@ const meta = preview.meta({
 		docs: {
 			description: {
 				component:
-					"The roster panel of an agent app, mounted whole: the animated sidebar shell around every companion the reader owns. It carries no chrome of its own beyond the create button — the pinned region above the list clears the window controls when `insetWindowControls` says a transparent title bar sits over it, and the open state comes from the `WorkspaceShell` above it, so Cmd/Ctrl+B and whatever trigger the page mounts drive the panel and the column beside it together. A row is the companion avatar, its name, an optional title badge and the time of its last message, over one clipped line of that message. A companion at rest holds the pose it was given in its settings, drawn as a still frame; a companion that is running holds its work pose, animates, and wears an activity dot. A companion wearing a picture its reader uploaded shows that instead, and it never moves — the dot is what says it is working. Settings, duplicate and delete live behind a right-click on the row — there is no actions button to reveal — and selection and running state are props, so a host maps its store onto `bots` and `selectedBotId` and nothing here polls the transport.",
+					"The roster panel of an agent app, mounted whole: the animated sidebar shell around every companion the reader owns. Its pinned region carries the space switcher and the create menu, with the search field under it, and it clears the window controls when `insetWindowControls` says a transparent title bar sits over it, and the open state comes from the `WorkspaceShell` above it, so Cmd/Ctrl+B and whatever trigger the page mounts drive the panel and the column beside it together. A row is the companion avatar, its name, an optional title badge and the time of its last message, over one clipped line of that message. A companion at rest holds the pose it was given in its settings, drawn as a still frame; a companion that is running holds its work pose, animates, and wears an activity dot. A companion wearing a picture its reader uploaded shows that instead, and it never moves — the dot is what says it is working. Under the list it pins the reader's own chip beside a slot the host fills, and at rest that slot draws nothing, so the resting row is the chip alone. Settings, duplicate and delete live behind a right-click on the row — there is no actions button to reveal — and selection and running state are props, so a host maps its store onto `botsBySpaceId` and `selectedBotId` and nothing here polls the transport.",
 			},
 		},
 	},
 	args: {
 		bots: ROSTER,
+		botsBySpaceId: inHome(ROSTER),
+		conversations: NO_ROOMS,
+		conversationsBySpaceId: inHome(NO_ROOMS),
+		sectionsBySpaceId: inHome(NO_SECTIONS_YET),
+		spaces: HOME_SPACES,
+		selectedSpaceId: HOME,
 		selectedBotId: "beacon",
+		user: READER,
+		footer: SILENT_FOOTER_CONTENT,
 		onSelectBot: fn(),
 		onCreateBot: fn(),
+		onCreateConversation: fn(),
 		onEditBot: fn(),
 		onDuplicateBot: fn(),
 		onAddBotToSpace: fn(),
 		onRemoveBotFromSpace: fn(),
 		onDeleteBot: fn(),
+		onOpenSearch: fn(),
 		onOpenUserSettings: fn(),
 		onSelectSpace: fn(),
 		onCreateSpace: fn(),
@@ -595,12 +644,46 @@ const meta = preview.meta({
 	},
 })
 
-export const Roster = meta.story({
+export const WithUser = meta.story({
 	parameters: {
 		docs: {
 			description: {
 				story:
-					"A dozen companions, some with a title badge and some without, each wearing the blot it was given. Check that the avatars, the names and the timestamps each hold one column down the whole list — a row without a badge must not slide its name or its preview out of line with the row above it — and that every row is the same height whatever it carries. The message and the time read as muted and read alike, on the selected row as on the rest, so a row says its name first and dates itself second; the name is the only line in the row drawn at full strength. The list is walked with Tab and a row is its own only stop, since the actions carry no button: the create button first, then one stop per row, and Enter on a row reports the selection rather than taking it. Pick `LongContent` for the same list under names and messages that do not fit, `RowContextMenu` for the actions behind a row, `Identities` for the blots at rest.",
+					"The reader themselves, pinned under the list, which is the only way into their own settings, so a host that has an account to show always hands one down. Check that the chip opens the region with the picture leading and the name beside it, that it covers the whole row since nothing else is drawn there, and that activating it fires the open event once. Check then the two lanes this panel actually draws: the roster sits 9px in from the panel edge and leaves the same 9px on the trailing side, where the pinned region insets the chip by 8px, so the chip starts 1px short of the column the row above it starts on. That 1px is the carousel panel's `px-[9px]` read against the footer's `p-2`, and it is an open spacing question this panel cannot settle on its own: the fix is one inset chosen once, for the roster lane and the pinned region together, not a nudge inside either. Pick `WithUserAndFooter` for the same chip sharing the row, `WithSearch` for the field that does land on the roster lane.",
+			},
+		},
+	},
+	play: async ({ args, canvas, canvasElement, userEvent }) => {
+		const footer = slotIn(canvasElement, "sidebar-footer")
+		const chip = within(footer).getByRole("button", { name: READER_NAME })
+		const inner = slotIn(canvasElement, "sidebar-inner").getBoundingClientRect()
+		const chipBox = chip.getBoundingClientRect()
+		const rowBox = rowButton(rowsIn(canvasElement)[0]).getBoundingClientRect()
+		const card = canvas.getByRole("main").getBoundingClientRect()
+		const rosterLane = rowBox.left - inner.left
+		const chipLane = chipBox.left - inner.left
+		await expect(rosterLane).toBe(ROSTER_LANE)
+		await expect(card.left - rowBox.right).toBe(rosterLane)
+		await expect(rosterLane - chipLane).toBe(CHIP_LANE_DRIFT)
+
+		await expect(chip.getBoundingClientRect().width).toBeCloseTo(
+			footerRowWidth(footer),
+			0,
+		)
+		await expectFooterAtColumnBottom(canvasElement)
+
+		await userEvent.click(chip)
+		await expect(args.onOpenUserSettings).toHaveBeenCalledTimes(1)
+	},
+})
+
+export const Roster = meta.story({
+	tags: ["test-only"],
+	parameters: {
+		docs: {
+			description: {
+				story:
+					"A dozen companions, some with a title badge and some without, each wearing the blot it was given. Check that the avatars, the names and the timestamps each hold one column down the whole list — a row without a badge must not slide its name or its preview out of line with the row above it — and that every row is the same height whatever it carries. The message and the time read as muted and read alike, on the selected row as on the rest, so a row says its name first and dates itself second; the name is the only line in the row drawn at full strength. The roster sits in the panel the app mounts: one space, its own roster, the create menu and the search field above it, so the carousel holds a single panel and there is no dot strip to count. The list is walked with Tab and a row is its own only stop, since the actions carry no button: the space switcher, the create menu and the search field first, then one stop per row, and Enter on a row reports the selection rather than taking it. Pick `LongContent` for the same list under names and messages that do not fit, `RowContextMenu` for the actions behind a row, `Identities` for the blots at rest.",
 			},
 		},
 	},
@@ -624,12 +707,25 @@ export const Roster = meta.story({
 			),
 		).toBeNull()
 
-		const create = canvas.getByRole("button", { name: "New companion" })
+		const create = canvas.getByRole("button", { name: CREATE })
+		await userEvent.tab()
+		await expect(slotIn(canvasElement, "space-switcher")).toHaveFocus()
 		await userEvent.tab()
 		await expect(create).toHaveFocus()
 		await userEvent.keyboard("{Enter}")
+		await userEvent.click(
+			within(await screen.findByRole("menu", { name: CREATE })).getByRole(
+				"menuitem",
+				{ name: "New companion" },
+			),
+		)
 		await expect(args.onCreateBot).toHaveBeenCalled()
+		await waitFor(async () => {
+			await expect(create).toHaveFocus()
+		}, FRAME_POLL)
 
+		await userEvent.tab()
+		await expect(searchFieldIn(canvasElement)).toHaveFocus()
 		await userEvent.tab()
 		await expect(rowButton(rows[0])).toHaveFocus()
 		await userEvent.tab()
@@ -641,23 +737,24 @@ export const Roster = meta.story({
 })
 
 export const CreateLabel = meta.story({
+	tags: ["test-only"],
 	parameters: {
 		docs: {
 			description: {
 				story:
-					"The one label in this panel that cannot open upwards. The create control is pinned in the region that clears the window controls, against the top of the window, so a label above it would be drawn off the screen — it opens under the button instead, on hover and on focus alike. Check both, and check that the bubble sits inside the window on every edge: a label a reader cannot read is the same as no label.",
+					"The one label in this panel that cannot open upwards. The create menu's trigger is pinned in the region that clears the window controls, against the top of the window, so a label above it would be drawn off the screen — it opens under the button instead, on hover and on focus alike. Check both, and check that the bubble sits inside the window on every edge: a label a reader cannot read is the same as no label.",
 			},
 		},
 	},
 	play: async ({ canvas, userEvent }) => {
-		const create = canvas.getByRole("button", { name: "New companion" })
+		const create = canvas.getByRole("button", { name: CREATE })
 		const label = () =>
 			document.body.querySelector<HTMLElement>('[role="tooltip"]')
 
 		const opensBelow = async () => {
 			await waitFor(async () => {
 				await expect(label()).toBeVisible()
-				await expect(label()).toHaveTextContent("New companion")
+				await expect(label()).toHaveTextContent(CREATE)
 			})
 			const button = create.getBoundingClientRect()
 
@@ -680,18 +777,41 @@ export const CreateLabel = meta.story({
 		await waitFor(async () => expect(label()).toBeNull())
 
 		await userEvent.tab()
+		await userEvent.tab()
 		await expect(create).toHaveFocus()
 		await opensBelow()
 	},
 })
 
-export const Empty = meta.story({
-	args: { bots: [] },
+export const PlainCreateButton = meta.story({
+	tags: ["test-only"],
+	args: { onCreateConversation: undefined },
 	parameters: {
 		docs: {
 			description: {
 				story:
-					"A reader who owns no companion yet. Check that the list is gone rather than left as an empty box, that the copy says so in one line, and that the create button is still the first thing Tab reaches — it is the only way out of this state. The live region says nothing is selected, so a screen reader is not left waiting for a row that never comes.",
+					"The header given no `onCreateConversation`, which is the one shape of this panel the app never mounts. With nothing to choose between, the plus stops asking and acts: it is a plain button named for the single thing it makes, it reports no popup, and pressing it creates a companion instead of opening anything. Kept as a test so the branch stays honest while the catalogue shows only the menu. Pick `CreateMenu` for the trigger the app mounts, `CreateLabel` for the label both of them open downwards.",
+			},
+		},
+	},
+	play: async ({ args, canvas, userEvent }) => {
+		const create = canvas.getByRole("button", { name: "New companion" })
+		await expect(create).not.toHaveAttribute("aria-haspopup")
+
+		await userEvent.click(create)
+		await expect(args.onCreateBot).toHaveBeenCalledTimes(1)
+		await expect(screen.queryByRole("menu")).toBeNull()
+	},
+})
+
+export const Empty = meta.story({
+	tags: ["test-only"],
+	args: { botsBySpaceId: inHome([]) },
+	parameters: {
+		docs: {
+			description: {
+				story:
+					"A reader who owns no companion yet. Check that the list is gone rather than left as an empty box, that the copy says so in one line, and that the create menu is still the first control Tab reaches past the space switcher, since it is the only way out of this state. The live region says nothing is selected, so a screen reader is not left waiting for a row that never comes.",
 			},
 		},
 	},
@@ -702,7 +822,8 @@ export const Empty = meta.story({
 			"No companion selected",
 		)
 
-		const create = canvas.getByRole("button", { name: "New companion" })
+		const create = canvas.getByRole("button", { name: CREATE })
+		await userEvent.tab()
 		await userEvent.tab()
 		await expect(create).toHaveFocus()
 		await expect(create.matches(":focus-visible")).toBe(true)
@@ -710,7 +831,8 @@ export const Empty = meta.story({
 })
 
 export const UnreadableRoster = meta.story({
-	args: { bots: [], haveBotsFailedToLoad: true },
+	tags: ["test-only"],
+	args: { botsBySpaceId: inHome([]), haveBotsFailedToLoad: true },
 	parameters: {
 		docs: {
 			description: {
@@ -733,7 +855,8 @@ export const UnreadableRoster = meta.story({
 })
 
 export const SingleBot = meta.story({
-	args: { bots: [ROSTER[1]], selectedBotId: "beacon" },
+	tags: ["test-only"],
+	args: { botsBySpaceId: inHome([ROSTER[1]]), selectedBotId: "beacon" },
 	parameters: {
 		docs: {
 			description: {
@@ -762,8 +885,9 @@ export const SingleBot = meta.story({
 })
 
 export const NoTitles = meta.story({
+	tags: ["test-only"],
 	args: {
-		bots: ROSTER.slice(0, 5).map(withoutTitle),
+		botsBySpaceId: inHome(ROSTER.slice(0, 5).map(withoutTitle)),
 		selectedBotId: "atlas",
 	},
 	parameters: {
@@ -784,13 +908,14 @@ export const NoTitles = meta.story({
 })
 
 export const NoHistory = meta.story({
+	tags: ["test-only"],
 	args: {
-		bots: [
+		botsBySpaceId: inHome([
 			ROSTER[0],
 			withoutHistory(ROSTER[1]),
 			withoutHistory(ROSTER[3]),
 			ROSTER[4],
-		],
+		]),
 		selectedBotId: "beacon",
 	},
 	parameters: {
@@ -817,6 +942,7 @@ export const NoHistory = meta.story({
 })
 
 export const Selected = meta.story({
+	tags: ["test-only"],
 	args: { selectedBotId: "ember" },
 	parameters: {
 		docs: {
@@ -846,8 +972,9 @@ export const Selected = meta.story({
 })
 
 export const UploadedPictures = meta.story({
+	tags: ["test-only"],
 	args: {
-		bots: [
+		botsBySpaceId: inHome([
 			{ ...ROSTER[0], image: UPLOADED_IMAGE },
 			{
 				...ROSTER[2],
@@ -856,7 +983,7 @@ export const UploadedPictures = meta.story({
 				pose: "writing",
 			},
 			ROSTER[1],
-		],
+		]),
 		selectedBotId: "atlas",
 	},
 	parameters: {
@@ -891,8 +1018,9 @@ export const UploadedPictures = meta.story({
 })
 
 export const SharedTint = meta.story({
+	tags: ["test-only"],
 	args: {
-		bots: SHARED_TINT_ROSTER,
+		botsBySpaceId: inHome(SHARED_TINT_ROSTER),
 		selectedBotId: SHARED_TINT_ROSTER[0].id,
 	},
 	parameters: {
@@ -919,8 +1047,9 @@ export const SharedTint = meta.story({
 })
 
 export const Identities = meta.story({
+	tags: ["test-only"],
 	args: {
-		bots: IDENTITY_ROSTER,
+		botsBySpaceId: inHome(IDENTITY_ROSTER),
 		selectedBotId: IDENTITY_ROSTER[0].id,
 	},
 	parameters: {
@@ -961,7 +1090,7 @@ export const Identities = meta.story({
 			getComputedStyle(rowButton(rows[0])).borderStartStartRadius,
 		).toBe(surfaceRadius)
 		await expect(
-			getComputedStyle(canvas.getByRole("button", { name: "New companion" }))
+			getComputedStyle(canvas.getByRole("button", { name: CREATE }))
 				.borderStartStartRadius,
 		).toBe(surfaceRadius)
 
@@ -972,14 +1101,15 @@ export const Identities = meta.story({
 })
 
 export const Working = meta.story({
+	tags: ["test-only"],
 	args: {
-		bots: [
+		botsBySpaceId: inHome([
 			{ ...ROSTER[0], status: "working", pose: "thinking" },
 			{ ...ROSTER[1], status: "working", pose: "searching" },
 			{ ...ROSTER[2], status: "working", pose: "writing" },
 			{ ...ROSTER[3], status: "working", pose: "working" },
 			ROSTER[4],
-		],
+		]),
 		selectedBotId: "cinder",
 	},
 	parameters: {
@@ -1050,8 +1180,12 @@ export const Working = meta.story({
 })
 
 export const PermissionPending = meta.story({
+	tags: ["test-only"],
 	args: {
-		bots: [{ ...ROSTER[0], status: "working", pose: "waiting" }, ROSTER[1]],
+		botsBySpaceId: inHome([
+			{ ...ROSTER[0], status: "working", pose: "waiting" },
+			ROSTER[1],
+		]),
 		selectedBotId: "atlas",
 	},
 	parameters: {
@@ -1083,7 +1217,8 @@ export const PermissionPending = meta.story({
 })
 
 export const Badges = meta.story({
-	args: { bots: BADGED_ROSTER, selectedBotId: "beacon" },
+	tags: ["test-only"],
+	args: { botsBySpaceId: inHome(BADGED_ROSTER), selectedBotId: "beacon" },
 	parameters: {
 		docs: {
 			description: {
@@ -1120,7 +1255,8 @@ export const Badges = meta.story({
 })
 
 export const BadgesOnRail = meta.story({
-	args: { bots: BADGED_ROSTER, selectedBotId: "beacon" },
+	tags: ["test-only"],
+	args: { botsBySpaceId: inHome(BADGED_ROSTER), selectedBotId: "beacon" },
 	render: renderShell(false),
 	parameters: {
 		docs: {
@@ -1158,7 +1294,11 @@ export const BadgesOnRail = meta.story({
 })
 
 export const MissionStripStates = meta.story({
-	args: { bots: MISSION_STATE_ROSTER, selectedBotId: "beacon" },
+	tags: ["test-only"],
+	args: {
+		botsBySpaceId: inHome(MISSION_STATE_ROSTER),
+		selectedBotId: "beacon",
+	},
 	parameters: {
 		a11y: A11Y_CONTRAST_AWAITING_DESIGN_DECISION,
 		docs: {
@@ -1214,8 +1354,9 @@ export const MissionStripStates = meta.story({
 })
 
 export const MissionStripSingle = meta.story({
+	tags: ["test-only"],
 	args: {
-		bots: [MISSION_STATE_ROSTER[0], ROSTER[6]],
+		botsBySpaceId: inHome([MISSION_STATE_ROSTER[0], ROSTER[6]]),
 		selectedBotId: "atlas",
 	},
 	parameters: {
@@ -1245,8 +1386,9 @@ export const MissionStripSingle = meta.story({
 })
 
 export const MissionStripStack = meta.story({
+	tags: ["test-only"],
 	args: {
-		bots: [
+		botsBySpaceId: inHome([
 			{
 				...ROSTER[0],
 				missions: [
@@ -1256,7 +1398,7 @@ export const MissionStripStack = meta.story({
 					missionOf("working", 3),
 				],
 			},
-		],
+		]),
 		selectedBotId: "atlas",
 	},
 	parameters: {
@@ -1288,7 +1430,11 @@ export const MissionStripStack = meta.story({
 })
 
 export const MissionStripNone = meta.story({
-	args: { bots: [ROSTER[6], ROSTER[3]], selectedBotId: "grove" },
+	tags: ["test-only"],
+	args: {
+		botsBySpaceId: inHome([ROSTER[6], ROSTER[3]]),
+		selectedBotId: "grove",
+	},
 	parameters: {
 		docs: {
 			description: {
@@ -1307,8 +1453,9 @@ export const MissionStripNone = meta.story({
 })
 
 export const MissionStripSelected = meta.story({
+	tags: ["test-only"],
 	args: {
-		bots: [MISSION_STATE_ROSTER[0], MISSION_STATE_ROSTER[1]],
+		botsBySpaceId: inHome([MISSION_STATE_ROSTER[0], MISSION_STATE_ROSTER[1]]),
 		selectedBotId: "atlas",
 	},
 	parameters: {
@@ -1353,8 +1500,9 @@ export const MissionStripSelected = meta.story({
 })
 
 export const MissionStripTruncatedTitle = meta.story({
+	tags: ["test-only"],
 	args: {
-		bots: [
+		botsBySpaceId: inHome([
 			{
 				...ROSTER[0],
 				missions: [
@@ -1370,7 +1518,7 @@ export const MissionStripTruncatedTitle = meta.story({
 					},
 				],
 			},
-		],
+		]),
 		selectedBotId: "atlas",
 	},
 	parameters: {
@@ -1396,8 +1544,9 @@ export const MissionStripTruncatedTitle = meta.story({
 })
 
 export const MissionStripUnnamedPlatform = meta.story({
+	tags: ["test-only"],
 	args: {
-		bots: [
+		botsBySpaceId: inHome([
 			{
 				...ROSTER[0],
 				missions: [
@@ -1427,7 +1576,7 @@ export const MissionStripUnnamedPlatform = meta.story({
 				],
 			},
 			{ ...ROSTER[1], missions: [missionOf("waiting", 1)] },
-		],
+		]),
 		selectedBotId: "atlas",
 	},
 	parameters: {
@@ -1454,8 +1603,9 @@ export const MissionStripUnnamedPlatform = meta.story({
 })
 
 export const MissionStripUntrackedTicket = meta.story({
+	tags: ["test-only"],
 	args: {
-		bots: [
+		botsBySpaceId: inHome([
 			{
 				...ROSTER[0],
 				missions: [
@@ -1476,7 +1626,7 @@ export const MissionStripUntrackedTicket = meta.story({
 					},
 				],
 			},
-		],
+		]),
 		selectedBotId: "atlas",
 	},
 	parameters: {
@@ -1511,7 +1661,11 @@ export const MissionStripUntrackedTicket = meta.story({
 })
 
 export const MissionStripRaised = meta.story({
-	args: { bots: LOOSE_MISSION_ROSTER, selectedBotId: "beacon" },
+	tags: ["test-only"],
+	args: {
+		botsBySpaceId: inHome(LOOSE_MISSION_ROSTER),
+		selectedBotId: "beacon",
+	},
 	parameters: {
 		a11y: A11Y_CONTRAST_AWAITING_DESIGN_DECISION,
 		docs: {
@@ -1541,8 +1695,12 @@ export const MissionStripRaised = meta.story({
 })
 
 export const MissionStripWithChatBadge = meta.story({
+	tags: ["test-only"],
 	args: {
-		bots: [{ ...MISSION_STATE_ROSTER[0], badge: "attention" }, ROSTER[6]],
+		botsBySpaceId: inHome([
+			{ ...MISSION_STATE_ROSTER[0], badge: "attention" },
+			ROSTER[6],
+		]),
 		selectedBotId: "atlas",
 	},
 	parameters: {
@@ -1568,7 +1726,11 @@ export const MissionStripWithChatBadge = meta.story({
 })
 
 export const MissionStripOnRail = meta.story({
-	args: { bots: MISSION_STATE_ROSTER, selectedBotId: "beacon" },
+	tags: ["test-only"],
+	args: {
+		botsBySpaceId: inHome(MISSION_STATE_ROSTER),
+		selectedBotId: "beacon",
+	},
 	render: renderShell(false),
 	parameters: {
 		docs: {
@@ -1591,7 +1753,11 @@ export const MissionStripOnRail = meta.story({
 })
 
 export const MissionStripPlainMenuButton = meta.story({
-	args: { bots: MISSION_STATE_ROSTER, selectedBotId: "beacon", user: READER },
+	tags: ["test-only"],
+	args: {
+		botsBySpaceId: inHome(MISSION_STATE_ROSTER),
+		selectedBotId: "beacon",
+	},
 	parameters: {
 		a11y: A11Y_CONTRAST_AWAITING_DESIGN_DECISION,
 		docs: {
@@ -1619,8 +1785,9 @@ export const MissionStripPlainMenuButton = meta.story({
 })
 
 export const LongContent = meta.story({
+	tags: ["test-only"],
 	args: {
-		bots: [
+		botsBySpaceId: inHome([
 			{
 				id: "long",
 				name: "Bartholomew Featherstonehaugh the Third",
@@ -1637,7 +1804,7 @@ export const LongContent = meta.story({
 				lastMessage: LAST_MESSAGE,
 				timestamp: "12:07",
 			},
-		],
+		]),
 		selectedBotId: "long",
 	},
 	parameters: {
@@ -1669,8 +1836,9 @@ export const LongContent = meta.story({
 })
 
 export const MarkdownPreview = meta.story({
+	tags: ["test-only"],
 	args: {
-		bots: [
+		botsBySpaceId: inHome([
 			{
 				id: "marked",
 				name: "Atlas",
@@ -1686,7 +1854,7 @@ export const MarkdownPreview = meta.story({
 				lastMessage: "Ran the suite twice, both green.",
 				timestamp: "11:40",
 			},
-		],
+		]),
 		selectedBotId: "marked",
 	},
 	parameters: {
@@ -1710,8 +1878,9 @@ export const MarkdownPreview = meta.story({
 })
 
 export const RowContextMenu = meta.story({
+	tags: ["test-only"],
 	args: {
-		bots: ROSTER.slice(0, 4),
+		botsBySpaceId: inHome(ROSTER.slice(0, 4)),
 		selectedBotId: "beacon",
 		onPinRoster: fn(),
 	},
@@ -1720,7 +1889,7 @@ export const RowContextMenu = meta.story({
 		docs: {
 			description: {
 				story:
-					"The actions behind a row, on the third one. There is no button to find: the row itself is the trigger, so the columns never move to make room for a control and nothing appears on hover. A pointer right-clicks the row; a keyboard reaches the same menu with the Menu key or Shift+F10 on the focused row, which the browser turns into the same `contextmenu` event this story fires. Focus lands on the menu itself and the first arrow reaches its first row, which is what a menu opened by a pointer does everywhere in Base UI. Check that the menu leads with pin and a rule under it, then offers companion settings, a duplicate under it and delete with delete reading as destructive, that the arrow keys walk them, and that Escape closes the menu and puts focus back on the row it belongs to rather than dropping it on the page, as does choosing an entry. The highlighted item is the focused one, drawn by the registry item's own `focus:bg-accent`, so the focus ring and the highlight are the same signal. The row carries no `aria-haspopup`: a click on it opens a companion, not a menu, so the registry trigger leaves the row saying only what it does. The menu is left open here so the panel can be read with it up. Delete carries `--destructive`, which does not clear AA against a light popup at this size — the same open question `Primitives/Button` already carries on its own destructive variant, and a token decision rather than a decision this menu can make on its own.",
+					"The actions behind a row, on the third one. There is no button to find: the row itself is the trigger, so the columns never move to make room for a control and nothing appears on hover. A pointer right-clicks the row; a keyboard reaches the same menu with the Menu key or Shift+F10 on the focused row, which the browser turns into the same `contextmenu` event this story fires. Focus lands on the menu itself and the first arrow reaches its first row, which is what a menu opened by a pointer does everywhere in Base UI. Check that the menu leads with pin and a rule under it, then offers companion settings, a duplicate under it, the branch that says which spaces hold the companion and delete with delete reading as destructive, that the arrow keys walk them, and that Escape closes the menu and puts focus back on the row it belongs to rather than dropping it on the page, as does choosing an entry. The highlighted item is the focused one, drawn by the registry item's own `focus:bg-accent`, so the focus ring and the highlight are the same signal. The row carries no `aria-haspopup`: a click on it opens a companion, not a menu, so the registry trigger leaves the row saying only what it does. The menu is left open here so the panel can be read with it up. Pick `FullRowMenu` for the same menu in an account that has sections to file under as well. Delete carries `--destructive`, which does not clear AA against a light popup at this size — the same open question `Primitives/Button` already carries on its own destructive variant, and a token decision rather than a decision this menu can make on its own.",
 			},
 		},
 	},
@@ -1731,6 +1900,8 @@ export const RowContextMenu = meta.story({
 
 		await expect(within(row).getAllByRole("button")).toHaveLength(1)
 
+		await userEvent.tab()
+		await userEvent.tab()
 		await userEvent.tab()
 		await userEvent.tab()
 		await userEvent.tab()
@@ -1746,9 +1917,10 @@ export const RowContextMenu = meta.story({
 			"Pin",
 			"Settings",
 			"Duplicate",
+			SPACES_BRANCH,
 			"Delete",
 		])
-		const [pin, settings, duplicate, remove] = items
+		const [pin, settings, duplicate, held, remove] = items
 		await expect(pin.nextElementSibling).toBe(
 			within(menu).getAllByRole("separator")[0],
 		)
@@ -1767,6 +1939,8 @@ export const RowContextMenu = meta.story({
 		await expect(settings).toHaveFocus()
 		await userEvent.keyboard("{ArrowDown}")
 		await expect(duplicate).toHaveFocus()
+		await userEvent.keyboard("{ArrowDown}")
+		await expect(held).toHaveFocus()
 		await userEvent.keyboard("{ArrowDown}")
 		await expect(remove).toHaveFocus()
 		await expect(getComputedStyle(remove).backgroundColor).not.toBe(
@@ -1808,6 +1982,7 @@ export const RowContextMenu = meta.story({
 })
 
 export const Collapsed = meta.story({
+	tags: ["test-only"],
 	render: renderShell(false),
 	parameters: {
 		docs: {
@@ -1824,11 +1999,13 @@ export const Collapsed = meta.story({
 			await expect(panel.getBoundingClientRect().width).toBeCloseTo(rail, 0)
 		}, FRAME_POLL)
 
-		const create = canvas.getByRole("button", { name: "New companion" })
+		const create = canvas.getByRole("button", { name: CREATE })
+		await userEvent.tab()
 		await userEvent.tab()
 		await expect(create).toHaveFocus()
 
 		const row = rowsIn(canvasElement)[0]
+		await userEvent.tab()
 		await userEvent.tab()
 		await expect(rowButton(row)).toHaveFocus()
 		await expect(rowButton(row).matches(":focus-visible")).toBe(true)
@@ -1852,6 +2029,7 @@ export const Collapsed = meta.story({
 })
 
 export const SpaceTinted = meta.story({
+	tags: ["test-only"],
 	render: renderTintedShell,
 	parameters: {
 		a11y: A11Y_CONTRAST_AWAITING_DESIGN_DECISION,
@@ -1877,6 +2055,7 @@ export const SpaceTinted = meta.story({
 })
 
 export const Toggle = meta.story({
+	tags: ["test-only"],
 	parameters: {
 		docs: {
 			description: {
@@ -1894,6 +2073,8 @@ export const Toggle = meta.story({
 		const rail = railWidth()
 
 		await expect(stateOf(panel)).toBe("expanded")
+		await userEvent.tab()
+		await userEvent.tab()
 		await userEvent.tab()
 		await userEvent.tab()
 		await expect(button).toHaveFocus()
@@ -1918,6 +2099,7 @@ export const Toggle = meta.story({
 })
 
 export const Narrow = meta.story({
+	tags: ["test-only"],
 	globals: { viewport: { value: "narrow" } },
 	parameters: {
 		viewport: { options: NARROW_VIEWPORT },
@@ -1940,6 +2122,7 @@ export const Narrow = meta.story({
 })
 
 export const ReducedMotion = meta.story({
+	tags: ["test-only"],
 	args: { selectedBotId: "cinder" },
 	parameters: {
 		docs: {
@@ -1965,6 +2148,8 @@ export const ReducedMotion = meta.story({
 
 		await userEvent.tab()
 		await userEvent.tab()
+		await userEvent.tab()
+		await userEvent.tab()
 		const first = rowButton(rowsIn(canvasElement)[0])
 		await expect(first).toHaveFocus()
 		await expect(first.matches(":focus-visible")).toBe(true)
@@ -1972,8 +2157,9 @@ export const ReducedMotion = meta.story({
 })
 
 export const Footer = meta.story({
+	tags: ["test-only"],
 	args: {
-		bots: LONG_ROSTER,
+		botsBySpaceId: inHome(LONG_ROSTER),
 		selectedBotId: "beacon-0",
 		footer: FOOTER_CONTENT,
 	},
@@ -1981,13 +2167,13 @@ export const Footer = meta.story({
 		docs: {
 			description: {
 				story:
-					"The pinned region under the list, given a control by the host — the panel is handed a node and draws it, it knows nothing of what it is. Check that it sits under the last row rather than beside it, that its bottom edge is the bottom edge of the column, and that a roster three times too long for the window scrolls inside the list alone: the region stays exactly where it was and the column itself never scrolls. Pick `NoFooter` for the same list with the slot left out, `FooterWithoutBots` for the slot over an empty roster.",
+					"The pinned region under the list, given a control by the host — the panel is handed a node and draws it, it knows nothing of what it is. Check that it sits under the last row rather than beside it, that its bottom edge is the bottom edge of the column, and that a roster three times too long for the window scrolls inside the space panel alone: the region stays exactly where it was and the column itself never scrolls. Pick `NoFooter` for the same list with the slot left out, `FooterWithoutBots` for the slot over an empty roster.",
 			},
 		},
 	},
 	play: async ({ canvasElement }) => {
 		const panel = slotIn(canvasElement, "sidebar-container")
-		const list = slotIn(canvasElement, "sidebar-content")
+		const list = panelInView(canvasElement)
 		const footer = slotIn(canvasElement, "sidebar-footer")
 
 		await expect(
@@ -2006,11 +2192,13 @@ export const Footer = meta.story({
 })
 
 export const NoFooter = meta.story({
+	tags: ["test-only"],
+	args: { user: undefined, footer: undefined },
 	parameters: {
 		docs: {
 			description: {
 				story:
-					"The same column with the slot left out, which is every other story here. Check that no pinned region is drawn at all — not an empty one, not a reserved strip — and that the list runs all the way to the bottom edge of the column, so a host that wants nothing under its roster pays nothing for the slot. Pick `Footer` for the same list with the slot filled.",
+					"The same column with neither a reader nor a slot, which the app never mounts and no other story here reproduces. Check that no pinned region is drawn at all — not an empty one, not a reserved strip — and that the list runs all the way to the bottom edge of the column, so a host that wants nothing under its roster pays nothing for the slot. Pick `WithUserAndIdleFooter` for the resting row the app does draw, `Footer` for the same list with the slot filled.",
 			},
 		},
 	},
@@ -2023,7 +2211,8 @@ export const NoFooter = meta.story({
 })
 
 export const FooterWithoutBots = meta.story({
-	args: { bots: [], footer: FOOTER_CONTENT },
+	tags: ["test-only"],
+	args: { botsBySpaceId: inHome([]), footer: FOOTER_CONTENT },
 	parameters: {
 		docs: {
 			description: {
@@ -2039,6 +2228,7 @@ export const FooterWithoutBots = meta.story({
 })
 
 export const FooterOnRail = meta.story({
+	tags: ["test-only"],
 	render: renderShell(false),
 	args: { footer: FOOTER_CONTENT },
 	parameters: {
@@ -2071,40 +2261,9 @@ export const FooterOnRail = meta.story({
 	},
 })
 
-export const WithUser = meta.story({
-	args: { user: READER },
-	parameters: {
-		docs: {
-			description: {
-				story:
-					"The reader themselves, pinned under the list — the only way into their own settings, so a host that has an account to show always hands one down. Check that the chip opens the region with the picture leading and the name beside it, that it covers the whole row since nothing else is drawn there, that the chip starts on the column a conversation row above it starts on, and that the row leaves the same channel on both sides — the thread card's own gutter counts towards the trailing one, so the roster pays 4px there and 8px against the window edge to read as even air — and that activating it fires the open event once. Pick `WithUserAndFooter` for the same chip sharing the row.",
-			},
-		},
-	},
-	play: async ({ args, canvas, canvasElement, userEvent }) => {
-		const footer = slotIn(canvasElement, "sidebar-footer")
-		const chip = within(footer).getByRole("button", { name: READER_NAME })
-		const inner = slotIn(canvasElement, "sidebar-inner").getBoundingClientRect()
-		const chipBox = chip.getBoundingClientRect()
-		const rowBox = rowButton(rowsIn(canvasElement)[0]).getBoundingClientRect()
-		const card = canvas.getByRole("main").getBoundingClientRect()
-		const gutter = rowBox.left - inner.left
-		await expect(card.left - rowBox.right).toBe(gutter)
-		await expect(chipBox.left - inner.left).toBe(gutter)
-
-		await expect(chip.getBoundingClientRect().width).toBeCloseTo(
-			footerRowWidth(footer),
-			0,
-		)
-		await expectFooterAtColumnBottom(canvasElement)
-
-		await userEvent.click(chip)
-		await expect(args.onOpenUserSettings).toHaveBeenCalledTimes(1)
-	},
-})
-
 export const WithUserAndFooter = meta.story({
-	args: { user: READER, footer: FOOTER_CONTENT },
+	tags: ["test-only"],
+	args: { footer: FOOTER_CONTENT },
 	parameters: {
 		docs: {
 			description: {
@@ -2132,12 +2291,12 @@ export const WithUserAndFooter = meta.story({
 })
 
 export const WithUserAndIdleFooter = meta.story({
-	args: { user: READER, footer: SILENT_FOOTER_CONTENT },
+	tags: ["test-only"],
 	parameters: {
 		docs: {
 			description: {
 				story:
-					"The state the app is in nearly all the time: the host pinned a node beside the chip and that node draws nothing, since there is no update to install. Check that the row reads exactly as `WithUser` — the chip covers the whole width, with no gap held open beside it for something that is not there. Pick `WithUserAndFooter` for the moment the control does draw.",
+					"The state the app is in nearly all the time, and the row every story here rests on: the host pinned a node beside the chip and that node draws nothing, since there is no update to install. Check that the row reads exactly as `WithUser` — the chip covers the whole width, with no gap held open beside it for something that is not there. Pick `WithUserAndFooter` for the moment the control does draw.",
 			},
 		},
 	},
@@ -2154,8 +2313,9 @@ export const WithUserAndIdleFooter = meta.story({
 })
 
 export const WithUserOnRail = meta.story({
+	tags: ["test-only"],
 	render: renderShell(false),
-	args: { user: READER, footer: FOOTER_CONTENT },
+	args: { footer: FOOTER_CONTENT },
 	parameters: {
 		docs: {
 			description: {
@@ -2189,7 +2349,7 @@ export const WithUserOnRail = meta.story({
 })
 
 export const DragRegion = meta.story({
-	args: { user: READER },
+	tags: ["test-only"],
 	render: (args: AppSidebarProps) => (
 		<WorkspaceShell
 			defaultOpen
@@ -2214,7 +2374,7 @@ export const DragRegion = meta.story({
 
 		const pressable = [
 			rowButton(rowsIn(canvasElement)[0]),
-			canvas.getByRole("button", { name: "New companion" }),
+			canvas.getByRole("button", { name: CREATE }),
 			canvas.getByRole("button", { name: READER_NAME }),
 		]
 		for (const target of pressable) {
@@ -2225,20 +2385,6 @@ export const DragRegion = meta.story({
 })
 
 const nextTask = () => new Promise((resolve) => setTimeout(resolve, 0))
-
-const carouselIn = (canvasElement: HTMLElement) =>
-	slotIn(canvasElement, "space-carousel")
-
-const panelsIn = (canvasElement: HTMLElement) =>
-	slotsIn(canvasElement, "space-panel")
-
-const panelInView = (canvasElement: HTMLElement) => {
-	const panel = panelsIn(canvasElement).find(
-		(box) => !box.hasAttribute("inert"),
-	)
-	if (!panel) throw new Error("No space panel is in view")
-	return panel
-}
 
 const SETTLE = 250
 
@@ -2279,6 +2425,11 @@ const FIVE_SPACES = SPACES.slice(0, 5)
 
 const FIVE_ROSTERS = rostersAcross(FIVE_SPACES)
 
+const NINE_ROSTERS = rostersAcross(SPACES)
+
+const ROSTER_IN_EVERY_SPACE: Record<string, AppSidebarBot[]> =
+	Object.fromEntries(FIVE_SPACES.map((space) => [space.id, ROSTER]))
+
 const LiveSpaces = (args: AppSidebarProps) => {
 	const [selectedSpaceId, setSelectedSpaceId] = useState(args.selectedSpaceId)
 
@@ -2312,12 +2463,6 @@ const openSpaceMenu = async (trigger: HTMLElement) => {
 }
 
 export const OneSpace = meta.story({
-	args: {
-		spaces: [SPACES[0]],
-		selectedSpaceId: "perso",
-		botsBySpaceId: { perso: ROSTER },
-		user: READER,
-	},
 	parameters: {
 		docs: {
 			description: {
@@ -2330,7 +2475,7 @@ export const OneSpace = meta.story({
 		const switcher = canvas.getByRole("button", {
 			name: "Change space, Perso open",
 		})
-		const create = canvas.getByRole("button", { name: "New companion" })
+		const create = canvas.getByRole("button", { name: CREATE })
 		const header = slotIn(canvasElement, "sidebar-header")
 
 		await expect(switcher.getBoundingClientRect().right).toBeLessThanOrEqual(
@@ -2362,7 +2507,6 @@ export const FiveSpaces = meta.story({
 		spaces: FIVE_SPACES,
 		selectedSpaceId: "vocca",
 		botsBySpaceId: FIVE_ROSTERS,
-		user: READER,
 	},
 	parameters: {
 		docs: {
@@ -2422,8 +2566,6 @@ const openRowMenu = async (canvasElement: HTMLElement, name: string) => {
 		),
 	)
 }
-
-const SPACES_BRANCH = "Spaces"
 
 const LAST_SPACE_NOTE =
 	"A companion stays in at least one space. To remove a companion from its last space, delete the companion."
@@ -2492,7 +2634,6 @@ export const RowSpaces = meta.story({
 		spaces: FIVE_SPACES,
 		selectedSpaceId: "vocca",
 		botsBySpaceId: BEACON_IN_TWO_SPACES,
-		user: READER,
 	},
 	parameters: {
 		a11y: mergeA11y(
@@ -2541,11 +2682,11 @@ export const RowSpaces = meta.story({
 })
 
 export const RowTogglesSpaces = meta.story({
+	tags: ["test-only"],
 	args: {
 		spaces: FIVE_SPACES,
 		selectedSpaceId: "vocca",
 		botsBySpaceId: BEACON_IN_TWO_SPACES,
-		user: READER,
 	},
 	parameters: {
 		a11y: mergeA11y(
@@ -2591,10 +2732,11 @@ export const RowTogglesSpaces = meta.story({
 })
 
 export const RowMembershipsUnknown = meta.story({
+	tags: ["test-only"],
 	args: {
 		spaces: FIVE_SPACES,
 		selectedSpaceId: "vocca",
-		user: READER,
+		botsBySpaceId: undefined,
 	},
 	parameters: {
 		a11y: mergeA11y(
@@ -2605,7 +2747,7 @@ export const RowMembershipsUnknown = meta.story({
 		docs: {
 			description: {
 				story:
-					"An account with spaces handed one flat roster instead of one roster per space. Which spaces hold a companion cannot be read from that, and a branch that guessed would tick the open space and lie about the rest, so the branch is not drawn at all — a host that wants it passes `botsBySpaceId`. The rest of the menu is untouched.",
+					"An account with spaces handed one flat roster instead of one roster per space. Which spaces hold a companion cannot be read from that, and a branch that guessed would tick the open space and lie about the rest, so the branch is not drawn at all — a host that wants it passes `botsBySpaceId`. The rest of the menu is untouched. The app always passes that map, so this one stays out of the catalogue. Pick `RowSpaces` for the branch a wired host draws.",
 			},
 		},
 	},
@@ -2649,12 +2791,12 @@ const LiveMemberships = (args: AppSidebarProps) => {
 }
 
 export const RowLeavesOpenSpace = meta.story({
+	tags: ["test-only"],
 	render: LiveMemberships,
 	args: {
 		spaces: FIVE_SPACES,
 		selectedSpaceId: "vocca",
 		botsBySpaceId: BEACON_IN_TWO_SPACES,
-		user: READER,
 	},
 	parameters: {
 		a11y: mergeA11y(
@@ -2696,11 +2838,11 @@ export const RowLeavesOpenSpace = meta.story({
 })
 
 export const RowLastSpace = meta.story({
+	tags: ["test-only"],
 	args: {
 		spaces: FIVE_SPACES,
 		selectedSpaceId: "vocca",
 		botsBySpaceId: BEACON_IN_TWO_SPACES,
-		user: READER,
 	},
 	parameters: {
 		a11y: mergeA11y(
@@ -2771,11 +2913,11 @@ export const RowLastSpace = meta.story({
 })
 
 export const RowSpaceNameTooLong = meta.story({
+	tags: ["test-only"],
 	args: {
 		spaces: WORDY_SPACES,
 		selectedSpaceId: "vocca",
 		botsBySpaceId: BEACON_IN_TWO_SPACES,
-		user: READER,
 	},
 	parameters: {
 		a11y: mergeA11y(
@@ -2808,12 +2950,7 @@ export const RowSpaceNameTooLong = meta.story({
 })
 
 export const OneSpaceRowMenu = meta.story({
-	args: {
-		spaces: [SPACES[0]],
-		selectedSpaceId: "perso",
-		botsBySpaceId: { perso: ROSTER },
-		user: READER,
-	},
+	tags: ["test-only"],
 	parameters: {
 		a11y: mergeA11y(
 			A11Y_FLOATING_FOCUS_GUARDS,
@@ -2860,9 +2997,8 @@ export const OneSpaceRowMenu = meta.story({
 export const NineSpaces = meta.story({
 	args: {
 		spaces: SPACES,
-		selectedSpaceId: "perso",
-		botsBySpaceId: rostersAcross(SPACES),
-		user: READER,
+		selectedSpaceId: HOME,
+		botsBySpaceId: NINE_ROSTERS,
 	},
 	parameters: {
 		a11y: A11Y_FLOATING_FOCUS_GUARDS,
@@ -2917,7 +3053,6 @@ export const SpaceBadges = meta.story({
 		selectedSpaceId: "vocca",
 		botsBySpaceId: FIVE_ROSTERS,
 		badgesBySpaceId: { perso: "done", atelier: "attention", veille: "failed" },
-		user: READER,
 	},
 	parameters: {
 		docs: {
@@ -2958,7 +3093,6 @@ export const MissionSpaceRing = meta.story({
 			atelier: [{ ...ROSTER[1], missions: [missionOf("waiting", 1)] }],
 		},
 		badgesBySpaceId: { atelier: "attention" },
-		user: READER,
 	},
 	parameters: {
 		docs: {
@@ -2994,9 +3128,9 @@ export const MissionSpaceRing = meta.story({
 export const SpacesOnRail = meta.story({
 	render: renderShell(false),
 	args: {
-		spaces: SPACES.slice(0, 5),
+		spaces: FIVE_SPACES,
 		selectedSpaceId: "vocca",
-		user: READER,
+		botsBySpaceId: FIVE_ROSTERS,
 	},
 	parameters: {
 		docs: {
@@ -3024,7 +3158,7 @@ export const SpacesOnRail = meta.story({
 		const panelBox = panel.getBoundingClientRect()
 		for (const control of [
 			switcher,
-			canvas.getByRole("button", { name: "New companion" }),
+			canvas.getByRole("button", { name: CREATE }),
 		]) {
 			const box = control.getBoundingClientRect()
 			await expect(box.left).toBeGreaterThanOrEqual(panelBox.left)
@@ -3038,12 +3172,12 @@ export const SpacesOnRail = meta.story({
 })
 
 export const LiveSpaceSelection = meta.story({
+	tags: ["test-only"],
 	render: (args) => <LiveSpaces {...args} />,
 	args: {
 		spaces: FIVE_SPACES,
-		selectedSpaceId: "perso",
+		selectedSpaceId: HOME,
 		botsBySpaceId: FIVE_ROSTERS,
-		user: READER,
 	},
 	parameters: {
 		docs: {
@@ -3086,12 +3220,12 @@ export const LiveSpaceSelection = meta.story({
 })
 
 export const SpaceScrolling = meta.story({
+	tags: ["test-only"],
 	render: (args) => <LiveSpaces {...args} />,
 	args: {
 		spaces: FIVE_SPACES,
 		selectedSpaceId: "vocca",
 		botsBySpaceId: FIVE_ROSTERS,
-		user: READER,
 	},
 	parameters: {
 		docs: {
@@ -3148,12 +3282,12 @@ export const SpaceScrolling = meta.story({
 })
 
 export const SpaceLanding = meta.story({
+	tags: ["test-only"],
 	render: (args) => <LiveSpaces {...args} />,
 	args: {
 		spaces: FIVE_SPACES,
-		selectedSpaceId: "perso",
+		selectedSpaceId: HOME,
 		botsBySpaceId: FIVE_ROSTERS,
-		user: READER,
 	},
 	parameters: {
 		docs: {
@@ -3188,12 +3322,12 @@ export const SpaceLanding = meta.story({
 })
 
 export const SpaceFlickMomentum = meta.story({
+	tags: ["test-only"],
 	render: (args) => <LiveSpaces {...args} />,
 	args: {
 		spaces: FIVE_SPACES,
-		selectedSpaceId: "perso",
+		selectedSpaceId: HOME,
 		botsBySpaceId: FIVE_ROSTERS,
-		user: READER,
 	},
 	parameters: {
 		docs: {
@@ -3243,12 +3377,12 @@ export const SpaceFlickMomentum = meta.story({
 })
 
 export const SpaceBoundaryWobble = meta.story({
+	tags: ["test-only"],
 	render: (args) => <LiveSpaces {...args} />,
 	args: {
 		spaces: FIVE_SPACES,
-		selectedSpaceId: "perso",
+		selectedSpaceId: HOME,
 		botsBySpaceId: FIVE_ROSTERS,
-		user: READER,
 	},
 	parameters: {
 		docs: {
@@ -3291,12 +3425,12 @@ export const SpaceBoundaryWobble = meta.story({
 })
 
 export const SpaceSwipeTakenBack = meta.story({
+	tags: ["test-only"],
 	render: (args) => <LiveSpaces {...args} />,
 	args: {
 		spaces: FIVE_SPACES,
-		selectedSpaceId: "perso",
+		selectedSpaceId: HOME,
 		botsBySpaceId: FIVE_ROSTERS,
-		user: READER,
 	},
 	parameters: {
 		docs: {
@@ -3339,7 +3473,6 @@ export const SpaceSwitchingOff = meta.story({
 		selectedSpaceId: "vocca",
 		botsBySpaceId: FIVE_ROSTERS,
 		isSpaceSwitchingEnabled: false,
-		user: READER,
 	},
 	parameters: {
 		docs: {
@@ -3371,16 +3504,17 @@ export const SpaceSwitchingOff = meta.story({
 })
 
 export const SpacesWithoutRosters = meta.story({
+	tags: ["test-only"],
 	args: {
 		spaces: FIVE_SPACES,
 		selectedSpaceId: "vocca",
-		user: READER,
+		botsBySpaceId: undefined,
 	},
 	parameters: {
 		docs: {
 			description: {
 				story:
-					"Five spaces and no roster handed over per space, which is every host that has not wired `botsBySpaceId` yet. Check the row is not drawn at all — one list, scrolling in the content region as it did before the carousel existed — that it does not scroll sideways at all, because a row towards panels a host never filled would be a promise the sidebar cannot keep, and that the dots and the meta-digit chord still change space. Pick `FiveSpaces` for the same five spaces once their rosters arrive.",
+					"Five spaces and no roster handed over per space, which is every host that has not wired `botsBySpaceId` yet. Check the row is not drawn at all — one list, scrolling in the content region as it did before the carousel existed — that it does not scroll sideways at all, because a row towards panels a host never filled would be a promise the sidebar cannot keep, and that the dots and the meta-digit chord still change space. The app always passes the map, so this one stays out of the catalogue. Pick `FiveSpaces` for the same five spaces once their rosters arrive.",
 			},
 		},
 	},
@@ -3407,15 +3541,13 @@ export const SpacesWithoutRosters = meta.story({
 })
 
 export const SpaceScrollMemory = meta.story({
+	tags: ["test-only"],
 	render: (args) => <LiveSpaces {...args} />,
 	globals: { viewport: { value: "short" } },
 	args: {
 		spaces: FIVE_SPACES,
-		selectedSpaceId: "perso",
-		botsBySpaceId: Object.fromEntries(
-			FIVE_SPACES.map((space) => [space.id, ROSTER]),
-		),
-		user: READER,
+		selectedSpaceId: HOME,
+		botsBySpaceId: ROSTER_IN_EVERY_SPACE,
 	},
 	parameters: {
 		viewport: { options: SHORT_VIEWPORT },
@@ -3467,7 +3599,7 @@ const headerIn = (canvasElement: HTMLElement) =>
 
 const RESERVE_ARGS = {
 	spaces: FIVE_SPACES,
-	selectedSpaceId: FIVE_SPACES[0].id,
+	selectedSpaceId: HOME,
 	botsBySpaceId: FIVE_ROSTERS,
 }
 
@@ -3591,13 +3723,9 @@ const PINNED_NOW: [string, string | null][] = [
 const pinsFor = (order: [string, string | null][]) =>
 	order.map(([id, sectionId]) => ({ id, sectionId }))
 
-const HOME = "personal"
-
 const sectionArgs = () => ({
-	bots: SECTIONED_ROSTER,
-	sections: SECTIONS,
-	selectedBotId: "beacon",
-	selectedSpaceId: HOME,
+	botsBySpaceId: inHome(SECTIONED_ROSTER),
+	sectionsBySpaceId: inHome(SECTIONS),
 	onCreateSection: fn(),
 	onRenameSection: fn(),
 	onDeleteSection: fn(),
@@ -3736,6 +3864,7 @@ const typeOf = (node: HTMLElement) => {
 }
 
 export const Sections = meta.story({
+	tags: ["test-only"],
 	args: sectionArgs(),
 	parameters: {
 		docs: {
@@ -3768,12 +3897,15 @@ export const Sections = meta.story({
 })
 
 export const MissionStripPinned = meta.story({
+	tags: ["test-only"],
 	args: {
 		...sectionArgs(),
-		bots: SECTIONED_ROSTER.map((bot) =>
-			bot.id === "ember"
-				? { ...bot, missions: [missionOf("waiting", 0)] }
-				: bot,
+		botsBySpaceId: inHome(
+			SECTIONED_ROSTER.map((bot) =>
+				bot.id === "ember"
+					? { ...bot, missions: [missionOf("waiting", 0)] }
+					: bot,
+			),
 		),
 	},
 	parameters: {
@@ -3794,6 +3926,7 @@ export const MissionStripPinned = meta.story({
 })
 
 export const EmptySection = meta.story({
+	tags: ["test-only"],
 	args: sectionArgs(),
 	parameters: {
 		docs: {
@@ -3825,6 +3958,7 @@ export const EmptySection = meta.story({
 })
 
 export const SectionCollapse = meta.story({
+	tags: ["test-only"],
 	args: sectionArgs(),
 	render: (args) => <LiveSections {...args} />,
 	parameters: {
@@ -3873,6 +4007,7 @@ export const SectionCollapse = meta.story({
 })
 
 export const SectionCard = meta.story({
+	tags: ["test-only"],
 	args: sectionArgs(),
 	render: (args) => <LiveSections {...args} />,
 	parameters: {
@@ -3917,6 +4052,7 @@ export const SectionCard = meta.story({
 })
 
 export const SectionHeaderHover = meta.story({
+	tags: ["test-only"],
 	args: sectionArgs(),
 	render: (args) => <LiveSections {...args} />,
 	parameters: {
@@ -3934,6 +4070,7 @@ export const SectionHeaderHover = meta.story({
 })
 
 export const SectionRename = meta.story({
+	tags: ["test-only"],
 	args: sectionArgs(),
 	parameters: {
 		docs: {
@@ -3974,6 +4111,7 @@ export const SectionRename = meta.story({
 })
 
 export const SectionReorder = meta.story({
+	tags: ["test-only"],
 	args: sectionArgs(),
 	parameters: {
 		a11y: A11Y_FLOATING_FOCUS_GUARDS,
@@ -4024,6 +4162,7 @@ export const SectionReorder = meta.story({
 })
 
 export const SectionDelete = meta.story({
+	tags: ["test-only"],
 	args: sectionArgs(),
 	parameters: {
 		a11y: mergeA11y(
@@ -4055,7 +4194,6 @@ export const FullRowMenu = meta.story({
 		spaces: FIVE_SPACES,
 		selectedSpaceId: "vocca",
 		botsBySpaceId: BEACON_IN_TWO_SPACES,
-		user: READER,
 	},
 	parameters: {
 		a11y: mergeA11y(
@@ -4088,6 +4226,7 @@ export const FullRowMenu = meta.story({
 })
 
 export const MoveBotToSection = meta.story({
+	tags: ["test-only"],
 	args: sectionArgs(),
 	parameters: {
 		a11y: mergeA11y(
@@ -4158,6 +4297,7 @@ export const MoveBotToSection = meta.story({
 })
 
 export const NewSectionForABot = meta.story({
+	tags: ["test-only"],
 	args: sectionArgs(),
 	parameters: {
 		a11y: mergeA11y(
@@ -4218,7 +4358,8 @@ const openSurfaceMenu = async (canvasElement: HTMLElement) => {
 }
 
 export const RosterSurfaceMenu = meta.story({
-	args: { ...sectionArgs(), onCreateConversation: fn() },
+	tags: ["test-only"],
+	args: sectionArgs(),
 	parameters: {
 		a11y: mergeA11y(
 			A11Y_CONTRAST_AWAITING_DESIGN_DECISION,
@@ -4266,11 +4407,8 @@ export const RosterSurfaceMenu = meta.story({
 })
 
 export const RosterSurfaceWithoutSpaceSettings = meta.story({
-	args: {
-		...sectionArgs(),
-		onCreateConversation: fn(),
-		onOpenSpaceSettings: undefined,
-	},
+	tags: ["test-only"],
+	args: { ...sectionArgs(), onOpenSpaceSettings: undefined },
 	parameters: {
 		a11y: mergeA11y(
 			A11Y_CONTRAST_AWAITING_DESIGN_DECISION,
@@ -4279,7 +4417,7 @@ export const RosterSurfaceWithoutSpaceSettings = meta.story({
 		docs: {
 			description: {
 				story:
-					"The same ground, for a host that has no settings dialog to open. The menu keeps the three things the panel makes and drops both the space settings entry and the rule that would have led to it, so the menu never ends on a rule with nothing under it. Pick `RosterSurfaceMenu` for the full menu.",
+					"The same ground, for a host that has no settings dialog to open. The menu keeps the three things the panel makes and drops both the space settings entry and the rule that would have led to it, so the menu never ends on a rule with nothing under it. The app always passes a settings handler, so this one stays out of the catalogue. Pick `RosterSurfaceMenu` for the full menu.",
 			},
 		},
 	},
@@ -4293,6 +4431,7 @@ export const RosterSurfaceWithoutSpaceSettings = meta.story({
 })
 
 export const NewSectionFromNothing = meta.story({
+	tags: ["test-only"],
 	args: sectionArgs(),
 	parameters: {
 		a11y: mergeA11y(
@@ -4410,9 +4549,9 @@ const dragOnto = (handle: HTMLElement, onto: Element) => {
 }
 
 export const DragBotIntoAnEmptyPinnedZone = meta.story({
+	tags: ["test-only"],
 	args: {
-		bots: ROSTER.slice(0, 3),
-		selectedSpaceId: HOME,
+		botsBySpaceId: inHome(ROSTER.slice(0, 3)),
 		onSelectBot: fn(),
 		onPinRoster: fn(),
 	},
@@ -4460,6 +4599,7 @@ export const DragBotIntoAnEmptyPinnedZone = meta.story({
 })
 
 export const DragBotToSection = meta.story({
+	tags: ["test-only"],
 	args: sectionArgs(),
 	parameters: {
 		docs: {
@@ -4497,6 +4637,7 @@ export const DragBotToSection = meta.story({
 })
 
 export const DragBotOutOfSection = meta.story({
+	tags: ["test-only"],
 	args: sectionArgs(),
 	parameters: {
 		docs: {
@@ -4533,6 +4674,7 @@ export const DragBotOutOfSection = meta.story({
 })
 
 export const DragBotUnderASection = meta.story({
+	tags: ["test-only"],
 	args: sectionArgs(),
 	parameters: {
 		docs: {
@@ -4569,6 +4711,7 @@ export const DragBotUnderASection = meta.story({
 })
 
 export const DragBotToTheEndOfASection = meta.story({
+	tags: ["test-only"],
 	args: sectionArgs(),
 	parameters: {
 		docs: {
@@ -4600,6 +4743,7 @@ export const DragBotToTheEndOfASection = meta.story({
 })
 
 export const DragBotIntoEmptySection = meta.story({
+	tags: ["test-only"],
 	args: sectionArgs(),
 	parameters: {
 		docs: {
@@ -4627,6 +4771,7 @@ export const DragBotIntoEmptySection = meta.story({
 })
 
 export const DragBotNowhere = meta.story({
+	tags: ["test-only"],
 	args: sectionArgs(),
 	parameters: {
 		docs: {
@@ -4666,6 +4811,7 @@ export const DragBotNowhere = meta.story({
 })
 
 export const DragSectionToPlace = meta.story({
+	tags: ["test-only"],
 	args: sectionArgs(),
 	parameters: {
 		docs: {
@@ -4745,6 +4891,7 @@ export const DragSectionToPlace = meta.story({
 })
 
 export const CollapsedSections = meta.story({
+	tags: ["test-only"],
 	args: sectionArgs(),
 	render: renderShell(false),
 	parameters: {
@@ -4772,9 +4919,9 @@ export const CollapsedSections = meta.story({
 		await expect(canvas.getByText("Drop a companion here")).not.toBeVisible()
 
 		await userEvent.tab()
-		await expect(
-			canvas.getByRole("button", { name: "New companion" }),
-		).toHaveFocus()
+		await userEvent.tab()
+		await expect(canvas.getByRole("button", { name: CREATE })).toHaveFocus()
+		await userEvent.tab()
 		await userEvent.tab()
 		await expect(rowButton(rowsIn(canvasElement)[0])).toHaveFocus()
 
@@ -4791,7 +4938,6 @@ export const SectionsPerSpace = meta.story({
 		selectedSpaceId: "vocca",
 		botsBySpaceId: FIVE_ROSTERS,
 		sectionsBySpaceId: SECTIONS_IN_VIEW_ONLY,
-		user: READER,
 		onCreateSection: fn(),
 		onRenameSection: fn(),
 		onDeleteSection: fn(),
@@ -4859,15 +5005,12 @@ const CONVERSATIONS: AppSidebarConversation[] = [
 ]
 
 const conversationArgs = () => ({
-	bots: ROSTER.slice(0, 4),
-	conversations: CONVERSATIONS,
-	selectedBotId: "beacon",
-	onCreateConversation: fn(),
+	botsBySpaceId: inHome(ROSTER.slice(0, 4)),
+	conversationsBySpaceId: inHome(CONVERSATIONS),
 	onSelectConversation: fn(),
 	onOpenConversationSettings: fn(),
 	onDeleteConversation: fn(),
 	onPinRoster: fn(),
-	selectedSpaceId: HOME,
 })
 
 const stackIn = (row: HTMLElement) =>
@@ -4877,11 +5020,10 @@ const stackIn = (row: HTMLElement) =>
 		),
 	)
 
-const CREATE = "Create"
-
 const LONG_SPEAKER = "Bartholomew Featherstonehaugh the Third"
 
 export const Conversations = meta.story({
+	tags: ["test-only"],
 	args: conversationArgs(),
 	parameters: {
 		docs: {
@@ -4914,6 +5056,7 @@ export const Conversations = meta.story({
 })
 
 export const ConversationParticipants = meta.story({
+	tags: ["test-only"],
 	args: conversationArgs(),
 	parameters: {
 		docs: {
@@ -4978,9 +5121,10 @@ export const ConversationParticipants = meta.story({
 })
 
 export const ConversationOfOneBot = meta.story({
+	tags: ["test-only"],
 	args: {
 		...conversationArgs(),
-		conversations: [
+		conversationsBySpaceId: inHome([
 			{
 				id: "solo",
 				name: "Atlas one to one",
@@ -4989,7 +5133,7 @@ export const ConversationOfOneBot = meta.story({
 				lastSpeaker: "Atlas",
 				timestamp: "09:40",
 			},
-		],
+		]),
 	},
 	parameters: {
 		docs: {
@@ -5024,9 +5168,10 @@ export const ConversationOfOneBot = meta.story({
 })
 
 export const ConversationPreview = meta.story({
+	tags: ["test-only"],
 	args: {
 		...conversationArgs(),
-		conversations: [
+		conversationsBySpaceId: inHome([
 			CONVERSATIONS[0],
 			{ ...CONVERSATIONS[1], lastMessage: "Rebuilt the bundle, both green." },
 			{
@@ -5037,7 +5182,7 @@ export const ConversationPreview = meta.story({
 				lastSpeaker: "Bartholomew Featherstonehaugh the Third",
 				timestamp: "08:12",
 			},
-		],
+		]),
 	},
 	parameters: {
 		docs: {
@@ -5071,13 +5216,14 @@ export const ConversationPreview = meta.story({
 })
 
 export const BareRows = meta.story({
+	tags: ["test-only"],
 	args: {
 		...conversationArgs(),
-		bots: [ROSTER[0], withoutHistory(ROSTER[1])],
-		conversations: [
+		botsBySpaceId: inHome([ROSTER[0], withoutHistory(ROSTER[1])]),
+		conversationsBySpaceId: inHome([
 			CONVERSATIONS[0],
 			{ id: "kickoff", name: "Kickoff", participants: PAIR },
-		],
+		]),
 	},
 	parameters: {
 		docs: {
@@ -5103,9 +5249,10 @@ export const BareRows = meta.story({
 })
 
 export const ConversationWorking = meta.story({
+	tags: ["test-only"],
 	args: {
 		...conversationArgs(),
-		conversations: [
+		conversationsBySpaceId: inHome([
 			{
 				...CONVERSATIONS[0],
 				status: "working" as const,
@@ -5132,7 +5279,7 @@ export const ConversationWorking = meta.story({
 				lastSpeaker: "Atlas",
 				timestamp: "08:12",
 			},
-		],
+		]),
 	},
 	parameters: {
 		docs: {
@@ -5166,10 +5313,11 @@ export const ConversationWorking = meta.story({
 })
 
 export const WorkingLongSummary = meta.story({
+	tags: ["test-only"],
 	args: {
 		...conversationArgs(),
 		selectedConversationId: "launch",
-		conversations: [
+		conversationsBySpaceId: inHome([
 			{
 				...CONVERSATIONS[0],
 				participants: [
@@ -5184,7 +5332,7 @@ export const WorkingLongSummary = meta.story({
 				lastSpeaker: LONG_SPEAKER,
 			},
 			CONVERSATIONS[1],
-		],
+		]),
 	},
 	parameters: {
 		docs: {
@@ -5228,11 +5376,12 @@ const MISSION_CONVERSATIONS: AppSidebarConversation[] = [
 
 const MISSION_CONVERSATION_ARGS = {
 	...conversationArgs(),
-	bots: [{ ...ROSTER[0], lastActivityAt: 2, timestamp: "5m" }],
-	conversations: MISSION_CONVERSATIONS,
+	botsBySpaceId: inHome([{ ...ROSTER[0], lastActivityAt: 2, timestamp: "5m" }]),
+	conversationsBySpaceId: inHome(MISSION_CONVERSATIONS),
 }
 
 export const ConversationMissionStrips = meta.story({
+	tags: ["test-only"],
 	args: MISSION_CONVERSATION_ARGS,
 	parameters: {
 		a11y: A11Y_CONTRAST_AWAITING_DESIGN_DECISION,
@@ -5270,6 +5419,7 @@ export const ConversationMissionStrips = meta.story({
 })
 
 export const ConversationMissionStripsOnRail = meta.story({
+	tags: ["test-only"],
 	args: MISSION_CONVERSATION_ARGS,
 	render: renderShell(false),
 	parameters: {
@@ -5292,6 +5442,7 @@ export const ConversationMissionStripsOnRail = meta.story({
 })
 
 export const ConversationSelected = meta.story({
+	tags: ["test-only"],
 	args: { ...conversationArgs(), selectedConversationId: "migration" },
 	parameters: {
 		docs: {
@@ -5321,11 +5472,14 @@ export const ConversationSelected = meta.story({
 })
 
 export const ConversationRowMenu = meta.story({
+	tags: ["test-only"],
 	args: {
 		...conversationArgs(),
-		bots: SECTIONED_ROSTER,
-		sections: SECTIONS,
-		conversations: [{ ...CONVERSATIONS[0], sectionId: "research" }],
+		botsBySpaceId: inHome(SECTIONED_ROSTER),
+		sectionsBySpaceId: inHome(SECTIONS),
+		conversationsBySpaceId: inHome([
+			{ ...CONVERSATIONS[0], sectionId: "research" },
+		]),
 	},
 	parameters: {
 		a11y: mergeA11y(
@@ -5385,6 +5539,7 @@ export const ConversationRowMenu = meta.story({
 })
 
 export const CreateMenu = meta.story({
+	tags: ["test-only"],
 	args: { ...conversationArgs(), onCreateSection: fn() },
 	parameters: {
 		a11y: mergeA11y(
@@ -5394,7 +5549,7 @@ export const CreateMenu = meta.story({
 		docs: {
 			description: {
 				story:
-					"The plus in the header makes more than one thing, so it stops acting and starts asking. A press opens a menu under it — the same menu the space switcher beside it opens, on press rather than on right-click — with one entry per thing the panel can make: a companion on its own, a room to put several in, and the section that files them. The entries read in the order the panel builds them, so a section comes after the two things it holds. The button still says what it does before it is pressed and still reports that it carries a menu, so a keyboard reader is not surprised by a popup. A host that does not do rooms passes no `onCreateConversation` and keeps the plain button it always had, which is what every other story here shows — the menu is not the price of mounting this panel.",
+					"The plus in the header makes more than one thing, so it stops acting and starts asking. A press opens a menu under it — the same menu the space switcher beside it opens, on press rather than on right-click — with one entry per thing the panel can make: a companion on its own, a room to put several in, and the section that files them. The entries read in the order the panel builds them, so a section comes after the two things it holds. The button still says what it does before it is pressed and still reports that it carries a menu, so a keyboard reader is not surprised by a popup. A host that does not do rooms passes no `onCreateConversation` and keeps the plain add button, which `PlainCreateButton` is the one place that mounts. Pick `RosterSurfaceMenu` for the same three things offered by the ground under the roster.",
 			},
 		},
 	},
@@ -5402,6 +5557,7 @@ export const CreateMenu = meta.story({
 		const create = canvas.getByRole("button", { name: CREATE })
 		await expect(create).toHaveAttribute("aria-haspopup", "menu")
 
+		await userEvent.tab()
 		await userEvent.tab()
 		await expect(create).toHaveFocus()
 		await userEvent.keyboard("{Enter}")
@@ -5434,10 +5590,11 @@ export const CreateMenu = meta.story({
 })
 
 export const NewSectionForAConversation = meta.story({
+	tags: ["test-only"],
 	args: {
 		...conversationArgs(),
-		bots: SECTIONED_ROSTER,
-		sections: SECTIONS,
+		botsBySpaceId: inHome(SECTIONED_ROSTER),
+		sectionsBySpaceId: inHome(SECTIONS),
 		onCreateSection: fn(),
 	},
 	parameters: {
@@ -5476,10 +5633,11 @@ export const NewSectionForAConversation = meta.story({
 })
 
 export const DragConversationToSection = meta.story({
+	tags: ["test-only"],
 	args: {
 		...conversationArgs(),
-		bots: SECTIONED_ROSTER,
-		sections: SECTIONS,
+		botsBySpaceId: inHome(SECTIONED_ROSTER),
+		sectionsBySpaceId: inHome(SECTIONS),
 	},
 	parameters: {
 		docs: {
@@ -5509,17 +5667,11 @@ export const DragConversationToSection = meta.story({
 const SEARCH_TO_ROSTER_AIR = 9
 
 export const WithSearch = meta.story({
-	args: {
-		botsBySpaceId: { perso: ROSTER },
-		onOpenSearch: fn(),
-		selectedSpaceId: "perso",
-		spaces: [SPACES[0]],
-	},
 	parameters: {
 		docs: {
 			description: {
 				story:
-					"The roster with the search field mounted above it. Check that the field sits between the pinned header and the first row rather than inside either, so it never scrolls away with the list, that its box lands in the lane a roster row's fill holds — same start edge, same end edge — and that the column leaves 9px of air between the box and the first row's fill, so the field reads as its own box on the surface rather than a lid glued on top of the list. Pressing it reports and nothing else: the palette it opens is the host's to mount. A sidebar given no `onOpenSearch` draws no field at all, which is what `Roster` shows.",
+					"The roster with the search field mounted above it. Check that the field sits between the pinned header and the first row rather than inside either, so it never scrolls away with the list, that its box lands in the lane a roster row's fill holds — same start edge, same end edge — and that the column leaves 9px of air between the box and the first row's fill, so the field reads as its own box on the surface rather than a lid glued on top of the list. Pressing it reports and nothing else: the palette it opens is the host's to mount. Pick `NoSearch` for the panel of a host that passes no `onOpenSearch` and gets no field, `Roster` for the same field read as the Tab stop between the create menu and the first row.",
 			},
 		},
 	},
@@ -5537,7 +5689,7 @@ export const WithSearch = meta.story({
 		await expect(header.contains(slot)).toBe(false)
 		await expect(content.contains(slot)).toBe(false)
 
-		const field = within(slot).getByRole("button", { name: /Search/ })
+		const field = searchFieldIn(canvasElement)
 		const [first] = rowsIn(canvasElement)
 		const fieldBox = field.getBoundingClientRect()
 		const firstFill = rowButton(first).getBoundingClientRect()
@@ -5550,5 +5702,33 @@ export const WithSearch = meta.story({
 
 		await userEvent.click(field)
 		await expect(args.onOpenSearch).toHaveBeenCalledTimes(1)
+	},
+})
+
+export const NoSearch = meta.story({
+	tags: ["test-only"],
+	args: { onOpenSearch: undefined },
+	parameters: {
+		docs: {
+			description: {
+				story:
+					"The panel given no `onOpenSearch`. No field is drawn at all rather than a dead box a press would do nothing with, so the roster starts straight under the pinned header and Tab reaches the first row one stop after the create menu. The app always passes the callback, so this one is kept as a test and out of the catalogue. Pick `WithSearch` for the field the app mounts and the lane it lands on.",
+			},
+		},
+	},
+	play: async ({ canvas, canvasElement, userEvent }) => {
+		await expect(slotsIn(canvasElement, "sidebar-search-field")).toHaveLength(0)
+
+		const header = slotIn(canvasElement, "sidebar-header")
+		const [first] = rowsIn(canvasElement)
+		await expect(
+			rowButton(first).getBoundingClientRect().top,
+		).toBeGreaterThanOrEqual(header.getBoundingClientRect().bottom)
+
+		await userEvent.tab()
+		await userEvent.tab()
+		await expect(canvas.getByRole("button", { name: CREATE })).toHaveFocus()
+		await userEvent.tab()
+		await expect(rowButton(first)).toHaveFocus()
 	},
 })
