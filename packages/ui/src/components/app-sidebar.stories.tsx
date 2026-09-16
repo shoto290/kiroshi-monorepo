@@ -673,6 +673,9 @@ export const Roster = meta.story({
 			),
 		)
 		await expect(args.onCreateBot).toHaveBeenCalled()
+		await waitFor(async () => {
+			await expect(create).toHaveFocus()
+		}, FRAME_POLL)
 
 		await userEvent.tab()
 		await expect(searchFieldIn(canvasElement)).toHaveFocus()
