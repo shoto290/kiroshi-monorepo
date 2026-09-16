@@ -169,7 +169,7 @@ const expectListedOnly = (name: string) => {
 afterEach(cleanup)
 
 describe("opening an application on one scope", () => {
-	it("leaves the other scope settings on its list", () => {
+	it("opens the space editor and lists the profile and companion", () => {
 		openSettingsOn(SPACE_SCOPE)
 
 		expectListedOnly(READER)
@@ -177,7 +177,7 @@ describe("opening an application on one scope", () => {
 		expect(openedApplicationIn(dialogNamed(SPACE_NAME))).toBeTruthy()
 	})
 
-	it("opens the editor of the companion the scope names", () => {
+	it("opens the companion editor and lists the profile and space", () => {
 		openSettingsOn(COMPANION_SCOPE)
 
 		expectListedOnly(READER)
