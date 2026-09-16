@@ -261,7 +261,7 @@ fn install(schema: Option<&Schema>) -> Install {
 	if schema.required.is_empty() {
 		return Install::Oauth;
 	}
-	Install::Key { fields: schema.required.iter().map(|field| asked_field(schema, field)).collect() }
+	Install::asking(schema.required.iter().map(|field| asked_field(schema, field)).collect())
 }
 
 fn asked_field(schema: &Schema, field: &str) -> InstallField {
@@ -570,6 +570,30 @@ pub(crate) mod tests {
 				],
 			}
 		);
+	}
+
+	#[test]
+	fn two_required_fields_answering_one_variable_refuse_the_install() {
+		let application = described(json!({
+			"qualifiedName": "@owner/collapsed",
+			"connections": [{
+				"type": "http",
+				"deploymentUrl": "https://collapsed.test/mcp",
+				"configSchema": {
+					"required": ["api-key", "api_key"],
+					"properties": {
+						"api-key": { "x-from": { "header": "X-Api-Key" } },
+						"api_key": { "x-from": { "header": "X-Api-Key-Too" } },
+					},
+				},
+			}],
+		}));
+
+		let Install::Refused(refusal) = &application.install else {
+			panic!("got {:?}", application.install);
+		};
+		assert_eq!(refusal.field, "api_key");
+		assert!(refusal.reason.contains("API_KEY"), "got {}", refusal.reason);
 	}
 
 	#[test]

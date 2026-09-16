@@ -1,3 +1,5 @@
+use std::collections::HashMap;
+
 use serde::{Deserialize, Serialize};
 
 use crate::conversations::contract::TranscriptStoreError;
@@ -45,6 +47,34 @@ pub struct InstallField {
 	pub secret: String,
 	#[serde(default, skip_serializing_if = "Option::is_none")]
 	pub description: Option<String>,
+}
+
+impl Install {
+	pub fn asking(fields: Vec<InstallField>) -> Self {
+		match collapsed(&fields) {
+			Some(refusal) => Install::Refused(refusal),
+			None => Install::Key { fields },
+		}
+	}
+}
+
+fn collapsed(fields: &[InstallField]) -> Option<InstallRefusal> {
+	let mut named: HashMap<&str, &str> = HashMap::new();
+	for field in fields {
+		if let Some(first) = named.insert(&field.secret, &field.name) {
+			return Some(InstallRefusal {
+				field: field.name.clone(),
+				reason: collapsing(first, &field.name, &field.secret),
+			});
+		}
+	}
+	None
+}
+
+fn collapsing(first: &str, second: &str, variable: &str) -> String {
+	format!(
+		"the required fields \"{first}\" and \"{second}\" both read the variable {variable}, so one value would overwrite the other"
+	)
 }
 
 #[derive(Debug, Clone, PartialEq, Eq, Serialize, Deserialize)]
