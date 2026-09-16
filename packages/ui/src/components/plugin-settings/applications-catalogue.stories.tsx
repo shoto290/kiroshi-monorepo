@@ -529,9 +529,6 @@ export const RegistryEmptyAndPartlyUnreadable = meta.story({
 				"Couldn’t read part of the catalogue. Retry to see the rest.",
 			),
 		).toBeVisible()
-		await expect(canvas.getAllByRole("button", { name: "Retry" })).toHaveLength(
-			1,
-		)
 
 		await userEvent.click(canvas.getByRole("button", { name: "Retry" }))
 
