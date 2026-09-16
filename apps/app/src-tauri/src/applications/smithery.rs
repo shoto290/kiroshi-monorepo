@@ -6,7 +6,7 @@ use serde::Deserialize;
 use serde_json::{json, Map, Value};
 use tokio::task::JoinHandle;
 
-use super::contract::{Application, ApplicationsError, Install};
+use super::contract::{Application, ApplicationsError, Install, InstallRefusal};
 use super::registry::{client, endpoint, parsed, read, reference, variable};
 use super::search::{repository, terms, Listing};
 
@@ -94,8 +94,6 @@ struct Property {
 struct Carried {
 	#[serde(default)]
 	header: Option<String>,
-	#[serde(default)]
-	query: Option<String>,
 }
 
 #[derive(Deserialize)]
@@ -106,7 +104,6 @@ struct Tool {
 struct Served {
 	endpoint: Url,
 	headers: Map<String, Value>,
-	pairs: Vec<String>,
 	install: Install,
 }
 
@@ -236,30 +233,32 @@ fn served(detail: &Detail) -> Option<Served> {
 	let connection = detail.connections.iter().find(|held| held.kind == HTTP)?;
 	let endpoint = Url::parse(connection.deployment_url.as_deref()?).ok()?;
 	let schema = connection.config_schema.as_ref();
-	let mut served =
-		Served { endpoint, headers: Map::new(), pairs: Vec::new(), install: install(schema) };
-	let Some(schema) = schema else {
-		return Some(served);
-	};
-	for field in &schema.required {
-		place(&mut served, schema, field);
-	}
-	Some(served)
+	Some(Served { endpoint, headers: headers(schema), install: install(schema) })
 }
 
-fn place(served: &mut Served, schema: &Schema, field: &str) {
-	let held = reference(field);
-	match schema.properties.get(field).and_then(|property| property.from.as_ref()) {
-		Some(Carried { header: Some(name), .. }) => {
-			served.headers.insert(name.clone(), Value::String(held));
-		}
-		Some(Carried { query: Some(name), .. }) => served.pairs.push(format!("{name}={held}")),
-		_ => served.pairs.push(format!("{field}={held}")),
-	}
+fn headers(schema: Option<&Schema>) -> Map<String, Value> {
+	let Some(schema) = schema else {
+		return Map::new();
+	};
+	schema
+		.required
+		.iter()
+		.filter_map(|field| Some((header_of(schema, field)?, Value::String(reference(field)))))
+		.collect()
+}
+
+fn header_of(schema: &Schema, field: &str) -> Option<String> {
+	schema.properties.get(field)?.from.as_ref()?.header.clone()
 }
 
 fn install(schema: Option<&Schema>) -> Install {
-	let Some((schema, field)) = schema.and_then(|held| Some((held, held.required.first()?))) else {
+	let Some(schema) = schema else {
+		return Install::Oauth;
+	};
+	if let Some(field) = schema.required.iter().find(|held| header_of(schema, held).is_none()) {
+		return Install::Refused(InstallRefusal { field: field.clone(), reason: uncarried(field) });
+	}
+	let Some(field) = schema.required.first() else {
 		return Install::Oauth;
 	};
 	Install::Key {
@@ -269,21 +268,18 @@ fn install(schema: Option<&Schema>) -> Install {
 	}
 }
 
+fn uncarried(field: &str) -> String {
+	format!(
+		"the required field \"{field}\" names no header to carry it, and a key must never travel in a url"
+	)
+}
+
 fn config(served: &Served) -> Value {
-	let mut config = json!({ "type": "http", "url": url_of(served) });
+	let mut config = json!({ "type": "http", "url": served.endpoint.as_str() });
 	if !served.headers.is_empty() {
 		config["headers"] = Value::Object(served.headers.clone());
 	}
 	config
-}
-
-fn url_of(served: &Served) -> String {
-	let held = served.endpoint.as_str();
-	if served.pairs.is_empty() {
-		return held.to_owned();
-	}
-	let opening = if served.endpoint.query().is_some() { '&' } else { '?' };
-	format!("{held}{opening}{}", served.pairs.join("&"))
 }
 
 fn hosted_by(row: &Row, endpoint: &Url) -> Option<String> {
@@ -409,6 +405,18 @@ pub(crate) mod tests {
 		})
 	}
 
+	pub(crate) fn an_uncarried_detail(name: &str, url: &str) -> Value {
+		json!({
+			"qualifiedName": name,
+			"connections": [{
+				"type": "http",
+				"deploymentUrl": url,
+				"configSchema": { "required": ["apiKey"], "properties": { "apiKey": {} } },
+			}],
+			"tools": [{ "name": "search" }],
+		})
+	}
+
 	fn described(detail: Value) -> Application {
 		let detail: Detail = serde_json::from_value(detail).expect("the fixture is a detail");
 		read_by_name(&detail).expect("the fixture offers an http connection")
@@ -461,7 +469,7 @@ pub(crate) mod tests {
 	}
 
 	#[test]
-	fn a_required_field_named_by_a_query_or_by_nothing_is_written_into_the_url() {
+	fn a_required_field_naming_no_header_refuses_the_install_and_leaves_the_url_alone() {
 		let application = described(json!({
 			"qualifiedName": "@owner/queried",
 			"connections": [{
@@ -474,14 +482,75 @@ pub(crate) mod tests {
 			}],
 		}));
 
+		let Install::Refused(refusal) = &application.install else {
+			panic!("got {:?}", application.install);
+		};
+		assert_eq!(refusal.field, "apiKey");
+		assert!(refusal.reason.contains("apiKey"), "got {}", refusal.reason);
+		assert!(refusal.reason.contains("url"), "got {}", refusal.reason);
+		assert_eq!(
+			application.config,
+			json!({ "type": "http", "url": "https://queried.test/mcp?tenant=one" })
+		);
+	}
+
+	#[test]
+	fn a_header_beside_a_field_naming_none_refuses_and_leaves_the_url_without_a_placeholder() {
+		let application = described(json!({
+			"qualifiedName": "@owner/mixed",
+			"connections": [{
+				"type": "http",
+				"deploymentUrl": "https://mixed.test/mcp",
+				"configSchema": {
+					"required": ["apiKey", "profile"],
+					"properties": { "apiKey": { "x-from": { "header": "X-Api-Key" } } },
+				},
+			}],
+		}));
+
+		let Install::Refused(refusal) = &application.install else {
+			panic!("got {:?}", application.install);
+		};
+		assert_eq!(refusal.field, "profile");
 		assert_eq!(
 			application.config,
 			json!({
 				"type": "http",
-				"url": "https://queried.test/mcp?tenant=one&api_key=${APIKEY}&profile=${PROFILE}",
+				"url": "https://mixed.test/mcp",
+				"headers": { "X-Api-Key": "${APIKEY}" },
 			})
 		);
-		assert!(application.config.get("headers").is_none(), "got {}", application.config);
+	}
+
+	#[test]
+	fn every_required_field_naming_a_header_is_carried_in_its_own_header() {
+		let application = described(json!({
+			"qualifiedName": "@owner/two-headers",
+			"connections": [{
+				"type": "http",
+				"deploymentUrl": "https://two.test/mcp",
+				"configSchema": {
+					"required": ["apiKey", "tenant"],
+					"properties": {
+						"apiKey": { "x-from": { "header": "X-Api-Key" } },
+						"tenant": { "x-from": { "header": "X-Tenant" } },
+					},
+				},
+			}],
+		}));
+
+		assert_eq!(
+			application.config,
+			json!({
+				"type": "http",
+				"url": "https://two.test/mcp",
+				"headers": { "X-Api-Key": "${APIKEY}", "X-Tenant": "${TENANT}" },
+			})
+		);
+		let Install::Key { name, .. } = &application.install else {
+			panic!("got {:?}", application.install);
+		};
+		assert_eq!(name, "apiKey");
 	}
 
 	#[test]

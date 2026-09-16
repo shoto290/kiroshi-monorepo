@@ -830,4 +830,29 @@ describe("watching a server left connecting", () => {
 		expect(reported[0]).toContain(`${opening}401 for [redacted]`)
 		expect(reported[0]).toHaveLength(opening.length + 300)
 	})
+
+	it("cuts a url of the answer back to its scheme, its host and its path", async () => {
+		const reported: string[] = []
+		let time = 0
+
+		await reportedLines({
+			names: ["superset"],
+			port: {
+				status: async () => (time <= LAST_POLL_MS ? pending : failed),
+				reconnect: throwing(
+					"401 from https://queried.test/mcp?api_key=sk-live-1234#tail",
+				),
+			},
+			now: () => time,
+			wait: async (ms) => {
+				time += ms
+			},
+			report: (line) => reported.push(line.detail),
+		})
+		await settling()
+
+		expect(reported[0]).toContain("401 from https://queried.test/mcp")
+		expect(reported[0]).not.toContain("api_key")
+		expect(reported[0]).not.toContain("sk-live-1234")
+	})
 })

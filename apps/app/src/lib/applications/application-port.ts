@@ -2,6 +2,7 @@ export type Install =
 	| { kind: "nothing" }
 	| { kind: "key"; name: string; secret: string; description?: string }
 	| { kind: "oauth" }
+	| { kind: "refused"; field: string; reason: string }
 
 export type Application = {
 	name: string

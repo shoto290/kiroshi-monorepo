@@ -36,6 +36,7 @@ const SETUP_OF_INSTALL = {
 	nothing: "none",
 	key: "apiKey",
 	oauth: "signIn",
+	refused: "none",
 } as const satisfies Record<Install["kind"], ApplicationSetup>
 
 const setupOf = (application: Application) =>

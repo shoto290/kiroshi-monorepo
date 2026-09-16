@@ -3,8 +3,8 @@ use serde_json::Value;
 use tauri::{AppHandle, Emitter, Manager, Runtime, State};
 
 use super::contract::{
-	Application, ApplicationInstall, ApplicationInstalled, ApplicationCallError, InstallOutcome,
-	ApplicationSearch, ApplicationState, Destination, InstallDraft, INSTALLED_EVENT,
+	Application, ApplicationInstall, ApplicationInstalled, ApplicationCallError, InstallCase,
+	InstallOutcome, ApplicationSearch, ApplicationState, Destination, InstallDraft, INSTALLED_EVENT,
 };
 use super::search::{search, terms, Registries};
 use super::{catalogue, registry, smithery};
@@ -94,6 +94,12 @@ impl<R: Runtime> ApplicationHost<R> {
 			});
 		}
 		let application = self.application(&asked.application).await?;
+		let install = InstallCase::try_from(application.install.clone()).map_err(|refusal| {
+			ApplicationCallError::ApplicationRefused {
+				application: application.name.clone(),
+				reason: refusal.reason,
+			}
+		})?;
 		self.declare(&owner, &application).await?;
 		let draft = InstallDraft {
 			conversation_id: self.conversation_id.clone(),
@@ -102,14 +108,10 @@ impl<R: Runtime> ApplicationHost<R> {
 			logo: application.logo.clone(),
 			scope,
 			destination_id: destination_id(&owner),
-			install: application.install.clone().into(),
+			install: install.clone(),
 		};
 		self.announce(self.recorded(draft).await)?;
-		Ok(InstallOutcome::Installed {
-			application: application.name,
-			scope,
-			install: application.install.into(),
-		})
+		Ok(InstallOutcome::Installed { application: application.name, scope, install })
 	}
 
 	async fn recorded(&self, draft: InstallDraft) -> ApplicationInstalled {
@@ -330,7 +332,7 @@ mod tests {
 	use tauri::{App, Listener as _};
 
 	use super::*;
-	use crate::applications::contract::{ApplicationInstall, InstallCase};
+	use crate::applications::contract::ApplicationInstall;
 	use crate::applications::registry::tests::{holding, serving, unreached};
 	use crate::applications::smithery::tests as smithery_stub;
 	use crate::bundles;
@@ -955,6 +957,31 @@ mod tests {
 		}
 		assert_eq!(declarations(&app), [Vec::new(), Vec::new(), Vec::new()]);
 		assert!(held.asked.lock().expect("the stub records").is_empty(), "a search ran");
+		cleaned(&app);
+	}
+
+	#[tokio::test]
+	async fn an_application_whose_install_refuses_it_is_named_and_neither_declared_nor_recorded() {
+		let app = a_host("refusing-install").await;
+		let (smithery, _) = smithery_stub::serving(smithery_stub::holding(
+			Vec::new(),
+			vec![smithery_stub::an_uncarried_detail("@owner/queried", "https://queried.test/mcp")],
+		))
+		.await;
+		let arriving = heard(&app);
+
+		let refusal = reading(&app, "c1", Registries { official: unreached().await, smithery })
+			.answer(an_install("@owner/queried", "space"))
+			.await
+			.expect_err("the application is refused");
+
+		assert_eq!(refusal["kind"], "applicationRefused");
+		assert_eq!(refusal["application"], "@owner/queried");
+		let reason = refusal["reason"].as_str().expect("the refusal carries a reason");
+		assert!(reason.contains("apiKey"), "got {reason}");
+		assert_eq!(declarations(&app), [Vec::new(), Vec::new(), Vec::new()]);
+		assert!(recorded_in(&app, "c1").await.is_empty(), "an install was recorded");
+		assert!(arriving.recv_timeout(Duration::from_millis(200)).is_err(), "it was announced");
 		cleaned(&app);
 	}
 
