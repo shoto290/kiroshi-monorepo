@@ -589,6 +589,8 @@ const bots = {
 					"Tapez un nom ci-dessus pour chercher parmi {{count}} applications publiées.",
 				empty: "Rien dans le registre MCP ne correspond à {{query}}.",
 				failed: "Impossible de joindre le registre MCP.",
+				partlyFailed:
+					"Impossible de lire une partie du catalogue. Réessayez pour voir le reste.",
 				retry: "Réessayer",
 			},
 			everything: "Tout",

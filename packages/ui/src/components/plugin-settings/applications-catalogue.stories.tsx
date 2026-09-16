@@ -479,3 +479,59 @@ export const RegistryResultHovered = meta.story({
 		await expect(pill).toBeVisible()
 	},
 })
+
+export const RegistryPartlyUnreadable = meta.story({
+	args: {
+		query: "s",
+		curated: [],
+		registry: REGISTRY_RESULTS,
+		hasRegistryPartlyFailed: true,
+	},
+	render: (args) => <ApplicationsCatalogue {...args} />,
+	parameters: {
+		docs: {
+			description: {
+				story:
+					"One registry answered and the other did not. Check that the three results stay drawn, that one line under them says part of the catalogue could not be read, and that it carries the same Retry the whole failure offers.",
+			},
+		},
+	},
+	play: async ({ args, canvas, userEvent }) => {
+		await expect(canvas.getAllByRole("listitem")).toHaveLength(3)
+		await expect(
+			canvas.getByText(
+				"Couldn’t read part of the catalogue. Retry to see the rest.",
+			),
+		).toBeVisible()
+
+		await userEvent.click(canvas.getByRole("button", { name: "Retry" }))
+
+		await expect(args.onRegistryRetry).toHaveBeenCalledTimes(1)
+	},
+})
+
+export const RegistryEmptyAndPartlyUnreadable = meta.story({
+	args: { query: "lin", registry: [], hasRegistryPartlyFailed: true },
+	parameters: {
+		docs: {
+			description: {
+				story:
+					"The registry side that answered returned nothing and the other one failed. Check the line saying nothing matched, the line under it saying part of the catalogue could not be read, and one single Retry.",
+			},
+		},
+	},
+	play: async ({ args, canvas, userEvent }) => {
+		await expect(
+			canvas.getByText("Nothing in the MCP registry matched lin."),
+		).toBeVisible()
+		await expect(
+			canvas.getByText(
+				"Couldn’t read part of the catalogue. Retry to see the rest.",
+			),
+		).toBeVisible()
+
+		await userEvent.click(canvas.getByRole("button", { name: "Retry" }))
+
+		await expect(args.onRegistryRetry).toHaveBeenCalledTimes(1)
+	},
+})

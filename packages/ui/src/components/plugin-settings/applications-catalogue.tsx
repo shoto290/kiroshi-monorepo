@@ -391,6 +391,7 @@ type ApplicationsCatalogueProps = Omit<CataloguePageProps, "children"> & {
 	isCatalogueLoading?: boolean
 	isRegistrySearching?: boolean
 	hasRegistryFailed?: boolean
+	hasRegistryPartlyFailed?: boolean
 	onRegistryRetry: () => void
 	onPick: (application: CatalogueApplication) => void
 	onBack: () => void
@@ -410,6 +411,7 @@ const ApplicationsCatalogue = ({
 	isCatalogueLoading = false,
 	isRegistrySearching = false,
 	hasRegistryFailed = false,
+	hasRegistryPartlyFailed = false,
 	onRegistryRetry,
 	onPick,
 	onBack,
@@ -422,6 +424,22 @@ const ApplicationsCatalogue = ({
 	const typed = query.trim()
 	const placeholder = t("applications.catalogue.search.placeholder")
 	const isLoading = isCatalogueLoading || isRegistrySearching
+
+	const registryRetry = (
+		<Button onClick={onRegistryRetry} size="xs" variant="outline">
+			{t("applications.catalogue.registry.retry")}
+		</Button>
+	)
+
+	const registryPartialFailure = () =>
+		hasRegistryPartlyFailed ? (
+			<CatalogueLine
+				action={registryRetry}
+				icon={Icons.Alert}
+				isAnnounced
+				text={t("applications.catalogue.registry.partlyFailed")}
+			/>
+		) : null
 
 	const registryBody = () => {
 		if (isLoading) {
@@ -446,11 +464,7 @@ const ApplicationsCatalogue = ({
 		if (hasRegistryFailed) {
 			return (
 				<CatalogueLine
-					action={
-						<Button onClick={onRegistryRetry} size="xs" variant="outline">
-							{t("applications.catalogue.registry.retry")}
-						</Button>
-					}
+					action={registryRetry}
 					icon={Icons.Alert}
 					isAnnounced
 					text={t("applications.catalogue.registry.failed")}
@@ -458,20 +472,23 @@ const ApplicationsCatalogue = ({
 			)
 		}
 
-		if (registry.length > 0) {
-			return <CatalogueRows applications={registry} onPick={onPick} />
-		}
-
 		return (
-			<CatalogueLine
-				icon={Icons.Search}
-				isAnnounced
-				text={
-					curated.length === 0
-						? t("applications.catalogue.nothing", { query: typed })
-						: t("applications.catalogue.registry.empty", { query: typed })
-				}
-			/>
+			<>
+				{registry.length > 0 ? (
+					<CatalogueRows applications={registry} onPick={onPick} />
+				) : (
+					<CatalogueLine
+						icon={Icons.Search}
+						isAnnounced
+						text={
+							curated.length === 0
+								? t("applications.catalogue.nothing", { query: typed })
+								: t("applications.catalogue.registry.empty", { query: typed })
+						}
+					/>
+				)}
+				{registryPartialFailure()}
+			</>
 		)
 	}
 

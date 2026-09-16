@@ -61,7 +61,10 @@ const toCatalogueApplication = (
 	name: application.title,
 	description: application.description,
 	setup: setupOf(application),
-	mark: application.logo,
+	mark: application.logo ?? application.logoUrl,
+	useCount: application.useCount,
+	isVerified: application.verified,
+	host: application.hostedBy,
 })
 
 const packageIdentityOf = (application: Application) => {
@@ -79,12 +82,9 @@ const toRegistryApplication = (
 export const toInstallableApplication = (
 	application: Application,
 ): InstallableApplication => ({
-	id: application.name,
-	name: application.title,
+	...toCatalogueApplication(application),
 	description: application.description || undefined,
 	packageIdentity: application.name,
-	setup: setupOf(application),
-	mark: application.logo,
 	tools: application.tools,
 })
 
@@ -141,6 +141,7 @@ const toApplicationsCatalogue = ({
 		isCatalogueLoading: state.isReadingCatalogue,
 		isRegistrySearching: state.isSearching,
 		hasRegistryFailed: state.hasSearchFailed,
+		hasRegistryPartlyFailed: state.hasSearchPartlyFailed,
 		onRegistryRetry: controller.retry,
 		onPick: (application) => controller.pick(application.id),
 		install: picked

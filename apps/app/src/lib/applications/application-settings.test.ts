@@ -39,6 +39,19 @@ const REGISTERED: Application = {
 	install: { kind: "nothing" },
 }
 
+const HOSTED: Application = {
+	name: "smithery/slack",
+	title: "Slack",
+	description: "Posts messages as you.",
+	config: { type: "http", url: "https://slack.run.tools/mcp" },
+	tools: ["post_message"],
+	logoUrl: "https://icons.run.tools/slack.png",
+	useCount: 12110,
+	verified: true,
+	hostedBy: "slack.run.tools",
+	install: { kind: "oauth" },
+}
+
 const applicationsWith = (state: Partial<ApplicationsState>) => ({
 	state: { ...initialApplicationsState, ...state },
 	controller: {
@@ -131,6 +144,24 @@ describe("toInstallableApplication", () => {
 		expect(installable.canWrite).toBeUndefined()
 	})
 
+	it("hands the install page the icon, the pill, the uses and the host", () => {
+		expect(toInstallableApplication(HOSTED)).toMatchObject({
+			mark: HOSTED.logoUrl,
+			isVerified: true,
+			useCount: 12110,
+			host: "slack.run.tools",
+		})
+	})
+
+	it("hands the install page nothing the search did not carry", () => {
+		const installable = toInstallableApplication(REGISTERED)
+
+		expect(installable.mark).toBeUndefined()
+		expect(installable.isVerified).toBeUndefined()
+		expect(installable.useCount).toBeUndefined()
+		expect(installable.host).toBeUndefined()
+	})
+
 	it("reads the setup out of what the install asks", () => {
 		expect(toInstallableApplication(REGISTERED).setup).toBe("none")
 		expect(
@@ -191,6 +222,33 @@ describe("toApplicationScope", () => {
 				packageIdentity: "npx -y @kwn/tasklog",
 			},
 		])
+	})
+
+	it("carries the icon, the pill, the uses and the host of a registry result", () => {
+		const { scope } = scopeOf(applicationsWith({ registry: [HOSTED] }))
+
+		expect(scope.mcpCatalogue?.registry).toEqual([
+			{
+				id: "smithery/slack",
+				name: "Slack",
+				description: "Posts messages as you.",
+				setup: "signIn",
+				mark: HOSTED.logoUrl,
+				useCount: 12110,
+				isVerified: true,
+				host: "slack.run.tools",
+				packageIdentity: "https://slack.run.tools/mcp",
+			},
+		])
+	})
+
+	it("tells the catalogue one registry side could not be read", () => {
+		const { scope } = scopeOf(
+			applicationsWith({ registry: [HOSTED], hasSearchPartlyFailed: true }),
+		)
+
+		expect(scope.mcpCatalogue?.hasRegistryPartlyFailed).toBe(true)
+		expect(scope.mcpCatalogue?.hasRegistryFailed).toBe(false)
 	})
 
 	it("hands the everything category no count while the catalogue is read", () => {

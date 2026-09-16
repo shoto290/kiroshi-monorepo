@@ -23,6 +23,7 @@ export type ApplicationsState = {
 	registry: Application[]
 	isSearching: boolean
 	hasSearchFailed: boolean
+	hasSearchPartlyFailed: boolean
 	picked: Application | null
 	installing: string | null
 	failure: string | null
@@ -54,6 +55,7 @@ export const initialApplicationsState: ApplicationsState = {
 	registry: [],
 	isSearching: false,
 	hasSearchFailed: false,
+	hasSearchPartlyFailed: false,
 	picked: null,
 	installing: null,
 	failure: null,
@@ -127,7 +129,12 @@ export const createApplicationsController = (
 
 	const forgetSearch = () => {
 		supersedeSearch()
-		set({ registry: [], isSearching: false, hasSearchFailed: false })
+		set({
+			registry: [],
+			isSearching: false,
+			hasSearchFailed: false,
+			hasSearchPartlyFailed: false,
+		})
 	}
 
 	const sendSearch = () => {
@@ -139,11 +146,19 @@ export const createApplicationsController = (
 		supersedeSearch()
 		const attempt = issuedSearch
 		const isLastIssued = () => attempt === issuedSearch
-		set({ isSearching: true, hasSearchFailed: false })
+		set({
+			isSearching: true,
+			hasSearchFailed: false,
+			hasSearchPartlyFailed: false,
+		})
 		void port.search(typed).then(
 			(found) => {
 				if (isLastIssued()) {
-					set({ registry: found.applications, isSearching: false })
+					set({
+						registry: found.applications,
+						isSearching: false,
+						hasSearchPartlyFailed: found.registryFailure !== undefined,
+					})
 				}
 			},
 			() => {
@@ -160,7 +175,11 @@ export const createApplicationsController = (
 			return
 		}
 		supersedeSearch()
-		set({ isSearching: true, hasSearchFailed: false })
+		set({
+			isSearching: true,
+			hasSearchFailed: false,
+			hasSearchPartlyFailed: false,
+		})
 		scheduledSearch = setTimeout(sendSearch, searchDelayMs)
 	}
 
