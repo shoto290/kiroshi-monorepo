@@ -580,13 +580,6 @@ export function createChatController(
 	const isMutedFailure = (bot: BotChat, event: AgentEvent) =>
 		event.type === "failed" && isMutedRefusal(bot, event.error)
 
-	const reportStartFailure = (bot: BotChat, error: TransportError) => {
-		if (isMutedRefusal(bot, error)) {
-			return
-		}
-		announce(bot, { type: "failed", error })
-	}
-
 	const noteFailure = (bot: BotChat, event: AgentEvent) => {
 		if (event.type !== "failed") {
 			return
@@ -689,7 +682,9 @@ export function createChatController(
 		} catch (reason) {
 			const error = toTransportError(reason)
 			bot.run.spent ??= rotationReasonForStartFailure(error)
-			reportStartFailure(bot, error)
+			if (!isMutedRefusal(bot, error)) {
+				announce(bot, { type: "failed", error })
+			}
 			return null
 		}
 	}

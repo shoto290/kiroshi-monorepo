@@ -90,9 +90,6 @@ const failureKeyOf = (
 
 let fadedFailureId: string | null = null
 
-const isRefusedResume = (error: ChatError) =>
-	error.error.kind === "resumeFailed"
-
 const fadeRefusedResume = (
 	t: ChatCopy,
 	error: ChatError,
@@ -138,7 +135,7 @@ export const useSessionFailureNotice = ({
 		if (!error || !key) {
 			return
 		}
-		if (isRefusedResume(error)) {
+		if (error.error.kind === "resumeFailed") {
 			fadeRefusedResume(t, error, onDismiss)
 			return
 		}
