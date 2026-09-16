@@ -1,5 +1,3 @@
-// Call site: packages/ui/src/components/transcript.tsx line 342
-
 import { expect, waitFor } from "storybook/test"
 
 import preview from "@workspace/storybook/preview"
@@ -113,7 +111,7 @@ export const Default = meta.story({
 		docs: {
 			description: {
 				story:
-					"A thread short enough to fit its frame, which is what a conversation looks like for its first few turns. Check that the messages sit at the bottom of the viewport rather than at the top — the content justifies to the end so a thread grows downwards from the first turn — and that the jump button stays out of the way: it is inactive, transparent and takes no pointer, so it never covers the last message or eats a click meant for it. Pick `ScrolledBack` for the state that brings it up.",
+					"A thread short enough to fit its frame, which is what a conversation looks like for its first few turns. Check that the messages sit at the bottom of the viewport rather than at the top — the content justifies to the end so a thread grows downwards from the first turn — and that the jump button stays out of the way: it is inactive, transparent and takes no pointer, so it never covers the last message or eats a click meant for it. Pick `ScrolledBack` for the state that brings it up. `packages/ui/src/components/transcript.tsx:342` composes these parts for every thread, and `apps/app/src/components/thread-screen.tsx:1434` hands it the rows.",
 			},
 		},
 	},
@@ -133,7 +131,7 @@ export const AtEnd = meta.story({
 		docs: {
 			description: {
 				story:
-					"A thread longer than its frame, opened where the transcript opens it: on the newest message. Check that the viewport starts scrolled to the bottom rather than at the oldest turn, that the jump button stays inactive while there is nothing below — offering to jump to a message already on screen is noise — and that the last item is measured on the message it holds rather than on the 10rem box an unpainted item reserves, which is the exemption the transcript gives that one item so the thread lands on the real last line.",
+					"A thread longer than its frame, opened where the transcript opens it: on the newest message. Check that the viewport starts scrolled to the bottom rather than at the oldest turn, that the jump button stays inactive while there is nothing below — offering to jump to a message already on screen is noise — and that the last item is measured on the message it holds rather than on the 10rem box an unpainted item reserves, which is the exemption the transcript gives that one item so the thread lands on the real last line. Same composition as `packages/ui/src/components/transcript.tsx:342`, with the item exemption it sets at `packages/ui/src/components/transcript.tsx:365`.",
 			},
 		},
 	},
@@ -165,7 +163,7 @@ export const ScrolledBack = meta.story({
 		docs: {
 			description: {
 				story:
-					"The reader went back up the thread, so the viewport stopped following the newest message. Check that the jump button comes up opaque and clickable at that moment, that pressing it returns to the end, and that it goes back to inactive once there. This is the only state in which the button is reachable at all.",
+					"The reader went back up the thread, so the viewport stopped following the newest message. Check that the jump button comes up opaque and clickable at that moment, that pressing it returns to the end, and that it goes back to inactive once there. This is the only state in which the button is reachable at all. The button `packages/ui/src/components/transcript.tsx:390` mounts, reached the only way a reader reaches it.",
 			},
 		},
 	},

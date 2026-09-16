@@ -12,6 +12,7 @@ import {
 	MessageBubble,
 	MessageBubbleContent,
 } from "@workspace/ui/components/message-bubble"
+import { ContextMenuItem } from "@workspace/ui/components/ui/context-menu"
 
 const ANSWER =
 	"The workspace has two packages: `@workspace/ui` holds the design system, `app` holds the Tauri shell."
@@ -33,11 +34,21 @@ type FlankedProps = {
 
 const noop = fn()
 
+const ActionsMenu = () => (
+	<ContextMenuItem label="Copy" onClick={noop}>
+		<Icons.Copy aria-hidden="true" className="size-3.5" />
+		Copy
+	</ContextMenuItem>
+)
+
 const Flanked = ({ from, text, actions }: FlankedProps) => (
 	<Message from={from}>
 		<MessageContent>
 			<MessageBubble variant={from === "user" ? "solid" : "soft"}>
-				<MessageActions actions={actions}>
+				<MessageActions
+					actions={actions}
+					menu={actions ? <ActionsMenu /> : undefined}
+				>
 					<MessageBubbleContent>{text}</MessageBubbleContent>
 				</MessageActions>
 			</MessageBubble>
@@ -82,7 +93,7 @@ export const Default = meta.story({
 		docs: {
 			description: {
 				story:
-					"The companion's side. Hover the bubble and check that the copy button fades in to its right, level with the first line, and that nothing on the row moves as it does. The keyboard path is the same one: the row is faded, never removed, so tabbing reaches the action and it stays lit with its ring in full while it holds focus — which is how the play drives it, since a synthetic pointer never raises a real `:hover`. A bubble handed no actions pays for none: the row below it is the plain bubble it always was.",
+					"The companion's side. Hover the bubble and check that the copy button fades in to its right, level with the first line, and that nothing on the row moves as it does. The keyboard path is the same one: the row is faded, never removed, so tabbing reaches the action and it stays lit with its ring in full while it holds focus — which is how the play drives it, since a synthetic pointer never raises a real `:hover`. A bubble handed no actions pays for none: the row below it is the plain bubble it always was. `packages/ui/src/components/turn.tsx:499` hands the row the copy of an answer, and `apps/app/src/components/thread-prompt.tsx:133` is the turn that hands it nothing at all.",
 			},
 		},
 	},
@@ -116,7 +127,7 @@ export const Sides = meta.story({
 		docs: {
 			description: {
 				story:
-					"Both sides at once, neither told which it is on. Check that the companion's actions sit to the right of its bubble and the reader's to the left of theirs — always on the outside, so they never cover the words and never collide with the gutter the companion's avatar occupies.",
+					"Both sides at once, neither told which it is on. Check that the companion's actions sit to the right of its bubble and the reader's to the left of theirs — always on the outside, so they never cover the words and never collide with the gutter the companion's avatar occupies. `packages/ui/src/components/turn.tsx:499` fills the companion row and `packages/ui/src/components/turn.tsx:341` the reader row, neither saying which side it is on.",
 			},
 		},
 	},
@@ -154,7 +165,7 @@ export const Pinned = meta.story({
 		docs: {
 			description: {
 				story:
-					"Two actions on one bubble that must not behave alike. The retry is `alwaysVisible` — a prompt that never reached Claude has to show its way out before the reader goes looking — while the copy beside it stays behind a hover like every other. Check that the pinned one sits nearest the bubble, so the faded one never puts a gap between it and the words it acts on — it is given first, and on the reader's side the row runs the other way so that first action still lands against the bubble.",
+					"Two actions on one bubble that must not behave alike. The retry is `alwaysVisible` — a prompt that never reached Claude has to show its way out before the reader goes looking — while the copy beside it stays behind a hover like every other. Check that the pinned one sits nearest the bubble, so the faded one never puts a gap between it and the words it acts on — it is given first, and on the reader's side the row runs the other way so that first action still lands against the bubble. `packages/ui/src/components/turn.tsx:354` pins the retry of a prompt that failed, ahead of the copy `packages/ui/src/components/turn.tsx:363` adds.",
 			},
 		},
 	},
@@ -188,7 +199,7 @@ export const PerBubble = meta.story({
 		docs: {
 			description: {
 				story:
-					"An answer that arrived in three parts, one bubble each. Every bubble carries its own copy and copies only the paragraph it shows — there is no action anywhere for the answer entire, because the reader points at the part they want. The hover zone is the whole line the bubble sits on, not the bubble alone, so the reader reaches an action without landing on the words first — the reveal is keyed off the line rather than off the row of buttons, which the play reads back since a synthetic pointer never raises a real `:hover`. Check that it lights that line's action alone and leaves its neighbours faded.",
+					"An answer that arrived in three parts, one bubble each. Every bubble carries its own copy and copies only the paragraph it shows — there is no action anywhere for the answer entire, because the reader points at the part they want. The hover zone is the whole line the bubble sits on, not the bubble alone, so the reader reaches an action without landing on the words first — the reveal is keyed off the line rather than off the row of buttons, which the play reads back since a synthetic pointer never raises a real `:hover`. Check that it lights that line's action alone and leaves its neighbours faded. An answer split into blocks by `apps/app/src/lib/chat/screen-model.ts:97` gives each bubble its own row through `packages/ui/src/components/turn.tsx:499`.",
 			},
 		},
 	},
@@ -220,7 +231,7 @@ export const LongContent = meta.story({
 		docs: {
 			description: {
 				story:
-					"The narrow case both sides have to survive: a bubble long enough to claim every pixel it is offered. Check that both action rows stay inside the column rather than hanging off it or being clipped away, and that the transcript never gains a sideways scrollbar — the room for them is taken out of the bubble's width once, not conjured on hover.",
+					"The narrow case both sides have to survive: a bubble long enough to claim every pixel it is offered. Check that both action rows stay inside the column rather than hanging off it or being clipped away, and that the transcript never gains a sideways scrollbar — the room for them is taken out of the bubble's width once, not conjured on hover. Same rows as `packages/ui/src/components/turn.tsx:341` and `packages/ui/src/components/turn.tsx:499` build, in the narrowest column the app runs in.",
 			},
 		},
 	},

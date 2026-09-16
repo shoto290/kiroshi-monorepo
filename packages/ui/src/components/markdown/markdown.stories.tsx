@@ -2,7 +2,6 @@ import { useState } from "react"
 import { expect, fn, spyOn, waitFor } from "storybook/test"
 
 import preview from "@workspace/storybook/preview"
-import { A11Y_CONTRAST_AWAITING_DESIGN_DECISION } from "@workspace/storybook/story-utils"
 import { Markdown } from "@workspace/ui/components/markdown"
 import {
 	MessageBubble,
@@ -475,12 +474,6 @@ const STREAMED_NEXT_BLOCK = `
 
 Two nests archived since the last pass.`
 
-const DANGER_BODY = `## Sync failed
-
-The archive pass stopped at 09:12 and nothing was written.`
-
-const inkOf = (element: Element) => getComputedStyle(element).color
-
 const alignmentOf = (cell: HTMLElement) => getComputedStyle(cell).textAlign
 
 const bubbleContentsOf = (canvasElement: HTMLElement) => [
@@ -708,14 +701,12 @@ const StreamedBody = ({ source }: StreamedBodyProps) => {
 	)
 }
 
-export const Playground = meta.story({})
-
 export const Default = meta.story({
 	parameters: {
 		docs: {
 			description: {
 				story:
-					"Every construction at once, the way a long agent answer arrives. Check the vertical rhythm between blocks, that the first block has no top margin, and that headings, quote and footnote section all read in both themes — flip the theme layout toolbar to side-by-side.",
+					"Every construction at once, the way a long agent answer arrives. Check the vertical rhythm between blocks, that the first block has no top margin, and that headings, quote and footnote section all read in both themes — flip the theme layout toolbar to side-by-side. The source reaches the renderer through `apps/app/src/components/turn-body.tsx:10`.",
 			},
 		},
 	},
@@ -727,7 +718,7 @@ export const Headings = meta.story({
 		docs: {
 			description: {
 				story:
-					"Six levels plus a heading carrying inline code. Check that the scale stays legible at chat size — h1 and h2 take the slab heading face, h4 steps down in weight, h5 and h6 dim to a secondary tone — and that the code chip inside a heading keeps the heading weight while shrinking to 0.9em instead of breaking the line box.",
+					"Six levels plus a heading carrying inline code. Check that the scale stays legible at chat size — h1 and h2 take the slab heading face, h4 steps down in weight, h5 and h6 dim to a secondary tone — and that the code chip inside a heading keeps the heading weight while shrinking to 0.9em instead of breaking the line box. The source reaches the renderer through `apps/app/src/components/turn-body.tsx:10`.",
 			},
 		},
 	},
@@ -739,7 +730,7 @@ export const Emphasis = meta.story({
 		docs: {
 			description: {
 				story:
-					"Bold, italic, strikethrough and inline code inside running prose. Check that struck text dims instead of disappearing, and that a code chip is readable on both the light and the dark surface.",
+					"Bold, italic, strikethrough and inline code inside running prose. Check that struck text dims instead of disappearing, and that a code chip is readable on both the light and the dark surface. The source reaches the renderer through `apps/app/src/components/turn-body.tsx:10`.",
 			},
 		},
 	},
@@ -751,7 +742,7 @@ export const Lists = meta.story({
 		docs: {
 			description: {
 				story:
-					"Ordered and unordered lists after a lead-in paragraph. Check that the markers sit inside the content column rather than hanging into the gutter, and that the gap between a paragraph and the list it introduces stays tighter than the gap between two blocks.",
+					"Ordered and unordered lists after a lead-in paragraph. Check that the markers sit inside the content column rather than hanging into the gutter, and that the gap between a paragraph and the list it introduces stays tighter than the gap between two blocks. The source reaches the renderer through `apps/app/src/components/turn-body.tsx:10`.",
 			},
 		},
 	},
@@ -763,7 +754,7 @@ export const NestedList = meta.story({
 		docs: {
 			description: {
 				story:
-					"Three levels of nesting. Check that each level changes marker — disc, circle, square — so depth is readable without counting indents, and that a nested list hugs its parent item instead of taking a full block margin.",
+					"Three levels of nesting. Check that each level changes marker — disc, circle, square — so depth is readable without counting indents, and that a nested list hugs its parent item instead of taking a full block margin. The source reaches the renderer through `apps/app/src/components/turn-body.tsx:10`.",
 			},
 		},
 	},
@@ -775,7 +766,7 @@ export const TaskList = meta.story({
 		docs: {
 			description: {
 				story:
-					"A GFM checklist as an agent reports progress. The boxes are read-only by design — the transcript is a record, not a form — so they render disabled and keep their checked state for screen readers. Check that the list marker is gone and that the box aligns with the first line of its label.",
+					"A GFM checklist as an agent reports progress. The boxes are read-only by design — the transcript is a record, not a form — so they render disabled and keep their checked state for screen readers. Check that the list marker is gone and that the box aligns with the first line of its label. The source reaches the renderer through `apps/app/src/components/turn-body.tsx:10`.",
 			},
 		},
 	},
@@ -794,7 +785,7 @@ export const Blockquote = meta.story({
 		docs: {
 			description: {
 				story:
-					"A quote, prose, then a quote inside a quote. Check that the rule and the dimmed text mark the quote without boxing it, and that the nested level indents from the outer rule instead of restarting at the margin.",
+					"A quote, prose, then a quote inside a quote. Check that the rule and the dimmed text mark the quote without boxing it, and that the nested level indents from the outer rule instead of restarting at the margin. The source reaches the renderer through `apps/app/src/components/turn-body.tsx:10`.",
 			},
 		},
 	},
@@ -806,7 +797,7 @@ export const TableInBlockquote = meta.story({
 		docs: {
 			description: {
 				story:
-					"The mixed case that breaks naive renderers: a GFM table nested in a quote, between two quoted paragraphs. Check that the framed table stays inside the quote rule, that the quote keeps its dimmed colour across the cells, and that the frame shrinks to the table rather than filling the quote.",
+					"The mixed case that breaks naive renderers: a GFM table nested in a quote, between two quoted paragraphs. Check that the framed table stays inside the quote rule, that the quote keeps its dimmed colour across the cells, and that the frame shrinks to the table rather than filling the quote. The source reaches the renderer through `apps/app/src/components/turn-body.tsx:10`.",
 			},
 		},
 	},
@@ -818,7 +809,7 @@ export const Table = meta.story({
 		docs: {
 			description: {
 				story:
-					"All three declared alignments — left, right, centre — plus a column that declares none. Check that each column body follows its own header, that the undeclared column reads left rather than centred, and that the rules and the header fill hold in both themes: they are mixed from the foreground, so the same table reads on the page and on a solid bubble. Hover the table to raise the copy button.",
+					"All three declared alignments — left, right, centre — plus a column that declares none. Check that each column body follows its own header, that the undeclared column reads left rather than centred, and that the rules and the header fill hold in both themes: they are mixed from the foreground, so the same table reads on the page and on a solid bubble. Hover the table to raise the copy button. The source reaches the renderer through `apps/app/src/components/turn-body.tsx:10`.",
 			},
 		},
 	},
@@ -838,7 +829,7 @@ export const TableWide = meta.story({
 		docs: {
 			description: {
 				story:
-					"Eight columns in a column built for prose. The table keeps every cell on one line and scrolls on its own axis instead of squeezing each column into wrapped fragments. Check that the frame stops at the container edge, that the scroll ends flush with the last column, and that `Tab` reaches the table itself — the viewport is a tab stop with a visible ring, so the arrow keys scroll it without a mouse.",
+					"Eight columns in a column built for prose. The table keeps every cell on one line and scrolls on its own axis instead of squeezing each column into wrapped fragments. Check that the frame stops at the container edge, that the scroll ends flush with the last column, and that `Tab` reaches the table itself — the viewport is a tab stop with a visible ring, so the arrow keys scroll it without a mouse. The source reaches the renderer through `apps/app/src/components/turn-body.tsx:10`.",
 			},
 		},
 	},
@@ -863,7 +854,7 @@ export const TableNarrow = meta.story({
 		docs: {
 			description: {
 				story:
-					"The other end: two short columns. The frame shrinks to the table rather than stretching a hairline box across the whole bubble, so a small table reads as a small object. Check that nothing scrolls here.",
+					"The other end: two short columns. The frame shrinks to the table rather than stretching a hairline box across the whole bubble, so a small table reads as a small object. Check that nothing scrolls here. The source reaches the renderer through `apps/app/src/components/turn-body.tsx:10`.",
 			},
 		},
 	},
@@ -880,7 +871,7 @@ export const TableCopy = meta.story({
 		docs: {
 			description: {
 				story:
-					"The copy action against the cells that break a naive extraction: inline markdown, an escaped pipe, an image with no text of its own, an empty cell, and a literal tab sitting inside a field. The clipboard is stubbed so the story never touches the real one. Every row must copy as exactly two fields — the tab inside a cell flattens to a space rather than opening a third column, and the image yields its alt text rather than a hole. Check that the button is reachable by keyboard, that the icon swaps to a check, and that the result is announced in the polite live region rather than by the icon alone.",
+					"The copy action against the cells that break a naive extraction: inline markdown, an escaped pipe, an image with no text of its own, an empty cell, and a literal tab sitting inside a field. The clipboard is stubbed so the story never touches the real one. Every row must copy as exactly two fields — the tab inside a cell flattens to a space rather than opening a third column, and the image yields its alt text rather than a hole. Check that the button is reachable by keyboard, that the icon swaps to a check, and that the result is announced in the polite live region rather than by the icon alone. The source reaches the renderer through `apps/app/src/components/turn-body.tsx:10`.",
 			},
 		},
 	},
@@ -907,7 +898,7 @@ export const TableInBubble = meta.story({
 		docs: {
 			description: {
 				story:
-					"The host case: a table wider than the bubble that carries it. The bubble must not grow to fit the table and must not spill it — the table scrolls inside it. Check that the frame sits inside the bubble padding and that the copy button clears the bubble edge.",
+					"The host case: a table wider than the bubble that carries it. The bubble must not grow to fit the table and must not spill it — the table scrolls inside it. Check that the frame sits inside the bubble padding and that the copy button clears the bubble edge. The source reaches the renderer through `apps/app/src/components/turn-body.tsx:10`.",
 			},
 		},
 	},
@@ -933,7 +924,7 @@ export const CodeFence = meta.story({
 		docs: {
 			description: {
 				story:
-					"Inline code next to a fenced block. The fence label picks the grammar and the block is tokenised through the same bundled highlighter the standalone `CodeBlock` uses — no grammar is fetched, so the same source always paints the same colours. Check that the tokens read in both themes, that inline code keeps its chip while the fence drops it, and that the code viewport stops before the copy control instead of running under it.",
+					"Inline code next to a fenced block. The fence label picks the grammar and the block is tokenised through the same bundled highlighter the standalone `CodeBlock` uses — no grammar is fetched, so the same source always paints the same colours. Check that the tokens read in both themes, that inline code keeps its chip while the fence drops it, and that the code viewport stops before the copy control instead of running under it. The source reaches the renderer through `apps/app/src/components/turn-body.tsx:10`.",
 			},
 		},
 	},
@@ -945,7 +936,7 @@ export const CodeFenceRust = meta.story({
 		docs: {
 			description: {
 				story:
-					"Rust, the language of the Tauri host. Check that `pub fn`, the borrow and the closure are coloured apart from the identifiers, and that the sample keeps its shape at chat size.",
+					"Rust, the language of the Tauri host. Check that `pub fn`, the borrow and the closure are coloured apart from the identifiers, and that the sample keeps its shape at chat size. The source reaches the renderer through `apps/app/src/components/turn-body.tsx:10`.",
 			},
 		},
 	},
@@ -957,7 +948,7 @@ export const CodeFencePython = meta.story({
 		docs: {
 			description: {
 				story:
-					"Python, the most common fence a model reaches for after TypeScript. Check that the keyword, the type hints and the dict literal separate, and that the indentation survives the token spans.",
+					"Python, the most common fence a model reaches for after TypeScript. Check that the keyword, the type hints and the dict literal separate, and that the indentation survives the token spans. The source reaches the renderer through `apps/app/src/components/turn-body.tsx:10`.",
 			},
 		},
 	},
@@ -969,7 +960,7 @@ export const CodeFenceCss = meta.story({
 		docs: {
 			description: {
 				story:
-					"CSS, the language a companion answers styling questions in. Check that the selector, the properties and the `var()` reference are told apart, so a custom property is readable at a glance.",
+					"CSS, the language a companion answers styling questions in. Check that the selector, the properties and the `var()` reference are told apart, so a custom property is readable at a glance. The source reaches the renderer through `apps/app/src/components/turn-body.tsx:10`.",
 			},
 		},
 	},
@@ -981,7 +972,7 @@ export const CodeFenceHtml = meta.story({
 		docs: {
 			description: {
 				story:
-					"Markup inside a fence — the case where highlighting and sanitizing meet. The tags are code, never elements: check that the snippet renders as text with coloured tags and attributes, and that nothing in it reaches the DOM as markup.",
+					"Markup inside a fence — the case where highlighting and sanitizing meet. The tags are code, never elements: check that the snippet renders as text with coloured tags and attributes, and that nothing in it reaches the DOM as markup. The source reaches the renderer through `apps/app/src/components/turn-body.tsx:10`.",
 			},
 		},
 	},
@@ -993,7 +984,7 @@ export const CodeFenceYaml = meta.story({
 		docs: {
 			description: {
 				story:
-					"YAML, the shape a config answer takes. Check that keys, string values and booleans separate, and that the two-space rhythm of the source is preserved.",
+					"YAML, the shape a config answer takes. Check that keys, string values and booleans separate, and that the two-space rhythm of the source is preserved. The source reaches the renderer through `apps/app/src/components/turn-body.tsx:10`.",
 			},
 		},
 	},
@@ -1005,7 +996,7 @@ export const CodeFenceMarkdown = meta.story({
 		docs: {
 			description: {
 				story:
-					"Markdown inside markdown, written with the `md` alias. Check that the fence shows the source — heading marker, list markers and the literal asterisks — instead of rendering it as a heading and a list.",
+					"Markdown inside markdown, written with the `md` alias. Check that the fence shows the source — heading marker, list markers and the literal asterisks — instead of rendering it as a heading and a list. The source reaches the renderer through `apps/app/src/components/turn-body.tsx:10`.",
 			},
 		},
 	},
@@ -1017,7 +1008,7 @@ export const CodeFenceUnknownLanguage = meta.story({
 		docs: {
 			description: {
 				story:
-					"A fence for a grammar we do not bundle. Check that the block renders the source verbatim in the foreground colour instead of blanking or throwing on the missing grammar — a fence with no label at all lands here too.",
+					"A fence for a grammar we do not bundle. Check that the block renders the source verbatim in the foreground colour instead of blanking or throwing on the missing grammar — a fence with no label at all lands here too. The source reaches the renderer through `apps/app/src/components/turn-body.tsx:10`.",
 			},
 		},
 	},
@@ -1029,7 +1020,7 @@ export const CodeFenceOverflow = meta.story({
 		docs: {
 			description: {
 				story:
-					"One line far wider than the bubble. Check that the fence scrolls on its own instead of stretching the bubble, that the scroll region takes focus from the keyboard with a visible ring, and that arrow keys move it.",
+					"One line far wider than the bubble. Check that the fence scrolls on its own instead of stretching the bubble, that the scroll region takes focus from the keyboard with a visible ring, and that arrow keys move it. The source reaches the renderer through `apps/app/src/components/turn-body.tsx:10`.",
 			},
 		},
 	},
@@ -1068,7 +1059,7 @@ export const CodeFenceCopy = meta.story({
 		docs: {
 			description: {
 				story:
-					"The copy affordance a fence carries, driven here through a stubbed clipboard so the story never touches the real one. The source keeps a blank line and a tab so the assertion is byte-level: check that the button is reachable by keyboard, that its name swaps to Copied, and that what leaves is exactly what the author typed — not the highlighted markup, not a retabbed line, not the trailing newline the parser adds.",
+					"The copy affordance a fence carries, driven here through a stubbed clipboard so the story never touches the real one. The source keeps a blank line and a tab so the assertion is byte-level: check that the button is reachable by keyboard, that its name swaps to Copied, and that what leaves is exactly what the author typed — not the highlighted markup, not a retabbed line, not the trailing newline the parser adds. The source reaches the renderer through `apps/app/src/components/turn-body.tsx:10`.",
 			},
 		},
 	},
@@ -1093,7 +1084,7 @@ export const CodeFenceLongSource = meta.story({
 		docs: {
 			description: {
 				story:
-					"240 lines — past the budget where tokenising the whole fence would hold the first frame. Such a fence paints its source text first and takes its colours on the pass after, so a long answer appears at once instead of after the highlighter. Check that every line is there from the start and that the colours land without the block jumping.",
+					"240 lines — past the budget where tokenising the whole fence would hold the first frame. Such a fence paints its source text first and takes its colours on the pass after, so a long answer appears at once instead of after the highlighter. Check that every line is there from the start and that the colours land without the block jumping. The source reaches the renderer through `apps/app/src/components/turn-body.tsx:10`.",
 			},
 		},
 	},
@@ -1111,7 +1102,7 @@ export const MathInline = meta.story({
 		docs: {
 			description: {
 				story:
-					"`$…$` inside running prose. The typesetter is fetched the first time a block carries math and never before, so the expression appears as the source the author typed and is replaced in place a moment later — the paragraph keeps its box throughout. Glyphs paint in `currentColor`, so one render reads in both themes; flip the theme layout toolbar to side-by-side. Check that a bare dollar amount in the same sentence stays prose.",
+					"`$…$` inside running prose. The typesetter is fetched the first time a block carries math and never before, so the expression appears as the source the author typed and is replaced in place a moment later — the paragraph keeps its box throughout. Glyphs paint in `currentColor`, so one render reads in both themes; flip the theme layout toolbar to side-by-side. Check that a bare dollar amount in the same sentence stays prose. The source reaches the renderer through `apps/app/src/components/turn-body.tsx:10`.",
 			},
 		},
 	},
@@ -1130,7 +1121,7 @@ export const MathDisplay = meta.story({
 		docs: {
 			description: {
 				story:
-					"`$$…$$` as a block of its own, centred between the paragraphs it belongs to. A sum wider than the bubble scrolls on its own axis rather than widening the block. Check that the block rhythm above and below matches the other block elements, and that the inline `$n = 40$` in the closing line sits on the text baseline instead of pushing the line box open.",
+					"`$$…$$` as a block of its own, centred between the paragraphs it belongs to. A sum wider than the bubble scrolls on its own axis rather than widening the block. Check that the block rhythm above and below matches the other block elements, and that the inline `$n = 40$` in the closing line sits on the text baseline instead of pushing the line box open. The source reaches the renderer through `apps/app/src/components/turn-body.tsx:10`.",
 			},
 		},
 	},
@@ -1152,7 +1143,7 @@ export const MathMalformed = meta.story({
 		docs: {
 			description: {
 				story:
-					"An unclosed fraction and a matrix with no end — what a stream mid-flight produces. Neither throws and neither blanks the bubble: each keeps the source the author typed, flagged in the destructive tone, and the expression after them still typesets. Check that the failed expressions read as text rather than as a gap.",
+					"An unclosed fraction and a matrix with no end — what a stream mid-flight produces. Neither throws and neither blanks the bubble: each keeps the source the author typed, flagged in the destructive tone, and the expression after them still typesets. Check that the failed expressions read as text rather than as a gap. The source reaches the renderer through `apps/app/src/components/turn-body.tsx:10`.",
 			},
 		},
 	},
@@ -1174,7 +1165,7 @@ export const MathOversized = meta.story({
 		docs: {
 			description: {
 				story:
-					"An expression is bounded by what it costs, not only by whether it parses. This 20×20 matrix is under two kilobytes to type and typesets to ninety-six of DOM; a 100×100 one reaches 2.2 MB. Past the bound the source stands as text — the same thing shown for an expression that cannot be parsed — and the expression after it still typesets. Check that the bubble stays scrollable and responsive instead of paying for a matrix nobody can read.",
+					"An expression is bounded by what it costs, not only by whether it parses. This 20×20 matrix is under two kilobytes to type and typesets to ninety-six of DOM; a 100×100 one reaches 2.2 MB. Past the bound the source stands as text — the same thing shown for an expression that cannot be parsed — and the expression after it still typesets. Check that the bubble stays scrollable and responsive instead of paying for a matrix nobody can read. The source reaches the renderer through `apps/app/src/components/turn-body.tsx:10`.",
 			},
 		},
 	},
@@ -1193,7 +1184,7 @@ export const MermaidFlowchart = meta.story({
 		docs: {
 			description: {
 				story:
-					"A fence labelled `mermaid` is a drawing, not code: it takes no highlighter and no copy control, and mermaid itself is fetched only once a document declares one. The palette follows the `--diagram-scheme` token, so the diagram is drawn for the theme of the surface it sits on and is redrawn when that theme changes — flip the theme layout toolbar to side-by-side and check both. The source holds the block until the diagram replaces it. Mermaid ships a stylesheet with every diagram, prefixed selectors and unprefixed keyframes alike, so the drawing goes into a shadow root: the CSS reaches this diagram and nothing else, while the type and the tokens it inherits still cross the boundary.",
+					"A fence labelled `mermaid` is a drawing, not code: it takes no highlighter and no copy control, and mermaid itself is fetched only once a document declares one. The palette follows the `--diagram-scheme` token, so the diagram is drawn for the theme of the surface it sits on and is redrawn when that theme changes — flip the theme layout toolbar to side-by-side and check both. The source holds the block until the diagram replaces it. Mermaid ships a stylesheet with every diagram, prefixed selectors and unprefixed keyframes alike, so the drawing goes into a shadow root: the CSS reaches this diagram and nothing else, while the type and the tokens it inherits still cross the boundary. The source reaches the renderer through `apps/app/src/components/turn-body.tsx:10`.",
 			},
 		},
 	},
@@ -1219,7 +1210,7 @@ export const MermaidMalformed = meta.story({
 		docs: {
 			description: {
 				story:
-					"An edge that points nowhere. The diagram cannot be drawn, so its source stays on screen exactly as written and the diagram below it still draws — one bad fence never costs the reader the rest of the answer. Check that nothing throws and that the failed source keeps the code surface rather than collapsing.",
+					"An edge that points nowhere. The diagram cannot be drawn, so its source stays on screen exactly as written and the diagram below it still draws — one bad fence never costs the reader the rest of the answer. Check that nothing throws and that the failed source keeps the code surface rather than collapsing. The source reaches the renderer through `apps/app/src/components/turn-body.tsx:10`.",
 			},
 		},
 	},
@@ -1238,7 +1229,7 @@ export const MermaidInBubble = meta.story({
 		docs: {
 			description: {
 				story:
-					"The host case: a diagram wider than the bubble that carries it. The bubble must not grow to fit it and must not spill it — the diagram scrolls inside its frame, which is a tab stop so a keyboard reaches the far end. Check that the frame sits inside the bubble padding and that the labels keep their size instead of being scaled down to fit.",
+					"The host case: a diagram wider than the bubble that carries it. The bubble must not grow to fit it and must not spill it — the diagram scrolls inside its frame, which is a tab stop so a keyboard reaches the far end. Check that the frame sits inside the bubble padding and that the labels keep their size instead of being scaled down to fit. The source reaches the renderer through `apps/app/src/components/turn-body.tsx:10`.",
 			},
 		},
 	},
@@ -1269,7 +1260,7 @@ export const ThematicBreak = meta.story({
 		docs: {
 			description: {
 				story:
-					"A horizontal rule between two passages. Check that the rule uses the border token — visible on light, not glaring on dark — and that it breathes more than a paragraph gap.",
+					"A horizontal rule between two passages. Check that the rule uses the border token — visible on light, not glaring on dark — and that it breathes more than a paragraph gap. The source reaches the renderer through `apps/app/src/components/turn-body.tsx:10`.",
 			},
 		},
 	},
@@ -1281,7 +1272,7 @@ export const Footnotes = meta.story({
 		docs: {
 			description: {
 				story:
-					"Two footnotes and the section GFM appends. Check that each reference jumps to its definition and back — the ids are scoped to this block, so the anchor resolves inside it and nowhere else — and that the section reads as an aside: rule on top, smaller dimmed text.",
+					"Two footnotes and the section GFM appends. Check that each reference jumps to its definition and back — the ids are scoped to this block, so the anchor resolves inside it and nowhere else — and that the section reads as an aside: rule on top, smaller dimmed text. The source reaches the renderer through `apps/app/src/components/turn-body.tsx:10`.",
 			},
 		},
 	},
@@ -1300,7 +1291,7 @@ export const FootnotesTwice = meta.story({
 		docs: {
 			description: {
 				story:
-					"Two blocks on one page, each carrying its own footnotes — the shape a transcript takes. Footnote ids are fixed strings in GFM, so they are scoped per block: check that clicking the first reference of the second block scrolls to that block's definition instead of jumping back up to the first one.",
+					"Two blocks on one page, each carrying its own footnotes — the shape a transcript takes. Footnote ids are fixed strings in GFM, so they are scoped per block: check that clicking the first reference of the second block scrolls to that block's definition instead of jumping back up to the first one. The source reaches the renderer through `apps/app/src/components/turn-body.tsx:10`.",
 			},
 		},
 	},
@@ -1326,7 +1317,7 @@ export const Autolinks = meta.story({
 		docs: {
 			description: {
 				story:
-					"A bare URL, a bare email and an explicit link. What the parser inferred gets the same treatment as what an author typed: both web links leave in a new window with no referrer and state their host, while the email opens a mail client in place rather than an empty tab. Check that all three underline identically — a reader should not be able to tell which one was typed as markdown — and that they stay reachable by keyboard with a visible focus ring.",
+					"A bare URL, a bare email and an explicit link. What the parser inferred gets the same treatment as what an author typed: both web links leave in a new window with no referrer and state their host, while the email opens a mail client in place rather than an empty tab. Check that all three underline identically — a reader should not be able to tell which one was typed as markdown — and that they stay reachable by keyboard with a visible focus ring. The source reaches the renderer through `apps/app/src/components/turn-body.tsx:10`.",
 			},
 		},
 	},
@@ -1349,7 +1340,7 @@ export const Destinations = meta.story({
 		docs: {
 			description: {
 				story:
-					"The rule, stated plainly: a web link always ends with the host its href resolves to, whether the text is a label, a subdomain or the URL itself. Nothing is compared, so nothing can be fooled — the repetition on a bare URL is the price of never guessing. The host separates itself by weight and parentheses rather than by a dimmer colour: a destination is what a reader checks before clicking, so it never trades contrast for hierarchy, least of all on a solid bubble. Ahead of it sits a mark carrying the initial of that same host, drawn from the href and fetched from no one: an icon would have to be asked of the destination or of a service answering for it, and either one would learn that this message was read, from which address, at what time. The letter is decoration and the host beside it is the part that cannot lie. Check that mail keeps the reader inside their own client, and that the mark reaches neither a screen reader nor a copied transcript.",
+					"The rule, stated plainly: a web link always ends with the host its href resolves to, whether the text is a label, a subdomain or the URL itself. Nothing is compared, so nothing can be fooled — the repetition on a bare URL is the price of never guessing. The host separates itself by weight and parentheses rather than by a dimmer colour: a destination is what a reader checks before clicking, so it never trades contrast for hierarchy, least of all on a solid bubble. Ahead of it sits a mark carrying the initial of that same host, drawn from the href and fetched from no one: an icon would have to be asked of the destination or of a service answering for it, and either one would learn that this message was read, from which address, at what time. The letter is decoration and the host beside it is the part that cannot lie. Check that mail keeps the reader inside their own client, and that the mark reaches neither a screen reader nor a copied transcript. The source reaches the renderer through `apps/app/src/components/turn-body.tsx:10`.",
 			},
 		},
 	},
@@ -1373,7 +1364,7 @@ export const DestinationsFetchNothing = meta.story({
 		docs: {
 			description: {
 				story:
-					"Seven hosts in one answer, in both bubbles a transcript is made of. Rendering them sends nothing: no request goes to the sites themselves, and none to the service that used to answer for every site — which would have received the whole guest list, with the reader's address and the hour they read it. Each mark is the initial of its own host, tinted from the text so it holds on the muted surface and on the solid one, in either theme, and sized exactly as the icon was so no line moves. The last two are the ones a punycode host and an address would get wrong: the Cyrillic name is decoded for the mark and still spelled out in punycode beside it, and the IP literal takes a neutral dot rather than opening with a digit. Flip the theme layout toolbar to side-by-side, and check the marks against the amber bubble.",
+					"Seven hosts in one answer, in both bubbles a transcript is made of. Rendering them sends nothing: no request goes to the sites themselves, and none to the service that used to answer for every site — which would have received the whole guest list, with the reader's address and the hour they read it. Each mark is the initial of its own host, tinted from the text so it holds on the muted surface and on the solid one, in either theme, and sized exactly as the icon was so no line moves. The last two are the ones a punycode host and an address would get wrong: the Cyrillic name is decoded for the mark and still spelled out in punycode beside it, and the IP literal takes a neutral dot rather than opening with a digit. Flip the theme layout toolbar to side-by-side, and check the marks against the amber bubble. The source reaches the renderer through `apps/app/src/components/turn-body.tsx:10`.",
 			},
 		},
 	},
@@ -1424,7 +1415,7 @@ export const DeceptiveLinks = meta.story({
 		docs: {
 			description: {
 				story:
-					"The six pairs a review used to defeat comparing text with href. Userinfo, a missing scheme, a punycode homograph, emphasis instead of a plain string, a protocol-relative href aimed at this very window, and a mailto wearing a web address — each one reads truthfully now, because the host comes from the href and the text is never consulted. Check that the homograph reports its punycode form, and that the protocol-relative link leaves in a new window instead of replacing the app.",
+					"The six pairs a review used to defeat comparing text with href. Userinfo, a missing scheme, a punycode homograph, emphasis instead of a plain string, a protocol-relative href aimed at this very window, and a mailto wearing a web address — each one reads truthfully now, because the host comes from the href and the text is never consulted. Check that the homograph reports its punycode form, and that the protocol-relative link leaves in a new window instead of replacing the app. The source reaches the renderer through `apps/app/src/components/turn-body.tsx:10`.",
 			},
 		},
 	},
@@ -1443,7 +1434,7 @@ export const InertSchemes = meta.story({
 		docs: {
 			description: {
 				story:
-					"Only http, https, mailto, tel and a same-document fragment stay clickable. An unknown scheme, a path that would resolve against the app window and a script URL all keep their words and lose their anchor. Check that the text reads as prose — no underline, no pointer, nothing to click — and that the sentence around it is untouched.",
+					"Only http, https, mailto, tel and a same-document fragment stay clickable. An unknown scheme, a path that would resolve against the app window and a script URL all keep their words and lose their anchor. Check that the text reads as prose — no underline, no pointer, nothing to click — and that the sentence around it is untouched. The source reaches the renderer through `apps/app/src/components/turn-body.tsx:10`.",
 			},
 		},
 	},
@@ -1459,7 +1450,7 @@ export const LongUrl = meta.story({
 		docs: {
 			description: {
 				story:
-					"A signed report URL pasted alone, the shape that stretches a bubble across the transcript. The URL is clipped with an ellipsis at the bubble width and the destination follows it, wrapping to a second line rather than being cut: the one part a reader cannot afford to lose is where the link goes. Check that the bubble keeps the width of the surrounding turns and that the host reads in full.",
+					"A signed report URL pasted alone, the shape that stretches a bubble across the transcript. The URL is clipped with an ellipsis at the bubble width and the destination follows it, wrapping to a second line rather than being cut: the one part a reader cannot afford to lose is where the link goes. Check that the bubble keeps the width of the surrounding turns and that the host reads in full. The source reaches the renderer through `apps/app/src/components/turn-body.tsx:10`.",
 			},
 		},
 	},
@@ -1492,7 +1483,7 @@ export const FragmentLink = meta.story({
 		docs: {
 			description: {
 				story:
-					"A footnote reference, its backlink and an explicit `#` link. None of them leaves the app, so none opens a window and none states a host: they move the reader inside the answer they are already reading. Check that the footnote reference and the return arrow both scroll within the block.",
+					"A footnote reference, its backlink and an explicit `#` link. None of them leaves the app, so none opens a window and none states a host: they move the reader inside the answer they are already reading. Check that the footnote reference and the return arrow both scroll within the block. The source reaches the renderer through `apps/app/src/components/turn-body.tsx:10`.",
 			},
 		},
 	},
@@ -1514,7 +1505,7 @@ export const RawHtml = meta.story({
 		docs: {
 			description: {
 				story:
-					"HTML in a message is content being discussed, so it reads as the source it was written with. The parser never turns it into nodes: what a reader sees is the characters, inside a sentence that is still rendered as markdown around them, or as a block of its own that keeps its line breaks and its indentation. Check that the `<b>` reads as four characters while the `**markdown**` beside it is bold, and that the section below stands on four lines with its children indented under it.",
+					"HTML in a message is content being discussed, so it reads as the source it was written with. The parser never turns it into nodes: what a reader sees is the characters, inside a sentence that is still rendered as markdown around them, or as a block of its own that keeps its line breaks and its indentation. Check that the `<b>` reads as four characters while the `**markdown**` beside it is bold, and that the section below stands on four lines with its children indented under it. The source reaches the renderer through `apps/app/src/components/turn-body.tsx:10`.",
 			},
 		},
 	},
@@ -1539,7 +1530,7 @@ export const RawHtmlInList = meta.story({
 		docs: {
 			description: {
 				story:
-					"The same source, in the one place its line breaks were being collapsed: a tight list item holding a fence, a table, a quote or a nested list beside it. An item like that reads its whitespace from itself, and it stops preserving whitespace the moment it holds blocks — so the source keeps a block of its own instead of dissolving into the item. Check that each `<section>` stands on three lines with its heading indented, exactly as when it stands alone.",
+					"The same source, in the one place its line breaks were being collapsed: a tight list item holding a fence, a table, a quote or a nested list beside it. An item like that reads its whitespace from itself, and it stops preserving whitespace the moment it holds blocks — so the source keeps a block of its own instead of dissolving into the item. Check that each `<section>` stands on three lines with its heading indented, exactly as when it stands alone. The source reaches the renderer through `apps/app/src/components/turn-body.tsx:10`.",
 			},
 		},
 	},
@@ -1563,7 +1554,7 @@ export const HostileMarkup = meta.story({
 		docs: {
 			description: {
 				story:
-					"The security contract, rendered. A script, a style, an iframe, an `onerror` image, a `javascript:` link and a diagram whose labels are markup all go in; every one of them comes out as the characters it was written with, beside the inert link text and a diagram of two empty boxes. Showing the source is not relaxing anything: the parser still never builds a node from HTML, and the allowlist behind it is unchanged. The diagram is the one place markup is injected rather than built from the tree, so mermaid draws it under its strict level: the script and the event handlers are gone by the time the SVG reaches the DOM, and what a label may still carry is what the allowlist already grants ordinary markdown — an element, never a handler on it. The play proves the three ways this could fail: no script ran, no rule applied — a surviving `style` would hide the block — and no request was attempted.",
+					"The security contract, rendered. A script, a style, an iframe, an `onerror` image, a `javascript:` link and a diagram whose labels are markup all go in; every one of them comes out as the characters it was written with, beside the inert link text and a diagram of two empty boxes. Showing the source is not relaxing anything: the parser still never builds a node from HTML, and the allowlist behind it is unchanged. The diagram is the one place markup is injected rather than built from the tree, so mermaid draws it under its strict level: the script and the event handlers are gone by the time the SVG reaches the DOM, and what a label may still carry is what the allowlist already grants ordinary markdown — an element, never a handler on it. The play proves the three ways this could fail: no script ran, no rule applied — a surviving `style` would hide the block — and no request was attempted. The source reaches the renderer through `apps/app/src/components/turn-body.tsx:10`.",
 			},
 		},
 	},
@@ -1600,7 +1591,7 @@ export const Malformed = meta.story({
 		docs: {
 			description: {
 				story:
-					"Unclosed emphasis, a truncated table, a half-written link and a block syntax we do not support — what a stream mid-flight or a distracted typist produces. Check that every line stays readable as source text: the renderer degrades to prose instead of blanking the bubble.",
+					"Unclosed emphasis, a truncated table, a half-written link and a block syntax we do not support — what a stream mid-flight or a distracted typist produces. Check that every line stays readable as source text: the renderer degrades to prose instead of blanking the bubble. The source reaches the renderer through `apps/app/src/components/turn-body.tsx:10`.",
 			},
 		},
 	},
@@ -1612,7 +1603,7 @@ export const InMessageBubble = meta.story({
 		docs: {
 			description: {
 				story:
-					"The real host: one block inside one bubble. The bubble applies the same prose class the renderer owns, so nothing shifts when the HTML starts coming from here. Check the code chips and the quote rule against the muted bubble surface, and that long tables and fences stay inside the bubble width.",
+					"The real host: one block inside one bubble. The bubble applies the same prose class the renderer owns, so nothing shifts when the HTML starts coming from here. Check the code chips and the quote rule against the muted bubble surface, and that long tables and fences stay inside the bubble width. The source reaches the renderer through `apps/app/src/components/turn-body.tsx:10`.",
 			},
 		},
 	},
@@ -1631,7 +1622,7 @@ export const InSolidBubble = meta.story({
 		docs: {
 			description: {
 				story:
-					"What a reader types, in the solid bubble that carries their own turn. The bubble surface is `bg-primary`, the hardest case for a code chip and for a link destination: both are tinted from the foreground rather than the background, so the chip and the host stay visible on amber in both themes instead of dissolving into it. Flip the theme layout toolbar to side-by-side and check the inline chip, the fence and the dimmed host against the bubble.",
+					"What a reader types, in the solid bubble that carries their own turn. The bubble surface is `bg-primary`, the hardest case for a code chip and for a link destination: both are tinted from the foreground rather than the background, so the chip and the host stay visible on amber in both themes instead of dissolving into it. Flip the theme layout toolbar to side-by-side and check the inline chip, the fence and the dimmed host against the bubble. The source reaches the renderer through `apps/app/src/components/turn-body.tsx:10`, which renders what the reader typed the same way it renders an answer.",
 			},
 		},
 	},
@@ -1650,7 +1641,7 @@ export const AdjacentBlocks = meta.story({
 		docs: {
 			description: {
 				story:
-					"Paragraph, list, fence and table one after another, in the two turns a transcript is made of. A turn sets `whitespace-pre-wrap` so a pasted prompt keeps what its author typed, and the parser leaves a newline between every two blocks — inherited by the container holding them, each of those newlines paints as a blank line. The containers collapse it instead, so the only space between two blocks is the margin the prose rules declare, while the opening paragraph still wraps on words at the bubble edge and the fence keeps its tabs from `pre` alone. Check that the rhythm is identical on the solid bubble and the muted one.",
+					"Paragraph, list, fence and table one after another, in the two turns a transcript is made of. A turn sets `whitespace-pre-wrap` so a pasted prompt keeps what its author typed, and the parser leaves a newline between every two blocks — inherited by the container holding them, each of those newlines paints as a blank line. The containers collapse it instead, so the only space between two blocks is the margin the prose rules declare, while the opening paragraph still wraps on words at the bubble edge and the fence keeps its tabs from `pre` alone. Check that the rhythm is identical on the solid bubble and the muted one. The source reaches the renderer through `apps/app/src/components/turn-body.tsx:10`.",
 			},
 		},
 	},
@@ -1691,7 +1682,7 @@ export const NestedBlocks = meta.story({
 		docs: {
 			description: {
 				story:
-					"The same boundary one level down: a quote holding two paragraphs, and a numbered item holding a paragraph and a list of its own. A list item is the one element that is both a container and a leaf — it collapses only once it wraps its content in blocks, which is exactly when a newline inside it would show. Check that the quote reads as two paragraphs rather than four, and that the nested list sits under its item at the same rhythm as any other pair of blocks.",
+					"The same boundary one level down: a quote holding two paragraphs, and a numbered item holding a paragraph and a list of its own. A list item is the one element that is both a container and a leaf — it collapses only once it wraps its content in blocks, which is exactly when a newline inside it would show. Check that the quote reads as two paragraphs rather than four, and that the nested list sits under its item at the same rhythm as any other pair of blocks. The source reaches the renderer through `apps/app/src/components/turn-body.tsx:10`.",
 			},
 		},
 	},
@@ -1714,7 +1705,7 @@ export const PreservedWhitespace = meta.story({
 		docs: {
 			description: {
 				story:
-					"What the reader typed, kept: a paste broken across three lines, a column padded to line up, a list item wrapped by hand, a code span holding a run of spaces, a table cell holding another, and a quote written across two lines. Whitespace is markup between blocks and text inside them, so only what holds blocks collapses it — every leaf here reads it as the author's. A proportional face cannot make padded columns meet, but it must not swallow the padding either. Check that nothing reflows into fewer lines than it was written on.",
+					"What the reader typed, kept: a paste broken across three lines, a column padded to line up, a list item wrapped by hand, a code span holding a run of spaces, a table cell holding another, and a quote written across two lines. Whitespace is markup between blocks and text inside them, so only what holds blocks collapses it — every leaf here reads it as the author's. A proportional face cannot make padded columns meet, but it must not swallow the padding either. Check that nothing reflows into fewer lines than it was written on. The source reaches the renderer through `apps/app/src/components/turn-body.tsx:10`, which renders what the reader typed the same way it renders an answer.",
 			},
 		},
 	},
@@ -1754,7 +1745,7 @@ export const TypesetInBubble = meta.story({
 		docs: {
 			description: {
 				story:
-					"The whole rhythm inside the surface it ships on, drawn in both schemes at once. Heading, nested list, quote, fence, wide table and inline code all take their type from the vendored `typeset` stylesheet, while the fence and the table keep their own frame through the `not-typeset` escape hatch. Check that the heading opens flush with the bubble padding rather than pushing a blank line above itself, that the table scrolls on its own axis instead of widening the bubble, and that every tone — heading ink, quote rule, list markers, code chip — holds on the bubble surface in both schemes.",
+					"The whole rhythm inside the surface it ships on, drawn in both schemes at once. Heading, nested list, quote, fence, wide table and inline code all take their type from the vendored `typeset` stylesheet, while the fence and the table keep their own frame through the `not-typeset` escape hatch. Check that the heading opens flush with the bubble padding rather than pushing a blank line above itself, that the table scrolls on its own axis instead of widening the bubble, and that every tone — heading ink, quote rule, list markers, code chip — holds on the bubble surface in both schemes. The source reaches the renderer through `apps/app/src/components/turn-body.tsx:10`.",
 			},
 		},
 	},
@@ -1789,12 +1780,13 @@ export const TypesetInBubble = meta.story({
 })
 
 export const AppendedBlock = meta.story({
+	tags: ["test-only"],
 	args: { children: STREAMED_BODY },
 	parameters: {
 		docs: {
 			description: {
 				story:
-					"A body growing the way a streamed answer grows. Appending a paragraph must not move a single block already on screen: the rhythm is carried by the top margin each block owns, so nothing above the insertion point is asked to reflow. The fence is the block to watch — it drops its closing margin while it is last and takes it back once a paragraph follows, which changes what sits below it and nothing above. Press the button and check that the heading, the paragraph, the list and the quote all stay where they were.",
+					"A body growing the way a streamed answer grows. Appending a paragraph must not move a single block already on screen: the rhythm is carried by the top margin each block owns, so nothing above the insertion point is asked to reflow. The fence is the block to watch — it drops its closing margin while it is last and takes it back once a paragraph follows, which changes what sits below it and nothing above. Press the button and check that the heading, the paragraph, the list and the quote all stay where they were. The growing source is the one `apps/app/src/components/turn-body.tsx:10` re-renders on every frame of a stream; the button under the bubble is the story's driver and no screen carries it.",
 			},
 		},
 	},
@@ -1812,35 +1804,5 @@ export const AppendedBlock = meta.story({
 		)
 
 		await expect(blockOffsetsIn(root).slice(0, before.length)).toEqual(before)
-	},
-})
-
-export const DangerBubble = meta.story({
-	args: { children: DANGER_BODY },
-	parameters: {
-		a11y: A11Y_CONTRAST_AWAITING_DESIGN_DECISION,
-		docs: {
-			description: {
-				story:
-					"The variant a failed turn wears. The bubble sets destructive ink on its own text, and the stylesheet re-declares colour on the body from a variable resolved above the bubble, so the ink has to be bound on the bubble rather than painted on each element. Check that the heading and the paragraph read in the same red as any plain text the bubble carries, instead of dropping back to the page foreground.",
-			},
-		},
-	},
-	render: (args) => (
-		<MessageBubble variant="danger">
-			<MessageBubbleContent>
-				<Markdown {...args} />
-			</MessageBubbleContent>
-		</MessageBubble>
-	),
-	play: async ({ canvasElement }) => {
-		const content = bubbleContentOf(canvasElement)
-		const [root] = markdownRootsOf(canvasElement)
-		const [heading] = root.querySelectorAll("h2")
-		const [paragraph] = root.querySelectorAll("p")
-
-		await expect(inkOf(content)).not.toBe(inkOf(canvasElement))
-		await expect(inkOf(heading)).toBe(inkOf(content))
-		await expect(inkOf(paragraph)).toBe(inkOf(content))
 	},
 })

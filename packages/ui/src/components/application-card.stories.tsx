@@ -14,14 +14,8 @@ import {
 	type ApplicationCardProps,
 	type ApplicationCardStatus,
 } from "@workspace/ui/components/application-card"
-import { BotIdentityAvatar } from "@workspace/ui/components/bot-identity-avatar"
 import { Icons } from "@workspace/ui/components/icons"
-import {
-	Message,
-	MessageAuthor,
-	MessageAvatar,
-	MessageContent,
-} from "@workspace/ui/components/message"
+import { Message, MessageContent } from "@workspace/ui/components/message"
 import {
 	MessageBubble,
 	MessageBubbleContent,
@@ -32,13 +26,6 @@ import { bots } from "@workspace/ui/lib/i18n-en/bots"
 
 const SENTRY_MARK = CURATED_APPLICATIONS.find(({ id }) => id === "sentry")?.mark
 const LINEAR_MARK = CURATED_APPLICATIONS.find(({ id }) => id === "linear")?.mark
-
-const SHOTO: MessageAuthor = {
-	id: "bot-shoto",
-	name: "Shoto",
-	animal: "koala",
-	blot: "green",
-}
 
 const APPLICATION_STATUSES = listExhaustively<ApplicationCardStatus>({
 	none: true,
@@ -56,14 +43,20 @@ const expectInside = async (inner: Element, outer: Element) => {
 	await expect(innerBox.right).toBeLessThanOrEqual(outerBox.right)
 }
 
-type BubbleSurfaceProps = {
+const COMPANION_FOOTNOTE: ApplicationCardFootnote = {
+	sentence: "Shoto has Linear in every conversation.",
+	actionLabel: "Open Settings",
+	onAction: fn(),
+}
+
+type InstallRowProps = {
 	children: ReactNode
 }
 
-const BubbleSurface = ({ children }: BubbleSurfaceProps) => (
-	<div className="mx-auto grid max-w-md gap-3 rounded-bubble bg-muted px-3.5 py-2.5">
-		{children}
-	</div>
+const InstallRow = ({ children }: InstallRowProps) => (
+	<Message from="assistant">
+		<MessageContent>{children}</MessageContent>
+	</Message>
 )
 
 const meta = preview.meta({
@@ -73,7 +66,7 @@ const meta = preview.meta({
 		docs: {
 			description: {
 				component:
-					"One application as the conversation shows it: a mark, a name, one description line and a trailing status. An application Kiroshi knows prints its display name in the sans face; one pasted or taken from the registry prints its slug in the mono face. Given a footnote, the same card is the bordered receipt posted bare in the thread.",
+					"One application as the conversation shows it, posted bare in the thread as the receipt of an install: a mark, a name, one description line, a trailing status and a footnote that says where the application landed and opens Settings. An application Kiroshi knows prints its display name in the sans face; one pasted or taken from the registry prints its slug in the mono face.",
 			},
 		},
 	},
@@ -83,22 +76,28 @@ const meta = preview.meta({
 		mark: LINEAR_MARK,
 		description: "Reads and files issues, projects and cycles.",
 		status: "signIn",
+		footnote: COMPANION_FOOTNOTE,
 	} satisfies ApplicationCardProps,
+	decorators: [
+		(Story) => (
+			<div className="mx-auto max-w-177.5">
+				<Story />
+			</div>
+		),
+	],
+	render: (args) => (
+		<InstallRow>
+			<ApplicationCard {...args} />
+		</InstallRow>
+	),
 })
 
 export const Default = meta.story({
-	decorators: [
-		(Story) => (
-			<BubbleSurface>
-				<Story />
-			</BubbleSurface>
-		),
-	],
 	parameters: {
 		docs: {
 			description: {
 				story:
-					"A known application inside a bubble: display name in the sans face, the sign-in dot in the attention colour of the connection dot map. Pick `WithSlug` for a registry application.",
+					"The receipt of an application Kiroshi curates, as `apps/app/src/components/application-install-row.tsx:108` posts it once the install lands on a companion: display name in the sans face, the sign-in dot in the attention colour of the connection dot map, and the footnote naming the companion. Pick `WithSlug` for an application the registry has no entry for.",
 			},
 		},
 	},
@@ -116,21 +115,19 @@ export const WithSlug = meta.story({
 		name: "forecast",
 		displayName: undefined,
 		mark: undefined,
-		description: "Forecasts and alerts from national weather services.",
-		status: "none",
+		description: "",
+		status: "connected",
+		footnote: {
+			sentence: "You have forecast in every conversation.",
+			actionLabel: "Open Settings",
+			onAction: fn(),
+		},
 	},
-	decorators: [
-		(Story) => (
-			<BubbleSurface>
-				<Story />
-			</BubbleSurface>
-		),
-	],
 	parameters: {
 		docs: {
 			description: {
 				story:
-					"An application taken from the registry or pasted: no display name, so the slug prints in the mono face beside the placeholder mark.",
+					"The same receipt for an install `apps/app/src/components/application-install-row.tsx:108` found no curated entry for: no display name and no description, so the slug prints in the mono face beside the placeholder mark and the card holds its height on the footnote alone.",
 			},
 		},
 	},
@@ -167,25 +164,19 @@ const STATUS_LABEL = {
 } as const satisfies Record<ApplicationCardStatus, string>
 
 export const Statuses = meta.story({
-	decorators: [
-		(Story) => (
-			<BubbleSurface>
-				<Story />
-			</BubbleSurface>
-		),
-	],
+	tags: ["test-only"],
 	render: (args) => (
-		<>
+		<InstallRow>
 			{APPLICATION_STATUSES.map((status) => (
 				<ApplicationCard key={status} {...args} status={status} />
 			))}
-		</>
+		</InstallRow>
 	),
 	parameters: {
 		docs: {
 			description: {
 				story:
-					"Every status the card can carry. Labels come from the catalogue setup and connection catalogues; indicators from the connection dot map and the connected token. Check nothing to set up is a check stroked in the connected token, an API key is a muted key, an application that can’t be added here is blocked in the destructive token, signing in and waiting on the browser share the attention token, and a connected application reads its label in the foreground token.",
+					"Every status the card can carry, stacked in a column no thread assembles: `apps/app/src/components/application-install-row.tsx:108` posts one card at a time, and asks for only `connected`, `apiKey` or `signIn` of the six, through the map at `apps/app/src/components/application-install-row.tsx:20`. Labels come from the catalogue setup and connection catalogues; indicators from the connection dot map and the connected token. Check nothing to set up is a check stroked in the connected token, an API key is a muted key, an application that can’t be added here is blocked in the destructive token, signing in and waiting on the browser share the attention token, and a connected application reads its label in the foreground token.",
 			},
 		},
 	},
@@ -206,25 +197,23 @@ export const Statuses = meta.story({
 	},
 })
 
-const RefusedKeyBubble = () => (
+const LeftOutKeyBubble = () => (
 	<MessageBubble>
 		<MessageBubbleContent>
 			<ToolQuestion
-				onDeny={fn()}
 				questions={[
 					{
 						isNotice: true,
 						header: "Sentry",
 						failure: {
 							title: "Sentry refused the key",
-							detail: "401 Unauthorized: invalid auth token",
+							detail: "Its key goes in SENTRY_AUTH_TOKEN.",
 						},
 						action: {
 							label: "Open Settings",
 							icon: Icons.Settings,
 							onSelect: fn(),
 						},
-						exit: { label: "Not now", onSelect: fn() },
 					},
 				]}
 			/>
@@ -243,42 +232,23 @@ const RECEIPT: ApplicationCardProps = {
 	displayName: undefined,
 	mark: SENTRY_MARK,
 	description: "Pulls the errors and traces behind a release.",
-	status: "connected",
+	status: "apiKey",
 	footnote: RECEIPT_FOOTNOTE,
 }
 
 export const Receipt = meta.story({
 	args: RECEIPT,
-	decorators: [
-		(Story) => (
-			<div className="mx-auto max-w-177.5">
-				<Story />
-			</div>
-		),
-	],
 	render: (args) => (
-		<Message from="assistant">
-			<MessageAvatar>
-				<BotIdentityAvatar
-					animal={SHOTO.animal}
-					blot={SHOTO.blot}
-					name={SHOTO.name}
-					seed={SHOTO.id}
-					size={28}
-				/>
-			</MessageAvatar>
-			<MessageContent>
-				<MessageAuthor author={SHOTO} />
-				<RefusedKeyBubble />
-				<ApplicationCard {...args} />
-			</MessageContent>
-		</Message>
+		<InstallRow>
+			<LeftOutKeyBubble />
+			<ApplicationCard {...args} />
+		</InstallRow>
 	),
 	parameters: {
 		docs: {
 			description: {
 				story:
-					"Artboard E11. Above, the refused key as a notice: the failure, then the way to Settings, with no key field. Below, the receipt posted bare in the thread: the same card, bordered, naming the slug in the mono face, its footnote row separated by one rule with a muted sentence and a control that opens Settings. Pick `ReceiptNarrow` for a 320px column.",
+					"Artboard E11, the row `apps/app/src/components/application-install-row.tsx:101` assembles when the key an install needs was left out: the notice bubble naming the failure and the way to Settings with no key field, then the receipt posted bare under it. Check that the receipt is bordered, names the slug in the mono face, and separates its footnote by one rule with a muted sentence and a control that opens Settings. Pick `ReceiptNarrow` for a 320px column.",
 			},
 		},
 	},
@@ -330,7 +300,7 @@ export const ReceiptNarrow = meta.story({
 		docs: {
 			description: {
 				story:
-					"The receipt in a 320px column, which is also what 200 percent zoom leaves. The footnote sentence wraps and its control keeps its full label at the inline end, both inside the column. Pick `Receipt` for the thread it is posted in.",
+					"The receipt of `apps/app/src/components/application-install-row.tsx:108` in a 320px column, which is also what 200 percent zoom leaves. The footnote sentence wraps and its control keeps its full label at the inline end, both inside the column. Pick `Receipt` for the thread it is posted in.",
 			},
 		},
 	},

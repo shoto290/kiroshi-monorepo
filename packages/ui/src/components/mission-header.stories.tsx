@@ -68,7 +68,7 @@ export const Default = meta.story({
 		docs: {
 			description: {
 				story:
-					"A mission a companion is working on right now. Check that the back control is the first thing the keyboard reaches, that the objective titles the thread rather than the companion name, and that the ticket, the tool marks and the opening time read as one line under the avatar.",
+					"A mission a companion is working on right now. Check that the back control is the first thing the keyboard reaches, that the objective titles the thread rather than the companion name, and that the ticket, the tool marks and the opening time read as one line under the avatar. `apps/app/src/components/thread-screen.tsx:308` is the header of every mission thread, filled from the stored mission.",
 			},
 		},
 	},
@@ -87,7 +87,7 @@ export const States = meta.story({
 		docs: {
 			description: {
 				story:
-					"The six states a mission can be in, exhaustively. Check that the pill names each one at the trailing edge of the first band, that only `waiting_human` adds the attention dot to the avatar, and that the two bands keep their height whichever state is drawn.",
+					"The six states a mission can be in, exhaustively. Check that the pill names each one at the trailing edge of the first band, that only `waiting_human` adds the attention dot to the avatar, and that the two bands keep their height whichever state is drawn. `apps/app/src/components/thread-screen.tsx:308` is the header of every mission thread, filled from the stored mission.",
 			},
 		},
 	},
@@ -112,7 +112,7 @@ export const TicketLink = meta.story({
 		docs: {
 			description: {
 				story:
-					"The ticket band on a mission whose ticket carries a url. Check that the link opens in a new tab, that it names the platform, the identifier and the title, and that tabbing to it draws a visible ring. Pick `Empty` for a mission whose ticket names nothing.",
+					"The ticket band on a mission whose ticket carries a url. Check that the link opens in a new tab, that it names the platform, the identifier and the title, and that tabbing to it draws a visible ring. Pick `Empty` for a mission whose ticket names nothing. `apps/app/src/components/thread-screen.tsx:308` is the header of every mission thread, filled from the stored mission.",
 			},
 		},
 	},
@@ -140,7 +140,7 @@ export const Empty = meta.story({
 		docs: {
 			description: {
 				story:
-					"A mission opened with no ticket behind it. Check that the ticket line and the rule that follows it are left out entirely rather than drawn empty, and that the tool marks keep their place under the avatar with the opening time still on the trailing edge.",
+					"A mission opened with no ticket behind it. Check that the ticket line and the rule that follows it are left out entirely rather than drawn empty, and that the tool marks keep their place under the avatar with the opening time still on the trailing edge. `apps/app/src/components/thread-screen.tsx:316` passes the stored ticket through, empty fields included.",
 			},
 		},
 	},
@@ -156,7 +156,7 @@ export const WithoutATool = meta.story({
 		docs: {
 			description: {
 				story:
-					"A mission carrying a ticket and no tool. Check that the rule that separates the ticket from the tool marks is left out rather than drawn against nothing, and that the opening time keeps the trailing edge. Pick `Default` for the band that draws both.",
+					"A mission carrying a ticket and no tool. Check that the rule that separates the ticket from the tool marks is left out rather than drawn against nothing, and that the opening time keeps the trailing edge. Pick `Default` for the band that draws both. `apps/app/src/components/thread-screen.tsx:308` is the header of every mission thread, filled from the stored mission.",
 			},
 		},
 	},
@@ -183,7 +183,7 @@ export const LongContent = meta.story({
 		docs: {
 			description: {
 				story:
-					"An objective and a ticket title written as sentences, in a container squeezed to 480 pixels. Check that both truncate on one line, that the state pill, every tool mark and the opening time keep their room, and that neither band scrolls sideways. Read it at 200 percent zoom too.",
+					"An objective and a ticket title written as sentences, in a container squeezed to 480 pixels. Check that both truncate on one line, that the state pill, every tool mark and the opening time keep their room, and that neither band scrolls sideways. Read it at 200 percent zoom too. `apps/app/src/components/thread-screen.tsx:308` is the header of every mission thread, filled from the stored mission.",
 			},
 		},
 	},

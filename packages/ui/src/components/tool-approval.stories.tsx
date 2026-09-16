@@ -9,23 +9,14 @@ import {
 
 const BASH_COMMAND = "rm -rf apps/app/dist && bun run build"
 
-const BASH_PARAMETERS: ToolApprovalParameter[] = [
-	{ id: "command", label: "command", value: BASH_COMMAND },
-	{
-		id: "description",
-		label: "description",
-		value: "Rebuild the desktop bundle from scratch",
-	},
-	{ id: "timeout", label: "timeout", value: "120000" },
-]
+const APPROVAL_DESCRIPTION = "The agent needs your approval to run this tool."
 
-const WRITE_PARAMETERS: ToolApprovalParameter[] = [
+const PATH_PARAMETERS: ToolApprovalParameter[] = [
 	{
-		id: "file_path",
-		label: "file_path",
-		value: "/Users/ada/kiroshi/.env.local",
+		id: "path",
+		label: "Path",
+		value: "/Users/ada/kiroshi/apps/app/src/App.tsx",
 	},
-	{ id: "content", label: "content", sensitive: true },
 ]
 
 const meta = preview.meta({
@@ -35,20 +26,18 @@ const meta = preview.meta({
 		docs: {
 			description: {
 				component:
-					'The blocking surface for a Claude Code `canUseTool` callback: the agent is paused until the user answers. `Allow once` maps to `{ behavior: "allow", updatedInput }` and `Deny` to `{ behavior: "deny", message }` — both one-shot. There is deliberately no `Always allow`, because persisting a rule means echoing a `localSettings` suggestion into `updatedPermissions`, which writes to `.claude/settings.local.json` and is out of scope for V0.1.',
+					'The blocking surface for a Claude Code `canUseTool` callback: the agent is paused until the user answers. `Allow once` maps to `{ behavior: "allow", updatedInput }` and `Deny` to `{ behavior: "deny", message }` — both one-shot. There is deliberately no `Always allow`, because persisting a rule means echoing a `localSettings` suggestion into `updatedPermissions`, which writes to `.claude/settings.local.json` and is out of scope for V0.1. `apps/app/src/components/thread-prompt.tsx:38` is the only caller: it names the tool, hands over the title the request carries, and leaves the status on its pending default.',
 			},
 		},
 	},
 	args: {
 		tool: "Bash",
-		description: "Claude wants to clear the build output before rebuilding it.",
-		parameters: BASH_PARAMETERS,
+		title: "Run a shell command?",
+		description: APPROVAL_DESCRIPTION,
+		parameters: [],
 		children: <ToolApprovalCode code={BASH_COMMAND} />,
 		onAllowOnce: fn(),
 		onDeny: fn(),
-	},
-	argTypes: {
-		status: { control: "select", options: ["pending", "allowed", "denied"] },
 	},
 	decorators: [
 		(Story) => (
@@ -60,26 +49,25 @@ const meta = preview.meta({
 })
 
 export const Default = meta.story({
-	args: { status: "pending" },
 	parameters: {
 		docs: {
 			description: {
 				story:
-					"The only state the user can act on: the `canUseTool` callback has fired and execution is blocked until it returns. Check that `Allow once` and `Deny` are both reachable by keyboard in that order, that each fires on `Enter` and `Space`, and that no third control offers to remember the decision — a permanent rule is not part of this surface. `Allowed` and `Denied` cover what the card becomes once the callback has returned.",
+					"The only state the reader can act on, and the shape `apps/app/src/components/thread-prompt.tsx:60` builds for Bash: the command as code under the copy, with no parameter row beside it. Check that `Allow once` and `Deny` are both reachable by keyboard in that order, that each fires on `Enter` and `Space`, and that no third control offers to remember the decision — a permanent rule is not part of this surface. Pick `WithPath` for the tools that name a path instead.",
 			},
 		},
 	},
 	play: async ({ args, canvas, userEvent }) => {
 		await expect(canvas.getByRole("group")).toHaveFocus()
 
-		const details = canvas.getByRole("button", { name: /tool input/i })
 		const allowOnce = canvas.getByRole("button", { name: /allow once/i })
 		const deny = canvas.getByRole("button", { name: /deny/i })
 
-		details.focus()
+		await expect(
+			canvas.queryByRole("button", { name: /tool input/i }),
+		).not.toBeInTheDocument()
 
-		await userEvent.tab()
-		await expect(allowOnce).toHaveFocus()
+		allowOnce.focus()
 		await userEvent.keyboard("{Enter}")
 		await expect(args.onAllowOnce).toHaveBeenCalledTimes(1)
 
@@ -94,69 +82,31 @@ export const Default = meta.story({
 	},
 })
 
-export const Allowed = meta.story({
-	args: { status: "allowed" },
-	parameters: {
-		docs: {
-			description: {
-				story:
-					'What the card becomes after the callback returned `{ behavior: "allow" }` for this single call. Check that the decision row is gone — the grant covers this invocation only, so re-offering `Allow once` would imply a standing permission the callback never granted. Progress and output of the tool run itself belong to the result surface, not here.',
-			},
-		},
-	},
-	play: async ({ canvas }) => {
-		await expect(canvas.getByRole("status")).toHaveTextContent("Allowed once")
-		await expect(canvas.getByRole("group")).not.toHaveFocus()
-		await expect(
-			canvas.queryByRole("button", { name: /allow once/i }),
-		).not.toBeInTheDocument()
-	},
-})
-
-export const Denied = meta.story({
-	args: {
-		status: "denied",
-		description:
-			"Claude was told the build output is managed by the release job, and asked to leave it alone.",
-	},
-	parameters: {
-		docs: {
-			description: {
-				story:
-					'What the card becomes after the callback returned `{ behavior: "deny", message }`. Reach for this to check the deny message reads as the reason Claude receives and may adapt to, not as an error — the tool never ran, so `Error` would be the wrong frame. The decision row is gone here too: denial ends the prompt.',
-			},
-		},
-	},
-	play: async ({ canvas }) => {
-		await expect(canvas.getByRole("status")).toHaveTextContent("Denied")
-		await expect(
-			canvas.queryByRole("button", { name: /deny/i }),
-		).not.toBeInTheDocument()
-	},
-})
-
-export const WithRedactedInput = meta.story({
+export const WithPath = meta.story({
 	args: {
 		tool: "Write",
 		title: "Allow this file to be written?",
-		description: "Claude wants to write credentials into a local env file.",
-		parameters: WRITE_PARAMETERS,
+		parameters: PATH_PARAMETERS,
 		children: undefined,
-		status: "pending",
-		defaultOpen: true,
 	},
 	parameters: {
 		docs: {
 			description: {
 				story:
-					"Reach for this when the tool input carries something the user must not see rendered — an API key, a token, a password. A parameter marked `sensitive` takes no `value` at all, so the secret never reaches props or the DOM, and the row shows `Hidden` instead. Check the user can still tell what is being written, and where, without the payload.",
+					"The shape `apps/app/src/components/thread-prompt.tsx:46` builds for every tool that is not the shell: the detail of the request becomes the single `Path` row, folded behind the tool input control. Check that the reader can still tell what is being written and where before answering, and that opening the row moves neither decision button. Pick `Default` for the shell, where the command takes the place of the row.",
 			},
 		},
 	},
-	play: async ({ canvas }) => {
-		await expect(canvas.getByText("Hidden")).toBeVisible()
+	play: async ({ canvas, userEvent }) => {
+		const details = canvas.getByRole("button", { name: /tool input/i })
+
+		await expect(details).toHaveAttribute("aria-expanded", "false")
+
+		await userEvent.click(details)
+
+		await expect(details).toHaveAttribute("aria-expanded", "true")
 		await expect(
-			canvas.getByText("/Users/ada/kiroshi/.env.local"),
+			canvas.getByText("/Users/ada/kiroshi/apps/app/src/App.tsx"),
 		).toBeVisible()
 	},
 })

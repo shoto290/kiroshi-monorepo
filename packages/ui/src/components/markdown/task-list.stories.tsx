@@ -36,7 +36,7 @@ export const Default = meta.story({
 		docs: {
 			description: {
 				story:
-					"A checklist as an agent reports progress, both states in one list — the parser marks every box disabled. Check that the list marker is gone, that each box aligns with the first line of its label, and that the checked fill takes the primary token in both themes — flip the theme layout toolbar to side-by-side.",
+					"A checklist as an agent reports progress, both states in one list — the parser marks every box disabled. Check that the list marker is gone, that each box aligns with the first line of its label, and that the checked fill takes the primary token in both themes — flip the theme layout toolbar to side-by-side. Every box a checklist carries comes through `packages/ui/src/components/markdown/components.tsx:15`, which hands over the `disabled` the parser set.",
 			},
 		},
 	},
@@ -61,11 +61,12 @@ export const Default = meta.story({
 })
 
 export const ReadOnly = meta.story({
+	tags: ["test-only"],
 	parameters: {
 		docs: {
 			description: {
 				story:
-					"The edge the component exists for: a box the parser left enabled, so a reader can reach it and click it. `readonly` has no effect on a checkbox in HTML, so the guarantee comes from the controlled value — the click is taken and the state is restored. Check that the box does not toggle and that its accessible name still reads Done.",
+					"The edge the component exists for: a box the parser left enabled, so a reader can reach it and click it. `readonly` has no effect on a checkbox in HTML, so the guarantee comes from the controlled value — the click is taken and the state is restored. Check that the box does not toggle and that its accessible name still reads Done. No parser leaves the box enabled — `packages/ui/src/components/markdown/components.tsx:15` only ever passes what remark-gfm marked disabled — so this one is here to hold the guarantee, not to be read.",
 			},
 		},
 	},

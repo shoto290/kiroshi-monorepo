@@ -46,7 +46,7 @@ export const Default = meta.story({
 		docs: {
 			description: {
 				story:
-					"A flowchart, the diagram an agent reaches for most. The frame takes the hairline edge the markdown table already uses, and it is a tab stop so a keyboard can scroll it. Check that the palette follows the surface theme — flip the theme layout toolbar to side-by-side and confirm both are drawn — and that nothing mermaid ships leaks into the page around it.",
+					"A flowchart, the diagram an agent reaches for most. The frame takes the hairline edge the markdown table already uses, and it is a tab stop so a keyboard can scroll it. Check that the palette follows the surface theme — flip the theme layout toolbar to side-by-side and confirm both are drawn — and that nothing mermaid ships leaks into the page around it. `packages/ui/src/components/markdown/code.tsx:149` mounts it for every fence labelled `mermaid`.",
 			},
 		},
 	},
@@ -68,7 +68,7 @@ export const WiderThanTheBlock = meta.story({
 		docs: {
 			description: {
 				story:
-					"A left-to-right chain wider than the block that carries it. The diagram keeps its natural width rather than scaling every label down to fit, so the frame scrolls on its own axis and the block never grows. Check that the labels stay legible at their drawn size and that focusing the frame lights its edge before scrolling with the arrow keys.",
+					"A left-to-right chain wider than the block that carries it. The diagram keeps its natural width rather than scaling every label down to fit, so the frame scrolls on its own axis and the block never grows. Check that the labels stay legible at their drawn size and that focusing the frame lights its edge before scrolling with the arrow keys. The source is whatever `packages/ui/src/components/markdown/code.tsx:149` was handed, at whatever width it draws.",
 			},
 		},
 	},
@@ -90,7 +90,7 @@ export const Unparseable = meta.story({
 		docs: {
 			description: {
 				story:
-					"An edge that points nowhere — a diagram cut mid-stream reads exactly like this. Mermaid reports the failure by drawing nothing, so the frame stays hidden and the source stands in its place on the code surface. Check that nothing throws, that no error graphic of mermaid's own appears, and that the source keeps the indentation it was written with.",
+					"An edge that points nowhere — a diagram cut mid-stream reads exactly like this. Mermaid reports the failure by drawing nothing, so the frame stays hidden and the source stands in its place on the code surface. Check that nothing throws, that no error graphic of mermaid's own appears, and that the source keeps the indentation it was written with. The source is whatever `packages/ui/src/components/markdown/code.tsx:149` was handed, parseable or not.",
 			},
 		},
 	},

@@ -62,7 +62,7 @@ export const Default = meta.story({
 		docs: {
 			description: {
 				story:
-					"A running mission against a ticket the app knows. Check that the title row reads before the objective, that the ticket line carries its platform mark, its identifier and its title in the muted foreground, that the bubble darkens under the pointer as the target it is, and that Tab reaches the bubble first and the ticket second, each with the ring the repo draws. Pick `Unlinkable` for a mission whose ticket the app cannot open.",
+					"A running mission against a ticket the app knows. Check that the title row reads before the objective, that the ticket line carries its platform mark, its identifier and its title in the muted foreground, that the bubble darkens under the pointer as the target it is, and that Tab reaches the bubble first and the ticket second, each with the ring the repo draws. Pick `Unlinkable` for a mission whose ticket the app cannot open. `apps/app/src/lib/missions/missions-model.ts:204` builds this model out of the stored mission and `packages/ui/src/components/mission-turn.tsx:16` mounts the card with it.",
 			},
 		},
 	},
@@ -87,7 +87,7 @@ export const Unrecognised = meta.story({
 		docs: {
 			description: {
 				story:
-					"A ticket from a platform the app ships no mark for, on a tool it does not know either, since the companion that opens a mission names both itself. Check that the identifier and the title are read all the same, that the line still opens the ticket, and above all that the two stand-in marks cannot be mistaken for one another — the ticket is bookmarked, the tool is a tool. Pick `Default` for the pair the app does recognise.",
+					"A ticket from a platform the app ships no mark for, on a tool it does not know either, since the companion that opens a mission names both itself. Check that the identifier and the title are read all the same, that the line still opens the ticket, and above all that the two stand-in marks cannot be mistaken for one another — the ticket is bookmarked, the tool is a tool. Pick `Default` for the pair the app does recognise. The platform and the tools are the strings the store holds, copied as they are by `apps/app/src/lib/missions/missions-model.ts:209`.",
 			},
 		},
 	},
@@ -110,7 +110,7 @@ export const IdentifierWithoutTitle = meta.story({
 		docs: {
 			description: {
 				story:
-					"A ticket the app knows by number and not by name, which is what a mission opened before its ticket was written carries. Check that the line stops after the identifier, with no empty element and no gap held open for the title that is missing. Pick `Default` for the ticket that carries both.",
+					"A ticket the app knows by number and not by name, which is what a mission opened before its ticket was written carries. Check that the line stops after the identifier, with no empty element and no gap held open for the title that is missing. Pick `Default` for the ticket that carries both. `apps/app/src/lib/missions/missions-model.ts:211` passes the stored title through, empty included.",
 			},
 		},
 	},
@@ -133,7 +133,7 @@ export const WithoutTicket = meta.story({
 		docs: {
 			description: {
 				story:
-					"A mission opened against nothing, which is what a companion working outside a tracker carries. Check that the card stops after the objective, with no stand-in mark and no line held open where the ticket would be, and that the running state stays announced to a screen reader alone. Pick `Default` for the same card with a ticket under the objective.",
+					"A mission opened against nothing, which is what a companion working outside a tracker carries. Check that the card stops after the objective, with no stand-in mark and no line held open where the ticket would be, and that the running state stays announced to a screen reader alone. Pick `Default` for the same card with a ticket under the objective. `apps/app/src/lib/missions/missions-model.ts:209` passes an empty ticket through for a mission opened outside a tracker.",
 			},
 		},
 	},
@@ -151,7 +151,7 @@ export const Unlinkable = meta.story({
 		docs: {
 			description: {
 				story:
-					"The mission carries a ticket the app has no address for. Check that the identifier and the title are still read, as plain text rather than as a link that would take the reader nowhere, and that the bubble is then the only keyboard target. Pick `Default` for the ticket that can be opened.",
+					"The mission carries a ticket the app has no address for. Check that the identifier and the title are still read, as plain text rather than as a link that would take the reader nowhere, and that the bubble is then the only keyboard target. Pick `Default` for the ticket that can be opened. `apps/app/src/lib/missions/missions-model.ts:213` passes the stored url through, empty included.",
 			},
 		},
 	},
@@ -172,7 +172,7 @@ export const Closed = meta.story({
 		docs: {
 			description: {
 				story:
-					"A mission that ran to the end. Check that the bubble keeps the soft variant of a running one — a closed mission is still part of the transcript — and that only the objective steps back into the muted foreground. Pick `Default` for the form that has to stand out beside it.",
+					"A mission that ran to the end. Check that the bubble keeps the soft variant of a running one — a closed mission is still part of the transcript — and that only the objective steps back into the muted foreground. Pick `Default` for the form that has to stand out beside it. `apps/app/src/lib/missions/missions-model.ts:217` marks the card closed once the mission carries a `closedAt`.",
 			},
 		},
 	},
@@ -189,7 +189,7 @@ export const LongContent = meta.story({
 		docs: {
 			description: {
 				story:
-					"An objective and a ticket title that each hold a string longer than the bubble, in a container squeezed to 320 pixels. Check that both break instead of overflowing, that the identifier stays whole on the line it opens, that the bubble grows taller rather than wider, and that nothing scrolls sideways at 200 percent zoom.",
+					"An objective and a ticket title that each hold a string longer than the bubble, in a container squeezed to 320 pixels. Check that both break instead of overflowing, that the identifier stays whole on the line it opens, that the bubble grows taller rather than wider, and that nothing scrolls sideways at 200 percent zoom. The objective and the ticket title are the stored strings `apps/app/src/lib/missions/missions-model.ts:208` copies, which nothing shortens.",
 			},
 		},
 	},

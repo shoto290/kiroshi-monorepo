@@ -103,7 +103,7 @@ export const Default = meta.story({
 		docs: {
 			description: {
 				story:
-					"The nominal panel. Check that the button names its count, that the panel is headed by the pinned-messages title, and that each row reads avatar, author, timestamp and excerpt with its two controls to the right, one rule apart from its neighbour. Pressing jump reports the message id and closes the panel — the reader is going to the transcript; pressing unpin reports the id and leaves the panel where it is, so several pins can be dropped in one visit.",
+					"The nominal panel. Check that the button names its count, that the panel is headed by the pinned-messages title, and that each row reads avatar, author, timestamp and excerpt with its two controls to the right, one rule apart from its neighbour. Pressing jump reports the message id and closes the panel — the reader is going to the transcript; pressing unpin reports the id and leaves the panel where it is, so several pins can be dropped in one visit. `apps/app/src/components/thread-screen.tsx:322` mounts it in the header of every thread, with the rows `apps/app/src/components/thread-screen.tsx:205` builds from the pinned bubbles.",
 			},
 		},
 	},
@@ -146,7 +146,7 @@ export const Empty = meta.story({
 		docs: {
 			description: {
 				story:
-					"Nothing pinned yet. The button keeps the same plain pin and only drops the count from its name, and the panel says so in one sentence in place of the rows rather than opening on an empty box.",
+					"Nothing pinned yet. The button keeps the same plain pin and only drops the count from its name, and the panel says so in one sentence in place of the rows rather than opening on an empty box. `apps/app/src/components/thread-screen.tsx:322` mounts it in the header of every thread, with the rows `apps/app/src/components/thread-screen.tsx:205` builds from the pinned bubbles.",
 			},
 		},
 	},
@@ -173,7 +173,7 @@ export const Overflowing = meta.story({
 		docs: {
 			description: {
 				story:
-					"A pin over a long answer. The excerpt is bound to three lines and clipped, so one verbose message cannot push the rest of the list out of reach; the row keeps its two controls on the first line whatever the excerpt costs.",
+					"A pin over a long answer. The excerpt is bound to three lines and clipped, so one verbose message cannot push the rest of the list out of reach; the row keeps its two controls on the first line whatever the excerpt costs. `apps/app/src/components/thread-screen.tsx:322` mounts it in the header of every thread, with the rows `apps/app/src/components/thread-screen.tsx:205` builds from the pinned bubbles.",
 			},
 		},
 	},
@@ -198,7 +198,7 @@ export const Unpinning = meta.story({
 		docs: {
 			description: {
 				story:
-					"The button in the header slot it lives in, with a host that really drops a pin. Check the panel stays open while the rows go away one by one, and that the empty sentence takes their place once the last one is gone — the button drops the count from its name at the same moment.",
+					"The button in the header slot it lives in, with a host that really drops a pin. Check the panel stays open while the rows go away one by one, and that the empty sentence takes their place once the last one is gone — the button drops the count from its name at the same moment. `apps/app/src/components/thread-screen.tsx:322` mounts it in the header of every thread, with the rows `apps/app/src/components/thread-screen.tsx:205` builds from the pinned bubbles.",
 			},
 		},
 	},

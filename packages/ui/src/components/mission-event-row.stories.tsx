@@ -96,7 +96,7 @@ export const MachineLine = meta.story({
 		docs: {
 			description: {
 				story:
-					"The mission being opened, with nothing written into its payload. Check that it reads as one muted line naming the companion rather than the stored source, and that the time sits on the trailing edge. Pick `AuthoredEvent` for the form an event carrying text takes.",
+					"The mission being opened, with nothing written into its payload. Check that it reads as one muted line naming the companion rather than the stored source, and that the time sits on the trailing edge. Pick `AuthoredEvent` for the form an event carrying text takes. `apps/app/src/components/thread-screen.tsx:923` renders one row per stored event of the mission thread.",
 			},
 		},
 	},
@@ -118,7 +118,7 @@ export const AuthoredEvent = meta.story({
 		docs: {
 			description: {
 				story:
-					"A note the companion wrote against the mission. Check that the gutter carries the mission companion avatar, that the author line names the companion, its kind and its time, and that the text lands in the soft bubble the transcript already uses. Pick `FromTheAgent` for an event the coding agent sent.",
+					"A note the companion wrote against the mission. Check that the gutter carries the mission companion avatar, that the author line names the companion, its kind and its time, and that the text lands in the soft bubble the transcript already uses. Pick `FromTheAgent` for an event the coding agent sent. `apps/app/src/components/thread-screen.tsx:923` renders one row per stored event of the mission thread.",
 			},
 		},
 	},
@@ -137,7 +137,7 @@ export const FromTheAgent = meta.story({
 		docs: {
 			description: {
 				story:
-					"A question the agent hook sent, on a mission whose tools name Superset. Check that the row is labelled with that tool rather than with `agent-hook`, and that the Superset mark sits on the round muted gutter. Pick `FromTheAgentWithoutATool` for a mission whose tools the mark table does not name.",
+					"A question the agent hook sent, on a mission whose tools name Superset. Check that the row is labelled with that tool rather than with `agent-hook`, and that the Superset mark sits on the round muted gutter. Pick `FromTheAgentWithoutATool` for a mission whose tools the mark table does not name. `apps/app/src/components/thread-screen.tsx:923` renders one row per stored event of the mission thread.",
 			},
 		},
 	},
@@ -157,7 +157,7 @@ export const FromTheAgentWithoutATool = meta.story({
 		docs: {
 			description: {
 				story:
-					"The same question, on a mission carrying no tool the mark table names. Check that the row falls back to the words of the catalogue rather than to the stored source, and that the gutter draws the default tool mark. Pick `FromTheAgent` for the mission that names its tool.",
+					"The same question, on a mission carrying no tool the mark table names. Check that the row falls back to the words of the catalogue rather than to the stored source, and that the gutter draws the default tool mark. Pick `FromTheAgent` for the mission that names its tool. `apps/app/src/components/thread-screen.tsx:923` renders one row per stored event of the mission thread.",
 			},
 		},
 	},
@@ -176,7 +176,7 @@ export const FromGitHub = meta.story({
 		docs: {
 			description: {
 				story:
-					"A note the GitHub watcher recorded when the pull request opened. Check that the row is labelled GitHub and that the GitHub mark sits on the gutter, so a reader tells a platform event from an agent event without reading the text.",
+					"A note the GitHub watcher recorded when the pull request opened. Check that the row is labelled GitHub and that the GitHub mark sits on the gutter, so a reader tells a platform event from an agent event without reading the text. `apps/app/src/components/thread-screen.tsx:923` renders one row per stored event of the mission thread.",
 			},
 		},
 	},
@@ -195,7 +195,7 @@ export const FromTheReader = meta.story({
 		docs: {
 			description: {
 				story:
-					"The answer the reader sent back to the agent. Check that the row is labelled with the word the catalogue gives the reader rather than with `human`, and that the gutter falls back to the default tool mark. Pick `AuthoredEvent` for what the companion itself writes.",
+					"The answer the reader sent back to the agent. Check that the row is labelled with the word the catalogue gives the reader rather than with `human`, and that the gutter falls back to the default tool mark. Pick `AuthoredEvent` for what the companion itself writes. `apps/app/src/components/thread-screen.tsx:923` renders one row per stored event of the mission thread.",
 			},
 		},
 	},
@@ -212,7 +212,7 @@ export const EventKinds = meta.story({
 		docs: {
 			description: {
 				story:
-					"The eight kinds an event can carry, exhaustively, each once as a machine line and once as a bubble. Check that every machine line names the resolved actor except the answer, whose sentence names none, that every bubble carries its kind as a badge, and that only the agent asked badge is tinted.",
+					"The eight kinds an event can carry, exhaustively, each once as a machine line and once as a bubble. Check that every machine line names the resolved actor except the answer, whose sentence names none, that every bubble carries its kind as a badge, and that only the agent asked badge is tinted. `apps/app/src/components/thread-screen.tsx:923` renders one row per stored event of the mission thread.",
 			},
 		},
 	},
@@ -264,7 +264,7 @@ export const AuthoredEvents = meta.story({
 		docs: {
 			description: {
 				story:
-					"A note, a question from the agent, an answer from the reader and an escalation, one after the other. Check that the three actors are told apart by their gutter and their label alone, and that the question stands out by its tinted badge rather than by a louder bubble.",
+					"A note, a question from the agent, an answer from the reader and an escalation, one after the other. Check that the three actors are told apart by their gutter and their label alone, and that the question stands out by its tinted badge rather than by a louder bubble. `apps/app/src/components/thread-screen.tsx:923` renders one row per stored event of the mission thread.",
 			},
 		},
 	},
@@ -292,7 +292,7 @@ export const WithoutABot = meta.story({
 		docs: {
 			description: {
 				story:
-					"An event of a mission whose companion is not in the roster, the case a thread falls into while its companions are still being read. Check that the row still renders, that the catalogue names the companion in place of a missing name, and that the gutter keeps a drawn avatar rather than a hole.",
+					"An event of a mission whose companion is not in the roster, the case a thread falls into while its companions are still being read. Check that the row still renders, that the catalogue names the companion in place of a missing name, and that the gutter keeps a drawn avatar rather than a hole. `apps/app/src/components/thread-screen.tsx:1320` passes no bot while the roster of the thread is still being read, and `apps/app/src/components/thread-screen.tsx:923` renders the row all the same.",
 			},
 		},
 	},
@@ -310,7 +310,7 @@ export const InAMissionThread = meta.story({
 		docs: {
 			description: {
 				story:
-					"The header and the rows a mission thread is made of, in a container squeezed to 480 pixels. Check that no row is wider than the container, that the bubbles stop at 85 percent of the width left beside the gutter, and that the header bands hold their two lines. Pick this one before shipping any change to either component.",
+					"The header and the rows a mission thread is made of, in a container squeezed to 480 pixels. Check that no row is wider than the container, that the bubbles stop at 85 percent of the width left beside the gutter, and that the header bands hold their two lines. Pick this one before shipping any change to either component. `apps/app/src/components/thread-screen.tsx:308` draws the header and `apps/app/src/components/thread-screen.tsx:923` the rows under it.",
 			},
 		},
 	},
@@ -352,7 +352,7 @@ export const LongContent = meta.story({
 		docs: {
 			description: {
 				story:
-					"A machine line whose label is a companion name long enough to fill the row, in a container squeezed to 320 pixels. Check that the line stays on exactly one line and truncates rather than pushing the time out of view. Pick `MachineLine` for realistic lengths.",
+					"A machine line whose label is a companion name long enough to fill the row, in a container squeezed to 320 pixels. Check that the line stays on exactly one line and truncates rather than pushing the time out of view. Pick `MachineLine` for realistic lengths. `apps/app/src/components/thread-screen.tsx:923` renders one row per stored event of the mission thread.",
 			},
 		},
 	},
@@ -385,12 +385,13 @@ const SHARED_PARAGRAPH_EVENT: MissionEventModel = {
 }
 
 export const SameCapAsAChatBubble = meta.story({
+	tags: ["test-only"],
 	args: { event: SHARED_PARAGRAPH_EVENT },
 	parameters: {
 		docs: {
 			description: {
 				story:
-					"The same paragraph read twice: once as a mission event, once as a chat bubble indented to where the gutter leaves off. Check that the two surfaces stop on the same trailing edge, since a mission event is capped by the bubble alone and by nothing above it. Pick `InAMissionThread` to read a whole thread instead.",
+					"The same paragraph read twice: once as a mission event, once as a chat bubble indented to where the gutter leaves off. Check that the two surfaces stop on the same trailing edge, since a mission event is capped by the bubble alone and by nothing above it. Pick `InAMissionThread` to read a whole thread instead. No mission thread holds a chat bubble beside an event: `apps/app/src/components/thread-screen.tsx:923` is the only row it renders, so the bubble here is the ruler the assertion measures against.",
 			},
 		},
 	},

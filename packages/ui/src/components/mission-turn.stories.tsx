@@ -75,7 +75,7 @@ export const Working = meta.story({
 		docs: {
 			description: {
 				story:
-					"A mission still running, on tools it named itself, against a ticket from a platform the app ships no mark for. Check that the eye reads the state off the avatar working in the gutter rather than off a pill, that a screen reader is still given the word, and that the title row of the bubble then holds the three tool marks alone. Pick `WaitingForTheReader` for the state that asks something of the reader.",
+					"A mission still running, on tools it named itself, against a ticket from a platform the app ships no mark for. Check that the eye reads the state off the avatar working in the gutter rather than off a pill, that a screen reader is still given the word, and that the title row of the bubble then holds the three tool marks alone. Pick `WaitingForTheReader` for the state that asks something of the reader. `apps/app/src/components/thread-screen.tsx:883` places the row in the feed with the model `apps/app/src/lib/missions/missions-model.ts:204` builds from the stored mission.",
 			},
 		},
 	},
@@ -90,7 +90,7 @@ export const WaitingForTheReader = meta.story({
 		docs: {
 			description: {
 				story:
-					"The mission stopped on a question for its reader. Check that the author line names the companion and nothing else, that the pill opens the bubble after the tool marks and says the state in words, and that the attention badge sits on the gutter avatar. Pick `Working` for the state that carries no pill at all.",
+					"The mission stopped on a question for its reader. Check that the author line names the companion and nothing else, that the pill opens the bubble after the tool marks and says the state in words, and that the attention badge sits on the gutter avatar. Pick `Working` for the state that carries no pill at all. `apps/app/src/components/thread-screen.tsx:883` places the row in the feed with the model `apps/app/src/lib/missions/missions-model.ts:204` builds from the stored mission.",
 			},
 		},
 	},
@@ -116,7 +116,7 @@ export const ReadyToMerge = meta.story({
 		docs: {
 			description: {
 				story:
-					"The work is done and waits to be merged. Check that the pill reads as an outline rather than as a colour block, and that the gutter avatar carries no badge — nothing is asked of the reader here. Pick `Done` for the mission that has already been closed.",
+					"The work is done and waits to be merged. Check that the pill reads as an outline rather than as a colour block, and that the gutter avatar carries no badge — nothing is asked of the reader here. Pick `Done` for the mission that has already been closed. `apps/app/src/components/thread-screen.tsx:883` places the row in the feed with the model `apps/app/src/lib/missions/missions-model.ts:204` builds from the stored mission.",
 			},
 		},
 	},
@@ -129,7 +129,7 @@ export const Failed = meta.story({
 		docs: {
 			description: {
 				story:
-					"The run stopped on a failure and the mission is still open. Check that the pill names the failure in words as well as in colour, and that the objective stays at full contrast because the mission is not closed. Its label rides the destructive pair the palette still owes a decision on, so the story carries the audit's exception rather than nudging the pill. Pick `Done` for the closed form.",
+					"The run stopped on a failure and the mission is still open. Check that the pill names the failure in words as well as in colour, and that the objective stays at full contrast because the mission is not closed. Its label rides the destructive pair the palette still owes a decision on, so the story carries the audit's exception rather than nudging the pill. Pick `Done` for the closed form. `apps/app/src/components/thread-screen.tsx:883` places the row in the feed with the model `apps/app/src/lib/missions/missions-model.ts:204` builds from the stored mission.",
 			},
 		},
 	},
@@ -146,7 +146,7 @@ export const Done = meta.story({
 		docs: {
 			description: {
 				story:
-					"A mission that ran to the end and was closed. Check that the bubble keeps its soft variant, that the objective steps back into the muted foreground while the ticket line stays reachable, and that the pill says it is done. Pick `Failed` for a mission that stopped without being closed.",
+					"A mission that ran to the end and was closed. Check that the bubble keeps its soft variant, that the objective steps back into the muted foreground while the ticket line stays reachable, and that the pill says it is done. Pick `Failed` for a mission that stopped without being closed. `apps/app/src/components/thread-screen.tsx:883` places the row in the feed with the model `apps/app/src/lib/missions/missions-model.ts:204` builds from the stored mission.",
 			},
 		},
 	},
@@ -164,7 +164,7 @@ export const WithoutTools = meta.story({
 		docs: {
 			description: {
 				story:
-					"A mission that runs on no tool at all. Check that the title row of the bubble holds the state pill alone, with nothing drawn in place of the marks. Pick `WorkingWithoutTools` for the same mission while it runs, when there is no pill to hold the row up either.",
+					"A mission that runs on no tool at all. Check that the title row of the bubble holds the state pill alone, with nothing drawn in place of the marks. Pick `WorkingWithoutTools` for the same mission while it runs, when there is no pill to hold the row up either. `apps/app/src/components/thread-screen.tsx:883` places the row in the feed with the model `apps/app/src/lib/missions/missions-model.ts:204` builds from the stored mission.",
 			},
 		},
 	},
@@ -179,7 +179,7 @@ export const WorkingWithoutTools = meta.story({
 		docs: {
 			description: {
 				story:
-					"A mission the companion opened without naming a tool, still running. Check that the bubble opens straight on the objective — no leading row, no space above it beyond the bubble's own padding — while a screen reader is still given the state. Pick `WithoutTools` for the same mission once it waits on its reader.",
+					"A mission the companion opened without naming a tool, still running. Check that the bubble opens straight on the objective — no leading row, no space above it beyond the bubble's own padding — while a screen reader is still given the state. Pick `WithoutTools` for the same mission once it waits on its reader. `apps/app/src/components/thread-screen.tsx:883` places the row in the feed with the model `apps/app/src/lib/missions/missions-model.ts:204` builds from the stored mission.",
 			},
 		},
 	},
@@ -195,7 +195,7 @@ export const InASoloThread = meta.story({
 		docs: {
 			description: {
 				story:
-					"A thread with a single companion names it once, in the header, so no assistant row carries an author line. Check that the mission turn drops its own line rather than being the only row that names the companion, that the avatar stays in the gutter, and that the bubble still opens on the state. Pick `UnderTheTurnThatOpenedIt` for a thread that names its speakers.",
+					"A thread with a single companion names it once, in the header, so no assistant row carries an author line. Check that the mission turn drops its own line rather than being the only row that names the companion, that the avatar stays in the gutter, and that the bubble still opens on the state. Pick `UnderTheTurnThatOpenedIt` for a thread that names its speakers. `apps/app/src/components/thread-screen.tsx:885` passes no author when the thread holds a single companion, and `apps/app/src/components/thread-screen.tsx:883` places the row all the same.",
 			},
 		},
 	},
@@ -220,7 +220,7 @@ export const WithAnUnknownTool = meta.story({
 		docs: {
 			description: {
 				story:
-					"A tool the app ships no mark for, since the companion that opens a mission names its tools itself. Check that one default mark stands in ahead of the pill, that it cannot be mistaken for the Superset, Paper or GitHub marks, and that a screen reader still reads the tool's own name. Pick `Working` for the marks the app does know.",
+					"A tool the app ships no mark for, since the companion that opens a mission names its tools itself. Check that one default mark stands in ahead of the pill, that it cannot be mistaken for the Superset, Paper or GitHub marks, and that a screen reader still reads the tool's own name. Pick `Working` for the marks the app does know. `apps/app/src/components/thread-screen.tsx:883` places the row in the feed with the model `apps/app/src/lib/missions/missions-model.ts:204` builds from the stored mission.",
 			},
 		},
 	},
@@ -234,7 +234,7 @@ export const UnderTheTurnThatOpenedIt = meta.story({
 		docs: {
 			description: {
 				story:
-					"The row as a reader meets it, right under the answer that opened the mission, spaced the way the transcript spaces its rows. Check that the avatar, the author line and the bubble sit on the very same gutter grid as the turn above, and that the companion is named the same way twice rather than in two different shapes.",
+					"The row as a reader meets it, right under the answer that opened the mission, spaced the way the transcript spaces its rows. Check that the avatar, the author line and the bubble sit on the very same gutter grid as the turn above, and that the companion is named the same way twice rather than in two different shapes. `apps/app/src/components/thread-screen.tsx:883` places the row in the feed with the model `apps/app/src/lib/missions/missions-model.ts:204` builds from the stored mission.",
 			},
 		},
 	},

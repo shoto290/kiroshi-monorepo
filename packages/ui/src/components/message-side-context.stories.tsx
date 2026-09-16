@@ -72,28 +72,12 @@ const meta = preview.meta({
 	),
 })
 
-export const Playground = meta.story({
-	parameters: {
-		docs: {
-			description: {
-				story:
-					"Knob story for the only value the context carries. Flip it and watch both consumers turn at once: the bubble swaps the corner it grows from, the action row swaps ends. Check that nothing in the turn had to be told twice.",
-			},
-		},
-	},
-	play: async ({ canvasElement }) => {
-		const [bubble] = slotsIn(canvasElement, "message-bubble")
-
-		await expect(bubble).toHaveAttribute("data-align", "start")
-	},
-})
-
 export const BotSide = meta.story({
 	parameters: {
 		docs: {
 			description: {
 				story:
-					"`start`, what `Message` publishes for an agent turn. The bubble grows from its bottom-left and the actions sit after it, so the copy button lands on the right of the answer. Check that the row is only as wide as the bubble — the actions belong to the turn, not to the transcript's edge.",
+					"`start`, what `Message` publishes for an agent turn. The bubble grows from its bottom-left and the actions sit after it, so the copy button lands on the right of the answer. Check that the row is only as wide as the bubble — the actions belong to the turn, not to the transcript's edge. `packages/ui/src/components/message.tsx:50` publishes it for every companion row.",
 			},
 		},
 	},
@@ -105,7 +89,7 @@ export const ReaderSide = meta.story({
 		docs: {
 			description: {
 				story:
-					"`end`, what `Message` publishes for the reader's own turn. The same markup flips: the bubble grows from its bottom-right and the action row reverses, putting the buttons on the left of the bubble so they stay inside the transcript rather than off its edge. Check that no child received an alignment prop to make this happen.",
+					"`end`, what `Message` publishes for the reader's own turn. The same markup flips: the bubble grows from its bottom-right and the action row reverses, putting the buttons on the left of the bubble so they stay inside the transcript rather than off its edge. Check that no child received an alignment prop to make this happen. `packages/ui/src/components/message.tsx:50` publishes it for every reader row.",
 			},
 		},
 	},
@@ -121,7 +105,7 @@ export const WithoutProvider = meta.story({
 		docs: {
 			description: {
 				story:
-					"The fallback: a turn rendered with no provider above it, as happens in a preview, a story, or a one-off notice outside the transcript. Both consumers read `undefined` and settle on `start`, so nothing renders sideways and nothing throws. Reach for this to check a bubble in isolation.",
+					"The fallback: a turn rendered with no provider above it, as happens in a preview, a story, or a one-off notice outside the transcript. Both consumers read `undefined` and settle on `start`, so nothing renders sideways and nothing throws. Reach for this to check a bubble in isolation. `packages/ui/src/components/mission-event-row.tsx:187` mounts a bubble with no `Message` above it, and this is what it reads.",
 			},
 		},
 	},
@@ -134,11 +118,12 @@ export const WithoutProvider = meta.story({
 })
 
 export const OverriddenByProp = meta.story({
+	tags: ["test-only"],
 	parameters: {
 		docs: {
 			description: {
 				story:
-					"The escape hatch. `MessageBubble` takes the context only when its own `align` is absent, so a bubble that must lean the other way inside a reader's turn — a quoted answer, a system aside — says so explicitly and wins. The action row still follows the context, which is the point: the override is local to the bubble and does not rewrite the turn.",
+					"The escape hatch. `MessageBubble` takes the context only when its own `align` is absent, so a bubble that must lean the other way inside a reader's turn — a quoted answer, a system aside — says so explicitly and wins. The action row still follows the context, which is the point: the override is local to the bubble and does not rewrite the turn. No caller overrides the side today — `packages/ui/src/components/turn.tsx:340` and `packages/ui/src/components/turn.tsx:492` both let the context decide — so this one holds the precedence rather than a state a reader meets.",
 			},
 		},
 	},
