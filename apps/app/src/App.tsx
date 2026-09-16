@@ -24,6 +24,7 @@ import {
 import { applicationTransport } from "@/lib/applications/application-transport"
 import {
 	createSessionReopener,
+	ownerOfScope,
 	type ReopenedScope,
 	scopeOfOwner,
 } from "@/lib/applications/session-reopening"
@@ -314,6 +315,7 @@ export function App() {
 
 	const [openedMcpServer, setOpenedMcpServer] = useState<EnvScope | null>(null)
 	const [settingsTab, setSettingsTab] = useState<string>()
+	const [settingsServer, setSettingsServer] = useState<string>()
 	const openedServerName =
 		openedMcpServer?.kind === "server" ? openedMcpServer.name : null
 
@@ -396,22 +398,27 @@ export function App() {
 		onUndoRun: userPlugin.controller.revert,
 	})
 
-	const closeSettingsTab = () => setSettingsTab(undefined)
+	const closeSettingsTab = () => {
+		setSettingsTab(undefined)
+		setSettingsServer(undefined)
+	}
 
 	const openApplicationsOf = useCallback(
-		(scope: ReopenedScope) => {
+		(scope: ReopenedScope, server?: string) => {
+			setSettingsTab(CONNECTORS_TAB)
+			setSettingsServer(server)
+			setOpenedMcpServer(
+				openedServerScope(server ?? null, ownerOfScope(scope, selectedSpaceId)),
+			)
 			if (scope.kind === "user") {
 				user.controller.setSettingsOpen(true)
-				return
-			}
-			setSettingsTab(CONNECTORS_TAB)
-			if (scope.kind === "companion") {
+			} else if (scope.kind === "companion") {
 				roster.controller.edit(scope.id)
 			} else {
 				spaces.controller.setSettingsOpen(true)
 			}
 		},
-		[roster.controller, spaces.controller, user.controller],
+		[roster.controller, spaces.controller, user.controller, selectedSpaceId],
 	)
 	const openConnectorsOf = useCallback(
 		(owner: EnvOwner) => openApplicationsOf(scopeOfOwner(owner)),
@@ -421,9 +428,10 @@ export function App() {
 		() => ({
 			port: applicationTransport,
 			curated: applications.state.curated,
+			spaces: spaces.state.spaces,
 			onOpen: openApplicationsOf,
 		}),
-		[applications.state.curated, openApplicationsOf],
+		[applications.state.curated, spaces.state.spaces, openApplicationsOf],
 	)
 
 	useEffect(() => {
@@ -981,6 +989,7 @@ export function App() {
 					history={botHistory}
 					haveMcpServersFailedToLoad={botMcpServers.state.hasFailedToLoad}
 					{...botApplications}
+					mcpServerToOpen={settingsServer}
 					tab={settingsTab}
 					environment={toEnvironmentRows(botEnvironment.state.entries)}
 					hasEnvironmentFailedToRead={botEnvironment.state.hasFailedToRead}
@@ -1098,6 +1107,7 @@ export function App() {
 					hasEnvironmentFailedToRead={spaceEnvironment.state.hasFailedToRead}
 					haveMcpServersFailedToLoad={spaceMcpServers.state.hasFailedToLoad}
 					{...spaceApplications}
+					mcpServerToOpen={settingsServer}
 					tab={settingsTab}
 					onMcpServerOpen={(name) =>
 						setOpenedMcpServer(
@@ -1164,9 +1174,14 @@ export function App() {
 					serverConnection: userApplications.serverConnection,
 					serverEnvironment: serverEnvironmentSection,
 					catalogue: userApplications.mcpCatalogue,
+					serverToOpen: settingsServer,
 				}}
 				history={userHistory}
-				onClose={() => user.controller.setSettingsOpen(false)}
+				tab={settingsTab}
+				onClose={() => {
+					closeSettingsTab()
+					user.controller.setSettingsOpen(false)
+				}}
 				language={preferences.language}
 				onLanguageChange={(next) => {
 					void user.controller.setLanguage(next)

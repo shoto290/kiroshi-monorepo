@@ -68,7 +68,7 @@ import {
 	createScriptedDriver,
 	type ScriptedDriver,
 } from "@/lib/conversations/scripted-driver"
-import type { Bot, EnvOwner } from "@/lib/conversations/store-contract"
+import type { Bot, EnvOwner, Space } from "@/lib/conversations/store-contract"
 import type { TranscriptStore } from "@/lib/conversations/store-port"
 import type {
 	CompanionArrival,
@@ -3473,7 +3473,14 @@ const installRoomOf = (
 				},
 				createElement(
 					ConversationApplicationsContext.Provider,
-					{ value: { port, curated: port.curated, onOpen } },
+					{
+						value: {
+							port,
+							curated: port.curated,
+							spaces: [INSTALLED_SPACE],
+							onOpen,
+						},
+					},
 					screenOf(
 						threadOf({
 							id: INSTALLED_THREAD_ID,
@@ -3481,12 +3488,24 @@ const installRoomOf = (
 							said: "held",
 							errors,
 						}),
+						[botOf(INSTALLED_THREAD_ID, "Nyx"), botOf("bot-2", "Vela")],
 					),
 				),
 			),
 		)
 	return { port, onOpen, view }
 }
+
+const INSTALLED_SPACE: Space = {
+	id: SPACE,
+	name: "Personal",
+	colour: null,
+	position: 0,
+	createdAt: 0,
+}
+
+const receiptIn = (row: HTMLElement) =>
+	row.querySelector<HTMLElement>('[data-slot="application-receipt"]')
 
 const rowHolding = (text: string) => {
 	const row = [
@@ -3516,13 +3535,19 @@ describe("ThreadScreen showing the applications installed", () => {
 		layout.restore()
 	})
 
-	it("shows an install needing nothing as a connected card with no control after the run it follows", async () => {
+	it("shows an install needing nothing as a receipt outside every bubble after the run it follows", async () => {
 		const room = installRoomOf([installOf()])
 		render(room.view())
 		await settle()
 
+		const row = rowHolding("Connected")
+		const receipt = receiptIn(row)
+		expect(receipt).not.toBeNull()
+		expect(receipt?.closest('[data-slot="message-bubble"]')).toBeNull()
+		expect(
+			within(row).getByText("Nyx has Sentry in every conversation."),
+		).toBeTruthy()
 		expect(rowIndexOf("Connected")).toBeGreaterThan(rowIndexOf("held"))
-		expect(within(rowHolding("Connected")).queryByRole("button")).toBeNull()
 	})
 
 	it("places an install no run precedes before the first run", async () => {
@@ -3541,15 +3566,13 @@ describe("ThreadScreen showing the applications installed", () => {
 		await settle()
 
 		const row = rowHolding("Needs an API key")
-		expect(
-			within(row).getByText("Its key goes in SENTRY_AUTH_TOKEN."),
-		).toBeTruthy()
+		expect(receiptIn(row)).not.toBeNull()
 		fireEvent.click(within(row).getByRole("button", { name: OPEN_SETTINGS }))
 
-		expect(room.onOpen).toHaveBeenCalledWith({
-			kind: "companion",
-			id: INSTALLED_THREAD_ID,
-		})
+		expect(room.onOpen).toHaveBeenCalledWith(
+			{ kind: "companion", id: INSTALLED_THREAD_ID },
+			"sentry",
+		)
 	})
 
 	it("opens the settings of the space or of the person a sign-in install landed in", async () => {
@@ -3577,6 +3600,12 @@ describe("ThreadScreen showing the applications installed", () => {
 		const spaceRow = rowHolding("linear")
 		const userRow = rowHolding("notion")
 		expect(within(spaceRow).getByText("Signs you in")).toBeTruthy()
+		expect(
+			within(spaceRow).getByText("Every companion in Personal has Linear."),
+		).toBeTruthy()
+		expect(
+			within(userRow).getByText("You have Notion in every conversation."),
+		).toBeTruthy()
 		fireEvent.click(
 			within(spaceRow).getByRole("button", { name: OPEN_SETTINGS }),
 		)
@@ -3585,8 +3614,8 @@ describe("ThreadScreen showing the applications installed", () => {
 		)
 
 		expect(room.onOpen.mock.calls).toEqual([
-			[{ kind: "space", id: SPACE }],
-			[{ kind: "user" }],
+			[{ kind: "space", id: SPACE }, undefined],
+			[{ kind: "user" }, undefined],
 		])
 	})
 
@@ -3603,9 +3632,18 @@ describe("ThreadScreen showing the applications installed", () => {
 		await settle()
 
 		const row = rowHolding("Sentry was left out")
+		const bubble = row.querySelector('[data-slot="message-bubble"]')
+		const receipt = receiptIn(row)
+		if (!bubble || !receipt) {
+			throw new Error("the refused install row holds no notice and no receipt")
+		}
 		expect(
-			within(row).getByRole("button", { name: OPEN_SETTINGS }),
+			bubble.compareDocumentPosition(receipt) &
+				Node.DOCUMENT_POSITION_FOLLOWING,
 		).toBeTruthy()
+		expect(
+			within(row).getAllByRole("button", { name: OPEN_SETTINGS }),
+		).toHaveLength(2)
 	})
 
 	it("leaves the row of a key install of another companion as it was when a session leaves it out", async () => {

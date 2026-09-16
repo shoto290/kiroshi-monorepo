@@ -1,117 +1,120 @@
 import {
 	ApplicationCard,
-	type ApplicationCardProps,
+	type ApplicationCardStatus,
 } from "@workspace/ui/components/application-card"
-import {
-	ApplicationInstall as ApplicationInstallBubble,
-	type ApplicationInstallControl,
-} from "@workspace/ui/components/application-install"
 import { Icons } from "@workspace/ui/components/icons"
+import { Message, MessageContent } from "@workspace/ui/components/message"
 import {
 	MessageBubble,
 	MessageBubbleContent,
 } from "@workspace/ui/components/message-bubble"
-import {
-	ToolQuestion,
-	type ToolQuestionAction,
-} from "@workspace/ui/components/tool-question"
-import { AssistantTurn } from "@workspace/ui/components/turn"
-import { useChatCopy } from "@workspace/ui/hooks/use-chat-copy"
+import { ToolQuestion } from "@workspace/ui/components/tool-question"
+import { type ChatCopy, useChatCopy } from "@workspace/ui/hooks/use-chat-copy"
 
 import type {
 	Application,
 	ApplicationInstall,
+	InstallCase,
 } from "@/lib/applications/application-port"
 
-type InstalledCard = Omit<ApplicationCardProps, "footnote" | "status">
+const RECEIPT_STATUS = {
+	nothing: "connected",
+	key: "apiKey",
+	oauth: "signIn",
+} as const satisfies Record<InstallCase["kind"], ApplicationCardStatus>
 
 type ApplicationInstallRowProps = {
 	install: ApplicationInstall
 	curated: Application | undefined
+	destinationName: string | undefined
 	isLeftOut: boolean
 	onOpenSettings: () => void
 }
 
-const cardOf = (
-	install: ApplicationInstall,
-	curated: Application | undefined,
-): InstalledCard => ({
-	name: install.application,
-	displayName: curated ? install.title : undefined,
-	mark: install.logo ?? curated?.logo,
-	description: curated?.description ?? "",
-})
+type LeftOutKeyProps = {
+	title: string
+	secret: string
+	onOpenSettings: () => void
+}
 
-const InstallPiece = ({
+const receiptSentenceOf = (
+	t: ChatCopy,
+	{ scope, title }: ApplicationInstall,
+	destinationName: string | undefined,
+) => {
+	if (scope === "user") {
+		return t("applicationInstall.receipt.user", { name: title })
+	}
+	const destination = destinationName ?? ""
+	if (scope === "space") {
+		return t("applicationInstall.receipt.space", { name: title, destination })
+	}
+	return t("applicationInstall.receipt.companion", { name: title, destination })
+}
+
+const LeftOutKey = ({ title, secret, onOpenSettings }: LeftOutKeyProps) => {
+	const t = useChatCopy()
+
+	return (
+		<MessageBubble>
+			<MessageBubbleContent>
+				<ToolQuestion
+					questions={[
+						{
+							isNotice: true,
+							header: title,
+							failure: {
+								title: t("applications.connection.session.title", {
+									ns: "bots",
+									name: title,
+								}),
+								detail: t("applicationInstall.secret", { secret }),
+							},
+							action: {
+								label: t("applicationInstall.openSettings"),
+								icon: Icons.Settings,
+								onSelect: onOpenSettings,
+							},
+						},
+					]}
+				/>
+			</MessageBubbleContent>
+		</MessageBubble>
+	)
+}
+
+export const ApplicationInstallRow = ({
 	install,
 	curated,
+	destinationName,
 	isLeftOut,
 	onOpenSettings,
 }: ApplicationInstallRowProps) => {
 	const t = useChatCopy()
-	const card = cardOf(install, curated)
-	const openSettings: ToolQuestionAction = {
-		label: t("applicationInstall.openSettings"),
-		icon: Icons.Settings,
-		onSelect: onOpenSettings,
-	}
-	const leading: ApplicationInstallControl = {
-		...openSettings,
-		emphasis: "primary",
-	}
-
-	if (install.install.kind === "nothing") {
-		return <ApplicationCard {...card} status="connected" />
-	}
-
-	if (install.install.kind === "oauth") {
-		return (
-			<ApplicationInstallBubble
-				application={{ ...card, status: "signIn" }}
-				leading={leading}
-			/>
-		)
-	}
-
-	const secret = t("applicationInstall.secret", {
-		secret: install.install.secret,
-	})
-
-	if (isLeftOut) {
-		return (
-			<MessageBubble>
-				<MessageBubbleContent>
-					<ToolQuestion
-						questions={[
-							{
-								isNotice: true,
-								header: install.title,
-								failure: {
-									title: t("applications.connection.session.title", {
-										ns: "bots",
-										name: install.title,
-									}),
-									detail: secret,
-								},
-								action: openSettings,
-							},
-						]}
-					/>
-				</MessageBubbleContent>
-			</MessageBubble>
-		)
-	}
 
 	return (
-		<ApplicationInstallBubble
-			application={{ ...card, description: secret, status: "apiKey" }}
-			leading={leading}
-		/>
+		<Message from="assistant">
+			<MessageContent>
+				{isLeftOut && install.install.kind === "key" ? (
+					<LeftOutKey
+						onOpenSettings={onOpenSettings}
+						secret={install.install.secret}
+						title={install.title}
+					/>
+				) : null}
+				<ApplicationCard
+					description={curated?.description ?? ""}
+					displayName={curated ? install.title : undefined}
+					footnote={{
+						sentence: receiptSentenceOf(t, install, destinationName),
+						actionLabel: t("applicationInstall.openSettings"),
+						onAction: onOpenSettings,
+					}}
+					mark={install.logo ?? curated?.logo}
+					name={install.application}
+					status={RECEIPT_STATUS[install.install.kind]}
+				/>
+			</MessageContent>
+		</Message>
 	)
 }
-
-export const ApplicationInstallRow = (props: ApplicationInstallRowProps) => (
-	<AssistantTurn bare>
-		<InstallPiece {...props} />
-	</AssistantTurn>
-)

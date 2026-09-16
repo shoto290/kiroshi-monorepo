@@ -55,6 +55,7 @@ type McpSessionProps = {
 	serverConnection?: McpConnectionSection
 	serverEnvironment?: EnvironmentSection
 	catalogue?: ApplicationsCatalogueSection
+	serverToOpen?: string
 }
 
 type ApplicationsSection = Omit<McpSessionProps, "owner">
@@ -74,6 +75,13 @@ type OpenedServer = {
 	displayName?: string
 }
 
+const openedServerOf = (server: BotMcpServerItem): OpenedServer => ({
+	draft: toMcpServerDraft(server),
+	saved: toMcpServerDraft(server),
+	mark: server.mark,
+	displayName: server.displayName,
+})
+
 const useMcpSession = ({
 	owner,
 	servers,
@@ -86,11 +94,29 @@ const useMcpSession = ({
 	serverConnection,
 	serverEnvironment,
 	catalogue,
+	serverToOpen,
 }: McpSessionProps): McpSession => {
 	const [session, setSession] = useState<OpenedServer | null>(null)
 	const [isBrowsing, setBrowsing] = useState(false)
+	const [requestedServer, setRequestedServer] = useState(serverToOpen)
+	const [pendingServer, setPendingServer] = useState(serverToOpen)
+
+	if (serverToOpen !== requestedServer) {
+		setRequestedServer(serverToOpen)
+		setPendingServer(serverToOpen)
+	}
+
+	const listedPending = pendingServer
+		? servers.find(({ name }) => name === pendingServer)
+		: undefined
+	if (listedPending) {
+		setPendingServer(undefined)
+		setBrowsing(false)
+		setSession(openedServerOf(listedPending))
+	}
 
 	const open = (opened: OpenedServer | null) => {
+		setPendingServer(undefined)
 		setBrowsing(false)
 		setSession(opened)
 		onServerOpen?.(opened?.saved?.name ?? null)
@@ -100,6 +126,7 @@ const useMcpSession = ({
 
 	const browse = () => {
 		catalogue?.install?.onLeave()
+		setPendingServer(undefined)
 		setBrowsing(true)
 	}
 
@@ -181,14 +208,7 @@ const useMcpSession = ({
 				haveFailedToLoad={haveFailedToLoad}
 				onAdd={catalogue ? browse : paste}
 				onConnect={onServerConnect}
-				onOpen={(opened) =>
-					open({
-						draft: toMcpServerDraft(opened),
-						saved: toMcpServerDraft(opened),
-						mark: opened.mark,
-						displayName: opened.displayName,
-					})
-				}
+				onOpen={(opened) => open(openedServerOf(opened))}
 				onPaste={paste}
 				owner={owner}
 				servers={servers}

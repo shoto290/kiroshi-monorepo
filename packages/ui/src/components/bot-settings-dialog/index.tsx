@@ -104,6 +104,7 @@ type BotSettingsDialogProps = {
 	onServerConnect?: (server: BotMcpServerItem) => void
 	serverConnection?: McpConnectionSection
 	serverEnvironment?: EnvironmentSection
+	mcpServerToOpen?: string
 	tab?: string
 	history?: PluginHistory
 	seed?: string
@@ -147,6 +148,7 @@ const BotSettingsDialog = ({
 	onServerConnect,
 	serverConnection,
 	serverEnvironment,
+	mcpServerToOpen,
 	tab,
 	history,
 	seed,
@@ -181,6 +183,7 @@ const BotSettingsDialog = ({
 		onServerConnect,
 		serverConnection,
 		serverEnvironment,
+		serverToOpen: mcpServerToOpen,
 	})
 	const historySession = useHistorySession({
 		history,

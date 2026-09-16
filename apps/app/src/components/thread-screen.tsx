@@ -791,14 +791,30 @@ type InstallRowsSource = {
 	placed: PlacedBySeq<ApplicationInstall>[]
 	applications: ConversationApplications | null
 	connectors: SessionConnectors | null
+	bots: Bot[]
 	error: ChatError | undefined
 	companionId: string | undefined
 }
+
+const destinationNameOf = (
+	{ scope, destinationId = "" }: ApplicationInstall,
+	bots: Bot[],
+	spaces: ConversationApplications["spaces"],
+) => {
+	if (scope === "companion") {
+		return botIn(bots, destinationId)?.name
+	}
+	return spaces.find(({ id }) => id === destinationId)?.name
+}
+
+const serverToOpenOf = ({ application, install }: ApplicationInstall) =>
+	install.kind === "key" ? application : undefined
 
 const installRowsAfter = ({
 	placed,
 	applications,
 	connectors,
+	bots,
 	error,
 	companionId,
 }: InstallRowsSource): RowsAfterRun => {
@@ -812,6 +828,14 @@ const installRowsAfter = ({
 		if (!applications || !scope) {
 			return []
 		}
+		const destinationName = destinationNameOf(
+			install,
+			bots,
+			applications.spaces,
+		)
+		if (scope.kind !== "user" && !destinationName) {
+			return []
+		}
 		return [
 			{
 				key: `install-${install.id}`,
@@ -820,9 +844,12 @@ const installRowsAfter = ({
 						curated={applications.curated.find(
 							({ name }) => name === install.application,
 						)}
+						destinationName={destinationName}
 						install={install}
 						isLeftOut={isLeftOutOf({ install, scope }, session)}
-						onOpenSettings={() => applications.onOpen(scope)}
+						onOpenSettings={() =>
+							applications.onOpen(scope, serverToOpenOf(install))
+						}
 					/>
 				),
 			},
@@ -1307,6 +1334,7 @@ function ThreadView({
 	)
 	const installsAfter = installRowsAfter({
 		applications,
+		bots: known,
 		companionId: speakerIdOf(thread, facts.latestError),
 		connectors: sessionConnectors,
 		error: facts.latestError,

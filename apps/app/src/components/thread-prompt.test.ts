@@ -56,6 +56,7 @@ const renderPrompt = (request: QuestionRequest) =>
 				value: {
 					port: createFakeApplicationPort(),
 					curated: [SENTRY],
+					spaces: [],
 					onOpen: () => undefined,
 				},
 			},

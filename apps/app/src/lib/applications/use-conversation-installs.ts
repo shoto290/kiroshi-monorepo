@@ -17,10 +17,13 @@ import type {
 } from "./application-port"
 import type { ReopenedScope } from "./session-reopening"
 
+import type { Space } from "../conversations/store-contract"
+
 export type ConversationApplications = {
 	port: ApplicationPort
 	curated: Application[]
-	onOpen: (scope: ReopenedScope) => void
+	spaces: Space[]
+	onOpen: (scope: ReopenedScope, server?: string) => void
 }
 
 export const ConversationApplicationsContext =

@@ -201,6 +201,11 @@ const chat = {
 		address: "Adresse de connexion",
 		copyFailed: "Copie impossible",
 		openSettings: "Ouvrir les réglages",
+		receipt: {
+			companion: "{{destination}} a {{name}} dans toutes ses conversations.",
+			space: "Chaque compagnon de {{destination}} a {{name}}.",
+			user: "Vous avez {{name}} dans toutes vos conversations.",
+		},
 		secret: "Sa clé va dans {{secret}}.",
 		unreadable:
 			"Impossible de lire les applications ajoutées à cette conversation.",
