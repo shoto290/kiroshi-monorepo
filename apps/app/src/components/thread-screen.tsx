@@ -152,7 +152,11 @@ import {
 	leadOf,
 	mentionableBots,
 } from "@/lib/conversations/roster-conversations"
-import type { Bot, Conversation } from "@/lib/conversations/store-contract"
+import type {
+	Bot,
+	Conversation,
+	Space,
+} from "@/lib/conversations/store-contract"
 import type {
 	CompanionArrival,
 	TranscriptMessage,
@@ -797,18 +801,17 @@ type InstallRowsSource = {
 }
 
 const destinationNameOf = (
-	{ scope, destinationId = "" }: ApplicationInstall,
+	{ scope, destinationId }: ApplicationInstall,
 	bots: Bot[],
-	spaces: ConversationApplications["spaces"],
+	spaces: Space[],
 ) => {
-	if (scope === "companion") {
-		return botIn(bots, destinationId)?.name
+	if (!destinationId) {
+		return undefined
 	}
-	return spaces.find(({ id }) => id === destinationId)?.name
+	return scope === "companion"
+		? botIn(bots, destinationId)?.name
+		: spaces.find(({ id }) => id === destinationId)?.name
 }
-
-const serverToOpenOf = ({ application, install }: ApplicationInstall) =>
-	install.kind === "key" ? application : undefined
 
 const installRowsAfter = ({
 	placed,
@@ -848,7 +851,12 @@ const installRowsAfter = ({
 						install={install}
 						isLeftOut={isLeftOutOf({ install, scope }, session)}
 						onOpenSettings={() =>
-							applications.onOpen(scope, serverToOpenOf(install))
+							applications.onOpen(
+								scope,
+								install.install.kind === "key"
+									? install.application
+									: undefined,
+							)
 						}
 					/>
 				),
