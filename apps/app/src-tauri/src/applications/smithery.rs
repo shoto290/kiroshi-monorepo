@@ -134,9 +134,14 @@ async fn offered(base: &str) -> Result<Vec<Application>, ApplicationsError> {
 	let base = parsed(base)?;
 	let client = client()?;
 	let rows = page(&client, &base, &[("page", FIRST_PAGE), ("pageSize", OFFERED_PAGE)]).await?;
-	let mut offers = listings(&client, &base, rows).await;
+	let mut offers: Vec<Application> =
+		listings(&client, &base, rows).await.into_iter().filter(installs).collect();
 	offers.truncate(OFFERS);
 	Ok(offers)
+}
+
+fn installs(application: &Application) -> bool {
+	!matches!(application.install, Install::Refused(_))
 }
 
 async fn ranked(
@@ -879,6 +884,49 @@ pub(crate) mod tests {
 		let found = search(&base, "").await.expect("the search answers");
 
 		assert_eq!(offered_names(&found), ["a", "b", "d", "e", "f", "g", "h", "i", "j"]);
+	}
+
+	#[tokio::test]
+	async fn an_empty_query_leaves_out_a_row_whose_install_is_refused_and_fills_its_place() {
+		let mut page = a_page_of(&A_PAGE);
+		page.details.insert("c".to_owned(), an_uncarried_detail("c", "https://c.run.tools"));
+		let (base, _) = serving(page).await;
+
+		let found = search(&base, "").await.expect("the search answers");
+
+		assert_eq!(offered_names(&found), ["a", "b", "d", "e", "f", "g", "h", "i", "j"]);
+	}
+
+	#[tokio::test]
+	async fn an_empty_query_answers_the_page_order_though_the_use_counts_rise_along_it() {
+		let rows = A_PAGE
+			.iter()
+			.enumerate()
+			.map(|(rank, name)| a_row(name, name, rank as u64 + 1))
+			.collect();
+		let details = A_PAGE
+			.iter()
+			.map(|name| a_detail(name, &format!("https://{name}.run.tools")))
+			.collect();
+		let (base, _) = serving(holding(rows, details)).await;
+
+		let found = search(&base, "").await.expect("the search answers");
+
+		assert_eq!(offered_names(&found), ["a", "b", "c", "d", "e", "f", "g", "h", "i"]);
+	}
+
+	#[tokio::test]
+	async fn a_typed_query_answers_a_row_whose_install_is_refused() {
+		let (base, _) = serving(holding(
+			vec![a_row("@owner/queried", "Slack", 900)],
+			vec![an_uncarried_detail("@owner/queried", "https://queried.test/mcp")],
+		))
+		.await;
+
+		let found = search(&base, "slack").await.expect("the search answers");
+
+		assert_eq!(offered_names(&found), ["@owner/queried"]);
+		assert!(matches!(found[0].install, Install::Refused(_)), "got {:?}", found[0].install);
 	}
 
 	#[tokio::test]
