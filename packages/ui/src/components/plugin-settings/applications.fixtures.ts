@@ -116,6 +116,54 @@ export const REGISTRY_APPLICATIONS: CatalogueApplication[] = [
 	},
 ]
 
+export const SLACK_MARK = markOf("#4a154b", "S")
+
+export const UNREACHABLE_MARK = "data:image/png;base64,Tm90QW5JbWFnZQ=="
+
+export const REGISTRY_RESULTS: CatalogueApplication[] = [
+	{
+		id: "smithery/slack",
+		name: "Slack",
+		description: "Reads channels and posts messages as you.",
+		setup: "signIn",
+		mark: SLACK_MARK,
+		source: "Smithery",
+		useCount: 12110,
+		isVerified: true,
+		host: "slack.run.tools",
+		packageIdentity: "https://slack.run.tools/mcp",
+	},
+	{
+		id: "io.github.kwn/granola-transcripts",
+		name: "Granola Transcripts",
+		description: "Reads your meeting notes and transcripts.",
+		setup: "none",
+		packageIdentity: "npx -y @kwn/granola-transcripts",
+		source: "MCP registry",
+	},
+	{
+		id: "smithery/obsidian-vault",
+		name: "Obsidian Vault",
+		description: "Searches and edits the notes of a local vault.",
+		setup: "apiKey",
+		source: "Smithery",
+		useCount: 806,
+	},
+]
+
+export const UNREACHABLE_MARK_RESULT: CatalogueApplication = {
+	...REGISTRY_RESULTS[0],
+	mark: UNREACHABLE_MARK,
+}
+
+export const LONG_REGISTRY_RESULT: CatalogueApplication = {
+	...REGISTRY_RESULTS[0],
+	name: "a-very-long-registry-application-name-that-keeps-going-on-and-on-well-past-the-width-of-the-row-it-is-drawn-in-and-then-some-more",
+	description:
+		"Reads every channel, every thread and every message ever written, then writes back where it is allowed to, which takes a long sentence to say.",
+	host: "a-very-long-hostname-that-nobody-would-ever-type.run.tools",
+}
+
 export const PUBLISHED_APPLICATION_COUNT = 1284
 
 export const GRANOLA_MARK = markOf("#1f6f43", "G")
@@ -173,6 +221,28 @@ export const REGISTRY_INSTALL: InstallableApplication = {
 	],
 	canWrite: true,
 	unreviewed: { publisher: "kwn", publishedAt: "4 days ago" },
+}
+
+export const HOSTED_INSTALL: InstallableApplication = {
+	id: "smithery/slack",
+	name: "Slack",
+	description: "Reads channels and posts messages as you.",
+	packageIdentity: "https://slack.run.tools/mcp",
+	setup: "signIn",
+	mark: SLACK_MARK,
+	source: "Smithery",
+	useCount: 12110,
+	isVerified: true,
+	host: "slack.run.tools",
+	tools: [
+		"list_channels",
+		"read_messages",
+		"post_message",
+		"search_messages",
+		"list_members",
+	],
+	canWrite: true,
+	unreviewed: { publisher: "run-tools", publishedAt: "3 weeks ago" },
 }
 
 export const UNSTATED_REACH_INSTALL: InstallableApplication = {

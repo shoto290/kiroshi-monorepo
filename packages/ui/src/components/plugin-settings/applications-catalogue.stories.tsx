@@ -1,12 +1,15 @@
 import { useState } from "react"
-import { expect, fn } from "storybook/test"
+import { expect, fn, waitFor, within } from "storybook/test"
 
 import preview from "@workspace/storybook/preview"
 import {
 	CATALOGUE_CATEGORIES,
 	CURATED_APPLICATIONS,
+	LONG_REGISTRY_RESULT,
 	PUBLISHED_APPLICATION_COUNT,
 	REGISTRY_APPLICATIONS,
+	REGISTRY_RESULTS,
+	UNREACHABLE_MARK_RESULT,
 } from "@workspace/ui/components/plugin-settings/applications.fixtures"
 import {
 	ApplicationsCatalogue,
@@ -375,5 +378,96 @@ export const CatalogueLoading = meta.story({
 
 		const [bar] = slotsOf(canvasElement, "skeleton")
 		await expect(bar).toHaveClass("motion-reduce:animate-none")
+	},
+})
+
+export const RegistryResults = meta.story({
+	args: { query: "s", curated: [], registry: REGISTRY_RESULTS },
+	render: (args) => <ApplicationsCatalogue {...args} />,
+	parameters: {
+		docs: {
+			description: {
+				story:
+					"E4c. The three results a registry answers with, side by side. Check Slack with its own icon, its verified pill, its source, its uses and the host it runs on instead of its package identity; Granola Transcripts on the server glyph, its source and its package invocation in monospace; Obsidian Vault with no pill at all and no gap where one would sit.",
+			},
+		},
+	},
+	play: async ({ canvas }) => {
+		const [slack, granola, obsidian] = canvas.getAllByRole("listitem")
+
+		await expect(slack.querySelector("img")).not.toBeNull()
+		await expect(within(slack).getByText("Verified")).toBeVisible()
+		await expect(within(slack).getByText("Smithery")).toBeVisible()
+		await expect(within(slack).getByText("12,110 uses")).toBeVisible()
+		await expect(within(slack).getByText("slack.run.tools")).toHaveClass(
+			"font-mono",
+		)
+		await expect(within(slack).getByText("Slack")).not.toHaveClass("font-mono")
+		await expect(
+			within(slack).queryByText("https://slack.run.tools/mcp"),
+		).not.toBeInTheDocument()
+
+		await expect(granola.querySelector("img")).toBeNull()
+		await expect(within(granola).getByText("MCP registry")).toBeVisible()
+		await expect(
+			within(granola).getByText("npx -y @kwn/granola-transcripts"),
+		).toHaveClass("font-mono")
+		await expect(
+			within(granola).queryByText("Verified"),
+		).not.toBeInTheDocument()
+
+		await expect(
+			within(obsidian).queryByText("Verified"),
+		).not.toBeInTheDocument()
+		await expect(within(obsidian).getByText("806 uses")).toBeVisible()
+		await expect(within(obsidian).getByText("Needs an API key")).toBeVisible()
+	},
+})
+
+export const RegistryIconUnreachable = meta.story({
+	args: { query: "s", curated: [], registry: [UNREACHABLE_MARK_RESULT] },
+	render: (args) => <ApplicationsCatalogue {...args} />,
+	parameters: {
+		docs: {
+			description: {
+				story:
+					"A result whose icon address answers nothing. Check that the slot falls back to the server glyph on the muted surface rather than leaving a broken image in the row.",
+			},
+		},
+	},
+	play: async ({ canvas, canvasElement }) => {
+		const slot = canvasElement.querySelector('[data-slot="application-mark"]')
+
+		await waitFor(async () => {
+			await expect(slot?.querySelector("img")).toBeNull()
+		})
+		await expect(slot?.querySelector("svg")).not.toBeNull()
+		await expect(canvas.getByText("Slack")).toBeVisible()
+	},
+})
+
+export const RegistryResultTooWide = meta.story({
+	args: { query: "s", curated: [], registry: [LONG_REGISTRY_RESULT] },
+	render: (args) => <ApplicationsCatalogue {...args} />,
+	parameters: {
+		docs: {
+			description: {
+				story:
+					"A result whose name, description and host are all wider than the row. Check that each part stays on one line and truncates rather than growing the row.",
+			},
+		},
+	},
+	play: async ({ canvas }) => {
+		const [row] = canvas.getAllByRole("listitem")
+		const name = within(row).getByText(LONG_REGISTRY_RESULT.name)
+		const description = within(row).getByText(LONG_REGISTRY_RESULT.description)
+
+		for (const part of [name, description]) {
+			await expect(part.scrollWidth).toBeGreaterThan(part.clientWidth)
+			await expect(
+				Math.round(part.getBoundingClientRect().height),
+			).toBeLessThan(24)
+		}
+		await expect(row.scrollWidth).toBeLessThanOrEqual(row.clientWidth)
 	},
 })

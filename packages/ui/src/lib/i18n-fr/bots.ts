@@ -380,6 +380,11 @@ const bots = {
 		unsaved: "Modifications non enregistrées",
 		back: "Toutes les applications",
 		paste: "Coller une configuration",
+		verified: "Vérifiée",
+		uses_one: "{{count}} utilisation",
+		uses_many: "{{count, number}} utilisations",
+		uses_other: "{{count, number}} utilisations",
+		hostedOn: "Tourne sur <host>{{host}}</host>",
 		intro: {
 			companion:
 				"Ce à quoi {{name}} se connecte pour les outils qu'il n'a pas seul.",
@@ -470,6 +475,7 @@ const bots = {
 				description:
 					"Un onglet du navigateur s'ouvre dès que vous l'ajoutez. Kiroshi garde le jeton avec les secrets de cette application, et le renouvelle tout seul.",
 				action: "Ajouter et se connecter",
+				fact: "Vous connecte. {{name}} s’ouvre dans votre navigateur et demande d’autoriser Kiroshi.",
 			},
 			key: {
 				title: "{{name}} demande une clé d'API",
@@ -488,6 +494,7 @@ const bots = {
 				},
 			},
 			none: "Rien à configurer. Elle tourne sur cette machine, sans clé ni connexion.",
+			hosting: "Tourne sur <host>{{host}}</host>, pas sur cette machine.",
 			unreviewed: {
 				title: "Kiroshi ne l'a pas lue",
 				description: {
@@ -495,6 +502,12 @@ const bots = {
 						"Publiée sur le registre MCP par {{publisher}}, {{date}}. Elle tourne sur cette machine avec les accès de votre compte. Lisez ce qu'elle fait avant de l'ajouter.",
 					writes:
 						"Publiée sur le registre MCP par {{publisher}}, {{date}}. Elle tourne sur cette machine avec les accès de votre compte, et elle écrit autant qu'elle lit. Lisez ce qu'elle fait avant de l'ajouter.",
+				},
+				hosted: {
+					reads:
+						"Publiée sur {{source}} par {{publisher}}, {{date}}. Elle lit avec les accès de votre compte {{name}}. Lisez ce qu'elle fait avant de l'ajouter.",
+					writes:
+						"Publiée sur {{source}} par {{publisher}}, {{date}}. Elle lit et écrit avec les accès de votre compte {{name}}. Lisez ce qu'elle fait avant de l'ajouter.",
 				},
 			},
 			tools: {
@@ -518,6 +531,14 @@ const bots = {
 					"Les applications tournent sur votre machine, sous votre compte. En ajouter une ici donne ses outils à chaque compagnon de {{name}}.",
 				profile:
 					"Les applications tournent sur votre machine, sous votre compte. En ajouter une ici donne ses outils à chacun de vos compagnons, dans chaque espace.",
+			},
+			hostedFootnote: {
+				companion:
+					"Celle-ci tourne sur le serveur de {{source}}, pas sur votre machine. L’ajouter rouvre la session de {{name}} pour que les outils soient là tout de suite.",
+				space:
+					"Celle-ci tourne sur le serveur de {{source}}, pas sur votre machine. L’ajouter ici donne ses outils à chaque compagnon de {{name}}.",
+				profile:
+					"Celle-ci tourne sur le serveur de {{source}}, pas sur votre machine. L’ajouter ici donne ses outils à chacun de vos compagnons, dans chaque espace.",
 			},
 			done: "Ajoutée",
 			failed: "Impossible de l’ajouter : {{reason}}",

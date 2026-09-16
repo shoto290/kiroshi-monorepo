@@ -1,3 +1,7 @@
+"use client"
+
+import { useState } from "react"
+
 import { Icons } from "@workspace/ui/components/icons"
 import { cn } from "@workspace/ui/lib/utils"
 
@@ -31,10 +35,12 @@ const ApplicationMark = ({
 	isBlank = false,
 }: ApplicationMarkProps) => {
 	const style = APPLICATION_MARK_STYLE[size]
+	const [unreachableMark, setUnreachableMark] = useState<string>()
 	const isDrawn = mark !== undefined && isDrawing(mark)
+	const isGlyph = mark === undefined || unreachableMark === mark
 
 	const content = () => {
-		if (mark === undefined) {
+		if (isGlyph) {
 			return isBlank ? null : <Icons.Server className={style.glyph} />
 		}
 
@@ -47,7 +53,14 @@ const ApplicationMark = ({
 			)
 		}
 
-		return <img alt="" className="size-full object-cover" src={mark} />
+		return (
+			<img
+				alt=""
+				className="size-full object-cover"
+				onError={() => setUnreachableMark(mark)}
+				src={mark}
+			/>
+		)
 	}
 
 	return (
@@ -57,7 +70,7 @@ const ApplicationMark = ({
 				"flex shrink-0 items-center justify-center overflow-hidden border border-border",
 				style.slot,
 				isDrawn && "bg-muted text-foreground",
-				!mark && "bg-muted text-muted-foreground",
+				isGlyph && "bg-muted text-muted-foreground",
 			)}
 			data-slot="application-mark"
 		>
