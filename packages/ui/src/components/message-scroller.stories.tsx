@@ -3,7 +3,7 @@
 import { expect, waitFor } from "storybook/test"
 
 import preview from "@workspace/storybook/preview"
-import { FRAME_POLL, slotIn } from "@workspace/storybook/story-utils"
+import { FRAME_POLL, slotIn, slotsIn } from "@workspace/storybook/story-utils"
 import { Icons } from "@workspace/ui/components/icons"
 import {
 	MessageScroller,
@@ -13,6 +13,7 @@ import {
 	MessageScrollerProvider,
 	MessageScrollerViewport,
 } from "@workspace/ui/components/message-scroller"
+import { cn } from "@workspace/ui/lib/utils"
 
 const SHORT_THREAD = [
 	"Where did the nightly run stop?",
@@ -36,6 +37,8 @@ const BUBBLE =
 
 const FRAME = "h-72 w-[32rem]"
 
+const ALWAYS_RENDERED = "[content-visibility:visible]"
+
 type ThreadProps = {
 	lines: string[]
 }
@@ -52,7 +55,10 @@ const Thread = ({ lines }: ThreadProps) => (
 					>
 						{lines.map((line, rank) => (
 							<MessageScrollerItem
-								className="flex flex-col gap-6"
+								className={cn(
+									"flex flex-col gap-6",
+									rank === lines.length - 1 && ALWAYS_RENDERED,
+								)}
 								key={line}
 								messageId={line}
 								scrollAnchor={rank === lines.length - 1}
@@ -81,6 +87,12 @@ const viewportIn = (canvasElement: HTMLElement) =>
 
 const buttonIn = (canvasElement: HTMLElement) =>
 	slotIn(canvasElement, "message-scroller-button")
+
+const lastItemIn = (canvasElement: HTMLElement) => {
+	const item = slotsIn(canvasElement, "message-scroller-item").at(-1)
+	if (!item) throw new Error("the thread rendered no item")
+	return item
+}
 
 const meta = preview.meta({
 	title: "Conversation/Message/MessageScroller",
@@ -121,7 +133,7 @@ export const AtEnd = meta.story({
 		docs: {
 			description: {
 				story:
-					"A thread longer than its frame, opened where the transcript opens it: on the newest message. Check that the viewport starts scrolled to the bottom rather than at the oldest turn, and that the jump button stays inactive while there is nothing below — offering to jump to a message already on screen is noise.",
+					"A thread longer than its frame, opened where the transcript opens it: on the newest message. Check that the viewport starts scrolled to the bottom rather than at the oldest turn, that the jump button stays inactive while there is nothing below — offering to jump to a message already on screen is noise — and that the last item is measured on the message it holds rather than on the 10rem box an unpainted item reserves, which is the exemption the transcript gives that one item so the thread lands on the real last line.",
 			},
 		},
 	},
@@ -137,6 +149,14 @@ export const AtEnd = meta.story({
 			).toBeLessThan(2)
 		}, FRAME_POLL)
 		await expect(button.dataset.active).toBe("false")
+
+		const last = lastItemIn(canvasElement)
+		const message = last.firstElementChild as HTMLElement
+
+		await expect(getComputedStyle(last).contentVisibility).toBe("visible")
+		await expect(last.getBoundingClientRect().height).toBe(
+			message.getBoundingClientRect().height,
+		)
 	},
 })
 

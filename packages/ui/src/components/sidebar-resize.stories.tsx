@@ -1,5 +1,7 @@
-// Call sites: packages/ui/src/components/workspace-shell.tsx line 61 for the provider
-// and packages/ui/src/components/app-sidebar.tsx line 2269 for the handle
+// Call sites: packages/ui/src/components/workspace-shell.tsx line 61 and
+// packages/ui/src/components/routines-panel.tsx line 600 for the provider,
+// packages/ui/src/components/app-sidebar.tsx line 2269 and
+// packages/ui/src/components/routines-panel.tsx line 572 for the handle
 
 import type { CSSProperties } from "react"
 import { expect, fn, waitFor } from "storybook/test"
@@ -61,7 +63,12 @@ const Shell = ({
 	>
 		{(resize) => (
 			<SidebarProvider defaultOpen={isOpen} style={shellStyle(resize.width)}>
-				<Sidebar aria-label="Workspace" collapsible="icon" role="complementary">
+				<Sidebar
+					aria-label="Workspace"
+					collapsible="icon"
+					role="complementary"
+					side={side}
+				>
 					<SidebarContent>
 						<SidebarGroup>
 							<SidebarGroupContent>
@@ -184,6 +191,36 @@ export const Clamped = meta.story({
 		}, FRAME_POLL)
 		await waitFor(async () => {
 			await expect(panel.getBoundingClientRect().width).toBe(SIDEBAR_MIN_WIDTH)
+		}, FRAME_POLL)
+	},
+})
+
+export const RightSide = meta.story({
+	render: () => <Shell onWidthChange={fn()} side="right" />,
+	parameters: {
+		docs: {
+			description: {
+				story:
+					"The grip of a trailing panel, which is what the routines panel hangs on. Check that it is drawn on the panel's inline-start edge rather than its trailing one — the edge a trailing panel is resized from is the one facing the screen — and that the arrow keys are mirrored with it: `ArrowLeft` widens here, where it narrows on a leading panel. `Default` is the same grip on a leading panel.",
+			},
+		},
+	},
+	play: async ({ canvas, userEvent }) => {
+		const handle = canvas.getByRole("separator", { name: HANDLE_LABEL })
+		const panel = canvas.getByRole("complementary", { name: "Workspace" })
+
+		await expect(handle.getBoundingClientRect().left).toBeLessThan(
+			panel.getBoundingClientRect().left + 8,
+		)
+
+		handle.focus()
+		await userEvent.keyboard("{ArrowLeft}")
+
+		await waitFor(async () => {
+			await expect(handle).toHaveAttribute(
+				"aria-valuenow",
+				String(SIDEBAR_DEFAULT_WIDTH + SIDEBAR_WIDTH_STEP),
+			)
 		}, FRAME_POLL)
 	},
 })

@@ -1,69 +1,31 @@
-// Call site: packages/ui/src/components/plugin-settings/applications-catalogue.tsx line 188
+// Call site: packages/ui/src/components/plugin-settings/applications-catalogue.tsx
+// line 188 for the bar and line 196 for the mark
 
 import { expect } from "storybook/test"
 
 import preview from "@workspace/storybook/preview"
 import { slotsIn } from "@workspace/storybook/story-utils"
 import { Skeleton } from "@workspace/ui/components/ui/skeleton"
-import { cn } from "@workspace/ui/lib/utils"
 
-const ROW_LIST_CLASS = "flex list-none flex-col gap-2.25 p-0"
+const MARK_CLASS =
+	"size-7 shrink-0 rounded-md bg-border motion-reduce:animate-none"
 
-const ROW_SHELL_CLASS =
-	"flex w-full min-w-0 items-center gap-2.5 rounded-lg border border-border px-3 py-2"
+const BAR_CLASS = "rounded-sm bg-border motion-reduce:animate-none"
 
-const ROW_SKELETONS = ["one", "two", "three"]
-
-type SkeletonBarProps = {
-	className: string
-	isFaint?: boolean
-}
-
-const SkeletonBar = ({ className, isFaint = false }: SkeletonBarProps) => (
-	<Skeleton
-		className={cn(
-			"rounded-sm motion-reduce:animate-none",
-			isFaint ? "bg-border/60" : "bg-border",
-			className,
-		)}
-	/>
-)
-
-const SkeletonMark = () => (
-	<Skeleton className="size-7 shrink-0 rounded-md bg-border motion-reduce:animate-none" />
-)
-
-const CatalogueRowSkeletons = () => (
-	<ul aria-hidden="true" className={ROW_LIST_CLASS}>
-		{ROW_SKELETONS.map((rank) => (
-			<li className="flex" data-slot="catalogue-row-skeleton" key={rank}>
-				<div className={ROW_SHELL_CLASS}>
-					<SkeletonMark />
-					<div className="flex min-w-0 flex-1 flex-col gap-1.5">
-						<SkeletonBar className="h-2.75 w-33" />
-						<SkeletonBar className="h-2.25 w-51.5" isFaint />
-						<SkeletonBar className="h-2.25 w-39.5" isFaint />
-					</div>
-					<SkeletonBar className="h-2.25 w-24.5 shrink-0" isFaint />
-				</div>
-			</li>
-		))}
-	</ul>
-)
+const FAINT_BAR_CLASS = "rounded-sm bg-border/60 motion-reduce:animate-none"
 
 const meta = preview.meta({
 	title: "Feedback/Skeleton",
 	component: Skeleton,
 	parameters: {
-		layout: "padded",
+		layout: "centered",
 		docs: {
 			description: {
 				component:
-					"The pulsing box the registry ships to stand in for content that is still on its way. It is a shape and nothing else: no text, no role, no size of its own — the caller gives it every dimension and every tint. In this app it is reached in one place, the rows the applications catalogue draws while the registries answer, so the story below is that composition rather than a lone box.",
+					"The pulsing box the registry ships to stand in for content that is still on its way. It is a shape and nothing else: no text, no role, no size of its own — every dimension, every corner and every tint come from the caller, and the caller is also the one that keeps it out of the accessible tree. In this app it is reached in one place, the applications catalogue while the registries answer, where it takes exactly two shapes.",
 			},
 		},
 	},
-	decorators: [(Story) => <div className="w-[36rem]">{Story()}</div>],
 })
 
 export const Loading = meta.story({
@@ -71,21 +33,29 @@ export const Loading = meta.story({
 		docs: {
 			description: {
 				story:
-					"The catalogue waiting on the registries: three rows drawn at the height and the rhythm the real rows take, so nothing jumps when the answer lands. Check that the whole list is out of the accessible tree — it is `aria-hidden`, the wait is announced elsewhere — that the bars sit on the border token rather than on a surface one, and that each of them stops pulsing under reduced motion instead of being the only thing moving on screen — the browser this story is tested in asks for reduced motion, so the assertion reads the stopped state.",
+					"The two shapes the catalogue gives the primitive: the square mark standing in for an application icon, and the bar standing in for a line of its text, in the solid tint of a title and the faint one of a description. Check that each shape holds the size it was given, that the faint bar reads as secondary without becoming invisible, and that both stop pulsing under reduced motion — the browser this story is tested in asks for it, so the assertion reads the stopped state. The composed wait, three rows out of the accessible tree, is proven on the real component in applications-catalogue.stories.tsx > CatalogueLoading.",
 			},
 		},
 	},
-	render: () => <CatalogueRowSkeletons />,
+	render: () => (
+		<div className="flex w-80 items-center gap-2.5">
+			<Skeleton className={MARK_CLASS} />
+			<div className="flex min-w-0 flex-1 flex-col gap-1.5">
+				<Skeleton className={`h-2.75 w-33 ${BAR_CLASS}`} />
+				<Skeleton className={`h-2.25 w-51.5 ${FAINT_BAR_CLASS}`} />
+			</div>
+		</div>
+	),
 	play: async ({ canvasElement }) => {
-		const rows = slotsIn(canvasElement, "catalogue-row-skeleton")
-		const [mark] = slotsIn(canvasElement, "skeleton")
+		const [mark, title, description] = slotsIn(canvasElement, "skeleton")
 
-		await expect(rows).toHaveLength(3)
-		await expect(canvasElement.querySelector("ul")).toHaveAttribute(
-			"aria-hidden",
-			"true",
-		)
 		await expect(mark.getBoundingClientRect().height).toBe(28)
+		await expect(mark.getBoundingClientRect().width).toBe(28)
+		await expect(title.getBoundingClientRect().height).toBe(11)
+		await expect(description.getBoundingClientRect().height).toBe(9)
+		await expect(getComputedStyle(title).backgroundColor).not.toBe(
+			getComputedStyle(description).backgroundColor,
+		)
 		await expect(getComputedStyle(mark).animationName).toBe("none")
 	},
 })

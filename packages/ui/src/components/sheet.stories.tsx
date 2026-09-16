@@ -33,6 +33,8 @@ const SURFACE = "p-4 text-muted-foreground text-sm"
 
 const MOBILE = { viewport: { value: "mobile" } }
 
+const DRAWER_WIDTH = "18rem"
+
 const WorkspaceOnMobile = () => (
 	<SidebarProvider>
 		<Sidebar aria-label="Workspace" collapsible="icon" role="complementary">
@@ -99,7 +101,7 @@ export const Drawer = meta.story({
 		docs: {
 			description: {
 				story:
-					"The panel asked for on a narrow window: the same rows as on a wide one, drawn over the screen instead of beside it. Check that the drawer is a modal dialog rather than a panel that merely looks like one — it is named, it holds the focus and it is announced as a dialog — that it takes the 18rem the branch sets rather than the 3/4 width the registry defaults to, and that the backdrop covers the screen behind it. Pick `Closed` for the state before the press.",
+					"The panel asked for on a narrow window: the same rows as on a wide one, drawn over the screen instead of beside it. Check that the drawer is a modal dialog rather than a panel that merely looks like one — it is named, it holds the focus and it is announced as a dialog — and that the backdrop covers the screen behind it. The width is the one thing that does not hold: the branch sets `--sidebar-width` to 18rem on the popup, and the registry's own `data-[side=left]:w-3/4` wins over the class reading it, so the drawer is painted at three quarters of the window instead. Both are asserted here, the intent and the paint, because the fix belongs to `ui/sidebar.tsx`, which this branch does not touch. Pick `Closed` for the state before the press.",
 			},
 		},
 	},
@@ -112,8 +114,11 @@ export const Drawer = meta.story({
 		await waitFor(() => expect(drawer).toBeVisible(), FRAME_POLL)
 
 		await expect(drawer.dataset.mobile).toBe("true")
-		await expect(drawer.getBoundingClientRect().width).toBeLessThan(
-			window.innerWidth,
+		await expect(
+			getComputedStyle(drawer).getPropertyValue("--sidebar-width"),
+		).toBe(DRAWER_WIDTH)
+		await expect(drawer.getBoundingClientRect().width).toBe(
+			window.innerWidth * 0.75,
 		)
 		await expect(drawer).toHaveAttribute("data-open")
 		await expect(
