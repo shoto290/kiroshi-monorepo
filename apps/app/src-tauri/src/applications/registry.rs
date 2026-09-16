@@ -96,7 +96,15 @@ pub async fn search(base: &str, query: &str) -> Result<Vec<Application>, Applica
 		.append_pair("limit", BOUND)
 		.append_pair("version", LATEST);
 	let listed: Listed = read(&client()?, list).await?;
-	Ok(distinct(listed.servers).into_iter().filter_map(descriptor).collect())
+	let rows = distinct(listed.servers);
+	let answered = rows.len();
+	let found: Vec<Application> = rows.into_iter().filter_map(descriptor).collect();
+	if found.is_empty() && answered > 0 {
+		eprintln!(
+			"the registry answered {answered} rows for {query:?} and none carried a transport"
+		);
+	}
+	Ok(found)
 }
 
 pub async fn detail(base: &str, name: &str) -> Result<Option<Application>, ApplicationsError> {
@@ -654,6 +662,13 @@ pub(crate) mod tests {
 
 		let names: Vec<&str> = found.iter().map(|held| held.name.as_str()).collect();
 		assert_eq!(names, ["com.notion/mcp", "io.github.Digital-Defiance/mcp-filesystem"]);
+	}
+
+	#[tokio::test]
+	async fn a_list_whose_every_row_carries_no_transport_answers_an_empty_list_and_no_error() {
+		let (base, _) = serving(holding(vec![BROKEN, "io.test/also-broken"])).await;
+
+		assert_eq!(search(&base, "broken").await, Ok(Vec::new()));
 	}
 
 	#[tokio::test]
