@@ -18,6 +18,7 @@ export type FakeApplicationPort = ApplicationPort & {
 	calls: ApplicationCall[]
 	curated: Application[]
 	found: Application[]
+	foundFailure?: ApplicationsError
 	recorded: ApplicationInstall[]
 	refusals: Partial<Record<ApplicationCommand, ApplicationsError>>
 	announce: (installed: ApplicationInstalled) => void
@@ -49,7 +50,7 @@ export const createFakeApplicationPort = (): FakeApplicationPort => {
 
 		search: async (query) => {
 			answer({ command: "search", query })
-			return { applications: fake.found }
+			return { applications: fake.found, registryFailure: fake.foundFailure }
 		},
 
 		installs: async (conversationId) => {

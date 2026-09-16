@@ -571,6 +571,8 @@ const bots = {
 					"Type a name above to search {{count}} published applications.",
 				empty: "Nothing in the MCP registry matched {{query}}.",
 				failed: "Couldn’t reach the MCP registry.",
+				partlyFailed:
+					"Couldn’t read part of the catalogue. Retry to see the rest.",
 				retry: "Retry",
 			},
 			everything: "Everything",

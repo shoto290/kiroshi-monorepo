@@ -246,6 +246,60 @@ describe("applications controller", () => {
 		expect(controller.getState().registry).toEqual([LINEAR])
 	})
 
+	it("holds on to the results when one registry side failed", async () => {
+		const port = createFakeApplicationPort()
+		port.found = [LINEAR]
+		port.foundFailure = { kind: "registryTimedOut" }
+		const controller = controllerOn(port)
+
+		controller.search("linear")
+		await settled()
+
+		expect(controller.getState().registry).toEqual([LINEAR])
+		expect(controller.getState().hasSearchPartlyFailed).toBe(true)
+		expect(controller.getState().hasSearchFailed).toBe(false)
+	})
+
+	it("reports no partial failure when both registry sides answered", async () => {
+		const port = createFakeApplicationPort()
+		port.found = [LINEAR]
+		const controller = controllerOn(port)
+
+		controller.search("linear")
+		await settled()
+
+		expect(controller.getState().hasSearchPartlyFailed).toBe(false)
+	})
+
+	it("drops the partial failure as soon as the query changes", async () => {
+		const port = createFakeApplicationPort()
+		port.found = [LINEAR]
+		port.foundFailure = { kind: "registryTimedOut" }
+		const controller = controllerOn(port)
+		controller.search("linear")
+		await settled()
+
+		controller.search("linears")
+
+		expect(controller.getState().hasSearchPartlyFailed).toBe(false)
+	})
+
+	it("leaves no partial failure behind a refused search", async () => {
+		const port = createFakeApplicationPort()
+		port.found = [LINEAR]
+		port.foundFailure = { kind: "registryTimedOut" }
+		const controller = controllerOn(port)
+		controller.search("linear")
+		await settled()
+
+		port.refusals.search = { kind: "registryTimedOut" }
+		controller.retry()
+		await settled()
+
+		expect(controller.getState().hasSearchFailed).toBe(true)
+		expect(controller.getState().hasSearchPartlyFailed).toBe(false)
+	})
+
 	it("declares a server for an install that asks nothing", async () => {
 		const port = createFakeApplicationPort()
 		port.curated = [PAPER]
