@@ -60,18 +60,23 @@ fn answered(
 fn deduplicated(semantic: Vec<Listing>, official: Vec<Listing>) -> Vec<Application> {
 	let named: HashSet<String> =
 		semantic.iter().filter_map(|listing| listing.repository.clone()).collect();
-	semantic
+	let kept: Vec<Listing> = official
 		.into_iter()
-		.map(|listing| listing.application)
-		.chain(
-			official
-				.into_iter()
-				.filter(|listing| {
-					!listing.repository.as_ref().is_some_and(|held| named.contains(held))
-				})
-				.map(|listing| listing.application),
-		)
-		.collect()
+		.filter(|listing| !listing.repository.as_ref().is_some_and(|held| named.contains(held)))
+		.collect();
+	interleaved(semantic, kept).into_iter().map(|listing| listing.application).collect()
+}
+
+fn interleaved(semantic: Vec<Listing>, official: Vec<Listing>) -> Vec<Listing> {
+	let mut semantic = semantic.into_iter();
+	let mut official = official.into_iter();
+	let mut taken = Vec::new();
+	loop {
+		match (semantic.next(), official.next()) {
+			(None, None) => return taken,
+			(first, second) => taken.extend(first.into_iter().chain(second)),
+		}
+	}
 }
 
 pub(super) fn terms(query: &str) -> Vec<String> {
@@ -190,7 +195,7 @@ mod tests {
 	}
 
 	#[test]
-	fn an_official_row_naming_a_kept_smithery_repository_is_left_out() {
+	fn an_official_row_naming_a_kept_smithery_repository_is_left_out_before_the_interleaving() {
 		let kept = deduplicated(
 			vec![listed("@owner/notion", Some("github.com/owner/notion"))],
 			vec![
@@ -201,5 +206,67 @@ mod tests {
 		);
 
 		assert_eq!(names(kept), ["@owner/notion", "io.test/other", "io.test/bare"]);
+	}
+
+	fn bare(names: &[&str]) -> Vec<Listing> {
+		names.iter().map(|name| listed(name, None)).collect()
+	}
+
+	#[test]
+	fn the_two_sources_answer_in_turn_and_the_longer_one_answers_its_tail_alone() {
+		let kept = deduplicated(
+			bare(&["@owner/one", "@owner/two"]),
+			bare(&["io.test/one", "io.test/two", "io.test/three", "io.test/four"]),
+		);
+
+		assert_eq!(
+			names(kept),
+			[
+				"@owner/one",
+				"io.test/one",
+				"@owner/two",
+				"io.test/two",
+				"io.test/three",
+				"io.test/four",
+			]
+		);
+	}
+
+	#[test]
+	fn a_source_answering_nothing_leaves_the_other_in_its_own_order() {
+		assert_eq!(
+			names(deduplicated(bare(&["@owner/one", "@owner/two"]), Vec::new())),
+			["@owner/one", "@owner/two"]
+		);
+		assert_eq!(names(deduplicated(Vec::new(), bare(&["io.test/one"]))), ["io.test/one"]);
+	}
+
+	#[test]
+	fn the_recorded_answers_for_godot_name_a_godot_server_in_the_first_two_rows() {
+		let smithery = bare(&[
+			"gripforgeai/gripforge-mcp",
+			"cod-gb2l/StudioMeyer-Crew",
+			"rabauer-dev/fxgl-skills",
+			"daniel-yarmoluk/ckg-nvidia-ai",
+			"ianewsfr/ergonia",
+			"zeintesit/forkit",
+			"roundtable/roundtable",
+			"eldesh/random-mcp",
+			"evozim-hv/3d-meshweaver",
+			"comms-717a/sparxx-io",
+		]);
+		let official = bare(&[
+			"io.github.Erodenn/godot-mcp-runtime",
+			"io.github.FunplayAI/funplay-godot-mcp",
+			"io.github.TomasLucasUTN/godot-mcp-bridge",
+		]);
+
+		let answered = names(deduplicated(smithery, official));
+
+		assert!(
+			answered[..2].iter().any(|name| name.to_lowercase().contains("godot")),
+			"got {:?}",
+			&answered[..2]
+		);
 	}
 }

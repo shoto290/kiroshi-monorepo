@@ -505,7 +505,7 @@ mod tests {
 	}
 
 	#[tokio::test]
-	async fn a_search_answers_the_smithery_rows_by_use_count_then_the_official_ones() {
+	async fn a_search_answers_the_two_registries_in_turn_without_the_row_they_both_name() {
 		let app = a_host("merged").await;
 		let (official, _) = serving(
 			holding(vec!["io.slack/mcp", "io.github.Digital-Defiance/mcp-filesystem"])
@@ -524,7 +524,7 @@ mod tests {
 
 		assert_eq!(
 			names(&answer),
-			["@owner/slack", "@owner/slack-lite", "io.github.Digital-Defiance/mcp-filesystem",]
+			["@owner/slack-lite", "io.github.Digital-Defiance/mcp-filesystem", "@owner/slack"]
 		);
 		cleaned(&app);
 	}
