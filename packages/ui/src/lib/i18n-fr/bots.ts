@@ -479,7 +479,6 @@ const bots = {
 			},
 			key: {
 				title: "{{name}} demande une clé d'API",
-				placeholder: "Commence par {{prefix}}",
 				reveal: "Afficher",
 				conceal: "Masquer",
 				revealLabel: "Afficher la clé d'API",
@@ -500,33 +499,12 @@ const bots = {
 				description: "Impossible de l'ajouter d'ici : {{reason}}.",
 			},
 			hosting: "Tourne sur <host>{{host}}</host>, pas sur cette machine.",
-			unreviewed: {
-				title: "Kiroshi ne l'a pas lue",
-				description: {
-					reads:
-						"Publiée sur le registre MCP par {{publisher}}, {{date}}. Elle tourne sur cette machine avec les accès de votre compte. Lisez ce qu'elle fait avant de l'ajouter.",
-					writes:
-						"Publiée sur le registre MCP par {{publisher}}, {{date}}. Elle tourne sur cette machine avec les accès de votre compte, et elle écrit autant qu'elle lit. Lisez ce qu'elle fait avant de l'ajouter.",
-				},
-				hosted: {
-					reads:
-						"Publiée sur {{source}} par {{publisher}}, {{date}}. Elle lit avec les accès de votre compte {{name}}. Lisez ce qu'elle fait avant de l'ajouter.",
-					writes:
-						"Publiée sur {{source}} par {{publisher}}, {{date}}. Elle lit et écrit avec les accès de votre compte {{name}}. Lisez ce qu'elle fait avant de l'ajouter.",
-				},
-			},
 			tools: {
 				title: "Ce qu'elle apporte",
 				count: {
 					plain_one: "{{count}} outil",
 					plain_many: "{{count}} outils",
 					plain_other: "{{count}} outils",
-					reads_one: "{{count}} outil, lecture seule",
-					reads_many: "{{count}} outils, lecture seule",
-					reads_other: "{{count}} outils, lecture seule",
-					writes_one: "{{count}} outil, lecture et écriture",
-					writes_many: "{{count}} outils, lecture et écriture",
-					writes_other: "{{count}} outils, lecture et écriture",
 				},
 			},
 			footnote: {

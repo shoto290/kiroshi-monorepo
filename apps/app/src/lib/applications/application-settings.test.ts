@@ -131,17 +131,14 @@ describe("withApplicationMarks", () => {
 })
 
 describe("toInstallableApplication", () => {
-	it("hands the install page the tools of the descriptor and no reach", () => {
-		const installable = toInstallableApplication(LINEAR)
-
-		expect(installable).toMatchObject({
+	it("hands the install page the identity, the setup and the tools of the descriptor", () => {
+		expect(toInstallableApplication(LINEAR)).toMatchObject({
 			id: "linear",
 			name: "Linear",
 			packageIdentity: "linear",
 			setup: "signIn",
 			tools: ["list_issues", "create_issue"],
 		})
-		expect(installable.canWrite).toBeUndefined()
 	})
 
 	it("hands the install page the icon, the pill, the uses and the host", () => {

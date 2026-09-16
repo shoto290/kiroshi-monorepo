@@ -15,7 +15,6 @@ import {
 	REFUSED_INSTALL,
 	REGISTRY_INSTALL,
 	SIGN_IN_INSTALL,
-	UNSTATED_REACH_INSTALL,
 } from "@workspace/ui/components/plugin-settings/applications.fixtures"
 import type { ApplicationsOwner } from "@workspace/ui/components/plugin-settings/applications-panel"
 
@@ -111,7 +110,7 @@ export const SignsYouIn = meta.story({
 		await expect(
 			canvas.getByText("Reads your meeting notes and transcripts."),
 		).not.toHaveClass("font-mono")
-		await expect(canvas.getByText("6 tools, read only")).toBeVisible()
+		await expect(canvas.getByText("6 tools")).toBeVisible()
 		await expect(canvas.getAllByRole("listitem")).toHaveLength(6)
 		await expect(
 			canvas.getByText(/Adding one reopens Rei’s session/),
@@ -137,17 +136,14 @@ export const NeedsApiKey = meta.story({
 		docs: {
 			description: {
 				story:
-					"E6. An application that needs a key. Check the muted panel with the place the key is issued, the concealed field and its Show control named both ways, the glyphless Add application, and the keyboard order: field, reveal, action.",
+					"E6. An application that needs a key. Check the muted panel with its title alone, the empty concealed field and its Show control named both ways, the glyphless Add application, and the keyboard order: field, reveal, action.",
 			},
 		},
 	},
 	play: async ({ args, canvas, userEvent }) => {
 		const field = canvas.getByLabelText("Sentry needs an API key")
 		await expect(field).toHaveAttribute("type", "password")
-		await expect(field).toHaveAttribute("placeholder", "Starts with sntryu_")
-		await expect(
-			canvas.getByText("sentry.io > Settings > Auth tokens"),
-		).toBeVisible()
+		await expect(field).not.toHaveAttribute("placeholder")
 
 		await userEvent.click(field)
 		await userEvent.keyboard("sntryu_secret")
@@ -175,7 +171,7 @@ export const NothingToSetUp = meta.story({
 		docs: {
 			description: {
 				story:
-					"E7. A registry package Kiroshi has not read. Check the plain server mark, the name and the package invocation in monospace, the destructive notice naming who published it and when, and the check line with no panel.",
+					"E7. A registry package that asks for nothing. Check the plain server mark, the name and the package invocation in monospace, the check line with no panel, the tool count claiming nothing beyond how many there are, and that nothing is said about whether Kiroshi has read it.",
 			},
 		},
 	},
@@ -186,16 +182,16 @@ export const NothingToSetUp = meta.story({
 		await expect(canvas.getByText("npx -y @kwn/tasklog-mcp")).toHaveClass(
 			"font-mono",
 		)
-		await expect(canvas.getByText("Kiroshi hasn’t read this one")).toBeVisible()
-		await expect(
-			canvas.getByText(/Published on the MCP registry by kwn, 4 days ago\./),
-		).toBeVisible()
 		await expect(
 			canvas.getByText(
 				"Nothing to set up. It runs on this machine, with no key and no sign-in.",
 			),
 		).toBeVisible()
-		await expect(canvas.getByText("7 tools, reads and writes")).toBeVisible()
+		await expect(canvas.getByText("7 tools")).toBeVisible()
+		await expect(
+			canvas.queryByText("Kiroshi hasn’t read this one"),
+		).not.toBeInTheDocument()
+		await expect(canvas.queryByText(/^Published on /)).not.toBeInTheDocument()
 	},
 })
 
@@ -266,21 +262,6 @@ export const RefusedWithoutReason = meta.story({
 		await expect(
 			canvasElement.querySelectorAll('[data-slot="application-fact"]'),
 		).toHaveLength(1)
-	},
-})
-
-export const ReachUnstated = meta.story({
-	args: { application: UNSTATED_REACH_INSTALL },
-	parameters: {
-		docs: {
-			description: {
-				story:
-					"A descriptor that states neither reads nor writes, which is every descriptor the registry answers. Check that the tool count names how many there are and claims nothing else.",
-			},
-		},
-	},
-	play: async ({ canvas }) => {
-		await expect(canvas.getByText("3 tools")).toBeVisible()
 	},
 })
 
@@ -448,7 +429,7 @@ export const LongContent = meta.story({
 		await expect(heading).toHaveAttribute("title", LONG_INSTALL.name)
 		await expect(heading.scrollWidth).toBeGreaterThan(heading.clientWidth)
 		await expect(canvas.getAllByRole("listitem")).toHaveLength(40)
-		await expect(canvas.getByText("40 tools, reads and writes")).toBeVisible()
+		await expect(canvas.getByText("40 tools")).toBeVisible()
 	},
 })
 
@@ -458,7 +439,7 @@ export const RunsOnItsHost = meta.story({
 		docs: {
 			description: {
 				story:
-					"E7b. A registry application its source runs for you. Check the verified pill after the name, the source and the uses under the description, the caution naming Smithery and claiming nothing about this machine, the sign-in read as a plain fact rather than an amber field, the hosting fact in the attention colour with its host in monospace, the plain Add application, and the fine print sending it to its source’s server.",
+					"E7b. A registry application its source runs for you. Check the verified pill after the name, the source and the uses under the description, the sign-in read as a plain fact rather than an amber field, the hosting fact in the attention colour with its host in monospace, the plain Add application, the fine print sending it to its source’s server, and that nothing claims this machine.",
 			},
 		},
 	},
@@ -467,11 +448,7 @@ export const RunsOnItsHost = meta.story({
 		await expect(canvas.getByText("Smithery")).toBeVisible()
 		await expect(canvas.getByText("12,110 uses")).toBeVisible()
 
-		await expect(
-			canvas.getByText(
-				/Published on Smithery by run-tools, 3 weeks ago\. It reads and writes with your Slack account’s access\./,
-			),
-		).toBeVisible()
+		await expect(canvas.queryByText(/^Published on /)).not.toBeInTheDocument()
 		await expect(
 			canvas.queryByText(/runs on this machine/),
 		).not.toBeInTheDocument()
