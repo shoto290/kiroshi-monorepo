@@ -10,6 +10,10 @@ export type Application = {
 	config: Record<string, unknown>
 	tools: string[]
 	logo?: string
+	logoUrl?: string
+	useCount?: number
+	verified?: boolean
+	hostedBy?: string
 	install: Install
 }
 

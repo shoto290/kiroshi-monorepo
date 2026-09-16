@@ -15,6 +15,14 @@ pub struct Application {
 	pub tools: Vec<String>,
 	#[serde(default, skip_serializing_if = "Option::is_none")]
 	pub logo: Option<String>,
+	#[serde(default, skip_serializing_if = "Option::is_none")]
+	pub logo_url: Option<String>,
+	#[serde(default, skip_serializing_if = "Option::is_none")]
+	pub use_count: Option<u64>,
+	#[serde(default, skip_serializing_if = "Option::is_none")]
+	pub verified: Option<bool>,
+	#[serde(default, skip_serializing_if = "Option::is_none")]
+	pub hosted_by: Option<String>,
 	pub install: Install,
 }
 
@@ -272,6 +280,10 @@ mod tests {
 			config: json!({ "type": "http", "url": "https://superset.test/mcp" }),
 			tools: vec!["tasks_list".to_owned()],
 			logo: None,
+			logo_url: Some("https://superset.test/logo.png".to_owned()),
+			use_count: Some(42),
+			verified: Some(true),
+			hosted_by: Some("Smithery".to_owned()),
 			install: Install::Key {
 				name: "Authorization".to_owned(),
 				secret: "SUPERSET_API_KEY".to_owned(),
@@ -287,6 +299,10 @@ mod tests {
 				"description": "Run workspaces.",
 				"config": { "type": "http", "url": "https://superset.test/mcp" },
 				"tools": ["tasks_list"],
+				"logoUrl": "https://superset.test/logo.png",
+				"useCount": 42,
+				"verified": true,
+				"hostedBy": "Smithery",
 				"install": { "kind": "key", "name": "Authorization", "secret": "SUPERSET_API_KEY" },
 			})
 		);

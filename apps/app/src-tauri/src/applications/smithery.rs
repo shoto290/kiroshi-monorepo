@@ -1,0 +1,602 @@
+use std::cmp::Reverse;
+use std::collections::BTreeMap;
+
+use reqwest::{Client, StatusCode, Url};
+use serde::Deserialize;
+use serde_json::{json, Map, Value};
+use tokio::task::JoinSet;
+
+use super::contract::{Application, ApplicationsError, Install};
+use super::registry::{client, endpoint, parsed, read, reference, variable};
+use super::search::{repository, terms, Listing};
+
+pub const REGISTRY: &str = "https://registry.smithery.ai";
+
+const BOUND: &str = "10";
+
+const FIRST_PAGE: &str = "1";
+
+const HTTP: &str = "http";
+
+const SMITHERY: &str = "Smithery";
+
+const LABELS: usize = 2;
+
+#[derive(Deserialize)]
+struct Listed {
+	servers: Vec<Row>,
+}
+
+#[derive(Deserialize)]
+#[serde(rename_all = "camelCase")]
+struct Row {
+	qualified_name: String,
+	#[serde(default)]
+	display_name: Option<String>,
+	#[serde(default)]
+	description: String,
+	#[serde(default)]
+	icon_url: Option<String>,
+	#[serde(default)]
+	verified: Option<bool>,
+	#[serde(default)]
+	use_count: Option<u64>,
+	#[serde(default)]
+	by_smithery: Option<bool>,
+	#[serde(default)]
+	homepage: Option<String>,
+}
+
+#[derive(Deserialize)]
+#[serde(rename_all = "camelCase")]
+struct Detail {
+	qualified_name: String,
+	#[serde(default)]
+	display_name: Option<String>,
+	#[serde(default)]
+	description: String,
+	#[serde(default)]
+	icon_url: Option<String>,
+	#[serde(default)]
+	connections: Vec<Connection>,
+	#[serde(default)]
+	tools: Vec<Tool>,
+}
+
+#[derive(Deserialize)]
+#[serde(rename_all = "camelCase")]
+struct Connection {
+	#[serde(rename = "type")]
+	kind: String,
+	#[serde(default)]
+	deployment_url: Option<String>,
+	#[serde(default)]
+	config_schema: Option<Schema>,
+}
+
+#[derive(Deserialize)]
+struct Schema {
+	#[serde(default)]
+	required: Vec<String>,
+	#[serde(default)]
+	properties: BTreeMap<String, Property>,
+}
+
+#[derive(Deserialize)]
+struct Property {
+	#[serde(default)]
+	description: Option<String>,
+	#[serde(default, rename = "x-from")]
+	from: Option<Carried>,
+}
+
+#[derive(Deserialize)]
+struct Carried {
+	#[serde(default)]
+	header: Option<String>,
+	#[serde(default)]
+	query: Option<String>,
+}
+
+#[derive(Deserialize)]
+struct Tool {
+	name: String,
+}
+
+struct Served {
+	endpoint: Url,
+	headers: Map<String, Value>,
+	pairs: Vec<String>,
+	install: Install,
+}
+
+pub async fn search(base: &str, query: &str) -> Result<Vec<Listing>, ApplicationsError> {
+	let terms = terms(query);
+	if terms.is_empty() {
+		return Ok(Vec::new());
+	}
+	let base = parsed(base)?;
+	let mut list = endpoint(&base, &["servers"])?;
+	list.query_pairs_mut()
+		.append_pair("q", query)
+		.append_pair("page", FIRST_PAGE)
+		.append_pair("pageSize", BOUND);
+	let client = client()?;
+	let listed: Listed = read(&client, list).await?;
+	let mut kept: Vec<Row> =
+		listed.servers.into_iter().filter(|row| carries(row, &terms)).collect();
+	kept.sort_by_key(|row| Reverse(row.use_count.unwrap_or_default()));
+	Ok(listings(&client, &base, kept).await)
+}
+
+pub async fn detail(base: &str, name: &str) -> Result<Option<Application>, ApplicationsError> {
+	let base = parsed(base)?;
+	let Some(detail) = detailed(&client()?, &base, name).await? else {
+		return Ok(None);
+	};
+	Ok(read_by_name(&detail))
+}
+
+fn carries(row: &Row, terms: &[String]) -> bool {
+	let named = format!(
+		"{} {}",
+		row.qualified_name.to_lowercase(),
+		row.display_name.as_deref().unwrap_or_default().to_lowercase()
+	);
+	terms.iter().all(|term| named.contains(term.as_str()))
+}
+
+async fn listings(client: &Client, base: &Url, kept: Vec<Row>) -> Vec<Listing> {
+	let mut running = JoinSet::new();
+	for (rank, row) in kept.into_iter().enumerate() {
+		let client = client.clone();
+		let base = base.clone();
+		running.spawn(async move { (rank, listed(&client, &base, row).await) });
+	}
+	let mut described: Vec<(usize, Listing)> = Vec::new();
+	while let Some(joined) = running.join_next().await {
+		match joined {
+			Ok((rank, Some(listing))) => described.push((rank, listing)),
+			Ok((_, None)) => {}
+			Err(failure) => eprintln!("a Smithery detail was not awaited: {failure}"),
+		}
+	}
+	described.sort_by_key(|(rank, _)| *rank);
+	described.into_iter().map(|(_, listing)| listing).collect()
+}
+
+async fn listed(client: &Client, base: &Url, row: Row) -> Option<Listing> {
+	let detail = match detailed(client, base, &row.qualified_name).await {
+		Ok(detail) => detail?,
+		Err(failure) => {
+			eprintln!("the Smithery detail of {} was not read: {failure:?}", row.qualified_name);
+			return None;
+		}
+	};
+	let served = served(&detail)?;
+	let hosted_by = hosted_by(&row, &served.endpoint);
+	Some(Listing {
+		repository: row.homepage.as_deref().and_then(repository),
+		application: Application {
+			title: row.display_name.unwrap_or_else(|| row.qualified_name.clone()),
+			name: row.qualified_name,
+			description: row.description,
+			config: config(&served),
+			tools: Vec::new(),
+			logo: None,
+			logo_url: row.icon_url,
+			use_count: row.use_count,
+			verified: row.verified,
+			hosted_by,
+			install: served.install,
+		},
+	})
+}
+
+fn read_by_name(detail: &Detail) -> Option<Application> {
+	let served = served(detail)?;
+	Some(Application {
+		name: detail.qualified_name.clone(),
+		title: detail.display_name.clone().unwrap_or_else(|| detail.qualified_name.clone()),
+		description: detail.description.clone(),
+		config: config(&served),
+		tools: detail.tools.iter().map(|tool| tool.name.clone()).collect(),
+		logo: None,
+		logo_url: detail.icon_url.clone(),
+		use_count: None,
+		verified: None,
+		hosted_by: None,
+		install: served.install,
+	})
+}
+
+async fn detailed(
+	client: &Client,
+	base: &Url,
+	name: &str,
+) -> Result<Option<Detail>, ApplicationsError> {
+	let url = base
+		.join(&format!("servers/{name}"))
+		.map_err(|error| ApplicationsError::RegistryUnreached { detail: error.to_string() })?;
+	match read::<Detail>(client, url).await {
+		Ok(detail) => Ok(Some(detail)),
+		Err(ApplicationsError::RegistryRefused { status }) if status == StatusCode::NOT_FOUND => {
+			Ok(None)
+		}
+		Err(failure) => Err(failure),
+	}
+}
+
+fn served(detail: &Detail) -> Option<Served> {
+	let connection = detail.connections.iter().find(|held| held.kind == HTTP)?;
+	let endpoint = Url::parse(connection.deployment_url.as_deref()?).ok()?;
+	let schema = connection.config_schema.as_ref();
+	let mut served =
+		Served { endpoint, headers: Map::new(), pairs: Vec::new(), install: install(schema) };
+	for field in schema.map(|schema| schema.required.as_slice()).unwrap_or_default() {
+		place(&mut served, schema, field);
+	}
+	Some(served)
+}
+
+fn place(served: &mut Served, schema: Option<&Schema>, field: &str) {
+	let held = reference(field);
+	match schema.and_then(|schema| schema.properties.get(field)).and_then(|held| held.from.as_ref())
+	{
+		Some(Carried { header: Some(name), .. }) => {
+			served.headers.insert(name.clone(), Value::String(held));
+		}
+		Some(Carried { query: Some(name), .. }) => served.pairs.push(format!("{name}={held}")),
+		_ => served.pairs.push(format!("{field}={held}")),
+	}
+}
+
+fn install(schema: Option<&Schema>) -> Install {
+	let Some((schema, field)) = schema.and_then(|held| Some((held, held.required.first()?))) else {
+		return Install::Oauth;
+	};
+	Install::Key {
+		name: field.clone(),
+		secret: variable(field),
+		description: schema.properties.get(field).and_then(|held| held.description.clone()),
+	}
+}
+
+fn config(served: &Served) -> Value {
+	let mut config = json!({ "type": "http", "url": url_of(served) });
+	if !served.headers.is_empty() {
+		config["headers"] = Value::Object(served.headers.clone());
+	}
+	config
+}
+
+fn url_of(served: &Served) -> String {
+	let held = served.endpoint.as_str();
+	if served.pairs.is_empty() {
+		return held.to_owned();
+	}
+	let opening = if served.endpoint.query().is_some() { '&' } else { '?' };
+	format!("{held}{opening}{}", served.pairs.join("&"))
+}
+
+fn hosted_by(row: &Row, endpoint: &Url) -> Option<String> {
+	if row.by_smithery == Some(true) {
+		return Some(SMITHERY.to_owned());
+	}
+	let hosting = last_labels(endpoint.host_str()?)?;
+	let home = row
+		.homepage
+		.as_deref()
+		.and_then(|held| Url::parse(held).ok())
+		.and_then(|held| held.host_str().and_then(last_labels));
+	(home.as_ref() != Some(&hosting)).then_some(hosting)
+}
+
+fn last_labels(host: &str) -> Option<String> {
+	let labels: Vec<&str> = host.split('.').collect();
+	let held = labels[labels.len().saturating_sub(LABELS)..].join(".").to_lowercase();
+	(!held.is_empty()).then_some(held)
+}
+
+#[cfg(test)]
+pub(crate) mod tests {
+	use std::collections::HashMap;
+	use std::net::{Ipv4Addr, SocketAddr};
+	use std::sync::{Arc, Mutex};
+
+	use axum::extract::{Path as AxumPath, State as Extracted};
+	use axum::http::Uri;
+	use axum::response::{IntoResponse, Response as Answered};
+	use axum::routing::get;
+	use axum::Router;
+
+	use super::*;
+
+	pub(crate) struct Held {
+		list_status: StatusCode,
+		rows: Vec<Value>,
+		details: HashMap<String, Value>,
+		pub(crate) asked: Mutex<Vec<String>>,
+		pub(crate) detailed: Mutex<Vec<String>>,
+	}
+
+	pub(crate) fn nothing() -> Held {
+		holding(Vec::new(), Vec::new())
+	}
+
+	pub(crate) fn holding(rows: Vec<Value>, details: Vec<Value>) -> Held {
+		Held {
+			list_status: StatusCode::OK,
+			rows,
+			details: details
+				.into_iter()
+				.map(|detail| (detail["qualifiedName"].as_str().expect("named").to_owned(), detail))
+				.collect(),
+			asked: Mutex::new(Vec::new()),
+			detailed: Mutex::new(Vec::new()),
+		}
+	}
+
+	pub(crate) async fn serving(held: Held) -> (String, Arc<Held>) {
+		let held = Arc::new(held);
+		let listener =
+			tokio::net::TcpListener::bind((Ipv4Addr::LOCALHOST, 0)).await.expect("the stub binds");
+		let address: SocketAddr = listener.local_addr().expect("the stub is named");
+		let router = Router::new()
+			.route("/servers", get(list_of))
+			.route("/servers/{*name}", get(detail_of))
+			.with_state(held.clone());
+		tokio::spawn(async move { axum::serve(listener, router).await.expect("the stub serves") });
+		(format!("http://{address}"), held)
+	}
+
+	async fn list_of(Extracted(held): Extracted<Arc<Held>>, uri: Uri) -> Answered {
+		held.asked.lock().expect("the stub records").push(uri.to_string());
+		if held.list_status != StatusCode::OK {
+			return held.list_status.into_response();
+		}
+		as_json(&json!({ "servers": held.rows }))
+	}
+
+	async fn detail_of(
+		Extracted(held): Extracted<Arc<Held>>,
+		AxumPath(name): AxumPath<String>,
+	) -> Answered {
+		held.detailed.lock().expect("the stub records").push(name.clone());
+		match held.details.get(&name) {
+			Some(detail) => as_json(detail),
+			None => StatusCode::NOT_FOUND.into_response(),
+		}
+	}
+
+	fn as_json(held: &Value) -> Answered {
+		Answered::builder()
+			.status(StatusCode::OK)
+			.header(reqwest::header::CONTENT_TYPE, "application/json")
+			.body(axum::body::Body::from(held.to_string()))
+			.expect("the stub answers with a body")
+	}
+
+	pub(crate) fn a_row(name: &str, display: &str, use_count: u64) -> Value {
+		json!({
+			"qualifiedName": name,
+			"displayName": display,
+			"description": format!("{display} through Smithery."),
+			"iconUrl": format!("https://icons.test/{display}.png"),
+			"verified": true,
+			"useCount": use_count,
+			"bySmithery": false,
+			"homepage": format!("https://github.com/owner/{display}"),
+		})
+	}
+
+	pub(crate) fn a_detail(name: &str, url: &str) -> Value {
+		json!({
+			"qualifiedName": name,
+			"connections": [{ "type": "http", "deploymentUrl": url, "configSchema": {} }],
+			"tools": [{ "name": "search" }, { "name": "create" }],
+		})
+	}
+
+	fn described(detail: Value) -> Application {
+		let detail: Detail = serde_json::from_value(detail).expect("the fixture is a detail");
+		read_by_name(&detail).expect("the fixture offers an http connection")
+	}
+
+	#[test]
+	fn a_connection_asking_for_nothing_answers_oauth_on_its_deployment_url() {
+		let application = described(a_detail("@owner/slack", "https://slack.run.tools"));
+
+		assert_eq!(application.install, Install::Oauth);
+		assert_eq!(
+			application.config,
+			json!({ "type": "http", "url": "https://slack.run.tools/" })
+		);
+		assert_eq!(application.tools, ["search", "create"]);
+	}
+
+	#[test]
+	fn a_required_field_named_by_a_header_is_written_as_a_placeholder_into_that_header() {
+		let application = described(json!({
+			"qualifiedName": "@owner/keyed",
+			"connections": [{
+				"type": "http",
+				"deploymentUrl": "https://keyed.test/mcp",
+				"configSchema": {
+					"required": ["apiKey"],
+					"properties": {
+						"apiKey": { "description": "The key.", "x-from": { "header": "X-Api-Key" } },
+					},
+				},
+			}],
+		}));
+
+		assert_eq!(
+			application.install,
+			Install::Key {
+				name: "apiKey".to_owned(),
+				secret: "APIKEY".to_owned(),
+				description: Some("The key.".to_owned()),
+			}
+		);
+		assert_eq!(
+			application.config,
+			json!({
+				"type": "http",
+				"url": "https://keyed.test/mcp",
+				"headers": { "X-Api-Key": "${APIKEY}" },
+			})
+		);
+	}
+
+	#[test]
+	fn a_required_field_named_by_a_query_or_by_nothing_is_written_into_the_url() {
+		let application = described(json!({
+			"qualifiedName": "@owner/queried",
+			"connections": [{
+				"type": "http",
+				"deploymentUrl": "https://queried.test/mcp?tenant=one",
+				"configSchema": {
+					"required": ["apiKey", "profile"],
+					"properties": { "apiKey": { "x-from": { "query": "api_key" } } },
+				},
+			}],
+		}));
+
+		assert_eq!(
+			application.config,
+			json!({
+				"type": "http",
+				"url": "https://queried.test/mcp?tenant=one&api_key=${APIKEY}&profile=${PROFILE}",
+			})
+		);
+		assert!(application.config.get("headers").is_none(), "got {}", application.config);
+	}
+
+	#[test]
+	fn a_server_offering_no_http_connection_is_left_out() {
+		let detail: Detail = serde_json::from_value(json!({
+			"qualifiedName": "@owner/local",
+			"connections": [{ "type": "stdio", "configSchema": {} }],
+		}))
+		.expect("the fixture is a detail");
+
+		assert!(read_by_name(&detail).is_none());
+	}
+
+	#[tokio::test]
+	async fn a_search_keeps_the_rows_every_term_names_ordered_by_use_count_descending() {
+		let (base, held) = serving(holding(
+			vec![
+				a_row("@owner/slack-lite", "Slack Lite", 12),
+				a_row("@owner/godot-engine", "Godot", 9000),
+				a_row("@owner/slack", "Slack", 900),
+			],
+			vec![
+				a_detail("@owner/slack-lite", "https://lite.run.tools"),
+				a_detail("@owner/slack", "https://slack.run.tools"),
+				a_detail("@owner/godot-engine", "https://godot.run.tools"),
+			],
+		))
+		.await;
+
+		let found = search(&base, "slack").await.expect("the search answers");
+
+		let names: Vec<&str> = found.iter().map(|held| held.application.name.as_str()).collect();
+		assert_eq!(names, ["@owner/slack", "@owner/slack-lite"]);
+		assert_eq!(
+			*held.asked.lock().expect("the stub records"),
+			["/servers?q=slack&page=1&pageSize=10"]
+		);
+	}
+
+	#[tokio::test]
+	async fn a_search_carries_the_icon_the_count_the_flag_and_no_tool() {
+		let (base, _) = serving(holding(
+			vec![a_row("@owner/slack", "Slack", 900)],
+			vec![a_detail("@owner/slack", "https://slack.run.tools")],
+		))
+		.await;
+
+		let found = search(&base, "slack").await.expect("the search answers");
+
+		let held = &found[0].application;
+		assert_eq!(held.logo_url.as_deref(), Some("https://icons.test/Slack.png"));
+		assert_eq!(held.use_count, Some(900));
+		assert_eq!(held.verified, Some(true));
+		assert_eq!(held.hosted_by.as_deref(), Some("run.tools"));
+		assert_eq!(held.tools, Vec::<String>::new());
+		assert_eq!(held.logo, None);
+		assert_eq!(found[0].repository.as_deref(), Some("github.com/owner/slack"));
+	}
+
+	#[tokio::test]
+	async fn a_row_smithery_hosts_names_smithery_and_one_hosted_at_home_names_nobody() {
+		let mut mine = a_row("@owner/mine", "Mine", 1);
+		mine["homepage"] = json!("https://mine.test/docs");
+		let mut theirs = a_row("@owner/theirs", "Mine", 2);
+		theirs["bySmithery"] = json!(true);
+		let (base, _) = serving(holding(
+			vec![mine, theirs],
+			vec![
+				a_detail("@owner/mine", "https://mcp.mine.test/mcp"),
+				a_detail("@owner/theirs", "https://server.smithery.ai/mcp"),
+			],
+		))
+		.await;
+
+		let found = search(&base, "mine").await.expect("the search answers");
+
+		let hosts: Vec<Option<&str>> =
+			found.iter().map(|held| held.application.hosted_by.as_deref()).collect();
+		assert_eq!(hosts, [Some("Smithery"), None]);
+	}
+
+	#[tokio::test]
+	async fn a_query_whose_every_term_is_too_short_reads_nothing_from_smithery() {
+		let (base, held) =
+			serving(holding(vec![a_row("@owner/slack", "Slack", 1)], Vec::new())).await;
+
+		assert!(search(&base, "an my").await.expect("the search answers").is_empty());
+		assert!(search(&base, "").await.expect("the search answers").is_empty());
+		assert!(held.asked.lock().expect("the stub records").is_empty(), "a list was read");
+	}
+
+	#[tokio::test]
+	async fn a_row_whose_detail_is_absent_or_unreadable_is_left_out_and_the_others_answered() {
+		let (base, _) = serving(holding(
+			vec![a_row("@owner/slack-a", "Slack", 3), a_row("@owner/slack-b", "Slack", 2)],
+			vec![a_detail("@owner/slack-b", "https://b.run.tools")],
+		))
+		.await;
+
+		let found = search(&base, "slack").await.expect("the search answers");
+
+		let names: Vec<&str> = found.iter().map(|held| held.application.name.as_str()).collect();
+		assert_eq!(names, ["@owner/slack-b"]);
+	}
+
+	#[tokio::test]
+	async fn a_refused_list_answers_an_error_and_not_an_empty_list() {
+		let mut refusing = holding(vec![a_row("@owner/slack", "Slack", 1)], Vec::new());
+		refusing.list_status = StatusCode::SERVICE_UNAVAILABLE;
+		let (base, _) = serving(refusing).await;
+
+		assert_eq!(
+			search(&base, "slack").await.err(),
+			Some(ApplicationsError::RegistryRefused { status: 503 })
+		);
+	}
+
+	#[tokio::test]
+	async fn a_detail_read_by_name_answers_its_tools_and_an_unknown_one_answers_nothing() {
+		let (base, _) =
+			serving(holding(Vec::new(), vec![a_detail("@owner/slack", "https://slack.run.tools")]))
+				.await;
+
+		let found = detail(&base, "@owner/slack").await.expect("the detail answers");
+
+		assert_eq!(found.expect("the server is known").tools, ["search", "create"]);
+		assert_eq!(detail(&base, "@owner/nowhere").await, Ok(None));
+	}
+}

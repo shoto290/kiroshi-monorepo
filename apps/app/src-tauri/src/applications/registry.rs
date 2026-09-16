@@ -8,6 +8,7 @@ use serde::Deserialize;
 use serde_json::{json, Value};
 
 use super::contract::{Application, ApplicationsError, Install};
+use super::search::{repository, Listing};
 use crate::missions::github::installed_tls_provider;
 
 pub const REGISTRY: &str = "https://registry.modelcontextprotocol.io";
@@ -50,6 +51,21 @@ struct Server {
 	remotes: Vec<Remote>,
 	#[serde(default)]
 	packages: Vec<Package>,
+	#[serde(default)]
+	icons: Vec<Icon>,
+	#[serde(default)]
+	repository: Option<Repository>,
+}
+
+#[derive(Deserialize)]
+struct Icon {
+	src: String,
+}
+
+#[derive(Deserialize)]
+struct Repository {
+	#[serde(default)]
+	url: Option<String>,
 }
 
 #[derive(Deserialize)]
@@ -89,7 +105,7 @@ enum Transport<'a> {
 	Npm(&'a Package),
 }
 
-pub async fn search(base: &str, query: &str) -> Result<Vec<Application>, ApplicationsError> {
+pub async fn search(base: &str, query: &str) -> Result<Vec<Listing>, ApplicationsError> {
 	let mut list = endpoint(&parsed(base)?, &[API_VERSION, "servers"])?;
 	list.query_pairs_mut()
 		.append_pair("search", query)
@@ -98,7 +114,7 @@ pub async fn search(base: &str, query: &str) -> Result<Vec<Application>, Applica
 	let listed: Listed = read(&client()?, list).await?;
 	let rows = distinct(listed.servers);
 	let answered = rows.len();
-	let found: Vec<Application> = rows.into_iter().filter_map(descriptor).collect();
+	let found: Vec<Listing> = rows.into_iter().filter_map(descriptor).collect();
 	if found.is_empty() && answered > 0 {
 		eprintln!(
 			"the registry answered {answered} rows for {query:?} and none carried a transport"
@@ -110,7 +126,7 @@ pub async fn search(base: &str, query: &str) -> Result<Vec<Application>, Applica
 pub async fn detail(base: &str, name: &str) -> Result<Option<Application>, ApplicationsError> {
 	let url = detail_endpoint(&parsed(base)?, name)?;
 	match read::<Entry>(&client()?, url).await {
-		Ok(entry) => Ok(descriptor(entry.server)),
+		Ok(entry) => Ok(descriptor(entry.server).map(|listing| listing.application)),
 		Err(ApplicationsError::RegistryRefused { status }) if status == StatusCode::NOT_FOUND => {
 			Ok(None)
 		}
@@ -118,7 +134,7 @@ pub async fn detail(base: &str, name: &str) -> Result<Option<Application>, Appli
 	}
 }
 
-fn parsed(base: &str) -> Result<Url, ApplicationsError> {
+pub(super) fn parsed(base: &str) -> Result<Url, ApplicationsError> {
 	Url::parse(base)
 		.map_err(|error| ApplicationsError::RegistryUnreached { detail: error.to_string() })
 }
@@ -136,7 +152,7 @@ fn distinct(entries: Vec<Entry>) -> Vec<Server> {
 		.collect()
 }
 
-fn client() -> Result<Client, ApplicationsError> {
+pub(super) fn client() -> Result<Client, ApplicationsError> {
 	installed_tls_provider();
 	let mut headers = HeaderMap::new();
 	headers.insert(USER_AGENT, HeaderValue::from_static(AGENT));
@@ -147,7 +163,7 @@ fn client() -> Result<Client, ApplicationsError> {
 	})
 }
 
-fn endpoint(base: &Url, segments: &[&str]) -> Result<Url, ApplicationsError> {
+pub(super) fn endpoint(base: &Url, segments: &[&str]) -> Result<Url, ApplicationsError> {
 	let mut url = base.clone();
 	url.path_segments_mut()
 		.map_err(|()| ApplicationsError::RegistryUnreached {
@@ -158,7 +174,10 @@ fn endpoint(base: &Url, segments: &[&str]) -> Result<Url, ApplicationsError> {
 	Ok(url)
 }
 
-async fn read<T: DeserializeOwned>(client: &Client, url: Url) -> Result<T, ApplicationsError> {
+pub(super) async fn read<T: DeserializeOwned>(
+	client: &Client,
+	url: Url,
+) -> Result<T, ApplicationsError> {
 	let answer = client.get(url).send().await.map_err(unreached)?;
 	if answer.status() != StatusCode::OK {
 		return Err(ApplicationsError::RegistryRefused { status: answer.status().as_u16() });
@@ -176,7 +195,7 @@ fn unreached(error: reqwest::Error) -> ApplicationsError {
 	ApplicationsError::RegistryUnreached { detail: error.to_string() }
 }
 
-fn descriptor(server: Server) -> Option<Application> {
+fn descriptor(server: Server) -> Option<Listing> {
 	let (config, install) = match transport(&server)? {
 		Transport::Remote(remote) => match asked_header(&remote.headers) {
 			Some(key) => (headed_config(remote), key),
@@ -187,14 +206,25 @@ fn descriptor(server: Server) -> Option<Application> {
 			asked(&package.environment_variables).unwrap_or(Install::Nothing),
 		),
 	};
-	Some(Application {
-		title: server.title.unwrap_or_else(|| server.name.clone()),
-		name: server.name,
-		description: server.description,
-		config,
-		tools: Vec::new(),
-		logo: None,
-		install,
+	Some(Listing {
+		repository: server
+			.repository
+			.as_ref()
+			.and_then(|held| held.url.as_deref())
+			.and_then(repository),
+		application: Application {
+			title: server.title.unwrap_or_else(|| server.name.clone()),
+			name: server.name,
+			description: server.description,
+			config,
+			tools: Vec::new(),
+			logo: None,
+			logo_url: server.icons.first().map(|icon| icon.src.clone()),
+			use_count: None,
+			verified: None,
+			hosted_by: None,
+			install,
+		},
 	})
 }
 
@@ -253,7 +283,7 @@ fn placeholders<'a>(inputs: impl Iterator<Item = &'a Input>) -> Value {
 	)
 }
 
-fn reference(declared: &str) -> String {
+pub(super) fn reference(declared: &str) -> String {
 	format!("${{{}}}", variable(declared))
 }
 
@@ -277,7 +307,7 @@ fn key(input: &Input) -> Install {
 	}
 }
 
-fn variable(declared: &str) -> String {
+pub(super) fn variable(declared: &str) -> String {
 	let named: String = declared
 		.chars()
 		.map(|held| if held.is_ascii_alphanumeric() { held.to_ascii_uppercase() } else { '_' })
@@ -306,7 +336,7 @@ pub(crate) mod tests {
 
 	fn described(body: Value) -> Application {
 		let server: Server = serde_json::from_value(body).expect("the fixture is a server.json");
-		descriptor(server).expect("the fixture offers a transport")
+		descriptor(server).expect("the fixture offers a transport").application
 	}
 
 	fn a_remote_without_headers() -> Value {
@@ -364,6 +394,7 @@ pub(crate) mod tests {
 		);
 		assert_eq!(application.title, "Notion");
 		assert_eq!(application.logo, None);
+		assert_eq!(application.logo_url, None);
 	}
 
 	#[test]
@@ -512,6 +543,25 @@ pub(crate) mod tests {
 	}
 
 	#[test]
+	fn the_first_icon_answers_the_logo_url_and_the_repository_reads_down_to_its_name() {
+		let server: Server = serde_json::from_value(json!({
+			"name": "com.notion/mcp",
+			"remotes": [{ "type": "streamable-http", "url": "https://mcp.notion.test/mcp" }],
+			"icons": [
+				{ "src": "https://icons.test/notion.png" },
+				{ "src": "https://icons.test/notion.svg" },
+			],
+			"repository": { "url": "https://github.com/Owner/Notion.git", "source": "github" },
+		}))
+		.expect("the fixture is a server.json");
+
+		let listing = descriptor(server).expect("the fixture offers a transport");
+
+		assert_eq!(listing.application.logo_url.as_deref(), Some("https://icons.test/notion.png"));
+		assert_eq!(listing.repository.as_deref(), Some("github.com/owner/notion"));
+	}
+
+	#[test]
 	fn streamable_http_is_preferred_over_sse_and_sse_over_npm() {
 		let npm = json!({ "registryType": "npm", "identifier": "an-mcp" });
 		let sse = json!({ "type": "sse", "url": "https://sse.test/mcp" });
@@ -562,6 +612,12 @@ pub(crate) mod tests {
 	}
 
 	impl Held {
+		pub(crate) fn also(mut self, detail: Value) -> Self {
+			let name = detail["name"].as_str().expect("named").to_owned();
+			self.details.insert(name, detail);
+			self
+		}
+
 		fn served(&self, name: &str) -> Value {
 			self.details.get(name).cloned().unwrap_or_else(|| json!({ "name": name }))
 		}
@@ -625,10 +681,10 @@ pub(crate) mod tests {
 
 		let found = search(&base, "notion files").await.expect("the search answers");
 
-		let names: Vec<&str> = found.iter().map(|held| held.name.as_str()).collect();
+		let names: Vec<&str> = found.iter().map(|held| held.application.name.as_str()).collect();
 		assert_eq!(names, ["com.notion/mcp", "io.github.Digital-Defiance/mcp-filesystem"]);
-		assert_eq!(found[0].install, Install::Oauth);
-		assert_eq!(found[1].install, Install::Nothing);
+		assert_eq!(found[0].application.install, Install::Oauth);
+		assert_eq!(found[1].application.install, Install::Nothing);
 		let asked = held.asked.lock().expect("the stub records").clone();
 		assert_eq!(asked, ["/v0.1/servers?search=notion+files&limit=10&version=latest"]);
 		assert!(held.detailed.lock().expect("the stub records").is_empty(), "a detail was read");
@@ -645,7 +701,7 @@ pub(crate) mod tests {
 
 		let found = search(&base, "notion files").await.expect("the search answers");
 
-		let names: Vec<&str> = found.iter().map(|held| held.name.as_str()).collect();
+		let names: Vec<&str> = found.iter().map(|held| held.application.name.as_str()).collect();
 		assert_eq!(names, ["com.notion/mcp", "io.github.Digital-Defiance/mcp-filesystem"]);
 	}
 
@@ -660,7 +716,7 @@ pub(crate) mod tests {
 
 		let found = search(&base, "notion").await.expect("the search answers");
 
-		let names: Vec<&str> = found.iter().map(|held| held.name.as_str()).collect();
+		let names: Vec<&str> = found.iter().map(|held| held.application.name.as_str()).collect();
 		assert_eq!(names, ["com.notion/mcp", "io.github.Digital-Defiance/mcp-filesystem"]);
 	}
 
@@ -668,7 +724,7 @@ pub(crate) mod tests {
 	async fn a_list_whose_every_row_carries_no_transport_answers_an_empty_list_and_no_error() {
 		let (base, _) = serving(holding(vec![BROKEN, "io.test/also-broken"])).await;
 
-		assert_eq!(search(&base, "broken").await, Ok(Vec::new()));
+		assert!(search(&base, "broken").await.expect("the search answers").is_empty());
 	}
 
 	#[tokio::test]
@@ -677,10 +733,10 @@ pub(crate) mod tests {
 		garbled.list_body = Some(json!({ "servers": "none" }));
 		let (base, _) = serving(garbled).await;
 
-		let answered = search(&base, "notion").await;
+		let answered = search(&base, "notion").await.err();
 
 		assert!(
-			matches!(answered, Err(ApplicationsError::RegistryUnreadable { .. })),
+			matches!(answered, Some(ApplicationsError::RegistryUnreadable { .. })),
 			"got {answered:?}"
 		);
 	}
@@ -689,7 +745,7 @@ pub(crate) mod tests {
 	async fn a_query_matching_nothing_answers_an_empty_list() {
 		let (base, _) = serving(holding(Vec::new())).await;
 
-		assert_eq!(search(&base, "nothing").await, Ok(Vec::new()));
+		assert!(search(&base, "nothing").await.expect("the search answers").is_empty());
 	}
 
 	#[tokio::test]
@@ -699,8 +755,8 @@ pub(crate) mod tests {
 		let (base, _) = serving(refusing).await;
 
 		assert_eq!(
-			search(&base, "notion").await,
-			Err(ApplicationsError::RegistryRefused { status: 503 })
+			search(&base, "notion").await.err(),
+			Some(ApplicationsError::RegistryRefused { status: 503 })
 		);
 	}
 
@@ -711,10 +767,10 @@ pub(crate) mod tests {
 		let address = listener.local_addr().expect("the port is named");
 		drop(listener);
 
-		let answered = search(&format!("http://{address}"), "notion").await;
+		let answered = search(&format!("http://{address}"), "notion").await.err();
 
 		assert!(
-			matches!(answered, Err(ApplicationsError::RegistryUnreached { .. })),
+			matches!(answered, Some(ApplicationsError::RegistryUnreached { .. })),
 			"got {answered:?}"
 		);
 	}
