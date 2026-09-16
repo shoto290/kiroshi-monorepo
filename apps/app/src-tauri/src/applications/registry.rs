@@ -6,7 +6,6 @@ use reqwest::{Client, StatusCode, Url};
 use serde::de::DeserializeOwned;
 use serde::Deserialize;
 use serde_json::{json, Value};
-use tokio::task::JoinSet;
 
 use super::contract::{Application, ApplicationsError, Install};
 use crate::missions::github::installed_tls_provider;
@@ -17,7 +16,9 @@ const API_VERSION: &str = "v0.1";
 
 const BOUND: &str = "10";
 
-const TIMEOUT: Duration = Duration::from_secs(10);
+const LATEST: &str = "latest";
+
+const TIMEOUT: Duration = Duration::from_secs(30);
 
 const AGENT: &str = "Kiroshi";
 
@@ -83,27 +84,19 @@ struct Input {
 	value: Option<String>,
 }
 
-type DetailRead = (usize, String, Result<Entry, ApplicationsError>);
-
 enum Transport<'a> {
 	Remote(&'a Remote),
 	Npm(&'a Package),
 }
 
 pub async fn search(base: &str, query: &str) -> Result<Vec<Application>, ApplicationsError> {
-	let base = parsed(base)?;
-	let client = client()?;
-	let mut list = endpoint(&base, &[API_VERSION, "servers"])?;
-	list.query_pairs_mut().append_pair("search", query).append_pair("limit", BOUND);
-	let listed: Listed = read(&client, list).await?;
-	let mut details = JoinSet::new();
-	for (at, name) in distinct(listed.servers).into_iter().enumerate() {
-		let url = detail_endpoint(&base, &name)?;
-		let client = client.clone();
-		details.spawn(async move { (at, name, read::<Entry>(&client, url).await) });
-	}
-	let servers = answered(details).await?;
-	Ok(servers.into_iter().filter_map(descriptor).collect())
+	let mut list = endpoint(&parsed(base)?, &[API_VERSION, "servers"])?;
+	list.query_pairs_mut()
+		.append_pair("search", query)
+		.append_pair("limit", BOUND)
+		.append_pair("version", LATEST);
+	let listed: Listed = read(&client()?, list).await?;
+	Ok(distinct(listed.servers).into_iter().filter_map(descriptor).collect())
 }
 
 pub async fn detail(base: &str, name: &str) -> Result<Option<Application>, ApplicationsError> {
@@ -123,51 +116,16 @@ fn parsed(base: &str) -> Result<Url, ApplicationsError> {
 }
 
 fn detail_endpoint(base: &Url, name: &str) -> Result<Url, ApplicationsError> {
-	endpoint(base, &[API_VERSION, "servers", name, "versions", "latest"])
+	endpoint(base, &[API_VERSION, "servers", name, "versions", LATEST])
 }
 
-fn distinct(entries: Vec<Entry>) -> Vec<String> {
+fn distinct(entries: Vec<Entry>) -> Vec<Server> {
 	let mut seen = HashSet::new();
 	entries
 		.into_iter()
-		.map(|entry| entry.server.name)
-		.filter(|name| seen.insert(name.clone()))
+		.map(|entry| entry.server)
+		.filter(|server| seen.insert(server.name.clone()))
 		.collect()
-}
-
-async fn answered(mut details: JoinSet<DetailRead>) -> Result<Vec<Server>, ApplicationsError> {
-	let mut outcomes = Vec::new();
-	while let Some(joined) = details.join_next().await {
-		outcomes.push(match joined {
-			Ok((at, name, outcome)) => (
-				at,
-				outcome.inspect_err(|failure| {
-					eprintln!("the registry entry {name} was left out: {failure:?}")
-				}),
-			),
-			Err(stopped) => (
-				usize::MAX,
-				Err(ApplicationsError::RegistryUnreadable {
-					detail: format!("a detail read stopped: {stopped}"),
-				}),
-			),
-		});
-	}
-	outcomes.sort_by_key(|(at, _)| *at);
-	let mut read = Vec::new();
-	let mut first_failure = None;
-	for (_, outcome) in outcomes {
-		match outcome {
-			Ok(entry) => read.push(entry.server),
-			Err(failure) => {
-				first_failure.get_or_insert(failure);
-			}
-		}
-	}
-	match first_failure {
-		Some(failure) if read.is_empty() => Err(failure),
-		_ => Ok(read),
-	}
 }
 
 fn client() -> Result<Client, ApplicationsError> {
@@ -575,6 +533,7 @@ pub(crate) mod tests {
 
 	pub(crate) struct Held {
 		list_status: StatusCode,
+		list_body: Option<Value>,
 		listed: Vec<&'static str>,
 		details: HashMap<String, Value>,
 		pub(crate) asked: Mutex<Vec<String>>,
@@ -594,13 +553,22 @@ pub(crate) mod tests {
 		(format!("http://{address}"), held)
 	}
 
+	impl Held {
+		fn served(&self, name: &str) -> Value {
+			self.details.get(name).cloned().unwrap_or_else(|| json!({ "name": name }))
+		}
+	}
+
 	async fn list_of(Extracted(held): Extracted<Arc<Held>>, uri: Uri) -> Answered {
 		held.asked.lock().expect("the stub records").push(uri.to_string());
 		if held.list_status != StatusCode::OK {
 			return held.list_status.into_response();
 		}
+		if let Some(body) = &held.list_body {
+			return as_json(body);
+		}
 		let servers: Vec<Value> =
-			held.listed.iter().map(|name| json!({ "server": { "name": name } })).collect();
+			held.listed.iter().map(|name| json!({ "server": held.served(name) })).collect();
 		as_json(&json!({ "servers": servers, "metadata": { "count": servers.len() } }))
 	}
 
@@ -633,6 +601,7 @@ pub(crate) mod tests {
 			.collect();
 		Held {
 			list_status: StatusCode::OK,
+			list_body: None,
 			listed,
 			details,
 			asked: Mutex::new(Vec::new()),
@@ -641,8 +610,25 @@ pub(crate) mod tests {
 	}
 
 	#[tokio::test]
-	async fn a_search_reads_every_detail_and_leaves_out_the_one_that_failed() {
-		let (base, held) = serving(holding(vec![
+	async fn a_search_builds_every_application_from_the_one_list_answer() {
+		let (base, held) =
+			serving(holding(vec!["com.notion/mcp", "io.github.Digital-Defiance/mcp-filesystem"]))
+				.await;
+
+		let found = search(&base, "notion files").await.expect("the search answers");
+
+		let names: Vec<&str> = found.iter().map(|held| held.name.as_str()).collect();
+		assert_eq!(names, ["com.notion/mcp", "io.github.Digital-Defiance/mcp-filesystem"]);
+		assert_eq!(found[0].install, Install::Oauth);
+		assert_eq!(found[1].install, Install::Nothing);
+		let asked = held.asked.lock().expect("the stub records").clone();
+		assert_eq!(asked, ["/v0.1/servers?search=notion+files&limit=10&version=latest"]);
+		assert!(held.detailed.lock().expect("the stub records").is_empty(), "a detail was read");
+	}
+
+	#[tokio::test]
+	async fn a_row_offering_no_transport_is_left_out_and_the_rows_around_it_answered() {
+		let (base, _) = serving(holding(vec![
 			"com.notion/mcp",
 			BROKEN,
 			"io.github.Digital-Defiance/mcp-filesystem",
@@ -653,32 +639,35 @@ pub(crate) mod tests {
 
 		let names: Vec<&str> = found.iter().map(|held| held.name.as_str()).collect();
 		assert_eq!(names, ["com.notion/mcp", "io.github.Digital-Defiance/mcp-filesystem"]);
-		assert_eq!(found[0].install, Install::Oauth);
-		assert_eq!(found[1].install, Install::Nothing);
-		let asked = held.asked.lock().expect("the stub records").clone();
-		assert_eq!(asked, ["/v0.1/servers?search=notion+files&limit=10"]);
 	}
 
 	#[tokio::test]
-	async fn a_search_whose_every_detail_is_refused_answers_the_refusal() {
-		let (base, held) =
-			serving(holding(vec![BROKEN, "io.test/also-broken", "io.test/still-broken"])).await;
-
-		let answered = search(&base, "broken").await;
-
-		assert_eq!(answered, Err(ApplicationsError::RegistryRefused { status: 500 }));
-		assert_eq!(held.detailed.lock().expect("the stub records").len(), 3);
-	}
-
-	#[tokio::test]
-	async fn a_server_listed_twice_is_read_once_and_answered_once() {
-		let (base, held) = serving(holding(vec!["com.notion/mcp", "com.notion/mcp"])).await;
+	async fn a_server_listed_twice_is_answered_once_at_the_rank_of_its_first_row() {
+		let (base, _) = serving(holding(vec![
+			"com.notion/mcp",
+			"io.github.Digital-Defiance/mcp-filesystem",
+			"com.notion/mcp",
+		]))
+		.await;
 
 		let found = search(&base, "notion").await.expect("the search answers");
 
 		let names: Vec<&str> = found.iter().map(|held| held.name.as_str()).collect();
-		assert_eq!(names, ["com.notion/mcp"]);
-		assert_eq!(*held.detailed.lock().expect("the stub records"), ["com.notion/mcp"]);
+		assert_eq!(names, ["com.notion/mcp", "io.github.Digital-Defiance/mcp-filesystem"]);
+	}
+
+	#[tokio::test]
+	async fn a_list_body_that_is_not_a_list_of_servers_answers_the_unreadable_case() {
+		let mut garbled = holding(vec!["com.notion/mcp"]);
+		garbled.list_body = Some(json!({ "servers": "none" }));
+		let (base, _) = serving(garbled).await;
+
+		let answered = search(&base, "notion").await;
+
+		assert!(
+			matches!(answered, Err(ApplicationsError::RegistryUnreadable { .. })),
+			"got {answered:?}"
+		);
 	}
 
 	#[tokio::test]
