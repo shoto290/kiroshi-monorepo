@@ -1,4 +1,5 @@
 use serde::{Deserialize, Serialize};
+use serde_json::Value;
 
 use crate::conversations::contract::TranscriptStoreError;
 use crate::db::DatabaseError;
@@ -55,12 +56,10 @@ impl Install {
 		}
 	}
 
-	pub fn covering(self, config: &serde_json::Value) -> Self {
-		if matches!(self, Install::Refused(_)) {
-			return self;
-		}
+	pub fn covering(self, config: &Value) -> Self {
 		let asked: &[InstallField] = match &self {
 			Install::Key { fields } => fields,
+			Install::Refused(_) => return self,
 			_ => &[],
 		};
 		let Some(variable) = unfilled(config, asked) else {
@@ -70,17 +69,17 @@ impl Install {
 	}
 }
 
-fn unfilled(config: &serde_json::Value, asked: &[InstallField]) -> Option<String> {
+fn unfilled(config: &Value, asked: &[InstallField]) -> Option<String> {
 	referenced(config)
 		.into_iter()
 		.find(|variable| !asked.iter().any(|field| &field.secret == variable))
 }
 
-fn referenced(config: &serde_json::Value) -> Vec<String> {
+fn referenced(config: &Value) -> Vec<String> {
 	match config {
-		serde_json::Value::String(held) => variables(held),
-		serde_json::Value::Array(held) => held.iter().flat_map(referenced).collect(),
-		serde_json::Value::Object(held) => held.values().flat_map(referenced).collect(),
+		Value::String(held) => variables(held),
+		Value::Array(held) => held.iter().flat_map(referenced).collect(),
+		Value::Object(held) => held.values().flat_map(referenced).collect(),
 		_ => Vec::new(),
 	}
 }
