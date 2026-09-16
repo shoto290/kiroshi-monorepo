@@ -30,6 +30,16 @@ export type SessionReopener = (reopening: SessionReopening) => Promise<void>
 export const scopeOfOwner = (owner: EnvOwner): ReopenedScope =>
 	owner.kind === "bot" ? { kind: "companion", id: owner.id } : owner
 
+export const ownerOfScope = (
+	scope: ReopenedScope,
+	spaceId: string | null,
+): EnvOwner | null => {
+	if (scope.kind !== "companion") {
+		return scope
+	}
+	return spaceId ? { kind: "bot", id: scope.id, spaceId } : null
+}
+
 const everyCompanion = (rosters: CompanionRosters) => [
 	...new Map(
 		Object.values(rosters)

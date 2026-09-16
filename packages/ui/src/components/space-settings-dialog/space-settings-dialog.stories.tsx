@@ -230,6 +230,30 @@ export const McpServers = meta.story({
 	},
 })
 
+export const OpensOnAnApplication = meta.story({
+	args: { tab: "mcp", mcpServerToOpen: "atlas" },
+	parameters: {
+		docs: {
+			description: {
+				story:
+					"A host that asks for one application of the space: the dialog opens on Applications with the editor of that application pushed over the panel. Check that the way back lands on the panel. Pick `McpServers` for the dialog opened by hand.",
+			},
+		},
+	},
+	play: async ({ userEvent }) => {
+		const dialog = await dialogIn()
+		const back = await within(dialog).findByRole("button", {
+			name: "All applications",
+		})
+		await expect(back).toBeVisible()
+
+		await userEvent.click(back)
+		await expect(
+			await within(dialog).findByRole("tabpanel", { name: "Applications" }),
+		).toBeVisible()
+	},
+})
+
 export const McpServersUnavailable = meta.story({
 	args: { haveMcpServersFailedToLoad: true },
 	parameters: {

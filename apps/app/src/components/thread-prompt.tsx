@@ -1,3 +1,5 @@
+import { useContext } from "react"
+
 import type { MessageAuthor } from "@workspace/ui/components/message"
 import {
 	ToolApproval,
@@ -10,7 +12,13 @@ import {
 import { AssistantTurn } from "@workspace/ui/components/turn"
 import { useChatCopy } from "@workspace/ui/hooks/use-chat-copy"
 
-import type { PermissionRequest, QuestionRequest } from "@/lib/agent/contract"
+import type {
+	PermissionRequest,
+	QuestionRequest,
+	QuestionSubject,
+} from "@/lib/agent/contract"
+import type { Application } from "@/lib/applications/application-port"
+import { ConversationApplicationsContext } from "@/lib/applications/use-conversation-installs"
 import {
 	isPostedRequest,
 	type PostedAskedQuestion,
@@ -79,21 +87,37 @@ type QuestionPromptProps = {
 	responder: PromptResponder
 }
 
-export const QuestionPrompt = ({ request, responder }: QuestionPromptProps) => (
-	<ToolQuestion
-		onAnswer={(answers) => {
-			void responder.answer(request.id, answers)
-		}}
-		onDeny={
-			isPostedRequest(request)
-				? undefined
-				: () => {
-						void responder.respond(request.id, "deny")
-					}
-		}
-		questions={request.questions.map(toQuestionItem)}
-	/>
-)
+const markOf = (
+	subject: QuestionSubject | undefined,
+	curated: Application[],
+): string | undefined =>
+	subject?.kind === "applicationScope"
+		? curated.find(({ name }) => name === subject.application)?.logo
+		: undefined
+
+export const QuestionPrompt = ({ request, responder }: QuestionPromptProps) => {
+	const applications = useContext(ConversationApplicationsContext)
+	const mark = markOf(request.subject, applications?.curated ?? [])
+
+	return (
+		<ToolQuestion
+			onAnswer={(answers) => {
+				void responder.answer(request.id, answers)
+			}}
+			onDeny={
+				isPostedRequest(request)
+					? undefined
+					: () => {
+							void responder.respond(request.id, "deny")
+						}
+			}
+			questions={request.questions.map((asked) => ({
+				...toQuestionItem(asked),
+				mark,
+			}))}
+		/>
+	)
+}
 
 type SpokenApprovalProps = {
 	request: PermissionRequest

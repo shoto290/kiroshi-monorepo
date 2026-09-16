@@ -78,6 +78,7 @@ type UserSettingsDialogProps = {
 	onSkillDelete: (id: string) => void
 	skillFiles?: PluginSkillFiles
 	applications?: ApplicationsSection
+	tab?: string
 	history: PluginHistory
 	className?: string
 }
@@ -98,6 +99,7 @@ const UserSettingsDialog = ({
 	onSkillDelete,
 	skillFiles,
 	applications,
+	tab,
 	history,
 	className,
 }: UserSettingsDialogProps) => {
@@ -123,7 +125,7 @@ const UserSettingsDialog = ({
 		companionName: t("plugin.author.bot"),
 		readerImage: value.image,
 	})
-	const activeTab = useSettingsTab(open, FIRST_TAB)
+	const activeTab = useSettingsTab(open, tab ?? FIRST_TAB)
 
 	const patch = (fields: Partial<UserSettingsValue>) =>
 		onValueChange({ ...value, ...fields })

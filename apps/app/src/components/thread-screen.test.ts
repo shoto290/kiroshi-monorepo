@@ -28,6 +28,15 @@ import "@workspace/ui/lib/i18n"
 
 import { ThreadScreen } from "@/components/thread-screen"
 import type { AgentEvent, CheckReport } from "@/lib/agent/contract"
+import type {
+	Application,
+	ApplicationInstall,
+} from "@/lib/applications/application-port"
+import {
+	createFakeApplicationPort,
+	type FakeApplicationPort,
+} from "@/lib/applications/fake-application-port"
+import { ConversationApplicationsContext } from "@/lib/applications/use-conversation-installs"
 import {
 	type AttachmentsController,
 	createAttachmentsController,
@@ -59,7 +68,7 @@ import {
 	createScriptedDriver,
 	type ScriptedDriver,
 } from "@/lib/conversations/scripted-driver"
-import type { Bot, EnvOwner } from "@/lib/conversations/store-contract"
+import type { Bot, EnvOwner, Space } from "@/lib/conversations/store-contract"
 import type { TranscriptStore } from "@/lib/conversations/store-port"
 import type {
 	CompanionArrival,
@@ -3400,5 +3409,311 @@ describe("ThreadScreen showing the companions that arrived", () => {
 
 		expect(rowIndexOf("which wall holds?")).not.toBe(-1)
 		expect(rowIndexOf("joined this conversation")).toBe(-1)
+	})
+})
+
+const SENTRY_APPLICATION: Application = {
+	name: "sentry",
+	title: "Sentry",
+	description: "Pulls the errors behind a release.",
+	config: {},
+	tools: [],
+	install: { kind: "key", name: "token", secret: "SENTRY_AUTH_TOKEN" },
+}
+
+const INSTALLED_THREAD_ID = "bot-1"
+
+const installOf = (
+	overrides: Partial<ApplicationInstall> = {},
+): ApplicationInstall => ({
+	id: "install-1",
+	conversationId: `c-${INSTALLED_THREAD_ID}`,
+	application: "sentry",
+	title: "Sentry",
+	scope: "companion",
+	destinationId: INSTALLED_THREAD_ID,
+	install: { kind: "nothing" },
+	lastMessageSeq: 1,
+	createdAt: 0,
+	...overrides,
+})
+
+const OPEN_SETTINGS = "Open Settings"
+
+const UNREADABLE_INSTALLS_TITLE =
+	"Couldn't read the applications added to this conversation."
+
+type InstallRoom = {
+	port: FakeApplicationPort
+	onOpen: Mock
+	view: () => ReturnType<typeof createElement>
+}
+
+const installRoomOf = (
+	installs: ApplicationInstall[],
+	errors: ChatError[] = [],
+): InstallRoom => {
+	const port = createFakeApplicationPort()
+	port.curated = [SENTRY_APPLICATION]
+	port.recorded = installs
+	const onOpen = vi.fn()
+	const view = () =>
+		createElement(
+			Fragment,
+			null,
+			createElement(NoticeSurface),
+			createElement(
+				SessionConnectorsContext.Provider,
+				{
+					value: {
+						port: createFakeConnectorPort(),
+						spaceId: SPACE,
+						onOpen: () => undefined,
+					},
+				},
+				createElement(
+					ConversationApplicationsContext.Provider,
+					{
+						value: {
+							port,
+							curated: port.curated,
+							spaces: [INSTALLED_SPACE],
+							onOpen,
+						},
+					},
+					screenOf(
+						threadOf({
+							id: INSTALLED_THREAD_ID,
+							name: "Nyx",
+							said: "held",
+							errors,
+						}),
+						[botOf(INSTALLED_THREAD_ID, "Nyx"), botOf("bot-2", "Vela")],
+					),
+				),
+			),
+		)
+	return { port, onOpen, view }
+}
+
+const INSTALLED_SPACE: Space = {
+	id: SPACE,
+	name: "Personal",
+	colour: null,
+	position: 0,
+	createdAt: 0,
+}
+
+const receiptIn = (row: HTMLElement) =>
+	row.querySelector<HTMLElement>('[data-slot="application-receipt"]')
+
+const rowHolding = (text: string) => {
+	const row = [
+		...document.querySelectorAll<HTMLElement>(
+			'[data-slot="message-scroller-item"]',
+		),
+	].find((candidate) => candidate.textContent?.includes(text))
+	if (!row) throw new Error(`no transcript row holds ${text}`)
+	return row
+}
+
+describe("ThreadScreen showing the applications installed", () => {
+	let layout: FakeLayout
+
+	beforeEach(() => {
+		layout = fakeLayout()
+		vi.clearAllMocks()
+		listRoutines.mockResolvedValue([])
+		listRuns.mockResolvedValue([])
+		listSources.mockResolvedValue([SCHEDULE_SOURCE])
+		listMissions.mockResolvedValue({ open: [], done: [] })
+		listenToMissions.mockResolvedValue(() => undefined)
+	})
+
+	afterEach(() => {
+		cleanup()
+		layout.restore()
+	})
+
+	it("shows an install needing nothing as a receipt outside every bubble after the run it follows", async () => {
+		const room = installRoomOf([installOf()])
+		render(room.view())
+		await settle()
+
+		const row = rowHolding("Connected")
+		const receipt = receiptIn(row)
+		expect(receipt).not.toBeNull()
+		expect(receipt?.closest('[data-slot="message-bubble"]')).toBeNull()
+		expect(
+			within(row).getByText("Nyx has Sentry in every conversation."),
+		).toBeTruthy()
+		expect(rowIndexOf("Connected")).toBeGreaterThan(rowIndexOf("held"))
+	})
+
+	it("places an install no run precedes before the first run", async () => {
+		const room = installRoomOf([installOf({ lastMessageSeq: 0 })])
+		render(room.view())
+		await settle()
+
+		expect(rowIndexOf("Connected")).toBeLessThan(rowIndexOf("held"))
+	})
+
+	it("asks for the key of an install in the settings of its companion", async () => {
+		const room = installRoomOf([
+			installOf({ install: { kind: "key", secret: "SENTRY_AUTH_TOKEN" } }),
+		])
+		render(room.view())
+		await settle()
+
+		const row = rowHolding("Needs an API key")
+		expect(receiptIn(row)).not.toBeNull()
+		fireEvent.click(within(row).getByRole("button", { name: OPEN_SETTINGS }))
+
+		expect(room.onOpen).toHaveBeenCalledWith(
+			{ kind: "companion", id: INSTALLED_THREAD_ID },
+			"sentry",
+		)
+	})
+
+	it("opens the settings of the space or of the person a sign-in install landed in", async () => {
+		const room = installRoomOf([
+			installOf({
+				id: "install-space",
+				application: "linear",
+				title: "Linear",
+				scope: "space",
+				destinationId: SPACE,
+				install: { kind: "oauth" },
+			}),
+			installOf({
+				id: "install-user",
+				application: "notion",
+				title: "Notion",
+				scope: "user",
+				destinationId: undefined,
+				install: { kind: "oauth" },
+			}),
+		])
+		render(room.view())
+		await settle()
+
+		const spaceRow = rowHolding("linear")
+		const userRow = rowHolding("notion")
+		expect(within(spaceRow).getByText("Signs you in")).toBeTruthy()
+		expect(
+			within(spaceRow).getByText("Every companion in Personal has Linear."),
+		).toBeTruthy()
+		expect(
+			within(userRow).getByText("You have Notion in every conversation."),
+		).toBeTruthy()
+		fireEvent.click(
+			within(spaceRow).getByRole("button", { name: OPEN_SETTINGS }),
+		)
+		fireEvent.click(
+			within(userRow).getByRole("button", { name: OPEN_SETTINGS }),
+		)
+
+		expect(room.onOpen.mock.calls).toEqual([
+			[{ kind: "space", id: SPACE }, undefined],
+			[{ kind: "user" }, undefined],
+		])
+	})
+
+	it("shows in its row that a key install was left out of a session of its companion", async () => {
+		const room = installRoomOf(
+			[installOf({ install: { kind: "key", secret: "SENTRY_AUTH_TOKEN" } })],
+			[
+				leftOutError(
+					'the server "sentry" was left out: SENTRY_AUTH_TOKEN is defined by no scope',
+				),
+			],
+		)
+		render(room.view())
+		await settle()
+
+		const row = rowHolding("Sentry was left out")
+		const bubble = row.querySelector('[data-slot="message-bubble"]')
+		const receipt = receiptIn(row)
+		if (!bubble || !receipt) {
+			throw new Error("the refused install row holds no notice and no receipt")
+		}
+		expect(
+			bubble.compareDocumentPosition(receipt) &
+				Node.DOCUMENT_POSITION_FOLLOWING,
+		).toBeTruthy()
+		expect(
+			within(row).getAllByRole("button", { name: OPEN_SETTINGS }),
+		).toHaveLength(2)
+	})
+
+	it("leaves the row of a key install of another companion as it was when a session leaves it out", async () => {
+		const room = installRoomOf(
+			[
+				installOf({
+					destinationId: "bot-2",
+					install: { kind: "key", secret: "SENTRY_AUTH_TOKEN" },
+				}),
+			],
+			[
+				leftOutError(
+					'the server "sentry" was left out: SENTRY_AUTH_TOKEN is defined by no scope',
+				),
+			],
+		)
+		render(room.view())
+		await settle()
+
+		expect(rowIndexOf("Sentry was left out")).toBe(-1)
+		expect(rowIndexOf("Needs an API key")).not.toBe(-1)
+	})
+
+	it("shows an install announced for the open conversation without a reload", async () => {
+		const room = installRoomOf([])
+		render(room.view())
+		await settle()
+		expect(rowIndexOf("Connected")).toBe(-1)
+
+		room.port.recorded = [installOf()]
+		act(() =>
+			room.port.announce({
+				conversationId: `c-${INSTALLED_THREAD_ID}`,
+				application: "sentry",
+				title: "Sentry",
+				scope: "companion",
+				destinationId: INSTALLED_THREAD_ID,
+				install: { kind: "nothing" },
+			}),
+		)
+		await settle()
+
+		expect(rowIndexOf("Connected")).toBeGreaterThan(rowIndexOf("held"))
+	})
+
+	it("shows the same rows at the same anchors when the conversation is opened again", async () => {
+		const room = installRoomOf([
+			installOf({ id: "install-before", lastMessageSeq: 0 }),
+		])
+		const opened = render(room.view())
+		await settle()
+		opened.unmount()
+
+		render(room.view())
+		await settle()
+
+		expect(rowIndexOf("Connected")).toBeLessThan(rowIndexOf("held"))
+	})
+
+	it("renders the thread without install rows and raises a notice when the installs cannot be read", async () => {
+		const room = installRoomOf([installOf()])
+		room.port.refusals.installs = {
+			kind: "catalogueUnreadable",
+			detail: "refused",
+		}
+		render(room.view())
+		await settle()
+
+		expect(rowIndexOf("Connected")).toBe(-1)
+		expect(rowIndexOf("held")).not.toBe(-1)
+		expect(raisedNotices(UNREADABLE_INSTALLS_TITLE)).toHaveLength(1)
 	})
 })

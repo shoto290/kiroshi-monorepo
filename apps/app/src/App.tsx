@@ -22,9 +22,15 @@ import {
 	toServerEnvironmentSection,
 } from "@/lib/applications/application-settings"
 import { applicationTransport } from "@/lib/applications/application-transport"
-import { createSessionReopener } from "@/lib/applications/session-reopening"
+import {
+	createSessionReopener,
+	ownerOfScope,
+	type ReopenedScope,
+	scopeOfOwner,
+} from "@/lib/applications/session-reopening"
 import { useApplicationInstalls } from "@/lib/applications/use-application-installs"
 import { useApplications } from "@/lib/applications/use-applications"
+import { ConversationApplicationsContext } from "@/lib/applications/use-conversation-installs"
 import {
 	changesRuntime,
 	modelOptionsFor,
@@ -309,6 +315,7 @@ export function App() {
 
 	const [openedMcpServer, setOpenedMcpServer] = useState<EnvScope | null>(null)
 	const [settingsTab, setSettingsTab] = useState<string>()
+	const [settingsServer, setSettingsServer] = useState<string>()
 	const openedServerName =
 		openedMcpServer?.kind === "server" ? openedMcpServer.name : null
 
@@ -391,19 +398,45 @@ export function App() {
 		onUndoRun: userPlugin.controller.revert,
 	})
 
-	const closeSettingsTab = () => setSettingsTab(undefined)
+	const closeSettingsTab = () => {
+		setSettingsTab(undefined)
+		setSettingsServer(undefined)
+	}
 
-	const openConnectorsOf = useCallback(
-		(owner: EnvOwner) => {
+	const openApplicationsOf = useCallback(
+		(scope: ReopenedScope, server?: string) => {
 			setSettingsTab(CONNECTORS_TAB)
-			if (owner.kind === "bot") {
-				roster.controller.edit(owner.id)
+			setSettingsServer(server)
+			setOpenedMcpServer(
+				openedServerScope(server ?? null, ownerOfScope(scope, selectedSpaceId)),
+			)
+			if (scope.kind === "user") {
+				user.controller.setSettingsOpen(true)
+			} else if (scope.kind === "companion") {
+				roster.controller.edit(scope.id)
 			} else {
 				spaces.controller.setSettingsOpen(true)
 			}
 		},
-		[roster.controller, spaces.controller],
+		[roster.controller, spaces.controller, user.controller, selectedSpaceId],
 	)
+	const openConnectorsOf = useCallback(
+		(owner: EnvOwner) => openApplicationsOf(scopeOfOwner(owner)),
+		[openApplicationsOf],
+	)
+	const conversationApplications = useMemo(
+		() => ({
+			port: applicationTransport,
+			curated: applications.state.curated,
+			spaces: spaces.state.spaces,
+			onOpen: openApplicationsOf,
+		}),
+		[applications.state.curated, spaces.state.spaces, openApplicationsOf],
+	)
+
+	useEffect(() => {
+		void applications.controller.open()
+	}, [applications.controller])
 	const sessionConnectors = useMemo(
 		() => ({
 			port: connectorTransport,
@@ -922,28 +955,32 @@ export function App() {
 			>
 				<ConversationSeatingContext.Provider value={conversationSeating}>
 					<SessionConnectorsContext.Provider value={sessionConnectors}>
-						<WorkspaceBody
-							activityPanel={activityPanel}
-							attachments={attachments}
-							bot={selected}
-							bots={bots}
-							chat={chat}
-							conversation={selectedConversation}
-							conversationRuntimes={conversationRuntimes}
-							drafts={drafts}
-							haveSpacesFailed={spaces.state.hasFailedToLoad}
-							isConversationSettingsOpen={isThreadConversationSettingsOpen}
-							isOverlayOpen={isOverlayOpen}
-							isSettingsOpen={isThreadSettingsOpen}
-							landings={messageLandings}
-							missions={openedMission}
-							onboarding={preferences.firstRunDone ? undefined : onboarding}
-							onOpenConversationSettings={roster.controller.editConversation}
-							onRetrySpaces={loadSpaces}
-							onToggleSettings={toggleSettings}
-							readerName={preferences.displayName}
-							signIn={signIn}
-						/>
+						<ConversationApplicationsContext.Provider
+							value={conversationApplications}
+						>
+							<WorkspaceBody
+								activityPanel={activityPanel}
+								attachments={attachments}
+								bot={selected}
+								bots={bots}
+								chat={chat}
+								conversation={selectedConversation}
+								conversationRuntimes={conversationRuntimes}
+								drafts={drafts}
+								haveSpacesFailed={spaces.state.hasFailedToLoad}
+								isConversationSettingsOpen={isThreadConversationSettingsOpen}
+								isOverlayOpen={isOverlayOpen}
+								isSettingsOpen={isThreadSettingsOpen}
+								landings={messageLandings}
+								missions={openedMission}
+								onboarding={preferences.firstRunDone ? undefined : onboarding}
+								onOpenConversationSettings={roster.controller.editConversation}
+								onRetrySpaces={loadSpaces}
+								onToggleSettings={toggleSettings}
+								readerName={preferences.displayName}
+								signIn={signIn}
+							/>
+						</ConversationApplicationsContext.Provider>
 					</SessionConnectorsContext.Provider>
 				</ConversationSeatingContext.Provider>
 			</WorkspaceShell>
@@ -952,6 +989,7 @@ export function App() {
 					history={botHistory}
 					haveMcpServersFailedToLoad={botMcpServers.state.hasFailedToLoad}
 					{...botApplications}
+					mcpServerToOpen={settingsServer}
 					tab={settingsTab}
 					environment={toEnvironmentRows(botEnvironment.state.entries)}
 					hasEnvironmentFailedToRead={botEnvironment.state.hasFailedToRead}
@@ -1069,6 +1107,7 @@ export function App() {
 					hasEnvironmentFailedToRead={spaceEnvironment.state.hasFailedToRead}
 					haveMcpServersFailedToLoad={spaceMcpServers.state.hasFailedToLoad}
 					{...spaceApplications}
+					mcpServerToOpen={settingsServer}
 					tab={settingsTab}
 					onMcpServerOpen={(name) =>
 						setOpenedMcpServer(
@@ -1135,9 +1174,14 @@ export function App() {
 					serverConnection: userApplications.serverConnection,
 					serverEnvironment: serverEnvironmentSection,
 					catalogue: userApplications.mcpCatalogue,
+					serverToOpen: settingsServer,
 				}}
 				history={userHistory}
-				onClose={() => user.controller.setSettingsOpen(false)}
+				tab={settingsTab}
+				onClose={() => {
+					closeSettingsTab()
+					user.controller.setSettingsOpen(false)
+				}}
 				language={preferences.language}
 				onLanguageChange={(next) => {
 					void user.controller.setLanguage(next)

@@ -85,6 +85,7 @@ type SpaceSettingsDialogProps = {
 	onServerConnect?: (server: BotMcpServerItem) => void
 	serverConnection?: McpConnectionSection
 	serverEnvironment?: EnvironmentSection
+	mcpServerToOpen?: string
 	tab?: string
 	history: PluginHistory
 	onDelete: () => void
@@ -119,6 +120,7 @@ const SpaceSettingsDialog = ({
 	onServerConnect,
 	serverConnection,
 	serverEnvironment,
+	mcpServerToOpen,
 	tab,
 	history,
 	onDelete,
@@ -155,6 +157,7 @@ const SpaceSettingsDialog = ({
 		onServerConnect,
 		serverConnection,
 		serverEnvironment,
+		serverToOpen: mcpServerToOpen,
 	})
 	const historySession = useHistorySession({
 		history,

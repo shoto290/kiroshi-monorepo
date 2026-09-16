@@ -48,7 +48,7 @@ export const findLeftOutConnector = async (
 		: null
 }
 
-const leftOutNameOf = (error: ChatError | undefined) =>
+export const leftOutNameOf = (error: ChatError | undefined) =>
 	error?.error.kind === "serverEnvRejected"
 		? (LEFT_OUT_SERVER.exec(error.error.detail)?.[1] ?? null)
 		: null

@@ -424,6 +424,70 @@ export const Applications = meta.story({
 	},
 })
 
+export const OpensOnAnApplication = meta.story({
+	args: {
+		tab: "mcp",
+		applications: {
+			servers: MARKED_APPLICATIONS,
+			serverToOpen: MARKED_APPLICATIONS[0].name,
+			onServerCreate: fn(),
+			onServerChange: fn(),
+			onServerDelete: fn(),
+		},
+	},
+	parameters: {
+		docs: {
+			description: {
+				story:
+					"A host that asks for one application of the person: the dialog opens on Applications with the editor of that application pushed over the panel, the way an Open Settings control in the thread reaches its key. Check that the way back lands on the panel. Pick `OpensOnAMissingApplication` for a name the list does not hold.",
+			},
+		},
+	},
+	play: async ({ userEvent }) => {
+		const dialog = await dialogIn()
+		const back = await within(dialog).findByRole("button", {
+			name: "All applications",
+		})
+		await expect(back).toBeVisible()
+
+		await userEvent.click(back)
+		await expect(
+			await within(dialog).findByRole("tabpanel", { name: "Applications" }),
+		).toBeVisible()
+	},
+})
+
+export const OpensOnAMissingApplication = meta.story({
+	args: {
+		tab: "mcp",
+		applications: {
+			servers: MARKED_APPLICATIONS,
+			serverToOpen: "absent",
+			onServerCreate: fn(),
+			onServerChange: fn(),
+			onServerDelete: fn(),
+		},
+	},
+	parameters: {
+		docs: {
+			description: {
+				story:
+					"A host that asks for an application the person does not hold. Check that the dialog stays on the Applications panel and pushes no editor.",
+			},
+		},
+	},
+	play: async () => {
+		const dialog = await dialogIn()
+
+		await expect(
+			await within(dialog).findByRole("tabpanel", { name: "Applications" }),
+		).toBeVisible()
+		await expect(
+			within(dialog).queryByRole("button", { name: "All applications" }),
+		).toBe(null)
+	},
+})
+
 export const WithoutApplications = meta.story({
 	parameters: {
 		docs: {
