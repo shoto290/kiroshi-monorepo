@@ -119,6 +119,7 @@ const UserSettingsDialog = ({
 	const mcpSession = useMcpSession({
 		...(applications ?? NO_APPLICATIONS),
 		owner: { kind: "profile" },
+		isSettingsOpen: open,
 	})
 	const historySession = useHistorySession({
 		history,

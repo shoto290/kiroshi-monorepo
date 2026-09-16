@@ -28,6 +28,10 @@ import {
 	type ReopenedScope,
 	scopeOfOwner,
 } from "@/lib/applications/session-reopening"
+import {
+	applicationToOpenIn,
+	type SettingsTarget,
+} from "@/lib/applications/settings-target"
 import { useApplicationInstalls } from "@/lib/applications/use-application-installs"
 import { useApplications } from "@/lib/applications/use-applications"
 import { ConversationApplicationsContext } from "@/lib/applications/use-conversation-installs"
@@ -315,7 +319,8 @@ export function App() {
 
 	const [openedMcpServer, setOpenedMcpServer] = useState<EnvScope | null>(null)
 	const [settingsTab, setSettingsTab] = useState<string>()
-	const [settingsServer, setSettingsServer] = useState<string>()
+	const [settingsApplication, setSettingsApplication] =
+		useState<SettingsTarget>()
 	const openedServerName =
 		openedMcpServer?.kind === "server" ? openedMcpServer.name : null
 
@@ -398,15 +403,20 @@ export function App() {
 		onUndoRun: userPlugin.controller.revert,
 	})
 
+	const applicationToOpenOn = (scope: ReopenedScope) =>
+		applicationToOpenIn(scope, settingsApplication)
+
 	const closeSettingsTab = () => {
 		setSettingsTab(undefined)
-		setSettingsServer(undefined)
+		setSettingsApplication(undefined)
 	}
 
 	const openApplicationsOf = useCallback(
 		(scope: ReopenedScope, server?: string) => {
 			setSettingsTab(CONNECTORS_TAB)
-			setSettingsServer(server)
+			setSettingsApplication(
+				server ? { scope, application: server } : undefined,
+			)
 			setOpenedMcpServer(
 				openedServerScope(server ?? null, ownerOfScope(scope, selectedSpaceId)),
 			)
@@ -989,7 +999,10 @@ export function App() {
 					history={botHistory}
 					haveMcpServersFailedToLoad={botMcpServers.state.hasFailedToLoad}
 					{...botApplications}
-					mcpServerToOpen={settingsServer}
+					mcpServerToOpen={applicationToOpenOn({
+						kind: "companion",
+						id: settingsBot.id,
+					})}
 					tab={settingsTab}
 					environment={toEnvironmentRows(botEnvironment.state.entries)}
 					hasEnvironmentFailedToRead={botEnvironment.state.hasFailedToRead}
@@ -1107,7 +1120,10 @@ export function App() {
 					hasEnvironmentFailedToRead={spaceEnvironment.state.hasFailedToRead}
 					haveMcpServersFailedToLoad={spaceMcpServers.state.hasFailedToLoad}
 					{...spaceApplications}
-					mcpServerToOpen={settingsServer}
+					mcpServerToOpen={applicationToOpenOn({
+						kind: "space",
+						id: selectedSpace.id,
+					})}
 					tab={settingsTab}
 					onMcpServerOpen={(name) =>
 						setOpenedMcpServer(
@@ -1174,7 +1190,7 @@ export function App() {
 					serverConnection: userApplications.serverConnection,
 					serverEnvironment: serverEnvironmentSection,
 					catalogue: userApplications.mcpCatalogue,
-					serverToOpen: settingsServer,
+					serverToOpen: applicationToOpenOn({ kind: "user" }),
 				}}
 				history={userHistory}
 				tab={settingsTab}

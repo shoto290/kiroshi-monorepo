@@ -39,8 +39,7 @@ type ApplicationsCatalogueSection = Omit<
 	install?: ApplicationInstallSection
 }
 
-type McpSessionProps = {
-	owner: ApplicationsOwner
+type ApplicationsSection = {
 	servers: BotMcpServerItem[]
 	haveFailedToLoad?: boolean
 	onServerCreate: (name: string, config: Record<string, unknown>) => void
@@ -58,7 +57,10 @@ type McpSessionProps = {
 	serverToOpen?: string
 }
 
-type ApplicationsSection = Omit<McpSessionProps, "owner">
+type McpSessionProps = ApplicationsSection & {
+	owner: ApplicationsOwner
+	isSettingsOpen: boolean
+}
 
 type McpSession = {
 	panel: ReactNode
@@ -95,15 +97,17 @@ const useMcpSession = ({
 	serverEnvironment,
 	catalogue,
 	serverToOpen,
+	isSettingsOpen,
 }: McpSessionProps): McpSession => {
+	const askedServer = isSettingsOpen ? serverToOpen : undefined
 	const [session, setSession] = useState<OpenedServer | null>(null)
 	const [isBrowsing, setBrowsing] = useState(false)
-	const [requestedServer, setRequestedServer] = useState(serverToOpen)
-	const [pendingServer, setPendingServer] = useState(serverToOpen)
+	const [requestedServer, setRequestedServer] = useState(askedServer)
+	const [pendingServer, setPendingServer] = useState(askedServer)
 
-	if (serverToOpen !== requestedServer) {
-		setRequestedServer(serverToOpen)
-		setPendingServer(serverToOpen)
+	if (askedServer !== requestedServer) {
+		setRequestedServer(askedServer)
+		setPendingServer(askedServer)
 	}
 
 	const listedPending = pendingServer

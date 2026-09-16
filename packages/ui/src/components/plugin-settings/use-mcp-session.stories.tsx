@@ -94,6 +94,7 @@ const meta = preview.meta({
 		onServerChange: fn(),
 		onServerDelete: fn(),
 		onServerOpen: fn(),
+		isSettingsOpen: true,
 	},
 })
 
@@ -232,5 +233,23 @@ export const NeedsAuthorization = meta.story({
 		await userEvent.click(canvas.getByRole("button", { name: "Connect" }))
 
 		await expect(args.serverConnection?.onConnect).toHaveBeenCalledTimes(1)
+	},
+})
+
+export const ClosedSettingsHoldsTheList = meta.story({
+	args: { isSettingsOpen: false, serverToOpen: LOCAL.name },
+	parameters: {
+		docs: {
+			description: {
+				story:
+					"An application named while the dialog hosting this session is closed. Check that the list stays on screen and that no editor opens for the named application.",
+			},
+		},
+	},
+	play: async ({ args, canvas }) => {
+		await expect(
+			canvas.getByRole("button", { name: `Open ${LOCAL.name}` }),
+		).toBeVisible()
+		await expect(args.onServerOpen).not.toHaveBeenCalled()
 	},
 })

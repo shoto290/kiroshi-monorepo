@@ -158,6 +158,7 @@ const SpaceSettingsDialog = ({
 		serverConnection,
 		serverEnvironment,
 		serverToOpen: mcpServerToOpen,
+		isSettingsOpen: open,
 	})
 	const historySession = useHistorySession({
 		history,
