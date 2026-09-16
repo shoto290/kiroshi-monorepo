@@ -2997,7 +2997,7 @@ export const OneSpaceRowMenu = meta.story({
 export const NineSpaces = meta.story({
 	args: {
 		spaces: SPACES,
-		selectedSpaceId: "perso",
+		selectedSpaceId: HOME,
 		botsBySpaceId: NINE_ROSTERS,
 	},
 	parameters: {
@@ -3176,7 +3176,7 @@ export const LiveSpaceSelection = meta.story({
 	render: (args) => <LiveSpaces {...args} />,
 	args: {
 		spaces: FIVE_SPACES,
-		selectedSpaceId: "perso",
+		selectedSpaceId: HOME,
 		botsBySpaceId: FIVE_ROSTERS,
 	},
 	parameters: {
@@ -3286,7 +3286,7 @@ export const SpaceLanding = meta.story({
 	render: (args) => <LiveSpaces {...args} />,
 	args: {
 		spaces: FIVE_SPACES,
-		selectedSpaceId: "perso",
+		selectedSpaceId: HOME,
 		botsBySpaceId: FIVE_ROSTERS,
 	},
 	parameters: {
@@ -3326,7 +3326,7 @@ export const SpaceFlickMomentum = meta.story({
 	render: (args) => <LiveSpaces {...args} />,
 	args: {
 		spaces: FIVE_SPACES,
-		selectedSpaceId: "perso",
+		selectedSpaceId: HOME,
 		botsBySpaceId: FIVE_ROSTERS,
 	},
 	parameters: {
@@ -3381,7 +3381,7 @@ export const SpaceBoundaryWobble = meta.story({
 	render: (args) => <LiveSpaces {...args} />,
 	args: {
 		spaces: FIVE_SPACES,
-		selectedSpaceId: "perso",
+		selectedSpaceId: HOME,
 		botsBySpaceId: FIVE_ROSTERS,
 	},
 	parameters: {
@@ -3429,7 +3429,7 @@ export const SpaceSwipeTakenBack = meta.story({
 	render: (args) => <LiveSpaces {...args} />,
 	args: {
 		spaces: FIVE_SPACES,
-		selectedSpaceId: "perso",
+		selectedSpaceId: HOME,
 		botsBySpaceId: FIVE_ROSTERS,
 	},
 	parameters: {
@@ -3546,7 +3546,7 @@ export const SpaceScrollMemory = meta.story({
 	globals: { viewport: { value: "short" } },
 	args: {
 		spaces: FIVE_SPACES,
-		selectedSpaceId: "perso",
+		selectedSpaceId: HOME,
 		botsBySpaceId: ROSTER_IN_EVERY_SPACE,
 	},
 	parameters: {
@@ -3599,7 +3599,7 @@ const headerIn = (canvasElement: HTMLElement) =>
 
 const RESERVE_ARGS = {
 	spaces: FIVE_SPACES,
-	selectedSpaceId: FIVE_SPACES[0].id,
+	selectedSpaceId: HOME,
 	botsBySpaceId: FIVE_ROSTERS,
 }
 
