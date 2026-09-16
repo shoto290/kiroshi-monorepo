@@ -472,26 +472,21 @@ const ApplicationsCatalogue = ({
 			)
 		}
 
-		if (registry.length > 0) {
-			return (
-				<>
-					<CatalogueRows applications={registry} onPick={onPick} />
-					{registryPartialFailure()}
-				</>
-			)
-		}
-
 		return (
 			<>
-				<CatalogueLine
-					icon={Icons.Search}
-					isAnnounced
-					text={
-						curated.length === 0
-							? t("applications.catalogue.nothing", { query: typed })
-							: t("applications.catalogue.registry.empty", { query: typed })
-					}
-				/>
+				{registry.length > 0 ? (
+					<CatalogueRows applications={registry} onPick={onPick} />
+				) : (
+					<CatalogueLine
+						icon={Icons.Search}
+						isAnnounced
+						text={
+							curated.length === 0
+								? t("applications.catalogue.nothing", { query: typed })
+								: t("applications.catalogue.registry.empty", { query: typed })
+						}
+					/>
+				)}
 				{registryPartialFailure()}
 			</>
 		)
