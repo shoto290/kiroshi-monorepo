@@ -14,6 +14,8 @@ import {
 	type CatalogueApplication,
 } from "@workspace/ui/components/plugin-settings/applications-catalogue"
 
+const CARD_BOTTOM_INSET = 13
+
 const matching = (applications: CatalogueApplication[], query: string) =>
 	applications.filter((application) =>
 		application.name.toLowerCase().includes(query.trim().toLowerCase()),
@@ -84,11 +86,11 @@ export const AtRest = meta.story({
 		docs: {
 			description: {
 				story:
-					"The catalogue as it opens. Check the back item, the open category on muted with its count, the curated cards at their drawn width, wrapping by row, and the registry at rest counting what it can search.",
+					"The catalogue as it opens. Check the back item, the open category on muted with its count, the curated cards at their drawn width, every install line of a row resting on one line at the bottom of its card, no dashed line anywhere, and the registry rows drawn full width with their mono name.",
 			},
 		},
 	},
-	play: async ({ args, canvas, userEvent }) => {
+	play: async ({ args, canvas, canvasElement, userEvent }) => {
 		const everything = canvas.getByRole("tab", { name: /Everything/ })
 		await expect(everything).toHaveAttribute("aria-selected", "true")
 		await expect(everything).toHaveTextContent("6")
@@ -104,11 +106,37 @@ export const AtRest = meta.story({
 			canvas.getAllByRole("listitem")[0].getBoundingClientRect().width,
 		).toBe(186)
 		await expect(
-			canvas.getByText("Set up in one step, nothing to paste"),
+			canvas.getByText("We check what they do before listing them."),
+		).toBeVisible()
+		await expect(
+			canvas.getByText(
+				"Published by anyone. Read what it does before you add it.",
+			),
 		).toBeVisible()
 		await expect(
 			canvas.getByText("Looks in the MCP registry too"),
 		).toBeVisible()
+		await expect(canvasElement.querySelector(".border-dashed")).toBeNull()
+
+		const cards = canvas.getAllByRole("listitem")
+		const firstRowTop = cards[0].getBoundingClientRect().top
+		const firstRow = cards.filter(
+			(card) => card.getBoundingClientRect().top === firstRowTop,
+		)
+		await expect(firstRow.length).toBeGreaterThan(1)
+		const setupTops = firstRow.map((card) => {
+			const setup = card.querySelector('[data-slot="catalogue-card-setup"]')
+			const box = card.getBoundingClientRect()
+			const line = setup?.getBoundingClientRect()
+			return {
+				top: Math.round(line?.top ?? 0),
+				gap: Math.round(box.bottom - (line?.bottom ?? 0)),
+			}
+		})
+		await expect(new Set(setupTops.map((line) => line.top)).size).toBe(1)
+		await expect(new Set(setupTops.map((line) => line.gap))).toEqual(
+			new Set([CARD_BOTTOM_INSET]),
+		)
 
 		await userEvent.click(canvas.getByRole("tab", { name: "Design" }))
 		await expect(args.onCategoryChange).toHaveBeenCalledWith("design")
@@ -124,6 +152,19 @@ export const AtRest = meta.story({
 		)
 		await expect(args.onPaste).toHaveBeenCalledTimes(1)
 		await expect(args.onBack).toHaveBeenCalledTimes(1)
+
+		await userEvent.type(
+			canvas.getByRole("textbox", { name: "Search applications" }),
+			"lin",
+		)
+
+		const registryName = canvas.getByText("linkboard")
+		await expect(registryName).toHaveClass("font-mono")
+		await expect(canvas.getByText("npx -y @kwn/linkboard-mcp")).toHaveClass(
+			"font-mono",
+		)
+		const row = registryName.closest("li")?.getBoundingClientRect()
+		await expect(row?.width).toBeGreaterThan(186)
 	},
 })
 
@@ -193,15 +234,19 @@ export const RegistrySearching = meta.story({
 		docs: {
 			description: {
 				story:
-					"A registry search still in flight. Check that the registry section says the search is running, politely announced, rather than claiming nothing matched.",
+					"A registry search still in flight. Check that the registry section draws three row skeletons rather than claiming nothing matched.",
 			},
 		},
 	},
-	play: async ({ canvas }) => {
-		const searching = canvas.getByText("Searching the MCP registry…")
-		await expect(searching).toBeVisible()
-		await expect(searching).toHaveAttribute("aria-live", "polite")
+	play: async ({ canvas, canvasElement }) => {
+		await expect(
+			canvasElement.querySelectorAll('[data-slot="catalogue-row-skeleton"]'),
+		).toHaveLength(3)
 		await expect(canvas.queryByText(/Nothing matched/)).not.toBeInTheDocument()
+		await expect(canvas.getByRole("tabpanel")).toHaveAttribute(
+			"aria-busy",
+			"true",
+		)
 	},
 })
 
@@ -271,5 +316,47 @@ export const NarrowDialog = meta.story({
 		await expect(canvas.getByText("All applications")).not.toHaveClass(
 			"sr-only",
 		)
+	},
+})
+
+export const CatalogueLoading = meta.story({
+	args: {
+		categories: [
+			{ id: "everything", label: "Everything", count: null },
+			...CATALOGUE_CATEGORIES.slice(1),
+		],
+		isCatalogueLoading: true,
+		isRegistrySearching: true,
+		query: "lin",
+	},
+	parameters: {
+		docs: {
+			description: {
+				story:
+					"The catalogue while it is being read and the registry searched. Check the six card skeletons, the three row skeletons, the em dash where the Everything count goes, the body marked busy and the polite line saying the catalogue is loading.",
+			},
+		},
+	},
+	play: async ({ canvas, canvasElement }) => {
+		await expect(
+			canvasElement.querySelectorAll('[data-slot="catalogue-card-skeleton"]'),
+		).toHaveLength(6)
+		await expect(
+			canvasElement.querySelectorAll('[data-slot="catalogue-row-skeleton"]'),
+		).toHaveLength(3)
+
+		const everything = canvas.getByRole("tab", { name: "Everything" })
+		await expect(everything).toHaveTextContent("\u2014")
+
+		await expect(canvas.getByRole("tabpanel")).toHaveAttribute(
+			"aria-busy",
+			"true",
+		)
+		await expect(canvas.getByRole("status")).toHaveTextContent(
+			"Loading the applications catalogue",
+		)
+
+		const [bar] = canvasElement.querySelectorAll('[data-slot="skeleton"]')
+		await expect(bar).toHaveClass("motion-reduce:animate-none")
 	},
 })

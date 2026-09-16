@@ -180,7 +180,7 @@ export const PickingPushesTheInstallPage = meta.story({
 
 		await expect(canvas.getByRole("textbox")).toHaveValue("sentry")
 		await expect(
-			canvas.getByRole("heading", { name: "Kiroshi knows these" }),
+			canvas.getByRole("heading", { name: "Kiroshi has read these" }),
 		).toBeVisible()
 	},
 })

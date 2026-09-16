@@ -98,12 +98,21 @@ export const REGISTRY_APPLICATIONS: CatalogueApplication[] = [
 		name: "forecast",
 		description: "Forecasts and alerts from national weather services.",
 		setup: "none",
+		packageIdentity: "npx -y @weatherdesk/forecast-mcp",
 	},
 	{
 		id: "io.github.linear-community/linear-lite",
 		name: "linear-lite",
 		description: "A smaller Linear server that only reads issues.",
 		setup: "apiKey",
+		packageIdentity: "npx -y @linear-community/linear-lite",
+	},
+	{
+		id: "io.github.kwn/linkboard",
+		name: "linkboard",
+		description: "",
+		setup: "signIn",
+		packageIdentity: "npx -y @kwn/linkboard-mcp",
 	},
 ]
 

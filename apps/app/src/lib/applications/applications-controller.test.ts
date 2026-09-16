@@ -91,6 +91,26 @@ describe("applications controller", () => {
 		expect(port.calls).toEqual([{ command: "catalogue" }])
 	})
 
+	it("reports it is reading the catalogue until the read lands", async () => {
+		const port = createFakeApplicationPort()
+		port.curated = [PAPER]
+		const pending: ((curated: Application[]) => void)[] = []
+		port.catalogue = () =>
+			new Promise((resolve) => {
+				pending.push(resolve)
+			})
+		const controller = controllerOn(port)
+
+		const reading = controller.open()
+		expect(controller.getState().isReadingCatalogue).toBe(true)
+
+		pending[0]?.([PAPER])
+		await reading
+
+		expect(controller.getState().isReadingCatalogue).toBe(false)
+		expect(controller.getState().curated).toEqual([PAPER])
+	})
+
 	it("reports a catalogue it could not read", async () => {
 		const port = createFakeApplicationPort()
 		port.refusals.catalogue = { kind: "catalogueUnreadable", detail: "gone" }
