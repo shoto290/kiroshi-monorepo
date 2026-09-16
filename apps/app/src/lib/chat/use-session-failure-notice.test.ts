@@ -75,6 +75,15 @@ it("raises one notice for a refused resume however often the thread renders", ()
 	expect(transientNotice).toHaveBeenCalledTimes(1)
 })
 
+it("fades a second refused resume of its own", () => {
+	mountOn(refusedResume("error-first"))
+	cleanup()
+
+	mountOn(refusedResume("error-second"))
+
+	expect(transientNotice).toHaveBeenCalledTimes(2)
+})
+
 it("keeps the sticky notice of every other failure", () => {
 	mountOn(crashed)
 
