@@ -563,13 +563,6 @@ const bots = {
 				title: "Kiroshi ne les a pas lues",
 				subtitle:
 					"Publiées par n'importe qui. Lisez ce qu'elle fait avant de l'ajouter.",
-				rest: "Tapez un nom ci-dessus pour chercher parmi les applications publiées.",
-				restCounted_one:
-					"Tapez un nom ci-dessus pour chercher parmi {{count}} application publiée.",
-				restCounted_many:
-					"Tapez un nom ci-dessus pour chercher parmi {{count}} applications publiées.",
-				restCounted_other:
-					"Tapez un nom ci-dessus pour chercher parmi {{count}} applications publiées.",
 				empty: "Rien dans le registre MCP ne correspond à {{query}}.",
 				failed: "Impossible de joindre le registre MCP.",
 				partlyFailed:

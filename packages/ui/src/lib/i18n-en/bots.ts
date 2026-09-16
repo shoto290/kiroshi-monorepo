@@ -549,11 +549,6 @@ const bots = {
 			registry: {
 				title: "Kiroshi hasn’t read these",
 				subtitle: "Published by anyone. Read what it does before you add it.",
-				rest: "Type a name above to search the published applications.",
-				restCounted_one:
-					"Type a name above to search {{count}} published application.",
-				restCounted_other:
-					"Type a name above to search {{count}} published applications.",
 				empty: "Nothing in the MCP registry matched {{query}}.",
 				failed: "Couldn’t reach the MCP registry.",
 				partlyFailed:

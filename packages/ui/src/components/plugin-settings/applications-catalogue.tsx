@@ -263,6 +263,48 @@ const ROW_SKELETONS = [
 		meta: "w-47.5",
 		setup: "w-17.5",
 	},
+	{
+		rank: "four",
+		name: "w-29.5",
+		description: "w-47",
+		meta: "w-34.5",
+		setup: "w-22.5",
+	},
+	{
+		rank: "five",
+		name: "w-35",
+		description: "w-53.5",
+		meta: "w-25.5",
+		setup: "w-19",
+	},
+	{
+		rank: "six",
+		name: "w-21.5",
+		description: "w-40",
+		meta: "w-43",
+		setup: "w-26",
+	},
+	{
+		rank: "seven",
+		name: "w-31",
+		description: "w-58",
+		meta: "w-31.5",
+		setup: "w-16.5",
+	},
+	{
+		rank: "eight",
+		name: "w-26.5",
+		description: "w-44.5",
+		meta: "w-37",
+		setup: "w-23.5",
+	},
+	{
+		rank: "nine",
+		name: "w-38.5",
+		description: "w-49",
+		meta: "w-28",
+		setup: "w-21",
+	},
 ]
 
 const CatalogueCardSkeletons = () => (
@@ -442,7 +484,6 @@ type ApplicationsCatalogueProps = Omit<CataloguePageProps, "children"> & {
 	onQueryChange: (query: string) => void
 	curated: CatalogueApplication[]
 	registry: CatalogueApplication[]
-	publishedCount?: number
 	isCatalogueLoading?: boolean
 	isRegistrySearching?: boolean
 	hasRegistryFailed?: boolean
@@ -462,7 +503,6 @@ const ApplicationsCatalogue = ({
 	onQueryChange,
 	curated,
 	registry,
-	publishedCount,
 	isCatalogueLoading = false,
 	isRegistrySearching = false,
 	hasRegistryFailed = false,
@@ -496,24 +536,29 @@ const ApplicationsCatalogue = ({
 			/>
 		) : null
 
+	const registryResults = () => {
+		if (registry.length > 0) {
+			return <CatalogueRows applications={registry} onPick={onPick} />
+		}
+
+		if (typed === "") return null
+
+		return (
+			<CatalogueLine
+				icon={Icons.Search}
+				isAnnounced
+				text={
+					curated.length === 0
+						? t("applications.catalogue.nothing", { query: typed })
+						: t("applications.catalogue.registry.empty", { query: typed })
+				}
+			/>
+		)
+	}
+
 	const registryBody = () => {
 		if (isLoading) {
 			return <CatalogueRowSkeletons />
-		}
-
-		if (typed === "") {
-			return (
-				<CatalogueLine
-					icon={Icons.Search}
-					text={
-						publishedCount === undefined
-							? t("applications.catalogue.registry.rest")
-							: t("applications.catalogue.registry.restCounted", {
-									count: publishedCount,
-								})
-					}
-				/>
-			)
 		}
 
 		if (hasRegistryFailed) {
@@ -529,19 +574,7 @@ const ApplicationsCatalogue = ({
 
 		return (
 			<>
-				{registry.length > 0 ? (
-					<CatalogueRows applications={registry} onPick={onPick} />
-				) : (
-					<CatalogueLine
-						icon={Icons.Search}
-						isAnnounced
-						text={
-							curated.length === 0
-								? t("applications.catalogue.nothing", { query: typed })
-								: t("applications.catalogue.registry.empty", { query: typed })
-						}
-					/>
-				)}
+				{registryResults()}
 				{registryPartialFailure()}
 			</>
 		)
