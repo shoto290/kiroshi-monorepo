@@ -78,13 +78,13 @@ export const Loading = meta.story({
 	render: () => <CatalogueRowSkeletons />,
 	play: async ({ canvasElement }) => {
 		const rows = slotsIn(canvasElement, "catalogue-row-skeleton")
-		const [list] = Array.from(canvasElement.querySelectorAll("ul"))
-		const [mark] = Array.from(
-			canvasElement.querySelectorAll<HTMLElement>('[data-slot="skeleton"]'),
-		)
+		const [mark] = slotsIn(canvasElement, "skeleton")
 
 		await expect(rows).toHaveLength(3)
-		await expect(list).toHaveAttribute("aria-hidden", "true")
+		await expect(canvasElement.querySelector("ul")).toHaveAttribute(
+			"aria-hidden",
+			"true",
+		)
 		await expect(mark.getBoundingClientRect().height).toBe(28)
 		await expect(getComputedStyle(mark).animationName).toBe("none")
 	},
