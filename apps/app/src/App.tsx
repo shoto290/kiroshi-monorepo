@@ -15,6 +15,7 @@ import { probeRender } from "@workspace/ui/lib/render-probe"
 
 import { StartupScreen } from "@/components/startup-screen"
 import { WorkspaceBody } from "@/components/workspace-body"
+import { reloadPanelsHolding } from "@/lib/applications/application-panels"
 import {
 	applicationTitleOf,
 	openedServerScope,
@@ -48,6 +49,7 @@ import {
 import { toSkillDraft, toSkillFiles, toSkillItem } from "@/lib/bots/skill-draft"
 import { useBotHistory } from "@/lib/bots/use-bot-history"
 import { useBotSkills } from "@/lib/bots/use-bot-skills"
+import { useCompanionSettings } from "@/lib/bots/use-companion-settings"
 import { useEvolution } from "@/lib/bots/use-evolution"
 import { useHistoryView } from "@/lib/bots/use-history-view"
 import { useMcpServers } from "@/lib/bots/use-mcp-servers"
@@ -339,6 +341,11 @@ export function App() {
 	)
 
 	useApplicationInstalls(applicationTransport, ({ application, scope }) => {
+		void reloadPanelsHolding(scope, [
+			botMcpServers.controller,
+			spaceMcpServers.controller,
+			userMcpServers.controller,
+		])
 		void reopenSessions({
 			scope,
 			application: applicationTitleOf(
@@ -509,31 +516,17 @@ export function App() {
 		void roster.controller.reload()
 	})
 
-	useEffect(() => {
-		if (!settingsBotId || !selectedSpaceId) {
-			return
-		}
-		const scope = {
-			kind: "bot",
-			id: settingsBotId,
-			spaceId: selectedSpaceId,
-		} as const
-		void applications.controller.open()
-		void skills.controller.open(settingsBotId)
-		void botMcpServers.controller.open(scope)
-		void botEnvironment.controller.open(scope)
-		void botConnections.controller.open(scope)
-		void history.controller.open(settingsBotId)
-	}, [
-		applications.controller,
-		history.controller,
-		botEnvironment.controller,
-		botConnections.controller,
-		botMcpServers.controller,
-		skills.controller,
-		settingsBotId,
-		selectedSpaceId,
-	])
+	useCompanionSettings({
+		applications: applications.controller,
+		skills: skills.controller,
+		servers: botMcpServers.controller,
+		environment: botEnvironment.controller,
+		connections: botConnections.controller,
+		history: history.controller,
+		companionId: settingsBotId,
+		spaceId: selectedSpaceId,
+		isOpen: isEditing,
+	})
 
 	useEffect(() => {
 		if (isSpaceEditing && selectedSpaceId) {
