@@ -1459,10 +1459,14 @@ export function createChatController(
 			isAnswering: false,
 			isAnswered: true,
 			answered: answeredRowOf(posted, answers),
+			answeredAfterSeq: storedSeqOf(posted.conversationId),
 		})
 		dispatch(bot, { type: "questionWithdrawn", id })
 		syncBot(bot)
 	}
+
+	const storedSeqOf = (conversationId: string) =>
+		selectMessages(transcript.getState(), conversationId).at(-1)?.seq ?? 0
 
 	const rearmPosted = (bot: BotChat, posted: PostedQuestion) => {
 		const live = bot.state.question
@@ -1499,6 +1503,7 @@ export function createChatController(
 					createdAt: now(),
 				}),
 				answered: null,
+				answeredAfterSeq: null,
 				isAnswering: false,
 				isAnswered: false,
 			},

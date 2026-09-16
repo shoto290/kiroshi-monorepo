@@ -1144,7 +1144,7 @@ describe("createChatController", () => {
 			expect(answeredIn(controller)?.content).toBe("Subscription")
 		})
 
-		it("holds the asking and its answer below what is stored afterwards", async () => {
+		it("holds the asking and its answer above what is stored afterwards", async () => {
 			const { controller, store } = await bootedHarness()
 			controller.postQuestion(BOT, POSTED, () => Promise.resolve())
 			await vi.runAllTimersAsync()
@@ -1161,13 +1161,31 @@ describe("createChatController", () => {
 					content.includes("How do you want to sign in?"),
 				) + 1,
 			)
-			expect(positions.indexOf("Subscription")).toBeGreaterThan(
+			expect(positions.indexOf("Subscription")).toBeLessThan(
 				positions.indexOf("hello"),
 			)
 			expect(isAscending(messages)).toBe(true)
 			expect(spoken(await reload(store))).toEqual(
 				spoken(messages.filter((message) => !isPosted(message))),
 			)
+		})
+
+		it("holds an armed asking below what is stored while it waits", async () => {
+			const { controller } = await bootedHarness()
+			controller.postQuestion(BOT, POSTED, () => Promise.resolve())
+			await vi.runAllTimersAsync()
+
+			await controller.send("hello")
+			await vi.runAllTimersAsync()
+
+			const { messages } = controller.getState()
+			const positions = messages.map((message) => message.content)
+			expect(
+				positions.findIndex((content) =>
+					content.includes("How do you want to sign in?"),
+				),
+			).toBeGreaterThan(positions.indexOf("hello"))
+			expect(isAscending(messages)).toBe(true)
 		})
 
 		it("runs the handler and asks nothing more for an answer with no text", async () => {

@@ -36,17 +36,34 @@ const askingOf = (id: string): TranscriptDraft =>
 		createdAt: 10,
 	})
 
-const postedOf = (
-	id: string,
-	answered: TranscriptDraft | null = null,
-): PostedQuestion => ({
+const armedOf = (id: string): PostedQuestion => ({
 	request: requestOf(id),
 	onAnswers: () => Promise.resolve(),
 	conversationId: CONVERSATION,
 	asking: askingOf(id),
-	answered,
+	answered: null,
+	answeredAfterSeq: null,
 	isAnswering: false,
-	isAnswered: answered !== null,
+	isAnswered: false,
+})
+
+const answerOf = (id: string, content: string): TranscriptDraft =>
+	answeredRow({
+		id: `answer-${id}`,
+		asking: askingOf(id),
+		content,
+		createdAt: 20,
+	})
+
+const answeredOf = (
+	id: string,
+	answeredAfterSeq: number,
+	answered: TranscriptDraft | null = answerOf(id, "Subscription"),
+): PostedQuestion => ({
+	...armedOf(id),
+	answered,
+	answeredAfterSeq,
+	isAnswered: true,
 })
 
 const storedOf = (seq: number, content: string): TranscriptMessage => ({
@@ -64,25 +81,31 @@ const storedOf = (seq: number, content: string): TranscriptMessage => ({
 })
 
 describe("withPostedRows", () => {
+	const contentsOf = (rows: TranscriptMessage[]) =>
+		rows.map(({ content }) => content)
+
+	const isAscending = (rows: TranscriptMessage[]) =>
+		rows.every(
+			(row, index) => index === 0 || row.seq > (rows[index - 1]?.seq ?? 0),
+		)
+
 	it("leaves the messages untouched when nothing is posted", () => {
 		const messages = [storedOf(1, "one")]
 
 		expect(withPostedRows(messages, [])).toBe(messages)
 	})
 
-	it("never sorts a posted row above an already-loaded message", () => {
+	it("places an armed asking below every loaded message", () => {
 		const messages = [storedOf(1, "one"), storedOf(2, "two")]
 
-		const rows = withPostedRows(messages, [postedOf("posted-1")])
+		const rows = withPostedRows(messages, [armedOf("posted-1")])
 
-		expect(rows.map(({ content }) => content).at(-1)).toContain(
-			"How do you want to sign in?",
-		)
-		expect(rows.at(-1)?.seq).toBeGreaterThan(2)
+		expect(contentsOf(rows).at(-1)).toContain("How do you want to sign in?")
+		expect(isAscending(rows)).toBe(true)
 	})
 
-	it("keeps the question below messages that load in afterwards", () => {
-		const posted = [postedOf("posted-1")]
+	it("keeps an armed asking below messages that load in afterwards", () => {
+		const posted = [armedOf("posted-1")]
 		const seqOfAsking = (messages: TranscriptMessage[]) =>
 			withPostedRows(messages, posted).at(-1)?.seq ?? 0
 
@@ -92,24 +115,48 @@ describe("withPostedRows", () => {
 		).toBeGreaterThan(2)
 	})
 
-	it("holds an answer straight under the question it replies to", () => {
-		const answered = answeredRow({
-			id: "answer-1",
-			asking: askingOf("posted-1"),
-			content: "Subscription",
-			createdAt: 20,
-		})
-
+	it("holds an answered question and its answer above what is stored afterwards", () => {
 		const rows = withPostedRows(
-			[storedOf(1, "one")],
-			[postedOf("posted-1", answered)],
+			[storedOf(1, "one"), storedOf(2, "two")],
+			[answeredOf("posted-1", 1)],
 		)
 
-		expect(rows.map(({ content }) => content)).toEqual([
+		expect(contentsOf(rows)).toEqual([
 			"one",
 			expect.stringContaining("How do you want to sign in?"),
 			"Subscription",
+			"two",
 		])
-		expect(rows.map(({ seq }) => seq > 1)).toEqual([false, true, true])
+		expect(isAscending(rows)).toBe(true)
+	})
+
+	it("holds an answered question with no answer row at the same place", () => {
+		const rows = withPostedRows(
+			[storedOf(1, "one"), storedOf(2, "two")],
+			[answeredOf("posted-1", 1, null)],
+		)
+
+		expect(contentsOf(rows)).toEqual([
+			"one",
+			expect.stringContaining("How do you want to sign in?"),
+			"two",
+		])
+		expect(isAscending(rows)).toBe(true)
+	})
+
+	it("keeps several questions of one conversation in the order they were posted", () => {
+		const rows = withPostedRows(
+			[storedOf(1, "one")],
+			[
+				answeredOf("posted-1", 1, answerOf("posted-1", "first")),
+				answeredOf("posted-2", 1, answerOf("posted-2", "second")),
+				armedOf("posted-3"),
+			],
+		)
+
+		expect(
+			contentsOf(rows).filter((content) => !content.startsWith("###")),
+		).toEqual(["one", "first", "second"])
+		expect(isAscending(rows)).toBe(true)
 	})
 })
