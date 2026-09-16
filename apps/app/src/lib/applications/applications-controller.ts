@@ -84,17 +84,25 @@ export const serverScopeOf = (owner: EnvOwner, name: string): EnvScope => ({
 const urlOf = (application: Application) =>
 	readMcpServerLaunch(application.config).url ?? ""
 
+export const REGISTRY_SEARCH_DELAY_MS = 400
+
 export type ApplicationsControllerOptions = {
 	reportFailure?: (notice: NoticeMessage) => void
+	searchDelayMs?: number
 }
 
 export const createApplicationsController = (
 	port: ApplicationPort,
 	store: TranscriptStore,
-	{ reportFailure = raiseFailureNotice }: ApplicationsControllerOptions = {},
+	{
+		reportFailure = raiseFailureNotice,
+		searchDelayMs = REGISTRY_SEARCH_DELAY_MS,
+	}: ApplicationsControllerOptions = {},
 ): ApplicationsController => {
 	let state = initialApplicationsState
 	let isReadingCatalogue = false
+	let scheduledSearch: ReturnType<typeof setTimeout> | null = null
+	let issuedSearch = 0
 	const listeners = new Set<() => void>()
 
 	const publish = () => {
@@ -108,27 +116,51 @@ export const createApplicationsController = (
 		publish()
 	}
 
-	const isLastTyped = (typed: string) => state.query.trim() === typed
+	const supersedeSearch = () => {
+		if (scheduledSearch !== null) {
+			clearTimeout(scheduledSearch)
+			scheduledSearch = null
+		}
+		issuedSearch += 1
+	}
 
-	const searchFor = (query: string) => {
-		const typed = query.trim()
+	const forgetSearch = () => {
+		supersedeSearch()
+		set({ registry: [], isSearching: false, hasSearchFailed: false })
+	}
+
+	const sendSearch = () => {
+		const typed = state.query.trim()
 		if (typed === "") {
-			set({ registry: [], isSearching: false, hasSearchFailed: false })
+			forgetSearch()
 			return
 		}
+		supersedeSearch()
+		const attempt = issuedSearch
+		const isLastIssued = () => attempt === issuedSearch
 		set({ isSearching: true, hasSearchFailed: false })
 		void port.search(typed).then(
 			(found) => {
-				if (isLastTyped(typed)) {
+				if (isLastIssued()) {
 					set({ registry: found, isSearching: false })
 				}
 			},
 			() => {
-				if (isLastTyped(typed)) {
+				if (isLastIssued()) {
 					set({ isSearching: false, hasSearchFailed: true })
 				}
 			},
 		)
+	}
+
+	const scheduleSearch = () => {
+		if (state.query.trim() === "") {
+			forgetSearch()
+			return
+		}
+		supersedeSearch()
+		set({ isSearching: true, hasSearchFailed: false })
+		scheduledSearch = setTimeout(sendSearch, searchDelayMs)
 	}
 
 	const applicationNamed = (id: string) =>
@@ -219,10 +251,10 @@ export const createApplicationsController = (
 
 		search: (query: string) => {
 			set({ query })
-			searchFor(query)
+			scheduleSearch()
 		},
 
-		retry: () => searchFor(state.query),
+		retry: sendSearch,
 
 		pick: (id: string) => set({ picked: applicationNamed(id), failure: null }),
 

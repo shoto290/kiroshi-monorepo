@@ -5,7 +5,10 @@ import {
 	createApplicationsController,
 	type InstallTarget,
 } from "./applications-controller"
-import { createFakeApplicationPort } from "./fake-application-port"
+import {
+	createFakeApplicationPort,
+	type FakeApplicationPort,
+} from "./fake-application-port"
 
 import { createFakeTranscriptStore } from "../conversations/fake-transcript-store"
 import type { EnvOwner } from "../conversations/store-contract"
@@ -49,15 +52,22 @@ const targetOf = (overrides: Partial<InstallTarget> = {}): InstallTarget => ({
 	...overrides,
 })
 
+const SEARCH_DELAY = 10
+
 const controllerOn = (
 	port = createFakeApplicationPort(),
 	store = createFakeTranscriptStore(),
 ) =>
 	createApplicationsController(port, store, {
 		reportFailure: () => undefined,
+		searchDelayMs: SEARCH_DELAY,
 	})
 
-const settled = () => new Promise((resolve) => setTimeout(resolve, 0))
+const settled = () =>
+	new Promise((resolve) => setTimeout(resolve, SEARCH_DELAY * 3))
+
+const searchesOf = (port: FakeApplicationPort) =>
+	port.calls.filter((call) => call.command === "search")
 
 describe("applications controller", () => {
 	it("opens on the curated applications the host answers", async () => {
@@ -110,28 +120,79 @@ describe("applications controller", () => {
 		expect(controller.getState().isSearching).toBe(false)
 	})
 
-	it("keeps the answer of the last query and drops an earlier one", async () => {
+	it("sends one registry search once the typing stops", async () => {
 		const port = createFakeApplicationPort()
-		const answers = new Map([
-			["lin", [PAPER]],
-			["linear", [LINEAR]],
-		])
-		const pending: (() => void)[] = []
+		port.found = [LINEAR]
+		const controller = controllerOn(port)
+
+		for (const typed of ["l", "li", "lin", "line", "linea", "linear"]) {
+			controller.search(typed)
+		}
+		expect(searchesOf(port)).toEqual([])
+		expect(controller.getState().isSearching).toBe(true)
+		await settled()
+
+		expect(searchesOf(port)).toEqual([{ command: "search", query: "linear" }])
+		expect(controller.getState().registry).toEqual([LINEAR])
+		expect(controller.getState().isSearching).toBe(false)
+	})
+
+	it("keeps the answer of the last search and drops an earlier one", async () => {
+		const port = createFakeApplicationPort()
+		const pending: ((found: Application[]) => void)[] = []
+		port.search = () =>
+			new Promise((resolve) => {
+				pending.push(resolve)
+			})
+		const controller = controllerOn(port)
+
+		controller.search("linear")
+		await settled()
+		controller.retry()
+		const [answerFirst, answerLast] = pending
+		answerLast?.([LINEAR])
+		await settled()
+		answerFirst?.([PAPER])
+		await settled()
+
+		expect(controller.getState().registry).toEqual([LINEAR])
+	})
+
+	it("drops the answer of an earlier query that arrives last", async () => {
+		const port = createFakeApplicationPort()
+		const pending = new Map<string, (found: Application[]) => void>()
 		port.search = (query) =>
 			new Promise((resolve) => {
-				pending.push(() => resolve(answers.get(query) ?? []))
+				pending.set(query, resolve)
 			})
 		const controller = controllerOn(port)
 
 		controller.search("lin")
-		controller.search("linear")
-		const [answerFirst, answerLast] = pending
-		answerLast?.()
 		await settled()
-		answerFirst?.()
+		controller.search("linear")
+		await settled()
+		pending.get("linear")?.([LINEAR])
+		await settled()
+		pending.get("lin")?.([PAPER])
 		await settled()
 
 		expect(controller.getState().registry).toEqual([LINEAR])
+		expect(controller.getState().isSearching).toBe(false)
+	})
+
+	it("cancels the scheduled search when the field is cleared", async () => {
+		const port = createFakeApplicationPort()
+		port.found = [LINEAR]
+		const controller = controllerOn(port)
+
+		controller.search("linear")
+		controller.search("")
+		await settled()
+
+		expect(searchesOf(port)).toEqual([])
+		expect(controller.getState().registry).toEqual([])
+		expect(controller.getState().isSearching).toBe(false)
+		expect(controller.getState().hasSearchFailed).toBe(false)
 	})
 
 	it("clears the registry when the query is emptied", async () => {
