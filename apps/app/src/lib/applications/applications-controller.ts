@@ -116,21 +116,16 @@ export const createApplicationsController = (
 		publish()
 	}
 
-	const cancelScheduledSearch = () => {
-		if (scheduledSearch === null) {
-			return
+	const supersedeSearch = () => {
+		if (scheduledSearch !== null) {
+			clearTimeout(scheduledSearch)
+			scheduledSearch = null
 		}
-		clearTimeout(scheduledSearch)
-		scheduledSearch = null
-	}
-
-	const abandonIssuedSearch = () => {
 		issuedSearch += 1
 	}
 
 	const forgetSearch = () => {
-		cancelScheduledSearch()
-		abandonIssuedSearch()
+		supersedeSearch()
 		set({ registry: [], isSearching: false, hasSearchFailed: false })
 	}
 
@@ -140,8 +135,7 @@ export const createApplicationsController = (
 			forgetSearch()
 			return
 		}
-		cancelScheduledSearch()
-		abandonIssuedSearch()
+		supersedeSearch()
 		const attempt = issuedSearch
 		const isLastIssued = () => attempt === issuedSearch
 		set({ isSearching: true, hasSearchFailed: false })
@@ -164,8 +158,7 @@ export const createApplicationsController = (
 			forgetSearch()
 			return
 		}
-		cancelScheduledSearch()
-		abandonIssuedSearch()
+		supersedeSearch()
 		set({ isSearching: true, hasSearchFailed: false })
 		scheduledSearch = setTimeout(sendSearch, searchDelayMs)
 	}
