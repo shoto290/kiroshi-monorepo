@@ -177,7 +177,6 @@ export const SIGN_IN_INSTALL: InstallableApplication = {
 		"list_folders",
 		"get_attendees",
 	],
-	canWrite: false,
 }
 
 export const API_KEY_INSTALL: InstallableApplication = {
@@ -194,9 +193,6 @@ export const API_KEY_INSTALL: InstallableApplication = {
 		"find_releases",
 		"get_trace",
 	],
-	canWrite: false,
-	keyPlace: "sentry.io > Settings > Auth tokens",
-	keyPrefix: "sntryu_",
 }
 
 export const REGISTRY_INSTALL: InstallableApplication = {
@@ -213,8 +209,6 @@ export const REGISTRY_INSTALL: InstallableApplication = {
 		"add_comment",
 		"search_tasks",
 	],
-	canWrite: true,
-	unreviewed: { publisher: "kwn", publishedAt: "4 days ago" },
 }
 
 export const HOSTED_INSTALL: InstallableApplication = {
@@ -235,8 +229,6 @@ export const HOSTED_INSTALL: InstallableApplication = {
 		"search_messages",
 		"list_members",
 	],
-	canWrite: true,
-	unreviewed: { publisher: "run-tools", publishedAt: "3 weeks ago" },
 }
 
 export const HOSTED_NOTHING_INSTALL: InstallableApplication = {
@@ -262,15 +254,6 @@ export const REFUSED_INSTALL: InstallableApplication = {
 		reason:
 			'the required field "apiKey" names no header to carry it, and a key must never travel in a url',
 	},
-}
-
-export const UNSTATED_REACH_INSTALL: InstallableApplication = {
-	id: "io.github.weatherdesk/forecast",
-	name: "forecast",
-	description: "Forecasts and alerts from national weather services.",
-	packageIdentity: "npx -y @weatherdesk/forecast-mcp",
-	setup: "none",
-	tools: ["get_forecast", "get_alerts", "find_station"],
 }
 
 export const LONG_INSTALL: InstallableApplication = {

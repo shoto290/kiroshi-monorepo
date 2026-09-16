@@ -468,7 +468,6 @@ const bots = {
 			},
 			key: {
 				title: "{{name}} needs an API key",
-				placeholder: "Starts with {{prefix}}",
 				reveal: "Show",
 				conceal: "Hide",
 				revealLabel: "Show the API key",
@@ -489,30 +488,11 @@ const bots = {
 				description: "It can’t be added from here: {{reason}}.",
 			},
 			hosting: "Runs on <host>{{host}}</host>, not on this machine.",
-			unreviewed: {
-				title: "Kiroshi hasn’t read this one",
-				description: {
-					reads:
-						"Published on the MCP registry by {{publisher}}, {{date}}. It runs on this machine with your account’s access. Read what it does before you add it.",
-					writes:
-						"Published on the MCP registry by {{publisher}}, {{date}}. It runs on this machine with your account’s access, and it writes as well as reads. Read what it does before you add it.",
-				},
-				hosted: {
-					reads:
-						"Published on {{source}} by {{publisher}}, {{date}}. It reads with your {{name}} account’s access. Read what it does before you add it.",
-					writes:
-						"Published on {{source}} by {{publisher}}, {{date}}. It reads and writes with your {{name}} account’s access. Read what it does before you add it.",
-				},
-			},
 			tools: {
 				title: "What it brings",
 				count: {
 					plain_one: "{{count}} tool",
 					plain_other: "{{count}} tools",
-					reads_one: "{{count}} tool, read only",
-					reads_other: "{{count}} tools, read only",
-					writes_one: "{{count}} tool, reads and writes",
-					writes_other: "{{count}} tools, reads and writes",
 				},
 			},
 			footnote: {

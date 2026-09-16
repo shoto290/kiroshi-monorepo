@@ -26,11 +26,6 @@ import { Button } from "@workspace/ui/components/ui/button"
 import { useOverlayScrollbars } from "@workspace/ui/hooks/use-overlay-scrollbars"
 import { cn } from "@workspace/ui/lib/utils"
 
-type ApplicationPublication = {
-	publisher: string
-	publishedAt: string
-}
-
 type ApplicationRefusal = {
 	field: string
 	reason: string
@@ -39,10 +34,6 @@ type ApplicationRefusal = {
 type InstallableApplication = CatalogueApplication & {
 	packageIdentity: string
 	tools: string[]
-	canWrite?: boolean
-	keyPlace?: string
-	keyPrefix?: string
-	unreviewed?: ApplicationPublication
 	refusal?: ApplicationRefusal
 }
 
@@ -148,18 +139,13 @@ const SignInNotice = ({ name }: SignInNoticeProps) => {
 }
 
 type KeyPanelProps = {
-	application: InstallableApplication
+	name: string
 	owner: ApplicationsOwner
 	value: string
 	onValueChange: (value: string) => void
 }
 
-const KeyPanel = ({
-	application,
-	owner,
-	value,
-	onValueChange,
-}: KeyPanelProps) => {
+const KeyPanel = ({ name, owner, value, onValueChange }: KeyPanelProps) => {
 	const { t } = useTranslation("bots")
 	const [isRevealed, setRevealed] = useState(false)
 	const titleId = useId()
@@ -168,34 +154,20 @@ const KeyPanel = ({
 
 	return (
 		<div className="flex flex-col gap-2 rounded-xl border border-border bg-muted p-3.5">
-			<div className="flex flex-wrap items-baseline gap-x-3">
-				<p
-					className="wrap-break-word font-medium text-foreground text-sm/5"
-					id={titleId}
-				>
-					{t("applications.install.key.title", { name: application.name })}
-				</p>
-				{application.keyPlace ? (
-					<p className="ms-auto wrap-break-word text-muted-foreground text-xs/4">
-						{application.keyPlace}
-					</p>
-				) : null}
-			</div>
+			<p
+				className="wrap-break-word font-medium text-foreground text-sm/5"
+				id={titleId}
+			>
+				{t("applications.install.key.title", { name })}
+			</p>
 			<div className="flex h-9 items-center gap-2 rounded-md border border-input bg-background ps-3 pe-1 has-[input:focus-visible]:border-ring has-[input:focus-visible]:ring-3 has-[input:focus-visible]:ring-ring/30">
 				<input
 					aria-describedby={descriptionId}
 					aria-labelledby={titleId}
 					autoComplete="off"
-					className="min-w-0 flex-1 bg-transparent font-mono text-[13px]/5 text-foreground outline-none placeholder:text-muted-foreground"
+					className="min-w-0 flex-1 bg-transparent font-mono text-[13px]/5 text-foreground outline-none"
 					id={inputId}
 					onChange={(event) => onValueChange(event.target.value)}
-					placeholder={
-						application.keyPrefix
-							? t("applications.install.key.placeholder", {
-									prefix: application.keyPrefix,
-								})
-							: undefined
-					}
 					spellCheck={false}
 					type={isRevealed ? "text" : "password"}
 					value={value}
@@ -243,60 +215,6 @@ const NothingToSetUp = ({ isHosted }: NothingToSetUpProps) => {
 	)
 }
 
-type UnreviewedNoticeProps = {
-	publication: ApplicationPublication
-	canWrite: boolean
-	name: string
-	hostedSource?: string
-}
-
-const UnreviewedNotice = ({
-	publication,
-	canWrite,
-	name,
-	hostedSource,
-}: UnreviewedNoticeProps) => {
-	const { t } = useTranslation("bots")
-	const reach = canWrite ? "writes" : "reads"
-	const publisher = publication.publisher
-	const date = publication.publishedAt
-
-	const sentence = () =>
-		hostedSource === undefined
-			? t(`applications.install.unreviewed.description.${reach}`, {
-					publisher,
-					date,
-				})
-			: t(`applications.install.unreviewed.hosted.${reach}`, {
-					publisher,
-					date,
-					source: hostedSource,
-					name,
-				})
-
-	return (
-		<div
-			className={cn(
-				"flex items-start gap-2.5 rounded-xl border p-3.5",
-				MCP_DESTRUCTIVE_SURFACE,
-			)}
-		>
-			<Icons.Alert
-				aria-hidden="true"
-				className="mt-0.5 size-4 shrink-0 text-destructive"
-			/>
-			<div className="flex min-w-0 flex-col gap-0.75">
-				<p className="wrap-break-word font-medium text-foreground text-sm/5">
-					{t("applications.install.unreviewed.title")}
-				</p>
-				<p className="wrap-break-word text-[13px]/4.5 text-muted-foreground">
-					{sentence()}
-				</p>
-			</div>
-		</div>
-	)
-}
-
 type RefusedNoticeProps = {
 	name: string
 	refusal?: ApplicationRefusal
@@ -334,15 +252,9 @@ const RefusedNotice = ({ name, refusal }: RefusedNoticeProps) => {
 
 type ToolListProps = {
 	tools: string[]
-	canWrite?: boolean
 }
 
-const toolReachOf = (canWrite?: boolean) => {
-	if (canWrite === undefined) return "plain"
-	return canWrite ? "writes" : "reads"
-}
-
-const ToolList = ({ tools, canWrite }: ToolListProps) => {
+const ToolList = ({ tools }: ToolListProps) => {
 	const { t } = useTranslation("bots")
 	const headingId = useId()
 
@@ -353,7 +265,7 @@ const ToolList = ({ tools, canWrite }: ToolListProps) => {
 					{t("applications.install.tools.title")}
 				</h4>
 				<p className="text-muted-foreground text-xs/4 tabular-nums">
-					{t(`applications.install.tools.count.${toolReachOf(canWrite)}`, {
+					{t("applications.install.tools.count.plain", {
 						count: tools.length,
 					})}
 				</p>
@@ -473,7 +385,7 @@ const ApplicationInstallPage = ({
 		if (application.setup === "apiKey") {
 			return (
 				<KeyPanel
-					application={application}
+					name={application.name}
 					onValueChange={setKey}
 					owner={owner}
 					value={key}
@@ -531,14 +443,6 @@ const ApplicationInstallPage = ({
 						ref={body}
 						value={page.category}
 					>
-						{application.unreviewed ? (
-							<UnreviewedNotice
-								canWrite={application.canWrite ?? false}
-								hostedSource={hostedSource}
-								name={application.name}
-								publication={application.unreviewed}
-							/>
-						) : null}
 						<div className="flex flex-col gap-1.75">
 							{setupBlock()}
 							{host === undefined ? null : (
@@ -557,10 +461,7 @@ const ApplicationInstallPage = ({
 								{failure}
 							</p>
 						) : null}
-						<ToolList
-							canWrite={application.canWrite}
-							tools={application.tools}
-						/>
+						<ToolList tools={application.tools} />
 						<div className="mt-auto flex items-start gap-2 border-border border-t pt-3">
 							<Icons.Shield
 								aria-hidden="true"
@@ -594,6 +495,5 @@ const ApplicationInstallPage = ({
 export {
 	ApplicationInstallPage,
 	type ApplicationInstallPageProps,
-	type ApplicationPublication,
 	type InstallableApplication,
 }
