@@ -509,3 +509,32 @@ export const RegistryPartlyUnreadable = meta.story({
 		await expect(args.onRegistryRetry).toHaveBeenCalledTimes(1)
 	},
 })
+
+export const RegistryEmptyAndPartlyUnreadable = meta.story({
+	args: { query: "lin", registry: [], hasRegistryPartlyFailed: true },
+	parameters: {
+		docs: {
+			description: {
+				story:
+					"The registry side that answered returned nothing and the other one failed. Check the line saying nothing matched, the line under it saying part of the catalogue could not be read, and one single Retry.",
+			},
+		},
+	},
+	play: async ({ args, canvas, userEvent }) => {
+		await expect(
+			canvas.getByText("Nothing in the MCP registry matched lin."),
+		).toBeVisible()
+		await expect(
+			canvas.getByText(
+				"Couldn’t read part of the catalogue. Retry to see the rest.",
+			),
+		).toBeVisible()
+		await expect(canvas.getAllByRole("button", { name: "Retry" })).toHaveLength(
+			1,
+		)
+
+		await userEvent.click(canvas.getByRole("button", { name: "Retry" }))
+
+		await expect(args.onRegistryRetry).toHaveBeenCalledTimes(1)
+	},
+})
