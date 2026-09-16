@@ -198,8 +198,6 @@ const chat = {
 			"Copie impossible. Sélectionnez le lien et copiez-le vous-même.",
 	},
 	applicationInstall: {
-		address: "Adresse de connexion",
-		copyFailed: "Copie impossible",
 		openSettings: "Ouvrir les réglages",
 		receipt: {
 			companion: "{{destination}} a {{name}} dans toutes ses conversations.",
