@@ -58,6 +58,9 @@ const USER_PROMPT = "Here is what the composer looks like on my machine."
 
 const AGENT_REPLY = "Thanks — I re-rendered it against the current tokens."
 
+const FILLED_BY_TURN_BODY =
+	"`apps/app/src/components/turn-body.tsx:9` hands over the files `apps/app/src/lib/chat/message-attachments.ts` read out of the message text."
+
 const meta = preview.meta({
 	title: "Conversation/Message/MessageAttachments",
 	component: MessageAttachments,
@@ -88,7 +91,8 @@ export const Default = meta.story({
 		docs: {
 			description: {
 				story:
-					"One screenshot on its own, the commonest thing a reader sends. Check that the thumbnail shows the picture rather than a path, that it stays well inside the bubble instead of spanning its width, and that activating it reports the item's id — the host opens by id, so an index would open the wrong file. `SeveralImages` covers more than one. `apps/app/src/components/turn-body.tsx:9` hands over the files `apps/app/src/lib/chat/message-attachments.ts` read out of the message text.",
+					"One screenshot on its own, the commonest thing a reader sends. Check that the thumbnail shows the picture rather than a path, that it stays well inside the bubble instead of spanning its width, and that activating it reports the item's id — the host opens by id, so an index would open the wrong file. `SeveralImages` covers more than one. " +
+					FILLED_BY_TURN_BODY,
 			},
 		},
 	},
@@ -121,7 +125,8 @@ export const SeveralImages = meta.story({
 		docs: {
 			description: {
 				story:
-					"Three pictures in one turn, one of them twice as tall as it is wide. Check that every thumbnail is capped at the same height so the row keeps a single baseline, that the tall one narrows instead of pushing the bubble down, and that they sit side by side rather than stacking. Reach for it when changing the thumbnail bounds. `LongContent` covers the point where the row wraps. `apps/app/src/components/turn-body.tsx:9` hands over the files `apps/app/src/lib/chat/message-attachments.ts` read out of the message text.",
+					"Three pictures in one turn, one of them twice as tall as it is wide. Check that every thumbnail is capped at the same height so the row keeps a single baseline, that the tall one narrows instead of pushing the bubble down, and that they sit side by side rather than stacking. Reach for it when changing the thumbnail bounds. `LongContent` covers the point where the row wraps. " +
+					FILLED_BY_TURN_BODY,
 			},
 		},
 	},
@@ -147,7 +152,8 @@ export const MixedKinds = meta.story({
 		docs: {
 			description: {
 				story:
-					"A screenshot next to two documents — the row rendering both of its shapes at once. Check that a document falls back to the glyph, its name and its extension while the picture keeps its thumbnail, and that the two shapes align on the same top edge instead of drifting. `Default` covers a lone picture, `Error` the document shape a failed picture falls back to. `apps/app/src/components/turn-body.tsx:9` hands over the files `apps/app/src/lib/chat/message-attachments.ts` read out of the message text.",
+					"A screenshot next to two documents — the row rendering both of its shapes at once. Check that a document falls back to the glyph, its name and its extension while the picture keeps its thumbnail, and that the two shapes align on the same top edge instead of drifting. `Default` covers a lone picture, `Error` the document shape a failed picture falls back to. " +
+					FILLED_BY_TURN_BODY,
 			},
 		},
 	},
@@ -166,7 +172,8 @@ export const States = meta.story({
 		docs: {
 			description: {
 				story:
-					"The row under the keyboard: tabbing walks it in reading order and stops on the document after the thumbnail. Check that the focus ring is drawn from the bubble's own text color so it reads on the yellow as well as the grey, that its offset keeps it off the item's border, and that hovering an item dims it without moving it — a row that reflows under the pointer loses the reader's target. `apps/app/src/components/turn-body.tsx:9` hands over the files `apps/app/src/lib/chat/message-attachments.ts` read out of the message text.",
+					"The row under the keyboard: tabbing walks it in reading order and stops on the document after the thumbnail. Check that the focus ring is drawn from the bubble's own text color so it reads on the yellow as well as the grey, that its offset keeps it off the item's border, and that hovering an item dims it without moving it — a row that reflows under the pointer loses the reader's target. " +
+					FILLED_BY_TURN_BODY,
 			},
 		},
 	},
@@ -189,7 +196,8 @@ export const LongContent = meta.story({
 		docs: {
 			description: {
 				story:
-					"More files than fit on one line, one named far past the width of an item. Check that the row wraps into a second line instead of scrolling or squeezing, that a long name truncates while its extension stays put, and that the items keep their reading order. Reach for it when changing item padding or the row gap — this is where the bubble runs out of width first. `apps/app/src/components/turn-body.tsx:9` hands over the files `apps/app/src/lib/chat/message-attachments.ts` read out of the message text.",
+					"More files than fit on one line, one named far past the width of an item. Check that the row wraps into a second line instead of scrolling or squeezing, that a long name truncates while its extension stays put, and that the items keep their reading order. Reach for it when changing item padding or the row gap — this is where the bubble runs out of width first. " +
+					FILLED_BY_TURN_BODY,
 			},
 		},
 	},
@@ -217,7 +225,8 @@ export const Error = meta.story({
 		docs: {
 			description: {
 				story:
-					"A source the host resolved and no decoder accepts. Check that the broken image is replaced by the same shape a document takes — a glyph, the name and the extension — rather than a torn-image icon or an empty box, and that the item stays activatable so the reader can still open the file. `MixedKinds` covers the shape it falls back to when nothing was ever resolved. `apps/app/src/components/turn-body.tsx:9` hands over the files `apps/app/src/lib/chat/message-attachments.ts` read out of the message text.",
+					"A source the host resolved and no decoder accepts. Check that the broken image is replaced by the same shape a document takes — a glyph, the name and the extension — rather than a torn-image icon or an empty box, and that the item stays activatable so the reader can still open the file. `MixedKinds` covers the shape it falls back to when nothing was ever resolved. " +
+					FILLED_BY_TURN_BODY,
 			},
 		},
 	},
@@ -281,7 +290,8 @@ export const Empty = meta.story({
 		docs: {
 			description: {
 				story:
-					"A message that carries nothing — every turn that is only text. Check that the row renders no element at all rather than an empty box: the bubble stacks its blocks with a gap, so a zero-height list would still cost the text one. `Default` covers the first file landing in it. `apps/app/src/components/turn-body.tsx:9` hands over the files `apps/app/src/lib/chat/message-attachments.ts` read out of the message text.",
+					"A message that carries nothing — every turn that is only text. Check that the row renders no element at all rather than an empty box: the bubble stacks its blocks with a gap, so a zero-height list would still cost the text one. `Default` covers the first file landing in it. " +
+					FILLED_BY_TURN_BODY,
 			},
 		},
 	},

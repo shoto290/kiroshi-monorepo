@@ -239,6 +239,12 @@ const ComposedMenu = (props: PromptMentionMenuProps) => {
 	)
 }
 
+const OPENED_BY_THE_COMPOSER =
+	"`apps/app/src/components/thread-menu.tsx:75` opens it over the composer with the companions `apps/app/src/lib/conversations/roster-conversations.ts:94` lists for the conversation and its space."
+
+const COUNTED_BY_THE_COMPOSER =
+	"`apps/app/src/components/thread-menu.tsx:78` counts the mentions the draft already holds and hands them to the menu as data."
+
 const meta = preview.meta({
 	title: "Conversation/Prompt/PromptMentionMenu",
 	component: PromptMentionMenu,
@@ -279,7 +285,8 @@ export const Default = meta.story({
 		docs: {
 			description: {
 				story:
-					"The nominal case: the menu is open on an empty query, so every companion of the conversation is listed and the first row is the active one. Check that the panel sits above the composer on its leading edge, that each row pairs an avatar with a name, that exactly one row carries the highlight, and that Escape reports a dismissal to the host. `apps/app/src/components/thread-menu.tsx:75` opens it over the composer with the companions `apps/app/src/lib/conversations/roster-conversations.ts:94` lists for the conversation and its space.",
+					"The nominal case: the menu is open on an empty query, so every companion of the conversation is listed and the first row is the active one. Check that the panel sits above the composer on its leading edge, that each row pairs an avatar with a name, that exactly one row carries the highlight, and that Escape reports a dismissal to the host. " +
+					OPENED_BY_THE_COMPOSER,
 			},
 		},
 	},
@@ -306,7 +313,8 @@ export const Pictured = meta.story({
 		docs: {
 			description: {
 				story:
-					"A companion wearing its picture, listed above companions drawn from a blot. Check that the picture fills its 24px slot as a rounded square with no border, that it adds nothing to the option's name, and that the rows below keep their animal over their blot. `apps/app/src/components/thread-menu.tsx:75` opens it over the composer with the companions `apps/app/src/lib/conversations/roster-conversations.ts:94` lists for the conversation and its space.",
+					"A companion wearing its picture, listed above companions drawn from a blot. Check that the picture fills its 24px slot as a rounded square with no border, that it adds nothing to the option's name, and that the rows below keep their animal over their blot. " +
+					OPENED_BY_THE_COMPOSER,
 			},
 		},
 	},
@@ -326,7 +334,8 @@ export const Lead = meta.story({
 		docs: {
 			description: {
 				story:
-					"The companion that leads the conversation, marked. Check that the crown falls on the lead and on nobody else, that it never stands alone as the only sign of the role since *Lead* is announced beside it, and that the mark follows the companion rather than the first row. `apps/app/src/components/thread-menu.tsx:75` opens it over the composer with the companions `apps/app/src/lib/conversations/roster-conversations.ts:94` lists for the conversation and its space.",
+					"The companion that leads the conversation, marked. Check that the crown falls on the lead and on nobody else, that it never stands alone as the only sign of the role since *Lead* is announced beside it, and that the mark follows the companion rather than the first row. " +
+					OPENED_BY_THE_COMPOSER,
 			},
 		},
 	},
@@ -344,7 +353,8 @@ export const Filtered = meta.story({
 		docs: {
 			description: {
 				story:
-					"A typed query narrows the list to the companions whose name carries it, matched case-insensitively, and the highlight falls back to the first survivor. Check that the panel shrinks to the remaining rows and that clicking one reports that companion's id rather than the highlighted one. `apps/app/src/components/thread-menu.tsx:75` opens it over the composer with the companions `apps/app/src/lib/conversations/roster-conversations.ts:94` lists for the conversation and its space.",
+					"A typed query narrows the list to the companions whose name carries it, matched case-insensitively, and the highlight falls back to the first survivor. Check that the panel shrinks to the remaining rows and that clicking one reports that companion's id rather than the highlighted one. " +
+					OPENED_BY_THE_COMPOSER,
 			},
 		},
 	},
@@ -365,7 +375,8 @@ export const LeadFilteredOut = meta.story({
 		docs: {
 			description: {
 				story:
-					"A query that leaves the lead out of the matches. Check that no crown is drawn at all — the mark states who leads, so a list without the lead in it carries none, and the first row is never crowned by position. `apps/app/src/components/thread-menu.tsx:75` opens it over the composer with the companions `apps/app/src/lib/conversations/roster-conversations.ts:94` lists for the conversation and its space.",
+					"A query that leaves the lead out of the matches. Check that no crown is drawn at all — the mark states who leads, so a list without the lead in it carries none, and the first row is never crowned by position. " +
+					OPENED_BY_THE_COMPOSER,
 			},
 		},
 	},
@@ -382,7 +393,8 @@ export const KeyboardTravel = meta.story({
 		docs: {
 			description: {
 				story:
-					"The keyboard contract, with focus never leaving the composer: ArrowDown and ArrowUp move the highlight by one and wrap at both ends, Enter and Tab select whatever is highlighted. Check that neither arrow moves the caret in the textarea and that Enter selects instead of submitting the prompt. `apps/app/src/components/thread-menu.tsx:75` opens it over the composer with the companions `apps/app/src/lib/conversations/roster-conversations.ts:94` lists for the conversation and its space.",
+					"The keyboard contract, with focus never leaving the composer: ArrowDown and ArrowUp move the highlight by one and wrap at both ends, Enter and Tab select whatever is highlighted. Check that neither arrow moves the caret in the textarea and that Enter selects instead of submitting the prompt. " +
+					OPENED_BY_THE_COMPOSER,
 			},
 		},
 	},
@@ -413,7 +425,8 @@ export const SpaceOpened = meta.story({
 		docs: {
 			description: {
 				story:
-					"The popover opened on an empty query in a space of thirty companions, twelve of them in the conversation, listed by the host with outsiders interleaved. Check that exactly the first six companions of the conversation show in the host's order, with no scrollbar, no group label and no boundary, and that only the crowned lead row draws a trailing slot. `SpaceQueried` covers the same space once a name is typed. `apps/app/src/components/thread-menu.tsx:75` opens it over the composer with the companions `apps/app/src/lib/conversations/roster-conversations.ts:94` lists for the conversation and its space.",
+					"The popover opened on an empty query in a space of thirty companions, twelve of them in the conversation, listed by the host with outsiders interleaved. Check that exactly the first six companions of the conversation show in the host's order, with no scrollbar, no group label and no boundary, and that only the crowned lead row draws a trailing slot. `SpaceQueried` covers the same space once a name is typed. " +
+					OPENED_BY_THE_COMPOSER,
 			},
 		},
 	},
@@ -452,7 +465,8 @@ export const SpaceQueried = meta.story({
 		docs: {
 			description: {
 				story:
-					"A query typed in capitals that reaches one companion of the conversation and one outside it, the outsider listed first by the host. Check that the companion of the conversation comes first, that a single *Not in this conversation* boundary sits above the outsider, that the outsider wears its title badge, a dimmed avatar and the add glyph, and that the arrows step over the boundary so Enter reports the outsider's id with its outside flag. `apps/app/src/components/thread-menu.tsx:75` opens it over the composer with the companions `apps/app/src/lib/conversations/roster-conversations.ts:94` lists for the conversation and its space.",
+					"A query typed in capitals that reaches one companion of the conversation and one outside it, the outsider listed first by the host. Check that the companion of the conversation comes first, that a single *Not in this conversation* boundary sits above the outsider, that the outsider wears its title badge, a dimmed avatar and the add glyph, and that the arrows step over the boundary so Enter reports the outsider's id with its outside flag. " +
+					OPENED_BY_THE_COMPOSER,
 			},
 		},
 	},
@@ -497,7 +511,8 @@ export const SpaceMatchesInside = meta.story({
 		docs: {
 			description: {
 				story:
-					"A query whose only match is already in the conversation, in a space where outsiders exist. Check that no boundary row is drawn and no footer either, since the boundary only ever introduces companions outside the conversation. `apps/app/src/components/thread-menu.tsx:75` opens it over the composer with the companions `apps/app/src/lib/conversations/roster-conversations.ts:94` lists for the conversation and its space.",
+					"A query whose only match is already in the conversation, in a space where outsiders exist. Check that no boundary row is drawn and no footer either, since the boundary only ever introduces companions outside the conversation. " +
+					OPENED_BY_THE_COMPOSER,
 			},
 		},
 	},
@@ -516,7 +531,8 @@ export const SpaceKeyboardTravel = meta.story({
 		docs: {
 			description: {
 				story:
-					"A query reaching more companions than the panel shows, across the boundary. Check that the list scrolls instead of growing past the composer and that travelling with the arrows keeps the active row in view, the boundary included in the wrap but never highlighted. `apps/app/src/components/thread-menu.tsx:75` opens it over the composer with the companions `apps/app/src/lib/conversations/roster-conversations.ts:94` lists for the conversation and its space.",
+					"A query reaching more companions than the panel shows, across the boundary. Check that the list scrolls instead of growing past the composer and that travelling with the arrows keeps the active row in view, the boundary included in the wrap but never highlighted. " +
+					OPENED_BY_THE_COMPOSER,
 			},
 		},
 	},
@@ -541,7 +557,8 @@ export const LongContent = meta.story({
 		docs: {
 			description: {
 				story:
-					"Two companions named far past their row, one leading the conversation and one outside it, each with a title. Check that only the name gives way to an ellipsis, that the title badge stays whole, and that the trailing slot keeps its full width with the crown or the add glyph flush to the row's end. `apps/app/src/components/thread-menu.tsx:75` opens it over the composer with the companions `apps/app/src/lib/conversations/roster-conversations.ts:94` lists for the conversation and its space.",
+					"Two companions named far past their row, one leading the conversation and one outside it, each with a title. Check that only the name gives way to an ellipsis, that the title badge stays whole, and that the trailing slot keeps its full width with the crown or the add glyph flush to the row's end. " +
+					OPENED_BY_THE_COMPOSER,
 			},
 		},
 	},
@@ -574,7 +591,8 @@ export const QueryChanged = meta.story({
 		docs: {
 			description: {
 				story:
-					"The composer drives the query for real: the highlight is moved down twice, then more of the name is typed. Check that the new match list starts on its first row again rather than keeping the old offset, and that typing never disturbs the menu the way the arrows do. `apps/app/src/components/thread-menu.tsx:75` opens it over the composer with the companions `apps/app/src/lib/conversations/roster-conversations.ts:94` lists for the conversation and its space.",
+					"The composer drives the query for real: the highlight is moved down twice, then more of the name is typed. Check that the new match list starts on its first row again rather than keeping the old offset, and that typing never disturbs the menu the way the arrows do. " +
+					OPENED_BY_THE_COMPOSER,
 			},
 		},
 	},
@@ -603,7 +621,8 @@ export const Empty = meta.story({
 		docs: {
 			description: {
 				story:
-					"The query matches no companion, so the menu renders nothing at all — no panel, no empty message, no keyboard capture. Check that the composer alone remains and that Enter reaches it, since the menu must not swallow a submission it has no row to answer with. `apps/app/src/components/thread-menu.tsx:75` opens it over the composer with the companions `apps/app/src/lib/conversations/roster-conversations.ts:94` lists for the conversation and its space.",
+					"The query matches no companion, so the menu renders nothing at all — no panel, no empty message, no keyboard capture. Check that the composer alone remains and that Enter reaches it, since the menu must not swallow a submission it has no row to answer with. " +
+					OPENED_BY_THE_COMPOSER,
 			},
 		},
 	},
@@ -618,7 +637,8 @@ export const Counted = meta.story({
 		docs: {
 			description: {
 				story:
-					"The draft already names two of the listed companions, one once and one three times, and says nothing of the others. Check that the count reads as part of the name it counts, one row-gap after its last glyph and nowhere near the trailing edge, that the number is announced as a phrase rather than as a bare glyph, and that a companion the draft never names renders exactly as it does everywhere else — no zero, no placeholder. `apps/app/src/components/thread-menu.tsx:78` counts the mentions the draft already holds and hands them to the menu as data.",
+					"The draft already names two of the listed companions, one once and one three times, and says nothing of the others. Check that the count reads as part of the name it counts, one row-gap after its last glyph and nowhere near the trailing edge, that the number is announced as a phrase rather than as a bare glyph, and that a companion the draft never names renders exactly as it does everywhere else — no zero, no placeholder. " +
+					COUNTED_BY_THE_COMPOSER,
 			},
 		},
 	},
@@ -649,7 +669,8 @@ export const CountedLead = meta.story({
 		docs: {
 			description: {
 				story:
-					"The lead of the conversation, already named twice in the draft. Check that the count sits between the name and the crown so the crown stays the last thing on the row, and that the two marks are read in that same order rather than fighting for the trailing edge. `apps/app/src/components/thread-menu.tsx:78` counts the mentions the draft already holds and hands them to the menu as data.",
+					"The lead of the conversation, already named twice in the draft. Check that the count sits between the name and the crown so the crown stays the last thing on the row, and that the two marks are read in that same order rather than fighting for the trailing edge. " +
+					COUNTED_BY_THE_COMPOSER,
 			},
 		},
 	},
@@ -680,7 +701,8 @@ export const CountedLongName = meta.story({
 		docs: {
 			description: {
 				story:
-					"A count on a companion named far past the width of its row. Check that the name is the only part that gives way to an ellipsis and that the digits stay whole at the row's end, since a row with neither crown nor add glyph draws no trailing slot: a reader must never lose the number to the overflow of a name. `apps/app/src/components/thread-menu.tsx:78` counts the mentions the draft already holds and hands them to the menu as data.",
+					"A count on a companion named far past the width of its row. Check that the name is the only part that gives way to an ellipsis and that the digits stay whole at the row's end, since a row with neither crown nor add glyph draws no trailing slot: a reader must never lose the number to the overflow of a name. " +
+					COUNTED_BY_THE_COMPOSER,
 			},
 		},
 	},
@@ -701,7 +723,8 @@ export const CountedAgain = meta.story({
 		docs: {
 			description: {
 				story:
-					"A row already at one, taken once more. Check that the count reads two the moment the row is picked, without the panel closing or the list reordering under the pointer, since the number answers the draft and not the selection. `apps/app/src/components/thread-menu.tsx:78` counts the mentions the draft already holds and hands them to the menu as data.",
+					"A row already at one, taken once more. Check that the count reads two the moment the row is picked, without the panel closing or the list reordering under the pointer, since the number answers the draft and not the selection. " +
+					COUNTED_BY_THE_COMPOSER,
 			},
 		},
 	},
@@ -725,7 +748,8 @@ export const InDarkTheme = meta.story({
 		docs: {
 			description: {
 				story:
-					"The opened popover under the dark theme, where a light-theme shadow vanishes against the dark surface. Check that the panel still lifts off the page through a hairline light halo over a deeper shadow, the same `shadow-popover` token the command popover wears, and that every row and its badge read on the dark popover surface. `apps/app/src/components/thread-menu.tsx:75` opens it over the composer with the companions `apps/app/src/lib/conversations/roster-conversations.ts:94` lists for the conversation and its space.",
+					"The opened popover under the dark theme, where a light-theme shadow vanishes against the dark surface. Check that the panel still lifts off the page through a hairline light halo over a deeper shadow, the same `shadow-popover` token the command popover wears, and that every row and its badge read on the dark popover surface. " +
+					OPENED_BY_THE_COMPOSER,
 			},
 		},
 	},

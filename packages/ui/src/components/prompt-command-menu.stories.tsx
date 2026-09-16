@@ -68,6 +68,9 @@ const ComposedMenu = (props: PromptCommandMenuProps) => {
 	)
 }
 
+const OPENED_BY_THE_COMPOSER =
+	"`apps/app/src/components/thread-menu.tsx:52` opens it over the composer with the commands `apps/app/src/lib/chat/prompt-commands.ts:10` names from the running session."
+
 const meta = preview.meta({
 	title: "Conversation/Prompt/PromptCommandMenu",
 	component: PromptCommandMenu,
@@ -106,7 +109,8 @@ export const Default = meta.story({
 		docs: {
 			description: {
 				story:
-					"The nominal case: the menu is open on an empty query, so every command the session reports is listed and the first row is the active one. Check that the panel sits above the composer on its leading edge, that exactly one row carries the highlight, and that Escape reports a dismissal to the host. `apps/app/src/components/thread-menu.tsx:52` opens it over the composer with the commands `apps/app/src/lib/chat/prompt-commands.ts:10` names from the running session.",
+					"The nominal case: the menu is open on an empty query, so every command the session reports is listed and the first row is the active one. Check that the panel sits above the composer on its leading edge, that exactly one row carries the highlight, and that Escape reports a dismissal to the host. " +
+					OPENED_BY_THE_COMPOSER,
 			},
 		},
 	},
@@ -128,7 +132,8 @@ export const Filtered = meta.story({
 		docs: {
 			description: {
 				story:
-					"A typed query narrows the list — `co` keeps every command containing it, matched case-insensitively, and the highlight falls back to the first survivor. Check that the panel shrinks to the remaining rows and that clicking one reports that row's command rather than the active one. `apps/app/src/components/thread-menu.tsx:52` opens it over the composer with the commands `apps/app/src/lib/chat/prompt-commands.ts:10` names from the running session.",
+					"A typed query narrows the list — `co` keeps every command containing it, matched case-insensitively, and the highlight falls back to the first survivor. Check that the panel shrinks to the remaining rows and that clicking one reports that row's command rather than the active one. " +
+					OPENED_BY_THE_COMPOSER,
 			},
 		},
 	},
@@ -149,7 +154,8 @@ export const KeyboardTravel = meta.story({
 		docs: {
 			description: {
 				story:
-					"The keyboard contract, with focus never leaving the composer: ArrowDown and ArrowUp move the highlight by one and wrap at both ends, Enter and Tab select whatever is highlighted. Check that neither arrow moves the caret in the textarea and that Enter selects instead of submitting the prompt. `apps/app/src/components/thread-menu.tsx:52` opens it over the composer with the commands `apps/app/src/lib/chat/prompt-commands.ts:10` names from the running session.",
+					"The keyboard contract, with focus never leaving the composer: ArrowDown and ArrowUp move the highlight by one and wrap at both ends, Enter and Tab select whatever is highlighted. Check that neither arrow moves the caret in the textarea and that Enter selects instead of submitting the prompt. " +
+					OPENED_BY_THE_COMPOSER,
 			},
 		},
 	},
@@ -182,7 +188,8 @@ export const Described = meta.story({
 		docs: {
 			description: {
 				story:
-					"Commands carrying a description: it sits under the name in muted extra-small text, on one line. Check that a description far too long for the row truncates rather than wrapping or widening the panel, that the panel stops at its own maximum width, and that a command naming none keeps a single-line row. `apps/app/src/components/thread-menu.tsx:52` opens it over the composer with the commands `apps/app/src/lib/chat/prompt-commands.ts:10` names from the running session.",
+					"Commands carrying a description: it sits under the name in muted extra-small text, on one line. Check that a description far too long for the row truncates rather than wrapping or widening the panel, that the panel stops at its own maximum width, and that a command naming none keeps a single-line row. " +
+					OPENED_BY_THE_COMPOSER,
 			},
 		},
 	},
@@ -202,7 +209,8 @@ export const LongContent = meta.story({
 		docs: {
 			description: {
 				story:
-					"More commands than the panel can show, one of them far too long for its row. Check that the list scrolls instead of growing past the composer, that a long name truncates rather than widening the panel, and that travelling with the arrows keeps the active row in view. `apps/app/src/components/thread-menu.tsx:52` opens it over the composer with the commands `apps/app/src/lib/chat/prompt-commands.ts:10` names from the running session.",
+					"More commands than the panel can show, one of them far too long for its row. Check that the list scrolls instead of growing past the composer, that a long name truncates rather than widening the panel, and that travelling with the arrows keeps the active row in view. " +
+					OPENED_BY_THE_COMPOSER,
 			},
 		},
 	},
@@ -222,7 +230,8 @@ export const QueryChanged = meta.story({
 		docs: {
 			description: {
 				story:
-					"The composer drives the query for real: the highlight is moved down twice, then more of the command is typed. Check that the new match list starts on its first row again rather than keeping the old offset, and that typing never disturbs the menu the way the arrows do. `apps/app/src/components/thread-menu.tsx:52` opens it over the composer with the commands `apps/app/src/lib/chat/prompt-commands.ts:10` names from the running session.",
+					"The composer drives the query for real: the highlight is moved down twice, then more of the command is typed. Check that the new match list starts on its first row again rather than keeping the old offset, and that typing never disturbs the menu the way the arrows do. " +
+					OPENED_BY_THE_COMPOSER,
 			},
 		},
 	},
@@ -251,7 +260,8 @@ export const Empty = meta.story({
 		docs: {
 			description: {
 				story:
-					"The query matches no command, so the menu renders nothing at all — no panel, no empty message, no keyboard capture. Check that the composer alone remains and that Enter reaches it, since the menu must not swallow a submission it has no row to answer with. `apps/app/src/components/thread-menu.tsx:52` opens it over the composer with the commands `apps/app/src/lib/chat/prompt-commands.ts:10` names from the running session.",
+					"The query matches no command, so the menu renders nothing at all — no panel, no empty message, no keyboard capture. Check that the composer alone remains and that Enter reaches it, since the menu must not swallow a submission it has no row to answer with. " +
+					OPENED_BY_THE_COMPOSER,
 			},
 		},
 	},

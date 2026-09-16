@@ -247,6 +247,9 @@ const renderInShell = (args: RoutinesPanelProps) => (
 	</WorkspaceShell>
 )
 
+const MOUNTED_BY_THE_THREAD =
+	"`apps/app/src/components/thread-routines.tsx:107` mounts the panel of every conversation, with the missions, routines, form and detail its controllers hold."
+
 const meta = preview.meta({
 	title: "Conversation/Routines/RoutinesPanel",
 	component: RoutinesPanel,
@@ -299,7 +302,8 @@ export const Default = meta.story({
 		docs: {
 			description: {
 				story:
-					"Six missions of three companions, spread over the three groups the panel knows: what waits on the reader first, what is in progress under it, then what closed earlier today, folded. Check that every group carries its count, that the rows are bare — no border, no surface — that a mission closed earlier today keeps its rows out of sight until its head is opened, that no routine is listed in the body, and that the routines of the conversation sit behind the entry at the foot carrying their count. `apps/app/src/components/thread-routines.tsx:107` mounts the panel of every conversation, with the missions, routines, form and detail its controllers hold.",
+					"Six missions of three companions, spread over the three groups the panel knows: what waits on the reader first, what is in progress under it, then what closed earlier today, folded. Check that every group carries its count, that the rows are bare — no border, no surface — that a mission closed earlier today keeps its rows out of sight until its head is opened, that no routine is listed in the body, and that the routines of the conversation sit behind the entry at the foot carrying their count. " +
+					MOUNTED_BY_THE_THREAD,
 			},
 		},
 	},
@@ -350,7 +354,8 @@ export const OneMission = meta.story({
 		docs: {
 			description: {
 				story:
-					"A conversation holding one mission, and that mission waiting on the reader. Check that only the group it belongs to is drawn — a group with nothing in it is left out rather than shown empty — and that the row reads its companion, its ticket and its age on two lines. `apps/app/src/components/thread-routines.tsx:107` mounts the panel of every conversation, with the missions, routines, form and detail its controllers hold.",
+					"A conversation holding one mission, and that mission waiting on the reader. Check that only the group it belongs to is drawn — a group with nothing in it is left out rather than shown empty — and that the row reads its companion, its ticket and its age on two lines. " +
+					MOUNTED_BY_THE_THREAD,
 			},
 		},
 	},
@@ -376,7 +381,8 @@ export const EarlierTodayUnfolded = meta.story({
 		docs: {
 			description: {
 				story:
-					"What the conversation closed and what its routines reported since midnight, unfolded from their head. Check that the head reports itself expanded once activated, that closed missions and reported runs read as one list ordered most recent first, that a closed mission reads muted with the time of day it closed, that a reported run names its routine, its trigger, its companion and the word reported, and that a run row answers no pointer. `apps/app/src/components/thread-routines.tsx:107` mounts the panel of every conversation, with the missions, routines, form and detail its controllers hold.",
+					"What the conversation closed and what its routines reported since midnight, unfolded from their head. Check that the head reports itself expanded once activated, that closed missions and reported runs read as one list ordered most recent first, that a closed mission reads muted with the time of day it closed, that a reported run names its routine, its trigger, its companion and the word reported, and that a run row answers no pointer. " +
+					MOUNTED_BY_THE_THREAD,
 			},
 		},
 	},
@@ -425,7 +431,8 @@ export const EarlierTodayFoldTarget = meta.story({
 		docs: {
 			description: {
 				story:
-					"The list the fold speaks for, in both of its states. Check that the id named by aria-controls resolves in the document while the group is folded as well as once it is unfolded, that the folded list is hidden from view and from assistive technology rather than removed, and that its rows stay out of the tab order until the group is opened. `apps/app/src/components/thread-routines.tsx:107` mounts the panel of every conversation, with the missions, routines, form and detail its controllers hold.",
+					"The list the fold speaks for, in both of its states. Check that the id named by aria-controls resolves in the document while the group is folded as well as once it is unfolded, that the folded list is hidden from view and from assistive technology rather than removed, and that its rows stay out of the tab order until the group is opened. " +
+					MOUNTED_BY_THE_THREAD,
 			},
 		},
 	},
@@ -459,7 +466,8 @@ export const Closed = meta.story({
 		docs: {
 			description: {
 				story:
-					"The panel folded away. Check that the thread card takes the whole room the folded panel leaves, keeping nothing but its own gutter, that the control in the app header reports the panel closed rather than merely looking unpressed, that it points at nothing while there is nothing to point at — a folded panel is out of the document, so an `aria-controls` naming it would name an element a screen reader cannot reach — and that the panel is out of the document entirely rather than a column of no width. `apps/app/src/components/thread-routines.tsx:107` mounts the panel of every conversation, with the missions, routines, form and detail its controllers hold.",
+					"The panel folded away. Check that the thread card takes the whole room the folded panel leaves, keeping nothing but its own gutter, that the control in the app header reports the panel closed rather than merely looking unpressed, that it points at nothing while there is nothing to point at — a folded panel is out of the document, so an `aria-controls` naming it would name an element a screen reader cannot reach — and that the panel is out of the document entirely rather than a column of no width. " +
+					MOUNTED_BY_THE_THREAD,
 			},
 		},
 	},
@@ -486,7 +494,8 @@ export const Toggling = meta.story({
 		docs: {
 			description: {
 				story:
-					"The way in and the way out, each in its own place. Check that the control in the app header opens the panel and then leaves the header, that the icon that closes it again sits on the same line the opener's icon sat on and the same distance in from the frame, once the thread card's own gutter is counted — the two controls are the same size, so the icons land together rather than the boxes around them — the two read as one control moving between two homes rather than two controls at two positions — that opening hands the keyboard to the close control inside the panel rather than dropping it on the body, that this control closes the panel, and that closing hands the keyboard back to the control in the app header. `apps/app/src/components/thread-routines.tsx:107` mounts the panel of every conversation, with the missions, routines, form and detail its controllers hold.",
+					"The way in and the way out, each in its own place. Check that the control in the app header opens the panel and then leaves the header, that the icon that closes it again sits on the same line the opener's icon sat on and the same distance in from the frame, once the thread card's own gutter is counted — the two controls are the same size, so the icons land together rather than the boxes around them — the two read as one control moving between two homes rather than two controls at two positions — that opening hands the keyboard to the close control inside the panel rather than dropping it on the body, that this control closes the panel, and that closing hands the keyboard back to the control in the app header. " +
+					MOUNTED_BY_THE_THREAD,
 			},
 		},
 	},
@@ -526,7 +535,8 @@ export const Empty = meta.story({
 		docs: {
 			description: {
 				story:
-					"A conversation nothing runs on yet, neither mission nor routine. Check that the empty body names what would land here rather than showing three empty groups, that the entry at the foot still counts the routines it holds — none — and that the way to write the first routine is one screen behind it. Pick `NoMission` for a conversation whose routines are written but whose missions are all closed and gone. `apps/app/src/components/thread-routines.tsx:107` mounts the panel of every conversation, with the missions, routines, form and detail its controllers hold.",
+					"A conversation nothing runs on yet, neither mission nor routine. Check that the empty body names what would land here rather than showing three empty groups, that the entry at the foot still counts the routines it holds — none — and that the way to write the first routine is one screen behind it. Pick `NoMission` for a conversation whose routines are written but whose missions are all closed and gone. " +
+					MOUNTED_BY_THE_THREAD,
 			},
 		},
 	},
@@ -550,7 +560,8 @@ export const NoMission = meta.story({
 		docs: {
 			description: {
 				story:
-					"A conversation whose routines are written and whose missions are all closed before today. Check that the body reads as the empty one rather than as a blank column, and that the routines are still counted at the foot. `apps/app/src/components/thread-routines.tsx:107` mounts the panel of every conversation, with the missions, routines, form and detail its controllers hold.",
+					"A conversation whose routines are written and whose missions are all closed before today. Check that the body reads as the empty one rather than as a blank column, and that the routines are still counted at the foot. " +
+					MOUNTED_BY_THE_THREAD,
 			},
 		},
 	},
@@ -571,7 +582,8 @@ export const OpeningTheRoutines = meta.story({
 		docs: {
 			description: {
 				story:
-					"The routines of the conversation, one screen behind the entry at the foot. Check that the entry pushes them over the panel rather than growing the body, that the missions are gone while they are up, that every routine row names its routine and the source that fires it — including the routine whose source no read named, which falls back to the source id rather than leaving the line blank — that flipping a switch reports the routine it belongs to, and that coming back hands the keyboard to the entry that opened it. `apps/app/src/components/thread-routines.tsx:107` mounts the panel of every conversation, with the missions, routines, form and detail its controllers hold.",
+					"The routines of the conversation, one screen behind the entry at the foot. Check that the entry pushes them over the panel rather than growing the body, that the missions are gone while they are up, that every routine row names its routine and the source that fires it — including the routine whose source no read named, which falls back to the source id rather than leaving the line blank — that flipping a switch reports the routine it belongs to, and that coming back hands the keyboard to the entry that opened it. " +
+					MOUNTED_BY_THE_THREAD,
 			},
 		},
 	},
@@ -614,7 +626,8 @@ export const OpeningAMission = meta.story({
 		docs: {
 			description: {
 				story:
-					"A mission picked from a group. Check that the whole row is what answers the pointer and the keyboard — the row carries no control of its own — that it reports the mission it belongs to rather than opening anything inside the panel, and that a row reached by keyboard wears a focus ring. `apps/app/src/components/thread-routines.tsx:107` mounts the panel of every conversation, with the missions, routines, form and detail its controllers hold.",
+					"A mission picked from a group. Check that the whole row is what answers the pointer and the keyboard — the row carries no control of its own — that it reports the mission it belongs to rather than opening anything inside the panel, and that a row reached by keyboard wears a focus ring. " +
+					MOUNTED_BY_THE_THREAD,
 			},
 		},
 	},
@@ -641,7 +654,8 @@ export const RoutinesReadFailed = meta.story({
 		docs: {
 			description: {
 				story:
-					"The routines could not be read, the missions could. Check that the notice names the routines rather than the activity as a whole, that the missions the app did read stay on screen under it, and that the retry is the only thing asked of the reader. Pick `MissionsReadFailed` for the other way round. `apps/app/src/components/thread-routines.tsx:107` mounts the panel of every conversation, with the missions, routines, form and detail its controllers hold.",
+					"The routines could not be read, the missions could. Check that the notice names the routines rather than the activity as a whole, that the missions the app did read stay on screen under it, and that the retry is the only thing asked of the reader. Pick `MissionsReadFailed` for the other way round. " +
+					MOUNTED_BY_THE_THREAD,
 			},
 		},
 	},
@@ -664,7 +678,8 @@ export const MissionsReadFailed = meta.story({
 		docs: {
 			description: {
 				story:
-					"The missions could not be read, the routines could. Check that the notice names the missions rather than blaming a routines read that never failed, that it sits above the body rather than inside a group, and that the routines the app did read are still counted at the foot. `apps/app/src/components/thread-routines.tsx:107` mounts the panel of every conversation, with the missions, routines, form and detail its controllers hold.",
+					"The missions could not be read, the routines could. Check that the notice names the missions rather than blaming a routines read that never failed, that it sits above the body rather than inside a group, and that the routines the app did read are still counted at the foot. " +
+					MOUNTED_BY_THE_THREAD,
 			},
 		},
 	},
@@ -691,7 +706,8 @@ export const ActivityReadFailed = meta.story({
 		docs: {
 			description: {
 				story:
-					"Neither read came back. Check that one notice covers both rather than two stacked on top of each other, that it takes the place of the empty state — a conversation whose activity could not be read has not lost it — and that its retry asks for both reads at once. `apps/app/src/components/thread-routines.tsx:107` mounts the panel of every conversation, with the missions, routines, form and detail its controllers hold.",
+					"Neither read came back. Check that one notice covers both rather than two stacked on top of each other, that it takes the place of the empty state — a conversation whose activity could not be read has not lost it — and that its retry asks for both reads at once. " +
+					MOUNTED_BY_THE_THREAD,
 			},
 		},
 	},
@@ -714,7 +730,8 @@ export const WriteFailed = meta.story({
 		docs: {
 			description: {
 				story:
-					"A switch that could not be written. Check that the panel says a change failed rather than blaming a read that never happened, that the notice follows the reader onto the routines screen, that the routines the app is holding stay on screen under it, and that the switch reads as it did before the attempt. `apps/app/src/components/thread-routines.tsx:107` mounts the panel of every conversation, with the missions, routines, form and detail its controllers hold.",
+					"A switch that could not be written. Check that the panel says a change failed rather than blaming a read that never happened, that the notice follows the reader onto the routines screen, that the routines the app is holding stay on screen under it, and that the switch reads as it did before the attempt. " +
+					MOUNTED_BY_THE_THREAD,
 			},
 		},
 	},
@@ -736,7 +753,8 @@ export const Creating = meta.story({
 		docs: {
 			description: {
 				story:
-					"The new routine action of the header, from the list to the empty form and back. Check that the form takes the place of the list inside the panel rather than opening a dialog over the thread, that the keyboard lands in the form when it opens, and that leaving hands focus back to the action that opened it with the list where it was. Pick `Editing` for the same form filled from a row. `apps/app/src/components/thread-routines.tsx:107` mounts the panel of every conversation, with the missions, routines, form and detail its controllers hold.",
+					"The new routine action of the header, from the list to the empty form and back. Check that the form takes the place of the list inside the panel rather than opening a dialog over the thread, that the keyboard lands in the form when it opens, and that leaving hands focus back to the action that opened it with the list where it was. Pick `Editing` for the same form filled from a row. " +
+					MOUNTED_BY_THE_THREAD,
 			},
 		},
 	},
@@ -772,7 +790,8 @@ export const Opening = meta.story({
 		docs: {
 			description: {
 				story:
-					"A row picked from the list. Check that the detail takes the place of the list inside the panel, that it repeats the title and the trigger source the row carried rather than a shortened version of them, that the runs are read as it opens, that the close control still holds the end of the header row behind the back control, and that leaving returns focus to the row that opened it. Pick `Editing` for the form reached from here. `apps/app/src/components/thread-routines.tsx:107` mounts the panel of every conversation, with the missions, routines, form and detail its controllers hold.",
+					"A row picked from the list. Check that the detail takes the place of the list inside the panel, that it repeats the title and the trigger source the row carried rather than a shortened version of them, that the runs are read as it opens, that the close control still holds the end of the header row behind the back control, and that leaving returns focus to the row that opened it. Pick `Editing` for the form reached from here. " +
+					MOUNTED_BY_THE_THREAD,
 			},
 		},
 	},
@@ -812,7 +831,8 @@ export const Editing = meta.story({
 		docs: {
 			description: {
 				story:
-					"The form as it is really reached: from the detail, not from the list. Check that it opens filled with that routine — its title, its expression, its trigger read as text rather than a list — that leaving it lands back on the detail rather than on the list two screens down, and that focus returns to the edit control that opened it. Pick `Saving` for what the detail shows once the form is submitted. `apps/app/src/components/thread-routines.tsx:107` mounts the panel of every conversation, with the missions, routines, form and detail its controllers hold.",
+					"The form as it is really reached: from the detail, not from the list. Check that it opens filled with that routine — its title, its expression, its trigger read as text rather than a list — that leaving it lands back on the detail rather than on the list two screens down, and that focus returns to the edit control that opened it. Pick `Saving` for what the detail shows once the form is submitted. " +
+					MOUNTED_BY_THE_THREAD,
 			},
 		},
 	},
@@ -848,7 +868,8 @@ export const Saving = meta.story({
 		docs: {
 			description: {
 				story:
-					"A routine renamed from the form the detail opened. Check that saving lands back on the detail rather than leaving the form on screen, and that the detail reads the title just saved while keeping the trigger source, which a written routine cannot change. `apps/app/src/components/thread-routines.tsx:107` mounts the panel of every conversation, with the missions, routines, form and detail its controllers hold.",
+					"A routine renamed from the form the detail opened. Check that saving lands back on the detail rather than leaving the form on screen, and that the detail reads the title just saved while keeping the trigger source, which a written routine cannot change. " +
+					MOUNTED_BY_THE_THREAD,
 			},
 		},
 	},
@@ -884,7 +905,8 @@ export const RunNowFailed = meta.story({
 		docs: {
 			description: {
 				story:
-					"A Run now the app could not even send. Check that the detail borrows the write failure the panel already carries rather than growing a notice of its own, that the notice sits above the detail with the history left as it was, and that the runs are not blamed for a failure that never reached them. Pick the `Error` story of `RoutineDetail` for the runs that could not be read. `apps/app/src/components/thread-routines.tsx:107` mounts the panel of every conversation, with the missions, routines, form and detail its controllers hold.",
+					"A Run now the app could not even send. Check that the detail borrows the write failure the panel already carries rather than growing a notice of its own, that the notice sits above the detail with the history left as it was, and that the runs are not blamed for a failure that never reached them. Pick the `Error` story of `RoutineDetail` for the runs that could not be read. " +
+					MOUNTED_BY_THE_THREAD,
 			},
 		},
 	},
@@ -914,7 +936,8 @@ export const WithoutSeatedLead = meta.story({
 		docs: {
 			description: {
 				story:
-					"A conversation with no lead companion seated: a routine written here would have nobody to run it. Check that the new routine action is left out of the routines screen rather than shown and refused on save, and that the routines already written stay readable and editable. `apps/app/src/components/thread-routines.tsx:107` mounts the panel of every conversation, with the missions, routines, form and detail its controllers hold.",
+					"A conversation with no lead companion seated: a routine written here would have nobody to run it. Check that the new routine action is left out of the routines screen rather than shown and refused on save, and that the routines already written stay readable and editable. " +
+					MOUNTED_BY_THE_THREAD,
 			},
 		},
 	},

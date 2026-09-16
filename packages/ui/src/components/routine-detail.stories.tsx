@@ -76,6 +76,9 @@ const DetailHost = (props: RoutineDetailProps) => {
 	)
 }
 
+const OPENED_BY_THE_PANEL =
+	"`packages/ui/src/components/routines-panel.tsx:280` mounts the panel with the model `apps/app/src/lib/routines/use-routine-detail.ts:160` builds for the opened routine."
+
 const meta = preview.meta({
 	title: "Conversation/Routines/RoutineDetail",
 	component: RoutineDetail,
@@ -103,7 +106,8 @@ export const Default = meta.story({
 		docs: {
 			description: {
 				story:
-					"A routine with a page of runs behind it, read short of the page size. Check that the aggregate counts the runs read and the reports among them rather than claiming the whole life of the routine, that the most recent run dates the aggregate, and that the rows come newest first whatever order the caller passed them in. `packages/ui/src/components/routines-panel.tsx:280` mounts the panel with the model `apps/app/src/lib/routines/use-routine-detail.ts:160` builds for the opened routine.",
+					"A routine with a page of runs behind it, read short of the page size. Check that the aggregate counts the runs read and the reports among them rather than claiming the whole life of the routine, that the most recent run dates the aggregate, and that the rows come newest first whatever order the caller passed them in. " +
+					OPENED_BY_THE_PANEL,
 			},
 		},
 	},
@@ -134,7 +138,8 @@ export const Outcomes = meta.story({
 		docs: {
 			description: {
 				story:
-					"The four outcomes a finished run can carry, one row each. Check that each is named in words — reported, nothing to report, skipped, failed — and marked by a glyph of its own, so a reader who cannot tell the colours apart still tells the rows apart, and that a stored reason is shown exactly as the run recorded it rather than translated into product prose. `packages/ui/src/components/routines-panel.tsx:280` mounts the panel with the model `apps/app/src/lib/routines/use-routine-detail.ts:160` builds for the opened routine.",
+					"The four outcomes a finished run can carry, one row each. Check that each is named in words — reported, nothing to report, skipped, failed — and marked by a glyph of its own, so a reader who cannot tell the colours apart still tells the rows apart, and that a stored reason is shown exactly as the run recorded it rather than translated into product prose. " +
+					OPENED_BY_THE_PANEL,
 			},
 		},
 	},
@@ -164,7 +169,8 @@ export const Running = meta.story({
 		docs: {
 			description: {
 				story:
-					"A run started and not ended. Check that the row reads as running rather than borrowing an outcome it does not have yet, that it is counted in the runs read but not among the reports, and that its spinner stops under reduced motion instead of turning forever. `packages/ui/src/components/routines-panel.tsx:280` mounts the panel with the model `apps/app/src/lib/routines/use-routine-detail.ts:160` builds for the opened routine.",
+					"A run started and not ended. Check that the row reads as running rather than borrowing an outcome it does not have yet, that it is counted in the runs read but not among the reports, and that its spinner stops under reduced motion instead of turning forever. " +
+					OPENED_BY_THE_PANEL,
 			},
 		},
 	},
@@ -183,7 +189,8 @@ export const WithoutReason = meta.story({
 		docs: {
 			description: {
 				story:
-					"Runs that recorded no reason. Check that each row stops after its outcome and its time, with no empty line held open under it, and that the rows stay the same height as one another. Pick `Outcomes` for the rows that do carry a reason. `packages/ui/src/components/routines-panel.tsx:280` mounts the panel with the model `apps/app/src/lib/routines/use-routine-detail.ts:160` builds for the opened routine.",
+					"Runs that recorded no reason. Check that each row stops after its outcome and its time, with no empty line held open under it, and that the rows stay the same height as one another. Pick `Outcomes` for the rows that do carry a reason. " +
+					OPENED_BY_THE_PANEL,
 			},
 		},
 	},
@@ -201,7 +208,8 @@ export const FullPageRead = meta.story({
 		docs: {
 			description: {
 				story:
-					"The read came back full, so older runs are still in the store. Check that the aggregate says the last runs read rather than counting them as everything the routine ever did — the runs here are shortened to six for readability, the app reads a page of fifty. Pick `Default` for the read that came back short of a page. `packages/ui/src/components/routines-panel.tsx:280` mounts the panel with the model `apps/app/src/lib/routines/use-routine-detail.ts:160` builds for the opened routine.",
+					"The read came back full, so older runs are still in the store. Check that the aggregate says the last runs read rather than counting them as everything the routine ever did — the runs here are shortened to six for readability, the app reads a page of fifty. Pick `Default` for the read that came back short of a page. " +
+					OPENED_BY_THE_PANEL,
 			},
 		},
 	},
@@ -222,7 +230,8 @@ export const StoppedItself = meta.story({
 		docs: {
 			description: {
 				story:
-					"A routine that failed enough times in a row to stop itself. Check that the badge reads the same words as the one on the list row and is driven by the same value, so a reader who opened the row is not told two different things about the same routine. `packages/ui/src/components/routines-panel.tsx:280` mounts the panel with the model `apps/app/src/lib/routines/use-routine-detail.ts:160` builds for the opened routine.",
+					"A routine that failed enough times in a row to stop itself. Check that the badge reads the same words as the one on the list row and is driven by the same value, so a reader who opened the row is not told two different things about the same routine. " +
+					OPENED_BY_THE_PANEL,
 			},
 		},
 	},
@@ -240,7 +249,8 @@ export const Loading = meta.story({
 		docs: {
 			description: {
 				story:
-					"The first read of the runs, still in flight, with nothing read yet. Check that the reading state takes the place of both the aggregate and the rows rather than sitting above an empty list, that it is announced politely instead of stealing the focus the detail just took, and that the empty state is not shown in its place. Pick `ReadingAgain` for a read fired over a history already on screen. `packages/ui/src/components/routines-panel.tsx:280` mounts the panel with the model `apps/app/src/lib/routines/use-routine-detail.ts:160` builds for the opened routine.",
+					"The first read of the runs, still in flight, with nothing read yet. Check that the reading state takes the place of both the aggregate and the rows rather than sitting above an empty list, that it is announced politely instead of stealing the focus the detail just took, and that the empty state is not shown in its place. Pick `ReadingAgain` for a read fired over a history already on screen. " +
+					OPENED_BY_THE_PANEL,
 			},
 		},
 	},
@@ -261,7 +271,8 @@ export const Empty = meta.story({
 		docs: {
 			description: {
 				story:
-					"A routine no run was recorded for. Check that the empty state says exactly that — a routine can have fired and been refused without ever writing a row, so nothing here claims it never fired — and that the Run now control stays offered above it. `packages/ui/src/components/routines-panel.tsx:280` mounts the panel with the model `apps/app/src/lib/routines/use-routine-detail.ts:160` builds for the opened routine.",
+					"A routine no run was recorded for. Check that the empty state says exactly that — a routine can have fired and been refused without ever writing a row, so nothing here claims it never fired — and that the Run now control stays offered above it. " +
+					OPENED_BY_THE_PANEL,
 			},
 		},
 	},
@@ -278,7 +289,8 @@ export const Error = meta.story({
 		docs: {
 			description: {
 				story:
-					"Couldn't load runs, with nothing read before it. Check that the failure takes the place of the history rather than passing for an empty one, that it blames the read of the runs and not the read of the routines, and that a retry pressed from the keyboard stays mounted, focused and busy while it runs — a second press starts no second read, and a control that unmounts under the reader sends the next Tab back to the top of the document. Pick `Empty` for the routine that really has no run, and `ErrorOverHistory` for the read that failed over runs already on screen. `packages/ui/src/components/routines-panel.tsx:280` mounts the panel with the model `apps/app/src/lib/routines/use-routine-detail.ts:160` builds for the opened routine.",
+					"Couldn't load runs, with nothing read before it. Check that the failure takes the place of the history rather than passing for an empty one, that it blames the read of the runs and not the read of the routines, and that a retry pressed from the keyboard stays mounted, focused and busy while it runs — a second press starts no second read, and a control that unmounts under the reader sends the next Tab back to the top of the document. Pick `Empty` for the routine that really has no run, and `ErrorOverHistory` for the read that failed over runs already on screen. " +
+					OPENED_BY_THE_PANEL,
 			},
 		},
 	},
@@ -307,7 +319,8 @@ export const ErrorOverHistory = meta.story({
 		docs: {
 			description: {
 				story:
-					"A read that failed over a history already on screen — the state Run now lands in, since it fires a read the reader never asked for. Check that the notice sits above the rows the way the routines panel puts its own failure above the list, that the runs and their aggregate are left exactly as they were read, and that a retry is offered without the reader losing what they were reading. Pick `Error` for the failure with nothing behind it. `packages/ui/src/components/routines-panel.tsx:280` mounts the panel with the model `apps/app/src/lib/routines/use-routine-detail.ts:160` builds for the opened routine.",
+					"A read that failed over a history already on screen — the state Run now lands in, since it fires a read the reader never asked for. Check that the notice sits above the rows the way the routines panel puts its own failure above the list, that the runs and their aggregate are left exactly as they were read, and that a retry is offered without the reader losing what they were reading. Pick `Error` for the failure with nothing behind it. " +
+					OPENED_BY_THE_PANEL,
 			},
 		},
 	},
@@ -327,7 +340,8 @@ export const ReadingAgain = meta.story({
 		docs: {
 			description: {
 				story:
-					"A read fired over a history already on screen — what Run now leaves behind once it settles. Check that the rows and their aggregate stay exactly where they were until the read lands, rather than being swapped for the reading indicator and back. Pick `Loading` for the first read, the one with nothing to leave in place. `packages/ui/src/components/routines-panel.tsx:280` mounts the panel with the model `apps/app/src/lib/routines/use-routine-detail.ts:160` builds for the opened routine.",
+					"A read fired over a history already on screen — what Run now leaves behind once it settles. Check that the rows and their aggregate stay exactly where they were until the read lands, rather than being swapped for the reading indicator and back. Pick `Loading` for the first read, the one with nothing to leave in place. " +
+					OPENED_BY_THE_PANEL,
 			},
 		},
 	},
@@ -345,7 +359,8 @@ export const RunNowInFlight = meta.story({
 		docs: {
 			description: {
 				story:
-					"A Run now request started from the keyboard. Check that the control stays where it was rather than being swapped for a spinner, that it keeps the focus that pressed it instead of dropping it on the document body, that it reads as busy and unavailable while staying reachable by Tab, and that a second press is ignored rather than starting a second run. `packages/ui/src/components/routines-panel.tsx:280` mounts the panel with the model `apps/app/src/lib/routines/use-routine-detail.ts:160` builds for the opened routine.",
+					"A Run now request started from the keyboard. Check that the control stays where it was rather than being swapped for a spinner, that it keeps the focus that pressed it instead of dropping it on the document body, that it reads as busy and unavailable while staying reachable by Tab, and that a second press is ignored rather than starting a second run. " +
+					OPENED_BY_THE_PANEL,
 			},
 		},
 	},
@@ -376,7 +391,8 @@ export const RunNowRefused = meta.story({
 		docs: {
 			description: {
 				story:
-					"Every answer a refused Run now can carry, one detail each. A refusal writes no run, so it is never readable in the history: the sentence beside the control is the only place a reader learns why nothing happened. Check that each refusal names its own cause rather than sharing one catch-all sentence. `packages/ui/src/components/routines-panel.tsx:280` mounts the panel with the model `apps/app/src/lib/routines/use-routine-detail.ts:160` builds for the opened routine.",
+					"Every answer a refused Run now can carry, one detail each. A refusal writes no run, so it is never readable in the history: the sentence beside the control is the only place a reader learns why nothing happened. Check that each refusal names its own cause rather than sharing one catch-all sentence. " +
+					OPENED_BY_THE_PANEL,
 			},
 		},
 	},
@@ -421,7 +437,8 @@ export const LongContent = meta.story({
 		docs: {
 			description: {
 				story:
-					"A title and a stored reason longer than the panel is wide, the worst case a reader hits at 200 percent zoom. Check that both wrap inside the panel width instead of being cut or pushing a scrollbar sideways, and that the two controls stay side by side until they no longer fit and then stack. `packages/ui/src/components/routines-panel.tsx:280` mounts the panel with the model `apps/app/src/lib/routines/use-routine-detail.ts:160` builds for the opened routine.",
+					"A title and a stored reason longer than the panel is wide, the worst case a reader hits at 200 percent zoom. Check that both wrap inside the panel width instead of being cut or pushing a scrollbar sideways, and that the two controls stay side by side until they no longer fit and then stack. " +
+					OPENED_BY_THE_PANEL,
 			},
 		},
 	},

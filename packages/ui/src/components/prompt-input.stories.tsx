@@ -131,6 +131,9 @@ const LONG_DRAFT = [
 	"what a reader of the notes is expected to do with each entry.",
 ].join("\n")
 
+const MOUNTED_BY_THE_COMPOSER =
+	"`apps/app/src/components/thread-composer.tsx:117` mounts the composer of every thread, holding the draft it passes back through `value`."
+
 const meta = preview.meta({
 	title: "Conversation/Prompt/PromptInput",
 	component: PromptInput,
@@ -202,7 +205,8 @@ export const Default = meta.story({
 		docs: {
 			description: {
 				story:
-					"The nominal case: a draft short enough to sit beside the send button, so the composer stays the one-line pill it is at rest. This is the story to open when reviewing the focus ring, the fully rounded container and the enabled send button. Check that the ring reads on the whole composer rather than on the textarea alone, that prompt and button share a row, and that Enter sends without a click. `LongContent` covers the same input once the prompt wraps. `apps/app/src/components/thread-composer.tsx:117` mounts the composer of every thread, holding the draft it passes back through `value`.",
+					"The nominal case: a draft short enough to sit beside the send button, so the composer stays the one-line pill it is at rest. This is the story to open when reviewing the focus ring, the fully rounded container and the enabled send button. Check that the ring reads on the whole composer rather than on the textarea alone, that prompt and button share a row, and that Enter sends without a click. `LongContent` covers the same input once the prompt wraps. " +
+					MOUNTED_BY_THE_COMPOSER,
 			},
 		},
 	},
@@ -229,7 +233,8 @@ export const WithControls = meta.story({
 		docs: {
 			description: {
 				story:
-					"The `leading` slot filled while the pill is still one line: it opens the pill before the text, send closes it. Reach for it when adding a control to the composer — it is the layout that runs out of room first. Check that `leading` reads on the leading edge rather than beside the send button, that send holds the far end with the prompt taking the width left between them, and that filling the slot shortens the prompt's single line rather than wrapping the bar early. `LongContent` shows where the same control lands once the prompt wraps. `apps/app/src/components/thread-composer.tsx:117` mounts the composer of every thread, holding the draft it passes back through `value`.",
+					"The `leading` slot filled while the pill is still one line: it opens the pill before the text, send closes it. Reach for it when adding a control to the composer — it is the layout that runs out of room first. Check that `leading` reads on the leading edge rather than beside the send button, that send holds the far end with the prompt taking the width left between them, and that filling the slot shortens the prompt's single line rather than wrapping the bar early. `LongContent` shows where the same control lands once the prompt wraps. " +
+					MOUNTED_BY_THE_COMPOSER,
 			},
 		},
 	},
@@ -250,7 +255,8 @@ export const FullWidthLine = meta.story({
 		docs: {
 			description: {
 				story:
-					"The hinge between the two layouts: a single line too wide to share its row with the controls, but short enough to still read as one line once it owns the full width. This is where the composer used to strand `leading` at the far end of the text. Check that the prompt keeps a single row across the whole width, that `leading` has dropped to the control row on the leading edge rather than staying beside the prompt, and that send holds the far end of that same row. `WithControls` is the last state that still fits on one row, `LongContent` the first that wraps the prompt itself. `apps/app/src/components/thread-composer.tsx:117` mounts the composer of every thread, holding the draft it passes back through `value`.",
+					"The hinge between the two layouts: a single line too wide to share its row with the controls, but short enough to still read as one line once it owns the full width. This is where the composer used to strand `leading` at the far end of the text. Check that the prompt keeps a single row across the whole width, that `leading` has dropped to the control row on the leading edge rather than staying beside the prompt, and that send holds the far end of that same row. `WithControls` is the last state that still fits on one row, `LongContent` the first that wraps the prompt itself. " +
+					MOUNTED_BY_THE_COMPOSER,
 			},
 		},
 	},
@@ -274,7 +280,8 @@ export const LongContent = meta.story({
 		docs: {
 			description: {
 				story:
-					"A prompt long enough to wrap, so the bar has expanded: the textarea owns the top row and the control row sits under it, `leading` on the leading edge, send at the far end. Check that the corner radius is the one the pill already had rather than a second value, that `leading` holds the same leading edge it had in the pill, that the prompt now uses the full width, and that deleting back to a short prompt folds it into `Default` again. `FullWidthLine` is the same layout one line earlier, `Overflow` pushes it past the row cap. `apps/app/src/components/thread-composer.tsx:117` mounts the composer of every thread, holding the draft it passes back through `value`.",
+					"A prompt long enough to wrap, so the bar has expanded: the textarea owns the top row and the control row sits under it, `leading` on the leading edge, send at the far end. Check that the corner radius is the one the pill already had rather than a second value, that `leading` holds the same leading edge it had in the pill, that the prompt now uses the full width, and that deleting back to a short prompt folds it into `Default` again. `FullWidthLine` is the same layout one line earlier, `Overflow` pushes it past the row cap. " +
+					MOUNTED_BY_THE_COMPOSER,
 			},
 		},
 	},
@@ -296,7 +303,8 @@ export const Empty = meta.story({
 		docs: {
 			description: {
 				story:
-					"Nothing typed yet — the resting state of a new turn, and the narrowest the composer ever gets. Check that the placeholder stays readable against the surface and that the send button is absent rather than disabled, since there is neither a prompt nor a staged file to send yet and a blank value must never reach `onSubmit` on its own. `Default` covers the same input once a draft exists, `FilesOnly` once a chip alone carries the turn. `apps/app/src/components/thread-composer.tsx:117` mounts the composer of every thread, holding the draft it passes back through `value`.",
+					"Nothing typed yet — the resting state of a new turn, and the narrowest the composer ever gets. Check that the placeholder stays readable against the surface and that the send button is absent rather than disabled, since there is neither a prompt nor a staged file to send yet and a blank value must never reach `onSubmit` on its own. `Default` covers the same input once a draft exists, `FilesOnly` once a chip alone carries the turn. " +
+					MOUNTED_BY_THE_COMPOSER,
 			},
 		},
 	},
@@ -315,7 +323,8 @@ export const States = meta.story({
 		docs: {
 			description: {
 				story:
-					"Every state of the composer stacked, idle to disabled. Reach for it when changing the border, ring or opacity tokens: the second instance is focused by the play function, so the focus ring can be compared against the resting border without touching the canvas. Check that disabled dims the whole composer, blocks the textarea and takes its `leading` control and its staged chips out of reach of both pointer and Tab, and that the idle instance carries no send button at all until something is worth sending. `apps/app/src/components/thread-composer.tsx:117` mounts the composer of every thread, holding the draft it passes back through `value`.",
+					"Every state of the composer stacked, idle to disabled. Reach for it when changing the border, ring or opacity tokens: the second instance is focused by the play function, so the focus ring can be compared against the resting border without touching the canvas. Check that disabled dims the whole composer, blocks the textarea and takes its `leading` control and its staged chips out of reach of both pointer and Tab, and that the idle instance carries no send button at all until something is worth sending. " +
+					MOUNTED_BY_THE_COMPOSER,
 			},
 		},
 	},
@@ -364,7 +373,8 @@ export const Overflow = meta.story({
 		docs: {
 			description: {
 				story:
-					"A multi-paragraph prompt past the eighth row, the far end of the expanded layout. Check that the field grows line by line up to the cap and then scrolls instead of pushing the control row off screen, and that caret and last typed line stay visible while typing. `LongContent` covers the prompt that only just wraps. `apps/app/src/components/thread-composer.tsx:117` mounts the composer of every thread, holding the draft it passes back through `value`.",
+					"A multi-paragraph prompt past the eighth row, the far end of the expanded layout. Check that the field grows line by line up to the cap and then scrolls instead of pushing the control row off screen, and that caret and last typed line stay visible while typing. `LongContent` covers the prompt that only just wraps. " +
+					MOUNTED_BY_THE_COMPOSER,
 			},
 		},
 	},
@@ -396,7 +406,8 @@ export const WithAttachments = meta.story({
 		docs: {
 			description: {
 				story:
-					"Files staged for the turn: the chips take the top of the composer, inside the same container as the text, and the composer holds its expanded shape whatever the prompt is worth. This is also the story for the two silent ways in — a drop on the composer and a paste into the textarea both report their files to `onAttach` and suppress the browser's own handling, while a drop carrying no file and a paste carrying text are handed straight back to it. Check that the row never overlaps the text, that dropping is suppressed rather than opening the file in a new tab, and that the composer folds back to the pill once the last chip is taken back — `PromptAttachments → InComposer` does the removing. `apps/app/src/components/thread-composer.tsx:117` mounts the composer of every thread, holding the draft it passes back through `value`.",
+					"Files staged for the turn: the chips take the top of the composer, inside the same container as the text, and the composer holds its expanded shape whatever the prompt is worth. This is also the story for the two silent ways in — a drop on the composer and a paste into the textarea both report their files to `onAttach` and suppress the browser's own handling, while a drop carrying no file and a paste carrying text are handed straight back to it. Check that the row never overlaps the text, that dropping is suppressed rather than opening the file in a new tab, and that the composer folds back to the pill once the last chip is taken back — `PromptAttachments → InComposer` does the removing. " +
+					MOUNTED_BY_THE_COMPOSER,
 			},
 		},
 	},
@@ -429,7 +440,8 @@ export const DragOver = meta.story({
 		docs: {
 			description: {
 				story:
-					"A file is being dragged over the composer and has not been let go yet. Check that the whole composer takes the highlight — border and surface together, so the target reads as one place to drop — that the highlight survives the drag crossing the textarea and the buttons inside it, and that it clears the moment the pointer leaves the composer or the drag ends over it, whether or not the composer went disabled midway. Reach for it when tuning the drop tokens; `WithAttachments` covers what the drop itself does. `apps/app/src/components/thread-composer.tsx:117` mounts the composer of every thread, holding the draft it passes back through `value`.",
+					"A file is being dragged over the composer and has not been let go yet. Check that the whole composer takes the highlight — border and surface together, so the target reads as one place to drop — that the highlight survives the drag crossing the textarea and the buttons inside it, and that it clears the moment the pointer leaves the composer or the drag ends over it, whether or not the composer went disabled midway. Reach for it when tuning the drop tokens; `WithAttachments` covers what the drop itself does. " +
+					MOUNTED_BY_THE_COMPOSER,
 			},
 		},
 	},
@@ -460,7 +472,8 @@ export const MarkedFromOutside = meta.story({
 		docs: {
 			description: {
 				story:
-					"The same highlight, asked for by the host rather than by the composer's own drag events — a file dragged anywhere over the surface around it lights the composer up as the place to drop. Check that the mark is the one `DragOver` produces, and that a drag crossing the composer and leaving it again cannot take it away while the host still asks for it. The second instance is disabled: a composer that has nowhere to put the file stays unmarked whatever the host asks, so nothing invites a drop the browser would end up opening itself. `apps/app/src/components/thread-composer.tsx:117` mounts the composer of every thread, holding the draft it passes back through `value`.",
+					"The same highlight, asked for by the host rather than by the composer's own drag events — a file dragged anywhere over the surface around it lights the composer up as the place to drop. Check that the mark is the one `DragOver` produces, and that a drag crossing the composer and leaving it again cannot take it away while the host still asks for it. The second instance is disabled: a composer that has nowhere to put the file stays unmarked whatever the host asks, so nothing invites a drop the browser would end up opening itself. " +
+					MOUNTED_BY_THE_COMPOSER,
 			},
 		},
 	},
@@ -492,7 +505,8 @@ export const FilesOnly = meta.story({
 		docs: {
 			description: {
 				story:
-					"Files staged with nothing typed: the turn is worth sending on the chips alone, so the send button is there even though the prompt is blank and `onSubmit` receives an empty string. Check that the button appears with the first chip and that `Empty` still hides it when the composer carries neither. `apps/app/src/components/thread-composer.tsx:117` mounts the composer of every thread, holding the draft it passes back through `value`.",
+					"Files staged with nothing typed: the turn is worth sending on the chips alone, so the send button is there even though the prompt is blank and `onSubmit` receives an empty string. Check that the button appears with the first chip and that `Empty` still hides it when the composer carries neither. " +
+					MOUNTED_BY_THE_COMPOSER,
 			},
 		},
 	},

@@ -93,6 +93,9 @@ const boxOf = (row: HTMLElement) => {
 	}
 }
 
+const LISTED_BY_THE_PANEL =
+	"`packages/ui/src/components/routines-panel.tsx:363` lists one row per open mission, from the rows `apps/app/src/lib/missions/missions-model.ts:174` builds for `apps/app/src/components/thread-routines.tsx:83`."
+
 const meta = preview.meta({
 	title: "Conversation/Missions/MissionRow",
 	component: MissionRow,
@@ -121,7 +124,8 @@ export const Working = meta.story({
 		docs: {
 			description: {
 				story:
-					"A mission its companion is working on. Check that the blot holds the working pose the same mission carries on its thread card, that no badge dot is drawn on it, that the preview line runs the working shimmer a roster row runs for a busy companion, that the ticket identifier keeps the medium weight and the tabular figures of the row this one replaced while the companion and the state word stay at the line's own weight, that all three read in the colour of the line, shimmer or not, and that the row reports the mission it belongs to when it is pressed. `packages/ui/src/components/routines-panel.tsx:363` lists one row per open mission, from the rows `apps/app/src/lib/missions/missions-model.ts:174` builds for `apps/app/src/components/thread-routines.tsx:83`.",
+					"A mission its companion is working on. Check that the blot holds the working pose the same mission carries on its thread card, that no badge dot is drawn on it, that the preview line runs the working shimmer a roster row runs for a busy companion, that the ticket identifier keeps the medium weight and the tabular figures of the row this one replaced while the companion and the state word stay at the line's own weight, that all three read in the colour of the line, shimmer or not, and that the row reports the mission it belongs to when it is pressed. " +
+					LISTED_BY_THE_PANEL,
 			},
 		},
 	},
@@ -165,7 +169,8 @@ export const WaitingForItsBot = meta.story({
 		docs: {
 			description: {
 				story:
-					"A mission whose companion has not picked it up yet, on a platform that names no identifier. Check that no badge dot is drawn, that the ticket title takes the place of the missing identifier right after the platform mark, that the state word still reads the work as in progress, and that the line, longer than the panel is wide, is cut rather than wrapped. `packages/ui/src/components/routines-panel.tsx:363` lists one row per open mission, from the rows `apps/app/src/lib/missions/missions-model.ts:174` builds for `apps/app/src/components/thread-routines.tsx:83`.",
+					"A mission whose companion has not picked it up yet, on a platform that names no identifier. Check that no badge dot is drawn, that the ticket title takes the place of the missing identifier right after the platform mark, that the state word still reads the work as in progress, and that the line, longer than the panel is wide, is cut rather than wrapped. " +
+					LISTED_BY_THE_PANEL,
 			},
 		},
 	},
@@ -193,7 +198,8 @@ export const PartsRepeatingTheSameWords = meta.story({
 		docs: {
 			description: {
 				story:
-					"A ticket titled after the companion running it, so the line writes the same words twice. Check that both parts are drawn, each opened by its own separator, since a part is kept by the slot it fills rather than by the text it writes. `packages/ui/src/components/routines-panel.tsx:363` lists one row per open mission, from the rows `apps/app/src/lib/missions/missions-model.ts:174` builds for `apps/app/src/components/thread-routines.tsx:83`.",
+					"A ticket titled after the companion running it, so the line writes the same words twice. Check that both parts are drawn, each opened by its own separator, since a part is kept by the slot it fills rather than by the text it writes. " +
+					LISTED_BY_THE_PANEL,
 			},
 		},
 	},
@@ -220,7 +226,8 @@ export const WaitingOnYou = meta.story({
 		docs: {
 			description: {
 				story:
-					"A mission stopped on a question only a person can answer. Check that the attention dot is drawn on the row, and that the wait is written once in text at the end of the preview line rather than repeated for a screen reader. `packages/ui/src/components/routines-panel.tsx:363` lists one row per open mission, from the rows `apps/app/src/lib/missions/missions-model.ts:174` builds for `apps/app/src/components/thread-routines.tsx:83`.",
+					"A mission stopped on a question only a person can answer. Check that the attention dot is drawn on the row, and that the wait is written once in text at the end of the preview line rather than repeated for a screen reader. " +
+					LISTED_BY_THE_PANEL,
 			},
 		},
 	},
@@ -239,7 +246,8 @@ export const ReadyToMerge = meta.story({
 		docs: {
 			description: {
 				story:
-					"A mission whose work is done and waiting to be merged. Check that the done dot replaces the attention one rather than adding to it, and that the state word is written once, at the end of the preview line. `packages/ui/src/components/routines-panel.tsx:363` lists one row per open mission, from the rows `apps/app/src/lib/missions/missions-model.ts:174` builds for `apps/app/src/components/thread-routines.tsx:83`.",
+					"A mission whose work is done and waiting to be merged. Check that the done dot replaces the attention one rather than adding to it, and that the state word is written once, at the end of the preview line. " +
+					LISTED_BY_THE_PANEL,
 			},
 		},
 	},
@@ -255,7 +263,8 @@ export const Failed = meta.story({
 		docs: {
 			description: {
 				story:
-					"A mission that failed and that nobody has closed. Check that it keeps an open mission's row rather than being moved out of sight, that the failed dot sets it apart, and that the state word says so in text as well. `packages/ui/src/components/routines-panel.tsx:363` lists one row per open mission, from the rows `apps/app/src/lib/missions/missions-model.ts:174` builds for `apps/app/src/components/thread-routines.tsx:83`.",
+					"A mission that failed and that nobody has closed. Check that it keeps an open mission's row rather than being moved out of sight, that the failed dot sets it apart, and that the state word says so in text as well. " +
+					LISTED_BY_THE_PANEL,
 			},
 		},
 	},
@@ -295,7 +304,8 @@ export const WithoutATicket = meta.story({
 		docs: {
 			description: {
 				story:
-					"A mission opened with no ticket at all, which the store keeps as empty strings rather than as nothing. Check that the preview line opens on the companion name, with no platform mark in front of it and no separator before it. `packages/ui/src/components/routines-panel.tsx:363` lists one row per open mission, from the rows `apps/app/src/lib/missions/missions-model.ts:174` builds for `apps/app/src/components/thread-routines.tsx:83`.",
+					"A mission opened with no ticket at all, which the store keeps as empty strings rather than as nothing. Check that the preview line opens on the companion name, with no platform mark in front of it and no separator before it. " +
+					LISTED_BY_THE_PANEL,
 			},
 		},
 	},
@@ -314,7 +324,8 @@ export const LongContent = meta.story({
 		docs: {
 			description: {
 				story:
-					"An objective no reader would write, in a panel at its 320px width. Check that the objective and the line under it each stay on one line and end in an ellipsis, that the row keeps its height, and that the blot is not squeezed to make room for them. `packages/ui/src/components/routines-panel.tsx:363` lists one row per open mission, from the rows `apps/app/src/lib/missions/missions-model.ts:174` builds for `apps/app/src/components/thread-routines.tsx:83`.",
+					"An objective no reader would write, in a panel at its 320px width. Check that the objective and the line under it each stay on one line and end in an ellipsis, that the row keeps its height, and that the blot is not squeezed to make room for them. " +
+					LISTED_BY_THE_PANEL,
 			},
 		},
 	},
