@@ -138,7 +138,6 @@ const chat = {
 	},
 	notice: {
 		retry: "Réessayer",
-		exhausted: "Limite de tentatives atteinte après {{attempts}} essais",
 		dismiss: "Ignorer l'avis",
 	},
 	attachments: {

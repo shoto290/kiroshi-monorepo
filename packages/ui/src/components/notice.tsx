@@ -36,48 +36,28 @@ const TONE_ICON_CLASS = {
 interface NoticeRetry {
 	onRetry: () => void
 	label?: ReactNode
-	attempt?: number
-	maxAttempts?: number
 	isBusy?: boolean
-}
-
-interface NoticeAction {
-	label: ReactNode
-	onClick: () => void
 }
 
 interface NoticeProps {
 	tone?: NoticeTone
 	title: ReactNode
 	description?: ReactNode
-	detail?: ReactNode
 	retry?: NoticeRetry
-	action?: NoticeAction
 	onDismiss?: () => void
 	className?: string
-}
-
-function isRetryAvailable(retry?: NoticeRetry) {
-	if (!retry) return false
-	if (retry.maxAttempts === undefined) return true
-	return (retry.attempt ?? 0) < retry.maxAttempts
 }
 
 function Notice({
 	tone = "error",
 	title,
 	description,
-	detail,
 	retry,
-	action,
 	onDismiss,
 	className,
 }: NoticeProps) {
 	const { t } = useTranslation("chat")
 	const ToneIcon = TONE_ICON[tone]
-	const retryAvailable = retry !== undefined && isRetryAvailable(retry)
-	const exhaustedAfter =
-		retry !== undefined && !retryAvailable ? retry.maxAttempts : undefined
 
 	return (
 		<div
@@ -96,41 +76,19 @@ function Notice({
 					{description ? (
 						<p className="text-foreground/80">{description}</p>
 					) : null}
-					{detail ? (
-						<code className="w-fit max-w-full truncate rounded-md bg-background/60 px-1.5 py-0.5 font-mono text-foreground/80 text-xs">
-							{detail}
-						</code>
-					) : null}
 				</div>
-				{retryAvailable || exhaustedAfter !== undefined || action ? (
+				{retry ? (
 					<div className="flex flex-wrap items-center gap-2">
-						{retryAvailable ? (
-							<Button
-								aria-busy={retry.isBusy}
-								aria-disabled={retry.isBusy}
-								className="aria-disabled:opacity-50"
-								onClick={retry.isBusy ? undefined : retry.onRetry}
-								size="sm"
-								variant="outline"
-							>
-								{retry.label ?? t("notice.retry")}
-							</Button>
-						) : null}
-						{action ? (
-							<Button
-								className="bg-background/60"
-								size="sm"
-								variant="ghost"
-								onClick={action.onClick}
-							>
-								{action.label}
-							</Button>
-						) : null}
-						{exhaustedAfter !== undefined ? (
-							<p className="text-foreground/80 text-xs">
-								{t("notice.exhausted", { attempts: exhaustedAfter })}
-							</p>
-						) : null}
+						<Button
+							aria-busy={retry.isBusy}
+							aria-disabled={retry.isBusy}
+							className="aria-disabled:opacity-50"
+							onClick={retry.isBusy ? undefined : retry.onRetry}
+							size="sm"
+							variant="outline"
+						>
+							{retry.label ?? t("notice.retry")}
+						</Button>
 					</div>
 				) : null}
 			</div>
@@ -149,9 +107,7 @@ function Notice({
 }
 
 export {
-	isRetryAvailable,
 	Notice,
-	type NoticeAction,
 	type NoticeProps,
 	type NoticeRetry,
 	type NoticeTone,
