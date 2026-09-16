@@ -403,6 +403,9 @@ export function App() {
 		onUndoRun: userPlugin.controller.revert,
 	})
 
+	const applicationToOpenOn = (scope: ReopenedScope) =>
+		applicationToOpenIn(scope, settingsApplication)
+
 	const closeSettingsTab = () => {
 		setSettingsTab(undefined)
 		setSettingsApplication(undefined)
@@ -996,10 +999,10 @@ export function App() {
 					history={botHistory}
 					haveMcpServersFailedToLoad={botMcpServers.state.hasFailedToLoad}
 					{...botApplications}
-					mcpServerToOpen={applicationToOpenIn(
-						{ kind: "companion", id: settingsBot.id },
-						settingsApplication,
-					)}
+					mcpServerToOpen={applicationToOpenOn({
+						kind: "companion",
+						id: settingsBot.id,
+					})}
 					tab={settingsTab}
 					environment={toEnvironmentRows(botEnvironment.state.entries)}
 					hasEnvironmentFailedToRead={botEnvironment.state.hasFailedToRead}
@@ -1117,10 +1120,10 @@ export function App() {
 					hasEnvironmentFailedToRead={spaceEnvironment.state.hasFailedToRead}
 					haveMcpServersFailedToLoad={spaceMcpServers.state.hasFailedToLoad}
 					{...spaceApplications}
-					mcpServerToOpen={applicationToOpenIn(
-						{ kind: "space", id: selectedSpace.id },
-						settingsApplication,
-					)}
+					mcpServerToOpen={applicationToOpenOn({
+						kind: "space",
+						id: selectedSpace.id,
+					})}
 					tab={settingsTab}
 					onMcpServerOpen={(name) =>
 						setOpenedMcpServer(
@@ -1187,10 +1190,7 @@ export function App() {
 					serverConnection: userApplications.serverConnection,
 					serverEnvironment: serverEnvironmentSection,
 					catalogue: userApplications.mcpCatalogue,
-					serverToOpen: applicationToOpenIn(
-						{ kind: "user" },
-						settingsApplication,
-					),
+					serverToOpen: applicationToOpenOn({ kind: "user" }),
 				}}
 				history={userHistory}
 				tab={settingsTab}

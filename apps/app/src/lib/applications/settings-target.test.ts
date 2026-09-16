@@ -91,8 +91,25 @@ const OpenedSettings = ({ application }: SettingsProps) =>
 		}),
 	)
 
-const dialogNamed = (name: RegExp) =>
-	screen.getByRole("dialog", { hidden: true, name })
+const BEHIND_ANOTHER_DIALOG = { hidden: true }
+
+const dialogNamed = (name: string) =>
+	screen.getByRole("dialog", {
+		...BEHIND_ANOTHER_DIALOG,
+		name: new RegExp(name),
+	})
+
+const openedApplicationIn = (dialog: HTMLElement) =>
+	within(dialog).queryByRole("button", {
+		...BEHIND_ANOTHER_DIALOG,
+		name: "Remove application",
+	})
+
+const listedApplicationIn = (dialog: HTMLElement) =>
+	within(dialog).queryByRole("button", {
+		...BEHIND_ANOTHER_DIALOG,
+		name: new RegExp(SHARED_APPLICATION),
+	})
 
 afterEach(cleanup)
 
@@ -109,24 +126,9 @@ describe("opening an application on one scope", () => {
 			}),
 		)
 
-		const profile = dialogNamed(new RegExp(READER))
-		expect(
-			within(profile).getByRole("button", {
-				hidden: true,
-				name: new RegExp(SHARED_APPLICATION),
-			}),
-		).toBeTruthy()
-		expect(
-			within(profile).queryByRole("button", {
-				hidden: true,
-				name: "Remove application",
-			}),
-		).toBe(null)
-		expect(
-			within(dialogNamed(new RegExp(SPACE_NAME))).getByRole("button", {
-				hidden: true,
-				name: "Remove application",
-			}),
-		).toBeTruthy()
+		const profile = dialogNamed(READER)
+		expect(listedApplicationIn(profile)).toBeTruthy()
+		expect(openedApplicationIn(profile)).toBe(null)
+		expect(openedApplicationIn(dialogNamed(SPACE_NAME))).toBeTruthy()
 	})
 })
