@@ -1,20 +1,32 @@
 use std::cmp::Reverse;
 use std::collections::BTreeMap;
+use std::time::Duration;
 
+use reqwest::header::{HeaderMap, HeaderValue, USER_AGENT};
 use reqwest::{Client, StatusCode, Url};
+use serde::de::DeserializeOwned;
 use serde::Deserialize;
 use serde_json::{json, Map, Value};
 use tokio::task::JoinHandle;
 
 use super::contract::{Application, ApplicationsError, Install, InstallField, InstallRefusal};
-use super::registry::{client, endpoint, parsed, read, reference, variable};
-use super::search::{repository, terms, Listing};
+use crate::missions::github::installed_tls_provider;
 
 pub const REGISTRY: &str = "https://registry.smithery.ai";
 
 const BOUND: &str = "10";
 
+const OFFERED_PAGE: &str = "12";
+
+const OFFERS: usize = 9;
+
 const FIRST_PAGE: &str = "1";
+
+const SHORTEST_TERM: usize = 3;
+
+const TIMEOUT: Duration = Duration::from_secs(30);
+
+const AGENT: &str = "Kiroshi";
 
 const HTTP: &str = "http";
 
@@ -107,23 +119,40 @@ struct Served {
 	install: Install,
 }
 
-pub async fn search(base: &str, query: &str) -> Result<Vec<Listing>, ApplicationsError> {
+pub async fn search(base: &str, query: &str) -> Result<Vec<Application>, ApplicationsError> {
 	let terms = terms(query);
-	if terms.is_empty() {
-		return Ok(Vec::new());
-	}
 	let base = parsed(base)?;
-	let mut list = endpoint(&base, &["servers"])?;
-	list.query_pairs_mut()
-		.append_pair("q", query)
-		.append_pair("page", FIRST_PAGE)
-		.append_pair("pageSize", BOUND);
 	let client = client()?;
-	let listed: Listed = read(&client, list).await?;
+	let listed: Listed = read(&client, listed_page(&base, query, &terms)?).await?;
+	if terms.is_empty() {
+		let mut offered = listings(&client, &base, listed.servers).await;
+		offered.truncate(OFFERS);
+		return Ok(offered);
+	}
 	let mut kept: Vec<Row> =
 		listed.servers.into_iter().filter(|row| carries(row, &terms)).collect();
 	kept.sort_by_key(|row| Reverse(row.use_count.unwrap_or_default()));
 	Ok(listings(&client, &base, kept).await)
+}
+
+fn listed_page(base: &Url, query: &str, terms: &[String]) -> Result<Url, ApplicationsError> {
+	let mut list = endpoint(base, &["servers"])?;
+	let mut pairs = list.query_pairs_mut();
+	if !terms.is_empty() {
+		pairs.append_pair("q", query);
+	}
+	let size = if terms.is_empty() { OFFERED_PAGE } else { BOUND };
+	pairs.append_pair("page", FIRST_PAGE).append_pair("pageSize", size);
+	drop(pairs);
+	Ok(list)
+}
+
+pub(super) fn terms(query: &str) -> Vec<String> {
+	query
+		.split_whitespace()
+		.filter(|term| term.chars().count() >= SHORTEST_TERM)
+		.map(str::to_lowercase)
+		.collect()
 }
 
 pub async fn detail(base: &str, name: &str) -> Result<Option<Application>, ApplicationsError> {
@@ -143,8 +172,8 @@ fn carries(row: &Row, terms: &[String]) -> bool {
 	terms.iter().all(|term| named.contains(term.as_str()))
 }
 
-async fn listings(client: &Client, base: &Url, kept: Vec<Row>) -> Vec<Listing> {
-	let running: Vec<JoinHandle<Option<Listing>>> = kept
+async fn listings(client: &Client, base: &Url, kept: Vec<Row>) -> Vec<Application> {
+	let running: Vec<JoinHandle<Option<Application>>> = kept
 		.into_iter()
 		.map(|row| {
 			let client = client.clone();
@@ -155,7 +184,7 @@ async fn listings(client: &Client, base: &Url, kept: Vec<Row>) -> Vec<Listing> {
 	let mut described = Vec::new();
 	for handle in running {
 		match handle.await {
-			Ok(Some(listing)) => described.push(listing),
+			Ok(Some(application)) => described.push(application),
 			Ok(None) => {}
 			Err(failure) => eprintln!("a Smithery detail was not awaited: {failure}"),
 		}
@@ -163,7 +192,7 @@ async fn listings(client: &Client, base: &Url, kept: Vec<Row>) -> Vec<Listing> {
 	described
 }
 
-async fn listed(client: &Client, base: &Url, row: Row) -> Option<Listing> {
+async fn listed(client: &Client, base: &Url, row: Row) -> Option<Application> {
 	let detail = match detailed(client, base, &row.qualified_name).await {
 		Ok(detail) => detail?,
 		Err(failure) => {
@@ -174,21 +203,18 @@ async fn listed(client: &Client, base: &Url, row: Row) -> Option<Listing> {
 	let served = served(&detail)?;
 	let hosted_by = hosted_by(&row, &served.endpoint);
 	let (config, install) = declared(served);
-	Some(Listing {
-		repository: row.homepage.as_deref().and_then(repository),
-		application: Application {
-			title: row.display_name.unwrap_or_else(|| row.qualified_name.clone()),
-			name: row.qualified_name,
-			description: row.description,
-			config,
-			tools: tool_names(&detail),
-			logo: None,
-			logo_url: row.icon_url,
-			use_count: row.use_count,
-			verified: row.verified,
-			hosted_by,
-			install,
-		},
+	Some(Application {
+		title: row.display_name.unwrap_or_else(|| row.qualified_name.clone()),
+		name: row.qualified_name,
+		description: row.description,
+		config,
+		tools: tool_names(&detail),
+		logo: None,
+		logo_url: row.icon_url,
+		use_count: row.use_count,
+		verified: row.verified,
+		hosted_by,
+		install,
 	})
 }
 
@@ -231,6 +257,51 @@ async fn detailed(
 	}
 }
 
+fn parsed(base: &str) -> Result<Url, ApplicationsError> {
+	Url::parse(base)
+		.map_err(|error| ApplicationsError::RegistryUnreached { detail: error.to_string() })
+}
+
+fn client() -> Result<Client, ApplicationsError> {
+	installed_tls_provider();
+	let mut headers = HeaderMap::new();
+	headers.insert(USER_AGENT, HeaderValue::from_static(AGENT));
+	Client::builder().timeout(TIMEOUT).default_headers(headers).build().map_err(|error| {
+		ApplicationsError::RegistryUnreached {
+			detail: format!("the http client was not built: {error}"),
+		}
+	})
+}
+
+fn endpoint(base: &Url, segments: &[&str]) -> Result<Url, ApplicationsError> {
+	let mut url = base.clone();
+	url.path_segments_mut()
+		.map_err(|()| ApplicationsError::RegistryUnreached {
+			detail: format!("{base} cannot hold a path"),
+		})?
+		.pop_if_empty()
+		.extend(segments);
+	Ok(url)
+}
+
+async fn read<T: DeserializeOwned>(client: &Client, url: Url) -> Result<T, ApplicationsError> {
+	let answer = client.get(url).send().await.map_err(unreached)?;
+	if answer.status() != StatusCode::OK {
+		return Err(ApplicationsError::RegistryRefused { status: answer.status().as_u16() });
+	}
+	answer
+		.json::<T>()
+		.await
+		.map_err(|error| ApplicationsError::RegistryUnreadable { detail: error.to_string() })
+}
+
+fn unreached(error: reqwest::Error) -> ApplicationsError {
+	if error.is_timeout() {
+		return ApplicationsError::RegistryTimedOut;
+	}
+	ApplicationsError::RegistryUnreached { detail: error.to_string() }
+}
+
 fn served(detail: &Detail) -> Option<Served> {
 	let connection = detail.connections.iter().find(|held| held.kind == HTTP)?;
 	let endpoint = Url::parse(connection.deployment_url.as_deref()?).ok()?;
@@ -247,6 +318,21 @@ fn headers(schema: Option<&Schema>) -> Map<String, Value> {
 		.iter()
 		.filter_map(|field| Some((header_of(schema, field)?, Value::String(reference(field)))))
 		.collect()
+}
+
+fn reference(declared: &str) -> String {
+	format!("${{{}}}", variable(declared))
+}
+
+fn variable(declared: &str) -> String {
+	let named: String = declared
+		.chars()
+		.map(|held| if held.is_ascii_alphanumeric() { held.to_ascii_uppercase() } else { '_' })
+		.collect();
+	if named.starts_with(|held: char| held.is_ascii_digit()) {
+		return format!("_{named}");
+	}
+	named
 }
 
 fn header_of(schema: &Schema, field: &str) -> Option<String> {
@@ -355,6 +441,14 @@ pub(crate) mod tests {
 			asked: Mutex::new(Vec::new()),
 			detailed: Mutex::new(Vec::new()),
 		}
+	}
+
+	pub(crate) async fn unreached() -> String {
+		let listener =
+			tokio::net::TcpListener::bind((Ipv4Addr::LOCALHOST, 0)).await.expect("a port binds");
+		let address = listener.local_addr().expect("the port is named");
+		drop(listener);
+		format!("http://{address}")
 	}
 
 	pub(crate) async fn serving(held: Held) -> (String, Arc<Held>) {
@@ -633,7 +727,7 @@ pub(crate) mod tests {
 
 		let found = search(&base, "slack").await.expect("the search answers");
 
-		let names: Vec<&str> = found.iter().map(|held| held.application.name.as_str()).collect();
+		let names: Vec<&str> = found.iter().map(|held| held.name.as_str()).collect();
 		assert_eq!(names, ["@owner/slack", "@owner/slack-lite"]);
 		assert_eq!(
 			*held.asked.lock().expect("the stub records"),
@@ -651,7 +745,7 @@ pub(crate) mod tests {
 
 		let found = search(&base, "slack").await.expect("the search answers");
 
-		let held = &found[0].application;
+		let held = &found[0];
 		assert_eq!(held.logo_url.as_deref(), Some("https://icons.test/Slack.png"));
 		assert_eq!(held.use_count, Some(900));
 		assert_eq!(held.verified, Some(true));
@@ -674,8 +768,7 @@ pub(crate) mod tests {
 
 		let found = search(&base, "mine").await.expect("the search answers");
 
-		let hosts: Vec<Option<&str>> =
-			found.iter().map(|held| held.application.hosted_by.as_deref()).collect();
+		let hosts: Vec<Option<&str>> = found.iter().map(|held| held.hosted_by.as_deref()).collect();
 		assert_eq!(hosts, [Some("Smithery"), None]);
 	}
 
@@ -689,8 +782,7 @@ pub(crate) mod tests {
 
 		let found = search(&base, "slack").await.expect("the search answers");
 
-		assert_eq!(found[0].application.hosted_by.as_deref(), Some("Smithery"));
-		assert_eq!(found[0].repository.as_deref(), Some("github.com/owner/slack"));
+		assert_eq!(found[0].hosted_by.as_deref(), Some("Smithery"));
 	}
 
 	#[tokio::test]
@@ -703,17 +795,93 @@ pub(crate) mod tests {
 
 		let found = search(&base, "slack").await.expect("the search answers");
 
-		assert_eq!(found[0].application.hosted_by.as_deref(), Some("slack.example"));
+		assert_eq!(found[0].hosted_by.as_deref(), Some("slack.example"));
+	}
+
+	#[test]
+	fn a_query_keeps_only_the_terms_of_three_characters_or_more_in_lowercase() {
+		assert_eq!(terms("My Issues an"), ["issues"]);
+		assert_eq!(terms("an my"), Vec::<String>::new());
+		assert_eq!(terms(""), Vec::<String>::new());
+	}
+
+	fn a_page_of(named: &[&str]) -> Held {
+		holding(
+			named.iter().map(|name| a_row(name, name, 1)).collect(),
+			named.iter().map(|name| a_detail(name, &format!("https://{name}.run.tools"))).collect(),
+		)
+	}
+
+	fn offered_names(found: &[Application]) -> Vec<&str> {
+		found.iter().map(|held| held.name.as_str()).collect()
+	}
+
+	const A_PAGE: [&str; 12] = ["a", "b", "c", "d", "e", "f", "g", "h", "i", "j", "k", "l"];
+
+	#[tokio::test]
+	async fn a_query_carrying_no_term_asks_for_the_first_page_of_twelve_without_any_q() {
+		let (base, held) = serving(a_page_of(&A_PAGE)).await;
+
+		search(&base, "an my").await.expect("the search answers");
+		search(&base, "").await.expect("the search answers");
+
+		assert_eq!(
+			*held.asked.lock().expect("the stub records"),
+			["/servers?page=1&pageSize=12", "/servers?page=1&pageSize=12"]
+		);
 	}
 
 	#[tokio::test]
-	async fn a_query_whose_every_term_is_too_short_reads_nothing_from_smithery() {
-		let (base, held) =
-			serving(holding(vec![a_row("@owner/slack", "Slack", 1)], Vec::new())).await;
+	async fn a_query_carrying_no_term_answers_the_first_nine_rows_in_the_order_smithery_returned() {
+		let (base, _) = serving(a_page_of(&A_PAGE)).await;
 
-		assert!(search(&base, "an my").await.expect("the search answers").is_empty());
-		assert!(search(&base, "").await.expect("the search answers").is_empty());
-		assert!(held.asked.lock().expect("the stub records").is_empty(), "a list was read");
+		let found = search(&base, "").await.expect("the search answers");
+
+		assert_eq!(offered_names(&found), ["a", "b", "c", "d", "e", "f", "g", "h", "i"]);
+	}
+
+	#[tokio::test]
+	async fn a_query_carrying_no_term_leaves_out_a_row_reading_down_to_nothing_and_fills_its_place()
+	{
+		let mut page = a_page_of(&A_PAGE);
+		page.details.remove("c");
+		let (base, _) = serving(page).await;
+
+		let found = search(&base, "").await.expect("the search answers");
+
+		assert_eq!(offered_names(&found), ["a", "b", "d", "e", "f", "g", "h", "i", "j"]);
+	}
+
+	#[tokio::test]
+	async fn a_row_of_a_query_carrying_no_term_carries_what_a_typed_search_carries() {
+		let (base, _) = serving(holding(
+			vec![a_row("@owner/slack", "Slack", 900)],
+			vec![a_detail("@owner/slack", "https://slack.run.tools")],
+		))
+		.await;
+
+		let found = search(&base, "").await.expect("the search answers");
+
+		let held = &found[0];
+		assert_eq!(held.config, json!({ "type": "http", "url": "https://slack.run.tools/" }));
+		assert_eq!(held.tools, ["search", "create"]);
+		assert_eq!(held.logo_url.as_deref(), Some("https://icons.test/Slack.png"));
+		assert_eq!(held.use_count, Some(900));
+		assert_eq!(held.verified, Some(true));
+		assert_eq!(held.hosted_by.as_deref(), Some("Smithery"));
+		assert_eq!(held.install, Install::Oauth);
+	}
+
+	#[tokio::test]
+	async fn a_query_carrying_no_term_answers_a_refused_list_as_an_error() {
+		let mut refusing = a_page_of(&A_PAGE);
+		refusing.list_status = StatusCode::SERVICE_UNAVAILABLE;
+		let (base, _) = serving(refusing).await;
+
+		assert_eq!(
+			search(&base, "").await.err(),
+			Some(ApplicationsError::RegistryRefused { status: 503 })
+		);
 	}
 
 	#[tokio::test]
@@ -726,7 +894,7 @@ pub(crate) mod tests {
 
 		let found = search(&base, "slack").await.expect("the search answers");
 
-		let names: Vec<&str> = found.iter().map(|held| held.application.name.as_str()).collect();
+		let names: Vec<&str> = found.iter().map(|held| held.name.as_str()).collect();
 		assert_eq!(names, ["@owner/slack-b"]);
 	}
 
@@ -739,6 +907,18 @@ pub(crate) mod tests {
 		assert_eq!(
 			search(&base, "slack").await.err(),
 			Some(ApplicationsError::RegistryRefused { status: 503 })
+		);
+	}
+
+	#[tokio::test]
+	async fn an_unreached_registry_answers_an_error_and_not_an_empty_list() {
+		let base = unreached().await;
+
+		let answered = search(&base, "slack").await.err();
+
+		assert!(
+			matches!(answered, Some(ApplicationsError::RegistryUnreached { .. })),
+			"got {answered:?}"
 		);
 	}
 
