@@ -88,14 +88,14 @@ fn variables(held: &str) -> Vec<String> {
 	held.split("${")
 		.skip(1)
 		.filter_map(|rest| rest.split_once('}'))
-		.map(|(reference, _)| named(reference).to_owned())
+		.filter_map(|(reference, _)| unresolved(reference))
 		.collect()
 }
 
-fn named(reference: &str) -> &str {
+fn unresolved(reference: &str) -> Option<String> {
 	match reference.split_once(":-") {
-		Some((name, _)) if resolved_by_the_sidecar(name) => name,
-		_ => reference,
+		Some((name, _)) if resolved_by_the_sidecar(name) => None,
+		_ => Some(reference.to_owned()),
 	}
 }
 
@@ -504,7 +504,14 @@ mod tests {
 	}
 
 	#[test]
-	fn a_reference_carrying_a_fallback_reads_its_name_alone() {
+	fn a_reference_the_sidecar_fills_from_its_own_fallback_leaves_the_install_as_it_stands() {
+		let config = json!({ "env": { "LEVEL": "${LOG_LEVEL:-debug}" } });
+
+		assert_eq!(Install::Nothing.covering(&config), Install::Nothing);
+	}
+
+	#[test]
+	fn a_reference_carrying_a_fallback_a_field_fills_keeps_the_case_it_had() {
 		let field = InstallField {
 			name: "Authorization".to_owned(),
 			secret: "AUTHORIZATION".to_owned(),
@@ -514,18 +521,6 @@ mod tests {
 		let config = json!({ "env": { "TOKEN": "${AUTHORIZATION:-none}" } });
 
 		assert_eq!(asking.covering(&config), Install::Key { fields: vec![field] });
-	}
-
-	#[test]
-	fn a_reference_carrying_a_fallback_no_field_fills_names_that_name_without_its_fallback() {
-		let config = json!({ "env": { "LEVEL": "${LOG_LEVEL:-debug}" } });
-
-		let Install::Refused(refusal) = Install::Nothing.covering(&config) else {
-			panic!("an unfilled reference refuses");
-		};
-		assert_eq!(refusal.field, "LOG_LEVEL");
-		assert!(refusal.reason.contains("LOG_LEVEL"), "got {}", refusal.reason);
-		assert!(!refusal.reason.contains("debug"), "got {}", refusal.reason);
 	}
 
 	#[test]
