@@ -292,7 +292,7 @@ export function PromptInput({
 			<div
 				ref={controlsRef}
 				inert={disabled}
-				className="ms-auto flex items-center justify-end gap-1"
+				className="ms-auto flex items-center"
 			>
 				{hasPayload ? (
 					<Button
