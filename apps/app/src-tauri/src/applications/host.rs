@@ -281,7 +281,7 @@ fn destination_id(owner: &EnvOwner) -> Option<String> {
 }
 
 fn names_a_smithery_server(name: &str) -> bool {
-	!name.split('/').next().unwrap_or(name).contains(OFFICIAL_PREFIX)
+	!name.split_once('/').map_or(name, |(before, _)| before).contains(OFFICIAL_PREFIX)
 }
 
 fn matching(curated: Vec<Application>, query: &str) -> Vec<Application> {

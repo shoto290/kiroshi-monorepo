@@ -4,7 +4,7 @@ use std::collections::BTreeMap;
 use reqwest::{Client, StatusCode, Url};
 use serde::Deserialize;
 use serde_json::{json, Map, Value};
-use tokio::task::JoinSet;
+use tokio::task::JoinHandle;
 
 use super::contract::{Application, ApplicationsError, Install};
 use super::registry::{client, endpoint, parsed, read, reference, variable};
@@ -147,22 +147,23 @@ fn carries(row: &Row, terms: &[String]) -> bool {
 }
 
 async fn listings(client: &Client, base: &Url, kept: Vec<Row>) -> Vec<Listing> {
-	let mut running = JoinSet::new();
-	for (rank, row) in kept.into_iter().enumerate() {
-		let client = client.clone();
-		let base = base.clone();
-		running.spawn(async move { (rank, listed(&client, &base, row).await) });
-	}
-	let mut described: Vec<(usize, Listing)> = Vec::new();
-	while let Some(joined) = running.join_next().await {
-		match joined {
-			Ok((rank, Some(listing))) => described.push((rank, listing)),
-			Ok((_, None)) => {}
+	let running: Vec<JoinHandle<Option<Listing>>> = kept
+		.into_iter()
+		.map(|row| {
+			let client = client.clone();
+			let base = base.clone();
+			tokio::spawn(async move { listed(&client, &base, row).await })
+		})
+		.collect();
+	let mut described = Vec::new();
+	for handle in running {
+		match handle.await {
+			Ok(Some(listing)) => described.push(listing),
+			Ok(None) => {}
 			Err(failure) => eprintln!("a Smithery detail was not awaited: {failure}"),
 		}
 	}
-	described.sort_by_key(|(rank, _)| *rank);
-	described.into_iter().map(|(_, listing)| listing).collect()
+	described
 }
 
 async fn listed(client: &Client, base: &Url, row: Row) -> Option<Listing> {
@@ -233,16 +234,18 @@ fn served(detail: &Detail) -> Option<Served> {
 	let schema = connection.config_schema.as_ref();
 	let mut served =
 		Served { endpoint, headers: Map::new(), pairs: Vec::new(), install: install(schema) };
-	for field in schema.map(|schema| schema.required.as_slice()).unwrap_or_default() {
+	let Some(schema) = schema else {
+		return Some(served);
+	};
+	for field in &schema.required {
 		place(&mut served, schema, field);
 	}
 	Some(served)
 }
 
-fn place(served: &mut Served, schema: Option<&Schema>, field: &str) {
+fn place(served: &mut Served, schema: &Schema, field: &str) {
 	let held = reference(field);
-	match schema.and_then(|schema| schema.properties.get(field)).and_then(|held| held.from.as_ref())
-	{
+	match schema.properties.get(field).and_then(|property| property.from.as_ref()) {
 		Some(Carried { header: Some(name), .. }) => {
 			served.headers.insert(name.clone(), Value::String(held));
 		}
