@@ -4,22 +4,16 @@ import type { McpServersController } from "../bots/mcp-servers-controller"
 
 export type ApplicationPanel = Pick<McpServersController, "getState" | "reload">
 
-const idOf = (scope: ReopenedScope) => (scope.kind === "user" ? null : scope.id)
+const keyOf = (scope: ReopenedScope) =>
+	scope.kind === "user" ? scope.kind : `${scope.kind}:${scope.id}`
 
-const isSameScope = (left: ReopenedScope, right: ReopenedScope) =>
-	left.kind === right.kind && idOf(left) === idOf(right)
-
-const holds = (panel: ApplicationPanel, scope: ReopenedScope) => {
+const holdsScope = (scope: ReopenedScope) => (panel: ApplicationPanel) => {
 	const { owner } = panel.getState()
-	return owner !== null && isSameScope(scopeOfOwner(owner), scope)
+	return owner !== null && keyOf(scopeOfOwner(owner)) === keyOf(scope)
 }
 
 export const reloadPanelsHolding = (
 	scope: ReopenedScope,
 	panels: ApplicationPanel[],
 ) =>
-	Promise.all(
-		panels
-			.filter((panel) => holds(panel, scope))
-			.map((panel) => panel.reload()),
-	)
+	Promise.all(panels.filter(holdsScope(scope)).map((panel) => panel.reload()))
