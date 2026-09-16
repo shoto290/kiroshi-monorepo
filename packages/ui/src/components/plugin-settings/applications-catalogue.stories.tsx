@@ -190,7 +190,7 @@ export const AtRest = meta.story({
 		await userEvent.click(canvas.getByRole("tab", { name: "Design" }))
 		await expect(args.onCategoryChange).toHaveBeenCalledWith("design")
 
-		await userEvent.click(canvas.getByText(CURATED_APPLICATIONS[0].name))
+		await userEvent.click(canvas.getByRole("button", { name: /^Linear\b/ }))
 		await expect(args.onPick).toHaveBeenCalledWith(CURATED_APPLICATIONS[0])
 
 		await userEvent.click(
@@ -324,6 +324,32 @@ export const OnlyRegistryMatched = meta.story({
 			canvas.getByText("Kiroshi hasn\u2019t read these"),
 		).toBeVisible()
 		await expect(canvas.getByText("linkboard")).toBeVisible()
+	},
+})
+
+export const RegistryEmptyAtRest = meta.story({
+	args: { registry: [] },
+	parameters: {
+		docs: {
+			description: {
+				story:
+					"A first screen the registry has nothing for, nothing typed. Check that the registry section leaves entirely, head and subtitle, the way the curated one does when it has nothing to draw, and that the curated cards stay drawn.",
+			},
+		},
+	},
+	play: async ({ canvas }) => {
+		await expect(
+			canvas.queryByText("Kiroshi hasn\u2019t read these"),
+		).not.toBeInTheDocument()
+		await expect(
+			canvas.queryByText(
+				"Published by anyone. Read what it does before you add it.",
+			),
+		).not.toBeInTheDocument()
+		await expect(canvas.getByText("Kiroshi has read these")).toBeVisible()
+		await expect(canvas.getAllByRole("listitem")).toHaveLength(
+			CURATED_APPLICATIONS.length,
+		)
 	},
 })
 

@@ -533,6 +533,13 @@ const ApplicationsCatalogue = ({
 			/>
 		) : null
 
+	const hasRegistrySection =
+		typed !== "" ||
+		isLoading ||
+		hasRegistryFailed ||
+		hasRegistryPartlyFailed ||
+		registry.length > 0
+
 	const registryResults = () => {
 		if (registry.length > 0) {
 			return <CatalogueRows applications={registry} onPick={onPick} />
@@ -619,12 +626,14 @@ const ApplicationsCatalogue = ({
 						)}
 					</CatalogueSection>
 				) : null}
-				<CatalogueSection
-					subtitle={t("applications.catalogue.registry.subtitle")}
-					title={t("applications.catalogue.registry.title")}
-				>
-					{registryBody()}
-				</CatalogueSection>
+				{hasRegistrySection ? (
+					<CatalogueSection
+						subtitle={t("applications.catalogue.registry.subtitle")}
+						title={t("applications.catalogue.registry.title")}
+					>
+						{registryBody()}
+					</CatalogueSection>
+				) : null}
 			</Tabs.Panel>
 			{isLoading ? (
 				<span className="sr-only" role="status">
