@@ -25,7 +25,7 @@ use crate::environment::connection;
 use crate::environment::contract::{EnvError, EnvOwner, ResolvedEnv, Values};
 use crate::environment::store as environment;
 use crate::mcp_oauth::refresh;
-use crate::mcp_oauth::reports::ConnectorHost;
+use crate::mcp_oauth::reports::StandingHost;
 use crate::missions::host::MissionHost;
 use crate::private_files;
 use crate::routines::host::RoutineHost;
@@ -701,7 +701,7 @@ pub async fn agent_start_or_resume_session<R: Runtime>(
 			scope.conversation_id.clone(),
 			scope.bot_id.clone(),
 		)))
-		.hosting(Arc::new(ConnectorHost::new(app.clone(), scope.bot_id.clone())))
+		.hosting(Arc::new(StandingHost::new(app.clone(), scope.bot_id.clone())))
 		.hosting(Arc::new(ApplicationHost::new(
 			app.clone(),
 			scope.conversation_id.clone(),

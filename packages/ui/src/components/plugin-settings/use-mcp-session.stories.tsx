@@ -190,7 +190,7 @@ export const Default = meta.story({
 		docs: {
 			description: {
 				story:
-					"The composition with no connection input at all, which is what every caller passes until one is wired. Check that the list and the editor render exactly as they did before connectors had states: no lane content, no action, no block above the trust notice.",
+					"The composition with no connection input at all, which is what every caller passes until one is wired. Check that the list and the editor render exactly as they did before applications had states: no lane content, no action, no block above the trust notice.",
 			},
 		},
 	},
@@ -214,7 +214,7 @@ export const NeedsAuthorization = meta.story({
 		docs: {
 			description: {
 				story:
-					"A connector waiting to be authorized, seen through the composition rather than through either component alone. Reach for this to check that one state reaches two surfaces by two paths: the row draws its lane and its Connect from the server it was given, and opening that row hands the editor the block with the same state. Check that connecting from the row does not open the connector, and that the block's own Connect is a separate press.",
+					"An application waiting to be authorized, seen through the composition rather than through either component alone. Reach for this to check that one state reaches two surfaces by two paths: the row draws its lane and its Connect from the server it was given, and opening that row hands the editor the block with the same state. Check that connecting from the row does not open the application, and that the block's own Connect is a separate press.",
 			},
 		},
 	},

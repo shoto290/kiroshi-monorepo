@@ -9,7 +9,7 @@ use kiroshi_app::environment::store;
 use kiroshi_app::mcp_oauth::commands::{mcp_oauth_disconnect, McpOauthState};
 use kiroshi_app::mcp_oauth::contract::Disconnected;
 use kiroshi_app::mcp_oauth::credentials;
-use kiroshi_app::mcp_oauth::reports::ConnectorReports;
+use kiroshi_app::mcp_oauth::reports::ApplicationReports;
 use tauri::test::{mock_builder, mock_context, noop_assets};
 use tauri::Manager;
 
@@ -32,11 +32,11 @@ fn a_bot_disconnect_revokes_and_deletes_the_grant_its_space_holds() {
 	std::env::set_var(SIDECAR_OVERRIDE_ENV, FAKE_SIDECAR);
 	let mut context = mock_context(noop_assets());
 	context.config_mut().identifier =
-		format!("com.kiroshi.connector-disconnect-{}", std::process::id());
+		format!("com.kiroshi.application-disconnect-{}", std::process::id());
 	let app = mock_builder()
 		.manage(AgentState::default())
 		.manage(McpOauthState::default())
-		.manage(ConnectorReports::default())
+		.manage(ApplicationReports::default())
 		.build(context)
 		.expect("the app builds");
 	let data = app.path().app_data_dir().expect("the app data directory is named");

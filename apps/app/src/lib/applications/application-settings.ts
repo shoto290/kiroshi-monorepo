@@ -16,15 +16,15 @@ import {
 	type InstallTarget,
 	serverScopeOf,
 } from "./applications-controller"
+import {
+	type ConnectionSettings,
+	toConnectionSettings,
+} from "./connection-settings"
 import { type SessionReopener, scopeOfOwner } from "./session-reopening"
 import type { Applications } from "./use-applications"
+import type { Connections } from "./use-connections"
 
 import type { McpServers } from "../bots/use-mcp-servers"
-import {
-	type ConnectorSettings,
-	toConnectorSettings,
-} from "../connectors/connector-settings"
-import type { Connectors } from "../connectors/use-connectors"
 import type { EnvOwner, EnvScope } from "../conversations/store-contract"
 import { toEnvironmentRows } from "../environment/environment-rows"
 import type { Environment } from "../environment/use-environment"
@@ -83,7 +83,7 @@ const categoriesOf = (count: number): ApplicationCategory[] => [
 ]
 
 const connectFor =
-	({ controller }: Connectors) =>
+	({ controller }: Connections) =>
 	async (name: string, url: string) => {
 		await controller.connect(name, url)
 		const { failure } = controller.getState()
@@ -184,12 +184,12 @@ export const toServerEnvironmentSection = ({
 type ApplicationScopeSource = {
 	applications: Applications
 	servers: McpServers
-	connectors: Connectors
+	connections: Connections
 	openedName: string | null
 	reopen: SessionReopener
 }
 
-type ApplicationScope = ConnectorSettings & {
+type ApplicationScope = ConnectionSettings & {
 	mcpCatalogue?: ApplicationsCatalogueSection
 	onMcpServerCreate: (name: string, config: Record<string, unknown>) => void
 	onMcpServerChange: (
@@ -203,7 +203,7 @@ type ApplicationScope = ConnectorSettings & {
 export const toApplicationScope = ({
 	applications,
 	servers,
-	connectors,
+	connections,
 	openedName,
 	reopen,
 }: ApplicationScopeSource): ApplicationScope => {
@@ -226,23 +226,23 @@ export const toApplicationScope = ({
 		}
 	}
 
-	const settleConnector = () => {
+	const settleConnection = () => {
 		if (openedName) {
 			reopenFor(openedName)
 		}
 	}
 
-	const connectorSettings = toConnectorSettings({
+	const connectionSettings = toConnectionSettings({
 		servers: servers.state.servers,
-		connectors,
+		connections,
 		openedName,
-		onSettled: settleConnector,
+		onSettled: settleConnection,
 	})
 
 	const installTarget = (owned: EnvOwner): InstallTarget => ({
 		owner: owned,
 		declared: servers.state.servers.map((server) => server.name),
-		connect: connectFor(connectors),
+		connect: connectFor(connections),
 		settle: async () => {
 			await servers.controller.reload()
 			reopenFor(applications.state.picked?.name ?? "")
@@ -250,8 +250,8 @@ export const toApplicationScope = ({
 	})
 
 	return {
-		...connectorSettings,
-		mcpServers: withApplicationMarks(connectorSettings.mcpServers, curated),
+		...connectionSettings,
+		mcpServers: withApplicationMarks(connectionSettings.mcpServers, curated),
 		mcpCatalogue: owner
 			? toApplicationsCatalogue({
 					state: applications.state,

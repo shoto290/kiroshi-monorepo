@@ -36,7 +36,12 @@ import {
 	createFakeApplicationPort,
 	type FakeApplicationPort,
 } from "@/lib/applications/fake-application-port"
+import {
+	createFakeConnectionPort,
+	type FakeConnectionPort,
+} from "@/lib/applications/fake-connection-port"
 import { ConversationApplicationsContext } from "@/lib/applications/use-conversation-installs"
+import { SessionApplicationsContext } from "@/lib/applications/use-session-application"
 import {
 	type AttachmentsController,
 	createAttachmentsController,
@@ -57,11 +62,6 @@ import type {
 	ConversationThread,
 	Thread,
 } from "@/lib/chat/thread-contract"
-import {
-	createFakeConnectorPort,
-	type FakeConnectorPort,
-} from "@/lib/connectors/fake-connector-port"
-import { SessionConnectorsContext } from "@/lib/connectors/use-session-connector"
 import { createConversationRuntimes } from "@/lib/conversations/conversation-runtimes"
 import { createFakeTranscriptStore } from "@/lib/conversations/fake-transcript-store"
 import {
@@ -2176,7 +2176,7 @@ const leftOutError = (detail: string): ChatError => ({
 	error: { kind: "serverEnvRejected", detail },
 })
 
-const CONNECTOR_REFUSED = leftOutError(
+const APPLICATION_REFUSED = leftOutError(
 	'the server "atlas" was left out: it is waiting for you to authorize it',
 )
 
@@ -2184,9 +2184,9 @@ const VARIABLE_REFUSED = leftOutError(
 	'the server "atlas" was left out: ATLAS_TOKEN is defined by no scope',
 )
 
-const UNNAMED_REFUSED = leftOutError("the connector settings were refused")
+const UNNAMED_REFUSED = leftOutError("the application settings were refused")
 
-const CONNECTOR_REFUSED_TITLE = "Couldn't start an application"
+const APPLICATION_REFUSED_TITLE = "Couldn't start an application"
 
 const LEFT_OUT_TITLE = "atlas was left out"
 
@@ -2194,17 +2194,17 @@ const SPEAKER: EnvOwner = { kind: "bot", id: "bot-1", spaceId: SPACE }
 
 const SPEAKER_SPACE: EnvOwner = { kind: "space", id: SPACE }
 
-const refusedConnectorScreen = (
-	port: FakeConnectorPort,
+const refusedApplicationScreen = (
+	port: FakeConnectionPort,
 	onOpen: (owner: EnvOwner) => void = () => undefined,
-	refusal: ChatError = CONNECTOR_REFUSED,
+	refusal: ChatError = APPLICATION_REFUSED,
 ) =>
 	createElement(
 		Fragment,
 		null,
 		createElement(NoticeSurface),
 		createElement(
-			SessionConnectorsContext.Provider,
+			SessionApplicationsContext.Provider,
 			{ value: { port, spaceId: SPACE, onOpen } },
 			screenOf(
 				threadOf({
@@ -2218,18 +2218,18 @@ const refusedConnectorScreen = (
 	)
 
 const expectTransportNoticeAlone = () => {
-	expect(raisedNotices(CONNECTOR_REFUSED_TITLE)).toHaveLength(1)
+	expect(raisedNotices(APPLICATION_REFUSED_TITLE)).toHaveLength(1)
 	expect(raisedNotices(LEFT_OUT_TITLE)).toHaveLength(0)
 	expect(raisedNotices("ledger was left out")).toHaveLength(0)
 }
 
-describe("ThreadScreen connector left out of a session", () => {
+describe("ThreadScreen application left out of a session", () => {
 	afterEach(cleanup)
 
-	it("reads the connectors of the speaking companion and of its space", async () => {
-		const port = createFakeConnectorPort()
+	it("reads the applications of the speaking companion and of its space", async () => {
+		const port = createFakeConnectionPort()
 
-		render(refusedConnectorScreen(port))
+		render(refusedApplicationScreen(port))
 		await settle()
 
 		expect(port.calls).toEqual([
@@ -2238,22 +2238,22 @@ describe("ThreadScreen connector left out of a session", () => {
 		])
 	})
 
-	it("names the connector waiting for authorization in place of the transport notice", async () => {
-		const port = createFakeConnectorPort()
+	it("names the application waiting for authorization in place of the transport notice", async () => {
+		const port = createFakeConnectionPort()
 		port.rows.bot = [{ name: "atlas", status: "needsAuthorization" }]
 
-		render(refusedConnectorScreen(port))
+		render(refusedApplicationScreen(port))
 		await settle()
 
 		expect(raisedNotices(LEFT_OUT_TITLE)).toHaveLength(1)
-		expect(raisedNotices(CONNECTOR_REFUSED_TITLE)).toHaveLength(0)
+		expect(raisedNotices(APPLICATION_REFUSED_TITLE)).toHaveLength(0)
 	})
 
-	it("opens the connectors of the owner that declares it", async () => {
-		const port = createFakeConnectorPort()
+	it("opens the applications of the owner that declares it", async () => {
+		const port = createFakeConnectionPort()
 		port.rows.space = [{ name: "atlas", status: "needsAuthorization" }]
 		const onOpen = vi.fn()
-		render(refusedConnectorScreen(port, onOpen))
+		render(refusedApplicationScreen(port, onOpen))
 		await settle()
 
 		await pressInNotice(LEFT_OUT_TITLE, "Open Applications")
@@ -2261,22 +2261,22 @@ describe("ThreadScreen connector left out of a session", () => {
 		expect(onOpen).toHaveBeenCalledWith(SPEAKER_SPACE)
 	})
 
-	it("keeps the transport notice when no connector waits for authorization", async () => {
-		const port = createFakeConnectorPort()
+	it("keeps the transport notice when no application waits for authorization", async () => {
+		const port = createFakeConnectionPort()
 		port.rows.bot = [{ name: "atlas", status: "connected" }]
 
-		render(refusedConnectorScreen(port))
+		render(refusedApplicationScreen(port))
 		await settle()
 
 		expectTransportNoticeAlone()
 	})
 
-	it("names the connector the rejection names when two wait for authorization", async () => {
-		const port = createFakeConnectorPort()
+	it("names the application the rejection names when two wait for authorization", async () => {
+		const port = createFakeConnectionPort()
 		port.rows.bot = [{ name: "ledger", status: "needsAuthorization" }]
 		port.rows.space = [{ name: "atlas", status: "needsAuthorization" }]
 		const onOpen = vi.fn()
-		render(refusedConnectorScreen(port, onOpen))
+		render(refusedApplicationScreen(port, onOpen))
 		await settle()
 
 		expect(raisedNotices(LEFT_OUT_TITLE)).toHaveLength(1)
@@ -2287,59 +2287,59 @@ describe("ThreadScreen connector left out of a session", () => {
 		expect(onOpen).toHaveBeenCalledWith(SPEAKER_SPACE)
 	})
 
-	it("keeps the transport notice when the named connector is not the one waiting", async () => {
-		const port = createFakeConnectorPort()
+	it("keeps the transport notice when the named application is not the one waiting", async () => {
+		const port = createFakeConnectionPort()
 		port.rows.bot = [
 			{ name: "atlas", status: "connected" },
 			{ name: "ledger", status: "needsAuthorization" },
 		]
 
-		render(refusedConnectorScreen(port))
+		render(refusedApplicationScreen(port))
 		await settle()
 
 		expectTransportNoticeAlone()
 	})
 
 	it("keeps the transport notice when the named server has no row", async () => {
-		const port = createFakeConnectorPort()
+		const port = createFakeConnectionPort()
 		port.rows.bot = [{ name: "ledger", status: "needsAuthorization" }]
 
-		render(refusedConnectorScreen(port))
+		render(refusedApplicationScreen(port))
 		await settle()
 
 		expectTransportNoticeAlone()
 	})
 
 	it("keeps the transport notice when a missing variable left the server out", async () => {
-		const port = createFakeConnectorPort()
+		const port = createFakeConnectionPort()
 		port.rows.bot = [{ name: "atlas", status: "connected" }]
 		port.rows.space = [{ name: "ledger", status: "needsAuthorization" }]
 
-		render(refusedConnectorScreen(port, undefined, VARIABLE_REFUSED))
+		render(refusedApplicationScreen(port, undefined, VARIABLE_REFUSED))
 		await settle()
 
 		expectTransportNoticeAlone()
 	})
 
 	it("keeps the transport notice and reads nothing when the rejection names no server", async () => {
-		const port = createFakeConnectorPort()
+		const port = createFakeConnectionPort()
 		port.rows.bot = [{ name: "atlas", status: "needsAuthorization" }]
 
-		render(refusedConnectorScreen(port, undefined, UNNAMED_REFUSED))
+		render(refusedApplicationScreen(port, undefined, UNNAMED_REFUSED))
 		await settle()
 
 		expectTransportNoticeAlone()
 		expect(port.calls).toEqual([])
 	})
 
-	it("keeps the transport notice when the connectors could not be read", async () => {
-		const port = createFakeConnectorPort()
+	it("keeps the transport notice when the applications could not be read", async () => {
+		const port = createFakeConnectionPort()
 		port.refusals.status = { kind: "io", detail: "locked" }
 
-		render(refusedConnectorScreen(port))
+		render(refusedApplicationScreen(port))
 		await settle()
 
-		expect(raisedNotices(CONNECTOR_REFUSED_TITLE)).toHaveLength(1)
+		expect(raisedNotices(APPLICATION_REFUSED_TITLE)).toHaveLength(1)
 	})
 })
 
@@ -3463,10 +3463,10 @@ const installRoomOf = (
 			null,
 			createElement(NoticeSurface),
 			createElement(
-				SessionConnectorsContext.Provider,
+				SessionApplicationsContext.Provider,
 				{
 					value: {
-						port: createFakeConnectorPort(),
+						port: createFakeConnectionPort(),
 						spaceId: SPACE,
 						onOpen: () => undefined,
 					},

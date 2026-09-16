@@ -1,6 +1,6 @@
 ---
 name: "applications"
-description: "How you install an application from the conversation. Applies when the person asks for an application, a connector or an MCP server, and when the work needs a tool you do not hold."
+description: "How you install an application from the conversation. Applies when the person asks for an application or an MCP server, and when the work needs a tool you do not hold."
 disable-model-invocation: true
 metadata:
   kiroshi:
@@ -10,15 +10,15 @@ metadata:
 An application is an MCP server added where you work: one this app curates, or one the
 public registry lists. You hold three tools for them, on the `kiroshi` server.
 
-- `connector_search`, the applications matching a query, the curated ones first, each with
+- `application_search`, the applications matching a query, the curated ones first, each with
   its name, what it does and the install case it needs.
-- `connector_install`, one application written under its name in one destination.
-- `connector_status`, where an application stands in one destination: not installed,
+- `application_install`, one application written under its name in one destination.
+- `application_status`, where an application stands in one destination: not installed,
   connected, needs authorization, connecting or failed.
 
 ## Search first
 
-Search before you install. Install only an application `connector_search` answered, under
+Search before you install. Install only an application `application_search` answered, under
 the exact name it answered. When the search names a registry failure, say the registry
 could not be read and offer the curated matches it still answered.
 
@@ -32,7 +32,7 @@ space of this conversation and the person, as these three destinations and no ot
 - `user`, the person, in every space and for every companion.
 
 Ask it with `metadata.source` set to `application-scope:` followed by the name
-`connector_search` answered, exactly as it answered it, so `application-scope:linear` or
+`application_search` answered, exactly as it answered it, so `application-scope:linear` or
 `application-scope:com.notion/mcp`. It is never shown to the person.
 
 Install only in the destination the person picked, once, and never in a second one. Never
@@ -55,5 +55,5 @@ The install answers its case. Say what follows for that case, and nothing more.
   person signs in from there.
 
 When the install answers `alreadyInstalled`, say it is already there and change nothing.
-When the person asks whether it works, read it with `connector_status` and say what it
+When the person asks whether it works, read it with `application_status` and say what it
 answered.

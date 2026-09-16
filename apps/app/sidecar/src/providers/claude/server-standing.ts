@@ -4,7 +4,7 @@ import type { ServerLine, ServerState } from "./system-layer"
 import { describeError } from "../../describe-error"
 import { askHost } from "../../host"
 
-const SUBTYPE = "connector"
+const SUBTYPE = "standing"
 const OPERATION = "report"
 const UNRECORDED = "the host kept no record of where a server stands"
 const RECORDED = new Set<ServerState>(["holding", "needs-auth", "left-out"])

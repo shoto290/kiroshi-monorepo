@@ -71,6 +71,10 @@ import {
 	ConversationApplicationsContext,
 	useConversationInstalls,
 } from "@/lib/applications/use-conversation-installs"
+import {
+	type SessionApplications,
+	SessionApplicationsContext,
+} from "@/lib/applications/use-session-application"
 import type { AttachmentsOwner } from "@/lib/chat/attachments-contract"
 import type { AttachmentsController } from "@/lib/chat/attachments-controller"
 import type { ChatError } from "@/lib/chat/chat-state"
@@ -136,10 +140,6 @@ import {
 	useThreadRoster,
 } from "@/lib/chat/use-thread-roster"
 import type { WorkingState } from "@/lib/chat/working-kind"
-import {
-	type SessionConnectors,
-	SessionConnectorsContext,
-} from "@/lib/connectors/use-session-connector"
 import {
 	type PlacedArrival,
 	type PlacedBySeq,
@@ -794,7 +794,7 @@ const arrivalRowsAfter = (placed: PlacedArrival[], bots: Bot[]): RowsAfterRun =>
 type InstallRowsSource = {
 	placed: PlacedBySeq<ApplicationInstall>[]
 	applications: ConversationApplications | null
-	connectors: SessionConnectors | null
+	sessionApplications: SessionApplications | null
 	bots: Bot[]
 	error: ChatError | undefined
 	companionId: string | undefined
@@ -816,7 +816,7 @@ const destinationNameOf = (
 const installRowsAfter = ({
 	placed,
 	applications,
-	connectors,
+	sessionApplications,
 	bots,
 	error,
 	companionId,
@@ -824,7 +824,7 @@ const installRowsAfter = ({
 	const session: RefusingSession = {
 		error,
 		companionId,
-		spaceId: connectors?.spaceId,
+		spaceId: sessionApplications?.spaceId,
 	}
 	return rowsPlacedAfter(placed, ({ anchored: install }) => {
 		const scope = installScopeOf(install)
@@ -1177,7 +1177,7 @@ function ThreadView({
 	const routinesScope = routinesScopeOf(facts, state.conversationId)
 	const missions = useMissions(routinesScope.conversationId)
 	const applications = useContext(ConversationApplicationsContext)
-	const sessionConnectors = useContext(SessionConnectorsContext)
+	const sessionApplications = useContext(SessionApplicationsContext)
 	const installs = useConversationInstalls(state.conversationId)
 	const { highlightedMessageId, jumpToMessage, landOnMessage } = useThreadJump(
 		controller,
@@ -1345,7 +1345,6 @@ function ThreadView({
 		applications,
 		bots: known,
 		companionId: speakerIdOf(thread, facts.latestError),
-		connectors: sessionConnectors,
 		error: facts.latestError,
 		placed: placeBySeq({
 			anchored: installs,
@@ -1353,6 +1352,7 @@ function ThreadView({
 			messages: state.messages,
 			runs,
 		}),
+		sessionApplications,
 	})
 	const transcriptRows = interleavedWithRuns(runRows, (runIndex) => [
 		...arrivalsAfter(runIndex),

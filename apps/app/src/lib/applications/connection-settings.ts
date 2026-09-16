@@ -5,22 +5,22 @@ import type {
 import type { McpConnectionSection } from "@workspace/ui/components/bot-settings-dialog/mcp-connection"
 import { readMcpServerLaunch } from "@workspace/ui/components/bot-settings-dialog/mcp-server-launch"
 
-import type { ConnectorsState } from "./connectors-controller"
-import type { Connectors } from "./use-connectors"
+import type { ConnectionsState } from "./connections-controller"
+import type { Connections } from "./use-connections"
 
 import type { BotMcpServer } from "../conversations/store-contract"
 
-export const CONNECTORS_TAB = "mcp"
+export const APPLICATIONS_TAB = "mcp"
 
-export type ConnectorSettings = {
+export type ConnectionSettings = {
 	mcpServers: BotMcpServerItem[]
 	onServerConnect: (server: BotMcpServerItem) => void
 	serverConnection?: McpConnectionSection
 }
 
-type ConnectorSettingsSource = {
+type ConnectionSettingsSource = {
 	servers: BotMcpServer[]
-	connectors: Connectors
+	connections: Connections
 	openedName: string | null
 	onSettled?: () => void
 }
@@ -32,7 +32,7 @@ const hostOf = (url: string) =>
 	URL.canParse(url) ? new URL(url).host : undefined
 
 const connectionOf = (
-	state: ConnectorsState,
+	state: ConnectionsState,
 	name: string,
 ): BotMcpConnectionState | undefined => {
 	if (state.connecting === name) {
@@ -45,12 +45,12 @@ const connectionOf = (
 	return status === "unknown" ? undefined : status
 }
 
-type ConnectorLanding = "connected" | "disconnected"
+type ConnectionLanding = "connected" | "disconnected"
 
 const isLanded = (
-	{ controller }: Connectors,
+	{ controller }: Connections,
 	name: string,
-	landing: ConnectorLanding,
+	landing: ConnectionLanding,
 ) => {
 	const isConnected =
 		controller.getState().rows.find((row) => row.name === name)?.status ===
@@ -59,25 +59,25 @@ const isLanded = (
 }
 
 const settling =
-	(connectors: Connectors, onSettled?: () => void) =>
-	(name: string, landing: ConnectorLanding, run: Promise<void>) => {
+	(connections: Connections, onSettled?: () => void) =>
+	(name: string, landing: ConnectionLanding, run: Promise<void>) => {
 		void run.then(() => {
-			if (isLanded(connectors, name, landing)) {
+			if (isLanded(connections, name, landing)) {
 				onSettled?.()
 			}
 		})
 	}
 
-type ConnectorRuns = (
+type ConnectionRuns = (
 	name: string,
-	landing: ConnectorLanding,
+	landing: ConnectionLanding,
 	run: Promise<void>,
 ) => void
 
 const sectionOf = (
-	{ state, controller }: Connectors,
+	{ state, controller }: Connections,
 	server: BotMcpServer,
-	settle: ConnectorRuns,
+	settle: ConnectionRuns,
 ): McpConnectionSection | undefined => {
 	const connection = connectionOf(state, server.name)
 	if (!connection) {
@@ -104,27 +104,27 @@ const sectionOf = (
 	}
 }
 
-export const toConnectorSettings = ({
+export const toConnectionSettings = ({
 	servers,
-	connectors,
+	connections,
 	openedName,
 	onSettled,
-}: ConnectorSettingsSource): ConnectorSettings => {
+}: ConnectionSettingsSource): ConnectionSettings => {
 	const opened = servers.find((server) => server.name === openedName)
-	const settle = settling(connectors, onSettled)
+	const settle = settling(connections, onSettled)
 
 	return {
 		mcpServers: servers.map((server) => ({
 			...server,
-			connection: connectionOf(connectors.state, server.name),
+			connection: connectionOf(connections.state, server.name),
 		})),
 		onServerConnect: (server) => {
 			settle(
 				server.name,
 				"connected",
-				connectors.controller.connect(server.name, urlOf(server)),
+				connections.controller.connect(server.name, urlOf(server)),
 			)
 		},
-		serverConnection: opened && sectionOf(connectors, opened, settle),
+		serverConnection: opened && sectionOf(connections, opened, settle),
 	}
 }

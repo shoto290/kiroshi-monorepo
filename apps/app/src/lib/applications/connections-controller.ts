@@ -1,24 +1,24 @@
-import type { ConnectorPort, ConnectorRow } from "./connector-port"
+import type { ApplicationRow, ConnectionPort } from "./connection-port"
 
 import type { EnvOwner } from "../conversations/store-contract"
 
-export type ConnectorCommand = "status" | "connect" | "cancel" | "disconnect"
+export type ConnectionCommand = "status" | "connect" | "cancel" | "disconnect"
 
-export type ConnectorFailure = {
-	command: ConnectorCommand
+export type ConnectionFailure = {
+	command: ConnectionCommand
 	name: string | null
 	reason: unknown
 }
 
-export type ConnectorsState = {
+export type ConnectionsState = {
 	owner: EnvOwner | null
-	rows: ConnectorRow[]
+	rows: ApplicationRow[]
 	connecting: string | null
-	failure: ConnectorFailure | null
+	failure: ConnectionFailure | null
 }
 
-export type ConnectorsController = {
-	getState: () => ConnectorsState
+export type ConnectionsController = {
+	getState: () => ConnectionsState
 	subscribe: (listener: () => void) => () => void
 	open: (owner: EnvOwner) => Promise<void>
 	connect: (name: string, url: string) => Promise<void>
@@ -26,7 +26,7 @@ export type ConnectorsController = {
 	disconnect: (name: string, url: string) => Promise<void>
 }
 
-const initialConnectorsState: ConnectorsState = {
+const initialConnectionsState: ConnectionsState = {
 	owner: null,
 	rows: [],
 	connecting: null,
@@ -39,10 +39,10 @@ const isCancellation = (reason: unknown) =>
 	"kind" in reason &&
 	reason.kind === "cancelled"
 
-export const createConnectorsController = (
-	port: ConnectorPort,
-): ConnectorsController => {
-	let state = initialConnectorsState
+export const createConnectionsController = (
+	port: ConnectionPort,
+): ConnectionsController => {
+	let state = initialConnectionsState
 	const listeners = new Set<() => void>()
 
 	const publish = () => {
@@ -51,12 +51,12 @@ export const createConnectorsController = (
 		}
 	}
 
-	const set = (fields: Partial<ConnectorsState>) => {
+	const set = (fields: Partial<ConnectionsState>) => {
 		state = { ...state, ...fields }
 		publish()
 	}
 
-	const setFor = (owner: EnvOwner, fields: Partial<ConnectorsState>) => {
+	const setFor = (owner: EnvOwner, fields: Partial<ConnectionsState>) => {
 		if (state.owner === owner) {
 			set(fields)
 		}
@@ -74,7 +74,7 @@ export const createConnectorsController = (
 
 	const run = async (
 		owner: EnvOwner,
-		{ command, name }: Omit<ConnectorFailure, "reason">,
+		{ command, name }: Omit<ConnectionFailure, "reason">,
 		send: () => Promise<unknown>,
 	) => {
 		try {
@@ -97,7 +97,7 @@ export const createConnectorsController = (
 		},
 
 		open: (owner) => {
-			set({ ...initialConnectorsState, owner })
+			set({ ...initialConnectionsState, owner })
 			return read(owner)
 		},
 

@@ -1,10 +1,10 @@
-import type { ConnectorPort, ConnectorRow } from "./connector-port"
-import type { ConnectorCommand } from "./connectors-controller"
+import type { ApplicationRow, ConnectionPort } from "./connection-port"
+import type { ConnectionCommand } from "./connections-controller"
 
 import type { EnvOwner } from "../conversations/store-contract"
 
-export type ConnectorCall = {
-	command: ConnectorCommand
+export type ConnectionCall = {
+	command: ConnectionCommand
 	owner?: EnvOwner
 	name?: string
 	url?: string
@@ -15,19 +15,19 @@ type PendingGrant = {
 	reject: (reason: unknown) => void
 }
 
-export type FakeConnectorPort = ConnectorPort & {
-	calls: ConnectorCall[]
-	rows: Record<EnvOwner["kind"], ConnectorRow[]>
-	refusals: Partial<Record<ConnectorCommand, unknown>>
+export type FakeConnectionPort = ConnectionPort & {
+	calls: ConnectionCall[]
+	rows: Record<EnvOwner["kind"], ApplicationRow[]>
+	refusals: Partial<Record<ConnectionCommand, unknown>>
 	grant: () => void
 }
 
 const CANCELLED = { kind: "cancelled" }
 
-export const createFakeConnectorPort = (): FakeConnectorPort => {
+export const createFakeConnectionPort = (): FakeConnectionPort => {
 	let pending: PendingGrant | null = null
 
-	const answer = (call: ConnectorCall) => {
+	const answer = (call: ConnectionCall) => {
 		fake.calls.push(call)
 		const refusal = fake.refusals[call.command]
 		if (refusal !== undefined) {
@@ -42,7 +42,7 @@ export const createFakeConnectorPort = (): FakeConnectorPort => {
 		pending = null
 	}
 
-	const fake: FakeConnectorPort = {
+	const fake: FakeConnectionPort = {
 		calls: [],
 		rows: { user: [], bot: [], space: [] },
 		refusals: {},

@@ -1,12 +1,12 @@
 import { invoke } from "@tauri-apps/api/core"
 
 import type {
-	ConnectorPort,
-	ConnectorRow,
+	ApplicationRow,
+	ConnectionPort,
 	Disconnected,
-} from "./connector-port"
+} from "./connection-port"
 
-export const connectorTransport: ConnectorPort = {
+export const connectionTransport: ConnectionPort = {
 	connect: (owner, name, url) =>
 		invoke<void>("mcp_oauth_connect", { owner, name, url }),
 
@@ -15,5 +15,6 @@ export const connectorTransport: ConnectorPort = {
 	disconnect: (owner, name, url) =>
 		invoke<Disconnected>("mcp_oauth_disconnect", { owner, name, url }),
 
-	status: (owner) => invoke<ConnectorRow[]>("mcp_connector_status", { owner }),
+	status: (owner) =>
+		invoke<ApplicationRow[]>("mcp_application_status", { owner }),
 }

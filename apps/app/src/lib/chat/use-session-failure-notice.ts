@@ -8,16 +8,16 @@ import {
 import { type ChatCopy, useChatCopy } from "@workspace/ui/hooks/use-chat-copy"
 
 import { describeTransportError } from "@/lib/agent/messages"
+import {
+	type LeftOutApplication,
+	useSessionApplication,
+} from "@/lib/applications/use-session-application"
 import type { ChatError } from "@/lib/chat/chat-state"
 import {
 	isSignedOut,
 	needsFreshSession,
 	noticeTitleFor,
 } from "@/lib/chat/screen-model"
-import {
-	type LeftOutConnector,
-	useSessionConnector,
-} from "@/lib/connectors/use-session-connector"
 
 type SessionFailure = {
 	error: ChatError | undefined
@@ -29,7 +29,7 @@ type SessionFailure = {
 
 type FailureReading = {
 	error: ChatError
-	leftOut: LeftOutConnector | null
+	leftOut: LeftOutApplication | null
 	onRestart?: () => void
 	onSignIn?: () => void
 }
@@ -41,7 +41,7 @@ type RaisedFailure = {
 
 const leftOutMessageOf = (
 	t: ChatCopy,
-	leftOut: LeftOutConnector,
+	leftOut: LeftOutApplication,
 ): NoticeMessage => ({
 	title: t("applications.connection.session.title", {
 		ns: "bots",
@@ -84,7 +84,7 @@ const failureMessageOf = (t: ChatCopy, reading: FailureReading) =>
 
 const failureKeyOf = (
 	error: ChatError | undefined,
-	leftOut: LeftOutConnector | null,
+	leftOut: LeftOutApplication | null,
 ) => (error ? `${error.id}:${leftOut?.name ?? ""}` : null)
 
 const release = (raised: RefObject<RaisedFailure | null>) => {
@@ -103,7 +103,7 @@ export const useSessionFailureNotice = ({
 	onSignIn,
 }: SessionFailure): void => {
 	const t = useChatCopy()
-	const leftOut = useSessionConnector(error, speakerId)
+	const leftOut = useSessionApplication(error, speakerId)
 	const raised = useRef<RaisedFailure | null>(null)
 	const key = failureKeyOf(error, leftOut)
 

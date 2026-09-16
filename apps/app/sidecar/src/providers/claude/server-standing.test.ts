@@ -1,17 +1,22 @@
-import { describe, expect, it } from "bun:test"
+import { afterEach, describe, expect, it } from "bun:test"
 
 import { AWAITING_AUTH, leftOut } from "./server-env"
-import { standingOf } from "./server-standing"
+import { recordStanding, standingOf } from "./server-standing"
+
+import type { SessionFrame } from "../provider"
+import { closeHostChannel, openHostChannel, settleHostAnswer } from "../../host"
+
+const SESSION = "k1"
+
+const HOLDING =
+	'the server "superset" connected, and holds its tools for the rest of this session'
 
 describe("standingOf", () => {
 	it("names a server holding its tools", () => {
-		expect(
-			standingOf({
-				detail:
-					'the server "superset" connected, and holds its tools for the rest of this session',
-				state: "holding",
-			}),
-		).toEqual({ name: "superset", state: "holding" })
+		expect(standingOf({ detail: HOLDING, state: "holding" })).toEqual({
+			name: "superset",
+			state: "holding",
+		})
 	})
 
 	it("names a server waiting for authorization with no reason", () => {
@@ -49,5 +54,33 @@ describe("standingOf", () => {
 				state: "connecting",
 			}),
 		).toBeUndefined()
+	})
+})
+
+describe("recordStanding", () => {
+	afterEach(() => {
+		closeHostChannel(SESSION)
+	})
+
+	it("carries the standing under the subtype the host records it by", () => {
+		const asked: unknown[] = []
+		openHostChannel(SESSION, (frame: SessionFrame) => {
+			const { requestId, request } = frame as {
+				requestId: string
+				request: unknown
+			}
+			asked.push(request)
+			settleHostAnswer(SESSION, { requestId })
+		})
+
+		recordStanding(SESSION)({ detail: HOLDING, state: "holding" })
+
+		expect(asked).toEqual([
+			{
+				subtype: "standing",
+				operation: "report",
+				payload: { name: "superset", state: "holding" },
+			},
+		])
 	})
 })

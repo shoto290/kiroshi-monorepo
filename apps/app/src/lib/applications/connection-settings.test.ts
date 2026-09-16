@@ -14,12 +14,12 @@ import { afterEach, describe, expect, it, vi } from "vitest"
 import { SpaceSettingsDialog } from "@workspace/ui/components/space-settings-dialog"
 import "@workspace/ui/lib/i18n"
 
-import { CONNECTORS_TAB, toConnectorSettings } from "./connector-settings"
+import { APPLICATIONS_TAB, toConnectionSettings } from "./connection-settings"
 import {
-	createFakeConnectorPort,
-	type FakeConnectorPort,
-} from "./fake-connector-port"
-import { useConnectors } from "./use-connectors"
+	createFakeConnectionPort,
+	type FakeConnectionPort,
+} from "./fake-connection-port"
+import { useConnections } from "./use-connections"
 
 import type { BotMcpServer, EnvOwner } from "../conversations/store-contract"
 
@@ -32,23 +32,23 @@ const SERVERS: BotMcpServer[] = [
 	{ name: "ledger", config: { command: "ledger-mcp" } },
 ]
 
-type SpaceConnectorsProps = {
-	port: FakeConnectorPort
+type SpaceConnectionsProps = {
+	port: FakeConnectionPort
 	onSettled?: () => void
 }
 
-const SpaceConnectors = ({ port, onSettled }: SpaceConnectorsProps) => {
-	const connectors = useConnectors(port)
+const SpaceConnections = ({ port, onSettled }: SpaceConnectionsProps) => {
+	const connections = useConnections(port)
 	const [openedName, setOpenedName] = useState<string | null>(null)
 
 	useEffect(() => {
-		void connectors.controller.open(SPACE)
-	}, [connectors.controller])
+		void connections.controller.open(SPACE)
+	}, [connections.controller])
 
 	return createElement(SpaceSettingsDialog, {
-		...toConnectorSettings({
+		...toConnectionSettings({
 			servers: SERVERS,
-			connectors,
+			connections,
 			openedName,
 			onSettled,
 		}),
@@ -69,7 +69,7 @@ const SpaceConnectors = ({ port, onSettled }: SpaceConnectorsProps) => {
 		onValueChange: vi.fn(),
 		open: true,
 		skills: [],
-		tab: CONNECTORS_TAB,
+		tab: APPLICATIONS_TAB,
 		value: { name: "Release desk", colour: "blue" },
 	})
 }
@@ -81,8 +81,8 @@ const settle = () =>
 		}
 	})
 
-const mounted = async (port: FakeConnectorPort, onSettled?: () => void) => {
-	render(createElement(SpaceConnectors, { port, onSettled }))
+const mounted = async (port: FakeConnectionPort, onSettled?: () => void) => {
+	render(createElement(SpaceConnections, { port, onSettled }))
 	await settle()
 	return screen.getByRole("tabpanel", { name: "Applications" })
 }
@@ -100,10 +100,10 @@ const rowOf = (name: string) => {
 	return row
 }
 
-const lastCall = (port: FakeConnectorPort) => port.calls.at(-1)
+const lastCall = (port: FakeConnectionPort) => port.calls.at(-1)
 
-const connectorPort = (status: "needsAuthorization" | "connected") => {
-	const port = createFakeConnectorPort()
+const connectionPort = (status: "needsAuthorization" | "connected") => {
+	const port = createFakeConnectionPort()
 	port.rows.space = [
 		{ name: "atlas", status },
 		{ name: "ledger", status: "unknown" },
@@ -113,9 +113,9 @@ const connectorPort = (status: "needsAuthorization" | "connected") => {
 
 afterEach(cleanup)
 
-describe("space connectors", () => {
-	it("opens on its Connectors tab and reads the status of the space", async () => {
-		const port = connectorPort("needsAuthorization")
+describe("space connections", () => {
+	it("opens on its Applications tab and reads the status of the space", async () => {
+		const port = connectionPort("needsAuthorization")
 
 		await mounted(port)
 
@@ -123,8 +123,8 @@ describe("space connectors", () => {
 		expect(within(rowOf("atlas")).getByText("Needs authorization")).toBeTruthy()
 	})
 
-	it("leaves a connector it cannot read with no state and no action", async () => {
-		await mounted(connectorPort("needsAuthorization"))
+	it("leaves a connection it cannot read with no state and no action", async () => {
+		await mounted(connectionPort("needsAuthorization"))
 
 		const ledger = rowOf("ledger")
 
@@ -134,7 +134,7 @@ describe("space connectors", () => {
 	})
 
 	it("connects from a row, shows it connecting, then reads the grant that landed", async () => {
-		const port = connectorPort("needsAuthorization")
+		const port = connectionPort("needsAuthorization")
 		await mounted(port)
 
 		await press("Connect atlas")
@@ -156,7 +156,7 @@ describe("space connectors", () => {
 	})
 
 	it("cancels a running flow from the editor and reads the status again", async () => {
-		const port = connectorPort("needsAuthorization")
+		const port = connectionPort("needsAuthorization")
 		await mounted(port)
 		await press("Connect atlas")
 
@@ -178,7 +178,7 @@ describe("space connectors", () => {
 	})
 
 	it("disconnects once the person confirms, then reads the status again", async () => {
-		const port = connectorPort("connected")
+		const port = connectionPort("connected")
 		await mounted(port)
 		await press("Open atlas")
 
@@ -192,7 +192,7 @@ describe("space connectors", () => {
 	})
 
 	it("says a connect landed once the grant is read", async () => {
-		const port = connectorPort("needsAuthorization")
+		const port = connectionPort("needsAuthorization")
 		const onSettled = vi.fn()
 		await mounted(port, onSettled)
 
@@ -207,7 +207,7 @@ describe("space connectors", () => {
 	})
 
 	it("says nothing landed when the connect was refused", async () => {
-		const port = connectorPort("needsAuthorization")
+		const port = connectionPort("needsAuthorization")
 		port.refusals.connect = { kind: "denied", detail: "access_denied" }
 		const onSettled = vi.fn()
 		await mounted(port, onSettled)
@@ -218,7 +218,7 @@ describe("space connectors", () => {
 	})
 
 	it("says nothing landed when the connect ended unauthorized", async () => {
-		const port = connectorPort("needsAuthorization")
+		const port = connectionPort("needsAuthorization")
 		const onSettled = vi.fn()
 		await mounted(port, onSettled)
 
@@ -231,7 +231,7 @@ describe("space connectors", () => {
 	})
 
 	it("says a disconnect landed once it is confirmed", async () => {
-		const port = connectorPort("connected")
+		const port = connectionPort("connected")
 		const onSettled = vi.fn()
 		await mounted(port, onSettled)
 		await press("Open atlas")
@@ -244,7 +244,7 @@ describe("space connectors", () => {
 	})
 
 	it("says nothing landed when the server is still connected", async () => {
-		const port = connectorPort("connected")
+		const port = connectionPort("connected")
 		const onSettled = vi.fn()
 		await mounted(port, onSettled)
 		await press("Open atlas")
@@ -255,8 +255,8 @@ describe("space connectors", () => {
 		expect(onSettled).not.toHaveBeenCalled()
 	})
 
-	it("shows a refused connect as a connector that could not connect", async () => {
-		const port = connectorPort("needsAuthorization")
+	it("shows a refused connect as a connection that could not connect", async () => {
+		const port = connectionPort("needsAuthorization")
 		port.refusals.connect = { kind: "denied", detail: "access_denied" }
 		await mounted(port)
 

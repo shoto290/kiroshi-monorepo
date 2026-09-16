@@ -406,7 +406,7 @@ export const NeedsAuthorization = meta.story({
 		docs: {
 			description: {
 				story:
-					"A saved connector that signs in through the browser and has not been authorized yet. Reach for this to check the block the Connection section opens on: it stands above the trust notice, says where the token is kept — with the connector's secrets, never in the JSON under Advanced — and offers the one action that can be taken. Check that the state is readable from the title and the dot together, not from the amber field.",
+					"A saved application that signs in through the browser and has not been authorized yet. Reach for this to check the block the Connection section opens on: it stands above the trust notice, says where the token is kept — with the application's secrets, never in the JSON under Advanced — and offers the one action that can be taken. Check that the state is readable from the title and the dot together, not from the amber field.",
 			},
 		},
 	},
@@ -434,7 +434,7 @@ export const Connecting = meta.story({
 		docs: {
 			description: {
 				story:
-					"The block while the reader is somewhere else — in the browser tab the connector opened. Reach for this over `NeedsAuthorization` to check the waiting state: the title names what is being waited on rather than repeating the state label, the spinner replaces the dot and holds still under reduced motion, and both ways out are offered, because a tab that was closed by accident should not need a cancel first.",
+					"The block while the reader is somewhere else — in the browser tab the application opened. Reach for this over `NeedsAuthorization` to check the waiting state: the title names what is being waited on rather than repeating the state label, the spinner replaces the dot and holds still under reduced motion, and both ways out are offered, because a tab that was closed by accident should not need a cancel first.",
 			},
 		},
 	},
@@ -463,7 +463,7 @@ export const Connected = meta.story({
 		docs: {
 			description: {
 				story:
-					"An authorized connector at rest. Check that the block goes quiet — the muted field, no amber, no red — and that it still says the two things the reader came for: when it was authorized and that the token renews itself. Disconnect is the only action, and it asks before it drops anything: `WithDisconnection` mounts that question.",
+					"An authorized application at rest. Check that the block goes quiet — the muted field, no amber, no red — and that it still says the two things the reader came for: when it was authorized and that the token renews itself. Disconnect is the only action, and it asks before it drops anything: `WithDisconnection` mounts that question.",
 			},
 		},
 	},
@@ -481,7 +481,7 @@ export const ConnectionFailed = meta.story({
 		docs: {
 			description: {
 				story:
-					"The attempt came back refused. Reach for this to check the one block with no sentence under its title: nothing true can be said about why until the connector says it, so the block states the outcome and offers another attempt rather than guessing at a cause. Check that the red is the field and the dot, never the words.",
+					"The attempt came back refused. Reach for this to check the one block with no sentence under its title: nothing true can be said about why until the application says it, so the block states the outcome and offers another attempt rather than guessing at a cause. Check that the red is the field and the dot, never the words.",
 			},
 		},
 	},
@@ -589,7 +589,7 @@ export const UnsavedConnection = meta.story({
 		docs: {
 			description: {
 				story:
-					"A connector being added, before anything is on the disk. Reach for this over `NeedsAuthorization` to check what the block does when authorizing cannot mean anything yet: the field goes muted rather than asking for attention, the sentence says what has to happen first, and Connect is present but out of reach so the order of operations is readable rather than discovered by a press that fails.",
+					"An application being added, before anything is on the disk. Reach for this over `NeedsAuthorization` to check what the block does when authorizing cannot mean anything yet: the field goes muted rather than asking for attention, the sentence says what has to happen first, and Connect is present but out of reach so the order of operations is readable rather than discovered by a press that fails.",
 			},
 		},
 	},
@@ -614,7 +614,7 @@ export const WithDisconnection = meta.story({
 		docs: {
 			description: {
 				story:
-					"Disconnect taken, with its question already up. Reach for this to check that it is a different question from `WithConfirmation`: removing a connector takes its configuration off the disk, disconnecting only drops the token and the tools it opened. Both name the connector and both put Cancel first. Check that accepting fires `onDisconnect` once.",
+					"Disconnect taken, with its question already up. Reach for this to check that it is a different question from `WithConfirmation`: removing an application takes its configuration off the disk, disconnecting only drops the token and the tools it opened. Both name the application and both put Cancel first. Check that accepting fires `onDisconnect` once.",
 			},
 		},
 	},

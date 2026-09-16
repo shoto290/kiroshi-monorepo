@@ -3,8 +3,8 @@ import {
 	type Options,
 } from "@anthropic-ai/claude-agent-sdk"
 
+import { applicationTools } from "./application-tools"
 import { companionTools } from "./companion-tools"
-import { connectorTools } from "./connector-tools"
 import {
 	DELEGATE_TOOL_NAME,
 	type DelegateScope,
@@ -23,7 +23,7 @@ export const kiroshiTools = ({ session, ...scope }: KiroshiScope) => [
 	delegateTool(scope),
 	...routineTools(session),
 	...missionTools(session),
-	...connectorTools(session),
+	...applicationTools(session),
 	...companionTools(session),
 ]
 
