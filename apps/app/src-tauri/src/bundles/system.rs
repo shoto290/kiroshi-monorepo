@@ -212,6 +212,21 @@ mod tests {
 			"the name of the secret",
 			"Settings panel of that destination",
 			"Connect lives in the Settings panel of that destination",
+			"## When no tool of yours does it",
+			"no tool of this session does",
+			"a capability none of your tools holds",
+			"Not a refusal of scope, not a rule you follow,",
+			"not something the person already ruled out",
+			"call `application_search` on that capability",
+			"Never ask the person whether to look.",
+			"you say you cannot do the thing",
+			"the search stays unmentioned",
+			"you name one application",
+			"what it unblocks",
+			"that the person installs it from Settings",
+			"One offer per subject, never a second application.",
+			"Never call `application_install` here.",
+			"never raise it again in this conversation",
 		] {
 			assert!(text.contains(said), "{said} is missing");
 		}
