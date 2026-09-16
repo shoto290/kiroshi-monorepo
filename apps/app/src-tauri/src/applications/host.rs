@@ -153,7 +153,7 @@ impl<R: Runtime> ApplicationHost<R> {
 			if let Some(found) = self.semantic(name).await {
 				return Ok(Some(found));
 			}
-			return registry::detail(&self.registries.official, name).await.map_err(Into::into);
+			return Ok(registry::detail(&self.registries.official, name).await?);
 		}
 		if let Some(found) = registry::detail(&self.registries.official, name).await? {
 			return Ok(Some(found));
