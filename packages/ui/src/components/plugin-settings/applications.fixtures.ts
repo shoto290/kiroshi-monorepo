@@ -244,6 +244,26 @@ export const HOSTED_NOTHING_INSTALL: InstallableApplication = {
 	setup: "none",
 }
 
+export const REFUSED_APPLICATION = {
+	id: "smithery/queried",
+	name: "Queried",
+	description: "Asks for a key its url would carry.",
+	setup: "unavailable",
+	source: "Smithery",
+	packageIdentity: "https://queried.run.tools/mcp",
+} as const satisfies CatalogueApplication
+
+export const REFUSED_INSTALL: InstallableApplication = {
+	...REFUSED_APPLICATION,
+	host: "queried.run.tools",
+	tools: ["search_records", "read_record"],
+	refusal: {
+		field: "apiKey",
+		reason:
+			'the required field "apiKey" names no header to carry it, and a key must never travel in a url',
+	},
+}
+
 export const UNSTATED_REACH_INSTALL: InstallableApplication = {
 	id: "io.github.weatherdesk/forecast",
 	name: "forecast",

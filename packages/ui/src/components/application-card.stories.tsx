@@ -44,6 +44,7 @@ const APPLICATION_STATUSES = listExhaustively<ApplicationCardStatus>({
 	none: true,
 	apiKey: true,
 	signIn: true,
+	unavailable: true,
 	waiting: true,
 	connected: true,
 })
@@ -151,6 +152,7 @@ const STATUS_INDICATOR = {
 	none: { className: "text-state-connected", property: "color" },
 	apiKey: { className: "text-muted-foreground", property: "color" },
 	signIn: { className: "bg-bot-badge-attention", property: "backgroundColor" },
+	unavailable: { className: "text-destructive", property: "color" },
 	waiting: { className: "bg-bot-badge-attention", property: "backgroundColor" },
 	connected: { className: "bg-state-connected", property: "backgroundColor" },
 } as const satisfies Record<ApplicationCardStatus, StatusIndicator>
@@ -159,6 +161,7 @@ const STATUS_LABEL = {
 	none: bots.applications.catalogue.setup.none,
 	apiKey: bots.applications.catalogue.setup.apiKey,
 	signIn: bots.applications.catalogue.setup.signIn,
+	unavailable: bots.applications.catalogue.setup.unavailable,
 	waiting: bots.applications.connection.waiting,
 	connected: bots.applications.connection.state.connected,
 } as const satisfies Record<ApplicationCardStatus, string>
@@ -182,7 +185,7 @@ export const Statuses = meta.story({
 		docs: {
 			description: {
 				story:
-					"Every status the card can carry. Labels come from the catalogue setup and connection catalogues; indicators from the connection dot map and the connected token. Check nothing to set up is a check stroked in the connected token, an API key is a muted key, signing in and waiting on the browser share the attention token, and a connected application reads its label in the foreground token.",
+					"Every status the card can carry. Labels come from the catalogue setup and connection catalogues; indicators from the connection dot map and the connected token. Check nothing to set up is a check stroked in the connected token, an API key is a muted key, an application that can’t be added here is blocked in the destructive token, signing in and waiting on the browser share the attention token, and a connected application reads its label in the foreground token.",
 			},
 		},
 	},

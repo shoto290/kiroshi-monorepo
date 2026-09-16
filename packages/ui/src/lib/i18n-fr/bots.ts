@@ -495,6 +495,10 @@ const bots = {
 			},
 			none: "Rien à configurer. Elle tourne sur cette machine, sans clé ni connexion.",
 			hostedNone: "Rien à configurer. Ni clé, ni connexion.",
+			unavailable: {
+				title: "Kiroshi ne peut pas ajouter {{name}}",
+				description: "Impossible de l'ajouter d'ici : {{reason}}.",
+			},
 			hosting: "Tourne sur <host>{{host}}</host>, pas sur cette machine.",
 			unreviewed: {
 				title: "Kiroshi ne l'a pas lue",
@@ -601,6 +605,7 @@ const bots = {
 				signIn: "Vous connecte",
 				apiKey: "Demande une clé d'API",
 				none: "Rien à configurer",
+				unavailable: "Impossible de l'ajouter ici",
 			},
 		},
 		unavailable:

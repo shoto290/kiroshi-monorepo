@@ -38,6 +38,12 @@ const APPLICATION_STATUS = {
 		tone: MCP_CONNECTION_DOT.needsAuthorization,
 		labelTone: "text-muted-foreground",
 	},
+	unavailable: {
+		label: "applications.catalogue.setup.unavailable",
+		glyph: Icons.Blocked,
+		tone: "text-destructive",
+		labelTone: "text-muted-foreground",
+	},
 	waiting: {
 		label: "applications.connection.waiting",
 		tone: MCP_CONNECTION_DOT.needsAuthorization,

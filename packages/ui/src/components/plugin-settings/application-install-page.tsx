@@ -31,6 +31,11 @@ type ApplicationPublication = {
 	publishedAt: string
 }
 
+type ApplicationRefusal = {
+	field: string
+	reason: string
+}
+
 type InstallableApplication = CatalogueApplication & {
 	packageIdentity: string
 	tools: string[]
@@ -38,6 +43,7 @@ type InstallableApplication = CatalogueApplication & {
 	keyPlace?: string
 	keyPrefix?: string
 	unreviewed?: ApplicationPublication
+	refusal?: ApplicationRefusal
 }
 
 const ownerNameOf = (owner: ApplicationsOwner) =>
@@ -291,6 +297,41 @@ const UnreviewedNotice = ({
 	)
 }
 
+type RefusedNoticeProps = {
+	name: string
+	refusal?: ApplicationRefusal
+}
+
+const RefusedNotice = ({ name, refusal }: RefusedNoticeProps) => {
+	const { t } = useTranslation("bots")
+
+	return (
+		<div
+			className={cn(
+				"flex items-start gap-2.5 rounded-xl border p-3.5",
+				MCP_DESTRUCTIVE_SURFACE,
+			)}
+		>
+			<Icons.Blocked
+				aria-hidden="true"
+				className="mt-0.5 size-4 shrink-0 text-destructive"
+			/>
+			<div className="flex min-w-0 flex-col gap-0.75">
+				<p className="wrap-break-word font-medium text-foreground text-sm/5">
+					{t("applications.install.unavailable.title", { name })}
+				</p>
+				{refusal ? (
+					<p className="wrap-break-word text-[13px]/4.5 text-muted-foreground">
+						{t("applications.install.unavailable.description", {
+							reason: refusal.reason,
+						})}
+					</p>
+				) : null}
+			</div>
+		</div>
+	)
+}
+
 type ToolListProps = {
 	tools: string[]
 	canWrite?: boolean
@@ -413,7 +454,8 @@ const ApplicationInstallPage = ({
 	useOverlayScrollbars(body)
 	const [key, setKey] = useState("")
 	const isPackage = !application.description
-	const { host } = application
+	const { host, refusal } = application
+	const isRefused = application.setup === "unavailable"
 	const hostedSource =
 		host === undefined ? undefined : (application.source ?? host)
 
@@ -441,6 +483,10 @@ const ApplicationInstallPage = ({
 
 		if (application.setup === "none") {
 			return <NothingToSetUp isHosted={host !== undefined} />
+		}
+
+		if (isRefused) {
+			return <RefusedNotice name={application.name} refusal={refusal} />
 		}
 
 		return host === undefined ? <SignInNotice name={application.name} /> : null
@@ -526,17 +572,19 @@ const ApplicationInstallPage = ({
 						</div>
 					</Tabs.Panel>
 
-					<div className="col-start-1 row-start-2 flex items-center border-border border-b px-5 pb-3 @sm:col-start-2 @sm:row-start-1 @sm:ps-0 @sm:pt-3">
-						<InstallAction
-							isHosted={host !== undefined}
-							isInstalled={isInstalled}
-							isInstalling={isInstalling}
-							onInstall={() =>
-								onInstall(application.setup === "apiKey" ? key : undefined)
-							}
-							setup={application.setup}
-						/>
-					</div>
+					{isRefused ? null : (
+						<div className="col-start-1 row-start-2 flex items-center border-border border-b px-5 pb-3 @sm:col-start-2 @sm:row-start-1 @sm:ps-0 @sm:pt-3">
+							<InstallAction
+								isHosted={host !== undefined}
+								isInstalled={isInstalled}
+								isInstalling={isInstalling}
+								onInstall={() =>
+									onInstall(application.setup === "apiKey" ? key : undefined)
+								}
+								setup={application.setup}
+							/>
+						</div>
+					)}
 				</div>
 			</div>
 		</CataloguePage>

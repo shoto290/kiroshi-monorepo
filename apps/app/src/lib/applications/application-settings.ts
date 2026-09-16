@@ -36,11 +36,16 @@ const SETUP_OF_INSTALL = {
 	nothing: "none",
 	key: "apiKey",
 	oauth: "signIn",
-	refused: "none",
+	refused: "unavailable",
 } as const satisfies Record<Install["kind"], ApplicationSetup>
 
 const setupOf = (application: Application) =>
 	SETUP_OF_INSTALL[application.install.kind]
+
+const refusalOf = ({ install }: Application) =>
+	install.kind === "refused"
+		? { field: install.field, reason: install.reason }
+		: undefined
 
 export const withApplicationMarks = (
 	servers: BotMcpServerItem[],
@@ -86,6 +91,7 @@ export const toInstallableApplication = (
 	description: application.description || undefined,
 	packageIdentity: application.name,
 	tools: application.tools,
+	refusal: refusalOf(application),
 })
 
 const categoriesOf = (count: number | null): ApplicationCategory[] => [

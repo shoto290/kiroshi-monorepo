@@ -484,6 +484,10 @@ const bots = {
 			},
 			none: "Nothing to set up. It runs on this machine, with no key and no sign-in.",
 			hostedNone: "Nothing to set up. No key, no sign-in.",
+			unavailable: {
+				title: "Kiroshi can’t add {{name}}",
+				description: "It can’t be added from here: {{reason}}.",
+			},
 			hosting: "Runs on <host>{{host}}</host>, not on this machine.",
 			unreviewed: {
 				title: "Kiroshi hasn’t read this one",
@@ -583,6 +587,7 @@ const bots = {
 				signIn: "Signs you in",
 				apiKey: "Needs an API key",
 				none: "Nothing to set up",
+				unavailable: "Can’t be added here",
 			},
 		},
 		unavailable: "Couldn't load applications. Reopen settings to retry.",
