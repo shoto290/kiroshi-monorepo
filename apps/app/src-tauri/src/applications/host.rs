@@ -143,13 +143,9 @@ impl<R: Runtime> ApplicationHost<R> {
 		if let Some(curated) = catalogue::curated()?.into_iter().find(|held| held.name == name) {
 			return Ok(curated);
 		}
-		self.named(name).await?.ok_or_else(|| ApplicationCallError::UnknownApplication {
-			application: name.to_owned(),
+		smithery::detail(&self.registry, name).await?.ok_or_else(|| {
+			ApplicationCallError::UnknownApplication { application: name.to_owned() }
 		})
-	}
-
-	async fn named(&self, name: &str) -> Result<Option<Application>, ApplicationCallError> {
-		Ok(smithery::detail(&self.registry, name).await?)
 	}
 
 	async fn owner(&self, scope: Destination) -> Result<EnvOwner, ApplicationCallError> {
