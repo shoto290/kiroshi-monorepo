@@ -18,7 +18,6 @@ import type {
 	RefusedMessage,
 } from "../conversations/conversation-controller"
 import type { ConversationRuntimes } from "../conversations/conversation-runtimes"
-import { presentParticipants } from "../conversations/roster-conversations"
 import type { Bot, Conversation } from "../conversations/store-contract"
 import type { CompanionArrival } from "../conversations/transcript-contract"
 import type { Mission } from "../missions/mission-contract"
@@ -164,7 +163,7 @@ const conversationFactsOf = (
 	isLoadingNewer: thread.state.isLoadingNewer,
 	isPromptPending: false,
 	isOverlayOpen: false,
-	canAttach: presentParticipants(thread.conversation).length > 0,
+	canAttach: true,
 	permission: permissionIn(thread.state.pendingPrompt),
 	latestError: thread.state.latestError ?? undefined,
 	question: questionIn(thread.state.pendingPrompt),

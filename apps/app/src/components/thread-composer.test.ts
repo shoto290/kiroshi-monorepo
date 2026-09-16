@@ -17,6 +17,7 @@ const NO_ATTACHMENTS: StagedAttachment[] = []
 type ComposerFixture = {
 	onSubmitPrompt: (text: string) => Promise<boolean>
 	canAttach?: boolean
+	onAttach?: (files: File[]) => void
 	queryIn?: (prompt: string) => string | null
 	menu?: (slot: ThreadMenuSlot) => ReactNode
 }
@@ -24,6 +25,7 @@ type ComposerFixture = {
 const composerOf = ({
 	onSubmitPrompt,
 	canAttach = true,
+	onAttach = () => undefined,
 	queryIn = () => null,
 	menu = (slot) => slot.children,
 }: ComposerFixture) =>
@@ -34,7 +36,7 @@ const composerOf = ({
 		isDisabled: false,
 		isDropTarget: false,
 		menu,
-		onAttach: () => undefined,
+		onAttach,
 		onPromptChange: () => undefined,
 		onRemoveAttachment: () => undefined,
 		onSubmitPrompt,
@@ -155,6 +157,28 @@ describe("ThreadComposer", () => {
 		fireEvent.click(screen.getByRole("button", { name: "Pick review" }))
 
 		expect(field().value).toBe("/review ")
+	})
+
+	it("stages an image pasted into the composer while attaching stands", () => {
+		const staged: File[][] = []
+		render(
+			composerOf({
+				onAttach: (files) => staged.push(files),
+				onSubmitPrompt: () => Promise.resolve(true),
+			}),
+		)
+
+		const image = new File(["binary"], "screenshot.png", { type: "image/png" })
+		fireEvent.paste(field(), {
+			clipboardData: { files: [image], types: ["Files"] },
+		})
+
+		expect(staged).toEqual([[image]])
+		expect(
+			screen
+				.getByRole("button", { name: "Attach files" })
+				.hasAttribute("disabled"),
+		).toBe(false)
 	})
 
 	it("disables the attach button while attaching is refused", () => {

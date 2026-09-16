@@ -176,7 +176,7 @@ describe("factsOf canAttach", () => {
 		expect(factsOf(botThreadOf(initialChatState)).canAttach).toBe(false)
 	})
 
-	it("follows the present participants on a conversation", () => {
+	it("stands on a conversation nobody is seated in", () => {
 		const seated = conversationThreadOf({
 			participants: [participant()],
 			pendingPrompt: null,
@@ -190,6 +190,6 @@ describe("factsOf canAttach", () => {
 		})
 
 		expect(factsOf(seated).canAttach).toBe(true)
-		expect(factsOf(empty).canAttach).toBe(false)
+		expect(factsOf(empty).canAttach).toBe(true)
 	})
 })
