@@ -381,14 +381,12 @@ const CatalogueSection = ({
 type CatalogueLineProps = {
 	icon: Icon
 	text: string
-	isAnnounced?: boolean
 	action?: ReactNode
 }
 
 const CatalogueLine = ({
 	icon: LineIcon,
 	text,
-	isAnnounced = false,
 	action,
 }: CatalogueLineProps) => (
 	<div className="flex items-center gap-2.5 rounded-xl border border-border px-3 py-2">
@@ -397,7 +395,7 @@ const CatalogueLine = ({
 			className="size-4 shrink-0 text-muted-foreground"
 		/>
 		<p
-			aria-live={isAnnounced ? "polite" : "off"}
+			aria-live="polite"
 			className="min-w-0 flex-1 wrap-break-word text-muted-foreground text-sm"
 		>
 			{text}
@@ -531,7 +529,6 @@ const ApplicationsCatalogue = ({
 			<CatalogueLine
 				action={registryRetry}
 				icon={Icons.Alert}
-				isAnnounced
 				text={t("applications.catalogue.registry.partlyFailed")}
 			/>
 		) : null
@@ -546,7 +543,6 @@ const ApplicationsCatalogue = ({
 		return (
 			<CatalogueLine
 				icon={Icons.Search}
-				isAnnounced
 				text={
 					curated.length === 0
 						? t("applications.catalogue.nothing", { query: typed })
@@ -566,7 +562,6 @@ const ApplicationsCatalogue = ({
 				<CatalogueLine
 					action={registryRetry}
 					icon={Icons.Alert}
-					isAnnounced
 					text={t("applications.catalogue.registry.failed")}
 				/>
 			)
