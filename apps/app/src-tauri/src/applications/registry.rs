@@ -642,7 +642,7 @@ pub(crate) mod tests {
 	}
 
 	#[test]
-	fn every_required_secret_variable_is_asked_for_and_the_plain_ones_are_left_out() {
+	fn every_required_variable_is_asked_for_in_order_and_an_optional_one_is_left_out() {
 		let application = described(json!({
 			"name": "io.test/keyed",
 			"packages": [{

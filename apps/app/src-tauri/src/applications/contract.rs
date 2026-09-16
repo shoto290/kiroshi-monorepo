@@ -88,8 +88,21 @@ fn variables(held: &str) -> Vec<String> {
 	held.split("${")
 		.skip(1)
 		.filter_map(|rest| rest.split_once('}'))
-		.map(|(named, _)| named.to_owned())
+		.map(|(reference, _)| named(reference).to_owned())
 		.collect()
+}
+
+fn named(reference: &str) -> &str {
+	match reference.split_once(":-") {
+		Some((name, _)) if resolved_by_the_sidecar(name) => name,
+		_ => reference,
+	}
+}
+
+fn resolved_by_the_sidecar(name: &str) -> bool {
+	let mut held = name.chars();
+	held.next().is_some_and(|first| first == '_' || first.is_ascii_uppercase())
+		&& held.all(|held| held == '_' || held.is_ascii_uppercase() || held.is_ascii_digit())
 }
 
 fn uncovered(variable: &str) -> String {
@@ -488,6 +501,41 @@ mod tests {
 		};
 		assert_eq!(refusal.field, "X_ACCOUNT");
 		assert!(refusal.reason.contains("X_ACCOUNT"), "got {}", refusal.reason);
+	}
+
+	#[test]
+	fn a_reference_carrying_a_fallback_reads_its_name_alone() {
+		let field = InstallField {
+			name: "Authorization".to_owned(),
+			secret: "AUTHORIZATION".to_owned(),
+			description: None,
+		};
+		let asking = Install::asking(vec![field.clone()]);
+		let config = json!({ "env": { "TOKEN": "${AUTHORIZATION:-none}" } });
+
+		assert_eq!(asking.covering(&config), Install::Key { fields: vec![field] });
+	}
+
+	#[test]
+	fn a_reference_carrying_a_fallback_no_field_fills_names_that_name_without_its_fallback() {
+		let config = json!({ "env": { "LEVEL": "${LOG_LEVEL:-debug}" } });
+
+		let Install::Refused(refusal) = Install::Nothing.covering(&config) else {
+			panic!("an unfilled reference refuses");
+		};
+		assert_eq!(refusal.field, "LOG_LEVEL");
+		assert!(refusal.reason.contains("LOG_LEVEL"), "got {}", refusal.reason);
+		assert!(!refusal.reason.contains("debug"), "got {}", refusal.reason);
+	}
+
+	#[test]
+	fn a_reference_the_sidecar_cannot_match_stays_refused_under_the_whole_name_it_reads() {
+		let config = json!({ "env": { "LEVEL": "${log-level:-debug}" } });
+
+		let Install::Refused(refusal) = Install::Nothing.covering(&config) else {
+			panic!("a reference the sidecar leaves alone refuses");
+		};
+		assert_eq!(refusal.field, "log-level:-debug");
 	}
 
 	#[test]
