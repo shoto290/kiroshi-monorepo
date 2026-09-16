@@ -139,18 +139,13 @@ const SignInNotice = ({ name }: SignInNoticeProps) => {
 }
 
 type KeyPanelProps = {
-	application: InstallableApplication
+	name: string
 	owner: ApplicationsOwner
 	value: string
 	onValueChange: (value: string) => void
 }
 
-const KeyPanel = ({
-	application,
-	owner,
-	value,
-	onValueChange,
-}: KeyPanelProps) => {
+const KeyPanel = ({ name, owner, value, onValueChange }: KeyPanelProps) => {
 	const { t } = useTranslation("bots")
 	const [isRevealed, setRevealed] = useState(false)
 	const titleId = useId()
@@ -163,7 +158,7 @@ const KeyPanel = ({
 				className="wrap-break-word font-medium text-foreground text-sm/5"
 				id={titleId}
 			>
-				{t("applications.install.key.title", { name: application.name })}
+				{t("applications.install.key.title", { name })}
 			</p>
 			<div className="flex h-9 items-center gap-2 rounded-md border border-input bg-background ps-3 pe-1 has-[input:focus-visible]:border-ring has-[input:focus-visible]:ring-3 has-[input:focus-visible]:ring-ring/30">
 				<input
@@ -390,7 +385,7 @@ const ApplicationInstallPage = ({
 		if (application.setup === "apiKey") {
 			return (
 				<KeyPanel
-					application={application}
+					name={application.name}
 					onValueChange={setKey}
 					owner={owner}
 					value={key}
