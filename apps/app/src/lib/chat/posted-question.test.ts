@@ -7,6 +7,7 @@ import {
 	type PostedRequest,
 	withPostedRows,
 } from "./posted-question"
+import { questionMessageIdOf } from "./question-message"
 
 import type {
 	TranscriptDraft,
@@ -154,9 +155,14 @@ describe("withPostedRows", () => {
 			],
 		)
 
-		expect(
-			contentsOf(rows).filter((content) => !content.startsWith("###")),
-		).toEqual(["one", "first", "second"])
+		expect(rows.map(({ id }) => id)).toEqual([
+			"message-1",
+			questionMessageIdOf("posted-1"),
+			"answer-posted-1",
+			questionMessageIdOf("posted-2"),
+			"answer-posted-2",
+			questionMessageIdOf("posted-3"),
+		])
 		expect(isAscending(rows)).toBe(true)
 	})
 })

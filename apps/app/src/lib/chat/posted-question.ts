@@ -123,7 +123,8 @@ const rowsByAnchor = (
 	const anchored = new Map<number, TranscriptDraft[]>()
 	for (const question of posted) {
 		const anchor = question.answeredAfterSeq ?? liveSeq
-		anchored.set(anchor, [...(anchored.get(anchor) ?? []), ...rowsOf(question)])
+		const earlier = anchored.get(anchor) ?? []
+		anchored.set(anchor, [...earlier, ...rowsOf(question)])
 	}
 	return anchored
 }
