@@ -263,6 +263,48 @@ const ROW_SKELETONS = [
 		meta: "w-47.5",
 		setup: "w-17.5",
 	},
+	{
+		rank: "four",
+		name: "w-29.5",
+		description: "w-47",
+		meta: "w-34.5",
+		setup: "w-22.5",
+	},
+	{
+		rank: "five",
+		name: "w-35",
+		description: "w-53.5",
+		meta: "w-25.5",
+		setup: "w-19",
+	},
+	{
+		rank: "six",
+		name: "w-21.5",
+		description: "w-40",
+		meta: "w-43",
+		setup: "w-26",
+	},
+	{
+		rank: "seven",
+		name: "w-31",
+		description: "w-58",
+		meta: "w-31.5",
+		setup: "w-16.5",
+	},
+	{
+		rank: "eight",
+		name: "w-26.5",
+		description: "w-44.5",
+		meta: "w-37",
+		setup: "w-23.5",
+	},
+	{
+		rank: "nine",
+		name: "w-38.5",
+		description: "w-49",
+		meta: "w-28",
+		setup: "w-21",
+	},
 ]
 
 const CatalogueCardSkeletons = () => (
@@ -339,14 +381,12 @@ const CatalogueSection = ({
 type CatalogueLineProps = {
 	icon: Icon
 	text: string
-	isAnnounced?: boolean
 	action?: ReactNode
 }
 
 const CatalogueLine = ({
 	icon: LineIcon,
 	text,
-	isAnnounced = false,
 	action,
 }: CatalogueLineProps) => (
 	<div className="flex items-center gap-2.5 rounded-xl border border-border px-3 py-2">
@@ -355,7 +395,7 @@ const CatalogueLine = ({
 			className="size-4 shrink-0 text-muted-foreground"
 		/>
 		<p
-			aria-live={isAnnounced ? "polite" : "off"}
+			aria-live="polite"
 			className="min-w-0 flex-1 wrap-break-word text-muted-foreground text-sm"
 		>
 			{text}
@@ -442,7 +482,6 @@ type ApplicationsCatalogueProps = Omit<CataloguePageProps, "children"> & {
 	onQueryChange: (query: string) => void
 	curated: CatalogueApplication[]
 	registry: CatalogueApplication[]
-	publishedCount?: number
 	isCatalogueLoading?: boolean
 	isRegistrySearching?: boolean
 	hasRegistryFailed?: boolean
@@ -462,7 +501,6 @@ const ApplicationsCatalogue = ({
 	onQueryChange,
 	curated,
 	registry,
-	publishedCount,
 	isCatalogueLoading = false,
 	isRegistrySearching = false,
 	hasRegistryFailed = false,
@@ -491,29 +529,39 @@ const ApplicationsCatalogue = ({
 			<CatalogueLine
 				action={registryRetry}
 				icon={Icons.Alert}
-				isAnnounced
 				text={t("applications.catalogue.registry.partlyFailed")}
 			/>
 		) : null
 
+	const hasRegistrySection =
+		typed !== "" ||
+		isLoading ||
+		hasRegistryFailed ||
+		hasRegistryPartlyFailed ||
+		registry.length > 0
+
+	const registryResults = () => {
+		if (registry.length > 0) {
+			return <CatalogueRows applications={registry} onPick={onPick} />
+		}
+
+		if (typed === "") return null
+
+		return (
+			<CatalogueLine
+				icon={Icons.Search}
+				text={
+					curated.length === 0
+						? t("applications.catalogue.nothing", { query: typed })
+						: t("applications.catalogue.registry.empty", { query: typed })
+				}
+			/>
+		)
+	}
+
 	const registryBody = () => {
 		if (isLoading) {
 			return <CatalogueRowSkeletons />
-		}
-
-		if (typed === "") {
-			return (
-				<CatalogueLine
-					icon={Icons.Search}
-					text={
-						publishedCount === undefined
-							? t("applications.catalogue.registry.rest")
-							: t("applications.catalogue.registry.restCounted", {
-									count: publishedCount,
-								})
-					}
-				/>
-			)
 		}
 
 		if (hasRegistryFailed) {
@@ -521,7 +569,6 @@ const ApplicationsCatalogue = ({
 				<CatalogueLine
 					action={registryRetry}
 					icon={Icons.Alert}
-					isAnnounced
 					text={t("applications.catalogue.registry.failed")}
 				/>
 			)
@@ -529,19 +576,7 @@ const ApplicationsCatalogue = ({
 
 		return (
 			<>
-				{registry.length > 0 ? (
-					<CatalogueRows applications={registry} onPick={onPick} />
-				) : (
-					<CatalogueLine
-						icon={Icons.Search}
-						isAnnounced
-						text={
-							curated.length === 0
-								? t("applications.catalogue.nothing", { query: typed })
-								: t("applications.catalogue.registry.empty", { query: typed })
-						}
-					/>
-				)}
+				{registryResults()}
 				{registryPartialFailure()}
 			</>
 		)
@@ -591,12 +626,14 @@ const ApplicationsCatalogue = ({
 						)}
 					</CatalogueSection>
 				) : null}
-				<CatalogueSection
-					subtitle={t("applications.catalogue.registry.subtitle")}
-					title={t("applications.catalogue.registry.title")}
-				>
-					{registryBody()}
-				</CatalogueSection>
+				{hasRegistrySection ? (
+					<CatalogueSection
+						subtitle={t("applications.catalogue.registry.subtitle")}
+						title={t("applications.catalogue.registry.title")}
+					>
+						{registryBody()}
+					</CatalogueSection>
+				) : null}
 			</Tabs.Panel>
 			{isLoading ? (
 				<span className="sr-only" role="status">

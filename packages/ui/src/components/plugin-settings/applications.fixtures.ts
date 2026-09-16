@@ -113,6 +113,52 @@ export const REGISTRY_APPLICATIONS: CatalogueApplication[] = [
 		setup: "signIn",
 		packageIdentity: "npx -y @kwn/linkboard-mcp",
 	},
+	{
+		id: "io.github.saffron/notesync",
+		name: "notesync",
+		description: "Keeps a note file and the comments left on it.",
+		setup: "none",
+		packageIdentity: "npx -y @saffron/notesync-mcp",
+	},
+	{
+		id: "io.github.stackpad/docsearch",
+		name: "docsearch",
+		description: "Searches the documentation a project publishes.",
+		setup: "apiKey",
+		packageIdentity: "npx -y @stackpad/docsearch-mcp",
+	},
+	{
+		id: "smithery/timeclock",
+		name: "timeclock",
+		description: "Starts, stops and reports tracked hours.",
+		setup: "none",
+		source: "Smithery",
+		packageIdentity: "npx -y @kwn/timeclock-mcp",
+	},
+	{
+		id: "io.github.cartokit/atlas-maps",
+		name: "atlas-maps",
+		description: "Geocodes addresses and draws static maps.",
+		setup: "apiKey",
+		packageIdentity: "npx -y @cartokit/atlas-maps",
+	},
+	{
+		id: "smithery/inbox-reader",
+		name: "inbox-reader",
+		description: "Reads and labels the mail of one account.",
+		setup: "signIn",
+		source: "Smithery",
+		useCount: 4210,
+		host: "inbox.run.tools",
+		packageIdentity: "https://inbox.run.tools/mcp",
+	},
+	{
+		id: "io.github.weatherdesk/tides",
+		name: "tides",
+		description: "Tide tables and coastal warnings by harbour.",
+		setup: "none",
+		packageIdentity: "npx -y @weatherdesk/tides-mcp",
+	},
 ]
 
 const SLACK_MARK = markOf("#4a154b", "S")
@@ -157,8 +203,6 @@ export const LONG_REGISTRY_RESULT: CatalogueApplication = {
 		"Reads every channel, every thread and every message ever written, then writes back where it is allowed to, which takes a long sentence to say.",
 	host: "a-very-long-hostname-that-nobody-would-ever-type.run.tools",
 }
-
-export const PUBLISHED_APPLICATION_COUNT = 1284
 
 export const GRANOLA_MARK = markOf("#1f6f43", "G")
 

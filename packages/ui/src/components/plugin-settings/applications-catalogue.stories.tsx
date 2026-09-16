@@ -6,7 +6,6 @@ import {
 	CATALOGUE_CATEGORIES,
 	CURATED_APPLICATIONS,
 	LONG_REGISTRY_RESULT,
-	PUBLISHED_APPLICATION_COUNT,
 	REFUSED_APPLICATION,
 	REGISTRY_APPLICATIONS,
 	REGISTRY_RESULTS,
@@ -49,7 +48,6 @@ const matching = (applications: CatalogueApplication[], query: string) =>
 const CatalogueHost = (props: ApplicationsCatalogueProps) => {
 	const [query, setQuery] = useState(props.query)
 	const [category, setCategory] = useState(props.category)
-	const isTyped = query.trim() !== ""
 
 	return (
 		<ApplicationsCatalogue
@@ -65,7 +63,7 @@ const CatalogueHost = (props: ApplicationsCatalogueProps) => {
 				props.onQueryChange(next)
 			}}
 			query={query}
-			registry={isTyped ? matching(props.registry, query) : []}
+			registry={matching(props.registry, query)}
 		/>
 	)
 }
@@ -127,7 +125,6 @@ const meta = preview.meta({
 		onQueryChange: fn(),
 		curated: CURATED_APPLICATIONS,
 		registry: REGISTRY_APPLICATIONS,
-		publishedCount: PUBLISHED_APPLICATION_COUNT,
 		onRegistryRetry: fn(),
 		onPick: fn(),
 		onBack: fn(),
@@ -141,7 +138,7 @@ export const AtRest = meta.story({
 		docs: {
 			description: {
 				story:
-					"The catalogue as it opens. Check the back item, the open category on muted with its count, the curated cards at their drawn width, every install line of a row resting on one line at the bottom of its card, no dashed line anywhere, and the registry rows drawn full width, sans name and sans description, the package identity alone in monospace.",
+					"The catalogue as it opens, nothing typed. Check the back item, the open category on muted with its count, the curated cards at their drawn width, every install line of a row resting on one line at the bottom of its card, no dashed line anywhere, and the nine registry rows already drawn full width, one of them sans description, the package identity alone in monospace.",
 			},
 		},
 	},
@@ -152,11 +149,8 @@ export const AtRest = meta.story({
 		await expect(canvas.getByRole("tab", { name: "Design" })).toHaveTextContent(
 			/^Design$/,
 		)
-		const rest = canvas.getByText(
-			/Type a name above to search 1,?284 published applications\./,
-		)
-		await expect(rest).toBeVisible()
-		await expect(rest).toHaveAttribute("aria-live", "off")
+		await expect(slotsOf(canvasElement, "catalogue-row-name")).toHaveLength(9)
+		await expect(canvas.getByText("forecast")).toBeVisible()
 		await expect(
 			canvas.getAllByRole("listitem")[0].getBoundingClientRect().width,
 		).toBe(186)
@@ -196,7 +190,7 @@ export const AtRest = meta.story({
 		await userEvent.click(canvas.getByRole("tab", { name: "Design" }))
 		await expect(args.onCategoryChange).toHaveBeenCalledWith("design")
 
-		await userEvent.click(canvas.getByRole("button", { name: /Linear/ }))
+		await userEvent.click(canvas.getByRole("button", { name: /^Linear\b/ }))
 		await expect(args.onPick).toHaveBeenCalledWith(CURATED_APPLICATIONS[0])
 
 		await userEvent.click(
@@ -224,25 +218,6 @@ export const AtRest = meta.story({
 		)
 		const row = registryName.closest("li")?.getBoundingClientRect()
 		await expect(row?.width).toBeGreaterThan(186)
-	},
-})
-
-export const WithoutPublishedCount = meta.story({
-	args: { publishedCount: undefined },
-	parameters: {
-		docs: {
-			description: {
-				story:
-					"A registry whose size is not known. Check that the line at rest states no count.",
-			},
-		},
-	},
-	play: async ({ canvas }) => {
-		await expect(
-			canvas.getByText(
-				"Type a name above to search the published applications.",
-			),
-		).toBeVisible()
 	},
 })
 
@@ -288,20 +263,21 @@ export const NothingMatched = meta.story({
 })
 
 export const RegistrySearching = meta.story({
-	args: { query: "zebra", isRegistrySearching: true },
+	args: { query: "lin", isRegistrySearching: true },
 	parameters: {
 		docs: {
 			description: {
 				story:
-					"A registry search still in flight. Check that the registry section draws three row skeletons rather than claiming nothing matched.",
+					"A registry search still in flight. Check that the curated section is already drawn rather than waiting for the registry, and that the registry section draws nine row skeletons rather than claiming nothing matched.",
 			},
 		},
 	},
 	play: async ({ canvas, canvasElement }) => {
+		await expect(canvas.getByText("Linear")).toBeVisible()
 		await expect(slotsOf(canvasElement, "catalogue-row-skeleton")).toHaveLength(
-			3,
+			9,
 		)
-		await expect(canvas.queryByText(/Nothing matched/)).not.toBeInTheDocument()
+		await expect(canvas.queryByText(/Nothing/)).not.toBeInTheDocument()
 		await expect(canvas.getByRole("tabpanel")).toHaveAttribute(
 			"aria-busy",
 			"true",
@@ -324,6 +300,81 @@ export const RegistryEmptyBesideCurated = meta.story({
 		await expect(
 			canvas.getByText("Nothing in the MCP registry matched lin."),
 		).toBeVisible()
+	},
+})
+
+export const OnlyRegistryMatched = meta.story({
+	args: { query: "board" },
+	parameters: {
+		docs: {
+			description: {
+				story:
+					"A search only the registry answers. Check that the curated section leaves entirely, head and subtitle, and that the matching registry row is drawn under the registry head.",
+			},
+		},
+	},
+	play: async ({ canvas }) => {
+		await expect(
+			canvas.queryByText("Kiroshi has read these"),
+		).not.toBeInTheDocument()
+		await expect(
+			canvas.queryByText("We check what they do before listing them."),
+		).not.toBeInTheDocument()
+		await expect(
+			canvas.getByText("Kiroshi hasn\u2019t read these"),
+		).toBeVisible()
+		await expect(canvas.getByText("linkboard")).toBeVisible()
+	},
+})
+
+export const RegistryEmptyAtRest = meta.story({
+	args: { registry: [] },
+	parameters: {
+		docs: {
+			description: {
+				story:
+					"A first screen the registry has nothing for, nothing typed. Check that the registry section leaves entirely, head and subtitle, the way the curated one does when it has nothing to draw, and that the curated cards stay drawn.",
+			},
+		},
+	},
+	play: async ({ canvas }) => {
+		await expect(
+			canvas.queryByText("Kiroshi hasn\u2019t read these"),
+		).not.toBeInTheDocument()
+		await expect(
+			canvas.queryByText(
+				"Published by anyone. Read what it does before you add it.",
+			),
+		).not.toBeInTheDocument()
+		await expect(canvas.getByText("Kiroshi has read these")).toBeVisible()
+		await expect(canvas.getAllByRole("listitem")).toHaveLength(
+			CURATED_APPLICATIONS.length,
+		)
+	},
+})
+
+export const RegistryUnreadableAtRest = meta.story({
+	args: { hasRegistryFailed: true },
+	parameters: {
+		docs: {
+			description: {
+				story:
+					"The registry unreachable on the first screen, nothing typed. Check that the curated cards stay drawn, that the registry section says it could not be reached and offers one single Retry.",
+			},
+		},
+	},
+	play: async ({ args, canvas }) => {
+		await expect(canvas.getByText("Linear")).toBeVisible()
+		const failure = canvas.getByText("Couldn\u2019t reach the MCP registry.")
+		await expect(failure).toBeVisible()
+		await expect(failure).toHaveAttribute("aria-live", "polite")
+		await expect(canvas.getAllByRole("button", { name: "Retry" })).toHaveLength(
+			1,
+		)
+
+		await canvas.getByRole("button", { name: "Retry" }).click()
+
+		await expect(args.onRegistryRetry).toHaveBeenCalledTimes(1)
 	},
 })
 
@@ -390,7 +441,7 @@ export const CatalogueLoading = meta.story({
 		docs: {
 			description: {
 				story:
-					"The catalogue opening, nothing typed yet. Check that both sections draw skeletons: six card skeletons, three row skeletons of three bars each, eight apart, the em dash where the Everything count goes, the body marked busy and the polite line saying the catalogue is loading, announced from outside the busy body.",
+					"The catalogue opening, nothing typed yet. Check that both sections draw skeletons: six card skeletons, nine row skeletons of three bars each, eight apart, the em dash where the Everything count goes, the body marked busy and the polite line saying the catalogue is loading, announced from outside the busy body.",
 			},
 		},
 	},
@@ -400,10 +451,7 @@ export const CatalogueLoading = meta.story({
 			slotsOf(canvasElement, "catalogue-card-skeleton"),
 		).toHaveLength(6)
 		const rows = slotsOf(canvasElement, "catalogue-row-skeleton")
-		await expect(rows).toHaveLength(3)
-		await expect(
-			canvas.queryByText(/Type a name above/),
-		).not.toBeInTheDocument()
+		await expect(rows).toHaveLength(9)
 
 		const [first, second] = rows.map((row) => row.getBoundingClientRect())
 		await expect(Math.round(second.top - first.bottom)).toBe(ROW_GAP)
