@@ -27,6 +27,19 @@ const LONG_LINE_SNIPPET = `const migration = { table: "nest_occupants", columns:
 
 export const plan = Object.entries(migration).map(([key, value]) => \`\${key}: \${Array.isArray(value) ? value.join(", ") : value}\`).join("\\n")`
 
+const MULTI_FILE_PATCH = `diff --git a/packages/core/src/nest/run-history.ts b/packages/core/src/nest/run-history.ts
+--- a/packages/core/src/nest/run-history.ts
++++ b/packages/core/src/nest/run-history.ts
+@@ -12,7 +12,7 @@
+-const RUN_HISTORY_TABLE = "nest_runs"
++const RUN_HISTORY_TABLE = "nest_run_history"
+diff --git a/packages/core/src/nest/summarise.ts b/packages/core/src/nest/summarise.ts
+--- a/packages/core/src/nest/summarise.ts
++++ b/packages/core/src/nest/summarise.ts
+@@ -4,3 +4,3 @@
+-	const occupants = nest.occupants
++	const occupants = nest.occupants ?? []`
+
 const ELIXIR_SNIPPET = `def summarise(nest_id) do\n\tnest = Nest.read(nest_id)\n\t%{id: nest.id, occupants: length(nest.occupants)}\nend`
 
 const LANGUAGE_SAMPLES: Record<CodeLanguage, string> = {
@@ -112,6 +125,7 @@ export const WithFilename = meta.story({
 })
 
 export const Languages = meta.story({
+	tags: ["test-only"],
 	parameters: {
 		docs: {
 			description: {
@@ -147,7 +161,35 @@ export const UnknownLanguage = meta.story({
 	},
 })
 
+export const MultiFilePatch = meta.story({
+	args: {
+		code: MULTI_FILE_PATCH,
+		filename: "Changes",
+		language: "diff",
+		showLineNumbers: false,
+		wrap: true,
+	},
+	parameters: {
+		docs: {
+			description: {
+				story:
+					"The fallback the commit diff takes when a patch touches more than one file: the rich diff reader only renders a single file, so the whole patch is handed here as `diff` instead. Check that the file headers and both hunks are readable in one pass, that no line-number gutter competes with the `+`/`-` column the patch already carries, and that long lines wrap rather than scrolling sideways — the reader is looking for what changed, not aiming at a viewport.",
+			},
+		},
+	},
+	play: async ({ canvas }) => {
+		const viewport = canvas.getByRole("group", {
+			name: "Code snippet, Changes",
+		})
+
+		await expect(canvas.getAllByText(/run-history/).length).toBeGreaterThan(1)
+		await expect(canvas.getAllByText(/summarise/).length).toBeGreaterThan(1)
+		await expect(viewport.scrollWidth).toBe(viewport.clientWidth)
+	},
+})
+
 export const LongContent = meta.story({
+	tags: ["test-only"],
 	parameters: {
 		docs: {
 			description: {
