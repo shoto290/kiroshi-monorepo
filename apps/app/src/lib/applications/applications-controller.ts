@@ -48,7 +48,7 @@ export type ApplicationsController = {
 	retry: () => void
 	pick: (id: string) => void
 	leave: () => void
-	install: (target: InstallTarget, typed?: string[]) => Promise<void>
+	install: (target: InstallTarget, values?: string[]) => Promise<void>
 }
 
 export const initialApplicationsState: ApplicationsState = {
@@ -93,12 +93,12 @@ type TypedValue = { field: InstallField; value: string }
 
 const typedValuesOf = (
 	install: Application["install"],
-	typed: string[],
+	values: string[],
 ): TypedValue[] =>
 	install.kind === "key"
 		? install.fields.map((field, index) => ({
 				field,
-				value: typed[index] ?? "",
+				value: values[index] ?? "",
 			}))
 		: []
 
@@ -219,11 +219,11 @@ export const createApplicationsController = (
 
 	const writeKeys = async (
 		owner: EnvOwner,
-		application: Application,
-		typed: TypedValue[],
+		name: string,
+		asked: TypedValue[],
 	) => {
-		const scope = serverScopeOf(owner, application.name)
-		for (const { field, value } of typed) {
+		const scope = serverScopeOf(owner, name)
+		for (const { field, value } of asked) {
 			await store.setEnvironmentVariable(scope, field.secret, value)
 		}
 	}
@@ -236,12 +236,12 @@ export const createApplicationsController = (
 	const runInstall = async (
 		application: Application,
 		target: InstallTarget,
-		typed: string[],
+		values: string[],
 	) => {
 		if (application.install.kind === "refused") {
 			throw new Error(application.install.reason)
 		}
-		const asked = typedValuesOf(application.install, typed)
+		const asked = typedValuesOf(application.install, values)
 		const unfilled = asked.filter((held) => held.value.trim() === "")
 		if (unfilled.length > 0) {
 			throw new Error(
@@ -254,7 +254,7 @@ export const createApplicationsController = (
 		const wasDeclared = await isDeclaredUnder(owner, application.name)
 		await declareServer(store, owner, application.name, application.config)
 		try {
-			await writeKeys(owner, application, asked)
+			await writeKeys(owner, application.name, asked)
 		} catch (refusal) {
 			if (!wasDeclared) {
 				await rollBackDeclaration(owner, application.name)
@@ -304,7 +304,7 @@ export const createApplicationsController = (
 
 		leave: () => set({ picked: null, failure: null }),
 
-		install: async (target: InstallTarget, typed: string[] = []) => {
+		install: async (target: InstallTarget, values: string[] = []) => {
 			const application = state.picked
 			if (
 				!application ||
@@ -315,7 +315,7 @@ export const createApplicationsController = (
 			}
 			set({ installing: application.name, failure: null })
 			try {
-				await runInstall(application, target, typed)
+				await runInstall(application, target, values)
 				await target.settle()
 			} catch (reason) {
 				set({
