@@ -449,7 +449,7 @@ export const RegistrySkeletonLandsOnRow = meta.story({
 		await expect(Math.round(after.height)).toBe(Math.round(before.height))
 
 		const setupLine = within(row).getByText("Signs you in")
-		const [setupGlyph] = [...setupLine.querySelectorAll("svg")]
+		const [setupGlyph] = setupLine.getElementsByTagName("svg")
 
 		await expect(boxOf(within(row).getByText("Slack"))).toEqual(name)
 		await expect(
