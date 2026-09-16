@@ -195,9 +195,12 @@ mod tests {
 	#[test]
 	fn the_applications_skill_is_preloaded_and_says_where_an_install_goes_and_what_follows() {
 		let text = String::from_utf8_lossy(embedded(INSTALLS));
+		let said_in_one_breath = text.split_whitespace().collect::<Vec<_>>().join(" ");
 
 		assert!(text.contains("preload: true"), "got {text}");
 		for said in [
+			"applies when the person asks for an application or asks for one to be installed",
+			"go to `When no tool of yours does it`",
 			"Search before you install.",
 			"`AskUserQuestion`",
 			"`metadata.source` set to `application-scope:`",
@@ -212,23 +215,16 @@ mod tests {
 			"the name of the secret",
 			"Settings panel of that destination",
 			"Connect lives in the Settings panel of that destination",
-			"## When no tool of yours does it",
-			"no tool of this session does",
-			"a capability none of your tools holds",
-			"Not a refusal of scope, not a rule you follow,",
-			"not something the person already ruled out",
-			"call `application_search` on that capability",
-			"Never ask the person whether to look.",
-			"you say you cannot do the thing",
-			"the search stays unmentioned",
-			"you name one application",
-			"what it unblocks",
-			"that the person installs it from Settings",
+			"## When no tool of yours does it The person asks for something no tool of this session does: a capability none of your tools holds.",
+			"Not a refusal of scope, not a rule you follow, not something the person already ruled out.",
+			"call `application_search` on that capability. Never ask the person whether to look.",
+			"no match, you name the capability that is out of reach, you say you cannot do it, and the search stays unmentioned.",
+			"a match, you name one application and say in one line what it unblocks, and that the person installs it from Settings.",
 			"One offer per subject, never a second application.",
 			"Never call `application_install` here.",
-			"never raise it again in this conversation",
+			"When the person has turned an offer down, you never raise it again in this conversation.",
 		] {
-			assert!(text.contains(said), "{said} is missing");
+			assert!(said_in_one_breath.contains(said), "{said} is missing");
 		}
 	}
 
