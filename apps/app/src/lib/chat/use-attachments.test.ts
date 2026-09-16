@@ -98,15 +98,16 @@ const dropOnWindow = (name: string) => {
 	screen.getByRole("region").dispatchEvent(event)
 }
 
-const threadOf = (fixture: ThreadFixture) => createElement(Thread, fixture)
-
 describe("a file dropped on the window of a thread", () => {
 	afterEach(cleanup)
 
 	it("is staged on a conversation no companion is seated in", () => {
 		const { staged, controller } = watchedController()
 		render(
-			threadOf({ controller, canAttach: factsOf(unseatedThread).canAttach }),
+			createElement(Thread, {
+				controller,
+				canAttach: factsOf(unseatedThread).canAttach,
+			}),
 		)
 
 		dropOnWindow("screenshot.png")
@@ -116,7 +117,7 @@ describe("a file dropped on the window of a thread", () => {
 
 	it("is left alone while the composer of that thread is disabled", () => {
 		const { staged, controller } = watchedController()
-		render(threadOf({ controller, canAttach: false }))
+		render(createElement(Thread, { controller, canAttach: false }))
 
 		dropOnWindow("screenshot.png")
 
