@@ -2683,7 +2683,7 @@ describe("the first run in a solo thread", () => {
 			screen.queryByText(onboardingSummonsFor("firstCompanion")),
 		).toBeNull()
 		expect(isAsking(FIRST_REPLY_QUESTION)).toBe(false)
-		expect(fixture.world.firstRunDone).toBe(0)
+		expect(fixture.world.firstRunDone).toBe(1)
 	})
 
 	it("leaves the answered first reply step in the thread once the reader keeps talking", async () => {

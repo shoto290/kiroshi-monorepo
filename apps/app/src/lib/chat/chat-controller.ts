@@ -20,6 +20,7 @@ import type { ChatDriver } from "./driver"
 import {
 	answeredRow,
 	askingRow,
+	isPostedRequest,
 	type PostedAnswerHandler,
 	type PostedQuestion,
 	type PostedRequest,
@@ -1264,7 +1265,7 @@ export function createChatController(
 			return
 		}
 		const asked = bot.state.question
-		if (asked && !isAnswering(bot, asked.id) && !isRunOutsideOpenThread(bot)) {
+		if (asked && !isPostedRequest(asked) && !isRunOutsideOpenThread(bot)) {
 			await answer(bot, asked.id, answersFromText(asked, trimmed))
 			return
 		}
@@ -1403,9 +1404,6 @@ export function createChatController(
 			? bot.posted.find((posted) => posted.request.id === id)
 			: undefined
 
-	const isAnswering = (bot: BotChat, id: string) =>
-		bot.posted.some((posted) => posted.request.id === id && posted.isAnswering)
-
 	const changePosted = (
 		bot: BotChat,
 		id: string,
@@ -1466,9 +1464,6 @@ export function createChatController(
 		syncBot(bot)
 	}
 
-	const storedSeqOf = (conversationId: string) =>
-		selectMessages(transcript.getState(), conversationId).at(-1)?.seq ?? 0
-
 	const rearmPosted = (bot: BotChat, posted: PostedQuestion) => {
 		const live = bot.state.question
 		if (live) {
@@ -1497,7 +1492,6 @@ export function createChatController(
 				request,
 				onAnswers,
 				conversationId,
-				afterSeq: storedSeqOf(conversationId),
 				asking: askingRow({
 					request,
 					conversationId,

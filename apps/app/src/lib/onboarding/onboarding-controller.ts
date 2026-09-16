@@ -122,9 +122,9 @@ export const createOnboardingController = (
 		reportFailure({ title, description: exitDetailOf(reason) })
 	}
 
-	const pickCompanion = () => {
-		set({ step: "done" })
-		return world.send(onboardingSummonsFor("firstCompanion"))
+	const pickCompanion = async () => {
+		await finishRun()
+		await world.send(onboardingSummonsFor("firstCompanion"))
 	}
 
 	const greetCompanion = async (created: CompanionCreated) => {

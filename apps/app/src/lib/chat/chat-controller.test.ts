@@ -164,6 +164,11 @@ const POSTED: PostedRequest = {
 
 const POSTED_ANSWER = { "How do you want to sign in?": "Subscription" }
 
+const OPTIONS_ONLY: PostedRequest = {
+	...POSTED,
+	questions: POSTED.questions.map((asked) => ({ ...asked, optionsOnly: true })),
+}
+
 const MASKED_KEY = "sk-ant-kept-out"
 
 const MASKED: PostedRequest = {
@@ -1043,21 +1048,27 @@ describe("createChatController", () => {
 			expect(controller.getState().errors).toEqual([])
 		})
 
-		it("takes what the reader typed in the composer as the answer", async () => {
-			const { controller } = await sessionlessHarness()
+		it("prompts with what the reader typed and leaves the question armed", async () => {
+			const { controller, driver } = await bootedHarness()
+			const submitPrompt = vi.spyOn(driver, "submitPrompt")
 			const onAnswers = vi.fn(() => Promise.resolve())
-			controller.postQuestion(BOT, POSTED, onAnswers)
+			controller.postQuestion(BOT, OPTIONS_ONLY, onAnswers)
 			await vi.runAllTimersAsync()
 
 			await controller.send("with an API key")
 			await vi.runAllTimersAsync()
 
-			expect(onAnswers).toHaveBeenCalledWith({
-				"How do you want to sign in?": "with an API key",
-			})
-			expect(answerQuestion).not.toHaveBeenCalled()
-			expect(controller.getState().question).toBeNull()
-			expect(answeredIn(controller)?.content).toBe("with an API key")
+			expect(submitPrompt).toHaveBeenCalledWith(
+				expect.anything(),
+				expect.stringContaining("with an API key"),
+			)
+			expect(onAnswers).not.toHaveBeenCalled()
+			const state = controller.getState()
+			expect(state.question?.id).toBe(OPTIONS_ONLY.id)
+			expect(askingIn(controller)).toBeDefined()
+			expect(
+				state.messages.some((message) => message.content === "with an API key"),
+			).toBe(true)
 		})
 
 		it("leaves nothing of the asking or its answer in the store", async () => {
@@ -1133,7 +1144,7 @@ describe("createChatController", () => {
 			expect(answeredIn(controller)?.content).toBe("Subscription")
 		})
 
-		it("holds the asking and its answer above what is stored afterwards", async () => {
+		it("holds the asking and its answer below what is stored afterwards", async () => {
 			const { controller, store } = await bootedHarness()
 			controller.postQuestion(BOT, POSTED, () => Promise.resolve())
 			await vi.runAllTimersAsync()
@@ -1150,7 +1161,7 @@ describe("createChatController", () => {
 					content.includes("How do you want to sign in?"),
 				) + 1,
 			)
-			expect(positions.indexOf("Subscription")).toBeLessThan(
+			expect(positions.indexOf("Subscription")).toBeGreaterThan(
 				positions.indexOf("hello"),
 			)
 			expect(isAscending(messages)).toBe(true)

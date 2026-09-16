@@ -48,7 +48,6 @@ export type PostedQuestion = {
 	request: PostedRequest
 	onAnswers: PostedAnswerHandler
 	conversationId: string
-	afterSeq: number
 	asking: TranscriptDraft
 	answered: TranscriptDraft | null
 	isAnswering: boolean
@@ -116,24 +115,16 @@ export const isPostedAnswer = ({ turnId, quotedMessageId }: RepliedRow) =>
 const rowsOf = ({ asking, answered }: PostedQuestion): TranscriptDraft[] =>
 	answered ? [asking, answered] : [asking]
 
-const rowsByAnchor = (
-	posted: PostedQuestion[],
-): Map<number, TranscriptDraft[]> => {
-	const anchored = new Map<number, TranscriptDraft[]>()
-	for (const question of posted) {
-		const earlier = anchored.get(question.afterSeq) ?? []
-		anchored.set(question.afterSeq, [...earlier, ...rowsOf(question)])
-	}
-	return anchored
-}
+const lastSeqOf = (messages: TranscriptMessage[]): number =>
+	messages.at(-1)?.seq ?? 0
 
 const placedAfter = (
-	afterSeq: number,
+	lastSeq: number,
 	rows: TranscriptDraft[],
 ): TranscriptMessage[] =>
 	rows.map((row, index) => ({
 		...row,
-		seq: afterSeq + (index + 1) / (rows.length + 1),
+		seq: lastSeq + (index + 1) / (rows.length + 1),
 	}))
 
 export const withPostedRows = (
@@ -143,8 +134,8 @@ export const withPostedRows = (
 	if (posted.length === 0) {
 		return messages
 	}
-	const placed = [...rowsByAnchor(posted)].flatMap(([afterSeq, rows]) =>
-		placedAfter(afterSeq, rows),
-	)
-	return [...messages, ...placed].sort((one, other) => one.seq - other.seq)
+	return [
+		...messages,
+		...placedAfter(lastSeqOf(messages), posted.flatMap(rowsOf)),
+	]
 }

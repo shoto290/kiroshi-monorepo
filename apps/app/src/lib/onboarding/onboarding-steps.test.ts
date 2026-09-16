@@ -106,6 +106,16 @@ describe("the welcome step", () => {
 		expect(step.request.isPosted).toBe(true)
 	})
 
+	it("refuses an answer matching no option and asks on", async () => {
+		const step = stepOf()
+
+		await expect(answer(step, "with an API key")).rejects.toEqual({
+			kind: "unmatchedChoice",
+		})
+		expect(commands()).toEqual([])
+		expect(controller.getState().step).toBe("welcome")
+	})
+
 	it("starts on Start", async () => {
 		port.report = NOT_AUTHENTICATED
 
@@ -381,7 +391,7 @@ describe("the first reply step", () => {
 
 		expect(world.sent.at(-1)).toBe(onboardingSummonsFor("firstCompanion"))
 		expect(controller.getState().step).toBe("done")
-		expect(world.firstRunDone).toBe(0)
+		expect(world.firstRunDone).toBe(1)
 	})
 
 	it("ends the first run on Keep talking first", async () => {
