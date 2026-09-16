@@ -160,6 +160,32 @@ describe("applications controller", () => {
 		expect(controller.getState().registry).toEqual([LINEAR])
 	})
 
+	it("drops the answer of an earlier query that arrives last", async () => {
+		const port = createFakeApplicationPort()
+		const answers = new Map([
+			["lin", [PAPER]],
+			["linear", [LINEAR]],
+		])
+		const pending = new Map<string, () => void>()
+		port.search = (query) =>
+			new Promise((resolve) => {
+				pending.set(query, () => resolve(answers.get(query) ?? []))
+			})
+		const controller = controllerOn(port)
+
+		controller.search("lin")
+		await settled()
+		controller.search("linear")
+		await settled()
+		pending.get("linear")?.()
+		await settled()
+		pending.get("lin")?.()
+		await settled()
+
+		expect(controller.getState().registry).toEqual([LINEAR])
+		expect(controller.getState().isSearching).toBe(false)
+	})
+
 	it("cancels the scheduled search when the field is cleared", async () => {
 		const port = createFakeApplicationPort()
 		port.found = [LINEAR]
