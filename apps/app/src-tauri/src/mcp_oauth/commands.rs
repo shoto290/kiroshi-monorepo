@@ -6,8 +6,8 @@ use tauri_plugin_opener::OpenerExt;
 
 use super::contract::{Disconnected, OauthError};
 use super::credentials::{self, ServedGrants};
-use super::reports::{ConnectorReports, Standing};
-use super::status::{status, ConnectorRow, Evidence};
+use super::reports::{ApplicationReports, Standing};
+use super::status::{status, ApplicationRow, Evidence};
 use crate::agent::commands::AgentState;
 use crate::agent::protocol::{OauthCredentials, RevocationRequest};
 use crate::agent::sidecar::Opening;
@@ -113,7 +113,7 @@ pub async fn mcp_oauth_connect<R: Runtime>(
 	let _running = state.begin(Flow::Authorizing(scope.clone()))?;
 	let root = writable_root(&app)?;
 	let credentials = granted(&app, &url).await?;
-	kept(&root, &scope, &name, &credentials, &app.state::<ConnectorReports>())
+	kept(&root, &scope, &name, &credentials, &app.state::<ApplicationReports>())
 }
 
 fn kept(
@@ -121,7 +121,7 @@ fn kept(
 	scope: &EnvScope,
 	name: &str,
 	grant: &OauthCredentials,
-	reports: &ConnectorReports,
+	reports: &ApplicationReports,
 ) -> Result<(), OauthError> {
 	credentials::store(root, scope, grant)?;
 	reports.forget(name);
@@ -146,7 +146,7 @@ pub async fn mcp_oauth_disconnect<R: Runtime>(
 	let state = app.state::<McpOauthState>();
 	let _running = state.begin(Flow::Revoking)?;
 	let settled = disconnected(&app, &owner, &name, &url).await;
-	app.state::<ConnectorReports>().forget(&name);
+	app.state::<ApplicationReports>().forget(&name);
 	settled
 }
 
@@ -173,16 +173,16 @@ fn held_at(root: &Path, owner: &EnvOwner, name: &str) -> Result<EnvScope, EnvErr
 }
 
 #[tauri::command]
-pub async fn mcp_connector_status<R: Runtime>(
+pub async fn mcp_application_status<R: Runtime>(
 	app: AppHandle<R>,
 	owner: EnvOwner,
-) -> Result<Vec<ConnectorRow>, EnvError> {
+) -> Result<Vec<ApplicationRow>, EnvError> {
 	let root = writable_root(&app)?;
 	let grants = credentials::served(&root, &owner)?;
 	let readings = Readings {
 		owner: &owner,
 		flows: &app.state::<McpOauthState>(),
-		reports: &app.state::<ConnectorReports>(),
+		reports: &app.state::<ApplicationReports>(),
 		grants: &grants,
 		now: now_ms(),
 	};
@@ -192,13 +192,13 @@ pub async fn mcp_connector_status<R: Runtime>(
 struct Readings<'a> {
 	owner: &'a EnvOwner,
 	flows: &'a McpOauthState,
-	reports: &'a ConnectorReports,
+	reports: &'a ApplicationReports,
 	grants: &'a ServedGrants,
 	now: i64,
 }
 
 impl Readings<'_> {
-	fn row(&self, server: McpServer) -> ConnectorRow {
+	fn row(&self, server: McpServer) -> ApplicationRow {
 		let named = EnvScope::Server { name: server.name.clone(), owner: self.owner.clone() };
 		let grant = self.grants.get(&server.name);
 		let evidence = Evidence {
@@ -207,7 +207,7 @@ impl Readings<'_> {
 			held: grant.map(|grant| grant.held.clone()).unwrap_or_default(),
 			declares_url: server.url().is_some(),
 		};
-		ConnectorRow {
+		ApplicationRow {
 			status: status(evidence, self.now),
 			scope: grant.map(|grant| grant.scope.clone()),
 			name: server.name,
@@ -215,7 +215,7 @@ impl Readings<'_> {
 	}
 }
 
-fn last_reported(reports: &ConnectorReports, owner: &EnvOwner, name: &str) -> Option<Standing> {
+fn last_reported(reports: &ApplicationReports, owner: &EnvOwner, name: &str) -> Option<Standing> {
 	match owner {
 		EnvOwner::Bot { id, .. } => reports.last(id, name),
 		EnvOwner::User | EnvOwner::Space { .. } => None,
@@ -260,7 +260,7 @@ async fn revoked<R: Runtime>(app: &AppHandle<R>, url: &str, held: &Values) -> Di
 #[cfg(test)]
 mod tests {
 	use super::*;
-	use crate::mcp_oauth::status::ConnectorStatus;
+	use crate::mcp_oauth::status::ApplicationStatus;
 	use tauri::test::{mock_builder, mock_context, noop_assets};
 
 	fn a_server(name: &str) -> EnvScope {
@@ -271,15 +271,15 @@ mod tests {
 	}
 
 	#[tokio::test]
-	async fn the_connectors_of_the_user_are_the_servers_the_user_plugin_declares() {
+	async fn the_applications_of_the_user_are_the_servers_the_user_plugin_declares() {
 		let mut context = mock_context(noop_assets());
 		context.config_mut().identifier =
-			format!("com.kiroshi.mcp-oauth-user-connectors-{}", std::process::id()).into();
+			format!("com.kiroshi.mcp-oauth-user-applications-{}", std::process::id()).into();
 		let app = mock_builder().build(context).expect("the app builds");
 		let data = app.path().app_data_dir().expect("the data dir is named");
 		let _ = std::fs::remove_dir_all(&data);
 		app.manage(McpOauthState::default());
-		app.manage(ConnectorReports::default());
+		app.manage(ApplicationReports::default());
 		let path = bundles::user::path(app.handle()).expect("the plugin has a home");
 		bundles::user::lay_down(&path).expect("the plugin is laid down");
 		for name in ["clock", "granola"] {
@@ -287,7 +287,7 @@ mod tests {
 				.expect("the server lands");
 		}
 
-		let rows = mcp_connector_status(app.handle().clone(), EnvOwner::User)
+		let rows = mcp_application_status(app.handle().clone(), EnvOwner::User)
 			.await
 			.expect("the status reads");
 
@@ -345,7 +345,7 @@ mod tests {
 		let root = std::env::temp_dir().join("kiroshi-mcp-oauth-connect-clears");
 		let _ = std::fs::remove_dir_all(&root);
 		let owner = EnvOwner::Bot { id: "b1".to_owned(), space_id: "s1".to_owned() };
-		let reports = ConnectorReports::default();
+		let reports = ApplicationReports::default();
 		reports.record("b1", "granola", Standing::NeedsAuth);
 		reports.record("b2", "granola", Standing::NeedsAuth);
 		reports.record("b1", "clock", Standing::Holding);
@@ -365,7 +365,7 @@ mod tests {
 			name: "granola".to_owned(),
 			config: serde_json::json!({ "url": "https://mcp.granola.test/mcp" }),
 		};
-		assert_eq!(readings.row(granola).status, ConnectorStatus::Connected);
+		assert_eq!(readings.row(granola).status, ApplicationStatus::Connected);
 		assert_eq!(reports.last("b2", "granola"), None);
 		assert_eq!(reports.last("b1", "clock"), Some(Standing::Holding));
 	}
@@ -387,12 +387,12 @@ mod tests {
 		root
 	}
 
-	fn read_row(root: &Path, owner: &EnvOwner) -> ConnectorRow {
+	fn read_row(root: &Path, owner: &EnvOwner) -> ApplicationRow {
 		let grants = credentials::served(root, owner).expect("the grants are readable");
 		let readings = Readings {
 			owner,
 			flows: &McpOauthState::default(),
-			reports: &ConnectorReports::default(),
+			reports: &ApplicationReports::default(),
 			grants: &grants,
 			now: now_ms(),
 		};
@@ -411,7 +411,7 @@ mod tests {
 		let row = read_row(&root, &a_bot());
 
 		assert_eq!(row.scope, Some(granola_of_the_space()));
-		assert_eq!(row.status, ConnectorStatus::Connected);
+		assert_eq!(row.status, ApplicationStatus::Connected);
 	}
 
 	#[test]
@@ -420,7 +420,7 @@ mod tests {
 		credentials::store(&root, &granola_of_the_space(), &a_live_grant())
 			.expect("the space grant is written");
 
-		kept(&root, &a_server("granola"), "granola", &a_live_grant(), &ConnectorReports::default())
+		kept(&root, &a_server("granola"), "granola", &a_live_grant(), &ApplicationReports::default())
 			.expect("the grant is stored");
 
 		assert_eq!(read_row(&root, &a_bot()).scope, Some(a_server("granola")));
@@ -457,8 +457,8 @@ mod tests {
 	async fn a_settled_disconnect_forgets_every_standing_of_that_server() {
 		let app = tauri::test::mock_app();
 		app.manage(McpOauthState::default());
-		app.manage(ConnectorReports::default());
-		let reports = app.state::<ConnectorReports>();
+		app.manage(ApplicationReports::default());
+		let reports = app.state::<ApplicationReports>();
 		reports.record("b-disconnect-test", "granola", Standing::Holding);
 		reports.record("b-other", "granola", Standing::NeedsAuth);
 		reports.record("b-disconnect-test", "clock", Standing::Holding);

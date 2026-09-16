@@ -13,9 +13,9 @@ import {
 	type ApplicationsState,
 	initialApplicationsState,
 } from "./applications-controller"
+import type { Connections } from "./use-connections"
 
 import type { McpServers } from "../bots/use-mcp-servers"
-import type { Connectors } from "../connectors/use-connectors"
 import type { BotMcpServer, EnvOwner } from "../conversations/store-contract"
 
 const USER: EnvOwner = { kind: "user" }
@@ -63,7 +63,7 @@ const serversWith = (
 	} as unknown as McpServers["controller"],
 })
 
-const NO_CONNECTORS = {
+const NO_CONNECTIONS = {
 	state: { owner: null, rows: [], connecting: null, failure: null },
 	controller: {
 		connect: vi.fn(async () => undefined),
@@ -75,8 +75,8 @@ const NO_CONNECTORS = {
 			connecting: null,
 			failure: null,
 		}),
-	} as unknown as Connectors["controller"],
-} as Connectors
+	} as unknown as Connections["controller"],
+} as Connections
 
 const scopeOf = (
 	applications = applicationsWith({ curated: [LINEAR] }),
@@ -86,7 +86,7 @@ const scopeOf = (
 	scope: toApplicationScope({
 		applications,
 		servers,
-		connectors: NO_CONNECTORS,
+		connections: NO_CONNECTIONS,
 		openedName: null,
 		reopen,
 	}),

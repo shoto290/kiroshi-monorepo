@@ -87,7 +87,7 @@ pub fn invoke_handler<R: Runtime>() -> impl Fn(tauri::ipc::Invoke<R>) -> bool + 
 		mcp_oauth::commands::mcp_oauth_connect,
 		mcp_oauth::commands::mcp_oauth_cancel,
 		mcp_oauth::commands::mcp_oauth_disconnect,
-		mcp_oauth::commands::mcp_connector_status,
+		mcp_oauth::commands::mcp_application_status,
 		missions::commands::mission_open,
 		missions::commands::mission_note,
 		missions::commands::mission_escalate,

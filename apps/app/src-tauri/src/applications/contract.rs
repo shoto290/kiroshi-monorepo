@@ -3,7 +3,7 @@ use serde::{Deserialize, Serialize};
 use crate::conversations::contract::TranscriptStoreError;
 use crate::db::DatabaseError;
 use crate::environment::contract::EnvError;
-use crate::mcp_oauth::status::ConnectorStatus;
+use crate::mcp_oauth::status::ApplicationStatus;
 
 #[derive(Debug, Clone, PartialEq, Eq, Serialize, Deserialize)]
 #[serde(rename_all = "camelCase")]
@@ -148,7 +148,7 @@ impl From<InstallDraft> for ApplicationInstalled {
 
 #[derive(Debug, Clone, PartialEq, Eq, Serialize)]
 #[serde(rename_all = "camelCase")]
-pub struct ConnectorSearch {
+pub struct ApplicationSearch {
 	pub applications: Vec<Application>,
 	#[serde(skip_serializing_if = "Option::is_none")]
 	pub registry_failure: Option<ApplicationsError>,
@@ -177,7 +177,7 @@ impl From<Install> for InstallCase {
 
 #[derive(Debug, Clone, PartialEq, Eq, Serialize)]
 #[serde(tag = "outcome", rename_all = "camelCase")]
-pub enum ConnectorInstall {
+pub enum InstallOutcome {
 	#[serde(rename_all = "camelCase")]
 	Installed { application: String, scope: Destination, install: InstallCase },
 	#[serde(rename_all = "camelCase")]
@@ -186,7 +186,7 @@ pub enum ConnectorInstall {
 
 #[derive(Debug, Clone, PartialEq, Eq, Serialize)]
 #[serde(tag = "status", rename_all = "camelCase")]
-pub enum ConnectorState {
+pub enum ApplicationState {
 	NotInstalled,
 	Connected,
 	NeedsAuthorization,
@@ -198,21 +198,21 @@ pub enum ConnectorState {
 	Unknown,
 }
 
-impl From<ConnectorStatus> for ConnectorState {
-	fn from(status: ConnectorStatus) -> Self {
+impl From<ApplicationStatus> for ApplicationState {
+	fn from(status: ApplicationStatus) -> Self {
 		match status {
-			ConnectorStatus::Connected => ConnectorState::Connected,
-			ConnectorStatus::NeedsAuthorization => ConnectorState::NeedsAuthorization,
-			ConnectorStatus::Connecting => ConnectorState::Connecting,
-			ConnectorStatus::Failed { reason } => ConnectorState::Failed { reason },
-			ConnectorStatus::Unknown => ConnectorState::Unknown,
+			ApplicationStatus::Connected => ApplicationState::Connected,
+			ApplicationStatus::NeedsAuthorization => ApplicationState::NeedsAuthorization,
+			ApplicationStatus::Connecting => ApplicationState::Connecting,
+			ApplicationStatus::Failed { reason } => ApplicationState::Failed { reason },
+			ApplicationStatus::Unknown => ApplicationState::Unknown,
 		}
 	}
 }
 
 #[derive(Debug, Clone, PartialEq, Eq, Serialize)]
 #[serde(tag = "kind", rename_all = "camelCase")]
-pub enum ConnectorError {
+pub enum ApplicationCallError {
 	#[serde(rename_all = "camelCase")]
 	UnknownScope { scope: String },
 	#[serde(rename_all = "camelCase")]
@@ -233,27 +233,27 @@ pub enum ConnectorError {
 	Unexpected { detail: String },
 }
 
-impl From<ApplicationsError> for ConnectorError {
+impl From<ApplicationsError> for ApplicationCallError {
 	fn from(failure: ApplicationsError) -> Self {
-		ConnectorError::Unsearchable { failure }
+		ApplicationCallError::Unsearchable { failure }
 	}
 }
 
-impl From<TranscriptStoreError> for ConnectorError {
+impl From<TranscriptStoreError> for ApplicationCallError {
 	fn from(failure: TranscriptStoreError) -> Self {
-		ConnectorError::Store { failure }
+		ApplicationCallError::Store { failure }
 	}
 }
 
-impl From<DatabaseError> for ConnectorError {
+impl From<DatabaseError> for ApplicationCallError {
 	fn from(error: DatabaseError) -> Self {
-		ConnectorError::Store { failure: error.into() }
+		ApplicationCallError::Store { failure: error.into() }
 	}
 }
 
-impl From<EnvError> for ConnectorError {
+impl From<EnvError> for ApplicationCallError {
 	fn from(failure: EnvError) -> Self {
-		ConnectorError::Environment { failure }
+		ApplicationCallError::Environment { failure }
 	}
 }
 

@@ -20,24 +20,24 @@ describe("kiroshiServer", () => {
 		expect(DELEGATE_TOOL).toBe(`mcp__${KIROSHI_SERVER}__delegate`)
 	})
 
-	it("carries the three connector tools and none of them takes a secret value", () => {
-		const connectors = kiroshiTools(scope).filter((held) =>
-			held.name.startsWith("connector_"),
+	it("carries the three application tools and none of them takes a secret value", () => {
+		const applications = kiroshiTools(scope).filter((held) =>
+			held.name.startsWith("application_"),
 		)
 
-		expect(connectors.map((held) => held.name)).toEqual([
-			"connector_search",
-			"connector_install",
-			"connector_status",
+		expect(applications.map((held) => held.name)).toEqual([
+			"application_search",
+			"application_install",
+			"application_status",
 		])
-		for (const held of connectors) {
+		for (const held of applications) {
 			for (const field of Object.keys(held.inputSchema)) {
 				expect(field).not.toMatch(NAMES_A_SECRET)
 			}
 		}
 	})
 
-	it("carries the delegate tool and every routine, mission, connector and companion tool of the session", () => {
+	it("carries the delegate tool and every routine, mission, application and companion tool of the session", () => {
 		expect(kiroshiTools(scope).map((held) => held.name)).toEqual([
 			"delegate",
 			"routine_list",
@@ -52,9 +52,9 @@ describe("kiroshiServer", () => {
 			"mission_close",
 			"mission_watch",
 			"mission_list",
-			"connector_search",
-			"connector_install",
-			"connector_status",
+			"application_search",
+			"application_install",
+			"application_status",
 			"companion_suggestions",
 			"companion_create",
 			"companion_first_run_done",

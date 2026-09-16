@@ -23,7 +23,7 @@ import "@workspace/ui/lib/i18n"
 
 import { applicationToOpenIn, type SettingsTarget } from "./settings-target"
 
-import { CONNECTORS_TAB } from "@/lib/connectors/connector-settings"
+import { APPLICATIONS_TAB } from "@/lib/applications/connection-settings"
 
 const SPACE_ID = "space-of-the-release"
 const COMPANION_ID = "companion-of-the-nest"
@@ -84,7 +84,7 @@ const OpenedSettings = ({ application }: SettingsProps) =>
 			onPictureUpload: vi.fn(),
 			onValueChange: vi.fn(),
 			open: true,
-			tab: CONNECTORS_TAB,
+			tab: APPLICATIONS_TAB,
 			value: { name: READER, colorScheme: "system" as const },
 			...SKILL_HANDLERS,
 		}),
@@ -102,7 +102,7 @@ const OpenedSettings = ({ application }: SettingsProps) =>
 			onMcpServerDelete: vi.fn(),
 			onValueChange: vi.fn(),
 			open: true,
-			tab: CONNECTORS_TAB,
+			tab: APPLICATIONS_TAB,
 			value: { name: SPACE_NAME, colour: "blue" as const },
 			...SKILL_HANDLERS,
 		}),
@@ -123,7 +123,7 @@ const OpenedSettings = ({ application }: SettingsProps) =>
 			onMcpServerDelete: vi.fn(),
 			onValueChange: vi.fn(),
 			open: true,
-			tab: CONNECTORS_TAB,
+			tab: APPLICATIONS_TAB,
 			value: COMPANION,
 			...SKILL_HANDLERS,
 		}),

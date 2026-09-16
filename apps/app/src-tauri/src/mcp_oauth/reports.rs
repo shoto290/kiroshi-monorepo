@@ -8,7 +8,7 @@ use tauri::{AppHandle, Manager, Runtime};
 use crate::agent::protocol::HostAnswer;
 use crate::agent::session::{Answering, HostRequests};
 
-const SUBTYPE: &str = "connector";
+const SUBTYPE: &str = "standing";
 
 const NO_RECORDS: &str = "the record of where servers stand is not held";
 
@@ -33,7 +33,7 @@ struct Report {
 #[derive(Debug, Deserialize)]
 #[serde(tag = "subtype", rename_all = "camelCase")]
 enum Asked {
-	Connector { operation: Operation, payload: Report },
+	Standing { operation: Operation, payload: Report },
 }
 
 #[derive(Debug, Clone, Copy, Deserialize)]
@@ -43,11 +43,11 @@ enum Operation {
 }
 
 #[derive(Default)]
-pub struct ConnectorReports {
+pub struct ApplicationReports {
 	held: Mutex<HashMap<(String, String), Standing>>,
 }
 
-impl ConnectorReports {
+impl ApplicationReports {
 	pub fn record(&self, bot_id: &str, name: &str, standing: Standing) {
 		self.held
 			.lock()
@@ -72,12 +72,12 @@ impl ConnectorReports {
 }
 
 #[derive(Debug)]
-pub struct ConnectorHost<R: Runtime> {
+pub struct StandingHost<R: Runtime> {
 	app: AppHandle<R>,
 	bot_id: String,
 }
 
-impl<R: Runtime> ConnectorHost<R> {
+impl<R: Runtime> StandingHost<R> {
 	pub fn new(app: AppHandle<R>, bot_id: String) -> Self {
 		Self { app, bot_id }
 	}
@@ -86,14 +86,14 @@ impl<R: Runtime> ConnectorHost<R> {
 		let report = read(request)?;
 		let reports = self
 			.app
-			.try_state::<ConnectorReports>()
+			.try_state::<ApplicationReports>()
 			.ok_or_else(|| serde_json::json!({ "kind": "unexpected", "detail": NO_RECORDS }))?;
 		reports.record(&self.bot_id, &report.name, report.standing);
 		Ok(Value::Null)
 	}
 }
 
-impl<R: Runtime> HostRequests for ConnectorHost<R> {
+impl<R: Runtime> HostRequests for StandingHost<R> {
 	fn subtype(&self) -> &'static str {
 		SUBTYPE
 	}
@@ -105,7 +105,7 @@ impl<R: Runtime> HostRequests for ConnectorHost<R> {
 }
 
 fn read(request: Value) -> Result<Report, Value> {
-	let Asked::Connector { operation: Operation::Report, payload } =
+	let Asked::Standing { operation: Operation::Report, payload } =
 		serde_json::from_value(request).map_err(
 			|error| serde_json::json!({ "kind": "unreadableRequest", "detail": error.to_string() }),
 		)?;
@@ -119,7 +119,7 @@ mod tests {
 	use super::*;
 
 	fn asked(payload: Value) -> Value {
-		json!({ "subtype": "connector", "operation": "report", "payload": payload })
+		json!({ "subtype": "standing", "operation": "report", "payload": payload })
 	}
 
 	#[test]
@@ -151,7 +151,7 @@ mod tests {
 
 	#[test]
 	fn a_report_replaces_the_one_last_recorded_for_that_bot_and_server() {
-		let reports = ConnectorReports::default();
+		let reports = ApplicationReports::default();
 		reports.record("b1", "granola", Standing::NeedsAuth);
 		reports.record("b2", "granola", Standing::Holding);
 
@@ -164,7 +164,7 @@ mod tests {
 
 	#[test]
 	fn forgetting_a_server_drops_its_standing_for_every_bot_and_keeps_the_rest() {
-		let reports = ConnectorReports::default();
+		let reports = ApplicationReports::default();
 		reports.record("b1", "granola", Standing::NeedsAuth);
 		reports.record("b2", "granola", Standing::Holding);
 		reports.record("b1", "clock", Standing::Holding);

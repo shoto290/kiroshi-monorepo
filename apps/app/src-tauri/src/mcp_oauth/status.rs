@@ -12,17 +12,17 @@ const SECRET_NAMES: [&str; 3] = [OAUTH_ACCESS_TOKEN, OAUTH_REFRESH_TOKEN, OAUTH_
 
 #[derive(Debug, Clone, PartialEq, Eq, Serialize)]
 #[serde(rename_all = "camelCase")]
-pub struct ConnectorRow {
+pub struct ApplicationRow {
 	pub name: String,
 	#[serde(skip_serializing_if = "Option::is_none")]
 	pub scope: Option<EnvScope>,
 	#[serde(flatten)]
-	pub status: ConnectorStatus,
+	pub status: ApplicationStatus,
 }
 
 #[derive(Debug, Clone, PartialEq, Eq, Serialize)]
 #[serde(tag = "status", rename_all = "camelCase")]
-pub enum ConnectorStatus {
+pub enum ApplicationStatus {
 	Connected,
 	NeedsAuthorization,
 	Connecting,
@@ -40,27 +40,27 @@ pub struct Evidence {
 	pub declares_url: bool,
 }
 
-pub fn status(evidence: Evidence, now: i64) -> ConnectorStatus {
+pub fn status(evidence: Evidence, now: i64) -> ApplicationStatus {
 	if evidence.is_authorizing {
-		return ConnectorStatus::Connecting;
+		return ApplicationStatus::Connecting;
 	}
 	match evidence.reported {
-		Some(Standing::Holding) => ConnectorStatus::Connected,
-		Some(Standing::NeedsAuth) => ConnectorStatus::NeedsAuthorization,
-		Some(Standing::LeftOut { reason }) => ConnectorStatus::Failed {
+		Some(Standing::Holding) => ApplicationStatus::Connected,
+		Some(Standing::NeedsAuth) => ApplicationStatus::NeedsAuthorization,
+		Some(Standing::LeftOut { reason }) => ApplicationStatus::Failed {
 			reason: reason.map(|reason| scrubbed(reason, &evidence.held)),
 		},
 		None => stored_status(&evidence.held, evidence.declares_url, now),
 	}
 }
 
-fn stored_status(held: &Values, declares_url: bool, now: i64) -> ConnectorStatus {
+fn stored_status(held: &Values, declares_url: bool, now: i64) -> ApplicationStatus {
 	let holds_a_live_token = held.contains_key(OAUTH_ACCESS_TOKEN)
 		&& credentials::expires_at(held).is_none_or(|expires_at| expires_at > now);
 	match (holds_a_live_token, declares_url) {
-		(true, _) => ConnectorStatus::Connected,
-		(false, true) => ConnectorStatus::NeedsAuthorization,
-		(false, false) => ConnectorStatus::Unknown,
+		(true, _) => ApplicationStatus::Connected,
+		(false, true) => ApplicationStatus::NeedsAuthorization,
+		(false, false) => ApplicationStatus::Unknown,
 	}
 }
 
@@ -110,25 +110,25 @@ mod tests {
 	fn a_running_flow_reads_as_connecting_over_every_other_answer() {
 		let evidence = Evidence { is_authorizing: true, ..reported(Standing::NeedsAuth) };
 
-		assert_eq!(status(evidence, NOW), ConnectorStatus::Connecting);
+		assert_eq!(status(evidence, NOW), ApplicationStatus::Connecting);
 	}
 
 	#[test]
 	fn the_last_state_a_session_reported_decides_the_answer() {
-		assert_eq!(status(reported(Standing::Holding), NOW), ConnectorStatus::Connected);
-		assert_eq!(status(reported(Standing::NeedsAuth), NOW), ConnectorStatus::NeedsAuthorization);
+		assert_eq!(status(reported(Standing::Holding), NOW), ApplicationStatus::Connected);
+		assert_eq!(status(reported(Standing::NeedsAuth), NOW), ApplicationStatus::NeedsAuthorization);
 		assert_eq!(
 			status(reported(Standing::LeftOut { reason: Some("it read failed".to_owned()) }), NOW),
-			ConnectorStatus::Failed { reason: Some("it read failed".to_owned()) }
+			ApplicationStatus::Failed { reason: Some("it read failed".to_owned()) }
 		);
 	}
 
 	#[test]
 	fn with_no_report_a_live_token_reads_as_connected() {
-		assert_eq!(status(unreported(a_grant(None), true), NOW), ConnectorStatus::Connected);
+		assert_eq!(status(unreported(a_grant(None), true), NOW), ApplicationStatus::Connected);
 		assert_eq!(
 			status(unreported(a_grant(Some(NOW + 1)), false), NOW),
-			ConnectorStatus::Connected
+			ApplicationStatus::Connected
 		);
 	}
 
@@ -136,18 +136,18 @@ mod tests {
 	fn with_no_report_a_url_server_holding_no_live_token_needs_authorization() {
 		assert_eq!(
 			status(unreported(Values::new(), true), NOW),
-			ConnectorStatus::NeedsAuthorization
+			ApplicationStatus::NeedsAuthorization
 		);
 		assert_eq!(
 			status(unreported(a_grant(Some(NOW)), true), NOW),
-			ConnectorStatus::NeedsAuthorization
+			ApplicationStatus::NeedsAuthorization
 		);
 	}
 
 	#[test]
 	fn with_no_report_a_server_declaring_no_url_and_holding_no_live_token_is_unknown() {
-		assert_eq!(status(unreported(Values::new(), false), NOW), ConnectorStatus::Unknown);
-		assert_eq!(status(unreported(a_grant(Some(NOW)), false), NOW), ConnectorStatus::Unknown);
+		assert_eq!(status(unreported(Values::new(), false), NOW), ApplicationStatus::Unknown);
+		assert_eq!(status(unreported(a_grant(Some(NOW)), false), NOW), ApplicationStatus::Unknown);
 	}
 
 	#[test]
@@ -156,12 +156,12 @@ mod tests {
 			reason: Some("it answered held-access, held-refresh and held-secret".to_owned()),
 		};
 		let rows = [
-			ConnectorRow {
+			ApplicationRow {
 				name: "granola".to_owned(),
 				scope: None,
 				status: status(reported(quoting), NOW),
 			},
-			ConnectorRow {
+			ApplicationRow {
 				name: "notion".to_owned(),
 				scope: None,
 				status: status(unreported(a_grant(None), true), NOW),

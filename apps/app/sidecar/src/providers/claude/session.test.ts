@@ -780,7 +780,7 @@ describe("layerFor", () => {
 
 	it("opens the authorization line on the person alone, then keeps its two sentences", () => {
 		expect(AUTHORIZE_LINE).toBe(
-			"Only the person can authorize a server, and they do it in Settings, then Connectors. Say exactly that when they ask for something that server holds, and never ask them in the chat for a token, a password or an authorization.",
+			"Only the person can authorize a server, and they do it in Settings, then Applications. Say exactly that when they ask for something that server holds, and never ask them in the chat for a token, a password or an authorization.",
 		)
 	})
 

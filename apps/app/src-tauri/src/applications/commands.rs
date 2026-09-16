@@ -1,6 +1,6 @@
 use tauri::State;
 
-use super::contract::{Application, ApplicationInstall, ApplicationsError, ConnectorError};
+use super::contract::{Application, ApplicationInstall, ApplicationsError, ApplicationCallError};
 use super::{catalogue, registry};
 use crate::conversations::commands::ready;
 use crate::db;
@@ -19,6 +19,6 @@ pub async fn application_search(query: String) -> Result<Vec<Application>, Appli
 pub async fn application_installs(
 	state: State<'_, db::DatabaseState>,
 	conversation_id: String,
-) -> Result<Vec<ApplicationInstall>, ConnectorError> {
+) -> Result<Vec<ApplicationInstall>, ApplicationCallError> {
 	Ok(ready(&state)?.application_installs().of_conversation(conversation_id).await?)
 }

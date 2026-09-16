@@ -75,7 +75,7 @@ const answer = (label: string, value: string) =>
 
 afterEach(cleanup)
 
-describe("SpaceSettingsDialog connectors", () => {
+describe("SpaceSettingsDialog applications", () => {
 	it("lists the servers the space holds", async () => {
 		spaceDialog()
 
@@ -85,7 +85,7 @@ describe("SpaceSettingsDialog connectors", () => {
 		expect(within(panel).getByText("ledger")).toBeTruthy()
 	})
 
-	it("says the listing failed instead of inviting a first connector", async () => {
+	it("says the listing failed instead of inviting a first application", async () => {
 		spaceDialog({ haveMcpServersFailedToLoad: true, mcpServers: [] })
 
 		const panel = await pick("Applications")

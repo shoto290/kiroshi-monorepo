@@ -1,7 +1,7 @@
 import { invoke } from "@tauri-apps/api/core"
 import { beforeEach, describe, expect, it, vi } from "vitest"
 
-import { connectorTransport } from "./connector-transport"
+import { connectionTransport } from "./connection-transport"
 
 import type { EnvOwner } from "../conversations/store-contract"
 
@@ -18,9 +18,9 @@ beforeEach(() => {
 	hostInvoke.mockResolvedValue(undefined)
 })
 
-describe("connectorTransport", () => {
-	it("hands the host the owner, the connector and its url to connect", async () => {
-		await connectorTransport.connect(BOT, "atlas", URL)
+describe("connectionTransport", () => {
+	it("hands the host the owner, the connection and its url to connect", async () => {
+		await connectionTransport.connect(BOT, "atlas", URL)
 
 		expect(hostInvoke).toHaveBeenCalledWith("mcp_oauth_connect", {
 			owner: BOT,
@@ -30,15 +30,15 @@ describe("connectorTransport", () => {
 	})
 
 	it("asks the host to cancel the running flow", async () => {
-		await connectorTransport.cancel()
+		await connectionTransport.cancel()
 
 		expect(hostInvoke).toHaveBeenCalledWith("mcp_oauth_cancel")
 	})
 
-	it("hands the host the owner, the connector and its url to disconnect", async () => {
+	it("hands the host the owner, the connection and its url to disconnect", async () => {
 		hostInvoke.mockResolvedValue({ revoked: true })
 
-		const disconnected = await connectorTransport.disconnect(BOT, "atlas", URL)
+		const disconnected = await connectionTransport.disconnect(BOT, "atlas", URL)
 
 		expect(hostInvoke).toHaveBeenCalledWith("mcp_oauth_disconnect", {
 			owner: BOT,
@@ -51,23 +51,23 @@ describe("connectorTransport", () => {
 	it("names the user as the owner of every call", async () => {
 		const user: EnvOwner = { kind: "user" }
 
-		await connectorTransport.status(user)
-		await connectorTransport.connect(user, "atlas", URL)
-		await connectorTransport.disconnect(user, "atlas", URL)
+		await connectionTransport.status(user)
+		await connectionTransport.connect(user, "atlas", URL)
+		await connectionTransport.disconnect(user, "atlas", URL)
 
 		expect(hostInvoke.mock.calls).toEqual([
-			["mcp_connector_status", { owner: user }],
+			["mcp_application_status", { owner: user }],
 			["mcp_oauth_connect", { owner: user, name: "atlas", url: URL }],
 			["mcp_oauth_disconnect", { owner: user, name: "atlas", url: URL }],
 		])
 	})
 
-	it("reads the connector status of an owner", async () => {
+	it("reads the connection status of an owner", async () => {
 		hostInvoke.mockResolvedValue([{ name: "atlas", status: "connected" }])
 
-		const rows = await connectorTransport.status(BOT)
+		const rows = await connectionTransport.status(BOT)
 
-		expect(hostInvoke).toHaveBeenCalledWith("mcp_connector_status", {
+		expect(hostInvoke).toHaveBeenCalledWith("mcp_application_status", {
 			owner: BOT,
 		})
 		expect(rows).toEqual([{ name: "atlas", status: "connected" }])
@@ -76,8 +76,8 @@ describe("connectorTransport", () => {
 	it("hands back what the host refused", async () => {
 		hostInvoke.mockRejectedValue({ kind: "alreadyRunning" })
 
-		await expect(connectorTransport.connect(BOT, "atlas", URL)).rejects.toEqual(
-			{ kind: "alreadyRunning" },
-		)
+		await expect(
+			connectionTransport.connect(BOT, "atlas", URL),
+		).rejects.toEqual({ kind: "alreadyRunning" })
 	})
 })

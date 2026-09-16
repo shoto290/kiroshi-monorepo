@@ -1,44 +1,43 @@
 import { createContext, useContext, useEffect, useState } from "react"
 
-import type { ConnectorPort } from "./connector-port"
+import type { ConnectionPort } from "./connection-port"
 
 import type { ChatError } from "../chat/chat-state"
 import type { EnvOwner } from "../conversations/store-contract"
 
-export type SessionConnectors = {
-	port: ConnectorPort
+export type SessionApplications = {
+	port: ConnectionPort
 	spaceId: string | null
 	onOpen: (owner: EnvOwner) => void
 }
 
-export type SessionConnector = {
+export type SessionApplication = {
 	name: string
 	owner: EnvOwner
 }
 
-export type LeftOutConnector = SessionConnector & {
+export type LeftOutApplication = SessionApplication & {
 	open: () => void
 }
 
 type SessionReading = {
 	errorId: string
-	connector: SessionConnector | null
+	application: SessionApplication | null
 }
 
-export const SessionConnectorsContext = createContext<SessionConnectors | null>(
-	null,
-)
+export const SessionApplicationsContext =
+	createContext<SessionApplications | null>(null)
 
-const readingsOf = (port: ConnectorPort, owner: EnvOwner) =>
+const readingsOf = (port: ConnectionPort, owner: EnvOwner) =>
 	port.status(owner).then((rows) => rows.map((row) => ({ owner, row })))
 
 const LEFT_OUT_SERVER = /^the server "(.+?)" was left out:/
 
-export const findLeftOutConnector = async (
-	port: ConnectorPort,
+export const findLeftOutApplication = async (
+	port: ConnectionPort,
 	owners: EnvOwner[],
 	name: string,
-): Promise<SessionConnector | null> => {
+): Promise<SessionApplication | null> => {
 	const readings = await Promise.all(
 		owners.map((owner) => readingsOf(port, owner)),
 	)
@@ -53,28 +52,28 @@ export const leftOutNameOf = (error: ChatError | undefined) =>
 		? (LEFT_OUT_SERVER.exec(error.error.detail)?.[1] ?? null)
 		: null
 
-export const useSessionConnector = (
+export const useSessionApplication = (
 	error: ChatError | undefined,
 	speakerId: string | undefined,
-): LeftOutConnector | null => {
-	const connectors = useContext(SessionConnectorsContext)
+): LeftOutApplication | null => {
+	const applications = useContext(SessionApplicationsContext)
 	const [reading, setReading] = useState<SessionReading | null>(null)
 	const name = leftOutNameOf(error)
 	const errorId = name ? error?.id : undefined
-	const port = connectors?.port
-	const spaceId = connectors?.spaceId
+	const port = applications?.port
+	const spaceId = applications?.spaceId
 
 	useEffect(() => {
 		if (!errorId || !name || !port || !spaceId || !speakerId) {
 			return
 		}
 		let isCurrent = true
-		const land = (connector: SessionConnector | null) => {
+		const land = (application: SessionApplication | null) => {
 			if (isCurrent) {
-				setReading({ errorId, connector })
+				setReading({ errorId, application })
 			}
 		}
-		findLeftOutConnector(
+		findLeftOutApplication(
 			port,
 			[
 				{ kind: "bot", id: speakerId, spaceId },
@@ -87,10 +86,10 @@ export const useSessionConnector = (
 		}
 	}, [errorId, name, port, spaceId, speakerId])
 
-	const connector =
-		reading && reading.errorId === errorId ? reading.connector : null
-	if (!connector || !connectors) {
+	const application =
+		reading && reading.errorId === errorId ? reading.application : null
+	if (!application || !applications) {
 		return null
 	}
-	return { ...connector, open: () => connectors.onOpen(connector.owner) }
+	return { ...application, open: () => applications.onOpen(application.owner) }
 }

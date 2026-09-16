@@ -1,8 +1,8 @@
 import type { ApplicationInstall } from "./application-port"
 import type { ReopenedScope } from "./session-reopening"
+import { leftOutNameOf } from "./use-session-application"
 
 import type { ChatError } from "../chat/chat-state"
-import { leftOutNameOf } from "../connectors/use-session-connector"
 
 export type RefusingSession = {
 	error: ChatError | undefined

@@ -3,8 +3,8 @@ use serde_json::Value;
 use tauri::{AppHandle, Emitter, Manager, Runtime, State};
 
 use super::contract::{
-	Application, ApplicationInstall, ApplicationInstalled, ConnectorError, ConnectorInstall,
-	ConnectorSearch, ConnectorState, Destination, InstallDraft, INSTALLED_EVENT,
+	Application, ApplicationInstall, ApplicationInstalled, ApplicationCallError, InstallOutcome,
+	ApplicationSearch, ApplicationState, Destination, InstallDraft, INSTALLED_EVENT,
 };
 use super::{catalogue, registry};
 use crate::agent::protocol::HostAnswer;
@@ -16,7 +16,7 @@ use crate::conversations::commands::{
 use crate::conversations::contract::McpServer;
 use crate::db;
 use crate::environment::contract::EnvOwner;
-use crate::mcp_oauth::commands::mcp_connector_status;
+use crate::mcp_oauth::commands::mcp_application_status;
 use crate::user::commands::{user_plugin_mcp_servers, user_plugin_set_mcp_server};
 
 const SUBTYPE: &str = "application";
@@ -53,7 +53,7 @@ impl<R: Runtime> ApplicationHost<R> {
 		self.served(request).await.map_err(refused)
 	}
 
-	async fn served(&self, request: Value) -> Result<Value, ConnectorError> {
+	async fn served(&self, request: Value) -> Result<Value, ApplicationCallError> {
 		let Asked::Application { operation, payload } = read(request)?;
 		match operation {
 			Operation::Search => {
@@ -71,7 +71,7 @@ impl<R: Runtime> ApplicationHost<R> {
 		}
 	}
 
-	async fn search(&self, query: &str) -> Result<ConnectorSearch, ConnectorError> {
+	async fn search(&self, query: &str) -> Result<ApplicationSearch, ApplicationCallError> {
 		let mut applications = matching(catalogue::curated()?, query);
 		let registry_failure = match registry::search(&self.registry, query).await {
 			Ok(found) => {
@@ -80,14 +80,14 @@ impl<R: Runtime> ApplicationHost<R> {
 			}
 			Err(failure) => Some(failure),
 		};
-		Ok(ConnectorSearch { applications, registry_failure })
+		Ok(ApplicationSearch { applications, registry_failure })
 	}
 
-	async fn install(&self, asked: Named) -> Result<ConnectorInstall, ConnectorError> {
+	async fn install(&self, asked: Named) -> Result<InstallOutcome, ApplicationCallError> {
 		let scope = destination(&asked.scope)?;
 		let owner = self.owner(scope).await?;
 		if self.declared(&owner).await?.iter().any(|server| server.name == asked.application) {
-			return Ok(ConnectorInstall::AlreadyInstalled {
+			return Ok(InstallOutcome::AlreadyInstalled {
 				application: asked.application,
 				scope,
 			});
@@ -104,7 +104,7 @@ impl<R: Runtime> ApplicationHost<R> {
 			install: application.install.clone().into(),
 		};
 		self.announce(self.recorded(draft).await)?;
-		Ok(ConnectorInstall::Installed {
+		Ok(InstallOutcome::Installed {
 			application: application.name,
 			scope,
 			install: application.install.into(),
@@ -124,30 +124,30 @@ impl<R: Runtime> ApplicationHost<R> {
 		}
 	}
 
-	async fn record(&self, draft: InstallDraft) -> Result<ApplicationInstall, ConnectorError> {
+	async fn record(&self, draft: InstallDraft) -> Result<ApplicationInstall, ApplicationCallError> {
 		let state = self.state()?;
 		Ok(ready(&state)?.application_installs().record(draft).await?)
 	}
 
-	async fn status(&self, asked: Named) -> Result<ConnectorState, ConnectorError> {
+	async fn status(&self, asked: Named) -> Result<ApplicationState, ApplicationCallError> {
 		let owner = self.owner(destination(&asked.scope)?).await?;
-		let rows = mcp_connector_status(self.app.clone(), owner).await?;
+		let rows = mcp_application_status(self.app.clone(), owner).await?;
 		Ok(rows
 			.into_iter()
 			.find(|row| row.name == asked.application)
-			.map_or(ConnectorState::NotInstalled, |row| row.status.into()))
+			.map_or(ApplicationState::NotInstalled, |row| row.status.into()))
 	}
 
-	async fn application(&self, name: &str) -> Result<Application, ConnectorError> {
+	async fn application(&self, name: &str) -> Result<Application, ApplicationCallError> {
 		if let Some(curated) = catalogue::curated()?.into_iter().find(|held| held.name == name) {
 			return Ok(curated);
 		}
 		registry::detail(&self.registry, name)
 			.await?
-			.ok_or_else(|| ConnectorError::UnknownApplication { application: name.to_owned() })
+			.ok_or_else(|| ApplicationCallError::UnknownApplication { application: name.to_owned() })
 	}
 
-	async fn owner(&self, scope: Destination) -> Result<EnvOwner, ConnectorError> {
+	async fn owner(&self, scope: Destination) -> Result<EnvOwner, ApplicationCallError> {
 		match scope {
 			Destination::User => Ok(EnvOwner::User),
 			Destination::Space => Ok(EnvOwner::Space { id: self.space().await? }),
@@ -157,7 +157,7 @@ impl<R: Runtime> ApplicationHost<R> {
 		}
 	}
 
-	async fn declared(&self, owner: &EnvOwner) -> Result<Vec<McpServer>, ConnectorError> {
+	async fn declared(&self, owner: &EnvOwner) -> Result<Vec<McpServer>, ApplicationCallError> {
 		let app = self.app.clone();
 		Ok(match owner {
 			EnvOwner::User => user_plugin_mcp_servers(app).await?,
@@ -170,7 +170,7 @@ impl<R: Runtime> ApplicationHost<R> {
 		&self,
 		owner: &EnvOwner,
 		application: &Application,
-	) -> Result<McpServer, ConnectorError> {
+	) -> Result<McpServer, ApplicationCallError> {
 		let app = self.app.clone();
 		let name = application.name.clone();
 		let config = application.config.clone();
@@ -186,26 +186,26 @@ impl<R: Runtime> ApplicationHost<R> {
 		})
 	}
 
-	async fn space(&self) -> Result<String, ConnectorError> {
+	async fn space(&self) -> Result<String, ApplicationCallError> {
 		let state = self.state()?;
 		let database = ready(&state)?;
 		database.conversations().space(self.conversation_id.clone()).await?.ok_or_else(|| {
-			ConnectorError::ConversationWithoutSpace {
+			ApplicationCallError::ConversationWithoutSpace {
 				conversation_id: self.conversation_id.clone(),
 			}
 		})
 	}
 
-	fn announce(&self, installed: ApplicationInstalled) -> Result<(), ConnectorError> {
+	fn announce(&self, installed: ApplicationInstalled) -> Result<(), ApplicationCallError> {
 		self.app
 			.emit(INSTALLED_EVENT, installed)
-			.map_err(|error| ConnectorError::Undeliverable { detail: error.to_string() })
+			.map_err(|error| ApplicationCallError::Undeliverable { detail: error.to_string() })
 	}
 
-	fn state(&self) -> Result<State<'_, db::DatabaseState>, ConnectorError> {
+	fn state(&self) -> Result<State<'_, db::DatabaseState>, ApplicationCallError> {
 		self.app
 			.try_state::<db::DatabaseState>()
-			.ok_or_else(|| ConnectorError::Unexpected { detail: NO_DATABASE.to_owned() })
+			.ok_or_else(|| ApplicationCallError::Unexpected { detail: NO_DATABASE.to_owned() })
 	}
 }
 
@@ -247,12 +247,12 @@ struct Named {
 	scope: String,
 }
 
-fn destination(scope: &str) -> Result<Destination, ConnectorError> {
+fn destination(scope: &str) -> Result<Destination, ApplicationCallError> {
 	match scope {
 		"companion" => Ok(Destination::Companion),
 		"space" => Ok(Destination::Space),
 		"user" => Ok(Destination::User),
-		unknown => Err(ConnectorError::UnknownScope { scope: unknown.to_owned() }),
+		unknown => Err(ApplicationCallError::UnknownScope { scope: unknown.to_owned() }),
 	}
 }
 
@@ -278,17 +278,17 @@ fn answers_to(application: &Application, term: &str) -> bool {
 		.any(|read| read.to_lowercase().contains(term))
 }
 
-fn read<T: serde::de::DeserializeOwned>(payload: Value) -> Result<T, ConnectorError> {
+fn read<T: serde::de::DeserializeOwned>(payload: Value) -> Result<T, ApplicationCallError> {
 	serde_json::from_value(payload)
-		.map_err(|error| ConnectorError::UnreadableRequest { detail: error.to_string() })
+		.map_err(|error| ApplicationCallError::UnreadableRequest { detail: error.to_string() })
 }
 
-fn answered<T: Serialize>(answer: T) -> Result<Value, ConnectorError> {
+fn answered<T: Serialize>(answer: T) -> Result<Value, ApplicationCallError> {
 	serde_json::to_value(answer)
-		.map_err(|error| ConnectorError::Unexpected { detail: error.to_string() })
+		.map_err(|error| ApplicationCallError::Unexpected { detail: error.to_string() })
 }
 
-fn refused(error: ConnectorError) -> Value {
+fn refused(error: ApplicationCallError) -> Value {
 	serde_json::to_value(&error).unwrap_or_else(
 		|failure| serde_json::json!({ "kind": "unexpected", "detail": failure.to_string() }),
 	)
@@ -311,7 +311,7 @@ mod tests {
 	use crate::applications::registry::tests::{holding, serving};
 	use crate::bundles;
 	use crate::mcp_oauth::commands::McpOauthState;
-	use crate::mcp_oauth::reports::{ConnectorReports, Standing};
+	use crate::mcp_oauth::reports::{ApplicationReports, Standing};
 
 	const A_SPACE: &str = "
 		INSERT INTO bots (id, name, model, created_at) VALUES ('b1', 'Shoto', 'sonnet', 1);
@@ -334,7 +334,7 @@ mod tests {
 		cleaned(&app);
 		app.manage(db::bootstrap(app.handle()));
 		app.manage(McpOauthState::default());
-		app.manage(ConnectorReports::default());
+		app.manage(ApplicationReports::default());
 		ready(&app.state::<db::DatabaseState>())
 			.expect("the database opens")
 			.call_mut(|connection| Ok(connection.execute_batch(A_SPACE)?))
@@ -825,7 +825,7 @@ mod tests {
 			host.answer(an_install("linear", scope)).await.expect("the install answers");
 		}
 		host.answer(an_install("paper", "companion")).await.expect("the install answers");
-		let reports = app.state::<ConnectorReports>();
+		let reports = app.state::<ApplicationReports>();
 		reports.record("b1", "linear", Standing::Holding);
 		reports.record("b1", "paper", Standing::LeftOut { reason: Some("refused".to_owned()) });
 

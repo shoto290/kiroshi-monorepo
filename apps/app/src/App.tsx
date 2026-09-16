@@ -22,6 +22,8 @@ import {
 	toServerEnvironmentSection,
 } from "@/lib/applications/application-settings"
 import { applicationTransport } from "@/lib/applications/application-transport"
+import { APPLICATIONS_TAB } from "@/lib/applications/connection-settings"
+import { connectionTransport } from "@/lib/applications/connection-transport"
 import {
 	createSessionReopener,
 	ownerOfScope,
@@ -34,7 +36,9 @@ import {
 } from "@/lib/applications/settings-target"
 import { useApplicationInstalls } from "@/lib/applications/use-application-installs"
 import { useApplications } from "@/lib/applications/use-applications"
+import { useConnections } from "@/lib/applications/use-connections"
 import { ConversationApplicationsContext } from "@/lib/applications/use-conversation-installs"
+import { SessionApplicationsContext } from "@/lib/applications/use-session-application"
 import {
 	changesRuntime,
 	modelOptionsFor,
@@ -70,10 +74,6 @@ import {
 	useChat,
 } from "@/lib/chat/use-chat"
 import { useCompanionAnnouncements } from "@/lib/companions/use-companion-announcements"
-import { CONNECTORS_TAB } from "@/lib/connectors/connector-settings"
-import { connectorTransport } from "@/lib/connectors/connector-transport"
-import { useConnectors } from "@/lib/connectors/use-connectors"
-import { SessionConnectorsContext } from "@/lib/connectors/use-session-connector"
 import { createConversationRuntimes } from "@/lib/conversations/conversation-runtimes"
 import { createTranscriptStore } from "@/lib/conversations/create-store"
 import {
@@ -196,9 +196,9 @@ export function App() {
 	const spaceEnvironment = useEnvironment(store)
 	const serverEnvironment = useEnvironment(store)
 	const userMcpServers = useMcpServers(store)
-	const botConnectors = useConnectors(connectorTransport)
-	const spaceConnectors = useConnectors(connectorTransport)
-	const userConnectors = useConnectors(connectorTransport)
+	const botConnections = useConnections(connectionTransport)
+	const spaceConnections = useConnections(connectionTransport)
+	const userConnections = useConnections(connectionTransport)
 	const applications = useApplications(applicationTransport, store)
 	const history = useBotHistory(store)
 	const catalogue = useModelCatalogue()
@@ -358,7 +358,7 @@ export function App() {
 	const userApplications = toApplicationScope({
 		applications,
 		servers: userMcpServers,
-		connectors: userConnectors,
+		connections: userConnections,
 		openedName: openedServerName,
 		reopen: reopenSessions,
 	})
@@ -366,7 +366,7 @@ export function App() {
 	const spaceApplications = toApplicationScope({
 		applications,
 		servers: spaceMcpServers,
-		connectors: spaceConnectors,
+		connections: spaceConnections,
 		openedName: openedServerName,
 		reopen: reopenSessions,
 	})
@@ -374,7 +374,7 @@ export function App() {
 	const botApplications = toApplicationScope({
 		applications,
 		servers: botMcpServers,
-		connectors: botConnectors,
+		connections: botConnections,
 		openedName: openedServerName,
 		reopen: reopenSessions,
 	})
@@ -413,7 +413,7 @@ export function App() {
 
 	const openApplicationsOf = useCallback(
 		(scope: ReopenedScope, server?: string) => {
-			setSettingsTab(CONNECTORS_TAB)
+			setSettingsTab(APPLICATIONS_TAB)
 			setSettingsApplication(
 				server ? { scope, application: server } : undefined,
 			)
@@ -430,7 +430,7 @@ export function App() {
 		},
 		[roster.controller, spaces.controller, user.controller, selectedSpaceId],
 	)
-	const openConnectorsOf = useCallback(
+	const openApplicationsOfOwner = useCallback(
 		(owner: EnvOwner) => openApplicationsOf(scopeOfOwner(owner)),
 		[openApplicationsOf],
 	)
@@ -447,13 +447,13 @@ export function App() {
 	useEffect(() => {
 		void applications.controller.open()
 	}, [applications.controller])
-	const sessionConnectors = useMemo(
+	const sessionApplications = useMemo(
 		() => ({
-			port: connectorTransport,
+			port: connectionTransport,
 			spaceId: selectedSpaceId,
-			onOpen: openConnectorsOf,
+			onOpen: openApplicationsOfOwner,
 		}),
-		[selectedSpaceId, openConnectorsOf],
+		[selectedSpaceId, openApplicationsOfOwner],
 	)
 
 	const listedSpaces = spaces.state.spaces.map((space) => space.id).join(" ")
@@ -522,13 +522,13 @@ export function App() {
 		void skills.controller.open(settingsBotId)
 		void botMcpServers.controller.open(scope)
 		void botEnvironment.controller.open(scope)
-		void botConnectors.controller.open(scope)
+		void botConnections.controller.open(scope)
 		void history.controller.open(settingsBotId)
 	}, [
 		applications.controller,
 		history.controller,
 		botEnvironment.controller,
-		botConnectors.controller,
+		botConnections.controller,
 		botMcpServers.controller,
 		skills.controller,
 		settingsBotId,
@@ -541,13 +541,13 @@ export function App() {
 			void applications.controller.open()
 			void spaceEnvironment.controller.open(owner)
 			void spaceMcpServers.controller.open(owner)
-			void spaceConnectors.controller.open(owner)
+			void spaceConnections.controller.open(owner)
 		}
 	}, [
 		applications.controller,
 		spaceEnvironment.controller,
 		spaceMcpServers.controller,
-		spaceConnectors.controller,
+		spaceConnections.controller,
 		isSpaceEditing,
 		selectedSpaceId,
 	])
@@ -564,11 +564,11 @@ export function App() {
 		}
 		void applications.controller.open()
 		void userMcpServers.controller.open(USER_OWNER)
-		void userConnectors.controller.open(USER_OWNER)
+		void userConnections.controller.open(USER_OWNER)
 	}, [
 		applications.controller,
 		userMcpServers.controller,
-		userConnectors.controller,
+		userConnections.controller,
 		user.state.isSettingsOpen,
 	])
 
@@ -964,7 +964,7 @@ export function App() {
 				}
 			>
 				<ConversationSeatingContext.Provider value={conversationSeating}>
-					<SessionConnectorsContext.Provider value={sessionConnectors}>
+					<SessionApplicationsContext.Provider value={sessionApplications}>
 						<ConversationApplicationsContext.Provider
 							value={conversationApplications}
 						>
@@ -991,7 +991,7 @@ export function App() {
 								signIn={signIn}
 							/>
 						</ConversationApplicationsContext.Provider>
-					</SessionConnectorsContext.Provider>
+					</SessionApplicationsContext.Provider>
 				</ConversationSeatingContext.Provider>
 			</WorkspaceShell>
 			{settingsBot ? (

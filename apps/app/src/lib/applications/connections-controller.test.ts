@@ -1,10 +1,10 @@
 import { describe, expect, it } from "vitest"
 
-import { createConnectorsController } from "./connectors-controller"
+import { createConnectionsController } from "./connections-controller"
 import {
-	createFakeConnectorPort,
-	type FakeConnectorPort,
-} from "./fake-connector-port"
+	createFakeConnectionPort,
+	type FakeConnectionPort,
+} from "./fake-connection-port"
 
 import type { EnvOwner } from "../conversations/store-contract"
 
@@ -14,8 +14,8 @@ const URL = "https://mcp.atlas.test/mcp"
 
 const DENIED = { kind: "denied", detail: "access_denied" }
 
-const opened = async (port: FakeConnectorPort) => {
-	const controller = createConnectorsController(port)
+const opened = async (port: FakeConnectionPort) => {
+	const controller = createConnectionsController(port)
 	await controller.open(SPACE)
 	return controller
 }
@@ -26,12 +26,12 @@ const settle = async () => {
 	}
 }
 
-const commandsOf = (port: FakeConnectorPort) =>
+const commandsOf = (port: FakeConnectionPort) =>
 	port.calls.map((call) => call.command)
 
-describe("connectors controller", () => {
+describe("connections controller", () => {
 	it("reads the status of the owner it opens on", async () => {
-		const port = createFakeConnectorPort()
+		const port = createFakeConnectionPort()
 		port.rows.space = [{ name: "atlas", status: "needsAuthorization" }]
 
 		const controller = await opened(port)
@@ -40,8 +40,8 @@ describe("connectors controller", () => {
 		expect(controller.getState().rows).toEqual(port.rows.space)
 	})
 
-	it("holds a connector as connecting until its grant lands, then reads again", async () => {
-		const port = createFakeConnectorPort()
+	it("holds a connection as connecting until its grant lands, then reads again", async () => {
+		const port = createFakeConnectionPort()
 		const controller = await opened(port)
 
 		const connecting = controller.connect("atlas", URL)
@@ -65,7 +65,7 @@ describe("connectors controller", () => {
 	})
 
 	it("cancels a running flow and reads again without calling it a failure", async () => {
-		const port = createFakeConnectorPort()
+		const port = createFakeConnectionPort()
 		const controller = await opened(port)
 		const connecting = controller.connect("atlas", URL)
 		await settle()
@@ -84,8 +84,8 @@ describe("connectors controller", () => {
 		expect(controller.getState().failure).toBeNull()
 	})
 
-	it("disconnects a connector of the open owner, then reads again", async () => {
-		const port = createFakeConnectorPort()
+	it("disconnects a connection of the open owner, then reads again", async () => {
+		const port = createFakeConnectionPort()
 		const controller = await opened(port)
 
 		await controller.disconnect("atlas", URL)
@@ -97,7 +97,7 @@ describe("connectors controller", () => {
 	})
 
 	it("keeps the reason a refused connect gave", async () => {
-		const port = createFakeConnectorPort()
+		const port = createFakeConnectionPort()
 		port.refusals.connect = DENIED
 		const controller = await opened(port)
 
@@ -112,7 +112,7 @@ describe("connectors controller", () => {
 	})
 
 	it("keeps the reason a refused disconnect gave", async () => {
-		const port = createFakeConnectorPort()
+		const port = createFakeConnectionPort()
 		port.refusals.disconnect = { kind: "alreadyRunning" }
 		const controller = await opened(port)
 
@@ -126,7 +126,7 @@ describe("connectors controller", () => {
 	})
 
 	it("keeps the reason a refused status read gave, until a read comes back", async () => {
-		const port = createFakeConnectorPort()
+		const port = createFakeConnectionPort()
 		port.refusals.status = { kind: "io", detail: "locked" }
 		const controller = await opened(port)
 
@@ -143,8 +143,8 @@ describe("connectors controller", () => {
 	})
 
 	it("sends nothing while no owner is open", async () => {
-		const port = createFakeConnectorPort()
-		const controller = createConnectorsController(port)
+		const port = createFakeConnectionPort()
+		const controller = createConnectionsController(port)
 
 		await controller.connect("atlas", URL)
 		await controller.cancel()

@@ -214,7 +214,7 @@ export const Rail = meta.story({
 		docs: {
 			description: {
 				story:
-					"The groups and the way between them. Check the order — General, Appearance, Instructions, Skills, Connectors, Secrets, History, Approvals, Runtime, then a rule and Danger zone alone below it, the only item in destructive tone. One tab stop reaches the rail and the arrow keys walk it, so a keyboard reader crosses the whole dialog in two stops rather than five. Walking is not opening: focus moves with the arrows and the group opens on Enter, so nobody drags a grid of animals or a model list past on their way to the one they wanted. No item carries a tooltip at this width — its name is already on the screen. Pick `IconRail` for the width where the name leaves it. The breadcrumb is unchanged whichever group is open: it names the companion, not the group.",
+					"The groups and the way between them. Check the order — General, Appearance, Instructions, Skills, Applications, Secrets, History, Approvals, Runtime, then a rule and Danger zone alone below it, the only item in destructive tone. One tab stop reaches the rail and the arrow keys walk it, so a keyboard reader crosses the whole dialog in two stops rather than five. Walking is not opening: focus moves with the arrows and the group opens on Enter, so nobody drags a grid of animals or a model list past on their way to the one they wanted. No item carries a tooltip at this width — its name is already on the screen. Pick `IconRail` for the width where the name leaves it. The breadcrumb is unchanged whichever group is open: it names the companion, not the group.",
 			},
 		},
 	},
@@ -542,7 +542,7 @@ export const History = meta.story({
 		docs: {
 			description: {
 				story:
-					"Everything that has ever changed in this companion's bundle, on the tab between Connectors and Runtime. Reach for this to check that the group reads as a list of changes rather than a log: the title leads each row, who and when sit under it, and the diff is folded away until somebody asks for it. The tab exists only for a host that passed the `history` group — a host with no bundle to read gets no tab rather than an empty one. Pick `AI/HistoryPanel` for the states the list itself takes.",
+					"Everything that has ever changed in this companion's bundle, on the tab between Applications and Runtime. Reach for this to check that the group reads as a list of changes rather than a log: the title leads each row, who and when sit under it, and the diff is folded away until somebody asks for it. The tab exists only for a host that passed the `history` group — a host with no bundle to read gets no tab rather than an empty one. Pick `AI/HistoryPanel` for the states the list itself takes.",
 			},
 		},
 	},
@@ -767,7 +767,7 @@ export const WithServerOpen = meta.story({
 		docs: {
 			description: {
 				story:
-					"A connector taken out of the list. The dialog gives up its own rail the same way it does for a skill: the connector takes the whole surface, and the rail becomes that connector's summary — a way back to the list, then Connection, Secrets and Advanced. Nothing in it is written as it is typed, so the save is a press and the way back asks before it drops anything. Pick `WithSkillOpen` for the other surface that does this.",
+					"An application taken out of the list. The dialog gives up its own rail the same way it does for a skill: the application takes the whole surface, and the rail becomes that application's summary — a way back to the list, then Connection, Secrets and Advanced. Nothing in it is written as it is typed, so the save is a press and the way back asks before it drops anything. Pick `WithSkillOpen` for the other surface that does this.",
 			},
 		},
 	},

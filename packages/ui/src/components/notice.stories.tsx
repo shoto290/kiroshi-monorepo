@@ -193,7 +193,7 @@ export const LongContent = meta.story({
 	},
 })
 
-const OPEN_CONNECTORS = fn()
+const OPEN_APPLICATIONS = fn()
 
 const LeftOutNotice = () => {
 	const { t } = useTranslation("bots")
@@ -202,7 +202,7 @@ const LeftOutNotice = () => {
 		<Notice
 			action={{
 				label: t("applications.connection.session.action"),
-				onClick: OPEN_CONNECTORS,
+				onClick: OPEN_APPLICATIONS,
 			}}
 			description={t("applications.connection.session.description")}
 			title={t("applications.connection.session.title", { name: "atlas" })}
@@ -211,13 +211,13 @@ const LeftOutNotice = () => {
 	)
 }
 
-export const ConnectorLeftOut = meta.story({
+export const ApplicationLeftOut = meta.story({
 	render: () => <LeftOutNotice />,
 	parameters: {
 		docs: {
 			description: {
 				story:
-					"A session that ran without one of its connectors because nobody has authorized it yet. Reach for this to check the action surface: on the warning field, a ghost button would read as text, so it sits on the background at 60 percent and reads as a control at rest. Check the same in dark, where the field is darker than the surface it carries. Nothing failed here — use `TransportCrashed` for what did.",
+					"A session that ran without one of its applications because nobody has authorized it yet. Reach for this to check the action surface: on the warning field, a ghost button would read as text, so it sits on the background at 60 percent and reads as a control at rest. Check the same in dark, where the field is darker than the surface it carries. Nothing failed here — use `TransportCrashed` for what did.",
 			},
 		},
 	},
@@ -228,6 +228,6 @@ export const ConnectorLeftOut = meta.story({
 			canvas.getByRole("button", { name: "Open Applications" }),
 		)
 
-		await expect(OPEN_CONNECTORS).toHaveBeenCalled()
+		await expect(OPEN_APPLICATIONS).toHaveBeenCalled()
 	},
 })

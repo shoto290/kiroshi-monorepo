@@ -2,7 +2,7 @@ import { afterEach, describe, expect, it } from "bun:test"
 
 import type { z } from "zod"
 
-import { connectorTools } from "./connector-tools"
+import { applicationTools } from "./application-tools"
 
 import type { SessionFrame } from "../provider"
 import {
@@ -23,9 +23,9 @@ type Asked = { subtype: string; operation: string; payload: unknown }
 type Served = { result?: unknown; error?: HostError }
 
 const calls: [string, Record<string, unknown>, string][] = [
-	["connector_search", { query: "linear" }, "search"],
-	["connector_install", { application: "linear", scope: "space" }, "install"],
-	["connector_status", { application: "linear", scope: "space" }, "status"],
+	["application_search", { query: "linear" }, "search"],
+	["application_install", { application: "linear", scope: "space" }, "install"],
+	["application_status", { application: "linear", scope: "space" }, "status"],
 ]
 
 const answers: Record<string, unknown> = {
@@ -53,33 +53,33 @@ const aHost = (served: (asked: Asked) => Served) => {
 }
 
 const toolNamed = (name: string) => {
-	const found = connectorTools(SESSION).find((held) => held.name === name)
+	const found = applicationTools(SESSION).find((held) => held.name === name)
 	if (!found) {
 		throw new Error(`the server carries no tool named ${name}`)
 	}
 	return found
 }
 
-const spoken = (result: Awaited<ReturnType<ConnectorHandler>>) =>
+const spoken = (result: Awaited<ReturnType<ApplicationHandler>>) =>
 	JSON.parse((result.content[0] as { text: string }).text) as unknown
 
-type ConnectorHandler = ReturnType<typeof toolNamed>["handler"]
+type ApplicationHandler = ReturnType<typeof toolNamed>["handler"]
 
 afterEach(() => {
 	closeHostChannel(SESSION)
 })
 
-describe("connectorTools", () => {
+describe("applicationTools", () => {
 	it("declares no input field carrying a secret value", () => {
-		for (const held of connectorTools(SESSION)) {
+		for (const held of applicationTools(SESSION)) {
 			for (const field of Object.keys(held.inputSchema)) {
 				expect(field).not.toMatch(NAMES_A_SECRET)
 			}
 		}
-		expect(Object.keys(toolNamed("connector_search").inputSchema)).toEqual([
+		expect(Object.keys(toolNamed("application_search").inputSchema)).toEqual([
 			"query",
 		])
-		for (const name of ["connector_install", "connector_status"]) {
+		for (const name of ["application_install", "application_status"]) {
 			expect(Object.keys(toolNamed(name).inputSchema)).toEqual([
 				"application",
 				"scope",
@@ -88,7 +88,7 @@ describe("connectorTools", () => {
 	})
 
 	it("declares the scope as the three destinations and nothing else", () => {
-		for (const name of ["connector_install", "connector_status"]) {
+		for (const name of ["application_install", "application_status"]) {
 			const scope = toolNamed(name).inputSchema.scope as z.ZodEnum
 
 			expect(scope.options).toEqual(["companion", "space", "user"])
