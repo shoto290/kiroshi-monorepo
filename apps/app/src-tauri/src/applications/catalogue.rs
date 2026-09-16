@@ -127,6 +127,18 @@ mod tests {
 	}
 
 	#[test]
+	fn every_reference_of_every_curated_config_is_named_by_a_field_of_its_install() {
+		for application in the_catalogue() {
+			assert_eq!(
+				application.install.clone().covering(&application.config),
+				application.install,
+				"got {}",
+				application.name
+			);
+		}
+	}
+
+	#[test]
 	fn an_oauth_application_carries_no_header_of_its_own() {
 		for application in the_catalogue().into_iter().filter(|held| held.install == Install::Oauth)
 		{

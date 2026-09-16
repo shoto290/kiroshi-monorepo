@@ -173,20 +173,21 @@ async fn listed(client: &Client, base: &Url, row: Row) -> Option<Listing> {
 	};
 	let served = served(&detail)?;
 	let hosted_by = hosted_by(&row, &served.endpoint);
+	let (config, install) = declared(served);
 	Some(Listing {
 		repository: row.homepage.as_deref().and_then(repository),
 		application: Application {
 			title: row.display_name.unwrap_or_else(|| row.qualified_name.clone()),
 			name: row.qualified_name,
 			description: row.description,
-			config: config(&served),
+			config,
 			tools: tool_names(&detail),
 			logo: None,
 			logo_url: row.icon_url,
 			use_count: row.use_count,
 			verified: row.verified,
 			hosted_by,
-			install: served.install,
+			install,
 		},
 	})
 }
@@ -197,18 +198,19 @@ fn tool_names(detail: &Detail) -> Vec<String> {
 
 fn read_by_name(detail: &Detail) -> Option<Application> {
 	let served = served(detail)?;
+	let (config, install) = declared(served);
 	Some(Application {
 		name: detail.qualified_name.clone(),
 		title: detail.display_name.clone().unwrap_or_else(|| detail.qualified_name.clone()),
 		description: detail.description.clone(),
-		config: config(&served),
+		config,
 		tools: tool_names(detail),
 		logo: None,
 		logo_url: detail.icon_url.clone(),
 		use_count: None,
 		verified: None,
 		hosted_by: None,
-		install: served.install,
+		install,
 	})
 }
 
@@ -276,6 +278,12 @@ fn uncarried(field: &str) -> String {
 	format!(
 		"the required field \"{field}\" names no header to carry it, and a key must never travel in a url"
 	)
+}
+
+fn declared(served: Served) -> (Value, Install) {
+	let config = config(&served);
+	let install = served.install.covering(&config);
+	(config, install)
 }
 
 fn config(served: &Served) -> Value {

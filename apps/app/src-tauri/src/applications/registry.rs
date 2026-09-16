@@ -5,7 +5,7 @@ use reqwest::header::{HeaderMap, HeaderValue, USER_AGENT};
 use reqwest::{Client, StatusCode, Url};
 use serde::de::DeserializeOwned;
 use serde::Deserialize;
-use serde_json::{json, Value};
+use serde_json::{json, Map, Value};
 
 use super::contract::{Application, ApplicationsError, Install, InstallField};
 use super::search::{repository, Listing};
@@ -98,6 +98,8 @@ struct Input {
 	is_secret: bool,
 	#[serde(default)]
 	value: Option<String>,
+	#[serde(default)]
+	default: Option<Value>,
 }
 
 enum Transport<'a> {
@@ -223,17 +225,21 @@ fn descriptor(server: Server) -> Option<Listing> {
 }
 
 fn remote_served(remote: &Remote) -> (Value, Install) {
-	let fields = asked_headers(&remote.headers);
+	let (headers, fields) = classified(&remote.headers);
 	if fields.is_empty() {
 		return (remote_config(remote), Install::Oauth);
 	}
-	(headed_config(remote), Install::asking(fields))
+	let config = headed_config(remote, headers);
+	let install = Install::asking(fields).covering(&config);
+	(config, install)
 }
 
 fn package_served(package: &Package) -> (Value, Install) {
-	let fields = asked_variables(&package.environment_variables);
-	let install = if fields.is_empty() { Install::Nothing } else { Install::asking(fields) };
-	(package_config(package), install)
+	let (env, fields) = classified(&package.environment_variables);
+	let config = package_config(package, env);
+	let asking = if fields.is_empty() { Install::Nothing } else { Install::asking(fields) };
+	let install = asking.covering(&config);
+	(config, install)
 }
 
 fn transport(server: &Server) -> Option<Transport<'_>> {
@@ -247,24 +253,10 @@ fn remote_config(remote: &Remote) -> Value {
 	json!({ "type": "http", "url": remote.url })
 }
 
-fn headed_config(remote: &Remote) -> Value {
+fn headed_config(remote: &Remote, headers: Map<String, Value>) -> Value {
 	let mut config = remote_config(remote);
-	config["headers"] = Value::Object(
-		remote
-			.headers
-			.iter()
-			.map(|header| (header.name.clone(), Value::String(header_value(header))))
-			.collect(),
-	);
+	config["headers"] = Value::Object(headers);
 	config
-}
-
-fn header_value(header: &Input) -> String {
-	filled_value(header).unwrap_or_else(|| reference(&header.name))
-}
-
-fn filled_value(header: &Input) -> Option<String> {
-	substituted(header.value.as_deref()?, &reference(&header.name))
 }
 
 fn substituted(template: &str, reference: &str) -> Option<String> {
@@ -274,41 +266,64 @@ fn substituted(template: &str, reference: &str) -> Option<String> {
 	Some(format!("{before}{reference}{rest}"))
 }
 
-fn package_config(package: &Package) -> Value {
+fn package_config(package: &Package, env: Map<String, Value>) -> Value {
 	let mut config =
 		json!({ "type": "stdio", "command": "npx", "args": ["-y", package.identifier] });
-	let mut required =
-		package.environment_variables.iter().filter(|input| input.is_required).peekable();
-	if required.peek().is_some() {
-		config["env"] = placeholders(required);
+	if !env.is_empty() {
+		config["env"] = Value::Object(env);
 	}
 	config
-}
-
-fn placeholders<'a>(inputs: impl Iterator<Item = &'a Input>) -> Value {
-	Value::Object(
-		inputs.map(|input| (input.name.clone(), Value::String(reference(&input.name)))).collect(),
-	)
 }
 
 pub(super) fn reference(declared: &str) -> String {
 	format!("${{{}}}", variable(declared))
 }
 
-fn asked_variables(inputs: &[Input]) -> Vec<InstallField> {
-	inputs.iter().filter(|input| required_secret(input)).map(asked_field).collect()
+enum Filling {
+	Asked(String),
+	Fixed(String),
+	Absent,
 }
 
-fn asked_headers(headers: &[Input]) -> Vec<InstallField> {
-	headers
-		.iter()
-		.filter(|header| required_secret(header) || filled_value(header).is_some())
-		.map(asked_field)
-		.collect()
+fn classified(inputs: &[Input]) -> (Map<String, Value>, Vec<InstallField>) {
+	let mut served = Map::new();
+	let mut asked = Vec::new();
+	for input in inputs {
+		match filling(input) {
+			Filling::Asked(value) => {
+				served.insert(input.name.clone(), Value::String(value));
+				asked.push(asked_field(input));
+			}
+			Filling::Fixed(value) => {
+				served.insert(input.name.clone(), Value::String(value));
+			}
+			Filling::Absent => {}
+		}
+	}
+	(served, asked)
 }
 
-fn required_secret(input: &Input) -> bool {
-	input.is_required && input.is_secret
+fn filling(input: &Input) -> Filling {
+	if let Some(templated) = templated(input) {
+		return Filling::Asked(templated);
+	}
+	if input.is_required && input.is_secret {
+		return Filling::Asked(reference(&input.name));
+	}
+	if let Some(value) = input.value.as_deref() {
+		return Filling::Fixed(value.to_owned());
+	}
+	if let Some(held) = input.default.as_ref().and_then(Value::as_str) {
+		return Filling::Fixed(held.to_owned());
+	}
+	if input.is_required {
+		return Filling::Asked(reference(&input.name));
+	}
+	Filling::Absent
+}
+
+fn templated(input: &Input) -> Option<String> {
+	substituted(input.value.as_deref()?, &reference(&input.name))
 }
 
 fn asked_field(input: &Input) -> InstallField {
@@ -378,7 +393,11 @@ pub(crate) mod tests {
 		})
 	}
 
-	fn an_npm_package_with_a_required_plain_variable() -> Value {
+	fn an_npm_package_declaring(variables: Value) -> Application {
+		described(an_npm_package_entry(variables))
+	}
+
+	fn an_npm_package_entry(variables: Value) -> Value {
 		json!({
 			"name": "io.github.Digital-Defiance/mcp-filesystem",
 			"description": "A filesystem server.",
@@ -387,10 +406,7 @@ pub(crate) mod tests {
 				"identifier": "@digital-defiance/mcp-filesystem",
 				"version": "1.0.0",
 				"transport": { "type": "stdio" },
-				"environmentVariables": [
-					{ "name": "ALLOWED_ROOT", "isRequired": true, "default": "/srv/data" },
-					{ "name": "LOG_LEVEL", "isRequired": false },
-				],
+				"environmentVariables": variables,
 			}],
 		})
 	}
@@ -485,6 +501,64 @@ pub(crate) mod tests {
 		);
 	}
 
+	fn a_remote_declaring_headers(headers: Value) -> Application {
+		described(json!({
+			"name": "io.test/headed",
+			"remotes": [{
+				"type": "streamable-http",
+				"url": "https://headed.test/mcp",
+				"headers": headers,
+			}],
+		}))
+	}
+
+	#[test]
+	fn a_header_neither_required_secret_nor_filled_is_left_out_beside_an_asked_header() {
+		let application = a_remote_declaring_headers(json!([
+			{ "name": "Authorization", "isRequired": true, "isSecret": true },
+			{ "name": "X-Trace", "isSecret": true },
+		]));
+
+		assert_eq!(application.config["headers"], json!({ "Authorization": "${AUTHORIZATION}" }));
+	}
+
+	#[test]
+	fn a_plain_text_header_value_is_served_verbatim_beside_an_asked_header() {
+		let application = a_remote_declaring_headers(json!([
+			{ "name": "Authorization", "isRequired": true, "isSecret": true },
+			{ "name": "X-Client", "value": "kiroshi" },
+		]));
+
+		assert_eq!(
+			application.config["headers"],
+			json!({ "Authorization": "${AUTHORIZATION}", "X-Client": "kiroshi" })
+		);
+		let Install::Key { fields } = &application.install else {
+			panic!("got {:?}", application.install);
+		};
+		assert_eq!(fields.len(), 1);
+		assert_eq!(fields[0].name, "Authorization");
+	}
+
+	#[test]
+	fn a_required_plain_header_is_asked_for_and_serves_its_reference() {
+		let application = a_remote_declaring_headers(json!([
+			{ "name": "X-Account", "isRequired": true, "description": "The account." },
+		]));
+
+		assert_eq!(
+			application.install,
+			Install::Key {
+				fields: vec![InstallField {
+					name: "X-Account".to_owned(),
+					secret: "X_ACCOUNT".to_owned(),
+					description: Some("The account.".to_owned()),
+				}],
+			}
+		);
+		assert_eq!(application.config["headers"], json!({ "X-Account": "${X_ACCOUNT}" }));
+	}
+
 	#[test]
 	fn a_static_header_value_without_any_flag_answers_oauth_and_writes_no_header() {
 		let application = a_remote_declaring(json!({ "name": "X-Client", "value": "kiroshi" }));
@@ -494,8 +568,11 @@ pub(crate) mod tests {
 	}
 
 	#[test]
-	fn an_npm_package_with_a_required_plain_variable_answers_nothing_with_a_placeholder() {
-		let application = described(an_npm_package_with_a_required_plain_variable());
+	fn a_required_plain_variable_carrying_a_default_serves_that_default_and_asks_for_nothing() {
+		let application = an_npm_package_declaring(json!([
+			{ "name": "ALLOWED_ROOT", "isRequired": true, "default": "/srv/data" },
+			{ "name": "LOG_LEVEL", "isRequired": false },
+		]));
 
 		assert_eq!(application.install, Install::Nothing);
 		assert_eq!(
@@ -504,9 +581,44 @@ pub(crate) mod tests {
 				"type": "stdio",
 				"command": "npx",
 				"args": ["-y", "@digital-defiance/mcp-filesystem"],
-				"env": { "ALLOWED_ROOT": "${ALLOWED_ROOT}" },
+				"env": { "ALLOWED_ROOT": "/srv/data" },
 			})
 		);
+	}
+
+	#[test]
+	fn a_required_plain_variable_carrying_no_default_is_asked_for_and_serves_its_reference() {
+		let application = an_npm_package_declaring(json!([
+			{ "name": "ALLOWED_ROOT", "isRequired": true, "description": "The served root." },
+		]));
+
+		assert_eq!(
+			application.install,
+			Install::Key {
+				fields: vec![InstallField {
+					name: "ALLOWED_ROOT".to_owned(),
+					secret: "ALLOWED_ROOT".to_owned(),
+					description: Some("The served root.".to_owned()),
+				}],
+			}
+		);
+		assert_eq!(application.config["env"], json!({ "ALLOWED_ROOT": "${ALLOWED_ROOT}" }));
+	}
+
+	#[test]
+	fn a_default_that_is_a_number_reads_as_absent_and_the_entry_still_describes() {
+		let application = an_npm_package_declaring(json!([
+			{ "name": "PORT", "isRequired": true, "default": 8080 },
+			{ "name": "DEBUG", "default": false },
+		]));
+
+		assert_eq!(application.name, "io.github.Digital-Defiance/mcp-filesystem");
+		assert!(
+			matches!(application.install, Install::Key { .. }),
+			"got {:?}",
+			application.install
+		);
+		assert_eq!(application.config["env"], json!({ "PORT": "${PORT}" }));
 	}
 
 	#[test]
@@ -530,7 +642,7 @@ pub(crate) mod tests {
 	}
 
 	#[test]
-	fn every_required_secret_variable_is_asked_for_and_the_plain_ones_are_left_out() {
+	fn every_required_variable_is_asked_for_in_order_and_an_optional_one_is_left_out() {
 		let application = described(json!({
 			"name": "io.test/keyed",
 			"packages": [{
@@ -766,7 +878,9 @@ pub(crate) mod tests {
 	}
 
 	pub(crate) fn holding(listed: Vec<&'static str>) -> Held {
-		let details = [a_remote_without_headers(), an_npm_package_with_a_required_plain_variable()]
+		let package =
+			an_npm_package_entry(json!([{ "name": "ALLOWED_ROOT", "default": "/srv/data" }]));
+		let details = [a_remote_without_headers(), package]
 			.into_iter()
 			.map(|detail| (detail["name"].as_str().expect("named").to_owned(), detail))
 			.collect();

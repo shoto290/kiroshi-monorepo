@@ -1,4 +1,5 @@
 use serde::{Deserialize, Serialize};
+use serde_json::Value;
 
 use crate::conversations::contract::TranscriptStoreError;
 use crate::db::DatabaseError;
@@ -54,6 +55,60 @@ impl Install {
 			None => Install::Key { fields },
 		}
 	}
+
+	pub fn covering(self, config: &Value) -> Self {
+		let asked: &[InstallField] = match &self {
+			Install::Key { fields } => fields,
+			Install::Refused(_) => return self,
+			_ => &[],
+		};
+		let Some(variable) = unfilled(config, asked) else {
+			return self;
+		};
+		Install::Refused(InstallRefusal { reason: uncovered(&variable), field: variable })
+	}
+}
+
+fn unfilled(config: &Value, asked: &[InstallField]) -> Option<String> {
+	referenced(config)
+		.into_iter()
+		.find(|variable| !asked.iter().any(|field| &field.secret == variable))
+}
+
+fn referenced(config: &Value) -> Vec<String> {
+	match config {
+		Value::String(held) => variables(held),
+		Value::Array(held) => held.iter().flat_map(referenced).collect(),
+		Value::Object(held) => held.values().flat_map(referenced).collect(),
+		_ => Vec::new(),
+	}
+}
+
+fn variables(held: &str) -> Vec<String> {
+	held.split("${")
+		.skip(1)
+		.filter_map(|rest| rest.split_once('}'))
+		.filter_map(|(reference, _)| unresolved(reference))
+		.collect()
+}
+
+fn unresolved(reference: &str) -> Option<String> {
+	match reference.split_once(":-") {
+		Some((name, _)) if resolved_by_the_sidecar(name) => None,
+		_ => Some(reference.to_owned()),
+	}
+}
+
+fn resolved_by_the_sidecar(name: &str) -> bool {
+	let mut held = name.chars();
+	held.next().is_some_and(|first| first == '_' || first.is_ascii_uppercase())
+		&& held.all(|held| held == '_' || held.is_ascii_uppercase() || held.is_ascii_digit())
+}
+
+fn uncovered(variable: &str) -> String {
+	format!(
+		"the config reads the variable {variable} and no field of this install fills it, so the server would start without its value"
+	)
 }
 
 fn collapsed(fields: &[InstallField]) -> Option<InstallRefusal> {
@@ -426,6 +481,73 @@ mod tests {
 		);
 		assert_eq!(InstallCase::try_from(Install::Refused(refusal.clone())), Err(refusal));
 		assert_eq!(InstallCase::try_from(Install::Oauth), Ok(InstallCase::Oauth));
+	}
+
+	#[test]
+	fn a_config_reading_a_variable_no_field_names_refuses_the_install_naming_that_variable() {
+		let config = json!({
+			"type": "http",
+			"url": "https://headed.test/mcp",
+			"headers": { "Authorization": "Bearer ${AUTHORIZATION}", "X-Account": "${X_ACCOUNT}" },
+		});
+		let asking = Install::asking(vec![InstallField {
+			name: "Authorization".to_owned(),
+			secret: "AUTHORIZATION".to_owned(),
+			description: None,
+		}]);
+
+		let Install::Refused(refusal) = asking.covering(&config) else {
+			panic!("an unfilled reference refuses");
+		};
+		assert_eq!(refusal.field, "X_ACCOUNT");
+		assert!(refusal.reason.contains("X_ACCOUNT"), "got {}", refusal.reason);
+	}
+
+	#[test]
+	fn a_reference_the_sidecar_fills_from_its_own_fallback_leaves_the_install_as_it_stands() {
+		let config = json!({ "env": { "LEVEL": "${LOG_LEVEL:-debug}" } });
+
+		assert_eq!(Install::Nothing.covering(&config), Install::Nothing);
+	}
+
+	#[test]
+	fn a_reference_carrying_a_fallback_a_field_fills_keeps_the_case_it_had() {
+		let field = InstallField {
+			name: "Authorization".to_owned(),
+			secret: "AUTHORIZATION".to_owned(),
+			description: None,
+		};
+		let asking = Install::asking(vec![field.clone()]);
+		let config = json!({ "env": { "TOKEN": "${AUTHORIZATION:-none}" } });
+
+		assert_eq!(asking.covering(&config), Install::Key { fields: vec![field] });
+	}
+
+	#[test]
+	fn a_reference_the_sidecar_cannot_match_stays_refused_under_the_whole_name_it_reads() {
+		let config = json!({ "env": { "LEVEL": "${log-level:-debug}" } });
+
+		let Install::Refused(refusal) = Install::Nothing.covering(&config) else {
+			panic!("a reference the sidecar leaves alone refuses");
+		};
+		assert_eq!(refusal.field, "log-level:-debug");
+	}
+
+	#[test]
+	fn a_config_whose_every_reference_is_named_keeps_the_case_it_had() {
+		let field = InstallField {
+			name: "Authorization".to_owned(),
+			secret: "AUTHORIZATION".to_owned(),
+			description: None,
+		};
+		let asking = Install::asking(vec![field.clone()]);
+		let config = json!({ "headers": { "Authorization": "Bearer ${AUTHORIZATION}" } });
+
+		assert_eq!(asking.covering(&config), Install::Key { fields: vec![field] });
+		assert_eq!(
+			Install::Oauth.covering(&json!({ "url": "https://plain.test" })),
+			Install::Oauth
+		);
 	}
 
 	#[test]
