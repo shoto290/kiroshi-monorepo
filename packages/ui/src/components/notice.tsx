@@ -78,18 +78,16 @@ function Notice({
 					) : null}
 				</div>
 				{retry ? (
-					<div className="flex flex-wrap items-center gap-2">
-						<Button
-							aria-busy={retry.isBusy}
-							aria-disabled={retry.isBusy}
-							className="aria-disabled:opacity-50"
-							onClick={retry.isBusy ? undefined : retry.onRetry}
-							size="sm"
-							variant="outline"
-						>
-							{retry.label ?? t("notice.retry")}
-						</Button>
-					</div>
+					<Button
+						aria-busy={retry.isBusy}
+						aria-disabled={retry.isBusy}
+						className="self-start aria-disabled:opacity-50"
+						onClick={retry.isBusy ? undefined : retry.onRetry}
+						size="sm"
+						variant="outline"
+					>
+						{retry.label ?? t("notice.retry")}
+					</Button>
 				) : null}
 			</div>
 			{onDismiss ? (
