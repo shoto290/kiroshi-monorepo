@@ -451,10 +451,10 @@ describe("the first companion", () => {
 		expect(controller.getState().step).toBe("done")
 	})
 
-	it("leaves the first run for Shoto to close when the reader picks", async () => {
+	it("closes the first run when the reader picks", async () => {
 		await controller.pickCompanion()
 
-		expect(world.firstRunDone).toBe(0)
+		expect(world.firstRunDone).toBe(1)
 	})
 
 	it("starts the created companion first turn in its own conversation", async () => {

@@ -73,7 +73,11 @@ const choiceStep = ({
 		})),
 	}),
 	onAnswers: async (answers) => {
-		await choices.find(({ label }) => label === answers[question])?.choose()
+		const chosen = choices.find(({ label }) => label === answers[question])
+		if (!chosen) {
+			return Promise.reject({ kind: "unmatchedChoice" })
+		}
+		await chosen.choose()
 	},
 })
 

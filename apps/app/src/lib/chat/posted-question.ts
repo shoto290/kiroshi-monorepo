@@ -48,9 +48,9 @@ export type PostedQuestion = {
 	request: PostedRequest
 	onAnswers: PostedAnswerHandler
 	conversationId: string
-	afterSeq: number
 	asking: TranscriptDraft
 	answered: TranscriptDraft | null
+	answeredAfterSeq: number | null
 	isAnswering: boolean
 	isAnswered: boolean
 }
@@ -118,22 +118,24 @@ const rowsOf = ({ asking, answered }: PostedQuestion): TranscriptDraft[] =>
 
 const rowsByAnchor = (
 	posted: PostedQuestion[],
+	liveSeq: number,
 ): Map<number, TranscriptDraft[]> => {
 	const anchored = new Map<number, TranscriptDraft[]>()
 	for (const question of posted) {
-		const earlier = anchored.get(question.afterSeq) ?? []
-		anchored.set(question.afterSeq, [...earlier, ...rowsOf(question)])
+		const anchor = question.answeredAfterSeq ?? liveSeq
+		const earlier = anchored.get(anchor) ?? []
+		anchored.set(anchor, [...earlier, ...rowsOf(question)])
 	}
 	return anchored
 }
 
 const placedAfter = (
-	afterSeq: number,
+	anchor: number,
 	rows: TranscriptDraft[],
 ): TranscriptMessage[] =>
 	rows.map((row, index) => ({
 		...row,
-		seq: afterSeq + (index + 1) / (rows.length + 1),
+		seq: anchor + (index + 1) / (rows.length + 1),
 	}))
 
 export const withPostedRows = (
@@ -143,8 +145,8 @@ export const withPostedRows = (
 	if (posted.length === 0) {
 		return messages
 	}
-	const placed = [...rowsByAnchor(posted)].flatMap(([afterSeq, rows]) =>
-		placedAfter(afterSeq, rows),
+	const placed = [...rowsByAnchor(posted, messages.at(-1)?.seq ?? 0)].flatMap(
+		([anchor, rows]) => placedAfter(anchor, rows),
 	)
 	return [...messages, ...placed].sort((one, other) => one.seq - other.seq)
 }
