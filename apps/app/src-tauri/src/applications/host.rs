@@ -143,18 +143,25 @@ impl<R: Runtime> ApplicationHost<R> {
 		if let Some(curated) = catalogue::curated()?.into_iter().find(|held| held.name == name) {
 			return Ok(curated);
 		}
-		if let Some(found) = self.semantic(name).await {
-			return Ok(found);
-		}
-		registry::detail(&self.registries.official, name).await?.ok_or_else(|| {
-			ApplicationCallError::UnknownApplication { application: name.to_owned() }
+		self.named(name).await?.ok_or_else(|| ApplicationCallError::UnknownApplication {
+			application: name.to_owned(),
 		})
 	}
 
-	async fn semantic(&self, name: &str) -> Option<Application> {
-		if !names_a_smithery_server(name) {
-			return None;
+	async fn named(&self, name: &str) -> Result<Option<Application>, ApplicationCallError> {
+		if names_a_smithery_server(name) {
+			if let Some(found) = self.semantic(name).await {
+				return Ok(Some(found));
+			}
+			return registry::detail(&self.registries.official, name).await.map_err(Into::into);
 		}
+		if let Some(found) = registry::detail(&self.registries.official, name).await? {
+			return Ok(Some(found));
+		}
+		Ok(self.semantic(name).await)
+	}
+
+	async fn semantic(&self, name: &str) -> Option<Application> {
 		match smithery::detail(&self.registries.smithery, name).await {
 			Ok(found) => found,
 			Err(failure) => {
@@ -569,6 +576,35 @@ mod tests {
 		assert!(
 			held.detailed.lock().expect("the stub records").is_empty(),
 			"the official registry was read"
+		);
+		cleaned(&app);
+	}
+
+	#[tokio::test]
+	async fn an_install_of_a_name_carrying_a_dot_in_its_owner_reads_the_smithery_detail() {
+		let app = a_host("dotted-owner").await;
+		let (official, _) = serving(holding(Vec::new())).await;
+		let (smithery, _) = smithery_stub::serving(smithery_stub::holding(
+			Vec::new(),
+			vec![smithery_stub::a_detail(
+				"michalis.koutridis/diavgeia-mcp",
+				"https://diavgeia.run.tools",
+			)],
+		))
+		.await;
+
+		let answer = reading(&app, "c1", Registries { official, smithery })
+			.answer(an_install("michalis.koutridis/diavgeia-mcp", "space"))
+			.await
+			.expect("the install answers");
+
+		assert_eq!(answer["outcome"], "installed");
+		assert_eq!(
+			declarations(&app)[1],
+			[(
+				"michalis.koutridis/diavgeia-mcp".to_owned(),
+				json!({ "type": "http", "url": "https://diavgeia.run.tools/" })
+			)]
 		);
 		cleaned(&app);
 	}

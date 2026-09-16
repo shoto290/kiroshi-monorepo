@@ -20,6 +20,8 @@ const HTTP: &str = "http";
 
 const SMITHERY: &str = "Smithery";
 
+const SMITHERY_HOSTS: [&str; 2] = ["run.tools", "smithery.ai"];
+
 const LABELS: usize = 2;
 
 #[derive(Deserialize)]
@@ -41,8 +43,6 @@ struct Row {
 	verified: Option<bool>,
 	#[serde(default)]
 	use_count: Option<u64>,
-	#[serde(default)]
-	by_smithery: Option<bool>,
 	#[serde(default)]
 	homepage: Option<String>,
 }
@@ -283,16 +283,21 @@ fn url_of(served: &Served) -> String {
 }
 
 fn hosted_by(row: &Row, endpoint: &Url) -> Option<String> {
-	if row.by_smithery == Some(true) {
+	let deployment = endpoint.host_str()?.to_lowercase();
+	if SMITHERY_HOSTS.iter().any(|held| under(&deployment, held)) {
 		return Some(SMITHERY.to_owned());
 	}
-	let hosting = last_labels(endpoint.host_str()?)?;
+	let hosting = last_labels(&deployment)?;
 	let home = row
 		.homepage
 		.as_deref()
 		.and_then(|held| Url::parse(held).ok())
 		.and_then(|held| held.host_str().and_then(last_labels));
 	(home.as_ref() != Some(&hosting)).then_some(hosting)
+}
+
+fn under(host: &str, root: &str) -> bool {
+	host == root || host.ends_with(&format!(".{root}"))
 }
 
 fn last_labels(host: &str) -> Option<String> {
@@ -388,7 +393,6 @@ pub(crate) mod tests {
 			"iconUrl": format!("https://icons.test/{display}.png"),
 			"verified": true,
 			"useCount": use_count,
-			"bySmithery": false,
 			"homepage": format!("https://github.com/owner/{display}"),
 		})
 	}
@@ -527,20 +531,16 @@ pub(crate) mod tests {
 		assert_eq!(held.logo_url.as_deref(), Some("https://icons.test/Slack.png"));
 		assert_eq!(held.use_count, Some(900));
 		assert_eq!(held.verified, Some(true));
-		assert_eq!(held.hosted_by.as_deref(), Some("run.tools"));
 		assert_eq!(held.tools, Vec::<String>::new());
 		assert_eq!(held.logo, None);
-		assert_eq!(found[0].repository.as_deref(), Some("github.com/owner/slack"));
 	}
 
 	#[tokio::test]
-	async fn a_row_smithery_hosts_names_smithery_and_one_hosted_at_home_names_nobody() {
+	async fn a_deployment_under_smithery_names_smithery_and_one_hosted_at_home_names_nobody() {
 		let mut mine = a_row("@owner/mine", "Mine", 1);
 		mine["homepage"] = json!("https://mine.test/docs");
-		let mut theirs = a_row("@owner/theirs", "Mine", 2);
-		theirs["bySmithery"] = json!(true);
 		let (base, _) = serving(holding(
-			vec![mine, theirs],
+			vec![mine, a_row("@owner/theirs", "Mine", 2)],
 			vec![
 				a_detail("@owner/mine", "https://mcp.mine.test/mcp"),
 				a_detail("@owner/theirs", "https://server.smithery.ai/mcp"),
@@ -553,6 +553,33 @@ pub(crate) mod tests {
 		let hosts: Vec<Option<&str>> =
 			found.iter().map(|held| held.application.hosted_by.as_deref()).collect();
 		assert_eq!(hosts, [Some("Smithery"), None]);
+	}
+
+	#[tokio::test]
+	async fn a_deployment_under_run_tools_names_smithery_though_its_homepage_names_github() {
+		let (base, _) = serving(holding(
+			vec![a_row("@owner/slack", "Slack", 900)],
+			vec![a_detail("@owner/slack", "https://slack.run.tools")],
+		))
+		.await;
+
+		let found = search(&base, "slack").await.expect("the search answers");
+
+		assert_eq!(found[0].application.hosted_by.as_deref(), Some("Smithery"));
+		assert_eq!(found[0].repository.as_deref(), Some("github.com/owner/slack"));
+	}
+
+	#[tokio::test]
+	async fn a_deployment_outside_smithery_names_the_last_two_labels_of_its_host() {
+		let (base, _) = serving(holding(
+			vec![a_row("@owner/slack", "Slack", 900)],
+			vec![a_detail("@owner/slack", "https://mcp.slack.example/mcp")],
+		))
+		.await;
+
+		let found = search(&base, "slack").await.expect("the search answers");
+
+		assert_eq!(found[0].application.hosted_by.as_deref(), Some("slack.example"));
 	}
 
 	#[tokio::test]
