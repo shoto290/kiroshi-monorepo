@@ -41,30 +41,22 @@ pub async fn search(
 	);
 	let (semantic, semantic_failure) = answered("the Smithery registry", query, semantic);
 	let (official, official_failure) = answered("the official registry", query, official);
-	answer(deduplicated(semantic, official), official_failure.or(semantic_failure))
-}
-
-async fn offered(registries: &Registries) -> Result<ApplicationSearch, ApplicationsError> {
-	let (semantic, official) = tokio::join!(
-		smithery::offered(&registries.smithery),
-		registry::offered(&registries.official)
-	);
-	let (semantic, semantic_failure) = answered("the Smithery registry", "", semantic);
-	let (official, official_failure) = answered("the official registry", "", official);
-	let mut offers = deduplicated(semantic, official);
-	offers.retain(installable);
-	offers.truncate(OFFERS);
-	answer(offers, official_failure.or(semantic_failure))
-}
-
-fn answer(
-	applications: Vec<Application>,
-	failure: Option<ApplicationsError>,
-) -> Result<ApplicationSearch, ApplicationsError> {
-	match failure {
+	let applications = deduplicated(semantic, official);
+	match official_failure.or(semantic_failure) {
 		Some(failure) if applications.is_empty() => Err(failure),
 		registry_failure => Ok(ApplicationSearch { applications, registry_failure }),
 	}
+}
+
+async fn offered(registries: &Registries) -> Result<ApplicationSearch, ApplicationsError> {
+	let mut offers: Vec<Application> = smithery::offered(&registries.smithery)
+		.await?
+		.into_iter()
+		.map(|listing| listing.application)
+		.filter(installable)
+		.collect();
+	offers.truncate(OFFERS);
+	Ok(ApplicationSearch { applications: offers, registry_failure: None })
 }
 
 fn installable(application: &Application) -> bool {
@@ -129,7 +121,7 @@ pub(super) fn repository(url: &str) -> Option<String> {
 
 #[cfg(test)]
 mod tests {
-	use serde_json::{json, Value};
+	use serde_json::json;
 
 	use super::super::contract::Install;
 	use std::sync::Arc;
@@ -184,46 +176,24 @@ mod tests {
 		.await
 	}
 
-	fn an_official_remote(name: &str) -> Value {
-		json!({
-			"name": name,
-			"remotes": [{ "type": "streamable-http", "url": "https://official.test/mcp" }],
-		})
-	}
-
-	async fn an_official_offering(listed: Vec<&'static str>) -> (String, Arc<official_stub::Held>) {
-		let held = listed.iter().fold(official_stub::holding(listed.clone()), |held, name| {
-			held.also(an_official_remote(name))
-		});
-		official_stub::serving(held).await
-	}
-
-	const AN_OFFICIAL_PAGE: [&str; 4] = ["io.test/a", "io.test/b", "io.test/c", "io.test/d"];
-
 	async fn offering(smithery: String, official: String) -> ApplicationSearch {
 		search(&Registries { official, smithery }, "   ").await.expect("the offers answer")
 	}
 
 	#[tokio::test]
-	async fn an_empty_query_answers_nine_rows_of_the_two_registries_taken_in_turn() {
+	async fn an_empty_query_answers_nine_smithery_rows_and_asks_the_official_registry_nothing() {
 		let (smithery, semantic) = a_smithery_offering(&A_SMITHERY_PAGE).await;
-		let (official, listed) = an_official_offering(AN_OFFICIAL_PAGE.to_vec()).await;
+		let (official, listed) = official_stub::serving(official_stub::holding(Vec::new())).await;
 
 		let answered = offering(smithery, official).await;
 
-		assert_eq!(
-			names(answered.applications),
-			["a", "io.test/a", "b", "io.test/b", "c", "io.test/c", "d", "io.test/d", "e"]
-		);
+		assert_eq!(names(answered.applications), ["a", "b", "c", "d", "e", "f", "g", "h", "i"]);
 		assert_eq!(answered.registry_failure, None);
 		assert_eq!(
 			*semantic.asked.lock().expect("the stub records"),
 			["/servers?page=1&pageSize=12"]
 		);
-		assert_eq!(
-			*listed.asked.lock().expect("the stub records"),
-			["/v0.1/servers?limit=10&version=latest"]
-		);
+		assert!(listed.asked.lock().expect("the stub records").is_empty(), "the official was read");
 	}
 
 	#[tokio::test]
@@ -247,18 +217,15 @@ mod tests {
 	}
 
 	#[tokio::test]
-	async fn an_empty_query_a_registry_fails_on_answers_the_other_and_names_the_failure() {
-		let (smithery, _) = a_smithery_offering(&A_SMITHERY_PAGE).await;
+	async fn a_smithery_listing_that_fails_on_an_empty_query_answers_its_failure() {
+		let (official, _) = official_stub::serving(official_stub::holding(Vec::new())).await;
 
-		let answered = search(&Registries { official: unreached().await, smithery }, "")
-			.await
-			.expect("the offers answer");
+		let answered = search(&Registries { official, smithery: unreached().await }, "").await;
 
-		assert_eq!(names(answered.applications), ["a", "b", "c", "d", "e", "f", "g", "h", "i"]);
 		assert!(
-			matches!(answered.registry_failure, Some(ApplicationsError::RegistryUnreached { .. })),
+			matches!(answered, Err(ApplicationsError::RegistryUnreached { .. })),
 			"got {:?}",
-			answered.registry_failure
+			answered.map(|held| names(held.applications))
 		);
 	}
 
