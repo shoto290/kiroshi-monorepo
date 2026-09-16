@@ -132,7 +132,6 @@ const chat = {
 	},
 	notice: {
 		retry: "Retry",
-		exhausted: "Retry limit reached after {{attempts}} attempts",
 		dismiss: "Dismiss notice",
 	},
 	attachments: {

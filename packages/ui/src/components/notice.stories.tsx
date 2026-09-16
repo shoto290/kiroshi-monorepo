@@ -1,4 +1,3 @@
-import { useTranslation } from "react-i18next"
 import { expect, fn } from "storybook/test"
 
 import preview from "@workspace/storybook/preview"
@@ -18,20 +17,17 @@ const meta = preview.meta({
 		docs: {
 			description: {
 				component:
-					"The single surface a chat uses to tell the operator that the agent side broke: Claude Code missing, transport dead, turn failed. Every notice states what happened and what the operator can do about it — a Retry button appears only when replaying the same prompt is actually valid, so a notice without one means retrying cannot help.",
+					"The single surface a panel or a thread uses to tell the operator that something it needed could not be read: a history entry, a secret file, a mission, a skill file, an attachment. Every notice states what happened, and carries a Retry button only when replaying the same read is actually valid.",
 			},
 		},
 	},
 	args: {
-		title: "The last turn failed",
-		description:
-			"The model stopped responding mid-turn. Nothing was applied, so the same prompt can be sent again.",
+		title: "The change history isn't available",
 	},
 	argTypes: {
 		tone: { control: "select", options: CHAT_NOTICE_TONES },
 		title: { control: "text" },
 		description: { control: "text" },
-		detail: { control: "text" },
 	},
 	decorators: [
 		(Story) => (
@@ -42,19 +38,160 @@ const meta = preview.meta({
 	],
 })
 
-export const Playground = meta.story({
-	args: {
-		detail: "stream timeout after 60s",
-		retry: { onRetry: fn(), attempt: 1, maxAttempts: 3 },
-	},
-})
-
-export const Variants = meta.story({
+export const Default = meta.story({
 	parameters: {
 		docs: {
 			description: {
 				story:
-					"Both tones side by side. `warning` is the recoverable-by-configuration surface (something is missing on this machine), `error` is the run-time failure surface (something died mid-session). Check that the two read as different at a glance in light and dark, and that neither relies on the icon colour alone.",
+					"The shape `history-change-page.tsx` renders when a change's files cannot be read: a title, nothing else. Reach for this when the failure needs no elaboration and nothing can be retried from the notice. Check that the surface stays one line tall and that no action row appears under the title.",
+			},
+		},
+	},
+	play: async ({ canvas }) => {
+		await expect(canvas.getByRole("alert")).toBeVisible()
+		await expect(canvas.queryByRole("button")).toBeNull()
+	},
+})
+
+export const WithDescription = meta.story({
+	args: {
+		title: "Some secrets couldn't be read",
+		description:
+			"The environment file exists but could not be parsed. Fix it on disk, then reopen this panel.",
+	},
+	parameters: {
+		docs: {
+			description: {
+				story:
+					"The shape `environment-panel.tsx` renders when the secrets file is unreadable: the description carries the fix, which happens outside the app. Reach for this when the operator needs to know what to do and no button in the notice can do it. Check that no action row is rendered under the description.",
+			},
+		},
+	},
+	play: async ({ canvas }) => {
+		await expect(canvas.queryByRole("button")).toBeNull()
+	},
+})
+
+export const WithRetry = meta.story({
+	args: {
+		title: "This mission couldn't be read",
+		description:
+			"The mission could not be loaded. Nothing was changed, so the same read can be run again.",
+		retry: { onRetry: fn() },
+	},
+	parameters: {
+		docs: {
+			description: {
+				story:
+					"The shape `mission-thread-screen.tsx` renders when a mission fails to load. Reach for this when the read can simply be run again: check that the Retry button is keyboard-reachable and calls back. Use `WithDescription` when retrying cannot help.",
+			},
+		},
+	},
+	play: async ({ args, canvas, userEvent }) => {
+		await userEvent.click(canvas.getByRole("button", { name: "Retry" }))
+		await expect(args.retry?.onRetry).toHaveBeenCalled()
+	},
+})
+
+export const WithRetryLabel = meta.story({
+	args: {
+		title: "This skill file couldn't be opened",
+		retry: { label: "Open again", onRetry: fn() },
+	},
+	parameters: {
+		docs: {
+			description: {
+				story:
+					"The shape `skill-files-panel.tsx` renders when a skill file fails to open: the retry reopens one file, so it says so instead of saying Retry. Reach for this when the generic label would hide which read is replayed. Check that the given label replaces the catalogue one entirely.",
+			},
+		},
+	},
+	play: async ({ canvas }) => {
+		await expect(
+			canvas.getByRole("button", { name: "Open again" }),
+		).toBeVisible()
+		await expect(canvas.queryByRole("button", { name: "Retry" })).toBeNull()
+	},
+})
+
+export const RetryBusy = meta.story({
+	args: {
+		title: "The run history couldn't be read",
+		description:
+			"The runs of this routine could not be loaded. The read is running again.",
+		retry: { onRetry: fn(), isBusy: true },
+	},
+	parameters: {
+		docs: {
+			description: {
+				story:
+					"The shape `routine-detail.tsx` renders while a retried read is still in flight. Reach for this to check that the button stays focusable and announced as busy rather than being removed from the tab order, and that a second click does not queue a second read.",
+			},
+		},
+	},
+	play: async ({ args, canvas, userEvent }) => {
+		const retry = canvas.getByRole("button", { name: "Retry" })
+
+		await expect(retry).toHaveAttribute("aria-busy", "true")
+		await expect(retry).toHaveAttribute("aria-disabled", "true")
+
+		await userEvent.click(retry)
+		await expect(args.retry?.onRetry).not.toHaveBeenCalled()
+	},
+})
+
+export const Dismissible = meta.story({
+	args: {
+		tone: "warning",
+		title: "Some attachments were refused",
+		description:
+			"They exceed the size a turn can carry. The rest of the prompt was sent.",
+		onDismiss: fn(),
+	},
+	parameters: {
+		docs: {
+			description: {
+				story:
+					"The shape `thread-notice.tsx` renders when attachments or pins are refused: the turn went through, so the notice is a warning the operator closes rather than a failure to replay. Check that it is announced politely through `status`, and that the close control is the only button on the surface.",
+			},
+		},
+	},
+	play: async ({ args, canvas, userEvent }) => {
+		await expect(canvas.getByRole("status")).toBeVisible()
+		await expect(canvas.queryByRole("button", { name: "Retry" })).toBeNull()
+
+		await userEvent.click(
+			canvas.getByRole("button", { name: "Dismiss notice" }),
+		)
+		await expect(args.onDismiss).toHaveBeenCalled()
+	},
+})
+
+export const LongContent = meta.story({
+	args: {
+		title:
+			"The run history of packages/ui/src/components/notice.tsx couldn't be read",
+		description:
+			"The file exists but could not be parsed, and the panel has nothing to list until it can be. Nothing was written to disk, the workspace is still mounted, and the same read can be run again once the operator has fixed the file.",
+		retry: { onRetry: fn() },
+	},
+	parameters: {
+		docs: {
+			description: {
+				story:
+					"Reach for this when checking layout under a wrapping title and a multi-line description. Check that both wrap instead of pushing the icon or the Retry button off the surface, and that the button stays under the text rather than beside it.",
+			},
+		},
+	},
+})
+
+export const Variants = meta.story({
+	tags: ["test-only"],
+	parameters: {
+		docs: {
+			description: {
+				story:
+					"Both tones side by side, a composition no screen assembles. `warning` is what the operator can close (something was refused, the turn went through), `error` is what failed to be read. Check that the two read as different at a glance in light and dark, and that neither rests on the icon colour alone.",
 			},
 		},
 	},
@@ -70,164 +207,4 @@ export const Variants = meta.story({
 			))}
 		</div>
 	),
-})
-
-export const ClaudeCodeUnavailable = meta.story({
-	args: {
-		tone: "warning",
-		title: "The agent isn't available",
-		description:
-			"Kiroshi could not find the claude binary on this machine. Install it, or point Kiroshi at an existing install, then start a new session.",
-		detail: "spawn claude ENOENT",
-		action: { label: "Open setup guide", onClick: fn() },
-	},
-	parameters: {
-		docs: {
-			description: {
-				story:
-					"Reach for this when the chat cannot start at all because the local Claude Code install is missing or unreachable. Check that no Retry button is offered — the prompt was never sent, and re-sending it cannot conjure a binary — and that the only action points at the fix the operator must perform outside the app. Use `TransportCrashed` instead when Claude Code did start and then died.",
-			},
-		},
-	},
-	play: async ({ canvas }) => {
-		await expect(canvas.getByRole("status")).toBeVisible()
-		await expect(canvas.queryByRole("button", { name: "Retry" })).toBeNull()
-		await expect(
-			canvas.getByRole("button", { name: "Open setup guide" }),
-		).toBeVisible()
-	},
-})
-
-export const TransportCrashed = meta.story({
-	args: {
-		title: "The agent transport crashed",
-		description:
-			"The session process exited before the turn completed. Reconnect to start a fresh transport — the conversation history is kept.",
-		detail: "exit code 134 · SIGABRT",
-		action: { label: "Reconnect", onClick: fn() },
-	},
-	parameters: {
-		docs: {
-			description: {
-				story:
-					"Reach for this when the process behind the session died mid-turn. Check that the recovery action is Reconnect and that no Retry button is rendered: the turn cannot be replayed onto a dead transport, so offering Retry would send the operator into a loop. Use `TurnFailedRetryable` when the transport is still alive.",
-			},
-		},
-	},
-	play: async ({ args, canvas, userEvent }) => {
-		await expect(canvas.getByRole("alert")).toBeVisible()
-		await expect(canvas.queryByRole("button", { name: "Retry" })).toBeNull()
-
-		await userEvent.click(canvas.getByRole("button", { name: "Reconnect" }))
-		await expect(args.action?.onClick).toHaveBeenCalled()
-	},
-})
-
-export const TurnFailedRetryable = meta.story({
-	args: {
-		detail: "stream timeout after 60s",
-		retry: { onRetry: fn(), attempt: 1, maxAttempts: 3 },
-		onDismiss: fn(),
-	},
-	parameters: {
-		docs: {
-			description: {
-				story:
-					"Reach for this when the transport is healthy and only the turn failed, with no partial write applied. This is the one state where Retry is valid: check that the button is keyboard-reachable, calls back with the same prompt, and that the notice can also be dismissed when the operator would rather move on. Compare with `RetryExhausted`, which is the same failure after the attempt budget ran out.",
-			},
-		},
-	},
-	play: async ({ args, canvas, userEvent }) => {
-		const retry = canvas.getByRole("button", { name: "Retry" })
-
-		await userEvent.click(retry)
-		await expect(args.retry?.onRetry).toHaveBeenCalled()
-
-		await userEvent.click(
-			canvas.getByRole("button", { name: "Dismiss notice" }),
-		)
-		await expect(args.onDismiss).toHaveBeenCalled()
-	},
-})
-
-export const RetryExhausted = meta.story({
-	args: {
-		detail: "stream timeout after 60s",
-		retry: { onRetry: fn(), attempt: 3, maxAttempts: 3 },
-	},
-	parameters: {
-		docs: {
-			description: {
-				story:
-					"Reach for this when the same turn already burned its attempt budget. Check that the Retry button is gone rather than disabled, and that the note explains why, so the operator stops hammering a call that will fail the same way. `TurnFailedRetryable` covers the attempts that are still left.",
-			},
-		},
-	},
-	play: async ({ canvas }) => {
-		await expect(canvas.queryByRole("button", { name: "Retry" })).toBeNull()
-		await expect(
-			canvas.getByText("Retry limit reached after 3 attempts"),
-		).toBeVisible()
-	},
-})
-
-export const LongContent = meta.story({
-	args: {
-		title:
-			"The last turn failed while writing packages/ui/src/components/notice.tsx",
-		description:
-			"The model stopped responding after the tool call returned, while the edit was still being applied to a long path deep in the workspace. Nothing was written to disk, the transport is still connected, and the same prompt can be sent again once the operator has read the diagnostic below.",
-		detail:
-			"stream timeout after 60s · request_id req_0000000000000000000000000000 · workspace /Users/example/projects/kiroshi/packages/ui",
-		retry: { onRetry: fn() },
-		action: { label: "Copy diagnostic", onClick: fn() },
-		onDismiss: fn(),
-	},
-	parameters: {
-		docs: {
-			description: {
-				story:
-					"Reach for this when checking layout under a wrapping title, a multi-line description and a diagnostic longer than the notice. Check that the diagnostic truncates on one line instead of pushing the actions off the surface, and that the action row wraps rather than overflowing.",
-			},
-		},
-	},
-})
-
-const OPEN_APPLICATIONS = fn()
-
-const LeftOutNotice = () => {
-	const { t } = useTranslation("bots")
-
-	return (
-		<Notice
-			action={{
-				label: t("applications.connection.session.action"),
-				onClick: OPEN_APPLICATIONS,
-			}}
-			description={t("applications.connection.session.description")}
-			title={t("applications.connection.session.title", { name: "atlas" })}
-			tone="warning"
-		/>
-	)
-}
-
-export const ApplicationLeftOut = meta.story({
-	render: () => <LeftOutNotice />,
-	parameters: {
-		docs: {
-			description: {
-				story:
-					"A session that ran without one of its applications because nobody has authorized it yet. Reach for this to check the action surface: on the warning field, a ghost button would read as text, so it sits on the background at 60 percent and reads as a control at rest. Check the same in dark, where the field is darker than the surface it carries. Nothing failed here — use `TransportCrashed` for what did.",
-			},
-		},
-	},
-	play: async ({ canvas, userEvent }) => {
-		await expect(canvas.getByRole("status")).toBeVisible()
-
-		await userEvent.click(
-			canvas.getByRole("button", { name: "Open Applications" }),
-		)
-
-		await expect(OPEN_APPLICATIONS).toHaveBeenCalled()
-	},
 })
