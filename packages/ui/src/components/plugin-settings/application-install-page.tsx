@@ -165,7 +165,7 @@ const KeyPanel = ({ name, owner, value, onValueChange }: KeyPanelProps) => {
 					aria-describedby={descriptionId}
 					aria-labelledby={titleId}
 					autoComplete="off"
-					className="min-w-0 flex-1 bg-transparent font-mono text-[13px]/5 text-foreground outline-none placeholder:text-muted-foreground"
+					className="min-w-0 flex-1 bg-transparent font-mono text-[13px]/5 text-foreground outline-none"
 					id={inputId}
 					onChange={(event) => onValueChange(event.target.value)}
 					spellCheck={false}
