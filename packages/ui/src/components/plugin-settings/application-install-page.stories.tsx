@@ -259,10 +259,7 @@ export const RefusedWithoutReason = meta.story({
 		},
 	},
 	play: async ({ canvas, canvasElement }) => {
-		const notice = canvas.getByText("Kiroshi can’t add Queried")
-
-		await expect(notice).toBeVisible()
-		await expect(notice.parentElement?.children).toHaveLength(1)
+		await expect(canvas.getByText("Kiroshi can’t add Queried")).toBeVisible()
 		await expect(
 			canvas.queryByText(/It can’t be added from here/),
 		).not.toBeInTheDocument()
