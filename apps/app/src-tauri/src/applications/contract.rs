@@ -54,6 +54,49 @@ impl Install {
 			None => Install::Key { fields },
 		}
 	}
+
+	pub fn covering(self, config: &serde_json::Value) -> Self {
+		if matches!(self, Install::Refused(_)) {
+			return self;
+		}
+		let asked: &[InstallField] = match &self {
+			Install::Key { fields } => fields,
+			_ => &[],
+		};
+		let Some(variable) = unfilled(config, asked) else {
+			return self;
+		};
+		Install::Refused(InstallRefusal { reason: uncovered(&variable), field: variable })
+	}
+}
+
+fn unfilled(config: &serde_json::Value, asked: &[InstallField]) -> Option<String> {
+	referenced(config)
+		.into_iter()
+		.find(|variable| !asked.iter().any(|field| &field.secret == variable))
+}
+
+fn referenced(config: &serde_json::Value) -> Vec<String> {
+	match config {
+		serde_json::Value::String(held) => variables(held),
+		serde_json::Value::Array(held) => held.iter().flat_map(referenced).collect(),
+		serde_json::Value::Object(held) => held.values().flat_map(referenced).collect(),
+		_ => Vec::new(),
+	}
+}
+
+fn variables(held: &str) -> Vec<String> {
+	held.split("${")
+		.skip(1)
+		.filter_map(|rest| rest.split_once('}'))
+		.map(|(named, _)| named.to_owned())
+		.collect()
+}
+
+fn uncovered(variable: &str) -> String {
+	format!(
+		"the config reads the variable {variable} and no field of this install fills it, so the server would start without its value"
+	)
 }
 
 fn collapsed(fields: &[InstallField]) -> Option<InstallRefusal> {
@@ -426,6 +469,43 @@ mod tests {
 		);
 		assert_eq!(InstallCase::try_from(Install::Refused(refusal.clone())), Err(refusal));
 		assert_eq!(InstallCase::try_from(Install::Oauth), Ok(InstallCase::Oauth));
+	}
+
+	#[test]
+	fn a_config_reading_a_variable_no_field_names_refuses_the_install_naming_that_variable() {
+		let config = json!({
+			"type": "http",
+			"url": "https://headed.test/mcp",
+			"headers": { "Authorization": "Bearer ${AUTHORIZATION}", "X-Account": "${X_ACCOUNT}" },
+		});
+		let asking = Install::asking(vec![InstallField {
+			name: "Authorization".to_owned(),
+			secret: "AUTHORIZATION".to_owned(),
+			description: None,
+		}]);
+
+		let Install::Refused(refusal) = asking.covering(&config) else {
+			panic!("an unfilled reference refuses");
+		};
+		assert_eq!(refusal.field, "X_ACCOUNT");
+		assert!(refusal.reason.contains("X_ACCOUNT"), "got {}", refusal.reason);
+	}
+
+	#[test]
+	fn a_config_whose_every_reference_is_named_keeps_the_case_it_had() {
+		let field = InstallField {
+			name: "Authorization".to_owned(),
+			secret: "AUTHORIZATION".to_owned(),
+			description: None,
+		};
+		let asking = Install::asking(vec![field.clone()]);
+		let config = json!({ "headers": { "Authorization": "Bearer ${AUTHORIZATION}" } });
+
+		assert_eq!(asking.covering(&config), Install::Key { fields: vec![field] });
+		assert_eq!(
+			Install::Oauth.covering(&json!({ "url": "https://plain.test" })),
+			Install::Oauth
+		);
 	}
 
 	#[test]
