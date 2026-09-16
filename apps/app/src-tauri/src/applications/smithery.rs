@@ -183,7 +183,7 @@ async fn listed(client: &Client, base: &Url, row: Row) -> Option<Listing> {
 			name: row.qualified_name,
 			description: row.description,
 			config: config(&served),
-			tools: Vec::new(),
+			tools: tool_names(&detail),
 			logo: None,
 			logo_url: row.icon_url,
 			use_count: row.use_count,
@@ -194,6 +194,10 @@ async fn listed(client: &Client, base: &Url, row: Row) -> Option<Listing> {
 	})
 }
 
+fn tool_names(detail: &Detail) -> Vec<String> {
+	detail.tools.iter().map(|tool| tool.name.clone()).collect()
+}
+
 fn read_by_name(detail: &Detail) -> Option<Application> {
 	let served = served(detail)?;
 	Some(Application {
@@ -201,7 +205,7 @@ fn read_by_name(detail: &Detail) -> Option<Application> {
 		title: detail.display_name.clone().unwrap_or_else(|| detail.qualified_name.clone()),
 		description: detail.description.clone(),
 		config: config(&served),
-		tools: detail.tools.iter().map(|tool| tool.name.clone()).collect(),
+		tools: tool_names(detail),
 		logo: None,
 		logo_url: detail.icon_url.clone(),
 		use_count: None,
@@ -518,7 +522,7 @@ pub(crate) mod tests {
 	}
 
 	#[tokio::test]
-	async fn a_search_carries_the_icon_the_count_the_flag_and_no_tool() {
+	async fn a_search_carries_the_icon_the_count_the_flag_and_the_tools_of_its_detail() {
 		let (base, _) = serving(holding(
 			vec![a_row("@owner/slack", "Slack", 900)],
 			vec![a_detail("@owner/slack", "https://slack.run.tools")],
@@ -531,7 +535,7 @@ pub(crate) mod tests {
 		assert_eq!(held.logo_url.as_deref(), Some("https://icons.test/Slack.png"));
 		assert_eq!(held.use_count, Some(900));
 		assert_eq!(held.verified, Some(true));
-		assert_eq!(held.tools, Vec::<String>::new());
+		assert_eq!(held.tools, ["search", "create"]);
 		assert_eq!(held.logo, None);
 	}
 

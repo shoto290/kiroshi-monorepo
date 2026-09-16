@@ -24,6 +24,11 @@ export type ApplicationsError =
 	| { kind: "registryRefused"; status: number }
 	| { kind: "registryUnreadable"; detail: string }
 
+export type ApplicationSearch = {
+	applications: Application[]
+	registryFailure?: ApplicationsError
+}
+
 export type ApplicationDestination = "companion" | "space" | "user"
 
 export type InstallCase =
@@ -59,7 +64,7 @@ export type ApplicationInstalled = {
 
 export type ApplicationPort = {
 	catalogue: () => Promise<Application[]>
-	search: (query: string) => Promise<Application[]>
+	search: (query: string) => Promise<ApplicationSearch>
 	installs: (conversationId: string) => Promise<ApplicationInstall[]>
 	onInstalled: (
 		listener: (installed: ApplicationInstalled) => void,

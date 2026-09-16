@@ -2,12 +2,16 @@ use std::collections::HashSet;
 
 use reqwest::Url;
 
-use super::contract::{Application, ApplicationsError};
+use super::contract::{Application, ApplicationSearch, ApplicationsError};
 use super::{registry, smithery};
 
 const SHORTEST_TERM: usize = 3;
 
 const GITHUB: &str = "github.com";
+
+const SMITHERY: &str = "the Smithery registry";
+
+const OFFICIAL: &str = "the official registry";
 
 #[derive(Debug, Clone)]
 pub struct Registries {
@@ -29,17 +33,32 @@ pub struct Listing {
 pub async fn search(
 	registries: &Registries,
 	query: &str,
-) -> Result<Vec<Application>, ApplicationsError> {
+) -> Result<ApplicationSearch, ApplicationsError> {
 	let (semantic, official) = tokio::join!(
 		smithery::search(&registries.smithery, query),
 		registry::search(&registries.official, query)
 	);
-	let official = official?;
-	let semantic = semantic.unwrap_or_else(|failure| {
-		eprintln!("the Smithery registry answered nothing for {query:?}: {failure:?}");
-		Vec::new()
-	});
-	Ok(deduplicated(semantic, official))
+	let (semantic, semantic_failure) = answered(SMITHERY, query, semantic);
+	let (official, official_failure) = answered(OFFICIAL, query, official);
+	let applications = deduplicated(semantic, official);
+	match official_failure.or(semantic_failure) {
+		Some(failure) if applications.is_empty() => Err(failure),
+		registry_failure => Ok(ApplicationSearch { applications, registry_failure }),
+	}
+}
+
+fn answered(
+	registry: &str,
+	query: &str,
+	read: Result<Vec<Listing>, ApplicationsError>,
+) -> (Vec<Listing>, Option<ApplicationsError>) {
+	match read {
+		Ok(found) => (found, None),
+		Err(failure) => {
+			eprintln!("{registry} answered nothing for {query:?}: {failure:?}");
+			(Vec::new(), Some(failure))
+		}
+	}
 }
 
 fn deduplicated(semantic: Vec<Listing>, official: Vec<Listing>) -> Vec<Application> {
@@ -81,10 +100,31 @@ pub(super) fn repository(url: &str) -> Option<String> {
 
 #[cfg(test)]
 mod tests {
+	use std::net::Ipv4Addr;
+
 	use serde_json::json;
 
 	use super::super::contract::Install;
 	use super::*;
+	use crate::applications::registry::tests as official_stub;
+	use crate::applications::smithery::tests as smithery_stub;
+
+	async fn unreached() -> String {
+		let listener =
+			tokio::net::TcpListener::bind((Ipv4Addr::LOCALHOST, 0)).await.expect("a port binds");
+		let address = listener.local_addr().expect("the port is named");
+		drop(listener);
+		format!("http://{address}")
+	}
+
+	async fn a_smithery_serving_slack() -> String {
+		let (base, _) = smithery_stub::serving(smithery_stub::holding(
+			vec![smithery_stub::a_row("@owner/slack", "Slack", 900)],
+			vec![smithery_stub::a_detail("@owner/slack", "https://slack.run.tools")],
+		))
+		.await;
+		base
+	}
 
 	fn listed(name: &str, repository: Option<&str>) -> Listing {
 		Listing {
@@ -131,6 +171,35 @@ mod tests {
 		assert_eq!(repository("https://smithery.ai/server/@owner/notion"), None);
 		assert_eq!(repository("https://github.com/smithery-ai"), None);
 		assert_eq!(repository("not a url"), None);
+	}
+
+	#[tokio::test]
+	async fn an_unreached_official_registry_answers_the_smithery_rows_and_carries_the_failure() {
+		let registries =
+			Registries { official: unreached().await, smithery: a_smithery_serving_slack().await };
+
+		let answered = search(&registries, "slack").await.expect("the search answers");
+
+		assert_eq!(names(answered.applications), ["@owner/slack"]);
+		assert!(
+			matches!(answered.registry_failure, Some(ApplicationsError::RegistryUnreached { .. })),
+			"got {:?}",
+			answered.registry_failure
+		);
+	}
+
+	#[tokio::test]
+	async fn a_search_answering_no_row_answers_the_failure_to_its_caller() {
+		let (official, _) = official_stub::serving(official_stub::holding(Vec::new())).await;
+		let registries = Registries { official, smithery: unreached().await };
+
+		let answered = search(&registries, "slack").await;
+
+		assert!(
+			matches!(answered, Err(ApplicationsError::RegistryUnreached { .. })),
+			"got {:?}",
+			answered.map(|held| names(held.applications))
+		);
 	}
 
 	#[test]

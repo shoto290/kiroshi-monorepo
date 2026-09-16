@@ -73,15 +73,15 @@ impl<R: Runtime> ApplicationHost<R> {
 	}
 
 	async fn search(&self, query: &str) -> Result<ApplicationSearch, ApplicationCallError> {
-		let mut applications = matching(catalogue::curated()?, query);
-		let registry_failure = match search(&self.registries, query).await {
-			Ok(found) => {
-				applications.extend(found);
-				None
-			}
-			Err(failure) => Some(failure),
+		let curated = matching(catalogue::curated()?, query);
+		let (found, registry_failure) = match search(&self.registries, query).await {
+			Ok(answered) => (answered.applications, answered.registry_failure),
+			Err(failure) => (Vec::new(), Some(failure)),
 		};
-		Ok(ApplicationSearch { applications, registry_failure })
+		Ok(ApplicationSearch {
+			applications: curated.into_iter().chain(found).collect(),
+			registry_failure,
+		})
 	}
 
 	async fn install(&self, asked: Named) -> Result<InstallOutcome, ApplicationCallError> {
@@ -537,7 +537,7 @@ mod tests {
 	}
 
 	#[tokio::test]
-	async fn an_unreached_smithery_answers_the_official_rows_and_no_error() {
+	async fn an_unreached_smithery_answers_the_official_rows_and_names_the_failure() {
 		let app = a_host("smithery-down").await;
 		let (official, _) = serving(holding(vec!["com.notion/mcp"])).await;
 
@@ -547,7 +547,7 @@ mod tests {
 			.expect("the search answers");
 
 		assert_eq!(names(&answer), ["notion", "com.notion/mcp"]);
-		assert!(answer.get("registryFailure").is_none(), "got {answer}");
+		assert_eq!(answer["registryFailure"]["kind"], "registryUnreached");
 		cleaned(&app);
 	}
 

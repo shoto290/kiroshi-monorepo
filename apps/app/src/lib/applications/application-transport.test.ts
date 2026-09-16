@@ -68,14 +68,14 @@ describe("applicationTransport", () => {
 	})
 
 	it("hands the host the query to search the registry", async () => {
-		hostInvoke.mockResolvedValue([NOTION])
+		hostInvoke.mockResolvedValue({ applications: [NOTION] })
 
 		const found = await applicationTransport.search("notion")
 
 		expect(hostInvoke).toHaveBeenCalledWith("application_search", {
 			query: "notion",
 		})
-		expect(found).toEqual([NOTION])
+		expect(found).toEqual({ applications: [NOTION] })
 	})
 
 	it("hands back what the host refused", async () => {
@@ -125,7 +125,7 @@ describe("createFakeApplicationPort", () => {
 		fake.recorded = [RECORDED]
 
 		expect(await fake.catalogue()).toEqual([SUPERSET])
-		expect(await fake.search("notion")).toEqual([NOTION])
+		expect(await fake.search("notion")).toEqual({ applications: [NOTION] })
 		expect(await fake.installs("c1")).toEqual([RECORDED])
 		expect(await fake.installs("c2")).toEqual([])
 		expect(fake.calls).toEqual([

@@ -1,6 +1,6 @@
 import { describe, expect, it, vi } from "vitest"
 
-import type { Application } from "./application-port"
+import type { Application, ApplicationSearch } from "./application-port"
 import {
 	createApplicationsController,
 	type InstallTarget,
@@ -139,7 +139,7 @@ describe("applications controller", () => {
 
 	it("keeps the answer of the last search and drops an earlier one", async () => {
 		const port = createFakeApplicationPort()
-		const pending: ((found: Application[]) => void)[] = []
+		const pending: ((found: ApplicationSearch) => void)[] = []
 		port.search = () =>
 			new Promise((resolve) => {
 				pending.push(resolve)
@@ -150,9 +150,9 @@ describe("applications controller", () => {
 		await settled()
 		controller.retry()
 		const [answerFirst, answerLast] = pending
-		answerLast?.([LINEAR])
+		answerLast?.({ applications: [LINEAR] })
 		await settled()
-		answerFirst?.([PAPER])
+		answerFirst?.({ applications: [PAPER] })
 		await settled()
 
 		expect(controller.getState().registry).toEqual([LINEAR])
@@ -160,7 +160,7 @@ describe("applications controller", () => {
 
 	it("drops the answer of an earlier query that arrives last", async () => {
 		const port = createFakeApplicationPort()
-		const pending = new Map<string, (found: Application[]) => void>()
+		const pending = new Map<string, (found: ApplicationSearch) => void>()
 		port.search = (query) =>
 			new Promise((resolve) => {
 				pending.set(query, resolve)
@@ -171,9 +171,9 @@ describe("applications controller", () => {
 		await settled()
 		controller.search("linear")
 		await settled()
-		pending.get("linear")?.([LINEAR])
+		pending.get("linear")?.({ applications: [LINEAR] })
 		await settled()
-		pending.get("lin")?.([PAPER])
+		pending.get("lin")?.({ applications: [PAPER] })
 		await settled()
 
 		expect(controller.getState().registry).toEqual([LINEAR])
