@@ -58,9 +58,9 @@ The visible catalogue lists only the states the app renders. A story that proves
 const meta = preview.meta({ tags: ["test-only"] })
 ```
 
-`main.ts` declares `TEST_ONLY_TAG` with `defaultFilterSelection: "exclude"`, so the sidebar hides the story until a reader turns the `test-only` filter on. The story keeps the default `test` tag, so the `storybook` vitest project still plays it. Use it instead of `!dev`, which hides a story with no way back.
+`main.ts` declares `test-only` with `defaultFilterSelection: "exclude"`, so the sidebar hides the story until a reader turns the `test-only` filter on. The story keeps the default `test` tag, so the `storybook` vitest project still plays it. Use it instead of `!dev`, which hides a story with no way back.
 
-The tag is spelled as a literal here and nowhere else: the CSF indexer reads `tags` statically and rejects an imported constant.
+Spell the tag as a literal: the CSF indexer reads `tags` statically and rejects anything else.
 
 ## 2. Story names
 
