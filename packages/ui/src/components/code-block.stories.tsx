@@ -125,6 +125,7 @@ export const WithFilename = meta.story({
 })
 
 export const Languages = meta.story({
+	tags: ["test-only"],
 	parameters: {
 		docs: {
 			description: {
@@ -188,6 +189,7 @@ export const MultiFilePatch = meta.story({
 })
 
 export const LongContent = meta.story({
+	tags: ["test-only"],
 	parameters: {
 		docs: {
 			description: {
