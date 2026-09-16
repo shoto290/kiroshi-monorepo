@@ -43,6 +43,8 @@ const CARD_SLOT_CLASS = "flex w-46.5 shrink-0"
 const CARD_SHELL_CLASS =
 	"flex w-full min-w-0 flex-col gap-2 rounded-xl border border-border p-3"
 
+const ROW_LIST_CLASS = "flex list-none flex-col gap-2.5 p-0"
+
 const ROW_SHELL_CLASS =
 	"flex w-full min-w-0 items-center gap-2.5 rounded-lg border border-border px-3 py-2"
 
@@ -138,10 +140,15 @@ const CatalogueRow = ({ application, onPick }: CatalogueRowProps) => {
 			>
 				<ApplicationMark mark={application.mark} size="sm" />
 				<span className="flex min-w-0 flex-1 flex-col gap-px">
-					<span className="truncate font-medium font-mono text-[13px]/4.5 text-foreground">
+					<span className="truncate font-medium text-[13px]/4.5 text-foreground">
 						{application.name}
 					</span>
-					<span className="truncate font-mono text-muted-foreground text-xs/4">
+					<span
+						className={cn(
+							"truncate text-muted-foreground text-xs/4",
+							!application.description && "font-mono",
+						)}
+					>
 						{application.description || application.packageIdentity}
 					</span>
 				</span>
@@ -161,7 +168,7 @@ const CatalogueRow = ({ application, onPick }: CatalogueRowProps) => {
 }
 
 const CatalogueRows = ({ applications, onPick }: CatalogueCardsProps) => (
-	<ul className="flex list-none flex-col gap-3 p-0">
+	<ul className={ROW_LIST_CLASS}>
 		{applications.map((application) => (
 			<CatalogueRow
 				application={application}
@@ -213,7 +220,7 @@ const CatalogueCardSkeletons = () => (
 						<SkeletonBar className="h-2.25 w-28" isFaint />
 					</div>
 					<div className="flex items-center gap-1.25 pt-2">
-						<SkeletonBar className="size-3.25 shrink-0" />
+						<SkeletonBar className="size-3.25 shrink-0" isFaint />
 						<SkeletonBar className="h-2.25 w-19.5" isFaint />
 					</div>
 				</div>
@@ -223,7 +230,7 @@ const CatalogueCardSkeletons = () => (
 )
 
 const CatalogueRowSkeletons = () => (
-	<ul aria-hidden="true" className="flex list-none flex-col gap-3 p-0">
+	<ul aria-hidden="true" className={ROW_LIST_CLASS}>
 		{ROW_SKELETONS.map((rank) => (
 			<li className="flex" data-slot="catalogue-row-skeleton" key={rank}>
 				<div className={ROW_SHELL_CLASS}>
@@ -402,6 +409,10 @@ const ApplicationsCatalogue = ({
 	const isLoading = isCatalogueLoading || isRegistrySearching
 
 	const registryBody = () => {
+		if (isLoading) {
+			return <CatalogueRowSkeletons />
+		}
+
 		if (typed === "") {
 			return (
 				<CatalogueLine
@@ -415,10 +426,6 @@ const ApplicationsCatalogue = ({
 					}
 				/>
 			)
-		}
-
-		if (isRegistrySearching) {
-			return <CatalogueRowSkeletons />
 		}
 
 		if (hasRegistryFailed) {
@@ -485,11 +492,6 @@ const ApplicationsCatalogue = ({
 						{t("applications.catalogue.search.hint")}
 					</span>
 				</label>
-				{isLoading ? (
-					<span className="sr-only" role="status">
-						{t("applications.catalogue.loading")}
-					</span>
-				) : null}
 				{isCatalogueLoading || curated.length > 0 ? (
 					<CatalogueSection
 						subtitle={t("applications.catalogue.curated.subtitle")}
@@ -509,6 +511,11 @@ const ApplicationsCatalogue = ({
 					{registryBody()}
 				</CatalogueSection>
 			</Tabs.Panel>
+			{isLoading ? (
+				<span className="sr-only" role="status">
+					{t("applications.catalogue.loading")}
+				</span>
+			) : null}
 		</CataloguePage>
 	)
 }

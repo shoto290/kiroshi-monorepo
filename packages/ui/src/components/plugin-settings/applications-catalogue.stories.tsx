@@ -16,6 +16,8 @@ import {
 
 const CARD_BOTTOM_INSET = 13
 
+const ROW_GAP = 10
+
 const matching = (applications: CatalogueApplication[], query: string) =>
 	applications.filter((application) =>
 		application.name.toLowerCase().includes(query.trim().toLowerCase()),
@@ -86,7 +88,7 @@ export const AtRest = meta.story({
 		docs: {
 			description: {
 				story:
-					"The catalogue as it opens. Check the back item, the open category on muted with its count, the curated cards at their drawn width, every install line of a row resting on one line at the bottom of its card, no dashed line anywhere, and the registry rows drawn full width with their mono name.",
+					"The catalogue as it opens. Check the back item, the open category on muted with its count, the curated cards at their drawn width, every install line of a row resting on one line at the bottom of its card, no dashed line anywhere, and the registry rows drawn full width, sans name and sans description, the package identity alone in monospace.",
 			},
 		},
 	},
@@ -159,7 +161,11 @@ export const AtRest = meta.story({
 		)
 
 		const registryName = canvas.getByText("linkboard")
-		await expect(registryName).toHaveClass("font-mono")
+		await expect(registryName).not.toHaveClass("font-mono")
+		await expect(registryName).toHaveClass("font-medium")
+		await expect(
+			canvas.getByText("A smaller Linear server that only reads issues."),
+		).not.toHaveClass("font-mono")
 		await expect(canvas.getByText("npx -y @kwn/linkboard-mcp")).toHaveClass(
 			"font-mono",
 		)
@@ -326,35 +332,41 @@ export const CatalogueLoading = meta.story({
 			...CATALOGUE_CATEGORIES.slice(1),
 		],
 		isCatalogueLoading: true,
-		isRegistrySearching: true,
-		query: "lin",
 	},
 	parameters: {
 		docs: {
 			description: {
 				story:
-					"The catalogue while it is being read and the registry searched. Check the six card skeletons, the three row skeletons, the em dash where the Everything count goes, the body marked busy and the polite line saying the catalogue is loading.",
+					"The catalogue opening, nothing typed yet. Check that both sections draw skeletons: six card skeletons, three row skeletons ten apart, the em dash where the Everything count goes, the body marked busy and the polite line saying the catalogue is loading, announced from outside the busy body.",
 			},
 		},
 	},
 	play: async ({ canvas, canvasElement }) => {
+		await expect(canvas.getByRole("textbox")).toHaveValue("")
 		await expect(
 			canvasElement.querySelectorAll('[data-slot="catalogue-card-skeleton"]'),
 		).toHaveLength(6)
+		const rows = canvasElement.querySelectorAll(
+			'[data-slot="catalogue-row-skeleton"]',
+		)
+		await expect(rows).toHaveLength(3)
 		await expect(
-			canvasElement.querySelectorAll('[data-slot="catalogue-row-skeleton"]'),
-		).toHaveLength(3)
+			canvas.queryByText(/Type a name above/),
+		).not.toBeInTheDocument()
+
+		const [first, second] = [...rows].map((row) => row.getBoundingClientRect())
+		await expect(Math.round(second.top - first.bottom)).toBe(ROW_GAP)
 
 		const everything = canvas.getByRole("tab", { name: "Everything" })
 		await expect(everything).toHaveTextContent("\u2014")
 
-		await expect(canvas.getByRole("tabpanel")).toHaveAttribute(
-			"aria-busy",
-			"true",
-		)
-		await expect(canvas.getByRole("status")).toHaveTextContent(
+		const body = canvas.getByRole("tabpanel")
+		await expect(body).toHaveAttribute("aria-busy", "true")
+		const announcement = canvas.getByRole("status")
+		await expect(announcement).toHaveTextContent(
 			"Loading the applications catalogue",
 		)
+		await expect(body.contains(announcement)).toBe(false)
 
 		const [bar] = canvasElement.querySelectorAll('[data-slot="skeleton"]')
 		await expect(bar).toHaveClass("motion-reduce:animate-none")
