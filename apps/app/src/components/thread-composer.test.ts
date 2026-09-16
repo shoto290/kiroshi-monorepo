@@ -170,7 +170,7 @@ describe("ThreadComposer", () => {
 
 		const image = new File(["binary"], "screenshot.png", { type: "image/png" })
 		fireEvent.paste(field(), {
-			clipboardData: { files: [image], items: [], types: ["Files"] },
+			clipboardData: { files: [image], types: ["Files"] },
 		})
 
 		expect(staged).toEqual([[image]])
