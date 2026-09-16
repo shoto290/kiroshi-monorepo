@@ -1,0 +1,998 @@
+use std::collections::HashSet;
+use std::time::Duration;
+
+use reqwest::header::{HeaderMap, HeaderValue, USER_AGENT};
+use reqwest::{Client, StatusCode, Url};
+use serde::de::DeserializeOwned;
+use serde::Deserialize;
+use serde_json::{json, Map, Value};
+
+use super::contract::{Application, ApplicationsError, Install, InstallField};
+use super::search::{repository, Listing};
+use crate::missions::github::installed_tls_provider;
+
+pub const REGISTRY: &str = "https://registry.modelcontextprotocol.io";
+
+const API_VERSION: &str = "v0.1";
+
+const BOUND: &str = "10";
+
+const LATEST: &str = "latest";
+
+const TIMEOUT: Duration = Duration::from_secs(30);
+
+const AGENT: &str = "Kiroshi";
+
+const STREAMABLE_HTTP: &str = "streamable-http";
+
+const SSE: &str = "sse";
+
+const NPM: &str = "npm";
+
+#[derive(Deserialize)]
+struct Listed {
+	servers: Vec<Entry>,
+}
+
+#[derive(Deserialize)]
+struct Entry {
+	server: Server,
+}
+
+#[derive(Deserialize)]
+#[serde(rename_all = "camelCase")]
+struct Server {
+	name: String,
+	#[serde(default)]
+	title: Option<String>,
+	#[serde(default)]
+	description: String,
+	#[serde(default)]
+	remotes: Vec<Remote>,
+	#[serde(default)]
+	packages: Vec<Package>,
+	#[serde(default)]
+	icons: Vec<Icon>,
+	#[serde(default)]
+	repository: Option<Repository>,
+}
+
+#[derive(Deserialize)]
+struct Icon {
+	src: String,
+}
+
+#[derive(Deserialize)]
+struct Repository {
+	#[serde(default)]
+	url: Option<String>,
+}
+
+#[derive(Deserialize)]
+struct Remote {
+	#[serde(rename = "type")]
+	kind: String,
+	url: String,
+	#[serde(default)]
+	headers: Vec<Input>,
+}
+
+#[derive(Deserialize)]
+#[serde(rename_all = "camelCase")]
+struct Package {
+	registry_type: String,
+	identifier: String,
+	#[serde(default)]
+	environment_variables: Vec<Input>,
+}
+
+#[derive(Deserialize)]
+#[serde(rename_all = "camelCase")]
+struct Input {
+	name: String,
+	#[serde(default)]
+	description: Option<String>,
+	#[serde(default)]
+	is_required: bool,
+	#[serde(default)]
+	is_secret: bool,
+	#[serde(default)]
+	value: Option<String>,
+	#[serde(default)]
+	default: Option<Value>,
+}
+
+enum Transport<'a> {
+	Remote(&'a Remote),
+	Npm(&'a Package),
+}
+
+pub async fn search(base: &str, query: &str) -> Result<Vec<Listing>, ApplicationsError> {
+	let mut list = endpoint(&parsed(base)?, &[API_VERSION, "servers"])?;
+	list.query_pairs_mut()
+		.append_pair("search", query)
+		.append_pair("limit", BOUND)
+		.append_pair("version", LATEST);
+	let listed: Listed = read(&client()?, list).await?;
+	let rows = distinct(listed.servers);
+	let answered = rows.len();
+	let found: Vec<Listing> = rows.into_iter().filter_map(descriptor).collect();
+	if found.is_empty() && answered > 0 {
+		eprintln!(
+			"the registry answered {answered} rows for {query:?} and none carried a transport"
+		);
+	}
+	Ok(found)
+}
+
+pub async fn detail(base: &str, name: &str) -> Result<Option<Application>, ApplicationsError> {
+	let url = detail_endpoint(&parsed(base)?, name)?;
+	match read::<Entry>(&client()?, url).await {
+		Ok(entry) => Ok(descriptor(entry.server).map(|listing| listing.application)),
+		Err(ApplicationsError::RegistryRefused { status }) if status == StatusCode::NOT_FOUND => {
+			Ok(None)
+		}
+		Err(failure) => Err(failure),
+	}
+}
+
+pub(super) fn parsed(base: &str) -> Result<Url, ApplicationsError> {
+	Url::parse(base)
+		.map_err(|error| ApplicationsError::RegistryUnreached { detail: error.to_string() })
+}
+
+fn detail_endpoint(base: &Url, name: &str) -> Result<Url, ApplicationsError> {
+	endpoint(base, &[API_VERSION, "servers", name, "versions", LATEST])
+}
+
+fn distinct(entries: Vec<Entry>) -> Vec<Server> {
+	let mut seen = HashSet::new();
+	entries
+		.into_iter()
+		.map(|entry| entry.server)
+		.filter(|server| seen.insert(server.name.clone()))
+		.collect()
+}
+
+pub(super) fn client() -> Result<Client, ApplicationsError> {
+	installed_tls_provider();
+	let mut headers = HeaderMap::new();
+	headers.insert(USER_AGENT, HeaderValue::from_static(AGENT));
+	Client::builder().timeout(TIMEOUT).default_headers(headers).build().map_err(|error| {
+		ApplicationsError::RegistryUnreached {
+			detail: format!("the http client was not built: {error}"),
+		}
+	})
+}
+
+pub(super) fn endpoint(base: &Url, segments: &[&str]) -> Result<Url, ApplicationsError> {
+	let mut url = base.clone();
+	url.path_segments_mut()
+		.map_err(|()| ApplicationsError::RegistryUnreached {
+			detail: format!("{base} cannot hold a path"),
+		})?
+		.pop_if_empty()
+		.extend(segments);
+	Ok(url)
+}
+
+pub(super) async fn read<T: DeserializeOwned>(
+	client: &Client,
+	url: Url,
+) -> Result<T, ApplicationsError> {
+	let answer = client.get(url).send().await.map_err(unreached)?;
+	if answer.status() != StatusCode::OK {
+		return Err(ApplicationsError::RegistryRefused { status: answer.status().as_u16() });
+	}
+	answer
+		.json::<T>()
+		.await
+		.map_err(|error| ApplicationsError::RegistryUnreadable { detail: error.to_string() })
+}
+
+fn unreached(error: reqwest::Error) -> ApplicationsError {
+	if error.is_timeout() {
+		return ApplicationsError::RegistryTimedOut;
+	}
+	ApplicationsError::RegistryUnreached { detail: error.to_string() }
+}
+
+fn descriptor(server: Server) -> Option<Listing> {
+	let (config, install) = match transport(&server)? {
+		Transport::Remote(remote) => remote_served(remote),
+		Transport::Npm(package) => package_served(package),
+	};
+	Some(Listing {
+		repository: server
+			.repository
+			.as_ref()
+			.and_then(|held| held.url.as_deref())
+			.and_then(repository),
+		application: Application {
+			title: server.title.unwrap_or_else(|| server.name.clone()),
+			name: server.name,
+			description: server.description,
+			config,
+			tools: Vec::new(),
+			logo: None,
+			logo_url: server.icons.first().map(|icon| icon.src.clone()),
+			use_count: None,
+			verified: None,
+			hosted_by: None,
+			install,
+		},
+	})
+}
+
+fn remote_served(remote: &Remote) -> (Value, Install) {
+	let (headers, fields) = classified(&remote.headers);
+	if fields.is_empty() {
+		return (remote_config(remote), Install::Oauth);
+	}
+	let config = headed_config(remote, headers);
+	let install = Install::asking(fields).covering(&config);
+	(config, install)
+}
+
+fn package_served(package: &Package) -> (Value, Install) {
+	let (env, fields) = classified(&package.environment_variables);
+	let config = package_config(package, env);
+	let asking = if fields.is_empty() { Install::Nothing } else { Install::asking(fields) };
+	let install = asking.covering(&config);
+	(config, install)
+}
+
+fn transport(server: &Server) -> Option<Transport<'_>> {
+	let remote = |kind: &str| server.remotes.iter().find(|remote| remote.kind == kind);
+	remote(STREAMABLE_HTTP).or_else(|| remote(SSE)).map(Transport::Remote).or_else(|| {
+		server.packages.iter().find(|package| package.registry_type == NPM).map(Transport::Npm)
+	})
+}
+
+fn remote_config(remote: &Remote) -> Value {
+	json!({ "type": "http", "url": remote.url })
+}
+
+fn headed_config(remote: &Remote, headers: Map<String, Value>) -> Value {
+	let mut config = remote_config(remote);
+	config["headers"] = Value::Object(headers);
+	config
+}
+
+fn substituted(template: &str, reference: &str) -> Option<String> {
+	let (before, opened) = template.split_once('{')?;
+	let (_, after) = opened.split_once('}')?;
+	let rest = substituted(after, reference).unwrap_or_else(|| after.to_owned());
+	Some(format!("{before}{reference}{rest}"))
+}
+
+fn package_config(package: &Package, env: Map<String, Value>) -> Value {
+	let mut config =
+		json!({ "type": "stdio", "command": "npx", "args": ["-y", package.identifier] });
+	if !env.is_empty() {
+		config["env"] = Value::Object(env);
+	}
+	config
+}
+
+pub(super) fn reference(declared: &str) -> String {
+	format!("${{{}}}", variable(declared))
+}
+
+enum Filling {
+	Asked(String),
+	Fixed(String),
+	Absent,
+}
+
+fn classified(inputs: &[Input]) -> (Map<String, Value>, Vec<InstallField>) {
+	let mut served = Map::new();
+	let mut asked = Vec::new();
+	for input in inputs {
+		match filling(input) {
+			Filling::Asked(value) => {
+				served.insert(input.name.clone(), Value::String(value));
+				asked.push(asked_field(input));
+			}
+			Filling::Fixed(value) => {
+				served.insert(input.name.clone(), Value::String(value));
+			}
+			Filling::Absent => {}
+		}
+	}
+	(served, asked)
+}
+
+fn filling(input: &Input) -> Filling {
+	if let Some(templated) = templated(input) {
+		return Filling::Asked(templated);
+	}
+	if input.is_required && input.is_secret {
+		return Filling::Asked(reference(&input.name));
+	}
+	if let Some(value) = input.value.as_deref() {
+		return Filling::Fixed(value.to_owned());
+	}
+	if let Some(held) = input.default.as_ref().and_then(Value::as_str) {
+		return Filling::Fixed(held.to_owned());
+	}
+	if input.is_required {
+		return Filling::Asked(reference(&input.name));
+	}
+	Filling::Absent
+}
+
+fn templated(input: &Input) -> Option<String> {
+	substituted(input.value.as_deref()?, &reference(&input.name))
+}
+
+fn asked_field(input: &Input) -> InstallField {
+	InstallField {
+		name: input.name.clone(),
+		secret: variable(&input.name),
+		description: input.description.clone(),
+	}
+}
+
+pub(super) fn variable(declared: &str) -> String {
+	let named: String = declared
+		.chars()
+		.map(|held| if held.is_ascii_alphanumeric() { held.to_ascii_uppercase() } else { '_' })
+		.collect();
+	if named.starts_with(|held: char| held.is_ascii_digit()) {
+		return format!("_{named}");
+	}
+	named
+}
+
+#[cfg(test)]
+pub(crate) mod tests {
+	use std::collections::HashMap;
+	use std::net::{Ipv4Addr, SocketAddr};
+	use std::sync::{Arc, Mutex};
+
+	use axum::extract::{Path as AxumPath, State as Extracted};
+	use axum::http::Uri;
+	use axum::response::{IntoResponse, Response as Answered};
+	use axum::routing::get;
+	use axum::Router;
+
+	use super::*;
+
+	const BROKEN: &str = "io.test/broken";
+
+	fn described(body: Value) -> Application {
+		let server: Server = serde_json::from_value(body).expect("the fixture is a server.json");
+		descriptor(server).expect("the fixture offers a transport").application
+	}
+
+	fn a_remote_without_headers() -> Value {
+		json!({
+			"name": "com.notion/mcp",
+			"title": "Notion",
+			"description": "Notion workspace.",
+			"remotes": [{ "type": "streamable-http", "url": "https://mcp.notion.test/mcp" }],
+		})
+	}
+
+	fn a_remote_asking_a_required_secret_header() -> Value {
+		json!({
+			"name": "ai.smithery/smithery-notion",
+			"description": "Notion through Smithery.",
+			"remotes": [{
+				"type": "streamable-http",
+				"url": "https://server.smithery.test/notion/mcp",
+				"headers": [{
+					"name": "Authorization",
+					"description": "Bearer token for Smithery authentication",
+					"isRequired": true,
+					"isSecret": true,
+					"value": "Bearer {smithery_api_key}",
+				}],
+			}],
+		})
+	}
+
+	fn an_npm_package_declaring(variables: Value) -> Application {
+		described(an_npm_package_entry(variables))
+	}
+
+	fn an_npm_package_entry(variables: Value) -> Value {
+		json!({
+			"name": "io.github.Digital-Defiance/mcp-filesystem",
+			"description": "A filesystem server.",
+			"packages": [{
+				"registryType": "npm",
+				"identifier": "@digital-defiance/mcp-filesystem",
+				"version": "1.0.0",
+				"transport": { "type": "stdio" },
+				"environmentVariables": variables,
+			}],
+		})
+	}
+
+	#[test]
+	fn a_remote_with_no_header_answers_oauth() {
+		let application = described(a_remote_without_headers());
+
+		assert_eq!(application.install, Install::Oauth);
+		assert_eq!(
+			application.config,
+			json!({ "type": "http", "url": "https://mcp.notion.test/mcp" })
+		);
+		assert_eq!(application.title, "Notion");
+		assert_eq!(application.logo, None);
+		assert_eq!(application.logo_url, None);
+	}
+
+	#[test]
+	fn a_required_secret_header_answers_the_key_case_naming_it() {
+		let application = described(a_remote_asking_a_required_secret_header());
+
+		assert_eq!(
+			application.install,
+			Install::Key {
+				fields: vec![InstallField {
+					name: "Authorization".to_owned(),
+					secret: "AUTHORIZATION".to_owned(),
+					description: Some("Bearer token for Smithery authentication".to_owned()),
+				}],
+			}
+		);
+		assert_eq!(
+			application.config,
+			json!({
+				"type": "http",
+				"url": "https://server.smithery.test/notion/mcp",
+				"headers": { "Authorization": "Bearer ${AUTHORIZATION}" },
+			})
+		);
+		assert_eq!(application.title, "ai.smithery/smithery-notion");
+	}
+
+	#[test]
+	fn a_required_secret_header_answers_the_key_case_whatever_its_declared_value() {
+		let application = described(json!({
+			"name": "io.test/fixed",
+			"remotes": [{
+				"type": "streamable-http",
+				"url": "https://fixed.test/mcp",
+				"headers": [{ "name": "X-Api-Key", "isRequired": true, "isSecret": true, "value": "fixed" }],
+			}],
+		}));
+
+		assert!(
+			matches!(application.install, Install::Key { .. }),
+			"got {:?}",
+			application.install
+		);
+		assert_eq!(application.config["headers"], json!({ "X-Api-Key": "${X_API_KEY}" }));
+	}
+
+	fn a_remote_declaring(header: Value) -> Application {
+		described(json!({
+			"name": "ai.bowmark/bowmark",
+			"remotes": [{
+				"type": "streamable-http",
+				"url": "https://bowmark.test/mcp",
+				"headers": [header],
+			}],
+		}))
+	}
+
+	#[test]
+	fn a_header_value_carrying_a_placeholder_answers_the_key_case_without_any_flag() {
+		let application =
+			a_remote_declaring(json!({ "name": "Authorization", "value": "Bearer {api_key}" }));
+
+		assert_eq!(
+			application.install,
+			Install::Key {
+				fields: vec![InstallField {
+					name: "Authorization".to_owned(),
+					secret: "AUTHORIZATION".to_owned(),
+					description: None,
+				}],
+			}
+		);
+		assert_eq!(
+			application.config["headers"],
+			json!({ "Authorization": "Bearer ${AUTHORIZATION}" })
+		);
+	}
+
+	fn a_remote_declaring_headers(headers: Value) -> Application {
+		described(json!({
+			"name": "io.test/headed",
+			"remotes": [{
+				"type": "streamable-http",
+				"url": "https://headed.test/mcp",
+				"headers": headers,
+			}],
+		}))
+	}
+
+	#[test]
+	fn a_header_neither_required_secret_nor_filled_is_left_out_beside_an_asked_header() {
+		let application = a_remote_declaring_headers(json!([
+			{ "name": "Authorization", "isRequired": true, "isSecret": true },
+			{ "name": "X-Trace", "isSecret": true },
+		]));
+
+		assert_eq!(application.config["headers"], json!({ "Authorization": "${AUTHORIZATION}" }));
+	}
+
+	#[test]
+	fn a_plain_text_header_value_is_served_verbatim_beside_an_asked_header() {
+		let application = a_remote_declaring_headers(json!([
+			{ "name": "Authorization", "isRequired": true, "isSecret": true },
+			{ "name": "X-Client", "value": "kiroshi" },
+		]));
+
+		assert_eq!(
+			application.config["headers"],
+			json!({ "Authorization": "${AUTHORIZATION}", "X-Client": "kiroshi" })
+		);
+		let Install::Key { fields } = &application.install else {
+			panic!("got {:?}", application.install);
+		};
+		assert_eq!(fields.len(), 1);
+		assert_eq!(fields[0].name, "Authorization");
+	}
+
+	#[test]
+	fn a_required_plain_header_is_asked_for_and_serves_its_reference() {
+		let application = a_remote_declaring_headers(json!([
+			{ "name": "X-Account", "isRequired": true, "description": "The account." },
+		]));
+
+		assert_eq!(
+			application.install,
+			Install::Key {
+				fields: vec![InstallField {
+					name: "X-Account".to_owned(),
+					secret: "X_ACCOUNT".to_owned(),
+					description: Some("The account.".to_owned()),
+				}],
+			}
+		);
+		assert_eq!(application.config["headers"], json!({ "X-Account": "${X_ACCOUNT}" }));
+	}
+
+	#[test]
+	fn a_static_header_value_without_any_flag_answers_oauth_and_writes_no_header() {
+		let application = a_remote_declaring(json!({ "name": "X-Client", "value": "kiroshi" }));
+
+		assert_eq!(application.install, Install::Oauth);
+		assert!(application.config.get("headers").is_none(), "got {}", application.config);
+	}
+
+	#[test]
+	fn a_required_plain_variable_carrying_a_default_serves_that_default_and_asks_for_nothing() {
+		let application = an_npm_package_declaring(json!([
+			{ "name": "ALLOWED_ROOT", "isRequired": true, "default": "/srv/data" },
+			{ "name": "LOG_LEVEL", "isRequired": false },
+		]));
+
+		assert_eq!(application.install, Install::Nothing);
+		assert_eq!(
+			application.config,
+			json!({
+				"type": "stdio",
+				"command": "npx",
+				"args": ["-y", "@digital-defiance/mcp-filesystem"],
+				"env": { "ALLOWED_ROOT": "/srv/data" },
+			})
+		);
+	}
+
+	#[test]
+	fn a_required_plain_variable_carrying_no_default_is_asked_for_and_serves_its_reference() {
+		let application = an_npm_package_declaring(json!([
+			{ "name": "ALLOWED_ROOT", "isRequired": true, "description": "The served root." },
+		]));
+
+		assert_eq!(
+			application.install,
+			Install::Key {
+				fields: vec![InstallField {
+					name: "ALLOWED_ROOT".to_owned(),
+					secret: "ALLOWED_ROOT".to_owned(),
+					description: Some("The served root.".to_owned()),
+				}],
+			}
+		);
+		assert_eq!(application.config["env"], json!({ "ALLOWED_ROOT": "${ALLOWED_ROOT}" }));
+	}
+
+	#[test]
+	fn a_default_that_is_a_number_reads_as_absent_and_the_entry_still_describes() {
+		let application = an_npm_package_declaring(json!([
+			{ "name": "PORT", "isRequired": true, "default": 8080 },
+			{ "name": "DEBUG", "default": false },
+		]));
+
+		assert_eq!(application.name, "io.github.Digital-Defiance/mcp-filesystem");
+		assert!(
+			matches!(application.install, Install::Key { .. }),
+			"got {:?}",
+			application.install
+		);
+		assert_eq!(application.config["env"], json!({ "PORT": "${PORT}" }));
+	}
+
+	#[test]
+	fn a_secret_header_whose_requirement_is_absent_answers_oauth() {
+		let application = described(json!({
+			"name": "io.github.github/github-mcp-server",
+			"description": "GitHub.",
+			"remotes": [{
+				"type": "streamable-http",
+				"url": "https://api.github.test/mcp/",
+				"headers": [{ "name": "Authorization", "isSecret": true }],
+			}],
+		}));
+
+		assert_eq!(application.install, Install::Oauth);
+		assert_eq!(
+			application.config,
+			json!({ "type": "http", "url": "https://api.github.test/mcp/" })
+		);
+		assert!(application.config.get("headers").is_none());
+	}
+
+	#[test]
+	fn every_required_variable_is_asked_for_in_order_and_an_optional_one_is_left_out() {
+		let application = described(json!({
+			"name": "io.test/keyed",
+			"packages": [{
+				"registryType": "npm",
+				"identifier": "keyed-mcp",
+				"environmentVariables": [
+					{ "name": "OPTIONAL_TOKEN", "isSecret": true },
+					{ "name": "api-key", "isRequired": true, "isSecret": true, "description": "The key." },
+					{ "name": "OTHER_KEY", "isRequired": true, "isSecret": true },
+				],
+			}],
+		}));
+
+		assert_eq!(
+			application.install,
+			Install::Key {
+				fields: vec![
+					InstallField {
+						name: "api-key".to_owned(),
+						secret: "API_KEY".to_owned(),
+						description: Some("The key.".to_owned()),
+					},
+					InstallField {
+						name: "OTHER_KEY".to_owned(),
+						secret: "OTHER_KEY".to_owned(),
+						description: None,
+					},
+				],
+			}
+		);
+		assert_eq!(
+			application.config["env"],
+			json!({ "api-key": "${API_KEY}", "OTHER_KEY": "${OTHER_KEY}" })
+		);
+	}
+
+	#[test]
+	fn every_required_secret_header_is_asked_for_and_every_placeholder_is_resolved() {
+		let application = described(json!({
+			"name": "io.test/two-headers",
+			"remotes": [{
+				"type": "streamable-http",
+				"url": "https://two.test/mcp",
+				"headers": [
+					{
+						"name": "Authorization",
+						"description": "The key.",
+						"isRequired": true,
+						"isSecret": true,
+						"value": "Bearer {api_key}",
+					},
+					{ "name": "X-Tenant", "isRequired": true, "isSecret": true },
+				],
+			}],
+		}));
+
+		assert_eq!(
+			application.install,
+			Install::Key {
+				fields: vec![
+					InstallField {
+						name: "Authorization".to_owned(),
+						secret: "AUTHORIZATION".to_owned(),
+						description: Some("The key.".to_owned()),
+					},
+					InstallField {
+						name: "X-Tenant".to_owned(),
+						secret: "X_TENANT".to_owned(),
+						description: None,
+					},
+				],
+			}
+		);
+		assert_eq!(
+			application.config["headers"],
+			json!({ "Authorization": "Bearer ${AUTHORIZATION}", "X-Tenant": "${X_TENANT}" })
+		);
+	}
+
+	#[test]
+	fn two_required_headers_answering_one_variable_refuse_the_install_and_keep_the_config() {
+		let application = described(json!({
+			"name": "io.test/collapsed",
+			"remotes": [{
+				"type": "streamable-http",
+				"url": "https://collapsed.test/mcp",
+				"headers": [
+					{ "name": "api-key", "isRequired": true, "isSecret": true },
+					{ "name": "api_key", "isRequired": true, "isSecret": true },
+				],
+			}],
+		}));
+
+		let Install::Refused(refusal) = &application.install else {
+			panic!("got {:?}", application.install);
+		};
+		assert_eq!(refusal.field, "api_key");
+		assert!(refusal.reason.contains("api-key"), "got {}", refusal.reason);
+		assert!(refusal.reason.contains("api_key"), "got {}", refusal.reason);
+		assert!(refusal.reason.contains("API_KEY"), "got {}", refusal.reason);
+		assert_eq!(
+			application.config,
+			json!({
+				"type": "http",
+				"url": "https://collapsed.test/mcp",
+				"headers": { "api-key": "${API_KEY}", "api_key": "${API_KEY}" },
+			})
+		);
+	}
+
+	#[test]
+	fn the_first_icon_answers_the_logo_url_and_the_repository_reads_down_to_its_name() {
+		let server: Server = serde_json::from_value(json!({
+			"name": "com.notion/mcp",
+			"remotes": [{ "type": "streamable-http", "url": "https://mcp.notion.test/mcp" }],
+			"icons": [
+				{ "src": "https://icons.test/notion.png" },
+				{ "src": "https://icons.test/notion.svg" },
+			],
+			"repository": { "url": "https://github.com/Owner/Notion.git", "source": "github" },
+		}))
+		.expect("the fixture is a server.json");
+
+		let listing = descriptor(server).expect("the fixture offers a transport");
+
+		assert_eq!(listing.application.logo_url.as_deref(), Some("https://icons.test/notion.png"));
+		assert_eq!(listing.repository.as_deref(), Some("github.com/owner/notion"));
+	}
+
+	#[test]
+	fn streamable_http_is_preferred_over_sse_and_sse_over_npm() {
+		let npm = json!({ "registryType": "npm", "identifier": "an-mcp" });
+		let sse = json!({ "type": "sse", "url": "https://sse.test/mcp" });
+		let streamable = json!({ "type": "streamable-http", "url": "https://streamable.test/mcp" });
+
+		let every =
+			described(json!({ "name": "a", "remotes": [sse, streamable], "packages": [npm] }));
+		let no_streamable = described(json!({ "name": "a", "remotes": [sse], "packages": [npm] }));
+		let package_only = described(json!({ "name": "a", "packages": [npm] }));
+
+		assert_eq!(every.config["url"], "https://streamable.test/mcp");
+		assert_eq!(no_streamable.config, json!({ "type": "http", "url": "https://sse.test/mcp" }));
+		assert_eq!(package_only.config["command"], "npx");
+	}
+
+	#[test]
+	fn an_entry_offering_none_of_the_three_is_left_out() {
+		let server: Server = serde_json::from_value(json!({
+			"name": "io.test/pypi-only",
+			"remotes": [{ "type": "websocket", "url": "wss://ws.test/mcp" }],
+			"packages": [{ "registryType": "pypi", "identifier": "an-mcp" }],
+		}))
+		.expect("the fixture is a server.json");
+
+		assert!(descriptor(server).is_none());
+	}
+
+	pub(crate) struct Held {
+		list_status: StatusCode,
+		list_body: Option<Value>,
+		listed: Vec<&'static str>,
+		details: HashMap<String, Value>,
+		pub(crate) asked: Mutex<Vec<String>>,
+		pub(crate) detailed: Mutex<Vec<String>>,
+	}
+
+	pub(crate) async fn unreached() -> String {
+		let listener =
+			tokio::net::TcpListener::bind((Ipv4Addr::LOCALHOST, 0)).await.expect("a port binds");
+		let address = listener.local_addr().expect("the port is named");
+		drop(listener);
+		format!("http://{address}")
+	}
+
+	pub(crate) async fn serving(held: Held) -> (String, Arc<Held>) {
+		let held = Arc::new(held);
+		let listener =
+			tokio::net::TcpListener::bind((Ipv4Addr::LOCALHOST, 0)).await.expect("the stub binds");
+		let address: SocketAddr = listener.local_addr().expect("the stub is named");
+		let router = Router::new()
+			.route("/v0.1/servers", get(list_of))
+			.route("/v0.1/servers/{name}/versions/latest", get(detail_of))
+			.with_state(held.clone());
+		tokio::spawn(async move { axum::serve(listener, router).await.expect("the stub serves") });
+		(format!("http://{address}"), held)
+	}
+
+	impl Held {
+		pub(crate) fn also(mut self, detail: Value) -> Self {
+			let name = detail["name"].as_str().expect("named").to_owned();
+			self.details.insert(name, detail);
+			self
+		}
+
+		fn served(&self, name: &str) -> Value {
+			self.details.get(name).cloned().unwrap_or_else(|| json!({ "name": name }))
+		}
+	}
+
+	async fn list_of(Extracted(held): Extracted<Arc<Held>>, uri: Uri) -> Answered {
+		held.asked.lock().expect("the stub records").push(uri.to_string());
+		if held.list_status != StatusCode::OK {
+			return held.list_status.into_response();
+		}
+		if let Some(body) = &held.list_body {
+			return as_json(body);
+		}
+		let servers: Vec<Value> =
+			held.listed.iter().map(|name| json!({ "server": held.served(name) })).collect();
+		as_json(&json!({ "servers": servers, "metadata": { "count": servers.len() } }))
+	}
+
+	async fn detail_of(
+		Extracted(held): Extracted<Arc<Held>>,
+		AxumPath(name): AxumPath<String>,
+	) -> Answered {
+		held.detailed.lock().expect("the stub records").push(name.clone());
+		match held.details.get(&name) {
+			Some(detail) => as_json(&json!({ "server": detail })),
+			None if held.listed.contains(&name.as_str()) => {
+				StatusCode::INTERNAL_SERVER_ERROR.into_response()
+			}
+			None => StatusCode::NOT_FOUND.into_response(),
+		}
+	}
+
+	fn as_json(held: &Value) -> Answered {
+		Answered::builder()
+			.status(StatusCode::OK)
+			.header(reqwest::header::CONTENT_TYPE, "application/json")
+			.body(axum::body::Body::from(held.to_string()))
+			.expect("the stub answers with a body")
+	}
+
+	pub(crate) fn holding(listed: Vec<&'static str>) -> Held {
+		let package =
+			an_npm_package_entry(json!([{ "name": "ALLOWED_ROOT", "default": "/srv/data" }]));
+		let details = [a_remote_without_headers(), package]
+			.into_iter()
+			.map(|detail| (detail["name"].as_str().expect("named").to_owned(), detail))
+			.collect();
+		Held {
+			list_status: StatusCode::OK,
+			list_body: None,
+			listed,
+			details,
+			asked: Mutex::new(Vec::new()),
+			detailed: Mutex::new(Vec::new()),
+		}
+	}
+
+	#[tokio::test]
+	async fn a_search_builds_every_application_from_the_one_list_answer() {
+		let (base, held) =
+			serving(holding(vec!["com.notion/mcp", "io.github.Digital-Defiance/mcp-filesystem"]))
+				.await;
+
+		let found = search(&base, "notion files").await.expect("the search answers");
+
+		let names: Vec<&str> = found.iter().map(|held| held.application.name.as_str()).collect();
+		assert_eq!(names, ["com.notion/mcp", "io.github.Digital-Defiance/mcp-filesystem"]);
+		assert_eq!(found[0].application.install, Install::Oauth);
+		assert_eq!(found[1].application.install, Install::Nothing);
+		let asked = held.asked.lock().expect("the stub records").clone();
+		assert_eq!(asked, ["/v0.1/servers?search=notion+files&limit=10&version=latest"]);
+		assert!(held.detailed.lock().expect("the stub records").is_empty(), "a detail was read");
+	}
+
+	#[tokio::test]
+	async fn a_row_offering_no_transport_is_left_out_and_the_rows_around_it_answered() {
+		let (base, _) = serving(holding(vec![
+			"com.notion/mcp",
+			BROKEN,
+			"io.github.Digital-Defiance/mcp-filesystem",
+		]))
+		.await;
+
+		let found = search(&base, "notion files").await.expect("the search answers");
+
+		let names: Vec<&str> = found.iter().map(|held| held.application.name.as_str()).collect();
+		assert_eq!(names, ["com.notion/mcp", "io.github.Digital-Defiance/mcp-filesystem"]);
+	}
+
+	#[tokio::test]
+	async fn a_server_listed_twice_is_answered_once_at_the_rank_of_its_first_row() {
+		let (base, _) = serving(holding(vec![
+			"com.notion/mcp",
+			"io.github.Digital-Defiance/mcp-filesystem",
+			"com.notion/mcp",
+		]))
+		.await;
+
+		let found = search(&base, "notion").await.expect("the search answers");
+
+		let names: Vec<&str> = found.iter().map(|held| held.application.name.as_str()).collect();
+		assert_eq!(names, ["com.notion/mcp", "io.github.Digital-Defiance/mcp-filesystem"]);
+	}
+
+	#[tokio::test]
+	async fn a_list_whose_every_row_carries_no_transport_answers_an_empty_list_and_no_error() {
+		let (base, _) = serving(holding(vec![BROKEN, "io.test/also-broken"])).await;
+
+		assert!(search(&base, "broken").await.expect("the search answers").is_empty());
+	}
+
+	#[tokio::test]
+	async fn a_list_body_that_is_not_a_list_of_servers_answers_the_unreadable_case() {
+		let mut garbled = holding(vec!["com.notion/mcp"]);
+		garbled.list_body = Some(json!({ "servers": "none" }));
+		let (base, _) = serving(garbled).await;
+
+		let answered = search(&base, "notion").await.err();
+
+		assert!(
+			matches!(answered, Some(ApplicationsError::RegistryUnreadable { .. })),
+			"got {answered:?}"
+		);
+	}
+
+	#[tokio::test]
+	async fn a_query_matching_nothing_answers_an_empty_list() {
+		let (base, _) = serving(holding(Vec::new())).await;
+
+		assert!(search(&base, "nothing").await.expect("the search answers").is_empty());
+	}
+
+	#[tokio::test]
+	async fn a_refused_list_answers_an_error_and_not_an_empty_list() {
+		let mut refusing = holding(vec!["com.notion/mcp"]);
+		refusing.list_status = StatusCode::SERVICE_UNAVAILABLE;
+		let (base, _) = serving(refusing).await;
+
+		assert_eq!(
+			search(&base, "notion").await.err(),
+			Some(ApplicationsError::RegistryRefused { status: 503 })
+		);
+	}
+
+	#[tokio::test]
+	async fn an_unreached_registry_answers_an_error_and_not_an_empty_list() {
+		let listener =
+			tokio::net::TcpListener::bind((Ipv4Addr::LOCALHOST, 0)).await.expect("a port binds");
+		let address = listener.local_addr().expect("the port is named");
+		drop(listener);
+
+		let answered = search(&format!("http://{address}"), "notion").await.err();
+
+		assert!(
+			matches!(answered, Some(ApplicationsError::RegistryUnreached { .. })),
+			"got {answered:?}"
+		);
+	}
+}

@@ -252,6 +252,8 @@ impl From<InstallDraft> for ApplicationInstalled {
 #[serde(rename_all = "camelCase")]
 pub struct ApplicationSearch {
 	pub applications: Vec<Application>,
+	#[serde(skip_serializing_if = "Option::is_none")]
+	pub registry_failure: Option<ApplicationsError>,
 }
 
 #[derive(Debug, Clone, PartialEq, Eq, Serialize)]
