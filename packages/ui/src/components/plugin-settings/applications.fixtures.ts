@@ -255,6 +255,7 @@ export const REFUSED_APPLICATION = {
 
 export const REFUSED_INSTALL: InstallableApplication = {
 	...REFUSED_APPLICATION,
+	host: "queried.run.tools",
 	tools: ["search_records", "read_record"],
 	refusal: {
 		field: "apiKey",

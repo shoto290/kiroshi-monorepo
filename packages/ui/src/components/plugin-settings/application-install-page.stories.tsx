@@ -205,11 +205,11 @@ export const Refused = meta.story({
 		docs: {
 			description: {
 				story:
-					"An application Kiroshi refuses to add, because the key it asks for would travel in its url. Check the destructive notice naming the application and the field it refused, that no install action sits anywhere on the page and no empty bordered cell is left where it sat, and that the way back to the catalogue is still one press away.",
+					"An application Kiroshi refuses to add, because the key it asks for would travel in the url of the host running it. Check the destructive notice naming the application and the field it refused, the hosting fact and the fine print speaking for its source rather than this machine, that no install action sits anywhere on the page and no empty bordered cell is left where it sat, and that the way back to the catalogue is still one press away.",
 			},
 		},
 	},
-	play: async ({ args, canvas, userEvent }) => {
+	play: async ({ args, canvas, canvasElement, userEvent }) => {
 		await expect(canvas.getByText("Kiroshi can’t add Queried")).toBeVisible()
 
 		const sentence = canvas.getByText(/^It can’t be added from here/)
@@ -225,6 +225,18 @@ export const Refused = meta.story({
 			canvas.queryByRole("button", { name: "Add and sign in" }),
 		).not.toBeInTheDocument()
 
+		const [hosting] = [
+			...canvasElement.querySelectorAll('[data-slot="application-fact"]'),
+		]
+		await expect(hosting).toHaveTextContent(
+			"Runs on queried.run.tools, not on this machine.",
+		)
+		await expect(
+			canvas.getByText(
+				/This one runs on Smithery’s server, not on your machine\. Adding it reopens Rei’s session/,
+			),
+		).toBeVisible()
+
 		const grid = canvas.getByRole("tabpanel").parentElement as HTMLElement
 		await expect(grid.children).toHaveLength(2)
 
@@ -232,6 +244,31 @@ export const Refused = meta.story({
 			canvas.getByRole("button", { name: "All applications" }),
 		)
 		await expect(args.onBack).toHaveBeenCalledTimes(1)
+	},
+})
+
+export const RefusedWithoutReason = meta.story({
+	args: { application: { ...REFUSED_INSTALL, refusal: undefined } },
+	tags: ["test-only"],
+	parameters: {
+		docs: {
+			description: {
+				story:
+					"A refusal a descriptor states without saying why, which the backend never answers today. Check that the notice stands on its title alone, with no empty sentence and no empty block above the hosting fact.",
+			},
+		},
+	},
+	play: async ({ canvas, canvasElement }) => {
+		const notice = canvas.getByText("Kiroshi can’t add Queried")
+
+		await expect(notice).toBeVisible()
+		await expect(notice.parentElement?.children).toHaveLength(1)
+		await expect(
+			canvas.queryByText(/It can’t be added from here/),
+		).not.toBeInTheDocument()
+		await expect(
+			canvasElement.querySelectorAll('[data-slot="application-fact"]'),
+		).toHaveLength(1)
 	},
 })
 

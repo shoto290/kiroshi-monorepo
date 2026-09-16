@@ -299,7 +299,7 @@ const UnreviewedNotice = ({
 
 type RefusedNoticeProps = {
 	name: string
-	refusal: ApplicationRefusal
+	refusal?: ApplicationRefusal
 }
 
 const RefusedNotice = ({ name, refusal }: RefusedNoticeProps) => {
@@ -320,11 +320,13 @@ const RefusedNotice = ({ name, refusal }: RefusedNoticeProps) => {
 				<p className="wrap-break-word font-medium text-foreground text-sm/5">
 					{t("applications.install.unavailable.title", { name })}
 				</p>
-				<p className="wrap-break-word text-[13px]/4.5 text-muted-foreground">
-					{t("applications.install.unavailable.description", {
-						reason: refusal.reason,
-					})}
-				</p>
+				{refusal ? (
+					<p className="wrap-break-word text-[13px]/4.5 text-muted-foreground">
+						{t("applications.install.unavailable.description", {
+							reason: refusal.reason,
+						})}
+					</p>
+				) : null}
 			</div>
 		</div>
 	)
@@ -484,9 +486,7 @@ const ApplicationInstallPage = ({
 		}
 
 		if (isRefused) {
-			return refusal ? (
-				<RefusedNotice name={application.name} refusal={refusal} />
-			) : null
+			return <RefusedNotice name={application.name} refusal={refusal} />
 		}
 
 		return host === undefined ? <SignInNotice name={application.name} /> : null
