@@ -227,13 +227,11 @@ const storedValues = ({ base, perServer }: ServerEnv): string[] =>
 const withoutQuery = (reason: string): string =>
 	reason.replace(URL_PAST_ITS_PATH, "$1")
 
+const redacted = (reason: string, secrets: string[]): string =>
+	secrets.reduce((held, secret) => held.split(secret).join(REDACTED), reason)
+
 const readable = (reason: string, secrets: string[]): string =>
-	secrets
-		.reduce(
-			(held, secret) => held.split(secret).join(REDACTED),
-			withoutQuery(reason),
-		)
-		.slice(0, REASON_LIMIT)
+	redacted(withoutQuery(reason), secrets).slice(0, REASON_LIMIT)
 
 const reachedLine = (name: string): string =>
 	`the server "${name}" connected, and ${HOLDS_TOOLS} for the rest of this session`
