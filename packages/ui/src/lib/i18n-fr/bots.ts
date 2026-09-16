@@ -494,6 +494,7 @@ const bots = {
 				},
 			},
 			none: "Rien à configurer. Elle tourne sur cette machine, sans clé ni connexion.",
+			hostedNone: "Rien à configurer. Ni clé, ni connexion.",
 			hosting: "Tourne sur <host>{{host}}</host>, pas sur cette machine.",
 			unreviewed: {
 				title: "Kiroshi ne l'a pas lue",

@@ -1,4 +1,4 @@
-import { expect } from "storybook/test"
+import { expect, waitFor } from "storybook/test"
 
 import preview from "@workspace/storybook/preview"
 import { slotIn } from "@workspace/storybook/story-utils"
@@ -6,6 +6,7 @@ import { ApplicationMark } from "@workspace/ui/components/plugin-settings/applic
 import {
 	CURATED_APPLICATIONS,
 	DRAWN_MARK,
+	UNREACHABLE_MARK,
 } from "@workspace/ui/components/plugin-settings/applications.fixtures"
 
 const meta = preview.meta({
@@ -49,6 +50,27 @@ export const WithDrawnMark = meta.story({
 	play: async ({ canvasElement }) => {
 		await expect(canvasElement.querySelector("img")).toBeNull()
 		await expect(canvasElement.querySelector("svg")).not.toBeNull()
+	},
+})
+
+export const WithUnreachableMark = meta.story({
+	args: { mark: UNREACHABLE_MARK },
+	parameters: {
+		docs: {
+			description: {
+				story:
+					"A mark whose address answers nothing. The image is dropped for the server glyph on the muted surface, the same slot an application with no mark at all gets.",
+			},
+		},
+	},
+	play: async ({ canvasElement }) => {
+		const slot = slotIn(canvasElement, "application-mark")
+
+		await waitFor(async () => {
+			await expect(slot.querySelector("img")).toBeNull()
+		})
+		await expect(slot.querySelector("svg")).not.toBeNull()
+		await expect(slot).toHaveClass("bg-muted", "text-muted-foreground")
 	},
 })
 

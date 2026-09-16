@@ -34,7 +34,7 @@ const curatedCardOf = (id: string): ApplicationInstallProps["application"] => {
 		name: application.id,
 		displayName: application.name,
 		mark: application.mark,
-		description: application.description,
+		description: application.description ?? "",
 		status: application.setup,
 	}
 }

@@ -28,7 +28,7 @@ type ApplicationSetup = "signIn" | "apiKey" | "none"
 type CatalogueApplication = {
 	id: string
 	name: string
-	description: string
+	description?: string
 	setup: ApplicationSetup
 	mark?: string
 	packageIdentity?: string
@@ -141,7 +141,7 @@ const CatalogueRow = ({ application, onPick }: CatalogueRowProps) => {
 			<button
 				className={cn(
 					ROW_SHELL_CLASS,
-					"cursor-pointer text-start outline-none hover:bg-muted focus-visible:ring-2 focus-visible:ring-ring",
+					"group cursor-pointer text-start outline-none hover:bg-muted focus-visible:ring-2 focus-visible:ring-ring",
 				)}
 				onClick={onPick}
 				type="button"

@@ -31,8 +31,7 @@ type ApplicationPublication = {
 	publishedAt: string
 }
 
-type InstallableApplication = Omit<CatalogueApplication, "description"> & {
-	description?: string
+type InstallableApplication = CatalogueApplication & {
 	packageIdentity: string
 	tools: string[]
 	canWrite?: boolean
@@ -47,25 +46,34 @@ const NOTICE_SENTENCE_CLASS =
 const ownerNameOf = (owner: ApplicationsOwner) =>
 	owner.kind === "profile" ? "" : owner.name
 
+type FactTone = "muted" | "attention" | "done"
+
+const FACT_TONE = {
+	muted: { glyph: "text-muted-foreground", sentence: "text-muted-foreground" },
+	attention: { glyph: "text-bot-badge-attention", sentence: "text-foreground" },
+	done: { glyph: "text-state-connected", sentence: "text-muted-foreground" },
+} as const satisfies Record<FactTone, { glyph: string; sentence: string }>
+
 type FactLineProps = {
 	icon: Icon
 	children: ReactNode
-	isAttention?: boolean
+	tone?: FactTone
 }
 
-const FactLine = ({ icon: LineIcon, children, isAttention }: FactLineProps) => (
-	<p className="flex items-center gap-1.75" data-slot="application-fact">
+const FactLine = ({
+	icon: LineIcon,
+	children,
+	tone = "muted",
+}: FactLineProps) => (
+	<p className="flex items-start gap-1.75" data-slot="application-fact">
 		<LineIcon
 			aria-hidden="true"
-			className={cn(
-				"size-3.75 shrink-0",
-				isAttention ? "text-bot-badge-attention" : "text-muted-foreground",
-			)}
+			className={cn("mt-0.5 size-3.75 shrink-0", FACT_TONE[tone].glyph)}
 		/>
 		<span
 			className={cn(
 				"min-w-0 wrap-break-word text-[13px]/4.5",
-				isAttention ? "text-foreground" : "text-muted-foreground",
+				FACT_TONE[tone].sentence,
 			)}
 		>
 			{children}
@@ -89,7 +97,7 @@ const HostedFacts = ({ name, host, setup }: HostedFactsProps) => {
 					{t("applications.install.signIn.fact", { name })}
 				</FactLine>
 			) : null}
-			<FactLine icon={Icons.Cloud} isAttention>
+			<FactLine icon={Icons.Cloud} tone="attention">
 				<Trans
 					components={{ host: <span className="font-mono" /> }}
 					i18nKey="applications.install.hosting"
@@ -218,19 +226,17 @@ const KeyPanel = ({
 	)
 }
 
-const NothingToSetUp = () => {
+type NothingToSetUpProps = {
+	isHosted: boolean
+}
+
+const NothingToSetUp = ({ isHosted }: NothingToSetUpProps) => {
 	const { t } = useTranslation("bots")
 
 	return (
-		<p className="flex items-start gap-1.75">
-			<Icons.Check
-				aria-hidden="true"
-				className="mt-0.5 size-3.75 shrink-0 text-state-connected"
-			/>
-			<span className={NOTICE_SENTENCE_CLASS}>
-				{t("applications.install.none")}
-			</span>
-		</p>
+		<FactLine icon={Icons.Check} tone="done">
+			{t(`applications.install.${isHosted ? "hostedNone" : "none"}`)}
+		</FactLine>
 	)
 }
 
@@ -434,7 +440,9 @@ const ApplicationInstallPage = ({
 			)
 		}
 
-		if (application.setup === "none") return <NothingToSetUp />
+		if (application.setup === "none") {
+			return <NothingToSetUp isHosted={host !== undefined} />
+		}
 
 		return host === undefined ? <SignInNotice name={application.name} /> : null
 	}

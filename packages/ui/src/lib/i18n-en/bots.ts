@@ -483,6 +483,7 @@ const bots = {
 				},
 			},
 			none: "Nothing to set up. It runs on this machine, with no key and no sign-in.",
+			hostedNone: "Nothing to set up. No key, no sign-in.",
 			hosting: "Runs on <host>{{host}}</host>, not on this machine.",
 			unreviewed: {
 				title: "Kiroshi hasn’t read this one",

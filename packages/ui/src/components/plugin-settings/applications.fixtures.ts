@@ -110,7 +110,6 @@ export const REGISTRY_APPLICATIONS: CatalogueApplication[] = [
 	{
 		id: "io.github.kwn/linkboard",
 		name: "linkboard",
-		description: "",
 		setup: "signIn",
 		packageIdentity: "npx -y @kwn/linkboard-mcp",
 	},
@@ -118,7 +117,7 @@ export const REGISTRY_APPLICATIONS: CatalogueApplication[] = [
 
 const SLACK_MARK = markOf("#4a154b", "S")
 
-const UNREACHABLE_MARK = "data:image/png;base64,Tm90QW5JbWFnZQ=="
+export const UNREACHABLE_MARK = "data:image/png;base64,Tm90QW5JbWFnZQ=="
 
 export const REGISTRY_RESULTS: CatalogueApplication[] = [
 	{
@@ -150,11 +149,6 @@ export const REGISTRY_RESULTS: CatalogueApplication[] = [
 		useCount: 806,
 	},
 ]
-
-export const UNREACHABLE_MARK_RESULT: CatalogueApplication = {
-	...REGISTRY_RESULTS[0],
-	mark: UNREACHABLE_MARK,
-}
 
 export const LONG_REGISTRY_RESULT: CatalogueApplication = {
 	...REGISTRY_RESULTS[0],
@@ -243,6 +237,11 @@ export const HOSTED_INSTALL: InstallableApplication = {
 	],
 	canWrite: true,
 	unreviewed: { publisher: "run-tools", publishedAt: "3 weeks ago" },
+}
+
+export const HOSTED_NOTHING_INSTALL: InstallableApplication = {
+	...HOSTED_INSTALL,
+	setup: "none",
 }
 
 export const UNSTATED_REACH_INSTALL: InstallableApplication = {

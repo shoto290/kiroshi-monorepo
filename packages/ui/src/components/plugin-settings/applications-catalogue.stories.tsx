@@ -1,5 +1,5 @@
 import { useState } from "react"
-import { expect, fn, waitFor, within } from "storybook/test"
+import { expect, fn, within } from "storybook/test"
 
 import preview from "@workspace/storybook/preview"
 import {
@@ -9,7 +9,6 @@ import {
 	PUBLISHED_APPLICATION_COUNT,
 	REGISTRY_APPLICATIONS,
 	REGISTRY_RESULTS,
-	UNREACHABLE_MARK_RESULT,
 } from "@workspace/ui/components/plugin-settings/applications.fixtures"
 import {
 	ApplicationsCatalogue,
@@ -424,28 +423,6 @@ export const RegistryResults = meta.story({
 	},
 })
 
-export const RegistryIconUnreachable = meta.story({
-	args: { query: "s", curated: [], registry: [UNREACHABLE_MARK_RESULT] },
-	render: (args) => <ApplicationsCatalogue {...args} />,
-	parameters: {
-		docs: {
-			description: {
-				story:
-					"A result whose icon address answers nothing. Check that the slot falls back to the server glyph on the muted surface rather than leaving a broken image in the row.",
-			},
-		},
-	},
-	play: async ({ canvas, canvasElement }) => {
-		const slot = canvasElement.querySelector('[data-slot="application-mark"]')
-
-		await waitFor(async () => {
-			await expect(slot?.querySelector("img")).toBeNull()
-		})
-		await expect(slot?.querySelector("svg")).not.toBeNull()
-		await expect(canvas.getByText("Slack")).toBeVisible()
-	},
-})
-
 export const RegistryResultTooWide = meta.story({
 	args: { query: "s", curated: [], registry: [LONG_REGISTRY_RESULT] },
 	render: (args) => <ApplicationsCatalogue {...args} />,
@@ -460,7 +437,7 @@ export const RegistryResultTooWide = meta.story({
 	play: async ({ canvas }) => {
 		const [row] = canvas.getAllByRole("listitem")
 		const name = within(row).getByText(LONG_REGISTRY_RESULT.name)
-		const description = within(row).getByText(LONG_REGISTRY_RESULT.description)
+		const description = within(row).getByText(/Reads every channel/)
 
 		for (const part of [name, description]) {
 			await expect(part.scrollWidth).toBeGreaterThan(part.clientWidth)
@@ -469,5 +446,36 @@ export const RegistryResultTooWide = meta.story({
 			).toBeLessThan(24)
 		}
 		await expect(row.scrollWidth).toBeLessThanOrEqual(row.clientWidth)
+	},
+})
+
+export const RegistryResultHovered = meta.story({
+	args: { query: "s", curated: [], registry: REGISTRY_RESULTS },
+	render: (args) => <ApplicationsCatalogue {...args} />,
+	parameters: {
+		docs: {
+			description: {
+				story:
+					"The pill against the row it sits in. At rest the row carries no surface of its own and the pill carries the muted one E4c draws. Under the pointer the row takes that same muted surface, so the pill leaves it for the page surface and keeps reading as a pill. The test browser places no real pointer, so the hovered pair is read off the classes that draw it; hover the row in Storybook to see it.",
+			},
+		},
+	},
+	play: async ({ canvas, userEvent }) => {
+		const [row] = canvas.getAllByRole("listitem")
+		const pill = within(row).getByText("Verified")
+		const button = within(row).getByRole("button")
+
+		await expect(getComputedStyle(button).backgroundColor).toBe(
+			"rgba(0, 0, 0, 0)",
+		)
+		await expect(getComputedStyle(pill).backgroundColor).not.toBe(
+			getComputedStyle(button).backgroundColor,
+		)
+
+		await expect(button).toHaveClass("group", "hover:bg-muted")
+		await expect(pill).toHaveClass("bg-muted", "group-hover:bg-background")
+
+		await userEvent.hover(button)
+		await expect(pill).toBeVisible()
 	},
 })

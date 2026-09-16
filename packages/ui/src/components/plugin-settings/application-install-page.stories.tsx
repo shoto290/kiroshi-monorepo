@@ -10,6 +10,7 @@ import {
 	API_KEY_INSTALL,
 	CATALOGUE_CATEGORIES,
 	HOSTED_INSTALL,
+	HOSTED_NOTHING_INSTALL,
 	LONG_INSTALL,
 	REGISTRY_INSTALL,
 	SIGN_IN_INSTALL,
@@ -432,5 +433,77 @@ export const RunsOnItsHost = meta.story({
 				/This one runs on Smithery’s server, not on your machine\. Adding it reopens Rei’s session/,
 			),
 		).toBeVisible()
+	},
+})
+
+export const HostedNothingToSetUp = meta.story({
+	args: { application: HOSTED_NOTHING_INSTALL },
+	parameters: {
+		docs: {
+			description: {
+				story:
+					"A hosted application that asks for neither a key nor a sign-in. Check that where it runs is stated once, in the hosting fact, and that the nothing-to-set-up line no longer claims this machine.",
+			},
+		},
+	},
+	play: async ({ canvas, canvasElement }) => {
+		await expect(
+			canvas.getByText("Nothing to set up. No key, no sign-in."),
+		).toBeVisible()
+		await expect(
+			canvas.queryByText(/runs on this machine/),
+		).not.toBeInTheDocument()
+
+		const facts = [
+			...canvasElement.querySelectorAll('[data-slot="application-fact"]'),
+		]
+		await expect(facts).toHaveLength(2)
+		await expect(facts[1]).toHaveTextContent(
+			"Runs on slack.run.tools, not on this machine.",
+		)
+	},
+})
+
+export const NarrowHostedColumn = meta.story({
+	args: { application: HOSTED_INSTALL },
+	decorators: [
+		(Story) => (
+			<div className="flex h-[34rem] w-[33rem] overflow-hidden">
+				<Story />
+			</div>
+		),
+	],
+	parameters: {
+		docs: {
+			description: {
+				story:
+					"The hosted page in a column narrowed to 320px, where both sentences wrap. Check that each fact keeps its glyph level with the first line of its sentence, and that nothing overflows the column sideways.",
+			},
+		},
+	},
+	play: async ({ canvas, canvasElement }) => {
+		const body = canvas.getByRole("tabpanel")
+		const grid = body.parentElement as HTMLElement
+		await expect(Math.round(grid.getBoundingClientRect().width)).toBe(320)
+
+		const facts = [
+			...canvasElement.querySelectorAll('[data-slot="application-fact"]'),
+		]
+		await expect(facts).toHaveLength(2)
+
+		for (const fact of facts) {
+			const glyph = fact.querySelector("svg") as SVGElement
+			const sentence = fact.lastElementChild as HTMLElement
+			await expect(sentence.getBoundingClientRect().height).toBeGreaterThan(20)
+			await expect(
+				glyph.getBoundingClientRect().top -
+					sentence.getBoundingClientRect().top,
+			).toBeLessThan(6)
+			await expect(fact.scrollWidth).toBeLessThanOrEqual(fact.clientWidth)
+		}
+
+		for (const element of [grid, ...grid.children]) {
+			await expect(element.scrollWidth).toBeLessThanOrEqual(element.clientWidth)
+		}
 	},
 })
