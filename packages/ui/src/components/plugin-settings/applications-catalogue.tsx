@@ -38,6 +38,14 @@ type ApplicationCategory = {
 
 const UNKNOWN_COUNT = "\u2014"
 
+const CARD_SLOT_CLASS = "flex w-46.5 shrink-0"
+
+const CARD_SHELL_CLASS =
+	"flex w-full min-w-0 flex-col gap-2 rounded-xl border border-border p-3"
+
+const ROW_SHELL_CLASS =
+	"flex w-full min-w-0 items-center gap-2.5 rounded-lg border border-border px-3 py-2"
+
 const SETUP_ICON = {
 	signIn: Icons.ExternalLink,
 	apiKey: Icons.Key,
@@ -54,9 +62,12 @@ const CatalogueCard = ({ application, onPick }: CatalogueCardProps) => {
 	const SetupIcon = SETUP_ICON[application.setup]
 
 	return (
-		<li className="flex w-46.5 shrink-0">
+		<li className={CARD_SLOT_CLASS}>
 			<button
-				className="flex w-full min-w-0 cursor-pointer flex-col gap-2 rounded-xl border border-border p-3 text-start outline-none hover:bg-muted focus-visible:ring-2 focus-visible:ring-ring"
+				className={cn(
+					CARD_SHELL_CLASS,
+					"cursor-pointer text-start outline-none hover:bg-muted focus-visible:ring-2 focus-visible:ring-ring",
+				)}
 				onClick={onPick}
 				type="button"
 			>
@@ -118,7 +129,10 @@ const CatalogueRow = ({ application, onPick }: CatalogueRowProps) => {
 	return (
 		<li className="flex">
 			<button
-				className="flex w-full min-w-0 cursor-pointer items-center gap-2.5 rounded-lg border border-border px-3 py-2 text-start outline-none hover:bg-muted focus-visible:ring-2 focus-visible:ring-ring"
+				className={cn(
+					ROW_SHELL_CLASS,
+					"cursor-pointer text-start outline-none hover:bg-muted focus-visible:ring-2 focus-visible:ring-ring",
+				)}
 				onClick={onPick}
 				type="button"
 			>
@@ -146,9 +160,7 @@ const CatalogueRow = ({ application, onPick }: CatalogueRowProps) => {
 	)
 }
 
-type CatalogueRowsProps = CatalogueCardsProps
-
-const CatalogueRows = ({ applications, onPick }: CatalogueRowsProps) => (
+const CatalogueRows = ({ applications, onPick }: CatalogueCardsProps) => (
 	<ul className="flex list-none flex-col gap-3 p-0">
 		{applications.map((application) => (
 			<CatalogueRow
@@ -187,11 +199,11 @@ const CatalogueCardSkeletons = () => (
 	<ul aria-hidden="true" className="flex list-none flex-wrap gap-3 p-0">
 		{CARD_SKELETONS.map((rank) => (
 			<li
-				className="flex w-46.5 shrink-0"
+				className={CARD_SLOT_CLASS}
 				data-slot="catalogue-card-skeleton"
 				key={rank}
 			>
-				<div className="flex w-full flex-col gap-2 rounded-xl border border-border p-3">
+				<div className={CARD_SHELL_CLASS}>
 					<div className="flex items-center gap-2.5">
 						<SkeletonMark />
 						<SkeletonBar className="h-3 w-16.5" />
@@ -214,7 +226,7 @@ const CatalogueRowSkeletons = () => (
 	<ul aria-hidden="true" className="flex list-none flex-col gap-3 p-0">
 		{ROW_SKELETONS.map((rank) => (
 			<li className="flex" data-slot="catalogue-row-skeleton" key={rank}>
-				<div className="flex w-full min-w-0 items-center gap-2.5 rounded-lg border border-border px-3 py-2">
+				<div className={ROW_SHELL_CLASS}>
 					<SkeletonMark />
 					<div className="flex min-w-0 flex-1 flex-col gap-1.5">
 						<SkeletonBar className="h-2.75 w-33" />
