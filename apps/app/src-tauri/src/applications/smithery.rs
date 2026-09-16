@@ -120,31 +120,50 @@ struct Served {
 }
 
 pub async fn search(base: &str, query: &str) -> Result<Vec<Application>, ApplicationsError> {
+	if query.trim().is_empty() {
+		return offered(base).await;
+	}
 	let terms = terms(query);
+	if terms.is_empty() {
+		return Ok(Vec::new());
+	}
+	ranked(base, query, &terms).await
+}
+
+async fn offered(base: &str) -> Result<Vec<Application>, ApplicationsError> {
 	let base = parsed(base)?;
 	let client = client()?;
-	let listed: Listed = read(&client, listed_page(&base, query, &terms)?).await?;
-	if terms.is_empty() {
-		let mut offered = listings(&client, &base, listed.servers).await;
-		offered.truncate(OFFERS);
-		return Ok(offered);
-	}
+	let rows = page(&client, &base, &[("page", FIRST_PAGE), ("pageSize", OFFERED_PAGE)]).await?;
+	let mut offers = listings(&client, &base, rows).await;
+	offers.truncate(OFFERS);
+	Ok(offers)
+}
+
+async fn ranked(
+	base: &str,
+	query: &str,
+	terms: &[String],
+) -> Result<Vec<Application>, ApplicationsError> {
+	let base = parsed(base)?;
+	let client = client()?;
+	let asked = [("q", query), ("page", FIRST_PAGE), ("pageSize", BOUND)];
 	let mut kept: Vec<Row> =
-		listed.servers.into_iter().filter(|row| carries(row, &terms)).collect();
+		page(&client, &base, &asked).await?.into_iter().filter(|row| carries(row, terms)).collect();
 	kept.sort_by_key(|row| Reverse(row.use_count.unwrap_or_default()));
 	Ok(listings(&client, &base, kept).await)
 }
 
-fn listed_page(base: &Url, query: &str, terms: &[String]) -> Result<Url, ApplicationsError> {
-	let mut list = endpoint(base, &["servers"])?;
-	let mut pairs = list.query_pairs_mut();
-	if !terms.is_empty() {
-		pairs.append_pair("q", query);
+async fn page(
+	client: &Client,
+	base: &Url,
+	asked: &[(&str, &str)],
+) -> Result<Vec<Row>, ApplicationsError> {
+	let mut url = endpoint(base, &["servers"])?;
+	for (name, value) in asked {
+		url.query_pairs_mut().append_pair(name, value);
 	}
-	let size = if terms.is_empty() { OFFERED_PAGE } else { BOUND };
-	pairs.append_pair("page", FIRST_PAGE).append_pair("pageSize", size);
-	drop(pairs);
-	Ok(list)
+	let listed: Listed = read(client, url).await?;
+	Ok(listed.servers)
 }
 
 pub(super) fn terms(query: &str) -> Vec<String> {
@@ -819,11 +838,11 @@ pub(crate) mod tests {
 	const A_PAGE: [&str; 12] = ["a", "b", "c", "d", "e", "f", "g", "h", "i", "j", "k", "l"];
 
 	#[tokio::test]
-	async fn a_query_carrying_no_term_asks_for_the_first_page_of_twelve_without_any_q() {
+	async fn an_empty_query_asks_for_the_first_page_of_twelve_without_any_q() {
 		let (base, held) = serving(a_page_of(&A_PAGE)).await;
 
-		search(&base, "an my").await.expect("the search answers");
 		search(&base, "").await.expect("the search answers");
+		search(&base, "   ").await.expect("the search answers");
 
 		assert_eq!(
 			*held.asked.lock().expect("the stub records"),
@@ -832,17 +851,27 @@ pub(crate) mod tests {
 	}
 
 	#[tokio::test]
-	async fn a_query_carrying_no_term_answers_the_first_nine_rows_in_the_order_smithery_returned() {
+	async fn a_query_of_whitespace_alone_answers_the_first_nine_rows_smithery_returned() {
 		let (base, _) = serving(a_page_of(&A_PAGE)).await;
 
-		let found = search(&base, "").await.expect("the search answers");
+		let found = search(&base, " \t ").await.expect("the search answers");
 
 		assert_eq!(offered_names(&found), ["a", "b", "c", "d", "e", "f", "g", "h", "i"]);
 	}
 
 	#[tokio::test]
-	async fn a_query_carrying_no_term_leaves_out_a_row_reading_down_to_nothing_and_fills_its_place()
+	async fn a_query_whose_every_term_is_under_three_characters_reads_nothing_and_answers_nothing()
 	{
+		let (base, held) = serving(a_page_of(&A_PAGE)).await;
+
+		assert!(search(&base, "an").await.expect("the search answers").is_empty());
+		assert!(search(&base, "an my").await.expect("the search answers").is_empty());
+
+		assert!(held.asked.lock().expect("the stub records").is_empty(), "a page was read");
+	}
+
+	#[tokio::test]
+	async fn an_empty_query_leaves_out_a_row_reading_down_to_nothing_and_fills_its_place() {
 		let mut page = a_page_of(&A_PAGE);
 		page.details.remove("c");
 		let (base, _) = serving(page).await;
@@ -853,7 +882,7 @@ pub(crate) mod tests {
 	}
 
 	#[tokio::test]
-	async fn a_row_of_a_query_carrying_no_term_carries_what_a_typed_search_carries() {
+	async fn a_row_of_an_empty_query_carries_what_a_typed_search_carries() {
 		let (base, _) = serving(holding(
 			vec![a_row("@owner/slack", "Slack", 900)],
 			vec![a_detail("@owner/slack", "https://slack.run.tools")],
@@ -873,7 +902,7 @@ pub(crate) mod tests {
 	}
 
 	#[tokio::test]
-	async fn a_query_carrying_no_term_answers_a_refused_list_as_an_error() {
+	async fn an_empty_query_answers_a_refused_list_as_an_error() {
 		let mut refusing = a_page_of(&A_PAGE);
 		refusing.list_status = StatusCode::SERVICE_UNAVAILABLE;
 		let (base, _) = serving(refusing).await;

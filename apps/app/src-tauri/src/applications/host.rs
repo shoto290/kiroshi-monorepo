@@ -72,13 +72,7 @@ impl<R: Runtime> ApplicationHost<R> {
 
 	async fn search(&self, query: &str) -> Result<ApplicationSearch, ApplicationCallError> {
 		let curated = matching(catalogue::curated()?, query);
-		let found = match smithery::search(&self.registry, query).await {
-			Ok(found) => found,
-			Err(failure) => {
-				eprintln!("Smithery answered nothing for {query:?}: {failure:?}");
-				Vec::new()
-			}
-		};
+		let found = smithery::search(&self.registry, query).await?;
 		Ok(ApplicationSearch { applications: curated.into_iter().chain(found).collect() })
 	}
 
@@ -481,16 +475,17 @@ mod tests {
 	}
 
 	#[tokio::test]
-	async fn an_unreached_smithery_answers_the_curated_matches_and_no_failure() {
+	async fn an_unreached_smithery_answers_the_failure_and_no_application_at_all() {
 		let app = a_host("smithery-down").await;
 
-		let answer = reading(&app, "c1", smithery_stub::unreached().await)
+		let refusal = reading(&app, "c1", smithery_stub::unreached().await)
 			.answer(asking("search", json!({ "query": "linear" })))
 			.await
-			.expect("the search answers");
+			.expect_err("the search is refused");
 
-		assert_eq!(names(&answer), ["linear"]);
-		assert_eq!(answer.as_object().expect("the search is an object").len(), 1, "got {answer}");
+		assert_eq!(refusal["kind"], "unsearchable");
+		assert_eq!(refusal["failure"]["kind"], "registryUnreached");
+		assert_eq!(refusal.get("applications"), None, "got {refusal}");
 		cleaned(&app);
 	}
 
