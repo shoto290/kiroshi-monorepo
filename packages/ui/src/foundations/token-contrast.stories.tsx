@@ -168,7 +168,7 @@ const settledExceptionsIn = (measurements: Measurement[]) =>
 
 const meta = preview.meta({
 	title: "Foundations/Token Contrast",
-	tags: ["!dev", "!autodocs"],
+	tags: ["test-only", "!autodocs"],
 	parameters: { layout: "fullscreen" },
 	render: () => (
 		<>

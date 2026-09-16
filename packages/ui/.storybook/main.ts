@@ -2,6 +2,8 @@ import babel from "@rolldown/plugin-babel"
 import { defineMain } from "@storybook/react-vite/node"
 import { reactCompilerPreset } from "@vitejs/plugin-react"
 
+import { TEST_ONLY_TAG } from "./tags"
+
 export default defineMain({
 	framework: "@storybook/react-vite",
 	stories: ["../src/**/*.@(mdx|stories.tsx)"],
@@ -24,6 +26,7 @@ export default defineMain({
 	tags: {
 		experimental: { defaultFilterSelection: "exclude" },
 		deprecated: { defaultFilterSelection: "exclude" },
+		[TEST_ONLY_TAG]: { defaultFilterSelection: "exclude" },
 	},
 	viteFinal: async (config) => {
 		const { mergeConfig } = await import("vite")
