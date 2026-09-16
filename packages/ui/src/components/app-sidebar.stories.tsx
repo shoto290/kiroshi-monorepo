@@ -3661,7 +3661,6 @@ const pinsFor = (order: [string, string | null][]) =>
 const sectionArgs = () => ({
 	botsBySpaceId: inHome(SECTIONED_ROSTER),
 	sectionsBySpaceId: inHome(SECTIONS),
-	selectedBotId: "beacon",
 	onCreateSection: fn(),
 	onRenameSection: fn(),
 	onDeleteSection: fn(),
@@ -4923,7 +4922,6 @@ const CONVERSATIONS: AppSidebarConversation[] = [
 const conversationArgs = () => ({
 	botsBySpaceId: inHome(ROSTER.slice(0, 4)),
 	conversationsBySpaceId: inHome(CONVERSATIONS),
-	selectedBotId: "beacon",
 	onSelectConversation: fn(),
 	onOpenConversationSettings: fn(),
 	onDeleteConversation: fn(),
