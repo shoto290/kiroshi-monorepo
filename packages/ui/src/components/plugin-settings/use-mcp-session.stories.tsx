@@ -242,7 +242,7 @@ export const ClosedSettingsHoldsTheList = meta.story({
 		docs: {
 			description: {
 				story:
-					"An application named for a settings dialog that is not the one hosting this session. Check that the list stays on screen, that no editor opens, and that opening the dialog is what lets the named application through.",
+					"An application named while the dialog hosting this session is closed. Check that the list stays on screen and that no editor opens for the named application.",
 			},
 		},
 	},

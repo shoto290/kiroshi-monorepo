@@ -4,8 +4,13 @@ import { cleanup, render, screen, within } from "@testing-library/react"
 import { createElement, Fragment } from "react"
 import { afterEach, describe, expect, it, vi } from "vitest"
 
+import { BLANK_BOT_PERMISSIONS } from "@workspace/ui/components/bot-settings"
+import { BotSettingsDialog } from "@workspace/ui/components/bot-settings-dialog"
 import { BOT_MCP_SERVERS } from "@workspace/ui/components/bot-settings-dialog/mcp-servers.fixtures"
-import { SPACE_ENVIRONMENT } from "@workspace/ui/components/environment.fixtures"
+import {
+	BOT_ENVIRONMENT,
+	SPACE_ENVIRONMENT,
+} from "@workspace/ui/components/environment.fixtures"
 import {
 	HISTORY_DAYS,
 	HISTORY_OLDEST_DATE,
@@ -21,9 +26,24 @@ import { applicationToOpenIn, type SettingsTarget } from "./settings-target"
 import { CONNECTORS_TAB } from "@/lib/connectors/connector-settings"
 
 const SPACE_ID = "space-of-the-release"
+const COMPANION_ID = "companion-of-the-nest"
 const READER = "Reader"
 const SPACE_NAME = "Release desk"
+const COMPANION_NAME = "Nest Keeper"
 const SHARED_APPLICATION = "atlas"
+
+const SPACE_SCOPE = { kind: "space", id: SPACE_ID } as const
+const COMPANION_SCOPE = { kind: "companion", id: COMPANION_ID } as const
+
+const COMPANION = {
+	identity: { animal: "owl" as const },
+	name: COMPANION_NAME,
+	title: "Repository archivist",
+	instructions: "",
+	model: "sonnet-4-5",
+	workingDirectory: "/Users/ada/Projects/nest",
+	permissions: BLANK_BOT_PERMISSIONS,
+}
 
 const HISTORY = {
 	days: HISTORY_DAYS,
@@ -72,10 +92,7 @@ const OpenedSettings = ({ application }: SettingsProps) =>
 			environment: SPACE_ENVIRONMENT,
 			history: HISTORY,
 			mcpServers: BOT_MCP_SERVERS,
-			mcpServerToOpen: applicationToOpenIn(
-				{ kind: "space", id: SPACE_ID },
-				application,
-			),
+			mcpServerToOpen: applicationToOpenIn(SPACE_SCOPE, application),
 			onClose: vi.fn(),
 			onDelete: vi.fn(),
 			onEnvironmentDelete: vi.fn(),
@@ -87,6 +104,27 @@ const OpenedSettings = ({ application }: SettingsProps) =>
 			open: true,
 			tab: CONNECTORS_TAB,
 			value: { name: SPACE_NAME, colour: "blue" as const },
+			...SKILL_HANDLERS,
+		}),
+		createElement(BotSettingsDialog, {
+			environment: BOT_ENVIRONMENT,
+			history: HISTORY,
+			mcpServers: BOT_MCP_SERVERS,
+			mcpServerToOpen: applicationToOpenIn(COMPANION_SCOPE, application),
+			models: [{ label: "Claude Sonnet 4.5", value: "sonnet-4-5" }],
+			onAvatarUpload: vi.fn(),
+			onBrowseWorkingDirectory: vi.fn(),
+			onClose: vi.fn(),
+			onDelete: vi.fn(),
+			onEnvironmentDelete: vi.fn(),
+			onEnvironmentSet: vi.fn(),
+			onMcpServerChange: vi.fn(),
+			onMcpServerCreate: vi.fn(),
+			onMcpServerDelete: vi.fn(),
+			onValueChange: vi.fn(),
+			open: true,
+			tab: CONNECTORS_TAB,
+			value: COMPANION,
 			...SKILL_HANDLERS,
 		}),
 	)
@@ -111,24 +149,39 @@ const listedApplicationIn = (dialog: HTMLElement) =>
 		name: new RegExp(SHARED_APPLICATION),
 	})
 
+const openSettingsOn = (scope: SettingsTarget["scope"]) => {
+	const { rerender } = render(createElement(OpenedSettings))
+
+	rerender(
+		createElement(OpenedSettings, {
+			application: { scope, application: SHARED_APPLICATION },
+		}),
+	)
+}
+
+const expectListedOnly = (name: string) => {
+	const dialog = dialogNamed(name)
+
+	expect(listedApplicationIn(dialog)).toBeTruthy()
+	expect(openedApplicationIn(dialog)).toBe(null)
+}
+
 afterEach(cleanup)
 
 describe("opening an application on one scope", () => {
 	it("leaves the other scope settings on its list", () => {
-		const { rerender } = render(createElement(OpenedSettings))
+		openSettingsOn(SPACE_SCOPE)
 
-		rerender(
-			createElement(OpenedSettings, {
-				application: {
-					scope: { kind: "space", id: SPACE_ID },
-					application: SHARED_APPLICATION,
-				},
-			}),
-		)
-
-		const profile = dialogNamed(READER)
-		expect(listedApplicationIn(profile)).toBeTruthy()
-		expect(openedApplicationIn(profile)).toBe(null)
+		expectListedOnly(READER)
+		expectListedOnly(COMPANION_NAME)
 		expect(openedApplicationIn(dialogNamed(SPACE_NAME))).toBeTruthy()
+	})
+
+	it("opens the editor of the companion the scope names", () => {
+		openSettingsOn(COMPANION_SCOPE)
+
+		expectListedOnly(READER)
+		expectListedOnly(SPACE_NAME)
+		expect(openedApplicationIn(dialogNamed(COMPANION_NAME))).toBeTruthy()
 	})
 })
