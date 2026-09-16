@@ -3971,6 +3971,80 @@ describe("reopening a session", () => {
 		await expect(controller.reopen("stranger")).resolves.toBeNull()
 	})
 
+	const REFUSED_RESUME = {
+		type: "failed",
+		error: { kind: "resumeFailed", forgotSessionId: true },
+	} as const
+
+	const refuseResumeWhileStarting = (driver: FakeChatDriver) => {
+		const start = driver.startOrResumeSession
+		vi.spyOn(driver, "startOrResumeSession").mockImplementation(
+			(scope, resume) => {
+				driver.pushEvent(REFUSED_RESUME, scope)
+				return start(scope, resume)
+			},
+		)
+	}
+
+	const reopenedHarness = async () => {
+		const harness = await bootedHarness()
+		await harness.controller.send("hello")
+		await vi.runAllTimersAsync()
+		return harness
+	}
+
+	it("leaves no error when the refusal reaches the front before it answers", async () => {
+		const { driver, controller } = await reopenedHarness()
+		refuseResumeWhileStarting(driver)
+
+		await controller.reopen(BOT)
+		await vi.runAllTimersAsync()
+
+		expect(controller.getState().errors).toEqual([])
+	})
+
+	it("leaves no error when the refusal reaches the front after it answers", async () => {
+		const { driver, controller } = await reopenedHarness()
+
+		await controller.reopen(BOT)
+		await vi.runAllTimersAsync()
+		driver.pushEvent(REFUSED_RESUME)
+		await vi.runAllTimersAsync()
+
+		expect(controller.getState().errors).toEqual([])
+	})
+
+	it("spends the run of a reopen whose resume was refused", async () => {
+		const { driver, controller } = await reopenedHarness()
+		await controller.reopen(BOT)
+		await vi.runAllTimersAsync()
+		const refused = runOf(controller)
+
+		driver.pushEvent(REFUSED_RESUME)
+		await vi.runAllTimersAsync()
+		await controller.send("where were we?")
+		await vi.runAllTimersAsync()
+
+		expect(runOf(controller).runtimeSessionId).not.toBe(
+			refused.runtimeSessionId,
+		)
+	})
+
+	it("keeps the error of a resume refused outside a reopen", async () => {
+		const { driver, controller } = await reopenedHarness()
+		await controller.reopen(BOT)
+		await vi.runAllTimersAsync()
+
+		await controller.restart()
+		await vi.runAllTimersAsync()
+		driver.pushEvent(REFUSED_RESUME)
+		await vi.runAllTimersAsync()
+
+		expect(controller.getState().errors.map((held) => held.error.kind)).toEqual(
+			["resumeFailed"],
+		)
+	})
+
 	it("waits for a running turn to end before it reopens", async () => {
 		const { driver, controller } = await bootedHarness()
 		const sent = controller.send("hello")

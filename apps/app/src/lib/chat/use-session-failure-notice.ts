@@ -4,6 +4,7 @@ import {
 	endNotice,
 	type NoticeMessage,
 	raiseFailureNotice,
+	raiseTransientNotice,
 } from "@workspace/ui/components/notice-surface"
 import { type ChatCopy, useChatCopy } from "@workspace/ui/hooks/use-chat-copy"
 
@@ -87,6 +88,28 @@ const failureKeyOf = (
 	leftOut: LeftOutApplication | null,
 ) => (error ? `${error.id}:${leftOut?.name ?? ""}` : null)
 
+let fadedFailureId: string | null = null
+
+const isRefusedResume = (error: ChatError) =>
+	error.error.kind === "resumeFailed"
+
+const fadeRefusedResume = (
+	t: ChatCopy,
+	error: ChatError,
+	onDismiss: (id: string) => void,
+) => {
+	if (fadedFailureId === error.id) {
+		return
+	}
+	fadedFailureId = error.id
+	raiseTransientNotice({
+		type: "warning",
+		title: noticeTitleFor(t, error.error),
+		description: describeTransportError(t, error.error),
+	})
+	onDismiss(error.id)
+}
+
 const release = (raised: RefObject<RaisedFailure | null>) => {
 	const current = raised.current
 	raised.current = null
@@ -113,6 +136,10 @@ export const useSessionFailureNotice = ({
 		}
 		release(raised)
 		if (!error || !key) {
+			return
+		}
+		if (isRefusedResume(error)) {
+			fadeRefusedResume(t, error, onDismiss)
 			return
 		}
 		const dismissUnlessReleased = () => {
