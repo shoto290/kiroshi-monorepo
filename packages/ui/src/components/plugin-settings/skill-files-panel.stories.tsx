@@ -207,6 +207,35 @@ export const RefusedSave = meta.story({
 	},
 })
 
+export const RefusedDelete = meta.story({
+	args: {
+		opened: {
+			path: REFERENCE,
+			text: SKILL_FILES[REFERENCE],
+			failure: "delete",
+		},
+	},
+	parameters: {
+		docs: {
+			description: {
+				story:
+					"A delete the host refused, which is what the controller reports when the file could not be removed. Check that the file is still open on its text rather than closed on a list it never left, that the reason is said above the editor, and that the delete is still there to be asked again. `RefusedSave` is the same surface for a write, `WithConfirmation` the delete that went through.",
+			},
+		},
+	},
+	play: async ({ canvas }) => {
+		await expect(canvas.getByRole("alert")).toHaveTextContent(
+			"Couldn't delete this file. Retry.",
+		)
+		await expect(canvas.getByLabelText("Contents")).toHaveValue(
+			SKILL_FILES[REFERENCE],
+		)
+		await expect(
+			canvas.getByRole("button", { name: "Delete file" }),
+		).toBeEnabled()
+	},
+})
+
 export const WithConfirmation = meta.story({
 	args: { opened: { path: REFERENCE, text: SKILL_FILES[REFERENCE] } },
 	parameters: {
