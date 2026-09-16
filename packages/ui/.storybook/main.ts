@@ -24,6 +24,7 @@ export default defineMain({
 	tags: {
 		experimental: { defaultFilterSelection: "exclude" },
 		deprecated: { defaultFilterSelection: "exclude" },
+		"test-only": { defaultFilterSelection: "exclude" },
 	},
 	viteFinal: async (config) => {
 		const { mergeConfig } = await import("vite")

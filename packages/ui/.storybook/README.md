@@ -50,6 +50,18 @@ Every family opens on an `Overview` MDX page — `src/families/<family>.mdx`, or
 
 An unknown root **throws** at sort time, so a typo fails the sidebar rather than the review.
 
+### Stories the catalogue does not list
+
+The visible catalogue lists only the states the app renders. A story that proves behaviour on a composition the app never assembles carries the `test-only` tag on its meta:
+
+```tsx
+const meta = preview.meta({ tags: ["test-only"] })
+```
+
+`main.ts` declares `test-only` with `defaultFilterSelection: "exclude"`, so the sidebar hides the story until a reader turns the `test-only` filter on. The story keeps the default `test` tag, so the `storybook` vitest project still plays it. Use it instead of `!dev`, which hides a story with no way back.
+
+Spell the tag as a literal: the CSF indexer reads `tags` statically and rejects anything else.
+
 ## 2. Story names
 
 One shared vocabulary of exported names. Reuse an existing name before inventing one.
