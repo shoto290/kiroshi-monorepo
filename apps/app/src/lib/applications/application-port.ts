@@ -1,6 +1,12 @@
+export type InstallField = {
+	name: string
+	secret: string
+	description?: string
+}
+
 export type Install =
 	| { kind: "nothing" }
-	| { kind: "key"; name: string; secret: string; description?: string }
+	| { kind: "key"; fields: InstallField[] }
 	| { kind: "oauth" }
 	| { kind: "refused"; field: string; reason: string }
 
@@ -34,7 +40,7 @@ export type ApplicationDestination = "companion" | "space" | "user"
 
 export type InstallCase =
 	| { kind: "nothing" }
-	| { kind: "key"; secret: string }
+	| { kind: "key"; secrets: string[] }
 	| { kind: "oauth" }
 
 export type ApplicationInstall = {

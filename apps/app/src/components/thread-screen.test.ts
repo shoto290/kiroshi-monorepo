@@ -3418,7 +3418,10 @@ const SENTRY_APPLICATION: Application = {
 	description: "Pulls the errors behind a release.",
 	config: {},
 	tools: [],
-	install: { kind: "key", name: "token", secret: "SENTRY_AUTH_TOKEN" },
+	install: {
+		kind: "key",
+		fields: [{ name: "token", secret: "SENTRY_AUTH_TOKEN" }],
+	},
 }
 
 const INSTALLED_THREAD_ID = "bot-1"
@@ -3560,7 +3563,7 @@ describe("ThreadScreen showing the applications installed", () => {
 
 	it("asks for the key of an install in the settings of its companion", async () => {
 		const room = installRoomOf([
-			installOf({ install: { kind: "key", secret: "SENTRY_AUTH_TOKEN" } }),
+			installOf({ install: { kind: "key", secrets: ["SENTRY_AUTH_TOKEN"] } }),
 		])
 		render(room.view())
 		await settle()
@@ -3621,7 +3624,7 @@ describe("ThreadScreen showing the applications installed", () => {
 
 	it("shows in its row that a key install was left out of a session of its companion", async () => {
 		const room = installRoomOf(
-			[installOf({ install: { kind: "key", secret: "SENTRY_AUTH_TOKEN" } })],
+			[installOf({ install: { kind: "key", secrets: ["SENTRY_AUTH_TOKEN"] } })],
 			[
 				leftOutError(
 					'the server "sentry" was left out: SENTRY_AUTH_TOKEN is defined by no scope',
@@ -3646,12 +3649,37 @@ describe("ThreadScreen showing the applications installed", () => {
 		).toHaveLength(2)
 	})
 
+	it("names every variable an install needs in the line telling a session left it out", async () => {
+		const room = installRoomOf(
+			[
+				installOf({
+					install: {
+						kind: "key",
+						secrets: ["SENTRY_AUTH_TOKEN", "SENTRY_ORG"],
+					},
+				}),
+			],
+			[
+				leftOutError(
+					'the server "sentry" was left out: SENTRY_AUTH_TOKEN is defined by no scope',
+				),
+			],
+		)
+		render(room.view())
+		await settle()
+
+		const row = rowHolding("Sentry was left out")
+		expect(
+			within(row).getByText("Its keys go in SENTRY_AUTH_TOKEN, SENTRY_ORG."),
+		).toBeTruthy()
+	})
+
 	it("leaves the row of a key install of another companion as it was when a session leaves it out", async () => {
 		const room = installRoomOf(
 			[
 				installOf({
 					destinationId: "bot-2",
-					install: { kind: "key", secret: "SENTRY_AUTH_TOKEN" },
+					install: { kind: "key", secrets: ["SENTRY_AUTH_TOKEN"] },
 				}),
 			],
 			[

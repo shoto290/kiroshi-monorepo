@@ -6,7 +6,7 @@ use serde::Deserialize;
 use serde_json::{json, Map, Value};
 use tokio::task::JoinHandle;
 
-use super::contract::{Application, ApplicationsError, Install, InstallRefusal};
+use super::contract::{Application, ApplicationsError, Install, InstallField, InstallRefusal};
 use super::registry::{client, endpoint, parsed, read, reference, variable};
 use super::search::{repository, terms, Listing};
 
@@ -258,11 +258,15 @@ fn install(schema: Option<&Schema>) -> Install {
 	if let Some(field) = schema.required.iter().find(|held| header_of(schema, held).is_none()) {
 		return Install::Refused(InstallRefusal { field: field.clone(), reason: uncarried(field) });
 	}
-	let Some(field) = schema.required.first() else {
+	if schema.required.is_empty() {
 		return Install::Oauth;
-	};
-	Install::Key {
-		name: field.clone(),
+	}
+	Install::asking(schema.required.iter().map(|field| asked_field(schema, field)).collect())
+}
+
+fn asked_field(schema: &Schema, field: &str) -> InstallField {
+	InstallField {
+		name: field.to_owned(),
 		secret: variable(field),
 		description: schema.properties.get(field).and_then(|held| held.description.clone()),
 	}
@@ -453,9 +457,11 @@ pub(crate) mod tests {
 		assert_eq!(
 			application.install,
 			Install::Key {
-				name: "apiKey".to_owned(),
-				secret: "APIKEY".to_owned(),
-				description: Some("The key.".to_owned()),
+				fields: vec![InstallField {
+					name: "apiKey".to_owned(),
+					secret: "APIKEY".to_owned(),
+					description: Some("The key.".to_owned()),
+				}],
 			}
 		);
 		assert_eq!(
@@ -523,7 +529,7 @@ pub(crate) mod tests {
 	}
 
 	#[test]
-	fn every_required_field_naming_a_header_is_carried_in_its_own_header() {
+	fn every_required_field_naming_a_header_is_asked_for_and_carried_in_its_own_header() {
 		let application = described(json!({
 			"qualifiedName": "@owner/two-headers",
 			"connections": [{
@@ -547,10 +553,47 @@ pub(crate) mod tests {
 				"headers": { "X-Api-Key": "${APIKEY}", "X-Tenant": "${TENANT}" },
 			})
 		);
-		let Install::Key { name, .. } = &application.install else {
+		assert_eq!(
+			application.install,
+			Install::Key {
+				fields: vec![
+					InstallField {
+						name: "apiKey".to_owned(),
+						secret: "APIKEY".to_owned(),
+						description: None,
+					},
+					InstallField {
+						name: "tenant".to_owned(),
+						secret: "TENANT".to_owned(),
+						description: None,
+					},
+				],
+			}
+		);
+	}
+
+	#[test]
+	fn two_required_fields_answering_one_variable_refuse_the_install() {
+		let application = described(json!({
+			"qualifiedName": "@owner/collapsed",
+			"connections": [{
+				"type": "http",
+				"deploymentUrl": "https://collapsed.test/mcp",
+				"configSchema": {
+					"required": ["api-key", "api_key"],
+					"properties": {
+						"api-key": { "x-from": { "header": "X-Api-Key" } },
+						"api_key": { "x-from": { "header": "X-Api-Key-Too" } },
+					},
+				},
+			}],
+		}));
+
+		let Install::Refused(refusal) = &application.install else {
 			panic!("got {:?}", application.install);
 		};
-		assert_eq!(name, "apiKey");
+		assert_eq!(refusal.field, "api_key");
+		assert!(refusal.reason.contains("API_KEY"), "got {}", refusal.reason);
 	}
 
 	#[test]

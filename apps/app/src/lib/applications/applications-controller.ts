@@ -5,7 +5,11 @@ import {
 } from "@workspace/ui/components/notice-surface"
 import { i18n } from "@workspace/ui/lib/i18n"
 
-import type { Application, ApplicationPort } from "./application-port"
+import type {
+	Application,
+	ApplicationPort,
+	InstallField,
+} from "./application-port"
 
 import {
 	declaredServers,
@@ -44,7 +48,7 @@ export type ApplicationsController = {
 	retry: () => void
 	pick: (id: string) => void
 	leave: () => void
-	install: (target: InstallTarget, key?: string) => Promise<void>
+	install: (target: InstallTarget, values?: string[]) => Promise<void>
 }
 
 export const initialApplicationsState: ApplicationsState = {
@@ -84,6 +88,19 @@ export const serverScopeOf = (owner: EnvOwner, name: string): EnvScope => ({
 	name,
 	owner,
 })
+
+type TypedValue = { field: InstallField; value: string }
+
+const typedValuesOf = (
+	install: Application["install"],
+	values: string[],
+): TypedValue[] =>
+	install.kind === "key"
+		? install.fields.map((field, index) => ({
+				field,
+				value: values[index] ?? "",
+			}))
+		: []
 
 const urlOf = (application: Application) =>
 	readMcpServerLaunch(application.config).url ?? ""
@@ -200,20 +217,15 @@ export const createApplicationsController = (
 		}
 	}
 
-	const writeKey = async (
+	const writeKeys = async (
 		owner: EnvOwner,
-		application: Application,
-		key: string,
+		name: string,
+		asked: TypedValue[],
 	) => {
-		const { install } = application
-		if (install.kind !== "key") {
-			return
+		const scope = serverScopeOf(owner, name)
+		for (const { field, value } of asked) {
+			await store.setEnvironmentVariable(scope, field.secret, value)
 		}
-		await store.setEnvironmentVariable(
-			serverScopeOf(owner, application.name),
-			install.secret,
-			key,
-		)
 	}
 
 	const isDeclaredUnder = async (owner: EnvOwner, name: string) => {
@@ -224,16 +236,25 @@ export const createApplicationsController = (
 	const runInstall = async (
 		application: Application,
 		target: InstallTarget,
-		key: string,
+		values: string[],
 	) => {
 		if (application.install.kind === "refused") {
 			throw new Error(application.install.reason)
+		}
+		const asked = typedValuesOf(application.install, values)
+		const unfilled = asked.filter((held) => held.value.trim() === "")
+		if (unfilled.length > 0) {
+			throw new Error(
+				i18n.t("bots:applications.install.missing", {
+					fields: unfilled.map((held) => held.field.name).join(", "),
+				}),
+			)
 		}
 		const { owner } = target
 		const wasDeclared = await isDeclaredUnder(owner, application.name)
 		await declareServer(store, owner, application.name, application.config)
 		try {
-			await writeKey(owner, application, key)
+			await writeKeys(owner, application.name, asked)
 		} catch (refusal) {
 			if (!wasDeclared) {
 				await rollBackDeclaration(owner, application.name)
@@ -283,7 +304,7 @@ export const createApplicationsController = (
 
 		leave: () => set({ picked: null, failure: null }),
 
-		install: async (target: InstallTarget, key = "") => {
+		install: async (target: InstallTarget, values: string[] = []) => {
 			const application = state.picked
 			if (
 				!application ||
@@ -294,7 +315,7 @@ export const createApplicationsController = (
 			}
 			set({ installing: application.name, failure: null })
 			try {
-				await runInstall(application, target, key)
+				await runInstall(application, target, values)
 				await target.settle()
 			} catch (reason) {
 				set({

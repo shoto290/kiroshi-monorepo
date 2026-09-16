@@ -203,7 +203,9 @@ const chat = {
 			space: "Chaque compagnon de {{destination}} a {{name}}.",
 			user: "Vous avez {{name}} dans toutes vos conversations.",
 		},
-		secret: "Sa clé va dans {{secret}}.",
+		secret_one: "Sa clé va dans {{secret}}.",
+		secret_many: "Ses clés vont dans {{secret}}.",
+		secret_other: "Ses clés vont dans {{secret}}.",
 		unreadable:
 			"Impossible de lire les applications ajoutées à cette conversation.",
 	},

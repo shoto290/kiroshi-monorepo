@@ -32,7 +32,25 @@ const SUPERSET: Application = {
 	description: "Runs workspaces.",
 	config: { type: "http", url: "https://api.superset.sh/mcp" },
 	tools: ["tasks_list"],
-	install: { kind: "key", name: "Authorization", secret: "SUPERSET_API_KEY" },
+	install: {
+		kind: "key",
+		fields: [{ name: "Authorization", secret: "SUPERSET_API_KEY" }],
+	},
+}
+
+const TWO_KEYED: Application = {
+	name: "@owner/two-headers",
+	title: "Two headers",
+	description: "Asks a key and a tenant.",
+	config: { type: "http", url: "https://two.test/mcp" },
+	tools: ["search"],
+	install: {
+		kind: "key",
+		fields: [
+			{ name: "apiKey", secret: "APIKEY" },
+			{ name: "tenant", secret: "TENANT" },
+		],
+	},
 }
 
 const LINEAR: Application = {
@@ -336,7 +354,7 @@ describe("applications controller", () => {
 		await controller.open()
 		controller.pick("superset")
 
-		await controller.install(targetOf(), "sk-typed")
+		await controller.install(targetOf(), ["sk-typed"])
 
 		const secrets = await store.environmentVariables({
 			kind: "server",
@@ -344,6 +362,56 @@ describe("applications controller", () => {
 			owner: USER,
 		})
 		expect(secrets.map((entry) => entry.name)).toEqual(["SUPERSET_API_KEY"])
+	})
+
+	it("refuses an install naming a field the page left without a value", async () => {
+		const port = createFakeApplicationPort()
+		port.curated = [TWO_KEYED]
+		const store = createFakeTranscriptStore()
+		const declare = vi.spyOn(store, "setUserPluginMcpServer")
+		const write = vi.spyOn(store, "setEnvironmentVariable")
+		const controller = controllerOn(port, store)
+		await controller.open()
+		controller.pick("@owner/two-headers")
+
+		await controller.install(targetOf(), ["sk-typed"])
+
+		expect(controller.getState().failure).toContain("tenant")
+		expect(declare).not.toHaveBeenCalled()
+		expect(write).not.toHaveBeenCalled()
+		expect(await store.userPluginMcpServers()).toEqual([])
+	})
+
+	it("names every field it has no value for", async () => {
+		const port = createFakeApplicationPort()
+		port.curated = [TWO_KEYED]
+		const controller = controllerOn(port)
+		await controller.open()
+		controller.pick("@owner/two-headers")
+
+		await controller.install(targetOf(), ["   "])
+
+		expect(controller.getState().failure).toContain("apiKey")
+		expect(controller.getState().failure).toContain("tenant")
+	})
+
+	it("writes every value under its own variable in the scope of the server", async () => {
+		const port = createFakeApplicationPort()
+		port.curated = [TWO_KEYED]
+		const store = createFakeTranscriptStore()
+		const write = vi.spyOn(store, "setEnvironmentVariable")
+		const controller = controllerOn(port, store)
+		await controller.open()
+		controller.pick("@owner/two-headers")
+
+		await controller.install(targetOf(), ["sk-typed", "acme"])
+
+		const scope = { kind: "server", name: "@owner/two-headers", owner: USER }
+		expect(write.mock.calls).toEqual([
+			[scope, "APIKEY", "sk-typed"],
+			[scope, "TENANT", "acme"],
+		])
+		expect(controller.getState().failure).toBeNull()
 	})
 
 	it("runs the connect of the scope for an install that signs in", async () => {
@@ -454,7 +522,7 @@ describe("applications controller", () => {
 		await controller.open()
 		controller.pick("superset")
 
-		await controller.install(targetOf(), "sk-typed")
+		await controller.install(targetOf(), ["sk-typed"])
 
 		expect(await store.userPluginMcpServers()).toEqual([])
 		expect(controller.getState().failure).toContain("the keyring is locked")
@@ -473,7 +541,7 @@ describe("applications controller", () => {
 		await controller.open()
 		controller.pick("superset")
 
-		await controller.install(targetOf(), "sk-typed")
+		await controller.install(targetOf(), ["sk-typed"])
 
 		expect(await store.userPluginMcpServers()).toEqual([
 			{ name: "superset", config: SUPERSET.config },
@@ -500,7 +568,7 @@ describe("applications controller", () => {
 		await controller.open()
 		controller.pick("superset")
 
-		await controller.install(targetOf(), "sk-typed")
+		await controller.install(targetOf(), ["sk-typed"])
 
 		expect(controller.getState().failure).toContain("the keyring is locked")
 		expect(reportFailure).toHaveBeenCalledTimes(1)

@@ -141,9 +141,13 @@
 		"logo": "applications/logos/superset.svg",
 		"install": {
 			"kind": "key",
-			"name": "Authorization",
-			"secret": "SUPERSET_API_KEY",
-			"description": "A Superset API key."
+			"fields": [
+				{
+					"name": "Authorization",
+					"secret": "SUPERSET_API_KEY",
+					"description": "A Superset API key."
+				}
+			]
 		}
 	},
 	{

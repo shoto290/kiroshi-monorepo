@@ -167,7 +167,10 @@ describe("toInstallableApplication", () => {
 		expect(
 			toInstallableApplication({
 				...REGISTERED,
-				install: { kind: "key", name: "Authorization", secret: "KEY" },
+				install: {
+					kind: "key",
+					fields: [{ name: "Authorization", secret: "KEY" }],
+				},
 			}).setup,
 		).toBe("apiKey")
 	})

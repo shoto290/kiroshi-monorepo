@@ -119,10 +119,11 @@ mod tests {
 			superset.config["headers"],
 			json!({ "Authorization": "Bearer ${SUPERSET_API_KEY}" })
 		);
-		let Install::Key { secret, .. } = superset.install else {
+		let Install::Key { fields } = superset.install else {
 			panic!("superset asks for a key");
 		};
-		assert_eq!(secret, "SUPERSET_API_KEY");
+		assert_eq!(fields.len(), 1);
+		assert_eq!(fields[0].secret, "SUPERSET_API_KEY");
 	}
 
 	#[test]

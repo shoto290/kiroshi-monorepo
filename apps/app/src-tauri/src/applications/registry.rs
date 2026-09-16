@@ -7,7 +7,7 @@ use serde::de::DeserializeOwned;
 use serde::Deserialize;
 use serde_json::{json, Value};
 
-use super::contract::{Application, ApplicationsError, Install};
+use super::contract::{Application, ApplicationsError, Install, InstallField};
 use super::search::{repository, Listing};
 use crate::missions::github::installed_tls_provider;
 
@@ -197,14 +197,8 @@ fn unreached(error: reqwest::Error) -> ApplicationsError {
 
 fn descriptor(server: Server) -> Option<Listing> {
 	let (config, install) = match transport(&server)? {
-		Transport::Remote(remote) => match asked_header(&remote.headers) {
-			Some(key) => (headed_config(remote), key),
-			None => (remote_config(remote), Install::Oauth),
-		},
-		Transport::Npm(package) => (
-			package_config(package),
-			asked(&package.environment_variables).unwrap_or(Install::Nothing),
-		),
+		Transport::Remote(remote) => remote_served(remote),
+		Transport::Npm(package) => package_served(package),
 	};
 	Some(Listing {
 		repository: server
@@ -226,6 +220,20 @@ fn descriptor(server: Server) -> Option<Listing> {
 			install,
 		},
 	})
+}
+
+fn remote_served(remote: &Remote) -> (Value, Install) {
+	let fields = asked_headers(&remote.headers);
+	if fields.is_empty() {
+		return (remote_config(remote), Install::Oauth);
+	}
+	(headed_config(remote), Install::asking(fields))
+}
+
+fn package_served(package: &Package) -> (Value, Install) {
+	let fields = asked_variables(&package.environment_variables);
+	let install = if fields.is_empty() { Install::Nothing } else { Install::asking(fields) };
+	(package_config(package), install)
 }
 
 fn transport(server: &Server) -> Option<Transport<'_>> {
@@ -287,20 +295,24 @@ pub(super) fn reference(declared: &str) -> String {
 	format!("${{{}}}", variable(declared))
 }
 
-fn asked(inputs: &[Input]) -> Option<Install> {
-	inputs.iter().find(|input| required_secret(input)).map(key)
+fn asked_variables(inputs: &[Input]) -> Vec<InstallField> {
+	inputs.iter().filter(|input| required_secret(input)).map(asked_field).collect()
 }
 
-fn asked_header(headers: &[Input]) -> Option<Install> {
-	headers.iter().find(|header| required_secret(header) || filled_value(header).is_some()).map(key)
+fn asked_headers(headers: &[Input]) -> Vec<InstallField> {
+	headers
+		.iter()
+		.filter(|header| required_secret(header) || filled_value(header).is_some())
+		.map(asked_field)
+		.collect()
 }
 
 fn required_secret(input: &Input) -> bool {
 	input.is_required && input.is_secret
 }
 
-fn key(input: &Input) -> Install {
-	Install::Key {
+fn asked_field(input: &Input) -> InstallField {
+	InstallField {
 		name: input.name.clone(),
 		secret: variable(&input.name),
 		description: input.description.clone(),
@@ -404,9 +416,11 @@ pub(crate) mod tests {
 		assert_eq!(
 			application.install,
 			Install::Key {
-				name: "Authorization".to_owned(),
-				secret: "AUTHORIZATION".to_owned(),
-				description: Some("Bearer token for Smithery authentication".to_owned()),
+				fields: vec![InstallField {
+					name: "Authorization".to_owned(),
+					secret: "AUTHORIZATION".to_owned(),
+					description: Some("Bearer token for Smithery authentication".to_owned()),
+				}],
 			}
 		);
 		assert_eq!(
@@ -458,9 +472,11 @@ pub(crate) mod tests {
 		assert_eq!(
 			application.install,
 			Install::Key {
-				name: "Authorization".to_owned(),
-				secret: "AUTHORIZATION".to_owned(),
-				description: None,
+				fields: vec![InstallField {
+					name: "Authorization".to_owned(),
+					secret: "AUTHORIZATION".to_owned(),
+					description: None,
+				}],
 			}
 		);
 		assert_eq!(
@@ -514,7 +530,7 @@ pub(crate) mod tests {
 	}
 
 	#[test]
-	fn a_required_secret_variable_answers_the_key_case_naming_the_first() {
+	fn every_required_secret_variable_is_asked_for_and_the_plain_ones_are_left_out() {
 		let application = described(json!({
 			"name": "io.test/keyed",
 			"packages": [{
@@ -531,14 +547,97 @@ pub(crate) mod tests {
 		assert_eq!(
 			application.install,
 			Install::Key {
-				name: "api-key".to_owned(),
-				secret: "API_KEY".to_owned(),
-				description: Some("The key.".to_owned()),
+				fields: vec![
+					InstallField {
+						name: "api-key".to_owned(),
+						secret: "API_KEY".to_owned(),
+						description: Some("The key.".to_owned()),
+					},
+					InstallField {
+						name: "OTHER_KEY".to_owned(),
+						secret: "OTHER_KEY".to_owned(),
+						description: None,
+					},
+				],
 			}
 		);
 		assert_eq!(
 			application.config["env"],
 			json!({ "api-key": "${API_KEY}", "OTHER_KEY": "${OTHER_KEY}" })
+		);
+	}
+
+	#[test]
+	fn every_required_secret_header_is_asked_for_and_every_placeholder_is_resolved() {
+		let application = described(json!({
+			"name": "io.test/two-headers",
+			"remotes": [{
+				"type": "streamable-http",
+				"url": "https://two.test/mcp",
+				"headers": [
+					{
+						"name": "Authorization",
+						"description": "The key.",
+						"isRequired": true,
+						"isSecret": true,
+						"value": "Bearer {api_key}",
+					},
+					{ "name": "X-Tenant", "isRequired": true, "isSecret": true },
+				],
+			}],
+		}));
+
+		assert_eq!(
+			application.install,
+			Install::Key {
+				fields: vec![
+					InstallField {
+						name: "Authorization".to_owned(),
+						secret: "AUTHORIZATION".to_owned(),
+						description: Some("The key.".to_owned()),
+					},
+					InstallField {
+						name: "X-Tenant".to_owned(),
+						secret: "X_TENANT".to_owned(),
+						description: None,
+					},
+				],
+			}
+		);
+		assert_eq!(
+			application.config["headers"],
+			json!({ "Authorization": "Bearer ${AUTHORIZATION}", "X-Tenant": "${X_TENANT}" })
+		);
+	}
+
+	#[test]
+	fn two_required_headers_answering_one_variable_refuse_the_install_and_keep_the_config() {
+		let application = described(json!({
+			"name": "io.test/collapsed",
+			"remotes": [{
+				"type": "streamable-http",
+				"url": "https://collapsed.test/mcp",
+				"headers": [
+					{ "name": "api-key", "isRequired": true, "isSecret": true },
+					{ "name": "api_key", "isRequired": true, "isSecret": true },
+				],
+			}],
+		}));
+
+		let Install::Refused(refusal) = &application.install else {
+			panic!("got {:?}", application.install);
+		};
+		assert_eq!(refusal.field, "api_key");
+		assert!(refusal.reason.contains("api-key"), "got {}", refusal.reason);
+		assert!(refusal.reason.contains("api_key"), "got {}", refusal.reason);
+		assert!(refusal.reason.contains("API_KEY"), "got {}", refusal.reason);
+		assert_eq!(
+			application.config,
+			json!({
+				"type": "http",
+				"url": "https://collapsed.test/mcp",
+				"headers": { "api-key": "${API_KEY}", "api_key": "${API_KEY}" },
+			})
 		);
 	}
 

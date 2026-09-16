@@ -24,7 +24,10 @@ const SENTRY: Application = {
 	config: {},
 	tools: [],
 	logo: SENTRY_LOGO,
-	install: { kind: "key", name: "token", secret: "SENTRY_AUTH_TOKEN" },
+	install: {
+		kind: "key",
+		fields: [{ name: "token", secret: "SENTRY_AUTH_TOKEN" }],
+	},
 }
 
 const RESPONDER: PromptResponder = {

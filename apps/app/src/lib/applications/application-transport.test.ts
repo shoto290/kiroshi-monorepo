@@ -25,7 +25,10 @@ const SUPERSET: Application = {
 	config: { type: "http", url: "https://api.superset.sh/mcp" },
 	tools: ["tasks_list"],
 	logo: "<svg/>",
-	install: { kind: "key", name: "Authorization", secret: "SUPERSET_API_KEY" },
+	install: {
+		kind: "key",
+		fields: [{ name: "Authorization", secret: "SUPERSET_API_KEY" }],
+	},
 }
 
 const NOTION: Application = {
@@ -45,7 +48,7 @@ const RECORDED: ApplicationInstall = {
 	logo: "<svg/>",
 	scope: "space",
 	destinationId: "personal",
-	install: { kind: "key", secret: "SUPERSET_API_KEY" },
+	install: { kind: "key", secrets: ["SUPERSET_API_KEY"] },
 	lastMessageSeq: 12,
 	createdAt: 1700000000000,
 }
