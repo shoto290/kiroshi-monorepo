@@ -1150,6 +1150,7 @@ function ThreadView({
 	const reader = readerName || t("working.name")
 	const missionSeat = facts.mission
 	const isMissionClosed = isClosedMission(missionSeat)
+	const canAttach = facts.canAttach && !isMissionClosed
 	const composerPlaceholder = composerPlaceholderOf(facts, t)
 	const roster = useThreadRoster({ ...facts, bots: known })
 	const { bots, present, authors, botFace } = roster
@@ -1160,7 +1161,7 @@ function ThreadView({
 		() => ({ kind: facts.bot ? "bot" : "conversation", id: facts.id }),
 		[facts.bot, facts.id],
 	)
-	const staged = useAttachments(attachments, owner, facts.canAttach, rootRef)
+	const staged = useAttachments(attachments, owner, canAttach, rootRef)
 
 	const repliedToRefusal = facts.refused?.repliedToMessageId
 	const alsoQuoted = useMemo(
@@ -1370,7 +1371,7 @@ function ThreadView({
 			composer={
 				<ThreadComposerSlot
 					bots={known}
-					canAttach={facts.canAttach && !isMissionClosed}
+					canAttach={canAttach}
 					composerRef={composerRef}
 					isDisabled={isMissionClosed}
 					onPromptChange={rememberDraft}
