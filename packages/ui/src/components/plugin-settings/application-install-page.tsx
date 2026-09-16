@@ -40,9 +40,6 @@ type InstallableApplication = CatalogueApplication & {
 	unreviewed?: ApplicationPublication
 }
 
-const NOTICE_SENTENCE_CLASS =
-	"wrap-break-word text-[13px]/4.5 text-muted-foreground"
-
 const ownerNameOf = (owner: ApplicationsOwner) =>
 	owner.kind === "profile" ? "" : owner.name
 
@@ -286,7 +283,9 @@ const UnreviewedNotice = ({
 				<p className="wrap-break-word font-medium text-foreground text-sm/5">
 					{t("applications.install.unreviewed.title")}
 				</p>
-				<p className={NOTICE_SENTENCE_CLASS}>{sentence()}</p>
+				<p className="wrap-break-word text-[13px]/4.5 text-muted-foreground">
+					{sentence()}
+				</p>
 			</div>
 		</div>
 	)
