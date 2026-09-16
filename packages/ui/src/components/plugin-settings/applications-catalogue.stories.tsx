@@ -16,7 +16,9 @@ import {
 
 const CARD_BOTTOM_INSET = 13
 
-const ROW_GAP = 10
+const ROW_GAP = 9
+
+const ROW_SKELETON_HEIGHT = 59
 
 const slotsOf = (canvasElement: HTMLElement, slot: string) => [
 	...canvasElement.querySelectorAll(`[data-slot="${slot}"]`),
@@ -341,7 +343,7 @@ export const CatalogueLoading = meta.story({
 		docs: {
 			description: {
 				story:
-					"The catalogue opening, nothing typed yet. Check that both sections draw skeletons: six card skeletons, three row skeletons ten apart, the em dash where the Everything count goes, the body marked busy and the polite line saying the catalogue is loading, announced from outside the busy body.",
+					"The catalogue opening, nothing typed yet. Check that both sections draw skeletons: six card skeletons, three row skeletons of three bars each, nine apart, the em dash where the Everything count goes, the body marked busy and the polite line saying the catalogue is loading, announced from outside the busy body.",
 			},
 		},
 	},
@@ -357,6 +359,7 @@ export const CatalogueLoading = meta.story({
 		).not.toBeInTheDocument()
 
 		const [first, second] = rows.map((row) => row.getBoundingClientRect())
+		await expect(Math.round(first.height)).toBe(ROW_SKELETON_HEIGHT)
 		await expect(Math.round(second.top - first.bottom)).toBe(ROW_GAP)
 
 		const everything = canvas.getByRole("tab", { name: "Everything" })

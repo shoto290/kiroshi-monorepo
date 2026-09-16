@@ -43,7 +43,7 @@ const CARD_SLOT_CLASS = "flex w-46.5 shrink-0"
 const CARD_SHELL_CLASS =
 	"flex w-full min-w-0 flex-col gap-2 rounded-xl border border-border p-3"
 
-const ROW_LIST_CLASS = "flex list-none flex-col gap-2.5 p-0"
+const ROW_LIST_CLASS = "flex list-none flex-col gap-2.25 p-0"
 
 const ROW_SHELL_CLASS =
 	"flex w-full min-w-0 items-center gap-2.5 rounded-lg border border-border px-3 py-2"
@@ -238,6 +238,7 @@ const CatalogueRowSkeletons = () => (
 					<div className="flex min-w-0 flex-1 flex-col gap-1.5">
 						<SkeletonBar className="h-2.75 w-33" />
 						<SkeletonBar className="h-2.25 w-51.5" isFaint />
+						<SkeletonBar className="h-2.25 w-39.5" isFaint />
 					</div>
 					<SkeletonBar className="h-2.25 w-24.5 shrink-0" isFaint />
 				</div>
