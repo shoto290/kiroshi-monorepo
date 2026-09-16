@@ -10,6 +10,10 @@ export type Application = {
 	config: Record<string, unknown>
 	tools: string[]
 	logo?: string
+	logoUrl?: string
+	useCount?: number
+	verified?: boolean
+	hostedBy?: string
 	install: Install
 }
 
@@ -19,6 +23,11 @@ export type ApplicationsError =
 	| { kind: "registryTimedOut" }
 	| { kind: "registryRefused"; status: number }
 	| { kind: "registryUnreadable"; detail: string }
+
+export type ApplicationSearch = {
+	applications: Application[]
+	registryFailure?: ApplicationsError
+}
 
 export type ApplicationDestination = "companion" | "space" | "user"
 
@@ -55,7 +64,7 @@ export type ApplicationInstalled = {
 
 export type ApplicationPort = {
 	catalogue: () => Promise<Application[]>
-	search: (query: string) => Promise<Application[]>
+	search: (query: string) => Promise<ApplicationSearch>
 	installs: (conversationId: string) => Promise<ApplicationInstall[]>
 	onInstalled: (
 		listener: (installed: ApplicationInstalled) => void,

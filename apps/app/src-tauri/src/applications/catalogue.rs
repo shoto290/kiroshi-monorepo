@@ -32,6 +32,10 @@ fn application(entry: Curated) -> Result<Application, ApplicationsError> {
 		config: entry.config,
 		tools: entry.tools,
 		logo,
+		logo_url: None,
+		use_count: None,
+		verified: None,
+		hosted_by: None,
 		install: entry.install,
 	})
 }

@@ -143,7 +143,7 @@ export const createApplicationsController = (
 		void port.search(typed).then(
 			(found) => {
 				if (isLastIssued()) {
-					set({ registry: found, isSearching: false })
+					set({ registry: found.applications, isSearching: false })
 				}
 			},
 			() => {

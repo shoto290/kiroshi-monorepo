@@ -1,7 +1,10 @@
 use tauri::State;
 
-use super::contract::{Application, ApplicationInstall, ApplicationsError, ApplicationCallError};
-use super::{catalogue, registry};
+use super::catalogue;
+use super::contract::{
+	Application, ApplicationInstall, ApplicationSearch, ApplicationsError, ApplicationCallError,
+};
+use super::search::{search, Registries};
 use crate::conversations::commands::ready;
 use crate::db;
 
@@ -11,8 +14,8 @@ pub async fn application_catalogue() -> Result<Vec<Application>, ApplicationsErr
 }
 
 #[tauri::command]
-pub async fn application_search(query: String) -> Result<Vec<Application>, ApplicationsError> {
-	registry::search(registry::REGISTRY, &query).await
+pub async fn application_search(query: String) -> Result<ApplicationSearch, ApplicationsError> {
+	search(&Registries::default(), &query).await
 }
 
 #[tauri::command]

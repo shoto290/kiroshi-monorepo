@@ -49,7 +49,7 @@ export const createFakeApplicationPort = (): FakeApplicationPort => {
 
 		search: async (query) => {
 			answer({ command: "search", query })
-			return fake.found
+			return { applications: fake.found }
 		},
 
 		installs: async (conversationId) => {
