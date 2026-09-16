@@ -19,13 +19,27 @@ import {
 
 const CARD_BOTTOM_INSET = 13
 
-const ROW_GAP = 9
+const ROW_GAP = 8
 
-const ROW_SKELETON_HEIGHT = 59
+const ROW_NAME_LINE = 18
 
-const slotsOf = (canvasElement: HTMLElement, slot: string) => [
-	...canvasElement.querySelectorAll(`[data-slot="${slot}"]`),
+const ROW_TEXT_LINE = 16
+
+const slotsOf = (root: Element, slot: string) => [
+	...root.querySelectorAll(`[data-slot="${slot}"]`),
 ]
+
+const heightOf = (element: Element) =>
+	Math.round(element.getBoundingClientRect().height)
+
+const boxOf = (element: Element) => {
+	const rect = element.getBoundingClientRect()
+
+	return {
+		left: Math.round(rect.left),
+		center: Math.round(rect.top + rect.height / 2),
+	}
+}
 
 const matching = (applications: CatalogueApplication[], query: string) =>
 	applications.filter((application) =>
@@ -52,6 +66,36 @@ const CatalogueHost = (props: ApplicationsCatalogueProps) => {
 			}}
 			query={query}
 			registry={isTyped ? matching(props.registry, query) : []}
+		/>
+	)
+}
+
+const CuratedLandingHost = (props: ApplicationsCatalogueProps) => {
+	const [query, setQuery] = useState("")
+	const isLoading = query === ""
+
+	return (
+		<ApplicationsCatalogue
+			{...props}
+			curated={isLoading ? [] : props.curated}
+			isCatalogueLoading={isLoading}
+			onQueryChange={setQuery}
+			query={query}
+		/>
+	)
+}
+
+const RegistryLandingHost = (props: ApplicationsCatalogueProps) => {
+	const [query, setQuery] = useState("")
+	const isSearching = query === ""
+
+	return (
+		<ApplicationsCatalogue
+			{...props}
+			isRegistrySearching={isSearching}
+			onQueryChange={setQuery}
+			query={query}
+			registry={isSearching ? [] : props.registry}
 		/>
 	)
 }
@@ -346,7 +390,7 @@ export const CatalogueLoading = meta.story({
 		docs: {
 			description: {
 				story:
-					"The catalogue opening, nothing typed yet. Check that both sections draw skeletons: six card skeletons, three row skeletons of three bars each, nine apart, the em dash where the Everything count goes, the body marked busy and the polite line saying the catalogue is loading, announced from outside the busy body.",
+					"The catalogue opening, nothing typed yet. Check that both sections draw skeletons: six card skeletons, three row skeletons of three bars each, eight apart, the em dash where the Everything count goes, the body marked busy and the polite line saying the catalogue is loading, announced from outside the busy body.",
 			},
 		},
 	},
@@ -362,7 +406,6 @@ export const CatalogueLoading = meta.story({
 		).not.toBeInTheDocument()
 
 		const [first, second] = rows.map((row) => row.getBoundingClientRect())
-		await expect(Math.round(first.height)).toBe(ROW_SKELETON_HEIGHT)
 		await expect(Math.round(second.top - first.bottom)).toBe(ROW_GAP)
 
 		const everything = canvas.getByRole("tab", { name: "Everything" })
@@ -378,6 +421,83 @@ export const CatalogueLoading = meta.story({
 
 		const [bar] = slotsOf(canvasElement, "skeleton")
 		await expect(bar).toHaveClass("motion-reduce:animate-none")
+	},
+})
+
+export const RegistrySkeletonLandsOnRow = meta.story({
+	args: { curated: [], registry: REGISTRY_RESULTS },
+	render: (args) => <RegistryLandingHost {...args} />,
+	parameters: {
+		docs: {
+			description: {
+				story:
+					"The registry answering. Check that the first row lands exactly where its skeleton stood: same edges, same padding, same height, and name, description, meta and setup each on the left edge and the line center of the bar they replace. Each text line is held at the height its skeleton line declares, so a font the platform substitutes cannot grow the row.",
+			},
+		},
+	},
+	play: async ({ canvas, canvasElement, userEvent }) => {
+		const [skeleton] = slotsOf(canvasElement, "catalogue-row-skeleton")
+		const before = skeleton.getBoundingClientRect()
+		const [, name, description, meta, setup] = slotsOf(
+			skeleton,
+			"skeleton",
+		).map(boxOf)
+
+		await userEvent.type(
+			canvas.getByRole("textbox", { name: "Search applications" }),
+			"s",
+		)
+
+		const [row] = canvas.getAllByRole("listitem")
+		const after = row.getBoundingClientRect()
+
+		await expect(Math.round(after.top)).toBe(Math.round(before.top))
+		await expect(Math.round(after.left)).toBe(Math.round(before.left))
+		await expect(Math.round(after.width)).toBe(Math.round(before.width))
+		await expect(Math.round(after.height)).toBe(Math.round(before.height))
+
+		const setupLine = within(row).getByText("Signs you in")
+		const [setupGlyph] = setupLine.getElementsByTagName("svg")
+		const [nameLine] = slotsOf(row, "catalogue-row-name")
+		const [descriptionLine] = slotsOf(row, "catalogue-row-description")
+		const [metaLine] = slotsOf(row, "application-meta")
+
+		await expect(boxOf(within(row).getByText("Slack"))).toEqual(name)
+		await expect(boxOf(descriptionLine)).toEqual(description)
+		await expect(boxOf(metaLine)).toEqual(meta)
+		await expect(boxOf(setupGlyph).center).toBe(setup.center)
+
+		await expect(heightOf(nameLine)).toBe(ROW_NAME_LINE)
+		await expect(heightOf(descriptionLine)).toBe(ROW_TEXT_LINE)
+		await expect(heightOf(metaLine)).toBe(ROW_TEXT_LINE)
+	},
+})
+
+export const CuratedSkeletonLandsOnCard = meta.story({
+	args: { registry: [] },
+	render: (args) => <CuratedLandingHost {...args} />,
+	parameters: {
+		docs: {
+			description: {
+				story:
+					"The curated section answering. Check that the name of the first card starts where its skeleton bar started, the mark and the gap beside it being the same on both.",
+			},
+		},
+	},
+	play: async ({ canvas, canvasElement, userEvent }) => {
+		const [skeleton] = slotsOf(canvasElement, "catalogue-card-skeleton")
+		const [, name] = slotsOf(skeleton, "skeleton").map(boxOf)
+
+		await userEvent.type(
+			canvas.getByRole("textbox", { name: "Search applications" }),
+			"l",
+		)
+
+		const [card] = canvas.getAllByRole("listitem")
+
+		await expect(
+			boxOf(within(card).getByText(CURATED_APPLICATIONS[0].name)).left,
+		).toBe(name.left)
 	},
 })
 
@@ -486,7 +606,7 @@ export const RegistryResultHovered = meta.story({
 		docs: {
 			description: {
 				story:
-					"The pill against the row it sits in. At rest the row carries no surface of its own and the pill carries the muted one E4c draws. Under the pointer the row takes that same muted surface, so the pill leaves it for the page surface and keeps reading as a pill. The test browser places no real pointer, so the hovered pair is read off the classes that draw it; hover the row in Storybook to see it.",
+					"The row under the pointer. At rest the row carries no surface of its own and the pill carries the muted one E4c draws. Under the pointer the row takes that same muted surface, so the pill leaves it for the page surface, the mark keeps the frame that separates it from the surface and the setup line keeps the muted foreground of its own. The test browser places no real pointer, so the hovered pair is read off the classes that draw it; hover the row in Storybook to see it.",
 			},
 		},
 	},
@@ -494,6 +614,8 @@ export const RegistryResultHovered = meta.story({
 		const [row] = canvas.getAllByRole("listitem")
 		const pill = within(row).getByText("Verified")
 		const button = within(row).getByRole("button")
+		const [mark] = slotsOf(row, "application-mark")
+		const setup = within(row).getByText("Signs you in")
 
 		await expect(getComputedStyle(button).backgroundColor).toBe(
 			"rgba(0, 0, 0, 0)",
@@ -504,6 +626,8 @@ export const RegistryResultHovered = meta.story({
 
 		await expect(button).toHaveClass("group", "hover:bg-muted")
 		await expect(pill).toHaveClass("bg-muted", "group-hover:bg-background")
+		await expect(mark).toHaveClass("border", "border-border")
+		await expect(setup).toHaveClass("text-muted-foreground")
 
 		await userEvent.hover(button)
 		await expect(pill).toBeVisible()
