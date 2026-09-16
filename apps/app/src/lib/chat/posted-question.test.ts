@@ -36,19 +36,18 @@ const askingOf = (id: string): TranscriptDraft =>
 		createdAt: 10,
 	})
 
-const postedOf = (id: string, answered: TranscriptDraft | null = null) => {
-	const asking = askingOf(id)
-	const question: PostedQuestion = {
-		request: requestOf(id),
-		onAnswers: () => Promise.resolve(),
-		conversationId: CONVERSATION,
-		asking,
-		answered,
-		isAnswering: false,
-		isAnswered: answered !== null,
-	}
-	return question
-}
+const postedOf = (
+	id: string,
+	answered: TranscriptDraft | null = null,
+): PostedQuestion => ({
+	request: requestOf(id),
+	onAnswers: () => Promise.resolve(),
+	conversationId: CONVERSATION,
+	asking: askingOf(id),
+	answered,
+	isAnswering: false,
+	isAnswered: answered !== null,
+})
 
 const storedOf = (seq: number, content: string): TranscriptMessage => ({
 	id: `message-${seq}`,
@@ -94,10 +93,9 @@ describe("withPostedRows", () => {
 	})
 
 	it("holds an answer straight under the question it replies to", () => {
-		const asking = askingOf("posted-1")
 		const answered = answeredRow({
 			id: "answer-1",
-			asking,
+			asking: askingOf("posted-1"),
 			content: "Subscription",
 			createdAt: 20,
 		})
@@ -112,7 +110,6 @@ describe("withPostedRows", () => {
 			expect.stringContaining("How do you want to sign in?"),
 			"Subscription",
 		])
-		expect(rows.at(-2)?.seq).toBeGreaterThan(1)
-		expect(rows.at(-1)?.seq).toBeGreaterThan(rows.at(-2)?.seq ?? 0)
+		expect(rows.map(({ seq }) => seq > 1)).toEqual([false, true, true])
 	})
 })

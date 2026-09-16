@@ -115,9 +115,6 @@ export const isPostedAnswer = ({ turnId, quotedMessageId }: RepliedRow) =>
 const rowsOf = ({ asking, answered }: PostedQuestion): TranscriptDraft[] =>
 	answered ? [asking, answered] : [asking]
 
-const lastSeqOf = (messages: TranscriptMessage[]): number =>
-	messages.at(-1)?.seq ?? 0
-
 const placedAfter = (
 	lastSeq: number,
 	rows: TranscriptDraft[],
@@ -134,8 +131,6 @@ export const withPostedRows = (
 	if (posted.length === 0) {
 		return messages
 	}
-	return [
-		...messages,
-		...placedAfter(lastSeqOf(messages), posted.flatMap(rowsOf)),
-	]
+	const lastSeq = messages.at(-1)?.seq ?? 0
+	return [...messages, ...placedAfter(lastSeq, posted.flatMap(rowsOf))]
 }
