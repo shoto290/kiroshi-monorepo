@@ -57,6 +57,7 @@ import type {
 	QuestionRequest,
 	RuntimeScope,
 	SessionHandle,
+	TransportError,
 } from "../agent/contract"
 import type {
 	MessagePin,
@@ -171,9 +172,12 @@ type BotChat = {
 	commands: { stored: AgentCommand[]; announced: boolean }
 	pendingPreflight: Promise<SessionHandle | null> | null
 	pendingRotation: Promise<SessionHandle | null> | null
+	mutesResumeRefusal: boolean
 	sending: boolean
 	draining: Promise<void> | null
 }
+
+type StartOrigin = "asked" | "reopen"
 
 type TransitionKind = "close" | `open:${string}`
 
@@ -225,6 +229,7 @@ export function createChatController(
 			commands: { stored: [], announced: false },
 			pendingPreflight: null,
 			pendingRotation: null,
+			mutesResumeRefusal: false,
 			sending: false,
 			draining: null,
 		}
@@ -553,7 +558,9 @@ export function createChatController(
 			if (!isSameRuntimeScope(scope, bot.state.runtime)) {
 				continue
 			}
-			dispatch(bot, { type: "driverEvent", scope, event })
+			if (!isMutedFailure(bot, event)) {
+				dispatch(bot, { type: "driverEvent", scope, event })
+			}
 			noteFailure(bot, event)
 			noteEvolution(bot, event)
 			persist(bot, scope, event)
@@ -566,6 +573,12 @@ export function createChatController(
 		detach = driver.subscribe(({ scope, event }) => route(scope, event))
 		return detach
 	}
+
+	const isMutedRefusal = (bot: BotChat, error: TransportError) =>
+		bot.mutesResumeRefusal && error.kind === "resumeFailed"
+
+	const isMutedFailure = (bot: BotChat, event: AgentEvent) =>
+		event.type === "failed" && isMutedRefusal(bot, event.error)
 
 	const noteFailure = (bot: BotChat, event: AgentEvent) => {
 		if (event.type !== "failed") {
@@ -637,6 +650,7 @@ export function createChatController(
 		bot: BotChat,
 		resume?: string,
 		rotatedFor: RotationReason | null = null,
+		origin: StartOrigin = "asked",
 	) => {
 		const conversationId = bot.state.conversationId
 		if (!conversationId) {
@@ -655,6 +669,7 @@ export function createChatController(
 		}
 
 		bot.run = openedRun(Boolean(resume))
+		bot.mutesResumeRefusal = origin === "reopen"
 		dispatch(bot, { type: "sessionReset", runtime, sessionId: resume ?? null })
 		try {
 			if (detach) {
@@ -667,21 +682,31 @@ export function createChatController(
 		} catch (reason) {
 			const error = toTransportError(reason)
 			bot.run.spent ??= rotationReasonForStartFailure(error)
-			announce(bot, { type: "failed", error })
+			if (!isMutedRefusal(bot, error)) {
+				announce(bot, { type: "failed", error })
+			}
 			return null
 		}
 	}
 
-	const runPreflight = async (bot: BotChat, resume?: string) => {
+	const runPreflight = async (
+		bot: BotChat,
+		resume?: string,
+		origin: StartOrigin = "asked",
+	) => {
 		const checked = await checkFor(bot)
 		if (checked?.connection !== "ready") {
 			return null
 		}
-		return startFor(bot, resume, bot.run.spent)
+		return startFor(bot, resume, bot.run.spent, origin)
 	}
 
-	const preflightFor = (bot: BotChat, resume?: string) => {
-		bot.pendingPreflight ??= runPreflight(bot, resume).finally(() => {
+	const preflightFor = (
+		bot: BotChat,
+		resume?: string,
+		origin: StartOrigin = "asked",
+	) => {
+		bot.pendingPreflight ??= runPreflight(bot, resume, origin).finally(() => {
 			bot.pendingPreflight = null
 		})
 		return bot.pendingPreflight
@@ -705,7 +730,7 @@ export function createChatController(
 
 	const reopenFor = async (bot: BotChat) => {
 		await turnEnded(bot)
-		return preflightFor(bot, bot.state.sessionId ?? undefined)
+		return preflightFor(bot, bot.state.sessionId ?? undefined, "reopen")
 	}
 
 	const recallCommands = (bot: BotChat) =>
