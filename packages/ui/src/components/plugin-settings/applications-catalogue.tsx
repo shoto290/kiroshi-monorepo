@@ -266,7 +266,7 @@ const CatalogueCardSkeletons = () => (
 				key={card.rank}
 			>
 				<div className={CARD_SHELL_CLASS}>
-					<div className="flex items-center gap-2.5">
+					<div className="flex items-center gap-2">
 						<SkeletonMark />
 						<SkeletonBar className={cn("h-3", card.name)} />
 					</div>
@@ -300,7 +300,7 @@ const CatalogueRowSkeletons = () => (
 						<SkeletonLine bar={cn("h-2.25", row.meta)} isFaint line="h-4" />
 					</div>
 					<div className="shrink-0 pt-px">
-						<SkeletonBar className={cn("h-2.25", row.setup)} isFaint />
+						<SkeletonLine bar={cn("h-2.25", row.setup)} isFaint line="h-4" />
 					</div>
 				</div>
 			</li>
