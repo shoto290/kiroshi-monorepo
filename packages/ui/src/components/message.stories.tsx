@@ -43,10 +43,8 @@ const AUTHORED: { author: MessageAuthor; message: string }[] = [
 	},
 ]
 
-const LONG_REPLY = [
-	"The sync finished, but two devices needed a full pass instead of the usual delta: the Da Lat laptop had been offline since Monday, and the studio tablet came back with a clock drift of about four minutes, which is enough to make the queue reorder itself.",
-	"Nothing was lost. I replayed the eleven pending edits in their original order, kept the newest version of every note that existed on both sides, and left a copy of the two conflicting notes under Archive so you can compare them before the standup.",
-]
+const LONG_REPLY =
+	"The sync finished, but two devices needed a full pass instead of the usual delta: the Da Lat laptop had been offline since Monday, and the studio tablet came back with a clock drift of about four minutes, which is enough to make the queue reorder itself. Nothing was lost, and the eleven pending edits were replayed in the order they were written."
 
 const Transcript = ({ children }: { children: ReactNode }) => (
 	<div className="mx-auto flex w-full max-w-xl flex-col gap-4">{children}</div>
@@ -147,7 +145,7 @@ export const LongContent = meta.story({
 		docs: {
 			description: {
 				story:
-					"A multi-paragraph answer, as `apps/app/src/lib/chat/screen-model.ts:97` hands one over, next to the one-line question that triggered it. Check that the long row wraps inside its own column instead of stretching the transcript, and that the link is the first tab stop — `Variants` covers short copy where wrapping never happens.",
+					"One block long enough to wrap, as `apps/app/src/lib/chat/screen-model.ts:101` hands it over — a row carries exactly one of the blocks `apps/app/src/lib/chat/markdown-blocks.ts:56` split on the blank lines, never two — next to the one-line question that triggered it. Check that the long row wraps inside its own column instead of stretching the transcript, and that the link is the first tab stop — `Variants` covers short copy where wrapping never happens.",
 			},
 		},
 	},
@@ -161,11 +159,7 @@ export const LongContent = meta.story({
 			<Message from="assistant">
 				<MessageContent>
 					<MessageHeader>{AUTHORS.assistant}</MessageHeader>
-					{LONG_REPLY.map((paragraph) => (
-						<p key={paragraph.slice(0, 16)} className="max-w-md">
-							{paragraph}
-						</p>
-					))}
+					<p className="max-w-md">{LONG_REPLY}</p>
 					<MessageFooter>
 						<a
 							href="#message-sync-log"

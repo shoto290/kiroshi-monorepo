@@ -97,12 +97,12 @@ export const WithPicture = meta.story({
 })
 
 export const Unnamed = meta.story({
-	args: { status: "ready", name: undefined },
+	args: { status: "ready", name: "" },
 	parameters: {
 		docs: {
 			description: {
 				story:
-					"Reach for this when the companion has no name yet — a conversation opened before its companion was named. Check that the title falls back to naming the product instead of showing an empty heading, and that the mark is still drawn. Pick `WithSettings` once the companion carries a name. Mounted by `apps/app/src/components/thread-screen.tsx:547`.",
+					"Reach for this when the companion carries no name — which a rename reaches and a creation does not. `apps/app/src-tauri/src/conversations/commands.rs:244` refuses a nameless draft with `NamelessBot`, but `conversation_update_bot` at `apps/app/src-tauri/src/conversations/commands.rs:462` guards nothing, and `packages/ui/src/components/bot-settings-dialog/index.tsx:165` substitutes a placeholder in its own title rather than blocking the save, so an emptied name is written and `apps/app/src/components/thread-screen.tsx:551` passes it here. Check that the title falls back to naming the product instead of showing an empty heading, and that the mark is still drawn. Pick `WithSettings` once the companion carries a name.",
 			},
 		},
 	},

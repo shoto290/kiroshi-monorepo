@@ -65,7 +65,6 @@ const chat = {
 			mission: "mission ouverte",
 			actions: "Actions du message",
 		},
-		typing: "Réponse en cours",
 		showMore: "Afficher plus",
 		showLess: "Afficher moins",
 		author: {
