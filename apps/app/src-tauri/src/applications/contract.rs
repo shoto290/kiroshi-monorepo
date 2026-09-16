@@ -1,5 +1,3 @@
-use std::collections::HashMap;
-
 use serde::{Deserialize, Serialize};
 
 use crate::conversations::contract::TranscriptStoreError;
@@ -59,16 +57,13 @@ impl Install {
 }
 
 fn collapsed(fields: &[InstallField]) -> Option<InstallRefusal> {
-	let mut named: HashMap<&str, &str> = HashMap::new();
-	for field in fields {
-		if let Some(first) = named.insert(&field.secret, &field.name) {
-			return Some(InstallRefusal {
-				field: field.name.clone(),
-				reason: collapsing(first, &field.name, &field.secret),
-			});
-		}
-	}
-	None
+	fields.iter().enumerate().find_map(|(index, field)| {
+		let first = fields[..index].iter().find(|held| held.secret == field.secret)?;
+		Some(InstallRefusal {
+			field: field.name.clone(),
+			reason: collapsing(&first.name, &field.name, &field.secret),
+		})
+	})
 }
 
 fn collapsing(first: &str, second: &str, variable: &str) -> String {
