@@ -185,8 +185,6 @@ const chat = {
 		copyFailed: "Couldn't copy. Select the link and copy it yourself.",
 	},
 	applicationInstall: {
-		address: "Sign-in address",
-		copyFailed: "Couldn't copy",
 		openSettings: "Open Settings",
 		receipt: {
 			companion: "{{destination}} has {{name}} in every conversation.",
