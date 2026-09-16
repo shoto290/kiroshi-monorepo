@@ -42,7 +42,7 @@ One title shape, enforced by `storySort` in `preview.tsx`: `<Family>/<Component>
 | `Conversation` | `Message`, `Prompt`, `Markdown`, `Tools` | **The conversation with an agent** — the transcript, its turns, its composer, the payloads it renders, the approvals that interrupt it. |
 | `Settings` | `Bot`, `User`, `Space`, `Conversation`, `Plugins` | The dialogs that configure one subject, and the panels each holds. |
 
-`Conversation` is the family authors over-reach for. Ask what the component would be in a product with no agent in it: `ProgressGrid` still reports work, `AppSidebar` still moves between places, `Disclosure` still opens and closes. Only a component with no answer to that stays in `Conversation`.
+`Conversation` is the family authors over-reach for. Ask what the component would be in a product with no agent in it: `ProgressRing` still reports work, `AppSidebar` still moves between places, `Disclosure` still opens and closes. Only a component with no answer to that stays in `Conversation`.
 
 A settings panel goes under the subject it configures, never under `Forms`. `Forms` keeps only the controls that know nothing about a bot, a user or a space.
 

@@ -10,7 +10,6 @@ const common = {
 	},
 	dialog: {
 		close: "Fermer",
-		retry: "Réessayer",
 	},
 	confirm: {
 		cancel: "Annuler",

@@ -27,7 +27,7 @@ AssignmentPattern`. That silently declined 45 of our files. Babel 7 compiles the
 
 ## Bail-outs
 
-The compiler declines these 15 symbols across 11 files. Everything else compiles: the production
+The compiler declines these 14 symbols across 10 files. Everything else compiles: the production
 bundle carries 134 `react.memo_cache_sentinel` sites and the babel transform runs on 275 modules.
 
 | File | Symbol | Category | Compiler's reason |
@@ -45,7 +45,6 @@ bundle carries 134 `react.memo_cache_sentinel` sites and the babel transform run
 | `packages/ui/src/components/motion/tooltip.tsx` | `Tooltip` | Refs | Cannot access refs during render |
 | `packages/ui/src/components/markdown/math.tsx` | `MarkdownMath` | Todo | (BuildHIR::lowerExpression) Handle Import expressions |
 | `packages/ui/src/components/markdown/mermaid.tsx` | `MarkdownMermaid` | Todo | (BuildHIR::lowerExpression) Handle Import expressions |
-| `packages/ui/src/components/progress-grid.tsx` | `ProgressGrid` | Todo | (BuildHIR::lowerExpression) Handle ??= operators in AssignmentExpression |
 | `packages/ui/src/hooks/use-space-shortcut.ts` | `useSpaceShortcut` | Refs | Cannot access refs during render |
 
 Four groups, and only the first is a genuine Rules-of-React violation:
@@ -61,7 +60,7 @@ Four groups, and only the first is a genuine Rules-of-React violation:
 - **Immutability** — the same shape seen from the other side: a caller-owned ref or prop object is
   mutated (`externalViewportRef.current = node`).
 - **Todo** — unimplemented compiler syntax, not our code: dynamic `import()` in `MarkdownMath` and
-  `MarkdownMermaid`, and `??=` in `ProgressGrid`.
+  `MarkdownMermaid`.
 
 ## Effect on the PRF1 counters
 
