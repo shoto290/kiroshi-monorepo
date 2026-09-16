@@ -18,6 +18,10 @@ const CARD_BOTTOM_INSET = 13
 
 const ROW_GAP = 10
 
+const slotsOf = (canvasElement: HTMLElement, slot: string) => [
+	...canvasElement.querySelectorAll(`[data-slot="${slot}"]`),
+]
+
 const matching = (applications: CatalogueApplication[], query: string) =>
 	applications.filter((application) =>
 		application.name.toLowerCase().includes(query.trim().toLowerCase()),
@@ -245,9 +249,9 @@ export const RegistrySearching = meta.story({
 		},
 	},
 	play: async ({ canvas, canvasElement }) => {
-		await expect(
-			canvasElement.querySelectorAll('[data-slot="catalogue-row-skeleton"]'),
-		).toHaveLength(3)
+		await expect(slotsOf(canvasElement, "catalogue-row-skeleton")).toHaveLength(
+			3,
+		)
 		await expect(canvas.queryByText(/Nothing matched/)).not.toBeInTheDocument()
 		await expect(canvas.getByRole("tabpanel")).toHaveAttribute(
 			"aria-busy",
@@ -344,17 +348,15 @@ export const CatalogueLoading = meta.story({
 	play: async ({ canvas, canvasElement }) => {
 		await expect(canvas.getByRole("textbox")).toHaveValue("")
 		await expect(
-			canvasElement.querySelectorAll('[data-slot="catalogue-card-skeleton"]'),
+			slotsOf(canvasElement, "catalogue-card-skeleton"),
 		).toHaveLength(6)
-		const rows = canvasElement.querySelectorAll(
-			'[data-slot="catalogue-row-skeleton"]',
-		)
+		const rows = slotsOf(canvasElement, "catalogue-row-skeleton")
 		await expect(rows).toHaveLength(3)
 		await expect(
 			canvas.queryByText(/Type a name above/),
 		).not.toBeInTheDocument()
 
-		const [first, second] = [...rows].map((row) => row.getBoundingClientRect())
+		const [first, second] = rows.map((row) => row.getBoundingClientRect())
 		await expect(Math.round(second.top - first.bottom)).toBe(ROW_GAP)
 
 		const everything = canvas.getByRole("tab", { name: "Everything" })
@@ -368,7 +370,7 @@ export const CatalogueLoading = meta.story({
 		)
 		await expect(body.contains(announcement)).toBe(false)
 
-		const [bar] = canvasElement.querySelectorAll('[data-slot="skeleton"]')
+		const [bar] = slotsOf(canvasElement, "skeleton")
 		await expect(bar).toHaveClass("motion-reduce:animate-none")
 	},
 })
