@@ -535,19 +535,19 @@ const bots = {
 				placeholder: "Search applications",
 				hint: "Looks in the MCP registry too",
 			},
+			loading: "Loading the applications catalogue…",
 			curated: {
-				title: "Kiroshi knows these",
-				subtitle: "Set up in one step, nothing to paste",
+				title: "Kiroshi has read these",
+				subtitle: "We check what they do before listing them.",
 			},
 			registry: {
-				title: "From the MCP registry",
-				subtitle: "Published by whoever wrote them. Read before you add.",
+				title: "Kiroshi hasn’t read these",
+				subtitle: "Published by anyone. Read what it does before you add it.",
 				rest: "Type a name above to search the published applications.",
 				restCounted_one:
 					"Type a name above to search {{count}} published application.",
 				restCounted_other:
 					"Type a name above to search {{count}} published applications.",
-				searching: "Searching the MCP registry…",
 				empty: "Nothing in the MCP registry matched {{query}}.",
 				failed: "Couldn’t reach the MCP registry.",
 				retry: "Retry",

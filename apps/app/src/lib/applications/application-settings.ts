@@ -1,4 +1,5 @@
 import type { BotMcpServerItem } from "@workspace/ui/components/bot-settings"
+import { readMcpServerLaunch } from "@workspace/ui/components/bot-settings-dialog/mcp-server-launch"
 import type { EnvironmentSection } from "@workspace/ui/components/environment-panel"
 import type { InstallableApplication } from "@workspace/ui/components/plugin-settings/application-install-page"
 import type {
@@ -62,6 +63,18 @@ const toCatalogueApplication = (
 	mark: application.logo,
 })
 
+const packageIdentityOf = (application: Application) => {
+	const { command, url } = readMcpServerLaunch(application.config)
+	return command ?? url ?? undefined
+}
+
+const toRegistryApplication = (
+	application: Application,
+): CatalogueApplication => ({
+	...toCatalogueApplication(application),
+	packageIdentity: packageIdentityOf(application),
+})
+
 export const toInstallableApplication = (
 	application: Application,
 ): InstallableApplication => ({
@@ -74,7 +87,7 @@ export const toInstallableApplication = (
 	tools: application.tools,
 })
 
-const categoriesOf = (count: number): ApplicationCategory[] => [
+const categoriesOf = (count: number | null): ApplicationCategory[] => [
 	{
 		id: EVERYTHING_CATEGORY,
 		label: i18n.t("bots:applications.catalogue.everything"),
@@ -115,13 +128,16 @@ const toApplicationsCatalogue = ({
 	const { picked } = state
 
 	return {
-		categories: categoriesOf(state.curated.length),
+		categories: categoriesOf(
+			state.isReadingCatalogue ? null : state.curated.length,
+		),
 		category: EVERYTHING_CATEGORY,
 		onCategoryChange: () => undefined,
 		query: state.query,
 		onQueryChange: controller.search,
 		curated: curated.map(toCatalogueApplication),
-		registry: state.registry.map(toCatalogueApplication),
+		registry: state.registry.map(toRegistryApplication),
+		isCatalogueLoading: state.isReadingCatalogue,
 		isRegistrySearching: state.isSearching,
 		hasRegistryFailed: state.hasSearchFailed,
 		onRegistryRetry: controller.retry,

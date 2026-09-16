@@ -176,6 +176,30 @@ describe("toApplicationScope", () => {
 		])
 	})
 
+	it("names a registry result by the configuration that starts it", () => {
+		const { scope } = scopeOf(
+			applicationsWith({ curated: [LINEAR], registry: [REGISTERED] }),
+		)
+
+		expect(scope.mcpCatalogue?.registry).toEqual([
+			{
+				id: "io.github.kwn/tasklog",
+				name: "io.github.kwn/tasklog",
+				description: "Tracks tasks.",
+				setup: "none",
+				mark: undefined,
+				packageIdentity: "npx -y @kwn/tasklog",
+			},
+		])
+	})
+
+	it("hands the everything category no count while the catalogue is read", () => {
+		const { scope } = scopeOf(applicationsWith({ isReadingCatalogue: true }))
+
+		expect(scope.mcpCatalogue?.isCatalogueLoading).toBe(true)
+		expect(scope.mcpCatalogue?.categories[0].count).toBeNull()
+	})
+
 	it("keeps only what the typed query matches among the curated ones", () => {
 		const { scope } = scopeOf(
 			applicationsWith({ curated: [LINEAR, REGISTERED], query: "tasklog" }),

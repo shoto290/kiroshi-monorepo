@@ -17,6 +17,7 @@ import type { TranscriptStore } from "../conversations/store-port"
 
 export type ApplicationsState = {
 	curated: Application[]
+	isReadingCatalogue: boolean
 	hasCatalogueFailed: boolean
 	query: string
 	registry: Application[]
@@ -47,6 +48,7 @@ export type ApplicationsController = {
 
 export const initialApplicationsState: ApplicationsState = {
 	curated: [],
+	isReadingCatalogue: false,
 	hasCatalogueFailed: false,
 	query: "",
 	registry: [],
@@ -100,7 +102,6 @@ export const createApplicationsController = (
 	}: ApplicationsControllerOptions = {},
 ): ApplicationsController => {
 	let state = initialApplicationsState
-	let isReadingCatalogue = false
 	let scheduledSearch: ReturnType<typeof setTimeout> | null = null
 	let issuedSearch = 0
 	const listeners = new Set<() => void>()
@@ -233,10 +234,10 @@ export const createApplicationsController = (
 		},
 
 		open: async () => {
-			if (isReadingCatalogue || state.curated.length > 0) {
+			if (state.isReadingCatalogue || state.curated.length > 0) {
 				return
 			}
-			isReadingCatalogue = true
+			set({ isReadingCatalogue: true })
 			try {
 				set({ curated: await port.catalogue(), hasCatalogueFailed: false })
 			} catch {
@@ -245,7 +246,7 @@ export const createApplicationsController = (
 					title: i18n.t("bots:applications.catalogue.unavailable"),
 				})
 			} finally {
-				isReadingCatalogue = false
+				set({ isReadingCatalogue: false })
 			}
 		},
 

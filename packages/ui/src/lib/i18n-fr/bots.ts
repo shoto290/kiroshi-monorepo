@@ -549,14 +549,15 @@ const bots = {
 				placeholder: "Rechercher des applications",
 				hint: "Cherche aussi dans le registre MCP",
 			},
+			loading: "Chargement du catalogue d'applications…",
 			curated: {
-				title: "Kiroshi les connaît",
-				subtitle: "Configurées en une étape, rien à coller",
+				title: "Kiroshi les a lues",
+				subtitle: "Nous vérifions ce qu'elles font avant de les lister.",
 			},
 			registry: {
-				title: "Depuis le registre MCP",
+				title: "Kiroshi ne les a pas lues",
 				subtitle:
-					"Publiées par leurs auteurs, quels qu'ils soient. Lisez avant d'ajouter.",
+					"Publiées par n'importe qui. Lisez ce qu'elle fait avant de l'ajouter.",
 				rest: "Tapez un nom ci-dessus pour chercher parmi les applications publiées.",
 				restCounted_one:
 					"Tapez un nom ci-dessus pour chercher parmi {{count}} application publiée.",
@@ -564,7 +565,6 @@ const bots = {
 					"Tapez un nom ci-dessus pour chercher parmi {{count}} applications publiées.",
 				restCounted_other:
 					"Tapez un nom ci-dessus pour chercher parmi {{count}} applications publiées.",
-				searching: "Recherche dans le registre MCP…",
 				empty: "Rien dans le registre MCP ne correspond à {{query}}.",
 				failed: "Impossible de joindre le registre MCP.",
 				retry: "Réessayer",
