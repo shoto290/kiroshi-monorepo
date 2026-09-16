@@ -224,14 +224,7 @@ const SkeletonMark = () => (
 	<Skeleton className="size-7 shrink-0 rounded-md bg-border motion-reduce:animate-none" />
 )
 
-type CardSkeleton = {
-	rank: string
-	name: string
-	description: string
-	setup: string
-}
-
-const CARD_SKELETONS: CardSkeleton[] = [
+const CARD_SKELETONS = [
 	{ rank: "one", name: "w-16.5", description: "w-28", setup: "w-19.5" },
 	{ rank: "two", name: "w-12", description: "w-34.5", setup: "w-16.5" },
 	{ rank: "three", name: "w-18.5", description: "w-23", setup: "w-22.5" },
@@ -240,15 +233,7 @@ const CARD_SKELETONS: CardSkeleton[] = [
 	{ rank: "six", name: "w-11", description: "w-32.5", setup: "w-21.5" },
 ]
 
-type RowSkeleton = {
-	rank: string
-	name: string
-	description: string
-	meta: string
-	setup: string
-}
-
-const ROW_SKELETONS: RowSkeleton[] = [
+const ROW_SKELETONS = [
 	{
 		rank: "one",
 		name: "w-33",
