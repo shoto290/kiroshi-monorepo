@@ -5,6 +5,10 @@ import { type ReactNode, useRef } from "react"
 import { useTranslation } from "react-i18next"
 
 import { type Icon, Icons } from "@workspace/ui/components/icons"
+import {
+	ApplicationMetaLine,
+	ApplicationVerifiedPill,
+} from "@workspace/ui/components/plugin-settings/application-identity"
 import { ApplicationMark } from "@workspace/ui/components/plugin-settings/application-mark"
 import {
 	RAIL_ITEM_CLASS,
@@ -24,10 +28,14 @@ type ApplicationSetup = "signIn" | "apiKey" | "none"
 type CatalogueApplication = {
 	id: string
 	name: string
-	description: string
+	description?: string
 	setup: ApplicationSetup
 	mark?: string
 	packageIdentity?: string
+	source?: string
+	useCount?: number
+	isVerified?: boolean
+	host?: string
 }
 
 type ApplicationCategory = {
@@ -46,7 +54,7 @@ const CARD_SHELL_CLASS =
 const ROW_LIST_CLASS = "flex list-none flex-col gap-2.25 p-0"
 
 const ROW_SHELL_CLASS =
-	"flex w-full min-w-0 items-center gap-2.5 rounded-lg border border-border px-3 py-2"
+	"flex w-full min-w-0 items-start gap-2.5 rounded-lg border border-border px-3 py-2"
 
 const SETUP_ICON = {
 	signIn: Icons.ExternalLink,
@@ -133,26 +141,32 @@ const CatalogueRow = ({ application, onPick }: CatalogueRowProps) => {
 			<button
 				className={cn(
 					ROW_SHELL_CLASS,
-					"cursor-pointer text-start outline-none hover:bg-muted focus-visible:ring-2 focus-visible:ring-ring",
+					"group cursor-pointer text-start outline-none hover:bg-muted focus-visible:ring-2 focus-visible:ring-ring",
 				)}
 				onClick={onPick}
 				type="button"
 			>
 				<ApplicationMark mark={application.mark} size="sm" />
-				<span className="flex min-w-0 flex-1 flex-col gap-px">
-					<span className="truncate font-medium text-[13px]/4.5 text-foreground">
-						{application.name}
+				<span className="flex min-w-0 flex-1 flex-col gap-0.5">
+					<span className="flex min-w-0 items-center gap-1.5">
+						<span className="truncate font-medium text-[13px]/4.5 text-foreground">
+							{application.name}
+						</span>
+						{application.isVerified ? <ApplicationVerifiedPill /> : null}
 					</span>
-					<span
-						className={cn(
-							"truncate text-muted-foreground text-xs/4",
-							!application.description && "font-mono",
-						)}
-					>
-						{application.description || application.packageIdentity}
-					</span>
+					{application.description ? (
+						<span className="truncate text-muted-foreground text-xs/4">
+							{application.description}
+						</span>
+					) : null}
+					<ApplicationMetaLine
+						host={application.host}
+						packageIdentity={application.packageIdentity}
+						source={application.source}
+						useCount={application.useCount}
+					/>
 				</span>
-				<span className="flex shrink-0 items-center gap-1.25 text-muted-foreground text-xs/4">
+				<span className="flex shrink-0 items-center gap-1.25 pt-px text-muted-foreground text-xs/4">
 					<SetupIcon
 						aria-hidden="true"
 						className={cn(
@@ -318,7 +332,7 @@ const CataloguePage = ({
 
 	return (
 		<Tabs.Root
-			className={cn("flex min-h-0 flex-1", className)}
+			className={cn("flex min-h-0 min-w-0 flex-1", className)}
 			onValueChange={onCategoryChange}
 			orientation="vertical"
 			value={category}

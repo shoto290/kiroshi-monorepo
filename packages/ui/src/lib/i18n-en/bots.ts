@@ -378,6 +378,10 @@ const bots = {
 		unsaved: "Unsaved changes",
 		back: "All applications",
 		paste: "Paste a configuration",
+		verified: "Verified",
+		uses_one: "{{count}} use",
+		uses_other: "{{count, number}} uses",
+		hostedOn: "Runs on <host>{{host}}</host>",
 		intro: {
 			companion:
 				"What {{name}} connects to for tools it doesn’t have on its own.",
@@ -460,6 +464,7 @@ const bots = {
 				description:
 					"A browser tab opens as soon as you add it. Kiroshi keeps the token with this application’s secrets, and refreshes it on its own.",
 				action: "Add and sign in",
+				fact: "Signs you in. {{name}} opens in your browser and asks to allow Kiroshi.",
 			},
 			key: {
 				title: "{{name}} needs an API key",
@@ -478,6 +483,8 @@ const bots = {
 				},
 			},
 			none: "Nothing to set up. It runs on this machine, with no key and no sign-in.",
+			hostedNone: "Nothing to set up. No key, no sign-in.",
+			hosting: "Runs on <host>{{host}}</host>, not on this machine.",
 			unreviewed: {
 				title: "Kiroshi hasn’t read this one",
 				description: {
@@ -485,6 +492,12 @@ const bots = {
 						"Published on the MCP registry by {{publisher}}, {{date}}. It runs on this machine with your account’s access. Read what it does before you add it.",
 					writes:
 						"Published on the MCP registry by {{publisher}}, {{date}}. It runs on this machine with your account’s access, and it writes as well as reads. Read what it does before you add it.",
+				},
+				hosted: {
+					reads:
+						"Published on {{source}} by {{publisher}}, {{date}}. It reads with your {{name}} account’s access. Read what it does before you add it.",
+					writes:
+						"Published on {{source}} by {{publisher}}, {{date}}. It reads and writes with your {{name}} account’s access. Read what it does before you add it.",
 				},
 			},
 			tools: {
@@ -505,6 +518,14 @@ const bots = {
 					"Applications run on your machine, under your account. Adding one here gives every companion in {{name}} its tools.",
 				profile:
 					"Applications run on your machine, under your account. Adding one here gives every companion you have its tools, in every space.",
+			},
+			hostedFootnote: {
+				companion:
+					"This one runs on {{source}}’s server, not on your machine. Adding it reopens {{name}}’s session so the tools are there straight away.",
+				space:
+					"This one runs on {{source}}’s server, not on your machine. Adding it here gives every companion in {{name}} its tools.",
+				profile:
+					"This one runs on {{source}}’s server, not on your machine. Adding it here gives every companion you have its tools, in every space.",
 			},
 			done: "Added",
 			failed: "Couldn’t add it: {{reason}}",

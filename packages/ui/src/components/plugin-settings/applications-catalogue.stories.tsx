@@ -1,12 +1,14 @@
 import { useState } from "react"
-import { expect, fn } from "storybook/test"
+import { expect, fn, within } from "storybook/test"
 
 import preview from "@workspace/storybook/preview"
 import {
 	CATALOGUE_CATEGORIES,
 	CURATED_APPLICATIONS,
+	LONG_REGISTRY_RESULT,
 	PUBLISHED_APPLICATION_COUNT,
 	REGISTRY_APPLICATIONS,
+	REGISTRY_RESULTS,
 } from "@workspace/ui/components/plugin-settings/applications.fixtures"
 import {
 	ApplicationsCatalogue,
@@ -375,5 +377,105 @@ export const CatalogueLoading = meta.story({
 
 		const [bar] = slotsOf(canvasElement, "skeleton")
 		await expect(bar).toHaveClass("motion-reduce:animate-none")
+	},
+})
+
+export const RegistryResults = meta.story({
+	args: { query: "s", curated: [], registry: REGISTRY_RESULTS },
+	render: (args) => <ApplicationsCatalogue {...args} />,
+	parameters: {
+		docs: {
+			description: {
+				story:
+					"E4c. The three results a registry answers with, side by side. Check Slack with its own icon, its verified pill, its source, its uses and the host it runs on instead of its package identity; Granola Transcripts on the server glyph, its source and its package invocation in monospace; Obsidian Vault with no pill at all and no gap where one would sit.",
+			},
+		},
+	},
+	play: async ({ canvas }) => {
+		const [slack, granola, obsidian] = canvas.getAllByRole("listitem")
+
+		await expect(slack.querySelector("img")).not.toBeNull()
+		await expect(within(slack).getByText("Verified")).toBeVisible()
+		await expect(within(slack).getByText("Smithery")).toBeVisible()
+		await expect(within(slack).getByText("12,110 uses")).toBeVisible()
+		await expect(within(slack).getByText("slack.run.tools")).toHaveClass(
+			"font-mono",
+		)
+		await expect(within(slack).getByText("Slack")).not.toHaveClass("font-mono")
+		await expect(
+			within(slack).queryByText("https://slack.run.tools/mcp"),
+		).not.toBeInTheDocument()
+
+		await expect(granola.querySelector("img")).toBeNull()
+		await expect(within(granola).getByText("MCP registry")).toBeVisible()
+		await expect(
+			within(granola).getByText("npx -y @kwn/granola-transcripts"),
+		).toHaveClass("font-mono")
+		await expect(
+			within(granola).queryByText("Verified"),
+		).not.toBeInTheDocument()
+
+		await expect(
+			within(obsidian).queryByText("Verified"),
+		).not.toBeInTheDocument()
+		await expect(within(obsidian).getByText("806 uses")).toBeVisible()
+		await expect(within(obsidian).getByText("Needs an API key")).toBeVisible()
+	},
+})
+
+export const RegistryResultTooWide = meta.story({
+	args: { query: "s", curated: [], registry: [LONG_REGISTRY_RESULT] },
+	render: (args) => <ApplicationsCatalogue {...args} />,
+	parameters: {
+		docs: {
+			description: {
+				story:
+					"A result whose name, description and host are all wider than the row. Check that each part stays on one line and truncates rather than growing the row.",
+			},
+		},
+	},
+	play: async ({ canvas }) => {
+		const [row] = canvas.getAllByRole("listitem")
+		const name = within(row).getByText(LONG_REGISTRY_RESULT.name)
+		const description = within(row).getByText(/Reads every channel/)
+
+		for (const part of [name, description]) {
+			await expect(part.scrollWidth).toBeGreaterThan(part.clientWidth)
+			await expect(
+				Math.round(part.getBoundingClientRect().height),
+			).toBeLessThan(24)
+		}
+		await expect(row.scrollWidth).toBeLessThanOrEqual(row.clientWidth)
+	},
+})
+
+export const RegistryResultHovered = meta.story({
+	args: { query: "s", curated: [], registry: REGISTRY_RESULTS },
+	render: (args) => <ApplicationsCatalogue {...args} />,
+	parameters: {
+		docs: {
+			description: {
+				story:
+					"The pill against the row it sits in. At rest the row carries no surface of its own and the pill carries the muted one E4c draws. Under the pointer the row takes that same muted surface, so the pill leaves it for the page surface and keeps reading as a pill. The test browser places no real pointer, so the hovered pair is read off the classes that draw it; hover the row in Storybook to see it.",
+			},
+		},
+	},
+	play: async ({ canvas, userEvent }) => {
+		const [row] = canvas.getAllByRole("listitem")
+		const pill = within(row).getByText("Verified")
+		const button = within(row).getByRole("button")
+
+		await expect(getComputedStyle(button).backgroundColor).toBe(
+			"rgba(0, 0, 0, 0)",
+		)
+		await expect(getComputedStyle(pill).backgroundColor).not.toBe(
+			getComputedStyle(button).backgroundColor,
+		)
+
+		await expect(button).toHaveClass("group", "hover:bg-muted")
+		await expect(pill).toHaveClass("bg-muted", "group-hover:bg-background")
+
+		await userEvent.hover(button)
+		await expect(pill).toBeVisible()
 	},
 })

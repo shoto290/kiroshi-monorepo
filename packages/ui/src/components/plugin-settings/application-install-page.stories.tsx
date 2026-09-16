@@ -9,6 +9,8 @@ import {
 import {
 	API_KEY_INSTALL,
 	CATALOGUE_CATEGORIES,
+	HOSTED_INSTALL,
+	HOSTED_NOTHING_INSTALL,
 	LONG_INSTALL,
 	REGISTRY_INSTALL,
 	SIGN_IN_INSTALL,
@@ -87,12 +89,24 @@ export const SignsYouIn = meta.story({
 		docs: {
 			description: {
 				story:
-					"E5. An application that signs you in. Check the attention notice with its dot, the external-link glyph before Add and sign in, every tool as a pill, and the footnote naming the companion.",
+					"E5. An application that signs you in, on this machine. Check the attention notice with its dot, the external-link glyph before Add and sign in, every tool as a pill, the footnote naming the companion, and that nothing states where it runs: no fact line, no hosted fine print.",
 			},
 		},
 	},
-	play: async ({ args, canvas, userEvent }) => {
+	play: async ({ args, canvas, canvasElement, userEvent }) => {
 		await expect(canvas.getByText("Granola signs you in")).toBeVisible()
+		await expect(
+			canvasElement.querySelector('[data-slot="application-fact"]'),
+		).toBeNull()
+		await expect(
+			canvasElement.querySelector('[data-slot="application-meta"]'),
+		).toBeNull()
+		await expect(
+			canvas.queryByText(/not on this machine/),
+		).not.toBeInTheDocument()
+		await expect(
+			canvas.getByText(/Applications run on your machine/),
+		).toBeVisible()
 		await expect(
 			canvas.getByText("Reads your meeting notes and transcripts."),
 		).not.toHaveClass("font-mono")
@@ -364,5 +378,132 @@ export const LongContent = meta.story({
 		await expect(heading.scrollWidth).toBeGreaterThan(heading.clientWidth)
 		await expect(canvas.getAllByRole("listitem")).toHaveLength(40)
 		await expect(canvas.getByText("40 tools, reads and writes")).toBeVisible()
+	},
+})
+
+export const RunsOnItsHost = meta.story({
+	args: { application: HOSTED_INSTALL },
+	parameters: {
+		docs: {
+			description: {
+				story:
+					"E7b. A registry application its source runs for you. Check the verified pill after the name, the source and the uses under the description, the caution naming Smithery and claiming nothing about this machine, the sign-in read as a plain fact rather than an amber field, the hosting fact in the attention colour with its host in monospace, the plain Add application, and the fine print sending it to its source’s server.",
+			},
+		},
+	},
+	play: async ({ canvas, canvasElement }) => {
+		await expect(canvas.getByText("Verified")).toBeVisible()
+		await expect(canvas.getByText("Smithery")).toBeVisible()
+		await expect(canvas.getByText("12,110 uses")).toBeVisible()
+
+		await expect(
+			canvas.getByText(
+				/Published on Smithery by run-tools, 3 weeks ago\. It reads and writes with your Slack account’s access\./,
+			),
+		).toBeVisible()
+		await expect(
+			canvas.queryByText(/runs on this machine/),
+		).not.toBeInTheDocument()
+
+		await expect(
+			canvas.queryByText("Slack signs you in"),
+		).not.toBeInTheDocument()
+		const [signIn, hosting] = [
+			...canvasElement.querySelectorAll('[data-slot="application-fact"]'),
+		]
+		await expect(signIn).toHaveTextContent(
+			"Signs you in. Slack opens in your browser and asks to allow Kiroshi.",
+		)
+		await expect(signIn.querySelector("svg")).toHaveClass(
+			"text-muted-foreground",
+		)
+		await expect(hosting).toHaveTextContent(
+			"Runs on slack.run.tools, not on this machine.",
+		)
+		await expect(hosting.querySelector("svg")).toHaveClass(
+			"text-bot-badge-attention",
+		)
+		await expect(canvas.getByText("slack.run.tools")).toHaveClass("font-mono")
+
+		const action = canvas.getByRole("button", { name: "Add application" })
+		await expect(action.querySelector("svg")).toBeNull()
+
+		await expect(
+			canvas.getByText(
+				/This one runs on Smithery’s server, not on your machine\. Adding it reopens Rei’s session/,
+			),
+		).toBeVisible()
+	},
+})
+
+export const HostedNothingToSetUp = meta.story({
+	args: { application: HOSTED_NOTHING_INSTALL },
+	parameters: {
+		docs: {
+			description: {
+				story:
+					"A hosted application that asks for neither a key nor a sign-in. Check that where it runs is stated once, in the hosting fact, and that the nothing-to-set-up line no longer claims this machine.",
+			},
+		},
+	},
+	play: async ({ canvas, canvasElement }) => {
+		await expect(
+			canvas.getByText("Nothing to set up. No key, no sign-in."),
+		).toBeVisible()
+		await expect(
+			canvas.queryByText(/runs on this machine/),
+		).not.toBeInTheDocument()
+
+		const facts = [
+			...canvasElement.querySelectorAll('[data-slot="application-fact"]'),
+		]
+		await expect(facts).toHaveLength(2)
+		await expect(facts[1]).toHaveTextContent(
+			"Runs on slack.run.tools, not on this machine.",
+		)
+	},
+})
+
+export const NarrowHostedColumn = meta.story({
+	args: { application: HOSTED_INSTALL },
+	decorators: [
+		(Story) => (
+			<div className="flex h-[34rem] w-[33rem] overflow-hidden">
+				<Story />
+			</div>
+		),
+	],
+	parameters: {
+		docs: {
+			description: {
+				story:
+					"The hosted page in a column narrowed to 320px, where both sentences wrap. Check that each fact keeps its glyph level with the first line of its sentence, and that nothing overflows the column sideways.",
+			},
+		},
+	},
+	play: async ({ canvas, canvasElement }) => {
+		const body = canvas.getByRole("tabpanel")
+		const grid = body.parentElement as HTMLElement
+		await expect(Math.round(grid.getBoundingClientRect().width)).toBe(320)
+
+		const facts = [
+			...canvasElement.querySelectorAll('[data-slot="application-fact"]'),
+		]
+		await expect(facts).toHaveLength(2)
+
+		for (const fact of facts) {
+			const glyph = fact.querySelector("svg") as SVGElement
+			const sentence = fact.lastElementChild as HTMLElement
+			await expect(sentence.getBoundingClientRect().height).toBeGreaterThan(20)
+			await expect(
+				glyph.getBoundingClientRect().top -
+					sentence.getBoundingClientRect().top,
+			).toBeLessThan(6)
+			await expect(fact.scrollWidth).toBeLessThanOrEqual(fact.clientWidth)
+		}
+
+		for (const element of [grid, ...grid.children]) {
+			await expect(element.scrollWidth).toBeLessThanOrEqual(element.clientWidth)
+		}
 	},
 })
