@@ -151,7 +151,7 @@ const toApplicationsCatalogue = ({
 					isInstalled: target.declared.includes(picked.name),
 					failure: state.failure ?? undefined,
 					onInstall: (key) => {
-						void controller.install(target, key)
+						void controller.install(target, [key ?? ""])
 					},
 					onLeave: controller.leave,
 				}

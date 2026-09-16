@@ -7,7 +7,7 @@ use serde::de::DeserializeOwned;
 use serde::Deserialize;
 use serde_json::{json, Value};
 
-use super::contract::{Application, ApplicationsError, Install};
+use super::contract::{Application, ApplicationsError, Install, InstallField};
 use super::search::{repository, Listing};
 use crate::missions::github::installed_tls_provider;
 
@@ -301,9 +301,11 @@ fn required_secret(input: &Input) -> bool {
 
 fn key(input: &Input) -> Install {
 	Install::Key {
-		name: input.name.clone(),
-		secret: variable(&input.name),
-		description: input.description.clone(),
+		fields: vec![InstallField {
+			name: input.name.clone(),
+			secret: variable(&input.name),
+			description: input.description.clone(),
+		}],
 	}
 }
 
@@ -404,9 +406,11 @@ pub(crate) mod tests {
 		assert_eq!(
 			application.install,
 			Install::Key {
-				name: "Authorization".to_owned(),
-				secret: "AUTHORIZATION".to_owned(),
-				description: Some("Bearer token for Smithery authentication".to_owned()),
+				fields: vec![InstallField {
+					name: "Authorization".to_owned(),
+					secret: "AUTHORIZATION".to_owned(),
+					description: Some("Bearer token for Smithery authentication".to_owned()),
+				}],
 			}
 		);
 		assert_eq!(
@@ -458,9 +462,11 @@ pub(crate) mod tests {
 		assert_eq!(
 			application.install,
 			Install::Key {
-				name: "Authorization".to_owned(),
-				secret: "AUTHORIZATION".to_owned(),
-				description: None,
+				fields: vec![InstallField {
+					name: "Authorization".to_owned(),
+					secret: "AUTHORIZATION".to_owned(),
+					description: None,
+				}],
 			}
 		);
 		assert_eq!(
@@ -531,9 +537,11 @@ pub(crate) mod tests {
 		assert_eq!(
 			application.install,
 			Install::Key {
-				name: "api-key".to_owned(),
-				secret: "API_KEY".to_owned(),
-				description: Some("The key.".to_owned()),
+				fields: vec![InstallField {
+					name: "api-key".to_owned(),
+					secret: "API_KEY".to_owned(),
+					description: Some("The key.".to_owned()),
+				}],
 			}
 		);
 		assert_eq!(

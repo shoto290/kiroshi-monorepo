@@ -33,7 +33,7 @@ type ApplicationInstallRowProps = {
 
 type LeftOutKeyProps = {
 	title: string
-	secret: string
+	secrets: string[]
 	onOpenSettings: () => void
 }
 
@@ -52,7 +52,7 @@ const receiptSentenceOf = (
 	return t("applicationInstall.receipt.companion", { name: title, destination })
 }
 
-const LeftOutKey = ({ title, secret, onOpenSettings }: LeftOutKeyProps) => {
+const LeftOutKey = ({ title, secrets, onOpenSettings }: LeftOutKeyProps) => {
 	const t = useChatCopy()
 
 	return (
@@ -68,7 +68,10 @@ const LeftOutKey = ({ title, secret, onOpenSettings }: LeftOutKeyProps) => {
 									ns: "bots",
 									name: title,
 								}),
-								detail: t("applicationInstall.secret", { secret }),
+								detail: t("applicationInstall.secret", {
+									count: secrets.length,
+									secret: secrets.join(", "),
+								}),
 							},
 							action: {
 								label: t("applicationInstall.openSettings"),
@@ -98,7 +101,7 @@ export const ApplicationInstallRow = ({
 				{isLeftOut && install.install.kind === "key" ? (
 					<LeftOutKey
 						onOpenSettings={onOpenSettings}
-						secret={install.install.secret}
+						secrets={install.install.secrets}
 						title={install.title}
 					/>
 				) : null}

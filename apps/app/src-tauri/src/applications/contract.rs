@@ -32,13 +32,19 @@ pub enum Install {
 	Nothing,
 	#[serde(rename_all = "camelCase")]
 	Key {
-		name: String,
-		secret: String,
-		#[serde(default, skip_serializing_if = "Option::is_none")]
-		description: Option<String>,
+		fields: Vec<InstallField>,
 	},
 	Oauth,
 	Refused(InstallRefusal),
+}
+
+#[derive(Debug, Clone, PartialEq, Eq, Serialize, Deserialize)]
+#[serde(rename_all = "camelCase")]
+pub struct InstallField {
+	pub name: String,
+	pub secret: String,
+	#[serde(default, skip_serializing_if = "Option::is_none")]
+	pub description: Option<String>,
 }
 
 #[derive(Debug, Clone, PartialEq, Eq, Serialize, Deserialize)]
@@ -176,7 +182,7 @@ pub enum InstallCase {
 	Nothing,
 	#[serde(rename_all = "camelCase")]
 	Key {
-		secret: String,
+		secrets: Vec<String>,
 	},
 	Oauth,
 }
@@ -187,7 +193,9 @@ impl TryFrom<Install> for InstallCase {
 	fn try_from(install: Install) -> Result<Self, Self::Error> {
 		match install {
 			Install::Nothing => Ok(InstallCase::Nothing),
-			Install::Key { secret, .. } => Ok(InstallCase::Key { secret }),
+			Install::Key { fields } => Ok(InstallCase::Key {
+				secrets: fields.into_iter().map(|held| held.secret).collect(),
+			}),
 			Install::Oauth => Ok(InstallCase::Oauth),
 			Install::Refused(refusal) => Err(refusal),
 		}
@@ -298,9 +306,11 @@ mod tests {
 			verified: Some(true),
 			hosted_by: Some("Smithery".to_owned()),
 			install: Install::Key {
-				name: "Authorization".to_owned(),
-				secret: "SUPERSET_API_KEY".to_owned(),
-				description: None,
+				fields: vec![InstallField {
+					name: "Authorization".to_owned(),
+					secret: "SUPERSET_API_KEY".to_owned(),
+					description: None,
+				}],
 			},
 		};
 
@@ -316,7 +326,10 @@ mod tests {
 				"useCount": 42,
 				"verified": true,
 				"hostedBy": "Smithery",
-				"install": { "kind": "key", "name": "Authorization", "secret": "SUPERSET_API_KEY" },
+				"install": {
+					"kind": "key",
+					"fields": [{ "name": "Authorization", "secret": "SUPERSET_API_KEY" }],
+				},
 			})
 		);
 	}
@@ -331,7 +344,7 @@ mod tests {
 			logo: Some("<svg/>".to_owned()),
 			scope: Destination::Space,
 			destination_id: Some("personal".to_owned()),
-			install: InstallCase::Key { secret: "SUPERSET_API_KEY".to_owned() },
+			install: InstallCase::Key { secrets: vec!["SUPERSET_API_KEY".to_owned()] },
 			last_message_seq: 12,
 			created_at: 1_700_000_000_000,
 		};
@@ -346,7 +359,7 @@ mod tests {
 				"logo": "<svg/>",
 				"scope": "space",
 				"destinationId": "personal",
-				"install": { "kind": "key", "secret": "SUPERSET_API_KEY" },
+				"install": { "kind": "key", "secrets": ["SUPERSET_API_KEY"] },
 				"lastMessageSeq": 12,
 				"createdAt": 1_700_000_000_000_i64,
 			})

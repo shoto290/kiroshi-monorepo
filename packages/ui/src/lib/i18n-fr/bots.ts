@@ -543,6 +543,7 @@ const bots = {
 			},
 			done: "Ajoutée",
 			failed: "Impossible de l’ajouter : {{reason}}",
+			missing: "Aucune valeur pour {{fields}}.",
 			rollback: {
 				title: "{{name}} est restée dans la liste",
 				description:

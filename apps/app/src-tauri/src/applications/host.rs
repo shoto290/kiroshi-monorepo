@@ -674,7 +674,7 @@ mod tests {
 			.await
 			.expect("the install answers");
 
-		assert_eq!(answer["install"], json!({ "kind": "key", "secret": "SUPERSET_API_KEY" }));
+		assert_eq!(answer["install"], json!({ "kind": "key", "secrets": ["SUPERSET_API_KEY"] }));
 		cleaned(&app);
 	}
 
@@ -715,7 +715,7 @@ mod tests {
 				"title": "Superset",
 				"logo": curated_logo("superset"),
 				"scope": scope,
-				"install": { "kind": "key", "secret": "SUPERSET_API_KEY" },
+				"install": { "kind": "key", "secrets": ["SUPERSET_API_KEY"] },
 				"lastMessageSeq": 0,
 			});
 			if let Some(id) = destination.as_str() {
@@ -768,7 +768,7 @@ mod tests {
 		assert_eq!(held.title, "Superset");
 		assert_eq!(held.scope, Destination::Space);
 		assert_eq!(held.destination_id.as_deref(), Some("personal"));
-		assert_eq!(held.install, InstallCase::Key { secret: "SUPERSET_API_KEY".to_owned() });
+		assert_eq!(held.install, InstallCase::Key { secrets: vec!["SUPERSET_API_KEY".to_owned()] });
 		assert_eq!(held.logo, curated_logo("superset"));
 		assert_eq!(held.last_message_seq, 0);
 		assert!(held.created_at > 0, "the row holds no moment");

@@ -27,6 +27,8 @@ const NOTHING: &str = "nothing";
 const KEY: &str = "key";
 const OAUTH: &str = "oauth";
 
+const SECRET_SEPARATOR: &str = ",";
+
 impl ToSql for Destination {
 	fn to_sql(&self) -> rusqlite::Result<ToSqlOutput<'_>> {
 		Ok(ToSqlOutput::from(named(*self)?))
@@ -72,7 +74,7 @@ impl ApplicationInstallsRepository {
 						draft.scope,
 						draft.destination_id,
 						kind_of(&draft.install),
-						secret_of(&draft.install),
+						secrets_of(&draft.install),
 						now(),
 					],
 					install,
@@ -107,9 +109,9 @@ fn kind_of(install: &InstallCase) -> &'static str {
 	}
 }
 
-fn secret_of(install: &InstallCase) -> Option<&str> {
+fn secrets_of(install: &InstallCase) -> Option<String> {
 	match install {
-		InstallCase::Key { secret } => Some(secret),
+		InstallCase::Key { secrets } => Some(secrets.join(SECRET_SEPARATOR)),
 		InstallCase::Nothing | InstallCase::Oauth => None,
 	}
 }
@@ -118,7 +120,9 @@ fn case(kind: &str, secret_name: Option<String>) -> rusqlite::Result<InstallCase
 	match (kind, secret_name) {
 		(NOTHING, _) => Ok(InstallCase::Nothing),
 		(OAUTH, _) => Ok(InstallCase::Oauth),
-		(KEY, Some(secret)) => Ok(InstallCase::Key { secret }),
+		(KEY, Some(names)) => Ok(InstallCase::Key {
+			secrets: names.split(SECRET_SEPARATOR).map(str::to_owned).collect(),
+		}),
 		(held, _) => Err(rusqlite::Error::FromSqlConversionFailure(
 			0,
 			rusqlite::types::Type::Text,
@@ -216,7 +220,10 @@ mod tests {
 
 		let recorded = database
 			.application_installs()
-			.record(a_draft("superset", InstallCase::Key { secret: "SUPERSET_API_KEY".to_owned() }))
+			.record(a_draft(
+				"superset",
+				InstallCase::Key { secrets: vec!["SUPERSET_API_KEY".to_owned()] },
+			))
 			.await
 			.expect("the install is recorded");
 
@@ -224,11 +231,62 @@ mod tests {
 		assert_eq!(recorded.last_message_seq, 2);
 		assert_eq!(recorded.scope, Destination::Space);
 		assert_eq!(recorded.destination_id.as_deref(), Some("personal"));
-		assert_eq!(recorded.install, InstallCase::Key { secret: "SUPERSET_API_KEY".to_owned() });
+		assert_eq!(
+			recorded.install,
+			InstallCase::Key { secrets: vec!["SUPERSET_API_KEY".to_owned()] }
+		);
 		assert!(recorded.created_at > 0, "the moment it was written is not held");
 		assert_eq!(
 			database.application_installs().of_conversation("c1".to_owned()).await.expect("read"),
 			vec![recorded]
+		);
+
+		std::fs::remove_dir_all(&dir).expect("cleanup");
+	}
+
+	#[tokio::test]
+	async fn an_install_needing_several_variables_reads_back_every_name_it_recorded() {
+		let dir = temp_dir();
+		let database = a_store(&dir).await;
+		let secrets = vec!["APIKEY".to_owned(), "TENANT".to_owned()];
+
+		let recorded = database
+			.application_installs()
+			.record(a_draft("two-headers", InstallCase::Key { secrets: secrets.clone() }))
+			.await
+			.expect("the install is recorded");
+
+		assert_eq!(recorded.install, InstallCase::Key { secrets });
+
+		std::fs::remove_dir_all(&dir).expect("cleanup");
+	}
+
+	#[tokio::test]
+	async fn an_install_recorded_with_one_variable_name_reads_back_that_one_name() {
+		let dir = temp_dir();
+		let database = a_store(&dir).await;
+		database
+			.call_mut(|connection| {
+				Ok(connection.execute(
+					"INSERT INTO application_installs (id, conversation_id, application,
+						title, scope, install_kind, secret_name, last_message_seq, created_at)
+						VALUES ('i1', 'c1', 'superset', 'Superset', 'user', 'key',
+							'SUPERSET_API_KEY', 0, 1)",
+					[],
+				)?)
+			})
+			.await
+			.expect("the row is planted");
+
+		let read = database
+			.application_installs()
+			.of_conversation("c1".to_owned())
+			.await
+			.expect("the installs are read");
+
+		assert_eq!(
+			read[0].install,
+			InstallCase::Key { secrets: vec!["SUPERSET_API_KEY".to_owned()] }
 		);
 
 		std::fs::remove_dir_all(&dir).expect("cleanup");
@@ -260,7 +318,8 @@ mod tests {
 	}
 
 	#[tokio::test]
-	async fn a_conversation_holding_more_installs_than_the_cap_reads_the_newest_ones_oldest_first() {
+	async fn a_conversation_holding_more_installs_than_the_cap_reads_the_newest_ones_oldest_first()
+	{
 		let dir = temp_dir();
 		let database = a_store(&dir).await;
 		let planted_count = i64::from(MAX_INSTALLS_PER_READ) + 5;

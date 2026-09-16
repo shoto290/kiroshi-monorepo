@@ -529,6 +529,7 @@ const bots = {
 			},
 			done: "Added",
 			failed: "Couldn’t add it: {{reason}}",
+			missing: "No value for {{fields}}.",
 			rollback: {
 				title: "{{name}} was left in the list",
 				description:
