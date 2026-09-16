@@ -15,6 +15,8 @@ const BOUND: &str = "10";
 
 const FIRST_PAGE: &str = "1";
 
+const OFFERED_PAGE: &str = "12";
+
 const HTTP: &str = "http";
 
 const SMITHERY: &str = "Smithery";
@@ -110,12 +112,19 @@ pub async fn search(base: &str, query: &str) -> Result<Vec<Listing>, Application
 	if terms(query).is_empty() {
 		return Ok(Vec::new());
 	}
+	rows(base, &[("q", query), ("page", FIRST_PAGE), ("pageSize", BOUND)]).await
+}
+
+pub async fn offered(base: &str) -> Result<Vec<Listing>, ApplicationsError> {
+	rows(base, &[("page", FIRST_PAGE), ("pageSize", OFFERED_PAGE)]).await
+}
+
+async fn rows(base: &str, asked: &[(&str, &str)]) -> Result<Vec<Listing>, ApplicationsError> {
 	let base = parsed(base)?;
 	let mut list = endpoint(&base, &["servers"])?;
-	list.query_pairs_mut()
-		.append_pair("q", query)
-		.append_pair("page", FIRST_PAGE)
-		.append_pair("pageSize", BOUND);
+	for (name, value) in asked {
+		list.query_pairs_mut().append_pair(name, value);
+	}
 	let client = client()?;
 	let listed: Listed = read(&client, list).await?;
 	Ok(listings(&client, &base, listed.servers).await)

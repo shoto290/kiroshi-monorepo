@@ -2,10 +2,12 @@ use std::collections::HashSet;
 
 use reqwest::Url;
 
-use super::contract::{Application, ApplicationSearch, ApplicationsError};
+use super::contract::{Application, ApplicationSearch, ApplicationsError, Install};
 use super::{registry, smithery};
 
 const SHORTEST_TERM: usize = 3;
+
+const OFFERS: usize = 9;
 
 const GITHUB: &str = "github.com";
 
@@ -30,17 +32,43 @@ pub async fn search(
 	registries: &Registries,
 	query: &str,
 ) -> Result<ApplicationSearch, ApplicationsError> {
+	if query.trim().is_empty() {
+		return offered(registries).await;
+	}
 	let (semantic, official) = tokio::join!(
 		smithery::search(&registries.smithery, query),
 		registry::search(&registries.official, query)
 	);
 	let (semantic, semantic_failure) = answered("the Smithery registry", query, semantic);
 	let (official, official_failure) = answered("the official registry", query, official);
-	let applications = deduplicated(semantic, official);
-	match official_failure.or(semantic_failure) {
+	answer(deduplicated(semantic, official), official_failure.or(semantic_failure))
+}
+
+async fn offered(registries: &Registries) -> Result<ApplicationSearch, ApplicationsError> {
+	let (semantic, official) = tokio::join!(
+		smithery::offered(&registries.smithery),
+		registry::offered(&registries.official)
+	);
+	let (semantic, semantic_failure) = answered("the Smithery registry", "", semantic);
+	let (official, official_failure) = answered("the official registry", "", official);
+	let mut offers = deduplicated(semantic, official);
+	offers.retain(installable);
+	offers.truncate(OFFERS);
+	answer(offers, official_failure.or(semantic_failure))
+}
+
+fn answer(
+	applications: Vec<Application>,
+	failure: Option<ApplicationsError>,
+) -> Result<ApplicationSearch, ApplicationsError> {
+	match failure {
 		Some(failure) if applications.is_empty() => Err(failure),
 		registry_failure => Ok(ApplicationSearch { applications, registry_failure }),
 	}
+}
+
+fn installable(application: &Application) -> bool {
+	!matches!(application.install, Install::Refused(_))
 }
 
 fn answered(
@@ -101,9 +129,11 @@ pub(super) fn repository(url: &str) -> Option<String> {
 
 #[cfg(test)]
 mod tests {
-	use serde_json::json;
+	use serde_json::{json, Value};
 
 	use super::super::contract::Install;
+	use std::sync::Arc;
+
 	use super::*;
 	use crate::applications::registry::tests as official_stub;
 	use crate::applications::registry::tests::unreached;
@@ -139,6 +169,107 @@ mod tests {
 
 	fn names(applications: Vec<Application>) -> Vec<String> {
 		applications.into_iter().map(|held| held.name).collect()
+	}
+
+	const A_SMITHERY_PAGE: [&str; 12] =
+		["a", "b", "c", "d", "e", "f", "g", "h", "i", "j", "k", "l"];
+
+	async fn a_smithery_offering(page: &[&str]) -> (String, Arc<smithery_stub::Held>) {
+		smithery_stub::serving(smithery_stub::holding(
+			page.iter().map(|name| smithery_stub::a_row(name, name, 1)).collect(),
+			page.iter()
+				.map(|name| smithery_stub::a_detail(name, &format!("https://{name}.run.tools")))
+				.collect(),
+		))
+		.await
+	}
+
+	fn an_official_remote(name: &str) -> Value {
+		json!({
+			"name": name,
+			"remotes": [{ "type": "streamable-http", "url": "https://official.test/mcp" }],
+		})
+	}
+
+	async fn an_official_offering(listed: Vec<&'static str>) -> (String, Arc<official_stub::Held>) {
+		let held = listed.iter().fold(official_stub::holding(listed.clone()), |held, name| {
+			held.also(an_official_remote(name))
+		});
+		official_stub::serving(held).await
+	}
+
+	const AN_OFFICIAL_PAGE: [&str; 4] = ["io.test/a", "io.test/b", "io.test/c", "io.test/d"];
+
+	async fn offering(smithery: String, official: String) -> ApplicationSearch {
+		search(&Registries { official, smithery }, "   ").await.expect("the offers answer")
+	}
+
+	#[tokio::test]
+	async fn an_empty_query_answers_nine_rows_of_the_two_registries_taken_in_turn() {
+		let (smithery, semantic) = a_smithery_offering(&A_SMITHERY_PAGE).await;
+		let (official, listed) = an_official_offering(AN_OFFICIAL_PAGE.to_vec()).await;
+
+		let answered = offering(smithery, official).await;
+
+		assert_eq!(
+			names(answered.applications),
+			["a", "io.test/a", "b", "io.test/b", "c", "io.test/c", "d", "io.test/d", "e"]
+		);
+		assert_eq!(answered.registry_failure, None);
+		assert_eq!(
+			*semantic.asked.lock().expect("the stub records"),
+			["/servers?page=1&pageSize=12"]
+		);
+		assert_eq!(
+			*listed.asked.lock().expect("the stub records"),
+			["/v0.1/servers?limit=10&version=latest"]
+		);
+	}
+
+	#[tokio::test]
+	async fn an_empty_query_leaves_out_a_row_whose_install_is_refused_and_fills_its_place() {
+		let (smithery, _) = smithery_stub::serving(smithery_stub::holding(
+			A_SMITHERY_PAGE.iter().map(|name| smithery_stub::a_row(name, name, 1)).collect(),
+			A_SMITHERY_PAGE
+				.iter()
+				.map(|name| match *name {
+					"b" => smithery_stub::an_uncarried_detail("b", "https://b.run.tools"),
+					held => smithery_stub::a_detail(held, &format!("https://{held}.run.tools")),
+				})
+				.collect(),
+		))
+		.await;
+		let (official, _) = official_stub::serving(official_stub::holding(Vec::new())).await;
+
+		let answered = offering(smithery, official).await;
+
+		assert_eq!(names(answered.applications), ["a", "c", "d", "e", "f", "g", "h", "i", "j"]);
+	}
+
+	#[tokio::test]
+	async fn an_empty_query_a_registry_fails_on_answers_the_other_and_names_the_failure() {
+		let (smithery, _) = a_smithery_offering(&A_SMITHERY_PAGE).await;
+
+		let answered = search(&Registries { official: unreached().await, smithery }, "")
+			.await
+			.expect("the offers answer");
+
+		assert_eq!(names(answered.applications), ["a", "b", "c", "d", "e", "f", "g", "h", "i"]);
+		assert!(
+			matches!(answered.registry_failure, Some(ApplicationsError::RegistryUnreached { .. })),
+			"got {:?}",
+			answered.registry_failure
+		);
+	}
+
+	#[tokio::test]
+	#[ignore = "it reads the live registries"]
+	async fn the_live_registries_answer_an_empty_query_and_a_godot_query() {
+		for query in ["", "godot"] {
+			let answered =
+				search(&Registries::default(), query).await.expect("the live search answers");
+			println!("{query:?} answered {:?}", names(answered.applications));
+		}
 	}
 
 	#[test]

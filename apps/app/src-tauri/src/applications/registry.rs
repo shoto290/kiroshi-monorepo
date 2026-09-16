@@ -108,15 +108,26 @@ enum Transport<'a> {
 }
 
 pub async fn search(base: &str, query: &str) -> Result<Vec<Listing>, ApplicationsError> {
+	rows(base, &[("search", query), ("limit", BOUND), ("version", LATEST)], query).await
+}
+
+pub async fn offered(base: &str) -> Result<Vec<Listing>, ApplicationsError> {
+	rows(base, &[("limit", BOUND), ("version", LATEST)], "").await
+}
+
+async fn rows(
+	base: &str,
+	asked: &[(&str, &str)],
+	query: &str,
+) -> Result<Vec<Listing>, ApplicationsError> {
 	let mut list = endpoint(&parsed(base)?, &[API_VERSION, "servers"])?;
-	list.query_pairs_mut()
-		.append_pair("search", query)
-		.append_pair("limit", BOUND)
-		.append_pair("version", LATEST);
+	for (name, value) in asked {
+		list.query_pairs_mut().append_pair(name, value);
+	}
 	let listed: Listed = read(&client()?, list).await?;
-	let rows = distinct(listed.servers);
-	let answered = rows.len();
-	let found: Vec<Listing> = rows.into_iter().filter_map(descriptor).collect();
+	let served = distinct(listed.servers);
+	let answered = served.len();
+	let found: Vec<Listing> = served.into_iter().filter_map(descriptor).collect();
 	if found.is_empty() && answered > 0 {
 		eprintln!(
 			"the registry answered {answered} rows for {query:?} and none carried a transport"
