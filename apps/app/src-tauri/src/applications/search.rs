@@ -9,10 +9,6 @@ const SHORTEST_TERM: usize = 3;
 
 const GITHUB: &str = "github.com";
 
-const SMITHERY: &str = "the Smithery registry";
-
-const OFFICIAL: &str = "the official registry";
-
 #[derive(Debug, Clone)]
 pub struct Registries {
 	pub official: String,
@@ -38,8 +34,8 @@ pub async fn search(
 		smithery::search(&registries.smithery, query),
 		registry::search(&registries.official, query)
 	);
-	let (semantic, semantic_failure) = answered(SMITHERY, query, semantic);
-	let (official, official_failure) = answered(OFFICIAL, query, official);
+	let (semantic, semantic_failure) = answered("the Smithery registry", query, semantic);
+	let (official, official_failure) = answered("the official registry", query, official);
 	let applications = deduplicated(semantic, official);
 	match official_failure.or(semantic_failure) {
 		Some(failure) if applications.is_empty() => Err(failure),
@@ -100,22 +96,13 @@ pub(super) fn repository(url: &str) -> Option<String> {
 
 #[cfg(test)]
 mod tests {
-	use std::net::Ipv4Addr;
-
 	use serde_json::json;
 
 	use super::super::contract::Install;
 	use super::*;
 	use crate::applications::registry::tests as official_stub;
+	use crate::applications::registry::tests::unreached;
 	use crate::applications::smithery::tests as smithery_stub;
-
-	async fn unreached() -> String {
-		let listener =
-			tokio::net::TcpListener::bind((Ipv4Addr::LOCALHOST, 0)).await.expect("a port binds");
-		let address = listener.local_addr().expect("the port is named");
-		drop(listener);
-		format!("http://{address}")
-	}
 
 	async fn a_smithery_serving_slack() -> String {
 		let (base, _) = smithery_stub::serving(smithery_stub::holding(

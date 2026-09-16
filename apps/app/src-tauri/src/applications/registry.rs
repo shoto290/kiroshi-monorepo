@@ -598,6 +598,14 @@ pub(crate) mod tests {
 		pub(crate) detailed: Mutex<Vec<String>>,
 	}
 
+	pub(crate) async fn unreached() -> String {
+		let listener =
+			tokio::net::TcpListener::bind((Ipv4Addr::LOCALHOST, 0)).await.expect("a port binds");
+		let address = listener.local_addr().expect("the port is named");
+		drop(listener);
+		format!("http://{address}")
+	}
+
 	pub(crate) async fn serving(held: Held) -> (String, Arc<Held>) {
 		let held = Arc::new(held);
 		let listener =

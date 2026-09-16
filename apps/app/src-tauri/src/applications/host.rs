@@ -321,7 +321,6 @@ fn refused(error: ApplicationCallError) -> Value {
 #[cfg(test)]
 mod tests {
 	use std::fs;
-	use std::net::Ipv4Addr;
 	use std::path::PathBuf;
 	use std::sync::mpsc;
 	use std::time::Duration;
@@ -332,7 +331,7 @@ mod tests {
 
 	use super::*;
 	use crate::applications::contract::{ApplicationInstall, InstallCase};
-	use crate::applications::registry::tests::{holding, serving};
+	use crate::applications::registry::tests::{holding, serving, unreached};
 	use crate::applications::smithery::tests as smithery_stub;
 	use crate::bundles;
 	use crate::mcp_oauth::commands::McpOauthState;
@@ -382,14 +381,6 @@ mod tests {
 
 	fn space_plugin(app: &App<MockRuntime>) -> PathBuf {
 		bundles::space::path(app.handle(), "personal").expect("the space plugin has a home")
-	}
-
-	async fn unreached() -> String {
-		let listener =
-			tokio::net::TcpListener::bind((Ipv4Addr::LOCALHOST, 0)).await.expect("a port binds");
-		let address = listener.local_addr().expect("the port is named");
-		drop(listener);
-		format!("http://{address}")
 	}
 
 	async fn serving_in(
