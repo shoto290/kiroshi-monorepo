@@ -139,12 +139,10 @@ describe("applications controller", () => {
 
 	it("keeps the answer of the last search and drops an earlier one", async () => {
 		const port = createFakeApplicationPort()
-		const answers = [[PAPER], [LINEAR]]
-		const pending: (() => void)[] = []
+		const pending: ((found: Application[]) => void)[] = []
 		port.search = () =>
 			new Promise((resolve) => {
-				const turn = pending.length
-				pending.push(() => resolve(answers[turn] ?? []))
+				pending.push(resolve)
 			})
 		const controller = controllerOn(port)
 
@@ -152,9 +150,9 @@ describe("applications controller", () => {
 		await settled()
 		controller.retry()
 		const [answerFirst, answerLast] = pending
-		answerLast?.()
+		answerLast?.([LINEAR])
 		await settled()
-		answerFirst?.()
+		answerFirst?.([PAPER])
 		await settled()
 
 		expect(controller.getState().registry).toEqual([LINEAR])
@@ -162,14 +160,10 @@ describe("applications controller", () => {
 
 	it("drops the answer of an earlier query that arrives last", async () => {
 		const port = createFakeApplicationPort()
-		const answers = new Map([
-			["lin", [PAPER]],
-			["linear", [LINEAR]],
-		])
-		const pending = new Map<string, () => void>()
+		const pending = new Map<string, (found: Application[]) => void>()
 		port.search = (query) =>
 			new Promise((resolve) => {
-				pending.set(query, () => resolve(answers.get(query) ?? []))
+				pending.set(query, resolve)
 			})
 		const controller = controllerOn(port)
 
@@ -177,9 +171,9 @@ describe("applications controller", () => {
 		await settled()
 		controller.search("linear")
 		await settled()
-		pending.get("linear")?.()
+		pending.get("linear")?.([LINEAR])
 		await settled()
-		pending.get("lin")?.()
+		pending.get("lin")?.([PAPER])
 		await settled()
 
 		expect(controller.getState().registry).toEqual([LINEAR])
