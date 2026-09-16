@@ -171,6 +171,27 @@ describe("toInstallableApplication", () => {
 			}).setup,
 		).toBe("apiKey")
 	})
+
+	it("hands the install page the field and the reason of a refusal", () => {
+		const installable = toInstallableApplication({
+			...REGISTERED,
+			install: {
+				kind: "refused",
+				field: "apiKey",
+				reason: "it names no header to carry it",
+			},
+		})
+
+		expect(installable.setup).toBe("unavailable")
+		expect(installable.refusal).toEqual({
+			field: "apiKey",
+			reason: "it names no header to carry it",
+		})
+	})
+
+	it("hands the install page no refusal when the install asks for a key", () => {
+		expect(toInstallableApplication(REGISTERED).refusal).toBeUndefined()
+	})
 })
 
 describe("applicationTitleOf", () => {

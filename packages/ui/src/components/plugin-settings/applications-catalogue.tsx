@@ -23,7 +23,7 @@ import { Skeleton } from "@workspace/ui/components/ui/skeleton"
 import { useOverlayScrollbars } from "@workspace/ui/hooks/use-overlay-scrollbars"
 import { cn } from "@workspace/ui/lib/utils"
 
-type ApplicationSetup = "signIn" | "apiKey" | "none"
+type ApplicationSetup = "signIn" | "apiKey" | "none" | "unavailable"
 
 type CatalogueApplication = {
 	id: string
@@ -60,7 +60,15 @@ const SETUP_ICON = {
 	signIn: Icons.ExternalLink,
 	apiKey: Icons.Key,
 	none: Icons.Check,
+	unavailable: Icons.Blocked,
 } as const satisfies Record<ApplicationSetup, Icon>
+
+const SETUP_TONE = {
+	signIn: undefined,
+	apiKey: undefined,
+	none: "text-state-connected",
+	unavailable: "text-destructive",
+} as const satisfies Record<ApplicationSetup, string | undefined>
 
 type CatalogueCardProps = {
 	application: CatalogueApplication
@@ -96,10 +104,7 @@ const CatalogueCard = ({ application, onPick }: CatalogueCardProps) => {
 				>
 					<SetupIcon
 						aria-hidden="true"
-						className={cn(
-							"size-3.25 shrink-0",
-							application.setup === "none" && "text-state-connected",
-						)}
+						className={cn("size-3.25 shrink-0", SETUP_TONE[application.setup])}
 					/>
 					<span className="truncate">
 						{t(`applications.catalogue.setup.${application.setup}`)}
@@ -169,10 +174,7 @@ const CatalogueRow = ({ application, onPick }: CatalogueRowProps) => {
 				<span className="flex shrink-0 items-center gap-1.25 pt-px text-muted-foreground text-xs/4">
 					<SetupIcon
 						aria-hidden="true"
-						className={cn(
-							"size-3.25 shrink-0",
-							application.setup === "none" && "text-state-connected",
-						)}
+						className={cn("size-3.25 shrink-0", SETUP_TONE[application.setup])}
 					/>
 					{t(`applications.catalogue.setup.${application.setup}`)}
 				</span>

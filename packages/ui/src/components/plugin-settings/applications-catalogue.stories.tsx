@@ -7,6 +7,7 @@ import {
 	CURATED_APPLICATIONS,
 	LONG_REGISTRY_RESULT,
 	PUBLISHED_APPLICATION_COUNT,
+	REFUSED_APPLICATION,
 	REGISTRY_APPLICATIONS,
 	REGISTRY_RESULTS,
 } from "@workspace/ui/components/plugin-settings/applications.fixtures"
@@ -420,6 +421,35 @@ export const RegistryResults = meta.story({
 		).not.toBeInTheDocument()
 		await expect(within(obsidian).getByText("806 uses")).toBeVisible()
 		await expect(within(obsidian).getByText("Needs an API key")).toBeVisible()
+	},
+})
+
+export const SetupUnavailable = meta.story({
+	args: {
+		query: "q",
+		curated: [REFUSED_APPLICATION],
+		registry: [REFUSED_APPLICATION],
+	},
+	render: (args) => <ApplicationsCatalogue {...args} />,
+	parameters: {
+		docs: {
+			description: {
+				story:
+					"An application Kiroshi refuses to add, as a card and as a row. Check that both say it can’t be added here, on the blocked glyph in the destructive colour rather than the check of nothing to set up.",
+			},
+		},
+	},
+	play: async ({ canvas, canvasElement }) => {
+		const [cardSetup] = slotsOf(canvasElement, "catalogue-card-setup")
+		const row = canvas.getAllByRole("listitem")[1]
+		const rowSetup = within(row).getByText("Can’t be added here")
+
+		await expect(cardSetup).toHaveTextContent("Can’t be added here")
+		await expect(rowSetup).toBeVisible()
+
+		for (const setup of [cardSetup, rowSetup]) {
+			await expect(setup.querySelector("svg")).toHaveClass("text-destructive")
+		}
 	},
 })
 

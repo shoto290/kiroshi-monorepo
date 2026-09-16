@@ -12,6 +12,7 @@ import {
 	HOSTED_INSTALL,
 	HOSTED_NOTHING_INSTALL,
 	LONG_INSTALL,
+	REFUSED_INSTALL,
 	REGISTRY_INSTALL,
 	SIGN_IN_INSTALL,
 	UNSTATED_REACH_INSTALL,
@@ -195,6 +196,42 @@ export const NothingToSetUp = meta.story({
 			),
 		).toBeVisible()
 		await expect(canvas.getByText("7 tools, reads and writes")).toBeVisible()
+	},
+})
+
+export const Refused = meta.story({
+	args: { application: REFUSED_INSTALL },
+	parameters: {
+		docs: {
+			description: {
+				story:
+					"An application Kiroshi refuses to add, because the key it asks for would travel in its url. Check the destructive notice naming the application and the field it refused, that no install action sits anywhere on the page and no empty bordered cell is left where it sat, and that the way back to the catalogue is still one press away.",
+			},
+		},
+	},
+	play: async ({ args, canvas, userEvent }) => {
+		await expect(canvas.getByText("Kiroshi can’t add Queried")).toBeVisible()
+
+		const sentence = canvas.getByText(/^It can’t be added from here/)
+		await expect(sentence).toHaveTextContent('"apiKey"')
+		await expect(sentence).toHaveTextContent(
+			"a key must never travel in a url.",
+		)
+
+		await expect(
+			canvas.queryByRole("button", { name: "Add application" }),
+		).not.toBeInTheDocument()
+		await expect(
+			canvas.queryByRole("button", { name: "Add and sign in" }),
+		).not.toBeInTheDocument()
+
+		const grid = canvas.getByRole("tabpanel").parentElement as HTMLElement
+		await expect(grid.children).toHaveLength(2)
+
+		await userEvent.click(
+			canvas.getByRole("button", { name: "All applications" }),
+		)
+		await expect(args.onBack).toHaveBeenCalledTimes(1)
 	},
 })
 
