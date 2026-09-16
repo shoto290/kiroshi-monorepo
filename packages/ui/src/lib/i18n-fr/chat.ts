@@ -163,12 +163,6 @@ const chat = {
 			"Continuez à taper pour atteindre les {{count}} autres dans {{space}}",
 		further_other:
 			"Continuez à taper pour atteindre les {{count}} autres dans {{space}}",
-		joining_one: "{{name}} rejoint cette conversation à l'envoi",
-		joining_many:
-			"{{names}} et {{last}} rejoignent cette conversation à l'envoi",
-		joining_other:
-			"{{names}} et {{last}} rejoignent cette conversation à l'envoi",
-		joiningSeparator: ", ",
 	},
 	toolApproval: {
 		title: "Autoriser cet outil à s'exécuter ?",

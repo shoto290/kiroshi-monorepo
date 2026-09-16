@@ -17,15 +17,14 @@ import {
 } from "react"
 import { useTranslation } from "react-i18next"
 
-import { BotIdentityAvatar } from "@workspace/ui/components/bot-identity-avatar"
 import { Icons } from "@workspace/ui/components/icons"
-import type { RosterBot } from "@workspace/ui/components/roster"
 import { Button } from "@workspace/ui/components/ui/button"
 import { cn, mergeRefs } from "@workspace/ui/lib/utils"
 
 const LINE_HEIGHT = 24
-const JOINING_AVATAR_SIZE = 16
 const PADDING_Y = 8
+const MIN_ROWS = 1
+const MAX_ROWS = 8
 const MIRROR =
 	"pointer-events-none invisible absolute top-0 left-0 px-2 text-sm leading-6"
 
@@ -68,13 +67,9 @@ export interface PromptInputProps
 	onValueChange?: (value: string) => void
 	onSubmit?: (value: string) => void
 	leading?: ReactNode
-	trailing?: ReactNode
 	attachments?: ReactNode
-	joining?: RosterBot[]
 	onAttach?: (files: File[]) => void
 	dropTarget?: boolean
-	minRows?: number
-	maxRows?: number
 	textareaRef?: Ref<HTMLTextAreaElement>
 }
 
@@ -84,13 +79,9 @@ export function PromptInput({
 	onValueChange,
 	onSubmit,
 	leading,
-	trailing,
 	attachments,
-	joining = [],
 	onAttach,
 	dropTarget = false,
-	minRows = 1,
-	maxRows = 8,
 	className,
 	disabled,
 	placeholder,
@@ -124,18 +115,6 @@ export function PromptInput({
 	const canAttach = Boolean(onAttach) && !disabled
 	const isDropTarget = canAttach && (dropTarget || isDragOver)
 	const canSubmit = hasPayload && !disabled
-	const hasJoining = joining.length > 0
-	const joiningSentence = hasJoining
-		? t("composer.joining", {
-				count: joining.length,
-				name: joining[0].name,
-				names: joining
-					.slice(0, -1)
-					.map((bot) => bot.name)
-					.join(t("composer.joiningSeparator")),
-				last: joining[joining.length - 1].name,
-			})
-		: ""
 
 	const resizeTextarea = useCallback(() => {
 		const textarea = textareaRef.current
@@ -156,18 +135,17 @@ export function PromptInput({
 		const promptWidth = Math.ceil(singleLine.getBoundingClientRect().width)
 		const isFillingRow =
 			isCarryingFiles ||
-			hasJoining ||
 			rowsIn(singleLine) > 1 ||
 			promptWidth > roomBesideControls(form, leadingRef.current, controls)
 
 		prompt.style.flexBasis = isFillingRow ? "100%" : `${promptWidth}px`
 		measurement.style.width = `${textarea.clientWidth}px`
 
-		const rows = Math.min(Math.max(rowsIn(measurement), minRows), maxRows)
+		const rows = Math.min(Math.max(rowsIn(measurement), MIN_ROWS), MAX_ROWS)
 		textarea.style.height = `${rows * LINE_HEIGHT + PADDING_Y}px`
 
 		setIsExpanded(isFillingRow)
-	}, [attachments, currentValue, hasJoining, maxRows, minRows])
+	}, [attachments, currentValue])
 
 	useLayoutEffect(() => {
 		latestResize.current = resizeTextarea
@@ -291,7 +269,7 @@ export function PromptInput({
 					disabled={disabled}
 					placeholder={placeholder ?? t("composer.placeholder")}
 					aria-label={ariaLabel ?? t("composer.label")}
-					rows={minRows}
+					rows={MIN_ROWS}
 					{...textareaProps}
 					onChange={(event) => setValue(event.target.value)}
 					onKeyDown={handleKeyDown}
@@ -299,33 +277,6 @@ export function PromptInput({
 					className="block w-full resize-none overflow-y-auto bg-transparent px-2 py-1 text-sm leading-6 text-foreground outline-none placeholder:text-muted-foreground disabled:cursor-not-allowed"
 				/>
 			</div>
-
-			<span role="status" className="sr-only">
-				{joiningSentence}
-			</span>
-
-			{hasJoining ? (
-				<div
-					aria-hidden="true"
-					className="flex w-full min-w-0 items-center gap-1.5 px-2 py-0.5 text-muted-foreground text-xs"
-					data-slot="prompt-joining"
-				>
-					<span className="flex shrink-0">
-						{joining.map((bot) => (
-							<BotIdentityAvatar
-								key={bot.id}
-								animal={bot.animal}
-								blot={bot.blot}
-								image={bot.image}
-								name={bot.name}
-								seed={bot.id}
-								size={JOINING_AVATAR_SIZE}
-							/>
-						))}
-					</span>
-					<span className="min-w-0 wrap-break-word">{joiningSentence}</span>
-				</div>
-			) : null}
 
 			<div
 				ref={leadingRef}
@@ -343,7 +294,6 @@ export function PromptInput({
 				inert={disabled}
 				className="ms-auto flex items-center justify-end gap-1"
 			>
-				{trailing}
 				{hasPayload ? (
 					<Button
 						type="submit"

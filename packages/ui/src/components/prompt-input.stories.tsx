@@ -1,9 +1,6 @@
-import { useState } from "react"
-import { expect, fn, waitFor, type within } from "storybook/test"
+import { expect, fn, waitFor } from "storybook/test"
 
 import preview from "@workspace/storybook/preview"
-import { slotsIn } from "@workspace/storybook/story-utils"
-import { CONVERSATION_BOTS } from "@workspace/ui/components/bots.fixtures"
 import { Icons } from "@workspace/ui/components/icons"
 import { PromptAttachButton } from "@workspace/ui/components/prompt-attach-button"
 import { PromptAttachments } from "@workspace/ui/components/prompt-attachments"
@@ -12,43 +9,15 @@ import {
 	PASTED_PROMPT_FILE,
 	PROMPT_ATTACHMENTS,
 } from "@workspace/ui/components/prompt-attachments.fixtures"
-import {
-	PromptInput,
-	type PromptInputProps,
-} from "@workspace/ui/components/prompt-input"
-import type { RosterBot } from "@workspace/ui/components/roster"
+import { PromptInput } from "@workspace/ui/components/prompt-input"
 import { Button } from "@workspace/ui/components/ui/button"
+
+const MAX_ROWS = 8
 
 const DRAFT = "Summarise the release notes for v0.1"
 
-const JOINING_BOTS = CONVERSATION_BOTS.slice(0, 2)
-
-const JOINING_AVATAR_SIZE = 16
-
-const JOINING_TEXT_GAP = 6
-
-const PickingComposer = (props: PromptInputProps) => {
-	const [joining, setJoining] = useState<RosterBot[]>([])
-
-	return (
-		<PromptInput
-			{...props}
-			joining={joining}
-			trailing={
-				<Button
-					type="button"
-					variant="ghost"
-					onClick={() => setJoining([JOINING_BOTS[0]])}
-				>
-					Pick Atlas
-				</Button>
-			}
-		/>
-	)
-}
-
 const FILLING_DRAFT =
-	"Summarise the release notes and flag every public export that moved"
+	"Summarise the release notes and flag every public export that has moved"
 
 const WRAPPED_DRAFT =
 	"Summarise the release notes for v0.1 and tell me which entries changed a public export"
@@ -56,12 +25,6 @@ const WRAPPED_DRAFT =
 const leadingControls = (
 	<Button type="button" variant="ghost" size="icon" aria-label="Add context">
 		<Icons.Add />
-	</Button>
-)
-
-const trailingControls = (
-	<Button type="button" variant="ghost" size="icon" aria-label="Search the web">
-		<Icons.Web />
 	</Button>
 )
 
@@ -127,21 +90,6 @@ const rowsOf = (textarea: HTMLElement) =>
 			Number.parseFloat(getComputedStyle(textarea).lineHeight),
 	)
 
-const expectJoiningBetweenDraftAndControls = async (
-	canvas: ReturnType<typeof within>,
-	line: HTMLElement,
-) => {
-	const textarea = canvas.getByRole("textbox", { name: "Message" })
-
-	await expect(box(line).top).toBeGreaterThanOrEqual(box(textarea).bottom)
-	await expect(
-		isBelow(canvas.getByRole("button", { name: "Add context" }), line),
-	).toBe(true)
-	await expect(
-		isBelow(canvas.getByRole("button", { name: "Send" }), line),
-	).toBe(true)
-}
-
 const LONG_DRAFT = [
 	"Review the release branch and write the changelog for v0.1.",
 	"",
@@ -151,6 +99,9 @@ const LONG_DRAFT = [
 	"",
 	"Flag anything that changes a public export, then list the follow-ups",
 	"we deliberately left out of this milestone.",
+	"",
+	"Name the packages that gained a public surface, and say in one line",
+	"what a reader of the notes is expected to do with each entry.",
 ].join("\n")
 
 const meta = preview.meta({
@@ -161,7 +112,7 @@ const meta = preview.meta({
 		docs: {
 			description: {
 				component:
-					"The composer for a prompt: write it and send it, whatever the session is doing. At rest it is a one-line pill — the `leading` slot, the prompt, then the `trailing` slot and the send button, all on the same row. The moment the prompt no longer fits beside them the bar expands: the prompt takes a row of its own and the controls drop below it, `leading` on the leading edge, `trailing` and send on the trailing one. Enter sends and Shift+Enter breaks a line in both layouts. It knows nothing about a running turn: a prompt written mid-run is sent like any other and waits in the transcript as a pending `UserTurn`, and stopping the run belongs to the working companion's avatar in `Feedback/ActivityIndicator`.",
+					"The composer for a prompt: write it and send it, whatever the session is doing. At rest it is a one-line pill — the `leading` slot, the prompt, then the send button, all on the same row. The moment the prompt no longer fits beside them the bar expands: the prompt takes a row of its own and the controls drop below it, `leading` on the leading edge, send at the far end. Enter sends and Shift+Enter breaks a line in both layouts. It knows nothing about a running turn: a prompt written mid-run is sent like any other and waits in the transcript as a pending `UserTurn`, and stopping the run belongs to the working companion's avatar in `Feedback/ActivityIndicator`.",
 			},
 		},
 	},
@@ -173,8 +124,6 @@ const meta = preview.meta({
 	argTypes: {
 		disabled: { control: "boolean" },
 		placeholder: { control: "text" },
-		minRows: { control: { type: "number", min: 1, max: 8 } },
-		maxRows: { control: { type: "number", min: 2, max: 16 } },
 	},
 	decorators: [
 		(Story) => (
@@ -247,73 +196,57 @@ export const Default = meta.story({
 })
 
 export const WithControls = meta.story({
-	args: {
-		defaultValue: DRAFT,
-		leading: leadingControls,
-		trailing: trailingControls,
-	},
+	args: { defaultValue: DRAFT, leading: leadingControls },
 	parameters: {
 		docs: {
 			description: {
 				story:
-					"Both slots filled while the pill is still one line: `leading` opens the pill before the text, `trailing` sits right before send. Reach for it when adding a control to the composer — it is the layout that runs out of room first. Check that `leading` reads on the leading edge rather than beside the send button, that `trailing` and send stay grouped against the trailing edge with the prompt taking the remaining width, and that filling the slots shortens the prompt's single line rather than wrapping the bar early. `LongContent` shows where the same controls land once the prompt wraps.",
+					"The `leading` slot filled while the pill is still one line: it opens the pill before the text, send closes it. Reach for it when adding a control to the composer — it is the layout that runs out of room first. Check that `leading` reads on the leading edge rather than beside the send button, that send holds the far end with the prompt taking the width left between them, and that filling the slot shortens the prompt's single line rather than wrapping the bar early. `LongContent` shows where the same control lands once the prompt wraps.",
 			},
 		},
 	},
 	play: async ({ canvas }) => {
 		const textarea = canvas.getByRole("textbox", { name: "Message" })
 		const addContext = canvas.getByRole("button", { name: "Add context" })
-		const search = canvas.getByRole("button", { name: "Search the web" })
 		const send = canvas.getByRole("button", { name: "Send" })
 
 		await expect(isExpanded(textarea)).toBe(false)
 		await expect(isBefore(addContext, textarea)).toBe(true)
-		await expect(isBefore(textarea, search)).toBe(true)
-		await expect(isBefore(search, send)).toBe(true)
+		await expect(isBefore(textarea, send)).toBe(true)
 	},
 })
 
 export const FullWidthLine = meta.story({
-	args: {
-		defaultValue: FILLING_DRAFT,
-		leading: leadingControls,
-		trailing: trailingControls,
-	},
+	args: { defaultValue: FILLING_DRAFT, leading: leadingControls },
 	parameters: {
 		docs: {
 			description: {
 				story:
-					"The hinge between the two layouts: a single line too wide to share its row with the controls, but short enough to still read as one line once it owns the full width. This is where the composer used to strand `leading` at the trailing end of the text. Check that the prompt keeps a single row across the whole width, that `leading` has dropped to the control row on the leading edge rather than staying beside the prompt, and that `trailing` and send hold the trailing edge of that same row. `WithControls` is the last state that still fits on one row, `LongContent` the first that wraps the prompt itself.",
+					"The hinge between the two layouts: a single line too wide to share its row with the controls, but short enough to still read as one line once it owns the full width. This is where the composer used to strand `leading` at the far end of the text. Check that the prompt keeps a single row across the whole width, that `leading` has dropped to the control row on the leading edge rather than staying beside the prompt, and that send holds the far end of that same row. `WithControls` is the last state that still fits on one row, `LongContent` the first that wraps the prompt itself.",
 			},
 		},
 	},
 	play: async ({ canvas }) => {
 		const textarea = canvas.getByRole("textbox", { name: "Message" })
 		const addContext = canvas.getByRole("button", { name: "Add context" })
-		const search = canvas.getByRole("button", { name: "Search the web" })
 		const send = canvas.getByRole("button", { name: "Send" })
 
 		await expect(isExpanded(textarea)).toBe(true)
 		await expect(rowsOf(textarea)).toBe(1)
 		await expect(isBelow(addContext, textarea)).toBe(true)
 		await expect(box(addContext).left).toBeLessThanOrEqual(box(textarea).left)
-		await expect(isBefore(addContext, search)).toBe(true)
-		await expect(isBefore(search, send)).toBe(true)
+		await expect(isBefore(addContext, send)).toBe(true)
 		await expect(box(send).right).toBeCloseTo(box(textarea).right, 0)
 	},
 })
 
 export const LongContent = meta.story({
-	args: {
-		defaultValue: WRAPPED_DRAFT,
-		leading: leadingControls,
-		trailing: trailingControls,
-	},
+	args: { defaultValue: WRAPPED_DRAFT, leading: leadingControls },
 	parameters: {
 		docs: {
 			description: {
 				story:
-					"A prompt long enough to wrap, so the bar has expanded: the textarea owns the top row and the control row sits under it, `leading` on the leading edge, `trailing` and send on the trailing one. Check that the corner radius is the one the pill already had rather than a second value, that `leading` holds the same leading edge it had in the pill, that the prompt now uses the full width, and that deleting back to a short prompt folds it into `Default` again. `FullWidthLine` is the same layout one line earlier, `Overflow` pushes it past `maxRows`.",
+					"A prompt long enough to wrap, so the bar has expanded: the textarea owns the top row and the control row sits under it, `leading` on the leading edge, send at the far end. Check that the corner radius is the one the pill already had rather than a second value, that `leading` holds the same leading edge it had in the pill, that the prompt now uses the full width, and that deleting back to a short prompt folds it into `Default` again. `FullWidthLine` is the same layout one line earlier, `Overflow` pushes it past the row cap.",
 			},
 		},
 	},
@@ -349,142 +282,12 @@ export const Empty = meta.story({
 	},
 })
 
-export const WithOneJoining = meta.story({
-	args: {
-		defaultValue: "@Atlas look at the notes",
-		joining: [JOINING_BOTS[0]],
-		leading: leadingControls,
-		trailing: trailingControls,
-	},
-	parameters: {
-		docs: {
-			description: {
-				story:
-					"The draft mentions one companion who is not in the conversation yet. Check that a single line sits above the controls with one 16px avatar and a singular sentence naming the companion, and that nothing is decided until the message is sent. `WithTwoJoining` covers the plural, `Default` the draft that brings nobody in.",
-			},
-		},
-	},
-	play: async ({ canvas, canvasElement }) => {
-		const lines = slotsIn(canvasElement, "prompt-joining")
-
-		await expect(lines).toHaveLength(1)
-		await expect(lines[0]).toHaveTextContent(
-			"Atlas joins this conversation when you send",
-		)
-		const avatars = slotsIn(lines[0], "bot-identity-avatar")
-		await expect(avatars).toHaveLength(1)
-		await expect(box(avatars[0]).width).toBe(JOINING_AVATAR_SIZE)
-		const textarea = canvas.getByRole("textbox", { name: "Message" })
-		await expect(box(avatars[0]).left).toBe(
-			box(textarea).left +
-				Number.parseFloat(getComputedStyle(textarea).paddingInlineStart),
-		)
-		await expectJoiningBetweenDraftAndControls(canvas, lines[0])
-	},
-})
-
-export const WithJoiningLongDraft = meta.story({
-	args: {
-		defaultValue: WRAPPED_DRAFT,
-		joining: [JOINING_BOTS[0]],
-		leading: leadingControls,
-		trailing: trailingControls,
-	},
-	parameters: {
-		docs: {
-			description: {
-				story:
-					"A draft that already wraps, bringing one companion in. Check that the joining line still falls between the last line of the draft and the control row, so a long draft never pushes it above the text. `WithOneJoining` covers the short draft.",
-			},
-		},
-	},
-	play: async ({ canvas, canvasElement }) => {
-		const [line] = slotsIn(canvasElement, "prompt-joining")
-
-		await expect(
-			rowsOf(canvas.getByRole("textbox", { name: "Message" })),
-		).toBeGreaterThan(1)
-		await expectJoiningBetweenDraftAndControls(canvas, line)
-	},
-})
-
-export const WithTwoJoining = meta.story({
-	args: {
-		defaultValue: "@Atlas @Basile look at the notes",
-		joining: JOINING_BOTS,
-	},
-	parameters: {
-		docs: {
-			description: {
-				story:
-					"The draft mentions two companions who are not in the conversation yet. Check that they share one line rather than one line each, that the two avatars sit edge to edge with no overlap, that the text starts 6px after the second one, and that the sentence turns plural with the names closed by *and*.",
-			},
-		},
-	},
-	play: async ({ canvasElement }) => {
-		const lines = slotsIn(canvasElement, "prompt-joining")
-
-		await expect(lines).toHaveLength(1)
-		await expect(lines[0]).toHaveTextContent(
-			"Atlas and Basile join this conversation when you send",
-		)
-		const [first, second] = slotsIn(lines[0], "bot-identity-avatar")
-		const text = lines[0].lastElementChild as HTMLElement
-		await expect(box(second).left).toBe(box(first).right)
-		await expect(box(text).left - box(second).right).toBe(JOINING_TEXT_GAP)
-	},
-})
-
-export const NobodyJoining = meta.story({
-	args: { defaultValue: DRAFT, joining: [] },
-	parameters: {
-		docs: {
-			description: {
-				story:
-					"A draft that brings nobody in. Check that the composer draws no join line and keeps no empty row for it, so it renders exactly as `Default`.",
-			},
-		},
-	},
-	play: async ({ canvas, canvasElement }) => {
-		await expect(slotsIn(canvasElement, "prompt-joining")).toHaveLength(0)
-		await expect(
-			isExpanded(canvas.getByRole("textbox", { name: "Message" })),
-		).toBe(false)
-	},
-})
-
-export const WithCompanionPicked = meta.story({
-	args: { defaultValue: "@Atlas look at the notes" },
-	parameters: {
-		docs: {
-			description: {
-				story:
-					"A companion outside the conversation is picked while the draft is open. Check that the polite status region is already in the composer before the pick, so assistive technology announces the joining sentence the moment it appears rather than missing a region born with its text.",
-			},
-		},
-	},
-	render: (args) => <PickingComposer {...args} />,
-	play: async ({ canvas, userEvent }) => {
-		const status = canvas.getByRole("status")
-
-		await expect(status).toBeEmptyDOMElement()
-		await expect(status).not.toHaveAttribute("aria-live")
-
-		await userEvent.click(canvas.getByRole("button", { name: "Pick Atlas" }))
-
-		await expect(canvas.getByRole("status")).toBe(status)
-		await expect(status).toHaveTextContent(
-			"Atlas joins this conversation when you send",
-		)
-	},
-})
-
 export const States = meta.story({
 	parameters: {
 		docs: {
 			description: {
 				story:
-					"Every state of the composer stacked, idle to disabled. Reach for it when changing the border, ring or opacity tokens: the second instance is focused by the play function, so the focus ring can be compared against the resting border without touching the canvas. Check that disabled dims the whole composer, blocks the textarea and takes its `leading` and `trailing` controls out of reach of both pointer and Tab, and that the idle instance carries no send button at all until something is worth sending.",
+					"Every state of the composer stacked, idle to disabled. Reach for it when changing the border, ring or opacity tokens: the second instance is focused by the play function, so the focus ring can be compared against the resting border without touching the canvas. Check that disabled dims the whole composer, blocks the textarea and takes its `leading` control and its staged chips out of reach of both pointer and Tab, and that the idle instance carries no send button at all until something is worth sending.",
 			},
 		},
 	},
@@ -497,7 +300,6 @@ export const States = meta.story({
 				disabled
 				defaultValue={DRAFT}
 				leading={leadingControls}
-				trailing={trailingControls}
 				attachments={stagedFiles}
 				aria-label="Disabled prompt"
 			/>
@@ -529,20 +331,30 @@ export const States = meta.story({
 })
 
 export const Overflow = meta.story({
-	args: { defaultValue: LONG_DRAFT, maxRows: 6 },
+	args: { defaultValue: LONG_DRAFT, leading: leadingControls },
 	parameters: {
 		docs: {
 			description: {
 				story:
-					"A multi-paragraph prompt past `maxRows`, the far end of the expanded layout. Check that the field grows line by line up to the cap and then scrolls instead of pushing the control row off screen, and that the last line stays visible while typing. `LongContent` covers the prompt that only just wraps; lower `maxRows` in the Playground to reproduce the cap on a shorter prompt.",
+					"A multi-paragraph prompt past the eighth row, the far end of the expanded layout. Check that the field grows line by line up to the cap and then scrolls instead of pushing the control row off screen, and that caret and last typed line stay visible while typing. `LongContent` covers the prompt that only just wraps.",
 			},
 		},
 	},
 	play: async ({ canvas }) => {
 		const textarea = canvas.getByRole("textbox", { name: "Message" })
+		const send = canvas.getByRole("button", { name: "Send" })
+		const form = formOf(textarea)
 
 		await expect(isExpanded(textarea)).toBe(true)
+		await expect(rowsOf(textarea)).toBeGreaterThan(MAX_ROWS)
 		await expect(textarea.scrollHeight).toBeGreaterThan(textarea.clientHeight)
+		await expect(isBelow(send, textarea)).toBe(true)
+		await expect(box(send).bottom).toBeLessThanOrEqual(box(form).bottom)
+
+		textarea.scrollTop = textarea.scrollHeight
+		await expect(textarea.scrollTop + textarea.clientHeight).toBe(
+			textarea.scrollHeight,
+		)
 	},
 })
 
