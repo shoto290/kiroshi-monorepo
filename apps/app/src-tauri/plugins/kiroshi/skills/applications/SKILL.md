@@ -60,7 +60,7 @@ answered.
 
 ## When no tool of yours does it
 
-The person asks for something no tool of this session does. The case is narrow:
+The person asks for something no tool of this session does:
 a capability none of your tools holds. Not a refusal of scope, not a rule you follow,
 not something the person already ruled out.
 
