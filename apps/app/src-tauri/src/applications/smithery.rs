@@ -1,4 +1,3 @@
-use std::cmp::Reverse;
 use std::collections::BTreeMap;
 
 use reqwest::{Client, StatusCode, Url};
@@ -15,6 +14,8 @@ pub const REGISTRY: &str = "https://registry.smithery.ai";
 const BOUND: &str = "10";
 
 const FIRST_PAGE: &str = "1";
+
+const OFFERED_PAGE: &str = "12";
 
 const HTTP: &str = "http";
 
@@ -108,22 +109,25 @@ struct Served {
 }
 
 pub async fn search(base: &str, query: &str) -> Result<Vec<Listing>, ApplicationsError> {
-	let terms = terms(query);
-	if terms.is_empty() {
+	if terms(query).is_empty() {
 		return Ok(Vec::new());
 	}
+	rows(base, &[("q", query), ("page", FIRST_PAGE), ("pageSize", BOUND)]).await
+}
+
+pub async fn offered(base: &str) -> Result<Vec<Listing>, ApplicationsError> {
+	rows(base, &[("page", FIRST_PAGE), ("pageSize", OFFERED_PAGE)]).await
+}
+
+async fn rows(base: &str, asked: &[(&str, &str)]) -> Result<Vec<Listing>, ApplicationsError> {
 	let base = parsed(base)?;
 	let mut list = endpoint(&base, &["servers"])?;
-	list.query_pairs_mut()
-		.append_pair("q", query)
-		.append_pair("page", FIRST_PAGE)
-		.append_pair("pageSize", BOUND);
+	for (name, value) in asked {
+		list.query_pairs_mut().append_pair(name, value);
+	}
 	let client = client()?;
 	let listed: Listed = read(&client, list).await?;
-	let mut kept: Vec<Row> =
-		listed.servers.into_iter().filter(|row| carries(row, &terms)).collect();
-	kept.sort_by_key(|row| Reverse(row.use_count.unwrap_or_default()));
-	Ok(listings(&client, &base, kept).await)
+	Ok(listings(&client, &base, listed.servers).await)
 }
 
 pub async fn detail(base: &str, name: &str) -> Result<Option<Application>, ApplicationsError> {
@@ -132,15 +136,6 @@ pub async fn detail(base: &str, name: &str) -> Result<Option<Application>, Appli
 		return Ok(None);
 	};
 	Ok(read_by_name(&detail))
-}
-
-fn carries(row: &Row, terms: &[String]) -> bool {
-	let named = format!(
-		"{} {}",
-		row.qualified_name.to_lowercase(),
-		row.display_name.as_deref().unwrap_or_default().to_lowercase()
-	);
-	terms.iter().all(|term| named.contains(term.as_str()))
 }
 
 async fn listings(client: &Client, base: &Url, kept: Vec<Row>) -> Vec<Listing> {
@@ -616,7 +611,7 @@ pub(crate) mod tests {
 	}
 
 	#[tokio::test]
-	async fn a_search_keeps_the_rows_every_term_names_ordered_by_use_count_descending() {
+	async fn a_search_answers_every_row_in_the_order_the_registry_ranked_them() {
 		let (base, held) = serving(holding(
 			vec![
 				a_row("@owner/slack-lite", "Slack Lite", 12),
@@ -631,13 +626,13 @@ pub(crate) mod tests {
 		))
 		.await;
 
-		let found = search(&base, "slack").await.expect("the search answers");
+		let found = search(&base, "chat with my team").await.expect("the search answers");
 
 		let names: Vec<&str> = found.iter().map(|held| held.application.name.as_str()).collect();
-		assert_eq!(names, ["@owner/slack", "@owner/slack-lite"]);
+		assert_eq!(names, ["@owner/slack-lite", "@owner/godot-engine", "@owner/slack"]);
 		assert_eq!(
 			*held.asked.lock().expect("the stub records"),
-			["/servers?q=slack&page=1&pageSize=10"]
+			["/servers?q=chat+with+my+team&page=1&pageSize=10"]
 		);
 	}
 
@@ -676,7 +671,7 @@ pub(crate) mod tests {
 
 		let hosts: Vec<Option<&str>> =
 			found.iter().map(|held| held.application.hosted_by.as_deref()).collect();
-		assert_eq!(hosts, [Some("Smithery"), None]);
+		assert_eq!(hosts, [None, Some("Smithery")]);
 	}
 
 	#[tokio::test]
