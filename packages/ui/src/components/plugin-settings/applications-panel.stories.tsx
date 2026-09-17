@@ -166,21 +166,57 @@ export const EmptyCompanion = meta.story({
 		docs: {
 			description: {
 				story:
-					"A companion with no application of its own. Check the three faded marks, the companion title and description, and that both ways in are offered: Add application and Paste a configuration.",
+					"A companion with no application of its own. Check the search row above it, the three faded marks, the companion title and description, and the one way in the empty body offers: Add an application.",
 			},
 		},
 	},
 	play: async ({ args, canvas, userEvent }) => {
 		await expect(canvas.getByText("No applications of its own")).toBeVisible()
+		await expect(
+			canvas.getByRole("textbox", { name: "Search applications" }),
+		).toBeVisible()
 
 		await userEvent.click(
-			canvas.getByRole("button", { name: "Add application" }),
+			canvas.getByRole("button", { name: "Add an application" }),
 		)
 		await userEvent.click(
 			canvas.getByRole("button", { name: "Paste a configuration" }),
 		)
 
 		await expect(args.onAdd).toHaveBeenCalledTimes(1)
+		await expect(args.onPaste).toHaveBeenCalledTimes(1)
+	},
+})
+
+export const SearchRow = meta.story({
+	parameters: {
+		docs: {
+			description: {
+				story:
+					"The row that opens the catalogue, above a filled body. Check the search field taking the width, the plus button at its end named after the flow it opens, and that pressing it asks for a configuration to paste.",
+			},
+		},
+	},
+	play: async ({ args, canvas, canvasElement, userEvent }) => {
+		const field = canvas.getByRole("textbox", { name: "Search applications" })
+		const plus = canvas.getByRole("button", { name: "Paste a configuration" })
+		const row = field.closest("div")?.parentElement as HTMLElement
+
+		await expect(
+			Math.round(field.closest("label")!.getBoundingClientRect().height),
+		).toBe(36)
+		await expect(Math.round(plus.getBoundingClientRect().width)).toBe(36)
+		await expect(Math.round(plus.getBoundingClientRect().height)).toBe(36)
+		await expect(
+			Math.round(
+				plus.getBoundingClientRect().left -
+					field.closest("label")!.getBoundingClientRect().right,
+			),
+		).toBe(8)
+		await expect(row.contains(canvasElement)).toBe(false)
+
+		await userEvent.click(plus)
+
 		await expect(args.onPaste).toHaveBeenCalledTimes(1)
 	},
 })
@@ -237,7 +273,15 @@ export const NeedsAuthorization = meta.story({
 
 		await userEvent.tab()
 		await expect(
-			canvas.getByRole("button", { name: "Add application" }),
+			canvas.getByRole("textbox", { name: "Search applications" }),
+		).toHaveFocus()
+		await userEvent.tab()
+		await expect(
+			canvas.getByRole("button", { name: "Paste a configuration" }),
+		).toHaveFocus()
+		await userEvent.tab()
+		await expect(
+			canvas.getByRole("button", { name: "Add an application" }),
 		).toHaveFocus()
 		await userEvent.tab()
 		await expect(
@@ -432,7 +476,7 @@ export const Unreadable = meta.story({
 			canvas.getByText("Couldn't load applications. Reopen settings to retry."),
 		).toBeVisible()
 		await expect(
-			canvas.queryByRole("button", { name: "Add application" }),
+			canvas.queryByRole("button", { name: "Add an application" }),
 		).not.toBeInTheDocument()
 	},
 })

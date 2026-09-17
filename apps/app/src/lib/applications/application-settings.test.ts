@@ -345,10 +345,10 @@ describe("openedServerScope", () => {
 })
 
 describe("toApplicationScope", () => {
-	it("lists the curated applications of the catalogue", () => {
+	it("lists the applications of the catalogue", () => {
 		const { scope } = scopeOf()
 
-		expect(scope.mcpCatalogue?.curated).toEqual([
+		expect(scope.mcpCatalogue?.applications).toEqual([
 			{
 				id: "linear",
 				name: "Linear",
@@ -364,7 +364,14 @@ describe("toApplicationScope", () => {
 			applicationsWith({ curated: [LINEAR], registry: [REGISTERED] }),
 		)
 
-		expect(scope.mcpCatalogue?.registry).toEqual([
+		expect(scope.mcpCatalogue?.applications).toEqual([
+			{
+				id: "linear",
+				name: "Linear",
+				description: "Files issues.",
+				setup: "signIn",
+				mark: LINEAR.logo,
+			},
 			{
 				id: "io.github.kwn/tasklog",
 				name: "io.github.kwn/tasklog",
@@ -379,7 +386,7 @@ describe("toApplicationScope", () => {
 	it("carries the icon, the pill, the uses and the host of a registry result", () => {
 		const { scope } = scopeOf(applicationsWith({ registry: [HOSTED] }))
 
-		expect(scope.mcpCatalogue?.registry).toEqual([
+		expect(scope.mcpCatalogue?.applications).toEqual([
 			{
 				id: "smithery/slack",
 				name: "Slack",
@@ -394,20 +401,18 @@ describe("toApplicationScope", () => {
 		])
 	})
 
-	it("tells the catalogue one registry side could not be read", () => {
+	it("tells the catalogue the read could not be done", () => {
 		const { scope } = scopeOf(
-			applicationsWith({ registry: [HOSTED], hasSearchPartlyFailed: true }),
+			applicationsWith({ registry: [HOSTED], hasSearchFailed: true }),
 		)
 
-		expect(scope.mcpCatalogue?.hasRegistryPartlyFailed).toBe(true)
-		expect(scope.mcpCatalogue?.hasRegistryFailed).toBe(false)
+		expect(scope.mcpCatalogue?.hasFailed).toBe(true)
 	})
 
-	it("hands the catalogue no count while it is read", () => {
+	it("tells the catalogue it is still reading", () => {
 		const { scope } = scopeOf(applicationsWith({ isReadingCatalogue: true }))
 
-		expect(scope.mcpCatalogue?.isCatalogueLoading).toBe(true)
-		expect(scope.mcpCatalogue?.count).toBeNull()
+		expect(scope.mcpCatalogue?.isLoading).toBe(true)
 	})
 
 	it("keeps only what the typed query matches among the curated ones", () => {
@@ -415,7 +420,7 @@ describe("toApplicationScope", () => {
 			applicationsWith({ curated: [LINEAR, REGISTERED], query: "tasklog" }),
 		)
 
-		expect(scope.mcpCatalogue?.curated.map((held) => held.id)).toEqual([
+		expect(scope.mcpCatalogue?.applications.map((held) => held.id)).toEqual([
 			"io.github.kwn/tasklog",
 		])
 	})

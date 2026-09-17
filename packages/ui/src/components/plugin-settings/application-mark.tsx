@@ -67,10 +67,11 @@ const ApplicationMark = ({
 		<span
 			aria-hidden="true"
 			className={cn(
-				"flex shrink-0 items-center justify-center overflow-hidden border border-border",
+				"flex shrink-0 items-center justify-center overflow-hidden",
 				style.slot,
-				isDrawn && "bg-muted text-foreground",
-				isGlyph && "bg-muted text-muted-foreground",
+				(isDrawn || isGlyph) && "border border-border bg-muted",
+				isDrawn && "text-foreground",
+				isGlyph && "text-muted-foreground",
 			)}
 			data-slot="application-mark"
 		>

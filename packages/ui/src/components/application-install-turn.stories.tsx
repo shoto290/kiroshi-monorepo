@@ -8,10 +8,12 @@ import {
 	ApplicationInstallTurn,
 } from "@workspace/ui/components/application-install-turn"
 import type { MessageAuthor } from "@workspace/ui/components/message"
-import { CURATED_APPLICATIONS } from "@workspace/ui/components/plugin-settings/applications.fixtures"
+import { CATALOGUE_APPLICATIONS } from "@workspace/ui/components/plugin-settings/applications.fixtures"
 import { AssistantTurn, TurnGroup } from "@workspace/ui/components/turn"
 
-const SENTRY_MARK = CURATED_APPLICATIONS.find(({ id }) => id === "sentry")?.mark
+const SENTRY_MARK = CATALOGUE_APPLICATIONS.find(
+	({ id }) => id === "sentry",
+)?.mark
 
 const INSTALLER: MessageAuthor = {
 	id: "bot-atlas",

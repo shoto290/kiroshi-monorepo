@@ -20,7 +20,6 @@ import {
 	type CatalogueApplication,
 	CataloguePage,
 	type CataloguePageProps,
-	EVERYTHING_TAB,
 } from "@workspace/ui/components/plugin-settings/applications-catalogue"
 import type { ApplicationsOwner } from "@workspace/ui/components/plugin-settings/applications-panel"
 import { Button } from "@workspace/ui/components/ui/button"
@@ -420,6 +419,7 @@ const ApplicationInstallPage = ({
 	onInstall,
 	...page
 }: ApplicationInstallPageProps) => {
+	const { category } = page
 	const { t } = useTranslation("bots")
 	const body = useRef<HTMLDivElement>(null)
 	useOverlayScrollbars(body)
@@ -511,7 +511,7 @@ const ApplicationInstallPage = ({
 					<Tabs.Panel
 						className="col-span-full row-start-3 flex min-h-0 flex-col gap-4.5 overflow-y-auto p-5 outline-none focus-visible:ring-2 focus-visible:ring-ring focus-visible:ring-inset @sm:row-start-2"
 						ref={body}
-						value={EVERYTHING_TAB}
+						value={category}
 					>
 						<div className="flex flex-col gap-1.75">
 							{setupBlock()}

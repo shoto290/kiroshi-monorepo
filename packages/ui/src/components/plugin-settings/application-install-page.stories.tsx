@@ -18,6 +18,7 @@ import {
 	REGISTRY_INSTALL,
 	SIGN_IN_INSTALL,
 } from "@workspace/ui/components/plugin-settings/applications.fixtures"
+import { EVERYTHING_CATEGORY } from "@workspace/ui/components/plugin-settings/applications-catalogue"
 import type { ApplicationsOwner } from "@workspace/ui/components/plugin-settings/applications-panel"
 
 const INSTALL_FAILURE = "Sentry refused the key: 401 invalid token."
@@ -77,9 +78,9 @@ const meta = preview.meta({
 	args: {
 		application: SIGN_IN_INSTALL,
 		owner: COMPANION,
-		count: 6,
+		category: EVERYTHING_CATEGORY,
+		onCategoryChange: fn(),
 		onBack: fn(),
-		onPaste: fn(),
 		onInstall: fn(),
 	},
 })
@@ -136,7 +137,7 @@ export const NeedsApiKey = meta.story({
 		docs: {
 			description: {
 				story:
-					"E6. An application that needs one key. Check the muted panel titled for the application, the field labelled as the variable it fills with its description under it, the empty concealed input and its Show control named after that field, the glyphless Add application, and the keyboard order: field, reveal, action.",
+					"E6. An application that needs one key. Check the muted panel titled for the application, the field labelled as the variable it fills with its description under it, the empty concealed input and its Show control named after that field, the glyphless Add an application, and the keyboard order: field, reveal, action.",
 			},
 		},
 	},
@@ -159,7 +160,7 @@ export const NeedsApiKey = meta.story({
 		).toHaveFocus()
 
 		await userEvent.tab()
-		const action = canvas.getByRole("button", { name: "Add application" })
+		const action = canvas.getByRole("button", { name: "Add an application" })
 		await expect(action).toHaveFocus()
 		await expect(action.querySelector("svg")).toBeNull()
 		await userEvent.keyboard("{Enter}")
@@ -200,7 +201,7 @@ export const AsksForEveryValue = meta.story({
 		await userEvent.keyboard("/home/games/asteroids")
 
 		await userEvent.click(
-			canvas.getByRole("button", { name: "Add application" }),
+			canvas.getByRole("button", { name: "Add an application" }),
 		)
 		await expect(args.onInstall).toHaveBeenCalledWith({
 			GODOT_PATH: "/usr/local/bin/godot",
@@ -312,7 +313,7 @@ export const Refused = meta.story({
 		)
 
 		await expect(
-			canvas.queryByRole("button", { name: "Add application" }),
+			canvas.queryByRole("button", { name: "Add an application" }),
 		).not.toBeInTheDocument()
 		await expect(
 			canvas.queryByRole("button", { name: "Add and sign in" }),
@@ -373,7 +374,7 @@ export const InstallRunning = meta.story({
 		},
 	},
 	play: async ({ args, canvas, userEvent }) => {
-		const action = canvas.getByRole("button", { name: "Add application" })
+		const action = canvas.getByRole("button", { name: "Add an application" })
 		await expect(action).toHaveAttribute("aria-busy", "true")
 		await expect(action).toHaveAttribute("aria-disabled", "true")
 		action.focus()
@@ -403,7 +404,7 @@ export const InstallFailedFromKeyboard = meta.story({
 		await userEvent.type(field, "sntryu_wrong")
 		await userEvent.tab()
 		await userEvent.tab()
-		const action = canvas.getByRole("button", { name: "Add application" })
+		const action = canvas.getByRole("button", { name: "Add an application" })
 		await expect(action).toHaveFocus()
 
 		await userEvent.keyboard("{Enter}")
@@ -505,7 +506,7 @@ export const RunsOnItsHost = meta.story({
 		docs: {
 			description: {
 				story:
-					"E7b. A registry application its source runs for you. Check the verified pill after the name, the source and the uses under the description, the sign-in read as a plain fact rather than an amber field, the hosting fact in the attention colour with its host in monospace, the plain Add application, the fine print sending it to its source’s server, and that nothing claims this machine.",
+					"E7b. A registry application its source runs for you. Check the verified pill after the name, the source and the uses under the description, the sign-in read as a plain fact rather than an amber field, the hosting fact in the attention colour with its host in monospace, the plain Add an application, the fine print sending it to its source’s server, and that nothing claims this machine.",
 			},
 		},
 	},
@@ -539,7 +540,7 @@ export const RunsOnItsHost = meta.story({
 		)
 		await expect(canvas.getByText("slack.run.tools")).toHaveClass("font-mono")
 
-		const action = canvas.getByRole("button", { name: "Add application" })
+		const action = canvas.getByRole("button", { name: "Add an application" })
 		await expect(action.querySelector("svg")).toBeNull()
 
 		await expect(

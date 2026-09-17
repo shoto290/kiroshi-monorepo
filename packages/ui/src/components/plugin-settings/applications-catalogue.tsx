@@ -5,16 +5,11 @@ import { type ReactNode, useRef } from "react"
 import { useTranslation } from "react-i18next"
 
 import { type Icon, Icons } from "@workspace/ui/components/icons"
-import {
-	ApplicationMetaLine,
-	ApplicationVerifiedPill,
-} from "@workspace/ui/components/plugin-settings/application-identity"
 import { ApplicationMark } from "@workspace/ui/components/plugin-settings/application-mark"
 import {
 	RAIL_ITEM_CLASS,
 	SETTINGS_PANEL_CLASS,
 	SettingsRail,
-	SettingsRailAction,
 	SettingsRailBack,
 	SettingsRailSeparator,
 } from "@workspace/ui/components/settings-rail"
@@ -38,19 +33,45 @@ type CatalogueApplication = {
 	host?: string
 }
 
-const EVERYTHING_TAB = "everything"
+const CATALOGUE_CATEGORIES = [
+	"everything",
+	"on-this-machine",
+	"commerce-shopping",
+	"communication",
+	"consumer-health",
+	"creative",
+	"data-analytics",
+	"developer-tools",
+	"education",
+	"financial-services",
+	"health-life-sciences",
+	"legal",
+	"media-entertainment",
+	"nonprofit",
+	"productivity",
+	"sales-marketing",
+	"travel",
+	"other",
+] as const
 
-const UNKNOWN_COUNT = "\u2014"
+type CatalogueCategory = (typeof CATALOGUE_CATEGORIES)[number]
 
-const CARD_SLOT_CLASS = "flex w-46.5 shrink-0"
+const EVERYTHING_CATEGORY: CatalogueCategory = "everything"
+
+const HEADLESS_CATEGORIES: CatalogueCategory[] = [
+	"everything",
+	"on-this-machine",
+]
+
+const CATALOGUE_RAIL_ITEM_CLASS = cn(
+	RAIL_ITEM_CLASS,
+	"rounded-control text-sm/4.5",
+)
+
+const CARD_GRID_CLASS = "grid list-none grid-cols-3 gap-3 p-0"
 
 const CARD_SHELL_CLASS =
-	"flex w-full min-w-0 flex-col gap-2 rounded-xl border border-border p-3"
-
-const ROW_LIST_CLASS = "flex list-none flex-col gap-2 p-0"
-
-const ROW_SHELL_CLASS =
-	"flex w-full min-w-0 items-start gap-2.5 rounded-lg border border-border p-3"
+	"flex h-full w-full min-w-0 flex-col gap-2 rounded-control border border-border p-3"
 
 const SETUP_ICON = {
 	signIn: Icons.ExternalLink,
@@ -76,7 +97,7 @@ const CatalogueCard = ({ application, onPick }: CatalogueCardProps) => {
 	const SetupIcon = SETUP_ICON[application.setup]
 
 	return (
-		<li className={CARD_SLOT_CLASS}>
+		<li className="flex min-w-0">
 			<button
 				className={cn(
 					CARD_SHELL_CLASS,
@@ -87,15 +108,20 @@ const CatalogueCard = ({ application, onPick }: CatalogueCardProps) => {
 			>
 				<span className="flex min-w-0 items-center gap-2">
 					<ApplicationMark mark={application.mark} size="sm" />
-					<span className="truncate font-medium text-foreground text-sm">
+					<span className="truncate font-medium text-foreground text-sm/4.5">
 						{application.name}
 					</span>
 				</span>
-				<span className="flex-1 wrap-break-word text-muted-foreground text-xs/4">
-					{application.description}
-				</span>
+				{application.description ? (
+					<span
+						className="line-clamp-2 h-8 wrap-break-word text-muted-foreground text-xs/4"
+						data-slot="catalogue-card-description"
+					>
+						{application.description}
+					</span>
+				) : null}
 				<span
-					className="flex min-w-0 items-center gap-1.25 pt-2 text-muted-foreground text-xs"
+					className="flex min-w-0 items-center gap-1.25 text-muted-foreground text-xs/4"
 					data-slot="catalogue-card-setup"
 				>
 					<SetupIcon
@@ -117,78 +143,9 @@ type CatalogueCardsProps = {
 }
 
 const CatalogueCards = ({ applications, onPick }: CatalogueCardsProps) => (
-	<ul className="flex list-none flex-wrap gap-3 p-0">
+	<ul className={CARD_GRID_CLASS}>
 		{applications.map((application) => (
 			<CatalogueCard
-				application={application}
-				key={application.id}
-				onPick={() => onPick(application)}
-			/>
-		))}
-	</ul>
-)
-
-type CatalogueRowProps = {
-	application: CatalogueApplication
-	onPick: () => void
-}
-
-const CatalogueRow = ({ application, onPick }: CatalogueRowProps) => {
-	const { t } = useTranslation("bots")
-	const SetupIcon = SETUP_ICON[application.setup]
-
-	return (
-		<li className="flex">
-			<button
-				className={cn(
-					ROW_SHELL_CLASS,
-					"group cursor-pointer text-start outline-none hover:bg-muted focus-visible:ring-2 focus-visible:ring-ring",
-				)}
-				onClick={onPick}
-				type="button"
-			>
-				<ApplicationMark mark={application.mark} size="sm" />
-				<span className="flex min-w-0 flex-1 flex-col gap-0.5">
-					<span
-						className="flex h-4.5 min-w-0 items-center gap-1.5"
-						data-slot="catalogue-row-name"
-					>
-						<span className="truncate font-medium text-[13px]/4.5 text-foreground">
-							{application.name}
-						</span>
-						{application.isVerified ? <ApplicationVerifiedPill /> : null}
-					</span>
-					{application.description ? (
-						<span
-							className="h-4 truncate text-muted-foreground text-xs/4"
-							data-slot="catalogue-row-description"
-						>
-							{application.description}
-						</span>
-					) : null}
-					<ApplicationMetaLine
-						host={application.host}
-						packageIdentity={application.packageIdentity}
-						source={application.source}
-						useCount={application.useCount}
-					/>
-				</span>
-				<span className="flex shrink-0 items-center gap-1.25 pt-px text-muted-foreground text-xs/4">
-					<SetupIcon
-						aria-hidden="true"
-						className={cn("size-3.25 shrink-0", SETUP_TONE[application.setup])}
-					/>
-					{t(`applications.catalogue.setup.${application.setup}`)}
-				</span>
-			</button>
-		</li>
-	)
-}
-
-const CatalogueRows = ({ applications, onPick }: CatalogueCardsProps) => (
-	<ul className={ROW_LIST_CLASS}>
-		{applications.map((application) => (
-			<CatalogueRow
 				application={application}
 				key={application.id}
 				onPick={() => onPick(application)}
@@ -212,22 +169,6 @@ const SkeletonBar = ({ className, isFaint = false }: SkeletonBarProps) => (
 	/>
 )
 
-type SkeletonLineProps = {
-	line: string
-	bar: string
-	isFaint?: boolean
-}
-
-const SkeletonLine = ({ line, bar, isFaint = false }: SkeletonLineProps) => (
-	<div className={cn("flex items-center", line)}>
-		<SkeletonBar className={bar} isFaint={isFaint} />
-	</div>
-)
-
-const SkeletonMark = () => (
-	<Skeleton className="size-7 shrink-0 rounded-md bg-border motion-reduce:animate-none" />
-)
-
 const CARD_SKELETONS = [
 	{ rank: "one", name: "w-16.5", description: "w-28", setup: "w-19.5" },
 	{ rank: "two", name: "w-12", description: "w-34.5", setup: "w-16.5" },
@@ -237,90 +178,24 @@ const CARD_SKELETONS = [
 	{ rank: "six", name: "w-11", description: "w-32.5", setup: "w-21.5" },
 ]
 
-const ROW_SKELETONS = [
-	{
-		rank: "one",
-		name: "w-33",
-		description: "w-51.5",
-		meta: "w-39.5",
-		setup: "w-24.5",
-	},
-	{
-		rank: "two",
-		name: "w-24",
-		description: "w-43",
-		meta: "w-29.5",
-		setup: "w-20.5",
-	},
-	{
-		rank: "three",
-		name: "w-37",
-		description: "w-56",
-		meta: "w-47.5",
-		setup: "w-17.5",
-	},
-	{
-		rank: "four",
-		name: "w-29.5",
-		description: "w-47",
-		meta: "w-34.5",
-		setup: "w-22.5",
-	},
-	{
-		rank: "five",
-		name: "w-35",
-		description: "w-53.5",
-		meta: "w-25.5",
-		setup: "w-19",
-	},
-	{
-		rank: "six",
-		name: "w-21.5",
-		description: "w-40",
-		meta: "w-43",
-		setup: "w-26",
-	},
-	{
-		rank: "seven",
-		name: "w-31",
-		description: "w-58",
-		meta: "w-31.5",
-		setup: "w-16.5",
-	},
-	{
-		rank: "eight",
-		name: "w-26.5",
-		description: "w-44.5",
-		meta: "w-37",
-		setup: "w-23.5",
-	},
-	{
-		rank: "nine",
-		name: "w-38.5",
-		description: "w-49",
-		meta: "w-28",
-		setup: "w-21",
-	},
-]
-
 const CatalogueCardSkeletons = () => (
-	<ul aria-hidden="true" className="flex list-none flex-wrap gap-3 p-0">
+	<ul aria-hidden="true" className={CARD_GRID_CLASS}>
 		{CARD_SKELETONS.map((card) => (
 			<li
-				className={CARD_SLOT_CLASS}
+				className="flex min-w-0"
 				data-slot="catalogue-card-skeleton"
 				key={card.rank}
 			>
 				<div className={CARD_SHELL_CLASS}>
-					<div className="flex items-center gap-2">
-						<SkeletonMark />
+					<div className="flex h-7 items-center gap-2">
+						<Skeleton className="size-7 shrink-0 rounded-md bg-border motion-reduce:animate-none" />
 						<SkeletonBar className={cn("h-3", card.name)} />
 					</div>
-					<div className="flex flex-1 flex-col gap-1.5 pt-0.5">
-						<SkeletonBar className="h-2.25 w-40" />
+					<div className="flex h-8 flex-col justify-center gap-1.5">
+						<SkeletonBar className="h-2.25 w-full" isFaint />
 						<SkeletonBar className={cn("h-2.25", card.description)} isFaint />
 					</div>
-					<div className="flex items-center gap-1.25 pt-2">
+					<div className="flex h-4 items-center gap-1.25">
 						<SkeletonBar className="size-3.25 shrink-0" isFaint />
 						<SkeletonBar className={cn("h-2.25", card.setup)} isFaint />
 					</div>
@@ -328,50 +203,6 @@ const CatalogueCardSkeletons = () => (
 			</li>
 		))}
 	</ul>
-)
-
-const CatalogueRowSkeletons = () => (
-	<ul aria-hidden="true" className={ROW_LIST_CLASS}>
-		{ROW_SKELETONS.map((row) => (
-			<li className="flex" data-slot="catalogue-row-skeleton" key={row.rank}>
-				<div className={ROW_SHELL_CLASS}>
-					<SkeletonMark />
-					<div className="flex min-w-0 flex-1 flex-col gap-0.5">
-						<SkeletonLine bar={cn("h-2.75", row.name)} line="h-4.5" />
-						<SkeletonLine
-							bar={cn("h-2.25", row.description)}
-							isFaint
-							line="h-4"
-						/>
-						<SkeletonLine bar={cn("h-2.25", row.meta)} isFaint line="h-4" />
-					</div>
-					<div className="shrink-0 pt-px">
-						<SkeletonLine bar={cn("h-2.25", row.setup)} isFaint line="h-4" />
-					</div>
-				</div>
-			</li>
-		))}
-	</ul>
-)
-
-type CatalogueSectionProps = {
-	title: string
-	subtitle: string
-	children: ReactNode
-}
-
-const CatalogueSection = ({
-	title,
-	subtitle,
-	children,
-}: CatalogueSectionProps) => (
-	<section className="flex shrink-0 flex-col gap-2">
-		<div className="flex flex-wrap items-baseline gap-x-2 px-2">
-			<h3 className="font-medium text-foreground text-sm">{title}</h3>
-			<p className="text-muted-foreground text-xs">{subtitle}</p>
-		</div>
-		{children}
-	</section>
 )
 
 type CatalogueLineProps = {
@@ -401,17 +232,17 @@ const CatalogueLine = ({
 )
 
 type CataloguePageProps = {
-	count: number | null
+	category: CatalogueCategory
+	onCategoryChange: (category: CatalogueCategory) => void
 	onBack: () => void
-	onPaste: () => void
 	className?: string
 	children: ReactNode
 }
 
 const CataloguePage = ({
-	count,
+	category,
+	onCategoryChange,
 	onBack,
-	onPaste,
 	className,
 	children,
 }: CataloguePageProps) => {
@@ -420,8 +251,9 @@ const CataloguePage = ({
 	return (
 		<Tabs.Root
 			className={cn("flex min-h-0 min-w-0 flex-1", className)}
+			onValueChange={(value) => onCategoryChange(value as CatalogueCategory)}
 			orientation="vertical"
-			value={EVERYTHING_TAB}
+			value={category}
 		>
 			<SettingsRail
 				iconsOnly={false}
@@ -435,65 +267,60 @@ const CataloguePage = ({
 						<SettingsRailSeparator />
 					</>
 				}
-				trailing={
-					<>
-						<SettingsRailSeparator />
-						<SettingsRailAction
-							icon={Icons.Json}
-							iconsOnly={false}
-							label={t("applications.paste")}
-							onClick={onPaste}
-						/>
-					</>
-				}
 			>
-				<Tabs.Tab className={RAIL_ITEM_CLASS} value={EVERYTHING_TAB}>
-					<span className="min-w-0 flex-1 wrap-break-word text-start">
-						{t("applications.catalogue.everything")}
-					</span>
-					<span
-						aria-hidden={count === null}
-						className="shrink-0 text-muted-foreground text-xs tabular-nums"
-					>
-						{count ?? UNKNOWN_COUNT}
-					</span>
-				</Tabs.Tab>
+				{CATALOGUE_CATEGORIES.map((id) => (
+					<Tabs.Tab className={CATALOGUE_RAIL_ITEM_CLASS} key={id} value={id}>
+						<span className="min-w-0 flex-1 wrap-break-word text-start">
+							{t(`applications.catalogue.category.${id}`)}
+						</span>
+					</Tabs.Tab>
+				))}
 			</SettingsRail>
 			{children}
 		</Tabs.Root>
 	)
 }
 
+type CatalogueSectionHeadProps = {
+	category: CatalogueCategory
+}
+
+const CatalogueSectionHead = ({ category }: CatalogueSectionHeadProps) => {
+	const { t } = useTranslation("bots")
+
+	return (
+		<div className="flex flex-wrap items-baseline gap-x-2">
+			<h3 className="font-medium text-foreground text-sm/4.5">
+				{t(`applications.catalogue.category.${category}`)}
+			</h3>
+			<p className="text-muted-foreground text-xs/4">
+				{t("applications.catalogue.directory")}
+			</p>
+		</div>
+	)
+}
+
 type ApplicationsCatalogueProps = Omit<CataloguePageProps, "children"> & {
 	query: string
 	onQueryChange: (query: string) => void
-	curated: CatalogueApplication[]
-	registry: CatalogueApplication[]
-	isCatalogueLoading?: boolean
-	isRegistrySearching?: boolean
-	hasRegistryFailed?: boolean
-	hasRegistryPartlyFailed?: boolean
-	onRegistryRetry: () => void
+	applications: CatalogueApplication[]
+	isLoading?: boolean
+	hasFailed?: boolean
+	onRetry: () => void
 	onPick: (application: CatalogueApplication) => void
-	onBack: () => void
-	onPaste: () => void
-	className?: string
 }
 
 const ApplicationsCatalogue = ({
-	count,
+	category,
+	onCategoryChange,
 	query,
 	onQueryChange,
-	curated,
-	registry,
-	isCatalogueLoading = false,
-	isRegistrySearching = false,
-	hasRegistryFailed = false,
-	hasRegistryPartlyFailed = false,
-	onRegistryRetry,
+	applications,
+	isLoading = false,
+	hasFailed = false,
+	onRetry,
 	onPick,
 	onBack,
-	onPaste,
 	className,
 }: ApplicationsCatalogueProps) => {
 	const { t } = useTranslation("bots")
@@ -501,33 +328,10 @@ const ApplicationsCatalogue = ({
 	useOverlayScrollbars(panel)
 	const typed = query.trim()
 	const placeholder = t("applications.catalogue.search.placeholder")
-	const isLoading = isCatalogueLoading || isRegistrySearching
 
-	const registryRetry = (
-		<Button onClick={onRegistryRetry} size="xs" variant="outline">
-			{t("applications.catalogue.registry.retry")}
-		</Button>
-	)
-
-	const registryPartialFailure = () =>
-		hasRegistryPartlyFailed ? (
-			<CatalogueLine
-				action={registryRetry}
-				icon={Icons.Alert}
-				text={t("applications.catalogue.registry.partlyFailed")}
-			/>
-		) : null
-
-	const hasRegistrySection =
-		typed !== "" ||
-		isLoading ||
-		hasRegistryFailed ||
-		hasRegistryPartlyFailed ||
-		registry.length > 0
-
-	const registryResults = () => {
-		if (registry.length > 0) {
-			return <CatalogueRows applications={registry} onPick={onPick} />
+	const results = () => {
+		if (applications.length > 0) {
+			return <CatalogueCards applications={applications} onPick={onPick} />
 		}
 
 		if (typed === "") return null
@@ -535,50 +339,45 @@ const ApplicationsCatalogue = ({
 		return (
 			<CatalogueLine
 				icon={Icons.Search}
-				text={
-					curated.length === 0
-						? t("applications.catalogue.nothing", { query: typed })
-						: t("applications.catalogue.registry.empty", { query: typed })
-				}
+				text={t("applications.catalogue.nothing", { query: typed })}
 			/>
 		)
 	}
 
-	const registryBody = () => {
+	const body = () => {
 		if (isLoading) {
-			return <CatalogueRowSkeletons />
+			return <CatalogueCardSkeletons />
 		}
 
-		if (hasRegistryFailed) {
+		if (hasFailed) {
 			return (
 				<CatalogueLine
-					action={registryRetry}
+					action={
+						<Button onClick={onRetry} size="xs" variant="outline">
+							{t("applications.catalogue.retry")}
+						</Button>
+					}
 					icon={Icons.Alert}
-					text={t("applications.catalogue.registry.failed")}
+					text={t("applications.catalogue.failed")}
 				/>
 			)
 		}
 
-		return (
-			<>
-				{registryResults()}
-				{registryPartialFailure()}
-			</>
-		)
+		return results()
 	}
 
 	return (
 		<CataloguePage
+			category={category}
 			className={className}
-			count={count}
 			onBack={onBack}
-			onPaste={onPaste}
+			onCategoryChange={onCategoryChange}
 		>
 			<Tabs.Panel
 				aria-busy={isLoading}
 				className={cn(SETTINGS_PANEL_CLASS, "gap-3.5 overflow-y-auto")}
 				ref={panel}
-				value={EVERYTHING_TAB}
+				value={category}
 			>
 				<label className="flex min-h-9 shrink-0 items-center gap-2 rounded-xl border border-input px-3 focus-within:border-ring focus-within:ring-3 focus-within:ring-ring/30">
 					<Icons.Search
@@ -597,26 +396,12 @@ const ApplicationsCatalogue = ({
 						{t("applications.catalogue.search.hint")}
 					</span>
 				</label>
-				{isCatalogueLoading || curated.length > 0 ? (
-					<CatalogueSection
-						subtitle={t("applications.catalogue.curated.subtitle")}
-						title={t("applications.catalogue.curated.title")}
-					>
-						{isCatalogueLoading ? (
-							<CatalogueCardSkeletons />
-						) : (
-							<CatalogueCards applications={curated} onPick={onPick} />
-						)}
-					</CatalogueSection>
-				) : null}
-				{hasRegistrySection ? (
-					<CatalogueSection
-						subtitle={t("applications.catalogue.registry.subtitle")}
-						title={t("applications.catalogue.registry.title")}
-					>
-						{registryBody()}
-					</CatalogueSection>
-				) : null}
+				<section className="flex shrink-0 flex-col gap-2">
+					{HEADLESS_CATEGORIES.includes(category) ? null : (
+						<CatalogueSectionHead category={category} />
+					)}
+					{body()}
+				</section>
 			</Tabs.Panel>
 			{isLoading ? (
 				<span className="sr-only" role="status">
@@ -631,8 +416,10 @@ export {
 	type ApplicationSetup,
 	ApplicationsCatalogue,
 	type ApplicationsCatalogueProps,
+	CATALOGUE_CATEGORIES,
 	type CatalogueApplication,
+	type CatalogueCategory,
 	CataloguePage,
 	type CataloguePageProps,
-	EVERYTHING_TAB,
+	EVERYTHING_CATEGORY,
 }

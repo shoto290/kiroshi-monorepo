@@ -280,7 +280,7 @@ export const McpServersUnavailable = meta.story({
 			),
 		).toBeVisible()
 		await expect(
-			within(panel).queryByRole("button", { name: "Add application" }),
+			within(panel).queryByRole("button", { name: "Add an application" }),
 		).toBe(null)
 	},
 })

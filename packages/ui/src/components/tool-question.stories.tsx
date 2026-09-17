@@ -4,7 +4,7 @@ import preview from "@workspace/storybook/preview"
 import { slotIn } from "@workspace/storybook/story-utils"
 import { Icons } from "@workspace/ui/components/icons"
 import type { MessageAuthor } from "@workspace/ui/components/message"
-import { CURATED_APPLICATIONS } from "@workspace/ui/components/plugin-settings/applications.fixtures"
+import { CATALOGUE_APPLICATIONS } from "@workspace/ui/components/plugin-settings/applications.fixtures"
 import {
 	ToolQuestion,
 	type ToolQuestionAnswers,
@@ -1117,7 +1117,7 @@ export const EntryComposingLegacyKeyCodeOnKey = meta.story({
 const APPLICATION_SCOPE_STEP: ToolQuestionItem = {
 	question: "Who should get Linear?",
 	header: "Linear",
-	mark: CURATED_APPLICATIONS.find(({ id }) => id === "linear")?.mark,
+	mark: CATALOGUE_APPLICATIONS.find(({ id }) => id === "linear")?.mark,
 	optionsOnly: true,
 	options: [
 		{

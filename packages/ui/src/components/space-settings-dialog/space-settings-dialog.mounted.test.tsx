@@ -95,14 +95,16 @@ describe("SpaceSettingsDialog applications", () => {
 				"Couldn't load applications. Reopen settings to retry.",
 			),
 		).toBeTruthy()
-		expect(screen.queryByRole("button", { name: "Add application" })).toBe(null)
+		expect(screen.queryByRole("button", { name: "Add an application" })).toBe(
+			null,
+		)
 	})
 
 	it("writes a new server under the name it was given", async () => {
 		const onMcpServerCreate = vi.fn()
 		spaceDialog({ mcpServers: [], onMcpServerCreate })
 
-		press("Add application", await pick("Applications"))
+		press("Add an application", await pick("Applications"))
 		answer("Name", "atlas")
 		answer("Command", "npx")
 		press("Add application")
@@ -135,7 +137,7 @@ describe("SpaceSettingsDialog applications", () => {
 		const onMcpServerOpen = vi.fn()
 		spaceDialog({ mcpServers: [], onMcpServerOpen })
 
-		press("Add application", await pick("Applications"))
+		press("Add an application", await pick("Applications"))
 
 		expect(onMcpServerOpen).toHaveBeenLastCalledWith(null)
 		expect(within(await pick("Secrets")).queryByText("LEDGER_KEY")).toBe(null)

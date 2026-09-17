@@ -7,7 +7,7 @@ import type { BotMcpServerItem } from "@workspace/ui/components/bot-settings"
 import { BOT_MCP_SERVERS } from "@workspace/ui/components/bot-settings-dialog/mcp-servers.fixtures"
 import {
 	API_KEY_INSTALL,
-	CURATED_APPLICATIONS,
+	CATALOGUE_APPLICATIONS,
 } from "@workspace/ui/components/plugin-settings/applications.fixtures"
 import type { ApplicationsOwner } from "@workspace/ui/components/plugin-settings/applications-panel"
 import {
@@ -101,12 +101,10 @@ const meta = preview.meta({
 export const AddingPushesTheCatalogue = meta.story({
 	args: {
 		catalogue: {
-			count: 6,
 			query: "",
 			onQueryChange: fn(),
-			curated: CURATED_APPLICATIONS,
-			registry: [],
-			onRegistryRetry: fn(),
+			applications: CATALOGUE_APPLICATIONS,
+			onRetry: fn(),
 			onOpen: fn(),
 			onPick: fn(),
 		},
@@ -115,13 +113,13 @@ export const AddingPushesTheCatalogue = meta.story({
 		docs: {
 			description: {
 				story:
-					"Add application with a catalogue handed in. Check that the catalogue replaces the whole body, rail included, that opening it tells the caller so the registry can be asked, that All applications brings the list back, and that Paste a configuration opens a blank editor the way Add did before a catalogue existed.",
+					"Add an application with a catalogue handed in. Check that the catalogue replaces the whole body, rail included, that opening it tells the caller so the catalogue can be read, that All applications brings the list back, and that the plus button beside the search field opens a blank editor.",
 			},
 		},
 	},
 	play: async ({ args, canvas, userEvent }) => {
 		await userEvent.click(
-			canvas.getByRole("button", { name: "Add application" }),
+			canvas.getByRole("button", { name: "Add an application" }),
 		)
 
 		await expect(args.catalogue?.onOpen).toHaveBeenCalledTimes(1)
@@ -134,9 +132,6 @@ export const AddingPushesTheCatalogue = meta.story({
 		).toBeVisible()
 
 		await userEvent.click(
-			canvas.getByRole("button", { name: "Add application" }),
-		)
-		await userEvent.click(
 			canvas.getByRole("button", { name: "Paste a configuration" }),
 		)
 		await expect(canvas.getByRole("tab", { name: "Connection" })).toBeVisible()
@@ -146,12 +141,10 @@ export const AddingPushesTheCatalogue = meta.story({
 export const PickingPushesTheInstallPage = meta.story({
 	args: {
 		catalogue: {
-			count: 6,
 			query: "sentry",
 			onQueryChange: fn(),
-			curated: CURATED_APPLICATIONS,
-			registry: [],
-			onRegistryRetry: fn(),
+			applications: CATALOGUE_APPLICATIONS,
+			onRetry: fn(),
 			onPick: fn(),
 		},
 	},
@@ -166,7 +159,7 @@ export const PickingPushesTheInstallPage = meta.story({
 	render: (args) => <PickingScreen {...args} />,
 	play: async ({ canvas, userEvent }) => {
 		await userEvent.click(
-			canvas.getByRole("button", { name: "Add application" }),
+			canvas.getByRole("button", { name: "Add an application" }),
 		)
 		await userEvent.click(canvas.getByRole("button", { name: /^Sentry/ }))
 
@@ -180,8 +173,8 @@ export const PickingPushesTheInstallPage = meta.story({
 
 		await expect(canvas.getByRole("textbox")).toHaveValue("sentry")
 		await expect(
-			canvas.getByRole("heading", { name: "Kiroshi has read these" }),
-		).toBeVisible()
+			canvas.getByRole("textbox", { name: "Search applications" }),
+		).toHaveValue("sentry")
 	},
 })
 

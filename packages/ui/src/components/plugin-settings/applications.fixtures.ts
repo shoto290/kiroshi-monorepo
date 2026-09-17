@@ -36,7 +36,7 @@ export const MARKED_APPLICATIONS: BotMcpServerItem[] = [
 	},
 ]
 
-export const CURATED_APPLICATIONS: CatalogueApplication[] = [
+export const CATALOGUE_APPLICATIONS: CatalogueApplication[] = [
 	{
 		id: "linear",
 		name: "Linear",
@@ -81,116 +81,56 @@ export const CURATED_APPLICATIONS: CatalogueApplication[] = [
 	},
 ]
 
-export const REGISTRY_APPLICATIONS: CatalogueApplication[] = [
-	{
-		id: "io.github.weatherdesk/forecast",
-		name: "forecast",
-		description: "Forecasts and alerts from national weather services.",
-		setup: "none",
-		packageIdentity: "npx -y @weatherdesk/forecast-mcp",
-	},
-	{
-		id: "io.github.linear-community/linear-lite",
-		name: "linear-lite",
-		description: "A smaller Linear server that only reads issues.",
-		setup: "apiKey",
-		packageIdentity: "npx -y @linear-community/linear-lite",
-	},
-	{
-		id: "io.github.kwn/linkboard",
-		name: "linkboard",
-		setup: "signIn",
-		packageIdentity: "npx -y @kwn/linkboard-mcp",
-	},
-	{
-		id: "io.github.saffron/notesync",
-		name: "notesync",
-		description: "Keeps a note file and the comments left on it.",
-		setup: "none",
-		packageIdentity: "npx -y @saffron/notesync-mcp",
-	},
-	{
-		id: "io.github.stackpad/docsearch",
-		name: "docsearch",
-		description: "Searches the documentation a project publishes.",
-		setup: "apiKey",
-		packageIdentity: "npx -y @stackpad/docsearch-mcp",
-	},
-	{
-		id: "smithery/timeclock",
-		name: "timeclock",
-		description: "Starts, stops and reports tracked hours.",
-		setup: "none",
-		source: "Smithery",
-		packageIdentity: "npx -y @kwn/timeclock-mcp",
-	},
-	{
-		id: "io.github.cartokit/atlas-maps",
-		name: "atlas-maps",
-		description: "Geocodes addresses and draws static maps.",
-		setup: "apiKey",
-		packageIdentity: "npx -y @cartokit/atlas-maps",
-	},
-	{
-		id: "smithery/inbox-reader",
-		name: "inbox-reader",
-		description: "Reads and labels the mail of one account.",
-		setup: "signIn",
-		source: "Smithery",
-		useCount: 4210,
-		host: "inbox.run.tools",
-		packageIdentity: "https://inbox.run.tools/mcp",
-	},
-	{
-		id: "io.github.weatherdesk/tides",
-		name: "tides",
-		description: "Tide tables and coastal warnings by harbour.",
-		setup: "none",
-		packageIdentity: "npx -y @weatherdesk/tides-mcp",
-	},
-]
-
 const SLACK_MARK = markOf("#4a154b", "S")
 
 export const UNREACHABLE_MARK = "data:image/png;base64,Tm90QW5JbWFnZQ=="
 
-export const REGISTRY_RESULTS: CatalogueApplication[] = [
-	{
-		id: "smithery/slack",
-		name: "Slack",
-		description: "Reads channels and posts messages as you.",
-		setup: "signIn",
-		mark: SLACK_MARK,
-		source: "Smithery",
-		useCount: 12110,
-		isVerified: true,
-		host: "slack.run.tools",
-		packageIdentity: "https://slack.run.tools/mcp",
-	},
-	{
-		id: "io.github.kwn/granola-transcripts",
-		name: "Granola Transcripts",
-		description: "Reads your meeting notes and transcripts.",
-		setup: "none",
-		packageIdentity: "npx -y @kwn/granola-transcripts",
-		source: "MCP registry",
-	},
-	{
-		id: "smithery/obsidian-vault",
-		name: "Obsidian Vault",
-		description: "Searches and edits the notes of a local vault.",
-		setup: "apiKey",
-		source: "Smithery",
-		useCount: 806,
-	},
-]
+export const DRAWN_MARK =
+	'<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 24 24" fill="currentColor"><path d="M12 2 2 20h20L12 2Z"/></svg>'
 
-export const LONG_REGISTRY_RESULT: CatalogueApplication = {
-	...REGISTRY_RESULTS[0],
-	name: "a-very-long-registry-application-name-that-keeps-going-on-and-on-well-past-the-width-of-the-row-it-is-drawn-in-and-then-some-more",
+export const DRAWN_APPLICATION: CatalogueApplication = {
+	id: "obsidian-vault",
+	name: "Obsidian Vault",
+	description: "Searches and edits the notes of a local vault.",
+	setup: "apiKey",
+	mark: DRAWN_MARK,
+}
+
+export const GLYPH_APPLICATION: CatalogueApplication = {
+	id: "io.github.kwn/tasklog",
+	name: "tasklog",
+	description: "Keeps a task log and the notes left on it.",
+	setup: "none",
+}
+
+export const UNREACHABLE_APPLICATION: CatalogueApplication = {
+	id: "io.github.saffron/notesync",
+	name: "notesync",
+	description: "Keeps a note file and the comments left on it.",
+	setup: "none",
+	mark: UNREACHABLE_MARK,
+}
+
+export const LONG_NAME_APPLICATION: CatalogueApplication = {
+	id: "smithery/slack",
+	name: "a-very-long-application-name-that-keeps-going-on-and-on-well-past-the-width-of-the-card-it-is-drawn-in",
+	description: "Reads channels and posts messages as you.",
+	setup: "signIn",
+	mark: SLACK_MARK,
+}
+
+export const CLAMPED_APPLICATION: CatalogueApplication = {
+	id: "smithery/inbox-reader",
+	name: "inbox-reader",
 	description:
 		"Reads every channel, every thread and every message ever written, then writes back where it is allowed to, which takes a long sentence to say.",
-	host: "a-very-long-hostname-that-nobody-would-ever-type.run.tools",
+	setup: "signIn",
+}
+
+export const UNDESCRIBED_APPLICATION: CatalogueApplication = {
+	id: "io.github.kwn/linkboard",
+	name: "linkboard",
+	setup: "signIn",
 }
 
 export const GRANOLA_MARK = markOf("#1f6f43", "G")
@@ -339,6 +279,3 @@ export const LONG_INSTALL: InstallableApplication = {
 	name: "a-very-long-application-name-that-keeps-going-on-and-on-well",
 	tools: Array.from({ length: 40 }, (_, index) => `tool_number_${index + 1}`),
 }
-
-export const DRAWN_MARK =
-	'<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 24 24" fill="currentColor"><path d="M12 2 2 20h20L12 2Z"/></svg>'

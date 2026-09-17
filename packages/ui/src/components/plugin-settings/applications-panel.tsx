@@ -1,5 +1,6 @@
 "use client"
 
+import { useState } from "react"
 import { useTranslation } from "react-i18next"
 
 import type {
@@ -57,6 +58,43 @@ const useOwnerCopy = (owner: ApplicationsOwner): OwnerCopy => {
 		emptyDescription: t("applications.empty.description.companion"),
 		footnote: null,
 	}
+}
+
+type ApplicationsSearchRowProps = {
+	onPaste: () => void
+}
+
+const ApplicationsSearchRow = ({ onPaste }: ApplicationsSearchRowProps) => {
+	const { t } = useTranslation("bots")
+	const [query, setQuery] = useState("")
+	const placeholder = t("applications.search")
+
+	return (
+		<div className="flex shrink-0 items-center gap-2">
+			<label className="flex h-9 min-w-0 flex-1 items-center gap-2 rounded-xl border border-input px-3 focus-within:border-ring focus-within:ring-3 focus-within:ring-ring/30">
+				<Icons.Search
+					aria-hidden="true"
+					className="size-4 shrink-0 text-muted-foreground"
+				/>
+				<input
+					aria-label={placeholder}
+					className="min-w-0 flex-1 bg-transparent text-foreground text-sm outline-none placeholder:text-muted-foreground"
+					onChange={(event) => setQuery(event.target.value)}
+					placeholder={placeholder}
+					type="text"
+					value={query}
+				/>
+			</label>
+			<button
+				aria-label={t("applications.paste")}
+				className="flex size-9 shrink-0 cursor-pointer items-center justify-center rounded-xl border border-input text-foreground outline-none hover:bg-muted focus-visible:border-ring focus-visible:ring-3 focus-visible:ring-ring/30"
+				onClick={onPaste}
+				type="button"
+			>
+				<Icons.Add aria-hidden="true" className="size-4" />
+			</button>
+		</div>
+	)
 }
 
 type ApplicationRowAction = {
@@ -181,21 +219,22 @@ const ApplicationsPanel = ({
 
 	if (servers.length === 0) {
 		return (
-			<div className={SETTINGS_EMPTY_CLASS}>
-				<span className="flex items-center gap-2 opacity-45">
-					<ApplicationMark isBlank size="sm" />
-					<ApplicationMark />
-					<ApplicationMark isBlank size="sm" />
-				</span>
-				<div className="flex flex-col items-center gap-1">
-					<span className="wrap-break-word font-medium text-foreground text-sm">
-						{copy.emptyTitle}
+			<>
+				<ApplicationsSearchRow onPaste={onPaste} />
+				<div className={SETTINGS_EMPTY_CLASS}>
+					<span className="flex items-center gap-2 opacity-45">
+						<ApplicationMark isBlank size="sm" />
+						<ApplicationMark />
+						<ApplicationMark isBlank size="sm" />
 					</span>
-					<p className="max-w-98 text-muted-foreground text-sm">
-						{copy.emptyDescription}
-					</p>
-				</div>
-				<div className="flex flex-wrap items-center justify-center gap-2">
+					<div className="flex flex-col items-center gap-1">
+						<span className="wrap-break-word font-medium text-foreground text-sm">
+							{copy.emptyTitle}
+						</span>
+						<p className="max-w-98 text-muted-foreground text-sm">
+							{copy.emptyDescription}
+						</p>
+					</div>
 					<Button onClick={onAdd} size="sm">
 						<Icons.Add
 							aria-hidden="true"
@@ -204,16 +243,14 @@ const ApplicationsPanel = ({
 						/>
 						{t("applications.add")}
 					</Button>
-					<Button onClick={onPaste} size="sm" variant="outline">
-						{t("applications.paste")}
-					</Button>
 				</div>
-			</div>
+			</>
 		)
 	}
 
 	return (
 		<>
+			<ApplicationsSearchRow onPaste={onPaste} />
 			<div className="flex shrink-0 items-center justify-between gap-3">
 				<p className="min-w-0 wrap-break-word text-muted-foreground text-xs">
 					{copy.intro}

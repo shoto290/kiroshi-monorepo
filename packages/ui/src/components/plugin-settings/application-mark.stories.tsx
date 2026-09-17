@@ -4,7 +4,7 @@ import preview from "@workspace/storybook/preview"
 import { slotIn } from "@workspace/storybook/story-utils"
 import { ApplicationMark } from "@workspace/ui/components/plugin-settings/application-mark"
 import {
-	CURATED_APPLICATIONS,
+	CATALOGUE_APPLICATIONS,
 	DRAWN_MARK,
 	UNREACHABLE_MARK,
 } from "@workspace/ui/components/plugin-settings/applications.fixtures"
@@ -16,24 +16,56 @@ const meta = preview.meta({
 		docs: {
 			description: {
 				component:
-					"The slot an application's mark sits in. The mark comes from the application's data: drawn markup goes inline and follows the foreground colour, anything else is loaded as an image source. Without a mark, the slot shows the server glyph on the muted surface at the same size.",
+					"The slot an application's mark sits in. A picture fills the slot corner to corner, with no surface behind it and no border. A drawing and the generic glyph sit inset on the muted surface inside the border, the drawing in the foreground ink and the glyph in the muted-foreground one.",
 			},
 		},
 	},
-	args: { mark: CURATED_APPLICATIONS[0].mark },
+	args: { mark: CATALOGUE_APPLICATIONS[0].mark },
 })
 
 export const WithMark = meta.story({
+	parameters: {
+		docs: {
+			description: {
+				story:
+					"A mark handed as a picture. It fills the slot corner to corner: no inset, no surface behind it, no border.",
+			},
+		},
+	},
 	play: async ({ canvasElement }) => {
-		await expect(canvasElement.querySelector("img")).not.toBeNull()
+		const slot = slotIn(canvasElement, "application-mark")
+		const picture = slot.querySelector("img")
+
+		await expect(picture).not.toBeNull()
+		await expect(slot).not.toHaveClass("border")
+		await expect(slot).not.toHaveClass("bg-muted")
+		await expect(
+			Math.round((picture as HTMLImageElement).getBoundingClientRect().width),
+		).toBe(Math.round(slot.getBoundingClientRect().width))
 	},
 })
 
 export const WithoutMark = meta.story({
 	args: { mark: undefined },
+	parameters: {
+		docs: {
+			description: {
+				story:
+					"An application with no mark at all. The generic glyph sits inset on the muted surface inside the border, in the muted-foreground ink.",
+			},
+		},
+	},
 	play: async ({ canvasElement }) => {
-		await expect(canvasElement.querySelector("img")).toBeNull()
-		await expect(canvasElement.querySelector("svg")).not.toBeNull()
+		const slot = slotIn(canvasElement, "application-mark")
+
+		await expect(slot.querySelector("img")).toBeNull()
+		await expect(slot.querySelector("svg")).not.toBeNull()
+		await expect(slot).toHaveClass(
+			"border",
+			"border-border",
+			"bg-muted",
+			"text-muted-foreground",
+		)
 	},
 })
 
@@ -43,13 +75,21 @@ export const WithDrawnMark = meta.story({
 		docs: {
 			description: {
 				story:
-					"A mark handed as drawing markup goes inline, so it takes the foreground colour of the row it sits on instead of being loaded as an image.",
+					"A mark handed as drawing markup goes inline, inset on the muted surface inside the border, in the foreground ink.",
 			},
 		},
 	},
 	play: async ({ canvasElement }) => {
-		await expect(canvasElement.querySelector("img")).toBeNull()
-		await expect(canvasElement.querySelector("svg")).not.toBeNull()
+		const slot = slotIn(canvasElement, "application-mark")
+
+		await expect(slot.querySelector("img")).toBeNull()
+		await expect(slot.querySelector("svg")).not.toBeNull()
+		await expect(slot).toHaveClass(
+			"border",
+			"border-border",
+			"bg-muted",
+			"text-foreground",
+		)
 	},
 })
 
