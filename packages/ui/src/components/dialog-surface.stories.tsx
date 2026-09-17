@@ -107,7 +107,7 @@ export const Default = meta.story({
 		docs: {
 			description: {
 				story:
-					"The resting state and the open one, from a trigger a screen supplies. Check that the trigger takes focus with a visible ring and opens on Enter, that the surface lands in the middle of the window over a dimmed backdrop, and that it announces itself as a dialog named after its title. Tab cycles inside the surface rather than escaping to the page behind it, and Escape closes it and puts focus back on the trigger — a reader who opened it with the keyboard never loses their place. Focus lands on the corner affordance first, so a dialog longer than the window still opens at its title rather than scrolled to its last control. Pick `Dismissing` for the backdrop and the corner affordance, `Overflowing` for content taller than the window.",
+					"The resting state and the open one, from a trigger a screen supplies. Check that the trigger takes focus with a visible ring and opens on Enter, that the surface lands in the middle of the window over a dimmed backdrop, and that it announces itself as a dialog named after its title. Tab cycles inside the surface rather than escaping to the page behind it, and Escape closes it and puts focus back on the trigger — a reader who opened it with the keyboard never loses their place. Focus lands on the corner affordance first, so a dialog longer than the window still opens at its title rather than scrolled to its last control. Pick `Dismissing` for the backdrop and the corner affordance, `Overflowing` for content taller than the window. The app assembles it at `apps/app/src/App.tsx:991`.",
 			},
 		},
 	},
@@ -153,7 +153,7 @@ export const Dismissing = meta.story({
 		docs: {
 			description: {
 				story:
-					"The two pointer routes out of the dialog, which is what a reader reaches for when they opened it by mistake. Check that a press on the dimmed area closes it, that the corner affordance is a named button rather than a bare glyph, and that either route hands focus back to the trigger the same way Escape does. A press inside the surface changes nothing — only the area outside it dismisses. Pick `Default` for the keyboard route.",
+					"The two pointer routes out of the dialog, which is what a reader reaches for when they opened it by mistake. Check that a press on the dimmed area closes it, that the corner affordance is a named button rather than a bare glyph, and that either route hands focus back to the trigger the same way Escape does. A press inside the surface changes nothing — only the area outside it dismisses. Pick `Default` for the keyboard route. The app assembles it at `apps/app/src/App.tsx:991`.",
 			},
 		},
 	},
@@ -187,7 +187,7 @@ export const Overflowing = meta.story({
 		docs: {
 			description: {
 				story:
-					"A dialog holding more than the window can show, which is what a long settings form gives it. Check that the surface stops 1.5rem short of every window edge instead of running under them, that the overflow scrolls inside the surface rather than moving the page behind it, and that the last control is reachable by scrolling. The title scrolls with the content — the surface is one scrolling region, not a pinned header over a body. Pick `Default` for content that fits.",
+					"A dialog holding more than the window can show, which is what a long settings form gives it. Check that the surface stops 1.5rem short of every window edge instead of running under them, that the overflow scrolls inside the surface rather than moving the page behind it, and that the last control is reachable by scrolling. The title scrolls with the content — the surface is one scrolling region, not a pinned header over a body. Pick `Default` for content that fits. The app assembles it at `apps/app/src/App.tsx:991`.",
 			},
 		},
 	},
@@ -219,7 +219,7 @@ export const Sized = meta.story({
 		docs: {
 			description: {
 				story:
-					"A narrower, tighter surface, which is the one override a screen makes when a dialog holds a single question rather than a form. Check that the width and the padding given win over the defaults while the surface stays centred and still stops short of the window edges — the cap belongs to the primitive, not the caller. Everything else is unchanged: same backdrop, same corner affordance, same focus behaviour. Pick `Default` for the standard surface.",
+					"A narrower, tighter surface, which is the one override a screen makes when a dialog holds a single question rather than a form. Check that the width and the padding given win over the defaults while the surface stays centred and still stops short of the window edges — the cap belongs to the primitive, not the caller. Everything else is unchanged: same backdrop, same corner affordance, same focus behaviour. Pick `Default` for the standard surface. The app assembles it at `apps/app/src/App.tsx:991`.",
 			},
 		},
 	},
@@ -237,7 +237,7 @@ export const LongTitle = meta.story({
 		docs: {
 			description: {
 				story:
-					"A title long enough to wrap onto a second line, which is what a translated heading does to a dialog sized for English. The surface reserves the corner affordance's column once, as a `padding-inline-end` on every title inside it, so no caller has to remember it and the gutter follows the reading direction rather than a hardcoded right edge. Check the title takes more than one line, and that its text column ends before the affordance begins rather than running under it.",
+					"A title long enough to wrap onto a second line, which is what a translated heading does to a dialog sized for English. The surface reserves the corner affordance's column once, as a `padding-inline-end` on every title inside it, so no caller has to remember it and the gutter follows the reading direction rather than a hardcoded right edge. Check the title takes more than one line, and that its text column ends before the affordance begins rather than running under it. The app assembles it at `apps/app/src/App.tsx:991`.",
 			},
 		},
 	},

@@ -43,7 +43,7 @@ export const Default = meta.story({
 		docs: {
 			description: {
 				story:
-					"The resting state: the trigger alone, nothing asked yet. Check that the trigger wears whatever `triggerClassName` says and nothing else — the dialog draws the question, the caller draws the button that opens it.",
+					"The resting state: the trigger alone, nothing asked yet. Check that the trigger wears whatever `triggerClassName` says and nothing else — the dialog draws the question, the caller draws the button that opens it. The app assembles it at `apps/app/src/App.tsx:991`.",
 			},
 		},
 	},
@@ -61,7 +61,7 @@ export const Confirming = meta.story({
 		docs: {
 			description: {
 				story:
-					"The question, mounted already up — reach for this to review the wording without a press. Check that the title names the thing being deleted, that Cancel sits before the destructive button, and that Escape closes it without reporting anything.",
+					"The question, mounted already up — reach for this to review the wording without a press. Check that the title names the thing being deleted, that Cancel sits before the destructive button, and that Escape closes it without reporting anything. The app assembles it at `apps/app/src/App.tsx:991`.",
 			},
 		},
 	},
@@ -81,7 +81,7 @@ export const Cancelled = meta.story({
 		docs: {
 			description: {
 				story:
-					"The path most readers take: they open the question and back out of it. Check that the trigger is still reachable afterwards — a cancelled question must not leave the surface inert — and that nothing was reported, because a question nobody answered is not news.",
+					"The path most readers take: they open the question and back out of it. Check that the trigger is still reachable afterwards — a cancelled question must not leave the surface inert — and that nothing was reported, because a question nobody answered is not news. The app assembles it at `apps/app/src/App.tsx:991`.",
 			},
 		},
 	},
@@ -104,7 +104,7 @@ export const Confirmed = meta.story({
 		docs: {
 			description: {
 				story:
-					"The accepted path, and the only one that reports anything. The second press closes the question and fires `onConfirm` exactly once — the dialog deletes nothing itself, it only says the reader agreed, which leaves the surface free to close, undo, or fail loudly.",
+					"The accepted path, and the only one that reports anything. The second press closes the question and fires `onConfirm` exactly once — the dialog deletes nothing itself, it only says the reader agreed, which leaves the surface free to close, undo, or fail loudly. The app assembles it at `apps/app/src/App.tsx:991`.",
 			},
 		},
 	},
@@ -131,7 +131,7 @@ export const Rejected = meta.story({
 		docs: {
 			description: {
 				story:
-					"The confirmed press that fails on the other side. Reach for this whenever `onConfirm` reaches a disk or a host that can say no: the question is held up on what it named instead of closing on a press that changed nothing, the destructive action is disabled while the callback is in flight so a slow write cannot be fired twice, and `failureLabel` is announced inside the question. Without a `failureLabel` the dialog still holds, silently — pass one wherever the callback can reject.",
+					"The confirmed press that fails on the other side. Reach for this whenever `onConfirm` reaches a disk or a host that can say no: the question is held up on what it named instead of closing on a press that changed nothing, the destructive action is disabled while the callback is in flight so a slow write cannot be fired twice, and `failureLabel` is announced inside the question. Without a `failureLabel` the dialog still holds, silently — pass one wherever the callback can reject. The only call sites that pass a failure label are `packages/ui/src/components/routine-row.tsx:82` and `packages/ui/src/components/environment-panel.tsx:247`.",
 			},
 		},
 	},

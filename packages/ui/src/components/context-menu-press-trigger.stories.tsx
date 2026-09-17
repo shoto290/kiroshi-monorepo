@@ -64,7 +64,7 @@ export const Closed = meta.story({
 		docs: {
 			description: {
 				story:
-					"The control before the press, which is what a header shows almost all the time. Check that it is still the button the caller wrote — same accessible name, same icon-only size — that it says it opens a menu and that it is closed, and that no item of the menu is in the accessible tree yet. Pick `Open` for the state after the press.",
+					"The control before the press, which is what a header shows almost all the time. Check that it is still the button the caller wrote — same accessible name, same icon-only size — that it says it opens a menu and that it is closed, and that no item of the menu is in the accessible tree yet. Pick `Open` for the state after the press. The app assembles it at `apps/app/src/App.tsx:935`.",
 			},
 		},
 	},
@@ -83,7 +83,7 @@ export const Open = meta.story({
 		docs: {
 			description: {
 				story:
-					"The menu a plain press opened. Check that the menu is drawn under the control rather than at the pointer — the press is replaced by a context request placed on the button's bottom edge, so the anchor is the same wherever in the button the reader clicked — and that the control now reads as expanded. Pick `Closed` for the state it returns to.",
+					"The menu a plain press opened. Check that the menu is drawn under the control rather than at the pointer — the press is replaced by a context request placed on the button's bottom edge, so the anchor is the same wherever in the button the reader clicked — and that the control now reads as expanded. Pick `Closed` for the state it returns to. The app assembles it at `apps/app/src/App.tsx:935`.",
 			},
 		},
 	},

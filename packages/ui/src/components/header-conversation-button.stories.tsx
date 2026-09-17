@@ -43,7 +43,7 @@ export const Default = meta.story({
 		docs: {
 			description: {
 				story:
-					"Reach for this for the nominal room header: two companions seated, a short name, the settings closed. Check that faces, name and settings glyph read left to right on one row, that the whole thing is a single tab stop, and that activating it asks for the conversation settings. Pick `InLayout` to see it in the header it belongs to.",
+					"Reach for this for the nominal room header: two companions seated, a short name, the settings closed. Check that faces, name and settings glyph read left to right on one row, that the whole thing is a single tab stop, and that activating it asks for the conversation settings. Pick `InLayout` to see it in the header it belongs to. The app assembles it at `apps/app/src/components/thread-screen.tsx:348`.",
 			},
 		},
 	},
@@ -64,7 +64,7 @@ export const Expanded = meta.story({
 		docs: {
 			description: {
 				story:
-					"Reach for this while the conversation settings are open: the button is the trigger that stays lit under its own panel. Check that the ghost surface holds the expanded tint and that assistive tech reads it as expanded. Pick `Default` for the closed state.",
+					"Reach for this while the conversation settings are open: the button is the trigger that stays lit under its own panel. Check that the ghost surface holds the expanded tint and that assistive tech reads it as expanded. Pick `Default` for the closed state. The app assembles it at `apps/app/src/components/thread-screen.tsx:348`.",
 			},
 		},
 	},
@@ -82,7 +82,7 @@ export const Crowded = meta.story({
 		docs: {
 			description: {
 				story:
-					"Reach for this when the room is full. Check that every seated face stays the same 24px and keeps its place, that the faces never shrink or wrap, and that it is the name that gives up room as the row fills. Pick `Default` for the usual pair.",
+					"Reach for this when the room is full. Check that every seated face stays the same 24px and keeps its place, that the faces never shrink or wrap, and that it is the name that gives up room as the row fills. Pick `Default` for the usual pair. The app assembles it at `apps/app/src/components/thread-screen.tsx:348`.",
 			},
 		},
 	},
@@ -94,7 +94,7 @@ export const SingleBot = meta.story({
 		docs: {
 			description: {
 				story:
-					"Reach for this for a room where one companion is left seated. Check that it still reads as a conversation — the name is the room's, not the companion's, and the settings glyph opens the room. Pick `HeaderIdentityButton` for a true one-to-one chat, which also carries the connection mark.",
+					"Reach for this for a room where one companion is left seated. Check that it still reads as a conversation — the name is the room's, not the companion's, and the settings glyph opens the room. Pick `HeaderIdentityButton` for a true one-to-one chat, which also carries the connection mark. The app assembles it at `apps/app/src/components/thread-screen.tsx:348`.",
 			},
 		},
 	},
@@ -108,7 +108,7 @@ export const LongContent = meta.story({
 		docs: {
 			description: {
 				story:
-					"Reach for this when a conversation is named in a sentence and the window is narrow. Check that the name clips with an ellipsis while the faces and the settings glyph stay fully in view — the name is what gives up room, never the header's width. Pick `Default` for a name that fits.",
+					"Reach for this when a conversation is named in a sentence and the window is narrow. Check that the name clips with an ellipsis while the faces and the settings glyph stay fully in view — the name is what gives up room, never the header's width. Pick `Default` for a name that fits. The app assembles it at `apps/app/src/components/thread-screen.tsx:348`.",
 			},
 		},
 	},
@@ -124,6 +124,7 @@ export const LongContent = meta.story({
 })
 
 export const InLayout = meta.story({
+	tags: ["test-only"],
 	parameters: {
 		layout: "fullscreen",
 		docs: {

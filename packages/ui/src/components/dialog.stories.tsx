@@ -68,7 +68,7 @@ export const Default = meta.story({
 		docs: {
 			description: {
 				story:
-					"The resting state and the open one. Check the trigger takes focus with a visible ring and opens on Enter, that the surface lands centred over an overlay that dims what is behind it without blurring it, and that Escape closes it and puts focus back on the trigger.",
+					"The resting state and the open one. Check the trigger takes focus with a visible ring and opens on Enter, that the surface lands centred over an overlay that dims what is behind it without blurring it, and that Escape closes it and puts focus back on the trigger. The app reaches the registry dialog through `DialogSurface` at `apps/app/src/App.tsx:991`.",
 			},
 		},
 	},
@@ -95,6 +95,7 @@ export const Default = meta.story({
 })
 
 export const States = meta.story({
+	tags: ["test-only"],
 	parameters: {
 		docs: {
 			description: {
@@ -140,6 +141,7 @@ export const States = meta.story({
 })
 
 export const LongContent = meta.story({
+	tags: ["test-only"],
 	render: () => <DialogDemo description={LONG_DESCRIPTION} />,
 	parameters: {
 		docs: {

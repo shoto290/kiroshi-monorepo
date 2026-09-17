@@ -91,7 +91,7 @@ export const WithBack = meta.story({
 		docs: {
 			description: {
 				story:
-					"The rail of a surface a reader came into from somewhere else — a skill opened out of the list of them. Reach for this whenever the rail replaces another one: the way out stands where the first group would, above the list rather than inside it, so a screen reader counts the groups and never a button among them. Check that one Tab still reaches the groups, and that the way back is its own stop before them.",
+					"The rail of a surface a reader came into from somewhere else — a skill opened out of the list of them. Reach for this whenever the rail replaces another one: the way out stands where the first group would, above the list rather than inside it, so a screen reader counts the groups and never a button among them. Check that one Tab still reaches the groups, and that the way back is its own stop before them. The app assembles it at `apps/app/src/App.tsx:991`.",
 			},
 		},
 	},
@@ -109,7 +109,7 @@ export const Default = meta.story({
 		docs: {
 			description: {
 				story:
-					"The rail with room for its names. Check that the open group is the filled row rather than a tinted one, that one Tab reaches the rail and the arrows walk it without opening anything, and that no item carries a tooltip — a name already on the screen is not worth saying twice. Pick `IconsOnly` for the narrow surface.",
+					"The rail with room for its names. Check that the open group is the filled row rather than a tinted one, that one Tab reaches the rail and the arrows walk it without opening anything, and that no item carries a tooltip — a name already on the screen is not worth saying twice. Pick `IconsOnly` for the narrow surface. The app assembles it at `apps/app/src/App.tsx:991`.",
 			},
 		},
 	},
@@ -133,7 +133,7 @@ export const IconsOnly = meta.story({
 		docs: {
 			description: {
 				story:
-					"The rail once the surface is too narrow for its names — the state the dialog switches to below 42rem of content. Check that the rail keeps every item reachable and still named to a screen reader, that the icons are centred in the narrower column, and that a name dropped off the screen comes back as a tooltip on hover and on focus. Pick `Default` for the named rail.",
+					"The rail once the surface is too narrow for its names — the state the dialog switches to below 42rem of content. Check that the rail keeps every item reachable and still named to a screen reader, that the icons are centred in the narrower column, and that a name dropped off the screen comes back as a tooltip on hover and on focus. Pick `Default` for the named rail. The app assembles it at `apps/app/src/App.tsx:991`.",
 			},
 		},
 	},
@@ -193,7 +193,7 @@ export const ScrollingPanel = meta.story({
 		docs: {
 			description: {
 				story:
-					"The panel beside the rail once its group runs past the height of the dialog. An OverlayScrollbars instance draws the handle over the content and reserves no gutter, so the rows keep the same width whether the group scrolls or not and nothing reflows when a reader switches from a long group to a short one. The handle fades in on the way into the panel and out again on the way out, and holds still under reduced motion \u2014 the mode these stories run in. Check that the panel carries a live instance, that the long group overflows and scrolls, and that the short group beside it measures the same content width.",
+					"The panel beside the rail once its group runs past the height of the dialog. An OverlayScrollbars instance draws the handle over the content and reserves no gutter, so the rows keep the same width whether the group scrolls or not and nothing reflows when a reader switches from a long group to a short one. The handle fades in on the way into the panel and out again on the way out, and holds still under reduced motion \u2014 the mode these stories run in. Check that the panel carries a live instance, that the long group overflows and scrolls, and that the short group beside it measures the same content width. The app assembles it at `apps/app/src/App.tsx:991`.",
 			},
 		},
 	},

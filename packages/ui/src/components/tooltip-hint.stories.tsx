@@ -35,7 +35,7 @@ export const Default = meta.story({
 		docs: {
 			description: {
 				story:
-					"The nominal case: an icon-only control whose meaning lives in the hint. Check that the child is rendered as-is, with no span around it, so a row of hinted controls keeps the rhythm of a row of plain ones.",
+					"The nominal case: an icon-only control whose meaning lives in the hint. Check that the child is rendered as-is, with no span around it, so a row of hinted controls keeps the rhythm of a row of plain ones. The app assembles it at `apps/app/src/App.tsx:935`.",
 			},
 		},
 	},
@@ -55,7 +55,7 @@ export const WithoutContent = meta.story({
 		docs: {
 			description: {
 				story:
-					"A hint with nothing to say, which is how a caller that only sometimes has a name to give keeps one element rather than swapping it. Check that hovering opens no bubble at all instead of an empty one, and that the child is still the element the layout sees — a caller switching `content` on and off never remounts the control it wraps, so focus and a drag under way both survive the switch. Pick `Default` for the hint with content.",
+					"A hint with nothing to say, which is how a caller that only sometimes has a name to give keeps one element rather than swapping it. Check that hovering opens no bubble at all instead of an empty one, and that the child is still the element the layout sees — a caller switching `content` on and off never remounts the control it wraps, so focus and a drag under way both survive the switch. Pick `Default` for the hint with content. The app assembles it at `apps/app/src/App.tsx:935`.",
 			},
 		},
 	},
@@ -73,7 +73,7 @@ export const OnFocus = meta.story({
 		docs: {
 			description: {
 				story:
-					"The keyboard path: no pointer, one Tab. Check that the hint opens on focus as it does on hover — a name that only a pointer can read is a name half the readers never get.",
+					"The keyboard path: no pointer, one Tab. Check that the hint opens on focus as it does on hover — a name that only a pointer can read is a name half the readers never get. The app assembles it at `apps/app/src/App.tsx:935`.",
 			},
 		},
 	},
@@ -99,7 +99,7 @@ export const WithSide = meta.story({
 		docs: {
 			description: {
 				story:
-					"`side` for a control pinned against the top of the window, where a bubble above it would be drawn off the screen. Check that the hint sits under the control and stays inside the window on every edge.",
+					"`side` for a control pinned against the top of the window, where a bubble above it would be drawn off the screen. Check that the hint sits under the control and stays inside the window on every edge. The app assembles it at `apps/app/src/App.tsx:935`.",
 			},
 		},
 	},
@@ -126,7 +126,7 @@ export const LongContent = meta.story({
 		docs: {
 			description: {
 				story:
-					"A sentence rather than a word, the shape a tool title or a translated string takes. Check that it wraps over several lines inside the window rather than running off its edge, and that the trigger keeps its own width.",
+					"A sentence rather than a word, the shape a tool title or a translated string takes. Check that it wraps over several lines inside the window rather than running off its edge, and that the trigger keeps its own width. The app assembles it at `apps/app/src/App.tsx:935`.",
 			},
 		},
 	},
@@ -148,6 +148,7 @@ export const LongContent = meta.story({
 })
 
 export const InRow = meta.story({
+	tags: ["test-only"],
 	args: {
 		content: "Delete",
 		children: (
@@ -187,7 +188,7 @@ export const ReducedMotion = meta.story({
 		docs: {
 			description: {
 				story:
-					"The same hint for a reader who asked the system to stop moving things. The registry bubble zooms and fades in and out; the composed one drops the animation under `prefers-reduced-motion`, so the bubble is simply there and then simply gone. Check that the open bubble reports no animation at all, and that it still leaves the document when the pointer does - nothing here waits on an animation end, so dropping it outright costs the hint nothing.",
+					"The same hint for a reader who asked the system to stop moving things. The registry bubble zooms and fades in and out; the composed one drops the animation under `prefers-reduced-motion`, so the bubble is simply there and then simply gone. Check that the open bubble reports no animation at all, and that it still leaves the document when the pointer does - nothing here waits on an animation end, so dropping it outright costs the hint nothing. The app assembles it at `apps/app/src/App.tsx:935`.",
 			},
 		},
 	},
