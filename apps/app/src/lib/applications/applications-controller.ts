@@ -44,6 +44,7 @@ export type ApplicationsController = {
 	getState: () => ApplicationsState
 	subscribe: (listener: () => void) => () => void
 	open: () => Promise<void>
+	browse: () => void
 	search: (query: string) => void
 	retry: () => void
 	pick: (id: string) => void
@@ -125,6 +126,7 @@ export const createApplicationsController = (
 	let state = initialApplicationsState
 	let scheduledSearch: ReturnType<typeof setTimeout> | null = null
 	let issuedSearch = 0
+	let openingApplications: Application[] | null = null
 	const listeners = new Set<() => void>()
 
 	const publish = () => {
@@ -146,60 +148,61 @@ export const createApplicationsController = (
 		issuedSearch += 1
 	}
 
-	const forgetSearch = () => {
+	const issueSearch = () => {
 		supersedeSearch()
-		set({
-			registry: [],
-			isSearching: false,
-			hasSearchFailed: false,
-			hasSearchPartlyFailed: false,
-		})
-	}
-
-	const sendSearch = () => {
-		const typed = state.query.trim()
-		if (typed === "") {
-			forgetSearch()
-			return
-		}
-		supersedeSearch()
-		const attempt = issuedSearch
-		const isLastIssued = () => attempt === issuedSearch
 		set({
 			isSearching: true,
 			hasSearchFailed: false,
 			hasSearchPartlyFailed: false,
 		})
+		return issuedSearch
+	}
+
+	const sendSearch = () => {
+		const typed = state.query.trim()
+		const isOpening = typed === ""
+		const attempt = issueSearch()
+		const isLastIssued = () => attempt === issuedSearch
 		void port.search(typed).then(
 			(found) => {
-				if (isLastIssued()) {
-					set({
-						registry: found.applications,
-						isSearching: false,
-						hasSearchPartlyFailed: found.registryFailure !== undefined,
-					})
+				if (!isLastIssued()) {
+					return
 				}
+				const hasRegistryFailed = found.registryFailure !== undefined
+				if (isOpening) {
+					openingApplications = hasRegistryFailed ? null : found.applications
+				}
+				set({
+					registry: found.applications,
+					isSearching: false,
+					hasSearchPartlyFailed: hasRegistryFailed,
+				})
 			},
 			() => {
-				if (isLastIssued()) {
-					set({ isSearching: false, hasSearchFailed: true })
+				if (!isLastIssued()) {
+					return
 				}
+				if (isOpening) {
+					openingApplications = null
+				}
+				set({ isSearching: false, hasSearchFailed: true })
 			},
 		)
 	}
 
 	const scheduleSearch = () => {
-		if (state.query.trim() === "") {
-			forgetSearch()
-			return
-		}
+		issueSearch()
+		scheduledSearch = setTimeout(sendSearch, searchDelayMs)
+	}
+
+	const showOpening = (held: Application[]) => {
 		supersedeSearch()
 		set({
-			isSearching: true,
+			registry: held,
+			isSearching: false,
 			hasSearchFailed: false,
 			hasSearchPartlyFailed: false,
 		})
-		scheduledSearch = setTimeout(sendSearch, searchDelayMs)
 	}
 
 	const applicationNamed = (id: string) =>
@@ -299,8 +302,19 @@ export const createApplicationsController = (
 			}
 		},
 
+		browse: () => {
+			if (state.query.trim() !== "") {
+				return
+			}
+			scheduleSearch()
+		},
+
 		search: (query: string) => {
 			set({ query })
+			if (query.trim() === "" && openingApplications !== null) {
+				showOpening(openingApplications)
+				return
+			}
 			scheduleSearch()
 		},
 

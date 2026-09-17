@@ -37,6 +37,7 @@ type ApplicationsCatalogueSection = Omit<
 	"onBack" | "onPaste" | "className"
 > & {
 	install?: ApplicationInstallSection
+	onOpen?: () => void
 }
 
 type ApplicationsSection = {
@@ -132,6 +133,7 @@ const useMcpSession = ({
 		catalogue?.install?.onLeave()
 		setPendingServer(undefined)
 		setBrowsing(true)
+		catalogue?.onOpen?.()
 	}
 
 	const save = (
@@ -172,7 +174,7 @@ const useMcpSession = ({
 	}
 
 	const browsedPage = (section: ApplicationsCatalogueSection) => {
-		const { install, ...browsing } = section
+		const { install, onOpen, ...browsing } = section
 		const leaveBrowsing = () => setBrowsing(false)
 
 		if (install) {

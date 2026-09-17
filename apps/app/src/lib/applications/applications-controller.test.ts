@@ -233,7 +233,7 @@ describe("applications controller", () => {
 		expect(controller.getState().isSearching).toBe(false)
 	})
 
-	it("cancels the scheduled search when the field is cleared", async () => {
+	it("supersedes the scheduled search with the empty query when the field is cleared", async () => {
 		const port = createFakeApplicationPort()
 		port.found = [LINEAR]
 		const controller = controllerOn(port)
@@ -242,23 +242,123 @@ describe("applications controller", () => {
 		controller.search("")
 		await settled()
 
-		expect(searchesOf(port)).toEqual([])
-		expect(controller.getState().registry).toEqual([])
+		expect(searchesOf(port)).toEqual([{ command: "search", query: "" }])
+		expect(controller.getState().registry).toEqual([LINEAR])
 		expect(controller.getState().isSearching).toBe(false)
 		expect(controller.getState().hasSearchFailed).toBe(false)
 	})
 
-	it("clears the registry when the query is emptied", async () => {
+	it("searches the registry for the empty query when the catalogue opens", async () => {
+		const port = createFakeApplicationPort()
+		port.found = [LINEAR]
+		const controller = controllerOn(port)
+
+		controller.browse()
+		expect(searchesOf(port)).toEqual([])
+		expect(controller.getState().isSearching).toBe(true)
+		await settled()
+
+		expect(searchesOf(port)).toEqual([{ command: "search", query: "" }])
+		expect(controller.getState().registry).toEqual([LINEAR])
+		expect(controller.getState().isSearching).toBe(false)
+	})
+
+	it("sends no search when the catalogue opens on a typed query", async () => {
 		const port = createFakeApplicationPort()
 		port.found = [LINEAR]
 		const controller = controllerOn(port)
 		controller.search("linear")
 		await settled()
 
-		controller.search("")
+		controller.browse()
+		await settled()
 
-		expect(controller.getState().registry).toEqual([])
+		expect(searchesOf(port)).toEqual([{ command: "search", query: "linear" }])
+		expect(controller.getState().registry).toEqual([LINEAR])
+	})
+
+	it("puts the held empty-query answer back when the field is emptied", async () => {
+		const port = createFakeApplicationPort()
+		port.found = [PAPER]
+		const controller = controllerOn(port)
+		controller.browse()
+		await settled()
+		port.found = [LINEAR]
+		controller.search("linear")
+		await settled()
+
+		controller.search("")
+		await settled()
+
+		expect(searchesOf(port)).toEqual([
+			{ command: "search", query: "" },
+			{ command: "search", query: "linear" },
+		])
+		expect(controller.getState().registry).toEqual([PAPER])
 		expect(controller.getState().isSearching).toBe(false)
+	})
+
+	it("drops the empty-query answer a keystroke supersedes", async () => {
+		const port = createFakeApplicationPort()
+		const pending = new Map<string, (found: ApplicationSearch) => void>()
+		port.search = (query) =>
+			new Promise((resolve) => {
+				pending.set(query, resolve)
+			})
+		const controller = controllerOn(port)
+
+		controller.browse()
+		await settled()
+		controller.search("linear")
+		await settled()
+		pending.get("")?.({ applications: [PAPER] })
+		pending.get("linear")?.({ applications: [LINEAR] })
+		await settled()
+
+		expect(controller.getState().registry).toEqual([LINEAR])
+		expect(controller.getState().isSearching).toBe(false)
+	})
+
+	it("holds no empty-query answer behind a refused search", async () => {
+		const port = createFakeApplicationPort()
+		port.refusals.search = { kind: "registryTimedOut" }
+		const controller = controllerOn(port)
+
+		controller.browse()
+		await settled()
+		expect(controller.getState().hasSearchFailed).toBe(true)
+
+		port.refusals = {}
+		port.found = [LINEAR]
+		controller.retry()
+		await settled()
+
+		expect(searchesOf(port)).toEqual([
+			{ command: "search", query: "" },
+			{ command: "search", query: "" },
+		])
+		expect(controller.getState().hasSearchFailed).toBe(false)
+		expect(controller.getState().registry).toEqual([LINEAR])
+	})
+
+	it("holds no empty-query answer when one registry side failed", async () => {
+		const port = createFakeApplicationPort()
+		port.found = [PAPER]
+		port.foundFailure = { kind: "registryTimedOut" }
+		const controller = controllerOn(port)
+		controller.browse()
+		await settled()
+
+		controller.search("linear")
+		await settled()
+		controller.search("")
+		await settled()
+
+		expect(searchesOf(port)).toEqual([
+			{ command: "search", query: "" },
+			{ command: "search", query: "linear" },
+			{ command: "search", query: "" },
+		])
 	})
 
 	it("reports a refused search and searches again on a retry", async () => {

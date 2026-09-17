@@ -143,6 +143,7 @@ const toApplicationsCatalogue = ({
 		hasRegistryFailed: state.hasSearchFailed,
 		hasRegistryPartlyFailed: state.hasSearchPartlyFailed,
 		onRegistryRetry: controller.retry,
+		onOpen: controller.browse,
 		onPick: (application) => controller.pick(application.id),
 		install: picked
 			? {
