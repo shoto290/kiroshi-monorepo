@@ -34,7 +34,6 @@ import {
 	type EnvironmentWrite,
 } from "@workspace/ui/components/environment-panel"
 import { Icons } from "@workspace/ui/components/icons"
-import type { ApplicationsInheritance } from "@workspace/ui/components/plugin-settings/applications-panel"
 import type { PluginHistory } from "@workspace/ui/components/plugin-settings/history-panel"
 import type { PluginSkillFiles } from "@workspace/ui/components/plugin-settings/skill-files-panel"
 import {
@@ -94,7 +93,6 @@ type BotSettingsDialogProps = {
 		config: Record<string, unknown>,
 	) => void
 	onMcpServerDelete: (name: string) => void
-	mcpServersInherited?: ApplicationsInheritance
 	mcpCatalogue?: ApplicationsCatalogueSection
 	environment: EnvironmentEntry[]
 	hasEnvironmentFailedToRead?: boolean
@@ -138,7 +136,6 @@ const BotSettingsDialog = ({
 	onMcpServerCreate,
 	onMcpServerChange,
 	onMcpServerDelete,
-	mcpServersInherited,
 	mcpCatalogue,
 	environment,
 	hasEnvironmentFailedToRead,
@@ -172,7 +169,7 @@ const BotSettingsDialog = ({
 		onSkillPreloadedChange,
 	})
 	const mcpSession = useMcpSession({
-		owner: { kind: "companion", name: botName, inherited: mcpServersInherited },
+		owner: { kind: "companion", name: botName },
 		catalogue: mcpCatalogue,
 		servers: mcpServers,
 		haveFailedToLoad: haveMcpServersFailedToLoad,

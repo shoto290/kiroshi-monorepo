@@ -20,7 +20,6 @@ import {
 	type EnvironmentWrite,
 } from "@workspace/ui/components/environment-panel"
 import { Icons } from "@workspace/ui/components/icons"
-import type { InheritedApplication } from "@workspace/ui/components/plugin-settings/applications-panel"
 import type { PluginHistory } from "@workspace/ui/components/plugin-settings/history-panel"
 import type { PluginSkillFiles } from "@workspace/ui/components/plugin-settings/skill-files-panel"
 import {
@@ -78,8 +77,6 @@ type SpaceSettingsDialogProps = {
 		config: Record<string, unknown>,
 	) => void
 	onMcpServerDelete: (name: string) => void
-	companionCount?: number
-	mcpServersInherited?: InheritedApplication[]
 	mcpCatalogue?: ApplicationsCatalogueSection
 	onMcpServerOpen?: (name: string | null) => void
 	onServerConnect?: (server: BotMcpServerItem) => void
@@ -113,8 +110,6 @@ const SpaceSettingsDialog = ({
 	onMcpServerCreate,
 	onMcpServerChange,
 	onMcpServerDelete,
-	companionCount,
-	mcpServersInherited,
 	mcpCatalogue,
 	onMcpServerOpen,
 	onServerConnect,
@@ -141,12 +136,7 @@ const SpaceSettingsDialog = ({
 		skills,
 	})
 	const mcpSession = useMcpSession({
-		owner: {
-			kind: "space",
-			name: spaceName,
-			companionCount,
-			inherited: mcpServersInherited,
-		},
+		owner: { kind: "space", name: spaceName },
 		catalogue: mcpCatalogue,
 		servers: mcpServers,
 		haveFailedToLoad: haveMcpServersFailedToLoad,

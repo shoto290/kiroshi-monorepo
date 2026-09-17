@@ -389,24 +389,9 @@ const bots = {
 			companion:
 				"Ce à quoi {{name}} se connecte pour les outils qu'il n'a pas seul.",
 			space: "Ce à quoi chaque compagnon de {{name}} se connecte.",
-			spaceCounted_one: "Ce à quoi le seul compagnon de {{name}} se connecte.",
-			spaceCounted_many:
-				"Ce à quoi les {{count}} compagnons de {{name}} se connectent.",
-			spaceCounted_other:
-				"Ce à quoi les {{count}} compagnons de {{name}} se connectent.",
 			profile: "Ce à quoi vous vous connectez, dans chaque espace.",
 		},
 		footnote: {
-			companion_one:
-				"{{name}} reçoit aussi {{count}} application qu'il n'a pas ajoutée : {{sources}}.",
-			companion_many:
-				"{{name}} reçoit aussi {{count}} applications qu'il n'a pas ajoutées : {{sources}}.",
-			companion_other:
-				"{{name}} reçoit aussi {{count}} applications qu'il n'a pas ajoutées : {{sources}}.",
-			source: {
-				space: "{{count}} depuis {{name}}",
-				profile: "{{count}} depuis votre profil",
-			},
 			space:
 				"Chaque compagnon d'ici peut ajouter ses propres applications, et vous pouvez en ajouter pour tous les espaces.",
 			profile:

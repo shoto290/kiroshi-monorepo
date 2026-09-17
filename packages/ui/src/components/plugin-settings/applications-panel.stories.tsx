@@ -6,10 +6,7 @@ import {
 	BOT_MCP_SERVERS,
 	LONG_MCP_SERVER,
 } from "@workspace/ui/components/bot-settings-dialog/mcp-servers.fixtures"
-import {
-	CURATED_APPLICATIONS,
-	MARKED_APPLICATIONS,
-} from "@workspace/ui/components/plugin-settings/applications.fixtures"
+import { MARKED_APPLICATIONS } from "@workspace/ui/components/plugin-settings/applications.fixtures"
 import {
 	type ApplicationsOwner,
 	ApplicationsPanel,
@@ -17,29 +14,16 @@ import {
 
 const [LINEAR, GITHUB] = MARKED_APPLICATIONS
 const [LOCAL, REMOTE] = BOT_MCP_SERVERS
-const [, , NOTION, SENTRY, FIGMA] = CURATED_APPLICATIONS
 
 const COMPANION = {
 	kind: "companion",
 	name: "Repository archivist",
-	inherited: {
-		spaceName: "Release desk",
-		fromSpace: [NOTION, SENTRY],
-		fromProfile: [FIGMA],
-	},
 } satisfies ApplicationsOwner
 
 const SPACE = {
 	kind: "space",
 	name: "Release desk",
-	companionCount: 4,
-	inherited: [FIGMA],
 } satisfies ApplicationsOwner
-
-const inheritedMarksBeside = (footnote: HTMLElement) =>
-	footnote.parentElement?.querySelectorAll(
-		'[data-slot="inherited-marks"] [data-slot="application-mark"]',
-	) ?? []
 
 const PROFILE = { kind: "profile" } satisfies ApplicationsOwner
 
@@ -74,7 +58,7 @@ const meta = preview.meta({
 		docs: {
 			description: {
 				component:
-					"The applications one owner connects to, shared by the companion, the space and the profile dialogs. The owner decides the sentence above the list, the empty title and description, and the footnote that closes the list; everything else is the same panel. A row reads as a mark, the name over its state, an action lane that only holds Connect or Retry, then a chevron. Taking a row reports the application; the panel keeps nothing.",
+					"The applications one owner connects to, shared by the companion, the space and the profile dialogs. The owner decides the sentence above the list, the empty title and description, and the footnote that closes the list for a space and for the profile; everything else is the same panel. A row reads as a mark, the name over its state, an action lane that only holds Connect or Retry, then a chevron. Taking a row reports the application; the panel keeps nothing.",
 			},
 		},
 	},
@@ -100,21 +84,19 @@ export const Companion = meta.story({
 		docs: {
 			description: {
 				story:
-					"A companion with applications of its own and some it inherits. Check that the intro names the companion, that the footnote under its rule counts what the space and the profile add and leads nowhere, and that no row prints an address.",
+					"A companion with applications of its own. Check that the intro names the companion, that no footnote closes the list, and that no row prints an address.",
 			},
 		},
 	},
-	play: async ({ args, canvas, userEvent }) => {
+	play: async ({ args, canvas, canvasElement, userEvent }) => {
 		await expect(
 			canvas.getByText(
 				"What Repository archivist connects to for tools it doesn’t have on its own.",
 			),
 		).toBeVisible()
-		const footnote = canvas.getByText(
-			"Repository archivist also gets 3 applications it didn’t add: 2 from Release desk, 1 from your profile.",
-		)
-		await expect(footnote).toBeVisible()
-		await expect(inheritedMarksBeside(footnote)).toHaveLength(3)
+		await expect(
+			canvasElement.querySelector('[data-slot="applications-footnote"]'),
+		).toBeNull()
 		await expect(canvas.queryByRole("link")).not.toBeInTheDocument()
 		await expect(canvas.queryByText(/mcp\.linear\.app/)).not.toBeInTheDocument()
 
@@ -124,84 +106,24 @@ export const Companion = meta.story({
 	},
 })
 
-export const CompanionFromProfileOnly = meta.story({
-	args: {
-		owner: {
-			...COMPANION,
-			inherited: {
-				spaceName: "Release desk",
-				fromSpace: [],
-				fromProfile: [FIGMA],
-			},
-		},
-	},
-	parameters: {
-		docs: {
-			description: {
-				story:
-					"A companion whose space shares nothing. Check that the source at zero is left out of the footnote rather than read as 0 from the space, and that the count takes its singular.",
-			},
-		},
-	},
-	play: async ({ canvas }) => {
-		await expect(
-			canvas.getByText(
-				"Repository archivist also gets 1 application it didn’t add: 1 from your profile.",
-			),
-		).toBeVisible()
-	},
-})
-
-export const CompanionWithoutInheritance = meta.story({
-	args: { owner: { kind: "companion", name: "Repository archivist" } },
-	parameters: {
-		docs: {
-			description: {
-				story:
-					"A companion whose inherited counts were not handed to the panel. Check that no footnote is invented: the companion footnote has no form without a count.",
-			},
-		},
-	},
-	play: async ({ canvas }) => {
-		await expect(canvas.queryByText(/also gets/)).not.toBeInTheDocument()
-	},
-})
-
 export const Space = meta.story({
 	args: { owner: SPACE },
 	parameters: {
 		docs: {
 			description: {
 				story:
-					"The applications a space shares with every companion in it. Check that the intro counts the companions and that the footnote says a companion can still add its own.",
-			},
-		},
-	},
-	play: async ({ canvas }) => {
-		await expect(
-			canvas.getByText("What all 4 companions in Release desk connect to."),
-		).toBeVisible()
-		const footnote = canvas.getByText(
-			"Each companion here can add applications of its own, and you can add some for every space.",
-		)
-		await expect(footnote).toBeVisible()
-		await expect(inheritedMarksBeside(footnote)).toHaveLength(1)
-	},
-})
-
-export const SpaceWithoutCount = meta.story({
-	args: { owner: { kind: "space", name: "Release desk" } },
-	parameters: {
-		docs: {
-			description: {
-				story:
-					"A space whose companion count was not handed to the panel. Check that the intro takes the form that states no count.",
+					"The applications a space shares with every companion in it. Check that the intro names the space without counting its companions and that the footnote says a companion can still add its own.",
 			},
 		},
 	},
 	play: async ({ canvas }) => {
 		await expect(
 			canvas.getByText("What every companion in Release desk connects to."),
+		).toBeVisible()
+		await expect(
+			canvas.getByText(
+				"Each companion here can add applications of its own, and you can add some for every space.",
+			),
 		).toBeVisible()
 	},
 })
@@ -248,7 +170,6 @@ export const EmptyCompanion = meta.story({
 
 		await expect(args.onAdd).toHaveBeenCalledTimes(1)
 		await expect(args.onPaste).toHaveBeenCalledTimes(1)
-		await expect(canvas.queryByText(/also gets/)).not.toBeInTheDocument()
 	},
 })
 
