@@ -9,7 +9,6 @@ use serde_json::{json, Map, Value};
 
 use super::contract::{Application, ApplicationsError, Install, InstallField};
 use super::runnable::{NPX, UVX};
-use super::search::{elsewhere, normalised, repository, Dropped, Listing, OFFICIAL_SOURCE};
 use crate::missions::github::installed_tls_provider;
 
 pub const REGISTRY: &str = "https://registry.modelcontextprotocol.io";
@@ -31,6 +30,12 @@ pub(super) const SSE: &str = "sse";
 const NPM: &str = "npm";
 
 const PYPI: &str = "pypi";
+
+const SMITHERY_HOSTS: [&str; 2] = ["run.tools", "smithery.ai"];
+
+const LABELS: usize = 2;
+
+pub(super) const OFFICIAL_SOURCE: &str = "the official registry";
 
 #[derive(Deserialize)]
 struct Listed {
@@ -56,19 +61,11 @@ struct Server {
 	packages: Vec<Package>,
 	#[serde(default)]
 	icons: Vec<Icon>,
-	#[serde(default)]
-	repository: Option<Repository>,
 }
 
 #[derive(Deserialize)]
 struct Icon {
 	src: String,
-}
-
-#[derive(Deserialize)]
-struct Repository {
-	#[serde(default)]
-	url: Option<String>,
 }
 
 #[derive(Deserialize)]
@@ -116,7 +113,13 @@ struct Served {
 	hosted_by: Option<String>,
 }
 
-pub async fn search(base: &str, query: &str) -> Result<Vec<Listing>, ApplicationsError> {
+#[derive(Debug)]
+pub(super) enum Dropped {
+	HostedBySmithery,
+	Unread,
+}
+
+pub async fn search(base: &str, query: &str) -> Result<Vec<Application>, ApplicationsError> {
 	let mut list = endpoint(&parsed(base)?, &[API_VERSION, "servers"])?;
 	list.query_pairs_mut()
 		.append_pair("search", query)
@@ -126,13 +129,13 @@ pub async fn search(base: &str, query: &str) -> Result<Vec<Listing>, Application
 	let rows = distinct(listed.servers);
 	let answered = rows.len();
 	let read = rows.into_iter().map(descriptor).collect();
-	Ok(normalised(OFFICIAL_SOURCE, answered, read))
+	Ok(normalised(answered, read))
 }
 
 pub async fn detail(base: &str, name: &str) -> Result<Option<Application>, ApplicationsError> {
 	let url = detail_endpoint(&parsed(base)?, name)?;
 	match read::<Entry>(&client()?, url).await {
-		Ok(entry) => Ok(descriptor(entry.server).ok().map(|listing| listing.application)),
+		Ok(entry) => Ok(descriptor(entry.server).ok()),
 		Err(ApplicationsError::RegistryRefused { status }) if status == StatusCode::NOT_FOUND => {
 			Ok(None)
 		}
@@ -201,33 +204,61 @@ fn unreached(error: reqwest::Error) -> ApplicationsError {
 	ApplicationsError::RegistryUnreached { detail: error.to_string() }
 }
 
-fn descriptor(server: Server) -> Result<Listing, Dropped> {
+fn descriptor(server: Server) -> Result<Application, Dropped> {
 	let served = match transport(&server)? {
 		Transport::Remote(remote, host) => remote_served(remote, host),
 		Transport::Package(package) => package_served(package),
 	};
-	Ok(Listing {
-		repository: server
-			.repository
-			.as_ref()
-			.and_then(|held| held.url.as_deref())
-			.and_then(repository),
-		application: Application {
-			title: server.title.unwrap_or_else(|| server.name.clone()),
-			name: server.name,
-			description: server.description,
-			config: served.config,
-			tools: None,
-			logo: None,
-			logo_url: server.icons.first().map(|icon| icon.src.clone()),
-			use_count: None,
-			verified: None,
-			hosted_by: served.hosted_by,
-			categories: Vec::new(),
-			auth_posture: None,
-			install: served.install,
-		},
+	Ok(Application {
+		title: server.title.unwrap_or_else(|| server.name.clone()),
+		name: server.name,
+		description: server.description,
+		config: served.config,
+		tools: None,
+		logo: None,
+		logo_url: server.icons.first().map(|icon| icon.src.clone()),
+		use_count: None,
+		verified: None,
+		hosted_by: served.hosted_by,
+		categories: Vec::new(),
+		auth_posture: None,
+		install: served.install,
 	})
+}
+
+fn normalised(answered: usize, read: Vec<Result<Application, Dropped>>) -> Vec<Application> {
+	let unread = read.iter().filter(|held| matches!(held, Err(Dropped::Unread))).count();
+	if let Some(line) = drift(answered, unread) {
+		eprintln!("{line}");
+	}
+	read.into_iter().flatten().collect()
+}
+
+fn drift(answered: usize, unread: usize) -> Option<String> {
+	(unread > 0).then(|| {
+		format!(
+			"{OFFICIAL_SOURCE} answered {answered} rows and {unread} carried no transport this reader reads"
+		)
+	})
+}
+
+fn elsewhere(endpoint: &Url) -> Result<String, Dropped> {
+	let Some(host) = endpoint.host_str().map(str::to_lowercase) else {
+		return Err(Dropped::Unread);
+	};
+	if SMITHERY_HOSTS.iter().any(|root| under(&host, root)) {
+		return Err(Dropped::HostedBySmithery);
+	}
+	Ok(last_labels(&host))
+}
+
+fn under(host: &str, root: &str) -> bool {
+	host == root || host.ends_with(&format!(".{root}"))
+}
+
+fn last_labels(host: &str) -> String {
+	let labels: Vec<&str> = host.split('.').collect();
+	labels[labels.len().saturating_sub(LABELS)..].join(".")
 }
 
 fn remote_served(remote: &Remote, host: String) -> Served {
@@ -399,7 +430,7 @@ pub(crate) mod tests {
 
 	fn described(body: Value) -> Application {
 		let server: Server = serde_json::from_value(body).expect("the fixture is a server.json");
-		descriptor(server).expect("the fixture offers a transport").application
+		descriptor(server).expect("the fixture offers a transport")
 	}
 
 	fn a_remote_without_headers() -> Value {
@@ -413,17 +444,17 @@ pub(crate) mod tests {
 
 	fn a_remote_asking_a_required_secret_header() -> Value {
 		json!({
-			"name": "ai.smithery/smithery-notion",
-			"description": "Notion through Smithery.",
+			"name": "ai.hosted/hosted-notion",
+			"description": "Notion through a gateway.",
 			"remotes": [{
 				"type": "streamable-http",
-				"url": "https://server.smithery.test/notion/mcp",
+				"url": "https://server.hosted.test/notion/mcp",
 				"headers": [{
 					"name": "Authorization",
-					"description": "Bearer token for Smithery authentication",
+					"description": "Bearer token for the gateway authentication",
 					"isRequired": true,
 					"isSecret": true,
-					"value": "Bearer {smithery_api_key}",
+					"value": "Bearer {gateway_api_key}",
 				}],
 			}],
 		})
@@ -477,7 +508,7 @@ pub(crate) mod tests {
 				fields: vec![InstallField {
 					name: "Authorization".to_owned(),
 					secret: "AUTHORIZATION".to_owned(),
-					description: Some("Bearer token for Smithery authentication".to_owned()),
+					description: Some("Bearer token for the gateway authentication".to_owned()),
 					concealed: true,
 				}],
 			}
@@ -486,11 +517,11 @@ pub(crate) mod tests {
 			application.config,
 			json!({
 				"type": "http",
-				"url": "https://server.smithery.test/notion/mcp",
+				"url": "https://server.hosted.test/notion/mcp",
 				"headers": { "Authorization": "Bearer ${AUTHORIZATION}" },
 			})
 		);
-		assert_eq!(application.title, "ai.smithery/smithery-notion");
+		assert_eq!(application.title, "ai.hosted/hosted-notion");
 	}
 
 	#[test]
@@ -955,22 +986,17 @@ pub(crate) mod tests {
 	}
 
 	#[test]
-	fn the_first_icon_answers_the_logo_url_and_the_repository_reads_down_to_its_name() {
-		let server: Server = serde_json::from_value(json!({
+	fn the_first_icon_of_an_entry_answers_its_logo_url() {
+		let application = described(json!({
 			"name": "com.notion/mcp",
 			"remotes": [{ "type": "streamable-http", "url": "https://mcp.notion.test/mcp" }],
 			"icons": [
 				{ "src": "https://icons.test/notion.png" },
 				{ "src": "https://icons.test/notion.svg" },
 			],
-			"repository": { "url": "https://github.com/Owner/Notion.git", "source": "github" },
-		}))
-		.expect("the fixture is a server.json");
+		}));
 
-		let listing = descriptor(server).expect("the fixture offers a transport");
-
-		assert_eq!(listing.application.logo_url.as_deref(), Some("https://icons.test/notion.png"));
-		assert_eq!(listing.repository.as_deref(), Some("github.com/owner/notion"));
+		assert_eq!(application.logo_url.as_deref(), Some("https://icons.test/notion.png"));
 	}
 
 	#[test]
@@ -1000,7 +1026,7 @@ pub(crate) mod tests {
 		let server: Server = serde_json::from_value(body).expect("the fixture is a server.json");
 		match descriptor(server) {
 			Err(held) => held,
-			Ok(listing) => panic!("{} answered a listing", listing.application.name),
+			Ok(application) => panic!("{} answered a listing", application.name),
 		}
 	}
 
@@ -1081,6 +1107,32 @@ pub(crate) mod tests {
 		.expect("the fixture is a server.json");
 
 		assert!(matches!(descriptor(server), Err(Dropped::Unread)));
+	}
+
+	#[test]
+	fn a_read_whose_every_row_carried_a_transport_says_nothing() {
+		assert_eq!(drift(10, 0), None);
+	}
+
+	#[test]
+	fn a_read_carrying_a_row_no_transport_was_read_in_names_its_source_and_its_count() {
+		let line = drift(10, 2).expect("the drift is named");
+
+		assert!(line.contains(OFFICIAL_SOURCE), "got {line}");
+		assert!(line.contains("10"), "got {line}");
+	}
+
+	#[test]
+	fn a_read_answers_its_applications_and_leaves_out_every_dropped_row() {
+		let read = vec![
+			Ok(described(a_remote_without_headers())),
+			Err(Dropped::HostedBySmithery),
+			Err(Dropped::Unread),
+		];
+
+		let kept: Vec<String> = normalised(3, read).into_iter().map(|held| held.name).collect();
+
+		assert_eq!(kept, ["com.notion/mcp"]);
 	}
 
 	pub(crate) struct Held {
@@ -1185,10 +1237,10 @@ pub(crate) mod tests {
 
 		let found = search(&base, "notion files").await.expect("the search answers");
 
-		let names: Vec<&str> = found.iter().map(|held| held.application.name.as_str()).collect();
+		let names: Vec<&str> = found.iter().map(|held| held.name.as_str()).collect();
 		assert_eq!(names, ["com.notion/mcp", "io.github.Digital-Defiance/mcp-filesystem"]);
-		assert_eq!(found[0].application.install, Install::Oauth);
-		assert_eq!(found[1].application.install, Install::Nothing);
+		assert_eq!(found[0].install, Install::Oauth);
+		assert_eq!(found[1].install, Install::Nothing);
 		let asked = held.asked.lock().expect("the stub records").clone();
 		assert_eq!(asked, ["/v0.1/servers?search=notion+files&limit=10&version=latest"]);
 		assert!(held.detailed.lock().expect("the stub records").is_empty(), "a detail was read");
@@ -1205,7 +1257,7 @@ pub(crate) mod tests {
 
 		let found = search(&base, "notion files").await.expect("the search answers");
 
-		let names: Vec<&str> = found.iter().map(|held| held.application.name.as_str()).collect();
+		let names: Vec<&str> = found.iter().map(|held| held.name.as_str()).collect();
 		assert_eq!(names, ["com.notion/mcp", "io.github.Digital-Defiance/mcp-filesystem"]);
 	}
 
@@ -1220,7 +1272,7 @@ pub(crate) mod tests {
 
 		let found = search(&base, "notion").await.expect("the search answers");
 
-		let names: Vec<&str> = found.iter().map(|held| held.application.name.as_str()).collect();
+		let names: Vec<&str> = found.iter().map(|held| held.name.as_str()).collect();
 		assert_eq!(names, ["com.notion/mcp", "io.github.Digital-Defiance/mcp-filesystem"]);
 	}
 

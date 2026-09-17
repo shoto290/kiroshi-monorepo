@@ -406,7 +406,7 @@ mod tests {
 			logo_url: Some("https://superset.test/logo.png".to_owned()),
 			use_count: Some(42),
 			verified: Some(true),
-			hosted_by: Some("Smithery".to_owned()),
+			hosted_by: Some("superset.test".to_owned()),
 			categories: Vec::new(),
 			auth_posture: None,
 			install: Install::Key {
@@ -430,7 +430,7 @@ mod tests {
 				"logoUrl": "https://superset.test/logo.png",
 				"useCount": 42,
 				"verified": true,
-				"hostedBy": "Smithery",
+				"hostedBy": "superset.test",
 				"install": {
 					"kind": "key",
 					"fields": [

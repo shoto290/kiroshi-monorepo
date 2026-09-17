@@ -8,8 +8,9 @@ use super::contract::{
 	InstallRefusal,
 };
 use super::directory::Directory;
+use super::registry::REGISTRY;
 use super::runnable::{refusal, Runners};
-use super::search::{named, Registries};
+use super::search::{named, search};
 use crate::conversations::commands::ready;
 use crate::db;
 
@@ -23,7 +24,7 @@ pub async fn application_search(
 	directory: State<'_, Arc<Directory>>,
 	query: String,
 ) -> Result<ApplicationSearch, ApplicationsError> {
-	directory.searched(&query).await
+	search(REGISTRY, &directory, &query).await
 }
 
 #[tauri::command]
@@ -31,7 +32,7 @@ pub async fn application_named(
 	directory: State<'_, Arc<Directory>>,
 	name: String,
 ) -> Result<Option<Application>, ApplicationsError> {
-	named(&Registries::default(), &directory, &name).await
+	named(REGISTRY, &directory, &name).await
 }
 
 #[tauri::command]

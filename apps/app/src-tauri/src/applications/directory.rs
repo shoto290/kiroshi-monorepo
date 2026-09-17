@@ -490,7 +490,7 @@ fn written(file: &Path, cached: &Cached) -> Result<(), String> {
 }
 
 #[cfg(test)]
-mod tests {
+pub(crate) mod tests {
 	use std::collections::BTreeSet;
 	use std::net::{Ipv4Addr, SocketAddr};
 	use std::sync::Mutex as Recorded;
@@ -516,7 +516,7 @@ mod tests {
 		}
 	}
 
-	struct Served {
+	pub(crate) struct Served {
 		pages: Vec<Value>,
 		refusals: Recorded<usize>,
 		asked: Recorded<Vec<String>>,
@@ -532,7 +532,7 @@ mod tests {
 		}
 	}
 
-	async fn serving(pages: Vec<Value>) -> (String, Arc<Served>) {
+	pub(crate) async fn serving(pages: Vec<Value>) -> (String, Arc<Served>) {
 		let held = Arc::new(Served {
 			pages,
 			refusals: Recorded::new(0),
@@ -581,7 +581,7 @@ mod tests {
 			.expect("the stub answers with a body")
 	}
 
-	async fn unreached() -> String {
+	pub(crate) async fn unreached() -> String {
 		let listener =
 			tokio::net::TcpListener::bind((Ipv4Addr::LOCALHOST, 0)).await.expect("a port binds");
 		let address = listener.local_addr().expect("the port is named");
@@ -610,7 +610,7 @@ mod tests {
 		})
 	}
 
-	fn a_page(names: &[&str]) -> Value {
+	pub(crate) fn a_page(names: &[&str]) -> Value {
 		Value::Array(
 			names
 				.iter()
