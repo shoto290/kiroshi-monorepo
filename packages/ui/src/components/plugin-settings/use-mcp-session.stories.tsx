@@ -106,6 +106,7 @@ export const AddingPushesTheCatalogue = meta.story({
 			curated: CURATED_APPLICATIONS,
 			registry: [],
 			onRegistryRetry: fn(),
+			onOpen: fn(),
 			onPick: fn(),
 		},
 	},
@@ -113,14 +114,17 @@ export const AddingPushesTheCatalogue = meta.story({
 		docs: {
 			description: {
 				story:
-					"Add application with a catalogue handed in. Check that the catalogue replaces the whole body, rail included, that All applications brings the list back, and that Paste a configuration opens a blank editor the way Add did before a catalogue existed.",
+					"Add application with a catalogue handed in. Check that the catalogue replaces the whole body, rail included, that opening it tells the caller so the registry can be asked, that All applications brings the list back, and that Paste a configuration opens a blank editor the way Add did before a catalogue existed.",
 			},
 		},
 	},
-	play: async ({ canvas, userEvent }) => {
+	play: async ({ args, canvas, userEvent }) => {
 		await userEvent.click(
 			canvas.getByRole("button", { name: "Add application" }),
 		)
+
+		await expect(args.catalogue?.onOpen).toHaveBeenCalledTimes(1)
+
 		await userEvent.click(
 			canvas.getByRole("button", { name: "All applications" }),
 		)
