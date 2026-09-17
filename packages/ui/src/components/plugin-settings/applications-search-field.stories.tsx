@@ -8,7 +8,7 @@ import {
 } from "@workspace/ui/components/plugin-settings/applications-search-field"
 
 const FIELD_HEIGHT = 36
-const ENLARGED_ROOT_TEXT = "32px"
+const FLOORED_TEXT_SIZE = "32px"
 
 const shellOf = (field: HTMLElement) =>
 	(field.closest("label") as HTMLElement).getBoundingClientRect()
@@ -86,31 +86,23 @@ export const Typed = meta.story({
 	},
 })
 
-export const RootTextEnlarged = meta.story({
+export const LargestTextSize = meta.story({
 	parameters: {
 		docs: {
 			description: {
 				story:
-					"The root text size doubled. Check that the shell grows past its default height and that the whole typed line, descenders included, stays inside the shell and centred on it.",
+					"A text-size floor the browser applies to the input alone, so the rendered line grows while the rem the shell is measured in does not. Check that the shell grows past its default height to hold the whole line, descenders included, centred on it.",
 			},
 		},
 	},
 	play: async ({ canvas, userEvent }) => {
-		const root = document.documentElement
-		const rootTextAtRest = root.style.fontSize
+		const field = canvas.getByRole("textbox", { name: "Search applications" })
 
-		try {
-			const field = canvas.getByRole("textbox", { name: "Search applications" })
+		field.style.fontSize = FLOORED_TEXT_SIZE
 
-			await userEvent.type(field, "typography")
-			await expectLineCentredInShell(field)
+		await userEvent.type(field, "typography")
 
-			root.style.fontSize = ENLARGED_ROOT_TEXT
-
-			await expect(shellOf(field).height).toBeGreaterThan(FIELD_HEIGHT)
-			await expectLineCentredInShell(field)
-		} finally {
-			root.style.fontSize = rootTextAtRest
-		}
+		await expect(shellOf(field).height).toBeGreaterThan(FIELD_HEIGHT)
+		await expectLineCentredInShell(field)
 	},
 })

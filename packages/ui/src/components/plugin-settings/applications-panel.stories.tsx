@@ -16,6 +16,8 @@ const SEARCH_ROW_HEIGHT = 36
 
 const SEARCH_ROW_GAP = 8
 
+const FLOORED_TEXT_SIZE = "32px"
+
 const [LINEAR, GITHUB] = MARKED_APPLICATIONS
 const [LOCAL, REMOTE] = BOT_MCP_SERVERS
 
@@ -231,6 +233,35 @@ export const SearchRow = meta.story({
 		await userEvent.click(plus)
 
 		await expect(args.onPaste).toHaveBeenCalledTimes(1)
+	},
+})
+
+export const SearchRowAtLargestTextSize = meta.story({
+	parameters: {
+		docs: {
+			description: {
+				story:
+					"The same row under a text-size floor the browser applies to the input alone. Check that the field grows past the row height while the plus button keeps its 36 by 36 box, the gap unchanged and the button centred against the taller field.",
+			},
+		},
+	},
+	play: async ({ canvas }) => {
+		const field = canvas.getByRole("textbox", { name: "Search applications" })
+		const plus = canvas.getByRole("button", { name: "Paste a configuration" })
+
+		field.style.fontSize = FLOORED_TEXT_SIZE
+
+		const shell = (
+			field.closest("label") as HTMLElement
+		).getBoundingClientRect()
+		const button = plus.getBoundingClientRect()
+
+		await expect(shell.height).toBeGreaterThan(SEARCH_ROW_HEIGHT)
+		await expect(Math.round(button.height)).toBe(SEARCH_ROW_HEIGHT)
+		await expect(Math.round(button.left - shell.right)).toBe(SEARCH_ROW_GAP)
+		await expect(Math.round(button.top + button.height / 2)).toBe(
+			Math.round(shell.top + shell.height / 2),
+		)
 	},
 })
 
