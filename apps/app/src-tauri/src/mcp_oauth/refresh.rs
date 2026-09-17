@@ -22,6 +22,8 @@ const REFRESH_AHEAD_MS: i64 = 60_000;
 
 const NO_REASON: &str = "no reason was given";
 
+const NOT_STORED: &str = "the refreshed grant could not be stored";
+
 type ServerUrls = BTreeMap<String, String>;
 
 #[derive(Debug, Clone, PartialEq, Eq)]
@@ -148,7 +150,7 @@ fn renewal(
 	answer: Result<Authorized, TransportError>,
 ) -> Option<Renewal> {
 	match answer {
-		Ok(Authorized { credentials: Some(grant), .. }) => Some(stored(root, scope, &grant)),
+		Ok(Authorized { credentials: Some(grant), .. }) => Some(stored(root, scope, sent, &grant)),
 		Ok(Authorized {
 			error: Some(OauthFailure { kind: OauthFailureKind::Rejected, detail }),
 			..
@@ -165,12 +167,13 @@ fn renewal(
 	}
 }
 
-fn stored(root: &Path, scope: &EnvScope, grant: &OauthCredentials) -> Renewal {
+fn stored(root: &Path, scope: &EnvScope, sent: &Values, grant: &OauthCredentials) -> Renewal {
 	let Err(error) = credentials::store(root, scope, grant) else {
 		return Renewal::Renewed;
 	};
-	eprintln!("the refreshed grant of {scope:?} could not be stored: {error:?}");
-	Renewal::Awaiting { reason: None }
+	let lost = credentials::scrubbed(format!("{NOT_STORED}: {error:?}"), sent);
+	eprintln!("the refreshed grant of {scope:?} was lost: {lost}");
+	Renewal::Awaiting { reason: Some(lost) }
 }
 
 fn refused(

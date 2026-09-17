@@ -614,6 +614,35 @@ mod tests {
 	}
 
 	#[tokio::test]
+	async fn a_renewal_the_store_refused_needs_authorization_over_the_standing_last_reported() {
+		let root = a_root("renewal-lost");
+		credentials::store(&root, &a_server("granola"), &an_aging_grant(Some("held-refresh")))
+			.expect("the grant is written");
+		let reports = ApplicationReports::default();
+		reports.record("b1", "granola", Standing::Holding);
+		crate::private_files::interrupt_the_write_after(0);
+
+		let rows = renewed_rows(
+			&root,
+			&a_bot(),
+			granola_declared(),
+			&McpOauthState::default(),
+			&reports,
+			|_| async { Ok(Authorized { credentials: Some(a_renewed_grant()), error: None }) },
+		)
+		.await
+		.expect("the rows read");
+
+		let ApplicationStatus::NeedsAuthorization { reason: Some(reason) } = &rows[0].status else {
+			panic!("a grant that could not be stored awaits authorization: {:?}", rows[0].status);
+		};
+		assert!(reason.contains("the refreshed grant could not be stored"));
+		for secret in ["held-access", "held-refresh", "renewed-access", "confidential"] {
+			assert!(!reason.contains(secret));
+		}
+	}
+
+	#[tokio::test]
 	async fn a_refused_renewal_needs_authorization_and_carries_the_reason_with_no_secret_in_it() {
 		let root = a_root("renewal-refused");
 		credentials::store(&root, &a_server("granola"), &an_aging_grant(Some("held-refresh")))
