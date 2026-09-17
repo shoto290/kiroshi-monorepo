@@ -72,6 +72,15 @@ const SENTRY: Application = {
 	install: { kind: "nothing" },
 }
 
+const GRAFANA: Application = {
+	name: "grafana",
+	title: "Grafana",
+	description: "Charts what Sentry reports.",
+	config: { type: "http", url: "https://mcp.grafana.test/mcp" },
+	categories: ["Data & analytics"],
+	install: { kind: "nothing" },
+}
+
 const LINEAR_SERVER: BotMcpServer = {
 	name: "linear",
 	config: { type: "http", url: "https://mcp.linear.app/mcp" },
@@ -454,13 +463,14 @@ describe("toApplicationScope", () => {
 		])
 	})
 
-	it("reads a title match before a description match", () => {
+	it("places a title match before a description match", () => {
 		const { scope } = scopeOf(
-			applicationsWith({ directory: [SENTRY, NOTION], query: "productivity" }),
+			applicationsWith({ directory: [GRAFANA, SENTRY], query: "sentry" }),
 		)
 
 		expect(scope.mcpCatalogue?.applications.map((held) => held.id)).toEqual([
 			"sentry",
+			"grafana",
 		])
 	})
 

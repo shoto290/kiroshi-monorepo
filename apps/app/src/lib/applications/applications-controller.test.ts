@@ -240,6 +240,29 @@ describe("applications controller", () => {
 		expect(controller.getState().directory).toEqual([LINEAR])
 	})
 
+	it("reads the directory again when the page opens after a failed read", async () => {
+		const port = createFakeApplicationPort()
+		port.found = [LINEAR]
+		const controller = controllerOn(port)
+		controller.browse()
+		await settled()
+
+		port.refusals.search = { kind: "registryTimedOut" }
+		controller.retry()
+		await settled()
+		expect(controller.getState().hasDirectoryFailed).toBe(true)
+		expect(controller.getState().directory).toEqual([LINEAR])
+
+		port.refusals = {}
+		port.found = [LINEAR, SUPERSET]
+		controller.browse()
+		await settled()
+
+		expect(searchesOf(port)).toHaveLength(3)
+		expect(controller.getState().hasDirectoryFailed).toBe(false)
+		expect(controller.getState().directory).toEqual([LINEAR, SUPERSET])
+	})
+
 	it("keeps the answer of the last read and drops an earlier one", async () => {
 		const port = createFakeApplicationPort()
 		const answers: ((found: ApplicationSearch) => void)[] = []

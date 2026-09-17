@@ -344,7 +344,8 @@ export const createApplicationsController = (
 		},
 
 		browse: () => {
-			if (state.isReadingDirectory || state.directory.length > 0) {
+			const isHeld = state.directory.length > 0 && !state.hasDirectoryFailed
+			if (state.isReadingDirectory || isHeld) {
 				return
 			}
 			readDirectory()
