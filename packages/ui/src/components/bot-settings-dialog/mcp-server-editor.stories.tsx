@@ -427,24 +427,18 @@ export const Connecting = meta.story({
 			state: "connecting",
 			host: "atlas.dev",
 			onCancel: fn(),
-			onReopen: fn(),
 		},
 	},
 	parameters: {
 		docs: {
 			description: {
 				story:
-					"The block while the reader is somewhere else — in the browser tab the application opened. Reach for this over `NeedsAuthorization` to check the waiting state: the title names what is being waited on rather than repeating the state label, the spinner replaces the dot and holds still under reduced motion, and both ways out are offered, because a tab that was closed by accident should not need a cancel first.",
+					"The block while the reader is somewhere else — in the browser tab the application opened. Reach for this over `NeedsAuthorization` to check the waiting state: the title names what is being waited on rather than repeating the state label, the sentence points at the host the tab is open on, and the spinner replaces the dot and holds still under reduced motion. Cancel is the only way out of the wait.",
 			},
 		},
 	},
 	play: async ({ args, canvas, userEvent }) => {
 		await expect(canvas.getByText("Waiting for your browser")).toBeVisible()
-
-		await userEvent.click(
-			canvas.getByRole("button", { name: "Open the page again" }),
-		)
-		await expect(args.connection?.onReopen).toHaveBeenCalledTimes(1)
 
 		await userEvent.click(canvas.getByRole("button", { name: "Cancel" }))
 		await expect(args.connection?.onCancel).toHaveBeenCalledTimes(1)
@@ -455,7 +449,6 @@ export const Connected = meta.story({
 	args: {
 		connection: {
 			state: "connected",
-			authorizedAt: "4 March 2026",
 			onDisconnect: fn(),
 		},
 	},
@@ -463,7 +456,7 @@ export const Connected = meta.story({
 		docs: {
 			description: {
 				story:
-					"An authorized application at rest. Check that the block goes quiet — the muted field, no amber, no red — and that it still says the two things the reader came for: when it was authorized and that the token renews itself. Disconnect is the only action, and it asks before it drops anything: `WithDisconnection` mounts that question.",
+					"An authorized application at rest. Check that the block goes quiet — the muted field, no amber, no red — and that the title carries the state on its own, with no sentence under it: there is nothing left to say once the connection holds. Disconnect is the only action, and it asks before it drops anything: `WithDisconnection` mounts that question.",
 			},
 		},
 	},
@@ -605,7 +598,6 @@ export const WithDisconnection = meta.story({
 	args: {
 		connection: {
 			state: "connected",
-			authorizedAt: "4 March 2026",
 			onDisconnect: fn(),
 		},
 		defaultDisconnecting: true,

@@ -413,7 +413,6 @@ const bots = {
 			connect: "Connecter",
 			retry: "Réessayer",
 			cancel: "Annuler",
-			reopen: "Rouvrir la page",
 			disconnect: "Déconnecter",
 			row: {
 				connect: "Connecter {{name}}",
@@ -425,8 +424,6 @@ const bots = {
 					"{{name}} vous identifie via votre navigateur. Kiroshi garde le jeton avec les secrets de cette application, jamais dans la configuration ci-dessous.",
 				connecting:
 					"Un onglet est ouvert sur {{host}}. Autorisez Kiroshi là-bas et cet écran se met à jour tout seul.",
-				connected:
-					"Autorisé le {{date}}. Kiroshi renouvelle le jeton tout seul, et le dit ici si cela venait à ne plus fonctionner.",
 				unsaved: "Disponible une fois cette application enregistrée.",
 			},
 			confirm: {

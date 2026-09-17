@@ -163,14 +163,12 @@ type McpAuthorizationProps = McpConnectionSection & {
 const McpAuthorization = ({
 	state,
 	host,
-	authorizedAt,
 	refusedRefresh,
 	name,
 	isSaved,
 	defaultDisconnecting,
 	onConnect,
 	onCancel,
-	onReopen,
 	onDisconnect,
 }: McpAuthorizationProps) => {
 	const { t } = useTranslation("bots")
@@ -195,12 +193,6 @@ const McpAuthorization = ({
 		if (state === "connecting")
 			return host
 				? t("applications.connection.description.connecting", { host })
-				: null
-		if (state === "connected")
-			return authorizedAt
-				? t("applications.connection.description.connected", {
-						date: authorizedAt,
-					})
 				: null
 		return null
 	}
@@ -230,21 +222,11 @@ const McpAuthorization = ({
 			) : null
 
 		if (state === "connecting")
-			return (
-				<>
-					{onReopen ? (
-						<Button onClick={onReopen} size="sm" variant="outline">
-							<OpensBrowserIcon />
-							{t("applications.connection.reopen")}
-						</Button>
-					) : null}
-					{onCancel ? (
-						<Button onClick={onCancel} size="sm" variant="ghost">
-							{t("applications.connection.cancel")}
-						</Button>
-					) : null}
-				</>
-			)
+			return onCancel ? (
+				<Button onClick={onCancel} size="sm" variant="ghost">
+					{t("applications.connection.cancel")}
+				</Button>
+			) : null
 
 		return onDisconnect ? (
 			<ConfirmDialog

@@ -409,7 +409,6 @@ const bots = {
 			connect: "Connect",
 			retry: "Retry",
 			cancel: "Cancel",
-			reopen: "Open the page again",
 			disconnect: "Disconnect",
 			row: {
 				connect: "Connect {{name}}",
@@ -421,8 +420,6 @@ const bots = {
 					"{{name}} signs you in through your browser. Kiroshi keeps the token with this application’s secrets, never in the configuration below.",
 				connecting:
 					"A tab is open at {{host}}. Authorize Kiroshi there and this screen catches up on its own.",
-				connected:
-					"Authorized on {{date}}. Kiroshi refreshes the token on its own, and says so here if that ever stops working.",
 				unsaved: "Available once this application is saved.",
 			},
 			confirm: {
