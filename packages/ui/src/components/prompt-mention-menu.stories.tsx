@@ -188,7 +188,9 @@ const panelEnteredIn = (root: HTMLElement) => {
 		'[data-slot="prompt-mention-menu"] > *',
 	)
 
-	if (!panel) throw new Error("The menu drew no panel")
+	if (!panel?.querySelector('[role="listbox"]')) {
+		throw new Error("The menu drew no panel around its listbox")
+	}
 
 	return waitFor(
 		() => expect(PANEL_AT_REST).toContain(getComputedStyle(panel).transform),
