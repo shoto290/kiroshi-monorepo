@@ -28,9 +28,6 @@ const NOTHING_STORED: &str = "no access token was stored for that server";
 
 const NO_BUNDLES: &str = "the bundle directory is unavailable";
 
-const NEITHER_A_GRANT_NOR_A_REASON: &str =
-	"the authorization flow settled with neither a grant nor a reason";
-
 const OPENABLE_SCHEMES: [&str; 2] = ["http://", "https://"];
 
 pub(crate) fn is_openable(url: &str) -> bool {
@@ -109,8 +106,9 @@ async fn granted<R: Runtime>(app: &AppHandle<R>, url: &str) -> Result<OauthCrede
 		(None, Some(failure)) => {
 			Err(Step::AskingTheAuthorizationServer.refused(OauthError::from(failure)))
 		}
-		(None, None) => Err(Step::ReadingTheSettlement
-			.refused(OauthError::Failed { detail: NEITHER_A_GRANT_NOR_A_REASON.to_owned() })),
+		(None, None) => Err(Step::ReadingTheSettlement.refused(OauthError::Failed {
+			detail: "the authorization flow settled with neither a grant nor a reason".to_owned(),
+		})),
 	}
 }
 

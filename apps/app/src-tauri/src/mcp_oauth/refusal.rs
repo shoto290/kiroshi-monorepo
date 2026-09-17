@@ -6,7 +6,7 @@ const AUTHORITY: &str = "://";
 
 const QUERY_OR_FRAGMENT: [char; 2] = ['?', '#'];
 
-#[derive(Debug, Clone, Copy, PartialEq, Eq)]
+#[derive(Clone, Copy)]
 pub enum Step {
 	ClaimingTheState,
 	WritingTheStoreRoot,
@@ -43,7 +43,6 @@ impl Step {
 	}
 }
 
-#[derive(Debug, Clone, PartialEq, Eq)]
 pub struct Refused {
 	pub step: Step,
 	pub error: OauthError,
