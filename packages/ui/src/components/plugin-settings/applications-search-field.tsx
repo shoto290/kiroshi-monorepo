@@ -17,7 +17,7 @@ const ApplicationsSearchField = ({
 	const label = t("applications.search")
 
 	return (
-		<label className="flex h-9 min-w-0 flex-1 items-center gap-2 rounded-xl border border-input px-3 focus-within:border-ring focus-within:ring-3 focus-within:ring-ring/30">
+		<label className="flex min-h-9 min-w-0 flex-1 items-center gap-2 rounded-xl border border-input px-3 focus-within:border-ring focus-within:ring-3 focus-within:ring-ring/30">
 			<Icons.Search
 				aria-hidden="true"
 				className="size-4 shrink-0 text-muted-foreground"
