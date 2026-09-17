@@ -3,7 +3,6 @@ import { expect, fn, within } from "storybook/test"
 
 import preview from "@workspace/storybook/preview"
 import {
-	CATALOGUE_CATEGORIES,
 	CURATED_APPLICATIONS,
 	LONG_REGISTRY_RESULT,
 	REFUSED_APPLICATION,
@@ -47,17 +46,11 @@ const matching = (applications: CatalogueApplication[], query: string) =>
 
 const CatalogueHost = (props: ApplicationsCatalogueProps) => {
 	const [query, setQuery] = useState(props.query)
-	const [category, setCategory] = useState(props.category)
 
 	return (
 		<ApplicationsCatalogue
 			{...props}
-			category={category}
 			curated={matching(props.curated, query)}
-			onCategoryChange={(next) => {
-				setCategory(next)
-				props.onCategoryChange(next)
-			}}
 			onQueryChange={(next) => {
 				setQuery(next)
 				props.onQueryChange(next)
@@ -106,7 +99,7 @@ const meta = preview.meta({
 		docs: {
 			description: {
 				component:
-					"The page Add application pushes over the whole dialog body, rail included. The rail lists categories handed as data, keeps its labels at every width, and ends on Paste a configuration. The body reports what is typed and draws only the applications it is handed: the curated ones Kiroshi knows, then what the MCP registry returned.",
+					"The page Add application pushes over the whole dialog body, rail included. The rail holds one entry, Everything with the count it is handed, keeps its label at every width, and ends on Paste a configuration. The body reports what is typed and draws only the applications it is handed: the curated ones Kiroshi knows, then what the MCP registry returned.",
 			},
 		},
 	},
@@ -118,9 +111,7 @@ const meta = preview.meta({
 		),
 	],
 	args: {
-		categories: CATALOGUE_CATEGORIES,
-		category: "everything",
-		onCategoryChange: fn(),
+		count: 6,
 		query: "",
 		onQueryChange: fn(),
 		curated: CURATED_APPLICATIONS,
@@ -138,17 +129,15 @@ export const AtRest = meta.story({
 		docs: {
 			description: {
 				story:
-					"The catalogue as it opens, nothing typed. Check the back item, the open category on muted with its count, the curated cards at their drawn width, every install line of a row resting on one line at the bottom of its card, no dashed line anywhere, and the nine registry rows already drawn full width, one of them sans description, the package identity alone in monospace.",
+					"The catalogue as it opens, nothing typed. Check the back item, the one rail entry on muted with its count, the curated cards at their drawn width, every install line of a row resting on one line at the bottom of its card, no dashed line anywhere, and the nine registry rows already drawn full width, one of them sans description, the package identity alone in monospace.",
 			},
 		},
 	},
 	play: async ({ args, canvas, canvasElement, userEvent }) => {
-		const everything = canvas.getByRole("tab", { name: /Everything/ })
-		await expect(everything).toHaveAttribute("aria-selected", "true")
-		await expect(everything).toHaveTextContent("6")
-		await expect(canvas.getByRole("tab", { name: "Design" })).toHaveTextContent(
-			/^Design$/,
-		)
+		const tabs = canvas.getAllByRole("tab")
+		await expect(tabs).toHaveLength(1)
+		await expect(tabs[0]).toHaveAccessibleName("Everything 6")
+		await expect(tabs[0]).toHaveAttribute("aria-selected", "true")
 		await expect(slotsOf(canvasElement, "catalogue-row-name")).toHaveLength(9)
 		await expect(canvas.getByText("forecast")).toBeVisible()
 		await expect(
@@ -186,9 +175,6 @@ export const AtRest = meta.story({
 		await expect(new Set(setupTops.map((line) => line.gap))).toEqual(
 			new Set([CARD_BOTTOM_INSET]),
 		)
-
-		await userEvent.click(canvas.getByRole("tab", { name: "Design" }))
-		await expect(args.onCategoryChange).toHaveBeenCalledWith("design")
 
 		await userEvent.click(canvas.getByRole("button", { name: /^Linear\b/ }))
 		await expect(args.onPick).toHaveBeenCalledWith(CURATED_APPLICATIONS[0])
@@ -411,7 +397,7 @@ export const NarrowDialog = meta.story({
 		docs: {
 			description: {
 				story:
-					"The catalogue in a dialog squeezed narrow. Check that the category rail keeps its labels, unlike the settings rail that folds to icons, and that the cards keep their width and reflow to two per line.",
+					"The catalogue in a dialog squeezed narrow. Check that the rail keeps the Everything label and its count, unlike the settings rail that folds to icons, and that the cards keep their width and reflow to two per line.",
 			},
 		},
 	},
@@ -422,7 +408,7 @@ export const NarrowDialog = meta.story({
 		await expect(first.width).toBe(186)
 		await expect(second.top).toBe(first.top)
 		await expect(third.top).toBeGreaterThan(first.top)
-		await expect(canvas.getByText("Work tracking")).toBeVisible()
+		await expect(canvas.getByRole("tab")).toHaveAccessibleName("Everything 6")
 		await expect(canvas.getByText("All applications")).not.toHaveClass(
 			"sr-only",
 		)
@@ -431,10 +417,7 @@ export const NarrowDialog = meta.story({
 
 export const CatalogueLoading = meta.story({
 	args: {
-		categories: [
-			{ id: "everything", label: "Everything", count: null },
-			...CATALOGUE_CATEGORIES.slice(1),
-		],
+		count: null,
 		isCatalogueLoading: true,
 	},
 	parameters: {
@@ -457,6 +440,7 @@ export const CatalogueLoading = meta.story({
 		await expect(Math.round(second.top - first.bottom)).toBe(ROW_GAP)
 
 		const everything = canvas.getByRole("tab", { name: "Everything" })
+		await expect(everything).toHaveAccessibleName("Everything")
 		await expect(everything).toHaveTextContent("\u2014")
 
 		const body = canvas.getByRole("tabpanel")

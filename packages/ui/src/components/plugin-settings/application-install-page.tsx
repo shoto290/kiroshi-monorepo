@@ -20,6 +20,7 @@ import {
 	type CatalogueApplication,
 	CataloguePage,
 	type CataloguePageProps,
+	EVERYTHING_TAB,
 } from "@workspace/ui/components/plugin-settings/applications-catalogue"
 import type { ApplicationsOwner } from "@workspace/ui/components/plugin-settings/applications-panel"
 import { Button } from "@workspace/ui/components/ui/button"
@@ -441,7 +442,7 @@ const ApplicationInstallPage = ({
 					<Tabs.Panel
 						className="col-span-full row-start-3 flex min-h-0 flex-col gap-4.5 overflow-y-auto p-5 outline-none focus-visible:ring-2 focus-visible:ring-ring focus-visible:ring-inset @sm:row-start-2"
 						ref={body}
-						value={page.category}
+						value={EVERYTHING_TAB}
 					>
 						<div className="flex flex-col gap-1.75">
 							{setupBlock()}

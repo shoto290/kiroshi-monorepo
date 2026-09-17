@@ -38,11 +38,7 @@ type CatalogueApplication = {
 	host?: string
 }
 
-type ApplicationCategory = {
-	id: string
-	label: string
-	count?: number | null
-}
+const EVERYTHING_TAB = "everything"
 
 const UNKNOWN_COUNT = "\u2014"
 
@@ -405,9 +401,7 @@ const CatalogueLine = ({
 )
 
 type CataloguePageProps = {
-	categories: ApplicationCategory[]
-	category: string
-	onCategoryChange: (category: string) => void
+	count: number | null
 	onBack: () => void
 	onPaste: () => void
 	className?: string
@@ -415,9 +409,7 @@ type CataloguePageProps = {
 }
 
 const CataloguePage = ({
-	categories,
-	category,
-	onCategoryChange,
+	count,
 	onBack,
 	onPaste,
 	className,
@@ -428,9 +420,8 @@ const CataloguePage = ({
 	return (
 		<Tabs.Root
 			className={cn("flex min-h-0 min-w-0 flex-1", className)}
-			onValueChange={onCategoryChange}
 			orientation="vertical"
-			value={category}
+			value={EVERYTHING_TAB}
 		>
 			<SettingsRail
 				iconsOnly={false}
@@ -456,21 +447,17 @@ const CataloguePage = ({
 					</>
 				}
 			>
-				{categories.map((entry) => (
-					<Tabs.Tab className={RAIL_ITEM_CLASS} key={entry.id} value={entry.id}>
-						<span className="min-w-0 flex-1 wrap-break-word text-start">
-							{entry.label}
-						</span>
-						{entry.count === undefined ? null : (
-							<span
-								aria-hidden={entry.count === null}
-								className="shrink-0 text-muted-foreground text-xs tabular-nums"
-							>
-								{entry.count ?? UNKNOWN_COUNT}
-							</span>
-						)}
-					</Tabs.Tab>
-				))}
+				<Tabs.Tab className={RAIL_ITEM_CLASS} value={EVERYTHING_TAB}>
+					<span className="min-w-0 flex-1 wrap-break-word text-start">
+						{t("applications.catalogue.everything")}
+					</span>
+					<span
+						aria-hidden={count === null}
+						className="shrink-0 text-muted-foreground text-xs tabular-nums"
+					>
+						{count ?? UNKNOWN_COUNT}
+					</span>
+				</Tabs.Tab>
 			</SettingsRail>
 			{children}
 		</Tabs.Root>
@@ -494,9 +481,7 @@ type ApplicationsCatalogueProps = Omit<CataloguePageProps, "children"> & {
 }
 
 const ApplicationsCatalogue = ({
-	categories,
-	category,
-	onCategoryChange,
+	count,
 	query,
 	onQueryChange,
 	curated,
@@ -584,18 +569,16 @@ const ApplicationsCatalogue = ({
 
 	return (
 		<CataloguePage
-			categories={categories}
-			category={category}
 			className={className}
+			count={count}
 			onBack={onBack}
-			onCategoryChange={onCategoryChange}
 			onPaste={onPaste}
 		>
 			<Tabs.Panel
 				aria-busy={isLoading}
 				className={cn(SETTINGS_PANEL_CLASS, "gap-3.5 overflow-y-auto")}
 				ref={panel}
-				value={category}
+				value={EVERYTHING_TAB}
 			>
 				<label className="flex min-h-9 shrink-0 items-center gap-2 rounded-xl border border-input px-3 focus-within:border-ring focus-within:ring-3 focus-within:ring-ring/30">
 					<Icons.Search
@@ -645,11 +628,11 @@ const ApplicationsCatalogue = ({
 }
 
 export {
-	type ApplicationCategory,
 	type ApplicationSetup,
 	ApplicationsCatalogue,
 	type ApplicationsCatalogueProps,
 	type CatalogueApplication,
 	CataloguePage,
 	type CataloguePageProps,
+	EVERYTHING_TAB,
 }
