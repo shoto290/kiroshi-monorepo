@@ -229,14 +229,12 @@ const ApplicationsPanel = ({
 				))}
 			</ul>
 			{copy.footnote ? (
-				<div
-					className="flex shrink-0 items-center gap-3 border-border border-t pt-3"
+				<p
+					className="shrink-0 wrap-break-word border-border border-t pt-3 text-muted-foreground text-xs"
 					data-slot="applications-footnote"
 				>
-					<p className="min-w-0 grow wrap-break-word text-muted-foreground text-xs">
-						{copy.footnote}
-					</p>
-				</div>
+					{copy.footnote}
+				</p>
 			) : null}
 		</>
 	)
