@@ -140,8 +140,8 @@ mod tests {
 		let icons = icons();
 
 		for application in the_catalogue() {
-			let name = &application.name;
-			let logo = application.logo.clone().unwrap_or_else(|| panic!("{name} has a logo"));
+			let name = application.name;
+			let logo = application.logo.unwrap_or_else(|| panic!("{name} has a logo"));
 			assert!(logo.starts_with("<svg"), "got {logo}");
 			let paths = drawn_paths(&logo);
 			assert!(!paths.is_empty(), "{name} draws nothing");
