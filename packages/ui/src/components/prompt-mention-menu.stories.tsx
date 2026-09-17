@@ -1,9 +1,10 @@
 import { useState } from "react"
-import { expect, fn } from "storybook/test"
+import { expect, fn, waitFor } from "storybook/test"
 
 import preview from "@workspace/storybook/preview"
 import {
 	expectCompanionPictureSquare,
+	FRAME_POLL,
 	slotsIn,
 	UPLOADED_AVATAR_IMAGE,
 } from "@workspace/storybook/story-utils"
@@ -179,6 +180,23 @@ const NAME_TO_COUNT_GAP = 4
 const ROW_EDGE_PADDING = 8
 
 const TRAILING_SLOT_WIDTH = 56
+
+const PANEL_ENTERED = ["none", "matrix(1, 0, 0, 1, 0, 0)"]
+
+const enteredPanelIn = async (root: HTMLElement) => {
+	const panel = root.querySelector<HTMLElement>(
+		'[data-slot="prompt-mention-menu"] > *',
+	)
+
+	if (!panel) throw new Error("The menu drew no panel")
+
+	await waitFor(
+		() => expect(PANEL_ENTERED).toContain(getComputedStyle(panel).transform),
+		FRAME_POLL,
+	)
+
+	return panel
+}
 
 const FOOTER_TEXT = /^Keep typing to reach/
 
@@ -562,7 +580,9 @@ export const LongContent = meta.story({
 			},
 		},
 	},
-	play: async ({ canvas }) => {
+	play: async ({ canvas, canvasElement }) => {
+		await enteredPanelIn(canvasElement)
+
 		const rows = [
 			canvas.getByRole("option", { name: /Release notes editor/ }),
 			canvas.getByRole("option", { name: /Incident triage/ }),
