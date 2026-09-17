@@ -62,14 +62,24 @@ export const createConnectionsController = (
 		}
 	}
 
+	const fail = (owner: EnvOwner, failure: ConnectionFailure) => {
+		if (state.owner !== owner) {
+			return
+		}
+		console.error(
+			`connections: ${failure.command} was refused for ${failure.name ?? owner.id}`,
+			failure.reason,
+		)
+		set({ failure })
+	}
+
 	const keptFailure = () =>
 		state.failure?.command === "status" ? null : state.failure
 
 	const read = (owner: EnvOwner) =>
 		port.status(owner).then(
 			(rows) => setFor(owner, { rows, failure: keptFailure() }),
-			(reason) =>
-				setFor(owner, { failure: { command: "status", name: null, reason } }),
+			(reason) => fail(owner, { command: "status", name: null, reason }),
 		)
 
 	const run = async (
@@ -81,7 +91,7 @@ export const createConnectionsController = (
 			await send()
 		} catch (reason) {
 			if (!isCancellation(reason)) {
-				setFor(owner, { failure: { command, name, reason } })
+				fail(owner, { command, name, reason })
 			}
 		}
 	}
