@@ -68,6 +68,7 @@ const PickingScreen = (props: McpSessionProps) => {
 
 const meta = preview.meta({
 	title: "Settings/Plugins/McpSession",
+	tags: ["test-only", "!autodocs"],
 	component: McpSessionScreen,
 	parameters: {
 		layout: "fullscreen",

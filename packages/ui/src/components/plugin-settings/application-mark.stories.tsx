@@ -130,21 +130,9 @@ export const Inline = meta.story({
 		docs: {
 			description: {
 				story:
-					"The 22 slot that sits on the line of a question, before its text. Pick `Smallest` for the smallest slot.",
+					"The 22 slot that sits on the line of a question, before its text, and the smallest slot the mark takes. Pick `ExtraSmall` for the slot above it.",
 			},
 		},
 	},
 	play: ({ canvasElement }) => expectSlotWidth(canvasElement, 22),
-})
-
-export const Smallest = meta.story({
-	args: { size: "xs" },
-	parameters: {
-		docs: {
-			description: {
-				story: "The 20 slot, the smallest the mark takes.",
-			},
-		},
-	},
-	play: ({ canvasElement }) => expectSlotWidth(canvasElement, 20),
 })

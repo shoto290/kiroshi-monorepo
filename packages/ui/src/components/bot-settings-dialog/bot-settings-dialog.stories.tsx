@@ -214,7 +214,7 @@ export const Rail = meta.story({
 		docs: {
 			description: {
 				story:
-					"The groups and the way between them. Check the order — General, Appearance, Instructions, Skills, Applications, Secrets, History, Approvals, Runtime, then a rule and Danger zone alone below it, the only item in destructive tone. One tab stop reaches the rail and the arrow keys walk it, so a keyboard reader crosses the whole dialog in two stops rather than five. Walking is not opening: focus moves with the arrows and the group opens on Enter, so nobody drags a grid of animals or a model list past on their way to the one they wanted. No item carries a tooltip at this width — its name is already on the screen. Pick `IconRail` for the width where the name leaves it. The breadcrumb is unchanged whichever group is open: it names the companion, not the group.",
+					"The groups and the way between them. Check the order — General, Appearance, Instructions, Skills, Applications, Secrets, History, Approvals, Runtime, then a rule and Danger zone alone below it, the only item in destructive tone. One tab stop reaches the rail and the arrow keys walk it, so a keyboard reader crosses the whole dialog in two stops rather than five. Walking is not opening: focus moves with the arrows and the group opens on Enter, so nobody drags a grid of animals or a model list past on their way to the one they wanted. No item carries a tooltip: its name is already on the screen. Pick `ScrollsOneTab` for the rail beside a group taller than the dialog. The breadcrumb is unchanged whichever group is open: it names the companion, not the group.",
 			},
 		},
 	},
@@ -460,32 +460,6 @@ export const ClosingOverAnUnsavedSkill = meta.story({
 
 		await waitFor(() => expect(screen.queryByRole("dialog")).toBe(null))
 		await expect(args.onClose).toHaveBeenCalledTimes(1)
-	},
-})
-
-export const IconRail = meta.story({
-	args: { className: "w-[26rem]" },
-	parameters: {
-		docs: {
-			description: {
-				story:
-					"The dialog on a window too narrow to hold the rail and a panel side by side. The rail drops to its icons and the panel keeps the width it needs. Check that every item is still a named tab to a screen reader — the name leaves the screen, never the accessible tree — and that hovering or focusing one says it in a tooltip beside it. The tooltip exists at this width and no other: it replaces the label rather than repeating it. Pick `Rail` for the width where the names are on the screen.",
-			},
-		},
-	},
-	play: async () => {
-		const dialog = await dialogIn()
-		const rail = railIn(dialog)
-		const runtime = within(rail).getByRole("tab", { name: "Runtime" })
-
-		await expect(runtime.getBoundingClientRect().width).toBeLessThan(64)
-
-		runtime.focus()
-		await waitFor(() =>
-			expect(document.body.querySelector('[role="tooltip"]')).toHaveTextContent(
-				"Runtime",
-			),
-		)
 	},
 })
 
