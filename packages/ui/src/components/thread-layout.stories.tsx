@@ -4,6 +4,7 @@ import { expect, fn, waitFor } from "storybook/test"
 import preview from "@workspace/storybook/preview"
 import { AppHeader } from "@workspace/ui/components/app-header"
 import { ChatEmptyState } from "@workspace/ui/components/chat-empty-state"
+import type { ConnectionStatusState } from "@workspace/ui/components/connection-status"
 import { HeaderIdentityButton } from "@workspace/ui/components/header-identity-button"
 import { Notice } from "@workspace/ui/components/notice"
 import { PinnedMessages } from "@workspace/ui/components/pinned-messages"
@@ -42,11 +43,11 @@ const LONG_TRANSCRIPT = [
 	"What resets when a session restarts?",
 ]
 
-const THREAD_HEADER = (
+const threadHeader = (connection: ConnectionStatusState) => (
 	<AppHeader
 		leading={
 			<HeaderIdentityButton
-				connection="ready"
+				connection={connection}
 				name="Skippy"
 				onOpenSettings={fn()}
 				seed={BOT.id}
@@ -57,20 +58,9 @@ const THREAD_HEADER = (
 	/>
 )
 
-const CRASHED_HEADER = (
-	<AppHeader
-		leading={
-			<HeaderIdentityButton
-				connection="crashed"
-				name="Skippy"
-				onOpenSettings={fn()}
-				seed={BOT.id}
-				version="2.1.233"
-			/>
-		}
-		trailing={<PinnedMessages messages={[]} onJump={fn()} onUnpin={fn()} />}
-	/>
-)
+const THREAD_HEADER = threadHeader("ready")
+
+const CRASHED_HEADER = threadHeader("crashed")
 
 const CONVERSATION = (
 	<>
