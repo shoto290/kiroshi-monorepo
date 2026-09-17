@@ -102,18 +102,14 @@ export const toInstallableApplication = (
 	refusal: refusalOf(application),
 })
 
-const refusalOfRow = (row: ApplicationRow) => {
-	if (row.status !== "needsAuthorization" && row.status !== "failed") {
+const connectRefusalOf = (rows: ApplicationRow[], name: string) => {
+	const row = rows.find((held) => held.name === name)
+	if (row?.status !== "needsAuthorization" && row?.status !== "failed") {
 		return null
 	}
 	return new Error(
 		row.reason ?? i18n.t(`bots:applications.connection.state.${row.status}`),
 	)
-}
-
-const connectRefusalOf = (rows: ApplicationRow[], name: string) => {
-	const row = rows.find((held) => held.name === name)
-	return row ? refusalOfRow(row) : null
 }
 
 const connectFor =
