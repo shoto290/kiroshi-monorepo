@@ -1,10 +1,12 @@
 import type {
+	BotMcpConnectionReason,
 	BotMcpConnectionState,
 	BotMcpServerItem,
 } from "@workspace/ui/components/bot-settings"
 import type { McpConnectionSection } from "@workspace/ui/components/bot-settings-dialog/mcp-connection"
 import { readMcpServerLaunch } from "@workspace/ui/components/bot-settings-dialog/mcp-server-launch"
 
+import { toConnectionReason } from "./connection-reason"
 import type { ConnectionsState } from "./connections-controller"
 import type { Connections } from "./use-connections"
 
@@ -31,18 +33,23 @@ const urlOf = (server: BotMcpServer) =>
 const hostOf = (url: string) =>
 	URL.canParse(url) ? new URL(url).host : undefined
 
+type ApplicationConnection = {
+	state?: BotMcpConnectionState
+	reason?: BotMcpConnectionReason
+}
+
 const connectionOf = (
 	state: ConnectionsState,
 	name: string,
-): BotMcpConnectionState | undefined => {
+): ApplicationConnection => {
 	if (state.connecting === name) {
-		return "connecting"
+		return { state: "connecting" }
 	}
 	if (state.failure?.command === "connect" && state.failure.name === name) {
-		return "failed"
+		return { state: "failed", reason: toConnectionReason(state.failure.reason) }
 	}
 	const status = state.rows.find((row) => row.name === name)?.status
-	return status === "unknown" ? undefined : status
+	return status === "unknown" ? {} : { state: status }
 }
 
 type ConnectionLanding = "connected" | "disconnected"
@@ -80,13 +87,14 @@ const sectionOf = (
 	settle: ConnectionRuns,
 ): McpConnectionSection | undefined => {
 	const connection = connectionOf(state, server.name)
-	if (!connection) {
+	if (!connection.state) {
 		return undefined
 	}
 	const url = urlOf(server)
 
 	return {
-		state: connection,
+		state: connection.state,
+		reason: connection.reason,
 		host: hostOf(url),
 		onConnect: () => {
 			settle(server.name, "connected", controller.connect(server.name, url))
@@ -114,10 +122,10 @@ export const toConnectionSettings = ({
 	const settle = settling(connections, onSettled)
 
 	return {
-		mcpServers: servers.map((server) => ({
-			...server,
-			connection: connectionOf(connections.state, server.name),
-		})),
+		mcpServers: servers.map((server) => {
+			const { state, reason } = connectionOf(connections.state, server.name)
+			return { ...server, connection: state, reason }
+		}),
 		onServerConnect: (server) => {
 			settle(
 				server.name,

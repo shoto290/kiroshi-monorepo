@@ -9,7 +9,7 @@ import {
 	within,
 } from "@testing-library/react"
 import { createElement, useEffect, useState } from "react"
-import { afterEach, describe, expect, it, vi } from "vitest"
+import { afterEach, beforeEach, describe, expect, it, vi } from "vitest"
 
 import { SpaceSettingsDialog } from "@workspace/ui/components/space-settings-dialog"
 import "@workspace/ui/lib/i18n"
@@ -102,6 +102,11 @@ const rowOf = (name: string) => {
 
 const lastCall = (port: FakeConnectionPort) => port.calls.at(-1)
 
+const REFUSAL_SENTENCES = [
+	["transport", /couldn’t reach the agent/i],
+	["alreadyRunning", /sign-in is already running/i],
+] as const
+
 const connectionPort = (status: "needsAuthorization" | "connected") => {
 	const port = createFakeConnectionPort()
 	port.rows.space = [
@@ -111,7 +116,14 @@ const connectionPort = (status: "needsAuthorization" | "connected") => {
 	return port
 }
 
-afterEach(cleanup)
+beforeEach(() => {
+	vi.spyOn(console, "error").mockImplementation(() => undefined)
+})
+
+afterEach(() => {
+	cleanup()
+	vi.restoreAllMocks()
+})
 
 describe("space connections", () => {
 	it("opens on its Applications tab and reads the status of the space", async () => {
@@ -267,5 +279,53 @@ describe("space connections", () => {
 		expect(
 			within(atlas).getByRole("button", { name: "Retry atlas" }),
 		).toBeTruthy()
+	})
+
+	it.each(REFUSAL_SENTENCES)(
+		"says on the row why a connect refused for %s failed",
+		async (kind, sentence) => {
+			const port = connectionPort("needsAuthorization")
+			port.refusals.connect = { kind }
+			await mounted(port)
+
+			await press("Connect atlas")
+
+			expect(within(rowOf("atlas")).getByText(sentence)).toBeTruthy()
+		},
+	)
+
+	it.each(REFUSAL_SENTENCES)(
+		"says in the editor why a connect refused for %s failed",
+		async (kind, sentence) => {
+			const port = connectionPort("needsAuthorization")
+			port.refusals.connect = { kind }
+			await mounted(port)
+			await press("Open atlas")
+
+			await press("Connect")
+
+			expect(screen.getByText(sentence)).toBeTruthy()
+		},
+	)
+
+	it("says why a connect the agent refused with no known kind failed", async () => {
+		const port = connectionPort("needsAuthorization")
+		port.refusals.connect = { kind: "denied", detail: "access_denied" }
+		await mounted(port)
+
+		await press("Connect atlas")
+
+		expect(within(rowOf("atlas")).getByText(/access_denied/)).toBeTruthy()
+	})
+
+	it("carries no reason on a connection its status row reads as failed", async () => {
+		const port = createFakeConnectionPort()
+		port.rows.space = [{ name: "atlas", status: "failed", reason: "boom" }]
+		await mounted(port)
+
+		const atlas = rowOf("atlas")
+		expect(within(atlas).getByText("Couldn’t connect")).toBeTruthy()
+		expect(within(atlas).queryByText(/boom/)).toBeNull()
+		expect(within(atlas).queryByText(/sign-in/i)).toBeNull()
 	})
 })
