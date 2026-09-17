@@ -97,9 +97,9 @@ async fn answered(url: Url) -> Result<StatusCode, ApplicationsError> {
 }
 
 fn on_path(path: &OsStr, command: &str) -> bool {
-	let candidates = candidates(command);
+	let named = candidates(command);
 	env::split_paths(path)
-		.any(|directory| candidates.iter().any(|named| executable(directory.join(named))))
+		.any(|directory| named.iter().any(|candidate| executable(directory.join(candidate))))
 }
 
 #[cfg(windows)]
