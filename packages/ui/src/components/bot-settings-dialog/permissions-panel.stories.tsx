@@ -1,5 +1,5 @@
 import { useState } from "react"
-import { expect, fn, screen } from "storybook/test"
+import { expect, fn, screen, waitFor } from "storybook/test"
 
 import preview from "@workspace/storybook/preview"
 import { BLANK_BOT_PERMISSIONS } from "@workspace/ui/components/bot-settings"
@@ -81,7 +81,7 @@ export const PickingTheMode = meta.story({
 		docs: {
 			description: {
 				story:
-					"The five answers a request can meet before any rule applies. Check that the one that waves everything through is nowhere in the list.",
+					"The five answers a request can meet before any rule applies. Check that the one that waves everything through is nowhere in the list. Picking an answer closes the list a frame after the click, so the story waits for the list and its focus guards to leave the document before the audit reads it.",
 			},
 		},
 	},
@@ -101,6 +101,11 @@ export const PickingTheMode = meta.story({
 		await expect(args.onPermissionsChange).toHaveBeenCalledWith(
 			expect.objectContaining({ defaultMode: "plan" }),
 		)
+
+		await waitFor(() => {
+			expect(document.querySelector("[data-base-ui-focus-guard]")).toBeNull()
+			expect(screen.queryAllByRole("option")).toHaveLength(0)
+		})
 	},
 })
 
