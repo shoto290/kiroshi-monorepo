@@ -8,25 +8,15 @@ import {
 } from "@workspace/storybook/story-utils"
 import {
 	PopoverPanel,
-	type PopoverPanelAlign,
 	PopoverPanelContent,
-	type PopoverPanelSide,
+	type PopoverPanelPlacement,
 	PopoverPanelTrigger,
-	type PopoverPanelTriggerMode,
 } from "@workspace/ui/components/popover-panel"
 import { Button } from "@workspace/ui/components/ui/button"
 
-const SIDES = listExhaustively<PopoverPanelSide>({ top: true, bottom: true })
-
-const ALIGNS = listExhaustively<PopoverPanelAlign>({
-	start: true,
-	center: true,
-	end: true,
-})
-
-const TRIGGER_MODES = listExhaustively<PopoverPanelTriggerMode>({
-	click: true,
-	hover: true,
+const PLACEMENTS = listExhaustively<PopoverPanelPlacement>({
+	"top-start": true,
+	"bottom-end": true,
 })
 
 const scaleStepRadius = (host: HTMLElement, token: string) => {
@@ -37,9 +27,6 @@ const scaleStepRadius = (host: HTMLElement, token: string) => {
 	probe.remove()
 	return radius
 }
-
-const anchorLabel = (side: PopoverPanelSide, align: PopoverPanelAlign) =>
-	`${side} ${align}`
 
 const PANEL_TITLE = "Release notes"
 
@@ -68,21 +55,17 @@ const meta = preview.meta({
 		docs: {
 			description: {
 				component:
-					'A plain panel anchored to its trigger: it appears where you put it and leaves when it is dismissed, with no transition of its own. The panel is portalled to the body, which is what lets it escape a sidebar\'s overflow, and it is unmounted while closed, so nothing inside it can be tabbed into. `side`, `align` and `sideOffset` come from one context set on the panel, and `trigger` switches the whole panel between click and hover. `role="dialog"` carries no name of its own: always pass `aria-label` to `PopoverContent`.',
+					'A plain panel anchored to its trigger: it appears where you put it and leaves when it is dismissed, with no transition of its own. The panel is portalled to the body, which is what lets it escape a sidebar\'s overflow, and it is unmounted while closed, so nothing inside it can be tabbed into. `placement` carries the whole anchor as one value, `top-start` or `bottom-end`, and only a click or a keyboard activation opens the panel. `role="dialog"` carries no name of its own: always pass `aria-label` to `PopoverPanelContent`.',
 			},
 		},
 	},
 	args: {
 		children: PANEL,
-		side: "bottom",
-		align: "center",
-		trigger: "click",
+		placement: "bottom-end" as const,
 		onOpenChange: fn(),
 	},
 	argTypes: {
-		side: { control: "inline-radio", options: SIDES },
-		align: { control: "inline-radio", options: ALIGNS },
-		trigger: { control: "inline-radio", options: TRIGGER_MODES },
+		placement: { control: "inline-radio", options: PLACEMENTS },
 		sideOffset: { control: { type: "number", min: 0, step: 2 } },
 	},
 })
@@ -94,13 +77,20 @@ export const Playground = meta.story({
 		docs: {
 			description: {
 				story:
-					"The knob story: turn `sideOffset` up to push the panel further from its trigger. Check that the panel opens on the first click and closes on the second — the trigger toggles, it does not only open — and that `onOpenChange` fires once per gesture. Pick `Open` to review the resting shape without driving it.",
+					"The knob story: turn `sideOffset` up to push the panel further from its trigger. Check that a pointer resting on the trigger leaves the panel closed, that the panel opens on the first click and closes on the second — the trigger toggles, it does not only open — and that `onOpenChange` fires once per gesture. Pick `Open` to review the resting shape without driving it.",
 			},
 		},
 	},
 	play: async ({ args, canvas, canvasElement, userEvent }) => {
 		const body = within(canvasElement.ownerDocument.body)
 		const trigger = canvas.getByRole("button", { name: PANEL_TITLE })
+
+		await userEvent.hover(trigger)
+		await expect(trigger).toHaveAttribute("aria-expanded", "false")
+		await expect(
+			body.queryByRole("dialog", { name: PANEL_TITLE }),
+		).not.toBeInTheDocument()
+		await expect(args.onOpenChange).not.toHaveBeenCalled()
 
 		await userEvent.click(trigger)
 		await expect(trigger).toHaveAttribute("aria-expanded", "true")
@@ -144,52 +134,43 @@ export const Placements = meta.story({
 		docs: {
 			description: {
 				story:
-					"Every anchor the panel exposes: two sides by three alignments, all open at once. Check that each panel clears its trigger instead of covering it, and that the requested edge alignment holds wherever the positioner had room. The registry positioner shifts a panel that would leave the viewport, so read a drifted panel as a placement to fix at the call site. Pick `Open` for one panel at review size.",
+					"Both anchors the panel exposes, open at once: `top-start` above its trigger on the trigger start edge, `bottom-end` below it on the end edge. Check that each panel clears its trigger instead of covering it. The registry positioner shifts a panel that would leave the viewport, so read a drifted panel as a placement to fix at the call site. Pick `Open` for one panel at review size.",
 			},
 		},
 	},
 	render: () => (
-		<div className="grid grid-cols-3 gap-x-20 gap-y-28 px-16 py-24">
-			{SIDES.flatMap((side) =>
-				ALIGNS.map((align) => (
-					<PopoverPanel
-						key={anchorLabel(side, align)}
-						align={align}
-						defaultOpen
-						side={side}
-					>
-						<PopoverPanelTrigger>
-							<Button variant="outline" size="sm">
-								{anchorLabel(side, align)}
-							</Button>
-						</PopoverPanelTrigger>
-						<PopoverPanelContent aria-label={anchorLabel(side, align)}>
-							<p className="text-sm">{anchorLabel(side, align)}</p>
-						</PopoverPanelContent>
-					</PopoverPanel>
-				)),
-			)}
+		<div className="grid grid-cols-2 gap-x-20 gap-y-28 px-16 py-24">
+			{PLACEMENTS.map((placement) => (
+				<PopoverPanel defaultOpen key={placement} placement={placement}>
+					<PopoverPanelTrigger>
+						<Button variant="outline" size="sm">
+							{placement}
+						</Button>
+					</PopoverPanelTrigger>
+					<PopoverPanelContent aria-label={placement}>
+						<p className="text-sm">{placement}</p>
+					</PopoverPanelContent>
+				</PopoverPanel>
+			))}
 		</div>
 	),
 	play: async ({ canvasElement }) => {
 		const body = within(canvasElement.ownerDocument.body)
 
-		for (const side of SIDES) {
-			for (const align of ALIGNS) {
-				const label = anchorLabel(side, align)
-				const panel = await body.findByRole("dialog", { name: label })
-				const trigger = body.getByRole("button", { name: label })
+		for (const placement of PLACEMENTS) {
+			const panel = await body.findByRole("dialog", { name: placement })
+			const trigger = body.getByRole("button", { name: placement })
 
-				await waitFor(() => {
-					const panelBox = panel.getBoundingClientRect()
-					const triggerBox = trigger.getBoundingClientRect()
+			await waitFor(() => {
+				const panelBox = panel.getBoundingClientRect()
+				const triggerBox = trigger.getBoundingClientRect()
 
-					expect(
-						panelBox.bottom <= triggerBox.top ||
-							panelBox.top >= triggerBox.bottom,
-					).toBe(true)
-				})
-			}
+				expect(
+					placement === "top-start"
+						? panelBox.bottom <= triggerBox.top
+						: panelBox.top >= triggerBox.bottom,
+				).toBe(true)
+			})
 		}
 	},
 })
@@ -206,7 +187,7 @@ export const Dismiss = meta.story({
 	},
 	render: () => (
 		<Row>
-			<PopoverPanel>{PANEL}</PopoverPanel>
+			<PopoverPanel placement="bottom-end">{PANEL}</PopoverPanel>
 			<Button variant="ghost">Elsewhere</Button>
 		</Row>
 	),
@@ -232,41 +213,6 @@ export const Dismiss = meta.story({
 	},
 })
 
-export const OnHover = meta.story({
-	args: { children: PANEL, trigger: "hover" },
-	parameters: {
-		a11y: A11Y_FLOATING_FOCUS_GUARDS,
-		docs: {
-			description: {
-				story:
-					'Reach for `trigger="hover"` on a panel that only previews — a peek at a resource, never a form — because a pointer that wanders off closes it. Check that the panel opens on hover and on Tab, that moving the pointer from the trigger into the panel does not close it on the way across the neck, and that leaving closes it after a short grace delay. Pick the default `click` mode for anything holding an action.',
-			},
-		},
-	},
-	play: async ({ canvas, canvasElement, userEvent }) => {
-		const body = within(canvasElement.ownerDocument.body)
-		const trigger = canvas.getByRole("button", { name: PANEL_TITLE })
-
-		await userEvent.hover(trigger)
-		await waitFor(() =>
-			expect(trigger).toHaveAttribute("aria-expanded", "true"),
-		)
-		const panel = await body.findByRole("dialog", { name: PANEL_TITLE })
-		await waitFor(async () => expect(panel).toBeVisible())
-
-		await userEvent.hover(panel)
-		await expect(trigger).toHaveAttribute("aria-expanded", "true")
-
-		await userEvent.unhover(panel)
-		await waitFor(() =>
-			expect(
-				body.queryByRole("dialog", { name: PANEL_TITLE }),
-			).not.toBeInTheDocument(),
-		)
-		await expect(trigger).toHaveAttribute("aria-expanded", "false")
-	},
-})
-
 export const LongContent = meta.story({
 	parameters: {
 		docs: {
@@ -277,7 +223,7 @@ export const LongContent = meta.story({
 		},
 	},
 	render: () => (
-		<PopoverPanel defaultOpen>
+		<PopoverPanel defaultOpen placement="bottom-end">
 			<PopoverPanelTrigger>
 				<Button variant="outline" size="sm">
 					v0.4.0
@@ -309,8 +255,8 @@ export const States = meta.story({
 	},
 	render: () => (
 		<Row>
-			<PopoverPanel>{PANEL}</PopoverPanel>
-			<PopoverPanel>
+			<PopoverPanel placement="bottom-end">{PANEL}</PopoverPanel>
+			<PopoverPanel placement="bottom-end">
 				<PopoverPanelTrigger>
 					<Button disabled variant="outline">
 						Unavailable
