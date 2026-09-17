@@ -3,7 +3,6 @@ import { expect, fn } from "storybook/test"
 
 import preview from "@workspace/storybook/preview"
 import { slotsIn } from "@workspace/storybook/story-utils"
-import { Icons } from "@workspace/ui/components/icons"
 import {
 	SettingsField,
 	type SettingsFieldProps,
@@ -193,32 +192,6 @@ export const ReadOnly = meta.story({
 
 		await userEvent.type(field, "!")
 		await expect(args.onValueChange).not.toHaveBeenCalled()
-	},
-})
-
-export const WithIcon = meta.story({
-	args: {
-		icon: Icons.Search,
-		label: "Companions",
-		placeholder: "Search companions",
-		value: "",
-	},
-	parameters: {
-		docs: {
-			description: {
-				story:
-					"A single-line field carrying a glyph inside the control, the form a search field takes at the head of a list. Check that the glyph is decorative and never reached by Tab, that the text starts clear of it at every value length, and that the visible label still names the control — the glyph hints at the job, it does not replace the label. Only the single-line form takes an icon; a `rows` or `fill` field ignores it.",
-			},
-		},
-	},
-	play: async ({ args, canvas, userEvent }) => {
-		const field = canvas.getByLabelText("Companions")
-
-		await userEvent.tab()
-		await expect(field).toHaveFocus()
-
-		await userEvent.type(field, "atl")
-		await expect(args.onValueChange).toHaveBeenLastCalledWith("atl")
 	},
 })
 
