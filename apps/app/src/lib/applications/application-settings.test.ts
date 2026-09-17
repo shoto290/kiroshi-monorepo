@@ -101,6 +101,23 @@ const NO_CONNECTIONS = {
 	} as unknown as Connections["controller"],
 } as Connections
 
+const scopeOf = (
+	applications = applicationsWith({ curated: [LINEAR] }),
+	servers = serversWith(USER),
+	reopen = vi.fn(async () => undefined),
+) => ({
+	scope: toApplicationScope({
+		applications,
+		servers,
+		connections: NO_CONNECTIONS,
+		openedName: null,
+		reopen,
+	}),
+	applications,
+	servers,
+	reopen,
+})
+
 const connectionsLanding = (connected: string[]): Connections => {
 	const state = {
 		owner: USER,
@@ -119,24 +136,29 @@ const connectionsLanding = (connected: string[]): Connections => {
 	} as unknown as Connections
 }
 
-const scopeOf = (
-	applications = applicationsWith({ curated: [LINEAR] }),
-	servers = serversWith(USER),
-	reopen = vi.fn(async () => undefined),
-	connections: Connections = NO_CONNECTIONS,
-	openedName: string | null = null,
-) => ({
-	scope: toApplicationScope({
-		applications,
-		servers,
-		connections,
-		openedName,
+type SettlingScopeSource = {
+	owner?: EnvOwner | null
+	connected: string[]
+	openedName?: string | null
+}
+
+const settlingScopeOf = ({
+	owner = USER,
+	connected,
+	openedName = null,
+}: SettlingScopeSource) => {
+	const reopen = vi.fn(async () => undefined)
+	return {
+		scope: toApplicationScope({
+			applications: applicationsWith({ curated: [LINEAR] }),
+			servers: serversWith(owner, [LINEAR_SERVER, ATLAS_SERVER]),
+			connections: connectionsLanding(connected),
+			openedName,
+			reopen,
+		}),
 		reopen,
-	}),
-	applications,
-	servers,
-	reopen,
-})
+	}
+}
 
 const settled = async () => {
 	await Promise.resolve()
@@ -427,12 +449,7 @@ describe("toApplicationScope", () => {
 	})
 
 	it("reopens the sessions of the panel owner once a panel row connects", async () => {
-		const { scope, reopen } = scopeOf(
-			applicationsWith({ curated: [LINEAR] }),
-			serversWith(USER, [LINEAR_SERVER]),
-			vi.fn(async () => undefined),
-			connectionsLanding(["linear"]),
-		)
+		const { scope, reopen } = settlingScopeOf({ connected: ["linear"] })
 
 		scope.onServerConnect({ name: "linear", config: {} })
 		await settled()
@@ -444,13 +461,10 @@ describe("toApplicationScope", () => {
 	})
 
 	it("reopens the sessions of the panel owner once the opened page connects", async () => {
-		const { scope, reopen } = scopeOf(
-			applicationsWith({ curated: [LINEAR] }),
-			serversWith(USER, [LINEAR_SERVER]),
-			vi.fn(async () => undefined),
-			connectionsLanding(["linear"]),
-			"linear",
-		)
+		const { scope, reopen } = settlingScopeOf({
+			connected: ["linear"],
+			openedName: "linear",
+		})
 
 		scope.serverConnection?.onConnect?.()
 		await settled()
@@ -462,13 +476,10 @@ describe("toApplicationScope", () => {
 	})
 
 	it("names the settled application, not the opened one", async () => {
-		const { scope, reopen } = scopeOf(
-			applicationsWith({ curated: [LINEAR] }),
-			serversWith(USER, [LINEAR_SERVER, ATLAS_SERVER]),
-			vi.fn(async () => undefined),
-			connectionsLanding(["atlas"]),
-			"linear",
-		)
+		const { scope, reopen } = settlingScopeOf({
+			connected: ["atlas"],
+			openedName: "linear",
+		})
 
 		scope.onServerConnect({ name: "atlas", config: {} })
 		await settled()
@@ -480,12 +491,7 @@ describe("toApplicationScope", () => {
 	})
 
 	it("leaves the sessions alone when the connect never lands", async () => {
-		const { scope, reopen } = scopeOf(
-			applicationsWith({ curated: [LINEAR] }),
-			serversWith(USER, [LINEAR_SERVER]),
-			vi.fn(async () => undefined),
-			connectionsLanding([]),
-		)
+		const { scope, reopen } = settlingScopeOf({ connected: [] })
 
 		scope.onServerConnect({ name: "linear", config: {} })
 		await settled()
@@ -494,12 +500,10 @@ describe("toApplicationScope", () => {
 	})
 
 	it("leaves the sessions alone while the panel holds no owner", async () => {
-		const { scope, reopen } = scopeOf(
-			applicationsWith({ curated: [LINEAR] }),
-			serversWith(null, [LINEAR_SERVER]),
-			vi.fn(async () => undefined),
-			connectionsLanding(["linear"]),
-		)
+		const { scope, reopen } = settlingScopeOf({
+			owner: null,
+			connected: ["linear"],
+		})
 
 		scope.onServerConnect({ name: "linear", config: {} })
 		await settled()
