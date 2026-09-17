@@ -5,8 +5,9 @@ use serde_json::Value;
 use tauri::{AppHandle, Emitter, Manager, Runtime, State};
 
 use super::contract::{
-	Application, ApplicationInstall, ApplicationInstalled, ApplicationCallError, InstallCase,
-	InstallOutcome, ApplicationSearch, ApplicationState, Destination, InstallDraft, INSTALLED_EVENT,
+	Application, ApplicationInstall, ApplicationInstalled, ApplicationCallError, Install,
+	InstallCase, InstallOutcome, ApplicationSearch, ApplicationState, Destination, InstallDraft,
+	INSTALLED_EVENT,
 };
 use super::catalogue;
 use super::directory::{Directory, DIRECTORY};
@@ -29,6 +30,8 @@ use crate::user::commands::{user_plugin_mcp_servers, user_plugin_set_mcp_server}
 const SUBTYPE: &str = "application";
 
 const NO_DATABASE: &str = "the store this session writes to is not open";
+
+const OFFERS: usize = 9;
 
 #[derive(Debug)]
 pub struct ApplicationHost<R: Runtime> {
@@ -102,7 +105,7 @@ impl<R: Runtime> ApplicationHost<R> {
 			Err(failure) => (Vec::new(), Some(failure)),
 		};
 		Ok(ApplicationSearch {
-			applications: curated.into_iter().chain(found).collect(),
+			applications: curated.into_iter().chain(offered(found)).collect(),
 			registry_failure,
 			read_at: None,
 			is_stale: None,
@@ -301,6 +304,14 @@ fn mark_of(application: &Application) -> ApplicationMark {
 		logo: application.logo.clone(),
 		logo_url: application.logo_url.clone(),
 	}
+}
+
+fn offered(found: Vec<Application>) -> Vec<Application> {
+	found.into_iter().filter(installable).take(OFFERS).collect()
+}
+
+fn installable(application: &Application) -> bool {
+	!matches!(application.install, Install::Refused(_))
 }
 
 fn matching(curated: Vec<Application>, query: &str) -> Vec<Application> {
@@ -531,6 +542,100 @@ mod tests {
 		);
 		assert!(answer.get("registryFailure").is_none(), "got {answer}");
 		assert!(held.asked.lock().expect("the stub records").is_empty(), "the registry was read");
+		cleaned(&app);
+	}
+
+	const A_DIRECTORY_PAGE: [&str; 12] = [
+		"zinc-1", "zinc-2", "zinc-3", "zinc-4", "zinc-5", "zinc-6", "zinc-7", "zinc-8", "zinc-9",
+		"zinc-10", "zinc-11", "zinc-12",
+	];
+
+	const TEN_REMOTES: [&str; 10] = [
+		"io.test/one",
+		"io.test/two",
+		"io.test/three",
+		"io.test/four",
+		"io.test/five",
+		"io.test/six",
+		"io.test/seven",
+		"io.test/eight",
+		"io.test/nine",
+		"io.test/collapsed",
+	];
+
+	fn a_remote_named(name: &str) -> Value {
+		json!({
+			"name": name,
+			"remotes": [{ "type": "streamable-http", "url": "https://mcp.io.test/mcp" }],
+		})
+	}
+
+	async fn a_host_reading(app: &App<MockRuntime>, page: &[&str]) -> ApplicationHost<MockRuntime> {
+		let (served, _) = directory_stub::serving(vec![directory_stub::a_page(page)]).await;
+		let (base, _) = serving(holding(Vec::new())).await;
+		ApplicationHost {
+			directory: Arc::new(Directory::at(served, None)),
+			..reading(app, "c1", base)
+		}
+	}
+
+	#[tokio::test]
+	async fn a_search_answers_nine_directory_rows_at_most() {
+		let app = a_host("bounded-directory").await;
+
+		let answer = a_host_reading(&app, &A_DIRECTORY_PAGE)
+			.await
+			.answer(asking("search", json!({ "query": "zinc" })))
+			.await
+			.expect("the search answers");
+
+		assert_eq!(
+			names(&answer),
+			[
+				"zinc-1", "zinc-2", "zinc-3", "zinc-4", "zinc-5", "zinc-6", "zinc-7", "zinc-8",
+				"zinc-9"
+			]
+		);
+		cleaned(&app);
+	}
+
+	#[tokio::test]
+	async fn a_curated_match_is_answered_beside_the_nine_directory_rows_and_is_not_cut() {
+		let app = a_host("bounded-beside-curated").await;
+		let page: Vec<String> = (1..=12).map(|held| format!("superset-{held}")).collect();
+		let page: Vec<&str> = page.iter().map(String::as_str).collect();
+
+		let answer = a_host_reading(&app, &page)
+			.await
+			.answer(asking("search", json!({ "query": "superset" })))
+			.await
+			.expect("the search answers");
+
+		let answered = names(&answer);
+		assert_eq!(answered.len(), 10, "got {answered:?}");
+		assert_eq!(answered[0], "superset");
+		assert_eq!(answered[1], "superset-1");
+		assert_eq!(answered[9], "superset-9");
+		cleaned(&app);
+	}
+
+	#[tokio::test]
+	async fn a_remote_row_whose_install_is_refused_is_left_out_and_takes_none_of_the_nine() {
+		let app = a_host("refused-row").await;
+		let held =
+			TEN_REMOTES.iter().fold(holding(TEN_REMOTES.to_vec()), |held, name| match *name {
+				"io.test/collapsed" => held.also(a_collapsed_header_server()),
+				held_name => held.also(a_remote_named(held_name)),
+			});
+		let (base, _) = serving(held).await;
+
+		let answer = reading(&app, "c1", base)
+			.answer(asking("search", json!({ "query": "zinc" })))
+			.await
+			.expect("the search answers");
+
+		assert_eq!(names(&answer).len(), 9, "got {answer}");
+		assert!(!names(&answer).contains(&"io.test/collapsed"), "got {answer}");
 		cleaned(&app);
 	}
 
