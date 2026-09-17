@@ -203,7 +203,7 @@ describe("space connections", () => {
 		port.grant()
 		await settle()
 
-		expect(onSettled).toHaveBeenCalledTimes(1)
+		expect(onSettled).toHaveBeenCalledWith("atlas")
 	})
 
 	it("says nothing landed when the connect was refused", async () => {
@@ -240,7 +240,7 @@ describe("space connections", () => {
 		await press("Disconnect")
 		await press("Disconnect", screen.getByRole("alertdialog"))
 
-		expect(onSettled).toHaveBeenCalledTimes(1)
+		expect(onSettled).toHaveBeenCalledWith("atlas")
 	})
 
 	it("says nothing landed when the server is still connected", async () => {

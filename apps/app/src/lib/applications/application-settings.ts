@@ -245,17 +245,11 @@ export const toApplicationScope = ({
 		}
 	}
 
-	const settleConnection = () => {
-		if (openedName) {
-			reopenFor(openedName)
-		}
-	}
-
 	const connectionSettings = toConnectionSettings({
 		servers: servers.state.servers,
 		connections,
 		openedName,
-		onSettled: settleConnection,
+		onSettled: reopenFor,
 	})
 
 	const installTarget = (owned: EnvOwner): InstallTarget => ({
