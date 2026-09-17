@@ -283,6 +283,9 @@ fn is_stale(read_at: i64, now: i64) -> bool {
 
 fn matched(applications: &[Application], query: &str) -> Vec<Application> {
 	let wanted = wanted(query);
+	if wanted.is_empty() {
+		return applications.to_vec();
+	}
 	applications.iter().filter(|held| carries(held, &wanted)).cloned().collect()
 }
 
