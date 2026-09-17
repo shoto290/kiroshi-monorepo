@@ -209,8 +209,19 @@ export const createApplicationsController = (
 		[...state.curated, ...state.registry].find((held) => held.name === id) ??
 		null
 
+	const deleteWrittenSecrets = async (owner: EnvOwner, name: string) => {
+		const scope = serverScopeOf(owner, name)
+		const written = await store.environmentVariables(scope)
+		for (const entry of written) {
+			if (entry.definedIn.kind === "server") {
+				await store.deleteEnvironmentVariable(scope, entry.name)
+			}
+		}
+	}
+
 	const rollBackDeclaration = async (owner: EnvOwner, name: string) => {
 		try {
+			await deleteWrittenSecrets(owner, name)
 			await undeclareServer(store, owner, name)
 		} catch (refusal) {
 			reportFailure({
@@ -262,16 +273,21 @@ export const createApplicationsController = (
 		const { owner } = target
 		const wasDeclared = await isDeclaredUnder(owner, application.name)
 		await declareServer(store, owner, application.name, application.config)
-		try {
-			await writeKeys(owner, application.name, asked)
-		} catch (refusal) {
-			if (!wasDeclared) {
-				await rollBackDeclaration(owner, application.name)
+		const orRollBack = async (step: () => Promise<void>) => {
+			try {
+				await step()
+			} catch (refusal) {
+				if (!wasDeclared) {
+					await rollBackDeclaration(owner, application.name)
+				}
+				throw refusal
 			}
-			throw refusal
 		}
+		await orRollBack(() => writeKeys(owner, application.name, asked))
 		if (application.install.kind === "oauth") {
-			await target.connect(application.name, urlOf(application))
+			await orRollBack(() =>
+				target.connect(application.name, urlOf(application)),
+			)
 		}
 	}
 

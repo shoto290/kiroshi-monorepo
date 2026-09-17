@@ -1,4 +1,4 @@
-import { describe, expect, it, vi } from "vitest"
+import { describe, expect, it, type Mock, vi } from "vitest"
 
 import type { Application } from "./application-port"
 import {
@@ -11,8 +11,11 @@ import {
 import {
 	type ApplicationsController,
 	type ApplicationsState,
+	type InstallTarget,
 	initialApplicationsState,
 } from "./applications-controller"
+import type { ApplicationRow } from "./connection-port"
+import type { ConnectionFailure } from "./connections-controller"
 import type { Connections } from "./use-connections"
 
 import type { McpServers } from "../bots/use-mcp-servers"
@@ -509,5 +512,105 @@ describe("toApplicationScope", () => {
 		await settled()
 
 		expect(reopen).not.toHaveBeenCalled()
+	})
+})
+
+const connectionsReading = (
+	rows: ApplicationRow[],
+	failure: ConnectionFailure | null = null,
+): Connections => {
+	const state = { owner: USER, rows, connecting: null, failure }
+	return {
+		state,
+		controller: {
+			connect: vi.fn(async () => undefined),
+			disconnect: vi.fn(async () => undefined),
+			cancel: vi.fn(async () => undefined),
+			getState: () => state,
+		},
+	} as unknown as Connections
+}
+
+const installTargetOf = (connections: Connections) => {
+	const applications = applicationsWith({ curated: [LINEAR], picked: LINEAR })
+	const scope = toApplicationScope({
+		applications,
+		servers: serversWith(USER),
+		connections,
+		openedName: null,
+		reopen: vi.fn(async () => undefined),
+	})
+	scope.mcpCatalogue?.install?.onInstall({})
+	const install = applications.controller.install as Mock
+	return install.mock.calls[0]?.[0] as InstallTarget
+}
+
+const connectingLinear = (connections: Connections) =>
+	installTargetOf(connections).connect("linear", "https://mcp.linear.app/mcp")
+
+describe("the connect an install runs", () => {
+	it("refuses a connect the read back row says needs authorization", async () => {
+		const connections = connectionsReading([
+			{ name: "linear", status: "needsAuthorization", reason: "you said no" },
+		])
+
+		await expect(connectingLinear(connections)).rejects.toThrow("you said no")
+	})
+
+	it("refuses a connect the read back row says failed", async () => {
+		const connections = connectionsReading([
+			{ name: "linear", status: "failed", reason: "the token was refused" },
+		])
+
+		await expect(connectingLinear(connections)).rejects.toThrow(
+			"the token was refused",
+		)
+	})
+
+	it("names the status read back when the refusal carries no reason", async () => {
+		const connections = connectionsReading([
+			{ name: "linear", status: "needsAuthorization" },
+		])
+
+		await expect(connectingLinear(connections)).rejects.toThrow(
+			"Needs authorization",
+		)
+	})
+
+	it("reports the failure of the connect over the status read back", async () => {
+		const connections = connectionsReading(
+			[{ name: "linear", status: "failed", reason: "the token was refused" }],
+			{
+				command: "connect",
+				name: "linear",
+				reason: "the browser wouldn’t open",
+			},
+		)
+
+		await expect(connectingLinear(connections)).rejects.toThrow(
+			"the browser wouldn’t open",
+		)
+	})
+
+	it("lands a connect the read back row says connected", async () => {
+		const connections = connectionsReading([
+			{ name: "linear", status: "connected" },
+		])
+
+		await expect(connectingLinear(connections)).resolves.toBeUndefined()
+	})
+
+	it("lands a connect the read back row says is still connecting", async () => {
+		const connections = connectionsReading([
+			{ name: "linear", status: "connecting" },
+		])
+
+		await expect(connectingLinear(connections)).resolves.toBeUndefined()
+	})
+
+	it("lands a connect whose application carries no row", async () => {
+		await expect(
+			connectingLinear(connectionsReading([])),
+		).resolves.toBeUndefined()
 	})
 })
