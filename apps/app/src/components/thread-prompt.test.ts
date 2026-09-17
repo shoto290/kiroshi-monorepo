@@ -26,7 +26,7 @@ const SENTRY: Application = {
 	logo: SENTRY_LOGO,
 	install: {
 		kind: "key",
-		fields: [{ name: "token", secret: "SENTRY_AUTH_TOKEN" }],
+		fields: [{ name: "token", secret: "SENTRY_AUTH_TOKEN", concealed: true }],
 	},
 }
 

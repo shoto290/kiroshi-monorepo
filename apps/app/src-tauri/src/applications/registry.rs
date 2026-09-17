@@ -8,6 +8,7 @@ use serde::Deserialize;
 use serde_json::{json, Map, Value};
 
 use super::contract::{Application, ApplicationsError, Install, InstallField};
+use super::runnable::{NPX, UVX};
 use super::search::{repository, Listing};
 use crate::missions::github::installed_tls_provider;
 
@@ -28,6 +29,8 @@ const STREAMABLE_HTTP: &str = "streamable-http";
 const SSE: &str = "sse";
 
 const NPM: &str = "npm";
+
+const PYPI: &str = "pypi";
 
 #[derive(Deserialize)]
 struct Listed {
@@ -104,7 +107,7 @@ struct Input {
 
 enum Transport<'a> {
 	Remote(&'a Remote),
-	Npm(&'a Package),
+	Package(&'a Package),
 }
 
 pub async fn search(base: &str, query: &str) -> Result<Vec<Listing>, ApplicationsError> {
@@ -200,7 +203,7 @@ fn unreached(error: reqwest::Error) -> ApplicationsError {
 fn descriptor(server: Server) -> Option<Listing> {
 	let (config, install) = match transport(&server)? {
 		Transport::Remote(remote) => remote_served(remote),
-		Transport::Npm(package) => package_served(package),
+		Transport::Package(package) => package_served(package),
 	};
 	Some(Listing {
 		repository: server
@@ -245,8 +248,12 @@ fn package_served(package: &Package) -> (Value, Install) {
 fn transport(server: &Server) -> Option<Transport<'_>> {
 	let remote = |kind: &str| server.remotes.iter().find(|remote| remote.kind == kind);
 	remote(STREAMABLE_HTTP).or_else(|| remote(SSE)).map(Transport::Remote).or_else(|| {
-		server.packages.iter().find(|package| package.registry_type == NPM).map(Transport::Npm)
+		server.packages.iter().find(|package| runs_locally(package)).map(Transport::Package)
 	})
+}
+
+fn runs_locally(package: &Package) -> bool {
+	matches!(package.registry_type.as_str(), NPM | PYPI)
 }
 
 fn remote_config(remote: &Remote) -> Value {
@@ -267,12 +274,19 @@ fn substituted(template: &str, reference: &str) -> Option<String> {
 }
 
 fn package_config(package: &Package, env: Map<String, Value>) -> Value {
-	let mut config =
-		json!({ "type": "stdio", "command": "npx", "args": ["-y", package.identifier] });
+	let (command, args) = launched(package);
+	let mut config = json!({ "type": "stdio", "command": command, "args": args });
 	if !env.is_empty() {
 		config["env"] = Value::Object(env);
 	}
 	config
+}
+
+fn launched(package: &Package) -> (&'static str, Vec<&str>) {
+	match package.registry_type.as_str() {
+		PYPI => (UVX, vec![package.identifier.as_str()]),
+		_ => (NPX, vec!["-y", package.identifier.as_str()]),
+	}
 }
 
 pub(super) fn reference(declared: &str) -> String {
@@ -331,6 +345,7 @@ fn asked_field(input: &Input) -> InstallField {
 		name: input.name.clone(),
 		secret: variable(&input.name),
 		description: input.description.clone(),
+		concealed: input.is_secret,
 	}
 }
 
@@ -436,6 +451,7 @@ pub(crate) mod tests {
 					name: "Authorization".to_owned(),
 					secret: "AUTHORIZATION".to_owned(),
 					description: Some("Bearer token for Smithery authentication".to_owned()),
+					concealed: true,
 				}],
 			}
 		);
@@ -492,6 +508,7 @@ pub(crate) mod tests {
 					name: "Authorization".to_owned(),
 					secret: "AUTHORIZATION".to_owned(),
 					description: None,
+					concealed: false,
 				}],
 			}
 		);
@@ -553,6 +570,7 @@ pub(crate) mod tests {
 					name: "X-Account".to_owned(),
 					secret: "X_ACCOUNT".to_owned(),
 					description: Some("The account.".to_owned()),
+					concealed: false,
 				}],
 			}
 		);
@@ -599,6 +617,7 @@ pub(crate) mod tests {
 					name: "ALLOWED_ROOT".to_owned(),
 					secret: "ALLOWED_ROOT".to_owned(),
 					description: Some("The served root.".to_owned()),
+					concealed: false,
 				}],
 			}
 		);
@@ -664,11 +683,13 @@ pub(crate) mod tests {
 						name: "api-key".to_owned(),
 						secret: "API_KEY".to_owned(),
 						description: Some("The key.".to_owned()),
+						concealed: true,
 					},
 					InstallField {
 						name: "OTHER_KEY".to_owned(),
 						secret: "OTHER_KEY".to_owned(),
 						description: None,
+						concealed: true,
 					},
 				],
 			}
@@ -707,11 +728,13 @@ pub(crate) mod tests {
 						name: "Authorization".to_owned(),
 						secret: "AUTHORIZATION".to_owned(),
 						description: Some("The key.".to_owned()),
+						concealed: true,
 					},
 					InstallField {
 						name: "X-Tenant".to_owned(),
 						secret: "X_TENANT".to_owned(),
 						description: None,
+						concealed: true,
 					},
 				],
 			}
@@ -753,6 +776,157 @@ pub(crate) mod tests {
 		);
 	}
 
+	fn a_godot_pypi_server() -> Value {
+		json!({
+			"name": "io.github.DiegoBr4nd/godot-gut-mcp",
+			"description": "Servidor MCP que permite ejecutar tests de Godot con GUT desde cualquier IA",
+			"repository": { "url": "https://github.com/DiegoBr4nd/godot-gut-mcp", "source": "github" },
+			"version": "0.1.2",
+			"packages": [{
+				"registryType": "pypi",
+				"identifier": "godot-gut-mcp",
+				"version": "0.1.2",
+				"transport": { "type": "stdio" },
+				"environmentVariables": [
+					{
+						"description": "Ruta al ejecutable de Godot (por ejemplo C:/ruta/a/godot.exe)",
+						"isRequired": true,
+						"format": "string",
+						"name": "GODOT_PATH",
+					},
+					{
+						"description": "Ruta a la carpeta del proyecto de Godot (la que contiene project.godot)",
+						"isRequired": true,
+						"format": "string",
+						"name": "GODOT_PROJECT_PATH",
+					},
+				],
+			}],
+		})
+	}
+
+	fn a_godot_npm_server_asking_a_secret() -> Value {
+		json!({
+			"name": "io.github.FunplayAI/funplay-godot-mcp",
+			"description": "stdio bridge for the local Godot Editor MCP server.",
+			"title": "Funplay Godot MCP",
+			"version": "0.10.0",
+			"packages": [{
+				"registryType": "npm",
+				"identifier": "funplay-godot-mcp",
+				"version": "0.10.0",
+				"transport": { "type": "stdio" },
+				"environmentVariables": [
+					{
+						"description": "Optional Godot MCP HTTP endpoint. Defaults to http://127.0.0.1:8765/.",
+						"format": "string",
+						"name": "FUNPLAY_GODOT_MCP_URL",
+					},
+					{
+						"description": "Compatibility endpoint variable used when FUNPLAY_GODOT_MCP_URL is not set.",
+						"format": "string",
+						"name": "GODOT_MCP_URL",
+					},
+					{
+						"description": "Godot MCP local auth token from the Funplay MCP dock.",
+						"isRequired": true,
+						"format": "string",
+						"isSecret": true,
+						"name": "FUNPLAY_GODOT_MCP_TOKEN",
+					},
+					{
+						"description": "Compatibility token variable used when FUNPLAY_GODOT_MCP_TOKEN is not set.",
+						"format": "string",
+						"isSecret": true,
+						"name": "GODOT_MCP_TOKEN",
+					},
+				],
+			}],
+		})
+	}
+
+	fn a_godot_npm_server_asking_nothing() -> Value {
+		json!({
+			"name": "io.github.TomasLucasUTN/godot-mcp-bridge",
+			"description": "MCP server for Godot game engine integration",
+			"version": "1.2.1",
+			"packages": [{
+				"registryType": "npm",
+				"identifier": "godot-mcp-bridge",
+				"version": "1.2.1",
+				"transport": { "type": "stdio" },
+			}],
+		})
+	}
+
+	#[test]
+	fn the_godot_pypi_server_runs_through_uvx_and_asks_for_its_two_plain_variables() {
+		let application = described(a_godot_pypi_server());
+
+		assert_eq!(
+			application.config,
+			json!({
+				"type": "stdio",
+				"command": "uvx",
+				"args": ["godot-gut-mcp"],
+				"env": {
+					"GODOT_PATH": "${GODOT_PATH}",
+					"GODOT_PROJECT_PATH": "${GODOT_PROJECT_PATH}",
+				},
+			})
+		);
+		let Install::Key { fields } = &application.install else {
+			panic!("got {:?}", application.install);
+		};
+		assert_eq!(
+			fields.iter().map(|held| (held.name.as_str(), held.concealed)).collect::<Vec<_>>(),
+			[("GODOT_PATH", false), ("GODOT_PROJECT_PATH", false)]
+		);
+		assert_eq!(
+			fields[0].description.as_deref(),
+			Some("Ruta al ejecutable de Godot (por ejemplo C:/ruta/a/godot.exe)")
+		);
+	}
+
+	#[test]
+	fn the_godot_npm_server_runs_through_npx_and_asks_for_its_one_concealed_variable() {
+		let application = described(a_godot_npm_server_asking_a_secret());
+
+		assert_eq!(
+			application.config,
+			json!({
+				"type": "stdio",
+				"command": "npx",
+				"args": ["-y", "funplay-godot-mcp"],
+				"env": { "FUNPLAY_GODOT_MCP_TOKEN": "${FUNPLAY_GODOT_MCP_TOKEN}" },
+			})
+		);
+		assert_eq!(
+			application.install,
+			Install::Key {
+				fields: vec![InstallField {
+					name: "FUNPLAY_GODOT_MCP_TOKEN".to_owned(),
+					secret: "FUNPLAY_GODOT_MCP_TOKEN".to_owned(),
+					description: Some(
+						"Godot MCP local auth token from the Funplay MCP dock.".to_owned()
+					),
+					concealed: true,
+				}],
+			}
+		);
+	}
+
+	#[test]
+	fn the_godot_npm_server_declaring_no_variable_runs_through_npx_and_asks_for_nothing() {
+		let application = described(a_godot_npm_server_asking_nothing());
+
+		assert_eq!(
+			application.config,
+			json!({ "type": "stdio", "command": "npx", "args": ["-y", "godot-mcp-bridge"] })
+		);
+		assert_eq!(application.install, Install::Nothing);
+	}
+
 	#[test]
 	fn the_first_icon_answers_the_logo_url_and_the_repository_reads_down_to_its_name() {
 		let server: Server = serde_json::from_value(json!({
@@ -789,11 +963,14 @@ pub(crate) mod tests {
 	}
 
 	#[test]
-	fn an_entry_offering_none_of_the_three_is_left_out() {
+	fn an_entry_offering_no_remote_and_no_package_a_runner_reads_is_left_out() {
 		let server: Server = serde_json::from_value(json!({
-			"name": "io.test/pypi-only",
+			"name": "io.test/image-only",
 			"remotes": [{ "type": "websocket", "url": "wss://ws.test/mcp" }],
-			"packages": [{ "registryType": "pypi", "identifier": "an-mcp" }],
+			"packages": [
+				{ "registryType": "oci", "identifier": "docker.io/owner/an-mcp:latest" },
+				{ "registryType": "nuget", "identifier": "Owner.AnMcp" },
+			],
 		}))
 		.expect("the fixture is a server.json");
 

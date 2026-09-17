@@ -10,7 +10,9 @@ import {
 	API_KEY_INSTALL,
 	HOSTED_INSTALL,
 	HOSTED_NOTHING_INSTALL,
+	LOCAL_PACKAGE_INSTALL,
 	LONG_INSTALL,
+	MIXED_FIELDS_INSTALL,
 	REFUSED_INSTALL,
 	REGISTRY_INSTALL,
 	SIGN_IN_INSTALL,
@@ -38,8 +40,8 @@ const InstallFlowHost = (props: ApplicationInstallPageProps) => {
 			failure={failure}
 			isInstalled={isInstalled}
 			isInstalling={isInstalling}
-			onInstall={(key) => {
-				props.onInstall(key)
+			onInstall={(values) => {
+				props.onInstall(values)
 				setFailure(undefined)
 				setInstalling(true)
 				pendingInstall.settle = (outcome) => {
@@ -118,7 +120,7 @@ export const SignsYouIn = meta.story({
 		await expect(getComputedStyle(action).paddingInlineStart).toBe("12px")
 		await expect(getComputedStyle(action).paddingInlineEnd).toBe("14px")
 		await userEvent.click(action)
-		await expect(args.onInstall).toHaveBeenCalledWith(undefined)
+		await expect(args.onInstall).toHaveBeenCalledWith({})
 
 		await userEvent.click(
 			canvas.getByRole("button", { name: "All applications" }),
@@ -133,24 +135,26 @@ export const NeedsApiKey = meta.story({
 		docs: {
 			description: {
 				story:
-					"E6. An application that needs a key. Check the muted panel with its title alone, the empty concealed field and its Show control named both ways, the glyphless Add application, and the keyboard order: field, reveal, action.",
+					"E6. An application that needs one key. Check the muted panel titled for the application, the field labelled as the variable it fills with its description under it, the empty concealed input and its Show control named after that field, the glyphless Add application, and the keyboard order: field, reveal, action.",
 			},
 		},
 	},
 	play: async ({ args, canvas, userEvent }) => {
-		const field = canvas.getByLabelText("Sentry needs an API key")
+		await expect(canvas.getByText("What Sentry needs to run")).toBeVisible()
+		const field = canvas.getByLabelText("Authorization")
 		await expect(field).toHaveAttribute("type", "password")
 		await expect(field).not.toHaveAttribute("placeholder")
+		await expect(canvas.getByText("A Sentry user auth token.")).toBeVisible()
 
 		await userEvent.click(field)
 		await userEvent.keyboard("sntryu_secret")
 		await userEvent.tab()
-		const reveal = canvas.getByRole("button", { name: "Show the API key" })
+		const reveal = canvas.getByRole("button", { name: "Show Authorization" })
 		await expect(reveal).toHaveFocus()
 		await userEvent.keyboard("{Enter}")
 		await expect(field).toHaveAttribute("type", "text")
 		await expect(
-			canvas.getByRole("button", { name: "Hide the API key" }),
+			canvas.getByRole("button", { name: "Hide Authorization" }),
 		).toHaveFocus()
 
 		await userEvent.tab()
@@ -158,7 +162,77 @@ export const NeedsApiKey = meta.story({
 		await expect(action).toHaveFocus()
 		await expect(action.querySelector("svg")).toBeNull()
 		await userEvent.keyboard("{Enter}")
-		await expect(args.onInstall).toHaveBeenCalledWith("sntryu_secret")
+		await expect(args.onInstall).toHaveBeenCalledWith({
+			Authorization: "sntryu_secret",
+		})
+	},
+})
+
+export const AsksForEveryValue = meta.story({
+	args: { application: LOCAL_PACKAGE_INSTALL },
+	parameters: {
+		docs: {
+			description: {
+				story:
+					"A package that runs on this machine and asks for every variable it declares as required. Check one labelled input per variable in the order they arrive, each with its own description, that nothing offers to show a value nobody conceals, and that adding hands each typed value under the name of the variable it fills.",
+			},
+		},
+	},
+	play: async ({ args, canvas, userEvent }) => {
+		const labels = canvas
+			.getAllByText(/^GODOT_/)
+			.map((held) => held.textContent)
+		await expect(labels).toEqual(["GODOT_PATH", "GODOT_PROJECT_PATH"])
+
+		const path = canvas.getByLabelText("GODOT_PATH")
+		const project = canvas.getByLabelText("GODOT_PROJECT_PATH")
+		await expect(path).toHaveAttribute("type", "text")
+		await expect(project).toHaveAttribute("type", "text")
+		await expect(
+			canvas.queryByRole("button", { name: /^Show / }),
+		).not.toBeInTheDocument()
+
+		await userEvent.click(path)
+		await userEvent.keyboard("/usr/local/bin/godot")
+		await userEvent.tab()
+		await expect(project).toHaveFocus()
+		await userEvent.keyboard("/home/games/asteroids")
+
+		await userEvent.click(
+			canvas.getByRole("button", { name: "Add application" }),
+		)
+		await expect(args.onInstall).toHaveBeenCalledWith({
+			GODOT_PATH: "/usr/local/bin/godot",
+			GODOT_PROJECT_PATH: "/home/games/asteroids",
+		})
+	},
+})
+
+export const ConcealsTheSecretFieldAlone = meta.story({
+	args: { application: MIXED_FIELDS_INSTALL },
+	tags: ["test-only"],
+	parameters: {
+		docs: {
+			description: {
+				story:
+					"A package asking for a plain path beside a secret token. Check that only the token is masked, that its Show control names it and reveals it alone, and that the plain field stays readable throughout.",
+			},
+		},
+	},
+	play: async ({ canvas, userEvent }) => {
+		const path = canvas.getByLabelText("GODOT_PATH")
+		const token = canvas.getByLabelText("FUNPLAY_GODOT_MCP_TOKEN")
+		await expect(path).toHaveAttribute("type", "text")
+		await expect(token).toHaveAttribute("type", "password")
+		await expect(
+			canvas.getAllByRole("button", { name: /^Show / }),
+		).toHaveLength(1)
+
+		await userEvent.click(
+			canvas.getByRole("button", { name: "Show FUNPLAY_GODOT_MCP_TOKEN" }),
+		)
+		await expect(token).toHaveAttribute("type", "text")
+		await expect(path).toHaveAttribute("type", "text")
 	},
 })
 
@@ -281,7 +355,7 @@ export const InstallRunning = meta.story({
 		await userEvent.keyboard("{Enter}")
 		await expect(args.onInstall).not.toHaveBeenCalled()
 
-		const field = canvas.getByLabelText("Sentry needs an API key")
+		const field = canvas.getByLabelText("Authorization")
 		await userEvent.type(field, "sntryu_")
 		await expect(field).toHaveValue("sntryu_")
 	},
@@ -299,7 +373,7 @@ export const InstallFailedFromKeyboard = meta.story({
 		},
 	},
 	play: async ({ args, canvas, userEvent }) => {
-		const field = canvas.getByLabelText("Sentry needs an API key")
+		const field = canvas.getByLabelText("Authorization")
 		await userEvent.type(field, "sntryu_wrong")
 		await userEvent.tab()
 		await userEvent.tab()
@@ -312,7 +386,9 @@ export const InstallFailedFromKeyboard = meta.story({
 		await expect(action).toHaveFocus()
 		await userEvent.keyboard("{Enter}")
 		await expect(args.onInstall).toHaveBeenCalledTimes(1)
-		await expect(args.onInstall).toHaveBeenCalledWith("sntryu_wrong")
+		await expect(args.onInstall).toHaveBeenCalledWith({
+			Authorization: "sntryu_wrong",
+		})
 
 		pendingInstall.settle?.("refused")
 		const alert = await canvas.findByRole("alert")

@@ -38,6 +38,15 @@ const SETUP_OF_INSTALL = {
 const setupOf = (application: Application) =>
 	SETUP_OF_INSTALL[application.install.kind]
 
+const askedFieldsOf = ({ install }: Application) =>
+	install.kind === "key"
+		? install.fields.map(({ name, description, concealed }) => ({
+				name,
+				description,
+				concealed,
+			}))
+		: []
+
 const refusalOf = ({ install }: Application) =>
 	install.kind === "refused"
 		? { field: install.field, reason: install.reason }
@@ -87,6 +96,7 @@ export const toInstallableApplication = (
 	description: application.description || undefined,
 	packageIdentity: application.name,
 	tools: application.tools,
+	fields: askedFieldsOf(application),
 	refusal: refusalOf(application),
 })
 
@@ -140,8 +150,8 @@ const toApplicationsCatalogue = ({
 					isInstalling: state.installing === picked.name,
 					isInstalled: target.declared.includes(picked.name),
 					failure: state.failure ?? undefined,
-					onInstall: (key) => {
-						void controller.install(target, [key ?? ""])
+					onInstall: (values) => {
+						void controller.install(target, values)
 					},
 					onLeave: controller.leave,
 				}

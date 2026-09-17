@@ -46,6 +46,12 @@ pub struct InstallField {
 	pub secret: String,
 	#[serde(default, skip_serializing_if = "Option::is_none")]
 	pub description: Option<String>,
+	#[serde(default = "concealed_unless_said_otherwise")]
+	pub concealed: bool,
+}
+
+const fn concealed_unless_said_otherwise() -> bool {
+	true
 }
 
 impl Install {
@@ -390,6 +396,7 @@ mod tests {
 					name: "Authorization".to_owned(),
 					secret: "SUPERSET_API_KEY".to_owned(),
 					description: None,
+					concealed: true,
 				}],
 			},
 		};
@@ -408,7 +415,13 @@ mod tests {
 				"hostedBy": "Smithery",
 				"install": {
 					"kind": "key",
-					"fields": [{ "name": "Authorization", "secret": "SUPERSET_API_KEY" }],
+					"fields": [
+						{
+							"name": "Authorization",
+							"secret": "SUPERSET_API_KEY",
+							"concealed": true,
+						},
+					],
 				},
 			})
 		);
@@ -494,6 +507,7 @@ mod tests {
 			name: "Authorization".to_owned(),
 			secret: "AUTHORIZATION".to_owned(),
 			description: None,
+			concealed: true,
 		}]);
 
 		let Install::Refused(refusal) = asking.covering(&config) else {
@@ -516,6 +530,7 @@ mod tests {
 			name: "Authorization".to_owned(),
 			secret: "AUTHORIZATION".to_owned(),
 			description: None,
+			concealed: true,
 		};
 		let asking = Install::asking(vec![field.clone()]);
 		let config = json!({ "env": { "TOKEN": "${AUTHORIZATION:-none}" } });
@@ -539,6 +554,7 @@ mod tests {
 			name: "Authorization".to_owned(),
 			secret: "AUTHORIZATION".to_owned(),
 			description: None,
+			concealed: true,
 		};
 		let asking = Install::asking(vec![field.clone()]);
 		let config = json!({ "headers": { "Authorization": "Bearer ${AUTHORIZATION}" } });

@@ -48,7 +48,7 @@ export type ApplicationsController = {
 	retry: () => void
 	pick: (id: string) => void
 	leave: () => void
-	install: (target: InstallTarget, values?: string[]) => Promise<void>
+	install: (target: InstallTarget, values?: InstallValues) => Promise<void>
 }
 
 export const initialApplicationsState: ApplicationsState = {
@@ -89,16 +89,18 @@ export const serverScopeOf = (owner: EnvOwner, name: string): EnvScope => ({
 	owner,
 })
 
+export type InstallValues = Record<string, string>
+
 type TypedValue = { field: InstallField; value: string }
 
 const typedValuesOf = (
 	install: Application["install"],
-	values: string[],
+	values: InstallValues,
 ): TypedValue[] =>
 	install.kind === "key"
-		? install.fields.map((field, index) => ({
+		? install.fields.map((field) => ({
 				field,
-				value: values[index] ?? "",
+				value: values[field.name] ?? "",
 			}))
 		: []
 
@@ -236,7 +238,7 @@ export const createApplicationsController = (
 	const runInstall = async (
 		application: Application,
 		target: InstallTarget,
-		values: string[],
+		values: InstallValues,
 	) => {
 		if (application.install.kind === "refused") {
 			throw new Error(application.install.reason)
@@ -249,6 +251,10 @@ export const createApplicationsController = (
 					fields: unfilled.map((held) => held.field.name).join(", "),
 				}),
 			)
+		}
+		const unrunnable = await port.runnable(application.config)
+		if (unrunnable) {
+			throw new Error(unrunnable.reason)
 		}
 		const { owner } = target
 		const wasDeclared = await isDeclaredUnder(owner, application.name)
@@ -304,7 +310,7 @@ export const createApplicationsController = (
 
 		leave: () => set({ picked: null, failure: null }),
 
-		install: async (target: InstallTarget, values: string[] = []) => {
+		install: async (target: InstallTarget, values: InstallValues = {}) => {
 			const application = state.picked
 			if (
 				!application ||

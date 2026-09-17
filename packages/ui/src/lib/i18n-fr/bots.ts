@@ -463,18 +463,18 @@ const bots = {
 				fact: "Vous connecte. {{name}} s’ouvre dans votre navigateur et demande d’autoriser Kiroshi.",
 			},
 			key: {
-				title: "{{name}} demande une clé d'API",
+				title: "Ce dont {{name}} a besoin",
 				reveal: "Afficher",
 				conceal: "Masquer",
-				revealLabel: "Afficher la clé d'API",
-				concealLabel: "Masquer la clé d'API",
+				revealLabel: "Afficher {{field}}",
+				concealLabel: "Masquer {{field}}",
 				description: {
 					companion:
-						"Gardée avec les secrets de cette application, jamais dans la configuration. {{name}} voit les outils, jamais la clé.",
+						"Gardées avec les secrets de cette application, jamais dans la configuration. {{name}} voit les outils, jamais ces valeurs.",
 					space:
-						"Gardée avec les secrets de cette application, jamais dans la configuration. Chaque compagnon de {{name}} voit les outils, jamais la clé.",
+						"Gardées avec les secrets de cette application, jamais dans la configuration. Chaque compagnon de {{name}} voit les outils, jamais ces valeurs.",
 					profile:
-						"Gardée avec les secrets de cette application, jamais dans la configuration. Chacun de vos compagnons voit les outils, jamais la clé.",
+						"Gardées avec les secrets de cette application, jamais dans la configuration. Chacun de vos compagnons voit les outils, jamais ces valeurs.",
 				},
 			},
 			none: "Rien à configurer. Elle tourne sur cette machine, sans clé ni connexion.",

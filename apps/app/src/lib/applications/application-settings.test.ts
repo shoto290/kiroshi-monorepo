@@ -166,10 +166,41 @@ describe("toInstallableApplication", () => {
 				...REGISTERED,
 				install: {
 					kind: "key",
-					fields: [{ name: "Authorization", secret: "KEY" }],
+					fields: [{ name: "Authorization", secret: "KEY", concealed: true }],
 				},
 			}).setup,
 		).toBe("apiKey")
+	})
+
+	it("hands the install page every asked field in the order it arrives", () => {
+		const installable = toInstallableApplication({
+			...REGISTERED,
+			install: {
+				kind: "key",
+				fields: [
+					{
+						name: "GODOT_PATH",
+						secret: "GODOT_PATH",
+						description: "The Godot executable.",
+						concealed: false,
+					},
+					{ name: "TOKEN", secret: "TOKEN", concealed: true },
+				],
+			},
+		})
+
+		expect(installable.fields).toEqual([
+			{
+				name: "GODOT_PATH",
+				description: "The Godot executable.",
+				concealed: false,
+			},
+			{ name: "TOKEN", description: undefined, concealed: true },
+		])
+	})
+
+	it("hands the install page no field when the install asks for none", () => {
+		expect(toInstallableApplication(REGISTERED).fields).toEqual([])
 	})
 
 	it("hands the install page the field and the reason of a refusal", () => {

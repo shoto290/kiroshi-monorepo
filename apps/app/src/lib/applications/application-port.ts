@@ -2,13 +2,19 @@ export type InstallField = {
 	name: string
 	secret: string
 	description?: string
+	concealed: boolean
+}
+
+export type InstallRefusal = {
+	field: string
+	reason: string
 }
 
 export type Install =
 	| { kind: "nothing" }
 	| { kind: "key"; fields: InstallField[] }
 	| { kind: "oauth" }
-	| { kind: "refused"; field: string; reason: string }
+	| ({ kind: "refused" } & InstallRefusal)
 
 export type Application = {
 	name: string
@@ -72,6 +78,7 @@ export type ApplicationInstalled = {
 export type ApplicationPort = {
 	catalogue: () => Promise<Application[]>
 	search: (query: string) => Promise<ApplicationSearch>
+	runnable: (config: Record<string, unknown>) => Promise<InstallRefusal | null>
 	installs: (conversationId: string) => Promise<ApplicationInstall[]>
 	onInstalled: (
 		listener: (installed: ApplicationInstalled) => void,

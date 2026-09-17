@@ -3,7 +3,9 @@ use tauri::State;
 use super::catalogue;
 use super::contract::{
 	Application, ApplicationInstall, ApplicationSearch, ApplicationsError, ApplicationCallError,
+	InstallRefusal,
 };
+use super::runnable::{refusal, Runners};
 use super::search::{search, Registries};
 use crate::conversations::commands::ready;
 use crate::db;
@@ -16,6 +18,11 @@ pub async fn application_catalogue() -> Result<Vec<Application>, ApplicationsErr
 #[tauri::command]
 pub async fn application_search(query: String) -> Result<ApplicationSearch, ApplicationsError> {
 	search(&Registries::default(), &query).await
+}
+
+#[tauri::command]
+pub async fn application_runnable(config: serde_json::Value) -> Option<InstallRefusal> {
+	refusal(&Runners::default(), &config).await
 }
 
 #[tauri::command]
