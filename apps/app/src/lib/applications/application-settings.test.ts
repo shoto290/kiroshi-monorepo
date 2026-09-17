@@ -35,7 +35,6 @@ const REGISTERED: Application = {
 	title: "io.github.kwn/tasklog",
 	description: "Tracks tasks.",
 	config: { command: "npx", args: ["-y", "@kwn/tasklog"] },
-	tools: [],
 	install: { kind: "nothing" },
 }
 
@@ -214,6 +213,13 @@ describe("toInstallableApplication", () => {
 		expect(installable.isVerified).toBeUndefined()
 		expect(installable.useCount).toBeUndefined()
 		expect(installable.host).toBeUndefined()
+	})
+
+	it("hands the install page no tool list when the descriptor carries none", () => {
+		expect(toInstallableApplication(REGISTERED).tools).toBeUndefined()
+		expect(
+			toInstallableApplication({ ...REGISTERED, tools: [] }).tools,
+		).toEqual([])
 	})
 
 	it("reads the setup out of what the install asks", () => {

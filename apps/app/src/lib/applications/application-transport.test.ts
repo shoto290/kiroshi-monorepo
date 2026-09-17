@@ -38,7 +38,6 @@ const NOTION: Application = {
 	title: "Notion",
 	description: "Notion workspace.",
 	config: { type: "http", url: "https://mcp.notion.com/mcp" },
-	tools: [],
 	install: { kind: "oauth" },
 }
 
