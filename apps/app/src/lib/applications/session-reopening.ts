@@ -78,16 +78,15 @@ export const createSessionReopener = ({
 		isTurnBusy(chat.stateFor(companion.id).turn)
 
 	return async ({ scope, application }) => {
+		const reopen = (companion: Bot) => reopenOne(companion, application)
 		const live = companionsIn(rosters(), scope).filter(
 			(companion) => chat.stateFor(companion.id).sessionOpen,
 		)
 		for (const companion of live.filter(isMidTurn)) {
-			void reopenOne(companion, application)
+			void reopen(companion)
 		}
 		await Promise.all(
-			live
-				.filter((companion) => !isMidTurn(companion))
-				.map((companion) => reopenOne(companion, application)),
+			live.filter((companion) => !isMidTurn(companion)).map(reopen),
 		)
 	}
 }
