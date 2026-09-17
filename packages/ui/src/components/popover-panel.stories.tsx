@@ -237,6 +237,38 @@ export const Dismiss = meta.story({
 	},
 })
 
+export const LongContent = meta.story({
+	tags: ["test-only"],
+	parameters: {
+		docs: {
+			description: {
+				story:
+					"A panel far wider than the trigger it grew from. Check that it stops at the `min(92vw, 20rem)` clamp and wraps instead of running off the viewport, and that it still lines up with the trigger rather than drifting off it. Anything longer than this belongs in a dialog — see `Overlays/Dialog`.",
+			},
+		},
+	},
+	render: () => (
+		<PopoverPanel defaultOpen placement="bottom-end">
+			<PopoverPanelTrigger>
+				<Button variant="outline" size="sm">
+					v0.4.0
+				</Button>
+			</PopoverPanelTrigger>
+			<PopoverPanelContent aria-label={PANEL_TITLE}>
+				<div className="flex flex-col gap-2">
+					<p className="font-medium text-sm">{PANEL_TITLE}</p>
+					<p className="text-muted-foreground text-xs">
+						{PANEL_NOTE} The workspace shell paints its first frame before the
+						roster resolves, so a cold start no longer stares at an empty
+						column, and a tool result arriving after a stop no longer takes the
+						window down with it.
+					</p>
+				</div>
+			</PopoverPanelContent>
+		</PopoverPanel>
+	),
+})
+
 export const States = meta.story({
 	tags: ["test-only"],
 	parameters: {

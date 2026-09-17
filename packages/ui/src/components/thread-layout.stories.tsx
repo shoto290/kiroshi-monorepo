@@ -57,6 +57,21 @@ const THREAD_HEADER = (
 	/>
 )
 
+const CRASHED_HEADER = (
+	<AppHeader
+		leading={
+			<HeaderIdentityButton
+				connection="crashed"
+				name="Skippy"
+				onOpenSettings={fn()}
+				seed={BOT.id}
+				version="2.1.233"
+			/>
+		}
+		trailing={<PinnedMessages messages={[]} onJump={fn()} onUnpin={fn()} />}
+	/>
+)
+
 const CONVERSATION = (
 	<>
 		<UserTurn>How is this workspace laid out?</UserTurn>
@@ -384,6 +399,7 @@ export const StartOfOlderMessages = meta.story({
 
 export const Error = meta.story({
 	args: {
+		header: CRASHED_HEADER,
 		notice: (
 			<Notice
 				title="The agent stopped"

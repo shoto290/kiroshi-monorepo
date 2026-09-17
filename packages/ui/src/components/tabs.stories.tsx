@@ -173,3 +173,27 @@ export const LongContent = meta.story({
 		await expect(neighbour).toHaveAttribute("aria-selected", "true")
 	},
 })
+
+export const OnDarkSurface = meta.story({
+	tags: ["test-only"],
+	globals: { theme: "dark" },
+	parameters: {
+		docs: {
+			description: {
+				story:
+					"The same three tabs on the dark surface. Check that the active tab is still the one that reads darkest against its raised fill and that the two resting labels keep enough contrast to be read rather than guessed — dark mode dims the resting label, it must not erase it.",
+			},
+		},
+	},
+	render: () => (
+		<Tabs defaultValue="transcript">
+			<TabsList>
+				<TabsTrigger value="transcript">Transcript</TabsTrigger>
+				<TabsTrigger value="files">Files</TabsTrigger>
+				<TabsTrigger disabled value="runs">
+					Runs
+				</TabsTrigger>
+			</TabsList>
+		</Tabs>
+	),
+})

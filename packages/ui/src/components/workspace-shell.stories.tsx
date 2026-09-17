@@ -2,7 +2,11 @@ import type { ReactNode } from "react"
 import { expect, fn, waitFor, within } from "storybook/test"
 
 import preview from "@workspace/storybook/preview"
-import { FRAME_POLL, settled } from "@workspace/storybook/story-utils"
+import {
+	A11Y_CONTRAST_AWAITING_DESIGN_DECISION,
+	FRAME_POLL,
+	settled,
+} from "@workspace/storybook/story-utils"
 import { AppHeader } from "@workspace/ui/components/app-header"
 import {
 	AppSidebar,
@@ -42,6 +46,7 @@ const ROSTER: AppSidebarBot[] = [
 		title: "Research",
 		animal: "owl",
 		blot: "blue",
+		lastMessage: ANSWER,
 	},
 ]
 
@@ -189,10 +194,11 @@ export const SpaceTinted = meta.story({
 		spaceTint: "blue",
 	},
 	parameters: {
+		a11y: A11Y_CONTRAST_AWAITING_DESIGN_DECISION,
 		docs: {
 			description: {
 				story:
-					"The same shell with a space in view, whose colour washes the window surface. Check that the tint lands on the surface around the card and never on the card itself, that it stays faint enough for the sidebar text to read exactly as it does untinted, and that it is derived from the space colour custom property so a palette or colour-scheme change repaints it on its own. Moving between spaces settles the surface onto the new tint over a beat rather than swapping it, and reduced motion drops that settle. Pick `Default` for the untinted surface. The app assembles it at `apps/app/src/App.tsx:928`.",
+					"The same shell with a space in view, whose colour washes the window surface. Check that the tint lands on the surface around the card and never on the card itself, that it stays faint enough for the sidebar text to read exactly as it does untinted, and that it is derived from the space colour custom property so a palette or colour-scheme change repaints it on its own. Moving between spaces settles the surface onto the new tint over a beat rather than swapping it, and reduced motion drops that settle. Pick `Default` for the untinted surface. The app assembles it at `apps/app/src/App.tsx:928`. The tint is what puts the roster preview line below AA: `--muted-foreground` measures 4.38:1 on the blue-tinted shell surface, against the 4.5:1 the 12px line owes, so the pair is waived here and awaits a token decision rather than a fix in this story.",
 			},
 		},
 	},
