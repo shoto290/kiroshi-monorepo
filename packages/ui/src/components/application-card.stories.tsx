@@ -13,10 +13,12 @@ import {
 	type ApplicationCardProps,
 	type ApplicationCardStatus,
 } from "@workspace/ui/components/application-card"
-import { CURATED_APPLICATIONS } from "@workspace/ui/components/plugin-settings/applications.fixtures"
+import { CATALOGUE_APPLICATIONS } from "@workspace/ui/components/plugin-settings/applications.fixtures"
 import { bots } from "@workspace/ui/lib/i18n-en/bots"
 
-const LINEAR_MARK = CURATED_APPLICATIONS.find(({ id }) => id === "linear")?.mark
+const LINEAR_MARK = CATALOGUE_APPLICATIONS.find(
+	({ id }) => id === "linear",
+)?.mark
 
 const APPLICATION_STATUSES = listExhaustively<ApplicationCardStatus>({
 	apiKey: true,

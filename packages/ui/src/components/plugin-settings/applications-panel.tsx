@@ -12,6 +12,7 @@ import {
 } from "@workspace/ui/components/bot-settings-dialog/mcp-connection"
 import { Icons } from "@workspace/ui/components/icons"
 import { ApplicationMark } from "@workspace/ui/components/plugin-settings/application-mark"
+import { ApplicationsSearchField } from "@workspace/ui/components/plugin-settings/applications-search-field"
 import { SETTINGS_EMPTY_CLASS } from "@workspace/ui/components/settings-styles"
 import { Button } from "@workspace/ui/components/ui/button"
 import { cn } from "@workspace/ui/lib/utils"
@@ -149,6 +150,8 @@ const ApplicationRow = ({ server, onOpen, onConnect }: ApplicationRowProps) => {
 type ApplicationsPanelProps = {
 	owner: ApplicationsOwner
 	servers: BotMcpServerItem[]
+	query: string
+	onQueryChange: (query: string) => void
 	haveFailedToLoad?: boolean
 	onOpen: (server: BotMcpServerItem) => void
 	onAdd: () => void
@@ -159,6 +162,8 @@ type ApplicationsPanelProps = {
 const ApplicationsPanel = ({
 	owner,
 	servers,
+	query,
+	onQueryChange,
 	haveFailedToLoad = false,
 	onOpen,
 	onAdd,
@@ -167,6 +172,20 @@ const ApplicationsPanel = ({
 }: ApplicationsPanelProps) => {
 	const { t } = useTranslation("bots")
 	const copy = useOwnerCopy(owner)
+	const searchRow = (
+		<div className="flex shrink-0 items-center gap-2">
+			<ApplicationsSearchField onValueChange={onQueryChange} value={query} />
+			<Button
+				aria-label={t("applications.paste")}
+				className="border-input"
+				onClick={onPaste}
+				size="icon-lg"
+				variant="outline"
+			>
+				<Icons.Add aria-hidden="true" />
+			</Button>
+		</div>
+	)
 
 	if (haveFailedToLoad) {
 		return (
@@ -181,21 +200,22 @@ const ApplicationsPanel = ({
 
 	if (servers.length === 0) {
 		return (
-			<div className={SETTINGS_EMPTY_CLASS}>
-				<span className="flex items-center gap-2 opacity-45">
-					<ApplicationMark isBlank size="sm" />
-					<ApplicationMark />
-					<ApplicationMark isBlank size="sm" />
-				</span>
-				<div className="flex flex-col items-center gap-1">
-					<span className="wrap-break-word font-medium text-foreground text-sm">
-						{copy.emptyTitle}
+			<>
+				{searchRow}
+				<div className={SETTINGS_EMPTY_CLASS}>
+					<span className="flex items-center gap-2 opacity-45">
+						<ApplicationMark isBlank size="sm" />
+						<ApplicationMark />
+						<ApplicationMark isBlank size="sm" />
 					</span>
-					<p className="max-w-98 text-muted-foreground text-sm">
-						{copy.emptyDescription}
-					</p>
-				</div>
-				<div className="flex flex-wrap items-center justify-center gap-2">
+					<div className="flex flex-col items-center gap-1">
+						<span className="wrap-break-word font-medium text-foreground text-sm">
+							{copy.emptyTitle}
+						</span>
+						<p className="max-w-98 text-muted-foreground text-sm">
+							{copy.emptyDescription}
+						</p>
+					</div>
 					<Button onClick={onAdd} size="sm">
 						<Icons.Add
 							aria-hidden="true"
@@ -204,16 +224,14 @@ const ApplicationsPanel = ({
 						/>
 						{t("applications.add")}
 					</Button>
-					<Button onClick={onPaste} size="sm" variant="outline">
-						{t("applications.paste")}
-					</Button>
 				</div>
-			</div>
+			</>
 		)
 	}
 
 	return (
 		<>
+			{searchRow}
 			<div className="flex shrink-0 items-center justify-between gap-3">
 				<p className="min-w-0 wrap-break-word text-muted-foreground text-xs">
 					{copy.intro}

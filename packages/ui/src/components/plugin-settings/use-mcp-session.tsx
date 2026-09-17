@@ -19,6 +19,8 @@ import {
 import {
 	ApplicationsCatalogue,
 	type ApplicationsCatalogueProps,
+	type CatalogueCategory,
+	EVERYTHING_CATEGORY,
 } from "@workspace/ui/components/plugin-settings/applications-catalogue"
 import {
 	type ApplicationsOwner,
@@ -34,7 +36,7 @@ type ApplicationInstallSection = Pick<
 
 type ApplicationsCatalogueSection = Omit<
 	ApplicationsCatalogueProps,
-	"onBack" | "onPaste" | "className"
+	"category" | "onCategoryChange" | "onBack" | "className"
 > & {
 	install?: ApplicationInstallSection
 	onOpen?: () => void
@@ -103,6 +105,9 @@ const useMcpSession = ({
 	const askedServer = isSettingsOpen ? serverToOpen : undefined
 	const [session, setSession] = useState<OpenedServer | null>(null)
 	const [isBrowsing, setBrowsing] = useState(false)
+	const [category, setCategory] =
+		useState<CatalogueCategory>(EVERYTHING_CATEGORY)
+	const [panelQuery, setPanelQuery] = useState("")
 	const [requestedServer, setRequestedServer] = useState(askedServer)
 	const [pendingServer, setPendingServer] = useState(askedServer)
 
@@ -183,9 +188,9 @@ const useMcpSession = ({
 			return (
 				<ApplicationInstallPage
 					{...installing}
-					count={browsing.count}
+					category={category}
 					onBack={onLeave}
-					onPaste={paste}
+					onCategoryChange={setCategory}
 					owner={owner}
 				/>
 			)
@@ -194,8 +199,9 @@ const useMcpSession = ({
 		return (
 			<ApplicationsCatalogue
 				{...browsing}
+				category={category}
 				onBack={leaveBrowsing}
-				onPaste={paste}
+				onCategoryChange={setCategory}
 			/>
 		)
 	}
@@ -214,7 +220,9 @@ const useMcpSession = ({
 				onConnect={onServerConnect}
 				onOpen={(opened) => open(openedServerOf(opened))}
 				onPaste={paste}
+				onQueryChange={setPanelQuery}
 				owner={owner}
+				query={panelQuery}
 				servers={servers}
 			/>
 		),

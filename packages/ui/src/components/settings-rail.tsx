@@ -99,6 +99,7 @@ type SettingsRailActionProps = {
 	label: string
 	onClick: () => void
 	iconsOnly: boolean
+	className?: string
 }
 
 const SettingsRailAction = ({
@@ -106,10 +107,11 @@ const SettingsRailAction = ({
 	label,
 	onClick,
 	iconsOnly,
+	className,
 }: SettingsRailActionProps) =>
 	named(
 		<button
-			className={cn(RAIL_ITEM_CLASS, iconsOnly && "justify-center")}
+			className={cn(RAIL_ITEM_CLASS, iconsOnly && "justify-center", className)}
 			onClick={onClick}
 			type="button"
 		>
@@ -144,22 +146,30 @@ const SettingsRail = ({
 	trailing,
 	children,
 	className,
-}: SettingsRailProps) => (
-	<div
-		className={cn(
-			"flex shrink-0 flex-col gap-1 overflow-hidden border-border border-r p-2",
-			iconsOnly ? "w-14" : "w-52",
-			className,
-		)}
-		data-slot="settings-rail"
-	>
-		{leading}
-		<Tabs.List className="flex min-h-0 flex-col gap-1 overflow-y-auto">
-			{children}
-		</Tabs.List>
-		{trailing}
-	</div>
-)
+}: SettingsRailProps) => {
+	const list = useRef<HTMLDivElement>(null)
+	useOverlayScrollbars(list)
+
+	return (
+		<div
+			className={cn(
+				"flex shrink-0 flex-col gap-1 overflow-hidden border-border border-r p-2",
+				iconsOnly ? "w-14" : "w-52",
+				className,
+			)}
+			data-slot="settings-rail"
+		>
+			{leading}
+			<Tabs.List
+				className="flex min-h-0 flex-col gap-1 overflow-y-auto"
+				ref={list}
+			>
+				{children}
+			</Tabs.List>
+			{trailing}
+		</div>
+	)
+}
 
 export {
 	DANGER_RAIL_ITEM_CLASS,

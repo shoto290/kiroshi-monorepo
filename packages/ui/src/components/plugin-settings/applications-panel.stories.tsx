@@ -12,6 +12,10 @@ import {
 	ApplicationsPanel,
 } from "@workspace/ui/components/plugin-settings/applications-panel"
 
+const SEARCH_ROW_HEIGHT = 36
+
+const SEARCH_ROW_GAP = 8
+
 const [LINEAR, GITHUB] = MARKED_APPLICATIONS
 const [LOCAL, REMOTE] = BOT_MCP_SERVERS
 
@@ -84,6 +88,8 @@ const meta = preview.meta({
 	args: {
 		owner: COMPANION,
 		servers: MARKED_APPLICATIONS,
+		query: "",
+		onQueryChange: fn(),
 		onOpen: fn(),
 		onAdd: fn(),
 		onPaste: fn(),
@@ -166,15 +172,18 @@ export const EmptyCompanion = meta.story({
 		docs: {
 			description: {
 				story:
-					"A companion with no application of its own. Check the three faded marks, the companion title and description, and that both ways in are offered: Add application and Paste a configuration.",
+					"A companion with no application of its own. Check the search row above it, the three faded marks, the companion title and description, and the one way in the empty body offers: Add an application.",
 			},
 		},
 	},
 	play: async ({ args, canvas, userEvent }) => {
 		await expect(canvas.getByText("No applications of its own")).toBeVisible()
+		await expect(
+			canvas.getByRole("textbox", { name: "Search applications" }),
+		).toBeVisible()
 
 		await userEvent.click(
-			canvas.getByRole("button", { name: "Add application" }),
+			canvas.getByRole("button", { name: "Add an application" }),
 		)
 		await userEvent.click(
 			canvas.getByRole("button", { name: "Paste a configuration" }),
@@ -182,6 +191,68 @@ export const EmptyCompanion = meta.story({
 
 		await expect(args.onAdd).toHaveBeenCalledTimes(1)
 		await expect(args.onPaste).toHaveBeenCalledTimes(1)
+	},
+})
+
+export const SearchRow = meta.story({
+	parameters: {
+		docs: {
+			description: {
+				story:
+					"The row above the body, drawn in the empty state as in the filled one. Check the search field taking the width, the 36 by 36 plus button eight after it, named after the flow it opens, and that pressing it asks for a configuration to paste.",
+			},
+		},
+	},
+	play: async ({ args, canvas, userEvent }) => {
+		const field = canvas.getByRole("textbox", { name: "Search applications" })
+		const shell = field.closest("label") as HTMLElement
+		const plus = canvas.getByRole("button", { name: "Paste a configuration" })
+
+		await expect(Math.round(shell.getBoundingClientRect().height)).toBe(
+			SEARCH_ROW_HEIGHT,
+		)
+		await expect(Math.round(plus.getBoundingClientRect().width)).toBe(
+			SEARCH_ROW_HEIGHT,
+		)
+		await expect(Math.round(plus.getBoundingClientRect().height)).toBe(
+			SEARCH_ROW_HEIGHT,
+		)
+		await expect(
+			Math.round(
+				plus.getBoundingClientRect().left - shell.getBoundingClientRect().right,
+			),
+		).toBe(SEARCH_ROW_GAP)
+		await expect(plus).toHaveClass(
+			"focus-visible:border-ring",
+			"focus-visible:ring-3",
+			"focus-visible:ring-ring/30",
+		)
+
+		await userEvent.click(plus)
+
+		await expect(args.onPaste).toHaveBeenCalledTimes(1)
+	},
+})
+
+export const SearchTextIsGiven = meta.story({
+	args: { query: "linear" },
+	parameters: {
+		docs: {
+			description: {
+				story:
+					"The panel holds no search text of its own. Check that the field shows what its owner passes and that typing reports back rather than changing the field alone.",
+			},
+		},
+	},
+	play: async ({ args, canvas, userEvent }) => {
+		const field = canvas.getByRole("textbox", { name: "Search applications" })
+
+		await expect(field).toHaveValue("linear")
+
+		await userEvent.type(field, "!")
+
+		await expect(args.onQueryChange).toHaveBeenLastCalledWith("linear!")
+		await expect(field).toHaveValue("linear")
 	},
 })
 
@@ -237,7 +308,15 @@ export const NeedsAuthorization = meta.story({
 
 		await userEvent.tab()
 		await expect(
-			canvas.getByRole("button", { name: "Add application" }),
+			canvas.getByRole("textbox", { name: "Search applications" }),
+		).toHaveFocus()
+		await userEvent.tab()
+		await expect(
+			canvas.getByRole("button", { name: "Paste a configuration" }),
+		).toHaveFocus()
+		await userEvent.tab()
+		await expect(
+			canvas.getByRole("button", { name: "Add an application" }),
 		).toHaveFocus()
 		await userEvent.tab()
 		await expect(
@@ -432,7 +511,7 @@ export const Unreadable = meta.story({
 			canvas.getByText("Couldn't load applications. Reopen settings to retry."),
 		).toBeVisible()
 		await expect(
-			canvas.queryByRole("button", { name: "Add application" }),
+			canvas.queryByRole("button", { name: "Add an application" }),
 		).not.toBeInTheDocument()
 	},
 })

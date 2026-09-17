@@ -171,16 +171,16 @@ const toApplicationsCatalogue = ({
 	const { picked } = state
 
 	return {
-		count: state.isReadingCatalogue ? null : state.curated.length,
 		query: state.query,
 		onQueryChange: controller.search,
-		curated: curated.map(toCatalogueApplication),
-		registry: state.registry.map(toRegistryApplication),
-		isCatalogueLoading: state.isReadingCatalogue,
-		isRegistrySearching: state.isSearching,
-		hasRegistryFailed: state.hasSearchFailed,
-		hasRegistryPartlyFailed: state.hasSearchPartlyFailed,
-		onRegistryRetry: controller.retry,
+		applications: [
+			...curated.map(toCatalogueApplication),
+			...state.registry.map(toRegistryApplication),
+		],
+		isLoading: state.isReadingCatalogue || state.isSearching,
+		hasFailed: state.hasSearchFailed,
+		hasPartlyFailed: state.hasSearchPartlyFailed,
+		onRetry: controller.retry,
 		onOpen: controller.browse,
 		onPick: (application) => controller.pick(application.id),
 		install: picked
