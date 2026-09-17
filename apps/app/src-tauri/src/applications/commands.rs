@@ -1,3 +1,5 @@
+use std::sync::Arc;
+
 use tauri::State;
 
 use super::catalogue;
@@ -5,8 +7,9 @@ use super::contract::{
 	Application, ApplicationInstall, ApplicationSearch, ApplicationsError, ApplicationCallError,
 	InstallRefusal,
 };
+use super::directory::Directory;
 use super::runnable::{refusal, Runners};
-use super::search::{named, search, Registries};
+use super::search::{named, Registries};
 use crate::conversations::commands::ready;
 use crate::db;
 
@@ -16,13 +19,19 @@ pub async fn application_catalogue() -> Result<Vec<Application>, ApplicationsErr
 }
 
 #[tauri::command]
-pub async fn application_search(query: String) -> Result<ApplicationSearch, ApplicationsError> {
-	search(&Registries::default(), &query).await
+pub async fn application_search(
+	directory: State<'_, Arc<Directory>>,
+	query: String,
+) -> Result<ApplicationSearch, ApplicationsError> {
+	directory.searched(&query).await
 }
 
 #[tauri::command]
-pub async fn application_named(name: String) -> Result<Option<Application>, ApplicationsError> {
-	named(&Registries::default(), &name).await
+pub async fn application_named(
+	directory: State<'_, Arc<Directory>>,
+	name: String,
+) -> Result<Option<Application>, ApplicationsError> {
+	named(&Registries::default(), &directory, &name).await
 }
 
 #[tauri::command]

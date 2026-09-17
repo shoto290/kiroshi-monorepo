@@ -180,6 +180,8 @@ async fn listed(client: &Client, base: &Url, row: Row) -> Result<Listing, Droppe
 			use_count: row.use_count,
 			verified: row.verified,
 			hosted_by,
+			categories: Vec::new(),
+			auth_posture: None,
 			install,
 		},
 	})
@@ -206,6 +208,8 @@ fn read_by_name(detail: &Detail) -> Option<Application> {
 		use_count: None,
 		verified: None,
 		hosted_by: None,
+		categories: Vec::new(),
+		auth_posture: None,
 		install,
 	})
 }

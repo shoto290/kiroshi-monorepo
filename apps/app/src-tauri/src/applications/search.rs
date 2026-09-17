@@ -4,6 +4,7 @@ use std::future::Future;
 use reqwest::Url;
 
 use super::contract::{Application, ApplicationSearch, ApplicationsError, Install};
+use super::directory::Directory;
 use super::{catalogue, registry, smithery};
 
 const SHORTEST_TERM: usize = 3;
@@ -86,9 +87,12 @@ fn drift(source: &str, answered: usize, unread: usize) -> Option<String> {
 
 type Sought = Result<Option<Application>, ApplicationsError>;
 
-pub async fn named(registries: &Registries, name: &str) -> Sought {
+pub async fn named(registries: &Registries, directory: &Directory, name: &str) -> Sought {
 	if let Some(curated) = catalogue::curated()?.into_iter().find(|held| held.name == name) {
 		return Ok(Some(curated));
+	}
+	if let Some(held) = directory.named(name) {
+		return Ok(Some(held));
 	}
 	let semantic = || smithery::detail(&registries.smithery, name);
 	let official = || registry::detail(&registries.official, name);
@@ -124,7 +128,12 @@ pub async fn search(
 	};
 	match registry_failure {
 		Some(failure) if applications.is_empty() => Err(failure),
-		registry_failure => Ok(ApplicationSearch { applications, registry_failure }),
+		registry_failure => Ok(ApplicationSearch {
+			applications,
+			registry_failure,
+			read_at: None,
+			is_stale: None,
+		}),
 	}
 }
 
@@ -227,6 +236,7 @@ mod tests {
 	use std::sync::Arc;
 
 	use super::*;
+	use crate::applications::directory::DIRECTORY;
 	use crate::applications::registry::tests as official_stub;
 	use crate::applications::registry::tests::unreached;
 	use crate::applications::smithery::tests as smithery_stub;
@@ -253,10 +263,16 @@ mod tests {
 				use_count: None,
 				verified: None,
 				hosted_by: None,
+				categories: Vec::new(),
+				auth_posture: None,
 				install: Install::Oauth,
 			},
 			repository: repository.map(str::to_owned),
 		}
+	}
+
+	fn an_unread_directory() -> Directory {
+		Directory::at(DIRECTORY.to_owned(), None)
 	}
 
 	fn names(applications: Vec<Application>) -> Vec<String> {
@@ -354,7 +370,7 @@ mod tests {
 		let (official, listed) = official_stub::serving(official_stub::holding(Vec::new())).await;
 		let (smithery, semantic) = smithery_stub::serving(smithery_stub::nothing()).await;
 
-		let answered = named(&Registries { official, smithery }, "superset")
+		let answered = named(&Registries { official, smithery }, &an_unread_directory(), "superset")
 			.await
 			.expect("the name resolves");
 
@@ -368,7 +384,9 @@ mod tests {
 		let (official, _) = official_stub::serving(official_stub::holding(Vec::new())).await;
 		let (smithery, _) = smithery_stub::serving(smithery_stub::nothing()).await;
 
-		let answered = named(&Registries { official, smithery }, "io.test/nowhere").await;
+		let answered =
+			named(&Registries { official, smithery }, &an_unread_directory(), "io.test/nowhere")
+				.await;
 
 		assert_eq!(answered.expect("the name resolves").map(|held| held.name), None);
 	}
@@ -378,7 +396,8 @@ mod tests {
 		let (smithery, _) = smithery_stub::serving(smithery_stub::nothing()).await;
 
 		let answered =
-			named(&Registries { official: unreached().await, smithery }, "io.test/nowhere").await;
+			named(&Registries { official: unreached().await, smithery }, &an_unread_directory(), "io.test/nowhere")
+				.await;
 
 		assert!(
 			matches!(answered, Err(ApplicationsError::RegistryUnreached { .. })),

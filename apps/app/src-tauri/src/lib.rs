@@ -57,6 +57,7 @@ pub fn run() {
 			app.manage(routines::sentinel::spawn(app.handle().clone()));
 			app.manage(routines::webhook::start(app.handle().clone()));
 			app.manage(missions::github::spawn(app.handle().clone()));
+			app.manage(applications::directory::spawn(app.handle().clone()));
 			let handle = app.handle().clone();
 			tauri::async_runtime::spawn(async move {
 				conversations::commands::list_bundles_at_launch(&handle).await;
@@ -80,6 +81,11 @@ pub fn run() {
 				}
 				if let Some(poller) = app.try_state::<missions::github::Poller>() {
 					poller.stop();
+				}
+				if let Some(directory) =
+					app.try_state::<std::sync::Arc<applications::directory::Directory>>()
+				{
+					directory.stop();
 				}
 				tauri::async_runtime::block_on(terminate_session(
 					app.state::<AgentState>().inner(),

@@ -25,7 +25,18 @@ pub struct Application {
 	pub verified: Option<bool>,
 	#[serde(default, skip_serializing_if = "Option::is_none")]
 	pub hosted_by: Option<String>,
+	#[serde(default, skip_serializing_if = "Vec::is_empty")]
+	pub categories: Vec<String>,
+	#[serde(default, skip_serializing_if = "Option::is_none")]
+	pub auth_posture: Option<AuthPosture>,
 	pub install: Install,
+}
+
+#[derive(Debug, Clone, Copy, PartialEq, Eq, Serialize, Deserialize)]
+#[serde(rename_all = "camelCase")]
+pub enum AuthPosture {
+	AuthRequired,
+	NoAuth,
 }
 
 #[derive(Debug, Clone, PartialEq, Eq, Serialize, Deserialize)]
@@ -261,6 +272,10 @@ pub struct ApplicationSearch {
 	pub applications: Vec<Application>,
 	#[serde(skip_serializing_if = "Option::is_none")]
 	pub registry_failure: Option<ApplicationsError>,
+	#[serde(skip_serializing_if = "Option::is_none")]
+	pub read_at: Option<i64>,
+	#[serde(skip_serializing_if = "Option::is_none")]
+	pub is_stale: Option<bool>,
 }
 
 #[derive(Debug, Clone, PartialEq, Eq, Serialize)]
@@ -392,6 +407,8 @@ mod tests {
 			use_count: Some(42),
 			verified: Some(true),
 			hosted_by: Some("Smithery".to_owned()),
+			categories: Vec::new(),
+			auth_posture: None,
 			install: Install::Key {
 				fields: vec![InstallField {
 					name: "Authorization".to_owned(),
@@ -441,6 +458,8 @@ mod tests {
 			use_count: None,
 			verified: None,
 			hosted_by: None,
+			categories: Vec::new(),
+			auth_posture: None,
 			install: Install::Nothing,
 		};
 

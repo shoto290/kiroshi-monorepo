@@ -24,9 +24,9 @@ const TIMEOUT: Duration = Duration::from_secs(30);
 
 const AGENT: &str = "Kiroshi";
 
-const STREAMABLE_HTTP: &str = "streamable-http";
+pub(super) const STREAMABLE_HTTP: &str = "streamable-http";
 
-const SSE: &str = "sse";
+pub(super) const SSE: &str = "sse";
 
 const NPM: &str = "npm";
 
@@ -223,6 +223,8 @@ fn descriptor(server: Server) -> Result<Listing, Dropped> {
 			use_count: None,
 			verified: None,
 			hosted_by: served.hosted_by,
+			categories: Vec::new(),
+			auth_posture: None,
 			install: served.install,
 		},
 	})
