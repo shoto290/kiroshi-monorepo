@@ -179,6 +179,7 @@ const toApplicationsCatalogue = ({
 		],
 		isLoading: state.isReadingCatalogue || state.isSearching,
 		hasFailed: state.hasSearchFailed,
+		hasPartlyFailed: state.hasSearchPartlyFailed,
 		onRetry: controller.retry,
 		onOpen: controller.browse,
 		onPick: (application) => controller.pick(application.id),

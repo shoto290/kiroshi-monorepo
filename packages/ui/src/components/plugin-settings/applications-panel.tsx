@@ -1,6 +1,5 @@
 "use client"
 
-import { useState } from "react"
 import { useTranslation } from "react-i18next"
 
 import type {
@@ -13,6 +12,7 @@ import {
 } from "@workspace/ui/components/bot-settings-dialog/mcp-connection"
 import { Icons } from "@workspace/ui/components/icons"
 import { ApplicationMark } from "@workspace/ui/components/plugin-settings/application-mark"
+import { ApplicationsSearchField } from "@workspace/ui/components/plugin-settings/applications-search-field"
 import { SETTINGS_EMPTY_CLASS } from "@workspace/ui/components/settings-styles"
 import { Button } from "@workspace/ui/components/ui/button"
 import { cn } from "@workspace/ui/lib/utils"
@@ -61,38 +61,30 @@ const useOwnerCopy = (owner: ApplicationsOwner): OwnerCopy => {
 }
 
 type ApplicationsSearchRowProps = {
+	query: string
+	onQueryChange: (query: string) => void
 	onPaste: () => void
 }
 
-const ApplicationsSearchRow = ({ onPaste }: ApplicationsSearchRowProps) => {
+const ApplicationsSearchRow = ({
+	query,
+	onQueryChange,
+	onPaste,
+}: ApplicationsSearchRowProps) => {
 	const { t } = useTranslation("bots")
-	const [query, setQuery] = useState("")
-	const placeholder = t("applications.search")
 
 	return (
 		<div className="flex shrink-0 items-center gap-2">
-			<label className="flex h-9 min-w-0 flex-1 items-center gap-2 rounded-xl border border-input px-3 focus-within:border-ring focus-within:ring-3 focus-within:ring-ring/30">
-				<Icons.Search
-					aria-hidden="true"
-					className="size-4 shrink-0 text-muted-foreground"
-				/>
-				<input
-					aria-label={placeholder}
-					className="min-w-0 flex-1 bg-transparent text-foreground text-sm outline-none placeholder:text-muted-foreground"
-					onChange={(event) => setQuery(event.target.value)}
-					placeholder={placeholder}
-					type="text"
-					value={query}
-				/>
-			</label>
-			<button
+			<ApplicationsSearchField onValueChange={onQueryChange} value={query} />
+			<Button
 				aria-label={t("applications.paste")}
-				className="flex size-9 shrink-0 cursor-pointer items-center justify-center rounded-xl border border-input text-foreground outline-none hover:bg-muted focus-visible:border-ring focus-visible:ring-3 focus-visible:ring-ring/30"
+				className="border-input"
 				onClick={onPaste}
-				type="button"
+				size="icon-lg"
+				variant="outline"
 			>
-				<Icons.Add aria-hidden="true" className="size-4" />
-			</button>
+				<Icons.Add aria-hidden="true" />
+			</Button>
 		</div>
 	)
 }
@@ -187,6 +179,8 @@ const ApplicationRow = ({ server, onOpen, onConnect }: ApplicationRowProps) => {
 type ApplicationsPanelProps = {
 	owner: ApplicationsOwner
 	servers: BotMcpServerItem[]
+	query: string
+	onQueryChange: (query: string) => void
 	haveFailedToLoad?: boolean
 	onOpen: (server: BotMcpServerItem) => void
 	onAdd: () => void
@@ -197,6 +191,8 @@ type ApplicationsPanelProps = {
 const ApplicationsPanel = ({
 	owner,
 	servers,
+	query,
+	onQueryChange,
 	haveFailedToLoad = false,
 	onOpen,
 	onAdd,
@@ -205,6 +201,13 @@ const ApplicationsPanel = ({
 }: ApplicationsPanelProps) => {
 	const { t } = useTranslation("bots")
 	const copy = useOwnerCopy(owner)
+	const searchRow = (
+		<ApplicationsSearchRow
+			onPaste={onPaste}
+			onQueryChange={onQueryChange}
+			query={query}
+		/>
+	)
 
 	if (haveFailedToLoad) {
 		return (
@@ -220,7 +223,7 @@ const ApplicationsPanel = ({
 	if (servers.length === 0) {
 		return (
 			<>
-				<ApplicationsSearchRow onPaste={onPaste} />
+				{searchRow}
 				<div className={SETTINGS_EMPTY_CLASS}>
 					<span className="flex items-center gap-2 opacity-45">
 						<ApplicationMark isBlank size="sm" />
@@ -250,7 +253,7 @@ const ApplicationsPanel = ({
 
 	return (
 		<>
-			<ApplicationsSearchRow onPaste={onPaste} />
+			{searchRow}
 			<div className="flex shrink-0 items-center justify-between gap-3">
 				<p className="min-w-0 wrap-break-word text-muted-foreground text-xs">
 					{copy.intro}

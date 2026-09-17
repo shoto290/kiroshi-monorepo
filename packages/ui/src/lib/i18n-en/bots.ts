@@ -538,13 +538,12 @@ const bots = {
 			},
 		},
 		catalogue: {
-			search: {
-				placeholder: "Search applications",
-				hint: "Looks in the MCP registry too",
-			},
 			loading: "Loading the applications catalogue…",
 			directory: "From Anthropic’s directory.",
+			empty: "Nothing in this category yet.",
 			failed: "Couldn’t reach the applications catalogue.",
+			partlyFailed:
+				"Couldn’t read part of the catalogue. Retry to see the rest.",
 			retry: "Retry",
 			category: {
 				everything: "Everything",

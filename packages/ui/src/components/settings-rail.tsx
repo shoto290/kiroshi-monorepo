@@ -125,11 +125,7 @@ const SettingsRailAction = ({
 type SettingsRailBackProps = Omit<SettingsRailActionProps, "icon">
 
 const SettingsRailBack = (props: SettingsRailBackProps) => (
-	<SettingsRailAction
-		{...props}
-		className="font-medium text-foreground text-sm/4.5"
-		icon={Icons.Previous}
-	/>
+	<SettingsRailAction {...props} icon={Icons.Previous} />
 )
 
 const SettingsRailSeparator = () => (

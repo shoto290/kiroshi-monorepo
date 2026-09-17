@@ -547,13 +547,12 @@ const bots = {
 			},
 		},
 		catalogue: {
-			search: {
-				placeholder: "Rechercher des applications",
-				hint: "Cherche aussi dans le registre MCP",
-			},
 			loading: "Chargement du catalogue d'applications…",
 			directory: "Depuis l'annuaire d'Anthropic.",
+			empty: "Rien dans cette catégorie pour l'instant.",
 			failed: "Impossible de joindre le catalogue d'applications.",
+			partlyFailed:
+				"Impossible de lire une partie du catalogue. Réessayez pour voir le reste.",
 			retry: "Réessayer",
 			category: {
 				everything: "Tout",

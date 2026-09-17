@@ -6,6 +6,7 @@ import { useTranslation } from "react-i18next"
 
 import { type Icon, Icons } from "@workspace/ui/components/icons"
 import { ApplicationMark } from "@workspace/ui/components/plugin-settings/application-mark"
+import { ApplicationsSearchField } from "@workspace/ui/components/plugin-settings/applications-search-field"
 import {
 	RAIL_ITEM_CLASS,
 	SETTINGS_PANEL_CLASS,
@@ -67,6 +68,9 @@ const CATALOGUE_RAIL_ITEM_CLASS = cn(
 	RAIL_ITEM_CLASS,
 	"rounded-control text-sm/4.5",
 )
+
+const CATALOGUE_RAIL_BACK_CLASS =
+	"rounded-control font-medium text-foreground text-sm/4.5"
 
 const CARD_GRID_CLASS = "grid list-none grid-cols-3 gap-3 p-0"
 
@@ -260,6 +264,7 @@ const CataloguePage = ({
 				leading={
 					<>
 						<SettingsRailBack
+							className={CATALOGUE_RAIL_BACK_CLASS}
 							iconsOnly={false}
 							label={t("applications.back")}
 							onClick={onBack}
@@ -306,6 +311,7 @@ type ApplicationsCatalogueProps = Omit<CataloguePageProps, "children"> & {
 	applications: CatalogueApplication[]
 	isLoading?: boolean
 	hasFailed?: boolean
+	hasPartlyFailed?: boolean
 	onRetry: () => void
 	onPick: (application: CatalogueApplication) => void
 }
@@ -318,6 +324,7 @@ const ApplicationsCatalogue = ({
 	applications,
 	isLoading = false,
 	hasFailed = false,
+	hasPartlyFailed = false,
 	onRetry,
 	onPick,
 	onBack,
@@ -327,19 +334,26 @@ const ApplicationsCatalogue = ({
 	const panel = useRef<HTMLDivElement>(null)
 	useOverlayScrollbars(panel)
 	const typed = query.trim()
-	const placeholder = t("applications.catalogue.search.placeholder")
+
+	const retry = (
+		<Button onClick={onRetry} size="xs" variant="outline">
+			{t("applications.catalogue.retry")}
+		</Button>
+	)
 
 	const results = () => {
 		if (applications.length > 0) {
 			return <CatalogueCards applications={applications} onPick={onPick} />
 		}
 
-		if (typed === "") return null
-
 		return (
 			<CatalogueLine
 				icon={Icons.Search}
-				text={t("applications.catalogue.nothing", { query: typed })}
+				text={
+					typed === ""
+						? t("applications.catalogue.empty")
+						: t("applications.catalogue.nothing", { query: typed })
+				}
 			/>
 		)
 	}
@@ -352,18 +366,25 @@ const ApplicationsCatalogue = ({
 		if (hasFailed) {
 			return (
 				<CatalogueLine
-					action={
-						<Button onClick={onRetry} size="xs" variant="outline">
-							{t("applications.catalogue.retry")}
-						</Button>
-					}
+					action={retry}
 					icon={Icons.Alert}
 					text={t("applications.catalogue.failed")}
 				/>
 			)
 		}
 
-		return results()
+		return (
+			<>
+				{hasPartlyFailed ? (
+					<CatalogueLine
+						action={retry}
+						icon={Icons.Alert}
+						text={t("applications.catalogue.partlyFailed")}
+					/>
+				) : null}
+				{results()}
+			</>
+		)
 	}
 
 	return (
@@ -379,23 +400,12 @@ const ApplicationsCatalogue = ({
 				ref={panel}
 				value={category}
 			>
-				<label className="flex min-h-9 shrink-0 items-center gap-2 rounded-xl border border-input px-3 focus-within:border-ring focus-within:ring-3 focus-within:ring-ring/30">
-					<Icons.Search
-						aria-hidden="true"
-						className="size-4 shrink-0 text-muted-foreground"
-					/>
-					<input
-						aria-label={placeholder}
-						className="min-w-0 flex-1 bg-transparent text-foreground text-sm outline-none placeholder:text-muted-foreground"
-						onChange={(event) => onQueryChange(event.target.value)}
-						placeholder={placeholder}
-						type="text"
+				<div className="flex shrink-0 items-center">
+					<ApplicationsSearchField
+						onValueChange={onQueryChange}
 						value={query}
 					/>
-					<span className="min-w-0 truncate text-muted-foreground text-xs">
-						{t("applications.catalogue.search.hint")}
-					</span>
-				</label>
+				</div>
 				<section className="flex shrink-0 flex-col gap-2">
 					{HEADLESS_CATEGORIES.includes(category) ? null : (
 						<CatalogueSectionHead category={category} />

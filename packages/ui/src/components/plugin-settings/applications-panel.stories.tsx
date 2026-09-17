@@ -12,6 +12,10 @@ import {
 	ApplicationsPanel,
 } from "@workspace/ui/components/plugin-settings/applications-panel"
 
+const SEARCH_ROW_HEIGHT = 36
+
+const SEARCH_ROW_GAP = 8
+
 const [LINEAR, GITHUB] = MARKED_APPLICATIONS
 const [LOCAL, REMOTE] = BOT_MCP_SERVERS
 
@@ -84,6 +88,8 @@ const meta = preview.meta({
 	args: {
 		owner: COMPANION,
 		servers: MARKED_APPLICATIONS,
+		query: "",
+		onQueryChange: fn(),
 		onOpen: fn(),
 		onAdd: fn(),
 		onPaste: fn(),
@@ -193,31 +199,60 @@ export const SearchRow = meta.story({
 		docs: {
 			description: {
 				story:
-					"The row that opens the catalogue, above a filled body. Check the search field taking the width, the plus button at its end named after the flow it opens, and that pressing it asks for a configuration to paste.",
+					"The row above the body, drawn in the empty state as in the filled one. Check the search field taking the width, the 36 by 36 plus button eight after it, named after the flow it opens, and that pressing it asks for a configuration to paste.",
 			},
 		},
 	},
-	play: async ({ args, canvas, canvasElement, userEvent }) => {
+	play: async ({ args, canvas, userEvent }) => {
 		const field = canvas.getByRole("textbox", { name: "Search applications" })
+		const shell = field.closest("label") as HTMLElement
 		const plus = canvas.getByRole("button", { name: "Paste a configuration" })
-		const row = field.closest("div")?.parentElement as HTMLElement
 
-		await expect(
-			Math.round(field.closest("label")!.getBoundingClientRect().height),
-		).toBe(36)
-		await expect(Math.round(plus.getBoundingClientRect().width)).toBe(36)
-		await expect(Math.round(plus.getBoundingClientRect().height)).toBe(36)
+		await expect(Math.round(shell.getBoundingClientRect().height)).toBe(
+			SEARCH_ROW_HEIGHT,
+		)
+		await expect(Math.round(plus.getBoundingClientRect().width)).toBe(
+			SEARCH_ROW_HEIGHT,
+		)
+		await expect(Math.round(plus.getBoundingClientRect().height)).toBe(
+			SEARCH_ROW_HEIGHT,
+		)
 		await expect(
 			Math.round(
-				plus.getBoundingClientRect().left -
-					field.closest("label")!.getBoundingClientRect().right,
+				plus.getBoundingClientRect().left - shell.getBoundingClientRect().right,
 			),
-		).toBe(8)
-		await expect(row.contains(canvasElement)).toBe(false)
+		).toBe(SEARCH_ROW_GAP)
+		await expect(plus).toHaveClass(
+			"focus-visible:border-ring",
+			"focus-visible:ring-3",
+			"focus-visible:ring-ring/30",
+		)
 
 		await userEvent.click(plus)
 
 		await expect(args.onPaste).toHaveBeenCalledTimes(1)
+	},
+})
+
+export const SearchTextIsGiven = meta.story({
+	args: { query: "linear" },
+	parameters: {
+		docs: {
+			description: {
+				story:
+					"The panel holds no search text of its own. Check that the field shows what its owner passes and that typing reports back rather than changing the field alone.",
+			},
+		},
+	},
+	play: async ({ args, canvas, userEvent }) => {
+		const field = canvas.getByRole("textbox", { name: "Search applications" })
+
+		await expect(field).toHaveValue("linear")
+
+		await userEvent.type(field, "!")
+
+		await expect(args.onQueryChange).toHaveBeenLastCalledWith("linear!")
+		await expect(field).toHaveValue("linear")
 	},
 })
 

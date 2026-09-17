@@ -107,6 +107,7 @@ const useMcpSession = ({
 	const [isBrowsing, setBrowsing] = useState(false)
 	const [category, setCategory] =
 		useState<CatalogueCategory>(EVERYTHING_CATEGORY)
+	const [panelQuery, setPanelQuery] = useState("")
 	const [requestedServer, setRequestedServer] = useState(askedServer)
 	const [pendingServer, setPendingServer] = useState(askedServer)
 
@@ -219,7 +220,9 @@ const useMcpSession = ({
 				onConnect={onServerConnect}
 				onOpen={(opened) => open(openedServerOf(opened))}
 				onPaste={paste}
+				onQueryChange={setPanelQuery}
 				owner={owner}
+				query={panelQuery}
 				servers={servers}
 			/>
 		),

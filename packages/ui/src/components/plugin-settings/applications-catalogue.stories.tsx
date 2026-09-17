@@ -407,6 +407,53 @@ export const NothingMatched = meta.story({
 	},
 })
 
+export const CategoryEmpty = meta.story({
+	args: { category: "travel" satisfies CatalogueCategory, applications: [] },
+	parameters: {
+		docs: {
+			description: {
+				story:
+					"A category the directory answers nothing for, nothing typed. Check the head naming it and, in the shell the no-match line uses, a line saying the category is empty.",
+			},
+		},
+	},
+	play: async ({ canvas }) => {
+		await expect(canvas.getByRole("heading", { name: "Travel" })).toBeVisible()
+
+		const empty = canvas.getByText("Nothing in this category yet.")
+
+		await expect(empty).toBeVisible()
+		await expect(empty).toHaveAttribute("aria-live", "polite")
+		await expect(canvas.queryByRole("listitem")).not.toBeInTheDocument()
+	},
+})
+
+export const PartlyUnreadable = meta.story({
+	args: { hasPartlyFailed: true },
+	parameters: {
+		docs: {
+			description: {
+				story:
+					"One side of the catalogue answered and the other did not. Check that the cards that did return stay on screen and that one line above them says part of the catalogue could not be read, with its Retry.",
+			},
+		},
+	},
+	play: async ({ args, canvas }) => {
+		const warning = canvas.getByText(
+			"Couldn\u2019t read part of the catalogue. Retry to see the rest.",
+		)
+		const cards = canvas.getAllByRole("listitem")
+
+		await expect(warning).toBeVisible()
+		await expect(cards.length).toBe(CATALOGUE_APPLICATIONS.length)
+		await expect(boxOf(warning).top).toBeLessThan(boxOf(cards[0]).top)
+
+		await canvas.getByRole("button", { name: "Retry" }).click()
+
+		await expect(args.onRetry).toHaveBeenCalledTimes(1)
+	},
+})
+
 export const Loading = meta.story({
 	args: { applications: [], isLoading: true },
 	parameters: {
