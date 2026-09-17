@@ -528,8 +528,8 @@ mod tests {
 				smithery_stub::a_row("@owner/slack", "Slack", 900),
 			],
 			vec![
-				smithery_stub::a_detail("@owner/slack", "https://slack.run.tools"),
-				smithery_stub::a_detail("@owner/slack-lite", "https://lite.run.tools"),
+				smithery_stub::a_detail("@owner/slack", "https://slack.example"),
+				smithery_stub::a_detail("@owner/slack-lite", "https://lite.example"),
 			],
 		))
 		.await;
@@ -595,7 +595,7 @@ mod tests {
 			declarations(&app)[1],
 			[(
 				"@owner/slack".to_owned(),
-				json!({ "type": "http", "url": "https://slack.run.tools/" })
+				json!({ "type": "http", "url": "https://slack.example/" })
 			)]
 		);
 		assert!(
@@ -613,7 +613,7 @@ mod tests {
 			Vec::new(),
 			vec![smithery_stub::a_detail(
 				"michalis.koutridis/diavgeia-mcp",
-				"https://diavgeia.run.tools",
+				"https://diavgeia.example",
 			)],
 		))
 		.await;
@@ -628,7 +628,7 @@ mod tests {
 			declarations(&app)[1],
 			[(
 				"michalis.koutridis/diavgeia-mcp".to_owned(),
-				json!({ "type": "http", "url": "https://diavgeia.run.tools/" })
+				json!({ "type": "http", "url": "https://diavgeia.example/" })
 			)]
 		);
 		cleaned(&app);
