@@ -156,8 +156,8 @@ fn renewal(
 			..
 		}) => refused(root, scope, sent, detail),
 		Ok(Authorized { error, .. }) => {
-			let detail = error.and_then(|failure| failure.detail);
-			eprintln!("the grant of {scope:?} was not refreshed: {}", reason(detail));
+			let said = credentials::scrubbed(told(error), sent);
+			eprintln!("the grant of {scope:?} was not refreshed: {said}");
 			None
 		}
 		Err(error) => {
@@ -205,6 +205,17 @@ fn forgotten(root: &Path, scope: &EnvScope) {
 
 fn reason(detail: Option<String>) -> String {
 	detail.unwrap_or_else(|| NO_REASON.to_owned())
+}
+
+fn told(failure: Option<OauthFailure>) -> String {
+	let Some(failure) = failure else {
+		return reason(None);
+	};
+	let detail = reason(failure.detail);
+	match failure.body {
+		Some(body) => format!("{detail}: {body}"),
+		None => detail,
+	}
 }
 
 #[cfg(test)]
@@ -258,6 +269,26 @@ mod tests {
 			client_id: "registered".to_owned(),
 			client_secret: Some("confidential".to_owned()),
 		}
+	}
+
+	#[test]
+	fn a_failure_that_is_no_rejection_is_told_with_its_body_after_its_detail() {
+		let failure = |body: Option<&str>| {
+			told(Some(OauthFailure {
+				kind: OauthFailureKind::Failed,
+				detail: Some("the token endpoint answered 503".to_owned()),
+				step: None,
+				status: Some(503),
+				body: body.map(str::to_owned),
+			}))
+		};
+
+		assert_eq!(
+			failure(Some("the authority is down for maintenance")),
+			"the token endpoint answered 503: the authority is down for maintenance"
+		);
+		assert_eq!(failure(None), "the token endpoint answered 503");
+		assert_eq!(told(None), NO_REASON);
 	}
 
 	fn held(root: &Path) -> Values {

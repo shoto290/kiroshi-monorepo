@@ -9,6 +9,7 @@ import {
 	type OAuthClientInformation,
 	type OAuthClientInformationFull,
 	type OAuthClientMetadata,
+	type OAuthErrorResponse,
 	OAuthErrorResponseSchema,
 	type OAuthTokens,
 } from "@modelcontextprotocol/sdk/shared/auth.js"
@@ -163,45 +164,39 @@ const watched = (fetchFn: FetchLike): Watched => {
 	let refusal: Refusal | undefined
 	return {
 		fetchFn: async (url, init) => {
+			refusal = undefined
 			const answered = await fetchFn(url, init)
-			refusal = answered.ok
-				? undefined
-				: {
-						step: stepOf(init),
-						status: answered.status,
-						body: await answered.clone().text(),
-					}
+			if (!answered.ok) {
+				refusal = {
+					step: stepOf(init),
+					status: answered.status,
+					body: await answered.clone().text(),
+				}
+			}
 			return answered
 		},
 		refusal: () => refusal,
 	}
 }
 
-const oauthErrorCode = (body: string): string | undefined => {
+const oauthError = (body: string): OAuthErrorResponse | undefined => {
 	try {
-		return OAuthErrorResponseSchema.safeParse(JSON.parse(body)).data?.error
+		return OAuthErrorResponseSchema.safeParse(JSON.parse(body)).data
 	} catch {
 		return undefined
 	}
 }
 
-const onOneLine = (body: string) => body.split(/\s+/).filter(Boolean).join(" ")
+const onOneLine = (body: string) =>
+	body.split(/\s+/).filter(Boolean).join(" ").slice(0, BODY_LIMIT)
 
 const refusedFailure = ({ step, status, body }: Refusal): OauthFailure => {
 	const answered = `${ENDPOINT_OF[step]} answered ${status}`
-	const errorCode = oauthErrorCode(body)
-	if (errorCode) {
-		return {
-			kind: REFUSED_GRANT_CODES.has(errorCode) ? "rejected" : "failed",
-			detail: `${answered}: ${errorCode}`,
-			step,
-			status,
-		}
-	}
-	const carried = onOneLine(body).slice(0, BODY_LIMIT)
+	const named = oauthError(body)
+	const carried = onOneLine(named ? (named.error_description ?? "") : body)
 	return {
-		kind: "failed",
-		detail: answered,
+		kind: named && REFUSED_GRANT_CODES.has(named.error) ? "rejected" : "failed",
+		detail: named ? `${answered}: ${named.error}` : answered,
 		step,
 		status,
 		...(carried ? { body: carried } : {}),

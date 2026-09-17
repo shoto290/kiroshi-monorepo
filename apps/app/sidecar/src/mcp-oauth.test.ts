@@ -46,6 +46,7 @@ type Authority = {
 }
 
 const anAuthorizationServer = ({
+	discoverable = true,
 	revocable = true,
 	revocationStatus = 200,
 	registrationRefusal,
@@ -53,6 +54,7 @@ const anAuthorizationServer = ({
 	tokenHangs = false,
 	authorizationScheme = "",
 }: {
+	discoverable?: boolean
 	revocable?: boolean
 	revocationStatus?: number
 	registrationRefusal?: Refusal
@@ -70,7 +72,10 @@ const anAuthorizationServer = ({
 		port: 0,
 		fetch: async (request): Promise<Response> => {
 			const asked = new URL(request.url)
-			if (asked.pathname === "/.well-known/oauth-authorization-server") {
+			if (
+				discoverable &&
+				asked.pathname === "/.well-known/oauth-authorization-server"
+			) {
 				return Response.json({
 					issuer: asked.origin,
 					authorization_endpoint:
@@ -490,6 +495,7 @@ describe("mcp oauth", () => {
 					detail: `the token endpoint answered 400: ${code}`,
 					step: "tokenExchange",
 					status: 400,
+					body: REFUSED_GRANT,
 				},
 			})
 		}, 20_000)
@@ -504,8 +510,49 @@ describe("mcp oauth", () => {
 				detail: "the token endpoint answered 400: temporarily_unavailable",
 				step: "tokenExchange",
 				status: 400,
+				body: REFUSED_GRANT,
 			},
 		})
+	}, 20_000)
+
+	it("carries no body when an OAuth error describes itself no further", async () => {
+		const answered = await refreshedAgainst({
+			status: 400,
+			body: JSON.stringify({ error: "invalid_request" }),
+		})
+
+		expect(answered).toEqual({
+			error: {
+				kind: "failed",
+				detail: "the token endpoint answered 400: invalid_request",
+				step: "tokenExchange",
+				status: 400,
+			},
+		})
+	}, 20_000)
+
+	it("names no step when the token request throws after a refused discovery", async () => {
+		const authority = anAuthorizationServer({
+			discoverable: false,
+			tokenHangs: true,
+		})
+		try {
+			const answered = await refreshMcpToken(
+				{
+					url: authority.url,
+					refreshToken: HELD_REFRESH_TOKEN,
+					clientId: CLIENT_ID,
+				},
+				HANG_BOUND_MS,
+			)
+
+			expect(authority.seen.tokenRequests).toHaveLength(1)
+			expect(answered).toEqual({
+				error: { kind: "failed", detail: expect.any(String) },
+			})
+		} finally {
+			await authority.stop()
+		}
 	}, 20_000)
 
 	it("names the token exchange when a refused body is no OAuth error", async () => {
