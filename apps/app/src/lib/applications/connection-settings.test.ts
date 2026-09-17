@@ -27,9 +27,17 @@ const SPACE: EnvOwner = { kind: "space", id: "s-1" }
 
 const ATLAS_URL = "https://mcp.atlas.test/mcp"
 
+const LINEAR_LOGO = "https://linear.test/logo.png"
+
 const SERVERS: BotMcpServer[] = [
 	{ name: "atlas", config: { type: "http", url: ATLAS_URL } },
 	{ name: "ledger", config: { command: "ledger-mcp" } },
+	{
+		name: "linear",
+		config: { type: "http", url: "https://mcp.linear.app/mcp" },
+		title: "Linear",
+		logoUrl: LINEAR_LOGO,
+	},
 ]
 
 type SpaceConnectionsProps = {
@@ -133,6 +141,14 @@ describe("space connections", () => {
 
 		expect(port.calls).toEqual([{ command: "status", owner: SPACE }])
 		expect(within(rowOf("atlas")).getByText("Needs authorization")).toBeTruthy()
+	})
+
+	it("shows a declared server under the title and the logo it kept", async () => {
+		await mounted(connectionPort("needsAuthorization"))
+
+		const linear = rowOf("Linear")
+
+		expect(linear.querySelector("img")?.getAttribute("src")).toBe(LINEAR_LOGO)
 	})
 
 	it("leaves a connection it cannot read with no state and no action", async () => {

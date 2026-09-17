@@ -11,8 +11,11 @@ import { i18n } from "@workspace/ui/lib/i18n"
 
 import type { Application, Install } from "./application-port"
 import {
+	type ApplicationMark,
+	type ApplicationMarks,
 	type ApplicationsController,
 	type ApplicationsState,
+	applicationMarkOf,
 	type InstallTarget,
 	serverScopeOf,
 } from "./applications-controller"
@@ -54,16 +57,32 @@ const refusalOf = ({ install }: Application) =>
 		? { field: install.field, reason: install.reason }
 		: undefined
 
+const isMarked = ({ displayName, mark }: BotMcpServerItem) =>
+	displayName !== undefined || mark !== undefined
+
+const knownMarkOf = (
+	curated: Application[],
+	marks: ApplicationMarks,
+	name: string,
+): ApplicationMark | null => {
+	const known = curated.find((held) => held.name === name)
+	return known ? applicationMarkOf(known) : (marks[name] ?? null)
+}
+
 export const withApplicationMarks = (
 	servers: BotMcpServerItem[],
 	curated: Application[],
+	marks: ApplicationMarks,
 ): BotMcpServerItem[] =>
 	servers.map((server) => {
-		const known = curated.find((held) => held.name === server.name)
+		if (isMarked(server)) {
+			return server
+		}
+		const known = knownMarkOf(curated, marks, server.name)
 		if (!known) {
 			return server
 		}
-		return { ...server, displayName: known.title, mark: known.logo }
+		return { ...server, displayName: known.title, mark: known.mark }
 	})
 
 const toCatalogueApplication = (
@@ -245,7 +264,7 @@ export const toApplicationScope = ({
 	openedName,
 	reopen,
 }: ApplicationScopeSource): ApplicationScope => {
-	const { curated } = applications.state
+	const { curated, marks } = applications.state
 	const owner = servers.state.owner
 
 	const reopenFor = (name: string) => {
@@ -283,7 +302,11 @@ export const toApplicationScope = ({
 
 	return {
 		...connectionSettings,
-		mcpServers: withApplicationMarks(connectionSettings.mcpServers, curated),
+		mcpServers: withApplicationMarks(
+			connectionSettings.mcpServers,
+			curated,
+			marks,
+		),
 		mcpCatalogue: owner
 			? toApplicationsCatalogue({
 					state: applications.state,
