@@ -1,3 +1,5 @@
+use std::sync::Arc;
+
 use serde::{Deserialize, Serialize};
 use serde_json::Value;
 use tauri::{AppHandle, Emitter, Manager, Runtime, State};
@@ -7,6 +9,7 @@ use super::contract::{
 	InstallOutcome, ApplicationSearch, ApplicationState, Destination, InstallDraft, INSTALLED_EVENT,
 };
 use super::catalogue;
+use super::directory::{Directory, DIRECTORY};
 use super::runnable::{refusal, Runners};
 use super::search::{named, search, terms, Registries};
 use crate::agent::protocol::HostAnswer;
@@ -33,6 +36,7 @@ pub struct ApplicationHost<R: Runtime> {
 	bot_id: String,
 	registries: Registries,
 	runners: Runners,
+	directory: Arc<Directory>,
 }
 
 impl<R: Runtime> Clone for ApplicationHost<R> {
@@ -43,18 +47,28 @@ impl<R: Runtime> Clone for ApplicationHost<R> {
 			bot_id: self.bot_id.clone(),
 			registries: self.registries.clone(),
 			runners: self.runners.clone(),
+			directory: self.directory.clone(),
 		}
+	}
+}
+
+fn held_directory<R: Runtime>(app: &AppHandle<R>) -> Arc<Directory> {
+	match app.try_state::<Arc<Directory>>() {
+		Some(state) => state.inner().clone(),
+		None => Arc::new(Directory::at(DIRECTORY.to_owned(), None)),
 	}
 }
 
 impl<R: Runtime> ApplicationHost<R> {
 	pub fn new(app: AppHandle<R>, conversation_id: String, bot_id: String) -> Self {
+		let directory = held_directory(&app);
 		Self {
 			app,
 			conversation_id,
 			bot_id,
 			registries: Registries::default(),
 			runners: Runners::default(),
+			directory,
 		}
 	}
 
@@ -89,6 +103,8 @@ impl<R: Runtime> ApplicationHost<R> {
 		Ok(ApplicationSearch {
 			applications: curated.into_iter().chain(found).collect(),
 			registry_failure,
+			read_at: None,
+			is_stale: None,
 		})
 	}
 
@@ -156,7 +172,7 @@ impl<R: Runtime> ApplicationHost<R> {
 	}
 
 	async fn application(&self, name: &str) -> Result<Application, ApplicationCallError> {
-		named(&self.registries, name).await?.ok_or_else(|| {
+		named(&self.registries, &self.directory, name).await?.ok_or_else(|| {
 			ApplicationCallError::UnknownApplication { application: name.to_owned() }
 		})
 	}
@@ -402,6 +418,7 @@ mod tests {
 			bot_id: "b1".to_owned(),
 			registries,
 			runners: runners_carrying(&[NPX, UVX]),
+			directory: Arc::new(Directory::at(DIRECTORY.to_owned(), None)),
 		}
 	}
 

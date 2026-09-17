@@ -36,6 +36,8 @@ fn application(entry: Curated) -> Result<Application, ApplicationsError> {
 		use_count: None,
 		verified: None,
 		hosted_by: None,
+		categories: Vec::new(),
+		auth_posture: None,
 		install: entry.install,
 	})
 }

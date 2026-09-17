@@ -16,6 +16,8 @@ export type Install =
 	| { kind: "oauth" }
 	| ({ kind: "refused" } & InstallRefusal)
 
+export type AuthPosture = "authRequired" | "noAuth"
+
 export type Application = {
 	name: string
 	title: string
@@ -27,6 +29,8 @@ export type Application = {
 	useCount?: number
 	verified?: boolean
 	hostedBy?: string
+	categories?: string[]
+	authPosture?: AuthPosture
 	install: Install
 }
 
@@ -40,6 +44,8 @@ export type ApplicationsError =
 export type ApplicationSearch = {
 	applications: Application[]
 	registryFailure?: ApplicationsError
+	readAt?: number
+	isStale?: boolean
 }
 
 export type ApplicationDestination = "companion" | "space" | "user"

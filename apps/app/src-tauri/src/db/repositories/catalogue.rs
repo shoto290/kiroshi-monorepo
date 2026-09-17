@@ -357,7 +357,7 @@ fn routine_row(row: &Row<'_>) -> rusqlite::Result<RoutineRow> {
 	})
 }
 
-fn folded(text: &str) -> String {
+pub(crate) fn folded(text: &str) -> String {
 	text.nfd().filter(|held| !is_combining_mark(*held)).collect::<String>().to_lowercase()
 }
 
