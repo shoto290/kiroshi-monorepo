@@ -150,7 +150,7 @@ impl std::fmt::Debug for Directory {
 		formatter
 			.debug_struct("Directory")
 			.field("base", &self.base)
-			.field("is_held", &self.is_held())
+			.field("is_held", &self.kept().cached.is_some())
 			.finish()
 	}
 }
@@ -210,10 +210,6 @@ impl Directory {
 
 	fn keeping(&self) -> RwLockWriteGuard<'_, Held> {
 		self.held.write().unwrap_or_else(PoisonError::into_inner)
-	}
-
-	fn is_held(&self) -> bool {
-		self.kept().cached.is_some()
 	}
 
 	fn is_unread(&self) -> bool {
@@ -488,6 +484,15 @@ mod tests {
 		queried: Recorded<Vec<String>>,
 	}
 
+	impl Served {
+		fn refuses_once(&self) -> bool {
+			let mut refusals = self.refusals.lock().expect("the stub records");
+			let refuses = *refusals > 0;
+			*refusals = refusals.saturating_sub(1);
+			refuses
+		}
+	}
+
 	async fn serving(pages: Vec<Value>) -> (String, Arc<Served>) {
 		let held = Arc::new(Served {
 			pages,
@@ -506,14 +511,10 @@ mod tests {
 
 	async fn page_of(Extracted(held): Extracted<Arc<Served>>, uri: Uri) -> Answered {
 		let cursor = asked_cursor(&uri);
-		let mut refusals = held.refusals.lock().expect("the stub records");
-		if *refusals > 0 {
-			*refusals -= 1;
-			drop(refusals);
+		if held.refuses_once() {
 			held.asked.lock().expect("the stub records").push(cursor.unwrap_or_default());
 			return StatusCode::INTERNAL_SERVER_ERROR.into_response();
 		}
-		drop(refusals);
 		held.queried
 			.lock()
 			.expect("the stub records")
@@ -1088,7 +1089,7 @@ mod tests {
 			.iter()
 			.filter_map(|entry| entry.categories.as_deref())
 			.flatten()
-			.filter(|value| bucket(value) == OTHER && !named_by_other(value))
+			.filter(|value| !BUCKETS.iter().any(|(_, values)| values.contains(&value.as_str())))
 			.cloned()
 			.collect();
 
@@ -1096,12 +1097,5 @@ mod tests {
 		println!("the live directory mapped {} applications", read.len());
 		assert!(unnamed.is_empty(), "no bucket names {unnamed:?}");
 		assert!(read.len() > 100, "got {}", read.len());
-	}
-
-	fn named_by_other(value: &str) -> bool {
-		BUCKETS
-			.iter()
-			.find(|(name, _)| *name == OTHER)
-			.is_some_and(|(_, values)| values.contains(&value))
 	}
 }
