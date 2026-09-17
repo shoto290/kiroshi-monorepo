@@ -51,6 +51,7 @@ export const Default = meta.story({
 })
 
 export const Variants = meta.story({
+	tags: ["test-only"],
 	args: { state: "ready" },
 	parameters: {
 		docs: {

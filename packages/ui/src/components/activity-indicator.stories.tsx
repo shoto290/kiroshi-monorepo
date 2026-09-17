@@ -152,19 +152,8 @@ const meta = preview.meta({
 	},
 })
 
-export const Playground = meta.story({
-	args: { startedAt: startedSecondsAgo(8) },
-	parameters: {
-		docs: {
-			description: {
-				story:
-					"Reach for this to audition a kind with its own label, as a tool would supply. Check that the avatar pose changes with the kind, that the label reads without pointing at anything, and that a `startedAt` in the past starts the clock at the age of the run rather than at zero.",
-			},
-		},
-	},
-})
-
 export const Variants = meta.story({
+	tags: ["test-only"],
 	args: { name: "Atlas" },
 	render: (args) => (
 		<div className="flex flex-col gap-4">
@@ -237,6 +226,7 @@ export const InWave = meta.story({
 })
 
 export const Blot = meta.story({
+	tags: ["test-only"],
 	args: { animal: "rabbit", blot: "blue" },
 	render: (args) => (
 		<div className="flex flex-col gap-4">
@@ -372,7 +362,7 @@ export const HeldClock = meta.story({
 		docs: {
 			description: {
 				story:
-					"A row whose clock is read from `elapsedSeconds` instead of counting on its own, which is what a host driving its own timeline gives it: a replay, a scripted scene, a frozen frame for review. Check that the clock reads `7s` and stays there, and that `startedAt` is ignored while `elapsedSeconds` is given.",
+					"A row whose clock is read from `elapsedSeconds` instead of counting on its own, which is what the website scene gives it: a host driving its own timeline hands the seconds it is on rather than the instant the run began. Check that the clock reads `7s` and stays there once a tick has passed, and that `startedAt` is ignored while `elapsedSeconds` is given.",
 			},
 		},
 	},
@@ -508,6 +498,7 @@ export const ReducedMotion = meta.story({
 })
 
 export const MarkPerBot = meta.story({
+	tags: ["test-only"],
 	render: () => <RoomWorkers />,
 	parameters: {
 		docs: {
@@ -527,6 +518,7 @@ export const MarkPerBot = meta.story({
 })
 
 export const ConversationChange = meta.story({
+	tags: ["test-only"],
 	render: () => <ConversationSwap />,
 	parameters: {
 		docs: {
@@ -582,6 +574,7 @@ export const Default = meta.story({
 })
 
 export const Marked = meta.story({
+	tags: ["test-only"],
 	args: { ...BUSY_BOT, kind: "searching", name: "Atlas" },
 	render: (args) => (
 		<div className="flex flex-col gap-4">
@@ -678,6 +671,7 @@ export const Stop = meta.story({
 })
 
 export const WaitingSeatStop = meta.story({
+	tags: ["test-only"],
 	render: () => (
 		<MarkProvider transcriptKey={ROOMS[0].id}>
 			<div className="flex flex-col gap-4">

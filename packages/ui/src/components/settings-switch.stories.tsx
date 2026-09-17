@@ -83,6 +83,7 @@ export const On = meta.story({
 })
 
 export const PressingTheLabel = meta.story({
+	tags: ["test-only"],
 	parameters: {
 		docs: {
 			description: {

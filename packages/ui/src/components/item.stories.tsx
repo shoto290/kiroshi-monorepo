@@ -118,6 +118,7 @@ export const Default = meta.story({
 })
 
 export const Variants = meta.story({
+	tags: ["test-only"],
 	parameters: {
 		docs: {
 			description: {
@@ -145,6 +146,7 @@ export const Variants = meta.story({
 })
 
 export const Sizes = meta.story({
+	tags: ["test-only"],
 	parameters: {
 		docs: {
 			description: {
@@ -175,6 +177,7 @@ export const Sizes = meta.story({
 })
 
 export const MediaVariants = meta.story({
+	tags: ["test-only"],
 	parameters: {
 		docs: {
 			description: {

@@ -43,24 +43,8 @@ export const Default = meta.story({
 	},
 })
 
-export const Sizes = meta.story({
-	render: () => (
-		<Row>
-			<Switch aria-label="Small" defaultChecked size="sm" />
-			<Switch aria-label="Default" defaultChecked />
-		</Row>
-	),
-	parameters: {
-		docs: {
-			description: {
-				story:
-					"Both sizes the registry ships. Check the thumb keeps its clearance inside the track at either size, and that the hit area of the small one still reaches 24px through the pseudo-element the registry expands it with.",
-			},
-		},
-	},
-})
-
 export const States = meta.story({
+	tags: ["test-only"],
 	parameters: {
 		pseudo: { focusVisible: "#switch-focus" },
 		docs: {
@@ -87,6 +71,7 @@ export const States = meta.story({
 })
 
 export const LongContent = meta.story({
+	tags: ["test-only"],
 	render: () => (
 		<div className="flex w-80 items-start justify-between gap-4">
 			<label

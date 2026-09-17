@@ -150,6 +150,7 @@ export const Default = meta.story({
 })
 
 export const OneBot = meta.story({
+	tags: ["test-only"],
 	args: { participants: [ATLAS] },
 	render: (args) => <BesideItsBot {...args} />,
 	parameters: {
@@ -210,6 +211,7 @@ export const Crowded = meta.story({
 })
 
 export const EveryPlace = meta.story({
+	tags: ["test-only"],
 	render: (args) => <EverySize {...args} />,
 	parameters: {
 		docs: {

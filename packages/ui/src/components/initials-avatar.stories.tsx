@@ -74,6 +74,7 @@ export const Empty = meta.story({
 })
 
 export const Sizes = meta.story({
+	tags: ["test-only"],
 	render: () => (
 		<div className="flex items-center gap-4">
 			<InitialsAvatar name={NAME} size={28} />

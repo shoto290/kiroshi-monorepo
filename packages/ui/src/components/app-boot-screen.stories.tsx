@@ -19,6 +19,7 @@ const meta = preview.meta({
 })
 
 export const Default = meta.story({
+	tags: ["test-only"],
 	parameters: {
 		docs: {
 			description: {

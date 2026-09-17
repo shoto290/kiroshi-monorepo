@@ -44,6 +44,7 @@ const meta = preview.meta({
 export const Default = meta.story({})
 
 export const Variants = meta.story({
+	tags: ["test-only"],
 	render: (args) => (
 		<Row>
 			{BADGE_VARIANTS.map((variant) => (
@@ -65,6 +66,7 @@ export const Variants = meta.story({
 })
 
 export const LongContent = meta.story({
+	tags: ["test-only"],
 	args: { children: LONG_LABEL },
 	parameters: {
 		docs: {
