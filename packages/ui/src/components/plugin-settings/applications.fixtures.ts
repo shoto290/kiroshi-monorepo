@@ -251,6 +251,19 @@ export const REGISTRY_INSTALL: InstallableApplication = {
 	],
 }
 
+export const NO_TOOL_LIST_INSTALL: InstallableApplication = {
+	id: "io.github.meshvault/meshvault",
+	name: "meshvault",
+	description: "Stores and serves mesh assets.",
+	packageIdentity: "npx -y @meshvault/mcp",
+	setup: "none",
+}
+
+export const EMPTY_TOOL_LIST_INSTALL: InstallableApplication = {
+	...NO_TOOL_LIST_INSTALL,
+	tools: [],
+}
+
 export const LOCAL_PACKAGE_INSTALL: InstallableApplication = {
 	id: "io.github.DiegoBr4nd/godot-gut-mcp",
 	name: "godot-gut-mcp",

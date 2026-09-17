@@ -30,7 +30,7 @@ fn application(entry: Curated) -> Result<Application, ApplicationsError> {
 		title: entry.title,
 		description: entry.description,
 		config: entry.config,
-		tools: entry.tools,
+		tools: Some(entry.tools),
 		logo,
 		logo_url: None,
 		use_count: None,
@@ -98,7 +98,8 @@ mod tests {
 			assert!(!application.description.contains('\n'), "{name} spans lines");
 			assert_eq!(application.config["type"], "http", "got {name}");
 			assert!(application.config["url"].is_string(), "{name} has no url");
-			assert!(!application.tools.is_empty(), "{name} names no tool");
+			let tools = application.tools.as_deref().unwrap_or_default();
+			assert!(!tools.is_empty(), "{name} names no tool");
 		}
 	}
 

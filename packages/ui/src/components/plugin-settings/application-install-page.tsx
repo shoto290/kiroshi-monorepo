@@ -40,7 +40,7 @@ type InstallableField = {
 
 type InstallableApplication = CatalogueApplication & {
 	packageIdentity: string
-	tools: string[]
+	tools?: string[]
 	fields?: InstallableField[]
 	refusal?: ApplicationRefusal
 }
@@ -531,7 +531,9 @@ const ApplicationInstallPage = ({
 								{failure}
 							</p>
 						) : null}
-						<ToolList tools={application.tools} />
+						{application.tools === undefined ? null : (
+							<ToolList tools={application.tools} />
+						)}
 						<div className="mt-auto flex items-start gap-2 border-border border-t pt-3">
 							<Icons.Shield
 								aria-hidden="true"

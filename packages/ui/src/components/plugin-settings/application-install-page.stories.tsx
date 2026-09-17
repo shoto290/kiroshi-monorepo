@@ -8,11 +8,13 @@ import {
 } from "@workspace/ui/components/plugin-settings/application-install-page"
 import {
 	API_KEY_INSTALL,
+	EMPTY_TOOL_LIST_INSTALL,
 	HOSTED_INSTALL,
 	HOSTED_NOTHING_INSTALL,
 	LOCAL_PACKAGE_INSTALL,
 	LONG_INSTALL,
 	MIXED_FIELDS_INSTALL,
+	NO_TOOL_LIST_INSTALL,
 	REFUSED_INSTALL,
 	REGISTRY_INSTALL,
 	SIGN_IN_INSTALL,
@@ -263,6 +265,45 @@ export const NothingToSetUp = meta.story({
 			canvas.queryByText("Kiroshi hasn’t read this one"),
 		).not.toBeInTheDocument()
 		await expect(canvas.queryByText(/^Published on /)).not.toBeInTheDocument()
+	},
+})
+
+export const NoToolList = meta.story({
+	args: { application: NO_TOOL_LIST_INSTALL },
+	parameters: {
+		docs: {
+			description: {
+				story:
+					"An application whose source names no tool, as every row of the official registry does. Check that the page says nothing at all about tools: no heading, no count, no pill and no sentence standing in for them, and that the footnote still sits at the foot of the page.",
+			},
+		},
+	},
+	play: async ({ canvas }) => {
+		await expect(
+			canvas.queryByRole("heading", { name: "What it brings" }),
+		).not.toBeInTheDocument()
+		await expect(canvas.queryByText(/\d+ tools?$/)).not.toBeInTheDocument()
+		await expect(
+			canvas.getByText(/Applications run on your machine/),
+		).toBeVisible()
+	},
+})
+
+export const EmptyToolList = meta.story({
+	args: { application: EMPTY_TOOL_LIST_INSTALL },
+	parameters: {
+		docs: {
+			description: {
+				story:
+					"An application whose source read its tools and found none. Check that the heading and the count are there, claiming zero, since nothing brought is a read fact and not an unknown.",
+			},
+		},
+	},
+	play: async ({ canvas }) => {
+		await expect(
+			canvas.getByRole("heading", { name: "What it brings" }),
+		).toBeVisible()
+		await expect(canvas.getByText("0 tools")).toBeVisible()
 	},
 })
 

@@ -217,7 +217,7 @@ fn descriptor(server: Server) -> Result<Listing, Dropped> {
 			name: server.name,
 			description: server.description,
 			config: served.config,
-			tools: Vec::new(),
+			tools: None,
 			logo: None,
 			logo_url: server.icons.first().map(|icon| icon.src.clone()),
 			use_count: None,
@@ -457,6 +457,12 @@ pub(crate) mod tests {
 		assert_eq!(application.title, "Notion");
 		assert_eq!(application.logo, None);
 		assert_eq!(application.logo_url, None);
+	}
+
+	#[test]
+	fn a_registry_server_answers_no_tool_list_at_all() {
+		assert_eq!(described(a_remote_without_headers()).tools, None);
+		assert_eq!(described(a_godot_npm_server_asking_nothing()).tools, None);
 	}
 
 	#[test]
