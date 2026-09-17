@@ -386,20 +386,9 @@ const bots = {
 			companion:
 				"What {{name}} connects to for tools it doesn’t have on its own.",
 			space: "What every companion in {{name}} connects to.",
-			spaceCounted_one: "What the one companion in {{name}} connects to.",
-			spaceCounted_other:
-				"What all {{count}} companions in {{name}} connect to.",
 			profile: "What you connect to, in every space.",
 		},
 		footnote: {
-			companion_one:
-				"{{name}} also gets {{count}} application it didn’t add: {{sources}}.",
-			companion_other:
-				"{{name}} also gets {{count}} applications it didn’t add: {{sources}}.",
-			source: {
-				space: "{{count}} from {{name}}",
-				profile: "{{count}} from your profile",
-			},
 			space:
 				"Each companion here can add applications of its own, and you can add some for every space.",
 			profile: "These reach every companion you have, in every space.",

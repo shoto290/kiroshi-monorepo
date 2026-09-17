@@ -13,25 +13,9 @@ import { SETTINGS_EMPTY_CLASS } from "@workspace/ui/components/settings-styles"
 import { Button } from "@workspace/ui/components/ui/button"
 import { cn } from "@workspace/ui/lib/utils"
 
-type InheritedApplication = {
-	name: string
-	mark?: string
-}
-
-type ApplicationsInheritance = {
-	spaceName: string
-	fromSpace: InheritedApplication[]
-	fromProfile: InheritedApplication[]
-}
-
 type ApplicationsOwner =
-	| { kind: "companion"; name: string; inherited?: ApplicationsInheritance }
-	| {
-			kind: "space"
-			name: string
-			companionCount?: number
-			inherited?: InheritedApplication[]
-	  }
+	| { kind: "companion"; name: string }
+	| { kind: "space"; name: string }
 	| { kind: "profile" }
 
 type OwnerCopy = {
@@ -39,13 +23,6 @@ type OwnerCopy = {
 	emptyTitle: string
 	emptyDescription: string
 	footnote: string | null
-	inherited: InheritedApplication[]
-}
-
-const NO_INHERITANCE: ApplicationsInheritance = {
-	spaceName: "",
-	fromSpace: [],
-	fromProfile: [],
 }
 
 const useOwnerCopy = (owner: ApplicationsOwner): OwnerCopy => {
@@ -57,59 +34,25 @@ const useOwnerCopy = (owner: ApplicationsOwner): OwnerCopy => {
 			emptyTitle: t("applications.empty.title.profile"),
 			emptyDescription: t("applications.empty.description.profile"),
 			footnote: t("applications.footnote.profile"),
-			inherited: [],
-		}
-	}
-
-	if (owner.kind === "space") {
-		const { name, companionCount } = owner
-
-		return {
-			intro:
-				companionCount === undefined
-					? t("applications.intro.space", { name })
-					: t("applications.intro.spaceCounted", {
-							name,
-							count: companionCount,
-						}),
-			emptyTitle: t("applications.empty.title.space", { name }),
-			emptyDescription: t("applications.empty.description.space"),
-			footnote: t("applications.footnote.space"),
-			inherited: owner.inherited ?? [],
 		}
 	}
 
 	const { name } = owner
-	const { spaceName, fromSpace, fromProfile } =
-		owner.inherited ?? NO_INHERITANCE
-	const sources = [
-		fromSpace.length > 0
-			? t("applications.footnote.source.space", {
-					count: fromSpace.length,
-					name: spaceName,
-				})
-			: null,
-		fromProfile.length > 0
-			? t("applications.footnote.source.profile", {
-					count: fromProfile.length,
-				})
-			: null,
-	].filter((source) => source !== null)
-	const inheritedApplications = [...fromSpace, ...fromProfile]
+
+	if (owner.kind === "space") {
+		return {
+			intro: t("applications.intro.space", { name }),
+			emptyTitle: t("applications.empty.title.space", { name }),
+			emptyDescription: t("applications.empty.description.space"),
+			footnote: t("applications.footnote.space"),
+		}
+	}
 
 	return {
 		intro: t("applications.intro.companion", { name }),
 		emptyTitle: t("applications.empty.title.companion"),
 		emptyDescription: t("applications.empty.description.companion"),
-		footnote:
-			inheritedApplications.length > 0
-				? t("applications.footnote.companion", {
-						name,
-						count: inheritedApplications.length,
-						sources: sources.join(", "),
-					})
-				: null,
-		inherited: inheritedApplications,
+		footnote: null,
 	}
 }
 
@@ -286,24 +229,13 @@ const ApplicationsPanel = ({
 				))}
 			</ul>
 			{copy.footnote ? (
-				<div className="flex shrink-0 items-center gap-3 border-border border-t pt-3">
+				<div
+					className="flex shrink-0 items-center gap-3 border-border border-t pt-3"
+					data-slot="applications-footnote"
+				>
 					<p className="min-w-0 grow wrap-break-word text-muted-foreground text-xs">
 						{copy.footnote}
 					</p>
-					{copy.inherited.length > 0 ? (
-						<span
-							className="flex shrink-0 items-center gap-1.5"
-							data-slot="inherited-marks"
-						>
-							{copy.inherited.map((application) => (
-								<ApplicationMark
-									key={application.name}
-									mark={application.mark}
-									size="xs"
-								/>
-							))}
-						</span>
-					) : null}
 				</div>
 			) : null}
 		</>
@@ -311,9 +243,7 @@ const ApplicationsPanel = ({
 }
 
 export {
-	type ApplicationsInheritance,
 	type ApplicationsOwner,
 	ApplicationsPanel,
 	type ApplicationsPanelProps,
-	type InheritedApplication,
 }
