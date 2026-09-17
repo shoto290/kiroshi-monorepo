@@ -296,7 +296,10 @@ fn hosted_by(row: &Row, host: &str) -> Option<String> {
 		.as_deref()
 		.and_then(|held| Url::parse(held).ok())
 		.and_then(|held| hosting(&held));
-	(home != Some(Hosting::Elsewhere(host.to_owned()))).then(|| host.to_owned())
+	if matches!(home, Some(Hosting::Elsewhere(ref home)) if home == host) {
+		return None;
+	}
+	Some(host.to_owned())
 }
 
 #[cfg(test)]

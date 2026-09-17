@@ -36,7 +36,6 @@ pub struct Listing {
 	pub repository: Option<String>,
 }
 
-#[derive(PartialEq, Eq)]
 pub(super) enum Hosting {
 	Smithery,
 	Elsewhere(String),

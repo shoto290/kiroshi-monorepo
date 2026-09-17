@@ -201,7 +201,10 @@ fn unreached(error: reqwest::Error) -> ApplicationsError {
 }
 
 fn descriptor(server: Server) -> Option<Listing> {
-	let served = served(transport(&server)?)?;
+	let served = match transport(&server)? {
+		Transport::Remote(remote) => remote_served(remote)?,
+		Transport::Package(package) => package_served(package),
+	};
 	Some(Listing {
 		repository: server
 			.repository
@@ -222,13 +225,6 @@ fn descriptor(server: Server) -> Option<Listing> {
 			install: served.install,
 		},
 	})
-}
-
-fn served(transport: Transport<'_>) -> Option<Served> {
-	match transport {
-		Transport::Remote(remote) => remote_served(remote),
-		Transport::Package(package) => Some(package_served(package)),
-	}
 }
 
 fn remote_served(remote: &Remote) -> Option<Served> {
