@@ -499,12 +499,16 @@ mod tests {
 
 		let answer = serving_in(&app, "c1", base)
 			.await
-			.answer(asking("search", json!({ "query": "linear" })))
+			.answer(asking("search", json!({ "query": "superset" })))
 			.await;
 
 		let answer = answer.expect("the search answers");
-		assert_eq!(names(&answer), ["linear", "com.notion/mcp"]);
-		assert_eq!(answer["applications"][0]["install"], json!({ "kind": "oauth" }));
+		assert_eq!(names(&answer), ["superset", "com.notion/mcp"]);
+		assert_eq!(answer["applications"][0]["install"]["kind"], "key");
+		assert!(
+			answer["applications"][0]["logo"].as_str().is_some_and(|logo| logo.starts_with("<svg")),
+			"got {answer}"
+		);
 		assert!(answer.get("registryFailure").is_none(), "got {answer}");
 		cleaned(&app);
 	}
@@ -563,11 +567,11 @@ mod tests {
 		let (official, _) = serving(holding(vec!["com.notion/mcp"])).await;
 
 		let answer = reading(&app, "c1", Registries { official, smithery: unreached().await })
-			.answer(asking("search", json!({ "query": "notion" })))
+			.answer(asking("search", json!({ "query": "paper" })))
 			.await
 			.expect("the search answers");
 
-		assert_eq!(names(&answer), ["notion", "com.notion/mcp"]);
+		assert_eq!(names(&answer), ["paper", "com.notion/mcp"]);
 		assert_eq!(answer["registryFailure"]["kind"], "registryUnreached");
 		cleaned(&app);
 	}
@@ -651,11 +655,11 @@ mod tests {
 
 		let answer = serving_in(&app, "c1", unreached().await)
 			.await
-			.answer(asking("search", json!({ "query": "linear" })))
+			.answer(asking("search", json!({ "query": "superset" })))
 			.await
 			.expect("the search answers");
 
-		assert_eq!(names(&answer), ["linear"]);
+		assert_eq!(names(&answer), ["superset"]);
 		assert_eq!(answer["registryFailure"]["kind"], "registryUnreached");
 		cleaned(&app);
 	}
@@ -852,7 +856,7 @@ mod tests {
 	{
 		let app = a_host("read-installs").await;
 		let host = serving_in(&app, "c1", unreached().await).await;
-		for application in ["paper", "linear", "granola"] {
+		for application in ["paper", "superset"] {
 			host.answer(an_install(application, "user")).await.expect("the install answers");
 		}
 
@@ -863,7 +867,7 @@ mod tests {
 			.collect::<Vec<_>>();
 		read.sort();
 
-		assert_eq!(read, ["granola", "linear", "paper"]);
+		assert_eq!(read, ["paper", "superset"]);
 		assert_eq!(recorded_in(&app, "nowhere").await, Vec::new());
 		cleaned(&app);
 	}
@@ -881,7 +885,7 @@ mod tests {
 	async fn a_query_naming_what_an_application_does_answers_it_through_its_description() {
 		let app = a_host("described").await;
 
-		assert_eq!(names(&searched(&app, "meeting notes").await), ["granola"]);
+		assert_eq!(names(&searched(&app, "designs").await), ["paper"]);
 		cleaned(&app);
 	}
 
@@ -890,8 +894,8 @@ mod tests {
 	{
 		let app = a_host("every-term").await;
 
-		assert_eq!(names(&searched(&app, "my issues").await), ["github", "linear", "sentry"]);
-		assert_eq!(names(&searched(&app, "issues projects").await), ["linear"]);
+		assert_eq!(names(&searched(&app, "my and").await), ["superset", "paper"]);
+		assert_eq!(names(&searched(&app, "and workspaces").await), ["superset"]);
 		cleaned(&app);
 	}
 
@@ -1064,11 +1068,11 @@ mod tests {
 		let app = a_host("status").await;
 		let host = serving_in(&app, "c1", unreached().await).await;
 		for scope in ["companion", "user"] {
-			host.answer(an_install("linear", scope)).await.expect("the install answers");
+			host.answer(an_install("superset", scope)).await.expect("the install answers");
 		}
 		host.answer(an_install("paper", "companion")).await.expect("the install answers");
 		let reports = app.state::<ApplicationReports>();
-		reports.record("b1", "linear", Standing::Holding);
+		reports.record("b1", "superset", Standing::Holding);
 		reports.record("b1", "paper", Standing::LeftOut { reason: Some("refused".to_owned()) });
 
 		let read = |application: &'static str, scope: &'static str| {
@@ -1076,9 +1080,9 @@ mod tests {
 			async move { host.answer(a_status(application, scope)).await.expect("the status reads") }
 		};
 
-		assert_eq!(read("linear", "space").await, json!({ "status": "notInstalled" }));
-		assert_eq!(read("linear", "companion").await, json!({ "status": "connected" }));
-		assert_eq!(read("linear", "user").await, json!({ "status": "needsAuthorization" }));
+		assert_eq!(read("superset", "space").await, json!({ "status": "notInstalled" }));
+		assert_eq!(read("superset", "companion").await, json!({ "status": "connected" }));
+		assert_eq!(read("superset", "user").await, json!({ "status": "needsAuthorization" }));
 		assert_eq!(
 			read("paper", "companion").await,
 			json!({ "status": "failed", "reason": "refused" })
@@ -1092,7 +1096,7 @@ mod tests {
 
 		let refusal = serving_in(&app, "c1", unreached().await)
 			.await
-			.answer(a_status("linear", "team"))
+			.answer(a_status("superset", "team"))
 			.await
 			.expect_err("the scope is refused");
 
