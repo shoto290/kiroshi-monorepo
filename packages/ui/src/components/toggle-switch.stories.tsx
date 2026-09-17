@@ -63,6 +63,7 @@ export const Default = meta.story({
 })
 
 export const States = meta.story({
+	tags: ["test-only"],
 	parameters: {
 		pseudo: { focusVisible: "#toggle-switch-focus" },
 		docs: {
@@ -139,6 +140,7 @@ export const WithLabel = meta.story({
 })
 
 export const ReducedMotion = meta.story({
+	tags: ["test-only"],
 	parameters: {
 		docs: {
 			description: {

@@ -45,6 +45,7 @@ export const Default = meta.story({
 })
 
 export const Themes = meta.story({
+	tags: ["test-only"],
 	args: { size: 160 },
 	globals: { theme_layout: "side-by-side" },
 	parameters: {

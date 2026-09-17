@@ -81,6 +81,7 @@ export const Default = meta.story({
 })
 
 export const StableBox = meta.story({
+	tags: ["test-only"],
 	render: () => (
 		<div className="flex max-w-md flex-col gap-6">
 			<div className="flex flex-col gap-1">

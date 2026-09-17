@@ -64,6 +64,7 @@ export const Playground = meta.story({
 })
 
 export const Variants = meta.story({
+	tags: ["test-only"],
 	parameters: { a11y: A11Y_CONTRAST_AWAITING_DESIGN_DECISION },
 	render: () => (
 		<Row>
@@ -77,6 +78,7 @@ export const Variants = meta.story({
 })
 
 export const Sizes = meta.story({
+	tags: ["test-only"],
 	render: () => (
 		<div className="flex flex-col gap-4">
 			<Row>
@@ -98,6 +100,7 @@ export const Sizes = meta.story({
 })
 
 export const States = meta.story({
+	tags: ["test-only"],
 	parameters: {
 		pseudo: {
 			hover: "#button-hover",
@@ -134,24 +137,6 @@ export const WithIcons = meta.story({
 			</Button>
 			<Button variant="ghost" size="icon" aria-label="Settings">
 				<Icons.Settings />
-			</Button>
-		</Row>
-	),
-})
-
-export const AsLink = meta.story({
-	parameters: { a11y: A11Y_CONTRAST_AWAITING_DESIGN_DECISION },
-	render: () => (
-		<Row>
-			<Button nativeButton={false} render={<a href="#button-as-link" />}>
-				Anchor button
-			</Button>
-			<Button
-				variant="link"
-				nativeButton={false}
-				render={<a href="#button-as-link" />}
-			>
-				Link variant
 			</Button>
 		</Row>
 	),

@@ -107,6 +107,7 @@ export const Refused = meta.story({
 })
 
 export const Removing = meta.story({
+	tags: ["test-only"],
 	parameters: {
 		docs: {
 			description: {

@@ -128,6 +128,7 @@ export const Drawn = meta.story({
 })
 
 export const WithoutRemove = meta.story({
+	tags: ["test-only"],
 	args: { onRemove: undefined },
 	parameters: {
 		docs: {
@@ -145,6 +146,7 @@ export const WithoutRemove = meta.story({
 })
 
 export const States = meta.story({
+	tags: ["test-only"],
 	render: (args) => (
 		<div className="flex items-center gap-8">
 			<div id="picture-empty-hover">

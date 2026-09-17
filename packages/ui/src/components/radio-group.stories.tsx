@@ -79,6 +79,7 @@ export const Default = meta.story({
 })
 
 export const States = meta.story({
+	tags: ["test-only"],
 	render: () => (
 		<div className="flex gap-8">
 			<RadioGroup aria-label="Enabled" defaultValue="Next week">
@@ -136,6 +137,7 @@ export const KeyboardWalk = meta.story({
 })
 
 export const OnDarkSurface = meta.story({
+	tags: ["test-only"],
 	globals: { theme: "dark" },
 	parameters: {
 		docs: {

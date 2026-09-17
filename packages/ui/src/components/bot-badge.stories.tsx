@@ -69,6 +69,7 @@ const meta = preview.meta({
 })
 
 export const BotBadges = meta.story({
+	tags: ["test-only"],
 	render: () => (
 		<Row>
 			{BOT_BADGES.map((badge) => (
@@ -106,6 +107,7 @@ export const BotBadges = meta.story({
 })
 
 export const Placements = meta.story({
+	tags: ["test-only"],
 	render: () => (
 		<Row>
 			{HOST_SIZES.map((size) => (
@@ -191,6 +193,7 @@ export const OnAnotherSurface = meta.story({
 })
 
 export const BotTitles = meta.story({
+	tags: ["test-only"],
 	render: () => (
 		<Row>
 			{BOT_TITLES.map((title) => (
@@ -222,6 +225,7 @@ export const BotTitles = meta.story({
 })
 
 export const MissionStates = meta.story({
+	tags: ["test-only"],
 	render: () => (
 		<div className="flex flex-col items-start gap-2">
 			{BOT_MISSION_STATES.map((state) => (

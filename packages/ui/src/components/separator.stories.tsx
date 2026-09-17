@@ -10,9 +10,6 @@ import { Separator } from "@workspace/ui/components/ui/separator"
 
 const PANEL = "flex w-72 flex-col gap-3 rounded-xl border border-border p-4"
 
-const TOOLBAR =
-	"flex h-9 items-center gap-3 rounded-xl border border-border px-3"
-
 const LINE = "text-muted-foreground text-sm"
 
 const meta = preview.meta({
@@ -34,7 +31,7 @@ export const Horizontal = meta.story({
 		docs: {
 			description: {
 				story:
-					"The default axis, dividing two stacked groups. Check that the line is exactly one pixel tall at any zoom and that it takes the full width of its parent rather than a width of its own — the length is always the parent's business. Pick `Vertical` for the axis a toolbar takes.",
+					"The default axis, dividing two stacked groups. Check that the line is exactly one pixel tall at any zoom and that it takes the full width of its parent rather than a width of its own — the length is always the parent's business.",
 			},
 		},
 	},
@@ -52,33 +49,6 @@ export const Horizontal = meta.story({
 		await expect(separator.getBoundingClientRect().height).toBe(1)
 		await expect(separator.getBoundingClientRect().width).toBe(
 			panel.clientWidth - 32,
-		)
-	},
-})
-
-export const Vertical = meta.story({
-	parameters: {
-		docs: {
-			description: {
-				story:
-					"The axis a row of controls takes. Check that the line is one pixel wide and that it stretches to the row's height on its own — `self-stretch` is what spares the caller a hardcoded height, so the rule still fits when the row grows.",
-			},
-		},
-	},
-	render: () => (
-		<div className={TOOLBAR}>
-			<span className={LINE}>Rename</span>
-			<Separator orientation="vertical" />
-			<span className={LINE}>Archive</span>
-		</div>
-	),
-	play: async ({ canvasElement }) => {
-		const separator = slotIn(canvasElement, "separator")
-		const toolbar = separator.parentElement as HTMLElement
-
-		await expect(separator.getBoundingClientRect().width).toBe(1)
-		await expect(separator.getBoundingClientRect().height).toBe(
-			toolbar.getBoundingClientRect().height - 2,
 		)
 	},
 })

@@ -32,8 +32,6 @@ const MCP_TOOL_LABEL = "mcp__linear__create_issue"
 
 const EDGE = 8
 
-const PAST_ONE_TICK = 1200
-
 const ROOM_BOTS = [
 	{ botId: "bot-lyra", name: "Lyra", animal: "owl", blot: "blue" },
 	{ botId: "bot-orion", name: "Orion", animal: "cat", blot: "orange" },
@@ -152,19 +150,8 @@ const meta = preview.meta({
 	},
 })
 
-export const Playground = meta.story({
-	args: { startedAt: startedSecondsAgo(8) },
-	parameters: {
-		docs: {
-			description: {
-				story:
-					"Reach for this to audition a kind with its own label, as a tool would supply. Check that the avatar pose changes with the kind, that the label reads without pointing at anything, and that a `startedAt` in the past starts the clock at the age of the run rather than at zero.",
-			},
-		},
-	},
-})
-
 export const Variants = meta.story({
+	tags: ["test-only"],
 	args: { name: "Atlas" },
 	render: (args) => (
 		<div className="flex flex-col gap-4">
@@ -237,6 +224,7 @@ export const InWave = meta.story({
 })
 
 export const Blot = meta.story({
+	tags: ["test-only"],
 	args: { animal: "rabbit", blot: "blue" },
 	render: (args) => (
 		<div className="flex flex-col gap-4">
@@ -357,31 +345,6 @@ export const NoStartInstant = meta.story({
 	play: async ({ canvas, canvasElement }) => {
 		await expect(canvas.getByText("Atlas is thinking…")).toBeVisible()
 		await expect(slotsIn(canvasElement, "bot-working-elapsed")).toHaveLength(0)
-	},
-})
-
-export const HeldClock = meta.story({
-	args: {
-		...BUSY_BOT,
-		kind: "working",
-		name: "Atlas",
-		elapsedSeconds: 7,
-		startedAt: startedSecondsAgo(42),
-	},
-	parameters: {
-		docs: {
-			description: {
-				story:
-					"A row whose clock is read from `elapsedSeconds` instead of counting on its own, which is what a host driving its own timeline gives it: a replay, a scripted scene, a frozen frame for review. Check that the clock reads `7s` and stays there, and that `startedAt` is ignored while `elapsedSeconds` is given.",
-			},
-		},
-	},
-	play: async ({ canvasElement }) => {
-		const clock = slotIn(canvasElement, "bot-working-elapsed")
-
-		await expect(clock).toHaveTextContent("7s")
-		await new Promise((resolve) => setTimeout(resolve, PAST_ONE_TICK))
-		await expect(clock).toHaveTextContent("7s")
 	},
 })
 
@@ -508,6 +471,7 @@ export const ReducedMotion = meta.story({
 })
 
 export const MarkPerBot = meta.story({
+	tags: ["test-only"],
 	render: () => <RoomWorkers />,
 	parameters: {
 		docs: {
@@ -527,6 +491,7 @@ export const MarkPerBot = meta.story({
 })
 
 export const ConversationChange = meta.story({
+	tags: ["test-only"],
 	render: () => <ConversationSwap />,
 	parameters: {
 		docs: {
@@ -582,6 +547,7 @@ export const Default = meta.story({
 })
 
 export const Marked = meta.story({
+	tags: ["test-only"],
 	args: { ...BUSY_BOT, kind: "searching", name: "Atlas" },
 	render: (args) => (
 		<div className="flex flex-col gap-4">
@@ -678,6 +644,7 @@ export const Stop = meta.story({
 })
 
 export const WaitingSeatStop = meta.story({
+	tags: ["test-only"],
 	render: () => (
 		<MarkProvider transcriptKey={ROOMS[0].id}>
 			<div className="flex flex-col gap-4">

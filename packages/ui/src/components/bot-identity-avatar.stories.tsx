@@ -152,6 +152,7 @@ export const Default = meta.story({
 })
 
 export const EverySize = meta.story({
+	tags: ["test-only"],
 	render: (args) => <EveryPlace {...args} />,
 	parameters: {
 		docs: {
@@ -180,6 +181,7 @@ export const EverySize = meta.story({
 })
 
 export const EveryBlot = meta.story({
+	tags: ["test-only"],
 	render: (args) => (
 		<Row>
 			<BotIdentityAvatar {...args} blot={undefined} />
@@ -211,6 +213,7 @@ export const EveryBlot = meta.story({
 })
 
 export const EveryBadge = meta.story({
+	tags: ["test-only"],
 	render: (args) => (
 		<Row>
 			<BotIdentityAvatar {...args} badge={undefined} />
@@ -242,6 +245,7 @@ export const EveryBadge = meta.story({
 })
 
 export const BadgedWhileWorking = meta.story({
+	tags: ["test-only"],
 	args: { badge: "failed", working: true, kind: "searching" },
 	render: (args) => <EveryPlace {...args} />,
 	parameters: {
@@ -334,6 +338,7 @@ export const Uploaded = meta.story({
 })
 
 export const UploadedWorking = meta.story({
+	tags: ["test-only"],
 	args: { image: UPLOADED_AVATAR_IMAGE, working: true, kind: "searching" },
 	render: (args) => <EveryPlace {...args} />,
 	parameters: {
@@ -359,6 +364,7 @@ export const UploadedWorking = meta.story({
 })
 
 export const UploadedAtDrawnSizes = meta.story({
+	tags: ["test-only"],
 	args: { image: UPLOADED_AVATAR_IMAGE },
 	render: (args) => (
 		<Row>
@@ -392,6 +398,7 @@ export const UploadedAtDrawnSizes = meta.story({
 })
 
 export const UploadedBadged = meta.story({
+	tags: ["test-only"],
 	args: { image: UPLOADED_AVATAR_IMAGE, badge: "attention" },
 	render: (args) => <DrawnPictureSlots {...args} />,
 	parameters: {
@@ -417,6 +424,7 @@ export const UploadedBadged = meta.story({
 })
 
 export const BoundToOneBot = meta.story({
+	tags: ["test-only"],
 	render: (args) => <Changing {...args} />,
 	parameters: {
 		docs: {
@@ -459,6 +467,7 @@ export const BoundToOneBot = meta.story({
 })
 
 export const NamedSkippy = meta.story({
+	tags: ["test-only"],
 	render: (args) => <Renamed {...args} />,
 	parameters: {
 		docs: {
@@ -509,6 +518,7 @@ export const Unseeded = meta.story({
 })
 
 export const Seeded = meta.story({
+	tags: ["test-only"],
 	render: (args) => <Rebranded {...args} />,
 	parameters: {
 		docs: {

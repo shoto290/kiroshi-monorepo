@@ -38,6 +38,7 @@ export const Default = meta.story({
 })
 
 export const LongContent = meta.story({
+	tags: ["test-only"],
 	args: { children: "Shift" },
 	parameters: {
 		docs: {
@@ -56,6 +57,7 @@ export const LongContent = meta.story({
 })
 
 export const InGroup = meta.story({
+	tags: ["test-only"],
 	parameters: {
 		docs: {
 			description: {

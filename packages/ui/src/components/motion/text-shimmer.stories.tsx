@@ -1,7 +1,8 @@
 import preview from "@workspace/storybook/preview"
-import { TextShimmer } from "@workspace/ui/components/motion/text-shimmer"
-
-const DURATIONS = [1, 2.5, 5]
+import {
+	TextShimmer,
+	WORKING_SHIMMER_DURATION,
+} from "@workspace/ui/components/motion/text-shimmer"
 
 const meta = preview.meta({
 	title: "Primitives/TextShimmer",
@@ -15,7 +16,10 @@ const meta = preview.meta({
 			},
 		},
 	},
-	args: { children: "Drafting the release note", duration: 2.5 },
+	args: {
+		children: "Drafting the release note",
+		duration: WORKING_SHIMMER_DURATION,
+	},
 	argTypes: {
 		children: { control: "text" },
 		duration: { control: { type: "number", min: 0.5, step: 0.5 } },
@@ -28,49 +32,14 @@ export const Playground = meta.story({
 		docs: {
 			description: {
 				story:
-					"The nominal case: a short status label, sweeping on the default 2.5s loop. Check that the band crosses left to right without a seam at the wrap point, and that the darkest phase still reads as body text rather than as a disabled label.",
-			},
-		},
-	},
-})
-
-export const Durations = meta.story({
-	render: () => (
-		<div className="flex flex-col items-start gap-3 text-sm">
-			{DURATIONS.map((duration) => (
-				<TextShimmer key={duration} duration={duration}>
-					{`Sweeping every ${duration}s`}
-				</TextShimmer>
-			))}
-		</div>
-	),
-	parameters: {
-		docs: {
-			description: {
-				story:
-					"The full range worth using, from urgent to ambient. Check that 1s reads as impatient rather than as a flicker, that 5s stays legible through the slow dark phase, and pick the low end only for work a reader is actively waiting on.",
-			},
-		},
-	},
-})
-
-export const AsHeading = meta.story({
-	render: () => (
-		<TextShimmer as="h2" className="font-semibold text-2xl">
-			Assembling the workspace
-		</TextShimmer>
-	),
-	parameters: {
-		docs: {
-			description: {
-				story:
-					"Rendered through `as` onto a real heading instead of the default `span`, which is how a full-page waiting state keeps its document outline. Check that the gradient scales with the type — the band is a fraction of the text box, so larger type gets a proportionally wider sweep rather than a faster one.",
+					"The nominal case: a short status label, sweeping on the working duration every call site passes. Check that the band crosses left to right without a seam at the wrap point, and that the darkest phase still reads as body text rather than as a disabled label.",
 			},
 		},
 	},
 })
 
 export const LongContent = meta.story({
+	tags: ["test-only"],
 	render: () => (
 		<p className="max-w-sm text-sm leading-6">
 			<TextShimmer>

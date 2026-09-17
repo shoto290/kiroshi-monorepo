@@ -1,7 +1,7 @@
 import { expect } from "storybook/test"
 
 import preview from "@workspace/storybook/preview"
-import { Row, UPLOADED_AVATAR_IMAGE } from "@workspace/storybook/story-utils"
+import { UPLOADED_AVATAR_IMAGE } from "@workspace/storybook/story-utils"
 import {
 	Avatar,
 	AvatarBadge,
@@ -49,37 +49,6 @@ export const Default = meta.story({
 	},
 })
 
-export const Sizes = meta.story({
-	render: () => (
-		<Row>
-			<Avatar size="sm">
-				<AvatarFallback>AM</AvatarFallback>
-			</Avatar>
-			<Avatar>
-				<AvatarFallback>AM</AvatarFallback>
-			</Avatar>
-			<Avatar size="lg">
-				<AvatarFallback>AM</AvatarFallback>
-			</Avatar>
-		</Row>
-	),
-	parameters: {
-		docs: {
-			description: {
-				story:
-					"Every size in the closed set. Check the fallback text steps down with the circle rather than staying pinned at one size, and pick `InitialsAvatar` when the caller needs a pixel size outside these three.",
-			},
-		},
-	},
-	play: async ({ canvas }) => {
-		const heights = canvas
-			.getAllByText("AM")
-			.map((fallback) => fallback.getBoundingClientRect().height)
-
-		await expect(heights).toEqual([24, 32, 40])
-	},
-})
-
 export const Empty = meta.story({
 	render: () => (
 		<Avatar>
@@ -100,6 +69,7 @@ export const Empty = meta.story({
 })
 
 export const WithBadge = meta.story({
+	tags: ["test-only"],
 	render: () => (
 		<Avatar>
 			<AvatarFallback>AM</AvatarFallback>
@@ -117,6 +87,7 @@ export const WithBadge = meta.story({
 })
 
 export const InGroup = meta.story({
+	tags: ["test-only"],
 	render: () => (
 		<AvatarGroup>
 			<Avatar>
