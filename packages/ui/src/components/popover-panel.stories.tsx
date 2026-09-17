@@ -19,6 +19,28 @@ const PLACEMENTS = listExhaustively<PopoverPanelPlacement>({
 	"bottom-end": true,
 })
 
+const REGISTRY_HOVER_OPEN_DELAY = 600
+const PAST_HOVER_OPEN_DELAY = REGISTRY_HOVER_OPEN_DELAY + 200
+const ANCHOR_TOLERANCE = 1
+
+const clearsTrigger = (
+	panel: DOMRect,
+	trigger: DOMRect,
+	placement: PopoverPanelPlacement,
+) =>
+	placement === "top-start"
+		? panel.bottom <= trigger.top
+		: panel.top >= trigger.bottom
+
+const anchoredEdgeDrift = (
+	panel: DOMRect,
+	trigger: DOMRect,
+	placement: PopoverPanelPlacement,
+) =>
+	placement === "top-start"
+		? Math.abs(panel.left - trigger.left)
+		: Math.abs(panel.right - trigger.right)
+
 const scaleStepRadius = (host: HTMLElement, token: string) => {
 	const probe = host.ownerDocument.createElement("div")
 	probe.style.borderRadius = `var(${token})`
@@ -76,7 +98,7 @@ export const Playground = meta.story({
 		docs: {
 			description: {
 				story:
-					"The knob story: turn `sideOffset` up to push the panel further from its trigger. Check that a pointer resting on the trigger leaves the panel closed, that the panel opens on the first click and closes on the second — the trigger toggles, it does not only open — and that `onOpenChange` fires once per gesture. Pick `Open` to review the resting shape without driving it.",
+					"The knob story: turn `sideOffset` up to push the panel further from its trigger. Check that a pointer resting on the trigger past the registry's 600ms hover open delay leaves the panel closed, that the panel opens on the first click and closes on the second — the trigger toggles, it does not only open — and that `onOpenChange` fires once per gesture. Pick `Open` to review the resting shape without driving it.",
 			},
 		},
 	},
@@ -85,6 +107,7 @@ export const Playground = meta.story({
 		const trigger = canvas.getByRole("button", { name: PANEL_TITLE })
 
 		await userEvent.hover(trigger)
+		await new Promise((resolve) => setTimeout(resolve, PAST_HOVER_OPEN_DELAY))
 		await expect(trigger).toHaveAttribute("aria-expanded", "false")
 		await expect(
 			body.queryByRole("dialog", { name: PANEL_TITLE }),
@@ -133,7 +156,7 @@ export const Placements = meta.story({
 		docs: {
 			description: {
 				story:
-					"Both anchors the panel exposes, open at once: `top-start` above its trigger on the trigger start edge, `bottom-end` below it on the end edge. Check that each panel clears its trigger instead of covering it. The registry positioner shifts a panel that would leave the viewport, so read a drifted panel as a placement to fix at the call site. Pick `Open` for one panel at review size.",
+					"Both anchors the panel exposes, open at once: `top-start` above its trigger on the trigger start edge, `bottom-end` below it on the end edge. Check that each panel clears its trigger instead of covering it, and that its anchored edge tracks the matching trigger edge to within a pixel: the start edge on `top-start`, the end edge on `bottom-end`. The registry positioner shifts a panel that would leave the viewport, so read a drifted panel as a placement to fix at the call site. Pick `Open` for one panel at review size.",
 			},
 		},
 	},
@@ -164,11 +187,10 @@ export const Placements = meta.story({
 				const panelBox = panel.getBoundingClientRect()
 				const triggerBox = trigger.getBoundingClientRect()
 
+				expect(clearsTrigger(panelBox, triggerBox, placement)).toBe(true)
 				expect(
-					placement === "top-start"
-						? panelBox.bottom <= triggerBox.top
-						: panelBox.top >= triggerBox.bottom,
-				).toBe(true)
+					anchoredEdgeDrift(panelBox, triggerBox, placement),
+				).toBeLessThanOrEqual(ANCHOR_TOLERANCE)
 			})
 		}
 	},
