@@ -1,7 +1,7 @@
 use serde::Serialize;
 
 use crate::agent::contract::TransportError;
-use crate::agent::protocol::{OauthFailure, OauthFailureKind};
+use crate::agent::protocol::{OauthFailure, OauthFailureKind, OauthStep};
 use crate::agent::sidecar::OauthFlowError;
 use crate::environment::contract::EnvError;
 
@@ -30,6 +30,12 @@ pub enum OauthError {
 	#[serde(rename_all = "camelCase")]
 	Failed {
 		detail: String,
+		#[serde(skip_serializing_if = "Option::is_none")]
+		step: Option<OauthStep>,
+		#[serde(skip_serializing_if = "Option::is_none")]
+		status: Option<u16>,
+		#[serde(skip_serializing_if = "Option::is_none")]
+		body: Option<String>,
 	},
 	#[serde(rename_all = "camelCase")]
 	Transport {
@@ -72,9 +78,12 @@ impl From<OauthFailure> for OauthError {
 			OauthFailureKind::TimedOut => Self::TimedOut,
 			OauthFailureKind::Denied => Self::Denied { detail: detail() },
 			OauthFailureKind::Busy => Self::AlreadyRunning,
-			OauthFailureKind::Rejected | OauthFailureKind::Failed => {
-				Self::Failed { detail: detail() }
-			}
+			OauthFailureKind::Rejected | OauthFailureKind::Failed => Self::Failed {
+				detail: detail(),
+				step: failure.step,
+				status: failure.status,
+				body: failure.body,
+			},
 		}
 	}
 }
@@ -157,7 +166,15 @@ mod tests {
 
 	#[test]
 	fn every_failure_the_sidecar_names_becomes_a_kind_of_its_own() {
-		let refused = |kind| OauthError::from(OauthFailure { kind, detail: None });
+		let refused = |kind| {
+			OauthError::from(OauthFailure {
+				kind,
+				detail: None,
+				step: None,
+				status: None,
+				body: None,
+			})
+		};
 
 		assert_eq!(refused(OauthFailureKind::Cancelled), OauthError::Cancelled);
 		assert_eq!(refused(OauthFailureKind::TimedOut), OauthError::TimedOut);
@@ -165,9 +182,70 @@ mod tests {
 		assert_eq!(
 			OauthError::from(OauthFailure {
 				kind: OauthFailureKind::Denied,
-				detail: Some("access_denied".to_owned())
+				detail: Some("access_denied".to_owned()),
+				step: None,
+				status: None,
+				body: None
 			}),
 			OauthError::Denied { detail: "access_denied".to_owned() }
+		);
+	}
+
+	#[test]
+	fn a_refused_request_crosses_with_the_step_the_status_and_the_body_it_carried() {
+		let failure: OauthFailure = serde_json::from_value(json!({
+			"kind": "failed",
+			"detail": "the registration endpoint answered 403",
+			"step": "registration",
+			"status": 403,
+			"body": "Forbidden"
+		}))
+		.expect("the frame reads");
+
+		assert_eq!(
+			to_value(OauthError::from(failure)).expect("the error serializes"),
+			json!({
+				"kind": "failed",
+				"detail": "the registration endpoint answered 403",
+				"step": "registration",
+				"status": 403,
+				"body": "Forbidden"
+			})
+		);
+	}
+
+	#[test]
+	fn a_step_the_app_knows_none_of_leaves_the_rest_of_the_failure_readable() {
+		let failure: OauthFailure = serde_json::from_value(json!({
+			"kind": "failed",
+			"detail": "the introspection endpoint answered 418",
+			"step": "introspection",
+			"status": 418
+		}))
+		.expect("the frame reads");
+
+		assert_eq!(
+			to_value(OauthError::from(failure)).expect("the error serializes"),
+			json!({
+				"kind": "failed",
+				"detail": "the introspection endpoint answered 418",
+				"status": 418
+			})
+		);
+	}
+
+	#[test]
+	fn a_failure_naming_no_refused_request_carries_no_step_and_no_status() {
+		assert_eq!(
+			to_value(OauthError::from(OauthFailure {
+				kind: OauthFailureKind::Failed,
+				detail: Some("no server url was named".to_owned()),
+				step: None,
+				status: None,
+				body: None
+			}))
+			.expect("the error serializes"),
+			json!({ "kind": "failed", "detail": "no server url was named" })
 		);
 	}
 
