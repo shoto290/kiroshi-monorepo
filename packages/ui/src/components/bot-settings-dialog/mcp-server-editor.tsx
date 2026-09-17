@@ -28,6 +28,7 @@ import {
 	MCP_DESTRUCTIVE_SURFACE,
 	type McpConnectionSection,
 	type McpRefusedRefresh,
+	readMcpConnectionReason,
 } from "@workspace/ui/components/bot-settings-dialog/mcp-connection"
 import { McpServerLaunch } from "@workspace/ui/components/bot-settings-dialog/mcp-server-launch"
 import { ConfirmDialog } from "@workspace/ui/components/confirm-dialog"
@@ -162,6 +163,7 @@ type McpAuthorizationProps = McpConnectionSection & {
 
 const McpAuthorization = ({
 	state,
+	reason,
 	host,
 	refusedRefresh,
 	name,
@@ -194,6 +196,7 @@ const McpAuthorization = ({
 			return host
 				? t("applications.connection.description.connecting", { host })
 				: null
+		if (state === "failed") return readMcpConnectionReason(t, reason)
 		return null
 	}
 
@@ -270,7 +273,9 @@ const McpAuthorization = ({
 						: t(`applications.connection.state.${state}`)}
 				</p>
 				{description ? (
-					<p className="text-muted-foreground text-xs">{description}</p>
+					<p className="wrap-break-word text-muted-foreground text-xs">
+						{description}
+					</p>
 				) : null}
 			</div>
 			<div className="flex shrink-0 items-center gap-2">{readActions()}</div>
@@ -395,7 +400,7 @@ const McpServerEditor = ({
 
 	return (
 		<Tabs.Root
-			className={cn("flex min-h-0 flex-1", className)}
+			className={cn("flex min-h-0 min-w-0 flex-1", className)}
 			defaultValue={defaultSection ?? FIRST_SECTION}
 			orientation="vertical"
 			ref={setRoot}

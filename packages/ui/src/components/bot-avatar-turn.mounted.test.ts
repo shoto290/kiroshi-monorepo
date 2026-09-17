@@ -51,6 +51,13 @@ const EVEN_DRAW = 0.5
 const INSIDE_TURN_MS = 40
 const HALFWAY_TURN_MS = 400
 const AFTER_TURN_MS = 1500
+const MEASURED_MS = SETTLE_MS + HALFWAY_TURN_MS + AFTER_TURN_MS
+const SOONEST_AMBIENT_MS = 1600
+const SOONEST_AMBIENT_SPREAD_MS = 3000
+const AMBIENT_CLEARANCE_MS = 400
+const QUIET_DRAW =
+	(MEASURED_MS + AMBIENT_CLEARANCE_MS - SOONEST_AMBIENT_MS) /
+	SOONEST_AMBIENT_SPREAD_MS
 const TURNING_STATE = "listening"
 
 const mountRig = (animal: BotAvatarAnimalDefinition) => {
@@ -128,6 +135,7 @@ describe("the ears on a turning head", () => {
 	})
 
 	it("trails the turn and comes back to rest after it", () => {
+		vi.spyOn(Math, "random").mockReturnValue(QUIET_DRAW)
 		const { engine, svg } = mountRig(ANIMALS.rabbit)
 		engine.start()
 		vi.advanceTimersByTime(SETTLE_MS)

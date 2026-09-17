@@ -183,10 +183,23 @@ const MCP_CONNECTION_STATES = [
 	"failed",
 ] as const
 
+type BotMcpConnectionReason =
+	| {
+			kind:
+				| "alreadyRunning"
+				| "store"
+				| "transport"
+				| "refusedUrl"
+				| "browserRefused"
+				| "timedOut"
+	  }
+	| { kind: "unknown"; detail: string }
+
 type BotMcpServerItem = {
 	name: string
 	config: Record<string, unknown>
 	connection?: BotMcpConnectionState
+	reason?: BotMcpConnectionReason
 	displayName?: string
 	mark?: string
 }
@@ -447,6 +460,7 @@ export {
 	type BotCommitAuthor,
 	type BotCommitItem,
 	type BotIdentity,
+	type BotMcpConnectionReason,
 	type BotMcpConnectionState,
 	type BotMcpServerDraft,
 	type BotMcpServerFields,
