@@ -215,7 +215,7 @@ mod tests {
 				title: name.to_owned(),
 				description: String::new(),
 				config: json!({}),
-				tools: Vec::new(),
+				tools: None,
 				logo: None,
 				logo_url: None,
 				use_count: None,

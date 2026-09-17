@@ -240,15 +240,15 @@ export const REGISTRY_INSTALL: InstallableApplication = {
 	name: "tasklog",
 	packageIdentity: "npx -y @kwn/tasklog-mcp",
 	setup: "none",
-	tools: [
-		"list_tasks",
-		"get_task",
-		"create_task",
-		"update_task",
-		"close_task",
-		"add_comment",
-		"search_tasks",
-	],
+}
+
+export const EMPTY_TOOL_LIST_INSTALL: InstallableApplication = {
+	id: "meshvault",
+	name: "Meshvault",
+	description: "Stores and serves mesh assets.",
+	packageIdentity: "https://mcp.meshvault.dev/mcp",
+	setup: "none",
+	tools: [],
 }
 
 export const LOCAL_PACKAGE_INSTALL: InstallableApplication = {
@@ -268,7 +268,6 @@ export const LOCAL_PACKAGE_INSTALL: InstallableApplication = {
 			concealed: false,
 		},
 	],
-	tools: ["run_tests", "list_tests", "read_report"],
 }
 
 export const MIXED_FIELDS_INSTALL: InstallableApplication = {
@@ -336,8 +335,8 @@ export const REFUSED_INSTALL: InstallableApplication = {
 }
 
 export const LONG_INSTALL: InstallableApplication = {
-	...REGISTRY_INSTALL,
-	name: "a-very-long-registry-application-name-that-keeps-going-on-end",
+	...SIGN_IN_INSTALL,
+	name: "a-very-long-application-name-that-keeps-going-on-and-on-well",
 	tools: Array.from({ length: 40 }, (_, index) => `tool_number_${index + 1}`),
 }
 

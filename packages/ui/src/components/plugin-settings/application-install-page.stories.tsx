@@ -8,6 +8,7 @@ import {
 } from "@workspace/ui/components/plugin-settings/application-install-page"
 import {
 	API_KEY_INSTALL,
+	EMPTY_TOOL_LIST_INSTALL,
 	HOSTED_INSTALL,
 	HOSTED_NOTHING_INSTALL,
 	LOCAL_PACKAGE_INSTALL,
@@ -242,7 +243,7 @@ export const NothingToSetUp = meta.story({
 		docs: {
 			description: {
 				story:
-					"E7. A registry package that asks for nothing. Check the plain server mark, the name and the package invocation in monospace, the check line with no panel, the tool count claiming nothing beyond how many there are, and that nothing is said about whether Kiroshi has read it.",
+					"E7. A registry package that asks for nothing. The registry answers no tool list, so check the plain server mark, the name and the package invocation in monospace, the check line with no panel, nothing at all about tools, and that nothing is said about whether Kiroshi has read it.",
 			},
 		},
 	},
@@ -258,11 +259,36 @@ export const NothingToSetUp = meta.story({
 				"Nothing to set up. It runs on this machine, with no key and no sign-in.",
 			),
 		).toBeVisible()
-		await expect(canvas.getByText("7 tools")).toBeVisible()
+		await expect(
+			canvas.queryByRole("heading", { name: "What it brings" }),
+		).not.toBeInTheDocument()
+		await expect(canvas.queryByText(/\d+ tools?$/)).not.toBeInTheDocument()
+		await expect(canvas.queryByRole("listitem")).not.toBeInTheDocument()
+		await expect(
+			canvas.getByText(/Applications run on your machine/),
+		).toBeVisible()
 		await expect(
 			canvas.queryByText("Kiroshi hasn’t read this one"),
 		).not.toBeInTheDocument()
 		await expect(canvas.queryByText(/^Published on /)).not.toBeInTheDocument()
+	},
+})
+
+export const EmptyToolList = meta.story({
+	args: { application: EMPTY_TOOL_LIST_INSTALL },
+	parameters: {
+		docs: {
+			description: {
+				story:
+					"An application whose source read its tools and found none. Check that the heading and the count are there, claiming zero, since nothing brought is a read fact and not an unknown.",
+			},
+		},
+	},
+	play: async ({ canvas }) => {
+		await expect(
+			canvas.getByRole("heading", { name: "What it brings" }),
+		).toBeVisible()
+		await expect(canvas.getByText("0 tools")).toBeVisible()
 	},
 })
 

@@ -13,7 +13,8 @@ pub struct Application {
 	pub title: String,
 	pub description: String,
 	pub config: serde_json::Value,
-	pub tools: Vec<String>,
+	#[serde(default, skip_serializing_if = "Option::is_none")]
+	pub tools: Option<Vec<String>>,
 	#[serde(default, skip_serializing_if = "Option::is_none")]
 	pub logo: Option<String>,
 	#[serde(default, skip_serializing_if = "Option::is_none")]
@@ -385,7 +386,7 @@ mod tests {
 			title: "Superset".to_owned(),
 			description: "Run workspaces.".to_owned(),
 			config: json!({ "type": "http", "url": "https://superset.test/mcp" }),
-			tools: vec!["tasks_list".to_owned()],
+			tools: Some(vec!["tasks_list".to_owned()]),
 			logo: None,
 			logo_url: Some("https://superset.test/logo.png".to_owned()),
 			use_count: Some(42),
@@ -425,6 +426,27 @@ mod tests {
 				},
 			})
 		);
+	}
+
+	#[test]
+	fn an_application_holding_no_tool_list_crosses_without_the_key() {
+		let application = Application {
+			name: "tasklog".to_owned(),
+			title: "tasklog".to_owned(),
+			description: "Track tasks.".to_owned(),
+			config: json!({ "type": "stdio", "command": "npx" }),
+			tools: None,
+			logo: None,
+			logo_url: None,
+			use_count: None,
+			verified: None,
+			hosted_by: None,
+			install: Install::Nothing,
+		};
+
+		let crossed = to_value(application).expect("it serialises");
+
+		assert_eq!(crossed.get("tools"), None);
 	}
 
 	#[test]
