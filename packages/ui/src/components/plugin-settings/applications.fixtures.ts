@@ -265,7 +265,7 @@ export const REGISTRY_INSTALL: InstallableApplication = {
 export const LOCAL_PACKAGE_INSTALL: InstallableApplication = {
 	id: "io.github.DiegoBr4nd/godot-gut-mcp",
 	name: "godot-gut-mcp",
-	packageIdentity: "uvx godot-gut-mcp",
+	packageIdentity: "io.github.DiegoBr4nd/godot-gut-mcp",
 	setup: "apiKey",
 	fields: [
 		{
@@ -286,7 +286,7 @@ export const MIXED_FIELDS_INSTALL: InstallableApplication = {
 	...LOCAL_PACKAGE_INSTALL,
 	id: "io.github.FunplayAI/funplay-godot-mcp",
 	name: "funplay-godot-mcp",
-	packageIdentity: "npx -y funplay-godot-mcp",
+	packageIdentity: "io.github.FunplayAI/funplay-godot-mcp",
 	fields: [
 		{
 			name: "GODOT_PATH",

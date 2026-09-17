@@ -123,7 +123,7 @@ export const SignsYouIn = meta.story({
 		await expect(getComputedStyle(action).paddingInlineStart).toBe("12px")
 		await expect(getComputedStyle(action).paddingInlineEnd).toBe("14px")
 		await userEvent.click(action)
-		await expect(args.onInstall).toHaveBeenCalledWith([])
+		await expect(args.onInstall).toHaveBeenCalledWith({})
 
 		await userEvent.click(
 			canvas.getByRole("button", { name: "All applications" }),
@@ -165,7 +165,9 @@ export const NeedsApiKey = meta.story({
 		await expect(action).toHaveFocus()
 		await expect(action.querySelector("svg")).toBeNull()
 		await userEvent.keyboard("{Enter}")
-		await expect(args.onInstall).toHaveBeenCalledWith(["sntryu_secret"])
+		await expect(args.onInstall).toHaveBeenCalledWith({
+			Authorization: "sntryu_secret",
+		})
 	},
 })
 
@@ -175,7 +177,7 @@ export const AsksForEveryValue = meta.story({
 		docs: {
 			description: {
 				story:
-					"A package that runs on this machine and asks for every variable it declares as required. Check one labelled input per variable in the order they arrive, each with its own description, that nothing offers to show a value nobody conceals, and that adding hands the two values typed in that order.",
+					"A package that runs on this machine and asks for every variable it declares as required. Check one labelled input per variable in the order they arrive, each with its own description, that nothing offers to show a value nobody conceals, and that adding hands each typed value under the name of the variable it fills.",
 			},
 		},
 	},
@@ -202,10 +204,10 @@ export const AsksForEveryValue = meta.story({
 		await userEvent.click(
 			canvas.getByRole("button", { name: "Add application" }),
 		)
-		await expect(args.onInstall).toHaveBeenCalledWith([
-			"/usr/local/bin/godot",
-			"/home/games/asteroids",
-		])
+		await expect(args.onInstall).toHaveBeenCalledWith({
+			GODOT_PATH: "/usr/local/bin/godot",
+			GODOT_PROJECT_PATH: "/home/games/asteroids",
+		})
 	},
 })
 
@@ -387,7 +389,9 @@ export const InstallFailedFromKeyboard = meta.story({
 		await expect(action).toHaveFocus()
 		await userEvent.keyboard("{Enter}")
 		await expect(args.onInstall).toHaveBeenCalledTimes(1)
-		await expect(args.onInstall).toHaveBeenCalledWith(["sntryu_wrong"])
+		await expect(args.onInstall).toHaveBeenCalledWith({
+			Authorization: "sntryu_wrong",
+		})
 
 		pendingInstall.settle?.("refused")
 		const alert = await canvas.findByRole("alert")

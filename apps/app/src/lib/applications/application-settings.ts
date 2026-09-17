@@ -100,13 +100,7 @@ export const toInstallableApplication = (
 	description: application.description || undefined,
 	packageIdentity: application.name,
 	tools: application.tools,
-	fields: askedFieldsOf(application).map(
-		({ name, description, concealed }) => ({
-			name,
-			description,
-			concealed,
-		}),
-	),
+	fields: askedFieldsOf(application),
 	refusal: refusalOf(application),
 })
 

@@ -211,12 +211,14 @@ const KeyField = ({ field, value, onValueChange }: KeyFieldProps) => {
 	)
 }
 
+type InstallValues = Record<string, string>
+
 type KeyPanelProps = {
 	name: string
 	owner: ApplicationsOwner
 	fields: InstallableField[]
-	values: string[]
-	onValueChange: (index: number, value: string) => void
+	values: InstallValues
+	onValueChange: (name: string, value: string) => void
 }
 
 const KeyPanel = ({
@@ -240,12 +242,12 @@ const KeyPanel = ({
 			>
 				{t("applications.install.key.title", { name })}
 			</p>
-			{fields.map((field, index) => (
+			{fields.map((field) => (
 				<KeyField
 					field={field}
 					key={field.name}
-					onValueChange={(value) => onValueChange(index, value)}
-					value={values[index] ?? ""}
+					onValueChange={(value) => onValueChange(field.name, value)}
+					value={values[field.name] ?? ""}
 				/>
 			))}
 			<p className="wrap-break-word text-muted-foreground text-xs/4">
@@ -405,7 +407,7 @@ type ApplicationInstallPageProps = Omit<CataloguePageProps, "children"> & {
 	isInstalling?: boolean
 	isInstalled?: boolean
 	failure?: string
-	onInstall: (values: string[]) => void
+	onInstall: (values: InstallValues) => void
 }
 
 const ApplicationInstallPage = ({
@@ -420,16 +422,19 @@ const ApplicationInstallPage = ({
 	const { t } = useTranslation("bots")
 	const body = useRef<HTMLDivElement>(null)
 	useOverlayScrollbars(body)
-	const [values, setValues] = useState<string[]>([])
+	const [values, setValues] = useState<InstallValues>({})
 	const isPackage = !application.description
 	const { host, refusal } = application
 	const fields = application.fields ?? []
 
-	const typeInto = (index: number, value: string) => {
-		setValues((held) =>
-			fields.map((_, rank) => (rank === index ? value : (held[rank] ?? ""))),
-		)
+	const typeInto = (name: string, value: string) => {
+		setValues((held) => ({ ...held, [name]: value }))
 	}
+
+	const asked = () =>
+		Object.fromEntries(
+			fields.map((field) => [field.name, values[field.name] ?? ""]),
+		)
 	const isRefused = application.setup === "unavailable"
 	const hostedSource =
 		host === undefined ? undefined : (application.source ?? host)
@@ -543,9 +548,7 @@ const ApplicationInstallPage = ({
 								isHosted={host !== undefined}
 								isInstalled={isInstalled}
 								isInstalling={isInstalling}
-								onInstall={() =>
-									onInstall(fields.map((_, index) => values[index] ?? ""))
-								}
+								onInstall={() => onInstall(asked())}
 								setup={application.setup}
 							/>
 						</div>
@@ -561,4 +564,5 @@ export {
 	type ApplicationInstallPageProps,
 	type InstallableApplication,
 	type InstallableField,
+	type InstallValues,
 }

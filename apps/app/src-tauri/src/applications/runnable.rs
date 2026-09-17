@@ -16,6 +16,8 @@ const NPM_REGISTRY: &str = "https://registry.npmjs.org";
 
 const PYPI_REGISTRY: &str = "https://pypi.org";
 
+const UNPUBLISHED: [StatusCode; 2] = [StatusCode::NOT_FOUND, StatusCode::GONE];
+
 #[derive(Debug, Clone)]
 pub struct Runners {
 	pub path: OsString,
@@ -47,11 +49,18 @@ async fn package_refusal(
 	identifier: &str,
 ) -> Option<InstallRefusal> {
 	match answered(package_endpoint(runners, command, identifier)?).await {
-		Ok(StatusCode::OK) => None,
-		Ok(status) => Some(InstallRefusal {
+		Ok(status) if UNPUBLISHED.contains(&status) => Some(InstallRefusal {
 			field: identifier.to_owned(),
 			reason: unpublished(identifier, status.as_u16()),
 		}),
+		Ok(StatusCode::OK) => None,
+		Ok(status) => {
+			eprintln!(
+				"the package registry answered {} for {identifier}, which says nothing about whether it runs",
+				status.as_u16()
+			);
+			None
+		}
 		Err(failure) => {
 			eprintln!("the package registry answered nothing for {identifier}: {failure:?}");
 			None
@@ -88,7 +97,29 @@ async fn answered(url: Url) -> Result<StatusCode, ApplicationsError> {
 }
 
 fn on_path(path: &OsStr, command: &str) -> bool {
-	env::split_paths(path).any(|directory| executable(directory.join(command)))
+	let candidates = candidates(command);
+	env::split_paths(path)
+		.any(|directory| candidates.iter().any(|named| executable(directory.join(named))))
+}
+
+#[cfg(windows)]
+fn candidates(command: &str) -> Vec<String> {
+	const SUFFIXES: &str = ".COM;.EXE;.BAT;.CMD";
+
+	let declared = env::var("PATHEXT").unwrap_or_else(|_| SUFFIXES.to_owned());
+	std::iter::once(command.to_owned())
+		.chain(
+			declared
+				.split(';')
+				.filter(|suffix| !suffix.is_empty())
+				.map(|suffix| format!("{command}{suffix}")),
+		)
+		.collect()
+}
+
+#[cfg(not(windows))]
+fn candidates(command: &str) -> Vec<String> {
+	vec![command.to_owned()]
 }
 
 #[cfg(unix)]
@@ -193,6 +224,17 @@ pub(crate) mod tests {
 		json!({ "type": "stdio", "command": NPX, "args": ["-y", identifier] })
 	}
 
+	#[cfg(windows)]
+	#[test]
+	fn a_command_of_windows_is_read_under_its_bare_name_and_under_each_suffix_of_pathext() {
+		let npx = candidates(NPX);
+		let uvx = candidates(UVX);
+
+		assert_eq!(npx[0], NPX);
+		assert!(npx.iter().any(|held| held.eq_ignore_ascii_case("npx.cmd")), "got {npx:?}");
+		assert!(uvx.iter().any(|held| held.eq_ignore_ascii_case("uvx.exe")), "got {uvx:?}");
+	}
+
 	#[tokio::test]
 	async fn a_config_naming_no_command_runs_and_reads_no_package_registry() {
 		let (runners, held) = serving(StatusCode::NOT_FOUND).await;
@@ -247,16 +289,28 @@ pub(crate) mod tests {
 	}
 
 	#[tokio::test]
-	async fn an_identifier_the_package_registry_refuses_is_refused_under_that_status() {
-		let (runners, _) = serving(StatusCode::NOT_FOUND).await;
+	async fn an_identifier_the_package_registry_publishes_no_more_is_refused_under_that_status() {
+		for status in [StatusCode::NOT_FOUND, StatusCode::GONE] {
+			let (runners, _) = serving(status).await;
 
-		let answered = refusal(&runners, &an_npm_config("no-such-package"))
-			.await
-			.expect("a refused identifier refuses");
+			let answered = refusal(&runners, &an_npm_config("no-such-package"))
+				.await
+				.expect("an unpublished identifier refuses");
 
-		assert_eq!(answered.field, "no-such-package");
-		assert!(answered.reason.contains("404"), "got {}", answered.reason);
-		assert!(answered.reason.contains("no-such-package"), "got {}", answered.reason);
+			assert_eq!(answered.field, "no-such-package");
+			assert!(answered.reason.contains(status.as_str()), "got {}", answered.reason);
+			assert!(answered.reason.contains("no-such-package"), "got {}", answered.reason);
+		}
+	}
+
+	#[tokio::test]
+	async fn a_package_registry_answering_neither_ok_nor_unpublished_leaves_the_config_running() {
+		for status in [StatusCode::UNAUTHORIZED, StatusCode::SERVICE_UNAVAILABLE] {
+			let (runners, held) = serving(status).await;
+
+			assert_eq!(refusal(&runners, &an_npm_config("a-package")).await, None);
+			assert_eq!(held.asked.lock().expect("the stub records").clone(), ["/a-package"]);
+		}
 	}
 
 	#[tokio::test]

@@ -356,7 +356,7 @@ describe("applications controller", () => {
 		await controller.open()
 		controller.pick("superset")
 
-		await controller.install(targetOf(), ["sk-typed"])
+		await controller.install(targetOf(), { Authorization: "sk-typed" })
 
 		const secrets = await store.environmentVariables({
 			kind: "server",
@@ -376,7 +376,7 @@ describe("applications controller", () => {
 		await controller.open()
 		controller.pick("@owner/two-headers")
 
-		await controller.install(targetOf(), ["sk-typed"])
+		await controller.install(targetOf(), { Authorization: "sk-typed" })
 
 		expect(controller.getState().failure).toContain("tenant")
 		expect(declare).not.toHaveBeenCalled()
@@ -384,20 +384,20 @@ describe("applications controller", () => {
 		expect(await store.userPluginMcpServers()).toEqual([])
 	})
 
-	it("names every field it has no value for", async () => {
+	it("names every field no value arrived under the name of", async () => {
 		const port = createFakeApplicationPort()
 		port.curated = [TWO_KEYED]
 		const controller = controllerOn(port)
 		await controller.open()
 		controller.pick("@owner/two-headers")
 
-		await controller.install(targetOf(), ["   "])
+		await controller.install(targetOf(), { apiKey: "   " })
 
 		expect(controller.getState().failure).toContain("apiKey")
 		expect(controller.getState().failure).toContain("tenant")
 	})
 
-	it("writes every value under its own variable in the scope of the server", async () => {
+	it("writes every value under the variable of the field it was typed into", async () => {
 		const port = createFakeApplicationPort()
 		port.curated = [TWO_KEYED]
 		const store = createFakeTranscriptStore()
@@ -406,7 +406,7 @@ describe("applications controller", () => {
 		await controller.open()
 		controller.pick("@owner/two-headers")
 
-		await controller.install(targetOf(), ["sk-typed", "acme"])
+		await controller.install(targetOf(), { tenant: "acme", apiKey: "sk-typed" })
 
 		const scope = { kind: "server", name: "@owner/two-headers", owner: USER }
 		expect(write.mock.calls).toEqual([
@@ -478,7 +478,7 @@ describe("applications controller", () => {
 		await controller.open()
 		controller.pick("@owner/two-headers")
 
-		await controller.install(targetOf(), ["sk-typed", "acme"])
+		await controller.install(targetOf(), { apiKey: "sk-typed", tenant: "acme" })
 
 		expect(controller.getState().failure).toContain(
 			"the command uvx is on no directory of your PATH",
@@ -564,7 +564,7 @@ describe("applications controller", () => {
 		await controller.open()
 		controller.pick("superset")
 
-		await controller.install(targetOf(), ["sk-typed"])
+		await controller.install(targetOf(), { Authorization: "sk-typed" })
 
 		expect(await store.userPluginMcpServers()).toEqual([])
 		expect(controller.getState().failure).toContain("the keyring is locked")
@@ -583,7 +583,7 @@ describe("applications controller", () => {
 		await controller.open()
 		controller.pick("superset")
 
-		await controller.install(targetOf(), ["sk-typed"])
+		await controller.install(targetOf(), { Authorization: "sk-typed" })
 
 		expect(await store.userPluginMcpServers()).toEqual([
 			{ name: "superset", config: SUPERSET.config },
@@ -610,7 +610,7 @@ describe("applications controller", () => {
 		await controller.open()
 		controller.pick("superset")
 
-		await controller.install(targetOf(), ["sk-typed"])
+		await controller.install(targetOf(), { Authorization: "sk-typed" })
 
 		expect(controller.getState().failure).toContain("the keyring is locked")
 		expect(reportFailure).toHaveBeenCalledTimes(1)
