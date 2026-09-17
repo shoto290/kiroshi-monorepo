@@ -112,7 +112,7 @@ export const Default = meta.story({
 		docs: {
 			description: {
 				story:
-					"The nominal frame. Check that the quote sits above the composer and that the frame encloses it on its secondary fill instead of the strip living inside the pill, that the excerpt keeps to one line however long the quoted message is, and that the two controls report different things: pressing the quote asks for a jump, pressing the cross asks for the reply to be dropped. Neither does anything to the composer on its own — the group reads `Replying to Skippy` for a screen reader.",
+					"The nominal frame. Check that the quote sits above the composer and that the frame encloses it on its secondary fill instead of the strip living inside the pill, that the excerpt keeps to one line however long the quoted message is, and that the two controls report different things: pressing the quote asks for a jump, pressing the cross asks for the reply to be dropped. Neither does anything to the composer on its own — the group reads `Replying to Skippy` for a screen reader. `packages/ui/src/components/thread-layout.tsx:107` wraps the composer in it with the reply `apps/app/src/components/thread-screen.tsx:1428` holds.",
 			},
 		},
 	},
@@ -138,7 +138,7 @@ export const Alignment = meta.story({
 		docs: {
 			description: {
 				story:
-					"The gutters the frame shares with the composer it wraps. The reply glyph sits in the box the attach button sits in and the cross sits in the box the send button sits in, both 32px holding a 16px glyph, so the two rows read as one column of controls; the author and the excerpt start where the placeholder starts. Eight pixels sit above the quote and eight between it and the pill, the same air the composer keeps around its own row. Check the four edges line up and that the quote still costs two clipped lines whatever it holds.",
+					"The gutters the frame shares with the composer it wraps. The reply glyph sits in the box the attach button sits in and the cross sits in the box the send button sits in, both 32px holding a 16px glyph, so the two rows read as one column of controls; the author and the excerpt start where the placeholder starts. Eight pixels sit above the quote and eight between it and the pill, the same air the composer keeps around its own row. Check the four edges line up and that the quote still costs two clipped lines whatever it holds. `packages/ui/src/components/thread-layout.tsx:107` wraps the composer in it with the reply `apps/app/src/components/thread-screen.tsx:1428` holds.",
 			},
 		},
 	},
@@ -185,7 +185,7 @@ export const Dismissed = meta.story({
 		docs: {
 			description: {
 				story:
-					"Taking the reply back, live: the host stops rendering the frame and the composer is left alone. Check that the prompt already typed survives the frame going away and that the composer keeps its own shape once unwrapped — the frame owns no state of the composer.",
+					"Taking the reply back, live: the host stops rendering the frame and the composer is left alone. Check that the prompt already typed survives the frame going away and that the composer keeps its own shape once unwrapped — the frame owns no state of the composer. `packages/ui/src/components/thread-layout.tsx:107` wraps the composer in it with the reply `apps/app/src/components/thread-screen.tsx:1428` holds.",
 			},
 		},
 	},
@@ -206,7 +206,7 @@ export const Naming = meta.story({
 		docs: {
 			description: {
 				story:
-					"The frame arriving and leaving around a composer the reader is already using. The frame is always mounted and only its quote comes and goes, so the textarea is never rebuilt: check that what was typed survives the quote appearing and the cross taking it away, that the composer keeps the focus it held while the quote arrives, and that it carries no frame of its own while nothing is quoted. Where the focus lands once the cross removes itself is the host's to say, not the frame's.",
+					"The frame arriving and leaving around a composer the reader is already using. The frame is always mounted and only its quote comes and goes, so the textarea is never rebuilt: check that what was typed survives the quote appearing and the cross taking it away, that the composer keeps the focus it held while the quote arrives, and that it carries no frame of its own while nothing is quoted. Where the focus lands once the cross removes itself is the host's to say, not the frame's. `packages/ui/src/components/thread-layout.tsx:107` wraps the composer in it with the reply `apps/app/src/components/thread-screen.tsx:1428` holds.",
 			},
 		},
 	},

@@ -55,7 +55,7 @@ export const Default = meta.story({
 		docs: {
 			description: {
 				story:
-					"The nominal row: a document and a picture, the two kinds a chip ever renders. Check that the picture is its own thumbnail while the document falls back to the file glyph, that both chips keep the same height and that pressing a remove control reports that chip's id rather than its index — the host removes by id, so a stale index would drop the wrong file. `LongContent` covers a row long enough to wrap.",
+					"The nominal row: a document and a picture, the two kinds a chip ever renders. Check that the picture is its own thumbnail while the document falls back to the file glyph, that both chips keep the same height and that pressing a remove control reports that chip's id rather than its index — the host removes by id, so a stale index would drop the wrong file. `LongContent` covers a row long enough to wrap. `apps/app/src/components/thread-composer.tsx:119` fills the row with the files staged for the next prompt.",
 			},
 		},
 	},
@@ -79,7 +79,7 @@ export const LongContent = meta.story({
 		docs: {
 			description: {
 				story:
-					"More files than fit on one line, one of them named far past the width of a chip. Check that the row wraps into a second line instead of scrolling or squeezing, that a long name truncates while its size and remove control stay put, and that the chips keep their reading order. Reach for it when changing chip padding or the row gap — this is where the composer runs out of width first.",
+					"More files than fit on one line, one of them named far past the width of a chip. Check that the row wraps into a second line instead of scrolling or squeezing, that a long name truncates while its size and remove control stay put, and that the chips keep their reading order. Reach for it when changing chip padding or the row gap — this is where the composer runs out of width first. `apps/app/src/components/thread-composer.tsx:119` fills the row with the files staged for the next prompt.",
 			},
 		},
 	},
@@ -100,7 +100,7 @@ export const Empty = meta.story({
 		docs: {
 			description: {
 				story:
-					"Nothing staged — the state the composer sits in for most of a session. Check that the row renders no element at all rather than an empty box: the composer measures this row to decide whether it stays a pill, so a zero-height list would still cost it a gap. `Default` covers the first file landing in it.",
+					"Nothing staged — the state the composer sits in for most of a session. Check that the row renders no element at all rather than an empty box: the composer measures this row to decide whether it stays a pill, so a zero-height list would still cost it a gap. `Default` covers the first file landing in it. `apps/app/src/components/thread-composer.tsx:119` fills the row with the files staged for the next prompt.",
 			},
 		},
 	},
@@ -115,7 +115,7 @@ export const InComposer = meta.story({
 		docs: {
 			description: {
 				story:
-					"The row in its only host, with the attach button in the composer's `leading` slot. Check that the chips sit inside the composer above the text rather than over or under it, that the composer stays in its expanded shape while a chip is staged, and that removing the last chip folds it back into the pill. Removal is live here, so the row can be emptied by hand.",
+					"The row in its only host, with the attach button in the composer's `leading` slot. Check that the chips sit inside the composer above the text rather than over or under it, that the composer stays in its expanded shape while a chip is staged, and that removing the last chip folds it back into the pill. Removal is live here, so the row can be emptied by hand. `apps/app/src/components/thread-composer.tsx:117` is the composer this row sits in, with the attach button of `apps/app/src/components/thread-composer.tsx:127` beside it.",
 			},
 		},
 	},

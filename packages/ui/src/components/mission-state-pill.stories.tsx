@@ -36,7 +36,7 @@ export const States = meta.story({
 		docs: {
 			description: {
 				story:
-					"The six states a mission can be in, exhaustively. Check that each one names itself in words, that only `waiting_human` and `failed` carry a colour that pulls the eye, and that `working` is the only mark that turns. Adding a state to `MISSION_STATES` without adding it here is a type error, so this list cannot drift from the contract.",
+					"The six states a mission can be in, exhaustively. Check that each one names itself in words, that only `waiting_human` and `failed` carry a colour that pulls the eye, and that `working` is the only mark that turns. Adding a state to `MISSION_STATES` without adding it here is a type error, so this list cannot drift from the contract. `packages/ui/src/components/mission-card.tsx:32` and `packages/ui/src/components/mission-header.tsx:80` each mount one pill for the state their mission is in; the six are gathered here because every one of them reaches a reader, and the list is exhaustive so the contract cannot drift.",
 			},
 		},
 	},

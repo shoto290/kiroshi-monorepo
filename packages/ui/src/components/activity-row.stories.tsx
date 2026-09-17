@@ -1,4 +1,4 @@
-import { expect, fn } from "storybook/test"
+import { expect } from "storybook/test"
 
 import preview from "@workspace/storybook/preview"
 import { slotIn } from "@workspace/storybook/story-utils"
@@ -15,18 +15,21 @@ const meta = preview.meta({
 		docs: {
 			description: {
 				component:
-					"The bare row of the activity panel, shared by a mission and by a run that reported: no border and no surface at rest, the companion's blot on the leading edge, a title line ending in the time, and a meta line of a mark, an optional identifier and parts a middle dot opens. A row given something to open answers the pointer and the keyboard; a row given nothing is plain text. Reach for `MissionRow` or `ReportedRunRow` rather than this shell.",
+					"The bare row of the activity panel, filled by the run that reported: no border and no surface at rest, the companion's blot on the leading edge, a title line ending in the time, and a meta line of a mark and parts a middle dot opens. Reach for `ReportedRunRow` rather than this shell.",
 			},
 		},
 	},
 	args: {
-		slot: "activity-row",
+		slot: "reported-run-row",
 		bot: MISSION_BOT,
-		title: "Rewrite the changelog parser",
-		timestamp: "1h",
-		mark: Icons.Linear,
-		identifier: "OPE-42",
-		parts: [{ key: "bot", text: MISSION_BOT.name }],
+		title: "Morning digest",
+		timestamp: "08:04",
+		mark: Icons.Routine,
+		parts: [
+			{ key: "source", text: "On a schedule" },
+			{ key: "bot", text: MISSION_BOT.name },
+			{ key: "reported", text: "reported" },
+		],
 	},
 	render: (args) => (
 		<ul
@@ -43,7 +46,7 @@ export const Plain = meta.story({
 		docs: {
 			description: {
 				story:
-					"The row with nothing to open. Check that it carries no button, that its blot rests because no caller said it was working, that the identifier keeps its room beside the mark, and that the row is 52px tall.",
+					"The row as `packages/ui/src/components/reported-run-row.tsx:34` fills it, the only caller outside a story: a title, a time, a routine mark and three parts, with nothing to open. Check that it carries no button, that its blot rests because no caller said it was working, and that the row is 52px tall.",
 			},
 		},
 	},
@@ -52,55 +55,9 @@ export const Plain = meta.story({
 		await expect(
 			canvas.getByRole("img", { name: "Companion avatar owl, idle" }),
 		).toBeVisible()
-		await expect(canvas.getByText("OPE-42")).toBeVisible()
+		await expect(canvas.getByText("On a schedule")).toBeVisible()
 		await expect(
-			slotIn(canvasElement, "activity-row").getBoundingClientRect().height,
+			slotIn(canvasElement, "reported-run-row").getBoundingClientRect().height,
 		).toBe(52)
-	},
-})
-
-export const Activatable = meta.story({
-	args: {
-		activation: { id: "mission-parser", onOpen: fn() },
-		badge: "attention",
-		spokenState: "Waiting for you",
-	},
-	parameters: {
-		docs: {
-			description: {
-				story:
-					"The row given something to open, with a badge dot on its blot. Check that the whole row is the button, that it names what it opens for the focus that comes back to it, that the badge dot is spoken as well as drawn, and that pressing it reports the activation.",
-			},
-		},
-	},
-	play: async ({ args, canvas, canvasElement, userEvent }) => {
-		const row = canvas.getByRole("button")
-
-		await expect(row).toHaveAttribute("data-opens", "mission-parser")
-		await expect(
-			canvasElement.querySelector('[data-slot="bot-activity-dot"]'),
-		).toHaveAttribute("data-badge", "attention")
-		await expect(canvas.getByText("Waiting for you")).toBeInTheDocument()
-
-		await userEvent.click(row)
-		await expect(args.activation?.onOpen).toHaveBeenCalled()
-	},
-})
-
-export const MutedTitle = meta.story({
-	args: { isTitleMuted: true, timestamp: "09:12" },
-	parameters: {
-		docs: {
-			description: {
-				story:
-					"The row of something already closed. Check that the title drops to the muted colour at regular weight while the meta line keeps its own, and that the clock time takes the trailing slot.",
-			},
-		},
-	},
-	play: async ({ canvas }) => {
-		const title = canvas.getByText("Rewrite the changelog parser")
-
-		await expect(getComputedStyle(title).fontWeight).toBe("400")
-		await expect(canvas.getByText("09:12")).toBeVisible()
 	},
 })

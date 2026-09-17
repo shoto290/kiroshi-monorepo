@@ -16,6 +16,9 @@ const LONG_URL =
 const hostsIn = (canvasElement: HTMLElement) =>
 	slotsIn(canvasElement, "markdown-link-host")
 
+const MOUNTED_BY_THE_RENDERER =
+	"Every anchor a message carries comes through `packages/ui/src/components/markdown/components.tsx:13`."
+
 const meta = preview.meta({
 	title: "Conversation/Markdown/MarkdownLink",
 	component: MarkdownLink,
@@ -37,7 +40,8 @@ export const Default = meta.story({
 		docs: {
 			description: {
 				story:
-					"A web destination: the authored text, the host initial as a mark, then the host itself. Check that the mark holds its box in both themes — flip the theme layout toolbar to side-by-side — that it is tinted from the text rather than from a surface token, and that the anchor stays inline so the sentence around it still wraps as prose.",
+					"A web destination: the authored text, the host initial as a mark, then the host itself. Check that the mark holds its box in both themes — flip the theme layout toolbar to side-by-side — that it is tinted from the text rather than from a surface token, and that the anchor stays inline so the sentence around it still wraps as prose. " +
+					MOUNTED_BY_THE_RENDERER,
 			},
 		},
 	},
@@ -58,7 +62,8 @@ export const DeceptiveText = meta.story({
 		docs: {
 			description: {
 				story:
-					"Userinfo hides the host: everything before the `@` is a username, so this link reads as the documentation site and resolves to another host entirely. The parser answers what reading cannot, and the host shown is the one the browser will open. Check that the text keeps its authored spelling while the host beside it reads `attacker.test`.",
+					"Userinfo hides the host: everything before the `@` is a username, so this link reads as the documentation site and resolves to another host entirely. The parser answers what reading cannot, and the host shown is the one the browser will open. Check that the text keeps its authored spelling while the host beside it reads `attacker.test`. " +
+					MOUNTED_BY_THE_RENDERER,
 			},
 		},
 	},
@@ -73,7 +78,8 @@ export const UnsafeUrl = meta.story({
 		docs: {
 			description: {
 				story:
-					"A scheme this app cannot open is not a link. A `javascript:` href never becomes an anchor — there is no element to click, focus or middle-click — and the authored text stays on screen as the prose it always was. The same branch catches `irc:`, `data:` and any path that would resolve against this window. Check that nothing here is focusable and that the text is not styled as a destination.",
+					"A scheme this app cannot open is not a link. A `javascript:` href never becomes an anchor — there is no element to click, focus or middle-click — and the authored text stays on screen as the prose it always was. The same branch catches `irc:`, `data:` and any path that would resolve against this window. Check that nothing here is focusable and that the text is not styled as a destination. " +
+					MOUNTED_BY_THE_RENDERER,
 			},
 		},
 	},
@@ -89,7 +95,8 @@ export const Fragment = meta.story({
 		docs: {
 			description: {
 				story:
-					"A same-document fragment stays in the answer, so it takes no host and no new window — naming a host for a link that never leaves the transcript would be noise. Check that the anchor keeps the prose underline and nothing else.",
+					"A same-document fragment stays in the answer, so it takes no host and no new window — naming a host for a link that never leaves the transcript would be noise. Check that the anchor keeps the prose underline and nothing else. " +
+					MOUNTED_BY_THE_RENDERER,
 			},
 		},
 	},
@@ -105,7 +112,8 @@ export const MailTo = meta.story({
 		docs: {
 			description: {
 				story:
-					"`mailto:` and `tel:` are handed to the platform rather than opened as pages, so they stay clickable and carry no host mark. Check that the anchor is a plain link — the mark belongs to destinations that open a site.",
+					"`mailto:` and `tel:` are handed to the platform rather than opened as pages, so they stay clickable and carry no host mark. Check that the anchor is a plain link — the mark belongs to destinations that open a site. " +
+					MOUNTED_BY_THE_RENDERER,
 			},
 		},
 	},
@@ -124,7 +132,8 @@ export const LongDestination = meta.story({
 		docs: {
 			description: {
 				story:
-					"A bare URL longer than the container that holds it. The text gives way, the destination never does: the authored text truncates at the available width while the mark and the host stay whole on one line. Check that the block does not widen and that the host is the last thing left to read.",
+					"A bare URL longer than the container that holds it. The text gives way, the destination never does: the authored text truncates at the available width while the mark and the host stay whole on one line. Check that the block does not widen and that the host is the last thing left to read. " +
+					MOUNTED_BY_THE_RENDERER,
 			},
 		},
 	},

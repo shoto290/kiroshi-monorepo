@@ -27,7 +27,7 @@ export const Default = meta.story({
 		docs: {
 			description: {
 				story:
-					"The resting control. Check that the picker is named `Attach files` for a screen reader even though the button carries only a glyph, that picking several files reports them in one call rather than one call each, and that the input clears itself so the same file can be picked twice in a row.",
+					"The resting control. Check that the picker is named `Attach files` for a screen reader even though the button carries only a glyph, that picking several files reports them in one call rather than one call each, and that the input clears itself so the same file can be picked twice in a row. `apps/app/src/components/thread-composer.tsx:127` puts it in the `leading` slot of the composer and hands the picked files to the attachments controller.",
 			},
 		},
 	},
@@ -53,7 +53,7 @@ export const States = meta.story({
 		docs: {
 			description: {
 				story:
-					"Idle, hover, focus and disabled side by side. Reach for it when changing the composer's ghost controls: the button sits on the composer surface rather than on the page, so its hover fill has to read against the input background. Check that the focus ring stays inside the composer padding and that the disabled control dims without leaving a pointer target — a disabled composer must not open a picker.",
+					"Idle, hover, focus and disabled side by side. Reach for it when changing the composer's ghost controls: the button sits on the composer surface rather than on the page, so its hover fill has to read against the input background. Check that the focus ring stays inside the composer padding and that the disabled control dims without leaving a pointer target — a disabled composer must not open a picker. `apps/app/src/components/thread-composer.tsx:127` disables it whenever the thread cannot take a file, and leaves it live otherwise.",
 			},
 		},
 	},

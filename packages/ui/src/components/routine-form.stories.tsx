@@ -24,6 +24,9 @@ import {
 } from "@workspace/ui/components/routines.fixtures"
 import { ROUTINES_PANEL_WIDTH } from "@workspace/ui/components/routines-panel"
 
+const OPENED_BY_THE_PANEL =
+	"`packages/ui/src/components/routines-panel.tsx:266` mounts the form with the open draft `apps/app/src/lib/routines/use-routine-form.ts:122` holds and the sources it read."
+
 const meta = preview.meta({
 	title: "Conversation/Routines/RoutineForm",
 	component: RoutineForm,
@@ -54,7 +57,8 @@ export const Default = meta.story({
 		docs: {
 			description: {
 				story:
-					"The form a reader lands on after picking the new routine action: nothing filled, no trigger picked, no configuration field yet. Check that the trigger list leaves none of the declared sources out, that picking the schedule brings the cron expression field with it, and that the save control stays operable rather than waiting for the form to be valid — a refusal is the write's answer, not a disabled button.",
+					"The form a reader lands on after picking the new routine action: nothing filled, no trigger picked, no configuration field yet. Check that the trigger list leaves none of the declared sources out, that picking the schedule brings the cron expression field with it, and that the save control stays operable rather than waiting for the form to be valid — a refusal is the write's answer, not a disabled button. " +
+					OPENED_BY_THE_PANEL,
 			},
 		},
 	},
@@ -83,7 +87,8 @@ export const OnASchedule = meta.story({
 		docs: {
 			description: {
 				story:
-					"A written routine the cron fires. Check that the trigger reads as text rather than a list, that the line under it says why it cannot be changed, and that the expression the routine was read with is the one in the field. Pick `Default` for the form that still lets the trigger be chosen.",
+					"A written routine the cron fires. Check that the trigger reads as text rather than a list, that the line under it says why it cannot be changed, and that the expression the routine was read with is the one in the field. Pick `Default` for the form that still lets the trigger be chosen. " +
+					OPENED_BY_THE_PANEL,
 			},
 		},
 	},
@@ -104,7 +109,8 @@ export const OnAWatchedFile = meta.story({
 		docs: {
 			description: {
 				story:
-					"A written routine a file change fires. Check that the watched path is the only configuration field on screen — no cron expression, no webhook block — and that a path long enough to overflow the panel stays readable rather than pushing the field wider.",
+					"A written routine a file change fires. Check that the watched path is the only configuration field on screen — no cron expression, no webhook block — and that a path long enough to overflow the panel stays readable rather than pushing the field wider. " +
+					OPENED_BY_THE_PANEL,
 			},
 		},
 	},
@@ -123,7 +129,8 @@ export const OnAWebhookCall = meta.story({
 		docs: {
 			description: {
 				story:
-					"A written routine a local webhook call fires, once its key has been minted. Check that the address, the key and the header name all read as read only, that each carries its own copy control and its value rather than a description standing in for it, and that copying announces itself in the polite region rather than through the icon alone. Pick `BeforeItsFirstWrite` for the same trigger before the key exists.",
+					"A written routine a local webhook call fires, once its key has been minted. Check that the address, the key and the header name all read as read only, that each carries its own copy control and its value rather than a description standing in for it, and that copying announces itself in the polite region rather than through the icon alone. Pick `BeforeItsFirstWrite` for the same trigger before the key exists. " +
+					OPENED_BY_THE_PANEL,
 			},
 		},
 	},
@@ -161,7 +168,8 @@ export const BeforeItsFirstWrite = meta.story({
 		docs: {
 			description: {
 				story:
-					"The webhook trigger picked on a routine that was never written: the key is minted by the write, so the three fields hold nothing yet. Check that they are still on screen rather than appearing out of nowhere after the first save, that one line says they arrive with the save, and that no copy control offers to copy an empty value.",
+					"The webhook trigger picked on a routine that was never written: the key is minted by the write, so the three fields hold nothing yet. Check that they are still on screen rather than appearing out of nowhere after the first save, that one line says they arrive with the save, and that no copy control offers to copy an empty value. " +
+					OPENED_BY_THE_PANEL,
 			},
 		},
 	},
@@ -183,7 +191,8 @@ export const KeyStillReading = meta.story({
 		docs: {
 			description: {
 				story:
-					"Every edit of a webhook routine starts here: the routine is written, its key is read after the form opens, and the three fields hold nothing for as long as that read is out. Check that the block says the read is running instead of borrowing the line of a routine that was never written, that it says it once — never beside the pending line or the failure — and that each of the three fields is described by it, so a reader tabbing into an empty control is told why it is empty rather than meeting a blank. Pick `BeforeItsFirstWrite` for the routine that has no key yet, `KeyUnreadable` for the read that came back empty handed.",
+					"Every edit of a webhook routine starts here: the routine is written, its key is read after the form opens, and the three fields hold nothing for as long as that read is out. Check that the block says the read is running instead of borrowing the line of a routine that was never written, that it says it once — never beside the pending line or the failure — and that each of the three fields is described by it, so a reader tabbing into an empty control is told why it is empty rather than meeting a blank. Pick `BeforeItsFirstWrite` for the routine that has no key yet, `KeyUnreadable` for the read that came back empty handed. " +
+					OPENED_BY_THE_PANEL,
 			},
 		},
 	},
@@ -229,7 +238,8 @@ export const KeyReadFailingWhileOpen = meta.story({
 		docs: {
 			description: {
 				story:
-					"The read of the key failing under a form the reader is already looking at, the way it happens in the panel. The control beside the form stands in for the read coming back. Check that the failure replaces the reading line in the same status region rather than in a second one, that the form is never remounted under it, and so that a screen reader hears the failure instead of being left on the last thing it was told.",
+					"The read of the key failing under a form the reader is already looking at, the way it happens in the panel. The control beside the form stands in for the read coming back. Check that the failure replaces the reading line in the same status region rather than in a second one, that the form is never remounted under it, and so that a screen reader hears the failure instead of being left on the last thing it was told. " +
+					OPENED_BY_THE_PANEL,
 			},
 		},
 	},
@@ -256,7 +266,8 @@ export const OnASourceWithNoConfiguration = meta.story({
 		docs: {
 			description: {
 				story:
-					"A trigger the companion declares that takes nothing of its own. Check that the form stops at the trigger — no expression, no path, no webhook block — so what the reader saves carries an empty configuration.",
+					"A trigger the companion declares that takes nothing of its own. Check that the form stops at the trigger — no expression, no path, no webhook block — so what the reader saves carries an empty configuration. " +
+					OPENED_BY_THE_PANEL,
 			},
 		},
 	},
@@ -277,7 +288,8 @@ export const Refused = meta.story({
 		docs: {
 			description: {
 				story:
-					"The write came back refusing the expression the cron reader could not read. Check that the refusal sits under the expression field and is tied to it by `aria-describedby` rather than floating at the top of the panel, that the field reads invalid, and that the title and the instruction still hold what the reader typed. Pick `RefusedBlankTitle` for the refusal that names another field.",
+					"The write came back refusing the expression the cron reader could not read. Check that the refusal sits under the expression field and is tied to it by `aria-describedby` rather than floating at the top of the panel, that the field reads invalid, and that the title and the instruction still hold what the reader typed. Pick `RefusedBlankTitle` for the refusal that names another field. " +
+					OPENED_BY_THE_PANEL,
 			},
 		},
 	},
@@ -303,7 +315,8 @@ export const RefusedBlankTitle = meta.story({
 		docs: {
 			description: {
 				story:
-					"The write came back naming the title as blank. Check that the refusal lands under the title and nowhere else, and that the instruction and the expression are untouched by it.",
+					"The write came back naming the title as blank. Check that the refusal lands under the title and nowhere else, and that the instruction and the expression are untouched by it. " +
+					OPENED_BY_THE_PANEL,
 			},
 		},
 	},
@@ -323,7 +336,8 @@ export const KeyUnreadable = meta.story({
 		docs: {
 			description: {
 				story:
-					"The routine is written and its key could not be read. Check that the failure is said in the webhook block instead of being swallowed, and that the rest of the form still renders and still saves — a key that cannot be read costs the address, not the routine.",
+					"The routine is written and its key could not be read. Check that the failure is said in the webhook block instead of being swallowed, and that the rest of the form still renders and still saves — a key that cannot be read costs the address, not the routine. " +
+					OPENED_BY_THE_PANEL,
 			},
 		},
 	},
@@ -381,7 +395,8 @@ export const FilterWithoutARow = meta.story({
 		docs: {
 			description: {
 				story:
-					"A routine no row narrows: every event the trigger reports runs it. Check that the block says so in words rather than showing an empty list, and that the match mode is absent — one row is what makes the question of every or any worth asking. Pick `FilterOnTwoRows` for the same block once rows exist.",
+					"A routine no row narrows: every event the trigger reports runs it. Check that the block says so in words rather than showing an empty list, and that the match mode is absent — one row is what makes the question of every or any worth asking. Pick `FilterOnTwoRows` for the same block once rows exist. " +
+					OPENED_BY_THE_PANEL,
 			},
 		},
 	},
@@ -404,7 +419,8 @@ export const FilterOnTwoRows = meta.story({
 		docs: {
 			description: {
 				story:
-					"A saved filter reopened: two rows in the order they were saved, each with the field, the operator and the value they were saved with, under one match mode for the whole list. Check that the rows carry their rank for a screen reader, that appending a row lands the focus on the field control of that row, that removing it hands the focus to the row that took its place, and that saving sends the rows as they stand.",
+					"A saved filter reopened: two rows in the order they were saved, each with the field, the operator and the value they were saved with, under one match mode for the whole list. Check that the rows carry their rank for a screen reader, that appending a row lands the focus on the field control of that row, that removing it hands the focus to the row that took its place, and that saving sends the rows as they stand. " +
+					OPENED_BY_THE_PANEL,
 			},
 		},
 	},
@@ -457,7 +473,8 @@ export const FilterOnAPresentField = meta.story({
 		docs: {
 			description: {
 				story:
-					"A row whose operator asks nothing but presence. Check that no value control is drawn for it — an operator that takes no value must not leave a box the reader could fill and lose — and that removing the only row hands the focus back to the control that appends one.",
+					"A row whose operator asks nothing but presence. Check that no value control is drawn for it — an operator that takes no value must not leave a box the reader could fill and lose — and that removing the only row hands the focus back to the control that appends one. " +
+					OPENED_BY_THE_PANEL,
 			},
 		},
 	},
@@ -486,7 +503,8 @@ export const FilterOnABooleanField = meta.story({
 		docs: {
 			description: {
 				story:
-					"A row on a field the source declares as a boolean. Check that the value is picked from a list holding true and false and nothing else, so no typed word can reach a field that takes neither, and that the operator list is the short one a boolean accepts.",
+					"A row on a field the source declares as a boolean. Check that the value is picked from a list holding true and false and nothing else, so no typed word can reach a field that takes neither, and that the operator list is the short one a boolean accepts. " +
+					OPENED_BY_THE_PANEL,
 			},
 		},
 	},
@@ -506,7 +524,8 @@ export const FilterOnAnotherPath = meta.story({
 		docs: {
 			description: {
 				story:
-					"A row on a dotted path the source does not declare. Check that the field control reads as another path and brings a text control for the path itself, and that the operator list holds presence alone: the engine reads a value through the type its source declares, so a path no source declares can only be asked whether it is there. Pick `FilterOnABooleanField` for a field whose declared type opens the comparison operators.",
+					"A row on a dotted path the source does not declare. Check that the field control reads as another path and brings a text control for the path itself, and that the operator list holds presence alone: the engine reads a value through the type its source declares, so a path no source declares can only be asked whether it is there. Pick `FilterOnABooleanField` for a field whose declared type opens the comparison operators. " +
+					OPENED_BY_THE_PANEL,
 			},
 		},
 	},
@@ -534,7 +553,8 @@ export const FilterMovedToAnotherPath = meta.story({
 		docs: {
 			description: {
 				story:
-					"A row leaving a declared field for a free path, and coming back. Check that the operator falls back to one the path still offers instead of staying on a comparison no payload could ever hold, that the path control keeps the focus while a reader types a name the source happens to declare, and that picking a declared field from the field control puts that field back in place of the path.",
+					"A row leaving a declared field for a free path, and coming back. Check that the operator falls back to one the path still offers instead of staying on a comparison no payload could ever hold, that the path control keeps the focus while a reader types a name the source happens to declare, and that picking a declared field from the field control puts that field back in place of the path. " +
+					OPENED_BY_THE_PANEL,
 			},
 		},
 	},
@@ -574,7 +594,8 @@ export const FilterOnANumberField = meta.story({
 		docs: {
 			description: {
 				story:
-					"A row on a field the source declares as a number. Check that the value control carries a number and nothing else — the engine reads the value as the declared type, and a word saved there would make the row false for every payload — and that typing letters into it leaves it empty rather than storing them.",
+					"A row on a field the source declares as a number. Check that the value control carries a number and nothing else — the engine reads the value as the declared type, and a word saved there would make the row false for every payload — and that typing letters into it leaves it empty rather than storing them. " +
+					OPENED_BY_THE_PANEL,
 			},
 		},
 	},
@@ -596,7 +617,8 @@ export const FilterMissingAValue = meta.story({
 		docs: {
 			description: {
 				story:
-					"A row whose operator takes a value the reader left empty, at the moment they save. The engine accepts such a row and then never matches on it, so the form is the last place it can be caught. Check that saving marks the value control of that row, that the message is tied to that control, that the routine is left unwritten, and that filling the value clears the mark without a second save.",
+					"A row whose operator takes a value the reader left empty, at the moment they save. The engine accepts such a row and then never matches on it, so the form is the last place it can be caught. Check that saving marks the value control of that row, that the message is tied to that control, that the routine is left unwritten, and that filling the value clears the mark without a second save. " +
+					OPENED_BY_THE_PANEL,
 			},
 		},
 	},
@@ -628,7 +650,8 @@ export const FilterRefusedForItsOperator = meta.story({
 		docs: {
 			description: {
 				story:
-					"The write came back refusing the second row: Rust is the only authority on what an operator may ask of a declared type. Check that the refusal marks the operator control of that row alone, that it names the operator and the type in a message tied to that control, and that the first row and everything above it still hold what the reader entered.",
+					"The write came back refusing the second row: Rust is the only authority on what an operator may ask of a declared type. Check that the refusal marks the operator control of that row alone, that it names the operator and the type in a message tied to that control, and that the first row and everything above it still hold what the reader entered. " +
+					OPENED_BY_THE_PANEL,
 			},
 		},
 	},
@@ -663,7 +686,8 @@ export const FilterRefusedThenEdited = meta.story({
 		docs: {
 			description: {
 				story:
-					"The row a write was refused for, removed by the reader. The refusal names a rank in the filter that was written, so it stops describing anything the moment the rows move. Check that no mark is left behind on the row that took its place, and that nothing is marked once the refused row is gone. Pick `FilterRefusedForItsOperator` for the refusal as it lands.",
+					"The row a write was refused for, removed by the reader. The refusal names a rank in the filter that was written, so it stops describing anything the moment the rows move. Check that no mark is left behind on the row that took its place, and that nothing is marked once the refused row is gone. Pick `FilterRefusedForItsOperator` for the refusal as it lands. " +
+					OPENED_BY_THE_PANEL,
 			},
 		},
 	},
@@ -696,7 +720,8 @@ export const FilterAtThePanelWidth = meta.story({
 		docs: {
 			description: {
 				story:
-					"The block at the width the panel opens at, holding a path and a value longer than the panel is wide. Check that the controls of a row stack instead of sharing a line, that none of them is cut off, and that nothing pushes the form into a horizontal scrollbar the reader would have to drag the panel wider to escape.",
+					"The block at the width the panel opens at, holding a path and a value longer than the panel is wide. Check that the controls of a row stack instead of sharing a line, that none of them is cut off, and that nothing pushes the form into a horizontal scrollbar the reader would have to drag the panel wider to escape. " +
+					OPENED_BY_THE_PANEL,
 			},
 		},
 	},
@@ -718,7 +743,8 @@ export const FilterCarriedToAnotherSource = meta.story({
 		docs: {
 			description: {
 				story:
-					"A routine still unwritten, whose rows were built against one trigger before the reader picked another. Each source declares its own payload, so a row can lose the field it was written for. Check that the operator falls back to one the new source accepts rather than staying on a comparison its control no longer offers, and that the value goes with it: an operator or a value the engine cannot read would be saved as a row that never holds.",
+					"A routine still unwritten, whose rows were built against one trigger before the reader picked another. Each source declares its own payload, so a row can lose the field it was written for. Check that the operator falls back to one the new source accepts rather than staying on a comparison its control no longer offers, and that the value goes with it: an operator or a value the engine cannot read would be saved as a row that never holds. " +
+					OPENED_BY_THE_PANEL,
 			},
 		},
 	},
@@ -758,7 +784,8 @@ export const FilterRefusedThenMovedToAnotherSource = meta.story({
 		docs: {
 			description: {
 				story:
-					"A refusal raised against one source, on a routine still unwritten, then another trigger picked. The refusal names a rank in a filter written for the source that was on screen; the rows are rehomed by the pick, so the refusal describes nothing any more. Check that no row is left marked and that the message is gone rather than hanging over the row that took its place.",
+					"A refusal raised against one source, on a routine still unwritten, then another trigger picked. The refusal names a rank in a filter written for the source that was on screen; the rows are rehomed by the pick, so the refusal describes nothing any more. Check that no row is left marked and that the message is gone rather than hanging over the row that took its place. " +
+					OPENED_BY_THE_PANEL,
 			},
 		},
 	},
@@ -790,7 +817,8 @@ export const FilterOnAPathTheNextSourceDeclares = meta.story({
 		docs: {
 			description: {
 				story:
-					"A row moved onto a free path under one trigger, whose path names a field the next trigger declares. Check that picking that trigger hands the row the field control of a declared field instead of leaving it on the path control it was built with: the path is a field again, and the operators of its declared type come back with it.",
+					"A row moved onto a free path under one trigger, whose path names a field the next trigger declares. Check that picking that trigger hands the row the field control of a declared field instead of leaving it on the path control it was built with: the path is a field again, and the operators of its declared type come back with it. " +
+					OPENED_BY_THE_PANEL,
 			},
 		},
 	},
@@ -824,7 +852,8 @@ export const FilterOnAnUndescribedSource = meta.story({
 		docs: {
 			description: {
 				story:
-					"A written routine whose trigger nothing described to the form: no field is declared, so every row reads as a free path. Check that each row keeps the operator it was read with rather than falling back to presence, and that the value control still carries the type the value was read in. Pick `FilterPathRenamedOnAnUndescribedSource` for what the reader editing that path does to the reading.",
+					"A written routine whose trigger nothing described to the form: no field is declared, so every row reads as a free path. Check that each row keeps the operator it was read with rather than falling back to presence, and that the value control still carries the type the value was read in. Pick `FilterPathRenamedOnAnUndescribedSource` for what the reader editing that path does to the reading. " +
+					OPENED_BY_THE_PANEL,
 			},
 		},
 	},
@@ -847,7 +876,8 @@ export const FilterValueEditedOnAnUndescribedSource = meta.story({
 		docs: {
 			description: {
 				story:
-					"The value of a row read as a number, edited on a source that declares nothing. Check that the control takes a number and hands one back, so the write carries the type the row was read with instead of turning a comparison into text the engine cannot read.",
+					"The value of a row read as a number, edited on a source that declares nothing. Check that the control takes a number and hands one back, so the write carries the type the row was read with instead of turning a comparison into text the engine cannot read. " +
+					OPENED_BY_THE_PANEL,
 			},
 		},
 	},
@@ -882,7 +912,8 @@ export const FilterValueRefusedOnAnUndescribedSource = meta.story({
 		docs: {
 			description: {
 				story:
-					"A word typed into the value of a row read as a number. The control takes no letters, so the row is left without a value, and a row whose operator takes a value is not saved without one. Check that the row is marked, that the form stays open on what the reader entered, and that the other row keeps its value untouched.",
+					"A word typed into the value of a row read as a number. The control takes no letters, so the row is left without a value, and a row whose operator takes a value is not saved without one. Check that the row is marked, that the form stays open on what the reader entered, and that the other row keeps its value untouched. " +
+					OPENED_BY_THE_PANEL,
 			},
 		},
 	},
@@ -915,7 +946,8 @@ export const FilterOperatorTakenBackOnAnUndescribedSource = meta.story({
 		docs: {
 			description: {
 				story:
-					"A presence operator picked on a row read with a comparison, on a source that declares nothing. Nothing on screen knows the type of that path, so the comparison the row was read with stays in the list rather than disappearing behind the pick. Check that it can be picked again and that the value comes back with it.",
+					"A presence operator picked on a row read with a comparison, on a source that declares nothing. Nothing on screen knows the type of that path, so the comparison the row was read with stays in the list rather than disappearing behind the pick. Check that it can be picked again and that the value comes back with it. " +
+					OPENED_BY_THE_PANEL,
 			},
 		},
 	},
@@ -944,7 +976,8 @@ export const FilterPathRenamedOnAnUndescribedSource = meta.story({
 		docs: {
 			description: {
 				story:
-					"The free path of a row read as a number, renamed to another path no field declares, then its value edited. Renaming a path is not the reader saying the row is something else: check that the value control still takes a number after the rename, that the operator the row was read with is still the one on screen, and that the saved row carries the new path with that operator and a number. Pick `FilterMovedToAnotherPath` for the rename that lands on a declared field, where the declared type takes over.",
+					"The free path of a row read as a number, renamed to another path no field declares, then its value edited. Renaming a path is not the reader saying the row is something else: check that the value control still takes a number after the rename, that the operator the row was read with is still the one on screen, and that the saved row carries the new path with that operator and a number. Pick `FilterMovedToAnotherPath` for the rename that lands on a declared field, where the declared type takes over. " +
+					OPENED_BY_THE_PANEL,
 			},
 		},
 	},
@@ -984,7 +1017,8 @@ export const FilterPathLeavingADeclaredField = meta.story({
 		docs: {
 			description: {
 				story:
-					"A row taken to a free path, typed onto a field the source declares, given a comparison and a value, then typed away again onto a name nothing declares. The engine reads a comparison through the declared type of the field, so a row that leaves the field keeps nothing of what the field lent it. Check that the operator control falls back to presence and offers nothing else, that the value goes with it, and that the row saved is the one on screen.",
+					"A row taken to a free path, typed onto a field the source declares, given a comparison and a value, then typed away again onto a name nothing declares. The engine reads a comparison through the declared type of the field, so a row that leaves the field keeps nothing of what the field lent it. Check that the operator control falls back to presence and offers nothing else, that the value goes with it, and that the row saved is the one on screen. " +
+					OPENED_BY_THE_PANEL,
 			},
 		},
 	},
@@ -1038,7 +1072,8 @@ export const FilterPathRenamedBackOnAnUndescribedSource = meta.story({
 		docs: {
 			description: {
 				story:
-					"The free path of a row read as a number, renamed and then typed back to the name it was read with. Nothing the reader did leaves a trace: check that the row saved is the row read, so the write can hand back the filter it read rather than a rebuilt one.",
+					"The free path of a row read as a number, renamed and then typed back to the name it was read with. Nothing the reader did leaves a trace: check that the row saved is the row read, so the write can hand back the filter it read rather than a rebuilt one. " +
+					OPENED_BY_THE_PANEL,
 			},
 		},
 	},

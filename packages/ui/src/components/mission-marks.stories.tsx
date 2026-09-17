@@ -31,7 +31,7 @@ export const Default = meta.story({
 		docs: {
 			description: {
 				story:
-					"The ticket line as a card draws it, wrapping, above the tool marks of the same mission. Check that a named platform and a named tool take their own glyph, and that an unknown name falls back to the bookmark and the generic tool. Pick `AsLine` for the one-line form the mission header band uses.",
+					"The ticket line as a card draws it, wrapping, above the tool marks of the same mission. Check that a named platform and a named tool take their own glyph, and that an unknown name falls back to the bookmark and the generic tool. Pick `AsLine` for the one-line form the mission header band uses. `packages/ui/src/components/mission-card.tsx:91` draws the wrapping ticket line and `packages/ui/src/components/mission-card.tsx:43` the tool marks beside it.",
 			},
 		},
 	},
@@ -58,7 +58,7 @@ export const AsLine = meta.story({
 		docs: {
 			description: {
 				story:
-					"The one-line form the mission header band uses, in a container squeezed to 320 pixels. Check that the identifier keeps its room in the foreground and that the title truncates rather than wrapping. Pick `Default` for the wrapping form a card takes.",
+					"The one-line form the mission header band uses, in a container squeezed to 320 pixels. Check that the identifier keeps its room in the foreground and that the title truncates rather than wrapping. Pick `Default` for the wrapping form a card takes. `packages/ui/src/components/mission-header.tsx:86` asks for the one-line form in the header band.",
 			},
 		},
 	},

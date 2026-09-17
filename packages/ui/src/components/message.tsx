@@ -1,4 +1,3 @@
-import { motion, useReducedMotion } from "motion/react"
 import {
 	type ComponentPropsWithRef,
 	createContext,
@@ -11,7 +10,6 @@ import { BotTitleBadge } from "@workspace/ui/components/bot-badge"
 import { Icons } from "@workspace/ui/components/icons"
 import { MessageSideContext } from "@workspace/ui/components/message-side-context"
 import type { RosterBot } from "@workspace/ui/components/roster"
-import { EASE_OUT } from "@workspace/ui/lib/ease"
 import { cn } from "@workspace/ui/lib/utils"
 
 export type MessageFrom = "user" | "assistant"
@@ -30,15 +28,6 @@ export interface MessageProps
 	children: ReactNode
 }
 
-export interface MessageGroupProps extends ComponentPropsWithRef<"div"> {
-	spacing?: "compact" | "default"
-	label?: string
-}
-
-export interface MessageAvatarProps extends ComponentPropsWithRef<"div"> {
-	placeholder?: boolean
-}
-
 export type MessageAuthor = RosterBot & {
 	isLead?: boolean
 	isDeleted?: boolean
@@ -51,12 +40,6 @@ export interface MessageAuthorProps extends ComponentPropsWithRef<"div"> {
 export type MessageContentProps = ComponentPropsWithRef<"div">
 export type MessageHeaderProps = ComponentPropsWithRef<"div">
 export type MessageFooterProps = ComponentPropsWithRef<"div">
-
-export type MessageMarkerProps = ComponentPropsWithRef<"div">
-
-export interface MessageTypingProps extends ComponentPropsWithRef<"span"> {
-	label?: string
-}
 
 export function Message({ from, children, className, ...props }: MessageProps) {
 	const { t } = useTranslation("chat")
@@ -79,53 +62,6 @@ export function Message({ from, children, className, ...props }: MessageProps) {
 				</article>
 			</MessageContext.Provider>
 		</MessageSideContext.Provider>
-	)
-}
-
-export function MessageGroup({
-	spacing = "compact",
-	label,
-	className,
-	...props
-}: MessageGroupProps) {
-	const { t } = useTranslation("chat")
-
-	return (
-		<div
-			data-slot="message-group"
-			role="log"
-			aria-label={label ?? t("transcript.label")}
-			aria-live="polite"
-			aria-relevant="additions"
-			className={cn(
-				"flex w-full flex-col",
-				spacing === "compact" ? "gap-1.5" : "gap-4",
-				className,
-			)}
-			{...props}
-		/>
-	)
-}
-
-export function MessageAvatar({
-	placeholder = false,
-	children,
-	className,
-	...props
-}: MessageAvatarProps) {
-	return (
-		<div
-			data-slot="message-avatar"
-			aria-hidden={placeholder || undefined}
-			className={cn(
-				"grid size-7 shrink-0 place-items-center overflow-hidden rounded-full bg-secondary text-xs font-medium text-secondary-foreground [&_img]:size-full [&_img]:object-cover [&_svg]:size-3.5",
-				placeholder && "invisible",
-				className,
-			)}
-			{...props}
-		>
-			{children}
-		</div>
 	)
 }
 
@@ -226,51 +162,5 @@ export function MessageFooter({ className, ...props }: MessageFooterProps) {
 			)}
 			{...props}
 		/>
-	)
-}
-
-export function MessageMarker({ className, ...props }: MessageMarkerProps) {
-	return (
-		<div
-			data-slot="message-marker"
-			className={cn(
-				"mx-auto flex w-fit max-w-lg items-center gap-1.5 rounded-full bg-secondary px-2.5 py-1 text-center text-xs text-secondary-foreground",
-				className,
-			)}
-			{...props}
-		/>
-	)
-}
-
-export function MessageTyping({
-	label,
-	className,
-	...props
-}: MessageTypingProps) {
-	const { t } = useTranslation("chat")
-	const reduce = useReducedMotion() ?? false
-
-	return (
-		<span
-			data-slot="message-typing"
-			className={cn("inline-flex h-5 items-center gap-1", className)}
-			{...props}
-		>
-			<span className="sr-only">{label ?? t("transcript.typing")}</span>
-			{[0, 1, 2].map((index) => (
-				<motion.span
-					key={index}
-					aria-hidden="true"
-					className="size-1 rounded-full bg-current"
-					animate={reduce ? undefined : { y: [0, -2, 0] }}
-					transition={{
-						duration: 1.05,
-						ease: EASE_OUT,
-						repeat: Number.POSITIVE_INFINITY,
-						delay: index * 0.14,
-					}}
-				/>
-			))}
-		</span>
 	)
 }

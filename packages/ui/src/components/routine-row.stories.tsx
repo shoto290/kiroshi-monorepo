@@ -61,7 +61,7 @@ export const Default = meta.story({
 		docs: {
 			description: {
 				story:
-					"A routine running on its own schedule, switched on and healthy. Check that the title and the source read as two steps of one sentence, and that the switch is the only thing that changes when it is thrown.",
+					"A routine running on its own schedule, switched on and healthy. Check that the title and the source read as two steps of one sentence, and that the switch is the only thing that changes when it is thrown. `packages/ui/src/components/routines-panel.tsx:298` lists one row per stored routine, with the switch and the menu wired to the routines controller.",
 			},
 		},
 	},
@@ -81,7 +81,7 @@ export const StoppedItself = meta.story({
 		docs: {
 			description: {
 				story:
-					"The routine failed often enough that it switched itself off. The badge says so in words, not in colour alone, and it is drawn on the destructive status token — the palette's known contrast gap, flagged for review rather than nudged here. Check that enabling the routine again clears the badge in the same press, and that the badge keeps its full size while the title truncates beside it.",
+					"The routine failed often enough that it switched itself off. The badge says so in words, not in colour alone, and it is drawn on the destructive status token — the palette's known contrast gap, flagged for review rather than nudged here. Check that enabling the routine again clears the badge in the same press, and that the badge keeps its full size while the title truncates beside it. `packages/ui/src/components/routines-panel.tsx:298` lists one row per stored routine, with the switch and the menu wired to the routines controller.",
 			},
 		},
 	},
@@ -106,7 +106,7 @@ export const LongContent = meta.story({
 		docs: {
 			description: {
 				story:
-					"A title no reader would write, in a panel at its 320px width. Check that the title stays on one line and ends in an ellipsis rather than wrapping the row to two, and that neither the switch nor the badge is squeezed by it.",
+					"A title no reader would write, in a panel at its 320px width. Check that the title stays on one line and ends in an ellipsis rather than wrapping the row to two, and that neither the switch nor the badge is squeezed by it. `packages/ui/src/components/routines-panel.tsx:298` lists one row per stored routine, with the switch and the menu wired to the routines controller.",
 			},
 		},
 	},
@@ -128,7 +128,7 @@ export const Deleting = meta.story({
 		docs: {
 			description: {
 				story:
-					"The question that stands before a deletion. Check that the routine is named in the title rather than left to `this routine`, and that the row is still there until the deletion resolves — the caller removes it, the dialog only asks.",
+					"The question that stands before a deletion. Check that the routine is named in the title rather than left to `this routine`, and that the row is still there until the deletion resolves — the caller removes it, the dialog only asks. `packages/ui/src/components/routines-panel.tsx:298` lists one row per stored routine, with the switch and the menu wired to the routines controller.",
 			},
 		},
 	},

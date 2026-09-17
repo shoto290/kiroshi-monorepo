@@ -39,33 +39,13 @@ const meta = preview.meta({
 	},
 })
 
-export const Default = meta.story({
-	args: { status: "ready" },
-	parameters: {
-		docs: {
-			description: {
-				story:
-					"Reach for this on a genuine first launch of one companion's conversation: Claude Code answered, the composer below is live, and the surface has to name the companion and point down to it. Check that the title is the companion's name, that the mark above it is that companion's face over its tint and reads as an ornament of the heading rather than a roster row, and that the guidance is the arrow hint and nothing else — no button competes with the composer for the first action. Pick `Unavailable` instead when the CLI is unreachable and typing would fail.",
-			},
-		},
-	},
-	play: async ({ canvas, canvasElement }) => {
-		await expect(canvas.getByRole("heading", { name: BOT.name })).toBeVisible()
-		await expect(botIdentityAvatars(canvasElement)).toHaveLength(1)
-		await expect(
-			canvas.getByText(/Message a companion to start\./),
-		).toBeVisible()
-		await expect(canvas.queryByRole("button")).toBeNull()
-	},
-})
-
 export const WithSettings = meta.story({
 	args: { status: "ready", onOpenSettings: fn() },
 	parameters: {
 		docs: {
 			description: {
 				story:
-					"Reach for this on the empty conversation of a host that can open the companion's settings: nothing has been said yet, so describing the companion is still worth offering beside the first message. Check that the action sits under the copy and above the arrow hint, that it reads as secondary — the first message is still the point of the screen — and that it names the settings exactly as the bar above and the roster row's menu do, so the same door is not called three things. Pick `Default` for a host that offers no way in from here.",
+					"Reach for this on the empty conversation of a host that can open the companion's settings: nothing has been said yet, so describing the companion is still worth offering beside the first message. Check that the action sits under the copy and above the arrow hint, that it reads as secondary — the first message is still the point of the screen — and that it names the settings exactly as the bar above and the roster row's menu do, so the same door is not called three things. Pick `Unavailable` instead when the CLI is unreachable and typing would fail. `apps/app/src/components/thread-screen.tsx:553` mounts it with the door to the companion's settings on every empty bot thread.",
 			},
 		},
 	},
@@ -86,7 +66,7 @@ export const WithoutBlot = meta.story({
 		docs: {
 			description: {
 				story:
-					"Reach for this for a companion that was never marked with a tint: the animal is drawn on nothing. Check that the mark still holds the same box as `Default` — the heading must not shift up when the tint behind the animal is gone. Pick `Default` for a companion that carries one.",
+					"Reach for this for a companion that was never marked with a tint: the animal is drawn on nothing. Check that the mark still holds the same box as `WithSettings` — the heading must not shift up when the tint behind the animal is gone. Pick `WithSettings` for a companion that carries one. `apps/app/src/components/thread-screen.tsx:549` passes no tint for a companion whose `avatarBlot` is null.",
 			},
 		},
 	},
@@ -105,7 +85,7 @@ export const WithPicture = meta.story({
 		docs: {
 			description: {
 				story:
-					"Reach for this for a companion whose reader uploaded a picture: it wins over the animal here exactly as it does on the roster row. Check that the picture fills the same round box the drawing would have, so the title lands on the same baseline. Pick `Default` for a companion wearing its animal.",
+					"Reach for this for a companion whose reader uploaded a picture: it wins over the animal here exactly as it does on the roster row. Check that the picture fills the same round box the drawing would have, so the title lands on the same baseline. Pick `WithSettings` for a companion wearing its animal. `apps/app/src/components/thread-screen.tsx:551` passes the uploaded picture of the companion the thread belongs to.",
 			},
 		},
 	},
@@ -117,12 +97,12 @@ export const WithPicture = meta.story({
 })
 
 export const Unnamed = meta.story({
-	args: { status: "ready", name: undefined },
+	args: { status: "ready", name: "" },
 	parameters: {
 		docs: {
 			description: {
 				story:
-					"Reach for this when the companion has no name yet — a conversation opened before its companion was named. Check that the title falls back to naming the product instead of showing an empty heading, and that the mark is still drawn. Pick `Default` once the companion carries a name.",
+					"Reach for this when the companion carries no name — which a rename reaches and a creation does not. `apps/app/src-tauri/src/conversations/commands.rs:244` refuses a nameless draft with `NamelessBot`, but `conversation_update_bot` at `apps/app/src-tauri/src/conversations/commands.rs:462` guards nothing, and `packages/ui/src/components/bot-settings-dialog/index.tsx:165` substitutes a placeholder in its own title rather than blocking the save, so an emptied name is written and `apps/app/src/components/thread-screen.tsx:551` passes it here. Check that the title falls back to naming the product instead of showing an empty heading, and that the mark is still drawn. Pick `WithSettings` once the companion carries a name.",
 			},
 		},
 	},
@@ -139,7 +119,7 @@ export const Unavailable = meta.story({
 		docs: {
 			description: {
 				story:
-					"Reach for this when Kiroshi launched but its built-in agent is unreachable: the composer is disabled, so the empty state has to carry the only action left. This screen is about the agent, not about the companion — check that the companion's face and name give way to the alert mark and the agent copy, that the retry button is the single focusable target, and that the copy blames the unreachable agent rather than the prompt. Pick `Default` when Claude Code answers and the composer is live.",
+					"Reach for this when Kiroshi launched but its built-in agent is unreachable: the composer is disabled, so the empty state has to carry the only action left. This screen is about the agent, not about the companion — check that the companion's face and name give way to the alert mark and the agent copy, that the retry button is the single focusable target, and that the copy blames the unreachable agent rather than the prompt. Pick `WithSettings` when Claude Code answers and the composer is live. `apps/app/src/lib/chat/screen-model.ts:283` returns this status when the connection is neither ready nor checking.",
 			},
 		},
 	},
@@ -159,7 +139,7 @@ export const NotConnected = meta.story({
 		docs: {
 			description: {
 				story:
-					"Reach for this when the agent answers but no Claude account is connected: talking to the companion cannot work until the reader signs in, so the empty state carries the sign-in action. Check that the alert mark replaces the companion's face, that the title says the reader is not signed in rather than blaming the agent, and that the sign-in button is the single focusable target. Pick `Unavailable` when the agent itself does not answer.",
+					"Reach for this when the agent answers but no Claude account is connected: talking to the companion cannot work until the reader signs in, so the empty state carries the sign-in action. Check that the alert mark replaces the companion's face, that the title says the reader is not signed in rather than blaming the agent, and that the sign-in button is the single focusable target. Pick `Unavailable` when the agent itself does not answer. `apps/app/src/lib/chat/screen-model.ts:281` returns this status when the latest transport error is `notAuthenticated`.",
 			},
 		},
 	},

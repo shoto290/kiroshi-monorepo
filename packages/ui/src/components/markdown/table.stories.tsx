@@ -122,7 +122,7 @@ export const Default = meta.story({
 		docs: {
 			description: {
 				story:
-					"Four declared columns, three rows. Check that the frame hugs the table instead of stretching to the block width, that the copy control stays faded until the table is hovered or holds focus, and that the header fill and the rules read in both themes — flip the theme layout toolbar to side-by-side.",
+					"Four declared columns, three rows. Check that the frame hugs the table instead of stretching to the block width, that the copy control stays faded until the table is hovered or holds focus, and that the header fill and the rules read in both themes — flip the theme layout toolbar to side-by-side. `packages/ui/src/components/markdown/components.tsx:18` hands every GFM table of a message to this renderer.",
 			},
 		},
 	},
@@ -149,7 +149,7 @@ export const WiderThanTheBlock = meta.story({
 		docs: {
 			description: {
 				story:
-					"Eight columns, one of them holding a sentence. Every column keeps its natural width, so the table overflows and the viewport scrolls rather than squeezing each cell into a column of wrapped fragments. Check that the block does not widen, that the copy control stays pinned to the frame while the rows scroll under it, and that tabbing reaches the viewport before the control.",
+					"Eight columns, one of them holding a sentence. Every column keeps its natural width, so the table overflows and the viewport scrolls rather than squeezing each cell into a column of wrapped fragments. Check that the block does not widen, that the copy control stays pinned to the frame while the rows scroll under it, and that tabbing reaches the viewport before the control. The columns are whatever the author declared, handed over by `packages/ui/src/components/markdown/components.tsx:18`.",
 			},
 		},
 	},
@@ -166,7 +166,7 @@ export const HeaderOnly = meta.story({
 		docs: {
 			description: {
 				story:
-					"The columns are declared and no row followed — a table cut mid-stream, or a query that matched nothing. The frame and the header still read as a table rather than collapsing to a stray line, and the copy hands back the header row alone. Check that the header keeps its bottom rule with no body under it.",
+					"The columns are declared and no row followed — a table cut mid-stream, or a query that matched nothing. The frame and the header still read as a table rather than collapsing to a stray line, and the copy hands back the header row alone. Check that the header keeps its bottom rule with no body under it. A table cut mid-stream reaches `packages/ui/src/components/markdown/components.tsx:18` exactly like a complete one.",
 			},
 		},
 	},

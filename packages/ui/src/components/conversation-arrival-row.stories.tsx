@@ -81,7 +81,7 @@ export const Default = meta.story({
 		docs: {
 			description: {
 				story:
-					"Reach for this when the person mentioned a companion and sent: that companion arrived on the person's invitation. Check that the sentence names the arriving companion and you, and that the face beside it stays out of assistive technology. Pick `InvitedByCompanion` when a companion did the inviting.",
+					"Reach for this when the person mentioned a companion and sent: that companion arrived on the person's invitation. Check that the sentence names the arriving companion and you, and that the face beside it stays out of assistive technology. Pick `InvitedByCompanion` when a companion did the inviting. `apps/app/src/components/thread-screen.tsx:788` renders it with the person inviter `apps/app/src/components/thread-screen.tsx:770` builds when the arrival carries no inviting companion.",
 			},
 		},
 	},
@@ -102,7 +102,7 @@ export const InvitedByCompanion = meta.story({
 		docs: {
 			description: {
 				story:
-					"Reach for this when a companion brought another one in. Check that the sentence names the arriving companion and the inviting companion, that only the arriving face is drawn, and that the line is the same size and colour as `Default`.",
+					"Reach for this when a companion brought another one in. Check that the sentence names the arriving companion and the inviting companion, that only the arriving face is drawn, and that the line is the same size and colour as `Default`. `apps/app/src/components/thread-screen.tsx:788` renders it with the companion inviter `apps/app/src/components/thread-screen.tsx:773` builds.",
 			},
 		},
 	},
@@ -132,7 +132,7 @@ export const InTranscript = meta.story({
 		docs: {
 			description: {
 				story:
-					"Reach for this to see an arrival interleaved with messages in the transcript stack. Check that the line sits between the two bubbles, centered on the transcript width, carries no bubble of its own, and adds no space beyond the stack gap. Pick `Default` for the row alone.",
+					"Reach for this to see an arrival interleaved with messages in the transcript stack. Check that the line sits between the two bubbles, centered on the transcript width, carries no bubble of its own, and adds no space beyond the stack gap. Pick `Default` for the row alone. `apps/app/src/components/thread-screen.tsx:788` places the row between the runs it landed between.",
 			},
 		},
 	},
@@ -177,7 +177,7 @@ export const LongContent = meta.story({
 		docs: {
 			description: {
 				story:
-					"Reach for this when both companions carry long unbreakable names in a 320 pixel wide transcript. A name too long for one line is not shortened and not clamped: it breaks wherever the line ends and carries on onto the next one, so the sentence is always read in full. Check that the arriving name runs across more than one line, that no line reaches past the sentence, and that nothing scrolls sideways. Pick `InvitedByCompanion` for nominal names.",
+					"Reach for this when both companions carry long unbreakable names in a 320 pixel wide transcript. A name too long for one line is not shortened and not clamped: it breaks wherever the line ends and carries on onto the next one, so the sentence is always read in full. Check that the arriving name runs across more than one line, that no line reaches past the sentence, and that nothing scrolls sideways. Pick `InvitedByCompanion` for nominal names. The names come from the store through `apps/app/src/components/thread-screen.tsx:788`, which shortens nothing.",
 			},
 		},
 	},

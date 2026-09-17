@@ -32,7 +32,7 @@ export const Default = meta.story({
 		docs: {
 			description: {
 				story:
-					"`display` on: the expression takes a block of its own and KaTeX centres it. Glyphs paint in `currentColor`, so one render reads in both themes — flip the theme layout toolbar to side-by-side. Check that an expression wider than the block scrolls on its own axis instead of widening it.",
+					"`display` on: the expression takes a block of its own and KaTeX centres it. Glyphs paint in `currentColor`, so one render reads in both themes — flip the theme layout toolbar to side-by-side. Check that an expression wider than the block scrolls on its own axis instead of widening it. `packages/ui/src/components/markdown/code.tsx:148` mounts it with `display` on for every `$$…$$` a message carries.",
 			},
 		},
 	},
@@ -53,7 +53,7 @@ export const Inline = meta.story({
 		docs: {
 			description: {
 				story:
-					"`display` off: the expression is a span inside running prose, replaced in place once the typesetter lands. Check that it sits on the text baseline rather than pushing the line box open, and that the paragraph keeps its box while the source is swapped for the render.",
+					"`display` off: the expression is a span inside running prose, replaced in place once the typesetter lands. Check that it sits on the text baseline rather than pushing the line box open, and that the paragraph keeps its box while the source is swapped for the render. `packages/ui/src/components/markdown/code.tsx:75` mounts it for every `$…$` inside a sentence.",
 			},
 		},
 	},
@@ -76,7 +76,7 @@ export const Unparseable = meta.story({
 		docs: {
 			description: {
 				story:
-					"An unclosed fraction — what a stream mid-flight produces. Nothing throws and nothing is blanked: the source the author typed stays on screen, flagged in the destructive tone. The same text is what an expression past the cost bounds falls back to. Check that the failure reads as text rather than as a gap in the answer.",
+					"An unclosed fraction — what a stream mid-flight produces. Nothing throws and nothing is blanked: the source the author typed stays on screen, flagged in the destructive tone. The same text is what an expression past the cost bounds falls back to. Check that the failure reads as text rather than as a gap in the answer. The source is whatever `packages/ui/src/components/markdown/code.tsx:148` was handed, parseable or not.",
 			},
 		},
 	},

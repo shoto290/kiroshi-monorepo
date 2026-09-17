@@ -220,7 +220,7 @@ const StoppableTurn = ({
 	stoppable = false,
 	author = LEAD,
 }: StoppableTurnProps) => {
-	const text = state === "streaming" ? PARTIAL : ANSWER
+	const text = state === "cancelled" ? PARTIAL : ANSWER
 
 	return (
 		<div className="mx-auto flex max-w-2xl flex-col gap-6">
@@ -331,6 +331,15 @@ const MarkedHistory = () => {
 	)
 }
 
+const RENDERED_BY_THE_THREAD =
+	"`apps/app/src/components/thread-turn.tsx:98` renders the companion row of every transcript, from the row `apps/app/src/lib/chat/screen-model.ts:101` publishes."
+
+const STOPPED_BY_THE_SCREEN =
+	"`apps/app/src/components/thread-screen.tsx:642` hands the row a stop for as long as the screen holds a seat for that companion, and `apps/app/src/components/thread-turn.tsx:67` turns it into `stoppable`, whatever state the row landed in."
+
+const CAUSED_BY_THE_RUN =
+	"`apps/app/src/components/thread-screen.tsx:637` passes the cause of the run, from the reported runs and the mission summons the thread holds."
+
 const meta = preview.meta({
 	title: "Conversation/Message/Turn",
 	component: AssistantTurn,
@@ -361,7 +370,8 @@ export const Default = meta.story({
 		docs: {
 			description: {
 				story:
-					"Reach for this for the nominal exchange: a prompt that landed and an answer that finished. Check that the prompt sits right with no avatar beside it while the answer sits left behind one, and that hovering either bubble fades in a copy action on its outer side — the reader's own words are as copyable as the companion's. Pick `Run` for an answer that arrived in several parts.",
+					"Reach for this for the nominal exchange: a prompt that landed and an answer that finished. Check that the prompt sits right with no avatar beside it while the answer sits left behind one, and that hovering either bubble fades in a copy action on its outer side — the reader's own words are as copyable as the companion's. Pick `Run` for an answer that arrived in several parts. " +
+					RENDERED_BY_THE_THREAD,
 			},
 		},
 	},
@@ -397,7 +407,8 @@ export const Run = meta.story({
 		docs: {
 			description: {
 				story:
-					"Reach for this for the shape a real answer takes: one paragraph per row, published as each one closes. Check that the run reads as one block — tight spacing, and the corner facing a neighbour pulled in to less than half the corner facing away, which is what makes the rows read as one bubble rather than three — and that a single avatar marks it from the last row while the rows above keep the gutter empty. Every bubble carries its own copy, and copying one takes that paragraph alone: there is no action anywhere for the answer entire, because the reader points at the part they want.",
+					"Reach for this for the shape a real answer takes: one paragraph per row, published as each one closes. Check that the run reads as one block — tight spacing, and the corner facing a neighbour pulled in to less than half the corner facing away, which is what makes the rows read as one bubble rather than three — and that a single avatar marks it from the last row while the rows above keep the gutter empty. Every bubble carries its own copy, and copying one takes that paragraph alone: there is no action anywhere for the answer entire, because the reader points at the part they want. " +
+					RENDERED_BY_THE_THREAD,
 			},
 		},
 	},
@@ -423,7 +434,8 @@ export const Mark = meta.story({
 		docs: {
 			description: {
 				story:
-					"Reach for this to watch the companion's mark change homes. While the turn runs the mark belongs to the working row; when the turn lands that row goes and the closing `AssistantTurn` claims it in the gutter. Both name the same companion: the mark is that companion's, inside this transcript — `ThreadLayout` names the transcript for a real screen — and whichever of the two is on screen claims it, so it travels instead of blinking. Check that the avatar never disappears mid-move, that the bubble simply appears beside it while the row itself holds still, and that with reduced motion the mark simply arrives.",
+					"Reach for this to watch the companion's mark change homes. While the turn runs the mark belongs to the working row; when the turn lands that row goes and the closing `AssistantTurn` claims it in the gutter. Both name the same companion: the mark is that companion's, inside this transcript — `ThreadLayout` names the transcript for a real screen — and whichever of the two is on screen claims it, so it travels instead of blinking. Check that the avatar never disappears mid-move, that the bubble simply appears beside it while the row itself holds still, and that with reduced motion the mark simply arrives. " +
+					RENDERED_BY_THE_THREAD,
 			},
 		},
 	},
@@ -458,7 +470,8 @@ export const MarkAcrossRuns = meta.story({
 		docs: {
 			description: {
 				story:
-					"Reach for this once the transcript has history: every answered run keeps its own avatar, but only the newest group is told `carriesMark`, so only its closing row answers to the transcript's mark. Start a new turn and check that the mark leaves the newest gutter for the working row while the avatar above it does not budge. Pick `Mark` for the handoff itself, and `Primitives/SharedMark` for the invariant underneath it.",
+					"Reach for this once the transcript has history: every answered run keeps its own avatar, but only the newest group is told `carriesMark`, so only its closing row answers to the transcript's mark. Start a new turn and check that the mark leaves the newest gutter for the working row while the avatar above it does not budge. Pick `Mark` for the handoff itself, and `Primitives/SharedMark` for the invariant underneath it. " +
+					RENDERED_BY_THE_THREAD,
 			},
 		},
 	},
@@ -485,6 +498,7 @@ export const MarkAcrossRuns = meta.story({
 })
 
 export const Variants = meta.story({
+	tags: ["test-only"],
 	render: () => (
 		<div className="mx-auto flex max-w-2xl flex-col gap-6">
 			{TURN_STATES.map((state) => {
@@ -509,7 +523,8 @@ export const Variants = meta.story({
 		docs: {
 			description: {
 				story:
-					"Every completion the transport can report, in order, then the row a turn stopped before writing anything leaves behind. Check that `cancelled` keeps the partial text it had when Stop was pressed and marks it `Stopped` rather than treating it as an error, that `failed` still offers its copy since the words it did write are worth taking, and that the empty row is the only one without one — an empty bubble has nothing to hand over. Pick `Error` for the user side of a prompt that never reached Claude at all.",
+					"Every completion the transport can report, in order, then the row a turn stopped before writing anything leaves behind. Check that `cancelled` keeps the partial text it had when Stop was pressed and marks it `Stopped` rather than treating it as an error, that `failed` still offers its copy since the words it did write are worth taking, and that the empty row is the only one without one — an empty bubble has nothing to hand over. Pick `Error` for the user side of a prompt that never reached Claude at all. The four states are stacked in a column no transcript assembles, and `streaming` is in it only to keep the list exhaustive: `apps/app/src/lib/chat/screen-model.ts:102` closes every block it publishes, so no row ever reaches a screen while its answer is still arriving. " +
+					RENDERED_BY_THE_THREAD,
 			},
 		},
 	},
@@ -538,7 +553,8 @@ export const Table = meta.story({
 		docs: {
 			description: {
 				story:
-					"Reach for this for the row a table lands in. A table frames and fills itself, so the row is `bare`: no bubble behind it, no padding around it, and one box around the grid instead of two. Check that the sentence above it keeps its bubble, that the table sits flush against the gutter and still marks the run with its avatar, and that the row's copy stays beside the frame rather than out at the edge of the transcript.",
+					"Reach for this for the row a table lands in. A table frames and fills itself, so the row is `bare`: no bubble behind it, no padding around it, and one box around the grid instead of two. Check that the sentence above it keeps its bubble, that the table sits flush against the gutter and still marks the run with its avatar, and that the row's copy stays beside the frame rather than out at the edge of the transcript. " +
+					RENDERED_BY_THE_THREAD,
 			},
 		},
 	},
@@ -569,7 +585,7 @@ export const Error = meta.story({
 		docs: {
 			description: {
 				story:
-					"Reach for this when the write to the CLI was rejected, so the prompt exists in the transcript but Claude never saw it. Both actions live left of the bubble, on the outer side as on every row, but they do not behave alike: the retry is pinned, since a way out nobody can see is not offered at all, while the copy stays behind a hover like every other. Check that the retry is there before the pointer is, that it sits nearest the bubble, and that the text is preserved verbatim for the resend. Pick `Variants` when Claude did answer and it was the turn that failed.",
+					"Reach for this when the write to the CLI was rejected, so the prompt exists in the transcript but Claude never saw it. Both actions live left of the bubble, on the outer side as on every row, but they do not behave alike: the retry is pinned, since a way out nobody can see is not offered at all, while the copy stays behind a hover like every other. Check that the retry is there before the pointer is, that it sits nearest the bubble, and that the text is preserved verbatim for the resend. Pick `Variants` when Claude did answer and it was the turn that failed. `apps/app/src/components/thread-turn.tsx:81` renders the reader row of every transcript.",
 			},
 		},
 	},
@@ -596,7 +612,8 @@ export const LongContent = meta.story({
 		docs: {
 			description: {
 				story:
-					"Reach for this to check the two multi-line paths: a pasted prompt keeps its blank lines in one bubble, and a companion row that was handed more than one paragraph still renders them verbatim. Check that both bubbles stop widening at their cap. Pick `Run` for the split the screen normally performs before it gets here.",
+					"Reach for this to check the two multi-line paths: a pasted prompt keeps its blank lines in one bubble, and a companion row that was handed more than one paragraph still renders them verbatim. Check that both bubbles stop widening at their cap. Pick `Run` for the split the screen normally performs before it gets here. " +
+					RENDERED_BY_THE_THREAD,
 			},
 		},
 	},
@@ -615,7 +632,7 @@ export const Pending = meta.story({
 		docs: {
 			description: {
 				story:
-					"The composer stays writable while a turn runs, so a prompt that cannot be sent yet waits here instead. A sent prompt tops the stack, then the `queued` one below it: one step back from the reader's own fill, a spinner beside it and its footer naming the wait. Check that the queued row offers no retry, that its cancel is pinned rather than waiting for a hover, and that only the spinner moves. Pick `Error` for a prompt that was sent and never landed.",
+					"The composer stays writable while a turn runs, so a prompt that cannot be sent yet waits here instead. A sent prompt tops the stack, then the `queued` one below it: one step back from the reader's own fill, a spinner beside it and its footer naming the wait. Check that the queued row offers no retry, that its cancel is pinned rather than waiting for a hover, and that only the spinner moves. Pick `Error` for a prompt that was sent and never landed. `apps/app/src/components/thread-turn.tsx:81` renders the reader row of every transcript.",
 			},
 		},
 	},
@@ -654,7 +671,8 @@ export const Reply = meta.story({
 		docs: {
 			description: {
 				story:
-					"The affordance that starts a reply, on both sides of the transcript: a row given `onReply` reveals it beside copy on hover or on keyboard focus, and the last row here, given none, offers nothing at all — a screen that cannot answer a message must not draw the invitation. Check that pressing it reports the row it belongs to and changes nothing in the transcript: staging the reply is the screen's business, and `AI/PromptReply` is where it lands.",
+					"The affordance that starts a reply, on both sides of the transcript: a row given `onReply` reveals it beside copy on hover or on keyboard focus, and the last row here, given none, offers nothing at all — a screen that cannot answer a message must not draw the invitation. Check that pressing it reports the row it belongs to and changes nothing in the transcript: staging the reply is the screen's business, and `AI/PromptReply` is where it lands. " +
+					RENDERED_BY_THE_THREAD,
 			},
 		},
 	},
@@ -691,7 +709,8 @@ export const Pinned = meta.story({
 		docs: {
 			description: {
 				story:
-					"The bookmark a reader drops on a row, beside the reply it sits next to. A row given `onPin` offers it on hover or on keyboard focus like the rest; a row already pinned keeps the control on screen without hover and names it `Unpin`, so the transcript shows at a glance what is bookmarked. Pressing it reports the row and changes nothing here — holding the list is the screen's business, and `AI/PinnedMessages` is where it reads.",
+					"The bookmark a reader drops on a row, beside the reply it sits next to. A row given `onPin` offers it on hover or on keyboard focus like the rest; a row already pinned keeps the control on screen without hover and names it `Unpin`, so the transcript shows at a glance what is bookmarked. Pressing it reports the row and changes nothing here — holding the list is the screen's business, and `AI/PinnedMessages` is where it reads. " +
+					RENDERED_BY_THE_THREAD,
 			},
 		},
 	},
@@ -730,7 +749,8 @@ export const Menu = meta.story({
 		docs: {
 			description: {
 				story:
-					"The same actions the hover row offers, reached by right-clicking the bubble instead of hunting for a button: pin, then reply and copy behind a separator, each carrying the icon and the label its button carries — a pinned row says `Unpin` in both places. A row is handed only the actions it was given a handler for, and the last row here, given none at all, keeps the browser's own menu rather than drawing an empty one. Check that the menu grows out of the pointer, that choosing a row reports it and closes, and that right-clicking a second bubble hands the menu over rather than leaving two open. The bubble stays selectable under the menu, because a reader copies a passage of an answer far more often than they right-click it; the registry trigger's own `select-none` is overridden here and only comes back on a coarse pointer, where a drag is a scroll and a long press is the way in. That coarse branch is a media query the runner cannot emulate, so the play reads the rule rather than the effect.",
+					"The same actions the hover row offers, reached by right-clicking the bubble instead of hunting for a button: pin, then reply and copy behind a separator, each carrying the icon and the label its button carries — a pinned row says `Unpin` in both places. A row is handed only the actions it was given a handler for, and the last row here, given none at all, keeps the browser's own menu rather than drawing an empty one. Check that the menu grows out of the pointer, that choosing a row reports it and closes, and that right-clicking a second bubble hands the menu over rather than leaving two open. The bubble stays selectable under the menu, because a reader copies a passage of an answer far more often than they right-click it; the registry trigger's own `select-none` is overridden here and only comes back on a coarse pointer, where a drag is a scroll and a long press is the way in. That coarse branch is a media query the runner cannot emulate, so the play reads the rule rather than the effect. " +
+					RENDERED_BY_THE_THREAD,
 			},
 		},
 	},
@@ -790,7 +810,8 @@ export const Quoted = meta.story({
 		docs: {
 			description: {
 				story:
-					"A message that answers another one is wrapped in a frame that carries the quote above the bubble, both on the same secondary fill. Check that the frame hugs the bubble on both sides of the transcript, that the excerpt stays on one line whatever it quotes, and that pressing it asks the screen to jump rather than moving anything here. Pick `AI/MessageScroller → Jump` for the other end of that request.",
+					"A message that answers another one is wrapped in a frame that carries the quote above the bubble, both on the same secondary fill. Check that the frame hugs the bubble on both sides of the transcript, that the excerpt stays on one line whatever it quotes, and that pressing it asks the screen to jump rather than moving anything here. Pick `AI/MessageScroller → Jump` for the other end of that request. " +
+					RENDERED_BY_THE_THREAD,
 			},
 		},
 	},
@@ -811,7 +832,8 @@ export const Authored = meta.story({
 		docs: {
 			description: {
 				story:
-					"A conversation held by several bots, where every row has to say who wrote it. Hand `AssistantTurn` an `author` and it names the bot above the bubble and draws that bot's avatar in the gutter — the row keeps the gutter it always had, so nothing is passed twice. The bot that leads wears a crown beside its name. In a run the name is written once, on the row that opens it, while the avatar stays on the row that closes it: the block reads as one bot speaking, not as the same name repeated. `<@bot-id>` in the text is drawn as a chip by `Markdown`, resolved against `RosterProvider`, and an id the conversation does not know still draws as an unknown bot rather than leaking the raw text. Check that Atlas is named once over its two rows, that the crown is on Atlas alone, and that a message from a conversation with a single bot — every other story here — is untouched by all of this.",
+					"A conversation held by several bots, where every row has to say who wrote it. Hand `AssistantTurn` an `author` and it names the bot above the bubble and draws that bot's avatar in the gutter — the row keeps the gutter it always had, so nothing is passed twice. The bot that leads wears a crown beside its name. In a run the name is written once, on the row that opens it, while the avatar stays on the row that closes it: the block reads as one bot speaking, not as the same name repeated. `<@bot-id>` in the text is drawn as a chip by `Markdown`, resolved against `RosterProvider`, and an id the conversation does not know still draws as an unknown bot rather than leaking the raw text. Check that Atlas is named once over its two rows, that the crown is on Atlas alone, and that a message from a conversation with a single bot — every other story here — is untouched by all of this. " +
+					RENDERED_BY_THE_THREAD,
 			},
 		},
 	},
@@ -863,7 +885,8 @@ export const Titled = meta.story({
 		docs: {
 			description: {
 				story:
-					"A conversation where three of the four companions carry a title. The title is written in a pill right after the name, the same pill the roster row wears, so a reader tells an ops companion from a release companion without opening the roster. A companion with no title keeps the bare name, no pill and no gap held for one. The column here is 320px wide on purpose: a title of fifteen characters is written whole, the name gives way before the pill does, and a title longer than the pill allows is cut with an ellipsis rather than pushing the crown or the header out of the column.",
+					"A conversation where three of the four companions carry a title. The title is written in a pill right after the name, the same pill the roster row wears, so a reader tells an ops companion from a release companion without opening the roster. A companion with no title keeps the bare name, no pill and no gap held for one. The column here is 320px wide on purpose: a title of fifteen characters is written whole, the name gives way before the pill does, and a title longer than the pill allows is cut with an ellipsis rather than pushing the crown or the header out of the column. " +
+					RENDERED_BY_THE_THREAD,
 			},
 		},
 	},
@@ -912,7 +935,8 @@ export const TitledDeleted = meta.story({
 		docs: {
 			description: {
 				story:
-					"An author deleted since it wrote, still carrying its title. The name dims, and the pill dims with it, so the two read as one line written by someone who has left rather than a dead name next to a live label. Check that the pill sits at the same weight as the name, before the bin, and that the message under it stays as readable as any other.",
+					"An author deleted since it wrote, still carrying its title. The name dims, and the pill dims with it, so the two read as one line written by someone who has left rather than a dead name next to a live label. Check that the pill sits at the same weight as the name, before the bin, and that the message under it stays as readable as any other. " +
+					RENDERED_BY_THE_THREAD,
 			},
 		},
 	},
@@ -941,7 +965,8 @@ export const OpenedByMention = meta.story({
 		docs: {
 			description: {
 				story:
-					"A bubble whose first word is a companion. A mention is taller than the words around it, so a bubble that opens with one is padded evenly on the four sides instead of pressing the chip against its top edge — the space above the mention, below it and to its left is the same. A bubble that opens with words keeps the padding it always had, which is what the second row here is for. Check that the two bubbles read as the same bubble, one holding a chip and the other holding a sentence.",
+					"A bubble whose first word is a companion. A mention is taller than the words around it, so a bubble that opens with one is padded evenly on the four sides instead of pressing the chip against its top edge — the space above the mention, below it and to its left is the same. A bubble that opens with words keeps the padding it always had, which is what the second row here is for. Check that the two bubbles read as the same bubble, one holding a chip and the other holding a sentence. " +
+					RENDERED_BY_THE_THREAD,
 			},
 		},
 	},
@@ -986,7 +1011,8 @@ export const DeletedAuthor = meta.story({
 		docs: {
 			description: {
 				story:
-					"The companion that wrote this was deleted since. Its message is history and stays legible: the bubble is the ordinary one, only the name is dimmed and marked with a bin so a reader knows nobody is behind it any more. The mark is an icon in the line and *Deleted companion* under it — on hover, and to a screen reader — so the row keeps its length and still says what it means. Check that the icon reads as a state rather than an action nobody can take, and that the row copies and quotes like any other.",
+					"The companion that wrote this was deleted since. Its message is history and stays legible: the bubble is the ordinary one, only the name is dimmed and marked with a bin so a reader knows nobody is behind it any more. The mark is an icon in the line and *Deleted companion* under it — on hover, and to a screen reader — so the row keeps its length and still says what it means. Check that the icon reads as a state rather than an action nobody can take, and that the row copies and quotes like any other. " +
+					RENDERED_BY_THE_THREAD,
 			},
 		},
 	},
@@ -1007,13 +1033,14 @@ export const DeletedAuthor = meta.story({
 	},
 })
 
-export const StreamingStoppable = meta.story({
-	render: () => <StoppableTurn state="streaming" stoppable />,
+export const CompleteStoppable = meta.story({
+	render: () => <StoppableTurn state="complete" stoppable />,
 	parameters: {
 		docs: {
 			description: {
 				story:
-					"The row a companion is writing into, with its own way out: `stoppable` turns the gutter avatar into the same control the waiting seat carries, named after the companion, and opens the gutter to assistive technology so the control can be reached at all. The wave keeps running around it — this stop ends one companion. Check that the control is the size of the avatar it rides, that pointing at it or reaching it by keyboard veils the animal with the stop glyph, and that the ring shows where focus landed.",
+					"The landed answer of a companion the screen still holds a seat for: `stoppable` turns the gutter avatar into the same control the waiting seat carries, named after the companion, and opens the gutter to assistive technology so the control can be reached at all. The wave keeps running around it — this stop ends one companion. Check that the control is the size of the avatar it rides, that pointing at it or reaching it by keyboard veils the animal with the stop glyph, that the ring shows where focus landed, and that pressing it reports the stop. " +
+					STOPPED_BY_THE_SCREEN,
 			},
 		},
 	},
@@ -1021,50 +1048,16 @@ export const StreamingStoppable = meta.story({
 		stopTurn.mockClear()
 
 		const stop = canvas.getByRole("button", { name: "Stop Atlas" })
-		const [gutter] = slotsIn(canvasElement, "message-gutter")
 		const [glyph] = slotsIn(canvasElement, "bot-working-stop-glyph")
 
-		await expect(gutter).not.toHaveAttribute("aria-hidden")
+		await expectStop(canvas, canvasElement)
 		await expect(Math.round(stop.getBoundingClientRect().height)).toBe(
 			TURN_AVATAR_SIZE,
 		)
-
-		stop.focus()
-		await expect(stop).toHaveFocus()
 		await waitFor(() => expect(glyph).toBeVisible())
 
 		await userEvent.click(stop)
 		await expect(stopTurn).toHaveBeenCalledTimes(1)
-	},
-})
-
-export const StreamingNotStoppable = meta.story({
-	render: () => <StoppableTurn state="streaming" />,
-	parameters: {
-		docs: {
-			description: {
-				story:
-					"The same row while the screen says nothing can be stopped — a turn read back from the database as `streaming` after a crash is exactly that. The row still holds an `onStop`, and it draws no control: the stop follows `stoppable`, never the handler. Check that the gutter is a drawing again, hidden from assistive technology, with no button to reach.",
-			},
-		},
-	},
-	play: async ({ canvas, canvasElement }) => {
-		await expectNoStop(canvas, canvasElement)
-	},
-})
-
-export const CompleteStoppable = meta.story({
-	render: () => <StoppableTurn state="complete" stoppable />,
-	parameters: {
-		docs: {
-			description: {
-				story:
-					"The landed answer of a companion the screen still holds a seat for: the row draws its stop all the same, since only the screen knows a companion is alive and the state a row was read back with says nothing about it. Check that the control named after the companion rides the gutter, that Tab reaches it, and that the gutter is open to assistive technology.",
-			},
-		},
-	},
-	play: async ({ canvas, canvasElement }) => {
-		await expectStop(canvas, canvasElement)
 	},
 })
 
@@ -1074,7 +1067,8 @@ export const CompleteNotStoppable = meta.story({
 		docs: {
 			description: {
 				story:
-					"The same landed answer once the screen holds no seat for its companion, which is what a reopened conversation shows: the row keeps its avatar and offers nothing to press. Check that the gutter is a drawing, hidden from assistive technology, with no button to reach.",
+					"The same landed answer once the screen holds no seat for its companion, which is what a reopened conversation shows: the row still holds an `onStop`, and it draws no control, since the stop follows `stoppable` and never the handler. Check that the gutter is a drawing, hidden from assistive technology, with no button to reach. " +
+					STOPPED_BY_THE_SCREEN,
 			},
 		},
 	},
@@ -1089,7 +1083,8 @@ export const CancelledStoppable = meta.story({
 		docs: {
 			description: {
 				story:
-					"The turn that was already stopped, while the screen still says the companion can be stopped: the row keeps the words it had written and its `Stopped` footer, and the gutter still carries the control. The screen drops `stoppable` when it drops the seat, and the row follows. Check that the footer reads `Stopped`, that the control named after the companion is there, and that Tab reaches it.",
+					"The turn that was already stopped, while the screen still says the companion can be stopped: the row keeps the words it had written and its `Stopped` footer, and the gutter still carries the control. The screen drops `stoppable` when it drops the seat, and the row follows. Check that the footer reads `Stopped`, that the control named after the companion is there, and that Tab reaches it. " +
+					STOPPED_BY_THE_SCREEN,
 			},
 		},
 	},
@@ -1105,7 +1100,8 @@ export const FailedStoppable = meta.story({
 		docs: {
 			description: {
 				story:
-					"The turn the transport gave up on, while the screen still says the companion can be stopped: the row keeps its failure footer and its copy, and the gutter still carries the control, since the state a row landed in never decides what the gutter draws. Check that the failure footer is there and that the control named after the companion is reachable by keyboard.",
+					"The turn the transport gave up on, while the screen still says the companion can be stopped: the row keeps its failure footer and its copy, and the gutter still carries the control, since the state a row landed in never decides what the gutter draws. Check that the failure footer is there and that the control named after the companion is reachable by keyboard. " +
+					STOPPED_BY_THE_SCREEN,
 			},
 		},
 	},
@@ -1121,7 +1117,7 @@ const accessibleNameOf = (mark: HTMLElement) => {
 	return label
 }
 
-export const StreamingStoppableSameBotEitherWay = meta.story({
+export const StoppableSameBotEitherWay = meta.story({
 	render: () => (
 		<div className="mx-auto flex max-w-4xl gap-6">
 			<div data-slot="author-named-row" className="min-w-0 flex-1">
@@ -1129,7 +1125,7 @@ export const StreamingStoppableSameBotEitherWay = meta.story({
 					author={LEAD}
 					copyText={PARTIAL}
 					onStop={stopTurn}
-					state="streaming"
+					state="cancelled"
 					stoppable
 				>
 					{PARTIAL}
@@ -1140,7 +1136,7 @@ export const StreamingStoppableSameBotEitherWay = meta.story({
 					copyText={PARTIAL}
 					identity={LEAD}
 					onStop={stopTurn}
-					state="streaming"
+					state="cancelled"
 					stoppable
 				>
 					{PARTIAL}
@@ -1152,7 +1148,8 @@ export const StreamingStoppableSameBotEitherWay = meta.story({
 		docs: {
 			description: {
 				story:
-					"The same companion reaching the gutter by either road: the row on the leading edge is named by `author`, the row beside it by `identity`, and nothing else differs. Check that both gutters draw the very same mark and offer a stop under the same name, and that only the `author` row carries the name line above its bubble, since `identity` says who is drawn and never who is speaking.",
+					"The same companion reaching the gutter by either road: the row on the leading edge is named by `author`, the row beside it by `identity`, and nothing else differs. Check that both gutters draw the very same mark and offer a stop under the same name, and that only the `author` row carries the name line above its bubble, since `identity` says who is drawn and never who is speaking. " +
+					STOPPED_BY_THE_SCREEN,
 			},
 		},
 	},
@@ -1185,7 +1182,7 @@ export const StreamingStoppableSameBotEitherWay = meta.story({
 	},
 })
 
-export const StreamingStoppableOtherIdentity = meta.story({
+export const StoppableOtherIdentity = meta.story({
 	render: () => (
 		<div className="mx-auto flex max-w-2xl flex-col gap-6">
 			<AssistantTurn
@@ -1193,7 +1190,7 @@ export const StreamingStoppableOtherIdentity = meta.story({
 				copyText={PARTIAL}
 				identity={SECOND}
 				onStop={stopTurn}
-				state="streaming"
+				state="cancelled"
 				stoppable
 			>
 				{PARTIAL}
@@ -1204,7 +1201,8 @@ export const StreamingStoppableOtherIdentity = meta.story({
 		docs: {
 			description: {
 				story:
-					"A row whose two identities disagree: `author` names the companion the words are attributed to, `identity` names the face the screen wants in the gutter, and the screen is free to send both. The gutter answers to `identity` alone — avatar, stop name and veil — while the line above the bubble keeps answering to `author`. Check that the control names the companion drawn under it and not the one written above the bubble, so a stop can never reach a companion the reader is not looking at.",
+					"A row whose two identities disagree: `author` names the companion the words are attributed to, `identity` names the face the screen wants in the gutter, and the screen is free to send both. The gutter answers to `identity` alone — avatar, stop name and veil — while the line above the bubble keeps answering to `author`. Check that the control names the companion drawn under it and not the one written above the bubble, so a stop can never reach a companion the reader is not looking at. " +
+					STOPPED_BY_THE_SCREEN,
 			},
 		},
 	},
@@ -1224,13 +1222,14 @@ export const StreamingStoppableOtherIdentity = meta.story({
 	},
 })
 
-export const StreamingStoppablePicture = meta.story({
-	render: () => <StoppableTurn author={PICTURED} state="streaming" stoppable />,
+export const StoppablePicture = meta.story({
+	render: () => <StoppableTurn author={PICTURED} state="cancelled" stoppable />,
 	parameters: {
 		docs: {
 			description: {
 				story:
-					"The same stop on a companion that uploaded its own picture. Name and veil both come from the identity the gutter draws, so neither can drift from the face under them. Check that the control is named after that companion and that the veil holds to the rounded square of the picture, corner for corner.",
+					"The same stop on a companion that uploaded its own picture. Name and veil both come from the identity the gutter draws, so neither can drift from the face under them. Check that the control is named after that companion and that the veil holds to the rounded square of the picture, corner for corner. " +
+					STOPPED_BY_THE_SCREEN,
 			},
 		},
 	},
@@ -1266,7 +1265,8 @@ export const PictureBesideBlot = meta.story({
 		docs: {
 			description: {
 				story:
-					"The gutter of a companion wearing its picture above the gutter of one drawn from a blot. Check that the picture fills its 40px slot as a rounded square with no border, and that the drawn companion below keeps its animal over its blot.",
+					"The gutter of a companion wearing its picture above the gutter of one drawn from a blot. Check that the picture fills its 40px slot as a rounded square with no border, and that the drawn companion below keeps its animal over its blot. " +
+					RENDERED_BY_THE_THREAD,
 			},
 		},
 	},
@@ -1280,14 +1280,14 @@ export const PictureBesideBlot = meta.story({
 	},
 })
 
-export const StreamingStoppableIdentity = meta.story({
+export const StoppableIdentity = meta.story({
 	render: () => (
 		<div className="mx-auto flex max-w-2xl flex-col gap-6">
 			<AssistantTurn
 				copyText={PARTIAL}
 				identity={BOT}
 				onStop={stopTurn}
-				state="streaming"
+				state="cancelled"
 				stoppable
 			>
 				{PARTIAL}
@@ -1298,7 +1298,8 @@ export const StreamingStoppableIdentity = meta.story({
 		docs: {
 			description: {
 				story:
-					"A row that names its gutter through `identity` rather than `author`: the screen hands the face it draws, so the stop can only ever be named after the companion under it. Check that the control is named after that companion and that the bubble carries no name line above it, since naming the row above the bubble is the author's job alone.",
+					"A row that names its gutter through `identity` rather than `author`: the screen hands the face it draws, so the stop can only ever be named after the companion under it. Check that the control is named after that companion and that the bubble carries no name line above it, since naming the row above the bubble is the author's job alone. " +
+					STOPPED_BY_THE_SCREEN,
 			},
 		},
 	},
@@ -1340,7 +1341,8 @@ export const ReportedByRoutine = meta.story({
 		docs: {
 			description: {
 				story:
-					"A run a routine opened. The row is an ordinary companion turn, and the line above the bubble names the routine that produced it instead of the companion that wrote it: the icon says what fired it — a clock face for a schedule — and it is quieter than a name line, because who wrote the words is already the avatar\u2019s job. Only the run that carries a cause loses its name line; the run under it is untouched. Check that the gutter avatar and the stop are exactly the ones the row always had, and that a screen reader hears the line as a routine report before it hears the title.",
+					"A run a routine opened. The row is an ordinary companion turn, and the line above the bubble names the routine that produced it instead of the companion that wrote it: the icon says what fired it — a clock face for a schedule — and it is quieter than a name line, because who wrote the words is already the avatar\u2019s job. Only the run that carries a cause loses its name line; the run under it is untouched. Check that the gutter avatar and the stop are exactly the ones the row always had, and that a screen reader hears the line as a routine report before it hears the title. " +
+					CAUSED_BY_THE_RUN,
 			},
 		},
 	},
@@ -1351,7 +1353,6 @@ export const ReportedByRoutine = meta.story({
 				cause={SCHEDULED_CAUSE}
 				copyText={REPORT}
 				onStop={stopTurn}
-				state="streaming"
 				stoppable
 			>
 				{REPORT}
@@ -1389,7 +1390,8 @@ export const ReportedByUnnamedTrigger = meta.story({
 		docs: {
 			description: {
 				story:
-					"A routine fired by a trigger this design system names no icon for — any plugin may declare its own, so an unknown id is the ordinary case and never an error. The line falls back to a bell and writes the routine title exactly as it was handed over. Check that the row reads the same as the scheduled one, one icon apart.",
+					"A routine fired by a trigger this design system names no icon for — any plugin may declare its own, so an unknown id is the ordinary case and never an error. The line falls back to a bell and writes the routine title exactly as it was handed over. Check that the row reads the same as the scheduled one, one icon apart. " +
+					CAUSED_BY_THE_RUN,
 			},
 		},
 	},
@@ -1416,7 +1418,8 @@ export const SummonedByMission = meta.story({
 		docs: {
 			description: {
 				story:
-					"A run a mission opened, not a routine. The line reads exactly like a routine report, and only the word a screen reader hears before the title changes: a mission summons, never a routine report. Check that the announcement names the mission and that the run still loses its name line.",
+					"A run a mission opened, not a routine. The line reads exactly like a routine report, and only the word a screen reader hears before the title changes: a mission summons, never a routine report. Check that the announcement names the mission and that the run still loses its name line. " +
+					CAUSED_BY_THE_RUN,
 			},
 		},
 	},
@@ -1444,7 +1447,8 @@ export const ReportedByLongTitle = meta.story({
 		docs: {
 			description: {
 				story:
-					"A routine whose title outruns the width the transcript gives it. The line stays a single line and truncates, so the row above the bubble never grows a second line and never pushes the icon off it. Check the icon holds its size while the title alone gives way.",
+					"A routine whose title outruns the width the transcript gives it. The line stays a single line and truncates, so the row above the bubble never grows a second line and never pushes the icon off it. Check the icon holds its size while the title alone gives way. " +
+					CAUSED_BY_THE_RUN,
 			},
 		},
 	},
@@ -1473,7 +1477,8 @@ export const Footnoted = meta.story({
 		docs: {
 			description: {
 				story:
-					"A row the screen hands a line to put under the bubble — here, the trace a companion leaves when it keeps a skill. The node lands in the slot a turn already reserves for the state it ended in, so a note and a completion label never draw two footers, and the state wins: the stopped row below writes `Stopped` and drops the note it was given. Check that the line sits under the bubble and outside it, quieter than the answer, and starts exactly where the bubble does. Pick `Variants` for the labels the state produces on its own.",
+					"A row the screen hands a line to put under the bubble — here, the trace a companion leaves when it keeps a skill. The node lands in the slot a turn already reserves for the state it ended in, so a note and a completion label never draw two footers, and the state wins: the stopped row below writes `Stopped` and drops the note it was given. Check that the line sits under the bubble and outside it, quieter than the answer, and starts exactly where the bubble does. Pick `Variants` for the labels the state produces on its own. " +
+					RENDERED_BY_THE_THREAD,
 			},
 		},
 	},
@@ -1516,7 +1521,8 @@ export const FootnotedSqueezed = meta.story({
 		docs: {
 			description: {
 				story:
-					"The same note in a container squeezed to 320 pixels. Check that it wraps inside the content column instead of widening the row, that every line still starts where the bubble does, and that nothing scrolls sideways.",
+					"The same note in a container squeezed to 320 pixels. Check that it wraps inside the content column instead of widening the row, that every line still starts where the bubble does, and that nothing scrolls sideways. " +
+					RENDERED_BY_THE_THREAD,
 			},
 		},
 	},

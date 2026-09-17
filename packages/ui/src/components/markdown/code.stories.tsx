@@ -62,7 +62,7 @@ export const Default = meta.story({
 		docs: {
 			description: {
 				story:
-					"A labelled fence, the shape an agent writes most. Check that the tokens are coloured in both themes — flip the theme layout toolbar to side-by-side — that the scroll viewport stops short of the copy control so no line hides behind it, and that tabbing into the block lights the viewport ring before reaching the button.",
+					"A labelled fence, the shape an agent writes most. Check that the tokens are coloured in both themes — flip the theme layout toolbar to side-by-side — that the scroll viewport stops short of the copy control so no line hides behind it, and that tabbing into the block lights the viewport ring before reaching the button. `packages/ui/src/components/markdown/components.tsx:16` hands every fenced block of a message to this renderer.",
 			},
 		},
 	},
@@ -89,7 +89,7 @@ export const UnknownLanguage = meta.story({
 		docs: {
 			description: {
 				story:
-					"A fence label is free-form, so an author can type one no grammar answers for. The block falls back to plain text rather than guessing a grammar, and the label the author typed is kept in the accessible name. Check that the source reads monochrome without losing its indentation, and that the copy control still returns the exact source.",
+					"A fence label is free-form, so an author can type one no grammar answers for. The block falls back to plain text rather than guessing a grammar, and the label the author typed is kept in the accessible name. Check that the source reads monochrome without losing its indentation, and that the copy control still returns the exact source. The label is whatever the author typed, handed over by `packages/ui/src/components/markdown/components.tsx:16`.",
 			},
 		},
 	},
@@ -108,7 +108,7 @@ export const BeyondHighlightBudget = meta.story({
 		docs: {
 			description: {
 				story:
-					"240 lines, past the budget where tokenising the whole fence would hold the first frame. Such a fence paints its source first and takes its colours on the pass after, so a long answer appears at once instead of after the highlighter. Check that every line is on screen from the start and that the colours land without the block jumping.",
+					"240 lines, past the budget where tokenising the whole fence would hold the first frame. Such a fence paints its source first and takes its colours on the pass after, so a long answer appears at once instead of after the highlighter. Check that every line is on screen from the start and that the colours land without the block jumping. A fence this long still comes through `packages/ui/src/components/markdown/components.tsx:16` like any other.",
 			},
 		},
 	},
@@ -123,12 +123,13 @@ export const BeyondHighlightBudget = meta.story({
 })
 
 export const WithoutFencedSource = meta.story({
+	tags: ["test-only"],
 	args: { node: unfencedNode, children: "nest_42" },
 	parameters: {
 		docs: {
 			description: {
 				story:
-					"The fallback branch: a `pre` the parser did not build from a fence carries no code child, so there is no source to copy and no label to highlight against. The renderer steps aside and hands back the parser's own markup. Check that the block keeps the prose code surface instead of collapsing to bare text.",
+					"The fallback branch: a `pre` the parser did not build from a fence carries no code child, so there is no source to copy and no label to highlight against. The renderer steps aside and hands back the parser's own markup. Check that the block keeps the prose code surface instead of collapsing to bare text. No parser builds this node: `packages/ui/src/components/markdown/components.tsx:16` only ever hands over a `pre` holding a `code`, so this one holds the fallback branch rather than a state a reader meets.",
 			},
 		},
 	},
@@ -143,7 +144,7 @@ export const InlineCode = meta.story({
 		docs: {
 			description: {
 				story:
-					"`MarkdownCode` inside running prose. Nothing is added to the parser output here — the chip, its ring and its 0.9em size come from the prose class the renderer owns — so the same span reads on the page and on every bubble variant. Check that the chip sits on the text baseline instead of pushing the line box open.",
+					"`MarkdownCode` inside running prose. Nothing is added to the parser output here — the chip, its ring and its 0.9em size come from the prose class the renderer owns — so the same span reads on the page and on every bubble variant. Check that the chip sits on the text baseline instead of pushing the line box open. `packages/ui/src/components/markdown/components.tsx:14` hands every inline code span of a message to this renderer.",
 			},
 		},
 	},

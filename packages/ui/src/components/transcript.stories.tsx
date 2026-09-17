@@ -346,6 +346,9 @@ const PostedQuestionsDemo = (transcriptProps: PostedQuestionsDemoProps) => {
 	)
 }
 
+const MOUNTED_BY_THE_LAYOUT =
+	"`packages/ui/src/components/thread-layout.tsx:78` mounts it with the rows `apps/app/src/components/thread-screen.tsx:1434` hands over."
+
 const meta = preview.meta({
 	title: "Conversation/Message/Transcript",
 	component: Transcript,
@@ -378,7 +381,8 @@ export const Default = meta.story({
 		docs: {
 			description: {
 				story:
-					"A transcript short enough to fit the frame. Nothing scrolls, the reader is following, the return control stays out of the way, the viewport carries no scroll fade over its edges, and it reserves no gutter for a scrollbar in its layout width.",
+					"A transcript short enough to fit the frame. Nothing scrolls, the reader is following, the return control stays out of the way, the viewport carries no scroll fade over its edges, and it reserves no gutter for a scrollbar in its layout width. " +
+					MOUNTED_BY_THE_LAYOUT,
 			},
 		},
 	},
@@ -402,7 +406,8 @@ export const LandsAtEnd = meta.story({
 		docs: {
 			description: {
 				story:
-					"A resumed conversation, longer than the frame on first paint. The reader lands on the newest message instead of on history they have already read.",
+					"A resumed conversation, longer than the frame on first paint. The reader lands on the newest message instead of on history they have already read. " +
+					MOUNTED_BY_THE_LAYOUT,
 			},
 		},
 	},
@@ -422,7 +427,7 @@ export const DoesNotFollowWithoutAutoScroll = meta.story({
 		docs: {
 			description: {
 				story:
-					"A transcript a host drives itself, with `autoScroll` off: a replay, a scripted scene, anything whose frame must show the same band from end to end. Check that a reply taller than the room left over stays below the fold instead of pulling the viewport to the live edge, and that the reading position is the one the frame opened on.",
+					"A transcript a host drives itself, with `autoScroll` off: a replay, a scripted scene, anything whose frame must show the same band from end to end. Check that a reply taller than the room left over stays below the fold instead of pulling the viewport to the live edge, and that the reading position is the one the frame opened on. `apps/website/src/app-scene.tsx:278` is the one caller that turns following off, for the scene the website replays; the app never does.",
 			},
 		},
 	},
@@ -446,7 +451,8 @@ export const Follows = meta.story({
 		docs: {
 			description: {
 				story:
-					"Replies arriving while the reader sits at the live edge. Each one pulls the viewport down so the last rendered line stays inside the frame.",
+					"Replies arriving while the reader sits at the live edge. Each one pulls the viewport down so the last rendered line stays inside the frame. " +
+					MOUNTED_BY_THE_LAYOUT,
 			},
 		},
 	},
@@ -473,7 +479,8 @@ export const StreamHoldsTheLastLine = meta.story({
 		docs: {
 			description: {
 				story:
-					"An answer streamed word by word while the reader watches. The viewport never falls more than a line behind the growing answer, and it sits exactly on the last line once the final token lands.",
+					"An answer streamed word by word while the reader watches. The viewport never falls more than a line behind the growing answer, and it sits exactly on the last line once the final token lands. " +
+					MOUNTED_BY_THE_LAYOUT,
 			},
 		},
 	},
@@ -503,7 +510,8 @@ export const Disengages = meta.story({
 		docs: {
 			description: {
 				story:
-					"The reader scrolls up into the history mid-stream. Following stops, the answer keeps growing off screen, and the return control comes out.",
+					"The reader scrolls up into the history mid-stream. Following stops, the answer keeps growing off screen, and the return control comes out. " +
+					MOUNTED_BY_THE_LAYOUT,
 			},
 		},
 	},
@@ -530,7 +538,8 @@ export const Returns = meta.story({
 		docs: {
 			description: {
 				story:
-					"The reader takes the return control back to the newest message. The viewport lands at the end and following resumes, so the next reply pulls it down again.",
+					"The reader takes the return control back to the newest message. The viewport lands at the end and following resumes, so the next reply pulls it down again. " +
+					MOUNTED_BY_THE_LAYOUT,
 			},
 		},
 	},
@@ -558,7 +567,8 @@ export const PrependsOlderMessages = meta.story({
 		docs: {
 			description: {
 				story:
-					"A page of older messages loaded from the top of the history. The row the reader was looking at keeps its exact screen position while the page is inserted above it.",
+					"A page of older messages loaded from the top of the history. The row the reader was looking at keeps its exact screen position while the page is inserted above it. " +
+					MOUNTED_BY_THE_LAYOUT,
 			},
 		},
 	},
@@ -593,7 +603,8 @@ export const LoadsNewerMessages = meta.story({
 		docs: {
 			description: {
 				story:
-					"A thread opened on a search result: the newest end is not loaded, so a control sits below the last row and reads the page after it. Once nothing newer is left the control is gone, which is how the reader knows the live edge is back.",
+					"A thread opened on a search result: the newest end is not loaded, so a control sits below the last row and reads the page after it. Once nothing newer is left the control is gone, which is how the reader knows the live edge is back. " +
+					MOUNTED_BY_THE_LAYOUT,
 			},
 		},
 	},
@@ -623,7 +634,8 @@ export const JumpsToTheNewestPage = meta.story({
 		docs: {
 			description: {
 				story:
-					"The return control on a transcript whose newest end is unloaded. Scrolling back down would only reach the last row read, which is not the last row of the conversation, so the control asks for the newest page instead: the rows it lands on are the ones that were never loaded, and both it and the load-newer control are gone once the live edge is back.",
+					"The return control on a transcript whose newest end is unloaded. Scrolling back down would only reach the last row read, which is not the last row of the conversation, so the control asks for the newest page instead: the rows it lands on are the ones that were never loaded, and both it and the load-newer control are gone once the live edge is back. " +
+					MOUNTED_BY_THE_LAYOUT,
 			},
 		},
 	},
@@ -654,7 +666,8 @@ export const AnchorsTheSentMessage = meta.story({
 		docs: {
 			description: {
 				story:
-					"A solo thread: the message the reader just sent is parked near the top of the viewport with a peek of the previous turn above it, and the answer fills the room below. The reader is still reported as following.",
+					"A solo thread: the message the reader just sent is parked near the top of the viewport with a peek of the previous turn above it, and the answer fills the room below. The reader is still reported as following. " +
+					MOUNTED_BY_THE_LAYOUT,
 			},
 		},
 	},
@@ -685,7 +698,8 @@ export const RestsPostedQuestionsAtTheEnd = meta.story({
 		docs: {
 			description: {
 				story:
-					"A solo thread where the app posts two questions and writes each answer itself. Nothing here was sent by the reader, so no row is anchored: every bubble lands at the end and the last one rests against the composer.",
+					"A solo thread where the app posts two questions and writes each answer itself. Nothing here was sent by the reader, so no row is anchored: every bubble lands at the end and the last one rests against the composer. " +
+					MOUNTED_BY_THE_LAYOUT,
 			},
 		},
 	},
@@ -708,7 +722,8 @@ export const MarksAndCountsNewMessages = meta.story({
 		docs: {
 			description: {
 				story:
-					"A conversation: once the reader is released, a separator marks where they stopped reading and the return control names how many messages arrived since.",
+					"A conversation: once the reader is released, a separator marks where they stopped reading and the return control names how many messages arrived since. " +
+					MOUNTED_BY_THE_LAYOUT,
 			},
 		},
 	},
@@ -744,7 +759,8 @@ export const ReturnControlCentredOverViewport = meta.story({
 		docs: {
 			description: {
 				story:
-					"The return control, short and counted, measured against the viewport it floats over. Check its centre sits on the viewport centre and both of its edges stay inside the viewport, whichever label it carries.",
+					"The return control, short and counted, measured against the viewport it floats over. Check its centre sits on the viewport centre and both of its edges stay inside the viewport, whichever label it carries. " +
+					MOUNTED_BY_THE_LAYOUT,
 			},
 		},
 	},
@@ -776,7 +792,8 @@ export const RestsWithoutABand = meta.story({
 		docs: {
 			description: {
 				story:
-					"The same solo thread once the answer has landed and the working row has left the tail. The send anchor is released, so the room it held under the last bubble collapses and only the resting padding is left between that bubble and the composer.",
+					"The same solo thread once the answer has landed and the working row has left the tail. The send anchor is released, so the room it held under the last bubble collapses and only the resting padding is left between that bubble and the composer. " +
+					MOUNTED_BY_THE_LAYOUT,
 			},
 		},
 	},
@@ -806,7 +823,8 @@ export const ConversationRestsWithoutABand = meta.story({
 		docs: {
 			description: {
 				story:
-					"The same rest in a conversation, where nothing is anchored on send. Once the answer has landed and the working row has left the tail, the space under the last bubble is the resting padding, not a band left by a row the browser never sized.",
+					"The same rest in a conversation, where nothing is anchored on send. Once the answer has landed and the working row has left the tail, the space under the last bubble is the resting padding, not a band left by a row the browser never sized. " +
+					MOUNTED_BY_THE_LAYOUT,
 			},
 		},
 	},
@@ -836,7 +854,8 @@ export const RestsAfterAResize = meta.story({
 		docs: {
 			description: {
 				story:
-					"The window changes size once the answer has settled. The transcript follows the new frame down to its last bubble and leaves the resting padding under it, with no band opening up as rows are skipped and un-skipped.",
+					"The window changes size once the answer has settled. The transcript follows the new frame down to its last bubble and leaves the resting padding under it, with no band opening up as rows are skipped and un-skipped. " +
+					MOUNTED_BY_THE_LAYOUT,
 			},
 		},
 	},

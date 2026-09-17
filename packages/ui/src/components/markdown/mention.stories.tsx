@@ -1,6 +1,3 @@
-// Call site: packages/ui/src/components/markdown/components.tsx line 17, which hands
-// every parsed span to this component while rendering a message
-
 import type { ReactNode } from "react"
 import { expect } from "storybook/test"
 
@@ -52,7 +49,7 @@ export const BotMention = meta.story({
 		docs: {
 			description: {
 				story:
-					"A span the mention plugin marked with a bot id: it becomes the chip, avatar and name, rather than the text the author typed. Check that the name shown is the one the roster holds — the message carries the id, never a name that could go stale — and that the chip sits on the text line without pushing it apart. Pick `PlainText` for every other span in the same message.",
+					"A span the mention plugin marked with a bot id: it becomes the chip, avatar and name, rather than the text the author typed. Check that the name shown is the one the roster holds — the message carries the id, never a name that could go stale — and that the chip sits on the text line without pushing it apart. Pick `PlainText` for every other span in the same message. `packages/ui/src/components/markdown/components.tsx:17` hands every parsed span to this component while rendering a message.",
 			},
 		},
 	},
@@ -75,7 +72,7 @@ export const PlainText = meta.story({
 		docs: {
 			description: {
 				story:
-					"A span with no bot id, which is every span a model writes on its own. Check that it comes out as a plain span carrying its own class and its own text — no chip, no avatar, nothing added — so styling written in a message survives the fork untouched.",
+					"A span with no bot id, which is every span a model writes on its own. Check that it comes out as a plain span carrying its own class and its own text — no chip, no avatar, nothing added — so styling written in a message survives the fork untouched. `packages/ui/src/components/markdown/components.tsx:17` hands every parsed span to this component while rendering a message.",
 			},
 		},
 	},

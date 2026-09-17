@@ -55,7 +55,7 @@ export const Default = meta.story({
 		docs: {
 			description: {
 				story:
-					"Reach for this on a conversation just created with several companions: the room is seated and waiting on its first message. Check that the heading is the conversation's name — not a companion's — that every seated companion's face is shown above it, that the count in the copy matches the faces, and that the arrow hint is the only guidance so nothing competes with the composer below. Pick `SingleBot` for a room seated with one companion.",
+					"Reach for this on a conversation just created with several companions: the room is seated and waiting on its first message. Check that the heading is the conversation's name — not a companion's — that every seated companion's face is shown above it, that the count in the copy matches the faces, and that the arrow hint is the only guidance so nothing competes with the composer below. Pick `SingleBot` for a room seated with one companion. `apps/app/src/components/thread-screen.tsx:504` seats it with every companion present in the conversation.",
 			},
 		},
 	},
@@ -74,7 +74,7 @@ export const SingleBot = meta.story({
 		docs: {
 			description: {
 				story:
-					"Reach for this on a conversation seated with one companion only. Check that the copy turns singular rather than reading `1 companions`, and that the lone face still sits centered above the heading instead of drifting left. Pick `Default` for a room with several companions.",
+					"Reach for this on a conversation seated with one companion only. Check that the copy turns singular rather than reading `1 companions`, and that the lone face still sits centered above the heading instead of drifting left. Pick `Default` for a room with several companions. `apps/app/src/components/thread-screen.tsx:504` passes the one companion present.",
 			},
 		},
 	},
@@ -91,7 +91,7 @@ export const WithPicture = meta.story({
 		docs: {
 			description: {
 				story:
-					"Reach for this when one seated companion carries an uploaded picture and the others wear their drawn animal. Check that the picture fills the same round box the drawing would, so the row of faces keeps one baseline and one rhythm. Pick `Default` when every companion wears its animal.",
+					"Reach for this when one seated companion carries an uploaded picture and the others wear their drawn animal. Check that the picture fills the same round box the drawing would, so the row of faces keeps one baseline and one rhythm. Pick `Default` when every companion wears its animal. The picture comes from the seated companion `apps/app/src/components/thread-screen.tsx:504` passes.",
 			},
 		},
 	},
@@ -123,15 +123,6 @@ const NOBODY_TITLE = "Nobody is in this conversation yet"
 
 const NOBODY_DESCRIPTION =
 	"Type @ and pick a name. Whoever you mention joins, and they can bring in anyone else they need."
-
-const TEN_SUGGESTED: RosterBot[] = [
-	...SUGGESTED,
-	{ id: "bot_8d4c73", name: "Fern Guide", animal: "bear", blot: "cyan" },
-	{ id: "bot_3e6a91", name: "Reed Tailor", animal: "rabbit", blot: "green" },
-	{ id: "bot_5b2f07", name: "Cinder Porter", animal: "mouse", blot: "blue" },
-	{ id: "bot_9f1d34", name: "Bramble Scribe", animal: "koala", blot: "orange" },
-	{ id: "bot_4c8e62", name: "Lantern Mender", animal: "owl", blot: "pink" },
-]
 
 const LONG_NAMED_SUGGESTION: RosterBot = {
 	id: "bot_6a0c58",
@@ -173,7 +164,7 @@ export const Empty = meta.story({
 		docs: {
 			description: {
 				story:
-					"Reach for this on a conversation nobody is seated in and with nobody to suggest. Check that the @ mark, the title and the description replace the faces, the conversation name and the ready count, that no arrow hint is drawn, and that nothing follows the description. Pick `EmptyWithSuggestions` when companions can be pressed.",
+					"Reach for this on a conversation nobody is seated in and with nobody to suggest. Check that the @ mark, the title and the description replace the faces, the conversation name and the ready count, that no arrow hint is drawn, and that nothing follows the description. Pick `EmptyWithSuggestions` when companions can be pressed. `apps/app/src/components/thread-screen.tsx:506` passes no suggestion while `apps/app/src/lib/conversations/use-conversation-seating.ts:110` is still reading, or when it read nobody.",
 			},
 		},
 	},
@@ -200,7 +191,7 @@ export const EmptyWithSuggestions = meta.story({
 		docs: {
 			description: {
 				story:
-					"Reach for this on a conversation nobody is seated in, with the companions the person talks to most offered below the copy. Check that the label sits above one outline press per companion, that each press carries a face and a name, and that pressing one hands exactly that companion back once: the press writes a mention into the draft, it never invites. Pick `Empty` when there is nobody to suggest.",
+					"Reach for this on a conversation nobody is seated in, with the companions the person talks to most offered below the copy. Check that the label sits above one outline press per companion, that each press carries a face and a name, and that pressing one hands exactly that companion back once: the press writes a mention into the draft, it never invites. Pick `Empty` when there is nobody to suggest. `apps/app/src/lib/conversations/use-conversation-seating.ts:111` hands over the five companions this story shows, and `apps/app/src/components/thread-screen.tsx:505` writes the mention the press asks for.  ",
 			},
 		},
 	},
@@ -220,28 +211,6 @@ export const EmptyWithSuggestions = meta.story({
 	},
 })
 
-export const EmptyWithTenSuggestions = meta.story({
-	args: { ...NOBODY_SEATED_WITH_SUGGESTIONS, suggestedBots: TEN_SUGGESTED },
-	parameters: {
-		docs: {
-			description: {
-				story:
-					"Reach for this when the person talks to ten companions, twice what the artboard draws. Check that the presses wrap into further centered rows inside the measure of the title and description, and that the surface keeps the width it has with five instead of stretching. Pick `EmptyWithSuggestions` for the nominal five.",
-			},
-		},
-	},
-	play: async ({ canvasElement }) => {
-		const presses = suggestedPresses(canvasElement)
-		const rows = new Set(
-			presses.map((press) => press.getBoundingClientRect().top),
-		)
-
-		await expect(presses).toHaveLength(10)
-		await expect(rows.size).toBeGreaterThan(1)
-		await expectHeldToCopyMeasure(canvasElement)
-	},
-})
-
 export const EmptyWithLongSuggestionName = meta.story({
 	args: {
 		...NOBODY_SEATED_WITH_SUGGESTIONS,
@@ -251,7 +220,7 @@ export const EmptyWithLongSuggestionName = meta.story({
 		docs: {
 			description: {
 				story:
-					"Reach for this when a suggested companion carries a name wider than the copy measure. Check that its press stays inside the measure on one line, that the name is shortened with an ellipsis rather than wrapped or overflowing, and that the full name still names the press for assistive technology. Pick `EmptyWithSuggestions` for nominal names.",
+					"Reach for this when a suggested companion carries a name wider than the copy measure. Check that its press stays inside the measure on one line, that the name is shortened with an ellipsis rather than wrapped or overflowing, and that the full name still names the press for assistive technology. Pick `EmptyWithSuggestions` for nominal names. The names come straight from the store through `apps/app/src/lib/conversations/use-conversation-seating.ts:111`.",
 			},
 		},
 	},
@@ -276,7 +245,7 @@ export const EmptyWithSuggestionsFocused = meta.story({
 		docs: {
 			description: {
 				story:
-					"Reach for this to check a suggested companion reached from the keyboard. Check that the first press takes focus on the first tab and draws a visible ring around its pill. Pick `EmptyWithSuggestions` for the pointer path.",
+					"Reach for this to check a suggested companion reached from the keyboard. Check that the first press takes focus on the first tab and draws a visible ring around its pill. Pick `EmptyWithSuggestions` for the pointer path. Same five suggestions as `apps/app/src/lib/conversations/use-conversation-seating.ts:111` hands over, reached from the keyboard.",
 			},
 		},
 	},
@@ -304,7 +273,7 @@ export const EmptyWithSuggestionsNarrow = meta.story({
 		docs: {
 			description: {
 				story:
-					"Reach for this on a narrow window, 320 pixels wide, where the five suggested companions cannot share one line. Check that the presses wrap onto further centered rows and that nothing scrolls sideways. Pick `EmptyWithSuggestions` for the nominal width.",
+					"Reach for this on a narrow window, 320 pixels wide, where the five suggested companions cannot share one line. Check that the presses wrap onto further centered rows and that nothing scrolls sideways. Pick `EmptyWithSuggestions` for the nominal width. Same five suggestions as `apps/app/src/lib/conversations/use-conversation-seating.ts:111` hands over, in the narrowest window the app runs in.",
 			},
 		},
 	},
@@ -336,7 +305,7 @@ export const LongContent = meta.story({
 		docs: {
 			description: {
 				story:
-					"Reach for this on a long-named room seated with more companions than fit one line. Check that the heading wraps inside its measure instead of stretching the surface, and that the faces wrap onto a second centered row rather than overflowing. Pick `Default` for the nominal room.",
+					"Reach for this on a long-named room seated with more companions than fit one line. Check that the heading wraps inside its measure instead of stretching the surface, and that the faces wrap onto a second centered row rather than overflowing. Pick `Default` for the nominal room. The title and the seating come from `apps/app/src/components/thread-screen.tsx:507` and `apps/app/src/components/thread-screen.tsx:504`, neither of which shortens anything.",
 			},
 		},
 	},
