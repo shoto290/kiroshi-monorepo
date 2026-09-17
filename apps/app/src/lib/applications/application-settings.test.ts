@@ -608,9 +608,9 @@ describe("the connect an install runs", () => {
 		await expect(connectingLinear(connections)).resolves.toBeUndefined()
 	})
 
-	it("lands a connect whose application carries no row", async () => {
-		await expect(
-			connectingLinear(connectionsReading([])),
-		).resolves.toBeUndefined()
+	it("refuses a connect whose application carries no row", async () => {
+		await expect(connectingLinear(connectionsReading([]))).rejects.toThrow(
+			"Couldn’t connect",
+		)
 	})
 })

@@ -219,18 +219,32 @@ export const createApplicationsController = (
 		}
 	}
 
-	const rollBackDeclaration = async (owner: EnvOwner, name: string) => {
+	const refusalOf = async (step: () => Promise<void>) => {
 		try {
-			await deleteWrittenSecrets(owner, name)
-			await undeclareServer(store, owner, name)
+			await step()
+			return null
 		} catch (refusal) {
-			reportFailure({
-				title: i18n.t("bots:applications.install.rollback.title", { name }),
-				description: i18n.t("bots:applications.install.rollback.description", {
-					reason: refusalTextOf(refusal),
-				}),
-			})
+			return refusal
 		}
+	}
+
+	const rollBackDeclaration = async (owner: EnvOwner, name: string) => {
+		const secretsRefusal = await refusalOf(() =>
+			deleteWrittenSecrets(owner, name),
+		)
+		const undeclareRefusal = await refusalOf(() =>
+			undeclareServer(store, owner, name),
+		)
+		const refusal = undeclareRefusal ?? secretsRefusal
+		if (!refusal) {
+			return
+		}
+		reportFailure({
+			title: i18n.t("bots:applications.install.rollback.title", { name }),
+			description: i18n.t("bots:applications.install.rollback.description", {
+				reason: refusalTextOf(refusal),
+			}),
+		})
 	}
 
 	const writeKeys = async (

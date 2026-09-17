@@ -838,6 +838,39 @@ describe("applications controller", () => {
 		expect(reportFailure).toHaveBeenCalledTimes(1)
 	})
 
+	it("undeclares the application even when clearing its secrets is refused", async () => {
+		const port = createFakeApplicationPort()
+		port.curated = [LINEAR]
+		const store = createFakeTranscriptStore()
+		vi.spyOn(store, "deleteEnvironmentVariable").mockRejectedValue({
+			kind: "env",
+			detail: "the keyring is locked",
+		})
+		const reportFailure = vi.fn()
+		const controller = createApplicationsController(port, store, {
+			reportFailure,
+		})
+		await controller.open()
+		controller.pick("linear")
+
+		await controller.install(
+			targetOf({
+				connect: async (name) => {
+					await store.setEnvironmentVariable(
+						{ kind: "server", name, owner: USER },
+						"LINEAR_TOKEN",
+						"tok",
+					)
+					throw new Error("the sign-in timed out")
+				},
+			}),
+		)
+
+		expect(await store.userPluginMcpServers()).toEqual([])
+		expect(controller.getState().failure).toContain("the sign-in timed out")
+		expect(reportFailure).toHaveBeenCalledTimes(1)
+	})
+
 	it("declares the application again when a later install connects", async () => {
 		const port = createFakeApplicationPort()
 		port.curated = [LINEAR]
