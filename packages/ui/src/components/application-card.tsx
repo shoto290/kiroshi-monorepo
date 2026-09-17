@@ -8,12 +8,13 @@ import { ApplicationMark } from "@workspace/ui/components/plugin-settings/applic
 import type { ApplicationSetup } from "@workspace/ui/components/plugin-settings/applications-catalogue"
 import { cn } from "@workspace/ui/lib/utils"
 
-type ApplicationCardStatus = ApplicationSetup | "waiting" | "connected"
+type ApplicationCardSetup = Exclude<ApplicationSetup, "none">
+
+type ApplicationCardStatus = ApplicationCardSetup | "connected"
 
 type ApplicationStatusLook = {
 	label:
-		| `applications.catalogue.setup.${ApplicationSetup}`
-		| "applications.connection.waiting"
+		| `applications.catalogue.setup.${ApplicationCardSetup}`
 		| "applications.connection.state.connected"
 	glyph?: Icon
 	tone: string
@@ -21,12 +22,6 @@ type ApplicationStatusLook = {
 }
 
 const APPLICATION_STATUS = {
-	none: {
-		label: "applications.catalogue.setup.none",
-		glyph: Icons.Check,
-		tone: "text-state-connected",
-		labelTone: "text-muted-foreground",
-	},
 	apiKey: {
 		label: "applications.catalogue.setup.apiKey",
 		glyph: Icons.Key,
@@ -42,11 +37,6 @@ const APPLICATION_STATUS = {
 		label: "applications.catalogue.setup.unavailable",
 		glyph: Icons.Blocked,
 		tone: "text-destructive",
-		labelTone: "text-muted-foreground",
-	},
-	waiting: {
-		label: "applications.connection.waiting",
-		tone: MCP_CONNECTION_DOT.needsAuthorization,
 		labelTone: "text-muted-foreground",
 	},
 	connected: {
