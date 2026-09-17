@@ -183,19 +183,16 @@ const MCP_CONNECTION_STATES = [
 	"failed",
 ] as const
 
-type BotMcpConnectionReasonKind = (typeof MCP_CONNECTION_REASON_KINDS)[number]
-
-const MCP_CONNECTION_REASON_KINDS = [
-	"alreadyRunning",
-	"store",
-	"transport",
-	"refusedUrl",
-	"browserRefused",
-	"timedOut",
-] as const
-
 type BotMcpConnectionReason =
-	| { kind: BotMcpConnectionReasonKind }
+	| {
+			kind:
+				| "alreadyRunning"
+				| "store"
+				| "transport"
+				| "refusedUrl"
+				| "browserRefused"
+				| "timedOut"
+	  }
 	| { kind: "unknown"; detail: string }
 
 type BotMcpServerItem = {
@@ -464,7 +461,6 @@ export {
 	type BotCommitItem,
 	type BotIdentity,
 	type BotMcpConnectionReason,
-	type BotMcpConnectionReasonKind,
 	type BotMcpConnectionState,
 	type BotMcpServerDraft,
 	type BotMcpServerFields,
@@ -488,7 +484,6 @@ export {
 	isPermissionRule,
 	isSameFieldAnswer,
 	isSkillDraftUnsaved,
-	MCP_CONNECTION_REASON_KINDS,
 	MCP_CONNECTION_STATES,
 	MCP_ENDPOINT_KINDS,
 	MCP_TRANSPORTS,
