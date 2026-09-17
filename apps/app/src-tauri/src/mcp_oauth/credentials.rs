@@ -10,8 +10,20 @@ use crate::environment::store;
 
 const AN_UNREADABLE_EXPIRY_HAS_PASSED: i64 = i64::MIN;
 
+const REDACTED: &str = "[redacted]";
+
+const SECRET_NAMES: [&str; 3] = [OAUTH_ACCESS_TOKEN, OAUTH_REFRESH_TOKEN, OAUTH_CLIENT_SECRET];
+
 pub fn expires_at(held: &Values) -> Option<i64> {
 	held.get(OAUTH_EXPIRES_AT).map(|at| at.parse().unwrap_or(AN_UNREADABLE_EXPIRY_HAS_PASSED))
+}
+
+pub fn scrubbed(reason: String, held: &Values) -> String {
+	SECRET_NAMES
+		.iter()
+		.filter_map(|name| held.get(*name))
+		.filter(|secret| !secret.is_empty())
+		.fold(reason, |reason, secret| reason.replace(secret.as_str(), REDACTED))
 }
 
 pub struct ServedGrant {

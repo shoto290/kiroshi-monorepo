@@ -11,7 +11,7 @@ use crate::agent::protocol::{
 };
 use crate::agent::sidecar::Sidecar;
 use crate::agent::translate::now_ms;
-use crate::bundles;
+use crate::bundles::{self, McpServer};
 use crate::environment::contract::{
 	EnvError, EnvOwner, EnvScope, Values, OAUTH_ACCESS_TOKEN, OAUTH_CLIENT_ID, OAUTH_CLIENT_SECRET,
 	OAUTH_REFRESH_TOKEN,
@@ -22,7 +22,17 @@ const REFRESH_AHEAD_MS: i64 = 60_000;
 
 const NO_REASON: &str = "no reason was given";
 
+const NOT_STORED: &str = "the refreshed grant could not be stored";
+
 type ServerUrls = BTreeMap<String, String>;
+
+#[derive(Debug, Clone, PartialEq, Eq)]
+pub enum Renewal {
+	Renewed,
+	Awaiting { reason: Option<String> },
+}
+
+pub type Renewals = BTreeMap<String, Renewal>;
 
 enum Standing {
 	Served,
@@ -41,12 +51,41 @@ pub async fn before_open(
 	let _refreshing = REFRESHING.lock().await;
 	let exchange =
 		move |request: RefreshRequest| async move { sidecar.refresh_oauth(&request).await };
-	awaiting_authorization(root, owner, &server_urls(serving), now_ms(), exchange)
-		.await
-		.unwrap_or_else(|error| {
+	renewals(root, owner, &server_urls(serving), now_ms(), exchange).await.map_or_else(
+		|error| {
 			eprintln!("the grants served to this session could not be read: {error:?}");
 			BTreeSet::new()
-		})
+		},
+		awaiting,
+	)
+}
+
+pub async fn before_reading<F, Exchanged>(
+	root: &Path,
+	owner: &EnvOwner,
+	servers: &[McpServer],
+	exchange: F,
+) -> Result<Renewals, EnvError>
+where
+	F: Fn(RefreshRequest) -> Exchanged,
+	Exchanged: Future<Output = Result<Authorized, TransportError>>,
+{
+	let _refreshing = REFRESHING.lock().await;
+	renewals(root, owner, &declared_urls(servers), now_ms(), exchange).await
+}
+
+fn awaiting(renewals: Renewals) -> BTreeSet<String> {
+	renewals
+		.into_iter()
+		.filter_map(|(name, renewal)| matches!(renewal, Renewal::Awaiting { .. }).then_some(name))
+		.collect()
+}
+
+fn declared_urls(servers: &[McpServer]) -> ServerUrls {
+	servers
+		.iter()
+		.filter_map(|server| Some((server.name.clone(), server.url()?.to_owned())))
+		.collect()
 }
 
 fn server_urls(serving: &[PathBuf]) -> ServerUrls {
@@ -57,35 +96,32 @@ fn server_urls(serving: &[PathBuf]) -> ServerUrls {
 		.collect()
 }
 
-async fn awaiting_authorization<F, Exchanged>(
+async fn renewals<F, Exchanged>(
 	root: &Path,
 	owner: &EnvOwner,
 	urls: &ServerUrls,
 	now: i64,
 	exchange: F,
-) -> Result<BTreeSet<String>, EnvError>
+) -> Result<Renewals, EnvError>
 where
 	F: Fn(RefreshRequest) -> Exchanged,
 	Exchanged: Future<Output = Result<Authorized, TransportError>>,
 {
-	let mut awaiting = BTreeSet::new();
+	let mut renewals = Renewals::new();
 	for (name, ServedGrant { scope, held }) in credentials::served(root, owner)? {
 		let Some(url) = urls.get(&name) else {
 			continue;
 		};
-		let awaits = match standing(&held, url, now) {
-			Standing::Served => false,
-			Standing::Expired => true,
-			Standing::Refreshable(request) => {
-				let sent = request.refresh_token.clone();
-				awaits_after(root, &scope, &sent, exchange(request).await)
-			}
+		let settled = match standing(&held, url, now) {
+			Standing::Served => None,
+			Standing::Expired => Some(Renewal::Awaiting { reason: None }),
+			Standing::Refreshable(request) => renewal(root, &scope, &held, exchange(request).await),
 		};
-		if awaits {
-			awaiting.insert(name);
+		if let Some(settled) = settled {
+			renewals.insert(name, settled);
 		}
 	}
-	Ok(awaiting)
+	Ok(renewals)
 }
 
 fn standing(held: &Values, url: &str, now: i64) -> Standing {
@@ -107,14 +143,14 @@ fn standing(held: &Values, url: &str, now: i64) -> Standing {
 	}
 }
 
-fn awaits_after(
+fn renewal(
 	root: &Path,
 	scope: &EnvScope,
-	sent: &str,
+	sent: &Values,
 	answer: Result<Authorized, TransportError>,
-) -> bool {
+) -> Option<Renewal> {
 	match answer {
-		Ok(Authorized { credentials: Some(grant), .. }) => renewal_lost(root, scope, &grant),
+		Ok(Authorized { credentials: Some(grant), .. }) => Some(stored(root, scope, sent, &grant)),
 		Ok(Authorized {
 			error: Some(OauthFailure { kind: OauthFailureKind::Rejected, detail }),
 			..
@@ -122,34 +158,41 @@ fn awaits_after(
 		Ok(Authorized { error, .. }) => {
 			let detail = error.and_then(|failure| failure.detail);
 			eprintln!("the grant of {scope:?} was not refreshed: {}", reason(detail));
-			false
+			None
 		}
 		Err(error) => {
 			eprintln!("the grant of {scope:?} was not refreshed: {error:?}");
-			false
+			None
 		}
 	}
 }
 
-fn renewal_lost(root: &Path, scope: &EnvScope, grant: &OauthCredentials) -> bool {
+fn stored(root: &Path, scope: &EnvScope, sent: &Values, grant: &OauthCredentials) -> Renewal {
 	let Err(error) = credentials::store(root, scope, grant) else {
-		return false;
+		return Renewal::Renewed;
 	};
-	eprintln!("the refreshed grant of {scope:?} could not be stored: {error:?}");
-	true
+	let lost = credentials::scrubbed(format!("{NOT_STORED}: {error:?}"), sent);
+	eprintln!("the refreshed grant of {scope:?} was lost: {lost}");
+	Renewal::Awaiting { reason: Some(lost) }
 }
 
-fn refused(root: &Path, scope: &EnvScope, sent: &str, detail: Option<String>) -> bool {
-	eprintln!("the authorization server refused to refresh {scope:?}: {}", reason(detail));
+fn refused(
+	root: &Path,
+	scope: &EnvScope,
+	sent: &Values,
+	detail: Option<String>,
+) -> Option<Renewal> {
+	let refusal = credentials::scrubbed(reason(detail), sent);
+	eprintln!("the authorization server refused to refresh {scope:?}: {refusal}");
 	match store::values(root, scope) {
-		Ok(held) if held.get(OAUTH_REFRESH_TOKEN).map(String::as_str) == Some(sent) => {
+		Ok(held) if held.get(OAUTH_REFRESH_TOKEN) == sent.get(OAUTH_REFRESH_TOKEN) => {
 			forgotten(root, scope);
-			true
+			Some(Renewal::Awaiting { reason: Some(refusal) })
 		}
-		Ok(_) => false,
+		Ok(_) => None,
 		Err(error) => {
 			eprintln!("the grant of {scope:?} could not be read again, so it stands: {error:?}");
-			false
+			None
 		}
 	}
 }
@@ -174,6 +217,20 @@ mod tests {
 
 	const NOW: i64 = 1_800_000_000_000;
 	const URL: &str = "https://mcp.granola.test/mcp";
+
+	async fn awaiting_authorization<F, Exchanged>(
+		root: &Path,
+		owner: &EnvOwner,
+		urls: &ServerUrls,
+		now: i64,
+		exchange: F,
+	) -> Result<BTreeSet<String>, EnvError>
+	where
+		F: Fn(RefreshRequest) -> Exchanged,
+		Exchanged: Future<Output = Result<Authorized, TransportError>>,
+	{
+		renewals(root, owner, urls, now, exchange).await.map(awaiting)
+	}
 
 	fn a_root(name: &str) -> PathBuf {
 		let root = std::env::temp_dir().join(format!("kiroshi-mcp-refresh-{name}"));
@@ -418,6 +475,53 @@ mod tests {
 		assert_eq!(kept.get(OAUTH_ACCESS_TOKEN).map(String::as_str), Some("renewed-access"));
 		assert_eq!(kept.get(OAUTH_REFRESH_TOKEN).map(String::as_str), Some("renewed-refresh"));
 		assert_eq!(kept.len(), RESERVED_NAMES.len());
+	}
+
+	#[tokio::test]
+	async fn a_refusal_names_the_server_awaiting_and_carries_the_reason_without_a_secret() {
+		let root = a_root("refusal-reason");
+		credentials::store(&root, &granola(), &a_grant(NOW, Some("held-refresh")))
+			.expect("the grant is written");
+
+		let settled = renewals(&root, &a_bot(), &declared(), NOW, |_| async {
+			Ok(Authorized {
+				credentials: None,
+				error: Some(OauthFailure {
+					kind: OauthFailureKind::Rejected,
+					detail: Some(
+						"held-refresh was revoked, held-access and confidential are void"
+							.to_owned(),
+					),
+				}),
+			})
+		})
+		.await
+		.expect("the pass reads the store");
+
+		assert_eq!(
+			settled.get("granola"),
+			Some(&Renewal::Awaiting {
+				reason: Some(
+					"[redacted] was revoked, [redacted] and [redacted] are void".to_owned()
+				)
+			})
+		);
+	}
+
+	#[tokio::test]
+	async fn a_granted_refresh_names_the_server_renewed() {
+		let root = a_root("renewed-named");
+		credentials::store(&root, &granola(), &a_grant(NOW, Some("held-refresh")))
+			.expect("the grant is written");
+
+		let settled = renewals(&root, &a_bot(), &declared(), NOW, |_| async {
+			Ok(Authorized { credentials: Some(renewed()), error: None })
+		})
+		.await
+		.expect("the pass reads the store");
+
+		assert_eq!(settled.get("granola"), Some(&Renewal::Renewed));
+		assert!(awaiting(settled).is_empty());
 	}
 
 	#[test]

@@ -2,7 +2,7 @@ import type { EnvOwner, EnvScope } from "../conversations/store-contract"
 
 export type ApplicationStatus =
 	| { status: "connected" }
-	| { status: "needsAuthorization" }
+	| { status: "needsAuthorization"; reason?: string }
 	| { status: "connecting" }
 	| { status: "failed"; reason?: string }
 	| { status: "unknown" }

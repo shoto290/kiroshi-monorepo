@@ -2,13 +2,7 @@ use serde::Serialize;
 
 use super::credentials;
 use super::reports::Standing;
-use crate::environment::contract::{
-	EnvScope, Values, OAUTH_ACCESS_TOKEN, OAUTH_CLIENT_SECRET, OAUTH_REFRESH_TOKEN,
-};
-
-const REDACTED: &str = "[redacted]";
-
-const SECRET_NAMES: [&str; 3] = [OAUTH_ACCESS_TOKEN, OAUTH_REFRESH_TOKEN, OAUTH_CLIENT_SECRET];
+use crate::environment::contract::{EnvScope, Values, OAUTH_ACCESS_TOKEN, OAUTH_REFRESH_TOKEN};
 
 #[derive(Debug, Clone, PartialEq, Eq, Serialize)]
 #[serde(rename_all = "camelCase")]
@@ -24,7 +18,10 @@ pub struct ApplicationRow {
 #[serde(tag = "status", rename_all = "camelCase")]
 pub enum ApplicationStatus {
 	Connected,
-	NeedsAuthorization,
+	NeedsAuthorization {
+		#[serde(skip_serializing_if = "Option::is_none")]
+		reason: Option<String>,
+	},
 	Connecting,
 	Failed {
 		#[serde(skip_serializing_if = "Option::is_none")]
@@ -35,6 +32,7 @@ pub enum ApplicationStatus {
 
 pub struct Evidence {
 	pub is_authorizing: bool,
+	pub refusal: Option<String>,
 	pub reported: Option<Standing>,
 	pub held: Values,
 	pub declares_url: bool,
@@ -44,38 +42,43 @@ pub fn status(evidence: Evidence, now: i64) -> ApplicationStatus {
 	if evidence.is_authorizing {
 		return ApplicationStatus::Connecting;
 	}
+	if evidence.refusal.is_some() {
+		return ApplicationStatus::NeedsAuthorization { reason: evidence.refusal };
+	}
 	match evidence.reported {
 		Some(Standing::Holding) => ApplicationStatus::Connected,
-		Some(Standing::NeedsAuth) => ApplicationStatus::NeedsAuthorization,
+		Some(Standing::NeedsAuth) => ApplicationStatus::NeedsAuthorization { reason: None },
 		Some(Standing::LeftOut { reason }) => ApplicationStatus::Failed {
-			reason: reason.map(|reason| scrubbed(reason, &evidence.held)),
+			reason: reason.map(|reason| credentials::scrubbed(reason, &evidence.held)),
 		},
 		None => stored_status(&evidence.held, evidence.declares_url, now),
 	}
 }
 
 fn stored_status(held: &Values, declares_url: bool, now: i64) -> ApplicationStatus {
-	let holds_a_live_token = held.contains_key(OAUTH_ACCESS_TOKEN)
-		&& credentials::expires_at(held).is_none_or(|expires_at| expires_at > now);
-	match (holds_a_live_token, declares_url) {
+	match (holds_a_usable_grant(held, now), declares_url) {
 		(true, _) => ApplicationStatus::Connected,
-		(false, true) => ApplicationStatus::NeedsAuthorization,
+		(false, true) => ApplicationStatus::NeedsAuthorization { reason: None },
 		(false, false) => ApplicationStatus::Unknown,
 	}
 }
 
-fn scrubbed(reason: String, held: &Values) -> String {
-	SECRET_NAMES
-		.iter()
-		.filter_map(|name| held.get(*name))
-		.filter(|secret| !secret.is_empty())
-		.fold(reason, |reason, secret| reason.replace(secret.as_str(), REDACTED))
+fn holds_a_usable_grant(held: &Values, now: i64) -> bool {
+	held.contains_key(OAUTH_ACCESS_TOKEN) && (is_live(held, now) || is_renewable(held))
+}
+
+fn is_live(held: &Values, now: i64) -> bool {
+	credentials::expires_at(held).is_none_or(|expires_at| expires_at > now)
+}
+
+fn is_renewable(held: &Values) -> bool {
+	held.get(OAUTH_REFRESH_TOKEN).is_some_and(|token| !token.is_empty())
 }
 
 #[cfg(test)]
 mod tests {
 	use super::*;
-	use crate::environment::contract::{OAUTH_CLIENT_ID, OAUTH_EXPIRES_AT};
+	use crate::environment::contract::{OAUTH_CLIENT_ID, OAUTH_CLIENT_SECRET, OAUTH_EXPIRES_AT};
 
 	const NOW: i64 = 1_800_000_000_000;
 
@@ -93,13 +96,20 @@ mod tests {
 		held
 	}
 
+	fn holding_no_refresh_token(expires_at: Option<i64>) -> Values {
+		let mut held = a_grant(expires_at);
+		held.insert(OAUTH_REFRESH_TOKEN.to_owned(), String::new());
+		held
+	}
+
 	fn unreported(held: Values, declares_url: bool) -> Evidence {
-		Evidence { is_authorizing: false, reported: None, held, declares_url }
+		Evidence { is_authorizing: false, refusal: None, reported: None, held, declares_url }
 	}
 
 	fn reported(standing: Standing) -> Evidence {
 		Evidence {
 			is_authorizing: false,
+			refusal: None,
 			reported: Some(standing),
 			held: a_grant(Some(NOW + 1)),
 			declares_url: true,
@@ -116,7 +126,10 @@ mod tests {
 	#[test]
 	fn the_last_state_a_session_reported_decides_the_answer() {
 		assert_eq!(status(reported(Standing::Holding), NOW), ApplicationStatus::Connected);
-		assert_eq!(status(reported(Standing::NeedsAuth), NOW), ApplicationStatus::NeedsAuthorization);
+		assert_eq!(
+			status(reported(Standing::NeedsAuth), NOW),
+			ApplicationStatus::NeedsAuthorization { reason: None }
+		);
 		assert_eq!(
 			status(reported(Standing::LeftOut { reason: Some("it read failed".to_owned()) }), NOW),
 			ApplicationStatus::Failed { reason: Some("it read failed".to_owned()) }
@@ -133,21 +146,46 @@ mod tests {
 	}
 
 	#[test]
-	fn with_no_report_a_url_server_holding_no_live_token_needs_authorization() {
+	fn with_no_report_an_expired_token_a_refresh_token_can_renew_reads_as_connected() {
+		assert_eq!(status(unreported(a_grant(Some(NOW)), true), NOW), ApplicationStatus::Connected);
 		assert_eq!(
-			status(unreported(Values::new(), true), NOW),
-			ApplicationStatus::NeedsAuthorization
-		);
-		assert_eq!(
-			status(unreported(a_grant(Some(NOW)), true), NOW),
-			ApplicationStatus::NeedsAuthorization
+			status(unreported(a_grant(Some(NOW - 86_400_000)), true), NOW),
+			ApplicationStatus::Connected
 		);
 	}
 
 	#[test]
-	fn with_no_report_a_server_declaring_no_url_and_holding_no_live_token_is_unknown() {
+	fn with_no_report_a_url_server_holding_no_usable_grant_needs_authorization() {
+		assert_eq!(
+			status(unreported(Values::new(), true), NOW),
+			ApplicationStatus::NeedsAuthorization { reason: None }
+		);
+		assert_eq!(
+			status(unreported(holding_no_refresh_token(Some(NOW)), true), NOW),
+			ApplicationStatus::NeedsAuthorization { reason: None }
+		);
+	}
+
+	#[test]
+	fn with_no_report_a_server_declaring_no_url_and_holding_no_usable_grant_is_unknown() {
 		assert_eq!(status(unreported(Values::new(), false), NOW), ApplicationStatus::Unknown);
-		assert_eq!(status(unreported(a_grant(Some(NOW)), false), NOW), ApplicationStatus::Unknown);
+		assert_eq!(
+			status(unreported(holding_no_refresh_token(Some(NOW)), false), NOW),
+			ApplicationStatus::Unknown
+		);
+	}
+
+	#[test]
+	fn a_refused_renewal_needs_authorization_and_carries_the_reason_over_every_stored_value() {
+		let refused = Evidence {
+			refusal: Some("invalid_grant".to_owned()),
+			..unreported(a_grant(None), true)
+		};
+
+		assert_eq!(
+			status(refused, NOW),
+			ApplicationStatus::NeedsAuthorization { reason: Some("invalid_grant".to_owned()) }
+		);
 	}
 
 	#[test]

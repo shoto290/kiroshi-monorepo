@@ -1,3 +1,4 @@
+use std::future::Future;
 use std::path::Path;
 use std::sync::{Mutex, MutexGuard, PoisonError};
 
@@ -6,10 +7,12 @@ use tauri_plugin_opener::OpenerExt;
 
 use super::contract::{Disconnected, OauthError};
 use super::credentials::{self, ServedGrants};
+use super::refresh::{self, Renewal, Renewals};
 use super::reports::{ApplicationReports, Standing};
 use super::status::{status, ApplicationRow, Evidence};
 use crate::agent::commands::AgentState;
-use crate::agent::protocol::{OauthCredentials, RevocationRequest};
+use crate::agent::contract::TransportError;
+use crate::agent::protocol::{Authorized, OauthCredentials, RefreshRequest, RevocationRequest};
 use crate::agent::sidecar::Opening;
 use crate::agent::translate::now_ms;
 use crate::bundles::{self, McpServer};
@@ -178,15 +181,56 @@ pub async fn mcp_application_status<R: Runtime>(
 	owner: EnvOwner,
 ) -> Result<Vec<ApplicationRow>, EnvError> {
 	let root = writable_root(&app)?;
-	let grants = credentials::served(&root, &owner)?;
-	let readings = Readings {
-		owner: &owner,
-		flows: &app.state::<McpOauthState>(),
-		reports: &app.state::<ApplicationReports>(),
-		grants: &grants,
-		now: now_ms(),
-	};
-	Ok(declared_servers(&app, &owner)?.into_iter().map(|server| readings.row(server)).collect())
+	let servers = declared_servers(&app, &owner)?;
+	let handle = app.clone();
+	renewed_rows(
+		&root,
+		&owner,
+		servers,
+		&app.state::<McpOauthState>(),
+		&app.state::<ApplicationReports>(),
+		move |request| {
+			let handle = handle.clone();
+			async move { refreshed(&handle, request).await }
+		},
+	)
+	.await
+}
+
+async fn refreshed<R: Runtime>(
+	app: &AppHandle<R>,
+	request: RefreshRequest,
+) -> Result<Authorized, TransportError> {
+	let agent = app.try_state::<AgentState>().ok_or(TransportError::NotStarted)?;
+	agent.sidecar().await?.refresh_oauth(&request).await
+}
+
+async fn renewed_rows<F, Exchanged>(
+	root: &Path,
+	owner: &EnvOwner,
+	servers: Vec<McpServer>,
+	flows: &McpOauthState,
+	reports: &ApplicationReports,
+	exchange: F,
+) -> Result<Vec<ApplicationRow>, EnvError>
+where
+	F: Fn(RefreshRequest) -> Exchanged,
+	Exchanged: Future<Output = Result<Authorized, TransportError>>,
+{
+	let renewals = refresh::before_reading(root, owner, &servers, exchange).await?;
+	forget_renewed(reports, &renewals);
+	let grants = credentials::served(root, owner)?;
+	let readings =
+		Readings { owner, flows, reports, grants: &grants, renewals: &renewals, now: now_ms() };
+	Ok(servers.into_iter().map(|server| readings.row(server)).collect())
+}
+
+fn forget_renewed(reports: &ApplicationReports, renewals: &Renewals) {
+	for (name, renewal) in renewals {
+		if matches!(renewal, Renewal::Renewed) {
+			reports.forget(name);
+		}
+	}
 }
 
 struct Readings<'a> {
@@ -194,6 +238,7 @@ struct Readings<'a> {
 	flows: &'a McpOauthState,
 	reports: &'a ApplicationReports,
 	grants: &'a ServedGrants,
+	renewals: &'a Renewals,
 	now: i64,
 }
 
@@ -203,6 +248,7 @@ impl Readings<'_> {
 		let grant = self.grants.get(&server.name);
 		let evidence = Evidence {
 			is_authorizing: self.flows.is_authorizing(&named),
+			refusal: refusal(self.renewals, &server.name),
 			reported: last_reported(self.reports, self.owner, &server.name),
 			held: grant.map(|grant| grant.held.clone()).unwrap_or_default(),
 			declares_url: server.url().is_some(),
@@ -212,6 +258,13 @@ impl Readings<'_> {
 			scope: grant.map(|grant| grant.scope.clone()),
 			name: server.name,
 		}
+	}
+}
+
+fn refusal(renewals: &Renewals, name: &str) -> Option<String> {
+	match renewals.get(name) {
+		Some(Renewal::Awaiting { reason }) => reason.clone(),
+		Some(Renewal::Renewed) | None => None,
 	}
 }
 
@@ -260,6 +313,7 @@ async fn revoked<R: Runtime>(app: &AppHandle<R>, url: &str, held: &Values) -> Di
 #[cfg(test)]
 mod tests {
 	use super::*;
+	use crate::agent::protocol::{OauthFailure, OauthFailureKind};
 	use crate::mcp_oauth::status::ApplicationStatus;
 	use tauri::test::{mock_builder, mock_context, noop_assets};
 
@@ -286,6 +340,16 @@ mod tests {
 			bundles::user::set_mcp_server(&path, name, &serde_json::json!({ "command": name }))
 				.expect("the server lands");
 		}
+		bundles::user::set_mcp_server(
+			&path,
+			"notion",
+			&serde_json::json!({ "url": "https://mcp.notion.test/mcp" }),
+		)
+		.expect("the server lands");
+		let root = writable_root(app.handle()).expect("the data dir is writable");
+		let notion = EnvScope::Server { name: "notion".to_owned(), owner: EnvOwner::User };
+		credentials::store(&root, &notion, &an_aging_grant(Some("held-refresh")))
+			.expect("the grant is written");
 
 		let rows = mcp_application_status(app.handle().clone(), EnvOwner::User)
 			.await
@@ -293,7 +357,15 @@ mod tests {
 
 		assert_eq!(
 			rows.iter().map(|row| row.name.as_str()).collect::<Vec<_>>(),
-			["clock", "granola"]
+			["clock", "granola", "notion"]
+		);
+		assert_eq!(rows[2].status, ApplicationStatus::Connected);
+		assert_eq!(
+			store::values(&root, &notion)
+				.expect("the scope is readable")
+				.get(OAUTH_ACCESS_TOKEN)
+				.map(String::as_str),
+			Some("held-access")
 		);
 		let _ = std::fs::remove_dir_all(&data);
 	}
@@ -359,6 +431,7 @@ mod tests {
 			flows: &McpOauthState::default(),
 			reports: &reports,
 			grants: &grants,
+			renewals: &Renewals::new(),
 			now: now_ms(),
 		};
 		let granola = McpServer {
@@ -394,6 +467,7 @@ mod tests {
 			flows: &McpOauthState::default(),
 			reports: &ApplicationReports::default(),
 			grants: &grants,
+			renewals: &Renewals::new(),
 			now: now_ms(),
 		};
 		readings.row(McpServer {
@@ -480,6 +554,201 @@ mod tests {
 		assert_eq!(reports.last("b-disconnect-test", "granola"), None);
 		assert_eq!(reports.last("b-other", "granola"), None);
 		assert_eq!(reports.last("b-disconnect-test", "clock"), Some(Standing::Holding));
+	}
+
+	fn granola_declared() -> Vec<McpServer> {
+		vec![McpServer {
+			name: "granola".to_owned(),
+			config: serde_json::json!({ "url": "https://mcp.granola.test/mcp" }),
+		}]
+	}
+
+	fn an_aging_grant(refresh_token: Option<&str>) -> OauthCredentials {
+		OauthCredentials {
+			access_token: "held-access".to_owned(),
+			refresh_token: refresh_token.map(str::to_owned),
+			expires_at: Some(now_ms()),
+			client_id: "registered".to_owned(),
+			client_secret: Some("confidential".to_owned()),
+		}
+	}
+
+	fn a_renewed_grant() -> OauthCredentials {
+		OauthCredentials {
+			access_token: "renewed-access".to_owned(),
+			refresh_token: Some("renewed-refresh".to_owned()),
+			expires_at: Some(now_ms() + 3_600_000),
+			client_id: "registered".to_owned(),
+			client_secret: Some("confidential".to_owned()),
+		}
+	}
+
+	#[tokio::test]
+	async fn a_renewal_that_lands_reads_connected_and_drops_the_standing_a_session_reported() {
+		let root = a_root("renewal-lands");
+		credentials::store(&root, &a_server("granola"), &an_aging_grant(Some("held-refresh")))
+			.expect("the grant is written");
+		let reports = ApplicationReports::default();
+		reports.record("b1", "granola", Standing::NeedsAuth);
+
+		let rows = renewed_rows(
+			&root,
+			&a_bot(),
+			granola_declared(),
+			&McpOauthState::default(),
+			&reports,
+			|_| async { Ok(Authorized { credentials: Some(a_renewed_grant()), error: None }) },
+		)
+		.await
+		.expect("the rows read");
+
+		assert_eq!(rows[0].status, ApplicationStatus::Connected);
+		assert_eq!(reports.last("b1", "granola"), None);
+		assert_eq!(
+			store::values(&root, &a_server("granola"))
+				.expect("the scope is readable")
+				.get(OAUTH_ACCESS_TOKEN)
+				.map(String::as_str),
+			Some("renewed-access")
+		);
+	}
+
+	#[tokio::test]
+	async fn a_renewal_the_store_refused_needs_authorization_over_the_standing_last_reported() {
+		let root = a_root("renewal-lost");
+		credentials::store(&root, &a_server("granola"), &an_aging_grant(Some("held-refresh")))
+			.expect("the grant is written");
+		let reports = ApplicationReports::default();
+		reports.record("b1", "granola", Standing::Holding);
+		crate::private_files::interrupt_the_write_after(0);
+
+		let rows = renewed_rows(
+			&root,
+			&a_bot(),
+			granola_declared(),
+			&McpOauthState::default(),
+			&reports,
+			|_| async { Ok(Authorized { credentials: Some(a_renewed_grant()), error: None }) },
+		)
+		.await
+		.expect("the rows read");
+
+		let ApplicationStatus::NeedsAuthorization { reason: Some(reason) } = &rows[0].status else {
+			panic!("a grant that could not be stored awaits authorization: {:?}", rows[0].status);
+		};
+		assert!(reason.contains("the refreshed grant could not be stored"));
+		for secret in ["held-access", "held-refresh", "renewed-access", "confidential"] {
+			assert!(!reason.contains(secret));
+		}
+	}
+
+	#[tokio::test]
+	async fn a_refused_renewal_needs_authorization_and_carries_the_reason_with_no_secret_in_it() {
+		let root = a_root("renewal-refused");
+		credentials::store(&root, &a_server("granola"), &an_aging_grant(Some("held-refresh")))
+			.expect("the grant is written");
+
+		let rows = renewed_rows(
+			&root,
+			&a_bot(),
+			granola_declared(),
+			&McpOauthState::default(),
+			&ApplicationReports::default(),
+			|_| async {
+				Ok(Authorized {
+					credentials: None,
+					error: Some(OauthFailure {
+						kind: OauthFailureKind::Rejected,
+						detail: Some("held-refresh is revoked, so is held-access".to_owned()),
+					}),
+				})
+			},
+		)
+		.await
+		.expect("the rows read");
+
+		assert_eq!(
+			rows[0].status,
+			ApplicationStatus::NeedsAuthorization {
+				reason: Some("[redacted] is revoked, so is [redacted]".to_owned())
+			}
+		);
+		let crossed = serde_json::to_string(&rows).expect("the rows serialize");
+		for secret in ["held-access", "held-refresh", "confidential"] {
+			assert!(!crossed.contains(secret));
+		}
+	}
+
+	#[tokio::test]
+	async fn a_renewal_the_sidecar_never_answered_leaves_the_row_on_the_grant_on_disk() {
+		let root = a_root("renewal-unreachable");
+		credentials::store(&root, &a_server("granola"), &an_aging_grant(Some("held-refresh")))
+			.expect("the grant is written");
+
+		let rows = renewed_rows(
+			&root,
+			&a_bot(),
+			granola_declared(),
+			&McpOauthState::default(),
+			&ApplicationReports::default(),
+			|_| async { Err(TransportError::NotStarted) },
+		)
+		.await
+		.expect("the rows read");
+
+		assert_eq!(rows[0].status, ApplicationStatus::Connected);
+		assert_eq!(
+			store::values(&root, &a_server("granola"))
+				.expect("the scope is readable")
+				.get(OAUTH_ACCESS_TOKEN)
+				.map(String::as_str),
+			Some("held-access")
+		);
+	}
+
+	#[tokio::test]
+	async fn a_grant_outside_the_renewal_window_sends_no_request_and_reads_from_disk() {
+		let root = a_root("renewal-untouched");
+		credentials::store(&root, &a_server("granola"), &a_live_grant())
+			.expect("the grant is written");
+		let asked = std::cell::Cell::new(0);
+
+		let rows = renewed_rows(
+			&root,
+			&a_bot(),
+			granola_declared(),
+			&McpOauthState::default(),
+			&ApplicationReports::default(),
+			|_| {
+				asked.set(asked.get() + 1);
+				async { Err(TransportError::NotStarted) }
+			},
+		)
+		.await
+		.expect("the rows read");
+
+		assert_eq!(asked.get(), 0);
+		assert_eq!(rows[0].status, ApplicationStatus::Connected);
+	}
+
+	#[tokio::test]
+	async fn an_expired_grant_holding_no_refresh_token_needs_authorization_with_no_reason() {
+		let root = a_root("renewal-spent");
+		credentials::store(&root, &a_server("granola"), &an_aging_grant(None))
+			.expect("the grant is written");
+
+		let rows = renewed_rows(
+			&root,
+			&a_bot(),
+			granola_declared(),
+			&McpOauthState::default(),
+			&ApplicationReports::default(),
+			|_| async { Err(TransportError::NotStarted) },
+		)
+		.await
+		.expect("the rows read");
+
+		assert_eq!(rows[0].status, ApplicationStatus::NeedsAuthorization { reason: None });
 	}
 
 	#[test]
