@@ -187,13 +187,13 @@ const oauthError = (body: string): OAuthErrorResponse | undefined => {
 	}
 }
 
-const onOneLine = (body: string) =>
+const carriable = (body: string) =>
 	body.split(/\s+/).filter(Boolean).join(" ").slice(0, BODY_LIMIT)
 
 const refusedFailure = ({ step, status, body }: Refusal): OauthFailure => {
 	const answered = `${ENDPOINT_OF[step]} answered ${status}`
 	const named = oauthError(body)
-	const carried = onOneLine(named ? (named.error_description ?? "") : body)
+	const carried = carriable(named ? (named.error_description ?? "") : body)
 	return {
 		kind: named && REFUSED_GRANT_CODES.has(named.error) ? "rejected" : "failed",
 		detail: named ? `${answered}: ${named.error}` : answered,
