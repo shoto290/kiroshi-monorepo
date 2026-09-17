@@ -60,35 +60,6 @@ const useOwnerCopy = (owner: ApplicationsOwner): OwnerCopy => {
 	}
 }
 
-type ApplicationsSearchRowProps = {
-	query: string
-	onQueryChange: (query: string) => void
-	onPaste: () => void
-}
-
-const ApplicationsSearchRow = ({
-	query,
-	onQueryChange,
-	onPaste,
-}: ApplicationsSearchRowProps) => {
-	const { t } = useTranslation("bots")
-
-	return (
-		<div className="flex shrink-0 items-center gap-2">
-			<ApplicationsSearchField onValueChange={onQueryChange} value={query} />
-			<Button
-				aria-label={t("applications.paste")}
-				className="border-input"
-				onClick={onPaste}
-				size="icon-lg"
-				variant="outline"
-			>
-				<Icons.Add aria-hidden="true" />
-			</Button>
-		</div>
-	)
-}
-
 type ApplicationRowAction = {
 	key: "connect" | "retry"
 	variant: "default" | "outline"
@@ -202,11 +173,18 @@ const ApplicationsPanel = ({
 	const { t } = useTranslation("bots")
 	const copy = useOwnerCopy(owner)
 	const searchRow = (
-		<ApplicationsSearchRow
-			onPaste={onPaste}
-			onQueryChange={onQueryChange}
-			query={query}
-		/>
+		<div className="flex shrink-0 items-center gap-2">
+			<ApplicationsSearchField onValueChange={onQueryChange} value={query} />
+			<Button
+				aria-label={t("applications.paste")}
+				className="border-input"
+				onClick={onPaste}
+				size="icon-lg"
+				variant="outline"
+			>
+				<Icons.Add aria-hidden="true" />
+			</Button>
+		</div>
 	)
 
 	if (haveFailedToLoad) {
