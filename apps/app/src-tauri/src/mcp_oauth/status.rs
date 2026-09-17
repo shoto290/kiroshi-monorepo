@@ -4,6 +4,8 @@ use super::credentials;
 use super::reports::Standing;
 use crate::environment::contract::{EnvScope, Values, OAUTH_ACCESS_TOKEN, OAUTH_REFRESH_TOKEN};
 
+const A_STATUS_READ: &str = "it read ";
+
 #[derive(Debug, Clone, PartialEq, Eq, Serialize)]
 #[serde(rename_all = "camelCase")]
 pub struct ApplicationRow {
@@ -62,10 +64,17 @@ fn left_out(
 	kiroshi_authorizes: bool,
 	now: i64,
 ) -> ApplicationStatus {
-	if kiroshi_authorizes && !holds_a_usable_grant(held, now) {
+	let Some(reason) = reason else {
+		return ApplicationStatus::Failed { reason: None };
+	};
+	if did_not_come_up(&reason) && kiroshi_authorizes && !holds_a_usable_grant(held, now) {
 		return ApplicationStatus::NeedsAuthorization { reason: None };
 	}
-	ApplicationStatus::Failed { reason: reason.map(|reason| credentials::scrubbed(reason, held)) }
+	ApplicationStatus::Failed { reason: Some(credentials::scrubbed(reason, held)) }
+}
+
+fn did_not_come_up(reason: &str) -> bool {
+	reason.starts_with(A_STATUS_READ)
 }
 
 fn stored_status(held: &Values, declares_url: bool, now: i64) -> ApplicationStatus {
@@ -137,10 +146,12 @@ mod tests {
 		}
 	}
 
+	const IT_DID_NOT_COME_UP: &str = "it read failed, stderr: connection refused";
+
 	fn left_out_holding(held: Values) -> Evidence {
 		Evidence {
 			held,
-			..reported(Standing::LeftOut { reason: Some("it read failed".to_owned()) })
+			..reported(Standing::LeftOut { reason: Some(IT_DID_NOT_COME_UP.to_owned()) })
 		}
 	}
 
@@ -161,6 +172,10 @@ mod tests {
 		assert_eq!(
 			status(reported(Standing::LeftOut { reason: Some("it read failed".to_owned()) }), NOW),
 			ApplicationStatus::Failed { reason: Some("it read failed".to_owned()) }
+		);
+		assert_eq!(
+			status(reported(Standing::LeftOut { reason: None }), NOW),
+			ApplicationStatus::Failed { reason: None }
 		);
 	}
 
@@ -219,11 +234,11 @@ mod tests {
 	fn an_application_kiroshi_authorizes_holding_a_usable_grant_reads_left_out_as_failed() {
 		assert_eq!(
 			status(left_out_holding(a_grant(Some(NOW + 1))), NOW),
-			ApplicationStatus::Failed { reason: Some("it read failed".to_owned()) }
+			ApplicationStatus::Failed { reason: Some(IT_DID_NOT_COME_UP.to_owned()) }
 		);
 		assert_eq!(
 			status(left_out_holding(a_grant(Some(NOW - 1))), NOW),
-			ApplicationStatus::Failed { reason: Some("it read failed".to_owned()) }
+			ApplicationStatus::Failed { reason: Some(IT_DID_NOT_COME_UP.to_owned()) }
 		);
 	}
 
@@ -234,7 +249,34 @@ mod tests {
 
 		assert_eq!(
 			status(declaring_its_own_header, NOW),
-			ApplicationStatus::Failed { reason: Some("it read failed".to_owned()) }
+			ApplicationStatus::Failed { reason: Some(IT_DID_NOT_COME_UP.to_owned()) }
+		);
+	}
+
+	#[test]
+	fn only_a_reason_naming_a_status_read_says_the_server_did_not_come_up() {
+		assert!(did_not_come_up("it read failed, stderr: connection refused"));
+		assert!(did_not_come_up("it read needs-auth"));
+		assert!(!did_not_come_up("it is disabled in this session"));
+		assert!(!did_not_come_up("the environment store could not be read"));
+		assert!(!did_not_come_up("GRANOLA_TOKEN is defined by no scope"));
+		assert!(!did_not_come_up("no status read ever named it"));
+	}
+
+	#[test]
+	fn a_reason_naming_no_status_read_reads_left_out_as_failed_over_the_grant_held() {
+		let unreadable_store = Evidence {
+			reported: Some(Standing::LeftOut {
+				reason: Some("the environment store could not be read".to_owned()),
+			}),
+			..left_out_holding(Values::new())
+		};
+
+		assert_eq!(
+			status(unreadable_store, NOW),
+			ApplicationStatus::Failed {
+				reason: Some("the environment store could not be read".to_owned())
+			}
 		);
 	}
 
