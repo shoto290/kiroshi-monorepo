@@ -24,7 +24,7 @@ const TRIGGERS: &str = ".triggers.json";
 
 pub(crate) const APPLICATIONS: &str = "applications/catalogue.json";
 
-const FILES: [(&str, &[u8]); 14] = [
+const FILES: [(&str, &[u8]); 12] = [
 	(MANIFEST, include_bytes!("../../plugins/kiroshi/.claude-plugin/plugin.json")),
 	(TRIGGERS, include_bytes!("../../plugins/kiroshi/.triggers.json")),
 	(LEARN, include_bytes!("../../plugins/kiroshi/skills/learn/SKILL.md")),
@@ -44,14 +44,6 @@ const FILES: [(&str, &[u8]); 14] = [
 		include_bytes!("../../plugins/kiroshi/skills/learn/references/determinism.md"),
 	),
 	(APPLICATIONS, include_bytes!("../../plugins/kiroshi/applications/catalogue.json")),
-	(
-		"applications/logos/github.svg",
-		include_bytes!("../../plugins/kiroshi/applications/logos/github.svg"),
-	),
-	(
-		"applications/logos/linear.svg",
-		include_bytes!("../../plugins/kiroshi/applications/logos/linear.svg"),
-	),
 	(
 		"applications/logos/paper.svg",
 		include_bytes!("../../plugins/kiroshi/applications/logos/paper.svg"),

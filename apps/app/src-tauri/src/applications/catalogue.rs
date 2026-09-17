@@ -83,10 +83,10 @@ mod tests {
 	}
 
 	#[test]
-	fn seven_applications_are_curated_in_order() {
+	fn two_applications_are_curated_in_order() {
 		let names: Vec<String> = the_catalogue().into_iter().map(|held| held.name).collect();
 
-		assert_eq!(names, ["github", "linear", "notion", "granola", "sentry", "superset", "paper"]);
+		assert_eq!(names, ["superset", "paper"]);
 	}
 
 	#[test]
@@ -104,9 +104,6 @@ mod tests {
 
 	#[test]
 	fn each_application_answers_its_install_case() {
-		for name in ["github", "linear", "notion", "granola", "sentry"] {
-			assert_eq!(entry(name).install, Install::Oauth, "got {name}");
-		}
 		assert!(matches!(entry("superset").install, Install::Key { .. }));
 		assert_eq!(entry("paper").install, Install::Nothing);
 	}
@@ -139,19 +136,12 @@ mod tests {
 	}
 
 	#[test]
-	fn an_oauth_application_carries_no_header_of_its_own() {
-		for application in the_catalogue().into_iter().filter(|held| held.install == Install::Oauth)
-		{
-			assert!(application.config.get("headers").is_none(), "got {}", application.name);
-		}
-	}
-
-	#[test]
-	fn the_logos_are_the_marks_of_the_design_system_and_the_rest_have_none() {
+	fn every_curated_logo_is_a_mark_of_the_design_system() {
 		let icons = icons();
 
-		for name in ["github", "linear", "superset", "paper"] {
-			let logo = entry(name).logo.unwrap_or_else(|| panic!("{name} has a logo"));
+		for application in the_catalogue() {
+			let name = application.name;
+			let logo = application.logo.unwrap_or_else(|| panic!("{name} has a logo"));
 			assert!(logo.starts_with("<svg"), "got {logo}");
 			let paths = drawn_paths(&logo);
 			assert!(!paths.is_empty(), "{name} draws nothing");
@@ -159,8 +149,27 @@ mod tests {
 				assert!(icons.contains(path), "the {name} logo is not a mark of the design system");
 			}
 		}
-		for name in ["notion", "granola", "sentry"] {
-			assert_eq!(entry(name).logo, None, "got {name}");
-		}
+	}
+
+	#[test]
+	fn an_entry_naming_a_logo_that_is_not_embedded_is_unreadable() {
+		let named = "applications/logos/dropped.svg";
+		let entry: Curated = serde_json::from_value(json!({
+			"name": "dropped",
+			"title": "Dropped",
+			"description": "An entry whose logo left the bundle.",
+			"config": { "type": "http", "url": "https://dropped.test/mcp" },
+			"tools": ["read"],
+			"logo": named,
+			"install": { "kind": "nothing" },
+		}))
+		.expect("the entry reads");
+
+		let refusal = application(entry).expect_err("the logo is not embedded");
+
+		assert_eq!(
+			refusal,
+			ApplicationsError::CatalogueUnreadable { detail: format!("{named} is not embedded") }
+		);
 	}
 }
