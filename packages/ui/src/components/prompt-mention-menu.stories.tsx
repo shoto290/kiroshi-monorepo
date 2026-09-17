@@ -181,21 +181,19 @@ const ROW_EDGE_PADDING = 8
 
 const TRAILING_SLOT_WIDTH = 56
 
-const PANEL_ENTERED = ["none", "matrix(1, 0, 0, 1, 0, 0)"]
+const PANEL_AT_REST = ["none", "matrix(1, 0, 0, 1, 0, 0)"]
 
-const enteredPanelIn = async (root: HTMLElement) => {
+const panelEnteredIn = (root: HTMLElement) => {
 	const panel = root.querySelector<HTMLElement>(
 		'[data-slot="prompt-mention-menu"] > *',
 	)
 
 	if (!panel) throw new Error("The menu drew no panel")
 
-	await waitFor(
-		() => expect(PANEL_ENTERED).toContain(getComputedStyle(panel).transform),
+	return waitFor(
+		() => expect(PANEL_AT_REST).toContain(getComputedStyle(panel).transform),
 		FRAME_POLL,
 	)
-
-	return panel
 }
 
 const FOOTER_TEXT = /^Keep typing to reach/
@@ -581,7 +579,7 @@ export const LongContent = meta.story({
 		},
 	},
 	play: async ({ canvas, canvasElement }) => {
-		await enteredPanelIn(canvasElement)
+		await panelEnteredIn(canvasElement)
 
 		const rows = [
 			canvas.getByRole("option", { name: /Release notes editor/ }),
