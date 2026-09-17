@@ -34,10 +34,6 @@ const DAY_MS: i64 = 24 * 60 * 60 * 1000;
 
 const TICK: Duration = Duration::from_secs(60 * 60);
 
-const OFFERS: usize = 9;
-
-const MATCHES: usize = 20;
-
 const CACHE_DIR: &str = "applications";
 
 const CACHE_FILE: &str = "directory.json";
@@ -53,23 +49,20 @@ const TRUSTED_TIERS: [&str; 2] = ["anthropic", "partner"];
 const OTHER: &str = "Other";
 
 pub const BUCKETS: [(&str, &[&str]); 16] = [
-	("Commerce and shopping", &["commerce-shopping", "e-commerce"]),
+	("Commerce & shopping", &["commerce-shopping", "e-commerce"]),
 	("Communication", &["communication"]),
 	("Consumer health", &["consumer-health"]),
 	("Creative", &["creative", "design"]),
-	("Data and analytics", &["data-analytics", "data"]),
+	("Data & analytics", &["data-analytics", "data"]),
 	("Developer tools", &["developer-tools", "code"]),
 	("Education", &["education"]),
 	("Financial services", &["financial-services"]),
-	(
-		"Health and life sciences",
-		&["health-life-sciences", "life-sciences", "health", "healthcare"],
-	),
+	("Health & life sciences", &["health-life-sciences", "life-sciences", "health", "healthcare"]),
 	("Legal", &["legal"]),
-	("Media and entertainment", &["media-entertainment"]),
+	("Media & entertainment", &["media-entertainment"]),
 	("Nonprofit", &["nonprofit"]),
 	("Productivity", &["productivity", "business-productivity"]),
-	("Sales and marketing", &["sales-and-marketing"]),
+	("Sales & marketing", &["sales-and-marketing"]),
 	("Travel", &["travel"]),
 	(OTHER, &["other", "technology"]),
 ];
@@ -183,7 +176,7 @@ impl Directory {
 	}
 
 	pub async fn searched(&self, query: &str) -> Result<ApplicationSearch, ApplicationsError> {
-		if !self.is_held() {
+		if self.is_unread() {
 			self.refreshed().await;
 		}
 		let held = self.kept();
@@ -221,6 +214,11 @@ impl Directory {
 
 	fn is_held(&self) -> bool {
 		self.kept().cached.is_some()
+	}
+
+	fn is_unread(&self) -> bool {
+		let held = self.kept();
+		held.cached.is_none() && held.failure.is_none()
 	}
 
 	fn is_fresh(&self) -> bool {
@@ -289,10 +287,7 @@ fn is_stale(read_at: i64, now: i64) -> bool {
 
 fn matched(applications: &[Application], query: &str) -> Vec<Application> {
 	let wanted: Vec<String> = terms(query).iter().map(|term| folded(term)).collect();
-	if wanted.is_empty() {
-		return applications.iter().take(OFFERS).cloned().collect();
-	}
-	applications.iter().filter(|held| carries(held, &wanted)).take(MATCHES).cloned().collect()
+	applications.iter().filter(|held| carries(held, &wanted)).cloned().collect()
 }
 
 fn carries(application: &Application, wanted: &[String]) -> bool {
@@ -461,12 +456,13 @@ fn written(file: &Path, cached: &Cached) -> Result<(), String> {
 
 #[cfg(test)]
 mod tests {
+	use std::collections::BTreeSet;
 	use std::net::{Ipv4Addr, SocketAddr};
 	use std::sync::Mutex as Recorded;
 
 	use axum::extract::State as Extracted;
 	use axum::http::Uri;
-	use axum::response::Response as Answered;
+	use axum::response::{IntoResponse, Response as Answered};
 	use axum::routing::get;
 	use axum::Router;
 	use reqwest::StatusCode;
@@ -487,6 +483,7 @@ mod tests {
 
 	struct Served {
 		pages: Vec<Value>,
+		refusals: Recorded<usize>,
 		asked: Recorded<Vec<String>>,
 		queried: Recorded<Vec<String>>,
 	}
@@ -494,6 +491,7 @@ mod tests {
 	async fn serving(pages: Vec<Value>) -> (String, Arc<Served>) {
 		let held = Arc::new(Served {
 			pages,
+			refusals: Recorded::new(0),
 			asked: Recorded::new(Vec::new()),
 			queried: Recorded::new(Vec::new()),
 		});
@@ -508,6 +506,14 @@ mod tests {
 
 	async fn page_of(Extracted(held): Extracted<Arc<Served>>, uri: Uri) -> Answered {
 		let cursor = asked_cursor(&uri);
+		let mut refusals = held.refusals.lock().expect("the stub records");
+		if *refusals > 0 {
+			*refusals -= 1;
+			drop(refusals);
+			held.asked.lock().expect("the stub records").push(cursor.unwrap_or_default());
+			return StatusCode::INTERNAL_SERVER_ERROR.into_response();
+		}
+		drop(refusals);
 		held.queried
 			.lock()
 			.expect("the stub records")
@@ -617,23 +623,23 @@ mod tests {
 		assert_eq!(
 			BUCKETS.map(|(name, values)| (name, values.to_vec())),
 			[
-				("Commerce and shopping", vec!["commerce-shopping", "e-commerce"]),
+				("Commerce & shopping", vec!["commerce-shopping", "e-commerce"]),
 				("Communication", vec!["communication"]),
 				("Consumer health", vec!["consumer-health"]),
 				("Creative", vec!["creative", "design"]),
-				("Data and analytics", vec!["data-analytics", "data"]),
+				("Data & analytics", vec!["data-analytics", "data"]),
 				("Developer tools", vec!["developer-tools", "code"]),
 				("Education", vec!["education"]),
 				("Financial services", vec!["financial-services"]),
 				(
-					"Health and life sciences",
+					"Health & life sciences",
 					vec!["health-life-sciences", "life-sciences", "health", "healthcare"]
 				),
 				("Legal", vec!["legal"]),
-				("Media and entertainment", vec!["media-entertainment"]),
+				("Media & entertainment", vec!["media-entertainment"]),
 				("Nonprofit", vec!["nonprofit"]),
 				("Productivity", vec!["productivity", "business-productivity"]),
-				("Sales and marketing", vec!["sales-and-marketing"]),
+				("Sales & marketing", vec!["sales-and-marketing"]),
 				("Travel", vec!["travel"]),
 				("Other", vec!["other", "technology"]),
 			]
@@ -832,25 +838,24 @@ mod tests {
 	}
 
 	#[tokio::test]
-	async fn a_query_of_no_term_answers_the_nine_entries_of_lowest_rank() {
+	async fn a_query_of_no_term_answers_every_application_by_rank_ascending() {
 		let page = ["a", "b", "c", "d", "e", "f", "g", "h", "i", "j", "k"];
 		let directory = a_directory_over(vec![a_page(&page)]).await;
 
 		let answered = directory.searched("  an ").await.expect("the search answers");
 
-		assert_eq!(names(&answered.applications), ["a", "b", "c", "d", "e", "f", "g", "h", "i"]);
+		assert_eq!(names(&answered.applications), page);
 	}
 
 	#[tokio::test]
-	async fn a_query_answers_at_most_twenty_entries_carrying_every_term() {
+	async fn a_query_answers_every_application_carrying_every_term_capped_by_no_count() {
 		let page: Vec<String> = (0..30).map(|held| format!("linear-{held}")).collect();
 		let names_held: Vec<&str> = page.iter().map(String::as_str).collect();
 		let directory = a_directory_over(vec![a_page(&names_held)]).await;
 
 		let answered = directory.searched("linear").await.expect("the search answers");
 
-		assert_eq!(answered.applications.len(), MATCHES);
-		assert_eq!(answered.applications[0].name, "linear-0");
+		assert_eq!(names(&answered.applications), names_held);
 	}
 
 	#[tokio::test]
@@ -950,6 +955,35 @@ mod tests {
 	}
 
 	#[tokio::test]
+	async fn a_failure_held_with_no_cache_is_answered_again_without_reaching_the_network() {
+		let (base, held) = serving(vec![a_page(&["one"])]).await;
+		*held.refusals.lock().expect("the stub records") = 1;
+		let directory = Directory::timed(base, None, Box::new(Stopped(NOON)));
+
+		let first = directory.searched("").await;
+		let second = directory.searched("").await;
+
+		assert!(matches!(first, Err(ApplicationsError::RegistryRefused { .. })), "got {first:?}");
+		assert!(matches!(second, Err(ApplicationsError::RegistryRefused { .. })), "got {second:?}");
+		assert_eq!(held.asked.lock().expect("the stub records").len(), 1);
+	}
+
+	#[tokio::test]
+	async fn the_refresh_reaches_the_network_whatever_the_last_read_answered() {
+		let (base, held) = serving(vec![a_page(&["one"])]).await;
+		*held.refusals.lock().expect("the stub records") = 1;
+		let directory = Directory::timed(base, None, Box::new(Stopped(NOON)));
+		directory.searched("").await.expect_err("the first read is refused");
+
+		directory.refreshed().await;
+
+		assert_eq!(held.asked.lock().expect("the stub records").len(), 2);
+		let answered = directory.searched("").await.expect("the search answers");
+		assert_eq!(names(&answered.applications), ["one"]);
+		assert_eq!(answered.registry_failure, None);
+	}
+
+	#[tokio::test]
 	async fn a_failed_read_while_no_cache_is_held_answers_that_failure() {
 		let directory = Directory::timed(unreached().await, None, Box::new(Stopped(NOON)));
 
@@ -1043,9 +1077,31 @@ mod tests {
 
 	#[tokio::test]
 	#[ignore = "it reads the live directory"]
-	async fn the_live_directory_answers_a_list_this_reader_maps() {
-		let read = listed(DIRECTORY).await.expect("the live directory answers");
+	async fn the_live_directory_carries_no_category_value_the_buckets_leave_unnamed() {
+		let client = client().expect("the http client builds");
+		let base = parsed(DIRECTORY).expect("the directory is a url");
+		let page: Page = read(&client, listing(&base, None).expect("the listing is a url"))
+			.await
+			.expect("the live directory answers");
+		let unnamed: BTreeSet<String> = page
+			.servers
+			.iter()
+			.filter_map(|entry| entry.categories.as_deref())
+			.flatten()
+			.filter(|value| bucket(value) == OTHER && !named_by_other(value))
+			.cloned()
+			.collect();
+
+		let read = mapped(page.servers);
 		println!("the live directory mapped {} applications", read.len());
+		assert!(unnamed.is_empty(), "no bucket names {unnamed:?}");
 		assert!(read.len() > 100, "got {}", read.len());
+	}
+
+	fn named_by_other(value: &str) -> bool {
+		BUCKETS
+			.iter()
+			.find(|(name, _)| *name == OTHER)
+			.is_some_and(|(_, values)| values.contains(&value))
 	}
 }
