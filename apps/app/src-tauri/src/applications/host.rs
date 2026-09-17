@@ -454,31 +454,24 @@ mod tests {
 		.map(|servers| servers.into_iter().map(|server| (server.name, server.mark)).collect())
 	}
 
-	fn curated_mark(name: &str) -> ApplicationMark {
+	fn curated(name: &str) -> Application {
 		catalogue::curated()
 			.expect("the catalogue reads")
 			.into_iter()
 			.find(|held| held.name == name)
-			.map(|held| mark_of(&held))
 			.unwrap_or_else(|| panic!("{name} is curated"))
+	}
+
+	fn curated_mark(name: &str) -> ApplicationMark {
+		mark_of(&curated(name))
 	}
 
 	fn curated_logo(name: &str) -> Option<String> {
-		catalogue::curated()
-			.expect("the catalogue reads")
-			.into_iter()
-			.find(|held| held.name == name)
-			.unwrap_or_else(|| panic!("{name} is curated"))
-			.logo
+		curated(name).logo
 	}
 
 	fn curated_config(name: &str) -> Value {
-		catalogue::curated()
-			.expect("the catalogue reads")
-			.into_iter()
-			.find(|held| held.name == name)
-			.unwrap_or_else(|| panic!("{name} is curated"))
-			.config
+		curated(name).config
 	}
 
 	fn heard(app: &App<MockRuntime>) -> mpsc::Receiver<String> {
@@ -706,11 +699,7 @@ mod tests {
 
 			let kept: Vec<(String, ApplicationMark)> = marks(&app).into_iter().flatten().collect();
 
-			assert_eq!(
-				kept,
-				[("paper".to_owned(), curated_mark("paper"))],
-				"installing in {scope}"
-			);
+			assert_eq!(kept, [("paper".to_owned(), curated_mark("paper"))], "in {scope}");
 			cleaned(&app);
 		}
 	}
