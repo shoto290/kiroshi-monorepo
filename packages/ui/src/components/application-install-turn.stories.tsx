@@ -36,11 +36,13 @@ const RECEIPT: ApplicationCardProps = {
 	},
 }
 
+const NARROW_SENTENCE =
+	"Shoto has Sentry in every conversation, and so does every companion you add later."
+
 const NARROW_RECEIPT: ApplicationCardProps = {
 	...RECEIPT,
 	footnote: {
-		sentence:
-			"Shoto has Sentry in every conversation, and so does every companion you add later.",
+		sentence: NARROW_SENTENCE,
 		actionLabel: "Open Settings",
 		onAction: fn(),
 	},
@@ -114,7 +116,7 @@ export const WhenTheKeyWasLeftOut = meta.story({
 		},
 	},
 	play: async ({ canvas, canvasElement }) => {
-		const receipt = slotIn(canvasElement, "application-install-receipt")
+		const receipt = slotIn(canvasElement, "application-receipt")
 		const bubble = slotIn(canvasElement, "message-bubble")
 
 		await expect(startEdgeOf(bubble)).toBeCloseTo(startEdgeOf(receipt), 1)
@@ -152,7 +154,7 @@ export const InATranscript = meta.story({
 		</div>
 	),
 	play: async ({ canvasElement }) => {
-		const receipt = slotIn(canvasElement, "application-install-receipt")
+		const receipt = slotIn(canvasElement, "application-receipt")
 		const [above, below] = Array.from(
 			canvasElement.querySelectorAll('[data-slot="message-bubble"]'),
 		)
@@ -188,7 +190,7 @@ export const InANarrowColumn = meta.story({
 	},
 	play: async ({ canvas }) => {
 		const column = canvas.getByTestId("column")
-		const sentence = canvas.getByText(NARROW_RECEIPT.footnote?.sentence ?? "")
+		const sentence = canvas.getByText(NARROW_SENTENCE)
 		const control = canvas.getByRole("button", { name: "Open Settings" })
 
 		await expect(startEdgeOf(sentence)).toBeGreaterThanOrEqual(

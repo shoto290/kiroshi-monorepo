@@ -71,7 +71,7 @@ const ApplicationInstallTurn = ({
 }: ApplicationInstallTurnProps) => (
 	<Message from="assistant">
 		<MessageContent
-			className="grid gap-x-2 gap-y-1.5"
+			className="grid gap-x-2"
 			style={{ gridTemplateColumns: `${TURN_AVATAR_SIZE}px 1fr` }}
 		>
 			{notice ? <LeftOutKeyNotice {...notice} /> : null}
@@ -85,7 +85,6 @@ const ApplicationInstallTurn = ({
 					"col-start-2 row-start-2 min-w-0",
 					MESSAGE_BUBBLE_MAX_INLINE_SIZE,
 				)}
-				data-slot="application-install-receipt"
 			>
 				<ApplicationCard {...receipt} />
 			</div>
