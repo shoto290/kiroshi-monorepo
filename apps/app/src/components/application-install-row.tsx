@@ -1,14 +1,8 @@
-import {
-	ApplicationCard,
-	type ApplicationCardStatus,
+import type {
+	ApplicationCardProps,
+	ApplicationCardStatus,
 } from "@workspace/ui/components/application-card"
-import { Icons } from "@workspace/ui/components/icons"
-import { Message, MessageContent } from "@workspace/ui/components/message"
-import {
-	MessageBubble,
-	MessageBubbleContent,
-} from "@workspace/ui/components/message-bubble"
-import { ToolQuestion } from "@workspace/ui/components/tool-question"
+import { ApplicationInstallTurn } from "@workspace/ui/components/application-install-turn"
 import { type ChatCopy, useChatCopy } from "@workspace/ui/hooks/use-chat-copy"
 
 import type {
@@ -31,12 +25,6 @@ type ApplicationInstallRowProps = {
 	onOpenSettings: () => void
 }
 
-type LeftOutKeyProps = {
-	title: string
-	secrets: string[]
-	onOpenSettings: () => void
-}
-
 const receiptSentenceOf = (
 	t: ChatCopy,
 	{ scope, title }: ApplicationInstall,
@@ -52,40 +40,6 @@ const receiptSentenceOf = (
 	return t("applicationInstall.receipt.companion", { name: title, destination })
 }
 
-const LeftOutKey = ({ title, secrets, onOpenSettings }: LeftOutKeyProps) => {
-	const t = useChatCopy()
-
-	return (
-		<MessageBubble>
-			<MessageBubbleContent>
-				<ToolQuestion
-					questions={[
-						{
-							isNotice: true,
-							header: title,
-							failure: {
-								title: t("applications.connection.session.title", {
-									ns: "bots",
-									name: title,
-								}),
-								detail: t("applicationInstall.secret", {
-									count: secrets.length,
-									secret: secrets.join(", "),
-								}),
-							},
-							action: {
-								label: t("applicationInstall.openSettings"),
-								icon: Icons.Settings,
-								onSelect: onOpenSettings,
-							},
-						},
-					]}
-				/>
-			</MessageBubbleContent>
-		</MessageBubble>
-	)
-}
-
 export const ApplicationInstallRow = ({
 	install,
 	curated,
@@ -94,30 +48,31 @@ export const ApplicationInstallRow = ({
 	onOpenSettings,
 }: ApplicationInstallRowProps) => {
 	const t = useChatCopy()
+	const receipt: ApplicationCardProps = {
+		description: curated?.description ?? "",
+		displayName: curated ? install.title : undefined,
+		footnote: {
+			sentence: receiptSentenceOf(t, install, destinationName),
+			actionLabel: t("applicationInstall.openSettings"),
+			onAction: onOpenSettings,
+		},
+		mark: install.logo ?? curated?.logo,
+		name: install.application,
+		status: RECEIPT_STATUS[install.install.kind],
+	}
 
 	return (
-		<Message from="assistant">
-			<MessageContent>
-				{isLeftOut && install.install.kind === "key" ? (
-					<LeftOutKey
-						onOpenSettings={onOpenSettings}
-						secrets={install.install.secrets}
-						title={install.title}
-					/>
-				) : null}
-				<ApplicationCard
-					description={curated?.description ?? ""}
-					displayName={curated ? install.title : undefined}
-					footnote={{
-						sentence: receiptSentenceOf(t, install, destinationName),
-						actionLabel: t("applicationInstall.openSettings"),
-						onAction: onOpenSettings,
-					}}
-					mark={install.logo ?? curated?.logo}
-					name={install.application}
-					status={RECEIPT_STATUS[install.install.kind]}
-				/>
-			</MessageContent>
-		</Message>
+		<ApplicationInstallTurn
+			notice={
+				isLeftOut && install.install.kind === "key"
+					? {
+							title: install.title,
+							secrets: install.install.secrets,
+							onOpenSettings,
+						}
+					: undefined
+			}
+			receipt={receipt}
+		/>
 	)
 }
