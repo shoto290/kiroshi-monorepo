@@ -167,7 +167,7 @@ impl Directory {
 		Self::timed(base, file, Box::new(SystemClock))
 	}
 
-	pub fn timed(base: String, file: Option<PathBuf>, clock: Box<dyn Clock>) -> Self {
+	fn timed(base: String, file: Option<PathBuf>, clock: Box<dyn Clock>) -> Self {
 		Self {
 			base,
 			file,
@@ -209,10 +209,6 @@ impl Directory {
 			return;
 		}
 		self.fetched().await;
-	}
-
-	fn halted(&self) -> signal::Receiver<bool> {
-		self.stop.subscribe()
 	}
 
 	fn kept(&self) -> RwLockReadGuard<'_, Held> {
@@ -263,7 +259,7 @@ impl Directory {
 
 pub fn spawn<R: Runtime>(app: AppHandle<R>) -> Arc<Directory> {
 	let directory = Arc::new(Directory::at(DIRECTORY.to_owned(), file(&app)));
-	tauri::async_runtime::spawn(watching(directory.clone(), directory.halted()));
+	tauri::async_runtime::spawn(watching(directory.clone(), directory.stop.subscribe()));
 	directory
 }
 
