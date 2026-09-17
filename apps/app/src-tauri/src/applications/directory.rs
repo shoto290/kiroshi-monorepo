@@ -282,8 +282,20 @@ fn is_stale(read_at: i64, now: i64) -> bool {
 }
 
 fn matched(applications: &[Application], query: &str) -> Vec<Application> {
-	let wanted: Vec<String> = terms(query).iter().map(|term| folded(term)).collect();
+	let wanted = wanted(query);
 	applications.iter().filter(|held| carries(held, &wanted)).cloned().collect()
+}
+
+fn wanted(query: &str) -> Vec<String> {
+	let held: Vec<String> = terms(query).iter().map(|term| folded(term)).collect();
+	if !held.is_empty() {
+		return held;
+	}
+	let whole = folded(query.trim());
+	if whole.is_empty() {
+		return Vec::new();
+	}
+	vec![whole]
 }
 
 fn carries(application: &Application, wanted: &[String]) -> bool {
@@ -304,12 +316,33 @@ async fn listed(base: &str) -> Result<Vec<Application>, ApplicationsError> {
 	for _ in 0..PAGES {
 		let page: Page = read(&client, listing(&base, cursor.as_deref())?).await?;
 		entries.extend(page.servers);
-		match page.next_cursor {
-			Some(next) => cursor = Some(next),
-			None => break,
+		cursor = page.next_cursor;
+		if cursor.is_none() {
+			break;
 		}
 	}
-	Ok(mapped(entries))
+	let applications = mapped(entries);
+	if let Some(line) = left_unread(applications.len(), cursor.as_deref()) {
+		eprintln!("{line}");
+	}
+	if applications.is_empty() {
+		return Err(answered_nothing());
+	}
+	Ok(applications)
+}
+
+fn left_unread(held: usize, cursor: Option<&str>) -> Option<String> {
+	cursor.map(|cursor| {
+		format!(
+			"the Anthropic directory holds {held} applications after {PAGES} pages and left the cursor {cursor} unread"
+		)
+	})
+}
+
+fn answered_nothing() -> ApplicationsError {
+	ApplicationsError::RegistryUnreadable {
+		detail: "the Anthropic directory answered no application this reader serves".to_owned(),
+	}
 }
 
 fn listing(base: &Url, cursor: Option<&str>) -> Result<Url, ApplicationsError> {
@@ -334,6 +367,9 @@ fn mapped(entries: Vec<Entry>) -> Vec<Application> {
 
 fn served(entry: Entry) -> Option<Ranked> {
 	if entry.kind != REMOTE {
+		return None;
+	}
+	if entry.verified_tier.as_deref().is_some_and(|tier| !trusted(tier)) {
 		return None;
 	}
 	let remote = entry.remote?;
@@ -839,13 +875,18 @@ mod tests {
 	}
 
 	#[tokio::test]
-	async fn a_query_of_no_term_answers_every_application_by_rank_ascending() {
+	async fn an_empty_query_answers_every_application_by_rank_ascending() {
 		let page = ["a", "b", "c", "d", "e", "f", "g", "h", "i", "j", "k"];
 		let directory = a_directory_over(vec![a_page(&page)]).await;
 
-		let answered = directory.searched("  an ").await.expect("the search answers");
-
-		assert_eq!(names(&answered.applications), page);
+		assert_eq!(
+			names(&directory.searched("").await.expect("the search answers").applications),
+			page
+		);
+		assert_eq!(
+			names(&directory.searched("   ").await.expect("the search answers").applications),
+			page
+		);
 	}
 
 	#[tokio::test]
@@ -953,6 +994,88 @@ mod tests {
 			"got {:?}",
 			answered.registry_failure
 		);
+	}
+
+	#[tokio::test]
+	async fn a_read_answering_no_application_is_held_as_a_failure_and_writes_nothing() {
+		let file = temp_dir().join(CACHE_DIR).join(CACHE_FILE);
+		let (base, _) = serving(vec![a_page(&["one"])]).await;
+		let directory = Directory::timed(base, Some(file.clone()), Box::new(Stopped(NOON)));
+		directory.refreshed().await;
+		let written = fs::read(&file).expect("the cache is written");
+
+		let (empty, _) = serving(vec![json!([])]).await;
+		let drifted = Directory::timed(empty, Some(file.clone()), Box::new(Stopped(NOON)));
+		*drifted.keeping() =
+			Held { cached: Some(a_cache_of(&directory)), failure: None, is_disk_read: true };
+		drifted.fetched().await;
+
+		let answered = drifted.searched("").await.expect("the search answers");
+		assert_eq!(names(&answered.applications), ["one"]);
+		assert!(
+			matches!(answered.registry_failure, Some(ApplicationsError::RegistryUnreadable { .. })),
+			"got {:?}",
+			answered.registry_failure
+		);
+		assert_eq!(fs::read(&file).expect("the cache is still there"), written);
+	}
+
+	#[test]
+	fn a_cursor_left_after_the_last_page_names_the_count_held_and_that_cursor() {
+		let line = left_unread(607, Some("a-cursor")).expect("the drift is named");
+
+		assert!(line.contains("607"), "got {line}");
+		assert!(line.contains("a-cursor"), "got {line}");
+		assert_eq!(left_unread(607, None), None);
+	}
+
+	#[tokio::test]
+	async fn an_entry_carrying_a_tier_this_reader_does_not_trust_is_left_out() {
+		let read = read_from(vec![json!([
+			{ "type": "remote", "name": "community", "rank": 1, "verified_tier": "community",
+				"remote": { "url": "https://community.test/mcp", "transport": "sse" } },
+			{ "type": "remote", "name": "unranked", "rank": 2, "verified_tier": "unknown",
+				"remote": { "url": "https://unranked.test/mcp", "transport": "sse" } },
+			{ "type": "remote", "name": "kept", "rank": 3, "verified_tier": "anthropic",
+				"remote": { "url": "https://kept.test/mcp", "transport": "sse" } },
+		])])
+		.await;
+
+		assert_eq!(names(&read), ["kept"]);
+	}
+
+	#[tokio::test]
+	async fn a_query_of_terms_too_short_to_read_matches_on_the_folded_query_as_one_term() {
+		let directory = a_directory_over(vec![json!([
+			{ "type": "remote", "name": "ai", "rank": 1, "one_liner": "Thinks.",
+				"remote": { "url": "https://ai.test/mcp", "transport": "sse" } },
+			{ "type": "remote", "name": "other", "rank": 2, "one_liner": "Draws.",
+				"remote": { "url": "https://other.test/mcp", "transport": "sse" } },
+		])])
+		.await;
+
+		assert_eq!(
+			names(&directory.searched("ai").await.expect("the search answers").applications),
+			["ai"]
+		);
+		assert_eq!(
+			names(&directory.searched(" AI ").await.expect("the search answers").applications),
+			["ai"]
+		);
+		assert!(directory
+			.searched("zz")
+			.await
+			.expect("the search answers")
+			.applications
+			.is_empty());
+	}
+
+	#[test]
+	fn an_empty_query_wants_no_term_and_a_short_query_wants_the_whole_of_it() {
+		assert_eq!(wanted(""), Vec::<String>::new());
+		assert_eq!(wanted("   "), Vec::<String>::new());
+		assert_eq!(wanted(" an my "), ["an my"]);
+		assert_eq!(wanted("My Issues an"), ["issues"]);
 	}
 
 	#[tokio::test]
