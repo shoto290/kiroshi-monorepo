@@ -259,8 +259,8 @@ export const SearchRowAtLargestTextSize = meta.story({
 		await expect(shell.height).toBeGreaterThan(SEARCH_ROW_HEIGHT)
 		await expect(Math.round(button.height)).toBe(SEARCH_ROW_HEIGHT)
 		await expect(Math.round(button.left - shell.right)).toBe(SEARCH_ROW_GAP)
-		await expect(Math.round(button.top + button.height / 2)).toBe(
-			Math.round(shell.top + shell.height / 2),
+		await expect(Math.round(button.top - shell.top)).toBe(
+			Math.round(shell.bottom - button.bottom),
 		)
 	},
 })
