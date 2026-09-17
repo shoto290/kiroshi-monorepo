@@ -99,6 +99,7 @@ export const Default = meta.story({
 
 		openSettings.focus()
 		await expect(openSettings.matches(":focus-visible")).toBe(true)
+		await expect(getComputedStyle(openSettings).boxShadow).not.toBe("none")
 		await userEvent.keyboard("{Enter}")
 		await expect(args.receipt.footnote?.onAction).toHaveBeenCalledTimes(1)
 	},
