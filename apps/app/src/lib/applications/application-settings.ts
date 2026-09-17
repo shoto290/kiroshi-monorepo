@@ -3,12 +3,10 @@ import { readMcpServerLaunch } from "@workspace/ui/components/bot-settings-dialo
 import type { EnvironmentSection } from "@workspace/ui/components/environment-panel"
 import type { InstallableApplication } from "@workspace/ui/components/plugin-settings/application-install-page"
 import type {
-	ApplicationCategory,
 	ApplicationSetup,
 	CatalogueApplication,
 } from "@workspace/ui/components/plugin-settings/applications-catalogue"
 import type { ApplicationsCatalogueSection } from "@workspace/ui/components/plugin-settings/use-mcp-session"
-import { i18n } from "@workspace/ui/lib/i18n"
 
 import type { Application, Install } from "./application-port"
 import {
@@ -29,8 +27,6 @@ import type { McpServers } from "../bots/use-mcp-servers"
 import type { EnvOwner, EnvScope } from "../conversations/store-contract"
 import { toEnvironmentRows } from "../environment/environment-rows"
 import type { Environment } from "../environment/use-environment"
-
-const EVERYTHING_CATEGORY = "everything"
 
 const SETUP_OF_INSTALL = {
 	nothing: "none",
@@ -94,14 +90,6 @@ export const toInstallableApplication = (
 	refusal: refusalOf(application),
 })
 
-const categoriesOf = (count: number | null): ApplicationCategory[] => [
-	{
-		id: EVERYTHING_CATEGORY,
-		label: i18n.t("bots:applications.catalogue.everything"),
-		count,
-	},
-]
-
 const connectFor =
 	({ controller }: Connections) =>
 	async (name: string, url: string) => {
@@ -135,11 +123,7 @@ const toApplicationsCatalogue = ({
 	const { picked } = state
 
 	return {
-		categories: categoriesOf(
-			state.isReadingCatalogue ? null : state.curated.length,
-		),
-		category: EVERYTHING_CATEGORY,
-		onCategoryChange: () => undefined,
+		count: state.isReadingCatalogue ? null : state.curated.length,
 		query: state.query,
 		onQueryChange: controller.search,
 		curated: curated.map(toCatalogueApplication),

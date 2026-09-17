@@ -181,10 +181,8 @@ const useMcpSession = ({
 			return (
 				<ApplicationInstallPage
 					{...installing}
-					categories={browsing.categories}
-					category={browsing.category}
+					count={browsing.count}
 					onBack={onLeave}
-					onCategoryChange={browsing.onCategoryChange}
 					onPaste={paste}
 					owner={owner}
 				/>

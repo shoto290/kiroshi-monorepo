@@ -8,7 +8,6 @@ import {
 } from "@workspace/ui/components/plugin-settings/application-install-page"
 import {
 	API_KEY_INSTALL,
-	CATALOGUE_CATEGORIES,
 	HOSTED_INSTALL,
 	HOSTED_NOTHING_INSTALL,
 	LONG_INSTALL,
@@ -75,9 +74,7 @@ const meta = preview.meta({
 	args: {
 		application: SIGN_IN_INSTALL,
 		owner: COMPANION,
-		categories: CATALOGUE_CATEGORIES,
-		category: "everything",
-		onCategoryChange: fn(),
+		count: 6,
 		onBack: fn(),
 		onPaste: fn(),
 		onInstall: fn(),

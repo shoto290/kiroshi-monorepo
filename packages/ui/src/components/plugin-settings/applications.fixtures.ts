@@ -1,9 +1,6 @@
 import type { BotMcpServerItem } from "@workspace/ui/components/bot-settings"
 import type { InstallableApplication } from "@workspace/ui/components/plugin-settings/application-install-page"
-import type {
-	ApplicationCategory,
-	CatalogueApplication,
-} from "@workspace/ui/components/plugin-settings/applications-catalogue"
+import type { CatalogueApplication } from "@workspace/ui/components/plugin-settings/applications-catalogue"
 
 const markOf = (fill: string, letter: string) =>
 	`data:image/svg+xml,${encodeURIComponent(
@@ -37,14 +34,6 @@ export const MARKED_APPLICATIONS: BotMcpServerItem[] = [
 		config: { command: "npx", args: ["-y", "@atlas/mcp-server"] },
 		connection: "failed",
 	},
-]
-
-export const CATALOGUE_CATEGORIES: ApplicationCategory[] = [
-	{ id: "everything", label: "Everything", count: 6 },
-	{ id: "work", label: "Work tracking" },
-	{ id: "code", label: "Code" },
-	{ id: "design", label: "Design" },
-	{ id: "data", label: "Data" },
 ]
 
 export const CURATED_APPLICATIONS: CatalogueApplication[] = [

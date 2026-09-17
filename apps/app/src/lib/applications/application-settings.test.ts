@@ -272,11 +272,11 @@ describe("toApplicationScope", () => {
 		expect(scope.mcpCatalogue?.hasRegistryFailed).toBe(false)
 	})
 
-	it("hands the everything category no count while the catalogue is read", () => {
+	it("hands the catalogue no count while it is read", () => {
 		const { scope } = scopeOf(applicationsWith({ isReadingCatalogue: true }))
 
 		expect(scope.mcpCatalogue?.isCatalogueLoading).toBe(true)
-		expect(scope.mcpCatalogue?.categories[0].count).toBeNull()
+		expect(scope.mcpCatalogue?.count).toBeNull()
 	})
 
 	it("keeps only what the typed query matches among the curated ones", () => {

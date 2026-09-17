@@ -7,7 +7,6 @@ import type { BotMcpServerItem } from "@workspace/ui/components/bot-settings"
 import { BOT_MCP_SERVERS } from "@workspace/ui/components/bot-settings-dialog/mcp-servers.fixtures"
 import {
 	API_KEY_INSTALL,
-	CATALOGUE_CATEGORIES,
 	CURATED_APPLICATIONS,
 } from "@workspace/ui/components/plugin-settings/applications.fixtures"
 import type { ApplicationsOwner } from "@workspace/ui/components/plugin-settings/applications-panel"
@@ -101,9 +100,7 @@ const meta = preview.meta({
 export const AddingPushesTheCatalogue = meta.story({
 	args: {
 		catalogue: {
-			categories: CATALOGUE_CATEGORIES,
-			category: "everything",
-			onCategoryChange: fn(),
+			count: 6,
 			query: "",
 			onQueryChange: fn(),
 			curated: CURATED_APPLICATIONS,
@@ -144,9 +141,7 @@ export const AddingPushesTheCatalogue = meta.story({
 export const PickingPushesTheInstallPage = meta.story({
 	args: {
 		catalogue: {
-			categories: CATALOGUE_CATEGORIES,
-			category: "everything",
-			onCategoryChange: fn(),
+			count: 6,
 			query: "sentry",
 			onQueryChange: fn(),
 			curated: CURATED_APPLICATIONS,
