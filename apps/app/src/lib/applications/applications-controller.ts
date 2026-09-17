@@ -148,7 +148,7 @@ export const createApplicationsController = (
 		issuedSearch += 1
 	}
 
-	const startSearch = () => {
+	const issueSearch = () => {
 		supersedeSearch()
 		set({
 			isSearching: true,
@@ -161,7 +161,7 @@ export const createApplicationsController = (
 	const sendSearch = () => {
 		const typed = state.query.trim()
 		const isOpening = typed === ""
-		const attempt = startSearch()
+		const attempt = issueSearch()
 		const isLastIssued = () => attempt === issuedSearch
 		void port.search(typed).then(
 			(found) => {
@@ -191,7 +191,7 @@ export const createApplicationsController = (
 	}
 
 	const scheduleSearch = () => {
-		startSearch()
+		issueSearch()
 		scheduledSearch = setTimeout(sendSearch, searchDelayMs)
 	}
 
