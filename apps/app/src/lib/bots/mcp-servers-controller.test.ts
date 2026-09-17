@@ -14,6 +14,12 @@ const ATLAS = { command: "npx", args: ["-y", "@atlas/mcp-server"] }
 
 const LEDGER = { type: "http", url: "https://ledger.internal/mcp" }
 
+const A_MARK = {
+	title: "Ledger",
+	logo: "<svg />",
+	logoUrl: "https://ledger.internal/logo.png",
+}
+
 const opened = async (store: TranscriptStore, owner: EnvOwner = BOT) => {
 	const controller = createMcpServersController(store)
 	await controller.open(owner)
@@ -158,6 +164,46 @@ describe("mcp servers controller", () => {
 			{ name: "atlas", config: ATLAS },
 		])
 		expect(await store.botMcpServers("default")).toEqual([])
+	})
+
+	it("keeps the mark of a renamed server under the name it took", async () => {
+		const store = createFakeTranscriptStore()
+		await store.setBotMcpServer("default", "ledger", LEDGER, A_MARK)
+		const controller = await opened(store)
+
+		controller.rename("ledger", "books", LEDGER)
+		await settled()
+
+		expect(await store.botMcpServers("default")).toEqual([
+			{ name: "books", config: LEDGER, ...A_MARK },
+		])
+	})
+
+	it("declares no mark for a renamed server that carried none", async () => {
+		const store = createFakeTranscriptStore()
+		await store.setBotMcpServer("default", "ledger", LEDGER)
+		const declare = vi.spyOn(store, "setBotMcpServer")
+		const controller = await opened(store)
+
+		controller.rename("ledger", "books", LEDGER)
+		await settled()
+
+		expect(declare).toHaveBeenCalledWith("default", "books", LEDGER, undefined)
+	})
+
+	it("declares no mark for a server saved under the name it already had", async () => {
+		const store = createFakeTranscriptStore()
+		await store.setBotMcpServer("default", "ledger", LEDGER, A_MARK)
+		const declare = vi.spyOn(store, "setBotMcpServer")
+		const controller = await opened(store)
+
+		controller.rename("ledger", "ledger", LEDGER)
+		await settled()
+
+		expect(declare).toHaveBeenCalledWith("default", "ledger", LEDGER, undefined)
+		expect(await store.botMcpServers("default")).toEqual([
+			{ name: "ledger", config: LEDGER, ...A_MARK },
+		])
 	})
 
 	it("moves a renamed space server rather than leaving a second one behind", async () => {
