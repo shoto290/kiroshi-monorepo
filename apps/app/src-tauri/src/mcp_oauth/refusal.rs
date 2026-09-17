@@ -60,7 +60,11 @@ fn reason(error: &OauthError) -> String {
 		OauthError::AlreadyRunning => "a flow is already running".to_owned(),
 		OauthError::Cancelled => "it was cancelled".to_owned(),
 		OauthError::TimedOut => "it timed out".to_owned(),
-		OauthError::Denied { detail } | OauthError::Failed { detail } => detail.clone(),
+		OauthError::Denied { detail } => detail.clone(),
+		OauthError::Failed { detail, body, .. } => match body {
+			Some(body) => format!("{detail}: {body}"),
+			None => detail.clone(),
+		},
 		OauthError::BrowserRefused { url } | OauthError::RefusedUrl { url } => url.clone(),
 		OauthError::FlowTimedOut { timeout_ms } => format!("no answer within {timeout_ms}ms"),
 		OauthError::Transport { error } => format!("{error:?}"),
@@ -107,6 +111,7 @@ mod tests {
 
 	use super::*;
 	use crate::agent::contract::TransportError;
+	use crate::agent::protocol::OauthStep;
 	use crate::environment::contract::{
 		EnvError, OAUTH_ACCESS_TOKEN, OAUTH_CLIENT_SECRET, OAUTH_REFRESH_TOKEN,
 	};
@@ -190,6 +195,9 @@ mod tests {
 		let line = refusal_line(
 			&Step::StoringTheGrant.refused(OauthError::Failed {
 				detail: "held-access, held-refresh and held-secret were refused".to_owned(),
+				step: None,
+				status: None,
+				body: None,
 			}),
 			&a_grant(),
 		);
@@ -215,7 +223,10 @@ mod tests {
 		assert_eq!(
 			refusal_line(
 				&Step::AskingTheAuthorizationServer.refused(OauthError::Failed {
-					detail: "https://authority.test/token#held-fragment answered 400".to_owned()
+					detail: "https://authority.test/token#held-fragment answered 400".to_owned(),
+					step: None,
+					status: None,
+					body: None
 				}),
 				&Values::new()
 			),
@@ -224,11 +235,34 @@ mod tests {
 	}
 
 	#[test]
+	fn the_line_writes_the_refused_body_after_the_reason_scrubbed_and_cut() {
+		assert_eq!(
+			refusal_line(
+				&Step::AskingTheAuthorizationServer.refused(OauthError::Failed {
+					detail: "the registration endpoint answered 403".to_owned(),
+					step: Some(OauthStep::Registration),
+					status: Some(403),
+					body: Some(
+						"held-secret was refused at https://authority.test/register?held=1"
+							.to_owned()
+					)
+				}),
+				&a_grant()
+			),
+			"the authorization server refused: the registration endpoint answered 403: \
+			 [redacted] was refused at https://authority.test/register"
+		);
+	}
+
+	#[test]
 	fn the_line_holds_no_line_break_and_no_run_of_whitespace() {
 		assert_eq!(
 			refusal_line(
 				&Step::StoringTheGrant.refused(OauthError::Failed {
-					detail: "  the disk\n\trefused   the write\n".to_owned()
+					detail: "  the disk\n\trefused   the write\n".to_owned(),
+					step: None,
+					status: None,
+					body: None
 				}),
 				&Values::new()
 			),
@@ -242,7 +276,10 @@ mod tests {
 			refusal_line(
 				&Step::AskingTheAuthorizationServer.refused(OauthError::Failed {
 					detail: "\"https://authority.test/token?code=held-code\" answered 400"
-						.to_owned()
+						.to_owned(),
+					step: None,
+					status: None,
+					body: None
 				}),
 				&Values::new()
 			),

@@ -152,7 +152,7 @@ fn renewal(
 	match answer {
 		Ok(Authorized { credentials: Some(grant), .. }) => Some(stored(root, scope, sent, &grant)),
 		Ok(Authorized {
-			error: Some(OauthFailure { kind: OauthFailureKind::Rejected, detail }),
+			error: Some(OauthFailure { kind: OauthFailureKind::Rejected, detail, .. }),
 			..
 		}) => refused(root, scope, sent, detail),
 		Ok(Authorized { error, .. }) => {
@@ -267,7 +267,13 @@ mod tests {
 	fn answering(kind: OauthFailureKind) -> Result<Authorized, TransportError> {
 		Ok(Authorized {
 			credentials: None,
-			error: Some(OauthFailure { kind, detail: Some("invalid_grant".to_owned()) }),
+			error: Some(OauthFailure {
+				kind,
+				detail: Some("invalid_grant".to_owned()),
+				step: None,
+				status: None,
+				body: None,
+			}),
 		})
 	}
 
@@ -492,6 +498,9 @@ mod tests {
 						"held-refresh was revoked, held-access and confidential are void"
 							.to_owned(),
 					),
+					step: None,
+					status: None,
+					body: None,
 				}),
 			})
 		})

@@ -4,13 +4,13 @@ import {
 	type OAuthClientProvider,
 	refreshAuthorization,
 } from "@modelcontextprotocol/sdk/client/auth.js"
-import { OAuthError } from "@modelcontextprotocol/sdk/server/auth/errors.js"
-import type {
-	AuthorizationServerMetadata,
-	OAuthClientInformation,
-	OAuthClientInformationFull,
-	OAuthClientMetadata,
-	OAuthTokens,
+import {
+	type AuthorizationServerMetadata,
+	type OAuthClientInformation,
+	type OAuthClientInformationFull,
+	type OAuthClientMetadata,
+	OAuthErrorResponseSchema,
+	type OAuthTokens,
 } from "@modelcontextprotocol/sdk/shared/auth.js"
 import type { FetchLike } from "@modelcontextprotocol/sdk/shared/transport.js"
 
@@ -34,6 +34,22 @@ export const OAUTH_STARTED = "oauth_started"
 
 const FLOW_TIMEOUT_MS = 300_000
 
+const FORM_CONTENT = "application/x-www-form-urlencoded"
+const JSON_CONTENT = "application/json"
+const BODY_LIMIT = 400
+
+const REFUSED_GRANT_CODES = new Set([
+	"invalid_grant",
+	"invalid_client",
+	"unauthorized_client",
+])
+
+const ENDPOINT_OF: Record<OauthStep, string> = {
+	discovery: "the discovery endpoint",
+	registration: "the registration endpoint",
+	tokenExchange: "the token endpoint",
+}
+
 export type OauthFailureKind =
 	| "busy"
 	| "cancelled"
@@ -42,9 +58,14 @@ export type OauthFailureKind =
 	| "rejected"
 	| "failed"
 
+export type OauthStep = "discovery" | "registration" | "tokenExchange"
+
 export type OauthFailure = {
 	kind: OauthFailureKind
 	detail?: string
+	step?: OauthStep
+	status?: number
+	body?: string
 }
 
 export type OauthCredentials = {
@@ -95,12 +116,24 @@ type Attempt = {
 	state: string
 	arrival: Promise<Redirect>
 	emit: Emit
+	fetchFn: FetchLike
 }
 
 type Held = {
 	client?: OAuthClientInformationFull
 	codeVerifier?: string
 	tokens?: OAuthTokens
+}
+
+type Refusal = {
+	step: OauthStep
+	status: number
+	body: string
+}
+
+type Watched = {
+	fetchFn: FetchLike
+	refusal: () => Refusal | undefined
 }
 
 let running: Settle | undefined
@@ -114,6 +147,71 @@ const fetchWithin =
 		fetch(input, { ...init, signal: deadline })
 
 const refused = () => new Response(REFUSED, { status: 400 })
+
+const stepOf = (init?: RequestInit): OauthStep => {
+	const posted = new Headers(init?.headers).get("content-type") ?? ""
+	if (posted.startsWith(FORM_CONTENT)) {
+		return "tokenExchange"
+	}
+	if (posted.startsWith(JSON_CONTENT)) {
+		return "registration"
+	}
+	return "discovery"
+}
+
+const watched = (fetchFn: FetchLike): Watched => {
+	let refusal: Refusal | undefined
+	return {
+		fetchFn: async (url, init) => {
+			const answered = await fetchFn(url, init)
+			refusal = answered.ok
+				? undefined
+				: {
+						step: stepOf(init),
+						status: answered.status,
+						body: await answered.clone().text(),
+					}
+			return answered
+		},
+		refusal: () => refusal,
+	}
+}
+
+const oauthErrorCode = (body: string): string | undefined => {
+	try {
+		return OAuthErrorResponseSchema.safeParse(JSON.parse(body)).data?.error
+	} catch {
+		return undefined
+	}
+}
+
+const onOneLine = (body: string) => body.split(/\s+/).filter(Boolean).join(" ")
+
+const refusedFailure = ({ step, status, body }: Refusal): OauthFailure => {
+	const answered = `${ENDPOINT_OF[step]} answered ${status}`
+	const errorCode = oauthErrorCode(body)
+	if (errorCode) {
+		return {
+			kind: REFUSED_GRANT_CODES.has(errorCode) ? "rejected" : "failed",
+			detail: `${answered}: ${errorCode}`,
+			step,
+			status,
+		}
+	}
+	const carried = onOneLine(body).slice(0, BODY_LIMIT)
+	return {
+		kind: "failed",
+		detail: answered,
+		step,
+		status,
+		...(carried ? { body: carried } : {}),
+	}
+}
+
+const flowFailure = (error: unknown, refusal?: Refusal): OauthFailure =>
+	refusal
+		? refusedFailure(refusal)
+		: { kind: "failed", detail: describeError(error) }
 
 const isLoopback = (host: string | null) =>
 	host !== null && LOOPBACK_HOSTS.has(host.replace(PORT_SUFFIX, ""))
@@ -206,10 +304,10 @@ const credentialsOf = (
 })
 
 const exchanged = async (attempt: Attempt): Promise<OauthAnswer> => {
-	const { serverUrl, arrival } = attempt
+	const { serverUrl, arrival, fetchFn } = attempt
 	const held: Held = {}
 	const provider = clientProvider(attempt, held)
-	const opened = await auth(provider, { serverUrl, fetchFn: timedFetch })
+	const opened = await auth(provider, { serverUrl, fetchFn })
 	if (opened !== "REDIRECT") {
 		return {
 			error: {
@@ -225,7 +323,7 @@ const exchanged = async (attempt: Attempt): Promise<OauthAnswer> => {
 	await auth(provider, {
 		serverUrl,
 		authorizationCode: redirect.code,
-		fetchFn: timedFetch,
+		fetchFn,
 	})
 	const { tokens, client } = held
 	if (!tokens || !client) {
@@ -267,6 +365,7 @@ export const authorizeMcpServer = async (
 		timeoutMs,
 	)
 	running = settle
+	const watch = watched(timedFetch)
 	try {
 		return await exchanged({
 			serverUrl: url,
@@ -274,9 +373,10 @@ export const authorizeMcpServer = async (
 			state,
 			arrival,
 			emit,
+			fetchFn: watch.fetchFn,
 		})
 	} catch (error) {
-		return { error: { kind: "failed", detail: describeError(error) } }
+		return { error: flowFailure(error, watch.refusal()) }
 	} finally {
 		clearTimeout(expiry)
 		running = undefined
@@ -340,25 +440,6 @@ const posted = async (
 	return { revoked: true }
 }
 
-const REFUSED_GRANT_CODES = new Set([
-	"invalid_grant",
-	"invalid_client",
-	"unauthorized_client",
-])
-
-const oauthDetail = (error: OAuthError) =>
-	[error.errorCode, error.message].filter(Boolean).join(": ")
-
-const refreshFailure = (error: unknown): OauthFailure => {
-	if (!(error instanceof OAuthError)) {
-		return { kind: "failed", detail: describeError(error) }
-	}
-	return {
-		kind: REFUSED_GRANT_CODES.has(error.errorCode) ? "rejected" : "failed",
-		detail: oauthDetail(error),
-	}
-}
-
 export const refreshMcpToken = async (
 	{ url, refreshToken, clientId, clientSecret }: RefreshRequest,
 	timeoutMs = REFRESH_TIMEOUT_MS,
@@ -371,7 +452,8 @@ export const refreshMcpToken = async (
 			},
 		}
 	}
-	const fetchFn = fetchWithin(AbortSignal.timeout(timeoutMs))
+	const watch = watched(fetchWithin(AbortSignal.timeout(timeoutMs)))
+	const fetchFn = watch.fetchFn
 	try {
 		const discovered = await discoverOAuthServerInfo(url, { fetchFn })
 		const client = { client_id: clientId, client_secret: clientSecret }
@@ -386,7 +468,7 @@ export const refreshMcpToken = async (
 		)
 		return { credentials: credentialsOf(tokens, client) }
 	} catch (error) {
-		return { error: refreshFailure(error) }
+		return { error: flowFailure(error, watch.refusal()) }
 	}
 }
 
