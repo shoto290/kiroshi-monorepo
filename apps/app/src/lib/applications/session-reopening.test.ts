@@ -118,7 +118,7 @@ describe("session reopener", () => {
 		expect(raiseTransientNotice).not.toHaveBeenCalled()
 	})
 
-	it("names the application once the reopening lands", async () => {
+	it("raises no notice once the reopening lands", async () => {
 		const reopenSessions = createSessionReopener({
 			chat: chatWith(["archivist"]),
 			rosters: () => ROSTERS,
@@ -126,13 +126,11 @@ describe("session reopener", () => {
 
 		await reopenSessions({ scope: { kind: "user" }, application: "Linear" })
 
-		expect(raiseTransientNotice).toHaveBeenCalledTimes(1)
-		expect(raiseTransientNotice.mock.calls[0]?.[0]).toMatchObject({
-			title: expect.stringContaining("Linear"),
-		})
+		expect(raiseTransientNotice).not.toHaveBeenCalled()
+		expect(raiseFailureNotice).not.toHaveBeenCalled()
 	})
 
-	it("reopens the others and says so without waiting for a running turn", async () => {
+	it("reopens the others without waiting for a running turn", async () => {
 		const held: (() => void)[] = []
 		const reopen = vi.fn(async (botId: string) => {
 			if (botId !== "archivist") return {}
@@ -147,11 +145,11 @@ describe("session reopener", () => {
 		await reopenSessions({ scope: { kind: "user" }, application: "Linear" })
 
 		expect(reopen.mock.calls.flat().sort()).toEqual(["archivist", "drafter"])
-		expect(raiseTransientNotice).toHaveBeenCalledTimes(1)
+		expect(raiseTransientNotice).not.toHaveBeenCalled()
 		expect(held).toHaveLength(1)
 	})
 
-	it("says the application is there even when every session is mid turn", async () => {
+	it("settles with no notice even when every session is mid turn", async () => {
 		const reopen = vi.fn(async () => new Promise<never>(() => undefined))
 		const reopenSessions = createSessionReopener({
 			chat: chatWith(["archivist"], reopen as never, ["archivist"]),
@@ -160,7 +158,8 @@ describe("session reopener", () => {
 
 		await reopenSessions({ scope: { kind: "user" }, application: "Linear" })
 
-		expect(raiseTransientNotice).toHaveBeenCalledTimes(1)
+		expect(reopen).toHaveBeenCalledExactlyOnceWith("archivist")
+		expect(raiseTransientNotice).not.toHaveBeenCalled()
 	})
 
 	it("names the companion of a refused reopening and reopens the others", async () => {
@@ -178,6 +177,6 @@ describe("session reopener", () => {
 		expect(raiseFailureNotice.mock.calls[0]?.[0]).toMatchObject({
 			title: expect.stringContaining("Archivist"),
 		})
-		expect(raiseTransientNotice).toHaveBeenCalledTimes(1)
+		expect(raiseTransientNotice).not.toHaveBeenCalled()
 	})
 })

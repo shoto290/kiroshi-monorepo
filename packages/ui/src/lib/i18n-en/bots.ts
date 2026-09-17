@@ -554,10 +554,6 @@ const bots = {
 		},
 		unavailable: "Couldn't load applications. Reopen settings to retry.",
 		reopen: {
-			landed: {
-				title: "{{name}} is ready",
-				description: "Your companions hold its tools from their next turn.",
-			},
 			refused: {
 				title: "Couldn’t reopen {{companion}}’s session",
 				description: "{{name}} reaches it the next time that session opens.",

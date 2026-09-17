@@ -1,7 +1,4 @@
-import {
-	raiseFailureNotice,
-	raiseTransientNotice,
-} from "@workspace/ui/components/notice-surface"
+import { raiseFailureNotice } from "@workspace/ui/components/notice-surface"
 import { i18n } from "@workspace/ui/lib/i18n"
 
 import type { ChatController } from "../chat/chat-controller"
@@ -65,7 +62,7 @@ export const createSessionReopener = ({
 	const reopenOne = async (companion: Bot, application: string) => {
 		const handle = await chat.reopen(companion.id)
 		if (handle) {
-			return true
+			return
 		}
 		raiseFailureNotice({
 			title: i18n.t("bots:applications.reopen.refused.title", {
@@ -75,16 +72,7 @@ export const createSessionReopener = ({
 				name: application,
 			}),
 		})
-		return false
 	}
-
-	const announceLanding = (application: string) =>
-		raiseTransientNotice({
-			title: i18n.t("bots:applications.reopen.landed.title", {
-				name: application,
-			}),
-			description: i18n.t("bots:applications.reopen.landed.description"),
-		})
 
 	const isMidTurn = (companion: Bot) =>
 		isTurnBusy(chat.stateFor(companion.id).turn)
@@ -93,17 +81,13 @@ export const createSessionReopener = ({
 		const live = companionsIn(rosters(), scope).filter(
 			(companion) => chat.stateFor(companion.id).sessionOpen,
 		)
-		const waiting = live.filter(isMidTurn)
-		for (const companion of waiting) {
+		for (const companion of live.filter(isMidTurn)) {
 			void reopenOne(companion, application)
 		}
-		const landings = await Promise.all(
+		await Promise.all(
 			live
 				.filter((companion) => !isMidTurn(companion))
 				.map((companion) => reopenOne(companion, application)),
 		)
-		if (landings.some(Boolean) || waiting.length > 0) {
-			announceLanding(application)
-		}
 	}
 }
