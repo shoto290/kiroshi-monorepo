@@ -9,7 +9,7 @@ use serde_json::{json, Map, Value};
 
 use super::contract::{Application, ApplicationsError, Install, InstallField};
 use super::runnable::{NPX, UVX};
-use super::search::{hosting, normalised, repository, Hosting, Listing, OFFICIAL_SOURCE};
+use super::search::{elsewhere, normalised, repository, Dropped, Listing, OFFICIAL_SOURCE};
 use crate::missions::github::installed_tls_provider;
 
 pub const REGISTRY: &str = "https://registry.modelcontextprotocol.io";
@@ -106,7 +106,7 @@ struct Input {
 }
 
 enum Transport<'a> {
-	Remote(&'a Remote),
+	Remote(&'a Remote, String),
 	Package(&'a Package),
 }
 
@@ -125,13 +125,14 @@ pub async fn search(base: &str, query: &str) -> Result<Vec<Listing>, Application
 	let listed: Listed = read(&client()?, list).await?;
 	let rows = distinct(listed.servers);
 	let answered = rows.len();
-	Ok(normalised(OFFICIAL_SOURCE, answered, rows.into_iter().filter_map(descriptor).collect()))
+	let read = rows.into_iter().map(descriptor).collect();
+	Ok(normalised(OFFICIAL_SOURCE, answered, read))
 }
 
 pub async fn detail(base: &str, name: &str) -> Result<Option<Application>, ApplicationsError> {
 	let url = detail_endpoint(&parsed(base)?, name)?;
 	match read::<Entry>(&client()?, url).await {
-		Ok(entry) => Ok(descriptor(entry.server).map(|listing| listing.application)),
+		Ok(entry) => Ok(descriptor(entry.server).ok().map(|listing| listing.application)),
 		Err(ApplicationsError::RegistryRefused { status }) if status == StatusCode::NOT_FOUND => {
 			Ok(None)
 		}
@@ -200,12 +201,12 @@ fn unreached(error: reqwest::Error) -> ApplicationsError {
 	ApplicationsError::RegistryUnreached { detail: error.to_string() }
 }
 
-fn descriptor(server: Server) -> Option<Listing> {
+fn descriptor(server: Server) -> Result<Listing, Dropped> {
 	let served = match transport(&server)? {
-		Transport::Remote(remote) => remote_served(remote)?,
+		Transport::Remote(remote, host) => remote_served(remote, host),
 		Transport::Package(package) => package_served(package),
 	};
-	Some(Listing {
+	Ok(Listing {
 		repository: server
 			.repository
 			.as_ref()
@@ -227,18 +228,15 @@ fn descriptor(server: Server) -> Option<Listing> {
 	})
 }
 
-fn remote_served(remote: &Remote) -> Option<Served> {
-	let Hosting::Elsewhere(host) = hosting(&Url::parse(&remote.url).ok()?)? else {
-		return None;
-	};
+fn remote_served(remote: &Remote, host: String) -> Served {
 	let hosted_by = Some(host);
 	let (headers, fields) = classified(&remote.headers);
 	if fields.is_empty() {
-		return Some(Served { config: remote_config(remote), install: Install::Oauth, hosted_by });
+		return Served { config: remote_config(remote), install: Install::Oauth, hosted_by };
 	}
 	let config = headed_config(remote, headers);
 	let install = Install::asking(fields).covering(&config);
-	Some(Served { config, install, hosted_by })
+	Served { config, install, hosted_by }
 }
 
 fn package_served(package: &Package) -> Served {
@@ -249,12 +247,28 @@ fn package_served(package: &Package) -> Served {
 	Served { config, install, hosted_by: None }
 }
 
-fn transport(server: &Server) -> Option<Transport<'_>> {
+fn transport(server: &Server) -> Result<Transport<'_>, Dropped> {
 	if let Some(package) = server.packages.iter().find(|package| runs_locally(package)) {
-		return Some(Transport::Package(package));
+		return Ok(Transport::Package(package));
 	}
-	let remote = |kind: &str| server.remotes.iter().find(|remote| remote.kind == kind);
-	remote(STREAMABLE_HTTP).or_else(|| remote(SSE)).map(Transport::Remote)
+	let mut dropped = Dropped::Unread;
+	for remote in ordered(server) {
+		let Ok(endpoint) = Url::parse(&remote.url) else {
+			return Err(Dropped::Unread);
+		};
+		match elsewhere(&endpoint) {
+			Ok(host) => return Ok(Transport::Remote(remote, host)),
+			Err(Dropped::HostedBySmithery) => dropped = Dropped::HostedBySmithery,
+			Err(Dropped::Unread) => return Err(Dropped::Unread),
+		}
+	}
+	Err(dropped)
+}
+
+fn ordered(server: &Server) -> impl Iterator<Item = &Remote> {
+	[STREAMABLE_HTTP, SSE]
+		.into_iter()
+		.flat_map(|kind| server.remotes.iter().filter(move |remote| remote.kind == kind))
 }
 
 fn runs_locally(package: &Package) -> bool {
@@ -974,6 +988,14 @@ pub(crate) mod tests {
 		assert_eq!(no_streamable.config, json!({ "type": "http", "url": "https://sse.test/mcp" }));
 	}
 
+	fn dropped(body: Value) -> Dropped {
+		let server: Server = serde_json::from_value(body).expect("the fixture is a server.json");
+		match descriptor(server) {
+			Err(held) => held,
+			Ok(listing) => panic!("{} answered a listing", listing.application.name),
+		}
+	}
+
 	#[test]
 	fn a_remote_hosted_by_smithery_answers_no_listing_whatever_its_subdomain() {
 		for url in [
@@ -982,14 +1004,40 @@ pub(crate) mod tests {
 			"https://slack.run.tools",
 			"https://run.tools/mcp",
 		] {
-			let server: Server = serde_json::from_value(json!({
+			let held = dropped(json!({
 				"name": "io.test/hosted",
 				"remotes": [{ "type": "streamable-http", "url": url }],
-			}))
-			.expect("the fixture is a server.json");
+			}));
 
-			assert!(descriptor(server).is_none(), "{url} answered a listing");
+			assert!(matches!(held, Dropped::HostedBySmithery), "{url} answered {held:?}");
 		}
+	}
+
+	#[test]
+	fn a_remote_hosted_elsewhere_is_read_though_the_one_before_it_is_hosted_by_smithery() {
+		let application = described(json!({
+			"name": "io.test/two-remotes",
+			"remotes": [
+				{ "type": "streamable-http", "url": "https://io-test.run.tools/mcp" },
+				{ "type": "sse", "url": "https://mcp.io.test/sse" },
+			],
+		}));
+
+		assert_eq!(application.config, json!({ "type": "http", "url": "https://mcp.io.test/sse" }));
+		assert_eq!(application.hosted_by.as_deref(), Some("io.test"));
+	}
+
+	#[test]
+	fn an_entry_whose_every_remote_is_hosted_by_smithery_answers_no_listing() {
+		let held = dropped(json!({
+			"name": "io.test/hosted",
+			"remotes": [
+				{ "type": "streamable-http", "url": "https://io-test.run.tools/mcp" },
+				{ "type": "sse", "url": "https://server.smithery.ai/io-test/sse" },
+			],
+		}));
+
+		assert!(matches!(held, Dropped::HostedBySmithery), "got {held:?}");
 	}
 
 	#[test]
@@ -1024,7 +1072,7 @@ pub(crate) mod tests {
 		}))
 		.expect("the fixture is a server.json");
 
-		assert!(descriptor(server).is_none());
+		assert!(matches!(descriptor(server), Err(Dropped::Unread)));
 	}
 
 	pub(crate) struct Held {

@@ -36,17 +36,20 @@ pub struct Listing {
 	pub repository: Option<String>,
 }
 
-pub(super) enum Hosting {
-	Smithery,
-	Elsewhere(String),
+#[derive(Debug)]
+pub(super) enum Dropped {
+	HostedBySmithery,
+	Unread,
 }
 
-pub(super) fn hosting(endpoint: &Url) -> Option<Hosting> {
-	let host = endpoint.host_str()?.to_lowercase();
+pub(super) fn elsewhere(endpoint: &Url) -> Result<String, Dropped> {
+	let Some(host) = endpoint.host_str().map(str::to_lowercase) else {
+		return Err(Dropped::Unread);
+	};
 	if SMITHERY_HOSTS.iter().any(|root| under(&host, root)) {
-		return Some(Hosting::Smithery);
+		return Err(Dropped::HostedBySmithery);
 	}
-	Some(Hosting::Elsewhere(last_labels(&host)))
+	Ok(last_labels(&host))
 }
 
 fn under(host: &str, root: &str) -> bool {
@@ -58,11 +61,24 @@ fn last_labels(host: &str) -> String {
 	labels[labels.len().saturating_sub(LABELS)..].join(".")
 }
 
-pub(super) fn normalised(source: &str, answered: usize, found: Vec<Listing>) -> Vec<Listing> {
-	if found.is_empty() && answered > 0 {
-		eprintln!("{source} answered {answered} rows and none of them described an application");
+pub(super) fn normalised(
+	source: &str,
+	answered: usize,
+	read: Vec<Result<Listing, Dropped>>,
+) -> Vec<Listing> {
+	let unread = read.iter().filter(|held| matches!(held, Err(Dropped::Unread))).count();
+	if let Some(line) = drift(source, answered, unread) {
+		eprintln!("{line}");
 	}
-	found
+	read.into_iter().flatten().collect()
+}
+
+fn drift(source: &str, answered: usize, unread: usize) -> Option<String> {
+	(unread > 0).then(|| {
+		format!(
+			"{source} answered {answered} rows and {unread} carried no transport this reader reads"
+		)
+	})
 }
 
 pub async fn search(
@@ -309,6 +325,36 @@ mod tests {
 				search(&Registries::default(), query).await.expect("the live search answers");
 			println!("{query:?} answered {:?}", names(answered.applications));
 		}
+	}
+
+	#[test]
+	fn a_read_whose_every_row_was_hosted_by_smithery_says_nothing() {
+		assert_eq!(drift(SMITHERY_SOURCE, 10, 0), None);
+	}
+
+	#[test]
+	fn a_read_carrying_a_row_no_transport_was_read_in_names_its_source_and_its_count() {
+		let line = drift(OFFICIAL_SOURCE, 10, 2).expect("the drift is named");
+
+		assert!(line.contains(OFFICIAL_SOURCE), "got {line}");
+		assert!(line.contains("10"), "got {line}");
+	}
+
+	#[test]
+	fn a_read_answers_its_listings_and_leaves_out_every_dropped_row() {
+		let read = vec![
+			Ok(listed("@owner/one", None)),
+			Err(Dropped::HostedBySmithery),
+			Err(Dropped::Unread),
+			Ok(listed("io.test/one", None)),
+		];
+
+		let kept = normalised(OFFICIAL_SOURCE, 4, read);
+
+		assert_eq!(
+			names(kept.into_iter().map(|listing| listing.application).collect()),
+			["@owner/one", "io.test/one"]
+		);
 	}
 
 	#[test]

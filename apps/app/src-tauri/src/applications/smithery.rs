@@ -7,7 +7,7 @@ use tokio::task::JoinHandle;
 
 use super::contract::{Application, ApplicationsError, Install, InstallField, InstallRefusal};
 use super::registry::{client, endpoint, parsed, read, reference, variable};
-use super::search::{hosting, normalised, repository, terms, Hosting, Listing, SMITHERY_SOURCE};
+use super::search::{elsewhere, normalised, repository, terms, Dropped, Listing, SMITHERY_SOURCE};
 
 pub const REGISTRY: &str = "https://registry.smithery.ai";
 
@@ -98,7 +98,6 @@ struct Tool {
 
 struct Served {
 	endpoint: Url,
-	host: String,
 	headers: Map<String, Value>,
 	install: Install,
 }
@@ -135,8 +134,8 @@ pub async fn detail(base: &str, name: &str) -> Result<Option<Application>, Appli
 	Ok(read_by_name(&detail))
 }
 
-async fn listings(client: &Client, base: &Url, kept: Vec<Row>) -> Vec<Listing> {
-	let running: Vec<JoinHandle<Option<Listing>>> = kept
+async fn listings(client: &Client, base: &Url, kept: Vec<Row>) -> Vec<Result<Listing, Dropped>> {
+	let running: Vec<JoinHandle<Result<Listing, Dropped>>> = kept
 		.into_iter()
 		.map(|row| {
 			let client = client.clone();
@@ -147,26 +146,28 @@ async fn listings(client: &Client, base: &Url, kept: Vec<Row>) -> Vec<Listing> {
 	let mut described = Vec::new();
 	for handle in running {
 		match handle.await {
-			Ok(Some(listing)) => described.push(listing),
-			Ok(None) => {}
-			Err(failure) => eprintln!("a Smithery detail was not awaited: {failure}"),
+			Ok(read) => described.push(read),
+			Err(failure) => {
+				eprintln!("a Smithery detail was not awaited: {failure}");
+				described.push(Err(Dropped::Unread));
+			}
 		}
 	}
 	described
 }
 
-async fn listed(client: &Client, base: &Url, row: Row) -> Option<Listing> {
+async fn listed(client: &Client, base: &Url, row: Row) -> Result<Listing, Dropped> {
 	let detail = match detailed(client, base, &row.qualified_name).await {
-		Ok(detail) => detail?,
+		Ok(detail) => detail.ok_or(Dropped::Unread)?,
 		Err(failure) => {
 			eprintln!("the Smithery detail of {} was not read: {failure:?}", row.qualified_name);
-			return None;
+			return Err(Dropped::Unread);
 		}
 	};
-	let served = served(&detail)?;
-	let hosted_by = hosted_by(&row, &served.host);
+	let served = served(&detail).ok_or(Dropped::Unread)?;
+	let hosted_by = hosted_by(&row, &elsewhere(&served.endpoint)?);
 	let (config, install) = declared(served);
-	Some(Listing {
+	Ok(Listing {
 		repository: row.homepage.as_deref().and_then(repository),
 		application: Application {
 			title: row.display_name.unwrap_or_else(|| row.qualified_name.clone()),
@@ -190,6 +191,9 @@ fn tool_names(detail: &Detail) -> Vec<String> {
 
 fn read_by_name(detail: &Detail) -> Option<Application> {
 	let served = served(detail)?;
+	if elsewhere(&served.endpoint).is_err() {
+		return None;
+	}
 	let (config, install) = declared(served);
 	Some(Application {
 		name: detail.qualified_name.clone(),
@@ -226,11 +230,8 @@ async fn detailed(
 fn served(detail: &Detail) -> Option<Served> {
 	let connection = detail.connections.iter().find(|held| held.kind == HTTP)?;
 	let endpoint = Url::parse(connection.deployment_url.as_deref()?).ok()?;
-	let Hosting::Elsewhere(host) = hosting(&endpoint)? else {
-		return None;
-	};
 	let schema = connection.config_schema.as_ref();
-	Some(Served { endpoint, host, headers: headers(schema), install: install(schema) })
+	Some(Served { endpoint, headers: headers(schema), install: install(schema) })
 }
 
 fn headers(schema: Option<&Schema>) -> Map<String, Value> {
@@ -295,8 +296,8 @@ fn hosted_by(row: &Row, host: &str) -> Option<String> {
 		.homepage
 		.as_deref()
 		.and_then(|held| Url::parse(held).ok())
-		.and_then(|held| hosting(&held));
-	if matches!(home, Some(Hosting::Elsewhere(ref home)) if home == host) {
+		.and_then(|held| elsewhere(&held).ok());
+	if home.as_deref() == Some(host) {
 		return None;
 	}
 	Some(host.to_owned())
