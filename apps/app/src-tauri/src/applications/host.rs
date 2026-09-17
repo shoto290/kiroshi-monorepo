@@ -1072,9 +1072,9 @@ mod tests {
 		for application in ["superset", "paper"] {
 			host.answer(an_install(application, "companion")).await.expect("the install answers");
 		}
-		let oauth =
+		let from_the_registry =
 			host.answer(an_install("com.notion/mcp", "user")).await.expect("the install answers");
-		assert_eq!(oauth["install"], json!({ "kind": "oauth" }));
+		assert_eq!(from_the_registry["install"], json!({ "kind": "oauth" }));
 		let reports = app.state::<ApplicationReports>();
 		reports.record("b1", "superset", Standing::Holding);
 		reports.record("b1", "paper", Standing::LeftOut { reason: Some("refused".to_owned()) });
