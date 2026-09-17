@@ -71,7 +71,6 @@ const meta = preview.meta({
 })
 
 export const Playground = meta.story({
-	args: { children: PANEL },
 	parameters: {
 		a11y: A11Y_FLOATING_FOCUS_GUARDS,
 		docs: {
@@ -105,7 +104,7 @@ export const Playground = meta.story({
 })
 
 export const Open = meta.story({
-	args: { children: PANEL, defaultOpen: true },
+	args: { defaultOpen: true },
 	parameters: {
 		docs: {
 			description: {
