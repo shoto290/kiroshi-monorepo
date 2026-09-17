@@ -15,6 +15,7 @@ import type {
 	ConversationEdit,
 	EnvEntry,
 	EnvScope,
+	McpServerMark,
 	MessagePin,
 	MessageReference,
 	NewAssistantMessage,
@@ -97,6 +98,7 @@ export type TranscriptStore = TranscriptPort & {
 		botId: string,
 		name: string,
 		config: Record<string, unknown>,
+		mark?: McpServerMark,
 	) => Promise<BotMcpServer>
 	deleteBotMcpServer: (botId: string, name: string) => Promise<void>
 	spaceMcpServers: (spaceId: string) => Promise<BotMcpServer[]>
@@ -104,6 +106,7 @@ export type TranscriptStore = TranscriptPort & {
 		spaceId: string,
 		name: string,
 		config: Record<string, unknown>,
+		mark?: McpServerMark,
 	) => Promise<BotMcpServer>
 	deleteSpaceMcpServer: (spaceId: string, name: string) => Promise<void>
 	environmentVariables: (scope: EnvScope) => Promise<EnvEntry[]>
@@ -146,6 +149,7 @@ export type TranscriptStore = TranscriptPort & {
 	setUserPluginMcpServer: (
 		name: string,
 		config: Record<string, unknown>,
+		mark?: McpServerMark,
 	) => Promise<BotMcpServer>
 	deleteUserPluginMcpServer: (name: string) => Promise<void>
 	userPluginHistory: () => Promise<BotHistoryEntry[]>

@@ -1,4 +1,8 @@
-import type { EnvOwner } from "../conversations/store-contract"
+import type {
+	BotMcpServer,
+	EnvOwner,
+	McpServerMark,
+} from "../conversations/store-contract"
 import type { TranscriptStore } from "../conversations/store-port"
 
 export const declaredServers = (store: TranscriptStore, owner: EnvOwner) => {
@@ -10,18 +14,30 @@ export const declaredServers = (store: TranscriptStore, owner: EnvOwner) => {
 		: store.botMcpServers(owner.id)
 }
 
+export const markOf = (
+	servers: BotMcpServer[],
+	name: string,
+): McpServerMark | undefined => {
+	const held = servers.find((server) => server.name === name)
+	if (!held?.title && !held?.logo && !held?.logoUrl) {
+		return undefined
+	}
+	return { title: held.title, logo: held.logo, logoUrl: held.logoUrl }
+}
+
 export const declareServer = (
 	store: TranscriptStore,
 	owner: EnvOwner,
 	name: string,
 	config: Record<string, unknown>,
+	mark?: McpServerMark,
 ) => {
 	if (owner.kind === "user") {
-		return store.setUserPluginMcpServer(name, config)
+		return store.setUserPluginMcpServer(name, config, mark)
 	}
 	return owner.kind === "space"
-		? store.setSpaceMcpServer(owner.id, name, config)
-		: store.setBotMcpServer(owner.id, name, config)
+		? store.setSpaceMcpServer(owner.id, name, config, mark)
+		: store.setBotMcpServer(owner.id, name, config, mark)
 }
 
 export const undeclareServer = (

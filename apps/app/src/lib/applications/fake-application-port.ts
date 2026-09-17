@@ -10,12 +10,14 @@ import type {
 export type ApplicationCommand =
 	| "catalogue"
 	| "search"
+	| "named"
 	| "runnable"
 	| "installs"
 
 export type ApplicationCall = {
 	command: ApplicationCommand
 	query?: string
+	name?: string
 	conversationId?: string
 	config?: Record<string, unknown>
 }
@@ -59,6 +61,14 @@ export const createFakeApplicationPort = (): FakeApplicationPort => {
 		search: async (query) => {
 			answer({ command: "search", query })
 			return { applications: fake.found, registryFailure: fake.foundFailure }
+		},
+
+		named: async (name) => {
+			answer({ command: "named", name })
+			return (
+				[...fake.curated, ...fake.found].find((held) => held.name === name) ??
+				null
+			)
 		},
 
 		runnable: async (config) => {

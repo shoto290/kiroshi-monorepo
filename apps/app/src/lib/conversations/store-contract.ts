@@ -128,7 +128,13 @@ export type BotSkillDraft = Partial<BotSkillFront> & {
 	body: string
 }
 
-export type BotMcpServer = {
+export type McpServerMark = {
+	title?: string
+	logo?: string
+	logoUrl?: string
+}
+
+export type BotMcpServer = McpServerMark & {
 	name: string
 	config: Record<string, unknown>
 }

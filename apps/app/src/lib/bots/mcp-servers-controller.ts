@@ -1,6 +1,7 @@
 import {
 	declaredServers,
 	declareServer,
+	markOf,
 	undeclareServer,
 } from "./mcp-server-writes"
 
@@ -102,9 +103,16 @@ export const createMcpServersController = (
 		config: Record<string, unknown>,
 	) =>
 		onOpenOwner(async (owner) => {
-			const server = await declareServer(store, owner, name, config)
-			if (openedName && openedName !== name) {
-				await undeclareServer(store, owner, openedName)
+			const renamedFrom = openedName && openedName !== name ? openedName : null
+			const server = await declareServer(
+				store,
+				owner,
+				name,
+				config,
+				renamedFrom ? markOf(state.servers, renamedFrom) : undefined,
+			)
+			if (renamedFrom) {
+				await undeclareServer(store, owner, renamedFrom)
 			}
 			applyTo(owner, {
 				servers: written(

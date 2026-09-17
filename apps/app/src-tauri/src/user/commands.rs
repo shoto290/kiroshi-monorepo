@@ -5,7 +5,7 @@ use tauri::{AppHandle, Runtime, State};
 
 use super::contract::{UserPreferences, UserPreferencesError};
 use crate::avatars;
-use crate::bundles;
+use crate::bundles::{self, ApplicationMark};
 use crate::conversations::commands::{bundled, recounted};
 use crate::conversations::contract::{
 	BotChangedFile, BotHistoryEntry, McpServer, Skill, SkillDraft, TranscriptStoreError,
@@ -169,9 +169,11 @@ pub async fn user_plugin_set_mcp_server<R: Runtime>(
 	app: AppHandle<R>,
 	name: String,
 	config: serde_json::Value,
+	mark: Option<ApplicationMark>,
 ) -> Result<McpServer, TranscriptStoreError> {
 	let path = plugin_path(&app)?;
-	bundled(bundles::user::set_mcp_server(&path, &name, &config)).map(McpServer::from)
+	bundled(bundles::user::set_mcp_server(&path, &name, &config, mark.as_ref()))
+		.map(McpServer::from)
 }
 
 #[tauri::command]
@@ -278,7 +280,7 @@ mod tests {
 		laid_down_for(&app);
 
 		let written =
-			user_plugin_set_mcp_server(app.handle().clone(), "clock".to_owned(), a_clock())
+			user_plugin_set_mcp_server(app.handle().clone(), "clock".to_owned(), a_clock(), None)
 				.await
 				.expect("the server lands");
 		let listed = user_plugin_mcp_servers(app.handle().clone()).await.expect("the list reads");
@@ -292,7 +294,7 @@ mod tests {
 	async fn a_configuration_that_is_not_an_object_is_refused_and_the_file_stands() {
 		let app = a_host("not-an-object");
 		let path = laid_down_for(&app);
-		user_plugin_set_mcp_server(app.handle().clone(), "clock".to_owned(), a_clock())
+		user_plugin_set_mcp_server(app.handle().clone(), "clock".to_owned(), a_clock(), None)
 			.await
 			.expect("the server lands");
 		let held = fs::read_to_string(path.join(".mcp.json")).expect("the file reads");
@@ -301,6 +303,7 @@ mod tests {
 			app.handle().clone(),
 			"broken".to_owned(),
 			serde_json::json!(["clock"]),
+			None,
 		)
 		.await;
 
@@ -314,7 +317,7 @@ mod tests {
 		let app = a_host("delete");
 		laid_down_for(&app);
 		let root = env_root(&app);
-		user_plugin_set_mcp_server(app.handle().clone(), "clock".to_owned(), a_clock())
+		user_plugin_set_mcp_server(app.handle().clone(), "clock".to_owned(), a_clock(), None)
 			.await
 			.expect("the server lands");
 		environment::store::set(&root, &the_person_server("clock"), "REGION", "eu")

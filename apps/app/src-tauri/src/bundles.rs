@@ -57,6 +57,9 @@ const MCP_NAME: &str = ".mcp.json";
 const SERVERS_KEY: &str = "mcpServers";
 const MCP_SOURCE: &str = "./.mcp.json";
 
+const MARKS_NAME: &str = ".applications.json";
+const MARKS_KEY: &str = "applications";
+
 const MARKETPLACE: &str = "kiroshi-bots";
 const OWNER: &str = "Kiroshi";
 
@@ -1036,6 +1039,18 @@ fn deleted_skill(bundle: &Path, skill_id: &str) -> std::io::Result<String> {
 pub struct McpServer {
 	pub name: String,
 	pub config: serde_json::Value,
+	pub mark: ApplicationMark,
+}
+
+#[derive(Debug, Clone, Default, PartialEq, Eq, Serialize, Deserialize)]
+#[serde(rename_all = "camelCase", default)]
+pub struct ApplicationMark {
+	#[serde(skip_serializing_if = "Option::is_none")]
+	pub title: Option<String>,
+	#[serde(skip_serializing_if = "Option::is_none")]
+	pub logo: Option<String>,
+	#[serde(skip_serializing_if = "Option::is_none")]
+	pub logo_url: Option<String>,
 }
 
 const AUTHORIZATION_HEADER: &str = "authorization";
@@ -1075,10 +1090,26 @@ pub fn mcp_servers(root: &Path, bot_id: &str) -> Vec<McpServer> {
 }
 
 pub fn mcp_servers_at(bundle: &Path) -> Vec<McpServer> {
-	declared(&bundle.join(MCP_NAME))
+	let marks = marks_at(bundle);
+	declared(&bundle.join(MCP_NAME), SERVERS_KEY)
 		.into_iter()
-		.map(|(name, config)| McpServer { name, config })
+		.map(|(name, config)| McpServer { mark: mark_under(&marks, &name), name, config })
 		.collect()
+}
+
+fn marks_at(bundle: &Path) -> Keyed {
+	declared(&bundle.join(MARKS_NAME), MARKS_KEY)
+}
+
+fn mark_under(marks: &Keyed, name: &str) -> ApplicationMark {
+	match marks.get(name).cloned().map(serde_json::from_value) {
+		Some(Ok(mark)) => mark,
+		Some(Err(error)) => {
+			eprintln!("the mark kept under {name} was not read: {error}");
+			ApplicationMark::default()
+		}
+		None => ApplicationMark::default(),
+	}
 }
 
 pub fn set_mcp_server(
@@ -1086,10 +1117,11 @@ pub fn set_mcp_server(
 	bot: &Bot,
 	name: &str,
 	config: &serde_json::Value,
+	mark: Option<&ApplicationMark>,
 ) -> std::io::Result<McpServer> {
 	let bundle = dir(root, &bot.id);
 	let _serialised = serialised(&bundle);
-	let server = set_mcp_server_at(&bundle, name, config)?;
+	let server = set_mcp_server_at(&bundle, name, config, mark)?;
 	rewrite_manifest(root, bot)?;
 	recorded(&bundle, SERVER_SUBJECT, name, "saved from settings").map_err(unrecorded)?;
 	Ok(server)
@@ -1099,6 +1131,7 @@ pub fn set_mcp_server_at(
 	bundle: &Path,
 	name: &str,
 	config: &serde_json::Value,
+	mark: Option<&ApplicationMark>,
 ) -> std::io::Result<McpServer> {
 	if !config.is_object() {
 		return Err(std::io::Error::new(
@@ -1107,10 +1140,26 @@ pub fn set_mcp_server_at(
 		));
 	}
 	let path = bundle.join(MCP_NAME);
-	let mut servers = declared(&path);
+	let mut servers = declared(&path, SERVERS_KEY);
 	servers.insert(name.to_owned(), config.clone());
-	write_servers(&path, servers)?;
-	Ok(McpServer { name: name.to_owned(), config: config.clone() })
+	write_declared(&path, SERVERS_KEY, servers)?;
+	let kept = match mark {
+		Some(given) => written_mark(bundle, name, given)?,
+		None => mark_under(&marks_at(bundle), name),
+	};
+	Ok(McpServer { name: name.to_owned(), config: config.clone(), mark: kept })
+}
+
+fn written_mark(
+	bundle: &Path,
+	name: &str,
+	mark: &ApplicationMark,
+) -> std::io::Result<ApplicationMark> {
+	let path = bundle.join(MARKS_NAME);
+	let mut marks = declared(&path, MARKS_KEY);
+	marks.insert(name.to_owned(), serde_json::to_value(mark)?);
+	write_declared(&path, MARKS_KEY, marks)?;
+	Ok(mark.clone())
 }
 
 pub fn remove_mcp_server(root: &Path, bot: &Bot, name: &str) -> std::io::Result<()> {
@@ -1125,20 +1174,29 @@ pub fn remove_mcp_server(root: &Path, bot: &Bot, name: &str) -> std::io::Result<
 
 pub fn remove_mcp_server_at(bundle: &Path, name: &str) -> std::io::Result<()> {
 	let path = bundle.join(MCP_NAME);
-	let mut servers = declared(&path);
+	let mut servers = declared(&path, SERVERS_KEY);
 	if servers.remove(name).is_none() {
 		return Err(std::io::Error::new(std::io::ErrorKind::NotFound, "no such server"));
 	}
-	write_servers(&path, servers)
+	write_declared(&path, SERVERS_KEY, servers)?;
+	remove_mark(bundle, name)
 }
 
-fn write_servers(
-	path: &Path,
-	servers: serde_json::Map<String, serde_json::Value>,
-) -> std::io::Result<()> {
+fn remove_mark(bundle: &Path, name: &str) -> std::io::Result<()> {
+	let path = bundle.join(MARKS_NAME);
+	let mut marks = declared(&path, MARKS_KEY);
+	if marks.remove(name).is_none() {
+		return Ok(());
+	}
+	write_declared(&path, MARKS_KEY, marks)
+}
+
+type Keyed = serde_json::Map<String, serde_json::Value>;
+
+fn write_declared(path: &Path, key: &str, entries: Keyed) -> std::io::Result<()> {
 	let mut kept = object_at(path);
-	if servers.is_empty() {
-		kept.remove(SERVERS_KEY);
+	if entries.is_empty() {
+		kept.remove(key);
 		if kept.is_empty() {
 			return match fs::remove_file(path) {
 				Err(error) if error.kind() != std::io::ErrorKind::NotFound => Err(error),
@@ -1146,19 +1204,19 @@ fn write_servers(
 			};
 		}
 	} else {
-		kept.insert(SERVERS_KEY.to_owned(), serde_json::Value::Object(servers));
+		kept.insert(key.to_owned(), serde_json::Value::Object(entries));
 	}
 	private_files::replace(path, serde_json::Value::Object(kept).to_string().as_bytes())
 }
 
-fn declared(path: &Path) -> serde_json::Map<String, serde_json::Value> {
-	match object_at(path).remove(SERVERS_KEY) {
-		Some(serde_json::Value::Object(servers)) => servers,
+fn declared(path: &Path, key: &str) -> Keyed {
+	match object_at(path).remove(key) {
+		Some(serde_json::Value::Object(entries)) => entries,
 		_ => serde_json::Map::new(),
 	}
 }
 
-fn object_at(path: &Path) -> serde_json::Map<String, serde_json::Value> {
+fn object_at(path: &Path) -> Keyed {
 	fs::read_to_string(path)
 		.ok()
 		.and_then(|text| serde_json::from_str(&text).ok())
@@ -1949,7 +2007,7 @@ mod tests {
 	use crate::db::repositories::conversations::{AvatarAnimal, Bot};
 
 	fn declared(config: serde_json::Value) -> McpServer {
-		McpServer { name: "granola".to_owned(), config }
+		McpServer { name: "granola".to_owned(), config, mark: ApplicationMark::default() }
 	}
 
 	#[test]
@@ -3912,6 +3970,99 @@ mod tests {
 		let _ = fs::remove_dir_all(&root);
 	}
 
+	fn a_slack_mark() -> ApplicationMark {
+		ApplicationMark {
+			title: Some("Slack".to_owned()),
+			logo: Some("<svg />".to_owned()),
+			logo_url: Some("https://slack.test/logo.png".to_owned()),
+		}
+	}
+
+	fn a_clock_config() -> serde_json::Value {
+		serde_json::json!({ "command": "clock" })
+	}
+
+	fn marks_file(root: &Path, bot_id: &str) -> PathBuf {
+		dir(root, bot_id).join(MARKS_NAME)
+	}
+
+	#[test]
+	fn a_server_declared_with_a_mark_is_listed_back_carrying_it() {
+		let root = a_root("marked");
+		let bot = a_bot("Bean", "Answer briefly.");
+		write(&root, &bot).expect("the bundle is written");
+
+		set_mcp_server(&root, &bot, "slack", &a_clock_config(), Some(&a_slack_mark()))
+			.expect("the server is written");
+
+		assert_eq!(mcp_servers(&root, &bot.id)[0].mark, a_slack_mark());
+		assert!(marks_file(&root, &bot.id).is_file(), "the mark file is beside the declaration");
+	}
+
+	#[test]
+	fn a_server_declared_with_no_mark_leaves_the_one_already_written_standing() {
+		let root = a_root("marked-again");
+		let bot = a_bot("Bean", "Answer briefly.");
+		write(&root, &bot).expect("the bundle is written");
+		set_mcp_server(&root, &bot, "slack", &a_clock_config(), Some(&a_slack_mark()))
+			.expect("the server is written");
+
+		let written = set_mcp_server(&root, &bot, "slack", &a_clock_config(), None)
+			.expect("the server is written again");
+
+		assert_eq!(written.mark, a_slack_mark());
+		assert_eq!(mcp_servers(&root, &bot.id)[0].mark, a_slack_mark());
+	}
+
+	#[test]
+	fn a_server_no_mark_was_ever_written_for_is_listed_back_with_none_of_the_three() {
+		let root = a_root("unmarked");
+		let bot = a_bot("Bean", "Answer briefly.");
+		write(&root, &bot).expect("the bundle is written");
+
+		set_mcp_server(&root, &bot, "clock", &a_clock_config(), None)
+			.expect("the server is written");
+
+		assert_eq!(mcp_servers(&root, &bot.id)[0].mark, ApplicationMark::default());
+		assert!(!marks_file(&root, &bot.id).exists(), "a mark file was written");
+	}
+
+	#[test]
+	fn a_mark_file_that_is_not_json_leaves_the_declared_servers_standing_with_no_mark() {
+		let root = a_root("mark-unreadable");
+		let bot = a_bot("Bean", "Answer briefly.");
+		write(&root, &bot).expect("the bundle is written");
+		set_mcp_server(&root, &bot, "slack", &a_clock_config(), Some(&a_slack_mark()))
+			.expect("the server is written");
+		private_files::replace(&marks_file(&root, &bot.id), b"not json at all")
+			.expect("the mark file is overwritten");
+
+		let listed = mcp_servers(&root, &bot.id);
+
+		assert_eq!(listed.len(), 1);
+		assert_eq!(listed[0].mark, ApplicationMark::default());
+	}
+
+	#[test]
+	fn the_last_server_removed_takes_the_mark_file_with_it() {
+		let root = a_root("mark-removed");
+		let bot = a_bot("Bean", "Answer briefly.");
+		write(&root, &bot).expect("the bundle is written");
+		set_mcp_server(&root, &bot, "slack", &a_clock_config(), Some(&a_slack_mark()))
+			.expect("the server is written");
+		set_mcp_server(&root, &bot, "clock", &a_clock_config(), Some(&a_slack_mark()))
+			.expect("the server is written");
+
+		remove_mcp_server(&root, &bot, "slack").expect("the server is removed");
+
+		assert!(marks_file(&root, &bot.id).is_file(), "the file went with the first entry");
+		assert_eq!(mcp_servers(&root, &bot.id)[0].mark, a_slack_mark());
+
+		remove_mcp_server(&root, &bot, "clock").expect("the server is removed");
+
+		assert!(!marks_file(&root, &bot.id).exists(), "the mark file stayed");
+	}
+
 	#[test]
 	fn every_write_is_one_sentence_naming_what_it_changed() {
 		let root = a_root("git-every");
@@ -3924,7 +4075,7 @@ mod tests {
 			.expect("the skill is updated");
 		set_skill_preloaded(&root, &bot, &skill.id, true).expect("the skill is marked");
 		set_skill_preloaded(&root, &bot, &skill.id, false).expect("the skill is unmarked");
-		set_mcp_server(&root, &bot, "clock", &serde_json::json!({ "command": "clock" }))
+		set_mcp_server(&root, &bot, "clock", &serde_json::json!({ "command": "clock" }), None)
 			.expect("the server is written");
 		remove_mcp_server(&root, &bot, "clock").expect("the server is removed");
 		remove_skill(&root, &bot, &skill.id).expect("the skill is removed");
@@ -4315,7 +4466,7 @@ mod tests {
 	#[test]
 	fn the_servers_saved_at_once_each_reach_the_history() {
 		commits_at_once("at-once-server", nothing_prepared, |root, bot, label| {
-			set_mcp_server(root, bot, label, &serde_json::json!({ "command": label }))
+			set_mcp_server(root, bot, label, &serde_json::json!({ "command": label }), None)
 				.expect("the server is saved");
 		});
 		commits_at_once("at-once-server-gone", a_server_is_saved, |root, bot, label| {
@@ -4324,7 +4475,7 @@ mod tests {
 	}
 
 	fn a_server_is_saved(root: &Path, bot: &Bot, label: &str) {
-		set_mcp_server(root, bot, label, &serde_json::json!({ "command": label }))
+		set_mcp_server(root, bot, label, &serde_json::json!({ "command": label }), None)
 			.expect("the server is saved");
 	}
 

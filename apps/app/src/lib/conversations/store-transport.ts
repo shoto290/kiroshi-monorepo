@@ -18,6 +18,7 @@ import type {
 	ConversationEdit,
 	EnvEntry,
 	EnvScope,
+	McpServerMark,
 	MessagePin,
 	MessageReference,
 	NewAssistantMessage,
@@ -206,11 +207,13 @@ export const conversationStore: TranscriptStore = {
 		botId: string,
 		name: string,
 		config: Record<string, unknown>,
+		mark?: McpServerMark,
 	) =>
 		invoke<BotMcpServer>("conversation_set_bot_mcp_server", {
 			botId,
 			name,
 			config,
+			mark,
 		}),
 
 	deleteBotMcpServer: (botId: string, name: string) =>
@@ -223,11 +226,13 @@ export const conversationStore: TranscriptStore = {
 		spaceId: string,
 		name: string,
 		config: Record<string, unknown>,
+		mark?: McpServerMark,
 	) =>
 		invoke<BotMcpServer>("conversation_set_space_mcp_server", {
 			spaceId,
 			name,
 			config,
+			mark,
 		}),
 
 	deleteSpaceMcpServer: (spaceId: string, name: string) =>
@@ -291,8 +296,12 @@ export const conversationStore: TranscriptStore = {
 
 	userPluginMcpServers: () => invoke<BotMcpServer[]>("user_plugin_mcp_servers"),
 
-	setUserPluginMcpServer: (name: string, config: Record<string, unknown>) =>
-		invoke<BotMcpServer>("user_plugin_set_mcp_server", { name, config }),
+	setUserPluginMcpServer: (
+		name: string,
+		config: Record<string, unknown>,
+		mark?: McpServerMark,
+	) =>
+		invoke<BotMcpServer>("user_plugin_set_mcp_server", { name, config, mark }),
 
 	deleteUserPluginMcpServer: (name: string) =>
 		invoke<void>("user_plugin_delete_mcp_server", { name }),

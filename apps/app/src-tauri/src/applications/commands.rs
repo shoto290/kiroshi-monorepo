@@ -6,7 +6,7 @@ use super::contract::{
 	InstallRefusal,
 };
 use super::runnable::{refusal, Runners};
-use super::search::{search, Registries};
+use super::search::{named, search, Registries};
 use crate::conversations::commands::ready;
 use crate::db;
 
@@ -18,6 +18,11 @@ pub async fn application_catalogue() -> Result<Vec<Application>, ApplicationsErr
 #[tauri::command]
 pub async fn application_search(query: String) -> Result<ApplicationSearch, ApplicationsError> {
 	search(&Registries::default(), &query).await
+}
+
+#[tauri::command]
+pub async fn application_named(name: String) -> Result<Option<Application>, ApplicationsError> {
+	named(&Registries::default(), &name).await
 }
 
 #[tauri::command]
