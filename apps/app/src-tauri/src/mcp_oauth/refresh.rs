@@ -75,8 +75,7 @@ where
 fn awaiting(renewals: Renewals) -> BTreeSet<String> {
 	renewals
 		.into_iter()
-		.filter(|(_, renewal)| matches!(renewal, Renewal::Awaiting { .. }))
-		.map(|(name, _)| name)
+		.filter_map(|(name, renewal)| matches!(renewal, Renewal::Awaiting { .. }).then_some(name))
 		.collect()
 }
 

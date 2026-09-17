@@ -226,12 +226,10 @@ where
 }
 
 fn forget_renewed(reports: &ApplicationReports, renewals: &Renewals) {
-	for name in renewals
-		.iter()
-		.filter(|(_, renewal)| matches!(renewal, Renewal::Renewed))
-		.map(|(name, _)| name)
-	{
-		reports.forget(name);
+	for (name, renewal) in renewals {
+		if matches!(renewal, Renewal::Renewed) {
+			reports.forget(name);
+		}
 	}
 }
 
