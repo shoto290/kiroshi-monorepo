@@ -52,6 +52,16 @@ const HOSTED: Application = {
 	install: { kind: "oauth" },
 }
 
+const LINEAR_SERVER: BotMcpServer = {
+	name: "linear",
+	config: { type: "http", url: "https://mcp.linear.app/mcp" },
+}
+
+const ATLAS_SERVER: BotMcpServer = {
+	name: "atlas",
+	config: { type: "http", url: "https://mcp.atlas.test/mcp" },
+}
+
 const applicationsWith = (state: Partial<ApplicationsState>) => ({
 	state: { ...initialApplicationsState, ...state },
 	controller: {
@@ -107,6 +117,53 @@ const scopeOf = (
 	servers,
 	reopen,
 })
+
+const connectionsLanding = (connected: string[]): Connections => {
+	const state = {
+		owner: USER,
+		rows: connected.map((name) => ({ name, status: "connected" as const })),
+		connecting: null,
+		failure: null,
+	}
+	return {
+		state,
+		controller: {
+			connect: vi.fn(async () => undefined),
+			disconnect: vi.fn(async () => undefined),
+			cancel: vi.fn(async () => undefined),
+			getState: () => state,
+		},
+	} as unknown as Connections
+}
+
+type SettlingScopeSource = {
+	owner?: EnvOwner | null
+	connected: string[]
+	openedName?: string | null
+}
+
+const settlingScopeOf = ({
+	owner = USER,
+	connected,
+	openedName = null,
+}: SettlingScopeSource) => {
+	const reopen = vi.fn(async () => undefined)
+	return {
+		scope: toApplicationScope({
+			applications: applicationsWith({ curated: [LINEAR] }),
+			servers: serversWith(owner, [LINEAR_SERVER, ATLAS_SERVER]),
+			connections: connectionsLanding(connected),
+			openedName,
+			reopen,
+		}),
+		reopen,
+	}
+}
+
+const settled = async () => {
+	await Promise.resolve()
+	await Promise.resolve()
+}
 
 describe("withApplicationMarks", () => {
 	it("names a declared server after the curated application it carries", () => {
@@ -387,6 +444,69 @@ describe("toApplicationScope", () => {
 		scope.onMcpServerCreate("linear", {})
 		await Promise.resolve()
 		await Promise.resolve()
+
+		expect(reopen).not.toHaveBeenCalled()
+	})
+
+	it("reopens the sessions of the panel owner once a panel row connects", async () => {
+		const { scope, reopen } = settlingScopeOf({ connected: ["linear"] })
+
+		scope.onServerConnect({ name: "linear", config: {} })
+		await settled()
+
+		expect(reopen).toHaveBeenCalledWith({
+			scope: { kind: "user" },
+			application: "Linear",
+		})
+	})
+
+	it("reopens the sessions of the panel owner once the opened page connects", async () => {
+		const { scope, reopen } = settlingScopeOf({
+			connected: ["linear"],
+			openedName: "linear",
+		})
+
+		scope.serverConnection?.onConnect?.()
+		await settled()
+
+		expect(reopen).toHaveBeenCalledWith({
+			scope: { kind: "user" },
+			application: "Linear",
+		})
+	})
+
+	it("names the settled application, not the opened one", async () => {
+		const { scope, reopen } = settlingScopeOf({
+			connected: ["atlas"],
+			openedName: "linear",
+		})
+
+		scope.onServerConnect({ name: "atlas", config: {} })
+		await settled()
+
+		expect(reopen).toHaveBeenCalledWith({
+			scope: { kind: "user" },
+			application: "atlas",
+		})
+	})
+
+	it("leaves the sessions alone when the connect never lands", async () => {
+		const { scope, reopen } = settlingScopeOf({ connected: [] })
+
+		scope.onServerConnect({ name: "linear", config: {} })
+		await settled()
+
+		expect(reopen).not.toHaveBeenCalled()
+	})
+
+	it("leaves the sessions alone while the panel holds no owner", async () => {
+		const { scope, reopen } = settlingScopeOf({
+			owner: null,
+			connected: ["linear"],
+		})
+
+		scope.onServerConnect({ name: "linear", config: {} })
+		await settled()
 
 		expect(reopen).not.toHaveBeenCalled()
 	})

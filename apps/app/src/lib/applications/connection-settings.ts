@@ -22,7 +22,7 @@ type ConnectionSettingsSource = {
 	servers: BotMcpServer[]
 	connections: Connections
 	openedName: string | null
-	onSettled?: () => void
+	onSettled?: (name: string) => void
 }
 
 const urlOf = (server: BotMcpServer) =>
@@ -59,11 +59,11 @@ const isLanded = (
 }
 
 const settling =
-	(connections: Connections, onSettled?: () => void) =>
+	(connections: Connections, onSettled?: (name: string) => void) =>
 	(name: string, landing: ConnectionLanding, run: Promise<void>) => {
 		void run.then(() => {
 			if (isLanded(connections, name, landing)) {
-				onSettled?.()
+				onSettled?.(name)
 			}
 		})
 	}
