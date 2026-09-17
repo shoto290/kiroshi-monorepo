@@ -4,8 +4,10 @@ import { expect, fn, waitFor } from "storybook/test"
 import preview from "@workspace/storybook/preview"
 import { AppHeader } from "@workspace/ui/components/app-header"
 import { ChatEmptyState } from "@workspace/ui/components/chat-empty-state"
-import { ConnectionStatus } from "@workspace/ui/components/connection-status"
+import type { ConnectionStatusState } from "@workspace/ui/components/connection-status"
+import { HeaderIdentityButton } from "@workspace/ui/components/header-identity-button"
 import { Notice } from "@workspace/ui/components/notice"
+import { PinnedMessages } from "@workspace/ui/components/pinned-messages"
 import { PromptInput } from "@workspace/ui/components/prompt-input"
 import type { RosterBot } from "@workspace/ui/components/roster"
 import {
@@ -41,9 +43,24 @@ const LONG_TRANSCRIPT = [
 	"What resets when a session restarts?",
 ]
 
-const READY_HEADER = (
-	<AppHeader trailing={<ConnectionStatus state="ready" version="2.1.233" />} />
+const threadHeader = (connection: ConnectionStatusState) => (
+	<AppHeader
+		leading={
+			<HeaderIdentityButton
+				connection={connection}
+				name="Skippy"
+				onOpenSettings={fn()}
+				seed={BOT.id}
+				version="2.1.233"
+			/>
+		}
+		trailing={<PinnedMessages messages={[]} onJump={fn()} onUnpin={fn()} />}
+	/>
 )
+
+const THREAD_HEADER = threadHeader("ready")
+
+const CRASHED_HEADER = threadHeader("crashed")
 
 const CONVERSATION = (
 	<>
@@ -201,7 +218,7 @@ const meta = preview.meta({
 		},
 	},
 	args: {
-		header: READY_HEADER,
+		header: THREAD_HEADER,
 		composer: <PromptInput onSubmit={fn()} />,
 	},
 })
@@ -212,7 +229,7 @@ export const Default = meta.story({
 		docs: {
 			description: {
 				story:
-					"Reach for this for a live conversation short enough not to scroll. Check that the two turns rest against the bottom of the transcript, one small gap above the composer, with the free space above the first turn rather than below the last one. Pick `Empty` for the first launch.",
+					"Reach for this for a live conversation short enough not to scroll. Check that the two turns rest against the bottom of the transcript, one small gap above the composer, with the free space above the first turn rather than below the last one. Pick `Empty` for the first launch. The app assembles it at `apps/app/src/components/thread-screen.tsx:1368`.",
 			},
 		},
 	},
@@ -227,6 +244,7 @@ export const Default = meta.story({
 })
 
 export const StreamingIntoShortTranscript = meta.story({
+	tags: ["test-only"],
 	args: { children: null },
 	render: (args) => <StreamingAnswer {...args} />,
 	parameters: {
@@ -261,7 +279,7 @@ export const Empty = meta.story({
 		docs: {
 			description: {
 				story:
-					"Reach for this on first launch, when the transcript holds nothing but the empty state. This is the story that proves the stretch: `m-auto` only centres because the transcript fills the height, so check that the empty state sits in the middle of the free space rather than pinned under the header. Pick `Default` once a first turn exists.",
+					"Reach for this on first launch, when the transcript holds nothing but the empty state. This is the story that proves the stretch: `m-auto` only centres because the transcript fills the height, so check that the empty state sits in the middle of the free space rather than pinned under the header. Pick `Default` once a first turn exists. The app assembles it at `apps/app/src/components/thread-screen.tsx:1368`.",
 			},
 		},
 	},
@@ -284,7 +302,7 @@ export const LongContent = meta.story({
 		docs: {
 			description: {
 				story:
-					"Reach for this once the transcript is taller than the viewport. Check that only the transcript scrolls — the header and the composer must stay put — and that the rows wrap inside the full-width transcript however wide the window gets, without pushing the layout sideways. At the live edge the last row keeps one small gap above the composer, never a band of empty space. Pick `Default` for a transcript that fits.",
+					"Reach for this once the transcript is taller than the viewport. Check that only the transcript scrolls — the header and the composer must stay put — and that the rows wrap inside the full-width transcript however wide the window gets, without pushing the layout sideways. At the live edge the last row keeps one small gap above the composer, never a band of empty space. Pick `Default` for a transcript that fits. The app assembles it at `apps/app/src/components/thread-screen.tsx:1368`.",
 			},
 		},
 	},
@@ -312,7 +330,7 @@ export const OlderMessages = meta.story({
 		docs: {
 			description: {
 				story:
-					"Reach for this when the host pages the transcript by cursor. The layout owns nothing here — `older` is handed straight to MessageScroller, so the control sits above the first row inside the scrolling transcript and scrolls with it, never between the header and the transcript. Check that the header and the composer are untouched by it, and pick `Default` for a host that loads the whole conversation at once.",
+					"Reach for this when the host pages the transcript by cursor. The layout owns nothing here — `older` is handed straight to MessageScroller, so the control sits above the first row inside the scrolling transcript and scrolls with it, never between the header and the transcript. Check that the header and the composer are untouched by it, and pick `Default` for a host that loads the whole conversation at once. The app assembles it at `apps/app/src/components/thread-screen.tsx:1368`.",
 			},
 		},
 	},
@@ -333,7 +351,7 @@ export const LoadingOlderMessages = meta.story({
 		docs: {
 			description: {
 				story:
-					"Reach for this while a page request is in flight through the layout. Check that the loading half of the contract survives the hop: the control announces itself busy, refuses a second request, and keeps its name and its focus — a keyboard reader who fired it must not be dropped back to the top of the transcript. Pick `OlderMessages` for the idle control.",
+					"Reach for this while a page request is in flight through the layout. Check that the loading half of the contract survives the hop: the control announces itself busy, refuses a second request, and keeps its name and its focus — a keyboard reader who fired it must not be dropped back to the top of the transcript. Pick `OlderMessages` for the idle control. The app assembles it at `apps/app/src/components/thread-screen.tsx:1368`.",
 			},
 		},
 	},
@@ -358,7 +376,7 @@ export const StartOfOlderMessages = meta.story({
 		docs: {
 			description: {
 				story:
-					"Reach for this once the last page has landed. Check that the control is replaced by the start-of-history copy rather than disappearing — the reader needs to know the history above them is finished, not still loading. Pick `OlderMessages` while pages remain.",
+					"Reach for this once the last page has landed. Check that the control is replaced by the start-of-history copy rather than disappearing — the reader needs to know the history above them is finished, not still loading. Pick `OlderMessages` while pages remain. The app assembles it at `apps/app/src/components/thread-screen.tsx:1368`.",
 			},
 		},
 	},
@@ -371,7 +389,7 @@ export const StartOfOlderMessages = meta.story({
 
 export const Error = meta.story({
 	args: {
-		header: <AppHeader trailing={<ConnectionStatus state="crashed" />} />,
+		header: CRASHED_HEADER,
 		notice: (
 			<Notice
 				title="The agent stopped"
@@ -391,7 +409,7 @@ export const Error = meta.story({
 		docs: {
 			description: {
 				story:
-					"Reach for this when the CLI died mid-session. Check that the notice takes its own row directly above the composer without covering the transcript — the failed turn must stay readable, because losing the history is what the notice slot exists to avoid. Pick `Default` once the session has been restarted.",
+					"Reach for this when the CLI died mid-session. Check that the notice takes its own row directly above the composer without covering the transcript — the failed turn must stay readable, because losing the history is what the notice slot exists to avoid. Pick `Default` once the session has been restarted. The app assembles it at `apps/app/src/components/thread-screen.tsx:1368`.",
 			},
 		},
 	},
@@ -424,7 +442,7 @@ export const Pending = meta.story({
 		docs: {
 			description: {
 				story:
-					"Reach for this while the agent waits on an answer. The pending card takes its own row between the notice and the composer, so it is docked to the question it answers instead of scrolling away with the transcript. Check that scrolling the rows above leaves the card on screen, that it sits one notice gap above the composer, and that it holds focus as soon as it appears. Pick `Default` once the answer has been sent.",
+					"Reach for this while the agent waits on an answer. The pending card takes its own row between the notice and the composer, so it is docked to the question it answers instead of scrolling away with the transcript. Check that scrolling the rows above leaves the card on screen, that it sits one notice gap above the composer, and that it holds focus as soon as it appears. Pick `Default` once the answer has been sent. The app assembles it at `apps/app/src/components/thread-screen.tsx:1368`.",
 			},
 		},
 	},
@@ -440,6 +458,7 @@ export const Pending = meta.story({
 })
 
 export const ForwardedRegion = meta.story({
+	tags: ["test-only"],
 	parameters: {
 		docs: {
 			description: {

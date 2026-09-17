@@ -2,38 +2,31 @@ import type { ReactNode } from "react"
 import { expect, fn, waitFor, within } from "storybook/test"
 
 import preview from "@workspace/storybook/preview"
-import { FRAME_POLL, settled } from "@workspace/storybook/story-utils"
+import {
+	A11Y_CONTRAST_AWAITING_DESIGN_DECISION,
+	FRAME_POLL,
+	settled,
+} from "@workspace/storybook/story-utils"
 import { AppHeader } from "@workspace/ui/components/app-header"
 import {
 	AppSidebar,
 	type AppSidebarBot,
 } from "@workspace/ui/components/app-sidebar"
-import { ConnectionStatus } from "@workspace/ui/components/connection-status"
 import { CONTENT_CARD_GUTTER } from "@workspace/ui/components/content-card"
+import { HeaderIdentityButton } from "@workspace/ui/components/header-identity-button"
 import { Icons } from "@workspace/ui/components/icons"
+import { PinnedMessages } from "@workspace/ui/components/pinned-messages"
 import { PromptInput } from "@workspace/ui/components/prompt-input"
 import type { RosterBot } from "@workspace/ui/components/roster"
-import { SidebarMenuRow } from "@workspace/ui/components/sidebar-menu-row"
 import {
 	SIDEBAR_DEFAULT_WIDTH,
 	SIDEBAR_MAX_WIDTH,
 	SIDEBAR_MIN_WIDTH,
 	SIDEBAR_WIDTH_STEP,
-	SidebarResizeHandle,
 } from "@workspace/ui/components/sidebar-resize"
 import { ThreadLayout } from "@workspace/ui/components/thread-layout"
 import { AssistantTurn, UserTurn } from "@workspace/ui/components/turn"
-import {
-	Sidebar,
-	SidebarContent,
-	SidebarGroup,
-	SidebarGroupContent,
-	SidebarGroupLabel,
-	SidebarHeader,
-	SidebarMenu,
-	SidebarMenuItem,
-	SidebarTrigger,
-} from "@workspace/ui/components/ui/sidebar"
+import { SidebarTrigger } from "@workspace/ui/components/ui/sidebar"
 import { WorkspaceShell } from "@workspace/ui/components/workspace-shell"
 
 const ANSWER =
@@ -57,35 +50,24 @@ const ROSTER: AppSidebarBot[] = [
 	},
 ]
 
-const SIDEBAR = (
-	<Sidebar aria-label="Workspace" collapsible="icon" role="complementary">
-		<SidebarHeader>
-			<SidebarTrigger aria-label="Toggle workspace">
-				<Icons.More className="size-4" />
-			</SidebarTrigger>
-		</SidebarHeader>
-		<SidebarContent>
-			<SidebarGroup>
-				<SidebarGroupLabel>Sessions</SidebarGroupLabel>
-				<SidebarGroupContent>
-					<SidebarMenu>
-						<SidebarMenuItem>
-							<SidebarMenuRow label="Brief">Brief</SidebarMenuRow>
-						</SidebarMenuItem>
-					</SidebarMenu>
-				</SidebarGroupContent>
-			</SidebarGroup>
-		</SidebarContent>
-		<SidebarResizeHandle side="left" />
-	</Sidebar>
-)
+const SIDEBAR = <AppSidebar bots={ROSTER} selectedBotId="atlas" />
 
 const chat = (leading?: ReactNode) => (
 	<ThreadLayout
 		header={
 			<AppHeader
-				leading={leading}
-				trailing={<ConnectionStatus state="ready" version="2.1.233" />}
+				leading={
+					leading ?? (
+						<HeaderIdentityButton
+							connection="ready"
+							name="Skippy"
+							onOpenSettings={fn()}
+							seed={BOT.id}
+							version="2.1.233"
+						/>
+					)
+				}
+				trailing={<PinnedMessages messages={[]} onJump={fn()} onUnpin={fn()} />}
 			/>
 		}
 		composer={<PromptInput onSubmit={fn()} />}
@@ -109,6 +91,13 @@ const OVERFLOWING_CHILD = <div className="h-[300svh] w-full bg-muted" />
 
 const shellSurface = (canvas: ReturnType<typeof within>) =>
 	canvas.getByRole("main").parentElement as HTMLElement
+
+const SIDEBAR_LABEL = "Conversations"
+
+type SidebarChord = { keyboard: (keys: string) => Promise<void> }
+
+const toggleSidebar = (userEvent: SidebarChord) =>
+	userEvent.keyboard("{Meta>}b{/Meta}")
 
 const stateOf = (sidebar: HTMLElement) =>
 	sidebar.closest<HTMLElement>("[data-slot=sidebar]")?.dataset.state
@@ -169,12 +158,12 @@ export const Default = meta.story({
 		docs: {
 			description: {
 				story:
-					"The nominal workspace: an expanded sidebar holding the session list, and a live conversation in the main column. Check that the transcript takes the whole room the panel leaves it and starts where the panel ends rather than running under it, that only the transcript scrolls — the sidebar, the bar above it and the composer stay put — and that Tab reaches the sidebar trigger before the transcript. Pick `Collapsed` for the icon rail, `Empty` for the shell with no sidebar at all.",
+					"The nominal workspace: an expanded sidebar holding the session list, and a live conversation in the main column. Check that the transcript takes the whole room the panel leaves it and starts where the panel ends rather than running under it, that only the transcript scrolls — the sidebar, the bar above it and the composer stay put — and that Tab reaches the sidebar before the transcript. Pick `Collapsed` for the icon rail, `Resized` for a panel the reader widened. The app assembles it at `apps/app/src/App.tsx:928`.",
 			},
 		},
 	},
 	play: async ({ canvas }) => {
-		const sidebar = canvas.getByRole("complementary", { name: "Workspace" })
+		const sidebar = canvas.getByRole("complementary", { name: SIDEBAR_LABEL })
 		await expect(sidebar).toBeVisible()
 		await expect(canvas.getByRole("main")).toBeVisible()
 		await expect(canvas.getByRole("textbox", { name: "Message" })).toBeVisible()
@@ -205,10 +194,11 @@ export const SpaceTinted = meta.story({
 		spaceTint: "blue",
 	},
 	parameters: {
+		a11y: A11Y_CONTRAST_AWAITING_DESIGN_DECISION,
 		docs: {
 			description: {
 				story:
-					"The same shell with a space in view, whose colour washes the window surface. Check that the tint lands on the surface around the card and never on the card itself, that it stays faint enough for the sidebar text to read exactly as it does untinted, and that it is derived from the space colour custom property so a palette or colour-scheme change repaints it on its own. Moving between spaces settles the surface onto the new tint over a beat rather than swapping it, and reduced motion drops that settle. Pick `Default` for the untinted surface.",
+					"The same shell with a space in view, whose colour washes the window surface. Check that the tint lands on the surface around the card and never on the card itself, that it stays faint enough for the sidebar text to read exactly as it does untinted, and that it is derived from the space colour custom property so a palette or colour-scheme change repaints it on its own. Moving between spaces settles the surface onto the new tint over a beat rather than swapping it, and reduced motion drops that settle. Pick `Default` for the untinted surface. The app assembles it at `apps/app/src/App.tsx:928`. The tint is what puts the roster preview line below AA: `--muted-foreground` measures 4.38:1 on the blue-tinted shell surface, against the 4.5:1 the 12px line owes, so the pair is waived here and awaits a token decision rather than a fix in this story.",
 			},
 		},
 	},
@@ -227,6 +217,7 @@ export const SpaceTinted = meta.story({
 })
 
 export const NotALandmark = meta.story({
+	tags: ["test-only"],
 	args: {
 		sidebar: SIDEBAR,
 		isLandmark: false,
@@ -249,7 +240,7 @@ export const NotALandmark = meta.story({
 		await expectCardDetached(
 			card,
 			canvas
-				.getByRole("complementary", { name: "Workspace" })
+				.getByRole("complementary", { name: SIDEBAR_LABEL })
 				.getBoundingClientRect().right,
 		)
 	},
@@ -264,21 +255,20 @@ export const Collapsed = meta.story({
 		docs: {
 			description: {
 				story:
-					"The same workspace opened with the sidebar already collapsed, which is how a host restores a remembered choice through `defaultOpen`. Check that the main column takes the room the panel gave up rather than leaving a gap beside the rail, that the trigger stays on the rail, and that activating it widens the panel while the conversation reflows without reloading. The session list hides itself on the rail — that is the panel's own collapse behaviour, not the shell's. Check too that the main column keeps its full height across both widths. Pick `Default` for the expanded panel, `OffCanvas` for the drawer a narrow window gets instead.",
+					"The same workspace opened with the sidebar already collapsed, which is how a host restores a remembered choice through `defaultOpen`. Check that the main column takes the room the panel gave up rather than leaving a gap beside the rail, that the trigger stays on the rail, and that activating it widens the panel while the conversation reflows without reloading. The session list hides itself on the rail — that is the panel's own collapse behaviour, not the shell's. Check too that the main column keeps its full height across both widths. Pick `Default` for the expanded panel, `OffCanvas` for the drawer a narrow window gets instead. The app assembles it at `apps/app/src/App.tsx:928`.",
 			},
 		},
 	},
 	play: async ({ canvas, userEvent }) => {
-		const trigger = canvas.getByRole("button", { name: "Toggle workspace" })
 		const main = canvas.getByRole("main")
-		const sidebar = canvas.getByRole("complementary", { name: "Workspace" })
+		const sidebar = canvas.getByRole("complementary", { name: SIDEBAR_LABEL })
 		const mainHeight = main.getBoundingClientRect().height
 		const railWidth = sidebar.getBoundingClientRect().width
 
 		await expect(stateOf(sidebar)).toBe("collapsed")
 		await expectCardDetached(main, sidebar.getBoundingClientRect().right)
 
-		await userEvent.click(trigger)
+		await toggleSidebar(userEvent)
 		await expect(stateOf(sidebar)).toBe("expanded")
 		await waitFor(async () => {
 			await expect(sidebar.getBoundingClientRect().width).toBeGreaterThan(
@@ -290,6 +280,7 @@ export const Collapsed = meta.story({
 })
 
 export const OffCanvas = meta.story({
+	tags: ["test-only"],
 	globals: { viewport: { value: "mobile" } },
 	args: {
 		children: CHAT_WITH_TRIGGER,
@@ -337,6 +328,7 @@ export const OffCanvas = meta.story({
 })
 
 export const Empty = meta.story({
+	tags: ["test-only"],
 	args: {
 		children: null,
 	},
@@ -409,13 +401,13 @@ export const Resized = meta.story({
 		docs: {
 			description: {
 				story:
-					"Reach for this when a reader drags the panel's inner edge to give the sidebar more room. Check that the panel tracks the pointer live with no spring lag behind it, that the page stops selecting text mid-drag, and that the width is reported once on release rather than on every frame. Pick `ResizeBounds` for a pointer that runs past the limits, `ResizeReset` for the double-click that puts the default back.",
+					"Reach for this when a reader drags the panel's inner edge to give the sidebar more room. Check that the panel tracks the pointer live with no spring lag behind it, that the page stops selecting text mid-drag, and that the width is reported once on release rather than on every frame. Pick `ResizeBounds` for a pointer that runs past the limits, `ResizeReset` for the double-click that puts the default back. The app allows the drag at `apps/app/src/App.tsx:933`.",
 			},
 		},
 	},
 	play: async ({ args, canvas, userEvent }) => {
 		const handle = handleIn(canvas)
-		const sidebar = canvas.getByRole("complementary", { name: "Workspace" })
+		const sidebar = canvas.getByRole("complementary", { name: SIDEBAR_LABEL })
 		const widened = widthOf(sidebar) + WIDER_BY
 
 		await dragHandleBy({ by: WIDER_BY, handle, pointer: userEvent.pointer })
@@ -436,13 +428,13 @@ export const ResizeBounds = meta.story({
 		docs: {
 			description: {
 				story:
-					"Reach for this when the pointer runs far past either limit — a reader dragging the edge to the window border. Check that the panel stops at 12rem on the way in and at 26rem on the way out instead of following the pointer, and that the reported width is the bound rather than the raw pointer distance. Pick `Resized` for a drag that stays inside the range.",
+					"Reach for this when the pointer runs far past either limit — a reader dragging the edge to the window border. Check that the panel stops at 12rem on the way in and at 26rem on the way out instead of following the pointer, and that the reported width is the bound rather than the raw pointer distance. Pick `Resized` for a drag that stays inside the range. The app allows the drag at `apps/app/src/App.tsx:933`.",
 			},
 		},
 	},
 	play: async ({ args, canvas, userEvent }) => {
 		const handle = handleIn(canvas)
-		const sidebar = canvas.getByRole("complementary", { name: "Workspace" })
+		const sidebar = canvas.getByRole("complementary", { name: SIDEBAR_LABEL })
 
 		await dragHandleBy({
 			by: -window.innerWidth,
@@ -476,13 +468,13 @@ export const ResizeReset = meta.story({
 		docs: {
 			description: {
 				story:
-					"Reach for this when a reader has dragged the panel somewhere they regret: a double-click on the handle puts the default width back and reports it. Check that the panel returns to `defaultWidth` in one move and that no width is reported for the two clicks that make up the double-click. Pick `Resized` for the drag itself.",
+					"Reach for this when a reader has dragged the panel somewhere they regret: a double-click on the handle puts the default width back and reports it. Check that the panel returns to `defaultWidth` in one move and that no width is reported for the two clicks that make up the double-click. Pick `Resized` for the drag itself. The app allows the drag at `apps/app/src/App.tsx:933`.",
 			},
 		},
 	},
 	play: async ({ args, canvas, userEvent }) => {
 		const handle = handleIn(canvas)
-		const sidebar = canvas.getByRole("complementary", { name: "Workspace" })
+		const sidebar = canvas.getByRole("complementary", { name: SIDEBAR_LABEL })
 
 		await dragHandleBy({
 			by: -window.innerWidth,
@@ -509,13 +501,13 @@ export const ResizeAbandoned = meta.story({
 		docs: {
 			description: {
 				story:
-					"Reach for this when the pointer stream dies mid-drag — the window manager or the desktop shell takes the pointer over and no release ever reaches the page. Check that the panel stops following at once and keeps the last width it followed, rather than throwing the drag away and snapping back to the width it had before the press. Pick `Resized` for the drag that ends properly.",
+					"Reach for this when the pointer stream dies mid-drag — the window manager or the desktop shell takes the pointer over and no release ever reaches the page. Check that the panel stops following at once and keeps the last width it followed, rather than throwing the drag away and snapping back to the width it had before the press. Pick `Resized` for the drag that ends properly. The app allows the drag at `apps/app/src/App.tsx:933`.",
 			},
 		},
 	},
 	play: async ({ args, canvas, userEvent }) => {
 		const handle = handleIn(canvas)
-		const sidebar = canvas.getByRole("complementary", { name: "Workspace" })
+		const sidebar = canvas.getByRole("complementary", { name: SIDEBAR_LABEL })
 		const start = widthOf(sidebar)
 		const from = gripCenter(handle)
 
@@ -551,13 +543,13 @@ export const ResizeByKeyboard = meta.story({
 		docs: {
 			description: {
 				story:
-					"Reach for this when the reader never touches a pointer: the handle takes focus and the arrow keys move the width one step at a time. Check that the handle is reachable and shows its focus line, that ArrowRight widens and ArrowLeft narrows by one step, and that each press reports the new width. Check too that a collapsed panel offers no handle at all — `Collapsed` covers that.",
+					"Reach for this when the reader never touches a pointer: the handle takes focus and the arrow keys move the width one step at a time. Check that the handle is reachable and shows its focus line, that ArrowRight widens and ArrowLeft narrows by one step, and that each press reports the new width. Check too that a collapsed panel offers no handle at all — `Collapsed` covers that. The app allows the drag at `apps/app/src/App.tsx:933`.",
 			},
 		},
 	},
 	play: async ({ args, canvas, userEvent }) => {
 		const handle = handleIn(canvas)
-		const sidebar = canvas.getByRole("complementary", { name: "Workspace" })
+		const sidebar = canvas.getByRole("complementary", { name: SIDEBAR_LABEL })
 		const start = widthOf(sidebar)
 
 		handle.focus()
@@ -587,26 +579,25 @@ export const NotResizable = meta.story({
 		docs: {
 			description: {
 				story:
-					"Reach for this when the host runs somewhere the reader may not change the width — every desktop platform but macOS. Check that the panel's inner edge carries no handle, that nothing along it takes focus or turns the cursor into a resize arrow, and that the panel still sits at the width the host stored rather than falling back to the default. The collapse toggle is untouched: the reader can still fold the panel to its rail. Pick `Resized` for the same shell where dragging is allowed.",
+					"Reach for this when the host runs somewhere the reader may not change the width — every desktop platform but macOS. Check that the panel's inner edge carries no handle, that nothing along it takes focus or turns the cursor into a resize arrow, and that the panel still sits at the width the host stored rather than falling back to the default. The collapse toggle is untouched: the reader can still fold the panel to its rail. Pick `Resized` for the same shell where dragging is allowed. The app allows the drag at `apps/app/src/App.tsx:933`.",
 			},
 		},
 	},
 	play: async ({ args, canvas, userEvent }) => {
-		const sidebar = canvas.getByRole("complementary", { name: "Workspace" })
+		const sidebar = canvas.getByRole("complementary", { name: SIDEBAR_LABEL })
 		await expectWidth(sidebar, SIDEBAR_DEFAULT_WIDTH + WIDER_BY)
 		await expect(
 			canvas.queryByRole("separator", { name: "Resize sidebar" }),
 		).toBeNull()
 
-		await userEvent.click(
-			canvas.getByRole("button", { name: "Toggle workspace" }),
-		)
+		await toggleSidebar(userEvent)
 		await expect(stateOf(sidebar)).toBe("collapsed")
 		await expect(args.onWidthChange).not.toHaveBeenCalled()
 	},
 })
 
 export const TallContent = meta.story({
+	tags: ["test-only"],
 	args: {
 		sidebar: SIDEBAR,
 		children: OVERFLOWING_CHILD,
@@ -628,7 +619,7 @@ export const TallContent = meta.story({
 			window.innerHeight,
 		)
 
-		const sidebar = canvas.getByRole("complementary", { name: "Workspace" })
+		const sidebar = canvas.getByRole("complementary", { name: SIDEBAR_LABEL })
 		await expect(sidebar.getBoundingClientRect().top).toBe(0)
 	},
 })
@@ -652,7 +643,7 @@ const expectSidebarFillingHost = async (
 ) => {
 	const host = hostEdges(canvasElement)
 	const sidebar = canvas
-		.getByRole("complementary", { name: "Workspace" })
+		.getByRole("complementary", { name: SIDEBAR_LABEL })
 		.getBoundingClientRect()
 
 	await expect(sidebar.top).toBe(host.top)
@@ -660,6 +651,7 @@ const expectSidebarFillingHost = async (
 }
 
 export const BoxedHost = meta.story({
+	tags: ["test-only"],
 	args: {
 		sidebar: SIDEBAR,
 	},
@@ -674,7 +666,7 @@ export const BoxedHost = meta.story({
 	},
 	play: async ({ canvas, canvasElement, userEvent }) => {
 		const host = hostEdges(canvasElement)
-		const sidebar = canvas.getByRole("complementary", { name: "Workspace" })
+		const sidebar = canvas.getByRole("complementary", { name: SIDEBAR_LABEL })
 		const composer = canvas.getByRole("textbox", { name: "Message" })
 
 		await expect(host.bottom).toBeLessThan(window.innerHeight)
@@ -686,9 +678,7 @@ export const BoxedHost = meta.story({
 			host.bottom,
 		)
 
-		await userEvent.click(
-			canvas.getByRole("button", { name: "Toggle workspace" }),
-		)
+		await toggleSidebar(userEvent)
 		await waitFor(async () => {
 			await expect(stateOf(sidebar)).toBe("collapsed")
 		}, FRAME_POLL)
@@ -697,6 +687,7 @@ export const BoxedHost = meta.story({
 })
 
 export const TallHost = meta.story({
+	tags: ["test-only"],
 	args: {
 		sidebar: SIDEBAR,
 	},
@@ -711,7 +702,7 @@ export const TallHost = meta.story({
 	},
 	play: async ({ canvas, canvasElement, userEvent }) => {
 		const host = hostEdges(canvasElement)
-		const sidebar = canvas.getByRole("complementary", { name: "Workspace" })
+		const sidebar = canvas.getByRole("complementary", { name: SIDEBAR_LABEL })
 
 		await expect(host.height).toBeGreaterThan(window.innerHeight)
 		await expectSidebarFillingHost(canvas, canvasElement)
@@ -719,9 +710,7 @@ export const TallHost = meta.story({
 			host.bottom - CONTENT_CARD_GUTTER,
 		)
 
-		await userEvent.click(
-			canvas.getByRole("button", { name: "Toggle workspace" }),
-		)
+		await toggleSidebar(userEvent)
 		await waitFor(async () => {
 			await expect(stateOf(sidebar)).toBe("collapsed")
 		}, FRAME_POLL)

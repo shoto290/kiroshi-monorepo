@@ -162,7 +162,7 @@ export const Default = meta.story({
 		docs: {
 			description: {
 				story:
-					"The nominal case: actions on one object, the destructive one separated and toned apart at the bottom. Check the menu opens at the cursor rather than at the card's corner, that its corner is the one every other surface carries — the scale collapses `xl` and `2xl` onto `lg`, so the registry's own `rounded-xl` lands there without the file being touched — that the shortcut hint is decorative text and not a second control, and that Escape closes it. Pick `WithCheckboxAndRadioItems` for the stateful item kinds.",
+					"The nominal case: actions on one object, the destructive one separated and toned apart at the bottom. Check the menu opens at the cursor rather than at the card's corner, that its corner is the one every other surface carries — the scale collapses `xl` and `2xl` onto `lg`, so the registry's own `rounded-xl` lands there without the file being touched — that the shortcut hint is decorative text and not a second control, and that Escape closes it. Pick `WithCheckboxAndRadioItems` for the stateful item kinds. The app reaches the registry menu through `AppSidebar` and `SpaceSwitcher` at `apps/app/src/App.tsx:935`.",
 			},
 		},
 	},
@@ -184,6 +184,7 @@ export const Default = meta.story({
 })
 
 export const Closed = meta.story({
+	tags: ["test-only"],
 	parameters: {
 		docs: {
 			description: {
@@ -200,6 +201,7 @@ export const Closed = meta.story({
 })
 
 export const WithCheckboxAndRadioItems = meta.story({
+	tags: ["test-only"],
 	parameters: {
 		a11y: mergeA11y(A11Y_FLOATING_FOCUS_GUARDS, A11Y_SUBMENU_PORTAL_GUARD),
 		docs: {
@@ -229,6 +231,7 @@ export const WithCheckboxAndRadioItems = meta.story({
 })
 
 export const WithSubmenu = meta.story({
+	tags: ["test-only"],
 	parameters: {
 		a11y: mergeA11y(A11Y_FLOATING_FOCUS_GUARDS, A11Y_SUBMENU_PORTAL_GUARD),
 		docs: {
@@ -255,6 +258,7 @@ export const WithSubmenu = meta.story({
 })
 
 export const States = meta.story({
+	tags: ["test-only"],
 	parameters: {
 		a11y: mergeA11y(A11Y_FLOATING_FOCUS_GUARDS, A11Y_SUBMENU_PORTAL_GUARD),
 		docs: {
@@ -281,6 +285,7 @@ export const States = meta.story({
 })
 
 export const LongContent = meta.story({
+	tags: ["test-only"],
 	parameters: {
 		a11y: mergeA11y(A11Y_FLOATING_FOCUS_GUARDS, A11Y_SUBMENU_PORTAL_GUARD),
 		docs: {
@@ -322,6 +327,7 @@ export const LongContent = meta.story({
 })
 
 export const AsMenuButton = meta.story({
+	tags: ["test-only"],
 	parameters: {
 		a11y: mergeA11y(A11Y_FLOATING_FOCUS_GUARDS, A11Y_SUBMENU_PORTAL_GUARD),
 		docs: {

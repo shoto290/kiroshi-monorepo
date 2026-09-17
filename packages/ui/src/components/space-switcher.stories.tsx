@@ -208,7 +208,7 @@ export const Default = meta.story({
 		docs: {
 			description: {
 				story:
-					"Five spaces with the second one open, on the header line it was sized for. Check the button reads as the space's name and nothing else — no dot beside it, since the header already says where the reader is and the tint would only compete with the name — that the name sits flush with the line's leading inset while the trailing icon slot keeps its own, and that the button is one Tab stop announcing the open space rather than the word `button`. Pick `Collapsed` for the rail, where the tint comes back as the only mark, `Open` for the menu it opens, `SingleSpace` for a reader who has never made a second one.",
+					"Five spaces with the second one open, on the header line it was sized for. Check the button reads as the space's name and nothing else — no dot beside it, since the header already says where the reader is and the tint would only compete with the name — that the name sits flush with the line's leading inset while the trailing icon slot keeps its own, and that the button is one Tab stop announcing the open space rather than the word `button`. Pick `Collapsed` for the rail, where the tint comes back as the only mark, `Open` for the menu it opens, `SingleSpace` for a reader who has never made a second one. The app assembles it at `apps/app/src/App.tsx:935`.",
 			},
 		},
 	},
@@ -230,7 +230,7 @@ export const Collapsed = meta.story({
 		docs: {
 			description: {
 				story:
-					"The same button once the sidebar is on its icon rail, where the name cannot fit. Check the name is gone and the open space's tint is drawn in its place as the only mark left, that the button still announces the open space so a screen reader loses nothing, and that it still opens the same menu. Pick `Default` for the open panel, where the name carries it alone.",
+					"The same button once the sidebar is on its icon rail, where the name cannot fit. Check the name is gone and the open space's tint is drawn in its place as the only mark left, that the button still announces the open space so a screen reader loses nothing, and that it still opens the same menu. Pick `Default` for the open panel, where the name carries it alone. The app assembles it at `apps/app/src/App.tsx:935`.",
 			},
 		},
 	},
@@ -252,7 +252,7 @@ export const Open = meta.story({
 		docs: {
 			description: {
 				story:
-					"The menu the press opens, which is the only place a space is chosen, created, or configured. Check the spaces are a single-choice group — one mark, on the open one, and arrows walk the whole list — that each row carries its tint and its rank as `⌘1`…`⌘9`, and that the reordering pair sits in a band of its own, that the two items under the last rule read as verbs rather than as a sixth space. Choosing a row reports the id and closes; the settings item only reports, since the dialog belongs to the host. Pick `Default` for the resting button.",
+					"The menu the press opens, which is the only place a space is chosen, created, or configured. Check the spaces are a single-choice group — one mark, on the open one, and arrows walk the whole list — that each row carries its tint and its rank as `⌘1`…`⌘9`, and that the reordering pair sits in a band of its own, that the two items under the last rule read as verbs rather than as a sixth space. Choosing a row reports the id and closes; the settings item only reports, since the dialog belongs to the host. Pick `Default` for the resting button. The app assembles it at `apps/app/src/App.tsx:935`.",
 			},
 		},
 	},
@@ -290,7 +290,7 @@ export const Keyboard = meta.story({
 		docs: {
 			description: {
 				story:
-					"The same menu reached without a pointer, which is the path a press-to-open trigger usually forgets. Check Enter on the button opens the menu and moves focus into it, that the first arrow reaches the first row and the next walks on, Enter reports the space under focus, and Escape closes the menu and hands focus back to the button rather than to the page.",
+					"The same menu reached without a pointer, which is the path a press-to-open trigger usually forgets. Check Enter on the button opens the menu and moves focus into it, that the first arrow reaches the first row and the next walks on, Enter reports the space under focus, and Escape closes the menu and hands focus back to the button rather than to the page. The app assembles it at `apps/app/src/App.tsx:935`.",
 			},
 		},
 	},
@@ -329,7 +329,7 @@ export const SingleSpace = meta.story({
 		docs: {
 			description: {
 				story:
-					"A reader who has only ever had one space — the state every account opens in. Check the button still draws the name and still opens its menu, since creating the second space lives there, that no dot strip is drawn at all — a single dot would say nothing and would invite a press that changes nothing — and that the menu offers no `Move up` and no `Move down`: there is no order to set with one space in it, so the band they would have made is gone and a single rule is left between the list and the two verbs. Pick `WithDots` for the strip once a second space exists, `MoveSpace` for the items the second one brings back.",
+					"A reader who has only ever had one space — the state every account opens in. Check the button still draws the name and still opens its menu, since creating the second space lives there, that no dot strip is drawn at all — a single dot would say nothing and would invite a press that changes nothing — and that the menu offers no `Move up` and no `Move down`: there is no order to set with one space in it, so the band they would have made is gone and a single rule is left between the list and the two verbs. Pick `WithDots` for the strip once a second space exists, `MoveSpace` for the items the second one brings back. The app assembles it at `apps/app/src/App.tsx:935`.",
 			},
 		},
 	},
@@ -369,7 +369,7 @@ export const Colourless = meta.story({
 		docs: {
 			description: {
 				story:
-					"Spaces carrying no colour, which is what a space is created as. Check that their dots wear the muted neutral the strip already gives a closed space rather than borrowing a tint, that the open one is told apart by its shape — a horizontal pill at full weight where the closed ones stay muted circles — and that a coloured space beside them still shows its tint once opened. Pick `WithDots` for a strip where every space is tinted.",
+					"Spaces carrying no colour, which is what a space is created as. Check that their dots wear the muted neutral the strip already gives a closed space rather than borrowing a tint, that the open one is told apart by its shape — a horizontal pill at full weight where the closed ones stay muted circles — and that a coloured space beside them still shows its tint once opened. Pick `WithDots` for a strip where every space is tinted. The app assembles it at `apps/app/src/App.tsx:935`.",
 			},
 		},
 	},
@@ -390,7 +390,7 @@ export const WithDots = meta.story({
 		docs: {
 			description: {
 				story:
-					"The button and its dot strip driven by one selection, which is how a sidebar mounts them. Check that pressing a dot moves the button's name with it, that the open dot is the only pill in a row of circles so the state never rests on colour alone, and that every dot is a named stop for a screen reader instead of an anonymous circle. Pick `Open` for the menu, `SingleSpace` for the strip's absent case.",
+					"The button and its dot strip driven by one selection, which is how a sidebar mounts them. Check that pressing a dot moves the button's name with it, that the open dot is the only pill in a row of circles so the state never rests on colour alone, and that every dot is a named stop for a screen reader instead of an anonymous circle. Pick `Open` for the menu, `SingleSpace` for the strip's absent case. The app assembles it at `apps/app/src/App.tsx:935`.",
 			},
 		},
 	},
@@ -419,7 +419,7 @@ export const Badges = meta.story({
 		docs: {
 			description: {
 				story:
-					"Three of the five spaces carrying a badge while the reader sits in a fourth, which is how a companion working out of sight reaches them. Check every badged dot keeps its space's tint at its centre and wears the badge as a ring around it — the mark says something happened there, the tint still says which space it is — that the dots of the spaces with nothing stay exactly as they are drawn without badges, and that the button takes one mark of its own for the strongest badge waiting elsewhere, attention over failed over done, drawn on the name's line and level with the middle of the letters so the name and the mark read as one pair. The marks are drawn and never spoken: the button's accessible name is still the open space, since a reader who moves there meets the rows that carry the news. Pick `BadgeRanking` for the order under a quieter set, `BadgeHere` for the badge that belongs to the space already open.",
+					"Three of the five spaces carrying a badge while the reader sits in a fourth, which is how a companion working out of sight reaches them. Check every badged dot keeps its space's tint at its centre and wears the badge as a ring around it — the mark says something happened there, the tint still says which space it is — that the dots of the spaces with nothing stay exactly as they are drawn without badges, and that the button takes one mark of its own for the strongest badge waiting elsewhere, attention over failed over done, drawn on the name's line and level with the middle of the letters so the name and the mark read as one pair. The marks are drawn and never spoken: the button's accessible name is still the open space, since a reader who moves there meets the rows that carry the news. Pick `BadgeRanking` for the order under a quieter set, `BadgeHere` for the badge that belongs to the space already open. The app assembles it at `apps/app/src/App.tsx:935`.",
 			},
 		},
 	},
@@ -450,7 +450,7 @@ export const BadgeRanking = meta.story({
 		docs: {
 			description: {
 				story:
-					"Two spaces waiting, one done and one failed, with neither one open. Check the button wears the failed mark rather than the done one: a run that broke asks for the reader before a run that finished, and the button has room for one mark only. Pick `Badges` for the full order with attention in it.",
+					"Two spaces waiting, one done and one failed, with neither one open. Check the button wears the failed mark rather than the done one: a run that broke asks for the reader before a run that finished, and the button has room for one mark only. Pick `Badges` for the full order with attention in it. The app assembles it at `apps/app/src/App.tsx:935`.",
 			},
 		},
 	},
@@ -468,7 +468,7 @@ export const BadgeHere = meta.story({
 		docs: {
 			description: {
 				story:
-					"The only badge in the account belongs to the space the reader already has open. Check the button is left unmarked — the roster under it is already showing the companion that raised it, and a mark here would send the reader looking for a space that does not exist — while the space's own row in the menu still carries the ring, so the badge is not lost. Pick `Badges` for the mark the button takes when the news is elsewhere.",
+					"The only badge in the account belongs to the space the reader already has open. Check the button is left unmarked — the roster under it is already showing the companion that raised it, and a mark here would send the reader looking for a space that does not exist — while the space's own row in the menu still carries the ring, so the badge is not lost. Pick `Badges` for the mark the button takes when the news is elsewhere. The app assembles it at `apps/app/src/App.tsx:935`.",
 			},
 		},
 	},
@@ -498,7 +498,7 @@ export const BadgeAndLongName = meta.story({
 		docs: {
 			description: {
 				story:
-					"A space named as a sentence while another one is asking for the reader — the pair that puts the mark and the truncation on the same edge. Check the name gives way to the badge instead of running under it: the clipped end and its ellipsis stop before the mark on the same line, the mark keeps its full size rather than being squeezed, and the button still holds the width it had. Pick `LongContent` for the same name with nothing waiting, `Badges` for the mark on names that fit.",
+					"A space named as a sentence while another one is asking for the reader — the pair that puts the mark and the truncation on the same edge. Check the name gives way to the badge instead of running under it: the clipped end and its ellipsis stop before the mark on the same line, the mark keeps its full size rather than being squeezed, and the button still holds the width it had. Pick `LongContent` for the same name with nothing waiting, `Badges` for the mark on names that fit. The app assembles it at `apps/app/src/App.tsx:935`.",
 			},
 		},
 	},
@@ -525,7 +525,7 @@ export const BadgeOnRail = meta.story({
 		docs: {
 			description: {
 				story:
-					"The mark once the sidebar is on its icon rail, where the name is gone and the open space's tint is all that is left. Check the badge is still drawn, moved from the name's line to the button's top corner now that there is no line to sit on, and that the button keeps the rail's square rather than growing to make room for it — the room the name needed is not needed here. Pick `Collapsed` for the rail with nothing waiting.",
+					"The mark once the sidebar is on its icon rail, where the name is gone and the open space's tint is all that is left. Check the badge is still drawn, moved from the name's line to the button's top corner now that there is no line to sit on, and that the button keeps the rail's square rather than growing to make room for it — the room the name needed is not needed here. Pick `Collapsed` for the rail with nothing waiting. The app assembles it at `apps/app/src/App.tsx:935`.",
 			},
 		},
 	},
@@ -544,7 +544,7 @@ export const LongContent = meta.story({
 		docs: {
 			description: {
 				story:
-					"A space named as a sentence, which is what happens when a reader treats the field as a note. Check the button clips the name with an ellipsis instead of pushing the trailing icon slot off the line or wrapping the header to two rows, and that the accessible name still carries the whole thing. Pick `Default` for names that fit.",
+					"A space named as a sentence, which is what happens when a reader treats the field as a note. Check the button clips the name with an ellipsis instead of pushing the trailing icon slot off the line or wrapping the header to two rows, and that the accessible name still carries the whole thing. Pick `Default` for names that fit. The app assembles it at `apps/app/src/App.tsx:935`.",
 			},
 		},
 	},
@@ -568,7 +568,7 @@ export const DragDotToPlace = meta.story({
 		docs: {
 			description: {
 				story:
-					"Placing a space by hand. A press on a dot that then moves lifts it: the dot comes off the strip a size larger with a shadow under it and follows the pointer, while the strip keeps every dot where it stood — the order is the host's to redraw, so nothing is torn out of the row on the strength of a gesture that has not landed yet. A line is drawn at the boundary the space would take, on the leading edge of the dot it would sit before, or on the trailing edge of the last one when it has passed them all. The dot under the pointer is what decides the place, never the pointer's distance from the row's start, so the gesture reads the same on a row that has wrapped onto three lines — `WrappedDots` is that case. Releasing reports the full new order of ids and nothing else: the open space stays open, the tints and the badges stay with their spaces, and the click a release would otherwise fire is swallowed so a drag never doubles as a selection. Pick `DragDotNowhere` for every way the gesture ends in nothing, `MoveSpace` for the same move from the menu.",
+					"Placing a space by hand. A press on a dot that then moves lifts it: the dot comes off the strip a size larger with a shadow under it and follows the pointer, while the strip keeps every dot where it stood — the order is the host's to redraw, so nothing is torn out of the row on the strength of a gesture that has not landed yet. A line is drawn at the boundary the space would take, on the leading edge of the dot it would sit before, or on the trailing edge of the last one when it has passed them all. The dot under the pointer is what decides the place, never the pointer's distance from the row's start, so the gesture reads the same on a row that has wrapped onto three lines — `WrappedDots` is that case. Releasing reports the full new order of ids and nothing else: the open space stays open, the tints and the badges stay with their spaces, and the click a release would otherwise fire is swallowed so a drag never doubles as a selection. Pick `DragDotNowhere` for every way the gesture ends in nothing, `MoveSpace` for the same move from the menu. The app assembles it at `apps/app/src/App.tsx:935`.",
 			},
 		},
 	},
@@ -619,6 +619,7 @@ export const DragDotToPlace = meta.story({
 })
 
 export const DragDotNowhere = meta.story({
+	tags: ["test-only"],
 	render: (args) => (
 		<LiveSwitcher onReorderSpaces={args.onReorderSpaces} spaces={args.spaces} />
 	),
@@ -671,7 +672,7 @@ export const WrappedDots = meta.story({
 		docs: {
 			description: {
 				story:
-					"Nine spaces in a strip too narrow to hold them, which is the sidebar at its most crowded. Check the row wraps onto further lines instead of shrinking the dots or scrolling sideways, and that a lift reads the dot under the pointer rather than how far the pointer has travelled from the row's start: the first dot of the second line sits at the same distance from that start as the first dot of the first line, and dropping on it must place the space there and nowhere else. Pick `DragDotToPlace` for the gesture on a row that fits on one line.",
+					"Nine spaces in a strip too narrow to hold them, which is the sidebar at its most crowded. Check the row wraps onto further lines instead of shrinking the dots or scrolling sideways, and that a lift reads the dot under the pointer rather than how far the pointer has travelled from the row's start: the first dot of the second line sits at the same distance from that start as the first dot of the first line, and dropping on it must place the space there and nowhere else. Pick `DragDotToPlace` for the gesture on a row that fits on one line. The app assembles it at `apps/app/src/App.tsx:935`.",
 			},
 		},
 	},
@@ -712,7 +713,7 @@ export const MoveSpace = meta.story({
 		docs: {
 			description: {
 				story:
-					"The same move without a pointer, for a reader who will not drag a five-millimetre dot. The menu of the open space carries `Move up` and `Move down` under the list, and they report exactly what a drop reports: the full new order of ids. Check the pair acts on the space the button names and moves it one place at a time in the list above them, that `Move up` is dead while that space stands first and `Move down` while it stands last — an item that reads as an offer and does nothing is worse than an item that says it cannot — and that the dots redraw in the new order the moment the host takes it. Pick `DragDotToPlace` for the gesture, `SingleSpace` for the account where neither item is offered.",
+					"The same move without a pointer, for a reader who will not drag a five-millimetre dot. The menu of the open space carries `Move up` and `Move down` under the list, and they report exactly what a drop reports: the full new order of ids. Check the pair acts on the space the button names and moves it one place at a time in the list above them, that `Move up` is dead while that space stands first and `Move down` while it stands last — an item that reads as an offer and does nothing is worse than an item that says it cannot — and that the dots redraw in the new order the moment the host takes it. Pick `DragDotToPlace` for the gesture, `SingleSpace` for the account where neither item is offered. The app assembles it at `apps/app/src/App.tsx:935`.",
 			},
 		},
 	},

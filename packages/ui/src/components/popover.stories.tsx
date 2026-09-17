@@ -71,7 +71,7 @@ export const Default = meta.story({
 		docs: {
 			description: {
 				story:
-					"The nominal case, opened by a click. Check the panel is titled by its `PopoverTitle` and that a second click on the trigger closes it - the trigger toggles, it does not only open.",
+					"The nominal case, opened by a click. Check the panel is titled by its `PopoverTitle` and that a second click on the trigger closes it - the trigger toggles, it does not only open. The app reaches the registry popover through `PopoverPanel` at `apps/app/src/components/thread-screen.tsx:322`.",
 			},
 		},
 	},
@@ -90,6 +90,7 @@ export const Default = meta.story({
 })
 
 export const States = meta.story({
+	tags: ["test-only"],
 	render: () => (
 		<Row>
 			<Popover>
@@ -133,6 +134,7 @@ export const States = meta.story({
 })
 
 export const LongContent = meta.story({
+	tags: ["test-only"],
 	render: () => (
 		<Popover defaultOpen>
 			<PanelDemo note={LONG_NOTE} />

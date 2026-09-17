@@ -181,6 +181,7 @@ const meta = preview.meta({
 })
 
 export const Default = meta.story({
+	tags: ["test-only"],
 	render: () => (
 		<NoticeDemo
 			label="Save the routine"
@@ -233,7 +234,7 @@ export const Error = meta.story({
 		docs: {
 			description: {
 				story:
-					"The failure a background job raises when nobody opened anything. The story raises it from the trigger and a transient notice straight from the module, outside any component, then waits for the transient to leave: the failure is still there after a delay that already emptied its neighbour, because it holds until the reader closes it. Check that the error mark alone carries the destructive colour role, on a notice surface drawn no louder than any other. While nobody has focused the surface, the urgent announcement is the library's hidden mirror and the drawn notice stays out of the accessibility tree, so the title is announced once rather than twice; a Tab to the close control puts the notice back in the tree, with a visible ring, and Enter takes it off screen and runs the `onClose` the raise was handed. Pick `Default` for the notice that leaves on its own, `Dismissing` for the gesture, `LongContent` for a failure whose strings run past the notice width.",
+					"The failure a background job raises when nobody opened anything. The story raises it from the trigger and a transient notice straight from the module, outside any component, then waits for the transient to leave: the failure is still there after a delay that already emptied its neighbour, because it holds until the reader closes it. Check that the error mark alone carries the destructive colour role, on a notice surface drawn no louder than any other. While nobody has focused the surface, the urgent announcement is the library's hidden mirror and the drawn notice stays out of the accessibility tree, so the title is announced once rather than twice; a Tab to the close control puts the notice back in the tree, with a visible ring, and Enter takes it off screen and runs the `onClose` the raise was handed. Pick `Default` for the notice that leaves on its own, `Dismissing` for the gesture, `LongContent` for a failure whose strings run past the notice width. The app assembles it at `apps/app/src/App.tsx:1240`.",
 			},
 		},
 	},
@@ -292,6 +293,7 @@ export const Error = meta.story({
 const retry = fn()
 
 export const WithAction = meta.story({
+	tags: ["test-only"],
 	render: () => (
 		<NoticeDemo
 			label="Sync the folder"
@@ -347,7 +349,7 @@ export const Stacked = meta.story({
 		docs: {
 			description: {
 				story:
-					"Four failures raised in a row from the module itself, three drawn. Reach for this when several jobs fail at once: check that the surface draws no more than three notices, that the one that no longer fits is the oldest, and that the newest sits nearest the top edge with the older ones peeking below it, so a reader's eye lands on what just happened rather than on what they already read. The `aria-hidden-focus` audit is left to review here for the same reason as in `LongContent`: three urgent notices sit unfocused, hidden from the accessibility tree by the library while their mirrors do the announcing.",
+					"Four failures raised in a row from the module itself, three drawn. Reach for this when several jobs fail at once: check that the surface draws no more than three notices, that the one that no longer fits is the oldest, and that the newest sits nearest the top edge with the older ones peeking below it, so a reader's eye lands on what just happened rather than on what they already read. The `aria-hidden-focus` audit is left to review here for the same reason as in `LongContent`: three urgent notices sit unfocused, hidden from the accessibility tree by the library while their mirrors do the announcing. The app assembles it at `apps/app/src/App.tsx:1240`.",
 			},
 		},
 	},
@@ -378,6 +380,7 @@ export const Stacked = meta.story({
 })
 
 export const Marks = meta.story({
+	tags: ["test-only"],
 	parameters: {
 		docs: {
 			description: {
@@ -410,6 +413,7 @@ export const Marks = meta.story({
 })
 
 export const Loading = meta.story({
+	tags: ["test-only"],
 	render: () => <NoticeSurface transientDelay={SHORT_DELAY} />,
 	parameters: {
 		docs: {
@@ -458,7 +462,7 @@ export const LongContent = meta.story({
 		docs: {
 			description: {
 				story:
-					"A failure whose title is one unbreakable word and whose description runs several sentences, carrying an action on top. Check that both strings wrap inside the notice instead of pushing it wider than the window, and that the mark, the action control and the close control keep their own columns, still fully inside the notice and still 24 CSS pixels of hit area. The `aria-hidden-focus` audit is left to review here: the library keeps an urgent notice out of the accessibility tree until the surface is focused, so that its hidden mirror announces it once, and the close control stays in the tab order meanwhile.",
+					"A failure whose title is one unbreakable word and whose description runs several sentences, carrying an action on top. Check that both strings wrap inside the notice instead of pushing it wider than the window, and that the mark, the action control and the close control keep their own columns, still fully inside the notice and still 24 CSS pixels of hit area. The `aria-hidden-focus` audit is left to review here: the library keeps an urgent notice out of the accessibility tree until the surface is focused, so that its hidden mirror announces it once, and the close control stays in the tab order meanwhile. The app assembles it at `apps/app/src/App.tsx:1240`.",
 			},
 		},
 	},
@@ -505,7 +509,7 @@ export const Dismissing = meta.story({
 		docs: {
 			description: {
 				story:
-					"The pointer way out. Notices are anchored to the top edge, so they leave through it: a drag toward the top of the window dismisses, a drag back toward the middle snaps the notice into place and keeps it. Reach for this when checking that the gesture points at the nearest edge rather than dragging the notice across the surface.",
+					"The pointer way out. Notices are anchored to the top edge, so they leave through it: a drag toward the top of the window dismisses, a drag back toward the middle snaps the notice into place and keeps it. Reach for this when checking that the gesture points at the nearest edge rather than dragging the notice across the surface. The app assembles it at `apps/app/src/App.tsx:1240`.",
 			},
 		},
 	},
@@ -547,7 +551,7 @@ export const WithDialog = meta.story({
 		docs: {
 			description: {
 				story:
-					"A background failure raised while a modal dialog holds the window - the moment the surface exists for. The dialog dims the page and takes pointer interaction away from everything behind it, so the notice viewport draws above it and takes its own pointer events back: check that the notice is the topmost element under its own centre, that its close control dismisses it, and that the dialog is still open and untouched afterwards. Focus stays trapped in the dialog while it is open, so the notice is reachable here by pointer, not by Tab. The dialog hides the rest of the document from the accessibility tree and spares only what carries a live region: the viewport carries one and stays in the tree, but the library's hidden urgent announcement is a separate element beside it and does not, so a failure whose announcement was already on screen when the dialog opened is never read to a screen reader while the dialog stays open.",
+					"A background failure raised while a modal dialog holds the window - the moment the surface exists for. The dialog dims the page and takes pointer interaction away from everything behind it, so the notice viewport draws above it and takes its own pointer events back: check that the notice is the topmost element under its own centre, that its close control dismisses it, and that the dialog is still open and untouched afterwards. Focus stays trapped in the dialog while it is open, so the notice is reachable here by pointer, not by Tab. The dialog hides the rest of the document from the accessibility tree and spares only what carries a live region: the viewport carries one and stays in the tree, but the library's hidden urgent announcement is a separate element beside it and does not, so a failure whose announcement was already on screen when the dialog opened is never read to a screen reader while the dialog stays open. The app assembles it at `apps/app/src/App.tsx:1240`.",
 			},
 		},
 	},
@@ -598,7 +602,7 @@ export const DarkTheme = meta.story({
 		docs: {
 			description: {
 				story:
-					"The same failure under the dark theme, where the notice surface is the lightest thing on screen rather than the darkest. Check that the error mark still resolves to the destructive role and that neither it nor the close control falls back to the notice's own background colour. The `aria-hidden-focus` audit is left to review here for the reason given in `LongContent`.",
+					"The same failure under the dark theme, where the notice surface is the lightest thing on screen rather than the darkest. Check that the error mark still resolves to the destructive role and that neither it nor the close control falls back to the notice's own background colour. The `aria-hidden-focus` audit is left to review here for the reason given in `LongContent`. The app assembles it at `apps/app/src/App.tsx:1240`.",
 			},
 		},
 	},
@@ -629,7 +633,7 @@ export const ReducedMotion = meta.story({
 		docs: {
 			description: {
 				story:
-					"The same failure raised for a reader who asked the system to stop moving things. The registry toast travels a notice in through the top edge and scales the ones stacked behind it; the surface drops both under `prefers-reduced-motion` and fades instead, keeping the opacity transition so the library still hears the end event it unmounts on. Check the notice transitions opacity and nothing else, and that it is already at its resting place and its resting height on the frame it appears - a notice that travels is the one thing a reader who asked for stillness cannot look away from.",
+					"The same failure raised for a reader who asked the system to stop moving things. The registry toast travels a notice in through the top edge and scales the ones stacked behind it; the surface drops both under `prefers-reduced-motion` and fades instead, keeping the opacity transition so the library still hears the end event it unmounts on. Check the notice transitions opacity and nothing else, and that it is already at its resting place and its resting height on the frame it appears - a notice that travels is the one thing a reader who asked for stillness cannot look away from. The app assembles it at `apps/app/src/App.tsx:1240`.",
 			},
 		},
 	},

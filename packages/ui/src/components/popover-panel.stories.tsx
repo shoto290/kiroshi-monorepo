@@ -90,6 +90,7 @@ const meta = preview.meta({
 })
 
 export const Playground = meta.story({
+	tags: ["test-only"],
 	parameters: {
 		a11y: A11Y_FLOATING_FOCUS_GUARDS,
 		docs: {
@@ -129,7 +130,7 @@ export const Open = meta.story({
 		docs: {
 			description: {
 				story:
-					"The panel already out, which is what to review the surface against: a crisp edge, the popover fill, and a trigger that still reads as a button rather than a piece of the panel. Check that the panel keeps `sideOffset` of clearance below its trigger, that its corner is the `--radius-2xl` step of the scale rather than a value of its own, and that `aria-expanded` starts at `true`.",
+					"The panel already out, which is what to review the surface against: a crisp edge, the popover fill, and a trigger that still reads as a button rather than a piece of the panel. Check that the panel keeps `sideOffset` of clearance below its trigger, that its corner is the `--radius-2xl` step of the scale rather than a value of its own, and that `aria-expanded` starts at `true`. The app assembles it at `apps/app/src/components/thread-screen.tsx:322`.",
 			},
 		},
 	},
@@ -149,6 +150,7 @@ export const Open = meta.story({
 })
 
 export const Placements = meta.story({
+	tags: ["test-only"],
 	parameters: {
 		docs: {
 			description: {
@@ -203,7 +205,7 @@ export const Dismiss = meta.story({
 		docs: {
 			description: {
 				story:
-					"The three ways out, since the panel has no close button of its own: the trigger toggles it shut, Escape dismisses it from anywhere, and a pointer landing outside dismisses it too. Check that the button beside it still receives its own click on that same gesture — dismissing must not eat the press that caused it — and that the panel is gone from the document once closed, so nothing inside it can be tabbed into. Pick `Playground` for the toggle on its own.",
+					"The three ways out, since the panel has no close button of its own: the trigger toggles it shut, Escape dismisses it from anywhere, and a pointer landing outside dismisses it too. Check that the button beside it still receives its own click on that same gesture — dismissing must not eat the press that caused it — and that the panel is gone from the document once closed, so nothing inside it can be tabbed into. Pick `Playground` for the toggle on its own. The app assembles it at `apps/app/src/components/thread-screen.tsx:322`.",
 			},
 		},
 	},
@@ -236,6 +238,7 @@ export const Dismiss = meta.story({
 })
 
 export const LongContent = meta.story({
+	tags: ["test-only"],
 	parameters: {
 		docs: {
 			description: {
@@ -267,6 +270,7 @@ export const LongContent = meta.story({
 })
 
 export const States = meta.story({
+	tags: ["test-only"],
 	parameters: {
 		docs: {
 			description: {

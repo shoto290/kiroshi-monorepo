@@ -120,7 +120,7 @@ export const Default = meta.story({
 		docs: {
 			description: {
 				story:
-					"The grip on an open panel, at the width the shell starts on. Check that it is announced as a separator carrying the current width between its two bounds rather than as a nameless strip, that it is reachable by keyboard, and that an arrow key moves the width by one 16px step — a reader who cannot drag still owns the panel width. Pick `Collapsed` or `Fixed` for the cases where the grip is not offered at all.",
+					"The grip on an open panel, at the width the shell starts on. Check that it is announced as a separator carrying the current width between its two bounds rather than as a nameless strip, that it is reachable by keyboard, and that an arrow key moves the width by one 16px step — a reader who cannot drag still owns the panel width. Pick `Collapsed` or `Fixed` for the cases where the grip is not offered at all. The app assembles it at `apps/app/src/App.tsx:933`.",
 			},
 		},
 	},
@@ -159,7 +159,7 @@ export const Clamped = meta.story({
 		docs: {
 			description: {
 				story:
-					"The reader asking for a panel narrower than the app can draw. Check that the width stops at 192px instead of following the pointer to zero, and that the value the handle announces is the clamped one rather than the one that was asked for — the bound belongs to the provider, so nothing downstream ever sees an impossible width.",
+					"The reader asking for a panel narrower than the app can draw. Check that the width stops at 192px instead of following the pointer to zero, and that the value the handle announces is the clamped one rather than the one that was asked for — the bound belongs to the provider, so nothing downstream ever sees an impossible width. The app assembles it at `apps/app/src/App.tsx:933`.",
 			},
 		},
 	},
@@ -201,7 +201,7 @@ export const RightSide = meta.story({
 		docs: {
 			description: {
 				story:
-					"The grip of a trailing panel, which is what the routines panel hangs on. Check that it is drawn on the panel's inline-start edge rather than its trailing one — the edge a trailing panel is resized from is the one facing the screen — and that the arrow keys are mirrored with it: `ArrowLeft` widens here, where it narrows on a leading panel. `Default` is the same grip on a leading panel.",
+					"The grip of a trailing panel, which is what the routines panel hangs on. Check that it is drawn on the panel's inline-start edge rather than its trailing one — the edge a trailing panel is resized from is the one facing the screen — and that the arrow keys are mirrored with it: `ArrowLeft` widens here, where it narrows on a leading panel. `Default` is the same grip on a leading panel. The routines panel hangs on the trailing edge under `apps/app/src/components/thread-screen.tsx:1368`.",
 			},
 		},
 	},
@@ -231,7 +231,7 @@ export const Collapsed = meta.story({
 		docs: {
 			description: {
 				story:
-					"The panel down to its icon rail. Check that the grip is gone rather than disabled: the rail has one width and the reader has nothing to set, so offering a control that cannot change anything would be a lie. `Default` is the same shell with the panel open.",
+					"The panel down to its icon rail. Check that the grip is gone rather than disabled: the rail has one width and the reader has nothing to set, so offering a control that cannot change anything would be a lie. `Default` is the same shell with the panel open. The app assembles it at `apps/app/src/App.tsx:933`.",
 			},
 		},
 	},
@@ -246,7 +246,7 @@ export const Fixed = meta.story({
 		docs: {
 			description: {
 				story:
-					"A shell that declared its panel width fixed, which is how a screen with no room to give renders. Check that the grip is absent and that the panel still draws at the width it was handed — the provider keeps owning the number even where nobody may change it.",
+					"A shell that declared its panel width fixed, which is how a screen with no room to give renders. Check that the grip is absent and that the panel still draws at the width it was handed — the provider keeps owning the number even where nobody may change it. The app assembles it at `apps/app/src/App.tsx:933`.",
 			},
 		},
 	},

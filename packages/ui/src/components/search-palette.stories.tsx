@@ -319,7 +319,7 @@ export const Default = meta.story({
 		docs: {
 			description: {
 				story:
-					"Every kind answering one query, on the All tab. Check that each kind carries a head naming it and counting what it found, that the twelve messages are cut to the three rows the head announces with a See all beside them while the kinds that fit draw none, that the rows are numbered from one straight through the sections rather than restarting at each head, and that focus never leaves the query line while the row it points at is the one drawn as selected. Check too that the options are exactly the rows: the heads and their See all stand outside the lists, so a reader is never told a section title or a filter is a result they can open.",
+					"Every kind answering one query, on the All tab. Check that each kind carries a head naming it and counting what it found, that the twelve messages are cut to the three rows the head announces with a See all beside them while the kinds that fit draw none, that the rows are numbered from one straight through the sections rather than restarting at each head, and that focus never leaves the query line while the row it points at is the one drawn as selected. Check too that the options are exactly the rows: the heads and their See all stand outside the lists, so a reader is never told a section title or a filter is a result they can open. The app assembles it at `apps/app/src/App.tsx:1239`.",
 			},
 		},
 	},
@@ -369,7 +369,7 @@ export const OneKind = meta.story({
 		docs: {
 			description: {
 				story:
-					"The Messages tab alone. Check that the section heads are gone entirely — a single kind names itself through the active pill, so a head would repeat it — that every message the host handed over is drawn instead of the three the All tab keeps, and that the tenth row and beyond carry no keycap because no digit reaches them. Pick `Default` when what you are checking is the grouping.",
+					"The Messages tab alone. Check that the section heads are gone entirely — a single kind names itself through the active pill, so a head would repeat it — that every message the host handed over is drawn instead of the three the All tab keeps, and that the tenth row and beyond carry no keycap because no digit reaches them. Pick `Default` when what you are checking is the grouping. The app assembles it at `apps/app/src/App.tsx:1239`.",
 			},
 		},
 	},
@@ -391,7 +391,7 @@ export const ChangingTab = meta.story({
 		docs: {
 			description: {
 				story:
-					"The gesture that swaps the body: the All tab, then Conversations, then back through See all. Check that the press reports the tab it selects and that the body follows it — grouped and cut on All, flat and whole on a kind — and that See all is nothing more than that same gesture drawn on the head of the kind that overflows.",
+					"The gesture that swaps the body: the All tab, then Conversations, then back through See all. Check that the press reports the tab it selects and that the body follows it — grouped and cut on All, flat and whole on a kind — and that See all is nothing more than that same gesture drawn on the head of the kind that overflows. The app assembles it at `apps/app/src/App.tsx:1239`.",
 			},
 		},
 	},
@@ -426,7 +426,7 @@ export const AcrossSpaces = meta.story({
 		docs: {
 			description: {
 				story:
-					"The same query once the scope is every space. Check that each row opens its context line with a round mark in its space tint and then the space name, which is the only thing that tells two identically named threads apart here, that a result from a space with no tint keeps the untinted mark rather than dropping the column, and that turning the switch back reports the scope and takes the marks away with it.",
+					"The same query once the scope is every space. Check that each row opens its context line with a round mark in its space tint and then the space name, which is the only thing that tells two identically named threads apart here, that a result from a space with no tint keeps the untinted mark rather than dropping the column, and that turning the switch back reports the scope and takes the marks away with it. The app assembles it at `apps/app/src/App.tsx:1239`.",
 			},
 		},
 	},
@@ -463,7 +463,7 @@ export const OneHit = meta.story({
 		docs: {
 			description: {
 				story:
-					"A query one chat answers, and nothing else. Check that the popup stands at its full height with a single row in it rather than shrinking around it — the height is the same number `ManyHits` asserts — so the query line and the tab row sit where the reader last saw them and the next keystroke does not move them.",
+					"A query one chat answers, and nothing else. Check that the popup stands at its full height with a single row in it rather than shrinking around it — the height is the same number `ManyHits` asserts — so the query line and the tab row sit where the reader last saw them and the next keystroke does not move them. The app assembles it at `apps/app/src/App.tsx:1239`.",
 			},
 		},
 	},
@@ -481,7 +481,7 @@ export const ManyHits = meta.story({
 		docs: {
 			description: {
 				story:
-					"Eleven hits spread over the four kinds, more than the body can show at once. Check that the popup is exactly as tall as it is in `OneHit`, that the overflow is taken by the body alone — it scrolls, the query line and the tab row do not move, and that no row is dropped to make the palette fit.",
+					"Eleven hits spread over the four kinds, more than the body can show at once. Check that the popup is exactly as tall as it is in `OneHit`, that the overflow is taken by the body alone — it scrolls, the query line and the tab row do not move, and that no row is dropped to make the palette fit. The app assembles it at `apps/app/src/App.tsx:1239`.",
 			},
 		},
 	},
@@ -504,7 +504,7 @@ export const Resting = meta.story({
 		docs: {
 			description: {
 				story:
-					"The palette the moment it opens, with nothing typed yet. Check that the three kinds that can rest stand in the order chats, missions, routines whatever order the host handed them over in, that each head names its kind and counts nothing — no search has run, so there is no total to report — that a kind holding more rows than the three the All tab keeps offers a See all onto its own tab while the missions kind, whose two rows are all drawn already, offers none, and that the rows are numbered from one straight across the sections rather than restarting at each head.",
+					"The palette the moment it opens, with nothing typed yet. Check that the three kinds that can rest stand in the order chats, missions, routines whatever order the host handed them over in, that each head names its kind and counts nothing — no search has run, so there is no total to report — that a kind holding more rows than the three the All tab keeps offers a See all onto its own tab while the missions kind, whose two rows are all drawn already, offers none, and that the rows are numbered from one straight across the sections rather than restarting at each head. The app assembles it at `apps/app/src/App.tsx:1239`.",
 			},
 		},
 	},
@@ -538,7 +538,7 @@ export const RestingMessages = meta.story({
 		docs: {
 			description: {
 				story:
-					"The Messages tab with nothing typed. Check that it answers with an instruction rather than rows — no message is recent, every message is only ever reached by typing — that the instruction names the space it will read and warns that matching is by whole words, that it offers no button even while the scope is one space, since widening the scope of a search nobody has run yet changes nothing on screen, and that a listbox is still rendered under it so the query line points at an element that exists.",
+					"The Messages tab with nothing typed. Check that it answers with an instruction rather than rows — no message is recent, every message is only ever reached by typing — that the instruction names the space it will read and warns that matching is by whole words, that it offers no button even while the scope is one space, since widening the scope of a search nobody has run yet changes nothing on screen, and that a listbox is still rendered under it so the query line points at an element that exists. The app assembles it at `apps/app/src/App.tsx:1239`.",
 			},
 		},
 	},
@@ -565,7 +565,7 @@ export const RestingOneKind = meta.story({
 		docs: {
 			description: {
 				story:
-					"The Conversations tab with nothing typed. Check that every resting conversation the host handed over is drawn rather than the three the All tab keeps, that the one head naming the kind carries no count and no See all — the tab the See all would move to is the one the reader is already on — and that the popup keeps the height it has everywhere else. Pick `Resting` for the three kinds side by side.",
+					"The Conversations tab with nothing typed. Check that every resting conversation the host handed over is drawn rather than the three the All tab keeps, that the one head naming the kind carries no count and no See all — the tab the See all would move to is the one the reader is already on — and that the popup keeps the height it has everywhere else. Pick `Resting` for the three kinds side by side. The app assembles it at `apps/app/src/App.tsx:1239`.",
 			},
 		},
 	},
@@ -594,7 +594,7 @@ export const RestingKindEmpty = meta.story({
 		docs: {
 			description: {
 				story:
-					"The Missions tab in a space where no mission has been opened. Check that the panel carries the mark of the kind the reader asked for rather than a magnifier, that it names the space so the emptiness reads as local and not as a broken palette, and that the way out it offers is the scope: pressing it asks for every space, and once the scope is every space the button goes away rather than repeating the state the reader is already in.",
+					"The Missions tab in a space where no mission has been opened. Check that the panel carries the mark of the kind the reader asked for rather than a magnifier, that it names the space so the emptiness reads as local and not as a broken palette, and that the way out it offers is the scope: pressing it asks for every space, and once the scope is every space the button goes away rather than repeating the state the reader is already in. The app assembles it at `apps/app/src/App.tsx:1239`.",
 			},
 		},
 	},
@@ -626,7 +626,7 @@ export const RestingNothing = meta.story({
 		docs: {
 			description: {
 				story:
-					"The All tab on a fresh account: nothing typed, nothing opened in any kind. Check that it falls back to the instruction the Messages tab carries rather than claiming nothing matches — no query has been asked, so there is nothing for an empty state to report on — and that it offers the scope as the one way out, since another space may well hold what this one does not. Check too that the offer goes away once the scope is every space. Pick `Empty` for the sentence a search that came back with nothing earns.",
+					"The All tab on a fresh account: nothing typed, nothing opened in any kind. Check that it falls back to the instruction the Messages tab carries rather than claiming nothing matches — no query has been asked, so there is nothing for an empty state to report on — and that it offers the scope as the one way out, since another space may well hold what this one does not. Check too that the offer goes away once the scope is every space. Pick `Empty` for the sentence a search that came back with nothing earns. The app assembles it at `apps/app/src/App.tsx:1239`.",
 			},
 		},
 	},
@@ -662,7 +662,7 @@ export const RestingLoading = meta.story({
 		docs: {
 			description: {
 				story:
-					"The Conversations tab at rest while the resting rows are still being read. Check that the body stays bare: the panel states that nothing has ever been opened here, which is a claim the palette cannot make until the read comes back. Pick `RestingKindEmpty` for the same tab once it has.",
+					"The Conversations tab at rest while the resting rows are still being read. Check that the body stays bare: the panel states that nothing has ever been opened here, which is a claim the palette cannot make until the read comes back. Pick `RestingKindEmpty` for the same tab once it has. The app assembles it at `apps/app/src/App.tsx:1239`.",
 			},
 		},
 	},
@@ -682,7 +682,7 @@ export const Empty = meta.story({
 		docs: {
 			description: {
 				story:
-					"A query nothing in the space answers. Check that the empty state names the space that was searched and quotes the query back, so a reader who mistyped sees it, and that the way out it offers is the scope itself — pressing it asks for every space rather than clearing the query.",
+					"A query nothing in the space answers. Check that the empty state names the space that was searched and quotes the query back, so a reader who mistyped sees it, and that the way out it offers is the scope itself — pressing it asks for every space rather than clearing the query. The app assembles it at `apps/app/src/App.tsx:1239`.",
 			},
 		},
 	},
@@ -710,7 +710,7 @@ export const EmptyEverywhere = meta.story({
 		docs: {
 			description: {
 				story:
-					"The same nothing once every space has already been searched. Check that the empty state keeps its title and its sentence but drops the action: widening the scope is the only thing it offered, and a button that repeats the state the reader is already in is worse than no button. Pick `Empty` for the scoped search that still has somewhere to go.",
+					"The same nothing once every space has already been searched. Check that the empty state keeps its title and its sentence but drops the action: widening the scope is the only thing it offered, and a button that repeats the state the reader is already in is worse than no button. Pick `Empty` for the scoped search that still has somewhere to go. The app assembles it at `apps/app/src/App.tsx:1239`.",
 			},
 		},
 	},
@@ -730,7 +730,7 @@ export const Loading = meta.story({
 		docs: {
 			description: {
 				story:
-					"A second search running while the first one is still on screen. Check that not one row is taken away and that the body reports itself busy instead — a palette that blanks between two keystrokes flickers, and the rows it drops were the answer to what the reader had typed a moment before.",
+					"A second search running while the first one is still on screen. Check that not one row is taken away and that the body reports itself busy instead — a palette that blanks between two keystrokes flickers, and the rows it drops were the answer to what the reader had typed a moment before. The app assembles it at `apps/app/src/App.tsx:1239`.",
 			},
 		},
 	},
@@ -750,7 +750,7 @@ export const LoadingFirstQuery = meta.story({
 		docs: {
 			description: {
 				story:
-					"The very first search of the session, still in flight, with nothing to keep on screen. Check that the body stays bare: the empty state claims nothing matches, which is a statement the palette cannot make until the search comes back. Pick `Empty` for the same bare body once it has.",
+					"The very first search of the session, still in flight, with nothing to keep on screen. Check that the body stays bare: the empty state claims nothing matches, which is a statement the palette cannot make until the search comes back. Pick `Empty` for the same bare body once it has. The app assembles it at `apps/app/src/App.tsx:1239`.",
 			},
 		},
 	},
@@ -767,6 +767,7 @@ export const LoadingFirstQuery = meta.story({
 })
 
 export const Narrow = meta.story({
+	tags: ["test-only"],
 	globals: { viewport: { value: "narrow" } },
 	parameters: {
 		viewport: { options: NARROW_VIEWPORT },
@@ -801,7 +802,7 @@ export const ArrowKeyTabs = meta.story({
 		docs: {
 			description: {
 				story:
-					"The tab strip walked with the arrow keys. A tab here is a search kind, so selecting one runs another query: the arrows move focus and stop there, and the kind changes only on Enter or Space. Check that walking the strip reports nothing to the host and leaves All selected, and that the press on the tab the arrows reached is what reports it. The tool question card does the opposite, because a tab there only swaps which question is on screen.",
+					"The tab strip walked with the arrow keys. A tab here is a search kind, so selecting one runs another query: the arrows move focus and stop there, and the kind changes only on Enter or Space. Check that walking the strip reports nothing to the host and leaves All selected, and that the press on the tab the arrows reached is what reports it. The tool question card does the opposite, because a tab there only swaps which question is on screen. The app assembles it at `apps/app/src/App.tsx:1239`.",
 			},
 		},
 	},
@@ -833,7 +834,7 @@ export const ReducedMotion = meta.story({
 		docs: {
 			description: {
 				story:
-					"The palette for a reader who asked the system to stop moving things. The registry tab transitions every property it changes; the palette drops that under `prefers-reduced-motion`, so the selected fill lands on the pressed tab in a single frame. Check that every tab reports a transition of no duration, and that pressing one still reports the kind.",
+					"The palette for a reader who asked the system to stop moving things. The registry tab transitions every property it changes; the palette drops that under `prefers-reduced-motion`, so the selected fill lands on the pressed tab in a single frame. Check that every tab reports a transition of no duration, and that pressing one still reports the kind. The app assembles it at `apps/app/src/App.tsx:1239`.",
 			},
 		},
 	},

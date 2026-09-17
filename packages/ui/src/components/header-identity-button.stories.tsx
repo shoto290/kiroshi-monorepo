@@ -46,7 +46,7 @@ export const Default = meta.story({
 		docs: {
 			description: {
 				story:
-					"Reach for this for the nominal header: a short companion name, the CLI answering, the settings closed. Check that avatar, name, state and glyph read left to right on one row, that the whole thing is a single button, and that activating it asks for the settings. Pick `InLayout` to see it in the header it belongs to.",
+					"Reach for this for the nominal header: a short companion name, the CLI answering, the settings closed. Check that avatar, name, state and glyph read left to right on one row, that the whole thing is a single button, and that activating it asks for the settings. Pick `InLayout` to see it in the header it belongs to. The app assembles it at `apps/app/src/components/thread-screen.tsx:334`.",
 			},
 		},
 	},
@@ -62,6 +62,7 @@ export const Default = meta.story({
 })
 
 export const Variants = meta.story({
+	tags: ["test-only"],
 	args: { connection: "ready", name: "Nest" },
 	parameters: {
 		docs: {
@@ -90,7 +91,7 @@ export const Expanded = meta.story({
 		docs: {
 			description: {
 				story:
-					"Reach for this while the companion's settings are open: the button is the trigger that stays lit under its own panel. Check that the ghost surface holds the expanded tint and that assistive tech reads it as expanded. Pick `Default` for the closed state.",
+					"Reach for this while the companion's settings are open: the button is the trigger that stays lit under its own panel. Check that the ghost surface holds the expanded tint and that assistive tech reads it as expanded. Pick `Default` for the closed state. The app assembles it at `apps/app/src/components/thread-screen.tsx:334`.",
 			},
 		},
 	},
@@ -114,7 +115,7 @@ export const Working = meta.story({
 		docs: {
 			description: {
 				story:
-					"Reach for this while the companion holds the turn: the header avatar runs the same animation and carries the same pulsing activity dot as the one in the transcript, so the reader can leave the transcript and still see the companion is busy. Check that the row does not reflow while it animates and that the motion stops under `prefers-reduced-motion`. Pick `Default` for the resting companion.",
+					"Reach for this while the companion holds the turn: the header avatar runs the same animation and carries the same pulsing activity dot as the one in the transcript, so the reader can leave the transcript and still see the companion is busy. Check that the row does not reflow while it animates and that the motion stops under `prefers-reduced-motion`. Pick `Default` for the resting companion. The app assembles it at `apps/app/src/components/thread-screen.tsx:334`.",
 			},
 		},
 	},
@@ -128,7 +129,7 @@ export const LongContent = meta.story({
 		docs: {
 			description: {
 				story:
-					"Reach for this when a companion is named in a sentence and the window is narrow. Check that the name clips with an ellipsis while the connection dot and the settings glyph stay fully in view on the right — the name is what gives up room, never the state. Pick `Default` for a name that fits.",
+					"Reach for this when a companion is named in a sentence and the window is narrow. Check that the name clips with an ellipsis while the connection dot and the settings glyph stay fully in view on the right — the name is what gives up room, never the state. Pick `Default` for a name that fits. The app assembles it at `apps/app/src/components/thread-screen.tsx:334`.",
 			},
 		},
 	},
@@ -142,6 +143,7 @@ export const LongContent = meta.story({
 })
 
 export const InLayout = meta.story({
+	tags: ["test-only"],
 	args: { connection: "ready", name: "Nest" },
 	parameters: {
 		layout: "fullscreen",

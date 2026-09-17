@@ -42,7 +42,7 @@ export const Default = meta.story({
 		docs: {
 			description: {
 				story:
-					"Three panels behind one list, the shape every call site takes. Check that only the open panel is in the accessible tree and that the active tab reads as selected rather than only being the filled one.",
+					"Three panels behind one list, the shape every call site takes. Check that only the open panel is in the accessible tree and that the active tab reads as selected rather than only being the filled one. The app reaches the registry tabs through `SearchPalette` at `apps/app/src/App.tsx:1239`.",
 			},
 		},
 	},
@@ -74,6 +74,7 @@ export const Default = meta.story({
 })
 
 export const Variants = meta.story({
+	tags: ["test-only"],
 	parameters: {
 		docs: {
 			description: {
@@ -97,6 +98,7 @@ export const Variants = meta.story({
 })
 
 export const States = meta.story({
+	tags: ["test-only"],
 	parameters: {
 		docs: {
 			description: {
@@ -133,6 +135,7 @@ export const States = meta.story({
 })
 
 export const LongContent = meta.story({
+	tags: ["test-only"],
 	parameters: {
 		docs: {
 			description: {
@@ -172,6 +175,7 @@ export const LongContent = meta.story({
 })
 
 export const OnDarkSurface = meta.story({
+	tags: ["test-only"],
 	globals: { theme: "dark" },
 	parameters: {
 		docs: {

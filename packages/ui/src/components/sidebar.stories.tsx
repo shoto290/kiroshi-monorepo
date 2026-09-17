@@ -118,7 +118,7 @@ export const Expanded = meta.story({
 		docs: {
 			description: {
 				story:
-					"The panel open, which is where a reader starts. Check that the group label and every row label read in full, that the selected row is marked by more than its background — it carries `data-active` and `aria-current` — and that the inset starts where the panel ends rather than running under it. Pick `Collapsed` for the icon rail.",
+					"The panel open, which is where a reader starts. Check that the group label and every row label read in full, that the selected row is marked by more than its background — it carries `data-active` and `aria-current` — and that the inset starts where the panel ends rather than running under it. Pick `Collapsed` for the icon rail. The app assembles it at `apps/app/src/App.tsx:935`.",
 			},
 		},
 	},
@@ -149,7 +149,7 @@ export const Collapsed = meta.story({
 		docs: {
 			description: {
 				story:
-					"The same panel after the trigger takes it down to the icon rail. Check that the panel is exactly one rail wide, that each row keeps its icon and loses its label without losing its accessible name — the label is the row's `aria-label` on the rail — and that the trigger stays reachable so the rail is never a dead end. Pick `Expanded` for the open panel, `RightSide` for the trailing edge.",
+					"The same panel after the trigger takes it down to the icon rail. Check that the panel is exactly one rail wide, that each row keeps its icon and loses its label without losing its accessible name — the label is the row's `aria-label` on the rail — and that the trigger stays reachable so the rail is never a dead end. Pick `Expanded` for the open panel, `RightSide` for the trailing edge. The app assembles it at `apps/app/src/App.tsx:935`.",
 			},
 		},
 	},
@@ -197,7 +197,7 @@ export const RightSide = meta.story({
 		docs: {
 			description: {
 				story:
-					"A panel on the trailing edge, which is what an activity panel is. Check that it holds the trailing end of the row rather than the leading one, that the inset sits between the two panels, and that each panel answers only its own trigger: two providers, two open states, so collapsing one leaves the other exactly where it was. Cmd/Ctrl+B belongs to the outer provider alone — the registry hangs that shortcut on the window, so a second registry provider nested inside would answer the same press. `NestedSidebarProvider` is the composed provider that drops the shortcut and keeps the handler, so the trailing panel holds its state and its width across the press. Pick `Expanded` for the single panel.",
+					"A panel on the trailing edge, which is what an activity panel is. Check that it holds the trailing end of the row rather than the leading one, that the inset sits between the two panels, and that each panel answers only its own trigger: two providers, two open states, so collapsing one leaves the other exactly where it was. Cmd/Ctrl+B belongs to the outer provider alone — the registry hangs that shortcut on the window, so a second registry provider nested inside would answer the same press. `NestedSidebarProvider` is the composed provider that drops the shortcut and keeps the handler, so the trailing panel holds its state and its width across the press. Pick `Expanded` for the single panel. The routines panel hangs on the trailing edge under `apps/app/src/components/thread-screen.tsx:1368`.",
 			},
 		},
 	},
