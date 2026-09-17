@@ -26,12 +26,12 @@ const meta = preview.meta({
 	},
 })
 
-export const Horizontal = meta.story({
+export const Default = meta.story({
 	parameters: {
 		docs: {
 			description: {
 				story:
-					"The default axis, dividing two stacked groups. Check that the line is exactly one pixel tall at any zoom and that it takes the full width of its parent rather than a width of its own — the length is always the parent's business.",
+					"The one axis this rule is drawn on, dividing two stacked groups. Check that the line is exactly one pixel tall at any zoom and that it takes the full width of its parent rather than a width of its own — the length is always the parent's business.",
 			},
 		},
 	},

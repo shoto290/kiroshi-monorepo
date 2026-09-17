@@ -1,4 +1,4 @@
-import type { ReactNode } from "react"
+import type { ComponentProps, ReactNode } from "react"
 import { expect } from "storybook/test"
 
 import preview from "@workspace/storybook/preview"
@@ -68,6 +68,27 @@ function LabeledCell({
 	)
 }
 
+type StateGridProps = ComponentProps<typeof BotAvatar>
+
+const StateGrid = (avatar: StateGridProps) => (
+	<div className="flex flex-col gap-8">
+		{Object.entries(STATE_GROUPS).map(([group, states]) => (
+			<div key={group}>
+				<h3 className="mb-3 font-medium text-muted-foreground text-sm">
+					{group}
+				</h3>
+				<div className="grid grid-cols-7 gap-4">
+					{states.map((state) => (
+						<LabeledCell key={state} label={state}>
+							<BotAvatar {...avatar} state={state} />
+						</LabeledCell>
+					))}
+				</div>
+			</div>
+		))}
+	</div>
+)
+
 const meta = preview.meta({
 	title: "Branding/Companion Avatar",
 	component: BotAvatar,
@@ -120,24 +141,7 @@ export const AllStates = meta.story({
 			},
 		},
 	},
-	render: (args) => (
-		<div className="flex flex-col gap-8">
-			{Object.entries(STATE_GROUPS).map(([group, states]) => (
-				<div key={group}>
-					<h3 className="mb-3 font-medium text-muted-foreground text-sm">
-						{group}
-					</h3>
-					<div className="grid grid-cols-7 gap-4">
-						{states.map((state) => (
-							<LabeledCell key={state} label={state}>
-								<BotAvatar {...args} size={96} state={state} />
-							</LabeledCell>
-						))}
-					</div>
-				</div>
-			))}
-		</div>
-	),
+	render: (args) => <StateGrid {...args} size={96} />,
 })
 
 export const Stress = meta.story({
@@ -196,24 +200,7 @@ export const States = meta.story({
 			},
 		},
 	},
-	render: () => (
-		<div className="flex flex-col gap-8">
-			{Object.entries(STATE_GROUPS).map(([group, states]) => (
-				<div key={group}>
-					<h3 className="mb-3 font-medium text-muted-foreground text-sm">
-						{group}
-					</h3>
-					<div className="grid grid-cols-7 gap-4">
-						{states.map((state) => (
-							<LabeledCell key={state} label={state}>
-								<BotAvatar animated={false} size={88} state={state} />
-							</LabeledCell>
-						))}
-					</div>
-				</div>
-			))}
-		</div>
-	),
+	render: () => <StateGrid animated={false} size={88} />,
 })
 
 export const Blots = meta.story({
