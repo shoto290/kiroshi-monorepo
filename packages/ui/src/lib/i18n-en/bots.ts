@@ -422,6 +422,20 @@ const bots = {
 					"A tab is open at {{host}}. Authorize Kiroshi there and this screen catches up on its own.",
 				unsaved: "Available once this application is saved.",
 			},
+			reason: {
+				alreadyRunning:
+					"A sign-in is already running. Finish that one, or cancel it, then try again.",
+				store:
+					"Kiroshi couldn’t write the token to this application’s secrets, so nothing was kept.",
+				transport:
+					"Kiroshi couldn’t reach the agent, so the sign-in never started.",
+				refusedUrl:
+					"Kiroshi wouldn’t open the sign-in link this application gave. Check its address.",
+				browserRefused:
+					"Your browser wouldn’t open. Try again, or open the sign-in link yourself.",
+				timedOut: "The sign-in timed out before it came back. Try again.",
+				unknown: "The sign-in stopped: {{detail}}",
+			},
 			confirm: {
 				title: "Disconnect {{name}}?",
 				description:

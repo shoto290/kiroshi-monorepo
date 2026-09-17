@@ -426,6 +426,20 @@ const bots = {
 					"Un onglet est ouvert sur {{host}}. Autorisez Kiroshi là-bas et cet écran se met à jour tout seul.",
 				unsaved: "Disponible une fois cette application enregistrée.",
 			},
+			reason: {
+				alreadyRunning:
+					"Une connexion est déjà en cours. Terminez-la ou annulez-la, puis réessayez.",
+				store:
+					"Kiroshi n'a pas pu écrire le jeton dans les secrets de cette application, rien n'a été gardé.",
+				transport:
+					"Kiroshi n'a pas pu joindre l'agent, la connexion n'a donc jamais démarré.",
+				refusedUrl:
+					"Kiroshi a refusé d'ouvrir le lien de connexion donné par cette application. Vérifiez son adresse.",
+				browserRefused:
+					"Votre navigateur n'a pas voulu s'ouvrir. Réessayez, ou ouvrez le lien de connexion vous-même.",
+				timedOut: "La connexion a expiré avant de revenir. Réessayez.",
+				unknown: "La connexion s'est arrêtée : {{detail}}",
+			},
 			confirm: {
 				title: "Déconnecter {{name}} ?",
 				description:

@@ -1,4 +1,9 @@
-import type { BotMcpConnectionState } from "@workspace/ui/components/bot-settings"
+import type { TFunction } from "i18next"
+
+import type {
+	BotMcpConnectionReason,
+	BotMcpConnectionState,
+} from "@workspace/ui/components/bot-settings"
 
 type McpRefusedRefresh = {
 	reason: string
@@ -9,11 +14,25 @@ type McpRefusedRefresh = {
 
 type McpConnectionSection = {
 	state: BotMcpConnectionState
+	reason?: BotMcpConnectionReason
 	host?: string
 	refusedRefresh?: McpRefusedRefresh
 	onConnect?: () => void
 	onCancel?: () => void
 	onDisconnect?: () => void
+}
+
+const readMcpConnectionReason = (
+	t: TFunction<"bots">,
+	reason?: BotMcpConnectionReason,
+) => {
+	if (!reason) return null
+	if (reason.kind === "unknown")
+		return t("applications.connection.reason.unknown", {
+			detail: reason.detail,
+		})
+
+	return t(`applications.connection.reason.${reason.kind}`)
 }
 
 const MCP_ATTENTION_FIELD =
@@ -34,4 +53,5 @@ export {
 	MCP_DESTRUCTIVE_SURFACE,
 	type McpConnectionSection,
 	type McpRefusedRefresh,
+	readMcpConnectionReason,
 }
