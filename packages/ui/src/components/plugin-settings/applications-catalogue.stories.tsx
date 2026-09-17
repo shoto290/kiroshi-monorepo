@@ -393,14 +393,12 @@ export const NothingMatched = meta.story({
 		docs: {
 			description: {
 				story:
-					"A search that matches nothing. Check that the line repeats the words typed and points at pasting a configuration.",
+					"A search that matches nothing. Check that the line repeats the words typed and names no control the catalogue does not draw.",
 			},
 		},
 	},
 	play: async ({ canvas }) => {
-		const nothing = canvas.getByText(
-			"Nothing matched zebra. Try another name, or paste a configuration.",
-		)
+		const nothing = canvas.getByText("Nothing matched zebra. Try another name.")
 
 		await expect(nothing).toBeVisible()
 		await expect(nothing).toHaveAttribute("aria-live", "polite")

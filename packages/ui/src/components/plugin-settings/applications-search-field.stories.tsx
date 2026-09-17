@@ -8,6 +8,21 @@ import {
 } from "@workspace/ui/components/plugin-settings/applications-search-field"
 
 const FIELD_HEIGHT = 36
+const ENLARGED_ROOT_TEXT = "32px"
+
+const shellOf = (field: HTMLElement) =>
+	(field.closest("label") as HTMLElement).getBoundingClientRect()
+
+const expectLineCentredInShell = async (field: HTMLElement) => {
+	const shell = shellOf(field)
+	const line = field.getBoundingClientRect()
+
+	await expect(line.top).toBeGreaterThanOrEqual(shell.top)
+	await expect(line.bottom).toBeLessThanOrEqual(shell.bottom)
+	await expect(Math.round(line.top - shell.top)).toBe(
+		Math.round(shell.bottom - line.bottom),
+	)
+}
 
 const SearchHost = (props: ApplicationsSearchFieldProps) => {
 	const [value, setValue] = useState(props.value)
@@ -50,11 +65,7 @@ export const AtRest = meta.story({
 		const field = canvas.getByRole("textbox", { name: "Search applications" })
 
 		await expect(field).toHaveValue("")
-		await expect(
-			Math.round(
-				(field.closest("label") as HTMLElement).getBoundingClientRect().height,
-			),
-		).toBe(FIELD_HEIGHT)
+		await expect(Math.round(shellOf(field).height)).toBe(FIELD_HEIGHT)
 		await expect(canvasElement.textContent).toBe("")
 	},
 })
@@ -74,5 +85,34 @@ export const Typed = meta.story({
 		)
 
 		await expect(args.onValueChange).toHaveBeenLastCalledWith("linear")
+	},
+})
+
+export const RootTextEnlarged = meta.story({
+	parameters: {
+		docs: {
+			description: {
+				story:
+					"The root text size doubled. Check that the shell grows past its default height and that the whole typed line, descenders included, stays inside the shell and centred on it.",
+			},
+		},
+	},
+	play: async ({ canvas, userEvent }) => {
+		const root = document.documentElement
+		const rootTextAtRest = root.style.fontSize
+
+		try {
+			const field = canvas.getByRole("textbox", { name: "Search applications" })
+
+			await userEvent.type(field, "typography")
+			await expectLineCentredInShell(field)
+
+			root.style.fontSize = ENLARGED_ROOT_TEXT
+
+			await expect(shellOf(field).height).toBeGreaterThan(FIELD_HEIGHT)
+			await expectLineCentredInShell(field)
+		} finally {
+			root.style.fontSize = rootTextAtRest
+		}
 	},
 })

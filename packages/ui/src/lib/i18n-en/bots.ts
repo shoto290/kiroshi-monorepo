@@ -566,8 +566,7 @@ const bots = {
 				other: "Other",
 			},
 			unavailable: "Couldn’t read the applications Kiroshi knows.",
-			nothing:
-				"Nothing matched {{query}}. Try another name, or paste a configuration.",
+			nothing: "Nothing matched {{query}}. Try another name.",
 			setup: {
 				signIn: "Signs you in",
 				apiKey: "Needs an API key",
