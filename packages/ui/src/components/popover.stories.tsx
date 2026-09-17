@@ -54,7 +54,7 @@ const meta = preview.meta({
 		docs: {
 			description: {
 				component:
-					"The anchored panel as the shadcn registry ships it: `PopoverContent` carries its own portal and positioner, and `side`, `align` and `sideOffset` are props on it rather than on the root. It flips and shifts to stay in the viewport. Reach for `PopoverPanel` when the panel has to open on hover or wear the repo's popup surface.",
+					"The anchored panel as the shadcn registry ships it: `PopoverContent` carries its own portal and positioner, and `side`, `align` and `sideOffset` are props on it rather than on the root. It flips and shifts to stay in the viewport. Reach for `PopoverPanel` when the panel has to wear the repo's popup surface at one of its two anchors.",
 			},
 		},
 	},

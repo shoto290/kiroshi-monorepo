@@ -16,16 +16,15 @@ import {
 } from "@workspace/ui/components/ui/popover"
 import { cn } from "@workspace/ui/lib/utils"
 
-type PopoverPanelSide = "top" | "bottom"
-type PopoverPanelAlign = "start" | "center" | "end"
-type PopoverPanelTriggerMode = "click" | "hover"
+type PopoverPanelPlacement = "top-start" | "bottom-end"
 
-const HOVER_CLOSE_DELAY = 120
+const ANCHORS = {
+	"top-start": { side: "top", align: "start" },
+	"bottom-end": { side: "bottom", align: "end" },
+} as const
 
 type PopoverPanelContextValue = {
-	triggerMode: PopoverPanelTriggerMode
-	side: PopoverPanelSide
-	align: PopoverPanelAlign
+	placement: PopoverPanelPlacement
 	sideOffset: number
 }
 
@@ -40,30 +39,26 @@ const usePopoverPanelContext = (component: string) => {
 
 type PopoverPanelProps = {
 	children: ReactNode
+	placement: PopoverPanelPlacement
 	open?: boolean
 	defaultOpen?: boolean
 	onOpenChange?: (open: boolean) => void
-	trigger?: PopoverPanelTriggerMode
-	side?: PopoverPanelSide
-	align?: PopoverPanelAlign
 	sideOffset?: number
 	className?: string
 }
 
 const PopoverPanel = ({
 	children,
+	placement,
 	open,
 	defaultOpen,
 	onOpenChange,
-	trigger = "click",
-	side = "bottom",
-	align = "center",
 	sideOffset = 14,
 	className,
 }: PopoverPanelProps) => {
 	const context = useMemo<PopoverPanelContextValue>(
-		() => ({ triggerMode: trigger, side, align, sideOffset }),
-		[trigger, side, align, sideOffset],
+		() => ({ placement, sideOffset }),
+		[placement, sideOffset],
 	)
 
 	return (
@@ -87,16 +82,9 @@ type PopoverPanelTriggerProps = {
 }
 
 const PopoverPanelTrigger = ({ children }: PopoverPanelTriggerProps) => {
-	const { triggerMode } = usePopoverPanelContext("PopoverPanelTrigger")
-	const onHover = triggerMode === "hover"
+	usePopoverPanelContext("PopoverPanelTrigger")
 
-	return (
-		<PopoverTrigger
-			closeDelay={onHover ? HOVER_CLOSE_DELAY : undefined}
-			openOnHover={onHover}
-			render={children}
-		/>
-	)
+	return <PopoverTrigger render={children} />
 }
 
 type PopoverPanelContentProps = {
@@ -110,9 +98,10 @@ const PopoverPanelContent = ({
 	className,
 	"aria-label": ariaLabel,
 }: PopoverPanelContentProps) => {
-	const { side, align, sideOffset } = usePopoverPanelContext(
+	const { placement, sideOffset } = usePopoverPanelContext(
 		"PopoverPanelContent",
 	)
+	const { side, align } = ANCHORS[placement]
 
 	return (
 		<PopoverContent
@@ -133,9 +122,7 @@ const PopoverPanelContent = ({
 
 export {
 	PopoverPanel,
-	type PopoverPanelAlign,
 	PopoverPanelContent,
-	type PopoverPanelSide,
+	type PopoverPanelPlacement,
 	PopoverPanelTrigger,
-	type PopoverPanelTriggerMode,
 }

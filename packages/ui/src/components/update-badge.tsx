@@ -151,8 +151,7 @@ const UpdateReady = ({
 		<PopoverPanel
 			open={isOpen}
 			onOpenChange={setIsOpen}
-			side="top"
-			align="start"
+			placement="top-start"
 			className={cn(BADGE_FRAME, BADGE_SIZE, className)}
 		>
 			<PopoverPanelTrigger>

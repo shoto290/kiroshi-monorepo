@@ -101,8 +101,7 @@ const PinnedMessages = ({
 		<PopoverPanel
 			open={isOpen}
 			onOpenChange={setIsOpen}
-			side="bottom"
-			align="end"
+			placement="bottom-end"
 			className={className}
 		>
 			<PopoverPanelTrigger>
