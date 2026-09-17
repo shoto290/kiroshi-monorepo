@@ -78,9 +78,8 @@ mod tests {
 	async fn a_curated_name_answers_from_the_catalogue_and_the_registry_is_not_read() {
 		let (official, listed) = official_stub::serving(official_stub::holding(Vec::new())).await;
 
-		let answered = named(&official, &an_unread_directory(), "superset")
-			.await
-			.expect("the name resolves");
+		let answered =
+			named(&official, &an_unread_directory(), "superset").await.expect("the name resolves");
 
 		assert_eq!(answered.map(|held| held.name), Some("superset".to_owned()));
 		assert!(listed.detailed.lock().expect("the stub records").is_empty(), "a detail was read");
@@ -93,8 +92,7 @@ mod tests {
 		directory.refreshed().await;
 		let (official, listed) = official_stub::serving(official_stub::holding(Vec::new())).await;
 
-		let answered =
-			named(&official, &directory, "linear").await.expect("the name resolves");
+		let answered = named(&official, &directory, "linear").await.expect("the name resolves");
 
 		assert_eq!(answered.map(|held| held.name), Some("linear".to_owned()));
 		assert!(listed.detailed.lock().expect("the stub records").is_empty(), "a detail was read");
@@ -122,8 +120,7 @@ mod tests {
 
 	#[tokio::test]
 	async fn a_name_no_source_carries_while_the_registry_is_unreached_answers_that_failure() {
-		let answered =
-			named(&unreached().await, &an_unread_directory(), "io.test/nowhere").await;
+		let answered = named(&unreached().await, &an_unread_directory(), "io.test/nowhere").await;
 
 		assert!(
 			matches!(answered, Err(ApplicationsError::RegistryUnreached { .. })),
@@ -139,8 +136,7 @@ mod tests {
 			official_stub::serving(official_stub::holding(vec!["com.notion/mcp"])).await;
 		let directory = Directory::at(base, None);
 
-		let answered =
-			search(&official, &directory, "").await.expect("the listing answers");
+		let answered = search(&official, &directory, "").await.expect("the listing answers");
 
 		assert_eq!(names(answered), ["linear"]);
 		assert!(listed.asked.lock().expect("the stub records").is_empty(), "the registry was read");
@@ -154,8 +150,7 @@ mod tests {
 			official_stub::serving(official_stub::holding(vec!["com.notion/mcp"])).await;
 		let directory = Directory::at(base, None);
 
-		let answered =
-			search(&official, &directory, "linear").await.expect("the query answers");
+		let answered = search(&official, &directory, "linear").await.expect("the query answers");
 
 		assert_eq!(names(answered), ["linear"]);
 		assert!(listed.asked.lock().expect("the stub records").is_empty(), "the registry was read");
