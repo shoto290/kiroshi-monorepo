@@ -1,20 +1,18 @@
 import { useEffect } from "react"
 
 import type { ApplicationsController } from "./applications-controller"
+import { hasKeptMark } from "./connection-settings"
 
 import type { BotMcpServer } from "../conversations/store-contract"
 
 const NAME_SEPARATOR = "\n"
-
-const isUnmarked = ({ title, logo, logoUrl }: BotMcpServer) =>
-	title === undefined && logo === undefined && logoUrl === undefined
 
 export const useApplicationMarks = (
 	controller: ApplicationsController,
 	servers: BotMcpServer[],
 ) => {
 	const unmarkedNames = servers
-		.filter(isUnmarked)
+		.filter((server) => !hasKeptMark(server))
 		.map((server) => server.name)
 		.join(NAME_SEPARATOR)
 

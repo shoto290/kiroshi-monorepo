@@ -50,7 +50,7 @@ describe("useApplicationMarks", () => {
 		expect(askedNamesOf(port)).toEqual(["atlas"])
 	})
 
-	it("asks nothing again when the same panels render again", async () => {
+	it("asks once for a name two panels declare, however often they render", async () => {
 		const { port, rendered } = asking([ATLAS, ATLAS])
 
 		await act(async () => rendered.rerender([ATLAS]))

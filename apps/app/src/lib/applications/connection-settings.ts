@@ -35,6 +35,11 @@ const keptMarkOf = ({ title, logo, logoUrl }: BotMcpServer) => ({
 	mark: logo ?? logoUrl,
 })
 
+export const hasKeptMark = (server: BotMcpServer) => {
+	const { displayName, mark } = keptMarkOf(server)
+	return displayName !== undefined || mark !== undefined
+}
+
 const hostOf = (url: string) =>
 	URL.canParse(url) ? new URL(url).host : undefined
 
