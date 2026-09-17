@@ -28,9 +28,11 @@ const readMcpConnectionReason = (
 ) => {
 	if (!reason) return null
 	if (reason.kind === "unknown")
-		return t("applications.connection.reason.unknown", {
-			detail: reason.detail,
-		})
+		return reason.detail.trim()
+			? t("applications.connection.reason.unknown", {
+					detail: reason.detail,
+				})
+			: null
 
 	return t(`applications.connection.reason.${reason.kind}`)
 }

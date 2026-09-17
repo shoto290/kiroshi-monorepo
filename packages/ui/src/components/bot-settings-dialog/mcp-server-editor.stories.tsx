@@ -497,6 +497,8 @@ const failedFor = (reason: BotMcpConnectionReason): McpConnectionSection => ({
 
 const UNKNOWN_DETAIL = "exit 9 before the callback"
 
+const UNBROKEN_UNKNOWN_DETAIL = `0x${"a3f19b7c".repeat(40)}`
+
 export const ReasonAlreadyRunning = meta.story({
 	args: { connection: failedFor({ kind: "alreadyRunning" }) },
 	parameters: {
@@ -624,6 +626,58 @@ export const ReasonUnknown = meta.story({
 			canvas.getByText(`The sign-in stopped: ${UNKNOWN_DETAIL}`),
 		).toBeVisible()
 		await expect(canvas.queryByText(/timed out/)).not.toBeInTheDocument()
+	},
+})
+
+export const ReasonUnknownUnbroken = meta.story({
+	args: {
+		connection: failedFor({
+			kind: "unknown",
+			detail: UNBROKEN_UNKNOWN_DETAIL,
+		}),
+	},
+	parameters: {
+		docs: {
+			description: {
+				story:
+					"The one kind that carries a raw string from upstream, here a 322 character token with nowhere to break. Reach for this over `ReasonUnknown` to check what the editor does with a detail wider than its column: the token breaks inside the sentence instead of pushing the block past its frame, and Retry keeps its own end of the line at the width it holds in the other `Reason` stories.",
+			},
+		},
+	},
+	play: async ({ canvas, canvasElement }) => {
+		const frame = canvasElement.firstElementChild
+		const sentence = canvas.getByText(
+			new RegExp(UNBROKEN_UNKNOWN_DETAIL.slice(0, 24)),
+		)
+		const retry = canvas.getByRole("button", { name: "Retry" })
+
+		await expect(frame).not.toBeNull()
+		await expect(sentence.clientWidth).toBeLessThanOrEqual(
+			frame?.clientWidth ?? 0,
+		)
+		await expect(sentence.scrollWidth).toBeLessThanOrEqual(sentence.clientWidth)
+		await expect(retry.scrollWidth).toBeLessThanOrEqual(retry.clientWidth)
+		await expect(retry.getBoundingClientRect().right).toBeLessThanOrEqual(
+			frame?.getBoundingClientRect().right ?? 0,
+		)
+	},
+})
+
+export const ReasonUnknownBlank = meta.story({
+	args: { connection: failedFor({ kind: "unknown", detail: "   " }) },
+	parameters: {
+		docs: {
+			description: {
+				story:
+					"An unknown failure whose detail came back empty. Check that the block falls back to what `ConnectionFailed` draws rather than printing a sentence that stops at its colon: nothing is said, and nothing is reserved under the state label.",
+			},
+		},
+	},
+	play: async ({ canvas }) => {
+		await expect(canvas.getByText("Couldn’t connect")).toBeVisible()
+		await expect(
+			canvas.queryByText(/The sign-in stopped/),
+		).not.toBeInTheDocument()
 	},
 })
 

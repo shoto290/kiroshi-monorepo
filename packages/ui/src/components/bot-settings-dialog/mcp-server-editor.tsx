@@ -400,7 +400,7 @@ const McpServerEditor = ({
 
 	return (
 		<Tabs.Root
-			className={cn("flex min-h-0 flex-1", className)}
+			className={cn("flex min-h-0 min-w-0 flex-1", className)}
 			defaultValue={defaultSection ?? FIRST_SECTION}
 			orientation="vertical"
 			ref={setRoot}
