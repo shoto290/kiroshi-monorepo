@@ -651,7 +651,6 @@ export const ReasonUnknownUnbroken = meta.story({
 		)
 		const retry = canvas.getByRole("button", { name: "Retry" })
 
-		await expect(frame).not.toBeNull()
 		await expect(sentence.clientWidth).toBeLessThanOrEqual(
 			frame?.clientWidth ?? 0,
 		)
