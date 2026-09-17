@@ -42,7 +42,6 @@ export const Default = meta.story({
 		const header = canvas.getByRole("banner")
 
 		await expect(header).toBeVisible()
-		await expect(header).toHaveClass(/pl-22/)
 		await expect(getComputedStyle(header).paddingLeft).toBe("88px")
 		await expect(header.getBoundingClientRect().height).toBe(HEADER_HEIGHT)
 	},
