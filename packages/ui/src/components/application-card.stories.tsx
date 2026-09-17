@@ -19,11 +19,9 @@ import { bots } from "@workspace/ui/lib/i18n-en/bots"
 const LINEAR_MARK = CURATED_APPLICATIONS.find(({ id }) => id === "linear")?.mark
 
 const APPLICATION_STATUSES = listExhaustively<ApplicationCardStatus>({
-	none: true,
 	apiKey: true,
 	signIn: true,
 	unavailable: true,
-	waiting: true,
 	connected: true,
 })
 
@@ -115,20 +113,16 @@ type StatusIndicator = {
 }
 
 const STATUS_INDICATOR = {
-	none: { className: "text-state-connected", property: "color" },
 	apiKey: { className: "text-muted-foreground", property: "color" },
 	signIn: { className: "bg-bot-badge-attention", property: "backgroundColor" },
 	unavailable: { className: "text-destructive", property: "color" },
-	waiting: { className: "bg-bot-badge-attention", property: "backgroundColor" },
 	connected: { className: "bg-state-connected", property: "backgroundColor" },
 } as const satisfies Record<ApplicationCardStatus, StatusIndicator>
 
 const STATUS_LABEL = {
-	none: bots.applications.catalogue.setup.none,
 	apiKey: bots.applications.catalogue.setup.apiKey,
 	signIn: bots.applications.catalogue.setup.signIn,
 	unavailable: bots.applications.catalogue.setup.unavailable,
-	waiting: bots.applications.connection.waiting,
 	connected: bots.applications.connection.state.connected,
 } as const satisfies Record<ApplicationCardStatus, string>
 
@@ -145,7 +139,7 @@ export const Statuses = meta.story({
 		docs: {
 			description: {
 				story:
-					"Every status the card can carry, stacked in a column no thread assembles: `packages/ui/src/components/application-install-turn.tsx:90` posts one card at a time, and asks for only `connected`, `apiKey` or `signIn` of the six, through the map at `apps/app/src/components/application-install-row.tsx:14`. Labels come from the catalogue setup and connection catalogues; indicators from the connection dot map and the connected token. Check nothing to set up is a check stroked in the connected token, an API key is a muted key, an application that can’t be added here is blocked in the destructive token, signing in and waiting on the browser share the attention token, and a connected application reads its label in the foreground token.",
+					"Every status the card can carry, stacked in a column no thread assembles: `packages/ui/src/components/application-install-turn.tsx:90` posts one card at a time, and asks for only `connected`, `apiKey` or `signIn` of the four, through the map at `apps/app/src/components/application-install-row.tsx:14`. Labels come from the catalogue setup and connection catalogues; indicators from the connection dot map and the connected token. Check an API key is a muted key, an application that can’t be added here is blocked in the destructive token, signing in carries the attention token of the connection dot map, and a connected application reads its label in the foreground token.",
 			},
 		},
 	},
