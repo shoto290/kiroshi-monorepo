@@ -81,7 +81,7 @@ export const PickingTheMode = meta.story({
 		docs: {
 			description: {
 				story:
-					"The five answers a request can meet before any rule applies. Check that the one that waves everything through is nowhere in the list. Picking an answer closes the list a frame after the click, so the story waits for the picker and the focus guards it portals to leave the document before the accessibility audit reads it.",
+					"The five answers a request can meet before any rule applies. Check that the one that waves everything through is nowhere in the list. Picking an answer closes the list a frame after the click, so the story waits for the list and its focus guards to leave the document before the audit reads it.",
 			},
 		},
 	},
