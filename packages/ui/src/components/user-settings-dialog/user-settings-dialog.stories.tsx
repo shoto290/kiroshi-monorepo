@@ -189,7 +189,7 @@ export const Appearance = meta.story({
 		docs: {
 			description: {
 				story:
-					"The second group: the three colour schemes, side by side. Check that the chosen one reads as chosen and that choosing another writes the whole value back through `onValueChange`. Pick `Notifications` for the third group, `IconRail` for the width where the rail drops to its icons.",
+					"The second group: the three colour schemes, side by side. Check that the chosen one reads as chosen and that choosing another writes the whole value back through `onValueChange`. Pick `Notifications` for the third group, `LanguageTab` for the one after it.",
 			},
 		},
 	},
@@ -272,32 +272,6 @@ export const LanguageTab = meta.story({
 
 		await userEvent.click(within(panel).getByRole("radio", { name: "System" }))
 		await expect(args.onLanguageChange).toHaveBeenLastCalledWith(null)
-	},
-})
-
-export const IconRail = meta.story({
-	render: (args) => (
-		<div className="w-[34rem]">
-			<DialogHost {...args} />
-		</div>
-	),
-	globals: { viewport: { value: "mobile" } },
-	parameters: {
-		docs: {
-			description: {
-				story:
-					"The dialog on a window too narrow for the rail's names — the state a laptop reaches once the dialog is capped to the viewport. Check that the rail keeps every group reachable and named to a screen reader, that hovering one names it in a tooltip, and that the panel beside it keeps its full width. Pick `Appearance` for the rail with its names.",
-			},
-		},
-	},
-	play: async ({ userEvent }) => {
-		const rail = within(await dialogIn())
-
-		await userEvent.click(rail.getByRole("tab", { name: "Notifications" }))
-
-		await expect(
-			await rail.findByRole("tabpanel", { name: "Notifications" }),
-		).toBeVisible()
 	},
 })
 

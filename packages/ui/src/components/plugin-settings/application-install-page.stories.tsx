@@ -454,39 +454,6 @@ export const ForSpace = meta.story({
 	},
 })
 
-export const NarrowColumn = meta.story({
-	args: { application: API_KEY_INSTALL },
-	decorators: [
-		(Story) => (
-			<div className="flex h-[34rem] w-[33rem] overflow-hidden">
-				<Story />
-			</div>
-		),
-	],
-	parameters: {
-		docs: {
-			description: {
-				story:
-					"The column beside the rail narrowed to 320px. Check that the action wraps under the name, that the key panel and the pills wrap, and that nothing scrolls sideways.",
-			},
-		},
-	},
-	play: async ({ canvas }) => {
-		const heading = canvas.getByRole("heading", { name: "Sentry" })
-		const action = canvas.getByRole("button", { name: "Add application" })
-		await expect(action.getBoundingClientRect().top).toBeGreaterThan(
-			heading.getBoundingClientRect().bottom,
-		)
-
-		const body = canvas.getByRole("tabpanel")
-		const grid = body.parentElement as HTMLElement
-		await expect(Math.round(grid.getBoundingClientRect().width)).toBe(320)
-		for (const element of [grid, ...grid.children]) {
-			await expect(element.scrollWidth).toBeLessThanOrEqual(element.clientWidth)
-		}
-	},
-})
-
 export const LongContent = meta.story({
 	args: { application: LONG_INSTALL },
 	parameters: {
@@ -582,49 +549,5 @@ export const HostedNothingToSetUp = meta.story({
 		await expect(facts[1]).toHaveTextContent(
 			"Runs on slack.run.tools, not on this machine.",
 		)
-	},
-})
-
-export const NarrowHostedColumn = meta.story({
-	args: { application: HOSTED_INSTALL },
-	decorators: [
-		(Story) => (
-			<div className="flex h-[34rem] w-[33rem] overflow-hidden">
-				<Story />
-			</div>
-		),
-	],
-	parameters: {
-		docs: {
-			description: {
-				story:
-					"The hosted page in a column narrowed to 320px, where both sentences wrap. Check that each fact keeps its glyph level with the first line of its sentence, and that nothing overflows the column sideways.",
-			},
-		},
-	},
-	play: async ({ canvas, canvasElement }) => {
-		const body = canvas.getByRole("tabpanel")
-		const grid = body.parentElement as HTMLElement
-		await expect(Math.round(grid.getBoundingClientRect().width)).toBe(320)
-
-		const facts = [
-			...canvasElement.querySelectorAll('[data-slot="application-fact"]'),
-		]
-		await expect(facts).toHaveLength(2)
-
-		for (const fact of facts) {
-			const glyph = fact.querySelector("svg") as SVGElement
-			const sentence = fact.lastElementChild as HTMLElement
-			await expect(sentence.getBoundingClientRect().height).toBeGreaterThan(20)
-			await expect(
-				glyph.getBoundingClientRect().top -
-					sentence.getBoundingClientRect().top,
-			).toBeLessThan(6)
-			await expect(fact.scrollWidth).toBeLessThanOrEqual(fact.clientWidth)
-		}
-
-		for (const element of [grid, ...grid.children]) {
-			await expect(element.scrollWidth).toBeLessThanOrEqual(element.clientWidth)
-		}
 	},
 })

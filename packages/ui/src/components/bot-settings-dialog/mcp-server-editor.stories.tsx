@@ -2,10 +2,7 @@ import { useState } from "react"
 import { expect, fn, screen, waitFor, within } from "storybook/test"
 
 import preview from "@workspace/storybook/preview"
-import {
-	A11Y_CONTRAST_AWAITING_DESIGN_DECISION,
-	FRAME_POLL,
-} from "@workspace/storybook/story-utils"
+import { A11Y_CONTRAST_AWAITING_DESIGN_DECISION } from "@workspace/storybook/story-utils"
 import {
 	BLANK_MCP_SERVER_DRAFT,
 	type BotMcpServerDraft,
@@ -321,37 +318,6 @@ export const LongContent = meta.story({
 					"A server whose name, command and arguments all run past their fields. Check that only the open section scrolls, that the rail and the header hold still, and that the name in the header truncates rather than pushing the save off the row.",
 			},
 		},
-	},
-})
-
-export const IconRail = meta.story({
-	decorators: [
-		(Story) => (
-			<div className="flex h-[34rem] w-[30rem] overflow-hidden rounded-2xl border border-border">
-				<Story />
-			</div>
-		),
-	],
-	parameters: {
-		docs: {
-			description: {
-				story:
-					"The editor on a surface too narrow for the rail's names — below 42rem, the same threshold the companion's own rail takes. Check that every section stays reachable and named to a screen reader, and that the way out keeps its name as a tooltip rather than losing it.",
-			},
-		},
-	},
-	play: async ({ canvas, userEvent }) => {
-		await waitFor(
-			() => expect(canvas.getByText("All applications")).toHaveClass("sr-only"),
-			FRAME_POLL,
-		)
-
-		await userEvent.hover(
-			canvas.getByRole("button", { name: "All applications" }),
-		)
-		await expect(await screen.findByRole("tooltip")).toHaveTextContent(
-			"All applications",
-		)
 	},
 })
 

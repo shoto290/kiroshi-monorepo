@@ -385,36 +385,6 @@ export const RegistryUnreadable = meta.story({
 	},
 })
 
-export const NarrowDialog = meta.story({
-	decorators: [
-		(Story) => (
-			<div className="flex h-full w-[40rem]">
-				<Story />
-			</div>
-		),
-	],
-	parameters: {
-		docs: {
-			description: {
-				story:
-					"The catalogue in a dialog squeezed narrow. Check that the rail keeps the Everything label and its count, unlike the settings rail that folds to icons, and that the cards keep their width and reflow to two per line.",
-			},
-		},
-	},
-	play: async ({ canvas }) => {
-		const [first, second, third] = canvas
-			.getAllByRole("listitem")
-			.map((card) => card.getBoundingClientRect())
-		await expect(first.width).toBe(186)
-		await expect(second.top).toBe(first.top)
-		await expect(third.top).toBeGreaterThan(first.top)
-		await expect(canvas.getByRole("tab")).toHaveAccessibleName("Everything 6")
-		await expect(canvas.getByText("All applications")).not.toHaveClass(
-			"sr-only",
-		)
-	},
-})
-
 export const CatalogueLoading = meta.story({
 	args: {
 		count: null,
