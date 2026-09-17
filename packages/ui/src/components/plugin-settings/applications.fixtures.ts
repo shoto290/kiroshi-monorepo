@@ -88,29 +88,6 @@ export const UNREACHABLE_MARK = "data:image/png;base64,Tm90QW5JbWFnZQ=="
 export const DRAWN_MARK =
 	'<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 24 24" fill="currentColor"><path d="M12 2 2 20h20L12 2Z"/></svg>'
 
-export const DRAWN_APPLICATION: CatalogueApplication = {
-	id: "obsidian-vault",
-	name: "Obsidian Vault",
-	description: "Searches and edits the notes of a local vault.",
-	setup: "apiKey",
-	mark: DRAWN_MARK,
-}
-
-export const GLYPH_APPLICATION: CatalogueApplication = {
-	id: "io.github.kwn/tasklog",
-	name: "tasklog",
-	description: "Keeps a task log and the notes left on it.",
-	setup: "none",
-}
-
-export const UNREACHABLE_APPLICATION: CatalogueApplication = {
-	id: "io.github.saffron/notesync",
-	name: "notesync",
-	description: "Keeps a note file and the comments left on it.",
-	setup: "none",
-	mark: UNREACHABLE_MARK,
-}
-
 export const LONG_NAME_APPLICATION: CatalogueApplication = {
 	id: "smithery/slack",
 	name: "a-very-long-application-name-that-keeps-going-on-and-on-well-past-the-width-of-the-card-it-is-drawn-in",
