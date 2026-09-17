@@ -10,11 +10,9 @@ type McpRefusedRefresh = {
 type McpConnectionSection = {
 	state: BotMcpConnectionState
 	host?: string
-	authorizedAt?: string
 	refusedRefresh?: McpRefusedRefresh
 	onConnect?: () => void
 	onCancel?: () => void
-	onReopen?: () => void
 	onDisconnect?: () => void
 }
 
