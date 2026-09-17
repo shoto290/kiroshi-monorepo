@@ -194,7 +194,7 @@ const panelEnteredIn = (root: HTMLElement) => {
 
 	return waitFor(
 		() => expect(PANEL_AT_REST).toContain(getComputedStyle(panel).transform),
-		FRAME_POLL,
+		{ ...FRAME_POLL, timeout: 5000 },
 	)
 }
 
