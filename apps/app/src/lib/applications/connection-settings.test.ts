@@ -102,6 +102,11 @@ const rowOf = (name: string) => {
 
 const lastCall = (port: FakeConnectionPort) => port.calls.at(-1)
 
+const REFUSAL_SENTENCES = [
+	["transport", /couldn’t reach the agent/i],
+	["alreadyRunning", /sign-in is already running/i],
+] as const
+
 const connectionPort = (status: "needsAuthorization" | "connected") => {
 	const port = createFakeConnectionPort()
 	port.rows.space = [
@@ -276,10 +281,7 @@ describe("space connections", () => {
 		).toBeTruthy()
 	})
 
-	it.each([
-		["transport", /couldn’t reach the agent/i],
-		["alreadyRunning", /sign-in is already running/i],
-	])(
+	it.each(REFUSAL_SENTENCES)(
 		"says on the row why a connect refused for %s failed",
 		async (kind, sentence) => {
 			const port = connectionPort("needsAuthorization")
@@ -292,10 +294,7 @@ describe("space connections", () => {
 		},
 	)
 
-	it.each([
-		["transport", /couldn’t reach the agent/i],
-		["alreadyRunning", /sign-in is already running/i],
-	])(
+	it.each(REFUSAL_SENTENCES)(
 		"says in the editor why a connect refused for %s failed",
 		async (kind, sentence) => {
 			const port = connectionPort("needsAuthorization")

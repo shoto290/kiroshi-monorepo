@@ -173,7 +173,7 @@ describe("connections controller", () => {
 		await opened(port)
 
 		expect(reported).toHaveBeenCalledWith(
-			"connections: status was refused for s-1",
+			"connections: status was refused for space",
 			port.refusals.status,
 		)
 	})

@@ -67,7 +67,7 @@ export const createConnectionsController = (
 			return
 		}
 		console.error(
-			`connections: ${failure.command} was refused for ${failure.name ?? owner.id}`,
+			`connections: ${failure.command} was refused for ${failure.name ?? owner.kind}`,
 			failure.reason,
 		)
 		set({ failure })
