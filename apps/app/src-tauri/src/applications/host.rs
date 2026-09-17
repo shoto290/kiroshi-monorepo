@@ -894,8 +894,9 @@ mod tests {
 	{
 		let app = a_host("every-term").await;
 
-		assert_eq!(names(&searched(&app, "my and").await), ["superset", "paper"]);
-		assert_eq!(names(&searched(&app, "and workspaces").await), ["superset"]);
+		assert_eq!(names(&searched(&app, "run workspaces").await), ["superset"]);
+		assert_eq!(names(&searched(&app, "write designs").await), ["paper"]);
+		assert_eq!(names(&searched(&app, "workspaces designs").await), Vec::<&str>::new());
 		cleaned(&app);
 	}
 
@@ -1066,11 +1067,14 @@ mod tests {
 	#[tokio::test]
 	async fn the_status_tells_apart_not_installed_connected_needs_authorization_and_failed() {
 		let app = a_host("status").await;
-		let host = serving_in(&app, "c1", unreached().await).await;
-		for scope in ["companion", "user"] {
-			host.answer(an_install("superset", scope)).await.expect("the install answers");
+		let (official, _) = serving(holding(vec!["com.notion/mcp"])).await;
+		let host = serving_in(&app, "c1", official).await;
+		for application in ["superset", "paper"] {
+			host.answer(an_install(application, "companion")).await.expect("the install answers");
 		}
-		host.answer(an_install("paper", "companion")).await.expect("the install answers");
+		let oauth =
+			host.answer(an_install("com.notion/mcp", "user")).await.expect("the install answers");
+		assert_eq!(oauth["install"], json!({ "kind": "oauth" }));
 		let reports = app.state::<ApplicationReports>();
 		reports.record("b1", "superset", Standing::Holding);
 		reports.record("b1", "paper", Standing::LeftOut { reason: Some("refused".to_owned()) });
@@ -1082,7 +1086,7 @@ mod tests {
 
 		assert_eq!(read("superset", "space").await, json!({ "status": "notInstalled" }));
 		assert_eq!(read("superset", "companion").await, json!({ "status": "connected" }));
-		assert_eq!(read("superset", "user").await, json!({ "status": "needsAuthorization" }));
+		assert_eq!(read("com.notion/mcp", "user").await, json!({ "status": "needsAuthorization" }));
 		assert_eq!(
 			read("paper", "companion").await,
 			json!({ "status": "failed", "reason": "refused" })
