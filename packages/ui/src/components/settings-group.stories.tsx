@@ -63,6 +63,7 @@ export const Default = meta.story({
 })
 
 export const LongContent = meta.story({
+	tags: ["test-only"],
 	args: { label: "Density of the list rows", grid: "grid-cols-2 gap-1.5" },
 	parameters: {
 		docs: {

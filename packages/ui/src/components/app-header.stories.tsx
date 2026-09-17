@@ -1,9 +1,11 @@
-import { expect } from "storybook/test"
+import { expect, fn } from "storybook/test"
 
 import preview from "@workspace/storybook/preview"
 import { AppHeader } from "@workspace/ui/components/app-header"
 import { ConnectionStatus } from "@workspace/ui/components/connection-status"
+import { HeaderIdentityButton } from "@workspace/ui/components/header-identity-button"
 import { Icons } from "@workspace/ui/components/icons"
+import { PinnedMessages } from "@workspace/ui/components/pinned-messages"
 import { Button } from "@workspace/ui/components/ui/button"
 
 const HEADER_HEIGHT = 48
@@ -24,123 +26,45 @@ const meta = preview.meta({
 			},
 		},
 	},
-	args: {
-		trailing: <ConnectionStatus state="ready" version="2.1.233" />,
-	},
 })
 
 export const Default = meta.story({
-	parameters: {
-		docs: {
-			description: {
-				story:
-					"Reach for this on a single-screen app whose window chrome already names the product: nothing to say on the leading edge, agent status on the trailing one. Check that the status still sits hard right with the leading slot empty. Pick `WithIcons` when the surface needs to name itself inside the viewport.",
-			},
-		},
-	},
-	play: async ({ canvas }) => {
-		await expect(canvas.getByRole("banner")).toBeVisible()
-		await expect(canvas.getByRole("status")).toHaveTextContent("Agent ready")
-	},
-})
-
-export const InLayout = meta.story({
 	args: { insetWindowControls: true },
 	parameters: {
 		docs: {
 			description: {
 				story:
-					"Reach for this in a desktop window whose title bar is transparent, so the web view starts at the top edge and the OS paints its close/minimise/zoom buttons over this row. Check that the leading gutter is wide enough that nothing collides with those controls, and that the status still holds the trailing edge. Pick `Default` in a browser tab, where no gutter is owed.",
+					"Reach for this on a screen holding no thread: both slots empty, in a desktop window whose title bar is transparent, so the OS paints its close/minimise/zoom buttons over this row. Check that the leading gutter is wide enough that nothing collides with those controls and that the bar keeps its height with nothing in it. Pick `TrailingInset` for the bar a thread fills. The app assembles it at `apps/app/src/components/workspace-body.tsx:127`.",
 			},
 		},
 	},
 	play: async ({ canvas }) => {
 		const header = canvas.getByRole("banner")
 
-		await expect(header).toHaveClass(/pl-22/)
+		await expect(header).toBeVisible()
 		await expect(getComputedStyle(header).paddingLeft).toBe("88px")
-	},
-})
-
-export const WithIcons = meta.story({
-	args: {
-		leading: (
-			<>
-				<Icons.Claude aria-hidden="true" className="size-4" />
-				Kiroshi
-			</>
-		),
-	},
-	parameters: {
-		docs: {
-			description: {
-				story:
-					"Reach for this in a browser tab or an embedded view, where no OS title bar carries the product name. Check that the two slots stay on one row and that the leading mark never pushes the status off the trailing edge. Pick `Default` in a desktop window that already shows the title.",
-			},
-		},
-	},
-})
-
-export const WithAction = meta.story({
-	args: {
-		leading: <>Kiroshi</>,
-		trailing: (
-			<>
-				<ConnectionStatus state="crashed" />
-				<Button size="xs" variant="outline">
-					<Icons.Retry data-icon="inline-start" />
-					Restart
-				</Button>
-			</>
-		),
-	},
-	parameters: {
-		docs: {
-			description: {
-				story:
-					"Reach for this when the trailing slot has to carry more than a status — here a dead session and the control that revives it. Check that status and button stay grouped on the trailing edge with the gap between them, rather than spreading across the bar. Pick `Default` when the status alone is the whole story.",
-			},
-		},
-	},
-	play: async ({ canvas }) => {
-		await expect(canvas.getByRole("button", { name: "Restart" })).toBeVisible()
-	},
-})
-
-export const LongContent = meta.story({
-	globals: { viewport: { value: "mobile" } },
-	args: {
-		leading: (
-			<>
-				<Icons.Claude aria-hidden="true" className="size-4" />A workspace name
-				long enough to run out of room on a narrow window
-			</>
-		),
-	},
-	parameters: {
-		docs: {
-			description: {
-				story:
-					"Reach for this to check the collision the two slots can have: a leading label wider than the bar. Check that the trailing status keeps its full width and stays legible while the leading side gives up the space. Pick `WithIcons` for the nominal width.",
-			},
-		},
+		await expect(header.getBoundingClientRect().height).toBe(HEADER_HEIGHT)
 	},
 })
 
 export const TrailingInset = meta.story({
 	args: {
-		leading: <>Kiroshi</>,
-		trailing: (
-			<Button aria-label="Pinned messages" size="icon-sm" variant="ghost">
-				<Icons.Pin />
-			</Button>
+		leading: (
+			<HeaderIdentityButton
+				connection="ready"
+				name="Nest"
+				onOpenSettings={fn()}
+				seed="nest"
+				version="2.1.233"
+			/>
 		),
+		trailing: <PinnedMessages messages={[]} onJump={fn()} onUnpin={fn()} />,
 	},
 	parameters: {
 		docs: {
 			description: {
 				story:
-					"Reach for this to check the corner an icon-only control lands in: the bar owes it the same air above, below and to its right, so it reads as placed rather than pushed into the angle. Check the three gaps measure the same pixel — the bottom rule is part of the bar, so the row leans a pixel down to pay for it. Pick `WithAction` for a trailing slot carrying a labelled button instead.",
+					"Reach for this for the bar a thread fills: the companion on the leading edge, the pinned messages control on the trailing one. Check the corner that icon-only control lands in — the bar owes it the same air above, below and to its right, so it reads as placed rather than pushed into the angle — and that the three gaps measure the same pixel, the bottom rule leaning the row a pixel down to pay for itself. Pick `Default` for the empty bar. The app assembles it at `apps/app/src/components/thread-screen.tsx:330`.",
 			},
 		},
 	},
@@ -161,5 +85,32 @@ export const TrailingInset = meta.story({
 			bottom: TRAILING_INSET,
 			right: TRAILING_INSET,
 		})
+	},
+})
+
+export const WithAction = meta.story({
+	tags: ["test-only"],
+	args: {
+		leading: <>Kiroshi</>,
+		trailing: (
+			<>
+				<ConnectionStatus state="crashed" />
+				<Button size="xs" variant="outline">
+					<Icons.Retry data-icon="inline-start" />
+					Restart
+				</Button>
+			</>
+		),
+	},
+	parameters: {
+		docs: {
+			description: {
+				story:
+					"Reach for this when the trailing slot has to carry more than a status — here a dead session and the control that revives it. Check that status and button stay grouped on the trailing edge with the gap between them, rather than spreading across the bar. No screen assembles this bar: the app puts the connection state inside the identity button and never hangs a control beside it, so this one stays out of the catalogue and proves the grouping for the suite alone.",
+			},
+		},
+	},
+	play: async ({ canvas }) => {
+		await expect(canvas.getByRole("button", { name: "Restart" })).toBeVisible()
 	},
 })

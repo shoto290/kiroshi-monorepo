@@ -1,4 +1,5 @@
-import { describe, expect, it } from "vitest"
+import type { MockInstance } from "vitest"
+import { afterEach, beforeEach, describe, expect, it, vi } from "vitest"
 
 import { createConnectionsController } from "./connections-controller"
 import {
@@ -28,6 +29,16 @@ const settle = async () => {
 
 const commandsOf = (port: FakeConnectionPort) =>
 	port.calls.map((call) => call.command)
+
+let reported: MockInstance<typeof console.error>
+
+beforeEach(() => {
+	reported = vi.spyOn(console, "error").mockImplementation(() => undefined)
+})
+
+afterEach(() => {
+	vi.restoreAllMocks()
+})
 
 describe("connections controller", () => {
 	it("reads the status of the owner it opens on", async () => {
@@ -140,6 +151,39 @@ describe("connections controller", () => {
 		await controller.open(SPACE)
 
 		expect(controller.getState().failure).toBeNull()
+	})
+
+	it("reports the refusal it stored, once, naming the command and the application", async () => {
+		const port = createFakeConnectionPort()
+		port.refusals.connect = DENIED
+		const controller = await opened(port)
+
+		await controller.connect("atlas", URL)
+
+		expect(reported).toHaveBeenCalledTimes(1)
+		expect(reported).toHaveBeenCalledWith(
+			"connections: connect was refused for atlas",
+			DENIED,
+		)
+	})
+
+	it("reports a refused status read against the owner it read", async () => {
+		const port = createFakeConnectionPort()
+		port.refusals.status = { kind: "io", detail: "locked" }
+		await opened(port)
+
+		expect(reported).toHaveBeenCalledWith(
+			"connections: status was refused for space",
+			port.refusals.status,
+		)
+	})
+
+	it("reports nothing when every command lands", async () => {
+		const controller = await opened(createFakeConnectionPort())
+
+		await controller.disconnect("atlas", URL)
+
+		expect(reported).not.toHaveBeenCalled()
 	})
 
 	it("sends nothing while no owner is open", async () => {

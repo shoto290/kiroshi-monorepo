@@ -210,7 +210,7 @@ export const OnRail = meta.story({
 		docs: {
 			description: {
 				story:
-					"The row once the panel is down to its icon rail. Check that only the media is drawn, with the badge it carries, that the name line and the preview leave the picture and the accessibility tree while the strips are not drawn at all, and that the row is still reached by the name `Atlas` and named again in a hint on hover. Pick `WithStrips` for the strips the open panel draws.",
+					"The row once the panel is down to its icon rail. Check that only the media is drawn, with the badge it carries, that the name line and the preview leave the picture and the accessibility tree while the strips are not drawn at all, and that the row is still reached by the name `Atlas` and named again in a hint on hover. Pick `WithStrips` for the strips the open panel draws. The app assembles it at `apps/app/src/App.tsx:935`.",
 			},
 		},
 	},
@@ -237,7 +237,7 @@ export const NameOnly = meta.story({
 		docs: {
 			description: {
 				story:
-					'The row given its name and nothing else, the one required part. Check the root is a `button` carrying `data-slot="sidebar-menu-button"`, that no other slot draws a box, and that nothing inside the button is a block element. Pick `WithTrailingBadgeAndTimestamp` for a full name line.',
+					'The row given its name and nothing else, the one required part. Check the root is a `button` carrying `data-slot="sidebar-menu-button"`, that no other slot draws a box, and that nothing inside the button is a block element. Pick `WithTrailingBadgeAndTimestamp` for a full name line. The app assembles it at `apps/app/src/App.tsx:935`.',
 			},
 		},
 	},
@@ -276,7 +276,7 @@ export const WithTrailingBadgeAndTimestamp = meta.story({
 		docs: {
 			description: {
 				story:
-					"A name line carrying a title badge beside the name and the time of the last message at its end. Check the badge sits right after the name and the timestamp is pushed to the end of the line. Pick `LongContent` for a name that has to give way to both.",
+					"A name line carrying a title badge beside the name and the time of the last message at its end. Check the badge sits right after the name and the timestamp is pushed to the end of the line. Pick `LongContent` for a name that has to give way to both. The app assembles it at `apps/app/src/App.tsx:935`.",
 			},
 		},
 	},
@@ -300,7 +300,7 @@ export const WithPreview = meta.story({
 		docs: {
 			description: {
 				story:
-					"A row at rest with its last message on the preview line. Check the preview is one clipped muted line under the name and carries no shimmer. Pick `WorkingPreview` for a companion at work.",
+					"A row at rest with its last message on the preview line. Check the preview is one clipped muted line under the name and carries no shimmer. Pick `WorkingPreview` for a companion at work. The app assembles it at `apps/app/src/App.tsx:935`.",
 			},
 		},
 	},
@@ -323,7 +323,7 @@ export const WorkingPreview = meta.story({
 		docs: {
 			description: {
 				story:
-					"A companion at work: the preview line runs the working shimmer the roster uses on its busy rows. Check the shimmer wraps the preview text and not the name. Pick `WithPreview` for the same line at rest.",
+					"A companion at work: the preview line runs the working shimmer the roster uses on its busy rows. Check the shimmer wraps the preview text and not the name. Pick `WithPreview` for the same line at rest. The app assembles it at `apps/app/src/App.tsx:935`.",
 			},
 		},
 	},
@@ -336,6 +336,7 @@ export const WorkingPreview = meta.story({
 })
 
 export const MutedName = meta.story({
+	tags: ["test-only"],
 	args: {
 		media: AVATAR,
 		timestamp: "09:12",
@@ -391,7 +392,7 @@ export const PreviewFromNodes = meta.story({
 		docs: {
 			description: {
 				story:
-					"A preview line built from nodes rather than from one string, the way a mission row writes its ticket, its companion and its state. Check that every node lands inside the single preview line, that the line still clips to one row rather than wrapping, and that nothing inside the button is a block element. Pick `WithPreview` for the same slot given plain text.",
+					"A preview line built from nodes rather than from one string, the way a mission row writes its ticket, its companion and its state. Check that every node lands inside the single preview line, that the line still clips to one row rather than wrapping, and that nothing inside the button is a block element. Pick `WithPreview` for the same slot given plain text. The app assembles it at `apps/app/src/App.tsx:935`.",
 			},
 		},
 	},
@@ -424,7 +425,7 @@ export const WithBadgeDot = meta.story({
 		docs: {
 			description: {
 				story:
-					"A row whose companion is asking for the reader. Check the badge dot sits at the end of the preview line, inside the row, without pushing the preview or the timestamp. Pick `OnRail` for the badge the rail moves onto the avatar.",
+					"A row whose companion is asking for the reader. Check the badge dot sits at the end of the preview line, inside the row, without pushing the preview or the timestamp. Pick `OnRail` for the badge the rail moves onto the avatar. The app assembles it at `apps/app/src/App.tsx:935`.",
 			},
 		},
 	},
@@ -461,7 +462,7 @@ export const WithStrips = meta.story({
 		docs: {
 			description: {
 				story:
-					"A row carrying open missions: the strips hang under both lines, one per mission, in the row's own box. Check the avatar stays centred on the name and preview rather than on the whole row. Pick `OnRail` for the rail that drops them.",
+					"A row carrying open missions: the strips hang under both lines, one per mission, in the row's own box. Check the avatar stays centred on the name and preview rather than on the whole row. Pick `OnRail` for the rail that drops them. The app assembles it at `apps/app/src/App.tsx:935`.",
 			},
 		},
 	},
@@ -473,6 +474,7 @@ export const WithStrips = meta.story({
 })
 
 export const AllSlots = meta.story({
+	tags: ["test-only"],
 	args: {
 		media: AVATAR,
 		trailing: (
@@ -513,6 +515,7 @@ export const AllSlots = meta.story({
 })
 
 export const SkinMatchesMenuButton = meta.story({
+	tags: ["test-only"],
 	args: {
 		media: AVATAR,
 		timestamp: "09:24",
@@ -601,7 +604,7 @@ export const LongContent = meta.story({
 		docs: {
 			description: {
 				story:
-					"A name longer than the room left by a title badge and a timestamp. Check the name alone is cut with an ellipsis while the badge and the timestamp stay whole at their own width, and the preview clips to one line. Pick `WithTrailingBadgeAndTimestamp` for the same line when everything fits.",
+					"A name longer than the room left by a title badge and a timestamp. Check the name alone is cut with an ellipsis while the badge and the timestamp stay whole at their own width, and the preview clips to one line. Pick `WithTrailingBadgeAndTimestamp` for the same line when everything fits. The app assembles it at `apps/app/src/App.tsx:935`.",
 			},
 		},
 	},
@@ -621,6 +624,7 @@ export const LongContent = meta.story({
 })
 
 export const Pressed = meta.story({
+	tags: ["test-only"],
 	args: {
 		media: AVATAR,
 		timestamp: "09:24",
@@ -675,6 +679,7 @@ export const Pressed = meta.story({
 })
 
 export const BoxMetrics = meta.story({
+	tags: ["test-only"],
 	args: {
 		media: AVATAR,
 		timestamp: "09:24",

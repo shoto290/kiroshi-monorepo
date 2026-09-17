@@ -94,7 +94,7 @@ export const Default = meta.story({
 		docs: {
 			description: {
 				story:
-					"A reader with a name and a picture, in an expanded panel — the nominal row. Check that the picture is inset from the leading edge by exactly what the row leaves above and below it — one spacing on the three edges it is against — that the picture and the name sit on one line with the picture leading, that Tab reaches the row with a visible ring, and that a click and a keyboard press each fire the open event exactly once: the chip is the only way into the settings, so a doubled event would open them twice. Pick `WithoutPicture` for a reader who uploaded nothing.",
+					"A reader with a name and a picture, in an expanded panel — the nominal row. Check that the picture is inset from the leading edge by exactly what the row leaves above and below it — one spacing on the three edges it is against — that the picture and the name sit on one line with the picture leading, that Tab reaches the row with a visible ring, and that a click and a keyboard press each fire the open event exactly once: the chip is the only way into the settings, so a doubled event would open them twice. Pick `WithoutPicture` for a reader who uploaded nothing. The app assembles it at `apps/app/src/App.tsx:935`.",
 			},
 		},
 	},
@@ -125,7 +125,7 @@ export const WithoutPicture = meta.story({
 		docs: {
 			description: {
 				story:
-					"A reader who never uploaded a picture, which is most of them on the first run. Check that the initials of the display name fill the same circle the picture would have — so the name beside it lands on the same column either way — and that the row keeps one accessible name rather than announcing the initials as well. Pick `Default` for the same reader with a picture.",
+					"A reader who never uploaded a picture, which is most of them on the first run. Check that the initials of the display name fill the same circle the picture would have — so the name beside it lands on the same column either way — and that the row keeps one accessible name rather than announcing the initials as well. Pick `Default` for the same reader with a picture. The app assembles it at `apps/app/src/App.tsx:935`.",
 			},
 		},
 	},
@@ -143,7 +143,7 @@ export const WithoutName = meta.story({
 		docs: {
 			description: {
 				story:
-					"A host with no display name to give — a local account, or a profile that has not been filled in. Check that the row reads `You` rather than an empty target, that the circle carries its initial, and that the row is still named for assistive technology: a reader with no name still has to find the way into their own settings. Pick `WithoutPicture` for a named reader with no picture.",
+					"A host with no display name to give — a local account, or a profile that has not been filled in. Check that the row reads `You` rather than an empty target, that the circle carries its initial, and that the row is still named for assistive technology: a reader with no name still has to find the way into their own settings. Pick `WithoutPicture` for a named reader with no picture. The app assembles it at `apps/app/src/App.tsx:935`.",
 			},
 		},
 	},
@@ -161,7 +161,7 @@ export const LongContent = meta.story({
 		docs: {
 			description: {
 				story:
-					"A display name wider than the panel — a double-barrelled name, or a full legal one. Check that it is clipped on one line with an ellipsis instead of wrapping onto a second, that the row keeps the height it has in `Default` so the region under the list never grows, and that nothing spills past the edge of the panel. The accessible name stays the whole name, only the drawing is cut.",
+					"A display name wider than the panel — a double-barrelled name, or a full legal one. Check that it is clipped on one line with an ellipsis instead of wrapping onto a second, that the row keeps the height it has in `Default` so the region under the list never grows, and that nothing spills past the edge of the panel. The accessible name stays the whole name, only the drawing is cut. The app assembles it at `apps/app/src/App.tsx:935`.",
 			},
 		},
 	},
@@ -186,7 +186,7 @@ export const OnRail = meta.story({
 		docs: {
 			description: {
 				story:
-					"The same row once the panel collapses to its rail, which is how a host restores a remembered choice through `defaultOpen`. Check that the target is a square the same inset on all four edges rather than a band across the rail — the name is gone, so the room it took goes with it — that the picture is left alone and centred on the rail, that the name is drawn nowhere yet still names the row — so the way into the settings survives the collapse — and that nothing is clipped against either edge. Pick `Default` for the expanded panel.",
+					"The same row once the panel collapses to its rail, which is how a host restores a remembered choice through `defaultOpen`. Check that the target is a square the same inset on all four edges rather than a band across the rail — the name is gone, so the room it took goes with it — that the picture is left alone and centred on the rail, that the name is drawn nowhere yet still names the row — so the way into the settings survives the collapse — and that nothing is clipped against either edge. Pick `Default` for the expanded panel. The app assembles it at `apps/app/src/App.tsx:935`.",
 			},
 		},
 	},

@@ -44,6 +44,18 @@ const CONNECTED = {
 
 const FAILED = { ...LOCAL, connection: "failed" } satisfies BotMcpServerItem
 
+const FAILED_FOR_A_REASON = {
+	...FAILED,
+	reason: { kind: "browserRefused" },
+} satisfies BotMcpServerItem
+
+const UNBROKEN_DETAIL = `0x${"a3f19b7c".repeat(40)}`
+
+const FAILED_FOR_AN_UNKNOWN_REASON = {
+	...FAILED,
+	reason: { kind: "unknown", detail: UNBROKEN_DETAIL },
+} satisfies BotMcpServerItem
+
 const LONG_DISPLAY_NAME = {
 	...LINEAR,
 	name: "linear-enterprise",
@@ -294,6 +306,55 @@ export const Failed = meta.story({
 		await userEvent.click(canvas.getByRole("button", { name: "Retry atlas" }))
 
 		await expect(args.onConnect).toHaveBeenCalledWith(FAILED)
+	},
+})
+
+export const FailedWithReason = meta.story({
+	args: { servers: [FAILED_FOR_A_REASON] },
+	parameters: {
+		docs: {
+			description: {
+				story:
+					"The same refused attempt, with the step that failed named under the state label. Check that the sentence sits in the muted foreground, that the red stays on the dot alone, and that Retry keeps its place in the lane.",
+			},
+		},
+	},
+	play: async ({ canvas }) => {
+		await expect(canvas.getByText("Couldn’t connect")).toBeVisible()
+		await expect(
+			canvas.getByText(
+				"Your browser wouldn’t open. Try again, or open the sign-in link yourself.",
+			),
+		).toBeVisible()
+	},
+})
+
+export const FailedWithLongReason = meta.story({
+	args: { servers: [FAILED_FOR_AN_UNKNOWN_REASON] },
+	decorators: [
+		(Story) => (
+			<div className="w-80" data-testid="narrow-frame">
+				<Story />
+			</div>
+		),
+	],
+	parameters: {
+		docs: {
+			description: {
+				story:
+					"An unknown failure whose detail is one unbroken 320 character token, in a 320px column. Check that the row keeps its column, that the token breaks rather than widening anything, and that the sentence stops at two lines.",
+			},
+		},
+	},
+	play: async ({ canvas }) => {
+		const [row] = canvas.getAllByRole("listitem")
+		const frame = canvas.getByTestId("narrow-frame")
+		const reason = canvas.getByText(new RegExp(UNBROKEN_DETAIL.slice(0, 24)))
+
+		await expect(row.getBoundingClientRect().width).toBeLessThanOrEqual(
+			frame.getBoundingClientRect().width,
+		)
+		await expect(reason.scrollHeight).toBeGreaterThan(reason.clientHeight)
 	},
 })
 

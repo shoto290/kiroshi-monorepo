@@ -21,7 +21,7 @@ export type Application = {
 	title: string
 	description: string
 	config: Record<string, unknown>
-	tools: string[]
+	tools?: string[]
 	logo?: string
 	logoUrl?: string
 	useCount?: number

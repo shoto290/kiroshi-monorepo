@@ -21,6 +21,7 @@ const REFUSED_GRANT = "the refresh token was revoked"
 const HANG_BOUND_MS = 300
 const AUTHORIZATION_BUDGET_MS = 10_000
 const TIMEOUT_FLOW_MS = 2_000
+const BODY_LIMIT = 400
 
 type Registration = {
 	redirectUris: string[]
@@ -28,12 +29,12 @@ type Registration = {
 	revocations: URLSearchParams[]
 }
 
-type TokenRefusal = {
+type Refusal = {
 	status: number
 	body: string
 }
 
-const refusedWith = (error: string): TokenRefusal => ({
+const refusedWith = (error: string): Refusal => ({
 	status: 400,
 	body: JSON.stringify({ error, error_description: REFUSED_GRANT }),
 })
@@ -45,15 +46,19 @@ type Authority = {
 }
 
 const anAuthorizationServer = ({
+	discoverable = true,
 	revocable = true,
 	revocationStatus = 200,
+	registrationRefusal,
 	tokenRefusal,
 	tokenHangs = false,
 	authorizationScheme = "",
 }: {
+	discoverable?: boolean
 	revocable?: boolean
 	revocationStatus?: number
-	tokenRefusal?: TokenRefusal
+	registrationRefusal?: Refusal
+	tokenRefusal?: Refusal
 	tokenHangs?: boolean
 	authorizationScheme?: string
 } = {}): Authority => {
@@ -67,7 +72,10 @@ const anAuthorizationServer = ({
 		port: 0,
 		fetch: async (request): Promise<Response> => {
 			const asked = new URL(request.url)
-			if (asked.pathname === "/.well-known/oauth-authorization-server") {
+			if (
+				discoverable &&
+				asked.pathname === "/.well-known/oauth-authorization-server"
+			) {
 				return Response.json({
 					issuer: asked.origin,
 					authorization_endpoint:
@@ -82,6 +90,11 @@ const anAuthorizationServer = ({
 				})
 			}
 			if (asked.pathname === "/register") {
+				if (registrationRefusal) {
+					return new Response(registrationRefusal.body, {
+						status: registrationRefusal.status,
+					})
+				}
 				const body = (await request.json()) as { redirect_uris: string[] }
 				seen.redirectUris.push(...body.redirect_uris)
 				return Response.json(
@@ -342,6 +355,29 @@ describe("mcp oauth", () => {
 		}
 	}, 20_000)
 
+	it("names the registration endpoint and its status when it refuses", async () => {
+		const authority = anAuthorizationServer({
+			registrationRefusal: { status: 403, body: "Forbidden" },
+		})
+		try {
+			const settled = await aFlow(authority.url)
+
+			expect(settled).toEqual({
+				error: {
+					kind: "failed",
+					detail: "the registration endpoint answered 403",
+					step: "registration",
+					status: 403,
+					body: "Forbidden",
+				},
+			})
+			expect(startedFrames()).toEqual([])
+			expect(authority.seen.tokenRequests).toHaveLength(0)
+		} finally {
+			await authority.stop()
+		}
+	}, 20_000)
+
 	it("posts the token to the revocation endpoint the metadata advertises", async () => {
 		const authority = anAuthorizationServer()
 		try {
@@ -434,7 +470,7 @@ describe("mcp oauth", () => {
 		}
 	}, 20_000)
 
-	const refreshedAgainst = async (tokenRefusal: TokenRefusal) => {
+	const refreshedAgainst = async (tokenRefusal: Refusal) => {
 		const authority = anAuthorizationServer({ tokenRefusal })
 		try {
 			return await refreshMcpToken({
@@ -452,9 +488,15 @@ describe("mcp oauth", () => {
 		"invalid_client",
 		"unauthorized_client",
 	]) {
-		it(`answers rejected with the reason a token endpoint refusing ${code} gave`, async () => {
+		it(`answers rejected naming the step, the status and ${code}`, async () => {
 			expect(await refreshedAgainst(refusedWith(code))).toEqual({
-				error: { kind: "rejected", detail: `${code}: ${REFUSED_GRANT}` },
+				error: {
+					kind: "rejected",
+					detail: `the token endpoint answered 400: ${code}`,
+					step: "tokenExchange",
+					status: 400,
+					body: REFUSED_GRANT,
+				},
 			})
 		}, 20_000)
 	}
@@ -465,18 +507,86 @@ describe("mcp oauth", () => {
 		).toEqual({
 			error: {
 				kind: "failed",
-				detail: `temporarily_unavailable: ${REFUSED_GRANT}`,
+				detail: "the token endpoint answered 400: temporarily_unavailable",
+				step: "tokenExchange",
+				status: 400,
+				body: REFUSED_GRANT,
 			},
 		})
 	}, 20_000)
 
-	it("answers failed when the token endpoint answers outside 2xx with no OAuth error", async () => {
+	it("carries no body when an OAuth error describes itself no further", async () => {
 		const answered = await refreshedAgainst({
-			status: 503,
-			body: "<html>Service Unavailable</html>",
+			status: 400,
+			body: JSON.stringify({ error: "invalid_request" }),
 		})
 
-		expect(answered).toMatchObject({ error: { kind: "failed" } })
+		expect(answered).toEqual({
+			error: {
+				kind: "failed",
+				detail: "the token endpoint answered 400: invalid_request",
+				step: "tokenExchange",
+				status: 400,
+			},
+		})
+	}, 20_000)
+
+	it("names no step when the token request throws after a refused discovery", async () => {
+		const authority = anAuthorizationServer({
+			discoverable: false,
+			tokenHangs: true,
+		})
+		try {
+			const answered = await refreshMcpToken(
+				{
+					url: authority.url,
+					refreshToken: HELD_REFRESH_TOKEN,
+					clientId: CLIENT_ID,
+				},
+				HANG_BOUND_MS,
+			)
+
+			expect(authority.seen.tokenRequests).toHaveLength(1)
+			expect(answered).toEqual({
+				error: { kind: "failed", detail: expect.any(String) },
+			})
+		} finally {
+			await authority.stop()
+		}
+	}, 20_000)
+
+	it("names the token exchange when a refused body is no OAuth error", async () => {
+		const answered = await refreshedAgainst({
+			status: 500,
+			body: "<html>\n  Service Unavailable\n</html>",
+		})
+
+		expect(answered).toEqual({
+			error: {
+				kind: "failed",
+				detail: "the token endpoint answered 500",
+				step: "tokenExchange",
+				status: 500,
+				body: "<html> Service Unavailable </html>",
+			},
+		})
+	}, 20_000)
+
+	it("carries at most four hundred characters of a refused body", async () => {
+		const answered = await refreshedAgainst({
+			status: 502,
+			body: "x".repeat(BODY_LIMIT + 120),
+		})
+
+		expect(answered).toEqual({
+			error: {
+				kind: "failed",
+				detail: "the token endpoint answered 502",
+				step: "tokenExchange",
+				status: 502,
+				body: "x".repeat(BODY_LIMIT),
+			},
+		})
 	}, 20_000)
 
 	it("bounds a refresh at ten seconds", () => {

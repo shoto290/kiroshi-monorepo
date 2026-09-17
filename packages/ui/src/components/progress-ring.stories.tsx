@@ -43,6 +43,7 @@ export const Default = meta.story({
 })
 
 export const Values = meta.story({
+	tags: ["test-only"],
 	render: () => (
 		<Row>
 			{RING_VALUES.map((value) => (

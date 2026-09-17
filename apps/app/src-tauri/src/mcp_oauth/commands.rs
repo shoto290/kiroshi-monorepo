@@ -108,6 +108,9 @@ async fn granted<R: Runtime>(app: &AppHandle<R>, url: &str) -> Result<OauthCrede
 		}
 		(None, None) => Err(Step::ReadingTheSettlement.refused(OauthError::Failed {
 			detail: "the authorization flow settled with neither a grant nor a reason".to_owned(),
+			step: None,
+			status: None,
+			body: None,
 		})),
 	}
 }
@@ -681,6 +684,9 @@ mod tests {
 					error: Some(OauthFailure {
 						kind: OauthFailureKind::Rejected,
 						detail: Some("held-refresh is revoked, so is held-access".to_owned()),
+						step: None,
+						status: None,
+						body: None,
 					}),
 				})
 			},

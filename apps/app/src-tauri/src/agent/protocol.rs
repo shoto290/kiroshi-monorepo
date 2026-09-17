@@ -475,12 +475,34 @@ pub enum OauthFailureKind {
 	Failed,
 }
 
+#[derive(Debug, Clone, Copy, PartialEq, Eq, Deserialize, Serialize)]
+#[serde(rename_all = "camelCase")]
+pub enum OauthStep {
+	Discovery,
+	Registration,
+	TokenExchange,
+}
+
+fn step_the_app_knows<'de, D>(deserializer: D) -> Result<Option<OauthStep>, D::Error>
+where
+	D: Deserializer<'de>,
+{
+	Ok(Option::<Value>::deserialize(deserializer)?
+		.and_then(|named| serde_json::from_value(named).ok()))
+}
+
 #[derive(Debug, Clone, Deserialize)]
 #[serde(rename_all = "camelCase")]
 pub struct OauthFailure {
 	pub kind: OauthFailureKind,
 	#[serde(default)]
 	pub detail: Option<String>,
+	#[serde(default, deserialize_with = "step_the_app_knows")]
+	pub step: Option<OauthStep>,
+	#[serde(default)]
+	pub status: Option<u16>,
+	#[serde(default)]
+	pub body: Option<String>,
 }
 
 #[derive(Debug, Clone, Deserialize)]
@@ -512,4 +534,65 @@ pub struct Revoked {
 	pub revoked: bool,
 	#[serde(default)]
 	pub detail: Option<String>,
+}
+
+#[cfg(test)]
+mod tests {
+	use serde_json::{from_value, json};
+
+	use super::*;
+
+	fn failure(frame: Value) -> OauthFailure {
+		from_value(frame).expect("the frame reads")
+	}
+
+	#[test]
+	fn a_refused_request_reads_its_step_its_status_and_its_body() {
+		let read = failure(json!({
+			"kind": "failed",
+			"detail": "the registration endpoint answered 403",
+			"step": "registration",
+			"status": 403,
+			"body": "Forbidden"
+		}));
+
+		assert_eq!(read.kind, OauthFailureKind::Failed);
+		assert_eq!(read.step, Some(OauthStep::Registration));
+		assert_eq!(read.status, Some(403));
+		assert_eq!(read.body.as_deref(), Some("Forbidden"));
+	}
+
+	#[test]
+	fn a_step_no_request_of_the_flow_is_named_by_leaves_the_rest_readable() {
+		for named in [json!("introspection"), json!(7), Value::Null] {
+			let read = failure(json!({
+				"kind": "rejected",
+				"detail": "the token endpoint answered 400: invalid_grant",
+				"step": named,
+				"status": 400
+			}));
+
+			assert_eq!(read.kind, OauthFailureKind::Rejected);
+			assert_eq!(read.step, None);
+			assert_eq!(read.status, Some(400));
+		}
+	}
+
+	#[test]
+	fn a_failure_naming_no_refused_request_reads_no_step_no_status_and_no_body() {
+		let read = failure(json!({ "kind": "failed", "detail": "no server url was named" }));
+
+		assert_eq!(read.step, None);
+		assert_eq!(read.status, None);
+		assert_eq!(read.body, None);
+	}
+
+	#[test]
+	fn each_step_the_sidecar_names_reads_as_the_step_of_its_own() {
+		let step = |named| failure(json!({ "kind": "failed", "step": named })).step;
+
+		assert_eq!(step("discovery"), Some(OauthStep::Discovery));
+		assert_eq!(step("registration"), Some(OauthStep::Registration));
+		assert_eq!(step("tokenExchange"), Some(OauthStep::TokenExchange));
+	}
 }

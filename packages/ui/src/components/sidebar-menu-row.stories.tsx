@@ -77,7 +77,7 @@ export const Default = meta.story({
 		docs: {
 			description: {
 				story:
-					"The row a reader meets in an open panel: icon, then label, then whatever the caller puts after it. Check that the row is at least 36px tall so it clears the pointer target floor, that the label truncates rather than pushing the row wider, and that taking it calls back once. Pick `Selected` for the row the screen is on.",
+					"The row a reader meets in an open panel: icon, then label, then whatever the caller puts after it. Check that the row is at least 36px tall so it clears the pointer target floor, that the label truncates rather than pushing the row wider, and that taking it calls back once. Pick `Selected` for the row the screen is on. The app assembles it at `apps/app/src/App.tsx:935`.",
 			},
 		},
 	},
@@ -98,7 +98,7 @@ export const Selected = meta.story({
 		docs: {
 			description: {
 				story:
-					"The row the screen is currently on. Check that the selection is carried by `aria-current` and `data-active` as well as by the background — a reader who cannot see the tint still has to be told which row they are on. Pick `Default` for every other row of the same list.",
+					"The row the screen is currently on. Check that the selection is carried by `aria-current` and `data-active` as well as by the background — a reader who cannot see the tint still has to be told which row they are on. Pick `Default` for every other row of the same list. The app assembles it at `apps/app/src/App.tsx:935`.",
 			},
 		},
 	},
@@ -116,7 +116,7 @@ export const Collapsed = meta.story({
 		docs: {
 			description: {
 				story:
-					"The same row once the panel is down to its icon rail. Check that the label leaves the screen without leaving the accessible tree — the text goes `aria-hidden` and the row takes the label as its own name — that the row keeps a 44px square so the icon is still a comfortable target, and that hovering says in a tooltip what the rail stopped showing.",
+					"The same row once the panel is down to its icon rail. Check that the label leaves the screen without leaving the accessible tree — the text goes `aria-hidden` and the row takes the label as its own name — that the row keeps a 44px square so the icon is still a comfortable target, and that hovering says in a tooltip what the rail stopped showing. The app assembles it at `apps/app/src/App.tsx:935`.",
 			},
 		},
 	},
@@ -145,7 +145,7 @@ export const LongContent = meta.story({
 		docs: {
 			description: {
 				story:
-					"A conversation whose name nobody shortened. Check that the row holds its width and truncates the label on one line instead of wrapping to two or widening the panel — the panel width is the reader's, set by the resize handle, and no row is allowed to argue with it.",
+					"A conversation whose name nobody shortened. Check that the row holds its width and truncates the label on one line instead of wrapping to two or widening the panel — the panel width is the reader's, set by the resize handle, and no row is allowed to argue with it. The app assembles it at `apps/app/src/App.tsx:935`.",
 			},
 		},
 	},
@@ -169,7 +169,7 @@ export const WithSecondLine = meta.story({
 		docs: {
 			description: {
 				story:
-					"The shape the conversation row takes when the bot is on a mission: the head keeps the icon and the name, and a second line hangs under them. This is the only case where the row stops being one line, so check that the icon stays aligned with the name rather than centring itself on the whole stack, and that the row still reads as a single control rather than two.",
+					"The shape the conversation row takes when the bot is on a mission: the head keeps the icon and the name, and a second line hangs under them. This is the only case where the row stops being one line, so check that the icon stays aligned with the name rather than centring itself on the whole stack, and that the row still reads as a single control rather than two. The app assembles it at `apps/app/src/App.tsx:935`.",
 			},
 		},
 	},

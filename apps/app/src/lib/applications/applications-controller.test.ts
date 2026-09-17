@@ -743,6 +743,184 @@ describe("applications controller", () => {
 		expect(reportFailure).toHaveBeenCalledTimes(1)
 	})
 
+	it("undeclares what the install declared when the connect is refused", async () => {
+		const port = createFakeApplicationPort()
+		port.curated = [LINEAR]
+		const store = createFakeTranscriptStore()
+		const controller = controllerOn(port, store)
+		await controller.open()
+		controller.pick("linear")
+
+		await controller.install(
+			targetOf({
+				connect: async () => {
+					throw new Error("the sign-in timed out")
+				},
+			}),
+		)
+
+		expect(await store.userPluginMcpServers()).toEqual([])
+		expect(controller.getState().failure).toContain("the sign-in timed out")
+	})
+
+	it("deletes the secrets the connect wrote before it was refused", async () => {
+		const port = createFakeApplicationPort()
+		port.curated = [LINEAR]
+		const store = createFakeTranscriptStore()
+		const scope = { kind: "server", name: "linear", owner: USER } as const
+		const controller = controllerOn(port, store)
+		await controller.open()
+		controller.pick("linear")
+
+		await controller.install(
+			targetOf({
+				connect: async () => {
+					await store.setEnvironmentVariable(scope, "LINEAR_TOKEN", "tok")
+					throw new Error("the sign-in timed out")
+				},
+			}),
+		)
+
+		expect(await store.environmentVariables(scope)).toEqual([])
+	})
+
+	it("deletes the keys already written when a later key is refused", async () => {
+		const port = createFakeApplicationPort()
+		port.curated = [TWO_KEYED]
+		const store = createFakeTranscriptStore()
+		const write = store.setEnvironmentVariable
+		vi.spyOn(store, "setEnvironmentVariable").mockImplementation(
+			(scope, name, value) =>
+				name === "TENANT"
+					? Promise.reject({ kind: "env", detail: "the keyring is locked" })
+					: write(scope, name, value),
+		)
+		const controller = controllerOn(port, store)
+		await controller.open()
+		controller.pick("@owner/two-headers")
+
+		await controller.install(targetOf(), { apiKey: "sk-typed", tenant: "acme" })
+
+		expect(
+			await store.environmentVariables({
+				kind: "server",
+				name: "@owner/two-headers",
+				owner: USER,
+			}),
+		).toEqual([])
+		expect(await store.userPluginMcpServers()).toEqual([])
+	})
+
+	it("leaves the declaration and the secrets the owner had before the install", async () => {
+		const port = createFakeApplicationPort()
+		port.curated = [LINEAR]
+		const store = createFakeTranscriptStore()
+		const scope = { kind: "server", name: "linear", owner: USER } as const
+		await store.setUserPluginMcpServer("linear", LINEAR.config)
+		await store.setEnvironmentVariable(scope, "LINEAR_TOKEN", "kept")
+		const controller = controllerOn(port, store)
+		await controller.open()
+		controller.pick("linear")
+
+		await controller.install(
+			targetOf({
+				connect: async () => {
+					throw new Error("the sign-in timed out")
+				},
+			}),
+		)
+
+		expect(await store.userPluginMcpServers()).toEqual([
+			{ name: "linear", config: LINEAR.config, title: LINEAR.title },
+		])
+		expect(
+			(await store.environmentVariables(scope)).map((entry) => entry.name),
+		).toEqual(["LINEAR_TOKEN"])
+	})
+
+	it("reports the connect refusal even when the undeclaring is refused too", async () => {
+		const port = createFakeApplicationPort()
+		port.curated = [LINEAR]
+		const store = createFakeTranscriptStore()
+		vi.spyOn(store, "deleteUserPluginMcpServer").mockRejectedValue({
+			kind: "store",
+			detail: "the bundle is read only",
+		})
+		const reportFailure = vi.fn()
+		const controller = createApplicationsController(port, store, {
+			reportFailure,
+		})
+		await controller.open()
+		controller.pick("linear")
+
+		await controller.install(
+			targetOf({
+				connect: async () => {
+					throw new Error("the sign-in timed out")
+				},
+			}),
+		)
+
+		expect(controller.getState().failure).toContain("the sign-in timed out")
+		expect(reportFailure).toHaveBeenCalledTimes(1)
+	})
+
+	it("undeclares the application even when clearing its secrets is refused", async () => {
+		const port = createFakeApplicationPort()
+		port.curated = [LINEAR]
+		const store = createFakeTranscriptStore()
+		vi.spyOn(store, "deleteEnvironmentVariable").mockRejectedValue({
+			kind: "env",
+			detail: "the keyring is locked",
+		})
+		const reportFailure = vi.fn()
+		const controller = createApplicationsController(port, store, {
+			reportFailure,
+		})
+		await controller.open()
+		controller.pick("linear")
+
+		await controller.install(
+			targetOf({
+				connect: async (name) => {
+					await store.setEnvironmentVariable(
+						{ kind: "server", name, owner: USER },
+						"LINEAR_TOKEN",
+						"tok",
+					)
+					throw new Error("the sign-in timed out")
+				},
+			}),
+		)
+
+		expect(await store.userPluginMcpServers()).toEqual([])
+		expect(controller.getState().failure).toContain("the sign-in timed out")
+		expect(reportFailure).toHaveBeenCalledTimes(1)
+	})
+
+	it("declares the application again when a later install connects", async () => {
+		const port = createFakeApplicationPort()
+		port.curated = [LINEAR]
+		const store = createFakeTranscriptStore()
+		const controller = controllerOn(port, store)
+		await controller.open()
+		controller.pick("linear")
+		await controller.install(
+			targetOf({
+				connect: async () => {
+					throw new Error("the sign-in timed out")
+				},
+			}),
+		)
+
+		await controller.install(targetOf())
+
+		expect(await store.userPluginMcpServers()).toEqual([
+			{ name: "linear", config: LINEAR.config, title: LINEAR.title },
+		])
+		expect(controller.getState().failure).toBeNull()
+	})
+
 	it("settles the scope once the install lands", async () => {
 		const port = createFakeApplicationPort()
 		port.curated = [PAPER]

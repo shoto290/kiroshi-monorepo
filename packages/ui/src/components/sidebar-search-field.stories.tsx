@@ -78,7 +78,7 @@ export const Default = meta.story({
 		docs: {
 			description: {
 				story:
-					"The field at rest on the sidebar surface. Check that it draws the search glyph, the label and the chord on one 36px line inside an outlined box that fills with nothing of its own — the sidebar shows through, so the box reads as a frame drawn on the surface rather than a well cut into it — that the box is bounded by a minimum rather than a fixed height, so content taller than the line grows it instead of being clipped, and that a press reports once: the palette is opened by the host, never by this button on its own.",
+					"The field at rest on the sidebar surface. Check that it draws the search glyph, the label and the chord on one 36px line inside an outlined box that fills with nothing of its own — the sidebar shows through, so the box reads as a frame drawn on the surface rather than a well cut into it — that the box is bounded by a minimum rather than a fixed height, so content taller than the line grows it instead of being clipped, and that a press reports once: the palette is opened by the host, never by this button on its own. The app assembles it at `apps/app/src/App.tsx:935`.",
 			},
 		},
 	},
@@ -102,6 +102,7 @@ export const Default = meta.story({
 })
 
 export const UnderPointer = meta.story({
+	tags: ["test-only"],
 	parameters: {
 		pseudo: { hover: true },
 		docs: {
@@ -126,6 +127,7 @@ export const UnderPointer = meta.story({
 })
 
 export const KeyboardFocus = meta.story({
+	tags: ["test-only"],
 	parameters: {
 		docs: {
 			description: {
@@ -174,6 +176,7 @@ export const KeyboardFocus = meta.story({
 })
 
 export const WithHostChord = meta.story({
+	tags: ["test-only"],
 	args: { chord: HOST_CHORD },
 	parameters: {
 		docs: {
@@ -190,6 +193,7 @@ export const WithHostChord = meta.story({
 })
 
 export const LabelWiderThanField = meta.story({
+	tags: ["test-only"],
 	parameters: {
 		docs: {
 			description: {
@@ -221,7 +225,7 @@ export const OnDarkSurface = meta.story({
 		docs: {
 			description: {
 				story:
-					"The same resting field on the dark sidebar. Check that the outline, the label, the glyph and the keycap all stay off the surface behind them rather than dissolving into it — every one of them is a sidebar token, so the dark theme is designed here and not inverted.",
+					"The same resting field on the dark sidebar. Check that the outline, the label, the glyph and the keycap all stay off the surface behind them rather than dissolving into it — every one of them is a sidebar token, so the dark theme is designed here and not inverted. The app assembles it at `apps/app/src/App.tsx:935`.",
 			},
 		},
 	},
@@ -246,7 +250,7 @@ export const CollapsedRail = meta.story({
 		docs: {
 			description: {
 				story:
-					"The field once the sidebar is down to its 68px icon rail. Check that nothing is left but the glyph on a centred ghost button, that the chord and the label are dropped from the markup rather than clipped, that the label survives as the button's accessible name and its tooltip, so the rail still says what the button opens, and that the button fills with the roster's hover surface like every row beside it.",
+					"The field once the sidebar is down to its 68px icon rail. Check that nothing is left but the glyph on a centred ghost button, that the chord and the label are dropped from the markup rather than clipped, that the label survives as the button's accessible name and its tooltip, so the rail still says what the button opens, and that the button fills with the roster's hover surface like every row beside it. The app assembles it at `apps/app/src/App.tsx:935`.",
 			},
 		},
 	},

@@ -152,12 +152,12 @@ fn renewal(
 	match answer {
 		Ok(Authorized { credentials: Some(grant), .. }) => Some(stored(root, scope, sent, &grant)),
 		Ok(Authorized {
-			error: Some(OauthFailure { kind: OauthFailureKind::Rejected, detail }),
+			error: Some(failure @ OauthFailure { kind: OauthFailureKind::Rejected, .. }),
 			..
-		}) => refused(root, scope, sent, detail),
+		}) => refused(root, scope, sent, failure),
 		Ok(Authorized { error, .. }) => {
-			let detail = error.and_then(|failure| failure.detail);
-			eprintln!("the grant of {scope:?} was not refreshed: {}", reason(detail));
+			let said = credentials::scrubbed(told(error), sent);
+			eprintln!("the grant of {scope:?} was not refreshed: {said}");
 			None
 		}
 		Err(error) => {
@@ -180,9 +180,9 @@ fn refused(
 	root: &Path,
 	scope: &EnvScope,
 	sent: &Values,
-	detail: Option<String>,
+	failure: OauthFailure,
 ) -> Option<Renewal> {
-	let refusal = credentials::scrubbed(reason(detail), sent);
+	let refusal = credentials::scrubbed(told(Some(failure)), sent);
 	eprintln!("the authorization server refused to refresh {scope:?}: {refusal}");
 	match store::values(root, scope) {
 		Ok(held) if held.get(OAUTH_REFRESH_TOKEN) == sent.get(OAUTH_REFRESH_TOKEN) => {
@@ -207,15 +207,29 @@ fn reason(detail: Option<String>) -> String {
 	detail.unwrap_or_else(|| NO_REASON.to_owned())
 }
 
+fn told(failure: Option<OauthFailure>) -> String {
+	let Some(failure) = failure else {
+		return reason(None);
+	};
+	let detail = reason(failure.detail);
+	match failure.body {
+		Some(body) => format!("{detail}: {body}"),
+		None => detail,
+	}
+}
+
 #[cfg(test)]
 mod tests {
 	use std::cell::Cell;
 	use std::fs;
 
 	use super::*;
+	use crate::agent::protocol::OauthStep;
 	use crate::environment::contract::{OAUTH_EXPIRES_AT, RESERVED_NAMES};
 
 	const NOW: i64 = 1_800_000_000_000;
+	const REFUSED_DETAIL: &str = "the token endpoint answered 400: invalid_grant";
+	const EXPIRED_ON: &str = "Refresh token expired on 2026-09-01";
 	const URL: &str = "https://mcp.granola.test/mcp";
 
 	async fn awaiting_authorization<F, Exchanged>(
@@ -260,6 +274,16 @@ mod tests {
 		}
 	}
 
+	fn rejected(body: Option<&str>) -> OauthFailure {
+		OauthFailure {
+			kind: OauthFailureKind::Rejected,
+			detail: Some(REFUSED_DETAIL.to_owned()),
+			step: Some(OauthStep::TokenExchange),
+			status: Some(400),
+			body: body.map(str::to_owned),
+		}
+	}
+
 	fn held(root: &Path) -> Values {
 		store::values(root, &granola()).expect("the scope is readable")
 	}
@@ -267,7 +291,13 @@ mod tests {
 	fn answering(kind: OauthFailureKind) -> Result<Authorized, TransportError> {
 		Ok(Authorized {
 			credentials: None,
-			error: Some(OauthFailure { kind, detail: Some("invalid_grant".to_owned()) }),
+			error: Some(OauthFailure {
+				kind,
+				detail: Some("invalid_grant".to_owned()),
+				step: None,
+				status: None,
+				body: None,
+			}),
 		})
 	}
 
@@ -492,6 +522,9 @@ mod tests {
 						"held-refresh was revoked, held-access and confidential are void"
 							.to_owned(),
 					),
+					step: None,
+					status: None,
+					body: None,
 				}),
 			})
 		})
@@ -504,6 +537,87 @@ mod tests {
 				reason: Some(
 					"[redacted] was revoked, [redacted] and [redacted] are void".to_owned()
 				)
+			})
+		);
+	}
+
+	#[test]
+	fn a_failure_that_is_no_rejection_is_told_with_its_body_after_its_detail() {
+		let failure = |body: Option<&str>| {
+			told(Some(OauthFailure {
+				kind: OauthFailureKind::Failed,
+				detail: Some("the token endpoint answered 503".to_owned()),
+				step: None,
+				status: Some(503),
+				body: body.map(str::to_owned),
+			}))
+		};
+
+		assert_eq!(
+			failure(Some("the authority is down for maintenance")),
+			"the token endpoint answered 503: the authority is down for maintenance"
+		);
+		assert_eq!(failure(None), "the token endpoint answered 503");
+		assert_eq!(told(None), NO_REASON);
+	}
+
+	#[tokio::test]
+	async fn a_rejection_carries_the_sentence_the_authority_wrote_after_its_detail() {
+		let root = a_root("refusal-body");
+		credentials::store(&root, &granola(), &a_grant(NOW, Some("held-refresh")))
+			.expect("the grant is written");
+
+		let settled = renewals(&root, &a_bot(), &declared(), NOW, |_| async {
+			Ok(Authorized { credentials: None, error: Some(rejected(Some(EXPIRED_ON))) })
+		})
+		.await
+		.expect("the pass reads the store");
+
+		assert_eq!(
+			settled.get("granola"),
+			Some(&Renewal::Awaiting {
+				reason: Some(format!("{REFUSED_DETAIL}: {EXPIRED_ON}"))
+			})
+		);
+	}
+
+	#[tokio::test]
+	async fn a_rejection_carrying_no_body_stores_the_detail_alone() {
+		let root = a_root("refusal-no-body");
+		credentials::store(&root, &granola(), &a_grant(NOW, Some("held-refresh")))
+			.expect("the grant is written");
+
+		let settled = renewals(&root, &a_bot(), &declared(), NOW, |_| async {
+			Ok(Authorized { credentials: None, error: Some(rejected(None)) })
+		})
+		.await
+		.expect("the pass reads the store");
+
+		assert_eq!(
+			settled.get("granola"),
+			Some(&Renewal::Awaiting { reason: Some(REFUSED_DETAIL.to_owned()) })
+		);
+	}
+
+	#[tokio::test]
+	async fn a_rejection_whose_body_names_the_refresh_token_sent_comes_out_redacted() {
+		let root = a_root("refusal-body-secret");
+		credentials::store(&root, &granola(), &a_grant(NOW, Some("held-refresh")))
+			.expect("the grant is written");
+
+		let settled = renewals(&root, &a_bot(), &declared(), NOW, |_| async {
+			Ok(Authorized {
+				credentials: None,
+				error: Some(rejected(Some("held-refresh is no token of this client"))),
+			})
+		})
+		.await
+		.expect("the pass reads the store");
+
+		assert_eq!(
+			settled.get("granola"),
+			Some(&Renewal::Awaiting {
+				reason: Some(format!("{REFUSED_DETAIL}: [redacted] is no token of this client"))
 			})
 		);
 	}

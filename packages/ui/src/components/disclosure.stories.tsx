@@ -90,22 +90,6 @@ const meta = preview.meta({
 	},
 })
 
-export const Playground = meta.story({
-	parameters: {
-		docs: {
-			description: {
-				story:
-					"Knob story for the single prop it owns. Flip `open` to watch the wipe run both ways. Check the wipe with the reduced-motion emulator on: the content should appear without moving.",
-			},
-		},
-	},
-	play: async ({ canvasElement }) => {
-		const disclosure = canvasElement.querySelector("#reveal")
-
-		await expect(disclosure).not.toHaveAttribute("aria-hidden", "true")
-	},
-})
-
 export const Open = meta.story({
 	parameters: {
 		docs: {

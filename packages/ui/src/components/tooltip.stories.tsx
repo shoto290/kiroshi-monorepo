@@ -49,7 +49,7 @@ export const Default = meta.story({
 		docs: {
 			description: {
 				story:
-					"The three parts wired by hand, under the provider that sets the open delay for a whole region. Check that the bubble opens under the pointer after the provider's delay and closes when the pointer leaves.",
+					"The three parts wired by hand, under the provider that sets the open delay for a whole region. Check that the bubble opens under the pointer after the provider's delay and closes when the pointer leaves. The app reaches the registry tooltip through `TooltipHint` at `apps/app/src/App.tsx:935`.",
 			},
 		},
 	},
@@ -71,6 +71,7 @@ export const Default = meta.story({
 })
 
 export const WithSide = meta.story({
+	tags: ["test-only"],
 	parameters: {
 		docs: {
 			description: {
@@ -106,6 +107,7 @@ export const WithSide = meta.story({
 })
 
 export const LongContent = meta.story({
+	tags: ["test-only"],
 	parameters: {
 		docs: {
 			description: {
@@ -133,6 +135,7 @@ export const LongContent = meta.story({
 })
 
 export const OnDarkSurface = meta.story({
+	tags: ["test-only"],
 	globals: { theme: "dark" },
 	parameters: {
 		docs: {

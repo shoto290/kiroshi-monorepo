@@ -174,7 +174,7 @@ async fn listed(client: &Client, base: &Url, row: Row) -> Result<Listing, Droppe
 			name: row.qualified_name,
 			description: row.description,
 			config,
-			tools: tool_names(&detail),
+			tools: Some(tool_names(&detail)),
 			logo: None,
 			logo_url: row.icon_url,
 			use_count: row.use_count,
@@ -200,7 +200,7 @@ fn read_by_name(detail: &Detail) -> Option<Application> {
 		title: detail.display_name.clone().unwrap_or_else(|| detail.qualified_name.clone()),
 		description: detail.description.clone(),
 		config,
-		tools: tool_names(detail),
+		tools: Some(tool_names(detail)),
 		logo: None,
 		logo_url: detail.icon_url.clone(),
 		use_count: None,
@@ -425,7 +425,7 @@ pub(crate) mod tests {
 
 		assert_eq!(application.install, Install::Oauth);
 		assert_eq!(application.config, json!({ "type": "http", "url": "https://slack.example/" }));
-		assert_eq!(application.tools, ["search", "create"]);
+		assert_eq!(application.tools.expect("it carries its tools"), ["search", "create"]);
 	}
 
 	#[test]
@@ -640,7 +640,7 @@ pub(crate) mod tests {
 		assert_eq!(held.logo_url.as_deref(), Some("https://icons.test/Slack.png"));
 		assert_eq!(held.use_count, Some(900));
 		assert_eq!(held.verified, Some(true));
-		assert_eq!(held.tools, ["search", "create"]);
+		assert_eq!(held.tools.as_deref().expect("it carries its tools"), ["search", "create"]);
 		assert_eq!(held.logo, None);
 	}
 
@@ -733,7 +733,10 @@ pub(crate) mod tests {
 
 		let found = detail(&base, "@owner/slack").await.expect("the detail answers");
 
-		assert_eq!(found.expect("the server is known").tools, ["search", "create"]);
+		assert_eq!(
+			found.expect("the server is known").tools.expect("it carries its tools"),
+			["search", "create"]
+		);
 		assert_eq!(detail(&base, "@owner/nowhere").await, Ok(None));
 	}
 }

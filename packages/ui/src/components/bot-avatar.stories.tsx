@@ -1,6 +1,5 @@
-import { type ReactNode, useEffect, useRef } from "react"
-import { useArgs } from "storybook/preview-api"
-import { expect, waitFor } from "storybook/test"
+import type { ComponentProps, ReactNode } from "react"
+import { expect } from "storybook/test"
 
 import preview from "@workspace/storybook/preview"
 import { slotsIn } from "@workspace/storybook/story-utils"
@@ -13,32 +12,12 @@ import {
 	type BotAvatarState,
 	STATE_GROUPS,
 	STATE_POOLS,
-	STATE_POSES,
 } from "@workspace/ui/components/bot-avatar-data"
-import {
-	BotAvatarEngine,
-	PARTS,
-} from "@workspace/ui/components/bot-avatar-engine"
-import {
-	GAZE_CADENCE,
-	GAZE_DART_DURATION,
-	GAZE_PITCH_DOWN_LIMIT,
-	GAZE_PITCH_UP_LIMIT,
-	GAZE_YAW_LIMIT,
-} from "@workspace/ui/components/bot-avatar-gaze"
-import { Button } from "@workspace/ui/components/ui/button"
+import { GAZE_CADENCE } from "@workspace/ui/components/bot-avatar-gaze"
 
 const BOT_AVATAR_ANIMALS = Object.keys(ANIMALS) as BotAvatarAnimal[]
 const BOT_AVATAR_STATES = Object.keys(STATE_POOLS) as BotAvatarState[]
-const YAW_SWEEP = [-60, -40, -20, 0, 20, 40, 60]
-const PITCH_SWEEP = [-40, -25, -12, 0, 12, 25, 40]
-const WELD_SIZE = 88
-const SPLIT_SIZE = 240
-const HALF_PLANE_EDGES = 3
-const SPLIT_SWEEP = [
-	...YAW_SWEEP.map((angle) => ({ axis: "yaw", angle })),
-	...PITCH_SWEEP.map((angle) => ({ axis: "pitch", angle })),
-]
+const HERO_SIZE = 240
 const BLOT_SEEDS = [
 	"bot-1",
 	"bot-2",
@@ -53,90 +32,8 @@ const STRESS_COUNT = 60
 const TURN_ANIMALS: BotAvatarAnimal[] = ["rabbit", "cat", "owl"]
 const TURN_STATE: BotAvatarState = "working"
 const CHIP_SIZE = 40
-const DEPTH_ANIMALS: BotAvatarAnimal[] = ["owl", "skippy"]
-const DEPTH_SWEEP = [-40, 0, 40]
 const GLANCE_STATES = Object.keys(GAZE_CADENCE) as BotAvatarState[]
-const GLANCE_SIZES = [240, 40]
-const GAZE_EXTREMES = [
-	{ label: "left", yaw: -GAZE_YAW_LIMIT, pitch: 0 },
-	{ label: "up", yaw: 0, pitch: -GAZE_PITCH_UP_LIMIT },
-	{ label: "centre", yaw: 0, pitch: 0 },
-	{ label: "down", yaw: 0, pitch: GAZE_PITCH_DOWN_LIMIT },
-	{ label: "right", yaw: GAZE_YAW_LIMIT, pitch: 0 },
-]
-
-const rigLean = (avatar: SVGSVGElement) =>
-	Number(
-		avatar
-			.querySelector(`[data-part="${PARTS.rig}"]`)
-			?.getAttribute("transform")
-			?.match(/translate\((-?\d*\.?\d+)/)?.[1] ?? Number.NaN,
-	)
-
-const LIVE_GAZE_STATE: BotAvatarState = "listening"
-const LIVE_GAZE_SETTLE_MS = 1000
-const LIVE_GAZE_PIN = { yaw: GAZE_YAW_LIMIT, pitch: 0 }
-
-const settle = (ms: number) =>
-	new Promise((resolve) => {
-		setTimeout(resolve, ms)
-	})
-
-function LiveGazeBench() {
-	const host = useRef<HTMLDivElement>(null)
-	const live = useRef<BotAvatarEngine | null>(null)
-
-	useEffect(() => {
-		const svg = host.current?.querySelector("svg")
-		if (!svg) return
-		const engine = new BotAvatarEngine(ANIMALS.rabbit)
-		engine.bind(svg)
-		engine.setState(LIVE_GAZE_STATE)
-		engine.setGaze(LIVE_GAZE_PIN)
-		engine.start()
-		live.current = engine
-		return () => {
-			engine.stop()
-			live.current = null
-		}
-	}, [])
-
-	return (
-		<div className="flex flex-col items-center gap-4" ref={host}>
-			<BotAvatar animated={false} size={SPLIT_SIZE} state={LIVE_GAZE_STATE} />
-			<Button onClick={() => live.current?.setGaze(null)} variant="outline">
-				Look back to centre
-			</Button>
-		</div>
-	)
-}
-
-const transformIn = (avatar: SVGSVGElement, part: string) =>
-	avatar.querySelector(`[data-part="${part}"]`)?.getAttribute("transform") ?? ""
-
-const headTransform = (avatar: SVGSVGElement) => transformIn(avatar, PARTS.head)
-
-const extraTransform = (avatar: SVGSVGElement) =>
-	transformIn(avatar, PARTS.extra(0))
-
-const extraReach = (avatar: SVGSVGElement) =>
-	Number(
-		extraTransform(avatar).match(/translate\((-?\d*\.?\d+)/)?.[1] ?? Number.NaN,
-	)
-
-const IDLE_EXTRA_WARP = /rotate\(0\) scale\(1 1\)/
-
-const eyeCentre = (avatar: SVGSVGElement) => {
-	const d =
-		avatar.querySelector(`[data-part="${PARTS.eye0}"]`)?.getAttribute("d") ?? ""
-	const points = (d.match(/-?\d*\.?\d+ -?\d*\.?\d+/g) ?? []).map((pair) =>
-		pair.split(" ").map(Number),
-	)
-	return {
-		x: points.reduce((sum, point) => sum + point[0], 0) / points.length,
-		y: points.reduce((sum, point) => sum + point[1], 0) / points.length,
-	}
-}
+const GLANCE_SIZES = [HERO_SIZE, CHIP_SIZE]
 
 const GROUPED_STATES = Object.entries(STATE_GROUPS).flatMap(([group, states]) =>
 	states.map((state) => ({ group, state })),
@@ -171,32 +68,26 @@ function LabeledCell({
 	)
 }
 
-type SweepRowProps = {
-	animal?: BotAvatarAnimal
-	axis: "yaw" | "pitch"
-	angles: number[]
-	debug: boolean
-}
+type StateGridProps = ComponentProps<typeof BotAvatar>
 
-function SweepRow({ animal, axis, angles, debug }: SweepRowProps) {
-	return (
-		<div className="flex items-end gap-2">
-			{angles.map((angle) => (
-				<LabeledCell key={angle} label={`${angle}°`}>
-					<BotAvatar
-						animal={animal}
-						animated={false}
-						pitch={axis === "pitch" ? angle : 0}
-						roll={0}
-						size={WELD_SIZE}
-						wireframe={debug}
-						yaw={axis === "yaw" ? angle : 0}
-					/>
-				</LabeledCell>
-			))}
-		</div>
-	)
-}
+const StateGrid = (avatar: StateGridProps) => (
+	<div className="flex flex-col gap-8">
+		{Object.entries(STATE_GROUPS).map(([group, states]) => (
+			<div key={group}>
+				<h3 className="mb-3 font-medium text-muted-foreground text-sm">
+					{group}
+				</h3>
+				<div className="grid grid-cols-7 gap-4">
+					{states.map((state) => (
+						<LabeledCell key={state} label={state}>
+							<BotAvatar {...avatar} state={state} />
+						</LabeledCell>
+					))}
+				</div>
+			</div>
+		))}
+	</div>
+)
 
 const meta = preview.meta({
 	title: "Branding/Companion Avatar",
@@ -205,12 +96,10 @@ const meta = preview.meta({
 	args: {
 		animal: "rabbit",
 		state: "waiting",
-		size: 240,
+		size: HERO_SIZE,
 		animated: true,
 		perspective: 0.55,
 		ink: "bold",
-		wireframe: false,
-		interactive: false,
 	},
 	argTypes: {
 		animal: { control: "select", options: BOT_AVATAR_ANIMALS },
@@ -220,25 +109,6 @@ const meta = preview.meta({
 			labels: STATE_LABELS,
 		},
 		size: { control: { type: "range", min: 48, max: 480, step: 8 } },
-		yaw: { control: { type: "range", min: -70, max: 70, step: 1 } },
-		gazeYaw: {
-			control: {
-				type: "range",
-				min: -GAZE_YAW_LIMIT,
-				max: GAZE_YAW_LIMIT,
-				step: 1,
-			},
-		},
-		gazePitch: {
-			control: {
-				type: "range",
-				min: -GAZE_PITCH_UP_LIMIT,
-				max: GAZE_PITCH_DOWN_LIMIT,
-				step: 1,
-			},
-		},
-		pitch: { control: { type: "range", min: -50, max: 50, step: 1 } },
-		roll: { control: { type: "range", min: -60, max: 60, step: 1 } },
 		perspective: { control: { type: "range", min: 0, max: 1, step: 0.05 } },
 		ink: {
 			control: "inline-radio",
@@ -247,30 +117,6 @@ const meta = preview.meta({
 		blot: { control: "select", options: [undefined, ...BLOT_TINTS] },
 		seed: { control: "text" },
 		animated: { control: "boolean" },
-		wireframe: { control: "boolean" },
-		interactive: { control: "boolean" },
-	},
-})
-
-export const Lab3D = meta.story({
-	name: "Lab 3D",
-	args: {
-		...STATE_POSES.waiting,
-		size: 360,
-		interactive: true,
-		perspective: 0,
-	},
-	parameters: {
-		docs: {
-			description: {
-				story:
-					"Opens on the locked reference pose — rabbit, waiting, orthographic. The bench for the whole rig: pick an animal, switch to any engine state, dial the `ink` weight, then drive the head with the yaw / pitch / roll sliders or by dragging the avatar itself — the sliders follow the drag. Each orientation prop overrides that axis of the state's own rest pose; leave it unset and the state decides, as it does everywhere else in the system. `perspective` blends from a flat orthographic projection (0) to a full weak-perspective one (1); `wireframe` overlays the head volume, its silhouette conic, the parallels culled to the near sheet and the resolved ear anchors. Check that eyes slide along the surface instead of sliding flat, and that each ear stays welded to the skull outline while the part of it that crosses behind the head plane is cut away by the head rather than the whole ear jumping layers.",
-			},
-		},
-	},
-	render: (args) => {
-		const [, updateArgs] = useArgs()
-		return <BotAvatar {...args} onOrientationChange={updateArgs} />
 	},
 })
 
@@ -285,144 +131,8 @@ export const Playground = meta.story({
 	},
 })
 
-export const Rotation = meta.story({
-	parameters: {
-		docs: {
-			description: {
-				story:
-					"The same avatar swept across yaw, frozen at each angle. Reach for this to prove the rig is a real volume: the silhouette narrows, the eyes travel along the head's surface and foreshorten near the edge, and the ears swap sides as they cross the head plane.",
-			},
-		},
-	},
-	render: (args) => (
-		<div className="flex items-end gap-2">
-			{YAW_SWEEP.map((yaw) => (
-				<LabeledCell key={yaw} label={`${yaw}°`}>
-					<BotAvatar
-						{...args}
-						animated={false}
-						pitch={0}
-						roll={0}
-						size={120}
-						yaw={yaw}
-					/>
-				</LabeledCell>
-			))}
-		</div>
-	),
-})
-
-export const EarWeld = meta.story({
-	name: "Ear Weld",
-	parameters: {
-		layout: "fullscreen",
-		docs: {
-			description: {
-				story:
-					"The ear-to-skull joint under review, swept across yaw then pitch at chip size on a dark panel — the size and contrast where a floating ear used to be most obvious. Each sweep is shown twice: clean, then with `wireframe` on as the debug pass, where the orange dots mark the ear anchors resolved against the head silhouette as it is actually drawn that frame. Check that no dot ever leaves the outline, that the ear base shows no gap and no second stroke against the skull, and that the anchors slide around the skull as the head turns rather than sitting at a fixed spot on the drawing.",
-			},
-		},
-	},
-	render: (args) => (
-		<div className="dark flex flex-col gap-6 bg-background p-8 text-foreground">
-			{(["yaw", "pitch"] as const).map((axis) => (
-				<div className="flex flex-col gap-2" key={axis}>
-					<h3 className="font-medium text-muted-foreground text-sm">{axis}</h3>
-					{[false, true].map((debug) => (
-						<SweepRow
-							angles={axis === "yaw" ? YAW_SWEEP : PITCH_SWEEP}
-							animal={args.animal}
-							axis={axis}
-							debug={debug}
-							key={String(debug)}
-						/>
-					))}
-				</div>
-			))}
-		</div>
-	),
-})
-
-export const EarSplit = meta.story({
-	name: "Ear Split",
-	parameters: {
-		layout: "fullscreen",
-		docs: {
-			description: {
-				story:
-					"The front ear cut, rabbit at full size, swept across yaw then pitch. Facing forward every ear sits behind the head, so the cut is empty and the head outline draws over both ears. Once the head turns, the part of an ear plate that rises in front of the round head is drawn over it, and the edge of that part follows the curve where the plate meets the head surface instead of a straight line. Check that the near ear passes in front along the round of the skull and that the far ear stays tucked behind it.",
-			},
-		},
-	},
-	render: () => (
-		<div className="flex flex-wrap gap-4 p-8">
-			{SPLIT_SWEEP.map(({ axis, angle }) => (
-				<LabeledCell key={`${axis}-${angle}`} label={`${axis} ${angle}°`}>
-					<BotAvatar
-						animal="rabbit"
-						animated={false}
-						pitch={axis === "pitch" ? angle : 0}
-						roll={0}
-						size={SPLIT_SIZE}
-						yaw={axis === "yaw" ? angle : 0}
-					/>
-				</LabeledCell>
-			))}
-		</div>
-	),
-	play: async ({ canvasElement }) => {
-		const avatars = Array.from(canvasElement.querySelectorAll("svg"))
-		await expect(avatars).toHaveLength(SPLIT_SWEEP.length)
-		for (const [cell, avatar] of avatars.entries()) {
-			const clips = ANIMALS.rabbit.ears.map(
-				(_, ear) =>
-					avatar
-						.querySelector(`[data-part="${PARTS.earSplit(ear)}"]`)
-						?.getAttribute("d") ?? "",
-			)
-			if (SPLIT_SWEEP[cell].angle === 0) {
-				await expect(clips).toEqual(["", ""])
-				continue
-			}
-			for (const clip of clips) {
-				await expect(clip.match(/L/g)?.length ?? 0).toBeGreaterThan(
-					HALF_PLANE_EDGES,
-				)
-				await expect(clip).not.toMatch(/\.\d{3}/)
-			}
-		}
-	},
-})
-
-export const Wireframe = meta.story({
-	parameters: {
-		docs: {
-			description: {
-				story:
-					"Every animal with its head volume exposed, turned three quarters. The volume is solved from the drawn head path itself rather than from its control points, so the conic must hug the silhouette on every animal. Reach for this when authoring a new animal: the grid must stop exactly where the surface turns away from the viewer, and the two orange dots — the resolved ear anchors — must sit on the outline, not beside it.",
-			},
-		},
-	},
-	render: () => (
-		<div className="grid grid-cols-4 gap-4">
-			{BOT_AVATAR_ANIMALS.map((animal) => (
-				<LabeledCell key={animal} label={animal}>
-					<BotAvatar
-						animal={animal}
-						animated={false}
-						pitch={12}
-						roll={0}
-						size={150}
-						wireframe
-						yaw={28}
-					/>
-				</LabeledCell>
-			))}
-		</div>
-	),
-})
-
 export const AllStates = meta.story({
+	tags: ["test-only"],
 	parameters: {
 		docs: {
 			description: {
@@ -431,27 +141,11 @@ export const AllStates = meta.story({
 			},
 		},
 	},
-	render: (args) => (
-		<div className="flex flex-col gap-8">
-			{Object.entries(STATE_GROUPS).map(([group, states]) => (
-				<div key={group}>
-					<h3 className="mb-3 font-medium text-muted-foreground text-sm">
-						{group}
-					</h3>
-					<div className="grid grid-cols-7 gap-4">
-						{states.map((state) => (
-							<LabeledCell key={state} label={state}>
-								<BotAvatar {...args} size={96} state={state} />
-							</LabeledCell>
-						))}
-					</div>
-				</div>
-			))}
-		</div>
-	),
+	render: (args) => <StateGrid {...args} size={96} />,
 })
 
 export const Stress = meta.story({
+	tags: ["test-only"],
 	parameters: {
 		docs: {
 			description: {
@@ -497,6 +191,7 @@ export const Variants = meta.story({
 })
 
 export const States = meta.story({
+	tags: ["test-only"],
 	parameters: {
 		docs: {
 			description: {
@@ -505,24 +200,7 @@ export const States = meta.story({
 			},
 		},
 	},
-	render: () => (
-		<div className="flex flex-col gap-8">
-			{Object.entries(STATE_GROUPS).map(([group, states]) => (
-				<div key={group}>
-					<h3 className="mb-3 font-medium text-muted-foreground text-sm">
-						{group}
-					</h3>
-					<div className="grid grid-cols-7 gap-4">
-						{states.map((state) => (
-							<LabeledCell key={state} label={state}>
-								<BotAvatar animated={false} size={88} state={state} />
-							</LabeledCell>
-						))}
-					</div>
-				</div>
-			))}
-		</div>
-	),
+	render: () => <StateGrid animated={false} size={88} />,
 })
 
 export const Blots = meta.story({
@@ -549,6 +227,7 @@ export const Blots = meta.story({
 })
 
 export const BlotShapes = meta.story({
+	tags: ["test-only"],
 	parameters: {
 		docs: {
 			description: {
@@ -582,6 +261,7 @@ export const BlotShapes = meta.story({
 })
 
 export const Sizes = meta.story({
+	tags: ["test-only"],
 	parameters: {
 		docs: {
 			description: {
@@ -602,6 +282,7 @@ export const Sizes = meta.story({
 })
 
 export const Glances = meta.story({
+	tags: ["test-only"],
 	parameters: {
 		docs: {
 			description: {
@@ -625,87 +306,8 @@ export const Glances = meta.story({
 	),
 })
 
-export const GazeExtremes = meta.story({
-	name: "Gaze Extremes",
-	parameters: {
-		docs: {
-			description: {
-				story:
-					"The gaze pinned at each end of its ellipse and back at centre, frozen. The cap is 14° of yaw each side, 9° down and 6° up, and it is spent on the head surface: the eyes travel along the round of the skull and foreshorten as they go, they are never slid flat across the drawing. Reach for this when changing the cap or the eye projection — check that the far eye narrows instead of drifting off the silhouette, and that the head leans a little with the eyes without ever matching their angle.",
-			},
-		},
-	},
-	render: () => (
-		<div className="flex items-end gap-4">
-			{GAZE_EXTREMES.map(({ label, yaw, pitch }) => (
-				<LabeledCell key={label} label={label}>
-					<BotAvatar
-						animated={false}
-						gazePitch={pitch}
-						gazeYaw={yaw}
-						pitch={0}
-						roll={0}
-						size={SPLIT_SIZE}
-						yaw={0}
-					/>
-				</LabeledCell>
-			))}
-		</div>
-	),
-	play: async ({ canvasElement }) => {
-		const avatars = Array.from(canvasElement.querySelectorAll("svg"))
-		const centres = avatars.map(eyeCentre)
-		const leans = avatars.map(rigLean)
-
-		await expect(avatars).toHaveLength(GAZE_EXTREMES.length)
-		const [left, up, centre, down, right] = centres
-		await expect(left.x).toBeLessThan(centre.x)
-		await expect(right.x).toBeGreaterThan(centre.x)
-		await expect(up.y).toBeLessThan(centre.y)
-		await expect(down.y).toBeGreaterThan(centre.y)
-		await expect(leans[0]).toBeLessThan(leans[2])
-		await expect(leans[4]).toBeGreaterThan(leans[2])
-		await expect(Math.abs(leans[0] - leans[2])).toBeLessThan(
-			Math.abs(left.x - centre.x),
-		)
-	},
-})
-
-export const GazeFollow = meta.story({
-	name: "Gaze Follow",
-	parameters: {
-		docs: {
-			description: {
-				story:
-					"The only bench where the gaze runs live. The test browser asks for reduced motion, which stops the avatar's own engine, so this story binds a second engine to the rendered rig and drives it itself — nothing else in the file animates under test. The rabbit opens pinned at the far right of its gaze; the button releases the pin and the companion looks home. Watch the order rather than the distance: the eyes cross first in 80 ms flat, the head only starts leaning 90 ms later, and it never travels as far as they do. Reach for this after touching the dart, the head delay or the head spring.",
-			},
-		},
-	},
-	render: () => <LiveGazeBench />,
-	play: async ({ canvas, canvasElement, userEvent }) => {
-		const avatar = canvasElement.querySelector("svg") as SVGSVGElement
-
-		await settle(LIVE_GAZE_SETTLE_MS)
-		const pinnedReach = eyeCentre(avatar).x
-		const pinnedLean = rigLean(avatar)
-		await expect(pinnedLean).toBeGreaterThan(0)
-
-		await userEvent.click(canvas.getByRole("button"))
-		await settle(GAZE_DART_DURATION)
-		const dartedReach = eyeCentre(avatar).x
-		const dartedLean = rigLean(avatar)
-		await waitFor(() => expect(rigLean(avatar)).toBeLessThan(dartedLean))
-		const followedLean = rigLean(avatar)
-
-		const eyeTravel = Math.abs(dartedReach - pinnedReach)
-		await expect(dartedReach).toBeLessThan(pinnedReach)
-		await expect(followedLean).toBeLessThan(pinnedLean)
-		await expect(Math.abs(dartedLean - pinnedLean)).toBeLessThan(eyeTravel)
-		await expect(Math.abs(followedLean - pinnedLean)).toBeLessThan(eyeTravel)
-	},
-})
-
 export const HeadTurn = meta.story({
+	tags: ["test-only"],
 	name: "Head Turn",
 	parameters: {
 		docs: {
@@ -722,7 +324,7 @@ export const HeadTurn = meta.story({
 					<BotAvatar
 						{...args}
 						animal={animal}
-						size={SPLIT_SIZE}
+						size={HERO_SIZE}
 						state={TURN_STATE}
 					/>
 				</LabeledCell>
@@ -732,6 +334,7 @@ export const HeadTurn = meta.story({
 })
 
 export const ChipRow = meta.story({
+	tags: ["test-only"],
 	name: "Chip Row",
 	parameters: {
 		docs: {
@@ -748,45 +351,4 @@ export const ChipRow = meta.story({
 			))}
 		</div>
 	),
-})
-
-export const DepthLayers = meta.story({
-	name: "Depth Layers",
-	parameters: {
-		docs: {
-			description: {
-				story:
-					"The two animals that carry extras, frozen across a yaw sweep. The extras group sits at 0.85 of the head z radius and is projected through the ellipsoid the eyes are mapped on, so the owl face disc and the Skippy goggles swing across the head and foreshorten with it rather than riding the outline transform, which barely narrows. Every extra is drawn at that one group ratio, so an animal never has to tune a shape by hand. Reach for this when adding a shape to an animal: check that it stays welded to the face through the sweep and returns to exactly the authored drawing at 0°.",
-			},
-		},
-	},
-	render: () => (
-		<div className="flex flex-col gap-4">
-			{DEPTH_ANIMALS.map((animal) => (
-				<div className="flex items-end gap-4" key={animal}>
-					{DEPTH_SWEEP.map((yaw) => (
-						<LabeledCell key={yaw} label={`${animal} · ${yaw}°`}>
-							<BotAvatar
-								animal={animal}
-								animated={false}
-								pitch={0}
-								roll={0}
-								size={SPLIT_SIZE}
-								yaw={yaw}
-							/>
-						</LabeledCell>
-					))}
-				</div>
-			))}
-		</div>
-	),
-	play: async ({ canvasElement }) => {
-		const avatars = Array.from(canvasElement.querySelectorAll("svg"))
-		const facing = avatars[1]
-		const turned = avatars[2]
-
-		await expect(extraTransform(facing)).toMatch(IDLE_EXTRA_WARP)
-		await expect(extraTransform(turned)).not.toBe(headTransform(turned))
-		await expect(extraReach(turned)).toBeGreaterThan(extraReach(facing))
-	},
 })

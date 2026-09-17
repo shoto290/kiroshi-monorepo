@@ -209,17 +209,42 @@ export const createApplicationsController = (
 		[...state.curated, ...state.registry].find((held) => held.name === id) ??
 		null
 
-	const rollBackDeclaration = async (owner: EnvOwner, name: string) => {
-		try {
-			await undeclareServer(store, owner, name)
-		} catch (refusal) {
-			reportFailure({
-				title: i18n.t("bots:applications.install.rollback.title", { name }),
-				description: i18n.t("bots:applications.install.rollback.description", {
-					reason: refusalTextOf(refusal),
-				}),
-			})
+	const deleteWrittenSecrets = async (owner: EnvOwner, name: string) => {
+		const scope = serverScopeOf(owner, name)
+		const written = await store.environmentVariables(scope)
+		for (const entry of written) {
+			if (entry.definedIn.kind === "server") {
+				await store.deleteEnvironmentVariable(scope, entry.name)
+			}
 		}
+	}
+
+	const refusalOf = async (step: () => Promise<void>) => {
+		try {
+			await step()
+			return null
+		} catch (refusal) {
+			return refusal
+		}
+	}
+
+	const rollBackDeclaration = async (owner: EnvOwner, name: string) => {
+		const secretsRefusal = await refusalOf(() =>
+			deleteWrittenSecrets(owner, name),
+		)
+		const undeclareRefusal = await refusalOf(() =>
+			undeclareServer(store, owner, name),
+		)
+		const refusal = undeclareRefusal ?? secretsRefusal
+		if (!refusal) {
+			return
+		}
+		reportFailure({
+			title: i18n.t("bots:applications.install.rollback.title", { name }),
+			description: i18n.t("bots:applications.install.rollback.description", {
+				reason: refusalTextOf(refusal),
+			}),
+		})
 	}
 
 	const writeKeys = async (
@@ -266,16 +291,21 @@ export const createApplicationsController = (
 			logo: application.logo,
 			logoUrl: application.logoUrl,
 		})
-		try {
-			await writeKeys(owner, application.name, asked)
-		} catch (refusal) {
-			if (!wasDeclared) {
-				await rollBackDeclaration(owner, application.name)
+		const orRollBack = async (step: () => Promise<void>) => {
+			try {
+				await step()
+			} catch (refusal) {
+				if (!wasDeclared) {
+					await rollBackDeclaration(owner, application.name)
+				}
+				throw refusal
 			}
-			throw refusal
 		}
+		await orRollBack(() => writeKeys(owner, application.name, asked))
 		if (application.install.kind === "oauth") {
-			await target.connect(application.name, urlOf(application))
+			await orRollBack(() =>
+				target.connect(application.name, urlOf(application)),
+			)
 		}
 	}
 

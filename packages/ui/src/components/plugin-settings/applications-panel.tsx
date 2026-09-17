@@ -6,7 +6,10 @@ import type {
 	BotMcpConnectionState,
 	BotMcpServerItem,
 } from "@workspace/ui/components/bot-settings"
-import { MCP_CONNECTION_DOT } from "@workspace/ui/components/bot-settings-dialog/mcp-connection"
+import {
+	MCP_CONNECTION_DOT,
+	readMcpConnectionReason,
+} from "@workspace/ui/components/bot-settings-dialog/mcp-connection"
 import { Icons } from "@workspace/ui/components/icons"
 import { ApplicationMark } from "@workspace/ui/components/plugin-settings/application-mark"
 import { SETTINGS_EMPTY_CLASS } from "@workspace/ui/components/settings-styles"
@@ -79,6 +82,7 @@ const ApplicationRow = ({ server, onOpen, onConnect }: ApplicationRowProps) => {
 	const name = server.displayName ?? server.name
 	const state = server.connection
 	const action = state ? APPLICATION_ROW_ACTION[state] : null
+	const reason = readMcpConnectionReason(t, server.reason)
 
 	return (
 		<li className="relative flex items-center gap-3 rounded-xl border border-border px-3 py-2.5 hover:bg-muted">
@@ -114,6 +118,11 @@ const ApplicationRow = ({ server, onOpen, onConnect }: ApplicationRowProps) => {
 						</>
 					) : null}
 				</span>
+				{state === "failed" && reason ? (
+					<span className="line-clamp-2 wrap-break-word text-muted-foreground text-xs">
+						{reason}
+					</span>
+				) : null}
 			</span>
 			<span className="relative flex h-6 w-18 shrink-0 items-center justify-end">
 				{action && onConnect ? (

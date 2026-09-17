@@ -41,6 +41,7 @@ export const Default = meta.story({
 })
 
 export const States = meta.story({
+	tags: ["test-only"],
 	parameters: {
 		docs: {
 			description: {
@@ -100,6 +101,7 @@ export const WithLabel = meta.story({
 })
 
 export const OnDarkSurface = meta.story({
+	tags: ["test-only"],
 	globals: { theme: "dark" },
 	parameters: {
 		docs: {

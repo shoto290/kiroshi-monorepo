@@ -5,10 +5,12 @@ import preview from "@workspace/storybook/preview"
 import { A11Y_CONTRAST_AWAITING_DESIGN_DECISION } from "@workspace/storybook/story-utils"
 import {
 	BLANK_MCP_SERVER_DRAFT,
+	type BotMcpConnectionReason,
 	type BotMcpServerDraft,
 	toMcpServerConfigText,
 	toMcpServerDraft,
 } from "@workspace/ui/components/bot-settings"
+import type { McpConnectionSection } from "@workspace/ui/components/bot-settings-dialog/mcp-connection"
 import {
 	McpServerEditor,
 	type McpServerEditorProps,
@@ -440,7 +442,7 @@ export const ConnectionFailed = meta.story({
 		docs: {
 			description: {
 				story:
-					"The attempt came back refused. Reach for this to check the one block with no sentence under its title: nothing true can be said about why until the application says it, so the block states the outcome and offers another attempt rather than guessing at a cause. Check that the red is the field and the dot, never the words.",
+					"The attempt came back refused, with nothing said about why. Reach for this to check the block when no reason reaches it: the title states the outcome, nothing is reserved under it, and another attempt is offered. The `Reason*` stories mount the sentence each failed step writes there. Check that the red is the field and the dot, never the words.",
 			},
 		},
 	},
@@ -450,6 +452,197 @@ export const ConnectionFailed = meta.story({
 		await userEvent.click(canvas.getByRole("button", { name: "Retry" }))
 
 		await expect(args.connection?.onConnect).toHaveBeenCalledTimes(1)
+	},
+})
+
+const failedFor = (reason: BotMcpConnectionReason): McpConnectionSection => ({
+	state: "failed",
+	reason,
+	onConnect: fn(),
+})
+
+const UNKNOWN_DETAIL = "exit 9 before the callback"
+
+const UNBROKEN_UNKNOWN_DETAIL = `0x${"a3f19b7c".repeat(40)}`
+
+export const ReasonAlreadyRunning = meta.story({
+	args: { connection: failedFor({ kind: "alreadyRunning" }) },
+	parameters: {
+		docs: {
+			description: {
+				story:
+					"A second sign-in asked for while the first is still open. Check that the sentence sends the reader back to the attempt already running instead of offering a cause.",
+			},
+		},
+	},
+	play: async ({ canvas }) => {
+		await expect(
+			canvas.getByText(
+				"A sign-in is already running. Finish that one, or cancel it, then try again.",
+			),
+		).toBeVisible()
+	},
+})
+
+export const ReasonStore = meta.story({
+	args: { connection: failedFor({ kind: "store" }) },
+	parameters: {
+		docs: {
+			description: {
+				story:
+					"The token came back but the secrets store refused it. Check that the sentence says nothing was kept, so the reader knows a retry starts from zero.",
+			},
+		},
+	},
+	play: async ({ canvas }) => {
+		await expect(
+			canvas.getByText(
+				"Kiroshi couldn’t write the token to this application’s secrets, so nothing was kept.",
+			),
+		).toBeVisible()
+	},
+})
+
+export const ReasonTransport = meta.story({
+	args: { connection: failedFor({ kind: "transport" }) },
+	parameters: {
+		docs: {
+			description: {
+				story:
+					"The agent never answered, so the sign-in never started. Check that the sentence names the step that did not happen rather than the machinery underneath it.",
+			},
+		},
+	},
+	play: async ({ canvas }) => {
+		await expect(
+			canvas.getByText(
+				"Kiroshi couldn’t reach the agent, so the sign-in never started.",
+			),
+		).toBeVisible()
+	},
+})
+
+export const ReasonRefusedUrl = meta.story({
+	args: { connection: failedFor({ kind: "refusedUrl" }) },
+	parameters: {
+		docs: {
+			description: {
+				story:
+					"The sign-in link the application gave was refused before anything opened. Check that the sentence points at the address as the thing to check, and that the link itself is never printed.",
+			},
+		},
+	},
+	play: async ({ canvas }) => {
+		await expect(
+			canvas.getByText(
+				"Kiroshi wouldn’t open the sign-in link this application gave. Check its address.",
+			),
+		).toBeVisible()
+	},
+})
+
+export const ReasonBrowserRefused = meta.story({
+	args: { connection: failedFor({ kind: "browserRefused" }) },
+	parameters: {
+		docs: {
+			description: {
+				story:
+					"The browser refused to open. Check that the sentence leaves the reader a way through on their own, since the retry may refuse again.",
+			},
+		},
+	},
+	play: async ({ canvas }) => {
+		await expect(
+			canvas.getByText(
+				"Your browser wouldn’t open. Try again, or open the sign-in link yourself.",
+			),
+		).toBeVisible()
+	},
+})
+
+export const ReasonTimedOut = meta.story({
+	args: { connection: failedFor({ kind: "timedOut" }) },
+	parameters: {
+		docs: {
+			description: {
+				story:
+					"The sign-in was opened and never came back. Check the shortest of the sentences: the wait ran out, and another attempt is all there is to say.",
+			},
+		},
+	},
+	play: async ({ canvas }) => {
+		await expect(
+			canvas.getByText("The sign-in timed out before it came back. Try again."),
+		).toBeVisible()
+	},
+})
+
+export const ReasonUnknown = meta.story({
+	args: { connection: failedFor({ kind: "unknown", detail: UNKNOWN_DETAIL }) },
+	parameters: {
+		docs: {
+			description: {
+				story:
+					"A failure no named step claims, carrying the detail it came with. Check that the detail is set as text in the same muted sentence, with no chip and no monospace around it, and that no other kind’s sentence is drawn beside it.",
+			},
+		},
+	},
+	play: async ({ canvas }) => {
+		await expect(
+			canvas.getByText(`The sign-in stopped: ${UNKNOWN_DETAIL}`),
+		).toBeVisible()
+		await expect(canvas.queryByText(/timed out/)).not.toBeInTheDocument()
+	},
+})
+
+export const ReasonUnknownUnbroken = meta.story({
+	args: {
+		connection: failedFor({
+			kind: "unknown",
+			detail: UNBROKEN_UNKNOWN_DETAIL,
+		}),
+	},
+	parameters: {
+		docs: {
+			description: {
+				story:
+					"The one kind that carries a raw string from upstream, here a 322 character token with nowhere to break. Reach for this over `ReasonUnknown` to check what the editor does with a detail wider than its column: the token breaks inside the sentence instead of pushing the block past its frame, and Retry keeps its own end of the line at the width it holds in the other `Reason` stories.",
+			},
+		},
+	},
+	play: async ({ canvas, canvasElement }) => {
+		const frame = canvasElement.firstElementChild
+		const sentence = canvas.getByText(
+			new RegExp(UNBROKEN_UNKNOWN_DETAIL.slice(0, 24)),
+		)
+		const retry = canvas.getByRole("button", { name: "Retry" })
+
+		await expect(sentence.clientWidth).toBeLessThanOrEqual(
+			frame?.clientWidth ?? 0,
+		)
+		await expect(sentence.scrollWidth).toBeLessThanOrEqual(sentence.clientWidth)
+		await expect(retry.scrollWidth).toBeLessThanOrEqual(retry.clientWidth)
+		await expect(retry.getBoundingClientRect().right).toBeLessThanOrEqual(
+			frame?.getBoundingClientRect().right ?? 0,
+		)
+	},
+})
+
+export const ReasonUnknownBlank = meta.story({
+	args: { connection: failedFor({ kind: "unknown", detail: "   " }) },
+	parameters: {
+		docs: {
+			description: {
+				story:
+					"An unknown failure whose detail came back empty. Check that the block falls back to what `ConnectionFailed` draws rather than printing a sentence that stops at its colon: nothing is said, and nothing is reserved under the state label.",
+			},
+		},
+	},
+	play: async ({ canvas }) => {
+		await expect(canvas.getByText("Couldn’t connect")).toBeVisible()
+		await expect(
+			canvas.queryByText(/The sign-in stopped/),
+		).not.toBeInTheDocument()
 	},
 })
 
@@ -472,6 +665,7 @@ export const RefusedRefresh = meta.story({
 		mark: GRANOLA_MARK,
 		connection: {
 			state: "failed",
+			reason: { kind: "timedOut" },
 			refusedRefresh: REFUSED_REFRESH,
 			onConnect: fn(),
 		},
@@ -480,7 +674,7 @@ export const RefusedRefresh = meta.story({
 		docs: {
 			description: {
 				story:
-					"E8. The token refresh was refused. Check the mark and the monospace name in the header, the destructive dot and field the failed state already draws, a title saying the sign-in stopped working, a sentence naming what it cost, the raw reason in its own chip, and Sign in again as the primary action.",
+					"E8. The token refresh was refused, with a failure reason given beside it. Check the mark and the monospace name in the header, the destructive dot and field the failed state already draws, a title saying the sign-in stopped working, a sentence naming what it cost, the raw reason in its own chip, and Sign in again as the primary action. Check that the refusal is the only thing said: the reason sentence stays out while this block stands.",
 			},
 		},
 	},
@@ -501,6 +695,7 @@ export const RefusedRefresh = meta.story({
 			"CODE",
 		)
 		await expect(canvas.queryByText("Couldn’t connect")).not.toBeInTheDocument()
+		await expect(canvas.queryByText(/timed out/)).not.toBeInTheDocument()
 
 		await userEvent.click(canvas.getByRole("button", { name: "Sign in again" }))
 		await expect(args.connection?.onConnect).toHaveBeenCalledTimes(1)

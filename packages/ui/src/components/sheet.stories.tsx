@@ -86,7 +86,7 @@ export const Closed = meta.story({
 		docs: {
 			description: {
 				story:
-					"The narrow window before anyone asks for the panel, which is where a reader starts. Check that the screen takes the whole width — no column is reserved for a panel that is not on screen — and that nothing of the drawer is in the accessible tree yet, so a reader walking the page never meets a row they cannot reach. Pick `Drawer` for the same window once the panel is asked for.",
+					"The narrow window before anyone asks for the panel, which is where a reader starts. Check that the screen takes the whole width — no column is reserved for a panel that is not on screen — and that nothing of the drawer is in the accessible tree yet, so a reader walking the page never meets a row they cannot reach. Pick `Drawer` for the same window once the panel is asked for. The sidebar becomes this drawer under `apps/app/src/App.tsx:935`.",
 			},
 		},
 	},
@@ -101,7 +101,7 @@ export const Drawer = meta.story({
 		docs: {
 			description: {
 				story:
-					"The panel asked for on a narrow window: the same rows as on a wide one, drawn over the screen instead of beside it. Check that the drawer is a modal dialog rather than a panel that merely looks like one — it is named, it holds the focus and it is announced as a dialog — and that the backdrop covers the screen behind it. The width is the one thing that does not hold: the branch sets `--sidebar-width` to 18rem on the popup, and the registry's own `data-[side=left]:w-3/4` wins over the class reading it, so the drawer is painted at three quarters of the window instead. Both are asserted here, the intent and the paint, because the fix belongs to `ui/sidebar.tsx`, which this branch does not touch. Pick `Closed` for the state before the press.",
+					"The panel asked for on a narrow window: the same rows as on a wide one, drawn over the screen instead of beside it. Check that the drawer is a modal dialog rather than a panel that merely looks like one — it is named, it holds the focus and it is announced as a dialog — and that the backdrop covers the screen behind it. The width is the one thing that does not hold: the branch sets `--sidebar-width` to 18rem on the popup, and the registry's own `data-[side=left]:w-3/4` wins over the class reading it, so the drawer is painted at three quarters of the window instead. Both are asserted here, the intent and the paint, because the fix belongs to `ui/sidebar.tsx`, which this branch does not touch. Pick `Closed` for the state before the press. The sidebar becomes this drawer under `apps/app/src/App.tsx:935`.",
 			},
 		},
 	},
