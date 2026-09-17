@@ -98,8 +98,8 @@ mod tests {
 			assert!(!application.description.contains('\n'), "{name} spans lines");
 			assert_eq!(application.config["type"], "http", "got {name}");
 			assert!(application.config["url"].is_string(), "{name} has no url");
-			let tools = application.tools.as_deref().unwrap_or_default();
-			assert!(!tools.is_empty(), "{name} names no tool");
+			let tools = application.tools.as_deref();
+			assert!(tools.is_some_and(|named| !named.is_empty()), "{name} names no tool");
 		}
 	}
 

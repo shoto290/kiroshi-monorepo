@@ -640,7 +640,7 @@ pub(crate) mod tests {
 		assert_eq!(held.logo_url.as_deref(), Some("https://icons.test/Slack.png"));
 		assert_eq!(held.use_count, Some(900));
 		assert_eq!(held.verified, Some(true));
-		assert_eq!(held.tools.clone().expect("it carries its tools"), ["search", "create"]);
+		assert_eq!(held.tools.as_deref().expect("it carries its tools"), ["search", "create"]);
 		assert_eq!(held.logo, None);
 	}
 
