@@ -23,23 +23,20 @@ const REGISTRY_HOVER_OPEN_DELAY = 600
 const PAST_HOVER_OPEN_DELAY = REGISTRY_HOVER_OPEN_DELAY + 200
 const ANCHOR_TOLERANCE = 1
 
-const clearsTrigger = (
+const readAnchor = (
 	panel: DOMRect,
 	trigger: DOMRect,
 	placement: PopoverPanelPlacement,
 ) =>
 	placement === "top-start"
-		? panel.bottom <= trigger.top
-		: panel.top >= trigger.bottom
-
-const anchoredEdgeDrift = (
-	panel: DOMRect,
-	trigger: DOMRect,
-	placement: PopoverPanelPlacement,
-) =>
-	placement === "top-start"
-		? Math.abs(panel.left - trigger.left)
-		: Math.abs(panel.right - trigger.right)
+		? {
+				clearsTrigger: panel.bottom <= trigger.top,
+				edgeDrift: Math.abs(panel.left - trigger.left),
+			}
+		: {
+				clearsTrigger: panel.top >= trigger.bottom,
+				edgeDrift: Math.abs(panel.right - trigger.right),
+			}
 
 const scaleStepRadius = (host: HTMLElement, token: string) => {
 	const probe = host.ownerDocument.createElement("div")
@@ -187,10 +184,14 @@ export const Placements = meta.story({
 				const panelBox = panel.getBoundingClientRect()
 				const triggerBox = trigger.getBoundingClientRect()
 
-				expect(clearsTrigger(panelBox, triggerBox, placement)).toBe(true)
-				expect(
-					anchoredEdgeDrift(panelBox, triggerBox, placement),
-				).toBeLessThanOrEqual(ANCHOR_TOLERANCE)
+				const { clearsTrigger, edgeDrift } = readAnchor(
+					panelBox,
+					triggerBox,
+					placement,
+				)
+
+				expect(clearsTrigger).toBe(true)
+				expect(edgeDrift).toBeLessThanOrEqual(ANCHOR_TOLERANCE)
 			})
 		}
 	},
