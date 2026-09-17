@@ -565,11 +565,6 @@ const bots = {
 		unavailable:
 			"Impossible de charger les applications. Rouvrez les réglages pour réessayer.",
 		reopen: {
-			landed: {
-				title: "{{name}} est prête",
-				description:
-					"Vos compagnons disposent de ses outils dès leur prochain tour.",
-			},
 			refused: {
 				title: "Impossible de rouvrir la session de {{companion}}",
 				description:
