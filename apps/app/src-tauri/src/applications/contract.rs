@@ -315,7 +315,7 @@ impl From<ApplicationStatus> for ApplicationState {
 	fn from(status: ApplicationStatus) -> Self {
 		match status {
 			ApplicationStatus::Connected => ApplicationState::Connected,
-			ApplicationStatus::NeedsAuthorization => ApplicationState::NeedsAuthorization,
+			ApplicationStatus::NeedsAuthorization { .. } => ApplicationState::NeedsAuthorization,
 			ApplicationStatus::Connecting => ApplicationState::Connecting,
 			ApplicationStatus::Failed { reason } => ApplicationState::Failed { reason },
 			ApplicationStatus::Unknown => ApplicationState::Unknown,
