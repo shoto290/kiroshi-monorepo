@@ -11,6 +11,7 @@ pub fn invoke_handler<R: Runtime>() -> impl Fn(tauri::ipc::Invoke<R>) -> bool + 
 		applications::commands::application_catalogue,
 		applications::commands::application_search,
 		applications::commands::application_installs,
+		applications::commands::application_runnable,
 		attachments::commands::chat_store_attachments,
 		agent::commands::agent_check,
 		agent::sign_in::agent_sign_in,

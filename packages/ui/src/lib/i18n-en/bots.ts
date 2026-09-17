@@ -467,18 +467,18 @@ const bots = {
 				fact: "Signs you in. {{name}} opens in your browser and asks to allow Kiroshi.",
 			},
 			key: {
-				title: "{{name}} needs an API key",
+				title: "What {{name}} needs to run",
 				reveal: "Show",
 				conceal: "Hide",
-				revealLabel: "Show the API key",
-				concealLabel: "Hide the API key",
+				revealLabel: "Show {{field}}",
+				concealLabel: "Hide {{field}}",
 				description: {
 					companion:
-						"Kept with this application’s secrets, never in the configuration. {{name}} sees the tools, never the key.",
+						"Kept with this application’s secrets, never in the configuration. {{name}} sees the tools, never these values.",
 					space:
-						"Kept with this application’s secrets, never in the configuration. Every companion in {{name}} sees the tools, never the key.",
+						"Kept with this application’s secrets, never in the configuration. Every companion in {{name}} sees the tools, never these values.",
 					profile:
-						"Kept with this application’s secrets, never in the configuration. Every companion you have sees the tools, never the key.",
+						"Kept with this application’s secrets, never in the configuration. Every companion you have sees the tools, never these values.",
 				},
 			},
 			none: "Nothing to set up. It runs on this machine, with no key and no sign-in.",

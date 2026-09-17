@@ -31,9 +31,16 @@ type ApplicationRefusal = {
 	reason: string
 }
 
+type InstallableField = {
+	name: string
+	description?: string
+	concealed: boolean
+}
+
 type InstallableApplication = CatalogueApplication & {
 	packageIdentity: string
 	tools: string[]
+	fields?: InstallableField[]
 	refusal?: ApplicationRefusal
 }
 
@@ -138,66 +145,118 @@ const SignInNotice = ({ name }: SignInNoticeProps) => {
 	)
 }
 
-type KeyPanelProps = {
-	name: string
-	owner: ApplicationsOwner
+type KeyFieldProps = {
+	field: InstallableField
 	value: string
 	onValueChange: (value: string) => void
 }
 
-const KeyPanel = ({ name, owner, value, onValueChange }: KeyPanelProps) => {
+const KeyField = ({ field, value, onValueChange }: KeyFieldProps) => {
 	const { t } = useTranslation("bots")
 	const [isRevealed, setRevealed] = useState(false)
-	const titleId = useId()
+	const labelId = useId()
 	const inputId = useId()
 	const descriptionId = useId()
 
 	return (
-		<div className="flex flex-col gap-2 rounded-xl border border-border bg-muted p-3.5">
+		<div className="flex flex-col gap-1.5">
+			<label
+				className="wrap-break-word font-mono font-medium text-[13px]/4.5 text-foreground"
+				htmlFor={inputId}
+				id={labelId}
+			>
+				{field.name}
+			</label>
+			<div className="flex h-9 items-center gap-2 rounded-md border border-input bg-background ps-3 pe-1 has-[input:focus-visible]:border-ring has-[input:focus-visible]:ring-3 has-[input:focus-visible]:ring-ring/30">
+				<input
+					aria-describedby={field.description ? descriptionId : undefined}
+					aria-labelledby={labelId}
+					autoComplete="off"
+					className="min-w-0 flex-1 bg-transparent font-mono text-[13px]/5 text-foreground outline-none"
+					id={inputId}
+					onChange={(event) => onValueChange(event.target.value)}
+					spellCheck={false}
+					type={field.concealed && !isRevealed ? "password" : "text"}
+					value={value}
+				/>
+				{field.concealed ? (
+					<Button
+						aria-controls={inputId}
+						aria-label={
+							isRevealed
+								? t("applications.install.key.concealLabel", {
+										field: field.name,
+									})
+								: t("applications.install.key.revealLabel", {
+										field: field.name,
+									})
+						}
+						className="text-muted-foreground"
+						onClick={() => setRevealed(!isRevealed)}
+						size="xs"
+						variant="ghost"
+					>
+						{isRevealed
+							? t("applications.install.key.conceal")
+							: t("applications.install.key.reveal")}
+					</Button>
+				) : null}
+			</div>
+			{field.description ? (
+				<p
+					className="wrap-break-word text-muted-foreground text-xs/4"
+					id={descriptionId}
+				>
+					{field.description}
+				</p>
+			) : null}
+		</div>
+	)
+}
+
+type KeyPanelProps = {
+	name: string
+	owner: ApplicationsOwner
+	fields: InstallableField[]
+	values: string[]
+	onValueChange: (index: number, value: string) => void
+}
+
+const KeyPanel = ({
+	name,
+	owner,
+	fields,
+	values,
+	onValueChange,
+}: KeyPanelProps) => {
+	const { t } = useTranslation("bots")
+	const titleId = useId()
+
+	return (
+		<section
+			aria-labelledby={titleId}
+			className="flex flex-col gap-3 rounded-xl border border-border bg-muted p-3.5"
+		>
 			<p
 				className="wrap-break-word font-medium text-foreground text-sm/5"
 				id={titleId}
 			>
 				{t("applications.install.key.title", { name })}
 			</p>
-			<div className="flex h-9 items-center gap-2 rounded-md border border-input bg-background ps-3 pe-1 has-[input:focus-visible]:border-ring has-[input:focus-visible]:ring-3 has-[input:focus-visible]:ring-ring/30">
-				<input
-					aria-describedby={descriptionId}
-					aria-labelledby={titleId}
-					autoComplete="off"
-					className="min-w-0 flex-1 bg-transparent font-mono text-[13px]/5 text-foreground outline-none"
-					id={inputId}
-					onChange={(event) => onValueChange(event.target.value)}
-					spellCheck={false}
-					type={isRevealed ? "text" : "password"}
-					value={value}
+			{fields.map((field, index) => (
+				<KeyField
+					field={field}
+					key={field.name}
+					onValueChange={(value) => onValueChange(index, value)}
+					value={values[index] ?? ""}
 				/>
-				<Button
-					aria-controls={inputId}
-					aria-label={
-						isRevealed
-							? t("applications.install.key.concealLabel")
-							: t("applications.install.key.revealLabel")
-					}
-					className="text-muted-foreground"
-					onClick={() => setRevealed(!isRevealed)}
-					size="xs"
-					variant="ghost"
-				>
-					{isRevealed
-						? t("applications.install.key.conceal")
-						: t("applications.install.key.reveal")}
-				</Button>
-			</div>
-			<p
-				className="wrap-break-word text-muted-foreground text-xs/4"
-				id={descriptionId}
-			>
+			))}
+			<p className="wrap-break-word text-muted-foreground text-xs/4">
 				{t(`applications.install.key.description.${owner.kind}`, {
 					name: ownerNameOf(owner),
 				})}
 			</p>
-		</div>
+		</section>
 	)
 }
 
@@ -349,7 +408,7 @@ type ApplicationInstallPageProps = Omit<CataloguePageProps, "children"> & {
 	isInstalling?: boolean
 	isInstalled?: boolean
 	failure?: string
-	onInstall: (key?: string) => void
+	onInstall: (values: string[]) => void
 }
 
 const ApplicationInstallPage = ({
@@ -364,9 +423,18 @@ const ApplicationInstallPage = ({
 	const { t } = useTranslation("bots")
 	const body = useRef<HTMLDivElement>(null)
 	useOverlayScrollbars(body)
-	const [key, setKey] = useState("")
+	const [values, setValues] = useState<string[]>([])
 	const isPackage = !application.description
 	const { host, refusal } = application
+	const fields = application.fields ?? []
+
+	const typeInto = (index: number, value: string) => {
+		setValues((held) => {
+			const next = fields.map((_, rank) => held[rank] ?? "")
+			next[index] = value
+			return next
+		})
+	}
 	const isRefused = application.setup === "unavailable"
 	const hostedSource =
 		host === undefined ? undefined : (application.source ?? host)
@@ -385,10 +453,11 @@ const ApplicationInstallPage = ({
 		if (application.setup === "apiKey") {
 			return (
 				<KeyPanel
+					fields={fields}
 					name={application.name}
-					onValueChange={setKey}
+					onValueChange={typeInto}
 					owner={owner}
-					value={key}
+					values={values}
 				/>
 			)
 		}
@@ -480,7 +549,7 @@ const ApplicationInstallPage = ({
 								isInstalled={isInstalled}
 								isInstalling={isInstalling}
 								onInstall={() =>
-									onInstall(application.setup === "apiKey" ? key : undefined)
+									onInstall(fields.map((_, index) => values[index] ?? ""))
 								}
 								setup={application.setup}
 							/>
@@ -496,4 +565,5 @@ export {
 	ApplicationInstallPage,
 	type ApplicationInstallPageProps,
 	type InstallableApplication,
+	type InstallableField,
 }

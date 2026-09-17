@@ -266,6 +266,7 @@ fn asked_field(schema: &Schema, field: &str) -> InstallField {
 		name: field.to_owned(),
 		secret: variable(field),
 		description: schema.properties.get(field).and_then(|held| held.description.clone()),
+		concealed: true,
 	}
 }
 
@@ -464,6 +465,7 @@ pub(crate) mod tests {
 					name: "apiKey".to_owned(),
 					secret: "APIKEY".to_owned(),
 					description: Some("The key.".to_owned()),
+					concealed: true,
 				}],
 			}
 		);
@@ -564,11 +566,13 @@ pub(crate) mod tests {
 						name: "apiKey".to_owned(),
 						secret: "APIKEY".to_owned(),
 						description: None,
+						concealed: true,
 					},
 					InstallField {
 						name: "tenant".to_owned(),
 						secret: "TENANT".to_owned(),
 						description: None,
+						concealed: true,
 					},
 				],
 			}

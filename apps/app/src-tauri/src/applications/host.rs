@@ -6,6 +6,7 @@ use super::contract::{
 	Application, ApplicationInstall, ApplicationInstalled, ApplicationCallError, InstallCase,
 	InstallOutcome, ApplicationSearch, ApplicationState, Destination, InstallDraft, INSTALLED_EVENT,
 };
+use super::runnable::{refusal, Runners};
 use super::search::{search, terms, Registries};
 use super::{catalogue, registry, smithery};
 use crate::agent::protocol::HostAnswer;
@@ -32,6 +33,7 @@ pub struct ApplicationHost<R: Runtime> {
 	conversation_id: String,
 	bot_id: String,
 	registries: Registries,
+	runners: Runners,
 }
 
 impl<R: Runtime> Clone for ApplicationHost<R> {
@@ -41,13 +43,20 @@ impl<R: Runtime> Clone for ApplicationHost<R> {
 			conversation_id: self.conversation_id.clone(),
 			bot_id: self.bot_id.clone(),
 			registries: self.registries.clone(),
+			runners: self.runners.clone(),
 		}
 	}
 }
 
 impl<R: Runtime> ApplicationHost<R> {
 	pub fn new(app: AppHandle<R>, conversation_id: String, bot_id: String) -> Self {
-		Self { app, conversation_id, bot_id, registries: Registries::default() }
+		Self {
+			app,
+			conversation_id,
+			bot_id,
+			registries: Registries::default(),
+			runners: Runners::default(),
+		}
 	}
 
 	pub async fn answer(&self, request: Value) -> HostAnswer {
@@ -100,6 +109,12 @@ impl<R: Runtime> ApplicationHost<R> {
 				reason: refusal.reason,
 			}
 		})?;
+		if let Some(refused) = refusal(&self.runners, &application.config).await {
+			return Err(ApplicationCallError::ApplicationRefused {
+				application: application.name,
+				reason: refused.reason,
+			});
+		}
 		self.declare(&owner, &application).await?;
 		let draft = InstallDraft {
 			conversation_id: self.conversation_id.clone(),
@@ -334,6 +349,8 @@ mod tests {
 	use super::*;
 	use crate::applications::contract::ApplicationInstall;
 	use crate::applications::registry::tests::{holding, serving, unreached};
+	use crate::applications::runnable::tests::a_path_carrying;
+	use crate::applications::runnable::{NPX, UVX};
 	use crate::applications::smithery::tests as smithery_stub;
 	use crate::bundles;
 	use crate::mcp_oauth::commands::McpOauthState;
@@ -351,6 +368,8 @@ mod tests {
 	";
 
 	const SCOPES: [&str; 3] = ["companion", "space", "user"];
+
+	const NO_PACKAGE_REGISTRY: &str = "http://127.0.0.1:1";
 
 	async fn a_host(name: &str) -> App<MockRuntime> {
 		let mut context = mock_context(noop_assets());
@@ -404,6 +423,15 @@ mod tests {
 			conversation_id: conversation_id.to_owned(),
 			bot_id: "b1".to_owned(),
 			registries,
+			runners: runners_carrying(&[NPX, UVX]),
+		}
+	}
+
+	fn runners_carrying(commands: &[&str]) -> Runners {
+		Runners {
+			path: a_path_carrying(commands),
+			npm: NO_PACKAGE_REGISTRY.to_owned(),
+			pypi: NO_PACKAGE_REGISTRY.to_owned(),
 		}
 	}
 
@@ -979,6 +1007,32 @@ mod tests {
 		assert_eq!(refusal["application"], "@owner/queried");
 		let reason = refusal["reason"].as_str().expect("the refusal carries a reason");
 		assert!(reason.contains("apiKey"), "got {reason}");
+		assert_eq!(declarations(&app), [Vec::new(), Vec::new(), Vec::new()]);
+		assert!(recorded_in(&app, "c1").await.is_empty(), "an install was recorded");
+		assert!(arriving.recv_timeout(Duration::from_millis(200)).is_err(), "it was announced");
+		cleaned(&app);
+	}
+
+	#[tokio::test]
+	async fn an_install_of_a_config_no_runner_of_this_machine_runs_is_refused_and_writes_nothing() {
+		let app = a_host("no-runner").await;
+		let (official, _) = serving(holding(Vec::new())).await;
+		let (smithery, _) = smithery_stub::serving(smithery_stub::nothing()).await;
+		let arriving = heard(&app);
+		let host = ApplicationHost {
+			runners: runners_carrying(&[UVX]),
+			..reading(&app, "c1", Registries { official, smithery })
+		};
+
+		let refusal = host
+			.answer(an_install("io.github.Digital-Defiance/mcp-filesystem", "space"))
+			.await
+			.expect_err("the install is refused");
+
+		assert_eq!(refusal["kind"], "applicationRefused");
+		assert_eq!(refusal["application"], "io.github.Digital-Defiance/mcp-filesystem");
+		let reason = refusal["reason"].as_str().expect("the refusal carries a reason");
+		assert!(reason.contains(NPX), "got {reason}");
 		assert_eq!(declarations(&app), [Vec::new(), Vec::new(), Vec::new()]);
 		assert!(recorded_in(&app, "c1").await.is_empty(), "an install was recorded");
 		assert!(arriving.recv_timeout(Duration::from_millis(200)).is_err(), "it was announced");

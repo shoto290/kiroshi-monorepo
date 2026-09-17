@@ -230,6 +230,13 @@ export const API_KEY_INSTALL: InstallableApplication = {
 	packageIdentity: "https://mcp.sentry.dev/mcp",
 	setup: "apiKey",
 	mark: SENTRY_MARK,
+	fields: [
+		{
+			name: "Authorization",
+			description: "A Sentry user auth token.",
+			concealed: true,
+		},
+	],
 	tools: [
 		"find_issues",
 		"get_issue_details",
@@ -252,6 +259,45 @@ export const REGISTRY_INSTALL: InstallableApplication = {
 		"close_task",
 		"add_comment",
 		"search_tasks",
+	],
+}
+
+export const LOCAL_PACKAGE_INSTALL: InstallableApplication = {
+	id: "io.github.DiegoBr4nd/godot-gut-mcp",
+	name: "godot-gut-mcp",
+	packageIdentity: "uvx godot-gut-mcp",
+	setup: "apiKey",
+	fields: [
+		{
+			name: "GODOT_PATH",
+			description: "Path to the Godot executable.",
+			concealed: false,
+		},
+		{
+			name: "GODOT_PROJECT_PATH",
+			description: "Path to the folder holding project.godot.",
+			concealed: false,
+		},
+	],
+	tools: ["run_tests", "list_tests", "read_report"],
+}
+
+export const MIXED_FIELDS_INSTALL: InstallableApplication = {
+	...LOCAL_PACKAGE_INSTALL,
+	id: "io.github.FunplayAI/funplay-godot-mcp",
+	name: "funplay-godot-mcp",
+	packageIdentity: "npx -y funplay-godot-mcp",
+	fields: [
+		{
+			name: "GODOT_PATH",
+			description: "Path to the Godot executable.",
+			concealed: false,
+		},
+		{
+			name: "FUNPLAY_GODOT_MCP_TOKEN",
+			description: "The local auth token of the Funplay dock.",
+			concealed: true,
+		},
 	],
 }
 

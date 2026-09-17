@@ -3420,7 +3420,7 @@ const SENTRY_APPLICATION: Application = {
 	tools: [],
 	install: {
 		kind: "key",
-		fields: [{ name: "token", secret: "SENTRY_AUTH_TOKEN" }],
+		fields: [{ name: "token", secret: "SENTRY_AUTH_TOKEN", concealed: true }],
 	},
 }
 

@@ -34,7 +34,9 @@ const SUPERSET: Application = {
 	tools: ["tasks_list"],
 	install: {
 		kind: "key",
-		fields: [{ name: "Authorization", secret: "SUPERSET_API_KEY" }],
+		fields: [
+			{ name: "Authorization", secret: "SUPERSET_API_KEY", concealed: true },
+		],
 	},
 }
 
@@ -47,8 +49,8 @@ const TWO_KEYED: Application = {
 	install: {
 		kind: "key",
 		fields: [
-			{ name: "apiKey", secret: "APIKEY" },
-			{ name: "tenant", secret: "TENANT" },
+			{ name: "apiKey", secret: "APIKEY", concealed: true },
+			{ name: "tenant", secret: "TENANT", concealed: false },
 		],
 	},
 }
@@ -460,6 +462,46 @@ describe("applications controller", () => {
 		expect(controller.getState().failure).toContain("apiKey")
 		expect(declare).not.toHaveBeenCalled()
 		expect(await store.userPluginMcpServers()).toEqual([])
+	})
+
+	it("shows the reason a config no runner runs was refused and writes nothing", async () => {
+		const port = createFakeApplicationPort()
+		port.curated = [TWO_KEYED]
+		port.runnerRefusal = {
+			field: "uvx",
+			reason: "the command uvx is on no directory of your PATH",
+		}
+		const store = createFakeTranscriptStore()
+		const declare = vi.spyOn(store, "setUserPluginMcpServer")
+		const write = vi.spyOn(store, "setEnvironmentVariable")
+		const controller = controllerOn(port, store)
+		await controller.open()
+		controller.pick("@owner/two-headers")
+
+		await controller.install(targetOf(), ["sk-typed", "acme"])
+
+		expect(controller.getState().failure).toContain(
+			"the command uvx is on no directory of your PATH",
+		)
+		expect(declare).not.toHaveBeenCalled()
+		expect(write).not.toHaveBeenCalled()
+		expect(await store.userPluginMcpServers()).toEqual([])
+	})
+
+	it("reads the config of what it installs against the runners of this machine", async () => {
+		const port = createFakeApplicationPort()
+		port.curated = [PAPER]
+		const controller = controllerOn(port)
+		await controller.open()
+		controller.pick("paper")
+
+		await controller.install(targetOf())
+
+		expect(port.calls).toContainEqual({
+			command: "runnable",
+			config: PAPER.config,
+		})
+		expect(controller.getState().failure).toBeNull()
 	})
 
 	it("refuses a second add of the application it is installing", async () => {

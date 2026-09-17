@@ -250,6 +250,10 @@ export const createApplicationsController = (
 				}),
 			)
 		}
+		const unrunnable = await port.runnable(application.config)
+		if (unrunnable) {
+			throw new Error(unrunnable.reason)
+		}
 		const { owner } = target
 		const wasDeclared = await isDeclaredUnder(owner, application.name)
 		await declareServer(store, owner, application.name, application.config)

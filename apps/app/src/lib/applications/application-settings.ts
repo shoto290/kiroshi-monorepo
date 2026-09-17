@@ -10,7 +10,7 @@ import type {
 import type { ApplicationsCatalogueSection } from "@workspace/ui/components/plugin-settings/use-mcp-session"
 import { i18n } from "@workspace/ui/lib/i18n"
 
-import type { Application, Install } from "./application-port"
+import type { Application, Install, InstallField } from "./application-port"
 import {
 	type ApplicationsController,
 	type ApplicationsState,
@@ -41,6 +41,9 @@ const SETUP_OF_INSTALL = {
 
 const setupOf = (application: Application) =>
 	SETUP_OF_INSTALL[application.install.kind]
+
+const askedFieldsOf = ({ install }: Application): InstallField[] =>
+	install.kind === "key" ? install.fields : []
 
 const refusalOf = ({ install }: Application) =>
 	install.kind === "refused"
@@ -91,6 +94,13 @@ export const toInstallableApplication = (
 	description: application.description || undefined,
 	packageIdentity: application.name,
 	tools: application.tools,
+	fields: askedFieldsOf(application).map(
+		({ name, description, concealed }) => ({
+			name,
+			description,
+			concealed,
+		}),
+	),
 	refusal: refusalOf(application),
 })
 
@@ -156,8 +166,8 @@ const toApplicationsCatalogue = ({
 					isInstalling: state.installing === picked.name,
 					isInstalled: target.declared.includes(picked.name),
 					failure: state.failure ?? undefined,
-					onInstall: (key) => {
-						void controller.install(target, [key ?? ""])
+					onInstall: (values) => {
+						void controller.install(target, values)
 					},
 					onLeave: controller.leave,
 				}

@@ -7,6 +7,7 @@ import type {
 	ApplicationInstalled,
 	ApplicationPort,
 	ApplicationSearch,
+	InstallRefusal,
 } from "./application-port"
 
 export const INSTALLED_EVENT = "application://installed"
@@ -15,6 +16,9 @@ export const applicationTransport: ApplicationPort = {
 	catalogue: () => invoke<Application[]>("application_catalogue"),
 
 	search: (query) => invoke<ApplicationSearch>("application_search", { query }),
+
+	runnable: (config) =>
+		invoke<InstallRefusal | null>("application_runnable", { config }),
 
 	installs: (conversationId) =>
 		invoke<ApplicationInstall[]>("application_installs", { conversationId }),

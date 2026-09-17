@@ -27,7 +27,9 @@ const SUPERSET: Application = {
 	logo: "<svg/>",
 	install: {
 		kind: "key",
-		fields: [{ name: "Authorization", secret: "SUPERSET_API_KEY" }],
+		fields: [
+			{ name: "Authorization", secret: "SUPERSET_API_KEY", concealed: true },
+		],
 	},
 }
 
@@ -85,6 +87,25 @@ describe("applicationTransport", () => {
 		hostInvoke.mockRejectedValue(REFUSED)
 
 		await expect(applicationTransport.search("notion")).rejects.toEqual(REFUSED)
+	})
+
+	it("asks the host whether a config runs on this machine", async () => {
+		hostInvoke.mockResolvedValue(null)
+		const config = { command: "uvx", args: ["godot-gut-mcp"] }
+
+		const refusal = await applicationTransport.runnable(config)
+
+		expect(hostInvoke).toHaveBeenCalledWith("application_runnable", { config })
+		expect(refusal).toBeNull()
+	})
+
+	it("hands back the refusal of a config no runner of this machine runs", async () => {
+		const refused = { field: "uvx", reason: "the command uvx is on no path" }
+		hostInvoke.mockResolvedValue(refused)
+
+		await expect(
+			applicationTransport.runnable({ command: "uvx" }),
+		).resolves.toEqual(refused)
 	})
 
 	it("reads the installs recorded in one conversation", async () => {
