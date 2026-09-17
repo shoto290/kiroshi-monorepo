@@ -1038,9 +1038,35 @@ pub struct McpServer {
 	pub config: serde_json::Value,
 }
 
+const AUTHORIZATION_HEADER: &str = "authorization";
+
+const EXPANDED_FIELDS: [&str; 5] = ["command", "args", "env", "url", "headers"];
+
+const PLACEHOLDER_OPENING: &str = "${";
+
 impl McpServer {
 	pub fn url(&self) -> Option<&str> {
 		self.config.get("url").and_then(serde_json::Value::as_str)
+	}
+
+	pub fn kiroshi_authorizes(&self) -> bool {
+		self.url().is_some() && !self.declares_authorization() && !self.declares_placeholder()
+	}
+
+	fn declares_authorization(&self) -> bool {
+		self.config
+			.get("headers")
+			.and_then(serde_json::Value::as_object)
+			.is_some_and(|headers| {
+				headers.keys().any(|name| name.to_lowercase() == AUTHORIZATION_HEADER)
+			})
+	}
+
+	fn declares_placeholder(&self) -> bool {
+		EXPANDED_FIELDS
+			.iter()
+			.filter_map(|field| self.config.get(*field))
+			.any(|declared| declared.to_string().contains(PLACEHOLDER_OPENING))
 	}
 }
 
@@ -1921,6 +1947,43 @@ fn as_flag(value: &serde_json::Value) -> Option<bool> {
 mod tests {
 	use super::*;
 	use crate::db::repositories::conversations::{AvatarAnimal, Bot};
+
+	fn declared(config: serde_json::Value) -> McpServer {
+		McpServer { name: "granola".to_owned(), config }
+	}
+
+	#[test]
+	fn a_remote_server_declaring_no_authorization_header_is_one_kiroshi_authorizes() {
+		assert!(declared(serde_json::json!({ "url": "https://mcp.granola.test/mcp" }))
+			.kiroshi_authorizes());
+		assert!(declared(serde_json::json!({
+			"url": "https://mcp.granola.test/mcp",
+			"headers": { "X-Trace": "on" }
+		}))
+		.kiroshi_authorizes());
+	}
+
+	#[test]
+	fn a_server_kiroshi_authorizes_not_declares_a_command_a_header_or_a_placeholder() {
+		assert!(!declared(serde_json::json!({ "command": "clock" })).kiroshi_authorizes());
+		assert!(!declared(serde_json::json!({
+			"url": "https://mcp.granola.test/mcp",
+			"headers": { "Authorization": "Bearer held" }
+		}))
+		.kiroshi_authorizes());
+		assert!(!declared(serde_json::json!({
+			"url": "https://mcp.granola.test/mcp",
+			"headers": { "authorization": "Bearer held" }
+		}))
+		.kiroshi_authorizes());
+		assert!(!declared(serde_json::json!({ "url": "https://${GRANOLA_HOST}/mcp" }))
+			.kiroshi_authorizes());
+		assert!(!declared(serde_json::json!({
+			"url": "https://mcp.granola.test/mcp",
+			"env": { "TOKEN": "${GRANOLA_TOKEN}" }
+		}))
+		.kiroshi_authorizes());
+	}
 
 	fn a_bot(name: &str, instructions: &str) -> Bot {
 		Bot {

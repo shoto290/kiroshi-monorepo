@@ -8,6 +8,7 @@ use tauri_plugin_opener::OpenerExt;
 use super::contract::{Disconnected, OauthError};
 use super::credentials::{self, ServedGrants};
 use super::refresh::{self, Renewal, Renewals};
+use super::refusal::{refusal_line, Refused, Step};
 use super::reports::{ApplicationReports, Standing};
 use super::status::{status, ApplicationRow, Evidence};
 use crate::agent::commands::AgentState;
@@ -26,6 +27,9 @@ use crate::environment::store;
 const NOTHING_STORED: &str = "no access token was stored for that server";
 
 const NO_BUNDLES: &str = "the bundle directory is unavailable";
+
+const NEITHER_A_GRANT_NOR_A_REASON: &str =
+	"the authorization flow settled with neither a grant nor a reason";
 
 const OPENABLE_SCHEMES: [&str; 2] = ["http://", "https://"];
 
@@ -77,31 +81,42 @@ impl Drop for Running<'_> {
 	}
 }
 
-async fn granted<R: Runtime>(
-	app: &AppHandle<R>,
-	url: &str,
-) -> Result<OauthCredentials, OauthError> {
-	let sidecar = app.state::<AgentState>().sidecar().await?;
-	let mut flow = sidecar.begin_oauth(url)?;
-	let settled = match flow.opened().await? {
+async fn granted<R: Runtime>(app: &AppHandle<R>, url: &str) -> Result<OauthCredentials, Refused> {
+	let sidecar = app
+		.state::<AgentState>()
+		.sidecar()
+		.await
+		.map_err(|error| Step::ReachingTheSidecar.refused(error.into()))?;
+	let mut flow =
+		sidecar.begin_oauth(url).map_err(|error| Step::StartingTheFlow.refused(error.into()))?;
+	let opened = flow.opened().await.map_err(|error| Step::OpeningTheFlow.refused(error.into()))?;
+	let settled = match opened {
 		Opening::Settled(settled) => settled,
 		Opening::Authorization(authorization) => {
 			if !is_openable(&authorization) {
-				return Err(OauthError::RefusedUrl { url: authorization });
+				return Err(Step::HandingTheUrl
+					.refused(OauthError::RefusedUrl { url: authorization }));
 			}
 			if app.opener().open_url(authorization.clone(), None::<&str>).is_err() {
-				return Err(OauthError::BrowserRefused { url: authorization });
+				return Err(Step::OpeningTheBrowser
+					.refused(OauthError::BrowserRefused { url: authorization }));
 			}
-			flow.settled().await?
+			flow.settled().await.map_err(|error| Step::SettlingTheFlow.refused(error.into()))?
 		}
 	};
 	match (settled.credentials, settled.error) {
 		(Some(credentials), _) => Ok(credentials),
-		(None, Some(failure)) => Err(OauthError::from(failure)),
-		(None, None) => Err(OauthError::Failed {
-			detail: "the authorization flow settled with neither a grant nor a reason".to_owned(),
-		}),
+		(None, Some(failure)) => {
+			Err(Step::AskingTheAuthorizationServer.refused(OauthError::from(failure)))
+		}
+		(None, None) => Err(Step::ReadingTheSettlement
+			.refused(OauthError::Failed { detail: NEITHER_A_GRANT_NOR_A_REASON.to_owned() })),
 	}
+}
+
+fn written(refused: Refused, held: &Values) -> OauthError {
+	eprintln!("{}", refusal_line(&refused, held));
+	refused.error
 }
 
 #[tauri::command]
@@ -113,10 +128,16 @@ pub async fn mcp_oauth_connect<R: Runtime>(
 ) -> Result<(), OauthError> {
 	let state = app.state::<McpOauthState>();
 	let scope = EnvScope::Server { name: name.clone(), owner };
-	let _running = state.begin(Flow::Authorizing(scope.clone()))?;
-	let root = writable_root(&app)?;
-	let credentials = granted(&app, &url).await?;
-	kept(&root, &scope, &name, &credentials, &app.state::<ApplicationReports>())
+	let _running = state
+		.begin(Flow::Authorizing(scope.clone()))
+		.map_err(|error| written(Step::ClaimingTheState.refused(error), &Values::new()))?;
+	let root = writable_root(&app)
+		.map_err(|error| written(Step::WritingTheStoreRoot.refused(error.into()), &Values::new()))?;
+	let credentials =
+		granted(&app, &url).await.map_err(|refused| written(refused, &Values::new()))?;
+	kept(&root, &scope, &name, &credentials, &app.state::<ApplicationReports>()).map_err(|error| {
+		written(Step::StoringTheGrant.refused(error), &credentials::held(&credentials))
+	})
 }
 
 fn kept(
@@ -252,6 +273,7 @@ impl Readings<'_> {
 			reported: last_reported(self.reports, self.owner, &server.name),
 			held: grant.map(|grant| grant.held.clone()).unwrap_or_default(),
 			declares_url: server.url().is_some(),
+			kiroshi_authorizes: server.kiroshi_authorizes(),
 		};
 		ApplicationRow {
 			status: status(evidence, self.now),
@@ -749,6 +771,59 @@ mod tests {
 		.expect("the rows read");
 
 		assert_eq!(rows[0].status, ApplicationStatus::NeedsAuthorization { reason: None });
+	}
+
+	fn left_out_by_a_session(reports: &ApplicationReports) {
+		reports.record(
+			"b1",
+			"granola",
+			Standing::LeftOut { reason: Some("it read failed".to_owned()) },
+		);
+	}
+
+	#[tokio::test]
+	async fn an_application_a_session_left_out_holding_no_grant_needs_authorization() {
+		let root = a_root("left-out-no-grant");
+		let reports = ApplicationReports::default();
+		left_out_by_a_session(&reports);
+
+		let rows = renewed_rows(
+			&root,
+			&a_bot(),
+			granola_declared(),
+			&McpOauthState::default(),
+			&reports,
+			|_| async { Err(TransportError::NotStarted) },
+		)
+		.await
+		.expect("the rows read");
+
+		assert_eq!(rows[0].status, ApplicationStatus::NeedsAuthorization { reason: None });
+	}
+
+	#[tokio::test]
+	async fn an_application_a_session_left_out_holding_a_usable_grant_reads_failed() {
+		let root = a_root("left-out-holding");
+		credentials::store(&root, &a_server("granola"), &a_live_grant())
+			.expect("the grant is written");
+		let reports = ApplicationReports::default();
+		left_out_by_a_session(&reports);
+
+		let rows = renewed_rows(
+			&root,
+			&a_bot(),
+			granola_declared(),
+			&McpOauthState::default(),
+			&reports,
+			|_| async { Err(TransportError::NotStarted) },
+		)
+		.await
+		.expect("the rows read");
+
+		assert_eq!(
+			rows[0].status,
+			ApplicationStatus::Failed { reason: Some("it read failed".to_owned()) }
+		);
 	}
 
 	#[test]

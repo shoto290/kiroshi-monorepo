@@ -36,6 +36,7 @@ pub struct Evidence {
 	pub reported: Option<Standing>,
 	pub held: Values,
 	pub declares_url: bool,
+	pub kiroshi_authorizes: bool,
 }
 
 pub fn status(evidence: Evidence, now: i64) -> ApplicationStatus {
@@ -48,11 +49,23 @@ pub fn status(evidence: Evidence, now: i64) -> ApplicationStatus {
 	match evidence.reported {
 		Some(Standing::Holding) => ApplicationStatus::Connected,
 		Some(Standing::NeedsAuth) => ApplicationStatus::NeedsAuthorization { reason: None },
-		Some(Standing::LeftOut { reason }) => ApplicationStatus::Failed {
-			reason: reason.map(|reason| credentials::scrubbed(reason, &evidence.held)),
-		},
+		Some(Standing::LeftOut { reason }) => {
+			left_out(reason, &evidence.held, evidence.kiroshi_authorizes, now)
+		}
 		None => stored_status(&evidence.held, evidence.declares_url, now),
 	}
+}
+
+fn left_out(
+	reason: Option<String>,
+	held: &Values,
+	kiroshi_authorizes: bool,
+	now: i64,
+) -> ApplicationStatus {
+	if kiroshi_authorizes && !holds_a_usable_grant(held, now) {
+		return ApplicationStatus::NeedsAuthorization { reason: None };
+	}
+	ApplicationStatus::Failed { reason: reason.map(|reason| credentials::scrubbed(reason, held)) }
 }
 
 fn stored_status(held: &Values, declares_url: bool, now: i64) -> ApplicationStatus {
@@ -103,7 +116,14 @@ mod tests {
 	}
 
 	fn unreported(held: Values, declares_url: bool) -> Evidence {
-		Evidence { is_authorizing: false, refusal: None, reported: None, held, declares_url }
+		Evidence {
+			is_authorizing: false,
+			refusal: None,
+			reported: None,
+			held,
+			declares_url,
+			kiroshi_authorizes: declares_url,
+		}
 	}
 
 	fn reported(standing: Standing) -> Evidence {
@@ -113,6 +133,14 @@ mod tests {
 			reported: Some(standing),
 			held: a_grant(Some(NOW + 1)),
 			declares_url: true,
+			kiroshi_authorizes: true,
+		}
+	}
+
+	fn left_out_holding(held: Values) -> Evidence {
+		Evidence {
+			held,
+			..reported(Standing::LeftOut { reason: Some("it read failed".to_owned()) })
 		}
 	}
 
@@ -172,6 +200,41 @@ mod tests {
 		assert_eq!(
 			status(unreported(holding_no_refresh_token(Some(NOW)), false), NOW),
 			ApplicationStatus::Unknown
+		);
+	}
+
+	#[test]
+	fn an_application_kiroshi_authorizes_holding_no_grant_reads_left_out_as_needs_authorization() {
+		assert_eq!(
+			status(left_out_holding(Values::new()), NOW),
+			ApplicationStatus::NeedsAuthorization { reason: None }
+		);
+		assert_eq!(
+			status(left_out_holding(holding_no_refresh_token(Some(NOW))), NOW),
+			ApplicationStatus::NeedsAuthorization { reason: None }
+		);
+	}
+
+	#[test]
+	fn an_application_kiroshi_authorizes_holding_a_usable_grant_reads_left_out_as_failed() {
+		assert_eq!(
+			status(left_out_holding(a_grant(Some(NOW + 1))), NOW),
+			ApplicationStatus::Failed { reason: Some("it read failed".to_owned()) }
+		);
+		assert_eq!(
+			status(left_out_holding(a_grant(Some(NOW - 1))), NOW),
+			ApplicationStatus::Failed { reason: Some("it read failed".to_owned()) }
+		);
+	}
+
+	#[test]
+	fn an_application_kiroshi_authorizes_not_reads_left_out_as_failed() {
+		let declaring_its_own_header =
+			Evidence { kiroshi_authorizes: false, ..left_out_holding(Values::new()) };
+
+		assert_eq!(
+			status(declaring_its_own_header, NOW),
+			ApplicationStatus::Failed { reason: Some("it read failed".to_owned()) }
 		);
 	}
 

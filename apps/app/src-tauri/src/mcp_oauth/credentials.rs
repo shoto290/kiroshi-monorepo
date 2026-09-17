@@ -26,6 +26,13 @@ pub fn scrubbed(reason: String, held: &Values) -> String {
 		.fold(reason, |reason, secret| reason.replace(secret.as_str(), REDACTED))
 }
 
+pub fn held(grant: &OauthCredentials) -> Values {
+	RESERVED_NAMES
+		.iter()
+		.filter_map(|name| named(grant, name).map(|value| ((*name).to_owned(), value)))
+		.collect()
+}
+
 pub struct ServedGrant {
 	pub scope: EnvScope,
 	pub held: Values,
