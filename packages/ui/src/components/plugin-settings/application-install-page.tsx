@@ -154,7 +154,6 @@ type KeyFieldProps = {
 const KeyField = ({ field, value, onValueChange }: KeyFieldProps) => {
 	const { t } = useTranslation("bots")
 	const [isRevealed, setRevealed] = useState(false)
-	const labelId = useId()
 	const inputId = useId()
 	const descriptionId = useId()
 
@@ -163,14 +162,12 @@ const KeyField = ({ field, value, onValueChange }: KeyFieldProps) => {
 			<label
 				className="wrap-break-word font-mono font-medium text-[13px]/4.5 text-foreground"
 				htmlFor={inputId}
-				id={labelId}
 			>
 				{field.name}
 			</label>
 			<div className="flex h-9 items-center gap-2 rounded-md border border-input bg-background ps-3 pe-1 has-[input:focus-visible]:border-ring has-[input:focus-visible]:ring-3 has-[input:focus-visible]:ring-ring/30">
 				<input
 					aria-describedby={field.description ? descriptionId : undefined}
-					aria-labelledby={labelId}
 					autoComplete="off"
 					className="min-w-0 flex-1 bg-transparent font-mono text-[13px]/5 text-foreground outline-none"
 					id={inputId}
@@ -429,11 +426,9 @@ const ApplicationInstallPage = ({
 	const fields = application.fields ?? []
 
 	const typeInto = (index: number, value: string) => {
-		setValues((held) => {
-			const next = fields.map((_, rank) => held[rank] ?? "")
-			next[index] = value
-			return next
-		})
+		setValues((held) =>
+			fields.map((_, rank) => (rank === index ? value : (held[rank] ?? ""))),
+		)
 	}
 	const isRefused = application.setup === "unavailable"
 	const hostedSource =

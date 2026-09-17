@@ -10,7 +10,7 @@ import type {
 import type { ApplicationsCatalogueSection } from "@workspace/ui/components/plugin-settings/use-mcp-session"
 import { i18n } from "@workspace/ui/lib/i18n"
 
-import type { Application, Install, InstallField } from "./application-port"
+import type { Application, Install } from "./application-port"
 import {
 	type ApplicationsController,
 	type ApplicationsState,
@@ -42,8 +42,14 @@ const SETUP_OF_INSTALL = {
 const setupOf = (application: Application) =>
 	SETUP_OF_INSTALL[application.install.kind]
 
-const askedFieldsOf = ({ install }: Application): InstallField[] =>
-	install.kind === "key" ? install.fields : []
+const askedFieldsOf = ({ install }: Application) =>
+	install.kind === "key"
+		? install.fields.map(({ name, description, concealed }) => ({
+				name,
+				description,
+				concealed,
+			}))
+		: []
 
 const refusalOf = ({ install }: Application) =>
 	install.kind === "refused"
