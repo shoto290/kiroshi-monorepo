@@ -365,7 +365,7 @@ export const authorizeMcpServer = async (
 		timeoutMs,
 	)
 	running = settle
-	const watch = watched(timedFetch)
+	const { fetchFn, refusal } = watched(timedFetch)
 	try {
 		return await exchanged({
 			serverUrl: url,
@@ -373,10 +373,10 @@ export const authorizeMcpServer = async (
 			state,
 			arrival,
 			emit,
-			fetchFn: watch.fetchFn,
+			fetchFn,
 		})
 	} catch (error) {
-		return { error: flowFailure(error, watch.refusal()) }
+		return { error: flowFailure(error, refusal()) }
 	} finally {
 		clearTimeout(expiry)
 		running = undefined
@@ -452,8 +452,9 @@ export const refreshMcpToken = async (
 			},
 		}
 	}
-	const watch = watched(fetchWithin(AbortSignal.timeout(timeoutMs)))
-	const fetchFn = watch.fetchFn
+	const { fetchFn, refusal } = watched(
+		fetchWithin(AbortSignal.timeout(timeoutMs)),
+	)
 	try {
 		const discovered = await discoverOAuthServerInfo(url, { fetchFn })
 		const client = { client_id: clientId, client_secret: clientSecret }
@@ -468,7 +469,7 @@ export const refreshMcpToken = async (
 		)
 		return { credentials: credentialsOf(tokens, client) }
 	} catch (error) {
-		return { error: flowFailure(error, watch.refusal()) }
+		return { error: flowFailure(error, refusal()) }
 	}
 }
 
