@@ -9,7 +9,7 @@ use serde_json::{json, Map, Value};
 
 use super::contract::{Application, ApplicationsError, Install, InstallField};
 use super::runnable::{NPX, UVX};
-use super::search::{repository, Listing};
+use super::search::{elsewhere, normalised, repository, Dropped, Listing, OFFICIAL_SOURCE};
 use crate::missions::github::installed_tls_provider;
 
 pub const REGISTRY: &str = "https://registry.modelcontextprotocol.io";
@@ -106,8 +106,14 @@ struct Input {
 }
 
 enum Transport<'a> {
-	Remote(&'a Remote),
+	Remote(&'a Remote, String),
 	Package(&'a Package),
+}
+
+struct Served {
+	config: Value,
+	install: Install,
+	hosted_by: Option<String>,
 }
 
 pub async fn search(base: &str, query: &str) -> Result<Vec<Listing>, ApplicationsError> {
@@ -119,19 +125,14 @@ pub async fn search(base: &str, query: &str) -> Result<Vec<Listing>, Application
 	let listed: Listed = read(&client()?, list).await?;
 	let rows = distinct(listed.servers);
 	let answered = rows.len();
-	let found: Vec<Listing> = rows.into_iter().filter_map(descriptor).collect();
-	if found.is_empty() && answered > 0 {
-		eprintln!(
-			"the registry answered {answered} rows for {query:?} and none carried a transport"
-		);
-	}
-	Ok(found)
+	let read = rows.into_iter().map(descriptor).collect();
+	Ok(normalised(OFFICIAL_SOURCE, answered, read))
 }
 
 pub async fn detail(base: &str, name: &str) -> Result<Option<Application>, ApplicationsError> {
 	let url = detail_endpoint(&parsed(base)?, name)?;
 	match read::<Entry>(&client()?, url).await {
-		Ok(entry) => Ok(descriptor(entry.server).map(|listing| listing.application)),
+		Ok(entry) => Ok(descriptor(entry.server).ok().map(|listing| listing.application)),
 		Err(ApplicationsError::RegistryRefused { status }) if status == StatusCode::NOT_FOUND => {
 			Ok(None)
 		}
@@ -200,12 +201,12 @@ fn unreached(error: reqwest::Error) -> ApplicationsError {
 	ApplicationsError::RegistryUnreached { detail: error.to_string() }
 }
 
-fn descriptor(server: Server) -> Option<Listing> {
-	let (config, install) = match transport(&server)? {
-		Transport::Remote(remote) => remote_served(remote),
+fn descriptor(server: Server) -> Result<Listing, Dropped> {
+	let served = match transport(&server)? {
+		Transport::Remote(remote, host) => remote_served(remote, host),
 		Transport::Package(package) => package_served(package),
 	};
-	Some(Listing {
+	Ok(Listing {
 		repository: server
 			.repository
 			.as_ref()
@@ -215,41 +216,59 @@ fn descriptor(server: Server) -> Option<Listing> {
 			title: server.title.unwrap_or_else(|| server.name.clone()),
 			name: server.name,
 			description: server.description,
-			config,
+			config: served.config,
 			tools: Vec::new(),
 			logo: None,
 			logo_url: server.icons.first().map(|icon| icon.src.clone()),
 			use_count: None,
 			verified: None,
-			hosted_by: None,
-			install,
+			hosted_by: served.hosted_by,
+			install: served.install,
 		},
 	})
 }
 
-fn remote_served(remote: &Remote) -> (Value, Install) {
+fn remote_served(remote: &Remote, host: String) -> Served {
+	let hosted_by = Some(host);
 	let (headers, fields) = classified(&remote.headers);
 	if fields.is_empty() {
-		return (remote_config(remote), Install::Oauth);
+		return Served { config: remote_config(remote), install: Install::Oauth, hosted_by };
 	}
 	let config = headed_config(remote, headers);
 	let install = Install::asking(fields).covering(&config);
-	(config, install)
+	Served { config, install, hosted_by }
 }
 
-fn package_served(package: &Package) -> (Value, Install) {
+fn package_served(package: &Package) -> Served {
 	let (env, fields) = classified(&package.environment_variables);
 	let config = package_config(package, env);
 	let asking = if fields.is_empty() { Install::Nothing } else { Install::asking(fields) };
 	let install = asking.covering(&config);
-	(config, install)
+	Served { config, install, hosted_by: None }
 }
 
-fn transport(server: &Server) -> Option<Transport<'_>> {
-	let remote = |kind: &str| server.remotes.iter().find(|remote| remote.kind == kind);
-	remote(STREAMABLE_HTTP).or_else(|| remote(SSE)).map(Transport::Remote).or_else(|| {
-		server.packages.iter().find(|package| runs_locally(package)).map(Transport::Package)
-	})
+fn transport(server: &Server) -> Result<Transport<'_>, Dropped> {
+	if let Some(package) = server.packages.iter().find(|package| runs_locally(package)) {
+		return Ok(Transport::Package(package));
+	}
+	let mut dropped = Dropped::Unread;
+	for remote in ordered(server) {
+		let Ok(endpoint) = Url::parse(&remote.url) else {
+			return Err(Dropped::Unread);
+		};
+		match elsewhere(&endpoint) {
+			Ok(host) => return Ok(Transport::Remote(remote, host)),
+			Err(Dropped::HostedBySmithery) => dropped = Dropped::HostedBySmithery,
+			Err(Dropped::Unread) => return Err(Dropped::Unread),
+		}
+	}
+	Err(dropped)
+}
+
+fn ordered(server: &Server) -> impl Iterator<Item = &Remote> {
+	[STREAMABLE_HTTP, SSE]
+		.into_iter()
+		.flat_map(|kind| server.remotes.iter().filter(move |remote| remote.kind == kind))
 }
 
 fn runs_locally(package: &Package) -> bool {
@@ -947,19 +966,98 @@ pub(crate) mod tests {
 	}
 
 	#[test]
-	fn streamable_http_is_preferred_over_sse_and_sse_over_npm() {
+	fn a_package_is_preferred_over_every_remote_and_streamable_http_over_sse() {
 		let npm = json!({ "registryType": "npm", "identifier": "an-mcp" });
+		let image = json!({ "registryType": "oci", "identifier": "docker.io/owner/an-mcp" });
 		let sse = json!({ "type": "sse", "url": "https://sse.test/mcp" });
 		let streamable = json!({ "type": "streamable-http", "url": "https://streamable.test/mcp" });
 
-		let every =
+		let packaged =
 			described(json!({ "name": "a", "remotes": [sse, streamable], "packages": [npm] }));
-		let no_streamable = described(json!({ "name": "a", "remotes": [sse], "packages": [npm] }));
-		let package_only = described(json!({ "name": "a", "packages": [npm] }));
+		let remote =
+			described(json!({ "name": "a", "remotes": [sse, streamable], "packages": [image] }));
+		let no_streamable = described(json!({ "name": "a", "remotes": [sse] }));
 
-		assert_eq!(every.config["url"], "https://streamable.test/mcp");
+		assert_eq!(
+			packaged.config,
+			json!({ "type": "stdio", "command": "npx", "args": ["-y", "an-mcp"] })
+		);
+		assert_eq!(packaged.install, Install::Nothing);
+		assert_eq!(packaged.hosted_by, None);
+		assert_eq!(remote.config["url"], "https://streamable.test/mcp");
 		assert_eq!(no_streamable.config, json!({ "type": "http", "url": "https://sse.test/mcp" }));
-		assert_eq!(package_only.config["command"], "npx");
+	}
+
+	fn dropped(body: Value) -> Dropped {
+		let server: Server = serde_json::from_value(body).expect("the fixture is a server.json");
+		match descriptor(server) {
+			Err(held) => held,
+			Ok(listing) => panic!("{} answered a listing", listing.application.name),
+		}
+	}
+
+	#[test]
+	fn a_remote_hosted_by_smithery_answers_no_listing_whatever_its_subdomain() {
+		for url in [
+			"https://server.smithery.ai/notion/mcp",
+			"https://smithery.ai/mcp",
+			"https://slack.run.tools",
+			"https://run.tools/mcp",
+		] {
+			let held = dropped(json!({
+				"name": "io.test/hosted",
+				"remotes": [{ "type": "streamable-http", "url": url }],
+			}));
+
+			assert!(matches!(held, Dropped::HostedBySmithery), "{url} answered {held:?}");
+		}
+	}
+
+	#[test]
+	fn a_remote_hosted_elsewhere_is_read_though_the_one_before_it_is_hosted_by_smithery() {
+		let application = described(json!({
+			"name": "io.test/two-remotes",
+			"remotes": [
+				{ "type": "streamable-http", "url": "https://io-test.run.tools/mcp" },
+				{ "type": "sse", "url": "https://mcp.io.test/sse" },
+			],
+		}));
+
+		assert_eq!(application.config, json!({ "type": "http", "url": "https://mcp.io.test/sse" }));
+		assert_eq!(application.hosted_by.as_deref(), Some("io.test"));
+	}
+
+	#[test]
+	fn an_entry_whose_every_remote_is_hosted_by_smithery_answers_no_listing() {
+		let held = dropped(json!({
+			"name": "io.test/hosted",
+			"remotes": [
+				{ "type": "streamable-http", "url": "https://io-test.run.tools/mcp" },
+				{ "type": "sse", "url": "https://server.smithery.ai/io-test/sse" },
+			],
+		}));
+
+		assert!(matches!(held, Dropped::HostedBySmithery), "got {held:?}");
+	}
+
+	#[test]
+	fn a_remote_hosted_outside_smithery_carries_the_last_two_labels_of_its_host() {
+		let application = described(a_remote_without_headers());
+
+		assert_eq!(application.hosted_by.as_deref(), Some("notion.test"));
+	}
+
+	#[tokio::test]
+	async fn a_detail_read_by_name_on_a_smithery_deployment_answers_no_application() {
+		let hosted = json!({
+			"name": "io.test/hosted",
+			"remotes": [{ "type": "streamable-http", "url": "https://server.smithery.ai/mcp" }],
+		});
+		let (base, _) = serving(holding(Vec::new()).also(hosted)).await;
+
+		assert_eq!(detail(&base, "io.test/hosted").await, Ok(None));
+		let found = detail(&base, "com.notion/mcp").await.expect("the detail answers");
+		assert_eq!(found.map(|held| held.name), Some("com.notion/mcp".to_owned()));
 	}
 
 	#[test]
@@ -974,7 +1072,7 @@ pub(crate) mod tests {
 		}))
 		.expect("the fixture is a server.json");
 
-		assert!(descriptor(server).is_none());
+		assert!(matches!(descriptor(server), Err(Dropped::Unread)));
 	}
 
 	pub(crate) struct Held {

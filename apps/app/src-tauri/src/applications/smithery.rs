@@ -7,7 +7,7 @@ use tokio::task::JoinHandle;
 
 use super::contract::{Application, ApplicationsError, Install, InstallField, InstallRefusal};
 use super::registry::{client, endpoint, parsed, read, reference, variable};
-use super::search::{repository, terms, Listing};
+use super::search::{elsewhere, normalised, repository, terms, Dropped, Listing, SMITHERY_SOURCE};
 
 pub const REGISTRY: &str = "https://registry.smithery.ai";
 
@@ -18,12 +18,6 @@ const FIRST_PAGE: &str = "1";
 const OFFERED_PAGE: &str = "12";
 
 const HTTP: &str = "http";
-
-const SMITHERY: &str = "Smithery";
-
-const SMITHERY_HOSTS: [&str; 2] = ["run.tools", "smithery.ai"];
-
-const LABELS: usize = 2;
 
 #[derive(Deserialize)]
 struct Listed {
@@ -127,7 +121,9 @@ async fn rows(base: &str, asked: &[(&str, &str)]) -> Result<Vec<Listing>, Applic
 	}
 	let client = client()?;
 	let listed: Listed = read(&client, list).await?;
-	Ok(listings(&client, &base, listed.servers).await)
+	let answered = listed.servers.len();
+	let found = listings(&client, &base, listed.servers).await;
+	Ok(normalised(SMITHERY_SOURCE, answered, found))
 }
 
 pub async fn detail(base: &str, name: &str) -> Result<Option<Application>, ApplicationsError> {
@@ -138,8 +134,8 @@ pub async fn detail(base: &str, name: &str) -> Result<Option<Application>, Appli
 	Ok(read_by_name(&detail))
 }
 
-async fn listings(client: &Client, base: &Url, kept: Vec<Row>) -> Vec<Listing> {
-	let running: Vec<JoinHandle<Option<Listing>>> = kept
+async fn listings(client: &Client, base: &Url, kept: Vec<Row>) -> Vec<Result<Listing, Dropped>> {
+	let running: Vec<JoinHandle<Result<Listing, Dropped>>> = kept
 		.into_iter()
 		.map(|row| {
 			let client = client.clone();
@@ -150,26 +146,28 @@ async fn listings(client: &Client, base: &Url, kept: Vec<Row>) -> Vec<Listing> {
 	let mut described = Vec::new();
 	for handle in running {
 		match handle.await {
-			Ok(Some(listing)) => described.push(listing),
-			Ok(None) => {}
-			Err(failure) => eprintln!("a Smithery detail was not awaited: {failure}"),
+			Ok(read) => described.push(read),
+			Err(failure) => {
+				eprintln!("a Smithery detail was not awaited: {failure}");
+				described.push(Err(Dropped::Unread));
+			}
 		}
 	}
 	described
 }
 
-async fn listed(client: &Client, base: &Url, row: Row) -> Option<Listing> {
+async fn listed(client: &Client, base: &Url, row: Row) -> Result<Listing, Dropped> {
 	let detail = match detailed(client, base, &row.qualified_name).await {
-		Ok(detail) => detail?,
+		Ok(detail) => detail.ok_or(Dropped::Unread)?,
 		Err(failure) => {
 			eprintln!("the Smithery detail of {} was not read: {failure:?}", row.qualified_name);
-			return None;
+			return Err(Dropped::Unread);
 		}
 	};
-	let served = served(&detail)?;
-	let hosted_by = hosted_by(&row, &served.endpoint);
+	let served = served(&detail).ok_or(Dropped::Unread)?;
+	let hosted_by = hosted_by(&row, &elsewhere(&served.endpoint)?);
 	let (config, install) = declared(served);
-	Some(Listing {
+	Ok(Listing {
 		repository: row.homepage.as_deref().and_then(repository),
 		application: Application {
 			title: row.display_name.unwrap_or_else(|| row.qualified_name.clone()),
@@ -193,6 +191,9 @@ fn tool_names(detail: &Detail) -> Vec<String> {
 
 fn read_by_name(detail: &Detail) -> Option<Application> {
 	let served = served(detail)?;
+	if elsewhere(&served.endpoint).is_err() {
+		return None;
+	}
 	let (config, install) = declared(served);
 	Some(Application {
 		name: detail.qualified_name.clone(),
@@ -290,28 +291,16 @@ fn config(served: &Served) -> Value {
 	config
 }
 
-fn hosted_by(row: &Row, endpoint: &Url) -> Option<String> {
-	let deployment = endpoint.host_str()?.to_lowercase();
-	if SMITHERY_HOSTS.iter().any(|held| under(&deployment, held)) {
-		return Some(SMITHERY.to_owned());
-	}
-	let hosting = last_labels(&deployment)?;
+fn hosted_by(row: &Row, host: &str) -> Option<String> {
 	let home = row
 		.homepage
 		.as_deref()
 		.and_then(|held| Url::parse(held).ok())
-		.and_then(|held| held.host_str().and_then(last_labels));
-	(home.as_ref() != Some(&hosting)).then_some(hosting)
-}
-
-fn under(host: &str, root: &str) -> bool {
-	host == root || host.ends_with(&format!(".{root}"))
-}
-
-fn last_labels(host: &str) -> Option<String> {
-	let labels: Vec<&str> = host.split('.').collect();
-	let held = labels[labels.len().saturating_sub(LABELS)..].join(".").to_lowercase();
-	(!held.is_empty()).then_some(held)
+		.and_then(|held| elsewhere(&held).ok());
+	if home.as_deref() == Some(host) {
+		return None;
+	}
+	Some(host.to_owned())
 }
 
 #[cfg(test)]
@@ -432,13 +421,10 @@ pub(crate) mod tests {
 
 	#[test]
 	fn a_connection_asking_for_nothing_answers_oauth_on_its_deployment_url() {
-		let application = described(a_detail("@owner/slack", "https://slack.run.tools"));
+		let application = described(a_detail("@owner/slack", "https://slack.example"));
 
 		assert_eq!(application.install, Install::Oauth);
-		assert_eq!(
-			application.config,
-			json!({ "type": "http", "url": "https://slack.run.tools/" })
-		);
+		assert_eq!(application.config, json!({ "type": "http", "url": "https://slack.example/" }));
 		assert_eq!(application.tools, ["search", "create"]);
 	}
 
@@ -623,9 +609,9 @@ pub(crate) mod tests {
 				a_row("@owner/slack", "Slack", 900),
 			],
 			vec![
-				a_detail("@owner/slack-lite", "https://lite.run.tools"),
-				a_detail("@owner/slack", "https://slack.run.tools"),
-				a_detail("@owner/godot-engine", "https://godot.run.tools"),
+				a_detail("@owner/slack-lite", "https://lite.example"),
+				a_detail("@owner/slack", "https://slack.example"),
+				a_detail("@owner/godot-engine", "https://godot.example"),
 			],
 		))
 		.await;
@@ -644,7 +630,7 @@ pub(crate) mod tests {
 	async fn a_search_carries_the_icon_the_count_the_flag_and_the_tools_of_its_detail() {
 		let (base, _) = serving(holding(
 			vec![a_row("@owner/slack", "Slack", 900)],
-			vec![a_detail("@owner/slack", "https://slack.run.tools")],
+			vec![a_detail("@owner/slack", "https://slack.example")],
 		))
 		.await;
 
@@ -659,7 +645,7 @@ pub(crate) mod tests {
 	}
 
 	#[tokio::test]
-	async fn a_deployment_under_smithery_names_smithery_and_one_hosted_at_home_names_nobody() {
+	async fn a_deployment_hosted_at_home_names_nobody_and_one_under_smithery_is_left_out() {
 		let mut mine = a_row("@owner/mine", "Mine", 1);
 		mine["homepage"] = json!("https://mine.test/docs");
 		let (base, _) = serving(holding(
@@ -673,23 +659,21 @@ pub(crate) mod tests {
 
 		let found = search(&base, "mine").await.expect("the search answers");
 
-		let hosts: Vec<Option<&str>> =
-			found.iter().map(|held| held.application.hosted_by.as_deref()).collect();
-		assert_eq!(hosts, [None, Some("Smithery")]);
+		let names: Vec<&str> = found.iter().map(|held| held.application.name.as_str()).collect();
+		assert_eq!(names, ["@owner/mine"]);
+		assert_eq!(found[0].application.hosted_by, None);
 	}
 
 	#[tokio::test]
-	async fn a_deployment_under_run_tools_names_smithery_though_its_homepage_names_github() {
+	async fn a_deployment_under_run_tools_answers_no_listing_and_no_application_by_name() {
 		let (base, _) = serving(holding(
 			vec![a_row("@owner/slack", "Slack", 900)],
 			vec![a_detail("@owner/slack", "https://slack.run.tools")],
 		))
 		.await;
 
-		let found = search(&base, "slack").await.expect("the search answers");
-
-		assert_eq!(found[0].application.hosted_by.as_deref(), Some("Smithery"));
-		assert_eq!(found[0].repository.as_deref(), Some("github.com/owner/slack"));
+		assert!(search(&base, "slack").await.expect("the search answers").is_empty());
+		assert_eq!(detail(&base, "@owner/slack").await, Ok(None));
 	}
 
 	#[tokio::test]
@@ -719,7 +703,7 @@ pub(crate) mod tests {
 	async fn a_row_whose_detail_is_absent_or_unreadable_is_left_out_and_the_others_answered() {
 		let (base, _) = serving(holding(
 			vec![a_row("@owner/slack-a", "Slack", 3), a_row("@owner/slack-b", "Slack", 2)],
-			vec![a_detail("@owner/slack-b", "https://b.run.tools")],
+			vec![a_detail("@owner/slack-b", "https://b.example")],
 		))
 		.await;
 
@@ -744,7 +728,7 @@ pub(crate) mod tests {
 	#[tokio::test]
 	async fn a_detail_read_by_name_answers_its_tools_and_an_unknown_one_answers_nothing() {
 		let (base, _) =
-			serving(holding(Vec::new(), vec![a_detail("@owner/slack", "https://slack.run.tools")]))
+			serving(holding(Vec::new(), vec![a_detail("@owner/slack", "https://slack.example")]))
 				.await;
 
 		let found = detail(&base, "@owner/slack").await.expect("the detail answers");

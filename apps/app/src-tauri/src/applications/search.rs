@@ -11,6 +11,14 @@ const OFFERS: usize = 9;
 
 const GITHUB: &str = "github.com";
 
+const SMITHERY_HOSTS: [&str; 2] = ["run.tools", "smithery.ai"];
+
+const LABELS: usize = 2;
+
+pub(super) const OFFICIAL_SOURCE: &str = "the official registry";
+
+pub(super) const SMITHERY_SOURCE: &str = "the Smithery registry";
+
 #[derive(Debug, Clone)]
 pub struct Registries {
 	pub official: String,
@@ -28,35 +36,95 @@ pub struct Listing {
 	pub repository: Option<String>,
 }
 
+#[derive(Debug)]
+pub(super) enum Dropped {
+	HostedBySmithery,
+	Unread,
+}
+
+pub(super) fn elsewhere(endpoint: &Url) -> Result<String, Dropped> {
+	let Some(host) = endpoint.host_str().map(str::to_lowercase) else {
+		return Err(Dropped::Unread);
+	};
+	if SMITHERY_HOSTS.iter().any(|root| under(&host, root)) {
+		return Err(Dropped::HostedBySmithery);
+	}
+	Ok(last_labels(&host))
+}
+
+fn under(host: &str, root: &str) -> bool {
+	host == root || host.ends_with(&format!(".{root}"))
+}
+
+fn last_labels(host: &str) -> String {
+	let labels: Vec<&str> = host.split('.').collect();
+	labels[labels.len().saturating_sub(LABELS)..].join(".")
+}
+
+pub(super) fn normalised(
+	source: &str,
+	answered: usize,
+	read: Vec<Result<Listing, Dropped>>,
+) -> Vec<Listing> {
+	let unread = read.iter().filter(|held| matches!(held, Err(Dropped::Unread))).count();
+	if let Some(line) = drift(source, answered, unread) {
+		eprintln!("{line}");
+	}
+	read.into_iter().flatten().collect()
+}
+
+fn drift(source: &str, answered: usize, unread: usize) -> Option<String> {
+	(unread > 0).then(|| {
+		format!(
+			"{source} answered {answered} rows and {unread} carried no transport this reader reads"
+		)
+	})
+}
+
 pub async fn search(
 	registries: &Registries,
 	query: &str,
 ) -> Result<ApplicationSearch, ApplicationsError> {
-	if query.trim().is_empty() {
-		return offered(registries).await;
-	}
-	let (semantic, official) = tokio::join!(
-		smithery::search(&registries.smithery, query),
-		registry::search(&registries.official, query)
-	);
-	let (semantic, semantic_failure) = answered("the Smithery registry", query, semantic);
-	let (official, official_failure) = answered("the official registry", query, official);
-	let applications = deduplicated(semantic, official);
-	match official_failure.or(semantic_failure) {
+	let (applications, registry_failure) = if query.trim().is_empty() {
+		offered(registries).await
+	} else {
+		queried(registries, query).await
+	};
+	match registry_failure {
 		Some(failure) if applications.is_empty() => Err(failure),
 		registry_failure => Ok(ApplicationSearch { applications, registry_failure }),
 	}
 }
 
-async fn offered(registries: &Registries) -> Result<ApplicationSearch, ApplicationsError> {
-	let mut offers: Vec<Application> = smithery::offered(&registries.smithery)
-		.await?
-		.into_iter()
-		.map(|listing| listing.application)
-		.filter(installable)
-		.collect();
+async fn queried(registries: &Registries, query: &str) -> Sourced {
+	let (semantic, official) = tokio::join!(
+		smithery::search(&registries.smithery, query),
+		registry::search(&registries.official, query)
+	);
+	sourced(query, semantic, official)
+}
+
+async fn offered(registries: &Registries) -> Sourced {
+	let (semantic, official) = tokio::join!(
+		smithery::offered(&registries.smithery),
+		registry::search(&registries.official, "")
+	);
+	let (mut offers, failure) = sourced("", semantic, official);
+	offers.retain(installable);
 	offers.truncate(OFFERS);
-	Ok(ApplicationSearch { applications: offers, registry_failure: None })
+	(offers, failure)
+}
+
+type Sourced = (Vec<Application>, Option<ApplicationsError>);
+
+fn sourced(
+	query: &str,
+	semantic: Result<Vec<Listing>, ApplicationsError>,
+	official: Result<Vec<Listing>, ApplicationsError>,
+) -> Sourced {
+	let (semantic, semantic_failure) = answered(SMITHERY_SOURCE, query, semantic);
+	let (official, official_failure) = answered(OFFICIAL_SOURCE, query, official);
+	(deduplicated(semantic, official), official_failure.or(semantic_failure))
 }
 
 fn installable(application: &Application) -> bool {
@@ -134,7 +202,7 @@ mod tests {
 	async fn a_smithery_serving_slack() -> String {
 		let (base, _) = smithery_stub::serving(smithery_stub::holding(
 			vec![smithery_stub::a_row("@owner/slack", "Slack", 900)],
-			vec![smithery_stub::a_detail("@owner/slack", "https://slack.run.tools")],
+			vec![smithery_stub::a_detail("@owner/slack", "https://slack.example")],
 		))
 		.await;
 		base
@@ -170,7 +238,7 @@ mod tests {
 		smithery_stub::serving(smithery_stub::holding(
 			page.iter().map(|name| smithery_stub::a_row(name, name, 1)).collect(),
 			page.iter()
-				.map(|name| smithery_stub::a_detail(name, &format!("https://{name}.run.tools")))
+				.map(|name| smithery_stub::a_detail(name, &format!("https://{name}.example")))
 				.collect(),
 		))
 		.await
@@ -181,7 +249,7 @@ mod tests {
 	}
 
 	#[tokio::test]
-	async fn an_empty_query_answers_nine_smithery_rows_and_asks_the_official_registry_nothing() {
+	async fn an_empty_query_answers_nine_rows_and_reads_both_registries() {
 		let (smithery, semantic) = a_smithery_offering(&A_SMITHERY_PAGE).await;
 		let (official, listed) = official_stub::serving(official_stub::holding(Vec::new())).await;
 
@@ -193,7 +261,27 @@ mod tests {
 			*semantic.asked.lock().expect("the stub records"),
 			["/servers?page=1&pageSize=12"]
 		);
-		assert!(listed.asked.lock().expect("the stub records").is_empty(), "the official was read");
+		assert_eq!(
+			*listed.asked.lock().expect("the stub records"),
+			["/v0.1/servers?search=&limit=10&version=latest"]
+		);
+	}
+
+	#[tokio::test]
+	async fn an_empty_query_answers_the_rows_of_both_registries_in_turn() {
+		let (smithery, _) = a_smithery_offering(&["a", "b"]).await;
+		let (official, _) = official_stub::serving(official_stub::holding(vec![
+			"com.notion/mcp",
+			"io.github.Digital-Defiance/mcp-filesystem",
+		]))
+		.await;
+
+		let answered = offering(smithery, official).await;
+
+		assert_eq!(
+			names(answered.applications),
+			["a", "com.notion/mcp", "b", "io.github.Digital-Defiance/mcp-filesystem"]
+		);
 	}
 
 	#[tokio::test]
@@ -203,8 +291,8 @@ mod tests {
 			A_SMITHERY_PAGE
 				.iter()
 				.map(|name| match *name {
-					"b" => smithery_stub::an_uncarried_detail("b", "https://b.run.tools"),
-					held => smithery_stub::a_detail(held, &format!("https://{held}.run.tools")),
+					"b" => smithery_stub::an_uncarried_detail("b", "https://b.example"),
+					held => smithery_stub::a_detail(held, &format!("https://{held}.example")),
 				})
 				.collect(),
 		))
@@ -237,6 +325,36 @@ mod tests {
 				search(&Registries::default(), query).await.expect("the live search answers");
 			println!("{query:?} answered {:?}", names(answered.applications));
 		}
+	}
+
+	#[test]
+	fn a_read_whose_every_row_was_hosted_by_smithery_says_nothing() {
+		assert_eq!(drift(SMITHERY_SOURCE, 10, 0), None);
+	}
+
+	#[test]
+	fn a_read_carrying_a_row_no_transport_was_read_in_names_its_source_and_its_count() {
+		let line = drift(OFFICIAL_SOURCE, 10, 2).expect("the drift is named");
+
+		assert!(line.contains(OFFICIAL_SOURCE), "got {line}");
+		assert!(line.contains("10"), "got {line}");
+	}
+
+	#[test]
+	fn a_read_answers_its_listings_and_leaves_out_every_dropped_row() {
+		let read = vec![
+			Ok(listed("@owner/one", None)),
+			Err(Dropped::HostedBySmithery),
+			Err(Dropped::Unread),
+			Ok(listed("io.test/one", None)),
+		];
+
+		let kept = normalised(OFFICIAL_SOURCE, 4, read);
+
+		assert_eq!(
+			names(kept.into_iter().map(|listing| listing.application).collect()),
+			["@owner/one", "io.test/one"]
+		);
 	}
 
 	#[test]
