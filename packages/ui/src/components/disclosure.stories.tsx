@@ -9,8 +9,6 @@ import { Button } from "@workspace/ui/components/ui/button"
 type DisclosureArgs = {
 	id?: string
 	open: boolean
-	openHeight?: string
-	transition?: { duration: number }
 	children?: ReactNode
 }
 
@@ -22,23 +20,13 @@ const TRACE = [
 	"Ran the checks",
 ]
 
-const LONG_TRACE = [
-	...TRACE,
-	"Rewrote the nest list",
-	"Pruned the unused tints",
-	"Regenerated the nest manifest",
-	"Ran the checks again",
-	"Wrote the summary",
-]
-
 type TraceProps = {
-	lines?: string[]
 	children?: ReactNode
 }
 
-const Trace = ({ lines = TRACE, children }: TraceProps) => (
+const Trace = ({ children }: TraceProps) => (
 	<ul className="space-y-1 pt-2 text-muted-foreground text-sm">
-		{lines.map((line) => (
+		{TRACE.map((line) => (
 			<li key={line}>{line}</li>
 		))}
 		{children ? <li>{children}</li> : null}
@@ -99,7 +87,6 @@ const meta = preview.meta({
 	},
 	argTypes: {
 		open: { control: "boolean" },
-		openHeight: { control: "text" },
 	},
 })
 
@@ -108,7 +95,7 @@ export const Playground = meta.story({
 		docs: {
 			description: {
 				story:
-					"Knob story for the two props it owns. Flip `open` to watch the wipe run both ways, and set `openHeight` to a fixed value when the revealed height is known before the content is. Check the wipe with the reduced-motion emulator on: the content should appear without moving.",
+					"Knob story for the single prop it owns. Flip `open` to watch the wipe run both ways. Check the wipe with the reduced-motion emulator on: the content should appear without moving.",
 			},
 		},
 	},
@@ -175,29 +162,5 @@ export const Toggle = meta.story({
 		await expect(
 			canvas.getByRole("button", { name: "Hide the trace" }),
 		).toHaveAttribute("aria-expanded", "true")
-	},
-})
-
-export const FixedHeight = meta.story({
-	args: { openHeight: "6rem", children: <Trace lines={LONG_TRACE} /> },
-	parameters: {
-		docs: {
-			description: {
-				story:
-					"A reveal held to `6rem` while its content runs longer. Reach for `openHeight` when the surface must not resize as items stream in — a live run, a fixed panel — and pair it with a scroll container inside, since the disclosure itself clips rather than scrolls. Check that the overflow is cut cleanly at the bottom edge.",
-			},
-		},
-	},
-})
-
-export const SlowReveal = meta.story({
-	args: { transition: { duration: 0.8 } },
-	parameters: {
-		docs: {
-			description: {
-				story:
-					"The built-in timing overridden through `transition`, slowed to 0.8s so the wipe can be watched frame by frame. Reach for it to inspect the motion, not to ship it: at this length the reveal stops feeling like a response. Note that an override replaces the whole transition, including the duration reduced motion would have zeroed — the wipe is still dropped under reduce, but the fade runs the full 0.8s.",
-			},
-		},
 	},
 })
