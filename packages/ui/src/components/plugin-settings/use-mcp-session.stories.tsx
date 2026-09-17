@@ -101,6 +101,8 @@ const meta = preview.meta({
 export const AddingPushesTheCatalogue = meta.story({
 	args: {
 		catalogue: {
+			category: "everything",
+			onCategoryChange: fn(),
 			query: "",
 			onQueryChange: fn(),
 			applications: CATALOGUE_APPLICATIONS,
@@ -141,6 +143,8 @@ export const AddingPushesTheCatalogue = meta.story({
 export const PickingPushesTheInstallPage = meta.story({
 	args: {
 		catalogue: {
+			category: "everything",
+			onCategoryChange: fn(),
 			query: "sentry",
 			onQueryChange: fn(),
 			applications: CATALOGUE_APPLICATIONS,

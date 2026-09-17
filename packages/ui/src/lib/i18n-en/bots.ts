@@ -544,6 +544,7 @@ const bots = {
 			failed: "Couldn’t reach the applications catalogue.",
 			partlyFailed:
 				"Couldn’t read part of the catalogue. Retry to see the rest.",
+			stale: "This listing was read more than a day ago.",
 			retry: "Retry",
 			category: {
 				everything: "Everything",

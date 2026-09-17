@@ -2,7 +2,7 @@ import type { SearchResultTitlePart } from "@workspace/ui/components/search-resu
 
 const COMBINING_MARKS = /\p{M}/gu
 
-const folded = (text: string): string =>
+export const folded = (text: string): string =>
 	text.normalize("NFD").replace(COMBINING_MARKS, "").toLowerCase()
 
 type Folding = {

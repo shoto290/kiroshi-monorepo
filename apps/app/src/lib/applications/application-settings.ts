@@ -5,10 +5,12 @@ import type { InstallableApplication } from "@workspace/ui/components/plugin-set
 import type {
 	ApplicationSetup,
 	CatalogueApplication,
+	CatalogueCategory,
 } from "@workspace/ui/components/plugin-settings/applications-catalogue"
 import type { ApplicationsCatalogueSection } from "@workspace/ui/components/plugin-settings/use-mcp-session"
 import { i18n } from "@workspace/ui/lib/i18n"
 
+import { categoriesOf } from "./application-categories"
 import type { Application, Install } from "./application-port"
 import {
 	type ApplicationMark,
@@ -32,6 +34,7 @@ import type { McpServers } from "../bots/use-mcp-servers"
 import type { EnvOwner, EnvScope } from "../conversations/store-contract"
 import { toEnvironmentRows } from "../environment/environment-rows"
 import type { Environment } from "../environment/use-environment"
+import { folded } from "../search/search-fold"
 
 const SETUP_OF_INSTALL = {
 	nothing: "none",
@@ -148,11 +151,59 @@ const connectFor =
 		}
 	}
 
-const matching = (applications: Application[], typed: string) =>
-	applications.filter((held) =>
-		`${held.title} ${held.name} ${held.description}`
-			.toLowerCase()
-			.includes(typed),
+const NO_MATCH = -1
+
+const TITLE_MATCH = 0
+
+const DESCRIPTION_MATCH = 1
+
+const matchRankOf = (application: Application, needle: string) => {
+	if (folded(application.title).includes(needle)) {
+		return TITLE_MATCH
+	}
+	if (folded(application.description).includes(needle)) {
+		return DESCRIPTION_MATCH
+	}
+	return NO_MATCH
+}
+
+const matching = (applications: Application[], needle: string) => {
+	if (needle === "") {
+		return applications
+	}
+	return applications
+		.map((application) => ({
+			application,
+			rank: matchRankOf(application, needle),
+		}))
+		.filter(({ rank }) => rank !== NO_MATCH)
+		.sort((left, right) => left.rank - right.rank)
+		.map(({ application }) => application)
+}
+
+type CatalogueNarrowing = {
+	needle: string
+	category: CatalogueCategory
+	declared: string[]
+}
+
+const isUnderCategory = (
+	application: Application,
+	{ category, declared }: CatalogueNarrowing,
+) => {
+	if (category === "everything") {
+		return true
+	}
+	if (category === "on-this-machine") {
+		return declared.includes(application.name)
+	}
+	return categoriesOf(application).includes(category)
+}
+
+const narrowed = (applications: Application[], narrowing: CatalogueNarrowing) =>
+	matching(
+		applications.filter((held) => isUnderCategory(held, narrowing)),
+		narrowing.needle,
 	)
 
 type ApplicationsCatalogueSource = {
@@ -166,20 +217,30 @@ const toApplicationsCatalogue = ({
 	controller,
 	target,
 }: ApplicationsCatalogueSource): ApplicationsCatalogueSection => {
-	const typed = state.query.trim().toLowerCase()
-	const curated = typed === "" ? state.curated : matching(state.curated, typed)
+	const narrowing: CatalogueNarrowing = {
+		needle: folded(state.query.trim()),
+		category: state.category,
+		declared: target.declared,
+	}
+	const curatedNames = new Set(state.curated.map(({ name }) => name))
+	const beyondCurated = state.directory.filter(
+		({ name }) => !curatedNames.has(name),
+	)
 	const { picked } = state
 
 	return {
 		query: state.query,
 		onQueryChange: controller.search,
+		category: state.category,
+		onCategoryChange: controller.pickCategory,
 		applications: [
-			...curated.map(toCatalogueApplication),
-			...state.registry.map(toRegistryApplication),
+			...narrowed(state.curated, narrowing).map(toCatalogueApplication),
+			...narrowed(beyondCurated, narrowing).map(toRegistryApplication),
 		],
-		isLoading: state.isReadingCatalogue || state.isSearching,
-		hasFailed: state.hasSearchFailed,
-		hasPartlyFailed: state.hasSearchPartlyFailed,
+		isLoading: state.isReadingCatalogue || state.isReadingDirectory,
+		hasFailed: state.hasDirectoryFailed,
+		hasPartlyFailed: state.hasDirectoryPartlyFailed,
+		isStale: state.isDirectoryStale,
 		onRetry: controller.retry,
 		onOpen: controller.browse,
 		onPick: (application) => controller.pick(application.id),

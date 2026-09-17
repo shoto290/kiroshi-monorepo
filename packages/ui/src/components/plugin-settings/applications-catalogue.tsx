@@ -312,6 +312,7 @@ type ApplicationsCatalogueProps = Omit<CataloguePageProps, "children"> & {
 	isLoading?: boolean
 	hasFailed?: boolean
 	hasPartlyFailed?: boolean
+	isStale?: boolean
 	onRetry: () => void
 	onPick: (application: CatalogueApplication) => void
 }
@@ -325,6 +326,7 @@ const ApplicationsCatalogue = ({
 	isLoading = false,
 	hasFailed = false,
 	hasPartlyFailed = false,
+	isStale = false,
 	onRetry,
 	onPick,
 	onBack,
@@ -380,6 +382,12 @@ const ApplicationsCatalogue = ({
 						action={retry}
 						icon={Icons.Alert}
 						text={t("applications.catalogue.partlyFailed")}
+					/>
+				) : null}
+				{isStale ? (
+					<CatalogueLine
+						icon={Icons.Info}
+						text={t("applications.catalogue.stale")}
 					/>
 				) : null}
 				{results()}
