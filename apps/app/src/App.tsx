@@ -36,6 +36,7 @@ import {
 	type SettingsTarget,
 } from "@/lib/applications/settings-target"
 import { useApplicationInstalls } from "@/lib/applications/use-application-installs"
+import { useApplicationMarks } from "@/lib/applications/use-application-marks"
 import { useApplications } from "@/lib/applications/use-applications"
 import { useConnections } from "@/lib/applications/use-connections"
 import { ConversationApplicationsContext } from "@/lib/applications/use-conversation-installs"
@@ -354,6 +355,12 @@ export function App() {
 			),
 		})
 	})
+
+	useApplicationMarks(applications.controller, [
+		...userMcpServers.state.servers,
+		...spaceMcpServers.state.servers,
+		...botMcpServers.state.servers,
+	])
 
 	const serverEnvironmentSection = toServerEnvironmentSection({
 		environment: serverEnvironment,

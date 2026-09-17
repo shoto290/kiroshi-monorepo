@@ -19,8 +19,25 @@ import {
 import type { EnvOwner, EnvScope } from "../conversations/store-contract"
 import type { TranscriptStore } from "../conversations/store-port"
 
+export type ApplicationMark = {
+	title: string
+	mark?: string
+}
+
+export type ApplicationMarks = Record<string, ApplicationMark | null>
+
+export const applicationMarkOf = ({
+	title,
+	logo,
+	logoUrl,
+}: Application): ApplicationMark => ({
+	title,
+	mark: logo ?? logoUrl,
+})
+
 export type ApplicationsState = {
 	curated: Application[]
+	marks: ApplicationMarks
 	isReadingCatalogue: boolean
 	hasCatalogueFailed: boolean
 	query: string
@@ -49,11 +66,13 @@ export type ApplicationsController = {
 	retry: () => void
 	pick: (id: string) => void
 	leave: () => void
+	resolveMarks: (names: string[]) => void
 	install: (target: InstallTarget, values?: InstallValues) => Promise<void>
 }
 
 export const initialApplicationsState: ApplicationsState = {
 	curated: [],
+	marks: {},
 	isReadingCatalogue: false,
 	hasCatalogueFailed: false,
 	query: "",
@@ -127,6 +146,7 @@ export const createApplicationsController = (
 	let scheduledSearch: ReturnType<typeof setTimeout> | null = null
 	let issuedSearch = 0
 	let openingApplications: Application[] | null = null
+	const askedNames = new Set<string>()
 	const listeners = new Set<() => void>()
 
 	const publish = () => {
@@ -204,6 +224,23 @@ export const createApplicationsController = (
 			hasSearchPartlyFailed: false,
 		})
 	}
+
+	const recordMark = (name: string, found: Application | null) => {
+		set({
+			marks: { ...state.marks, [name]: found && applicationMarkOf(found) },
+		})
+	}
+
+	const askNamed = (name: string) => {
+		askedNames.add(name)
+		void port.named(name).then(
+			(found) => recordMark(name, found),
+			() => recordMark(name, null),
+		)
+	}
+
+	const needsLookup = (name: string) =>
+		!askedNames.has(name) && !state.curated.some((held) => held.name === name)
 
 	const applicationNamed = (id: string) =>
 		[...state.curated, ...state.registry].find((held) => held.name === id) ??
@@ -357,6 +394,14 @@ export const createApplicationsController = (
 		pick: (id: string) => set({ picked: applicationNamed(id), failure: null }),
 
 		leave: () => set({ picked: null, failure: null }),
+
+		resolveMarks: (names: string[]) => {
+			for (const name of new Set(names)) {
+				if (needsLookup(name)) {
+					askNamed(name)
+				}
+			}
+		},
 
 		install: async (target: InstallTarget, values: InstallValues = {}) => {
 			const application = state.picked

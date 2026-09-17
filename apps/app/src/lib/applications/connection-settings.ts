@@ -30,6 +30,11 @@ type ConnectionSettingsSource = {
 const urlOf = (server: BotMcpServer) =>
 	readMcpServerLaunch(server.config).url ?? ""
 
+const keptMarkOf = ({ title, logo, logoUrl }: BotMcpServer) => ({
+	displayName: title,
+	mark: logo ?? logoUrl,
+})
+
 const hostOf = (url: string) =>
 	URL.canParse(url) ? new URL(url).host : undefined
 
@@ -124,7 +129,7 @@ export const toConnectionSettings = ({
 	return {
 		mcpServers: servers.map((server) => {
 			const { state, reason } = connectionOf(connections.state, server.name)
-			return { ...server, connection: state, reason }
+			return { ...server, ...keptMarkOf(server), connection: state, reason }
 		}),
 		onServerConnect: (server) => {
 			settle(

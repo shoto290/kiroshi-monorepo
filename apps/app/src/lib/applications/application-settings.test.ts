@@ -175,6 +175,7 @@ describe("withApplicationMarks", () => {
 				{ name: "atlas", config: {} },
 			],
 			[LINEAR],
+			{},
 		)
 
 		expect(marked).toEqual([
@@ -186,6 +187,39 @@ describe("withApplicationMarks", () => {
 			},
 			{ name: "atlas", config: {} },
 		])
+	})
+
+	it("leaves a server that already carries the mark it kept", () => {
+		const kept = {
+			name: "linear",
+			config: {},
+			displayName: "Linear at work",
+			mark: "<svg id='kept'/>",
+		}
+
+		expect(withApplicationMarks([kept], [LINEAR], {})).toEqual([kept])
+	})
+
+	it("names a declared server after the mark the host answered", () => {
+		const marked = withApplicationMarks([{ name: "atlas", config: {} }], [], {
+			atlas: { title: "Atlas", mark: "https://atlas.test/logo.png" },
+		})
+
+		expect(marked).toEqual([
+			{
+				name: "atlas",
+				config: {},
+				displayName: "Atlas",
+				mark: "https://atlas.test/logo.png",
+			},
+		])
+	})
+
+	it("leaves a name the host resolved to nothing on its raw name", () => {
+		const raw = [{ name: "atlas", config: {} }]
+
+		expect(withApplicationMarks(raw, [], { atlas: null })).toEqual(raw)
+		expect(withApplicationMarks(raw, [], {})).toEqual(raw)
 	})
 })
 

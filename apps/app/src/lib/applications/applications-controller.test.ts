@@ -951,3 +951,83 @@ describe("applications controller", () => {
 		expect(controller.getState().registry).toEqual([LINEAR])
 	})
 })
+
+describe("application marks", () => {
+	const namedCallsOf = (port: FakeApplicationPort) =>
+		port.calls.filter((call) => call.command === "named")
+
+	it("asks the host for a declared name the catalogue does not bear", async () => {
+		const port = createFakeApplicationPort()
+		port.found = [MARKED]
+		const controller = controllerOn(port)
+
+		controller.resolveMarks(["paper"])
+		await settled()
+
+		expect(controller.getState().marks).toEqual({
+			paper: { title: "Paper", mark: MARKED.logo },
+		})
+	})
+
+	it("leaves a row on its raw name while the lookup is in flight", () => {
+		const controller = controllerOn()
+
+		controller.resolveMarks(["paper"])
+
+		expect(controller.getState().marks.paper).toBeUndefined()
+	})
+
+	it("asks the host once per name whatever the panels declaring it", async () => {
+		const port = createFakeApplicationPort()
+		port.found = [MARKED]
+		const controller = controllerOn(port)
+
+		controller.resolveMarks(["paper", "paper"])
+		controller.resolveMarks(["paper"])
+		await settled()
+		controller.resolveMarks(["paper"])
+
+		expect(namedCallsOf(port)).toEqual([{ command: "named", name: "paper" }])
+	})
+
+	it("asks nothing for a name the curated catalogue already bears", async () => {
+		const port = createFakeApplicationPort()
+		port.curated = [PAPER]
+		const controller = controllerOn(port)
+		await controller.open()
+
+		controller.resolveMarks(["paper"])
+		await settled()
+
+		expect(namedCallsOf(port)).toEqual([])
+	})
+
+	it("records a name the host answers nothing for as unresolved", async () => {
+		const port = createFakeApplicationPort()
+		const controller = controllerOn(port)
+
+		controller.resolveMarks(["ghost"])
+		await settled()
+		controller.resolveMarks(["ghost"])
+
+		expect(controller.getState().marks).toEqual({ ghost: null })
+		expect(namedCallsOf(port)).toHaveLength(1)
+	})
+
+	it("records a name the host refuses as unresolved and raises no notice", async () => {
+		const port = createFakeApplicationPort()
+		port.refusals.named = { kind: "registryTimedOut" }
+		const reportFailure = vi.fn()
+		const controller = createApplicationsController(
+			port,
+			createFakeTranscriptStore(),
+			{ reportFailure },
+		)
+
+		controller.resolveMarks(["paper"])
+		await settled()
+
+		expect(controller.getState().marks).toEqual({ paper: null })
+		expect(reportFailure).not.toHaveBeenCalled()
+	})
+})
