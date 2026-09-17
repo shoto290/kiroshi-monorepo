@@ -1199,7 +1199,7 @@ export const FailureWithAction = meta.story({
 		docs: {
 			description: {
 				story:
-					"The upper bubble of artboard E11: an item declared a notice, a failure with nothing to answer. A notice takes no question text, so no option, no free text and no question line are drawn, the failure title names the form, and the primary action replaces Send, enabled without any answer, with its own label and leading glyph. Pick `Failure` when the failure still asks a question below it, and `NoticeInQueue` for a notice beside a question. `apps/app/src/components/application-install-row.tsx:61` posts the notice when the key an install needs was left out: no question, no dismiss, one action to Settings.",
+					"The upper bubble of artboard E11: an item declared a notice, a failure with nothing to answer. A notice takes no question text, so no option, no free text and no question line are drawn, the failure title names the form, and the primary action replaces Send, enabled without any answer, with its own label and leading glyph. Pick `Failure` when the failure still asks a question below it, and `NoticeInQueue` for a notice beside a question. `packages/ui/src/components/application-install-turn.tsx:30` posts the notice when the key an install needs was left out: no question, no dismiss, one action to Settings.",
 			},
 		},
 	},
@@ -1229,7 +1229,7 @@ export const NoticeInQueue = meta.story({
 		docs: {
 			description: {
 				story:
-					"A question queued beside a notice. The notice has nothing to answer, so it never waits: picking the question's option keeps the card on the question, the primary control reads `Send answers` rather than `Next question`, and sending reports the question's answer alone. Pick `FailureWithAction` for a notice on its own. No request mixes the two: `apps/app/src/components/application-install-row.tsx:61` posts a notice alone and `apps/app/src/components/thread-prompt.tsx:114` maps questions the agent asked, never a notice beside them.",
+					"A question queued beside a notice. The notice has nothing to answer, so it never waits: picking the question's option keeps the card on the question, the primary control reads `Send answers` rather than `Next question`, and sending reports the question's answer alone. Pick `FailureWithAction` for a notice on its own. No request mixes the two: `packages/ui/src/components/application-install-turn.tsx:30` posts a notice alone and `apps/app/src/components/thread-prompt.tsx:114` maps questions the agent asked, never a notice beside them.",
 			},
 		},
 	},

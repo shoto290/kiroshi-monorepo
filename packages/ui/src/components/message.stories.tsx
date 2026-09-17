@@ -58,7 +58,7 @@ const meta = preview.meta({
 		docs: {
 			description: {
 				component:
-					"One row of a conversation: the assistant reads from the start edge, the user from the end edge, with a single content column holding metadata above the text and a status line under it. `packages/ui/src/components/turn.tsx:464` and `apps/app/src/components/application-install-row.tsx:99` are the two callers, and both hand it one `MessageContent` and nothing else. Reach for it whenever a transcript needs a speaker, never to lay out a single standalone block of copy.",
+					"One row of a conversation: the assistant reads from the start edge, the user from the end edge, with a single content column holding metadata above the text and a status line under it. `packages/ui/src/components/turn.tsx:464` and `packages/ui/src/components/application-install-turn.tsx:72` are the two callers, and both hand it one `MessageContent` and nothing else. Reach for it whenever a transcript needs a speaker, never to lay out a single standalone block of copy.",
 			},
 		},
 	},
