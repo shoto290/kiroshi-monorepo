@@ -151,34 +151,22 @@ const connectFor =
 		}
 	}
 
-const NO_MATCH = -1
+const isTitleMatch = ({ title }: Application, needle: string) =>
+	folded(title).includes(needle)
 
-const TITLE_MATCH = 0
-
-const DESCRIPTION_MATCH = 1
-
-const matchRankOf = (application: Application, needle: string) => {
-	if (folded(application.title).includes(needle)) {
-		return TITLE_MATCH
-	}
-	if (folded(application.description).includes(needle)) {
-		return DESCRIPTION_MATCH
-	}
-	return NO_MATCH
-}
+const isDescriptionMatch = ({ description }: Application, needle: string) =>
+	folded(description).includes(needle)
 
 const matching = (applications: Application[], needle: string) => {
 	if (needle === "") {
 		return applications
 	}
-	return applications
-		.map((application) => ({
-			application,
-			rank: matchRankOf(application, needle),
-		}))
-		.filter(({ rank }) => rank !== NO_MATCH)
-		.sort((left, right) => left.rank - right.rank)
-		.map(({ application }) => application)
+	return [
+		...applications.filter((held) => isTitleMatch(held, needle)),
+		...applications.filter(
+			(held) => !isTitleMatch(held, needle) && isDescriptionMatch(held, needle),
+		),
+	]
 }
 
 type CatalogueNarrowing = {
