@@ -357,13 +357,15 @@ mod tests {
 		let path = bundles::user::path(app.handle()).expect("the plugin has a home");
 		bundles::user::lay_down(&path).expect("the plugin is laid down");
 		for name in ["clock", "granola"] {
-			bundles::user::set_mcp_server(&path, name, &serde_json::json!({ "command": name }))
+			let config = serde_json::json!({ "command": name });
+			bundles::user::set_mcp_server(&path, name, &config, None)
 				.expect("the server lands");
 		}
 		bundles::user::set_mcp_server(
 			&path,
 			"notion",
 			&serde_json::json!({ "url": "https://mcp.notion.test/mcp" }),
+			None,
 		)
 		.expect("the server lands");
 		let root = writable_root(app.handle()).expect("the data dir is writable");
@@ -454,10 +456,7 @@ mod tests {
 			renewals: &Renewals::new(),
 			now: now_ms(),
 		};
-		let granola = McpServer {
-			name: "granola".to_owned(),
-			config: serde_json::json!({ "url": "https://mcp.granola.test/mcp" }),
-		};
+		let granola = a_granola();
 		assert_eq!(readings.row(granola).status, ApplicationStatus::Connected);
 		assert_eq!(reports.last("b2", "granola"), None);
 		assert_eq!(reports.last("b1", "clock"), Some(Standing::Holding));
@@ -490,10 +489,7 @@ mod tests {
 			renewals: &Renewals::new(),
 			now: now_ms(),
 		};
-		readings.row(McpServer {
-			name: "granola".to_owned(),
-			config: serde_json::json!({ "url": "https://mcp.granola.test/mcp" }),
-		})
+		readings.row(a_granola())
 	}
 
 	#[test]
@@ -577,10 +573,15 @@ mod tests {
 	}
 
 	fn granola_declared() -> Vec<McpServer> {
-		vec![McpServer {
+		vec![a_granola()]
+	}
+
+	fn a_granola() -> McpServer {
+		McpServer {
 			name: "granola".to_owned(),
 			config: serde_json::json!({ "url": "https://mcp.granola.test/mcp" }),
-		}]
+			mark: bundles::ApplicationMark::default(),
+		}
 	}
 
 	fn an_aging_grant(refresh_token: Option<&str>) -> OauthCredentials {

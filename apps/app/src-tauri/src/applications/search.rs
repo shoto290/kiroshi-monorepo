@@ -1,15 +1,18 @@
 use std::collections::HashSet;
+use std::future::Future;
 
 use reqwest::Url;
 
 use super::contract::{Application, ApplicationSearch, ApplicationsError, Install};
-use super::{registry, smithery};
+use super::{catalogue, registry, smithery};
 
 const SHORTEST_TERM: usize = 3;
 
 const OFFERS: usize = 9;
 
 const GITHUB: &str = "github.com";
+
+const OFFICIAL_PREFIX: char = '.';
 
 const SMITHERY_HOSTS: [&str; 2] = ["run.tools", "smithery.ai"];
 
@@ -79,6 +82,35 @@ fn drift(source: &str, answered: usize, unread: usize) -> Option<String> {
 			"{source} answered {answered} rows and {unread} carried no transport this reader reads"
 		)
 	})
+}
+
+type Sought = Result<Option<Application>, ApplicationsError>;
+
+pub async fn named(registries: &Registries, name: &str) -> Sought {
+	if let Some(curated) = catalogue::curated()?.into_iter().find(|held| held.name == name) {
+		return Ok(Some(curated));
+	}
+	let semantic = || smithery::detail(&registries.smithery, name);
+	let official = || registry::detail(&registries.official, name);
+	if names_a_smithery_server(name) {
+		return fallen_back(semantic().await, official()).await;
+	}
+	fallen_back(official().await, semantic()).await
+}
+
+async fn fallen_back(first: Sought, second: impl Future<Output = Sought>) -> Sought {
+	match first {
+		Ok(Some(found)) => Ok(Some(found)),
+		Ok(None) => second.await,
+		Err(failure) => match second.await? {
+			Some(found) => Ok(Some(found)),
+			None => Err(failure),
+		},
+	}
+}
+
+pub(super) fn names_a_smithery_server(name: &str) -> bool {
+	!name.split_once('/').map_or(name, |(before, _)| before).contains(OFFICIAL_PREFIX)
 }
 
 pub async fn search(
@@ -314,6 +346,44 @@ mod tests {
 			matches!(answered, Err(ApplicationsError::RegistryUnreached { .. })),
 			"got {:?}",
 			answered.map(|held| names(held.applications))
+		);
+	}
+
+	#[tokio::test]
+	async fn a_curated_name_answers_from_the_catalogue_and_no_registry_is_read() {
+		let (official, listed) = official_stub::serving(official_stub::holding(Vec::new())).await;
+		let (smithery, semantic) = smithery_stub::serving(smithery_stub::nothing()).await;
+
+		let answered = named(&Registries { official, smithery }, "superset")
+			.await
+			.expect("the name resolves");
+
+		assert_eq!(answered.map(|held| held.name), Some("superset".to_owned()));
+		assert!(listed.asked.lock().expect("the stub records").is_empty(), "the official was read");
+		assert!(semantic.asked.lock().expect("the stub records").is_empty(), "Smithery was read");
+	}
+
+	#[tokio::test]
+	async fn a_name_no_source_carries_answers_nothing_and_raises_no_failure() {
+		let (official, _) = official_stub::serving(official_stub::holding(Vec::new())).await;
+		let (smithery, _) = smithery_stub::serving(smithery_stub::nothing()).await;
+
+		let answered = named(&Registries { official, smithery }, "io.test/nowhere").await;
+
+		assert_eq!(answered.expect("the name resolves").map(|held| held.name), None);
+	}
+
+	#[tokio::test]
+	async fn a_name_no_source_carries_while_a_registry_is_unreached_answers_that_failure() {
+		let (smithery, _) = smithery_stub::serving(smithery_stub::nothing()).await;
+
+		let answered =
+			named(&Registries { official: unreached().await, smithery }, "io.test/nowhere").await;
+
+		assert!(
+			matches!(answered, Err(ApplicationsError::RegistryUnreached { .. })),
+			"got {:?}",
+			answered.map(|held| held.map(|found| found.name))
 		);
 	}
 

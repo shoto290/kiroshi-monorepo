@@ -6,15 +6,16 @@ use super::contract::{
 	Application, ApplicationInstall, ApplicationInstalled, ApplicationCallError, InstallCase,
 	InstallOutcome, ApplicationSearch, ApplicationState, Destination, InstallDraft, INSTALLED_EVENT,
 };
+use super::catalogue;
 use super::runnable::{refusal, Runners};
-use super::search::{search, terms, Registries};
-use super::{catalogue, registry, smithery};
+use super::search::{named, search, terms, Registries};
 use crate::agent::protocol::HostAnswer;
 use crate::agent::session::{Answering, HostRequests};
 use crate::conversations::commands::{
 	conversation_bot_mcp_servers, conversation_set_bot_mcp_server,
 	conversation_set_space_mcp_server, conversation_space_mcp_servers, ready,
 };
+use crate::bundles::ApplicationMark;
 use crate::conversations::contract::McpServer;
 use crate::db;
 use crate::environment::contract::EnvOwner;
@@ -24,8 +25,6 @@ use crate::user::commands::{user_plugin_mcp_servers, user_plugin_set_mcp_server}
 const SUBTYPE: &str = "application";
 
 const NO_DATABASE: &str = "the store this session writes to is not open";
-
-const OFFICIAL_PREFIX: char = '.';
 
 #[derive(Debug)]
 pub struct ApplicationHost<R: Runtime> {
@@ -157,35 +156,9 @@ impl<R: Runtime> ApplicationHost<R> {
 	}
 
 	async fn application(&self, name: &str) -> Result<Application, ApplicationCallError> {
-		if let Some(curated) = catalogue::curated()?.into_iter().find(|held| held.name == name) {
-			return Ok(curated);
-		}
-		self.named(name).await?.ok_or_else(|| ApplicationCallError::UnknownApplication {
-			application: name.to_owned(),
+		named(&self.registries, name).await?.ok_or_else(|| {
+			ApplicationCallError::UnknownApplication { application: name.to_owned() }
 		})
-	}
-
-	async fn named(&self, name: &str) -> Result<Option<Application>, ApplicationCallError> {
-		if names_a_smithery_server(name) {
-			if let Some(found) = self.semantic(name).await {
-				return Ok(Some(found));
-			}
-			return Ok(registry::detail(&self.registries.official, name).await?);
-		}
-		if let Some(found) = registry::detail(&self.registries.official, name).await? {
-			return Ok(Some(found));
-		}
-		Ok(self.semantic(name).await)
-	}
-
-	async fn semantic(&self, name: &str) -> Option<Application> {
-		match smithery::detail(&self.registries.smithery, name).await {
-			Ok(found) => found,
-			Err(failure) => {
-				eprintln!("the Smithery detail of {name} was not read: {failure:?}");
-				None
-			}
-		}
 	}
 
 	async fn owner(&self, scope: Destination) -> Result<EnvOwner, ApplicationCallError> {
@@ -215,13 +188,14 @@ impl<R: Runtime> ApplicationHost<R> {
 		let app = self.app.clone();
 		let name = application.name.clone();
 		let config = application.config.clone();
+		let mark = Some(mark_of(application));
 		Ok(match owner {
-			EnvOwner::User => user_plugin_set_mcp_server(app, name, config).await?,
+			EnvOwner::User => user_plugin_set_mcp_server(app, name, config, mark).await?,
 			EnvOwner::Space { id } => {
-				conversation_set_space_mcp_server(app, id.clone(), name, config).await?
+				conversation_set_space_mcp_server(app, id.clone(), name, config, mark).await?
 			}
 			EnvOwner::Bot { id, .. } => {
-				conversation_set_bot_mcp_server(app, self.state()?, id.clone(), name, config)
+				conversation_set_bot_mcp_server(app, self.state()?, id.clone(), name, config, mark)
 					.await?
 			}
 		})
@@ -304,8 +278,12 @@ fn destination_id(owner: &EnvOwner) -> Option<String> {
 	}
 }
 
-fn names_a_smithery_server(name: &str) -> bool {
-	!name.split_once('/').map_or(name, |(before, _)| before).contains(OFFICIAL_PREFIX)
+fn mark_of(application: &Application) -> ApplicationMark {
+	ApplicationMark {
+		title: Some(application.title.clone()),
+		logo: application.logo.clone(),
+		logo_url: application.logo_url.clone(),
+	}
 }
 
 fn matching(curated: Vec<Application>, query: &str) -> Vec<Application> {
@@ -464,6 +442,25 @@ mod tests {
 			bundles::user::mcp_servers(&user_plugin(app)),
 		]
 		.map(|servers| servers.into_iter().map(|server| (server.name, server.config)).collect())
+	}
+
+	fn marks(app: &App<MockRuntime>) -> [Vec<(String, ApplicationMark)>; 3] {
+		let root = bundles::root(app.handle()).expect("the bundles have a root");
+		[
+			bundles::mcp_servers(&root, "b1"),
+			bundles::space::mcp_servers(&space_plugin(app)),
+			bundles::user::mcp_servers(&user_plugin(app)),
+		]
+		.map(|servers| servers.into_iter().map(|server| (server.name, server.mark)).collect())
+	}
+
+	fn curated_mark(name: &str) -> ApplicationMark {
+		catalogue::curated()
+			.expect("the catalogue reads")
+			.into_iter()
+			.find(|held| held.name == name)
+			.map(|held| mark_of(&held))
+			.unwrap_or_else(|| panic!("{name} is curated"))
 	}
 
 	fn curated_logo(name: &str) -> Option<String> {
@@ -697,6 +694,28 @@ mod tests {
 	}
 
 	#[tokio::test]
+	async fn an_install_keeps_the_mark_of_its_application_and_the_listing_answers_it_back() {
+		for scope in SCOPES {
+			let app = a_host(&format!("mark-{scope}")).await;
+
+			serving_in(&app, "c1", unreached().await)
+				.await
+				.answer(an_install("paper", scope))
+				.await
+				.expect("the install answers");
+
+			let kept: Vec<(String, ApplicationMark)> = marks(&app).into_iter().flatten().collect();
+
+			assert_eq!(
+				kept,
+				[("paper".to_owned(), curated_mark("paper"))],
+				"installing in {scope}"
+			);
+			cleaned(&app);
+		}
+	}
+
+	#[tokio::test]
 	async fn a_key_install_answers_the_secret_still_needed_and_nothing_else_about_credentials() {
 		let app = a_host("key").await;
 
@@ -814,6 +833,7 @@ mod tests {
 			&space_plugin(&app),
 			"superset",
 			&json!({ "type": "http", "url": "https://mine.test/mcp" }),
+			None,
 		)
 		.expect("the declaration lands");
 
@@ -937,7 +957,7 @@ mod tests {
 	async fn a_scope_already_declaring_the_server_keeps_the_config_it_had() {
 		let app = a_host("kept").await;
 		let mine = json!({ "type": "http", "url": "https://mine.test/mcp" });
-		bundles::space::set_mcp_server(&space_plugin(&app), "superset", &mine)
+		bundles::space::set_mcp_server(&space_plugin(&app), "superset", &mine, None)
 			.expect("the declaration lands");
 		let arriving = heard(&app);
 

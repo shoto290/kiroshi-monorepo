@@ -78,6 +78,7 @@ export type ApplicationInstalled = {
 export type ApplicationPort = {
 	catalogue: () => Promise<Application[]>
 	search: (query: string) => Promise<ApplicationSearch>
+	named: (name: string) => Promise<Application | null>
 	runnable: (config: Record<string, unknown>) => Promise<InstallRefusal | null>
 	installs: (conversationId: string) => Promise<ApplicationInstall[]>
 	onInstalled: (

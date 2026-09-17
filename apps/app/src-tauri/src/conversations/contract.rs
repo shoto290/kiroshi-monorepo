@@ -364,11 +364,13 @@ impl From<bundles::HistoryEntry> for BotHistoryEntry {
 pub struct McpServer {
 	pub name: String,
 	pub config: serde_json::Value,
+	#[serde(flatten)]
+	pub mark: bundles::ApplicationMark,
 }
 
 impl From<bundles::McpServer> for McpServer {
 	fn from(server: bundles::McpServer) -> Self {
-		Self { name: server.name, config: server.config }
+		Self { name: server.name, config: server.config, mark: server.mark }
 	}
 }
 

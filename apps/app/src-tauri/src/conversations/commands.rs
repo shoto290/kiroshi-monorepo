@@ -15,7 +15,7 @@ use crate::agent::contract::AgentCommand;
 use crate::companions::launch;
 use crate::attachments;
 use crate::avatars;
-use crate::bundles;
+use crate::bundles::{self, ApplicationMark};
 use crate::db;
 use crate::db::repositories::conversations::{
 	Bot as StoredBot, Conversation as StoredConversation, ConversationDraft, ConversationEdit,
@@ -685,10 +685,12 @@ pub async fn conversation_set_bot_mcp_server<R: Runtime>(
 	bot_id: String,
 	name: String,
 	config: serde_json::Value,
+	mark: Option<ApplicationMark>,
 ) -> Result<McpServer, TranscriptStoreError> {
 	let root = writable_root(&app)?;
 	let bot = bot_row(ready(&state)?, &bot_id).await?;
-	bundled(bundles::set_mcp_server(&root, &bot, &name, &config)).map(McpServer::from)
+	bundled(bundles::set_mcp_server(&root, &bot, &name, &config, mark.as_ref()))
+		.map(McpServer::from)
 }
 
 #[tauri::command]
@@ -723,9 +725,11 @@ pub async fn conversation_set_space_mcp_server<R: Runtime>(
 	space_id: String,
 	name: String,
 	config: serde_json::Value,
+	mark: Option<ApplicationMark>,
 ) -> Result<McpServer, TranscriptStoreError> {
 	let path = plugin_path(&app, &space_id)?;
-	bundled(bundles::space::set_mcp_server(&path, &name, &config)).map(McpServer::from)
+	bundled(bundles::space::set_mcp_server(&path, &name, &config, mark.as_ref()))
+		.map(McpServer::from)
 }
 
 #[tauri::command]

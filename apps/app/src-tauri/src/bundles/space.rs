@@ -4,9 +4,9 @@ use std::path::{Path, PathBuf};
 use tauri::{AppHandle, Manager, Runtime};
 
 use super::{
-	drafted, git, learned, Author, ChangedFile, Evolution, HistoryEntry, McpServer, Skill,
-	SkillDraft, SkillFront, LEARNED_NAME, MANIFEST_DIR, MANIFEST_NAME, KIROSHI_KEY, PRELOAD_KEY,
-	SERVER_SUBJECT, SKILLS_DIR, SKILL_NAME, VERSION,
+	drafted, git, learned, ApplicationMark, Author, ChangedFile, Evolution, HistoryEntry,
+	McpServer, Skill, SkillDraft, SkillFront, LEARNED_NAME, MANIFEST_DIR, MANIFEST_NAME,
+	KIROSHI_KEY, PRELOAD_KEY, SERVER_SUBJECT, SKILLS_DIR, SKILL_NAME, VERSION,
 };
 use crate::private_files;
 
@@ -115,9 +115,10 @@ pub fn set_mcp_server(
 	path: &Path,
 	name: &str,
 	config: &serde_json::Value,
+	mark: Option<&ApplicationMark>,
 ) -> std::io::Result<McpServer> {
 	let _serialised = super::serialised(path);
-	let server = super::set_mcp_server_at(path, name, config)?;
+	let server = super::set_mcp_server_at(path, name, config, mark)?;
 	super::rewrite_declared_servers(path)?;
 	super::recorded(path, SERVER_SUBJECT, name, "saved from settings")
 		.map_err(super::unrecorded)?;
@@ -354,7 +355,7 @@ mod tests {
 		let path = a_path("served");
 		lay_down_at(&path).expect("the plugin is laid down");
 
-		let written = set_mcp_server(&path, "clock", &serde_json::json!({ "command": "clock" }))
+		let written = set_mcp_server(&path, "clock", &serde_json::json!({ "command": "clock" }), None)
 			.expect("the server lands");
 
 		assert_eq!(written.name, "clock");
@@ -369,11 +370,11 @@ mod tests {
 	fn a_server_that_is_not_an_object_is_refused_and_leaves_the_file_as_it_was() {
 		let path = a_path("refused");
 		lay_down_at(&path).expect("the plugin is laid down");
-		set_mcp_server(&path, "clock", &serde_json::json!({ "command": "clock" }))
+		set_mcp_server(&path, "clock", &serde_json::json!({ "command": "clock" }), None)
 			.expect("the server lands");
 		let held = fs::read_to_string(mcp_file(&path)).expect("the file reads");
 
-		let refused = set_mcp_server(&path, "broken", &serde_json::json!("clock"));
+		let refused = set_mcp_server(&path, "broken", &serde_json::json!("clock"), None);
 
 		assert!(
 			matches!(&refused, Err(error) if error.kind() == std::io::ErrorKind::InvalidInput),
@@ -388,7 +389,7 @@ mod tests {
 	fn the_last_server_removed_takes_the_file_and_its_declaration_with_it() {
 		let path = a_path("unserved");
 		lay_down_at(&path).expect("the plugin is laid down");
-		set_mcp_server(&path, "clock", &serde_json::json!({ "command": "clock" }))
+		set_mcp_server(&path, "clock", &serde_json::json!({ "command": "clock" }), None)
 			.expect("the server lands");
 
 		remove_mcp_server(&path, "clock").expect("the server is removed");

@@ -529,11 +529,14 @@ mod tests {
 		let root = a_root("urls");
 		let system = root.join("system");
 		let bot = root.join("bot");
-		bundles::set_mcp_server_at(&system, "granola", &serde_json::json!({ "url": "https://a" }))
+		let granola = serde_json::json!({ "url": "https://a" });
+		bundles::set_mcp_server_at(&system, "granola", &granola, None)
 			.expect("the server is declared");
-		bundles::set_mcp_server_at(&bot, "granola", &serde_json::json!({ "url": "https://b" }))
+		let mirrored = serde_json::json!({ "url": "https://b" });
+		bundles::set_mcp_server_at(&bot, "granola", &mirrored, None)
 			.expect("the server is declared");
-		bundles::set_mcp_server_at(&bot, "clock", &serde_json::json!({ "command": "run" }))
+		let clock = serde_json::json!({ "command": "run" });
+		bundles::set_mcp_server_at(&bot, "clock", &clock, None)
 			.expect("the server is declared");
 
 		assert_eq!(

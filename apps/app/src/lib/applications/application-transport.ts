@@ -17,6 +17,8 @@ export const applicationTransport: ApplicationPort = {
 
 	search: (query) => invoke<ApplicationSearch>("application_search", { query }),
 
+	named: (name) => invoke<Application | null>("application_named", { name }),
+
 	runnable: (config) =>
 		invoke<InstallRefusal | null>("application_runnable", { config }),
 

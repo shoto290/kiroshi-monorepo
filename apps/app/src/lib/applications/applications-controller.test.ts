@@ -26,6 +26,12 @@ const PAPER: Application = {
 	install: { kind: "nothing" },
 }
 
+const MARKED: Application = {
+	...PAPER,
+	logo: "<svg />",
+	logoUrl: "https://paper.test/logo.png",
+}
+
 const SUPERSET: Application = {
 	name: "superset",
 	title: "Superset",
@@ -444,7 +450,28 @@ describe("applications controller", () => {
 		await controller.install(targetOf())
 
 		expect(await store.userPluginMcpServers()).toEqual([
-			{ name: "paper", config: PAPER.config },
+			{ name: "paper", config: PAPER.config, title: PAPER.title },
+		])
+	})
+
+	it("declares a server carrying the mark of the application it picked", async () => {
+		const port = createFakeApplicationPort()
+		port.curated = [MARKED]
+		const store = createFakeTranscriptStore()
+		const controller = controllerOn(port, store)
+		await controller.open()
+		controller.pick("paper")
+
+		await controller.install(targetOf())
+
+		expect(await store.userPluginMcpServers()).toEqual([
+			{
+				name: "paper",
+				config: MARKED.config,
+				title: MARKED.title,
+				logo: MARKED.logo,
+				logoUrl: MARKED.logoUrl,
+			},
 		])
 	})
 
@@ -634,7 +661,7 @@ describe("applications controller", () => {
 		)
 
 		expect(await store.botMcpServers("default")).toEqual([
-			{ name: "paper", config: PAPER.config },
+			{ name: "paper", config: PAPER.config, title: PAPER.title },
 		])
 	})
 
@@ -686,7 +713,7 @@ describe("applications controller", () => {
 		await controller.install(targetOf(), { Authorization: "sk-typed" })
 
 		expect(await store.userPluginMcpServers()).toEqual([
-			{ name: "superset", config: SUPERSET.config },
+			{ name: "superset", config: SUPERSET.config, title: SUPERSET.title },
 		])
 		expect(controller.getState().failure).toContain("the keyring is locked")
 	})

@@ -24,6 +24,7 @@ import type {
 	ConversationEdit,
 	EnvEntry,
 	EnvScope,
+	McpServerMark,
 	MessagePin,
 	MessageReference,
 	NewAssistantMessage,
@@ -295,7 +296,7 @@ export const createFakeTranscriptStore = (
 	const skillFiles = new Map<string, Map<string, string>>()
 	const history = new Map<string, BotHistoryEntry[]>()
 	let committed = 0
-	const servers = new Map<string, Map<string, Record<string, unknown>>>()
+	const servers = new Map<string, Map<string, Omit<BotMcpServer, "name">>>()
 	const environment = new Map<string, Map<string, string>>()
 	const rows = new Map<string, TranscriptMessage>()
 	const pins = new Map<string, Map<number, number>>()
@@ -476,7 +477,7 @@ export const createFakeTranscriptStore = (
 	const listServers = (owner: string): Promise<BotMcpServer[]> =>
 		Promise.resolve(
 			[...(servers.get(owner)?.entries() ?? [])]
-				.map(([name, config]) => ({ name, config }))
+				.map(([name, held]) => ({ name, ...held }))
 				.sort((left, right) => left.name.localeCompare(right.name)),
 		)
 
@@ -484,6 +485,7 @@ export const createFakeTranscriptStore = (
 		owner: string,
 		name: string,
 		config: Record<string, unknown>,
+		mark?: McpServerMark,
 	) => {
 		if (!isPlainObject(config)) {
 			return refuse({
@@ -492,10 +494,11 @@ export const createFakeTranscriptStore = (
 			})
 		}
 		const declared = servers.get(owner) ?? new Map()
-		declared.set(name, config)
+		const kept = mark ? { config, ...mark } : { ...declared.get(name), config }
+		declared.set(name, kept)
 		servers.set(owner, declared)
 		recorded(owner, `Server "${name}" saved from settings`, [SERVERS_PATH])
-		return Promise.resolve({ name, config })
+		return Promise.resolve({ name, ...kept })
 	}
 
 	const dropServer = (owner: string, name: string) => {
@@ -1228,9 +1231,10 @@ export const createFakeTranscriptStore = (
 			botId: string,
 			name: string,
 			config: Record<string, unknown>,
+			mark?: McpServerMark,
 		) =>
 			bots.has(botId)
-				? putServer(botId, name, config)
+				? putServer(botId, name, config, mark)
 				: refuse({ kind: "unknownBot", id: botId }),
 
 		spaceMcpServers: (spaceId: string) => listServers(spacePlugin(spaceId)),
@@ -1239,9 +1243,10 @@ export const createFakeTranscriptStore = (
 			spaceId: string,
 			name: string,
 			config: Record<string, unknown>,
+			mark?: McpServerMark,
 		) =>
 			spaces.has(spaceId)
-				? putServer(spacePlugin(spaceId), name, config)
+				? putServer(spacePlugin(spaceId), name, config, mark)
 				: refuse({ kind: "unknownSpace", id: spaceId }),
 
 		deleteSpaceMcpServer: (spaceId: string, name: string) =>
@@ -1318,8 +1323,11 @@ export const createFakeTranscriptStore = (
 
 		userPluginMcpServers: () => listServers(USER_PLUGIN),
 
-		setUserPluginMcpServer: (name: string, config: Record<string, unknown>) =>
-			putServer(USER_PLUGIN, name, config),
+		setUserPluginMcpServer: (
+			name: string,
+			config: Record<string, unknown>,
+			mark?: McpServerMark,
+		) => putServer(USER_PLUGIN, name, config, mark),
 
 		deleteUserPluginMcpServer: (name: string) => dropServer(USER_PLUGIN, name),
 

@@ -261,7 +261,11 @@ export const createApplicationsController = (
 		}
 		const { owner } = target
 		const wasDeclared = await isDeclaredUnder(owner, application.name)
-		await declareServer(store, owner, application.name, application.config)
+		await declareServer(store, owner, application.name, application.config, {
+			title: application.title,
+			logo: application.logo,
+			logoUrl: application.logoUrl,
+		})
 		try {
 			await writeKeys(owner, application.name, asked)
 		} catch (refusal) {

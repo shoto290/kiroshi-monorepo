@@ -450,6 +450,7 @@ async fn a_bot_reaches_the_mcp_servers_its_bundle_declares() {
 		&bot,
 		"probe",
 		&serde_json::json!({ "command": "python3", "args": [script.display().to_string()] }),
+		None,
 	)
 	.expect("the bundle declares its server");
 
