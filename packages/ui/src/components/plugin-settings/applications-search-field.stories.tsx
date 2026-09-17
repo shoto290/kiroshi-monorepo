@@ -16,12 +16,10 @@ const shellOf = (field: HTMLElement) =>
 const expectLineCentredInShell = async (field: HTMLElement) => {
 	const shell = shellOf(field)
 	const line = field.getBoundingClientRect()
+	const above = line.top - shell.top
 
-	await expect(line.top).toBeGreaterThanOrEqual(shell.top)
-	await expect(line.bottom).toBeLessThanOrEqual(shell.bottom)
-	await expect(Math.round(line.top - shell.top)).toBe(
-		Math.round(shell.bottom - line.bottom),
-	)
+	await expect(above).toBeGreaterThanOrEqual(0)
+	await expect(Math.round(above)).toBe(Math.round(shell.bottom - line.bottom))
 }
 
 const SearchHost = (props: ApplicationsSearchFieldProps) => {
