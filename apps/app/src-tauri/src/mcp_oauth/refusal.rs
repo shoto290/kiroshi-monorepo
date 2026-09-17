@@ -4,7 +4,7 @@ use crate::environment::contract::Values;
 
 const SCHEMES: [&str; 2] = ["http://", "https://"];
 
-const QUOTES: [char; 4] = ['"', '\'', '<', '>'];
+const URL_ENDS: [char; 4] = ['"', '\'', '<', '>'];
 
 const QUERY_OR_FRAGMENT: [char; 2] = ['?', '#'];
 
@@ -93,7 +93,7 @@ fn scheme_at(lowered: &str) -> Option<usize> {
 
 fn past_the_url(from_the_url: &str) -> usize {
 	from_the_url
-		.find(|held: char| held.is_whitespace() || QUOTES.contains(&held))
+		.find(|held: char| held.is_whitespace() || URL_ENDS.contains(&held))
 		.unwrap_or(from_the_url.len())
 }
 
