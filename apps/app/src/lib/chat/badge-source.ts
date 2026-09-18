@@ -1,5 +1,7 @@
 import type { BotBadge } from "./bot-badge"
 
+import { createStore } from "../store"
+
 type BadgedRow = {
 	id: string
 }
@@ -50,17 +52,10 @@ export const createBadgeSource = <State>({
 	watchFocus,
 }: BadgeSourceOptions<State>): BadgeSource => {
 	const seen = new Map<string, State>()
-	const listeners = new Set<() => void>()
 
-	let badges: Record<string, BotBadge> = {}
+	const badges = createStore<Record<string, BotBadge>>({})
 	let selectedId: string | null = null
 	let windowFocus: boolean | undefined
-
-	const publish = () => {
-		for (const listener of [...listeners]) {
-			listener()
-		}
-	}
 
 	const forget = (ids: string[]) => {
 		for (const id of seen.keys()) {
@@ -73,8 +68,8 @@ export const createBadgeSource = <State>({
 	const hasChanged = (next: Record<string, BotBadge>): boolean => {
 		const keys = Object.keys(next)
 		return (
-			keys.length !== Object.keys(badges).length ||
-			keys.some((id) => next[id] !== badges[id])
+			keys.length !== Object.keys(badges.getState()).length ||
+			keys.some((id) => next[id] !== badges.getState()[id])
 		)
 	}
 
@@ -90,7 +85,7 @@ export const createBadgeSource = <State>({
 				continue
 			}
 			next[id] = ruleOf({
-				held: id === cleared ? "none" : (badges[id] ?? "none"),
+				held: id === cleared ? "none" : (badges.getState()[id] ?? "none"),
 				before: seen.get(id),
 				after,
 				isSelected: id === selectedId,
@@ -104,8 +99,7 @@ export const createBadgeSource = <State>({
 		if (!hasChanged(next)) {
 			return
 		}
-		badges = next
-		publish()
+		badges.setState(next)
 	}
 
 	const followFocus = (isFocused: boolean) => {
@@ -126,13 +120,8 @@ export const createBadgeSource = <State>({
 	}
 
 	return {
-		getBadges: () => badges,
-		subscribe: (listener) => {
-			listeners.add(listener)
-			return () => {
-				listeners.delete(listener)
-			}
-		},
+		getBadges: badges.getState,
+		subscribe: badges.subscribe,
 		start: () => {
 			const stopStates = states.subscribe(refresh)
 			const stopSelection = selection.subscribe(followSelection)

@@ -1,5 +1,3 @@
-import { useState, useSyncExternalStore } from "react"
-
 import {
 	type BotSections,
 	createSectionsController,
@@ -7,6 +5,7 @@ import {
 	type SectionsState,
 } from "./sections-controller"
 
+import { useController } from "../use-controller"
 import type { TranscriptStore } from "../conversations/store-port"
 
 export type Sections = {
@@ -17,9 +16,4 @@ export type Sections = {
 export const useSections = (
 	store: TranscriptStore,
 	bots: BotSections,
-): Sections => {
-	const [controller] = useState(() => createSectionsController(store, bots))
-	const state = useSyncExternalStore(controller.subscribe, controller.getState)
-
-	return { state, controller }
-}
+): Sections => useController(() => createSectionsController(store, bots))

@@ -1,3 +1,5 @@
+import { createOpenedController } from "../opened-controller"
+
 export type MessageLanding = {
 	conversationId: string
 	messageId: string
@@ -12,31 +14,15 @@ export type MessageLandingController = {
 }
 
 export const createMessageLandingController = (): MessageLandingController => {
-	let landing: MessageLanding | null = null
-	const listeners = new Set<() => void>()
-
-	const set = (next: MessageLanding | null) => {
-		landing = next
-		for (const listener of [...listeners]) {
-			listener()
-		}
-	}
+	const landing = createOpenedController<MessageLanding>()
 
 	return {
-		getState: () => landing,
-
-		subscribe: (listener) => {
-			listeners.add(listener)
-			return () => {
-				listeners.delete(listener)
-			}
-		},
-
-		record: (next) => set(next),
-
+		getState: landing.getState,
+		subscribe: landing.subscribe,
+		record: landing.open,
 		forget: (taken) => {
-			if (landing === taken) {
-				set(null)
+			if (landing.getState() === taken) {
+				landing.leave()
 			}
 		},
 	}

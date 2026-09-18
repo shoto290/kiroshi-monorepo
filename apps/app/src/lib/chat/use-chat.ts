@@ -1,10 +1,11 @@
-import { useEffect, useRef, useState, useSyncExternalStore } from "react"
+import { useEffect, useRef, useSyncExternalStore } from "react"
 
 import { type ChatController, createChatController } from "./chat-controller"
 import type { ChatState } from "./chat-state"
 import type { ChatDriver } from "./driver"
 import { type SidebarActivity, sidebarActivityFor } from "./screen-model"
 
+import { useController } from "../use-controller"
 import type { BotPreviews } from "../bots/roster-controller"
 import { type RosterLine, runsIn, type SoloThreads } from "../bots/roster-line"
 import type { TranscriptStore } from "../conversations/store-port"
@@ -19,8 +20,9 @@ export type Chat = {
 }
 
 export function useChat(driver: ChatDriver, store: TranscriptStore): Chat {
-	const [controller] = useState(() => createChatController(driver, store))
-	const state = useSyncExternalStore(controller.subscribe, controller.getState)
+	const { state, controller } = useController(() =>
+		createChatController(driver, store),
+	)
 
 	useEffect(() => controller.attach(), [controller])
 

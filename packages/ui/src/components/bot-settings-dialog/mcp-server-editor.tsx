@@ -1,6 +1,5 @@
 "use client"
 
-import { Tabs } from "@base-ui/react/tabs"
 import { useState } from "react"
 import { useTranslation } from "react-i18next"
 
@@ -39,18 +38,14 @@ import {
 import { type Icon, Icons } from "@workspace/ui/components/icons"
 import { ApplicationMark } from "@workspace/ui/components/plugin-settings/application-mark"
 import { SettingsField } from "@workspace/ui/components/settings-field"
+import { SettingsPushedPage } from "@workspace/ui/components/settings-pushed-page"
 import {
-	RAIL_LABELS_MIN_WIDTH,
-	SettingsRail,
-	SettingsRailBack,
 	SettingsRailItem,
-	SettingsRailSeparator,
 	SettingsScrollingPanel,
 } from "@workspace/ui/components/settings-rail"
 import { SettingsSelect } from "@workspace/ui/components/settings-select"
 import { SETTINGS_TAG_CLASS } from "@workspace/ui/components/settings-styles"
 import { Button, buttonVariants } from "@workspace/ui/components/ui/button"
-import { useIsNarrowerThan } from "@workspace/ui/hooks/use-is-narrower-than"
 import { cn } from "@workspace/ui/lib/utils"
 
 const FIRST_SECTION = "connection"
@@ -319,10 +314,8 @@ const McpServerEditor = ({
 	className,
 }: McpServerEditorProps) => {
 	const { t } = useTranslation("bots")
-	const [root, setRoot] = useState<HTMLDivElement | null>(null)
 	const [isLeaving, setLeaving] = useState(Boolean(defaultLeaving))
 	const [typed, setTyped] = useState<Partial<BotMcpServerFields>>({})
-	const iconsOnly = useIsNarrowerThan(root, RAIL_LABELS_MIN_WIDTH)
 
 	const name = displayName ?? (draft.name.trim() || t("applications.untitled"))
 	const config = parseMcpServerConfig(draft.config)
@@ -399,45 +392,35 @@ const McpServerEditor = ({
 	)
 
 	return (
-		<Tabs.Root
-			className={cn("flex min-h-0 min-w-0 flex-1", className)}
+		<SettingsPushedPage
+			backLabel={t("applications.back")}
+			className={cn("min-w-0", className)}
 			defaultValue={defaultSection ?? FIRST_SECTION}
-			orientation="vertical"
-			ref={setRoot}
+			isMeasured
+			onBack={leave}
+			rail={(iconsOnly) => (
+				<>
+					<SettingsRailItem
+						icon={Icons.Server}
+						iconsOnly={iconsOnly}
+						label={t("applications.section.connection")}
+						value={FIRST_SECTION}
+					/>
+					<SettingsRailItem
+						icon={Icons.Shield}
+						iconsOnly={iconsOnly}
+						label={t("applications.section.secrets")}
+						value="environment"
+					/>
+					<SettingsRailItem
+						icon={Icons.Json}
+						iconsOnly={iconsOnly}
+						label={t("applications.section.advanced")}
+						value="advanced"
+					/>
+				</>
+			)}
 		>
-			<SettingsRail
-				iconsOnly={iconsOnly}
-				leading={
-					<>
-						<SettingsRailBack
-							iconsOnly={iconsOnly}
-							label={t("applications.back")}
-							onClick={leave}
-						/>
-						<SettingsRailSeparator />
-					</>
-				}
-			>
-				<SettingsRailItem
-					icon={Icons.Server}
-					iconsOnly={iconsOnly}
-					label={t("applications.section.connection")}
-					value={FIRST_SECTION}
-				/>
-				<SettingsRailItem
-					icon={Icons.Shield}
-					iconsOnly={iconsOnly}
-					label={t("applications.section.secrets")}
-					value="environment"
-				/>
-				<SettingsRailItem
-					icon={Icons.Json}
-					iconsOnly={iconsOnly}
-					label={t("applications.section.advanced")}
-					value="advanced"
-				/>
-			</SettingsRail>
-
 			<div className="flex min-h-0 min-w-0 flex-1 flex-col">
 				<div className="flex shrink-0 items-center justify-between gap-2 border-border border-b px-5 py-3">
 					<div className="flex min-w-0 items-center gap-2">
@@ -603,7 +586,7 @@ const McpServerEditor = ({
 				open={isLeaving}
 				title={t("applications.leave.title")}
 			/>
-		</Tabs.Root>
+		</SettingsPushedPage>
 	)
 }
 

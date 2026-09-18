@@ -6,6 +6,7 @@ import {
 } from "./mcp-server-writes"
 
 import { createQueue } from "../queue"
+import { createStore } from "../store"
 import type { BotMcpServer, EnvOwner } from "../conversations/store-contract"
 import type { TranscriptStore } from "../conversations/store-port"
 
@@ -43,24 +44,16 @@ const isSameOwner = (left: EnvOwner | null, right: EnvOwner) =>
 export const createMcpServersController = (
 	store: TranscriptStore,
 ): McpServersController => {
-	let state = initialMcpServersState
-	const listeners = new Set<() => void>()
+	const stateStore = createStore(initialMcpServersState)
+	const current = stateStore.getState
 
 	const enqueue = createQueue()
 
-	const publish = () => {
-		for (const listener of listeners) {
-			listener()
-		}
-	}
-
-	const set = (fields: Partial<McpServersState>) => {
-		state = { ...state, ...fields }
-		publish()
-	}
+	const set = (fields: Partial<McpServersState>) =>
+		stateStore.setState({ ...current(), ...fields })
 
 	const applyTo = (owner: EnvOwner, fields: Partial<McpServersState>) => {
-		if (isSameOwner(state.owner, owner)) {
+		if (isSameOwner(current().owner, owner)) {
 			set(fields)
 		}
 	}
@@ -74,7 +67,7 @@ export const createMcpServersController = (
 	const noteFailedRead = () => set({ hasFailedToLoad: true })
 
 	const reload = () => {
-		const owner = state.owner
+		const owner = current().owner
 		if (!owner) {
 			return Promise.resolve()
 		}
@@ -82,7 +75,7 @@ export const createMcpServersController = (
 	}
 
 	const onOpenOwner = (run: (owner: EnvOwner) => Promise<void>) => {
-		const owner = state.owner
+		const owner = current().owner
 		if (!owner) {
 			return Promise.resolve(false)
 		}
@@ -109,28 +102,23 @@ export const createMcpServersController = (
 				owner,
 				name,
 				config,
-				renamedFrom ? markOf(state.servers, renamedFrom) : undefined,
+				renamedFrom ? markOf(current().servers, renamedFrom) : undefined,
 			)
 			if (renamedFrom) {
 				await undeclareServer(store, owner, renamedFrom)
 			}
 			applyTo(owner, {
 				servers: written(
-					state.servers.filter((held) => held.name !== openedName),
+					current().servers.filter((held) => held.name !== openedName),
 					server,
 				),
 			})
 		})
 
 	return {
-		getState: () => state,
+		getState: current,
 
-		subscribe: (listener) => {
-			listeners.add(listener)
-			return () => {
-				listeners.delete(listener)
-			}
-		},
+		subscribe: stateStore.subscribe,
 
 		open: (owner: EnvOwner) => {
 			set({ owner, servers: [], hasFailedToLoad: false })
@@ -148,7 +136,7 @@ export const createMcpServersController = (
 			onOpenOwner(async (owner) => {
 				await undeclareServer(store, owner, name)
 				applyTo(owner, {
-					servers: state.servers.filter((server) => server.name !== name),
+					servers: current().servers.filter((server) => server.name !== name),
 				})
 			}),
 	}

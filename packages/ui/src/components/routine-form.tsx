@@ -146,6 +146,7 @@ type RoutineFormModel = {
 type RoutineFormProps = RoutineFormModel & {
 	sources: RoutineTriggerSource[]
 	onSave: (values: RoutineFormValues) => void
+	onUnsavedChange?: (isUnsaved: boolean) => void
 }
 
 const EMPTY_ROUTINE_FILTER: RoutineFilterValues = { matchMode: "all", rows: [] }
@@ -671,6 +672,7 @@ const RoutineForm = ({
 	refusal,
 	sources,
 	onSave,
+	onUnsavedChange,
 }: RoutineFormProps) => {
 	const { t } = useTranslation("chat")
 	const [entered, setEntered] = useState(values)
@@ -695,17 +697,22 @@ const RoutineForm = ({
 	const kind = source?.kind ?? "plain"
 	const fields = source?.payload ?? []
 
+	const enter = (next: RoutineFormValues) => {
+		setEntered(next)
+		onUnsavedChange?.(JSON.stringify(next) !== JSON.stringify(values))
+	}
+
 	const answer = (field: keyof RoutineFormValues, value: string) =>
-		setEntered((held) => ({ ...held, [field]: value }))
+		enter({ ...entered, [field]: value })
 
 	const changeFilter = (filter: RoutineFilterValues) => {
 		setRowRefusal(null)
-		setEntered((held) => ({ ...held, filter }))
+		enter({ ...entered, filter })
 	}
 
 	const pickSource = (triggerSourceId: string) => {
 		setRowRefusal(null)
-		setEntered((held) => rehomed(held, triggerSourceId, sources))
+		enter(rehomed(entered, triggerSourceId, sources))
 	}
 
 	const save = (event: FormEvent<HTMLFormElement>) => {

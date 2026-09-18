@@ -5,6 +5,7 @@ import {
 	type SignInActions,
 } from "./sign-in-flow"
 
+import { createStore } from "../store"
 import type { ChatController } from "../chat/chat-controller"
 import { isSignedOut } from "../chat/screen-model"
 
@@ -36,27 +37,19 @@ export const createSignInController = (
 	port: OnboardingPort,
 	world: SignInWorld,
 ): SignInController => {
-	let state = initialSignInState
-	const listeners = new Set<() => void>()
+	const stateStore = createStore(initialSignInState)
+	const current = stateStore.getState
 
-	const publish = () => {
-		for (const listener of listeners) {
-			listener()
-		}
-	}
-
-	const set = (fields: Partial<SignInState>) => {
-		state = { ...state, ...fields }
-		publish()
-	}
+	const set = (fields: Partial<SignInState>) =>
+		stateStore.setState({ ...current(), ...fields })
 
 	const showConnection = (connection: ConnectionStep) => {
-		set({ connection, round: state.round + 1, isBusy: false })
+		set({ connection, round: current().round + 1, isBusy: false })
 	}
 
 	const settle = async () => {
-		const { botId } = state
-		set({ connection: null, round: state.round + 1 })
+		const { botId, round } = current()
+		set({ connection: null, round: round + 1 })
 		if (botId) {
 			await world.reopen(botId)
 		}
@@ -71,14 +64,9 @@ export const createSignInController = (
 	return {
 		...actions,
 
-		getState: () => state,
+		getState: current,
 
-		subscribe: (listener) => {
-			listeners.add(listener)
-			return () => {
-				listeners.delete(listener)
-			}
-		},
+		subscribe: stateStore.subscribe,
 
 		offer: (botId) => {
 			set({ botId })

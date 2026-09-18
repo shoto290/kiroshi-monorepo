@@ -1,5 +1,3 @@
-import { useState, useSyncExternalStore } from "react"
-
 import type { ConnectionPort } from "./connection-port"
 import {
 	type ConnectionsController,
@@ -7,14 +5,12 @@ import {
 	createConnectionsController,
 } from "./connections-controller"
 
+import { useController } from "../use-controller"
+
 export type Connections = {
 	state: ConnectionsState
 	controller: ConnectionsController
 }
 
-export const useConnections = (port: ConnectionPort): Connections => {
-	const [controller] = useState(() => createConnectionsController(port))
-	const state = useSyncExternalStore(controller.subscribe, controller.getState)
-
-	return { state, controller }
-}
+export const useConnections = (port: ConnectionPort): Connections =>
+	useController(() => createConnectionsController(port))

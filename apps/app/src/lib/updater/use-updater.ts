@@ -1,4 +1,4 @@
-import { useEffect, useState, useSyncExternalStore } from "react"
+import { useEffect } from "react"
 
 import { createUpdater } from "./create-updater"
 import {
@@ -7,14 +7,17 @@ import {
 	type UpdaterState,
 } from "./updater-controller"
 
+import { useController } from "../use-controller"
+
 export type Updater = {
 	state: UpdaterState
 	controller: UpdaterController
 }
 
 export const useUpdater = (): Updater => {
-	const [controller] = useState(() => createUpdaterController(createUpdater()))
-	const state = useSyncExternalStore(controller.subscribe, controller.getState)
+	const { state, controller } = useController(() =>
+		createUpdaterController(createUpdater()),
+	)
 
 	useEffect(() => controller.start(), [controller])
 

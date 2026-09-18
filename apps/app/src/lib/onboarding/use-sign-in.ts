@@ -1,5 +1,3 @@
-import { useState, useSyncExternalStore } from "react"
-
 import type { OnboardingPort } from "./onboarding-port"
 import {
 	createSignInController,
@@ -8,14 +6,12 @@ import {
 	type SignInWorld,
 } from "./sign-in-controller"
 
+import { useController } from "../use-controller"
+
 export type SignIn = {
 	state: SignInState
 	controller: SignInController
 }
 
-export const useSignIn = (port: OnboardingPort, world: SignInWorld): SignIn => {
-	const [controller] = useState(() => createSignInController(port, world))
-	const state = useSyncExternalStore(controller.subscribe, controller.getState)
-
-	return { state, controller }
-}
+export const useSignIn = (port: OnboardingPort, world: SignInWorld): SignIn =>
+	useController(() => createSignInController(port, world))

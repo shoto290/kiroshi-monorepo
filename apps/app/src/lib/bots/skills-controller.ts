@@ -5,6 +5,7 @@ import {
 } from "./skill-files-controller"
 
 import { createQueue } from "../queue"
+import { createStore } from "../store"
 import { botPlugin } from "../conversations/plugin-scope"
 import type { BotSkill, BotSkillDraft } from "../conversations/store-contract"
 import type { TranscriptStore } from "../conversations/store-port"
@@ -35,24 +36,16 @@ export const initialSkillsState: SkillsState = {
 export const createSkillsController = (
 	store: TranscriptStore,
 ): SkillsController => {
-	let state = initialSkillsState
-	const listeners = new Set<() => void>()
+	const stateStore = createStore(initialSkillsState)
+	const current = stateStore.getState
 
 	const enqueue = createQueue()
 
-	const publish = () => {
-		for (const listener of listeners) {
-			listener()
-		}
-	}
-
-	const set = (fields: Partial<SkillsState>) => {
-		state = { ...state, ...fields }
-		publish()
-	}
+	const set = (fields: Partial<SkillsState>) =>
+		stateStore.setState({ ...current(), ...fields })
 
 	const applyTo = (botId: string, skills: BotSkill[]) => {
-		if (state.botId === botId) {
+		if (current().botId === botId) {
 			set({ skills })
 		}
 	}
@@ -61,7 +54,7 @@ export const createSkillsController = (
 		applyTo(botId, await store.pluginSkills(botPlugin(botId)))
 
 	const reload = () => {
-		const botId = state.botId
+		const botId = current().botId
 		if (botId) {
 			void enqueue(() => read(botId)).catch(() => undefined)
 		}
@@ -69,19 +62,19 @@ export const createSkillsController = (
 
 	const applySkill = (skillId: string, fields: Partial<BotSkill>) =>
 		set({
-			skills: state.skills.map((skill) =>
+			skills: current().skills.map((skill) =>
 				skill.id === skillId ? { ...skill, ...fields } : skill,
 			),
 		})
 
 	const onOpenBot = (run: (botId: string) => Promise<void>) => {
-		const botId = state.botId
+		const botId = current().botId
 		if (botId) {
 			void enqueue(() => run(botId)).catch(reload)
 		}
 	}
 
-	const openBot = () => state.botId ?? ""
+	const openBot = () => current().botId ?? ""
 
 	const files = createSkillFilesController(
 		{
@@ -94,23 +87,18 @@ export const createSkillsController = (
 		},
 		{
 			run: (task) => onOpenBot(() => task()),
-			getFile: () => state.file,
+			getFile: () => current().file,
 			setFile: (file) => set({ file }),
-			getSkills: () => state.skills,
+			getSkills: () => current().skills,
 			applySkill,
 		},
 	)
 
 	return {
 		...files,
-		getState: () => state,
+		getState: current,
 
-		subscribe: (listener) => {
-			listeners.add(listener)
-			return () => {
-				listeners.delete(listener)
-			}
-		},
+		subscribe: stateStore.subscribe,
 
 		open: (botId: string) => {
 			set({ botId, skills: [], file: null })
@@ -129,7 +117,7 @@ export const createSkillsController = (
 							true,
 						)
 					: created
-				applyTo(botId, [...state.skills, skill])
+				applyTo(botId, [...current().skills, skill])
 			}),
 
 		save: (skillId: string, draft: BotSkillDraft) =>
@@ -162,7 +150,7 @@ export const createSkillsController = (
 				await store.deletePluginSkill(botPlugin(botId), skillId)
 				applyTo(
 					botId,
-					state.skills.filter((skill) => skill.id !== skillId),
+					current().skills.filter((skill) => skill.id !== skillId),
 				)
 			}),
 	}

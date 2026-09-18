@@ -5,6 +5,7 @@ import {
 } from "./history-files-controller"
 
 import { createQueue } from "../queue"
+import { createStore } from "../store"
 import { botPlugin } from "../conversations/plugin-scope"
 import type { BotHistoryEntry } from "../conversations/store-contract"
 import type { TranscriptStore } from "../conversations/store-port"
@@ -34,24 +35,16 @@ const INITIAL_STATE: HistoryState = {
 export const createHistoryController = (
 	store: TranscriptStore,
 ): HistoryController => {
-	let state = INITIAL_STATE
-	const listeners = new Set<() => void>()
+	const stateStore = createStore(INITIAL_STATE)
+	const current = stateStore.getState
 
 	const enqueue = createQueue()
 
-	const publish = () => {
-		for (const listener of listeners) {
-			listener()
-		}
-	}
-
-	const set = (fields: Partial<HistoryState>) => {
-		state = { ...state, ...fields }
-		publish()
-	}
+	const set = (fields: Partial<HistoryState>) =>
+		stateStore.setState({ ...current(), ...fields })
 
 	const applyTo = (botId: string, fields: Partial<HistoryState>) => {
-		if (state.botId === botId) {
+		if (current().botId === botId) {
 			set(fields)
 		}
 	}
@@ -65,14 +58,14 @@ export const createHistoryController = (
 	const noteFailedRead = () => set({ hasFailedToLoad: true })
 
 	const reload = () => {
-		const botId = state.botId
+		const botId = current().botId
 		if (botId) {
 			void enqueue(() => read(botId)).catch(noteFailedRead)
 		}
 	}
 
 	const onOpenBot = (run: (botId: string) => Promise<void>) => {
-		const botId = state.botId
+		const botId = current().botId
 		if (botId) {
 			void enqueue(() => run(botId)).catch(reload)
 		}
@@ -81,26 +74,21 @@ export const createHistoryController = (
 	const readFiles = createHistoryFilesReader(
 		(oldestCommitId, newestCommitId) =>
 			store.pluginHistoryDiff(
-				botPlugin(state.botId ?? ""),
+				botPlugin(current().botId ?? ""),
 				oldestCommitId,
 				newestCommitId,
 			),
 		{
 			run: (task) => onOpenBot(task),
-			getState: () => state,
+			getState: current,
 			setState: set,
 		},
 	)
 
 	return {
-		getState: () => state,
+		getState: current,
 
-		subscribe: (listener) => {
-			listeners.add(listener)
-			return () => {
-				listeners.delete(listener)
-			}
-		},
+		subscribe: stateStore.subscribe,
 
 		open: (botId: string) => {
 			set({
@@ -115,7 +103,7 @@ export const createHistoryController = (
 		reload,
 
 		openFiles: (oldestCommitId: string, newestCommitId: string) => {
-			if (state.botId) {
+			if (current().botId) {
 				readFiles(oldestCommitId, newestCommitId)
 			}
 		},

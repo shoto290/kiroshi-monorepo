@@ -24,6 +24,10 @@ import {
 	type ApplicationsOwner,
 	ApplicationsPanel,
 } from "@workspace/ui/components/plugin-settings/applications-panel"
+import type {
+	SessionPages,
+	SettingsPages,
+} from "@workspace/ui/components/plugin-settings/settings-pages"
 
 type ApplicationInstallSection = Pick<
 	ApplicationInstallPageProps,
@@ -59,13 +63,14 @@ type ApplicationsSection = {
 }
 
 type McpSessionProps = ApplicationsSection & {
+	pages: SettingsPages
 	owner: ApplicationsOwner
 	isSettingsOpen: boolean
 }
 
 type McpSession = {
 	panel: ReactNode
-	editor: ReactNode
+	pages: SessionPages
 	isOpen: boolean
 	isUnsaved: boolean
 	discard: () => void
@@ -86,6 +91,7 @@ const openedServerOf = (server: BotMcpServerItem): OpenedServer => ({
 })
 
 const useMcpSession = ({
+	pages,
 	owner,
 	servers,
 	haveFailedToLoad,
@@ -102,7 +108,6 @@ const useMcpSession = ({
 }: McpSessionProps): McpSession => {
 	const askedServer = isSettingsOpen ? serverToOpen : undefined
 	const [session, setSession] = useState<OpenedServer | null>(null)
-	const [isBrowsing, setBrowsing] = useState(false)
 	const [panelQuery, setPanelQuery] = useState("")
 	const [requestedServer, setRequestedServer] = useState(askedServer)
 	const [pendingServer, setPendingServer] = useState(askedServer)
@@ -115,16 +120,22 @@ const useMcpSession = ({
 	const listedPending = pendingServer
 		? servers.find(({ name }) => name === pendingServer)
 		: undefined
-	if (listedPending) {
+
+	const show = (opened: OpenedServer | null) => {
 		setPendingServer(undefined)
-		setBrowsing(false)
-		setSession(openedServerOf(listedPending))
+		pages.leave("catalogue")
+		setSession(opened)
+		if (opened) {
+			pages.push("server")
+		} else {
+			pages.leave("server")
+		}
 	}
 
+	if (listedPending) show(openedServerOf(listedPending))
+
 	const open = (opened: OpenedServer | null) => {
-		setPendingServer(undefined)
-		setBrowsing(false)
-		setSession(opened)
+		show(opened)
 		onServerOpen?.(opened?.saved?.name ?? null)
 	}
 
@@ -133,7 +144,7 @@ const useMcpSession = ({
 	const browse = () => {
 		catalogue?.install?.onLeave()
 		setPendingServer(undefined)
-		setBrowsing(true)
+		pages.push("catalogue")
 		catalogue?.onOpen?.()
 	}
 
@@ -192,14 +203,11 @@ const useMcpSession = ({
 		}
 
 		return (
-			<ApplicationsCatalogue {...browsing} onBack={() => setBrowsing(false)} />
+			<ApplicationsCatalogue
+				{...browsing}
+				onBack={() => pages.leave("catalogue")}
+			/>
 		)
-	}
-
-	const pushedPage = () => {
-		if (session) return editorFor(session)
-		if (isBrowsing && catalogue) return browsedPage(catalogue)
-		return null
 	}
 
 	return {
@@ -216,8 +224,11 @@ const useMcpSession = ({
 				servers={servers}
 			/>
 		),
-		editor: pushedPage(),
-		isOpen: session !== null || isBrowsing,
+		pages: {
+			server: session ? editorFor(session) : null,
+			catalogue: catalogue ? browsedPage(catalogue) : null,
+		},
+		isOpen: pages.isPushed("server") || pages.isPushed("catalogue"),
 		isUnsaved: Boolean(
 			session && isMcpServerDraftUnsaved(session.draft, session.saved),
 		),
