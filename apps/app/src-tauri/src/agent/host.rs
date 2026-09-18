@@ -12,8 +12,6 @@ use crate::db::DatabaseState;
 
 const NO_DATABASE: &str = "the store this session writes to is not open";
 
-const PAYLOAD: &str = "payload";
-
 pub trait Refusal: Serialize + Send {
 	fn unreadable(detail: String) -> Self;
 
@@ -74,7 +72,7 @@ impl<H: Host> HostRequests for Hosted<H> {
 	}
 }
 
-#[derive(Debug, Deserialize)]
+#[derive(Deserialize)]
 struct Asked<O> {
 	operation: O,
 	#[serde(default, deserialize_with = "present")]
@@ -90,7 +88,7 @@ fn asked<H: Host + ?Sized>(request: Value) -> Result<(H::Operation, Value), H::E
 	match payload {
 		Some(payload) => Ok((operation, payload)),
 		None if H::IS_PAYLOAD_REQUIRED => {
-			Err(H::Error::unreadable(serde_json::Error::missing_field(PAYLOAD).to_string()))
+			Err(H::Error::unreadable(serde_json::Error::missing_field("payload").to_string()))
 		}
 		None => Ok((operation, Value::Object(serde_json::Map::new()))),
 	}
