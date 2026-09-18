@@ -13,25 +13,37 @@ const dateTimeFormatters = new Map<string, Intl.DateTimeFormat>()
 
 const relativeTimeFormatters = new Map<string, Intl.RelativeTimeFormat>()
 
+const keptOrMade = <Formatter>(
+	kept: Map<string, Formatter>,
+	key: string,
+	make: () => Formatter,
+) => {
+	const found = kept.get(key)
+	if (found) return found
+
+	const made = make()
+	kept.set(key, made)
+	return made
+}
+
 const dateTimeFormatterFor = (options: Intl.DateTimeFormatOptions) => {
 	const language = i18n.language
-	const key = `${language}|${JSON.stringify(options)}`
-	const kept = dateTimeFormatters.get(key)
-	if (kept) return kept
 
-	const made = new Intl.DateTimeFormat(language, options)
-	dateTimeFormatters.set(key, made)
-	return made
+	return keptOrMade(
+		dateTimeFormatters,
+		`${language}|${JSON.stringify(options)}`,
+		() => new Intl.DateTimeFormat(language, options),
+	)
 }
 
 const relativeTimeFormatter = () => {
 	const language = i18n.language
-	const kept = relativeTimeFormatters.get(language)
-	if (kept) return kept
 
-	const made = new Intl.RelativeTimeFormat(language, { numeric: "auto" })
-	relativeTimeFormatters.set(language, made)
-	return made
+	return keptOrMade(
+		relativeTimeFormatters,
+		language,
+		() => new Intl.RelativeTimeFormat(language, { numeric: "auto" }),
+	)
 }
 
 const formatDateTime = (
