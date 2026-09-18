@@ -74,15 +74,82 @@ export const storedAttachmentPath = ({
 	return [root, STORE_DIR, conversationId, minted].join("/")
 }
 
-export const messageWithAttachments = (text: string): MessageContent => {
-	const lines = text.split("\n")
+const BLOCK_HEADER =
+	/^Attached to this message, sent \d{4}-\d{2}-\d{2}T\d{2}:\d{2}:\d{2}\.\d{3}Z, (\d+) files?:$/
+
+const ORDINAL_LINE = /^(\d+)\/(\d+) (.+)$/
+
+const blockHeader = (sentAt: Date, count: number): string =>
+	`Attached to this message, sent ${sentAt.toISOString()}, ${count} ${count === 1 ? "file" : "files"}:`
+
+export const attachmentBlock = (paths: string[], sentAt: Date): string =>
+	[
+		blockHeader(sentAt, paths.length),
+		...paths.map((path, index) => `${index + 1}/${paths.length} ${path}`),
+	].join("\n")
+
+const untouched = (text: string): MessageContent => ({
+	text,
+	attachments: NO_MESSAGE_ATTACHMENTS,
+})
+
+const lastHeaderIndex = (lines: string[]): number =>
+	lines.findLastIndex((line) => BLOCK_HEADER.test(line))
+
+const pathOfOrdinalLine = (
+	line: string,
+	position: number,
+	count: number,
+): string | null => {
+	const match = ORDINAL_LINE.exec(line)
+	if (!match) {
+		return null
+	}
+	const [, index, total, path = ""] = match
+	const isInPlace = Number(index) === position && Number(total) === count
+	return isInPlace && isStoredAttachmentPath(path) ? path : null
+}
+
+const blockPaths = (header: string, entries: string[]): string[] | null => {
+	const count = Number(BLOCK_HEADER.exec(header)?.[1])
+	if (entries.length !== count) {
+		return null
+	}
+	const paths = entries.map((line, index) =>
+		pathOfOrdinalLine(line, index + 1, count),
+	)
+	return paths.every((path) => path !== null) ? paths : null
+}
+
+const messageWithBlock = (
+	text: string,
+	lines: string[],
+	headerIndex: number,
+): MessageContent => {
+	const paths = blockPaths(
+		lines[headerIndex] ?? "",
+		lines.slice(headerIndex + 1),
+	)
+	if (!paths) {
+		return untouched(text)
+	}
+	return {
+		text: lines.slice(0, headerIndex).join("\n").trimEnd(),
+		attachments: paths.map(toAttachment),
+	}
+}
+
+const messageWithBarePaths = (
+	text: string,
+	lines: string[],
+): MessageContent => {
 	let firstPath = lines.length
 	while (firstPath > 0 && isStoredAttachmentPath(lines[firstPath - 1] ?? "")) {
 		firstPath -= 1
 	}
 
 	if (firstPath === lines.length) {
-		return { text, attachments: NO_MESSAGE_ATTACHMENTS }
+		return untouched(text)
 	}
 
 	return {
@@ -91,4 +158,12 @@ export const messageWithAttachments = (text: string): MessageContent => {
 			.slice(firstPath)
 			.map((line) => toAttachment(line.trim())),
 	}
+}
+
+export const messageWithAttachments = (text: string): MessageContent => {
+	const lines = text.trimEnd().split("\n")
+	const headerIndex = lastHeaderIndex(lines)
+	return headerIndex === -1
+		? messageWithBarePaths(text, text.split("\n"))
+		: messageWithBlock(text, lines, headerIndex)
 }

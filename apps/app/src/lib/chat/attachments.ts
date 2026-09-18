@@ -5,6 +5,7 @@ import type {
 	AttachmentStoreError,
 	SubmittedAttachment,
 } from "./attachments-contract"
+import { attachmentBlock } from "./message-attachments"
 
 export type StagedAttachment = PromptAttachment & {
 	file: File
@@ -61,8 +62,17 @@ export function submittedFrom(
 	)
 }
 
-export function promptWithAttachments(text: string, paths: string[]): string {
-	return [text.trim(), ...paths].filter((line) => line.length > 0).join("\n")
+export function promptWithAttachments(
+	text: string,
+	paths: string[],
+	sentAt: Date,
+): string {
+	if (paths.length === 0) {
+		return text
+	}
+	return [text.trim(), attachmentBlock(paths, sentAt)]
+		.filter((part) => part.length > 0)
+		.join("\n")
 }
 
 export function toAttachmentStoreError(reason: unknown): AttachmentStoreError {

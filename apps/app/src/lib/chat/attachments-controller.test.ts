@@ -1,4 +1,4 @@
-import { describe, expect, it, vi } from "vitest"
+import { afterEach, beforeEach, describe, expect, it, vi } from "vitest"
 
 import type {
 	AttachmentsOwner,
@@ -64,7 +64,33 @@ const heldPort = (unreachable: string[] = []) => {
 	}
 }
 
+const SENT_WITH_NOTES =
+	"look\nAttached to this message, sent 2026-09-18T10:15:30.000Z, 1 file:\n1/1 /data/a/1.md"
+
+beforeEach(() => {
+	vi.useFakeTimers({ toFake: ["Date"] })
+	vi.setSystemTime(new Date("2026-09-18T10:15:30Z"))
+})
+
+afterEach(() => {
+	vi.useRealTimers()
+})
+
 describe("a submission in flight", () => {
+	it("dates the block at the moment of submission, not when the store answers", async () => {
+		const host = heldPort()
+		const controller = createAttachmentsController(host.port)
+		controller.stage(bot("a"), [fileNamed("notes.md")])
+
+		const submission = controller.submit(bot("a"), "look")
+		await host.whenStored()
+		vi.setSystemTime(new Date("2026-09-18T10:16:00Z"))
+		host.answerWith(["/data/a/1.md"])
+
+		expect(await submission).toBe(true)
+		expect(host.sent).toEqual([{ owner: "bot:a", text: SENT_WITH_NOTES }])
+	})
+
 	it("refuses a second one and stores nothing twice", async () => {
 		const host = heldPort()
 		const controller = createAttachmentsController(host.port)
@@ -78,7 +104,7 @@ describe("a submission in flight", () => {
 		expect(second).toBe(false)
 		expect(await first).toBe(true)
 		expect(host.stored).toHaveLength(1)
-		expect(host.sent).toEqual([{ owner: "bot:a", text: "look\n/data/a/1.md" }])
+		expect(host.sent).toEqual([{ owner: "bot:a", text: SENT_WITH_NOTES }])
 	})
 
 	it("delivers to the companion it started on, whoever is read meanwhile", async () => {
@@ -93,7 +119,7 @@ describe("a submission in flight", () => {
 
 		expect(await submission).toBe(true)
 		expect(host.stored).toEqual([{ owner: "bot:a", names: ["notes.md"] }])
-		expect(host.sent).toEqual([{ owner: "bot:a", text: "look\n/data/a/1.md" }])
+		expect(host.sent).toEqual([{ owner: "bot:a", text: SENT_WITH_NOTES }])
 		expect(
 			controller.getState().staged["bot:b"]?.map((item) => item.name),
 		).toEqual(["other.md"])

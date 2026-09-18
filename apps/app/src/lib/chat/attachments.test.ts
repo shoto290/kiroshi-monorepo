@@ -14,6 +14,8 @@ import {
 
 const t = i18n.getFixedT(null, "chat")
 
+const SENT_AT = new Date("2026-09-18T10:15:30Z")
+
 const fileNamed = (name: string, type: string, bytes = [1, 2, 3]) =>
 	new File([new Uint8Array(bytes)], name, { type })
 
@@ -81,25 +83,36 @@ describe("the submitted prompt", () => {
 		])
 	})
 
-	it("names one stored path per line under what was typed", () => {
+	it("names each stored path under a dated header, in the order submitted", () => {
 		expect(
-			promptWithAttachments("look at these", [
-				"/data/attachments/c1/a.png",
-				"/data/attachments/c1/b.pdf",
-			]),
+			promptWithAttachments(
+				"look at these",
+				["/data/attachments/c1/a.png", "/data/attachments/c1/b.pdf"],
+				SENT_AT,
+			),
 		).toBe(
-			"look at these\n/data/attachments/c1/a.png\n/data/attachments/c1/b.pdf",
+			"look at these\nAttached to this message, sent 2026-09-18T10:15:30.000Z, 2 files:\n1/2 /data/attachments/c1/a.png\n2/2 /data/attachments/c1/b.pdf",
 		)
 	})
 
-	it("is the paths alone when nothing was typed", () => {
-		expect(promptWithAttachments("   ", ["/data/attachments/c1/a.png"])).toBe(
-			"/data/attachments/c1/a.png",
+	it("names a single file in the singular", () => {
+		expect(
+			promptWithAttachments("one", ["/data/attachments/c1/a.png"], SENT_AT),
+		).toBe(
+			"one\nAttached to this message, sent 2026-09-18T10:15:30.000Z, 1 file:\n1/1 /data/attachments/c1/a.png",
 		)
 	})
 
-	it("is the text alone when nothing was attached", () => {
-		expect(promptWithAttachments("hello", [])).toBe("hello")
+	it("is the block alone when nothing was typed", () => {
+		expect(
+			promptWithAttachments("   ", ["/data/attachments/c1/a.png"], SENT_AT),
+		).toBe(
+			"Attached to this message, sent 2026-09-18T10:15:30.000Z, 1 file:\n1/1 /data/attachments/c1/a.png",
+		)
+	})
+
+	it("is the text unchanged when nothing was attached", () => {
+		expect(promptWithAttachments(" hello ", [], SENT_AT)).toBe(" hello ")
 	})
 })
 

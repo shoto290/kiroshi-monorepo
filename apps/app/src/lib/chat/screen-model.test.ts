@@ -518,7 +518,7 @@ describe("quoted messages", () => {
 	it("quotes a loaded message without its attachment markers", () => {
 		const quoted = message({
 			id: "m-9",
-			content: promptWithAttachments("Look at this", [ATTACHMENT]),
+			content: promptWithAttachments("Look at this", [ATTACHMENT], new Date()),
 		})
 		const targets = quotedTargetsIn(
 			[quoted, prompt({ id: "p-1", repliedToMessageId: "m-9" })],
