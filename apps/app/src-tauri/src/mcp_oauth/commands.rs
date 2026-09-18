@@ -10,7 +10,7 @@ use super::asking::AuthorizationAnswers;
 use super::contract::{Disconnected, OauthError};
 use super::credentials::{self, ServedGrants};
 use super::refresh::{self, Renewal, Renewals};
-use super::refusal::{refusal_line, Refused, Step};
+use super::refusal::{refusal_line, withheld_reason, Refused, Step};
 use super::reports::{ApplicationReports, Standing};
 use super::status::{holds_a_usable_grant, status, ApplicationRow, Evidence};
 use crate::agent::commands::AgentState;
@@ -203,7 +203,10 @@ fn refuse_what_kiroshi_does_not_authorize<R: Runtime>(
 		.map_err(|error| Step::ReadingTheDeclaredServer.refused(error.into()))?;
 	match withheld {
 		Some(carries) => {
-			Err(Step::CheckingTheServer.refused(OauthError::NotAuthorizable { carries }))
+			Err(Step::CheckingTheServer.refused(OauthError::NotAuthorizable {
+				carries,
+				detail: withheld_reason(carries).to_owned(),
+			}))
 		}
 		None => Ok(()),
 	}
@@ -328,7 +331,7 @@ where
 	forget_renewed(reports, &renewals);
 	let grants = credentials::served(root, owner)?;
 	let now = now_ms();
-	let unreported = worth_asking(&servers, owner, reports, &grants, now);
+	let unreported = worth_asking(&servers, &grants, now);
 	let asking = answers.asking_authorization(unreported, now).await;
 	let readings = Readings {
 		owner,
@@ -342,17 +345,10 @@ where
 	Ok(servers.into_iter().map(|server| readings.row(server)).collect())
 }
 
-fn worth_asking(
-	servers: &[McpServer],
-	owner: &EnvOwner,
-	reports: &ApplicationReports,
-	grants: &ServedGrants,
-	now: i64,
-) -> HashSet<String> {
+fn worth_asking(servers: &[McpServer], grants: &ServedGrants, now: i64) -> HashSet<String> {
 	servers
 		.iter()
 		.filter(|server| server.kiroshi_authorizes())
-		.filter(|server| last_reported(reports, owner, &server.name).is_none())
 		.filter(|server| {
 			!grants.get(&server.name).is_some_and(|grant| holds_a_usable_grant(&grant.held, now))
 		})
@@ -556,15 +552,21 @@ mod tests {
 			)
 			.await;
 
-			assert_eq!(refused, Err(OauthError::NotAuthorizable { carries }), "{name}");
+			let detail = withheld_reason(carries).to_owned();
+			assert_eq!(refused, Err(OauthError::NotAuthorizable { carries, detail }), "{name}");
 			assert!(!app.state::<McpOauthState>().is_running(), "{name}");
 		}
 		assert_eq!(
 			serde_json::to_value(OauthError::NotAuthorizable {
-				carries: AuthorizationWithheld::LoopbackAddress
+				carries: AuthorizationWithheld::LoopbackAddress,
+				detail: withheld_reason(AuthorizationWithheld::LoopbackAddress).to_owned(),
 			})
 			.expect("the error serializes"),
-			serde_json::json!({ "kind": "notAuthorizable", "carries": "loopbackAddress" })
+			serde_json::json!({
+				"kind": "notAuthorizable",
+				"carries": "loopbackAddress",
+				"detail": "it is served on a loopback address"
+			})
 		);
 		let _ = std::fs::remove_dir_all(&data);
 	}
@@ -1043,28 +1045,40 @@ mod tests {
 		);
 	}
 
-	#[tokio::test]
-	async fn an_application_a_session_left_out_holding_no_grant_reads_failed_with_its_reason() {
-		let root = a_root("left-out-no-grant");
+	async fn left_out_rows_holding_no_grant(root_name: &str, asks: bool) -> Vec<ApplicationRow> {
 		let reports = ApplicationReports::default();
 		left_out_by_a_session(&reports);
-
-		let rows = renewed_rows(
-			&root,
+		let answers = AuthorizationAnswers::default();
+		answers.answered(GRANOLA_URL, asks, now_ms());
+		renewed_rows(
+			&a_root(root_name),
 			&a_bot(),
 			granola_declared(),
 			&McpOauthState::default(),
 			&reports,
-			&AuthorizationAnswers::default(),
+			&answers,
 			|_| async { Err(TransportError::NotStarted) },
 		)
 		.await
-		.expect("the rows read");
+		.expect("the rows read")
+	}
+
+	#[tokio::test]
+	async fn an_application_a_session_left_out_answering_it_asks_for_none_reads_failed_with_its_reason(
+	) {
+		let rows = left_out_rows_holding_no_grant("left-out-asking-none", false).await;
 
 		assert_eq!(
 			rows[0].status,
 			ApplicationStatus::Failed { reason: Some("it read failed".to_owned()) }
 		);
+	}
+
+	#[tokio::test]
+	async fn an_application_a_session_left_out_answering_it_asks_for_authorization_needs_it() {
+		let rows = left_out_rows_holding_no_grant("left-out-asking", true).await;
+
+		assert_eq!(rows[0].status, ApplicationStatus::NeedsAuthorization { reason: None });
 	}
 
 	#[tokio::test]

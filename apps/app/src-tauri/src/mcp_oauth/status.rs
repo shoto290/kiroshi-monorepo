@@ -56,6 +56,9 @@ pub fn status(evidence: Evidence, now: i64) -> ApplicationStatus {
 	match evidence.reported {
 		Some(Standing::Holding) => ApplicationStatus::Connected,
 		Some(Standing::NeedsAuth { .. }) => needs_auth(&evidence.held, now),
+		Some(Standing::LeftOut { .. }) if evidence.asks_for_authorization => {
+			ApplicationStatus::NeedsAuthorization { reason: None }
+		}
 		Some(Standing::LeftOut { reason }) => ApplicationStatus::Failed {
 			reason: reason.map(|reason| credentials::scrubbed(reason, &evidence.held)),
 		},
@@ -135,7 +138,7 @@ mod tests {
 			refusal: None,
 			reported: Some(standing),
 			held: a_grant(Some(NOW + 1)),
-			asks_for_authorization: true,
+			asks_for_authorization: false,
 		}
 	}
 
@@ -256,6 +259,13 @@ mod tests {
 			status(unreported(holding_no_refresh_token(Some(NOW)), false), NOW),
 			ApplicationStatus::Unknown
 		);
+	}
+
+	#[test]
+	fn a_server_a_session_left_out_answering_that_it_asks_for_authorization_needs_it() {
+		let asking = Evidence { asks_for_authorization: true, ..left_out_holding(Values::new()) };
+
+		assert_eq!(status(asking, NOW), ApplicationStatus::NeedsAuthorization { reason: None });
 	}
 
 	#[test]

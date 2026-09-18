@@ -3,7 +3,7 @@ use std::sync::{Mutex, MutexGuard, PoisonError};
 use std::time::Duration;
 
 use reqwest::header::{ACCEPT, WWW_AUTHENTICATE};
-use reqwest::{Client, StatusCode};
+use reqwest::{Client, Response, StatusCode, Url};
 use serde_json::json;
 use tokio::task::JoinSet;
 
@@ -16,6 +16,10 @@ const ANSWER_HELD_MS: i64 = 600_000;
 const MCP_ACCEPT: &str = "application/json, text/event-stream";
 
 const MCP_PROTOCOL_VERSION: &str = "2025-06-18";
+
+const PROTECTED_RESOURCE_METADATA: &str = "/.well-known/oauth-protected-resource";
+
+const AUTHORIZATION_SERVERS: &str = "authorization_servers";
 
 struct Answer {
 	asks: bool,
@@ -102,21 +106,76 @@ fn asking_client() -> Result<Client, reqwest::Error> {
 }
 
 async fn answer_of(client: &Client, url: &str, bound: Duration) -> Option<bool> {
-	let asked = client.post(url).header(ACCEPT, MCP_ACCEPT).json(&an_initialize()).send();
-	match tokio::time::timeout(bound, asked).await {
-		Ok(Ok(answered)) => Some(asks_for_authorization(
+	tokio::time::timeout(bound, asked_in_turn(client, url)).await.unwrap_or(None)
+}
+
+async fn asked_in_turn(client: &Client, url: &str) -> Option<bool> {
+	for metadata in metadata_urls(url) {
+		let Ok(answered) = client.get(metadata).send().await else {
+			continue;
+		};
+		if is_transient(answered.status()) {
+			return None;
+		}
+		if names_an_authorization_server(answered).await {
+			return Some(true);
+		}
+	}
+	initialize_answer(client, url).await
+}
+
+async fn initialize_answer(client: &Client, url: &str) -> Option<bool> {
+	let asked = client.post(url).header(ACCEPT, MCP_ACCEPT).json(&an_initialize()).send().await;
+	match asked {
+		Ok(answered) if is_transient(answered.status()) => None,
+		Ok(answered) => Some(asks_for_authorization(
 			answered.status(),
 			answered.headers().contains_key(WWW_AUTHENTICATE),
 		)),
-		Ok(Err(error)) => {
+		Err(error) => {
 			eprintln!(
 				"a server did not answer whether it asks for authorization: {}",
 				error.without_url()
 			);
 			None
 		}
-		Err(_) => None,
 	}
+}
+
+fn metadata_urls(url: &str) -> Vec<Url> {
+	let Ok(mut resource) = Url::parse(url) else {
+		return Vec::new();
+	};
+	resource.set_query(None);
+	resource.set_fragment(None);
+	let path = resource.path().trim_end_matches('/').to_owned();
+	let mut urls = Vec::new();
+	for suffix in [path.as_str(), ""] {
+		let mut metadata = resource.clone();
+		metadata.set_path(&format!("{PROTECTED_RESOURCE_METADATA}{suffix}"));
+		if !urls.contains(&metadata) {
+			urls.push(metadata);
+		}
+	}
+	urls
+}
+
+async fn names_an_authorization_server(answered: Response) -> bool {
+	if answered.status() != StatusCode::OK {
+		return false;
+	}
+	answered.json::<serde_json::Value>().await.is_ok_and(|metadata| {
+		metadata
+			.get(AUTHORIZATION_SERVERS)
+			.and_then(serde_json::Value::as_array)
+			.is_some_and(|servers| !servers.is_empty())
+	})
+}
+
+fn is_transient(status: StatusCode) -> bool {
+	status == StatusCode::REQUEST_TIMEOUT
+		|| status == StatusCode::TOO_MANY_REQUESTS
+		|| status.as_u16() >= 500
 }
 
 fn an_initialize() -> serde_json::Value {
@@ -146,36 +205,50 @@ impl AuthorizationAnswers {
 #[cfg(test)]
 mod tests {
 	use std::net::{Ipv4Addr, SocketAddr};
-	use std::sync::atomic::{AtomicUsize, Ordering};
 	use std::sync::Arc;
 	use std::time::Instant;
 
-	use axum::extract::{Path as AxumPath, State as Extracted};
-	use axum::http::{HeaderMap, StatusCode as Answered};
-	use axum::routing::post;
+	use axum::http::{HeaderMap, Method, StatusCode as Answered, Uri};
 	use axum::Router;
 	use tokio::sync::watch as signal;
+	use tokio::sync::Mutex;
 
 	use super::*;
 
 	const NOW: i64 = 1_800_000_000_000;
 
+	const NAMING_A_SERVER: &str = r#"{"authorization_servers":["https://auth.granola.test"]}"#;
+
+	const NAMING_NONE: &str = r#"{"authorization_servers":[]}"#;
+
+	type Asked = Arc<Mutex<Vec<(Method, String)>>>;
+
+	#[derive(Clone)]
+	struct Served {
+		asked: Asked,
+		root_names_a_server: bool,
+	}
+
 	struct Stub {
 		base: String,
-		asked: Arc<AtomicUsize>,
+		asked: Asked,
 		_stop: signal::Sender<bool>,
 	}
 
 	impl Stub {
 		async fn serving() -> Self {
-			let asked = Arc::new(AtomicUsize::new(0));
+			Self::answering_at_the_root(false).await
+		}
+
+		async fn answering_at_the_root(root_names_a_server: bool) -> Self {
+			let asked = Asked::default();
 			let listener = tokio::net::TcpListener::bind((Ipv4Addr::LOCALHOST, 0))
 				.await
 				.expect("the stub binds");
 			let address: SocketAddr = listener.local_addr().expect("the stub is named");
 			let (stop, halted) = signal::channel(false);
-			let router =
-				Router::new().route("/{answer}", post(answer_named)).with_state(asked.clone());
+			let served = Served { asked: asked.clone(), root_names_a_server };
+			let router = Router::new().fallback(answer_named).with_state(served);
 			let mut halting = halted;
 			tokio::spawn(async move {
 				let _ = axum::serve(listener, router)
@@ -188,32 +261,76 @@ mod tests {
 		}
 
 		fn at(&self, answer: &str) -> String {
-			format!("{}/{answer}", self.base)
+			format!("{}/{answer}/mcp", self.base)
 		}
 
-		fn asked(&self) -> usize {
-			self.asked.load(Ordering::SeqCst)
+		async fn asked(&self) -> Vec<(Method, String)> {
+			self.asked.lock().await.clone()
+		}
+
+		async fn initializes(&self) -> usize {
+			self.asked().await.iter().filter(|(method, _)| method == Method::POST).count()
 		}
 	}
 
 	async fn answer_named(
-		Extracted(asked): Extracted<Arc<AtomicUsize>>,
-		AxumPath(answer): AxumPath<String>,
-	) -> (Answered, HeaderMap) {
-		asked.fetch_add(1, Ordering::SeqCst);
+		axum::extract::State(served): axum::extract::State<Served>,
+		method: Method,
+		uri: Uri,
+	) -> (Answered, HeaderMap, String) {
+		let path = uri.path().to_owned();
+		served.asked.lock().await.push((method.clone(), path.clone()));
+		let name = path.trim_start_matches(PROTECTED_RESOURCE_METADATA);
+		let name = name.trim_start_matches('/').split('/').next().unwrap_or_default().to_owned();
+		if name.starts_with("slowly") {
+			tokio::time::sleep(Duration::from_millis(120)).await;
+		}
+		if method == Method::GET {
+			return metadata_of(&served, &path, &name);
+		}
+		initialize_of(&name).await
+	}
+
+	fn metadata_of(served: &Served, path: &str, name: &str) -> (Answered, HeaderMap, String) {
+		let answered = |status, body: &str| (status, HeaderMap::new(), body.to_owned());
+		if path == PROTECTED_RESOURCE_METADATA {
+			return match served.root_names_a_server {
+				true => answered(Answered::OK, NAMING_A_SERVER),
+				false => answered(Answered::NOT_FOUND, ""),
+			};
+		}
+		match name {
+			"metadata" => answered(Answered::OK, NAMING_A_SERVER),
+			"empty-metadata" => answered(Answered::OK, NAMING_NONE),
+			"metadata-unavailable" => answered(Answered::SERVICE_UNAVAILABLE, ""),
+			_ => answered(Answered::NOT_FOUND, ""),
+		}
+	}
+
+	async fn initialize_of(name: &str) -> (Answered, HeaderMap, String) {
 		let mut headers = HeaderMap::new();
-		let challenge = || "Bearer resource_metadata=\"x\"".parse().expect("the header parses");
-		let status = match answer.as_str() {
-			"challenged-401" => {
-				headers.insert(WWW_AUTHENTICATE, challenge());
+		let challenged = |headers: &mut HeaderMap| {
+			headers.insert(
+				WWW_AUTHENTICATE,
+				"Bearer resource_metadata=\"x\"".parse().expect("the header parses"),
+			);
+		};
+		let status = match name {
+			"challenged-401" | "empty-metadata" | "slowly" => {
+				challenged(&mut headers);
 				Answered::UNAUTHORIZED
 			}
 			"bare-401" => Answered::UNAUTHORIZED,
 			"challenged-403" => {
-				headers.insert(WWW_AUTHENTICATE, challenge());
+				challenged(&mut headers);
 				Answered::FORBIDDEN
 			}
 			"bare-403" => Answered::FORBIDDEN,
+			"not-found" => Answered::NOT_FOUND,
+			"sse-405" => Answered::METHOD_NOT_ALLOWED,
+			"request-timeout" => Answered::REQUEST_TIMEOUT,
+			"too-many" => Answered::TOO_MANY_REQUESTS,
+			"unavailable" => Answered::SERVICE_UNAVAILABLE,
 			"stalled" => {
 				tokio::time::sleep(Duration::from_millis(2000)).await;
 				Answered::UNAUTHORIZED
@@ -222,27 +339,117 @@ mod tests {
 				tokio::time::sleep(Duration::from_millis(400)).await;
 				Answered::UNAUTHORIZED
 			}
-			"not-found" => Answered::NOT_FOUND,
 			_ => Answered::OK,
 		};
-		(status, headers)
+		(status, headers, String::new())
 	}
 
 	fn urls(stub: &Stub, answers: &[&str]) -> HashSet<String> {
 		answers.iter().map(|answer| stub.at(answer)).collect()
 	}
 
+	#[test]
+	fn the_metadata_is_asked_at_the_path_appended_well_known_then_at_the_root() {
+		let asked = |url: &str| -> Vec<String> {
+			metadata_urls(url).into_iter().map(String::from).collect()
+		};
+
+		assert_eq!(
+			asked("https://mcp.granola.test/v1/mcp/?session=held#top"),
+			[
+				"https://mcp.granola.test/.well-known/oauth-protected-resource/v1/mcp",
+				"https://mcp.granola.test/.well-known/oauth-protected-resource",
+			]
+		);
+		assert_eq!(
+			asked("https://mcp.granola.test/"),
+			["https://mcp.granola.test/.well-known/oauth-protected-resource"]
+		);
+		assert!(asked("not a url").is_empty());
+	}
+
 	#[tokio::test]
-	async fn a_401_or_a_403_carrying_a_challenge_reads_as_asking_for_authorization() {
+	async fn metadata_naming_an_authorization_server_reads_as_asking_and_sends_no_initialize() {
+		let stub = Stub::serving().await;
+
+		let asking = AuthorizationAnswers::default()
+			.asking_authorization(urls(&stub, &["metadata"]), NOW)
+			.await;
+
+		assert_eq!(asking, urls(&stub, &["metadata"]));
+		assert_eq!(
+			stub.asked().await,
+			[(Method::GET, format!("{PROTECTED_RESOURCE_METADATA}/metadata/mcp"))]
+		);
+	}
+
+	#[tokio::test]
+	async fn metadata_at_the_root_naming_an_authorization_server_reads_as_asking() {
+		let stub = Stub::answering_at_the_root(true).await;
+
+		let asking =
+			AuthorizationAnswers::default().asking_authorization(urls(&stub, &["ok"]), NOW).await;
+
+		assert_eq!(asking, urls(&stub, &["ok"]));
+		assert_eq!(stub.initializes().await, 0);
+		assert_eq!(stub.asked().await.len(), 2);
+	}
+
+	#[tokio::test]
+	async fn metadata_naming_no_authorization_server_falls_back_on_the_initialize() {
+		let stub = Stub::serving().await;
+
+		let asking = AuthorizationAnswers::default()
+			.asking_authorization(urls(&stub, &["empty-metadata"]), NOW)
+			.await;
+
+		assert_eq!(asking, urls(&stub, &["empty-metadata"]));
+		assert_eq!(stub.initializes().await, 1);
+	}
+
+	#[tokio::test]
+	async fn with_no_metadata_a_401_or_a_403_carrying_a_challenge_reads_as_asking() {
 		let stub = Stub::serving().await;
 		let asked = urls(
 			&stub,
-			&["challenged-401", "bare-401", "challenged-403", "bare-403", "ok", "not-found"],
+			&[
+				"challenged-401",
+				"bare-401",
+				"challenged-403",
+				"bare-403",
+				"ok",
+				"not-found",
+				"sse-405",
+			],
 		);
 
-		let asking = AuthorizationAnswers::default().asking_authorization(asked, NOW).await;
+		let answers = AuthorizationAnswers::default();
+		let asking = answers.asking_authorization(asked, NOW).await;
 
 		assert_eq!(asking, urls(&stub, &["challenged-401", "bare-401", "challenged-403"]));
+		assert_eq!(answers.held().len(), 7);
+		assert_eq!(stub.initializes().await, 7);
+	}
+
+	#[tokio::test]
+	async fn a_transient_status_holds_no_answer_and_the_next_read_asks_again() {
+		let stub = Stub::serving().await;
+		let answers = AuthorizationAnswers::default();
+		let transient =
+			urls(&stub, &["request-timeout", "too-many", "unavailable", "metadata-unavailable"]);
+
+		assert!(answers.asking_authorization(transient.clone(), NOW).await.is_empty());
+		assert!(answers.held().is_empty());
+		assert_eq!(stub.initializes().await, 3);
+
+		answers.asking_authorization(transient, NOW + 1).await;
+
+		assert_eq!(stub.initializes().await, 6);
+		let metadata_unavailable =
+			format!("{PROTECTED_RESOURCE_METADATA}/metadata-unavailable/mcp");
+		let asked_twice =
+			stub.asked().await.iter().filter(|(_, path)| *path == metadata_unavailable).count();
+		assert_eq!(asked_twice, 2);
 	}
 
 	#[tokio::test]
@@ -255,6 +462,23 @@ mod tests {
 
 		assert!(asking.is_empty());
 		assert!(answers.held().is_empty());
+	}
+
+	#[tokio::test]
+	async fn the_bound_is_taken_over_every_request_sent_for_one_url() {
+		let stub = Stub::serving().await;
+		let answers = AuthorizationAnswers::default();
+
+		let asking =
+			answers.asked_within(urls(&stub, &["slowly"]), NOW, Duration::from_millis(200)).await;
+
+		assert!(asking.is_empty());
+		assert!(answers.held().is_empty());
+
+		let unbounded =
+			answers.asked_within(urls(&stub, &["slowly"]), NOW, Duration::from_millis(1000)).await;
+
+		assert_eq!(unbounded, urls(&stub, &["slowly"]));
 	}
 
 	#[tokio::test]
@@ -275,12 +499,12 @@ mod tests {
 		answers.asking_authorization(asked.clone(), NOW).await;
 		let held = answers.asking_authorization(asked.clone(), NOW + ANSWER_HELD_MS - 1).await;
 
-		assert_eq!(stub.asked(), 1);
+		assert_eq!(stub.initializes().await, 1);
 		assert_eq!(held, asked);
 
 		answers.asking_authorization(asked.clone(), NOW + ANSWER_HELD_MS).await;
 
-		assert_eq!(stub.asked(), 2);
+		assert_eq!(stub.initializes().await, 2);
 	}
 
 	#[tokio::test]

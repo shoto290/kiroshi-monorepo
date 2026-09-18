@@ -23,6 +23,7 @@ pub enum OauthError {
 	#[serde(rename_all = "camelCase")]
 	NotAuthorizable {
 		carries: AuthorizationWithheld,
+		detail: String,
 	},
 	#[serde(rename_all = "camelCase")]
 	RefusedUrl {

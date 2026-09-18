@@ -56,7 +56,7 @@ impl Step {
 	}
 }
 
-fn withheld_reason(carries: AuthorizationWithheld) -> &'static str {
+pub fn withheld_reason(carries: AuthorizationWithheld) -> &'static str {
 	match carries {
 		AuthorizationWithheld::LoopbackAddress => "it is served on a loopback address",
 		AuthorizationWithheld::OwnAuthorizationHeader => "it carries its own authorization header",
@@ -85,7 +85,7 @@ fn reason(error: &OauthError) -> String {
 			None => detail.clone(),
 		},
 		OauthError::BrowserRefused { url } | OauthError::RefusedUrl { url } => url.clone(),
-		OauthError::NotAuthorizable { carries } => withheld_reason(*carries).to_owned(),
+		OauthError::NotAuthorizable { detail, .. } => detail.clone(),
 		OauthError::FlowTimedOut { timeout_ms } => format!("no answer within {timeout_ms}ms"),
 		OauthError::Transport { error } => format!("{error:?}"),
 		OauthError::Store { error } => format!("{error:?}"),
