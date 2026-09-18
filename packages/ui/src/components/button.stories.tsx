@@ -141,3 +141,46 @@ export const WithIcons = meta.story({
 		</Row>
 	),
 })
+
+const resolveStyle = (
+	host: HTMLElement,
+	property: "borderTopLeftRadius" | "fontSize",
+	value: string,
+) => {
+	const probe = document.createElement("span")
+	probe.style[property] = value
+	host.append(probe)
+	const resolved = getComputedStyle(probe)[property]
+	probe.remove()
+	return resolved
+}
+
+export const ClassNameOverridesProjectTokens = meta.story({
+	tags: ["test-only"],
+	args: { className: "rounded-card text-compact" },
+	play: async ({ canvas, canvasElement }) => {
+		const button = canvas.getByRole("button", { name: "Button" })
+		const style = getComputedStyle(button)
+		const cardRadius = resolveStyle(
+			canvasElement,
+			"borderTopLeftRadius",
+			"var(--radius-card)",
+		)
+		const compactSize = resolveStyle(
+			canvasElement,
+			"fontSize",
+			"var(--text-compact)",
+		)
+
+		await expect(cardRadius).not.toBe(
+			resolveStyle(canvasElement, "borderTopLeftRadius", "var(--radius-2xl)"),
+		)
+		await expect(compactSize).not.toBe(
+			resolveStyle(canvasElement, "fontSize", "var(--text-sm)"),
+		)
+		await expect(style.borderTopLeftRadius).toBe(cardRadius)
+		await expect(style.fontSize).toBe(compactSize)
+		await expect(button).not.toHaveClass("rounded-2xl")
+		await expect(button).not.toHaveClass("text-sm")
+	},
+})
