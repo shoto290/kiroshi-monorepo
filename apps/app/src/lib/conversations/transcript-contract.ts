@@ -43,6 +43,14 @@ export type CompanionArrival = {
 	createdAt: number
 }
 
+export const COMPANION_SPOKE_EVENT = "conversation://companion-spoke"
+
+export type CompanionSpoke = {
+	conversationId: string
+	authorBotId: string
+	text: string
+}
+
 export type TranscriptPage = {
 	conversationId: string
 	messages: TranscriptMessage[]

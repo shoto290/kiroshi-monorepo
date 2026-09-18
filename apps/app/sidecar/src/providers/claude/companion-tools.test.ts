@@ -42,6 +42,12 @@ const calls: [string, Record<string, unknown>, string][] = [
 	["companion_create", A_DRAFT, "create"],
 	["companion_first_run_done", {}, "firstRunDone"],
 	["companion_invite", { companion: "Quill" }, "invite"],
+	["companion_invite", { companion: "Quill", conversation: "c2" }, "invite"],
+	[
+		"conversation_open",
+		{ title: "Trip", with: ["Quill"], message: "Where to?" },
+		"conversationOpen",
+	],
 ]
 
 const answers: Record<string, unknown> = {
@@ -49,6 +55,14 @@ const answers: Record<string, unknown> = {
 	create: { id: "b2", name: "Quill" },
 	firstRunDone: null,
 	invite: { id: "b2", name: "Quill", alreadySeated: false },
+	conversationOpen: {
+		conversationId: "c3",
+		title: "Trip",
+		companions: [
+			{ id: "b1", name: "Shoto" },
+			{ id: "b2", name: "Quill" },
+		],
+	},
 }
 
 const NAMES_A_SEQUENCE = /\b(then|after|first|next|once|until)\b/i
@@ -93,7 +107,7 @@ afterEach(() => {
 })
 
 describe("companionTools", () => {
-	it("takes neither a conversation nor a space from the agent", () => {
+	it("takes neither a conversation id nor a space id from the agent", () => {
 		for (const held of companionTools(SESSION)) {
 			expect(Object.keys(held.inputSchema)).not.toContain("conversationId")
 			expect(Object.keys(held.inputSchema)).not.toContain("spaceId")
@@ -107,12 +121,21 @@ describe("companionTools", () => {
 		}
 	})
 
-	it("takes one field naming the companion to invite and names no sequence of work", () => {
+	it("takes the companion to invite and an optional room and names no sequence of work", () => {
 		const invite = toolNamed(SESSION, "companion_invite")
 
-		expect(Object.keys(invite.inputSchema)).toEqual(["companion"])
+		expect(Object.keys(invite.inputSchema)).toEqual([
+			"companion",
+			"conversation",
+		])
 		expect(invite.description).toMatch(/\bbefore\b/)
 		expect(invite.description).not.toMatch(NAMES_A_SEQUENCE)
+	})
+
+	it("takes the title, the companions and the message of the room it opens", () => {
+		const open = toolNamed(SESSION, "conversation_open")
+
+		expect(Object.keys(open.inputSchema)).toEqual(["title", "with", "message"])
 	})
 
 	it("hands each call to the host of its session and speaks the answer back", async () => {

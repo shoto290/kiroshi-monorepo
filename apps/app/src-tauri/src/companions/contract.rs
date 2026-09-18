@@ -26,6 +26,21 @@ pub struct CompanionInvited {
 
 #[derive(Debug, Clone, PartialEq, Eq, Serialize, Deserialize)]
 #[serde(rename_all = "camelCase")]
+pub struct SeatedCompanion {
+	pub id: String,
+	pub name: String,
+}
+
+#[derive(Debug, Clone, PartialEq, Eq, Serialize, Deserialize)]
+#[serde(rename_all = "camelCase")]
+pub struct ConversationOpened {
+	pub conversation_id: String,
+	pub title: String,
+	pub companions: Vec<SeatedCompanion>,
+}
+
+#[derive(Debug, Clone, PartialEq, Eq, Serialize, Deserialize)]
+#[serde(rename_all = "camelCase")]
 pub struct CompanionSeedRefused {
 	pub reason: String,
 }
@@ -46,6 +61,8 @@ pub enum CompanionError {
 	Storage { failure: StorageFailure },
 	NamelessCompanion,
 	EmptyCompanionField,
+	EmptyTitleField,
+	EmptyMessageField,
 	#[serde(rename_all = "camelCase")]
 	AmbiguousCompanion { companion: String, ids: Vec<String> },
 	#[serde(rename_all = "camelCase")]
@@ -54,6 +71,8 @@ pub enum CompanionError {
 	ConversationWithoutSeats { conversation_id: String, conversation_kind: String },
 	#[serde(rename_all = "camelCase")]
 	ConversationWithoutSpace { conversation_id: String },
+	#[serde(rename_all = "camelCase")]
+	CallerNotSeated { conversation_id: String },
 	#[serde(rename_all = "camelCase")]
 	UnreadableRequest { detail: String },
 	#[serde(rename_all = "camelCase")]
