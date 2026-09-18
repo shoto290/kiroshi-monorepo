@@ -17,7 +17,6 @@ const MCP_ACCEPT: &str = "application/json, text/event-stream";
 
 const MCP_PROTOCOL_VERSION: &str = "2025-06-18";
 
-#[derive(Clone, Copy)]
 struct Answer {
 	asks: bool,
 	at: i64,
