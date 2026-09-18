@@ -47,6 +47,9 @@ export const Reported = meta.story({
 	play: async ({ canvas, canvasElement }) => {
 		await expect(canvas.getByText(REPORTED_RUN.routineTitle)).toBeVisible()
 		await expect(
+			canvas.getByRole("img", { name: "Companion avatar owl, idle" }),
+		).toBeVisible()
+		await expect(
 			canvas.getByText(REPORTED_RUN.triggerSourceTitle),
 		).toBeVisible()
 		await expect(canvas.getByText(REPORTED_RUN.bot.name)).toBeVisible()
