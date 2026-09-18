@@ -930,9 +930,6 @@ export const createConversationController = (
 		}
 	}
 
-	const isHeldForReport = async (conversationId: string) =>
-		(await seatingFor(conversationId)) === "held"
-
 	const openReportTurn = async (reported: TranscriptMessage) => {
 		if (speakers.size > 0) {
 			return true
@@ -974,7 +971,7 @@ export const createConversationController = (
 	}
 
 	const reportRun = async (draft: RunReportDraft) => {
-		const isSeated = await isHeldForReport(draft.conversationId)
+		const isSeated = (await seatingFor(draft.conversationId)) === "held"
 		const text = isSeated
 			? toMentionTokens(draft.text, mentionBots())
 			: draft.text

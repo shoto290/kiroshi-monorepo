@@ -9,7 +9,7 @@ import {
 } from "./conversation-runtimes"
 import { createFakeTranscriptStore } from "./fake-transcript-store"
 import { createScriptedDriver, type ScriptedDriver } from "./scripted-driver"
-import type { Conversation } from "./store-contract"
+import type { Conversation, Space } from "./store-contract"
 import type { TranscriptStore } from "./store-port"
 import type { CompanionSpoke } from "./transcript-contract"
 import { seatBots } from "./transcript-fixtures"
@@ -80,24 +80,16 @@ const createRoom = async (
 	return { driver, store, runtimes, conversation, notices, announce, stop }
 }
 
-const refusingFirstRead = (store: TranscriptStore): TranscriptStore => {
+const answeringFirstReadWith = (
+	store: TranscriptStore,
+	first: () => Promise<Space[]>,
+): TranscriptStore => {
 	let reads = 0
 	return {
 		...store,
 		spaces: () => {
 			reads += 1
-			return reads === 1 ? Promise.reject(new Error("refused")) : store.spaces()
-		},
-	}
-}
-
-const blindOnFirstRead = (store: TranscriptStore): TranscriptStore => {
-	let reads = 0
-	return {
-		...store,
-		spaces: () => {
-			reads += 1
-			return reads === 1 ? Promise.resolve([]) : store.spaces()
+			return reads === 1 ? first() : store.spaces()
 		},
 	}
 }
@@ -226,7 +218,9 @@ describe("a companion speaking in a room the front never opened", () => {
 
 	it("raises a failure and writes on redelivery when the conversation cannot be read", async () => {
 		const { store, conversation, notices, announce } = await createRoom(
-			refusingFirstRead(createFakeTranscriptStore()),
+			answeringFirstReadWith(createFakeTranscriptStore(), () =>
+				Promise.reject(new Error("refused")),
+			),
 		)
 		const ada = idOf(conversation, "Ada")
 		const spoken: CompanionSpoke = {
@@ -249,7 +243,9 @@ describe("a companion speaking in a room the front never opened", () => {
 
 	it("keeps an unknown conversation deduped when it later shows up", async () => {
 		const { store, conversation, notices, announce } = await createRoom(
-			blindOnFirstRead(createFakeTranscriptStore()),
+			answeringFirstReadWith(createFakeTranscriptStore(), () =>
+				Promise.resolve([]),
+			),
 		)
 		const ada = idOf(conversation, "Ada")
 		const spoken: CompanionSpoke = {
