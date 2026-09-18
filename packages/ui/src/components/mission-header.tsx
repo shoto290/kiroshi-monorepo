@@ -15,7 +15,7 @@ import {
 } from "@workspace/ui/components/mission-marks"
 import { MissionStatePill } from "@workspace/ui/components/mission-state-pill"
 import { Button } from "@workspace/ui/components/ui/button"
-import { toRelativeTime } from "@workspace/ui/lib/relative-time"
+import { toRelativeTime } from "@workspace/ui/lib/time-format"
 import { cn } from "@workspace/ui/lib/utils"
 
 const MISSION_HEADER_AVATAR_SIZE = 24
@@ -43,7 +43,7 @@ const MissionHeader = ({
 	onBack,
 	className,
 }: MissionHeaderProps) => {
-	const { t, i18n } = useTranslation("chat")
+	const { t } = useTranslation("chat")
 	const hasTicket = Boolean(ticket.externalId || ticket.title)
 	const hasTools = tools.length > 0
 
@@ -108,7 +108,7 @@ const MissionHeader = ({
 					dateTime={new Date(openedAt).toISOString()}
 				>
 					{t("missions.header.openedAt", {
-						time: toRelativeTime(openedAt, i18n.language, now),
+						time: toRelativeTime(openedAt, now),
 					})}
 				</time>
 			</div>

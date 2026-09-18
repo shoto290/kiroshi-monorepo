@@ -1,4 +1,6 @@
-import { describe, expect, it } from "vitest"
+import { afterEach, describe, expect, it } from "vitest"
+
+import { activateLanguage } from "@workspace/ui/lib/i18n"
 
 import { rosterTimestamp } from "./roster-timestamp"
 
@@ -18,6 +20,10 @@ const DAY_MS = 24 * HOUR_MS
 const WEEK_MS = 7 * DAY_MS
 
 const ago = (distance: number): string => rosterTimestamp(NOW - distance, NOW)
+
+afterEach(() => {
+	activateLanguage("en")
+})
 
 describe("rosterTimestamp", () => {
 	it("reads a message from the last minute as now", () => {
@@ -53,6 +59,12 @@ describe("rosterTimestamp", () => {
 	it("dates a message older than four weeks", () => {
 		expect(ago(4 * WEEK_MS)).toBe("2/12")
 		expect(rosterTimestamp(at(2024, 12, 31), NOW)).toBe("12/31")
+	})
+
+	it("dates a message older than four weeks in the fr order", () => {
+		activateLanguage("fr")
+
+		expect(rosterTimestamp(at(2024, 12, 31), NOW)).toBe("31/12")
 	})
 
 	it("keeps every label it draws narrow enough for the row", () => {

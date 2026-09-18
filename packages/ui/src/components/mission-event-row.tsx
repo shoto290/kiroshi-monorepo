@@ -18,7 +18,7 @@ import {
 	missionSourceKind,
 	missionToolMark,
 } from "@workspace/ui/components/mission-marks"
-import { toRelativeTime } from "@workspace/ui/lib/relative-time"
+import { toRelativeTime } from "@workspace/ui/lib/time-format"
 
 const MISSION_EVENT_GUTTER_SIZE = 40
 
@@ -75,14 +75,14 @@ type MissionEventTimeProps = {
 }
 
 const MissionEventTime = ({ event, now }: MissionEventTimeProps) => {
-	const { i18n } = useTranslation("chat")
+	useTranslation("chat")
 
 	return (
 		<time
 			className="ms-auto shrink-0 text-[11px] leading-4 tabular-nums"
 			dateTime={new Date(event.createdAt).toISOString()}
 		>
-			{toRelativeTime(event.createdAt, i18n.language, now)}
+			{toRelativeTime(event.createdAt, now)}
 		</time>
 	)
 }

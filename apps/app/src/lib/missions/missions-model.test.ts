@@ -1,8 +1,9 @@
-import { describe, expect, it } from "vitest"
+import { afterEach, describe, expect, it, vi } from "vitest"
 
 import type { AppSidebarBot } from "@workspace/ui/components/app-sidebar"
 import type { BotMissionState } from "@workspace/ui/components/bot-badge"
 import { BLANK_BOT_PERMISSIONS } from "@workspace/ui/components/bot-settings"
+import { activateLanguage } from "@workspace/ui/lib/i18n"
 
 import type {
 	Mission,
@@ -82,6 +83,15 @@ const rowsOf = (read: Partial<MissionRowsRead>) =>
 		...read,
 	})
 
+type FormatterGetters = Omit<Intl.DateTimeFormat, "format"> & {
+	format: unknown
+}
+
+afterEach(() => {
+	activateLanguage("en")
+	vi.restoreAllMocks()
+})
+
 describe("toMissionRows", () => {
 	it("reads an open mission as the row of the activity panel", () => {
 		const { open } = rowsOf({
@@ -117,6 +127,23 @@ describe("toMissionRows", () => {
 			kind: "mission",
 			timestamp: "12:20",
 		})
+	})
+
+	it("stamps a closed mission with a time of day read in fr", () => {
+		activateLanguage("fr")
+		const stamp = vi.spyOn(
+			Intl.DateTimeFormat.prototype as FormatterGetters,
+			"format",
+			"get",
+		)
+
+		const { earlierToday } = rowsOf({
+			closed: [closedAt(READ_AT - 7_200_000)],
+		})
+
+		const [formatter] = stamp.mock.contexts as Intl.DateTimeFormat[]
+		expect(earlierToday[0]).toMatchObject({ timestamp: "12:20" })
+		expect(formatter?.resolvedOptions().locale).toBe("fr")
 	})
 
 	it("leaves out a mission whose companion the conversation does not name", () => {

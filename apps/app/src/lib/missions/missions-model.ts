@@ -14,6 +14,7 @@ import type {
 	EarlierTodayRow,
 	RoutinesPanelMissions,
 } from "@workspace/ui/components/routines-panel"
+import { formatDateTime } from "@workspace/ui/lib/time-format"
 
 import type {
 	Mission,
@@ -52,11 +53,11 @@ const shownStateOf = (
 ): MissionState =>
 	waitingMissionIds.has(mission.id) ? WAITING_ON_READER : mission.state
 
-const TIME_OF_DAY = new Intl.DateTimeFormat("en-US", {
+const TIME_OF_DAY: Intl.DateTimeFormatOptions = {
 	hour: "2-digit",
 	minute: "2-digit",
 	hourCycle: "h23",
-})
+}
 
 const startOfLocalDay = (now: number): number => {
 	const day = new Date(now)
@@ -128,7 +129,7 @@ const closedTodayEntries = (
 					...toMissionRow(
 						mission,
 						face,
-						TIME_OF_DAY.format(mission.closedAt),
+						formatDateTime(mission.closedAt, TIME_OF_DAY),
 						mission.state,
 					),
 				},
@@ -156,7 +157,7 @@ const reportedTodayEntries = (
 					routineTitle: run.routineTitle,
 					triggerSourceTitle: run.triggerSourceTitle,
 					bot: toMissionFace(face),
-					timestamp: TIME_OF_DAY.format(run.at),
+					timestamp: formatDateTime(run.at, TIME_OF_DAY),
 				},
 			},
 		]
