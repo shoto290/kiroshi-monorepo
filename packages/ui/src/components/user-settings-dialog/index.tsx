@@ -1,15 +1,12 @@
 "use client"
 
 import { Tabs } from "@base-ui/react/tabs"
-import { useState } from "react"
 import { useTranslation } from "react-i18next"
 
 import type {
 	BotSkillDraft,
 	BotSkillItem,
 } from "@workspace/ui/components/bot-settings"
-import { ConfirmDialog } from "@workspace/ui/components/confirm-dialog"
-import { DialogSurface } from "@workspace/ui/components/dialog-surface"
 import { Icons } from "@workspace/ui/components/icons"
 import {
 	displayNameOf,
@@ -28,28 +25,20 @@ import {
 } from "@workspace/ui/components/plugin-settings/use-mcp-session"
 import { useSkillSession } from "@workspace/ui/components/plugin-settings/use-skill-session"
 import { ProfilePictureField } from "@workspace/ui/components/profile-picture-field"
+import { SettingsDialogShell } from "@workspace/ui/components/settings-dialog-shell"
 import { SettingsField } from "@workspace/ui/components/settings-field"
 import {
-	RAIL_LABELS_MIN_WIDTH,
 	SETTINGS_PANEL_CLASS,
-	SettingsRail,
 	SettingsRailItem,
 	SettingsScrollingPanel,
 } from "@workspace/ui/components/settings-rail"
-import {
-	PICTURE_FIELD_SIZE,
-	SETTINGS_HEADER_CLASS,
-} from "@workspace/ui/components/settings-styles"
-import { Dialog, DialogTitle } from "@workspace/ui/components/ui/dialog"
+import { PICTURE_FIELD_SIZE } from "@workspace/ui/components/settings-styles"
 import type { UserSettingsValue } from "@workspace/ui/components/user-settings"
 import { AppearanceFields } from "@workspace/ui/components/user-settings-dialog/appearance-fields"
 import { LanguageFields } from "@workspace/ui/components/user-settings-dialog/language-fields"
 import { NotificationFields } from "@workspace/ui/components/user-settings-dialog/notification-fields"
-import { useIsNarrowerThan } from "@workspace/ui/hooks/use-is-narrower-than"
 import { usePushedPages } from "@workspace/ui/hooks/use-pushed-pages"
-import { useSettingsTab } from "@workspace/ui/hooks/use-settings-tab"
 import type { Language } from "@workspace/ui/lib/i18n"
-import { cn } from "@workspace/ui/lib/utils"
 
 const FIRST_TAB = "profile"
 
@@ -106,9 +95,6 @@ const UserSettingsDialog = ({
 	className,
 }: UserSettingsDialogProps) => {
 	const { t } = useTranslation("settings")
-	const [tabs, setTabs] = useState<HTMLDivElement | null>(null)
-	const [isLeaving, setLeaving] = useState(false)
-	const iconsOnly = useIsNarrowerThan(tabs, RAIL_LABELS_MIN_WIDTH)
 	const displayName = displayNameOf(value.name)
 	const pages = usePushedPages<SettingsPage>()
 	const skillSession = useSkillSession({
@@ -132,7 +118,6 @@ const UserSettingsDialog = ({
 		companionName: t("plugin.author.bot"),
 		readerImage: value.image,
 	})
-	const activeTab = useSettingsTab(open, tab ?? FIRST_TAB)
 
 	const patch = (fields: Partial<UserSettingsValue>) =>
 		onValueChange({ ...value, ...fields })
@@ -143,187 +128,131 @@ const UserSettingsDialog = ({
 		<Icons.User aria-hidden="true" className="size-6 text-muted-foreground" />
 	)
 
-	const leave = () => {
-		skillSession.discard()
-		mcpSession.discard()
-		historySession.discard()
-		onClose()
-	}
-
-	const close = () =>
-		skillSession.isUnsaved || mcpSession.isUnsaved ? setLeaving(true) : leave()
-
-	const leaveCopy = mcpSession.isOpen
-		? {
-				title: t("applications.leave.title", { ns: "bots" }),
-				description: t("applications.leave.description", { ns: "bots" }),
-				action: t("applications.leave.action", { ns: "bots" }),
-			}
-		: {
-				title: t("skills.leave.title", { ns: "bots" }),
-				description: t("skills.leave.description", { ns: "bots" }),
-				action: t("skills.leave.action", { ns: "bots" }),
-			}
-
 	return (
-		<Dialog onOpenChange={(next) => !next && close()} open={open}>
-			<DialogSurface
-				className={cn(
-					"h-[34rem] w-[52rem] gap-0 overflow-hidden p-0",
-					className,
-				)}
-			>
-				<header className={SETTINGS_HEADER_CLASS}>
-					<InitialsAvatar
-						image={value.image}
-						name={displayName}
-						size={BREADCRUMB_AVATAR_SIZE}
-					/>
-					<DialogTitle className="flex min-w-0 items-center gap-1.5 pr-0">
-						<span className="truncate">{displayName}</span>
-						<Icons.Next
-							aria-hidden="true"
-							className="size-3.5 shrink-0 text-muted-foreground"
-						/>
-						<span className="shrink-0 text-muted-foreground">
-							{t("breadcrumb.title")}
-						</span>
-					</DialogTitle>
-				</header>
-
-				{pages.shown({
-					...skillSession.pages,
-					...mcpSession.pages,
-					...historySession.pages,
-				}) ?? (
-					<Tabs.Root
-						className="flex min-h-0 flex-1"
-						onValueChange={activeTab.onValueChange}
-						orientation="vertical"
-						value={activeTab.value}
-						ref={setTabs}
-					>
-						<SettingsRail iconsOnly={iconsOnly}>
-							<SettingsRailItem
-								icon={Icons.User}
-								iconsOnly={iconsOnly}
-								label={t("rail.profile")}
-								value={FIRST_TAB}
-							/>
-							<SettingsRailItem
-								icon={Icons.Image}
-								iconsOnly={iconsOnly}
-								label={t("rail.appearance")}
-								value="appearance"
-							/>
-							<SettingsRailItem
-								icon={Icons.Bell}
-								iconsOnly={iconsOnly}
-								label={t("rail.notifications")}
-								value="notifications"
-							/>
-							<SettingsRailItem
-								icon={Icons.Language}
-								iconsOnly={iconsOnly}
-								label={t("rail.language")}
-								value="language"
-							/>
-							<SettingsRailItem
-								icon={Icons.Skill}
-								iconsOnly={iconsOnly}
-								label={t("rail.skills")}
-								value="skills"
-							/>
-							{applications ? (
-								<SettingsRailItem
-									icon={Icons.Server}
-									iconsOnly={iconsOnly}
-									label={t("rail.applications")}
-									value={APPLICATIONS_TAB}
-								/>
-							) : null}
-							<SettingsRailItem
-								icon={Icons.History}
-								iconsOnly={iconsOnly}
-								label={t("rail.history")}
-								value={HISTORY_TAB}
-							/>
-						</SettingsRail>
-
-						<SettingsScrollingPanel value={FIRST_TAB}>
-							<ProfilePictureField
-								fileLabel={t("profile.picture.file")}
-								isPlaceholder={!value.image}
-								onPick={onPictureUpload}
-								onRemove={value.image ? onPictureRemove : undefined}
-								pickLabel={t(
-									value.image
-										? "profile.picture.change"
-										: "profile.picture.add",
-								)}
-								preview={picture}
-								removeLabel={t("profile.picture.remove")}
-							/>
-							<SettingsField
-								label={t("profile.name.label")}
-								onValueChange={(name) => patch({ name })}
-								placeholder={t("profile.name.placeholder")}
-								value={value.name}
-							/>
-						</SettingsScrollingPanel>
-
-						<SettingsScrollingPanel value="appearance">
-							<AppearanceFields
-								colorScheme={value.colorScheme}
-								onColorSchemeChange={(colorScheme) => patch({ colorScheme })}
-							/>
-						</SettingsScrollingPanel>
-
-						<SettingsScrollingPanel value="notifications">
-							<NotificationFields
-								notifications={value.notifications}
-								onNotificationsChange={(notifications) =>
-									patch({ notifications })
-								}
-							/>
-						</SettingsScrollingPanel>
-
-						<SettingsScrollingPanel value="language">
-							<LanguageFields
-								language={language}
-								onLanguageChange={onLanguageChange}
-							/>
-						</SettingsScrollingPanel>
-
-						<Tabs.Panel className={SETTINGS_PANEL_CLASS} value="skills">
-							{skillSession.panel}
-						</Tabs.Panel>
-
-						{applications ? (
-							<Tabs.Panel
-								className={SETTINGS_PANEL_CLASS}
-								value={APPLICATIONS_TAB}
-							>
-								{mcpSession.panel}
-							</Tabs.Panel>
-						) : null}
-
-						<SettingsScrollingPanel isFlush value={HISTORY_TAB}>
-							{historySession.panel}
-						</SettingsScrollingPanel>
-					</Tabs.Root>
-				)}
-
-				<ConfirmDialog
-					confirmLabel={leaveCopy.action}
-					description={leaveCopy.description}
-					onConfirm={leave}
-					onOpenChange={setLeaving}
-					open={isLeaving}
-					title={leaveCopy.title}
+		<SettingsDialogShell
+			breadcrumb={t("breadcrumb.title")}
+			className={className}
+			mark={
+				<InitialsAvatar
+					image={value.image}
+					name={displayName}
+					size={BREADCRUMB_AVATAR_SIZE}
 				/>
-			</DialogSurface>
-		</Dialog>
+			}
+			name={displayName}
+			onClose={onClose}
+			open={open}
+			pages={pages}
+			rail={(iconsOnly) => (
+				<>
+					<SettingsRailItem
+						icon={Icons.User}
+						iconsOnly={iconsOnly}
+						label={t("rail.profile")}
+						value={FIRST_TAB}
+					/>
+					<SettingsRailItem
+						icon={Icons.Image}
+						iconsOnly={iconsOnly}
+						label={t("rail.appearance")}
+						value="appearance"
+					/>
+					<SettingsRailItem
+						icon={Icons.Bell}
+						iconsOnly={iconsOnly}
+						label={t("rail.notifications")}
+						value="notifications"
+					/>
+					<SettingsRailItem
+						icon={Icons.Language}
+						iconsOnly={iconsOnly}
+						label={t("rail.language")}
+						value="language"
+					/>
+					<SettingsRailItem
+						icon={Icons.Skill}
+						iconsOnly={iconsOnly}
+						label={t("rail.skills")}
+						value="skills"
+					/>
+					{applications ? (
+						<SettingsRailItem
+							icon={Icons.Server}
+							iconsOnly={iconsOnly}
+							label={t("rail.applications")}
+							value={APPLICATIONS_TAB}
+						/>
+					) : null}
+					<SettingsRailItem
+						icon={Icons.History}
+						iconsOnly={iconsOnly}
+						label={t("rail.history")}
+						value={HISTORY_TAB}
+					/>
+				</>
+			)}
+			sessions={{
+				skills: skillSession,
+				applications: mcpSession,
+				history: historySession,
+			}}
+			tab={tab ?? FIRST_TAB}
+		>
+			<SettingsScrollingPanel value={FIRST_TAB}>
+				<ProfilePictureField
+					fileLabel={t("profile.picture.file")}
+					isPlaceholder={!value.image}
+					onPick={onPictureUpload}
+					onRemove={value.image ? onPictureRemove : undefined}
+					pickLabel={t(
+						value.image ? "profile.picture.change" : "profile.picture.add",
+					)}
+					preview={picture}
+					removeLabel={t("profile.picture.remove")}
+				/>
+				<SettingsField
+					label={t("profile.name.label")}
+					onValueChange={(name) => patch({ name })}
+					placeholder={t("profile.name.placeholder")}
+					value={value.name}
+				/>
+			</SettingsScrollingPanel>
+
+			<SettingsScrollingPanel value="appearance">
+				<AppearanceFields
+					colorScheme={value.colorScheme}
+					onColorSchemeChange={(colorScheme) => patch({ colorScheme })}
+				/>
+			</SettingsScrollingPanel>
+
+			<SettingsScrollingPanel value="notifications">
+				<NotificationFields
+					notifications={value.notifications}
+					onNotificationsChange={(notifications) => patch({ notifications })}
+				/>
+			</SettingsScrollingPanel>
+
+			<SettingsScrollingPanel value="language">
+				<LanguageFields
+					language={language}
+					onLanguageChange={onLanguageChange}
+				/>
+			</SettingsScrollingPanel>
+
+			<Tabs.Panel className={SETTINGS_PANEL_CLASS} value="skills">
+				{skillSession.panel}
+			</Tabs.Panel>
+
+			{applications ? (
+				<Tabs.Panel className={SETTINGS_PANEL_CLASS} value={APPLICATIONS_TAB}>
+					{mcpSession.panel}
+				</Tabs.Panel>
+			) : null}
+
+			<SettingsScrollingPanel isFlush value={HISTORY_TAB}>
+				{historySession.panel}
+			</SettingsScrollingPanel>
+		</SettingsDialogShell>
 	)
 }
 
