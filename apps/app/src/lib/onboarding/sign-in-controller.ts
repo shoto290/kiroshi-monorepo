@@ -38,17 +38,18 @@ export const createSignInController = (
 	world: SignInWorld,
 ): SignInController => {
 	const stateStore = createStore(initialSignInState)
+	const current = stateStore.getState
 
 	const set = (fields: Partial<SignInState>) =>
-		stateStore.setState({ ...stateStore.getState(), ...fields })
+		stateStore.setState({ ...current(), ...fields })
 
 	const showConnection = (connection: ConnectionStep) => {
-		set({ connection, round: stateStore.getState().round + 1, isBusy: false })
+		set({ connection, round: current().round + 1, isBusy: false })
 	}
 
 	const settle = async () => {
-		const { botId } = stateStore.getState()
-		set({ connection: null, round: stateStore.getState().round + 1 })
+		const { botId, round } = current()
+		set({ connection: null, round: round + 1 })
 		if (botId) {
 			await world.reopen(botId)
 		}

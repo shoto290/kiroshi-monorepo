@@ -49,11 +49,12 @@ export const createUserPluginController = (
 	store: TranscriptStore,
 ): UserPluginController => {
 	const stateStore = createStore(initialUserPluginState)
+	const current = stateStore.getState
 
 	const enqueue = createQueue()
 
 	const set = (fields: Partial<UserPluginState>) =>
-		stateStore.setState({ ...stateStore.getState(), ...fields })
+		stateStore.setState({ ...current(), ...fields })
 
 	const read = async () => {
 		const [skills, commits] = await Promise.all([
@@ -75,11 +76,9 @@ export const createUserPluginController = (
 
 	const applySkill = (skillId: string, fields: Partial<BotSkill>) =>
 		set({
-			skills: stateStore
-				.getState()
-				.skills.map((skill) =>
-					skill.id === skillId ? { ...skill, ...fields } : skill,
-				),
+			skills: current().skills.map((skill) =>
+				skill.id === skillId ? { ...skill, ...fields } : skill,
+			),
 		})
 
 	const readHistory = async () =>
@@ -100,9 +99,9 @@ export const createUserPluginController = (
 		},
 		{
 			run,
-			getFile: () => stateStore.getState().file,
+			getFile: () => current().file,
 			setFile: (file) => set({ file }),
-			getSkills: () => stateStore.getState().skills,
+			getSkills: () => current().skills,
 			applySkill,
 		},
 	)
@@ -123,7 +122,7 @@ export const createUserPluginController = (
 				const skill = isPreloaded
 					? await store.setUserPluginSkillPreloaded(created.id, true)
 					: created
-				set({ skills: [...stateStore.getState().skills, skill] })
+				set({ skills: [...current().skills, skill] })
 				await readHistory()
 			}),
 
@@ -150,9 +149,7 @@ export const createUserPluginController = (
 			run(async () => {
 				await store.deleteUserPluginSkill(skillId)
 				set({
-					skills: stateStore
-						.getState()
-						.skills.filter((skill) => skill.id !== skillId),
+					skills: current().skills.filter((skill) => skill.id !== skillId),
 				})
 				await readHistory()
 			}),

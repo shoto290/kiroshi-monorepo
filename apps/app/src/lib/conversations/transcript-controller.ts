@@ -45,13 +45,15 @@ export const createTranscriptController = (
 	port: TranscriptPort,
 ): TranscriptController => {
 	const stateStore = createStore(initialTranscriptState)
+	const current = stateStore.getState
 	const liveEdges = new Map<string, boolean>()
 	const openLandings = new Map<string, number>()
 	let landingsAsked = 0
 
 	const dispatch = (action: TranscriptAction) => {
-		const next = transcriptReducer(stateStore.getState(), action)
-		if (next === stateStore.getState()) {
+		const state = current()
+		const next = transcriptReducer(state, action)
+		if (next === state) {
 			return
 		}
 		stateStore.setState(next)
@@ -68,7 +70,7 @@ export const createTranscriptController = (
 	const load = async (conversationId: string) => {
 		if (
 			openLandings.has(conversationId) ||
-			selectHasNewer(stateStore.getState(), conversationId)
+			selectHasNewer(current(), conversationId)
 		) {
 			return
 		}
@@ -76,22 +78,18 @@ export const createTranscriptController = (
 	}
 
 	const loadOlder = async (conversationId: string) => {
-		const beforeSeq = selectOldestSeq(stateStore.getState(), conversationId)
-		if (
-			beforeSeq === null ||
-			!selectHasMore(stateStore.getState(), conversationId)
-		) {
+		const state = current()
+		const beforeSeq = selectOldestSeq(state, conversationId)
+		if (beforeSeq === null || !selectHasMore(state, conversationId)) {
 			return
 		}
 		await readPage(conversationId, { beforeSeq })
 	}
 
 	const loadNewer = async (conversationId: string) => {
-		const seq = selectNewestSeq(stateStore.getState(), conversationId)
-		if (
-			seq === null ||
-			!selectHasNewer(stateStore.getState(), conversationId)
-		) {
+		const state = current()
+		const seq = selectNewestSeq(state, conversationId)
+		if (seq === null || !selectHasNewer(state, conversationId)) {
 			return
 		}
 		const window = await port.loadWindow(conversationId, seq)
@@ -99,7 +97,7 @@ export const createTranscriptController = (
 	}
 
 	const loadLatest = async (conversationId: string) => {
-		if (!selectHasNewer(stateStore.getState(), conversationId)) {
+		if (!selectHasNewer(current(), conversationId)) {
 			return
 		}
 		const page = await port.loadPage(conversationId, null)
@@ -107,7 +105,7 @@ export const createTranscriptController = (
 	}
 
 	const reopen = async (conversationId: string) => {
-		if (selectMessages(stateStore.getState(), conversationId).length > 0) {
+		if (selectMessages(current(), conversationId).length > 0) {
 			return
 		}
 		await load(conversationId)

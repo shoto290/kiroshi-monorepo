@@ -51,11 +51,12 @@ export const createUpdaterController = (
 	port: UpdaterPort,
 ): UpdaterController => {
 	const stateStore = createStore(EMPTY)
+	const current = stateStore.getState
 	let pending: AvailableUpdate | null = null
 	let lastCheckAt = 0
 
 	const publish = (next: UpdaterState) => {
-		if (isSameState(stateStore.getState(), next)) {
+		if (isSameState(current(), next)) {
 			return
 		}
 		stateStore.setState(next)
@@ -67,19 +68,18 @@ export const createUpdaterController = (
 			const update = await port.check()
 			pending = update
 			publish({
-				...stateStore.getState(),
+				...current(),
 				available: update && { version: update.version, notes: update.notes },
 				error: null,
 			})
 		} catch (error) {
-			publish({ ...stateStore.getState(), error: messageOf(error) })
+			publish({ ...current(), error: messageOf(error) })
 		}
 	}
 
 	const checkOnFocus = () => {
-		const isBusy =
-			stateStore.getState().progress !== null ||
-			stateStore.getState().isRestartPending
+		const { progress, isRestartPending } = current()
+		const isBusy = progress !== null || isRestartPending
 		if (isBusy || Date.now() - lastCheckAt < FOCUS_CHECK_MIN_GAP_MS) {
 			return
 		}
@@ -91,19 +91,19 @@ export const createUpdaterController = (
 		if (!update) {
 			return
 		}
-		publish({ ...stateStore.getState(), progress: 0, error: null })
+		publish({ ...current(), progress: 0, error: null })
 		try {
 			await update.install((progress) =>
-				publish({ ...stateStore.getState(), progress: percentOf(progress) }),
+				publish({ ...current(), progress: percentOf(progress) }),
 			)
 			publish({
-				...stateStore.getState(),
+				...current(),
 				progress: null,
 				isRestartPending: true,
 			})
 		} catch (error) {
 			publish({
-				...stateStore.getState(),
+				...current(),
 				progress: null,
 				error: messageOf(error),
 			})
@@ -111,7 +111,7 @@ export const createUpdaterController = (
 	}
 
 	const restart = async () => {
-		if (!stateStore.getState().isRestartPending) {
+		if (!current().isRestartPending) {
 			return
 		}
 		await port.restart()

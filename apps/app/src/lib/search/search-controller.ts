@@ -92,11 +92,12 @@ export const createSearchController = ({
 	onFailure,
 }: SearchWiring): SearchController => {
 	const stateStore = createStore(CLOSED)
+	const current = stateStore.getState
 	let quiet: ReturnType<typeof setTimeout> | undefined
 	let reads = 0
 
 	const publish = (next: Partial<SearchState>) => {
-		stateStore.setState({ ...stateStore.getState(), ...next })
+		stateStore.setState({ ...current(), ...next })
 	}
 
 	const fail = () => {
@@ -129,7 +130,7 @@ export const createSearchController = ({
 		scope.query === "" ? restAnswer(scope) : foundAnswer(scope)
 
 	const read = () => {
-		const { query, spaceId, isAllSpaces } = stateStore.getState()
+		const { query, spaceId, isAllSpaces } = current()
 
 		if (!spaceId || isOverLimit(query)) {
 			publish({ isLoading: false })
@@ -159,7 +160,7 @@ export const createSearchController = ({
 	const scheduleRead = () => {
 		clearTimeout(quiet)
 
-		if (stateStore.getState().query === "") {
+		if (current().query === "") {
 			publish({ read: NOTHING_READ })
 			read()
 			return
@@ -200,7 +201,7 @@ export const createSearchController = ({
 
 		moveActive: (by, count) =>
 			publish({
-				activeIndex: wrapped(stateStore.getState().activeIndex + by, count),
+				activeIndex: wrapped(current().activeIndex + by, count),
 			}),
 	}
 }

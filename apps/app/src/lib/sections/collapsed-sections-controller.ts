@@ -36,6 +36,7 @@ export const createCollapsedSectionsController = (
 	store: TranscriptStore,
 ): CollapsedSectionsController => {
 	const stateStore = createStore(initialCollapsedSectionsState)
+	const current = stateStore.getState
 
 	const enqueue = createQueue()
 
@@ -43,7 +44,7 @@ export const createCollapsedSectionsController = (
 		stateStore.setState({ collapsedBySpaceId })
 
 	const hold = (spaceId: string, collapsed: string[]) =>
-		set({ ...stateStore.getState().collapsedBySpaceId, [spaceId]: collapsed })
+		set({ ...current().collapsedBySpaceId, [spaceId]: collapsed })
 
 	const read = async (spaceId: string) => {
 		const { collapsedSectionIds } = await store.spacePreferences(spaceId)
@@ -51,9 +52,7 @@ export const createCollapsedSectionsController = (
 	}
 
 	const reloadAll = () => {
-		for (const spaceId of Object.keys(
-			stateStore.getState().collapsedBySpaceId,
-		)) {
+		for (const spaceId of Object.keys(current().collapsedBySpaceId)) {
 			void enqueue(() => read(spaceId)).catch(() => undefined)
 		}
 	}
@@ -75,20 +74,18 @@ export const createCollapsedSectionsController = (
 			enqueue(() => read(spaceId)).catch(() => undefined),
 
 		keep: (spaceIds: string[]) => {
-			const kept = Object.entries(
-				stateStore.getState().collapsedBySpaceId,
-			).filter(([spaceId]) => spaceIds.includes(spaceId))
-			if (
-				kept.length !==
-				Object.keys(stateStore.getState().collapsedBySpaceId).length
-			) {
+			const { collapsedBySpaceId } = current()
+			const kept = Object.entries(collapsedBySpaceId).filter(([spaceId]) =>
+				spaceIds.includes(spaceId),
+			)
+			if (kept.length !== Object.keys(collapsedBySpaceId).length) {
 				set(Object.fromEntries(kept))
 			}
 		},
 
 		collapse: (spaceId: string, sectionId: string, isCollapsed: boolean) => {
 			const wanted = withSection(
-				collapsedIn(stateStore.getState(), spaceId),
+				collapsedIn(current(), spaceId),
 				sectionId,
 				isCollapsed,
 			)

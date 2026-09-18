@@ -26,26 +26,27 @@ export const createEnvironmentController = (
 	store: TranscriptStore,
 ): EnvironmentController => {
 	const stateStore = createStore(initialEnvironmentState)
+	const current = stateStore.getState
 
 	const set = (fields: Partial<EnvironmentState>) =>
-		stateStore.setState({ ...stateStore.getState(), ...fields })
+		stateStore.setState({ ...current(), ...fields })
 
 	const read = (scope: EnvScope) =>
 		store
 			.environmentVariables(scope)
 			.then((entries) => {
-				if (stateStore.getState().scope === scope) {
+				if (current().scope === scope) {
 					set({ entries, hasFailedToRead: false })
 				}
 			})
 			.catch(() => {
-				if (stateStore.getState().scope === scope) {
+				if (current().scope === scope) {
 					set({ hasFailedToRead: true })
 				}
 			})
 
 	const write = async (run: (scope: EnvScope) => Promise<void>) => {
-		const scope = stateStore.getState().scope
+		const scope = current().scope
 		if (!scope) {
 			return
 		}

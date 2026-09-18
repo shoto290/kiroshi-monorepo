@@ -45,14 +45,15 @@ export const createMcpServersController = (
 	store: TranscriptStore,
 ): McpServersController => {
 	const stateStore = createStore(initialMcpServersState)
+	const current = stateStore.getState
 
 	const enqueue = createQueue()
 
 	const set = (fields: Partial<McpServersState>) =>
-		stateStore.setState({ ...stateStore.getState(), ...fields })
+		stateStore.setState({ ...current(), ...fields })
 
 	const applyTo = (owner: EnvOwner, fields: Partial<McpServersState>) => {
-		if (isSameOwner(stateStore.getState().owner, owner)) {
+		if (isSameOwner(current().owner, owner)) {
 			set(fields)
 		}
 	}
@@ -66,7 +67,7 @@ export const createMcpServersController = (
 	const noteFailedRead = () => set({ hasFailedToLoad: true })
 
 	const reload = () => {
-		const owner = stateStore.getState().owner
+		const owner = current().owner
 		if (!owner) {
 			return Promise.resolve()
 		}
@@ -74,7 +75,7 @@ export const createMcpServersController = (
 	}
 
 	const onOpenOwner = (run: (owner: EnvOwner) => Promise<void>) => {
-		const owner = stateStore.getState().owner
+		const owner = current().owner
 		if (!owner) {
 			return Promise.resolve(false)
 		}
@@ -101,18 +102,14 @@ export const createMcpServersController = (
 				owner,
 				name,
 				config,
-				renamedFrom
-					? markOf(stateStore.getState().servers, renamedFrom)
-					: undefined,
+				renamedFrom ? markOf(current().servers, renamedFrom) : undefined,
 			)
 			if (renamedFrom) {
 				await undeclareServer(store, owner, renamedFrom)
 			}
 			applyTo(owner, {
 				servers: written(
-					stateStore
-						.getState()
-						.servers.filter((held) => held.name !== openedName),
+					current().servers.filter((held) => held.name !== openedName),
 					server,
 				),
 			})
@@ -139,9 +136,7 @@ export const createMcpServersController = (
 			onOpenOwner(async (owner) => {
 				await undeclareServer(store, owner, name)
 				applyTo(owner, {
-					servers: stateStore
-						.getState()
-						.servers.filter((server) => server.name !== name),
+					servers: current().servers.filter((server) => server.name !== name),
 				})
 			}),
 	}

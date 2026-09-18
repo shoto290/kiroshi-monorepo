@@ -35,14 +35,15 @@ export const createHistoryController = (
 	store: TranscriptStore,
 ): HistoryController => {
 	const stateStore = createStore(INITIAL_STATE)
+	const current = stateStore.getState
 
 	const enqueue = createQueue()
 
 	const set = (fields: Partial<HistoryState>) =>
-		stateStore.setState({ ...stateStore.getState(), ...fields })
+		stateStore.setState({ ...current(), ...fields })
 
 	const applyTo = (botId: string, fields: Partial<HistoryState>) => {
-		if (stateStore.getState().botId === botId) {
+		if (current().botId === botId) {
 			set(fields)
 		}
 	}
@@ -56,14 +57,14 @@ export const createHistoryController = (
 	const noteFailedRead = () => set({ hasFailedToLoad: true })
 
 	const reload = () => {
-		const botId = stateStore.getState().botId
+		const botId = current().botId
 		if (botId) {
 			void enqueue(() => read(botId)).catch(noteFailedRead)
 		}
 	}
 
 	const onOpenBot = (run: (botId: string) => Promise<void>) => {
-		const botId = stateStore.getState().botId
+		const botId = current().botId
 		if (botId) {
 			void enqueue(() => run(botId)).catch(reload)
 		}
@@ -72,7 +73,7 @@ export const createHistoryController = (
 	const readFiles = createHistoryFilesReader(
 		(oldestCommitId, newestCommitId) =>
 			store.botHistoryDiff(
-				stateStore.getState().botId ?? "",
+				current().botId ?? "",
 				oldestCommitId,
 				newestCommitId,
 			),
@@ -101,7 +102,7 @@ export const createHistoryController = (
 		reload,
 
 		openFiles: (oldestCommitId: string, newestCommitId: string) => {
-			if (stateStore.getState().botId) {
+			if (current().botId) {
 				readFiles(oldestCommitId, newestCommitId)
 			}
 		},

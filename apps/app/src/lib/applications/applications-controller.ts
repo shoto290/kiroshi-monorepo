@@ -147,11 +147,12 @@ export const createApplicationsController = (
 	{ reportFailure = raiseFailureNotice }: ApplicationsControllerOptions = {},
 ): ApplicationsController => {
 	const stateStore = createStore(initialApplicationsState)
+	const current = stateStore.getState
 	let issuedRead = 0
 	const askedNames = new Set<string>()
 
 	const set = (fields: Partial<ApplicationsState>) =>
-		stateStore.setState({ ...stateStore.getState(), ...fields })
+		stateStore.setState({ ...current(), ...fields })
 
 	const readDirectory = () => {
 		issuedRead += 1
@@ -190,7 +191,7 @@ export const createApplicationsController = (
 	const recordMark = (name: string, found: Application | null) => {
 		set({
 			marks: {
-				...stateStore.getState().marks,
+				...current().marks,
 				[name]: found && applicationMarkOf(found),
 			},
 		})
@@ -206,12 +207,12 @@ export const createApplicationsController = (
 
 	const needsLookup = (name: string) =>
 		!askedNames.has(name) &&
-		!stateStore.getState().curated.some((held) => held.name === name)
+		!current().curated.some((held) => held.name === name)
 
-	const applicationNamed = (id: string) =>
-		[...stateStore.getState().curated, ...stateStore.getState().directory].find(
-			(held) => held.name === id,
-		) ?? null
+	const applicationNamed = (id: string) => {
+		const { curated, directory } = current()
+		return [...curated, ...directory].find((held) => held.name === id) ?? null
+	}
 
 	const deleteWrittenSecrets = async (owner: EnvOwner, name: string) => {
 		const scope = serverScopeOf(owner, name)
@@ -319,10 +320,8 @@ export const createApplicationsController = (
 		subscribe: stateStore.subscribe,
 
 		open: async () => {
-			if (
-				stateStore.getState().isReadingCatalogue ||
-				stateStore.getState().curated.length > 0
-			) {
+			const { isReadingCatalogue, curated } = current()
+			if (isReadingCatalogue || curated.length > 0) {
 				return
 			}
 			set({ isReadingCatalogue: true })
@@ -339,10 +338,9 @@ export const createApplicationsController = (
 		},
 
 		browse: () => {
-			const holdsDirectory =
-				stateStore.getState().directory.length > 0 &&
-				!stateStore.getState().hasDirectoryFailed
-			if (stateStore.getState().isReadingDirectory || holdsDirectory) {
+			const { directory, hasDirectoryFailed, isReadingDirectory } = current()
+			const holdsDirectory = directory.length > 0 && !hasDirectoryFailed
+			if (isReadingDirectory || holdsDirectory) {
 				return
 			}
 			readDirectory()
@@ -367,10 +365,10 @@ export const createApplicationsController = (
 		},
 
 		install: async (target: InstallTarget, values: InstallValues = {}) => {
-			const application = stateStore.getState().picked
+			const { picked: application, installing } = current()
 			if (
 				!application ||
-				stateStore.getState().installing !== null ||
+				installing !== null ||
 				target.declared.includes(application.name)
 			) {
 				return

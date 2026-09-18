@@ -54,29 +54,33 @@ export function createAttachmentsController(
 	port: AttachmentsPort,
 ): AttachmentsController {
 	const stateStore = createStore<AttachmentsState>({ staged: {}, refusals: {} })
+	const current = stateStore.getState
 
 	const sending = new Set<string>()
 
 	const stagedFor = (owner: AttachmentsOwner) =>
-		stateStore.getState().staged[ownerKey(owner)] ?? NO_ATTACHMENTS
+		current().staged[ownerKey(owner)] ?? NO_ATTACHMENTS
 
-	const hold = (owner: AttachmentsOwner, items: StagedAttachment[]) =>
+	const hold = (owner: AttachmentsOwner, items: StagedAttachment[]) => {
+		const state = current()
 		stateStore.setState({
-			...stateStore.getState(),
-			staged: { ...stateStore.getState().staged, [ownerKey(owner)]: items },
+			...state,
+			staged: { ...state.staged, [ownerKey(owner)]: items },
 		})
+	}
 
 	const holdRefusal = (
 		owner: AttachmentsOwner,
 		refusal: AttachmentStoreError | null,
 	) => {
 		const key = ownerKey(owner)
-		if ((stateStore.getState().refusals[key] ?? null) === refusal) {
+		const state = current()
+		if ((state.refusals[key] ?? null) === refusal) {
 			return
 		}
 		stateStore.setState({
-			...stateStore.getState(),
-			refusals: { ...stateStore.getState().refusals, [key]: refusal },
+			...state,
+			refusals: { ...state.refusals, [key]: refusal },
 		})
 	}
 
@@ -151,14 +155,15 @@ export function createAttachmentsController(
 		forget: (owner) => {
 			const key = ownerKey(owner)
 			releasePreviews(stagedFor(owner))
+			const { staged, refusals } = current()
 			stateStore.setState({
-				staged: { ...stateStore.getState().staged, [key]: NO_ATTACHMENTS },
-				refusals: { ...stateStore.getState().refusals, [key]: null },
+				staged: { ...staged, [key]: NO_ATTACHMENTS },
+				refusals: { ...refusals, [key]: null },
 			})
 		},
 
 		release: () => {
-			for (const items of Object.values(stateStore.getState().staged)) {
+			for (const items of Object.values(current().staged)) {
 				releasePreviews(items)
 			}
 			stateStore.setState({ staged: {}, refusals: {} })

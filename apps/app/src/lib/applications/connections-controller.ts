@@ -44,18 +44,19 @@ export const createConnectionsController = (
 	port: ConnectionPort,
 ): ConnectionsController => {
 	const stateStore = createStore(initialConnectionsState)
+	const current = stateStore.getState
 
 	const set = (fields: Partial<ConnectionsState>) =>
-		stateStore.setState({ ...stateStore.getState(), ...fields })
+		stateStore.setState({ ...current(), ...fields })
 
 	const setFor = (owner: EnvOwner, fields: Partial<ConnectionsState>) => {
-		if (stateStore.getState().owner === owner) {
+		if (current().owner === owner) {
 			set(fields)
 		}
 	}
 
 	const fail = (owner: EnvOwner, failure: ConnectionFailure) => {
-		if (stateStore.getState().owner !== owner) {
+		if (current().owner !== owner) {
 			return
 		}
 		console.error(
@@ -65,10 +66,10 @@ export const createConnectionsController = (
 		set({ failure })
 	}
 
-	const keptFailure = () =>
-		stateStore.getState().failure?.command === "status"
-			? null
-			: stateStore.getState().failure
+	const keptFailure = () => {
+		const { failure } = current()
+		return failure?.command === "status" ? null : failure
+	}
 
 	const read = (owner: EnvOwner) =>
 		port.status(owner).then(
@@ -101,7 +102,7 @@ export const createConnectionsController = (
 		},
 
 		connect: async (name, url) => {
-			const owner = stateStore.getState().owner
+			const owner = current().owner
 			if (!owner) {
 				return
 			}
@@ -114,20 +115,18 @@ export const createConnectionsController = (
 		},
 
 		cancel: async () => {
-			const owner = stateStore.getState().owner
+			const { owner, connecting } = current()
 			if (!owner) {
 				return
 			}
-			await run(
-				owner,
-				{ command: "cancel", name: stateStore.getState().connecting },
-				() => port.cancel(),
+			await run(owner, { command: "cancel", name: connecting }, () =>
+				port.cancel(),
 			)
 			await read(owner)
 		},
 
 		disconnect: async (name, url) => {
-			const owner = stateStore.getState().owner
+			const owner = current().owner
 			if (!owner) {
 				return
 			}

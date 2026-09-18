@@ -81,14 +81,15 @@ export const createUserController = (): UserController => {
 		preferences: openingPreferences(),
 		isSettingsOpen: false,
 	})
+	const current = stateStore.getState
 
-	let answered = stateStore.getState().preferences
+	let answered = current().preferences
 
 	let pendingName: string | null = null
 	let isWriting = false
 
 	const set = (fields: Partial<UserState>) =>
-		stateStore.setState({ ...stateStore.getState(), ...fields })
+		stateStore.setState({ ...current(), ...fields })
 
 	const show = (preferences: ReaderPreferences) => set({ preferences })
 
@@ -124,17 +125,17 @@ export const createUserController = (): UserController => {
 		return flush()
 	}
 
-	const botIdBySpaceWith = ({ spaceId, botId }: LastBotOpened) =>
-		spaceId === null
-			? stateStore.getState().preferences.lastBotIdBySpace
-			: {
-					...stateStore.getState().preferences.lastBotIdBySpace,
-					[spaceId]: botId,
-				}
+	const botIdBySpaceWith = ({ spaceId, botId }: LastBotOpened) => {
+		const { lastBotIdBySpace } = current().preferences
+		return spaceId === null
+			? lastBotIdBySpace
+			: { ...lastBotIdBySpace, [spaceId]: botId }
+	}
 
 	const changeMirrored = (fields: Partial<MirroredPreferences>) => {
-		const preferences = { ...stateStore.getState().preferences, ...fields }
-		if (sameMirror(preferences, stateStore.getState().preferences)) {
+		const held = current().preferences
+		const preferences = { ...held, ...fields }
+		if (sameMirror(preferences, held)) {
 			return Promise.resolve()
 		}
 		show(preferences)
@@ -157,7 +158,7 @@ export const createUserController = (): UserController => {
 				const mirrored = readMirror()
 				applyLanguage(mirrored.language)
 				answered = { ...answered, ...mirrored }
-				show({ ...stateStore.getState().preferences, ...mirrored })
+				show({ ...current().preferences, ...mirrored })
 			}
 
 			window.addEventListener("storage", follow)
@@ -172,7 +173,7 @@ export const createUserController = (): UserController => {
 		setSettingsOpen: (isSettingsOpen: boolean) => set({ isSettingsOpen }),
 
 		rename: (displayName: string) => {
-			show({ ...stateStore.getState().preferences, displayName })
+			show({ ...current().preferences, displayName })
 			pendingName = displayName
 			if (isWriting) {
 				return
@@ -186,7 +187,7 @@ export const createUserController = (): UserController => {
 		},
 
 		setNotification: ({ field, isEnabled }: NotificationChange) => {
-			show({ ...stateStore.getState().preferences, [field]: isEnabled })
+			show({ ...current().preferences, [field]: isEnabled })
 			return changePreferences((record) => ({ ...record, [field]: isEnabled }))
 				.then(apply)
 				.catch(restore)

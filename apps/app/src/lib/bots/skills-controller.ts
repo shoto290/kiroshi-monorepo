@@ -36,14 +36,15 @@ export const createSkillsController = (
 	store: TranscriptStore,
 ): SkillsController => {
 	const stateStore = createStore(initialSkillsState)
+	const current = stateStore.getState
 
 	const enqueue = createQueue()
 
 	const set = (fields: Partial<SkillsState>) =>
-		stateStore.setState({ ...stateStore.getState(), ...fields })
+		stateStore.setState({ ...current(), ...fields })
 
 	const applyTo = (botId: string, skills: BotSkill[]) => {
-		if (stateStore.getState().botId === botId) {
+		if (current().botId === botId) {
 			set({ skills })
 		}
 	}
@@ -52,7 +53,7 @@ export const createSkillsController = (
 		applyTo(botId, await store.botSkills(botId))
 
 	const reload = () => {
-		const botId = stateStore.getState().botId
+		const botId = current().botId
 		if (botId) {
 			void enqueue(() => read(botId)).catch(() => undefined)
 		}
@@ -60,21 +61,19 @@ export const createSkillsController = (
 
 	const applySkill = (skillId: string, fields: Partial<BotSkill>) =>
 		set({
-			skills: stateStore
-				.getState()
-				.skills.map((skill) =>
-					skill.id === skillId ? { ...skill, ...fields } : skill,
-				),
+			skills: current().skills.map((skill) =>
+				skill.id === skillId ? { ...skill, ...fields } : skill,
+			),
 		})
 
 	const onOpenBot = (run: (botId: string) => Promise<void>) => {
-		const botId = stateStore.getState().botId
+		const botId = current().botId
 		if (botId) {
 			void enqueue(() => run(botId)).catch(reload)
 		}
 	}
 
-	const openBot = () => stateStore.getState().botId ?? ""
+	const openBot = () => current().botId ?? ""
 
 	const files = createSkillFilesController(
 		{
@@ -86,9 +85,9 @@ export const createSkillsController = (
 		},
 		{
 			run: (task) => onOpenBot(() => task()),
-			getFile: () => stateStore.getState().file,
+			getFile: () => current().file,
 			setFile: (file) => set({ file }),
-			getSkills: () => stateStore.getState().skills,
+			getSkills: () => current().skills,
 			applySkill,
 		},
 	)
@@ -112,7 +111,7 @@ export const createSkillsController = (
 				const skill = isPreloaded
 					? await store.setBotSkillPreloaded(botId, created.id, true)
 					: created
-				applyTo(botId, [...stateStore.getState().skills, skill])
+				applyTo(botId, [...current().skills, skill])
 			}),
 
 		save: (skillId: string, draft: BotSkillDraft) =>
@@ -137,7 +136,7 @@ export const createSkillsController = (
 				await store.deleteBotSkill(botId, skillId)
 				applyTo(
 					botId,
-					stateStore.getState().skills.filter((skill) => skill.id !== skillId),
+					current().skills.filter((skill) => skill.id !== skillId),
 				)
 			}),
 	}

@@ -50,23 +50,24 @@ export const createSpacesController = (
 	store: TranscriptStore,
 ): SpacesController => {
 	const stateStore = createStore(initialSpacesState)
+	const current = stateStore.getState
 
 	const enqueue = createQueue()
 
 	const set = (fields: Partial<SpacesState>) =>
-		stateStore.setState({ ...stateStore.getState(), ...fields })
+		stateStore.setState({ ...current(), ...fields })
 
 	const apply = (written: Space) =>
 		set({
-			spaces: stateStore
-				.getState()
-				.spaces.map((space) => (space.id === written.id ? written : space)),
+			spaces: current().spaces.map((space) =>
+				space.id === written.id ? written : space,
+			),
 		})
 
 	const read = async (lastSpaceId: string | null) => {
 		const spaces = await store.spaces()
 		const stillHeld = spaces.find(
-			(space) => space.id === stateStore.getState().selectedSpaceId,
+			(space) => space.id === current().selectedSpaceId,
 		)?.id
 		const remembered = spaces.find((space) => space.id === lastSpaceId)?.id
 		set({
@@ -106,7 +107,7 @@ export const createSpacesController = (
 			enqueue(() => read(lastSpaceId)).catch(noteFailedLoad),
 
 		select: (id: string) => {
-			if (id !== stateStore.getState().selectedSpaceId) {
+			if (id !== current().selectedSpaceId) {
 				set({ selectedSpaceId: id })
 			}
 		},
@@ -115,7 +116,7 @@ export const createSpacesController = (
 			enqueue(async () => {
 				const created = await store.createSpace(newSpaceName())
 				set({
-					spaces: [...stateStore.getState().spaces, created],
+					spaces: [...current().spaces, created],
 					selectedSpaceId: created.id,
 					hasFailedToCreate: false,
 				})
@@ -124,7 +125,7 @@ export const createSpacesController = (
 		setSettingsOpen: (isSettingsOpen: boolean) => set({ isSettingsOpen }),
 
 		describe: (id: string, value: SpaceSettingsValue) => {
-			const held = stateStore.getState().spaces.find((space) => space.id === id)
+			const held = current().spaces.find((space) => space.id === id)
 			if (!held) {
 				return
 			}
@@ -133,10 +134,11 @@ export const createSpacesController = (
 		},
 
 		reorder: (ids: string[]) => {
-			if (isSameOrder(stateStore.getState().spaces, ids)) {
+			const { spaces } = current()
+			if (isSameOrder(spaces, ids)) {
 				return Promise.resolve()
 			}
-			set({ spaces: repositioned(stateStore.getState().spaces, ids) })
+			set({ spaces: repositioned(spaces, ids) })
 			return enqueue(() => store.reorderSpaces(ids)).catch(reload)
 		},
 
@@ -144,9 +146,7 @@ export const createSpacesController = (
 			enqueue(async () => {
 				await store.deleteSpace(id)
 				writes.drop(id)
-				const spaces = stateStore
-					.getState()
-					.spaces.filter((space) => space.id !== id)
+				const spaces = current().spaces.filter((space) => space.id !== id)
 				set({
 					spaces,
 					selectedSpaceId: spaces[0]?.id ?? null,

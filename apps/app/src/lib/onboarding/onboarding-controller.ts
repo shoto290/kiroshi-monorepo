@@ -67,16 +67,17 @@ export const createOnboardingController = (
 	{ reportFailure = raiseFailureNotice }: OnboardingControllerOptions = {},
 ): OnboardingController => {
 	const stateStore = createStore(initialOnboardingState)
+	const current = stateStore.getState
 	let asked: OnboardingSummons = "greeting"
 
 	const set = (fields: Partial<OnboardingState>) =>
-		stateStore.setState({ ...stateStore.getState(), ...fields })
+		stateStore.setState({ ...current(), ...fields })
 
 	const showConnection = (connection: ConnectionStep) => {
 		set({
 			step: "connection",
 			connection,
-			round: stateStore.getState().round + 1,
+			round: current().round + 1,
 			summons: null,
 			isBusy: false,
 		})
@@ -87,7 +88,7 @@ export const createOnboardingController = (
 		set({
 			step: "summoned",
 			connection: null,
-			round: stateStore.getState().round + 1,
+			round: current().round + 1,
 			summons,
 		})
 		await world.send(summons)
