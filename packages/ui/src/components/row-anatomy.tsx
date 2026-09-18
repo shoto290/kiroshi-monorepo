@@ -60,13 +60,13 @@ type RowPartsProps = {
 
 const RowParts = ({ parts, slot, identifier, lead }: RowPartsProps) => {
 	const written = parts.filter((part) => part.text !== "")
-	const isLed = identifier !== undefined || lead !== undefined
+	const isLed = Boolean(identifier) || lead !== undefined
 
 	return (
 		<>
-			{identifier === undefined ? null : (
+			{identifier ? (
 				<span className={IDENTIFIER_CLASS}>{identifier}</span>
-			)}
+			) : null}
 			<span className={PARTS_CLASS} data-slot={slot}>
 				{lead}
 				{written.map((part, index) => (
@@ -82,8 +82,11 @@ const RowParts = ({ parts, slot, identifier, lead }: RowPartsProps) => {
 	)
 }
 
-type RowAnatomyProps = {
-	geometry: RowGeometry
+type RowAnatomyBadge =
+	| { geometry: "roster"; badge?: BotBadge }
+	| { geometry: "activity"; badge?: never }
+
+type RowAnatomyProps = RowAnatomyBadge & {
 	name: ReactNode
 	media?: ReactNode
 	trailing?: ReactNode
@@ -92,7 +95,6 @@ type RowAnatomyProps = {
 	isWorking?: boolean
 	isNameMuted?: boolean
 	isNameRegular?: boolean
-	badge?: BotBadge
 	nameSlot?: string
 	timestampSlot?: string
 	previewSlot?: string

@@ -21,6 +21,8 @@ const PARTS = [
 
 const PARTS_SLOT = "row-anatomy-parts"
 
+const PREVIEW_SLOT = "row-anatomy-preview"
+
 const SHELL_WIDTH = 320
 
 const partsOf = (canvasElement: HTMLElement) => [
@@ -45,6 +47,7 @@ const meta = preview.meta({
 	args: {
 		geometry: "activity" as const,
 		name: "Morning digest",
+		previewSlot: PREVIEW_SLOT,
 		timestamp: "08:04",
 		media: (
 			<BotIdentityAvatar
@@ -117,7 +120,33 @@ export const WithIdentifier = meta.story({
 		const [first] = partsOf(canvasElement)
 
 		await expect(canvas.getByText("OPE-29")).toBeVisible()
+		await expect(slotIn(canvasElement, PREVIEW_SLOT).children).toHaveLength(3)
 		await expect(dotOf(first)).toBe('"·"')
+	},
+})
+
+export const WithBlankIdentifier = meta.story({
+	args: {
+		preview: (
+			<>
+				<Icons.Routine aria-hidden="true" className={ROW_GLYPH_CLASS} />
+				<RowParts identifier="" parts={PARTS} slot={PARTS_SLOT} />
+			</>
+		),
+	},
+	parameters: {
+		docs: {
+			description: {
+				story:
+					"A row whose identifier came back blank, as a ticket with no external id reads. Check that no identifier box is drawn and that the first part keeps no leading dot, because nothing precedes it after all.",
+			},
+		},
+	},
+	play: async ({ canvasElement }) => {
+		const [first] = partsOf(canvasElement)
+
+		await expect(slotIn(canvasElement, PREVIEW_SLOT).children).toHaveLength(2)
+		await expect(dotOf(first)).toBe("none")
 	},
 })
 
@@ -126,7 +155,6 @@ export const InRoster = meta.story({
 		geometry: "roster",
 		media: undefined,
 		preview: "Reported earlier today",
-		previewSlot: "row-anatomy-preview",
 		timestamp: "09:24",
 		timestampSlot: "row-anatomy-timestamp",
 	},
@@ -149,7 +177,7 @@ export const InRoster = meta.story({
 	),
 	play: async ({ canvasElement }) => {
 		const timestamp = slotIn(canvasElement, "row-anatomy-timestamp")
-		const preview = slotIn(canvasElement, "row-anatomy-preview")
+		const preview = slotIn(canvasElement, PREVIEW_SLOT)
 
 		await expect(timestamp.getBoundingClientRect().width).toBe(44)
 		await expect(getComputedStyle(timestamp).textAlign).toBe("right")
