@@ -10,9 +10,11 @@ import {
 
 import preview from "@workspace/storybook/preview"
 import { A11Y_CONTRAST_AWAITING_DESIGN_DECISION } from "@workspace/storybook/story-utils"
+import { BOT_MCP_SERVERS } from "@workspace/ui/components/bot-settings-dialog/mcp-servers.fixtures"
 import { Icons } from "@workspace/ui/components/icons"
 import type { SettingsPage } from "@workspace/ui/components/plugin-settings/settings-pages"
 import { BOT_SKILLS } from "@workspace/ui/components/plugin-settings/skills.fixtures"
+import { useMcpSession } from "@workspace/ui/components/plugin-settings/use-mcp-session"
 import { useSkillSession } from "@workspace/ui/components/plugin-settings/use-skill-session"
 import {
 	SettingsDialogShell,
@@ -38,6 +40,12 @@ const railOf = (iconsOnly: boolean) => (
 			label="Skills"
 			value="skills"
 		/>
+		<SettingsRailItem
+			icon={Icons.Server}
+			iconsOnly={iconsOnly}
+			label="Applications"
+			value="mcp"
+		/>
 	</>
 )
 
@@ -56,7 +64,7 @@ const ShellWithoutSession = (props: SettingsDialogShellProps) => (
 	</SettingsDialogShell>
 )
 
-const ShellWithSkillSession = (props: SettingsDialogShellProps) => {
+const ShellWithSessions = (props: SettingsDialogShellProps) => {
 	const pages = usePushedPages<SettingsPage>()
 	const skillSession = useSkillSession({
 		pages,
@@ -66,16 +74,28 @@ const ShellWithSkillSession = (props: SettingsDialogShellProps) => {
 		onSkillDelete: fn(),
 		onSkillPreloadedChange: fn(),
 	})
+	const mcpSession = useMcpSession({
+		pages,
+		owner: { kind: "companion", name: "Nest Keeper" },
+		servers: BOT_MCP_SERVERS,
+		onServerCreate: fn(),
+		onServerChange: fn(),
+		onServerDelete: fn(),
+		isSettingsOpen: props.open,
+	})
 
 	return (
 		<SettingsDialogShell
 			{...props}
 			pages={pages}
-			sessions={{ skills: skillSession }}
+			sessions={{ skills: skillSession, applications: mcpSession }}
 		>
 			<GeneralPanel />
 			<Tabs.Panel className={SETTINGS_PANEL_CLASS} value="skills">
 				{skillSession.panel}
+			</Tabs.Panel>
+			<Tabs.Panel className={SETTINGS_PANEL_CLASS} value="mcp">
+				{mcpSession.panel}
 			</Tabs.Panel>
 		</SettingsDialogShell>
 	)
@@ -98,6 +118,34 @@ const typeIntoFirstSkill = async (user: ReturnType<typeof userEvent.setup>) => {
 	return body
 }
 
+const typeIntoFirstApplication = async (
+	user: ReturnType<typeof userEvent.setup>,
+) => {
+	const dialog = await dialogIn()
+	await user.click(within(dialog).getByRole("tab", { name: "Applications" }))
+	await user.click(within(dialog).getByRole("button", { name: /atlas/ }))
+	const command = within(dialog).getByLabelText("Command")
+	await user.type(command, "x")
+	return command
+}
+
+const ShellWithUnsavedWorkOffPage = (props: SettingsDialogShellProps) => (
+	<SettingsDialogShell
+		{...props}
+		sessions={{
+			applications: { pages: {}, isUnsaved: true, discard: fn() },
+		}}
+	>
+		<GeneralPanel />
+	</SettingsDialogShell>
+)
+
+const SKILL_LEAVE =
+	"You'll lose your unsaved changes. The saved skill stays as it is."
+
+const APPLICATION_LEAVE =
+	"You'll lose your unsaved changes. The saved application stays as it is."
+
 const confirmationIn = async () => {
 	const asked = await screen.findByRole("alertdialog")
 	await waitFor(() => expect(asked).toBeVisible())
@@ -108,7 +156,7 @@ const meta = preview.meta({
 	title: "Settings/SettingsDialogShell",
 	component: SettingsDialogShell,
 	tags: ["test-only"],
-	render: (args) => <ShellWithSkillSession {...args} />,
+	render: (args) => <ShellWithSessions {...args} />,
 	parameters: {
 		layout: "fullscreen",
 		docs: {
@@ -240,5 +288,104 @@ export const RailIconsOnly = meta.story({
 			expect(within(general).getByText("General")).toHaveClass("sr-only"),
 		)
 		await expect(within(skills).getByText("Skills")).toHaveClass("sr-only")
+	},
+})
+
+export const ChordIgnoredWithoutShortcut = meta.story({
+	parameters: {
+		a11y: A11Y_CONTRAST_AWAITING_DESIGN_DECISION,
+		docs: {
+			description: {
+				story:
+					"The settings chord over a shell that was not given the chord, as the space, profile and conversation dialogs are, with a skill holding unsaved work. Check that nothing is asked, nothing is reported and the skill page stays on screen.",
+			},
+		},
+	},
+	play: async ({ args, userEvent }) => {
+		const body = await typeIntoFirstSkill(userEvent)
+		await userEvent.keyboard("{Meta>},{/Meta}")
+
+		await expect(screen.queryByRole("alertdialog")).toBe(null)
+		await expect(body).toBeVisible()
+		await expect(args.onClose).not.toHaveBeenCalled()
+	},
+})
+
+export const ChordAsksWithShortcut = meta.story({
+	args: { hasSettingsShortcut: true },
+	parameters: {
+		a11y: A11Y_CONTRAST_AWAITING_DESIGN_DECISION,
+		docs: {
+			description: {
+				story:
+					"The settings chord over a shell given the chord, as the companion dialog is, with a skill holding unsaved work. Check that the chord asks the leave question like the close button and reports no close.",
+			},
+		},
+	},
+	play: async ({ args, userEvent }) => {
+		await typeIntoFirstSkill(userEvent)
+		await userEvent.keyboard("{Meta>},{/Meta}")
+
+		await confirmationIn()
+		await expect(args.onClose).not.toHaveBeenCalled()
+	},
+})
+
+export const SkillPageWording = meta.story({
+	parameters: {
+		a11y: A11Y_CONTRAST_AWAITING_DESIGN_DECISION,
+		docs: {
+			description: {
+				story:
+					"Escape over a skill page with unsaved work. Check that the question speaks of the saved skill.",
+			},
+		},
+	},
+	play: async ({ userEvent }) => {
+		await typeIntoFirstSkill(userEvent)
+		await userEvent.keyboard("{Escape}")
+
+		const asked = await confirmationIn()
+		await expect(within(asked).getByText(SKILL_LEAVE)).toBeVisible()
+	},
+})
+
+export const ApplicationPageWording = meta.story({
+	parameters: {
+		a11y: A11Y_CONTRAST_AWAITING_DESIGN_DECISION,
+		docs: {
+			description: {
+				story:
+					"Escape over an application page with unsaved work. Check that the question speaks of the saved application.",
+			},
+		},
+	},
+	play: async ({ args, userEvent }) => {
+		await typeIntoFirstApplication(userEvent)
+		await userEvent.keyboard("{Escape}")
+
+		const asked = await confirmationIn()
+		await expect(within(asked).getByText(APPLICATION_LEAVE)).toBeVisible()
+		await expect(args.onClose).not.toHaveBeenCalled()
+	},
+})
+
+export const DefaultWordingWithNoPage = meta.story({
+	render: (args) => <ShellWithUnsavedWorkOffPage {...args} />,
+	parameters: {
+		a11y: A11Y_CONTRAST_AWAITING_DESIGN_DECISION,
+		docs: {
+			description: {
+				story:
+					"Unsaved work with no page on screen, declared by an application session only. Check that the question takes the named default wording, the skill one, rather than the wording of the first session declared.",
+			},
+		},
+	},
+	play: async ({ userEvent }) => {
+		await dialogIn()
+		await userEvent.keyboard("{Escape}")
+
+		const asked = await confirmationIn()
+		await expect(within(asked).getByText(SKILL_LEAVE)).toBeVisible()
 	},
 })

@@ -49,16 +49,16 @@ type SettingsDialogShellProps = {
 	className?: string
 }
 
-const isWorded = (kind: string): kind is WordedSessionKind =>
-	kind === "skills" || kind === "applications"
+const WORDED_SESSION_KINDS: WordedSessionKind[] = ["skills", "applications"]
+
+const DEFAULT_LEAVE_KIND: WordedSessionKind = "skills"
 
 const wordedKindOf = (sessions: SettingsSessions, pages?: SettingsPages) => {
-	const worded = Object.keys(sessions).filter(isWorded)
 	const top = pages?.top
-	const holder = worded.find(
+	const holder = WORDED_SESSION_KINDS.find(
 		(kind) => top && top in (sessions[kind]?.pages ?? {}),
 	)
-	return holder ?? worded[0] ?? "skills"
+	return holder ?? DEFAULT_LEAVE_KIND
 }
 
 const SettingsDialogShell = ({
