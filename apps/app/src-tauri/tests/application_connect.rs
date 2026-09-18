@@ -7,7 +7,7 @@ use kiroshi_app::agent::sidecar::SIDECAR_OVERRIDE_ENV;
 use kiroshi_app::agent::AgentState;
 use kiroshi_app::environment::contract::{
 	EnvOwner, EnvScope, Values, OAUTH_ACCESS_TOKEN, OAUTH_CLIENT_ID, OAUTH_CLIENT_SECRET,
-	OAUTH_REASON,
+	OAUTH_REASON, OAUTH_REDIRECT_URI,
 };
 use kiroshi_app::environment::store;
 use kiroshi_app::mcp_oauth::commands::{mcp_oauth_connect, McpOauthState};
@@ -27,7 +27,11 @@ const AUTHORIZE_LOG: &str = "FAKE_AGENT_OAUTH_AUTHORIZE_LOG";
 
 const URL: &str = "https://mcp.granola.test/mcp";
 
-const HANDED: &str = "registered";
+const HANDED_CLIENT: &str = "registered";
+
+const HANDED_REDIRECT: &str = "http://127.0.0.1:53682/oauth/callback";
+
+const HANDED: &str = "registered http://127.0.0.1:53682/oauth/callback";
 
 const REGISTERED: &str = "-";
 
@@ -44,13 +48,23 @@ fn a_refused_grant() -> OauthCredentials {
 		access_token: "held-access".to_owned(),
 		refresh_token: Some("held-refresh".to_owned()),
 		expires_at: Some(4_000_000_000_000),
-		client_id: HANDED.to_owned(),
+		client_id: HANDED_CLIENT.to_owned(),
 		client_secret: Some("confidential".to_owned()),
+		redirect_uri: Some(HANDED_REDIRECT.to_owned()),
 	}
 }
 
 fn connected_under(
 	case: &str,
+	handed_settles: &str,
+	registration_settles: Option<&str>,
+) -> Connected {
+	connected_holding(case, &a_refused_grant(), handed_settles, registration_settles)
+}
+
+fn connected_holding(
+	case: &str,
+	held: &OauthCredentials,
 	handed_settles: &str,
 	registration_settles: Option<&str>,
 ) -> Connected {
@@ -78,7 +92,7 @@ fn connected_under(
 	let root = store::root(app.handle()).expect("the store root is named");
 	let owner = EnvOwner::Bot { id: "b1".to_owned(), space_id: "s1".to_owned() };
 	let scope = EnvScope::Server { name: "granola".to_owned(), owner: owner.clone() };
-	credentials::store(&root, &scope, &a_refused_grant()).expect("the grant is written");
+	credentials::store(&root, &scope, held).expect("the grant is written");
 	credentials::forget_tokens(&root, &scope).expect("the tokens are deleted");
 	credentials::remember_refusal(&root, &scope, "invalid_grant").expect("the reason is written");
 
@@ -101,6 +115,7 @@ fn granted_anew() -> Values {
 		(OAUTH_ACCESS_TOKEN.to_owned(), "granted-anew".to_owned()),
 		(OAUTH_CLIENT_ID.to_owned(), "registered-anew".to_owned()),
 		(OAUTH_CLIENT_SECRET.to_owned(), "confidential-anew".to_owned()),
+		(OAUTH_REDIRECT_URI.to_owned(), "http://127.0.0.1:61000/oauth/callback".to_owned()),
 	])
 }
 
@@ -139,7 +154,16 @@ fn a_handed_client_cancelled_busy_or_denied_runs_no_second_flow() {
 
 		assert!(connected.settled.is_err(), "{case}");
 		assert_eq!(connected.flows, flows(&[HANDED]), "{case}");
-		assert_eq!(connected.kept.get(OAUTH_CLIENT_ID).map(String::as_str), Some(HANDED), "{case}");
+		assert_eq!(
+			connected.kept.get(OAUTH_CLIENT_ID).map(String::as_str),
+			Some(HANDED_CLIENT),
+			"{case}"
+		);
+		assert_eq!(
+			connected.kept.get(OAUTH_REDIRECT_URI).map(String::as_str),
+			Some(HANDED_REDIRECT),
+			"{case}"
+		);
 	}
 }
 
@@ -153,4 +177,15 @@ fn a_new_registration_that_settles_with_no_grant_is_not_followed_by_another() {
 
 	assert_eq!(connected.settled, Err(OauthError::TimedOut));
 	assert_eq!(connected.flows, flows(&[HANDED, REGISTERED]));
+}
+
+#[test]
+fn a_stored_client_holding_no_redirect_uri_is_never_handed() {
+	let unpaired = OauthCredentials { redirect_uri: None, ..a_refused_grant() };
+
+	let connected = connected_holding("unpaired", &unpaired, r#"{"kind":"timedOut"}"#, None);
+
+	assert_eq!(connected.settled, Ok(()));
+	assert_eq!(connected.flows, flows(&[REGISTERED]));
+	assert_eq!(connected.kept, granted_anew());
 }

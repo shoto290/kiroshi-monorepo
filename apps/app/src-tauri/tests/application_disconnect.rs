@@ -24,6 +24,7 @@ fn a_space_grant() -> OauthCredentials {
 		expires_at: Some(4_000_000_000_000),
 		client_id: "registered".to_owned(),
 		client_secret: Some("confidential".to_owned()),
+		redirect_uri: None,
 	}
 }
 

@@ -23,7 +23,7 @@ use crate::bundles::{self, McpServer};
 use crate::environment::commands::writable_root;
 use crate::environment::contract::{
 	EnvError, EnvOwner, EnvScope, Values, OAUTH_ACCESS_TOKEN, OAUTH_CLIENT_ID, OAUTH_CLIENT_SECRET,
-	OAUTH_REFRESH_TOKEN,
+	OAUTH_REDIRECT_URI, OAUTH_REFRESH_TOKEN,
 };
 use crate::environment::store;
 
@@ -93,7 +93,7 @@ async fn connected<R: Runtime>(
 		granted => return granted,
 	};
 	eprintln!("{}", refusal_line(&Step::HandingTheStoredClient.refused(refused.error), stored));
-	let registering = AuthorizeRequest { client_id: None, client_secret: None, ..request };
+	let registering = AuthorizeRequest { url: request.url, ..AuthorizeRequest::default() };
 	grant_of(settlement(app, &registering).await?)
 }
 
@@ -109,9 +109,17 @@ fn calls_for_a_new_client(settled: &Authorized) -> bool {
 }
 
 fn authorize_request(url: String, stored: &Values) -> AuthorizeRequest {
-	let client_id = stored.get(OAUTH_CLIENT_ID).cloned();
-	let client_secret = client_id.as_ref().and(stored.get(OAUTH_CLIENT_SECRET).cloned());
-	AuthorizeRequest { url, client_id, client_secret }
+	let (Some(client_id), Some(redirect_uri)) =
+		(stored.get(OAUTH_CLIENT_ID), stored.get(OAUTH_REDIRECT_URI))
+	else {
+		return AuthorizeRequest { url, ..AuthorizeRequest::default() };
+	};
+	AuthorizeRequest {
+		url,
+		client_id: Some(client_id.clone()),
+		client_secret: stored.get(OAUTH_CLIENT_SECRET).cloned(),
+		redirect_uri: Some(redirect_uri.clone()),
+	}
 }
 
 async fn settlement<R: Runtime>(
@@ -481,6 +489,7 @@ mod tests {
 			expires_at: Some(now_ms() + 3_600_000),
 			client_id: "registered".to_owned(),
 			client_secret: None,
+			redirect_uri: None,
 		}
 	}
 
@@ -524,12 +533,18 @@ mod tests {
 	}
 
 	#[test]
-	fn a_connect_hands_the_stored_client_and_no_secret_without_a_client() {
+	fn a_connect_hands_the_stored_client_only_beside_its_redirect_uri() {
 		let stored = Values::from([
+			(OAUTH_CLIENT_ID.to_owned(), "registered".to_owned()),
+			(OAUTH_CLIENT_SECRET.to_owned(), "confidential".to_owned()),
+			(OAUTH_REDIRECT_URI.to_owned(), "http://127.0.0.1:53682/oauth/callback".to_owned()),
+		]);
+		let no_redirect = Values::from([
 			(OAUTH_CLIENT_ID.to_owned(), "registered".to_owned()),
 			(OAUTH_CLIENT_SECRET.to_owned(), "confidential".to_owned()),
 		]);
 		let orphan = Values::from([(OAUTH_CLIENT_SECRET.to_owned(), "confidential".to_owned())]);
+		let registering = AuthorizeRequest { url: "https://a".to_owned(), ..Default::default() };
 
 		assert_eq!(
 			authorize_request("https://a".to_owned(), &stored),
@@ -537,12 +552,11 @@ mod tests {
 				url: "https://a".to_owned(),
 				client_id: Some("registered".to_owned()),
 				client_secret: Some("confidential".to_owned()),
+				redirect_uri: Some("http://127.0.0.1:53682/oauth/callback".to_owned()),
 			}
 		);
-		assert_eq!(
-			authorize_request("https://a".to_owned(), &orphan),
-			AuthorizeRequest { url: "https://a".to_owned(), client_id: None, client_secret: None }
-		);
+		assert_eq!(authorize_request("https://a".to_owned(), &no_redirect), registering);
+		assert_eq!(authorize_request("https://a".to_owned(), &orphan), registering);
 	}
 
 	fn a_root(name: &str) -> std::path::PathBuf {
@@ -663,6 +677,7 @@ mod tests {
 			expires_at: Some(now_ms()),
 			client_id: "registered".to_owned(),
 			client_secret: Some("confidential".to_owned()),
+			redirect_uri: None,
 		}
 	}
 
@@ -673,6 +688,7 @@ mod tests {
 			expires_at: Some(now_ms() + 3_600_000),
 			client_id: "registered".to_owned(),
 			client_secret: Some("confidential".to_owned()),
+			redirect_uri: None,
 		}
 	}
 

@@ -420,7 +420,7 @@ pub struct RevocationRequest {
 	pub client_secret: Option<String>,
 }
 
-#[derive(Debug, Clone, PartialEq, Eq, Serialize)]
+#[derive(Debug, Clone, Default, PartialEq, Eq, Serialize)]
 #[serde(rename_all = "camelCase")]
 pub struct AuthorizeRequest {
 	pub url: String,
@@ -428,6 +428,8 @@ pub struct AuthorizeRequest {
 	pub client_id: Option<String>,
 	#[serde(skip_serializing_if = "Option::is_none")]
 	pub client_secret: Option<String>,
+	#[serde(skip_serializing_if = "Option::is_none")]
+	pub redirect_uri: Option<String>,
 }
 
 pub fn oauth_authorize_command(request: &AuthorizeRequest) -> Value {
@@ -542,6 +544,8 @@ pub struct OauthCredentials {
 	pub client_id: String,
 	#[serde(default)]
 	pub client_secret: Option<String>,
+	#[serde(default)]
+	pub redirect_uri: Option<String>,
 }
 
 #[derive(Debug, Clone, Deserialize)]
@@ -578,8 +582,9 @@ mod tests {
 			url: "https://mcp.granola.test/mcp".to_owned(),
 			client_id: Some("registered".to_owned()),
 			client_secret: Some("confidential".to_owned()),
+			redirect_uri: Some("http://127.0.0.1:53682/oauth/callback".to_owned()),
 		};
-		let bare = AuthorizeRequest { client_id: None, client_secret: None, ..handed.clone() };
+		let bare = AuthorizeRequest { url: handed.url.clone(), ..Default::default() };
 
 		assert_eq!(
 			oauth_authorize_command(&handed),
@@ -587,7 +592,8 @@ mod tests {
 				"type": "mcp_oauth_authorize",
 				"url": "https://mcp.granola.test/mcp",
 				"clientId": "registered",
-				"clientSecret": "confidential"
+				"clientSecret": "confidential",
+				"redirectUri": "http://127.0.0.1:53682/oauth/callback"
 			})
 		);
 		assert_eq!(
