@@ -190,6 +190,8 @@ pub struct InstallDraft {
 	pub application: String,
 	pub title: String,
 	pub logo: Option<String>,
+	pub logo_url: Option<String>,
+	pub description: Option<String>,
 	pub scope: Destination,
 	pub destination_id: Option<String>,
 	pub install: InstallCase,
@@ -204,6 +206,10 @@ pub struct ApplicationInstall {
 	pub title: String,
 	#[serde(skip_serializing_if = "Option::is_none")]
 	pub logo: Option<String>,
+	#[serde(skip_serializing_if = "Option::is_none")]
+	pub logo_url: Option<String>,
+	#[serde(skip_serializing_if = "Option::is_none")]
+	pub description: Option<String>,
 	pub scope: Destination,
 	#[serde(skip_serializing_if = "Option::is_none")]
 	pub destination_id: Option<String>,
@@ -222,6 +228,10 @@ pub struct ApplicationInstalled {
 	pub title: String,
 	#[serde(skip_serializing_if = "Option::is_none")]
 	pub logo: Option<String>,
+	#[serde(skip_serializing_if = "Option::is_none")]
+	pub logo_url: Option<String>,
+	#[serde(skip_serializing_if = "Option::is_none")]
+	pub description: Option<String>,
 	pub scope: Destination,
 	#[serde(skip_serializing_if = "Option::is_none")]
 	pub destination_id: Option<String>,
@@ -240,6 +250,8 @@ impl From<ApplicationInstall> for ApplicationInstalled {
 			application: record.application,
 			title: record.title,
 			logo: record.logo,
+			logo_url: record.logo_url,
+			description: record.description,
 			scope: record.scope,
 			destination_id: record.destination_id,
 			install: record.install,
@@ -257,6 +269,8 @@ impl From<InstallDraft> for ApplicationInstalled {
 			application: draft.application,
 			title: draft.title,
 			logo: draft.logo,
+			logo_url: draft.logo_url,
+			description: draft.description,
 			scope: draft.scope,
 			destination_id: draft.destination_id,
 			install: draft.install,
@@ -475,7 +489,9 @@ mod tests {
 			conversation_id: "c1".to_owned(),
 			application: "superset".to_owned(),
 			title: "Superset".to_owned(),
-			logo: Some("<svg/>".to_owned()),
+			logo: None,
+			logo_url: Some("https://icons.test/superset.png".to_owned()),
+			description: Some("Run workspaces.".to_owned()),
 			scope: Destination::Space,
 			destination_id: Some("personal".to_owned()),
 			install: InstallCase::Key { secrets: vec!["SUPERSET_API_KEY".to_owned()] },
@@ -490,7 +506,8 @@ mod tests {
 				"conversationId": "c1",
 				"application": "superset",
 				"title": "Superset",
-				"logo": "<svg/>",
+				"logoUrl": "https://icons.test/superset.png",
+				"description": "Run workspaces.",
 				"scope": "space",
 				"destinationId": "personal",
 				"install": { "kind": "key", "secrets": ["SUPERSET_API_KEY"] },
@@ -507,6 +524,8 @@ mod tests {
 			application: "paper".to_owned(),
 			title: "Paper".to_owned(),
 			logo: None,
+			logo_url: None,
+			description: None,
 			scope: Destination::User,
 			destination_id: None,
 			install: InstallCase::Nothing,

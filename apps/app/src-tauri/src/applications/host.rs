@@ -140,6 +140,9 @@ impl<R: Runtime> ApplicationHost<R> {
 			application: application.name.clone(),
 			title: application.title.clone(),
 			logo: application.logo.clone(),
+			logo_url: application.logo_url.clone(),
+			description: Some(application.description.clone())
+				.filter(|description| !description.is_empty()),
 			scope,
 			destination_id: destination_id(&owner),
 			install: install.clone(),
@@ -767,6 +770,7 @@ mod tests {
 				"application": "superset",
 				"title": "Superset",
 				"logo": curated_logo("superset"),
+				"description": curated("superset").description,
 				"scope": scope,
 				"install": { "kind": "key", "secrets": ["SUPERSET_API_KEY"] },
 				"lastMessageSeq": 0,
@@ -822,8 +826,28 @@ mod tests {
 		assert_eq!(held.destination_id.as_deref(), Some("personal"));
 		assert_eq!(held.install, InstallCase::Key { secrets: vec!["SUPERSET_API_KEY".to_owned()] });
 		assert_eq!(held.logo, curated_logo("superset"));
+		assert_eq!(held.description.as_deref(), Some(curated("superset").description.as_str()));
 		assert_eq!(held.last_message_seq, 0);
 		assert!(held.created_at > 0, "the row holds no moment");
+		cleaned(&app);
+	}
+
+	#[tokio::test]
+	async fn a_directory_install_writes_its_readable_name_its_icon_url_and_its_description() {
+		let app = a_host("recorded-directory").await;
+
+		let host = a_host_reading(&app, &["zinc-1"]).await;
+		host.directory.refreshed().await;
+
+		host.answer(an_install("zinc-1", "user")).await.expect("the install answers");
+
+		let recorded = recorded_in(&app, "c1").await;
+		assert_eq!(recorded.len(), 1);
+		let held = &recorded[0];
+		assert_eq!(held.title, "zinc-1");
+		assert_eq!(held.logo, None);
+		assert_eq!(held.logo_url.as_deref(), Some("https://zinc-1.test/icon.png"));
+		assert_eq!(held.description.as_deref(), Some("zinc-1 does things."));
 		cleaned(&app);
 	}
 
