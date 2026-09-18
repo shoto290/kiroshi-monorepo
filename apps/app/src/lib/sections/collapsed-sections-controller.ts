@@ -39,9 +39,8 @@ export const createCollapsedSectionsController = (
 
 	const enqueue = createQueue()
 
-	const set = (collapsedBySpaceId: Record<string, string[]>) => {
+	const set = (collapsedBySpaceId: Record<string, string[]>) =>
 		stateStore.setState({ collapsedBySpaceId })
-	}
 
 	const hold = (spaceId: string, collapsed: string[]) =>
 		set({ ...stateStore.getState().collapsedBySpaceId, [spaceId]: collapsed })

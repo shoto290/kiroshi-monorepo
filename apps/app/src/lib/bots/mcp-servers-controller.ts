@@ -48,9 +48,8 @@ export const createMcpServersController = (
 
 	const enqueue = createQueue()
 
-	const set = (fields: Partial<McpServersState>) => {
+	const set = (fields: Partial<McpServersState>) =>
 		stateStore.setState({ ...stateStore.getState(), ...fields })
-	}
 
 	const applyTo = (owner: EnvOwner, fields: Partial<McpServersState>) => {
 		if (isSameOwner(stateStore.getState().owner, owner)) {

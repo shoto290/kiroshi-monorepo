@@ -56,9 +56,8 @@ export const createSectionsController = (
 
 	const enqueue = createQueue()
 
-	const set = (fields: Partial<SectionsState>) => {
+	const set = (fields: Partial<SectionsState>) =>
 		stateStore.setState({ ...stateStore.getState(), ...fields })
-	}
 
 	const hold = (spaceId: string, sections: Section[]) =>
 		set({

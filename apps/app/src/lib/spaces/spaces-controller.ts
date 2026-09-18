@@ -53,9 +53,8 @@ export const createSpacesController = (
 
 	const enqueue = createQueue()
 
-	const set = (fields: Partial<SpacesState>) => {
+	const set = (fields: Partial<SpacesState>) =>
 		stateStore.setState({ ...stateStore.getState(), ...fields })
-	}
 
 	const apply = (written: Space) =>
 		set({

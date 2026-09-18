@@ -39,9 +39,8 @@ export const createSkillsController = (
 
 	const enqueue = createQueue()
 
-	const set = (fields: Partial<SkillsState>) => {
+	const set = (fields: Partial<SkillsState>) =>
 		stateStore.setState({ ...stateStore.getState(), ...fields })
-	}
 
 	const applyTo = (botId: string, skills: BotSkill[]) => {
 		if (stateStore.getState().botId === botId) {

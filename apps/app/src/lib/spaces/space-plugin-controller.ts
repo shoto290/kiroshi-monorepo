@@ -54,9 +54,8 @@ export const createSpacePluginController = (
 
 	const enqueue = createQueue()
 
-	const set = (fields: Partial<SpacePluginState>) => {
+	const set = (fields: Partial<SpacePluginState>) =>
 		stateStore.setState({ ...stateStore.getState(), ...fields })
-	}
 
 	const read = async (spaceId: string) => {
 		const [skills, commits] = await Promise.all([

@@ -150,9 +150,8 @@ export const createApplicationsController = (
 	let issuedRead = 0
 	const askedNames = new Set<string>()
 
-	const set = (fields: Partial<ApplicationsState>) => {
+	const set = (fields: Partial<ApplicationsState>) =>
 		stateStore.setState({ ...stateStore.getState(), ...fields })
-	}
 
 	const readDirectory = () => {
 		issuedRead += 1

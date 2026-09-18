@@ -52,9 +52,8 @@ export const createUserPluginController = (
 
 	const enqueue = createQueue()
 
-	const set = (fields: Partial<UserPluginState>) => {
+	const set = (fields: Partial<UserPluginState>) =>
 		stateStore.setState({ ...stateStore.getState(), ...fields })
-	}
 
 	const read = async () => {
 		const [skills, commits] = await Promise.all([

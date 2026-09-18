@@ -87,9 +87,8 @@ export const createUserController = (): UserController => {
 	let pendingName: string | null = null
 	let isWriting = false
 
-	const set = (fields: Partial<UserState>) => {
+	const set = (fields: Partial<UserState>) =>
 		stateStore.setState({ ...stateStore.getState(), ...fields })
-	}
 
 	const show = (preferences: ReaderPreferences) => set({ preferences })
 

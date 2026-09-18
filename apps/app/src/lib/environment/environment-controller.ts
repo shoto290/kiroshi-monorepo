@@ -27,9 +27,8 @@ export const createEnvironmentController = (
 ): EnvironmentController => {
 	const stateStore = createStore(initialEnvironmentState)
 
-	const set = (fields: Partial<EnvironmentState>) => {
+	const set = (fields: Partial<EnvironmentState>) =>
 		stateStore.setState({ ...stateStore.getState(), ...fields })
-	}
 
 	const read = (scope: EnvScope) =>
 		store

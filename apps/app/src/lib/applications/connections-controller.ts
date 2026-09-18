@@ -45,9 +45,8 @@ export const createConnectionsController = (
 ): ConnectionsController => {
 	const stateStore = createStore(initialConnectionsState)
 
-	const set = (fields: Partial<ConnectionsState>) => {
+	const set = (fields: Partial<ConnectionsState>) =>
 		stateStore.setState({ ...stateStore.getState(), ...fields })
-	}
 
 	const setFor = (owner: EnvOwner, fields: Partial<ConnectionsState>) => {
 		if (stateStore.getState().owner === owner) {

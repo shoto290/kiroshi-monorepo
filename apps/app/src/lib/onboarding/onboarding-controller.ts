@@ -69,9 +69,8 @@ export const createOnboardingController = (
 	const stateStore = createStore(initialOnboardingState)
 	let asked: OnboardingSummons = "greeting"
 
-	const set = (fields: Partial<OnboardingState>) => {
+	const set = (fields: Partial<OnboardingState>) =>
 		stateStore.setState({ ...stateStore.getState(), ...fields })
-	}
 
 	const showConnection = (connection: ConnectionStep) => {
 		set({

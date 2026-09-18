@@ -38,9 +38,8 @@ export const createHistoryController = (
 
 	const enqueue = createQueue()
 
-	const set = (fields: Partial<HistoryState>) => {
+	const set = (fields: Partial<HistoryState>) =>
 		stateStore.setState({ ...stateStore.getState(), ...fields })
-	}
 
 	const applyTo = (botId: string, fields: Partial<HistoryState>) => {
 		if (stateStore.getState().botId === botId) {

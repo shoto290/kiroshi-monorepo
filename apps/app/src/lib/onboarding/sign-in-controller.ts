@@ -39,9 +39,8 @@ export const createSignInController = (
 ): SignInController => {
 	const stateStore = createStore(initialSignInState)
 
-	const set = (fields: Partial<SignInState>) => {
+	const set = (fields: Partial<SignInState>) =>
 		stateStore.setState({ ...stateStore.getState(), ...fields })
-	}
 
 	const showConnection = (connection: ConnectionStep) => {
 		set({ connection, round: stateStore.getState().round + 1, isBusy: false })
