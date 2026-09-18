@@ -140,7 +140,7 @@ export const createTranscriptController = (
 	}
 
 	return {
-		getState: stateStore.getState,
+		getState: current,
 		subscribe: stateStore.subscribe,
 		load,
 		reopen,

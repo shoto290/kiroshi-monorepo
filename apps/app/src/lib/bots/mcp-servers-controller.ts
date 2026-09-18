@@ -116,7 +116,7 @@ export const createMcpServersController = (
 		})
 
 	return {
-		getState: stateStore.getState,
+		getState: current,
 
 		subscribe: stateStore.subscribe,
 

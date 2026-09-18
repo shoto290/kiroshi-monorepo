@@ -134,7 +134,7 @@ export const createOnboardingController = (
 	return {
 		...actions,
 
-		getState: stateStore.getState,
+		getState: current,
 
 		subscribe: stateStore.subscribe,
 

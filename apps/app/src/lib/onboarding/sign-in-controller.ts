@@ -64,7 +64,7 @@ export const createSignInController = (
 	return {
 		...actions,
 
-		getState: stateStore.getState,
+		getState: current,
 
 		subscribe: stateStore.subscribe,
 

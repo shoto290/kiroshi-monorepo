@@ -1225,7 +1225,7 @@ export const createConversationController = (
 	}
 
 	return {
-		getState: stateStore.getState,
+		getState: current,
 		subscribe: stateStore.subscribe,
 		attach,
 		open,

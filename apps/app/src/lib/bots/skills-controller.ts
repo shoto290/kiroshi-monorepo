@@ -94,7 +94,7 @@ export const createSkillsController = (
 
 	return {
 		...files,
-		getState: stateStore.getState,
+		getState: current,
 
 		subscribe: stateStore.subscribe,
 

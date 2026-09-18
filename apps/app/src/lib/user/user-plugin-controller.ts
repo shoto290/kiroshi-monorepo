@@ -87,7 +87,7 @@ export const createUserPluginController = (
 	const readFiles = createHistoryFilesReader(
 		(oldestCommitId, newestCommitId) =>
 			store.userPluginHistoryDiff(oldestCommitId, newestCommitId),
-		{ run, getState: stateStore.getState, setState: set },
+		{ run, getState: current, setState: set },
 	)
 
 	const files = createSkillFilesController(
@@ -108,7 +108,7 @@ export const createUserPluginController = (
 
 	return {
 		...files,
-		getState: stateStore.getState,
+		getState: current,
 
 		subscribe: stateStore.subscribe,
 

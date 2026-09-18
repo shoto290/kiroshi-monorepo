@@ -315,7 +315,7 @@ export const createApplicationsController = (
 	}
 
 	return {
-		getState: stateStore.getState,
+		getState: current,
 
 		subscribe: stateStore.subscribe,
 

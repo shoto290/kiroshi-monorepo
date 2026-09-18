@@ -55,7 +55,7 @@ export const createEnvironmentController = (
 	}
 
 	return {
-		getState: stateStore.getState,
+		getState: current,
 
 		subscribe: stateStore.subscribe,
 

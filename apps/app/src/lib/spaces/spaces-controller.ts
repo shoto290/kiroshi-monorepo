@@ -99,7 +99,7 @@ export const createSpacesController = (
 	})
 
 	return {
-		getState: stateStore.getState,
+		getState: current,
 
 		subscribe: stateStore.subscribe,
 

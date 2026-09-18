@@ -136,7 +136,7 @@ export function createAttachmentsController(
 	}
 
 	return {
-		getState: stateStore.getState,
+		getState: current,
 		subscribe: stateStore.subscribe,
 
 		stage: (owner, files) => {

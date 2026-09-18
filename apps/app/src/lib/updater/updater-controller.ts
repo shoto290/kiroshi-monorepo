@@ -118,7 +118,7 @@ export const createUpdaterController = (
 	}
 
 	return {
-		getState: stateStore.getState,
+		getState: current,
 
 		subscribe: stateStore.subscribe,
 

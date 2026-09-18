@@ -644,7 +644,7 @@ export const createRosterController = (
 		})
 
 	return {
-		getState: stateStore.getState,
+		getState: current,
 
 		subscribe: stateStore.subscribe,
 

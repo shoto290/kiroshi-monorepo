@@ -146,7 +146,7 @@ export const createUserController = (): UserController => {
 	}
 
 	return {
-		getState: stateStore.getState,
+		getState: current,
 
 		subscribe: stateStore.subscribe,
 

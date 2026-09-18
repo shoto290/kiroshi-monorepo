@@ -66,7 +66,7 @@ export const createCollapsedSectionsController = (
 	})
 
 	return {
-		getState: stateStore.getState,
+		getState: current,
 
 		subscribe: stateStore.subscribe,
 

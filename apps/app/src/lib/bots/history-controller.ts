@@ -79,13 +79,13 @@ export const createHistoryController = (
 			),
 		{
 			run: (task) => onOpenBot(task),
-			getState: stateStore.getState,
+			getState: current,
 			setState: set,
 		},
 	)
 
 	return {
-		getState: stateStore.getState,
+		getState: current,
 
 		subscribe: stateStore.subscribe,
 

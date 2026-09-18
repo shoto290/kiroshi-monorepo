@@ -170,7 +170,7 @@ export const createSearchController = ({
 	}
 
 	return {
-		getState: stateStore.getState,
+		getState: current,
 
 		subscribe: stateStore.subscribe,
 

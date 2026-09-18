@@ -104,7 +104,7 @@ export const createSpacePluginController = (
 			store.spacePluginHistoryDiff(openSpace(), oldestCommitId, newestCommitId),
 		{
 			run: (task) => run(() => task()),
-			getState: stateStore.getState,
+			getState: current,
 			setState: set,
 		},
 	)
@@ -129,7 +129,7 @@ export const createSpacePluginController = (
 
 	return {
 		...files,
-		getState: stateStore.getState,
+		getState: current,
 
 		subscribe: stateStore.subscribe,
 

@@ -106,7 +106,7 @@ export const createSectionsController = (
 	})
 
 	return {
-		getState: stateStore.getState,
+		getState: current,
 
 		subscribe: stateStore.subscribe,
 
