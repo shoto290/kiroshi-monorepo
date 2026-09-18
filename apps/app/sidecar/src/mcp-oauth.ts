@@ -1,3 +1,5 @@
+import type { Server } from "bun"
+
 import {
 	auth,
 	discoverOAuthServerInfo,
@@ -27,6 +29,8 @@ export const REFRESH_TIMEOUT_MS = 10_000
 const GRANTED = "Authorization granted. You can close this tab."
 const DENIED = "Authorization was refused. You can close this tab."
 const REFUSED = "This is not the redirect this flow is waiting for."
+const PORT_TAKEN = "the registered redirect port could not be bound"
+const UNREACHED = "the authorization url could not be requested"
 const NO_REVOCATION =
 	"the authorization server advertises no revocation endpoint"
 
@@ -75,6 +79,7 @@ export type OauthCredentials = {
 	expiresAt?: number
 	clientId: string
 	clientSecret?: string
+	redirectUri?: string
 }
 
 export type OauthAnswer =
@@ -90,6 +95,7 @@ export type AuthorizeRequest = {
 	url?: string
 	clientId?: string
 	clientSecret?: string
+	redirectUri?: string
 }
 
 export type RevokeRequest = {
@@ -113,11 +119,20 @@ type Redirect = { code: string } | { failure: OauthFailure }
 
 type Settle = (redirect: Redirect) => void
 
+type Answer = (request: Request) => Response
+
+type Listening = {
+	listener: Server<undefined>
+	redirectUrl: string
+	client?: OAuthClientInformation
+}
+
 type Attempt = {
 	serverUrl: string
 	redirectUrl: string
 	state: string
 	arrival: Promise<Redirect>
+	settle: Settle
 	emit: Emit
 	fetchFn: FetchLike
 	client?: OAuthClientInformation
@@ -257,8 +272,40 @@ const clientMetadata = (redirectUrl: string): OAuthClientMetadata => ({
 	token_endpoint_auth_method: "client_secret_post",
 })
 
+const authorizationRefusal = async (
+	authorizationUrl: URL,
+): Promise<OauthFailure | undefined> => {
+	const answered = await timedFetch(authorizationUrl, {
+		redirect: "manual",
+		credentials: "omit",
+	})
+	if (answered.status < 400) {
+		return undefined
+	}
+	const body = carriable(await answered.text())
+	return {
+		kind: "failed",
+		detail: `the authorization endpoint answered ${answered.status}`,
+		status: answered.status,
+		...(body ? { body } : {}),
+	}
+}
+
+const watchAuthorization = (authorizationUrl: URL, settle: Settle) => {
+	authorizationRefusal(authorizationUrl).then(
+		(failure) => {
+			if (failure) {
+				settle({ failure })
+			}
+		},
+		(error) => {
+			process.stderr.write(`${UNREACHED}: ${describeError(error)}\n`)
+		},
+	)
+}
+
 const clientProvider = (
-	{ redirectUrl, state, emit }: Attempt,
+	{ redirectUrl, state, emit, settle }: Attempt,
 	held: Held,
 ): OAuthClientProvider => ({
 	get redirectUrl() {
@@ -287,6 +334,7 @@ const clientProvider = (
 			)
 		}
 		emit({ type: OAUTH_STARTED, url: authorizationUrl.toString() })
+		watchAuthorization(authorizationUrl, settle)
 	},
 })
 
@@ -332,20 +380,59 @@ const exchanged = async (attempt: Attempt): Promise<OauthAnswer> => {
 			error: { kind: "failed", detail: "the token exchange returned nothing" },
 		}
 	}
-	return { credentials: credentialsOf(tokens, client) }
+	return {
+		credentials: {
+			...credentialsOf(tokens, client),
+			redirectUri: attempt.redirectUrl,
+		},
+	}
 }
 
-const handedClient = (
-	clientId?: string,
-	clientSecret?: string,
-): OAuthClientInformation | undefined =>
-	clientId ? { client_id: clientId, client_secret: clientSecret } : undefined
+const loopbackUrl = (port: number | undefined) =>
+	`http://${LOOPBACK}:${port}${REDIRECT_PATH}`
+
+const listen = (port: number, fetch: Answer) =>
+	Bun.serve({ hostname: LOOPBACK, port, fetch })
+
+const registeredPort = (redirectUri: string): number | undefined => {
+	if (!URL.canParse(redirectUri)) {
+		return undefined
+	}
+	const port = Number(new URL(redirectUri).port)
+	return port && redirectUri === loopbackUrl(port) ? port : undefined
+}
+
+const onRegisteredPort = (
+	{ clientId, clientSecret, redirectUri }: AuthorizeRequest,
+	answer: Answer,
+): Listening | undefined => {
+	const port = redirectUri ? registeredPort(redirectUri) : undefined
+	if (!clientId || !redirectUri || port === undefined) {
+		return undefined
+	}
+	try {
+		return {
+			listener: listen(port, answer),
+			redirectUrl: redirectUri,
+			client: { client_id: clientId, client_secret: clientSecret },
+		}
+	} catch (error) {
+		process.stderr.write(`${PORT_TAKEN}: ${describeError(error)}\n`)
+		return undefined
+	}
+}
+
+const onAnyPort = (answer: Answer): Listening => {
+	const listener = listen(0, answer)
+	return { listener, redirectUrl: loopbackUrl(listener.port) }
+}
 
 export const authorizeMcpServer = async (
-	{ url, clientId, clientSecret }: AuthorizeRequest,
+	request: AuthorizeRequest,
 	emit: Emit,
 	timeoutMs = FLOW_TIMEOUT_MS,
 ): Promise<OauthAnswer> => {
+	const { url } = request
 	if (!url) {
 		return { error: { kind: "failed", detail: "no server url was named" } }
 	}
@@ -362,11 +449,9 @@ export const authorizeMcpServer = async (
 	const arrival = new Promise<Redirect>((resolve) => {
 		settle = resolve
 	})
-	const listener = Bun.serve({
-		hostname: LOOPBACK,
-		port: 0,
-		fetch: (request) => answerRedirect(request, state, settle),
-	})
+	const answer: Answer = (redirect) => answerRedirect(redirect, state, settle)
+	const { listener, redirectUrl, client } =
+		onRegisteredPort(request, answer) ?? onAnyPort(answer)
 	const expiry = setTimeout(
 		() => settle({ failure: { kind: "timedOut" } }),
 		timeoutMs,
@@ -376,12 +461,13 @@ export const authorizeMcpServer = async (
 	try {
 		return await exchanged({
 			serverUrl: url,
-			redirectUrl: `http://${LOOPBACK}:${listener.port}${REDIRECT_PATH}`,
+			redirectUrl,
 			state,
 			arrival,
+			settle,
 			emit,
 			fetchFn,
-			client: handedClient(clientId, clientSecret),
+			client,
 		})
 	} catch (error) {
 		return { error: flowFailure(error, refusal()) }

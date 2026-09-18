@@ -24,11 +24,21 @@ const HANG_BOUND_MS = 300
 const AUTHORIZATION_BUDGET_MS = 10_000
 const TIMEOUT_FLOW_MS = 2_000
 const BODY_LIMIT = 400
+const REFUSAL_BUDGET_MS = 3_000
+const LATE_ANSWER_MS = 50
+const UNREACHABLE_AUTHORIZATION = "http://127.0.0.1:1/authorize"
+const INVALID_REDIRECT = JSON.stringify({
+	code: 400,
+	error_code: "validation_failed",
+	msg: "invalid redirect_uri",
+})
 
 type Registration = {
 	redirectUris: string[]
 	tokenRequests: URLSearchParams[]
 	revocations: URLSearchParams[]
+	authorizations: Request[]
+	landings: number
 }
 
 type Refusal = {
@@ -47,6 +57,31 @@ type Authority = {
 	stop: () => Promise<void>
 }
 
+type AuthorizationEndpoint = {
+	refusal?: Refusal
+	held?: Promise<void>
+}
+
+const answerAuthorization = async (
+	request: Request,
+	seen: Registration,
+	{ refusal, held }: AuthorizationEndpoint,
+): Promise<Response | undefined> => {
+	const asked = new URL(request.url)
+	if (asked.pathname === "/login") {
+		seen.landings += 1
+		return new Response("sign in")
+	}
+	if (asked.pathname !== "/authorize") {
+		return undefined
+	}
+	seen.authorizations.push(request)
+	await held
+	return refusal
+		? new Response(refusal.body, { status: refusal.status })
+		: Response.redirect(`${asked.origin}/login`, 302)
+}
+
 const anAuthorizationServer = ({
 	discoverable = true,
 	revocable = true,
@@ -55,6 +90,9 @@ const anAuthorizationServer = ({
 	tokenRefusal,
 	tokenHangs = false,
 	authorizationScheme = "",
+	authorizationRefusal,
+	authorizationHeld,
+	tokenDelay,
 }: {
 	discoverable?: boolean
 	revocable?: boolean
@@ -63,11 +101,16 @@ const anAuthorizationServer = ({
 	tokenRefusal?: Refusal
 	tokenHangs?: boolean
 	authorizationScheme?: string
+	authorizationRefusal?: Refusal
+	authorizationHeld?: Promise<void>
+	tokenDelay?: () => Promise<void>
 } = {}): Authority => {
 	const seen: Registration = {
 		redirectUris: [],
 		tokenRequests: [],
 		revocations: [],
+		authorizations: [],
+		landings: 0,
 	}
 	const served = Bun.serve({
 		hostname: "127.0.0.1",
@@ -108,8 +151,16 @@ const anAuthorizationServer = ({
 					{ status: 201 },
 				)
 			}
+			const authorized = await answerAuthorization(request, seen, {
+				refusal: authorizationRefusal,
+				held: authorizationHeld,
+			})
+			if (authorized) {
+				return authorized
+			}
 			if (asked.pathname === "/token") {
 				seen.tokenRequests.push(new URLSearchParams(await request.text()))
+				await tokenDelay?.()
 				if (tokenHangs) {
 					return new Promise<Response>(() => {})
 				}
@@ -171,10 +222,29 @@ const waitForAuthorization = async (seen: Registration) => {
 	throw new Error("the flow never opened an authorization url")
 }
 
-const aFlowUnder = (url: string) => {
+const aFreePort = async () => {
+	const probe = Bun.serve({
+		hostname: "127.0.0.1",
+		port: 0,
+		fetch: () => new Response(),
+	})
+	const { port } = probe
+	await probe.stop(true)
+	return port
+}
+
+const aRegisteredRedirect = async () =>
+	`http://127.0.0.1:${await aFreePort()}/oauth/callback`
+
+const aFlowUnder = (url: string, redirectUri?: string) => {
 	frames.length = 0
 	inFlight = authorizeMcpServer(
-		{ url, clientId: HANDED_CLIENT_ID, clientSecret: HANDED_CLIENT_SECRET },
+		{
+			url,
+			clientId: HANDED_CLIENT_ID,
+			clientSecret: HANDED_CLIENT_SECRET,
+			redirectUri,
+		},
 		collect,
 	)
 	return inFlight
@@ -233,6 +303,7 @@ describe("mcp oauth", () => {
 					expiresAt: expect.any(Number),
 					clientId: CLIENT_ID,
 					clientSecret: CLIENT_SECRET,
+					redirectUri: redirect,
 				},
 			})
 		} finally {
@@ -240,15 +311,20 @@ describe("mcp oauth", () => {
 		}
 	}, 20_000)
 
-	it("authorizes under a handed client without registering one", async () => {
+	it("authorizes under a handed client on the port it was registered for", async () => {
 		const authority = anAuthorizationServer()
 		try {
-			const flow = aFlowUnder(authority.url)
+			const registered = await aRegisteredRedirect()
+			const flow = aFlowUnder(authority.url, registered)
 			const asked = await waitForStarted()
 			await redirectedWithCode(asked)
 			const settled = await flow
 
 			expect(asked.searchParams.get("client_id")).toBe(HANDED_CLIENT_ID)
+			expect(asked.searchParams.get("redirect_uri")).toBe(registered)
+			expect(authority.seen.tokenRequests[0]?.get("redirect_uri")).toBe(
+				registered,
+			)
 			expect(authority.seen.redirectUris).toEqual([])
 			expect(authority.seen.tokenRequests[0]?.get("code")).toBe(CODE)
 			expect(settled).toEqual({
@@ -258,6 +334,7 @@ describe("mcp oauth", () => {
 					expiresAt: expect.any(Number),
 					clientId: HANDED_CLIENT_ID,
 					clientSecret: HANDED_CLIENT_SECRET,
+					redirectUri: registered,
 				},
 			})
 		} finally {
@@ -270,7 +347,7 @@ describe("mcp oauth", () => {
 			tokenRefusal: refusedWith("invalid_client"),
 		})
 		try {
-			const flow = aFlowUnder(authority.url)
+			const flow = aFlowUnder(authority.url, await aRegisteredRedirect())
 			await redirectedWithCode(await waitForStarted())
 
 			expect(await flow).toEqual({
@@ -284,6 +361,160 @@ describe("mcp oauth", () => {
 				},
 			})
 		} finally {
+			await authority.stop()
+		}
+	}, 20_000)
+
+	it("registers a new client when the registered port is taken", async () => {
+		const authority = anAuthorizationServer()
+		const taken = Bun.serve({
+			hostname: "127.0.0.1",
+			port: 0,
+			fetch: () => new Response(),
+		})
+		try {
+			const registered = `http://127.0.0.1:${taken.port}/oauth/callback`
+			const flow = aFlowUnder(authority.url, registered)
+			const { redirect, asked } = await waitForAuthorization(authority.seen)
+			await redirectedWithCode(asked)
+
+			expect(asked.searchParams.get("client_id")).toBe(CLIENT_ID)
+			expect(redirect).not.toBe(registered)
+			expect(await flow).toMatchObject({
+				credentials: { clientId: CLIENT_ID, redirectUri: redirect },
+			})
+		} finally {
+			await taken.stop(true)
+			await authority.stop()
+		}
+	}, 20_000)
+
+	it("registers a new client when a handed client carries no redirect uri", async () => {
+		const authority = anAuthorizationServer()
+		try {
+			const flow = aFlowUnder(authority.url)
+			const { redirect, asked } = await waitForAuthorization(authority.seen)
+			await redirectedWithCode(asked)
+
+			expect(asked.searchParams.get("client_id")).toBe(CLIENT_ID)
+			expect(await flow).toMatchObject({
+				credentials: { clientId: CLIENT_ID, redirectUri: redirect },
+			})
+		} finally {
+			await authority.stop()
+		}
+	}, 20_000)
+
+	it("ends the attempt with the status and body the authorization url answered", async () => {
+		const authority = anAuthorizationServer({
+			authorizationRefusal: { status: 400, body: INVALID_REDIRECT },
+		})
+		try {
+			const began = Date.now()
+			const settled = await aFlowUnder(
+				authority.url,
+				await aRegisteredRedirect(),
+			)
+
+			expect(Date.now() - began).toBeLessThan(REFUSAL_BUDGET_MS)
+			expect(settled).toEqual({
+				error: {
+					kind: "failed",
+					detail: "the authorization endpoint answered 400",
+					status: 400,
+					body: INVALID_REDIRECT,
+				},
+			})
+			expect(authority.seen.tokenRequests).toHaveLength(0)
+		} finally {
+			await authority.stop()
+		}
+	}, 20_000)
+
+	it("requests the authorization url itself, follows no redirect and sends no credential", async () => {
+		const authority = anAuthorizationServer()
+		try {
+			const flow = aFlow(authority.url)
+			const asked = await waitForStarted()
+			while (authority.seen.authorizations.length === 0) {
+				await Bun.sleep(10)
+			}
+			await Bun.sleep(LATE_ANSWER_MS)
+			cancelMcpAuthorization()
+
+			const [probed] = authority.seen.authorizations
+			expect(probed?.url).toBe(asked.toString())
+			expect(probed?.headers.get("authorization")).toBeNull()
+			expect(probed?.headers.get("cookie")).toBeNull()
+			expect(authority.seen.landings).toBe(0)
+			expect(await flow).toEqual({ error: { kind: "cancelled" } })
+		} finally {
+			await authority.stop()
+		}
+	}, 20_000)
+
+	it("keeps waiting when the authorization url cannot be reached", async () => {
+		const authority = anAuthorizationServer({
+			authorizationScheme: UNREACHABLE_AUTHORIZATION,
+		})
+		try {
+			const flow = aFlow(authority.url)
+			await waitForStarted()
+			await Bun.sleep(LATE_ANSWER_MS * 4)
+			cancelMcpAuthorization()
+
+			expect(await flow).toEqual({ error: { kind: "cancelled" } })
+		} finally {
+			await authority.stop()
+		}
+	}, 20_000)
+
+	it("leaves a granted attempt as it settled when the refusal lands late", async () => {
+		const { promise: held, resolve: release } = Promise.withResolvers<void>()
+		const authority = anAuthorizationServer({
+			authorizationRefusal: { status: 400, body: INVALID_REDIRECT },
+			authorizationHeld: held,
+		})
+		try {
+			const flow = aFlowUnder(authority.url, await aRegisteredRedirect())
+			await redirectedWithCode(await waitForStarted())
+			const settled = await flow
+			release()
+			await Bun.sleep(LATE_ANSWER_MS)
+
+			expect(settled).toMatchObject({
+				credentials: { accessToken: ACCESS_TOKEN },
+			})
+		} finally {
+			release()
+			await authority.stop()
+		}
+	}, 20_000)
+
+	it("keeps the authorization answer out of a token exchange refusal", async () => {
+		const { promise: held, resolve: release } = Promise.withResolvers<void>()
+		const authority = anAuthorizationServer({
+			authorizationRefusal: { status: 400, body: INVALID_REDIRECT },
+			authorizationHeld: held,
+			tokenRefusal: refusedWith("invalid_client"),
+			tokenDelay: async () => {
+				release()
+				await Bun.sleep(LATE_ANSWER_MS)
+			},
+		})
+		try {
+			const flow = aFlowUnder(authority.url, await aRegisteredRedirect())
+			await redirectedWithCode(await waitForStarted())
+
+			expect(await flow).toMatchObject({
+				error: {
+					kind: "rejected",
+					step: "tokenExchange",
+					code: "invalid_client",
+				},
+			})
+		} finally {
+			release()
 			await authority.stop()
 		}
 	}, 20_000)
