@@ -969,7 +969,7 @@ export const LeavingAnUnsavedFormByClose = meta.story({
 		docs: {
 			description: {
 				story:
-					"The close control of the panel while a form holds changes nobody saved. Check that it asks before the panel goes, that refusing keeps the panel and the form open with every value typed, and that accepting leaves the form and then closes the panel. " +
+					"The close control of the panel while a form holds changes nobody saved. Check that it asks before the panel goes, that refusing keeps the panel and the form open with every value typed, and that accepting closes the panel only, leaving the open routine where it was. " +
 					MOUNTED_BY_THE_THREAD,
 			},
 		},
@@ -994,8 +994,8 @@ export const LeavingAnUnsavedFormByClose = meta.story({
 				name: "Leave",
 			}),
 		)
-		await expect(args.form?.onClose).toHaveBeenCalledOnce()
 		await expect(args.onOpenChange).toHaveBeenCalledWith(false)
+		await expect(args.form?.onClose).not.toHaveBeenCalled()
 	},
 })
 

@@ -228,7 +228,7 @@ const useMcpSession = ({
 			server: session ? editorFor(session) : null,
 			catalogue: catalogue ? browsedPage(catalogue) : null,
 		},
-		isOpen: session !== null || pages.isPushed("catalogue"),
+		isOpen: pages.isPushed("server") || pages.isPushed("catalogue"),
 		isUnsaved: Boolean(
 			session && isMcpServerDraftUnsaved(session.draft, session.saved),
 		),

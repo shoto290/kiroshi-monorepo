@@ -461,7 +461,10 @@ const RoutinesPanelSurface = (props: RoutinesPanelListProps) => {
 	const surface = useRef<HTMLDivElement>(null)
 	const { form, detail, routines } = props
 	const pages = usePushedPages<RoutinesPage>({
-		owned: { detail: Boolean(detail?.open), form: Boolean(form?.open) },
+		owned: [
+			{ level: "detail", isOpen: Boolean(detail?.open) },
+			{ level: "form", isOpen: Boolean(form?.open) },
+		],
 		surface,
 	})
 	const isShowingRoutines = pages.isPushed("routines")
@@ -491,15 +494,8 @@ const RoutinesPanelSurface = (props: RoutinesPanelListProps) => {
 		}
 	}
 
-	const leave = (way: LeaveWay) => {
-		if (way === "back") {
-			heading?.onBack()
-			return
-		}
-
-		if (unsavedForm !== null) form?.onClose()
-		onOpenChange(false)
-	}
+	const leave = (way: LeaveWay) =>
+		way === "back" ? heading?.onBack() : onOpenChange(false)
 
 	const askLeaving = (way: LeaveWay) =>
 		unsavedForm === null ? leave(way) : setLeaving(way)

@@ -13,10 +13,13 @@ type PushedLevel<Level extends string> = {
 	opener?: string
 }
 
-type OwnedLevels<Level extends string> = Partial<Record<Level, boolean>>
+type OwnedLevel<Level extends string> = {
+	level: Level
+	isOpen: boolean
+}
 
 type PushedPagesOptions<Level extends string> = {
-	owned?: OwnedLevels<Level>
+	owned?: OwnedLevel<Level>[]
 	surface?: RefObject<HTMLElement | null>
 }
 
@@ -40,15 +43,17 @@ const focusOpener = (opener: string, surface: ParentNode) =>
 		?.focus({ preventScroll: true })
 
 const usePushedPages = <Level extends string>({
-	owned = {},
+	owned = [],
 	surface,
 }: PushedPagesOptions<Level> = {}): PushedPages<Level> => {
 	const [pushed, setPushed] = useState<PushedLevel<Level>[]>([])
 	const isOpen = ({ level }: PushedLevel<Level>) =>
-		!(level in owned) || owned[level] === true
-	const openedByCaller = (Object.keys(owned) as Level[])
-		.filter((level) => owned[level] && !pushed.some((it) => it.level === level))
-		.map((level) => ({ level }))
+		owned.find((it) => it.level === level)?.isOpen ?? true
+	const openedByCaller = owned
+		.filter(
+			({ level, isOpen }) => isOpen && !pushed.some((it) => it.level === level),
+		)
+		.map(({ level }) => ({ level }))
 	const stack = [...pushed.filter(isOpen), ...openedByCaller]
 	const shownStack = useRef(stack)
 
