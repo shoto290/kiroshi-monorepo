@@ -193,7 +193,7 @@ fn refused(
 	eprintln!("the authorization server refused to refresh {scope:?}: {refusal}");
 	match store::values(root, scope) {
 		Ok(held) if held.get(OAUTH_REFRESH_TOKEN) == sent.get(OAUTH_REFRESH_TOKEN) => {
-			paid(root, scope, &cost, &refusal);
+			paid(root, scope, cost, &refusal);
 			Some(Renewal::Awaiting { reason: Some(refusal) })
 		}
 		Ok(_) => None,
@@ -204,7 +204,7 @@ fn refused(
 	}
 }
 
-fn paid(root: &Path, scope: &EnvScope, cost: &Cost, refusal: &str) {
+fn paid(root: &Path, scope: &EnvScope, cost: Cost, refusal: &str) {
 	let forgotten = match cost {
 		Cost::Tokens => credentials::forget_tokens(root, scope),
 		Cost::Everything => credentials::forget(root, scope),
