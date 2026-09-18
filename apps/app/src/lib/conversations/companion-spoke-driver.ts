@@ -4,12 +4,10 @@ import { i18n } from "@workspace/ui/lib/i18n"
 import type { ConversationRuntimes } from "./conversation-runtimes"
 import type { CompanionSpoke } from "./transcript-contract"
 
-export type CompanionSpokeUnsubscribe = () => void
-
 export type CompanionSpokePort = {
 	onCompanionSpoke: (
 		listener: (spoken: CompanionSpoke) => void,
-	) => Promise<CompanionSpokeUnsubscribe>
+	) => Promise<() => void>
 }
 
 export type CompanionSpokeDriverOptions = {
@@ -37,7 +35,7 @@ export const startCompanionSpokeDriver = ({
 	const raiseFailure = (thrown: unknown) => {
 		console.error("companion spoke driver: the message was not written", thrown)
 		reportFailure({
-			title: i18n.t("chat:screen.error.writeFailed", {
+			title: i18n.t("chat:screen.transport.writeFailed", {
 				detail: detailOf(thrown),
 			}),
 		})

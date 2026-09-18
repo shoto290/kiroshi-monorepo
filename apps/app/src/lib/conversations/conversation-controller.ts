@@ -989,9 +989,11 @@ export const createConversationController = (
 		authorBotId,
 		text,
 	}: CompanionSpoke) => {
-		const isSeated = await isHeldForReport(conversationId)
+		if (!(await isHeldForReport(conversationId))) {
+			return
+		}
 
-		if (!isSeated || !presentBotIds().includes(authorBotId)) {
+		if (!presentBotIds().includes(authorBotId)) {
 			return
 		}
 		const spoken = await enqueue(() =>
