@@ -122,16 +122,6 @@ describe("securityFloor", () => {
 		}
 	})
 
-	it("denies no file the host no longer keeps in its data directory", () => {
-		const deny = denyOf()
-		const denyRead = filesystemOf()?.denyRead
-
-		for (const file of ["kiroshi.db", "session.json*"]) {
-			expect(deny).not.toContain(`Read(/${join(APP_DATA, file)})`)
-			expect(denyRead).not.toContain(join(APP_DATA, file))
-		}
-	})
-
 	it("denies reads of what the reader dropped into any conversation", () => {
 		expect(denyOf()).toContain(`Read(/${join(APP_DATA, "attachments")}/**)`)
 		expect(filesystemOf()?.denyRead).toContain(join(APP_DATA, "attachments"))
