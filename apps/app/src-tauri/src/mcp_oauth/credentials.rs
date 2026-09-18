@@ -5,7 +5,7 @@ use super::refusal::on_one_line;
 use crate::agent::protocol::OauthCredentials;
 use crate::environment::contract::{
 	EnvError, EnvOwner, EnvScope, Values, OAUTH_ACCESS_TOKEN, OAUTH_CLIENT_ID, OAUTH_CLIENT_SECRET,
-	OAUTH_EXPIRES_AT, OAUTH_REASON, OAUTH_REFRESH_TOKEN, RESERVED_NAMES,
+	OAUTH_EXPIRES_AT, OAUTH_REASON, OAUTH_REDIRECT_URI, OAUTH_REFRESH_TOKEN, RESERVED_NAMES,
 };
 use crate::environment::store;
 
@@ -85,6 +85,7 @@ fn named(held: &OauthCredentials, name: &str) -> Option<String> {
 		OAUTH_REFRESH_TOKEN => held.refresh_token.clone(),
 		OAUTH_CLIENT_SECRET => held.client_secret.clone(),
 		OAUTH_EXPIRES_AT => held.expires_at.map(|at| at.to_string()),
+		OAUTH_REDIRECT_URI => held.redirect_uri.clone(),
 		_ => None,
 	}
 }
@@ -103,25 +104,15 @@ pub fn store(root: &Path, scope: &EnvScope, held: &OauthCredentials) -> Result<(
 }
 
 pub fn forget(root: &Path, scope: &EnvScope) -> Result<(), EnvError> {
-	deleted(root, scope, &RESERVED_NAMES)
+	store::delete_all(root, scope, &RESERVED_NAMES)
 }
 
 pub fn forget_tokens(root: &Path, scope: &EnvScope) -> Result<(), EnvError> {
-	deleted(root, scope, &TOKEN_NAMES)
+	store::delete_all(root, scope, &TOKEN_NAMES)
 }
 
 pub fn remember_refusal(root: &Path, scope: &EnvScope, reason: &str) -> Result<(), EnvError> {
 	store::set(root, scope, OAUTH_REASON, &on_one_line(reason))
-}
-
-fn deleted(root: &Path, scope: &EnvScope, names: &[&str]) -> Result<(), EnvError> {
-	let mut refused = None;
-	for name in names {
-		if let Err(error) = store::delete(root, scope, name) {
-			refused = refused.or(Some(error));
-		}
-	}
-	refused.map_or(Ok(()), Err)
 }
 
 fn rolled_back(root: &Path, scope: &EnvScope, refused: EnvError) -> EnvError {
@@ -154,6 +145,8 @@ mod tests {
 		}
 	}
 
+	const REGISTERED_REDIRECT: &str = "http://127.0.0.1:53682/oauth/callback";
+
 	fn a_full_grant() -> OauthCredentials {
 		OauthCredentials {
 			access_token: "granted".to_owned(),
@@ -161,6 +154,7 @@ mod tests {
 			expires_at: Some(1_700_000_000_000),
 			client_id: "registered".to_owned(),
 			client_secret: Some("confidential".to_owned()),
+			redirect_uri: Some(REGISTERED_REDIRECT.to_owned()),
 		}
 	}
 
@@ -171,12 +165,13 @@ mod tests {
 			expires_at: None,
 			client_id: "registered-again".to_owned(),
 			client_secret: None,
+			redirect_uri: None,
 		}
 	}
 
 	#[test]
-	fn the_five_reserved_names_land_at_server_scope() {
-		let root = a_root("five-names");
+	fn the_six_names_of_a_full_grant_land_at_server_scope() {
+		let root = a_root("six-names");
 		let scope = a_server();
 
 		store(&root, &scope, &a_full_grant()).expect("the grant is written");
@@ -187,7 +182,8 @@ mod tests {
 		assert_eq!(kept.get(OAUTH_EXPIRES_AT).map(String::as_str), Some("1700000000000"));
 		assert_eq!(kept.get(OAUTH_CLIENT_ID).map(String::as_str), Some("registered"));
 		assert_eq!(kept.get(OAUTH_CLIENT_SECRET).map(String::as_str), Some("confidential"));
-		assert_eq!(kept.len(), 5);
+		assert_eq!(kept.get(OAUTH_REDIRECT_URI).map(String::as_str), Some(REGISTERED_REDIRECT));
+		assert_eq!(kept.len(), 6);
 	}
 
 	#[test]
@@ -213,7 +209,7 @@ mod tests {
 		let kept = store::values(&root, &scope).expect("the scope is readable");
 		assert_eq!(
 			kept.keys().map(String::as_str).collect::<Vec<_>>(),
-			vec![OAUTH_CLIENT_ID, OAUTH_CLIENT_SECRET]
+			vec![OAUTH_CLIENT_ID, OAUTH_CLIENT_SECRET, OAUTH_REDIRECT_URI]
 		);
 	}
 
@@ -309,6 +305,7 @@ mod tests {
 		assert_eq!(kept.get(OAUTH_REFRESH_TOKEN), None);
 		assert_eq!(kept.get(OAUTH_EXPIRES_AT), None);
 		assert_eq!(kept.get(OAUTH_CLIENT_SECRET), None);
+		assert_eq!(kept.get(OAUTH_REDIRECT_URI), None);
 	}
 
 	#[test]
@@ -356,7 +353,7 @@ mod tests {
 	}
 
 	#[test]
-	fn a_listing_of_a_server_scope_names_none_of_the_five() {
+	fn a_listing_of_a_server_scope_names_none_of_the_six() {
 		let root = a_root("listing");
 		let scope = a_server();
 		store::set(&root, &scope, "GRANOLA_REGION", "eu").expect("the name is written");

@@ -633,6 +633,10 @@ fn handed_client_settled(command: &Value, handed_settles: &str) -> Value {
 	if let Ok(path) = std::env::var("FAKE_AGENT_OAUTH_AUTHORIZE_LOG") {
 		let mut logged = std::fs::read_to_string(&path).unwrap_or_default();
 		logged.push_str(handed.unwrap_or("-"));
+		if let Some(redirect) = command["redirectUri"].as_str() {
+			logged.push(' ');
+			logged.push_str(redirect);
+		}
 		logged.push('\n');
 		let _ = std::fs::write(path, logged);
 	}
@@ -648,7 +652,8 @@ fn handed_client_settled(command: &Value, handed_settles: &str) -> Value {
 		"credentials": {
 			"accessToken": "granted-anew",
 			"clientId": "registered-anew",
-			"clientSecret": "confidential-anew"
+			"clientSecret": "confidential-anew",
+			"redirectUri": "http://127.0.0.1:61000/oauth/callback"
 		}
 	})
 }

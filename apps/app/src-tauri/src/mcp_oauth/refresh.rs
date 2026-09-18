@@ -12,7 +12,7 @@ use crate::agent::translate::now_ms;
 use crate::bundles::{self, McpServer};
 use crate::environment::contract::{
 	EnvError, EnvOwner, EnvScope, Values, OAUTH_ACCESS_TOKEN, OAUTH_CLIENT_ID, OAUTH_CLIENT_SECRET,
-	OAUTH_REFRESH_TOKEN,
+	OAUTH_REDIRECT_URI, OAUTH_REFRESH_TOKEN,
 };
 use crate::environment::store;
 
@@ -163,7 +163,9 @@ fn renewal(
 }
 
 fn stored(root: &Path, scope: &EnvScope, sent: &Values, grant: &OauthCredentials) -> Renewal {
-	let Err(error) = credentials::store(root, scope, grant) else {
+	let renewed =
+		OauthCredentials { redirect_uri: sent.get(OAUTH_REDIRECT_URI).cloned(), ..grant.clone() };
+	let Err(error) = credentials::store(root, scope, &renewed) else {
 		return Renewal::Renewed;
 	};
 	let lost = credentials::scrubbed(format!("{NOT_STORED}: {error:?}"), sent);
@@ -244,7 +246,8 @@ mod tests {
 	const EXPIRED_ON: &str = "Refresh token expired on 2026-09-01";
 	const URL: &str = "https://mcp.granola.test/mcp";
 	const INVALID_GRANT: &str = "invalid_grant";
-	const GRANT_NAMES: usize = 5;
+	const GRANT_NAMES: usize = 6;
+	const REGISTERED_REDIRECT: &str = "http://127.0.0.1:53682/oauth/callback";
 
 	async fn awaiting_authorization<F, Exchanged>(
 		root: &Path,
@@ -285,6 +288,7 @@ mod tests {
 			expires_at: Some(expires_at),
 			client_id: "registered".to_owned(),
 			client_secret: Some("confidential".to_owned()),
+			redirect_uri: Some(REGISTERED_REDIRECT.to_owned()),
 		}
 	}
 
@@ -324,6 +328,7 @@ mod tests {
 			expires_at: Some(NOW + 3_600_000),
 			client_id: "registered".to_owned(),
 			client_secret: Some("confidential".to_owned()),
+			redirect_uri: None,
 		}
 	}
 
@@ -347,6 +352,7 @@ mod tests {
 				("GRANOLA_REGION".to_owned(), "eu".to_owned()),
 				(OAUTH_CLIENT_ID.to_owned(), "registered".to_owned()),
 				(OAUTH_CLIENT_SECRET.to_owned(), "confidential".to_owned()),
+				(OAUTH_REDIRECT_URI.to_owned(), REGISTERED_REDIRECT.to_owned()),
 				(
 					OAUTH_REASON.to_owned(),
 					"the token endpoint answered 400: invalid_grant".to_owned()
@@ -381,7 +387,7 @@ mod tests {
 	}
 
 	#[tokio::test]
-	async fn a_refusal_naming_another_code_leaves_the_five_names_as_they_stand() {
+	async fn a_refusal_naming_another_code_leaves_the_six_names_as_they_stand() {
 		let root = a_root("other-code");
 		credentials::store(&root, &granola(), &a_grant(NOW, Some("held-refresh")))
 			.expect("the grant is written");
@@ -421,7 +427,7 @@ mod tests {
 	}
 
 	#[tokio::test]
-	async fn a_failed_refresh_leaves_the_five_names_as_they_stand() {
+	async fn a_failed_refresh_leaves_the_six_names_as_they_stand() {
 		let root = a_root("failed");
 		credentials::store(&root, &granola(), &a_grant(NOW, Some("held-refresh")))
 			.expect("the grant is written");
@@ -439,7 +445,7 @@ mod tests {
 	}
 
 	#[tokio::test]
-	async fn a_sidecar_that_never_answered_leaves_the_five_names_as_they_stand() {
+	async fn a_sidecar_that_never_answered_leaves_the_six_names_as_they_stand() {
 		let root = a_root("transport");
 		credentials::store(&root, &granola(), &a_grant(NOW, Some("held-refresh")))
 			.expect("the grant is written");
@@ -456,7 +462,7 @@ mod tests {
 	}
 
 	#[tokio::test]
-	async fn a_granted_refresh_writes_over_the_five_names_it_carries() {
+	async fn a_granted_refresh_writes_over_the_six_names_it_carries() {
 		let root = a_root("granted");
 		credentials::store(&root, &granola(), &a_grant(NOW + 59_000, Some("held-refresh")))
 			.expect("the grant is written");
@@ -484,6 +490,7 @@ mod tests {
 		assert_eq!(kept.get(OAUTH_REFRESH_TOKEN).map(String::as_str), Some("renewed-refresh"));
 		let renewed_at = (NOW + 3_600_000).to_string();
 		assert_eq!(kept.get(OAUTH_EXPIRES_AT), Some(&renewed_at));
+		assert_eq!(kept.get(OAUTH_REDIRECT_URI).map(String::as_str), Some(REGISTERED_REDIRECT));
 	}
 
 	#[tokio::test]
@@ -584,7 +591,9 @@ mod tests {
 			.expect("the grant is written");
 
 		let awaiting = awaiting_authorization(&root, &a_bot(), &declared(), NOW, |_| {
-			credentials::store(&root, &granola(), &renewed()).expect("a connect lands meanwhile");
+			let connected =
+				OauthCredentials { redirect_uri: Some(REGISTERED_REDIRECT.to_owned()), ..renewed() };
+			credentials::store(&root, &granola(), &connected).expect("a connect lands meanwhile");
 			async { answering(OauthFailureKind::Rejected, Some(INVALID_GRANT)) }
 		})
 		.await

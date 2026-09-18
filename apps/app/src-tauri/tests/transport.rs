@@ -909,6 +909,7 @@ fn granola_authorized() -> AuthorizeRequest {
 		url: "https://mcp.granola.test/mcp".to_owned(),
 		client_id: None,
 		client_secret: None,
+		redirect_uri: None,
 	}
 }
 

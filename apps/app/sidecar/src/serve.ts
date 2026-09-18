@@ -44,6 +44,7 @@ type Command = {
 	refreshToken?: string
 	clientId?: string
 	clientSecret?: string
+	redirectUri?: string
 	requestId?: string
 	decision?: PermissionDecision
 	result?: unknown

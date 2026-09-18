@@ -103,6 +103,7 @@ mod tests {
 			expires_at: Some(1_700_000_000_000),
 			client_id: "registered".to_owned(),
 			client_secret: Some("confidential".to_owned()),
+			redirect_uri: Some("http://127.0.0.1:53682/oauth/callback".to_owned()),
 		}
 	}
 
@@ -178,7 +179,7 @@ mod tests {
 	}
 
 	#[test]
-	fn a_grant_still_writes_the_five_names_the_person_is_refused() {
+	fn a_grant_still_writes_the_six_names_the_person_is_refused() {
 		let root = a_root("grant-after-refusal");
 		let scope = a_server();
 		assert!(set_by_the_person(&root, &scope, OAUTH_ACCESS_TOKEN, "typed").is_err());
@@ -186,7 +187,7 @@ mod tests {
 		credentials::store(&root, &scope, &a_grant()).expect("the grant is written");
 
 		let kept = store::values(&root, &scope).expect("the scope is readable");
-		assert_eq!(kept.len(), 5);
+		assert_eq!(kept.len(), 6);
 		assert_eq!(kept.get(OAUTH_ACCESS_TOKEN).map(String::as_str), Some("granted"));
 	}
 }
