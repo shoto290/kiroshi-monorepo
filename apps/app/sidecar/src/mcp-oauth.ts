@@ -406,8 +406,11 @@ const onRegisteredPort = (
 	{ clientId, clientSecret, redirectUri }: AuthorizeRequest,
 	answer: Answer,
 ): Listening | undefined => {
-	const port = redirectUri ? registeredPort(redirectUri) : undefined
-	if (!clientId || !redirectUri || port === undefined) {
+	if (!clientId || !redirectUri) {
+		return undefined
+	}
+	const port = registeredPort(redirectUri)
+	if (port === undefined) {
 		return undefined
 	}
 	try {
