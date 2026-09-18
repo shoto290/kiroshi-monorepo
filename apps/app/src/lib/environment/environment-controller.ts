@@ -1,3 +1,4 @@
+import { createStore } from "../store"
 import type { EnvEntry, EnvScope } from "../conversations/store-contract"
 import type { TranscriptStore } from "../conversations/store-port"
 
@@ -24,36 +25,28 @@ const initialEnvironmentState: EnvironmentState = {
 export const createEnvironmentController = (
 	store: TranscriptStore,
 ): EnvironmentController => {
-	let state = initialEnvironmentState
-	const listeners = new Set<() => void>()
-
-	const publish = () => {
-		for (const listener of listeners) {
-			listener()
-		}
-	}
+	const stateStore = createStore(initialEnvironmentState)
 
 	const set = (fields: Partial<EnvironmentState>) => {
-		state = { ...state, ...fields }
-		publish()
+		stateStore.setState({ ...stateStore.getState(), ...fields })
 	}
 
 	const read = (scope: EnvScope) =>
 		store
 			.environmentVariables(scope)
 			.then((entries) => {
-				if (state.scope === scope) {
+				if (stateStore.getState().scope === scope) {
 					set({ entries, hasFailedToRead: false })
 				}
 			})
 			.catch(() => {
-				if (state.scope === scope) {
+				if (stateStore.getState().scope === scope) {
 					set({ hasFailedToRead: true })
 				}
 			})
 
 	const write = async (run: (scope: EnvScope) => Promise<void>) => {
-		const scope = state.scope
+		const scope = stateStore.getState().scope
 		if (!scope) {
 			return
 		}
@@ -62,14 +55,9 @@ export const createEnvironmentController = (
 	}
 
 	return {
-		getState: () => state,
+		getState: stateStore.getState,
 
-		subscribe: (listener) => {
-			listeners.add(listener)
-			return () => {
-				listeners.delete(listener)
-			}
-		},
+		subscribe: stateStore.subscribe,
 
 		open: (scope: EnvScope) => {
 			set({ scope, entries: [], hasFailedToRead: false })

@@ -28,6 +28,7 @@ import {
 } from "./turn-queue"
 
 import { createQueue } from "../queue"
+import { createStore } from "../store"
 import type {
 	ActivityEvent,
 	AgentEvent,
@@ -262,8 +263,7 @@ export const createConversationController = (
 	const transcript = createTranscriptController(store)
 	const enqueue = createQueue()
 
-	const listeners = new Set<() => void>()
-	let state = initialState
+	const stateStore = createStore(initialState)
 	let conversation: Conversation | null = null
 	let queue: TurnQueue = emptyQueue
 	let activeTurn: OpenTurn | null = null
@@ -277,18 +277,11 @@ export const createConversationController = (
 	let detach: Promise<() => void> | null = null
 	let stopArrivals: Promise<() => void> | null = null
 
-	const publish = () => {
-		for (const listener of listeners) {
-			listener()
-		}
-	}
-
 	const settle = (next: ConversationState) => {
-		if (isSameState(state, next)) {
+		if (isSameState(stateStore.getState(), next)) {
 			return
 		}
-		state = next
-		publish()
+		stateStore.setState(next)
 	}
 
 	const noteFailure = (error: TransportError) => {
@@ -358,7 +351,7 @@ export const createConversationController = (
 
 	const sync = () => {
 		settle({
-			...state,
+			...stateStore.getState(),
 			...readTranscript(),
 			conversationId: conversation?.id ?? null,
 			speakers: speakingBots(),
@@ -859,7 +852,7 @@ export const createConversationController = (
 		}
 		const conversationId = conversation.id
 		const isNamingItself =
-			isNameless(conversation) && state.messages.length === 0
+			isNameless(conversation) && stateStore.getState().messages.length === 0
 		const content = toMentionTokens(trimmed, mentionBots())
 		const answered = messageAnsweredIn(conversationId, repliedToMessageId)
 		const turn: OpenTurn = { id: newId(), promptId: newId() }
@@ -1136,39 +1129,47 @@ export const createConversationController = (
 	}
 
 	const loadOlder = async () => {
-		if (!conversation || !state.hasOlder || state.isLoadingOlder) {
+		if (
+			!conversation ||
+			!stateStore.getState().hasOlder ||
+			stateStore.getState().isLoadingOlder
+		) {
 			return
 		}
 		const conversationId = conversation.id
-		settle({ ...state, isLoadingOlder: true })
+		settle({ ...stateStore.getState(), isLoadingOlder: true })
 		try {
 			await enqueue(() => transcript.loadOlder(conversationId))
 			forgetFailure()
 		} catch (reason) {
 			noteFailure(toReadError(reason))
 		} finally {
-			settle({ ...state, isLoadingOlder: false, latestError })
+			settle({ ...stateStore.getState(), isLoadingOlder: false, latestError })
 		}
 	}
 
 	const loadNewer = async () => {
-		if (!conversation || !state.hasNewer || state.isLoadingNewer) {
+		if (
+			!conversation ||
+			!stateStore.getState().hasNewer ||
+			stateStore.getState().isLoadingNewer
+		) {
 			return
 		}
 		const conversationId = conversation.id
-		settle({ ...state, isLoadingNewer: true })
+		settle({ ...stateStore.getState(), isLoadingNewer: true })
 		try {
 			await enqueue(() => transcript.loadNewer(conversationId))
 			forgetFailure()
 		} catch (reason) {
 			noteFailure(toReadError(reason))
 		} finally {
-			settle({ ...state, isLoadingNewer: false, latestError })
+			settle({ ...stateStore.getState(), isLoadingNewer: false, latestError })
 		}
 	}
 
 	const loadLatest = async () => {
-		if (!conversation || !state.hasNewer) {
+		if (!conversation || !stateStore.getState().hasNewer) {
 			return true
 		}
 		const conversationId = conversation.id
@@ -1177,7 +1178,7 @@ export const createConversationController = (
 			return true
 		} catch (reason) {
 			noteFailure(toReadError(reason))
-			settle({ ...state, latestError })
+			settle({ ...stateStore.getState(), latestError })
 			return false
 		}
 	}
@@ -1229,13 +1230,8 @@ export const createConversationController = (
 	}
 
 	return {
-		getState: () => state,
-		subscribe: (listener) => {
-			listeners.add(listener)
-			return () => {
-				listeners.delete(listener)
-			}
-		},
+		getState: stateStore.getState,
+		subscribe: stateStore.subscribe,
 		attach,
 		open,
 		loadOlder,

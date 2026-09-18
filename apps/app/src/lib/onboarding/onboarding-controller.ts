@@ -16,6 +16,7 @@ import {
 	type SignInActions,
 } from "./sign-in-flow"
 
+import { createStore } from "../store"
 import type { CompanionCreated } from "../companions/companions-transport"
 
 export type OnboardingStep = "welcome" | "connection" | "summoned" | "done"
@@ -65,26 +66,18 @@ export const createOnboardingController = (
 	world: OnboardingWorld,
 	{ reportFailure = raiseFailureNotice }: OnboardingControllerOptions = {},
 ): OnboardingController => {
-	let state = initialOnboardingState
+	const stateStore = createStore(initialOnboardingState)
 	let asked: OnboardingSummons = "greeting"
-	const listeners = new Set<() => void>()
-
-	const publish = () => {
-		for (const listener of listeners) {
-			listener()
-		}
-	}
 
 	const set = (fields: Partial<OnboardingState>) => {
-		state = { ...state, ...fields }
-		publish()
+		stateStore.setState({ ...stateStore.getState(), ...fields })
 	}
 
 	const showConnection = (connection: ConnectionStep) => {
 		set({
 			step: "connection",
 			connection,
-			round: state.round + 1,
+			round: stateStore.getState().round + 1,
 			summons: null,
 			isBusy: false,
 		})
@@ -95,7 +88,7 @@ export const createOnboardingController = (
 		set({
 			step: "summoned",
 			connection: null,
-			round: state.round + 1,
+			round: stateStore.getState().round + 1,
 			summons,
 		})
 		await world.send(summons)
@@ -141,14 +134,9 @@ export const createOnboardingController = (
 	return {
 		...actions,
 
-		getState: () => state,
+		getState: stateStore.getState,
 
-		subscribe: (listener) => {
-			listeners.add(listener)
-			return () => {
-				listeners.delete(listener)
-			}
-		},
+		subscribe: stateStore.subscribe,
 
 		start: () => askFor("greeting"),
 

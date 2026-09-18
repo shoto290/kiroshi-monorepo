@@ -14,6 +14,8 @@ import type {
 	SubmittedAttachment,
 } from "./attachments-contract"
 
+import { createStore } from "../store"
+
 export type AttachmentsState = {
 	staged: Record<string, StagedAttachment[]>
 	refusals: Record<string, AttachmentStoreError | null>
@@ -51,33 +53,31 @@ export const ownerKey = (owner: AttachmentsOwner) => `${owner.kind}:${owner.id}`
 export function createAttachmentsController(
 	port: AttachmentsPort,
 ): AttachmentsController {
-	let state: AttachmentsState = { staged: {}, refusals: {} }
-	const listeners = new Set<() => void>()
+	const stateStore = createStore<AttachmentsState>({ staged: {}, refusals: {} })
 
 	const sending = new Set<string>()
 
-	const publish = (next: AttachmentsState) => {
-		state = next
-		for (const listener of listeners) {
-			listener()
-		}
-	}
-
 	const stagedFor = (owner: AttachmentsOwner) =>
-		state.staged[ownerKey(owner)] ?? NO_ATTACHMENTS
+		stateStore.getState().staged[ownerKey(owner)] ?? NO_ATTACHMENTS
 
 	const hold = (owner: AttachmentsOwner, items: StagedAttachment[]) =>
-		publish({ ...state, staged: { ...state.staged, [ownerKey(owner)]: items } })
+		stateStore.setState({
+			...stateStore.getState(),
+			staged: { ...stateStore.getState().staged, [ownerKey(owner)]: items },
+		})
 
 	const holdRefusal = (
 		owner: AttachmentsOwner,
 		refusal: AttachmentStoreError | null,
 	) => {
 		const key = ownerKey(owner)
-		if ((state.refusals[key] ?? null) === refusal) {
+		if ((stateStore.getState().refusals[key] ?? null) === refusal) {
 			return
 		}
-		publish({ ...state, refusals: { ...state.refusals, [key]: refusal } })
+		stateStore.setState({
+			...stateStore.getState(),
+			refusals: { ...stateStore.getState().refusals, [key]: refusal },
+		})
 	}
 
 	const dropSent = (owner: AttachmentsOwner, sent: StagedAttachment[]) => {
@@ -132,13 +132,8 @@ export function createAttachmentsController(
 	}
 
 	return {
-		getState: () => state,
-		subscribe: (listener) => {
-			listeners.add(listener)
-			return () => {
-				listeners.delete(listener)
-			}
-		},
+		getState: stateStore.getState,
+		subscribe: stateStore.subscribe,
 
 		stage: (owner, files) => {
 			if (files.length === 0) {
@@ -156,17 +151,17 @@ export function createAttachmentsController(
 		forget: (owner) => {
 			const key = ownerKey(owner)
 			releasePreviews(stagedFor(owner))
-			publish({
-				staged: { ...state.staged, [key]: NO_ATTACHMENTS },
-				refusals: { ...state.refusals, [key]: null },
+			stateStore.setState({
+				staged: { ...stateStore.getState().staged, [key]: NO_ATTACHMENTS },
+				refusals: { ...stateStore.getState().refusals, [key]: null },
 			})
 		},
 
 		release: () => {
-			for (const items of Object.values(state.staged)) {
+			for (const items of Object.values(stateStore.getState().staged)) {
 				releasePreviews(items)
 			}
-			publish({ staged: {}, refusals: {} })
+			stateStore.setState({ staged: {}, refusals: {} })
 		},
 	}
 }

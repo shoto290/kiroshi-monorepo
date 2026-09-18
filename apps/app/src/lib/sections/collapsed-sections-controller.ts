@@ -1,4 +1,5 @@
 import { createQueue } from "../queue"
+import { createStore } from "../store"
 import { createWriteLoop } from "../write-loop"
 import type { SpacePreferences } from "../conversations/store-contract"
 import type { TranscriptStore } from "../conversations/store-port"
@@ -34,20 +35,16 @@ const withSection = (
 export const createCollapsedSectionsController = (
 	store: TranscriptStore,
 ): CollapsedSectionsController => {
-	let state = initialCollapsedSectionsState
-	const listeners = new Set<() => void>()
+	const stateStore = createStore(initialCollapsedSectionsState)
 
 	const enqueue = createQueue()
 
 	const set = (collapsedBySpaceId: Record<string, string[]>) => {
-		state = { collapsedBySpaceId }
-		for (const listener of listeners) {
-			listener()
-		}
+		stateStore.setState({ collapsedBySpaceId })
 	}
 
 	const hold = (spaceId: string, collapsed: string[]) =>
-		set({ ...state.collapsedBySpaceId, [spaceId]: collapsed })
+		set({ ...stateStore.getState().collapsedBySpaceId, [spaceId]: collapsed })
 
 	const read = async (spaceId: string) => {
 		const { collapsedSectionIds } = await store.spacePreferences(spaceId)
@@ -55,7 +52,9 @@ export const createCollapsedSectionsController = (
 	}
 
 	const reloadAll = () => {
-		for (const spaceId of Object.keys(state.collapsedBySpaceId)) {
+		for (const spaceId of Object.keys(
+			stateStore.getState().collapsedBySpaceId,
+		)) {
 			void enqueue(() => read(spaceId)).catch(() => undefined)
 		}
 	}
@@ -69,30 +68,28 @@ export const createCollapsedSectionsController = (
 	})
 
 	return {
-		getState: () => state,
+		getState: stateStore.getState,
 
-		subscribe: (listener) => {
-			listeners.add(listener)
-			return () => {
-				listeners.delete(listener)
-			}
-		},
+		subscribe: stateStore.subscribe,
 
 		enter: (spaceId: string) =>
 			enqueue(() => read(spaceId)).catch(() => undefined),
 
 		keep: (spaceIds: string[]) => {
-			const kept = Object.entries(state.collapsedBySpaceId).filter(
-				([spaceId]) => spaceIds.includes(spaceId),
-			)
-			if (kept.length !== Object.keys(state.collapsedBySpaceId).length) {
+			const kept = Object.entries(
+				stateStore.getState().collapsedBySpaceId,
+			).filter(([spaceId]) => spaceIds.includes(spaceId))
+			if (
+				kept.length !==
+				Object.keys(stateStore.getState().collapsedBySpaceId).length
+			) {
 				set(Object.fromEntries(kept))
 			}
 		},
 
 		collapse: (spaceId: string, sectionId: string, isCollapsed: boolean) => {
 			const wanted = withSection(
-				collapsedIn(state, spaceId),
+				collapsedIn(stateStore.getState(), spaceId),
 				sectionId,
 				isCollapsed,
 			)

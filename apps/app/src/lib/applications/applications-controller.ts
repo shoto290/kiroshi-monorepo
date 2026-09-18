@@ -15,6 +15,7 @@ import type {
 	InstallField,
 } from "./application-port"
 
+import { createStore } from "../store"
 import {
 	declaredServers,
 	declareServer,
@@ -145,20 +146,12 @@ export const createApplicationsController = (
 	store: TranscriptStore,
 	{ reportFailure = raiseFailureNotice }: ApplicationsControllerOptions = {},
 ): ApplicationsController => {
-	let state = initialApplicationsState
+	const stateStore = createStore(initialApplicationsState)
 	let issuedRead = 0
 	const askedNames = new Set<string>()
-	const listeners = new Set<() => void>()
-
-	const publish = () => {
-		for (const listener of listeners) {
-			listener()
-		}
-	}
 
 	const set = (fields: Partial<ApplicationsState>) => {
-		state = { ...state, ...fields }
-		publish()
+		stateStore.setState({ ...stateStore.getState(), ...fields })
 	}
 
 	const readDirectory = () => {
@@ -197,7 +190,10 @@ export const createApplicationsController = (
 
 	const recordMark = (name: string, found: Application | null) => {
 		set({
-			marks: { ...state.marks, [name]: found && applicationMarkOf(found) },
+			marks: {
+				...stateStore.getState().marks,
+				[name]: found && applicationMarkOf(found),
+			},
 		})
 	}
 
@@ -210,11 +206,13 @@ export const createApplicationsController = (
 	}
 
 	const needsLookup = (name: string) =>
-		!askedNames.has(name) && !state.curated.some((held) => held.name === name)
+		!askedNames.has(name) &&
+		!stateStore.getState().curated.some((held) => held.name === name)
 
 	const applicationNamed = (id: string) =>
-		[...state.curated, ...state.directory].find((held) => held.name === id) ??
-		null
+		[...stateStore.getState().curated, ...stateStore.getState().directory].find(
+			(held) => held.name === id,
+		) ?? null
 
 	const deleteWrittenSecrets = async (owner: EnvOwner, name: string) => {
 		const scope = serverScopeOf(owner, name)
@@ -317,17 +315,15 @@ export const createApplicationsController = (
 	}
 
 	return {
-		getState: () => state,
+		getState: stateStore.getState,
 
-		subscribe: (listener) => {
-			listeners.add(listener)
-			return () => {
-				listeners.delete(listener)
-			}
-		},
+		subscribe: stateStore.subscribe,
 
 		open: async () => {
-			if (state.isReadingCatalogue || state.curated.length > 0) {
+			if (
+				stateStore.getState().isReadingCatalogue ||
+				stateStore.getState().curated.length > 0
+			) {
 				return
 			}
 			set({ isReadingCatalogue: true })
@@ -345,8 +341,9 @@ export const createApplicationsController = (
 
 		browse: () => {
 			const holdsDirectory =
-				state.directory.length > 0 && !state.hasDirectoryFailed
-			if (state.isReadingDirectory || holdsDirectory) {
+				stateStore.getState().directory.length > 0 &&
+				!stateStore.getState().hasDirectoryFailed
+			if (stateStore.getState().isReadingDirectory || holdsDirectory) {
 				return
 			}
 			readDirectory()
@@ -371,10 +368,10 @@ export const createApplicationsController = (
 		},
 
 		install: async (target: InstallTarget, values: InstallValues = {}) => {
-			const application = state.picked
+			const application = stateStore.getState().picked
 			if (
 				!application ||
-				state.installing !== null ||
+				stateStore.getState().installing !== null ||
 				target.declared.includes(application.name)
 			) {
 				return

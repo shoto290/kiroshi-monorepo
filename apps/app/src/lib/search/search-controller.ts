@@ -9,6 +9,8 @@ import type {
 import { MAX_QUERY_CHARS, type MessageHit } from "./search-contract"
 import type { SearchPort } from "./search-port"
 
+import { createStore } from "../store"
+
 export const QUIET_MS = 150
 
 export type SearchRead = {
@@ -89,16 +91,12 @@ export const createSearchController = ({
 	port,
 	onFailure,
 }: SearchWiring): SearchController => {
-	let state = CLOSED
+	const stateStore = createStore(CLOSED)
 	let quiet: ReturnType<typeof setTimeout> | undefined
 	let reads = 0
-	const listeners = new Set<() => void>()
 
 	const publish = (next: Partial<SearchState>) => {
-		state = { ...state, ...next }
-		for (const listener of [...listeners]) {
-			listener()
-		}
+		stateStore.setState({ ...stateStore.getState(), ...next })
 	}
 
 	const fail = () => {
@@ -131,7 +129,7 @@ export const createSearchController = ({
 		scope.query === "" ? restAnswer(scope) : foundAnswer(scope)
 
 	const read = () => {
-		const { query, spaceId, isAllSpaces } = state
+		const { query, spaceId, isAllSpaces } = stateStore.getState()
 
 		if (!spaceId || isOverLimit(query)) {
 			publish({ isLoading: false })
@@ -161,7 +159,7 @@ export const createSearchController = ({
 	const scheduleRead = () => {
 		clearTimeout(quiet)
 
-		if (state.query === "") {
+		if (stateStore.getState().query === "") {
 			publish({ read: NOTHING_READ })
 			read()
 			return
@@ -171,14 +169,9 @@ export const createSearchController = ({
 	}
 
 	return {
-		getState: () => state,
+		getState: stateStore.getState,
 
-		subscribe: (listener) => {
-			listeners.add(listener)
-			return () => {
-				listeners.delete(listener)
-			}
-		},
+		subscribe: stateStore.subscribe,
 
 		open: (spaceId) => {
 			clearTimeout(quiet)
@@ -206,6 +199,8 @@ export const createSearchController = ({
 		},
 
 		moveActive: (by, count) =>
-			publish({ activeIndex: wrapped(state.activeIndex + by, count) }),
+			publish({
+				activeIndex: wrapped(stateStore.getState().activeIndex + by, count),
+			}),
 	}
 }

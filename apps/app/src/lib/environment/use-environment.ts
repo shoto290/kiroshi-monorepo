@@ -1,11 +1,10 @@
-import { useState, useSyncExternalStore } from "react"
-
 import {
 	createEnvironmentController,
 	type EnvironmentController,
 	type EnvironmentState,
 } from "./environment-controller"
 
+import { useController } from "../use-controller"
 import type { TranscriptStore } from "../conversations/store-port"
 
 export type Environment = {
@@ -13,9 +12,5 @@ export type Environment = {
 	controller: EnvironmentController
 }
 
-export const useEnvironment = (store: TranscriptStore): Environment => {
-	const [controller] = useState(() => createEnvironmentController(store))
-	const state = useSyncExternalStore(controller.subscribe, controller.getState)
-
-	return { state, controller }
-}
+export const useEnvironment = (store: TranscriptStore): Environment =>
+	useController(() => createEnvironmentController(store))

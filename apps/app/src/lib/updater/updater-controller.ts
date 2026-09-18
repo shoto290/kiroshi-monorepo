@@ -5,6 +5,8 @@ import type {
 	UpdaterPort,
 } from "./updater-port"
 
+import { createStore } from "../store"
+
 const CHECK_INTERVAL_MS = 6 * 60 * 60 * 1000
 
 const FOCUS_CHECK_MIN_GAP_MS = 4 * 60 * 60 * 1000
@@ -48,19 +50,15 @@ const percentOf = ({ downloaded, total }: UpdateProgress): number =>
 export const createUpdaterController = (
 	port: UpdaterPort,
 ): UpdaterController => {
-	let state = EMPTY
+	const stateStore = createStore(EMPTY)
 	let pending: AvailableUpdate | null = null
 	let lastCheckAt = 0
-	const listeners = new Set<() => void>()
 
 	const publish = (next: UpdaterState) => {
-		if (isSameState(state, next)) {
+		if (isSameState(stateStore.getState(), next)) {
 			return
 		}
-		state = next
-		for (const listener of listeners) {
-			listener()
-		}
+		stateStore.setState(next)
 	}
 
 	const check = async () => {
@@ -69,17 +67,19 @@ export const createUpdaterController = (
 			const update = await port.check()
 			pending = update
 			publish({
-				...state,
+				...stateStore.getState(),
 				available: update && { version: update.version, notes: update.notes },
 				error: null,
 			})
 		} catch (error) {
-			publish({ ...state, error: messageOf(error) })
+			publish({ ...stateStore.getState(), error: messageOf(error) })
 		}
 	}
 
 	const checkOnFocus = () => {
-		const isBusy = state.progress !== null || state.isRestartPending
+		const isBusy =
+			stateStore.getState().progress !== null ||
+			stateStore.getState().isRestartPending
 		if (isBusy || Date.now() - lastCheckAt < FOCUS_CHECK_MIN_GAP_MS) {
 			return
 		}
@@ -91,33 +91,36 @@ export const createUpdaterController = (
 		if (!update) {
 			return
 		}
-		publish({ ...state, progress: 0, error: null })
+		publish({ ...stateStore.getState(), progress: 0, error: null })
 		try {
 			await update.install((progress) =>
-				publish({ ...state, progress: percentOf(progress) }),
+				publish({ ...stateStore.getState(), progress: percentOf(progress) }),
 			)
-			publish({ ...state, progress: null, isRestartPending: true })
+			publish({
+				...stateStore.getState(),
+				progress: null,
+				isRestartPending: true,
+			})
 		} catch (error) {
-			publish({ ...state, progress: null, error: messageOf(error) })
+			publish({
+				...stateStore.getState(),
+				progress: null,
+				error: messageOf(error),
+			})
 		}
 	}
 
 	const restart = async () => {
-		if (!state.isRestartPending) {
+		if (!stateStore.getState().isRestartPending) {
 			return
 		}
 		await port.restart()
 	}
 
 	return {
-		getState: () => state,
+		getState: stateStore.getState,
 
-		subscribe: (listener) => {
-			listeners.add(listener)
-			return () => {
-				listeners.delete(listener)
-			}
-		},
+		subscribe: stateStore.subscribe,
 
 		start: () => {
 			void check()
