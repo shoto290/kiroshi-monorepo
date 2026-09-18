@@ -35,7 +35,9 @@ import type {
 import type { TranscriptStore } from "./store-port"
 import {
 	COMPANION_ARRIVED_EVENT,
+	COMPANION_SPOKE_EVENT,
 	type CompanionArrival,
+	type CompanionSpoke,
 	type TerminalCompletion,
 	TRANSCRIPT_PAGE_SIZE,
 	TRANSCRIPT_WINDOW_SIZE,
@@ -49,6 +51,11 @@ import type { AgentCommand } from "@/lib/agent/contract"
 export const arrivalsTransport = {
 	onCompanionArrived: (listener: (arrival: CompanionArrival) => void) =>
 		listen<CompanionArrival>(COMPANION_ARRIVED_EVENT, ({ payload }) =>
+			listener(payload),
+		),
+
+	onCompanionSpoke: (listener: (spoken: CompanionSpoke) => void) =>
+		listen<CompanionSpoke>(COMPANION_SPOKE_EVENT, ({ payload }) =>
 			listener(payload),
 		),
 }

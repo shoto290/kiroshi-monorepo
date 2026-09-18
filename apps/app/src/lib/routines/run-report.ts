@@ -12,9 +12,16 @@ import type { ReportedRunsReader } from "./run-port"
 import type { TranscriptStore } from "../conversations/store-port"
 import type { TranscriptMessage } from "../conversations/transcript-contract"
 
+export type AssistantTurnDraft = {
+	conversationId: string
+	botId: string
+	text: string
+	runtimeSessionId: string | null
+}
+
 export type ReportTurnWrite = {
 	store: TranscriptStore
-	draft: RunReportDraft
+	draft: AssistantTurnDraft
 	newId: () => string
 	now: () => number
 }

@@ -88,6 +88,7 @@ import {
 } from "@/lib/conversations/roster-conversations"
 import type { EnvOwner, EnvScope } from "@/lib/conversations/store-contract"
 import { useCompanionArrivals } from "@/lib/conversations/use-companion-arrivals"
+import { useCompanionSpokeDriver } from "@/lib/conversations/use-companion-spoke-driver"
 import {
 	useConversationPreviews,
 	useConversationWorkers,
@@ -247,6 +248,8 @@ export function App() {
 		runtimes: conversationRuntimes,
 		chat: chat.controller,
 	})
+
+	useCompanionSpokeDriver({ runtimes: conversationRuntimes })
 
 	useNotifications({
 		chat: chat.controller,

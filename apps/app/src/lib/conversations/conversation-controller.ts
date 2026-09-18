@@ -8,6 +8,7 @@ import type { Conversation, MessagePin } from "./store-contract"
 import type { TranscriptStore } from "./store-port"
 import type {
 	CompanionArrival,
+	CompanionSpoke,
 	TerminalCompletion,
 	TranscriptMessage,
 } from "./transcript-contract"
@@ -127,6 +128,7 @@ export type ConversationController = {
 	send: (text: string, repliedToMessageId?: string) => Promise<void>
 	sendAgain: (messageId: string) => Promise<void>
 	reportRun: (draft: RunReportDraft) => Promise<string>
+	relaySpoken: (spoken: CompanionSpoke) => Promise<void>
 	pin: (messageId: string, blockIndex: number) => Promise<void>
 	unpin: (messageId: string, blockIndex: number) => Promise<void>
 	pins: () => Promise<MessagePin[]>
@@ -982,6 +984,33 @@ export const createConversationController = (
 		return reported.turnId
 	}
 
+	const relaySpoken = async ({
+		conversationId,
+		authorBotId,
+		text,
+	}: CompanionSpoke) => {
+		const isSeated = await isHeldForReport(conversationId)
+
+		if (!isSeated || !presentBotIds().includes(authorBotId)) {
+			return
+		}
+		const spoken = await enqueue(() =>
+			writeReportTurn({
+				store,
+				draft: {
+					conversationId,
+					botId: authorBotId,
+					text: toMentionTokens(text, mentionBots()),
+					runtimeSessionId: null,
+				},
+				newId,
+				now,
+			}),
+		)
+		transcript.append(spoken)
+		await relayReport(spoken)
+	}
+
 	const recordAnswers = (
 		held: Speaker,
 		request: QuestionRequest,
@@ -1238,6 +1267,7 @@ export const createConversationController = (
 		send,
 		sendAgain,
 		reportRun,
+		relaySpoken,
 		pin,
 		unpin,
 		pins,
