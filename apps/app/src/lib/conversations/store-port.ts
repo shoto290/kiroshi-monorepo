@@ -21,6 +21,7 @@ import type {
 	NewAssistantMessage,
 	NewTurn,
 	NewUserMessage,
+	PluginScope,
 	RosterPin,
 	RuntimeSession,
 	Section,
@@ -64,51 +65,57 @@ export type TranscriptStore = TranscriptPort & {
 	deleteBot: (id: string) => Promise<void>
 	setBotAvatarImage: (id: string, bytes: Uint8Array) => Promise<Bot>
 	setBotMemory: (id: string, memory: string) => Promise<Bot>
-	botSkills: (botId: string) => Promise<BotSkill[]>
-	createBotSkill: (botId: string, draft: BotSkillDraft) => Promise<BotSkill>
-	updateBotSkill: (
-		botId: string,
+	pluginSkills: (scope: PluginScope) => Promise<BotSkill[]>
+	createPluginSkill: (
+		scope: PluginScope,
+		draft: BotSkillDraft,
+	) => Promise<BotSkill>
+	updatePluginSkill: (
+		scope: PluginScope,
 		skillId: string,
 		draft: BotSkillDraft,
 	) => Promise<BotSkill>
-	setBotSkillPreloaded: (
-		botId: string,
+	setPluginSkillPreloaded: (
+		scope: PluginScope,
 		skillId: string,
 		isPreloaded: boolean,
 	) => Promise<BotSkill>
-	deleteBotSkill: (botId: string, skillId: string) => Promise<void>
-	botSkillFile: (
-		botId: string,
+	deletePluginSkill: (scope: PluginScope, skillId: string) => Promise<void>
+	pluginSkillFile: (
+		scope: PluginScope,
 		skillId: string,
 		path: string,
 	) => Promise<string>
-	writeBotSkillFile: (
-		botId: string,
+	writePluginSkillFile: (
+		scope: PluginScope,
 		skillId: string,
 		path: string,
 		text: string,
 	) => Promise<BotSkill>
-	deleteBotSkillFile: (
-		botId: string,
+	deletePluginSkillFile: (
+		scope: PluginScope,
 		skillId: string,
 		path: string,
 	) => Promise<void>
-	botMcpServers: (botId: string) => Promise<BotMcpServer[]>
-	setBotMcpServer: (
-		botId: string,
+	pluginMcpServers: (scope: PluginScope) => Promise<BotMcpServer[]>
+	setPluginMcpServer: (
+		scope: PluginScope,
 		name: string,
 		config: Record<string, unknown>,
 		mark?: McpServerMark,
 	) => Promise<BotMcpServer>
-	deleteBotMcpServer: (botId: string, name: string) => Promise<void>
-	spaceMcpServers: (spaceId: string) => Promise<BotMcpServer[]>
-	setSpaceMcpServer: (
-		spaceId: string,
-		name: string,
-		config: Record<string, unknown>,
-		mark?: McpServerMark,
-	) => Promise<BotMcpServer>
-	deleteSpaceMcpServer: (spaceId: string, name: string) => Promise<void>
+	deletePluginMcpServer: (scope: PluginScope, name: string) => Promise<void>
+	pluginHistory: (scope: PluginScope) => Promise<BotHistoryEntry[]>
+	pluginHistoryDiff: (
+		scope: PluginScope,
+		oldestCommitId: string,
+		newestCommitId: string,
+	) => Promise<BotChangedFile[]>
+	revertPlugin: (
+		scope: PluginScope,
+		oldestCommitId: string,
+		newestCommitId: string,
+	) => Promise<BotHistoryEntry[]>
 	environmentVariables: (scope: EnvScope) => Promise<EnvEntry[]>
 	setEnvironmentVariable: (
 		scope: EnvScope,
@@ -116,94 +123,6 @@ export type TranscriptStore = TranscriptPort & {
 		value: string,
 	) => Promise<void>
 	deleteEnvironmentVariable: (scope: EnvScope, name: string) => Promise<void>
-	botHistory: (botId: string) => Promise<BotHistoryEntry[]>
-	botHistoryDiff: (
-		botId: string,
-		oldestCommitId: string,
-		newestCommitId: string,
-	) => Promise<BotChangedFile[]>
-	revertBot: (
-		botId: string,
-		oldestCommitId: string,
-		newestCommitId: string,
-	) => Promise<BotHistoryEntry[]>
-	userPluginSkills: () => Promise<BotSkill[]>
-	createUserPluginSkill: (draft: BotSkillDraft) => Promise<BotSkill>
-	updateUserPluginSkill: (
-		skillId: string,
-		draft: BotSkillDraft,
-	) => Promise<BotSkill>
-	setUserPluginSkillPreloaded: (
-		skillId: string,
-		isPreloaded: boolean,
-	) => Promise<BotSkill>
-	deleteUserPluginSkill: (skillId: string) => Promise<void>
-	userPluginSkillFile: (skillId: string, path: string) => Promise<string>
-	writeUserPluginSkillFile: (
-		skillId: string,
-		path: string,
-		text: string,
-	) => Promise<BotSkill>
-	deleteUserPluginSkillFile: (skillId: string, path: string) => Promise<void>
-	userPluginMcpServers: () => Promise<BotMcpServer[]>
-	setUserPluginMcpServer: (
-		name: string,
-		config: Record<string, unknown>,
-		mark?: McpServerMark,
-	) => Promise<BotMcpServer>
-	deleteUserPluginMcpServer: (name: string) => Promise<void>
-	userPluginHistory: () => Promise<BotHistoryEntry[]>
-	userPluginHistoryDiff: (
-		oldestCommitId: string,
-		newestCommitId: string,
-	) => Promise<BotChangedFile[]>
-	revertUserPlugin: (
-		oldestCommitId: string,
-		newestCommitId: string,
-	) => Promise<BotHistoryEntry[]>
-	spacePluginSkills: (spaceId: string) => Promise<BotSkill[]>
-	createSpacePluginSkill: (
-		spaceId: string,
-		draft: BotSkillDraft,
-	) => Promise<BotSkill>
-	updateSpacePluginSkill: (
-		spaceId: string,
-		skillId: string,
-		draft: BotSkillDraft,
-	) => Promise<BotSkill>
-	setSpacePluginSkillPreloaded: (
-		spaceId: string,
-		skillId: string,
-		isPreloaded: boolean,
-	) => Promise<BotSkill>
-	deleteSpacePluginSkill: (spaceId: string, skillId: string) => Promise<void>
-	spacePluginSkillFile: (
-		spaceId: string,
-		skillId: string,
-		path: string,
-	) => Promise<string>
-	writeSpacePluginSkillFile: (
-		spaceId: string,
-		skillId: string,
-		path: string,
-		text: string,
-	) => Promise<BotSkill>
-	deleteSpacePluginSkillFile: (
-		spaceId: string,
-		skillId: string,
-		path: string,
-	) => Promise<void>
-	spacePluginHistory: (spaceId: string) => Promise<BotHistoryEntry[]>
-	spacePluginHistoryDiff: (
-		spaceId: string,
-		oldestCommitId: string,
-		newestCommitId: string,
-	) => Promise<BotChangedFile[]>
-	revertSpacePlugin: (
-		spaceId: string,
-		oldestCommitId: string,
-		newestCommitId: string,
-	) => Promise<BotHistoryEntry[]>
 	recordBotCommands: (botId: string, commands: AgentCommand[]) => Promise<void>
 	botCommands: (botId: string) => Promise<AgentCommand[]>
 	mainChat: (botId: string, spaceId?: string | null) => Promise<Chat>

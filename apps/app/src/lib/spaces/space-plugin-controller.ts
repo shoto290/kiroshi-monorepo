@@ -10,6 +10,7 @@ import {
 	type OpenedSkillFile,
 	type SkillFilesController,
 } from "../bots/skill-files-controller"
+import { spacePlugin } from "../conversations/plugin-scope"
 import type {
 	BotHistoryEntry,
 	BotSkill,
@@ -60,8 +61,8 @@ export const createSpacePluginController = (
 
 	const read = async (spaceId: string) => {
 		const [skills, commits] = await Promise.all([
-			store.spacePluginSkills(spaceId),
-			store.spacePluginHistory(spaceId),
+			store.pluginSkills(spacePlugin(spaceId)),
+			store.pluginHistory(spacePlugin(spaceId)),
 		])
 		set({ spaceId, skills, commits, hasFailedToLoad: false })
 	}
@@ -93,7 +94,7 @@ export const createSpacePluginController = (
 
 	const readHistory = async (spaceId: string) =>
 		set({
-			commits: await store.spacePluginHistory(spaceId),
+			commits: await store.pluginHistory(spacePlugin(spaceId)),
 			hasFailedToLoad: false,
 		})
 
@@ -101,7 +102,11 @@ export const createSpacePluginController = (
 
 	const readFiles = createHistoryFilesReader(
 		(oldestCommitId, newestCommitId) =>
-			store.spacePluginHistoryDiff(openSpace(), oldestCommitId, newestCommitId),
+			store.pluginHistoryDiff(
+				spacePlugin(openSpace()),
+				oldestCommitId,
+				newestCommitId,
+			),
 		{
 			run: (task) => run(() => task()),
 			getState: current,
@@ -112,11 +117,16 @@ export const createSpacePluginController = (
 	const files = createSkillFilesController(
 		{
 			read: (skillId, path) =>
-				store.spacePluginSkillFile(openSpace(), skillId, path),
+				store.pluginSkillFile(spacePlugin(openSpace()), skillId, path),
 			write: (skillId, path, text) =>
-				store.writeSpacePluginSkillFile(openSpace(), skillId, path, text),
+				store.writePluginSkillFile(
+					spacePlugin(openSpace()),
+					skillId,
+					path,
+					text,
+				),
 			remove: (skillId, path) =>
-				store.deleteSpacePluginSkillFile(openSpace(), skillId, path),
+				store.deletePluginSkillFile(spacePlugin(openSpace()), skillId, path),
 		},
 		{
 			run: (task) => run(() => task()),
@@ -140,9 +150,16 @@ export const createSpacePluginController = (
 
 		createSkill: (draft: BotSkillDraft, isPreloaded: boolean) =>
 			run(async (spaceId) => {
-				const created = await store.createSpacePluginSkill(spaceId, draft)
+				const created = await store.createPluginSkill(
+					spacePlugin(spaceId),
+					draft,
+				)
 				const skill = isPreloaded
-					? await store.setSpacePluginSkillPreloaded(spaceId, created.id, true)
+					? await store.setPluginSkillPreloaded(
+							spacePlugin(spaceId),
+							created.id,
+							true,
+						)
 					: created
 				set({ skills: [...current().skills, skill] })
 				await readHistory(spaceId)
@@ -150,8 +167,8 @@ export const createSpacePluginController = (
 
 		saveSkill: (skillId: string, draft: BotSkillDraft) =>
 			run(async (spaceId) => {
-				const saved = await store.updateSpacePluginSkill(
-					spaceId,
+				const saved = await store.updatePluginSkill(
+					spacePlugin(spaceId),
 					skillId,
 					draft,
 				)
@@ -165,8 +182,8 @@ export const createSpacePluginController = (
 			run(async (spaceId) => {
 				applySkill(
 					skillId,
-					await store.setSpacePluginSkillPreloaded(
-						spaceId,
+					await store.setPluginSkillPreloaded(
+						spacePlugin(spaceId),
 						skillId,
 						isPreloaded,
 					),
@@ -177,7 +194,7 @@ export const createSpacePluginController = (
 
 		removeSkill: (skillId: string) =>
 			run(async (spaceId) => {
-				await store.deleteSpacePluginSkill(spaceId, skillId)
+				await store.deletePluginSkill(spacePlugin(spaceId), skillId)
 				set({
 					skills: current().skills.filter((skill) => skill.id !== skillId),
 				})
@@ -193,13 +210,15 @@ export const createSpacePluginController = (
 		revert: (oldestCommitId: string, newestCommitId: string) =>
 			run(async (spaceId) => {
 				set({
-					commits: await store.revertSpacePlugin(
-						spaceId,
+					commits: await store.revertPlugin(
+						spacePlugin(spaceId),
 						oldestCommitId,
 						newestCommitId,
 					),
 				})
-				set({ skills: await store.spacePluginSkills(spaceId) })
+				set({
+					skills: await store.pluginSkills(spacePlugin(spaceId)),
+				})
 			}),
 	}
 }

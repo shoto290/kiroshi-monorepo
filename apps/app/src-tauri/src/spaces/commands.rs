@@ -1,13 +1,11 @@
-use std::path::{Path, PathBuf};
+use std::path::Path;
 
 use tauri::{AppHandle, Runtime, State};
 
 use super::contract::{Space, SpaceError, SpacePreferences};
 use crate::bundles;
-use crate::conversations::commands::{bundled, list_bundles, recounted};
-use crate::conversations::contract::{
-	AvatarBlot, BotChangedFile, BotHistoryEntry, Skill, SkillDraft, TranscriptStoreError,
-};
+use crate::conversations::commands::list_bundles;
+use crate::conversations::contract::AvatarBlot;
 use crate::db;
 use crate::environment;
 
@@ -130,146 +128,10 @@ pub async fn bot_remove_from_space(
 	Ok(ready(&state)?.spaces().remove_bot(bot_id, space_id).await?)
 }
 
-pub(crate) fn plugin_path<R: Runtime>(
-	app: &AppHandle<R>,
-	space_id: &str,
-) -> Result<PathBuf, TranscriptStoreError> {
-	bundles::space::laid_down(app, space_id).ok_or_else(|| TranscriptStoreError::UnwritableBundle {
-		detail: "the space's plugin has not been laid down yet".to_owned(),
-	})
-}
-
-fn read_history(path: &Path) -> Result<Vec<BotHistoryEntry>, TranscriptStoreError> {
-	recounted(bundles::space::history(path))
-		.map(|entries| entries.into_iter().map(BotHistoryEntry::from).collect())
-}
-
-#[tauri::command]
-pub async fn space_plugin_skills<R: Runtime>(
-	app: AppHandle<R>,
-	space_id: String,
-) -> Result<Vec<Skill>, TranscriptStoreError> {
-	let Some(path) = bundles::space::laid_down(&app, &space_id) else {
-		return Ok(Vec::new());
-	};
-	Ok(bundles::space::skills(&path).into_iter().map(Skill::from).collect())
-}
-
-#[tauri::command]
-pub async fn space_plugin_create_skill<R: Runtime>(
-	app: AppHandle<R>,
-	space_id: String,
-	draft: SkillDraft,
-) -> Result<Skill, TranscriptStoreError> {
-	let path = plugin_path(&app, &space_id)?;
-	bundled(bundles::space::create_skill(&path, &draft.into())).map(Skill::from)
-}
-
-#[tauri::command]
-pub async fn space_plugin_update_skill<R: Runtime>(
-	app: AppHandle<R>,
-	space_id: String,
-	skill_id: String,
-	draft: SkillDraft,
-) -> Result<Skill, TranscriptStoreError> {
-	let path = plugin_path(&app, &space_id)?;
-	bundled(bundles::space::update_skill(&path, &skill_id, &draft.into())).map(Skill::from)
-}
-
-#[tauri::command]
-pub async fn space_plugin_set_skill_preloaded<R: Runtime>(
-	app: AppHandle<R>,
-	space_id: String,
-	skill_id: String,
-	is_preloaded: bool,
-) -> Result<Skill, TranscriptStoreError> {
-	let path = plugin_path(&app, &space_id)?;
-	bundled(bundles::space::set_skill_preloaded(&path, &skill_id, is_preloaded)).map(Skill::from)
-}
-
-#[tauri::command]
-pub async fn space_plugin_delete_skill<R: Runtime>(
-	app: AppHandle<R>,
-	space_id: String,
-	skill_id: String,
-) -> Result<(), TranscriptStoreError> {
-	let path = plugin_path(&app, &space_id)?;
-	bundled(bundles::space::remove_skill(&path, &skill_id))
-}
-
-#[tauri::command]
-pub async fn space_plugin_skill_file<R: Runtime>(
-	app: AppHandle<R>,
-	space_id: String,
-	skill_id: String,
-	path: String,
-) -> Result<String, TranscriptStoreError> {
-	let plugin = plugin_path(&app, &space_id)?;
-	bundled(bundles::space::skill_file(&plugin, &skill_id, &path))
-}
-
-#[tauri::command]
-pub async fn space_plugin_write_skill_file<R: Runtime>(
-	app: AppHandle<R>,
-	space_id: String,
-	skill_id: String,
-	path: String,
-	text: String,
-) -> Result<Skill, TranscriptStoreError> {
-	let plugin = plugin_path(&app, &space_id)?;
-	bundled(bundles::space::write_skill_file(&plugin, &skill_id, &path, &text)).map(Skill::from)
-}
-
-#[tauri::command]
-pub async fn space_plugin_delete_skill_file<R: Runtime>(
-	app: AppHandle<R>,
-	space_id: String,
-	skill_id: String,
-	path: String,
-) -> Result<(), TranscriptStoreError> {
-	let plugin = plugin_path(&app, &space_id)?;
-	bundled(bundles::space::remove_skill_file(&plugin, &skill_id, &path))
-}
-
-#[tauri::command]
-pub async fn space_plugin_history<R: Runtime>(
-	app: AppHandle<R>,
-	space_id: String,
-) -> Result<Vec<BotHistoryEntry>, TranscriptStoreError> {
-	let Some(path) = bundles::space::laid_down(&app, &space_id) else {
-		return Ok(Vec::new());
-	};
-	read_history(&path)
-}
-
-#[tauri::command]
-pub async fn space_plugin_history_diff<R: Runtime>(
-	app: AppHandle<R>,
-	space_id: String,
-	oldest_commit_id: String,
-	newest_commit_id: String,
-) -> Result<Vec<BotChangedFile>, TranscriptStoreError> {
-	let path = plugin_path(&app, &space_id)?;
-	recounted(bundles::space::changed_files(&path, &oldest_commit_id, &newest_commit_id))
-		.map(|files| files.into_iter().map(BotChangedFile::from).collect())
-}
-
-#[tauri::command]
-pub async fn space_plugin_revert<R: Runtime>(
-	app: AppHandle<R>,
-	space_id: String,
-	oldest_commit_id: String,
-	newest_commit_id: String,
-) -> Result<Vec<BotHistoryEntry>, TranscriptStoreError> {
-	let path = plugin_path(&app, &space_id)?;
-	bundles::space::revert(&path, &oldest_commit_id, &newest_commit_id)
-		.map_err(|error| TranscriptStoreError::UnwritableBundle { detail: error.to_string() })?;
-	read_history(&path)
-}
-
 #[cfg(test)]
 mod tests {
 	use std::fs;
+	use std::path::PathBuf;
 
 	use super::*;
 	use crate::db::repositories::conversations::{AvatarAnimal, BotIdentity};

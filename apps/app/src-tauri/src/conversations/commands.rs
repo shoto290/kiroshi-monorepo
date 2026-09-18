@@ -1,21 +1,20 @@
-use std::path::{Path, PathBuf};
+use std::path::Path;
 
 use tauri::{AppHandle, Manager, Runtime, State};
 
 use super::context;
 use super::contract::{
-	AvatarAnimal, AvatarBlot, Bot, BotChangedFile, BotDraft, BotHistoryEntry, BotIdentity, Chat,
-	CompanionArrival, ContextCheckpoint, Conversation, McpServer, MessageReference,
-	NewAssistantMessage, NewTurn, NewUserMessage, PinnedBubble, RuntimeSession, Skill, SkillDraft,
-	SuggestedBot, TerminalCompletion, TranscriptPage, TranscriptStoreError, TranscriptWindow,
-	COMPANION_ARRIVED_EVENT,
+	AvatarAnimal, AvatarBlot, Bot, BotDraft, BotIdentity, Chat, CompanionArrival, ContextCheckpoint,
+	Conversation, MessageReference, NewAssistantMessage, NewTurn, NewUserMessage, PinnedBubble,
+	RuntimeSession, SuggestedBot, TerminalCompletion, TranscriptPage, TranscriptStoreError,
+	TranscriptWindow, COMPANION_ARRIVED_EVENT,
 };
 use super::seed;
 use crate::agent::contract::AgentCommand;
 use crate::companions::launch;
 use crate::attachments;
 use crate::avatars;
-use crate::bundles::{self, ApplicationMark};
+use crate::bundles;
 use crate::db;
 use crate::db::repositories::conversations::{
 	Bot as StoredBot, Conversation as StoredConversation, ConversationDraft, ConversationEdit,
@@ -25,7 +24,6 @@ use crate::db::repositories::messages::{MessagePageQuery, MessagesAroundQuery};
 use crate::db::repositories::runtime_context::{Handover, ParticipantKey};
 use crate::environment;
 use crate::environment::contract::EnvOwner;
-use crate::spaces::commands::plugin_path;
 
 const DUPLICATE_SUFFIX: &str = " copy";
 
@@ -556,243 +554,8 @@ pub async fn conversation_delete_bot<R: Runtime>(
 	Ok(())
 }
 
-#[tauri::command]
-pub async fn conversation_bot_skills<R: Runtime>(
-	app: AppHandle<R>,
-	bot_id: String,
-) -> Result<Vec<Skill>, TranscriptStoreError> {
-	let Some(root) = bundles::root(&app) else {
-		return Ok(Vec::new());
-	};
-	Ok(bundles::skills(&root, &bot_id).into_iter().map(Skill::from).collect())
-}
-
-#[tauri::command]
-pub async fn conversation_create_bot_skill<R: Runtime>(
-	app: AppHandle<R>,
-	state: State<'_, db::DatabaseState>,
-	bot_id: String,
-	draft: SkillDraft,
-) -> Result<Skill, TranscriptStoreError> {
-	let root = writable_root(&app)?;
-	let bot = bot_row(ready(&state)?, &bot_id).await?;
-	bundled(bundles::create_skill(&root, &bot, &draft.into())).map(Skill::from)
-}
-
-#[tauri::command]
-pub async fn conversation_update_bot_skill<R: Runtime>(
-	app: AppHandle<R>,
-	state: State<'_, db::DatabaseState>,
-	bot_id: String,
-	skill_id: String,
-	draft: SkillDraft,
-) -> Result<Skill, TranscriptStoreError> {
-	let root = writable_root(&app)?;
-	refuse_system_skill(&root, &bot_id, &skill_id)?;
-	let bot = bot_row(ready(&state)?, &bot_id).await?;
-	bundled(bundles::update_skill(&root, &bot, &skill_id, &draft.into())).map(Skill::from)
-}
-
-#[tauri::command]
-pub async fn conversation_set_bot_skill_preloaded<R: Runtime>(
-	app: AppHandle<R>,
-	state: State<'_, db::DatabaseState>,
-	bot_id: String,
-	skill_id: String,
-	is_preloaded: bool,
-) -> Result<Skill, TranscriptStoreError> {
-	let root = writable_root(&app)?;
-	refuse_system_skill(&root, &bot_id, &skill_id)?;
-	let bot = bot_row(ready(&state)?, &bot_id).await?;
-	bundled(bundles::set_skill_preloaded(&root, &bot, &skill_id, is_preloaded)).map(Skill::from)
-}
-
-#[tauri::command]
-pub async fn conversation_delete_bot_skill<R: Runtime>(
-	app: AppHandle<R>,
-	state: State<'_, db::DatabaseState>,
-	bot_id: String,
-	skill_id: String,
-) -> Result<(), TranscriptStoreError> {
-	let root = writable_root(&app)?;
-	refuse_system_skill(&root, &bot_id, &skill_id)?;
-	let bot = bot_row(ready(&state)?, &bot_id).await?;
-	bundled(bundles::remove_skill(&root, &bot, &skill_id))
-}
-
-#[tauri::command]
-pub async fn conversation_bot_skill_file<R: Runtime>(
-	app: AppHandle<R>,
-	bot_id: String,
-	skill_id: String,
-	path: String,
-) -> Result<String, TranscriptStoreError> {
-	let root = writable_root(&app)?;
-	bundled(bundles::skill_file(&root, &bot_id, &skill_id, &path))
-}
-
-#[tauri::command]
-pub async fn conversation_write_bot_skill_file<R: Runtime>(
-	app: AppHandle<R>,
-	bot_id: String,
-	skill_id: String,
-	path: String,
-	text: String,
-) -> Result<Skill, TranscriptStoreError> {
-	let root = writable_root(&app)?;
-	refuse_system_skill(&root, &bot_id, &skill_id)?;
-	bundled(bundles::write_skill_file(&root, &bot_id, &skill_id, &path, &text)).map(Skill::from)
-}
-
-#[tauri::command]
-pub async fn conversation_delete_bot_skill_file<R: Runtime>(
-	app: AppHandle<R>,
-	bot_id: String,
-	skill_id: String,
-	path: String,
-) -> Result<(), TranscriptStoreError> {
-	let root = writable_root(&app)?;
-	refuse_system_skill(&root, &bot_id, &skill_id)?;
-	bundled(bundles::remove_skill_file(&root, &bot_id, &skill_id, &path))
-}
-
-fn refuse_system_skill(
-	root: &Path,
-	bot_id: &str,
-	skill_id: &str,
-) -> Result<(), TranscriptStoreError> {
-	if bundles::is_system_skill(root, bot_id, skill_id) {
-		return Err(TranscriptStoreError::SystemSkill { id: skill_id.to_owned() });
-	}
-	Ok(())
-}
-
-#[tauri::command]
-pub async fn conversation_bot_mcp_servers<R: Runtime>(
-	app: AppHandle<R>,
-	bot_id: String,
-) -> Result<Vec<McpServer>, TranscriptStoreError> {
-	let Some(root) = bundles::root(&app) else {
-		return Ok(Vec::new());
-	};
-	Ok(bundles::mcp_servers(&root, &bot_id).into_iter().map(McpServer::from).collect())
-}
-
-#[tauri::command]
-pub async fn conversation_set_bot_mcp_server<R: Runtime>(
-	app: AppHandle<R>,
-	state: State<'_, db::DatabaseState>,
-	bot_id: String,
-	name: String,
-	config: serde_json::Value,
-	mark: Option<ApplicationMark>,
-) -> Result<McpServer, TranscriptStoreError> {
-	let root = writable_root(&app)?;
-	let bot = bot_row(ready(&state)?, &bot_id).await?;
-	bundled(bundles::set_mcp_server(&root, &bot, &name, &config, mark.as_ref()))
-		.map(McpServer::from)
-}
-
-#[tauri::command]
-pub async fn conversation_delete_bot_mcp_server<R: Runtime>(
-	app: AppHandle<R>,
-	state: State<'_, db::DatabaseState>,
-	bot_id: String,
-	name: String,
-) -> Result<(), TranscriptStoreError> {
-	let root = writable_root(&app)?;
-	let database = ready(&state)?;
-	let bot = bot_row(database, &bot_id).await?;
-	bundled(bundles::remove_mcp_server(&root, &bot, &name))?;
-	environment::store::forget_server(&app, &bot_owner(database, &bot.id).await?, &name);
-	Ok(())
-}
-
-#[tauri::command]
-pub async fn conversation_space_mcp_servers<R: Runtime>(
-	app: AppHandle<R>,
-	space_id: String,
-) -> Result<Vec<McpServer>, TranscriptStoreError> {
-	let Some(path) = bundles::space::laid_down(&app, &space_id) else {
-		return Ok(Vec::new());
-	};
-	Ok(bundles::space::mcp_servers(&path).into_iter().map(McpServer::from).collect())
-}
-
-#[tauri::command]
-pub async fn conversation_set_space_mcp_server<R: Runtime>(
-	app: AppHandle<R>,
-	space_id: String,
-	name: String,
-	config: serde_json::Value,
-	mark: Option<ApplicationMark>,
-) -> Result<McpServer, TranscriptStoreError> {
-	let path = plugin_path(&app, &space_id)?;
-	bundled(bundles::space::set_mcp_server(&path, &name, &config, mark.as_ref()))
-		.map(McpServer::from)
-}
-
-#[tauri::command]
-pub async fn conversation_delete_space_mcp_server<R: Runtime>(
-	app: AppHandle<R>,
-	space_id: String,
-	name: String,
-) -> Result<(), TranscriptStoreError> {
-	let path = plugin_path(&app, &space_id)?;
-	bundled(bundles::space::remove_mcp_server(&path, &name))?;
-	environment::store::forget_server(&app, &EnvOwner::Space { id: space_id }, &name);
-	Ok(())
-}
-
-#[tauri::command]
-pub async fn conversation_bot_history<R: Runtime>(
-	app: AppHandle<R>,
-	bot_id: String,
-) -> Result<Vec<BotHistoryEntry>, TranscriptStoreError> {
-	let Some(root) = bundles::root(&app) else {
-		return Ok(Vec::new());
-	};
-	read_history(&root, &bot_id)
-}
-
-#[tauri::command]
-pub async fn conversation_bot_history_diff<R: Runtime>(
-	app: AppHandle<R>,
-	bot_id: String,
-	oldest_commit_id: String,
-	newest_commit_id: String,
-) -> Result<Vec<BotChangedFile>, TranscriptStoreError> {
-	let root = writable_root(&app)?;
-	recounted(bundles::changed_files(&root, &bot_id, &oldest_commit_id, &newest_commit_id))
-		.map(|files| files.into_iter().map(BotChangedFile::from).collect())
-}
-
-#[tauri::command]
-pub async fn conversation_bot_revert<R: Runtime>(
-	app: AppHandle<R>,
-	bot_id: String,
-	oldest_commit_id: String,
-	newest_commit_id: String,
-) -> Result<Vec<BotHistoryEntry>, TranscriptStoreError> {
-	let root = writable_root(&app)?;
-	bundles::revert(&root, &bot_id, &oldest_commit_id, &newest_commit_id)
-		.map_err(|error| TranscriptStoreError::UnwritableBundle { detail: error.to_string() })?;
-	read_history(&root, &bot_id)
-}
-
-fn read_history(root: &Path, bot_id: &str) -> Result<Vec<BotHistoryEntry>, TranscriptStoreError> {
-	recounted(bundles::history(root, bot_id))
-		.map(|entries| entries.into_iter().map(BotHistoryEntry::from).collect())
-}
-
 pub(crate) fn recounted<T>(outcome: Result<T, git2::Error>) -> Result<T, TranscriptStoreError> {
 	outcome.map_err(|error| TranscriptStoreError::UnreadableHistory { detail: error.to_string() })
-}
-
-fn writable_root<R: Runtime>(app: &AppHandle<R>) -> Result<PathBuf, TranscriptStoreError> {
-	bundles::root(app).ok_or_else(|| TranscriptStoreError::UnwritableBundle {
-		detail: "there is no application data directory to keep bundles in".to_owned(),
-	})
 }
 
 pub(crate) async fn bot_row(
@@ -1399,30 +1162,4 @@ mod tests {
 		assert_eq!(named(&[]), "Bean copy");
 	}
 
-	#[test]
-	fn a_write_from_the_settings_stops_at_a_skill_marked_as_the_hosts() {
-		let root = std::env::temp_dir().join("kiroshi-commands-system-skill");
-		let _ = fs::remove_dir_all(&root);
-		let bot = a_bot();
-		bundles::write(&root, &bot).expect("the bundle is written");
-		let older = bundles::dir(&root, &bot.id).join("skills").join("remembering");
-		fs::create_dir_all(&older).expect("the older directory is made");
-		fs::write(
-			older.join("SKILL.md"),
-			"---\nname: remembering\nmetadata:\n  kiroshi:\n    system: true\n---\n\nOld rules.\n",
-		)
-		.expect("the older file lands");
-
-		let skills = bundles::skills(&root, &bot.id);
-		let system =
-			skills.iter().find(|skill| skill.is_system).expect("the marked file reads back");
-
-		assert_eq!(
-			refuse_system_skill(&root, &bot.id, &system.id),
-			Err(TranscriptStoreError::SystemSkill { id: system.id.clone() })
-		);
-		assert_eq!(refuse_system_skill(&root, &bot.id, "written-by-a-reader"), Ok(()));
-
-		let _ = fs::remove_dir_all(&root);
-	}
 }

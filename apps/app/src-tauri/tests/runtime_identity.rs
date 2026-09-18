@@ -264,6 +264,10 @@ fn bundle_of(harness: &Harness, bot: &str) -> PathBuf {
 	bundles::dir(&root, bot)
 }
 
+fn a_bot_plugin(bot_id: &str) -> Value {
+	json!({ "kind": "bot", "id": bot_id })
+}
+
 fn stored_bot(harness: &Harness, bot: &str) -> Value {
 	let listed = harness.call("conversation_bots", json!({})).expect("the roster");
 	listed
@@ -426,9 +430,9 @@ fn every_run_carries_the_identity_the_bot_holds_when_it_starts() {
 
 	harness
 		.call(
-			"conversation_set_bot_mcp_server",
+			"plugin_set_mcp_server",
 			json!({
-				"botId": &bot,
+				"scope": a_bot_plugin(&bot),
 				"name": "atlas",
 				"config": { "command": "atlas-mcp", "args": ["--stdio"] },
 			}),
@@ -444,7 +448,7 @@ fn every_run_carries_the_identity_the_bot_holds_when_it_starts() {
 	assert!(served.spoken.contains(&briefed(SPANISH)), "got {}", served.spoken);
 
 	harness
-		.call("conversation_delete_bot_mcp_server", json!({ "botId": &bot, "name": "atlas" }))
+		.call("plugin_delete_mcp_server", json!({ "scope": a_bot_plugin(&bot), "name": "atlas" }))
 		.expect("the server is taken away");
 	assert!(!bundle.join(".mcp.json").exists(), "an empty server file was left behind");
 	let bare = harness.runtime_of(&conversation, &bot, 8);

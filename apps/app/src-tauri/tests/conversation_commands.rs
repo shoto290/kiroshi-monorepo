@@ -224,6 +224,10 @@ fn checkpoint(
 	.expect("the checkpoint is considered")
 }
 
+fn a_bot_plugin(bot_id: &str) -> Value {
+	json!({ "kind": "bot", "id": bot_id })
+}
+
 fn a_reference(conversation_id: &str, message_id: &str) -> Value {
 	json!({ "conversationId": conversation_id, "messageId": message_id })
 }
@@ -1674,9 +1678,9 @@ fn a_bots_skills_are_written_listed_marked_and_taken_away() {
 
 	let created = call(
 		&window,
-		"conversation_create_bot_skill",
+		"plugin_create_skill",
 		json!({
-			"botId": BOT,
+			"scope": a_bot_plugin(BOT),
 			"draft": {
 				"name": "Baking Bread",
 				"description": "How to bake.",
@@ -1695,17 +1699,17 @@ fn a_bots_skills_are_written_listed_marked_and_taken_away() {
 
 	let marked = call(
 		&window,
-		"conversation_set_bot_skill_preloaded",
-		json!({ "botId": BOT, "skillId": "baking-bread", "isPreloaded": true }),
+		"plugin_set_skill_preloaded",
+		json!({ "scope": a_bot_plugin(BOT), "skillId": "baking-bread", "isPreloaded": true }),
 	)
 	.expect("the mark lands");
 	assert_eq!(marked["isPreloaded"], json!(true));
 
 	let updated = call(
 		&window,
-		"conversation_update_bot_skill",
+		"plugin_update_skill",
 		json!({
-			"botId": BOT,
+			"scope": a_bot_plugin(BOT),
 			"skillId": "baking-bread",
 			"draft": {
 				"name": "Baking",
@@ -1736,20 +1740,20 @@ fn a_bots_skills_are_written_listed_marked_and_taken_away() {
 
 	call(
 		&window,
-		"conversation_set_bot_skill_preloaded",
-		json!({ "botId": BOT, "skillId": "baking", "isPreloaded": false }),
+		"plugin_set_skill_preloaded",
+		json!({ "scope": a_bot_plugin(BOT), "skillId": "baking", "isPreloaded": false }),
 	)
 	.expect("the mark goes");
-	call(&window, "conversation_delete_bot_skill", json!({ "botId": BOT, "skillId": "baking" }))
+	call(&window, "plugin_delete_skill", json!({ "scope": a_bot_plugin(BOT), "skillId": "baking" }))
 		.expect("the skill is taken away");
 
 	assert_eq!(readers_skills(&window, BOT), json!([]));
 	assert_eq!(
 		call(
 			&window,
-			"conversation_create_bot_skill",
+			"plugin_create_skill",
 			json!({
-				"botId": "missing",
+				"scope": a_bot_plugin("missing"),
 				"draft": { "name": "Baking", "description": "", "body": "" },
 			}),
 		),
@@ -1758,8 +1762,8 @@ fn a_bots_skills_are_written_listed_marked_and_taken_away() {
 }
 
 fn readers_skills(window: &WebviewWindow<MockRuntime>, bot_id: &str) -> Value {
-	let listed =
-		call(window, "conversation_bot_skills", json!({ "botId": bot_id })).expect("the skills");
+	let listed = call(window, "plugin_skills", json!({ "scope": a_bot_plugin(bot_id) }))
+		.expect("the skills");
 	let readers = listed
 		.as_array()
 		.expect("a list of skills")
@@ -1797,21 +1801,21 @@ fn a_bots_mcp_servers_are_written_listed_replaced_and_taken_away() {
 
 	let written = call(
 		&window,
-		"conversation_set_bot_mcp_server",
-		json!({ "botId": BOT, "name": "atlas", "config": atlas }),
+		"plugin_set_mcp_server",
+		json!({ "scope": a_bot_plugin(BOT), "name": "atlas", "config": atlas }),
 	)
 	.expect("the server is written");
 	assert_eq!(written, json!({ "name": "atlas", "config": atlas }));
 
 	call(
 		&window,
-		"conversation_set_bot_mcp_server",
-		json!({ "botId": BOT, "name": "ledger", "config": ledger }),
+		"plugin_set_mcp_server",
+		json!({ "scope": a_bot_plugin(BOT), "name": "ledger", "config": ledger }),
 	)
 	.expect("the second server is written");
 
 	assert_eq!(
-		call(&window, "conversation_bot_mcp_servers", json!({ "botId": BOT }))
+		call(&window, "plugin_mcp_servers", json!({ "scope": a_bot_plugin(BOT) }))
 			.expect("the servers"),
 		json!([
 			{ "name": "atlas", "config": atlas },
@@ -1829,8 +1833,8 @@ fn a_bots_mcp_servers_are_written_listed_replaced_and_taken_away() {
 	let replaced = json!({ "command": "atlas-mcp", "args": ["--http"] });
 	call(
 		&window,
-		"conversation_set_bot_mcp_server",
-		json!({ "botId": BOT, "name": "atlas", "config": replaced }),
+		"plugin_set_mcp_server",
+		json!({ "scope": a_bot_plugin(BOT), "name": "atlas", "config": replaced }),
 	)
 	.expect("the server is replaced");
 	let after = json_at(&servers);
@@ -1839,8 +1843,12 @@ fn a_bots_mcp_servers_are_written_listed_replaced_and_taken_away() {
 
 	let refused = call(
 		&window,
-		"conversation_set_bot_mcp_server",
-		json!({ "botId": BOT, "name": "atlas", "config": "atlas-mcp --secret hunter2" }),
+		"plugin_set_mcp_server",
+		json!({
+			"scope": a_bot_plugin(BOT),
+			"name": "atlas",
+			"config": "atlas-mcp --secret hunter2",
+		}),
 	)
 	.expect_err("a scalar is not a server");
 	assert_eq!(refused["kind"], json!("unwritableBundle"));
@@ -1850,20 +1858,22 @@ fn a_bots_mcp_servers_are_written_listed_replaced_and_taken_away() {
 	);
 	assert_eq!(json_at(&servers)["mcpServers"]["atlas"], replaced, "the refusal wrote anyway");
 
-	call(&window, "conversation_delete_bot_mcp_server", json!({ "botId": BOT, "name": "atlas" }))
+	let taken = json!({ "scope": a_bot_plugin(BOT), "name": "atlas" });
+	call(&window, "plugin_delete_mcp_server", taken)
 		.expect("the server is taken away");
 	assert_eq!(json_at(&servers)["mcpServers"], json!({ "ledger": ledger }));
 	assert_eq!(
 		call(
 			&window,
-			"conversation_delete_bot_mcp_server",
-			json!({ "botId": BOT, "name": "atlas" })
+			"plugin_delete_mcp_server",
+			json!({ "scope": a_bot_plugin(BOT), "name": "atlas" })
 		)
 		.expect_err("a name the bundle does not declare")["kind"],
 		json!("unwritableBundle")
 	);
 
-	call(&window, "conversation_delete_bot_mcp_server", json!({ "botId": BOT, "name": "ledger" }))
+	let taken = json!({ "scope": a_bot_plugin(BOT), "name": "ledger" });
+	call(&window, "plugin_delete_mcp_server", taken)
 		.expect("the last server is taken away");
 	let bare = json_at(&servers);
 	assert_eq!(bare["mcpServers"], Value::Null);
@@ -1871,7 +1881,8 @@ fn a_bots_mcp_servers_are_written_listed_replaced_and_taken_away() {
 
 	std::fs::write(&servers, json!({ "mcpServers": { "atlas": atlas } }).to_string())
 		.expect("a file with nothing but servers in it");
-	call(&window, "conversation_delete_bot_mcp_server", json!({ "botId": BOT, "name": "atlas" }))
+	let taken = json!({ "scope": a_bot_plugin(BOT), "name": "atlas" });
+	call(&window, "plugin_delete_mcp_server", taken)
 		.expect("the server is taken away");
 	assert_eq!(json_at(&servers), Value::Null, "an empty server file was left behind");
 	assert_eq!(json_at(&manifest)["mcpServers"], Value::Null);
@@ -1879,8 +1890,8 @@ fn a_bots_mcp_servers_are_written_listed_replaced_and_taken_away() {
 	assert_eq!(
 		call(
 			&window,
-			"conversation_set_bot_mcp_server",
-			json!({ "botId": "missing", "name": "atlas", "config": atlas }),
+			"plugin_set_mcp_server",
+			json!({ "scope": a_bot_plugin("missing"), "name": "atlas", "config": atlas }),
 		),
 		Err(json!({ "kind": "unknownBot", "id": "missing" }))
 	);
@@ -1902,9 +1913,9 @@ fn a_duplicated_bot_carries_the_bundle_and_none_of_the_transcript() {
 
 	call(
 		&window,
-		"conversation_create_bot_skill",
+		"plugin_create_skill",
 		json!({
-			"botId": source_id,
+			"scope": a_bot_plugin(&source_id),
 			"draft": {
 				"name": "Baking Bread",
 				"description": "How to bake.",
@@ -1916,8 +1927,8 @@ fn a_duplicated_bot_carries_the_bundle_and_none_of_the_transcript() {
 	let atlas = json!({ "command": "atlas-mcp", "args": ["--stdio"] });
 	call(
 		&window,
-		"conversation_set_bot_mcp_server",
-		json!({ "botId": source_id, "name": "atlas", "config": atlas }),
+		"plugin_set_mcp_server",
+		json!({ "scope": a_bot_plugin(&source_id), "name": "atlas", "config": atlas }),
 	)
 	.expect("the server is written");
 
@@ -2003,7 +2014,7 @@ fn a_duplicated_bot_carries_the_bundle_and_none_of_the_transcript() {
 		bundles::agent_file(&root, &duplicate_id).is_some(),
 		"the duplicate has no agent file of its own"
 	);
-	let history = call(&window, "conversation_bot_history", json!({ "botId": duplicate_id }))
+	let history = call(&window, "plugin_history", json!({ "scope": a_bot_plugin(&duplicate_id) }))
 		.expect("the duplicate's history");
 	assert!(
 		!history.as_array().expect("a list of writes").is_empty(),
@@ -2251,7 +2262,7 @@ fn a_bot_scope(bot_id: &str, space_id: &str) -> Value {
 }
 
 fn titles_of(window: &WebviewWindow<MockRuntime>, bot_id: &str) -> Vec<Value> {
-	call(window, "conversation_bot_history", json!({ "botId": bot_id }))
+	call(window, "plugin_history", json!({ "scope": a_bot_plugin(bot_id) }))
 		.expect("the history")
 		.as_array()
 		.expect("a list of writes")
@@ -2295,9 +2306,9 @@ fn a_duplicate_carries_the_history_the_learned_block_and_the_environment_of_its_
 	.expect("the memory is written");
 	call(
 		&window,
-		"conversation_create_bot_skill",
+		"plugin_create_skill",
 		json!({
-			"botId": source_id,
+			"scope": a_bot_plugin(&source_id),
 			"draft": {
 				"name": "Baking Bread",
 				"description": "How to bake.",
@@ -2310,8 +2321,8 @@ fn a_duplicate_carries_the_history_the_learned_block_and_the_environment_of_its_
 		json!({ "command": "clock-mcp", "args": ["--stdio"], "env": { "TOKEN": "${TOKEN}" } });
 	call(
 		&window,
-		"conversation_set_bot_mcp_server",
-		json!({ "botId": source_id, "name": "clock", "config": clock }),
+		"plugin_set_mcp_server",
+		json!({ "scope": a_bot_plugin(&source_id), "name": "clock", "config": clock }),
 	)
 	.expect("the server is written");
 	call(

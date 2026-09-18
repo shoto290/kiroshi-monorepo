@@ -24,12 +24,12 @@ const readers = (skills: BotSkill[]) =>
 	skills.filter((skill) => !skill.isSystem)
 
 const readerSkills = async (store: TranscriptStore) =>
-	readers(await store.botSkills("default"))
+	readers(await store.pluginSkills({ kind: "bot", id: "default" }))
 
 const movingSkill = (store: TranscriptStore, id: string): TranscriptStore => ({
 	...store,
-	updateBotSkill: async (botId, skillId, draft) => ({
-		...(await store.updateBotSkill(botId, skillId, draft)),
+	updatePluginSkill: async (scope, skillId, draft) => ({
+		...(await store.updatePluginSkill(scope, skillId, draft)),
 		id,
 	}),
 })
@@ -37,7 +37,7 @@ const movingSkill = (store: TranscriptStore, id: string): TranscriptStore => ({
 describe("skills controller", () => {
 	it("opens on the skills the bundle already holds", async () => {
 		const store = createFakeTranscriptStore()
-		await store.createBotSkill("default", A_SKILL)
+		await store.createPluginSkill({ kind: "bot", id: "default" }, A_SKILL)
 
 		const controller = await opened(store)
 
@@ -71,7 +71,10 @@ describe("skills controller", () => {
 
 	it("writes a save to the skill it was opened on, by id", async () => {
 		const store = createFakeTranscriptStore()
-		const written = await store.createBotSkill("default", A_SKILL)
+		const written = await store.createPluginSkill(
+			{ kind: "bot", id: "default" },
+			A_SKILL,
+		)
 		const controller = await opened(store)
 
 		controller.save(written.id, { ...A_SKILL, name: "Changelog" })
@@ -83,13 +86,16 @@ describe("skills controller", () => {
 
 	it("writes every field the save carried, once", async () => {
 		const store = createFakeTranscriptStore()
-		const written = await store.createBotSkill("default", A_SKILL)
+		const written = await store.createPluginSkill(
+			{ kind: "bot", id: "default" },
+			A_SKILL,
+		)
 		const drafts: BotSkillDraft[] = []
 		const counted: TranscriptStore = {
 			...store,
-			updateBotSkill: (botId, skillId, draft) => {
+			updatePluginSkill: (scope, skillId, draft) => {
 				drafts.push(draft)
-				return store.updateBotSkill(botId, skillId, draft)
+				return store.updatePluginSkill(scope, skillId, draft)
 			},
 		}
 		const controller = await opened(counted)
@@ -118,10 +124,13 @@ describe("skills controller", () => {
 
 	it("puts the reader back on what the bundle holds when a save is refused", async () => {
 		const store = createFakeTranscriptStore()
-		const written = await store.createBotSkill("default", A_SKILL)
+		const written = await store.createPluginSkill(
+			{ kind: "bot", id: "default" },
+			A_SKILL,
+		)
 		const refusing: TranscriptStore = {
 			...store,
-			updateBotSkill: () => Promise.reject({ kind: "unwritableBundle" }),
+			updatePluginSkill: () => Promise.reject({ kind: "unwritableBundle" }),
 		}
 		const controller = await opened(refusing)
 
@@ -145,7 +154,10 @@ describe("skills controller", () => {
 
 	it("sets the preload mark on its own", async () => {
 		const store = createFakeTranscriptStore()
-		const written = await store.createBotSkill("default", A_SKILL)
+		const written = await store.createPluginSkill(
+			{ kind: "bot", id: "default" },
+			A_SKILL,
+		)
 		const controller = await opened(store)
 
 		controller.setPreloaded(written.id, true)
@@ -156,7 +168,10 @@ describe("skills controller", () => {
 
 	it("takes a skill away", async () => {
 		const store = createFakeTranscriptStore()
-		const written = await store.createBotSkill("default", A_SKILL)
+		const written = await store.createPluginSkill(
+			{ kind: "bot", id: "default" },
+			A_SKILL,
+		)
 		const controller = await opened(store)
 
 		controller.remove(written.id)
@@ -178,9 +193,12 @@ describe("skills controller", () => {
 
 	it("opens a file the skill holds on its text", async () => {
 		const store = createFakeTranscriptStore()
-		const written = await store.createBotSkill("default", A_SKILL)
-		await store.writeBotSkillFile(
-			"default",
+		const written = await store.createPluginSkill(
+			{ kind: "bot", id: "default" },
+			A_SKILL,
+		)
+		await store.writePluginSkillFile(
+			{ kind: "bot", id: "default" },
 			written.id,
 			"reference/api.md",
 			"# API",
@@ -201,7 +219,10 @@ describe("skills controller", () => {
 
 	it("adds a file empty and opens it", async () => {
 		const store = createFakeTranscriptStore()
-		const written = await store.createBotSkill("default", A_SKILL)
+		const written = await store.createPluginSkill(
+			{ kind: "bot", id: "default" },
+			A_SKILL,
+		)
 		const controller = await opened(store)
 
 		controller.addFile(written.id, "examples/1.4.0.md")
@@ -218,7 +239,10 @@ describe("skills controller", () => {
 
 	it("saves what the reader typed back to the file", async () => {
 		const store = createFakeTranscriptStore()
-		const written = await store.createBotSkill("default", A_SKILL)
+		const written = await store.createPluginSkill(
+			{ kind: "bot", id: "default" },
+			A_SKILL,
+		)
 		const controller = await opened(store)
 
 		controller.addFile(written.id, "notes.md")
@@ -226,14 +250,21 @@ describe("skills controller", () => {
 		controller.saveFile(written.id, "notes.md", "One line per change.")
 		await settled()
 
-		expect(await store.botSkillFile("default", written.id, "notes.md")).toBe(
-			"One line per change.",
-		)
+		expect(
+			await store.pluginSkillFile(
+				{ kind: "bot", id: "default" },
+				written.id,
+				"notes.md",
+			),
+		).toBe("One line per change.")
 	})
 
 	it("takes a file out of the skill and closes it", async () => {
 		const store = createFakeTranscriptStore()
-		const written = await store.createBotSkill("default", A_SKILL)
+		const written = await store.createPluginSkill(
+			{ kind: "bot", id: "default" },
+			A_SKILL,
+		)
 		const controller = await opened(store)
 
 		controller.addFile(written.id, "notes.md")
@@ -247,11 +278,19 @@ describe("skills controller", () => {
 
 	it("keeps the file open with the failure when a save is refused", async () => {
 		const store = createFakeTranscriptStore()
-		const written = await store.createBotSkill("default", A_SKILL)
-		await store.writeBotSkillFile("default", written.id, "notes.md", "One line")
+		const written = await store.createPluginSkill(
+			{ kind: "bot", id: "default" },
+			A_SKILL,
+		)
+		await store.writePluginSkillFile(
+			{ kind: "bot", id: "default" },
+			written.id,
+			"notes.md",
+			"One line",
+		)
 		const refusing: TranscriptStore = {
 			...store,
-			writeBotSkillFile: () => Promise.reject({ kind: "unwritableBundle" }),
+			writePluginSkillFile: () => Promise.reject({ kind: "unwritableBundle" }),
 		}
 		const controller = await opened(refusing)
 
@@ -269,7 +308,10 @@ describe("skills controller", () => {
 
 	it("says so when a file cannot be read", async () => {
 		const store = createFakeTranscriptStore()
-		const written = await store.createBotSkill("default", A_SKILL)
+		const written = await store.createPluginSkill(
+			{ kind: "bot", id: "default" },
+			A_SKILL,
+		)
 		const controller = await opened(store)
 
 		controller.openFile(written.id, "missing.md")
@@ -283,8 +325,16 @@ describe("skills controller", () => {
 
 	it("carries an open file to the id a renamed skill comes back under", async () => {
 		const store = createFakeTranscriptStore()
-		const written = await store.createBotSkill("default", A_SKILL)
-		await store.writeBotSkillFile("default", written.id, "notes.md", "One line")
+		const written = await store.createPluginSkill(
+			{ kind: "bot", id: "default" },
+			A_SKILL,
+		)
+		await store.writePluginSkillFile(
+			{ kind: "bot", id: "default" },
+			written.id,
+			"notes.md",
+			"One line",
+		)
 		const renaming = movingSkill(store, "changelog")
 		const controller = await opened(renaming)
 
@@ -301,12 +351,23 @@ describe("skills controller", () => {
 
 	it("leaves an open file of another skill where it is on a rename", async () => {
 		const store = createFakeTranscriptStore()
-		const kept = await store.createBotSkill("default", A_SKILL)
-		const renamed = await store.createBotSkill("default", {
-			...A_SKILL,
-			name: "Commit style",
-		})
-		await store.writeBotSkillFile("default", kept.id, "notes.md", "One line")
+		const kept = await store.createPluginSkill(
+			{ kind: "bot", id: "default" },
+			A_SKILL,
+		)
+		const renamed = await store.createPluginSkill(
+			{ kind: "bot", id: "default" },
+			{
+				...A_SKILL,
+				name: "Commit style",
+			},
+		)
+		await store.writePluginSkillFile(
+			{ kind: "bot", id: "default" },
+			kept.id,
+			"notes.md",
+			"One line",
+		)
 		const renaming = movingSkill(store, "changelog")
 		const controller = await opened(renaming)
 

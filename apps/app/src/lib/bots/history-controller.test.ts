@@ -13,7 +13,7 @@ const A_SKILL = {
 }
 
 const written = async (store: TranscriptStore) => {
-	await store.createBotSkill("default", A_SKILL)
+	await store.createPluginSkill({ kind: "bot", id: "default" }, A_SKILL)
 	const controller = createHistoryController(store)
 	await controller.open("default")
 	return controller
@@ -33,7 +33,7 @@ describe("history controller", () => {
 
 	it("reports a history it could not read instead of an empty panel", async () => {
 		const store = createFakeTranscriptStore()
-		vi.spyOn(store, "botHistory").mockRejectedValue(new Error("no bundle"))
+		vi.spyOn(store, "pluginHistory").mockRejectedValue(new Error("no bundle"))
 
 		const controller = await written(store)
 
@@ -42,7 +42,9 @@ describe("history controller", () => {
 
 	it("clears the reported failure once the history reads again", async () => {
 		const store = createFakeTranscriptStore()
-		vi.spyOn(store, "botHistory").mockRejectedValueOnce(new Error("no bundle"))
+		vi.spyOn(store, "pluginHistory").mockRejectedValueOnce(
+			new Error("no bundle"),
+		)
 		const controller = await written(store)
 
 		await controller.open("default")
@@ -59,7 +61,11 @@ describe("history controller", () => {
 		await settled()
 
 		expect(controller.getState().files).toEqual(
-			await store.botHistoryDiff("default", commit.id, commit.id),
+			await store.pluginHistoryDiff(
+				{ kind: "bot", id: "default" },
+				commit.id,
+				commit.id,
+			),
 		)
 		expect(controller.getState().areFilesReading).toBe(false)
 	})
@@ -79,7 +85,7 @@ describe("history controller", () => {
 		const store = createFakeTranscriptStore()
 		const refusing: TranscriptStore = {
 			...store,
-			botHistoryDiff: () => Promise.reject({ kind: "unwritableBundle" }),
+			pluginHistoryDiff: () => Promise.reject({ kind: "unwritableBundle" }),
 		}
 		const controller = await written(refusing)
 		const [commit] = controller.getState().commits
@@ -96,9 +102,9 @@ describe("history controller", () => {
 		const asked: string[] = []
 		const counted: TranscriptStore = {
 			...store,
-			botHistoryDiff: (botId, oldestCommitId, newestCommitId) => {
+			pluginHistoryDiff: (scope, oldestCommitId, newestCommitId) => {
 				asked.push(newestCommitId)
-				return store.botHistoryDiff(botId, oldestCommitId, newestCommitId)
+				return store.pluginHistoryDiff(scope, oldestCommitId, newestCommitId)
 			},
 		}
 		const controller = await written(counted)
@@ -130,7 +136,7 @@ describe("history controller", () => {
 		const store = createFakeTranscriptStore()
 		const refusing: TranscriptStore = {
 			...store,
-			revertBot: () => Promise.reject({ kind: "unwritableBundle" }),
+			revertPlugin: () => Promise.reject({ kind: "unwritableBundle" }),
 		}
 		const controller = await written(refusing)
 		const [commit] = controller.getState().commits
@@ -143,13 +149,13 @@ describe("history controller", () => {
 
 	it("reads nothing while no companion is open", async () => {
 		const store = createFakeTranscriptStore()
-		await store.createBotSkill("default", A_SKILL)
+		await store.createPluginSkill({ kind: "bot", id: "default" }, A_SKILL)
 		const asked: string[] = []
 		const counted: TranscriptStore = {
 			...store,
-			botHistoryDiff: (botId, oldestCommitId, newestCommitId) => {
+			pluginHistoryDiff: (scope, oldestCommitId, newestCommitId) => {
 				asked.push(newestCommitId)
-				return store.botHistoryDiff(botId, oldestCommitId, newestCommitId)
+				return store.pluginHistoryDiff(scope, oldestCommitId, newestCommitId)
 			},
 		}
 		const controller = createHistoryController(counted)
@@ -159,6 +165,8 @@ describe("history controller", () => {
 		await settled()
 
 		expect(asked).toEqual([])
-		expect(await store.botHistory("default")).toHaveLength(1)
+		expect(
+			await store.pluginHistory({ kind: "bot", id: "default" }),
+		).toHaveLength(1)
 	})
 })

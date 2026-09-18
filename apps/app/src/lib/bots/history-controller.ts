@@ -6,6 +6,7 @@ import {
 
 import { createQueue } from "../queue"
 import { createStore } from "../store"
+import { botPlugin } from "../conversations/plugin-scope"
 import type { BotHistoryEntry } from "../conversations/store-contract"
 import type { TranscriptStore } from "../conversations/store-port"
 
@@ -50,7 +51,7 @@ export const createHistoryController = (
 
 	const read = async (botId: string) =>
 		applyTo(botId, {
-			commits: await store.botHistory(botId),
+			commits: await store.pluginHistory(botPlugin(botId)),
 			hasFailedToLoad: false,
 		})
 
@@ -72,8 +73,8 @@ export const createHistoryController = (
 
 	const readFiles = createHistoryFilesReader(
 		(oldestCommitId, newestCommitId) =>
-			store.botHistoryDiff(
-				current().botId ?? "",
+			store.pluginHistoryDiff(
+				botPlugin(current().botId ?? ""),
 				oldestCommitId,
 				newestCommitId,
 			),
@@ -110,7 +111,11 @@ export const createHistoryController = (
 		revert: (oldestCommitId: string, newestCommitId: string) =>
 			onOpenBot(async (botId) =>
 				applyTo(botId, {
-					commits: await store.revertBot(botId, oldestCommitId, newestCommitId),
+					commits: await store.revertPlugin(
+						botPlugin(botId),
+						oldestCommitId,
+						newestCommitId,
+					),
 				}),
 			),
 	}

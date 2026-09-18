@@ -418,11 +418,17 @@ describe("createFakeTranscriptStore", () => {
 	it("writes, marks and takes away a companion's skills", async () => {
 		const store = createFakeTranscriptStore()
 		const draft = { name: "Baking Bread", description: "How.", body: "Bake." }
-		const [learn] = await store.botSkills("default")
+		const [learn] = await store.pluginSkills({ kind: "bot", id: "default" })
 		expect(learn).toMatchObject({ id: "learn", isSystem: true })
 
-		const created = await store.createBotSkill("default", draft)
-		const beside = await store.createBotSkill("default", draft)
+		const created = await store.createPluginSkill(
+			{ kind: "bot", id: "default" },
+			draft,
+		)
+		const beside = await store.createPluginSkill(
+			{ kind: "bot", id: "default" },
+			draft,
+		)
 
 		expect(created).toMatchObject({
 			id: "baking-bread",
@@ -432,27 +438,59 @@ describe("createFakeTranscriptStore", () => {
 		expect(created.allowedTools).toBeNull()
 		expect(beside.id).toBe("baking-bread-2")
 
-		const marked = await store.setBotSkillPreloaded("default", created.id, true)
+		const marked = await store.setPluginSkillPreloaded(
+			{ kind: "bot", id: "default" },
+			created.id,
+			true,
+		)
 		expect(marked.isPreloaded).toBe(true)
 
-		const renamed = await store.updateBotSkill("default", created.id, {
-			...draft,
-			name: "Baking",
-		})
+		const renamed = await store.updatePluginSkill(
+			{ kind: "bot", id: "default" },
+			created.id,
+			{
+				...draft,
+				name: "Baking",
+			},
+		)
 		expect(renamed).toEqual({ ...marked, name: "Baking" })
 
-		await store.deleteBotSkill("default", created.id)
-		expect(await store.botSkills("default")).toEqual([beside, learn])
+		await store.deletePluginSkill({ kind: "bot", id: "default" }, created.id)
+		expect(await store.pluginSkills({ kind: "bot", id: "default" })).toEqual([
+			beside,
+			learn,
+		])
 		await expect(
-			store.deleteBotSkill("default", created.id),
+			store.deletePluginSkill({ kind: "bot", id: "default" }, created.id),
 		).rejects.toMatchObject({ kind: "unwritableBundle" })
 		await expect(
-			store.updateBotSkill("default", "learn", draft),
+			store.updatePluginSkill({ kind: "bot", id: "default" }, "learn", draft),
 		).rejects.toMatchObject({ kind: "systemSkill", id: "learn" })
-		await expect(store.createBotSkill("missing", draft)).rejects.toMatchObject({
+		await expect(
+			store.createPluginSkill({ kind: "bot", id: "missing" }, draft),
+		).rejects.toMatchObject({
 			kind: "unknownBot",
 			id: "missing",
 		})
+	})
+
+	it("refuses a skill created on a space it never held and keeps the person's", async () => {
+		const store = createFakeTranscriptStore()
+		const draft = {
+			name: "house-style",
+			description: "How we write",
+			body: "Short answers.",
+		}
+
+		await expect(
+			store.createPluginSkill({ kind: "space", id: "nowhere" }, draft),
+		).rejects.toMatchObject({ kind: "unknownSpace", id: "nowhere" })
+		expect(await store.pluginSkills({ kind: "space", id: "nowhere" })).toEqual(
+			[],
+		)
+		await expect(
+			store.createPluginSkill({ kind: "user" }, draft),
+		).resolves.toMatchObject({ id: "house-style" })
 	})
 
 	it("writes and takes away a companion's mcp servers", async () => {
@@ -460,37 +498,55 @@ describe("createFakeTranscriptStore", () => {
 		const atlas = { command: "atlas-mcp", args: ["--stdio"] }
 		const ledger = { command: "ledger-mcp" }
 
-		await store.setBotMcpServer("default", "atlas", atlas)
-		await store.setBotMcpServer("default", "ledger", ledger)
-		expect(await store.botMcpServers("default")).toEqual([
+		await store.setPluginMcpServer(
+			{ kind: "bot", id: "default" },
+			"atlas",
+			atlas,
+		)
+		await store.setPluginMcpServer(
+			{ kind: "bot", id: "default" },
+			"ledger",
+			ledger,
+		)
+		expect(
+			await store.pluginMcpServers({ kind: "bot", id: "default" }),
+		).toEqual([
 			{ name: "atlas", config: atlas },
 			{ name: "ledger", config: ledger },
 		])
 
 		const replaced = { command: "atlas-mcp", args: ["--http"] }
-		expect(await store.setBotMcpServer("default", "atlas", replaced)).toEqual({
+		expect(
+			await store.setPluginMcpServer(
+				{ kind: "bot", id: "default" },
+				"atlas",
+				replaced,
+			),
+		).toEqual({
 			name: "atlas",
 			config: replaced,
 		})
-		expect(await store.botMcpServers("default")).toEqual([
+		expect(
+			await store.pluginMcpServers({ kind: "bot", id: "default" }),
+		).toEqual([
 			{ name: "atlas", config: replaced },
 			{ name: "ledger", config: ledger },
 		])
 
-		await store.deleteBotMcpServer("default", "atlas")
-		expect(await store.botMcpServers("default")).toEqual([
-			{ name: "ledger", config: ledger },
-		])
+		await store.deletePluginMcpServer({ kind: "bot", id: "default" }, "atlas")
+		expect(
+			await store.pluginMcpServers({ kind: "bot", id: "default" }),
+		).toEqual([{ name: "ledger", config: ledger }])
 		await expect(
-			store.deleteBotMcpServer("default", "atlas"),
+			store.deletePluginMcpServer({ kind: "bot", id: "default" }, "atlas"),
 		).rejects.toMatchObject({ kind: "unwritableBundle" })
 		await expect(
-			store.setBotMcpServer("default", "atlas", [
+			store.setPluginMcpServer({ kind: "bot", id: "default" }, "atlas", [
 				"atlas-mcp",
 			] as unknown as Record<string, unknown>),
 		).rejects.toMatchObject({ kind: "unwritableBundle" })
 		await expect(
-			store.setBotMcpServer("missing", "atlas", atlas),
+			store.setPluginMcpServer({ kind: "bot", id: "missing" }, "atlas", atlas),
 		).rejects.toMatchObject({ kind: "unknownBot", id: "missing" })
 	})
 
