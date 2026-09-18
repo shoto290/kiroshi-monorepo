@@ -150,14 +150,7 @@ export const createPluginController = (
 		subscribe: stateStore.subscribe,
 
 		open: (scope: PluginScope) => {
-			set({
-				...initialHistoryFilesState,
-				scope,
-				skills: [],
-				commits: [],
-				hasFailedToLoad: false,
-				file: null,
-			})
+			set({ ...initialPluginState, scope })
 			return refresh(scope)
 		},
 
