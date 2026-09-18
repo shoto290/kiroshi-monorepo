@@ -1,5 +1,6 @@
 use std::collections::HashMap;
 use std::fs;
+use std::net::IpAddr;
 use std::path::{Component, Path, PathBuf};
 use std::sync::{LazyLock, Mutex, MutexGuard, PoisonError};
 
@@ -1059,22 +1060,46 @@ const EXPANDED_FIELDS: [&str; 5] = ["command", "args", "env", "url", "headers"];
 
 const PLACEHOLDER_OPENING: &str = "${";
 
+const LOOPBACK_NAME: &str = "localhost";
+
+#[derive(Debug, Clone, Copy, PartialEq, Eq, Serialize)]
+#[serde(rename_all = "camelCase")]
+pub enum AuthorizationWithheld {
+	ServedOverNoUrl,
+	LoopbackAddress,
+	OwnAuthorizationHeader,
+	UnexpandedPlaceholder,
+}
+
 impl McpServer {
 	pub fn url(&self) -> Option<&str> {
 		self.config.get("url").and_then(serde_json::Value::as_str)
 	}
 
 	pub fn kiroshi_authorizes(&self) -> bool {
-		self.url().is_some() && !self.declares_authorization() && !self.declares_placeholder()
+		self.authorization_withheld().is_none()
+	}
+
+	pub fn authorization_withheld(&self) -> Option<AuthorizationWithheld> {
+		if self.url().is_none() {
+			return Some(AuthorizationWithheld::ServedOverNoUrl);
+		}
+		if self.declares_placeholder() {
+			return Some(AuthorizationWithheld::UnexpandedPlaceholder);
+		}
+		if self.declares_authorization() {
+			return Some(AuthorizationWithheld::OwnAuthorizationHeader);
+		}
+		if self.url().is_some_and(is_loopback) {
+			return Some(AuthorizationWithheld::LoopbackAddress);
+		}
+		None
 	}
 
 	fn declares_authorization(&self) -> bool {
-		self.config
-			.get("headers")
-			.and_then(serde_json::Value::as_object)
-			.is_some_and(|headers| {
-				headers.keys().any(|name| name.to_lowercase() == AUTHORIZATION_HEADER)
-			})
+		self.config.get("headers").and_then(serde_json::Value::as_object).is_some_and(|headers| {
+			headers.keys().any(|name| name.to_lowercase() == AUTHORIZATION_HEADER)
+		})
 	}
 
 	fn declares_placeholder(&self) -> bool {
@@ -1083,6 +1108,17 @@ impl McpServer {
 			.filter_map(|field| self.config.get(*field))
 			.any(|declared| declared.to_string().contains(PLACEHOLDER_OPENING))
 	}
+}
+
+fn is_loopback(url: &str) -> bool {
+	let Ok(parsed) = reqwest::Url::parse(url) else {
+		return false;
+	};
+	let Some(host) = parsed.host_str() else {
+		return false;
+	};
+	let bare = host.trim_start_matches('[').trim_end_matches(']');
+	bare == LOOPBACK_NAME || bare.parse::<IpAddr>().is_ok_and(|address| address.is_loopback())
 }
 
 pub fn mcp_servers(root: &Path, bot_id: &str) -> Vec<McpServer> {
@@ -2019,6 +2055,55 @@ mod tests {
 			"headers": { "X-Trace": "on" }
 		}))
 		.kiroshi_authorizes());
+	}
+
+	#[test]
+	fn a_server_served_on_a_loopback_address_is_one_kiroshi_does_not_authorize() {
+		for url in [
+			"http://127.0.0.1:29979/mcp",
+			"http://127.8.0.1/mcp",
+			"http://localhost:3000/mcp",
+			"http://LOCALHOST/mcp",
+			"http://[::1]:29979/mcp",
+		] {
+			let server = declared(serde_json::json!({ "url": url }));
+			assert!(!server.kiroshi_authorizes(), "{url}");
+			assert_eq!(
+				server.authorization_withheld(),
+				Some(AuthorizationWithheld::LoopbackAddress),
+				"{url}"
+			);
+		}
+		assert!(declared(serde_json::json!({ "url": "http://10.0.0.2/mcp" })).kiroshi_authorizes());
+		assert!(declared(serde_json::json!({ "url": "https://localhost.granola.test/mcp" }))
+			.kiroshi_authorizes());
+	}
+
+	#[test]
+	fn a_server_kiroshi_authorizes_not_names_the_header_or_the_placeholder_it_carries() {
+		assert_eq!(
+			declared(serde_json::json!({
+				"url": "http://127.0.0.1/mcp",
+				"headers": { "Authorization": "Bearer held" }
+			}))
+			.authorization_withheld(),
+			Some(AuthorizationWithheld::OwnAuthorizationHeader)
+		);
+		assert_eq!(
+			declared(serde_json::json!({ "url": "https://${GRANOLA_HOST}/mcp" }))
+				.authorization_withheld(),
+			Some(AuthorizationWithheld::UnexpandedPlaceholder)
+		);
+		assert_eq!(
+			declared(serde_json::json!({ "url": "https://mcp.granola.test/mcp" }))
+				.authorization_withheld(),
+			None
+		);
+		assert_eq!(
+			declared(serde_json::json!({ "command": "clock", "env": { "T": "${TOKEN}" } }))
+				.authorization_withheld(),
+			Some(AuthorizationWithheld::ServedOverNoUrl)
+		);
 	}
 
 	#[test]

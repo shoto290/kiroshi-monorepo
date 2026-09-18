@@ -3,6 +3,7 @@ use serde::Serialize;
 use crate::agent::contract::TransportError;
 use crate::agent::protocol::{OauthFailure, OauthFailureKind, OauthStep};
 use crate::agent::sidecar::OauthFlowError;
+use crate::bundles::AuthorizationWithheld;
 use crate::environment::contract::EnvError;
 
 #[derive(Debug, Clone, PartialEq, Eq, Serialize)]
@@ -18,6 +19,11 @@ pub enum OauthError {
 	#[serde(rename_all = "camelCase")]
 	BrowserRefused {
 		url: String,
+	},
+	#[serde(rename_all = "camelCase")]
+	NotAuthorizable {
+		carries: AuthorizationWithheld,
+		detail: String,
 	},
 	#[serde(rename_all = "camelCase")]
 	RefusedUrl {

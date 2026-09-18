@@ -1,3 +1,4 @@
+use std::collections::HashSet;
 use std::future::Future;
 use std::path::Path;
 use std::sync::{Mutex, MutexGuard, PoisonError};
@@ -5,12 +6,13 @@ use std::sync::{Mutex, MutexGuard, PoisonError};
 use tauri::{AppHandle, Manager, Runtime};
 use tauri_plugin_opener::OpenerExt;
 
+use super::asking::AuthorizationAnswers;
 use super::contract::{Disconnected, OauthError};
 use super::credentials::{self, ServedGrants};
 use super::refresh::{self, Renewal, Renewals};
-use super::refusal::{refusal_line, Refused, Step};
+use super::refusal::{refusal_line, withheld_reason, Refused, Step};
 use super::reports::{ApplicationReports, Standing};
-use super::status::{status, ApplicationRow, Evidence};
+use super::status::{reads_the_answer, status, ApplicationRow, Evidence};
 use crate::agent::commands::AgentState;
 use crate::agent::contract::TransportError;
 use crate::agent::protocol::{
@@ -19,7 +21,7 @@ use crate::agent::protocol::{
 };
 use crate::agent::sidecar::Opening;
 use crate::agent::translate::now_ms;
-use crate::bundles::{self, McpServer};
+use crate::bundles::{self, AuthorizationWithheld, McpServer};
 use crate::environment::commands::writable_root;
 use crate::environment::contract::{
 	EnvError, EnvOwner, EnvScope, Values, OAUTH_ACCESS_TOKEN, OAUTH_CLIENT_ID, OAUTH_CLIENT_SECRET,
@@ -178,13 +180,16 @@ pub async fn mcp_oauth_connect<R: Runtime>(
 	name: String,
 	url: String,
 ) -> Result<(), OauthError> {
+	refuse_what_kiroshi_does_not_authorize(&app, &owner, &name, &url)
+		.map_err(|refused| written(refused, &Values::new()))?;
 	let state = app.state::<McpOauthState>();
 	let scope = EnvScope::Server { name: name.clone(), owner };
 	let _running = state
 		.begin(Flow::Authorizing(scope.clone()))
 		.map_err(|error| written(Step::ClaimingTheState.refused(error), &Values::new()))?;
-	let root = writable_root(&app)
-		.map_err(|error| written(Step::WritingTheStoreRoot.refused(error.into()), &Values::new()))?;
+	let root = writable_root(&app).map_err(|error| {
+		written(Step::WritingTheStoreRoot.refused(error.into()), &Values::new())
+	})?;
 	let stored = store::values(&root, &scope).map_err(|error| {
 		written(Step::ReadingTheStoredClient.refused(error.into()), &Values::new())
 	})?;
@@ -194,6 +199,40 @@ pub async fn mcp_oauth_connect<R: Runtime>(
 	kept(&root, &scope, &name, &credentials, &app.state::<ApplicationReports>()).map_err(|error| {
 		written(Step::StoringTheGrant.refused(error), &credentials::held(&credentials))
 	})
+}
+
+fn refuse_what_kiroshi_does_not_authorize<R: Runtime>(
+	app: &AppHandle<R>,
+	owner: &EnvOwner,
+	name: &str,
+	url: &str,
+) -> Result<(), Refused> {
+	let withheld = authorization_withheld(app, owner, name, url)
+		.map_err(|error| Step::ReadingTheDeclaredServer.refused(error.into()))?;
+	match withheld {
+		Some(carries) => {
+			Err(Step::CheckingTheServer.refused(OauthError::NotAuthorizable {
+				carries,
+				detail: withheld_reason(carries).to_owned(),
+			}))
+		}
+		None => Ok(()),
+	}
+}
+
+fn authorization_withheld<R: Runtime>(
+	app: &AppHandle<R>,
+	owner: &EnvOwner,
+	name: &str,
+	url: &str,
+) -> Result<Option<AuthorizationWithheld>, EnvError> {
+	let declared = declared_servers(app, owner)?.into_iter().find(|server| server.name == name);
+	let asked = declared.unwrap_or_else(|| McpServer {
+		name: name.to_owned(),
+		config: serde_json::json!({ "url": url }),
+		mark: bundles::ApplicationMark::default(),
+	});
+	Ok(asked.authorization_withheld())
 }
 
 fn kept(
@@ -266,6 +305,7 @@ pub async fn mcp_application_status<R: Runtime>(
 		servers,
 		&app.state::<McpOauthState>(),
 		&app.state::<ApplicationReports>(),
+		&app.state::<AuthorizationAnswers>(),
 		move |request| {
 			let handle = handle.clone();
 			async move { refreshed(&handle, request).await }
@@ -288,6 +328,7 @@ async fn renewed_rows<F, Exchanged>(
 	servers: Vec<McpServer>,
 	flows: &McpOauthState,
 	reports: &ApplicationReports,
+	answers: &AuthorizationAnswers,
 	exchange: F,
 ) -> Result<Vec<ApplicationRow>, EnvError>
 where
@@ -297,8 +338,18 @@ where
 	let renewals = refresh::before_reading(root, owner, &servers, exchange).await?;
 	forget_renewed(reports, &renewals);
 	let grants = credentials::served(root, owner)?;
-	let readings =
-		Readings { owner, flows, reports, grants: &grants, renewals: &renewals, now: now_ms() };
+	let nothing_asked = HashSet::new();
+	let unasked = Readings {
+		owner,
+		flows,
+		reports,
+		grants: &grants,
+		renewals: &renewals,
+		asking: &nothing_asked,
+		now: now_ms(),
+	};
+	let asking = answers.asking_authorization(unasked.worth_asking(&servers), unasked.now).await;
+	let readings = Readings { asking: &asking, ..unasked };
 	Ok(servers.into_iter().map(|server| readings.row(server)).collect())
 }
 
@@ -316,21 +367,34 @@ struct Readings<'a> {
 	reports: &'a ApplicationReports,
 	grants: &'a ServedGrants,
 	renewals: &'a Renewals,
+	asking: &'a HashSet<String>,
 	now: i64,
 }
 
 impl Readings<'_> {
-	fn row(&self, server: McpServer) -> ApplicationRow {
+	fn worth_asking(&self, servers: &[McpServer]) -> HashSet<String> {
+		servers
+			.iter()
+			.filter(|server| server.kiroshi_authorizes())
+			.filter(|server| reads_the_answer(&self.evidence(server), self.now))
+			.filter_map(|server| server.url().map(str::to_owned))
+			.collect()
+	}
+
+	fn evidence(&self, server: &McpServer) -> Evidence {
 		let named = EnvScope::Server { name: server.name.clone(), owner: self.owner.clone() };
-		let grant = self.grants.get(&server.name);
-		let evidence = Evidence {
+		Evidence {
 			is_authorizing: self.flows.is_authorizing(&named),
 			refusal: refusal(self.renewals, &server.name),
 			reported: last_reported(self.reports, self.owner, &server.name),
-			held: grant.map(|grant| grant.held.clone()).unwrap_or_default(),
-			declares_url: server.url().is_some(),
-			kiroshi_authorizes: server.kiroshi_authorizes(),
-		};
+			held: self.grants.get(&server.name).map(|grant| grant.held.clone()).unwrap_or_default(),
+			asks_for_authorization: server.url().is_some_and(|url| self.asking.contains(url)),
+		}
+	}
+
+	fn row(&self, server: McpServer) -> ApplicationRow {
+		let grant = self.grants.get(&server.name);
+		let evidence = self.evidence(&server);
 		ApplicationRow {
 			status: status(evidence, self.now),
 			scope: grant.map(|grant| grant.scope.clone()),
@@ -412,6 +476,7 @@ mod tests {
 		let _ = std::fs::remove_dir_all(&data);
 		app.manage(McpOauthState::default());
 		app.manage(ApplicationReports::default());
+		app.manage(AuthorizationAnswers::default());
 		let path = bundles::user::path(app.handle()).expect("the plugin has a home");
 		bundles::user::lay_down(&path).expect("the plugin is laid down");
 		for name in ["clock", "granola"] {
@@ -446,6 +511,74 @@ mod tests {
 				.get(OAUTH_ACCESS_TOKEN)
 				.map(String::as_str),
 			Some("held-access")
+		);
+		let _ = std::fs::remove_dir_all(&data);
+	}
+
+	#[tokio::test]
+	async fn a_connect_to_a_server_kiroshi_does_not_authorize_is_refused_naming_why_and_opens_no_flow(
+	) {
+		let mut context = mock_context(noop_assets());
+		context.config_mut().identifier =
+			format!("com.kiroshi.mcp-oauth-withheld-{}", std::process::id());
+		let app = mock_builder().build(context).expect("the app builds");
+		let data = app.path().app_data_dir().expect("the data dir is named");
+		let _ = std::fs::remove_dir_all(&data);
+		app.manage(McpOauthState::default());
+		app.manage(ApplicationReports::default());
+		let path = bundles::user::path(app.handle()).expect("the plugin has a home");
+		bundles::user::lay_down(&path).expect("the plugin is laid down");
+		let declared = [
+			("paper", serde_json::json!({ "url": "http://127.0.0.1:29979/mcp" })),
+			(
+				"linear",
+				serde_json::json!({
+					"url": "https://mcp.linear.test/mcp",
+					"headers": { "Authorization": "Bearer held" }
+				}),
+			),
+			("granola", serde_json::json!({ "url": "https://${GRANOLA_HOST}/mcp" })),
+			("clock", serde_json::json!({ "command": "clock" })),
+		];
+		for (name, config) in &declared {
+			bundles::user::set_mcp_server(&path, name, config, None).expect("the server lands");
+		}
+		let asked = [
+			("paper", "http://127.0.0.1:29979/mcp", AuthorizationWithheld::LoopbackAddress),
+			(
+				"linear",
+				"https://mcp.linear.test/mcp",
+				AuthorizationWithheld::OwnAuthorizationHeader,
+			),
+			("granola", "https://granola.test/mcp", AuthorizationWithheld::UnexpandedPlaceholder),
+			("undeclared", "http://localhost:3000/mcp", AuthorizationWithheld::LoopbackAddress),
+			("clock", "https://clock.test/mcp", AuthorizationWithheld::ServedOverNoUrl),
+		];
+
+		for (name, url, carries) in asked {
+			let refused = mcp_oauth_connect(
+				app.handle().clone(),
+				EnvOwner::User,
+				name.to_owned(),
+				url.to_owned(),
+			)
+			.await;
+
+			let detail = withheld_reason(carries).to_owned();
+			assert_eq!(refused, Err(OauthError::NotAuthorizable { carries, detail }), "{name}");
+			assert!(!app.state::<McpOauthState>().is_running(), "{name}");
+		}
+		assert_eq!(
+			serde_json::to_value(OauthError::NotAuthorizable {
+				carries: AuthorizationWithheld::LoopbackAddress,
+				detail: withheld_reason(AuthorizationWithheld::LoopbackAddress).to_owned(),
+			})
+			.expect("the error serializes"),
+			serde_json::json!({
+				"kind": "notAuthorizable",
+				"carries": "loopbackAddress",
+				"detail": "it is served on a loopback address"
+			})
 		);
 		let _ = std::fs::remove_dir_all(&data);
 	}
@@ -513,6 +646,7 @@ mod tests {
 			reports: &reports,
 			grants: &grants,
 			renewals: &Renewals::new(),
+			asking: &HashSet::new(),
 			now: now_ms(),
 		};
 		let granola = a_granola();
@@ -573,6 +707,7 @@ mod tests {
 			reports: &ApplicationReports::default(),
 			grants: &grants,
 			renewals: &Renewals::new(),
+			asking: &HashSet::new(),
 			now: now_ms(),
 		};
 		readings.row(a_granola())
@@ -596,8 +731,14 @@ mod tests {
 		credentials::store(&root, &granola_of_the_space(), &a_live_grant())
 			.expect("the space grant is written");
 
-		kept(&root, &a_server("granola"), "granola", &a_live_grant(), &ApplicationReports::default())
-			.expect("the grant is stored");
+		kept(
+			&root,
+			&a_server("granola"),
+			"granola",
+			&a_live_grant(),
+			&ApplicationReports::default(),
+		)
+		.expect("the grant is stored");
 
 		assert_eq!(read_row(&root, &a_bot()).scope, Some(a_server("granola")));
 		assert!(store::values(&root, &a_server("granola"))
@@ -662,10 +803,12 @@ mod tests {
 		vec![a_granola()]
 	}
 
+	const GRANOLA_URL: &str = "https://mcp.granola.test/mcp";
+
 	fn a_granola() -> McpServer {
 		McpServer {
 			name: "granola".to_owned(),
-			config: serde_json::json!({ "url": "https://mcp.granola.test/mcp" }),
+			config: serde_json::json!({ "url": GRANOLA_URL }),
 			mark: bundles::ApplicationMark::default(),
 		}
 	}
@@ -706,6 +849,7 @@ mod tests {
 			granola_declared(),
 			&McpOauthState::default(),
 			&reports,
+			&AuthorizationAnswers::default(),
 			|_| async { Ok(Authorized { credentials: Some(a_renewed_grant()), error: None }) },
 		)
 		.await
@@ -737,6 +881,7 @@ mod tests {
 			granola_declared(),
 			&McpOauthState::default(),
 			&reports,
+			&AuthorizationAnswers::default(),
 			|_| async { Ok(Authorized { credentials: Some(a_renewed_grant()), error: None }) },
 		)
 		.await
@@ -763,6 +908,7 @@ mod tests {
 			granola_declared(),
 			&McpOauthState::default(),
 			&ApplicationReports::default(),
+			&AuthorizationAnswers::default(),
 			|_| async {
 				Ok(Authorized {
 					credentials: None,
@@ -804,6 +950,7 @@ mod tests {
 			granola_declared(),
 			&McpOauthState::default(),
 			&ApplicationReports::default(),
+			&AuthorizationAnswers::default(),
 			|_| async { Err(TransportError::NotStarted) },
 		)
 		.await
@@ -832,6 +979,7 @@ mod tests {
 			granola_declared(),
 			&McpOauthState::default(),
 			&ApplicationReports::default(),
+			&AuthorizationAnswers::default(),
 			|_| {
 				asked.set(asked.get() + 1);
 				async { Err(TransportError::NotStarted) }
@@ -844,24 +992,113 @@ mod tests {
 		assert_eq!(rows[0].status, ApplicationStatus::Connected);
 	}
 
-	#[tokio::test]
-	async fn an_expired_grant_holding_no_refresh_token_needs_authorization_with_no_reason() {
-		let root = a_root("renewal-spent");
+	async fn unreported_rows_of_an_expired_grant(
+		root_name: &str,
+		answers: &AuthorizationAnswers,
+	) -> Vec<ApplicationRow> {
+		let root = a_root(root_name);
 		credentials::store(&root, &a_server("granola"), &an_aging_grant(None))
 			.expect("the grant is written");
-
-		let rows = renewed_rows(
+		renewed_rows(
 			&root,
 			&a_bot(),
 			granola_declared(),
 			&McpOauthState::default(),
 			&ApplicationReports::default(),
+			answers,
+			|_| async { Err(TransportError::NotStarted) },
+		)
+		.await
+		.expect("the rows read")
+	}
+
+	#[tokio::test]
+	async fn an_unusable_grant_of_a_server_answering_that_it_asks_for_authorization_needs_it() {
+		let answers = AuthorizationAnswers::default();
+		answers.answered(GRANOLA_URL, true, now_ms());
+
+		let rows = unreported_rows_of_an_expired_grant("spent-asking", &answers).await;
+
+		assert_eq!(rows[0].status, ApplicationStatus::NeedsAuthorization { reason: None });
+	}
+
+	#[tokio::test]
+	async fn an_unusable_grant_of_a_server_nothing_says_asks_for_authorization_is_unknown() {
+		let asking_none = AuthorizationAnswers::default();
+		asking_none.answered(GRANOLA_URL, false, now_ms());
+
+		let rows = unreported_rows_of_an_expired_grant("spent-asking-none", &asking_none).await;
+
+		assert_eq!(rows[0].status, ApplicationStatus::Unknown);
+	}
+
+	#[tokio::test]
+	async fn a_server_served_on_a_loopback_address_is_never_asked_and_reads_unknown() {
+		let paper = McpServer {
+			name: "paper".to_owned(),
+			config: serde_json::json!({ "url": "http://127.0.0.1:29979/mcp" }),
+			mark: bundles::ApplicationMark::default(),
+		};
+		let answers = AuthorizationAnswers::default();
+		answers.answered("http://127.0.0.1:29979/mcp", true, now_ms());
+
+		let rows = renewed_rows(
+			&a_root("loopback-unasked"),
+			&EnvOwner::User,
+			vec![paper],
+			&McpOauthState::default(),
+			&ApplicationReports::default(),
+			&answers,
 			|_| async { Err(TransportError::NotStarted) },
 		)
 		.await
 		.expect("the rows read");
 
-		assert_eq!(rows[0].status, ApplicationStatus::NeedsAuthorization { reason: None });
+		assert_eq!(rows[0].status, ApplicationStatus::Unknown);
+	}
+
+	fn a_remote(name: &str) -> McpServer {
+		McpServer {
+			name: name.to_owned(),
+			config: serde_json::json!({ "url": format!("https://mcp.{name}.test/mcp") }),
+			mark: bundles::ApplicationMark::default(),
+		}
+	}
+
+	#[tokio::test]
+	async fn a_status_read_sends_no_request_to_a_server_whose_row_reads_no_answer() {
+		let root = a_root("asked-only-where-read");
+		let reports = ApplicationReports::default();
+		reports.record("b1", "holding", Standing::Holding);
+		reports.record("b1", "waiting", Standing::NeedsAuth { reason: None });
+		credentials::remember_refusal(&root, &a_server("refused"), "invalid_grant")
+			.expect("the reason is written");
+		credentials::store(&root, &a_server("granted"), &a_live_grant())
+			.expect("the grant is written");
+		let flows = McpOauthState::default();
+		let _running =
+			flows.begin(Flow::Authorizing(a_server("authorizing"))).expect("the flow claims");
+		let unasked = ["holding", "waiting", "refused", "granted", "authorizing"];
+		let answers = AuthorizationAnswers::default();
+
+		let rows = renewed_rows(
+			&root,
+			&a_bot(),
+			unasked.iter().chain(["unreported"].iter()).map(|name| a_remote(name)).collect(),
+			&flows,
+			&reports,
+			&answers,
+			|_| async { Err(TransportError::NotStarted) },
+		)
+		.await
+		.expect("the rows read");
+
+		assert_eq!(rows.len(), 6);
+		for name in unasked {
+			let url = a_remote(name).url().map(str::to_owned).expect("the server has a url");
+			assert!(!answers.holds_anything_for(&url), "{name} was asked");
+		}
+		assert!(answers.holds_anything_for("https://mcp.unreported.test/mcp"));
 	}
 
 	fn left_out_by_a_session(reports: &ApplicationReports) {
@@ -872,22 +1109,38 @@ mod tests {
 		);
 	}
 
-	#[tokio::test]
-	async fn an_application_a_session_left_out_holding_no_grant_needs_authorization() {
-		let root = a_root("left-out-no-grant");
+	async fn left_out_rows_holding_no_grant(root_name: &str, asks: bool) -> Vec<ApplicationRow> {
 		let reports = ApplicationReports::default();
 		left_out_by_a_session(&reports);
-
-		let rows = renewed_rows(
-			&root,
+		let answers = AuthorizationAnswers::default();
+		answers.answered(GRANOLA_URL, asks, now_ms());
+		renewed_rows(
+			&a_root(root_name),
 			&a_bot(),
 			granola_declared(),
 			&McpOauthState::default(),
 			&reports,
+			&answers,
 			|_| async { Err(TransportError::NotStarted) },
 		)
 		.await
-		.expect("the rows read");
+		.expect("the rows read")
+	}
+
+	#[tokio::test]
+	async fn an_application_a_session_left_out_answering_it_asks_for_none_reads_failed_with_its_reason(
+	) {
+		let rows = left_out_rows_holding_no_grant("left-out-asking-none", false).await;
+
+		assert_eq!(
+			rows[0].status,
+			ApplicationStatus::Failed { reason: Some("it read failed".to_owned()) }
+		);
+	}
+
+	#[tokio::test]
+	async fn an_application_a_session_left_out_answering_it_asks_for_authorization_needs_it() {
+		let rows = left_out_rows_holding_no_grant("left-out-asking", true).await;
 
 		assert_eq!(rows[0].status, ApplicationStatus::NeedsAuthorization { reason: None });
 	}
@@ -906,6 +1159,7 @@ mod tests {
 			granola_declared(),
 			&McpOauthState::default(),
 			&reports,
+			&AuthorizationAnswers::default(),
 			|_| async { Err(TransportError::NotStarted) },
 		)
 		.await

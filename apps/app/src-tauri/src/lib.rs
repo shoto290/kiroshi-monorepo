@@ -49,6 +49,7 @@ pub fn run() {
 		.manage(agent::sign_in::SignInState::default())
 		.manage(mcp_oauth::commands::McpOauthState::default())
 		.manage(mcp_oauth::reports::ApplicationReports::default())
+		.manage(mcp_oauth::asking::AuthorizationAnswers::default())
 		.setup(|app| {
 			app.manage(db::bootstrap(app.handle()));
 			if let Some(window) = app.get_webview_window("main") {
