@@ -5,6 +5,7 @@ import {
 } from "./skill-files-controller"
 
 import { createQueue } from "../queue"
+import { botPlugin } from "../conversations/plugin-scope"
 import type { BotSkill, BotSkillDraft } from "../conversations/store-contract"
 import type { TranscriptStore } from "../conversations/store-port"
 
@@ -57,7 +58,7 @@ export const createSkillsController = (
 	}
 
 	const read = async (botId: string) =>
-		applyTo(botId, await store.pluginSkills({ kind: "bot", id: botId }))
+		applyTo(botId, await store.pluginSkills(botPlugin(botId)))
 
 	const reload = () => {
 		const botId = state.botId
@@ -85,20 +86,11 @@ export const createSkillsController = (
 	const files = createSkillFilesController(
 		{
 			read: (skillId, path) =>
-				store.pluginSkillFile({ kind: "bot", id: openBot() }, skillId, path),
+				store.pluginSkillFile(botPlugin(openBot()), skillId, path),
 			write: (skillId, path, text) =>
-				store.writePluginSkillFile(
-					{ kind: "bot", id: openBot() },
-					skillId,
-					path,
-					text,
-				),
+				store.writePluginSkillFile(botPlugin(openBot()), skillId, path, text),
 			remove: (skillId, path) =>
-				store.deletePluginSkillFile(
-					{ kind: "bot", id: openBot() },
-					skillId,
-					path,
-				),
+				store.deletePluginSkillFile(botPlugin(openBot()), skillId, path),
 		},
 		{
 			run: (task) => onOpenBot(() => task()),
@@ -129,13 +121,10 @@ export const createSkillsController = (
 
 		create: (draft: BotSkillDraft, isPreloaded: boolean) =>
 			onOpenBot(async (botId) => {
-				const created = await store.createPluginSkill(
-					{ kind: "bot", id: botId },
-					draft,
-				)
+				const created = await store.createPluginSkill(botPlugin(botId), draft)
 				const skill = isPreloaded
 					? await store.setPluginSkillPreloaded(
-							{ kind: "bot", id: botId },
+							botPlugin(botId),
 							created.id,
 							true,
 						)
@@ -146,7 +135,7 @@ export const createSkillsController = (
 		save: (skillId: string, draft: BotSkillDraft) =>
 			onOpenBot(async (botId) => {
 				const saved = await store.updatePluginSkill(
-					{ kind: "bot", id: botId },
+					botPlugin(botId),
 					skillId,
 					draft,
 				)
@@ -160,7 +149,7 @@ export const createSkillsController = (
 				applySkill(
 					skillId,
 					await store.setPluginSkillPreloaded(
-						{ kind: "bot", id: botId },
+						botPlugin(botId),
 						skillId,
 						isPreloaded,
 					),
@@ -170,7 +159,7 @@ export const createSkillsController = (
 
 		remove: (skillId: string) =>
 			onOpenBot(async (botId) => {
-				await store.deletePluginSkill({ kind: "bot", id: botId }, skillId)
+				await store.deletePluginSkill(botPlugin(botId), skillId)
 				applyTo(
 					botId,
 					state.skills.filter((skill) => skill.id !== skillId),
