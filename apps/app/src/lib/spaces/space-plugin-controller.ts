@@ -1,4 +1,5 @@
 import { createQueue } from "../queue"
+import { createStore } from "../store"
 import {
 	createHistoryFilesReader,
 	type HistoryFilesState,
@@ -49,17 +50,13 @@ export const initialSpacePluginState: SpacePluginState = {
 export const createSpacePluginController = (
 	store: TranscriptStore,
 ): SpacePluginController => {
-	let state = initialSpacePluginState
-	const listeners = new Set<() => void>()
+	const stateStore = createStore(initialSpacePluginState)
+	const current = stateStore.getState
 
 	const enqueue = createQueue()
 
-	const set = (fields: Partial<SpacePluginState>) => {
-		state = { ...state, ...fields }
-		for (const listener of listeners) {
-			listener()
-		}
-	}
+	const set = (fields: Partial<SpacePluginState>) =>
+		stateStore.setState({ ...current(), ...fields })
 
 	const read = async (spaceId: string) => {
 		const [skills, commits] = await Promise.all([
@@ -72,7 +69,7 @@ export const createSpacePluginController = (
 	const noteFailedRead = () => set({ hasFailedToLoad: true })
 
 	const reload = () => {
-		const spaceId = state.spaceId
+		const spaceId = current().spaceId
 		if (!spaceId) {
 			return
 		}
@@ -80,7 +77,7 @@ export const createSpacePluginController = (
 	}
 
 	const run = (task: (spaceId: string) => Promise<void>) => {
-		const spaceId = state.spaceId
+		const spaceId = current().spaceId
 		if (!spaceId) {
 			return
 		}
@@ -89,7 +86,7 @@ export const createSpacePluginController = (
 
 	const applySkill = (skillId: string, fields: Partial<BotSkill>) =>
 		set({
-			skills: state.skills.map((skill) =>
+			skills: current().skills.map((skill) =>
 				skill.id === skillId ? { ...skill, ...fields } : skill,
 			),
 		})
@@ -100,12 +97,16 @@ export const createSpacePluginController = (
 			hasFailedToLoad: false,
 		})
 
-	const openSpace = () => state.spaceId ?? ""
+	const openSpace = () => current().spaceId ?? ""
 
 	const readFiles = createHistoryFilesReader(
 		(oldestCommitId, newestCommitId) =>
 			store.spacePluginHistoryDiff(openSpace(), oldestCommitId, newestCommitId),
-		{ run: (task) => run(() => task()), getState: () => state, setState: set },
+		{
+			run: (task) => run(() => task()),
+			getState: current,
+			setState: set,
+		},
 	)
 
 	const files = createSkillFilesController(
@@ -119,23 +120,18 @@ export const createSpacePluginController = (
 		},
 		{
 			run: (task) => run(() => task()),
-			getFile: () => state.file,
+			getFile: () => current().file,
 			setFile: (file) => set({ file }),
-			getSkills: () => state.skills,
+			getSkills: () => current().skills,
 			applySkill,
 		},
 	)
 
 	return {
 		...files,
-		getState: () => state,
+		getState: current,
 
-		subscribe: (listener) => {
-			listeners.add(listener)
-			return () => {
-				listeners.delete(listener)
-			}
-		},
+		subscribe: stateStore.subscribe,
 
 		open: (spaceId: string) =>
 			enqueue(() => read(spaceId)).catch(noteFailedRead),
@@ -148,7 +144,7 @@ export const createSpacePluginController = (
 				const skill = isPreloaded
 					? await store.setSpacePluginSkillPreloaded(spaceId, created.id, true)
 					: created
-				set({ skills: [...state.skills, skill] })
+				set({ skills: [...current().skills, skill] })
 				await readHistory(spaceId)
 			}),
 
@@ -182,12 +178,14 @@ export const createSpacePluginController = (
 		removeSkill: (skillId: string) =>
 			run(async (spaceId) => {
 				await store.deleteSpacePluginSkill(spaceId, skillId)
-				set({ skills: state.skills.filter((skill) => skill.id !== skillId) })
+				set({
+					skills: current().skills.filter((skill) => skill.id !== skillId),
+				})
 				await readHistory(spaceId)
 			}),
 
 		openFiles: (oldestCommitId: string, newestCommitId: string) => {
-			if (state.spaceId) {
+			if (current().spaceId) {
 				readFiles(oldestCommitId, newestCommitId)
 			}
 		},

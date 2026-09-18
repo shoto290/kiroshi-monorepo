@@ -1,11 +1,10 @@
-import { useState, useSyncExternalStore } from "react"
-
 import {
 	createMcpServersController,
 	type McpServersController,
 	type McpServersState,
 } from "./mcp-servers-controller"
 
+import { useController } from "../use-controller"
 import type { TranscriptStore } from "../conversations/store-port"
 
 export type McpServers = {
@@ -13,9 +12,5 @@ export type McpServers = {
 	controller: McpServersController
 }
 
-export const useMcpServers = (store: TranscriptStore): McpServers => {
-	const [controller] = useState(() => createMcpServersController(store))
-	const state = useSyncExternalStore(controller.subscribe, controller.getState)
-
-	return { state, controller }
-}
+export const useMcpServers = (store: TranscriptStore): McpServers =>
+	useController(() => createMcpServersController(store))

@@ -1,4 +1,5 @@
 import { createQueue } from "../queue"
+import { createStore } from "../store"
 import { createWriteLoop } from "../write-loop"
 import type { RosterPin, Section } from "../conversations/store-contract"
 import type { TranscriptStore } from "../conversations/store-port"
@@ -51,27 +52,25 @@ export const createSectionsController = (
 	store: TranscriptStore,
 	bots: BotSections,
 ): SectionsController => {
-	let state = initialSectionsState
-	const listeners = new Set<() => void>()
+	const stateStore = createStore(initialSectionsState)
+	const current = stateStore.getState
 
 	const enqueue = createQueue()
 
-	const set = (fields: Partial<SectionsState>) => {
-		state = { ...state, ...fields }
-		for (const listener of listeners) {
-			listener()
-		}
-	}
+	const set = (fields: Partial<SectionsState>) =>
+		stateStore.setState({ ...current(), ...fields })
 
 	const hold = (spaceId: string, sections: Section[]) =>
-		set({ sections: { ...state.sections, [spaceId]: sections } })
+		set({
+			sections: { ...current().sections, [spaceId]: sections },
+		})
 
 	const held = (id: string) =>
-		Object.values(state.sections)
+		Object.values(current().sections)
 			.flat()
 			.find((section) => section.id === id)
 
-	const spaceOf = (id: string) => spaceOfSection(state, id)
+	const spaceOf = (id: string) => spaceOfSection(current(), id)
 
 	const apply = (written: Section) => {
 		const spaceId = spaceOf(written.id)
@@ -80,7 +79,7 @@ export const createSectionsController = (
 		}
 		hold(
 			spaceId,
-			sectionsIn(state, spaceId).map((section) =>
+			sectionsIn(current(), spaceId).map((section) =>
 				section.id === written.id ? written : section,
 			),
 		)
@@ -94,7 +93,7 @@ export const createSectionsController = (
 	}
 
 	const reloadAll = () => {
-		for (const spaceId of Object.keys(state.sections)) {
+		for (const spaceId of Object.keys(current().sections)) {
 			reload(spaceId)
 		}
 	}
@@ -107,23 +106,19 @@ export const createSectionsController = (
 	})
 
 	return {
-		getState: () => state,
+		getState: current,
 
-		subscribe: (listener) => {
-			listeners.add(listener)
-			return () => {
-				listeners.delete(listener)
-			}
-		},
+		subscribe: stateStore.subscribe,
 
 		enter: (spaceId: string) =>
 			enqueue(() => read(spaceId)).catch(() => undefined),
 
 		keep: (spaceIds: string[]) => {
-			const kept = Object.entries(state.sections).filter(([spaceId]) =>
+			const { sections } = current()
+			const kept = Object.entries(sections).filter(([spaceId]) =>
 				spaceIds.includes(spaceId),
 			)
-			if (kept.length !== Object.keys(state.sections).length) {
+			if (kept.length !== Object.keys(sections).length) {
 				set({ sections: Object.fromEntries(kept) })
 			}
 		},
@@ -131,7 +126,7 @@ export const createSectionsController = (
 		create: (spaceId: string, name: string, botId: string | null = null) =>
 			enqueue(async () => {
 				const created = await store.createSection(spaceId, name)
-				hold(spaceId, [...sectionsIn(state, spaceId), created])
+				hold(spaceId, [...sectionsIn(current(), spaceId), created])
 				if (botId) {
 					await store.moveBotToSection(botId, created.id)
 					bots.move(botId, created.id)
@@ -152,7 +147,7 @@ export const createSectionsController = (
 		},
 
 		pin: (spaceId: string, pins: RosterPin[]) => {
-			hold(spaceId, repositioned(sectionsIn(state, spaceId), pins))
+			hold(spaceId, repositioned(sectionsIn(current(), spaceId), pins))
 			bots.pin(pins)
 			return enqueue(() => store.pinRoster(spaceId, pins)).catch(() =>
 				reload(spaceId),
@@ -169,7 +164,7 @@ export const createSectionsController = (
 				writes.drop(id)
 				hold(
 					spaceId,
-					sectionsIn(state, spaceId).filter((section) => section.id !== id),
+					sectionsIn(current(), spaceId).filter((section) => section.id !== id),
 				)
 				bots.clear(id)
 			}).catch(reloadAll),

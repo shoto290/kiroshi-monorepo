@@ -1,14 +1,14 @@
+import {
+	createOpenedController,
+	type OpenedController,
+} from "../opened-controller"
+
 export type OpenedMission = {
 	missionId: string
 	rowId: string
 }
 
-export type OpenedMissionController = {
-	getState: () => OpenedMission | null
-	subscribe: (listener: () => void) => () => void
-	open: (opened: OpenedMission) => void
-	leave: () => void
-}
+export type OpenedMissionController = OpenedController<OpenedMission>
 
 export type SelectedRow = {
 	selectedBotId: string | null
@@ -29,34 +29,14 @@ const selectedRowIn = ({ getState }: SelectedRowSource) => {
 export const createOpenedMissionController = (
 	roster: SelectedRowSource,
 ): OpenedMissionController => {
-	let opened: OpenedMission | null = null
-	const listeners = new Set<() => void>()
-
-	const set = (next: OpenedMission | null) => {
-		opened = next
-		for (const listener of [...listeners]) {
-			listener()
-		}
-	}
+	const opened = createOpenedController<OpenedMission>()
 
 	roster.subscribe(() => {
-		if (opened && opened.rowId !== selectedRowIn(roster)) {
-			set(null)
+		const held = opened.getState()
+		if (held && held.rowId !== selectedRowIn(roster)) {
+			opened.leave()
 		}
 	})
 
-	return {
-		getState: () => opened,
-
-		subscribe: (listener) => {
-			listeners.add(listener)
-			return () => {
-				listeners.delete(listener)
-			}
-		},
-
-		open: (next) => set(next),
-
-		leave: () => set(null),
-	}
+	return opened
 }

@@ -1,5 +1,3 @@
-import { useState, useSyncExternalStore } from "react"
-
 import type { ApplicationPort } from "./application-port"
 import {
 	type ApplicationsController,
@@ -7,6 +5,7 @@ import {
 	createApplicationsController,
 } from "./applications-controller"
 
+import { useController } from "../use-controller"
 import type { TranscriptStore } from "../conversations/store-port"
 
 export type Applications = {
@@ -17,9 +16,5 @@ export type Applications = {
 export const useApplications = (
 	port: ApplicationPort,
 	store: TranscriptStore,
-): Applications => {
-	const [controller] = useState(() => createApplicationsController(port, store))
-	const state = useSyncExternalStore(controller.subscribe, controller.getState)
-
-	return { state, controller }
-}
+): Applications =>
+	useController(() => createApplicationsController(port, store))

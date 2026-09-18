@@ -1,11 +1,10 @@
-import { useState, useSyncExternalStore } from "react"
-
 import {
 	type CollapsedSectionsController,
 	type CollapsedSectionsState,
 	createCollapsedSectionsController,
 } from "./collapsed-sections-controller"
 
+import { useController } from "../use-controller"
 import type { TranscriptStore } from "../conversations/store-port"
 
 export type CollapsedSections = {
@@ -15,9 +14,5 @@ export type CollapsedSections = {
 
 export const useCollapsedSections = (
 	store: TranscriptStore,
-): CollapsedSections => {
-	const [controller] = useState(() => createCollapsedSectionsController(store))
-	const state = useSyncExternalStore(controller.subscribe, controller.getState)
-
-	return { state, controller }
-}
+): CollapsedSections =>
+	useController(() => createCollapsedSectionsController(store))

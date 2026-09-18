@@ -1,5 +1,6 @@
 import type { ApplicationRow, ConnectionPort } from "./connection-port"
 
+import { createStore } from "../store"
 import type { EnvOwner } from "../conversations/store-contract"
 
 export type ConnectionCommand = "status" | "connect" | "cancel" | "disconnect"
@@ -42,28 +43,20 @@ const isCancellation = (reason: unknown) =>
 export const createConnectionsController = (
 	port: ConnectionPort,
 ): ConnectionsController => {
-	let state = initialConnectionsState
-	const listeners = new Set<() => void>()
+	const stateStore = createStore(initialConnectionsState)
+	const current = stateStore.getState
 
-	const publish = () => {
-		for (const listener of listeners) {
-			listener()
-		}
-	}
-
-	const set = (fields: Partial<ConnectionsState>) => {
-		state = { ...state, ...fields }
-		publish()
-	}
+	const set = (fields: Partial<ConnectionsState>) =>
+		stateStore.setState({ ...current(), ...fields })
 
 	const setFor = (owner: EnvOwner, fields: Partial<ConnectionsState>) => {
-		if (state.owner === owner) {
+		if (current().owner === owner) {
 			set(fields)
 		}
 	}
 
 	const fail = (owner: EnvOwner, failure: ConnectionFailure) => {
-		if (state.owner !== owner) {
+		if (current().owner !== owner) {
 			return
 		}
 		console.error(
@@ -73,8 +66,10 @@ export const createConnectionsController = (
 		set({ failure })
 	}
 
-	const keptFailure = () =>
-		state.failure?.command === "status" ? null : state.failure
+	const keptFailure = () => {
+		const { failure } = current()
+		return failure?.command === "status" ? null : failure
+	}
 
 	const read = (owner: EnvOwner) =>
 		port.status(owner).then(
@@ -97,14 +92,9 @@ export const createConnectionsController = (
 	}
 
 	return {
-		getState: () => state,
+		getState: current,
 
-		subscribe: (listener) => {
-			listeners.add(listener)
-			return () => {
-				listeners.delete(listener)
-			}
-		},
+		subscribe: stateStore.subscribe,
 
 		open: (owner) => {
 			set({ ...initialConnectionsState, owner })
@@ -112,7 +102,7 @@ export const createConnectionsController = (
 		},
 
 		connect: async (name, url) => {
-			const owner = state.owner
+			const owner = current().owner
 			if (!owner) {
 				return
 			}
@@ -125,18 +115,18 @@ export const createConnectionsController = (
 		},
 
 		cancel: async () => {
-			const owner = state.owner
+			const { owner, connecting } = current()
 			if (!owner) {
 				return
 			}
-			await run(owner, { command: "cancel", name: state.connecting }, () =>
+			await run(owner, { command: "cancel", name: connecting }, () =>
 				port.cancel(),
 			)
 			await read(owner)
 		},
 
 		disconnect: async (name, url) => {
-			const owner = state.owner
+			const owner = current().owner
 			if (!owner) {
 				return
 			}

@@ -13,6 +13,7 @@ import { newBotIdentity, toIdentity, toSettingsValue } from "./bot-settings"
 import { type RosterLine, rosterLinesIn, type SoloThreads } from "./roster-line"
 
 import { createQueue } from "../queue"
+import { createStore } from "../store"
 import { createWriteLoop } from "../write-loop"
 import {
 	isNameless,
@@ -279,17 +280,11 @@ export const createRosterController = (
 	store: TranscriptStore,
 	{ reportFailure = raiseFailureNotice }: RosterControllerOptions = {},
 ): RosterController => {
-	let state = initialRosterState
+	const stateStore = createStore(initialRosterState)
+	const current = stateStore.getState
 	let listedSpaceIds: string[] = []
-	const listeners = new Set<() => void>()
 
 	const enqueue = createQueue()
-
-	const publish = () => {
-		for (const listener of listeners) {
-			listener()
-		}
-	}
 
 	const rosterIn = <Row>(
 		rosters: Record<string, Row[]>,
@@ -297,49 +292,59 @@ export const createRosterController = (
 	) => (spaceId === null ? [] : (rosters[spaceId] ?? []))
 
 	const set = (fields: Partial<RosterState>) => {
-		const next = { ...state, ...fields }
-		state = {
+		const next = { ...current(), ...fields }
+		stateStore.setState({
 			...next,
 			bots: rosterIn(next.rosters, next.spaceId),
 			conversations: rosterIn(next.conversationRosters, next.spaceId),
-		}
-		publish()
+		})
 	}
 
-	const withRoster = (spaceId: string | null, bots: Bot[]) =>
-		spaceId === null ? state.rosters : { ...state.rosters, [spaceId]: bots }
+	const withRoster = (spaceId: string | null, bots: Bot[]) => {
+		const { rosters } = current()
+		return spaceId === null ? rosters : { ...rosters, [spaceId]: bots }
+	}
 
 	const withConversations = (
 		spaceId: string | null,
 		conversations: Conversation[],
-	) =>
-		spaceId === null
-			? state.conversationRosters
-			: { ...state.conversationRosters, [spaceId]: conversations }
+	) => {
+		const { conversationRosters } = current()
+		return spaceId === null
+			? conversationRosters
+			: { ...conversationRosters, [spaceId]: conversations }
+	}
 
-	const held = (id: string) => state.bots.find((bot) => bot.id === id)
+	const held = (id: string) => current().bots.find((bot) => bot.id === id)
 
 	const heldConversation = (id: string) =>
-		state.conversations.find((conversation) => conversation.id === id)
+		current().conversations.find((conversation) => conversation.id === id)
 
-	const spacesOfBot = (botId: string) =>
-		Object.keys(state.rosters).filter((spaceId) =>
-			rosterIn(state.rosters, spaceId).some((bot) => bot.id === botId),
+	const spacesOfBot = (botId: string) => {
+		const { rosters } = current()
+		return Object.keys(rosters).filter((spaceId) =>
+			rosterIn(rosters, spaceId).some((bot) => bot.id === botId),
 		)
+	}
 
-	const spaceOfConversation = (conversationId: string) =>
-		Object.keys(state.conversationRosters).find((spaceId) =>
-			rosterIn(state.conversationRosters, spaceId).some(
-				(conversation) => conversation.id === conversationId,
-			),
-		) ?? state.soloThreads[conversationId]?.spaceId
+	const spaceOfConversation = (conversationId: string) => {
+		const { conversationRosters, soloThreads } = current()
+		return (
+			Object.keys(conversationRosters).find((spaceId) =>
+				rosterIn(conversationRosters, spaceId).some(
+					(conversation) => conversation.id === conversationId,
+				),
+			) ?? soloThreads[conversationId]?.spaceId
+		)
+	}
 
 	const landOn = (
 		bots: Bot[],
 		conversations: Conversation[],
 		lastRowId: string | null,
 	) => {
-		const selectedRowId = state.selectedBotId ?? state.selectedConversationId
+		const { selectedBotId, selectedConversationId } = current()
+		const selectedRowId = selectedBotId ?? selectedConversationId
 		return (
 			landingOn(bots, conversations, selectedRowId) ??
 			landingOn(bots, conversations, lastRowId) ??
@@ -349,6 +354,7 @@ export const createRosterController = (
 	}
 
 	const settingsStandingIn = (bots: Bot[], conversations: Conversation[]) => {
+		const state = current()
 		const holdsBot = bots.some((bot) => bot.id === state.settingsBotId)
 		const holdsConversation = conversations.some(
 			(conversation) => conversation.id === state.settingsConversationId,
@@ -367,7 +373,7 @@ export const createRosterController = (
 	const admit = (written: Bot, spaceId: string | null) => {
 		set({
 			rosters: withRoster(spaceId, [
-				...rosterIn(state.rosters, spaceId),
+				...rosterIn(current().rosters, spaceId),
 				written,
 			]),
 			spaceId,
@@ -382,7 +388,7 @@ export const createRosterController = (
 	const enrol = (written: Bot, spaceId: string) => {
 		set({
 			rosters: withRoster(spaceId, [
-				...rosterIn(state.rosters, spaceId),
+				...rosterIn(current().rosters, spaceId),
 				written,
 			]),
 		})
@@ -392,7 +398,7 @@ export const createRosterController = (
 	const admitConversation = (written: Conversation, spaceId: string) => {
 		set({
 			conversationRosters: withConversations(spaceId, [
-				...rosterIn(state.conversationRosters, spaceId),
+				...rosterIn(current().conversationRosters, spaceId),
 				written,
 			]),
 			spaceId,
@@ -402,10 +408,11 @@ export const createRosterController = (
 	}
 
 	const applyConversation = (written: Conversation) => {
+		const { spaceId, conversations } = current()
 		set({
 			conversationRosters: withConversations(
-				state.spaceId,
-				state.conversations.map((conversation) =>
+				spaceId,
+				conversations.map((conversation) =>
 					conversation.id === written.id ? written : conversation,
 				),
 			),
@@ -413,14 +420,15 @@ export const createRosterController = (
 	}
 
 	const apply = (written: Bot) => {
+		const { spaceId, bots, conversations } = current()
 		set({
 			rosters: withRoster(
-				state.spaceId,
-				state.bots.map((bot) => (bot.id === written.id ? written : bot)),
+				spaceId,
+				bots.map((bot) => (bot.id === written.id ? written : bot)),
 			),
 			conversationRosters: withConversations(
-				state.spaceId,
-				withSeatsOf(state.conversations, written.id, faceOf(written)),
+				spaceId,
+				withSeatsOf(conversations, written.id, faceOf(written)),
 			),
 		})
 	}
@@ -449,7 +457,7 @@ export const createRosterController = (
 	const reload = () =>
 		readFrom({
 			spaceIds: listedSpaceIds,
-			spaceId: state.spaceId,
+			spaceId: current().spaceId,
 			lastRowId: null,
 		})
 
@@ -514,6 +522,7 @@ export const createRosterController = (
 					: null
 			}),
 		)
+		const state = current()
 		let previews = state.previews
 		const soloThreads = { ...state.soloThreads }
 		for (const held of read) {
@@ -534,12 +543,15 @@ export const createRosterController = (
 			}),
 		)
 		set({
-			conversationPreviews: { ...state.conversationPreviews, ...read },
+			conversationPreviews: {
+				...current().conversationPreviews,
+				...read,
+			},
 		})
 	}
 
 	const emptySeatsIn = async (spaceId: string, botId: string) => {
-		const held = rosterIn(state.conversationRosters, spaceId)
+		const held = rosterIn(current().conversationRosters, spaceId)
 		const emptied = await Promise.all(
 			held.map((conversation) =>
 				seats(conversation, botId)
@@ -551,7 +563,7 @@ export const createRosterController = (
 	}
 
 	const catchUpOnLeftConversation = () => {
-		const left = state.selectedConversationId
+		const left = current().selectedConversationId
 		if (left !== null) {
 			void readConversationPreviews([left])
 		}
@@ -632,22 +644,18 @@ export const createRosterController = (
 		})
 
 	return {
-		getState: () => state,
+		getState: current,
 
-		subscribe: (listener) => {
-			listeners.add(listener)
-			return () => {
-				listeners.delete(listener)
-			}
-		},
+		subscribe: stateStore.subscribe,
 
 		load: async (opening: RosterOpening) => {
 			await readFrom(opening)
 			set({ hasLoaded: true })
+			const { rosters, conversationRosters } = current()
 			await Promise.all([
-				readPreviews(rosterLinesIn(state.rosters)),
+				readPreviews(rosterLinesIn(rosters)),
 				readConversationPreviews(
-					Object.values(state.conversationRosters)
+					Object.values(conversationRosters)
 						.flat()
 						.map((conversation) => conversation.id),
 				),
@@ -661,12 +669,13 @@ export const createRosterController = (
 		spaceOfConversation,
 
 		enter: ({ spaceId, lastRowId }: RosterEntry) => {
-			const bots = rosterIn(state.rosters, spaceId)
-			const conversations = rosterIn(state.conversationRosters, spaceId)
+			const { rosters, conversationRosters } = current()
+			const bots = rosterIn(rosters, spaceId)
+			const conversations = rosterIn(conversationRosters, spaceId)
 			set({
-				rosters: { ...state.rosters, [spaceId]: bots },
+				rosters: { ...rosters, [spaceId]: bots },
 				conversationRosters: {
-					...state.conversationRosters,
+					...conversationRosters,
 					[spaceId]: conversations,
 				},
 				spaceId,
@@ -676,14 +685,14 @@ export const createRosterController = (
 		},
 
 		select: (id: string) => {
-			if (id !== state.selectedBotId) {
+			if (id !== current().selectedBotId) {
 				catchUpOnLeftConversation()
 				set({ selectedBotId: id, selectedConversationId: null })
 			}
 		},
 
 		selectConversation: (id: string) => {
-			if (id !== state.selectedConversationId) {
+			if (id !== current().selectedConversationId) {
 				catchUpOnLeftConversation()
 				set({ selectedBotId: null, selectedConversationId: id })
 			}
@@ -691,15 +700,14 @@ export const createRosterController = (
 
 		create: () =>
 			enqueue(async () => {
-				admit(
-					await store.createBot(newBotIdentity(state.bots), state.spaceId),
-					state.spaceId,
-				)
+				const { bots, spaceId } = current()
+				const written = await store.createBot(newBotIdentity(bots), spaceId)
+				admit(written, current().spaceId)
 			}).catch(reload),
 
 		createFromDraft: (draft: BotDraft) =>
 			enqueue(async () => {
-				const spaceId = state.spaceId
+				const spaceId = current().spaceId
 				if (!spaceId) {
 					throw NO_SPACE
 				}
@@ -710,7 +718,7 @@ export const createRosterController = (
 
 		createConversation: () =>
 			enqueue(async () => {
-				const spaceId = state.spaceId
+				const spaceId = current().spaceId
 				if (spaceId === null) {
 					return null
 				}
@@ -729,7 +737,7 @@ export const createRosterController = (
 
 		duplicate: (id: string, spaceId?: string) =>
 			enqueue(async () => {
-				const destination = spaceId ?? state.spaceId
+				const destination = spaceId ?? current().spaceId
 				const written = await store.duplicateBot(id, destination)
 				admit(written, destination)
 				return written
@@ -743,7 +751,7 @@ export const createRosterController = (
 		setEditing: (isEditing: boolean) =>
 			set({
 				isEditing,
-				isShowingDanger: isEditing && state.isShowingDanger,
+				isShowingDanger: isEditing && current().isShowingDanger,
 			}),
 
 		describe: (id: string, value: BotSettingsValue) => {
@@ -776,7 +784,7 @@ export const createRosterController = (
 			enqueue(async () => {
 				const [home] = spacesOfBot(botId)
 				const moved = home
-					? rosterIn(state.rosters, home).find((bot) => bot.id === botId)
+					? rosterIn(current().rosters, home).find((bot) => bot.id === botId)
 					: undefined
 				if (!home || !moved || home === spaceId) {
 					return null
@@ -786,7 +794,7 @@ export const createRosterController = (
 				set({
 					rosters: withRoster(
 						home,
-						rosterIn(state.rosters, home).filter((bot) => bot.id !== botId),
+						rosterIn(current().rosters, home).filter((bot) => bot.id !== botId),
 					),
 				})
 				admit({ ...moved, sectionId: null }, spaceId)
@@ -799,7 +807,7 @@ export const createRosterController = (
 		addToSpace: (botId: string, spaceId: string) =>
 			enqueue(async () => {
 				const memberships = spacesOfBot(botId)
-				const joined = rosterIn(state.rosters, memberships[0] ?? null).find(
+				const joined = rosterIn(current().rosters, memberships[0] ?? null).find(
 					(bot) => bot.id === botId,
 				)
 				if (!joined || memberships.includes(spaceId)) {
@@ -808,7 +816,7 @@ export const createRosterController = (
 				await store.addBotToSpace(botId, spaceId)
 				set({
 					rosters: withRoster(spaceId, [
-						...rosterIn(state.rosters, spaceId),
+						...rosterIn(current().rosters, spaceId),
 						{ ...joined, sectionId: null, pinPosition: null },
 					]),
 				})
@@ -818,6 +826,7 @@ export const createRosterController = (
 		removeFromSpace: (botId: string, spaceId: string) =>
 			enqueue(async () => {
 				await store.removeBotFromSpace(botId, spaceId)
+				const state = current()
 				const bots = rosterIn(state.rosters, spaceId).filter(
 					(bot) => bot.id !== botId,
 				)
@@ -850,26 +859,28 @@ export const createRosterController = (
 					{ sectionId: pin.sectionId, pinPosition },
 				]),
 			)
+			const { spaceId, bots, conversations } = current()
 			set({
-				rosters: withRoster(state.spaceId, relocated(state.bots, placed)),
+				rosters: withRoster(spaceId, relocated(bots, placed)),
 				conversationRosters: withConversations(
-					state.spaceId,
-					relocated(state.conversations, placed),
+					spaceId,
+					relocated(conversations, placed),
 				),
 			})
 		},
 
 		clearSection: (sectionId: string) => {
+			const { spaceId, bots, conversations } = current()
 			set({
 				rosters: withRoster(
-					state.spaceId,
-					state.bots.map((bot) =>
+					spaceId,
+					bots.map((bot) =>
 						bot.sectionId === sectionId ? { ...bot, sectionId: null } : bot,
 					),
 				),
 				conversationRosters: withConversations(
-					state.spaceId,
-					state.conversations.map((conversation) =>
+					spaceId,
+					conversations.map((conversation) =>
 						conversation.sectionId === sectionId
 							? { ...conversation, sectionId: null }
 							: conversation,
@@ -884,6 +895,7 @@ export const createRosterController = (
 			enqueue(async () => {
 				await store.deleteBot(id)
 				writes.drop(id)
+				const state = current()
 				const bots = state.bots.filter((bot) => bot.id !== id)
 				const conversations = withSeatsOf(state.conversations, id, {
 					isDeleted: true,
@@ -906,7 +918,7 @@ export const createRosterController = (
 			sectionId: string | null,
 		) =>
 			enqueue(async () => {
-				const held = state.conversations.find(
+				const held = current().conversations.find(
 					(conversation) => conversation.id === conversationId,
 				)
 				if (!held) {
@@ -971,7 +983,7 @@ export const createRosterController = (
 			),
 
 		botsByPresence: (conversationId: string) => {
-			const spaceId = state.spaceId
+			const spaceId = current().spaceId
 			return spaceId === null
 				? Promise.resolve(NO_BOTS)
 				: store.botsByPresence(spaceId, conversationId)
@@ -983,6 +995,7 @@ export const createRosterController = (
 			enqueue(async () => {
 				await store.deleteConversation(id)
 				conversationWrites.drop(id)
+				const state = current()
 				const conversations = state.conversations.filter(
 					(conversation) => conversation.id !== id,
 				)

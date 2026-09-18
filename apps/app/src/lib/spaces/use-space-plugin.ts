@@ -1,11 +1,10 @@
-import { useState, useSyncExternalStore } from "react"
-
 import {
 	createSpacePluginController,
 	type SpacePluginController,
 	type SpacePluginState,
 } from "./space-plugin-controller"
 
+import { useController } from "../use-controller"
 import type { TranscriptStore } from "../conversations/store-port"
 
 export type SpacePlugin = {
@@ -13,9 +12,5 @@ export type SpacePlugin = {
 	controller: SpacePluginController
 }
 
-export const useSpacePlugin = (store: TranscriptStore): SpacePlugin => {
-	const [controller] = useState(() => createSpacePluginController(store))
-	const state = useSyncExternalStore(controller.subscribe, controller.getState)
-
-	return { state, controller }
-}
+export const useSpacePlugin = (store: TranscriptStore): SpacePlugin =>
+	useController(() => createSpacePluginController(store))

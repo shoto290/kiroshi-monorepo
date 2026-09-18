@@ -16,6 +16,8 @@ import {
 	readPreferences,
 } from "./preferences-queue"
 
+import { createStore } from "../store"
+
 type NotificationField = Extract<keyof UserPreferences, `notify${string}`>
 
 export type NotificationChange = {
@@ -75,27 +77,19 @@ const recordOf = (record: UserPreferences): ReaderPreferences => ({
 })
 
 export const createUserController = (): UserController => {
-	let state: UserState = {
+	const stateStore = createStore<UserState>({
 		preferences: openingPreferences(),
 		isSettingsOpen: false,
-	}
-	const listeners = new Set<() => void>()
+	})
+	const current = stateStore.getState
 
-	let answered = state.preferences
+	let answered = current().preferences
 
 	let pendingName: string | null = null
 	let isWriting = false
 
-	const publish = () => {
-		for (const listener of listeners) {
-			listener()
-		}
-	}
-
-	const set = (fields: Partial<UserState>) => {
-		state = { ...state, ...fields }
-		publish()
-	}
+	const set = (fields: Partial<UserState>) =>
+		stateStore.setState({ ...current(), ...fields })
 
 	const show = (preferences: ReaderPreferences) => set({ preferences })
 
@@ -131,14 +125,17 @@ export const createUserController = (): UserController => {
 		return flush()
 	}
 
-	const botIdBySpaceWith = ({ spaceId, botId }: LastBotOpened) =>
-		spaceId === null
-			? state.preferences.lastBotIdBySpace
-			: { ...state.preferences.lastBotIdBySpace, [spaceId]: botId }
+	const botIdBySpaceWith = ({ spaceId, botId }: LastBotOpened) => {
+		const { lastBotIdBySpace } = current().preferences
+		return spaceId === null
+			? lastBotIdBySpace
+			: { ...lastBotIdBySpace, [spaceId]: botId }
+	}
 
 	const changeMirrored = (fields: Partial<MirroredPreferences>) => {
-		const preferences = { ...state.preferences, ...fields }
-		if (sameMirror(preferences, state.preferences)) {
+		const held = current().preferences
+		const preferences = { ...held, ...fields }
+		if (sameMirror(preferences, held)) {
 			return Promise.resolve()
 		}
 		show(preferences)
@@ -149,14 +146,9 @@ export const createUserController = (): UserController => {
 	}
 
 	return {
-		getState: () => state,
+		getState: current,
 
-		subscribe: (listener) => {
-			listeners.add(listener)
-			return () => {
-				listeners.delete(listener)
-			}
-		},
+		subscribe: stateStore.subscribe,
 
 		followOtherWindows: () => {
 			const follow = (event: StorageEvent) => {
@@ -166,7 +158,7 @@ export const createUserController = (): UserController => {
 				const mirrored = readMirror()
 				applyLanguage(mirrored.language)
 				answered = { ...answered, ...mirrored }
-				show({ ...state.preferences, ...mirrored })
+				show({ ...current().preferences, ...mirrored })
 			}
 
 			window.addEventListener("storage", follow)
@@ -181,7 +173,7 @@ export const createUserController = (): UserController => {
 		setSettingsOpen: (isSettingsOpen: boolean) => set({ isSettingsOpen }),
 
 		rename: (displayName: string) => {
-			show({ ...state.preferences, displayName })
+			show({ ...current().preferences, displayName })
 			pendingName = displayName
 			if (isWriting) {
 				return
@@ -195,7 +187,7 @@ export const createUserController = (): UserController => {
 		},
 
 		setNotification: ({ field, isEnabled }: NotificationChange) => {
-			show({ ...state.preferences, [field]: isEnabled })
+			show({ ...current().preferences, [field]: isEnabled })
 			return changePreferences((record) => ({ ...record, [field]: isEnabled }))
 				.then(apply)
 				.catch(restore)

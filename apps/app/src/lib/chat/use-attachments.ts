@@ -1,10 +1,4 @@
-import {
-	type RefObject,
-	useEffect,
-	useMemo,
-	useState,
-	useSyncExternalStore,
-} from "react"
+import { type RefObject, useEffect, useMemo, useState } from "react"
 
 import { NO_ATTACHMENTS, type StagedAttachment } from "./attachments"
 import type {
@@ -13,6 +7,8 @@ import type {
 } from "./attachments-contract"
 import { type AttachmentsController, ownerKey } from "./attachments-controller"
 import { watchConversationDrags } from "./conversation-drags"
+
+import { useControllerState } from "../use-controller"
 
 export type StagedFiles = {
 	items: StagedAttachment[]
@@ -30,7 +26,7 @@ export function useAttachments(
 	canAttach: boolean,
 	conversation: RefObject<HTMLElement | null>,
 ): StagedFiles {
-	const state = useSyncExternalStore(controller.subscribe, controller.getState)
+	const state = useControllerState(controller)
 	const [isDropTarget, setIsDropTarget] = useState(false)
 	const key = ownerKey(owner)
 

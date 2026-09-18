@@ -13,6 +13,8 @@ import {
 	lastWordHeldIn,
 } from "./transcript-state"
 
+import { useControllerState } from "../use-controller"
+
 export type ConversationChat = {
 	state: ConversationState
 	controller: ConversationController
@@ -26,7 +28,7 @@ export const useConversation = (
 		() => runtimes.runtimeFor(conversation.id),
 		[runtimes, conversation.id],
 	)
-	const state = useSyncExternalStore(controller.subscribe, controller.getState)
+	const state = useControllerState(controller)
 
 	useEffect(() => {
 		void controller.open(conversation)

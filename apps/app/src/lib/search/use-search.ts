@@ -1,4 +1,4 @@
-import { useCallback, useMemo, useSyncExternalStore } from "react"
+import { useCallback, useMemo } from "react"
 
 import { raiseFailureNotice } from "@workspace/ui/components/notice-surface"
 import type { SearchPaletteProps } from "@workspace/ui/components/search-palette"
@@ -22,6 +22,8 @@ import {
 } from "./search-navigation"
 import { type SearchPort, searchPort } from "./search-port"
 import { useSearchKeys } from "./use-search-keys"
+
+import { useControllerState } from "../use-controller"
 
 export type SearchSource = {
 	spaceId: string | null
@@ -96,7 +98,7 @@ export const useSearch = ({
 		() => createSearchController({ port, onFailure: raiseSearchFailure }),
 		[port],
 	)
-	const state = useSyncExternalStore(controller.subscribe, controller.getState)
+	const state = useControllerState(controller)
 
 	const openTarget = useCallback(
 		(target: SearchTarget) => {
