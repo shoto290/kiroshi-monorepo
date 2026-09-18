@@ -88,9 +88,6 @@ export const leftOutLine = (detail: string): ServerLine => ({
 	state: "left-out",
 })
 
-export const leftOutLines = (details: string[]): ServerLine[] =>
-	details.map(leftOutLine)
-
 export const unavailableServersSection = (lines: ServerLine[]): string => {
 	const states = new Set(lines.map((line) => line.state))
 	const [title, opening] = openingFor(states)

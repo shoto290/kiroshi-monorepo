@@ -276,8 +276,8 @@ Every other command names its session.
 - `appDataDir` is the directory the host keeps its own data in, sent when the host knows
   it. The sidecar never reads it: it hands it to the security floor, which the session
   carries as `managedSettings`, the policy tier a bot's own settings cannot loosen. The
-  floor denies reading `conversations.sqlite3` and its `-wal`/`-shm` companions,
-  `kiroshi.db`, every `session.json*` and the `attachments` directory — at the
+  floor denies reading `conversations.sqlite3`, its `-wal`/`-shm` companions and the
+  `attachments` directory — at the
   permission layer and in `sandbox.filesystem.denyRead` both. It keeps `bots` and
   `spaces` in `sandbox.filesystem.denyRead`, lists the session's own plugin paths in
   `allowRead`, and denies the `Read` tool on every other bundle it finds under
@@ -305,9 +305,8 @@ Every other command names its session.
   `KIROSHI_OAUTH_` names and the two connection names are the store's own: `env_list`
   leaves every one of them out at every scope, so neither a grant nor a connection source
   reads as a variable the person wrote. The connection source lives at the connection
-  scope, wider than every space, written by `connection_set` and removed by
-  `connection_clear` alone; `connection_kind` names which of the two is held without
-  returning its value. Neither name ever reaches `base` or an overlay, not even when a
+  scope, wider than every space, written by `connection_set`.
+  Neither name ever reaches `base` or an overlay, not even when a
   space scope or a bot scope still holds one on disk: the session is handed the value of
   the connection scope and no value of that narrower scope. A server declaring
   `${ANTHROPIC_API_KEY}` or `${CLAUDE_CODE_OAUTH_TOKEN}` is therefore left out of the
