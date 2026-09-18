@@ -6,16 +6,19 @@ import type { RosterController } from "../bots/roster-controller"
 import type { AttachmentsController } from "../chat/attachments-controller"
 import type { DraftsController } from "../chat/drafts-controller"
 import type { ConversationRuntimes } from "../conversations/conversation-runtimes"
+import {
+	spacePlugin as spacePluginScope,
+	USER_PLUGIN,
+} from "../conversations/plugin-scope"
+import type { PluginController } from "../plugins/plugin-controller"
 import type { CollapsedSectionsController } from "../sections/collapsed-sections-controller"
 import { newSectionFor } from "../sections/section-space"
 import {
 	type SectionsController,
 	spaceOfSection,
 } from "../sections/sections-controller"
-import type { SpacePluginController } from "../spaces/space-plugin-controller"
 import type { SpacesController } from "../spaces/spaces-controller"
 import type { UserController } from "../user/preferences-controller"
-import type { UserPluginController } from "../user/user-plugin-controller"
 
 export type SidebarActions = Required<
 	Pick<
@@ -50,10 +53,10 @@ export type SidebarActionsSource = {
 	roster: RosterController
 	runtimes: ConversationRuntimes
 	sections: SectionsController
-	spacePlugin: SpacePluginController
+	spacePlugin: PluginController
 	spaces: SpacesController
 	user: UserController
-	userPlugin: UserPluginController
+	userPlugin: PluginController
 }
 
 export const useSidebarActions = ({
@@ -127,12 +130,12 @@ export const useSidebarActions = ({
 				spaces.setSettingsOpen(true)
 				const spaceId = spaces.getState().selectedSpaceId
 				if (spaceId) {
-					void spacePlugin.open(spaceId)
+					void spacePlugin.open(spacePluginScope(spaceId))
 				}
 			},
 			onOpenUserSettings: () => {
 				user.setSettingsOpen(true)
-				void userPlugin.open()
+				void userPlugin.open(USER_PLUGIN)
 			},
 			onPinRoster: (spaceId, pins) => {
 				void sections.pin(spaceId, pins)

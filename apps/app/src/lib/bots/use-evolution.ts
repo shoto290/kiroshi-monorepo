@@ -8,8 +8,7 @@ import {
 export const useEvolution = ({
 	driver,
 	roster,
-	skills,
-	history,
+	companionPlugin,
 	userPlugin,
 	spacePlugin,
 }: EvolutionSourceOptions) => {
@@ -18,11 +17,10 @@ export const useEvolution = ({
 			startEvolutionSource({
 				driver,
 				roster,
-				skills,
-				history,
+				companionPlugin,
 				userPlugin,
 				spacePlugin,
 			}),
-		[driver, roster, skills, history, userPlugin, spacePlugin],
+		[driver, roster, companionPlugin, userPlugin, spacePlugin],
 	)
 }

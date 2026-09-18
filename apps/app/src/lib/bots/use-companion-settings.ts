@@ -1,20 +1,19 @@
 import { useEffect } from "react"
 
-import type { HistoryController } from "./history-controller"
 import type { McpServersController } from "./mcp-servers-controller"
-import type { SkillsController } from "./skills-controller"
 
 import type { ApplicationsController } from "../applications/applications-controller"
 import type { ConnectionsController } from "../applications/connections-controller"
+import { botPlugin } from "../conversations/plugin-scope"
 import type { EnvironmentController } from "../environment/environment-controller"
+import type { PluginController } from "../plugins/plugin-controller"
 
 export type CompanionSettings = {
 	applications: Pick<ApplicationsController, "open">
-	skills: Pick<SkillsController, "open">
+	plugin: Pick<PluginController, "open">
 	servers: Pick<McpServersController, "open">
 	environment: Pick<EnvironmentController, "open">
 	connections: Pick<ConnectionsController, "open">
-	history: Pick<HistoryController, "open">
 	companionId: string | null
 	spaceId: string | null
 	isOpen: boolean
@@ -22,11 +21,10 @@ export type CompanionSettings = {
 
 export const useCompanionSettings = ({
 	applications,
-	skills,
+	plugin,
 	servers,
 	environment,
 	connections,
-	history,
 	companionId,
 	spaceId,
 	isOpen,
@@ -37,18 +35,16 @@ export const useCompanionSettings = ({
 		}
 		const owner = { kind: "bot", id: companionId, spaceId } as const
 		void applications.open()
-		void skills.open(companionId)
+		void plugin.open(botPlugin(companionId))
 		void servers.open(owner)
 		void environment.open(owner)
 		void connections.open(owner)
-		void history.open(companionId)
 	}, [
 		applications,
-		skills,
+		plugin,
 		servers,
 		environment,
 		connections,
-		history,
 		companionId,
 		spaceId,
 		isOpen,

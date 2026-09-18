@@ -14,11 +14,10 @@ const opener = () => vi.fn(() => Promise.resolve())
 
 const panelsOf = () => ({
 	applications: { open: opener() },
-	skills: { open: opener() },
+	plugin: { open: opener() },
 	servers: { open: opener() },
 	environment: { open: opener() },
 	connections: { open: opener() },
-	history: { open: opener() },
 })
 
 type Panels = ReturnType<typeof panelsOf>
@@ -44,7 +43,7 @@ describe("useCompanionSettings", () => {
 
 		mounted(panels, true)
 
-		expect(readCounts(panels)).toEqual([1, 1, 1, 1, 1, 1])
+		expect(readCounts(panels)).toEqual([1, 1, 1, 1, 1])
 		expect(panels.servers.open).toHaveBeenCalledWith({
 			kind: "bot",
 			id: "scribe",
@@ -57,7 +56,7 @@ describe("useCompanionSettings", () => {
 
 		mounted(panels, false)
 
-		expect(readCounts(panels)).toEqual([0, 0, 0, 0, 0, 0])
+		expect(readCounts(panels)).toEqual([0, 0, 0, 0, 0])
 	})
 
 	it("reads them again on a second opening on the same companion", () => {
@@ -67,6 +66,6 @@ describe("useCompanionSettings", () => {
 		rendered.rerender({ isOpen: false })
 		rendered.rerender({ isOpen: true })
 
-		expect(readCounts(panels)).toEqual([2, 2, 2, 2, 2, 2])
+		expect(readCounts(panels)).toEqual([2, 2, 2, 2, 2])
 	})
 })

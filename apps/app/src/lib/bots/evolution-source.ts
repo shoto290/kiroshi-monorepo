@@ -1,17 +1,14 @@
 import type { EvolvedBundle, RuntimeScope } from "../agent/contract"
 import type { ChatDriver } from "../chat/driver"
+import {
+	botPlugin,
+	isSamePluginScope,
+	spacePlugin as spacePluginScope,
+} from "../conversations/plugin-scope"
+import type { PluginScope } from "../conversations/store-contract"
 
-type BotPanel = {
-	getState: () => { botId: string | null }
-	reload: () => void
-}
-
-type PersonPanel = {
-	reload: () => void
-}
-
-type SpacePanel = {
-	getState: () => { spaceId: string | null }
+type PluginPanel = {
+	getState: () => { scope: PluginScope | null }
 	reload: () => void
 }
 
@@ -23,33 +20,33 @@ type RosterPanel = {
 export type EvolutionSourceOptions = {
 	driver: Pick<ChatDriver, "subscribe">
 	roster: RosterPanel
-	skills: BotPanel
-	history: BotPanel
-	userPlugin: PersonPanel
-	spacePlugin: SpacePanel
+	companionPlugin: PluginPanel
+	userPlugin: Pick<PluginPanel, "reload">
+	spacePlugin: PluginPanel
 }
 
 export const startEvolutionSource = ({
 	driver,
 	roster,
-	skills,
-	history,
+	companionPlugin,
 	userPlugin,
 	spacePlugin,
 }: EvolutionSourceOptions): (() => void) => {
-	const readBotPanels = (botId: string) => {
-		void roster.reload()
-		for (const panel of [skills, history]) {
-			if (panel.getState().botId === botId) {
-				panel.reload()
-			}
+	const readOpenPanel = (panel: PluginPanel, scope: PluginScope) => {
+		if (isSamePluginScope(panel.getState().scope, scope)) {
+			panel.reload()
 		}
+	}
+
+	const readCompanionPanels = (botId: string) => {
+		void roster.reload()
+		readOpenPanel(companionPlugin, botPlugin(botId))
 	}
 
 	const readSpacePanel = (conversationId: string) => {
 		const spaceId = roster.spaceOfConversation(conversationId)
-		if (spaceId && spacePlugin.getState().spaceId === spaceId) {
-			spacePlugin.reload()
+		if (spaceId) {
+			readOpenPanel(spacePlugin, spacePluginScope(spaceId))
 		}
 	}
 
@@ -60,7 +57,7 @@ export const startEvolutionSource = ({
 		if (bundle === "space") {
 			return readSpacePanel(scope.conversationId)
 		}
-		return readBotPanels(scope.botId)
+		return readCompanionPanels(scope.botId)
 	}
 
 	const detach = driver
