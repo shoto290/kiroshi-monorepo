@@ -6,10 +6,6 @@ import { describe, expect, it } from "vitest"
 const VENDORED_DIRECTORY = join(import.meta.dirname, "../components/ui")
 const FOREIGN_CN_IMPORT = /from\s+["']cn["']/
 
-const UI_PACKAGE = JSON.parse(
-	readFileSync(join(import.meta.dirname, "../../package.json"), "utf8"),
-)
-
 const vendoredFilesImportingForeignCn = () =>
 	readdirSync(VENDORED_DIRECTORY).filter((file) =>
 		FOREIGN_CN_IMPORT.test(
@@ -23,7 +19,10 @@ describe("cn", () => {
 	})
 
 	it("is not a dependency of the ui package", () => {
-		expect(UI_PACKAGE.dependencies).not.toHaveProperty("cn")
-		expect(UI_PACKAGE.devDependencies).not.toHaveProperty("cn")
+		const { dependencies, devDependencies } = JSON.parse(
+			readFileSync(join(import.meta.dirname, "../../package.json"), "utf8"),
+		)
+		expect(dependencies).not.toHaveProperty("cn")
+		expect(devDependencies).not.toHaveProperty("cn")
 	})
 })
