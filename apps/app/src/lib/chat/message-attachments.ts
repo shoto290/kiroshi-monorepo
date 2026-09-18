@@ -93,9 +93,6 @@ const untouched = (text: string): MessageContent => ({
 	attachments: NO_MESSAGE_ATTACHMENTS,
 })
 
-const lastHeaderIndex = (lines: string[]): number =>
-	lines.findLastIndex((line) => BLOCK_HEADER.test(line))
-
 const pathOfOrdinalLine = (
 	line: string,
 	position: number,
@@ -162,7 +159,7 @@ const messageWithBarePaths = (
 
 export const messageWithAttachments = (text: string): MessageContent => {
 	const lines = text.trimEnd().split("\n")
-	const headerIndex = lastHeaderIndex(lines)
+	const headerIndex = lines.findLastIndex((line) => BLOCK_HEADER.test(line))
 	return headerIndex === -1
 		? messageWithBarePaths(text, text.split("\n"))
 		: messageWithBlock(text, lines, headerIndex)
