@@ -10,6 +10,7 @@ import type {
 	RuntimeScope,
 	ScopedEvent,
 } from "../agent/contract"
+import { botPlugin, spacePlugin } from "../conversations/plugin-scope"
 
 const scopeOf = (botId: string): RuntimeScope => ({
 	conversationId: "chat-1",
@@ -46,7 +47,7 @@ const createFakeDriver = () => {
 
 type Panels = Pick<
 	EvolutionSourceOptions,
-	"roster" | "skills" | "history" | "userPlugin" | "spacePlugin"
+	"roster" | "companionPlugin" | "userPlugin" | "spacePlugin"
 >
 
 type OpenPanels = {
@@ -61,10 +62,15 @@ const createPanels = ({ botId, spaceId = null }: OpenPanels) => {
 				id === "chat-1" ? "space-1" : undefined,
 			reload: vi.fn(() => Promise.resolve()),
 		},
-		skills: { getState: () => ({ botId }), reload: vi.fn() },
-		history: { getState: () => ({ botId }), reload: vi.fn() },
+		companionPlugin: {
+			getState: () => ({ scope: botId ? botPlugin(botId) : null }),
+			reload: vi.fn(),
+		},
 		userPlugin: { reload: vi.fn() },
-		spacePlugin: { getState: () => ({ spaceId }), reload: vi.fn() },
+		spacePlugin: {
+			getState: () => ({ scope: spaceId ? spacePlugin(spaceId) : null }),
+			reload: vi.fn(),
+		},
 	}
 	return panels
 }
@@ -78,14 +84,13 @@ const start = (panels: Panels) => {
 }
 
 describe("evolution source", () => {
-	it("re-reads the open companion's skills, history and the roster", () => {
+	it("re-reads the open companion's plugin and the roster", () => {
 		const panels = createPanels({ botId: "bot-1" })
 		const { driver } = start(panels)
 
 		driver.evolve("bot-1", "bot")
 
-		expect(panels.skills.reload).toHaveBeenCalledTimes(1)
-		expect(panels.history.reload).toHaveBeenCalledTimes(1)
+		expect(panels.companionPlugin.reload).toHaveBeenCalledTimes(1)
 		expect(panels.roster.reload).toHaveBeenCalledTimes(1)
 	})
 
@@ -95,8 +100,7 @@ describe("evolution source", () => {
 
 		driver.evolve("bot-1", "bot")
 
-		expect(panels.skills.reload).not.toHaveBeenCalled()
-		expect(panels.history.reload).not.toHaveBeenCalled()
+		expect(panels.companionPlugin.reload).not.toHaveBeenCalled()
 	})
 
 	it("re-reads the person's plugin", () => {
@@ -106,7 +110,7 @@ describe("evolution source", () => {
 		driver.evolve("bot-1", "user")
 
 		expect(panels.userPlugin.reload).toHaveBeenCalledTimes(1)
-		expect(panels.skills.reload).not.toHaveBeenCalled()
+		expect(panels.companionPlugin.reload).not.toHaveBeenCalled()
 	})
 
 	it("re-reads the plugin of the open space", () => {

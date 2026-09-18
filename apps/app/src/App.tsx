@@ -47,9 +47,6 @@ import {
 	toRosterBots,
 	toSettingsValue,
 } from "@/lib/bots/bot-settings"
-import { toSkillDraft, toSkillFiles, toSkillItem } from "@/lib/bots/skill-draft"
-import { useBotHistory } from "@/lib/bots/use-bot-history"
-import { useBotSkills } from "@/lib/bots/use-bot-skills"
 import { useCompanionSettings } from "@/lib/bots/use-companion-settings"
 import { useEvolution } from "@/lib/bots/use-evolution"
 import { useHistoryView } from "@/lib/bots/use-history-view"
@@ -116,6 +113,8 @@ import { onboardingTransport } from "@/lib/onboarding/onboarding-transport"
 import { signInWorldOf } from "@/lib/onboarding/sign-in-controller"
 import { useOnboarding } from "@/lib/onboarding/use-onboarding"
 import { useSignIn } from "@/lib/onboarding/use-sign-in"
+import { toPluginSkills } from "@/lib/plugins/plugin-skills"
+import { usePlugin } from "@/lib/plugins/use-plugin"
 import { createOpenedRoutineController } from "@/lib/routines/opened-routine-controller"
 import { useRunDriver } from "@/lib/routines/use-run-driver"
 import { createMessageLandingController } from "@/lib/search/message-landing-controller"
@@ -129,7 +128,6 @@ import { useSections } from "@/lib/sections/use-sections"
 import { useSidebarActions } from "@/lib/sidebar/use-sidebar-actions"
 import { toSpaceSettingsValue } from "@/lib/spaces/space-settings"
 import { useSpaceEntry } from "@/lib/spaces/use-space-entry"
-import { useSpacePlugin } from "@/lib/spaces/use-space-plugin"
 import { useSpaces } from "@/lib/spaces/use-spaces"
 import { useTheme } from "@/lib/theme/use-theme"
 import { toUpdateBadgeProps } from "@/lib/updater/badge-model"
@@ -137,7 +135,6 @@ import { useUpdater } from "@/lib/updater/use-updater"
 import type { ColorScheme } from "@/lib/user/preferences-contract"
 import { lastBotIn } from "@/lib/user/preferences-mirror"
 import { useUser } from "@/lib/user/use-user"
-import { useUserPlugin } from "@/lib/user/use-user-plugin"
 import {
 	toNotificationChange,
 	toUserSettingsValue,
@@ -192,7 +189,7 @@ export function App() {
 		pin: roster.controller.pin,
 	})
 	const collapsedSections = useCollapsedSections(store)
-	const skills = useBotSkills(store)
+	const companionPlugin = usePlugin(store)
 	const botMcpServers = useMcpServers(store)
 	const spaceMcpServers = useMcpServers(store)
 	const botEnvironment = useEnvironment(store)
@@ -203,12 +200,11 @@ export function App() {
 	const spaceConnections = useConnections(connectionTransport)
 	const userConnections = useConnections(connectionTransport)
 	const applications = useApplications(applicationTransport, store)
-	const history = useBotHistory(store)
 	const catalogue = useModelCatalogue()
 	const user = useUser()
-	const userPlugin = useUserPlugin(store)
+	const userPlugin = usePlugin(store)
 	const spaces = useSpaces(store)
-	const spacePlugin = useSpacePlugin(store)
+	const spacePlugin = usePlugin(store)
 	const preferences = user.state.preferences
 	const onboarding = useOnboarding(onboardingTransport, {
 		homeBotId: () => roster.controller.getState().selectedBotId,
@@ -260,8 +256,7 @@ export function App() {
 	useEvolution({
 		driver,
 		roster: roster.controller,
-		skills: skills.controller,
-		history: history.controller,
+		companionPlugin: companionPlugin.controller,
 		userPlugin: userPlugin.controller,
 		spacePlugin: spacePlugin.controller,
 	})
@@ -394,11 +389,11 @@ export function App() {
 	})
 
 	const botHistory = useHistoryView({
-		...history.state,
+		...companionPlugin.state,
 		isOpen: isEditing,
-		onOpenRun: history.controller.openFiles,
+		onOpenRun: companionPlugin.controller.openFiles,
 		onUndoRun: (oldestCommitId, newestCommitId) => {
-			history.controller.revert(oldestCommitId, newestCommitId)
+			companionPlugin.controller.revert(oldestCommitId, newestCommitId)
 			if (settingsBotId) chat.controller.redescribe(settingsBotId)
 		},
 	})
@@ -416,6 +411,10 @@ export function App() {
 		onOpenRun: userPlugin.controller.openFiles,
 		onUndoRun: userPlugin.controller.revert,
 	})
+
+	const companionSkills = toPluginSkills(companionPlugin)
+	const spaceSkills = toPluginSkills(spacePlugin)
+	const personSkills = toPluginSkills(userPlugin)
 
 	const applicationToOpenOn = (scope: ReopenedScope) =>
 		applicationToOpenIn(scope, settingsApplication)
@@ -525,11 +524,10 @@ export function App() {
 
 	useCompanionSettings({
 		applications: applications.controller,
-		skills: skills.controller,
+		plugin: companionPlugin.controller,
 		servers: botMcpServers.controller,
 		environment: botEnvironment.controller,
 		connections: botConnections.controller,
-		history: history.controller,
 		companionId: settingsBotId,
 		spaceId: selectedSpaceId,
 		isOpen: isEditing,
@@ -1056,28 +1054,9 @@ export function App() {
 							chat.controller.redescribe(settingsBot.id)
 						}
 					}}
-					onSkillChange={(id, draft) =>
-						skills.controller.save(
-							id,
-							toSkillDraft(
-								draft,
-								skills.state.skills.find((skill) => skill.id === id),
-							),
-						)
-					}
-					onSkillCreate={(draft, isPreloaded) =>
-						skills.controller.create(toSkillDraft(draft), isPreloaded)
-					}
-					onSkillDelete={skills.controller.remove}
-					onSkillPreloadedChange={skills.controller.setPreloaded}
 					open={isEditing}
 					seed={settingsBot.id}
-					skillFiles={toSkillFiles(
-						skills.state.skills,
-						skills.state.file,
-						skills.controller,
-					)}
-					skills={skills.state.skills.map(toSkillItem)}
+					{...companionSkills}
 					showDanger={isShowingDanger}
 					value={toSettingsValue(settingsBot)}
 					working={activity.isWorking}
@@ -1150,30 +1129,11 @@ export function App() {
 					onEnvironmentSet={({ name, value }) =>
 						spaceEnvironment.controller.set(name, value)
 					}
-					onSkillChange={(id, draft) =>
-						spacePlugin.controller.saveSkill(
-							id,
-							toSkillDraft(
-								draft,
-								spacePlugin.state.skills.find((skill) => skill.id === id),
-							),
-						)
-					}
-					onSkillCreate={(draft, isPreloaded) =>
-						spacePlugin.controller.createSkill(toSkillDraft(draft), isPreloaded)
-					}
-					onSkillDelete={spacePlugin.controller.removeSkill}
-					onSkillPreloadedChange={spacePlugin.controller.setSkillPreloaded}
 					onValueChange={(value) =>
 						spaces.controller.describe(selectedSpace.id, value)
 					}
 					open={isSpaceEditing}
-					skillFiles={toSkillFiles(
-						spacePlugin.state.skills,
-						spacePlugin.state.file,
-						spacePlugin.controller,
-					)}
-					skills={spacePlugin.state.skills.map(toSkillItem)}
+					{...spaceSkills}
 					value={toSpaceSettingsValue(selectedSpace)}
 				/>
 			) : null}
@@ -1220,27 +1180,8 @@ export function App() {
 						void user.controller.setNotification(notification)
 					}
 				}}
-				onSkillChange={(id, draft) =>
-					userPlugin.controller.saveSkill(
-						id,
-						toSkillDraft(
-							draft,
-							userPlugin.state.skills.find((skill) => skill.id === id),
-						),
-					)
-				}
-				onSkillCreate={(draft, isPreloaded) =>
-					userPlugin.controller.createSkill(toSkillDraft(draft), isPreloaded)
-				}
-				onSkillDelete={userPlugin.controller.removeSkill}
-				onSkillPreloadedChange={userPlugin.controller.setSkillPreloaded}
 				open={user.state.isSettingsOpen}
-				skillFiles={toSkillFiles(
-					userPlugin.state.skills,
-					userPlugin.state.file,
-					userPlugin.controller,
-				)}
-				skills={userPlugin.state.skills.map(toSkillItem)}
+				{...personSkills}
 				value={userSettings}
 			/>
 			<SearchPalette {...search.palette} />
