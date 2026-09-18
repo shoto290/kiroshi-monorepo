@@ -103,6 +103,7 @@ export function createAttachmentsController(
 			return port.send(owner, text, repliedToMessageId)
 		}
 
+		const sentAt = new Date()
 		sending.add(key)
 		let paths: string[]
 		try {
@@ -115,7 +116,11 @@ export function createAttachmentsController(
 		}
 
 		if (
-			!port.send(owner, promptWithAttachments(text, paths), repliedToMessageId)
+			!port.send(
+				owner,
+				promptWithAttachments(text, paths, sentAt),
+				repliedToMessageId,
+			)
 		) {
 			return false
 		}
