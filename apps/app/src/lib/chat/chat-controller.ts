@@ -35,7 +35,6 @@ import {
 } from "./question-message"
 import { ENDING_FOR, ENDING_FOR_OUTCOME, isWorthKeeping } from "./reply-endings"
 import {
-	ASKED_FOR,
 	EVOLVED,
 	type LiveRun,
 	openedRun,
@@ -108,7 +107,6 @@ export type ChatController = {
 	redescribe: (botId: string) => void
 	restart: () => Promise<SessionHandle | null>
 	reopen: (botId: string) => Promise<SessionHandle | null>
-	rotate: () => Promise<SessionHandle | null>
 	loadOlder: () => Promise<void>
 	loadNewer: () => Promise<void>
 	loadLatest: () => Promise<boolean>
@@ -1601,7 +1599,6 @@ export function createChatController(
 			const bot = bots.get(botId)
 			return bot ? reopenFor(bot) : Promise.resolve(null)
 		},
-		rotate: () => onSelected((bot) => rotateFor(bot, ASKED_FOR), null),
 		loadOlder: () => onSelected(loadOlder, undefined),
 		loadNewer: () => onSelected(loadNewer, undefined),
 		loadLatest: () => onSelected(loadLatest, true),

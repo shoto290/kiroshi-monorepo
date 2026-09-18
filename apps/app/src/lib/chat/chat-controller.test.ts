@@ -7,7 +7,6 @@ import { createFakeChatDriver, type FakeChatDriver } from "./fake-driver"
 import type { PostedAnswerHandler, PostedRequest } from "./posted-question"
 import { questionMessageIdOf } from "./question-message"
 import {
-	ASKED_FOR,
 	EVOLVED,
 	NEARING_THE_BOUND,
 	REDESCRIBED,
@@ -2576,23 +2575,6 @@ describe("a run replaced under a conversation that carries on", () => {
 		])
 	})
 
-	it("replaces a run on request without moving anything the reader can see", async () => {
-		const store = withHistory()
-		const opened = vi.spyOn(store, "openRuntimeSession")
-		const { controller } = await bootedHarness({ store })
-		const replaced = runOf(controller)
-		const before = controller.getState()
-
-		await controller.rotate()
-		await vi.runAllTimersAsync()
-
-		expect(reasons(opened, "default")).toEqual([null, ASKED_FOR])
-		expect(runOf(controller).epoch).toBe(replaced.epoch + 1)
-		expect(controller.getState().messages).toEqual(before.messages)
-		expect(controller.getState().hasOlder).toBe(before.hasOlder)
-		expect(controller.getState().errors).toEqual([])
-	})
-
 	it("retires no run while the fold its successor needs is refused", async () => {
 		const store = refusingStoreAt("captureCheckpoint")
 		const opened = vi.spyOn(store, "openRuntimeSession")
@@ -2836,7 +2818,8 @@ describe("a run replaced under a conversation that carries on", () => {
 	it("carries the stored conversation into the first prompt of a cold launch", async () => {
 		const store = withHistory()
 		const first = await bootedHarness({ store })
-		await first.controller.rotate()
+		first.controller.redescribe(BOT)
+		await first.controller.send("still there?")
 		await vi.runAllTimersAsync()
 		first.detach()
 
@@ -2865,18 +2848,20 @@ describe("a run replaced under a conversation that carries on", () => {
 		const spoke = vi.spyOn(second.driver, "submitPrompt")
 		const replaced = runOf(first.controller)
 
-		await first.controller.rotate()
+		first.controller.redescribe(BOT)
+		await first.controller.send("and you?")
 		await vi.runAllTimersAsync()
 		await second.controller.send("and me?")
 		await vi.runAllTimersAsync()
 
-		expect(reasons(opened, "default")).toEqual([null, ASKED_FOR])
+		expect(reasons(opened, "default")).toEqual([null, REDESCRIBED])
 		expect(reasons(opened, "second")).toEqual([null])
 		expect(runOf(first.controller).epoch).toBe(2)
 		expect(runOf(second.controller).epoch).toBe(1)
 		expect(runOf(second.controller).botId).toBe("second")
 		expect(captured.mock.calls.map((call) => [call[1], call[2]])).toEqual([
 			["default", replaced.runtimeSessionId],
+			["default", runOf(first.controller).runtimeSessionId],
 			["second", runOf(second.controller).runtimeSessionId],
 		])
 		expect(told(spoke)).toContain(`stored ${HISTORY}`)
@@ -3546,51 +3531,15 @@ describe("a handover nothing may run twice", () => {
 		harness.detach()
 	})
 
-	it("takes two rotations asked for at once as the one handover they are", async () => {
-		const base = createFakeTranscriptStore()
-		const released = deferred()
-		const { store, hold } = foldingStore(base, released.promise)
-		const opened = vi.spyOn(store, "openRuntimeSession")
-		const watched = watching()
-		const harness = await bootedHarness({
-			store,
-			driver: watchedDriver(watched, () => false),
-		})
-		const replaced = runOf(harness.controller)
-		const before = harness.controller.getState().messages
-
-		hold(true)
-		const first = harness.controller.rotate()
-		await vi.advanceTimersByTimeAsync(0)
-		const second = harness.controller.rotate()
-		await vi.advanceTimersByTimeAsync(0)
-		released.release()
-		const handles = await Promise.all([first, second])
-		await vi.runAllTimersAsync()
-
-		expect(opened).toHaveBeenCalledTimes(2)
-		expect(watched.starts).toHaveLength(2)
-		expect(runOf(harness.controller).epoch).toBe(replaced.epoch + 1)
-		expect(handles[0]).toBe(handles[1])
-		expect(harness.controller.getState().messages).toEqual(before)
-		expect(harness.controller.getState().errors).toEqual([])
-		harness.detach()
-	})
-
 	it("keeps the provider id, the activities and the empty rows out under one handover", async () => {
 		const { store, recorded } = recordingStore(createFakeTranscriptStore())
 		const harness = await bootedHarness({ store })
 		const replaced = runOf(harness.controller)
 
-		await Promise.all([
-			harness.controller.rotate(),
-			harness.controller.rotate(),
-		])
-		await vi.runAllTimersAsync()
-		const winner = runOf(harness.controller)
-
+		harness.controller.redescribe(BOT)
 		vi.spyOn(harness.driver, "submitPrompt").mockResolvedValue()
 		await harness.controller.send("hello")
+		const winner = runOf(harness.controller)
 		harness.driver.pushEvent({ type: "turnChanged", state: "running" })
 		for (const event of [
 			{ type: "sessionReady", sessionId: ANNOUNCED, resumed: false } as const,

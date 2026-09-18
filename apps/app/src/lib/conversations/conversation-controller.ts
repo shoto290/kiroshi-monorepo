@@ -19,7 +19,6 @@ import {
 	selectMessages,
 } from "./transcript-state"
 import {
-	droppedWaiting,
 	emptyQueue,
 	handedOver,
 	openedWave,
@@ -133,7 +132,6 @@ export type ConversationController = {
 	dismissError: (id: string) => void
 	answer: (id: string, answers: QuestionAnswers) => Promise<void>
 	respond: (id: string, decision: PermissionDecision) => Promise<void>
-	stopWaiting: (botId: string) => void
 	stop: () => Promise<void>
 	shutdown: () => Promise<void>
 }
@@ -1079,16 +1077,6 @@ export const createConversationController = (
 		await cancelSpeaker(held)
 	}
 
-	const stopWaiting = (botId: string) => {
-		const next = droppedWaiting(queue, botId)
-		if (next === queue) {
-			return
-		}
-		queue = next
-		completeIdleTurn()
-		sync()
-	}
-
 	const stop = async () => {
 		const running = [...speakers.values()]
 		queue = reopenedFor(queue, [])
@@ -1265,7 +1253,6 @@ export const createConversationController = (
 		dismissError,
 		answer,
 		respond,
-		stopWaiting,
 		stop,
 		shutdown,
 	}
