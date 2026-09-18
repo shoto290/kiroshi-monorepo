@@ -10,6 +10,7 @@ import {
 import type { MessageAuthor } from "@workspace/ui/components/message"
 import { CATALOGUE_APPLICATIONS } from "@workspace/ui/components/plugin-settings/applications.fixtures"
 import { AssistantTurn, TurnGroup } from "@workspace/ui/components/turn"
+import { bots } from "@workspace/ui/lib/i18n-en/bots"
 
 const SENTRY_MARK = CATALOGUE_APPLICATIONS.find(
 	({ id }) => id === "sentry",
@@ -26,11 +27,9 @@ const ANNOUNCEMENT =
 	"Sentry is in now, so I can read the errors behind a release from here."
 
 const RECEIPT: ApplicationCardProps = {
-	name: "sentry",
-	displayName: undefined,
+	name: "Sentry",
 	mark: SENTRY_MARK,
 	description: "Pulls the errors and traces behind a release.",
-	status: "apiKey",
 	footnote: {
 		sentence: "Shoto has Sentry in every conversation.",
 		actionLabel: "Open Settings",
@@ -58,6 +57,13 @@ const LEFT_OUT_KEY: ApplicationInstallNotice = {
 
 const PLACED_BY_THE_FEED =
 	"`apps/app/src/components/thread-screen.tsx:846` places the row in the feed with the install `apps/app/src/components/application-install-row.tsx:42` maps."
+
+const CONNECTION_WORDING = [
+	bots.applications.catalogue.setup.apiKey,
+	bots.applications.catalogue.setup.signIn,
+	bots.applications.catalogue.setup.unavailable,
+	bots.applications.connection.state.connected,
+]
 
 const startEdgeOf = (element: Element) => element.getBoundingClientRect().left
 
@@ -98,6 +104,9 @@ export const Default = meta.story({
 		await expect(getComputedStyle(footnote).borderTopWidth).toBe("1px")
 		await expect(gutter).toBeEmptyDOMElement()
 		await expect(gutter).toHaveAttribute("aria-hidden", "true")
+		for (const wording of CONNECTION_WORDING) {
+			await expect(receipt).not.toHaveTextContent(wording)
+		}
 
 		openSettings.focus()
 		await expect(openSettings.matches(":focus-visible")).toBe(true)

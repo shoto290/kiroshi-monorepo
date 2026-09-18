@@ -3520,6 +3520,8 @@ const rowHolding = (text: string) => {
 	return row
 }
 
+const NYX_SENTRY_RECEIPT = "Nyx has Sentry in every conversation."
+
 describe("ThreadScreen showing the applications installed", () => {
 	let layout: FakeLayout
 
@@ -3543,14 +3545,12 @@ describe("ThreadScreen showing the applications installed", () => {
 		render(room.view())
 		await settle()
 
-		const row = rowHolding("Connected")
+		const row = rowHolding(NYX_SENTRY_RECEIPT)
 		const receipt = receiptIn(row)
 		expect(receipt).not.toBeNull()
 		expect(receipt?.closest('[data-slot="message-bubble"]')).toBeNull()
-		expect(
-			within(row).getByText("Nyx has Sentry in every conversation."),
-		).toBeTruthy()
-		expect(rowIndexOf("Connected")).toBeGreaterThan(rowIndexOf("held"))
+		expect(receipt?.textContent).not.toContain("Connected")
+		expect(rowIndexOf(NYX_SENTRY_RECEIPT)).toBeGreaterThan(rowIndexOf("held"))
 	})
 
 	it("places an install no run precedes before the first run", async () => {
@@ -3558,7 +3558,7 @@ describe("ThreadScreen showing the applications installed", () => {
 		render(room.view())
 		await settle()
 
-		expect(rowIndexOf("Connected")).toBeLessThan(rowIndexOf("held"))
+		expect(rowIndexOf(NYX_SENTRY_RECEIPT)).toBeLessThan(rowIndexOf("held"))
 	})
 
 	it("asks for the key of an install in the settings of its companion", async () => {
@@ -3568,8 +3568,9 @@ describe("ThreadScreen showing the applications installed", () => {
 		render(room.view())
 		await settle()
 
-		const row = rowHolding("Needs an API key")
+		const row = rowHolding(NYX_SENTRY_RECEIPT)
 		expect(receiptIn(row)).not.toBeNull()
+		expect(receiptIn(row)?.textContent).not.toContain("Needs an API key")
 		fireEvent.click(within(row).getByRole("button", { name: OPEN_SETTINGS }))
 
 		expect(room.onOpen).toHaveBeenCalledWith(
@@ -3600,15 +3601,9 @@ describe("ThreadScreen showing the applications installed", () => {
 		render(room.view())
 		await settle()
 
-		const spaceRow = rowHolding("linear")
-		const userRow = rowHolding("notion")
-		expect(within(spaceRow).getByText("Signs you in")).toBeTruthy()
-		expect(
-			within(spaceRow).getByText("Every companion in Personal has Linear."),
-		).toBeTruthy()
-		expect(
-			within(userRow).getByText("You have Notion in every conversation."),
-		).toBeTruthy()
+		const spaceRow = rowHolding("Every companion in Personal has Linear.")
+		const userRow = rowHolding("You have Notion in every conversation.")
+		expect(within(spaceRow).queryByText("Signs you in")).toBeNull()
 		fireEvent.click(
 			within(spaceRow).getByRole("button", { name: OPEN_SETTINGS }),
 		)
@@ -3692,14 +3687,14 @@ describe("ThreadScreen showing the applications installed", () => {
 		await settle()
 
 		expect(rowIndexOf("Sentry was left out")).toBe(-1)
-		expect(rowIndexOf("Needs an API key")).not.toBe(-1)
+		expect(rowIndexOf("Vela has Sentry in every conversation.")).not.toBe(-1)
 	})
 
 	it("shows an install announced for the open conversation without a reload", async () => {
 		const room = installRoomOf([])
 		render(room.view())
 		await settle()
-		expect(rowIndexOf("Connected")).toBe(-1)
+		expect(rowIndexOf(NYX_SENTRY_RECEIPT)).toBe(-1)
 
 		room.port.recorded = [installOf()]
 		act(() =>
@@ -3714,7 +3709,7 @@ describe("ThreadScreen showing the applications installed", () => {
 		)
 		await settle()
 
-		expect(rowIndexOf("Connected")).toBeGreaterThan(rowIndexOf("held"))
+		expect(rowIndexOf(NYX_SENTRY_RECEIPT)).toBeGreaterThan(rowIndexOf("held"))
 	})
 
 	it("shows the same rows at the same anchors when the conversation is opened again", async () => {
@@ -3728,7 +3723,7 @@ describe("ThreadScreen showing the applications installed", () => {
 		render(room.view())
 		await settle()
 
-		expect(rowIndexOf("Connected")).toBeLessThan(rowIndexOf("held"))
+		expect(rowIndexOf(NYX_SENTRY_RECEIPT)).toBeLessThan(rowIndexOf("held"))
 	})
 
 	it("renders the thread without install rows and raises a notice when the installs cannot be read", async () => {
@@ -3740,7 +3735,7 @@ describe("ThreadScreen showing the applications installed", () => {
 		render(room.view())
 		await settle()
 
-		expect(rowIndexOf("Connected")).toBe(-1)
+		expect(rowIndexOf(NYX_SENTRY_RECEIPT)).toBe(-1)
 		expect(rowIndexOf("held")).not.toBe(-1)
 		expect(raisedNotices(UNREADABLE_INSTALLS_TITLE)).toHaveLength(1)
 	})

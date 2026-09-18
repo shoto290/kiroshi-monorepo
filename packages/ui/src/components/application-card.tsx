@@ -1,50 +1,7 @@
 "use client"
 
-import { useTranslation } from "react-i18next"
-
-import { MCP_CONNECTION_DOT } from "@workspace/ui/components/bot-settings-dialog/mcp-connection"
-import { type Icon, Icons } from "@workspace/ui/components/icons"
 import { ApplicationMark } from "@workspace/ui/components/plugin-settings/application-mark"
-import type { ApplicationSetup } from "@workspace/ui/components/plugin-settings/applications-catalogue"
 import { cn } from "@workspace/ui/lib/utils"
-
-type ApplicationCardSetup = Exclude<ApplicationSetup, "none">
-
-type ApplicationCardStatus = ApplicationCardSetup | "connected"
-
-type ApplicationStatusLook = {
-	label:
-		| `applications.catalogue.setup.${ApplicationCardSetup}`
-		| "applications.connection.state.connected"
-	glyph?: Icon
-	tone: string
-	labelTone: string
-}
-
-const APPLICATION_STATUS = {
-	apiKey: {
-		label: "applications.catalogue.setup.apiKey",
-		glyph: Icons.Key,
-		tone: "text-muted-foreground",
-		labelTone: "text-muted-foreground",
-	},
-	signIn: {
-		label: "applications.catalogue.setup.signIn",
-		tone: MCP_CONNECTION_DOT.needsAuthorization,
-		labelTone: "text-muted-foreground",
-	},
-	unavailable: {
-		label: "applications.catalogue.setup.unavailable",
-		glyph: Icons.Blocked,
-		tone: "text-destructive",
-		labelTone: "text-muted-foreground",
-	},
-	connected: {
-		label: "applications.connection.state.connected",
-		tone: "bg-state-connected",
-		labelTone: "text-foreground",
-	},
-} as const satisfies Record<ApplicationCardStatus, ApplicationStatusLook>
 
 type ApplicationCardFootnote = {
 	sentence: string
@@ -54,10 +11,8 @@ type ApplicationCardFootnote = {
 
 type ApplicationCardProps = {
 	name: string
-	displayName?: string
 	mark?: string
-	description: string
-	status: ApplicationCardStatus
+	description?: string
 	footnote?: ApplicationCardFootnote
 }
 
@@ -67,60 +22,33 @@ type ApplicationCardHeaderProps = Omit<ApplicationCardProps, "footnote"> & {
 
 const ApplicationCardHeader = ({
 	name,
-	displayName,
 	mark,
 	description,
-	status,
 	className,
-}: ApplicationCardHeaderProps) => {
-	const { t } = useTranslation("bots")
-	const look: ApplicationStatusLook = APPLICATION_STATUS[status]
-	const Glyph = look.glyph
-
-	return (
-		<div
-			className={cn("flex min-w-0 items-center gap-2.5 px-3 py-2.5", className)}
-			data-slot="application-card"
-		>
-			<ApplicationMark mark={mark} size="card" />
-			<div className="flex min-w-0 flex-1 flex-wrap items-center gap-x-2.5 gap-y-1">
-				<div className="flex min-w-0 flex-1 basis-32 flex-col">
-					<span
-						className={cn(
-							"truncate font-medium text-foreground leading-5",
-							displayName ? "text-sm" : "font-mono text-compact",
-						)}
-						data-slot="application-card-name"
-					>
-						{displayName ?? name}
-					</span>
-					<span className="wrap-break-word text-muted-foreground text-xs leading-4">
-						{description}
-					</span>
-				</div>
+}: ApplicationCardHeaderProps) => (
+	<div
+		className={cn("flex min-w-0 items-center gap-2.5 px-3 py-2.5", className)}
+		data-slot="application-card"
+	>
+		<ApplicationMark mark={mark} size="card" />
+		<div className="flex min-w-0 flex-1 flex-col">
+			<span
+				className="truncate font-medium text-foreground text-sm leading-5"
+				data-slot="application-card-name"
+			>
+				{name}
+			</span>
+			{description ? (
 				<span
-					className="flex min-w-0 items-center gap-1.25 text-xs leading-4"
-					data-slot="application-card-status"
+					className="wrap-break-word text-muted-foreground text-xs leading-4"
+					data-slot="application-card-description"
 				>
-					{Glyph ? (
-						<Glyph
-							aria-hidden="true"
-							className={cn("size-3.25 shrink-0", look.tone)}
-						/>
-					) : (
-						<span
-							aria-hidden="true"
-							className={cn("size-2 shrink-0 rounded-full", look.tone)}
-						/>
-					)}
-					<span className={cn("wrap-break-word", look.labelTone)}>
-						{t(look.label)}
-					</span>
+					{description}
 				</span>
-			</div>
+			) : null}
 		</div>
-	)
-}
+	</div>
+)
 
 const ApplicationCard = ({ footnote, ...application }: ApplicationCardProps) =>
 	footnote ? (
@@ -153,5 +81,4 @@ export {
 	ApplicationCard,
 	type ApplicationCardFootnote,
 	type ApplicationCardProps,
-	type ApplicationCardStatus,
 }

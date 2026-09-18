@@ -41,6 +41,7 @@ const MIGRATIONS: &[Migration] = &[
 	Migration { version: 32, statements: MISSION_CHECKS_FAILED },
 	Migration { version: 33, statements: CONVERSATION_ARRIVALS },
 	Migration { version: 34, statements: APPLICATION_INSTALLS },
+	Migration { version: 35, statements: APPLICATION_INSTALL_PRESENTATION },
 ];
 
 const CONVERSATIONS_SCHEMA: &str = "
@@ -778,6 +779,11 @@ CREATE INDEX application_installs_in_order
 	ON application_installs (conversation_id, created_at, id);
 ";
 
+const APPLICATION_INSTALL_PRESENTATION: &str = "
+ALTER TABLE application_installs ADD COLUMN logo_url TEXT;
+ALTER TABLE application_installs ADD COLUMN description TEXT;
+";
+
 pub fn latest_version() -> u32 {
 	MIGRATIONS.last().map_or(0, |migration| migration.version)
 }
@@ -867,6 +873,7 @@ mod tests {
 	const SOLO_THREAD_PER_SPACE_STEP: u32 = 31;
 	const MISSION_CHECKS_FAILED_STEP: u32 = 32;
 	const APPLICATION_INSTALLS_STEP: u32 = 34;
+	const APPLICATION_INSTALL_PRESENTATION_STEP: u32 = 35;
 
 	const A_LIVE_SESSION: &str = "INSERT INTO runtime_sessions
 		(id, conversation_id, bot_id, provider_session_id, seq, status, started_at)
@@ -1813,6 +1820,50 @@ mod tests {
 				.expect("the conversation of the older build reads back"),
 			"Chat",
 			"the step lost a conversation written before it"
+		);
+		assert_eq!(version(&connection).expect("version"), latest_version());
+
+		drop(connection);
+		fs::remove_dir_all(&dir).expect("cleanup");
+	}
+
+	#[test]
+	fn an_install_written_before_its_presentation_was_stored_keeps_its_name_and_logo() {
+		let dir = temp_dir();
+		let mut connection = open(&dir.join(FILE_NAME)).expect("open");
+		apply_each(&mut connection, shipped_before(APPLICATION_INSTALL_PRESENTATION_STEP))
+			.expect("the build that stored no presentation installs");
+		write(
+			&connection,
+			"INSERT INTO conversations (id, kind, title, created_at, updated_at)
+				VALUES ('c1', 'main', 'Chat', 1, 1);",
+		)
+		.expect("a conversation of the older build");
+		write(
+			&connection,
+			"INSERT INTO application_installs (id, conversation_id, application, title, logo,
+				scope, install_kind, last_message_seq, created_at)
+				VALUES ('i1', 'c1', 'superset', 'Superset', '<svg/>', 'user', 'oauth', 0, 1)",
+		)
+		.expect("an install of the older build");
+
+		apply(&mut connection).expect("the file comes up to this build");
+
+		assert_eq!(
+			connection
+				.query_row(
+					"SELECT title, logo, logo_url, description FROM application_installs
+						WHERE id = 'i1'",
+					[],
+					|row| Ok((
+						row.get::<_, String>(0)?,
+						row.get::<_, Option<String>>(1)?,
+						row.get::<_, Option<String>>(2)?,
+						row.get::<_, Option<String>>(3)?,
+					)),
+				)
+				.expect("the install of the older build reads back"),
+			("Superset".to_owned(), Some("<svg/>".to_owned()), None, None),
 		);
 		assert_eq!(version(&connection).expect("version"), latest_version());
 

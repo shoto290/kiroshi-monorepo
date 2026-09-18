@@ -1,21 +1,11 @@
-import type {
-	ApplicationCardProps,
-	ApplicationCardStatus,
-} from "@workspace/ui/components/application-card"
+import type { ApplicationCardProps } from "@workspace/ui/components/application-card"
 import { ApplicationInstallTurn } from "@workspace/ui/components/application-install-turn"
 import { type ChatCopy, useChatCopy } from "@workspace/ui/hooks/use-chat-copy"
 
 import type {
 	Application,
 	ApplicationInstall,
-	InstallCase,
 } from "@/lib/applications/application-port"
-
-const RECEIPT_STATUS = {
-	nothing: "connected",
-	key: "apiKey",
-	oauth: "signIn",
-} as const satisfies Record<InstallCase["kind"], ApplicationCardStatus>
 
 type ApplicationInstallRowProps = {
 	install: ApplicationInstall
@@ -49,16 +39,14 @@ export const ApplicationInstallRow = ({
 }: ApplicationInstallRowProps) => {
 	const t = useChatCopy()
 	const receipt: ApplicationCardProps = {
-		description: curated?.description ?? "",
-		displayName: curated ? install.title : undefined,
+		description: install.description ?? curated?.description,
 		footnote: {
 			sentence: receiptSentenceOf(t, install, destinationName),
 			actionLabel: t("applicationInstall.openSettings"),
 			onAction: onOpenSettings,
 		},
-		mark: install.logo ?? curated?.logo,
-		name: install.application,
-		status: RECEIPT_STATUS[install.install.kind],
+		mark: install.logo ?? install.logoUrl ?? curated?.logo ?? curated?.logoUrl,
+		name: install.title,
 	}
 
 	return (

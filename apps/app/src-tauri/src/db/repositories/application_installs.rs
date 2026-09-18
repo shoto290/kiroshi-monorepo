@@ -11,17 +11,17 @@ use crate::db::{Access, DatabaseError};
 
 const MAX_INSTALLS_PER_READ: u32 = 200;
 
-const INSTALL_COLUMNS: &str = "SELECT id, conversation_id, application, title, logo, scope,
-	destination_id, install_kind, secret_name, last_message_seq, created_at
+const INSTALL_COLUMNS: &str = "SELECT id, conversation_id, application, title, logo, logo_url,
+	description, scope, destination_id, install_kind, secret_name, last_message_seq, created_at
 	FROM application_installs";
 
 const INSERT_INSTALL: &str = "INSERT INTO application_installs
-	(id, conversation_id, application, title, logo, scope, destination_id, install_kind,
-		secret_name, last_message_seq, created_at)
-	VALUES (?1, ?2, ?3, ?4, ?5, ?6, ?7, ?8, ?9,
-		(SELECT COALESCE(MAX(seq), 0) FROM messages WHERE conversation_id = ?2), ?10)
-	RETURNING id, conversation_id, application, title, logo, scope, destination_id,
-		install_kind, secret_name, last_message_seq, created_at";
+	(id, conversation_id, application, title, logo, logo_url, description, scope,
+		destination_id, install_kind, secret_name, last_message_seq, created_at)
+	VALUES (?1, ?2, ?3, ?4, ?5, ?6, ?7, ?8, ?9, ?10, ?11,
+		(SELECT COALESCE(MAX(seq), 0) FROM messages WHERE conversation_id = ?2), ?12)
+	RETURNING id, conversation_id, application, title, logo, logo_url, description, scope,
+		destination_id, install_kind, secret_name, last_message_seq, created_at";
 
 const NOTHING: &str = "nothing";
 const KEY: &str = "key";
@@ -71,6 +71,8 @@ impl ApplicationInstallsRepository {
 						draft.application,
 						draft.title,
 						draft.logo,
+						draft.logo_url,
+						draft.description,
 						draft.scope,
 						draft.destination_id,
 						kind_of(&draft.install),
@@ -138,6 +140,8 @@ fn install(row: &Row<'_>) -> rusqlite::Result<ApplicationInstall> {
 		application: row.get("application")?,
 		title: row.get("title")?,
 		logo: row.get("logo")?,
+		logo_url: row.get("logo_url")?,
+		description: row.get("description")?,
 		scope: row.get("scope")?,
 		destination_id: row.get("destination_id")?,
 		install: case(&row.get::<_, String>("install_kind")?, row.get("secret_name")?)?,
@@ -174,7 +178,9 @@ mod tests {
 			conversation_id: "c1".to_owned(),
 			application: application.to_owned(),
 			title: application.to_owned(),
-			logo: Some("https://logos.test/superset.png".to_owned()),
+			logo: None,
+			logo_url: Some("https://logos.test/superset.png".to_owned()),
+			description: Some("Run workspaces.".to_owned()),
 			scope: Destination::Space,
 			destination_id: Some("personal".to_owned()),
 			install,
@@ -229,6 +235,9 @@ mod tests {
 
 		assert_eq!(recorded.conversation_id, "c1");
 		assert_eq!(recorded.last_message_seq, 2);
+		assert_eq!(recorded.logo, None);
+		assert_eq!(recorded.logo_url.as_deref(), Some("https://logos.test/superset.png"));
+		assert_eq!(recorded.description.as_deref(), Some("Run workspaces."));
 		assert_eq!(recorded.scope, Destination::Space);
 		assert_eq!(recorded.destination_id.as_deref(), Some("personal"));
 		assert_eq!(

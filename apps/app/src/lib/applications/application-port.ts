@@ -61,6 +61,8 @@ export type ApplicationInstall = {
 	application: string
 	title: string
 	logo?: string
+	logoUrl?: string
+	description?: string
 	scope: ApplicationDestination
 	destinationId?: string
 	install: InstallCase
@@ -74,6 +76,8 @@ export type ApplicationInstalled = {
 	application: string
 	title: string
 	logo?: string
+	logoUrl?: string
+	description?: string
 	scope: ApplicationDestination
 	destinationId?: string
 	install: InstallCase
