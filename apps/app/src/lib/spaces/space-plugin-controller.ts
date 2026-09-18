@@ -63,8 +63,8 @@ export const createSpacePluginController = (
 
 	const read = async (spaceId: string) => {
 		const [skills, commits] = await Promise.all([
-			store.spacePluginSkills(spaceId),
-			store.spacePluginHistory(spaceId),
+			store.pluginSkills({ kind: "space", id: spaceId }),
+			store.pluginHistory({ kind: "space", id: spaceId }),
 		])
 		set({ spaceId, skills, commits, hasFailedToLoad: false })
 	}
@@ -96,7 +96,7 @@ export const createSpacePluginController = (
 
 	const readHistory = async (spaceId: string) =>
 		set({
-			commits: await store.spacePluginHistory(spaceId),
+			commits: await store.pluginHistory({ kind: "space", id: spaceId }),
 			hasFailedToLoad: false,
 		})
 
@@ -104,18 +104,35 @@ export const createSpacePluginController = (
 
 	const readFiles = createHistoryFilesReader(
 		(oldestCommitId, newestCommitId) =>
-			store.spacePluginHistoryDiff(openSpace(), oldestCommitId, newestCommitId),
+			store.pluginHistoryDiff(
+				{ kind: "space", id: openSpace() },
+				oldestCommitId,
+				newestCommitId,
+			),
 		{ run: (task) => run(() => task()), getState: () => state, setState: set },
 	)
 
 	const files = createSkillFilesController(
 		{
 			read: (skillId, path) =>
-				store.spacePluginSkillFile(openSpace(), skillId, path),
+				store.pluginSkillFile(
+					{ kind: "space", id: openSpace() },
+					skillId,
+					path,
+				),
 			write: (skillId, path, text) =>
-				store.writeSpacePluginSkillFile(openSpace(), skillId, path, text),
+				store.writePluginSkillFile(
+					{ kind: "space", id: openSpace() },
+					skillId,
+					path,
+					text,
+				),
 			remove: (skillId, path) =>
-				store.deleteSpacePluginSkillFile(openSpace(), skillId, path),
+				store.deletePluginSkillFile(
+					{ kind: "space", id: openSpace() },
+					skillId,
+					path,
+				),
 		},
 		{
 			run: (task) => run(() => task()),
@@ -144,9 +161,16 @@ export const createSpacePluginController = (
 
 		createSkill: (draft: BotSkillDraft, isPreloaded: boolean) =>
 			run(async (spaceId) => {
-				const created = await store.createSpacePluginSkill(spaceId, draft)
+				const created = await store.createPluginSkill(
+					{ kind: "space", id: spaceId },
+					draft,
+				)
 				const skill = isPreloaded
-					? await store.setSpacePluginSkillPreloaded(spaceId, created.id, true)
+					? await store.setPluginSkillPreloaded(
+							{ kind: "space", id: spaceId },
+							created.id,
+							true,
+						)
 					: created
 				set({ skills: [...state.skills, skill] })
 				await readHistory(spaceId)
@@ -154,8 +178,8 @@ export const createSpacePluginController = (
 
 		saveSkill: (skillId: string, draft: BotSkillDraft) =>
 			run(async (spaceId) => {
-				const saved = await store.updateSpacePluginSkill(
-					spaceId,
+				const saved = await store.updatePluginSkill(
+					{ kind: "space", id: spaceId },
 					skillId,
 					draft,
 				)
@@ -169,8 +193,8 @@ export const createSpacePluginController = (
 			run(async (spaceId) => {
 				applySkill(
 					skillId,
-					await store.setSpacePluginSkillPreloaded(
-						spaceId,
+					await store.setPluginSkillPreloaded(
+						{ kind: "space", id: spaceId },
 						skillId,
 						isPreloaded,
 					),
@@ -181,7 +205,7 @@ export const createSpacePluginController = (
 
 		removeSkill: (skillId: string) =>
 			run(async (spaceId) => {
-				await store.deleteSpacePluginSkill(spaceId, skillId)
+				await store.deletePluginSkill({ kind: "space", id: spaceId }, skillId)
 				set({ skills: state.skills.filter((skill) => skill.id !== skillId) })
 				await readHistory(spaceId)
 			}),
@@ -195,13 +219,15 @@ export const createSpacePluginController = (
 		revert: (oldestCommitId: string, newestCommitId: string) =>
 			run(async (spaceId) => {
 				set({
-					commits: await store.revertSpacePlugin(
-						spaceId,
+					commits: await store.revertPlugin(
+						{ kind: "space", id: spaceId },
 						oldestCommitId,
 						newestCommitId,
 					),
 				})
-				set({ skills: await store.spacePluginSkills(spaceId) })
+				set({
+					skills: await store.pluginSkills({ kind: "space", id: spaceId }),
+				})
 			}),
 	}
 }

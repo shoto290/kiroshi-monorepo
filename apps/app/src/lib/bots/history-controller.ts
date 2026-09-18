@@ -57,7 +57,7 @@ export const createHistoryController = (
 
 	const read = async (botId: string) =>
 		applyTo(botId, {
-			commits: await store.botHistory(botId),
+			commits: await store.pluginHistory({ kind: "bot", id: botId }),
 			hasFailedToLoad: false,
 		})
 
@@ -79,7 +79,11 @@ export const createHistoryController = (
 
 	const readFiles = createHistoryFilesReader(
 		(oldestCommitId, newestCommitId) =>
-			store.botHistoryDiff(state.botId ?? "", oldestCommitId, newestCommitId),
+			store.pluginHistoryDiff(
+				{ kind: "bot", id: state.botId ?? "" },
+				oldestCommitId,
+				newestCommitId,
+			),
 		{
 			run: (task) => onOpenBot(task),
 			getState: () => state,
@@ -118,7 +122,11 @@ export const createHistoryController = (
 		revert: (oldestCommitId: string, newestCommitId: string) =>
 			onOpenBot(async (botId) =>
 				applyTo(botId, {
-					commits: await store.revertBot(botId, oldestCommitId, newestCommitId),
+					commits: await store.revertPlugin(
+						{ kind: "bot", id: botId },
+						oldestCommitId,
+						newestCommitId,
+					),
 				}),
 			),
 	}

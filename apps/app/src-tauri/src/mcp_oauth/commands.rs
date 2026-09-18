@@ -481,10 +481,10 @@ mod tests {
 		bundles::user::lay_down(&path).expect("the plugin is laid down");
 		for name in ["clock", "granola"] {
 			let config = serde_json::json!({ "command": name });
-			bundles::user::set_mcp_server(&path, name, &config, None)
+			bundles::plugin::set_mcp_server(&path, name, &config, None)
 				.expect("the server lands");
 		}
-		bundles::user::set_mcp_server(
+		bundles::plugin::set_mcp_server(
 			&path,
 			"notion",
 			&serde_json::json!({ "url": "https://mcp.notion.test/mcp" }),
@@ -541,7 +541,7 @@ mod tests {
 			("clock", serde_json::json!({ "command": "clock" })),
 		];
 		for (name, config) in &declared {
-			bundles::user::set_mcp_server(&path, name, config, None).expect("the server lands");
+			bundles::plugin::set_mcp_server(&path, name, config, None).expect("the server lands");
 		}
 		let asked = [
 			("paper", "http://127.0.0.1:29979/mcp", AuthorizationWithheld::LoopbackAddress),

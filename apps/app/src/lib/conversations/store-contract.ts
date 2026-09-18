@@ -144,6 +144,11 @@ export type EnvOwner =
 	| { kind: "space"; id: string }
 	| { kind: "bot"; id: string; spaceId: string }
 
+export type PluginScope =
+	| { kind: "user" }
+	| { kind: "space"; id: string }
+	| { kind: "bot"; id: string }
+
 export type EnvScope =
 	| EnvOwner
 	| { kind: "server"; name: string; owner: EnvOwner }

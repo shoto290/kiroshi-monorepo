@@ -8,6 +8,7 @@ import type {
 	NewAssistantMessage,
 	NewTurn,
 	NewUserMessage,
+	PluginScope,
 	TranscriptStoreError,
 } from "./store-contract"
 import { arrivalsTransport, conversationStore } from "./store-transport"
@@ -87,6 +88,12 @@ const SKILL_DRAFT: BotSkillDraft = {
 const SERVER = { command: "atlas-mcp", args: ["--stdio"] }
 
 const BOT_SCOPE: EnvScope = { kind: "bot", id: "b-1", spaceId: "s-1" }
+
+const BOT_PLUGIN: PluginScope = { kind: "bot", id: "b-1" }
+
+const SPACE_PLUGIN: PluginScope = { kind: "space", id: "s-1" }
+
+const USER_PLUGIN: PluginScope = { kind: "user" }
 
 const WRITES: WriteCase[] = [
 	{
@@ -298,82 +305,113 @@ const WRITES: WriteCase[] = [
 		call: ["conversation_delete_bot", { id: "b-1" }],
 	},
 	{
-		member: "botSkills",
-		write: () => conversationStore.botSkills("b-1"),
-		call: ["conversation_bot_skills", { botId: "b-1" }],
+		member: "pluginSkills",
+		write: () => conversationStore.pluginSkills(BOT_PLUGIN),
+		call: ["plugin_skills", { scope: BOT_PLUGIN }],
 	},
 	{
-		member: "createBotSkill",
-		write: () => conversationStore.createBotSkill("b-1", SKILL_DRAFT),
+		member: "createPluginSkill",
+		write: () => conversationStore.createPluginSkill(SPACE_PLUGIN, SKILL_DRAFT),
+		call: ["plugin_create_skill", { scope: SPACE_PLUGIN, draft: SKILL_DRAFT }],
+	},
+	{
+		member: "updatePluginSkill",
+		write: () =>
+			conversationStore.updatePluginSkill(USER_PLUGIN, "baking", SKILL_DRAFT),
 		call: [
-			"conversation_create_bot_skill",
-			{ botId: "b-1", draft: SKILL_DRAFT },
+			"plugin_update_skill",
+			{ scope: USER_PLUGIN, skillId: "baking", draft: SKILL_DRAFT },
 		],
 	},
 	{
-		member: "updateBotSkill",
-		write: () => conversationStore.updateBotSkill("b-1", "baking", SKILL_DRAFT),
+		member: "setPluginSkillPreloaded",
+		write: () =>
+			conversationStore.setPluginSkillPreloaded(BOT_PLUGIN, "baking", true),
 		call: [
-			"conversation_update_bot_skill",
-			{ botId: "b-1", skillId: "baking", draft: SKILL_DRAFT },
+			"plugin_set_skill_preloaded",
+			{ scope: BOT_PLUGIN, skillId: "baking", isPreloaded: true },
 		],
 	},
 	{
-		member: "setBotSkillPreloaded",
-		write: () => conversationStore.setBotSkillPreloaded("b-1", "baking", true),
+		member: "deletePluginSkill",
+		write: () => conversationStore.deletePluginSkill(BOT_PLUGIN, "baking"),
+		call: ["plugin_delete_skill", { scope: BOT_PLUGIN, skillId: "baking" }],
+	},
+	{
+		member: "pluginSkillFile",
+		write: () =>
+			conversationStore.pluginSkillFile(BOT_PLUGIN, "baking", "notes.md"),
 		call: [
-			"conversation_set_bot_skill_preloaded",
-			{ botId: "b-1", skillId: "baking", isPreloaded: true },
+			"plugin_skill_file",
+			{ scope: BOT_PLUGIN, skillId: "baking", path: "notes.md" },
 		],
 	},
 	{
-		member: "deleteBotSkill",
-		write: () => conversationStore.deleteBotSkill("b-1", "baking"),
+		member: "writePluginSkillFile",
+		write: () =>
+			conversationStore.writePluginSkillFile(
+				BOT_PLUGIN,
+				"baking",
+				"notes.md",
+				"One line",
+			),
 		call: [
-			"conversation_delete_bot_skill",
-			{ botId: "b-1", skillId: "baking" },
+			"plugin_write_skill_file",
+			{
+				scope: BOT_PLUGIN,
+				skillId: "baking",
+				path: "notes.md",
+				text: "One line",
+			},
 		],
 	},
 	{
-		member: "botMcpServers",
-		write: () => conversationStore.botMcpServers("b-1"),
-		call: ["conversation_bot_mcp_servers", { botId: "b-1" }],
-	},
-	{
-		member: "setBotMcpServer",
-		write: () => conversationStore.setBotMcpServer("b-1", "atlas", SERVER),
+		member: "deletePluginSkillFile",
+		write: () =>
+			conversationStore.deletePluginSkillFile(BOT_PLUGIN, "baking", "notes.md"),
 		call: [
-			"conversation_set_bot_mcp_server",
-			{ botId: "b-1", name: "atlas", config: SERVER },
+			"plugin_delete_skill_file",
+			{ scope: BOT_PLUGIN, skillId: "baking", path: "notes.md" },
 		],
 	},
 	{
-		member: "deleteBotMcpServer",
-		write: () => conversationStore.deleteBotMcpServer("b-1", "atlas"),
+		member: "pluginMcpServers",
+		write: () => conversationStore.pluginMcpServers(SPACE_PLUGIN),
+		call: ["plugin_mcp_servers", { scope: SPACE_PLUGIN }],
+	},
+	{
+		member: "setPluginMcpServer",
+		write: () =>
+			conversationStore.setPluginMcpServer(BOT_PLUGIN, "atlas", SERVER),
 		call: [
-			"conversation_delete_bot_mcp_server",
-			{ botId: "b-1", name: "atlas" },
+			"plugin_set_mcp_server",
+			{ scope: BOT_PLUGIN, name: "atlas", config: SERVER },
 		],
 	},
 	{
-		member: "spaceMcpServers",
-		write: () => conversationStore.spaceMcpServers("s-1"),
-		call: ["conversation_space_mcp_servers", { spaceId: "s-1" }],
+		member: "deletePluginMcpServer",
+		write: () => conversationStore.deletePluginMcpServer(USER_PLUGIN, "atlas"),
+		call: ["plugin_delete_mcp_server", { scope: USER_PLUGIN, name: "atlas" }],
 	},
 	{
-		member: "setSpaceMcpServer",
-		write: () => conversationStore.setSpaceMcpServer("s-1", "atlas", SERVER),
+		member: "pluginHistory",
+		write: () => conversationStore.pluginHistory(BOT_PLUGIN),
+		call: ["plugin_history", { scope: BOT_PLUGIN }],
+	},
+	{
+		member: "pluginHistoryDiff",
+		write: () => conversationStore.pluginHistoryDiff(BOT_PLUGIN, "c-1", "c-2"),
 		call: [
-			"conversation_set_space_mcp_server",
-			{ spaceId: "s-1", name: "atlas", config: SERVER },
+			"plugin_history_diff",
+			{ scope: BOT_PLUGIN, oldestCommitId: "c-1", newestCommitId: "c-2" },
 		],
 	},
 	{
-		member: "deleteSpaceMcpServer",
-		write: () => conversationStore.deleteSpaceMcpServer("s-1", "atlas"),
+		member: "revertPlugin",
+		write: () => conversationStore.revertPlugin(SPACE_PLUGIN, "c-1", "c-2"),
 		call: [
-			"conversation_delete_space_mcp_server",
-			{ spaceId: "s-1", name: "atlas" },
+			"plugin_revert",
+			{ scope: SPACE_PLUGIN, oldestCommitId: "c-1", newestCommitId: "c-2" },
 		],
 	},
 	{

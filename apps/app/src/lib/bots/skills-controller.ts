@@ -57,7 +57,7 @@ export const createSkillsController = (
 	}
 
 	const read = async (botId: string) =>
-		applyTo(botId, await store.botSkills(botId))
+		applyTo(botId, await store.pluginSkills({ kind: "bot", id: botId }))
 
 	const reload = () => {
 		const botId = state.botId
@@ -84,11 +84,21 @@ export const createSkillsController = (
 
 	const files = createSkillFilesController(
 		{
-			read: (skillId, path) => store.botSkillFile(openBot(), skillId, path),
+			read: (skillId, path) =>
+				store.pluginSkillFile({ kind: "bot", id: openBot() }, skillId, path),
 			write: (skillId, path, text) =>
-				store.writeBotSkillFile(openBot(), skillId, path, text),
+				store.writePluginSkillFile(
+					{ kind: "bot", id: openBot() },
+					skillId,
+					path,
+					text,
+				),
 			remove: (skillId, path) =>
-				store.deleteBotSkillFile(openBot(), skillId, path),
+				store.deletePluginSkillFile(
+					{ kind: "bot", id: openBot() },
+					skillId,
+					path,
+				),
 		},
 		{
 			run: (task) => onOpenBot(() => task()),
@@ -119,16 +129,27 @@ export const createSkillsController = (
 
 		create: (draft: BotSkillDraft, isPreloaded: boolean) =>
 			onOpenBot(async (botId) => {
-				const created = await store.createBotSkill(botId, draft)
+				const created = await store.createPluginSkill(
+					{ kind: "bot", id: botId },
+					draft,
+				)
 				const skill = isPreloaded
-					? await store.setBotSkillPreloaded(botId, created.id, true)
+					? await store.setPluginSkillPreloaded(
+							{ kind: "bot", id: botId },
+							created.id,
+							true,
+						)
 					: created
 				applyTo(botId, [...state.skills, skill])
 			}),
 
 		save: (skillId: string, draft: BotSkillDraft) =>
 			onOpenBot(async (botId) => {
-				const saved = await store.updateBotSkill(botId, skillId, draft)
+				const saved = await store.updatePluginSkill(
+					{ kind: "bot", id: botId },
+					skillId,
+					draft,
+				)
 				applySkill(skillId, saved)
 				files.carryFile(skillId, saved.id)
 			}),
@@ -138,14 +159,18 @@ export const createSkillsController = (
 			onOpenBot(async (botId) =>
 				applySkill(
 					skillId,
-					await store.setBotSkillPreloaded(botId, skillId, isPreloaded),
+					await store.setPluginSkillPreloaded(
+						{ kind: "bot", id: botId },
+						skillId,
+						isPreloaded,
+					),
 				),
 			)
 		},
 
 		remove: (skillId: string) =>
 			onOpenBot(async (botId) => {
-				await store.deleteBotSkill(botId, skillId)
+				await store.deletePluginSkill({ kind: "bot", id: botId }, skillId)
 				applyTo(
 					botId,
 					state.skills.filter((skill) => skill.id !== skillId),

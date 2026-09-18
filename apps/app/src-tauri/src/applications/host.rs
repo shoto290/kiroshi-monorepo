@@ -16,16 +16,13 @@ use super::runnable::{refusal, Runners};
 use super::search::{named, search, terms};
 use crate::agent::protocol::HostAnswer;
 use crate::agent::session::{Answering, HostRequests};
-use crate::conversations::commands::{
-	conversation_bot_mcp_servers, conversation_set_bot_mcp_server,
-	conversation_set_space_mcp_server, conversation_space_mcp_servers, ready,
-};
+use crate::conversations::commands::ready;
 use crate::bundles::ApplicationMark;
 use crate::conversations::contract::McpServer;
 use crate::db;
 use crate::environment::contract::EnvOwner;
 use crate::mcp_oauth::commands::mcp_application_status;
-use crate::user::commands::{user_plugin_mcp_servers, user_plugin_set_mcp_server};
+use crate::plugins::commands::{plugin_mcp_servers, plugin_set_mcp_server};
 
 const SUBTYPE: &str = "application";
 
@@ -195,12 +192,7 @@ impl<R: Runtime> ApplicationHost<R> {
 	}
 
 	async fn declared(&self, owner: &EnvOwner) -> Result<Vec<McpServer>, ApplicationCallError> {
-		let app = self.app.clone();
-		Ok(match owner {
-			EnvOwner::User => user_plugin_mcp_servers(app).await?,
-			EnvOwner::Space { id } => conversation_space_mcp_servers(app, id.clone()).await?,
-			EnvOwner::Bot { id, .. } => conversation_bot_mcp_servers(app, id.clone()).await?,
-		})
+		Ok(plugin_mcp_servers(self.app.clone(), owner.into()).await?)
 	}
 
 	async fn declare(
@@ -208,20 +200,11 @@ impl<R: Runtime> ApplicationHost<R> {
 		owner: &EnvOwner,
 		application: &Application,
 	) -> Result<McpServer, ApplicationCallError> {
-		let app = self.app.clone();
 		let name = application.name.clone();
 		let config = application.config.clone();
 		let mark = Some(mark_of(application));
-		Ok(match owner {
-			EnvOwner::User => user_plugin_set_mcp_server(app, name, config, mark).await?,
-			EnvOwner::Space { id } => {
-				conversation_set_space_mcp_server(app, id.clone(), name, config, mark).await?
-			}
-			EnvOwner::Bot { id, .. } => {
-				conversation_set_bot_mcp_server(app, self.state()?, id.clone(), name, config, mark)
-					.await?
-			}
-		})
+		Ok(plugin_set_mcp_server(self.app.clone(), self.state()?, owner.into(), name, config, mark)
+			.await?)
 	}
 
 	async fn space(&self) -> Result<String, ApplicationCallError> {
@@ -480,8 +463,8 @@ mod tests {
 		let root = bundles::root(app.handle()).expect("the bundles have a root");
 		[
 			bundles::mcp_servers(&root, "b1"),
-			bundles::space::mcp_servers(&space_plugin(app)),
-			bundles::user::mcp_servers(&user_plugin(app)),
+			bundles::plugin::mcp_servers(&space_plugin(app)),
+			bundles::plugin::mcp_servers(&user_plugin(app)),
 		]
 		.map(|servers| servers.into_iter().map(|server| (server.name, server.config)).collect())
 	}
@@ -490,8 +473,8 @@ mod tests {
 		let root = bundles::root(app.handle()).expect("the bundles have a root");
 		[
 			bundles::mcp_servers(&root, "b1"),
-			bundles::space::mcp_servers(&space_plugin(app)),
-			bundles::user::mcp_servers(&user_plugin(app)),
+			bundles::plugin::mcp_servers(&space_plugin(app)),
+			bundles::plugin::mcp_servers(&user_plugin(app)),
 		]
 		.map(|servers| servers.into_iter().map(|server| (server.name, server.mark)).collect())
 	}
@@ -854,7 +837,7 @@ mod tests {
 	#[tokio::test]
 	async fn an_install_the_scope_already_declared_writes_no_row() {
 		let app = a_host("kept-no-row").await;
-		bundles::space::set_mcp_server(
+		bundles::plugin::set_mcp_server(
 			&space_plugin(&app),
 			"superset",
 			&json!({ "type": "http", "url": "https://mine.test/mcp" }),
@@ -978,7 +961,7 @@ mod tests {
 	async fn a_scope_already_declaring_the_server_keeps_the_config_it_had() {
 		let app = a_host("kept").await;
 		let mine = json!({ "type": "http", "url": "https://mine.test/mcp" });
-		bundles::space::set_mcp_server(&space_plugin(&app), "superset", &mine, None)
+		bundles::plugin::set_mcp_server(&space_plugin(&app), "superset", &mine, None)
 			.expect("the declaration lands");
 		let arriving = heard(&app);
 

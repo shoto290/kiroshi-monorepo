@@ -358,7 +358,7 @@ describe("applications controller", () => {
 
 		await controller.install(targetOf())
 
-		expect(await store.userPluginMcpServers()).toEqual([
+		expect(await store.pluginMcpServers({ kind: "user" })).toEqual([
 			{ name: "paper", config: PAPER.config, title: PAPER.title },
 		])
 	})
@@ -373,7 +373,7 @@ describe("applications controller", () => {
 
 		await controller.install(targetOf())
 
-		expect(await store.userPluginMcpServers()).toEqual([
+		expect(await store.pluginMcpServers({ kind: "user" })).toEqual([
 			{
 				name: "paper",
 				config: MARKED.config,
@@ -406,7 +406,7 @@ describe("applications controller", () => {
 		const port = createFakeApplicationPort()
 		port.curated = [TWO_KEYED]
 		const store = createFakeTranscriptStore()
-		const declare = vi.spyOn(store, "setUserPluginMcpServer")
+		const declare = vi.spyOn(store, "setPluginMcpServer")
 		const write = vi.spyOn(store, "setEnvironmentVariable")
 		const controller = controllerOn(port, store)
 		await controller.open()
@@ -417,7 +417,7 @@ describe("applications controller", () => {
 		expect(controller.getState().failure).toContain("tenant")
 		expect(declare).not.toHaveBeenCalled()
 		expect(write).not.toHaveBeenCalled()
-		expect(await store.userPluginMcpServers()).toEqual([])
+		expect(await store.pluginMcpServers({ kind: "user" })).toEqual([])
 	})
 
 	it("names every field no value arrived under the name of", async () => {
@@ -469,7 +469,7 @@ describe("applications controller", () => {
 		const port = createFakeApplicationPort()
 		port.curated = [PAPER]
 		const store = createFakeTranscriptStore()
-		vi.spyOn(store, "setUserPluginMcpServer").mockRejectedValue({
+		vi.spyOn(store, "setPluginMcpServer").mockRejectedValue({
 			kind: "store",
 			detail: "the bundle is read only",
 		})
@@ -481,14 +481,14 @@ describe("applications controller", () => {
 
 		expect(controller.getState().failure).toContain("the bundle is read only")
 		expect(controller.getState().picked).toEqual(PAPER)
-		expect(await store.userPluginMcpServers()).toEqual([])
+		expect(await store.pluginMcpServers({ kind: "user" })).toEqual([])
 	})
 
 	it("shows the reason of a refused install and declares no server", async () => {
 		const port = createFakeApplicationPort()
 		port.curated = [REFUSED]
 		const store = createFakeTranscriptStore()
-		const declare = vi.spyOn(store, "setUserPluginMcpServer")
+		const declare = vi.spyOn(store, "setPluginMcpServer")
 		const controller = controllerOn(port, store)
 		await controller.open()
 		controller.pick("@owner/queried")
@@ -497,7 +497,7 @@ describe("applications controller", () => {
 
 		expect(controller.getState().failure).toContain("apiKey")
 		expect(declare).not.toHaveBeenCalled()
-		expect(await store.userPluginMcpServers()).toEqual([])
+		expect(await store.pluginMcpServers({ kind: "user" })).toEqual([])
 	})
 
 	it("shows the reason a config no runner runs was refused and writes nothing", async () => {
@@ -508,7 +508,7 @@ describe("applications controller", () => {
 			reason: "the command uvx is on no directory of your PATH",
 		}
 		const store = createFakeTranscriptStore()
-		const declare = vi.spyOn(store, "setUserPluginMcpServer")
+		const declare = vi.spyOn(store, "setPluginMcpServer")
 		const write = vi.spyOn(store, "setEnvironmentVariable")
 		const controller = controllerOn(port, store)
 		await controller.open()
@@ -521,7 +521,7 @@ describe("applications controller", () => {
 		)
 		expect(declare).not.toHaveBeenCalled()
 		expect(write).not.toHaveBeenCalled()
-		expect(await store.userPluginMcpServers()).toEqual([])
+		expect(await store.pluginMcpServers({ kind: "user" })).toEqual([])
 	})
 
 	it("reads the config of what it installs against the runners of this machine", async () => {
@@ -544,7 +544,7 @@ describe("applications controller", () => {
 		const port = createFakeApplicationPort()
 		port.curated = [PAPER]
 		const store = createFakeTranscriptStore()
-		const declare = vi.spyOn(store, "setUserPluginMcpServer")
+		const declare = vi.spyOn(store, "setPluginMcpServer")
 		const controller = controllerOn(port, store)
 		await controller.open()
 		controller.pick("paper")
@@ -569,16 +569,16 @@ describe("applications controller", () => {
 			targetOf({ owner: COMPANION, declared: ["ledger"] }),
 		)
 
-		expect(await store.botMcpServers("default")).toEqual([
-			{ name: "paper", config: PAPER.config, title: PAPER.title },
-		])
+		expect(
+			await store.pluginMcpServers({ kind: "bot", id: "default" }),
+		).toEqual([{ name: "paper", config: PAPER.config, title: PAPER.title }])
 	})
 
 	it("refuses an add of an application the owner already declares", async () => {
 		const port = createFakeApplicationPort()
 		port.curated = [PAPER]
 		const store = createFakeTranscriptStore()
-		const declare = vi.spyOn(store, "setUserPluginMcpServer")
+		const declare = vi.spyOn(store, "setPluginMcpServer")
 		const controller = controllerOn(port, store)
 		await controller.open()
 		controller.pick("paper")
@@ -602,7 +602,7 @@ describe("applications controller", () => {
 
 		await controller.install(targetOf(), { Authorization: "sk-typed" })
 
-		expect(await store.userPluginMcpServers()).toEqual([])
+		expect(await store.pluginMcpServers({ kind: "user" })).toEqual([])
 		expect(controller.getState().failure).toContain("the keyring is locked")
 	})
 
@@ -610,7 +610,9 @@ describe("applications controller", () => {
 		const port = createFakeApplicationPort()
 		port.curated = [SUPERSET]
 		const store = createFakeTranscriptStore()
-		await store.setUserPluginMcpServer("superset", { type: "http" })
+		await store.setPluginMcpServer({ kind: "user" }, "superset", {
+			type: "http",
+		})
 		vi.spyOn(store, "setEnvironmentVariable").mockRejectedValue({
 			kind: "env",
 			detail: "the keyring is locked",
@@ -621,7 +623,7 @@ describe("applications controller", () => {
 
 		await controller.install(targetOf(), { Authorization: "sk-typed" })
 
-		expect(await store.userPluginMcpServers()).toEqual([
+		expect(await store.pluginMcpServers({ kind: "user" })).toEqual([
 			{ name: "superset", config: SUPERSET.config, title: SUPERSET.title },
 		])
 		expect(controller.getState().failure).toContain("the keyring is locked")
@@ -635,7 +637,7 @@ describe("applications controller", () => {
 			kind: "env",
 			detail: "the keyring is locked",
 		})
-		vi.spyOn(store, "deleteUserPluginMcpServer").mockRejectedValue({
+		vi.spyOn(store, "deletePluginMcpServer").mockRejectedValue({
 			kind: "store",
 			detail: "the bundle is read only",
 		})
@@ -668,7 +670,7 @@ describe("applications controller", () => {
 			}),
 		)
 
-		expect(await store.userPluginMcpServers()).toEqual([])
+		expect(await store.pluginMcpServers({ kind: "user" })).toEqual([])
 		expect(controller.getState().failure).toContain("the sign-in timed out")
 	})
 
@@ -717,7 +719,7 @@ describe("applications controller", () => {
 				owner: USER,
 			}),
 		).toEqual([])
-		expect(await store.userPluginMcpServers()).toEqual([])
+		expect(await store.pluginMcpServers({ kind: "user" })).toEqual([])
 	})
 
 	it("leaves the declaration and the secrets the owner had before the install", async () => {
@@ -725,7 +727,7 @@ describe("applications controller", () => {
 		port.curated = [LINEAR]
 		const store = createFakeTranscriptStore()
 		const scope = { kind: "server", name: "linear", owner: USER } as const
-		await store.setUserPluginMcpServer("linear", LINEAR.config)
+		await store.setPluginMcpServer({ kind: "user" }, "linear", LINEAR.config)
 		await store.setEnvironmentVariable(scope, "LINEAR_TOKEN", "kept")
 		const controller = controllerOn(port, store)
 		await controller.open()
@@ -739,7 +741,7 @@ describe("applications controller", () => {
 			}),
 		)
 
-		expect(await store.userPluginMcpServers()).toEqual([
+		expect(await store.pluginMcpServers({ kind: "user" })).toEqual([
 			{ name: "linear", config: LINEAR.config, title: LINEAR.title },
 		])
 		expect(
@@ -751,7 +753,7 @@ describe("applications controller", () => {
 		const port = createFakeApplicationPort()
 		port.curated = [LINEAR]
 		const store = createFakeTranscriptStore()
-		vi.spyOn(store, "deleteUserPluginMcpServer").mockRejectedValue({
+		vi.spyOn(store, "deletePluginMcpServer").mockRejectedValue({
 			kind: "store",
 			detail: "the bundle is read only",
 		})
@@ -802,7 +804,7 @@ describe("applications controller", () => {
 			}),
 		)
 
-		expect(await store.userPluginMcpServers()).toEqual([])
+		expect(await store.pluginMcpServers({ kind: "user" })).toEqual([])
 		expect(controller.getState().failure).toContain("the sign-in timed out")
 		expect(reportFailure).toHaveBeenCalledTimes(1)
 	})
@@ -824,7 +826,7 @@ describe("applications controller", () => {
 
 		await controller.install(targetOf())
 
-		expect(await store.userPluginMcpServers()).toEqual([
+		expect(await store.pluginMcpServers({ kind: "user" })).toEqual([
 			{ name: "linear", config: LINEAR.config, title: LINEAR.title },
 		])
 		expect(controller.getState().failure).toBeNull()

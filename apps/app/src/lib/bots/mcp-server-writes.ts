@@ -1,3 +1,4 @@
+import { pluginScopeOf } from "../conversations/plugin-scope"
 import type {
 	BotMcpServer,
 	EnvOwner,
@@ -5,14 +6,8 @@ import type {
 } from "../conversations/store-contract"
 import type { TranscriptStore } from "../conversations/store-port"
 
-export const declaredServers = (store: TranscriptStore, owner: EnvOwner) => {
-	if (owner.kind === "user") {
-		return store.userPluginMcpServers()
-	}
-	return owner.kind === "space"
-		? store.spaceMcpServers(owner.id)
-		: store.botMcpServers(owner.id)
-}
+export const declaredServers = (store: TranscriptStore, owner: EnvOwner) =>
+	store.pluginMcpServers(pluginScopeOf(owner))
 
 export const markOf = (
 	servers: BotMcpServer[],
@@ -31,24 +26,10 @@ export const declareServer = (
 	name: string,
 	config: Record<string, unknown>,
 	mark?: McpServerMark,
-) => {
-	if (owner.kind === "user") {
-		return store.setUserPluginMcpServer(name, config, mark)
-	}
-	return owner.kind === "space"
-		? store.setSpaceMcpServer(owner.id, name, config, mark)
-		: store.setBotMcpServer(owner.id, name, config, mark)
-}
+) => store.setPluginMcpServer(pluginScopeOf(owner), name, config, mark)
 
 export const undeclareServer = (
 	store: TranscriptStore,
 	owner: EnvOwner,
 	name: string,
-) => {
-	if (owner.kind === "user") {
-		return store.deleteUserPluginMcpServer(name)
-	}
-	return owner.kind === "space"
-		? store.deleteSpaceMcpServer(owner.id, name)
-		: store.deleteBotMcpServer(owner.id, name)
-}
+) => store.deletePluginMcpServer(pluginScopeOf(owner), name)

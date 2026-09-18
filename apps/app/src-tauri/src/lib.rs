@@ -11,6 +11,7 @@ pub mod environment;
 pub mod mcp_oauth;
 pub mod missions;
 pub mod notifications;
+pub mod plugins;
 pub mod routines;
 pub mod search;
 pub mod sections;

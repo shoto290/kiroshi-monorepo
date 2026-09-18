@@ -61,8 +61,8 @@ export const createUserPluginController = (
 
 	const read = async () => {
 		const [skills, commits] = await Promise.all([
-			store.userPluginSkills(),
-			store.userPluginHistory(),
+			store.pluginSkills({ kind: "user" }),
+			store.pluginHistory({ kind: "user" }),
 		])
 		set({ skills, commits, hasFailedToLoad: false })
 	}
@@ -85,20 +85,25 @@ export const createUserPluginController = (
 		})
 
 	const readHistory = async () =>
-		set({ commits: await store.userPluginHistory(), hasFailedToLoad: false })
+		set({
+			commits: await store.pluginHistory({ kind: "user" }),
+			hasFailedToLoad: false,
+		})
 
 	const readFiles = createHistoryFilesReader(
 		(oldestCommitId, newestCommitId) =>
-			store.userPluginHistoryDiff(oldestCommitId, newestCommitId),
+			store.pluginHistoryDiff({ kind: "user" }, oldestCommitId, newestCommitId),
 		{ run, getState: () => state, setState: set },
 	)
 
 	const files = createSkillFilesController(
 		{
-			read: (skillId, path) => store.userPluginSkillFile(skillId, path),
+			read: (skillId, path) =>
+				store.pluginSkillFile({ kind: "user" }, skillId, path),
 			write: (skillId, path, text) =>
-				store.writeUserPluginSkillFile(skillId, path, text),
-			remove: (skillId, path) => store.deleteUserPluginSkillFile(skillId, path),
+				store.writePluginSkillFile({ kind: "user" }, skillId, path, text),
+			remove: (skillId, path) =>
+				store.deletePluginSkillFile({ kind: "user" }, skillId, path),
 		},
 		{
 			run,
@@ -126,9 +131,13 @@ export const createUserPluginController = (
 
 		createSkill: (draft: BotSkillDraft, isPreloaded: boolean) =>
 			run(async () => {
-				const created = await store.createUserPluginSkill(draft)
+				const created = await store.createPluginSkill({ kind: "user" }, draft)
 				const skill = isPreloaded
-					? await store.setUserPluginSkillPreloaded(created.id, true)
+					? await store.setPluginSkillPreloaded(
+							{ kind: "user" },
+							created.id,
+							true,
+						)
 					: created
 				set({ skills: [...state.skills, skill] })
 				await readHistory()
@@ -136,7 +145,11 @@ export const createUserPluginController = (
 
 		saveSkill: (skillId: string, draft: BotSkillDraft) =>
 			run(async () => {
-				const saved = await store.updateUserPluginSkill(skillId, draft)
+				const saved = await store.updatePluginSkill(
+					{ kind: "user" },
+					skillId,
+					draft,
+				)
 				applySkill(skillId, saved)
 				files.carryFile(skillId, saved.id)
 				await readHistory()
@@ -147,7 +160,11 @@ export const createUserPluginController = (
 			run(async () => {
 				applySkill(
 					skillId,
-					await store.setUserPluginSkillPreloaded(skillId, isPreloaded),
+					await store.setPluginSkillPreloaded(
+						{ kind: "user" },
+						skillId,
+						isPreloaded,
+					),
 				)
 				await readHistory()
 			})
@@ -155,7 +172,7 @@ export const createUserPluginController = (
 
 		removeSkill: (skillId: string) =>
 			run(async () => {
-				await store.deleteUserPluginSkill(skillId)
+				await store.deletePluginSkill({ kind: "user" }, skillId)
 				set({ skills: state.skills.filter((skill) => skill.id !== skillId) })
 				await readHistory()
 			}),
@@ -165,9 +182,13 @@ export const createUserPluginController = (
 		revert: (oldestCommitId: string, newestCommitId: string) =>
 			run(async () => {
 				set({
-					commits: await store.revertUserPlugin(oldestCommitId, newestCommitId),
+					commits: await store.revertPlugin(
+						{ kind: "user" },
+						oldestCommitId,
+						newestCommitId,
+					),
 				})
-				set({ skills: await store.userPluginSkills() })
+				set({ skills: await store.pluginSkills({ kind: "user" }) })
 			}),
 	}
 }

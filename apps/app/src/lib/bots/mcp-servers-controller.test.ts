@@ -31,7 +31,11 @@ const settled = () => new Promise((resolve) => setTimeout(resolve, 0))
 describe("mcp servers controller", () => {
 	it("opens on the servers the bundle already declares", async () => {
 		const store = createFakeTranscriptStore()
-		await store.setBotMcpServer("default", "atlas", ATLAS)
+		await store.setPluginMcpServer(
+			{ kind: "bot", id: "default" },
+			"atlas",
+			ATLAS,
+		)
 
 		const controller = await opened(store)
 
@@ -42,7 +46,9 @@ describe("mcp servers controller", () => {
 
 	it("reports a listing it could not read instead of an empty panel", async () => {
 		const store = createFakeTranscriptStore()
-		vi.spyOn(store, "botMcpServers").mockRejectedValue(new Error("no bundle"))
+		vi.spyOn(store, "pluginMcpServers").mockRejectedValue(
+			new Error("no bundle"),
+		)
 
 		const controller = await opened(store)
 
@@ -51,7 +57,7 @@ describe("mcp servers controller", () => {
 
 	it("clears the reported failure once the listing reads again", async () => {
 		const store = createFakeTranscriptStore()
-		vi.spyOn(store, "botMcpServers").mockRejectedValueOnce(
+		vi.spyOn(store, "pluginMcpServers").mockRejectedValueOnce(
 			new Error("no bundle"),
 		)
 		const controller = await opened(store)
@@ -68,9 +74,9 @@ describe("mcp servers controller", () => {
 		controller.create("atlas", ATLAS)
 		await settled()
 
-		expect(await store.botMcpServers("default")).toEqual([
-			{ name: "atlas", config: ATLAS },
-		])
+		expect(
+			await store.pluginMcpServers({ kind: "bot", id: "default" }),
+		).toEqual([{ name: "atlas", config: ATLAS }])
 		expect(controller.getState().servers).toEqual([
 			{ name: "atlas", config: ATLAS },
 		])
@@ -78,28 +84,36 @@ describe("mcp servers controller", () => {
 
 	it("writes a changed configuration to the server it was opened on", async () => {
 		const store = createFakeTranscriptStore()
-		await store.setBotMcpServer("default", "atlas", ATLAS)
+		await store.setPluginMcpServer(
+			{ kind: "bot", id: "default" },
+			"atlas",
+			ATLAS,
+		)
 		const controller = await opened(store)
 
 		controller.rename("atlas", "atlas", LEDGER)
 		await settled()
 
-		expect(await store.botMcpServers("default")).toEqual([
-			{ name: "atlas", config: LEDGER },
-		])
+		expect(
+			await store.pluginMcpServers({ kind: "bot", id: "default" }),
+		).toEqual([{ name: "atlas", config: LEDGER }])
 	})
 
 	it("moves a renamed server rather than leaving a second one behind", async () => {
 		const store = createFakeTranscriptStore()
-		await store.setBotMcpServer("default", "ledger", LEDGER)
+		await store.setPluginMcpServer(
+			{ kind: "bot", id: "default" },
+			"ledger",
+			LEDGER,
+		)
 		const controller = await opened(store)
 
 		controller.rename("ledger", "books", LEDGER)
 		await settled()
 
-		expect(await store.botMcpServers("default")).toEqual([
-			{ name: "books", config: LEDGER },
-		])
+		expect(
+			await store.pluginMcpServers({ kind: "bot", id: "default" }),
+		).toEqual([{ name: "books", config: LEDGER }])
 		expect(controller.getState().servers).toEqual([
 			{ name: "books", config: LEDGER },
 		])
@@ -107,21 +121,33 @@ describe("mcp servers controller", () => {
 
 	it("takes a removed server out and leaves the rest where they were", async () => {
 		const store = createFakeTranscriptStore()
-		await store.setBotMcpServer("default", "atlas", ATLAS)
-		await store.setBotMcpServer("default", "ledger", LEDGER)
+		await store.setPluginMcpServer(
+			{ kind: "bot", id: "default" },
+			"atlas",
+			ATLAS,
+		)
+		await store.setPluginMcpServer(
+			{ kind: "bot", id: "default" },
+			"ledger",
+			LEDGER,
+		)
 		const controller = await opened(store)
 
 		controller.remove("atlas")
 		await settled()
 
-		expect(await store.botMcpServers("default")).toEqual([
-			{ name: "ledger", config: LEDGER },
-		])
+		expect(
+			await store.pluginMcpServers({ kind: "bot", id: "default" }),
+		).toEqual([{ name: "ledger", config: LEDGER }])
 	})
 
 	it("falls back to what the bundle holds when a write is refused", async () => {
 		const store = createFakeTranscriptStore()
-		await store.setBotMcpServer("default", "atlas", ATLAS)
+		await store.setPluginMcpServer(
+			{ kind: "bot", id: "default" },
+			"atlas",
+			ATLAS,
+		)
 		const controller = await opened(store)
 
 		controller.remove("missing")
@@ -135,7 +161,11 @@ describe("mcp servers controller", () => {
 
 	it("opens on the servers the space plugin already declares", async () => {
 		const store = createFakeTranscriptStore()
-		await store.setSpaceMcpServer("personal", "atlas", ATLAS)
+		await store.setPluginMcpServer(
+			{ kind: "space", id: "personal" },
+			"atlas",
+			ATLAS,
+		)
 
 		const controller = await opened(store, SPACE)
 
@@ -146,7 +176,9 @@ describe("mcp servers controller", () => {
 
 	it("reports a space listing it could not read instead of an empty panel", async () => {
 		const store = createFakeTranscriptStore()
-		vi.spyOn(store, "spaceMcpServers").mockRejectedValue(new Error("no plugin"))
+		vi.spyOn(store, "pluginMcpServers").mockRejectedValue(
+			new Error("no plugin"),
+		)
 
 		const controller = await opened(store, SPACE)
 
@@ -160,77 +192,115 @@ describe("mcp servers controller", () => {
 		controller.create("atlas", ATLAS)
 		await settled()
 
-		expect(await store.spaceMcpServers("personal")).toEqual([
-			{ name: "atlas", config: ATLAS },
-		])
-		expect(await store.botMcpServers("default")).toEqual([])
+		expect(
+			await store.pluginMcpServers({ kind: "space", id: "personal" }),
+		).toEqual([{ name: "atlas", config: ATLAS }])
+		expect(
+			await store.pluginMcpServers({ kind: "bot", id: "default" }),
+		).toEqual([])
 	})
 
 	it("keeps the mark of a renamed server under the name it took", async () => {
 		const store = createFakeTranscriptStore()
-		await store.setBotMcpServer("default", "ledger", LEDGER, A_MARK)
+		await store.setPluginMcpServer(
+			{ kind: "bot", id: "default" },
+			"ledger",
+			LEDGER,
+			A_MARK,
+		)
 		const controller = await opened(store)
 
 		controller.rename("ledger", "books", LEDGER)
 		await settled()
 
-		expect(await store.botMcpServers("default")).toEqual([
-			{ name: "books", config: LEDGER, ...A_MARK },
-		])
+		expect(
+			await store.pluginMcpServers({ kind: "bot", id: "default" }),
+		).toEqual([{ name: "books", config: LEDGER, ...A_MARK }])
 	})
 
 	it("declares no mark for a renamed server that carried none", async () => {
 		const store = createFakeTranscriptStore()
-		await store.setBotMcpServer("default", "ledger", LEDGER)
-		const declare = vi.spyOn(store, "setBotMcpServer")
+		await store.setPluginMcpServer(
+			{ kind: "bot", id: "default" },
+			"ledger",
+			LEDGER,
+		)
+		const declare = vi.spyOn(store, "setPluginMcpServer")
 		const controller = await opened(store)
 
 		controller.rename("ledger", "books", LEDGER)
 		await settled()
 
-		expect(declare).toHaveBeenCalledWith("default", "books", LEDGER, undefined)
+		expect(declare).toHaveBeenCalledWith(
+			{ kind: "bot", id: "default" },
+			"books",
+			LEDGER,
+			undefined,
+		)
 	})
 
 	it("declares no mark for a server saved under the name it already had", async () => {
 		const store = createFakeTranscriptStore()
-		await store.setBotMcpServer("default", "ledger", LEDGER, A_MARK)
-		const declare = vi.spyOn(store, "setBotMcpServer")
+		await store.setPluginMcpServer(
+			{ kind: "bot", id: "default" },
+			"ledger",
+			LEDGER,
+			A_MARK,
+		)
+		const declare = vi.spyOn(store, "setPluginMcpServer")
 		const controller = await opened(store)
 
 		controller.rename("ledger", "ledger", LEDGER)
 		await settled()
 
-		expect(declare).toHaveBeenCalledWith("default", "ledger", LEDGER, undefined)
-		expect(await store.botMcpServers("default")).toEqual([
-			{ name: "ledger", config: LEDGER, ...A_MARK },
-		])
+		expect(declare).toHaveBeenCalledWith(
+			{ kind: "bot", id: "default" },
+			"ledger",
+			LEDGER,
+			undefined,
+		)
+		expect(
+			await store.pluginMcpServers({ kind: "bot", id: "default" }),
+		).toEqual([{ name: "ledger", config: LEDGER, ...A_MARK }])
 	})
 
 	it("moves a renamed space server rather than leaving a second one behind", async () => {
 		const store = createFakeTranscriptStore()
-		await store.setSpaceMcpServer("personal", "ledger", LEDGER)
+		await store.setPluginMcpServer(
+			{ kind: "space", id: "personal" },
+			"ledger",
+			LEDGER,
+		)
 		const controller = await opened(store, SPACE)
 
 		controller.rename("ledger", "books", LEDGER)
 		await settled()
 
-		expect(await store.spaceMcpServers("personal")).toEqual([
-			{ name: "books", config: LEDGER },
-		])
+		expect(
+			await store.pluginMcpServers({ kind: "space", id: "personal" }),
+		).toEqual([{ name: "books", config: LEDGER }])
 	})
 
 	it("takes a removed space server out of the space plugin", async () => {
 		const store = createFakeTranscriptStore()
-		await store.setSpaceMcpServer("personal", "atlas", ATLAS)
-		await store.setSpaceMcpServer("personal", "ledger", LEDGER)
+		await store.setPluginMcpServer(
+			{ kind: "space", id: "personal" },
+			"atlas",
+			ATLAS,
+		)
+		await store.setPluginMcpServer(
+			{ kind: "space", id: "personal" },
+			"ledger",
+			LEDGER,
+		)
 		const controller = await opened(store, SPACE)
 
 		controller.remove("atlas")
 		await settled()
 
-		expect(await store.spaceMcpServers("personal")).toEqual([
-			{ name: "ledger", config: LEDGER },
-		])
+		expect(
+			await store.pluginMcpServers({ kind: "space", id: "personal" }),
+		).toEqual([{ name: "ledger", config: LEDGER }])
 	})
 
 	it("writes nothing while nothing is open", async () => {
@@ -240,6 +310,8 @@ describe("mcp servers controller", () => {
 		controller.create("atlas", ATLAS)
 		await settled()
 
-		expect(await store.botMcpServers("default")).toEqual([])
+		expect(
+			await store.pluginMcpServers({ kind: "bot", id: "default" }),
+		).toEqual([])
 	})
 })

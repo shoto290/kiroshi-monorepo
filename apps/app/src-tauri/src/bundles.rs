@@ -11,6 +11,7 @@ use crate::db::repositories::conversations::{AvatarBlot, Bot};
 use crate::private_files;
 
 mod git;
+pub mod plugin;
 pub mod shoto;
 pub mod space;
 pub mod system;
@@ -4410,7 +4411,7 @@ mod tests {
 		let (written, waited) = std::sync::mpsc::channel();
 		let space_path = elsewhere.clone();
 		let writer = std::thread::spawn(move || {
-			space::create_skill(&space_path, &a_draft("figs", "What it is for.", "How it goes."))
+			plugin::create_skill(&space_path, &a_draft("figs", "What it is for.", "How it goes."))
 				.expect("the skill is created");
 			written.send(()).expect("the write is reported");
 		});

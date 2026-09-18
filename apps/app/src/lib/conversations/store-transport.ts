@@ -24,6 +24,7 @@ import type {
 	NewAssistantMessage,
 	NewTurn,
 	NewUserMessage,
+	PluginScope,
 	RosterPin,
 	RuntimeSession,
 	Section,
@@ -150,93 +151,94 @@ export const conversationStore: TranscriptStore = {
 	setBotMemory: (id: string, memory: string) =>
 		invoke<Bot>("conversation_set_bot_memory", { id, memory }),
 
-	botSkills: (botId: string) =>
-		invoke<BotSkill[]>("conversation_bot_skills", { botId }),
+	pluginSkills: (scope: PluginScope) =>
+		invoke<BotSkill[]>("plugin_skills", { scope }),
 
-	createBotSkill: (botId: string, draft: BotSkillDraft) =>
-		invoke<BotSkill>("conversation_create_bot_skill", { botId, draft }),
+	createPluginSkill: (scope: PluginScope, draft: BotSkillDraft) =>
+		invoke<BotSkill>("plugin_create_skill", { scope, draft }),
 
-	updateBotSkill: (botId: string, skillId: string, draft: BotSkillDraft) =>
-		invoke<BotSkill>("conversation_update_bot_skill", {
-			botId,
-			skillId,
-			draft,
-		}),
+	updatePluginSkill: (
+		scope: PluginScope,
+		skillId: string,
+		draft: BotSkillDraft,
+	) => invoke<BotSkill>("plugin_update_skill", { scope, skillId, draft }),
 
-	setBotSkillPreloaded: (
-		botId: string,
+	setPluginSkillPreloaded: (
+		scope: PluginScope,
 		skillId: string,
 		isPreloaded: boolean,
 	) =>
-		invoke<BotSkill>("conversation_set_bot_skill_preloaded", {
-			botId,
+		invoke<BotSkill>("plugin_set_skill_preloaded", {
+			scope,
 			skillId,
 			isPreloaded,
 		}),
 
-	deleteBotSkill: (botId: string, skillId: string) =>
-		invoke<void>("conversation_delete_bot_skill", { botId, skillId }),
+	deletePluginSkill: (scope: PluginScope, skillId: string) =>
+		invoke<void>("plugin_delete_skill", { scope, skillId }),
 
-	botSkillFile: (botId: string, skillId: string, path: string) =>
-		invoke<string>("conversation_bot_skill_file", { botId, skillId, path }),
+	pluginSkillFile: (scope: PluginScope, skillId: string, path: string) =>
+		invoke<string>("plugin_skill_file", { scope, skillId, path }),
 
-	writeBotSkillFile: (
-		botId: string,
+	writePluginSkillFile: (
+		scope: PluginScope,
 		skillId: string,
 		path: string,
 		text: string,
 	) =>
-		invoke<BotSkill>("conversation_write_bot_skill_file", {
-			botId,
+		invoke<BotSkill>("plugin_write_skill_file", {
+			scope,
 			skillId,
 			path,
 			text,
 		}),
 
-	deleteBotSkillFile: (botId: string, skillId: string, path: string) =>
-		invoke<void>("conversation_delete_bot_skill_file", {
-			botId,
-			skillId,
-			path,
-		}),
+	deletePluginSkillFile: (scope: PluginScope, skillId: string, path: string) =>
+		invoke<void>("plugin_delete_skill_file", { scope, skillId, path }),
 
-	botMcpServers: (botId: string) =>
-		invoke<BotMcpServer[]>("conversation_bot_mcp_servers", { botId }),
+	pluginMcpServers: (scope: PluginScope) =>
+		invoke<BotMcpServer[]>("plugin_mcp_servers", { scope }),
 
-	setBotMcpServer: (
-		botId: string,
+	setPluginMcpServer: (
+		scope: PluginScope,
 		name: string,
 		config: Record<string, unknown>,
 		mark?: McpServerMark,
 	) =>
-		invoke<BotMcpServer>("conversation_set_bot_mcp_server", {
-			botId,
+		invoke<BotMcpServer>("plugin_set_mcp_server", {
+			scope,
 			name,
 			config,
 			mark,
 		}),
 
-	deleteBotMcpServer: (botId: string, name: string) =>
-		invoke<void>("conversation_delete_bot_mcp_server", { botId, name }),
+	deletePluginMcpServer: (scope: PluginScope, name: string) =>
+		invoke<void>("plugin_delete_mcp_server", { scope, name }),
 
-	spaceMcpServers: (spaceId: string) =>
-		invoke<BotMcpServer[]>("conversation_space_mcp_servers", { spaceId }),
+	pluginHistory: (scope: PluginScope) =>
+		invoke<BotHistoryEntry[]>("plugin_history", { scope }),
 
-	setSpaceMcpServer: (
-		spaceId: string,
-		name: string,
-		config: Record<string, unknown>,
-		mark?: McpServerMark,
+	pluginHistoryDiff: (
+		scope: PluginScope,
+		oldestCommitId: string,
+		newestCommitId: string,
 	) =>
-		invoke<BotMcpServer>("conversation_set_space_mcp_server", {
-			spaceId,
-			name,
-			config,
-			mark,
+		invoke<BotChangedFile[]>("plugin_history_diff", {
+			scope,
+			oldestCommitId,
+			newestCommitId,
 		}),
 
-	deleteSpaceMcpServer: (spaceId: string, name: string) =>
-		invoke<void>("conversation_delete_space_mcp_server", { spaceId, name }),
+	revertPlugin: (
+		scope: PluginScope,
+		oldestCommitId: string,
+		newestCommitId: string,
+	) =>
+		invoke<BotHistoryEntry[]>("plugin_revert", {
+			scope,
+			oldestCommitId,
+			newestCommitId,
+		}),
 
 	environmentVariables: (scope: EnvScope) =>
 		invoke<EnvEntry[]>("env_list", { scope }),
@@ -246,154 +248,6 @@ export const conversationStore: TranscriptStore = {
 
 	deleteEnvironmentVariable: (scope: EnvScope, name: string) =>
 		invoke<void>("env_delete", { scope, name }),
-
-	botHistory: (botId: string) =>
-		invoke<BotHistoryEntry[]>("conversation_bot_history", { botId }),
-
-	botHistoryDiff: (
-		botId: string,
-		oldestCommitId: string,
-		newestCommitId: string,
-	) =>
-		invoke<BotChangedFile[]>("conversation_bot_history_diff", {
-			botId,
-			oldestCommitId,
-			newestCommitId,
-		}),
-
-	revertBot: (botId: string, oldestCommitId: string, newestCommitId: string) =>
-		invoke<BotHistoryEntry[]>("conversation_bot_revert", {
-			botId,
-			oldestCommitId,
-			newestCommitId,
-		}),
-
-	userPluginSkills: () => invoke<BotSkill[]>("user_plugin_skills"),
-
-	createUserPluginSkill: (draft: BotSkillDraft) =>
-		invoke<BotSkill>("user_plugin_create_skill", { draft }),
-
-	updateUserPluginSkill: (skillId: string, draft: BotSkillDraft) =>
-		invoke<BotSkill>("user_plugin_update_skill", { skillId, draft }),
-
-	setUserPluginSkillPreloaded: (skillId: string, isPreloaded: boolean) =>
-		invoke<BotSkill>("user_plugin_set_skill_preloaded", {
-			skillId,
-			isPreloaded,
-		}),
-
-	deleteUserPluginSkill: (skillId: string) =>
-		invoke<void>("user_plugin_delete_skill", { skillId }),
-
-	userPluginSkillFile: (skillId: string, path: string) =>
-		invoke<string>("user_plugin_skill_file", { skillId, path }),
-
-	writeUserPluginSkillFile: (skillId: string, path: string, text: string) =>
-		invoke<BotSkill>("user_plugin_write_skill_file", { skillId, path, text }),
-
-	deleteUserPluginSkillFile: (skillId: string, path: string) =>
-		invoke<void>("user_plugin_delete_skill_file", { skillId, path }),
-
-	userPluginMcpServers: () => invoke<BotMcpServer[]>("user_plugin_mcp_servers"),
-
-	setUserPluginMcpServer: (
-		name: string,
-		config: Record<string, unknown>,
-		mark?: McpServerMark,
-	) =>
-		invoke<BotMcpServer>("user_plugin_set_mcp_server", { name, config, mark }),
-
-	deleteUserPluginMcpServer: (name: string) =>
-		invoke<void>("user_plugin_delete_mcp_server", { name }),
-
-	userPluginHistory: () => invoke<BotHistoryEntry[]>("user_plugin_history"),
-
-	userPluginHistoryDiff: (oldestCommitId: string, newestCommitId: string) =>
-		invoke<BotChangedFile[]>("user_plugin_history_diff", {
-			oldestCommitId,
-			newestCommitId,
-		}),
-
-	revertUserPlugin: (oldestCommitId: string, newestCommitId: string) =>
-		invoke<BotHistoryEntry[]>("user_plugin_revert", {
-			oldestCommitId,
-			newestCommitId,
-		}),
-
-	spacePluginSkills: (spaceId: string) =>
-		invoke<BotSkill[]>("space_plugin_skills", { spaceId }),
-
-	createSpacePluginSkill: (spaceId: string, draft: BotSkillDraft) =>
-		invoke<BotSkill>("space_plugin_create_skill", { spaceId, draft }),
-
-	updateSpacePluginSkill: (
-		spaceId: string,
-		skillId: string,
-		draft: BotSkillDraft,
-	) =>
-		invoke<BotSkill>("space_plugin_update_skill", { spaceId, skillId, draft }),
-
-	setSpacePluginSkillPreloaded: (
-		spaceId: string,
-		skillId: string,
-		isPreloaded: boolean,
-	) =>
-		invoke<BotSkill>("space_plugin_set_skill_preloaded", {
-			spaceId,
-			skillId,
-			isPreloaded,
-		}),
-
-	deleteSpacePluginSkill: (spaceId: string, skillId: string) =>
-		invoke<void>("space_plugin_delete_skill", { spaceId, skillId }),
-
-	spacePluginSkillFile: (spaceId: string, skillId: string, path: string) =>
-		invoke<string>("space_plugin_skill_file", { spaceId, skillId, path }),
-
-	writeSpacePluginSkillFile: (
-		spaceId: string,
-		skillId: string,
-		path: string,
-		text: string,
-	) =>
-		invoke<BotSkill>("space_plugin_write_skill_file", {
-			spaceId,
-			skillId,
-			path,
-			text,
-		}),
-
-	deleteSpacePluginSkillFile: (
-		spaceId: string,
-		skillId: string,
-		path: string,
-	) =>
-		invoke<void>("space_plugin_delete_skill_file", { spaceId, skillId, path }),
-
-	spacePluginHistory: (spaceId: string) =>
-		invoke<BotHistoryEntry[]>("space_plugin_history", { spaceId }),
-
-	spacePluginHistoryDiff: (
-		spaceId: string,
-		oldestCommitId: string,
-		newestCommitId: string,
-	) =>
-		invoke<BotChangedFile[]>("space_plugin_history_diff", {
-			spaceId,
-			oldestCommitId,
-			newestCommitId,
-		}),
-
-	revertSpacePlugin: (
-		spaceId: string,
-		oldestCommitId: string,
-		newestCommitId: string,
-	) =>
-		invoke<BotHistoryEntry[]>("space_plugin_revert", {
-			spaceId,
-			oldestCommitId,
-			newestCommitId,
-		}),
 
 	recordBotCommands: (botId: string, commands: AgentCommand[]) =>
 		invoke<void>("conversation_record_bot_commands", { botId, commands }),

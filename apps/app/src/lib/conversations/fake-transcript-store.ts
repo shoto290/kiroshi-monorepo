@@ -32,6 +32,7 @@ import type {
 	NewUserMessage,
 	Participant,
 	ParticipantRole,
+	PluginScope,
 	RosterPin,
 	RuntimeSession,
 	Section,
@@ -147,6 +148,13 @@ const USER_PLUGIN = "me"
 const SPACE_PLUGIN_PREFIX = "space:"
 
 const spacePlugin = (spaceId: string) => `${SPACE_PLUGIN_PREFIX}${spaceId}`
+
+const pluginKey = (scope: PluginScope) => {
+	if (scope.kind === "user") {
+		return USER_PLUGIN
+	}
+	return scope.kind === "space" ? spacePlugin(scope.id) : scope.id
+}
 
 const isPluginOwner = (owner: string) =>
 	owner === USER_PLUGIN || owner.startsWith(SPACE_PLUGIN_PREFIX)
@@ -507,6 +515,19 @@ export const createFakeTranscriptStore = (
 		}
 		recorded(owner, `Server "${name}" taken away`, [SERVERS_PATH])
 		return Promise.resolve()
+	}
+
+	const onKnownOwner = <T>(
+		scope: PluginScope,
+		run: (owner: string) => Promise<T>,
+	): Promise<T> => {
+		if (scope.kind === "bot" && !bots.has(scope.id)) {
+			return refuse({ kind: "unknownBot", id: scope.id })
+		}
+		if (scope.kind === "space" && !spaces.has(scope.id)) {
+			return refuse({ kind: "unknownSpace", id: scope.id })
+		}
+		return run(pluginKey(scope))
 	}
 
 	const addSkill = (owner: string, draft: BotSkillDraft) => {
@@ -1193,66 +1214,78 @@ export const createFakeTranscriptStore = (
 			return Promise.resolve(learned)
 		},
 
-		botSkills: (botId: string) => listSkills(botId),
+		pluginSkills: (scope: PluginScope) => listSkills(pluginKey(scope)),
 
-		createBotSkill: (botId: string, draft: BotSkillDraft) =>
-			bots.has(botId)
-				? addSkill(botId, draft)
-				: refuse({ kind: "unknownBot", id: botId }),
+		createPluginSkill: (scope: PluginScope, draft: BotSkillDraft) =>
+			scope.kind === "bot" && !bots.has(scope.id)
+				? refuse({ kind: "unknownBot", id: scope.id })
+				: addSkill(pluginKey(scope), draft),
 
-		updateBotSkill: (botId: string, skillId: string, draft: BotSkillDraft) =>
-			writeSkill(botId, skillId, (skill) => ({ ...skill, ...draft })),
+		updatePluginSkill: (
+			scope: PluginScope,
+			skillId: string,
+			draft: BotSkillDraft,
+		) =>
+			writeSkill(pluginKey(scope), skillId, (skill) => ({
+				...skill,
+				...draft,
+			})),
 
-		setBotSkillPreloaded: (
-			botId: string,
+		setPluginSkillPreloaded: (
+			scope: PluginScope,
 			skillId: string,
 			isPreloaded: boolean,
-		) => writeSkill(botId, skillId, (skill) => ({ ...skill, isPreloaded })),
+		) =>
+			writeSkill(pluginKey(scope), skillId, (skill) => ({
+				...skill,
+				isPreloaded,
+			})),
 
-		deleteBotSkill: (botId: string, skillId: string) =>
-			dropSkill(botId, skillId),
+		deletePluginSkill: (scope: PluginScope, skillId: string) =>
+			dropSkill(pluginKey(scope), skillId),
 
-		botSkillFile: (botId: string, skillId: string, path: string) =>
-			readSkillFile(botId, skillId, path),
+		pluginSkillFile: (scope: PluginScope, skillId: string, path: string) =>
+			readSkillFile(pluginKey(scope), skillId, path),
 
-		writeBotSkillFile: (
-			botId: string,
+		writePluginSkillFile: (
+			scope: PluginScope,
 			skillId: string,
 			path: string,
 			text: string,
-		) => putSkillFile(botId, skillId, path, text),
+		) => putSkillFile(pluginKey(scope), skillId, path, text),
 
-		deleteBotSkillFile: (botId: string, skillId: string, path: string) =>
-			dropSkillFile(botId, skillId, path),
+		deletePluginSkillFile: (
+			scope: PluginScope,
+			skillId: string,
+			path: string,
+		) => dropSkillFile(pluginKey(scope), skillId, path),
 
-		botMcpServers: (botId: string) => listServers(botId),
+		pluginMcpServers: (scope: PluginScope) => listServers(pluginKey(scope)),
 
-		setBotMcpServer: (
-			botId: string,
+		setPluginMcpServer: (
+			scope: PluginScope,
 			name: string,
 			config: Record<string, unknown>,
 			mark?: McpServerMark,
-		) =>
-			bots.has(botId)
-				? putServer(botId, name, config, mark)
-				: refuse({ kind: "unknownBot", id: botId }),
+		) => onKnownOwner(scope, (owner) => putServer(owner, name, config, mark)),
 
-		spaceMcpServers: (spaceId: string) => listServers(spacePlugin(spaceId)),
+		deletePluginMcpServer: (scope: PluginScope, name: string) =>
+			onKnownOwner(scope, (owner) => dropServer(owner, name)),
 
-		setSpaceMcpServer: (
-			spaceId: string,
-			name: string,
-			config: Record<string, unknown>,
-			mark?: McpServerMark,
-		) =>
-			spaces.has(spaceId)
-				? putServer(spacePlugin(spaceId), name, config, mark)
-				: refuse({ kind: "unknownSpace", id: spaceId }),
+		pluginHistory: (scope: PluginScope) =>
+			Promise.resolve(historyOf(pluginKey(scope))),
 
-		deleteSpaceMcpServer: (spaceId: string, name: string) =>
-			spaces.has(spaceId)
-				? dropServer(spacePlugin(spaceId), name)
-				: refuse({ kind: "unknownSpace", id: spaceId }),
+		pluginHistoryDiff: (
+			scope: PluginScope,
+			oldestCommitId: string,
+			newestCommitId: string,
+		) => changedFiles(pluginKey(scope), oldestCommitId, newestCommitId),
+
+		revertPlugin: (
+			scope: PluginScope,
+			oldestCommitId: string,
+			newestCommitId: string,
+		) => undo(pluginKey(scope), oldestCommitId, newestCommitId),
 
 		environmentVariables: (scope: EnvScope) => {
 			const entries: EnvEntry[] = []
@@ -1279,124 +1312,6 @@ export const createFakeTranscriptStore = (
 			environment.get(scopeKey(scope))?.delete(name)
 			return Promise.resolve()
 		},
-
-		deleteBotMcpServer: (botId: string, name: string) =>
-			bots.has(botId)
-				? dropServer(botId, name)
-				: refuse({ kind: "unknownBot", id: botId }),
-
-		botHistory: (botId: string) => Promise.resolve(historyOf(botId)),
-
-		botHistoryDiff: (
-			botId: string,
-			oldestCommitId: string,
-			newestCommitId: string,
-		) => changedFiles(botId, oldestCommitId, newestCommitId),
-
-		revertBot: (
-			botId: string,
-			oldestCommitId: string,
-			newestCommitId: string,
-		) => undo(botId, oldestCommitId, newestCommitId),
-
-		userPluginSkills: () => listSkills(USER_PLUGIN),
-
-		createUserPluginSkill: (draft: BotSkillDraft) =>
-			addSkill(USER_PLUGIN, draft),
-
-		updateUserPluginSkill: (skillId: string, draft: BotSkillDraft) =>
-			writeSkill(USER_PLUGIN, skillId, (skill) => ({ ...skill, ...draft })),
-
-		setUserPluginSkillPreloaded: (skillId: string, isPreloaded: boolean) =>
-			writeSkill(USER_PLUGIN, skillId, (skill) => ({ ...skill, isPreloaded })),
-
-		deleteUserPluginSkill: (skillId: string) => dropSkill(USER_PLUGIN, skillId),
-
-		userPluginSkillFile: (skillId: string, path: string) =>
-			readSkillFile(USER_PLUGIN, skillId, path),
-
-		writeUserPluginSkillFile: (skillId: string, path: string, text: string) =>
-			putSkillFile(USER_PLUGIN, skillId, path, text),
-
-		deleteUserPluginSkillFile: (skillId: string, path: string) =>
-			dropSkillFile(USER_PLUGIN, skillId, path),
-
-		userPluginMcpServers: () => listServers(USER_PLUGIN),
-
-		setUserPluginMcpServer: (
-			name: string,
-			config: Record<string, unknown>,
-			mark?: McpServerMark,
-		) => putServer(USER_PLUGIN, name, config, mark),
-
-		deleteUserPluginMcpServer: (name: string) => dropServer(USER_PLUGIN, name),
-
-		userPluginHistory: () => Promise.resolve(historyOf(USER_PLUGIN)),
-
-		userPluginHistoryDiff: (oldestCommitId: string, newestCommitId: string) =>
-			changedFiles(USER_PLUGIN, oldestCommitId, newestCommitId),
-
-		revertUserPlugin: (oldestCommitId: string, newestCommitId: string) =>
-			undo(USER_PLUGIN, oldestCommitId, newestCommitId),
-
-		spacePluginSkills: (spaceId: string) => listSkills(spacePlugin(spaceId)),
-
-		createSpacePluginSkill: (spaceId: string, draft: BotSkillDraft) =>
-			addSkill(spacePlugin(spaceId), draft),
-
-		updateSpacePluginSkill: (
-			spaceId: string,
-			skillId: string,
-			draft: BotSkillDraft,
-		) =>
-			writeSkill(spacePlugin(spaceId), skillId, (skill) => ({
-				...skill,
-				...draft,
-			})),
-
-		setSpacePluginSkillPreloaded: (
-			spaceId: string,
-			skillId: string,
-			isPreloaded: boolean,
-		) =>
-			writeSkill(spacePlugin(spaceId), skillId, (skill) => ({
-				...skill,
-				isPreloaded,
-			})),
-
-		deleteSpacePluginSkill: (spaceId: string, skillId: string) =>
-			dropSkill(spacePlugin(spaceId), skillId),
-
-		spacePluginSkillFile: (spaceId: string, skillId: string, path: string) =>
-			readSkillFile(spacePlugin(spaceId), skillId, path),
-
-		writeSpacePluginSkillFile: (
-			spaceId: string,
-			skillId: string,
-			path: string,
-			text: string,
-		) => putSkillFile(spacePlugin(spaceId), skillId, path, text),
-
-		deleteSpacePluginSkillFile: (
-			spaceId: string,
-			skillId: string,
-			path: string,
-		) => dropSkillFile(spacePlugin(spaceId), skillId, path),
-
-		spacePluginHistory: (spaceId: string) =>
-			Promise.resolve(historyOf(spacePlugin(spaceId))),
-
-		spacePluginHistoryDiff: (
-			spaceId: string,
-			oldestCommitId: string,
-			newestCommitId: string,
-		) => changedFiles(spacePlugin(spaceId), oldestCommitId, newestCommitId),
-
-		revertSpacePlugin: (
-			spaceId: string,
-			oldestCommitId: string,
-			newestCommitId: string,
-		) => undo(spacePlugin(spaceId), oldestCommitId, newestCommitId),
 
 		recordBotCommands: (botId: string, listed: AgentCommand[]) => {
 			if (!bots.has(botId)) {

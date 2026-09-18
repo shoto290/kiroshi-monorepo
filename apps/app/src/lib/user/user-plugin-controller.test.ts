@@ -22,8 +22,8 @@ const settled = () => new Promise((resolve) => setTimeout(resolve, 0))
 
 const movingSkill = (store: TranscriptStore, id: string): TranscriptStore => ({
 	...store,
-	updateUserPluginSkill: async (skillId, draft) => ({
-		...(await store.updateUserPluginSkill(skillId, draft)),
+	updatePluginSkill: async (scope, skillId, draft) => ({
+		...(await store.updatePluginSkill(scope, skillId, draft)),
 		id,
 	}),
 })
@@ -45,25 +45,25 @@ describe("user plugin controller", () => {
 
 		expect(controller.getState().skills).toMatchObject([A_SKILL])
 		expect(controller.getState().commits).toHaveLength(1)
-		expect(await store.userPluginSkills()).toMatchObject([A_SKILL])
+		expect(await store.pluginSkills({ kind: "user" })).toMatchObject([A_SKILL])
 	})
 
 	it("saves an edited body to the plugin rather than to the screen alone", async () => {
 		const store = createFakeTranscriptStore()
-		const created = await store.createUserPluginSkill(A_SKILL)
+		const created = await store.createPluginSkill({ kind: "user" }, A_SKILL)
 		const controller = await opened(store)
 
 		controller.saveSkill(created.id, { ...A_SKILL, body: "Even shorter." })
 		await settled()
 
-		expect(await store.userPluginSkills()).toMatchObject([
+		expect(await store.pluginSkills({ kind: "user" })).toMatchObject([
 			{ body: "Even shorter." },
 		])
 	})
 
 	it("puts a skill in the brief and leaves it there", async () => {
 		const store = createFakeTranscriptStore()
-		const created = await store.createUserPluginSkill(A_SKILL)
+		const created = await store.createPluginSkill({ kind: "user" }, A_SKILL)
 		const controller = await opened(store)
 
 		controller.setSkillPreloaded(created.id, true)
@@ -74,19 +74,19 @@ describe("user plugin controller", () => {
 
 	it("takes a skill away from the plugin", async () => {
 		const store = createFakeTranscriptStore()
-		const created = await store.createUserPluginSkill(A_SKILL)
+		const created = await store.createPluginSkill({ kind: "user" }, A_SKILL)
 		const controller = await opened(store)
 
 		controller.removeSkill(created.id)
 		await settled()
 
 		expect(controller.getState().skills).toEqual([])
-		expect(await store.userPluginSkills()).toEqual([])
+		expect(await store.pluginSkills({ kind: "user" })).toEqual([])
 	})
 
 	it("puts the plugin back on the history it is given after an undo", async () => {
 		const store = createFakeTranscriptStore()
-		await store.createUserPluginSkill(A_SKILL)
+		await store.createPluginSkill({ kind: "user" }, A_SKILL)
 		const controller = await opened(store)
 		const [latest] = controller.getState().commits
 
@@ -100,7 +100,7 @@ describe("user plugin controller", () => {
 
 	it("reads the files of an opened change", async () => {
 		const store = createFakeTranscriptStore()
-		await store.createUserPluginSkill(A_SKILL)
+		await store.createPluginSkill({ kind: "user" }, A_SKILL)
 		const controller = await opened(store)
 		const [latest] = controller.getState().commits
 
@@ -115,7 +115,7 @@ describe("user plugin controller", () => {
 		const store = createFakeTranscriptStore()
 		const refusing: TranscriptStore = {
 			...store,
-			userPluginHistory: () => Promise.reject(new Error("no bundle")),
+			pluginHistory: () => Promise.reject(new Error("no bundle")),
 		}
 
 		const controller = await opened(refusing)
@@ -135,8 +135,13 @@ describe("user plugin controller", () => {
 
 	it("carries an open file to the id a renamed skill comes back under", async () => {
 		const store = createFakeTranscriptStore()
-		const written = await store.createUserPluginSkill(A_SKILL)
-		await store.writeUserPluginSkillFile(written.id, "notes.md", "One line")
+		const written = await store.createPluginSkill({ kind: "user" }, A_SKILL)
+		await store.writePluginSkillFile(
+			{ kind: "user" },
+			written.id,
+			"notes.md",
+			"One line",
+		)
 		const controller = await opened(movingSkill(store, "how-i-answer"))
 
 		controller.openFile(written.id, "notes.md")
