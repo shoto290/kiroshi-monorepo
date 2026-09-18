@@ -12,6 +12,8 @@ import {
 
 const CLIENT_ID = "client-of-this-flow"
 const CLIENT_SECRET = "secret-of-this-flow"
+const HANDED_CLIENT_ID = "client-stored-before"
+const HANDED_CLIENT_SECRET = "secret-stored-before"
 const ACCESS_TOKEN = "granted-access-token"
 const REFRESH_TOKEN = "granted-refresh-token"
 const EXPIRES_IN = 3600
@@ -169,6 +171,34 @@ const waitForAuthorization = async (seen: Registration) => {
 	throw new Error("the flow never opened an authorization url")
 }
 
+const aFlowUnder = (url: string) => {
+	frames.length = 0
+	inFlight = authorizeMcpServer(
+		{ url, clientId: HANDED_CLIENT_ID, clientSecret: HANDED_CLIENT_SECRET },
+		collect,
+	)
+	return inFlight
+}
+
+const waitForStarted = async () => {
+	const deadline = Date.now() + AUTHORIZATION_BUDGET_MS
+	while (Date.now() < deadline) {
+		const [started] = startedFrames()
+		if (started) {
+			return new URL(String(started.url))
+		}
+		await Bun.sleep(10)
+	}
+	throw new Error("the flow never opened an authorization url")
+}
+
+const redirectedWithCode = async (asked: URL) => {
+	const landing = new URL(String(asked.searchParams.get("redirect_uri")))
+	landing.searchParams.set("code", CODE)
+	landing.searchParams.set("state", String(asked.searchParams.get("state")))
+	await fetch(landing)
+}
+
 describe("mcp oauth", () => {
 	afterEach(async () => {
 		cancelMcpAuthorization()
@@ -203,6 +233,54 @@ describe("mcp oauth", () => {
 					expiresAt: expect.any(Number),
 					clientId: CLIENT_ID,
 					clientSecret: CLIENT_SECRET,
+				},
+			})
+		} finally {
+			await authority.stop()
+		}
+	}, 20_000)
+
+	it("authorizes under a handed client without registering one", async () => {
+		const authority = anAuthorizationServer()
+		try {
+			const flow = aFlowUnder(authority.url)
+			const asked = await waitForStarted()
+			await redirectedWithCode(asked)
+			const settled = await flow
+
+			expect(asked.searchParams.get("client_id")).toBe(HANDED_CLIENT_ID)
+			expect(authority.seen.redirectUris).toEqual([])
+			expect(authority.seen.tokenRequests[0]?.get("code")).toBe(CODE)
+			expect(settled).toEqual({
+				credentials: {
+					accessToken: ACCESS_TOKEN,
+					refreshToken: REFRESH_TOKEN,
+					expiresAt: expect.any(Number),
+					clientId: HANDED_CLIENT_ID,
+					clientSecret: HANDED_CLIENT_SECRET,
+				},
+			})
+		} finally {
+			await authority.stop()
+		}
+	}, 20_000)
+
+	it("names the code the token endpoint refused a handed client with", async () => {
+		const authority = anAuthorizationServer({
+			tokenRefusal: refusedWith("invalid_client"),
+		})
+		try {
+			const flow = aFlowUnder(authority.url)
+			await redirectedWithCode(await waitForStarted())
+
+			expect(await flow).toEqual({
+				error: {
+					kind: "rejected",
+					detail: "the token endpoint answered 400: invalid_client",
+					step: "tokenExchange",
+					status: 400,
+					body: REFUSED_GRANT,
+					code: "invalid_client",
 				},
 			})
 		} finally {
@@ -258,7 +336,11 @@ describe("mcp oauth", () => {
 			await fetch(landing)
 
 			expect(await flow).toEqual({
-				error: { kind: "denied", detail: "access_denied" },
+				error: {
+					kind: "denied",
+					detail: "access_denied",
+					code: "access_denied",
+				},
 			})
 		} finally {
 			await authority.stop()
@@ -496,6 +578,7 @@ describe("mcp oauth", () => {
 					step: "tokenExchange",
 					status: 400,
 					body: REFUSED_GRANT,
+					code,
 				},
 			})
 		}, 20_000)
@@ -511,6 +594,7 @@ describe("mcp oauth", () => {
 				step: "tokenExchange",
 				status: 400,
 				body: REFUSED_GRANT,
+				code: "temporarily_unavailable",
 			},
 		})
 	}, 20_000)
@@ -527,6 +611,7 @@ describe("mcp oauth", () => {
 				detail: "the token endpoint answered 400: invalid_request",
 				step: "tokenExchange",
 				status: 400,
+				code: "invalid_request",
 			},
 		})
 	}, 20_000)

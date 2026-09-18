@@ -186,7 +186,7 @@ mod tests {
 		credentials::store(&root, &scope, &a_grant()).expect("the grant is written");
 
 		let kept = store::values(&root, &scope).expect("the scope is readable");
-		assert!(RESERVED_NAMES.iter().all(|name| kept.contains_key(*name)));
+		assert_eq!(kept.len(), 5);
 		assert_eq!(kept.get(OAUTH_ACCESS_TOKEN).map(String::as_str), Some("granted"));
 	}
 }

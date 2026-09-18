@@ -19,13 +19,13 @@ describe("standingOf", () => {
 		})
 	})
 
-	it("names a server waiting for authorization with no reason", () => {
+	it("carries the reason a server waits for authorization for", () => {
 		expect(
 			standingOf({
 				detail: leftOut("granola", AWAITING_AUTH),
 				state: "needs-auth",
 			}),
-		).toEqual({ name: "granola", state: "needs-auth" })
+		).toEqual({ name: "granola", state: "needs-auth", reason: AWAITING_AUTH })
 	})
 
 	it("carries the reason a server was left out for", () => {

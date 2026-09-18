@@ -23,9 +23,9 @@ export const standingOf = ({
 	if (!name || !RECORDED.has(state)) {
 		return undefined
 	}
-	return state === "left-out"
-		? { name, state, reason: leftOutReason(detail) }
-		: { name, state }
+	return state === "holding"
+		? { name, state }
+		: { name, state, reason: leftOutReason(detail) }
 }
 
 export const recordStanding =

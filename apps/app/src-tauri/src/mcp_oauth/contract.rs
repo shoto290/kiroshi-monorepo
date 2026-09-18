@@ -173,6 +173,7 @@ mod tests {
 				step: None,
 				status: None,
 				body: None,
+				code: None,
 			})
 		};
 
@@ -185,7 +186,8 @@ mod tests {
 				detail: Some("access_denied".to_owned()),
 				step: None,
 				status: None,
-				body: None
+				body: None,
+				code: None,
 			}),
 			OauthError::Denied { detail: "access_denied".to_owned() }
 		);
@@ -242,7 +244,8 @@ mod tests {
 				detail: Some("no server url was named".to_owned()),
 				step: None,
 				status: None,
-				body: None
+				body: None,
+				code: None,
 			}))
 			.expect("the error serializes"),
 			json!({ "kind": "failed", "detail": "no server url was named" })

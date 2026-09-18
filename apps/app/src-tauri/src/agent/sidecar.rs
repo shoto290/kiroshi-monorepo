@@ -16,8 +16,8 @@ use tokio::task::JoinHandle;
 
 use super::contract::TransportError;
 use super::protocol::{
-	self, Authorized, Catalogue, Checked, OauthStarted, Ready, RefreshRequest, RevocationRequest,
-	Revoked, SignedIn, Titled, ToolCatalogue,
+	self, AuthorizeRequest, Authorized, Catalogue, Checked, OauthStarted, Ready, RefreshRequest,
+	RevocationRequest, Revoked, SignedIn, Titled, ToolCatalogue,
 };
 use crate::environment::contract::Values;
 
@@ -287,8 +287,11 @@ impl Sidecar {
 		rx
 	}
 
-	pub fn begin_oauth(self: &Arc<Self>, url: &str) -> Result<OauthFlow, TransportError> {
-		self.begin_flow(&OAUTH_FLOW, protocol::oauth_authorize_command(url))
+	pub fn begin_oauth(
+		self: &Arc<Self>,
+		request: &AuthorizeRequest,
+	) -> Result<OauthFlow, TransportError> {
+		self.begin_flow(&OAUTH_FLOW, protocol::oauth_authorize_command(request))
 	}
 
 	pub fn cancel_oauth(&self) -> Result<(), TransportError> {

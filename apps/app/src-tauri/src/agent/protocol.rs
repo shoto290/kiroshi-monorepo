@@ -420,8 +420,18 @@ pub struct RevocationRequest {
 	pub client_secret: Option<String>,
 }
 
-pub fn oauth_authorize_command(url: &str) -> Value {
-	serde_json::json!({ "type": OAUTH_AUTHORIZE, "url": url })
+#[derive(Debug, Clone, PartialEq, Eq, Serialize)]
+#[serde(rename_all = "camelCase")]
+pub struct AuthorizeRequest {
+	pub url: String,
+	#[serde(skip_serializing_if = "Option::is_none")]
+	pub client_id: Option<String>,
+	#[serde(skip_serializing_if = "Option::is_none")]
+	pub client_secret: Option<String>,
+}
+
+pub fn oauth_authorize_command(request: &AuthorizeRequest) -> Value {
+	command_carrying(OAUTH_AUTHORIZE, request)
 }
 
 pub fn oauth_cancel_command() -> Value {
@@ -503,6 +513,22 @@ pub struct OauthFailure {
 	pub status: Option<u16>,
 	#[serde(default)]
 	pub body: Option<String>,
+	#[serde(default)]
+	pub code: Option<String>,
+}
+
+const INVALID_GRANT: &str = "invalid_grant";
+const INVALID_CLIENT: &str = "invalid_client";
+const UNAUTHORIZED_CLIENT: &str = "unauthorized_client";
+
+impl OauthFailure {
+	pub fn refuses_the_grant(&self) -> bool {
+		self.code.as_deref() == Some(INVALID_GRANT)
+	}
+
+	pub fn refuses_the_client(&self) -> bool {
+		matches!(self.code.as_deref(), Some(INVALID_CLIENT | UNAUTHORIZED_CLIENT))
+	}
 }
 
 #[derive(Debug, Clone, Deserialize)]
@@ -544,6 +570,43 @@ mod tests {
 
 	fn failure(frame: Value) -> OauthFailure {
 		from_value(frame).expect("the frame reads")
+	}
+
+	#[test]
+	fn an_authorize_command_hands_the_stored_client_when_it_names_one() {
+		let handed = AuthorizeRequest {
+			url: "https://mcp.granola.test/mcp".to_owned(),
+			client_id: Some("registered".to_owned()),
+			client_secret: Some("confidential".to_owned()),
+		};
+		let bare = AuthorizeRequest { client_id: None, client_secret: None, ..handed.clone() };
+
+		assert_eq!(
+			oauth_authorize_command(&handed),
+			json!({
+				"type": "mcp_oauth_authorize",
+				"url": "https://mcp.granola.test/mcp",
+				"clientId": "registered",
+				"clientSecret": "confidential"
+			})
+		);
+		assert_eq!(
+			oauth_authorize_command(&bare),
+			json!({ "type": "mcp_oauth_authorize", "url": "https://mcp.granola.test/mcp" })
+		);
+	}
+
+	#[test]
+	fn a_failure_reads_the_code_it_names_and_what_that_code_refuses() {
+		let named = |code: &str| failure(json!({ "kind": "rejected", "code": code }));
+
+		assert!(named("invalid_grant").refuses_the_grant());
+		assert!(!named("invalid_grant").refuses_the_client());
+		assert!(named("invalid_client").refuses_the_client());
+		assert!(named("unauthorized_client").refuses_the_client());
+		assert!(!named("temporarily_unavailable").refuses_the_grant());
+		assert!(!named("temporarily_unavailable").refuses_the_client());
+		assert_eq!(failure(json!({ "kind": "failed" })).code, None);
 	}
 
 	#[test]

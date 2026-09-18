@@ -58,11 +58,28 @@ its answer both.
 | `mcp_oauth_authorize` | `{"type":"mcp_oauth_authorize","credentials"?:{…},"error"?:{"kind":…}}` | the grant `mcp_oauth_connect` stores |
 | `mcp_oauth_cancel` | — | the pending `mcp_oauth_authorize`, settled `cancelled` |
 | `mcp_oauth_revoke` | `{"type":"mcp_oauth_revoke","revoked":bool,"detail"?:string}` | the `Disconnected` a `mcp_oauth_disconnect` answers |
-| `mcp_oauth_refresh` | `{"type":"mcp_oauth_refresh","credentials"?:{…},"error"?:{"kind":"rejected"\|"failed",…}}` | the grant written before a session opens, or its deletion on `rejected` |
+| `mcp_oauth_refresh` | `{"type":"mcp_oauth_refresh","credentials"?:{…},"error"?:{"kind":"rejected"\|"failed",…}}` | the grant written before a session opens, or what the refusal code costs it |
+
+An `error` whose refused request answered a body that reads as an OAuth error carries
+that error's `error` value as `code`, beside `detail`, `step`, `status` and `body`. A
+redirect carrying an `error` parameter carries that parameter as `code` too.
 
 `mcp_oauth_refresh` answers `rejected` only when the token endpoint names `invalid_grant`,
 `invalid_client` or `unauthorized_client`. Any other OAuth error, an answer carrying none,
-and an authority that was never reached are `failed`, and the stored grant stands. The
+and an authority that was never reached are `failed`. The host reads what a refusal costs
+from `code` alone, the rule the SDK's own `auth()` applies:
+
+- `invalid_grant` deletes `KIROSHI_OAUTH_ACCESS_TOKEN`, `KIROSHI_OAUTH_REFRESH_TOKEN` and
+  `KIROSHI_OAUTH_EXPIRES_AT`, and keeps `KIROSHI_OAUTH_CLIENT_ID` and
+  `KIROSHI_OAUTH_CLIENT_SECRET`, so the next connect reuses the registration.
+- `invalid_client` and `unauthorized_client` delete every reserved name of the scope.
+- any other code, or none, leaves every reserved name as it stands.
+
+A refusal that deleted a name stores its reason under `KIROSHI_OAUTH_REASON`, on one line
+and with every stored secret redacted. The application row of that server reads
+`needsAuthorization` carrying that reason until a grant is stored again, which deletes it.
+No environment listing names it. A grant that moved under the refresh, a connect having
+stored another meanwhile, is left as it stands. The
 sidecar bounds the whole refresh at 10000 ms and answers `failed` once it outlasts that.
 The host waits 12000 ms, longer than the sidecar's bound, so an answer never lands late on
 the ask of the next refresh.
@@ -110,12 +127,18 @@ and resolve `notRunning` without sending anything to the sidecar when none runs:
 holds that state, and `sign_in_code` and `sign_in_cancel` answer nothing that could
 report it.
 
-`mcp_oauth_authorize` carries the `url` of an HTTP MCP server and runs the OAuth 2.1
+`mcp_oauth_authorize` carries the `url` of an HTTP MCP server, and the `clientId` and
+`clientSecret` its scope still stores, when it stores a client id. It runs the OAuth 2.1
 flow of `@modelcontextprotocol/sdk` against it: RFC 9728 discovery, dynamic client
-registration, PKCE, and the code exchange. A client is registered for every flow and
-never reused, because the `redirect_uri` of the registration names the port that flow
-bound. The redirect listener binds `127.0.0.1` on a port the operating system picks,
-and nothing else: `http://127.0.0.1:<port>/oauth/callback`.
+registration, PKCE, and the code exchange. A flow handed a client registers none and
+asks under that client, relying on the authorization server taking any port on a
+loopback `redirect_uri` (RFC 8252, section 7.3). When that flow settles on a failure
+whose `code` is `invalid_client` or `unauthorized_client`, the host sends a second
+`mcp_oauth_authorize` naming no client inside the same `mcp_oauth_connect`, which
+registers one; the grant stored names the client it was granted under. A flow handed
+no client registers one whose `redirect_uri` names the port that flow bound. The
+redirect listener binds `127.0.0.1` on a port the operating system picks, and nothing
+else: `http://127.0.0.1:<port>/oauth/callback`.
 
 Once the authorization url is built, the sidecar writes one sessionless frame naming
 it, before the flow settles:

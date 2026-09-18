@@ -2,7 +2,9 @@ use serde::Serialize;
 
 use super::credentials;
 use super::reports::Standing;
-use crate::environment::contract::{EnvScope, Values, OAUTH_ACCESS_TOKEN, OAUTH_REFRESH_TOKEN};
+use crate::environment::contract::{
+	EnvScope, Values, OAUTH_ACCESS_TOKEN, OAUTH_REASON, OAUTH_REFRESH_TOKEN,
+};
 
 const A_STATUS_READ: &str = "it read ";
 
@@ -48,9 +50,12 @@ pub fn status(evidence: Evidence, now: i64) -> ApplicationStatus {
 	if evidence.refusal.is_some() {
 		return ApplicationStatus::NeedsAuthorization { reason: evidence.refusal };
 	}
+	if let Some(stored) = evidence.held.get(OAUTH_REASON) {
+		return ApplicationStatus::NeedsAuthorization { reason: Some(stored.clone()) };
+	}
 	match evidence.reported {
 		Some(Standing::Holding) => ApplicationStatus::Connected,
-		Some(Standing::NeedsAuth) => ApplicationStatus::NeedsAuthorization { reason: None },
+		Some(Standing::NeedsAuth { reason }) => needs_auth(reason, &evidence.held, now),
 		Some(Standing::LeftOut { reason }) => {
 			left_out(reason, &evidence.held, evidence.kiroshi_authorizes, now)
 		}
@@ -71,6 +76,13 @@ fn left_out(
 		return ApplicationStatus::NeedsAuthorization { reason: None };
 	}
 	ApplicationStatus::Failed { reason: Some(credentials::scrubbed(reason, held)) }
+}
+
+fn needs_auth(reason: Option<String>, held: &Values, now: i64) -> ApplicationStatus {
+	if !holds_a_usable_grant(held, now) {
+		return ApplicationStatus::NeedsAuthorization { reason: None };
+	}
+	ApplicationStatus::Failed { reason: reason.map(|reason| credentials::scrubbed(reason, held)) }
 }
 
 fn did_not_come_up(reason: &str) -> bool {
@@ -103,6 +115,8 @@ mod tests {
 	use crate::environment::contract::{OAUTH_CLIENT_ID, OAUTH_CLIENT_SECRET, OAUTH_EXPIRES_AT};
 
 	const NOW: i64 = 1_800_000_000_000;
+	const AWAITING: &str = "it is waiting for you to authorize it";
+	const STORED_REASON: &str = "the token endpoint answered 400: invalid_grant";
 
 	fn a_grant(expires_at: Option<i64>) -> Values {
 		let mut held: Values = [
@@ -157,7 +171,8 @@ mod tests {
 
 	#[test]
 	fn a_running_flow_reads_as_connecting_over_every_other_answer() {
-		let evidence = Evidence { is_authorizing: true, ..reported(Standing::NeedsAuth) };
+		let evidence =
+			Evidence { is_authorizing: true, ..reported(Standing::NeedsAuth { reason: None }) };
 
 		assert_eq!(status(evidence, NOW), ApplicationStatus::Connecting);
 	}
@@ -166,16 +181,70 @@ mod tests {
 	fn the_last_state_a_session_reported_decides_the_answer() {
 		assert_eq!(status(reported(Standing::Holding), NOW), ApplicationStatus::Connected);
 		assert_eq!(
-			status(reported(Standing::NeedsAuth), NOW),
-			ApplicationStatus::NeedsAuthorization { reason: None }
-		);
-		assert_eq!(
 			status(reported(Standing::LeftOut { reason: Some("it read failed".to_owned()) }), NOW),
 			ApplicationStatus::Failed { reason: Some("it read failed".to_owned()) }
 		);
 		assert_eq!(
 			status(reported(Standing::LeftOut { reason: None }), NOW),
 			ApplicationStatus::Failed { reason: None }
+		);
+	}
+
+	#[test]
+	fn a_session_needing_authorization_reads_so_while_no_usable_grant_is_held() {
+		let evidence = Evidence {
+			held: Values::new(),
+			..reported(Standing::NeedsAuth { reason: Some(AWAITING.to_owned()) })
+		};
+
+		assert_eq!(status(evidence, NOW), ApplicationStatus::NeedsAuthorization { reason: None });
+	}
+
+	#[test]
+	fn a_session_needing_authorization_over_a_usable_grant_reads_failed_with_its_reason() {
+		let live =
+			reported(Standing::NeedsAuth { reason: Some(format!("{AWAITING} held-access")) });
+		let renewable = Evidence {
+			held: a_grant(Some(NOW - 1)),
+			..reported(Standing::NeedsAuth { reason: Some(AWAITING.to_owned()) })
+		};
+
+		assert_eq!(
+			status(live, NOW),
+			ApplicationStatus::Failed { reason: Some(format!("{AWAITING} [redacted]")) }
+		);
+		assert_eq!(
+			status(renewable, NOW),
+			ApplicationStatus::Failed { reason: Some(AWAITING.to_owned()) }
+		);
+		assert_eq!(
+			status(reported(Standing::NeedsAuth { reason: None }), NOW),
+			ApplicationStatus::Failed { reason: None }
+		);
+	}
+
+	#[test]
+	fn a_stored_reason_reads_as_needing_authorization_unless_the_pass_named_a_refusal() {
+		let held = Values::from([
+			(OAUTH_CLIENT_ID.to_owned(), "registered".to_owned()),
+			(OAUTH_REASON.to_owned(), STORED_REASON.to_owned()),
+		]);
+		let stored = Evidence { held: held.clone(), ..reported(Standing::Holding) };
+		let refused = Evidence {
+			refusal: Some("refused on this pass".to_owned()),
+			held,
+			..reported(Standing::Holding)
+		};
+
+		assert_eq!(
+			status(stored, NOW),
+			ApplicationStatus::NeedsAuthorization { reason: Some(STORED_REASON.to_owned()) }
+		);
+		assert_eq!(
+			status(refused, NOW),
+			ApplicationStatus::NeedsAuthorization {
+				reason: Some("refused on this pass".to_owned())
+			}
 		);
 	}
 

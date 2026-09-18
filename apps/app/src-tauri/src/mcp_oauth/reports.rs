@@ -16,7 +16,10 @@ const NO_RECORDS: &str = "the record of where servers stand is not held";
 #[serde(tag = "state", rename_all = "kebab-case")]
 pub enum Standing {
 	Holding,
-	NeedsAuth,
+	NeedsAuth {
+		#[serde(default)]
+		reason: Option<String>,
+	},
 	LeftOut {
 		#[serde(default)]
 		reason: Option<String>,
@@ -134,7 +137,10 @@ mod tests {
 		.expect("the report reads");
 
 		assert_eq!((holding.name.as_str(), holding.standing), ("superset", Standing::Holding));
-		assert_eq!((awaiting.name.as_str(), awaiting.standing), ("granola", Standing::NeedsAuth));
+		assert_eq!(
+			(awaiting.name.as_str(), awaiting.standing),
+			("granola", Standing::NeedsAuth { reason: None })
+		);
 		assert_eq!(
 			dropped.standing,
 			Standing::LeftOut { reason: Some("TOKEN is defined by no scope".to_owned()) }
@@ -152,7 +158,7 @@ mod tests {
 	#[test]
 	fn a_report_replaces_the_one_last_recorded_for_that_bot_and_server() {
 		let reports = ApplicationReports::default();
-		reports.record("b1", "granola", Standing::NeedsAuth);
+		reports.record("b1", "granola", Standing::NeedsAuth { reason: None });
 		reports.record("b2", "granola", Standing::Holding);
 
 		reports.record("b1", "granola", Standing::Holding);
@@ -165,7 +171,7 @@ mod tests {
 	#[test]
 	fn forgetting_a_server_drops_its_standing_for_every_bot_and_keeps_the_rest() {
 		let reports = ApplicationReports::default();
-		reports.record("b1", "granola", Standing::NeedsAuth);
+		reports.record("b1", "granola", Standing::NeedsAuth { reason: None });
 		reports.record("b2", "granola", Standing::Holding);
 		reports.record("b1", "clock", Standing::Holding);
 
