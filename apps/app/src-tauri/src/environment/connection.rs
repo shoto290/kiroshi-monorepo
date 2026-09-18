@@ -17,10 +17,6 @@ pub fn clear(root: &Path) -> Result<(), EnvError> {
 	store::delete_all(root, &EnvScope::Person, &CONNECTION_NAMES)
 }
 
-pub fn held_kind(root: &Path) -> Result<Option<ConnectionKind>, EnvError> {
-	Ok(held(root)?.keys().find_map(|name| ConnectionKind::named(name)))
-}
-
 pub fn held(root: &Path) -> Result<Values, EnvError> {
 	let values = store::values(root, &EnvScope::Person)?;
 	Ok(values.into_iter().find(|(name, _)| is_a_connection_name(name)).into_iter().collect())
@@ -49,13 +45,12 @@ mod tests {
 	}
 
 	#[test]
-	fn a_stored_key_is_held_under_its_name_and_reported_by_kind() {
+	fn a_stored_key_is_held_under_its_name() {
 		let root = a_root("stored");
 
 		hold(&root, ConnectionKind::ApiKey, "sk-typed").expect("the key is stored");
 
 		assert_eq!(held(&root).expect("the store reads"), holding(&[(API_KEY, "sk-typed")]));
-		assert_eq!(held_kind(&root).expect("the store reads"), Some(ConnectionKind::ApiKey));
 	}
 
 	#[test]
@@ -80,10 +75,6 @@ mod tests {
 		assert_eq!(
 			held(&root).expect("the store reads"),
 			holding(&[(SUBSCRIPTION_TOKEN, "token")])
-		);
-		assert_eq!(
-			held_kind(&root).expect("the store reads"),
-			Some(ConnectionKind::SubscriptionToken)
 		);
 
 		hold(&root, ConnectionKind::ApiKey, "sk-second").expect("the key is stored");
@@ -119,7 +110,6 @@ mod tests {
 		clear(&root).expect("the connection is cleared");
 
 		assert_eq!(held(&root).expect("the store reads"), Values::new());
-		assert_eq!(held_kind(&root).expect("the store reads"), None);
 		assert_eq!(
 			store::values(&root, &space).expect("the space reads"),
 			holding(&[("REGION", "eu")])

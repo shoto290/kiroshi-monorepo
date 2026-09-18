@@ -283,8 +283,8 @@ Every other command names its session.
   `allowRead`, and denies the `Read` tool on every other bundle it finds under
   `bots/plugins` and `spaces`. Left out, the rest of the floor still applies: the home
   credential paths, the environment files and the sandbox itself.
-- `env` is the SDK's `env`: variables for the agent this session runs, not for
-  the sidecar.
+- `env` is read by the fake sidecar of the integration tests and by no session the
+  provider opens: the provider builds the agent's environment from `connection` alone.
 - `connection` is the held connection source, one name at the most: `ANTHROPIC_API_KEY`
   or `CLAUDE_CODE_OAUTH_TOKEN`, absent while none is held. The environment of the agent
   process is the sidecar's allowlist, `CLAUDE_CONFIG_DIR` among it, plus that field alone,
