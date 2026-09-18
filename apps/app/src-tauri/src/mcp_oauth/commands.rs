@@ -12,7 +12,7 @@ use super::credentials::{self, ServedGrants};
 use super::refresh::{self, Renewal, Renewals};
 use super::refusal::{refusal_line, withheld_reason, Refused, Step};
 use super::reports::{ApplicationReports, Standing};
-use super::status::{holds_a_usable_grant, status, ApplicationRow, Evidence};
+use super::status::{reads_the_answer, status, ApplicationRow, Evidence};
 use crate::agent::commands::AgentState;
 use crate::agent::contract::TransportError;
 use crate::agent::protocol::{
@@ -330,30 +330,19 @@ where
 	let renewals = refresh::before_reading(root, owner, &servers, exchange).await?;
 	forget_renewed(reports, &renewals);
 	let grants = credentials::served(root, owner)?;
-	let now = now_ms();
-	let unreported = worth_asking(&servers, &grants, now);
-	let asking = answers.asking_authorization(unreported, now).await;
-	let readings = Readings {
+	let nothing_asked = HashSet::new();
+	let unasked = Readings {
 		owner,
 		flows,
 		reports,
 		grants: &grants,
 		renewals: &renewals,
-		asking: &asking,
-		now,
+		asking: &nothing_asked,
+		now: now_ms(),
 	};
+	let asking = answers.asking_authorization(unasked.worth_asking(&servers), unasked.now).await;
+	let readings = Readings { asking: &asking, ..unasked };
 	Ok(servers.into_iter().map(|server| readings.row(server)).collect())
-}
-
-fn worth_asking(servers: &[McpServer], grants: &ServedGrants, now: i64) -> HashSet<String> {
-	servers
-		.iter()
-		.filter(|server| server.kiroshi_authorizes())
-		.filter(|server| {
-			!grants.get(&server.name).is_some_and(|grant| holds_a_usable_grant(&grant.held, now))
-		})
-		.filter_map(|server| server.url().map(str::to_owned))
-		.collect()
 }
 
 fn forget_renewed(reports: &ApplicationReports, renewals: &Renewals) {
@@ -375,16 +364,29 @@ struct Readings<'a> {
 }
 
 impl Readings<'_> {
-	fn row(&self, server: McpServer) -> ApplicationRow {
+	fn worth_asking(&self, servers: &[McpServer]) -> HashSet<String> {
+		servers
+			.iter()
+			.filter(|server| server.kiroshi_authorizes())
+			.filter(|server| reads_the_answer(&self.evidence(server), self.now))
+			.filter_map(|server| server.url().map(str::to_owned))
+			.collect()
+	}
+
+	fn evidence(&self, server: &McpServer) -> Evidence {
 		let named = EnvScope::Server { name: server.name.clone(), owner: self.owner.clone() };
-		let grant = self.grants.get(&server.name);
-		let evidence = Evidence {
+		Evidence {
 			is_authorizing: self.flows.is_authorizing(&named),
 			refusal: refusal(self.renewals, &server.name),
 			reported: last_reported(self.reports, self.owner, &server.name),
-			held: grant.map(|grant| grant.held.clone()).unwrap_or_default(),
+			held: self.grants.get(&server.name).map(|grant| grant.held.clone()).unwrap_or_default(),
 			asks_for_authorization: server.url().is_some_and(|url| self.asking.contains(url)),
-		};
+		}
+	}
+
+	fn row(&self, server: McpServer) -> ApplicationRow {
+		let grant = self.grants.get(&server.name);
+		let evidence = self.evidence(&server);
 		ApplicationRow {
 			status: status(evidence, self.now),
 			scope: grant.map(|grant| grant.scope.clone()),
@@ -528,6 +530,7 @@ mod tests {
 				}),
 			),
 			("granola", serde_json::json!({ "url": "https://${GRANOLA_HOST}/mcp" })),
+			("clock", serde_json::json!({ "command": "clock" })),
 		];
 		for (name, config) in &declared {
 			bundles::user::set_mcp_server(&path, name, config, None).expect("the server lands");
@@ -541,6 +544,7 @@ mod tests {
 			),
 			("granola", "https://granola.test/mcp", AuthorizationWithheld::UnexpandedPlaceholder),
 			("undeclared", "http://localhost:3000/mcp", AuthorizationWithheld::LoopbackAddress),
+			("clock", "https://clock.test/mcp", AuthorizationWithheld::ServedOverNoUrl),
 		];
 
 		for (name, url, carries) in asked {
@@ -1035,6 +1039,50 @@ mod tests {
 		.expect("the rows read");
 
 		assert_eq!(rows[0].status, ApplicationStatus::Unknown);
+	}
+
+	fn a_remote(name: &str) -> McpServer {
+		McpServer {
+			name: name.to_owned(),
+			config: serde_json::json!({ "url": format!("https://mcp.{name}.test/mcp") }),
+			mark: bundles::ApplicationMark::default(),
+		}
+	}
+
+	#[tokio::test]
+	async fn a_status_read_sends_no_request_to_a_server_whose_row_reads_no_answer() {
+		let root = a_root("asked-only-where-read");
+		let reports = ApplicationReports::default();
+		reports.record("b1", "holding", Standing::Holding);
+		reports.record("b1", "waiting", Standing::NeedsAuth { reason: None });
+		credentials::remember_refusal(&root, &a_server("refused"), "invalid_grant")
+			.expect("the reason is written");
+		credentials::store(&root, &a_server("granted"), &a_live_grant())
+			.expect("the grant is written");
+		let flows = McpOauthState::default();
+		let _running =
+			flows.begin(Flow::Authorizing(a_server("authorizing"))).expect("the flow claims");
+		let unasked = ["holding", "waiting", "refused", "granted", "authorizing"];
+		let answers = AuthorizationAnswers::default();
+
+		let rows = renewed_rows(
+			&root,
+			&a_bot(),
+			unasked.iter().chain(["unreported"].iter()).map(|name| a_remote(name)).collect(),
+			&flows,
+			&reports,
+			&answers,
+			|_| async { Err(TransportError::NotStarted) },
+		)
+		.await
+		.expect("the rows read");
+
+		assert_eq!(rows.len(), 6);
+		for name in unasked {
+			let url = a_remote(name).url().map(str::to_owned).expect("the server has a url");
+			assert!(!answers.holds_anything_for(&url), "{name} was asked");
+		}
+		assert!(answers.holds_anything_for("https://mcp.unreported.test/mcp"));
 	}
 
 	fn left_out_by_a_session(reports: &ApplicationReports) {

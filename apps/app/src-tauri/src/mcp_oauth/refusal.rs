@@ -58,6 +58,7 @@ impl Step {
 
 pub fn withheld_reason(carries: AuthorizationWithheld) -> &'static str {
 	match carries {
+		AuthorizationWithheld::ServedOverNoUrl => "it is served over no url",
 		AuthorizationWithheld::LoopbackAddress => "it is served on a loopback address",
 		AuthorizationWithheld::OwnAuthorizationHeader => "it carries its own authorization header",
 		AuthorizationWithheld::UnexpandedPlaceholder => "it carries an unexpanded placeholder",

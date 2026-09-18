@@ -1065,6 +1065,7 @@ const LOOPBACK_NAME: &str = "localhost";
 #[derive(Debug, Clone, Copy, PartialEq, Eq, Serialize)]
 #[serde(rename_all = "camelCase")]
 pub enum AuthorizationWithheld {
+	ServedOverNoUrl,
 	LoopbackAddress,
 	OwnAuthorizationHeader,
 	UnexpandedPlaceholder,
@@ -1076,10 +1077,13 @@ impl McpServer {
 	}
 
 	pub fn kiroshi_authorizes(&self) -> bool {
-		self.url().is_some() && self.authorization_withheld().is_none()
+		self.authorization_withheld().is_none()
 	}
 
 	pub fn authorization_withheld(&self) -> Option<AuthorizationWithheld> {
+		if self.url().is_none() {
+			return Some(AuthorizationWithheld::ServedOverNoUrl);
+		}
 		if self.declares_placeholder() {
 			return Some(AuthorizationWithheld::UnexpandedPlaceholder);
 		}
@@ -2094,6 +2098,11 @@ mod tests {
 			declared(serde_json::json!({ "url": "https://mcp.granola.test/mcp" }))
 				.authorization_withheld(),
 			None
+		);
+		assert_eq!(
+			declared(serde_json::json!({ "command": "clock", "env": { "T": "${TOKEN}" } }))
+				.authorization_withheld(),
+			Some(AuthorizationWithheld::ServedOverNoUrl)
 		);
 	}
 

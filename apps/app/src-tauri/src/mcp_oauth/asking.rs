@@ -13,6 +13,8 @@ const ASKING_BOUND: Duration = Duration::from_millis(3000);
 
 const ANSWER_HELD_MS: i64 = 600_000;
 
+const NO_ANSWER_HELD_MS: i64 = 60_000;
+
 const MCP_ACCEPT: &str = "application/json, text/event-stream";
 
 const MCP_PROTOCOL_VERSION: &str = "2025-06-18";
@@ -22,8 +24,15 @@ const PROTECTED_RESOURCE_METADATA: &str = "/.well-known/oauth-protected-resource
 const AUTHORIZATION_SERVERS: &str = "authorization_servers";
 
 struct Answer {
-	asks: bool,
+	asks: Option<bool>,
 	at: i64,
+}
+
+impl Answer {
+	fn has_aged(&self, now: i64) -> bool {
+		let window = if self.asks.is_some() { ANSWER_HELD_MS } else { NO_ANSWER_HELD_MS };
+		now - self.at >= window
+	}
 }
 
 #[derive(Default)]
@@ -47,23 +56,21 @@ impl AuthorizationAnswers {
 			self.hold(url, answer, now);
 		}
 		let held = self.held();
-		urls.into_iter().filter(|url| held.get(url).is_some_and(|answer| answer.asks)).collect()
+		urls.into_iter()
+			.filter(|url| held.get(url).is_some_and(|answer| answer.asks == Some(true)))
+			.collect()
 	}
 
 	fn unanswered(&self, urls: &HashSet<String>, now: i64) -> Vec<String> {
 		let held = self.held();
 		urls.iter()
-			.filter(|url| held.get(*url).is_none_or(|answer| now - answer.at >= ANSWER_HELD_MS))
+			.filter(|url| held.get(*url).is_none_or(|answer| answer.has_aged(now)))
 			.cloned()
 			.collect()
 	}
 
-	fn hold(&self, url: String, answer: Option<bool>, now: i64) {
-		let mut held = self.held();
-		match answer {
-			Some(asks) => held.insert(url, Answer { asks, at: now }),
-			None => held.remove(&url),
-		};
+	fn hold(&self, url: String, asks: Option<bool>, now: i64) {
+		self.held().insert(url, Answer { asks, at: now });
 	}
 
 	fn held(&self) -> MutexGuard<'_, HashMap<String, Answer>> {
@@ -197,6 +204,10 @@ fn asks_for_authorization(status: StatusCode, challenges: bool) -> bool {
 
 #[cfg(test)]
 impl AuthorizationAnswers {
+	pub fn holds_anything_for(&self, url: &str) -> bool {
+		self.held().contains_key(url)
+	}
+
 	pub fn answered(&self, url: &str, asks: bool, at: i64) {
 		self.hold(url.to_owned(), Some(asks), at);
 	}
@@ -344,6 +355,12 @@ mod tests {
 		(status, headers, String::new())
 	}
 
+	fn holds_no_answer_for(answers: &AuthorizationAnswers, urls: &HashSet<String>) -> bool {
+		let held = answers.held();
+		held.len() == urls.len()
+			&& urls.iter().all(|url| held.get(url).is_some_and(|answer| answer.asks.is_none()))
+	}
+
 	fn urls(stub: &Stub, answers: &[&str]) -> HashSet<String> {
 		answers.iter().map(|answer| stub.at(answer)).collect()
 	}
@@ -432,17 +449,24 @@ mod tests {
 	}
 
 	#[tokio::test]
-	async fn a_transient_status_holds_no_answer_and_the_next_read_asks_again() {
+	async fn a_transient_status_holds_no_answer_under_its_own_shorter_window() {
 		let stub = Stub::serving().await;
 		let answers = AuthorizationAnswers::default();
 		let transient =
 			urls(&stub, &["request-timeout", "too-many", "unavailable", "metadata-unavailable"]);
 
 		assert!(answers.asking_authorization(transient.clone(), NOW).await.is_empty());
-		assert!(answers.held().is_empty());
+		assert!(holds_no_answer_for(&answers, &transient));
 		assert_eq!(stub.initializes().await, 3);
 
-		answers.asking_authorization(transient, NOW + 1).await;
+		let held =
+			answers.asking_authorization(transient.clone(), NOW + NO_ANSWER_HELD_MS - 1).await;
+
+		assert!(held.is_empty());
+		assert_eq!(stub.initializes().await, 3);
+		const { assert!(NO_ANSWER_HELD_MS < ANSWER_HELD_MS) };
+
+		answers.asking_authorization(transient, NOW + NO_ANSWER_HELD_MS).await;
 
 		assert_eq!(stub.initializes().await, 6);
 		let metadata_unavailable =
@@ -456,12 +480,27 @@ mod tests {
 	async fn a_server_answering_nothing_within_its_bound_holds_no_answer() {
 		let stub = Stub::serving().await;
 		let answers = AuthorizationAnswers::default();
+		let stalled = urls(&stub, &["stalled"]);
 
-		let asking =
-			answers.asked_within(urls(&stub, &["stalled"]), NOW, Duration::from_millis(200)).await;
+		let asking = answers.asked_within(stalled.clone(), NOW, Duration::from_millis(200)).await;
 
 		assert!(asking.is_empty());
-		assert!(answers.held().is_empty());
+		assert!(holds_no_answer_for(&answers, &stalled));
+	}
+
+	#[tokio::test]
+	async fn two_reads_of_a_server_that_never_answers_send_one_round_of_requests() {
+		let stub = Stub::serving().await;
+		let answers = AuthorizationAnswers::default();
+		let stalled = urls(&stub, &["stalled"]);
+
+		answers.asked_within(stalled.clone(), NOW, Duration::from_millis(200)).await;
+		let one_round = stub.asked().await.len();
+		let second = answers.asked_within(stalled, NOW + 1, Duration::from_millis(200)).await;
+
+		assert!(second.is_empty());
+		assert_eq!(one_round, 3);
+		assert_eq!(stub.asked().await.len(), one_round);
 	}
 
 	#[tokio::test]
@@ -473,10 +512,15 @@ mod tests {
 			answers.asked_within(urls(&stub, &["slowly"]), NOW, Duration::from_millis(200)).await;
 
 		assert!(asking.is_empty());
-		assert!(answers.held().is_empty());
+		assert!(holds_no_answer_for(&answers, &urls(&stub, &["slowly"])));
 
-		let unbounded =
-			answers.asked_within(urls(&stub, &["slowly"]), NOW, Duration::from_millis(1000)).await;
+		let unbounded = answers
+			.asked_within(
+				urls(&stub, &["slowly"]),
+				NOW + NO_ANSWER_HELD_MS,
+				Duration::from_millis(1000),
+			)
+			.await;
 
 		assert_eq!(unbounded, urls(&stub, &["slowly"]));
 	}
@@ -486,8 +530,8 @@ mod tests {
 		let answers = AuthorizationAnswers::default();
 		let closed = HashSet::from(["http://127.0.0.1:9/mcp".to_owned()]);
 
-		assert!(answers.asking_authorization(closed, NOW).await.is_empty());
-		assert!(answers.held().is_empty());
+		assert!(answers.asking_authorization(closed.clone(), NOW).await.is_empty());
+		assert!(holds_no_answer_for(&answers, &closed));
 	}
 
 	#[tokio::test]
@@ -508,17 +552,18 @@ mod tests {
 	}
 
 	#[tokio::test]
-	async fn an_aged_answer_the_server_no_longer_gives_is_dropped() {
+	async fn an_aged_answer_the_server_no_longer_gives_is_replaced_by_no_answer() {
 		let stub = Stub::serving().await;
-		let stalled = stub.at("stalled");
+		let stalled = HashSet::from([stub.at("stalled")]);
 		let answers = AuthorizationAnswers::default();
-		answers.answered(&stalled, true, NOW - ANSWER_HELD_MS);
+		for url in &stalled {
+			answers.answered(url, true, NOW - ANSWER_HELD_MS);
+		}
 
-		let asking =
-			answers.asked_within(HashSet::from([stalled]), NOW, Duration::from_millis(200)).await;
+		let asking = answers.asked_within(stalled.clone(), NOW, Duration::from_millis(200)).await;
 
 		assert!(asking.is_empty());
-		assert!(answers.held().is_empty());
+		assert!(holds_no_answer_for(&answers, &stalled));
 	}
 
 	#[tokio::test]

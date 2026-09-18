@@ -66,6 +66,14 @@ pub fn status(evidence: Evidence, now: i64) -> ApplicationStatus {
 	}
 }
 
+pub fn reads_the_answer(evidence: &Evidence, now: i64) -> bool {
+	!evidence.is_authorizing
+		&& evidence.refusal.is_none()
+		&& !evidence.held.contains_key(OAUTH_REASON)
+		&& matches!(evidence.reported, None | Some(Standing::LeftOut { .. }))
+		&& !holds_a_usable_grant(&evidence.held, now)
+}
+
 fn needs_auth(held: &Values, now: i64) -> ApplicationStatus {
 	if !holds_a_usable_grant(held, now) {
 		return ApplicationStatus::NeedsAuthorization { reason: None };
@@ -81,7 +89,7 @@ fn stored_status(held: &Values, asks_for_authorization: bool, now: i64) -> Appli
 	}
 }
 
-pub fn holds_a_usable_grant(held: &Values, now: i64) -> bool {
+fn holds_a_usable_grant(held: &Values, now: i64) -> bool {
 	held.contains_key(OAUTH_ACCESS_TOKEN) && (is_live(held, now) || is_renewable(held))
 }
 
@@ -259,6 +267,25 @@ mod tests {
 			status(unreported(holding_no_refresh_token(Some(NOW)), false), NOW),
 			ApplicationStatus::Unknown
 		);
+	}
+
+	#[test]
+	fn only_a_row_a_session_left_out_or_never_reported_reads_the_answer() {
+		assert!(reads_the_answer(&unreported(Values::new(), false), NOW));
+		assert!(reads_the_answer(&left_out_holding(Values::new()), NOW));
+
+		let unread = [
+			Evidence { is_authorizing: true, ..unreported(Values::new(), false) },
+			Evidence { refusal: Some("invalid_grant".to_owned()), ..unreported(Values::new(), false) },
+			unreported(Values::from([(OAUTH_REASON.to_owned(), STORED_REASON.to_owned())]), false),
+			unreported(a_grant(Some(NOW + 1)), false),
+			left_out_holding(a_grant(Some(NOW - 1))),
+			Evidence { held: Values::new(), ..reported(Standing::Holding) },
+			Evidence { held: Values::new(), ..reported(Standing::NeedsAuth { reason: None }) },
+		];
+		for (each, evidence) in unread.iter().enumerate() {
+			assert!(!reads_the_answer(evidence, NOW), "evidence {each}");
+		}
 	}
 
 	#[test]
