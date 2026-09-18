@@ -28,7 +28,9 @@ type SettingsSession = {
 	discard: () => void
 }
 
-type WordedSessionKind = "skills" | "applications"
+const WORDED_SESSION_KINDS = ["skills", "applications"] as const
+
+type WordedSessionKind = (typeof WORDED_SESSION_KINDS)[number]
 
 type SettingsSessions = Partial<
 	Record<WordedSessionKind | "history", SettingsSession>
@@ -48,8 +50,6 @@ type SettingsDialogShellProps = {
 	children: ReactNode
 	className?: string
 }
-
-const WORDED_SESSION_KINDS: WordedSessionKind[] = ["skills", "applications"]
 
 const DEFAULT_LEAVE_KIND: WordedSessionKind = "skills"
 
