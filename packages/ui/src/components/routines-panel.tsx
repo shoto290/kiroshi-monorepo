@@ -491,8 +491,6 @@ const RoutinesPanelSurface = (props: RoutinesPanelListProps) => {
 		}
 	}
 
-	const closePanel = () => onOpenChange(false)
-
 	const leave = (way: LeaveWay) => {
 		if (way === "back") {
 			heading?.onBack()
@@ -500,7 +498,7 @@ const RoutinesPanelSurface = (props: RoutinesPanelListProps) => {
 		}
 
 		if (unsavedForm !== null) form?.onClose()
-		closePanel()
+		onOpenChange(false)
 	}
 
 	const askLeaving = (way: LeaveWay) =>

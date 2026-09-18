@@ -258,17 +258,15 @@ const CataloguePage = ({
 			onBack={onBack}
 			onValueChange={(value) => onCategoryChange(value as CatalogueCategory)}
 			value={category}
-			rail={() => (
-				<>
-					{CATALOGUE_CATEGORIES.map((id) => (
-						<Tabs.Tab className={CATALOGUE_RAIL_ITEM_CLASS} key={id} value={id}>
-							<span className="min-w-0 flex-1 wrap-break-word text-start">
-								{t(`applications.catalogue.category.${id}`)}
-							</span>
-						</Tabs.Tab>
-					))}
-				</>
-			)}
+			rail={() =>
+				CATALOGUE_CATEGORIES.map((id) => (
+					<Tabs.Tab className={CATALOGUE_RAIL_ITEM_CLASS} key={id} value={id}>
+						<span className="min-w-0 flex-1 wrap-break-word text-start">
+							{t(`applications.catalogue.category.${id}`)}
+						</span>
+					</Tabs.Tab>
+				))
+			}
 		>
 			{children}
 		</SettingsPushedPage>

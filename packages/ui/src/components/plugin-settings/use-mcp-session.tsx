@@ -120,6 +120,7 @@ const useMcpSession = ({
 	const listedPending = pendingServer
 		? servers.find(({ name }) => name === pendingServer)
 		: undefined
+
 	const show = (opened: OpenedServer | null) => {
 		setPendingServer(undefined)
 		pages.leave("catalogue")

@@ -209,13 +209,9 @@ const HistoryChangePage = ({
 			onBack={onBack}
 			onValueChange={(value) => setChosen(String(value))}
 			value={chosenPath}
-			rail={() => (
-				<>
-					{files.map((file) => (
-						<HistoryFileTab key={file.path} path={file.path} />
-					))}
-				</>
-			)}
+			rail={() =>
+				files.map((file) => <HistoryFileTab key={file.path} path={file.path} />)
+			}
 		>
 			<div className="flex min-h-0 min-w-0 flex-1 flex-col">
 				<header className={HEAD_CLASS}>
