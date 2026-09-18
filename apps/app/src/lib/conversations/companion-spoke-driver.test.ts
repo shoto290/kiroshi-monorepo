@@ -80,6 +80,28 @@ const createRoom = async (
 	return { driver, store, runtimes, conversation, notices, announce, stop }
 }
 
+const refusingFirstRead = (store: TranscriptStore): TranscriptStore => {
+	let reads = 0
+	return {
+		...store,
+		spaces: () => {
+			reads += 1
+			return reads === 1 ? Promise.reject(new Error("refused")) : store.spaces()
+		},
+	}
+}
+
+const blindOnFirstRead = (store: TranscriptStore): TranscriptStore => {
+	let reads = 0
+	return {
+		...store,
+		spaces: () => {
+			reads += 1
+			return reads === 1 ? Promise.resolve([]) : store.spaces()
+		},
+	}
+}
+
 const spokenIn = async (store: TranscriptStore, conversationId: string) => {
 	const page = await store.loadPage(conversationId, null)
 	return page.messages
@@ -200,6 +222,66 @@ describe("a companion speaking in a room the front never opened", () => {
 		expect(await spokenIn(store, conversation.id)).toEqual([])
 		expect(summonedBy(driver)).toEqual([])
 		expect(notices).toEqual([])
+	})
+
+	it("raises a failure and writes on redelivery when the conversation cannot be read", async () => {
+		const { store, conversation, notices, announce } = await createRoom(
+			refusingFirstRead(createFakeTranscriptStore()),
+		)
+		const ada = idOf(conversation, "Ada")
+		const spoken: CompanionSpoke = {
+			conversationId: conversation.id,
+			authorBotId: ada,
+			text: "Walls are up.",
+		}
+
+		await announce(spoken)
+
+		expect(notices).toHaveLength(1)
+		expect(await spokenIn(store, conversation.id)).toEqual([])
+
+		await announce({ ...spoken })
+
+		expect(
+			(await spokenIn(store, conversation.id)).map(({ content }) => content),
+		).toEqual(["Walls are up."])
+	})
+
+	it("keeps an unknown conversation deduped when it later shows up", async () => {
+		const { store, conversation, notices, announce } = await createRoom(
+			blindOnFirstRead(createFakeTranscriptStore()),
+		)
+		const ada = idOf(conversation, "Ada")
+		const spoken: CompanionSpoke = {
+			conversationId: conversation.id,
+			authorBotId: ada,
+			text: "Walls are up.",
+		}
+
+		await announce(spoken)
+		await announce({ ...spoken })
+
+		expect(await spokenIn(store, conversation.id)).toEqual([])
+		expect(notices).toEqual([])
+	})
+
+	it("raises a failure when companion messages cannot be listened to", async () => {
+		const notices: NoticeMessage[] = []
+		startCompanionSpokeDriver({
+			runtimes: createConversationRuntimes(
+				createScriptedDriver(),
+				createFakeTranscriptStore(),
+			),
+			companions: {
+				onCompanionSpoke: () => Promise.reject(new Error("refused")),
+			},
+			reportFailure: (notice) => {
+				notices.push(notice)
+			},
+		})
+		await settled()
+
+		expect(notices).toHaveLength(1)
 	})
 
 	it("writes nothing and raises no notice for an author holding no seat", async () => {

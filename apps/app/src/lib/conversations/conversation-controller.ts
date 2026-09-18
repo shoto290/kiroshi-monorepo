@@ -151,6 +151,8 @@ export type ConversationControllerOptions = {
 	onCompanionArrived?: CompanionArrivalListener
 }
 
+type Seating = "held" | "unknown" | "unreadable"
+
 type OpenTurn = {
 	id: string
 	promptId: string
@@ -911,22 +913,25 @@ export const createConversationController = (
 		sync()
 	}
 
-	const isHeldForReport = async (conversationId: string) => {
+	const seatingFor = async (conversationId: string): Promise<Seating> => {
 		if (conversation?.id === conversationId) {
-			return true
+			return "held"
 		}
 		try {
 			const seated = await readConversation(store, conversationId)
 			if (!seated) {
-				return false
+				return "unknown"
 			}
 			await open(seated)
-			return true
+			return "held"
 		} catch (reason) {
 			noteFailure(toReadError(reason))
-			return false
+			return "unreadable"
 		}
 	}
+
+	const isHeldForReport = async (conversationId: string) =>
+		(await seatingFor(conversationId)) === "held"
 
 	const openReportTurn = async (reported: TranscriptMessage) => {
 		if (speakers.size > 0) {
@@ -989,11 +994,13 @@ export const createConversationController = (
 		authorBotId,
 		text,
 	}: CompanionSpoke) => {
-		if (!(await isHeldForReport(conversationId))) {
-			return
+		const seating = await seatingFor(conversationId)
+
+		if (seating === "unreadable") {
+			throw new Error(`the conversation ${conversationId} could not be read`)
 		}
 
-		if (!presentBotIds().includes(authorBotId)) {
+		if (seating === "unknown" || !presentBotIds().includes(authorBotId)) {
 			return
 		}
 		const spoken = await enqueue(() =>

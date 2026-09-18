@@ -33,7 +33,7 @@ export const startCompanionSpokeDriver = ({
 	let isStopped = false
 
 	const raiseFailure = (thrown: unknown) => {
-		console.error("companion spoke driver: the message was not written", thrown)
+		console.error("companion spoke driver:", thrown)
 		reportFailure({
 			title: i18n.t("chat:screen.transport.writeFailed", {
 				detail: detailOf(thrown),
@@ -41,10 +41,11 @@ export const startCompanionSpokeDriver = ({
 		})
 	}
 
-	const relay = async (spoken: CompanionSpoke) => {
+	const relay = async (spoken: CompanionSpoke, key: string) => {
 		try {
 			await runtimes.runtimeFor(spoken.conversationId).relaySpoken(spoken)
 		} catch (thrown) {
+			relayed.delete(key)
 			raiseFailure(thrown)
 		}
 	}
@@ -57,14 +58,11 @@ export const startCompanionSpokeDriver = ({
 		}
 
 		relayed.add(key)
-		void relay(spoken)
+		void relay(spoken, key)
 	}
 
 	const listening = companions.onCompanionSpoke(take).catch((reason) => {
-		console.error(
-			"companion spoke driver: companion messages could not be listened to",
-			reason,
-		)
+		raiseFailure(reason)
 		return () => undefined
 	})
 
