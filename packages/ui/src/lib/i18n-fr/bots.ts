@@ -553,6 +553,7 @@ const bots = {
 			failed: "Impossible de joindre le catalogue d'applications.",
 			partlyFailed:
 				"Impossible de lire une partie du catalogue. Réessayez pour voir le reste.",
+			stale: "Cette liste a été lue il y a plus d'un jour.",
 			retry: "Réessayer",
 			category: {
 				everything: "Tout",

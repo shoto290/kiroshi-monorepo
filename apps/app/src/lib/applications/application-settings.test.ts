@@ -54,6 +54,33 @@ const HOSTED: Application = {
 	install: { kind: "oauth" },
 }
 
+const NOTION: Application = {
+	name: "notion",
+	title: "Notion",
+	description: "Writes pages.",
+	config: { type: "http", url: "https://mcp.notion.test/mcp" },
+	categories: ["Productivity", "Developer tools"],
+	install: { kind: "nothing" },
+}
+
+const SENTRY: Application = {
+	name: "sentry",
+	title: "Sentry",
+	description: "Watches over productivity.",
+	config: { type: "http", url: "https://mcp.sentry.test/mcp" },
+	categories: ["Developer tools"],
+	install: { kind: "nothing" },
+}
+
+const GRAFANA: Application = {
+	name: "grafana",
+	title: "Grafana",
+	description: "Charts what Sentry reports.",
+	config: { type: "http", url: "https://mcp.grafana.test/mcp" },
+	categories: ["Data & analytics"],
+	install: { kind: "nothing" },
+}
+
 const LINEAR_SERVER: BotMcpServer = {
 	name: "linear",
 	config: { type: "http", url: "https://mcp.linear.app/mcp" },
@@ -68,6 +95,7 @@ const applicationsWith = (state: Partial<ApplicationsState>) => ({
 	state: { ...initialApplicationsState, ...state },
 	controller: {
 		search: vi.fn(),
+		pickCategory: vi.fn(),
 		retry: vi.fn(),
 		pick: vi.fn(),
 		leave: vi.fn(),
@@ -361,7 +389,7 @@ describe("toApplicationScope", () => {
 
 	it("names a registry result by the configuration that starts it", () => {
 		const { scope } = scopeOf(
-			applicationsWith({ curated: [LINEAR], registry: [REGISTERED] }),
+			applicationsWith({ curated: [LINEAR], directory: [REGISTERED] }),
 		)
 
 		expect(scope.mcpCatalogue?.applications).toEqual([
@@ -384,7 +412,7 @@ describe("toApplicationScope", () => {
 	})
 
 	it("carries the icon, the pill, the uses and the host of a registry result", () => {
-		const { scope } = scopeOf(applicationsWith({ registry: [HOSTED] }))
+		const { scope } = scopeOf(applicationsWith({ directory: [HOSTED] }))
 
 		expect(scope.mcpCatalogue?.applications).toEqual([
 			{
@@ -403,7 +431,7 @@ describe("toApplicationScope", () => {
 
 	it("tells the catalogue the read could not be done", () => {
 		const { scope } = scopeOf(
-			applicationsWith({ registry: [HOSTED], hasSearchFailed: true }),
+			applicationsWith({ directory: [HOSTED], hasDirectoryFailed: true }),
 		)
 
 		expect(scope.mcpCatalogue?.hasFailed).toBe(true)
@@ -423,6 +451,110 @@ describe("toApplicationScope", () => {
 		expect(scope.mcpCatalogue?.applications.map((held) => held.id)).toEqual([
 			"io.github.kwn/tasklog",
 		])
+	})
+
+	it("narrows the held directory on a typed query, folded", () => {
+		const { scope } = scopeOf(
+			applicationsWith({ directory: [NOTION, SENTRY], query: "  NOTÎ  " }),
+		)
+
+		expect(scope.mcpCatalogue?.applications.map((held) => held.id)).toEqual([
+			"notion",
+		])
+	})
+
+	it("places a title match before a description match", () => {
+		const { scope } = scopeOf(
+			applicationsWith({ directory: [GRAFANA, SENTRY], query: "sentry" }),
+		)
+
+		expect(scope.mcpCatalogue?.applications.map((held) => held.id)).toEqual([
+			"sentry",
+			"grafana",
+		])
+	})
+
+	it("keeps the loading flag false while a query narrows what is held", () => {
+		const { scope } = scopeOf(
+			applicationsWith({ directory: [NOTION], query: "notion" }),
+		)
+
+		expect(scope.mcpCatalogue?.isLoading).toBe(false)
+	})
+
+	it("shows only the applications carrying the picked category", () => {
+		const { scope } = scopeOf(
+			applicationsWith({
+				directory: [NOTION, SENTRY, REGISTERED],
+				category: "productivity",
+			}),
+		)
+
+		expect(scope.mcpCatalogue?.applications.map((held) => held.id)).toEqual([
+			"notion",
+		])
+	})
+
+	it("keeps an application of several buckets reachable from each", () => {
+		const { scope } = scopeOf(
+			applicationsWith({ directory: [NOTION], category: "developer-tools" }),
+		)
+
+		expect(scope.mcpCatalogue?.applications.map((held) => held.id)).toEqual([
+			"notion",
+		])
+	})
+
+	it("places an application carrying no bucket under other", () => {
+		const { scope } = scopeOf(
+			applicationsWith({ directory: [REGISTERED, NOTION], category: "other" }),
+		)
+
+		expect(scope.mcpCatalogue?.applications.map((held) => held.id)).toEqual([
+			"io.github.kwn/tasklog",
+		])
+	})
+
+	it("shows only what the owner declares under on this machine", () => {
+		const { scope } = scopeOf(
+			applicationsWith({
+				curated: [LINEAR],
+				directory: [NOTION],
+				category: "on-this-machine",
+			}),
+			serversWith(USER, [LINEAR_SERVER]),
+		)
+
+		expect(scope.mcpCatalogue?.applications.map((held) => held.id)).toEqual([
+			"linear",
+		])
+	})
+
+	it("renders one card per name, the curated one winning", () => {
+		const { scope } = scopeOf(
+			applicationsWith({
+				curated: [LINEAR],
+				directory: [{ ...LINEAR, title: "Linear from the directory" }],
+			}),
+		)
+
+		expect(scope.mcpCatalogue?.applications.map((held) => held.name)).toEqual([
+			"Linear",
+		])
+	})
+
+	it("hands the catalogue the category the app holds", () => {
+		const { scope } = scopeOf(applicationsWith({ category: "travel" }))
+
+		expect(scope.mcpCatalogue?.category).toBe("travel")
+	})
+
+	it("tells the catalogue the served cache is stale", () => {
+		const { scope } = scopeOf(
+			applicationsWith({ directory: [NOTION], isDirectoryStale: true }),
+		)
+
+		expect(scope.mcpCatalogue?.isStale).toBe(true)
 	})
 
 	it("hands no catalogue while the panel has no owner open", () => {

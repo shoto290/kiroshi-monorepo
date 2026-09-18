@@ -452,6 +452,31 @@ export const PartlyUnreadable = meta.story({
 	},
 })
 
+export const ServedStale = meta.story({
+	args: { isStale: true },
+	parameters: {
+		docs: {
+			description: {
+				story:
+					"A listing read more than a day ago, served all the same. Check that the cards stay on screen and that one line above them says how old the listing is, with nothing to press.",
+			},
+		},
+	},
+	play: async ({ canvas }) => {
+		const notice = canvas.getByText(
+			"This listing was read more than a day ago.",
+		)
+		const cards = canvas.getAllByRole("listitem")
+
+		await expect(notice).toBeVisible()
+		await expect(cards.length).toBe(CATALOGUE_APPLICATIONS.length)
+		await expect(boxOf(notice).top).toBeLessThan(boxOf(cards[0]).top)
+		await expect(
+			canvas.queryByRole("button", { name: "Retry" }),
+		).not.toBeInTheDocument()
+	},
+})
+
 export const Loading = meta.story({
 	args: { applications: [], isLoading: true },
 	parameters: {

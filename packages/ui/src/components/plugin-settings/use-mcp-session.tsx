@@ -19,8 +19,6 @@ import {
 import {
 	ApplicationsCatalogue,
 	type ApplicationsCatalogueProps,
-	type CatalogueCategory,
-	EVERYTHING_CATEGORY,
 } from "@workspace/ui/components/plugin-settings/applications-catalogue"
 import {
 	type ApplicationsOwner,
@@ -36,7 +34,7 @@ type ApplicationInstallSection = Pick<
 
 type ApplicationsCatalogueSection = Omit<
 	ApplicationsCatalogueProps,
-	"category" | "onCategoryChange" | "onBack" | "className"
+	"onBack" | "className"
 > & {
 	install?: ApplicationInstallSection
 	onOpen?: () => void
@@ -105,8 +103,6 @@ const useMcpSession = ({
 	const askedServer = isSettingsOpen ? serverToOpen : undefined
 	const [session, setSession] = useState<OpenedServer | null>(null)
 	const [isBrowsing, setBrowsing] = useState(false)
-	const [category, setCategory] =
-		useState<CatalogueCategory>(EVERYTHING_CATEGORY)
 	const [panelQuery, setPanelQuery] = useState("")
 	const [requestedServer, setRequestedServer] = useState(askedServer)
 	const [pendingServer, setPendingServer] = useState(askedServer)
@@ -180,7 +176,6 @@ const useMcpSession = ({
 
 	const browsedPage = (section: ApplicationsCatalogueSection) => {
 		const { install, onOpen, ...browsing } = section
-		const leaveBrowsing = () => setBrowsing(false)
 
 		if (install) {
 			const { onLeave, ...installing } = install
@@ -188,21 +183,16 @@ const useMcpSession = ({
 			return (
 				<ApplicationInstallPage
 					{...installing}
-					category={category}
+					category={browsing.category}
 					onBack={onLeave}
-					onCategoryChange={setCategory}
+					onCategoryChange={browsing.onCategoryChange}
 					owner={owner}
 				/>
 			)
 		}
 
 		return (
-			<ApplicationsCatalogue
-				{...browsing}
-				category={category}
-				onBack={leaveBrowsing}
-				onCategoryChange={setCategory}
-			/>
+			<ApplicationsCatalogue {...browsing} onBack={() => setBrowsing(false)} />
 		)
 	}
 

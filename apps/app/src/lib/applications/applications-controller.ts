@@ -3,6 +3,10 @@ import {
 	type NoticeMessage,
 	raiseFailureNotice,
 } from "@workspace/ui/components/notice-surface"
+import {
+	type CatalogueCategory,
+	EVERYTHING_CATEGORY,
+} from "@workspace/ui/components/plugin-settings/applications-catalogue"
 import { i18n } from "@workspace/ui/lib/i18n"
 
 import type {
@@ -41,10 +45,12 @@ export type ApplicationsState = {
 	isReadingCatalogue: boolean
 	hasCatalogueFailed: boolean
 	query: string
-	registry: Application[]
-	isSearching: boolean
-	hasSearchFailed: boolean
-	hasSearchPartlyFailed: boolean
+	category: CatalogueCategory
+	directory: Application[]
+	isReadingDirectory: boolean
+	hasDirectoryFailed: boolean
+	hasDirectoryPartlyFailed: boolean
+	isDirectoryStale: boolean
 	picked: Application | null
 	installing: string | null
 	failure: string | null
@@ -63,6 +69,7 @@ export type ApplicationsController = {
 	open: () => Promise<void>
 	browse: () => void
 	search: (query: string) => void
+	pickCategory: (category: CatalogueCategory) => void
 	retry: () => void
 	pick: (id: string) => void
 	leave: () => void
@@ -76,10 +83,12 @@ export const initialApplicationsState: ApplicationsState = {
 	isReadingCatalogue: false,
 	hasCatalogueFailed: false,
 	query: "",
-	registry: [],
-	isSearching: false,
-	hasSearchFailed: false,
-	hasSearchPartlyFailed: false,
+	category: EVERYTHING_CATEGORY,
+	directory: [],
+	isReadingDirectory: false,
+	hasDirectoryFailed: false,
+	hasDirectoryPartlyFailed: false,
+	isDirectoryStale: false,
 	picked: null,
 	installing: null,
 	failure: null,
@@ -127,25 +136,17 @@ const typedValuesOf = (
 const urlOf = (application: Application) =>
 	readMcpServerLaunch(application.config).url ?? ""
 
-export const REGISTRY_SEARCH_DELAY_MS = 400
-
 export type ApplicationsControllerOptions = {
 	reportFailure?: (notice: NoticeMessage) => void
-	searchDelayMs?: number
 }
 
 export const createApplicationsController = (
 	port: ApplicationPort,
 	store: TranscriptStore,
-	{
-		reportFailure = raiseFailureNotice,
-		searchDelayMs = REGISTRY_SEARCH_DELAY_MS,
-	}: ApplicationsControllerOptions = {},
+	{ reportFailure = raiseFailureNotice }: ApplicationsControllerOptions = {},
 ): ApplicationsController => {
 	let state = initialApplicationsState
-	let scheduledSearch: ReturnType<typeof setTimeout> | null = null
-	let issuedSearch = 0
-	let openingApplications: Application[] | null = null
+	let issuedRead = 0
 	const askedNames = new Set<string>()
 	const listeners = new Set<() => void>()
 
@@ -160,69 +161,38 @@ export const createApplicationsController = (
 		publish()
 	}
 
-	const supersedeSearch = () => {
-		if (scheduledSearch !== null) {
-			clearTimeout(scheduledSearch)
-			scheduledSearch = null
-		}
-		issuedSearch += 1
-	}
-
-	const issueSearch = () => {
-		supersedeSearch()
+	const readDirectory = () => {
+		issuedRead += 1
+		const attempt = issuedRead
+		const isLastIssued = () => attempt === issuedRead
 		set({
-			isSearching: true,
-			hasSearchFailed: false,
-			hasSearchPartlyFailed: false,
+			isReadingDirectory: true,
+			hasDirectoryFailed: false,
+			hasDirectoryPartlyFailed: false,
 		})
-		return issuedSearch
-	}
-
-	const sendSearch = () => {
-		const typed = state.query.trim()
-		const isOpening = typed === ""
-		const attempt = issueSearch()
-		const isLastIssued = () => attempt === issuedSearch
-		void port.search(typed).then(
+		void port.search("").then(
 			(found) => {
 				if (!isLastIssued()) {
 					return
 				}
-				const hasRegistryFailed = found.registryFailure !== undefined
-				if (isOpening) {
-					openingApplications = hasRegistryFailed ? null : found.applications
-				}
 				set({
-					registry: found.applications,
-					isSearching: false,
-					hasSearchPartlyFailed: hasRegistryFailed,
+					directory: found.applications,
+					isReadingDirectory: false,
+					hasDirectoryPartlyFailed: found.registryFailure !== undefined,
+					isDirectoryStale: found.isStale === true,
 				})
 			},
 			() => {
 				if (!isLastIssued()) {
 					return
 				}
-				if (isOpening) {
-					openingApplications = null
-				}
-				set({ isSearching: false, hasSearchFailed: true })
+				set({
+					isReadingDirectory: false,
+					hasDirectoryFailed: true,
+					isDirectoryStale: false,
+				})
 			},
 		)
-	}
-
-	const scheduleSearch = () => {
-		issueSearch()
-		scheduledSearch = setTimeout(sendSearch, searchDelayMs)
-	}
-
-	const showOpening = (held: Application[]) => {
-		supersedeSearch()
-		set({
-			registry: held,
-			isSearching: false,
-			hasSearchFailed: false,
-			hasSearchPartlyFailed: false,
-		})
 	}
 
 	const recordMark = (name: string, found: Application | null) => {
@@ -243,7 +213,7 @@ export const createApplicationsController = (
 		!askedNames.has(name) && !state.curated.some((held) => held.name === name)
 
 	const applicationNamed = (id: string) =>
-		[...state.curated, ...state.registry].find((held) => held.name === id) ??
+		[...state.curated, ...state.directory].find((held) => held.name === id) ??
 		null
 
 	const deleteWrittenSecrets = async (owner: EnvOwner, name: string) => {
@@ -374,22 +344,19 @@ export const createApplicationsController = (
 		},
 
 		browse: () => {
-			if (state.query.trim() !== "") {
+			const holdsDirectory =
+				state.directory.length > 0 && !state.hasDirectoryFailed
+			if (state.isReadingDirectory || holdsDirectory) {
 				return
 			}
-			scheduleSearch()
+			readDirectory()
 		},
 
-		search: (query: string) => {
-			set({ query })
-			if (query.trim() === "" && openingApplications !== null) {
-				showOpening(openingApplications)
-				return
-			}
-			scheduleSearch()
-		},
+		search: (query: string) => set({ query }),
 
-		retry: sendSearch,
+		pickCategory: (category: CatalogueCategory) => set({ category }),
+
+		retry: readDirectory,
 
 		pick: (id: string) => set({ picked: applicationNamed(id), failure: null }),
 

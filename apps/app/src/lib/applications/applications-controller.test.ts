@@ -91,19 +91,15 @@ const targetOf = (overrides: Partial<InstallTarget> = {}): InstallTarget => ({
 	...overrides,
 })
 
-const SEARCH_DELAY = 10
-
 const controllerOn = (
 	port = createFakeApplicationPort(),
 	store = createFakeTranscriptStore(),
 ) =>
 	createApplicationsController(port, store, {
 		reportFailure: () => undefined,
-		searchDelayMs: SEARCH_DELAY,
 	})
 
-const settled = () =>
-	new Promise((resolve) => setTimeout(resolve, SEARCH_DELAY * 3))
+const settled = () => new Promise((resolve) => setTimeout(resolve, 0))
 
 const searchesOf = (port: FakeApplicationPort) =>
 	port.calls.filter((call) => call.command === "search")
@@ -166,277 +162,190 @@ describe("applications controller", () => {
 		expect(reportFailure).toHaveBeenCalledTimes(1)
 	})
 
-	it("searches the registry for what is typed", async () => {
+	it("reads the whole directory once the catalogue page opens", async () => {
 		const port = createFakeApplicationPort()
-		port.found = [LINEAR]
+		port.found = [LINEAR, SUPERSET]
 		const controller = controllerOn(port)
 
-		controller.search("linear")
-		expect(controller.getState().isSearching).toBe(true)
+		controller.browse()
+		expect(controller.getState().isReadingDirectory).toBe(true)
 		await settled()
 
-		expect(controller.getState().registry).toEqual([LINEAR])
-		expect(controller.getState().isSearching).toBe(false)
+		expect(searchesOf(port)).toEqual([{ command: "search", query: "" }])
+		expect(controller.getState().directory).toEqual([LINEAR, SUPERSET])
+		expect(controller.getState().isReadingDirectory).toBe(false)
 	})
 
-	it("sends one registry search once the typing stops", async () => {
+	it("reads the directory once for every page that opens it", async () => {
 		const port = createFakeApplicationPort()
 		port.found = [LINEAR]
 		const controller = controllerOn(port)
+
+		controller.browse()
+		await settled()
+		controller.browse()
+		await settled()
+
+		expect(searchesOf(port)).toEqual([{ command: "search", query: "" }])
+	})
+
+	it("narrows what it holds on a keystroke without calling the port", async () => {
+		const port = createFakeApplicationPort()
+		port.found = [LINEAR, SUPERSET]
+		const controller = controllerOn(port)
+		controller.browse()
+		await settled()
 
 		for (const typed of ["l", "li", "lin", "line", "linea", "linear"]) {
 			controller.search(typed)
 		}
-		expect(searchesOf(port)).toEqual([])
-		expect(controller.getState().isSearching).toBe(true)
 		await settled()
 
-		expect(searchesOf(port)).toEqual([{ command: "search", query: "linear" }])
-		expect(controller.getState().registry).toEqual([LINEAR])
-		expect(controller.getState().isSearching).toBe(false)
+		expect(searchesOf(port)).toEqual([{ command: "search", query: "" }])
+		expect(controller.getState().query).toBe("linear")
+		expect(controller.getState().directory).toEqual([LINEAR, SUPERSET])
+		expect(controller.getState().isReadingDirectory).toBe(false)
 	})
 
-	it("keeps the answer of the last search and drops an earlier one", async () => {
+	it("holds the picked category so every page reads one value", () => {
+		const controller = controllerOn()
+
+		expect(controller.getState().category).toBe("everything")
+
+		controller.pickCategory("developer-tools")
+
+		expect(controller.getState().category).toBe("developer-tools")
+	})
+
+	it("reports a directory it could not read and reads it again on a retry", async () => {
 		const port = createFakeApplicationPort()
-		const pending: ((found: ApplicationSearch) => void)[] = []
+		port.refusals.search = { kind: "registryTimedOut" }
+		const controller = controllerOn(port)
+
+		controller.browse()
+		await settled()
+		expect(controller.getState().hasDirectoryFailed).toBe(true)
+		expect(controller.getState().directory).toEqual([])
+
+		port.refusals = {}
+		port.found = [LINEAR]
+		controller.retry()
+		await settled()
+
+		expect(searchesOf(port)).toEqual([
+			{ command: "search", query: "" },
+			{ command: "search", query: "" },
+		])
+		expect(controller.getState().hasDirectoryFailed).toBe(false)
+		expect(controller.getState().directory).toEqual([LINEAR])
+	})
+
+	it("reads the directory again when the page opens after a failed read", async () => {
+		const port = createFakeApplicationPort()
+		port.found = [LINEAR]
+		const controller = controllerOn(port)
+		controller.browse()
+		await settled()
+
+		port.refusals.search = { kind: "registryTimedOut" }
+		controller.retry()
+		await settled()
+		expect(controller.getState().hasDirectoryFailed).toBe(true)
+		expect(controller.getState().directory).toEqual([LINEAR])
+
+		port.refusals = {}
+		port.found = [LINEAR, SUPERSET]
+		controller.browse()
+		await settled()
+
+		expect(searchesOf(port)).toHaveLength(3)
+		expect(controller.getState().hasDirectoryFailed).toBe(false)
+		expect(controller.getState().directory).toEqual([LINEAR, SUPERSET])
+	})
+
+	it("keeps the answer of the last read and drops an earlier one", async () => {
+		const port = createFakeApplicationPort()
+		const answers: ((found: ApplicationSearch) => void)[] = []
 		port.search = () =>
 			new Promise((resolve) => {
-				pending.push(resolve)
-			})
-		const controller = controllerOn(port)
-
-		controller.search("linear")
-		await settled()
-		controller.retry()
-		const [answerFirst, answerLast] = pending
-		answerLast?.({ applications: [LINEAR] })
-		await settled()
-		answerFirst?.({ applications: [PAPER] })
-		await settled()
-
-		expect(controller.getState().registry).toEqual([LINEAR])
-	})
-
-	it("drops the answer of an earlier query that arrives last", async () => {
-		const port = createFakeApplicationPort()
-		const pending = new Map<string, (found: ApplicationSearch) => void>()
-		port.search = (query) =>
-			new Promise((resolve) => {
-				pending.set(query, resolve)
-			})
-		const controller = controllerOn(port)
-
-		controller.search("lin")
-		await settled()
-		controller.search("linear")
-		await settled()
-		pending.get("linear")?.({ applications: [LINEAR] })
-		await settled()
-		pending.get("lin")?.({ applications: [PAPER] })
-		await settled()
-
-		expect(controller.getState().registry).toEqual([LINEAR])
-		expect(controller.getState().isSearching).toBe(false)
-	})
-
-	it("supersedes the scheduled search with the empty query when the field is cleared", async () => {
-		const port = createFakeApplicationPort()
-		port.found = [LINEAR]
-		const controller = controllerOn(port)
-
-		controller.search("linear")
-		controller.search("")
-		await settled()
-
-		expect(searchesOf(port)).toEqual([{ command: "search", query: "" }])
-		expect(controller.getState().registry).toEqual([LINEAR])
-		expect(controller.getState().isSearching).toBe(false)
-		expect(controller.getState().hasSearchFailed).toBe(false)
-	})
-
-	it("searches the registry for the empty query when the catalogue opens", async () => {
-		const port = createFakeApplicationPort()
-		port.found = [LINEAR]
-		const controller = controllerOn(port)
-
-		controller.browse()
-		expect(searchesOf(port)).toEqual([])
-		expect(controller.getState().isSearching).toBe(true)
-		await settled()
-
-		expect(searchesOf(port)).toEqual([{ command: "search", query: "" }])
-		expect(controller.getState().registry).toEqual([LINEAR])
-		expect(controller.getState().isSearching).toBe(false)
-	})
-
-	it("sends no search when the catalogue opens on a typed query", async () => {
-		const port = createFakeApplicationPort()
-		port.found = [LINEAR]
-		const controller = controllerOn(port)
-		controller.search("linear")
-		await settled()
-
-		controller.browse()
-		await settled()
-
-		expect(searchesOf(port)).toEqual([{ command: "search", query: "linear" }])
-		expect(controller.getState().registry).toEqual([LINEAR])
-	})
-
-	it("puts the held empty-query answer back when the field is emptied", async () => {
-		const port = createFakeApplicationPort()
-		port.found = [PAPER]
-		const controller = controllerOn(port)
-		controller.browse()
-		await settled()
-		port.found = [LINEAR]
-		controller.search("linear")
-		await settled()
-
-		controller.search("")
-		await settled()
-
-		expect(searchesOf(port)).toEqual([
-			{ command: "search", query: "" },
-			{ command: "search", query: "linear" },
-		])
-		expect(controller.getState().registry).toEqual([PAPER])
-		expect(controller.getState().isSearching).toBe(false)
-	})
-
-	it("drops the empty-query answer a keystroke supersedes", async () => {
-		const port = createFakeApplicationPort()
-		const pending = new Map<string, (found: ApplicationSearch) => void>()
-		port.search = (query) =>
-			new Promise((resolve) => {
-				pending.set(query, resolve)
+				answers.push(resolve)
 			})
 		const controller = controllerOn(port)
 
 		controller.browse()
-		await settled()
-		controller.search("linear")
-		await settled()
-		pending.get("")?.({ applications: [PAPER] })
-		pending.get("linear")?.({ applications: [LINEAR] })
+		controller.retry()
+		answers[1]?.({ applications: [LINEAR] })
+		answers[0]?.({ applications: [SUPERSET] })
 		await settled()
 
-		expect(controller.getState().registry).toEqual([LINEAR])
-		expect(controller.getState().isSearching).toBe(false)
+		expect(controller.getState().directory).toEqual([LINEAR])
+		expect(controller.getState().isReadingDirectory).toBe(false)
 	})
 
-	it("holds no empty-query answer behind a refused search", async () => {
+	it("says the served cache is stale", async () => {
 		const port = createFakeApplicationPort()
-		port.refusals.search = { kind: "registryTimedOut" }
+		port.found = [LINEAR]
+		port.foundIsStale = true
 		const controller = controllerOn(port)
 
 		controller.browse()
 		await settled()
-		expect(controller.getState().hasSearchFailed).toBe(true)
 
-		port.refusals = {}
-		port.found = [LINEAR]
-		controller.retry()
-		await settled()
-
-		expect(searchesOf(port)).toEqual([
-			{ command: "search", query: "" },
-			{ command: "search", query: "" },
-		])
-		expect(controller.getState().hasSearchFailed).toBe(false)
-		expect(controller.getState().registry).toEqual([LINEAR])
+		expect(controller.getState().isDirectoryStale).toBe(true)
+		expect(controller.getState().directory).toEqual([LINEAR])
 	})
 
-	it("holds no empty-query answer when one registry side failed", async () => {
+	it("says nothing about staleness for a cache read within the day", async () => {
 		const port = createFakeApplicationPort()
-		port.found = [PAPER]
-		port.foundFailure = { kind: "registryTimedOut" }
+		port.found = [LINEAR]
+		port.foundIsStale = false
 		const controller = controllerOn(port)
+
 		controller.browse()
 		await settled()
 
-		controller.search("linear")
-		await settled()
-		controller.search("")
-		await settled()
-
-		expect(searchesOf(port)).toEqual([
-			{ command: "search", query: "" },
-			{ command: "search", query: "linear" },
-			{ command: "search", query: "" },
-		])
+		expect(controller.getState().isDirectoryStale).toBe(false)
 	})
 
-	it("reports a refused search and searches again on a retry", async () => {
-		const port = createFakeApplicationPort()
-		port.refusals.search = { kind: "registryTimedOut" }
-		const controller = controllerOn(port)
-
-		controller.search("linear")
-		await settled()
-		expect(controller.getState().hasSearchFailed).toBe(true)
-
-		port.refusals = {}
-		port.found = [LINEAR]
-		controller.retry()
-		await settled()
-
-		expect(controller.getState().hasSearchFailed).toBe(false)
-		expect(controller.getState().registry).toEqual([LINEAR])
-	})
-
-	it("holds on to the results when one registry side failed", async () => {
+	it("holds on to the results when one directory side failed", async () => {
 		const port = createFakeApplicationPort()
 		port.found = [LINEAR]
 		port.foundFailure = { kind: "registryTimedOut" }
 		const controller = controllerOn(port)
 
-		controller.search("linear")
+		controller.browse()
 		await settled()
 
-		expect(controller.getState().registry).toEqual([LINEAR])
-		expect(controller.getState().hasSearchPartlyFailed).toBe(true)
-		expect(controller.getState().hasSearchFailed).toBe(false)
+		expect(controller.getState().directory).toEqual([LINEAR])
+		expect(controller.getState().hasDirectoryPartlyFailed).toBe(true)
+		expect(controller.getState().hasDirectoryFailed).toBe(false)
 	})
 
-	it("reports no partial failure when both registry sides answered", async () => {
+	it("reports no partial failure when both directory sides answered", async () => {
 		const port = createFakeApplicationPort()
 		port.found = [LINEAR]
 		const controller = controllerOn(port)
 
-		controller.search("linear")
+		controller.browse()
 		await settled()
 
-		expect(controller.getState().hasSearchPartlyFailed).toBe(false)
+		expect(controller.getState().hasDirectoryPartlyFailed).toBe(false)
 	})
 
-	it("drops the partial failure as soon as the query changes", async () => {
-		const port = createFakeApplicationPort()
-		port.found = [LINEAR]
-		port.foundFailure = { kind: "registryTimedOut" }
-		const controller = controllerOn(port)
-		controller.search("linear")
-		await settled()
-
-		controller.search("linears")
-
-		expect(controller.getState().hasSearchPartlyFailed).toBe(false)
-	})
-
-	it("leaves no partial failure behind a refused search", async () => {
+	it("leaves no partial failure behind a refused read", async () => {
 		const port = createFakeApplicationPort()
 		port.found = [LINEAR]
 		port.foundFailure = { kind: "registryTimedOut" }
 		const controller = controllerOn(port)
-		controller.search("linear")
+		controller.browse()
 		await settled()
 
 		port.refusals.search = { kind: "registryTimedOut" }
 		controller.retry()
 		await settled()
 
-		expect(controller.getState().hasSearchFailed).toBe(true)
-		expect(controller.getState().hasSearchPartlyFailed).toBe(false)
+		expect(controller.getState().hasDirectoryFailed).toBe(true)
+		expect(controller.getState().hasDirectoryPartlyFailed).toBe(false)
 	})
 
 	it("declares a server for an install that asks nothing", async () => {
@@ -940,15 +849,16 @@ describe("applications controller", () => {
 		port.found = [LINEAR]
 		const controller = controllerOn(port)
 		await controller.open()
-		controller.search("linear")
+		controller.browse()
 		await settled()
+		controller.search("linear")
 		controller.pick("paper")
 
 		controller.leave()
 
 		expect(controller.getState().picked).toBeNull()
 		expect(controller.getState().query).toBe("linear")
-		expect(controller.getState().registry).toEqual([LINEAR])
+		expect(controller.getState().directory).toEqual([LINEAR])
 	})
 })
 
