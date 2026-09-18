@@ -20,14 +20,11 @@ const vendoredFilesImportingForeignCn = () =>
 		),
 	)
 
-const repositoryRoot = () =>
-	execFileSync("git", ["rev-parse", "--show-toplevel"], {
+const manifestsDeclaringCn = () => {
+	const root = execFileSync("git", ["rev-parse", "--show-toplevel"], {
 		cwd: import.meta.dirname,
 		encoding: "utf8",
 	}).trim()
-
-const manifestsDeclaringCn = () => {
-	const root = repositoryRoot()
 	const manifests = execFileSync("git", ["ls-files", "*package.json"], {
 		cwd: root,
 		encoding: "utf8",
