@@ -417,11 +417,7 @@ mod tests {
 
 	async fn a_room(name: &str) -> App<MockRuntime> {
 		let app = a_host(name).await;
-		ready(&app.state::<db::DatabaseState>())
-			.expect("the database opens")
-			.call_mut(|connection| Ok(connection.execute_batch(A_ROOM)?))
-			.await
-			.expect("the room is planted");
+		planted(&app, A_ROOM).await;
 		app
 	}
 
