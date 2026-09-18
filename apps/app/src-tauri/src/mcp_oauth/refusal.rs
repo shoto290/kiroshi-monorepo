@@ -43,7 +43,7 @@ impl Step {
 			Self::SettlingTheFlow => "the authorization flow did not settle",
 			Self::AskingTheAuthorizationServer => "the authorization server refused",
 			Self::HandingTheStoredClient => {
-				"the authorization server refused the stored client, so a new one is registered"
+				"the stored client was not granted, so a new one is registered"
 			}
 			Self::ReadingTheSettlement => "the settlement carried no grant",
 			Self::StoringTheGrant => "the grant could not be stored",

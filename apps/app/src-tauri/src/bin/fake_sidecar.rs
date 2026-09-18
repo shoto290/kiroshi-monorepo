@@ -611,8 +611,8 @@ fn on_sign_in_cancel() {
 const OAUTH_AUTHORIZATION_URL: &str = "https://authority.test/authorize?state=fake";
 
 fn on_oauth_authorize(command: &Value) {
-	if std::env::var("FAKE_AGENT_OAUTH_REFUSES_HANDED_CLIENT").is_ok() {
-		return emit_raw(&handed_client_refused(command).to_string());
+	if let Ok(handed_settles) = std::env::var("FAKE_AGENT_OAUTH_HANDED_CLIENT_SETTLES") {
+		return emit_raw(&handed_client_settled(command, &handed_settles).to_string());
 	}
 	if std::env::var("FAKE_AGENT_OAUTH_SETTLES_FIRST").is_ok() {
 		return emit_raw(
@@ -628,16 +628,20 @@ fn on_oauth_authorize(command: &Value) {
 	);
 }
 
-fn handed_client_refused(command: &Value) -> Value {
-	if command["clientId"].is_string() {
-		return json!({
-			"type": "mcp_oauth_authorize",
-			"error": {
-				"kind": "rejected",
-				"detail": "the token endpoint answered 401: invalid_client",
-				"code": "invalid_client"
-			}
-		});
+fn handed_client_settled(command: &Value, handed_settles: &str) -> Value {
+	let handed = command["clientId"].as_str();
+	if let Ok(path) = std::env::var("FAKE_AGENT_OAUTH_AUTHORIZE_LOG") {
+		let mut logged = std::fs::read_to_string(&path).unwrap_or_default();
+		logged.push_str(handed.unwrap_or("-"));
+		logged.push('\n');
+		let _ = std::fs::write(path, logged);
+	}
+	let settles = match handed {
+		Some(_) => Some(handed_settles.to_owned()),
+		None => std::env::var("FAKE_AGENT_OAUTH_REGISTRATION_SETTLES").ok(),
+	};
+	if let Some(error) = settles.and_then(|error| serde_json::from_str::<Value>(&error).ok()) {
+		return json!({ "type": "mcp_oauth_authorize", "error": error });
 	}
 	json!({
 		"type": "mcp_oauth_authorize",

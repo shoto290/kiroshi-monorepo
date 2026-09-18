@@ -8,6 +8,9 @@ use crate::environment::contract::{
 
 const A_STATUS_READ: &str = "it read ";
 
+const UNUSABLE_GRANT: &str =
+	"the session could not use the stored authorization, which is still held";
+
 #[derive(Debug, Clone, PartialEq, Eq, Serialize)]
 #[serde(rename_all = "camelCase")]
 pub struct ApplicationRow {
@@ -55,7 +58,7 @@ pub fn status(evidence: Evidence, now: i64) -> ApplicationStatus {
 	}
 	match evidence.reported {
 		Some(Standing::Holding) => ApplicationStatus::Connected,
-		Some(Standing::NeedsAuth { reason }) => needs_auth(reason, &evidence.held, now),
+		Some(Standing::NeedsAuth { .. }) => needs_auth(&evidence.held, now),
 		Some(Standing::LeftOut { reason }) => {
 			left_out(reason, &evidence.held, evidence.kiroshi_authorizes, now)
 		}
@@ -78,11 +81,11 @@ fn left_out(
 	ApplicationStatus::Failed { reason: Some(credentials::scrubbed(reason, held)) }
 }
 
-fn needs_auth(reason: Option<String>, held: &Values, now: i64) -> ApplicationStatus {
+fn needs_auth(held: &Values, now: i64) -> ApplicationStatus {
 	if !holds_a_usable_grant(held, now) {
 		return ApplicationStatus::NeedsAuthorization { reason: None };
 	}
-	ApplicationStatus::Failed { reason: reason.map(|reason| credentials::scrubbed(reason, held)) }
+	ApplicationStatus::Failed { reason: Some(UNUSABLE_GRANT.to_owned()) }
 }
 
 fn did_not_come_up(reason: &str) -> bool {
@@ -201,26 +204,18 @@ mod tests {
 	}
 
 	#[test]
-	fn a_session_needing_authorization_over_a_usable_grant_reads_failed_with_its_reason() {
-		let live =
-			reported(Standing::NeedsAuth { reason: Some(format!("{AWAITING} held-access")) });
+	fn a_session_needing_authorization_over_a_usable_grant_names_the_grant_it_could_not_use() {
+		let live = reported(Standing::NeedsAuth { reason: Some(AWAITING.to_owned()) });
 		let renewable = Evidence {
 			held: a_grant(Some(NOW - 1)),
-			..reported(Standing::NeedsAuth { reason: Some(AWAITING.to_owned()) })
+			..reported(Standing::NeedsAuth { reason: None })
 		};
+		let unusable = ApplicationStatus::Failed { reason: Some(UNUSABLE_GRANT.to_owned()) };
 
-		assert_eq!(
-			status(live, NOW),
-			ApplicationStatus::Failed { reason: Some(format!("{AWAITING} [redacted]")) }
-		);
-		assert_eq!(
-			status(renewable, NOW),
-			ApplicationStatus::Failed { reason: Some(AWAITING.to_owned()) }
-		);
-		assert_eq!(
-			status(reported(Standing::NeedsAuth { reason: None }), NOW),
-			ApplicationStatus::Failed { reason: None }
-		);
+		assert_eq!(status(live, NOW), unusable);
+		assert_eq!(status(renewable, NOW), unusable);
+		assert!(UNUSABLE_GRANT.contains("stored authorization"));
+		assert!(!UNUSABLE_GRANT.contains(AWAITING));
 	}
 
 	#[test]

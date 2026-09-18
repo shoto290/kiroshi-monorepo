@@ -43,6 +43,23 @@ pub struct ServedGrant {
 
 pub type ServedGrants = BTreeMap<String, ServedGrant>;
 
+#[derive(PartialEq, PartialOrd)]
+enum Hold {
+	Reserved,
+	Refused,
+	Granted,
+}
+
+fn hold_of(held: &Values) -> Option<Hold> {
+	if held.contains_key(OAUTH_ACCESS_TOKEN) {
+		return Some(Hold::Granted);
+	}
+	if held.contains_key(OAUTH_REASON) {
+		return Some(Hold::Refused);
+	}
+	RESERVED_NAMES.iter().any(|reserved| held.contains_key(*reserved)).then_some(Hold::Reserved)
+}
+
 pub fn served(root: &Path, owner: &EnvOwner) -> Result<ServedGrants, EnvError> {
 	let mut served = ServedGrants::new();
 	for scope in store::server_scopes(root, owner)? {
@@ -50,9 +67,13 @@ pub fn served(root: &Path, owner: &EnvOwner) -> Result<ServedGrants, EnvError> {
 		let EnvScope::Server { name, .. } = &scope else {
 			continue;
 		};
-		if RESERVED_NAMES.iter().any(|reserved| held.contains_key(*reserved)) {
-			served.insert(name.clone(), ServedGrant { scope: scope.clone(), held });
+		let Some(hold) = hold_of(&held) else {
+			continue;
+		};
+		if served.get(name).and_then(|kept| hold_of(&kept.held)).is_some_and(|kept| kept > hold) {
+			continue;
 		}
+		served.insert(name.clone(), ServedGrant { scope: scope.clone(), held });
 	}
 	Ok(served)
 }
@@ -196,21 +217,56 @@ mod tests {
 		);
 	}
 
-	#[test]
-	fn a_scope_holding_any_reserved_name_serves_its_server() {
-		let root = a_root("served-any");
-		let bot = EnvOwner::Bot { id: "b1".to_owned(), space_id: "s1".to_owned() };
-		let space = EnvScope::Server {
+	fn a_bot() -> EnvOwner {
+		EnvOwner::Bot { id: "b1".to_owned(), space_id: "s1".to_owned() }
+	}
+
+	fn the_space_server() -> EnvScope {
+		EnvScope::Server {
 			name: "granola".to_owned(),
 			owner: EnvOwner::Space { id: "s1".to_owned() },
-		};
-		store(&root, &space, &a_bare_grant()).expect("the space grant is written");
-		store(&root, &a_server(), &a_full_grant()).expect("the bot grant is written");
-		forget_tokens(&root, &a_server()).expect("the bot tokens are deleted");
+		}
+	}
 
-		let served = served(&root, &bot).expect("the grants are readable");
+	fn refused_at(root: &Path, scope: &EnvScope) {
+		store(root, scope, &a_full_grant()).expect("the grant is written");
+		forget_tokens(root, scope).expect("the tokens are deleted");
+		remember_refusal(root, scope, "invalid_grant").expect("the reason is written");
+	}
 
-		assert_eq!(served.get("granola").map(|grant| &grant.scope), Some(&a_server()));
+	fn served_scope(root: &Path) -> Option<EnvScope> {
+		served(root, &a_bot())
+			.expect("the grants are readable")
+			.remove("granola")
+			.map(|grant| grant.scope)
+	}
+
+	#[test]
+	fn a_broader_access_token_is_served_over_a_narrower_refusal() {
+		let root = a_root("served-token-over-reason");
+		store(&root, &the_space_server(), &a_bare_grant()).expect("the space grant is written");
+		refused_at(&root, &a_server());
+
+		assert_eq!(served_scope(&root), Some(the_space_server()));
+	}
+
+	#[test]
+	fn with_no_access_token_the_narrowest_refusal_is_served() {
+		let root = a_root("served-narrowest-reason");
+		refused_at(&root, &the_space_server());
+		refused_at(&root, &a_server());
+
+		assert_eq!(served_scope(&root), Some(a_server()));
+	}
+
+	#[test]
+	fn a_refusal_is_served_over_a_narrower_client_alone() {
+		let root = a_root("served-reason-over-client");
+		refused_at(&root, &the_space_server());
+		store(&root, &a_server(), &a_full_grant()).expect("the grant is written");
+		forget_tokens(&root, &a_server()).expect("the tokens are deleted");
+
+		assert_eq!(served_scope(&root), Some(the_space_server()));
 	}
 
 	#[test]

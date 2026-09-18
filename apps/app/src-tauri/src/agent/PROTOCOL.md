@@ -132,10 +132,13 @@ report it.
 flow of `@modelcontextprotocol/sdk` against it: RFC 9728 discovery, dynamic client
 registration, PKCE, and the code exchange. A flow handed a client registers none and
 asks under that client, relying on the authorization server taking any port on a
-loopback `redirect_uri` (RFC 8252, section 7.3). When that flow settles on a failure
-whose `code` is `invalid_client` or `unauthorized_client`, the host sends a second
-`mcp_oauth_authorize` naming no client inside the same `mcp_oauth_connect`, which
-registers one; the grant stored names the client it was granted under. A flow handed
+loopback `redirect_uri` (RFC 8252, section 7.3). When that flow settles with no grant,
+the host sends a second `mcp_oauth_authorize` naming no client inside the same
+`mcp_oauth_connect`, which registers one; the grant stored names the client it was
+granted under. An authorization server that no longer knows the client never redirects,
+so a `timedOut` settle counts as a refusal of the client. A settle `cancelled` or `busy`,
+or `denied` without a `code` of `invalid_client` or `unauthorized_client`, is returned as
+it is. One connect registers at most one new client. A flow handed
 no client registers one whose `redirect_uri` names the port that flow bound. The
 redirect listener binds `127.0.0.1` on a port the operating system picks, and nothing
 else: `http://127.0.0.1:<port>/oauth/callback`.

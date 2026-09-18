@@ -14,7 +14,8 @@ use super::status::{status, ApplicationRow, Evidence};
 use crate::agent::commands::AgentState;
 use crate::agent::contract::TransportError;
 use crate::agent::protocol::{
-	AuthorizeRequest, Authorized, OauthCredentials, RefreshRequest, RevocationRequest,
+	AuthorizeRequest, Authorized, OauthCredentials, OauthFailureKind, RefreshRequest,
+	RevocationRequest,
 };
 use crate::agent::sidecar::Opening;
 use crate::agent::translate::now_ms;
@@ -86,15 +87,25 @@ async fn connected<R: Runtime>(
 	stored: &Values,
 ) -> Result<OauthCredentials, Refused> {
 	let settled = settlement(app, &request).await?;
-	match settled.error {
-		Some(failure) if request.client_id.is_some() && failure.refuses_the_client() => {
-			let refused = Step::HandingTheStoredClient.refused(OauthError::from(failure));
-			eprintln!("{}", refusal_line(&refused, stored));
-			let registering = AuthorizeRequest { client_id: None, client_secret: None, ..request };
-			grant_of(settlement(app, &registering).await?)
-		}
-		error => grant_of(Authorized { error, ..settled }),
+	let registers_anew = request.client_id.is_some() && calls_for_a_new_client(&settled);
+	let refused = match grant_of(settled) {
+		Err(refused) if registers_anew => refused,
+		granted => return granted,
+	};
+	eprintln!("{}", refusal_line(&Step::HandingTheStoredClient.refused(refused.error), stored));
+	let registering = AuthorizeRequest { client_id: None, client_secret: None, ..request };
+	grant_of(settlement(app, &registering).await?)
+}
+
+fn calls_for_a_new_client(settled: &Authorized) -> bool {
+	if settled.credentials.is_some() {
+		return false;
 	}
+	settled.error.as_ref().is_none_or(|failure| match failure.kind {
+		OauthFailureKind::Cancelled | OauthFailureKind::Busy => false,
+		OauthFailureKind::Denied => failure.refuses_the_client(),
+		OauthFailureKind::TimedOut | OauthFailureKind::Rejected | OauthFailureKind::Failed => true,
+	})
 }
 
 fn authorize_request(url: String, stored: &Values) -> AuthorizeRequest {
