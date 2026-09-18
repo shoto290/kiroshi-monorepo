@@ -3,8 +3,8 @@ use serde_json::Value;
 use tauri::{AppHandle, Emitter, Manager, Runtime, State};
 
 use super::contract::{
-	CompanionCreated, CompanionError, CompanionInvited, ConversationOpened, SeatedCompanion,
-	CREATED_EVENT, FIRST_RUN_DONE_EVENT,
+	CompanionCreated, CompanionError, CompanionInvited, ConversationOpened, ConversationSaid,
+	SeatedCompanion, CREATED_EVENT, FIRST_RUN_DONE_EVENT,
 };
 use crate::agent::protocol::HostAnswer;
 use crate::agent::session::{Answering, HostRequests};
@@ -79,6 +79,10 @@ impl<R: Runtime> CompanionHost<R> {
 			Operation::ConversationOpen => {
 				let asked: Opened = read(payload)?;
 				answered(self.open(database, asked).await?)
+			}
+			Operation::ConversationSay => {
+				let asked: Said = read(payload)?;
+				answered(self.say(database, asked).await?)
 			}
 		}
 	}
@@ -180,6 +184,29 @@ impl<R: Runtime> CompanionHost<R> {
 		})
 	}
 
+	async fn say(
+		&self,
+		database: &db::Database,
+		asked: Said,
+	) -> Result<ConversationSaid, CompanionError> {
+		let message = asked.message.trim();
+		if message.is_empty() {
+			return Err(CompanionError::EmptyMessageField);
+		}
+		carries_seats(database, &asked.conversation).await?;
+		self.holds_seat(database, &asked.conversation).await?;
+		let title = title_of(database, &asked.conversation).await?;
+		self.announce(
+			COMPANION_SPOKE_EVENT,
+			CompanionSpoke {
+				conversation_id: asked.conversation.clone(),
+				author_bot_id: self.bot_id.clone(),
+				text: message.to_owned(),
+			},
+		)?;
+		Ok(ConversationSaid { conversation_id: asked.conversation, title })
+	}
+
 	async fn space(&self, database: &db::Database) -> Result<String, CompanionError> {
 		space_of(database, &self.conversation_id).await
 	}
@@ -215,6 +242,15 @@ async fn carries_seats(
 			conversation_id: conversation_id.to_owned(),
 		}),
 	}
+}
+
+async fn title_of(
+	database: &db::Database,
+	conversation_id: &str,
+) -> Result<String, CompanionError> {
+	database.conversations().title(conversation_id.to_owned()).await?.ok_or_else(|| {
+		CompanionError::ConversationWithoutSpace { conversation_id: conversation_id.to_owned() }
+	})
 }
 
 async fn space_of(
@@ -255,6 +291,7 @@ enum Operation {
 	FirstRunDone,
 	Invite,
 	ConversationOpen,
+	ConversationSay,
 }
 
 #[derive(Debug, Deserialize)]
@@ -274,6 +311,13 @@ struct Opened {
 	title: String,
 	#[serde(default)]
 	with: Vec<String>,
+	message: String,
+}
+
+#[derive(Debug, Deserialize)]
+#[serde(rename_all = "camelCase", deny_unknown_fields)]
+struct Said {
+	conversation: String,
 	message: String,
 }
 
@@ -374,6 +418,13 @@ mod tests {
 				('unled', 'b1', 'assistant', 1, 0), ('drifting', 'b1', 'lead', 1, 0);
 	";
 
+	const A_MISSION: &str = "
+		INSERT INTO conversations (id, kind, space_id, title, created_at, updated_at)
+			VALUES ('errand', 'mission', 'personal', 'Ship it', 1, 1);
+		INSERT INTO conversation_participants (conversation_id, bot_id, role, joined_at, join_seq)
+			VALUES ('errand', 'b1', 'lead', 1, 0);
+	";
+
 	const ANOTHER_ROOM: &str = "
 		INSERT INTO bot_spaces (bot_id, space_id, joined_at) VALUES ('b1', 'work', 1);
 		INSERT INTO conversations (id, kind, space_id, title, created_at, updated_at)
@@ -451,6 +502,23 @@ mod tests {
 		let before = written(app).await;
 		let refused = refusal(serving(app, conversation_id).answer(an_open(payload)).await);
 		assert_eq!(written(app).await, before, "a refused opening wrote something");
+		refused
+	}
+
+	fn a_say(payload: Value) -> Value {
+		json!({ "subtype": "companion", "operation": "conversationSay", "payload": payload })
+	}
+
+	async fn say_refused(
+		app: &App<MockRuntime>,
+		host: &CompanionHost<MockRuntime>,
+		payload: Value,
+	) -> Value {
+		let arriving = heard(app, COMPANION_SPOKE_EVENT);
+		let before = (written(app).await, standing(app).await);
+		let refused = refusal(host.answer(a_say(payload)).await);
+		assert_eq!((written(app).await, standing(app).await), before, "a refused word left a mark");
+		assert!(arriving.recv_timeout(Duration::from_millis(200)).is_err(), "a refusal announced");
 		refused
 	}
 
@@ -1059,6 +1127,155 @@ mod tests {
 		assert_eq!(left, json!({ "kind": "callerNotSeated", "conversationId": "unled" }));
 		assert_eq!(never, json!({ "kind": "callerNotSeated", "conversationId": "studio" }));
 		assert_eq!(standing(&app).await, before);
+
+		cleaned(&app);
+	}
+
+	#[tokio::test]
+	async fn a_word_spoken_in_a_room_the_caller_sits_in_is_announced_once_and_writes_nothing() {
+		let app = a_room("say").await;
+		let arriving = heard(&app, COMPANION_SPOKE_EVENT);
+		let before = (written(&app).await, standing(&app).await);
+
+		let said = serving(&app, "c1")
+			.answer(a_say(json!({ "conversation": "room", "message": " Hi " })))
+			.await
+			.expect("it is said");
+
+		assert_eq!(said, json!({ "conversationId": "room", "title": "Plans" }));
+		assert_eq!(
+			announced(&arriving),
+			json!({ "conversationId": "room", "authorBotId": "b1", "text": "Hi" })
+		);
+		assert!(arriving.recv_timeout(Duration::from_millis(200)).is_err(), "announced twice");
+		assert_eq!((written(&app).await, standing(&app).await), before);
+
+		cleaned(&app);
+	}
+
+	#[tokio::test]
+	async fn a_word_spoken_in_the_room_the_session_runs_in_is_announced_there() {
+		let app = a_room("say-here").await;
+		let arriving = heard(&app, COMPANION_SPOKE_EVENT);
+
+		let said = serving(&app, "room")
+			.answer(a_say(json!({ "conversation": "room", "message": "Hi" })))
+			.await
+			.expect("it is said");
+
+		assert_eq!(said, json!({ "conversationId": "room", "title": "Plans" }));
+		assert_eq!(announced(&arriving)["conversationId"], json!("room"));
+
+		cleaned(&app);
+	}
+
+	#[tokio::test]
+	async fn a_seat_the_caller_has_left_carries_no_word_even_where_its_session_runs() {
+		let app = a_room("say-left").await;
+		planted(&app, ANOTHER_ROOM).await;
+
+		let refused = say_refused(
+			&app,
+			&serving(&app, "unled"),
+			json!({ "conversation": "unled", "message": "Hi" }),
+		)
+		.await;
+
+		assert_eq!(refused, json!({ "kind": "callerNotSeated", "conversationId": "unled" }));
+
+		cleaned(&app);
+	}
+
+	#[tokio::test]
+	async fn a_caller_holding_no_seat_at_all_carries_no_word() {
+		let app = a_room("say-unseated").await;
+		let stranger = CompanionHost::new(app.handle().clone(), "c1".to_owned(), "b2".to_owned());
+
+		let refused =
+			say_refused(&app, &stranger, json!({ "conversation": "unled", "message": "Hi" })).await;
+
+		assert_eq!(refused, json!({ "kind": "callerNotSeated", "conversationId": "unled" }));
+
+		cleaned(&app);
+	}
+
+	#[tokio::test]
+	async fn a_conversation_that_carries_no_seats_takes_no_word_and_is_refused_with_its_kind() {
+		let app = a_room("say-seatless").await;
+		planted(&app, A_MISSION).await;
+
+		for (conversation, kind) in [("c1", "main"), ("errand", "mission")] {
+			let refused = say_refused(
+				&app,
+				&serving(&app, "room"),
+				json!({ "conversation": conversation, "message": "Hi" }),
+			)
+			.await;
+
+			assert_eq!(
+				refused,
+				json!({
+					"kind": "conversationWithoutSeats",
+					"conversationId": conversation,
+					"conversationKind": kind
+				})
+			);
+		}
+
+		cleaned(&app);
+	}
+
+	#[tokio::test]
+	async fn an_id_matching_no_conversation_takes_no_word() {
+		let app = a_room("say-nowhere").await;
+
+		let refused = say_refused(
+			&app,
+			&serving(&app, "room"),
+			json!({ "conversation": "ghost", "message": "Hi" }),
+		)
+		.await;
+
+		assert_eq!(
+			refused,
+			json!({ "kind": "conversationWithoutSpace", "conversationId": "ghost" })
+		);
+
+		cleaned(&app);
+	}
+
+	#[tokio::test]
+	async fn a_message_blank_once_trimmed_is_refused_before_any_conversation_is_read() {
+		let app = a_room("say-blank").await;
+
+		let refused = say_refused(
+			&app,
+			&serving(&app, "room"),
+			json!({ "conversation": "ghost", "message": " \n " }),
+		)
+		.await;
+
+		assert_eq!(refused, json!({ "kind": "emptyMessageField" }));
+
+		cleaned(&app);
+	}
+
+	#[tokio::test]
+	async fn a_word_carrying_a_field_the_operation_does_not_declare_is_refused_naming_it() {
+		let app = a_room("say-undeclared").await;
+
+		let refused = say_refused(
+			&app,
+			&serving(&app, "room"),
+			json!({ "conversation": "room", "message": "Hi", "conversationId": "room" }),
+		)
+		.await;
+
+		assert_eq!(refused["kind"], json!("unreadableRequest"));
+		assert!(
+			refused["detail"].as_str().is_some_and(|detail| detail.contains("conversationId")),
+			"got {refused}"
+		);
 
 		cleaned(&app);
 	}

@@ -567,6 +567,16 @@ impl ConversationsRepository {
 		.await
 	}
 
+	pub async fn title(&self, conversation_id: String) -> Result<Option<String>, DatabaseError> {
+		self.call(move |connection| {
+			Ok(connection
+				.prepare_cached("SELECT title FROM conversations WHERE id = ?1")?
+				.query_row([conversation_id], |row| row.get(0))
+				.optional()?)
+		})
+		.await
+	}
+
 	pub async fn oldest_bot_space(&self, bot_id: String) -> Result<Option<String>, DatabaseError> {
 		self.call(move |connection| Ok(oldest_space_of(connection, &bot_id)?)).await
 	}

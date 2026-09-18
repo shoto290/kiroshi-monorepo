@@ -41,6 +41,13 @@ const WITH =
 
 const MESSAGE = "What you say to open the room, the first words read in it."
 
+const SAY =
+	"Say something in a room you hold a seat in, before you report back here on what you told it."
+
+const ROOM = "The id of the room you hold a seat in to say it in."
+
+const SPOKEN = "What you say in that room, read there in your name."
+
 type ToolInput = Record<string, z.ZodType>
 
 const NOTHING: ToolInput = {}
@@ -54,6 +61,11 @@ const OPENED: ToolInput = {
 	title: z.string().describe(TITLE),
 	with: z.array(z.string()).describe(WITH),
 	message: z.string().describe(MESSAGE),
+}
+
+const SAID: ToolInput = {
+	conversation: z.string().describe(ROOM),
+	message: z.string().describe(SPOKEN),
 }
 
 const DRAFTED: ToolInput = {
@@ -83,5 +95,8 @@ export const companionTools = (
 	),
 	tool("conversation_open", OPEN, OPENED, (input) =>
 		asked(session, "conversationOpen", input),
+	),
+	tool("conversation_say", SAY, SAID, (input) =>
+		asked(session, "conversationSay", input),
 	),
 ]

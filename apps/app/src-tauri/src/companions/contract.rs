@@ -41,6 +41,13 @@ pub struct ConversationOpened {
 
 #[derive(Debug, Clone, PartialEq, Eq, Serialize, Deserialize)]
 #[serde(rename_all = "camelCase")]
+pub struct ConversationSaid {
+	pub conversation_id: String,
+	pub title: String,
+}
+
+#[derive(Debug, Clone, PartialEq, Eq, Serialize, Deserialize)]
+#[serde(rename_all = "camelCase")]
 pub struct CompanionSeedRefused {
 	pub reason: String,
 }

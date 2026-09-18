@@ -60,6 +60,7 @@ describe("kiroshiServer", () => {
 			"companion_first_run_done",
 			"companion_invite",
 			"conversation_open",
+			"conversation_say",
 		])
 	})
 })
