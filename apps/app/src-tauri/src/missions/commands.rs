@@ -69,7 +69,6 @@ fn refused_draft(draft: &MissionDraft) -> Result<(), MissionError> {
 	refused_workspace(draft.workspace_path.as_deref())
 }
 
-#[tauri::command]
 pub async fn mission_open<R: Runtime>(
 	app: AppHandle<R>,
 	state: State<'_, db::DatabaseState>,
@@ -143,7 +142,6 @@ fn report_unhooked(mission_id: &str, failure: &MissionError) {
 	eprintln!("the agent hook of {mission_id} was not installed: {failure:?}");
 }
 
-#[tauri::command]
 pub async fn mission_note<R: Runtime>(
 	app: AppHandle<R>,
 	state: State<'_, db::DatabaseState>,
@@ -153,7 +151,6 @@ pub async fn mission_note<R: Runtime>(
 	appended(&app, &state, mission_id, entry).await
 }
 
-#[tauri::command]
 pub async fn mission_escalate<R: Runtime>(
 	app: AppHandle<R>,
 	state: State<'_, db::DatabaseState>,
@@ -204,7 +201,6 @@ pub async fn mission_answered<R: Runtime>(
 	}
 }
 
-#[tauri::command]
 pub async fn mission_watch<R: Runtime>(
 	app: AppHandle<R>,
 	state: State<'_, db::DatabaseState>,

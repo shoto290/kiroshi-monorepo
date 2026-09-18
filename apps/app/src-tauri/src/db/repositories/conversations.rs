@@ -1703,25 +1703,23 @@ mod tests {
 	}
 
 	#[tokio::test]
-	async fn updating_a_bot_replaces_who_it_is_but_not_its_memory_or_the_pose_it_dropped() {
+	async fn updating_a_bot_replaces_who_it_is_but_not_its_memory() {
 		let dir = temp_dir();
 		let database = open(&dir);
 		let repository = database.conversations();
 		let created = repository.create_bot(an_identity("Nyx"), None, None).await.expect("the bot");
-		let id = created.id.clone();
-		let written = id.clone();
+		let written = created.id.clone();
 		repository
 			.call(move |connection| {
 				connection.execute(
-					"UPDATE bots SET instructions = 'answer briefly', memory = 'they use bun',
-							avatar_pose = 'sleeping'
+					"UPDATE bots SET instructions = 'answer briefly', memory = 'they use bun'
 						WHERE id = ?1",
 					[&written],
 				)?;
 				Ok(())
 			})
 			.await
-			.expect("what the bot was told and the pose an older build wrote");
+			.expect("what the bot was told");
 
 		let updated = repository
 			.update_bot(
@@ -1753,18 +1751,6 @@ mod tests {
 		);
 		assert_eq!(updated.memory, "they use bun", "an update cleared the memory");
 		assert_eq!(updated.created_at, created.created_at, "an update moved the moment");
-		assert_eq!(
-			repository
-				.call(move |connection| Ok(connection.query_row(
-					"SELECT avatar_pose FROM bots WHERE id = ?1",
-					[&id],
-					|row| row.get::<_, String>(0)
-				)?))
-				.await
-				.expect("the stored pose"),
-			"sleeping",
-			"an update rewrote the pose column nothing projects any more"
-		);
 
 		drop(database);
 		fs::remove_dir_all(&dir).expect("cleanup");

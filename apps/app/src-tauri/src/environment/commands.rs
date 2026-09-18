@@ -59,18 +59,6 @@ pub async fn connection_set<R: Runtime>(
 	connection::hold(&writable_root(&app)?, kind, &value)
 }
 
-#[tauri::command]
-pub async fn connection_clear<R: Runtime>(app: AppHandle<R>) -> Result<(), EnvError> {
-	connection::clear(&writable_root(&app)?)
-}
-
-#[tauri::command]
-pub async fn connection_kind<R: Runtime>(
-	app: AppHandle<R>,
-) -> Result<Option<ConnectionKind>, EnvError> {
-	connection::held_kind(&writable_root(&app)?)
-}
-
 #[cfg(test)]
 mod tests {
 	use std::fs;

@@ -42,6 +42,7 @@ const MIGRATIONS: &[Migration] = &[
 	Migration { version: 33, statements: CONVERSATION_ARRIVALS },
 	Migration { version: 34, statements: APPLICATION_INSTALLS },
 	Migration { version: 35, statements: APPLICATION_INSTALL_PRESENTATION },
+	Migration { version: 36, statements: BOTS_WITHOUT_UNREAD_COLUMNS },
 ];
 
 const CONVERSATIONS_SCHEMA: &str = "
@@ -784,6 +785,44 @@ ALTER TABLE application_installs ADD COLUMN logo_url TEXT;
 ALTER TABLE application_installs ADD COLUMN description TEXT;
 ";
 
+const BOTS_WITHOUT_UNREAD_COLUMNS: &str = "
+PRAGMA legacy_alter_table = ON;
+ALTER TABLE bots RENAME TO bots_with_unread_columns;
+PRAGMA legacy_alter_table = OFF;
+
+CREATE TABLE bots (
+	id TEXT PRIMARY KEY,
+	name TEXT NOT NULL,
+	model TEXT NOT NULL,
+	created_at INTEGER NOT NULL,
+	instructions TEXT NOT NULL DEFAULT '',
+	memory TEXT NOT NULL DEFAULT '',
+	title TEXT NOT NULL DEFAULT '',
+	avatar_animal TEXT NOT NULL DEFAULT 'cat'
+		CHECK (avatar_animal IN
+			('cat', 'rabbit', 'bear', 'chick', 'dog', 'mouse', 'owl', 'koala')),
+	avatar_image_path TEXT,
+	working_dir TEXT,
+	commands TEXT NOT NULL DEFAULT '[]',
+	avatar_color TEXT
+		CHECK (avatar_color IN
+			('red', 'yellow', 'green', 'cyan', 'blue', 'purple', 'pink', 'orange')),
+	denied_tools TEXT NOT NULL DEFAULT '[]',
+	permissions TEXT,
+	deleted_at INTEGER
+);
+
+INSERT INTO bots (id, name, model, created_at, instructions, memory, title, avatar_animal,
+		avatar_image_path, working_dir, commands, avatar_color, denied_tools, permissions,
+		deleted_at)
+	SELECT id, name, model, created_at, instructions, memory, title, avatar_animal,
+		avatar_image_path, working_dir, commands, avatar_color, denied_tools, permissions,
+		deleted_at
+	FROM bots_with_unread_columns;
+
+DROP TABLE bots_with_unread_columns;
+";
+
 pub fn latest_version() -> u32 {
 	MIGRATIONS.last().map_or(0, |migration| migration.version)
 }
@@ -874,6 +913,7 @@ mod tests {
 	const MISSION_CHECKS_FAILED_STEP: u32 = 32;
 	const APPLICATION_INSTALLS_STEP: u32 = 34;
 	const APPLICATION_INSTALL_PRESENTATION_STEP: u32 = 35;
+	const BOTS_WITHOUT_UNREAD_COLUMNS_STEP: u32 = 36;
 
 	const A_LIVE_SESSION: &str = "INSERT INTO runtime_sessions
 		(id, conversation_id, bot_id, provider_session_id, seq, status, started_at)
@@ -1405,7 +1445,7 @@ mod tests {
 		);
 		assert_eq!(
 			identity_of(&connection, "b1"),
-			(String::new(), String::new(), "cat".to_owned(), "idle".to_owned(), None, None),
+			(String::new(), "cat".to_owned(), None, None),
 			"a bot from the older build came out of the step without a face"
 		);
 		assert_eq!(
@@ -1443,7 +1483,7 @@ mod tests {
 		);
 		assert_eq!(
 			identity_of(&connection, "default"),
-			(String::new(), String::new(), "cat".to_owned(), "idle".to_owned(), None, None)
+			(String::new(), "cat".to_owned(), None, None)
 		);
 
 		drop(connection);
@@ -1872,6 +1912,102 @@ mod tests {
 	}
 
 	#[test]
+	fn bots_written_before_the_unread_columns_left_keep_every_row_and_value() {
+		let dir = temp_dir();
+		let mut connection = open(&dir.join(FILE_NAME)).expect("open");
+		apply_each(&mut connection, shipped_before(BOTS_WITHOUT_UNREAD_COLUMNS_STEP))
+			.expect("the build that still carried the unread columns installs");
+		connection
+			.execute_batch(
+				"INSERT INTO bots (id, name, model, created_at, instructions, memory, title,
+					description, avatar_animal, avatar_pose, avatar_image_path, working_dir,
+					avatar_blot, commands, avatar_color, denied_tools, permissions, deleted_at)
+				VALUES ('b1', 'Nyx', 'opus', 1, 'answer briefly', 'they use bun', 'Reviewer',
+					'reads diffs', 'koala', 'sleeping', '/pictures/koala.png', '/work/kiroshi',
+					'coral', '[\"ship\"]', 'orange', '[\"Bash\"]', '{}', 7),
+					('b2', 'Ada', 'sonnet', 2, '', '', '', '', 'cat', 'idle', NULL, NULL, NULL,
+					'[]', NULL, '[]', NULL, NULL);
+			INSERT INTO bot_spaces (bot_id, space_id, joined_at) VALUES ('b1', 'personal', 1);",
+			)
+			.expect("bots of the older build");
+
+		apply(&mut connection).expect("the file comes up to this build");
+
+		let kept = connection
+			.prepare(
+				"SELECT id, name, model, created_at, instructions, memory, title, avatar_animal,
+					avatar_image_path, working_dir, commands, avatar_color, denied_tools,
+					permissions, deleted_at
+					FROM bots ORDER BY id",
+			)
+			.expect("the kept columns are all there")
+			.query_map([], |row| {
+				(0..15).map(|column| row.get::<_, rusqlite::types::Value>(column)).collect()
+			})
+			.expect("query")
+			.collect::<Result<Vec<Vec<rusqlite::types::Value>>, _>>()
+			.expect("the bots read back");
+		let text = |value: &str| rusqlite::types::Value::Text(value.to_owned());
+		let integer = rusqlite::types::Value::Integer;
+		let null = rusqlite::types::Value::Null;
+		assert_eq!(
+			kept,
+			vec![
+				vec![
+					text("b1"),
+					text("Nyx"),
+					text("opus"),
+					integer(1),
+					text("answer briefly"),
+					text("they use bun"),
+					text("Reviewer"),
+					text("koala"),
+					text("/pictures/koala.png"),
+					text("/work/kiroshi"),
+					text("[\"ship\"]"),
+					text("orange"),
+					text("[\"Bash\"]"),
+					text("{}"),
+					integer(7),
+				],
+				vec![
+					text("b2"),
+					text("Ada"),
+					text("sonnet"),
+					integer(2),
+					text(""),
+					text(""),
+					text(""),
+					text("cat"),
+					null.clone(),
+					null.clone(),
+					text("[]"),
+					null.clone(),
+					text("[]"),
+					null.clone(),
+					null,
+				],
+			],
+		);
+		for dropped in ["description", "avatar_pose", "avatar_blot"] {
+			let read = connection.prepare(&format!("SELECT {dropped} FROM bots"));
+			assert!(read.is_err(), "the bots table still carries {dropped}");
+		}
+		write(&connection, "DELETE FROM bots WHERE id = 'b1'").expect("the bot is deleted");
+		assert_eq!(
+			connection
+				.query_row("SELECT COUNT(*) FROM bot_spaces", [], |row| row.get::<_, i64>(0))
+				.expect("query"),
+			0,
+			"a membership outlived its rebuilt bot"
+		);
+		assert_eq!(version(&connection).expect("version"), latest_version());
+
+		drop(connection);
+		fs::remove_dir_all(&dir).expect("cleanup");
+	}
+
+	#[test]
 	fn a_key_install_naming_no_secret_is_refused_by_the_table() {
 		let dir = temp_dir();
 		let mut connection = open(&dir.join(FILE_NAME)).expect("open");
@@ -2206,8 +2342,8 @@ mod tests {
 		apply(&mut connection).expect("the schema installs");
 		write(
 			&connection,
-			"INSERT INTO bots (id, name, model, created_at, title, avatar_animal, avatar_pose)
-				VALUES ('b1', 'First', 'sonnet', 1, 'Reviewer', 'owl', 'curious')",
+			"INSERT INTO bots (id, name, model, created_at, title, avatar_animal)
+				VALUES ('b1', 'First', 'sonnet', 1, 'Reviewer', 'owl')",
 		)
 		.expect("a bot written between the two runs");
 
@@ -2216,14 +2352,7 @@ mod tests {
 		assert_eq!(version(&connection).expect("version"), latest_version());
 		assert_eq!(
 			identity_of(&connection, "b1"),
-			(
-				"Reviewer".to_owned(),
-				String::new(),
-				"owl".to_owned(),
-				"curious".to_owned(),
-				None,
-				None
-			),
+			("Reviewer".to_owned(), "owl".to_owned(), None, None),
 			"a second run rewrote a row it had nothing to do with"
 		);
 
@@ -2238,23 +2367,13 @@ mod tests {
 
 		for animal in ["cat", "rabbit", "bear", "chick", "dog", "mouse", "owl", "koala"] {
 			assert!(
-				write(&connection, &a_bot_shown_as(animal, "idle", animal)).is_ok(),
+				write(&connection, &a_bot_shown_as(animal, animal)).is_ok(),
 				"the engine draws {animal} and the file refused it"
 			);
 		}
-		for pose in ["idle", "happy", "curious", "proud", "shy", "playful", "bored", "sleeping"] {
-			assert!(
-				write(&connection, &a_bot_shown_as("cat", pose, pose)).is_ok(),
-				"the engine draws {pose} and the file refused it"
-			);
-		}
 		assert!(
-			write(&connection, &a_bot_shown_as("dragon", "idle", "unknown-animal")).is_err(),
+			write(&connection, &a_bot_shown_as("dragon", "unknown-animal")).is_err(),
 			"an animal the engine cannot draw was stored"
-		);
-		assert!(
-			write(&connection, &a_bot_shown_as("cat", "furious", "unknown-pose")).is_err(),
-			"a pose the engine cannot draw was stored"
 		);
 
 		drop(connection);
@@ -2516,15 +2635,8 @@ mod tests {
 		);
 		assert_eq!(
 			identity_of(&connection, "default"),
-			(
-				"Reviewer".to_owned(),
-				String::new(),
-				"owl".to_owned(),
-				"curious".to_owned(),
-				None,
-				None
-			),
-			"the step rewrote the pose it was told to leave alone"
+			("Reviewer".to_owned(), "owl".to_owned(), None, None),
+			"the step rewrote the face it was told to leave alone"
 		);
 
 		drop(connection);
@@ -2608,32 +2720,22 @@ mod tests {
 			.expect("query")
 	}
 
-	fn a_bot_shown_as(animal: &str, pose: &str, id: &str) -> String {
+	fn a_bot_shown_as(animal: &str, id: &str) -> String {
 		format!(
-			"INSERT INTO bots (id, name, model, created_at, avatar_animal, avatar_pose)
-				VALUES ('{id}', 'A bot', 'sonnet', 1, '{animal}', '{pose}')"
+			"INSERT INTO bots (id, name, model, created_at, avatar_animal)
+				VALUES ('{id}', 'A bot', 'sonnet', 1, '{animal}')"
 		)
 	}
 
-	type StoredIdentity = (String, String, String, String, Option<String>, Option<String>);
+	type StoredIdentity = (String, String, Option<String>, Option<String>);
 
 	fn identity_of(connection: &Connection, id: &str) -> StoredIdentity {
 		connection
 			.query_row(
-				"SELECT title, description, avatar_animal, avatar_pose, avatar_image_path,
-					working_dir
+				"SELECT title, avatar_animal, avatar_image_path, working_dir
 					FROM bots WHERE id = ?1",
 				[id],
-				|row| {
-					Ok((
-						row.get(0)?,
-						row.get(1)?,
-						row.get(2)?,
-						row.get(3)?,
-						row.get(4)?,
-						row.get(5)?,
-					))
-				},
+				|row| Ok((row.get(0)?, row.get(1)?, row.get(2)?, row.get(3)?)),
 			)
 			.expect("query")
 	}

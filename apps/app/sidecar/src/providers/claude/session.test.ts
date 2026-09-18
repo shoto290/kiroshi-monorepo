@@ -27,7 +27,7 @@ import {
 	bundleLine,
 	KIROSHI_LAYER,
 	layerFor,
-	leftOutLines,
+	leftOutLine,
 	skillLine,
 	spaceLine,
 	unavailableServersSection,
@@ -61,7 +61,7 @@ const rejectedDetails = [
 	'the server "probe" was left out: RUNNER is defined by no scope',
 ]
 
-const rejections = leftOutLines(rejectedDetails)
+const rejections = rejectedDetails.map(leftOutLine)
 
 const appended = (options: ReturnType<typeof buildOptions>): string =>
 	(options.systemPrompt as { append: string }).append
@@ -413,7 +413,7 @@ describe("buildOptions", () => {
 			appended(
 				buildOptions(request, undefined, undefined, {
 					servers: {},
-					rejections: leftOutLines([failure]),
+					rejections: [failure].map(leftOutLine),
 				}),
 			),
 		).toContain(failure)
@@ -634,9 +634,9 @@ describe("layerFor", () => {
 
 	it("reads the state of a line, not the words its reason quotes", () => {
 		const section = unavailableServersSection(
-			leftOutLines([
+			[
 				'the server "superset" was left out: it read failed, and the reconnection answered: is still connecting, holds its tools',
-			]),
+			].map(leftOutLine),
 		)
 
 		expect(section).toContain("# Servers left out of this session")
@@ -732,7 +732,7 @@ describe("layerFor", () => {
 		expect(rejection).toBe(
 			'the server "probe" was left out: RUNNER is defined by no scope',
 		)
-		expect(unavailableServersSection(leftOutLines([rejection]))).toBe(
+		expect(unavailableServersSection([rejection].map(leftOutLine))).toBe(
 			[
 				"# Servers left out of this session",
 				`- ${rejection}`,
@@ -743,10 +743,10 @@ describe("layerFor", () => {
 
 	it("holds for a rejection naming no variable, such as an unreadable store", () => {
 		const section = unavailableServersSection(
-			leftOutLines([
+			[
 				"the environment store could not be read",
 				'the server "clock" was left out: the environment store could not be read',
-			]),
+			].map(leftOutLine),
 		)
 
 		expect(section).not.toContain("variable")
@@ -911,7 +911,7 @@ describe("reportConnections", () => {
 
 		expect(emitted).toEqual([answered])
 		expect(pushed[1]).toBe(
-			`${unavailableServersSection(leftOutLines([answered]))}\n\nand now?`,
+			`${unavailableServersSection([answered].map(leftOutLine))}\n\nand now?`,
 		)
 	})
 

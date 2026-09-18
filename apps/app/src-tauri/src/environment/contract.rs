@@ -50,12 +50,6 @@ impl ConnectionKind {
 			ConnectionKind::SubscriptionToken => SUBSCRIPTION_TOKEN,
 		}
 	}
-
-	pub fn named(name: &str) -> Option<Self> {
-		[ConnectionKind::ApiKey, ConnectionKind::SubscriptionToken]
-			.into_iter()
-			.find(|kind| kind.name() == name)
-	}
 }
 
 #[derive(Debug, Clone, PartialEq, Eq, Serialize, Deserialize)]
@@ -194,14 +188,8 @@ mod tests {
 	}
 
 	#[test]
-	fn both_connection_names_are_reserved_and_each_names_its_kind() {
+	fn both_connection_names_are_reserved_and_a_kind_serializes_in_camel_case() {
 		assert!(CONNECTION_NAMES.iter().all(|name| is_reserved(name)));
-		assert_eq!(ConnectionKind::named(API_KEY), Some(ConnectionKind::ApiKey));
-		assert_eq!(
-			ConnectionKind::named(SUBSCRIPTION_TOKEN),
-			Some(ConnectionKind::SubscriptionToken)
-		);
-		assert_eq!(ConnectionKind::named("GRANOLA_REGION"), None);
 		assert_eq!(
 			to_value(ConnectionKind::SubscriptionToken).expect("the kind serializes"),
 			json!("subscriptionToken")

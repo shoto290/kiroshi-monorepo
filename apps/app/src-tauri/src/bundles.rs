@@ -422,7 +422,7 @@ fn front_output_style(text: &str) -> String {
 	styled(&front_value(text, OUTPUT_STYLE_KEY).unwrap_or_default()).to_owned()
 }
 
-pub fn instructions(root: &Path, bot_id: &str) -> Option<String> {
+fn instructions(root: &Path, bot_id: &str) -> Option<String> {
 	Some(generated(root, bot_id)?.instructions)
 }
 

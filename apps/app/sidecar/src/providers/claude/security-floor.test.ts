@@ -116,8 +116,6 @@ describe("securityFloor", () => {
 			"conversations.sqlite3",
 			"conversations.sqlite3-wal",
 			"conversations.sqlite3-shm",
-			"kiroshi.db",
-			"session.json*",
 		]) {
 			expect(deny).toContain(`Read(/${join(APP_DATA, file)})`)
 			expect(denyRead).toContain(join(APP_DATA, file))
@@ -303,8 +301,6 @@ describe("securityFloor", () => {
 			`Read(/${join(APP_DATA, "conversations.sqlite3")})`,
 			`Read(/${join(APP_DATA, "conversations.sqlite3-wal")})`,
 			`Read(/${join(APP_DATA, "conversations.sqlite3-shm")})`,
-			`Read(/${join(APP_DATA, "kiroshi.db")})`,
-			`Read(/${join(APP_DATA, "session.json*")})`,
 			`Read(/${join(APP_DATA, "attachments")}/**)`,
 			`Edit(/${home(".claude")}/**)`,
 			`Edit(/${home("Library/LaunchAgents")}/**)`,

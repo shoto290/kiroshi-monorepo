@@ -9,7 +9,7 @@ import {
 	resolvedServers,
 	resolveServers,
 } from "./server-env"
-import { leftOutLines } from "./system-layer"
+import { leftOutLine } from "./system-layer"
 
 import type { ServerEnv } from "../provider"
 
@@ -45,7 +45,7 @@ describe("resolveServers", () => {
 
 			expect(servers).toEqual({})
 			expect(rejections).toEqual(
-				leftOutLines([leftOut("probe", `${name} is defined by no scope`)]),
+				[leftOut("probe", `${name} is defined by no scope`)].map(leftOutLine),
 			)
 		}
 	})
@@ -95,9 +95,9 @@ describe("resolveServers", () => {
 
 		expect(Object.keys(servers)).toEqual(["plain"])
 		expect(rejections).toEqual(
-			leftOutLines([
-				'the server "probe" was left out: RUNNER is defined by no scope',
-			]),
+			['the server "probe" was left out: RUNNER is defined by no scope'].map(
+				leftOutLine,
+			),
 		)
 	})
 
@@ -150,10 +150,10 @@ describe("resolveServers", () => {
 
 		expect(Object.keys(servers)).toEqual(["plain"])
 		expect(rejections).toEqual(
-			leftOutLines([
+			[
 				"the environment store could not be read",
 				'the server "probe" was left out: the environment store could not be read',
-			]),
+			].map(leftOutLine),
 		)
 	})
 
@@ -272,10 +272,10 @@ describe("resolvedServers", () => {
 
 		expect(servers.granola).toBeUndefined()
 		expect(rejections).toEqual(
-			leftOutLines([
+			[
 				"the keychain is locked",
 				leftOut("granola", "the environment store could not be read"),
-			]),
+			].map(leftOutLine),
 		)
 	})
 
