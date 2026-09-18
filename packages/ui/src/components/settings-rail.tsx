@@ -177,8 +177,6 @@ export {
 	RAIL_LABELS_MIN_WIDTH,
 	SETTINGS_PANEL_CLASS,
 	SettingsRail,
-	SettingsRailAction,
-	type SettingsRailActionProps,
 	SettingsRailBack,
 	type SettingsRailBackProps,
 	SettingsRailItem,

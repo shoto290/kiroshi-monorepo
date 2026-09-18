@@ -248,7 +248,6 @@ const stubController = (
 	redescribe: () => undefined,
 	restart: async () => null,
 	reopen: async () => null,
-	rotate: async () => null,
 	loadOlder: async () => undefined,
 	loadNewer: async () => undefined,
 	loadLatest: async () => true,

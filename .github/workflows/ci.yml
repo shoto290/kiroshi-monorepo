@@ -32,6 +32,9 @@ jobs:
       - name: Types
         run: bun run types
 
+      - name: Knip
+        run: bunx knip@6.37.0 --no-exit-code
+
       - name: Build website
         run: bun run --filter=website build
 
