@@ -21,20 +21,16 @@ import {
 	type SkillFilesPanelProps,
 } from "@workspace/ui/components/plugin-settings/skill-files-panel"
 import { SettingsField } from "@workspace/ui/components/settings-field"
+import { SettingsPushedPage } from "@workspace/ui/components/settings-pushed-page"
 import {
-	RAIL_LABELS_MIN_WIDTH,
 	SETTINGS_PANEL_CLASS,
-	SettingsRail,
-	SettingsRailBack,
 	SettingsRailItem,
-	SettingsRailSeparator,
 	SettingsScrollingPanel,
 } from "@workspace/ui/components/settings-rail"
 import { SettingsSelect } from "@workspace/ui/components/settings-select"
 import { SETTINGS_TAG_CLASS } from "@workspace/ui/components/settings-styles"
 import { SettingsSwitch } from "@workspace/ui/components/settings-switch"
 import { Button, buttonVariants } from "@workspace/ui/components/ui/button"
-import { useIsNarrowerThan } from "@workspace/ui/hooks/use-is-narrower-than"
 import { cn } from "@workspace/ui/lib/utils"
 
 const FIRST_SECTION = "instructions"
@@ -77,9 +73,7 @@ const SkillEditor = ({
 	className,
 }: SkillEditorProps) => {
 	const { t } = useTranslation("bots")
-	const [root, setRoot] = useState<HTMLDivElement | null>(null)
 	const [isLeaving, setLeaving] = useState(Boolean(defaultLeaving))
-	const iconsOnly = useIsNarrowerThan(root, RAIL_LABELS_MIN_WIDTH)
 
 	const name = draft.name.trim() || t("skills.untitled")
 
@@ -152,65 +146,55 @@ const SkillEditor = ({
 	]
 
 	return (
-		<Tabs.Root
-			className={cn("flex min-h-0 flex-1", className)}
+		<SettingsPushedPage
+			backLabel={t("skills.back")}
+			className={className}
 			defaultValue={defaultSection ?? FIRST_SECTION}
-			orientation="vertical"
-			ref={setRoot}
-		>
-			<SettingsRail
-				iconsOnly={iconsOnly}
-				leading={
-					<>
-						<SettingsRailBack
-							iconsOnly={iconsOnly}
-							label={t("skills.back")}
-							onClick={leave}
-						/>
-						<SettingsRailSeparator />
-					</>
-				}
-			>
-				<SettingsRailItem
-					icon={Icons.Docs}
-					iconsOnly={iconsOnly}
-					label={t("skills.section.instructions")}
-					value={FIRST_SECTION}
-				/>
-				<SettingsRailItem
-					icon={Icons.Skill}
-					iconsOnly={iconsOnly}
-					label={t("skills.section.triggering")}
-					value="triggering"
-				/>
-				<SettingsRailItem
-					icon={Icons.Terminal}
-					iconsOnly={iconsOnly}
-					label={t("skills.section.execution")}
-					value="execution"
-				/>
-				<SettingsRailItem
-					icon={Icons.Tool}
-					iconsOnly={iconsOnly}
-					label={t("skills.section.tools")}
-					value="tools"
-				/>
-				{files ? (
+			isMeasured
+			onBack={leave}
+			rail={(iconsOnly) => (
+				<>
 					<SettingsRailItem
-						icon={Icons.Folder}
+						icon={Icons.Docs}
 						iconsOnly={iconsOnly}
-						label={t("skills.section.files")}
-						value="files"
+						label={t("skills.section.instructions")}
+						value={FIRST_SECTION}
 					/>
-				) : null}
-				<SettingsRailItem
-					icon={Icons.Settings}
-					iconsOnly={iconsOnly}
-					label={t("skills.section.advanced")}
-					value="advanced"
-				/>
-			</SettingsRail>
-
+					<SettingsRailItem
+						icon={Icons.Skill}
+						iconsOnly={iconsOnly}
+						label={t("skills.section.triggering")}
+						value="triggering"
+					/>
+					<SettingsRailItem
+						icon={Icons.Terminal}
+						iconsOnly={iconsOnly}
+						label={t("skills.section.execution")}
+						value="execution"
+					/>
+					<SettingsRailItem
+						icon={Icons.Tool}
+						iconsOnly={iconsOnly}
+						label={t("skills.section.tools")}
+						value="tools"
+					/>
+					{files ? (
+						<SettingsRailItem
+							icon={Icons.Folder}
+							iconsOnly={iconsOnly}
+							label={t("skills.section.files")}
+							value="files"
+						/>
+					) : null}
+					<SettingsRailItem
+						icon={Icons.Settings}
+						iconsOnly={iconsOnly}
+						label={t("skills.section.advanced")}
+						value="advanced"
+					/>
+				</>
+			)}
+		>
 			<div className="flex min-h-0 min-w-0 flex-1 flex-col">
 				<div className="flex shrink-0 items-center justify-between gap-2 border-border border-b px-5 py-3">
 					<div className="flex min-w-0 items-center gap-2">
@@ -460,7 +444,7 @@ const SkillEditor = ({
 				open={isLeaving}
 				title={t("skills.leave.title")}
 			/>
-		</Tabs.Root>
+		</SettingsPushedPage>
 	)
 }
 

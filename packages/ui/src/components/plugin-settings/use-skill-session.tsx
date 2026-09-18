@@ -8,6 +8,10 @@ import {
 	type BotSkillItem,
 	isSkillDraftUnsaved,
 } from "@workspace/ui/components/bot-settings"
+import type {
+	SessionPages,
+	SettingsPages,
+} from "@workspace/ui/components/plugin-settings/settings-pages"
 import { SkillEditor } from "@workspace/ui/components/plugin-settings/skill-editor"
 import type {
 	PluginSkillFiles,
@@ -16,6 +20,7 @@ import type {
 import { SkillsPanel } from "@workspace/ui/components/plugin-settings/skills-panel"
 
 type SkillSessionProps = {
+	pages: SettingsPages
 	skills: BotSkillItem[]
 	files?: PluginSkillFiles
 	onSkillCreate: (draft: BotSkillDraft, isPreloaded: boolean) => void
@@ -26,7 +31,7 @@ type SkillSessionProps = {
 
 type SkillSession = {
 	panel: ReactNode
-	editor: ReactNode
+	pages: SessionPages
 	isUnsaved: boolean
 	discard: () => void
 }
@@ -37,6 +42,7 @@ type OpenedSkill = {
 }
 
 const useSkillSession = ({
+	pages,
 	skills,
 	files,
 	onSkillCreate,
@@ -46,9 +52,15 @@ const useSkillSession = ({
 }: SkillSessionProps): SkillSession => {
 	const [session, setSession] = useState<OpenedSkill | null>(null)
 
+	const open = (opened: OpenedSkill) => {
+		setSession(opened)
+		pages.push("skill")
+	}
+
 	const close = () => {
 		files?.onClose()
 		setSession(null)
+		pages.leave("skill")
 	}
 
 	const save = ({ draft, saved }: OpenedSkill) => {
@@ -104,12 +116,12 @@ const useSkillSession = ({
 	return {
 		panel: (
 			<SkillsPanel
-				onAdd={() => setSession({ draft: BLANK_SKILL_DRAFT })}
-				onOpen={(saved) => setSession({ draft: saved, saved })}
+				onAdd={() => open({ draft: BLANK_SKILL_DRAFT })}
+				onOpen={(saved) => open({ draft: saved, saved })}
 				skills={skills}
 			/>
 		),
-		editor: session ? editorFor(session) : null,
+		pages: { skill: session ? editorFor(session) : null },
 		isUnsaved: Boolean(
 			session && isSkillDraftUnsaved(session.draft, session.saved),
 		),

@@ -34,6 +34,7 @@ import {
 } from "@workspace/ui/components/environment-panel"
 import { Icons } from "@workspace/ui/components/icons"
 import type { PluginHistory } from "@workspace/ui/components/plugin-settings/history-panel"
+import type { SettingsPage } from "@workspace/ui/components/plugin-settings/settings-pages"
 import type { PluginSkillFiles } from "@workspace/ui/components/plugin-settings/skill-files-panel"
 import {
 	HISTORY_TAB,
@@ -57,6 +58,7 @@ import {
 import { SETTINGS_HEADER_CLASS } from "@workspace/ui/components/settings-styles"
 import { Dialog, DialogTitle } from "@workspace/ui/components/ui/dialog"
 import { useIsNarrowerThan } from "@workspace/ui/hooks/use-is-narrower-than"
+import { usePushedPages } from "@workspace/ui/hooks/use-pushed-pages"
 import { useSettingsShortcut } from "@workspace/ui/hooks/use-settings-shortcut"
 import { useSettingsTab } from "@workspace/ui/hooks/use-settings-tab"
 import { cn } from "@workspace/ui/lib/utils"
@@ -159,7 +161,9 @@ const BotSettingsDialog = ({
 	const [isLeaving, setLeaving] = useState(false)
 	const iconsOnly = useIsNarrowerThan(tabs, RAIL_LABELS_MIN_WIDTH)
 	const botName = value.name.trim() || t("dialog.untitled")
+	const pages = usePushedPages<SettingsPage>()
 	const skillSession = useSkillSession({
+		pages,
 		skills,
 		files: skillFiles,
 		onSkillChange,
@@ -168,6 +172,7 @@ const BotSettingsDialog = ({
 		onSkillPreloadedChange,
 	})
 	const mcpSession = useMcpSession({
+		pages,
 		owner: { kind: "companion", name: botName },
 		catalogue: mcpCatalogue,
 		servers: mcpServers,
@@ -183,6 +188,7 @@ const BotSettingsDialog = ({
 		isSettingsOpen: open,
 	})
 	const historySession = useHistorySession({
+		pages,
 		history,
 		companion: value.identity,
 		companionName: botName,
@@ -250,7 +256,11 @@ const BotSettingsDialog = ({
 					</DialogTitle>
 				</header>
 
-				{skillSession.editor ?? mcpSession.editor ?? historySession.page ?? (
+				{pages.shown({
+					...skillSession.pages,
+					...mcpSession.pages,
+					...historySession.pages,
+				}) ?? (
 					<Tabs.Root
 						className="flex min-h-0 flex-1"
 						onValueChange={activeTab.onValueChange}

@@ -21,6 +21,7 @@ import {
 } from "@workspace/ui/components/environment-panel"
 import { Icons } from "@workspace/ui/components/icons"
 import type { PluginHistory } from "@workspace/ui/components/plugin-settings/history-panel"
+import type { SettingsPage } from "@workspace/ui/components/plugin-settings/settings-pages"
 import type { PluginSkillFiles } from "@workspace/ui/components/plugin-settings/skill-files-panel"
 import {
 	HISTORY_TAB,
@@ -46,6 +47,7 @@ import { SpaceFields } from "@workspace/ui/components/space-settings-dialog/spac
 import { SpaceTint } from "@workspace/ui/components/space-tint"
 import { Dialog, DialogTitle } from "@workspace/ui/components/ui/dialog"
 import { useIsNarrowerThan } from "@workspace/ui/hooks/use-is-narrower-than"
+import { usePushedPages } from "@workspace/ui/hooks/use-pushed-pages"
 import { useSettingsTab } from "@workspace/ui/hooks/use-settings-tab"
 import { cn } from "@workspace/ui/lib/utils"
 
@@ -127,7 +129,9 @@ const SpaceSettingsDialog = ({
 	const [isLeaving, setLeaving] = useState(false)
 	const iconsOnly = useIsNarrowerThan(tabs, RAIL_LABELS_MIN_WIDTH)
 	const spaceName = value.name.trim() || t("space.untitled")
+	const pages = usePushedPages<SettingsPage>()
 	const skillSession = useSkillSession({
+		pages,
 		files: skillFiles,
 		onSkillChange,
 		onSkillCreate,
@@ -136,6 +140,7 @@ const SpaceSettingsDialog = ({
 		skills,
 	})
 	const mcpSession = useMcpSession({
+		pages,
 		owner: { kind: "space", name: spaceName },
 		catalogue: mcpCatalogue,
 		servers: mcpServers,
@@ -151,6 +156,7 @@ const SpaceSettingsDialog = ({
 		isSettingsOpen: open,
 	})
 	const historySession = useHistorySession({
+		pages,
 		history,
 		companionName: t("plugin.author.bot"),
 	})
@@ -200,7 +206,11 @@ const SpaceSettingsDialog = ({
 					</DialogTitle>
 				</header>
 
-				{skillSession.editor ?? mcpSession.editor ?? historySession.page ?? (
+				{pages.shown({
+					...skillSession.pages,
+					...mcpSession.pages,
+					...historySession.pages,
+				}) ?? (
 					<Tabs.Root
 						className="flex min-h-0 flex-1"
 						onValueChange={activeTab.onValueChange}

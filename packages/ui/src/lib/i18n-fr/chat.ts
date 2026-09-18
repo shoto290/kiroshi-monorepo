@@ -557,6 +557,12 @@ const chat = {
 			description:
 				"Créez une routine pour faire travailler un compagnon selon un horaire ou quand un fichier change.",
 		},
+		leave: {
+			title: "Quitter sans enregistrer ?",
+			description:
+				"Vous perdrez vos modifications non enregistrées. La routine enregistrée reste telle quelle.",
+			action: "Quitter",
+		},
 	},
 	missions: {
 		state: {

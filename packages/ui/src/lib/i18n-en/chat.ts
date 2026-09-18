@@ -531,6 +531,12 @@ const chat = {
 			description:
 				"Set a routine to run a companion on a schedule or when a file changes.",
 		},
+		leave: {
+			title: "Leave without saving?",
+			description:
+				"You'll lose your unsaved changes. The saved routine stays as it is.",
+			action: "Leave",
+		},
 	},
 	missions: {
 		state: {
