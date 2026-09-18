@@ -1,5 +1,6 @@
 use super::contract::OauthError;
 use super::credentials;
+use crate::bundles::AuthorizationWithheld;
 use crate::environment::contract::Values;
 
 const SCHEMES: [&str; 2] = ["http://", "https://"];
@@ -10,6 +11,8 @@ const QUERY_OR_FRAGMENT: [char; 2] = ['?', '#'];
 
 #[derive(Clone, Copy)]
 pub enum Step {
+	ReadingTheDeclaredServer,
+	CheckingTheServer,
 	ClaimingTheState,
 	WritingTheStoreRoot,
 	ReadingTheStoredClient,
@@ -32,6 +35,8 @@ impl Step {
 
 	fn named(self) -> &'static str {
 		match self {
+			Self::ReadingTheDeclaredServer => "the declared server could not be read",
+			Self::CheckingTheServer => "kiroshi does not authorize that server",
 			Self::ClaimingTheState => "the authorization state could not be claimed",
 			Self::WritingTheStoreRoot => "the store root could not be written",
 			Self::ReadingTheStoredClient => "the stored client could not be read",
@@ -48,6 +53,14 @@ impl Step {
 			Self::ReadingTheSettlement => "the settlement carried no grant",
 			Self::StoringTheGrant => "the grant could not be stored",
 		}
+	}
+}
+
+fn withheld_reason(carries: AuthorizationWithheld) -> &'static str {
+	match carries {
+		AuthorizationWithheld::LoopbackAddress => "it is served on a loopback address",
+		AuthorizationWithheld::OwnAuthorizationHeader => "it carries its own authorization header",
+		AuthorizationWithheld::UnexpandedPlaceholder => "it carries an unexpanded placeholder",
 	}
 }
 
@@ -72,6 +85,7 @@ fn reason(error: &OauthError) -> String {
 			None => detail.clone(),
 		},
 		OauthError::BrowserRefused { url } | OauthError::RefusedUrl { url } => url.clone(),
+		OauthError::NotAuthorizable { carries } => withheld_reason(*carries).to_owned(),
 		OauthError::FlowTimedOut { timeout_ms } => format!("no answer within {timeout_ms}ms"),
 		OauthError::Transport { error } => format!("{error:?}"),
 		OauthError::Store { error } => format!("{error:?}"),

@@ -359,6 +359,8 @@ mod tests {
 	use crate::applications::runnable::tests::a_path_carrying;
 	use crate::applications::runnable::{NPX, UVX};
 	use crate::bundles;
+	use crate::agent::translate::now_ms;
+	use crate::mcp_oauth::asking::AuthorizationAnswers;
 	use crate::mcp_oauth::commands::McpOauthState;
 	use crate::mcp_oauth::reports::{ApplicationReports, Standing};
 
@@ -388,6 +390,7 @@ mod tests {
 		app.manage(db::bootstrap(app.handle()));
 		app.manage(McpOauthState::default());
 		app.manage(ApplicationReports::default());
+		app.manage(AuthorizationAnswers::default());
 		ready(&app.state::<db::DatabaseState>())
 			.expect("the database opens")
 			.call_mut(|connection| Ok(connection.execute_batch(A_SPACE)?))
@@ -1083,6 +1086,7 @@ mod tests {
 		let reports = app.state::<ApplicationReports>();
 		reports.record("b1", "superset", Standing::Holding);
 		reports.record("b1", "paper", Standing::LeftOut { reason: Some("refused".to_owned()) });
+		app.state::<AuthorizationAnswers>().answered("https://mcp.notion.test/mcp", true, now_ms());
 
 		let read = |application: &'static str, scope: &'static str| {
 			let host = host.clone();

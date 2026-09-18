@@ -1,3 +1,4 @@
+pub mod asking;
 pub mod commands;
 pub mod contract;
 pub mod credentials;

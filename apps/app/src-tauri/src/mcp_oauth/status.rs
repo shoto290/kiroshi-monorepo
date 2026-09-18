@@ -6,8 +6,6 @@ use crate::environment::contract::{
 	EnvScope, Values, OAUTH_ACCESS_TOKEN, OAUTH_REASON, OAUTH_REFRESH_TOKEN,
 };
 
-const A_STATUS_READ: &str = "it read ";
-
 const UNUSABLE_GRANT: &str =
 	"the session could not use the stored authorization, which is still held";
 
@@ -42,8 +40,7 @@ pub struct Evidence {
 	pub refusal: Option<String>,
 	pub reported: Option<Standing>,
 	pub held: Values,
-	pub declares_url: bool,
-	pub kiroshi_authorizes: bool,
+	pub asks_for_authorization: bool,
 }
 
 pub fn status(evidence: Evidence, now: i64) -> ApplicationStatus {
@@ -59,26 +56,11 @@ pub fn status(evidence: Evidence, now: i64) -> ApplicationStatus {
 	match evidence.reported {
 		Some(Standing::Holding) => ApplicationStatus::Connected,
 		Some(Standing::NeedsAuth { .. }) => needs_auth(&evidence.held, now),
-		Some(Standing::LeftOut { reason }) => {
-			left_out(reason, &evidence.held, evidence.kiroshi_authorizes, now)
-		}
-		None => stored_status(&evidence.held, evidence.declares_url, now),
+		Some(Standing::LeftOut { reason }) => ApplicationStatus::Failed {
+			reason: reason.map(|reason| credentials::scrubbed(reason, &evidence.held)),
+		},
+		None => stored_status(&evidence.held, evidence.asks_for_authorization, now),
 	}
-}
-
-fn left_out(
-	reason: Option<String>,
-	held: &Values,
-	kiroshi_authorizes: bool,
-	now: i64,
-) -> ApplicationStatus {
-	let Some(reason) = reason else {
-		return ApplicationStatus::Failed { reason: None };
-	};
-	if did_not_come_up(&reason) && kiroshi_authorizes && !holds_a_usable_grant(held, now) {
-		return ApplicationStatus::NeedsAuthorization { reason: None };
-	}
-	ApplicationStatus::Failed { reason: Some(credentials::scrubbed(reason, held)) }
 }
 
 fn needs_auth(held: &Values, now: i64) -> ApplicationStatus {
@@ -88,19 +70,15 @@ fn needs_auth(held: &Values, now: i64) -> ApplicationStatus {
 	ApplicationStatus::Failed { reason: Some(UNUSABLE_GRANT.to_owned()) }
 }
 
-fn did_not_come_up(reason: &str) -> bool {
-	reason.starts_with(A_STATUS_READ)
-}
-
-fn stored_status(held: &Values, declares_url: bool, now: i64) -> ApplicationStatus {
-	match (holds_a_usable_grant(held, now), declares_url) {
+fn stored_status(held: &Values, asks_for_authorization: bool, now: i64) -> ApplicationStatus {
+	match (holds_a_usable_grant(held, now), asks_for_authorization) {
 		(true, _) => ApplicationStatus::Connected,
 		(false, true) => ApplicationStatus::NeedsAuthorization { reason: None },
 		(false, false) => ApplicationStatus::Unknown,
 	}
 }
 
-fn holds_a_usable_grant(held: &Values, now: i64) -> bool {
+pub fn holds_a_usable_grant(held: &Values, now: i64) -> bool {
 	held.contains_key(OAUTH_ACCESS_TOKEN) && (is_live(held, now) || is_renewable(held))
 }
 
@@ -141,14 +119,13 @@ mod tests {
 		held
 	}
 
-	fn unreported(held: Values, declares_url: bool) -> Evidence {
+	fn unreported(held: Values, asks_for_authorization: bool) -> Evidence {
 		Evidence {
 			is_authorizing: false,
 			refusal: None,
 			reported: None,
 			held,
-			declares_url,
-			kiroshi_authorizes: declares_url,
+			asks_for_authorization,
 		}
 	}
 
@@ -158,8 +135,7 @@ mod tests {
 			refusal: None,
 			reported: Some(standing),
 			held: a_grant(Some(NOW + 1)),
-			declares_url: true,
-			kiroshi_authorizes: true,
+			asks_for_authorization: true,
 		}
 	}
 
@@ -262,7 +238,7 @@ mod tests {
 	}
 
 	#[test]
-	fn with_no_report_a_url_server_holding_no_usable_grant_needs_authorization() {
+	fn with_no_report_a_server_asking_for_authorization_and_holding_no_usable_grant_needs_it() {
 		assert_eq!(
 			status(unreported(Values::new(), true), NOW),
 			ApplicationStatus::NeedsAuthorization { reason: None }
@@ -274,7 +250,7 @@ mod tests {
 	}
 
 	#[test]
-	fn with_no_report_a_server_declaring_no_url_and_holding_no_usable_grant_is_unknown() {
+	fn with_no_report_a_server_nothing_says_asks_for_authorization_is_unknown() {
 		assert_eq!(status(unreported(Values::new(), false), NOW), ApplicationStatus::Unknown);
 		assert_eq!(
 			status(unreported(holding_no_refresh_token(Some(NOW)), false), NOW),
@@ -283,65 +259,13 @@ mod tests {
 	}
 
 	#[test]
-	fn an_application_kiroshi_authorizes_holding_no_grant_reads_left_out_as_needs_authorization() {
-		assert_eq!(
-			status(left_out_holding(Values::new()), NOW),
-			ApplicationStatus::NeedsAuthorization { reason: None }
-		);
-		assert_eq!(
-			status(left_out_holding(holding_no_refresh_token(Some(NOW))), NOW),
-			ApplicationStatus::NeedsAuthorization { reason: None }
-		);
-	}
+	fn a_server_a_session_left_out_reads_failed_with_its_reason_whatever_grant_is_held() {
+		let failed = ApplicationStatus::Failed { reason: Some(IT_DID_NOT_COME_UP.to_owned()) };
 
-	#[test]
-	fn an_application_kiroshi_authorizes_holding_a_usable_grant_reads_left_out_as_failed() {
-		assert_eq!(
-			status(left_out_holding(a_grant(Some(NOW + 1))), NOW),
-			ApplicationStatus::Failed { reason: Some(IT_DID_NOT_COME_UP.to_owned()) }
-		);
-		assert_eq!(
-			status(left_out_holding(a_grant(Some(NOW - 1))), NOW),
-			ApplicationStatus::Failed { reason: Some(IT_DID_NOT_COME_UP.to_owned()) }
-		);
-	}
-
-	#[test]
-	fn an_application_kiroshi_authorizes_not_reads_left_out_as_failed() {
-		let declaring_its_own_header =
-			Evidence { kiroshi_authorizes: false, ..left_out_holding(Values::new()) };
-
-		assert_eq!(
-			status(declaring_its_own_header, NOW),
-			ApplicationStatus::Failed { reason: Some(IT_DID_NOT_COME_UP.to_owned()) }
-		);
-	}
-
-	#[test]
-	fn only_a_reason_naming_a_status_read_says_the_server_did_not_come_up() {
-		assert!(did_not_come_up("it read failed, stderr: connection refused"));
-		assert!(did_not_come_up("it read needs-auth"));
-		assert!(!did_not_come_up("it is disabled in this session"));
-		assert!(!did_not_come_up("the environment store could not be read"));
-		assert!(!did_not_come_up("GRANOLA_TOKEN is defined by no scope"));
-		assert!(!did_not_come_up("no status read ever named it"));
-	}
-
-	#[test]
-	fn a_reason_naming_no_status_read_reads_left_out_as_failed_over_the_grant_held() {
-		let unreadable_store = Evidence {
-			reported: Some(Standing::LeftOut {
-				reason: Some("the environment store could not be read".to_owned()),
-			}),
-			..left_out_holding(Values::new())
-		};
-
-		assert_eq!(
-			status(unreadable_store, NOW),
-			ApplicationStatus::Failed {
-				reason: Some("the environment store could not be read".to_owned())
-			}
-		);
+		assert_eq!(status(left_out_holding(Values::new()), NOW), failed);
+		assert_eq!(status(left_out_holding(holding_no_refresh_token(Some(NOW))), NOW), failed);
+		assert_eq!(status(left_out_holding(a_grant(Some(NOW + 1))), NOW), failed);
+		assert_eq!(status(left_out_holding(a_grant(Some(NOW - 1))), NOW), failed);
 	}
 
 	#[test]
