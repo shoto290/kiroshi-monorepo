@@ -1,4 +1,4 @@
-const LOCALE = "en-US"
+import { formatDateTime } from "@workspace/ui/lib/time-format"
 
 const MINUTE_MS = 60 * 1000
 const HOUR_MS = 60 * MINUTE_MS
@@ -6,10 +6,10 @@ const DAY_MS = 24 * HOUR_MS
 const WEEK_MS = 7 * DAY_MS
 const FOUR_WEEKS_MS = 4 * WEEK_MS
 
-const DATE = new Intl.DateTimeFormat(LOCALE, {
+const DATE: Intl.DateTimeFormatOptions = {
 	month: "numeric",
 	day: "numeric",
-})
+}
 
 export const rosterTimestamp = (at: number, now: number): string => {
 	const age = now - at
@@ -28,5 +28,5 @@ export const rosterTimestamp = (at: number, now: number): string => {
 	if (age < FOUR_WEEKS_MS) {
 		return `${Math.floor(age / WEEK_MS)}w`
 	}
-	return DATE.format(at)
+	return formatDateTime(at, DATE)
 }

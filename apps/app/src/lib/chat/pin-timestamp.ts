@@ -1,10 +1,10 @@
-const LOCALE = "en-US"
+import { formatDateTime } from "@workspace/ui/lib/time-format"
 
-const STAMP = new Intl.DateTimeFormat(LOCALE, {
+const STAMP: Intl.DateTimeFormatOptions = {
 	month: "short",
 	day: "numeric",
 	hour: "numeric",
 	minute: "2-digit",
-})
+}
 
-export const pinTimestamp = (at: number): string => STAMP.format(at)
+export const pinTimestamp = (at: number): string => formatDateTime(at, STAMP)

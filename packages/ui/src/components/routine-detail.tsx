@@ -9,7 +9,7 @@ import { Notice } from "@workspace/ui/components/notice"
 import { FIELD_LABEL_CLASS } from "@workspace/ui/components/settings-styles"
 import { Badge } from "@workspace/ui/components/ui/badge"
 import { Button } from "@workspace/ui/components/ui/button"
-import { toRelativeTime } from "@workspace/ui/lib/relative-time"
+import { toRelativeTime } from "@workspace/ui/lib/time-format"
 import { cn } from "@workspace/ui/lib/utils"
 
 const ROUTINE_DETAIL_EDIT_OPENER = "detail-edit-routine"
@@ -88,7 +88,7 @@ type RunRowProps = {
 }
 
 const RunRow = ({ run, now }: RunRowProps) => {
-	const { t, i18n } = useTranslation("chat")
+	const { t } = useTranslation("chat")
 	const state: RunState = run.outcome ?? "running"
 	const Mark = RUN_STATE_MARK[state]
 
@@ -108,7 +108,7 @@ const RunRow = ({ run, now }: RunRowProps) => {
 					</span>
 				</span>
 				<span className="ms-auto text-muted-foreground text-xs tabular-nums">
-					{toRelativeTime(run.startedAt, i18n.language, now)}
+					{toRelativeTime(run.startedAt, now)}
 				</span>
 			</span>
 			{run.reason ? (
@@ -141,7 +141,7 @@ const RunHistory = ({
 	now,
 	onRetryRuns,
 }: RunHistoryProps) => {
-	const { t, i18n } = useTranslation("chat")
+	const { t } = useTranslation("chat")
 
 	const notice = hasFailedToReadRuns ? (
 		<Notice
@@ -179,7 +179,7 @@ const RunHistory = ({
 					</span>
 					<span className={SEPARATOR_CLASS}>
 						{t("routines.detail.history.latest", {
-							when: toRelativeTime(latest.startedAt, i18n.language, now),
+							when: toRelativeTime(latest.startedAt, now),
 						})}
 					</span>
 				</p>

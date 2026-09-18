@@ -3,13 +3,11 @@ import type {
 	HistoryDay,
 } from "@workspace/ui/components/plugin-settings/history-panel"
 import { i18n } from "@workspace/ui/lib/i18n"
+import { formatDateTime } from "@workspace/ui/lib/time-format"
 
 import { dayKeyOf, type HistoryRun } from "./history-runs"
 
 import type { BotHistoryEntry } from "../conversations/store-contract"
-
-const format = (options: Intl.DateTimeFormatOptions) =>
-	new Intl.DateTimeFormat(i18n.language, options)
 
 const dayBefore = (now: Date) => {
 	const before = new Date(now)
@@ -24,7 +22,7 @@ const dayLabelOf = (at: Date, now: Date) => {
 	if (key === dayKeyOf(dayBefore(now)))
 		return i18n.t("bots:history.day.yesterday")
 
-	return format({ day: "numeric", month: "long" }).format(at)
+	return formatDateTime(at, { day: "numeric", month: "long" })
 }
 
 const toChange = (run: HistoryRun, at: Date): HistoryChange => ({
@@ -33,9 +31,11 @@ const toChange = (run: HistoryRun, at: Date): HistoryChange => ({
 	sentence: run.title,
 	detail: run.body || undefined,
 	at: at.toISOString(),
-	time: format({ hour: "2-digit", minute: "2-digit", hour12: false }).format(
-		at,
-	),
+	time: formatDateTime(at, {
+		hour: "2-digit",
+		minute: "2-digit",
+		hour12: false,
+	}),
 	retouchCount: run.entryCount > 1 ? run.entryCount : undefined,
 	isUndone: run.isUndone || undefined,
 })
@@ -68,7 +68,9 @@ export const oldestHistoryDate = (entries: BotHistoryEntry[]): string => {
 
 	const oldest = Math.min(...entries.map((entry) => entry.timestamp))
 
-	return format({ year: "numeric", month: "long", day: "numeric" }).format(
-		oldest * 1000,
-	)
+	return formatDateTime(oldest * 1000, {
+		year: "numeric",
+		month: "long",
+		day: "numeric",
+	})
 }
