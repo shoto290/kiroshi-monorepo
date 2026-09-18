@@ -27,6 +27,11 @@ const BODY_LIMIT = 400
 const REFUSAL_BUDGET_MS = 3_000
 const LATE_ANSWER_MS = 50
 const UNREACHABLE_AUTHORIZATION = "http://127.0.0.1:1/authorize"
+const SESSION_GATE = "<html><body>Sign in to continue</body></html>"
+const UNAVAILABLE = JSON.stringify({
+	error: "temporarily_unavailable",
+	error_description: "try again later",
+})
 const INVALID_REDIRECT = JSON.stringify({
 	code: 400,
 	error_code: "validation_failed",
@@ -426,6 +431,50 @@ describe("mcp oauth", () => {
 				},
 			})
 			expect(authority.seen.tokenRequests).toHaveLength(0)
+		} finally {
+			await authority.stop()
+		}
+	}, 20_000)
+
+	it("keeps waiting past a gate that answers the authorization url 403", async () => {
+		const authority = anAuthorizationServer({
+			authorizationRefusal: { status: 403, body: SESSION_GATE },
+		})
+		try {
+			const flow = aFlowUnder(authority.url, await aRegisteredRedirect())
+			const asked = await waitForStarted()
+			while (authority.seen.authorizations.length === 0) {
+				await Bun.sleep(10)
+			}
+			await Bun.sleep(LATE_ANSWER_MS)
+			await redirectedWithCode(asked)
+
+			expect(await flow).toMatchObject({
+				credentials: { accessToken: ACCESS_TOKEN, clientId: HANDED_CLIENT_ID },
+			})
+		} finally {
+			await authority.stop()
+		}
+	}, 20_000)
+
+	it("ends the attempt on a status above 400 that names an oauth error", async () => {
+		const authority = anAuthorizationServer({
+			authorizationRefusal: { status: 503, body: UNAVAILABLE },
+		})
+		try {
+			const settled = await aFlowUnder(
+				authority.url,
+				await aRegisteredRedirect(),
+			)
+
+			expect(settled).toEqual({
+				error: {
+					kind: "failed",
+					detail: "the authorization endpoint answered 503",
+					status: 503,
+					body: UNAVAILABLE,
+				},
+			})
 		} finally {
 			await authority.stop()
 		}

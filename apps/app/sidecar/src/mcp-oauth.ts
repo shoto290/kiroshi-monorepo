@@ -41,6 +41,7 @@ const FLOW_TIMEOUT_MS = 300_000
 const FORM_CONTENT = "application/x-www-form-urlencoded"
 const JSON_CONTENT = "application/json"
 const BODY_LIMIT = 400
+const BAD_REQUEST = 400
 
 const REFUSED_GRANT_CODES = new Set([
 	"invalid_grant",
@@ -279,10 +280,14 @@ const authorizationRefusal = async (
 		redirect: "manual",
 		credentials: "omit",
 	})
-	if (answered.status < 400) {
+	if (answered.status < BAD_REQUEST) {
 		return undefined
 	}
-	const body = carriable(await answered.text())
+	const answer = await answered.text()
+	if (answered.status > BAD_REQUEST && !oauthError(answer)) {
+		return undefined
+	}
+	const body = carriable(answer)
 	return {
 		kind: "failed",
 		detail: `the authorization endpoint answered ${answered.status}`,
