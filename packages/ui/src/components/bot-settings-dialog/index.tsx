@@ -10,7 +10,6 @@ import {
 } from "@workspace/ui/components/bot-identity-avatar"
 import { BotIdentityFields } from "@workspace/ui/components/bot-identity-fields"
 import type {
-	BotCommitItem,
 	BotIdentity,
 	BotMcpServerItem,
 	BotModelOption,
@@ -441,7 +440,6 @@ const BotSettingsDialog = ({
 }
 
 export {
-	type BotCommitItem,
 	type BotMcpServerItem,
 	type BotModelOption,
 	type BotOutputStyle,
