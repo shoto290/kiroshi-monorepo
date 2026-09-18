@@ -1,8 +1,8 @@
 use std::sync::Arc;
 
-use serde::{Deserialize, Serialize};
+use serde::Deserialize;
 use serde_json::Value;
-use tauri::{AppHandle, Emitter, Manager, Runtime, State};
+use tauri::{AppHandle, Emitter, Manager, Runtime};
 
 use super::contract::{
 	Application, ApplicationInstall, ApplicationInstalled, ApplicationCallError, Install,
@@ -14,19 +14,13 @@ use super::directory::{Directory, DIRECTORY};
 use super::registry::REGISTRY;
 use super::runnable::{refusal, Runners};
 use super::search::{named, search, terms};
-use crate::agent::protocol::HostAnswer;
-use crate::agent::session::{Answering, HostRequests};
+use crate::agent::host::{Host, Refusal};
 use crate::conversations::commands::ready;
 use crate::bundles::ApplicationMark;
 use crate::conversations::contract::McpServer;
-use crate::db;
 use crate::environment::contract::EnvOwner;
 use crate::mcp_oauth::commands::mcp_application_status;
 use crate::plugins::commands::{plugin_mcp_servers, plugin_set_mcp_server};
-
-const SUBTYPE: &str = "application";
-
-const NO_DATABASE: &str = "the store this session writes to is not open";
 
 const OFFERS: usize = 9;
 
@@ -38,19 +32,6 @@ pub struct ApplicationHost<R: Runtime> {
 	registry: String,
 	runners: Runners,
 	directory: Arc<Directory>,
-}
-
-impl<R: Runtime> Clone for ApplicationHost<R> {
-	fn clone(&self) -> Self {
-		Self {
-			app: self.app.clone(),
-			conversation_id: self.conversation_id.clone(),
-			bot_id: self.bot_id.clone(),
-			registry: self.registry.clone(),
-			runners: self.runners.clone(),
-			directory: self.directory.clone(),
-		}
-	}
 }
 
 fn held_directory<R: Runtime>(app: &AppHandle<R>) -> Arc<Directory> {
@@ -70,28 +51,6 @@ impl<R: Runtime> ApplicationHost<R> {
 			registry: REGISTRY.to_owned(),
 			runners: Runners::default(),
 			directory,
-		}
-	}
-
-	pub async fn answer(&self, request: Value) -> HostAnswer {
-		self.served(request).await.map_err(refused)
-	}
-
-	async fn served(&self, request: Value) -> Result<Value, ApplicationCallError> {
-		let Asked::Application { operation, payload } = read(request)?;
-		match operation {
-			Operation::Search => {
-				let asked: Searched = read(payload)?;
-				answered(self.search(&asked.query).await?)
-			}
-			Operation::Install => {
-				let asked: Named = read(payload)?;
-				answered(self.install(asked).await?)
-			}
-			Operation::Status => {
-				let asked: Named = read(payload)?;
-				answered(self.status(asked).await?)
-			}
 		}
 	}
 
@@ -162,7 +121,7 @@ impl<R: Runtime> ApplicationHost<R> {
 	}
 
 	async fn record(&self, draft: InstallDraft) -> Result<ApplicationInstall, ApplicationCallError> {
-		let state = self.state()?;
+		let state = Self::database(&self.app)?;
 		Ok(ready(&state)?.application_installs().record(draft).await?)
 	}
 
@@ -203,12 +162,19 @@ impl<R: Runtime> ApplicationHost<R> {
 		let name = application.name.clone();
 		let config = application.config.clone();
 		let mark = Some(mark_of(application));
-		Ok(plugin_set_mcp_server(self.app.clone(), self.state()?, owner.into(), name, config, mark)
-			.await?)
+		Ok(plugin_set_mcp_server(
+			self.app.clone(),
+			Self::database(&self.app)?,
+			owner.into(),
+			name,
+			config,
+			mark,
+		)
+		.await?)
 	}
 
 	async fn space(&self) -> Result<String, ApplicationCallError> {
-		let state = self.state()?;
+		let state = Self::database(&self.app)?;
 		let database = ready(&state)?;
 		database.conversations().space(self.conversation_id.clone()).await?.ok_or_else(|| {
 			ApplicationCallError::ConversationWithoutSpace {
@@ -222,34 +188,52 @@ impl<R: Runtime> ApplicationHost<R> {
 			.emit(INSTALLED_EVENT, installed)
 			.map_err(|error| ApplicationCallError::Undeliverable { detail: error.to_string() })
 	}
+}
 
-	fn state(&self) -> Result<State<'_, db::DatabaseState>, ApplicationCallError> {
-		self.app
-			.try_state::<db::DatabaseState>()
-			.ok_or_else(|| ApplicationCallError::Unexpected { detail: NO_DATABASE.to_owned() })
+impl<R: Runtime> Host for ApplicationHost<R> {
+	const SUBTYPE: &'static str = "application";
+
+	const IS_PAYLOAD_REQUIRED: bool = true;
+
+	type Operation = Operation;
+
+	type Error = ApplicationCallError;
+
+	async fn served(
+		&self,
+		operation: Operation,
+		payload: Value,
+	) -> Result<Value, ApplicationCallError> {
+		match operation {
+			Operation::Search => {
+				let asked: Searched = Self::read(payload)?;
+				Self::answered(self.search(&asked.query).await?)
+			}
+			Operation::Install => {
+				let asked: Named = Self::read(payload)?;
+				Self::answered(self.install(asked).await?)
+			}
+			Operation::Status => {
+				let asked: Named = Self::read(payload)?;
+				Self::answered(self.status(asked).await?)
+			}
+		}
 	}
 }
 
-impl<R: Runtime> HostRequests for ApplicationHost<R> {
-	fn subtype(&self) -> &'static str {
-		SUBTYPE
+impl Refusal for ApplicationCallError {
+	fn unreadable(detail: String) -> Self {
+		Self::UnreadableRequest { detail }
 	}
 
-	fn serve(&self, request: Value) -> Answering {
-		let held = self.clone();
-		Box::pin(async move { held.answer(request).await })
+	fn unexpected(detail: String) -> Self {
+		Self::Unexpected { detail }
 	}
-}
-
-#[derive(Debug, Deserialize)]
-#[serde(tag = "subtype", rename_all = "camelCase")]
-enum Asked {
-	Application { operation: Operation, payload: Value },
 }
 
 #[derive(Debug, Clone, Copy, Deserialize)]
 #[serde(rename_all = "camelCase")]
-enum Operation {
+pub enum Operation {
 	Search,
 	Install,
 	Status,
@@ -311,22 +295,6 @@ fn answers_to(application: &Application, term: &str) -> bool {
 		.any(|read| read.to_lowercase().contains(term))
 }
 
-fn read<T: serde::de::DeserializeOwned>(payload: Value) -> Result<T, ApplicationCallError> {
-	serde_json::from_value(payload)
-		.map_err(|error| ApplicationCallError::UnreadableRequest { detail: error.to_string() })
-}
-
-fn answered<T: Serialize>(answer: T) -> Result<Value, ApplicationCallError> {
-	serde_json::to_value(answer)
-		.map_err(|error| ApplicationCallError::Unexpected { detail: error.to_string() })
-}
-
-fn refused(error: ApplicationCallError) -> Value {
-	serde_json::to_value(&error).unwrap_or_else(
-		|failure| serde_json::json!({ "kind": "unexpected", "detail": failure.to_string() }),
-	)
-}
-
 #[cfg(test)]
 mod tests {
 	use std::fs;
@@ -346,6 +314,7 @@ mod tests {
 	use crate::applications::runnable::{NPX, UVX};
 	use crate::bundles;
 	use crate::agent::translate::now_ms;
+	use crate::db;
 	use crate::mcp_oauth::asking::AuthorizationAnswers;
 	use crate::mcp_oauth::commands::McpOauthState;
 	use crate::mcp_oauth::reports::{ApplicationReports, Standing};
@@ -1095,9 +1064,9 @@ mod tests {
 		reports.record("b1", "paper", Standing::LeftOut { reason: Some("refused".to_owned()) });
 		app.state::<AuthorizationAnswers>().answered("https://mcp.notion.test/mcp", true, now_ms());
 
-		let read = |application: &'static str, scope: &'static str| {
-			let host = host.clone();
-			async move { host.answer(a_status(application, scope)).await.expect("the status reads") }
+		let host = &host;
+		let read = move |application: &'static str, scope: &'static str| async move {
+			host.answer(a_status(application, scope)).await.expect("the status reads")
 		};
 
 		assert_eq!(read("superset", "space").await, json!({ "status": "notInstalled" }));

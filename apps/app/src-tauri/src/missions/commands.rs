@@ -12,6 +12,7 @@ use crate::bundles;
 use crate::conversations::commands::{bot_row, ready};
 use crate::conversations::contract::Bot;
 use crate::db;
+use crate::file_store::FileStore;
 use crate::routines::webhook::{Webhook, HEADER};
 
 pub const CHANGED_EVENT: &str = "mission://changed";
@@ -302,7 +303,7 @@ async fn with_their_bots<R: Runtime>(
 	database: &db::Database,
 	missions: Vec<Mission>,
 ) -> Result<Vec<MissionOnBoard>, MissionError> {
-	let dir = avatars::dir(app);
+	let dir = avatars::Avatars::dir(app);
 	let bundle_root = bundles::root(app);
 	let mut board = Vec::new();
 	for mission in missions {

@@ -2,8 +2,9 @@
 use tauri::{AppHandle, Runtime, State};
 
 use super::contract::{AttachmentStoreError, SubmittedAttachment};
-use super::{dir, store};
+use super::{store, Attachments};
 use crate::db;
+use crate::file_store::FileStore;
 
 fn ready(state: &db::DatabaseState) -> Result<&db::Database, AttachmentStoreError> {
 	state.as_ref().map_err(|failure| AttachmentStoreError::Unavailable { failure: failure.into() })
@@ -20,7 +21,7 @@ pub async fn chat_store_attachments<R: Runtime>(
 	if !known.iter().any(|id| id == &conversation_id) {
 		return Err(AttachmentStoreError::UnknownConversation { id: conversation_id });
 	}
-	let root = dir(&app).ok_or(AttachmentStoreError::Unwritable {
+	let root = Attachments::dir(&app).ok_or(AttachmentStoreError::Unwritable {
 		detail: "there is no application data directory to store attachments in".to_owned(),
 	})?;
 	let stored = store(&root, &conversation_id, &attachments)?;

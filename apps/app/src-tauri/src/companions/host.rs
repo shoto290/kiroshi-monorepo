@@ -1,13 +1,12 @@
 use serde::{Deserialize, Serialize};
 use serde_json::Value;
-use tauri::{AppHandle, Emitter, Manager, Runtime, State};
+use tauri::{AppHandle, Emitter, Runtime};
 
 use super::contract::{
 	CompanionCreated, CompanionError, CompanionInvited, ConversationOpened, ConversationSaid,
 	SeatedCompanion, CREATED_EVENT, FIRST_RUN_DONE_EVENT,
 };
-use crate::agent::protocol::HostAnswer;
-use crate::agent::session::{Answering, HostRequests};
+use crate::agent::host::{Host, Refusal};
 use crate::conversations::commands::{
 	conversation_create_bot_from_draft, conversation_suggested_bots, ready, seat_participant,
 };
@@ -17,10 +16,6 @@ use crate::conversations::contract::{
 use crate::db;
 use crate::db::repositories::conversations::{Bot as StoredBot, ConversationDraft, TOPIC_KIND};
 
-const SUBTYPE: &str = "companion";
-
-const NO_DATABASE: &str = "the store this session writes to is not open";
-
 #[derive(Debug)]
 pub struct CompanionHost<R: Runtime> {
 	app: AppHandle<R>,
@@ -28,63 +23,9 @@ pub struct CompanionHost<R: Runtime> {
 	bot_id: String,
 }
 
-impl<R: Runtime> Clone for CompanionHost<R> {
-	fn clone(&self) -> Self {
-		Self {
-			app: self.app.clone(),
-			conversation_id: self.conversation_id.clone(),
-			bot_id: self.bot_id.clone(),
-		}
-	}
-}
-
 impl<R: Runtime> CompanionHost<R> {
 	pub fn new(app: AppHandle<R>, conversation_id: String, bot_id: String) -> Self {
 		Self { app, conversation_id, bot_id }
-	}
-
-	pub async fn answer(&self, request: Value) -> HostAnswer {
-		self.served(request).await.map_err(refused)
-	}
-
-	async fn served(&self, request: Value) -> Result<Value, CompanionError> {
-		let Asked::Companion { operation, payload } = read(request)?;
-		let state = self.state()?;
-		let database = ready(&state)?;
-		match operation {
-			Operation::Suggestions => {
-				let _: Bare = read(payload)?;
-				answered(conversation_suggested_bots())
-			}
-			Operation::Create => {
-				let asked: Drafted = read(payload)?;
-				let space_id = self.space(database).await?;
-				let created =
-					conversation_create_bot_from_draft(self.app.clone(), state, asked.into(), space_id)
-						.await?;
-				let companion = CompanionCreated { id: created.id, name: created.name };
-				self.announce(CREATED_EVENT, &companion)?;
-				answered(companion)
-			}
-			Operation::FirstRunDone => {
-				let _: Bare = read(payload)?;
-				database.user().mark_first_run_done().await?;
-				self.announce(FIRST_RUN_DONE_EVENT, ())?;
-				Ok(Value::Null)
-			}
-			Operation::Invite => {
-				let asked: Invited = read(payload)?;
-				answered(self.invite(database, asked).await?)
-			}
-			Operation::ConversationOpen => {
-				let asked: Opened = read(payload)?;
-				answered(self.open(database, asked).await?)
-			}
-			Operation::ConversationSay => {
-				let asked: Said = read(payload)?;
-				answered(self.say(database, asked).await?)
-			}
-		}
 	}
 
 	async fn invite(
@@ -220,12 +161,6 @@ impl<R: Runtime> CompanionHost<R> {
 			.emit(event, payload)
 			.map_err(|error| CompanionError::Undeliverable { detail: error.to_string() })
 	}
-
-	fn state(&self) -> Result<State<'_, db::DatabaseState>, CompanionError> {
-		self.app
-			.try_state::<db::DatabaseState>()
-			.ok_or_else(|| CompanionError::Unexpected { detail: NO_DATABASE.to_owned() })
-	}
 }
 
 async fn carries_seats(
@@ -262,30 +197,66 @@ async fn space_of(
 	})
 }
 
-impl<R: Runtime> HostRequests for CompanionHost<R> {
-	fn subtype(&self) -> &'static str {
-		SUBTYPE
-	}
+impl<R: Runtime> Host for CompanionHost<R> {
+	const SUBTYPE: &'static str = "companion";
 
-	fn serve(&self, request: Value) -> Answering {
-		let held = self.clone();
-		Box::pin(async move { held.answer(request).await })
+	type Operation = Operation;
+
+	type Error = CompanionError;
+
+	async fn served(&self, operation: Operation, payload: Value) -> Result<Value, CompanionError> {
+		let state = Self::database(&self.app)?;
+		let database = ready(&state)?;
+		match operation {
+			Operation::Suggestions => {
+				let _: Bare = Self::read(payload)?;
+				Self::answered(conversation_suggested_bots())
+			}
+			Operation::Create => {
+				let asked: Drafted = Self::read(payload)?;
+				let space_id = self.space(database).await?;
+				let created =
+					conversation_create_bot_from_draft(self.app.clone(), state, asked.into(), space_id)
+						.await?;
+				let companion = CompanionCreated { id: created.id, name: created.name };
+				self.announce(CREATED_EVENT, &companion)?;
+				Self::answered(companion)
+			}
+			Operation::FirstRunDone => {
+				let _: Bare = Self::read(payload)?;
+				database.user().mark_first_run_done().await?;
+				self.announce(FIRST_RUN_DONE_EVENT, ())?;
+				Ok(Value::Null)
+			}
+			Operation::Invite => {
+				let asked: Invited = Self::read(payload)?;
+				Self::answered(self.invite(database, asked).await?)
+			}
+			Operation::ConversationOpen => {
+				let asked: Opened = Self::read(payload)?;
+				Self::answered(self.open(database, asked).await?)
+			}
+			Operation::ConversationSay => {
+				let asked: Said = Self::read(payload)?;
+				Self::answered(self.say(database, asked).await?)
+			}
+		}
 	}
 }
 
-#[derive(Debug, Deserialize)]
-#[serde(tag = "subtype", rename_all = "camelCase")]
-enum Asked {
-	Companion {
-		operation: Operation,
-		#[serde(default = "nothing")]
-		payload: Value,
-	},
+impl Refusal for CompanionError {
+	fn unreadable(detail: String) -> Self {
+		Self::UnreadableRequest { detail }
+	}
+
+	fn unexpected(detail: String) -> Self {
+		Self::Unexpected { detail }
+	}
 }
 
 #[derive(Debug, Clone, Copy, Deserialize)]
 #[serde(rename_all = "camelCase")]
-enum Operation {
+pub enum Operation {
 	Suggestions,
 	Create,
 	FirstRunDone,
@@ -354,26 +325,6 @@ impl From<Drafted> for BotDraft {
 	}
 }
 
-fn nothing() -> Value {
-	Value::Object(serde_json::Map::new())
-}
-
-fn read<T: serde::de::DeserializeOwned>(payload: Value) -> Result<T, CompanionError> {
-	serde_json::from_value(payload)
-		.map_err(|error| CompanionError::UnreadableRequest { detail: error.to_string() })
-}
-
-fn answered<T: Serialize>(answer: T) -> Result<Value, CompanionError> {
-	serde_json::to_value(answer)
-		.map_err(|error| CompanionError::Unexpected { detail: error.to_string() })
-}
-
-fn refused(error: CompanionError) -> Value {
-	serde_json::to_value(&error).unwrap_or_else(
-		|failure| serde_json::json!({ "kind": "unexpected", "detail": failure.to_string() }),
-	)
-}
-
 #[cfg(test)]
 mod tests {
 	use std::fs;
@@ -385,6 +336,7 @@ mod tests {
 	use tauri::{App, Listener as _, Manager as _};
 
 	use super::*;
+	use crate::agent::protocol::HostAnswer;
 	use crate::bundles;
 	use crate::conversations::contract::{COMPANION_ARRIVED_EVENT, COMPANION_SPOKE_EVENT};
 	use crate::db::repositories::conversations::DEFAULT_BOT_MODEL;

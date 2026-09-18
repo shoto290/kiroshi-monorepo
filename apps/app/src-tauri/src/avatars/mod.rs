@@ -1,23 +1,36 @@
-
 pub mod picture;
 
 use std::ffi::OsString;
 use std::fs;
+use std::io;
 use std::path::{Path, PathBuf};
 
-use tauri::{AppHandle, Manager, Runtime};
 use uuid::Uuid;
 
+use crate::db::{Database, DatabaseError};
+use crate::file_store::FileStore;
 use crate::private_files;
 
 pub use picture::Rejection;
 
-const DIR_NAME: &str = "avatars";
-
 const EXTENSION: &str = "png";
 
-pub fn dir<R: Runtime>(app: &AppHandle<R>) -> Option<PathBuf> {
-	Some(app.path().app_data_dir().ok()?.join(DIR_NAME))
+pub struct Avatars;
+
+impl FileStore for Avatars {
+	const DIR_NAME: &'static str = "avatars";
+
+	async fn referenced(database: &Database) -> Result<Vec<String>, DatabaseError> {
+		database.referenced_avatar_paths().await
+	}
+
+	fn kept(dir: &Path, referenced: &[String]) -> Vec<OsString> {
+		referenced.iter().filter_map(|path| held_name(dir, path)).collect()
+	}
+
+	fn remove(path: &Path) -> io::Result<()> {
+		fs::remove_file(path)
+	}
 }
 
 pub fn minted_path(dir: &Path) -> PathBuf {
@@ -36,27 +49,6 @@ pub fn readable(dir: &Path, recorded: &str) -> Option<PathBuf> {
 		return None;
 	}
 	Some(dir.join(resolved.file_name()?))
-}
-
-pub async fn sweep_referenced(database: &crate::db::Database, dir: Option<&Path>) {
-	let Some(dir) = dir else {
-		return;
-	};
-	if let Ok(referenced) = database.referenced_avatar_paths().await {
-		sweep(dir, &referenced);
-	}
-}
-
-pub fn sweep(dir: &Path, referenced: &[String]) {
-	let kept: Vec<OsString> = referenced.iter().filter_map(|path| held_name(dir, path)).collect();
-	let Ok(entries) = fs::read_dir(dir) else {
-		return;
-	};
-	for entry in entries.flatten() {
-		if !kept.contains(&entry.file_name()) {
-			let _ = fs::remove_file(entry.path());
-		}
-	}
 }
 
 fn held_name(dir: &Path, recorded: &str) -> Option<OsString> {
@@ -184,7 +176,7 @@ mod tests {
 		let kept = a_stored_avatar(&dir);
 		let dropped = a_stored_avatar(&dir);
 
-		sweep(&dir, std::slice::from_ref(&kept));
+		Avatars::sweep(&dir, std::slice::from_ref(&kept));
 
 		assert!(Path::new(&kept).exists(), "a referenced picture was swept");
 		assert!(!Path::new(&dropped).exists(), "an unreferenced picture stayed behind");
@@ -197,7 +189,7 @@ mod tests {
 		a_stored_avatar(&dir);
 		a_stored_avatar(&dir);
 
-		sweep(&dir, &[]);
+		Avatars::sweep(&dir, &[]);
 
 		assert_eq!(names_in(&dir), Vec::<String>::new());
 		fs::remove_dir_all(&dir).expect("cleanup");
@@ -209,7 +201,7 @@ mod tests {
 		let promised = minted_path(&dir);
 		let existing = a_stored_avatar(&dir);
 
-		sweep(&dir, &[promised.to_string_lossy().into_owned()]);
+		Avatars::sweep(&dir, &[promised.to_string_lossy().into_owned()]);
 
 		assert!(!Path::new(&existing).exists(), "the replaced picture stayed behind");
 		write(&promised, &picture::normalised(&a_png(8, 8)).expect("accepted"))
@@ -223,7 +215,7 @@ mod tests {
 		let dir = temp_dir();
 		let stored = a_stored_avatar(&dir);
 
-		sweep(&dir, &["/etc/passwd".to_owned(), stored.clone()]);
+		Avatars::sweep(&dir, &["/etc/passwd".to_owned(), stored.clone()]);
 
 		assert!(Path::new(&stored).exists(), "a referenced picture was swept");
 		assert!(Path::new("/etc/passwd").exists(), "the sweep reached outside its directory");
@@ -251,7 +243,7 @@ mod tests {
 		let dir = temp_dir().join("not-yet");
 
 		assert_eq!(readable(&dir, "anything.png"), None, "a read of a missing directory failed");
-		sweep(&dir, &[]);
+		Avatars::sweep(&dir, &[]);
 		assert!(!dir.exists(), "resolving or sweeping a directory created it");
 
 		let recorded = a_stored_avatar(&dir);

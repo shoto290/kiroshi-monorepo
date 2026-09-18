@@ -14,6 +14,7 @@ use crate::companions::launch;
 use crate::db;
 use crate::db::repositories::conversations::DEFAULT_BOT_MODEL;
 use crate::db::DatabaseError;
+use crate::file_store::FileStore;
 
 const PERSONAL_SPACE_ID: &str = "personal";
 
@@ -106,7 +107,7 @@ async fn plant<R: Runtime>(
 	app: &AppHandle<R>,
 	database: &db::Database,
 ) -> Result<CompanionCreated, Refusal> {
-	let dir = avatars::dir(app).ok_or(Refusal::NoDataDir)?;
+	let dir = avatars::Avatars::dir(app).ok_or(Refusal::NoDataDir)?;
 	let root = bundles::root(app).ok_or(Refusal::NoDataDir)?;
 	if !holds_personal_space(database).await? {
 		return Err(Refusal::NoPersonalSpace);
@@ -402,7 +403,7 @@ mod tests {
 	async fn the_picture_shoto_wears_is_the_embedded_one_the_pipeline_answered() {
 		let app = a_host("picture");
 		let database = database_of(&app);
-		let dir = avatars::dir(app.handle()).expect("the avatars directory");
+		let dir = avatars::Avatars::dir(app.handle()).expect("the avatars directory");
 
 		let roster = planted(&app, database).await;
 
@@ -476,7 +477,7 @@ mod tests {
 
 		assert_eq!(database.conversations().bots(None).await.expect("the roster").len(), 0);
 		assert!(!database.user().is_first_companion_seeded().await.expect("the marker"));
-		let dir = avatars::dir(app.handle()).expect("the avatars directory");
+		let dir = avatars::Avatars::dir(app.handle()).expect("the avatars directory");
 		assert_eq!(fs::read_dir(&dir).expect("the directory reads").count(), 0);
 		let reasons = payloads::<CompanionSeedRefused>(&refused);
 		assert_eq!(reasons.len(), 1, "got {reasons:?}");
@@ -487,7 +488,7 @@ mod tests {
 	async fn a_picture_that_cannot_be_written_leaves_no_row_and_no_marker_and_is_announced() {
 		let app = a_host("pictureless");
 		let database = database_of(&app);
-		let dir = avatars::dir(app.handle()).expect("the avatars directory");
+		let dir = avatars::Avatars::dir(app.handle()).expect("the avatars directory");
 		a_file_standing_at(&dir);
 		let refused = heard(&app, SEED_REFUSED_EVENT);
 

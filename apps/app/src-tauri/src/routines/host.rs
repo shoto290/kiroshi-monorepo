@@ -1,20 +1,15 @@
-use serde::{Deserialize, Serialize};
+use serde::Deserialize;
 use serde_json::Value;
-use tauri::{AppHandle, Manager, Runtime, State};
+use tauri::{AppHandle, Runtime};
 
 use super::commands::{
 	routine_create, routine_delete, routine_list, routine_row, routine_run_now,
 	routine_trigger_sources, routine_update,
 };
 use super::contract::{Filter, FilterMatchMode, RoutineDraft, RoutineEdit, RoutineError};
-use crate::agent::protocol::HostAnswer;
-use crate::agent::session::{Answering, HostRequests};
+use crate::agent::host::{Host, Refusal};
 use crate::conversations::commands::ready;
 use crate::db;
-
-const SUBTYPE: &str = "routine";
-
-const NO_DATABASE: &str = "the store this session writes to is not open";
 
 #[derive(Debug)]
 pub struct RoutineHost<R: Runtime> {
@@ -23,63 +18,9 @@ pub struct RoutineHost<R: Runtime> {
 	bot_id: String,
 }
 
-impl<R: Runtime> Clone for RoutineHost<R> {
-	fn clone(&self) -> Self {
-		Self {
-			app: self.app.clone(),
-			conversation_id: self.conversation_id.clone(),
-			bot_id: self.bot_id.clone(),
-		}
-	}
-}
-
 impl<R: Runtime> RoutineHost<R> {
 	pub fn new(app: AppHandle<R>, conversation_id: String, bot_id: String) -> Self {
 		Self { app, conversation_id, bot_id }
-	}
-
-	pub async fn answer(&self, request: Value) -> HostAnswer {
-		self.served(request).await.map_err(refused)
-	}
-
-	async fn served(&self, request: Value) -> Result<Value, RoutineError> {
-		let Asked::Routine { operation, payload } = read(request)?;
-		let state = self.state()?;
-		let database = ready(&state)?;
-		match operation {
-			Operation::List => {
-				let _: Bare = read(payload)?;
-				answered(routine_list(state, self.conversation_id.clone()).await?)
-			}
-			Operation::TriggerSources => {
-				let _: Bare = read(payload)?;
-				answered(
-					routine_trigger_sources(self.app.clone(), state, self.bot_id.clone()).await?,
-				)
-			}
-			Operation::Create => {
-				let asked: Created = read(payload)?;
-				let draft = self.draft(asked);
-				answered(routine_create(self.app.clone(), state, draft).await?)
-			}
-			Operation::Update => {
-				let asked: Edited = read(payload)?;
-				self.refuse_a_routine_it_does_not_own(database, &asked.id).await?;
-				let id = asked.id.clone();
-				answered(routine_update(self.app.clone(), state, id, edit(asked)).await?)
-			}
-			Operation::RunNow => {
-				let asked: Named = read(payload)?;
-				self.refuse_a_routine_it_does_not_own(database, &asked.id).await?;
-				answered(routine_run_now(self.app.clone(), state, asked.id).await?)
-			}
-			Operation::Delete => {
-				let asked: Named = read(payload)?;
-				self.refuse_a_routine_it_does_not_own(database, &asked.id).await?;
-				routine_delete(self.app.clone(), state, asked.id).await?;
-				Ok(Value::Null)
-			}
-		}
 	}
 
 	fn draft(&self, asked: Created) -> RoutineDraft {
@@ -92,12 +33,6 @@ impl<R: Runtime> RoutineHost<R> {
 			filter: asked.filter,
 			trigger_config: asked.trigger_config,
 		}
-	}
-
-	fn state(&self) -> Result<State<'_, db::DatabaseState>, RoutineError> {
-		self.app
-			.try_state::<db::DatabaseState>()
-			.ok_or_else(|| RoutineError::Unexpected { detail: NO_DATABASE.to_owned() })
 	}
 
 	async fn refuse_a_routine_it_does_not_own(
@@ -122,30 +57,66 @@ impl<R: Runtime> RoutineHost<R> {
 	}
 }
 
-impl<R: Runtime> HostRequests for RoutineHost<R> {
-	fn subtype(&self) -> &'static str {
-		SUBTYPE
-	}
+impl<R: Runtime> Host for RoutineHost<R> {
+	const SUBTYPE: &'static str = "routine";
 
-	fn serve(&self, request: Value) -> Answering {
-		let held = self.clone();
-		Box::pin(async move { held.answer(request).await })
+	type Operation = Operation;
+
+	type Error = RoutineError;
+
+	async fn served(&self, operation: Operation, payload: Value) -> Result<Value, RoutineError> {
+		let state = Self::database(&self.app)?;
+		let database = ready(&state)?;
+		match operation {
+			Operation::List => {
+				let _: Bare = Self::read(payload)?;
+				Self::answered(routine_list(state, self.conversation_id.clone()).await?)
+			}
+			Operation::TriggerSources => {
+				let _: Bare = Self::read(payload)?;
+				Self::answered(
+					routine_trigger_sources(self.app.clone(), state, self.bot_id.clone()).await?,
+				)
+			}
+			Operation::Create => {
+				let asked: Created = Self::read(payload)?;
+				let draft = self.draft(asked);
+				Self::answered(routine_create(self.app.clone(), state, draft).await?)
+			}
+			Operation::Update => {
+				let asked: Edited = Self::read(payload)?;
+				self.refuse_a_routine_it_does_not_own(database, &asked.id).await?;
+				let id = asked.id.clone();
+				Self::answered(routine_update(self.app.clone(), state, id, edit(asked)).await?)
+			}
+			Operation::RunNow => {
+				let asked: Named = Self::read(payload)?;
+				self.refuse_a_routine_it_does_not_own(database, &asked.id).await?;
+				Self::answered(routine_run_now(self.app.clone(), state, asked.id).await?)
+			}
+			Operation::Delete => {
+				let asked: Named = Self::read(payload)?;
+				self.refuse_a_routine_it_does_not_own(database, &asked.id).await?;
+				routine_delete(self.app.clone(), state, asked.id).await?;
+				Ok(Value::Null)
+			}
+		}
 	}
 }
 
-#[derive(Debug, Deserialize)]
-#[serde(tag = "subtype", rename_all = "camelCase")]
-enum Asked {
-	Routine {
-		operation: Operation,
-		#[serde(default = "nothing")]
-		payload: Value,
-	},
+impl Refusal for RoutineError {
+	fn unreadable(detail: String) -> Self {
+		Self::UnreadableRequest { detail }
+	}
+
+	fn unexpected(detail: String) -> Self {
+		Self::Unexpected { detail }
+	}
 }
 
 #[derive(Debug, Clone, Copy, Deserialize)]
 #[serde(rename_all = "camelCase")]
-enum Operation {
+pub enum Operation {
 	List,
 	TriggerSources,
 	Create,
@@ -205,22 +176,6 @@ fn every_event() -> Filter {
 	Filter { match_mode: FilterMatchMode::All, rows: Vec::new() }
 }
 
-fn read<T: serde::de::DeserializeOwned>(payload: Value) -> Result<T, RoutineError> {
-	serde_json::from_value(payload)
-		.map_err(|error| RoutineError::UnreadableRequest { detail: error.to_string() })
-}
-
-fn answered<T: Serialize>(answer: T) -> Result<Value, RoutineError> {
-	serde_json::to_value(answer)
-		.map_err(|error| RoutineError::Unexpected { detail: error.to_string() })
-}
-
-fn refused(error: RoutineError) -> Value {
-	serde_json::to_value(&error).unwrap_or_else(
-		|failure| serde_json::json!({ "kind": "unexpected", "detail": failure.to_string() }),
-	)
-}
-
 #[cfg(test)]
 mod tests {
 	use std::fs;
@@ -234,6 +189,7 @@ mod tests {
 	use super::super::commands::CHANGED_EVENT;
 	use super::super::contract::Routine;
 	use super::*;
+	use crate::agent::protocol::HostAnswer;
 	use crate::bundles;
 
 	const A_SPACE: &str = "

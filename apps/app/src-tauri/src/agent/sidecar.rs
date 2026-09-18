@@ -16,8 +16,8 @@ use tokio::task::JoinHandle;
 
 use super::contract::TransportError;
 use super::protocol::{
-	self, AuthorizeRequest, Authorized, Catalogue, Checked, OauthStarted, Ready, RefreshRequest,
-	RevocationRequest, Revoked, SignedIn, Titled, ToolCatalogue,
+	self, AuthorizeRequest, Authorized, Checked, OauthStarted, Ready, RefreshRequest,
+	RevocationRequest, Revoked, SignedIn, Titled,
 };
 use crate::environment::contract::Values;
 
@@ -235,17 +235,17 @@ impl Sidecar {
 	}
 
 	pub async fn catalogue(&self, connection: &Values) -> Result<Vec<String>, TransportError> {
-		let answer = self.ask(protocol::MODELS, connection, CATALOGUE_TIMEOUT).await?;
-		let catalogue: Catalogue = serde_json::from_value(answer)
-			.map_err(|error| TransportError::InvalidFrame { detail: error.to_string() })?;
-		Ok(catalogue.models)
+		self.offered(protocol::MODELS, connection).await
 	}
 
-	pub async fn tools(&self, connection: &Values) -> Result<Vec<String>, TransportError> {
-		let answer = self.ask(protocol::TOOLS, connection, CATALOGUE_TIMEOUT).await?;
-		let catalogue: ToolCatalogue = serde_json::from_value(answer)
-			.map_err(|error| TransportError::InvalidFrame { detail: error.to_string() })?;
-		Ok(catalogue.tools)
+	pub async fn offered(
+		&self,
+		command: &'static str,
+		connection: &Values,
+	) -> Result<Vec<String>, TransportError> {
+		let answer = self.ask(command, connection, CATALOGUE_TIMEOUT).await?;
+		protocol::listed(command, answer)
+			.map_err(|error| TransportError::InvalidFrame { detail: error.to_string() })
 	}
 
 	pub async fn title(

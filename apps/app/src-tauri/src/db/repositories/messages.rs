@@ -314,6 +314,7 @@ pub struct RecoveryReport {
 }
 
 const TURN_KEY: &str = "SELECT seq, conversation_id, started_at FROM turns WHERE id = ?1";
+const CONVERSATION_OF_TURN: &str = "SELECT conversation_id FROM turns WHERE id = ?1";
 const INSERT_TURN: &str = "INSERT INTO turns (id, conversation_id, seq, started_at)
 	VALUES (?1, ?2, (SELECT COALESCE(MAX(seq), 0) + 1 FROM turns WHERE conversation_id = ?2), ?3)
 	RETURNING seq";
@@ -689,6 +690,13 @@ impl MessagesRepository {
 	pub async fn recover_unfinished(&self) -> Result<RecoveryReport, TranscriptError> {
 		Ok(self.call_mut(sweep_unfinished).await?)
 	}
+}
+
+pub(in crate::db) fn conversation_of_turn(
+	connection: &Connection,
+	turn_id: &str,
+) -> rusqlite::Result<Option<String>> {
+	connection.query_row(CONVERSATION_OF_TURN, [turn_id], |row| row.get(0)).optional()
 }
 
 pub(in crate::db) fn sweep_unfinished(

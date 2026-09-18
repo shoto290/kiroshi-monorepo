@@ -6,6 +6,7 @@ use serde_json::Value;
 use uuid::Uuid;
 
 use super::conversations::open_thread_under;
+use super::messages::conversation_of_turn;
 use crate::db::{Access, DatabaseError};
 use crate::missions::contract::{
 	ConversationMissions, HookedMission, Mission, MissionAnswer, MissionClosing, MissionDetail,
@@ -80,8 +81,6 @@ const CLOSE_MISSION: &str = "UPDATE missions SET closed_at = ?2 WHERE id = ?1";
 
 const REPORT_MISSION: &str =
 	"UPDATE missions SET reported_at = ?2, reported_turn_id = ?3 WHERE id = ?1";
-
-const CONVERSATION_OF_TURN: &str = "SELECT conversation_id FROM turns WHERE id = ?1";
 
 const SELECT_EVENTS: &str = "SELECT id, mission_id, kind, source, payload, created_at
 	FROM mission_events WHERE mission_id = ?1 ORDER BY seq DESC LIMIT ?2";
@@ -490,9 +489,7 @@ fn refuse_an_unreportable_turn(
 	let Some(turn_id) = turn_id else {
 		return Ok(());
 	};
-	let of_turn: Option<String> =
-		transaction.query_row(CONVERSATION_OF_TURN, [turn_id], |row| row.get(0)).optional()?;
-	let Some(conversation_id) = of_turn else {
+	let Some(conversation_id) = conversation_of_turn(transaction, turn_id)? else {
 		return Err(MissionError::UnknownTurn { id: turn_id.to_owned() });
 	};
 	if conversation_id != origin_conversation_id {

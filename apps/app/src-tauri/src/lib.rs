@@ -8,6 +8,7 @@ pub mod companions;
 pub mod conversations;
 pub mod db;
 pub mod environment;
+pub mod file_store;
 pub mod mcp_oauth;
 pub mod missions;
 pub mod notifications;

@@ -3,6 +3,8 @@ use rusqlite::{params, Connection, OptionalExtension, Row, Transaction, Transact
 use serde_json::{json, Value};
 use uuid::Uuid;
 
+use super::messages::conversation_of_turn;
+
 use crate::db::{Access, DatabaseError};
 use crate::routines::contract::{
 	ReportedRun, Routine, RoutineDraft, RoutineEdit, RoutineError, RoutineRun, RunCause,
@@ -77,8 +79,6 @@ const CLOSE_RUN: &str = "UPDATE routine_runs
 	SET ended_at = ?2, outcome = ?3, reason = ?4, cost_usd = ?5, model_usage = ?6,
 		reported_turn_id = ?7
 	WHERE id = ?1 AND ended_at IS NULL";
-
-const CONVERSATION_OF_TURN: &str = "SELECT conversation_id FROM turns WHERE id = ?1";
 
 const CONVERSATION_OF_OPEN_RUN: &str = "SELECT routines.conversation_id
 	FROM routine_runs JOIN routines ON routines.id = routine_runs.routine_id
@@ -413,9 +413,7 @@ fn refuse_unreportable_turn(
 	let Some(of_run) = of_run else {
 		return Ok(());
 	};
-	let of_turn: Option<String> =
-		transaction.query_row(CONVERSATION_OF_TURN, [turn_id], |row| row.get(0)).optional()?;
-	let Some(conversation_id) = of_turn else {
+	let Some(conversation_id) = conversation_of_turn(transaction, turn_id)? else {
 		return Err(RoutineError::UnknownTurn { id: turn_id.to_owned() });
 	};
 	if conversation_id != of_run {

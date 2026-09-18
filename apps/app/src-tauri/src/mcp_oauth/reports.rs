@@ -1,14 +1,11 @@
 use std::collections::HashMap;
 use std::sync::{Mutex, PoisonError};
 
-use serde::Deserialize;
+use serde::{Deserialize, Serialize};
 use serde_json::Value;
 use tauri::{AppHandle, Manager, Runtime};
 
-use crate::agent::protocol::HostAnswer;
-use crate::agent::session::{Answering, HostRequests};
-
-const SUBTYPE: &str = "standing";
+use crate::agent::host::{Host, Refusal};
 
 const NO_RECORDS: &str = "the record of where servers stand is not held";
 
@@ -33,16 +30,27 @@ struct Report {
 	standing: Standing,
 }
 
-#[derive(Debug, Deserialize)]
-#[serde(tag = "subtype", rename_all = "camelCase")]
-enum Asked {
-	Standing { operation: Operation, payload: Report },
-}
-
 #[derive(Debug, Clone, Copy, Deserialize)]
 #[serde(rename_all = "camelCase")]
-enum Operation {
+pub enum Operation {
 	Report,
+}
+
+#[derive(Debug, Serialize)]
+#[serde(tag = "kind", rename_all = "camelCase")]
+pub enum StandingError {
+	UnreadableRequest { detail: String },
+	Unexpected { detail: String },
+}
+
+impl Refusal for StandingError {
+	fn unreadable(detail: String) -> Self {
+		Self::UnreadableRequest { detail }
+	}
+
+	fn unexpected(detail: String) -> Self {
+		Self::Unexpected { detail }
+	}
 }
 
 #[derive(Default)]
@@ -85,41 +93,43 @@ impl<R: Runtime> StandingHost<R> {
 		Self { app, bot_id }
 	}
 
-	fn recorded(&self, request: Value) -> HostAnswer {
-		let report = read(request)?;
+	fn recorded(&self, report: Report) -> Result<Value, StandingError> {
 		let reports = self
 			.app
 			.try_state::<ApplicationReports>()
-			.ok_or_else(|| serde_json::json!({ "kind": "unexpected", "detail": NO_RECORDS }))?;
+			.ok_or_else(|| StandingError::unexpected(NO_RECORDS.to_owned()))?;
 		reports.record(&self.bot_id, &report.name, report.standing);
 		Ok(Value::Null)
 	}
 }
 
-impl<R: Runtime> HostRequests for StandingHost<R> {
-	fn subtype(&self) -> &'static str {
-		SUBTYPE
-	}
+impl<R: Runtime> Host for StandingHost<R> {
+	const SUBTYPE: &'static str = "standing";
 
-	fn serve(&self, request: Value) -> Answering {
-		let answer = self.recorded(request);
-		Box::pin(async move { answer })
-	}
-}
+	const IS_PAYLOAD_REQUIRED: bool = true;
 
-fn read(request: Value) -> Result<Report, Value> {
-	let Asked::Standing { operation: Operation::Report, payload } =
-		serde_json::from_value(request).map_err(
-			|error| serde_json::json!({ "kind": "unreadableRequest", "detail": error.to_string() }),
-		)?;
-	Ok(payload)
+	type Operation = Operation;
+
+	type Error = StandingError;
+
+	async fn served(&self, operation: Operation, payload: Value) -> Result<Value, StandingError> {
+		match operation {
+			Operation::Report => self.recorded(Self::read(payload)?),
+		}
+	}
 }
 
 #[cfg(test)]
 mod tests {
 	use serde_json::json;
+	use tauri::test::MockRuntime;
 
 	use super::*;
+
+	fn read(request: Value) -> Result<Report, Value> {
+		StandingHost::<MockRuntime>::read(request["payload"].clone())
+			.map_err(|error| serde_json::to_value(error).expect("a refusal serializes"))
+	}
 
 	fn asked(payload: Value) -> Value {
 		json!({ "subtype": "standing", "operation": "report", "payload": payload })
