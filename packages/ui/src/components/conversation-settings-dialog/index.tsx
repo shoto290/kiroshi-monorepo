@@ -1,28 +1,21 @@
 "use client"
 
 import { Tabs } from "@base-ui/react/tabs"
-import { useState } from "react"
 import { useTranslation } from "react-i18next"
 
 import { DangerZone } from "@workspace/ui/components/bot-settings-dialog/danger-zone"
 import { ParticipantsPanel } from "@workspace/ui/components/conversation-settings-dialog/participants-panel"
-import { DialogSurface } from "@workspace/ui/components/dialog-surface"
 import { Icons } from "@workspace/ui/components/icons"
 import type { RosterBot } from "@workspace/ui/components/roster"
+import { SettingsDialogShell } from "@workspace/ui/components/settings-dialog-shell"
 import { SettingsField } from "@workspace/ui/components/settings-field"
 import {
 	DANGER_RAIL_ITEM_CLASS,
-	RAIL_LABELS_MIN_WIDTH,
 	SETTINGS_PANEL_CLASS,
-	SettingsRail,
 	SettingsRailItem,
 	SettingsRailSeparator,
 	SettingsScrollingPanel,
 } from "@workspace/ui/components/settings-rail"
-import { SETTINGS_HEADER_CLASS } from "@workspace/ui/components/settings-styles"
-import { Dialog, DialogTitle } from "@workspace/ui/components/ui/dialog"
-import { useIsNarrowerThan } from "@workspace/ui/hooks/use-is-narrower-than"
-import { cn } from "@workspace/ui/lib/utils"
 
 const FIRST_TAB = "general"
 
@@ -59,8 +52,6 @@ const ConversationSettingsDialog = ({
 	className,
 }: ConversationSettingsDialogProps) => {
 	const { t } = useTranslation("chat")
-	const [tabs, setTabs] = useState<HTMLDivElement | null>(null)
-	const iconsOnly = useIsNarrowerThan(tabs, RAIL_LABELS_MIN_WIDTH)
 	const conversationName =
 		value.name.trim() || t("conversationSettings.untitled")
 
@@ -68,106 +59,89 @@ const ConversationSettingsDialog = ({
 		onValueChange({ ...value, ...fields })
 
 	return (
-		<Dialog onOpenChange={(next) => !next && onClose()} open={open}>
-			<DialogSurface
-				className={cn(
-					"h-[34rem] w-[52rem] gap-0 overflow-hidden p-0",
-					className,
-				)}
-			>
-				<header className={SETTINGS_HEADER_CLASS}>
-					<Icons.Message
-						aria-hidden="true"
-						className="size-5 shrink-0 text-muted-foreground"
+		<SettingsDialogShell
+			breadcrumb={t("conversationSettings.breadcrumb")}
+			className={className}
+			mark={
+				<Icons.Message
+					aria-hidden="true"
+					className="size-5 shrink-0 text-muted-foreground"
+				/>
+			}
+			name={conversationName}
+			onClose={onClose}
+			open={open}
+			rail={(iconsOnly) => (
+				<>
+					<SettingsRailItem
+						icon={Icons.Settings}
+						iconsOnly={iconsOnly}
+						label={t("conversationSettings.tab.general")}
+						value={FIRST_TAB}
 					/>
-					<DialogTitle className="flex min-w-0 items-center gap-1.5 pr-0">
-						<span className="truncate">{conversationName}</span>
-						<Icons.Next
-							aria-hidden="true"
-							className="size-3.5 shrink-0 text-muted-foreground"
-						/>
-						<span className="shrink-0 text-muted-foreground">
-							{t("conversationSettings.breadcrumb")}
-						</span>
-					</DialogTitle>
-				</header>
+					<SettingsRailItem
+						icon={Icons.User}
+						iconsOnly={iconsOnly}
+						label={t("conversationSettings.tab.participants")}
+						value="participants"
+					/>
+					<SettingsRailItem
+						icon={Icons.Docs}
+						iconsOnly={iconsOnly}
+						label={t("conversationSettings.tab.instructions")}
+						value="instructions"
+					/>
+					<SettingsRailSeparator />
+					<SettingsRailItem
+						className={DANGER_RAIL_ITEM_CLASS}
+						icon={Icons.Alert}
+						iconsOnly={iconsOnly}
+						label={t("conversationSettings.tab.danger")}
+						value={DANGER_TAB}
+					/>
+				</>
+			)}
+			tab={FIRST_TAB}
+		>
+			<SettingsScrollingPanel value={FIRST_TAB}>
+				<SettingsField
+					label={t("conversationSettings.name.label")}
+					onValueChange={(name) => patch({ name })}
+					placeholder={t("conversationSettings.name.placeholder")}
+					value={value.name}
+				/>
+			</SettingsScrollingPanel>
 
-				<Tabs.Root
-					className="flex min-h-0 flex-1"
-					defaultValue={FIRST_TAB}
-					orientation="vertical"
-					ref={setTabs}
-				>
-					<SettingsRail iconsOnly={iconsOnly}>
-						<SettingsRailItem
-							icon={Icons.Settings}
-							iconsOnly={iconsOnly}
-							label={t("conversationSettings.tab.general")}
-							value={FIRST_TAB}
-						/>
-						<SettingsRailItem
-							icon={Icons.User}
-							iconsOnly={iconsOnly}
-							label={t("conversationSettings.tab.participants")}
-							value="participants"
-						/>
-						<SettingsRailItem
-							icon={Icons.Docs}
-							iconsOnly={iconsOnly}
-							label={t("conversationSettings.tab.instructions")}
-							value="instructions"
-						/>
-						<SettingsRailSeparator />
-						<SettingsRailItem
-							className={DANGER_RAIL_ITEM_CLASS}
-							icon={Icons.Alert}
-							iconsOnly={iconsOnly}
-							label={t("conversationSettings.tab.danger")}
-							value={DANGER_TAB}
-						/>
-					</SettingsRail>
+			<SettingsScrollingPanel value="participants">
+				<ParticipantsPanel
+					leadId={leadId}
+					onDismiss={onDismiss}
+					onLeadChange={onLeadChange}
+					participants={participants}
+				/>
+			</SettingsScrollingPanel>
 
-					<SettingsScrollingPanel value={FIRST_TAB}>
-						<SettingsField
-							label={t("conversationSettings.name.label")}
-							onValueChange={(name) => patch({ name })}
-							placeholder={t("conversationSettings.name.placeholder")}
-							value={value.name}
-						/>
-					</SettingsScrollingPanel>
+			<Tabs.Panel className={SETTINGS_PANEL_CLASS} value="instructions">
+				<SettingsField
+					fill
+					label={t("conversationSettings.instructions.label")}
+					onValueChange={(instructions) => patch({ instructions })}
+					placeholder={t("conversationSettings.instructions.placeholder")}
+					value={value.instructions}
+				/>
+			</Tabs.Panel>
 
-					<SettingsScrollingPanel value="participants">
-						<ParticipantsPanel
-							leadId={leadId}
-							onDismiss={onDismiss}
-							onLeadChange={onLeadChange}
-							participants={participants}
-						/>
-					</SettingsScrollingPanel>
-
-					<Tabs.Panel className={SETTINGS_PANEL_CLASS} value="instructions">
-						<SettingsField
-							fill
-							label={t("conversationSettings.instructions.label")}
-							onValueChange={(instructions) => patch({ instructions })}
-							placeholder={t("conversationSettings.instructions.placeholder")}
-							value={value.instructions}
-						/>
-					</Tabs.Panel>
-
-					<SettingsScrollingPanel value={DANGER_TAB}>
-						<DangerZone
-							confirmTitle={t("conversationSettings.danger.confirm.title", {
-								name: conversationName,
-							})}
-							deleteLabel={t("conversationSettings.danger.delete")}
-							description={t("conversationSettings.danger.description")}
-							onDelete={onDelete}
-						/>
-					</SettingsScrollingPanel>
-				</Tabs.Root>
-			</DialogSurface>
-		</Dialog>
+			<SettingsScrollingPanel value={DANGER_TAB}>
+				<DangerZone
+					confirmTitle={t("conversationSettings.danger.confirm.title", {
+						name: conversationName,
+					})}
+					deleteLabel={t("conversationSettings.danger.delete")}
+					description={t("conversationSettings.danger.description")}
+					onDelete={onDelete}
+				/>
+			</SettingsScrollingPanel>
+		</SettingsDialogShell>
 	)
 }
 

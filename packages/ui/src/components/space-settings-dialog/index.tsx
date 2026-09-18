@@ -1,7 +1,6 @@
 "use client"
 
 import { Tabs } from "@base-ui/react/tabs"
-import { useState } from "react"
 import { useTranslation } from "react-i18next"
 
 import type {
@@ -11,8 +10,6 @@ import type {
 } from "@workspace/ui/components/bot-settings"
 import { DangerZone } from "@workspace/ui/components/bot-settings-dialog/danger-zone"
 import type { McpConnectionSection } from "@workspace/ui/components/bot-settings-dialog/mcp-connection"
-import { ConfirmDialog } from "@workspace/ui/components/confirm-dialog"
-import { DialogSurface } from "@workspace/ui/components/dialog-surface"
 import {
 	type EnvironmentEntry,
 	EnvironmentPanel,
@@ -32,24 +29,18 @@ import {
 	useMcpSession,
 } from "@workspace/ui/components/plugin-settings/use-mcp-session"
 import { useSkillSession } from "@workspace/ui/components/plugin-settings/use-skill-session"
+import { SettingsDialogShell } from "@workspace/ui/components/settings-dialog-shell"
 import {
 	DANGER_RAIL_ITEM_CLASS,
-	RAIL_LABELS_MIN_WIDTH,
 	SETTINGS_PANEL_CLASS,
-	SettingsRail,
 	SettingsRailItem,
 	SettingsRailSeparator,
 	SettingsScrollingPanel,
 } from "@workspace/ui/components/settings-rail"
-import { SETTINGS_HEADER_CLASS } from "@workspace/ui/components/settings-styles"
 import type { SpaceSettingsValue } from "@workspace/ui/components/space-settings"
 import { SpaceFields } from "@workspace/ui/components/space-settings-dialog/space-fields"
 import { SpaceTint } from "@workspace/ui/components/space-tint"
-import { Dialog, DialogTitle } from "@workspace/ui/components/ui/dialog"
-import { useIsNarrowerThan } from "@workspace/ui/hooks/use-is-narrower-than"
 import { usePushedPages } from "@workspace/ui/hooks/use-pushed-pages"
-import { useSettingsTab } from "@workspace/ui/hooks/use-settings-tab"
-import { cn } from "@workspace/ui/lib/utils"
 
 const FIRST_TAB = "space"
 
@@ -125,9 +116,6 @@ const SpaceSettingsDialog = ({
 	className,
 }: SpaceSettingsDialogProps) => {
 	const { t } = useTranslation("settings")
-	const [tabs, setTabs] = useState<HTMLDivElement | null>(null)
-	const [isLeaving, setLeaving] = useState(false)
-	const iconsOnly = useIsNarrowerThan(tabs, RAIL_LABELS_MIN_WIDTH)
 	const spaceName = value.name.trim() || t("space.untitled")
 	const pages = usePushedPages<SettingsPage>()
 	const skillSession = useSkillSession({
@@ -160,157 +148,103 @@ const SpaceSettingsDialog = ({
 		history,
 		companionName: t("plugin.author.bot"),
 	})
-	const activeTab = useSettingsTab(open, tab ?? FIRST_TAB)
-
-	const leave = () => {
-		skillSession.discard()
-		mcpSession.discard()
-		historySession.discard()
-		onClose()
-	}
-
-	const close = () =>
-		skillSession.isUnsaved || mcpSession.isUnsaved ? setLeaving(true) : leave()
-
-	const leaveCopy = mcpSession.isOpen
-		? {
-				title: t("applications.leave.title", { ns: "bots" }),
-				description: t("applications.leave.description", { ns: "bots" }),
-				action: t("applications.leave.action", { ns: "bots" }),
-			}
-		: {
-				title: t("skills.leave.title", { ns: "bots" }),
-				description: t("skills.leave.description", { ns: "bots" }),
-				action: t("skills.leave.action", { ns: "bots" }),
-			}
 
 	return (
-		<Dialog onOpenChange={(next) => !next && close()} open={open}>
-			<DialogSurface
-				className={cn(
-					"h-[34rem] w-[52rem] gap-0 overflow-hidden p-0",
-					className,
-				)}
-			>
-				<header className={SETTINGS_HEADER_CLASS}>
-					<SpaceTint className="size-5" tint={value.colour} />
-					<DialogTitle className="flex min-w-0 items-center gap-1.5 pr-0">
-						<span className="truncate">{spaceName}</span>
-						<Icons.Next
-							aria-hidden="true"
-							className="size-3.5 shrink-0 text-muted-foreground"
-						/>
-						<span className="shrink-0 text-muted-foreground">
-							{t("breadcrumb.title")}
-						</span>
-					</DialogTitle>
-				</header>
+		<SettingsDialogShell
+			breadcrumb={t("breadcrumb.title")}
+			className={className}
+			mark={<SpaceTint className="size-5" tint={value.colour} />}
+			name={spaceName}
+			onClose={onClose}
+			open={open}
+			pages={pages}
+			rail={(iconsOnly) => (
+				<>
+					<SettingsRailItem
+						icon={Icons.Folder}
+						iconsOnly={iconsOnly}
+						label={t("rail.space")}
+						value={FIRST_TAB}
+					/>
+					<SettingsRailItem
+						icon={Icons.Json}
+						iconsOnly={iconsOnly}
+						label={t("rail.secrets")}
+						value="environment"
+					/>
+					<SettingsRailItem
+						icon={Icons.Skill}
+						iconsOnly={iconsOnly}
+						label={t("rail.skills")}
+						value="skills"
+					/>
+					<SettingsRailItem
+						icon={Icons.Server}
+						iconsOnly={iconsOnly}
+						label={t("rail.applications")}
+						value="mcp"
+					/>
+					<SettingsRailItem
+						icon={Icons.History}
+						iconsOnly={iconsOnly}
+						label={t("rail.history")}
+						value={HISTORY_TAB}
+					/>
+					<SettingsRailSeparator />
+					<SettingsRailItem
+						className={DANGER_RAIL_ITEM_CLASS}
+						icon={Icons.Alert}
+						iconsOnly={iconsOnly}
+						label={t("rail.danger")}
+						value={DANGER_TAB}
+					/>
+				</>
+			)}
+			sessions={{
+				skills: skillSession,
+				applications: mcpSession,
+				history: historySession,
+			}}
+			tab={tab ?? FIRST_TAB}
+		>
+			<SettingsScrollingPanel value={FIRST_TAB}>
+				<SpaceFields onValueChange={onValueChange} value={value} />
+			</SettingsScrollingPanel>
 
-				{pages.shown({
-					...skillSession.pages,
-					...mcpSession.pages,
-					...historySession.pages,
-				}) ?? (
-					<Tabs.Root
-						className="flex min-h-0 flex-1"
-						onValueChange={activeTab.onValueChange}
-						orientation="vertical"
-						value={activeTab.value}
-						ref={setTabs}
-					>
-						<SettingsRail iconsOnly={iconsOnly}>
-							<SettingsRailItem
-								icon={Icons.Folder}
-								iconsOnly={iconsOnly}
-								label={t("rail.space")}
-								value={FIRST_TAB}
-							/>
-							<SettingsRailItem
-								icon={Icons.Json}
-								iconsOnly={iconsOnly}
-								label={t("rail.secrets")}
-								value="environment"
-							/>
-							<SettingsRailItem
-								icon={Icons.Skill}
-								iconsOnly={iconsOnly}
-								label={t("rail.skills")}
-								value="skills"
-							/>
-							<SettingsRailItem
-								icon={Icons.Server}
-								iconsOnly={iconsOnly}
-								label={t("rail.applications")}
-								value="mcp"
-							/>
-							<SettingsRailItem
-								icon={Icons.History}
-								iconsOnly={iconsOnly}
-								label={t("rail.history")}
-								value={HISTORY_TAB}
-							/>
-							<SettingsRailSeparator />
-							<SettingsRailItem
-								className={DANGER_RAIL_ITEM_CLASS}
-								icon={Icons.Alert}
-								iconsOnly={iconsOnly}
-								label={t("rail.danger")}
-								value={DANGER_TAB}
-							/>
-						</SettingsRail>
-
-						<SettingsScrollingPanel value={FIRST_TAB}>
-							<SpaceFields onValueChange={onValueChange} value={value} />
-						</SettingsScrollingPanel>
-
-						<Tabs.Panel className={SETTINGS_PANEL_CLASS} value="environment">
-							<EnvironmentPanel
-								entries={environment}
-								hasFailedToRead={hasEnvironmentFailedToRead}
-								onDelete={onEnvironmentDelete}
-								onSet={onEnvironmentSet}
-								scope="space"
-							/>
-						</Tabs.Panel>
-
-						<Tabs.Panel className={SETTINGS_PANEL_CLASS} value="skills">
-							{skillSession.panel}
-						</Tabs.Panel>
-
-						<Tabs.Panel className={SETTINGS_PANEL_CLASS} value="mcp">
-							{mcpSession.panel}
-						</Tabs.Panel>
-
-						<SettingsScrollingPanel isFlush value={HISTORY_TAB}>
-							{historySession.panel}
-						</SettingsScrollingPanel>
-
-						<SettingsScrollingPanel value={DANGER_TAB}>
-							<DangerZone
-								confirmTitle={t("space.danger.confirm.title", {
-									name: spaceName,
-								})}
-								deleteLabel={t("space.danger.delete")}
-								description={t("space.danger.description")}
-								disabledReason={
-									isDeletable ? undefined : t("space.danger.last")
-								}
-								onDelete={onDelete}
-							/>
-						</SettingsScrollingPanel>
-					</Tabs.Root>
-				)}
-
-				<ConfirmDialog
-					confirmLabel={leaveCopy.action}
-					description={leaveCopy.description}
-					onConfirm={leave}
-					onOpenChange={setLeaving}
-					open={isLeaving}
-					title={leaveCopy.title}
+			<Tabs.Panel className={SETTINGS_PANEL_CLASS} value="environment">
+				<EnvironmentPanel
+					entries={environment}
+					hasFailedToRead={hasEnvironmentFailedToRead}
+					onDelete={onEnvironmentDelete}
+					onSet={onEnvironmentSet}
+					scope="space"
 				/>
-			</DialogSurface>
-		</Dialog>
+			</Tabs.Panel>
+
+			<Tabs.Panel className={SETTINGS_PANEL_CLASS} value="skills">
+				{skillSession.panel}
+			</Tabs.Panel>
+
+			<Tabs.Panel className={SETTINGS_PANEL_CLASS} value="mcp">
+				{mcpSession.panel}
+			</Tabs.Panel>
+
+			<SettingsScrollingPanel isFlush value={HISTORY_TAB}>
+				{historySession.panel}
+			</SettingsScrollingPanel>
+
+			<SettingsScrollingPanel value={DANGER_TAB}>
+				<DangerZone
+					confirmTitle={t("space.danger.confirm.title", {
+						name: spaceName,
+					})}
+					deleteLabel={t("space.danger.delete")}
+					description={t("space.danger.description")}
+					disabledReason={isDeletable ? undefined : t("space.danger.last")}
+					onDelete={onDelete}
+				/>
+			</SettingsScrollingPanel>
+		</SettingsDialogShell>
 	)
 }
 
