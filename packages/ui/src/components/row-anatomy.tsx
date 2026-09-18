@@ -161,9 +161,6 @@ export {
 	DOT_CLASS,
 	ROW_GLYPH_CLASS,
 	RowAnatomy,
-	type RowAnatomyProps,
-	type RowGeometry,
 	type RowPart,
 	RowParts,
-	type RowPartsProps,
 }

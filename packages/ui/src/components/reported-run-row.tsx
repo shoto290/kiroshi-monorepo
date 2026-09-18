@@ -12,7 +12,6 @@ import {
 	ACTIVITY_ROW_CLASS,
 	ROW_GLYPH_CLASS,
 	RowAnatomy,
-	type RowPart,
 	RowParts,
 } from "@workspace/ui/components/row-anatomy"
 
@@ -31,7 +30,7 @@ const ReportedRunRow = ({
 	timestamp,
 }: ReportedRunRowModel) => {
 	const { t } = useTranslation("chat")
-	const parts: RowPart[] = [
+	const parts = [
 		{ key: "source", text: triggerSourceTitle },
 		{ key: "bot", text: bot.name },
 		{ key: "reported", text: t("activity.runs.reported") },
