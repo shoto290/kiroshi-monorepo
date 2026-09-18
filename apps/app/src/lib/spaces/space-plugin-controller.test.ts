@@ -11,7 +11,7 @@ const A_SKILL = {
 	body: "Short answers.",
 }
 
-const A_SPACE = "space-1"
+const A_SPACE = "personal"
 
 const opened = async (store: TranscriptStore) => {
 	const controller = createSpacePluginController(store)

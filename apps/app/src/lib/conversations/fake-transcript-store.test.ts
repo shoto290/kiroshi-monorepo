@@ -474,6 +474,25 @@ describe("createFakeTranscriptStore", () => {
 		})
 	})
 
+	it("refuses a skill created on a space it never held and keeps the person's", async () => {
+		const store = createFakeTranscriptStore()
+		const draft = {
+			name: "house-style",
+			description: "How we write",
+			body: "Short answers.",
+		}
+
+		await expect(
+			store.createPluginSkill({ kind: "space", id: "nowhere" }, draft),
+		).rejects.toMatchObject({ kind: "unknownSpace", id: "nowhere" })
+		expect(await store.pluginSkills({ kind: "space", id: "nowhere" })).toEqual(
+			[],
+		)
+		await expect(
+			store.createPluginSkill({ kind: "user" }, draft),
+		).resolves.toMatchObject({ id: "house-style" })
+	})
+
 	it("writes and takes away a companion's mcp servers", async () => {
 		const store = createFakeTranscriptStore()
 		const atlas = { command: "atlas-mcp", args: ["--stdio"] }

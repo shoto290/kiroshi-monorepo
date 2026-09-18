@@ -1217,9 +1217,7 @@ export const createFakeTranscriptStore = (
 		pluginSkills: (scope: PluginScope) => listSkills(pluginKey(scope)),
 
 		createPluginSkill: (scope: PluginScope, draft: BotSkillDraft) =>
-			scope.kind === "bot" && !bots.has(scope.id)
-				? refuse({ kind: "unknownBot", id: scope.id })
-				: addSkill(pluginKey(scope), draft),
+			onKnownOwner(scope, (owner) => addSkill(owner, draft)),
 
 		updatePluginSkill: (
 			scope: PluginScope,
