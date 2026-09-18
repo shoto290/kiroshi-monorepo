@@ -43,7 +43,7 @@ const meta = preview.meta({
 		},
 	},
 	args: {
-		geometry: "activity",
+		geometry: "activity" as const,
 		name: "Morning digest",
 		timestamp: "08:04",
 		media: (
