@@ -19,7 +19,7 @@
     },
     "apps/app": {
       "name": "app",
-      "version": "0.21.1",
+      "version": "0.16.0",
       "dependencies": {
         "@tauri-apps/api": "^2.11.1",
         "@tauri-apps/plugin-opener": "^2.5.2",
