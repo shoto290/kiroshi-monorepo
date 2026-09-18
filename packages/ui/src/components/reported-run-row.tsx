@@ -2,12 +2,18 @@
 
 import { useTranslation } from "react-i18next"
 
-import {
-	ActivityRow,
-	type ActivityRowPart,
-} from "@workspace/ui/components/activity-row"
+import { BotIdentityAvatar } from "@workspace/ui/components/bot-identity-avatar"
 import { Icons } from "@workspace/ui/components/icons"
-import type { MissionBot } from "@workspace/ui/components/mission"
+import {
+	MISSION_AVATAR_SIZE,
+	type MissionBot,
+} from "@workspace/ui/components/mission"
+import {
+	ACTIVITY_ROW_CLASS,
+	ROW_GLYPH_CLASS,
+	RowAnatomy,
+	RowParts,
+} from "@workspace/ui/components/row-anatomy"
 
 type ReportedRunRowModel = {
 	id: string
@@ -24,21 +30,35 @@ const ReportedRunRow = ({
 	timestamp,
 }: ReportedRunRowModel) => {
 	const { t } = useTranslation("chat")
-	const parts: ActivityRowPart[] = [
+	const parts = [
 		{ key: "source", text: triggerSourceTitle },
 		{ key: "bot", text: bot.name },
 		{ key: "reported", text: t("activity.runs.reported") },
 	]
 
 	return (
-		<ActivityRow
-			bot={bot}
-			mark={Icons.Routine}
-			parts={parts}
-			slot="reported-run-row"
-			timestamp={timestamp}
-			title={routineTitle}
-		/>
+		<li data-slot="reported-run-row">
+			<div className={ACTIVITY_ROW_CLASS}>
+				<RowAnatomy
+					geometry="activity"
+					media={
+						<BotIdentityAvatar
+							{...bot}
+							className="shrink-0"
+							size={MISSION_AVATAR_SIZE}
+						/>
+					}
+					name={routineTitle}
+					preview={
+						<>
+							<Icons.Routine aria-hidden="true" className={ROW_GLYPH_CLASS} />
+							<RowParts parts={parts} slot="activity-row-parts" />
+						</>
+					}
+					timestamp={timestamp}
+				/>
+			</div>
+		</li>
 	)
 }
 

@@ -156,7 +156,7 @@ const meta = preview.meta({
 		docs: {
 			description: {
 				component:
-					"One hit of the search palette, in the six kinds a hit can take. It borrows the geometry and the interaction of `ActivityRow`, and marks the matched words of its title. It draws a hit and nothing else: the palette that holds it, its scope and its keyboard loop live above.",
+					"One hit of the search palette, in the six kinds a hit can take. It borrows the activity geometry of `RowAnatomy`, and marks the matched words of its title. It draws a hit and nothing else: the palette that holds it, its scope and its keyboard loop live above.",
 			},
 		},
 	},

@@ -2,7 +2,6 @@
 
 import { useTranslation } from "react-i18next"
 
-import { DOT_CLASS } from "@workspace/ui/components/activity-row"
 import type {
 	BotBadge,
 	BotMissionTicket,
@@ -14,6 +13,7 @@ import {
 	type MissionState,
 } from "@workspace/ui/components/mission"
 import { missionTicketPlatform } from "@workspace/ui/components/mission-marks"
+import { DOT_CLASS } from "@workspace/ui/components/row-anatomy"
 import { SidebarListRow } from "@workspace/ui/components/sidebar-list-row"
 import { cn } from "@workspace/ui/lib/utils"
 
