@@ -13,7 +13,10 @@ use super::reports::{ApplicationReports, Standing};
 use super::status::{status, ApplicationRow, Evidence};
 use crate::agent::commands::AgentState;
 use crate::agent::contract::TransportError;
-use crate::agent::protocol::{Authorized, OauthCredentials, RefreshRequest, RevocationRequest};
+use crate::agent::protocol::{
+	AuthorizeRequest, Authorized, OauthCredentials, OauthFailureKind, RefreshRequest,
+	RevocationRequest,
+};
 use crate::agent::sidecar::Opening;
 use crate::agent::translate::now_ms;
 use crate::bundles::{self, McpServer};
@@ -78,17 +81,54 @@ impl Drop for Running<'_> {
 	}
 }
 
-async fn granted<R: Runtime>(app: &AppHandle<R>, url: &str) -> Result<OauthCredentials, Refused> {
+async fn connected<R: Runtime>(
+	app: &AppHandle<R>,
+	request: AuthorizeRequest,
+	stored: &Values,
+) -> Result<OauthCredentials, Refused> {
+	let settled = settlement(app, &request).await?;
+	let registers_anew = request.client_id.is_some() && calls_for_a_new_client(&settled);
+	let refused = match grant_of(settled) {
+		Err(refused) if registers_anew => refused,
+		granted => return granted,
+	};
+	eprintln!("{}", refusal_line(&Step::HandingTheStoredClient.refused(refused.error), stored));
+	let registering = AuthorizeRequest { client_id: None, client_secret: None, ..request };
+	grant_of(settlement(app, &registering).await?)
+}
+
+fn calls_for_a_new_client(settled: &Authorized) -> bool {
+	if settled.credentials.is_some() {
+		return false;
+	}
+	settled.error.as_ref().is_none_or(|failure| match failure.kind {
+		OauthFailureKind::Cancelled | OauthFailureKind::Busy => false,
+		OauthFailureKind::Denied => failure.refuses_the_client(),
+		OauthFailureKind::TimedOut | OauthFailureKind::Rejected | OauthFailureKind::Failed => true,
+	})
+}
+
+fn authorize_request(url: String, stored: &Values) -> AuthorizeRequest {
+	let client_id = stored.get(OAUTH_CLIENT_ID).cloned();
+	let client_secret = client_id.as_ref().and(stored.get(OAUTH_CLIENT_SECRET).cloned());
+	AuthorizeRequest { url, client_id, client_secret }
+}
+
+async fn settlement<R: Runtime>(
+	app: &AppHandle<R>,
+	request: &AuthorizeRequest,
+) -> Result<Authorized, Refused> {
 	let sidecar = app
 		.state::<AgentState>()
 		.sidecar()
 		.await
 		.map_err(|error| Step::ReachingTheSidecar.refused(error.into()))?;
-	let mut flow =
-		sidecar.begin_oauth(url).map_err(|error| Step::StartingTheFlow.refused(error.into()))?;
+	let mut flow = sidecar
+		.begin_oauth(request)
+		.map_err(|error| Step::StartingTheFlow.refused(error.into()))?;
 	let opened = flow.opened().await.map_err(|error| Step::OpeningTheFlow.refused(error.into()))?;
-	let settled = match opened {
-		Opening::Settled(settled) => settled,
+	match opened {
+		Opening::Settled(settled) => Ok(settled),
 		Opening::Authorization(authorization) => {
 			if !is_openable(&authorization) {
 				return Err(Step::HandingTheUrl
@@ -98,9 +138,12 @@ async fn granted<R: Runtime>(app: &AppHandle<R>, url: &str) -> Result<OauthCrede
 				return Err(Step::OpeningTheBrowser
 					.refused(OauthError::BrowserRefused { url: authorization }));
 			}
-			flow.settled().await.map_err(|error| Step::SettlingTheFlow.refused(error.into()))?
+			flow.settled().await.map_err(|error| Step::SettlingTheFlow.refused(error.into()))
 		}
-	};
+	}
+}
+
+fn grant_of(settled: Authorized) -> Result<OauthCredentials, Refused> {
 	match (settled.credentials, settled.error) {
 		(Some(credentials), _) => Ok(credentials),
 		(None, Some(failure)) => {
@@ -134,8 +177,12 @@ pub async fn mcp_oauth_connect<R: Runtime>(
 		.map_err(|error| written(Step::ClaimingTheState.refused(error), &Values::new()))?;
 	let root = writable_root(&app)
 		.map_err(|error| written(Step::WritingTheStoreRoot.refused(error.into()), &Values::new()))?;
-	let credentials =
-		granted(&app, &url).await.map_err(|refused| written(refused, &Values::new()))?;
+	let stored = store::values(&root, &scope).map_err(|error| {
+		written(Step::ReadingTheStoredClient.refused(error.into()), &Values::new())
+	})?;
+	let credentials = connected(&app, authorize_request(url, &stored), &stored)
+		.await
+		.map_err(|refused| written(refused, &stored))?;
 	kept(&root, &scope, &name, &credentials, &app.state::<ApplicationReports>()).map_err(|error| {
 		written(Step::StoringTheGrant.refused(error), &credentials::held(&credentials))
 	})
@@ -443,8 +490,8 @@ mod tests {
 		let _ = std::fs::remove_dir_all(&root);
 		let owner = EnvOwner::Bot { id: "b1".to_owned(), space_id: "s1".to_owned() };
 		let reports = ApplicationReports::default();
-		reports.record("b1", "granola", Standing::NeedsAuth);
-		reports.record("b2", "granola", Standing::NeedsAuth);
+		reports.record("b1", "granola", Standing::NeedsAuth { reason: None });
+		reports.record("b2", "granola", Standing::NeedsAuth { reason: None });
 		reports.record("b1", "clock", Standing::Holding);
 
 		kept(&root, &a_server("granola"), "granola", &a_live_grant(), &reports)
@@ -474,6 +521,28 @@ mod tests {
 			name: "granola".to_owned(),
 			owner: EnvOwner::Space { id: "s1".to_owned() },
 		}
+	}
+
+	#[test]
+	fn a_connect_hands_the_stored_client_and_no_secret_without_a_client() {
+		let stored = Values::from([
+			(OAUTH_CLIENT_ID.to_owned(), "registered".to_owned()),
+			(OAUTH_CLIENT_SECRET.to_owned(), "confidential".to_owned()),
+		]);
+		let orphan = Values::from([(OAUTH_CLIENT_SECRET.to_owned(), "confidential".to_owned())]);
+
+		assert_eq!(
+			authorize_request("https://a".to_owned(), &stored),
+			AuthorizeRequest {
+				url: "https://a".to_owned(),
+				client_id: Some("registered".to_owned()),
+				client_secret: Some("confidential".to_owned()),
+			}
+		);
+		assert_eq!(
+			authorize_request("https://a".to_owned(), &orphan),
+			AuthorizeRequest { url: "https://a".to_owned(), client_id: None, client_secret: None }
+		);
 	}
 
 	fn a_root(name: &str) -> std::path::PathBuf {
@@ -553,7 +622,7 @@ mod tests {
 		app.manage(ApplicationReports::default());
 		let reports = app.state::<ApplicationReports>();
 		reports.record("b-disconnect-test", "granola", Standing::Holding);
-		reports.record("b-other", "granola", Standing::NeedsAuth);
+		reports.record("b-other", "granola", Standing::NeedsAuth { reason: None });
 		reports.record("b-disconnect-test", "clock", Standing::Holding);
 		let owner =
 			EnvOwner::Bot { id: "b-disconnect-test".to_owned(), space_id: "s-test".to_owned() };
@@ -613,7 +682,7 @@ mod tests {
 		credentials::store(&root, &a_server("granola"), &an_aging_grant(Some("held-refresh")))
 			.expect("the grant is written");
 		let reports = ApplicationReports::default();
-		reports.record("b1", "granola", Standing::NeedsAuth);
+		reports.record("b1", "granola", Standing::NeedsAuth { reason: None });
 
 		let rows = renewed_rows(
 			&root,
@@ -687,6 +756,7 @@ mod tests {
 						step: None,
 						status: None,
 						body: None,
+						code: Some("invalid_grant".to_owned()),
 					}),
 				})
 			},

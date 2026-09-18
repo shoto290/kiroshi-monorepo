@@ -12,6 +12,7 @@ const QUERY_OR_FRAGMENT: [char; 2] = ['?', '#'];
 pub enum Step {
 	ClaimingTheState,
 	WritingTheStoreRoot,
+	ReadingTheStoredClient,
 	ReachingTheSidecar,
 	StartingTheFlow,
 	OpeningTheFlow,
@@ -19,6 +20,7 @@ pub enum Step {
 	OpeningTheBrowser,
 	SettlingTheFlow,
 	AskingTheAuthorizationServer,
+	HandingTheStoredClient,
 	ReadingTheSettlement,
 	StoringTheGrant,
 }
@@ -32,6 +34,7 @@ impl Step {
 		match self {
 			Self::ClaimingTheState => "the authorization state could not be claimed",
 			Self::WritingTheStoreRoot => "the store root could not be written",
+			Self::ReadingTheStoredClient => "the stored client could not be read",
 			Self::ReachingTheSidecar => "the sidecar could not be reached",
 			Self::StartingTheFlow => "the authorization flow did not start",
 			Self::OpeningTheFlow => "the authorization flow did not open",
@@ -39,6 +42,9 @@ impl Step {
 			Self::OpeningTheBrowser => "the browser refused the authorization url",
 			Self::SettlingTheFlow => "the authorization flow did not settle",
 			Self::AskingTheAuthorizationServer => "the authorization server refused",
+			Self::HandingTheStoredClient => {
+				"the stored client was not granted, so a new one is registered"
+			}
 			Self::ReadingTheSettlement => "the settlement carried no grant",
 			Self::StoringTheGrant => "the grant could not be stored",
 		}
@@ -72,7 +78,7 @@ fn reason(error: &OauthError) -> String {
 	}
 }
 
-fn on_one_line(reason: &str) -> String {
+pub fn on_one_line(reason: &str) -> String {
 	reason.split_whitespace().collect::<Vec<_>>().join(" ")
 }
 

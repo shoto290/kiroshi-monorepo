@@ -7,7 +7,6 @@ import {
 import {
 	type AuthorizationServerMetadata,
 	type OAuthClientInformation,
-	type OAuthClientInformationFull,
 	type OAuthClientMetadata,
 	type OAuthErrorResponse,
 	OAuthErrorResponseSchema,
@@ -67,6 +66,7 @@ export type OauthFailure = {
 	step?: OauthStep
 	status?: number
 	body?: string
+	code?: string
 }
 
 export type OauthCredentials = {
@@ -88,6 +88,8 @@ export type RevocationAnswer = {
 
 export type AuthorizeRequest = {
 	url?: string
+	clientId?: string
+	clientSecret?: string
 }
 
 export type RevokeRequest = {
@@ -118,10 +120,11 @@ type Attempt = {
 	arrival: Promise<Redirect>
 	emit: Emit
 	fetchFn: FetchLike
+	client?: OAuthClientInformation
 }
 
 type Held = {
-	client?: OAuthClientInformationFull
+	client?: OAuthClientInformation
 	codeVerifier?: string
 	tokens?: OAuthTokens
 }
@@ -200,6 +203,7 @@ const refusedFailure = ({ step, status, body }: Refusal): OauthFailure => {
 		step,
 		status,
 		...(carried ? { body: carried } : {}),
+		...(named ? { code: named.error } : {}),
 	}
 }
 
@@ -232,7 +236,9 @@ const answerRedirect = (
 	}
 	const denied = asked.searchParams.get("error")
 	if (denied) {
-		settleOnceAnswered(settle, { failure: { kind: "denied", detail: denied } })
+		settleOnceAnswered(settle, {
+			failure: { kind: "denied", detail: denied, code: denied },
+		})
 		return new Response(DENIED)
 	}
 	const code = asked.searchParams.get("code")
@@ -264,7 +270,7 @@ const clientProvider = (
 	state: () => state,
 	clientInformation: () => held.client,
 	saveClientInformation: (information) => {
-		held.client = information as OAuthClientInformationFull
+		held.client = information
 	},
 	tokens: () => held.tokens,
 	saveTokens: (tokens) => {
@@ -300,7 +306,7 @@ const credentialsOf = (
 
 const exchanged = async (attempt: Attempt): Promise<OauthAnswer> => {
 	const { serverUrl, arrival, fetchFn } = attempt
-	const held: Held = {}
+	const held: Held = { client: attempt.client }
 	const provider = clientProvider(attempt, held)
 	const opened = await auth(provider, { serverUrl, fetchFn })
 	if (opened !== "REDIRECT") {
@@ -329,8 +335,14 @@ const exchanged = async (attempt: Attempt): Promise<OauthAnswer> => {
 	return { credentials: credentialsOf(tokens, client) }
 }
 
+const handedClient = (
+	clientId?: string,
+	clientSecret?: string,
+): OAuthClientInformation | undefined =>
+	clientId ? { client_id: clientId, client_secret: clientSecret } : undefined
+
 export const authorizeMcpServer = async (
-	{ url }: AuthorizeRequest,
+	{ url, clientId, clientSecret }: AuthorizeRequest,
 	emit: Emit,
 	timeoutMs = FLOW_TIMEOUT_MS,
 ): Promise<OauthAnswer> => {
@@ -369,6 +381,7 @@ export const authorizeMcpServer = async (
 			arrival,
 			emit,
 			fetchFn,
+			client: handedClient(clientId, clientSecret),
 		})
 	} catch (error) {
 		return { error: flowFailure(error, refusal()) }

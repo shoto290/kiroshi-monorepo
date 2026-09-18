@@ -62,3 +62,38 @@ fn a_bot_disconnect_revokes_and_deletes_the_grant_its_space_holds() {
 	assert_eq!(settled, Ok(Disconnected { revoked: true, detail: None }));
 	assert!(RESERVED_NAMES.iter().all(|name| !kept.contains_key(*name)));
 }
+
+#[test]
+fn a_disconnect_of_a_scope_holding_a_client_and_no_token_deletes_every_reserved_name() {
+	let mut context = mock_context(noop_assets());
+	context.config_mut().identifier =
+		format!("com.kiroshi.application-disconnect-client-{}", std::process::id());
+	let app = mock_builder()
+		.manage(AgentState::default())
+		.manage(McpOauthState::default())
+		.manage(ApplicationReports::default())
+		.build(context)
+		.expect("the app builds");
+	let data = app.path().app_data_dir().expect("the app data directory is named");
+	let _ = fs::remove_dir_all(&data);
+	let root = store::root(app.handle()).expect("the store root is named");
+	let space = EnvScope::Server {
+		name: "granola".to_owned(),
+		owner: EnvOwner::Space { id: "s1".to_owned() },
+	};
+	credentials::store(&root, &space, &a_space_grant()).expect("the space grant is written");
+	credentials::forget_tokens(&root, &space).expect("the tokens are deleted");
+	credentials::remember_refusal(&root, &space, "invalid_grant").expect("the reason is written");
+
+	let settled = tauri::async_runtime::block_on(mcp_oauth_disconnect(
+		app.handle().clone(),
+		EnvOwner::Bot { id: "b1".to_owned(), space_id: "s1".to_owned() },
+		"granola".to_owned(),
+		URL.to_owned(),
+	));
+	let kept = store::values(&root, &space).expect("the space scope is readable");
+	let _ = fs::remove_dir_all(&data);
+
+	assert!(settled.is_ok());
+	assert!(kept.is_empty());
+}

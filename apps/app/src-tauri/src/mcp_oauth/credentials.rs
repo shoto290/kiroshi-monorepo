@@ -1,10 +1,11 @@
 use std::collections::BTreeMap;
 use std::path::Path;
 
+use super::refusal::on_one_line;
 use crate::agent::protocol::OauthCredentials;
 use crate::environment::contract::{
 	EnvError, EnvOwner, EnvScope, Values, OAUTH_ACCESS_TOKEN, OAUTH_CLIENT_ID, OAUTH_CLIENT_SECRET,
-	OAUTH_EXPIRES_AT, OAUTH_REFRESH_TOKEN, RESERVED_NAMES,
+	OAUTH_EXPIRES_AT, OAUTH_REASON, OAUTH_REFRESH_TOKEN, RESERVED_NAMES,
 };
 use crate::environment::store;
 
@@ -13,6 +14,8 @@ const AN_UNREADABLE_EXPIRY_HAS_PASSED: i64 = i64::MIN;
 const REDACTED: &str = "[redacted]";
 
 const SECRET_NAMES: [&str; 3] = [OAUTH_ACCESS_TOKEN, OAUTH_REFRESH_TOKEN, OAUTH_CLIENT_SECRET];
+
+const TOKEN_NAMES: [&str; 3] = [OAUTH_ACCESS_TOKEN, OAUTH_REFRESH_TOKEN, OAUTH_EXPIRES_AT];
 
 pub fn expires_at(held: &Values) -> Option<i64> {
 	held.get(OAUTH_EXPIRES_AT).map(|at| at.parse().unwrap_or(AN_UNREADABLE_EXPIRY_HAS_PASSED))
@@ -40,6 +43,23 @@ pub struct ServedGrant {
 
 pub type ServedGrants = BTreeMap<String, ServedGrant>;
 
+#[derive(PartialEq, PartialOrd)]
+enum Hold {
+	Reserved,
+	Refused,
+	Granted,
+}
+
+fn hold_of(held: &Values) -> Option<Hold> {
+	if held.contains_key(OAUTH_ACCESS_TOKEN) {
+		return Some(Hold::Granted);
+	}
+	if held.contains_key(OAUTH_REASON) {
+		return Some(Hold::Refused);
+	}
+	RESERVED_NAMES.iter().any(|reserved| held.contains_key(*reserved)).then_some(Hold::Reserved)
+}
+
 pub fn served(root: &Path, owner: &EnvOwner) -> Result<ServedGrants, EnvError> {
 	let mut served = ServedGrants::new();
 	for scope in store::server_scopes(root, owner)? {
@@ -47,9 +67,13 @@ pub fn served(root: &Path, owner: &EnvOwner) -> Result<ServedGrants, EnvError> {
 		let EnvScope::Server { name, .. } = &scope else {
 			continue;
 		};
-		if held.contains_key(OAUTH_ACCESS_TOKEN) {
-			served.insert(name.clone(), ServedGrant { scope: scope.clone(), held });
+		let Some(hold) = hold_of(&held) else {
+			continue;
+		};
+		if served.get(name).and_then(|kept| hold_of(&kept.held)).is_some_and(|kept| kept > hold) {
+			continue;
 		}
+		served.insert(name.clone(), ServedGrant { scope: scope.clone(), held });
 	}
 	Ok(served)
 }
@@ -79,8 +103,20 @@ pub fn store(root: &Path, scope: &EnvScope, held: &OauthCredentials) -> Result<(
 }
 
 pub fn forget(root: &Path, scope: &EnvScope) -> Result<(), EnvError> {
+	deleted(root, scope, &RESERVED_NAMES)
+}
+
+pub fn forget_tokens(root: &Path, scope: &EnvScope) -> Result<(), EnvError> {
+	deleted(root, scope, &TOKEN_NAMES)
+}
+
+pub fn remember_refusal(root: &Path, scope: &EnvScope, reason: &str) -> Result<(), EnvError> {
+	store::set(root, scope, OAUTH_REASON, &on_one_line(reason))
+}
+
+fn deleted(root: &Path, scope: &EnvScope, names: &[&str]) -> Result<(), EnvError> {
 	let mut refused = None;
-	for name in RESERVED_NAMES {
+	for name in names {
 		if let Err(error) = store::delete(root, scope, name) {
 			refused = refused.or(Some(error));
 		}
@@ -151,7 +187,98 @@ mod tests {
 		assert_eq!(kept.get(OAUTH_EXPIRES_AT).map(String::as_str), Some("1700000000000"));
 		assert_eq!(kept.get(OAUTH_CLIENT_ID).map(String::as_str), Some("registered"));
 		assert_eq!(kept.get(OAUTH_CLIENT_SECRET).map(String::as_str), Some("confidential"));
-		assert_eq!(kept.len(), RESERVED_NAMES.len());
+		assert_eq!(kept.len(), 5);
+	}
+
+	#[test]
+	fn a_stored_grant_takes_the_stored_reason_away() {
+		let root = a_root("grant-clears-reason");
+		let scope = a_server();
+		remember_refusal(&root, &scope, "refused").expect("the reason is written");
+
+		store(&root, &scope, &a_bare_grant()).expect("the grant is written");
+
+		let kept = store::values(&root, &scope).expect("the scope is readable");
+		assert_eq!(kept.get(OAUTH_REASON), None);
+	}
+
+	#[test]
+	fn forgetting_the_tokens_keeps_the_client() {
+		let root = a_root("forget-tokens");
+		let scope = a_server();
+		store(&root, &scope, &a_full_grant()).expect("the grant is written");
+
+		forget_tokens(&root, &scope).expect("the tokens are deleted");
+
+		let kept = store::values(&root, &scope).expect("the scope is readable");
+		assert_eq!(
+			kept.keys().map(String::as_str).collect::<Vec<_>>(),
+			vec![OAUTH_CLIENT_ID, OAUTH_CLIENT_SECRET]
+		);
+	}
+
+	fn a_bot() -> EnvOwner {
+		EnvOwner::Bot { id: "b1".to_owned(), space_id: "s1".to_owned() }
+	}
+
+	fn the_space_server() -> EnvScope {
+		EnvScope::Server {
+			name: "granola".to_owned(),
+			owner: EnvOwner::Space { id: "s1".to_owned() },
+		}
+	}
+
+	fn refused_at(root: &Path, scope: &EnvScope) {
+		store(root, scope, &a_full_grant()).expect("the grant is written");
+		forget_tokens(root, scope).expect("the tokens are deleted");
+		remember_refusal(root, scope, "invalid_grant").expect("the reason is written");
+	}
+
+	fn served_scope(root: &Path) -> Option<EnvScope> {
+		served(root, &a_bot())
+			.expect("the grants are readable")
+			.remove("granola")
+			.map(|grant| grant.scope)
+	}
+
+	#[test]
+	fn a_broader_access_token_is_served_over_a_narrower_refusal() {
+		let root = a_root("served-token-over-reason");
+		store(&root, &the_space_server(), &a_bare_grant()).expect("the space grant is written");
+		refused_at(&root, &a_server());
+
+		assert_eq!(served_scope(&root), Some(the_space_server()));
+	}
+
+	#[test]
+	fn with_no_access_token_the_narrowest_refusal_is_served() {
+		let root = a_root("served-narrowest-reason");
+		refused_at(&root, &the_space_server());
+		refused_at(&root, &a_server());
+
+		assert_eq!(served_scope(&root), Some(a_server()));
+	}
+
+	#[test]
+	fn a_refusal_is_served_over_a_narrower_client_alone() {
+		let root = a_root("served-reason-over-client");
+		refused_at(&root, &the_space_server());
+		store(&root, &a_server(), &a_full_grant()).expect("the grant is written");
+		forget_tokens(&root, &a_server()).expect("the tokens are deleted");
+
+		assert_eq!(served_scope(&root), Some(the_space_server()));
+	}
+
+	#[test]
+	fn a_reason_is_stored_on_one_line_and_listed_nowhere() {
+		let root = a_root("reason-listing");
+		let scope = a_server();
+
+		remember_refusal(&root, &scope, "the grant\nwas   refused").expect("the reason is written");
+
+		let kept = store::values(&root, &scope).expect("the scope is readable");
+		assert_eq!(kept.get(OAUTH_REASON).map(String::as_str), Some("the grant was refused"));
+		assert!(store::list(&root, &scope).expect("the scope lists").is_empty());
 	}
 
 	#[test]

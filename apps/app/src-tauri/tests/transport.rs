@@ -9,6 +9,7 @@ use kiroshi_app::agent::contract::{
 	ActivityKind, ActivityStatus, AgentCommand, AgentEvent, ConnectionState, MessageCompletion,
 	PermissionDecision, PermissionRequest, QuestionRequest, TransportError, TurnOutcome, TurnState,
 };
+use kiroshi_app::agent::protocol::AuthorizeRequest;
 use kiroshi_app::agent::session::{EventSink, Session, SessionOptions, PARTIAL_MESSAGES};
 use kiroshi_app::agent::sidecar::{self, Opening, Sidecar, SidecarOptions, SHUTDOWN_GRACE};
 use kiroshi_app::environment::contract::Values;
@@ -903,11 +904,19 @@ fn a_cancel_file(name: &str) -> PathBuf {
 	path
 }
 
+fn granola_authorized() -> AuthorizeRequest {
+	AuthorizeRequest {
+		url: "https://mcp.granola.test/mcp".to_owned(),
+		client_id: None,
+		client_secret: None,
+	}
+}
+
 #[tokio::test]
 async fn a_flow_the_sidecar_settles_before_it_opens_a_url_answers_that_reason() {
 	let sidecar = sidecar_with(&[("FAKE_AGENT_OAUTH_SETTLES_FIRST", "1")]).await;
 
-	let mut flow = sidecar.begin_oauth("https://mcp.granola.test/mcp").expect("the flow starts");
+	let mut flow = sidecar.begin_oauth(&granola_authorized()).expect("the flow starts");
 	let opened = tokio::time::timeout(DEADLINE, flow.opened())
 		.await
 		.expect("no separate oauth_started deadline holds the flow")
@@ -934,7 +943,7 @@ async fn a_flow_dropped_before_it_settled_cancels_itself_on_the_sidecar() {
 	)])
 	.await;
 
-	let mut flow = sidecar.begin_oauth("https://mcp.granola.test/mcp").expect("the flow starts");
+	let mut flow = sidecar.begin_oauth(&granola_authorized()).expect("the flow starts");
 	let opened = tokio::time::timeout(DEADLINE, flow.opened())
 		.await
 		.expect("the url arrives")
@@ -956,7 +965,7 @@ async fn a_flow_the_caller_saw_settle_sends_no_cancel() {
 	])
 	.await;
 
-	let mut flow = sidecar.begin_oauth("https://mcp.granola.test/mcp").expect("the flow starts");
+	let mut flow = sidecar.begin_oauth(&granola_authorized()).expect("the flow starts");
 	let opened = tokio::time::timeout(DEADLINE, flow.opened())
 		.await
 		.expect("the settle arrives")
