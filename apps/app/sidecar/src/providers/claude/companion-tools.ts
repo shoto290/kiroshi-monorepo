@@ -28,12 +28,32 @@ const INVITE =
 
 const INVITEE = "The id or the name of the companion to bring in."
 
+const TARGET =
+	"The id of a room you sit in to bring the companion into, left out for this conversation."
+
+const OPEN =
+	"Open a new room in the space of this conversation, led by you, once the person asks for a topic of its own."
+
+const TITLE = "The title of the room, read in the space's list of rooms."
+
+const WITH =
+	"The id or the name of each companion of this space to seat in the room beside you, empty for you alone."
+
+const MESSAGE = "What you say to open the room, the first words read in it."
+
 type ToolInput = Record<string, z.ZodType>
 
 const NOTHING: ToolInput = {}
 
 const NAMED: ToolInput = {
 	companion: z.string().describe(INVITEE),
+	conversation: z.string().optional().describe(TARGET),
+}
+
+const OPENED: ToolInput = {
+	title: z.string().describe(TITLE),
+	with: z.array(z.string()).describe(WITH),
+	message: z.string().describe(MESSAGE),
 }
 
 const DRAFTED: ToolInput = {
@@ -60,5 +80,8 @@ export const companionTools = (
 	),
 	tool("companion_invite", INVITE, NAMED, (input) =>
 		asked(session, "invite", input),
+	),
+	tool("conversation_open", OPEN, OPENED, (input) =>
+		asked(session, "conversationOpen", input),
 	),
 ]

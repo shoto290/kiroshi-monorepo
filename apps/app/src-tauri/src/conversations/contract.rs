@@ -697,6 +697,16 @@ pub struct CompanionArrival {
 	pub created_at: i64,
 }
 
+pub const COMPANION_SPOKE_EVENT: &str = "conversation://companion-spoke";
+
+#[derive(Debug, Clone, PartialEq, Eq, Serialize, Deserialize)]
+#[serde(rename_all = "camelCase")]
+pub struct CompanionSpoke {
+	pub conversation_id: String,
+	pub author_bot_id: String,
+	pub text: String,
+}
+
 impl From<arrivals::Arrival> for CompanionArrival {
 	fn from(arrival: arrivals::Arrival) -> Self {
 		Self {
@@ -1763,5 +1773,50 @@ mod tests {
 			StorageFailure::Sqlite { detail: rusqlite::Error::QueryReturnedNoRows.to_string() },
 			"a SQLite failure crossed as something other than its own account"
 		);
+	}
+
+	fn transcript_mirror() -> String {
+		let path = std::path::PathBuf::from(env!("CARGO_MANIFEST_DIR"))
+			.join("..")
+			.join("src")
+			.join("lib")
+			.join("conversations")
+			.join("transcript-contract.ts");
+		std::fs::read_to_string(&path).expect("the mirror reads")
+	}
+
+	fn mirrored_fields(mirror: &str, alias: &str) -> std::collections::BTreeSet<String> {
+		let opening = format!("export type {alias} = {{\n");
+		let start =
+			mirror.find(&opening).unwrap_or_else(|| panic!("the mirror declares no {alias}"))
+				+ opening.len();
+		let body = &mirror[start..];
+		let body = body.split("\n}").next().unwrap_or(body);
+		body.lines()
+			.filter_map(|line| line.split_once(':'))
+			.map(|(name, _)| name.trim().to_owned())
+			.collect()
+	}
+
+	#[test]
+	fn the_companion_spoke_event_is_named_and_shaped_like_its_mirror() {
+		let mirror = transcript_mirror();
+		let spoke = CompanionSpoke {
+			conversation_id: "c1".to_owned(),
+			author_bot_id: "b1".to_owned(),
+			text: "Hello".to_owned(),
+		};
+		let fields = match serde_json::to_value(&spoke).expect("the payload serialises") {
+			Value::Object(fields) => fields.keys().cloned().collect(),
+			other => panic!("the payload crossed as {other}"),
+		};
+
+		assert!(
+			mirror.contains(&format!(
+				"export const COMPANION_SPOKE_EVENT = \"{COMPANION_SPOKE_EVENT}\""
+			)),
+			"the mirror names the event otherwise"
+		);
+		assert_eq!(mirrored_fields(&mirror, "CompanionSpoke"), fields);
 	}
 }
