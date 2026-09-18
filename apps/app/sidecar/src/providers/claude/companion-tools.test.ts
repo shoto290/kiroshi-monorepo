@@ -48,6 +48,11 @@ const calls: [string, Record<string, unknown>, string][] = [
 		{ title: "Trip", with: ["Quill"], message: "Where to?" },
 		"conversationOpen",
 	],
+	[
+		"conversation_say",
+		{ conversation: "c3", message: "Where to?" },
+		"conversationSay",
+	],
 ]
 
 const answers: Record<string, unknown> = {
@@ -63,6 +68,7 @@ const answers: Record<string, unknown> = {
 			{ id: "b2", name: "Quill" },
 		],
 	},
+	conversationSay: { conversationId: "c3", title: "Trip" },
 }
 
 const NAMES_A_SEQUENCE = /\b(then|after|first|next|once|until)\b/i
@@ -136,6 +142,18 @@ describe("companionTools", () => {
 		const open = toolNamed(SESSION, "conversation_open")
 
 		expect(Object.keys(open.inputSchema)).toEqual(["title", "with", "message"])
+	})
+
+	it("takes the room it speaks in and the message it says there, naming no sequence of work", () => {
+		const say = toolNamed(SESSION, "conversation_say")
+
+		expect(Object.keys(say.inputSchema)).toEqual(["conversation", "message"])
+		for (const described of [
+			say.description,
+			...Object.values(say.inputSchema).map((held) => held.description),
+		]) {
+			expect(described).not.toMatch(NAMES_A_SEQUENCE)
+		}
 	})
 
 	it("hands each call to the host of its session and speaks the answer back", async () => {
