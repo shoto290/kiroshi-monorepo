@@ -82,11 +82,11 @@ const RowParts = ({ parts, slot, identifier, lead }: RowPartsProps) => {
 	)
 }
 
-type RowAnatomyBadge =
+type RowAnatomyGeometry =
 	| { geometry: "roster"; badge?: BotBadge }
 	| { geometry: "activity"; badge?: never }
 
-type RowAnatomyProps = RowAnatomyBadge & {
+type RowAnatomyProps = RowAnatomyGeometry & {
 	name: ReactNode
 	media?: ReactNode
 	trailing?: ReactNode
