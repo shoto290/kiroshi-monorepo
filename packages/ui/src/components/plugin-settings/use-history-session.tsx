@@ -10,10 +10,15 @@ import {
 	HistoryPanel,
 	type PluginHistory,
 } from "@workspace/ui/components/plugin-settings/history-panel"
+import type {
+	SessionPages,
+	SettingsPages,
+} from "@workspace/ui/components/plugin-settings/settings-pages"
 
 const HISTORY_TAB = "history"
 
 type HistorySessionProps = {
+	pages: SettingsPages
 	history?: PluginHistory
 	companionName: string
 	companion?: BotIdentity
@@ -22,11 +27,12 @@ type HistorySessionProps = {
 
 type HistorySession = {
 	panel: ReactNode
-	page: ReactNode
+	pages: SessionPages
 	discard: () => void
 }
 
 const useHistorySession = ({
+	pages,
 	history,
 	companionName,
 	companion,
@@ -37,10 +43,14 @@ const useHistorySession = ({
 
 	const open = (change: HistoryChange) => {
 		setOpened(change)
+		pages.push("history")
 		history?.onOpen?.(change)
 	}
 
-	const close = () => setOpened(null)
+	const close = () => {
+		setOpened(null)
+		pages.leave("history")
+	}
 
 	const dateOf = (change: HistoryChange) => {
 		const day = history?.days.find((it) =>
@@ -79,7 +89,7 @@ const useHistorySession = ({
 				readerImage={readerImage}
 			/>
 		) : null,
-		page: history && opened ? pageFor(opened, history) : null,
+		pages: { history: history && opened ? pageFor(opened, history) : null },
 		discard: close,
 	}
 }

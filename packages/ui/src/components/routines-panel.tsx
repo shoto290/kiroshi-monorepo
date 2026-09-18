@@ -15,6 +15,7 @@ import {
 } from "react"
 import { useTranslation } from "react-i18next"
 
+import { ConfirmDialog } from "@workspace/ui/components/confirm-dialog"
 import { ContentCard } from "@workspace/ui/components/content-card"
 import { EmptyStateShell } from "@workspace/ui/components/empty-state-shell"
 import { Icons } from "@workspace/ui/components/icons"
@@ -55,6 +56,7 @@ import {
 	SidebarFooter,
 	SidebarHeader,
 } from "@workspace/ui/components/ui/sidebar"
+import { usePushedPages } from "@workspace/ui/hooks/use-pushed-pages"
 import { cn } from "@workspace/ui/lib/utils"
 
 const ROUTINES_PANEL_WIDTH = 320
@@ -229,10 +231,15 @@ const ActivityGroup = ({
 	)
 }
 
+type RoutinesPage = "routines" | "detail" | "form"
+
+type LeaveWay = "back" | "close"
+
 type RoutinesPanelBodyProps = RoutinesPanelListProps & {
 	isShowingRoutines: boolean
 	onOpenRoutine?: (routineId: string) => void
 	onEditRoutine: () => void
+	onFormUnsavedChange: (isUnsaved: boolean) => void
 }
 
 const RoutinesPanelBody = ({
@@ -247,6 +254,7 @@ const RoutinesPanelBody = ({
 	isShowingRoutines,
 	onOpenRoutine,
 	onEditRoutine,
+	onFormUnsavedChange,
 }: RoutinesPanelBodyProps) => {
 	const { t } = useTranslation("chat")
 	const [isEarlierTodayOpen, setEarlierTodayOpen] = useState(false)
@@ -267,6 +275,7 @@ const RoutinesPanelBody = ({
 					{...form.open}
 					key={form.open.id ?? NEW_ROUTINE_KEY}
 					onSave={form.onSave}
+					onUnsavedChange={onFormUnsavedChange}
 					sources={form.sources}
 				/>
 			</>
@@ -449,44 +458,53 @@ const headingOf = ({
 const RoutinesPanelSurface = (props: RoutinesPanelListProps) => {
 	const { t } = useTranslation("chat")
 	const { closeRef, onOpenChange } = useRoutinesPanel()
-	const [isShowingRoutines, setShowingRoutines] = useState(false)
 	const surface = useRef<HTMLDivElement>(null)
-	const openers = useRef<string[]>([])
 	const { form, detail, routines } = props
+	const pages = usePushedPages<RoutinesPage>({
+		owned: { detail: Boolean(detail?.open), form: Boolean(form?.open) },
+		surface,
+	})
+	const isShowingRoutines = pages.isPushed("routines")
 	const heading = headingOf({
 		form,
 		detail,
 		isShowingRoutines,
-		onHideRoutines: () => setShowingRoutines(false),
+		onHideRoutines: () => pages.leave("routines"),
 	})
-	const depth =
-		(detail?.open ? 1 : 0) + (form?.open ? 1 : 0) + (isShowingRoutines ? 1 : 0)
-	const shownDepth = useRef(depth)
+	const openForm = form?.open ? (form.open.id ?? NEW_ROUTINE_KEY) : null
+	const [unsavedForm, setUnsavedForm] = useState<string | null>(null)
+	const [leaving, setLeaving] = useState<LeaveWay | null>(null)
 
-	useEffect(() => {
-		const hasPopped = depth < shownDepth.current
-		shownDepth.current = depth
-		const opener = hasPopped ? openers.current.pop() : undefined
-		if (!opener) {
-			return
-		}
+	if (unsavedForm !== null && unsavedForm !== openForm) {
+		setUnsavedForm(null)
+	}
 
-		surface.current
-			?.querySelector<HTMLElement>(`[data-opens="${opener}"]`)
-			?.focus({ preventScroll: true })
-	}, [depth])
-
-	const remember = (picked: string, act: () => void) => {
-		openers.current.push(picked)
+	const remember = (level: RoutinesPage, opener: string, act: () => void) => {
+		pages.push(level, opener)
 		act()
 	}
 
 	const editOpenRoutine = () => {
 		const openId = detail?.open?.id
 		if (openId) {
-			remember(ROUTINE_DETAIL_EDIT_OPENER, () => form?.onOpen(openId))
+			remember("form", ROUTINE_DETAIL_EDIT_OPENER, () => form?.onOpen(openId))
 		}
 	}
+
+	const closePanel = () => onOpenChange(false)
+
+	const leave = (way: LeaveWay) => {
+		if (way === "back") {
+			heading?.onBack()
+			return
+		}
+
+		if (unsavedForm !== null) form?.onClose()
+		closePanel()
+	}
+
+	const askLeaving = (way: LeaveWay) =>
+		unsavedForm === null ? leave(way) : setLeaving(way)
 
 	return (
 		<Sidebar
@@ -501,7 +519,7 @@ const RoutinesPanelSurface = (props: RoutinesPanelListProps) => {
 					{heading ? (
 						<Button
 							aria-label={t(heading.back)}
-							onClick={heading.onBack}
+							onClick={() => askLeaving("back")}
 							size="icon-sm"
 							variant="ghost"
 						>
@@ -515,7 +533,7 @@ const RoutinesPanelSurface = (props: RoutinesPanelListProps) => {
 						<Button
 							aria-label={t("routines.form.new")}
 							data-opens={NEW_ROUTINE_OPENER}
-							onClick={() => remember(NEW_ROUTINE_OPENER, form.onNew)}
+							onClick={() => remember("form", NEW_ROUTINE_OPENER, form.onNew)}
 							size="icon-sm"
 							variant="ghost"
 						>
@@ -525,7 +543,7 @@ const RoutinesPanelSurface = (props: RoutinesPanelListProps) => {
 					<Button
 						aria-label={t("activity.panel.close")}
 						data-slot="routines-panel-close"
-						onClick={() => onOpenChange(false)}
+						onClick={() => askLeaving("close")}
 						ref={closeRef}
 						size="icon"
 						variant="ghost"
@@ -539,9 +557,13 @@ const RoutinesPanelSurface = (props: RoutinesPanelListProps) => {
 					{...props}
 					isShowingRoutines={isShowingRoutines}
 					onEditRoutine={editOpenRoutine}
+					onFormUnsavedChange={(isUnsaved) =>
+						setUnsavedForm(isUnsaved ? openForm : null)
+					}
 					onOpenRoutine={
 						detail &&
-						((routineId) => remember(routineId, () => detail.onOpen(routineId)))
+						((routineId) =>
+							remember("detail", routineId, () => detail.onOpen(routineId)))
 					}
 				/>
 			</SidebarContent>
@@ -551,9 +573,7 @@ const RoutinesPanelSurface = (props: RoutinesPanelListProps) => {
 						className="flex h-10 items-center gap-2.5 rounded-xl pe-3 ps-2.5 text-start outline-none transition-colors duration-150 hover:bg-muted/50 focus-visible:ring-3 focus-visible:ring-ring/30 motion-reduce:transition-none"
 						data-opens={ROUTINES_OPENER}
 						data-slot="routines-entry"
-						onClick={() =>
-							remember(ROUTINES_OPENER, () => setShowingRoutines(true))
-						}
+						onClick={() => pages.push("routines", ROUTINES_OPENER)}
 						type="button"
 					>
 						<Icons.Routine
@@ -570,6 +590,16 @@ const RoutinesPanelSurface = (props: RoutinesPanelListProps) => {
 				</SidebarFooter>
 			)}
 			<SidebarResizeHandle side="right" />
+			<ConfirmDialog
+				confirmLabel={t("routines.leave.action")}
+				description={t("routines.leave.description")}
+				onConfirm={() => {
+					if (leaving) leave(leaving)
+				}}
+				onOpenChange={(isOpen) => isOpen || setLeaving(null)}
+				open={leaving !== null}
+				title={t("routines.leave.title")}
+			/>
 		</Sidebar>
 	)
 }

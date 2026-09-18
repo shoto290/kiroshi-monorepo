@@ -10,10 +10,12 @@ import {
 	CATALOGUE_APPLICATIONS,
 } from "@workspace/ui/components/plugin-settings/applications.fixtures"
 import type { ApplicationsOwner } from "@workspace/ui/components/plugin-settings/applications-panel"
+import type { SettingsPage } from "@workspace/ui/components/plugin-settings/settings-pages"
 import {
 	type McpSessionProps,
 	useMcpSession,
 } from "@workspace/ui/components/plugin-settings/use-mcp-session"
+import { usePushedPages } from "@workspace/ui/hooks/use-pushed-pages"
 
 const [LOCAL, REMOTE] = BOT_MCP_SERVERS
 
@@ -27,19 +29,22 @@ const NEEDS_AUTHORIZATION = {
 	connection: "needsAuthorization",
 } satisfies BotMcpServerItem
 
-const McpSessionScreen = (props: McpSessionProps) => {
-	const session = useMcpSession(props)
+type McpSessionScreenProps = Omit<McpSessionProps, "pages">
 
-	if (session.isOpen) return session.editor
+const McpSessionScreen = (props: McpSessionScreenProps) => {
+	const pages = usePushedPages<SettingsPage>()
+	const session = useMcpSession({ ...props, pages })
 
 	return (
-		<div className="flex min-h-0 flex-1 flex-col gap-4 p-5">
-			{session.panel}
-		</div>
+		pages.shown(session.pages) ?? (
+			<div className="flex min-h-0 flex-1 flex-col gap-4 p-5">
+				{session.panel}
+			</div>
+		)
 	)
 }
 
-const PickingScreen = (props: McpSessionProps) => {
+const PickingScreen = (props: McpSessionScreenProps) => {
 	const [isPicked, setPicked] = useState(false)
 	const { catalogue } = props
 

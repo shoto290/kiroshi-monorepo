@@ -16,6 +16,7 @@ import {
 	InitialsAvatar,
 } from "@workspace/ui/components/initials-avatar"
 import type { PluginHistory } from "@workspace/ui/components/plugin-settings/history-panel"
+import type { SettingsPage } from "@workspace/ui/components/plugin-settings/settings-pages"
 import type { PluginSkillFiles } from "@workspace/ui/components/plugin-settings/skill-files-panel"
 import {
 	HISTORY_TAB,
@@ -45,6 +46,7 @@ import { AppearanceFields } from "@workspace/ui/components/user-settings-dialog/
 import { LanguageFields } from "@workspace/ui/components/user-settings-dialog/language-fields"
 import { NotificationFields } from "@workspace/ui/components/user-settings-dialog/notification-fields"
 import { useIsNarrowerThan } from "@workspace/ui/hooks/use-is-narrower-than"
+import { usePushedPages } from "@workspace/ui/hooks/use-pushed-pages"
 import { useSettingsTab } from "@workspace/ui/hooks/use-settings-tab"
 import type { Language } from "@workspace/ui/lib/i18n"
 import { cn } from "@workspace/ui/lib/utils"
@@ -108,7 +110,9 @@ const UserSettingsDialog = ({
 	const [isLeaving, setLeaving] = useState(false)
 	const iconsOnly = useIsNarrowerThan(tabs, RAIL_LABELS_MIN_WIDTH)
 	const displayName = displayNameOf(value.name)
+	const pages = usePushedPages<SettingsPage>()
 	const skillSession = useSkillSession({
+		pages,
 		skills,
 		files: skillFiles,
 		onSkillChange,
@@ -117,11 +121,13 @@ const UserSettingsDialog = ({
 		onSkillPreloadedChange,
 	})
 	const mcpSession = useMcpSession({
+		pages,
 		...(applications ?? NO_APPLICATIONS),
 		owner: { kind: "profile" },
 		isSettingsOpen: open,
 	})
 	const historySession = useHistorySession({
+		pages,
 		history,
 		companionName: t("plugin.author.bot"),
 		readerImage: value.image,
@@ -185,7 +191,11 @@ const UserSettingsDialog = ({
 					</DialogTitle>
 				</header>
 
-				{skillSession.editor ?? mcpSession.editor ?? historySession.page ?? (
+				{pages.shown({
+					...skillSession.pages,
+					...mcpSession.pages,
+					...historySession.pages,
+				}) ?? (
 					<Tabs.Root
 						className="flex min-h-0 flex-1"
 						onValueChange={activeTab.onValueChange}

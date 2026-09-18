@@ -9,11 +9,9 @@ import { Icons } from "@workspace/ui/components/icons"
 import { Notice } from "@workspace/ui/components/notice"
 import { CommitDiff } from "@workspace/ui/components/plugin-settings/commit-diff"
 import type { HistoryChangeFile } from "@workspace/ui/components/plugin-settings/history-panel"
+import { SettingsPushedPage } from "@workspace/ui/components/settings-pushed-page"
 import {
 	RAIL_ITEM_CLASS,
-	SettingsRail,
-	SettingsRailBack,
-	SettingsRailSeparator,
 	SettingsScrollingPanel,
 } from "@workspace/ui/components/settings-rail"
 import { TooltipHint } from "@workspace/ui/components/tooltip-hint"
@@ -205,30 +203,20 @@ const HistoryChangePage = ({
 	}
 
 	return (
-		<Tabs.Root
-			className={cn("flex min-h-0 flex-1", className)}
+		<SettingsPushedPage
+			backLabel={t("history.change.back")}
+			className={className}
+			onBack={onBack}
 			onValueChange={(value) => setChosen(String(value))}
-			orientation="vertical"
 			value={chosenPath}
+			rail={() => (
+				<>
+					{files.map((file) => (
+						<HistoryFileTab key={file.path} path={file.path} />
+					))}
+				</>
+			)}
 		>
-			<SettingsRail
-				iconsOnly={false}
-				leading={
-					<>
-						<SettingsRailBack
-							iconsOnly={false}
-							label={t("history.change.back")}
-							onClick={onBack}
-						/>
-						<SettingsRailSeparator />
-					</>
-				}
-			>
-				{files.map((file) => (
-					<HistoryFileTab key={file.path} path={file.path} />
-				))}
-			</SettingsRail>
-
 			<div className="flex min-h-0 min-w-0 flex-1 flex-col">
 				<header className={HEAD_CLASS}>
 					<h2 className="truncate font-medium text-foreground text-sm/5">
@@ -265,7 +253,7 @@ const HistoryChangePage = ({
 					</p>
 				</div>
 			</div>
-		</Tabs.Root>
+		</SettingsPushedPage>
 	)
 }
 

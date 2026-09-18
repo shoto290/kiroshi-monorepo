@@ -7,12 +7,10 @@ import { useTranslation } from "react-i18next"
 import { type Icon, Icons } from "@workspace/ui/components/icons"
 import { ApplicationMark } from "@workspace/ui/components/plugin-settings/application-mark"
 import { ApplicationsSearchField } from "@workspace/ui/components/plugin-settings/applications-search-field"
+import { SettingsPushedPage } from "@workspace/ui/components/settings-pushed-page"
 import {
 	RAIL_ITEM_CLASS,
 	SETTINGS_PANEL_CLASS,
-	SettingsRail,
-	SettingsRailBack,
-	SettingsRailSeparator,
 } from "@workspace/ui/components/settings-rail"
 import { Button } from "@workspace/ui/components/ui/button"
 import { Skeleton } from "@workspace/ui/components/ui/skeleton"
@@ -253,36 +251,27 @@ const CataloguePage = ({
 	const { t } = useTranslation("bots")
 
 	return (
-		<Tabs.Root
-			className={cn("flex min-h-0 min-w-0 flex-1", className)}
+		<SettingsPushedPage
+			backClassName={CATALOGUE_RAIL_BACK_CLASS}
+			backLabel={t("applications.back")}
+			className={cn("min-w-0", className)}
+			onBack={onBack}
 			onValueChange={(value) => onCategoryChange(value as CatalogueCategory)}
-			orientation="vertical"
 			value={category}
+			rail={() => (
+				<>
+					{CATALOGUE_CATEGORIES.map((id) => (
+						<Tabs.Tab className={CATALOGUE_RAIL_ITEM_CLASS} key={id} value={id}>
+							<span className="min-w-0 flex-1 wrap-break-word text-start">
+								{t(`applications.catalogue.category.${id}`)}
+							</span>
+						</Tabs.Tab>
+					))}
+				</>
+			)}
 		>
-			<SettingsRail
-				iconsOnly={false}
-				leading={
-					<>
-						<SettingsRailBack
-							className={CATALOGUE_RAIL_BACK_CLASS}
-							iconsOnly={false}
-							label={t("applications.back")}
-							onClick={onBack}
-						/>
-						<SettingsRailSeparator />
-					</>
-				}
-			>
-				{CATALOGUE_CATEGORIES.map((id) => (
-					<Tabs.Tab className={CATALOGUE_RAIL_ITEM_CLASS} key={id} value={id}>
-						<span className="min-w-0 flex-1 wrap-break-word text-start">
-							{t(`applications.catalogue.category.${id}`)}
-						</span>
-					</Tabs.Tab>
-				))}
-			</SettingsRail>
 			{children}
-		</Tabs.Root>
+		</SettingsPushedPage>
 	)
 }
 

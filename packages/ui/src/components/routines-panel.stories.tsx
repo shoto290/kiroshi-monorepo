@@ -1,5 +1,5 @@
 import { useState } from "react"
-import { expect, fn, waitFor, within } from "storybook/test"
+import { expect, fn, screen, waitFor, within } from "storybook/test"
 
 import preview from "@workspace/storybook/preview"
 import {
@@ -859,6 +859,143 @@ export const Editing = meta.story({
 				).toHaveFocus(),
 			FRAME_POLL,
 		)
+	},
+})
+
+export const LeavingByKeyboard = meta.story({
+	parameters: {
+		a11y: A11Y_CONTRAST_AWAITING_DESIGN_DECISION,
+		docs: {
+			description: {
+				story:
+					"The pushed screens of the panel walked without a pointer. Check that Enter on the entry pushes the routines, that Enter on a row pushes its detail, and that Enter on the back control of each screen hands the keyboard back to the control that opened it: the row first, then the entry. " +
+					MOUNTED_BY_THE_THREAD,
+			},
+		},
+	},
+	play: async ({ canvas, canvasElement, userEvent }) => {
+		slotIn(canvasElement, "routines-entry").focus()
+		await userEvent.keyboard("{Enter}")
+
+		const [row] = slotsIn(canvasElement, "routine-row")
+		const opener = row?.querySelector<HTMLElement>("button[data-opens]")
+		if (!opener) throw new Error("the first routine row carries no opener")
+		opener.focus()
+		await userEvent.keyboard("{Enter}")
+		await waitFor(
+			() => expect(slotIn(canvasElement, "routine-detail")).toHaveFocus(),
+			FRAME_POLL,
+		)
+
+		canvas.getByRole("button", { name: "Back to the routines" }).focus()
+		await userEvent.keyboard("{Enter}")
+		await waitFor(
+			() =>
+				expect(
+					slotsIn(canvasElement, "routine-row")[0]?.querySelector(
+						"button[data-opens]",
+					),
+				).toHaveFocus(),
+			FRAME_POLL,
+		)
+
+		canvas.getByRole("button", { name: "Back to the activity" }).focus()
+		await userEvent.keyboard("{Enter}")
+		await waitFor(
+			() => expect(slotIn(canvasElement, "routines-entry")).toHaveFocus(),
+			FRAME_POLL,
+		)
+	},
+})
+
+const editTypedDigest = async (
+	canvas: ReturnType<typeof within>,
+	canvasElement: HTMLElement,
+	userEvent: {
+		click: (element: Element) => Promise<void>
+		type: (element: Element, text: string) => Promise<void>
+	},
+) => {
+	await openRoutines(canvasElement, userEvent)
+	await userEvent.click(canvas.getByText("Morning digest"))
+	await userEvent.click(canvas.getByRole("button", { name: "Edit routine" }))
+	await userEvent.type(canvas.getByDisplayValue("Morning digest"), " draft")
+}
+
+const leaveConfirmation = () =>
+	screen.findByRole("alertdialog", { name: "Leave without saving?" })
+
+export const LeavingAnUnsavedFormByBack = meta.story({
+	parameters: {
+		a11y: A11Y_CONTRAST_AWAITING_DESIGN_DECISION,
+		docs: {
+			description: {
+				story:
+					"The back control of a form holding changes nobody saved. Check that it asks before anything is left, that refusing keeps the form open with every value typed, and that accepting leaves the form for the detail under it. Pick `Editing` for the same form left with nothing changed, which leaves without asking. " +
+					MOUNTED_BY_THE_THREAD,
+			},
+		},
+	},
+	play: async ({ args, canvas, canvasElement, userEvent }) => {
+		await editTypedDigest(canvas, canvasElement, userEvent)
+		const back = () =>
+			userEvent.click(
+				canvas.getByRole("button", { name: "Back to the routine" }),
+			)
+
+		await back()
+		await userEvent.click(
+			within(await leaveConfirmation()).getByRole("button", {
+				name: "Cancel",
+			}),
+		)
+		await expect(args.form?.onClose).not.toHaveBeenCalled()
+		await expect(canvas.getByDisplayValue("Morning digest draft")).toBeVisible()
+
+		await back()
+		await userEvent.click(
+			within(await leaveConfirmation()).getByRole("button", {
+				name: "Leave",
+			}),
+		)
+		await expect(args.form?.onClose).toHaveBeenCalledOnce()
+		await expect(slotIn(canvasElement, "routine-detail")).toBeVisible()
+	},
+})
+
+export const LeavingAnUnsavedFormByClose = meta.story({
+	parameters: {
+		a11y: A11Y_CONTRAST_AWAITING_DESIGN_DECISION,
+		docs: {
+			description: {
+				story:
+					"The close control of the panel while a form holds changes nobody saved. Check that it asks before the panel goes, that refusing keeps the panel and the form open with every value typed, and that accepting leaves the form and then closes the panel. " +
+					MOUNTED_BY_THE_THREAD,
+			},
+		},
+	},
+	play: async ({ args, canvas, canvasElement, userEvent }) => {
+		await editTypedDigest(canvas, canvasElement, userEvent)
+		const close = () =>
+			userEvent.click(slotIn(canvasElement, "routines-panel-close"))
+
+		await close()
+		await userEvent.click(
+			within(await leaveConfirmation()).getByRole("button", {
+				name: "Cancel",
+			}),
+		)
+		await expect(args.onOpenChange).not.toHaveBeenCalled()
+		await expect(canvas.getByDisplayValue("Morning digest draft")).toBeVisible()
+
+		await close()
+		await userEvent.click(
+			within(await leaveConfirmation()).getByRole("button", {
+				name: "Leave",
+			}),
+		)
+		await expect(args.form?.onClose).toHaveBeenCalledOnce()
+		await expect(args.onOpenChange).toHaveBeenCalledWith(false)
 	},
 })
 
