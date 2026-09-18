@@ -5,7 +5,7 @@ import { RUN_PAYLOAD_CHARS, runPromptFor } from "./run-prompt"
 
 const OPEN = "<untrusted-data>"
 const CLOSE = "</untrusted-data>"
-const ELIDED = "…"
+const ELIDED = "[elided]"
 
 const requested = (payload: unknown): RunRequested => ({
 	cause: "trigger",
@@ -79,11 +79,12 @@ describe("runPromptFor", () => {
 		)
 
 		const fenced = fencedText(prompt)
-		expect([...fenced]).toHaveLength(RUN_PAYLOAD_CHARS + 1)
+		expect(fenced.endsWith(ELIDED)).toBe(true)
+		expect([...fenced]).toHaveLength(RUN_PAYLOAD_CHARS + ELIDED.length)
 		expect(fenced.replace(/[\ud800-\udbff][\udc00-\udfff]/g, "")).not.toMatch(
 			/[\ud800-\udfff]/,
 		)
-		expect([...fenced].slice(0, -1).join("")).toBe(
+		expect(fenced.slice(0, -ELIDED.length)).toBe(
 			[...JSON.stringify({ comment: "🙂".repeat(RUN_PAYLOAD_CHARS) }, null, 2)]
 				.slice(0, RUN_PAYLOAD_CHARS)
 				.join(""),
