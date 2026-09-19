@@ -795,7 +795,7 @@ fn a_chat_past_the_fold_bound_survives_a_dead_host_with_nothing_lost_or_doubled(
 	let context = context.as_str().expect("the context crosses as text").to_owned();
 
 	assert!(
-		context.contains("The conversation so far:\n…"),
+		context.contains("The conversation so far:\n[elided]"),
 		"a fold that could not reach the beginning did not say so: {context}"
 	);
 	assert_eq!(
