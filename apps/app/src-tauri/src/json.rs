@@ -4,7 +4,7 @@ use serde::{Deserialize, Serialize};
 use specta::datatype::DataType;
 use specta::{Type, Types};
 
-#[derive(Debug, Clone, Default, PartialEq, Serialize, Deserialize)]
+#[derive(Debug, Serialize, Deserialize)]
 #[serde(transparent)]
 pub struct JsonValue(pub serde_json::Value);
 
