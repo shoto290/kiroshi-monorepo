@@ -2,6 +2,7 @@ import { describe, expect, it } from "vitest"
 
 import type { ConversationAnswer } from "./conversation-badge"
 import { createConversationBadgeSource } from "./conversation-badge-source"
+import { createSpokenWords } from "./spoken-words"
 import type { TranscriptCompletion } from "./transcript-contract"
 import { speakingBot } from "./transcript-fixtures"
 
@@ -127,11 +128,13 @@ const start = ({
 }: HarnessOptions = {}) => {
 	const runtimes = createFakeRuntimes()
 	const roster = createFakeRoster(conversationRosters, selectedConversationId)
+	const spokenWords = createSpokenWords()
 	let tellFocus: ((isFocused: boolean) => void) | undefined
 
 	const source = createConversationBadgeSource({
 		runtimes,
 		roster,
+		spokenWords,
 		hasFocus: () => hasFocus,
 		watchFocus: (report) => {
 			tellFocus = report
@@ -142,10 +145,15 @@ const start = ({
 
 	const stop = source.start()
 
+	const speakIn = (conversationId: string) => {
+		spokenWords.announce({ conversationId, authorBotId: "bot-one" })
+	}
+
 	return {
 		runtimes,
 		roster,
 		source,
+		speakIn,
 		blur: () => tellFocus?.(false),
 		focus: () => tellFocus?.(true),
 		stop,
@@ -267,6 +275,69 @@ describe("createConversationBadgeSource", () => {
 		runtimes.publish("room-one", answered("complete"))
 		runtimes.release("room-one")
 		roster.hold({ home: [] })
+
+		expect(source.getBadges()["room-one"]).toBeUndefined()
+	})
+
+	it("reports done when a companion speaks in a room never held before", () => {
+		const { speakIn, source } = start({
+			selectedConversationId: "room-two",
+		})
+
+		speakIn("room-one")
+
+		expect(source.getBadges()["room-one"]).toBe("done")
+	})
+
+	it("keeps the spoken badge once the room's runtime reports", () => {
+		const { runtimes, speakIn, source } = start({
+			selectedConversationId: "room-two",
+		})
+
+		speakIn("room-one")
+		runtimes.publish("room-one", answered("complete"))
+
+		expect(source.getBadges()["room-one"]).toBe("done")
+	})
+
+	it("leaves the read room without a badge for a word spoken under focus", () => {
+		const { speakIn, source } = start({
+			selectedConversationId: "room-one",
+		})
+
+		speakIn("room-one")
+
+		expect(source.getBadges()["room-one"]).toBeUndefined()
+	})
+
+	it("reports done for a word spoken in the read room while the window is away", () => {
+		const { blur, speakIn, source } = start({
+			selectedConversationId: "room-one",
+		})
+
+		blur()
+		speakIn("room-one")
+
+		expect(source.getBadges()["room-one"]).toBe("done")
+	})
+
+	it("ignores a word spoken in a room no roster shows", () => {
+		const { speakIn, source } = start({
+			selectedConversationId: "room-two",
+		})
+
+		speakIn("room-ghost")
+
+		expect(source.getBadges()["room-ghost"]).toBeUndefined()
+	})
+
+	it("stops reading spoken words when the mount goes away", () => {
+		const { speakIn, source, stop } = start({
+			selectedConversationId: "room-two",
+		})
+
+		stop()
+		speakIn("room-one")
 
 		expect(source.getBadges()["room-one"]).toBeUndefined()
 	})

@@ -109,6 +109,16 @@ export const notifiesAskedQuestion = ({
 	switches.notifyOnQuestion &&
 	isNewRequest(askedQuestionIn(before), askedQuestionIn(after))
 
+export type SpokenWordPolicyInput = {
+	switches: NotificationSwitches
+	hasFocus: boolean
+}
+
+export const notifiesSpokenWord = ({
+	switches,
+	hasFocus,
+}: SpokenWordPolicyInput): boolean => !hasFocus && switches.notifyOnFinishedTurn
+
 export type MissionPolicyInput = {
 	state: NotifiedMissionState
 	switches: NotificationSwitches

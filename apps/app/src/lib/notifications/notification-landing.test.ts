@@ -11,6 +11,7 @@ import { newBotIdentity } from "../bots/bot-settings"
 import { createRosterController } from "../bots/roster-controller"
 import { initialChatState } from "../chat/chat-state"
 import { createFakeTranscriptStore } from "../conversations/fake-transcript-store"
+import { createSpokenWords } from "../conversations/spoken-words"
 import { createFakeMissions } from "../missions/fake-missions"
 import { aMission } from "../missions/mission-fixtures"
 import { createSpacesController } from "../spaces/spaces-controller"
@@ -88,6 +89,7 @@ const aWorld = async () => {
 
 	const notifications = createFakeNotificationPort()
 	const missions = createFakeMissions()
+	const spokenWords = createSpokenWords()
 	const reader = aReader()
 
 	startNotificationSource({
@@ -96,6 +98,7 @@ const aWorld = async () => {
 		roster,
 		spaces,
 		missions,
+		spokenWords,
 		notifications,
 		switches: () => ALL_ON,
 		hasFocus: () => false,
@@ -119,6 +122,7 @@ const aWorld = async () => {
 		roster,
 		missions,
 		notifications,
+		spokenWords,
 		reader,
 		elsewhere,
 		neighbour,
@@ -204,4 +208,20 @@ it("opens a mission of the space already on screen without changing space", asyn
 	expect(spaces.getState().selectedSpaceId).toBe(HOME)
 	expect(roster.getState().selectedBotId).toBe(neighbour.id)
 	expect(missions.opened).toHaveLength(1)
+})
+
+it("lands on the room a spoken word names, in the space holding it", async () => {
+	const { spaces, roster, notifications, spokenWords, elsewhere, away, room } =
+		await aWorld()
+
+	spokenWords.announce({ conversationId: room.id, authorBotId: away.id })
+	const [sent] = notifications.sent
+
+	await act(async () => {
+		notifications.activate(sent.target)
+	})
+
+	expect(sent.title).toBe("Release")
+	expect(spaces.getState().selectedSpaceId).toBe(elsewhere.id)
+	expect(roster.getState().selectedConversationId).toBe(room.id)
 })

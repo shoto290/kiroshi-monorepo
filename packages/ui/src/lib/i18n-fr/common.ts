@@ -28,6 +28,7 @@ const common = {
 		question: "Vous a posé une question",
 		approval: "Demande votre autorisation",
 		finishedTurn: "A terminé son tour",
+		spoke: "{{name}} a dit quelque chose",
 		mission: {
 			question: "Vous a posé une question sur {{ticket}}",
 			waiting_human: "A besoin de vous sur {{ticket}}",

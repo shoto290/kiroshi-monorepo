@@ -13,7 +13,8 @@ import {
 
 import type { PermissionRequest, QuestionRequest } from "../agent/contract"
 import { type ChatState, initialChatState } from "../chat/chat-state"
-import type { Conversation } from "../conversations/store-contract"
+import { createSpokenWords } from "../conversations/spoken-words"
+import type { Conversation, Participant } from "../conversations/store-contract"
 import { speakingBot } from "../conversations/transcript-fixtures"
 import {
 	createFakeMissions,
@@ -89,7 +90,23 @@ const createFakeChat = () => {
 	}
 }
 
-const conversation = (id: string, title: string): Conversation => ({
+const seatOf = (botId: string, name: string): Participant => ({
+	botId,
+	role: "assistant",
+	joinedAt: 0,
+	leftAt: null,
+	name,
+	avatarAnimal: "owl",
+	avatarBlot: null,
+	avatarImagePath: null,
+	isDeleted: false,
+})
+
+const conversation = (
+	id: string,
+	title: string,
+	participants: Participant[] = [],
+): Conversation => ({
 	id,
 	spaceId: "space-one",
 	sectionId: null,
@@ -98,7 +115,7 @@ const conversation = (id: string, title: string): Conversation => ({
 	instructions: "",
 	createdAt: 0,
 	updatedAt: 0,
-	participants: [],
+	participants,
 })
 
 const createFakeRuntimes = () => {
@@ -151,6 +168,7 @@ const createFakeRoster = (
 		getState: () => ({
 			rosters: { [SPACE]: state.bots, [OTHER_SPACE]: state.away },
 			conversations: state.conversations,
+			conversationRosters: { [SPACE]: state.conversations },
 		}),
 		spaceOfConversation: (conversationId: string) =>
 			state.bots.some((bot) => soloThreadOf(bot.id) === conversationId) ||
@@ -195,6 +213,7 @@ type Harness = {
 	spaces: { select: ReturnType<typeof vi.fn> }
 	missions: FakeMissions
 	notifications: FakeNotificationPort
+	spokenWords: ReturnType<typeof createSpokenWords>
 	windowFocus: ReturnType<typeof createFakeWindowFocus>
 	playChime: ReturnType<typeof vi.fn>
 	reportFailure: ReturnType<typeof vi.fn>
@@ -204,7 +223,9 @@ type Harness = {
 const start = async (
 	options: Partial<NotificationSourceOptions> = {},
 	bots = [{ id: "bot-one", name: "Nyx" }],
-	conversations = [conversation("room-one", "Release")],
+	conversations = [
+		conversation("room-one", "Release", [seatOf("bot-one", "Nyx")]),
+	],
 ): Promise<Harness> => {
 	const chat = createFakeChat()
 	const runtimes = createFakeRuntimes()
@@ -212,6 +233,7 @@ const start = async (
 	const spaces = { select: vi.fn() }
 	const missions = createFakeMissions()
 	const notifications = createFakeNotificationPort()
+	const spokenWords = createSpokenWords()
 	const windowFocus = createFakeWindowFocus()
 	const playChime = vi.fn()
 	const reportFailure = vi.fn()
@@ -222,6 +244,7 @@ const start = async (
 		roster,
 		spaces,
 		missions,
+		spokenWords,
 		notifications,
 		switches: () => ALL_ON,
 		hasFocus: () => false,
@@ -240,6 +263,7 @@ const start = async (
 		spaces,
 		missions,
 		notifications,
+		spokenWords,
 		windowFocus,
 		playChime,
 		reportFailure,
@@ -911,6 +935,90 @@ describe("startNotificationSource on missions", () => {
 		await Promise.resolve()
 
 		expect(harness.reportFailure).toHaveBeenCalledTimes(1)
+		expect(harness.notifications.sent).toEqual([])
+	})
+
+	it("names the room and the companion that spoke in it", async () => {
+		const harness = await start()
+
+		harness.spokenWords.announce({
+			conversationId: "room-one",
+			authorBotId: "bot-one",
+		})
+
+		expect(harness.notifications.sent).toEqual([
+			{ target: ROOM, title: "Release", body: "Nyx said something" },
+		])
+	})
+
+	it("sends one notification for one spoken word", async () => {
+		const harness = await start()
+
+		harness.spokenWords.announce({
+			conversationId: "room-one",
+			authorBotId: "bot-one",
+		})
+
+		expect(harness.notifications.sent).toHaveLength(1)
+	})
+
+	it("stays quiet on a spoken word while the host window holds the focus", async () => {
+		const harness = await start()
+		harness.windowFocus.tell(true)
+
+		harness.spokenWords.announce({
+			conversationId: "room-one",
+			authorBotId: "bot-one",
+		})
+
+		expect(harness.notifications.sent).toEqual([])
+	})
+
+	it("sends a spoken word the host window is away from, whatever the document says", async () => {
+		const harness = await start({ hasFocus: () => true })
+		harness.windowFocus.tell(false)
+
+		harness.spokenWords.announce({
+			conversationId: "room-one",
+			authorBotId: "bot-one",
+		})
+
+		expect(harness.notifications.sent).toHaveLength(1)
+	})
+
+	it("stays quiet on a spoken word when finished turns are not notified", async () => {
+		const harness = await start({
+			switches: () => ({ ...ALL_ON, notifyOnFinishedTurn: false }),
+		})
+
+		harness.spokenWords.announce({
+			conversationId: "room-one",
+			authorBotId: "bot-one",
+		})
+
+		expect(harness.notifications.sent).toEqual([])
+	})
+
+	it("stays quiet on a spoken word from a room no roster shows", async () => {
+		const harness = await start()
+
+		harness.spokenWords.announce({
+			conversationId: "room-ghost",
+			authorBotId: "bot-one",
+		})
+
+		expect(harness.notifications.sent).toEqual([])
+	})
+
+	it("stops reading spoken words when the mount goes away", async () => {
+		const harness = await start()
+		harness.stop()
+
+		harness.spokenWords.announce({
+			conversationId: "room-one",
+			authorBotId: "bot-one",
+		})
+
 		expect(harness.notifications.sent).toEqual([])
 	})
 })

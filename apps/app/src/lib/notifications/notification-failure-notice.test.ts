@@ -22,6 +22,7 @@ import type { NotificationPort } from "./notification-port"
 import { startNotificationSource } from "./notification-source"
 
 import { initialChatState } from "../chat/chat-state"
+import { createSpokenWords } from "../conversations/spoken-words"
 import { createFakeMissions } from "../missions/fake-missions"
 
 const CLICK_FAILURE_TITLE =
@@ -56,7 +57,7 @@ const idleRuntimes = {
 }
 
 const emptyRoster = {
-	getState: () => ({ rosters: {}, conversations: [] }),
+	getState: () => ({ rosters: {}, conversations: [], conversationRosters: {} }),
 	spaceOfConversation: () => undefined,
 	select: () => undefined,
 	selectConversation: () => undefined,
@@ -79,6 +80,7 @@ const watchAlongside = async ({
 		roster: emptyRoster,
 		spaces: { select: () => undefined },
 		missions: createFakeMissions(),
+		spokenWords: createSpokenWords(),
 		notifications,
 		switches: () => SWITCHES,
 		hasFocus: () => false,

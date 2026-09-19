@@ -83,6 +83,7 @@ import {
 	toConversationSettingsValue,
 	toRosterConversations,
 } from "@/lib/conversations/roster-conversations"
+import { createSpokenWords } from "@/lib/conversations/spoken-words"
 import type { EnvOwner, EnvScope } from "@/lib/conversations/store-contract"
 import { useCompanionArrivals } from "@/lib/conversations/use-companion-arrivals"
 import { useCompanionSpokeDriver } from "@/lib/conversations/use-companion-spoke-driver"
@@ -178,6 +179,7 @@ export function App() {
 		[chat.controller, driver, conversationRuntimes],
 	)
 	const drafts = useMemo(createDraftsController, [])
+	const spokenWords = useMemo(createSpokenWords, [])
 	const openedMission = useMemo(
 		() => createOpenedMissionController(roster.controller),
 		[roster.controller],
@@ -245,7 +247,11 @@ export function App() {
 		chat: chat.controller,
 	})
 
-	useCompanionSpokeDriver({ runtimes: conversationRuntimes })
+	useCompanionSpokeDriver({
+		runtimes: conversationRuntimes,
+		roster: roster.controller,
+		spokenWords,
+	})
 
 	useNotifications({
 		chat: chat.controller,
@@ -253,6 +259,7 @@ export function App() {
 		roster: roster.controller,
 		spaces: spaces.controller,
 		missions: openedMission,
+		spokenWords,
 		user: user.controller,
 	})
 
@@ -282,6 +289,7 @@ export function App() {
 	const conversationBadges = useConversationBadges({
 		runtimes: conversationRuntimes,
 		roster: roster.controller,
+		spokenWords,
 	})
 
 	const {

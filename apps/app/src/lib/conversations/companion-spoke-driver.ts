@@ -2,7 +2,10 @@ import type { NoticeMessage } from "@workspace/ui/components/notice-surface"
 import { i18n } from "@workspace/ui/lib/i18n"
 
 import type { ConversationRuntimes } from "./conversation-runtimes"
+import type { SpokenWords } from "./spoken-words"
 import type { CompanionSpoke } from "./transcript-contract"
+
+import { rowIdsIn } from "../chat/badge-source"
 
 export type CompanionSpokePort = {
 	onCompanionSpoke: (
@@ -10,9 +13,23 @@ export type CompanionSpokePort = {
 	) => Promise<() => void>
 }
 
+type RosteredConversation = {
+	id: string
+}
+
+export type SpokenRosterPort = {
+	getState: () => {
+		conversationRosters: Record<string, RosteredConversation[]>
+		hasFailedToLoad: boolean
+	}
+	reload: () => Promise<void>
+}
+
 export type CompanionSpokeDriverOptions = {
 	runtimes: Pick<ConversationRuntimes, "runtimeFor">
+	roster: SpokenRosterPort
 	companions: CompanionSpokePort
+	spokenWords: Pick<SpokenWords, "announce">
 	reportFailure: (notice: NoticeMessage) => void
 }
 
@@ -26,7 +43,9 @@ const detailOf = (thrown: unknown) =>
 
 export const startCompanionSpokeDriver = ({
 	runtimes,
+	roster,
 	companions,
+	spokenWords,
 	reportFailure,
 }: CompanionSpokeDriverOptions): (() => void) => {
 	const relayed = new Set<string>()
@@ -43,11 +62,46 @@ export const startCompanionSpokeDriver = ({
 
 	const relay = async (spoken: CompanionSpoke, key: string) => {
 		try {
-			await runtimes.runtimeFor(spoken.conversationId).relaySpoken(spoken)
+			return await runtimes
+				.runtimeFor(spoken.conversationId)
+				.relaySpoken(spoken)
 		} catch (thrown) {
 			relayed.delete(key)
 			raiseFailure(thrown)
+			return false
 		}
+	}
+
+	const showsConversation = (conversationId: string) =>
+		rowIdsIn(roster.getState().conversationRosters).includes(conversationId)
+
+	const rosterShowing = async (conversationId: string) => {
+		if (showsConversation(conversationId)) {
+			return true
+		}
+
+		await roster.reload()
+
+		if (roster.getState().hasFailedToLoad) {
+			reportFailure({ title: i18n.t("bots:roster.unavailable") })
+			return false
+		}
+
+		return true
+	}
+
+	const relayAndAnnounce = async (spoken: CompanionSpoke, key: string) => {
+		const isShowing = await rosterShowing(spoken.conversationId)
+		const isWritten = await relay(spoken, key)
+
+		if (!isShowing || !isWritten) {
+			return
+		}
+
+		spokenWords.announce({
+			conversationId: spoken.conversationId,
+			authorBotId: spoken.authorBotId,
+		})
 	}
 
 	const take = (spoken: CompanionSpoke) => {
@@ -58,7 +112,7 @@ export const startCompanionSpokeDriver = ({
 		}
 
 		relayed.add(key)
-		void relay(spoken, key)
+		void relayAndAnnounce(spoken, key)
 	}
 
 	const listening = companions.onCompanionSpoke(take).catch((reason) => {

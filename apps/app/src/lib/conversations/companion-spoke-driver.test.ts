@@ -9,10 +9,16 @@ import {
 } from "./conversation-runtimes"
 import { createFakeTranscriptStore } from "./fake-transcript-store"
 import { createScriptedDriver, type ScriptedDriver } from "./scripted-driver"
+import { createSpokenWords, type SpokenWord } from "./spoken-words"
 import type { Conversation, Space } from "./store-contract"
 import type { TranscriptStore } from "./store-port"
 import type { CompanionSpoke } from "./transcript-contract"
 import { seatBots } from "./transcript-fixtures"
+
+import {
+	createRosterController,
+	type RosterController,
+} from "../bots/roster-controller"
 
 const SPACE = "personal"
 
@@ -36,8 +42,10 @@ type Room = {
 	driver: ScriptedDriver
 	store: TranscriptStore
 	runtimes: ConversationRuntimes
+	roster: RosterController
 	conversation: Conversation
 	notices: NoticeMessage[]
+	spoken: SpokenWord[]
 	announce: (spoken: CompanionSpoke) => Promise<void>
 	stop: () => void
 }
@@ -54,10 +62,21 @@ const createRoom = async (
 		botIds: bots.map((bot) => bot.id),
 	})
 	const runtimes = createConversationRuntimes(driver, store)
+	const roster = createRosterController(store, {
+		reportFailure: () => undefined,
+	})
+	await roster.load({ spaceIds: [SPACE], spaceId: SPACE, lastRowId: null })
+	const spokenWords = createSpokenWords()
+	const spoken: SpokenWord[] = []
+	spokenWords.subscribe((word) => {
+		spoken.push(word)
+	})
 	const notices: NoticeMessage[] = []
 	let heard: ((spoken: CompanionSpoke) => void) | null = null
 	const stop = startCompanionSpokeDriver({
 		runtimes,
+		roster,
+		spokenWords,
 		companions: {
 			onCompanionSpoke: (listener) => {
 				heard = listener
@@ -77,7 +96,17 @@ const createRoom = async (
 		await settled()
 	}
 
-	return { driver, store, runtimes, conversation, notices, announce, stop }
+	return {
+		driver,
+		store,
+		runtimes,
+		roster,
+		conversation,
+		notices,
+		spoken,
+		announce,
+		stop,
+	}
 }
 
 const answeringFirstReadWith = (
@@ -97,6 +126,34 @@ const answeringFirstReadWith = (
 const spokenIn = async (store: TranscriptStore, conversationId: string) => {
 	const page = await store.loadPage(conversationId, null)
 	return page.messages
+}
+
+const openRoom = (
+	store: TranscriptStore,
+	seated: Conversation,
+	title: string,
+) =>
+	store.createConversation({
+		spaceId: SPACE,
+		sectionId: null,
+		title,
+		botIds: seated.participants.map(({ botId }) => botId),
+	})
+
+const rosteredIdsIn = (roster: RosterController) =>
+	(roster.getState().conversationRosters[SPACE] ?? []).map(({ id }) => id)
+
+const refusingRosterAfterLoad = (store: TranscriptStore): TranscriptStore => {
+	let reads = 0
+	return {
+		...store,
+		bots: (spaceId) => {
+			reads += 1
+			return reads === 1
+				? store.bots(spaceId)
+				: Promise.reject(new Error("refused"))
+		},
+	}
 }
 
 const summonedBy = (driver: ScriptedDriver) =>
@@ -263,11 +320,11 @@ describe("a companion speaking in a room the front never opened", () => {
 
 	it("raises a failure when companion messages cannot be listened to", async () => {
 		const notices: NoticeMessage[] = []
+		const store = createFakeTranscriptStore()
 		startCompanionSpokeDriver({
-			runtimes: createConversationRuntimes(
-				createScriptedDriver(),
-				createFakeTranscriptStore(),
-			),
+			runtimes: createConversationRuntimes(createScriptedDriver(), store),
+			roster: createRosterController(store, { reportFailure: () => undefined }),
+			spokenWords: createSpokenWords(),
 			companions: {
 				onCompanionSpoke: () => Promise.reject(new Error("refused")),
 			},
@@ -343,5 +400,102 @@ describe("a companion speaking in a room the front never opened", () => {
 		})
 
 		expect(await spokenIn(store, conversation.id)).toEqual([])
+	})
+
+	it("reloads the roster for a room it does not show yet", async () => {
+		const { store, roster, conversation, announce } = await createRoom()
+		const opened = await openRoom(store, conversation, "Gates")
+		const ada = idOf(opened, "Ada")
+
+		await announce({
+			conversationId: opened.id,
+			authorBotId: ada,
+			text: "Gates are up.",
+		})
+
+		expect(rosteredIdsIn(roster)).toContain(opened.id)
+		expect(
+			(await spokenIn(store, opened.id)).map(({ content }) => content),
+		).toEqual(["Gates are up."])
+	})
+
+	it("leaves the selected row where the reader left it", async () => {
+		const { store, roster, conversation, announce } = await createRoom()
+		const opened = await openRoom(store, conversation, "Gates")
+		const ada = idOf(opened, "Ada")
+		const { selectedBotId, selectedConversationId } = roster.getState()
+
+		await announce({
+			conversationId: opened.id,
+			authorBotId: ada,
+			text: "Gates are up.",
+		})
+
+		expect(roster.getState().selectedBotId).toBe(selectedBotId)
+		expect(roster.getState().selectedConversationId).toBe(
+			selectedConversationId,
+		)
+	})
+
+	it("announces the word it wrote", async () => {
+		const { conversation, spoken, announce } = await createRoom()
+		const ada = idOf(conversation, "Ada")
+
+		await announce({
+			conversationId: conversation.id,
+			authorBotId: ada,
+			text: "Walls are up.",
+		})
+
+		expect(spoken).toEqual([
+			{ conversationId: conversation.id, authorBotId: ada },
+		])
+	})
+
+	it("announces a payload delivered twice once", async () => {
+		const { conversation, spoken, announce } = await createRoom()
+		const ada = idOf(conversation, "Ada")
+		const word: CompanionSpoke = {
+			conversationId: conversation.id,
+			authorBotId: ada,
+			text: "Walls are up.",
+		}
+
+		await announce(word)
+		await announce({ ...word })
+
+		expect(spoken).toHaveLength(1)
+	})
+
+	it("announces nothing for an author holding no seat", async () => {
+		const { conversation, spoken, announce } = await createRoom()
+
+		await announce({
+			conversationId: conversation.id,
+			authorBotId: "bot-ghost",
+			text: "Walls are up.",
+		})
+
+		expect(spoken).toEqual([])
+	})
+
+	it("writes the word, raises a failure and announces nothing when the roster refuses to reload", async () => {
+		const { store, conversation, notices, spoken, announce } = await createRoom(
+			refusingRosterAfterLoad(createFakeTranscriptStore()),
+		)
+		const opened = await openRoom(store, conversation, "Gates")
+		const ada = idOf(opened, "Ada")
+
+		await announce({
+			conversationId: opened.id,
+			authorBotId: ada,
+			text: "Gates are up.",
+		})
+
+		expect(
+			(await spokenIn(store, opened.id)).map(({ content }) => content),
+		).toEqual(["Gates are up."])
+		expect(notices).toHaveLength(1)
+		expect(spoken).toEqual([])
 	})
 })
