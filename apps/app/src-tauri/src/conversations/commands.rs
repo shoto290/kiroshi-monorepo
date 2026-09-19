@@ -24,6 +24,7 @@ use crate::db::repositories::messages::{MessagePageQuery, MessagesAroundQuery};
 use crate::db::repositories::runtime_context::{Handover, ParticipantKey};
 use crate::environment;
 use crate::environment::contract::EnvOwner;
+use crate::file_store::FileStore;
 
 const DUPLICATE_SUFFIX: &str = " copy";
 
@@ -186,7 +187,7 @@ pub async fn conversation_bots<R: Runtime>(
 	state: State<'_, db::DatabaseState>,
 	space_id: Option<String>,
 ) -> Result<Vec<Bot>, TranscriptStoreError> {
-	let dir = avatars::dir(&app);
+	let dir = avatars::Avatars::dir(&app);
 	let bundle_root = bundles::root(&app);
 	let stored = ready(&state)?.conversations().bots(space_id).await?;
 	Ok(stored.into_iter().map(|bot| Bot::of(bot, dir.as_deref(), bundle_root.as_deref())).collect())
@@ -199,7 +200,7 @@ pub async fn conversation_bots_by_presence<R: Runtime>(
 	space_id: String,
 	excluded_conversation_id: Option<String>,
 ) -> Result<Vec<Bot>, TranscriptStoreError> {
-	let dir = avatars::dir(&app);
+	let dir = avatars::Avatars::dir(&app);
 	let bundle_root = bundles::root(&app);
 	let stored =
 		ready(&state)?.conversations().bots_by_presence(space_id, excluded_conversation_id).await?;
@@ -274,12 +275,12 @@ pub(super) async fn create_bundled_bot<R: Runtime>(
 	identity: BotIdentity,
 	space_id: Option<String>,
 ) -> Result<Bot, TranscriptStoreError> {
-	let dir = avatars::dir(app);
+	let dir = avatars::Avatars::dir(app);
 	let bundle_root = bundles::root(app);
 	let output_style = identity.output_style.clone();
 	let permissions = identity.permissions.clone();
 	let created = database.conversations().create_bot(identity.into(), space_id, None).await?;
-	avatars::sweep_referenced(database, dir.as_deref()).await;
+	avatars::Avatars::sweep_referenced(database, dir.as_deref()).await;
 	let ruled =
 		match write_bundle(bundle_root.as_deref(), database, &created, &output_style, &permissions)
 			.await
@@ -287,7 +288,7 @@ pub(super) async fn create_bundled_bot<R: Runtime>(
 			Ok(ruled) => ruled,
 			Err(refusal) => {
 				let _ = database.conversations().delete_bot(created.id).await;
-				avatars::sweep_referenced(database, dir.as_deref()).await;
+				avatars::Avatars::sweep_referenced(database, dir.as_deref()).await;
 				return Err(refusal);
 			}
 		};
@@ -301,7 +302,7 @@ pub async fn conversation_duplicate_bot<R: Runtime>(
 	bot_id: String,
 	space_id: Option<String>,
 ) -> Result<Bot, TranscriptStoreError> {
-	let dir = avatars::dir(&app);
+	let dir = avatars::Avatars::dir(&app);
 	let bundle_root = bundles::root(&app);
 	let database = ready(&state)?;
 	let source = database
@@ -337,14 +338,14 @@ pub async fn conversation_duplicate_bot<R: Runtime>(
 	};
 	let created =
 		database.conversations().create_bot(identity.into(), Some(destination), section).await?;
-	avatars::sweep_referenced(database, dir.as_deref()).await;
+	avatars::Avatars::sweep_referenced(database, dir.as_deref()).await;
 	let ruled = match copied_onto(&app, database, &created, &carried).await {
 		Ok(ruled) => ruled,
 		Err(refusal) => {
 			let _ = database.conversations().delete_bot(created.id.clone()).await;
 			forget_bundle(bundle_root.as_deref(), database, &created.id).await;
 			environment::store::forget_bot(&app, &created.id);
-			avatars::sweep_referenced(database, dir.as_deref()).await;
+			avatars::Avatars::sweep_referenced(database, dir.as_deref()).await;
 			return Err(refusal);
 		}
 	};
@@ -463,7 +464,7 @@ pub async fn conversation_update_bot<R: Runtime>(
 	id: String,
 	identity: BotIdentity,
 ) -> Result<Bot, TranscriptStoreError> {
-	let dir = avatars::dir(&app);
+	let dir = avatars::Avatars::dir(&app);
 	let bundle_root = bundles::root(&app);
 	let database = ready(&state)?;
 	let previous = database.conversations().bot(id.clone()).await?;
@@ -471,7 +472,7 @@ pub async fn conversation_update_bot<R: Runtime>(
 	let output_style = reconciled.output_style.clone();
 	let permissions = reconciled.permissions.clone();
 	let updated = database.conversations().update_bot(id.clone(), reconciled.into()).await?;
-	avatars::sweep_referenced(database, dir.as_deref()).await;
+	avatars::Avatars::sweep_referenced(database, dir.as_deref()).await;
 	let ruled =
 		match write_bundle(bundle_root.as_deref(), database, &updated, &output_style, &permissions)
 			.await
@@ -480,7 +481,7 @@ pub async fn conversation_update_bot<R: Runtime>(
 			Err(refusal) => {
 				if let Some(previous) = previous {
 					let _ = database.conversations().update_bot(id, previous.into()).await;
-					avatars::sweep_referenced(database, dir.as_deref()).await;
+					avatars::Avatars::sweep_referenced(database, dir.as_deref()).await;
 				}
 				return Err(refusal);
 			}
@@ -495,7 +496,7 @@ pub async fn conversation_set_bot_memory<R: Runtime>(
 	id: String,
 	memory: String,
 ) -> Result<Bot, TranscriptStoreError> {
-	let dir = avatars::dir(&app);
+	let dir = avatars::Avatars::dir(&app);
 	let bundle_root = bundles::root(&app);
 	let database = ready(&state)?;
 	let repository = database.conversations();
@@ -521,7 +522,7 @@ pub async fn conversation_set_bot_avatar_image<R: Runtime>(
 	let normalised = avatars::picture::normalised(&bytes)?;
 	let database = ready(&state)?;
 	let repository = database.conversations();
-	let dir = avatars::dir(&app).ok_or(avatars::Rejection::Unwritable {
+	let dir = avatars::Avatars::dir(&app).ok_or(avatars::Rejection::Unwritable {
 		detail: "there is no application data directory to store avatars in".to_owned(),
 	})?;
 	let path = avatars::minted_path(&dir);
@@ -529,10 +530,10 @@ pub async fn conversation_set_bot_avatar_image<R: Runtime>(
 	let updated = repository.set_avatar_image_path(id.clone(), Some(recorded)).await?;
 	if let Err(rejection) = avatars::write(&path, &normalised) {
 		let _ = repository.set_avatar_image_path(id, None).await;
-		avatars::sweep_referenced(database, Some(&dir)).await;
+		avatars::Avatars::sweep_referenced(database, Some(&dir)).await;
 		return Err(rejection.into());
 	}
-	avatars::sweep_referenced(database, Some(&dir)).await;
+	avatars::Avatars::sweep_referenced(database, Some(&dir)).await;
 	Ok(Bot::of(updated, Some(&dir), bundles::root(&app).as_deref()))
 }
 
@@ -542,15 +543,15 @@ pub async fn conversation_delete_bot<R: Runtime>(
 	state: State<'_, db::DatabaseState>,
 	id: String,
 ) -> Result<(), TranscriptStoreError> {
-	let dir = avatars::dir(&app);
-	let attachment_dir = attachments::dir(&app);
+	let dir = avatars::Avatars::dir(&app);
+	let attachment_dir = attachments::Attachments::dir(&app);
 	let bundle_root = bundles::root(&app);
 	let database = ready(&state)?;
 	database.conversations().delete_bot(id.clone()).await?;
 	forget_bundle(bundle_root.as_deref(), database, &id).await;
 	environment::store::forget_bot(&app, &id);
-	avatars::sweep_referenced(database, dir.as_deref()).await;
-	attachments::sweep_referenced(database, attachment_dir.as_deref()).await;
+	avatars::Avatars::sweep_referenced(database, dir.as_deref()).await;
+	attachments::Attachments::sweep_referenced(database, attachment_dir.as_deref()).await;
 	Ok(())
 }
 
@@ -619,7 +620,7 @@ pub async fn conversation_list<R: Runtime>(
 	state: State<'_, db::DatabaseState>,
 	space_id: String,
 ) -> Result<Vec<Conversation>, TranscriptStoreError> {
-	let dir = avatars::dir(&app);
+	let dir = avatars::Avatars::dir(&app);
 	let stored = ready(&state)?.conversations().conversations(space_id).await?;
 	Ok(stored.into_iter().map(|room| Conversation::of(room, dir.as_deref())).collect())
 }
@@ -697,7 +698,7 @@ pub async fn conversation_set_lead<R: Runtime>(
 }
 
 fn drawn<R: Runtime>(app: &AppHandle<R>, room: StoredConversation) -> Conversation {
-	Conversation::of(room, avatars::dir(app).as_deref())
+	Conversation::of(room, avatars::Avatars::dir(app).as_deref())
 }
 
 #[tauri::command]

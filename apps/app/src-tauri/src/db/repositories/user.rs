@@ -1,7 +1,10 @@
 use std::collections::BTreeMap;
 
-use rusqlite::{params, Connection, OptionalExtension, Transaction, TransactionBehavior};
+use std::sync::LazyLock;
 
+use rusqlite::{Connection, Transaction, TransactionBehavior};
+
+use super::settings::Settings;
 use crate::db::{Access, DatabaseError};
 
 const DISPLAY_NAME_KEY: &str = "user.display_name";
@@ -24,10 +27,7 @@ const FIRST_COMPANION_SEEDED_KEY: &str = "app.first_companion_seeded";
 const SWITCH_ON: &str = "on";
 const SWITCH_OFF: &str = "off";
 
-const READ_SETTING: &str = "SELECT value FROM app_settings WHERE key = ?1";
-const WRITE_SETTING: &str = "INSERT INTO app_settings (key, value) VALUES (?1, ?2)
-	ON CONFLICT (key) DO UPDATE SET value = excluded.value";
-const CLEAR_SETTING: &str = "DELETE FROM app_settings WHERE key = ?1";
+static SETTINGS: LazyLock<Settings> = LazyLock::new(|| Settings::new("app_settings", None));
 
 fn switch_as_stored(is_on: bool) -> &'static str {
 	if is_on {
@@ -214,13 +214,12 @@ fn switch_on_in(connection: &Connection, key: &str) -> Result<bool, DatabaseErro
 }
 
 fn setting_in(connection: &Connection, key: &str) -> Result<Option<String>, DatabaseError> {
-	Ok(connection.query_row(READ_SETTING, [key], |row| row.get(0)).optional()?)
+	SETTINGS.read(connection, None, key)
 }
 
 fn write_in(transaction: &Transaction<'_>, preferences: &Preferences) -> Result<(), DatabaseError> {
-	transaction.execute(WRITE_SETTING, params![DISPLAY_NAME_KEY, preferences.display_name])?;
-	transaction
-		.execute(WRITE_SETTING, params![COLOR_SCHEME_KEY, preferences.color_scheme.as_stored()])?;
+	SETTINGS.write(transaction, None, DISPLAY_NAME_KEY, &preferences.display_name)?;
+	SETTINGS.write(transaction, None, COLOR_SCHEME_KEY, preferences.color_scheme.as_stored())?;
 	write_optional_in(transaction, LANGUAGE_KEY, preferences.language.as_deref())?;
 	write_switch_in(transaction, NOTIFY_ON_QUESTION_KEY, preferences.notify_on_question)?;
 	write_switch_in(transaction, NOTIFY_ON_PERMISSION_KEY, preferences.notify_on_permission)?;
@@ -233,7 +232,7 @@ fn write_in(transaction: &Transaction<'_>, preferences: &Preferences) -> Result<
 	write_optional_in(transaction, LAST_SPACE_ID_KEY, preferences.last_space_id.as_deref())?;
 	let bots_by_space = bots_by_space_as_stored(&preferences.last_bot_id_by_space);
 	write_optional_in(transaction, LAST_BOT_ID_BY_SPACE_KEY, bots_by_space.as_deref())?;
-	transaction.execute(CLEAR_SETTING, [DROPPED_LAST_BOT_ID_KEY])?;
+	SETTINGS.clear(transaction, None, DROPPED_LAST_BOT_ID_KEY)?;
 	write_picture_in(transaction, preferences.avatar_image_path.as_deref())
 }
 
@@ -249,8 +248,7 @@ fn write_switch_in(
 	key: &str,
 	is_on: bool,
 ) -> Result<(), DatabaseError> {
-	transaction.execute(WRITE_SETTING, params![key, switch_as_stored(is_on)])?;
-	Ok(())
+	SETTINGS.write(transaction, None, key, switch_as_stored(is_on))
 }
 
 fn write_picture_in(
@@ -266,14 +264,9 @@ fn write_optional_in(
 	value: Option<&str>,
 ) -> Result<(), DatabaseError> {
 	match value {
-		Some(value) => {
-			transaction.execute(WRITE_SETTING, params![key, value])?;
-		}
-		None => {
-			transaction.execute(CLEAR_SETTING, [key])?;
-		}
+		Some(value) => SETTINGS.write(transaction, None, key, value),
+		None => SETTINGS.clear(transaction, None, key),
 	}
-	Ok(())
 }
 
 #[cfg(test)]
@@ -387,7 +380,7 @@ mod tests {
 		database
 			.call_mut(|connection| {
 				let transaction = write_transaction(connection)?;
-				transaction.execute(WRITE_SETTING, params![DROPPED_LAST_BOT_ID_KEY, "bot-one"])?;
+				SETTINGS.write(&transaction, None, DROPPED_LAST_BOT_ID_KEY, "bot-one")?;
 				transaction.commit()?;
 				Ok(())
 			})
@@ -406,8 +399,7 @@ mod tests {
 		database
 			.call_mut(|connection| {
 				let transaction = write_transaction(connection)?;
-				transaction
-					.execute(WRITE_SETTING, params![LAST_BOT_ID_BY_SPACE_KEY, "{not json"])?;
+				SETTINGS.write(&transaction, None, LAST_BOT_ID_BY_SPACE_KEY, "{not json")?;
 				transaction.commit()?;
 				Ok(())
 			})
@@ -426,7 +418,7 @@ mod tests {
 		database
 			.call_mut(|connection| {
 				let transaction = write_transaction(connection)?;
-				transaction.execute(WRITE_SETTING, params![SIDEBAR_WIDTH_KEY, "wide"])?;
+				SETTINGS.write(&transaction, None, SIDEBAR_WIDTH_KEY, "wide")?;
 				transaction.commit()?;
 				Ok(())
 			})
@@ -446,7 +438,7 @@ mod tests {
 		database
 			.call_mut(|connection| {
 				let transaction = write_transaction(connection)?;
-				transaction.execute(WRITE_SETTING, params![ACTIVITY_PANEL_OPEN_KEY, "maybe"])?;
+				SETTINGS.write(&transaction, None, ACTIVITY_PANEL_OPEN_KEY, "maybe")?;
 				transaction.commit()?;
 				Ok(())
 			})
@@ -585,7 +577,7 @@ mod tests {
 		database
 			.call_mut(|connection| {
 				let transaction = write_transaction(connection)?;
-				transaction.execute(WRITE_SETTING, params![COLOR_SCHEME_KEY, "sepia"])?;
+				SETTINGS.write(&transaction, None, COLOR_SCHEME_KEY, "sepia")?;
 				transaction.commit()?;
 				Ok(())
 			})
@@ -604,8 +596,8 @@ mod tests {
 		database
 			.call_mut(|connection| {
 				let transaction = write_transaction(connection)?;
-				transaction.execute(WRITE_SETTING, params![DISPLAY_NAME_KEY, "Nyx"])?;
-				transaction.execute(WRITE_SETTING, params!["user.palette", "moss"])?;
+				SETTINGS.write(&transaction, None, DISPLAY_NAME_KEY, "Nyx")?;
+				SETTINGS.write(&transaction, None, "user.palette", "moss")?;
 				transaction.commit()?;
 				Ok(())
 			})
@@ -629,7 +621,7 @@ mod tests {
 		database
 			.call_mut(|connection| {
 				let transaction = write_transaction(connection)?;
-				transaction.execute(WRITE_SETTING, params![NOTIFY_ON_QUESTION_KEY, "maybe"])?;
+				SETTINGS.write(&transaction, None, NOTIFY_ON_QUESTION_KEY, "maybe")?;
 				transaction.commit()?;
 				Ok(())
 			})

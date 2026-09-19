@@ -380,18 +380,10 @@ pub struct Checked {
 	pub auth_method: Option<String>,
 }
 
-#[derive(Debug, Clone, Deserialize)]
-#[serde(rename_all = "camelCase")]
-pub struct Catalogue {
-	#[serde(default, deserialize_with = "null_as_default")]
-	pub models: Vec<String>,
-}
-
-#[derive(Debug, Clone, Deserialize)]
-#[serde(rename_all = "camelCase")]
-pub struct ToolCatalogue {
-	#[serde(default, deserialize_with = "null_as_default")]
-	pub tools: Vec<String>,
+pub fn listed(command: &str, answer: Value) -> Result<Vec<String>, serde_json::Error> {
+	let mut fields: serde_json::Map<String, Value> = serde_json::from_value(answer)?;
+	let list = fields.remove(command).unwrap_or(Value::Null);
+	Ok(serde_json::from_value::<Option<Vec<String>>>(list)?.unwrap_or_default())
 }
 
 #[derive(Debug, Clone, Deserialize)]

@@ -9,7 +9,8 @@ use super::contract::{
 	AgentEvent, CheckReport, ConnectionState, EvolvedBundle, LiveSession, PermissionDecision,
 	RuntimeScope, ScopedEvent, SessionHandle, TransportError,
 };
-use super::protocol::Checked;
+use super::host::hosted;
+use super::protocol::{self, Checked};
 use super::redact;
 use super::session::{Bundle, EventSink, GatedSink, Session, SessionOptions};
 use super::sidecar::{self, Sidecar, SidecarOptions};
@@ -307,7 +308,6 @@ struct Gate {
 	busy: HashSet<RunKey>,
 }
 
-#[derive(Default)]
 pub struct AgentState {
 	gate: std::sync::Mutex<Gate>,
 	live: Arc<Live>,
@@ -316,8 +316,8 @@ pub struct AgentState {
 	tools: Catalogue,
 }
 
-#[derive(Default)]
 struct Catalogue {
+	command: &'static str,
 	computed: Mutex<Option<ComputedCatalogue>>,
 }
 
@@ -326,7 +326,23 @@ struct ComputedCatalogue {
 	list: Vec<String>,
 }
 
+impl Default for AgentState {
+	fn default() -> Self {
+		Self {
+			gate: std::sync::Mutex::default(),
+			live: Arc::default(),
+			sidecar: Mutex::default(),
+			models: Catalogue::of(protocol::MODELS),
+			tools: Catalogue::of(protocol::TOOLS),
+		}
+	}
+}
+
 impl Catalogue {
+	fn of(command: &'static str) -> Self {
+		Self { command, computed: Mutex::default() }
+	}
+
 	async fn served<Computing>(
 		&self,
 		connection: &Values,
@@ -376,27 +392,13 @@ impl AgentState {
 		self.sidecar.lock().await.take()
 	}
 
-	async fn models(&self, connection: &Values) -> Vec<String> {
-		self.models
+	async fn offered(&self, catalogue: &Catalogue, connection: &Values) -> Vec<String> {
+		catalogue
 			.served(connection, || async {
 				let Ok(sidecar) = self.sidecar().await else {
 					return Vec::new();
 				};
-				let Ok(offered) = sidecar.catalogue(connection).await else {
-					return Vec::new();
-				};
-				offered
-			})
-			.await
-	}
-
-	async fn tools(&self, connection: &Values) -> Vec<String> {
-		self.tools
-			.served(connection, || async {
-				let Ok(sidecar) = self.sidecar().await else {
-					return Vec::new();
-				};
-				let Ok(offered) = sidecar.tools(connection).await else {
+				let Ok(offered) = sidecar.offered(catalogue.command, connection).await else {
 					return Vec::new();
 				};
 				offered
@@ -427,12 +429,14 @@ fn stale(scope: &RuntimeScope) -> TransportError {
 
 #[tauri::command]
 pub async fn agent_models<R: Runtime>(app: AppHandle<R>) -> Vec<String> {
-	app.state::<AgentState>().models(&held_connection(&app)).await
+	let state = app.state::<AgentState>();
+	state.offered(&state.models, &held_connection(&app)).await
 }
 
 #[tauri::command]
 pub async fn agent_tools<R: Runtime>(app: AppHandle<R>) -> Vec<String> {
-	app.state::<AgentState>().tools(&held_connection(&app)).await
+	let state = app.state::<AgentState>();
+	state.offered(&state.tools, &held_connection(&app)).await
 }
 
 #[tauri::command]
@@ -686,23 +690,23 @@ pub async fn agent_start_or_resume_session<R: Runtime>(
 		.connected(held_connection(&app))
 		.with_app_data(app.path().app_data_dir().ok())
 		.in_conversation(scope.conversation_id.clone())
-		.hosting(Arc::new(RoutineHost::new(
+		.hosting(hosted(RoutineHost::new(
 			app.clone(),
 			scope.conversation_id.clone(),
 			scope.bot_id.clone(),
 		)))
-		.hosting(Arc::new(MissionHost::new(
+		.hosting(hosted(MissionHost::new(
 			app.clone(),
 			scope.conversation_id.clone(),
 			scope.bot_id.clone(),
 		)))
-		.hosting(Arc::new(CompanionHost::new(
+		.hosting(hosted(CompanionHost::new(
 			app.clone(),
 			scope.conversation_id.clone(),
 			scope.bot_id.clone(),
 		)))
-		.hosting(Arc::new(StandingHost::new(app.clone(), scope.bot_id.clone())))
-		.hosting(Arc::new(ApplicationHost::new(
+		.hosting(hosted(StandingHost::new(app.clone(), scope.bot_id.clone())))
+		.hosting(hosted(ApplicationHost::new(
 			app.clone(),
 			scope.conversation_id.clone(),
 			scope.bot_id.clone(),
@@ -904,7 +908,7 @@ mod tests {
 
 	#[tokio::test]
 	async fn a_catalogue_is_computed_again_once_the_held_source_changes() {
-		let catalogue = Catalogue::default();
+		let catalogue = Catalogue::of(protocol::MODELS);
 		let asks = std::sync::atomic::AtomicUsize::new(0);
 		let key = a_source("ANTHROPIC_API_KEY", "sk-held");
 		let token = a_source("CLAUDE_CODE_OAUTH_TOKEN", "held-token");
@@ -923,7 +927,7 @@ mod tests {
 
 	#[tokio::test]
 	async fn an_empty_list_is_computed_again_on_the_next_ask() {
-		let catalogue = Catalogue::default();
+		let catalogue = Catalogue::of(protocol::MODELS);
 		let asks = std::sync::atomic::AtomicUsize::new(0);
 		let nothing_held = Values::new();
 

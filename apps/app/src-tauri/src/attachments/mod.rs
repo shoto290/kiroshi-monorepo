@@ -1,18 +1,17 @@
-
 pub mod commands;
 pub mod contract;
 
-use std::ffi::OsStr;
+use std::ffi::OsString;
 use std::fs;
+use std::io;
 use std::path::{Path, PathBuf};
 
-use tauri::{AppHandle, Manager, Runtime};
 use uuid::Uuid;
 
+use crate::db::{Database, DatabaseError};
+use crate::file_store::FileStore;
 use crate::private_files;
 use contract::SubmittedAttachment;
-
-const DIR_NAME: &str = "attachments";
 
 const MAX_BYTES: u64 = 10 * 1024 * 1024;
 
@@ -29,8 +28,22 @@ pub enum Rejection {
 	Unwritable { detail: String },
 }
 
-pub fn dir<R: Runtime>(app: &AppHandle<R>) -> Option<PathBuf> {
-	Some(app.path().app_data_dir().ok()?.join(DIR_NAME))
+pub struct Attachments;
+
+impl FileStore for Attachments {
+	const DIR_NAME: &'static str = "attachments";
+
+	async fn referenced(database: &Database) -> Result<Vec<String>, DatabaseError> {
+		database.conversations().conversation_ids().await
+	}
+
+	fn kept(_: &Path, referenced: &[String]) -> Vec<OsString> {
+		referenced.iter().map(OsString::from).collect()
+	}
+
+	fn remove(path: &Path) -> io::Result<()> {
+		fs::remove_dir_all(path).or_else(|_| fs::remove_file(path))
+	}
 }
 
 fn conversation_dir(root: &Path, conversation_id: &str) -> PathBuf {
@@ -61,28 +74,6 @@ pub fn store(
 		}
 	}
 	Ok(paths)
-}
-
-pub async fn sweep_referenced(database: &crate::db::Database, dir: Option<&Path>) {
-	let Some(dir) = dir else {
-		return;
-	};
-	if let Ok(referenced) = database.conversations().conversation_ids().await {
-		sweep(dir, &referenced);
-	}
-}
-
-pub fn sweep(root: &Path, referenced: &[String]) {
-	let Ok(entries) = fs::read_dir(root) else {
-		return;
-	};
-	for entry in entries.flatten() {
-		if referenced.iter().any(|id| OsStr::new(id) == entry.file_name()) {
-			continue;
-		}
-		let path = entry.path();
-		let _ = fs::remove_dir_all(&path).or_else(|_| fs::remove_file(&path));
-	}
 }
 
 fn refuse(submitted: &[SubmittedAttachment]) -> Result<(), Rejection> {
@@ -347,7 +338,7 @@ mod tests {
 		let kept = store(&root, "c1", &[an_attachment("a.txt", b"kept")]).expect("stored");
 		let dropped = store(&root, "c2", &[an_attachment("a.txt", b"dropped")]).expect("stored");
 
-		sweep(&root, &["c1".to_owned()]);
+		Attachments::sweep(&root, &["c1".to_owned()]);
 
 		assert!(kept[0].exists(), "a conversation on the record lost its attachments");
 		assert!(!dropped[0].exists(), "a deleted conversation kept its attachments");
@@ -362,7 +353,7 @@ mod tests {
 		store(&root, "c1", &[an_attachment("a.txt", b"one")]).expect("stored");
 		store(&root, "c2", &[an_attachment("b.txt", b"two")]).expect("stored");
 
-		sweep(&root, &[]);
+		Attachments::sweep(&root, &[]);
 
 		assert_eq!(names_in(&root), Vec::<String>::new());
 		fs::remove_dir_all(&root).expect("cleanup");
@@ -372,7 +363,7 @@ mod tests {
 	fn a_sweep_of_a_root_that_is_not_there_creates_nothing() {
 		let root = temp_root();
 
-		sweep(&root, &["c1".to_owned()]);
+		Attachments::sweep(&root, &["c1".to_owned()]);
 
 		assert!(!root.exists(), "sweeping made the directory it had nothing to sweep");
 	}

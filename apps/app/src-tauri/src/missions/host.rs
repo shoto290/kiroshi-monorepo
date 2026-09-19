@@ -1,6 +1,6 @@
 use serde::{Deserialize, Serialize};
 use serde_json::Value;
-use tauri::{AppHandle, Manager, Runtime, State};
+use tauri::{AppHandle, Runtime};
 
 use super::commands::{
 	mission_close, mission_escalate, mission_note, mission_open, mission_row, mission_watch,
@@ -9,16 +9,11 @@ use super::contract::{
 	Mission, MissionClosing, MissionDraft, MissionEntry, MissionError, MissionEventKind,
 	MissionNote, MissionOutcome, MissionState, MissionWatch, Ticket,
 };
-use crate::agent::protocol::HostAnswer;
-use crate::agent::session::{Answering, HostRequests};
+use crate::agent::host::{Host, Refusal};
 use crate::conversations::commands::ready;
 use crate::db;
 
-const SUBTYPE: &str = "mission";
-
 const BOT: &str = "bot";
-
-const NO_DATABASE: &str = "the store this session writes to is not open";
 
 #[derive(Debug)]
 pub struct MissionHost<R: Runtime> {
@@ -27,82 +22,9 @@ pub struct MissionHost<R: Runtime> {
 	bot_id: String,
 }
 
-impl<R: Runtime> Clone for MissionHost<R> {
-	fn clone(&self) -> Self {
-		Self {
-			app: self.app.clone(),
-			conversation_id: self.conversation_id.clone(),
-			bot_id: self.bot_id.clone(),
-		}
-	}
-}
-
 impl<R: Runtime> MissionHost<R> {
 	pub fn new(app: AppHandle<R>, conversation_id: String, bot_id: String) -> Self {
 		Self { app, conversation_id, bot_id }
-	}
-
-	pub async fn answer(&self, request: Value) -> HostAnswer {
-		self.served(request).await.map_err(refused)
-	}
-
-	async fn served(&self, request: Value) -> Result<Value, MissionError> {
-		let Asked::Mission { operation, payload } = read(request)?;
-		let state = self.state()?;
-		let database = ready(&state)?;
-		match operation {
-			Operation::Open => {
-				let asked: Opened = read(payload)?;
-				let draft = self.draft(asked);
-				answered(mission_open(self.app.clone(), state, draft).await?)
-			}
-			Operation::Note => {
-				let asked: Noted = read(payload)?;
-				self.refuse_a_mission_it_does_not_own(database, &asked.id).await?;
-				let entry = MissionEntry {
-					kind: MissionEventKind::Note,
-					source: BOT.to_owned(),
-					payload: serde_json::json!({ "line": asked.line }),
-				};
-				answered(mission_note(self.app.clone(), state, asked.id, entry).await?)
-			}
-			Operation::Escalate => {
-				let asked: Escalated = read(payload)?;
-				self.refuse_a_mission_it_does_not_own(database, &asked.id).await?;
-				let note = MissionNote {
-					source: BOT.to_owned(),
-					payload: serde_json::json!({
-						"question": asked.question,
-						"reason": asked.reason,
-					}),
-				};
-				answered(mission_escalate(self.app.clone(), state, asked.id, note).await?)
-			}
-			Operation::Close => {
-				let asked: Closed = read(payload)?;
-				self.refuse_a_mission_it_does_not_own(database, &asked.id).await?;
-				let closing = MissionClosing {
-					source: BOT.to_owned(),
-					outcome: asked.outcome,
-					summary: asked.summary,
-				};
-				answered(mission_close(self.app.clone(), state, asked.id, closing).await?)
-			}
-			Operation::Watch => {
-				let asked: Armed = read(payload)?;
-				self.refuse_a_mission_it_does_not_own(database, &asked.id).await?;
-				let watch = MissionWatch { branch: asked.branch, repository: asked.repository };
-				answered(mission_watch(self.app.clone(), state, asked.id, watch).await?)
-			}
-			Operation::List => {
-				let _: Bare = read(payload)?;
-				let carried = database
-					.missions()
-					.still_open_for_bot(self.conversation_id.clone(), self.bot_id.clone())
-					.await?;
-				answered(carried.into_iter().map(listed).collect::<Vec<_>>())
-			}
-		}
 	}
 
 	fn draft(&self, asked: Opened) -> MissionDraft {
@@ -115,12 +37,6 @@ impl<R: Runtime> MissionHost<R> {
 			source: BOT.to_owned(),
 			workspace_path: asked.workspace_path,
 		}
-	}
-
-	fn state(&self) -> Result<State<'_, db::DatabaseState>, MissionError> {
-		self.app
-			.try_state::<db::DatabaseState>()
-			.ok_or_else(|| MissionError::Unexpected { detail: NO_DATABASE.to_owned() })
 	}
 
 	fn runs_in(&self, held: &Mission) -> bool {
@@ -150,30 +66,85 @@ impl<R: Runtime> MissionHost<R> {
 	}
 }
 
-impl<R: Runtime> HostRequests for MissionHost<R> {
-	fn subtype(&self) -> &'static str {
-		SUBTYPE
-	}
+impl<R: Runtime> Host for MissionHost<R> {
+	const SUBTYPE: &'static str = "mission";
 
-	fn serve(&self, request: Value) -> Answering {
-		let held = self.clone();
-		Box::pin(async move { held.answer(request).await })
+	type Operation = Operation;
+
+	type Error = MissionError;
+
+	async fn served(&self, operation: Operation, payload: Value) -> Result<Value, MissionError> {
+		let state = Self::database(&self.app)?;
+		let database = ready(&state)?;
+		match operation {
+			Operation::Open => {
+				let asked: Opened = Self::read(payload)?;
+				let draft = self.draft(asked);
+				Self::answered(mission_open(self.app.clone(), state, draft).await?)
+			}
+			Operation::Note => {
+				let asked: Noted = Self::read(payload)?;
+				self.refuse_a_mission_it_does_not_own(database, &asked.id).await?;
+				let entry = MissionEntry {
+					kind: MissionEventKind::Note,
+					source: BOT.to_owned(),
+					payload: serde_json::json!({ "line": asked.line }),
+				};
+				Self::answered(mission_note(self.app.clone(), state, asked.id, entry).await?)
+			}
+			Operation::Escalate => {
+				let asked: Escalated = Self::read(payload)?;
+				self.refuse_a_mission_it_does_not_own(database, &asked.id).await?;
+				let note = MissionNote {
+					source: BOT.to_owned(),
+					payload: serde_json::json!({
+						"question": asked.question,
+						"reason": asked.reason,
+					}),
+				};
+				Self::answered(mission_escalate(self.app.clone(), state, asked.id, note).await?)
+			}
+			Operation::Close => {
+				let asked: Closed = Self::read(payload)?;
+				self.refuse_a_mission_it_does_not_own(database, &asked.id).await?;
+				let closing = MissionClosing {
+					source: BOT.to_owned(),
+					outcome: asked.outcome,
+					summary: asked.summary,
+				};
+				Self::answered(mission_close(self.app.clone(), state, asked.id, closing).await?)
+			}
+			Operation::Watch => {
+				let asked: Armed = Self::read(payload)?;
+				self.refuse_a_mission_it_does_not_own(database, &asked.id).await?;
+				let watch = MissionWatch { branch: asked.branch, repository: asked.repository };
+				Self::answered(mission_watch(self.app.clone(), state, asked.id, watch).await?)
+			}
+			Operation::List => {
+				let _: Bare = Self::read(payload)?;
+				let carried = database
+					.missions()
+					.still_open_for_bot(self.conversation_id.clone(), self.bot_id.clone())
+					.await?;
+				Self::answered(carried.into_iter().map(listed).collect::<Vec<_>>())
+			}
+		}
 	}
 }
 
-#[derive(Debug, Deserialize)]
-#[serde(tag = "subtype", rename_all = "camelCase")]
-enum Asked {
-	Mission {
-		operation: Operation,
-		#[serde(default = "nothing")]
-		payload: Value,
-	},
+impl Refusal for MissionError {
+	fn unreadable(detail: String) -> Self {
+		Self::UnreadableRequest { detail }
+	}
+
+	fn unexpected(detail: String) -> Self {
+		Self::Unexpected { detail }
+	}
 }
 
 #[derive(Debug, Clone, Copy, Deserialize)]
 #[serde(rename_all = "camelCase")]
-enum Operation {
+pub enum Operation {
 	Open,
 	Note,
 	Escalate,
@@ -243,26 +214,6 @@ fn listed(mission: Mission) -> Listed {
 		state: mission.state,
 		opened_at: mission.opened_at,
 	}
-}
-
-fn nothing() -> Value {
-	Value::Object(serde_json::Map::new())
-}
-
-fn read<T: serde::de::DeserializeOwned>(payload: Value) -> Result<T, MissionError> {
-	serde_json::from_value(payload)
-		.map_err(|error| MissionError::UnreadableRequest { detail: error.to_string() })
-}
-
-fn answered<T: Serialize>(answer: T) -> Result<Value, MissionError> {
-	serde_json::to_value(answer)
-		.map_err(|error| MissionError::Unexpected { detail: error.to_string() })
-}
-
-fn refused(error: MissionError) -> Value {
-	serde_json::to_value(&error).unwrap_or_else(
-		|failure| serde_json::json!({ "kind": "unexpected", "detail": failure.to_string() }),
-	)
 }
 
 #[cfg(test)]

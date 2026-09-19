@@ -1,13 +1,15 @@
-use rusqlite::{params, Connection, OptionalExtension, Transaction, TransactionBehavior};
+use std::sync::LazyLock;
 
+use rusqlite::{Connection, Transaction, TransactionBehavior};
+
+use super::settings::Settings;
 use super::spaces::{held, SpaceError};
 use crate::db::{Access, DatabaseError};
 
 const COLLAPSED_SECTION_IDS_KEY: &str = "space.collapsed_section_ids";
 
-const READ_SETTING: &str = "SELECT value FROM space_settings WHERE space_id = ?1 AND key = ?2";
-const WRITE_SETTING: &str = "INSERT INTO space_settings (space_id, key, value) VALUES (?1, ?2, ?3)
-	ON CONFLICT (space_id, key) DO UPDATE SET value = excluded.value";
+static SETTINGS: LazyLock<Settings> =
+	LazyLock::new(|| Settings::new("space_settings", Some("space_id")));
 
 #[derive(Debug, Clone, Default, PartialEq, Eq)]
 pub struct Preferences {
@@ -48,16 +50,14 @@ fn written(
 		return Err(SpaceError::UnknownSpace { id: space_id.to_owned() });
 	}
 	let collapsed = serde_json::to_string(&preferences.collapsed_section_ids).unwrap_or_default();
-	transaction.execute(WRITE_SETTING, params![space_id, COLLAPSED_SECTION_IDS_KEY, collapsed])?;
+	SETTINGS.write(&transaction, Some(space_id), COLLAPSED_SECTION_IDS_KEY, &collapsed)?;
 	let stored = stored_in(&transaction, space_id)?;
 	transaction.commit()?;
 	Ok(stored)
 }
 
 fn stored_in(connection: &Connection, space_id: &str) -> Result<Preferences, DatabaseError> {
-	let stored: Option<String> = connection
-		.query_row(READ_SETTING, params![space_id, COLLAPSED_SECTION_IDS_KEY], |row| row.get(0))
-		.optional()?;
+	let stored = SETTINGS.read(connection, Some(space_id), COLLAPSED_SECTION_IDS_KEY)?;
 	Ok(Preferences {
 		collapsed_section_ids: stored
 			.and_then(|value| serde_json::from_str(&value).ok())
@@ -87,8 +87,7 @@ mod tests {
 		database
 			.call_mut(move |connection| {
 				let transaction = write_transaction(connection)?;
-				transaction
-					.execute(WRITE_SETTING, params![PERSONAL, COLLAPSED_SECTION_IDS_KEY, value])?;
+				SETTINGS.write(&transaction, Some(PERSONAL), COLLAPSED_SECTION_IDS_KEY, value)?;
 				transaction.commit()?;
 				Ok(())
 			})

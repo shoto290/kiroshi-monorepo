@@ -9,6 +9,7 @@ pub mod routines;
 pub mod runtime_context;
 pub mod search;
 pub mod sections;
+pub mod settings;
 pub mod space_settings;
 pub mod spaces;
 pub mod user;
