@@ -1,4 +1,5 @@
 {
 	"$schema": "https://unpkg.com/knip@6/schema.json",
-	"ignoreWorkspaces": ["apps/app/sidecar"]
+	"ignoreWorkspaces": ["apps/app/sidecar"],
+	"ignore": ["apps/app/src/lib/bindings.ts"]
 }

@@ -9,7 +9,7 @@ use kiroshi_app::agent::contract::{
 	ScopedEvent, TransportError, TurnOutcome,
 };
 use kiroshi_app::agent::AgentState;
-use kiroshi_app::commands::builder;
+use kiroshi_app::commands::invoke_handler;
 use kiroshi_app::db;
 use serde_json::{json, Value};
 use tauri::test::{mock_builder, mock_context, noop_assets, MockRuntime, INVOKE_KEY};
@@ -45,7 +45,7 @@ fn launch() -> Harness {
 	let app = mock_builder()
 		.manage(AgentState::default())
 		.manage(db::DatabaseState::Err(db::DatabaseError::AppDataDir))
-		.invoke_handler(builder().invoke_handler())
+		.invoke_handler(invoke_handler())
 		.build(context)
 		.expect("app builds");
 	let window =

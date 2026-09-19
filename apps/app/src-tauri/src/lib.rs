@@ -72,7 +72,7 @@ pub fn run() {
 			});
 			Ok(())
 		})
-		.invoke_handler(builder::<tauri::Wry>().invoke_handler())
+		.invoke_handler(builder().invoke_handler())
 		.build(tauri::generate_context!())
 		.expect("error while building tauri application")
 		.run(|app, event| {

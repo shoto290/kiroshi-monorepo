@@ -1,13 +1,25 @@
+use tauri::ipc::Invoke;
 use tauri::Runtime;
-use tauri_specta::{collect_commands, Builder};
+use tauri_specta::{collect_commands, Builder, Commands};
 
 use crate::{
 	agent, applications, attachments, companions, conversations, environment, mcp_oauth, missions,
 	notifications, plugins, routines, search, sections, spaces, user,
 };
 
-pub fn builder<R: Runtime>() -> Builder<R> {
-	Builder::<R>::new().commands(collect_commands![
+pub fn builder() -> Builder<tauri::Wry> {
+	Builder::new().commands(commands())
+}
+
+// `tauri::test::mock_builder` only ever yields a `Builder<MockRuntime>`, so the handler the
+// integration tests mount cannot come from the `tauri::Wry` builder the exporter needs.
+pub fn invoke_handler<R: Runtime>() -> impl Fn(Invoke<R>) -> bool + Send + Sync + 'static {
+	let builder = Builder::<R>::new().commands(commands());
+	move |invoke| builder.invoke_handler()(invoke)
+}
+
+fn commands<R: Runtime>() -> Commands<R> {
+	collect_commands![
 		applications::commands::application_catalogue,
 		applications::commands::application_search,
 		applications::commands::application_named,
@@ -129,5 +141,5 @@ pub fn builder<R: Runtime>() -> Builder<R> {
 		user::commands::user_preferences::<tauri::Wry>,
 		user::commands::user_set_preferences::<tauri::Wry>,
 		user::commands::user_set_profile_picture::<tauri::Wry>,
-	])
+	]
 }

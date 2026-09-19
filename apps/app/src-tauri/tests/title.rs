@@ -1,7 +1,7 @@
 use kiroshi_app::agent::commands::terminate_session;
 use kiroshi_app::agent::sidecar::SIDECAR_OVERRIDE_ENV;
 use kiroshi_app::agent::AgentState;
-use kiroshi_app::commands::builder;
+use kiroshi_app::commands::invoke_handler;
 use serde_json::{json, Value};
 use tauri::test::{mock_builder, mock_context, noop_assets, MockRuntime, INVOKE_KEY};
 use tauri::webview::InvokeRequest;
@@ -38,7 +38,7 @@ fn a_title_crosses_without_a_session_and_nothing_crosses_when_the_runtime_answer
 
 	let app = mock_builder()
 		.manage(AgentState::default())
-		.invoke_handler(builder().invoke_handler())
+		.invoke_handler(invoke_handler())
 		.build(mock_context(noop_assets()))
 		.expect("app builds");
 	let window = window(&app);

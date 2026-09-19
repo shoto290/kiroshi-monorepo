@@ -5,7 +5,7 @@ use std::sync::mpsc;
 use std::time::Duration;
 
 use kiroshi_app::bundles;
-use kiroshi_app::commands::builder;
+use kiroshi_app::commands::invoke_handler;
 use kiroshi_app::db;
 use kiroshi_app::environment::contract::{EnvOwner, ResolvedEnv};
 use kiroshi_app::environment::store;
@@ -50,12 +50,12 @@ impl Drop for Home {
 fn host(identifier: &str) -> App<MockRuntime> {
 	let mut context = mock_context(noop_assets());
 	context.config_mut().identifier = identifier.into();
-	mock_builder().invoke_handler(builder().invoke_handler()).build(context).expect("app builds")
+	mock_builder().invoke_handler(invoke_handler()).build(context).expect("app builds")
 }
 
 fn app_without_a_database() -> App<MockRuntime> {
 	mock_builder()
-		.invoke_handler(builder().invoke_handler())
+		.invoke_handler(invoke_handler())
 		.manage(db::DatabaseState::Err(db::DatabaseError::AppDataDir))
 		.build(mock_context(noop_assets()))
 		.expect("app builds")
