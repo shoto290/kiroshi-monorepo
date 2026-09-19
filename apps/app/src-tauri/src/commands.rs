@@ -1,5 +1,4 @@
-use tauri::ipc::Invoke;
-use tauri::Runtime;
+use tauri::{ipc::Invoke, Runtime};
 use tauri_specta::{collect_commands, Builder, Commands};
 
 use crate::{
