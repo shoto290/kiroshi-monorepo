@@ -72,11 +72,11 @@ export const startCompanionSpokeDriver = ({
 		}
 	}
 
-	const showsConversation = (conversationId: string) =>
+	const isRostered = (conversationId: string) =>
 		rowIdsIn(roster.getState().conversationRosters).includes(conversationId)
 
-	const rosterShowing = async (conversationId: string) => {
-		if (showsConversation(conversationId)) {
+	const rosterShows = async (conversationId: string) => {
+		if (isRostered(conversationId)) {
 			return true
 		}
 
@@ -91,10 +91,10 @@ export const startCompanionSpokeDriver = ({
 	}
 
 	const relayAndAnnounce = async (spoken: CompanionSpoke, key: string) => {
-		const isShowing = await rosterShowing(spoken.conversationId)
+		const isShown = await rosterShows(spoken.conversationId)
 		const isWritten = await relay(spoken, key)
 
-		if (!isShowing || !isWritten) {
+		if (!isShown || !isWritten) {
 			return
 		}
 
