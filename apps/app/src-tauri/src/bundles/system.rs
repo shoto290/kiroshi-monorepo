@@ -18,19 +18,22 @@ const ROUTINES: &str = "skills/routines/SKILL.md";
 
 const MISSIONS: &str = "skills/missions/SKILL.md";
 
+const CONVERSATIONS: &str = "skills/conversations/SKILL.md";
+
 const INSTALLS: &str = "skills/applications/SKILL.md";
 
 const TRIGGERS: &str = ".triggers.json";
 
 pub(crate) const APPLICATIONS: &str = "applications/catalogue.json";
 
-const FILES: [(&str, &[u8]); 12] = [
+const FILES: [(&str, &[u8]); 13] = [
 	(MANIFEST, include_bytes!("../../plugins/kiroshi/.claude-plugin/plugin.json")),
 	(TRIGGERS, include_bytes!("../../plugins/kiroshi/.triggers.json")),
 	(LEARN, include_bytes!("../../plugins/kiroshi/skills/learn/SKILL.md")),
 	(ROUTINES, include_bytes!("../../plugins/kiroshi/skills/routines/SKILL.md")),
 	(INSTALLS, include_bytes!("../../plugins/kiroshi/skills/applications/SKILL.md")),
 	(MISSIONS, include_bytes!("../../plugins/kiroshi/skills/missions/SKILL.md")),
+	(CONVERSATIONS, include_bytes!("../../plugins/kiroshi/skills/conversations/SKILL.md")),
 	(
 		"skills/learn/references/skills.md",
 		include_bytes!("../../plugins/kiroshi/skills/learn/references/skills.md"),
@@ -181,6 +184,37 @@ mod tests {
 			"Ask, never guess.",
 		] {
 			assert!(text.contains(said), "{said} is missing");
+		}
+	}
+
+	#[test]
+	fn the_conversations_skill_is_preloaded_and_says_when_a_room_is_worth_opening() {
+		let text = String::from_utf8_lossy(embedded(CONVERSATIONS));
+		let said_in_one_breath = text.split_whitespace().collect::<Vec<_>>().join(" ");
+
+		assert!(text.contains("preload: true"), "got {text}");
+		for said in [
+			"`conversation_open`, a new room led by you, answering the id of that room, its title and the companions seated in it.",
+			"`conversation_say`, one message in a room you already hold a seat in, answering the id of that room and its title.",
+			"`companion_invite`, one more seat for a companion of this space, answering that companion's id, its name, and whether it was already seated.",
+			"`companion_invite` seats a companion in this conversation, and in another room of the caller when a room id is passed.",
+			"The subject belongs to companions who are not in this conversation.",
+			"The work runs long and does not belong in the thread it was raised in.",
+			"A question you can answer on the spot opens no room",
+			"No room is opened for the convenience of the companion opening it.",
+			"The title is the subject in a few words, read by someone who followed none of it.",
+			"The first message is written by you in your own words, and it is read in your name.",
+			"A companion is seated by `with`, and it is summoned by an at sign followed by its exact name inside the message.",
+			"A room opened with nobody mentioned is a room where nothing happens.",
+			"A companion passed to `with` and to `companion_invite` is named by its name or by its id.",
+			"A name two companions of this space share is refused, and the refusal answers their ids: pass the id of the one you want in place of that name.",
+			"The room id answered by `conversation_open` is the only way back into that room, and nothing lists it later.",
+			"You speak only in a room you hold a seat in, and you seat yourself in no room.",
+			"The person does not read the new room unless they open it.",
+			"Whatever the person decides is asked in the conversation the person is talking in.",
+			"Opening a room is reported in one line carrying its title, in the conversation the room was opened from.",
+		] {
+			assert!(said_in_one_breath.contains(said), "{said} is missing");
 		}
 	}
 
