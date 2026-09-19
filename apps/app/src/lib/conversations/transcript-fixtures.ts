@@ -4,7 +4,7 @@ import {
 } from "@workspace/ui/components/bot-settings"
 
 import type { SpeakingBot } from "./conversation-controller"
-import type { BotIdentity } from "./store-contract"
+import type { Bot, BotIdentity } from "./store-contract"
 import type { TranscriptStore } from "./store-port"
 import type { TranscriptMessage } from "./transcript-contract"
 
@@ -33,7 +33,7 @@ export const message = (
 
 export const botIdentity = (
 	overrides: Partial<BotIdentity> = {},
-): BotIdentity => ({
+): Pick<Bot, keyof BotIdentity> => ({
 	name: "Nyx",
 	title: "Reviewer",
 	model: "opus",

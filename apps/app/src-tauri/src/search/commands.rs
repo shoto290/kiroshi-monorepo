@@ -12,6 +12,7 @@ fn ready(state: &db::DatabaseState) -> Result<&db::Database, StorageFailure> {
 }
 
 #[tauri::command]
+#[specta::specta]
 pub async fn search_messages(
 	state: State<'_, db::DatabaseState>,
 	query: MessageSearchQuery,
@@ -24,6 +25,7 @@ pub async fn search_messages(
 }
 
 #[tauri::command]
+#[specta::specta]
 pub async fn search_catalogue(
 	state: State<'_, db::DatabaseState>,
 	query: String,
@@ -38,6 +40,7 @@ pub async fn search_catalogue(
 }
 
 #[tauri::command]
+#[specta::specta]
 pub async fn search_recent(
 	state: State<'_, db::DatabaseState>,
 	space_id: String,

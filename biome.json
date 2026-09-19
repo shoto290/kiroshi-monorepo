@@ -8,7 +8,12 @@
 	},
 	"files": {
 		"ignoreUnknown": false,
-		"includes": ["**", "!**/src/generated", "!packages/ui/src/components/ui"]
+		"includes": [
+			"**",
+			"!**/src/generated",
+			"!apps/app/src/lib/bindings.ts",
+			"!packages/ui/src/components/ui"
+		]
 	},
 	"formatter": {
 		"enabled": true,

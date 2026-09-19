@@ -14,12 +14,14 @@ fn ready(state: &db::DatabaseState) -> Result<&db::Database, SpaceError> {
 }
 
 #[tauri::command]
+#[specta::specta]
 pub async fn space_list(state: State<'_, db::DatabaseState>) -> Result<Vec<Space>, SpaceError> {
 	let stored = ready(&state)?.spaces().list().await?;
 	Ok(stored.into_iter().map(Space::from).collect())
 }
 
 #[tauri::command]
+#[specta::specta]
 pub async fn space_create<R: Runtime>(
 	app: AppHandle<R>,
 	state: State<'_, db::DatabaseState>,
@@ -35,6 +37,7 @@ pub async fn space_create<R: Runtime>(
 }
 
 #[tauri::command]
+#[specta::specta]
 pub async fn space_update(
 	state: State<'_, db::DatabaseState>,
 	id: String,
@@ -49,6 +52,7 @@ pub async fn space_update(
 }
 
 #[tauri::command]
+#[specta::specta]
 pub async fn space_reorder(
 	state: State<'_, db::DatabaseState>,
 	ids: Vec<String>,
@@ -57,6 +61,7 @@ pub async fn space_reorder(
 }
 
 #[tauri::command]
+#[specta::specta]
 pub async fn space_delete<R: Runtime>(
 	app: AppHandle<R>,
 	state: State<'_, db::DatabaseState>,
@@ -71,6 +76,7 @@ pub async fn space_delete<R: Runtime>(
 }
 
 #[tauri::command]
+#[specta::specta]
 pub async fn space_preferences(
 	state: State<'_, db::DatabaseState>,
 	space_id: String,
@@ -79,6 +85,7 @@ pub async fn space_preferences(
 }
 
 #[tauri::command]
+#[specta::specta]
 pub async fn space_set_preferences(
 	state: State<'_, db::DatabaseState>,
 	space_id: String,
@@ -101,6 +108,7 @@ async fn forget_bundles(root: Option<&Path>, database: &db::Database, bot_ids: &
 }
 
 #[tauri::command]
+#[specta::specta]
 pub async fn bot_move_to_space(
 	state: State<'_, db::DatabaseState>,
 	bot_id: String,
@@ -110,6 +118,7 @@ pub async fn bot_move_to_space(
 }
 
 #[tauri::command]
+#[specta::specta]
 pub async fn bot_add_to_space(
 	state: State<'_, db::DatabaseState>,
 	bot_id: String,
@@ -120,6 +129,7 @@ pub async fn bot_add_to_space(
 }
 
 #[tauri::command]
+#[specta::specta]
 pub async fn bot_remove_from_space(
 	state: State<'_, db::DatabaseState>,
 	bot_id: String,

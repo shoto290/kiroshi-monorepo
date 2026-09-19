@@ -8,7 +8,7 @@ use crate::conversations::contract::{AvatarRejection, StorageFailure};
 use crate::db::repositories::user;
 use crate::db::DatabaseError;
 
-#[derive(Debug, Clone, Copy, PartialEq, Eq, Serialize, Deserialize)]
+#[derive(Debug, Clone, Copy, PartialEq, Eq, Serialize, Deserialize, specta::Type)]
 #[serde(rename_all = "camelCase")]
 pub enum ColorScheme {
 	System,
@@ -36,7 +36,7 @@ impl From<ColorScheme> for user::ColorScheme {
 	}
 }
 
-#[derive(Debug, Clone, PartialEq, Eq, Serialize, Deserialize)]
+#[derive(Debug, Clone, PartialEq, Eq, Serialize, Deserialize, specta::Type)]
 #[serde(rename_all = "camelCase")]
 pub struct UserPreferences {
 	pub display_name: String,
@@ -103,7 +103,7 @@ impl From<UserPreferences> for user::Preferences {
 	}
 }
 
-#[derive(Debug, Clone, PartialEq, Eq, Serialize, Deserialize)]
+#[derive(Debug, Clone, PartialEq, Eq, Serialize, Deserialize, specta::Type)]
 #[serde(tag = "kind", rename_all = "camelCase")]
 pub enum UserPreferencesError {
 	#[serde(rename_all = "camelCase")]

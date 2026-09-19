@@ -13,13 +13,16 @@ use super::runnable::{refusal, Runners};
 use super::search::{named, search};
 use crate::conversations::commands::ready;
 use crate::db;
+use crate::json::JsonValue;
 
 #[tauri::command]
+#[specta::specta]
 pub async fn application_catalogue() -> Result<Vec<Application>, ApplicationsError> {
 	catalogue::curated()
 }
 
 #[tauri::command]
+#[specta::specta]
 pub async fn application_search(
 	directory: State<'_, Arc<Directory>>,
 	query: String,
@@ -28,6 +31,7 @@ pub async fn application_search(
 }
 
 #[tauri::command]
+#[specta::specta]
 pub async fn application_named(
 	directory: State<'_, Arc<Directory>>,
 	name: String,
@@ -36,11 +40,13 @@ pub async fn application_named(
 }
 
 #[tauri::command]
-pub async fn application_runnable(config: serde_json::Value) -> Option<InstallRefusal> {
-	refusal(&Runners::default(), &config).await
+#[specta::specta]
+pub async fn application_runnable(config: JsonValue) -> Option<InstallRefusal> {
+	refusal(&Runners::default(), &config.0).await
 }
 
 #[tauri::command]
+#[specta::specta]
 pub async fn application_installs(
 	state: State<'_, db::DatabaseState>,
 	conversation_id: String,

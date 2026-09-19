@@ -36,7 +36,7 @@ pub fn is_a_connection_name(name: &str) -> bool {
 	CONNECTION_NAMES.contains(&name)
 }
 
-#[derive(Debug, Clone, Copy, PartialEq, Eq, Serialize, Deserialize)]
+#[derive(Debug, Clone, Copy, PartialEq, Eq, Serialize, Deserialize, specta::Type)]
 #[serde(rename_all = "camelCase")]
 pub enum ConnectionKind {
 	ApiKey,
@@ -52,7 +52,7 @@ impl ConnectionKind {
 	}
 }
 
-#[derive(Debug, Clone, PartialEq, Eq, Serialize, Deserialize)]
+#[derive(Debug, Clone, PartialEq, Eq, Serialize, Deserialize, specta::Type)]
 #[serde(tag = "kind", rename_all = "camelCase")]
 pub enum EnvOwner {
 	User,
@@ -62,7 +62,7 @@ pub enum EnvOwner {
 	Bot { id: String, space_id: String },
 }
 
-#[derive(Debug, Clone, PartialEq, Eq, Serialize, Deserialize)]
+#[derive(Debug, Clone, PartialEq, Eq, Serialize, Deserialize, specta::Type)]
 #[serde(tag = "kind", rename_all = "camelCase")]
 pub enum EnvScope {
 	User,
@@ -88,7 +88,7 @@ impl From<&EnvOwner> for EnvScope {
 	}
 }
 
-#[derive(Debug, Clone, PartialEq, Eq, Serialize, Deserialize)]
+#[derive(Debug, Clone, PartialEq, Eq, Serialize, Deserialize, specta::Type)]
 #[serde(rename_all = "camelCase")]
 pub struct EnvEntry {
 	pub name: String,
@@ -120,7 +120,7 @@ impl ResolvedEnv {
 	}
 }
 
-#[derive(Debug, Clone, PartialEq, Eq, Serialize, Deserialize)]
+#[derive(Debug, Clone, PartialEq, Eq, Serialize, Deserialize, specta::Type)]
 #[serde(tag = "kind", rename_all = "camelCase")]
 pub enum EnvError {
 	#[serde(rename_all = "camelCase")]

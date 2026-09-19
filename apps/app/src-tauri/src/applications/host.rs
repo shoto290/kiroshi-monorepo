@@ -167,7 +167,7 @@ impl<R: Runtime> ApplicationHost<R> {
 			Self::database(&self.app)?,
 			owner.into(),
 			name,
-			config,
+			config.into(),
 			mark,
 		)
 		.await?)

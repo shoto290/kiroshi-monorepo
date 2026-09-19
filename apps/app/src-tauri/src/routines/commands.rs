@@ -49,6 +49,7 @@ impl<R: Runtime> RunSink for Announcer<'_, R> {
 }
 
 #[tauri::command]
+#[specta::specta]
 pub async fn routine_trigger_sources<R: Runtime>(
 	app: AppHandle<R>,
 	state: State<'_, db::DatabaseState>,
@@ -108,6 +109,7 @@ fn refuse_unreadable_expression(
 }
 
 #[tauri::command]
+#[specta::specta]
 pub async fn routine_create<R: Runtime>(
 	app: AppHandle<R>,
 	state: State<'_, db::DatabaseState>,
@@ -132,6 +134,7 @@ pub async fn routine_create<R: Runtime>(
 }
 
 #[tauri::command]
+#[specta::specta]
 pub async fn routine_update<R: Runtime>(
 	app: AppHandle<R>,
 	state: State<'_, db::DatabaseState>,
@@ -157,6 +160,7 @@ pub async fn routine_update<R: Runtime>(
 }
 
 #[tauri::command]
+#[specta::specta]
 pub async fn routine_delete<R: Runtime>(
 	app: AppHandle<R>,
 	state: State<'_, db::DatabaseState>,
@@ -169,6 +173,7 @@ pub async fn routine_delete<R: Runtime>(
 }
 
 #[tauri::command]
+#[specta::specta]
 pub async fn routine_list(
 	state: State<'_, db::DatabaseState>,
 	conversation_id: String,
@@ -177,6 +182,7 @@ pub async fn routine_list(
 }
 
 #[tauri::command]
+#[specta::specta]
 pub async fn routine_runs(
 	state: State<'_, db::DatabaseState>,
 	routine_id: String,
@@ -186,6 +192,7 @@ pub async fn routine_runs(
 }
 
 #[tauri::command]
+#[specta::specta]
 pub async fn routine_reported_runs(
 	state: State<'_, db::DatabaseState>,
 	conversation_id: String,
@@ -194,6 +201,7 @@ pub async fn routine_reported_runs(
 }
 
 #[tauri::command]
+#[specta::specta]
 pub async fn routine_run_now<R: Runtime>(
 	app: AppHandle<R>,
 	state: State<'_, db::DatabaseState>,
@@ -207,6 +215,7 @@ pub async fn routine_run_now<R: Runtime>(
 }
 
 #[tauri::command]
+#[specta::specta]
 pub async fn routine_renew_lease(
 	state: State<'_, db::DatabaseState>,
 	run_id: String,
@@ -215,6 +224,7 @@ pub async fn routine_renew_lease(
 }
 
 #[tauri::command]
+#[specta::specta]
 pub async fn routine_close_run(
 	state: State<'_, db::DatabaseState>,
 	run_id: String,
@@ -224,6 +234,7 @@ pub async fn routine_close_run(
 }
 
 #[tauri::command]
+#[specta::specta]
 pub async fn routine_key<R: Runtime>(
 	app: AppHandle<R>,
 	state: State<'_, db::DatabaseState>,

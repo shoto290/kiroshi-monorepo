@@ -11,6 +11,7 @@ fn ready(state: &db::DatabaseState) -> Result<&db::Database, AttachmentStoreErro
 }
 
 #[tauri::command]
+#[specta::specta]
 pub async fn chat_store_attachments<R: Runtime>(
 	app: AppHandle<R>,
 	state: State<'_, db::DatabaseState>,

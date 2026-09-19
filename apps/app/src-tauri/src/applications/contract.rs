@@ -6,12 +6,13 @@ use crate::db::DatabaseError;
 use crate::environment::contract::EnvError;
 use crate::mcp_oauth::status::ApplicationStatus;
 
-#[derive(Debug, Clone, PartialEq, Eq, Serialize, Deserialize)]
+#[derive(Debug, Clone, PartialEq, Eq, Serialize, Deserialize, specta::Type)]
 #[serde(rename_all = "camelCase")]
 pub struct Application {
 	pub name: String,
 	pub title: String,
 	pub description: String,
+	#[specta(type = crate::json::JsonValue)]
 	pub config: serde_json::Value,
 	#[serde(default, skip_serializing_if = "Option::is_none")]
 	pub tools: Option<Vec<String>>,
@@ -32,14 +33,14 @@ pub struct Application {
 	pub install: Install,
 }
 
-#[derive(Debug, Clone, Copy, PartialEq, Eq, Serialize, Deserialize)]
+#[derive(Debug, Clone, Copy, PartialEq, Eq, Serialize, Deserialize, specta::Type)]
 #[serde(rename_all = "camelCase")]
 pub enum AuthPosture {
 	AuthRequired,
 	NoAuth,
 }
 
-#[derive(Debug, Clone, PartialEq, Eq, Serialize, Deserialize)]
+#[derive(Debug, Clone, PartialEq, Eq, Serialize, Deserialize, specta::Type)]
 #[serde(tag = "kind", rename_all = "camelCase")]
 pub enum Install {
 	Nothing,
@@ -51,7 +52,7 @@ pub enum Install {
 	Refused(InstallRefusal),
 }
 
-#[derive(Debug, Clone, PartialEq, Eq, Serialize, Deserialize)]
+#[derive(Debug, Clone, PartialEq, Eq, Serialize, Deserialize, specta::Type)]
 #[serde(rename_all = "camelCase")]
 pub struct InstallField {
 	pub name: String,
@@ -145,14 +146,14 @@ fn collapsing(first: &str, second: &str, variable: &str) -> String {
 	)
 }
 
-#[derive(Debug, Clone, PartialEq, Eq, Serialize, Deserialize)]
+#[derive(Debug, Clone, PartialEq, Eq, Serialize, Deserialize, specta::Type)]
 #[serde(rename_all = "camelCase")]
 pub struct InstallRefusal {
 	pub field: String,
 	pub reason: String,
 }
 
-#[derive(Debug, Clone, PartialEq, Eq, Serialize, Deserialize)]
+#[derive(Debug, Clone, PartialEq, Eq, Serialize, Deserialize, specta::Type)]
 #[serde(tag = "kind", rename_all = "camelCase")]
 pub enum ApplicationsError {
 	#[serde(rename_all = "camelCase")]
@@ -176,7 +177,7 @@ pub enum ApplicationsError {
 
 pub const INSTALLED_EVENT: &str = "application://installed";
 
-#[derive(Debug, Clone, Copy, PartialEq, Eq, Serialize, Deserialize)]
+#[derive(Debug, Clone, Copy, PartialEq, Eq, Serialize, Deserialize, specta::Type)]
 #[serde(rename_all = "camelCase")]
 pub enum Destination {
 	Companion,
@@ -197,7 +198,7 @@ pub struct InstallDraft {
 	pub install: InstallCase,
 }
 
-#[derive(Debug, Clone, PartialEq, Eq, Serialize)]
+#[derive(Debug, Clone, PartialEq, Eq, Serialize, specta::Type)]
 #[serde(rename_all = "camelCase")]
 pub struct ApplicationInstall {
 	pub id: String,
@@ -280,7 +281,7 @@ impl From<InstallDraft> for ApplicationInstalled {
 	}
 }
 
-#[derive(Debug, Clone, PartialEq, Eq, Serialize)]
+#[derive(Debug, Clone, PartialEq, Eq, Serialize, specta::Type)]
 #[serde(rename_all = "camelCase")]
 pub struct ApplicationSearch {
 	pub applications: Vec<Application>,
@@ -292,7 +293,7 @@ pub struct ApplicationSearch {
 	pub is_stale: Option<bool>,
 }
 
-#[derive(Debug, Clone, PartialEq, Eq, Serialize)]
+#[derive(Debug, Clone, PartialEq, Eq, Serialize, specta::Type)]
 #[serde(tag = "kind", rename_all = "camelCase")]
 pub enum InstallCase {
 	Nothing,
@@ -353,7 +354,7 @@ impl From<ApplicationStatus> for ApplicationState {
 	}
 }
 
-#[derive(Debug, Clone, PartialEq, Eq, Serialize)]
+#[derive(Debug, Clone, PartialEq, Eq, Serialize, specta::Type)]
 #[serde(tag = "kind", rename_all = "camelCase")]
 pub enum ApplicationCallError {
 	#[serde(rename_all = "camelCase")]

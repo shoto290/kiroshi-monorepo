@@ -174,6 +174,7 @@ fn written(refused: Refused, held: &Values) -> OauthError {
 }
 
 #[tauri::command]
+#[specta::specta]
 pub async fn mcp_oauth_connect<R: Runtime>(
 	app: AppHandle<R>,
 	owner: EnvOwner,
@@ -248,6 +249,7 @@ fn kept(
 }
 
 #[tauri::command]
+#[specta::specta]
 pub async fn mcp_oauth_cancel<R: Runtime>(app: AppHandle<R>) -> Result<(), OauthError> {
 	if !app.state::<McpOauthState>().is_running() {
 		return Ok(());
@@ -256,6 +258,7 @@ pub async fn mcp_oauth_cancel<R: Runtime>(app: AppHandle<R>) -> Result<(), Oauth
 }
 
 #[tauri::command]
+#[specta::specta]
 pub async fn mcp_oauth_disconnect<R: Runtime>(
 	app: AppHandle<R>,
 	owner: EnvOwner,
@@ -292,6 +295,7 @@ fn held_at(root: &Path, owner: &EnvOwner, name: &str) -> Result<EnvScope, EnvErr
 }
 
 #[tauri::command]
+#[specta::specta]
 pub async fn mcp_application_status<R: Runtime>(
 	app: AppHandle<R>,
 	owner: EnvOwner,

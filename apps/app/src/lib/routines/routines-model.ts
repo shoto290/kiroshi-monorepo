@@ -21,6 +21,7 @@ import {
 } from "./filter-vocabulary"
 import type {
 	Routine,
+	RoutineError,
 	RoutineKey,
 	RoutineRun,
 	RunOutcome,
@@ -31,6 +32,8 @@ import type {
 	PayloadField,
 	TriggerSource,
 } from "./trigger-contract"
+
+import type { Json } from "@/lib/bindings"
 
 export type KnownSources = ReadonlyMap<string, TriggerSource>
 
@@ -222,7 +225,7 @@ export const toFormValues = (routine: Routine): RoutineFormValues => ({
 	filter: toFormFilter(routine.filter),
 })
 
-export const toTriggerConfig = (values: RoutineFormValues): unknown => {
+export const toTriggerConfig = (values: RoutineFormValues): Json => {
 	const kind = triggerKindOf(values.triggerSourceId)
 	if (kind === "schedule") {
 		return { expression: values.expression }
@@ -236,28 +239,23 @@ const REFUSALS_BY_BLANK_FIELD: Record<string, RoutineFormRefusal> = {
 	instruction: "blankInstruction",
 }
 
-type RefusalReason = {
-	kind: string
-	field?: string
-	row?: number
-	operator?: string
-	fieldType?: string
-}
-
-const refusalIn = (reason: unknown): RefusalReason | null =>
+const refusalIn = (reason: unknown): RoutineError | null =>
 	typeof reason === "object" && reason !== null && "kind" in reason
-		? (reason as RefusalReason)
+		? (reason as RoutineError)
 		: null
 
 const toOperatorRefusal = ({
 	row,
 	operator,
 	fieldType,
-}: RefusalReason): RoutineFormRefusal | null => {
+}: Extract<
+	RoutineError,
+	{ kind: "unsupportedOperator" }
+>): RoutineFormRefusal | null => {
 	const refusedOperator = FILTER_OPERATORS.find((held) => held === operator)
 	const refusedType = FIELD_TYPES.find((held) => held === fieldType)
 
-	return typeof row === "number" && refusedOperator && refusedType
+	return refusedOperator && refusedType
 		? { row, operator: refusedOperator, fieldType: refusedType }
 		: null
 }
@@ -277,7 +275,7 @@ export const toFormRefusal = (reason: unknown): RoutineFormRefusal | null => {
 	}
 
 	return refused.kind === "blankField"
-		? (REFUSALS_BY_BLANK_FIELD[refused.field ?? ""] ?? null)
+		? (REFUSALS_BY_BLANK_FIELD[refused.field] ?? null)
 		: null
 }
 

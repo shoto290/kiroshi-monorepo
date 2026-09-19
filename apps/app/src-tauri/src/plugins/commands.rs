@@ -5,6 +5,7 @@ use tauri::{AppHandle, Runtime, State};
 use super::contract::PluginScope;
 use crate::bundles::{self, plugin, ApplicationMark};
 use crate::conversations::commands::{bot_owner, bot_row, bundled, ready, recounted};
+use crate::json::JsonValue;
 use crate::conversations::contract::{
 	BotChangedFile, BotHistoryEntry, McpServer, Skill, SkillDraft, TranscriptStoreError,
 };
@@ -87,6 +88,7 @@ fn history_of(target: &Plugin) -> Result<Vec<BotHistoryEntry>, TranscriptStoreEr
 }
 
 #[tauri::command]
+#[specta::specta]
 pub async fn plugin_skills<R: Runtime>(
 	app: AppHandle<R>,
 	scope: PluginScope,
@@ -100,6 +102,7 @@ pub async fn plugin_skills<R: Runtime>(
 }
 
 #[tauri::command]
+#[specta::specta]
 pub async fn plugin_create_skill<R: Runtime>(
 	app: AppHandle<R>,
 	state: State<'_, db::DatabaseState>,
@@ -117,6 +120,7 @@ pub async fn plugin_create_skill<R: Runtime>(
 }
 
 #[tauri::command]
+#[specta::specta]
 pub async fn plugin_update_skill<R: Runtime>(
 	app: AppHandle<R>,
 	state: State<'_, db::DatabaseState>,
@@ -136,6 +140,7 @@ pub async fn plugin_update_skill<R: Runtime>(
 }
 
 #[tauri::command]
+#[specta::specta]
 pub async fn plugin_set_skill_preloaded<R: Runtime>(
 	app: AppHandle<R>,
 	state: State<'_, db::DatabaseState>,
@@ -155,6 +160,7 @@ pub async fn plugin_set_skill_preloaded<R: Runtime>(
 }
 
 #[tauri::command]
+#[specta::specta]
 pub async fn plugin_delete_skill<R: Runtime>(
 	app: AppHandle<R>,
 	state: State<'_, db::DatabaseState>,
@@ -173,6 +179,7 @@ pub async fn plugin_delete_skill<R: Runtime>(
 }
 
 #[tauri::command]
+#[specta::specta]
 pub async fn plugin_skill_file<R: Runtime>(
 	app: AppHandle<R>,
 	scope: PluginScope,
@@ -187,6 +194,7 @@ pub async fn plugin_skill_file<R: Runtime>(
 }
 
 #[tauri::command]
+#[specta::specta]
 pub async fn plugin_write_skill_file<R: Runtime>(
 	app: AppHandle<R>,
 	scope: PluginScope,
@@ -207,6 +215,7 @@ pub async fn plugin_write_skill_file<R: Runtime>(
 }
 
 #[tauri::command]
+#[specta::specta]
 pub async fn plugin_delete_skill_file<R: Runtime>(
 	app: AppHandle<R>,
 	scope: PluginScope,
@@ -224,6 +233,7 @@ pub async fn plugin_delete_skill_file<R: Runtime>(
 }
 
 #[tauri::command]
+#[specta::specta]
 pub async fn plugin_mcp_servers<R: Runtime>(
 	app: AppHandle<R>,
 	scope: PluginScope,
@@ -237,14 +247,16 @@ pub async fn plugin_mcp_servers<R: Runtime>(
 }
 
 #[tauri::command]
+#[specta::specta]
 pub async fn plugin_set_mcp_server<R: Runtime>(
 	app: AppHandle<R>,
 	state: State<'_, db::DatabaseState>,
 	scope: PluginScope,
 	name: String,
-	config: serde_json::Value,
+	config: JsonValue,
 	mark: Option<ApplicationMark>,
 ) -> Result<McpServer, TranscriptStoreError> {
+	let config = config.0;
 	let set = match writable(&app, &scope)? {
 		Plugin::Bot { root, id } => {
 			let bot = stored_bot(&state, &id).await?;
@@ -256,6 +268,7 @@ pub async fn plugin_set_mcp_server<R: Runtime>(
 }
 
 #[tauri::command]
+#[specta::specta]
 pub async fn plugin_delete_mcp_server<R: Runtime>(
 	app: AppHandle<R>,
 	state: State<'_, db::DatabaseState>,
@@ -279,6 +292,7 @@ pub async fn plugin_delete_mcp_server<R: Runtime>(
 }
 
 #[tauri::command]
+#[specta::specta]
 pub async fn plugin_history<R: Runtime>(
 	app: AppHandle<R>,
 	scope: PluginScope,
@@ -290,6 +304,7 @@ pub async fn plugin_history<R: Runtime>(
 }
 
 #[tauri::command]
+#[specta::specta]
 pub async fn plugin_history_diff<R: Runtime>(
 	app: AppHandle<R>,
 	scope: PluginScope,
@@ -308,6 +323,7 @@ pub async fn plugin_history_diff<R: Runtime>(
 }
 
 #[tauri::command]
+#[specta::specta]
 pub async fn plugin_revert<R: Runtime>(
 	app: AppHandle<R>,
 	scope: PluginScope,
@@ -431,7 +447,7 @@ mod tests {
 			app.state(),
 			scope.clone(),
 			"clock".to_owned(),
-			a_clock(),
+			a_clock().into(),
 			None,
 		)
 		.await
@@ -552,7 +568,7 @@ mod tests {
 			app.state(),
 			PluginScope::User,
 			"broken".to_owned(),
-			serde_json::json!(["clock"]),
+			serde_json::json!(["clock"]).into(),
 			None,
 		)
 		.await;
@@ -605,7 +621,7 @@ mod tests {
 			app.state(),
 			bot("b1"),
 			"clock".to_owned(),
-			a_clock(),
+			a_clock().into(),
 			None,
 		)
 		.await;

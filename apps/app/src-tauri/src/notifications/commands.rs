@@ -3,13 +3,14 @@ use tauri::{AppHandle, Runtime};
 
 pub const ACTIVATED_EVENT: &str = "notification://activated";
 
-#[derive(Clone, Debug, Deserialize, Serialize)]
+#[derive(Clone, Debug, Deserialize, Serialize, specta::Type)]
 pub struct NotificationTarget {
 	pub kind: String,
 	pub id: String,
 }
 
 #[tauri::command]
+#[specta::specta]
 pub async fn notification_show<R: Runtime>(
 	app: AppHandle<R>,
 	target: NotificationTarget,

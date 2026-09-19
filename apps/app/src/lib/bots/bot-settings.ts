@@ -3,14 +3,15 @@ import {
 	BLANK_BOT_PERMISSIONS,
 	BLOT_TINTS,
 	type BotModelOption,
-	type BotPermissions,
 	type BotSettingsValue,
 	DEFAULT_BOT_OUTPUT_STYLE,
+	readBotPermissionMode,
 } from "@workspace/ui/components/bot-settings"
 
 import { rosterTimestamp } from "./roster-timestamp"
 
 import { avatarSrc } from "../host"
+import type { BotPermissions as HostBotPermissions } from "@/lib/bindings"
 import type { SidebarActivity } from "../chat/screen-model"
 import type {
 	AvatarAnimal,
@@ -138,10 +139,16 @@ export const toSettingsValue = (bot: Bot): BotSettingsValue => ({
 	instructions: bot.instructions,
 	model: bot.model,
 	workingDirectory: bot.workingDir ?? "",
-	permissions: bot.permissions,
+	permissions: {
+		...bot.permissions,
+		defaultMode: readBotPermissionMode(bot.permissions.defaultMode),
+	},
 })
 
-export const toIdentity = (value: BotSettingsValue, bot: Bot): BotIdentity => ({
+export const toIdentity = (
+	value: BotSettingsValue,
+	bot: Bot,
+): Pick<Bot, keyof BotIdentity> => ({
 	name: value.name,
 	title: value.title,
 	model: value.model,
@@ -157,7 +164,7 @@ export const toIdentity = (value: BotSettingsValue, bot: Bot): BotIdentity => ({
 
 const listOf = (items: string[]): string => [...items].sort().join(",")
 
-const permissionsOf = (permissions: BotPermissions): string =>
+const permissionsOf = (permissions: HostBotPermissions): string =>
 	[
 		permissions.defaultMode,
 		listOf(permissions.allow),

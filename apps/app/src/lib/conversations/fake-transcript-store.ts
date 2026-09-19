@@ -234,7 +234,7 @@ const scopeChain = (scope: EnvScope): EnvScope[] => {
 	if (scope.kind === "bot") {
 		return [scope, { kind: "space", id: scope.spaceId }, USER_SCOPE]
 	}
-	return [scope, ...scopeChain(scope.owner)]
+	return scope.kind === "server" ? [scope, ...scopeChain(scope.owner)] : [scope]
 }
 
 const SUGGESTED_BOTS: SuggestedBot[] = [
@@ -865,7 +865,7 @@ export const createFakeTranscriptStore = (
 				return refuse({ kind: "unknownSpace", id: spaceId })
 			}
 			const stored: SpacePreferences = {
-				collapsedSectionIds: wanted.collapsedSectionIds.filter(
+				collapsedSectionIds: (wanted.collapsedSectionIds ?? []).filter(
 					(id) => sections.get(id)?.spaceId === spaceId,
 				),
 			}
@@ -1070,6 +1070,8 @@ export const createFakeTranscriptStore = (
 			mint(
 				{
 					...identity,
+					permissions: identity.permissions ?? BLANK_BOT_PERMISSIONS,
+					outputStyle: identity.outputStyle ?? DEFAULT_BOT_OUTPUT_STYLE,
 					changesNothing: deniesChanges(identity.deniedTools),
 					memory: "",
 					sectionId: null,

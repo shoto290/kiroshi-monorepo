@@ -48,7 +48,7 @@ export const createCollapsedSectionsController = (
 
 	const read = async (spaceId: string) => {
 		const { collapsedSectionIds } = await store.spacePreferences(spaceId)
-		hold(spaceId, collapsedSectionIds)
+		hold(spaceId, collapsedSectionIds ?? [])
 	}
 
 	const reloadAll = () => {
@@ -61,7 +61,8 @@ export const createCollapsedSectionsController = (
 		enqueue,
 		write: (spaceId, collapsedSectionIds) =>
 			store.setSpacePreferences(spaceId, { collapsedSectionIds }),
-		apply: (spaceId, written) => hold(spaceId, written.collapsedSectionIds),
+		apply: (spaceId, written) =>
+			hold(spaceId, written.collapsedSectionIds ?? []),
 		onRefused: reloadAll,
 	})
 

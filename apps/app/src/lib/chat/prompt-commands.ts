@@ -7,7 +7,10 @@ const COMMAND_DRAFT = /^\/(\S*)$/
 export function commandOptionsFor(
 	commands: AgentCommand[],
 ): PromptCommandOption[] {
-	return commands.map((command) => ({ ...command, name: `/${command.name}` }))
+	return commands.map((command) => ({
+		name: `/${command.name}`,
+		description: command.description ?? undefined,
+	}))
 }
 
 export function commandQueryIn(

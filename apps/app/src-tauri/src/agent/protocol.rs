@@ -479,7 +479,7 @@ pub enum OauthFailureKind {
 	Failed,
 }
 
-#[derive(Debug, Clone, Copy, PartialEq, Eq, Deserialize, Serialize)]
+#[derive(Debug, Clone, Copy, PartialEq, Eq, Deserialize, Serialize, specta::Type)]
 #[serde(rename_all = "camelCase")]
 pub enum OauthStep {
 	Discovery,

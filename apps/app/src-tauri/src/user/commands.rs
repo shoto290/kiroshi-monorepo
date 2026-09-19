@@ -11,6 +11,7 @@ fn ready(state: &db::DatabaseState) -> Result<&db::Database, UserPreferencesErro
 }
 
 #[tauri::command]
+#[specta::specta]
 pub async fn user_preferences<R: Runtime>(
 	app: AppHandle<R>,
 	state: State<'_, db::DatabaseState>,
@@ -21,6 +22,7 @@ pub async fn user_preferences<R: Runtime>(
 }
 
 #[tauri::command]
+#[specta::specta]
 pub async fn user_set_preferences<R: Runtime>(
 	app: AppHandle<R>,
 	state: State<'_, db::DatabaseState>,
@@ -34,6 +36,7 @@ pub async fn user_set_preferences<R: Runtime>(
 }
 
 #[tauri::command]
+#[specta::specta]
 pub async fn user_set_profile_picture<R: Runtime>(
 	app: AppHandle<R>,
 	state: State<'_, db::DatabaseState>,

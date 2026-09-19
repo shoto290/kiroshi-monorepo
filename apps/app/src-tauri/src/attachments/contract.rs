@@ -5,14 +5,14 @@ use super::Rejection;
 use crate::conversations::contract::StorageFailure;
 use crate::db::DatabaseError;
 
-#[derive(Debug, Clone, PartialEq, Eq, Serialize, Deserialize)]
+#[derive(Debug, Clone, PartialEq, Eq, Serialize, Deserialize, specta::Type)]
 #[serde(rename_all = "camelCase")]
 pub struct SubmittedAttachment {
 	pub name: String,
 	pub bytes: Vec<u8>,
 }
 
-#[derive(Debug, Clone, PartialEq, Eq, Serialize, Deserialize)]
+#[derive(Debug, Clone, PartialEq, Eq, Serialize, Deserialize, specta::Type)]
 #[serde(tag = "kind", rename_all = "camelCase")]
 pub enum AttachmentStoreError {
 	#[serde(rename_all = "camelCase")]
