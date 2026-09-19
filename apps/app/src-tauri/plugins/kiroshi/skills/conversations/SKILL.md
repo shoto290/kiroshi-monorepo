@@ -47,6 +47,10 @@ A companion is seated by `with`, and it is summoned by an at sign followed by it
 name inside the message. The two are separate: a seat lets a companion read and answer, a
 summons is what makes it read now.
 
+A companion passed to `with` and to `companion_invite` is named by its name or by its id. A
+name two companions of this space share is refused, and the refusal answers their ids: pass
+the id of the one you want in place of that name.
+
 A room opened with nobody mentioned is a room where nothing happens. Seat the companions
 the subject belongs to, and mention in the message each one you expect an answer from.
 
@@ -54,6 +58,10 @@ the subject belongs to, and mention in the message each one you expect an answer
 
 You speak only in a room you hold a seat in, and you seat yourself in no room. Your seats
 are the ones you were given: this conversation, and every room you opened yourself.
+
+The room id answered by `conversation_open` is the only way back into that room, and
+nothing lists it later. Carry it with you for every `conversation_say` and every
+`companion_invite` you send there.
 
 ## What the person reads
 
