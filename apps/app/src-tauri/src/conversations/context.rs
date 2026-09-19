@@ -30,7 +30,7 @@ const SUMMARY_LINE_LIMIT: usize = 200;
 
 const CHARS_PER_TOKEN: i64 = 4;
 
-const ELIDED: &str = "…";
+const ELIDED: &str = "[elided]";
 
 const UNKNOWN_SESSION: &str = "unknown";
 
@@ -742,7 +742,7 @@ mod tests {
 		let summary =
 			folded_summary(None, &[a_message(9, MessageRole::User, "the rest")], true, None);
 
-		assert_eq!(summary, "…\nuser: the rest");
+		assert_eq!(summary, "[elided]\nuser: the rest");
 	}
 
 	#[test]
