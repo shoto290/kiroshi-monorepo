@@ -8,6 +8,7 @@ import type { Conversation, MessagePin } from "./store-contract"
 import type { TranscriptStore } from "./store-port"
 import type {
 	CompanionArrival,
+	CompanionSpoke,
 	TerminalCompletion,
 	TranscriptMessage,
 } from "./transcript-contract"
@@ -127,6 +128,7 @@ export type ConversationController = {
 	send: (text: string, repliedToMessageId?: string) => Promise<void>
 	sendAgain: (messageId: string) => Promise<void>
 	reportRun: (draft: RunReportDraft) => Promise<string>
+	relaySpoken: (spoken: CompanionSpoke) => Promise<void>
 	pin: (messageId: string, blockIndex: number) => Promise<void>
 	unpin: (messageId: string, blockIndex: number) => Promise<void>
 	pins: () => Promise<MessagePin[]>
@@ -148,6 +150,8 @@ export type ConversationControllerOptions = {
 	readReportedRuns?: ReportedRunsReader
 	onCompanionArrived?: CompanionArrivalListener
 }
+
+type Seating = "held" | "unknown" | "unreadable"
 
 type OpenTurn = {
 	id: string
@@ -909,20 +913,20 @@ export const createConversationController = (
 		sync()
 	}
 
-	const isHeldForReport = async (conversationId: string) => {
+	const seatingFor = async (conversationId: string): Promise<Seating> => {
 		if (conversation?.id === conversationId) {
-			return true
+			return "held"
 		}
 		try {
 			const seated = await readConversation(store, conversationId)
 			if (!seated) {
-				return false
+				return "unknown"
 			}
 			await open(seated)
-			return true
+			return "held"
 		} catch (reason) {
 			noteFailure(toReadError(reason))
-			return false
+			return "unreadable"
 		}
 	}
 
@@ -967,7 +971,7 @@ export const createConversationController = (
 	}
 
 	const reportRun = async (draft: RunReportDraft) => {
-		const isSeated = await isHeldForReport(draft.conversationId)
+		const isSeated = (await seatingFor(draft.conversationId)) === "held"
 		const text = isSeated
 			? toMentionTokens(draft.text, mentionBots())
 			: draft.text
@@ -980,6 +984,37 @@ export const createConversationController = (
 			await relayReport(reported)
 		}
 		return reported.turnId
+	}
+
+	const relaySpoken = async ({
+		conversationId,
+		authorBotId,
+		text,
+	}: CompanionSpoke) => {
+		const seating = await seatingFor(conversationId)
+
+		if (seating === "unreadable") {
+			throw new Error(`the conversation ${conversationId} could not be read`)
+		}
+
+		if (seating === "unknown" || !presentBotIds().includes(authorBotId)) {
+			return
+		}
+		const spoken = await enqueue(() =>
+			writeReportTurn({
+				store,
+				draft: {
+					conversationId,
+					botId: authorBotId,
+					text: toMentionTokens(text, mentionBots()),
+					runtimeSessionId: null,
+				},
+				newId,
+				now,
+			}),
+		)
+		transcript.append(spoken)
+		await relayReport(spoken)
 	}
 
 	const recordAnswers = (
@@ -1238,6 +1273,7 @@ export const createConversationController = (
 		send,
 		sendAgain,
 		reportRun,
+		relaySpoken,
 		pin,
 		unpin,
 		pins,
