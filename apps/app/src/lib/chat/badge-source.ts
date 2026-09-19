@@ -37,6 +37,7 @@ export type BadgeSourceOptions<State> = {
 
 export type BadgeSource = {
 	getBadges: () => Record<string, BotBadge>
+	raise: (id: string, badge: BotBadge) => void
 	subscribe: (listener: () => void) => () => void
 	start: () => () => void
 }
@@ -102,6 +103,16 @@ export const createBadgeSource = <State>({
 		badges.setState(next)
 	}
 
+	const isRead = (id: string) =>
+		id === selectedId && (windowFocus ?? hasFocus())
+
+	const raise = (id: string, badge: BotBadge) => {
+		if (isRead(id) || !selection.getState().ids.includes(id)) {
+			return
+		}
+		badges.setState({ ...badges.getState(), [id]: badge })
+	}
+
 	const followFocus = (isFocused: boolean) => {
 		windowFocus = isFocused
 		if (isFocused) {
@@ -121,6 +132,7 @@ export const createBadgeSource = <State>({
 
 	return {
 		getBadges: badges.getState,
+		raise,
 		subscribe: badges.subscribe,
 		start: () => {
 			const stopStates = states.subscribe(refresh)

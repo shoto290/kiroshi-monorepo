@@ -128,7 +128,7 @@ export type ConversationController = {
 	send: (text: string, repliedToMessageId?: string) => Promise<void>
 	sendAgain: (messageId: string) => Promise<void>
 	reportRun: (draft: RunReportDraft) => Promise<string>
-	relaySpoken: (spoken: CompanionSpoke) => Promise<void>
+	relaySpoken: (spoken: CompanionSpoke) => Promise<boolean>
 	pin: (messageId: string, blockIndex: number) => Promise<void>
 	unpin: (messageId: string, blockIndex: number) => Promise<void>
 	pins: () => Promise<MessagePin[]>
@@ -998,7 +998,7 @@ export const createConversationController = (
 		}
 
 		if (seating === "unknown" || !presentBotIds().includes(authorBotId)) {
-			return
+			return false
 		}
 		const spoken = await enqueue(() =>
 			writeReportTurn({
@@ -1015,6 +1015,7 @@ export const createConversationController = (
 		)
 		transcript.append(spoken)
 		await relayReport(spoken)
+		return true
 	}
 
 	const recordAnswers = (

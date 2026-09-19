@@ -74,6 +74,19 @@ export const missionNotificationWordsFor = ({
 	body: i18n.t(MISSION_BODY_KEY[state], { ticket }),
 })
 
+export type SpokenWordsInput = {
+	title: string
+	name: string
+}
+
+export const spokenWordsFor = ({
+	title,
+	name,
+}: SpokenWordsInput): Pick<NotificationRequest, "title" | "body"> => ({
+	title,
+	body: i18n.t("common:notification.spoke", { name }),
+})
+
 export const notificationWordsFor = ({
 	name,
 	event,

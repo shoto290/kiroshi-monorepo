@@ -2,6 +2,7 @@ import {
 	type ConversationAnswer,
 	conversationBadgeAfter,
 } from "./conversation-badge"
+import type { SpokenWords } from "./spoken-words"
 
 import {
 	type BadgeSource,
@@ -31,6 +32,7 @@ type RosterSource = {
 export type ConversationBadgeSourceOptions = {
 	runtimes: RuntimeSource
 	roster: RosterSource
+	spokenWords: Pick<SpokenWords, "subscribe">
 	hasFocus: () => boolean
 	watchFocus: (report: (isFocused: boolean) => void) => Promise<() => void>
 }
@@ -38,10 +40,11 @@ export type ConversationBadgeSourceOptions = {
 export const createConversationBadgeSource = ({
 	runtimes,
 	roster,
+	spokenWords,
 	hasFocus,
 	watchFocus,
-}: ConversationBadgeSourceOptions): BadgeSource =>
-	createBadgeSource({
+}: ConversationBadgeSourceOptions): BadgeSource => {
+	const source = createBadgeSource({
 		states: {
 			stateFor: (conversationId) =>
 				runtimes.heldFor(conversationId)?.getState() ?? null,
@@ -62,3 +65,19 @@ export const createConversationBadgeSource = ({
 		hasFocus,
 		watchFocus,
 	})
+
+	return {
+		...source,
+		start: () => {
+			const stop = source.start()
+			const stopWords = spokenWords.subscribe(({ conversationId }) =>
+				source.raise(conversationId, "done"),
+			)
+
+			return () => {
+				stopWords()
+				stop()
+			}
+		},
+	}
+}

@@ -7,6 +7,7 @@ import {
 	notifiesAskedQuestion,
 	notifiesFinishedRound,
 	notifiesMission,
+	notifiesSpokenWord,
 } from "./notification-policy"
 import type {
 	NotificationPort,
@@ -20,10 +21,12 @@ import {
 	type NotificationFailure,
 	notificationFailureTitleFor,
 	notificationWordsFor,
+	spokenWordsFor,
 } from "./notification-words"
 
 import type { ChatState } from "../chat/chat-state"
 import { conversationName } from "../conversations/roster-conversations"
+import type { SpokenWord, SpokenWords } from "../conversations/spoken-words"
 import type { Conversation } from "../conversations/store-contract"
 import type {
 	Mission,
@@ -56,6 +59,7 @@ type RosterSource = {
 	getState: () => {
 		rosters: Record<string, NotifiedBot[]>
 		conversations: Conversation[]
+		conversationRosters: Record<string, Conversation[]>
 	}
 	spaceOfConversation: (conversationId: string) => string | undefined
 	select: (botId: string) => void
@@ -86,6 +90,7 @@ export type NotificationSourceOptions = {
 	roster: RosterSource
 	spaces: SpacesSource
 	missions: MissionsSource
+	spokenWords: Pick<SpokenWords, "subscribe">
 	notifications: NotificationPort
 	switches: () => NotificationSourceSwitches
 	hasFocus: () => boolean
@@ -120,6 +125,7 @@ export const startNotificationSource = ({
 	roster,
 	spaces,
 	missions,
+	spokenWords,
 	notifications,
 	switches,
 	hasFocus,
@@ -274,6 +280,41 @@ export const startNotificationSource = ({
 
 	const currentFocus = (): boolean => windowFocus ?? hasFocus()
 
+	const hasHostFocus = (): boolean => windowFocus === true
+
+	const rosteredConversation = (conversationId: string) =>
+		Object.values(roster.getState().conversationRosters)
+			.flat()
+			.find(({ id }) => id === conversationId)
+
+	const speakerNameIn = (conversation: Conversation, botId: string) =>
+		conversation.participants.find(({ botId: seated }) => seated === botId)
+			?.name
+
+	const notifySpokenWord = ({ conversationId, authorBotId }: SpokenWord) => {
+		const reading: Reading = {
+			switches: switches(),
+			hasFocus: hasHostFocus(),
+		}
+		const conversation = rosteredConversation(conversationId)
+		const name = conversation && speakerNameIn(conversation, authorBotId)
+
+		if (!conversation || !name || !notifiesSpokenWord(reading)) {
+			return
+		}
+
+		void notifications
+			.send({
+				target: { kind: "conversation", id: conversationId },
+				...spokenWordsFor({ title: conversationName(conversation), name }),
+			})
+			.catch(failWith("send"))
+
+		if (reading.switches.notifyWithSound) {
+			playChime()
+		}
+	}
+
 	const compare = () => {
 		const reading: Reading = {
 			switches: switches(),
@@ -421,6 +462,7 @@ export const startNotificationSource = ({
 
 	const stopChat = chat.subscribe(compare)
 	const stopRuntimes = runtimes.subscribe(compare)
+	const stopSpokenWords = spokenWords.subscribe(notifySpokenWord)
 	const missionChanges = missions
 		.onChanged(
 			(changed) => void missionChanged(changed).catch(failWith("send")),
@@ -437,6 +479,7 @@ export const startNotificationSource = ({
 	return () => {
 		stopChat()
 		stopRuntimes()
+		stopSpokenWords()
 		void missionChanges.then((stop) => stop?.())
 		void focus.then((stop) => stop?.())
 		void activation.then((stop) => stop?.())
