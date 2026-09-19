@@ -69,6 +69,7 @@ impl Drop for Running<'_> {
 }
 
 #[tauri::command]
+#[specta::specta]
 pub async fn agent_sign_in<R: Runtime>(app: AppHandle<R>) -> Result<(), SignInError> {
 	let state = app.state::<SignInState>();
 	let _running = state.begin()?;
@@ -102,6 +103,7 @@ fn outcome(settled: SignedIn) -> Result<(), SignInError> {
 }
 
 #[tauri::command]
+#[specta::specta]
 pub async fn agent_sign_in_code<R: Runtime>(
 	app: AppHandle<R>,
 	text: String,
@@ -113,6 +115,7 @@ pub async fn agent_sign_in_code<R: Runtime>(
 }
 
 #[tauri::command]
+#[specta::specta]
 pub async fn agent_sign_in_cancel<R: Runtime>(app: AppHandle<R>) -> Result<(), SignInError> {
 	if !app.state::<SignInState>().is_running() {
 		return Err(SignInError::NotRunning);

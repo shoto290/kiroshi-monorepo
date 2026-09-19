@@ -9,7 +9,7 @@ pub const FIRST_RUN_DONE_EVENT: &str = "user://first-run-done";
 
 pub const SEED_REFUSED_EVENT: &str = "companion://seed-refused";
 
-#[derive(Debug, Clone, PartialEq, Eq, Serialize, Deserialize)]
+#[derive(Debug, Clone, PartialEq, Eq, Serialize, Deserialize, specta::Type)]
 #[serde(rename_all = "camelCase")]
 pub struct CompanionCreated {
 	pub id: String,
@@ -46,13 +46,13 @@ pub struct ConversationSaid {
 	pub title: String,
 }
 
-#[derive(Debug, Clone, PartialEq, Eq, Serialize, Deserialize)]
+#[derive(Debug, Clone, PartialEq, Eq, Serialize, Deserialize, specta::Type)]
 #[serde(rename_all = "camelCase")]
 pub struct CompanionSeedRefused {
 	pub reason: String,
 }
 
-#[derive(Debug, Clone, Default, PartialEq, Eq, Serialize, Deserialize)]
+#[derive(Debug, Clone, Default, PartialEq, Eq, Serialize, Deserialize, specta::Type)]
 #[serde(rename_all = "camelCase")]
 pub struct LaunchOutcome {
 	pub created: Option<CompanionCreated>,

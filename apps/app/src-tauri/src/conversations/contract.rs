@@ -10,7 +10,7 @@ use crate::environment::contract::EnvError;
 
 macro_rules! avatar_palette {
 	($name:ident { $($variant:ident),+ $(,)? }) => {
-		#[derive(Debug, Clone, Copy, PartialEq, Eq, Serialize, Deserialize)]
+		#[derive(Debug, Clone, Copy, PartialEq, Eq, Serialize, Deserialize, specta::Type)]
 		#[serde(rename_all = "camelCase")]
 		pub enum $name {
 			$($variant),+
@@ -104,7 +104,7 @@ impl From<AvatarBlot> for conversations::AvatarBlot {
 	}
 }
 
-#[derive(Debug, Clone, PartialEq, Eq, Serialize, Deserialize)]
+#[derive(Debug, Clone, PartialEq, Eq, Serialize, Deserialize, specta::Type)]
 #[serde(rename_all = "camelCase")]
 pub struct Bot {
 	pub id: String,
@@ -173,7 +173,7 @@ impl Bot {
 	}
 }
 
-#[derive(Debug, Clone, PartialEq, Eq, Serialize, Deserialize)]
+#[derive(Debug, Clone, PartialEq, Eq, Serialize, Deserialize, specta::Type)]
 #[serde(rename_all = "camelCase")]
 pub struct BotIdentity {
 	pub name: String,
@@ -211,7 +211,7 @@ impl From<BotIdentity> for conversations::BotIdentity {
 	}
 }
 
-#[derive(Debug, Clone, PartialEq, Eq, Serialize, Deserialize)]
+#[derive(Debug, Clone, PartialEq, Eq, Serialize, Deserialize, specta::Type)]
 #[serde(rename_all = "camelCase")]
 pub struct BotDraft {
 	pub name: String,
@@ -219,7 +219,7 @@ pub struct BotDraft {
 	pub description: String,
 }
 
-#[derive(Debug, Clone, Copy, PartialEq, Eq, Serialize)]
+#[derive(Debug, Clone, Copy, PartialEq, Eq, Serialize, specta::Type)]
 #[serde(rename_all = "camelCase")]
 pub struct SuggestedBot {
 	pub id: &'static str,
@@ -229,7 +229,7 @@ pub struct SuggestedBot {
 	pub blurb: &'static str,
 }
 
-#[derive(Debug, Clone, PartialEq, Serialize, Deserialize)]
+#[derive(Debug, Clone, PartialEq, Serialize, Deserialize, specta::Type)]
 #[serde(rename_all = "camelCase")]
 pub struct Skill {
 	pub id: String,
@@ -258,7 +258,7 @@ impl From<bundles::Skill> for Skill {
 	}
 }
 
-#[derive(Debug, Clone, Default, PartialEq, Serialize, Deserialize)]
+#[derive(Debug, Clone, Default, PartialEq, Serialize, Deserialize, specta::Type)]
 #[serde(rename_all = "camelCase")]
 pub struct SkillDraft {
 	pub name: String,
@@ -279,7 +279,7 @@ impl From<SkillDraft> for bundles::SkillDraft {
 	}
 }
 
-#[derive(Debug, Clone, PartialEq, Eq, Serialize, Deserialize)]
+#[derive(Debug, Clone, PartialEq, Eq, Serialize, Deserialize, specta::Type)]
 #[serde(rename_all = "camelCase")]
 pub struct BotHistoryEntry {
 	pub id: String,
@@ -290,7 +290,7 @@ pub struct BotHistoryEntry {
 	pub paths: Vec<String>,
 }
 
-#[derive(Debug, Clone, PartialEq, Eq, Serialize, Deserialize)]
+#[derive(Debug, Clone, PartialEq, Eq, Serialize, Deserialize, specta::Type)]
 #[serde(rename_all = "camelCase")]
 pub struct BotChangedFile {
 	pub path: String,
@@ -299,7 +299,7 @@ pub struct BotChangedFile {
 	pub patch: String,
 }
 
-#[derive(Debug, Clone, Copy, PartialEq, Eq, Serialize, Deserialize)]
+#[derive(Debug, Clone, Copy, PartialEq, Eq, Serialize, Deserialize, specta::Type)]
 #[serde(rename_all = "camelCase")]
 pub enum HistoryFileChange {
 	Added,
@@ -330,7 +330,7 @@ impl From<bundles::ChangedFile> for BotChangedFile {
 	}
 }
 
-#[derive(Debug, Clone, Copy, PartialEq, Eq, Serialize, Deserialize)]
+#[derive(Debug, Clone, Copy, PartialEq, Eq, Serialize, Deserialize, specta::Type)]
 #[serde(rename_all = "camelCase")]
 pub enum HistoryAuthor {
 	User,
@@ -359,10 +359,11 @@ impl From<bundles::HistoryEntry> for BotHistoryEntry {
 	}
 }
 
-#[derive(Debug, Clone, PartialEq, Eq, Serialize, Deserialize)]
+#[derive(Debug, Clone, PartialEq, Eq, Serialize, Deserialize, specta::Type)]
 #[serde(rename_all = "camelCase")]
 pub struct McpServer {
 	pub name: String,
+	#[specta(type = crate::json::JsonValue)]
 	pub config: serde_json::Value,
 	#[serde(flatten)]
 	pub mark: bundles::ApplicationMark,
@@ -374,7 +375,7 @@ impl From<bundles::McpServer> for McpServer {
 	}
 }
 
-#[derive(Debug, Clone, PartialEq, Eq, Serialize, Deserialize)]
+#[derive(Debug, Clone, PartialEq, Eq, Serialize, Deserialize, specta::Type)]
 #[serde(rename_all = "camelCase")]
 pub struct Chat {
 	pub id: String,
@@ -388,7 +389,7 @@ impl From<conversations::Chat> for Chat {
 	}
 }
 
-#[derive(Debug, Clone, PartialEq, Eq, Serialize, Deserialize)]
+#[derive(Debug, Clone, PartialEq, Eq, Serialize, Deserialize, specta::Type)]
 #[serde(rename_all = "camelCase")]
 pub struct Conversation {
 	pub id: String,
@@ -422,7 +423,7 @@ impl Conversation {
 	}
 }
 
-#[derive(Debug, Clone, PartialEq, Eq, Serialize, Deserialize)]
+#[derive(Debug, Clone, PartialEq, Eq, Serialize, Deserialize, specta::Type)]
 #[serde(rename_all = "camelCase")]
 pub struct Participant {
 	pub bot_id: String,
@@ -459,7 +460,7 @@ fn drawable_avatar(recorded: Option<&str>, avatars: Option<&Path>) -> Option<Str
 		.map(|path| path.to_string_lossy().into_owned())
 }
 
-#[derive(Debug, Clone, Copy, PartialEq, Eq, Serialize, Deserialize)]
+#[derive(Debug, Clone, Copy, PartialEq, Eq, Serialize, Deserialize, specta::Type)]
 #[serde(rename_all = "camelCase")]
 pub enum ParticipantRole {
 	Lead,
@@ -475,7 +476,7 @@ impl ParticipantRole {
 	}
 }
 
-#[derive(Debug, Clone, PartialEq, Eq, Serialize, Deserialize)]
+#[derive(Debug, Clone, PartialEq, Eq, Serialize, Deserialize, specta::Type)]
 #[serde(rename_all = "camelCase")]
 pub struct RuntimeSession {
 	pub id: String,
@@ -497,7 +498,7 @@ impl From<runtime_context::RuntimeSession> for RuntimeSession {
 	}
 }
 
-#[derive(Debug, Clone, PartialEq, Eq, Serialize, Deserialize)]
+#[derive(Debug, Clone, PartialEq, Eq, Serialize, Deserialize, specta::Type)]
 #[serde(rename_all = "camelCase")]
 pub struct ContextCheckpoint {
 	pub id: String,
@@ -523,7 +524,7 @@ impl From<runtime_context::ContextCheckpoint> for ContextCheckpoint {
 	}
 }
 
-#[derive(Debug, Clone, Copy, PartialEq, Eq, Serialize, Deserialize)]
+#[derive(Debug, Clone, Copy, PartialEq, Eq, Serialize, Deserialize, specta::Type)]
 #[serde(rename_all = "camelCase")]
 pub enum TranscriptRole {
 	User,
@@ -539,7 +540,7 @@ impl From<messages::MessageRole> for TranscriptRole {
 	}
 }
 
-#[derive(Debug, Clone, Copy, PartialEq, Eq, Serialize, Deserialize)]
+#[derive(Debug, Clone, Copy, PartialEq, Eq, Serialize, Deserialize, specta::Type)]
 #[serde(rename_all = "camelCase")]
 pub enum TranscriptCompletion {
 	Pending,
@@ -563,7 +564,7 @@ impl From<messages::MessageState> for TranscriptCompletion {
 	}
 }
 
-#[derive(Debug, Clone, Copy, PartialEq, Eq, Serialize, Deserialize)]
+#[derive(Debug, Clone, Copy, PartialEq, Eq, Serialize, Deserialize, specta::Type)]
 #[serde(rename_all = "camelCase")]
 pub enum TerminalCompletion {
 	Complete,
@@ -583,7 +584,7 @@ impl From<TerminalCompletion> for messages::TerminalState {
 	}
 }
 
-#[derive(Debug, Clone, PartialEq, Eq, Serialize, Deserialize)]
+#[derive(Debug, Clone, PartialEq, Eq, Serialize, Deserialize, specta::Type)]
 #[serde(rename_all = "camelCase")]
 pub struct TranscriptMessage {
 	pub id: String,
@@ -617,7 +618,7 @@ impl TranscriptMessage {
 	}
 }
 
-#[derive(Debug, Clone, PartialEq, Eq, Serialize, Deserialize)]
+#[derive(Debug, Clone, PartialEq, Eq, Serialize, Deserialize, specta::Type)]
 #[serde(rename_all = "camelCase")]
 pub struct PinnedBubble {
 	pub message: TranscriptMessage,
@@ -654,7 +655,7 @@ pub struct MessageRun {
 	pub provider_session_id: Option<String>,
 }
 
-#[derive(Debug, Clone, PartialEq, Eq, Serialize, Deserialize)]
+#[derive(Debug, Clone, PartialEq, Eq, Serialize, Deserialize, specta::Type)]
 #[serde(rename_all = "camelCase")]
 pub struct MessageReference {
 	pub uri: String,
@@ -686,7 +687,7 @@ impl MessageReference {
 
 pub const COMPANION_ARRIVED_EVENT: &str = "conversation://companion-arrived";
 
-#[derive(Debug, Clone, PartialEq, Eq, Serialize, Deserialize)]
+#[derive(Debug, Clone, PartialEq, Eq, Serialize, Deserialize, specta::Type)]
 #[serde(rename_all = "camelCase")]
 pub struct CompanionArrival {
 	pub id: String,
@@ -720,7 +721,7 @@ impl From<arrivals::Arrival> for CompanionArrival {
 	}
 }
 
-#[derive(Debug, Clone, PartialEq, Eq, Serialize, Deserialize)]
+#[derive(Debug, Clone, PartialEq, Eq, Serialize, Deserialize, specta::Type)]
 #[serde(rename_all = "camelCase")]
 pub struct TranscriptPage {
 	pub conversation_id: String,
@@ -741,7 +742,7 @@ impl TranscriptPage {
 	}
 }
 
-#[derive(Debug, Clone, PartialEq, Eq, Serialize, Deserialize)]
+#[derive(Debug, Clone, PartialEq, Eq, Serialize, Deserialize, specta::Type)]
 #[serde(rename_all = "camelCase")]
 pub struct TranscriptWindow {
 	pub conversation_id: String,
@@ -769,7 +770,7 @@ impl TranscriptWindow {
 	}
 }
 
-#[derive(Debug, Clone, PartialEq, Eq, Serialize, Deserialize)]
+#[derive(Debug, Clone, PartialEq, Eq, Serialize, Deserialize, specta::Type)]
 #[serde(rename_all = "camelCase")]
 pub struct NewTurn {
 	pub id: String,
@@ -783,7 +784,7 @@ impl From<NewTurn> for messages::NewTurn {
 	}
 }
 
-#[derive(Debug, Clone, PartialEq, Eq, Serialize, Deserialize)]
+#[derive(Debug, Clone, PartialEq, Eq, Serialize, Deserialize, specta::Type)]
 #[serde(rename_all = "camelCase")]
 pub struct NewUserMessage {
 	pub id: String,
@@ -809,7 +810,7 @@ impl From<NewUserMessage> for messages::NewUserMessage {
 	}
 }
 
-#[derive(Debug, Clone, PartialEq, Eq, Serialize, Deserialize)]
+#[derive(Debug, Clone, PartialEq, Eq, Serialize, Deserialize, specta::Type)]
 #[serde(rename_all = "camelCase")]
 pub struct NewAssistantMessage {
 	pub id: String,
@@ -833,7 +834,7 @@ impl From<NewAssistantMessage> for messages::NewAssistantMessage {
 	}
 }
 
-#[derive(Debug, Clone, PartialEq, Eq, Serialize, Deserialize)]
+#[derive(Debug, Clone, PartialEq, Eq, Serialize, Deserialize, specta::Type)]
 #[serde(tag = "kind", rename_all = "camelCase")]
 pub enum StorageFailure {
 	AppDataDir,
@@ -865,7 +866,7 @@ impl From<&DatabaseError> for StorageFailure {
 	}
 }
 
-#[derive(Debug, Clone, PartialEq, Eq, Serialize, Deserialize)]
+#[derive(Debug, Clone, PartialEq, Eq, Serialize, Deserialize, specta::Type)]
 #[serde(tag = "kind", rename_all = "camelCase")]
 pub enum TranscriptStoreError {
 	#[serde(rename_all = "camelCase")]
@@ -905,7 +906,7 @@ pub enum TranscriptStoreError {
 	UnreadableSources { path: String, reason: String },
 }
 
-#[derive(Debug, Clone, PartialEq, Eq, Serialize, Deserialize)]
+#[derive(Debug, Clone, PartialEq, Eq, Serialize, Deserialize, specta::Type)]
 #[serde(tag = "kind", rename_all = "camelCase")]
 pub enum AvatarRejection {
 	UnknownFormat,

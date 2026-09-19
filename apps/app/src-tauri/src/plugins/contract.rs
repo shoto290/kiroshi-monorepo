@@ -2,7 +2,7 @@ use serde::{Deserialize, Serialize};
 
 use crate::environment::contract::EnvOwner;
 
-#[derive(Debug, Clone, PartialEq, Eq, Serialize, Deserialize)]
+#[derive(Debug, Clone, PartialEq, Eq, Serialize, Deserialize, specta::Type)]
 #[serde(tag = "kind", rename_all = "camelCase")]
 pub enum PluginScope {
 	#[serde(rename_all = "camelCase")]

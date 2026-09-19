@@ -1,21 +1,14 @@
-import type { EnvOwner, EnvScope } from "../conversations/store-contract"
+import type {
+	ApplicationRow_Serialize,
+	Disconnected_Serialize,
+} from "@/lib/bindings"
+import type { EnvOwner } from "../conversations/store-contract"
 
-export type ApplicationStatus =
-	| { status: "connected" }
-	| { status: "needsAuthorization"; reason?: string }
-	| { status: "connecting" }
-	| { status: "failed"; reason?: string }
-	| { status: "unknown" }
-
-export type ApplicationRow = ApplicationStatus & {
-	name: string
-	scope?: EnvScope
-}
-
-export type Disconnected = {
-	revoked: boolean
-	detail?: string
-}
+export type {
+	ApplicationRow_Serialize as ApplicationRow,
+	ApplicationStatus_Serialize as ApplicationStatus,
+	Disconnected_Serialize as Disconnected,
+} from "@/lib/bindings"
 
 export type ConnectionPort = {
 	connect: (owner: EnvOwner, name: string, url: string) => Promise<void>
@@ -24,6 +17,6 @@ export type ConnectionPort = {
 		owner: EnvOwner,
 		name: string,
 		url: string,
-	) => Promise<Disconnected>
-	status: (owner: EnvOwner) => Promise<ApplicationRow[]>
+	) => Promise<Disconnected_Serialize>
+	status: (owner: EnvOwner) => Promise<ApplicationRow_Serialize[]>
 }

@@ -4,6 +4,8 @@ import type {
 	MissionEventKind,
 } from "./mission-contract"
 
+import type { Json } from "@/lib/bindings"
+
 const A_MISSION: Mission = {
 	id: "mission-1",
 	originConversationId: "room-1",
@@ -33,7 +35,7 @@ export const aMission = (held: Partial<Mission> = {}): Mission => ({
 type MissionEventSeed = {
 	kind: MissionEventKind
 	source: string
-	payload?: unknown
+	payload?: Json
 }
 
 const aMissionEvent = (

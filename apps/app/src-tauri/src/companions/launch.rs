@@ -24,6 +24,7 @@ impl LaunchOutcomeState {
 }
 
 #[tauri::command]
+#[specta::specta]
 pub fn companion_launch_outcome(state: State<'_, LaunchOutcomeState>) -> LaunchOutcome {
 	state.read()
 }

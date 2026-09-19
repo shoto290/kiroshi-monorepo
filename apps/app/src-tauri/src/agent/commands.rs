@@ -18,6 +18,7 @@ use super::translate::now_ms;
 use crate::applications::host::ApplicationHost;
 use crate::bundles;
 use crate::companions::host::CompanionHost;
+use crate::json::JsonValue;
 use crate::conversations::commands::space_of_the_conversation;
 use crate::db;
 use crate::db::repositories::conversations::Bot as StoredBot;
@@ -428,18 +429,21 @@ fn stale(scope: &RuntimeScope) -> TransportError {
 }
 
 #[tauri::command]
+#[specta::specta]
 pub async fn agent_models<R: Runtime>(app: AppHandle<R>) -> Vec<String> {
 	let state = app.state::<AgentState>();
 	state.offered(&state.models, &held_connection(&app)).await
 }
 
 #[tauri::command]
+#[specta::specta]
 pub async fn agent_tools<R: Runtime>(app: AppHandle<R>) -> Vec<String> {
 	let state = app.state::<AgentState>();
 	state.offered(&state.tools, &held_connection(&app)).await
 }
 
 #[tauri::command]
+#[specta::specta]
 pub async fn agent_title<R: Runtime>(app: AppHandle<R>, text: String) -> Option<String> {
 	app.state::<AgentState>().title(&text, &held_connection(&app)).await
 }
@@ -458,6 +462,7 @@ fn held_connection<R: Runtime>(app: &AppHandle<R>) -> Values {
 }
 
 #[tauri::command]
+#[specta::specta]
 pub async fn agent_check<R: Runtime>(
 	app: AppHandle<R>,
 	scope: Option<RuntimeScope>,
@@ -655,6 +660,7 @@ fn where_it_runs(stored: Option<String>, anywhere: PathBuf) -> (PathBuf, Option<
 }
 
 #[tauri::command]
+#[specta::specta]
 pub async fn agent_start_or_resume_session<R: Runtime>(
 	app: AppHandle<R>,
 	state: State<'_, AgentState>,
@@ -662,8 +668,9 @@ pub async fn agent_start_or_resume_session<R: Runtime>(
 	scope: RuntimeScope,
 	resume: Option<String>,
 	cwd: Option<String>,
-	output_schema: Option<serde_json::Value>,
+	output_schema: Option<JsonValue>,
 ) -> Result<SessionHandle, TransportError> {
+	let output_schema = output_schema.map(JsonValue::into);
 	let _claim = state.claim(&scope)?;
 
 	let admitted = state.live.take_over(scope.clone());
@@ -800,6 +807,7 @@ pub async fn start_with_fallback(
 }
 
 #[tauri::command]
+#[specta::specta]
 pub async fn agent_submit_prompt(
 	state: State<'_, AgentState>,
 	scope: RuntimeScope,
@@ -809,6 +817,7 @@ pub async fn agent_submit_prompt(
 }
 
 #[tauri::command]
+#[specta::specta]
 pub async fn agent_cancel_turn(
 	state: State<'_, AgentState>,
 	scope: RuntimeScope,
@@ -817,6 +826,7 @@ pub async fn agent_cancel_turn(
 }
 
 #[tauri::command]
+#[specta::specta]
 pub async fn agent_respond_to_permission(
 	state: State<'_, AgentState>,
 	scope: RuntimeScope,
@@ -827,17 +837,20 @@ pub async fn agent_respond_to_permission(
 }
 
 #[tauri::command]
+#[specta::specta]
 pub async fn agent_answer_question(
 	state: State<'_, AgentState>,
 	scope: RuntimeScope,
 	id: String,
 	answers: HashMap<String, String>,
-	annotations: Option<serde_json::Value>,
+	annotations: Option<JsonValue>,
 ) -> Result<(), TransportError> {
+	let annotations = annotations.map(JsonValue::into);
 	state.live.session_for(&scope)?.answer_question(&id, answers, annotations).await
 }
 
 #[tauri::command]
+#[specta::specta]
 pub async fn agent_live_sessions(
 	state: State<'_, AgentState>,
 ) -> Result<Vec<LiveSession>, TransportError> {
@@ -869,6 +882,7 @@ pub async fn terminate_session(state: &AgentState) {
 }
 
 #[tauri::command]
+#[specta::specta]
 pub async fn agent_shutdown<R: Runtime>(
 	app: AppHandle<R>,
 	state: State<'_, AgentState>,

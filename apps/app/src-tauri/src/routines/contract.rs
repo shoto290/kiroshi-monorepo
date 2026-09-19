@@ -3,7 +3,7 @@ use serde::{Deserialize, Serialize};
 use crate::conversations::contract::{StorageFailure, TranscriptStoreError};
 use crate::db::DatabaseError;
 
-#[derive(Debug, Clone, Copy, PartialEq, Eq, Serialize, Deserialize)]
+#[derive(Debug, Clone, Copy, PartialEq, Eq, Serialize, Deserialize, specta::Type)]
 #[serde(rename_all = "lowercase")]
 pub enum FieldType {
 	String,
@@ -52,7 +52,7 @@ impl FieldType {
 	}
 }
 
-#[derive(Debug, Clone, Copy, PartialEq, Eq, Serialize, Deserialize)]
+#[derive(Debug, Clone, Copy, PartialEq, Eq, Serialize, Deserialize, specta::Type)]
 #[serde(rename_all = "snake_case")]
 pub enum FilterOperator {
 	Exists,
@@ -82,7 +82,7 @@ impl FilterOperator {
 	];
 }
 
-#[derive(Debug, Clone, Copy, PartialEq, Eq, Serialize, Deserialize)]
+#[derive(Debug, Clone, Copy, PartialEq, Eq, Serialize, Deserialize, specta::Type)]
 #[serde(rename_all = "lowercase")]
 pub enum FilterMatchMode {
 	All,
@@ -93,23 +93,24 @@ impl FilterMatchMode {
 	pub const ALL: [FilterMatchMode; 2] = [FilterMatchMode::All, FilterMatchMode::Any];
 }
 
-#[derive(Debug, Clone, PartialEq, Eq, Serialize, Deserialize)]
+#[derive(Debug, Clone, PartialEq, Eq, Serialize, Deserialize, specta::Type)]
 #[serde(rename_all = "camelCase")]
 pub struct FilterRow {
 	pub field: String,
 	pub operator: FilterOperator,
 	#[serde(default, skip_serializing_if = "Option::is_none")]
+	#[specta(type = Option<crate::json::JsonValue>)]
 	pub value: Option<serde_json::Value>,
 }
 
-#[derive(Debug, Clone, PartialEq, Eq, Serialize, Deserialize)]
+#[derive(Debug, Clone, PartialEq, Eq, Serialize, Deserialize, specta::Type)]
 #[serde(rename_all = "camelCase")]
 pub struct Filter {
 	pub match_mode: FilterMatchMode,
 	pub rows: Vec<FilterRow>,
 }
 
-#[derive(Debug, Clone, PartialEq, Eq, Serialize, Deserialize)]
+#[derive(Debug, Clone, PartialEq, Eq, Serialize, Deserialize, specta::Type)]
 #[serde(rename_all = "camelCase")]
 pub struct PayloadField {
 	pub name: String,
@@ -117,7 +118,7 @@ pub struct PayloadField {
 	pub field_type: FieldType,
 }
 
-#[derive(Debug, Clone, PartialEq, Eq, Serialize, Deserialize)]
+#[derive(Debug, Clone, PartialEq, Eq, Serialize, Deserialize, specta::Type)]
 #[serde(rename_all = "camelCase")]
 pub struct TriggerSource {
 	pub id: String,
@@ -128,7 +129,7 @@ pub struct TriggerSource {
 	pub header: Option<String>,
 }
 
-#[derive(Debug, Clone, Copy, PartialEq, Eq, Serialize, Deserialize)]
+#[derive(Debug, Clone, Copy, PartialEq, Eq, Serialize, Deserialize, specta::Type)]
 #[serde(rename_all = "lowercase")]
 pub enum RunOutcome {
 	Ok,
@@ -150,7 +151,7 @@ impl RunOutcome {
 	}
 }
 
-#[derive(Debug, Clone, PartialEq, Serialize, Deserialize)]
+#[derive(Debug, Clone, PartialEq, Serialize, Deserialize, specta::Type)]
 #[serde(rename_all = "camelCase")]
 pub struct Routine {
 	pub id: String,
@@ -160,13 +161,14 @@ pub struct Routine {
 	pub instruction: String,
 	pub trigger_source_id: String,
 	pub filter: Filter,
+	#[specta(type = crate::json::JsonValue)]
 	pub trigger_config: serde_json::Value,
 	pub is_enabled: bool,
 	pub consecutive_failures: u32,
 	pub created_at: i64,
 }
 
-#[derive(Debug, Clone, PartialEq, Serialize, Deserialize)]
+#[derive(Debug, Clone, PartialEq, Serialize, Deserialize, specta::Type)]
 #[serde(rename_all = "camelCase")]
 pub struct RoutineDraft {
 	pub conversation_id: String,
@@ -175,20 +177,22 @@ pub struct RoutineDraft {
 	pub instruction: String,
 	pub trigger_source_id: String,
 	pub filter: Filter,
+	#[specta(type = crate::json::JsonValue)]
 	pub trigger_config: serde_json::Value,
 }
 
-#[derive(Debug, Clone, PartialEq, Serialize, Deserialize)]
+#[derive(Debug, Clone, PartialEq, Serialize, Deserialize, specta::Type)]
 #[serde(rename_all = "camelCase")]
 pub struct RoutineEdit {
 	pub title: String,
 	pub instruction: String,
 	pub filter: Filter,
+	#[specta(type = crate::json::JsonValue)]
 	pub trigger_config: serde_json::Value,
 	pub is_enabled: bool,
 }
 
-#[derive(Debug, Clone, PartialEq, Eq, Serialize, Deserialize)]
+#[derive(Debug, Clone, PartialEq, Eq, Serialize, Deserialize, specta::Type)]
 #[serde(rename_all = "camelCase")]
 pub struct RoutineKey {
 	pub key: String,
@@ -198,7 +202,7 @@ pub struct RoutineKey {
 	pub url: Option<String>,
 }
 
-#[derive(Debug, Clone, PartialEq, Serialize, Deserialize)]
+#[derive(Debug, Clone, PartialEq, Serialize, Deserialize, specta::Type)]
 #[serde(rename_all = "camelCase")]
 pub struct RoutineRun {
 	pub id: String,
@@ -208,10 +212,11 @@ pub struct RoutineRun {
 	pub outcome: Option<RunOutcome>,
 	pub reason: Option<String>,
 	pub cost_usd: Option<f64>,
+	#[specta(type = Option<crate::json::JsonValue>)]
 	pub model_usage: Option<serde_json::Value>,
 }
 
-#[derive(Debug, Clone, PartialEq, Serialize, Deserialize)]
+#[derive(Debug, Clone, PartialEq, Serialize, Deserialize, specta::Type)]
 #[serde(rename_all = "camelCase")]
 pub struct RunClosing {
 	pub outcome: RunOutcome,
@@ -220,12 +225,13 @@ pub struct RunClosing {
 	#[serde(default, skip_serializing_if = "Option::is_none")]
 	pub cost_usd: Option<f64>,
 	#[serde(default, skip_serializing_if = "Option::is_none")]
+	#[specta(type = Option<crate::json::JsonValue>)]
 	pub model_usage: Option<serde_json::Value>,
 	#[serde(default, skip_serializing_if = "Option::is_none")]
 	pub reported_turn_id: Option<String>,
 }
 
-#[derive(Debug, Clone, PartialEq, Eq, Serialize, Deserialize)]
+#[derive(Debug, Clone, PartialEq, Eq, Serialize, Deserialize, specta::Type)]
 #[serde(rename_all = "camelCase")]
 pub struct ReportedRun {
 	pub turn_id: String,
@@ -233,15 +239,16 @@ pub struct ReportedRun {
 	pub trigger_source_id: String,
 }
 
-#[derive(Debug, Clone, PartialEq, Serialize, Deserialize)]
+#[derive(Debug, Clone, PartialEq, Serialize, Deserialize, specta::Type)]
 #[serde(rename_all = "camelCase")]
 pub struct TriggerEvent {
 	pub routine_id: String,
 	pub source: TriggerSource,
+	#[specta(type = crate::json::JsonValue)]
 	pub payload: serde_json::Value,
 }
 
-#[derive(Debug, Clone, PartialEq, Serialize, Deserialize)]
+#[derive(Debug, Clone, PartialEq, Serialize, Deserialize, specta::Type)]
 #[serde(rename_all = "camelCase")]
 pub struct RunRequested {
 	pub cause: RunCause,
@@ -252,10 +259,11 @@ pub struct RunRequested {
 	pub bot_id: String,
 	pub conversation_id: String,
 	pub trigger_source_id: String,
+	#[specta(type = crate::json::JsonValue)]
 	pub payload: serde_json::Value,
 }
 
-#[derive(Debug, Clone, Copy, PartialEq, Eq, Serialize, Deserialize)]
+#[derive(Debug, Clone, Copy, PartialEq, Eq, Serialize, Deserialize, specta::Type)]
 #[serde(rename_all = "camelCase")]
 pub enum RunCause {
 	Trigger,
@@ -266,7 +274,7 @@ impl RunCause {
 	pub const ALL: [RunCause; 2] = [RunCause::Trigger, RunCause::RunNow];
 }
 
-#[derive(Debug, Clone, Copy, PartialEq, Eq, Serialize, Deserialize)]
+#[derive(Debug, Clone, Copy, PartialEq, Eq, Serialize, Deserialize, specta::Type)]
 #[serde(rename_all = "camelCase")]
 pub enum SkipReason {
 	LeaseHeld,
@@ -289,7 +297,7 @@ impl SkipReason {
 
 pub const LEASE_EXPIRED: &str = "lease expired";
 
-#[derive(Debug, Clone, Copy, PartialEq, Eq, Serialize, Deserialize)]
+#[derive(Debug, Clone, Copy, PartialEq, Eq, Serialize, Deserialize, specta::Type)]
 #[serde(rename_all = "camelCase")]
 pub enum Refusal {
 	Disabled,
@@ -303,7 +311,7 @@ impl Refusal {
 		[Refusal::Disabled, Refusal::Filter, Refusal::DedupeValueMissing, Refusal::AlreadySeen];
 }
 
-#[derive(Debug, Clone, PartialEq, Eq, Serialize, Deserialize)]
+#[derive(Debug, Clone, PartialEq, Eq, Serialize, Deserialize, specta::Type)]
 #[serde(tag = "kind", rename_all = "camelCase")]
 pub enum TriggerDecision {
 	#[serde(rename_all = "camelCase")]
@@ -314,7 +322,7 @@ pub enum TriggerDecision {
 	Refused { by: Refusal },
 }
 
-#[derive(Debug, Clone, PartialEq, Eq, Serialize, Deserialize)]
+#[derive(Debug, Clone, PartialEq, Eq, Serialize, Deserialize, specta::Type)]
 #[serde(tag = "kind", rename_all = "camelCase")]
 pub enum RoutineError {
 	#[serde(rename_all = "camelCase")]
@@ -502,99 +510,6 @@ mod tests {
 			.collect()
 	}
 
-	fn mirrored_fields(alias: &str) -> BTreeSet<String> {
-		let mirror = mirror();
-		let opening = format!("export type {alias} = {{\n");
-		let start =
-			mirror.find(&opening).unwrap_or_else(|| panic!("the mirror declares no {alias}"))
-				+ opening.len();
-		let body = &mirror[start..];
-		let body = body.split("\n}").next().unwrap_or(body);
-		body.lines()
-			.filter_map(|line| line.split_once(':'))
-			.map(|(name, _)| name.trim().trim_end_matches('?').to_owned())
-			.collect()
-	}
-
-	fn serialised_fields<T: Serialize>(value: &T) -> BTreeSet<String> {
-		to_value(value)
-			.expect("the value serialises")
-			.as_object()
-			.expect("the value is an object")
-			.keys()
-			.cloned()
-			.collect()
-	}
-
-	#[test]
-	fn a_routine_and_what_writes_one_name_the_fields_the_front_declares() {
-		let filter = Filter { match_mode: FilterMatchMode::All, rows: Vec::new() };
-		let routine = Routine {
-			id: "r1".to_owned(),
-			conversation_id: "c1".to_owned(),
-			bot_id: "b1".to_owned(),
-			title: "Nightly report".to_owned(),
-			instruction: "Read the shift log.".to_owned(),
-			trigger_source_id: "schedule".to_owned(),
-			filter: filter.clone(),
-			trigger_config: json!({}),
-			is_enabled: true,
-			consecutive_failures: 0,
-			created_at: 1,
-		};
-		let draft = RoutineDraft {
-			conversation_id: routine.conversation_id.clone(),
-			bot_id: routine.bot_id.clone(),
-			title: routine.title.clone(),
-			instruction: routine.instruction.clone(),
-			trigger_source_id: routine.trigger_source_id.clone(),
-			filter: filter.clone(),
-			trigger_config: json!({}),
-		};
-		let edit = RoutineEdit {
-			title: routine.title.clone(),
-			instruction: routine.instruction.clone(),
-			filter,
-			trigger_config: json!({}),
-			is_enabled: true,
-		};
-		let requested = RunRequested {
-			cause: RunCause::Trigger,
-			title: routine.title.clone(),
-			instruction: routine.instruction.clone(),
-			routine_id: routine.id.clone(),
-			run_id: "run-1".to_owned(),
-			bot_id: routine.bot_id.clone(),
-			conversation_id: routine.conversation_id.clone(),
-			trigger_source_id: routine.trigger_source_id.clone(),
-			payload: json!({}),
-		};
-
-		assert_eq!(serialised_fields(&routine), mirrored_fields("Routine"));
-		assert_eq!(serialised_fields(&draft), mirrored_fields("RoutineDraft"));
-		assert_eq!(serialised_fields(&edit), mirrored_fields("RoutineEdit"));
-		assert_eq!(serialised_fields(&requested), mirrored_fields("RunRequested"));
-	}
-
-	#[test]
-	fn a_closing_and_a_reported_run_name_the_fields_the_front_declares() {
-		let closing = RunClosing {
-			outcome: RunOutcome::Ok,
-			reason: Some("done".to_owned()),
-			cost_usd: Some(0.42),
-			model_usage: Some(json!({ "sonnet": { "inputTokens": 120 } })),
-			reported_turn_id: Some("t1".to_owned()),
-		};
-		let reported = ReportedRun {
-			turn_id: "t1".to_owned(),
-			routine_title: "Nightly report".to_owned(),
-			trigger_source_id: "schedule".to_owned(),
-		};
-
-		assert_eq!(serialised_fields(&closing), mirrored_fields("RunClosing"));
-		assert_eq!(serialised_fields(&reported), mirrored_fields("ReportedRun"));
-	}
-
 	#[test]
 	fn every_refusal_of_a_reported_turn_carries_the_kind_the_front_declares() {
 		let refusals = [
@@ -614,48 +529,6 @@ mod tests {
 		];
 
 		assert_eq!(tagged(&refusals), mirrored("ReportRefusal"));
-	}
-
-	#[test]
-	fn the_key_answer_names_the_fields_the_front_declares() {
-		let answer = RoutineKey {
-			key: "the-key".to_owned(),
-			header: Some("X-Kiroshi-Delivery".to_owned()),
-			url: Some("http://127.0.0.1:45367/routines/call".to_owned()),
-		};
-
-		assert_eq!(serialised_fields(&answer), mirrored_fields("RoutineKey"));
-	}
-
-	#[test]
-	fn every_run_outcome_serialises_as_the_front_declares_it() {
-		assert_eq!(named(&RunOutcome::ALL), mirrored("RunOutcome"));
-	}
-
-	#[test]
-	fn every_run_cause_serialises_as_the_front_declares_it() {
-		assert_eq!(named(&RunCause::ALL), mirrored("RunCause"));
-	}
-
-	#[test]
-	fn every_skip_reason_serialises_as_the_front_declares_it() {
-		assert_eq!(named(&SkipReason::ALL), mirrored("SkipReason"));
-	}
-
-	#[test]
-	fn every_refusal_serialises_as_the_front_declares_it() {
-		assert_eq!(named(&Refusal::ALL), mirrored("Refusal"));
-	}
-
-	#[test]
-	fn every_trigger_decision_carries_the_tag_the_front_declares() {
-		let decisions = [
-			TriggerDecision::Started { run_id: "run-1".to_owned() },
-			TriggerDecision::Skipped { run_id: "run-1".to_owned(), reason: SkipReason::HourlyCap },
-			TriggerDecision::Refused { by: Refusal::Disabled },
-		];
-
-		assert_eq!(tagged(&decisions), mirrored("TriggerDecision"));
 	}
 
 	#[test]

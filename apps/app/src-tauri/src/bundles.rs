@@ -274,7 +274,7 @@ fn settings_path(root: &Path, bot_id: &str) -> PathBuf {
 	dir(root, bot_id).join(SETTINGS_NAME)
 }
 
-#[derive(Debug, Clone, PartialEq, Eq, Serialize, Deserialize)]
+#[derive(Debug, Clone, PartialEq, Eq, Serialize, Deserialize, specta::Type)]
 #[serde(rename_all = "camelCase")]
 pub struct BotPermissions {
 	pub default_mode: String,
@@ -885,7 +885,7 @@ pub struct SkillDraft {
 	pub front: SkillFront,
 }
 
-#[derive(Debug, Clone, Default, PartialEq, Serialize, Deserialize)]
+#[derive(Debug, Clone, Default, PartialEq, Serialize, Deserialize, specta::Type)]
 #[serde(rename_all = "camelCase", default)]
 pub struct SkillFront {
 	pub when_to_use: Option<String>,
@@ -900,11 +900,14 @@ pub struct SkillFront {
 	pub context: Option<String>,
 	pub agent: Option<String>,
 	pub background: Option<bool>,
+	#[specta(type = Option<crate::json::JsonValue>)]
 	pub hooks: Option<serde_json::Value>,
 	pub paths: Option<Vec<String>>,
 	pub shell: Option<String>,
+	#[specta(type = Option<crate::json::JsonValue>)]
 	pub metadata: Option<serde_json::Value>,
 	pub license: Option<String>,
+	#[specta(type = Option<crate::json::JsonValue>)]
 	pub compatibility: Option<serde_json::Value>,
 }
 
@@ -1044,7 +1047,7 @@ pub struct McpServer {
 	pub mark: ApplicationMark,
 }
 
-#[derive(Debug, Clone, Default, PartialEq, Eq, Serialize, Deserialize)]
+#[derive(Debug, Clone, Default, PartialEq, Eq, Serialize, Deserialize, specta::Type)]
 #[serde(rename_all = "camelCase", default)]
 pub struct ApplicationMark {
 	#[serde(skip_serializing_if = "Option::is_none")]
@@ -1063,7 +1066,7 @@ const PLACEHOLDER_OPENING: &str = "${";
 
 const LOOPBACK_NAME: &str = "localhost";
 
-#[derive(Debug, Clone, Copy, PartialEq, Eq, Serialize)]
+#[derive(Debug, Clone, Copy, PartialEq, Eq, Serialize, specta::Type)]
 #[serde(rename_all = "camelCase")]
 pub enum AuthorizationWithheld {
 	ServedOverNoUrl,

@@ -182,6 +182,7 @@ fn reconciled_identity(
 }
 
 #[tauri::command]
+#[specta::specta]
 pub async fn conversation_bots<R: Runtime>(
 	app: AppHandle<R>,
 	state: State<'_, db::DatabaseState>,
@@ -194,6 +195,7 @@ pub async fn conversation_bots<R: Runtime>(
 }
 
 #[tauri::command]
+#[specta::specta]
 pub async fn conversation_bots_by_presence<R: Runtime>(
 	app: AppHandle<R>,
 	state: State<'_, db::DatabaseState>,
@@ -208,6 +210,7 @@ pub async fn conversation_bots_by_presence<R: Runtime>(
 }
 
 #[tauri::command]
+#[specta::specta]
 pub async fn conversation_create_bot<R: Runtime>(
 	app: AppHandle<R>,
 	state: State<'_, db::DatabaseState>,
@@ -218,6 +221,7 @@ pub async fn conversation_create_bot<R: Runtime>(
 }
 
 #[tauri::command]
+#[specta::specta]
 pub async fn conversation_create_bot_from_draft<R: Runtime>(
 	app: AppHandle<R>,
 	state: State<'_, db::DatabaseState>,
@@ -231,6 +235,7 @@ pub async fn conversation_create_bot_from_draft<R: Runtime>(
 }
 
 #[tauri::command]
+#[specta::specta]
 pub fn conversation_suggested_bots() -> Vec<SuggestedBot> {
 	SUGGESTED_BOTS.to_vec()
 }
@@ -296,6 +301,7 @@ pub(super) async fn create_bundled_bot<R: Runtime>(
 }
 
 #[tauri::command]
+#[specta::specta]
 pub async fn conversation_duplicate_bot<R: Runtime>(
 	app: AppHandle<R>,
 	state: State<'_, db::DatabaseState>,
@@ -458,6 +464,7 @@ fn unshared_name(wanted: String, taken: &[String]) -> String {
 }
 
 #[tauri::command]
+#[specta::specta]
 pub async fn conversation_update_bot<R: Runtime>(
 	app: AppHandle<R>,
 	state: State<'_, db::DatabaseState>,
@@ -490,6 +497,7 @@ pub async fn conversation_update_bot<R: Runtime>(
 }
 
 #[tauri::command]
+#[specta::specta]
 pub async fn conversation_set_bot_memory<R: Runtime>(
 	app: AppHandle<R>,
 	state: State<'_, db::DatabaseState>,
@@ -513,6 +521,7 @@ pub async fn conversation_set_bot_memory<R: Runtime>(
 }
 
 #[tauri::command]
+#[specta::specta]
 pub async fn conversation_set_bot_avatar_image<R: Runtime>(
 	app: AppHandle<R>,
 	state: State<'_, db::DatabaseState>,
@@ -538,6 +547,7 @@ pub async fn conversation_set_bot_avatar_image<R: Runtime>(
 }
 
 #[tauri::command]
+#[specta::specta]
 pub async fn conversation_delete_bot<R: Runtime>(
 	app: AppHandle<R>,
 	state: State<'_, db::DatabaseState>,
@@ -575,6 +585,7 @@ pub(crate) fn bundled<T>(outcome: std::io::Result<T>) -> Result<T, TranscriptSto
 }
 
 #[tauri::command]
+#[specta::specta]
 pub async fn conversation_record_bot_commands(
 	state: State<'_, db::DatabaseState>,
 	bot_id: String,
@@ -584,6 +595,7 @@ pub async fn conversation_record_bot_commands(
 }
 
 #[tauri::command]
+#[specta::specta]
 pub async fn conversation_bot_commands(
 	state: State<'_, db::DatabaseState>,
 	bot_id: String,
@@ -592,6 +604,7 @@ pub async fn conversation_bot_commands(
 }
 
 #[tauri::command]
+#[specta::specta]
 pub async fn conversation_main_chat(
 	state: State<'_, db::DatabaseState>,
 	bot_id: String,
@@ -601,6 +614,7 @@ pub async fn conversation_main_chat(
 }
 
 #[tauri::command]
+#[specta::specta]
 pub async fn conversation_create<R: Runtime>(
 	app: AppHandle<R>,
 	state: State<'_, db::DatabaseState>,
@@ -615,6 +629,7 @@ pub async fn conversation_create<R: Runtime>(
 }
 
 #[tauri::command]
+#[specta::specta]
 pub async fn conversation_list<R: Runtime>(
 	app: AppHandle<R>,
 	state: State<'_, db::DatabaseState>,
@@ -626,6 +641,7 @@ pub async fn conversation_list<R: Runtime>(
 }
 
 #[tauri::command]
+#[specta::specta]
 pub async fn conversation_update<R: Runtime>(
 	app: AppHandle<R>,
 	state: State<'_, db::DatabaseState>,
@@ -640,6 +656,7 @@ pub async fn conversation_update<R: Runtime>(
 }
 
 #[tauri::command]
+#[specta::specta]
 pub async fn conversation_delete(
 	state: State<'_, db::DatabaseState>,
 	conversation_id: String,
@@ -648,6 +665,7 @@ pub async fn conversation_delete(
 }
 
 #[tauri::command]
+#[specta::specta]
 pub async fn conversation_add_participant<R: Runtime>(
 	app: AppHandle<R>,
 	state: State<'_, db::DatabaseState>,
@@ -676,6 +694,7 @@ pub(crate) async fn seat_participant<R: Runtime>(
 }
 
 #[tauri::command]
+#[specta::specta]
 pub async fn conversation_remove_participant<R: Runtime>(
 	app: AppHandle<R>,
 	state: State<'_, db::DatabaseState>,
@@ -687,6 +706,7 @@ pub async fn conversation_remove_participant<R: Runtime>(
 }
 
 #[tauri::command]
+#[specta::specta]
 pub async fn conversation_set_lead<R: Runtime>(
 	app: AppHandle<R>,
 	state: State<'_, db::DatabaseState>,
@@ -702,6 +722,7 @@ fn drawn<R: Runtime>(app: &AppHandle<R>, room: StoredConversation) -> Conversati
 }
 
 #[tauri::command]
+#[specta::specta]
 pub async fn conversation_open_runtime_session(
 	state: State<'_, db::DatabaseState>,
 	conversation_id: String,
@@ -716,6 +737,7 @@ pub async fn conversation_open_runtime_session(
 }
 
 #[tauri::command]
+#[specta::specta]
 pub async fn conversation_record_provider_session(
 	state: State<'_, db::DatabaseState>,
 	conversation_id: String,
@@ -731,6 +753,7 @@ pub async fn conversation_record_provider_session(
 }
 
 #[tauri::command]
+#[specta::specta]
 pub async fn conversation_bounded_context(
 	state: State<'_, db::DatabaseState>,
 	conversation_id: String,
@@ -744,6 +767,7 @@ pub async fn conversation_bounded_context(
 }
 
 #[tauri::command]
+#[specta::specta]
 pub async fn conversation_roster_block(
 	state: State<'_, db::DatabaseState>,
 	conversation_id: String,
@@ -754,6 +778,7 @@ pub async fn conversation_roster_block(
 }
 
 #[tauri::command]
+#[specta::specta]
 pub async fn conversation_capture_checkpoint(
 	state: State<'_, db::DatabaseState>,
 	conversation_id: String,
@@ -768,6 +793,7 @@ pub async fn conversation_capture_checkpoint(
 }
 
 #[tauri::command]
+#[specta::specta]
 pub async fn conversation_message_page(
 	state: State<'_, db::DatabaseState>,
 	conversation_id: String,
@@ -780,6 +806,7 @@ pub async fn conversation_message_page(
 }
 
 #[tauri::command]
+#[specta::specta]
 pub async fn conversation_message_page_around(
 	state: State<'_, db::DatabaseState>,
 	conversation_id: String,
@@ -794,6 +821,7 @@ pub async fn conversation_message_page_around(
 }
 
 #[tauri::command]
+#[specta::specta]
 pub async fn conversation_message_reference(
 	state: State<'_, db::DatabaseState>,
 	conversation_id: String,
@@ -809,6 +837,7 @@ pub async fn conversation_message_reference(
 }
 
 #[tauri::command]
+#[specta::specta]
 pub async fn conversation_pin_message(
 	state: State<'_, db::DatabaseState>,
 	conversation_id: String,
@@ -823,6 +852,7 @@ pub async fn conversation_pin_message(
 }
 
 #[tauri::command]
+#[specta::specta]
 pub async fn conversation_unpin_message(
 	state: State<'_, db::DatabaseState>,
 	conversation_id: String,
@@ -833,6 +863,7 @@ pub async fn conversation_unpin_message(
 }
 
 #[tauri::command]
+#[specta::specta]
 pub async fn conversation_pinned_messages(
 	state: State<'_, db::DatabaseState>,
 	conversation_id: String,
@@ -842,6 +873,7 @@ pub async fn conversation_pinned_messages(
 }
 
 #[tauri::command]
+#[specta::specta]
 pub async fn conversation_start_turn(
 	state: State<'_, db::DatabaseState>,
 	turn: NewTurn,
@@ -850,6 +882,7 @@ pub async fn conversation_start_turn(
 }
 
 #[tauri::command]
+#[specta::specta]
 pub async fn conversation_complete_turn(
 	state: State<'_, db::DatabaseState>,
 	id: String,
@@ -859,6 +892,7 @@ pub async fn conversation_complete_turn(
 }
 
 #[tauri::command]
+#[specta::specta]
 pub async fn conversation_append_user_message(
 	state: State<'_, db::DatabaseState>,
 	message: NewUserMessage,
@@ -867,6 +901,7 @@ pub async fn conversation_append_user_message(
 }
 
 #[tauri::command]
+#[specta::specta]
 pub async fn conversation_open_assistant_message(
 	state: State<'_, db::DatabaseState>,
 	message: NewAssistantMessage,
@@ -875,6 +910,7 @@ pub async fn conversation_open_assistant_message(
 }
 
 #[tauri::command]
+#[specta::specta]
 pub async fn conversation_append_text(
 	state: State<'_, db::DatabaseState>,
 	id: String,
@@ -884,6 +920,7 @@ pub async fn conversation_append_text(
 }
 
 #[tauri::command]
+#[specta::specta]
 pub async fn conversation_finalize_message(
 	state: State<'_, db::DatabaseState>,
 	id: String,

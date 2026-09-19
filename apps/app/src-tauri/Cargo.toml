@@ -42,6 +42,12 @@ tauri-plugin-process = "2"
 tauri-plugin-opener = "2"
 tauri-plugin-notification = "2"
 tauri-plugin-os = "2"
+# The one route from the Rust command surface to the TypeScript the front reads: the
+# Builder yields both the invoke handler and the exporter, so a command signature and its
+# mirror can no longer drift. The Tauri v2 line is a pre-release, so all three are pinned.
+tauri-specta = { version = "=2.0.0-rc.25", features = ["derive", "typescript"] }
+specta = { version = "=2.0.0-rc.25", features = ["derive", "serde_json"] }
+specta-typescript = "=0.0.12"
 serde = { version = "1", features = ["derive"] }
 serde_json = "1"
 tokio = { version = "1", features = ["macros", "process", "io-util", "net", "sync", "time", "rt-multi-thread"] }

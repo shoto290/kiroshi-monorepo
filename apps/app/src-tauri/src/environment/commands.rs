@@ -12,6 +12,7 @@ pub fn writable_root<R: Runtime>(app: &AppHandle<R>) -> Result<PathBuf, EnvError
 }
 
 #[tauri::command]
+#[specta::specta]
 pub async fn env_set<R: Runtime>(
 	app: AppHandle<R>,
 	scope: EnvScope,
@@ -34,6 +35,7 @@ fn set_by_the_person(
 }
 
 #[tauri::command]
+#[specta::specta]
 pub async fn env_delete<R: Runtime>(
 	app: AppHandle<R>,
 	scope: EnvScope,
@@ -43,6 +45,7 @@ pub async fn env_delete<R: Runtime>(
 }
 
 #[tauri::command]
+#[specta::specta]
 pub async fn env_list<R: Runtime>(
 	app: AppHandle<R>,
 	scope: EnvScope,
@@ -51,6 +54,7 @@ pub async fn env_list<R: Runtime>(
 }
 
 #[tauri::command]
+#[specta::specta]
 pub async fn connection_set<R: Runtime>(
 	app: AppHandle<R>,
 	kind: ConnectionKind,

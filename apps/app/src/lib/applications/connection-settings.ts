@@ -27,12 +27,17 @@ type ConnectionSettingsSource = {
 	onSettled?: (name: string) => void
 }
 
-const urlOf = (server: BotMcpServer) =>
-	readMcpServerLaunch(server.config).url ?? ""
+const configOf = ({ config }: BotMcpServer): Record<string, unknown> =>
+	typeof config === "object" && config !== null && !Array.isArray(config)
+		? config
+		: {}
+
+const urlOf = (config: Record<string, unknown>) =>
+	readMcpServerLaunch(config).url ?? ""
 
 const keptMarkOf = ({ title, logo, logoUrl }: BotMcpServer) => ({
-	displayName: title,
-	mark: logo ?? logoUrl,
+	displayName: title ?? undefined,
+	mark: logo ?? logoUrl ?? undefined,
 })
 
 export const hasKeptMark = (server: BotMcpServer) => {
@@ -100,7 +105,7 @@ const sectionOf = (
 	if (!connection.state) {
 		return undefined
 	}
-	const url = urlOf(server)
+	const url = urlOf(configOf(server))
 
 	return {
 		state: connection.state,
@@ -134,13 +139,19 @@ export const toConnectionSettings = ({
 	return {
 		mcpServers: servers.map((server) => {
 			const { state, reason } = connectionOf(connections.state, server.name)
-			return { ...server, ...keptMarkOf(server), connection: state, reason }
+			return {
+				name: server.name,
+				config: configOf(server),
+				...keptMarkOf(server),
+				connection: state,
+				reason,
+			}
 		}),
 		onServerConnect: (server) => {
 			settle(
 				server.name,
 				"connected",
-				connections.controller.connect(server.name, urlOf(server)),
+				connections.controller.connect(server.name, urlOf(server.config)),
 			)
 		},
 		serverConnection: opened && sectionOf(connections, opened, settle),

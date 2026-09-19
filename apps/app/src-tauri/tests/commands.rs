@@ -7,7 +7,7 @@ use kiroshi_app::agent::commands::{
 };
 use kiroshi_app::agent::contract::{AgentEvent, ConnectionState, RuntimeScope, ScopedEvent};
 use kiroshi_app::agent::AgentState;
-use kiroshi_app::commands::invoke_handler;
+use kiroshi_app::commands::builder;
 use kiroshi_app::db;
 use kiroshi_app::db::connection::{open, FILE_NAME};
 use kiroshi_app::db::migrations;
@@ -37,7 +37,7 @@ fn build(context: tauri::Context<MockRuntime>) -> tauri::App<MockRuntime> {
 	mock_builder()
 		.manage(AgentState::default())
 		.manage(db::DatabaseState::Err(db::DatabaseError::AppDataDir))
-		.invoke_handler(invoke_handler())
+		.invoke_handler(builder().invoke_handler())
 		.build(context)
 		.expect("app builds")
 }

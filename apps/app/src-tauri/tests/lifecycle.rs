@@ -11,7 +11,7 @@ use kiroshi_app::agent::commands::{
 use kiroshi_app::agent::contract::{RuntimeScope, SessionHandle, TransportError};
 use kiroshi_app::agent::sidecar::live_groups;
 use kiroshi_app::agent::AgentState;
-use kiroshi_app::commands::invoke_handler;
+use kiroshi_app::commands::builder;
 use kiroshi_app::db;
 use tauri::test::{mock_builder, mock_context, noop_assets, MockRuntime};
 use tauri::{App, Manager};
@@ -31,7 +31,7 @@ fn app() -> App<MockRuntime> {
 	mock_builder()
 		.manage(AgentState::default())
 		.manage(db::DatabaseState::Err(db::DatabaseError::AppDataDir))
-		.invoke_handler(invoke_handler())
+		.invoke_handler(builder().invoke_handler())
 		.build(mock_context(noop_assets()))
 		.expect("app builds")
 }

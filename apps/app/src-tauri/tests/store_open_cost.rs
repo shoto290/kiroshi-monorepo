@@ -3,7 +3,7 @@ use std::sync::atomic::{AtomicBool, AtomicUsize, Ordering};
 use std::sync::Arc;
 use std::time::{Duration, Instant};
 
-use kiroshi_app::commands::invoke_handler;
+use kiroshi_app::commands::builder;
 use kiroshi_app::db;
 use kiroshi_app::db::repositories::messages::{MessagePageQuery, NewUserMessage};
 use rusqlite::{params, Connection};
@@ -75,7 +75,7 @@ impl Drop for Home {
 fn host(identifier: &str) -> App<MockRuntime> {
 	let mut context = mock_context(noop_assets());
 	context.config_mut().identifier = identifier.into();
-	mock_builder().invoke_handler(invoke_handler()).build(context).expect("app builds")
+	mock_builder().invoke_handler(builder().invoke_handler()).build(context).expect("app builds")
 }
 
 fn database_of<M: Manager<MockRuntime>>(manager: &M) -> &db::Database {

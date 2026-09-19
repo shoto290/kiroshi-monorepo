@@ -7,7 +7,7 @@ use kiroshi_app::agent::contract::{AgentEvent, EvolvedBundle, RuntimeScope, Scop
 use kiroshi_app::agent::sidecar::SIDECAR_OVERRIDE_ENV;
 use kiroshi_app::agent::AgentState;
 use kiroshi_app::bundles;
-use kiroshi_app::commands::invoke_handler;
+use kiroshi_app::commands::builder;
 use kiroshi_app::db;
 use kiroshi_app::db::repositories::conversations::Bot as StoredBot;
 use serde_json::{json, Value};
@@ -37,7 +37,7 @@ fn launch() -> Harness {
 
 	let app = mock_builder()
 		.manage(AgentState::default())
-		.invoke_handler(invoke_handler())
+		.invoke_handler(builder().invoke_handler())
 		.build(context)
 		.expect("app builds");
 	if let Ok(dir) = app.path().app_data_dir() {

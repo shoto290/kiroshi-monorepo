@@ -16,6 +16,7 @@ import "@workspace/ui/lib/i18n"
 
 import type { ActivityPanel } from "@/components/thread-routines"
 import { WorkspaceBody } from "@/components/workspace-body"
+import type { Json } from "@/lib/bindings"
 import { createAttachmentsController } from "@/lib/chat/attachments-controller"
 import { createAttachmentsPort } from "@/lib/chat/attachments-port"
 import { createChatController } from "@/lib/chat/chat-controller"
@@ -122,7 +123,7 @@ const missionOf = (bot: Bot, origin: Conversation): Mission => ({
 const eventOf = (
 	kind: MissionEvent["kind"],
 	createdAt: number,
-	payload: unknown = null,
+	payload: Json = null,
 ): MissionEvent => ({
 	id: `e-${kind}-${createdAt}`,
 	missionId: "m-1",

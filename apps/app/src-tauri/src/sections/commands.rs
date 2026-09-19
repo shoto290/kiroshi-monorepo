@@ -8,6 +8,7 @@ fn ready(state: &db::DatabaseState) -> Result<&db::Database, SectionError> {
 }
 
 #[tauri::command]
+#[specta::specta]
 pub async fn section_list(
 	state: State<'_, db::DatabaseState>,
 	space_id: String,
@@ -17,6 +18,7 @@ pub async fn section_list(
 }
 
 #[tauri::command]
+#[specta::specta]
 pub async fn section_create(
 	state: State<'_, db::DatabaseState>,
 	space_id: String,
@@ -26,6 +28,7 @@ pub async fn section_create(
 }
 
 #[tauri::command]
+#[specta::specta]
 pub async fn section_rename(
 	state: State<'_, db::DatabaseState>,
 	id: String,
@@ -35,6 +38,7 @@ pub async fn section_rename(
 }
 
 #[tauri::command]
+#[specta::specta]
 pub async fn roster_pin(
 	state: State<'_, db::DatabaseState>,
 	space_id: String,
@@ -45,6 +49,7 @@ pub async fn roster_pin(
 }
 
 #[tauri::command]
+#[specta::specta]
 pub async fn section_delete(
 	state: State<'_, db::DatabaseState>,
 	id: String,
@@ -53,6 +58,7 @@ pub async fn section_delete(
 }
 
 #[tauri::command]
+#[specta::specta]
 pub async fn bot_move_to_section(
 	state: State<'_, db::DatabaseState>,
 	bot_id: String,

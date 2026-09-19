@@ -9,6 +9,7 @@ pub mod conversations;
 pub mod db;
 pub mod environment;
 pub mod file_store;
+pub mod json;
 pub mod mcp_oauth;
 pub mod missions;
 pub mod notifications;
@@ -25,7 +26,7 @@ use tauri::{Manager, RunEvent};
 
 use agent::commands::terminate_session;
 use agent::AgentState;
-use commands::invoke_handler;
+use commands::builder;
 
 pub fn run() {
 	tauri::Builder::default()
@@ -71,7 +72,7 @@ pub fn run() {
 			});
 			Ok(())
 		})
-		.invoke_handler(invoke_handler())
+		.invoke_handler(builder::<tauri::Wry>().invoke_handler())
 		.build(tauri::generate_context!())
 		.expect("error while building tauri application")
 		.run(|app, event| {

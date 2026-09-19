@@ -16,7 +16,8 @@ import {
 } from "./onboarding-controller"
 import { onboardingSummonsFor } from "./onboarding-summons"
 
-import type { CheckReport, TransportError } from "../agent/contract"
+import type { TransportError as HostTransportError } from "@/lib/bindings"
+import type { CheckReport } from "../agent/contract"
 import type { CompanionCreated } from "../companions/companions-transport"
 
 const SIGN_IN_URL = "https://claude.ai/oauth/authorize?code=true"
@@ -47,7 +48,7 @@ const NOT_AUTHENTICATED: CheckReport = {
 	error: { kind: "notAuthenticated" },
 }
 
-const refusedRead = (error: TransportError): CheckReport => ({
+const refusedRead = (error: HostTransportError): CheckReport => ({
 	connection: "unavailable",
 	binaryVersion: null,
 	authenticated: false,

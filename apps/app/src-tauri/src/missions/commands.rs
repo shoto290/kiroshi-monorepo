@@ -162,6 +162,7 @@ pub async fn mission_escalate<R: Runtime>(
 }
 
 #[tauri::command]
+#[specta::specta]
 pub async fn mission_close<R: Runtime>(
 	app: AppHandle<R>,
 	state: State<'_, db::DatabaseState>,
@@ -187,6 +188,7 @@ async fn appended<R: Runtime>(
 }
 
 #[tauri::command]
+#[specta::specta]
 pub async fn mission_answered<R: Runtime>(
 	app: AppHandle<R>,
 	state: State<'_, db::DatabaseState>,
@@ -256,6 +258,7 @@ fn hook_url<R: Runtime>(app: &AppHandle<R>) -> Result<String, MissionError> {
 }
 
 #[tauri::command]
+#[specta::specta]
 pub async fn mission_list(
 	state: State<'_, db::DatabaseState>,
 	conversation_id: String,
@@ -264,6 +267,7 @@ pub async fn mission_list(
 }
 
 #[tauri::command]
+#[specta::specta]
 pub async fn mission_detail(
 	state: State<'_, db::DatabaseState>,
 	mission_id: String,
@@ -272,6 +276,7 @@ pub async fn mission_detail(
 }
 
 #[tauri::command]
+#[specta::specta]
 pub async fn mission_board<R: Runtime>(
 	app: AppHandle<R>,
 	state: State<'_, db::DatabaseState>,
@@ -281,6 +286,7 @@ pub async fn mission_board<R: Runtime>(
 }
 
 #[tauri::command]
+#[specta::specta]
 pub async fn mission_unreported<R: Runtime>(
 	app: AppHandle<R>,
 	state: State<'_, db::DatabaseState>,
@@ -290,6 +296,7 @@ pub async fn mission_unreported<R: Runtime>(
 }
 
 #[tauri::command]
+#[specta::specta]
 pub async fn mission_reported(
 	state: State<'_, db::DatabaseState>,
 	mission_id: String,

@@ -6,7 +6,7 @@ use crate::agent::sidecar::OauthFlowError;
 use crate::bundles::AuthorizationWithheld;
 use crate::environment::contract::EnvError;
 
-#[derive(Debug, Clone, PartialEq, Eq, Serialize)]
+#[derive(Debug, Clone, PartialEq, Eq, Serialize, specta::Type)]
 #[serde(tag = "kind", rename_all = "camelCase")]
 pub enum OauthError {
 	AlreadyRunning,
@@ -94,7 +94,7 @@ impl From<OauthFailure> for OauthError {
 	}
 }
 
-#[derive(Debug, Clone, PartialEq, Eq, Serialize)]
+#[derive(Debug, Clone, PartialEq, Eq, Serialize, specta::Type)]
 #[serde(rename_all = "camelCase")]
 pub struct Disconnected {
 	pub revoked: bool,

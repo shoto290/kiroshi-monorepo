@@ -6,7 +6,7 @@ use kiroshi_app::agent::sidecar::SIDECAR_OVERRIDE_ENV;
 use kiroshi_app::agent::commands::EVENT_CHANNEL;
 use kiroshi_app::agent::contract::{AgentEvent, RuntimeScope, ScopedEvent, TurnOutcome};
 use kiroshi_app::agent::AgentState;
-use kiroshi_app::commands::invoke_handler;
+use kiroshi_app::commands::builder;
 use kiroshi_app::db;
 use serde_json::{json, Value};
 use tauri::test::{mock_builder, mock_context, noop_assets, MockRuntime, INVOKE_KEY};
@@ -42,7 +42,7 @@ fn launch() -> Harness {
 	let app = mock_builder()
 		.manage(AgentState::default())
 		.manage(db::DatabaseState::Err(db::DatabaseError::AppDataDir))
-		.invoke_handler(invoke_handler())
+		.invoke_handler(builder().invoke_handler())
 		.build(mock_context(noop_assets()))
 		.expect("app builds");
 	let window =

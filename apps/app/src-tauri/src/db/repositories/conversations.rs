@@ -147,7 +147,7 @@ pub struct Chat {
 	pub updated_at: i64,
 }
 
-#[derive(Debug, PartialEq, Eq)]
+#[derive(Debug, PartialEq, Eq, specta::Type)]
 pub struct Participant {
 	pub conversation_id: String,
 	pub bot_id: String,

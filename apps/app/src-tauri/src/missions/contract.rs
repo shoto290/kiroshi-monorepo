@@ -5,7 +5,7 @@ use crate::conversations::contract::{Bot, StorageFailure, TranscriptStoreError};
 use crate::db::repositories::conversations::ConversationError;
 use crate::db::DatabaseError;
 
-#[derive(Debug, Clone, Copy, PartialEq, Eq, Serialize, Deserialize)]
+#[derive(Debug, Clone, Copy, PartialEq, Eq, Serialize, Deserialize, specta::Type)]
 #[serde(rename_all = "snake_case")]
 pub enum MissionEventKind {
 	Opened,
@@ -51,7 +51,7 @@ impl MissionEventKind {
 	}
 }
 
-#[derive(Debug, Clone, Copy, PartialEq, Eq, Serialize, Deserialize)]
+#[derive(Debug, Clone, Copy, PartialEq, Eq, Serialize, Deserialize, specta::Type)]
 #[serde(rename_all = "snake_case")]
 pub enum MissionState {
 	Working,
@@ -62,7 +62,7 @@ pub enum MissionState {
 	Done,
 }
 
-#[derive(Debug, Clone, PartialEq, Eq, Serialize, Deserialize)]
+#[derive(Debug, Clone, PartialEq, Eq, Serialize, Deserialize, specta::Type)]
 #[serde(rename_all = "camelCase")]
 pub struct Ticket {
 	pub platform: String,
@@ -71,7 +71,7 @@ pub struct Ticket {
 	pub title: String,
 }
 
-#[derive(Debug, Clone, PartialEq, Serialize, Deserialize)]
+#[derive(Debug, Clone, PartialEq, Serialize, Deserialize, specta::Type)]
 #[serde(rename_all = "camelCase")]
 pub struct MissionDraft {
 	pub origin_conversation_id: String,
@@ -84,21 +84,22 @@ pub struct MissionDraft {
 	pub workspace_path: Option<String>,
 }
 
-#[derive(Debug, Clone, PartialEq, Serialize, Deserialize)]
+#[derive(Debug, Clone, PartialEq, Serialize, Deserialize, specta::Type)]
 #[serde(rename_all = "camelCase")]
 pub struct MissionNote {
 	pub source: String,
+	#[specta(type = crate::json::JsonValue)]
 	pub payload: Value,
 }
 
-#[derive(Debug, Clone, Copy, PartialEq, Eq, Serialize, Deserialize)]
+#[derive(Debug, Clone, Copy, PartialEq, Eq, Serialize, Deserialize, specta::Type)]
 #[serde(rename_all = "snake_case")]
 pub enum MissionOutcome {
 	Done,
 	Failed,
 }
 
-#[derive(Debug, Clone, PartialEq, Serialize, Deserialize)]
+#[derive(Debug, Clone, PartialEq, Serialize, Deserialize, specta::Type)]
 #[serde(rename_all = "camelCase")]
 pub struct MissionClosing {
 	pub source: String,
@@ -119,11 +120,12 @@ impl MissionClosing {
 	}
 }
 
-#[derive(Debug, Clone, PartialEq, Serialize, Deserialize)]
+#[derive(Debug, Clone, PartialEq, Serialize, Deserialize, specta::Type)]
 #[serde(rename_all = "camelCase")]
 pub struct MissionEntry {
 	pub kind: MissionEventKind,
 	pub source: String,
+	#[specta(type = crate::json::JsonValue)]
 	pub payload: Value,
 }
 
@@ -133,7 +135,7 @@ impl MissionEntry {
 	}
 }
 
-#[derive(Debug, Clone, PartialEq, Serialize, Deserialize)]
+#[derive(Debug, Clone, PartialEq, Serialize, Deserialize, specta::Type)]
 #[serde(rename_all = "camelCase")]
 pub struct Mission {
 	pub id: String,
@@ -151,13 +153,14 @@ pub struct Mission {
 	pub reported_turn_id: Option<String>,
 }
 
-#[derive(Debug, Clone, PartialEq, Serialize, Deserialize)]
+#[derive(Debug, Clone, PartialEq, Serialize, Deserialize, specta::Type)]
 #[serde(rename_all = "camelCase")]
 pub struct MissionEvent {
 	pub id: String,
 	pub mission_id: String,
 	pub kind: MissionEventKind,
 	pub source: String,
+	#[specta(type = crate::json::JsonValue)]
 	pub payload: Value,
 	pub created_at: i64,
 }
@@ -208,7 +211,7 @@ pub struct WatchedMission {
 	pub fingerprint: String,
 }
 
-#[derive(Debug, Clone, PartialEq, Serialize, Deserialize)]
+#[derive(Debug, Clone, PartialEq, Serialize, Deserialize, specta::Type)]
 #[serde(rename_all = "camelCase")]
 pub struct MissionDetail {
 	pub mission: Mission,
@@ -224,21 +227,21 @@ pub struct MissionInThread {
 	pub workspace_path: Option<String>,
 }
 
-#[derive(Debug, Clone, PartialEq, Serialize, Deserialize)]
+#[derive(Debug, Clone, PartialEq, Serialize, Deserialize, specta::Type)]
 #[serde(rename_all = "camelCase")]
 pub struct ConversationMissions {
 	pub open: Vec<Mission>,
 	pub done: Vec<Mission>,
 }
 
-#[derive(Debug, Clone, PartialEq, Serialize, Deserialize)]
+#[derive(Debug, Clone, PartialEq, Serialize, Deserialize, specta::Type)]
 #[serde(rename_all = "camelCase")]
 pub struct MissionOnBoard {
 	pub mission: Mission,
 	pub bot: Bot,
 }
 
-#[derive(Debug, Clone, PartialEq, Eq, Serialize, Deserialize)]
+#[derive(Debug, Clone, PartialEq, Eq, Serialize, Deserialize, specta::Type)]
 #[serde(tag = "kind", rename_all = "camelCase")]
 pub enum MissionError {
 	#[serde(rename_all = "camelCase")]
@@ -333,72 +336,3 @@ impl From<MissionError> for TranscriptStoreError {
 	}
 }
 
-#[cfg(test)]
-mod tests {
-	use std::collections::BTreeSet;
-	use std::path::PathBuf;
-
-	use serde_json::to_value;
-
-	use super::*;
-
-	fn mirror() -> String {
-		let path = PathBuf::from(env!("CARGO_MANIFEST_DIR"))
-			.join("..")
-			.join("src")
-			.join("lib")
-			.join("missions")
-			.join("mission-contract.ts");
-		std::fs::read_to_string(&path).expect("the mirror reads")
-	}
-
-	fn mirrored_fields(alias: &str) -> BTreeSet<String> {
-		let mirror = mirror();
-		let opening = format!("export type {alias} = {{\n");
-		let start =
-			mirror.find(&opening).unwrap_or_else(|| panic!("the mirror declares no {alias}"))
-				+ opening.len();
-		let body = &mirror[start..];
-		let body = body.split("\n}").next().unwrap_or(body);
-		body.lines()
-			.filter_map(|line| line.split_once(':'))
-			.map(|(name, _)| name.trim().trim_end_matches('?').to_owned())
-			.collect()
-	}
-
-	fn serialised_fields<T: Serialize>(value: &T) -> BTreeSet<String> {
-		to_value(value)
-			.expect("the value serialises")
-			.as_object()
-			.expect("the value is an object")
-			.keys()
-			.cloned()
-			.collect()
-	}
-
-	#[test]
-	fn a_mission_names_the_fields_the_front_declares() {
-		let mission = Mission {
-			id: "m1".to_owned(),
-			origin_conversation_id: "c1".to_owned(),
-			bot_id: "b1".to_owned(),
-			thread_conversation_id: "c2".to_owned(),
-			objective: "Fix it".to_owned(),
-			ticket: Ticket {
-				platform: "github".to_owned(),
-				external_id: "42".to_owned(),
-				url: "https://kiroshi.test/tickets/42".to_owned(),
-				title: "Crash on open".to_owned(),
-			},
-			tools: vec!["gh".to_owned()],
-			state: MissionState::Done,
-			state_seq: 4,
-			opened_at: 1,
-			closed_at: Some(2),
-			reported_at: Some(3),
-			reported_turn_id: Some("t1".to_owned()),
-		};
-
-		assert_eq!(serialised_fields(&mission), mirrored_fields("Mission"));
-	}
-}

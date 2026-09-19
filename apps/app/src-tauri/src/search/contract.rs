@@ -4,7 +4,7 @@ use crate::conversations::contract::StorageFailure;
 use crate::db::DatabaseError;
 use crate::missions::contract::MissionState;
 
-#[derive(Debug, Clone, Copy, PartialEq, Eq, Serialize, Deserialize)]
+#[derive(Debug, Clone, Copy, PartialEq, Eq, Serialize, Deserialize, specta::Type)]
 #[serde(rename_all = "snake_case")]
 pub enum ConversationKind {
 	Main,
@@ -23,7 +23,7 @@ impl ConversationKind {
 	}
 }
 
-#[derive(Debug, Clone, PartialEq, Eq, Serialize, Deserialize)]
+#[derive(Debug, Clone, PartialEq, Eq, Serialize, Deserialize, specta::Type)]
 #[serde(rename_all = "camelCase")]
 pub struct MessageSearchQuery {
 	pub text: String,
@@ -31,14 +31,14 @@ pub struct MessageSearchQuery {
 	pub all_spaces: bool,
 }
 
-#[derive(Debug, Clone, PartialEq, Eq, Serialize, Deserialize)]
+#[derive(Debug, Clone, PartialEq, Eq, Serialize, Deserialize, specta::Type)]
 #[serde(rename_all = "camelCase")]
 pub struct SnippetPart {
 	pub text: String,
 	pub matched: bool,
 }
 
-#[derive(Debug, Clone, PartialEq, Eq, Serialize, Deserialize)]
+#[derive(Debug, Clone, PartialEq, Eq, Serialize, Deserialize, specta::Type)]
 #[serde(rename_all = "camelCase")]
 pub struct MessageHit {
 	pub message_id: String,
@@ -52,7 +52,7 @@ pub struct MessageHit {
 	pub snippet: Vec<SnippetPart>,
 }
 
-#[derive(Debug, Clone, PartialEq, Eq, Serialize, Deserialize)]
+#[derive(Debug, Clone, PartialEq, Eq, Serialize, Deserialize, specta::Type)]
 #[serde(tag = "kind", rename_all = "camelCase")]
 pub enum MessageSearchError {
 	#[serde(rename_all = "camelCase")]
@@ -73,7 +73,7 @@ pub const MAX_QUERY_CHARS: usize = 200;
 pub const MAX_MATCHES_PER_LIST: usize = 20;
 pub const MAX_RECENT_CHATS: usize = 8;
 
-#[derive(Debug, Clone, PartialEq, Eq, Serialize, Deserialize)]
+#[derive(Debug, Clone, PartialEq, Eq, Serialize, Deserialize, specta::Type)]
 #[serde(rename_all = "camelCase")]
 pub struct CatalogueChat {
 	pub conversation_id: String,
@@ -84,7 +84,7 @@ pub struct CatalogueChat {
 	pub space_id: Option<String>,
 }
 
-#[derive(Debug, Clone, PartialEq, Eq, Serialize, Deserialize)]
+#[derive(Debug, Clone, PartialEq, Eq, Serialize, Deserialize, specta::Type)]
 #[serde(rename_all = "camelCase")]
 pub struct CatalogueMission {
 	pub id: String,
@@ -98,7 +98,7 @@ pub struct CatalogueMission {
 	pub space_id: String,
 }
 
-#[derive(Debug, Clone, PartialEq, Eq, Serialize, Deserialize)]
+#[derive(Debug, Clone, PartialEq, Eq, Serialize, Deserialize, specta::Type)]
 #[serde(rename_all = "camelCase")]
 pub struct CatalogueRoutine {
 	pub id: String,
@@ -111,7 +111,7 @@ pub struct CatalogueRoutine {
 	pub space_id: String,
 }
 
-#[derive(Debug, Clone, PartialEq, Eq, Serialize, Deserialize)]
+#[derive(Debug, Clone, PartialEq, Eq, Serialize, Deserialize, specta::Type)]
 #[serde(rename_all = "camelCase")]
 pub struct Catalogue {
 	pub chats: Vec<CatalogueChat>,
@@ -126,7 +126,7 @@ pub struct CatalogueScope {
 	pub all_spaces: bool,
 }
 
-#[derive(Debug, Clone, PartialEq, Eq, Serialize, Deserialize)]
+#[derive(Debug, Clone, PartialEq, Eq, Serialize, Deserialize, specta::Type)]
 #[serde(tag = "kind", rename_all = "camelCase")]
 pub enum CatalogueError {
 	#[serde(rename_all = "camelCase")]

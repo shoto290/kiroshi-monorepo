@@ -4,7 +4,7 @@ use crate::conversations::contract::{AvatarBlot, StorageFailure};
 use crate::db::repositories::{space_settings, spaces};
 use crate::db::DatabaseError;
 
-#[derive(Debug, Clone, PartialEq, Eq, Serialize, Deserialize)]
+#[derive(Debug, Clone, PartialEq, Eq, Serialize, Deserialize, specta::Type)]
 #[serde(rename_all = "camelCase")]
 pub struct Space {
 	pub id: String,
@@ -26,7 +26,7 @@ impl From<spaces::Space> for Space {
 	}
 }
 
-#[derive(Debug, Clone, Default, PartialEq, Eq, Serialize, Deserialize)]
+#[derive(Debug, Clone, Default, PartialEq, Eq, Serialize, Deserialize, specta::Type)]
 #[serde(rename_all = "camelCase")]
 pub struct SpacePreferences {
 	#[serde(default)]
@@ -45,7 +45,7 @@ impl From<SpacePreferences> for space_settings::Preferences {
 	}
 }
 
-#[derive(Debug, Clone, PartialEq, Eq, Serialize, Deserialize)]
+#[derive(Debug, Clone, PartialEq, Eq, Serialize, Deserialize, specta::Type)]
 #[serde(tag = "kind", rename_all = "camelCase")]
 pub enum SpaceError {
 	#[serde(rename_all = "camelCase")]

@@ -1,7 +1,7 @@
 use serde::{Deserialize, Deserializer, Serialize};
 use serde_json::Value;
 
-#[derive(Debug, Clone, Copy, PartialEq, Eq, Serialize, Deserialize)]
+#[derive(Debug, Clone, Copy, PartialEq, Eq, Serialize, Deserialize, specta::Type)]
 #[serde(rename_all = "camelCase")]
 pub enum ConnectionState {
 	Checking,
@@ -113,7 +113,7 @@ pub struct QuestionRequest {
 	pub subject: Option<QuestionSubject>,
 }
 
-#[derive(Debug, Clone, Copy, PartialEq, Eq, Serialize, Deserialize)]
+#[derive(Debug, Clone, Copy, PartialEq, Eq, Serialize, Deserialize, specta::Type)]
 #[serde(rename_all = "camelCase")]
 pub enum PermissionDecision {
 	AllowOnce,
@@ -149,7 +149,7 @@ pub enum TurnOutcome {
 	Failed,
 }
 
-#[derive(Debug, Clone, PartialEq, Eq, Serialize, Deserialize)]
+#[derive(Debug, Clone, PartialEq, Eq, Serialize, Deserialize, specta::Type)]
 #[serde(tag = "kind", rename_all = "camelCase")]
 pub enum TransportError {
 	#[serde(rename_all = "camelCase")]
@@ -264,7 +264,7 @@ impl std::fmt::Display for TransportError {
 
 impl std::error::Error for TransportError {}
 
-#[derive(Debug, Clone, PartialEq, Eq, Serialize, Deserialize)]
+#[derive(Debug, Clone, PartialEq, Eq, Serialize, Deserialize, specta::Type)]
 #[serde(rename_all = "camelCase")]
 pub struct RuntimeScope {
 	pub conversation_id: String,
@@ -273,7 +273,7 @@ pub struct RuntimeScope {
 	pub epoch: i64,
 }
 
-#[derive(Debug, Clone, PartialEq, Eq, Serialize, Deserialize)]
+#[derive(Debug, Clone, PartialEq, Eq, Serialize, Deserialize, specta::Type)]
 #[serde(rename_all = "camelCase")]
 pub struct LiveSession {
 	pub bot_id: String,
@@ -289,7 +289,7 @@ pub struct ScopedEvent {
 	pub event: AgentEvent,
 }
 
-#[derive(Debug, Clone, PartialEq, Eq, Serialize, Deserialize)]
+#[derive(Debug, Clone, PartialEq, Eq, Serialize, Deserialize, specta::Type)]
 #[serde(rename_all = "camelCase")]
 pub struct CheckReport {
 	pub connection: ConnectionState,
@@ -302,7 +302,7 @@ pub struct CheckReport {
 	pub account: Option<Account>,
 }
 
-#[derive(Debug, Clone, PartialEq, Eq, Serialize, Deserialize)]
+#[derive(Debug, Clone, PartialEq, Eq, Serialize, Deserialize, specta::Type)]
 #[serde(rename_all = "camelCase")]
 pub struct Account {
 	pub email: Option<String>,
@@ -315,7 +315,7 @@ pub struct SignInStarted {
 	pub url: String,
 }
 
-#[derive(Debug, Clone, PartialEq, Eq, Serialize)]
+#[derive(Debug, Clone, PartialEq, Eq, Serialize, specta::Type)]
 #[serde(tag = "kind", rename_all = "camelCase")]
 pub enum SignInError {
 	AlreadyRunning,
@@ -340,7 +340,7 @@ pub enum SignInError {
 	},
 }
 
-#[derive(Debug, Clone, PartialEq, Eq, Serialize, Deserialize)]
+#[derive(Debug, Clone, PartialEq, Eq, Serialize, Deserialize, specta::Type)]
 #[serde(rename_all = "camelCase")]
 pub struct SessionHandle {
 	pub resumed: bool,
@@ -354,7 +354,7 @@ pub struct SessionSnapshot {
 	pub activities: Vec<ActivityEvent>,
 }
 
-#[derive(Debug, Clone, PartialEq, Eq, Serialize)]
+#[derive(Debug, Clone, PartialEq, Eq, Serialize, specta::Type)]
 #[serde(rename_all = "camelCase")]
 pub struct AgentCommand {
 	pub name: String,

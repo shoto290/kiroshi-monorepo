@@ -3,11 +3,13 @@ import { describe, expect, it } from "vitest"
 import type { RunRequested } from "./routine-contract"
 import { RUN_PAYLOAD_CHARS, runPromptFor } from "./run-prompt"
 
+import type { Json } from "@/lib/bindings"
+
 const OPEN = "<untrusted-data>"
 const CLOSE = "</untrusted-data>"
 const ELIDED = "[elided]"
 
-const requested = (payload: unknown): RunRequested => ({
+const requested = (payload: Json): RunRequested => ({
 	cause: "trigger",
 	title: "Nightly report",
 	instruction: "Read the shift log and report what changed.",

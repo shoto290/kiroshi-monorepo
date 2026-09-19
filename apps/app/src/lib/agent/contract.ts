@@ -1,4 +1,29 @@
-export type ConnectionState = "checking" | "ready" | "unavailable" | "crashed"
+import type {
+	AgentCommand_Serialize,
+	ConnectionState,
+	TransportError as HostTransportError,
+	Json,
+	PermissionDecision,
+	RuntimeScope,
+} from "@/lib/bindings"
+
+export type {
+	Account,
+	AgentCommand_Serialize as AgentCommand,
+	CheckReport_Serialize as CheckReport,
+	ConnectionState,
+	LiveSession,
+	PermissionDecision,
+	RuntimeScope,
+	SessionHandle,
+	SignInError,
+} from "@/lib/bindings"
+
+export type FrontTransportError =
+	| { kind: "readFailed"; detail: string }
+	| { kind: "unknownFailure"; detail: string }
+
+export type TransportError = HostTransportError | FrontTransportError
 
 export type TurnState =
 	| "idle"
@@ -67,90 +92,19 @@ export type QuestionRequest = {
 
 export type QuestionAnswers = Record<string, string>
 
-export type PermissionDecision = "allowOnce" | "deny"
-
 export type TurnOutcome = "completed" | "cancelled" | "failed"
 
 export type TurnEnded = {
 	sessionId: string | null
 	outcome: TurnOutcome
-	structuredOutput?: unknown
+	structuredOutput?: Json
 	totalCostUsd?: number
-	modelUsage?: unknown
-}
-
-export type RuntimeScope = {
-	conversationId: string
-	botId: string
-	runtimeSessionId: string
-	epoch: number
-}
-
-export type LiveSession = {
-	botId: string
-	conversationId: string
-	runtimeSessionId: string
-	startedAt: number
+	modelUsage?: Json
 }
 
 export type ScopedEvent = {
 	scope: RuntimeScope | null
 	event: AgentEvent
-}
-
-export type TransportError =
-	| { kind: "binaryNotFound"; searched: string[] }
-	| { kind: "notAuthenticated" }
-	| { kind: "authCheckFailed"; detail: string }
-	| { kind: "spawnFailed"; detail: string }
-	| { kind: "startupTimeout"; timeoutMs: number }
-	| { kind: "crashed"; code: number | null; detail: string | null }
-	| { kind: "resumeFailed"; forgotSessionId: boolean }
-	| { kind: "workingDirectoryRefused"; path: string }
-	| { kind: "invalidFrame"; detail: string }
-	| { kind: "settingsRejected"; detail: string }
-	| { kind: "serverEnvRejected"; detail: string }
-	| { kind: "notStarted" }
-	| { kind: "turnAlreadyRunning" }
-	| { kind: "transitionInProgress" }
-	| { kind: "noActiveTurn" }
-	| { kind: "staleRuntimeSession"; runtimeSessionId: string }
-	| { kind: "unknownPermission"; id: string }
-	| { kind: "writeFailed"; detail: string }
-	| { kind: "readFailed"; detail: string }
-	| { kind: "unknownFailure"; detail: string }
-
-export type CheckReport = {
-	connection: ConnectionState
-	binaryVersion: string | null
-	authenticated: boolean
-	authMethod?: string
-	error: TransportError | null
-	account?: Account
-}
-
-export type Account = {
-	email: string | null
-	plan: string | null
-}
-
-export type SignInError =
-	| { kind: "alreadyRunning" }
-	| { kind: "notRunning" }
-	| { kind: "cancelled" }
-	| { kind: "timedOut" }
-	| { kind: "refusedUrl"; url: string }
-	| { kind: "flowTimedOut"; timeoutMs: number }
-	| { kind: "failed"; detail: string }
-	| { kind: "transport"; error: TransportError }
-
-export type SessionHandle = {
-	resumed: boolean
-}
-
-export type AgentCommand = {
-	name: string
-	description?: string
 }
 
 export type EvolvedBundle = "bot" | "user" | "space"
@@ -159,7 +113,7 @@ export type AgentEvent =
 	| { type: "connectionChanged"; state: ConnectionState }
 	| { type: "turnChanged"; state: TurnState }
 	| { type: "sessionReady"; sessionId: string; resumed: boolean }
-	| { type: "commandsListed"; commands: AgentCommand[] }
+	| { type: "commandsListed"; commands: AgentCommand_Serialize[] }
 	| { type: "messageStarted"; message: ChatMessage }
 	| { type: "messageDelta"; id: string; seq: number; text: string }
 	| { type: "messageCompleted"; message: ChatMessage }

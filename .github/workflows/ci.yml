@@ -77,6 +77,9 @@ jobs:
         working-directory: apps/app
         run: cargo test --manifest-path src-tauri/Cargo.toml --features fake-claude
 
+      - name: Bindings match the command surface
+        run: git diff --exit-code apps/app/src/lib/bindings.ts
+
   vitest:
     runs-on: ubuntu-latest
     steps:

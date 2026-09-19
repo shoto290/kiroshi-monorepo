@@ -9,7 +9,7 @@ use crate::environment::contract::{
 const UNUSABLE_GRANT: &str =
 	"the session could not use the stored authorization, which is still held";
 
-#[derive(Debug, Clone, PartialEq, Eq, Serialize)]
+#[derive(Debug, Clone, PartialEq, Eq, Serialize, specta::Type)]
 #[serde(rename_all = "camelCase")]
 pub struct ApplicationRow {
 	pub name: String,
@@ -19,7 +19,7 @@ pub struct ApplicationRow {
 	pub status: ApplicationStatus,
 }
 
-#[derive(Debug, Clone, PartialEq, Eq, Serialize)]
+#[derive(Debug, Clone, PartialEq, Eq, Serialize, specta::Type)]
 #[serde(tag = "status", rename_all = "camelCase")]
 pub enum ApplicationStatus {
 	Connected,
