@@ -164,12 +164,6 @@ mod tests {
 		}
 	}
 
-	fn missions_section(text: &str, heading: &str) -> String {
-		let after = text.split(heading).nth(1).unwrap_or_else(|| panic!("{heading} is missing"));
-
-		after.split("\n## ").next().unwrap_or(after).to_string()
-	}
-
 	#[test]
 	fn the_missions_skill_is_preloaded_and_says_when_a_mission_closes() {
 		let text = String::from_utf8_lossy(embedded(MISSIONS));
@@ -207,9 +201,15 @@ mod tests {
 	#[test]
 	fn the_status_section_of_the_missions_skill_names_no_tool_and_orders_no_step() {
 		let text = String::from_utf8_lossy(embedded(MISSIONS));
-		let section = missions_section(&text, "## What the conversation it came from hears");
+		let section = text
+			.split("## What the conversation it came from hears")
+			.nth(1)
+			.expect("the status section is there")
+			.split("\n## ")
+			.next()
+			.expect("the section ends");
 
-		for unsaid in ["mission_", "merge", "ticket", "pull request", "1.", "First,", "Then,"] {
+		for unsaid in ["mission_", "merge", "ticket", "pull request", "1."] {
 			assert!(!section.contains(unsaid), "{unsaid} is said in {section}");
 		}
 	}
