@@ -5,9 +5,9 @@ import preview from "@workspace/storybook/preview"
 import {
 	botIdentityAvatars,
 	expectCompanionPictureSquare,
+	marbleFallbacksOf,
 	marbleGeometryOf,
 	marbleOf,
-	marbleShadesOf,
 	marbleShapesIn,
 	marblesIn,
 	pictureOf,
@@ -231,7 +231,7 @@ export const EveryBlot = meta.story({
 		await expect(marblesIn(none)).toHaveLength(0)
 		await expect(new Set(tinted.map(marbleOf)).size).toBe(BLOT_TINTS.length)
 		await expect(
-			tinted.map((avatar) => [...new Set(marbleShadesOf(avatar))]),
+			tinted.map((avatar) => [...new Set(marbleFallbacksOf(avatar))]),
 		).toEqual(BLOT_TINTS.map((blot) => [`var(--bot-blot-${blot})`]))
 	},
 })

@@ -38,6 +38,7 @@ type BotIdentityFieldsProps = {
 	identity: BotIdentity
 	name?: string
 	seed?: string
+	shufflable?: boolean
 	working?: boolean
 	workingKind?: ActivityIndicatorKind
 	onIdentityChange: (identity: BotIdentity) => void
@@ -49,6 +50,7 @@ const BotIdentityFields = ({
 	identity,
 	name,
 	seed,
+	shufflable = false,
 	working = false,
 	workingKind,
 	onIdentityChange,
@@ -105,16 +107,18 @@ const BotIdentityFields = ({
 						{currentLabel}
 					</p>
 				</div>
-				<Button
-					aria-label={t("identity.shuffle")}
-					data-slot="bot-identity-shuffle"
-					onClick={shuffle}
-					size="icon"
-					type="button"
-					variant="outline"
-				>
-					<Icons.Shuffle aria-hidden="true" />
-				</Button>
+				{shufflable && !identity.image ? (
+					<Button
+						aria-label={t("identity.shuffle")}
+						data-slot="bot-identity-shuffle"
+						onClick={shuffle}
+						size="icon"
+						type="button"
+						variant="outline"
+					>
+						<Icons.Shuffle aria-hidden="true" />
+					</Button>
+				) : null}
 			</div>
 
 			<SettingsGroup

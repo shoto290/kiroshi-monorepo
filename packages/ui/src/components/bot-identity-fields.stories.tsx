@@ -22,6 +22,8 @@ import {
 
 const BOT_ID = "bot-7"
 
+const SHUFFLE = "Shuffle the background"
+
 const IDENTITY: BotIdentity = { animal: "owl", blot: "blue" }
 
 const FieldsHost = (props: BotIdentityFieldsProps) => {
@@ -71,7 +73,7 @@ const meta = preview.meta({
 		docs: {
 			description: {
 				component:
-					"Everything a companion's face is made of, flat: what it looks like now, the eight animals the avatar engine draws, the eight ink blots that mark it plus the option that takes the blot off, and the round field that takes a picture and takes it back off. Nothing is behind a popover, a disclosure or a tab set — a reader in a companion's appearance sees every choice at once and compares them instead of opening one to find out. Each grid is a real radio group, so arrow keys move within it and the current choice is announced; the ring is the same answer for the eye. Every thumbnail wears the animal, the blot and the id currently in play, so both rows preview the actual outcome. Picking an animal or a blot takes the picture off, because the picture is what wins over both. The block never reads a file: it hands the host a `File` and waits for the picture to come back as `identity.image`. Only the preview is allowed to move, and only while `working` — the choices always rest.",
+					"Everything a companion's face is made of, flat: what it looks like now, the eight animals the avatar engine draws, the eight ink blots that mark it plus the option that takes the blot off, and the round field that takes a picture and takes it back off. Nothing is behind a popover, a disclosure or a tab set — a reader in a companion's appearance sees every choice at once and compares them instead of opening one to find out. Each grid is a real radio group, so arrow keys move within it and the current choice is announced; the ring is the same answer for the eye. Every thumbnail wears the animal, the blot and the id currently in play, so both rows preview the actual outcome. Picking an animal or a blot takes the picture off, because the picture is what wins over both. The block never reads a file: it hands the host a `File` and waits for the picture to come back as `identity.image`. Only the preview is allowed to move, and only while `working` — the choices always rest. The shuffle control is offered only to a host that asks for it with `shufflable`, because a host with nowhere to store the seed would hand the reader a choice that is gone by the next open.",
 			},
 		},
 	},
@@ -82,6 +84,7 @@ const meta = preview.meta({
 		onAvatarUpload: fn(),
 	},
 	argTypes: {
+		shufflable: { control: "boolean" },
 		working: { control: "boolean" },
 	},
 	render: (args) => <FieldsHost {...args} />,
@@ -99,7 +102,7 @@ export const Default = meta.story({
 		docs: {
 			description: {
 				story:
-					"The nominal case: a companion that already picked an owl and a blue blot. Reach for it to check that the preview, both grids and the picture field stand at once with nothing to open first, that the two current choices are the checked ones, and that Tab walks the block in reading order.",
+					"The nominal case: a companion that already picked an owl and a blue blot, offered by a host that has nowhere to store a seed. Reach for it to check that the preview, both grids and the picture field stand at once with nothing to open first, that the two current choices are the checked ones, that no shuffle control is offered, and that Tab walks the block in reading order. Pick `Shuffles` for the block a host with a seed column is handed.",
 			},
 		},
 	},
@@ -107,6 +110,7 @@ export const Default = meta.story({
 		await expect(canvas.getByRole("radio", { name: "Owl" })).toBeChecked()
 		await expect(canvas.getByRole("radio", { name: "Blue" })).toBeChecked()
 		await expect(canvas.getAllByRole("radio")).toHaveLength(17)
+		await expect(canvas.queryByRole("button", { name: SHUFFLE })).toBeNull()
 		await expect(
 			canvas.getByRole("button", { name: "Add picture" }),
 		).toBeVisible()
@@ -176,12 +180,15 @@ export const TakesTheBlotOff = meta.story({
 })
 
 export const WithPicture = meta.story({
-	args: { identity: { ...IDENTITY, image: UPLOADED_AVATAR_IMAGE } },
+	args: {
+		identity: { ...IDENTITY, image: UPLOADED_AVATAR_IMAGE },
+		shufflable: true,
+	},
 	parameters: {
 		docs: {
 			description: {
 				story:
-					"A companion wearing a picture. The preview shows the picture rather than the animal, while the grids keep showing what the companion would fall back to the moment a reader picks one — the choice under the photograph is never lost. Check that the preview draws no animal, and that the status line says the picture is what is on.",
+					"A companion wearing a picture, in a block whose host does store a seed. The preview shows the picture rather than the animal, while the grids keep showing what the companion would fall back to the moment a reader picks one — the choice under the photograph is never lost. The shuffle control goes with the marble it names: there is nothing on screen for it to change while the photograph wins. Check that the preview draws no animal, that no shuffle control is offered, and that the status line says the picture is what is on.",
 			},
 		},
 	},
@@ -193,6 +200,7 @@ export const WithPicture = meta.story({
 			UPLOADED_AVATAR_IMAGE,
 		)
 		await expect(preview.querySelector("svg")).toBeNull()
+		await expect(canvas.queryByRole("button", { name: SHUFFLE })).toBeNull()
 		await expect(canvas.getByText("Uploaded image")).toBeVisible()
 	},
 })
@@ -327,20 +335,21 @@ export const DroppedAndPasted = meta.story({
 })
 
 export const Shuffles = meta.story({
+	args: { shufflable: true },
 	parameters: {
 		docs: {
 			description: {
 				story:
-					"The one control that changes the marble. The tint grid says which colour a companion is; nothing in it says where the veins fall, so the reader who does not like the marble it was minted with needs a way out that is not renaming the companion. Pressing it mints a new seed and hands it back on the identity, so the host stores the marble rather than re-deriving it from the id and the choice survives a restart. The animal, the tint and the picture come back untouched — a shuffle is a background change, not a reset. Check that the preview redraws, that the sixteen thumbnails redraw with it, and that Tab reaches the button with a ring before the animal grid.",
+					"The block offered by a host that can store a seed. The tint grid says which colour a companion is; nothing in it says where the veins fall, so the reader who does not like the marble it was minted with needs a way out that is not renaming the companion. Pressing it mints a new seed and hands it back on the identity, so the host stores the marble rather than re-deriving it from the id and the choice survives a restart. The animal, the tint and the picture come back untouched — a shuffle is a background change, not a reset. Check that the preview redraws, that the sixteen thumbnails redraw with it, and that Tab reaches the button with a ring before the animal grid. Pick `Default` for the block a host without a seed column is handed.",
 			},
 		},
 	},
 	play: async ({ args, canvas, canvasElement, userEvent }) => {
 		const before = marbleOf(previewAvatar(canvasElement))
+		const shuffle = canvas.getByRole("button", { name: SHUFFLE })
 
-		await userEvent.click(
-			canvas.getByRole("button", { name: "Shuffle the background" }),
-		)
+		await expect(shuffle).toBeVisible()
+		await userEvent.click(shuffle)
 
 		await expect(args.onIdentityChange).toHaveBeenCalledWith({
 			...IDENTITY,
@@ -351,6 +360,7 @@ export const Shuffles = meta.story({
 })
 
 export const ShuffleTakesFocus = meta.story({
+	args: { shufflable: true },
 	tags: ["test-only"],
 	parameters: {
 		docs: {
@@ -361,9 +371,7 @@ export const ShuffleTakesFocus = meta.story({
 		},
 	},
 	play: async ({ canvas, userEvent }) => {
-		const shuffle = canvas.getByRole("button", {
-			name: "Shuffle the background",
-		})
+		const shuffle = canvas.getByRole("button", { name: SHUFFLE })
 
 		await userEvent.tab()
 		await expect(shuffle).toHaveFocus()

@@ -9,8 +9,8 @@ import {
 	expectCompanionPictureSquare,
 	FRAME_POLL,
 	hasOverlayScrollbars,
+	marbleFallbacksOf,
 	marbleOf,
-	marbleShadesOf,
 	marblesIn,
 	mergeA11y,
 	pictureOf,
@@ -260,7 +260,7 @@ const IDENTITY_ROSTER: AppSidebarBot[] = IDENTITY_BLOTS.map((blot, index) => ({
 
 const marbleTintsIn = (canvasElement: HTMLElement) =>
 	marblesIn(canvasElement).flatMap((marble) => [
-		...new Set(marbleShadesOf(marble)),
+		...new Set(marbleFallbacksOf(marble)),
 	])
 
 const SHARED_TINT_ROSTER: AppSidebarBot[] = IDENTITY_ROSTER.map((bot) => ({

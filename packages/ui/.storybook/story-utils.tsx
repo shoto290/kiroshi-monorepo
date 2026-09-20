@@ -140,7 +140,7 @@ export const marbleShapesIn = (root: Element) => {
 	return marble ? Array.from(marble.querySelectorAll("rect, path")) : null
 }
 
-export const marbleShadesOf = (root: Element) =>
+export const marbleFallbacksOf = (root: Element) =>
 	marbleShapesIn(root)?.map((shape) => shape.getAttribute("fill")) ?? []
 
 export const marbleGeometryOf = (root: Element) =>

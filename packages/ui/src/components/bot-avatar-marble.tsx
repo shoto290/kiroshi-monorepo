@@ -3,6 +3,7 @@
 import { type CSSProperties, useId } from "react"
 
 import { round2, VIEW_BOX } from "@workspace/ui/components/bot-avatar-3d"
+import { seedHash } from "@workspace/ui/components/bot-avatar-seed"
 
 const MARBLE_BOX = 80
 const MARBLE_SCALE = VIEW_BOX / MARBLE_BOX
@@ -25,14 +26,6 @@ const shadeProps = (tint: string, shade: number, blend?: CSSProperties) => ({
 	fill: tint,
 	style: { ...blend, fill: marbleShade(tint, shade) },
 })
-
-const seedHash = (seed: string) => {
-	let hash = 0
-	for (let at = 0; at < seed.length; at += 1) {
-		hash = ((hash << 5) - hash + seed.charCodeAt(at)) | 0
-	}
-	return Math.abs(hash)
-}
 
 const digitAt = (value: number, place: number) =>
 	Math.floor(value / 10 ** place) % 10
@@ -143,4 +136,4 @@ const BotAvatarMarble = ({ radius, seed, tint }: BotAvatarMarbleProps) => {
 	)
 }
 
-export { BotAvatarMarble, seedHash }
+export { BotAvatarMarble }

@@ -65,6 +65,7 @@ type BotSettingsDialogProps = PluginSessionsProps & {
 	tab?: string
 	history?: PluginHistory
 	seed?: string
+	shufflable?: boolean
 	onDelete: () => void
 	showDanger?: boolean
 	working?: boolean
@@ -91,6 +92,7 @@ const BotSettingsDialog = ({
 	tab,
 	history,
 	seed,
+	shufflable,
 	onDelete,
 	showDanger,
 	working = false,
@@ -226,6 +228,7 @@ const BotSettingsDialog = ({
 					onAvatarUpload={onAvatarUpload}
 					onIdentityChange={(identity: BotIdentity) => patch({ identity })}
 					seed={seed}
+					shufflable={shufflable}
 					working={working}
 					workingKind={workingKind}
 				/>

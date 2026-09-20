@@ -6,7 +6,7 @@ import {
 	ANIMALS,
 	type BotAvatarAnimal,
 } from "@workspace/ui/components/bot-avatar-animals"
-import { seedHash } from "@workspace/ui/components/bot-avatar-marble"
+import { seedHash } from "@workspace/ui/components/bot-avatar-seed"
 
 const UNPICKABLE_ANIMAL = "skippy"
 
