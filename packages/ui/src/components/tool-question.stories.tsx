@@ -308,6 +308,8 @@ export const FourQuestions = meta.story({
 	},
 })
 
+const boxOf = (element: Element) => element.getBoundingClientRect()
+
 export const Narrow = meta.story({
 	args: {
 		questions: [
@@ -336,9 +338,7 @@ export const Narrow = meta.story({
 		const strip = canvas.getByRole("tablist")
 
 		await expect(canvas.getAllByRole("tab")).toHaveLength(4)
-		await expect(strip.getBoundingClientRect().right).toBeLessThanOrEqual(
-			column.getBoundingClientRect().right,
-		)
+		await expect(boxOf(strip).right).toBeLessThanOrEqual(boxOf(column).right)
 
 		await userEvent.click(canvas.getByRole("tab", { name: /release/i }))
 		await expect(canvas.getByText(RELEASE_QUESTION.question)).toBeVisible()
@@ -377,33 +377,20 @@ export const LongHeaderScrolls = meta.story({
 		const shortTab = canvas.getByRole("tab", { name: SCOPE_QUESTION.header })
 		const asked = canvas.getByText(REGISTRY_QUESTION.question)
 
-		await expect(longTab.getBoundingClientRect().height).toBe(
-			shortTab.getBoundingClientRect().height,
-		)
+		await expect(boxOf(longTab).height).toBe(boxOf(shortTab).height)
 		await expect(strip.scrollWidth).toBeGreaterThan(strip.clientWidth)
-		await expect(strip.getBoundingClientRect().right).toBeLessThanOrEqual(
-			column.getBoundingClientRect().right,
-		)
-		await expect(longTab.getBoundingClientRect().bottom).toBeLessThanOrEqual(
-			asked.getBoundingClientRect().top,
-		)
-
-		await expect(longTab.getBoundingClientRect().left).toBeGreaterThan(
-			strip.getBoundingClientRect().left,
-		)
+		await expect(boxOf(strip).right).toBeLessThanOrEqual(boxOf(column).right)
+		await expect(boxOf(longTab).bottom).toBeLessThanOrEqual(boxOf(asked).top)
+		await expect(boxOf(longTab).left).toBeGreaterThan(boxOf(strip).left)
 
 		longTab.focus()
 		await userEvent.keyboard("{ArrowRight}")
 		await expect(strip.scrollLeft).toBeGreaterThan(0)
-		await expect(shortTab.getBoundingClientRect().right).toBeLessThan(
-			strip.getBoundingClientRect().right,
-		)
+		await expect(boxOf(shortTab).right).toBeLessThan(boxOf(strip).right)
 
 		await userEvent.click(longTab)
 		await userEvent.click(await canvas.findByRole("radio", { name: /Base UI/ }))
-		await expect(longTab.getBoundingClientRect().height).toBe(
-			shortTab.getBoundingClientRect().height,
-		)
+		await expect(boxOf(longTab).height).toBe(boxOf(shortTab).height)
 	},
 })
 
