@@ -1,14 +1,9 @@
 import { createContext } from "react"
 
-import type { ConnectionPort } from "./connection-port"
-
 import type { ChatError } from "../chat/chat-state"
-import type { EnvOwner } from "../conversations/store-contract"
 
 export type SessionApplications = {
-	port: ConnectionPort
 	spaceId: string | null
-	onOpen: (owner: EnvOwner) => void
 }
 
 export const SessionApplicationsContext =

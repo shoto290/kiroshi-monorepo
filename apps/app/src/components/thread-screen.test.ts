@@ -36,10 +36,6 @@ import {
 	createFakeApplicationPort,
 	type FakeApplicationPort,
 } from "@/lib/applications/fake-application-port"
-import {
-	createFakeConnectionPort,
-	type FakeConnectionPort,
-} from "@/lib/applications/fake-connection-port"
 import { ConversationApplicationsContext } from "@/lib/applications/use-conversation-installs"
 import { SessionApplicationsContext } from "@/lib/applications/use-session-application"
 import {
@@ -2370,14 +2366,14 @@ const REFUSED_APPLICATION: AgentEvent[] = [
 
 const CRASHED_SESSION: AgentEvent[] = [{ type: "failed", error: CRASH.error }]
 
-const refusedApplicationScreen = (port: FakeConnectionPort) =>
+const refusedApplicationScreen = () =>
 	createElement(
 		Fragment,
 		null,
 		createElement(NoticeSurface),
 		createElement(
 			SessionApplicationsContext.Provider,
-			{ value: { port, spaceId: SPACE, onOpen: () => undefined } },
+			{ value: { spaceId: SPACE } },
 			screenOf(
 				threadOf({
 					id: "bot-1",
@@ -2408,15 +2404,11 @@ const expectNoFailureNotice = () => {
 describe("ThreadScreen application left out of a session", () => {
 	afterEach(cleanup)
 
-	it("raises no notice on a solo thread, and reads no application", async () => {
-		const port = createFakeConnectionPort()
-		port.rows.bot = [{ name: "atlas", status: "needsAuthorization" }]
-
-		render(refusedApplicationScreen(port))
+	it("raises no notice on a solo thread", async () => {
+		render(refusedApplicationScreen())
 		await settle()
 
 		expectNoFailureNotice()
-		expect(port.calls).toEqual([])
 	})
 
 	it("raises no notice on a conversation", async () => {
@@ -3556,13 +3548,7 @@ const installRoomOf = (
 			createElement(NoticeSurface),
 			createElement(
 				SessionApplicationsContext.Provider,
-				{
-					value: {
-						port: createFakeConnectionPort(),
-						spaceId: SPACE,
-						onOpen: () => undefined,
-					},
-				},
+				{ value: { spaceId: SPACE } },
 				createElement(
 					ConversationApplicationsContext.Provider,
 					{
