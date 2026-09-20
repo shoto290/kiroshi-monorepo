@@ -63,7 +63,7 @@ const lightnessOf = (colour: string) => {
 const paintedLightnessesOf = (avatar: HTMLElement) =>
 	(marbleShapesIn(avatar) ?? [])
 		.map((shape) => lightnessOf(getComputedStyle(shape).fill))
-		.sort((deeper, lighter) => lighter - deeper)
+		.sort((one, other) => other - one)
 
 const activityDotOf = (avatar: HTMLElement) =>
 	slotsIn(avatar, "bot-activity-dot")[0]
@@ -529,7 +529,7 @@ export const Unseeded = meta.story({
 	render: (args) => (
 		<Row>
 			{UNSEEDED_SEEDS.map((seed) => (
-				<BotIdentityAvatar {...args} key={seed ?? "none"} seed={seed} />
+				<BotIdentityAvatar {...args} key={`seed-${seed}`} seed={seed} />
 			))}
 			<BotIdentityAvatar {...args} seed="bot-7" />
 		</Row>
