@@ -6,7 +6,6 @@ import { useChatCopy } from "@workspace/ui/hooks/use-chat-copy"
 import { describeAttachmentError } from "@/lib/chat/attachments"
 import type { AttachmentStoreError } from "@/lib/chat/attachments-contract"
 import type { UnresolvedMention } from "@/lib/conversations/conversation-controller"
-import { mentionTokenOf } from "@/lib/conversations/mentions"
 
 type ThreadNoticeProps = {
 	refusal: AttachmentStoreError | null
@@ -57,15 +56,14 @@ type UnresolvedMentionsNoticeProps = {
 	onDismiss: () => void
 }
 
-const labelOf = ({ botId, name }: UnresolvedMention) =>
-	name ?? mentionTokenOf(botId)
-
 export const UnresolvedMentionsNotice = ({
 	mentions,
 	onDismiss,
 }: UnresolvedMentionsNoticeProps) => {
 	const t = useChatCopy()
-	const names = mentions.map(labelOf).join(", ")
+	const names = mentions
+		.map(({ name }) => name ?? t("transcript.mention.unknown"))
+		.join(", ")
 
 	return (
 		<Notice

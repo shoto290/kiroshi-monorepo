@@ -550,55 +550,78 @@ export const createConversationController = (
 		seated?.participants.find((participant) => participant.botId === botId)
 			?.name ?? null
 
+	const isBetterThan = (
+		found: UnresolvedMention,
+		known: UnresolvedMention | undefined,
+	) => !known || (found.name !== null && known.name === null)
+
 	const rememberUnresolved = (missed: UnresolvedMention[]) => {
 		const held = new Map(
-			[...unresolvedMentions, ...missed].map((mention) => [
-				mention.botId,
-				mention,
-			]),
+			unresolvedMentions.map((mention) => [mention.botId, mention]),
 		)
-		if (held.size === unresolvedMentions.length) {
+		const fresh = missed.filter((found) =>
+			isBetterThan(found, held.get(found.botId)),
+		)
+		if (fresh.length === 0) {
 			return
+		}
+		for (const found of fresh) {
+			held.set(found.botId, found)
 		}
 		unresolvedMentions = [...held.values()]
 	}
 
-	const resolveFromStore = async (handed: HandedMention[]) => {
+	const seatedFromStore = async (
+		handed: HandedMention[],
+	): Promise<HandedMention[]> => {
 		const conversationId = conversation?.id
 		if (handed.length === 0 || !conversationId) {
-			return
+			return []
 		}
 		const seated = await readSeating(conversationId)
 		if (conversation?.id !== conversationId) {
-			return
+			return []
 		}
 		const present = seated
 			? presentParticipants(seated).map(({ botId }) => botId)
 			: []
+		const found: HandedMention[] = []
 		const missed: UnresolvedMention[] = []
-		for (const { fromBotId, botId, promptId } of handed) {
-			if (present.includes(botId)) {
-				queue = handedOver(queue, fromBotId, { botId, promptId })
+		for (const mention of handed) {
+			if (present.includes(mention.botId)) {
+				found.push(mention)
 				continue
 			}
-			missed.push({ botId, name: nameSeatedIn(seated, botId) })
+			missed.push({
+				botId: mention.botId,
+				name: nameSeatedIn(seated, mention.botId),
+			})
 		}
 		rememberUnresolved(missed)
+		return found
 	}
+
+	const handOver = (handed: HandedMention[]) => {
+		for (const { fromBotId, botId, promptId } of handed) {
+			queue = handedOver(queue, fromBotId, { botId, promptId })
+		}
+	}
+
+	const mentionsHandedBy = (
+		fromBotId: string,
+		promptId: string,
+		botIds: string[],
+	): HandedMention[] => botIds.map((botId) => ({ fromBotId, botId, promptId }))
 
 	const noteHandovers = (held: Speaker): HandedMention[] => {
 		const present = presentBotIds()
-		const handed: HandedMention[] = []
+		const unseated: HandedMention[] = []
 		for (const [promptId, text] of held.written) {
 			const { named, unresolved } = addresseesIn(text, present)
-			for (const botId of named) {
-				queue = handedOver(queue, held.botId, { botId, promptId })
-			}
-			for (const botId of unresolved) {
-				handed.push({ fromBotId: held.botId, botId, promptId })
-			}
+			handOver(mentionsHandedBy(held.botId, promptId, named))
+			unseated.push(...mentionsHandedBy(held.botId, promptId, unresolved))
 		}
-		return handed
+		return unseated
 	}
 
 	const isTurnRunning = (turn: OpenTurn) =>
@@ -624,7 +647,10 @@ export const createConversationController = (
 			closeTurnOf(held)
 			return
 		}
-		void resolveFromStore(handed).then(() => closeTurnOf(held))
+		void seatedFromStore(handed).then((seated) => {
+			handOver(seated)
+			closeTurnOf(held)
+		})
 	}
 
 	const failSpeaker = (held: Speaker, error: TransportError) => {
@@ -1055,22 +1081,16 @@ export const createConversationController = (
 			reported.content,
 			presentBotIds(),
 		)
-		if (named.length === 0 && unresolved.length === 0) {
+		const summoned = [
+			...mentionsHandedBy(author, reported.id, named),
+			...(await seatedFromStore(
+				mentionsHandedBy(author, reported.id, unresolved),
+			)),
+		]
+		if (summoned.length === 0 || !(await openReportTurn(reported))) {
 			return
 		}
-		if (!(await openReportTurn(reported))) {
-			return
-		}
-		for (const botId of named) {
-			queue = handedOver(queue, author, { botId, promptId: reported.id })
-		}
-		await resolveFromStore(
-			unresolved.map((botId) => ({
-				fromBotId: author,
-				botId,
-				promptId: reported.id,
-			})),
-		)
+		handOver(summoned)
 		sync()
 		drive()
 	}

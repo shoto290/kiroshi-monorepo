@@ -2573,6 +2573,45 @@ describe("the mentions a finished turn carries", () => {
 		room.detach()
 	})
 
+	it("opens no turn for a relayed report naming only companions nobody answers", async () => {
+		const room = await roomSeating()
+		const started = vi.spyOn(room.store, "startTurn")
+
+		await room.controller.relaySpoken({
+			conversationId: room.conversation.id,
+			authorBotId: room.ada,
+			text: "Walls are up. <@ghost>, read it.",
+		})
+		await settled()
+
+		expect(started).toHaveBeenCalledTimes(1)
+		expect(submittedIn(room)).toEqual([])
+		room.detach()
+	})
+
+	it("replaces the name of an unresolved token once a read answers one", async () => {
+		const room = await roomSeating()
+		await room.sent("@Ada take the walls")
+		await room.spoken(room.ada, `over to <@${room.iris}>`)
+
+		expect(room.controller.getState().unresolvedMentions).toEqual([
+			{ botId: room.iris, name: null },
+		])
+
+		await room.seat(room.iris)
+		await room.store.removeConversationParticipant(
+			room.conversation.id,
+			room.iris,
+		)
+		await room.sent("@Ada again")
+		await room.spoken(room.ada, `still <@${room.iris}>`)
+
+		expect(room.controller.getState().unresolvedMentions).toEqual([
+			{ botId: room.iris, name: "Iris" },
+		])
+		room.detach()
+	})
+
 	it("summons through the store read the companion a relayed report names", async () => {
 		const room = await roomSeating()
 		await room.seat(room.iris)

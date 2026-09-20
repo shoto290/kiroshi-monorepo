@@ -1692,7 +1692,7 @@ describe("ThreadScreen", () => {
 		expect(screen.getByText(UNRESOLVED_MENTION_TITLE)).toBeTruthy()
 		expect(
 			screen.getByText(
-				"<@ghost> was named but holds no seat in this conversation.",
+				"Unknown companion was named but holds no seat in this conversation.",
 			),
 		).toBeTruthy()
 

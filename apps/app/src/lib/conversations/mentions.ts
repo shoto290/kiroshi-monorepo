@@ -13,7 +13,7 @@ const TRAILING_SPACE = /\s$/
 
 const ARROBASE = "@"
 
-export const mentionTokenOf = (botId: string) => `<@${botId}>`
+const tokenOf = (botId: string) => `<@${botId}>`
 
 const isNamedAt = (text: string, from: number, name: string) =>
 	text.slice(from, from + name.length).toLocaleLowerCase() ===
@@ -46,7 +46,7 @@ export const toMentionTokens = (text: string, bots: MentionBot[]): string => {
 		}
 		written += text.slice(read, at)
 		const named = text[at - 1] === "<" ? null : botNamedAt(text, at + 1, bots)
-		written += named ? mentionTokenOf(named.id) : ARROBASE
+		written += named ? tokenOf(named.id) : ARROBASE
 		read = at + 1 + (named?.name.length ?? 0)
 	}
 
