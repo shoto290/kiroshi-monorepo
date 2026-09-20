@@ -590,6 +590,7 @@ type SpokenTurn = {
 	text: string
 	createdAt: number
 	role?: TranscriptRole
+	author?: string
 }
 
 type RoomFixture = {
@@ -646,6 +647,9 @@ const writeTurn = async (
 	await store.completeTurn(turnId, createdAt)
 }
 
+const speakerOf = (bots: Bot[], { author }: SpokenTurn) =>
+	bots.find((bot) => bot.name === author) ?? bots[0]
+
 const roomOf = async ({
 	names,
 	readReportedRuns,
@@ -660,7 +664,7 @@ const roomOf = async ({
 		botIds: bots.map((bot) => bot.id),
 	})
 	for (const turn of spoken) {
-		await writeTurn(store, conversation.id, bots[0].id, turn)
+		await writeTurn(store, conversation.id, speakerOf(bots, turn).id, turn)
 	}
 	const driver = createScriptedDriver()
 	const runtimes = createConversationRuntimes(driver, store, {
@@ -976,6 +980,58 @@ const missionRoomOf = async ({
 		},
 	}
 }
+
+const ADA_OPENS: SpokenTurn = {
+	turnId: "t-ada-1",
+	text: "the walls hold",
+	createdAt: 0,
+	author: "Ada",
+}
+
+const ADA_CLOSES: SpokenTurn = {
+	turnId: "t-ada-2",
+	text: "and the gate too",
+	createdAt: A_MINUTE,
+	author: "Ada",
+}
+
+const NYX_ANSWERS: SpokenTurn = {
+	turnId: "t-nyx-1",
+	text: "the roof is next",
+	createdAt: 2 * A_MINUTE,
+	author: "Nyx",
+}
+
+const ASKED_FIRST: SpokenTurn = {
+	turnId: "t-asked-1",
+	text: "does the wall hold",
+	createdAt: 0,
+	role: "user",
+}
+
+const ASKED_AGAIN: SpokenTurn = {
+	turnId: "t-asked-2",
+	text: "and the gate",
+	createdAt: A_MINUTE,
+	role: "user",
+}
+
+const turnOf = (text: string) =>
+	screen.getByText(text).closest('[data-slot="message-content"]')
+
+const nameLineOf = (text: string) =>
+	turnOf(text)?.querySelector('[data-slot="message-author"]')?.textContent ??
+	null
+
+const gutterAvatarOf = (text: string) =>
+	turnOf(text)?.querySelector('[data-slot="message-gutter"] > *') ?? null
+
+const markOf = (text: string) =>
+	turnOf(text)?.querySelector('[data-slot="shared-mark"][data-state="marked"]')
+
+const bubbleShapeOf = (text: string) =>
+	screen.getByText(text).closest('[data-slot="message-bubble-content"]')
+		?.className ?? null
 
 const transcriptRows = () =>
 	[...document.querySelectorAll('[data-slot="message-scroller-item"]')].map(
@@ -1587,6 +1643,61 @@ describe("ThreadScreen", () => {
 
 		expect(screen.getByText(SAID_BEFORE.text)).toBeTruthy()
 		expect(screen.queryByText(BOT_TITLE)).toBeNull()
+	})
+
+	it("names a run of consecutive messages once and marks its gutter once", async () => {
+		const room = await roomOf({
+			names: ["Ada", "Nyx"],
+			spoken: [ADA_OPENS, ADA_CLOSES, NYX_ANSWERS],
+		})
+		render(screenOf(room.thread))
+		await settle()
+
+		expect(nameLineOf(ADA_OPENS.text)).toContain("Ada")
+		expect(nameLineOf(ADA_CLOSES.text)).toBeNull()
+		expect(gutterAvatarOf(ADA_OPENS.text)).toBeNull()
+		expect(gutterAvatarOf(ADA_CLOSES.text)).not.toBeNull()
+	})
+
+	it("opens a second run with its own name line and gutter avatar when the author changes", async () => {
+		const room = await roomOf({
+			names: ["Ada", "Nyx"],
+			spoken: [ADA_OPENS, ADA_CLOSES, NYX_ANSWERS],
+		})
+		render(screenOf(room.thread))
+		await settle()
+
+		expect(
+			document.querySelectorAll('[data-slot="chat-turn-group"]'),
+		).toHaveLength(2)
+		expect(nameLineOf(NYX_ANSWERS.text)).toContain("Nyx")
+		expect(gutterAvatarOf(NYX_ANSWERS.text)).not.toBeNull()
+	})
+
+	it("carries the mark of a run on the message that closes it", async () => {
+		const room = await roomOf({
+			names: ["Ada", "Nyx"],
+			spoken: [ADA_OPENS, ADA_CLOSES, NYX_ANSWERS],
+		})
+		render(screenOf(room.thread))
+		await settle()
+
+		expect(markOf(ADA_OPENS.text)).toBeNull()
+		expect(markOf(ADA_CLOSES.text)).not.toBeNull()
+		expect(markOf(NYX_ANSWERS.text)).not.toBeNull()
+	})
+
+	it("shapes the bubble that opens a run of user messages apart from the one that closes it", async () => {
+		const room = await roomOf({
+			names: ["Ada"],
+			spoken: [ASKED_FIRST, ASKED_AGAIN],
+		})
+		render(screenOf(room.thread))
+		await settle()
+
+		expect(bubbleShapeOf(ASKED_FIRST.text)).not.toEqual(
+			bubbleShapeOf(ASKED_AGAIN.text),
+		)
 	})
 
 	it("names the routine on the turn its report opened", async () => {

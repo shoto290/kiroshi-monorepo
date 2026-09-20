@@ -7,6 +7,7 @@ import {
 	AssistantTurn,
 	type TurnCause,
 	TurnGroup,
+	type TurnRun,
 	type TurnState,
 	UserTurn,
 } from "@workspace/ui/components/turn"
@@ -24,6 +25,8 @@ type ThreadTurnProps = {
 	row: TranscriptRow
 	anchor: string
 	state: TurnState
+	run?: TurnRun
+	carriesMark?: boolean
 	bare?: boolean
 	botId?: string
 	author?: MessageAuthor
@@ -43,6 +46,8 @@ export const ThreadTurn = memo(function ThreadTurn({
 	row,
 	anchor,
 	state,
+	run,
+	carriesMark,
 	bare,
 	botId,
 	author,
@@ -84,6 +89,7 @@ export const ThreadTurn = memo(function ThreadTurn({
 				onRetry={onRetry ? () => onRetry(row.messageId) : undefined}
 				pinned={pinned}
 				repliedTo={repliedTo}
+				run={run}
 				state={state}
 			>
 				{content}
@@ -99,6 +105,7 @@ export const ThreadTurn = memo(function ThreadTurn({
 			identity={avatarFace}
 			bare={bare}
 			botId={botId}
+			carriesMark={carriesMark}
 			copyText={text}
 			fills={asking !== undefined}
 			messageId={anchor}
@@ -106,6 +113,7 @@ export const ThreadTurn = memo(function ThreadTurn({
 			onReply={reply}
 			pinned={pinned}
 			repliedTo={repliedTo}
+			run={run}
 			state={state}
 		>
 			{content}
