@@ -647,7 +647,7 @@ const writeTurn = async (
 	await store.completeTurn(turnId, createdAt)
 }
 
-const speakerOf = (bots: Bot[], { author }: SpokenTurn) =>
+const speakerOf = (bots: Bot[], author?: string) =>
 	bots.find((bot) => bot.name === author) ?? bots[0]
 
 const roomOf = async ({
@@ -664,7 +664,12 @@ const roomOf = async ({
 		botIds: bots.map((bot) => bot.id),
 	})
 	for (const turn of spoken) {
-		await writeTurn(store, conversation.id, speakerOf(bots, turn).id, turn)
+		await writeTurn(
+			store,
+			conversation.id,
+			speakerOf(bots, turn.author).id,
+			turn,
+		)
 	}
 	const driver = createScriptedDriver()
 	const runtimes = createConversationRuntimes(driver, store, {
@@ -1015,6 +1020,12 @@ const ASKED_AGAIN: SpokenTurn = {
 	createdAt: A_MINUTE,
 	role: "user",
 }
+
+const runRoomOf = () =>
+	roomOf({
+		names: ["Ada", "Nyx"],
+		spoken: [ADA_OPENS, ADA_CLOSES, NYX_ANSWERS],
+	})
 
 const turnOf = (text: string) =>
 	screen.getByText(text).closest('[data-slot="message-content"]')
@@ -1646,10 +1657,7 @@ describe("ThreadScreen", () => {
 	})
 
 	it("names a run of consecutive messages once and marks its gutter once", async () => {
-		const room = await roomOf({
-			names: ["Ada", "Nyx"],
-			spoken: [ADA_OPENS, ADA_CLOSES, NYX_ANSWERS],
-		})
+		const room = await runRoomOf()
 		render(screenOf(room.thread))
 		await settle()
 
@@ -1660,10 +1668,7 @@ describe("ThreadScreen", () => {
 	})
 
 	it("opens a second run with its own name line and gutter avatar when the author changes", async () => {
-		const room = await roomOf({
-			names: ["Ada", "Nyx"],
-			spoken: [ADA_OPENS, ADA_CLOSES, NYX_ANSWERS],
-		})
+		const room = await runRoomOf()
 		render(screenOf(room.thread))
 		await settle()
 
@@ -1675,10 +1680,7 @@ describe("ThreadScreen", () => {
 	})
 
 	it("carries the mark of a run on the message that closes it", async () => {
-		const room = await roomOf({
-			names: ["Ada", "Nyx"],
-			spoken: [ADA_OPENS, ADA_CLOSES, NYX_ANSWERS],
-		})
+		const room = await runRoomOf()
 		render(screenOf(room.thread))
 		await settle()
 
