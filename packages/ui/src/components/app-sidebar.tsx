@@ -272,13 +272,15 @@ interface AppSidebarRowMission {
 	state: BotMissionState
 	ticket: BotMissionTicket
 	objective?: string
+	isLive?: boolean
 }
 
 const missionStripsOf = (missions: AppSidebarRowMission[] | undefined) =>
 	missions?.length
-		? missions.map(({ id, state, ticket, objective }) => (
+		? missions.map(({ id, state, ticket, objective, isLive }) => (
 				<BotMissionStrip
 					key={id}
+					isLive={isLive}
 					objective={objective}
 					state={state}
 					ticket={ticket}
