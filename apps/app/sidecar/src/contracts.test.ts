@@ -23,11 +23,9 @@ const COMMANDS = "host-commands.ndjson"
 
 const LAYERS = ["system", "user", "space", "companion"] as const
 
-const rendered = (live: unknown) => `${JSON.stringify(live, null, "\t")}\n`
-
 const frozen = (name: string, live: unknown) => {
 	const path = join(CONTRACTS, name)
-	const written = rendered(live)
+	const written = `${JSON.stringify(live, null, "\t")}\n`
 	if (process.env.UPDATE_SNAPSHOTS) {
 		writeFileSync(path, written)
 		return
@@ -90,7 +88,7 @@ const HANDLER_OF: Record<string, string> = {
 	sign_in_code: "enterSignInCode",
 	sign_in_cancel: "cancelSignIn",
 	mcp_oauth_authorize: "authorizeServer",
-	mcp_oauth_cancel: "cancelAuthorization",
+	mcp_oauth_cancel: "cancelMcpAuthorization",
 	mcp_oauth_revoke: "revokeGrant",
 	mcp_oauth_refresh: "refreshGrant",
 }

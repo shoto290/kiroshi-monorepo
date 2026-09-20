@@ -2,14 +2,14 @@ use std::collections::BTreeSet;
 use std::path::{Path, PathBuf};
 
 use kiroshi_app::agent::protocol::{
-	Authorized, Checked, ContentBlock, ContentDelta, ControlRequestBody, Envelope, Frame,
+	listed, Authorized, Checked, ContentBlock, ContentDelta, ControlRequestBody, Envelope, Frame,
 	OauthFailureKind, OauthStarted, OauthStep, Ready, Revoked, SignInFailureKind, SignedIn,
-	StreamEvent, Titled, listed,
+	StreamEvent, Titled,
 };
 use kiroshi_app::bundles;
 use kiroshi_app::routines::sources::stacked;
 use serde::Serialize;
-use serde_json::{Value, json};
+use serde_json::{json, Value};
 
 const REWRITE: &str = "bun run snapshots";
 
@@ -49,91 +49,91 @@ fn read<T: serde::de::DeserializeOwned>(value: Value) -> T {
 	serde_json::from_value(value).expect("the line reads as the type the host parses it with")
 }
 
-fn delta_name(delta: ContentDelta) -> String {
+fn delta_name(delta: ContentDelta) -> &'static str {
 	match delta {
 		ContentDelta::TextDelta { text } => {
 			assert_eq!(text, "The release note is ");
-			"content_block_delta/text_delta".to_owned()
+			"content_block_delta/text_delta"
 		}
-		ContentDelta::Ignored => "content_block_delta/ignored".to_owned(),
+		ContentDelta::Ignored => "content_block_delta/ignored",
 	}
 }
 
-fn block_name(block: ContentBlock) -> String {
+fn block_name(block: ContentBlock) -> &'static str {
 	match block {
 		ContentBlock::Text { text } => {
 			assert_eq!(text, "Reading the release note.");
-			"content_block/text".to_owned()
+			"content_block/text"
 		}
 		ContentBlock::ToolUse { id, name, input } => {
 			assert_eq!(id, "toolu-0001");
 			assert_eq!(name, "Read");
 			assert_eq!(input, json!({ "file_path": "/workspace/space/README.md" }));
-			"content_block/tool_use".to_owned()
+			"content_block/tool_use"
 		}
 		ContentBlock::ToolResult { tool_use_id, is_error } => {
 			assert_eq!(tool_use_id, "toolu-0001");
 			assert!(is_error);
-			"content_block/tool_result".to_owned()
+			"content_block/tool_result"
 		}
-		ContentBlock::Ignored => "content_block/ignored".to_owned(),
+		ContentBlock::Ignored => "content_block/ignored",
 	}
 }
 
-fn event_name(event: StreamEvent) -> Vec<String> {
+fn event_name(event: StreamEvent) -> Vec<&'static str> {
 	match event {
 		StreamEvent::MessageStart { message } => {
 			assert_eq!(message.and_then(|header| header.id).as_deref(), Some("msg-0001"));
-			vec!["stream_event/message_start".to_owned()]
+			vec!["stream_event/message_start"]
 		}
 		StreamEvent::ContentBlockStart { content_block } => {
 			let block = content_block.expect("the start carries its block");
-			vec!["stream_event/content_block_start".to_owned(), block_name(block)]
+			vec!["stream_event/content_block_start", block_name(block)]
 		}
 		StreamEvent::ContentBlockDelta { delta } => {
 			vec![delta_name(delta.expect("the delta is carried"))]
 		}
-		StreamEvent::Ignored => vec!["stream_event/ignored".to_owned()],
+		StreamEvent::Ignored => vec!["stream_event/ignored"],
 	}
 }
 
-fn request_name(request: ControlRequestBody) -> String {
+fn request_name(request: ControlRequestBody) -> &'static str {
 	match request {
 		ControlRequestBody::CanUseTool { tool_name, display_name, description, input } => {
 			assert_eq!(tool_name, "Read");
 			assert_eq!(display_name.as_deref(), Some("Read a file"));
 			assert_eq!(description.as_deref(), Some("Read the file the agent named"));
 			assert_eq!(input, json!({ "file_path": "/workspace/space/README.md" }));
-			"control_request/can_use_tool".to_owned()
+			"control_request/can_use_tool"
 		}
-		ControlRequestBody::Ignored => "control_request/ignored".to_owned(),
+		ControlRequestBody::Ignored => "control_request/ignored",
 	}
 }
 
-fn frame_names(frame: Frame) -> Vec<String> {
+fn frame_names(frame: Frame) -> Vec<&'static str> {
 	match frame {
-		Frame::Opened => vec!["opened".to_owned()],
+		Frame::Opened => vec!["opened"],
 		Frame::Closed(held) => {
 			assert_eq!(held.detail.as_deref(), Some("the query ended"));
-			vec!["closed".to_owned()]
+			vec!["closed"]
 		}
 		Frame::System(held) => {
 			assert_eq!(held.subtype.as_deref(), Some("init"));
 			assert_eq!(held.session_id.as_deref(), Some("sdk-0001"));
-			vec!["system".to_owned()]
+			vec!["system"]
 		}
 		Frame::StreamEvent(held) => event_name(held.event.expect("the frame carries its event")),
 		Frame::Assistant(held) => {
 			let body = held.message.expect("the assistant frame carries its message");
 			assert_eq!(body.id.as_deref(), Some("msg-0001"));
-			let mut names = vec!["assistant".to_owned()];
+			let mut names = vec!["assistant"];
 			names.extend(body.content.into_iter().map(block_name));
 			names
 		}
 		Frame::User(held) => {
 			let body = held.message.expect("the user frame carries its message");
 			assert_eq!(body.id.as_deref(), Some("msg-0002"));
-			let mut names = vec!["user".to_owned()];
+			let mut names = vec!["user"];
 			names.extend(body.content.into_iter().map(block_name));
 			names
 		}
@@ -150,7 +150,7 @@ fn frame_names(frame: Frame) -> Vec<String> {
 				held.model_usage,
 				Some(json!({ "claude-sonnet-4-5": { "inputTokens": 1200, "outputTokens": 340 } }))
 			);
-			vec!["result".to_owned()]
+			vec!["result"]
 		}
 		Frame::Commands(held) => {
 			assert_eq!(held.commands.len(), 1);
@@ -159,18 +159,18 @@ fn frame_names(frame: Frame) -> Vec<String> {
 				held.commands[0].description.as_deref(),
 				Some("Review the diff of the working tree")
 			);
-			vec!["commands".to_owned()]
+			vec!["commands"]
 		}
 		Frame::ControlRequest(held) => {
 			assert!(held.request_id.starts_with("req-"));
-			vec!["control_request".to_owned(), request_name(held.request)]
+			vec!["control_request", request_name(held.request)]
 		}
 		Frame::HostRequest(held) => {
 			assert_eq!(held.request_id, "host-0001");
 			assert_eq!(held.request["subtype"], json!("routine"));
 			assert_eq!(held.request["operation"], json!("create"));
 			assert_eq!(held.request["payload"], json!({ "title": "Morning report" }));
-			vec!["host_request".to_owned()]
+			vec!["host_request"]
 		}
 		Frame::ControlResponse(held) => {
 			assert_eq!(held.response.subtype.as_deref(), Some("error"));
@@ -179,20 +179,20 @@ fn frame_names(frame: Frame) -> Vec<String> {
 				held.response.error.as_deref(),
 				Some("the session no longer holds that request")
 			);
-			vec!["control_response".to_owned()]
+			vec!["control_response"]
 		}
 		Frame::SettingsRejected(held) => {
 			assert_eq!(
 				held.detail.as_deref(),
 				Some("bypassPermissions is refused, this session opens under auto.")
 			);
-			vec!["settings_rejected".to_owned()]
+			vec!["settings_rejected"]
 		}
 		Frame::ServerEnvRejected(held) => {
 			assert_eq!(held.detail.as_deref(), Some("clock was left out for want of CLOCK_URL"));
-			vec!["server_env_rejected".to_owned()]
+			vec!["server_env_rejected"]
 		}
-		Frame::Ignored => vec!["ignored".to_owned()],
+		Frame::Ignored => vec!["ignored"],
 	}
 }
 
@@ -294,7 +294,7 @@ fn every_frame_the_sidecar_sends_reads_as_the_variant_the_host_matches() {
 		}
 		let envelope: Envelope = read(line);
 		assert_eq!(envelope.session, "k1");
-		read_as.extend(frame_names(read(envelope.frame)));
+		read_as.extend(frame_names(read(envelope.frame)).into_iter().map(str::to_owned));
 	}
 
 	assert_eq!(
@@ -383,17 +383,13 @@ fn typed_names(text: &str) -> BTreeSet<String> {
 #[test]
 fn the_protocol_document_names_every_message_of_both_contract_files() {
 	let protocol = PathBuf::from(env!("CARGO_MANIFEST_DIR")).join("src/agent/PROTOCOL.md");
-	let documented = typed_names(&fenced_json(
-		&std::fs::read_to_string(&protocol).expect("PROTOCOL.md reads"),
-	));
+	let documented =
+		typed_names(&fenced_json(&std::fs::read_to_string(&protocol).expect("PROTOCOL.md reads")));
 	let committed: BTreeSet<String> =
 		[FRAMES, COMMANDS].iter().flat_map(|file| lines(file)).map(|line| named(&line)).collect();
 
 	let undocumented: Vec<&String> = committed.difference(&documented).collect();
-	assert!(
-		undocumented.is_empty(),
-		"no fenced json block of PROTOCOL.md names {undocumented:?}"
-	);
+	assert!(undocumented.is_empty(), "no fenced json block of PROTOCOL.md names {undocumented:?}");
 
 	let uncommitted: Vec<&String> = documented.difference(&committed).collect();
 	assert!(
@@ -442,8 +438,5 @@ fn the_plugin_readers_extract_what_the_snapshot_holds() {
 	let layered: Vec<PathBuf> = LAYERS.iter().map(|layer| bundles::dir(&root, layer)).collect();
 	let sources = stacked(&layered).expect("every layer declares readable sources");
 
-	frozen(
-		LAYERS_SNAPSHOT,
-		&json!({ "layers": layers, "triggerSources": sources }),
-	);
+	frozen(LAYERS_SNAPSHOT, &json!({ "layers": layers, "triggerSources": sources }));
 }

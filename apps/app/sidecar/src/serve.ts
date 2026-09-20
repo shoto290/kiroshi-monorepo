@@ -84,11 +84,12 @@ const write = (payload: unknown) => {
 	process.stdout.write(`${JSON.stringify(payload)}\n`)
 }
 
-type Write = (payload: unknown) => void
-
 type Handler = (command: Command, session: string) => unknown
 
-export const createRouter = (provider: AgentProvider, write: Write) => {
+export const createRouter = (
+	provider: AgentProvider,
+	write: (payload: unknown) => void,
+) => {
 	const emitter = (session: string) => (frame: SessionFrame) =>
 		write({ session, frame })
 
@@ -166,8 +167,6 @@ export const createRouter = (provider: AgentProvider, write: Write) => {
 	const authorizeServer = async (command: Command) =>
 		write({ type: AUTHORIZE, ...(await authorizeMcpServer(command, write)) })
 
-	const cancelAuthorization = () => cancelMcpAuthorization()
-
 	const revokeGrant = async (command: Command) =>
 		write({ type: REVOKE, ...(await revokeMcpToken(command)) })
 
@@ -206,7 +205,7 @@ export const createRouter = (provider: AgentProvider, write: Write) => {
 		[SIGN_IN_CODE]: enterSignInCode,
 		[SIGN_IN_CANCEL]: cancelSignIn,
 		[AUTHORIZE]: authorizeServer,
-		[CANCEL]: cancelAuthorization,
+		[CANCEL]: cancelMcpAuthorization,
 		[REVOKE]: revokeGrant,
 		[REFRESH]: refreshGrant,
 	}
