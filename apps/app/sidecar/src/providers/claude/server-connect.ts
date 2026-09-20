@@ -1,7 +1,7 @@
 import type { McpServerStatus } from "@anthropic-ai/claude-agent-sdk"
 
 import { ACCESS_TOKEN, AWAITING_AUTH, leftOut } from "./server-env"
-import type { GrantPort, RenewedGrant } from "./server-renewal"
+import { type GrantPort, type RenewedGrant, unlanded } from "./server-renewal"
 import type { ServerLine, ServerState } from "./system-layer"
 
 import type { ServerEnv } from "../provider"
@@ -100,6 +100,7 @@ const READ_SAID = "and the status read that followed it answered"
 const RECONNECTION_UNDER_WAY = "a reconnection is under way"
 const DECLARED_SAID = "and the declaration that carried it answered"
 const RENEWAL_REFUSED = "the renewal of a rejected access token was refused"
+const TURN_UNRENEWED = "the servers of this turn could not be renewed"
 const GAVE_UP = "the connection pass gave up on"
 const REPORTABLE = ["pending", "failed", "needs-auth"]
 const AUTHORIZATION_REJECTED = [
@@ -218,19 +219,12 @@ const polledTakes = async (
 }
 
 const failureOf = async (
-	work: Promise<unknown>,
+	answered: Promise<string | undefined>,
 	bound: number,
 	signal: AbortSignal | undefined,
 	outlasted: string,
 ): Promise<string | undefined> => {
-	const thrown = await withinDeadline(
-		work.then(
-			() => undefined,
-			(error: unknown) => describeError(error),
-		),
-		bound,
-		signal,
-	)
+	const thrown = await withinDeadline(answered, bound, signal)
 	return thrown === OUTLASTED ? outlasted : thrown
 }
 
@@ -241,10 +235,30 @@ const reconnectFailure = (
 	signal?: AbortSignal,
 ): Promise<string | undefined> =>
 	failureOf(
-		port.reconnect(name),
+		port.reconnect(name).then(
+			() => undefined,
+			(error: unknown) => describeError(error),
+		),
 		bound,
 		signal,
 		`the reconnection outlasted its ${bound} ms deadline`,
+	)
+
+const declareFailure = (
+	grants: GrantPort,
+	name: string,
+	accessToken: string,
+	bound: number,
+	signal?: AbortSignal,
+): Promise<string | undefined> =>
+	failureOf(
+		grants.declare(name, accessToken).then(
+			(declaration) => unlanded(name, declaration),
+			(error: unknown) => describeError(error),
+		),
+		bound,
+		signal,
+		`the renewed declaration outlasted its ${bound} ms deadline`,
 	)
 
 const storedValues = ({ base, perServer }: ServerEnv): string[] =>
@@ -469,14 +483,15 @@ const renewed = async (
 		return UNCHANGED
 	}
 	remembered(secrets, granted.accessToken)
-	const thrown = await failureOf(
-		grants.declare(name, granted.accessToken),
+	const refusal = await declareFailure(
+		grants,
+		name,
+		granted.accessToken,
 		bound,
 		signal,
-		`the renewed declaration outlasted its ${bound} ms deadline`,
 	)
-	return thrown
-		? { kind: "refused", answer: { source: DECLARED_SAID, message: thrown } }
+	return refusal
+		? { kind: "refused", answer: { source: DECLARED_SAID, message: refusal } }
 		: { kind: "declared" }
 }
 
@@ -678,14 +693,72 @@ const unreadableStatus = (
 	writeGiveUp(names, readable(cause, secrets))
 }
 
+export const heldSecrets = (env: ServerEnv = {}): string[] => storedValues(env)
+
+export const renewsBeforeTurn = ({ grants, names }: ConnectPass): boolean =>
+	Boolean(grants) && names.length > 0
+
+const worthRenewing = (
+	{ names, env }: ConnectPass,
+	{ name, status, error }: ServerStatus,
+): boolean =>
+	status === "failed" &&
+	names.includes(name) &&
+	rejectsTheHeader(error) &&
+	wasGivenAToken(env, name)
+
+const renewingTurn = async (pass: ConnectPass, secrets: string[]) => {
+	const {
+		port,
+		signal,
+		bound = REQUEST_BOUND_MS,
+		now = Date.now,
+		report,
+	} = pass
+	const started = now()
+	const spent = () => now() - started
+	let statuses: ServerStatus[]
+	try {
+		statuses = await boundedRead(port, bound, signal)
+	} catch (error) {
+		noteUnreadable(describeError(error), secrets)
+		return
+	}
+	for (const read of statuses.filter((read) => worthRenewing(pass, read))) {
+		if (signal?.aborted) {
+			return
+		}
+		const again = await announce(pass, read, spent, secrets)
+		if (again) {
+			report?.(readLine(again.name, "pending", spent(), again.answer, secrets))
+		}
+	}
+}
+
+export const renewedBeforeTurn = async (
+	pass: ConnectPass,
+	secrets: string[] = heldSecrets(pass.env),
+): Promise<void> => {
+	if (!renewsBeforeTurn(pass) || pass.signal?.aborted) {
+		return
+	}
+	try {
+		await renewingTurn(pass, secrets)
+	} catch (thrown) {
+		process.stderr.write(
+			`${TURN_UNRENEWED}: ${readable(describeError(thrown), secrets)}\n`,
+		)
+	}
+}
+
 export const unconnectedServers = async (
 	pass: ConnectPass,
+	secrets: string[] = heldSecrets(pass.env),
 ): Promise<ReportedLine[]> => {
-	const { names, signal, env = {} } = pass
+	const { names, signal } = pass
 	if (names.length === 0) {
 		return []
 	}
-	const secrets = storedValues(env)
 	try {
 		const outcome = await reportPass(pass, secrets)
 		if (signal?.aborted) {

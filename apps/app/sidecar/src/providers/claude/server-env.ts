@@ -5,7 +5,7 @@ import { leftOutLine, type ServerLine } from "./system-layer"
 
 import type { ServerEnv, SessionRequest } from "../provider"
 
-type Servers = NonNullable<Options["mcpServers"]>
+export type Servers = NonNullable<Options["mcpServers"]>
 type Server = Servers[string]
 type Values = Record<string, string>
 
@@ -109,6 +109,11 @@ const authorized = (server: Server, own: Values | undefined): Server => {
 	}
 	return withBearer(server, token)
 }
+
+export const declaredWithout = (servers: Servers, name: string): Servers =>
+	Object.fromEntries(
+		Object.entries(servers).filter(([held]) => held !== name),
+	) as Servers
 
 export const declaredAgain = (
 	servers: Servers,

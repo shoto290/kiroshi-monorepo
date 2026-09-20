@@ -1100,6 +1100,112 @@ describe("reportConnections", () => {
 		expect(pushed).toEqual([`${section}\n\nfirst`, "second", "third"])
 	})
 
+	const REJECTED_HEADER =
+		"Server rejected the configured Authorization header (HTTP 401)"
+
+	const TOKEN = {
+		perServer: { superset: { KIROSHI_OAUTH_ACCESS_TOKEN: "old" } },
+	}
+
+	const landed = {
+		dropped: { added: [], removed: ["superset"], errors: {} },
+		carried: { added: ["superset"], removed: [], errors: {} },
+	}
+
+	const turning = (statuses: (renewed: boolean) => ServerStatus[]) => {
+		const emitted: string[] = []
+		const pushed: string[] = []
+		const renewed: string[] = []
+		let reads = 0
+
+		const report = reportConnections({
+			emit: (frame) => {
+				emitted.push(String(frame.detail))
+			},
+			push: (text) => {
+				pushed.push(text)
+			},
+			pass: {
+				names: ["superset"],
+				port: {
+					status: async () => {
+						reads += 1
+						return statuses(renewed.length > 0)
+					},
+					reconnect: async () => {},
+				},
+				env: TOKEN,
+				grants: {
+					renew: async (name) => {
+						renewed.push(name)
+						return { state: "granted", accessToken: "renewed-access-token" }
+					},
+					declare: async () => landed,
+				},
+				wait: async () => {},
+			},
+		})
+
+		return { emitted, pushed, renewed, report, reads: () => reads }
+	}
+
+	it("reads the status again before it hands a turn to an open session", async () => {
+		const { pushed, renewed, report, reads } = turning(() => [
+			{ name: "superset", status: "connected" },
+		])
+
+		report.prompt("first")
+		await ticked()
+		const opened = reads()
+		report.prompt("second")
+		await ticked()
+
+		expect(reads()).toBe(opened + 1)
+		expect(renewed).toEqual([])
+		expect(pushed[1]).toBe("second")
+	})
+
+	it("renews a server that stopped being accepted before the turn reaches the agent", async () => {
+		const order: string[] = []
+		const { pushed, renewed, report } = turning((again) =>
+			again
+				? [{ name: "superset", status: "connected" }]
+				: [
+						{
+							name: "superset",
+							status: "failed",
+							error: REJECTED_HEADER,
+						},
+					],
+		)
+
+		report.prompt("first")
+		await ticked()
+		order.push("opened")
+		report.prompt("second")
+		order.push("handed")
+		await ticked()
+
+		expect(order).toEqual(["opened", "handed"])
+		expect(renewed).toEqual(["superset"])
+		expect(pushed[1]).toContain("holds its tools for the rest of this session")
+		expect(pushed[1]).toEndWith("second")
+	})
+
+	it("hands the turns of one open session on in the order they arrived", async () => {
+		const { pushed, report } = turning(() => [
+			{ name: "superset", status: "connected" },
+		])
+
+		report.prompt("first")
+		await ticked()
+		report.prompt("second")
+		report.prompt("third")
+		await ticked()
+
+		expect(pushed.slice(1)).toEqual(["second", "third"])
+	})
+
 	it("says nothing to anyone but stderr when no status read ever answered", async () => {
 		const written: string[] = []
 		const original = process.stderr.write

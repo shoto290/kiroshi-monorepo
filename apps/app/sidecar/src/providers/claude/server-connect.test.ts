@@ -5,13 +5,14 @@ import {
 	type ConnectPort,
 	POLL_BUDGET_MS,
 	type ReportedLine,
+	renewedBeforeTurn,
 	type ServerStatus,
 	UNNAMED_GRACE_MS,
 	unconnectedServers,
 	WATCH_BOUND_MS,
 	WATCH_POLL_MS,
 } from "./server-connect"
-import type { RenewedGrant } from "./server-renewal"
+import type { Declaration, RenewedGrant, SetServers } from "./server-renewal"
 
 import type { ServerEnv } from "../provider"
 
@@ -39,7 +40,7 @@ const awaiting: ServerStatus[] = [{ name: "superset", status: "needs-auth" }]
 
 const connected: ServerStatus[] = [{ name: "superset", status: "connected" }]
 
-const throwing = (message: string) => async () => {
+const throwing = (message: string) => async (): Promise<never> => {
 	throw new Error(message)
 }
 
@@ -873,17 +874,29 @@ const rejecting = (error: string): ServerStatus[] => [
 	{ name: "superset", status: "failed", error },
 ]
 
+const setServers = (answered: Partial<SetServers>): SetServers => ({
+	added: [],
+	removed: [],
+	errors: {},
+	...answered,
+})
+
+const LANDED: Declaration = {
+	dropped: setServers({ removed: ["superset"] }),
+	carried: setServers({ added: ["superset"] }),
+}
+
 type RenewalPass = {
 	statuses: (declared: boolean) => Promise<ServerStatus[]>
 	grant?: () => Promise<RenewedGrant>
-	declare?: (name: string, accessToken: string) => Promise<void>
+	declare?: (name: string, accessToken: string) => Promise<Declaration>
 	env?: ServerEnv
 }
 
 const renewalPass = async ({
 	statuses,
 	grant = async () => ({ state: "granted", accessToken: RENEWED }),
-	declare = async () => {},
+	declare = async () => LANDED,
 	env = GIVEN_A_TOKEN,
 }: RenewalPass) => {
 	const reported: ReportedLine[] = []
@@ -909,7 +922,7 @@ const renewalPass = async ({
 			},
 			declare: async (name, accessToken) => {
 				declared.push({ name, accessToken })
-				await declare(name, accessToken)
+				return declare(name, accessToken)
 			},
 		},
 		now: () => time,
@@ -1027,7 +1040,7 @@ describe("a rejected access token", () => {
 			env: GIVEN_A_TOKEN,
 			grants: {
 				renew: async () => ({ state: "unchanged" }),
-				declare: async () => {},
+				declare: async () => LANDED,
 			},
 			now: () => time,
 			wait: async (ms) => {
@@ -1085,5 +1098,221 @@ describe("a rejected access token", () => {
 			'the renewal of a rejected access token was refused ("superset"): the session closed before the host answered',
 		)
 		expect(pass.reconnected).toEqual(["superset"])
+	})
+})
+
+describe("a declaration that carries a renewed header", () => {
+	it("is left out carrying what the answers said when the pair did not land", async () => {
+		const pass = await renewalPass({
+			statuses: backAfterRenewal(REJECTED_HEADER),
+			declare: async () => ({
+				dropped: setServers({}),
+				carried: setServers({ added: ["superset"] }),
+			}),
+		})
+
+		expect(pass.reported).toEqual([
+			{
+				detail: `${leftOut}it read failed, and the declaration that carried it answered: the declaration that dropped it removed nothing, and the one that carried it added superset`,
+				state: "left-out",
+				notice: true,
+			},
+		])
+	})
+
+	it("is left out carrying the error a declaration named the server in", async () => {
+		const pass = await renewalPass({
+			statuses: backAfterRenewal(REJECTED_HEADER),
+			declare: async () => ({
+				dropped: setServers({ removed: ["superset"] }),
+				carried: setServers({
+					errors: { superset: "the endpoint answered 500" },
+				}),
+			}),
+		})
+
+		expect(pass.reported).toEqual([
+			{
+				detail: `${leftOut}it read failed, and the declaration that carried it answered: the endpoint answered 500`,
+				state: "left-out",
+				notice: true,
+			},
+		])
+	})
+})
+
+type TurnPass = {
+	statuses: (declared: boolean) => Promise<ServerStatus[]>
+	names?: string[]
+	grant?: () => Promise<RenewedGrant>
+	env?: ServerEnv
+	grants?: boolean
+}
+
+const turnPass = async ({
+	statuses,
+	names = ["superset"],
+	grant = async () => ({ state: "granted", accessToken: RENEWED }),
+	env = GIVEN_A_TOKEN,
+	grants = true,
+}: TurnPass) => {
+	const reported: ReportedLine[] = []
+	const renewed: string[] = []
+	const reconnected: string[] = []
+	const declared: { name: string; accessToken: string }[] = []
+	let reads = 0
+	let time = 0
+	const stderr = capture()
+
+	await renewedBeforeTurn({
+		names,
+		port: {
+			status: () => {
+				reads += 1
+				return statuses(declared.length > 0)
+			},
+			reconnect: async (name) => {
+				reconnected.push(name)
+			},
+		},
+		env,
+		...(grants
+			? {
+					grants: {
+						renew: async (name: string) => {
+							renewed.push(name)
+							return grant()
+						},
+						declare: async (name: string, accessToken: string) => {
+							declared.push({ name, accessToken })
+							return LANDED
+						},
+					},
+				}
+			: {}),
+		now: () => time,
+		wait: async (ms: number) => {
+			time += ms
+		},
+		report: (line) => reported.push(line),
+	})
+	stderr.restore()
+
+	return {
+		reported,
+		renewed,
+		reconnected,
+		declared,
+		reads,
+		written: stderr.written,
+	}
+}
+
+describe("renewedBeforeTurn", () => {
+	it("reads the status once and renews nothing when no server reads failed", async () => {
+		const turn = await turnPass({ statuses: async () => connected })
+
+		expect(turn.reads).toBe(1)
+		expect(turn.renewed).toEqual([])
+		expect(turn.reported).toEqual([])
+	})
+
+	it("renews and declares a server reading failed on a rejected header", async () => {
+		const turn = await turnPass({
+			statuses: backAfterRenewal(REJECTED_HEADER),
+		})
+
+		expect(turn.renewed).toEqual(["superset"])
+		expect(turn.declared).toEqual([{ name: "superset", accessToken: RENEWED }])
+		expect(turn.reported).toEqual([
+			{
+				detail:
+					'the server "superset" connected, and holds its tools for the rest of this session',
+				state: "holding",
+				notice: false,
+			},
+		])
+	})
+
+	it("renews a given server no more than once for one turn", async () => {
+		const turn = await turnPass({
+			statuses: async () => rejecting(REJECTED_HEADER),
+		})
+
+		expect(turn.renewed).toEqual(["superset"])
+		expect(turn.declared).toHaveLength(1)
+	})
+
+	it("renews neither a server no 401 names nor one the store gave no token", async () => {
+		const unnamed = await turnPass({
+			statuses: backAfterRenewal("Connection refused"),
+		})
+		const untokened = await turnPass({
+			statuses: backAfterRenewal(REJECTED_HEADER),
+			env: {},
+		})
+
+		expect([...unnamed.renewed, ...untokened.renewed]).toEqual([])
+		expect([...unnamed.reconnected, ...untokened.reconnected]).toEqual([])
+		expect([...unnamed.reported, ...untokened.reported]).toEqual([])
+	})
+
+	it("reads no status at all for a session wired with no grant port", async () => {
+		const turn = await turnPass({
+			statuses: backAfterRenewal(REJECTED_HEADER),
+			grants: false,
+		})
+
+		expect(turn.reads).toBe(0)
+	})
+
+	it("renews no server the session was not opened with", async () => {
+		const turn = await turnPass({
+			statuses: backAfterRenewal(REJECTED_HEADER),
+			names: ["clock"],
+		})
+
+		expect(turn.renewed).toEqual([])
+	})
+
+	it("names a server still connecting after the declaration, without a notice", async () => {
+		const turn = await turnPass({
+			statuses: async (declared) =>
+				declared ? pending : rejecting(REJECTED_HEADER),
+		})
+
+		expect(turn.reported).toEqual([
+			{
+				detail: 'the server "superset" is still connecting after 0 ms',
+				state: "connecting",
+				notice: false,
+			},
+		])
+	})
+
+	it("hands the turn on, saying so on stderr, when the status cannot be read", async () => {
+		const turn = await turnPass({ statuses: throwing("the query is gone") })
+
+		expect(turn.renewed).toEqual([])
+		expect(turn.reported).toEqual([])
+		expect(turn.written.join("")).toContain(
+			"the status of this session's servers could not be read: the query is gone",
+		)
+	})
+
+	it("leaves a refused grant waiting to be authorized before the turn", async () => {
+		const turn = await turnPass({
+			statuses: backAfterRenewal(REJECTED_HEADER),
+			grant: async () => ({ state: "needs-auth" }),
+		})
+
+		expect(turn.declared).toEqual([])
+		expect(turn.reported).toEqual([
+			{
+				detail: `${leftOut}it is waiting for you to authorize it`,
+				state: "needs-auth",
+				notice: true,
+			},
+		])
 	})
 })

@@ -6,6 +6,7 @@ import { join } from "node:path"
 import {
 	AWAITING_AUTH,
 	declaredAgain,
+	declaredWithout,
 	leftOut,
 	resolvedServers,
 	resolveServers,
@@ -351,5 +352,18 @@ describe("declaredAgain", () => {
 
 	it("declares the set unchanged when it names no such server", () => {
 		expect(declaredAgain({ granola }, "clock", "renewed")).toEqual({ granola })
+	})
+})
+
+describe("declaredWithout", () => {
+	it("names every other server the session holds and drops the one named", () => {
+		expect(declaredWithout({ granola, plain, probe }, "granola")).toEqual({
+			plain,
+			probe,
+		})
+	})
+
+	it("declares the set unchanged when it names no such server", () => {
+		expect(declaredWithout({ granola }, "clock")).toEqual({ granola })
 	})
 })
