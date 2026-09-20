@@ -44,6 +44,7 @@ const PERSPECTIVE = 0
 const SEAL_PITCH = toRadians(11)
 const SWAY_ANGLE = toRadians(14)
 const SWEEP_DIP = 0.26
+const NO_SWEEP = Number.NEGATIVE_INFINITY
 const SEAL_FILL = 0.6
 const WRITE_FLOOR = 0.7
 const BREAK_ANGLE = toRadians(24)
@@ -153,17 +154,16 @@ type SealMotion = {
 
 type MotionInput = { state?: BotSealState; elapsed: number; arms: number }
 
-const swayOf = (elapsed: number) =>
-	SWAY_ANGLE * along(SWAY_BEAT, phaseOf(elapsed, SWAY_PERIOD))
+const spinOf = ({ state, elapsed, arms }: MotionInput) => {
+	if (state === "thinking") return turnOf(elapsed, arms)
+	if (state === "waiting")
+		return SWAY_ANGLE * along(SWAY_BEAT, phaseOf(elapsed, SWAY_PERIOD))
+	return 0
+}
 
 const sealMotion = ({ state, elapsed, arms }: MotionInput): SealMotion => ({
 	arms,
-	spin:
-		state === "thinking"
-			? turnOf(elapsed, arms)
-			: state === "waiting"
-				? swayOf(elapsed)
-				: 0,
+	spin: spinOf({ state, elapsed, arms }),
 	open:
 		state === "searching" ? along(OPEN_BEAT, phaseOf(elapsed, OPEN_PERIOD)) : 1,
 	reach:
@@ -179,7 +179,7 @@ const sealMotion = ({ state, elapsed, arms }: MotionInput): SealMotion => ({
 	sweep:
 		state === "searching"
 			? arms * along(SWEEP_BEAT, phaseOf(elapsed, OPEN_PERIOD))
-			: Number.NEGATIVE_INFINITY,
+			: NO_SWEEP,
 	isFlat: state === "done",
 	isBroken: state === "blocked",
 })
@@ -229,15 +229,16 @@ type Placement = {
 	level: number
 }
 
-const armDistance = (motion: SealMotion, arm: number) => {
+const sweptBy = (motion: SealMotion, arm: number) => {
+	if (motion.sweep === NO_SWEEP) return 0
 	const apart = Math.abs(motion.sweep - arm) % motion.arms
-	return Math.min(apart, motion.arms - apart)
+	const near = Math.min(apart, motion.arms - apart)
+	return near < 1 ? SWEEP_DIP * easeInOut(1 - near) : 0
 }
 
 const armReach = (motion: SealMotion, vertex: SealVertex) => {
 	const written = along(SETTLE_BEAT, clamp(motion.armPhase - vertex.arm, 0, 1))
-	const apart = armDistance(motion, vertex.arm)
-	const swept = apart < 1 ? SWEEP_DIP * easeInOut(1 - apart) : 0
+	const swept = sweptBy(motion, vertex.arm)
 	return (
 		motion.reach *
 		(WRITE_FLOOR + (1 - WRITE_FLOOR) * written) *
