@@ -67,6 +67,7 @@ type Harness = {
 	originTail: () => ConversationState
 	soloTail: () => ChatState
 	openSolo: () => Promise<void>
+	speakInThread: (text: string) => Promise<void>
 }
 
 type HarnessSeed = {
@@ -257,6 +258,11 @@ const createHarness = async ({
 		await settled()
 	}
 
+	const speakInThread = async (text: string) => {
+		await reader.send(text)
+		await settled()
+	}
+
 	const tail = () => reader.getState()
 
 	const originTail = () => originReader.getState()
@@ -285,6 +291,7 @@ const createHarness = async ({
 		originTail,
 		soloTail,
 		openSolo,
+		speakInThread,
 	}
 }
 
@@ -332,6 +339,12 @@ describe("startMissionRunDriver", () => {
 		harness.stop()
 		harness = await createHarness(seed)
 	}
+
+	const endThreadTurn = (ended: Partial<TurnEnded> = {}) =>
+		harness.emitAtThread({
+			type: "turnEnded",
+			ended: { sessionId: null, outcome: "completed", ...ended },
+		})
 
 	beforeEach(async () => {
 		harness = await createHarness()
@@ -785,6 +798,146 @@ describe("startMissionRunDriver", () => {
 		expect(spoken(harness.originTail())).toEqual([
 			[harness.mission.botId, "The walls stand, handing over."],
 		])
+	})
+
+	it("opens a status run on the origin when a turn ends in the mission thread", async () => {
+		await harness.enter("working")
+
+		await endThreadTurn()
+
+		expect(harness.originStarts()).toHaveLength(1)
+		expect(harness.originStarts()[0].scope).toMatchObject({
+			conversationId: harness.origin.id,
+			botId: harness.mission.botId,
+		})
+	})
+
+	it("tells a status run where the mission stands and who picks it up", async () => {
+		await harness.enter("working")
+
+		await endThreadTurn()
+
+		expect(harness.driver.submissions.at(-1)?.prompt).toContain(
+			"Report in a few lines where your mission stands right now and mention whoever picks the work up next. Name no step, no tool, no merge, no ticket and no pull request.",
+		)
+	})
+
+	it("opens a status run whatever outcome the ended turn carries", async () => {
+		await harness.enter("working")
+
+		await endThreadTurn({ outcome: "failed" })
+
+		expect(harness.originStarts()).toHaveLength(1)
+	})
+
+	it("writes the status of a room origin in that conversation", async () => {
+		await harness.enter("working")
+		await endThreadTurn()
+
+		await harness.endTurn(reported("The walls are half up."))
+
+		expect(spoken(harness.originTail())).toEqual([
+			[harness.mission.botId, "The walls are half up."],
+		])
+	})
+
+	it("writes the status of a solo origin in the main chat", async () => {
+		await restart({ soloOrigin: true })
+		await harness.openSolo()
+		await harness.enter("working")
+		await endThreadTurn()
+
+		await harness.endTurn(reported("The walls are half up."))
+
+		expect(harness.soloTail().messages).toEqual([
+			expect.objectContaining({
+				role: "assistant",
+				authorBotId: harness.mission.botId,
+				content: "The walls are half up.",
+			}),
+		])
+	})
+
+	it("takes the thread of an open mission whatever its state at start", async () => {
+		await restart({ open: "waiting_human" })
+		await harness.speakInThread("Where does it stand?")
+
+		await endThreadTurn()
+
+		expect(harness.originStarts()).toHaveLength(1)
+	})
+
+	it("opens no status run when the mission is closed as the turn ends", async () => {
+		await harness.enter("working")
+		harness.hold("done", closedBy("poller"))
+
+		await endThreadTurn()
+
+		expect(harness.originStarts()).toEqual([])
+	})
+
+	it("opens no status run while a run is already live for the mission", async () => {
+		await harness.enter("working")
+		await harness.enter("failed", failedBy("agent-hook"))
+
+		await endThreadTurn()
+
+		expect(harness.originStarts()).toHaveLength(1)
+	})
+
+	it("holds a state announced while a status run is being decided", async () => {
+		await harness.enter("working")
+		harness.missions.stallDetail()
+		await endThreadTurn()
+		await harness.enter("failed", failedBy("agent-hook"))
+
+		expect(harness.originStarts()).toEqual([])
+
+		harness.missions.releaseDetail()
+		await settled()
+
+		expect(harness.originStarts()).toHaveLength(1)
+	})
+
+	it("takes the closing announced while a status run was live", async () => {
+		await harness.enter("working")
+		await endThreadTurn()
+		await harness.enter("done", closedBy("poller"))
+
+		await harness.endTurn(reported("The walls are half up."))
+
+		expect(harness.originStarts()).toHaveLength(2)
+		expect(harness.driver.submissions.at(-1)?.prompt).toContain(
+			"Your mission is finished.",
+		)
+	})
+
+	it("raises a failure notice when a status run reports nothing", async () => {
+		vi.spyOn(console, "error").mockImplementation(() => undefined)
+		await harness.enter("working")
+		await endThreadTurn()
+
+		await harness.endTurn({ structuredOutput: { outcome: "nothing" } })
+
+		expect(harness.reportFailure).toHaveBeenCalledTimes(1)
+		expect(harness.missions.reports).toEqual([])
+	})
+
+	it("opens no run when a turn ends outside any mission thread", async () => {
+		await harness.enter("working")
+
+		harness.driver.emit(
+			{
+				conversationId: harness.origin.id,
+				botId: harness.mission.botId,
+				runtimeSessionId: "runtime-session",
+				epoch: 1,
+			},
+			{ type: "turnEnded", ended: { sessionId: null, outcome: "completed" } },
+		)
+		await settled()
+
+		expect(harness.originStarts()).toEqual([])
 	})
 
 	it("keeps none but the last change dropped while a run was live", async () => {

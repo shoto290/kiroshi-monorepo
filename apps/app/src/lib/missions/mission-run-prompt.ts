@@ -6,7 +6,7 @@ import {
 	untrustedNoticeOf,
 } from "@/lib/untrusted-data"
 
-export type MissionRunCause = "done" | "failed"
+export type MissionRunCause = "done" | "failed" | "status"
 
 export type MissionRunCall = {
 	cause: MissionRunCause
@@ -19,6 +19,8 @@ const INSTRUCTION_OF: Record<MissionRunCause, string> = {
 	done: "Your mission is finished. Close it if it is still open, report in a few lines where it landed, and mention whoever takes it from here.",
 	failed:
 		"Your mission is blocked and cannot go further. Close it if it is still open, report in a few lines what blocks it, and mention whoever takes it from here.",
+	status:
+		"Report in a few lines where your mission stands right now and mention whoever picks the work up next. Name no step, no tool, no merge, no ticket and no pull request.",
 }
 
 const UNTRUSTED_NOTICE = untrustedNoticeOf(
