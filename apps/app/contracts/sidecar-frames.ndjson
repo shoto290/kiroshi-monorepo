@@ -1,0 +1,31 @@
+{"type":"ready","provider":"claude","version":"2.1.237","sdkVersion":"0.3.237","capabilities":["partialMessages","resume","interactivePermissions","modelCatalogue","toolCatalogue"]}
+{"type":"check","authenticated":true,"authMethod":"oauth","detail":"the probe answered","account":{"email":"someone@example.test","plan":"max"}}
+{"type":"models","models":["claude-sonnet-4-5","claude-opus-4-1"]}
+{"type":"tools","tools":["Read","Write","WebFetch"]}
+{"type":"title","title":"The release note of 0.21.2"}
+{"type":"sign_in","signedIn":false,"error":{"kind":"timedOut","detail":"the child outlasted its deadline"}}
+{"type":"sign_in_started","url":"https://claude.example.test/cai/oauth/authorize"}
+{"type":"oauth_started","url":"https://auth.example.test/authorize"}
+{"type":"mcp_oauth_authorize","credentials":{"accessToken":"<redacted>","refreshToken":"<redacted>","expiresAt":1758326400000,"clientId":"registered","clientSecret":"<redacted>","redirectUri":"http://127.0.0.1:53682/oauth/callback"}}
+{"type":"mcp_oauth_refresh","error":{"kind":"rejected","detail":"the token endpoint answered 400: invalid_grant","step":"tokenExchange","status":400,"body":"the grant is no longer accepted","code":"invalid_grant"}}
+{"type":"mcp_oauth_revoke","revoked":true,"detail":"both tokens were posted to the revocation endpoint"}
+{"type":"unreadable"}
+{"session":"k1","frame":{"type":"opened"}}
+{"session":"k1","frame":{"type":"system","subtype":"init","session_id":"sdk-0001"}}
+{"session":"k1","frame":{"type":"commands","commands":[{"name":"review","description":"Review the diff of the working tree"}]}}
+{"session":"k1","frame":{"type":"stream_event","event":{"type":"message_start","message":{"id":"msg-0001"}}}}
+{"session":"k1","frame":{"type":"stream_event","event":{"type":"content_block_start","content_block":{"type":"tool_use","id":"toolu-0001","name":"Read","input":{"file_path":"/workspace/space/README.md"}}}}}
+{"session":"k1","frame":{"type":"stream_event","event":{"type":"content_block_delta","delta":{"type":"text_delta","text":"The release note is "}}}}
+{"session":"k1","frame":{"type":"stream_event","event":{"type":"content_block_delta","delta":{"type":"input_json_delta","partial_json":"{\"file_path\":"}}}}
+{"session":"k1","frame":{"type":"stream_event","event":{"type":"content_block_stop","index":0}}}
+{"session":"k1","frame":{"type":"assistant","message":{"id":"msg-0001","content":[{"type":"text","text":"Reading the release note."},{"type":"tool_use","id":"toolu-0001","name":"Read","input":{"file_path":"/workspace/space/README.md"}},{"type":"thinking","thinking":"the block the host drops"}]}}}
+{"session":"k1","frame":{"type":"user","message":{"id":"msg-0002","content":[{"type":"tool_result","tool_use_id":"toolu-0001","is_error":true}]}}}
+{"session":"k1","frame":{"type":"control_request","request_id":"req-0001","request":{"subtype":"can_use_tool","tool_name":"Read","display_name":"Read a file","description":"Read the file the agent named","input":{"file_path":"/workspace/space/README.md"}}}}
+{"session":"k1","frame":{"type":"control_request","request_id":"req-0002","request":{"subtype":"initialize"}}}
+{"session":"k1","frame":{"type":"host_request","requestId":"host-0001","request":{"subtype":"routine","operation":"create","payload":{"title":"Morning report"}}}}
+{"session":"k1","frame":{"type":"control_response","response":{"subtype":"error","request_id":"req-0001","error":"the session no longer holds that request"}}}
+{"session":"k1","frame":{"type":"result","subtype":"success","session_id":"sdk-0001","is_error":false,"structured_output":{"summary":"the release note is drafted"},"total_cost_usd":0.0412,"modelUsage":{"claude-sonnet-4-5":{"inputTokens":1200,"outputTokens":340}}}}
+{"session":"k1","frame":{"type":"settings_rejected","detail":"bypassPermissions is refused, this session opens under auto."}}
+{"session":"k1","frame":{"type":"server_env_rejected","detail":"clock was left out for want of CLOCK_URL"}}
+{"session":"k1","frame":{"type":"closed","detail":"the query ended"}}
+{"session":"k1","frame":{"type":"unknown_to_the_host"}}

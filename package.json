@@ -19,6 +19,7 @@
 		"build:website": "turbo run build --filter=website",
 		"tauri:build": "turbo run tauri:build",
 		"test": "turbo run test",
+		"snapshots": "bun apps/app/sidecar/scripts/generate.ts && UPDATE_SNAPSHOTS=1 bun test --cwd apps/app/sidecar src/contracts.test.ts && UPDATE_SNAPSHOTS=1 cargo test --manifest-path apps/app/src-tauri/Cargo.toml --features fake-claude --test contracts",
 		"lint": "turbo run lint",
 		"lint:fix": "turbo run lint:fix",
 		"types": "turbo run types",

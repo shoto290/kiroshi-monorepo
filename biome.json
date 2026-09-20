@@ -11,6 +11,7 @@
 		"includes": [
 			"**",
 			"!**/src/generated",
+			"!apps/app/contracts",
 			"!apps/app/src/lib/bindings.ts",
 			"!packages/ui/src/components/ui"
 		]

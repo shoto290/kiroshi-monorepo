@@ -1,0 +1,9 @@
+{
+	"permissions": {
+		"defaultMode": "plan",
+		"allow": ["Read(./**)", "mcp__kiroshi__delegate"],
+		"ask": ["Bash(git push:*)"],
+		"deny": ["Bash(rm:*)", "Write(./secrets/**)"]
+	},
+	"outputStyle": "Concise"
+}

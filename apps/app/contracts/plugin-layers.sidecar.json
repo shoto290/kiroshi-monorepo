@@ -1,0 +1,103 @@
+{
+	"mergedServers": {
+		"clock": {
+			"command": "clock-of-companion",
+			"args": [
+				"--layer",
+				"companion"
+			]
+		},
+		"system-only": {
+			"command": "system-server",
+			"args": []
+		},
+		"user-only": {
+			"command": "user-server",
+			"args": []
+		},
+		"space-only": {
+			"command": "space-server",
+			"args": []
+		},
+		"companion-only": {
+			"command": "companion-server",
+			"args": []
+		}
+	},
+	"acceptedSettings": {
+		"system": {
+			"options": {
+				"permissionMode": "default",
+				"settings": {
+					"permissions": {
+						"allow": [
+							"Read(./**)"
+						],
+						"ask": [
+							"WebFetch"
+						],
+						"deny": [
+							"Bash(rm:*)"
+						],
+						"disableBypassPermissionsMode": "disable"
+					},
+					"outputStyle": "Explanatory"
+				}
+			}
+		},
+		"user": {
+			"options": {
+				"permissionMode": "acceptEdits",
+				"settings": {
+					"permissions": {
+						"allow": [
+							"Read(./**)",
+							"Glob"
+						],
+						"deny": [
+							"WebSearch"
+						],
+						"disableBypassPermissionsMode": "disable"
+					},
+					"outputStyle": "Learning"
+				}
+			}
+		},
+		"space": {
+			"options": {
+				"permissionMode": "auto",
+				"settings": {
+					"permissions": {
+						"allow": [
+							"Read(./**)"
+						],
+						"disableBypassPermissionsMode": "disable"
+					}
+				}
+			},
+			"rejection": "bypassPermissions is refused, this session opens under auto. keys outside the allowlist were dropped: model, permissions.additionalDirectories."
+		},
+		"companion": {
+			"options": {
+				"permissionMode": "plan",
+				"settings": {
+					"permissions": {
+						"allow": [
+							"Read(./**)",
+							"mcp__kiroshi__delegate"
+						],
+						"ask": [
+							"Bash(git push:*)"
+						],
+						"deny": [
+							"Bash(rm:*)",
+							"Write(./secrets/**)"
+						],
+						"disableBypassPermissionsMode": "disable"
+					},
+					"outputStyle": "Concise"
+				}
+			}
+		}
+	}
+}

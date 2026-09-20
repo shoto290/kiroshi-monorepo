@@ -1,0 +1,12 @@
+{
+	"mcpServers": {
+		"clock": {
+			"command": "clock-of-user",
+			"args": ["--layer", "user"]
+		},
+		"user-only": {
+			"command": "user-server",
+			"args": []
+		}
+	}
+}

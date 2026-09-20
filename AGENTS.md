@@ -118,6 +118,7 @@ bun run test         # Vitest + cargo test
 bun run lint         # Check
 bun run lint:fix     # Fix
 bun run types        # Type check (tsc -b)
+bun run snapshots    # Rewrite every back-end contract snapshot in apps/app/contracts from the live code
 ```
 
 ## Naming

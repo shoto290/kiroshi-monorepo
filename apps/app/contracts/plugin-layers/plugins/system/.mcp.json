@@ -1,0 +1,12 @@
+{
+	"mcpServers": {
+		"clock": {
+			"command": "clock-of-system",
+			"args": ["--layer", "system"]
+		},
+		"system-only": {
+			"command": "system-server",
+			"args": []
+		}
+	}
+}

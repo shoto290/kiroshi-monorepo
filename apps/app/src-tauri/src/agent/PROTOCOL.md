@@ -527,3 +527,76 @@ but the url of `sign_in_started` and the reason a failed sign-in gave. Search lo
 values, and `redact` collapses the home directory out of every path *and* every
 shell command before it crosses to React. There is no logging statement anywhere
 in the module.
+
+## The frozen catalogue
+
+Two committed files hold one line per message, `apps/app/contracts/host-commands.ndjson`
+and `apps/app/contracts/sidecar-frames.ndjson`, every optional field of a frame populated.
+`tests/contracts.rs` reads each frame line into the type the host parses it with,
+`sidecar/src/contracts.test.ts` routes each command line to the handler that serves it,
+and both refuse a message this section does not name. The catalogue below names each
+message and elides the rest of its shape, which the sections above spell out.
+
+Host → sidecar:
+
+```json
+{"type":"open","session":"…",…}
+{"type":"prompt","session":"…","text":"…"}
+{"type":"interrupt","session":"…"}
+{"type":"permission","session":"…",…}
+{"type":"host_response","session":"…",…}
+{"type":"close","session":"…"}
+{"type":"check",…}
+{"type":"models",…}
+{"type":"tools",…}
+{"type":"title",…}
+{"type":"sign_in"}
+{"type":"sign_in_code","text":"…"}
+{"type":"sign_in_cancel"}
+{"type":"mcp_oauth_authorize",…}
+{"type":"mcp_oauth_cancel"}
+{"type":"mcp_oauth_revoke",…}
+{"type":"mcp_oauth_refresh",…}
+```
+
+Sidecar → host, sessionless:
+
+```json
+{"type":"ready",…}
+{"type":"check",…}
+{"type":"models",…}
+{"type":"tools",…}
+{"type":"title",…}
+{"type":"sign_in",…}
+{"type":"sign_in_started","url":"…"}
+{"type":"oauth_started","url":"…"}
+{"type":"mcp_oauth_authorize",…}
+{"type":"mcp_oauth_revoke",…}
+{"type":"mcp_oauth_refresh",…}
+{"type":"unreadable"}
+```
+
+Sidecar → host, inside the envelope of a session:
+
+```json
+{"type":"opened"}
+{"type":"system",…}
+{"type":"commands",…}
+{"type":"stream_event",…}
+{"type":"assistant",…}
+{"type":"user",…}
+{"type":"control_request",…}
+{"type":"host_request",…}
+{"type":"control_response",…}
+{"type":"result",…}
+{"type":"settings_rejected","detail":"…"}
+{"type":"server_env_rejected","detail":"…"}
+{"type":"closed","detail":"…"}
+```
+
+A frame naming none of those reads as `Ignored` and reaches no translator, which the
+catalogue stands one line for:
+
+```json
+{"type":"unknown_to_the_host"}
+```

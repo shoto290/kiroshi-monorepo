@@ -1,0 +1,12 @@
+{
+	"mcpServers": {
+		"clock": {
+			"command": "clock-of-companion",
+			"args": ["--layer", "companion"]
+		},
+		"companion-only": {
+			"command": "companion-server",
+			"args": []
+		}
+	}
+}

@@ -1,0 +1,9 @@
+{
+	"permissions": {
+		"defaultMode": "default",
+		"allow": ["Read(./**)"],
+		"ask": ["WebFetch"],
+		"deny": ["Bash(rm:*)"]
+	},
+	"outputStyle": "Explanatory"
+}

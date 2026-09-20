@@ -1,0 +1,17 @@
+{"type":"open","session":"k1","cwd":"/workspace/space","resume":"sdk-0001","pluginPath":"/plugins/companion","systemPluginPath":"/plugins/system","userPluginPath":"/plugins/user","spacePluginPath":"/plugins/space","agent":"companion","identity":"Ada, the companion","outputStyle":"Concise","settingsPath":"/plugins/companion/settings.json","appDataDir":"/app-data","conversationId":"c-0001","partialMessages":true,"env":{"TZ":"UTC"},"serverEnv":{"base":{"CLOCK_URL":"https://clock.example.test"},"perServer":{"clock":{"CLOCK_ROOM":"main"}},"needsAuthorization":["granola"],"failure":"clock has not connected"},"connection":{"ANTHROPIC_API_KEY":"<redacted>"},"outputSchema":{"type":"object","properties":{"summary":{"type":"string"}},"required":["summary"]}}
+{"type":"prompt","session":"k1","text":"Draft the release note"}
+{"type":"interrupt","session":"k1"}
+{"type":"permission","session":"k1","requestId":"req-0001","decision":{"behavior":"allow","updatedInput":{"file_path":"/workspace/space/README.md"}}}
+{"type":"host_response","session":"k1","requestId":"host-0001","result":{"id":"r-0001"}}
+{"type":"close","session":"k1"}
+{"type":"check","connection":{"ANTHROPIC_API_KEY":"<redacted>"}}
+{"type":"models","connection":{"ANTHROPIC_API_KEY":"<redacted>"}}
+{"type":"tools","connection":{"ANTHROPIC_API_KEY":"<redacted>"}}
+{"type":"title","text":"Draft the release note","connection":{"ANTHROPIC_API_KEY":"<redacted>"}}
+{"type":"sign_in"}
+{"type":"sign_in_code","text":"the code the authorization page ends on"}
+{"type":"sign_in_cancel"}
+{"type":"mcp_oauth_authorize","url":"https://mcp.example.test/mcp","clientId":"registered","clientSecret":"<redacted>","redirectUri":"http://127.0.0.1:53682/oauth/callback"}
+{"type":"mcp_oauth_cancel"}
+{"type":"mcp_oauth_revoke","url":"https://mcp.example.test/mcp","token":"<redacted>","refreshToken":"<redacted>","clientId":"registered","clientSecret":"<redacted>"}
+{"type":"mcp_oauth_refresh","url":"https://mcp.example.test/mcp","refreshToken":"<redacted>","clientId":"registered","clientSecret":"<redacted>"}
