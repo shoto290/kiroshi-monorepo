@@ -7,7 +7,6 @@ pub use bot::*;
 pub use error::*;
 pub use room::*;
 pub use transcript::*;
-pub(in crate::conversations) use transcript::message_uri;
 
 #[cfg(test)]
 mod tests {

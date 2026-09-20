@@ -176,7 +176,6 @@ mod tests {
 	use super::super::tests::assert_crosses_as;
 	use super::*;
 
-
 	#[test]
 	fn a_lineage_failure_crosses_as_a_storage_refusal() {
 		assert_eq!(

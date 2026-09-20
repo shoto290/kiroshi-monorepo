@@ -378,9 +378,8 @@ mod tests {
 	use serde_json::json;
 
 	use super::super::tests::assert_crosses_as;
-	use super::super::*;
+	use super::super::Chat;
 	use super::*;
-
 
 	#[test]
 	fn a_bot_and_the_chat_it_holds_cross_as_camel_case() {

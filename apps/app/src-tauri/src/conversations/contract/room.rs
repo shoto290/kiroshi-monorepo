@@ -162,7 +162,6 @@ mod tests {
 	use super::super::tests::assert_crosses_as;
 	use super::*;
 
-
 	#[test]
 	fn an_opened_run_crosses_as_camel_case() {
 		assert_crosses_as(

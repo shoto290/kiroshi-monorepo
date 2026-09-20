@@ -317,9 +317,8 @@ mod tests {
 	use serde_json::{json, Value};
 
 	use super::super::tests::{a_message, a_message_wire, assert_crosses_as};
-	use super::super::*;
+	use super::super::TranscriptStoreError;
 	use super::*;
-
 
 	#[test]
 	fn every_role_and_completion_crosses_as_one_camel_case_word() {
