@@ -55,7 +55,7 @@ type Renewing =
 	| { kind: "unchanged" }
 	| { kind: "needs-auth" }
 	| { kind: "declared" }
-	| { kind: "refused"; answer: Answer }
+	| { kind: "refused"; answer?: Answer }
 
 type GaveUp = {
 	names: string[]
@@ -228,6 +228,9 @@ const failureOf = async (
 	return thrown === OUTLASTED ? outlasted : thrown
 }
 
+const outlasting = (what: string, bound: number): string =>
+	`the ${what} outlasted its ${bound} ms deadline`
+
 const reconnectFailure = (
 	port: ConnectPort,
 	name: string,
@@ -241,7 +244,7 @@ const reconnectFailure = (
 		),
 		bound,
 		signal,
-		`the reconnection outlasted its ${bound} ms deadline`,
+		outlasting("reconnection", bound),
 	)
 
 const declareFailure = (
@@ -258,7 +261,7 @@ const declareFailure = (
 		),
 		bound,
 		signal,
-		`the renewed declaration outlasted its ${bound} ms deadline`,
+		outlasting("renewed declaration", bound),
 	)
 
 export const heldSecrets = ({ base, perServer }: ServerEnv = {}): string[] =>
@@ -475,7 +478,18 @@ const renewed = async (
 	if (!grants || !rejectsTheHeader(error) || !wasGivenAToken(env, name)) {
 		return UNCHANGED
 	}
-	const granted = await askedGrant(grants, name, secrets)
+	const asked = await withinDeadline(
+		askedGrant(grants, name, secrets),
+		bound,
+		signal,
+	)
+	if (asked === OUTLASTED) {
+		process.stderr.write(
+			`${RENEWAL_REFUSED} ("${name}"): ${outlasting("renewal", bound)}\n`,
+		)
+		return { kind: "refused" }
+	}
+	const granted = asked
 	if (granted?.state === "needs-auth") {
 		return { kind: "needs-auth" }
 	}
@@ -693,8 +707,12 @@ const unreadableStatus = (
 	writeGiveUp(names, readable(cause, secrets))
 }
 
-export const renewsBeforeTurn = ({ grants, names }: ConnectPass): boolean =>
-	Boolean(grants) && names.length > 0
+export const renewsBeforeTurn = ({
+	grants,
+	names,
+	env,
+}: ConnectPass): boolean =>
+	Boolean(grants) && names.some((name) => wasGivenAToken(env, name))
 
 const worthRenewing = (
 	{ names, env }: ConnectPass,

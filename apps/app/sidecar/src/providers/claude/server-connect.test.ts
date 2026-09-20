@@ -1147,6 +1147,7 @@ type TurnPass = {
 	grant?: () => Promise<RenewedGrant>
 	env?: ServerEnv
 	grants?: boolean
+	bound?: number
 }
 
 const turnPass = async ({
@@ -1155,6 +1156,7 @@ const turnPass = async ({
 	grant = async () => ({ state: "granted", accessToken: RENEWED }),
 	env = GIVEN_A_TOKEN,
 	grants = true,
+	bound,
 }: TurnPass) => {
 	const reported: ReportedLine[] = []
 	const renewed: string[] = []
@@ -1176,6 +1178,7 @@ const turnPass = async ({
 			},
 		},
 		env,
+		...(bound === undefined ? {} : { bound }),
 		...(grants
 			? {
 					grants: {
@@ -1264,6 +1267,36 @@ describe("renewedBeforeTurn", () => {
 		})
 
 		expect(turn.reads).toBe(0)
+	})
+
+	it("reads no status when no server declared was given a stored access token", async () => {
+		const untokened = await turnPass({
+			statuses: backAfterRenewal(REJECTED_HEADER),
+			env: { base: { CLOCK_ROOM: "the wide room" } },
+		})
+		const elsewhere = await turnPass({
+			statuses: backAfterRenewal(REJECTED_HEADER),
+			names: ["clock"],
+		})
+
+		expect([untokened.reads, elsewhere.reads]).toEqual([0, 0])
+	})
+
+	it("leaves the server carrying the last read, naming the bound it outlasted", async () => {
+		const turn = await turnPass({
+			statuses: async () => rejecting(REJECTED_HEADER),
+			grant: () => new Promise<never>(() => {}),
+			bound: 5,
+		})
+
+		expect(turn.declared).toEqual([])
+		expect(turn.reconnected).toEqual([])
+		expect(turn.reported).toEqual([
+			{ detail: `${leftOut}it read failed`, state: "left-out", notice: true },
+		])
+		expect(turn.written.join("")).toContain(
+			`the renewal of a rejected access token was refused ("superset"): the renewal outlasted its 5 ms deadline`,
+		)
 	})
 
 	it("renews no server the session was not opened with", async () => {
