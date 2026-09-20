@@ -323,7 +323,7 @@ export const Narrow = meta.story({
 		docs: {
 			description: {
 				story:
-					"The four-tab card in a 320px column, the narrowest surface a transcript ever hands it. Check that the tab strip stays inside the column and scrolls sideways rather than pushing a tab out of it, that every tab is still reachable by pointer and by arrow key, and that an option below still takes a press and hands the card over to the next question waiting. Pick `FourQuestions` for the same card with room to spread. " +
+					"The four-tab card in a 320px column, the narrowest surface a transcript ever hands it. Check that the tab strip stays inside the column and scrolls sideways rather than pushing a tab out of it, that the four tabs hold one line by sharing a top edge, that every tab is still reachable by pointer and by arrow key, and that an option below still takes a press and hands the card over to the next question waiting. Pick `FourQuestions` for the same card with room to spread. " +
 					POSTED_BY_ONBOARDING,
 			},
 		},
@@ -337,8 +337,13 @@ export const Narrow = meta.story({
 		const column = canvas.getByTestId("column")
 		const strip = canvas.getByRole("tablist")
 
-		await expect(canvas.getAllByRole("tab")).toHaveLength(4)
+		const tabs = canvas.getAllByRole("tab")
+
+		await expect(tabs).toHaveLength(4)
 		await expect(boxOf(strip).right).toBeLessThanOrEqual(boxOf(column).right)
+		for (const tab of tabs) {
+			await expect(boxOf(tab).top).toBe(boxOf(tabs[0]).top)
+		}
 
 		await userEvent.click(canvas.getByRole("tab", { name: /release/i }))
 		await expect(canvas.getByText(RELEASE_QUESTION.question)).toBeVisible()
@@ -360,7 +365,7 @@ export const LongHeaderScrolls = meta.story({
 		docs: {
 			description: {
 				story:
-					"A header too long for a 320px column, next to a short one. A tab never wraps: the strip keeps its one line inside the card and hands the tabs out of view to a sideways scroll, with no scrollbar drawn over them. Check that both tabs are the same height, that the strip stops at the edge of the column, that the question below stays clear of the strip, and that walking the strip with the arrow keys brings the tab it lands on back into view. " +
+					"A header too long for a 320px column, next to a short one. A tab never wraps: the strip keeps its one line inside the card and hands the tabs out of view to a sideways scroll, with no scrollbar drawn over them. Check that both tabs share a height and a top edge, that the first tab starts on the same line as the button below, that the strip stops at the edge of the column, that the question below stays clear of the strip, and that walking the strip with the arrow keys brings the tab it lands on back into view. " +
 					POSTED_BY_ONBOARDING,
 			},
 		},
@@ -377,7 +382,11 @@ export const LongHeaderScrolls = meta.story({
 		const shortTab = canvas.getByRole("tab", { name: SCOPE_QUESTION.header })
 		const asked = canvas.getByText(REGISTRY_QUESTION.question)
 
+		const submit = canvas.getByRole("button", { name: chat.toolQuestion.next })
+
 		await expect(boxOf(longTab).height).toBe(boxOf(shortTab).height)
+		await expect(boxOf(longTab).top).toBe(boxOf(shortTab).top)
+		await expect(boxOf(longTab).left).toBe(boxOf(submit).left)
 		await expect(strip.scrollWidth).toBeGreaterThan(strip.clientWidth)
 		await expect(boxOf(strip).right).toBeLessThanOrEqual(boxOf(column).right)
 		await expect(boxOf(longTab).bottom).toBeLessThanOrEqual(boxOf(asked).top)

@@ -28,7 +28,7 @@ import { useCopyText } from "@workspace/ui/hooks/use-copy-text"
 import { cn } from "@workspace/ui/lib/utils"
 
 const QUESTION_TAB_LIST_CLASS =
-	"relative scrollbar-hide max-w-full justify-start gap-1 overflow-x-auto scroll-px-1 bg-transparent p-1 group-data-horizontal/tabs:h-fit"
+	"-m-1 relative scrollbar-hide max-w-full justify-start gap-1 overflow-x-auto scroll-px-1 bg-transparent p-1 group-data-horizontal/tabs:h-fit"
 
 const QUESTION_TAB_CLASS =
 	"h-fit shrink-0 px-2.5 py-1 motion-reduce:transition-none motion-reduce:duration-0"
