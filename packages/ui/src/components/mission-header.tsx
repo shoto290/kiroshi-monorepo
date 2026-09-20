@@ -13,7 +13,10 @@ import {
 	MissionTicketLine,
 	MissionToolMark,
 } from "@workspace/ui/components/mission-marks"
-import { MissionStatePill } from "@workspace/ui/components/mission-state-pill"
+import {
+	hasStatePill,
+	MissionStatePill,
+} from "@workspace/ui/components/mission-state-pill"
 import { Button } from "@workspace/ui/components/ui/button"
 import { toRelativeTime } from "@workspace/ui/lib/time-format"
 import { cn } from "@workspace/ui/lib/utils"
@@ -26,6 +29,7 @@ type MissionHeaderProps = {
 	ticket: MissionTicketLink
 	tools: string[]
 	state: MissionState
+	isWorking: boolean
 	openedAt: number
 	now: number
 	onBack: () => void
@@ -38,6 +42,7 @@ const MissionHeader = ({
 	ticket,
 	tools,
 	state,
+	isWorking,
 	openedAt,
 	now,
 	onBack,
@@ -68,16 +73,20 @@ const MissionHeader = ({
 							badge={missionBadgeFor(state)}
 							blot={bot.blot}
 							image={bot.image}
+							kind="working"
 							name={bot.name}
 							seed={bot.seed}
 							size={MISSION_HEADER_AVATAR_SIZE}
+							working={isWorking}
 						/>
 						<span className="min-w-0 truncate" data-slot="mission-objective">
 							{objective}
 						</span>
 					</>
 				}
-				trailing={<MissionStatePill state={state} />}
+				trailing={
+					hasStatePill(state) ? <MissionStatePill state={state} /> : null
+				}
 			/>
 			<div
 				className="flex h-8.5 shrink-0 items-center gap-2 border-border border-b pe-4 ps-12.5"

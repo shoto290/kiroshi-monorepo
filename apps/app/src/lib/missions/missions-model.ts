@@ -83,6 +83,7 @@ const toMissionRow = (
 	},
 	bot: toMissionFace(face),
 	state,
+	isWorking: state === "working",
 	timestamp,
 })
 
@@ -216,6 +217,7 @@ export const toMissionCard = (
 	},
 	tools: mission.tools,
 	state: mission.state,
+	isWorking: mission.state === "working",
 	isClosed: mission.closedAt !== null,
 })
 

@@ -307,6 +307,7 @@ const ThreadHeader = ({
 		return (
 			<MissionHeader
 				bot={toMissionFace(missionFace)}
+				isWorking={mission.mission.state === "working"}
 				now={mission.now}
 				objective={mission.mission.objective}
 				onBack={mission.onLeave}

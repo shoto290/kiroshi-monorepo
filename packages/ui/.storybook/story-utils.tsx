@@ -80,6 +80,12 @@ export const slotIn = (root: Element, slot: string) => {
 	return node
 }
 
+export const holderOf = (root: Element, holds: string) => {
+	const holder = root.querySelector<HTMLElement>(`[data-holds="${holds}"]`)
+	if (!holder) throw new Error(`Nothing here holds ${holds}`)
+	return holder
+}
+
 export const opaque = async (element: HTMLElement) => {
 	await waitFor(
 		() => expect(getComputedStyle(element).opacity).toBe("1"),

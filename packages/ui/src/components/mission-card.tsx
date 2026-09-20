@@ -13,10 +13,16 @@ import {
 	MissionTicketLine,
 	MissionToolMark,
 } from "@workspace/ui/components/mission-marks"
-import { MissionStatePill } from "@workspace/ui/components/mission-state-pill"
+import {
+	hasStatePill,
+	MissionStatePill,
+} from "@workspace/ui/components/mission-state-pill"
 import { cn } from "@workspace/ui/lib/utils"
 
-type MissionCardProps = Omit<MissionCardModel, "author" | "identity"> & {
+type MissionCardProps = Omit<
+	MissionCardModel,
+	"author" | "identity" | "isWorking"
+> & {
 	onOpen: (missionId: string) => void
 	className?: string
 }
@@ -24,15 +30,7 @@ type MissionCardProps = Omit<MissionCardModel, "author" | "identity"> & {
 type MissionTitleRowProps = Pick<MissionCardModel, "state" | "tools">
 
 const MissionTitleRow = ({ state, tools }: MissionTitleRowProps) => {
-	const { t } = useTranslation("chat")
-	const isWorking = state === "working"
-	const stateName = isWorking ? (
-		<span className="sr-only">{t(`missions.state.${state}`)}</span>
-	) : (
-		<MissionStatePill state={state} />
-	)
-
-	if (isWorking && tools.length === 0) return stateName
+	if (tools.length === 0 && !hasStatePill(state)) return null
 
 	return (
 		<span
@@ -42,7 +40,7 @@ const MissionTitleRow = ({ state, tools }: MissionTitleRowProps) => {
 			{tools.map((tool) => (
 				<MissionToolMark key={tool} tool={tool} />
 			))}
-			{stateName}
+			<MissionStatePill state={state} />
 		</span>
 	)
 }

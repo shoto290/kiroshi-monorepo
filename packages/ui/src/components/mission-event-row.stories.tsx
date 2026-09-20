@@ -329,6 +329,7 @@ export const InAMissionThread = meta.story({
 		<div className="flex w-[30rem] max-w-full flex-col gap-2">
 			<MissionHeader
 				bot={MISSION_BOT}
+				isWorking={false}
 				now={MISSION_NOW}
 				objective={MISSION_OBJECTIVE}
 				onBack={fn()}

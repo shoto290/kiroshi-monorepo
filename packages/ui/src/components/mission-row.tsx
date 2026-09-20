@@ -13,6 +13,7 @@ import {
 	type MissionState,
 } from "@workspace/ui/components/mission"
 import { missionTicketPlatform } from "@workspace/ui/components/mission-marks"
+import { hasStatePill } from "@workspace/ui/components/mission-state-pill"
 import { DOT_CLASS } from "@workspace/ui/components/row-anatomy"
 import { SidebarListRow } from "@workspace/ui/components/sidebar-list-row"
 import { cn } from "@workspace/ui/lib/utils"
@@ -23,6 +24,7 @@ type MissionRowModel = {
 	ticket: BotMissionTicket
 	bot: MissionBot
 	state: MissionState
+	isWorking: boolean
 	timestamp: string
 }
 
@@ -50,12 +52,12 @@ const MissionRow = ({
 	ticket,
 	bot,
 	state,
+	isWorking,
 	timestamp,
 	onOpen,
 }: MissionRowProps) => {
 	const { t } = useTranslation("chat")
 	const { Mark, isNamed } = missionTicketPlatform(ticket.platform)
-	const isWorking = state === "working"
 	const parts = [
 		{
 			slot: "ticket",
@@ -63,7 +65,9 @@ const MissionRow = ({
 			className: isNamed ? IDENTIFIER_CLASS : undefined,
 		},
 		{ slot: "bot", text: bot.name },
-		{ slot: "state", text: t(`missions.state.${state}`) },
+		...(hasStatePill(state)
+			? [{ slot: "state", text: t(`missions.state.${state}`) }]
+			: []),
 	].filter((part) => part.text !== "")
 
 	return (

@@ -1,12 +1,7 @@
 import { expect, fn } from "storybook/test"
 
 import preview from "@workspace/storybook/preview"
-import {
-	A11Y_CONTRAST_AWAITING_DESIGN_DECISION,
-	listExhaustively,
-	slotIn,
-	slotsIn,
-} from "@workspace/storybook/story-utils"
+import { holderOf, slotIn, slotsIn } from "@workspace/storybook/story-utils"
 import type { MissionState } from "@workspace/ui/components/mission"
 import {
 	MissionHeader,
@@ -17,18 +12,11 @@ import {
 	MISSION_NOW,
 	MISSION_OBJECTIVE,
 	MISSION_OPENED_AT,
+	MISSION_STATES,
+	MISSION_STATES_WITHOUT_A_PILL,
 	MISSION_TICKET,
 	MISSION_TOOLS,
 } from "@workspace/ui/components/missions.fixtures"
-
-const MISSION_STATES = listExhaustively<MissionState>({
-	working: true,
-	waiting_bot: true,
-	waiting_human: true,
-	ready_to_merge: true,
-	failed: true,
-	done: true,
-})
 
 const WORKING_HEADER: Omit<MissionHeaderProps, "onBack"> = {
 	bot: MISSION_BOT,
@@ -36,9 +24,18 @@ const WORKING_HEADER: Omit<MissionHeaderProps, "onBack"> = {
 	ticket: MISSION_TICKET,
 	tools: MISSION_TOOLS,
 	state: "working",
+	isWorking: true,
 	openedAt: MISSION_OPENED_AT,
 	now: MISSION_NOW,
 }
+
+const ACTIVITIES = [true, false]
+
+const PILLS_THE_MATRIX_DRAWS = 8
+
+const WORKING_POSE = "Companion avatar owl, working"
+
+const RESTING_POSE = "Companion avatar owl, idle"
 
 const LONG_OBJECTIVE =
 	"Rework the mission thread so a reader can follow a run that spans several days without ever losing the ticket it answers"
@@ -87,11 +84,10 @@ export const Default = meta.story({
 
 export const States = meta.story({
 	parameters: {
-		a11y: A11Y_CONTRAST_AWAITING_DESIGN_DECISION,
 		docs: {
 			description: {
 				story:
-					"The six states a mission can be in, exhaustively. Check that the pill names each one at the trailing edge of the first band, that only `waiting_human` adds the attention dot to the avatar, and that the two bands keep their height whichever state is drawn. " +
+					"The six states a mission can be in, exhaustively, each one drawn twice: with a companion at work on it, then with nobody on it. Check that the pill names the four states it speaks for at the trailing edge of the first band and leaves that edge empty for `working` and `waiting_bot`, that the avatar holds the working pose in the first column and rests in the second whatever the state beside it says, that only `waiting_human` adds the attention dot, and that the two bands keep their height throughout. " +
 					FILLED_BY_THE_THREAD,
 			},
 		},
@@ -99,16 +95,64 @@ export const States = meta.story({
 	render: (args) => (
 		<div className="flex w-[36rem] max-w-full flex-col gap-4">
 			{MISSION_STATES.map((state) => (
-				<section key={state}>
-					<MissionHeader {...args} state={state} />
+				<section className="flex flex-col gap-2" data-holds={state} key={state}>
+					{ACTIVITIES.map((isWorking) => (
+						<MissionHeader
+							{...args}
+							isWorking={isWorking}
+							key={String(isWorking)}
+							state={state}
+						/>
+					))}
 				</section>
 			))}
 		</div>
 	),
-	play: async ({ canvasElement }) => {
+	play: async ({ canvas, canvasElement }) => {
 		await expect(slotsIn(canvasElement, "mission-state-pill")).toHaveLength(
-			MISSION_STATES.length,
+			PILLS_THE_MATRIX_DRAWS,
 		)
+		for (const state of MISSION_STATES_WITHOUT_A_PILL) {
+			await expect(
+				slotsIn(holderOf(canvasElement, state), "mission-state-pill"),
+			).toHaveLength(0)
+		}
+		await expect(
+			canvas.getAllByRole("img", { name: WORKING_POSE }),
+		).toHaveLength(MISSION_STATES.length)
+		await expect(
+			canvas.getAllByRole("img", { name: RESTING_POSE }),
+		).toHaveLength(MISSION_STATES.length)
+	},
+})
+
+export const WithoutAPill = meta.story({
+	args: { state: "waiting_human", isWorking: false },
+	parameters: {
+		docs: {
+			description: {
+				story:
+					"The first band of a mission nobody can act on yet, beside the band of one waiting on its reader. Check that the trailing edge of the `working` header holds nothing at all: `packages/ui/src/components/app-header.tsx:33` mounts its trailing container on the truthiness of the node it is handed, so a pill left to render nothing would still reserve width beside the objective. " +
+					FILLED_BY_THE_THREAD,
+			},
+		},
+	},
+	render: (args) => (
+		<div className="flex w-[36rem] max-w-full flex-col gap-4">
+			<section data-holds="working">
+				<MissionHeader {...args} isWorking={true} state="working" />
+			</section>
+			<section data-holds="waiting_human">
+				<MissionHeader {...args} />
+			</section>
+		</div>
+	),
+	play: async ({ canvasElement }) => {
+		const barOf = (state: MissionState) =>
+			slotIn(holderOf(canvasElement, state), "app-header")
+
+		await expect(barOf("working").children).toHaveLength(1)
+		await expect(barOf("waiting_human").children).toHaveLength(2)
 	},
 })
 
@@ -185,6 +229,7 @@ export const LongContent = meta.story({
 				"Rework the mission thread so a reader can follow a run that spans several days without losing the ticket it answers",
 		},
 		tools: [...MISSION_TOOLS, "Repository read and write", "Screenshot"],
+		state: "waiting_human",
 	},
 	parameters: {
 		docs: {

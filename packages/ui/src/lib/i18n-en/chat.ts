@@ -540,12 +540,10 @@ const chat = {
 	},
 	missions: {
 		state: {
-			working: "Working",
-			waiting_bot: "Working",
-			waiting_human: "Waiting for you",
+			waiting_human: "Blocked on you",
 			ready_to_merge: "Ready to merge",
 			failed: "Blocked",
-			done: "Done",
+			done: "Completed",
 		},
 		event: {
 			source: {

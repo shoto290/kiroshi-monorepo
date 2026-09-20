@@ -1,16 +1,17 @@
 import { expect, fn } from "storybook/test"
 
 import preview from "@workspace/storybook/preview"
-import {
-	A11Y_CONTRAST_AWAITING_DESIGN_DECISION,
-	slotIn,
-	slotsIn,
-} from "@workspace/storybook/story-utils"
-import type { MissionCardModel } from "@workspace/ui/components/mission"
+import { holderOf, slotIn, slotsIn } from "@workspace/storybook/story-utils"
+import type {
+	MissionCardModel,
+	MissionState,
+} from "@workspace/ui/components/mission"
 import { MissionTurn } from "@workspace/ui/components/mission-turn"
 import {
 	CLOSED_MISSION_CARD,
 	MISSION_AUTHOR,
+	MISSION_STATES,
+	MISSION_STATES_WITHOUT_A_PILL,
 	WAITING_MISSION_CARD,
 	WORKING_MISSION_CARD,
 } from "@workspace/ui/components/missions.fixtures"
@@ -18,6 +19,22 @@ import { AssistantTurn, TurnGroup } from "@workspace/ui/components/turn"
 
 const OPENING_ANSWER =
 	"That one is wide enough to run on its own, so I opened a mission for it and I will report here when it lands."
+
+const ACTIVITIES = [true, false]
+
+const PILLS_THE_MATRIX_DRAWS = 8
+
+const WORKING_POSE = "Companion avatar owl, working"
+
+const RESTING_POSE = "Companion avatar owl, idle"
+
+const missionsIn = (state: MissionState): MissionCardModel[] =>
+	ACTIVITIES.map((isWorking) => ({
+		...WAITING_MISSION_CARD,
+		id: `mission-${state}-${isWorking}`,
+		state,
+		isWorking,
+	}))
 
 const READY_MISSION_CARD: MissionCardModel = {
 	...WAITING_MISSION_CARD,
@@ -78,14 +95,55 @@ export const Working = meta.story({
 		docs: {
 			description: {
 				story:
-					"A mission still running, on tools it named itself, against a ticket from a platform the app ships no mark for. Check that the eye reads the state off the avatar working in the gutter rather than off a pill, that a screen reader is still given the word, and that the title row of the bubble then holds the three tool marks alone. Pick `WaitingForTheReader` for the state that asks something of the reader. " +
+					"A mission its companion is working on, on tools it named itself, against a ticket from a platform the app ships no mark for. Check that the eye reads the work off the avatar turning in the gutter rather than off a pill, that no pill is drawn at all, and that the title row of the bubble then holds the three tool marks alone. Pick `WaitingForTheReader` for the state that asks something of the reader. " +
 					PLACED_BY_THE_FEED,
 			},
 		},
 	},
 	play: async ({ canvas }) => {
-		await expect(canvas.getByText("Working")).toBeInTheDocument()
+		await expect(
+			canvas.getByRole("img", { hidden: true, name: WORKING_POSE }),
+		).toBeVisible()
 		await expect(canvas.getByRole("img", { name: "Superset" })).toBeVisible()
+	},
+})
+
+export const States = meta.story({
+	parameters: {
+		docs: {
+			description: {
+				story:
+					"The six states a mission can be in, exhaustively, each one drawn twice: with a companion on it, then with nobody on it. Check that the pill speaks only for the four states it names and that `working` and `waiting_bot` open their bubble on the tool marks alone, that the gutter avatar turns in the first row of each pair and rests in the second whatever the pill beside it says, and that the two signals never contradict one another. " +
+					PLACED_BY_THE_FEED,
+			},
+		},
+	},
+	render: (args) => (
+		<div className="flex flex-col gap-6">
+			{MISSION_STATES.map((state) => (
+				<section className="flex flex-col gap-6" data-holds={state} key={state}>
+					{missionsIn(state).map((mission) => (
+						<MissionTurn {...args} key={mission.id} mission={mission} />
+					))}
+				</section>
+			))}
+		</div>
+	),
+	play: async ({ canvas, canvasElement }) => {
+		await expect(slotsIn(canvasElement, "mission-state-pill")).toHaveLength(
+			PILLS_THE_MATRIX_DRAWS,
+		)
+		for (const state of MISSION_STATES_WITHOUT_A_PILL) {
+			await expect(
+				slotsIn(holderOf(canvasElement, state), "mission-state-pill"),
+			).toHaveLength(0)
+		}
+		await expect(
+			canvas.getAllByRole("img", { hidden: true, name: WORKING_POSE }),
+		).toHaveLength(MISSION_STATES.length)
+		await expect(
+			canvas.getAllByRole("img", { hidden: true, name: RESTING_POSE }),
+		).toHaveLength(MISSION_STATES.length)
 	},
 })
 
@@ -131,11 +189,10 @@ export const ReadyToMerge = meta.story({
 export const Failed = meta.story({
 	args: { mission: FAILED_MISSION_CARD },
 	parameters: {
-		a11y: A11Y_CONTRAST_AWAITING_DESIGN_DECISION,
 		docs: {
 			description: {
 				story:
-					"The run stopped on a failure and the mission is still open. Check that the pill names the failure in words as well as in colour, and that the objective stays at full contrast because the mission is not closed. Its label rides the destructive pair the palette still owes a decision on, so the story carries the audit's exception rather than nudging the pill. Pick `Done` for the closed form. " +
+					"The run stopped on a failure and the mission is still open. Check that the pill names the failure in words, that the colour of it sits on the mark alone so the label reads like every other, and that the objective stays at full contrast because the mission is not closed. Pick `Done` for the closed form. " +
 					PLACED_BY_THE_FEED,
 			},
 		},
@@ -188,14 +245,16 @@ export const WorkingWithoutTools = meta.story({
 		docs: {
 			description: {
 				story:
-					"A mission the companion opened without naming a tool, still running. Check that the bubble opens straight on the objective — no leading row, no space above it beyond the bubble's own padding — while a screen reader is still given the state. Pick `WithoutTools` for the same mission once it waits on its reader. " +
+					"A mission the companion opened without naming a tool, still being worked on. Check that the bubble opens straight on the objective, with no leading row and no space above it beyond the bubble's own padding, and that the gutter avatar is the only thing saying somebody is on it. Pick `WithoutTools` for the same mission once it waits on its reader. " +
 					PLACED_BY_THE_FEED,
 			},
 		},
 	},
 	play: async ({ canvas, canvasElement }) => {
 		await expect(slotsIn(canvasElement, "mission-title-row")).toHaveLength(0)
-		await expect(canvas.getByText("Working")).toBeInTheDocument()
+		await expect(
+			canvas.getByRole("img", { hidden: true, name: WORKING_POSE }),
+		).toBeVisible()
 	},
 })
 

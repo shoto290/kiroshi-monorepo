@@ -50,7 +50,7 @@ const meta = preview.meta({
 		docs: {
 			description: {
 				component:
-					"The body of a mission turn: a soft bubble opening on the tools the mission runs with and the pill saying where it stands, then the objective and the ticket it answers. The whole bubble opens the mission thread, the ticket line opens the ticket in the browser, and the two are separate keyboard targets. Reach for it through `MissionTurn`, which gives it the author line and the gutter it belongs to.",
+					"The body of a mission turn: a soft bubble opening on the tools the mission runs with and, for the states a reader can act on, the pill saying where it stands, then the objective and the ticket it answers. A mission being worked on carries no pill, and opens on its tool marks alone. The whole bubble opens the mission thread, the ticket line opens the ticket in the browser, and the two are separate keyboard targets. Reach for it through `MissionTurn`, which gives it the author line and the gutter it belongs to.",
 			},
 		},
 	},
@@ -133,12 +133,13 @@ export const WithoutTicket = meta.story({
 		docs: {
 			description: {
 				story:
-					"A mission opened against nothing, which is what a companion working outside a tracker carries. Check that the card stops after the objective, with no stand-in mark and no line held open where the ticket would be, and that the running state stays announced to a screen reader alone. Pick `Default` for the same card with a ticket under the objective. `apps/app/src/lib/missions/missions-model.ts:209` passes an empty ticket through for a mission opened outside a tracker.",
+					"A mission opened against nothing, on no tool, while its companion works on it: nothing is left for a title row to hold. Check that the bubble opens straight on the objective, with no row above it and no line held open where the ticket would be. Pick `Default` for the same card with a pill, a tool mark and a ticket. `apps/app/src/lib/missions/missions-model.ts:209` passes an empty ticket through for a mission opened outside a tracker.",
 			},
 		},
 	},
 	play: async ({ canvas, canvasElement }) => {
 		await expect(slotsIn(canvasElement, "mission-ticket-line")).toHaveLength(0)
+		await expect(slotsIn(canvasElement, "mission-title-row")).toHaveLength(0)
 		await expect(
 			canvas.getByText(UNTICKETED_MISSION_CARD.objective),
 		).toBeVisible()
