@@ -4,7 +4,6 @@ on:
   push:
     branches:
       - feature/ope-301-prove-which-bun-version-boots-a-compiled-standalone-on
-  workflow_dispatch:
 
 permissions:
   contents: read
@@ -26,7 +25,7 @@ jobs:
           $ErrorActionPreference = 'Continue'
           $current = Get-ItemProperty -LiteralPath 'HKLM:\SOFTWARE\Microsoft\Windows NT\CurrentVersion'
           $build = "$($current.CurrentBuild).$($current.UBR)"
-          Write-Host "OPE301|os-build=$($current.CurrentBuild)|update-revision=$($current.UBR)|product=$($current.ProductName)|display=$($current.DisplayVersion)"
+          Write-Host "OPE301|os-build=$($current.CurrentBuild)|update-revision=$($current.UBR)"
           Add-Content -LiteralPath $env:GITHUB_ENV -Value "OPE301_OS_BUILD=$build"
           exit 0
 
