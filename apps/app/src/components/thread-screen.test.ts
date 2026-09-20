@@ -590,6 +590,7 @@ type SpokenTurn = {
 	text: string
 	createdAt: number
 	role?: TranscriptRole
+	author?: string
 }
 
 type RoomFixture = {
@@ -646,6 +647,9 @@ const writeTurn = async (
 	await store.completeTurn(turnId, createdAt)
 }
 
+const speakerOf = (bots: Bot[], author?: string) =>
+	bots.find((bot) => bot.name === author) ?? bots[0]
+
 const roomOf = async ({
 	names,
 	readReportedRuns,
@@ -660,7 +664,12 @@ const roomOf = async ({
 		botIds: bots.map((bot) => bot.id),
 	})
 	for (const turn of spoken) {
-		await writeTurn(store, conversation.id, bots[0].id, turn)
+		await writeTurn(
+			store,
+			conversation.id,
+			speakerOf(bots, turn.author).id,
+			turn,
+		)
 	}
 	const driver = createScriptedDriver()
 	const runtimes = createConversationRuntimes(driver, store, {
@@ -977,6 +986,81 @@ const missionRoomOf = async ({
 		},
 	}
 }
+
+const ADA_OPENS: SpokenTurn = {
+	turnId: "t-ada-1",
+	text: "the walls hold",
+	createdAt: 0,
+	author: "Ada",
+}
+
+const ADA_CLOSES: SpokenTurn = {
+	turnId: "t-ada-2",
+	text: "and the gate too",
+	createdAt: A_MINUTE,
+	author: "Ada",
+}
+
+const NYX_ANSWERS: SpokenTurn = {
+	turnId: "t-nyx-1",
+	text: "the roof is next",
+	createdAt: 2 * A_MINUTE,
+	author: "Nyx",
+}
+
+const ASKED_FIRST: SpokenTurn = {
+	turnId: "t-asked-1",
+	text: "does the wall hold",
+	createdAt: 0,
+	role: "user",
+}
+
+const ASKED_AGAIN: SpokenTurn = {
+	turnId: "t-asked-2",
+	text: "and the gate",
+	createdAt: A_MINUTE,
+	role: "user",
+}
+
+const SENT_FIRST = "does the wall hold"
+
+const QUEUED_FIRST = "and the gate"
+
+const QUEUED_LAST = "and the roof"
+
+const WAITING_TO_BE_SENT = "Waiting to be sent"
+
+const queuedSoloOf = async (queued: string[]) => {
+	const solo = await soloOf({})
+	await solo.send(SENT_FIRST)
+	for (const text of queued) {
+		await solo.send(text)
+	}
+	return solo
+}
+
+const runRoomOf = () =>
+	roomOf({
+		names: ["Ada", "Nyx"],
+		spoken: [ADA_OPENS, ADA_CLOSES, NYX_ANSWERS],
+	})
+
+const turnOf = (text: string) =>
+	screen.getByText(text).closest('[data-slot="message-content"]')
+
+const nameLineOf = (text: string) =>
+	turnOf(text)?.querySelector('[data-slot="message-author"]')?.textContent ??
+	null
+
+const gutterAvatarOf = (text: string) =>
+	turnOf(text)?.querySelector('[data-slot="message-gutter"] > *') ?? null
+
+const markOf = (text: string) =>
+	turnOf(text)?.querySelector('[data-slot="shared-mark"][data-state="marked"]')
+
+const bubbleShapeOf = (text: string) =>
+	screen.getByText(text).closest('[data-slot="message-bubble-content"]')
+		?.className ?? null
 
 const transcriptRows = () =>
 	[...document.querySelectorAll('[data-slot="message-scroller-item"]')].map(
@@ -1592,6 +1676,76 @@ describe("ThreadScreen", () => {
 
 		expect(screen.getByText(SAID_BEFORE.text)).toBeTruthy()
 		expect(screen.queryByText(BOT_TITLE)).toBeNull()
+	})
+
+	it("names a run of consecutive messages once and marks its gutter once", async () => {
+		const room = await runRoomOf()
+		render(screenOf(room.thread))
+		await settle()
+
+		expect(nameLineOf(ADA_OPENS.text)).toContain("Ada")
+		expect(nameLineOf(ADA_CLOSES.text)).toBeNull()
+		expect(gutterAvatarOf(ADA_OPENS.text)).toBeNull()
+		expect(gutterAvatarOf(ADA_CLOSES.text)).not.toBeNull()
+	})
+
+	it("opens a second run with its own name line and gutter avatar when the author changes", async () => {
+		const room = await runRoomOf()
+		render(screenOf(room.thread))
+		await settle()
+
+		expect(
+			document.querySelectorAll('[data-slot="chat-turn-group"]'),
+		).toHaveLength(2)
+		expect(nameLineOf(NYX_ANSWERS.text)).toContain("Nyx")
+		expect(gutterAvatarOf(NYX_ANSWERS.text)).not.toBeNull()
+	})
+
+	it("carries the mark of a run on the message that closes it", async () => {
+		const room = await runRoomOf()
+		render(screenOf(room.thread))
+		await settle()
+
+		expect(markOf(ADA_OPENS.text)).toBeNull()
+		expect(markOf(ADA_CLOSES.text)).not.toBeNull()
+		expect(markOf(NYX_ANSWERS.text)).not.toBeNull()
+	})
+
+	it("shapes the bubble that opens a run of user messages apart from the one that closes it", async () => {
+		const room = await roomOf({
+			names: ["Ada"],
+			spoken: [ASKED_FIRST, ASKED_AGAIN],
+		})
+		render(screenOf(room.thread))
+		await settle()
+
+		expect(bubbleShapeOf(ASKED_FIRST.text)).not.toEqual(
+			bubbleShapeOf(ASKED_AGAIN.text),
+		)
+	})
+
+	it("shapes the bubble that opens a queued run apart from the one that closes it", async () => {
+		const solo = await queuedSoloOf([QUEUED_FIRST, QUEUED_LAST])
+		render(screenOf(solo.thread()))
+		await settle()
+
+		expect(screen.getAllByText(WAITING_TO_BE_SENT)).toHaveLength(2)
+		expect(bubbleShapeOf(QUEUED_FIRST)).not.toEqual(bubbleShapeOf(QUEUED_LAST))
+	})
+
+	it("shapes a lone queued bubble apart from both ends of a queued run", async () => {
+		const grouped = await queuedSoloOf([QUEUED_FIRST, QUEUED_LAST])
+		const run = render(screenOf(grouped.thread()))
+		await settle()
+		const ends = [bubbleShapeOf(QUEUED_FIRST), bubbleShapeOf(QUEUED_LAST)]
+
+		run.unmount()
+		const lone = await queuedSoloOf([QUEUED_FIRST])
+		render(screenOf(lone.thread()))
+		await settle()
+
+		expect(screen.getAllByText(WAITING_TO_BE_SENT)).toHaveLength(1)
+		expect(ends).not.toContain(bubbleShapeOf(QUEUED_FIRST))
 	})
 
 	it("names the routine on the turn its report opened", async () => {
