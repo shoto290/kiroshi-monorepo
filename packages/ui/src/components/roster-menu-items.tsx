@@ -208,11 +208,8 @@ const SpacesBranch = ({
 
 export {
 	PinGroup,
-	type PinGroupProps,
 	type RosterMenuSection,
 	type RosterPinActions,
 	SectionBranch,
-	type SectionBranchProps,
 	SpacesBranch,
-	type SpacesBranchProps,
 }

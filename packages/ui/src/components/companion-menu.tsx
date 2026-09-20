@@ -168,7 +168,6 @@ export {
 	CompanionMenuContent,
 	type CompanionMenuContentProps,
 	CompanionMenuHost,
-	type CompanionMenuHostProps,
 	type CompanionMenuLookup,
 	CompanionMenuProvider,
 	type CompanionMenuProviderProps,
