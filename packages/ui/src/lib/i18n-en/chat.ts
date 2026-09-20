@@ -545,6 +545,7 @@ const chat = {
 			failed: "Blocked",
 			done: "Completed",
 		},
+		live: "Working now",
 		event: {
 			source: {
 				bot: "The companion",

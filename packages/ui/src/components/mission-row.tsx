@@ -89,6 +89,9 @@ const MissionRow = ({
 				onSelect={onOpen}
 				preview={
 					<>
+						{isWorking ? (
+							<span className="sr-only">{t("missions.live")}</span>
+						) : null}
 						{isTicketed(ticket) ? (
 							<Mark aria-hidden="true" className={MARK_CLASS} />
 						) : null}

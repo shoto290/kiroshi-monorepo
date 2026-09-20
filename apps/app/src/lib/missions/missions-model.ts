@@ -46,6 +46,84 @@ export type WaitingMissionIds = ReadonlySet<string>
 
 const NO_WAITING_MISSIONS: WaitingMissionIds = new Set()
 
+export const AGENT_LIVENESS_WINDOW_MS = 30 * 60 * 1000
+
+export type LiveMissionIds = ReadonlySet<string>
+
+export type SpeakingBotIds = Record<string, string[]>
+
+export type AgentRunStamps = Record<string, number>
+
+export type MissionLivenessRead = {
+	missions: Mission[]
+	speakingBotIds: SpeakingBotIds
+	agentRuns: AgentRunStamps
+	now: number
+}
+
+const isOpen = (mission: Mission): boolean => mission.closedAt === null
+
+const speaksOnItsThread = (
+	mission: Mission,
+	speakingBotIds: SpeakingBotIds,
+): boolean =>
+	speakingBotIds[mission.threadConversationId]?.includes(mission.botId) ?? false
+
+const runsInsideTheWindow = (
+	mission: Mission,
+	agentRuns: AgentRunStamps,
+	now: number,
+): boolean => {
+	const since = agentRuns[mission.id]
+
+	return (
+		mission.isAgentRunning &&
+		since !== undefined &&
+		now - since < AGENT_LIVENESS_WINDOW_MS
+	)
+}
+
+const isLive = (
+	mission: Mission,
+	{ speakingBotIds, agentRuns, now }: MissionLivenessRead,
+): boolean =>
+	isOpen(mission) &&
+	(speaksOnItsThread(mission, speakingBotIds) ||
+		runsInsideTheWindow(mission, agentRuns, now))
+
+export const liveMissionsIn = (read: MissionLivenessRead): LiveMissionIds =>
+	new Set(
+		read.missions
+			.filter((mission) => isLive(mission, read))
+			.map(({ id }) => id),
+	)
+
+const isSameStamps = (held: AgentRunStamps, read: AgentRunStamps): boolean => {
+	const keys = Object.keys(read)
+
+	return (
+		keys.length === Object.keys(held).length &&
+		keys.every((missionId) => held[missionId] === read[missionId])
+	)
+}
+
+export const stampedAgentRuns = (
+	held: AgentRunStamps,
+	missions: Mission[],
+	now: number,
+): AgentRunStamps => {
+	const read = { ...held }
+	for (const mission of missions) {
+		if (mission.isAgentRunning && isOpen(mission)) {
+			read[mission.id] = held[mission.id] ?? now
+		} else {
+			delete read[mission.id]
+		}
+	}
+
+	return isSameStamps(held, read) ? held : read
+}
+
 const WAITING_ON_READER: MissionState = "waiting_human"
 
 const shownStateOf = (
@@ -68,12 +146,21 @@ const startOfLocalDay = (now: number): number => {
 
 type MissionFaces = (botId: string) => ThreadFace | undefined
 
-const toMissionRow = (
-	mission: Mission,
-	face: ThreadFace,
-	timestamp: string,
-	state: MissionState,
-): MissionRowModel => ({
+type MissionRowRead = {
+	mission: Mission
+	face: ThreadFace
+	timestamp: string
+	state: MissionState
+	isWorking: boolean
+}
+
+const toMissionRow = ({
+	mission,
+	face,
+	timestamp,
+	state,
+	isWorking,
+}: MissionRowRead): MissionRowModel => ({
 	id: mission.id,
 	objective: mission.objective,
 	ticket: {
@@ -83,7 +170,7 @@ const toMissionRow = (
 	},
 	bot: toMissionFace(face),
 	state,
-	isWorking: state === "working",
+	isWorking,
 	timestamp,
 })
 
@@ -92,17 +179,19 @@ const rowsOf = (
 	faceOf: MissionFaces,
 	timestampOf: (mission: Mission) => string,
 	waitingMissionIds: WaitingMissionIds,
+	liveMissionIds: LiveMissionIds,
 ): MissionRowModel[] =>
 	missions.flatMap((mission) => {
 		const face = faceOf(mission.botId)
 		return face
 			? [
-					toMissionRow(
+					toMissionRow({
 						mission,
 						face,
-						timestampOf(mission),
-						shownStateOf(mission, waitingMissionIds),
-					),
+						timestamp: timestampOf(mission),
+						state: shownStateOf(mission, waitingMissionIds),
+						isWorking: liveMissionIds.has(mission.id),
+					}),
 				]
 			: []
 	})
@@ -128,12 +217,13 @@ const closedTodayEntries = (
 				at: mission.closedAt,
 				row: {
 					kind: "mission",
-					...toMissionRow(
+					...toMissionRow({
 						mission,
 						face,
-						formatDateTime(mission.closedAt, TIME_OF_DAY),
-						mission.state,
-					),
+						timestamp: formatDateTime(mission.closedAt, TIME_OF_DAY),
+						state: mission.state,
+						isWorking: false,
+					}),
 				},
 			},
 		]
@@ -171,6 +261,7 @@ export type MissionRowsRead = {
 	reportedRuns: ReportedRunRead[]
 	faceOf: MissionFaces
 	waitingMissionIds: WaitingMissionIds
+	liveMissionIds: LiveMissionIds
 	now: number
 }
 
@@ -180,6 +271,7 @@ export const toMissionRows = ({
 	reportedRuns,
 	faceOf,
 	waitingMissionIds,
+	liveMissionIds,
 	now,
 }: MissionRowsRead): Omit<RoutinesPanelMissions, "onOpen"> => {
 	const midnight = startOfLocalDay(now)
@@ -190,6 +282,7 @@ export const toMissionRows = ({
 			faceOf,
 			(mission) => rosterTimestamp(mission.openedAt, now),
 			waitingMissionIds,
+			liveMissionIds,
 		),
 		earlierToday: [
 			...closedTodayEntries(closed, faceOf, midnight),
@@ -200,11 +293,19 @@ export const toMissionRows = ({
 	}
 }
 
-export const toMissionCard = (
-	mission: Mission,
-	identity: RosterBot,
-	author: MessageAuthor | undefined,
-): MissionCardModel => ({
+export type MissionCardRead = {
+	mission: Mission
+	identity: RosterBot
+	author: MessageAuthor | undefined
+	isWorking: boolean
+}
+
+export const toMissionCard = ({
+	mission,
+	identity,
+	author,
+	isWorking,
+}: MissionCardRead): MissionCardModel => ({
 	id: mission.id,
 	identity,
 	author,
@@ -217,7 +318,7 @@ export const toMissionCard = (
 	},
 	tools: mission.tools,
 	state: mission.state,
-	isWorking: mission.state === "working",
+	isWorking,
 	isClosed: mission.closedAt !== null,
 })
 

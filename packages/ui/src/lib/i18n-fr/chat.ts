@@ -571,6 +571,7 @@ const chat = {
 			failed: "Bloquée",
 			done: "Terminée",
 		},
+		live: "En cours maintenant",
 		event: {
 			source: {
 				bot: "Le compagnon",

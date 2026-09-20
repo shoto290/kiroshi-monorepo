@@ -140,7 +140,7 @@ export const Working = meta.story({
 		docs: {
 			description: {
 				story:
-					"A mission its companion is working on. Check that the blot holds the working pose the same mission carries on its thread card, that no badge dot is drawn on it, that the preview line runs the working shimmer a roster row runs for a busy companion, that it stops after the companion name since a mission being worked on stands nowhere a reader can act on, that the ticket identifier keeps the medium weight and the tabular figures of the row this one replaced while the companion stays at the line's own weight, that both read in the colour of the line, shimmer or not, and that the row reports the mission it belongs to when it is pressed. " +
+					"A mission somebody is live on, which `apps/app/src/lib/missions/missions-model.ts` reads off the speakers of its thread and off how long its agent has been running, never off its state. Check that the blot holds the working pose the same mission carries on its thread card, that no badge dot is drawn on it, that the preview line opens on a word only a screen reader hears saying somebody is on it, that it runs the working shimmer a roster row runs for a busy companion, that it stops after the companion name since a mission being worked on stands nowhere a reader can act on, that the ticket identifier keeps the medium weight and the tabular figures of the row this one replaced while the companion stays at the line's own weight, that both read in the colour of the line, shimmer or not, and that the row reports the mission it belongs to when it is pressed. " +
 					LISTED_BY_THE_PANEL,
 			},
 		},
@@ -164,6 +164,7 @@ export const Working = meta.story({
 		await expect(
 			partsIn(canvasElement).map((part) => part.textContent),
 		).toEqual(["OPE-42", "Ada Martin"])
+		await expect(canvas.getByText("Working now")).toBeInTheDocument()
 
 		const name = canvas.getByText("Ada Martin")
 		await expect(figuresOf(name)).toBe("normal")
@@ -183,7 +184,7 @@ export const States = meta.story({
 		docs: {
 			description: {
 				story:
-					"The six states a mission can be in, exhaustively, each one drawn twice: with a companion on it, then with nobody on it. Check that the preview line closes on a state word for the four states a reader can act on and stops at the companion name for `working` and `waiting_bot`, that the blot turns in the first row of each pair and rests in the second whatever the word beside it says, and that the badge dot keeps following the state rather than the work. " +
+					"The six states a mission can be in, exhaustively, each one drawn twice: with a companion live on it, then with nobody on it. Check that the row of each pair somebody is on opens on the word only a screen reader hears, that the preview line closes on a state word for the four states a reader can act on and stops at the companion name for `working` and `waiting_bot`, that the blot turns in the first row of each pair and rests in the second whatever the word beside it says, and that the badge dot keeps following the state rather than the work. " +
 					LISTED_BY_THE_PANEL,
 			},
 		},
@@ -196,6 +197,9 @@ export const States = meta.story({
 		</Panel>
 	),
 	play: async ({ canvas }) => {
+		await expect(canvas.getAllByText("Working now")).toHaveLength(
+			MISSION_STATES.length,
+		)
 		await expect(
 			canvas.getAllByRole("img", { name: WORKING_POSE }),
 		).toHaveLength(MISSION_STATES.length)

@@ -12,11 +12,15 @@ import type {
 	MissionState,
 } from "./mission-contract"
 import {
+	AGENT_LIVENESS_WINDOW_MS,
+	liveMissionsIn,
+	type MissionLivenessRead,
 	type MissionRowsRead,
 	missionRingBadges,
 	missionsByRow,
 	missionsBySpaceId,
 	missionsIn,
+	stampedAgentRuns,
 	toMissionEventModels,
 	toMissionRows,
 	withMissions,
@@ -80,6 +84,7 @@ const rowsOf = (read: Partial<MissionRowsRead>) =>
 		reportedRuns: [],
 		faceOf,
 		waitingMissionIds: new Set<string>(),
+		liveMissionIds: new Set<string>(),
 		now: READ_AT,
 		...read,
 	})
@@ -93,10 +98,155 @@ afterEach(() => {
 	vi.restoreAllMocks()
 })
 
+const RUNNING_MISSION: Mission = {
+	...missionIn("working"),
+	isAgentRunning: true,
+}
+
+const CLOSED_RUNNING_MISSION: Mission = {
+	...RUNNING_MISSION,
+	closedAt: READ_AT - 86_400_000,
+}
+
+const liveIn = (read: Partial<MissionLivenessRead>) => [
+	...liveMissionsIn({
+		missions: [RUNNING_MISSION],
+		speakingBotIds: {},
+		agentRuns: {},
+		now: READ_AT,
+		...read,
+	}),
+]
+
+describe("liveMissionsIn", () => {
+	it("reads a mission whose companion speaks on its thread as live", () => {
+		expect(
+			liveIn({
+				missions: [missionIn("working")],
+				speakingBotIds: { "c-mission-1": ["b-1"] },
+			}),
+		).toEqual(["m-working"])
+	})
+
+	it("reads a mission whose agent started inside the window as live", () => {
+		expect(liveIn({ agentRuns: { "m-working": READ_AT - 60_000 } })).toEqual([
+			"m-working",
+		])
+	})
+
+	it("names a mission once when its companion speaks and its agent runs", () => {
+		expect(
+			liveIn({
+				speakingBotIds: { "c-mission-1": ["b-1"] },
+				agentRuns: { "m-working": READ_AT },
+			}),
+		).toEqual(["m-working"])
+	})
+
+	it("reads a mission nobody speaks on and no agent runs as resting", () => {
+		expect(liveIn({ missions: [missionIn("working")] })).toEqual([])
+	})
+
+	it("reads a mission whose agent started before the window as resting", () => {
+		expect(
+			liveIn({
+				agentRuns: { "m-working": READ_AT - AGENT_LIVENESS_WINDOW_MS },
+			}),
+		).toEqual([])
+	})
+
+	it("reads a running mission the front never stamped as resting", () => {
+		expect(liveIn({})).toEqual([])
+	})
+
+	it("reads a closed mission whose agent still runs as resting", () => {
+		expect(
+			liveIn({
+				missions: [CLOSED_RUNNING_MISSION],
+				agentRuns: { "m-working": READ_AT },
+			}),
+		).toEqual([])
+	})
+
+	it("reads a closed mission its companion speaks on as resting", () => {
+		expect(
+			liveIn({
+				missions: [CLOSED_RUNNING_MISSION],
+				speakingBotIds: { "c-mission-1": ["b-1"] },
+			}),
+		).toEqual([])
+	})
+
+	it("leaves out a thread another companion speaks on", () => {
+		expect(
+			liveIn({
+				missions: [missionIn("working")],
+				speakingBotIds: { "c-mission-1": ["b-2"] },
+			}),
+		).toEqual([])
+	})
+
+	it("leaves out a companion speaking on another conversation", () => {
+		expect(
+			liveIn({
+				missions: [missionIn("working")],
+				speakingBotIds: { "c-1": ["b-1"] },
+			}),
+		).toEqual([])
+	})
+})
+
+describe("stampedAgentRuns", () => {
+	it("stamps a mission the first time its agent reads as running", () => {
+		expect(stampedAgentRuns({}, [RUNNING_MISSION], READ_AT)).toEqual({
+			"m-working": READ_AT,
+		})
+	})
+
+	it("keeps the first stamp while the agent keeps running", () => {
+		const held = { "m-working": READ_AT - 60_000 }
+
+		expect(stampedAgentRuns(held, [RUNNING_MISSION], READ_AT)).toBe(held)
+	})
+
+	it("keeps the stamp of a mission the read does not name", () => {
+		const held = { "m-elsewhere": READ_AT - 60_000 }
+
+		expect(stampedAgentRuns(held, [RUNNING_MISSION], READ_AT)).toEqual({
+			"m-elsewhere": READ_AT - 60_000,
+			"m-working": READ_AT,
+		})
+	})
+
+	it("drops the stamp of a mission read closed", () => {
+		expect(
+			stampedAgentRuns(
+				{ "m-working": READ_AT - 60_000 },
+				[CLOSED_RUNNING_MISSION],
+				READ_AT,
+			),
+		).toEqual({})
+	})
+
+	it("stamps again once the agent stopped and started back", () => {
+		const stopped = stampedAgentRuns(
+			{ "m-working": READ_AT - 60_000 },
+			[missionIn("working")],
+			READ_AT,
+		)
+
+		expect(stopped).toEqual({})
+		expect(stampedAgentRuns(stopped, [RUNNING_MISSION], READ_AT)).toEqual({
+			"m-working": READ_AT,
+		})
+	})
+})
+
 describe("toMissionRows", () => {
 	it("reads an open mission as the row of the activity panel", () => {
 		const { open } = rowsOf({
 			open: [{ ...missionIn("working"), openedAt: READ_AT - 3_600_000 }],
+			liveMissionIds: new Set(["m-working"]),
 		})
 
 		expect(open).toEqual([
@@ -114,6 +264,21 @@ describe("toMissionRows", () => {
 				timestamp: "1h",
 			},
 		])
+	})
+
+	it("reads a mission no companion is live on as resting whatever its state", () => {
+		const { open } = rowsOf({ open: [missionIn("working")] })
+
+		expect(open[0]?.isWorking).toBe(false)
+	})
+
+	it("reads a mission closed earlier today as resting", () => {
+		const { earlierToday } = rowsOf({
+			closed: [closedAt(READ_AT - 7_200_000)],
+			liveMissionIds: new Set(["m-done"]),
+		})
+
+		expect(earlierToday[0]).toMatchObject({ isWorking: false })
 	})
 
 	it("keeps only the missions closed since local midnight, at the time they closed", () => {
