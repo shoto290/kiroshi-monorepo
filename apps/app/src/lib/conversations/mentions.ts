@@ -60,7 +60,7 @@ export const toMentionNames = (text: string, bots: MentionBot[]): string =>
 			`${ARROBASE}${nameOf(botId, bots) ?? i18n.t("chat:transcript.mention.unknown")}`,
 	)
 
-export type Addressees = {
+type Addressees = {
 	named: string[]
 	unresolved: string[]
 }

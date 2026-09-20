@@ -2450,6 +2450,8 @@ describe("the mentions a finished turn carries", () => {
 			detach,
 			seat: (botId: string) =>
 				store.addConversationParticipant(conversation.id, botId),
+			unseat: (botId: string) =>
+				store.removeConversationParticipant(conversation.id, botId),
 			announce: (botId: string) => {
 				for (const listener of listeners) {
 					listener(arrivalFor(conversation.id, botId))
@@ -2507,10 +2509,7 @@ describe("the mentions a finished turn carries", () => {
 	it("names the companion the read knows but no longer shows seated", async () => {
 		const room = await roomSeating()
 		await room.seat(room.iris)
-		await room.store.removeConversationParticipant(
-			room.conversation.id,
-			room.iris,
-		)
+		await room.unseat(room.iris)
 		await room.sent("@Ada take the walls")
 
 		await room.spoken(room.ada, `over to <@${room.iris}>`)
@@ -2599,10 +2598,7 @@ describe("the mentions a finished turn carries", () => {
 		])
 
 		await room.seat(room.iris)
-		await room.store.removeConversationParticipant(
-			room.conversation.id,
-			room.iris,
-		)
+		await room.unseat(room.iris)
 		await room.sent("@Ada again")
 		await room.spoken(room.ada, `still <@${room.iris}>`)
 
