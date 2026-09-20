@@ -182,6 +182,21 @@ describe("sealFrame", () => {
 		}
 	})
 
+	it("holds the light still while the solid turns under it", () => {
+		for (const seed of CYCLE_SEEDS) {
+			const solid = sealSolid(seed)
+			for (const state of ANIMATED_STATES.filter(
+				(animated) => animated !== "searching",
+			)) {
+				const heights = CYCLE_SAMPLES.map(
+					(elapsed) => sampleOf(solid, state, elapsed).cut,
+				)
+
+				expect(new Set(heights).size).toBe(1)
+			}
+		}
+	})
+
 	it("advances no animated value at a constant rate", () => {
 		for (const state of ANIMATED_STATES) {
 			const spreads = CYCLE_SEEDS.map((seed) =>

@@ -292,15 +292,41 @@ const stackSegments = (rings: Vec2[][]): Segment[] => {
 	return segments
 }
 
-const cutLineOf = (segments: Segment[], cut: number) => {
-	let top = Number.POSITIVE_INFINITY
-	let bottom = Number.NEGATIVE_INFINITY
-	for (const [from, to] of segments) {
-		top = Math.min(top, from[1], to[1])
-		bottom = Math.max(bottom, from[1], to[1])
-	}
-	return top - CUT_MARGIN + ((cut + 1) / 2) * (bottom - top + 2 * CUT_MARGIN)
+const restReaches = new WeakMap<SealSolid, number>()
+
+const restReachOf = (solid: SealSolid) => {
+	const known = restReaches.get(solid)
+	if (known !== undefined) return known
+	const motion = sealMotion({ elapsed: 0, arms: solid.arms })
+	const rotation = quatFromEuler({
+		yaw: solid.tilt,
+		pitch: SEAL_PITCH,
+		roll: 0,
+	})
+	const reach = Math.max(
+		...solid.stacks.flatMap(({ profile, levels }) =>
+			levels.flatMap((level) =>
+				profile.map((vertex) =>
+					Math.abs(
+						placeVertex({
+							solid,
+							motion,
+							rotation,
+							brokenArm: NO_BROKEN_ARM,
+							vertex,
+							level,
+						})[1] - CENTER,
+					),
+				),
+			),
+		),
+	)
+	restReaches.set(solid, reach)
+	return reach
 }
+
+const cutHeightOf = (solid: SealSolid, cut: number) =>
+	CENTER + cut * (restReachOf(solid) + CUT_MARGIN)
 
 const line = (from: Vec2, to: Vec2) =>
 	`M${round2(from[0])} ${round2(from[1])}L${round2(to[0])} ${round2(to[1])}`
@@ -344,7 +370,7 @@ const sealFrame = ({ solid, state, elapsed }: FrameInput): SealFrame => {
 			),
 		),
 	)
-	return splitAtCut(segments, cutLineOf(segments, motion.cut))
+	return splitAtCut(segments, cutHeightOf(solid, motion.cut))
 }
 
 const isSealAnimated = (state?: BotSealState) =>
