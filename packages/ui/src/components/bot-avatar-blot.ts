@@ -20,7 +20,7 @@ const QUARTER_TURN = 90
 const FNV_OFFSET = 2166136261
 const FNV_PRIME = 16777619
 
-const hash = (seed: string) => {
+const hashSeed = (seed: string) => {
 	let value = FNV_OFFSET
 	for (let at = 0; at < seed.length; at += 1) {
 		value ^= seed.charCodeAt(at)
@@ -35,7 +35,7 @@ type BlotPose = {
 }
 
 const blotPose = (seed?: string): BlotPose => {
-	const pose = seed ? hash(seed) % BLOT_POSES : 0
+	const pose = seed ? hashSeed(seed) % BLOT_POSES : 0
 	return { turn: pose % BLOT_TURNS, mirrored: pose >= BLOT_TURNS }
 }
 
@@ -57,4 +57,5 @@ export {
 	type BlotPose,
 	blotPose,
 	blotTransform,
+	hashSeed,
 }

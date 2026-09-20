@@ -1,0 +1,168 @@
+import type { ReactNode } from "react"
+import { expect } from "storybook/test"
+
+import preview from "@workspace/storybook/preview"
+import { slotsIn } from "@workspace/storybook/story-utils"
+import { BotSeal } from "@workspace/ui/components/bot-seal"
+import { BOT_SEAL_STATES } from "@workspace/ui/components/bot-seal-frame"
+
+const CHIP_SIZE = 40
+const HERO_SIZE = 200
+const CELL_SIZE = 120
+const STILL_FRAMES = 6
+
+const SEEDS = [
+	"amber",
+	"basalt",
+	"cedar",
+	"delta",
+	"ember",
+	"flint",
+	"garnet",
+	"harbor",
+	"indigo",
+	"jasper",
+	"kelp",
+	"lumen",
+	"marble",
+	"nimbus",
+	"onyx",
+	"pewter",
+	"quartz",
+	"ridge",
+	"slate",
+	"topaz",
+]
+
+const STATE_SEED = "nimbus"
+
+const LabeledCell = ({
+	label,
+	children,
+}: {
+	label: string
+	children: ReactNode
+}) => (
+	<div className="flex flex-col items-center gap-1">
+		{children}
+		<span className="text-muted-foreground text-xs">{label}</span>
+	</div>
+)
+
+const drawingOf = (seal: Element) =>
+	Array.from(seal.querySelectorAll("path"))
+		.map((path) => path.getAttribute("d"))
+		.join("|")
+
+const drawingsIn = (canvasElement: HTMLElement) =>
+	slotsIn(canvasElement, "bot-seal").map(drawingOf)
+
+const afterFrames = (count: number) =>
+	new Promise<void>((resolve) => {
+		const step = (left: number) =>
+			left === 0 ? resolve() : requestAnimationFrame(() => step(left - 1))
+		step(count)
+	})
+
+const meta = preview.meta({
+	title: "Branding/Companion Seal",
+	component: BotSeal,
+	parameters: { layout: "centered" },
+	args: { seed: STATE_SEED, size: HERO_SIZE, state: undefined },
+	argTypes: {
+		seed: { control: "text" },
+		state: { control: "select", options: [undefined, ...BOT_SEAL_STATES] },
+		size: { control: { type: "range", min: 24, max: 320, step: 8 } },
+	},
+})
+
+export const Playground = meta.story({
+	parameters: {
+		docs: {
+			description: {
+				story:
+					"Reach for this to audition one identity: type any seed and watch the solid it draws, then switch the state to see what that solid does while it works. The seed is the only input — the same string always draws the same solid, so a url carrying a typed seed reopens on the same mark. Leave the state empty for the mark a companion wears when nothing is running. Open it in Storybook for the motion: the test browser forces reduced motion, which freezes every state on its still frame.",
+			},
+		},
+	},
+})
+
+export const Seeds = meta.story({
+	parameters: {
+		layout: "padded",
+		docs: {
+			description: {
+				story:
+					"Twenty identities at chip size and at hero size, the two slots a seal has to survive. Reach for this after touching the generator: check that no two marks read as the same solid, that each one stays inside its box, and that the 40px row still holds a one pixel line instead of thinning to a hairline. The path data is authored in viewBox units, so a chip and its hero are the same string — the play asserts exactly that, and that the twenty differ from each other.",
+			},
+		},
+	},
+	render: (args) => (
+		<div className="flex flex-col gap-10">
+			<div className="flex flex-wrap items-center gap-3">
+				{SEEDS.map((seed) => (
+					<BotSeal {...args} key={seed} seed={seed} size={CHIP_SIZE} />
+				))}
+			</div>
+			<div className="grid grid-cols-5 gap-4">
+				{SEEDS.map((seed) => (
+					<LabeledCell key={seed} label={seed}>
+						<BotSeal {...args} seed={seed} size={HERO_SIZE} />
+					</LabeledCell>
+				))}
+			</div>
+		</div>
+	),
+	play: async ({ canvasElement }) => {
+		const drawings = drawingsIn(canvasElement)
+		const chips = drawings.slice(0, SEEDS.length)
+		const heroes = drawings.slice(SEEDS.length)
+
+		await expect(chips).toEqual(heroes)
+		await expect(new Set(chips).size).toBe(SEEDS.length)
+	},
+})
+
+export const States = meta.story({
+	parameters: {
+		layout: "padded",
+		docs: {
+			description: {
+				story:
+					"One identity through the seven states it can report, plus the mark it wears while nothing runs. Four of them move — thinking turns the solid, searching sweeps the cut across it, working pumps the extrusion, writing extrudes the arms in order — and this story shows the frame each one holds under reduced motion. The three that never move are the ones to judge here: waiting drops the companion colour for the attention token, blocked snaps one arm off its axis, done flattens the solid onto a single glyph.",
+			},
+		},
+	},
+	render: (args) => (
+		<div className="grid grid-cols-4 gap-4">
+			<LabeledCell label="none">
+				<BotSeal {...args} size={CELL_SIZE} state={undefined} />
+			</LabeledCell>
+			{BOT_SEAL_STATES.map((state) => (
+				<LabeledCell key={state} label={state}>
+					<BotSeal {...args} size={CELL_SIZE} state={state} />
+				</LabeledCell>
+			))}
+		</div>
+	),
+})
+
+export const ReducedMotion = meta.story({
+	tags: ["test-only"],
+	args: { state: "thinking" },
+	parameters: {
+		docs: {
+			description: {
+				story:
+					"The state that turns the solid, rendered where the reader asked for reduced motion. Reach for this when touching the frame loop: the seal must hold the still frame of the state it is in and never ask for an animation frame. The play reads the path data, lets several frames pass, and reads it again.",
+			},
+		},
+	},
+	play: async ({ canvasElement }) => {
+		const before = drawingsIn(canvasElement)
+
+		await afterFrames(STILL_FRAMES)
+
+		await expect(drawingsIn(canvasElement)).toEqual(before)
+	},
+})
