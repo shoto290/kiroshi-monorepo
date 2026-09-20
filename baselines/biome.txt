@@ -1,0 +1,15 @@
+deserialize :: biome.json :: "linter": {
+lint/complexity/noExcessiveCognitiveComplexity :: apps/app/sidecar/src/mcp-oauth.test.ts :: fetch: async (request): Promise<Response> => {
+lint/complexity/noExcessiveCognitiveComplexity :: apps/app/src/components/thread-screen.tsx :: function ThreadView({
+lint/style/noNonNullAssertion :: apps/app/src/main.tsx :: createRoot(document.getElementById("root")!).render(
+lint/style/noNonNullAssertion :: apps/website/src/main.tsx :: createRoot(document.getElementById("root")!).render(
+lint/suspicious/noTemplateCurlyInString :: apps/app/sidecar/src/providers/claude/server-env.test.ts :: args: ["--token", "${TOKEN}"],
+lint/suspicious/noTemplateCurlyInString :: apps/app/sidecar/src/providers/claude/server-env.test.ts :: command: "${RUNNER}",
+lint/suspicious/noTemplateCurlyInString :: apps/app/sidecar/src/providers/claude/server-env.test.ts :: env: { API_KEY: "${API_KEY}" },
+lint/suspicious/noTemplateCurlyInString :: apps/app/sidecar/src/providers/claude/server-env.test.ts :: headers: { Authorization: "Bearer ${TOKEN}" },
+lint/suspicious/noTemplateCurlyInString :: apps/app/sidecar/src/providers/claude/server-env.test.ts :: url: "${BASE_URL}/mcp",
+lint/suspicious/noTemplateCurlyInString :: apps/app/sidecar/src/providers/claude/server-env.test.ts :: { dated: { command: "run", args: ["--at", "${WHEN:-noon}"] } },
+lint/suspicious/noTemplateCurlyInString :: apps/app/sidecar/src/providers/claude/server-env.test.ts :: { remote: { type: "http" as const, url: "${BASE_URL}/mcp" } },
+lint/suspicious/noTemplateCurlyInString :: apps/app/sidecar/src/providers/claude/session.test.ts :: clock: { command: "run", args: ["--token", "${TOKEN}"] },
+lint/suspicious/noTemplateCurlyInString :: apps/app/sidecar/src/providers/claude/session.test.ts :: probe: { command: "${RUNNER}" },
+lint/suspicious/noTemplateCurlyInString :: apps/app/sidecar/src/serve.test.ts :: mcpServers: { clock: { command: "run", args: ["--token", "${TOKEN}"] } },
