@@ -378,9 +378,9 @@ export const startMissionRunDriver = ({
 		})
 	}
 
-	const readSettledMission = async ({ call }: LiveMissionRun) => {
+	const readSettledMission = async (missionId: string) => {
 		try {
-			const { mission } = await readMission(call.mission.id)
+			const { mission } = await readMission(missionId)
 			return mission
 		} catch (thrown) {
 			raiseFailure(detailOf(thrown))
@@ -435,7 +435,7 @@ export const startMissionRunDriver = ({
 		holding.add(id)
 		shutdownSession(held.scope)
 
-		const settled = isClosingRun(held) ? await readSettledMission(held) : null
+		const settled = isClosingRun(held) ? await readSettledMission(id) : null
 
 		if (isClosed(settled)) {
 			seqs.remember(settled.id, settled.stateSeq)
