@@ -478,18 +478,17 @@ const renewed = async (
 	if (!grants || !rejectsTheHeader(error) || !wasGivenAToken(env, name)) {
 		return UNCHANGED
 	}
-	const asked = await withinDeadline(
+	const granted = await withinDeadline(
 		askedGrant(grants, name, secrets),
 		bound,
 		signal,
 	)
-	if (asked === OUTLASTED) {
+	if (granted === OUTLASTED) {
 		process.stderr.write(
 			`${RENEWAL_REFUSED} ("${name}"): ${outlasting("renewal", bound)}\n`,
 		)
 		return { kind: "refused" }
 	}
-	const granted = asked
 	if (granted?.state === "needs-auth") {
 		return { kind: "needs-auth" }
 	}
