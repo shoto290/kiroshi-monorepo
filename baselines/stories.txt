@@ -147,6 +147,8 @@ conversation-message-emptystateshell--default
 conversation-message-emptystateshell--long-content
 conversation-message-emptystateshell--with-action
 conversation-message-emptystateshell--without-hint
+conversation-message-mention--companion-menu-off-pill
+conversation-message-mention--companion-menu-on-pill
 conversation-message-mention--counted
 conversation-message-mention--counted-long-name
 conversation-message-mention--counted-to-nine
@@ -216,6 +218,8 @@ conversation-message-transcript--returns
 conversation-message-transcript--stream-holds-the-last-line
 conversation-message-turn--authored
 conversation-message-turn--cancelled-stoppable
+conversation-message-turn--companion-menu-off-gutter
+conversation-message-turn--companion-menu-on-gutter
 conversation-message-turn--complete-not-stoppable
 conversation-message-turn--complete-stoppable
 conversation-message-turn--default
@@ -798,6 +802,7 @@ navigation-userchip--long-content
 navigation-userchip--on-rail
 navigation-userchip--without-name
 navigation-userchip--without-picture
+overlays-companionmenu--default
 overlays-confirmdialog--cancelled
 overlays-confirmdialog--confirmed
 overlays-confirmdialog--confirming

@@ -1,14 +1,22 @@
 import type { ReactNode } from "react"
-import { expect } from "storybook/test"
+import { expect, fireEvent, fn, screen, within } from "storybook/test"
 
 import preview from "@workspace/storybook/preview"
+import { shown } from "@workspace/storybook/story-utils"
 import {
 	CONVERSATION_BOTS,
 	LONG_NAMED_BOTS,
 } from "@workspace/ui/components/bots.fixtures"
+import {
+	CompanionMenuContent,
+	CompanionMenuProvider,
+} from "@workspace/ui/components/companion-menu"
 import { Markdown } from "@workspace/ui/components/markdown"
 import { Mention } from "@workspace/ui/components/mention"
 import { RosterProvider } from "@workspace/ui/components/roster"
+import type { RosterMenuSection } from "@workspace/ui/components/roster-menu-items"
+import type { Space } from "@workspace/ui/components/space"
+import { UserTurn } from "@workspace/ui/components/turn"
 
 const ROOM = [...CONVERSATION_BOTS.slice(0, 3), ...LONG_NAMED_BOTS]
 
@@ -323,5 +331,113 @@ export const RepeatedApart = meta.story({
 	play: async ({ canvasElement }) => {
 		await expect(pills(canvasElement)).toHaveLength(2)
 		await expect(counts(canvasElement)).toHaveLength(0)
+	},
+})
+
+const NO_SPACES: Space[] = []
+
+const NO_MEMBERSHIPS: string[] = []
+
+const NO_SECTIONS: RosterMenuSection[] = []
+
+const [WORDY] = LONG_NAMED_BOTS
+
+const COMPANION_MENU_LABEL = `Actions for ${WORDY.name}`
+
+const editCompanion = fn()
+
+const deleteCompanion = fn()
+
+const replyToMessage = fn()
+
+const companionMenuFor = (companionId: string) =>
+	companionId === WORDY.id ? (
+		<CompanionMenuContent
+			companion={{ id: WORDY.id, name: WORDY.name }}
+			isPinned={false}
+			memberships={NO_MEMBERSHIPS}
+			onDelete={deleteCompanion}
+			onEdit={editCompanion}
+			sections={NO_SECTIONS}
+			spaces={NO_SPACES}
+		/>
+	) : null
+
+const ASKED = "Ask <@bot-release> for the changelog before the release."
+
+const rightClickOn = (target: HTMLElement) => {
+	const bounds = target.getBoundingClientRect()
+	const coords = { clientX: bounds.left + 4, clientY: bounds.top + 4 }
+
+	fireEvent.pointerDown(target, { button: 2, ...coords })
+	return fireEvent.contextMenu(target, coords)
+}
+
+const pillIn = (canvasElement: HTMLElement) => {
+	const [pill] = [...pills(canvasElement)]
+	if (!pill) throw new Error("The sentence drew no chip")
+	return pill
+}
+
+export const CompanionMenuOnPill = meta.story({
+	parameters: {
+		docs: {
+			description: {
+				story:
+					"A mention the reader wrote, in the reader's own bubble, hosting the companion menu a provider hands it — the same menu the roster row opens, reached from the name inside the sentence. The companion here is the one whose name truncates, which is the case worth watching: check that the chip keeps its ellipsis and stays in the flow of the line, that the menu opens on a right-click carrying the whole name in its label, and that the bubble's own message menu stays shut rather than opening underneath it. Pick `CompanionMenuOffPill` for a transcript with no provider around it.",
+			},
+		},
+	},
+	render: () => (
+		<CompanionMenuProvider menuFor={companionMenuFor}>
+			<RosterProvider bots={ROOM}>
+				<div className="mx-auto max-w-md">
+					<UserTurn copyText={ASKED} onReply={replyToMessage}>
+						<Markdown>{ASKED}</Markdown>
+					</UserTurn>
+				</div>
+			</RosterProvider>
+		</CompanionMenuProvider>
+	),
+	play: async ({ canvasElement }) => {
+		const pill = pillIn(canvasElement)
+		const name = pill.querySelector<HTMLElement>(
+			'[data-slot="bot-mention-name"]',
+		)
+
+		if (!name) throw new Error("The chip drew no name")
+
+		await expect(getComputedStyle(pill).display).toBe("inline-flex")
+		await expect(name.scrollWidth).toBeGreaterThan(name.clientWidth)
+
+		rightClickOn(pill)
+
+		const menu = await shown(
+			await screen.findByRole("menu", { name: COMPANION_MENU_LABEL }),
+		)
+
+		await expect(screen.getAllByRole("menu")).toHaveLength(1)
+		await expect(
+			within(menu).getByRole("menuitem", { name: "Settings" }),
+		).toBeVisible()
+	},
+})
+
+export const CompanionMenuOffPill = meta.story({
+	tags: ["test-only"],
+	parameters: {
+		docs: {
+			description: {
+				story:
+					"The same mention with no provider above it, which is every transcript that has not been handed companion menus. Check that a right-click on the chip opens nothing and leaves the browser its own menu, and that the chip draws exactly the markup the other stories draw.",
+			},
+		},
+	},
+	render: () => <Message source={ASKED} />,
+	play: async ({ canvasElement }) => {
+		const defaulted = rightClickOn(pillIn(canvasElement))
+
+		await expect(defaulted).toBe(true)
+		await expect(screen.queryByRole("menu")).toBeNull()
 	},
 })

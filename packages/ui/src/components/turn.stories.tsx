@@ -11,10 +11,16 @@ import {
 	UPLOADED_AVATAR_IMAGE,
 } from "@workspace/storybook/story-utils"
 import { ActivityIndicator } from "@workspace/ui/components/activity-indicator"
+import {
+	CompanionMenuContent,
+	CompanionMenuProvider,
+} from "@workspace/ui/components/companion-menu"
 import { MarkProvider } from "@workspace/ui/components/mark-context"
 import { Markdown } from "@workspace/ui/components/markdown"
 import type { MessageAuthor } from "@workspace/ui/components/message"
 import { type RosterBot, RosterProvider } from "@workspace/ui/components/roster"
+import type { RosterMenuSection } from "@workspace/ui/components/roster-menu-items"
+import type { Space } from "@workspace/ui/components/space"
 import {
 	AssistantTurn,
 	TURN_AVATAR_SIZE,
@@ -180,6 +186,12 @@ const BOT: RosterBot = {
 	animal: "owl",
 	blot: "blue",
 }
+
+const NO_SPACES: Space[] = []
+
+const NO_MEMBERSHIPS: string[] = []
+
+const NO_SECTIONS: RosterMenuSection[] = []
 
 const stopTurn = fn()
 
@@ -1547,5 +1559,79 @@ export const FootnotedSqueezed = meta.story({
 			column.getBoundingClientRect().right,
 		)
 		await expect(column.scrollWidth).toBeLessThanOrEqual(column.clientWidth)
+	},
+})
+
+const editCompanion = fn()
+
+const deleteCompanion = fn()
+
+const COMPANION_MENU_LABEL = `Actions for ${BOT.name}`
+
+const companionMenuFor = (companionId: string) =>
+	companionId === BOT.id ? (
+		<CompanionMenuContent
+			companion={{ id: BOT.id, name: BOT.name }}
+			isPinned={false}
+			memberships={NO_MEMBERSHIPS}
+			onDelete={deleteCompanion}
+			onEdit={editCompanion}
+			sections={NO_SECTIONS}
+			spaces={NO_SPACES}
+		/>
+	) : null
+
+const GutterTurn = () => (
+	<div className="mx-auto max-w-2xl">
+		<AssistantTurn copyText={ANSWER} identity={BOT} onReply={reply}>
+			{ANSWER}
+		</AssistantTurn>
+	</div>
+)
+
+export const CompanionMenuOnGutter = meta.story({
+	parameters: {
+		docs: {
+			description: {
+				story:
+					"The avatar in the gutter, hosting the companion menu a provider hands it — the same menu the roster row opens, on the face the transcript already draws. Check that a right-click on the avatar opens it and that the bubble beside it keeps its own message menu shut, that the gutter stays hidden from screen readers since nothing focusable was added to it, and that no hover or left-click does anything the avatar did not do before. Pick `CompanionMenuOffGutter` for the transcript as it renders with no provider around it. " +
+					RENDERED_BY_THE_THREAD,
+			},
+		},
+	},
+	render: () => (
+		<CompanionMenuProvider menuFor={companionMenuFor}>
+			<GutterTurn />
+		</CompanionMenuProvider>
+	),
+	play: async ({ canvasElement }) => {
+		const gutter = slotIn(canvasElement, "message-gutter")
+
+		await expect(gutter).toHaveAttribute("aria-hidden", "true")
+
+		await rightClickOn(gutter)
+		await shown(await screen.findByRole("menu", { name: COMPANION_MENU_LABEL }))
+
+		await expect(screen.getAllByRole("menu")).toHaveLength(1)
+	},
+})
+
+export const CompanionMenuOffGutter = meta.story({
+	tags: ["test-only"],
+	parameters: {
+		docs: {
+			description: {
+				story:
+					"The same row with no provider above it, which is every transcript that has not been handed companion menus. Check that a right-click on the avatar opens nothing and leaves the browser its own menu, and that the gutter draws exactly the markup `CompanionMenuOnGutter` draws around the avatar.",
+			},
+		},
+	},
+	render: () => <GutterTurn />,
+	play: async ({ canvasElement }) => {
+		const gutter = slotIn(canvasElement, "message-gutter")
+		const { defaulted } = await rightClickOn(gutter)
+
+		await expect(defaulted).toBe(true)
+		await expect(screen.queryByRole("menu")).toBeNull()
 	},
 })
