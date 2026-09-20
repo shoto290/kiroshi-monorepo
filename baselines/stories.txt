@@ -450,6 +450,7 @@ conversation-tools-toolquestion--failure-with-action
 conversation-tools-toolquestion--four-questions
 conversation-tools-toolquestion--free-text
 conversation-tools-toolquestion--keyboard-only
+conversation-tools-toolquestion--long-header-scrolls
 conversation-tools-toolquestion--multi-select
 conversation-tools-toolquestion--narrow
 conversation-tools-toolquestion--no-dismiss

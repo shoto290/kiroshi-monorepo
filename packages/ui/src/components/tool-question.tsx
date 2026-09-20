@@ -28,13 +28,13 @@ import { useCopyText } from "@workspace/ui/hooks/use-copy-text"
 import { cn } from "@workspace/ui/lib/utils"
 
 const QUESTION_TAB_LIST_CLASS =
-	"h-fit max-w-full flex-wrap gap-1 bg-transparent p-0"
+	"-m-1 relative scrollbar-hide max-w-full justify-start gap-1 overflow-x-auto scroll-px-1 bg-transparent p-1 group-data-horizontal/tabs:h-fit"
 
 const QUESTION_TAB_CLASS =
-	"h-fit min-w-0 whitespace-normal break-words px-2.5 py-1 text-start motion-reduce:transition-none motion-reduce:duration-0"
+	"h-fit shrink-0 px-2.5 py-1 motion-reduce:transition-none motion-reduce:duration-0"
 
 const QUESTION_FORM_CLASS =
-	"grid w-full gap-3 rounded-2xl text-sm outline-none focus-visible:ring-2 focus-visible:ring-ring focus-visible:ring-offset-4 focus-visible:ring-offset-background"
+	"grid w-full grid-cols-[minmax(0,1fr)] gap-3 rounded-2xl text-sm outline-none focus-visible:ring-2 focus-visible:ring-ring focus-visible:ring-offset-4 focus-visible:ring-offset-background"
 
 const QUESTION_GROUP_CLASS = "flex flex-col gap-1.5"
 
@@ -217,7 +217,7 @@ const ToolQuestion = ({
 						>
 							{candidate.header}
 							{!candidate.isNotice && answers[candidate.question] ? (
-								<Icons.Check className="ml-1.5 size-3" />
+								<Icons.Check className="size-3" />
 							) : null}
 						</TabsTrigger>
 					))}
