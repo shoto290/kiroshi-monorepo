@@ -196,4 +196,4 @@ export const useSceneTimeline = ({
 	}
 }
 
-export type { SceneAnswers, SceneFrame }
+export type { SceneFrame }

@@ -30,7 +30,7 @@ export type SectionsController = {
 	moveBot: (botId: string, sectionId: string | null) => Promise<void>
 }
 
-export const initialSectionsState: SectionsState = { sections: {} }
+const initialSectionsState: SectionsState = { sections: {} }
 
 export const sectionsIn = (state: SectionsState, spaceId: string) =>
 	state.sections[spaceId] ?? []

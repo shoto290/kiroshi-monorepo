@@ -1,11 +1,11 @@
 import type { OnboardingWorld } from "./onboarding-controller"
 
-export type OnboardingGreeting = {
+type OnboardingGreeting = {
 	botId: string
 	text: string
 }
 
-export type OnboardingRefusals = {
+type OnboardingRefusals = {
 	greet?: unknown
 }
 

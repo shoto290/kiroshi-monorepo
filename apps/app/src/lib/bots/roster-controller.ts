@@ -56,13 +56,13 @@ export type RosterState = {
 	hasFailedToLoad: boolean
 }
 
-export type RosterOpening = {
+type RosterOpening = {
 	spaceIds: string[]
 	spaceId: string | null
 	lastRowId: string | null
 }
 
-export type RosterEntry = {
+type RosterEntry = {
 	spaceId: string
 	lastRowId: string | null
 }
@@ -119,7 +119,7 @@ export type RosterController = {
 	removeConversation: (id: string) => Promise<void>
 }
 
-export const initialRosterState: RosterState = {
+const initialRosterState: RosterState = {
 	rosters: {},
 	bots: [],
 	conversationRosters: {},

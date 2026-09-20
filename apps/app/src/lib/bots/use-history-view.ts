@@ -12,10 +12,7 @@ import { matchingRuns } from "./history-search"
 
 import type { BotHistoryEntry } from "../conversations/store-contract"
 
-export type HistoryRange = (
-	oldestCommitId: string,
-	newestCommitId: string,
-) => void
+type HistoryRange = (oldestCommitId: string, newestCommitId: string) => void
 
 export type HistoryViewSource = HistoryFilesState & {
 	isOpen: boolean

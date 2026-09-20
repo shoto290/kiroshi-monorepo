@@ -6,18 +6,18 @@ import type {
 } from "../agent/contract"
 import type { ChatDriver } from "../chat/driver"
 
-export type Submission = {
+type Submission = {
 	scope: RuntimeScope
 	prompt: string
 }
 
-export type Answered = {
+type Answered = {
 	botId: string
 	id: string
 	answers: QuestionAnswers
 }
 
-export type Decided = {
+type Decided = {
 	botId: string
 	id: string
 	decision: PermissionDecision

@@ -12,7 +12,7 @@ export type ReopenedScope =
 
 export type CompanionRosters = Record<string, Bot[]>
 
-export type SessionReopening = {
+type SessionReopening = {
 	scope: ReopenedScope
 	application: string
 }

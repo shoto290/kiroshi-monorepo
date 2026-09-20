@@ -7,7 +7,7 @@ import type { CompanionSpoke } from "./transcript-contract"
 
 import { rowIdsIn } from "../chat/badge-source"
 
-export type CompanionSpokePort = {
+type CompanionSpokePort = {
 	onCompanionSpoke: (
 		listener: (spoken: CompanionSpoke) => void,
 	) => Promise<() => void>
@@ -17,7 +17,7 @@ type RosteredConversation = {
 	id: string
 }
 
-export type SpokenRosterPort = {
+type SpokenRosterPort = {
 	getState: () => {
 		conversationRosters: Record<string, RosteredConversation[]>
 		hasFailedToLoad: boolean

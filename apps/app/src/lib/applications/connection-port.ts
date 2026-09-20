@@ -6,7 +6,6 @@ import type { EnvOwner } from "../conversations/store-contract"
 
 export type {
 	ApplicationRow_Serialize as ApplicationRow,
-	ApplicationStatus_Serialize as ApplicationStatus,
 	Disconnected_Serialize as Disconnected,
 } from "@/lib/bindings"
 

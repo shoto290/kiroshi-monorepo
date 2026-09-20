@@ -30,7 +30,7 @@ const NO_BOTS: RosterBot[] = []
 
 const SUGGESTED_BOTS_SHOWN = 5
 
-export type OpenConversation = (conversation: Conversation) => Promise<void>
+type OpenConversation = (conversation: Conversation) => Promise<void>
 
 type MentionedSeating = {
 	seating: ConversationSeating

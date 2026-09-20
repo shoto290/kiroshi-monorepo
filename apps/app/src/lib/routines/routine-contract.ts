@@ -1,7 +1,6 @@
 import type { ReportedRun } from "@/lib/bindings"
 
 export type {
-	Refusal,
 	ReportedRun,
 	Routine_Serialize as Routine,
 	RoutineDraft_Deserialize as RoutineDraft,
@@ -13,16 +12,8 @@ export type {
 	RunClosing_Deserialize as RunClosing,
 	RunOutcome,
 	RunRequested,
-	SkipReason,
 	TriggerDecision,
-	TriggerEvent,
 } from "@/lib/bindings"
-
-export type ReportRefusal =
-	| "unknownTurn"
-	| "turnOfAnotherConversation"
-	| "turnAlreadyReported"
-	| "turnWithoutReport"
 
 export type ReportedRunsByTurnId = ReadonlyMap<string, ReportedRun>
 

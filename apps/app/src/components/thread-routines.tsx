@@ -128,4 +128,4 @@ const ThreadRoutines = ({
 	)
 }
 
-export { type ActivityPanel, ThreadRoutines, type ThreadRoutinesProps }
+export { type ActivityPanel, ThreadRoutines }

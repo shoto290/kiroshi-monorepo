@@ -20,7 +20,7 @@ export type SearchRead = {
 	routines: CatalogueRoutine[]
 }
 
-export type SearchState = {
+type SearchState = {
 	isOpen: boolean
 	spaceId: string | null
 	query: string

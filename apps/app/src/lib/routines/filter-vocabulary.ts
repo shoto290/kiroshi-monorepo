@@ -25,7 +25,7 @@ export type FilterOperator = (typeof FILTER_OPERATORS)[number]
 
 export const FILTER_MATCH_MODES = ["all", "any"] as const
 
-export type FilterMatchMode = (typeof FILTER_MATCH_MODES)[number]
+type FilterMatchMode = (typeof FILTER_MATCH_MODES)[number]
 
 export const OPERATORS_BY_FIELD_TYPE: Record<
 	FieldType,

@@ -15,9 +15,9 @@ import type {
 } from "./routine-contract"
 import type { RunRequestListener } from "./run-port"
 
-export const RUN_REQUESTED_EVENT = "routine://run-requested"
+const RUN_REQUESTED_EVENT = "routine://run-requested"
 
-export const CHANGED_EVENT = "routine://changed"
+const CHANGED_EVENT = "routine://changed"
 
 export const DEFAULT_RUN_PAGE = 50
 
