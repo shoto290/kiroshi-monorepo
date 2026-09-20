@@ -278,7 +278,12 @@ const escalate = async (harness: Harness, state: MissionState) => {
 		state,
 	})
 	harness.missions.hold({ mission, events: [] })
-	harness.missions.change({ missionId: mission.id, state, stateSeq: 2 })
+	harness.missions.change({
+		missionId: mission.id,
+		state,
+		stateSeq: 2,
+		isAgentRunning: false,
+	})
 	await Promise.resolve()
 	await Promise.resolve()
 }
@@ -627,6 +632,7 @@ describe("startNotificationSource on a mission thread", () => {
 			missionId: "mission-1",
 			state: "done",
 			stateSeq: 3,
+			isAgentRunning: false,
 		})
 		await Promise.resolve()
 		await Promise.resolve()
@@ -930,6 +936,7 @@ describe("startNotificationSource on missions", () => {
 			missionId: "mission-1",
 			state: "waiting_human",
 			stateSeq: 2,
+			isAgentRunning: false,
 		})
 		await Promise.resolve()
 		await Promise.resolve()

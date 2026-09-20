@@ -955,7 +955,12 @@ mod tests {
 		let seq = state_seq_of(&database, &mission.id).await;
 		assert_eq!(
 			announced,
-			vec![json!({ "missionId": mission.id, "state": state, "stateSeq": seq })],
+			vec![json!({
+				"missionId": mission.id,
+				"state": state,
+				"stateSeq": seq,
+				"isAgentRunning": false,
+			})],
 			"the front was not told which mission github moved and where it stands"
 		);
 

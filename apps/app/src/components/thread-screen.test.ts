@@ -748,6 +748,7 @@ const SOLO_MISSION: Mission = {
 	tools: ["Read", "Write"],
 	state: "working",
 	stateSeq: 1,
+	isAgentRunning: false,
 	openedAt: 0,
 	closedAt: null,
 	reportedAt: null,
@@ -1100,6 +1101,7 @@ describe("ThreadScreen", () => {
 			missionId: SOLO_MISSION.id,
 			state: "waiting_human",
 			stateSeq: 2,
+			isAgentRunning: false,
 		})
 		await settle()
 
@@ -1172,6 +1174,7 @@ describe("ThreadScreen", () => {
 			missionId: SOLO_MISSION.id,
 			state: "waiting_human",
 			stateSeq: 2,
+			isAgentRunning: false,
 		})
 		await settle()
 

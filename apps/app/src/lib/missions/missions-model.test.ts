@@ -29,6 +29,7 @@ import type { ReportedRunRead } from "@/lib/routines/routines-model"
 const missionIn = (state: MissionState): Mission => ({
 	id: `m-${state}`,
 	stateSeq: 1,
+	isAgentRunning: false,
 	originConversationId: "c-1",
 	botId: "b-1",
 	threadConversationId: "c-mission-1",
@@ -242,6 +243,17 @@ it("lets an event speak through the payload key its writer emits", () => {
 	])
 })
 
+it("drops the events whose kind no row of the catalogue names", () => {
+	const shown = toMissionEventModels([
+		{ ...EVENT, id: "e-1", kind: "agent_started" },
+		{ ...EVENT, id: "e-2", kind: "note" },
+		{ ...EVENT, id: "e-3", kind: "agent_stopped" },
+		{ ...EVENT, id: "e-4", kind: "agent_asked" },
+	])
+
+	expect(shown.map(({ id }) => id)).toEqual(["e-2", "e-4"])
+})
+
 it("keeps an event silent when its payload holds no spoken key", () => {
 	const models = toMissionEventModels([
 		EVENT,
@@ -287,6 +299,7 @@ const mission = (over: Partial<Mission>): Mission => ({
 	tools: [],
 	state: "working",
 	stateSeq: 1,
+	isAgentRunning: false,
 	openedAt: 1,
 	closedAt: null,
 	reportedAt: null,

@@ -11,6 +11,8 @@ pub enum MissionEventKind {
 	Opened,
 	Note,
 	AgentAsked,
+	AgentStarted,
+	AgentStopped,
 	Answered,
 	Escalated,
 	Ready,
@@ -20,10 +22,12 @@ pub enum MissionEventKind {
 }
 
 impl MissionEventKind {
-	pub const ALL: [MissionEventKind; 9] = [
+	pub const ALL: [MissionEventKind; 11] = [
 		MissionEventKind::Opened,
 		MissionEventKind::Note,
 		MissionEventKind::AgentAsked,
+		MissionEventKind::AgentStarted,
+		MissionEventKind::AgentStopped,
 		MissionEventKind::Answered,
 		MissionEventKind::Escalated,
 		MissionEventKind::Ready,
@@ -42,7 +46,9 @@ impl MissionEventKind {
 			MissionEventKind::Ready => Some(MissionState::ReadyToMerge),
 			MissionEventKind::Failed => Some(MissionState::Failed),
 			MissionEventKind::Closed => Some(MissionState::Done),
-			MissionEventKind::Note => None,
+			MissionEventKind::Note
+			| MissionEventKind::AgentStarted
+			| MissionEventKind::AgentStopped => None,
 		}
 	}
 
@@ -147,6 +153,7 @@ pub struct Mission {
 	pub tools: Vec<String>,
 	pub state: MissionState,
 	pub state_seq: i64,
+	pub is_agent_running: bool,
 	pub opened_at: i64,
 	pub closed_at: Option<i64>,
 	pub reported_at: Option<i64>,

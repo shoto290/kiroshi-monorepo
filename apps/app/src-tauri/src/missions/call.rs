@@ -16,6 +16,10 @@ pub const PATH: &str = "/missions/call";
 
 pub const SOURCE: &str = "agent-hook";
 
+const STARTS_THE_AGENT: &str = "UserPromptSubmit";
+
+const STOPS_THE_AGENT: &str = "Stop";
+
 const ACCEPTED: (StatusCode, &str) = (StatusCode::ACCEPTED, "the mission was told");
 
 const REFUSED: (StatusCode, &str) = (StatusCode::NOT_FOUND, "no mission answers this call");
@@ -83,9 +87,7 @@ async fn carried<R: Runtime>(
 	let Some(payload) = payload(&body) else {
 		return Ok(UNREADABLE);
 	};
-	let entry =
-		MissionEntry { kind: MissionEventKind::AgentAsked, source: SOURCE.to_owned(), payload };
-	match database.missions().append_delivery(mission.id, entry, delivery_id).await {
+	match database.missions().append_delivery(mission.id, entries(payload), delivery_id).await {
 		Ok(written) => {
 			if let Err(failure) = announce_change(&calls.app, &written) {
 				eprintln!("a hook call moved a mission the front was not told about: {failure:?}");
@@ -97,6 +99,21 @@ async fn carried<R: Runtime>(
 		}
 		Err(failure) => Err(failure),
 	}
+}
+
+fn entries(payload: Value) -> Vec<MissionEntry> {
+	match payload.get("event").and_then(Value::as_str) {
+		Some(STARTS_THE_AGENT) => vec![entry(MissionEventKind::AgentStarted, payload)],
+		Some(STOPS_THE_AGENT) => vec![
+			entry(MissionEventKind::AgentStopped, payload.clone()),
+			entry(MissionEventKind::AgentAsked, payload),
+		],
+		_ => vec![entry(MissionEventKind::AgentAsked, payload)],
+	}
+}
+
+fn entry(kind: MissionEventKind, payload: Value) -> MissionEntry {
+	MissionEntry { kind, source: SOURCE.to_owned(), payload }
 }
 
 fn unread(rejection: StringRejection) -> (StatusCode, &'static str) {
@@ -378,7 +395,12 @@ mod tests {
 		let (state, state_seq) = state_of(&app, &mission.id).await;
 		assert_eq!(
 			announced(&received),
-			vec![json!({ "missionId": mission.id, "state": state, "stateSeq": state_seq })],
+			vec![json!({
+				"missionId": mission.id,
+				"state": state,
+				"stateSeq": state_seq,
+				"isAgentRunning": false,
+			})],
 			"the front was not told the hook moved the mission"
 		);
 
@@ -404,6 +426,114 @@ mod tests {
 			(answer(REFUSED), answer(UNREADABLE), answer(REFUSED))
 		);
 		assert!(announced(&received).is_empty(), "a refused call told the front");
+
+		webhook.stop();
+		cleaned(&app);
+	}
+
+	async fn kinds_of(app: &App<MockRuntime>, mission_id: &str) -> Vec<MissionEventKind> {
+		let state = app.state::<db::DatabaseState>();
+		let mission_id = mission_id.to_owned();
+		ready(&state)
+			.expect("the database opens")
+			.call(move |connection| {
+				let mut statement = connection.prepare(
+					"SELECT kind FROM mission_events WHERE mission_id = ?1 AND source = ?2
+						ORDER BY seq",
+				)?;
+				let rows =
+					statement.query_map(rusqlite::params![mission_id, SOURCE], |row| row.get(0))?;
+				Ok(rows.collect::<rusqlite::Result<Vec<MissionEventKind>>>()?)
+			})
+			.await
+			.expect("the kinds read")
+	}
+
+	fn a_body(event: &str) -> String {
+		json!({
+			"event": event,
+			"sessionId": "s1",
+			"cwd": "/tmp/workspace",
+			"branch": "feature/ope-27",
+		})
+		.to_string()
+	}
+
+	#[tokio::test]
+	async fn a_prompt_submitted_appends_one_agent_started_and_a_stop_appends_a_stopped_then_an_asked(
+	) {
+		let app = a_host("liveness").await;
+		let mission = an_armed_mission(&app, A_KEY).await;
+		let webhook = listening(&app, Ticking::at(NOON));
+
+		for event in ["UserPromptSubmit", "Stop"] {
+			let held =
+				answered(webhook.address(), calling(Some(A_KEY), None, &a_body(event))).await;
+			assert_eq!(held, answer(ACCEPTED));
+		}
+
+		assert_eq!(
+			kinds_of(&app, &mission.id).await,
+			vec![
+				MissionEventKind::AgentStarted,
+				MissionEventKind::AgentStopped,
+				MissionEventKind::AgentAsked,
+			],
+		);
+
+		webhook.stop();
+		cleaned(&app);
+	}
+
+	#[tokio::test]
+	async fn a_stop_carrying_a_delivery_id_already_written_appends_neither_of_its_two_events() {
+		let app = a_host("redelivered").await;
+		let mission = an_armed_mission(&app, A_KEY).await;
+		let webhook = listening(&app, Ticking::at(NOON));
+
+		for _ in 0..2 {
+			let request = calling(Some(A_KEY), Some("delivery-1"), &a_body("Stop"));
+			assert_eq!(answered(webhook.address(), request).await, answer(ACCEPTED));
+		}
+
+		assert_eq!(
+			kinds_of(&app, &mission.id).await,
+			vec![MissionEventKind::AgentStopped, MissionEventKind::AgentAsked],
+		);
+
+		webhook.stop();
+		cleaned(&app);
+	}
+
+	#[tokio::test]
+	async fn a_prompt_submitted_leaves_a_mission_waiting_on_its_human_where_it_stands() {
+		let app = a_host("still-waiting").await;
+		let mission = an_armed_mission(&app, A_KEY).await;
+		{
+			let state = app.state::<db::DatabaseState>();
+			ready(&state)
+				.expect("the database opens")
+				.missions()
+				.append(
+					mission.id.clone(),
+					MissionEntry::of(
+						MissionEventKind::Escalated,
+						MissionNote { source: "bot".to_owned(), payload: json!({}) },
+					),
+				)
+				.await
+				.expect("the mission escalates");
+		}
+		let stood = state_of(&app, &mission.id).await;
+		let webhook = listening(&app, Ticking::at(NOON));
+
+		let held =
+			answered(webhook.address(), calling(Some(A_KEY), None, &a_body("UserPromptSubmit")))
+				.await;
+
+		assert_eq!(held, answer(ACCEPTED));
+		assert_eq!(stood.0, MissionState::WaitingHuman);
+		assert_eq!(state_of(&app, &mission.id).await, stood);
 
 		webhook.stop();
 		cleaned(&app);

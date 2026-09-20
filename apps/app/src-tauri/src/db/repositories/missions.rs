@@ -44,11 +44,17 @@ pub(in crate::db) const MISSION_COLUMNS: &str =
 	objective, ticket_platform, ticket_external_id, ticket_url, ticket_title, tools,
 	opened_at, closed_at, reported_at, reported_turn_id,
 	COALESCE((SELECT kind FROM mission_events
-		WHERE mission_events.mission_id = missions.id AND mission_events.kind <> 'note'
+		WHERE mission_events.mission_id = missions.id
+			AND mission_events.kind NOT IN ('note', 'agent_started', 'agent_stopped')
 		ORDER BY mission_events.seq DESC LIMIT 1), 'opened') AS state_kind,
 	COALESCE((SELECT seq FROM mission_events
-		WHERE mission_events.mission_id = missions.id AND mission_events.kind <> 'note'
-		ORDER BY mission_events.seq DESC LIMIT 1), 0) AS state_seq
+		WHERE mission_events.mission_id = missions.id
+			AND mission_events.kind NOT IN ('note', 'agent_started', 'agent_stopped')
+		ORDER BY mission_events.seq DESC LIMIT 1), 0) AS state_seq,
+	COALESCE((SELECT mission_events.kind = 'agent_started' FROM mission_events
+		WHERE mission_events.mission_id = missions.id
+			AND mission_events.kind IN ('agent_started', 'agent_stopped')
+		ORDER BY mission_events.seq DESC LIMIT 1), 0) AS is_agent_running
 	FROM missions";
 
 const INSERT_MISSION: &str = "INSERT INTO missions
@@ -83,12 +89,15 @@ const REPORT_MISSION: &str =
 	"UPDATE missions SET reported_at = ?2, reported_turn_id = ?3 WHERE id = ?1";
 
 const SELECT_EVENTS: &str = "SELECT id, mission_id, kind, source, payload, created_at
-	FROM mission_events WHERE mission_id = ?1 ORDER BY seq DESC LIMIT ?2";
+	FROM mission_events WHERE mission_id = ?1
+		AND kind NOT IN ('agent_started', 'agent_stopped')
+	ORDER BY seq DESC LIMIT ?2";
 
 const WORKSPACE_OF_MISSION: &str =
 	"SELECT NULLIF(watch_workspace_path, '') FROM missions WHERE id = ?1";
 
-const COUNT_EVENTS: &str = "SELECT count(*) FROM mission_events WHERE mission_id = ?1";
+const COUNT_EVENTS: &str = "SELECT count(*) FROM mission_events WHERE mission_id = ?1
+	AND kind NOT IN ('agent_started', 'agent_stopped')";
 
 pub struct MissionsRepository {
 	access: Access,
@@ -113,7 +122,9 @@ impl MissionsRepository {
 		entry: MissionEntry,
 	) -> Result<Mission, MissionError> {
 		self.access
-			.call_mut(move |connection| Ok(appended(connection, &mission_id, &entry, "")))
+			.call_mut(move |connection| {
+				Ok(appended(connection, &mission_id, std::slice::from_ref(&entry), ""))
+			})
 			.await?
 	}
 
@@ -165,11 +176,13 @@ impl MissionsRepository {
 	pub async fn append_delivery(
 		&self,
 		mission_id: String,
-		entry: MissionEntry,
+		entries: Vec<MissionEntry>,
 		delivery_id: String,
 	) -> Result<Mission, MissionError> {
 		self.access
-			.call_mut(move |connection| Ok(appended(connection, &mission_id, &entry, &delivery_id)))
+			.call_mut(move |connection| {
+				Ok(appended(connection, &mission_id, &entries, &delivery_id))
+			})
 			.await?
 	}
 
@@ -392,21 +405,31 @@ fn opened(
 fn appended(
 	connection: &mut Connection,
 	mission_id: &str,
-	entry: &MissionEntry,
+	entries: &[MissionEntry],
 	delivery_id: &str,
 ) -> Result<Mission, MissionError> {
 	let transaction = write_transaction(connection)?;
 	refuse_a_shut_mission(&transaction, mission_id)?;
 	if !already_delivered(&transaction, mission_id, delivery_id)? {
 		let at = now();
-		record(&transaction, mission_id, entry, delivery_id, at)?;
-		if entry.kind.closes() {
-			transaction.execute(CLOSE_MISSION, params![mission_id, at])?;
+		for (position, entry) in entries.iter().enumerate() {
+			record(&transaction, mission_id, entry, carried_by(delivery_id, position), at)?;
+			if entry.kind.closes() {
+				transaction.execute(CLOSE_MISSION, params![mission_id, at])?;
+				break;
+			}
 		}
 	}
 	let stored = read(&transaction, mission_id)?;
 	transaction.commit()?;
 	Ok(stored)
+}
+
+fn carried_by(delivery_id: &str, position: usize) -> &str {
+	match position {
+		0 => delivery_id,
+		_ => "",
+	}
 }
 
 fn answered(
@@ -641,6 +664,7 @@ pub(in crate::db) fn mission(row: &Row<'_>) -> rusqlite::Result<Mission> {
 		reported_turn_id: row.get(13)?,
 		state: derived(row.get(14)?)?,
 		state_seq: row.get(15)?,
+		is_agent_running: row.get(16)?,
 	})
 }
 
@@ -831,6 +855,8 @@ mod tests {
 				(MissionEventKind::Opened, MissionState::Working),
 				(MissionEventKind::Note, MissionState::Working),
 				(MissionEventKind::AgentAsked, MissionState::WaitingBot),
+				(MissionEventKind::AgentStarted, MissionState::WaitingBot),
+				(MissionEventKind::AgentStopped, MissionState::WaitingBot),
 				(MissionEventKind::Answered, MissionState::Working),
 				(MissionEventKind::Escalated, MissionState::WaitingHuman),
 				(MissionEventKind::Ready, MissionState::ReadyToMerge),
@@ -840,6 +866,149 @@ mod tests {
 			],
 			"a kind moved the mission somewhere the contract does not name"
 		);
+
+		drop(database);
+		std::fs::remove_dir_all(&dir).expect("cleanup");
+	}
+
+	#[tokio::test]
+	async fn the_liveness_of_a_mission_follows_the_last_of_its_agent_started_and_agent_stopped() {
+		let (database, dir) = planted().await;
+		let opened = database
+			.missions()
+			.open(a_draft("c1", "b1", "Fix the crash"), a_key())
+			.await
+			.expect("the mission opens");
+
+		let mut walked = vec![opened.is_agent_running];
+		for kind in [
+			MissionEventKind::AgentStarted,
+			MissionEventKind::Note,
+			MissionEventKind::AgentStopped,
+			MissionEventKind::AgentStarted,
+		] {
+			let written = database
+				.missions()
+				.append(opened.id.clone(), an_entry(kind))
+				.await
+				.expect("the event is appended");
+			walked.push(written.is_agent_running);
+		}
+
+		assert_eq!(walked, vec![false, true, true, false, true]);
+
+		drop(database);
+		std::fs::remove_dir_all(&dir).expect("cleanup");
+	}
+
+	#[tokio::test]
+	async fn the_liveness_events_stay_out_of_the_events_read_and_out_of_the_earlier_count() {
+		let (database, dir) = planted().await;
+		let opened = database
+			.missions()
+			.open(a_draft("c1", "b1", "Fix the crash"), a_key())
+			.await
+			.expect("the mission opens");
+		for kind in [
+			MissionEventKind::AgentStarted,
+			MissionEventKind::Note,
+			MissionEventKind::AgentStopped,
+			MissionEventKind::AgentAsked,
+		] {
+			database
+				.missions()
+				.append(opened.id.clone(), an_entry(kind))
+				.await
+				.expect("the event is appended");
+		}
+
+		let detail =
+			database.missions().detail(opened.id.clone()).await.expect("the mission reads");
+		let threaded = database
+			.missions()
+			.in_thread(opened.thread_conversation_id.clone(), 1)
+			.await
+			.expect("the thread reads")
+			.expect("the thread carries the mission");
+
+		assert_eq!(
+			detail.events.iter().map(|event| event.kind).collect::<Vec<_>>(),
+			vec![MissionEventKind::Opened, MissionEventKind::Note, MissionEventKind::AgentAsked,],
+		);
+		assert_eq!(
+			(
+				threaded.events.iter().map(|event| event.kind).collect::<Vec<_>>(),
+				threaded.earlier_events
+			),
+			(vec![MissionEventKind::AgentAsked], 2),
+		);
+
+		drop(database);
+		std::fs::remove_dir_all(&dir).expect("cleanup");
+	}
+
+	#[tokio::test]
+	async fn a_mission_waiting_on_its_human_keeps_its_state_and_its_seq_through_the_liveness() {
+		let (database, dir) = planted().await;
+		let opened = database
+			.missions()
+			.open(a_draft("c1", "b1", "Fix the crash"), a_key())
+			.await
+			.expect("the mission opens");
+		let escalated = database
+			.missions()
+			.append(opened.id.clone(), an_entry(MissionEventKind::Escalated))
+			.await
+			.expect("the mission escalates");
+
+		let mut walked = Vec::new();
+		for kind in [MissionEventKind::AgentStarted, MissionEventKind::AgentStopped] {
+			let written = database
+				.missions()
+				.append(opened.id.clone(), an_entry(kind))
+				.await
+				.expect("the event is appended");
+			walked.push((written.state, written.state_seq));
+		}
+
+		assert_eq!(escalated.state, MissionState::WaitingHuman);
+		assert_eq!(
+			walked,
+			vec![
+				(MissionState::WaitingHuman, escalated.state_seq),
+				(MissionState::WaitingHuman, escalated.state_seq),
+			]
+		);
+
+		drop(database);
+		std::fs::remove_dir_all(&dir).expect("cleanup");
+	}
+
+	#[tokio::test]
+	async fn two_entries_of_one_delivery_land_together_and_a_repeat_of_it_lands_neither() {
+		let (database, dir) = planted().await;
+		let opened = database
+			.missions()
+			.open(a_draft("c1", "b1", "Fix the crash"), a_key())
+			.await
+			.expect("the mission opens");
+
+		for _ in 0..2 {
+			database
+				.missions()
+				.append_delivery(
+					opened.id.clone(),
+					vec![
+						an_entry(MissionEventKind::AgentStopped),
+						an_entry(MissionEventKind::AgentAsked),
+					],
+					"delivery-1".to_owned(),
+				)
+				.await
+				.expect("the delivery is appended");
+		}
+
+		assert_eq!(count_of(&database, "mission_events").await, 3);
 
 		drop(database);
 		std::fs::remove_dir_all(&dir).expect("cleanup");
@@ -1157,7 +1326,7 @@ mod tests {
 				.missions()
 				.append_delivery(
 					opened.id.clone(),
-					an_entry(MissionEventKind::AgentAsked),
+					vec![an_entry(MissionEventKind::AgentAsked)],
 					"delivery-1".to_owned(),
 				)
 				.await
