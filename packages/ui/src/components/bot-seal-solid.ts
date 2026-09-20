@@ -78,11 +78,13 @@ const polar = (angle: number, radius: number, arm: number): SealVertex => ({
 	arm,
 })
 
-const hubRadius = ({ profile }: SealSolid) =>
-	HUB_RANGE[0] + profile * (HUB_RANGE[1] - HUB_RANGE[0])
+const shaped = (
+	{ profile }: SealSolid,
+	[min, max]: readonly [number, number],
+) => min + profile * (max - min)
 
 const asteriskProfile = (solid: SealSolid) => {
-	const hub = hubRadius(solid)
+	const hub = shaped(solid, HUB_RANGE)
 	return Array.from({ length: solid.arms }, (_, arm) => {
 		const angle = armAngle(solid.arms, arm)
 		return [
@@ -93,8 +95,8 @@ const asteriskProfile = (solid: SealSolid) => {
 }
 
 const crossProfile = (solid: SealSolid) => {
-	const hub = hubRadius(solid)
-	const half = BAR_RANGE[0] + solid.profile * (BAR_RANGE[1] - BAR_RANGE[0])
+	const hub = shaped(solid, HUB_RANGE)
+	const half = shaped(solid, BAR_RANGE)
 	return Array.from({ length: solid.arms }, (_, arm) => {
 		const angle = armAngle(solid.arms, arm)
 		const reach = armReach(solid, arm)
@@ -130,10 +132,8 @@ const GEM_LEVELS: SealLevel[] = [
 	{ z: 1, scale: GEM_TIP_SCALE },
 ]
 
-const plateLevels = ({ profile }: SealSolid): SealLevel[] => {
-	const taper =
-		PLATE_TAPER_RANGE[0] +
-		profile * (PLATE_TAPER_RANGE[1] - PLATE_TAPER_RANGE[0])
+const plateLevels = (solid: SealSolid): SealLevel[] => {
+	const taper = shaped(solid, PLATE_TAPER_RANGE)
 	return Array.from({ length: PLATE_LEVELS }, (_, index) => ({
 		z: -1 + (2 * index) / (PLATE_LEVELS - 1),
 		scale: 1 - index * taper,
@@ -149,10 +149,7 @@ const STACKS: Record<SealFamily, (solid: SealSolid) => SealStack[]> = {
 	ring: (solid) => [
 		{ profile: polygonProfile(solid), levels: EXTRUDED_LEVELS },
 		{
-			profile: polygonProfile(
-				solid,
-				RING_RANGE[0] + solid.profile * (RING_RANGE[1] - RING_RANGE[0]),
-			),
+			profile: polygonProfile(solid, shaped(solid, RING_RANGE)),
 			levels: EXTRUDED_LEVELS,
 		},
 	],
@@ -167,11 +164,8 @@ export {
 	MAX_ARMS,
 	MIN_ARMS,
 	SEAL_FAMILIES,
-	type SealFamily,
 	type SealLevel,
 	type SealSolid,
-	type SealStack,
-	type SealSymmetry,
 	type SealVertex,
 	sealSolid,
 	sealStacks,
