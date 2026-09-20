@@ -33,17 +33,6 @@ const pathOf = (seed: string, state?: BotSealState, elapsed = 0) => {
 	return `${lit}|${dim}`
 }
 
-const strokeCount = ({
-	solid,
-	state,
-}: {
-	solid: SealSolid
-	state: BotSealState
-}) => {
-	const { lit, dim } = sealFrame({ solid, state, elapsed: 0 })
-	return `${lit}${dim}`.split("M").length - 1
-}
-
 const coordinatesOf = (path: string) =>
 	path.match(/-?\d+(\.\d+)?/g)?.map(Number) ?? []
 
@@ -60,12 +49,15 @@ const boundsShift = (from: Bounds, to: Bounds) =>
 	Math.max(...from.map((value, at) => Math.abs(value - to[at])))
 
 const spanOf = (path: string) => {
-	const values = coordinatesOf(path)
-	return { lowest: Math.min(...values), highest: Math.max(...values) }
+	const [lowestX, lowestY, highestX, highestY] = boundsOf(path)
+	return {
+		lowest: Math.min(lowestX, lowestY),
+		highest: Math.max(highestX, highestY),
+	}
 }
 
-const sampleOf = (seed: string, state: BotSealState, elapsed: number) => {
-	const { lit, dim } = sealFrame({ solid: sealSolid(seed), state, elapsed })
+const sampleOf = (solid: SealSolid, state: BotSealState, elapsed: number) => {
+	const { lit, dim } = sealFrame({ solid, state, elapsed })
 	return {
 		bounds: boundsOf(`${lit}${dim}`),
 		litStrokes: lit.split("M").length - 1,
@@ -131,9 +123,10 @@ describe("sealFrame", () => {
 	})
 
 	it("closes every animated cycle without a jump", () => {
+		const solid = sealSolid(CYCLE_SEEDS[0])
 		for (const state of ANIMATED_STATES) {
 			const frames = CYCLE_SAMPLES.map((elapsed) =>
-				sampleOf(CYCLE_SEEDS[0], state, elapsed),
+				sampleOf(solid, state, elapsed),
 			)
 			for (let at = 1; at < frames.length; at += 1) {
 				const previous = frames[at - 1]
@@ -171,8 +164,8 @@ describe("sealFrame", () => {
 		for (const seed of SEEDS) {
 			const solid = sealSolid(seed)
 
-			expect(strokeCount({ solid, state: "done" })).toBeLessThan(
-				strokeCount({ solid, state: "waiting" }),
+			expect(sampleOf(solid, "done", 0).strokes).toBeLessThan(
+				sampleOf(solid, "waiting", 0).strokes,
 			)
 		}
 	})
