@@ -61,7 +61,7 @@ const meta = preview.meta({
 		docs: {
 			description: {
 				component:
-					"Everything the app can do to one companion, in one menu. It is the menu the roster row has always opened on a right-click, lifted out of that row so the same list can hang off any surface naming a companion — the roster row, the avatar in the transcript gutter, a mention inside a message. It is a `ContextMenuContent`, so it is given to a `ContextMenu` beside its trigger and never rendered on its own. The order is fixed: the pin toggle and its separator first, then Settings, Duplicate, the section branch, the spaces branch, and Delete apart at the bottom. A branch that has no host callback draws nothing, which is how a host offers a subset without a flag. Outside the roster, `CompanionMenuProvider` is what hands this content to the transcript: it answers one companion id with one menu, and a surface with no answer keeps the markup it had.",
+					"Everything the app can do to one companion, in one menu. It is the menu the roster row has always opened on a right-click, lifted out of that row so the same list can hang off any surface naming a companion — the roster row, the avatar in the transcript gutter, a mention inside a message. It is a `ContextMenuContent`, so it is given to a `ContextMenu` beside its trigger and never rendered on its own. The order is fixed: the pin toggle and its separator first, then Settings, Duplicate, the section branch, the spaces branch, and Delete apart at the bottom. Settings, Duplicate and Delete are always drawn — each calls the callback it was given and does nothing when it was given none. The three that answer to the host are the pin toggle, which needs `onPin` or `onUnpin` depending on `isPinned`, the section branch, which needs `onMoveToSection` or `onCreateSectionFor`, and the spaces branch, which needs `onAddToSpace` or `onRemoveFromSpace` plus spaces and memberships to list: each of those draws nothing at all without them. Outside the roster, `CompanionMenuProvider` is what hands this content to the transcript: it answers one companion id with one menu, and a surface it answers nothing for keeps the markup it had.",
 			},
 		},
 	},
@@ -111,5 +111,49 @@ export const Default = meta.story({
 		await expect(
 			menu.getAllByRole("menuitem").map((item) => item.textContent),
 		).toEqual(ITEMS_IN_ORDER)
+	},
+})
+
+export const Pinned = meta.story({
+	args: { isPinned: true },
+	parameters: {
+		docs: {
+			description: {
+				story:
+					"The same companion, already pinned. Check that the first item reads Unpin rather than Pin and keeps its own separator under it — the toggle is one item that flips, never two items stacked. Pick `Default` for the companion that is not pinned yet.",
+			},
+		},
+	},
+	play: async ({ canvas }) => {
+		const menu = await openMenu(canvas.getByText(TRIGGER_LABEL))
+		const [first] = menu.getAllByRole("menuitem")
+
+		await expect(first).toHaveTextContent("Unpin")
+	},
+})
+
+export const WithoutBranches = meta.story({
+	args: {
+		onPin: undefined,
+		onUnpin: undefined,
+		onAddToSpace: undefined,
+		onRemoveFromSpace: undefined,
+		onMoveToSection: undefined,
+		onCreateSectionFor: undefined,
+	},
+	parameters: {
+		docs: {
+			description: {
+				story:
+					"A host that wired only `onEdit`, `onDuplicate` and `onDelete` — the transcript today, which can open a companion's settings but does not own its pins, sections or spaces. Check that the menu is exactly Settings, Duplicate and Delete: the pin toggle, the section branch and the spaces branch draw nothing without a callback, and the separators around them collapse with them rather than leaving a gap. Pick `Default` for the roster host, which wires all of them.",
+			},
+		},
+	},
+	play: async ({ canvas }) => {
+		const menu = await openMenu(canvas.getByText(TRIGGER_LABEL))
+
+		await expect(
+			menu.getAllByRole("menuitem").map((item) => item.textContent),
+		).toEqual(["Settings", "Duplicate", "Delete"])
 	},
 })

@@ -220,6 +220,7 @@ conversation-message-turn--authored
 conversation-message-turn--cancelled-stoppable
 conversation-message-turn--companion-menu-off-gutter
 conversation-message-turn--companion-menu-on-gutter
+conversation-message-turn--companion-menu-unanswered
 conversation-message-turn--complete-not-stoppable
 conversation-message-turn--complete-stoppable
 conversation-message-turn--default
@@ -803,6 +804,8 @@ navigation-userchip--on-rail
 navigation-userchip--without-name
 navigation-userchip--without-picture
 overlays-companionmenu--default
+overlays-companionmenu--pinned
+overlays-companionmenu--without-branches
 overlays-confirmdialog--cancelled
 overlays-confirmdialog--confirmed
 overlays-confirmdialog--confirming

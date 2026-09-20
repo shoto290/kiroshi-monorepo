@@ -172,5 +172,4 @@ export {
 	CompanionMenuProvider,
 	type CompanionMenuProviderProps,
 	type CompanionMenuSubject,
-	useCompanionMenu,
 }

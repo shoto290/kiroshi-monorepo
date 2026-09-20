@@ -429,7 +429,7 @@ export const CompanionMenuOffPill = meta.story({
 		docs: {
 			description: {
 				story:
-					"The same mention with no provider above it, which is every transcript that has not been handed companion menus. Check that a right-click on the chip opens nothing and leaves the browser its own menu, and that the chip draws exactly the markup the other stories draw.",
+					"The same mention with no provider above it, which is every transcript that has not been handed companion menus. Check that a right-click on the chip opens nothing and leaves the browser its own menu.",
 			},
 		},
 	},

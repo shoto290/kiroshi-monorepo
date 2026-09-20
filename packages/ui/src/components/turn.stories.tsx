@@ -1568,6 +1568,8 @@ const deleteCompanion = fn()
 
 const COMPANION_MENU_LABEL = `Actions for ${BOT.name}`
 
+const HOSTLESS_GUTTER_PLACEMENT = { gridColumnStart: "1", gridRowStart: "2" }
+
 const companionMenuFor = (companionId: string) =>
 	companionId === BOT.id ? (
 		<CompanionMenuContent
@@ -1581,33 +1583,39 @@ const companionMenuFor = (companionId: string) =>
 		/>
 	) : null
 
-const GutterTurn = () => (
+const GutterTurn = ({ identity }: { identity: RosterBot }) => (
 	<div className="mx-auto max-w-2xl">
-		<AssistantTurn copyText={ANSWER} identity={BOT} onReply={reply}>
+		<AssistantTurn copyText={ANSWER} identity={identity} onReply={reply}>
 			{ANSWER}
 		</AssistantTurn>
 	</div>
 )
+
+const gutterPlacement = (gutter: HTMLElement) => {
+	const { gridColumnStart, gridRowStart } = getComputedStyle(gutter)
+	return { gridColumnStart, gridRowStart }
+}
 
 export const CompanionMenuOnGutter = meta.story({
 	parameters: {
 		docs: {
 			description: {
 				story:
-					"The avatar in the gutter, hosting the companion menu a provider hands it — the same menu the roster row opens, on the face the transcript already draws. Check that a right-click on the avatar opens it and that the bubble beside it keeps its own message menu shut, that the gutter stays hidden from screen readers since nothing focusable was added to it, and that no hover or left-click does anything the avatar did not do before. Pick `CompanionMenuOffGutter` for the transcript as it renders with no provider around it. " +
+					"The avatar in the gutter, hosting the companion menu a provider hands it — the same menu the roster row opens, on the face the transcript already draws. The gutter is the first column of the row and the bubble is the second, so the avatar sits beside the bubble rather than inside it and the two menus never share a trigger. Check that a right-click on the avatar opens the companion menu, that the avatar keeps the very column and row it holds with no provider, that the gutter stays hidden from screen readers since nothing focusable was added to it, and that no hover or left-click does anything the avatar did not do before. Pick `CompanionMenuOffGutter` for the transcript as it renders with no provider around it, and `CompanionMenuUnanswered` for a provider that knows nothing about this companion. " +
 					RENDERED_BY_THE_THREAD,
 			},
 		},
 	},
 	render: () => (
 		<CompanionMenuProvider menuFor={companionMenuFor}>
-			<GutterTurn />
+			<GutterTurn identity={BOT} />
 		</CompanionMenuProvider>
 	),
 	play: async ({ canvasElement }) => {
 		const gutter = slotIn(canvasElement, "message-gutter")
 
 		await expect(gutter).toHaveAttribute("aria-hidden", "true")
+		await expect(gutterPlacement(gutter)).toEqual(HOSTLESS_GUTTER_PLACEMENT)
 
 		await rightClickOn(gutter)
 		await shown(await screen.findByRole("menu", { name: COMPANION_MENU_LABEL }))
@@ -1622,11 +1630,36 @@ export const CompanionMenuOffGutter = meta.story({
 		docs: {
 			description: {
 				story:
-					"The same row with no provider above it, which is every transcript that has not been handed companion menus. Check that a right-click on the avatar opens nothing and leaves the browser its own menu, and that the gutter draws exactly the markup `CompanionMenuOnGutter` draws around the avatar.",
+					"The same row with no provider above it, which is every transcript that has not been handed companion menus. Check that a right-click on the avatar opens nothing and leaves the browser its own menu.",
 			},
 		},
 	},
-	render: () => <GutterTurn />,
+	render: () => <GutterTurn identity={BOT} />,
+	play: async ({ canvasElement }) => {
+		const gutter = slotIn(canvasElement, "message-gutter")
+		const { defaulted } = await rightClickOn(gutter)
+
+		await expect(gutterPlacement(gutter)).toEqual(HOSTLESS_GUTTER_PLACEMENT)
+		await expect(defaulted).toBe(true)
+		await expect(screen.queryByRole("menu")).toBeNull()
+	},
+})
+
+export const CompanionMenuUnanswered = meta.story({
+	tags: ["test-only"],
+	parameters: {
+		docs: {
+			description: {
+				story:
+					"A provider mounted over a companion it holds no menu for — a transcript where one seat was taken by a companion the screen has not published actions for yet. Check that the avatar behaves as if no provider were there at all: the right-click opens nothing and the browser keeps its own menu. `CompanionMenuOffGutter` is the same absence reached the other way, with no provider mounted.",
+			},
+		},
+	},
+	render: () => (
+		<CompanionMenuProvider menuFor={companionMenuFor}>
+			<GutterTurn identity={SECOND} />
+		</CompanionMenuProvider>
+	),
 	play: async ({ canvasElement }) => {
 		const gutter = slotIn(canvasElement, "message-gutter")
 		const { defaulted } = await rightClickOn(gutter)
