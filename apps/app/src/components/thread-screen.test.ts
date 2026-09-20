@@ -1162,7 +1162,9 @@ describe("ThreadScreen", () => {
 		render(screenOf(threadOf({ id: "bot-1", name: "Nyx", said: "held" })))
 		await settle()
 
-		expect(within(missionCard()).getByText("Working")).toBeTruthy()
+		expect(
+			missionCard().querySelector('[data-slot="mission-state-pill"]'),
+		).toBeNull()
 
 		listMissions.mockResolvedValue({
 			open: [{ ...SOLO_MISSION, state: "waiting_human" }],
@@ -1175,7 +1177,7 @@ describe("ThreadScreen", () => {
 		})
 		await settle()
 
-		expect(within(missionCard()).getByText("Waiting for you")).toBeTruthy()
+		expect(within(missionCard()).getByText("Blocked on you")).toBeTruthy()
 	})
 
 	it("keeps a closed mission in the transcript with the state it ended on", async () => {
@@ -1185,7 +1187,7 @@ describe("ThreadScreen", () => {
 
 		const card = missionCard().querySelector('[data-slot="mission-card"]')
 		expect(card?.getAttribute("data-closed")).toBe("true")
-		expect(within(missionCard()).getByText("Done")).toBeTruthy()
+		expect(within(missionCard()).getByText("Completed")).toBeTruthy()
 	})
 
 	it("dates the missions of the Activity panel by the roster clock", async () => {

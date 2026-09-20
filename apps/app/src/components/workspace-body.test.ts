@@ -357,7 +357,7 @@ describe("WorkspaceBody missions", () => {
 
 		expect(readMission).toHaveBeenCalledWith("m-1")
 		expect(missionHeader()?.textContent).toContain("OPE-42")
-		expect(missionHeader()?.textContent).toContain("Waiting for you")
+		expect(missionHeader()?.textContent).toContain("Blocked on you")
 	})
 
 	it("sends what the composer holds to the owning companion", async () => {
