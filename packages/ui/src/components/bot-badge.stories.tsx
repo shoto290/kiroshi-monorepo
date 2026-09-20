@@ -49,6 +49,8 @@ const LONG_TICKET: BotMissionTicket = {
 
 const dotsIn = (root: HTMLElement) => slotsIn(root, "bot-badge-dot")
 
+const trailingOf = (strip: HTMLElement) => strip.lastElementChild as HTMLElement
+
 const boxOf = (element: HTMLElement) => element.getBoundingClientRect()
 
 const centerOf = (element: HTMLElement) =>
@@ -227,10 +229,11 @@ export const BotTitles = meta.story({
 export const MissionStates = meta.story({
 	tags: ["test-only"],
 	render: () => (
-		<div className="flex flex-col items-start gap-2">
+		<div className="flex w-80 flex-col items-stretch gap-2">
 			{BOT_MISSION_STATES.map((state) => (
 				<BotMissionStrip key={state} state={state} ticket={TICKET} />
 			))}
+			<BotMissionStrip isLive state="working" ticket={TICKET} />
 		</div>
 	),
 	parameters: {
@@ -238,7 +241,7 @@ export const MissionStates = meta.story({
 		docs: {
 			description: {
 				story:
-					"The four states a mission is read in, each on the same ticket. The tint is never the only carrier: every strip also names its state in a screen-reader-only span, so the four rows stay distinguishable without colour. Check the dot, the platform mark and the ticket id keep their column across the four.",
+					"The four states a mission is read in, each on the same ticket, and the working state twice: quiet on the fourth strip, live on the fifth. The dot closes the strip at its trailing edge and is drawn only when the mission asks for a reader or runs right now, so a mission nobody is waiting on shows none. The tint is never the only carrier: every strip names its state in a screen-reader-only span whether or not a dot is drawn, so the five rows stay distinguishable without colour. Check the quiet strip still holds the width of the dot at its end, so the title lane is the same on all five.",
 			},
 		},
 	},
@@ -247,14 +250,28 @@ export const MissionStates = meta.story({
 
 		await expect(strips.map((strip) => strip.dataset.state)).toEqual([
 			...BOT_MISSION_STATES,
+			"working",
 		])
+		await expect(strips.map((strip) => trailingOf(strip).dataset.slot)).toEqual(
+			[
+				"bot-mission-dot",
+				"bot-mission-dot",
+				"bot-mission-dot",
+				"bot-mission-dot-placeholder",
+				"bot-mission-dot",
+			],
+		)
+		await expect(strips[3]).toHaveTextContent("working")
+		await expect(strips.map((strip) => boxOf(trailingOf(strip)).width)).toEqual(
+			strips.map(() => 6),
+		)
 	},
 })
 
 export const MissionLongContent = meta.story({
 	render: () => (
 		<div className="w-64">
-			<BotMissionStrip state="working" ticket={LONG_TICKET} />
+			<BotMissionStrip isLive state="working" ticket={LONG_TICKET} />
 		</div>
 	),
 	parameters: {
@@ -262,7 +279,7 @@ export const MissionLongContent = meta.story({
 		docs: {
 			description: {
 				story:
-					"A ticket title longer than the rail it sits in, the shape a real objective takes. Check the title truncates while the dot, the mark and the id keep their full width - those three are what identifies the mission, the title is what can be cut.",
+					"A ticket title longer than the rail it sits in, the shape a real objective takes, on a mission that is running right now. Check the title truncates while the mark and the id keep their full width and the live dot keeps its place at the trailing edge - those three are what identifies the mission and says it is running, the title is what can be cut.",
 			},
 		},
 	},

@@ -192,11 +192,20 @@ const missionOf = (
 	ticket: MISSION_TICKETS[index],
 })
 
+const LIVENESS_TICKET: BotMissionTicket = {
+	platform: "linear",
+	externalId: "OPE-305",
+	title: "Light the mission dot only while the mission is live",
+}
+
 const MISSION_STATE_ROSTER: AppSidebarBot[] = [
 	{ ...ROSTER[0], missions: [missionOf("waiting", 0)] },
 	{ ...ROSTER[1], missions: [missionOf("failed", 1)] },
 	{ ...ROSTER[4], missions: [missionOf("ready", 2)] },
-	{ ...ROSTER[5], missions: [missionOf("working", 3)] },
+	{
+		...ROSTER[5],
+		missions: [{ ...missionOf("working", 3), isLive: true }],
+	},
 ]
 
 const stripsIn = (row: HTMLElement) =>
@@ -208,6 +217,8 @@ const stripStatesIn = (row: HTMLElement) =>
 	stripsIn(row).map((strip) => strip.dataset.state)
 
 const dotIn = (row: HTMLElement) => slotIn(row, "bot-mission-dot")
+
+const dotsIn = (root: HTMLElement) => slotsIn(root, "bot-mission-dot")
 
 const BARE_ROW_HEIGHT = 52
 
@@ -1304,7 +1315,7 @@ export const MissionStripStates = meta.story({
 		docs: {
 			description: {
 				story:
-					"Four companions each carrying one open mission, one per state a mission can be in. The mission speaks in a strip under the row and never in the dot on the preview line: the strip is the state of the work, the dot is the state of the conversation, and the two shapes are never confused. Check each strip runs the full width of the row, from the leading edge of the avatar to the trailing inner edge, so it passes under the avatar rather than starting after it. Check the strip opens on its state dot in the attention, failed and done colours the panel already uses and the muted grey of a resting row while the mission simply runs, then the platform mark, the identifier, the title. Check the strip never moves: it is the one mark in the row that does not pulse, because a mission is a fact and not an alarm. The title and the mark carry `--muted-foreground`, which reaches 3.9:1 on the strip fill instead of the 4.5:1 AA asks for: the pair is the artboard’s and the fix is a lightness step on the token, which every muted line in the panel would take with it, so it is flagged for review here rather than settled inside this strip. Check every row measures 80px, the head staying 40px with the avatar centred on it rather than on the row plus the strip, and that the four chat signals are exactly what the host passed. Pick `MissionStripStack` for a row carrying four, `MissionStripSelected` for the strip under a lit row.",
+					"Four companions each carrying one open mission, one per state a mission can be in, the running one live. The mission speaks in a strip under the row and never in the dot on the preview line: the strip is the state of the work, the dot is the state of the conversation, and the two shapes are never confused. Check each strip runs the full width of the row, from the leading edge of the avatar to the trailing inner edge, so it passes under the avatar rather than starting after it. Check the strip opens on the platform mark, then the identifier and the title, and closes on its state dot at the trailing edge, in the attention, failed and done colours the panel already uses and the muted grey of a mission running right now. Check the strip never moves: it is the one mark in the row that does not pulse, because a mission is a fact and not an alarm. The title and the mark carry `--muted-foreground`, which reaches 3.9:1 on the strip fill instead of the 4.5:1 AA asks for: the pair is the artboard’s and the fix is a lightness step on the token, which every muted line in the panel would take with it, so it is flagged for review here rather than settled inside this strip. Check every row measures 80px, the head staying 40px with the avatar centred on it rather than on the row plus the strip, and that the four chat signals are exactly what the host passed. Pick `MissionStripQuiet` for the running mission nobody is watching, `MissionStripStack` for a row carrying four, `MissionStripSelected` for the strip under a lit row.",
 			},
 		},
 	},
@@ -1321,6 +1332,11 @@ export const MissionStripStates = meta.story({
 			"waiting for youOPE-71Roster row shows the mission ticket",
 		)
 		await expect(stripsIn(rows[3])[0]).toHaveTextContent("working")
+
+		for (const row of rows) {
+			const strip = stripsIn(row)[0]
+			await expect(strip.lastElementChild).toBe(dotIn(strip))
+		}
 
 		const dotColours = rows.map(
 			(row) => getComputedStyle(dotIn(row)).backgroundColor,
@@ -1350,6 +1366,49 @@ export const MissionStripStates = meta.story({
 			"09:24",
 		)
 		await expectAlignedRows(rows)
+	},
+})
+
+export const MissionStripQuiet = meta.story({
+	tags: ["test-only"],
+	args: {
+		botsBySpaceId: inHome([
+			{
+				...ROSTER[0],
+				missions: [
+					{
+						id: "m-live",
+						state: "working" as const,
+						ticket: LIVENESS_TICKET,
+						isLive: true,
+					},
+					{ id: "m-quiet", state: "working" as const, ticket: LIVENESS_TICKET },
+				],
+			},
+		]),
+		selectedBotId: "atlas",
+	},
+	parameters: {
+		a11y: A11Y_CONTRAST_AWAITING_DESIGN_DECISION,
+		docs: {
+			description: {
+				story:
+					"One companion carrying the same running mission twice: live on the first strip, quiet on the second. A mission is working from the moment it opens, so a dot lit on every one of them would say nothing; the dot is drawn only while the mission is live, and its presence is the signal. Check the quiet strip draws no dot node at all while the live one closes on its grey dot, that both still name the state in their screen-reader span, and that the title stops at the same place on both, because the strip holds the width of the dot whether or not one is drawn. Pick `MissionStripStates` for the colours a mission waiting on a reader takes.",
+			},
+		},
+	},
+	play: async ({ canvasElement }) => {
+		const row = rowsIn(canvasElement)[0]
+		const [live, quiet] = stripsIn(row)
+
+		await expect(dotsIn(live)).toHaveLength(1)
+		await expect(dotsIn(quiet)).toHaveLength(0)
+		await expect(live).toHaveTextContent("working")
+		await expect(quiet).toHaveTextContent("working")
+		await expect(
+			uniqueCount(endOffsets([live, quiet], "bot-mission-ticket-title")),
+		).toBe(1)
+		await expect(rowHeights([live, quiet])).toEqual([24, 24])
 	},
 })
 
@@ -1406,7 +1465,7 @@ export const MissionStripStack = meta.story({
 		docs: {
 			description: {
 				story:
-					"One companion running four missions at once. Check the row measures 164px and that the strips render in the order the host passed them, most urgent first: the roster never reorders them, it draws the list it is given. Check every gap in the stack is the same 4px, above the first strip as between the others, so four missions read as one block rather than as four decisions. Check each strip keeps its own state dot and its own ticket. Pick `MissionStripSingle` for the arithmetic on one strip.",
+					"One companion running four missions at once. Check the row measures 164px and that the strips render in the order the host passed them, most urgent first: the roster never reorders them, it draws the list it is given. Check every gap in the stack is the same 4px, above the first strip as between the others, so four missions read as one block rather than as four decisions. Check each strip keeps its own ticket, and that the dot is drawn on the three missions that carry news while the one that is simply running draws none, yet every title in the stack stops on the same lane. Pick `MissionStripSingle` for the arithmetic on one strip.",
 			},
 		},
 	},
@@ -1425,6 +1484,11 @@ export const MissionStripStack = meta.story({
 		await expect(uniqueCount(gapsBetween(strips))).toBe(1)
 		await expect(gapsBetween(strips)[0]).toBe(4)
 		await expect(gapsBetween([rowHead(row), strips[0]])).toEqual([4])
+		await expect(dotsIn(row)).toHaveLength(3)
+		await expect(dotsIn(strips[3])).toHaveLength(0)
+		await expect(
+			uniqueCount(endOffsets(strips, "bot-mission-ticket-title")),
+		).toBe(1)
 		await expectStripSpansRow(row)
 	},
 })
@@ -1634,7 +1698,7 @@ export const MissionStripUntrackedTicket = meta.story({
 		docs: {
 			description: {
 				story:
-					"A mission opened on no tracker at all, over one opened on a ticket. A companion can open a mission without a ticket, and the three strings it would have filled arrive empty: the strip would then be a band holding a dot, a bookmark and not one word, which says less than an empty row. Check the first strip reads its mission objective in the lane the title holds, and the second reads its ticket title and never its objective, since a ticket the companion bothered to name is the handle the reader shares. Check the fallback changes nothing else: the state dot, the bookmark the unnamed platform falls back to and the clipping all behave as they do on a tracked mission. Pick `MissionStripUnnamedPlatform` for a ticket that has an identifier the table cannot mark, `MissionStripTruncatedTitle` for the lane running out of room.",
+					"A mission opened on no tracker at all, over one opened on a ticket. A companion can open a mission without a ticket, and the three strings it would have filled arrive empty: the strip would then be a band holding a bookmark and not one word, which says less than an empty row. Check the first strip reads its mission objective in the lane the title holds, and the second reads its ticket title and never its objective, since a ticket the companion bothered to name is the handle the reader shares. Check the fallback changes nothing else: the bookmark the unnamed platform falls back to and the clipping behave as they do on a tracked mission, and the untracked mission draws no dot because it is running with nobody waiting on it, while the ticketed one waiting on the reader does. Pick `MissionStripUnnamedPlatform` for a ticket that has an identifier the table cannot mark, `MissionStripTruncatedTitle` for the lane running out of room.",
 			},
 		},
 	},
@@ -1649,7 +1713,8 @@ export const MissionStripUntrackedTicket = meta.story({
 			"Roster row shows the mission ticket",
 		)
 		await expect(tracked.textContent).not.toContain("Never shown")
-		await expect(dotIn(untracked)).toBeVisible()
+		await expect(dotsIn(untracked)).toHaveLength(0)
+		await expect(dotIn(tracked)).toBeVisible()
 		await expect(slotIn(untracked, "bot-mission-mark")).toBeVisible()
 		await expect(rowHeights(stripsIn(untracked))).toEqual([24])
 		await expect(rowHeights([untracked, tracked])).toEqual([

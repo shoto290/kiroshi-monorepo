@@ -68,7 +68,9 @@ type BotMissionState = (typeof BOT_MISSION_STATES)[number]
 const BOT_MISSION_STRIP =
 	"flex h-6 items-center gap-1.5 rounded-sm bg-foreground/10 px-2 py-1 text-xs"
 
-const botMissionDotVariants = cva("size-1.5 shrink-0 rounded-full", {
+const BOT_MISSION_DOT_SLOT = "size-1.5 shrink-0"
+
+const botMissionDotVariants = cva(`${BOT_MISSION_DOT_SLOT} rounded-full`, {
 	variants: {
 		state: {
 			waiting: "bg-bot-badge-attention",
@@ -89,12 +91,14 @@ type BotMissionStripProps = Omit<ComponentPropsWithRef<"span">, "children"> & {
 	state: BotMissionState
 	ticket: BotMissionTicket
 	objective?: string
+	isLive?: boolean
 }
 
 const BotMissionStrip = ({
 	state,
 	ticket,
 	objective,
+	isLive = false,
 	className,
 	...props
 }: BotMissionStripProps) => {
@@ -108,11 +112,6 @@ const BotMissionStrip = ({
 			data-state={state}
 			{...props}
 		>
-			<span
-				aria-hidden="true"
-				className={botMissionDotVariants({ state })}
-				data-slot="bot-mission-dot"
-			/>
 			<span className="sr-only">{t(`roster.mission.state.${state}`)}</span>
 			<Mark
 				aria-hidden="true"
@@ -125,11 +124,24 @@ const BotMissionStrip = ({
 				</span>
 			) : null}
 			<span
-				className="min-w-0 truncate text-muted-foreground"
+				className="min-w-0 grow truncate text-muted-foreground"
 				data-slot="bot-mission-ticket-title"
 			>
 				{ticket.title || objective}
 			</span>
+			{state === "working" && !isLive ? (
+				<span
+					aria-hidden="true"
+					className={BOT_MISSION_DOT_SLOT}
+					data-slot="bot-mission-dot-placeholder"
+				/>
+			) : (
+				<span
+					aria-hidden="true"
+					className={botMissionDotVariants({ state })}
+					data-slot="bot-mission-dot"
+				/>
+			)}
 		</span>
 	)
 }
