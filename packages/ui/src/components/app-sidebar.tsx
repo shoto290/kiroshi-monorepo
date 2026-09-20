@@ -39,29 +39,28 @@ import {
 	BotIdentityAvatar,
 } from "@workspace/ui/components/bot-identity-avatar"
 import { BOT_IDENTITY_ANIMALS } from "@workspace/ui/components/bot-settings"
+import { CompanionMenuContent } from "@workspace/ui/components/companion-menu"
 import { ContextMenuPressTrigger } from "@workspace/ui/components/context-menu-press-trigger"
 import { Icons } from "@workspace/ui/components/icons"
+import {
+	PinGroup,
+	type RosterPinActions,
+	SectionBranch,
+} from "@workspace/ui/components/roster-menu-items"
 import { SidebarListRow } from "@workspace/ui/components/sidebar-list-row"
 import { SidebarResizeHandle } from "@workspace/ui/components/sidebar-resize"
 import { SidebarSearchField } from "@workspace/ui/components/sidebar-search-field"
 import { type Space, spaceAtRank } from "@workspace/ui/components/space"
 import {
-	SpaceDot,
 	SpaceDots,
 	SpaceSwitcher,
 } from "@workspace/ui/components/space-switcher"
 import { TooltipButton } from "@workspace/ui/components/tooltip-button"
 import {
 	ContextMenu,
-	ContextMenuCheckboxItem,
 	ContextMenuContent,
 	ContextMenuItem,
-	ContextMenuRadioGroup,
-	ContextMenuRadioItem,
 	ContextMenuSeparator,
-	ContextMenuSub,
-	ContextMenuSubContent,
-	ContextMenuSubTrigger,
 	ContextMenuTrigger,
 } from "@workspace/ui/components/ui/context-menu"
 import {
@@ -107,12 +106,6 @@ const ROW_AVATAR_SIZE = 40
 const ROW_ITEM =
 	"flex flex-col gap-1 group-data-[collapsible=icon]:items-center"
 
-const DESTINATION_NAME = "min-w-0 truncate"
-
-const BRANCH_ROW = "gap-2"
-
-const NAMED_PANEL = `max-w-64 ${STILL_UNDER_REDUCED_MOTION}`
-
 const rowButtonOf = (row: HTMLElement | null) =>
 	row?.querySelector<HTMLElement>('[data-slot="sidebar-menu-button"]') ?? null
 
@@ -122,9 +115,6 @@ const sidebarRegionOf = (row: HTMLElement | null) => {
 	region.tabIndex = -1
 	return region
 }
-
-const LAST_SPACE_NOTE =
-	"px-2.5 pt-0.5 pb-1.5 text-[11px] text-muted-foreground leading-[15px]"
 
 const FOOTER_INSET = "group-data-[collapsible=icon]:px-0"
 
@@ -258,8 +248,6 @@ const NO_CONVERSATIONS: AppSidebarConversation[] = []
 const NO_SECTIONS: AppSidebarSection[] = []
 
 const NO_COLLAPSED_SECTIONS: string[] = []
-
-const NO_SECTION = "__none__"
 
 interface AppSidebarSection {
 	id: string
@@ -412,73 +400,6 @@ interface SectionActions {
 	onPinRoster?: (spaceId: string, pins: RosterPin[]) => void
 }
 
-interface SectionBranchProps {
-	id: string
-	sectionId?: string | null
-	sections: AppSidebarSection[]
-	onMoveToSection?: (id: string, sectionId: string | null) => void
-	onCreateSectionFor?: (id: string) => void
-}
-
-const SectionBranch = ({
-	id,
-	sectionId,
-	sections,
-	onMoveToSection,
-	onCreateSectionFor,
-}: SectionBranchProps) => {
-	const { t } = useTranslation("bots")
-
-	if (!onMoveToSection && !onCreateSectionFor) return null
-
-	return (
-		<ContextMenuSub>
-			<ContextMenuSubTrigger className={BRANCH_ROW}>
-				<Icons.Folder aria-hidden="true" className="size-3.5" />
-				{t("roster.section.moveTo")}
-			</ContextMenuSubTrigger>
-			<ContextMenuSubContent className={NAMED_PANEL}>
-				<ContextMenuRadioGroup
-					onValueChange={(value) =>
-						onMoveToSection?.(id, value === NO_SECTION ? null : value)
-					}
-					value={sectionId ?? NO_SECTION}
-				>
-					<ContextMenuRadioItem
-						closeOnClick
-						label={t("roster.section.none")}
-						value={NO_SECTION}
-					>
-						<span className={DESTINATION_NAME}>{t("roster.section.none")}</span>
-					</ContextMenuRadioItem>
-					{sections.map((section) => (
-						<ContextMenuRadioItem
-							closeOnClick
-							key={section.id}
-							label={section.name}
-							value={section.id}
-						>
-							<span className={DESTINATION_NAME}>{section.name}</span>
-						</ContextMenuRadioItem>
-					))}
-				</ContextMenuRadioGroup>
-				{onCreateSectionFor ? (
-					<>
-						<ContextMenuSeparator />
-						<ContextMenuItem
-							label={t("roster.section.create")}
-							onClick={() => onCreateSectionFor(id)}
-						>
-							<Icons.Add aria-hidden="true" className="size-3.5" />
-							{t("roster.section.create")}
-						</ContextMenuItem>
-					</>
-				) : null}
-			</ContextMenuSubContent>
-		</ContextMenuSub>
-	)
-}
-
 interface BotMembershipQuery {
 	botId: string
 	botsBySpaceId?: Record<string, AppSidebarBot[]>
@@ -492,83 +413,6 @@ const spaceIdsOfBot = ({
 	return Object.entries(botsBySpaceId)
 		.filter(([, held]) => held.some((bot) => bot.id === botId))
 		.map(([spaceId]) => spaceId)
-}
-
-interface SpacesBranchProps {
-	botId: string
-	spaces: Space[]
-	memberships: string[]
-	openSpaceId?: string
-	onAddToSpace?: (botId: string, spaceId: string) => void
-	onRemoveFromSpace?: (botId: string, spaceId: string) => void
-}
-
-const SpacesBranch = ({
-	botId,
-	spaces,
-	memberships,
-	openSpaceId,
-	onAddToSpace,
-	onRemoveFromSpace,
-}: SpacesBranchProps) => {
-	const { t } = useTranslation("bots")
-	const reasonId = useId()
-
-	const hasHost = Boolean(onAddToSpace || onRemoveFromSpace)
-
-	if (!hasHost || spaces.length === 0 || memberships.length === 0) return null
-
-	const isHeldByOneSpace = memberships.length === 1
-	const reason = t("roster.spaces.lastSpace")
-
-	return (
-		<ContextMenuSub>
-			{isHeldByOneSpace ? (
-				<span className="sr-only" id={reasonId}>
-					{reason}
-				</span>
-			) : null}
-			<ContextMenuSubTrigger
-				aria-describedby={isHeldByOneSpace ? reasonId : undefined}
-				className={BRANCH_ROW}
-			>
-				<Icons.Spaces aria-hidden="true" className="size-3.5" />
-				{t("roster.spaces.label")}
-			</ContextMenuSubTrigger>
-			<ContextMenuSubContent className={NAMED_PANEL}>
-				{spaces.map((space) => {
-					const isMember = memberships.includes(space.id)
-					const isLocked = isMember && isHeldByOneSpace
-					return (
-						<ContextMenuCheckboxItem
-							aria-describedby={isLocked ? reasonId : undefined}
-							checked={isMember}
-							closeOnClick={isMember && space.id === openSpaceId}
-							disabled={isLocked}
-							key={space.id}
-							label={space.name}
-							onCheckedChange={(checked) =>
-								checked
-									? onAddToSpace?.(botId, space.id)
-									: onRemoveFromSpace?.(botId, space.id)
-							}
-						>
-							<SpaceDot colour={space.colour} />
-							<span className={DESTINATION_NAME}>{space.name}</span>
-						</ContextMenuCheckboxItem>
-					)
-				})}
-				{isHeldByOneSpace ? (
-					<>
-						<ContextMenuSeparator />
-						<p aria-hidden="true" className={LAST_SPACE_NOTE}>
-							{reason}
-						</p>
-					</>
-				) : null}
-			</ContextMenuSubContent>
-		</ContextMenuSub>
-	)
 }
 
 const useRosterBadgePlacement = (badge?: BotBadge) => {
@@ -625,38 +469,10 @@ const RosterZoneSeparator = () => (
 	/>
 )
 
-interface PinGroupProps extends RosterPinActions {
-	id: string
-	isPinned: boolean
-}
-
-const PinGroup = ({ id, isPinned, onPin, onUnpin }: PinGroupProps) => {
-	const { t } = useTranslation("bots")
-
-	const toggle = isPinned ? onUnpin : onPin
-	if (!toggle) return null
-
-	const PinIcon = isPinned ? Icons.Unpin : Icons.Pin
-	return (
-		<>
-			<ContextMenuItem onClick={() => toggle(id)}>
-				<PinIcon aria-hidden="true" className="size-3.5" />
-				{t(isPinned ? "roster.unpin" : "roster.pin")}
-			</ContextMenuItem>
-			<ContextMenuSeparator />
-		</>
-	)
-}
-
 interface RosterRowSlot {
 	insertion?: InsertionEdge
 	isPinned: boolean
 	slotRef?: (node: HTMLElement | null) => void
-}
-
-interface RosterPinActions {
-	onPin?: (id: string) => void
-	onUnpin?: (id: string) => void
 }
 
 interface BotRosterRowProps extends RosterRowSlot, RosterPinActions {
@@ -748,50 +564,24 @@ const BotRosterRow = ({
 						}
 					/>
 				</ContextMenuTrigger>
-				<ContextMenuContent
-					aria-label={t("roster.actions", { name: bot.name })}
-					className={STILL_UNDER_REDUCED_MOTION}
+				<CompanionMenuContent
+					companion={bot}
 					finalFocus={keepFocusAfterClose}
-				>
-					<PinGroup
-						id={bot.id}
-						isPinned={isPinned}
-						onPin={onPin}
-						onUnpin={onUnpin}
-					/>
-					<ContextMenuItem onClick={() => onEdit?.(bot.id)}>
-						<Icons.Settings aria-hidden="true" className="size-3.5" />
-						{t("roster.settings")}
-					</ContextMenuItem>
-					<ContextMenuSeparator />
-					<ContextMenuItem onClick={() => onDuplicate?.(bot.id)}>
-						<Icons.Copy aria-hidden="true" className="size-3.5" />
-						{t("roster.duplicate")}
-					</ContextMenuItem>
-					<SectionBranch
-						id={bot.id}
-						onCreateSectionFor={onCreateSectionFor}
-						onMoveToSection={onMoveToSection}
-						sectionId={bot.sectionId}
-						sections={sections}
-					/>
-					<SpacesBranch
-						botId={bot.id}
-						memberships={memberships}
-						onAddToSpace={onAddToSpace}
-						onRemoveFromSpace={leaveSpace}
-						openSpaceId={openSpaceId}
-						spaces={spaces}
-					/>
-					<ContextMenuSeparator />
-					<ContextMenuItem
-						onClick={() => onDelete?.(bot.id)}
-						variant="destructive"
-					>
-						<Icons.Delete aria-hidden="true" className="size-3.5" />
-						{t("roster.delete")}
-					</ContextMenuItem>
-				</ContextMenuContent>
+					isPinned={isPinned}
+					memberships={memberships}
+					onAddToSpace={onAddToSpace}
+					onCreateSectionFor={onCreateSectionFor}
+					onDelete={onDelete}
+					onDuplicate={onDuplicate}
+					onEdit={onEdit}
+					onMoveToSection={onMoveToSection}
+					onPin={onPin}
+					onRemoveFromSpace={leaveSpace}
+					onUnpin={onUnpin}
+					openSpaceId={openSpaceId}
+					sections={sections}
+					spaces={spaces}
+				/>
 			</ContextMenu>
 		</SidebarMenuItem>
 	)

@@ -15,6 +15,7 @@ import {
 	BotStopButton,
 	type BotStopProps,
 } from "@workspace/ui/components/bot-identity-avatar"
+import { CompanionMenuHost } from "@workspace/ui/components/companion-menu"
 import { type Icon, Icons } from "@workspace/ui/components/icons"
 import { useMarkId } from "@workspace/ui/components/mark-context"
 import {
@@ -480,15 +481,17 @@ function AssistantTurn(props: AssistantTurnProps) {
 						)}
 					/>
 				) : null}
-				<span
-					data-slot="message-gutter"
-					aria-hidden={stop ? undefined : "true"}
-					className="col-start-1 row-start-2 self-end"
-				>
-					{mark ? (
-						<SharedMark markId={markId}>{stop ?? mark}</SharedMark>
-					) : null}
-				</span>
+				<CompanionMenuHost companionId={gutterBot?.id}>
+					<span
+						data-slot="message-gutter"
+						aria-hidden={stop ? undefined : "true"}
+						className="col-start-1 row-start-2 self-end"
+					>
+						{mark ? (
+							<SharedMark markId={markId}>{stop ?? mark}</SharedMark>
+						) : null}
+					</span>
+				</CompanionMenuHost>
 				<MessageBubble
 					variant={bare ? "bare" : "soft"}
 					className={cn(

@@ -3,6 +3,7 @@
 import { useTranslation } from "react-i18next"
 
 import { BotIdentityAvatar } from "@workspace/ui/components/bot-identity-avatar"
+import { CompanionMenuHost } from "@workspace/ui/components/companion-menu"
 import { Icons } from "@workspace/ui/components/icons"
 import { useRosterBot } from "@workspace/ui/components/roster"
 import { cn } from "@workspace/ui/lib/utils"
@@ -35,43 +36,45 @@ const Mention = ({ botId, count = 1, className }: MentionProps) => {
 	const isCounted = count > 1
 
 	return (
-		<span
-			className={cn(MENTION_CLASS, !bot && UNKNOWN_CLASS, className)}
-			data-slot="bot-mention"
-			data-unknown={bot ? undefined : "true"}
-		>
-			{bot ? (
-				<span aria-hidden="true" className="contents">
-					<BotIdentityAvatar
-						animal={bot.animal}
-						blot={bot.blot}
-						image={bot.image}
-						name={bot.name}
-						seed={bot.id}
-						size={MENTION_AVATAR_SIZE}
-					/>
+		<CompanionMenuHost companionId={bot?.id}>
+			<span
+				className={cn(MENTION_CLASS, !bot && UNKNOWN_CLASS, className)}
+				data-slot="bot-mention"
+				data-unknown={bot ? undefined : "true"}
+			>
+				{bot ? (
+					<span aria-hidden="true" className="contents">
+						<BotIdentityAvatar
+							animal={bot.animal}
+							blot={bot.blot}
+							image={bot.image}
+							name={bot.name}
+							seed={bot.id}
+							size={MENTION_AVATAR_SIZE}
+						/>
+					</span>
+				) : (
+					<Icons.User aria-hidden="true" className="size-3 shrink-0" />
+				)}
+				<span className={NAME_CLASS} data-slot="bot-mention-name">
+					{name}
 				</span>
-			) : (
-				<Icons.User aria-hidden="true" className="size-3 shrink-0" />
-			)}
-			<span className={NAME_CLASS} data-slot="bot-mention-name">
-				{name}
+				{isCounted ? (
+					<>
+						<span
+							aria-hidden="true"
+							className={cn(COUNT_CLASS, bot && DIM_CLASS)}
+							data-slot="bot-mention-count"
+						>
+							{`${COUNT_GLYPH}${count}`}
+						</span>
+						<span className="sr-only">
+							{t("transcript.mention.counted", { count })}
+						</span>
+					</>
+				) : null}
 			</span>
-			{isCounted ? (
-				<>
-					<span
-						aria-hidden="true"
-						className={cn(COUNT_CLASS, bot && DIM_CLASS)}
-						data-slot="bot-mention-count"
-					>
-						{`${COUNT_GLYPH}${count}`}
-					</span>
-					<span className="sr-only">
-						{t("transcript.mention.counted", { count })}
-					</span>
-				</>
-			) : null}
-		</span>
+		</CompanionMenuHost>
 	)
 }
 
