@@ -77,6 +77,67 @@ export function CodeLine({ content, tokens, className }: CodeLineProps) {
 	)
 }
 
+type CodeBlockHeaderProps = {
+	filename?: string
+	label: string
+	streaming: boolean
+	copyable: boolean
+	isCopied: boolean
+	onCopy: () => void
+}
+
+function CodeBlockHeader({
+	filename,
+	label,
+	streaming,
+	copyable,
+	isCopied,
+	onCopy,
+}: CodeBlockHeaderProps) {
+	const { t } = useTranslation("chat")
+
+	return (
+		<div className="flex h-10 items-center gap-2.5 border-b px-3">
+			<Icons.FileCode
+				aria-hidden="true"
+				className="size-3.5 shrink-0 text-muted-foreground"
+			/>
+			{filename ? (
+				<span className="min-w-0 truncate font-mono text-foreground text-xs">
+					{filename}
+				</span>
+			) : null}
+			<span className="shrink-0 font-medium text-[10px] text-muted-foreground uppercase tracking-wide">
+				{label}
+			</span>
+			<span
+				role="status"
+				className="ml-auto inline-flex shrink-0 items-center gap-1 font-medium text-[10px] text-muted-foreground"
+			>
+				{streaming ? (
+					<Icons.Loading
+						aria-hidden="true"
+						className="size-3 animate-spin motion-reduce:animate-none"
+					/>
+				) : (
+					<Icons.Check aria-hidden="true" className="size-3" />
+				)}
+				{streaming ? t("code.writing") : t("code.ready")}
+			</span>
+			{copyable ? (
+				<Button
+					variant="ghost"
+					size="icon-xs"
+					aria-label={t("code.copy")}
+					onClick={onCopy}
+				>
+					{isCopied ? <Icons.Check /> : <Icons.Copy />}
+				</Button>
+			) : null}
+		</div>
+	)
+}
+
 export function CodeBlock({
 	code,
 	language,
@@ -141,44 +202,14 @@ export function CodeBlock({
 				className,
 			)}
 		>
-			<div className="flex h-10 items-center gap-2.5 border-b px-3">
-				<Icons.FileCode
-					aria-hidden="true"
-					className="size-3.5 shrink-0 text-muted-foreground"
-				/>
-				{filename ? (
-					<span className="min-w-0 truncate font-mono text-foreground text-xs">
-						{filename}
-					</span>
-				) : null}
-				<span className="shrink-0 font-medium text-[10px] text-muted-foreground uppercase tracking-wide">
-					{label}
-				</span>
-				<span
-					role="status"
-					className="ml-auto inline-flex shrink-0 items-center gap-1 font-medium text-[10px] text-muted-foreground"
-				>
-					{streaming ? (
-						<Icons.Loading
-							aria-hidden="true"
-							className="size-3 animate-spin motion-reduce:animate-none"
-						/>
-					) : (
-						<Icons.Check aria-hidden="true" className="size-3" />
-					)}
-					{streaming ? t("code.writing") : t("code.ready")}
-				</span>
-				{copyable ? (
-					<Button
-						variant="ghost"
-						size="icon-xs"
-						aria-label={t("code.copy")}
-						onClick={handleCopy}
-					>
-						{copyOutcome === "copied" ? <Icons.Check /> : <Icons.Copy />}
-					</Button>
-				) : null}
-			</div>
+			<CodeBlockHeader
+				copyable={copyable}
+				filename={filename}
+				isCopied={copyOutcome === "copied"}
+				label={label}
+				onCopy={handleCopy}
+				streaming={streaming}
+			/>
 
 			<div
 				ref={viewportRef}
