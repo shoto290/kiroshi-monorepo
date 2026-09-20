@@ -23,10 +23,18 @@ const MISSION = aMission({
 
 const RUNNING_MISSION: Mission = { ...MISSION, isAgentRunning: true }
 
+const AFTER_THE_WINDOW = NOW + AGENT_LIVENESS_WINDOW_MS
+
 const liveIn = (runtimes: MissionSpeakingRuntimes, missions: Mission[]) =>
 	renderHook(({ now }) => useLiveMissions(runtimes, missions, now), {
 		initialProps: { now: NOW },
 	})
+
+const liveAt = (
+	runtimes: MissionSpeakingRuntimes,
+	missions: Mission[],
+	now: number,
+) => renderHook(() => useLiveMissions(runtimes, missions, now))
 
 afterEach(() => {
 	cleanup()
@@ -73,7 +81,7 @@ describe("useLiveMissions", () => {
 		const { runtimes } = createFakeThreadRuntimes()
 		const { result, rerender } = liveIn(runtimes, [RUNNING_MISSION])
 
-		rerender({ now: NOW + AGENT_LIVENESS_WINDOW_MS })
+		rerender({ now: AFTER_THE_WINDOW })
 
 		expect([...result.current]).toEqual([])
 	})
@@ -82,13 +90,7 @@ describe("useLiveMissions", () => {
 		const { runtimes } = createFakeThreadRuntimes()
 		liveIn(runtimes, [RUNNING_MISSION]).unmount()
 
-		const { result } = renderHook(() =>
-			useLiveMissions(
-				runtimes,
-				[RUNNING_MISSION],
-				NOW + AGENT_LIVENESS_WINDOW_MS,
-			),
-		)
+		const { result } = liveAt(runtimes, [RUNNING_MISSION], AFTER_THE_WINDOW)
 
 		expect([...result.current]).toEqual([])
 	})
@@ -97,13 +99,7 @@ describe("useLiveMissions", () => {
 		const { runtimes } = createFakeThreadRuntimes()
 		const first = liveIn(runtimes, [RUNNING_MISSION])
 
-		const second = renderHook(() =>
-			useLiveMissions(
-				runtimes,
-				[RUNNING_MISSION],
-				NOW + AGENT_LIVENESS_WINDOW_MS,
-			),
-		)
+		const second = liveAt(runtimes, [RUNNING_MISSION], AFTER_THE_WINDOW)
 
 		expect([...first.result.current]).toEqual(["m-1"])
 		expect([...second.result.current]).toEqual([])
@@ -114,13 +110,7 @@ describe("useLiveMissions", () => {
 		liveIn(runtimes, [RUNNING_MISSION]).unmount()
 		liveIn(runtimes, [MISSION]).unmount()
 
-		const { result } = renderHook(() =>
-			useLiveMissions(
-				runtimes,
-				[RUNNING_MISSION],
-				NOW + AGENT_LIVENESS_WINDOW_MS,
-			),
-		)
+		const { result } = liveAt(runtimes, [RUNNING_MISSION], AFTER_THE_WINDOW)
 
 		expect([...result.current]).toEqual(["m-1"])
 	})
