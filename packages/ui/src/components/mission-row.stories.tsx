@@ -4,10 +4,12 @@ import { expect, fn } from "storybook/test"
 import preview from "@workspace/storybook/preview"
 import {
 	A11Y_CONTRAST_AWAITING_DESIGN_DECISION,
+	listExhaustively,
 	slotIn,
 	slotsIn,
 } from "@workspace/storybook/story-utils"
 import { BotIdentityAvatar } from "@workspace/ui/components/bot-identity-avatar"
+import type { MissionState } from "@workspace/ui/components/mission"
 import { MissionRow } from "@workspace/ui/components/mission-row"
 import {
 	CLOSED_MISSION,
@@ -21,6 +23,30 @@ import {
 import { ROUTINES_PANEL_WIDTH } from "@workspace/ui/components/routines-panel"
 import { SidebarListRow } from "@workspace/ui/components/sidebar-list-row"
 import { Sidebar, SidebarProvider } from "@workspace/ui/components/ui/sidebar"
+
+const MISSION_STATES = listExhaustively<MissionState>({
+	working: true,
+	waiting_bot: true,
+	waiting_human: true,
+	ready_to_merge: true,
+	failed: true,
+	done: true,
+})
+
+const ACTIVITIES = [true, false]
+
+const WORKING_POSE = "Companion avatar owl, working"
+
+const RESTING_POSE = "Companion avatar owl, idle"
+
+const STATE_MATRIX = MISSION_STATES.flatMap((state) =>
+	ACTIVITIES.map((isWorking) => ({
+		...WORKING_MISSION,
+		id: `mission-${state}-${isWorking}`,
+		state,
+		isWorking,
+	})),
+)
 
 const LONG_OBJECTIVE =
 	"Rewrite the changelog parser so it reads every package of the workspace in one pass"
@@ -104,7 +130,7 @@ const meta = preview.meta({
 		docs: {
 			description: {
 				component:
-					"One mission of a conversation, as it reads in the activity panel. It is the `SidebarListRow` the left sidebar draws for a companion, fed mission data: the companion's blot as the leading media, the objective on the name line with the time at its end, the state as the row badge dot, and a preview line writing the platform mark, the ticket, the companion and the state word. Only the media differs from a roster row, kept at the mission avatar size, so the row is shorter. Reach for it inside `RoutinesPanel`; on its own it is only useful to check one row's states.",
+					"One mission of a conversation, as it reads in the activity panel. It is the `SidebarListRow` the left sidebar draws for a companion, fed mission data: the companion's blot as the leading media, the objective on the name line with the time at its end, the state as the row badge dot, and a preview line writing the platform mark, the ticket, the companion and, for the states a reader can act on, where the mission stands. Whether somebody is on it is read off the blot alone. Only the media differs from a roster row, kept at the mission avatar size, so the row is shorter. Reach for it inside `RoutinesPanel`; on its own it is only useful to check one row's states.",
 			},
 		},
 	},
@@ -124,7 +150,7 @@ export const Working = meta.story({
 		docs: {
 			description: {
 				story:
-					"A mission its companion is working on. Check that the blot holds the working pose the same mission carries on its thread card, that no badge dot is drawn on it, that the preview line runs the working shimmer a roster row runs for a busy companion, that the ticket identifier keeps the medium weight and the tabular figures of the row this one replaced while the companion and the state word stay at the line's own weight, that all three read in the colour of the line, shimmer or not, and that the row reports the mission it belongs to when it is pressed. " +
+					"A mission its companion is working on. Check that the blot holds the working pose the same mission carries on its thread card, that no badge dot is drawn on it, that the preview line runs the working shimmer a roster row runs for a busy companion, that it stops after the companion name since a mission being worked on stands nowhere a reader can act on, that the ticket identifier keeps the medium weight and the tabular figures of the row this one replaced while the companion stays at the line's own weight, that both read in the colour of the line, shimmer or not, and that the row reports the mission it belongs to when it is pressed. " +
 					LISTED_BY_THE_PANEL,
 			},
 		},
@@ -145,15 +171,14 @@ export const Working = meta.story({
 		await expect(identifier).toBeVisible()
 		await expect(figuresOf(identifier)).toBe("tabular-nums")
 		await expect(weightOf(identifier)).toBe(MEDIUM_WEIGHT)
-		for (const rest of [
-			canvas.getByText("Ada Martin"),
-			canvas.getByText("Working"),
-		]) {
-			await expect(rest).toBeVisible()
-			await expect(figuresOf(rest)).toBe("normal")
-			await expect(weightOf(rest)).toBe(weightOf(line))
-			await expect(colorOf(rest)).toBe(colorOf(line))
-		}
+		await expect(
+			partsIn(canvasElement).map((part) => part.textContent),
+		).toEqual(["OPE-42", "Ada Martin"])
+
+		const name = canvas.getByText("Ada Martin")
+		await expect(figuresOf(name)).toBe("normal")
+		await expect(weightOf(name)).toBe(weightOf(line))
+		await expect(colorOf(name)).toBe(colorOf(line))
 		await expect(colorOf(identifier)).toBe(colorOf(line))
 
 		const row = rowIn(canvasElement)
@@ -163,13 +188,46 @@ export const Working = meta.story({
 	},
 })
 
+export const States = meta.story({
+	parameters: {
+		docs: {
+			description: {
+				story:
+					"The six states a mission can be in, exhaustively, each one drawn twice: with a companion on it, then with nobody on it. Check that the preview line closes on a state word for the four states a reader can act on and stops at the companion name for `working` and `waiting_bot`, that the blot turns in the first row of each pair and rests in the second whatever the word beside it says, and that the badge dot keeps following the state rather than the work. " +
+					LISTED_BY_THE_PANEL,
+			},
+		},
+	},
+	render: (args) => (
+		<Panel>
+			{STATE_MATRIX.map((mission) => (
+				<MissionRow {...args} {...mission} key={mission.id} />
+			))}
+		</Panel>
+	),
+	play: async ({ canvas }) => {
+		await expect(
+			canvas.getAllByRole("img", { name: WORKING_POSE }),
+		).toHaveLength(MISSION_STATES.length)
+		await expect(
+			canvas.getAllByRole("img", { name: RESTING_POSE }),
+		).toHaveLength(MISSION_STATES.length)
+		await expect(canvas.getAllByText("Blocked on you")).toHaveLength(
+			ACTIVITIES.length,
+		)
+		await expect(canvas.getAllByText("Completed")).toHaveLength(
+			ACTIVITIES.length,
+		)
+	},
+})
+
 export const WaitingForItsBot = meta.story({
 	args: WAITING_BOT_MISSION,
 	parameters: {
 		docs: {
 			description: {
 				story:
-					"A mission whose companion has not picked it up yet, on a platform that names no identifier. Check that no badge dot is drawn, that the ticket title takes the place of the missing identifier right after the platform mark, that the state word still reads the work as in progress, and that the line, longer than the panel is wide, is cut rather than wrapped. " +
+					"A mission whose companion has not picked it up yet, on a platform that names no identifier. Check that no badge dot is drawn, that the blot rests since nobody is on it, that the ticket title takes the place of the missing identifier right after the platform mark, that the line names no state, and that it stays on one line in the 320px panel, cut rather than wrapped. " +
 					LISTED_BY_THE_PANEL,
 			},
 		},
@@ -178,10 +236,14 @@ export const WaitingForItsBot = meta.story({
 		const line = previewIn(canvasElement)
 
 		await expect(dotIn(canvasElement)).toBeNull()
+		await expect(
+			canvas.getByRole("img", { name: "Companion avatar cat, idle" }),
+		).toBeVisible()
 		await expect(firstPartIn(canvasElement)).toHaveTextContent(
 			WAITING_BOT_MISSION.ticket.title,
 		)
-		await expect(canvas.getByText("Working")).toBeVisible()
+		await expect(partsIn(canvasElement)).toHaveLength(2)
+		await expect(getComputedStyle(line).whiteSpace).toBe("nowrap")
 		await expect(line.scrollWidth).toBeGreaterThan(line.clientWidth)
 	},
 })
@@ -198,7 +260,7 @@ export const PartsRepeatingTheSameWords = meta.story({
 		docs: {
 			description: {
 				story:
-					"A ticket titled after the companion running it, so the line writes the same words twice. Check that both parts are drawn, each opened by its own separator, since a part is kept by the slot it fills rather than by the text it writes. " +
+					"A ticket titled after the companion running it, so the line writes the same words twice. Check that both parts are drawn, the second opened by its own separator, since a part is kept by the slot it fills rather than by the text it writes, and that no separator is left hanging where the state part used to close the line. " +
 					LISTED_BY_THE_PANEL,
 			},
 		},
@@ -213,7 +275,6 @@ export const PartsRepeatingTheSameWords = meta.story({
 		await expect([ticket, ...opened].map((part) => part.textContent)).toEqual([
 			WAITING_BOT_MISSION.bot.name,
 			WAITING_BOT_MISSION.bot.name,
-			"Working",
 		])
 		await expect(separatorOf(ticket)).toBe("none")
 		for (const part of opened) await expect(separatorOf(part)).toBe('"·"')
@@ -236,7 +297,7 @@ export const WaitingOnYou = meta.story({
 			"data-badge",
 			"attention",
 		)
-		await expect(canvas.getAllByText("Waiting for you")).toHaveLength(1)
+		await expect(canvas.getAllByText("Blocked on you")).toHaveLength(1)
 	},
 })
 
@@ -291,7 +352,7 @@ export const Closed = meta.story({
 		).toBeVisible()
 		await expect(dotIn(canvasElement)).toBeNull()
 		await expect(canvas.getByText("09:12")).toBeVisible()
-		await expect(canvas.getByText("Done")).toBeVisible()
+		await expect(canvas.getByText("Completed")).toBeVisible()
 		await expect(colorOf(slotIn(canvasElement, "roster-row-name"))).toBe(
 			colorOf(previewIn(canvasElement)),
 		)

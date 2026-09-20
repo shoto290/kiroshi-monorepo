@@ -26,6 +26,7 @@ type MissionHeaderProps = {
 	ticket: MissionTicketLink
 	tools: string[]
 	state: MissionState
+	isWorking: boolean
 	openedAt: number
 	now: number
 	onBack: () => void
@@ -38,6 +39,7 @@ const MissionHeader = ({
 	ticket,
 	tools,
 	state,
+	isWorking,
 	openedAt,
 	now,
 	onBack,
@@ -68,9 +70,11 @@ const MissionHeader = ({
 							badge={missionBadgeFor(state)}
 							blot={bot.blot}
 							image={bot.image}
+							kind="working"
 							name={bot.name}
 							seed={bot.seed}
 							size={MISSION_HEADER_AVATAR_SIZE}
+							working={isWorking}
 						/>
 						<span className="min-w-0 truncate" data-slot="mission-objective">
 							{objective}

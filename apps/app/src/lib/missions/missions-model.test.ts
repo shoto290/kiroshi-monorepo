@@ -109,6 +109,7 @@ describe("toMissionRows", () => {
 				},
 				bot: { name: "Ada Martin", animal: "owl", seed: "b-1" },
 				state: "working",
+				isWorking: true,
 				timestamp: "1h",
 			},
 		])

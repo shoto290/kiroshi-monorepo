@@ -37,6 +37,7 @@ export const WAITING_HUMAN_MISSION: MissionRowModel = {
 	},
 	bot: MISSION_BOT,
 	state: "waiting_human",
+	isWorking: false,
 	timestamp: "2d",
 }
 
@@ -50,6 +51,7 @@ export const READY_MISSION: MissionRowModel = {
 	},
 	bot: STORAGE_BOT,
 	state: "ready_to_merge",
+	isWorking: false,
 	timestamp: "5h",
 }
 
@@ -63,6 +65,7 @@ export const WORKING_MISSION: MissionRowModel = {
 	},
 	bot: MISSION_BOT,
 	state: "working",
+	isWorking: true,
 	timestamp: "1h",
 }
 
@@ -76,6 +79,7 @@ export const WAITING_BOT_MISSION: MissionRowModel = {
 	},
 	bot: SHELL_BOT,
 	state: "waiting_bot",
+	isWorking: false,
 	timestamp: "12m",
 }
 
@@ -89,6 +93,7 @@ export const FAILED_MISSION: MissionRowModel = {
 	},
 	bot: SHELL_BOT,
 	state: "failed",
+	isWorking: false,
 	timestamp: "3d",
 }
 
@@ -102,6 +107,7 @@ export const CLOSED_MISSION: MissionRowModel = {
 	},
 	bot: STORAGE_BOT,
 	state: "done",
+	isWorking: false,
 	timestamp: "09:12",
 }
 
@@ -115,6 +121,7 @@ export const UNTICKETED_MISSION: MissionRowModel = {
 	},
 	bot: MISSION_BOT,
 	state: "working",
+	isWorking: true,
 	timestamp: "22m",
 }
 
@@ -280,6 +287,7 @@ export const WORKING_MISSION_CARD: MissionCardModel = {
 	},
 	tools: MISSION_CARD_TOOLS,
 	state: "working",
+	isWorking: true,
 	isClosed: false,
 }
 
@@ -296,6 +304,7 @@ export const WAITING_MISSION_CARD: MissionCardModel = {
 	},
 	tools: MISSION_CARD_TOOLS,
 	state: "waiting_human",
+	isWorking: false,
 	isClosed: false,
 }
 
@@ -320,5 +329,6 @@ export const CLOSED_MISSION_CARD: MissionCardModel = {
 	},
 	tools: ["Superset"],
 	state: "done",
+	isWorking: false,
 	isClosed: true,
 }

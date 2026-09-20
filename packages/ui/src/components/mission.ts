@@ -47,6 +47,7 @@ type MissionCardModel = {
 	ticket: MissionTicketLink
 	tools: string[]
 	state: MissionState
+	isWorking: boolean
 	isClosed: boolean
 }
 

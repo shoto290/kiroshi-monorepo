@@ -134,6 +134,7 @@ const sceneMission = ({
 	},
 	tools: [],
 	state: "working",
+	isWorking: true,
 	isClosed: false,
 })
 
@@ -148,7 +149,15 @@ const missionRow = ({
 	...mission
 }: MissionRowInput): MissionRowModel => {
 	const { id, objective, ticket, identity } = sceneMission(mission)
-	return { id, objective, ticket, bot: identity, state, timestamp }
+	return {
+		id,
+		objective,
+		ticket,
+		bot: identity,
+		state,
+		isWorking: state === "working",
+		timestamp,
+	}
 }
 
 type RoutineCopy = {

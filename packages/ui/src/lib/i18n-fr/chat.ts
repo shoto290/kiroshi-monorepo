@@ -566,9 +566,7 @@ const chat = {
 	},
 	missions: {
 		state: {
-			working: "En cours",
-			waiting_bot: "En cours",
-			waiting_human: "En attente de vous",
+			waiting_human: "Bloquée sur vous",
 			ready_to_merge: "Prête à fusionner",
 			failed: "Bloquée",
 			done: "Terminée",
