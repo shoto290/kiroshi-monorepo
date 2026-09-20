@@ -7,7 +7,10 @@ import {
 
 import { useRosterClock } from "@/lib/bots/use-roster-clock"
 import type { ThreadNaming } from "@/lib/chat/use-thread-roster"
-import { toMissionRows } from "@/lib/missions/missions-model"
+import {
+	type LiveMissionIds,
+	toMissionRows,
+} from "@/lib/missions/missions-model"
 import type { ConversationMissionsRead } from "@/lib/missions/use-missions"
 import {
 	type MissionThreadRuntimes,
@@ -27,6 +30,7 @@ type ThreadRoutinesProps = {
 	activityPanel: ActivityPanel
 	conversationId: string | null
 	leadBotId?: string
+	liveMissionIds: LiveMissionIds
 	missions: ConversationMissionsRead
 	runtimes: MissionThreadRuntimes
 	faceOf: ThreadNaming["faceOf"]
@@ -49,6 +53,7 @@ const ThreadRoutines = ({
 	activityPanel,
 	conversationId,
 	leadBotId,
+	liveMissionIds,
 	missions,
 	runtimes,
 	faceOf,
@@ -86,6 +91,7 @@ const ThreadRoutines = ({
 				reportedRuns,
 				faceOf,
 				waitingMissionIds,
+				liveMissionIds,
 				now,
 			}),
 		[
@@ -94,6 +100,7 @@ const ThreadRoutines = ({
 			reportedRuns,
 			faceOf,
 			waitingMissionIds,
+			liveMissionIds,
 			now,
 		],
 	)

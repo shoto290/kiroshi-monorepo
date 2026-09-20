@@ -167,6 +167,24 @@ export const Unlinkable = meta.story({
 	},
 })
 
+export const Live = meta.story({
+	args: WORKING_MISSION_CARD,
+	parameters: {
+		docs: {
+			description: {
+				story:
+					"A mission somebody is live on, which `apps/app/src/lib/missions/missions-model.ts` reads off the speakers of its thread and off how long its agent has been running, never off its state. Check that the card carries no pill, since a mission being worked on stands nowhere a reader can act on, and that it opens on a word only a screen reader hears saying somebody is on it, the text alternative of the turning blot `MissionTurn` draws beside it. Pick `Default` for the card of a mission nobody is on.",
+			},
+		},
+	},
+	play: async ({ canvas, canvasElement }) => {
+		const live = canvas.getByText("Working now")
+
+		await expect(live).toBeInTheDocument()
+		await expect(slotsIn(canvasElement, "mission-state-pill")).toHaveLength(0)
+	},
+})
+
 export const Closed = meta.story({
 	args: CLOSED_MISSION_CARD,
 	parameters: {
@@ -177,10 +195,11 @@ export const Closed = meta.story({
 			},
 		},
 	},
-	play: async ({ canvasElement }) => {
+	play: async ({ canvas, canvasElement }) => {
 		const [card] = slotsIn(canvasElement, "mission-card")
 
 		await expect(card).toHaveAttribute("data-closed", "true")
+		await expect(canvas.queryByText("Working now")).toBeNull()
 	},
 })
 

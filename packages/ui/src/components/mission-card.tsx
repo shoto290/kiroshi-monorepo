@@ -19,10 +19,7 @@ import {
 } from "@workspace/ui/components/mission-state-pill"
 import { cn } from "@workspace/ui/lib/utils"
 
-type MissionCardProps = Omit<
-	MissionCardModel,
-	"author" | "identity" | "isWorking"
-> & {
+type MissionCardProps = Omit<MissionCardModel, "author" | "identity"> & {
 	onOpen: (missionId: string) => void
 	className?: string
 }
@@ -51,6 +48,7 @@ const MissionCard = ({
 	state,
 	ticket,
 	tools,
+	isWorking,
 	isClosed,
 	onOpen,
 	className,
@@ -75,6 +73,9 @@ const MissionCard = ({
 					data-closed={isClosed}
 					data-slot="mission-card"
 				>
+					{isWorking ? (
+						<span className="sr-only">{t("missions.live")}</span>
+					) : null}
 					<MissionTitleRow state={state} tools={tools} />
 					<span className="flex flex-col gap-1">
 						<span

@@ -75,6 +75,7 @@ import {
 	type SessionApplications,
 	SessionApplicationsContext,
 } from "@/lib/applications/use-session-application"
+import { useRosterClock } from "@/lib/bots/use-roster-clock"
 import type { AttachmentsOwner } from "@/lib/chat/attachments-contract"
 import type { AttachmentsController } from "@/lib/chat/attachments-controller"
 import type { ChatError } from "@/lib/chat/chat-state"
@@ -178,7 +179,11 @@ import {
 	placeMissions,
 	withoutMissionSummons,
 } from "@/lib/missions/mission-transcript"
-import { toMissionCard } from "@/lib/missions/missions-model"
+import {
+	type LiveMissionIds,
+	toMissionCard,
+} from "@/lib/missions/missions-model"
+import { useLiveMissions } from "@/lib/missions/use-live-missions"
 import { useMissionSendFailure } from "@/lib/missions/use-mission-failure-notices"
 import { useMissions } from "@/lib/missions/use-missions"
 import { withoutOnboardingSummons } from "@/lib/onboarding/onboarding-summons"
@@ -266,6 +271,11 @@ const speakerIdOf = (thread: LoadedThread, error: ChatError | undefined) =>
 const isClosedMission = (seat: ThreadMission | null): boolean =>
 	seat !== null && seat.mission.closedAt !== null
 
+const missionsSeatedIn = (
+	missions: Mission[],
+	seat: ThreadMission | null,
+): Mission[] => (seat ? [...missions, seat.mission] : missions)
+
 const composerPlaceholderOf = (facts: ThreadFacts, t: ChatCopy): string => {
 	if (facts.mission) {
 		return t("missions.composer.placeholder")
@@ -279,6 +289,7 @@ const composerPlaceholderOf = (facts: ThreadFacts, t: ChatCopy): string => {
 type ThreadHeaderProps = {
 	thread: LoadedThread
 	mission: ThreadMission | null
+	liveMissionIds: LiveMissionIds
 	botWork: WorkingState | null
 	botImage?: string
 	present: RosterBot[]
@@ -291,6 +302,7 @@ type ThreadHeaderProps = {
 const ThreadHeader = ({
 	thread,
 	mission,
+	liveMissionIds,
 	botWork,
 	botImage,
 	present,
@@ -307,7 +319,7 @@ const ThreadHeader = ({
 		return (
 			<MissionHeader
 				bot={toMissionFace(missionFace)}
-				isWorking={mission.mission.state === "working"}
+				isWorking={liveMissionIds.has(mission.mission.id)}
 				now={mission.now}
 				objective={mission.mission.objective}
 				onBack={mission.onLeave}
@@ -870,19 +882,29 @@ type MissionCardRowsProps = {
 	placed: PlacedMission[]
 	authors: ThreadAuthors
 	faceOf: ThreadNaming["faceOf"]
+	liveMissionIds: LiveMissionIds
 	onOpen: (missionId: string) => void
 }
 
-const toMissionCardRow = (
-	mission: Mission,
-	identity: ThreadFace,
-	author: MessageAuthor | undefined,
-	onOpen: (missionId: string) => void,
-): TranscriptItem => ({
+type MissionCardRowRead = {
+	mission: Mission
+	identity: ThreadFace
+	author: MessageAuthor | undefined
+	isWorking: boolean
+	onOpen: (missionId: string) => void
+}
+
+const toMissionCardRow = ({
+	mission,
+	identity,
+	author,
+	isWorking,
+	onOpen,
+}: MissionCardRowRead): TranscriptItem => ({
 	key: `mission-${mission.id}`,
 	render: () => (
 		<MissionTurn
-			mission={toMissionCard(mission, identity, author)}
+			mission={toMissionCard({ mission, identity, author, isWorking })}
 			onOpen={onOpen}
 		/>
 	),
@@ -892,6 +914,7 @@ const missionCardRowsAfter = ({
 	placed,
 	authors,
 	faceOf,
+	liveMissionIds,
 	onOpen,
 }: MissionCardRowsProps): RowsAfterRun =>
 	rowsPlacedAfter(placed, ({ mission }) => {
@@ -900,7 +923,13 @@ const missionCardRowsAfter = ({
 			return []
 		}
 		return [
-			toMissionCardRow(mission, identity, authors.get(mission.botId), onOpen),
+			toMissionCardRow({
+				mission,
+				identity,
+				author: authors.get(mission.botId),
+				isWorking: liveMissionIds.has(mission.id),
+				onOpen,
+			}),
 		]
 	})
 
@@ -1149,6 +1178,7 @@ function ThreadView({
 	const promptResponder = usePromptResponder(controller, scrollerRef)
 
 	const reader = readerName || t("working.name")
+	const clock = useRosterClock()
 	const missionSeat = facts.mission
 	const isMissionClosed = isClosedMission(missionSeat)
 	const canAttach = facts.canAttach && !isMissionClosed
@@ -1177,6 +1207,11 @@ function ThreadView({
 	const pins = usePinnedMessages(controller, state.conversationId)
 	const routinesScope = routinesScopeOf(facts, state.conversationId)
 	const missions = useMissions(routinesScope.conversationId)
+	const missionsInView = useMemo(
+		() => missionsSeatedIn(missions.missions, missionSeat),
+		[missions.missions, missionSeat],
+	)
+	const liveMissionIds = useLiveMissions(runtimes, missionsInView, clock)
 	const applications = useContext(ConversationApplicationsContext)
 	const sessionApplications = useContext(SessionApplicationsContext)
 	const installs = useConversationInstalls(state.conversationId)
@@ -1326,6 +1361,7 @@ function ThreadView({
 		: missionCardRowsAfter({
 				authors,
 				faceOf,
+				liveMissionIds,
 				onOpen: onOpenMission,
 				placed: placeMissions({
 					hasOlder: state.hasOlder,
@@ -1389,6 +1425,7 @@ function ThreadView({
 					botImage={botImage}
 					botWork={facts.botWork}
 					hasRoutines={routinesScope.conversationId !== null}
+					liveMissionIds={liveMissionIds}
 					mission={missionSeat}
 					onJumpToPin={(bubbleId) => jumpToMessage(pins.anchorOf(bubbleId))}
 					onUnpin={pins.unpin}
@@ -1465,6 +1502,7 @@ function ThreadView({
 				{...routinesScope}
 				activityPanel={activityPanel}
 				faceOf={faceOf}
+				liveMissionIds={liveMissionIds}
 				missions={missions}
 				onOpenMission={onOpenMission}
 				runtimes={runtimes}
