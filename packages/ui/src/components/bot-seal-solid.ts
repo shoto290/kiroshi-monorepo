@@ -1,6 +1,6 @@
 import { hashSeed } from "@workspace/ui/components/bot-avatar-blot"
 
-type SealVertex = { x: number; y: number; arm: number }
+type SealVertex = { x: number; y: number; arm: number; seal: number }
 
 type SealSolid = {
 	arms: number
@@ -34,26 +34,37 @@ type Draw = () => number
 const between = (draw: Draw, [min, max]: readonly [number, number]) =>
 	min + (draw() / UINT32) * (max - min)
 
-const polar = (angle: number, radius: number, arm: number): SealVertex => ({
+type Polar = { angle: number; radius: number; arm: number; seal: number }
+
+const polar = ({ angle, radius, arm, seal }: Polar): SealVertex => ({
 	x: Math.cos(angle) * radius,
 	y: Math.sin(angle) * radius,
 	arm,
+	seal,
 })
 
 const sealProfile = (draw: Draw, arms: number): SealVertex[] => {
 	const sector = TAU / arms
-	return Array.from({ length: arms }, (_, arm) => {
+	const shapes = Array.from({ length: arms }, () => ({
+		reach: between(draw, REACH_RANGE),
+		tip: between(draw, TIP_RANGE) * sector,
+		notch: between(draw, NOTCH_RANGE),
+		gap: between(draw, GAP_RANGE) * sector,
+	}))
+	return shapes.flatMap(({ reach, tip, notch, gap }, arm) => {
 		const angle = sector * arm
-		const reach = between(draw, REACH_RANGE)
-		const tip = between(draw, TIP_RANGE) * sector
-		const notch = between(draw, NOTCH_RANGE)
-		const gap = between(draw, GAP_RANGE) * sector
+		const beside = shapes[(arm + 1) % arms].reach
 		return [
-			polar(angle - tip, reach, arm),
-			polar(angle + tip, reach, arm),
-			polar(angle + gap, notch, arm),
+			polar({ angle: angle - tip, radius: reach, arm, seal: 1 }),
+			polar({ angle: angle + tip, radius: reach, arm, seal: 1 }),
+			polar({
+				angle: angle + gap,
+				radius: notch,
+				arm,
+				seal: (reach + beside) / 2 / notch,
+			}),
 		]
-	}).flat()
+	})
 }
 
 const sealSolid = (seed: string): SealSolid => {

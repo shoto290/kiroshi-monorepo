@@ -28,15 +28,14 @@ const MOVING_SHARE = 0.02
 const SLOWEST_SHARE = 0.1
 const FASTEST_SHARE = 0.9
 const WALL_SHARE = 0.1
+const WALL_STROKES = 3
 const VERTICES_PER_ARM = 3
 const EDGES_PER_VERTEX = 3
+const CHIP_SIZE = 40
+const CHIP_UNIT = CHIP_SIZE / VIEW_BOX
+const READ_LIMIT = 2
+const READ_SAMPLES = samplesEvery(CYCLE_SPAN / 40)
 const ANIMATED_STATES = BOT_SEAL_STATES.filter(isSealAnimated)
-const FACING_STATES: (BotSealState | undefined)[] = [
-	undefined,
-	"waiting",
-	"working",
-	"writing",
-]
 const ONE_PATH = /^(M-?[\d.]+ -?[\d.]+L-?[\d.]+ -?[\d.]+)+$/
 
 const pathOf = (seed: string, state?: BotSealState, elapsed = 0) =>
@@ -66,7 +65,46 @@ const spanOf = (path: string) => {
 	}
 }
 
-const edgesIn = (path: string) => path.split("M").filter(Boolean).length
+const strokesIn = (path: string) => path.split("M").filter(Boolean)
+
+const edgesIn = (path: string) => strokesIn(path).length
+
+type Point = [number, number]
+
+const pointsIn = (path: string): Point[] => {
+	const values = coordinatesOf(path)
+	return Array.from(
+		{ length: values.length / 2 },
+		(_, at): Point => [values[at * 2], values[at * 2 + 1]],
+	)
+}
+
+const apartFrom = (from: Point[], to: Point[]) =>
+	Math.max(
+		...from.map(([x, y]) =>
+			Math.min(
+				...to.map(([otherX, otherY]) => Math.hypot(x - otherX, y - otherY)),
+			),
+		),
+	)
+
+const awayFrom = (one: Point[], other: Point[]) =>
+	Math.max(apartFrom(one, other), apartFrom(other, one))
+
+const wallIn = (path: string) => {
+	const walls = new Map<string, number>()
+	for (const stroke of strokesIn(path)) {
+		const [fromX, fromY, toX, toY] = coordinatesOf(stroke)
+		const offset = `${toX - fromX},${toY - fromY}`
+		walls.set(offset, (walls.get(offset) ?? 0) + 1)
+	}
+	const [offset, drawn] = [...walls].reduce((most, entry) =>
+		entry[1] > most[1] ? entry : most,
+	)
+	if (drawn < WALL_STROKES) return 0
+	const [x, y] = offset.split(",").map(Number)
+	return Math.hypot(x, y)
+}
 
 const stepsOf = (solid: SealSolid, state: BotSealState, samples: number[]) => {
 	const frames = samples.map((elapsed) =>
@@ -181,17 +219,28 @@ describe("sealFrame", () => {
 	it("keeps the wall under a tenth of the width of the mark", () => {
 		for (const seed of SEEDS) {
 			const solid = sealSolid(seed)
-			const flat = sealFrame({ solid, state: "done", elapsed: 0 })
-			const { width } = spanOf(flat)
-			for (const state of FACING_STATES) {
+			for (const state of BOT_SEAL_STATES) {
 				for (const elapsed of COARSE_SAMPLES) {
-					const wall = boundsShift(
-						boundsOf(flat),
-						boundsOf(sealFrame({ solid, state, elapsed })),
-					)
+					const frame = sealFrame({ solid, state, elapsed })
 
-					expect(wall).toBeLessThan(width * WALL_SHARE)
+					expect(wallIn(frame)).toBeLessThan(spanOf(frame).width * WALL_SHARE)
 				}
+			}
+		}
+	})
+
+	it("moves every state at least two rendered pixels at the chip size", () => {
+		for (const seed of SEEDS) {
+			const solid = sealSolid(seed)
+			const resting = pointsIn(sealFrame({ solid, elapsed: 0 }))
+			for (const state of BOT_SEAL_STATES) {
+				const farthest = Math.max(
+					...READ_SAMPLES.map((elapsed) =>
+						awayFrom(pointsIn(sealFrame({ solid, state, elapsed })), resting),
+					),
+				)
+
+				expect(farthest * CHIP_UNIT).toBeGreaterThanOrEqual(READ_LIMIT)
 			}
 		}
 	})

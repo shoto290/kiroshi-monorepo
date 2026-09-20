@@ -59,6 +59,16 @@ const StatePair = (seal: ComponentProps<typeof BotSeal>) => (
 	</div>
 )
 
+const ChipRow = ({ seed }: { seed: string }) => (
+	<div className="flex items-center gap-3">
+		<span className="w-16 text-muted-foreground text-xs">{seed}</span>
+		<BotSeal seed={seed} size={CHIP_SIZE} state={undefined} />
+		{BOT_SEAL_STATES.map((state) => (
+			<BotSeal key={state} seed={seed} size={CHIP_SIZE} state={state} />
+		))}
+	</div>
+)
+
 const StateRow = ({
 	label,
 	state,
@@ -156,12 +166,20 @@ export const States = meta.story({
 		docs: {
 			description: {
 				story:
-					"Every state the seal can report, plus the mark it wears while nothing runs, across eight identities and at both sizes it has to survive. Each cell is the same seal at 40px next to 200px: the stroke is authored so the two carry the same weight on screen, and the notches between tips stay open at the smaller one. Four states move, and each moves in beats rather than at a constant rate: a wind up, an eased move that carries past its mark and settles, then a hold. Thinking turns the mark in its own plane by one arm sector at a time, searching turns it until its walls close to a line and opens them again, working compresses the wall before overshooting it, writing raises one arm at a time and holds the mark out before it drops back. This story renders the frame each one holds under reduced motion. Reach for it when touching the generator or the beats: check that no tip is ever missing, that the wall stays a sliver along one edge of each arm rather than a box, and that every mark is drawn in the one ink it inherits from the page.",
+					"Every state the seal can report, plus the mark it wears while nothing runs. It opens on the row a reader actually gets: eight identities, the eight marks side by side at 40px, in the order of the heading. Every state moves the silhouette rather than the thickness of the wall, because a wall a tenth of the width wide cannot be seen at that size — thinking turns the mark in its own plane one arm sector at a time, waiting sways it slowly, working draws every arm in and pushes it back out, writing extends one arm at a time in the plane, searching carries a wave around the arms while the tilt closes the walls to a line, blocked snaps one arm off its axis, done fills the notches back in and settles flat. Each moves in beats: a wind up, an eased move that carries past its mark and settles, then a hold. The blocks below repeat each state at 40px next to 200px, where the stroke carries the same weight on screen. Reach for this when touching the generator or the beats: check that every state is told apart from the resting mark in the first row, that no tip is ever missing, and that every mark is drawn in the one ink it inherits from the page.",
 			},
 		},
 	},
 	render: () => (
 		<div className="flex flex-col gap-10">
+			<div className="flex flex-col gap-2">
+				<h3 className="font-medium text-muted-foreground text-sm">
+					{["none", ...BOT_SEAL_STATES].join(" · ")}
+				</h3>
+				{SEEDS.slice(0, MATRIX_SEEDS).map((seed) => (
+					<ChipRow key={seed} seed={seed} />
+				))}
+			</div>
 			<StateRow label="none" state={undefined} />
 			{BOT_SEAL_STATES.map((state) => (
 				<StateRow key={state} label={state} state={state} />

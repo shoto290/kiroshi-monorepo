@@ -33,14 +33,19 @@ const ANIMATED_STATES: BotSealState[] = [
 	"searching",
 	"working",
 	"writing",
+	"waiting",
 ]
 
 const TAU = Math.PI * 2
 const CENTER = VIEW_BOX / 2
 const RADIUS = 92
-const DEPTH_REACH = 12
-const PERSPECTIVE = 0.35
+const DEPTH_REACH = 10
+const PERSPECTIVE = 0
 const SEAL_PITCH = toRadians(11)
+const SWAY_ANGLE = toRadians(14)
+const SWEEP_DIP = 0.26
+const SEAL_FILL = 0.6
+const WRITE_FLOOR = 0.7
 const BREAK_ANGLE = toRadians(24)
 const BREAK_PUSH = 0.12
 const NO_BROKEN_ARM = -1
@@ -51,9 +56,10 @@ const FRONT_LEVEL = 1
 
 const TURN_PERIOD = 2200
 const OPEN_PERIOD = 4200
-const PUMP_PERIOD = 2000
+const REACH_PERIOD = 2000
 const WRITE_PERIOD = 11000
 const WRITE_REST = 0.25
+const SWAY_PERIOD = 4800
 
 type Stop = [number, number]
 
@@ -74,12 +80,28 @@ const OPEN_BEAT: Stop[] = [
 	[1, 1],
 ]
 
-const PUMP_BEAT: Stop[] = [
+const REACH_BEAT: Stop[] = [
 	[0, 1],
-	[0.16, 0.42],
-	[0.52, 1.26],
+	[0.16, 0.72],
+	[0.52, 1.06],
 	[0.68, 1],
 	[1, 1],
+]
+
+const SWEEP_BEAT: Stop[] = [
+	[0, 0],
+	[0.06, -0.05],
+	[0.62, 1.02],
+	[0.74, 1],
+	[1, 1],
+]
+
+const SWAY_BEAT: Stop[] = [
+	[0, 0],
+	[0.25, 1],
+	[0.5, 0],
+	[0.75, -1],
+	[1, 0],
 ]
 
 const WRITE_BEAT: Stop[] = [
@@ -119,22 +141,33 @@ const turnOf = (elapsed: number, arms: number) =>
 	TAU
 
 type SealMotion = {
+	arms: number
 	spin: number
 	open: number
-	pump: number
+	reach: number
 	armPhase: number
+	sweep: number
 	isFlat: boolean
 	isBroken: boolean
 }
 
 type MotionInput = { state?: BotSealState; elapsed: number; arms: number }
 
+const swayOf = (elapsed: number) =>
+	SWAY_ANGLE * along(SWAY_BEAT, phaseOf(elapsed, SWAY_PERIOD))
+
 const sealMotion = ({ state, elapsed, arms }: MotionInput): SealMotion => ({
-	spin: state === "thinking" ? turnOf(elapsed, arms) : 0,
+	arms,
+	spin:
+		state === "thinking"
+			? turnOf(elapsed, arms)
+			: state === "waiting"
+				? swayOf(elapsed)
+				: 0,
 	open:
 		state === "searching" ? along(OPEN_BEAT, phaseOf(elapsed, OPEN_PERIOD)) : 1,
-	pump:
-		state === "working" ? along(PUMP_BEAT, phaseOf(elapsed, PUMP_PERIOD)) : 1,
+	reach:
+		state === "working" ? along(REACH_BEAT, phaseOf(elapsed, REACH_PERIOD)) : 1,
 	armPhase:
 		state === "writing"
 			? arms *
@@ -143,6 +176,10 @@ const sealMotion = ({ state, elapsed, arms }: MotionInput): SealMotion => ({
 					phaseOf(elapsed + WRITE_REST * WRITE_PERIOD, WRITE_PERIOD),
 				)
 			: arms,
+	sweep:
+		state === "searching"
+			? arms * along(SWEEP_BEAT, phaseOf(elapsed, OPEN_PERIOD))
+			: Number.NEGATIVE_INFINITY,
 	isFlat: state === "done",
 	isBroken: state === "blocked",
 })
@@ -192,6 +229,23 @@ type Placement = {
 	level: number
 }
 
+const armDistance = (motion: SealMotion, arm: number) => {
+	const apart = Math.abs(motion.sweep - arm) % motion.arms
+	return Math.min(apart, motion.arms - apart)
+}
+
+const armReach = (motion: SealMotion, vertex: SealVertex) => {
+	const written = along(SETTLE_BEAT, clamp(motion.armPhase - vertex.arm, 0, 1))
+	const apart = armDistance(motion, vertex.arm)
+	const swept = apart < 1 ? SWEEP_DIP * easeInOut(1 - apart) : 0
+	return (
+		motion.reach *
+		(WRITE_FLOOR + (1 - WRITE_FLOOR) * written) *
+		(1 - swept) *
+		(motion.isFlat ? 1 + SEAL_FILL * (vertex.seal - 1) : 1)
+	)
+}
+
 const placeVertex = ({
 	solid,
 	motion,
@@ -200,13 +254,13 @@ const placeVertex = ({
 	vertex,
 	level,
 }: Placement): Vec2 => {
-	const extruded = along(SETTLE_BEAT, clamp(motion.armPhase - vertex.arm, 0, 1))
+	const reach = armReach(motion, vertex) * RADIUS
 	const face =
 		vertex.arm === brokenArm ? brokenAway({ vertex, arms: solid.arms }) : vertex
 	const point: Vec3 = [
-		face.x * RADIUS,
-		face.y * RADIUS,
-		level * solid.depth * motion.pump * extruded * DEPTH_REACH,
+		face.x * reach,
+		face.y * reach,
+		level * solid.depth * DEPTH_REACH,
 	]
 	const [x, y] = project({
 		point: rotateVec3(rotation, point),
