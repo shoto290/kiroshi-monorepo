@@ -1,12 +1,8 @@
-import { useMemo, useRef } from "react"
+import { useMemo } from "react"
 
+import { stampMissionRuns } from "./agent-run-stamps"
 import type { Mission } from "./mission-contract"
-import {
-	type AgentRunStamps,
-	type LiveMissionIds,
-	liveMissionsIn,
-	stampedAgentRuns,
-} from "./missions-model"
+import { type LiveMissionIds, liveMissionsIn } from "./missions-model"
 
 import {
 	type SubscribableRuntimes,
@@ -37,9 +33,7 @@ export const useLiveMissions = (
 		(conversationId) => speakingBotIdsIn(runtimes.heldFor(conversationId)),
 		(botIds) => botIds.join(","),
 	)
-	const held = useRef<AgentRunStamps>({})
-	held.current = stampedAgentRuns(held.current, missions, now)
-	const agentRuns = held.current
+	const agentRuns = stampMissionRuns(missions, now)
 
 	return useMemo(
 		() => liveMissionsIn({ missions, speakingBotIds, agentRuns, now }),

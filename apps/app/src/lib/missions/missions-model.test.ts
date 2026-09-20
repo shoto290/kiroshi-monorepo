@@ -186,6 +186,15 @@ describe("stampedAgentRuns", () => {
 		expect(stampedAgentRuns(held, [RUNNING_MISSION], READ_AT)).toBe(held)
 	})
 
+	it("keeps the stamp of a mission the read does not name", () => {
+		const held = { "m-elsewhere": READ_AT - 60_000 }
+
+		expect(stampedAgentRuns(held, [RUNNING_MISSION], READ_AT)).toEqual({
+			"m-elsewhere": READ_AT - 60_000,
+			"m-working": READ_AT,
+		})
+	})
+
 	it("stamps again once the agent stopped and started back", () => {
 		const stopped = stampedAgentRuns(
 			{ "m-working": READ_AT - 60_000 },

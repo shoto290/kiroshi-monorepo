@@ -3,6 +3,7 @@
 import { cleanup, renderHook } from "@testing-library/react"
 import { afterEach, describe, expect, it } from "vitest"
 
+import { forgetMissionRuns } from "./agent-run-stamps"
 import { createFakeThreadRuntimes } from "./fake-thread-runtimes"
 import type { Mission } from "./mission-contract"
 import { aMission } from "./mission-fixtures"
@@ -27,7 +28,10 @@ const liveIn = (runtimes: MissionSpeakingRuntimes, missions: Mission[]) =>
 		initialProps: { now: NOW },
 	})
 
-afterEach(cleanup)
+afterEach(() => {
+	cleanup()
+	forgetMissionRuns()
+})
 
 describe("useLiveMissions", () => {
 	it("holds a mission whose companion speaks on its thread", () => {
@@ -72,6 +76,53 @@ describe("useLiveMissions", () => {
 		rerender({ now: NOW + AGENT_LIVENESS_WINDOW_MS })
 
 		expect([...result.current]).toEqual([])
+	})
+
+	it("reads a mission stamped before the window as resting on a later mount", () => {
+		const { runtimes } = createFakeThreadRuntimes()
+		liveIn(runtimes, [RUNNING_MISSION]).unmount()
+
+		const { result } = renderHook(() =>
+			useLiveMissions(
+				runtimes,
+				[RUNNING_MISSION],
+				NOW + AGENT_LIVENESS_WINDOW_MS,
+			),
+		)
+
+		expect([...result.current]).toEqual([])
+	})
+
+	it("answers two mounted readers from the same stamps", () => {
+		const { runtimes } = createFakeThreadRuntimes()
+		const first = liveIn(runtimes, [RUNNING_MISSION])
+
+		const second = renderHook(() =>
+			useLiveMissions(
+				runtimes,
+				[RUNNING_MISSION],
+				NOW + AGENT_LIVENESS_WINDOW_MS,
+			),
+		)
+
+		expect([...first.result.current]).toEqual(["m-1"])
+		expect([...second.result.current]).toEqual([])
+	})
+
+	it("stamps a mission again once its agent stopped and started back", () => {
+		const { runtimes } = createFakeThreadRuntimes()
+		liveIn(runtimes, [RUNNING_MISSION]).unmount()
+		liveIn(runtimes, [MISSION]).unmount()
+
+		const { result } = renderHook(() =>
+			useLiveMissions(
+				runtimes,
+				[RUNNING_MISSION],
+				NOW + AGENT_LIVENESS_WINDOW_MS,
+			),
+		)
+
+		expect([...result.current]).toEqual(["m-1"])
 	})
 
 	it("holds the same set while nothing moves", () => {

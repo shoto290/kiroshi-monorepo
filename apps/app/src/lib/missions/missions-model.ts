@@ -111,11 +111,14 @@ export const stampedAgentRuns = (
 	missions: Mission[],
 	now: number,
 ): AgentRunStamps => {
-	const read = Object.fromEntries(
-		missions
-			.filter(({ isAgentRunning }) => isAgentRunning)
-			.map(({ id }): [string, number] => [id, held[id] ?? now]),
-	)
+	const read = { ...held }
+	for (const { id, isAgentRunning } of missions) {
+		if (isAgentRunning) {
+			read[id] = held[id] ?? now
+		} else {
+			delete read[id]
+		}
+	}
 
 	return isSameStamps(held, read) ? held : read
 }
