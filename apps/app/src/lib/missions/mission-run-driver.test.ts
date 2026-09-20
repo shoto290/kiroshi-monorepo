@@ -53,6 +53,7 @@ type Harness = {
 	agentCalls: string[]
 	thread: Conversation
 	origin: Conversation
+	guestBot: { id: string; name: string }
 	mission: Mission
 	reportFailure: ReturnType<typeof vi.fn>
 	stop: () => void
@@ -134,7 +135,7 @@ const createHarness = async ({
 		return Promise.reject(new Error("no runtime"))
 	}
 	const store = { ...base, openRuntimeSession, ...overrides }
-	const [bot] = await seatBots(store, SPACE, ["Ada"])
+	const [bot, guestBot] = await seatBots(store, SPACE, ["Ada", "Bob"])
 	const thread = await store.createConversation({
 		spaceId: SPACE,
 		sectionId: null,
@@ -145,7 +146,7 @@ const createHarness = async ({
 		spaceId: SPACE,
 		sectionId: null,
 		title: "The war room",
-		botIds: [bot.id],
+		botIds: [bot.id, guestBot.id],
 	})
 	const runtimes = createConversationRuntimes(driver, store)
 	const chat = createChatController(driver, store)
@@ -277,6 +278,7 @@ const createHarness = async ({
 		agentCalls,
 		thread,
 		origin,
+		guestBot,
 		mission,
 		reportFailure,
 		stop,
@@ -836,6 +838,43 @@ describe("startMissionRunDriver", () => {
 
 		await harness.endTurn(reported("The walls are half up."))
 
+		expect(spoken(harness.originTail())).toEqual([
+			[harness.mission.botId, "The walls are half up."],
+		])
+	})
+
+	it("summons the companion a status report names in a room origin", async () => {
+		await harness.enter("working")
+		await endThreadTurn()
+
+		await harness.endTurn(
+			reported(`The walls are half up, @${harness.guestBot.name} paints them.`),
+		)
+
+		expect(
+			harness.starts.map(({ scope }) => [scope.conversationId, scope.botId]),
+		).toContainEqual([harness.origin.id, harness.guestBot.id])
+	})
+
+	it("reads the mission once for a status run, at its opening", async () => {
+		await harness.enter("working")
+
+		expect(harness.missions.detailCalls).toHaveLength(1)
+
+		await endThreadTurn()
+		await harness.endTurn(reported("The walls are half up."))
+
+		expect(harness.missions.detailCalls).toHaveLength(2)
+	})
+
+	it("raises no failure notice when the mission cannot be read back", async () => {
+		await harness.enter("working")
+		await endThreadTurn()
+		harness.missions.refuse(harness.mission.id)
+
+		await harness.endTurn(reported("The walls are half up."))
+
+		expect(harness.reportFailure).not.toHaveBeenCalled()
 		expect(spoken(harness.originTail())).toEqual([
 			[harness.mission.botId, "The walls are half up."],
 		])

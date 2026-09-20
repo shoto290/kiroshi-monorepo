@@ -435,9 +435,9 @@ export const startMissionRunDriver = ({
 		holding.add(id)
 		shutdownSession(held.scope)
 
-		const settled = await readSettledMission(held)
+		const settled = isClosingRun(held) ? await readSettledMission(held) : null
 
-		if (isClosingRun(held) && isClosed(settled)) {
+		if (isClosed(settled)) {
 			seqs.remember(settled.id, settled.stateSeq)
 		}
 
@@ -448,7 +448,6 @@ export const startMissionRunDriver = ({
 
 	const settle = async (held: LiveMissionRun, ended: TurnEnded) => {
 		const settled = await endOn(held)
-		const owed = isClosingRun(held) ? settled : null
 
 		if (ended.outcome !== "completed") {
 			return raiseFailure(`the mission run's turn was ${ended.outcome}`)
@@ -458,16 +457,16 @@ export const startMissionRunDriver = ({
 
 		if (!report) {
 			raiseFailure("the mission run ended with no structured output")
-			return recordWhenOwed(owed, null)
+			return recordWhenOwed(settled, null)
 		}
 
 		if (report.outcome === "nothing") {
-			return settleNothingReported(held, owed)
+			return settleNothingReported(held, settled)
 		}
 
 		try {
 			const reportedTurnId = await writeReport(held, report.text)
-			await recordWhenOwed(owed, reportedTurnId)
+			await recordWhenOwed(settled, reportedTurnId)
 		} catch (thrown) {
 			raiseFailure(`the report could not be written: ${detailOf(thrown)}`)
 		}
