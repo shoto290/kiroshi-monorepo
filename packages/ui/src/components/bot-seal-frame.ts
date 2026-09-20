@@ -163,13 +163,12 @@ const armTip = ({ arms }: SealSolid, arm: number): Vec3 => [
 	0,
 ]
 
-const nearestArm = (solid: SealSolid, rotation: Quat) =>
-	Array.from({ length: solid.arms }, (_, arm) => arm).reduce((nearest, arm) =>
-		rotatedZ(rotation, armTip(solid, arm)) >
-		rotatedZ(rotation, armTip(solid, nearest))
-			? arm
-			: nearest,
+const nearestArm = (solid: SealSolid, rotation: Quat) => {
+	const depths = Array.from({ length: solid.arms }, (_, arm) =>
+		rotatedZ(rotation, armTip(solid, arm)),
 	)
+	return depths.indexOf(Math.max(...depths))
+}
 
 type Break = { vertex: SealVertex; arms: number }
 
