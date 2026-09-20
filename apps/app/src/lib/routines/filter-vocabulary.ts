@@ -66,7 +66,6 @@ type FilterVocabularyDrift =
 	| Drift<FilterOperator, RoutineFilterOperator>
 	| Drift<FilterMatchMode, RoutineFilterMatchMode>
 
-// no Rust test reads this one: the typecheck of FilterVocabularyDrift is its only reader,
-// and the binding has to stay exported for noUnusedLocals to let it live
+// nothing imports this: it is a compile-time guard, and noUnusedLocals rejects it unexported
 export const NO_FILTER_VOCABULARY_DRIFT: Record<FilterVocabularyDrift, never> =
 	{}
