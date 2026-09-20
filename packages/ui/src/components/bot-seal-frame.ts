@@ -45,8 +45,9 @@ const BREAK_ANGLE = toRadians(24)
 const BREAK_PUSH = 0.12
 const NO_BROKEN_ARM = -1
 const DEGENERATE_AREA = 1
-const FLAT_LEVELS = [0]
-const SOLID_LEVELS = [-1, 1]
+const FLAT_LEVEL = 0
+const BACK_LEVEL = -1
+const FRONT_LEVEL = 1
 
 const TURN_PERIOD = 2200
 const OPEN_PERIOD = 4200
@@ -288,13 +289,15 @@ const sealFrame = ({ solid, state, elapsed }: FrameInput) => {
 	const brokenArm = motion.isBroken
 		? nearestArm(solid, rotation)
 		: NO_BROKEN_ARM
-	const [back, front] = (motion.isFlat ? FLAT_LEVELS : SOLID_LEVELS).map(
-		(level) =>
-			solid.profile.map((vertex) =>
-				placeVertex({ solid, motion, rotation, brokenArm, vertex, level }),
-			),
+	const ring = (level: number) =>
+		solid.profile.map((vertex) =>
+			placeVertex({ solid, motion, rotation, brokenArm, vertex, level }),
+		)
+	return pathOf(
+		motion.isFlat
+			? loopSegments(ring(FLAT_LEVEL))
+			: solidSegments(ring(BACK_LEVEL), ring(FRONT_LEVEL)),
 	)
-	return pathOf(front ? solidSegments(back, front) : loopSegments(back))
 }
 
 const isSealAnimated = (state?: BotSealState) =>
