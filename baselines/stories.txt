@@ -20,6 +20,7 @@ branding-botidentityavatar--every-badge
 branding-botidentityavatar--every-blot
 branding-botidentityavatar--every-size
 branding-botidentityavatar--marble-at-every-size
+branding-botidentityavatar--marble-shades-on-both-themes
 branding-botidentityavatar--named-skippy
 branding-botidentityavatar--seeded
 branding-botidentityavatar--unseeded

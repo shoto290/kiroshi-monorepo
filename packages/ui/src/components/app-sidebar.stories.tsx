@@ -258,11 +258,9 @@ const IDENTITY_ROSTER: AppSidebarBot[] = IDENTITY_BLOTS.map((blot, index) => ({
 	status: "idle",
 }))
 
-const tintTokenOf = (shade: string | null) => shade?.split(" ")[1]
-
 const marbleTintsIn = (canvasElement: HTMLElement) =>
 	marblesIn(canvasElement).flatMap((marble) => [
-		...new Set(marbleShadesOf(marble).map(tintTokenOf)),
+		...new Set(marbleShadesOf(marble)),
 	])
 
 const SHARED_TINT_ROSTER: AppSidebarBot[] = IDENTITY_ROSTER.map((bot) => ({

@@ -7,6 +7,8 @@ import {
 	expectCompanionPictureSquare,
 	marbleGeometryOf,
 	marbleOf,
+	marbleShadesOf,
+	marbleShapesIn,
 	marblesIn,
 	pictureOf,
 	Row,
@@ -17,10 +19,6 @@ import {
 	BLOT_TINTS,
 	companionAvatarRadius,
 } from "@workspace/ui/components/bot-avatar"
-import {
-	marbleLayers,
-	marbleTransform,
-} from "@workspace/ui/components/bot-avatar-marble"
 import { BOT_BADGES } from "@workspace/ui/components/bot-badge"
 import {
 	BotIdentityAvatar,
@@ -46,10 +44,26 @@ const DrawnPictureSlots = (props: BotIdentityAvatarProps) => (
 
 const MARBLE_SIZES = [16, 24, 40, 96]
 
-const UNSEEDED_GEOMETRY = [
-	null,
-	...marbleLayers().slice(1).map(marbleTransform),
-]
+const UNSEEDED_SEEDS = [undefined, ""]
+
+const CHIP_SIZE = 20
+
+const MARBLE_SHADE_COUNT = 3
+
+const MIN_SHADE_STEP = 0.03
+
+const OKLAB_LIGHTNESS = /^oklab\(([\d.]+)/
+
+const lightnessOf = (colour: string) => {
+	const [, lightness] = colour.match(OKLAB_LIGHTNESS) ?? []
+	if (!lightness) throw new Error(`A marble shade left oklab: ${colour}`)
+	return Number(lightness)
+}
+
+const paintedLightnessesOf = (avatar: HTMLElement) =>
+	(marbleShapesIn(avatar) ?? [])
+		.map((shape) => lightnessOf(getComputedStyle(shape).fill))
+		.sort((deeper, lighter) => lighter - deeper)
 
 const activityDotOf = (avatar: HTMLElement) =>
 	slotsIn(avatar, "bot-activity-dot")[0]
@@ -207,7 +221,7 @@ export const EveryBlot = meta.story({
 		docs: {
 			description: {
 				story:
-					"The eight tints a companion can be marked with, and the companion marked with none. The names are the ones an agent file's `color` key reads. Seven inks came through the renaming untouched — `purple` is the lavender it always was; `orange` is the one that was drawn again, because the grey it inherited did not answer to the word. All eight are light on purpose: the ink line is near-black and the ear accent is coral, and both stop reading over anything darker — check that the outline, the eyes and the ears hold on every tint, and that the tint is the only thing that changes from one to the next. Switch the Storybook theme to dark: the tints do not flip, because a companion's mark is the same colour wherever it is shown. The first avatar draws no blot at all and must be identical to what the component rendered before blots existed.",
+					"The eight tints a companion can be marked with, and the companion marked with none. The names are the ones an agent file's `color` key reads. Seven inks came through the renaming untouched — `purple` is the lavender it always was; `orange` is the one that was drawn again, because the grey it inherited did not answer to the word. All eight are light on purpose: the ink line is near-black and the ear accent is coral, and both stop reading over anything darker — check that the outline, the eyes and the ears hold on every tint, and that the tint is the only thing that changes from one to the next. Switch the Storybook theme to dark: the tints do not flip, because a companion's mark is the same colour wherever it is shown. Every layer of a marble carries the companion's own tint as its `fill` attribute and shades it in the style attribute, so an engine that turns its nose up at `color-mix` draws the flat tint rather than a black square. The first avatar draws no blot at all and must be identical to what the component rendered before blots existed.",
 			},
 		},
 	},
@@ -216,9 +230,9 @@ export const EveryBlot = meta.story({
 
 		await expect(marblesIn(none)).toHaveLength(0)
 		await expect(new Set(tinted.map(marbleOf)).size).toBe(BLOT_TINTS.length)
-		for (const avatar of tinted) {
-			await expect(marbleOf(avatar)).toContain("oklch(from var(--bot-blot-")
-		}
+		await expect(
+			tinted.map((avatar) => [...new Set(marbleShadesOf(avatar))]),
+		).toEqual(BLOT_TINTS.map((blot) => [`var(--bot-blot-${blot})`]))
 	},
 })
 
@@ -512,18 +526,27 @@ export const NamedSkippy = meta.story({
 
 export const Unseeded = meta.story({
 	args: { seed: undefined },
+	render: (args) => (
+		<Row>
+			{UNSEEDED_SEEDS.map((seed) => (
+				<BotIdentityAvatar {...args} key={seed ?? "none"} seed={seed} />
+			))}
+			<BotIdentityAvatar {...args} seed="bot-7" />
+		</Row>
+	),
 	parameters: {
 		docs: {
 			description: {
 				story:
-					"A companion drawn without an id — a preview, a story, anything with no companion behind it yet. Its marble is the one an empty seed lands on, so a preview never draws a different background from one render to the next. Put it beside `Default`, whose companion is seeded: the tint and the animal are the same and only the marble has moved. Pick `Branding/Companion Avatar → MarbleShapes` for a roster of marbles at once.",
+					"A companion drawn without an id — a preview, a story, anything with no companion behind it yet — beside the same companion given an empty id, and beside one that carries a real id. The first two draw the same marble, because no id and an empty id are one case, so a preview never draws a different background from one render to the next. The third proves an id still moves it. Pick `Branding/Companion Avatar → MarbleShapes` for a roster of marbles at once.",
 			},
 		},
 	},
 	play: async ({ canvasElement }) => {
-		const [avatar] = botIdentityAvatars(canvasElement)
+		const [bare, empty, seeded] = botIdentityAvatars(canvasElement)
 
-		await expect(marbleGeometryOf(avatar)).toEqual(UNSEEDED_GEOMETRY)
+		await expect(marbleGeometryOf(bare)).toEqual(marbleGeometryOf(empty))
+		await expect(marbleGeometryOf(seeded)).not.toEqual(marbleGeometryOf(bare))
 	},
 })
 
@@ -577,6 +600,40 @@ export const MarbleAtEverySize = meta.story({
 			await expect(getComputedStyle(avatar).borderRadius).toBe(
 				`${companionAvatarRadius(MARBLE_SIZES[at])}px`,
 			)
+		}
+	},
+})
+
+export const MarbleShadesOnBothThemes = meta.story({
+	tags: ["test-only"],
+	args: { size: CHIP_SIZE },
+	globals: { theme_layout: "side-by-side" },
+	render: (args) => (
+		<Row>
+			{BLOT_TINTS.map((blot) => (
+				<BotIdentityAvatar {...args} blot={blot} key={blot} />
+			))}
+		</Row>
+	),
+	parameters: {
+		docs: {
+			description: {
+				story:
+					"Every tint at the smallest box the product draws a companion in, on both schemes at once. A marble is three shades of one tint mixed toward the companion ink, and at this size they are a few pixels apart: if two of them collapse into one value the avatar stops being a marble and becomes a flat swatch. Check that all three read on every tint and on both schemes, and that the two columns are identical, because the tint tokens carry no dark override.",
+			},
+		},
+	},
+	play: async ({ canvasElement }) => {
+		const avatars = botIdentityAvatars(canvasElement)
+
+		await expect(avatars).toHaveLength(BLOT_TINTS.length * 2)
+		for (const avatar of avatars) {
+			const lightnesses = paintedLightnessesOf(avatar)
+
+			await expect(lightnesses).toHaveLength(MARBLE_SHADE_COUNT)
+			for (const [at, deeper] of lightnesses.slice(1).entries()) {
+				await expect(lightnesses[at] - deeper).toBeGreaterThan(MIN_SHADE_STEP)
+			}
 		}
 	},
 })

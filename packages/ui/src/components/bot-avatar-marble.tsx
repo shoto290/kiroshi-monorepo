@@ -16,10 +16,15 @@ const MARBLE_MIDDLE_PATH =
 const MARBLE_TOP_PATH =
 	"M22.216 24L0 46.75l14.108 38.129L78 86l-3.081-59.276-22.378 4.005 12.972 20.186-23.35 27.395L22.215 24z"
 
-const MARBLE_SHADES = ["l", "calc(l + 0.08)", "calc(l - 0.12)"] as const
+const MARBLE_SHADES = ["100%", "90%", "78%"] as const
 
 const marbleShade = (tint: string, shade: number) =>
-	`oklch(from ${tint} ${MARBLE_SHADES[shade]} c h)`
+	`color-mix(in oklab, ${tint} ${MARBLE_SHADES[shade]}, var(--bot-blot-ink))`
+
+const shadeProps = (tint: string, shade: number, blend?: CSSProperties) => ({
+	fill: tint,
+	style: { ...blend, fill: marbleShade(tint, shade) },
+})
 
 const seedHash = (seed: string) => {
 	let hash = 0
@@ -116,22 +121,21 @@ const BotAvatarMarble = ({ radius, seed, tint }: BotAvatarMarbleProps) => {
 			>
 				<g transform={`scale(${MARBLE_SCALE})`}>
 					<rect
-						fill={marbleShade(tint, base.shade)}
 						height={MARBLE_BOX}
 						width={MARBLE_BOX}
+						{...shadeProps(tint, base.shade)}
 					/>
 					<path
 						d={MARBLE_MIDDLE_PATH}
-						fill={marbleShade(tint, middle.shade)}
 						filter={`url(#${blurId})`}
 						transform={marbleTransform(middle)}
+						{...shadeProps(tint, middle.shade)}
 					/>
 					<path
 						d={MARBLE_TOP_PATH}
-						fill={marbleShade(tint, top.shade)}
 						filter={`url(#${blurId})`}
-						style={OVERLAY_STYLE}
 						transform={marbleTransform(top)}
+						{...shadeProps(tint, top.shade, OVERLAY_STYLE)}
 					/>
 				</g>
 			</g>
@@ -139,14 +143,4 @@ const BotAvatarMarble = ({ radius, seed, tint }: BotAvatarMarbleProps) => {
 	)
 }
 
-export {
-	BotAvatarMarble,
-	type BotAvatarMarbleProps,
-	MARBLE_BOX,
-	MARBLE_SHADE_COUNT,
-	type MarbleLayer,
-	marbleLayers,
-	marbleShade,
-	marbleTransform,
-	seedHash,
-}
+export { BotAvatarMarble, seedHash }

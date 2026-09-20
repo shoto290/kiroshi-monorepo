@@ -633,7 +633,7 @@ describe("PRF1 render baseline", () => {
 			{
 			  "avatarFilters": 6,
 			  "avatars": 6,
-			  "filters": 6,
+			  "filters": 9,
 			  "idle": {
 			    "movingAvatars": 0,
 			    "noOpWrites": 0,

@@ -135,7 +135,7 @@ export const marblesIn = (root: Element) => slotsIn(root, MARBLE_SLOT)
 const marbleWithin = (root: Element) =>
 	root.getAttribute("data-slot") === MARBLE_SLOT ? root : marblesIn(root)[0]
 
-const marbleShapesIn = (root: Element) => {
+export const marbleShapesIn = (root: Element) => {
 	const marble = marbleWithin(root)
 	return marble ? Array.from(marble.querySelectorAll("rect, path")) : null
 }

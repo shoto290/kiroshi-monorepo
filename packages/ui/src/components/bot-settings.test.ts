@@ -5,6 +5,7 @@ import {
 	drawnAnimal,
 	isMcpServerDraftUnsaved,
 	isSkillDraftUnsaved,
+	nextSeed,
 	readMcpServerFields,
 	readMcpServerTransport,
 	toMcpServerConfigFor,
@@ -278,5 +279,23 @@ describe("isMcpServerDraftUnsaved", () => {
 		expect(
 			isMcpServerDraftUnsaved({ name: "", transport: "local", config: "{}" }),
 		).toBe(true)
+	})
+})
+
+describe("nextSeed", () => {
+	it("hands back a seed the identity was not already carrying", () => {
+		expect(nextSeed("bot-7")).not.toBe("bot-7")
+		expect(nextSeed()).not.toBe("")
+	})
+
+	it("mints a new seed on every press", () => {
+		const first = nextSeed("bot-7")
+		const second = nextSeed(first)
+
+		expect(first).not.toBe(second)
+	})
+
+	it("reads the same seed from the same press", () => {
+		expect(nextSeed("bot-7")).toBe(nextSeed("bot-7"))
 	})
 })

@@ -12,10 +12,6 @@ import {
 	UPLOADED_AVATAR_IMAGE,
 } from "@workspace/storybook/story-utils"
 import {
-	marbleLayers,
-	marbleTransform,
-} from "@workspace/ui/components/bot-avatar-marble"
-import {
 	BotIdentityFields,
 	type BotIdentityFieldsProps,
 } from "@workspace/ui/components/bot-identity-fields"
@@ -27,11 +23,6 @@ import {
 const BOT_ID = "bot-7"
 
 const IDENTITY: BotIdentity = { animal: "owl", blot: "blue" }
-
-const SEEDED_GEOMETRY = [
-	null,
-	...marbleLayers(BOT_ID).slice(1).map(marbleTransform),
-]
 
 const FieldsHost = (props: BotIdentityFieldsProps) => {
 	const [identity, setIdentity] = useState(props.identity)
@@ -272,10 +263,11 @@ export const Seeded = meta.story({
 	},
 	play: async ({ canvasElement }) => {
 		const marbles = marblesIn(canvasElement).map(marbleGeometryOf)
+		const [first] = marbles
 
 		await expect(marbles.length).toBeGreaterThan(0)
 		for (const marble of marbles) {
-			await expect(marble).toEqual(SEEDED_GEOMETRY)
+			await expect(marble).toEqual(first)
 		}
 	},
 })

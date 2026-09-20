@@ -14,7 +14,6 @@ import {
 	STATE_POOLS,
 } from "@workspace/ui/components/bot-avatar-data"
 import { GAZE_CADENCE } from "@workspace/ui/components/bot-avatar-gaze"
-import { MARBLE_SHADE_COUNT } from "@workspace/ui/components/bot-avatar-marble"
 
 const BOT_AVATAR_ANIMALS = Object.keys(ANIMALS) as BotAvatarAnimal[]
 const BOT_AVATAR_STATES = Object.keys(STATE_POOLS) as BotAvatarState[]
@@ -31,6 +30,8 @@ const MARBLE_SEEDS = [
 ]
 
 const TWICE_DRAWN_LABEL = "bot-1 again"
+
+const MARBLE_SHADE_COUNT = 3
 
 const MARBLE_CELLS = [
 	...MARBLE_SEEDS.map((seed) => ({ label: seed, seed })),
