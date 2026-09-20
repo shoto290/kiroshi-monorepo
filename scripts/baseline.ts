@@ -390,15 +390,16 @@ const requestedScopes = (argv: string[]): Scope[] => {
 			`unknown scope "${unknown}", expected one of ${Object.keys(SCOPES).join(", ")}`,
 		)
 	}
-	return named.length === 0
-		? (Object.keys(SCOPES) as Scope[])
-		: (named as Scope[])
+	const chosen = named.filter(isScope)
+	return chosen.length === 0 ? Object.keys(SCOPES).filter(isScope) : chosen
 }
 
-const compareArea = ({ area, items }: AreaItems) =>
-	area === STORIES
-		? compareStories({ committed: readItems(area), live: items })
-		: compareItems({ area, committed: readItems(area), live: items })
+const compareArea = ({ area, items }: AreaItems) => {
+	const committed = readItems(area)
+	return area === STORIES
+		? compareStories({ committed, live: items })
+		: compareItems({ area, committed, live: items })
+}
 
 const check = (live: Live) => {
 	const verdict = mergeVerdicts(
