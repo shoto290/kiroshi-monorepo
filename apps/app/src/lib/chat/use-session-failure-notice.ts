@@ -30,7 +30,7 @@ type FailureReading = {
 }
 
 type RaisedFailure = {
-	key: string
+	errorId: string
 	noticeId: string
 }
 
@@ -92,14 +92,14 @@ export const useSessionFailureNotice = ({
 }: SessionFailure): void => {
 	const t = useChatCopy()
 	const raised = useRef<RaisedFailure | null>(null)
-	const key = error?.id ?? null
+	const errorId = error?.id ?? null
 
 	useEffect(() => {
-		if (raised.current?.key === key) {
+		if (raised.current?.errorId === errorId) {
 			return
 		}
 		release(raised)
-		if (!error || !key) {
+		if (!error) {
 			return
 		}
 		if (error.error.kind === "serverEnvRejected") {
@@ -117,14 +117,14 @@ export const useSessionFailureNotice = ({
 			onDismiss(error.id)
 		}
 		const failure: RaisedFailure = {
-			key,
+			errorId: error.id,
 			noticeId: raiseFailureNotice({
 				...transportMessageOf(t, { error, onRestart, onSignIn }),
 				onClose: dismissUnlessReleased,
 			}),
 		}
 		raised.current = failure
-	}, [key, error, onDismiss, onRestart, onSignIn, t])
+	}, [errorId, error, onDismiss, onRestart, onSignIn, t])
 
 	useEffect(() => () => release(raised), [])
 }
