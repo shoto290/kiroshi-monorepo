@@ -196,31 +196,31 @@ export const createRouter = (
 
 	const closeSession = (_command: Command, session: string) => close(session)
 
-	const answering: Record<string, Handler> = {
-		check: reportConnection,
-		models: listModels,
-		tools: listTools,
-		title: nameConversation,
-		[SIGN_IN]: startSignIn,
-		[SIGN_IN_CODE]: enterSignInCode,
-		[SIGN_IN_CANCEL]: cancelSignIn,
-		[AUTHORIZE]: authorizeServer,
-		[CANCEL]: cancelMcpAuthorization,
-		[REVOKE]: revokeGrant,
-		[REFRESH]: refreshGrant,
-	}
+	const answering = new Map<string, Handler>([
+		["check", reportConnection],
+		["models", listModels],
+		["tools", listTools],
+		["title", nameConversation],
+		[SIGN_IN, startSignIn],
+		[SIGN_IN_CODE, enterSignInCode],
+		[SIGN_IN_CANCEL, cancelSignIn],
+		[AUTHORIZE, authorizeServer],
+		[CANCEL, cancelMcpAuthorization],
+		[REVOKE, revokeGrant],
+		[REFRESH, refreshGrant],
+	])
 
-	const acting: Record<string, Handler> = {
-		open: openSession,
-		prompt: promptSession,
-		interrupt: interruptSession,
-		permission: decidePermission,
-		host_response: settleHostRequest,
-		close: closeSession,
-	}
+	const acting = new Map<string, Handler>([
+		["open", openSession],
+		["prompt", promptSession],
+		["interrupt", interruptSession],
+		["permission", decidePermission],
+		["host_response", settleHostRequest],
+		["close", closeSession],
+	])
 
 	const route = (command: Command): Handler | undefined =>
-		command.session ? acting[command.type] : answering[command.type]
+		command.session ? acting.get(command.type) : answering.get(command.type)
 
 	const dispatch = (command: Command) => {
 		void route(command)?.(command, command.session ?? "")
@@ -232,7 +232,13 @@ export const createRouter = (
 		}
 	}
 
-	return { route, dispatch, closeEvery }
+	return {
+		route,
+		dispatch,
+		closeEvery,
+		answered: new Set(answering.keys()),
+		acted: new Set(acting.keys()),
+	}
 }
 
 export const serve = async (requestedId?: string) => {

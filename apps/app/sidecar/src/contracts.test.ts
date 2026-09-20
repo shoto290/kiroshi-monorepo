@@ -1,6 +1,7 @@
 import { describe, expect, it } from "bun:test"
 import { readFileSync, writeFileSync } from "node:fs"
 import { join } from "node:path"
+import { fileURLToPath } from "node:url"
 
 import { z } from "zod"
 
@@ -13,7 +14,7 @@ import type { AgentProvider } from "./providers/provider"
 
 const REWRITE = "bun run snapshots"
 
-const CONTRACTS = new URL("../../contracts/", import.meta.url).pathname
+const CONTRACTS = fileURLToPath(new URL("../../contracts/", import.meta.url))
 
 const TOOLS_SNAPSHOT = "kiroshi-tools.json"
 
@@ -73,25 +74,7 @@ const acceptedSettings = () =>
 		]),
 	)
 
-const HANDLER_OF: Record<string, string> = {
-	open: "openSession",
-	prompt: "promptSession",
-	interrupt: "interruptSession",
-	permission: "decidePermission",
-	host_response: "settleHostRequest",
-	close: "closeSession",
-	check: "reportConnection",
-	models: "listModels",
-	tools: "listTools",
-	title: "nameConversation",
-	sign_in: "startSignIn",
-	sign_in_code: "enterSignInCode",
-	sign_in_cancel: "cancelSignIn",
-	mcp_oauth_authorize: "authorizeServer",
-	mcp_oauth_cancel: "cancelMcpAuthorization",
-	mcp_oauth_revoke: "revokeGrant",
-	mcp_oauth_refresh: "refreshGrant",
-}
+const HELD_BY_OBJECT_PROTOTYPE = ["__proto__", "constructor", "toString"]
 
 const refuses = (name: string) => () => {
 	throw new Error(`the routing test never calls ${name}`)
@@ -125,12 +108,46 @@ describe("the frozen back-end contracts", () => {
 		})
 	})
 
-	it(`routes every command of ${COMMANDS} to the handler that serves it`, () => {
-		const { route } = createRouter(silentProvider, () => undefined)
-		const routed = committedLines(COMMANDS).map(
-			(command) => [command.type, route(command)?.name] as const,
+	it(`serves exactly the command types ${COMMANDS} carries`, () => {
+		const { answered, acted } = createRouter(silentProvider, () => undefined)
+		const carried = new Set(
+			committedLines(COMMANDS).map((command) => command.type),
 		)
+		const served = [...answered, ...acted]
 
-		expect(Object.fromEntries(routed)).toEqual(HANDLER_OF)
+		expect(served.filter((type) => !carried.has(type))).toEqual([])
+		expect([...carried].filter((type) => !served.includes(type))).toEqual([])
+	})
+
+	it(`routes every command of ${COMMANDS} through the record its session decides`, () => {
+		const { route, answered, acted } = createRouter(
+			silentProvider,
+			() => undefined,
+		)
+		const commands = committedLines(COMMANDS)
+		const misplaced = commands.filter(
+			(command) => !(command.session ? acted : answered).has(command.type),
+		)
+		const handlers = commands.map((command) => route(command))
+
+		expect(misplaced.map((command) => command.type)).toEqual([])
+		expect(handlers.filter(Boolean)).toHaveLength(commands.length)
+		expect(new Set(handlers).size).toBe(commands.length)
+	})
+
+	it("routes a command type held by Object.prototype nowhere and writes nothing", () => {
+		const written: unknown[] = []
+		const { route, dispatch } = createRouter(silentProvider, (payload) => {
+			written.push(payload)
+		})
+
+		for (const type of [...HELD_BY_OBJECT_PROTOTYPE, "no_record_serves_this"]) {
+			expect(route({ type })).toBeUndefined()
+			expect(route({ type, session: "k1" })).toBeUndefined()
+			dispatch({ type })
+			dispatch({ type, session: "k1" })
+		}
+
+		expect(written).toEqual([])
 	})
 })
