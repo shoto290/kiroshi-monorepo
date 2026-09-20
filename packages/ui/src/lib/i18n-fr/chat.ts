@@ -85,6 +85,17 @@ const chat = {
 			counted_one: "{{count}} mention",
 			counted_many: "{{count}} mentions",
 			counted_other: "{{count}} mentions",
+			unresolved: {
+				title_one: "Impossible de convoquer un compagnon",
+				title_many: "Impossible de convoquer ces compagnons",
+				title_other: "Impossible de convoquer ces compagnons",
+				description_one:
+					"{{names}} a été nommé mais n'a pas de siège dans cette conversation.",
+				description_many:
+					"{{names}} ont été nommés mais n'ont pas de siège dans cette conversation.",
+				description_other:
+					"{{names}} ont été nommés mais n'ont pas de siège dans cette conversation.",
+			},
 		},
 	},
 	turn: {

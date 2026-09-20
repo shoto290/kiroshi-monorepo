@@ -162,6 +162,8 @@ const SPAWN_TITLE = "Couldn't reach the agent"
 
 const PINS_TITLE = "Couldn't sync pinned messages"
 
+const UNRESOLVED_MENTION_TITLE = "Couldn't summon a companion"
+
 const READ_TITLE = "Couldn't load earlier messages"
 
 const SPACE = "personal"
@@ -534,6 +536,26 @@ const SEARCHING: AgentEvent[] = [
 			status: "running",
 		},
 	},
+]
+
+const HANDED_TO_NOBODY: AgentEvent[] = [
+	{
+		type: "messageStarted",
+		message: {
+			id: "msg-to-nobody",
+			role: "assistant",
+			text: "",
+			completion: "streaming",
+			timestamp: 1,
+		},
+	},
+	{
+		type: "messageDelta",
+		id: "msg-to-nobody",
+		seq: 1,
+		text: "over to <@ghost>",
+	},
+	{ type: "turnEnded", ended: { sessionId: null, outcome: "completed" } },
 ]
 
 const HANDED_TO_ZOE: AgentEvent[] = [
@@ -1654,6 +1676,29 @@ describe("ThreadScreen", () => {
 		fireEvent.click(screen.getByRole("button", { name: "Dismiss notice" }))
 
 		expect(screen.queryByText(PINS_TITLE)).toBeNull()
+	})
+
+	it("tells the reader which token of a finished turn nobody answered", async () => {
+		const room = await roomOf({ names: ["Ada"] })
+		render(screenOf(room.thread))
+		await settle()
+
+		await room.send("@Ada now")
+		act(() => {
+			room.driver.pushTo(room.idOf("Ada"), HANDED_TO_NOBODY)
+		})
+		await settle()
+
+		expect(screen.getByText(UNRESOLVED_MENTION_TITLE)).toBeTruthy()
+		expect(
+			screen.getByText(
+				"Unknown companion was named but holds no seat in this conversation.",
+			),
+		).toBeTruthy()
+
+		fireEvent.click(screen.getByRole("button", { name: "Dismiss notice" }))
+
+		expect(screen.queryByText(UNRESOLVED_MENTION_TITLE)).toBeNull()
 	})
 
 	it("writes the title of the companion record next to the author of that companion id", async () => {

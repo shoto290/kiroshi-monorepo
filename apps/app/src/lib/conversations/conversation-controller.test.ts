@@ -180,8 +180,8 @@ const unpublishedIn = (controller: ConversationController) =>
 const workIn = (controller: ConversationController) =>
 	controller.getState().speakers[0]?.work ?? null
 
-const submittedIn = (harness: Harness) =>
-	harness.driver.submissions.map(({ scope }) => scope.botId)
+const submittedIn = ({ driver }: Pick<Harness, "driver">) =>
+	driver.submissions.map(({ scope }) => scope.botId)
 
 describe("createConversationController", () => {
 	let harness: Harness
@@ -2404,5 +2404,222 @@ describe("the arrivals a conversation hears announced", () => {
 		await settled()
 
 		expect(unlisten).toHaveBeenCalledTimes(1)
+	})
+})
+
+describe("the mentions a finished turn carries", () => {
+	const arrivalFor = (
+		conversationId: string,
+		botId: string,
+	): CompanionArrival => ({
+		id: `a-${botId}`,
+		conversationId,
+		botId,
+		invitedByBotId: null,
+		lastMessageSeq: 0,
+		createdAt: 0,
+	})
+
+	const roomSeating = async () => {
+		const store = createFakeTranscriptStore()
+		const driver = createScriptedDriver()
+		const [ada, iris] = await seatBots(store, SPACE, ["Ada", "Iris"])
+		const conversation = await store.createConversation({
+			spaceId: SPACE,
+			sectionId: null,
+			title: "Walls",
+			botIds: [ada.id],
+		})
+		const listeners: ((arrival: CompanionArrival) => void)[] = []
+		const controller = createConversationController(driver, store, {
+			onCompanionArrived: async (listener) => {
+				listeners.push(listener)
+				return () => undefined
+			},
+		})
+		const detach = controller.attach()
+		await controller.open(conversation)
+		await settled()
+		return {
+			store,
+			driver,
+			controller,
+			conversation,
+			ada: ada.id,
+			iris: iris.id,
+			detach,
+			seat: (botId: string) =>
+				store.addConversationParticipant(conversation.id, botId),
+			unseat: (botId: string) =>
+				store.removeConversationParticipant(conversation.id, botId),
+			announce: (botId: string) => {
+				for (const listener of listeners) {
+					listener(arrivalFor(conversation.id, botId))
+				}
+			},
+			spoken: async (botId: string, text: string) => {
+				driver.pushTo(botId, spoke(botId, text))
+				await settled()
+			},
+			sent: async (text: string) => {
+				await controller.send(text)
+				await settled()
+			},
+		}
+	}
+
+	it("summons the companion seated during the turn the arrival announced", async () => {
+		const room = await roomSeating()
+		await room.sent("@Ada take the walls")
+		await room.seat(room.iris)
+		room.announce(room.iris)
+		const read = vi.spyOn(room.store, "spaces")
+
+		await room.spoken(room.ada, `over to <@${room.iris}>`)
+
+		expect(submittedIn(room)).toEqual([room.ada, room.iris])
+		expect(read).not.toHaveBeenCalled()
+		room.detach()
+	})
+
+	it("reads the conversation once and summons the companion the store shows seated", async () => {
+		const room = await roomSeating()
+		await room.sent("@Ada take the walls")
+		await room.seat(room.iris)
+
+		await room.spoken(room.ada, `over to <@${room.iris}>`)
+
+		expect(submittedIn(room)).toEqual([room.ada, room.iris])
+		expect(room.controller.getState().unresolvedMentions).toEqual([])
+		room.detach()
+	})
+
+	it("keeps the token no seat and no read answers, and names it raw", async () => {
+		const room = await roomSeating()
+		await room.sent("@Ada take the walls")
+
+		await room.spoken(room.ada, "over to <@ghost>")
+
+		expect(room.controller.getState().unresolvedMentions).toEqual([
+			{ botId: "ghost", name: null },
+		])
+		room.detach()
+	})
+
+	it("names the companion the read knows but no longer shows seated", async () => {
+		const room = await roomSeating()
+		await room.seat(room.iris)
+		await room.unseat(room.iris)
+		await room.sent("@Ada take the walls")
+
+		await room.spoken(room.ada, `over to <@${room.iris}>`)
+
+		expect(room.controller.getState().unresolvedMentions).toEqual([
+			{ botId: room.iris, name: "Iris" },
+		])
+		expect(submittedIn(room)).toEqual([room.ada])
+		room.detach()
+	})
+
+	it("forgets an unresolved token when another conversation is opened", async () => {
+		const room = await roomSeating()
+		await room.sent("@Ada take the walls")
+		await room.spoken(room.ada, "over to <@ghost>")
+		const elsewhere = await room.store.createConversation({
+			spaceId: SPACE,
+			sectionId: null,
+			title: "Gates",
+			botIds: [room.ada],
+		})
+
+		await room.controller.open(elsewhere)
+		await settled()
+
+		expect(room.controller.getState().unresolvedMentions).toEqual([])
+		room.detach()
+	})
+
+	it("forgets an arrival when another conversation is opened", async () => {
+		const room = await roomSeating()
+		await room.seat(room.iris)
+		room.announce(room.iris)
+		const elsewhere = await room.store.createConversation({
+			spaceId: SPACE,
+			sectionId: null,
+			title: "Gates",
+			botIds: [room.ada],
+		})
+		await room.controller.open(elsewhere)
+		await room.controller.open(room.conversation)
+		await settled()
+		await room.sent("@Ada take the walls")
+		const read = vi.spyOn(room.store, "spaces")
+
+		await room.spoken(room.ada, `over to <@${room.iris}>`)
+
+		expect(read).toHaveBeenCalled()
+		room.detach()
+	})
+
+	it("drops the notice of the unresolved tokens the reader closes", async () => {
+		const room = await roomSeating()
+		await room.sent("@Ada take the walls")
+		await room.spoken(room.ada, "over to <@ghost>")
+
+		room.controller.dismissUnresolvedMentions()
+
+		expect(room.controller.getState().unresolvedMentions).toEqual([])
+		room.detach()
+	})
+
+	it("opens no turn for a relayed report naming only companions nobody answers", async () => {
+		const room = await roomSeating()
+		const started = vi.spyOn(room.store, "startTurn")
+
+		await room.controller.relaySpoken({
+			conversationId: room.conversation.id,
+			authorBotId: room.ada,
+			text: "Walls are up. <@ghost>, read it.",
+		})
+		await settled()
+
+		expect(started).toHaveBeenCalledTimes(1)
+		expect(submittedIn(room)).toEqual([])
+		room.detach()
+	})
+
+	it("replaces the name of an unresolved token once a read answers one", async () => {
+		const room = await roomSeating()
+		await room.sent("@Ada take the walls")
+		await room.spoken(room.ada, `over to <@${room.iris}>`)
+
+		expect(room.controller.getState().unresolvedMentions).toEqual([
+			{ botId: room.iris, name: null },
+		])
+
+		await room.seat(room.iris)
+		await room.unseat(room.iris)
+		await room.sent("@Ada again")
+		await room.spoken(room.ada, `still <@${room.iris}>`)
+
+		expect(room.controller.getState().unresolvedMentions).toEqual([
+			{ botId: room.iris, name: "Iris" },
+		])
+		room.detach()
+	})
+
+	it("summons through the store read the companion a relayed report names", async () => {
+		const room = await roomSeating()
+		await room.seat(room.iris)
+
+		await room.controller.relaySpoken({
+			conversationId: room.conversation.id,
+			authorBotId: room.ada,
+			text: `Walls are up. <@${room.iris}>, read it.`,
+		})
+		await settled()
+
+		expect(submittedIn(room)).toEqual([room.iris])
+		room.detach()
 	})
 })

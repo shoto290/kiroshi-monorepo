@@ -60,14 +60,21 @@ export const toMentionNames = (text: string, bots: MentionBot[]): string =>
 			`${ARROBASE}${nameOf(botId, bots) ?? i18n.t("chat:transcript.mention.unknown")}`,
 	)
 
-export const addresseesIn = (text: string, present: string[]): string[] => {
+type Addressees = {
+	named: string[]
+	unresolved: string[]
+}
+
+export const addresseesIn = (text: string, present: string[]): Addressees => {
 	const named: string[] = []
+	const unresolved: string[] = []
 	for (const [, botId] of text.matchAll(MENTION_TOKEN)) {
-		if (present.includes(botId) && !named.includes(botId)) {
-			named.push(botId)
+		const shelf = present.includes(botId) ? named : unresolved
+		if (!shelf.includes(botId)) {
+			shelf.push(botId)
 		}
 	}
-	return named
+	return { named, unresolved }
 }
 
 export const mentionQueryIn = (prompt: string): string | null => {
