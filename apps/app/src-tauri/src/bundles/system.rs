@@ -167,6 +167,7 @@ mod tests {
 	#[test]
 	fn the_missions_skill_is_preloaded_and_says_when_a_mission_closes() {
 		let text = String::from_utf8_lossy(embedded(MISSIONS));
+		let said_in_one_breath = text.split_whitespace().collect::<Vec<_>>().join(" ");
 
 		assert!(text.contains("preload: true"), "got {text}");
 		for said in [
@@ -182,8 +183,35 @@ mod tests {
 			"A mission reaches `ready_to_merge` and `done` from its checkout only while its branch is",
 			"A red CI, a failing test and a coding agent that is blocked are work still to do in the",
 			"Ask, never guess.",
+			"`mission_open`",
+			"`mission_note`",
+			"`mission_watch`",
+			"`mission_escalate`",
+			"`mission_close`",
+			"`mission_list`",
+			"## What the conversation it came from hears",
+			"Every time you stop working on a mission, a status of it lands in the conversation that mission came from.",
+			"It names, by name, whoever picks the work up next",
+			"A status says where the mission stands, what moved since the last one, what is waiting, and on whom.",
+			"Whoever reads that conversation followed nothing of the mission thread.",
 		] {
-			assert!(text.contains(said), "{said} is missing");
+			assert!(said_in_one_breath.contains(said), "{said} is missing");
+		}
+	}
+
+	#[test]
+	fn the_status_section_of_the_missions_skill_names_no_tool_and_orders_no_step() {
+		let text = String::from_utf8_lossy(embedded(MISSIONS));
+		let section = text
+			.split("## What the conversation it came from hears")
+			.nth(1)
+			.expect("the status section is there")
+			.split("\n## ")
+			.next()
+			.expect("the section ends");
+
+		for unsaid in ["mission_", "merge", "ticket", "pull request", "1."] {
+			assert!(!section.contains(unsaid), "{unsaid} is said in {section}");
 		}
 	}
 

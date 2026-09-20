@@ -42,6 +42,18 @@ A mission reaches `ready_to_merge` and `done` from its checkout only while its b
 watched. An unwatched mission moves on your tools alone and sits on its last state until
 you move it.
 
+## What the conversation it came from hears
+
+Every time you stop working on a mission, a status of it lands in the conversation that
+mission came from. You write it, and it goes out whether the work is over or only paused.
+
+A status says where the mission stands, what moved since the last one, what is waiting,
+and on whom. It names, by name, whoever picks the work up next, so nobody there has to
+guess who is expected to move.
+
+Whoever reads that conversation followed nothing of the mission thread. They saw none of
+the work, so a status holds on its own, in a few lines, in plain words.
+
 ## Closing
 
 Close every mission you opened that nothing else closed, once the work is over. `done`
