@@ -11,6 +11,9 @@ import {
 	WATCH_BOUND_MS,
 	WATCH_POLL_MS,
 } from "./server-connect"
+import type { RenewedGrant } from "./server-renewal"
+
+import type { ServerEnv } from "../provider"
 
 const portReading = (
 	reads: ServerStatus[][],
@@ -854,5 +857,233 @@ describe("watching a server left connecting", () => {
 		expect(reported[0]).toContain("401 from https://queried.test/mcp")
 		expect(reported[0]).not.toContain("api_key")
 		expect(reported[0]).not.toContain("sk-live-1234")
+	})
+})
+
+const REJECTED_HEADER =
+	"Server rejected the configured Authorization header (HTTP 401). Check that the token is valid for this MCP endpoint — OAuth fallback is disabled when headers.Authorization is set."
+
+const RENEWED = "renewed-access-token"
+
+const GIVEN_A_TOKEN: ServerEnv = {
+	perServer: { superset: { KIROSHI_OAUTH_ACCESS_TOKEN: "stale-access-token" } },
+}
+
+const rejecting = (error: string): ServerStatus[] => [
+	{ name: "superset", status: "failed", error },
+]
+
+type RenewalPass = {
+	statuses: (declared: boolean) => Promise<ServerStatus[]>
+	grant?: () => Promise<RenewedGrant>
+	declare?: (name: string, accessToken: string) => Promise<void>
+	env?: ServerEnv
+}
+
+const renewalPass = async ({
+	statuses,
+	grant = async () => ({ state: "granted", accessToken: RENEWED }),
+	declare = async () => {},
+	env = GIVEN_A_TOKEN,
+}: RenewalPass) => {
+	const reported: ReportedLine[] = []
+	const renewed: string[] = []
+	const reconnected: string[] = []
+	const declared: { name: string; accessToken: string }[] = []
+	let time = 0
+	const stderr = capture()
+
+	await unconnectedServers({
+		names: ["superset"],
+		port: {
+			status: () => statuses(declared.length > 0),
+			reconnect: async (name) => {
+				reconnected.push(name)
+			},
+		},
+		env,
+		grants: {
+			renew: async (name) => {
+				renewed.push(name)
+				return grant()
+			},
+			declare: async (name, accessToken) => {
+				declared.push({ name, accessToken })
+				await declare(name, accessToken)
+			},
+		},
+		now: () => time,
+		wait: async (ms) => {
+			time += ms
+		},
+		report: (line) => reported.push(line),
+	})
+	await settling(20)
+	stderr.restore()
+
+	return { reported, renewed, reconnected, declared, written: stderr.written }
+}
+
+const backAfterRenewal = (error: string) => async (declared: boolean) =>
+	declared ? connected : rejecting(error)
+
+describe("a rejected access token", () => {
+	it("is renewed on the reason the agent SDK writes for a rejected header", async () => {
+		const pass = await renewalPass({
+			statuses: backAfterRenewal(REJECTED_HEADER),
+		})
+
+		expect(pass.renewed).toEqual(["superset"])
+		expect(pass.declared).toEqual([{ name: "superset", accessToken: RENEWED }])
+		expect(pass.reconnected).toEqual([])
+		expect(pass.reported).toEqual([
+			{
+				detail:
+					'the server "superset" connected, and holds its tools for the rest of this session',
+				state: "holding",
+				notice: false,
+			},
+		])
+	})
+
+	it("is renewed on a reason naming the rejected header and no status", async () => {
+		const pass = await renewalPass({
+			statuses: backAfterRenewal(
+				"the endpoint rejected the configured Authorization header",
+			),
+		})
+
+		expect(pass.renewed).toEqual(["superset"])
+		expect(pass.reconnected).toEqual([])
+	})
+
+	it("is renewed on a reason naming a 401 and no header", async () => {
+		const pass = await renewalPass({
+			statuses: backAfterRenewal("the endpoint answered 401 Unauthorized"),
+		})
+
+		expect(pass.renewed).toEqual(["superset"])
+		expect(pass.reconnected).toEqual([])
+	})
+
+	it("is renewed at most once for one failed status, however it settles", async () => {
+		const pass = await renewalPass({
+			statuses: async () => rejecting(REJECTED_HEADER),
+		})
+
+		expect(pass.renewed).toEqual(["superset"])
+		expect(pass.reconnected).toEqual([])
+		expect(pass.reported).toEqual([
+			{ detail: `${leftOut}it read failed`, state: "left-out", notice: true },
+		])
+	})
+
+	it("is left to the reconnection it takes today when no 401 is named", async () => {
+		const pass = await renewalPass({
+			statuses: backAfterRenewal("Connection refused"),
+		})
+
+		expect(pass.renewed).toEqual([])
+		expect(pass.reconnected).toEqual(["superset"])
+	})
+
+	it("is renewed for no server the store gave an access token to", async () => {
+		const pass = await renewalPass({
+			statuses: backAfterRenewal(REJECTED_HEADER),
+			env: { perServer: { clock: { KIROSHI_OAUTH_ACCESS_TOKEN: "clock" } } },
+		})
+
+		expect(pass.renewed).toEqual([])
+		expect(pass.reconnected).toEqual(["superset"])
+	})
+
+	it("leaves a server the authorization server refuses waiting to be authorized", async () => {
+		const pass = await renewalPass({
+			statuses: backAfterRenewal(REJECTED_HEADER),
+			grant: async () => ({ state: "needs-auth" }),
+		})
+
+		expect(pass.declared).toEqual([])
+		expect(pass.reconnected).toEqual([])
+		expect(pass.reported).toEqual([
+			{
+				detail: `${leftOut}it is waiting for you to authorize it`,
+				state: "needs-auth",
+				notice: true,
+			},
+		])
+	})
+
+	it("carries the reason it reports today when the renewal answers no token", async () => {
+		const reported: ReportedLine[] = []
+		let time = 0
+
+		await unconnectedServers({
+			names: ["superset"],
+			port: {
+				status: async () => rejecting(REJECTED_HEADER),
+				reconnect: throwing("Connection failed"),
+			},
+			env: GIVEN_A_TOKEN,
+			grants: {
+				renew: async () => ({ state: "unchanged" }),
+				declare: async () => {},
+			},
+			now: () => time,
+			wait: async (ms) => {
+				time += ms
+			},
+			report: (line) => reported.push(line),
+		})
+		await settling(20)
+
+		expect(reported.map((line) => line.detail)).toEqual([
+			`${leftOut}it read failed, and the reconnection answered: Connection failed`,
+		])
+	})
+
+	it("leaves the server out, naming the declaration, when declaring it throws", async () => {
+		const pass = await renewalPass({
+			statuses: backAfterRenewal(REJECTED_HEADER),
+			declare: throwing(`${RENEWED} is refused`),
+		})
+
+		expect(pass.reported).toEqual([
+			{
+				detail: `${leftOut}it read failed, and the declaration that carried it answered: [redacted] is refused`,
+				state: "left-out",
+				notice: true,
+			},
+		])
+	})
+
+	it("is redacted out of every reported line and every line on stderr", async () => {
+		const pass = await renewalPass({
+			statuses: async (declared) => {
+				if (!declared) {
+					return rejecting(REJECTED_HEADER)
+				}
+				throw new Error(`the query stalled on ${RENEWED}`)
+			},
+		})
+		const carried = [
+			...pass.written,
+			...pass.reported.map((line) => line.detail),
+		].join("")
+
+		expect(carried).toContain("the query stalled on [redacted]")
+		expect(carried).not.toContain(RENEWED)
+	})
+
+	it("writes on stderr, and reconnects, when the host refuses to renew", async () => {
+		const pass = await renewalPass({
+			statuses: backAfterRenewal(REJECTED_HEADER),
+			grant: throwing("the session closed before the host answered"),
+		})
+
+		expect(pass.written.join("")).toContain(
+			'the renewal of a rejected access token was refused ("superset"): the session closed before the host answered',
+		)
+		expect(pass.reconnected).toEqual(["superset"])
 	})
 })

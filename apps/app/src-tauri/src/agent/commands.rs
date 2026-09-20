@@ -520,6 +520,7 @@ struct RuntimeIdentity {
 	bundle: Option<Bundle>,
 	working_dir: Option<String>,
 	server_env: ResolvedEnv,
+	space_id: Option<String>,
 }
 
 pub const ENV_UNREADABLE: &str = "the environment store could not be read";
@@ -592,7 +593,12 @@ async fn runtime_identity<R: Runtime>(
 	.flatten()
 	.collect();
 	let server_env = served_environment(app, sidecar, &bot.id, &space_id, &serving).await;
-	RuntimeIdentity { bundle, working_dir: bot.working_dir, server_env }
+	RuntimeIdentity {
+		bundle,
+		working_dir: bot.working_dir,
+		server_env,
+		space_id: Some(space_id),
+	}
 }
 
 async fn settled_permissions(
@@ -712,7 +718,11 @@ pub async fn agent_start_or_resume_session<R: Runtime>(
 			scope.conversation_id.clone(),
 			scope.bot_id.clone(),
 		)))
-		.hosting(hosted(StandingHost::new(app.clone(), scope.bot_id.clone())))
+		.hosting(hosted(StandingHost::new(
+			app.clone(),
+			scope.bot_id.clone(),
+			identity.space_id,
+		)))
 		.hosting(hosted(ApplicationHost::new(
 			app.clone(),
 			scope.conversation_id.clone(),

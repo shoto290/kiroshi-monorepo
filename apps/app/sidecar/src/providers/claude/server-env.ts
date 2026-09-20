@@ -13,7 +13,7 @@ const EXPANDED_FIELDS = ["command", "args", "env", "url", "headers"] as const
 const PLACEHOLDER = /\$\{([A-Z_][A-Z0-9_]*)(?::-([^}]*))?\}/g
 const OPENING = "${"
 
-const ACCESS_TOKEN = "KIROSHI_OAUTH_ACCESS_TOKEN"
+export const ACCESS_TOKEN = "KIROSHI_OAUTH_ACCESS_TOKEN"
 const AUTHORIZATION = "authorization"
 
 export type ResolvedServers = {
@@ -96,15 +96,27 @@ const needsTheStore = (server: Server): boolean =>
 	declaresVariable(server) ||
 	(carriesUrl(server) && !declaresAuthorization(server))
 
+const withBearer = (server: Server, token: string): Server =>
+	({
+		...server,
+		headers: { ...declaredHeaders(server), Authorization: `Bearer ${token}` },
+	}) as Server
+
 const authorized = (server: Server, own: Values | undefined): Server => {
 	const token = own?.[ACCESS_TOKEN]
 	if (!token || !carriesUrl(server) || declaresAuthorization(server)) {
 		return server
 	}
-	return {
-		...server,
-		headers: { ...declaredHeaders(server), Authorization: `Bearer ${token}` },
-	} as Server
+	return withBearer(server, token)
+}
+
+export const declaredAgain = (
+	servers: Servers,
+	name: string,
+	token: string,
+): Servers => {
+	const held = servers[name]
+	return held ? { ...servers, [name]: withBearer(held, token) } : servers
 }
 
 const LEFT_OUT = "was left out"

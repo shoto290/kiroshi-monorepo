@@ -20,10 +20,12 @@ import {
 	unconnectedServers,
 } from "./server-connect"
 import {
+	declaredAgain,
 	type ResolvedServers,
 	resolvedServers,
 	serverNamed,
 } from "./server-env"
+import { renewGrant } from "./server-renewal"
 import { recordStanding } from "./server-standing"
 import { sessionEnv } from "./session-env"
 import {
@@ -334,6 +336,8 @@ export const openClaudeSession = async (
 
 	emit({ type: "commands", commands: described(initialized.commands) })
 
+	let declared = { ...options.mcpServers }
+
 	const report = reportConnections({
 		emit,
 		push: prompts.push,
@@ -344,6 +348,13 @@ export const openClaudeSession = async (
 				reconnect: (name) => run.reconnectMcpServer(name),
 			},
 			env: request.serverEnv,
+			grants: {
+				renew: renewGrant(request.session),
+				declare: async (name, accessToken) => {
+					declared = declaredAgain(declared, name, accessToken)
+					await run.setMcpServers(declared)
+				},
+			},
 		},
 		record,
 	})

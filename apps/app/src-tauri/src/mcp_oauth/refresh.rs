@@ -2,6 +2,7 @@ use std::collections::{BTreeMap, BTreeSet};
 use std::future::Future;
 use std::path::{Path, PathBuf};
 
+use serde::Serialize;
 use tokio::sync::Mutex;
 
 use super::credentials::{self, ServedGrant};
@@ -32,6 +33,17 @@ pub enum Renewal {
 
 pub type Renewals = BTreeMap<String, Renewal>;
 
+#[derive(Debug, Clone, PartialEq, Eq, Serialize)]
+#[serde(tag = "state", rename_all = "kebab-case")]
+pub enum Renewed {
+	Granted {
+		#[serde(rename = "accessToken")]
+		access_token: String,
+	},
+	NeedsAuth,
+	Unchanged,
+}
+
 enum Standing {
 	Served,
 	Expired,
@@ -61,6 +73,58 @@ pub async fn before_open(
 		},
 		awaiting,
 	)
+}
+
+pub async fn on_rejection<F, Exchanged>(
+	root: &Path,
+	owner: &EnvOwner,
+	name: &str,
+	servers: &[McpServer],
+	exchange: F,
+) -> Result<Renewed, EnvError>
+where
+	F: Fn(RefreshRequest) -> Exchanged,
+	Exchanged: Future<Output = Result<Authorized, TransportError>>,
+{
+	let _refreshing = REFRESHING.lock().await;
+	renewed_grant(root, owner, name, &declared_urls(servers), exchange).await
+}
+
+async fn renewed_grant<F, Exchanged>(
+	root: &Path,
+	owner: &EnvOwner,
+	name: &str,
+	urls: &ServerUrls,
+	exchange: F,
+) -> Result<Renewed, EnvError>
+where
+	F: Fn(RefreshRequest) -> Exchanged,
+	Exchanged: Future<Output = Result<Authorized, TransportError>>,
+{
+	let (Some(url), Some(ServedGrant { scope, held })) =
+		(urls.get(name), credentials::served(root, owner)?.remove(name))
+	else {
+		return Ok(Renewed::Unchanged);
+	};
+	if !held.contains_key(OAUTH_ACCESS_TOKEN) {
+		return Ok(Renewed::Unchanged);
+	}
+	let Some(request) = refreshable(&held, url) else {
+		return Ok(Renewed::NeedsAuth);
+	};
+	let answer = exchange(request).await;
+	let granted = granted_token(&answer);
+	Ok(match renewal(root, &scope, &held, answer) {
+		Some(Renewal::Renewed) => {
+			granted.map_or(Renewed::Unchanged, |access_token| Renewed::Granted { access_token })
+		}
+		Some(Renewal::Awaiting { .. }) => Renewed::NeedsAuth,
+		None => Renewed::Unchanged,
+	})
+}
+
+fn granted_token(answer: &Result<Authorized, TransportError>) -> Option<String> {
+	Some(answer.as_ref().ok()?.credentials.as_ref()?.access_token.clone())
 }
 
 pub async fn before_reading<F, Exchanged>(
@@ -127,21 +191,25 @@ where
 	Ok(renewals)
 }
 
+fn refreshable(held: &Values, url: &str) -> Option<RefreshRequest> {
+	Some(RefreshRequest {
+		url: url.to_owned(),
+		refresh_token: held.get(OAUTH_REFRESH_TOKEN)?.clone(),
+		client_id: held.get(OAUTH_CLIENT_ID).cloned(),
+		client_secret: held.get(OAUTH_CLIENT_SECRET).cloned(),
+	})
+}
+
 fn standing(held: &Values, url: &str, now: i64) -> Standing {
-	let (Some(_), Some(expires_at)) = (held.get(OAUTH_ACCESS_TOKEN), credentials::expires_at(held))
-	else {
+	if !held.contains_key(OAUTH_ACCESS_TOKEN) {
 		return Standing::Served;
-	};
-	match held.get(OAUTH_REFRESH_TOKEN) {
-		Some(refresh_token) if expires_at <= now + REFRESH_AHEAD_MS => {
-			Standing::Refreshable(RefreshRequest {
-				url: url.to_owned(),
-				refresh_token: refresh_token.clone(),
-				client_id: held.get(OAUTH_CLIENT_ID).cloned(),
-				client_secret: held.get(OAUTH_CLIENT_SECRET).cloned(),
-			})
+	}
+	match (refreshable(held, url), credentials::expires_at(held)) {
+		(Some(request), None) => Standing::Refreshable(request),
+		(Some(request), Some(expires_at)) if expires_at <= now + REFRESH_AHEAD_MS => {
+			Standing::Refreshable(request)
 		}
-		None if expires_at <= now => Standing::Expired,
+		(None, Some(expires_at)) if expires_at <= now => Standing::Expired,
 		_ => Standing::Served,
 	}
 }
@@ -163,8 +231,14 @@ fn renewal(
 }
 
 fn stored(root: &Path, scope: &EnvScope, sent: &Values, grant: &OauthCredentials) -> Renewal {
-	let renewed =
-		OauthCredentials { redirect_uri: sent.get(OAUTH_REDIRECT_URI).cloned(), ..grant.clone() };
+	let renewed = OauthCredentials {
+		redirect_uri: sent.get(OAUTH_REDIRECT_URI).cloned(),
+		refresh_token: grant
+			.refresh_token
+			.clone()
+			.or_else(|| sent.get(OAUTH_REFRESH_TOKEN).cloned()),
+		..grant.clone()
+	};
 	let Err(error) = credentials::store(root, scope, &renewed) else {
 		return Renewal::Renewed;
 	};
@@ -737,6 +811,195 @@ mod tests {
 
 		assert_eq!(settled.get("granola"), Some(&Renewal::Renewed));
 		assert!(awaiting(settled).is_empty());
+	}
+
+	fn a_grant_with_no_expiry(refresh_token: Option<&str>) -> OauthCredentials {
+		OauthCredentials { expires_at: None, ..a_grant(NOW, refresh_token) }
+	}
+
+	#[tokio::test]
+	async fn a_rejected_token_is_renewed_whatever_its_stored_expiry_says() {
+		let root = a_root("rejected-live-expiry");
+		credentials::store(&root, &granola(), &a_grant(NOW + 3_600_000, Some("held-refresh")))
+			.expect("the grant is written");
+
+		let renewed = renewed_grant(&root, &a_bot(), "granola", &declared(), |_| async {
+			Ok(Authorized { credentials: Some(renewed()), error: None })
+		})
+		.await
+		.expect("the renewal reads the store");
+
+		assert_eq!(renewed, Renewed::Granted { access_token: "renewed-access".to_owned() });
+		let kept = held(&root);
+		assert_eq!(kept.get(OAUTH_ACCESS_TOKEN).map(String::as_str), Some("renewed-access"));
+		assert_eq!(kept.get(OAUTH_REFRESH_TOKEN).map(String::as_str), Some("renewed-refresh"));
+	}
+
+	#[tokio::test]
+	async fn a_renewed_grant_lands_in_the_scope_the_one_it_renewed_was_read_from() {
+		let root = a_root("rejected-scope");
+		credentials::store(&root, &granola_of_the_space(), &a_grant(NOW, Some("space-refresh")))
+			.expect("the space grant is written");
+
+		let renewed = renewed_grant(&root, &a_bot(), "granola", &declared(), |_| async {
+			Ok(Authorized { credentials: Some(renewed()), error: None })
+		})
+		.await
+		.expect("the renewal reads the store");
+
+		assert_eq!(renewed, Renewed::Granted { access_token: "renewed-access".to_owned() });
+		assert_eq!(
+			store::values(&root, &granola_of_the_space())
+				.expect("the scope is readable")
+				.get(OAUTH_ACCESS_TOKEN)
+				.map(String::as_str),
+			Some("renewed-access")
+		);
+		assert!(held(&root).is_empty());
+	}
+
+	#[tokio::test]
+	async fn a_token_response_naming_no_refresh_token_keeps_the_one_on_disk() {
+		let root = a_root("kept-refresh");
+		credentials::store(&root, &granola(), &a_grant(NOW, Some("held-refresh")))
+			.expect("the grant is written");
+
+		renewed_grant(&root, &a_bot(), "granola", &declared(), |_| async {
+			Ok(Authorized {
+				credentials: Some(OauthCredentials { refresh_token: None, ..renewed() }),
+				error: None,
+			})
+		})
+		.await
+		.expect("the renewal reads the store");
+
+		let kept = held(&root);
+		assert_eq!(kept.get(OAUTH_ACCESS_TOKEN).map(String::as_str), Some("renewed-access"));
+		assert_eq!(kept.get(OAUTH_REFRESH_TOKEN).map(String::as_str), Some("held-refresh"));
+	}
+
+	#[tokio::test]
+	async fn a_rejected_token_holding_no_refresh_token_awaits_authorization() {
+		let root = a_root("rejected-no-refresh");
+		credentials::store(&root, &granola(), &a_grant_with_no_expiry(None))
+			.expect("the grant is written");
+		let before = held(&root);
+		let asked = Cell::new(0);
+
+		let renewed = renewed_grant(&root, &a_bot(), "granola", &declared(), |_| {
+			asked.set(asked.get() + 1);
+			async { Ok(Authorized { credentials: Some(renewed()), error: None }) }
+		})
+		.await
+		.expect("the renewal reads the store");
+
+		assert_eq!(renewed, Renewed::NeedsAuth);
+		assert_eq!(asked.get(), 0);
+		assert_eq!(held(&root), before);
+	}
+
+	#[tokio::test]
+	async fn a_refused_renewal_awaits_authorization_and_forgets_the_tokens() {
+		let root = a_root("rejected-refused");
+		credentials::store(&root, &granola(), &a_grant(NOW + 3_600_000, Some("held-refresh")))
+			.expect("the grant is written");
+
+		let renewed = renewed_grant(&root, &a_bot(), "granola", &declared(), |_| async {
+			answering(OauthFailureKind::Rejected, Some(INVALID_GRANT))
+		})
+		.await
+		.expect("the renewal reads the store");
+
+		assert_eq!(renewed, Renewed::NeedsAuth);
+		let kept = held(&root);
+		assert_eq!(kept.get(OAUTH_ACCESS_TOKEN), None);
+		assert_eq!(kept.get(OAUTH_REFRESH_TOKEN), None);
+		assert_eq!(
+			kept.get(OAUTH_REASON).map(String::as_str),
+			Some("the token endpoint answered 400: invalid_grant")
+		);
+	}
+
+	#[tokio::test]
+	async fn a_renewal_refused_for_another_reason_leaves_the_grant_and_the_server_as_they_stand() {
+		let root = a_root("rejected-other");
+		credentials::store(&root, &granola(), &a_grant(NOW + 3_600_000, Some("held-refresh")))
+			.expect("the grant is written");
+		let before = held(&root);
+
+		let refused = renewed_grant(&root, &a_bot(), "granola", &declared(), |_| async {
+			answering(OauthFailureKind::Failed, None)
+		})
+		.await
+		.expect("the renewal reads the store");
+		let gone = renewed_grant(&root, &a_bot(), "granola", &declared(), |_| async {
+			Err(TransportError::WriteFailed { detail: "the sidecar is gone".to_owned() })
+		})
+		.await
+		.expect("the renewal reads the store");
+
+		assert_eq!((refused, gone), (Renewed::Unchanged, Renewed::Unchanged));
+		assert_eq!(held(&root), before);
+	}
+
+	#[tokio::test]
+	async fn a_server_the_store_holds_no_token_for_is_left_unchanged() {
+		let root = a_root("rejected-nothing-held");
+		credentials::store(&root, &granola(), &a_grant(NOW, Some("held-refresh")))
+			.expect("the grant is written");
+		credentials::forget_tokens(&root, &granola()).expect("the tokens are deleted");
+		let asked = Cell::new(0);
+		let exchange = |_| {
+			asked.set(asked.get() + 1);
+			async { Ok(Authorized { credentials: Some(renewed()), error: None }) }
+		};
+
+		let tokenless =
+			renewed_grant(&root, &a_bot(), "granola", &declared(), &exchange).await;
+		let undeclared =
+			renewed_grant(&root, &a_bot(), "granola", &ServerUrls::new(), &exchange).await;
+		let unknown = renewed_grant(&root, &a_bot(), "clock", &declared(), &exchange).await;
+
+		assert_eq!(tokenless.expect("the renewal reads the store"), Renewed::Unchanged);
+		assert_eq!(undeclared.expect("the renewal reads the store"), Renewed::Unchanged);
+		assert_eq!(unknown.expect("the renewal reads the store"), Renewed::Unchanged);
+		assert_eq!(asked.get(), 0);
+	}
+
+	#[tokio::test]
+	async fn a_grant_holding_a_refresh_token_and_no_expiry_is_refreshed_when_a_session_opens() {
+		let root = a_root("no-expiry-refreshable");
+		credentials::store(&root, &granola(), &a_grant_with_no_expiry(Some("held-refresh")))
+			.expect("the grant is written");
+		let asked = Cell::new(None);
+
+		let settled = renewals(&root, &a_bot(), &declared(), NOW, |request| {
+			asked.set(Some(request));
+			async { Ok(Authorized { credentials: Some(renewed()), error: None }) }
+		})
+		.await
+		.expect("the pass reads the store");
+
+		assert_eq!(settled.get("granola"), Some(&Renewal::Renewed));
+		assert_eq!(asked.take().map(|request| request.refresh_token), Some("held-refresh".to_owned()));
+	}
+
+	#[tokio::test]
+	async fn a_grant_holding_no_refresh_token_and_no_expiry_stands_when_a_session_opens() {
+		let root = a_root("no-expiry-served");
+		credentials::store(&root, &granola(), &a_grant_with_no_expiry(None))
+			.expect("the grant is written");
+		let asked = Cell::new(0);
+
+		let settled = renewals(&root, &a_bot(), &declared(), NOW, |_| {
+			asked.set(asked.get() + 1);
+			async { Ok(Authorized { credentials: Some(renewed()), error: None }) }
+		})
+		.await
+		.expect("the pass reads the store");
+
+		assert!(settled.is_empty());
+		assert_eq!(asked.get(), 0);
 	}
 
 	#[test]

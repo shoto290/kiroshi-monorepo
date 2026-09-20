@@ -318,7 +318,7 @@ pub async fn mcp_application_status<R: Runtime>(
 	.await
 }
 
-async fn refreshed<R: Runtime>(
+pub(super) async fn refreshed<R: Runtime>(
 	app: &AppHandle<R>,
 	request: RefreshRequest,
 ) -> Result<Authorized, TransportError> {
@@ -421,7 +421,7 @@ fn last_reported(reports: &ApplicationReports, owner: &EnvOwner, name: &str) -> 
 	}
 }
 
-fn declared_servers<R: Runtime>(
+pub(super) fn declared_servers<R: Runtime>(
 	app: &AppHandle<R>,
 	owner: &EnvOwner,
 ) -> Result<Vec<McpServer>, EnvError> {
