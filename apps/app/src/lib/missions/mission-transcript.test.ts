@@ -41,6 +41,7 @@ const missionOf = (id: string, openedAt: number, botId = "bot-1"): Mission => ({
 	tools: ["Read"],
 	state: "working",
 	stateSeq: 1,
+	isAgentRunning: false,
 	openedAt,
 	closedAt: null,
 	reportedAt: null,

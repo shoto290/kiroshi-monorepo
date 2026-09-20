@@ -38,6 +38,7 @@ pub struct MissionChanged {
 	pub mission_id: String,
 	pub state: MissionState,
 	pub state_seq: i64,
+	pub is_agent_running: bool,
 }
 
 pub(super) fn announce_change<R: Runtime>(
@@ -50,6 +51,7 @@ pub(super) fn announce_change<R: Runtime>(
 			mission_id: mission.id.clone(),
 			state: mission.state,
 			state_seq: mission.state_seq,
+			is_agent_running: mission.is_agent_running,
 		},
 	)
 	.map_err(|error| MissionError::Undeliverable { detail: error.to_string() })
@@ -634,17 +636,20 @@ mod tests {
 				json!({
 					"missionId": opened.id,
 					"state": "waiting_bot",
-					"stateSeq": asked.state_seq
+					"stateSeq": asked.state_seq,
+					"isAgentRunning": false
 				}),
 				json!({
 					"missionId": opened.id,
 					"state": "working",
-					"stateSeq": answered.state_seq
+					"stateSeq": answered.state_seq,
+					"isAgentRunning": false
 				}),
 				json!({
 					"missionId": opened.id,
 					"state": "waiting_bot",
-					"stateSeq": asked_again.state_seq
+					"stateSeq": asked_again.state_seq,
+					"isAgentRunning": false
 				}),
 			],
 			"the front was not told the mission waited, worked, then waited again"
@@ -753,8 +758,18 @@ mod tests {
 		assert_eq!(
 			announced,
 			vec![
-				json!({ "missionId": opened.id, "state": "working", "stateSeq": 1 }),
-				json!({ "missionId": opened.id, "state": "waiting_human", "stateSeq": 2 }),
+				json!({
+					"missionId": opened.id,
+					"state": "working",
+					"stateSeq": 1,
+					"isAgentRunning": false,
+				}),
+				json!({
+					"missionId": opened.id,
+					"state": "waiting_human",
+					"stateSeq": 2,
+					"isAgentRunning": false,
+				}),
 			],
 			"the front was not told which mission moved and where it stands"
 		);

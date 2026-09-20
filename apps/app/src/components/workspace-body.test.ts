@@ -114,6 +114,7 @@ const missionOf = (bot: Bot, origin: Conversation): Mission => ({
 	tools: ["Read"],
 	state: "waiting_human",
 	stateSeq: 1,
+	isAgentRunning: false,
 	openedAt: 0,
 	closedAt: null,
 	reportedAt: null,
@@ -305,7 +306,12 @@ const missionChanges = () => {
 	return () =>
 		act(async () => {
 			for (const listener of [...listeners]) {
-				listener({ missionId: "m-1", state: "working", stateSeq: 1 })
+				listener({
+					missionId: "m-1",
+					state: "working",
+					stateSeq: 1,
+					isAgentRunning: false,
+				})
 			}
 		})
 }

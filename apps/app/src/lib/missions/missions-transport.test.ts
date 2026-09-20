@@ -31,6 +31,7 @@ const DETAIL: MissionDetail = {
 		tools: ["Repository"],
 		state: "working",
 		stateSeq: 1,
+		isAgentRunning: false,
 		openedAt: 1,
 		closedAt: null,
 		reportedAt: null,

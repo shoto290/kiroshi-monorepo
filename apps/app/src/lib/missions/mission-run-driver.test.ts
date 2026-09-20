@@ -213,7 +213,12 @@ const createHarness = async ({
 	}
 
 	const announce = async (state: MissionState) => {
-		missions.change({ missionId: mission.id, state, stateSeq: standingSeq })
+		missions.change({
+			missionId: mission.id,
+			state,
+			stateSeq: standingSeq,
+			isAgentRunning: false,
+		})
 		await settled()
 	}
 

@@ -7,6 +7,7 @@ import type { MessageAuthor } from "@workspace/ui/components/message"
 import type {
 	MissionCardModel,
 	MissionEventModel,
+	MissionEventKind as ShownEventKind,
 } from "@workspace/ui/components/mission"
 import type { MissionRowModel } from "@workspace/ui/components/mission-row"
 import type { RosterBot } from "@workspace/ui/components/roster"
@@ -232,10 +233,27 @@ const spokenTextOf = (payload: unknown): string | undefined => {
 	)
 }
 
+const SHOWN_EVENT_KINDS: Record<ShownEventKind, true> = {
+	opened: true,
+	note: true,
+	agent_asked: true,
+	answered: true,
+	escalated: true,
+	ready: true,
+	checks_failed: true,
+	failed: true,
+	closed: true,
+}
+
+const isShown = (
+	event: MissionEvent,
+): event is MissionEvent & { kind: ShownEventKind } =>
+	event.kind in SHOWN_EVENT_KINDS
+
 export const toMissionEventModels = (
 	events: MissionEvent[],
 ): MissionEventModel[] =>
-	events.map((event) => ({
+	events.filter(isShown).map((event) => ({
 		id: event.id,
 		kind: event.kind,
 		source: event.source,

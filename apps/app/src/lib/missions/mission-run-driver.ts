@@ -542,6 +542,7 @@ export const startMissionRunDriver = ({
 				missionId: mission.id,
 				state: mission.state,
 				stateSeq: mission.stateSeq,
+				isAgentRunning: mission.isAgentRunning,
 			})
 		}
 	}

@@ -693,6 +693,7 @@ export type Mission = {
 	tools: string[],
 	state: MissionState,
 	stateSeq: number,
+	isAgentRunning: boolean,
 	openedAt: number,
 	closedAt: number | null,
 	reportedAt: number | null,
@@ -737,7 +738,7 @@ export type MissionEvent = {
 	createdAt: number,
 };
 
-export type MissionEventKind = "opened" | "note" | "agent_asked" | "answered" | "escalated" | "ready" | "checks_failed" | "failed" | "closed";
+export type MissionEventKind = "opened" | "note" | "agent_asked" | "agent_started" | "agent_stopped" | "answered" | "escalated" | "ready" | "checks_failed" | "failed" | "closed";
 
 export type MissionNote = {
 	source: string,

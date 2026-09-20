@@ -43,6 +43,7 @@ const MIGRATIONS: &[Migration] = &[
 	Migration { version: 34, statements: APPLICATION_INSTALLS },
 	Migration { version: 35, statements: APPLICATION_INSTALL_PRESENTATION },
 	Migration { version: 36, statements: BOTS_WITHOUT_UNREAD_COLUMNS },
+	Migration { version: 37, statements: MISSION_AGENT_LIVENESS },
 ];
 
 const CONVERSATIONS_SCHEMA: &str = "
@@ -726,6 +727,52 @@ INSERT INTO mission_events
 	FROM mission_events_without_checks_failed;
 
 DROP TABLE mission_events_without_checks_failed;
+
+CREATE UNIQUE INDEX mission_events_one_event_per_delivery
+	ON mission_events (mission_id, delivery_id) WHERE delivery_id <> '';
+
+CREATE TRIGGER mission_events_are_written_once
+BEFORE UPDATE ON mission_events
+BEGIN
+	SELECT RAISE(ABORT, 'a mission event records one moment: append a new one, never edit it');
+END;
+
+CREATE TRIGGER mission_events_outlive_their_mission
+BEFORE DELETE ON mission_events
+WHEN EXISTS (SELECT 1 FROM missions WHERE id = OLD.mission_id)
+BEGIN
+	SELECT RAISE(ABORT, 'a mission event is never erased while its mission stands');
+END;
+";
+
+const MISSION_AGENT_LIVENESS: &str = "
+DROP TRIGGER mission_events_are_written_once;
+DROP TRIGGER mission_events_outlive_their_mission;
+
+PRAGMA legacy_alter_table = ON;
+ALTER TABLE mission_events RENAME TO mission_events_without_agent_liveness;
+PRAGMA legacy_alter_table = OFF;
+
+CREATE TABLE mission_events (
+	id TEXT PRIMARY KEY,
+	mission_id TEXT NOT NULL REFERENCES missions (id) ON DELETE CASCADE,
+	seq INTEGER NOT NULL,
+	kind TEXT NOT NULL CHECK (kind IN
+		('opened', 'note', 'agent_asked', 'agent_started', 'agent_stopped', 'answered',
+			'escalated', 'ready', 'checks_failed', 'failed', 'closed')),
+	source TEXT NOT NULL,
+	payload TEXT NOT NULL,
+	created_at INTEGER NOT NULL,
+	delivery_id TEXT NOT NULL DEFAULT '',
+	UNIQUE (mission_id, seq)
+);
+
+INSERT INTO mission_events
+		(id, mission_id, seq, kind, source, payload, created_at, delivery_id)
+	SELECT id, mission_id, seq, kind, source, payload, created_at, delivery_id
+	FROM mission_events_without_agent_liveness;
+
+DROP TABLE mission_events_without_agent_liveness;
 
 CREATE UNIQUE INDEX mission_events_one_event_per_delivery
 	ON mission_events (mission_id, delivery_id) WHERE delivery_id <> '';

@@ -21,6 +21,7 @@ const A_MISSION: Mission = {
 	tools: ["claude-code"],
 	state: "working",
 	stateSeq: 1,
+	isAgentRunning: false,
 	openedAt: 1,
 	closedAt: null,
 	reportedAt: null,

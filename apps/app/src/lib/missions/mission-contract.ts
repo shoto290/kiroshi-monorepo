@@ -23,4 +23,5 @@ export type MissionChanged = {
 	missionId: string
 	state: MissionState
 	stateSeq: number
+	isAgentRunning: boolean
 }

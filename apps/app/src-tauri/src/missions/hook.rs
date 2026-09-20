@@ -25,7 +25,11 @@ const SETTINGS_NAME: &str = "settings.local.json";
 
 const HOOKS_KEY: &str = "hooks";
 
-const HOOKED_EVENTS: [&str; 2] = ["Notification", "Stop"];
+pub const PROMPT_SUBMITTED: &str = "UserPromptSubmit";
+
+pub const TURN_STOPPED: &str = "Stop";
+
+const HOOKED_EVENTS: [&str; 3] = ["Notification", PROMPT_SUBMITTED, TURN_STOPPED];
 
 const SCRIPT: &str = include_str!("../../hooks/kiroshi-agent-hook.sh");
 
@@ -253,6 +257,7 @@ mod tests {
 			"the hook of another matcher was dropped"
 		);
 		assert_eq!(ours_in(&settings, "Notification"), 1);
+		assert_eq!(ours_in(&settings, "UserPromptSubmit"), 1);
 		assert_eq!(ours_in(&settings, "Stop"), 1);
 
 		fs::remove_dir_all(&dir).expect("cleanup");
