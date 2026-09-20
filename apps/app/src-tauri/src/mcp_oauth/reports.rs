@@ -5,7 +5,11 @@ use serde::{Deserialize, Serialize};
 use serde_json::Value;
 use tauri::{AppHandle, Manager, Runtime};
 
+use super::commands::{declared_servers, refreshed};
+use super::refresh::{self, Renewed};
 use crate::agent::host::{Host, Refusal};
+use crate::environment::commands::writable_root;
+use crate::environment::contract::{EnvError, EnvOwner};
 
 const NO_RECORDS: &str = "the record of where servers stand is not held";
 
@@ -30,10 +34,16 @@ struct Report {
 	standing: Standing,
 }
 
+#[derive(Debug, Deserialize)]
+struct Rejected {
+	name: String,
+}
+
 #[derive(Debug, Clone, Copy, Deserialize)]
 #[serde(rename_all = "camelCase")]
 pub enum Operation {
 	Report,
+	Renew,
 }
 
 #[derive(Debug, Serialize)]
@@ -86,11 +96,34 @@ impl ApplicationReports {
 pub struct StandingHost<R: Runtime> {
 	app: AppHandle<R>,
 	bot_id: String,
+	space_id: Option<String>,
 }
 
 impl<R: Runtime> StandingHost<R> {
-	pub fn new(app: AppHandle<R>, bot_id: String) -> Self {
-		Self { app, bot_id }
+	pub fn new(app: AppHandle<R>, bot_id: String, space_id: Option<String>) -> Self {
+		Self { app, bot_id, space_id }
+	}
+
+	fn owner(&self) -> Option<EnvOwner> {
+		self.space_id
+			.clone()
+			.map(|space_id| EnvOwner::Bot { id: self.bot_id.clone(), space_id })
+	}
+
+	async fn renewed(&self, name: &str) -> Result<Value, StandingError> {
+		let Some(owner) = self.owner() else {
+			return Self::answered(Renewed::Unchanged);
+		};
+		let root = writable_root(&self.app).map_err(unreadable_store)?;
+		let servers = declared_servers(&self.app, &owner).map_err(unreadable_store)?;
+		let app = self.app.clone();
+		let renewed = refresh::on_rejection(&root, &owner, name, &servers, move |request| {
+			let app = app.clone();
+			async move { refreshed(&app, request).await }
+		})
+		.await
+		.map_err(unreadable_store)?;
+		Self::answered(renewed)
 	}
 
 	fn recorded(&self, report: Report) -> Result<Value, StandingError> {
@@ -115,8 +148,13 @@ impl<R: Runtime> Host for StandingHost<R> {
 	async fn served(&self, operation: Operation, payload: Value) -> Result<Value, StandingError> {
 		match operation {
 			Operation::Report => self.recorded(Self::read(payload)?),
+			Operation::Renew => self.renewed(&Self::read::<Rejected>(payload)?.name).await,
 		}
 	}
+}
+
+fn unreadable_store(error: EnvError) -> StandingError {
+	StandingError::unexpected(format!("{error:?}"))
 }
 
 #[cfg(test)]
@@ -163,6 +201,32 @@ mod tests {
 			.expect_err("a connecting server is not a settled state");
 
 		assert_eq!(refused["kind"], "unreadableRequest");
+	}
+
+	#[test]
+	fn a_renewal_reads_the_operation_and_the_server_it_names() {
+		let operation: Operation =
+			serde_json::from_value(json!("renew")).expect("the operation reads");
+		let rejected: Rejected = StandingHost::<MockRuntime>::read(json!({ "name": "granola" }))
+			.map_err(|_| "the payload reads")
+			.expect("the payload reads");
+
+		assert!(matches!(operation, Operation::Renew));
+		assert_eq!(rejected.name, "granola");
+	}
+
+	#[test]
+	fn every_renewal_answer_names_the_state_the_session_reads_it_by() {
+		let answered = |renewed: Renewed| {
+			StandingHost::<MockRuntime>::answered(renewed).expect("the answer serializes")
+		};
+
+		assert_eq!(
+			answered(Renewed::Granted { access_token: "renewed-access".to_owned() }),
+			json!({ "state": "granted", "accessToken": "renewed-access" })
+		);
+		assert_eq!(answered(Renewed::NeedsAuth), json!({ "state": "needs-auth" }));
+		assert_eq!(answered(Renewed::Unchanged), json!({ "state": "unchanged" }));
 	}
 
 	#[test]

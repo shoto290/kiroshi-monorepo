@@ -15,6 +15,7 @@ import {
 	type ServerStatus,
 } from "./server-connect"
 import { AWAITING_AUTH, leftOut } from "./server-env"
+import type { RenewedGrant } from "./server-renewal"
 import {
 	buildOptions,
 	dialledServers,
@@ -34,7 +35,7 @@ import {
 	userLine,
 } from "./system-layer"
 
-import type { SessionFrame, SessionRequest } from "../provider"
+import type { ServerEnv, SessionFrame, SessionRequest } from "../provider"
 
 const settingsOf = (options: ReturnType<typeof buildOptions>): Settings =>
 	options.settings as Settings
@@ -1098,6 +1099,214 @@ describe("reportConnections", () => {
 
 		expect(emitted).toEqual([detail])
 		expect(pushed).toEqual([`${section}\n\nfirst`, "second", "third"])
+	})
+
+	const REJECTED_HEADER =
+		"Server rejected the configured Authorization header (HTTP 401)"
+
+	const TOKEN = {
+		perServer: { superset: { KIROSHI_OAUTH_ACCESS_TOKEN: "old" } },
+	}
+
+	const landed = {
+		dropped: { added: [], removed: ["superset"], errors: {} },
+		carried: { added: ["superset"], removed: [], errors: {} },
+	}
+
+	type Turning = {
+		renew?: (name: string) => Promise<RenewedGrant>
+		env?: ServerEnv
+		bound?: number
+	}
+
+	const turning = (
+		statuses: (renewed: boolean) => ServerStatus[],
+		{ renew, env = TOKEN, bound }: Turning = {},
+	) => {
+		const emitted: string[] = []
+		const pushed: string[] = []
+		const renewed: string[] = []
+		let reads = 0
+
+		const report = reportConnections({
+			emit: (frame) => {
+				emitted.push(String(frame.detail))
+			},
+			push: (text) => {
+				pushed.push(text)
+			},
+			pass: {
+				names: ["superset"],
+				port: {
+					status: async () => {
+						reads += 1
+						return statuses(renewed.length > 0)
+					},
+					reconnect: async () => {},
+				},
+				env,
+				...(bound === undefined ? {} : { bound }),
+				grants: {
+					renew: async (name) => {
+						renewed.push(name)
+						return (
+							renew?.(name) ?? {
+								state: "granted" as const,
+								accessToken: "renewed-access-token",
+							}
+						)
+					},
+					declare: async () => landed,
+				},
+				wait: async () => {},
+			},
+		})
+
+		return { emitted, pushed, renewed, report, reads: () => reads }
+	}
+
+	it("reads the status again before it hands a turn to an open session", async () => {
+		const { pushed, renewed, report, reads } = turning(() => [
+			{ name: "superset", status: "connected" },
+		])
+
+		report.prompt("first")
+		await ticked()
+		const opened = reads()
+		report.prompt("second")
+		await ticked()
+
+		expect(reads()).toBe(opened + 1)
+		expect(renewed).toEqual([])
+		expect(pushed[1]).toBe("second")
+	})
+
+	it("renews a server that stopped being accepted before the turn reaches the agent", async () => {
+		const order: string[] = []
+		const { pushed, renewed, report } = turning((again) =>
+			again
+				? [{ name: "superset", status: "connected" }]
+				: [
+						{
+							name: "superset",
+							status: "failed",
+							error: REJECTED_HEADER,
+						},
+					],
+		)
+
+		report.prompt("first")
+		await ticked()
+		order.push("opened")
+		report.prompt("second")
+		order.push("handed")
+		await ticked()
+
+		expect(order).toEqual(["opened", "handed"])
+		expect(renewed).toEqual(["superset"])
+		expect(pushed[1]).toContain("holds its tools for the rest of this session")
+		expect(pushed[1]).toEndWith("second")
+	})
+
+	it("hands the turns of one open session on in the order they arrived", async () => {
+		const { pushed, report } = turning(() => [
+			{ name: "superset", status: "connected" },
+		])
+
+		report.prompt("first")
+		await ticked()
+		report.prompt("second")
+		report.prompt("third")
+		await ticked()
+
+		expect(pushed.slice(1)).toEqual(["second", "third"])
+	})
+
+	const reached: ServerStatus[] = [{ name: "superset", status: "connected" }]
+
+	const rejected: ServerStatus[] = [
+		{ name: "superset", status: "failed", error: REJECTED_HEADER },
+	]
+
+	const rejectingAfterOpening = () => {
+		let opened = false
+		return () => {
+			const read = opened ? rejected : reached
+			opened = true
+			return read
+		}
+	}
+
+	it("reads no status before a turn of a session given no stored access token", async () => {
+		const { pushed, report, reads } = turning(rejectingAfterOpening(), {
+			env: {},
+		})
+
+		report.prompt("first")
+		await ticked()
+		const opened = reads()
+		report.prompt("second")
+
+		expect(reads()).toBe(opened)
+		expect(pushed[pushed.length - 1]).toBe("second")
+	})
+
+	it("hands a turn held for a renewal on once that renewal outlasts its bound", async () => {
+		const stderr: string[] = []
+		const original = process.stderr.write
+		process.stderr.write = ((line: string) => {
+			stderr.push(String(line))
+			return true
+		}) as typeof process.stderr.write
+		const { pushed, report } = turning(rejectingAfterOpening(), {
+			renew: () => new Promise<never>(() => {}),
+			bound: 5,
+		})
+
+		report.prompt("first")
+		await ticked()
+		report.prompt("second")
+		await new Promise((resolve) => setTimeout(resolve, 40))
+		process.stderr.write = original
+
+		expect(pushed[pushed.length - 1]).toEndWith("second")
+		expect(stderr.join("")).toContain("the renewal outlasted its 5 ms deadline")
+	})
+
+	it("hands a turn on when the renewal it was held for threw", async () => {
+		const { pushed, report } = turning(rejectingAfterOpening(), {
+			renew: async () => {
+				throw new Error("the session closed before the host answered")
+			},
+		})
+
+		report.prompt("first")
+		await ticked()
+		report.prompt("second")
+		await ticked()
+
+		expect(pushed[pushed.length - 1]).toEndWith("second")
+	})
+
+	it("hands the turn that follows a dropped one to the agent", async () => {
+		const settling = Promise.withResolvers<RenewedGrant>()
+		const { pushed, report } = turning(rejectingAfterOpening(), {
+			renew: () => settling.promise,
+		})
+
+		report.prompt("first")
+		await ticked()
+		report.prompt("held")
+
+		expect(report.drop()).toBe(true)
+
+		report.prompt("after the drop")
+		settling.resolve({ state: "unchanged" })
+		await ticked()
+
+		expect(pushed).toHaveLength(2)
+		expect(pushed[1]).toEndWith("after the drop")
+		expect(pushed.join("")).not.toContain("held")
 	})
 
 	it("says nothing to anyone but stderr when no status read ever answered", async () => {

@@ -5,12 +5,16 @@ import {
 	type ConnectPort,
 	POLL_BUDGET_MS,
 	type ReportedLine,
+	renewedBeforeTurn,
 	type ServerStatus,
 	UNNAMED_GRACE_MS,
 	unconnectedServers,
 	WATCH_BOUND_MS,
 	WATCH_POLL_MS,
 } from "./server-connect"
+import type { Declaration, RenewedGrant, SetServers } from "./server-renewal"
+
+import type { ServerEnv } from "../provider"
 
 const portReading = (
 	reads: ServerStatus[][],
@@ -36,7 +40,7 @@ const awaiting: ServerStatus[] = [{ name: "superset", status: "needs-auth" }]
 
 const connected: ServerStatus[] = [{ name: "superset", status: "connected" }]
 
-const throwing = (message: string) => async () => {
+const throwing = (message: string) => async (): Promise<never> => {
 	throw new Error(message)
 }
 
@@ -854,5 +858,494 @@ describe("watching a server left connecting", () => {
 		expect(reported[0]).toContain("401 from https://queried.test/mcp")
 		expect(reported[0]).not.toContain("api_key")
 		expect(reported[0]).not.toContain("sk-live-1234")
+	})
+})
+
+const REJECTED_HEADER =
+	"Server rejected the configured Authorization header (HTTP 401). Check that the token is valid for this MCP endpoint — OAuth fallback is disabled when headers.Authorization is set."
+
+const RENEWED = "renewed-access-token"
+
+const GIVEN_A_TOKEN: ServerEnv = {
+	perServer: { superset: { KIROSHI_OAUTH_ACCESS_TOKEN: "stale-access-token" } },
+}
+
+const rejecting = (error: string): ServerStatus[] => [
+	{ name: "superset", status: "failed", error },
+]
+
+const setServers = (answered: Partial<SetServers>): SetServers => ({
+	added: [],
+	removed: [],
+	errors: {},
+	...answered,
+})
+
+const LANDED: Declaration = {
+	dropped: setServers({ removed: ["superset"] }),
+	carried: setServers({ added: ["superset"] }),
+}
+
+type RenewalPass = {
+	statuses: (declared: boolean) => Promise<ServerStatus[]>
+	grant?: () => Promise<RenewedGrant>
+	declare?: (name: string, accessToken: string) => Promise<Declaration>
+	env?: ServerEnv
+}
+
+const renewalPass = async ({
+	statuses,
+	grant = async () => ({ state: "granted", accessToken: RENEWED }),
+	declare = async () => LANDED,
+	env = GIVEN_A_TOKEN,
+}: RenewalPass) => {
+	const reported: ReportedLine[] = []
+	const renewed: string[] = []
+	const reconnected: string[] = []
+	const declared: { name: string; accessToken: string }[] = []
+	let time = 0
+	const stderr = capture()
+
+	await unconnectedServers({
+		names: ["superset"],
+		port: {
+			status: () => statuses(declared.length > 0),
+			reconnect: async (name) => {
+				reconnected.push(name)
+			},
+		},
+		env,
+		grants: {
+			renew: async (name) => {
+				renewed.push(name)
+				return grant()
+			},
+			declare: async (name, accessToken) => {
+				declared.push({ name, accessToken })
+				return declare(name, accessToken)
+			},
+		},
+		now: () => time,
+		wait: async (ms) => {
+			time += ms
+		},
+		report: (line) => reported.push(line),
+	})
+	await settling(20)
+	stderr.restore()
+
+	return { reported, renewed, reconnected, declared, written: stderr.written }
+}
+
+const backAfterRenewal = (error: string) => async (declared: boolean) =>
+	declared ? connected : rejecting(error)
+
+describe("a rejected access token", () => {
+	it("is renewed on the reason the agent SDK writes for a rejected header", async () => {
+		const pass = await renewalPass({
+			statuses: backAfterRenewal(REJECTED_HEADER),
+		})
+
+		expect(pass.renewed).toEqual(["superset"])
+		expect(pass.declared).toEqual([{ name: "superset", accessToken: RENEWED }])
+		expect(pass.reconnected).toEqual([])
+		expect(pass.reported).toEqual([
+			{
+				detail:
+					'the server "superset" connected, and holds its tools for the rest of this session',
+				state: "holding",
+				notice: false,
+			},
+		])
+	})
+
+	it("is renewed on a reason naming the rejected header and no status", async () => {
+		const pass = await renewalPass({
+			statuses: backAfterRenewal(
+				"the endpoint rejected the configured Authorization header",
+			),
+		})
+
+		expect(pass.renewed).toEqual(["superset"])
+		expect(pass.reconnected).toEqual([])
+	})
+
+	it("is renewed on a reason naming a 401 and no header", async () => {
+		const pass = await renewalPass({
+			statuses: backAfterRenewal("the endpoint answered 401 Unauthorized"),
+		})
+
+		expect(pass.renewed).toEqual(["superset"])
+		expect(pass.reconnected).toEqual([])
+	})
+
+	it("is renewed at most once for one failed status, however it settles", async () => {
+		const pass = await renewalPass({
+			statuses: async () => rejecting(REJECTED_HEADER),
+		})
+
+		expect(pass.renewed).toEqual(["superset"])
+		expect(pass.reconnected).toEqual([])
+		expect(pass.reported).toEqual([
+			{ detail: `${leftOut}it read failed`, state: "left-out", notice: true },
+		])
+	})
+
+	it("is left to the reconnection it takes today when no 401 is named", async () => {
+		const pass = await renewalPass({
+			statuses: backAfterRenewal("Connection refused"),
+		})
+
+		expect(pass.renewed).toEqual([])
+		expect(pass.reconnected).toEqual(["superset"])
+	})
+
+	it("is renewed for no server the store gave an access token to", async () => {
+		const pass = await renewalPass({
+			statuses: backAfterRenewal(REJECTED_HEADER),
+			env: { perServer: { clock: { KIROSHI_OAUTH_ACCESS_TOKEN: "clock" } } },
+		})
+
+		expect(pass.renewed).toEqual([])
+		expect(pass.reconnected).toEqual(["superset"])
+	})
+
+	it("leaves a server the authorization server refuses waiting to be authorized", async () => {
+		const pass = await renewalPass({
+			statuses: backAfterRenewal(REJECTED_HEADER),
+			grant: async () => ({ state: "needs-auth" }),
+		})
+
+		expect(pass.declared).toEqual([])
+		expect(pass.reconnected).toEqual([])
+		expect(pass.reported).toEqual([
+			{
+				detail: `${leftOut}it is waiting for you to authorize it`,
+				state: "needs-auth",
+				notice: true,
+			},
+		])
+	})
+
+	it("carries the reason it reports today when the renewal answers no token", async () => {
+		const reported: ReportedLine[] = []
+		let time = 0
+
+		await unconnectedServers({
+			names: ["superset"],
+			port: {
+				status: async () => rejecting(REJECTED_HEADER),
+				reconnect: throwing("Connection failed"),
+			},
+			env: GIVEN_A_TOKEN,
+			grants: {
+				renew: async () => ({ state: "unchanged" }),
+				declare: async () => LANDED,
+			},
+			now: () => time,
+			wait: async (ms) => {
+				time += ms
+			},
+			report: (line) => reported.push(line),
+		})
+		await settling(20)
+
+		expect(reported.map((line) => line.detail)).toEqual([
+			`${leftOut}it read failed, and the reconnection answered: Connection failed`,
+		])
+	})
+
+	it("leaves the server out, naming the declaration, when declaring it throws", async () => {
+		const pass = await renewalPass({
+			statuses: backAfterRenewal(REJECTED_HEADER),
+			declare: throwing(`${RENEWED} is refused`),
+		})
+
+		expect(pass.reported).toEqual([
+			{
+				detail: `${leftOut}it read failed, and the declaration that carried it answered: [redacted] is refused`,
+				state: "left-out",
+				notice: true,
+			},
+		])
+	})
+
+	it("is redacted out of every reported line and every line on stderr", async () => {
+		const pass = await renewalPass({
+			statuses: async (declared) => {
+				if (!declared) {
+					return rejecting(REJECTED_HEADER)
+				}
+				throw new Error(`the query stalled on ${RENEWED}`)
+			},
+		})
+		const carried = [
+			...pass.written,
+			...pass.reported.map((line) => line.detail),
+		].join("")
+
+		expect(carried).toContain("the query stalled on [redacted]")
+		expect(carried).not.toContain(RENEWED)
+	})
+
+	it("writes on stderr, and reconnects, when the host refuses to renew", async () => {
+		const pass = await renewalPass({
+			statuses: backAfterRenewal(REJECTED_HEADER),
+			grant: throwing("the session closed before the host answered"),
+		})
+
+		expect(pass.written.join("")).toContain(
+			'the renewal of a rejected access token was refused ("superset"): the session closed before the host answered',
+		)
+		expect(pass.reconnected).toEqual(["superset"])
+	})
+})
+
+describe("a declaration that carries a renewed header", () => {
+	it("is left out carrying what the answers said when the pair did not land", async () => {
+		const pass = await renewalPass({
+			statuses: backAfterRenewal(REJECTED_HEADER),
+			declare: async () => ({
+				dropped: setServers({}),
+				carried: setServers({ added: ["superset"] }),
+			}),
+		})
+
+		expect(pass.reported).toEqual([
+			{
+				detail: `${leftOut}it read failed, and the declaration that carried it answered: the declaration that dropped it removed nothing, and the one that carried it added superset`,
+				state: "left-out",
+				notice: true,
+			},
+		])
+	})
+
+	it("is left out carrying the error a declaration named the server in", async () => {
+		const pass = await renewalPass({
+			statuses: backAfterRenewal(REJECTED_HEADER),
+			declare: async () => ({
+				dropped: setServers({ removed: ["superset"] }),
+				carried: setServers({
+					errors: { superset: "the endpoint answered 500" },
+				}),
+			}),
+		})
+
+		expect(pass.reported).toEqual([
+			{
+				detail: `${leftOut}it read failed, and the declaration that carried it answered: the endpoint answered 500`,
+				state: "left-out",
+				notice: true,
+			},
+		])
+	})
+})
+
+type TurnPass = {
+	statuses: (declared: boolean) => Promise<ServerStatus[]>
+	names?: string[]
+	grant?: () => Promise<RenewedGrant>
+	env?: ServerEnv
+	grants?: boolean
+	bound?: number
+}
+
+const turnPass = async ({
+	statuses,
+	names = ["superset"],
+	grant = async () => ({ state: "granted", accessToken: RENEWED }),
+	env = GIVEN_A_TOKEN,
+	grants = true,
+	bound,
+}: TurnPass) => {
+	const reported: ReportedLine[] = []
+	const renewed: string[] = []
+	const reconnected: string[] = []
+	const declared: { name: string; accessToken: string }[] = []
+	let reads = 0
+	let time = 0
+	const stderr = capture()
+
+	await renewedBeforeTurn({
+		names,
+		port: {
+			status: () => {
+				reads += 1
+				return statuses(declared.length > 0)
+			},
+			reconnect: async (name) => {
+				reconnected.push(name)
+			},
+		},
+		env,
+		...(bound === undefined ? {} : { bound }),
+		...(grants
+			? {
+					grants: {
+						renew: async (name: string) => {
+							renewed.push(name)
+							return grant()
+						},
+						declare: async (name: string, accessToken: string) => {
+							declared.push({ name, accessToken })
+							return LANDED
+						},
+					},
+				}
+			: {}),
+		now: () => time,
+		wait: async (ms: number) => {
+			time += ms
+		},
+		report: (line) => reported.push(line),
+	})
+	stderr.restore()
+
+	return {
+		reported,
+		renewed,
+		reconnected,
+		declared,
+		reads,
+		written: stderr.written,
+	}
+}
+
+describe("renewedBeforeTurn", () => {
+	it("reads the status once and renews nothing when no server reads failed", async () => {
+		const turn = await turnPass({ statuses: async () => connected })
+
+		expect(turn.reads).toBe(1)
+		expect(turn.renewed).toEqual([])
+		expect(turn.reported).toEqual([])
+	})
+
+	it("renews and declares a server reading failed on a rejected header", async () => {
+		const turn = await turnPass({
+			statuses: backAfterRenewal(REJECTED_HEADER),
+		})
+
+		expect(turn.renewed).toEqual(["superset"])
+		expect(turn.declared).toEqual([{ name: "superset", accessToken: RENEWED }])
+		expect(turn.reported).toEqual([
+			{
+				detail:
+					'the server "superset" connected, and holds its tools for the rest of this session',
+				state: "holding",
+				notice: false,
+			},
+		])
+	})
+
+	it("renews a given server no more than once for one turn", async () => {
+		const turn = await turnPass({
+			statuses: async () => rejecting(REJECTED_HEADER),
+		})
+
+		expect(turn.renewed).toEqual(["superset"])
+		expect(turn.declared).toHaveLength(1)
+	})
+
+	it("renews neither a server no 401 names nor one the store gave no token", async () => {
+		const unnamed = await turnPass({
+			statuses: backAfterRenewal("Connection refused"),
+		})
+		const untokened = await turnPass({
+			statuses: backAfterRenewal(REJECTED_HEADER),
+			env: {},
+		})
+
+		expect([...unnamed.renewed, ...untokened.renewed]).toEqual([])
+		expect([...unnamed.reconnected, ...untokened.reconnected]).toEqual([])
+		expect([...unnamed.reported, ...untokened.reported]).toEqual([])
+	})
+
+	it("reads no status at all for a session wired with no grant port", async () => {
+		const turn = await turnPass({
+			statuses: backAfterRenewal(REJECTED_HEADER),
+			grants: false,
+		})
+
+		expect(turn.reads).toBe(0)
+	})
+
+	it("reads no status when no server declared was given a stored access token", async () => {
+		const untokened = await turnPass({
+			statuses: backAfterRenewal(REJECTED_HEADER),
+			env: { base: { CLOCK_ROOM: "the wide room" } },
+		})
+		const elsewhere = await turnPass({
+			statuses: backAfterRenewal(REJECTED_HEADER),
+			names: ["clock"],
+		})
+
+		expect([untokened.reads, elsewhere.reads]).toEqual([0, 0])
+	})
+
+	it("leaves the server carrying the last read, naming the bound it outlasted", async () => {
+		const turn = await turnPass({
+			statuses: async () => rejecting(REJECTED_HEADER),
+			grant: () => new Promise<never>(() => {}),
+			bound: 5,
+		})
+
+		expect(turn.declared).toEqual([])
+		expect(turn.reconnected).toEqual([])
+		expect(turn.reported).toEqual([
+			{ detail: `${leftOut}it read failed`, state: "left-out", notice: true },
+		])
+		expect(turn.written.join("")).toContain(
+			`the renewal of a rejected access token was refused ("superset"): the renewal outlasted its 5 ms deadline`,
+		)
+	})
+
+	it("renews no server the session was not opened with", async () => {
+		const turn = await turnPass({
+			statuses: backAfterRenewal(REJECTED_HEADER),
+			names: ["clock"],
+		})
+
+		expect(turn.renewed).toEqual([])
+	})
+
+	it("names a server still connecting after the declaration, without a notice", async () => {
+		const turn = await turnPass({
+			statuses: async (declared) =>
+				declared ? pending : rejecting(REJECTED_HEADER),
+		})
+
+		expect(turn.reported).toEqual([
+			{
+				detail: 'the server "superset" is still connecting after 0 ms',
+				state: "connecting",
+				notice: false,
+			},
+		])
+	})
+
+	it("hands the turn on, saying so on stderr, when the status cannot be read", async () => {
+		const turn = await turnPass({ statuses: throwing("the query is gone") })
+
+		expect(turn.renewed).toEqual([])
+		expect(turn.reported).toEqual([])
+		expect(turn.written.join("")).toContain(
+			"the status of this session's servers could not be read: the query is gone",
+		)
+	})
+
+	it("leaves a refused grant waiting to be authorized before the turn", async () => {
+		const turn = await turnPass({
+			statuses: backAfterRenewal(REJECTED_HEADER),
+			grant: async () => ({ state: "needs-auth" }),
+		})
+
+		expect(turn.declared).toEqual([])
+		expect(turn.reported).toEqual([
+			{
+				detail: `${leftOut}it is waiting for you to authorize it`,
+				state: "needs-auth",
+				notice: true,
+			},
+		])
 	})
 })

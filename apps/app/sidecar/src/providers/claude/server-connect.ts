@@ -1,12 +1,13 @@
 import type { McpServerStatus } from "@anthropic-ai/claude-agent-sdk"
 
-import { AWAITING_AUTH, leftOut } from "./server-env"
+import { ACCESS_TOKEN, AWAITING_AUTH, leftOut } from "./server-env"
+import { type GrantPort, type RenewedGrant, unlanded } from "./server-renewal"
 import type { ServerLine, ServerState } from "./system-layer"
 
 import type { ServerEnv } from "../provider"
 import { describeError } from "../../describe-error"
 
-export type ServerStatus = Pick<McpServerStatus, "name" | "status">
+export type ServerStatus = Pick<McpServerStatus, "name" | "status" | "error">
 
 export type ReportedLine = ServerLine & {
 	notice: boolean
@@ -21,6 +22,7 @@ export type ConnectPass = {
 	names: string[]
 	port: ConnectPort
 	env?: ServerEnv
+	grants?: GrantPort
 	signal?: AbortSignal
 	wait?: (ms: number) => Promise<void>
 	now?: () => number
@@ -46,7 +48,14 @@ type Redialled = {
 type NamedRead = {
 	status: ServerStatus["status"]
 	spent: number
+	error?: string
 }
+
+type Renewing =
+	| { kind: "unchanged" }
+	| { kind: "needs-auth" }
+	| { kind: "declared" }
+	| { kind: "refused"; answer?: Answer }
 
 type GaveUp = {
 	names: string[]
@@ -57,7 +66,7 @@ type PassOutcome = {
 	reported: ReportedLine[]
 	giveUps: GaveUp[]
 	connecting: string[]
-	failing: string[]
+	failing: ServerStatus[]
 }
 
 type PolledTakes = {
@@ -89,8 +98,16 @@ const UNREADABLE = "the status of this session's servers could not be read"
 const RECONNECTION_SAID = "and the reconnection answered"
 const READ_SAID = "and the status read that followed it answered"
 const RECONNECTION_UNDER_WAY = "a reconnection is under way"
+const DECLARED_SAID = "and the declaration that carried it answered"
+const RENEWAL_REFUSED = "the renewal of a rejected access token was refused"
+const TURN_UNRENEWED = "the servers of this turn could not be renewed"
 const GAVE_UP = "the connection pass gave up on"
 const REPORTABLE = ["pending", "failed", "needs-auth"]
+const AUTHORIZATION_REJECTED = [
+	/\b401\b/,
+	/rejected the configured authorization header/i,
+]
+const UNCHANGED: Renewing = { kind: "unchanged" }
 
 const OUTLASTED = Symbol("outlasted")
 
@@ -143,7 +160,9 @@ const namedRead = (takes: Take[], name: string): NamedRead | undefined =>
 	reversed(takes)
 		.flatMap((take) => {
 			const read = readIn(take, name)
-			return read ? [{ status: read.status, spent: take.spent }] : []
+			return read
+				? [{ status: read.status, spent: take.spent, error: read.error }]
+				: []
 		})
 		.at(0)
 
@@ -199,26 +218,53 @@ const polledTakes = async (
 	return { takes }
 }
 
-const reconnectFailure = async (
+const failureOf = async (
+	answered: Promise<string | undefined>,
+	bound: number,
+	signal: AbortSignal | undefined,
+	outlasted: string,
+): Promise<string | undefined> => {
+	const thrown = await withinDeadline(answered, bound, signal)
+	return thrown === OUTLASTED ? outlasted : thrown
+}
+
+const outlasting = (what: string, bound: number): string =>
+	`the ${what} outlasted its ${bound} ms deadline`
+
+const reconnectFailure = (
 	port: ConnectPort,
 	name: string,
 	bound: number,
 	signal?: AbortSignal,
-): Promise<string | undefined> => {
-	const thrown = await withinDeadline(
+): Promise<string | undefined> =>
+	failureOf(
 		port.reconnect(name).then(
 			() => undefined,
 			(error: unknown) => describeError(error),
 		),
 		bound,
 		signal,
+		outlasting("reconnection", bound),
 	)
-	return thrown === OUTLASTED
-		? `the reconnection outlasted its ${bound} ms deadline`
-		: thrown
-}
 
-const storedValues = ({ base, perServer }: ServerEnv): string[] =>
+const declareFailure = (
+	grants: GrantPort,
+	name: string,
+	accessToken: string,
+	bound: number,
+	signal?: AbortSignal,
+): Promise<string | undefined> =>
+	failureOf(
+		grants.declare(name, accessToken).then(
+			(declaration) => unlanded(name, declaration),
+			(error: unknown) => describeError(error),
+		),
+		bound,
+		signal,
+		outlasting("renewed declaration", bound),
+	)
+
+export const heldSecrets = ({ base, perServer }: ServerEnv = {}): string[] =>
 	[
 		...Object.values(base ?? {}),
 		...Object.values(perServer ?? {}).flatMap((scope) => Object.values(scope)),
@@ -226,6 +272,12 @@ const storedValues = ({ base, perServer }: ServerEnv): string[] =>
 
 const withoutQuery = (reason: string): string =>
 	reason.replace(URL_PAST_ITS_PATH, "$1")
+
+const remembered = (secrets: string[], secret: string) => {
+	if (secret.length >= SECRET_FLOOR) {
+		secrets.push(secret)
+	}
+}
 
 const redacted = (reason: string, secrets: string[]): string =>
 	secrets.reduce((held, secret) => held.split(secret).join(REDACTED), reason)
@@ -319,12 +371,17 @@ const reportPass = async (
 	if (missing.length) {
 		giveUps.push({ names: missing, cause: NO_READ })
 	}
-	const settledAs = (status: ServerStatus["status"]) =>
-		names.filter((name) => namedRead(takes, name)?.status === status)
+	const settledAs = (status: ServerStatus["status"]): ServerStatus[] =>
+		names.flatMap((name) => {
+			const named = namedRead(takes, name)
+			return named?.status === status
+				? [{ name, status, error: named.error }]
+				: []
+		})
 	return {
 		reported,
 		giveUps,
-		connecting: settledAs("pending"),
+		connecting: settledAs("pending").map(({ name }) => name),
 		failing: settledAs("failed"),
 	}
 }
@@ -391,30 +448,75 @@ const readLine = (
 	return status === "pending" ? news(line, "connecting") : notice(line)
 }
 
-const announce = async (
+const rejectsTheHeader = (reason = ""): boolean =>
+	AUTHORIZATION_REJECTED.some((named) => named.test(reason))
+
+const wasGivenAToken = (env: ServerEnv | undefined, name: string): boolean =>
+	Boolean(env?.perServer?.[name]?.[ACCESS_TOKEN])
+
+const askedGrant = async (
+	grants: GrantPort,
+	name: string,
+	secrets: string[],
+): Promise<RenewedGrant | undefined> => {
+	try {
+		return await grants.renew(name)
+	} catch (thrown) {
+		process.stderr.write(
+			`${RENEWAL_REFUSED} ("${name}"): ${readable(describeError(thrown), secrets)}\n`,
+		)
+		return undefined
+	}
+}
+
+const renewed = async (
+	pass: ConnectPass,
+	{ name, error }: ServerStatus,
+	secrets: string[],
+): Promise<Renewing> => {
+	const { grants, env, signal, bound = REQUEST_BOUND_MS } = pass
+	if (!grants || !rejectsTheHeader(error) || !wasGivenAToken(env, name)) {
+		return UNCHANGED
+	}
+	const granted = await withinDeadline(
+		askedGrant(grants, name, secrets),
+		bound,
+		signal,
+	)
+	if (granted === OUTLASTED) {
+		process.stderr.write(
+			`${RENEWAL_REFUSED} ("${name}"): ${outlasting("renewal", bound)}\n`,
+		)
+		return { kind: "refused" }
+	}
+	if (granted?.state === "needs-auth") {
+		return { kind: "needs-auth" }
+	}
+	if (granted?.state !== "granted") {
+		return UNCHANGED
+	}
+	remembered(secrets, granted.accessToken)
+	const refusal = await declareFailure(
+		grants,
+		name,
+		granted.accessToken,
+		bound,
+		signal,
+	)
+	return refusal
+		? { kind: "refused", answer: { source: DECLARED_SAID, message: refusal } }
+		: { kind: "declared" }
+}
+
+const afterDialling = async (
 	{ port, signal, bound = REQUEST_BOUND_MS, report }: ConnectPass,
 	name: string,
-	status: ServerStatus["status"],
+	answer: Answer | undefined,
 	spent: () => number,
 	secrets: string[],
 ): Promise<Redialled | undefined> => {
-	const settled = SETTLED_LINE[status]
-	if (settled) {
-		report?.(settled(name))
-		return undefined
-	}
-	if (status !== "failed") {
-		return undefined
-	}
-	const thrown = await reconnectFailure(port, name, bound, signal)
-	if (signal?.aborted) {
-		return undefined
-	}
-	const answer = thrown
-		? { source: RECONNECTION_SAID, message: thrown }
-		: undefined
 	const dialled = (held: Answer | undefined) =>
-		notice(lineFor(name, { status, spent: spent() }, held, secrets))
+		notice(lineFor(name, { status: "failed", spent: spent() }, held, secrets))
 	let after: ServerStatus[]
 	try {
 		after = await boundedRead(port, bound, signal)
@@ -435,6 +537,51 @@ const announce = async (
 		read ? readLine(name, read, spent(), answer, secrets) : dialled(answer),
 	)
 	return undefined
+}
+
+const announce = async (
+	pass: ConnectPass,
+	read: ServerStatus,
+	spent: () => number,
+	secrets: string[],
+): Promise<Redialled | undefined> => {
+	const { port, signal, bound = REQUEST_BOUND_MS, report } = pass
+	const { name, status } = read
+	const settled = SETTLED_LINE[status]
+	if (settled) {
+		report?.(settled(name))
+		return undefined
+	}
+	if (status !== "failed") {
+		return undefined
+	}
+	const renewing = await renewed(pass, read, secrets)
+	if (signal?.aborted) {
+		return undefined
+	}
+	if (renewing.kind === "needs-auth") {
+		report?.(awaitingAuth(name))
+		return undefined
+	}
+	if (renewing.kind === "refused") {
+		report?.(
+			notice(
+				lineFor(name, { status, spent: spent() }, renewing.answer, secrets),
+			),
+		)
+		return undefined
+	}
+	if (renewing.kind === "declared") {
+		return afterDialling(pass, name, undefined, spent, secrets)
+	}
+	const thrown = await reconnectFailure(port, name, bound, signal)
+	if (signal?.aborted) {
+		return undefined
+	}
+	const answer = thrown
+		? { source: RECONNECTION_SAID, message: thrown }
+		: undefined
+	return afterDialling(pass, name, answer, spent, secrets)
 }
 
 const takeSettled = (
@@ -506,8 +653,8 @@ const watching = async (
 	}
 	const { watched, redialled, dialling } = watch
 
-	const dial = (name: string, status: ServerStatus["status"]) => {
-		const dialled = announce(pass, name, status, spent, secrets)
+	const dial = (read: ServerStatus) => {
+		const dialled = announce(pass, read, spent, secrets)
 			.then((again) => {
 				if (again) {
 					redialled.set(again.name, again.answer)
@@ -518,8 +665,8 @@ const watching = async (
 		dialling.add(dialled)
 	}
 
-	for (const name of failing) {
-		dial(name, "failed")
+	for (const read of failing) {
+		dial(read)
 	}
 	const until = now() + WATCH_BOUND_MS
 	while (
@@ -539,12 +686,13 @@ const watching = async (
 			noteUnreadable(describeError(error), secrets)
 			continue
 		}
-		for (const { name, status } of takeSettled(watched, statuses)) {
+		for (const read of takeSettled(watched, statuses)) {
+			const { name, status } = read
 			if (redialled.has(name)) {
 				report?.(readLine(name, status, spent(), redialled.get(name), secrets))
 				continue
 			}
-			dial(name, status)
+			dial(read)
 		}
 	}
 	await closeWatch(pass, watch, secrets)
@@ -558,15 +706,74 @@ const unreadableStatus = (
 	writeGiveUp(names, readable(cause, secrets))
 }
 
-export const unconnectedServers = async ({
-	env = {},
-	...pass
-}: ConnectPass): Promise<ReportedLine[]> => {
+export const renewsBeforeTurn = ({
+	grants,
+	names,
+	env,
+}: ConnectPass): boolean =>
+	Boolean(grants) && names.some((name) => wasGivenAToken(env, name))
+
+const worthRenewing = (
+	{ names, env }: ConnectPass,
+	{ name, status, error }: ServerStatus,
+): boolean =>
+	status === "failed" &&
+	names.includes(name) &&
+	rejectsTheHeader(error) &&
+	wasGivenAToken(env, name)
+
+const renewingTurn = async (pass: ConnectPass, secrets: string[]) => {
+	const {
+		port,
+		signal,
+		bound = REQUEST_BOUND_MS,
+		now = Date.now,
+		report,
+	} = pass
+	const started = now()
+	const spent = () => now() - started
+	let statuses: ServerStatus[]
+	try {
+		statuses = await boundedRead(port, bound, signal)
+	} catch (error) {
+		noteUnreadable(describeError(error), secrets)
+		return
+	}
+	for (const read of statuses.filter((read) => worthRenewing(pass, read))) {
+		if (signal?.aborted) {
+			return
+		}
+		const again = await announce(pass, read, spent, secrets)
+		if (again) {
+			report?.(readLine(again.name, "pending", spent(), again.answer, secrets))
+		}
+	}
+}
+
+export const renewedBeforeTurn = async (
+	pass: ConnectPass,
+	secrets: string[] = heldSecrets(pass.env),
+): Promise<void> => {
+	if (!renewsBeforeTurn(pass) || pass.signal?.aborted) {
+		return
+	}
+	try {
+		await renewingTurn(pass, secrets)
+	} catch (thrown) {
+		process.stderr.write(
+			`${TURN_UNRENEWED}: ${readable(describeError(thrown), secrets)}\n`,
+		)
+	}
+}
+
+export const unconnectedServers = async (
+	pass: ConnectPass,
+	secrets: string[] = heldSecrets(pass.env),
+): Promise<ReportedLine[]> => {
 	const { names, signal } = pass
 	if (names.length === 0) {
 		return []
 	}
-	const secrets = storedValues(env)
 	try {
 		const outcome = await reportPass(pass, secrets)
 		if (signal?.aborted) {
@@ -575,7 +782,10 @@ export const unconnectedServers = async ({
 		for (const { names: abandoned, cause } of outcome.giveUps) {
 			gaveUp(pass, abandoned, cause, secrets)
 		}
-		const watched = [...outcome.connecting, ...outcome.failing]
+		const watched = [
+			...outcome.connecting,
+			...outcome.failing.map(({ name }) => name),
+		]
 		if (watched.length && pass.report) {
 			void watching(pass, outcome, secrets).catch((thrown) => {
 				gaveUp(pass, watched, describeError(thrown), secrets)

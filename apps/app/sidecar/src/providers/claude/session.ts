@@ -16,7 +16,10 @@ import { securityFloor } from "./security-floor"
 import {
 	type ConnectPass,
 	delay,
+	heldSecrets,
 	type ReportedLine,
+	renewedBeforeTurn,
+	renewsBeforeTurn,
 	unconnectedServers,
 } from "./server-connect"
 import {
@@ -24,6 +27,7 @@ import {
 	resolvedServers,
 	serverNamed,
 } from "./server-env"
+import { declaringGrants, renewGrant } from "./server-renewal"
 import { recordStanding } from "./server-standing"
 import { sessionEnv } from "./session-env"
 import {
@@ -192,6 +196,7 @@ export const reportConnections = ({
 	const { signal } = abandoning
 	const held: string[] = []
 	const waiting: WaitingLine[] = []
+	const secrets = heldSecrets(pass.env)
 	let holding = pass.names.length > 0
 
 	const framed = (detail: string) => {
@@ -249,12 +254,10 @@ export const reportConnections = ({
 		}
 	}
 
+	const passing: ConnectPass = { ...pass, signal, report: reported }
+
 	void delay(0, signal)
-		.then(() =>
-			signal.aborted
-				? []
-				: unconnectedServers({ ...pass, signal, report: reported }),
-		)
+		.then(() => (signal.aborted ? [] : unconnectedServers(passing, secrets)))
 		.then(release, () => release([]))
 
 	return {
@@ -263,7 +266,13 @@ export const reportConnections = ({
 				held.push(text)
 				return
 			}
-			hand(text)
+			if (!renewsBeforeTurn(passing)) {
+				hand(text)
+				return
+			}
+			held.push(text)
+			holding = true
+			void renewedBeforeTurn(passing, secrets).then(() => release([]))
 		},
 		drop: () => {
 			const dropped = held.length > 0
@@ -334,6 +343,10 @@ export const openClaudeSession = async (
 
 	emit({ type: "commands", commands: described(initialized.commands) })
 
+	const declare = declaringGrants(options.mcpServers ?? {}, (servers) =>
+		run.setMcpServers(servers),
+	)
+
 	const report = reportConnections({
 		emit,
 		push: prompts.push,
@@ -344,6 +357,10 @@ export const openClaudeSession = async (
 				reconnect: (name) => run.reconnectMcpServer(name),
 			},
 			env: request.serverEnv,
+			grants: {
+				renew: renewGrant(request.session),
+				declare,
+			},
 		},
 		record,
 	})

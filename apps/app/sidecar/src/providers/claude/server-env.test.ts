@@ -5,6 +5,8 @@ import { join } from "node:path"
 
 import {
 	AWAITING_AUTH,
+	declaredAgain,
+	declaredWithout,
 	leftOut,
 	resolvedServers,
 	resolveServers,
@@ -310,5 +312,58 @@ describe("resolvedServers", () => {
 			servers: {},
 			rejections: [],
 		})
+	})
+})
+
+describe("declaredAgain", () => {
+	it("names every server declared, carrying the renewed header on the one renewed", () => {
+		const declared = declaredAgain(
+			{ granola, plain, probe },
+			"granola",
+			"renewed-access-token",
+		)
+
+		expect(Object.keys(declared)).toEqual(["granola", "plain", "probe"])
+		expect(declared.granola).toEqual({
+			...granola,
+			headers: { Authorization: "Bearer renewed-access-token" },
+		})
+		expect(declared.plain).toEqual(plain)
+		expect(declared.probe).toEqual(probe)
+	})
+
+	it("replaces the header a first renewal left, keeping the others declared", () => {
+		const carried = { ...granola, headers: { "X-Room": "main" } }
+
+		const declared = declaredAgain(
+			declaredAgain({ carried }, "carried", "first-access-token"),
+			"carried",
+			"second-access-token",
+		)
+
+		expect(declared.carried).toEqual({
+			...granola,
+			headers: {
+				"X-Room": "main",
+				Authorization: "Bearer second-access-token",
+			},
+		})
+	})
+
+	it("declares the set unchanged when it names no such server", () => {
+		expect(declaredAgain({ granola }, "clock", "renewed")).toEqual({ granola })
+	})
+})
+
+describe("declaredWithout", () => {
+	it("names every other server the session holds and drops the one named", () => {
+		expect(declaredWithout({ granola, plain, probe }, "granola")).toEqual({
+			plain,
+			probe,
+		})
+	})
+
+	it("declares the set unchanged when it names no such server", () => {
+		expect(declaredWithout({ granola }, "clock")).toEqual({ granola })
 	})
 })
