@@ -9,13 +9,15 @@ import { tmpdir } from "node:os"
 import { join, relative, resolve } from "node:path"
 import { fileURLToPath } from "node:url"
 
-export type StoryCounts = Record<string, number>
+export const STORIES = "stories"
 
 export type Verdict = { failures: string[]; warnings: string[] }
 
+export type SuiteOutcome = { suite: string; red: boolean; items: string[] }
+
 type ItemComparison = { area: string; committed: string[]; live: string[] }
 
-type StoryComparison = { committed: StoryCounts; live: StoryCounts }
+type StoryComparison = { committed: string[]; live: string[] }
 
 export const compareItems = ({
 	area,
@@ -38,18 +40,31 @@ export const compareStories = ({
 	committed,
 	live,
 }: StoryComparison): Verdict => {
-	const families = [
-		...new Set([...Object.keys(committed), ...Object.keys(live)]),
-	].sort()
+	const committedIds = new Set(committed)
+	const liveIds = new Set(live)
 	return {
-		failures: families
-			.filter((family) => (committed[family] ?? 0) !== (live[family] ?? 0))
-			.map(
-				(family) =>
-					`stories: ${family} holds ${live[family] ?? 0} stories, the baseline records ${committed[family] ?? 0}`,
-			),
+		failures: [
+			...live
+				.filter((id) => !committedIds.has(id))
+				.map((id) => `${STORIES}: reported but not in the baseline: ${id}`),
+			...committed
+				.filter((id) => !liveIds.has(id))
+				.map(
+					(id) => `${STORIES}: in the baseline but no longer reported: ${id}`,
+				),
+		],
 		warnings: [],
 	}
+}
+
+export const assertRedSuitesAreAttributed = (outcomes: SuiteOutcome[]) => {
+	const unattributed = outcomes
+		.filter((outcome) => outcome.red && outcome.items.length === 0)
+		.map((outcome) => outcome.suite)
+	if (unattributed.length === 0) return
+	throw new Error(
+		`red with no attributable failure: ${unattributed.join(", ")}`,
+	)
 }
 
 export const mergeVerdicts = (verdicts: Verdict[]): Verdict => ({
@@ -82,9 +97,14 @@ type VitestAssertion = {
 	meta?: { storyId?: string }
 }
 
-type VitestReport = {
-	testResults: { name: string; assertionResults: VitestAssertion[] }[]
+type VitestFile = {
+	name: string
+	status: string
+	message?: string
+	assertionResults: VitestAssertion[]
 }
+
+type VitestReport = { success: boolean; testResults: VitestFile[] }
 
 type VitestSuite = { name: string; filter: string; script: string }
 
@@ -100,9 +120,9 @@ type CapturedRun = Run & { label: string }
 const unreadable = (label: string) =>
 	new Error(`${label} ended without a readable report`)
 
-const runInherited = ({ command, cwd }: Run) => {
+const runInherited = ({ command, cwd }: Run) =>
 	Bun.spawnSync({ cmd: command, cwd, stdout: "inherit", stderr: "inherit" })
-}
+		.exitCode
 
 const runCaptured = ({ command, cwd, label }: CapturedRun) => {
 	const finished = Bun.spawnSync({
@@ -131,15 +151,16 @@ type SuiteRun = { suite: VitestSuite; into: string }
 const vitestReport = ({ suite, into }: SuiteRun) => {
 	const path = join(into, `${suite.name}.json`)
 	const label = `the ${suite.name} vitest suite`
-	runInherited({
+	const exitCode = runInherited({
 		command: [
 			"bun",
 			"run",
 			`--filter=${suite.filter}`,
 			suite.script,
 			"--",
+			"--reporter=default",
 			"--reporter=json",
-			`--outputFile=${path}`,
+			`--outputFile.json=${path}`,
 		],
 		cwd: REPO,
 	})
@@ -147,40 +168,39 @@ const vitestReport = ({ suite, into }: SuiteRun) => {
 	if (!Array.isArray(report.testResults) || report.testResults.length === 0) {
 		throw unreadable(label)
 	}
-	return report
+	return { report, red: exitCode !== 0 || report.success === false }
 }
 
 type SuiteReport = { suite: string; report: VitestReport }
 
-const vitestFailures = ({ suite, report }: SuiteReport) =>
-	report.testResults.flatMap((file) =>
-		file.assertionResults
-			.filter((assertion) => assertion.status === "failed")
-			.map(
-				(assertion) =>
-					`${suite} :: ${repoPath(file.name, REPO)} :: ${assertion.fullName}`,
-			),
+const collapse = (text: string) =>
+	text.trim().replace(/\s+/g, " ").slice(0, 120)
+
+type FileInSuite = { suite: string; file: VitestFile }
+
+const failuresIn = ({ suite, file }: FileInSuite) => {
+	const named = `${suite} :: ${repoPath(file.name, REPO)}`
+	const failed = file.assertionResults.filter(
+		(assertion) => assertion.status === "failed",
 	)
-
-const familyOf = (storyId: string) => {
-	const slug = storyId.split("-")[0] ?? ""
-	return slug.charAt(0).toUpperCase() + slug.slice(1)
-}
-
-const countStories = (reports: VitestReport[]): StoryCounts => {
-	const counts: StoryCounts = {}
-	for (const report of reports) {
-		for (const file of report.testResults) {
-			for (const assertion of file.assertionResults) {
-				const storyId = assertion.meta?.storyId
-				if (!storyId) continue
-				const family = familyOf(storyId)
-				counts[family] = (counts[family] ?? 0) + 1
-			}
-		}
+	if (failed.length > 0) {
+		return failed.map((assertion) => `${named} :: ${assertion.fullName}`)
 	}
-	return counts
+	if (file.status !== "failed") return []
+	return [`${named} :: ${collapse(file.message ?? "failed without a message")}`]
 }
+
+export const vitestFailures = ({ suite, report }: SuiteReport) =>
+	report.testResults.flatMap((file) => failuresIn({ suite, file }))
+
+const storyIds = (reports: VitestReport[]) =>
+	reports.flatMap((report) =>
+		report.testResults.flatMap((file) =>
+			file.assertionResults.flatMap(
+				(assertion) => assertion.meta?.storyId ?? [],
+			),
+		),
+	)
 
 const XML_ENTITIES: Record<string, string> = {
 	"&lt;": "<",
@@ -201,10 +221,10 @@ type TagAttribute = { tag: string; name: string }
 const attributeOf = ({ tag, name }: TagAttribute) =>
 	unescapeXml(new RegExp(`${name}="([^"]*)"`).exec(tag)?.[1] ?? "")
 
-const sidecarFailures = (into: string) => {
+const sidecarOutcome = (into: string): SuiteOutcome => {
 	const path = join(into, "sidecar.xml")
 	const label = "the sidecar test suite"
-	runInherited({
+	const exitCode = runInherited({
 		command: [
 			"bun",
 			"run",
@@ -218,13 +238,14 @@ const sidecarFailures = (into: string) => {
 	})
 	const written = readReport({ path, label })
 	if (!/<testsuites\b[^>]*\btests="\d+"/.test(written)) throw unreadable(label)
-	return [
+	const items = [
 		...written.matchAll(/<testcase\b([^>]*)>\s*<(?:failure|error)\b/g),
 	].map((match) => {
 		const tag = match[1] ?? ""
 		const file = repoPath(attributeOf({ tag, name: "file" }), SIDECAR)
 		return `sidecar :: ${file} :: ${attributeOf({ tag, name: "name" })}`
 	})
+	return { suite: "sidecar", red: exitCode !== 0, items }
 }
 
 type BiomeDiagnostic = {
@@ -242,8 +263,7 @@ type SourceSpot = { path: string; line: number }
 const sourceLine = ({ path, line }: SourceSpot) => {
 	const absolute = join(REPO, path)
 	if (!existsSync(absolute)) return ""
-	const text = readFileSync(absolute, "utf8").split("\n")[line - 1] ?? ""
-	return text.trim().replace(/\s+/g, " ").slice(0, 120)
+	return collapse(readFileSync(absolute, "utf8").split("\n")[line - 1] ?? "")
 }
 
 const biomeItems = () => {
@@ -328,54 +348,32 @@ const writeItems = ({ area, items }: AreaItems) => {
 	)
 }
 
-const readStories = (): StoryCounts => {
-	const path = join(BASELINES, "stories.txt")
-	if (!existsSync(path)) return {}
-	return Object.fromEntries(
-		readFileSync(path, "utf8")
-			.split("\n")
-			.filter((line) => line.trim().length > 0)
-			.map((line) => {
-				const [family, count] = line.trim().split(/\s+/)
-				return [family, Number(count)]
-			}),
-	)
-}
-
-const writeStories = (counts: StoryCounts) => {
-	mkdirSync(BASELINES, { recursive: true })
-	const lines = Object.keys(counts)
-		.sort()
-		.map((family) => `${family} ${counts[family]}`)
-	writeFileSync(
-		join(BASELINES, "stories.txt"),
-		lines.length === 0 ? "" : `${lines.join("\n")}\n`,
-	)
-}
-
-type Live = { items: Record<string, string[]>; stories?: StoryCounts }
+type Live = Record<string, string[]>
 
 const collectVitest = (): Live => {
 	const into = mkdtempSync(join(tmpdir(), "kiroshi-baseline-"))
-	const reports = VITEST_SUITES.map((suite) => ({
+	const ran = VITEST_SUITES.map((suite) => ({
 		suite,
-		report: vitestReport({ suite, into }),
+		...vitestReport({ suite, into }),
 	}))
+	const outcomes: SuiteOutcome[] = [
+		...ran.map(({ suite, report, red }) => ({
+			suite: suite.name,
+			red,
+			items: vitestFailures({ suite: suite.name, report }),
+		})),
+		sidecarOutcome(into),
+	]
+	assertRedSuitesAreAttributed(outcomes)
 	return {
-		items: {
-			tests: [
-				...reports.flatMap(({ suite, report }) =>
-					vitestFailures({ suite: suite.name, report }),
-				),
-				...sidecarFailures(into),
-			],
-		},
-		stories: countStories(reports.map(({ report }) => report)),
+		tests: outcomes.flatMap((outcome) => outcome.items),
+		[STORIES]: storyIds(ran.map(({ report }) => report)),
 	}
 }
 
 const collectLint = (): Live => ({
-	items: { biome: biomeItems(), knip: knipItems() },
+	biome: biomeItems(),
+	knip: knipItems(),
 })
 
 const SCOPES = { vitest: collectVitest, lint: collectLint }
@@ -397,15 +395,15 @@ const requestedScopes = (argv: string[]): Scope[] => {
 		: (named as Scope[])
 }
 
+const compareArea = ({ area, items }: AreaItems) =>
+	area === STORIES
+		? compareStories({ committed: readItems(area), live: items })
+		: compareItems({ area, committed: readItems(area), live: items })
+
 const check = (live: Live) => {
-	const verdict = mergeVerdicts([
-		...Object.entries(live.items).map(([area, items]) =>
-			compareItems({ area, committed: readItems(area), live: items }),
-		),
-		...(live.stories
-			? [compareStories({ committed: readStories(), live: live.stories })]
-			: []),
-	])
+	const verdict = mergeVerdicts(
+		Object.entries(live).map(([area, items]) => compareArea({ area, items })),
+	)
 	for (const warning of verdict.warnings) console.warn(`warning  ${warning}`)
 	if (verdict.failures.length === 0) {
 		console.log("baseline  every reported item is recorded")
@@ -417,30 +415,26 @@ const check = (live: Live) => {
 }
 
 const update = (live: Live) => {
-	for (const [area, items] of Object.entries(live.items)) {
-		writeItems({ area, items: [...readItems(area), ...items] })
+	for (const [area, items] of Object.entries(live)) {
+		const kept = area === STORIES ? [] : readItems(area)
+		writeItems({ area, items: [...kept, ...items] })
 	}
-	if (live.stories) writeStories(live.stories)
 	return 0
 }
 
 const prune = (live: Live) => {
-	for (const [area, items] of Object.entries(live.items)) {
-		writeItems({ area, items })
-	}
-	if (live.stories) writeStories(live.stories)
+	for (const [area, items] of Object.entries(live)) writeItems({ area, items })
 	return 0
 }
 
 const collect = (scopes: Scope[]): Live => {
-	const parts = scopes.map((scope) => SCOPES[scope]())
-	const items: Record<string, string[]> = {}
-	for (const part of parts) {
-		for (const [area, found] of Object.entries(part.items)) {
-			items[area] = withOrdinals(found)
+	const live: Live = {}
+	for (const scope of scopes) {
+		for (const [area, found] of Object.entries(SCOPES[scope]())) {
+			live[area] = withOrdinals(found)
 		}
 	}
-	return { items, stories: parts.find((part) => part.stories)?.stories }
+	return live
 }
 
 const main = (argv: string[]) => {
