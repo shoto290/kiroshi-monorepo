@@ -1,5 +1,4 @@
 export type {
-	ConversationKind,
 	MessageHit,
 	MessageSearchError,
 	MessageSearchQuery,

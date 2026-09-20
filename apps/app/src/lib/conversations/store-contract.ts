@@ -2,7 +2,6 @@ export type {
 	ApplicationMark_Serialize as McpServerMark,
 	AvatarAnimal,
 	AvatarBlot,
-	AvatarRejection,
 	Bot,
 	BotChangedFile,
 	BotDraft,
@@ -36,7 +35,6 @@ export type {
 	Space,
 	SpaceError,
 	SpacePreferences,
-	StorageFailure,
 	SuggestedBot,
 	TranscriptStoreError,
 } from "@/lib/bindings"

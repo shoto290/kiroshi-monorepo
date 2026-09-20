@@ -39,10 +39,8 @@ types :: apps/app/src/lib/conversations/companion-spoke-driver.ts :: SpokenRoste
 types :: apps/app/src/lib/conversations/scripted-driver.ts :: Answered
 types :: apps/app/src/lib/conversations/scripted-driver.ts :: Decided
 types :: apps/app/src/lib/conversations/scripted-driver.ts :: Submission
-types :: apps/app/src/lib/conversations/store-contract.ts :: AvatarRejection
 types :: apps/app/src/lib/conversations/store-contract.ts :: BotFileChange
 types :: apps/app/src/lib/conversations/store-contract.ts :: BotModel
-types :: apps/app/src/lib/conversations/store-contract.ts :: StorageFailure
 types :: apps/app/src/lib/conversations/transcript-state.ts :: TranscriptConversation
 types :: apps/app/src/lib/conversations/use-conversation-seating.ts :: OpenConversation
 types :: apps/app/src/lib/missions/mission-contract.ts :: MissionDraft
@@ -68,7 +66,6 @@ types :: apps/app/src/lib/routines/routine-contract.ts :: SkipReason
 types :: apps/app/src/lib/routines/routine-contract.ts :: TriggerEvent
 types :: apps/app/src/lib/routines/run-report.ts :: AssistantTurnDraft
 types :: apps/app/src/lib/search/catalogue-contract.ts :: CatalogueError
-types :: apps/app/src/lib/search/search-contract.ts :: ConversationKind
 types :: apps/app/src/lib/search/search-contract.ts :: MessageSearchError
 types :: apps/app/src/lib/search/search-contract.ts :: SnippetPart
 types :: apps/app/src/lib/search/search-controller.ts :: SearchState
