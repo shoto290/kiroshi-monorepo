@@ -1212,7 +1212,7 @@ const useThreadSeats = ({
 
 type ThreadSeats = ReturnType<typeof useThreadSeats>
 
-const useThreadContext = (
+const useThreadAnnotations = (
 	{ runtimes, landings }: ThreadViewProps,
 	seats: ThreadSeats,
 ) => {
@@ -1297,15 +1297,15 @@ const useThreadContext = (
 	}
 }
 
-type ThreadContext = ReturnType<typeof useThreadContext>
+type ThreadAnnotations = ReturnType<typeof useThreadAnnotations>
 
 const useThreadActions = (
 	{ thread, bots: known, drafts, signIn }: ThreadViewProps,
 	seats: ThreadSeats,
-	context: ThreadContext,
+	annotations: ThreadAnnotations,
 ) => {
 	const { composerRef, controller, facts, scrollerRef, staged, state } = seats
-	const { toQuote } = context
+	const { toQuote } = annotations
 
 	const seatMentioned = useSeatMentioned({
 		conversation: facts.conversation,
@@ -1406,7 +1406,7 @@ type ThreadActions = ReturnType<typeof useThreadActions>
 const threadRowsOf = (
 	{ thread, bots: known, onboarding, signIn, onOpenMission }: ThreadViewProps,
 	seats: ThreadSeats,
-	context: ThreadContext,
+	annotations: ThreadAnnotations,
 	actions: ThreadActions,
 ) => {
 	const {
@@ -1431,7 +1431,7 @@ const threadRowsOf = (
 		repliedToRefusal,
 		sessionApplications,
 		toQuote,
-	} = context
+	} = annotations
 	const { asked, botController, holdReply, isSentInMount, retry } = actions
 
 	const { runs, causes } = readRuns({
@@ -1522,14 +1522,14 @@ const threadRowsOf = (
 
 const useThreadView = (props: ThreadViewProps) => {
 	const seats = useThreadSeats(props)
-	const context = useThreadContext(props, seats)
-	const actions = useThreadActions(props, seats, context)
+	const annotations = useThreadAnnotations(props, seats)
+	const actions = useThreadActions(props, seats, annotations)
 
 	return {
 		...seats,
-		...context,
+		...annotations,
 		...actions,
-		...threadRowsOf(props, seats, context, actions),
+		...threadRowsOf(props, seats, annotations, actions),
 	}
 }
 
