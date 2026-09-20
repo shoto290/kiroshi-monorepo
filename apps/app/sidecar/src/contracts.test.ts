@@ -113,10 +113,10 @@ describe("the frozen back-end contracts", () => {
 		const carried = new Set(
 			committedLines(COMMANDS).map((command) => command.type),
 		)
-		const served = [...answered, ...acted]
+		const served = new Set([...answered, ...acted])
 
-		expect(served.filter((type) => !carried.has(type))).toEqual([])
-		expect([...carried].filter((type) => !served.includes(type))).toEqual([])
+		expect([...served].filter((type) => !carried.has(type))).toEqual([])
+		expect([...carried].filter((type) => !served.has(type))).toEqual([])
 	})
 
 	it(`routes every command of ${COMMANDS} through the record its session decides`, () => {
