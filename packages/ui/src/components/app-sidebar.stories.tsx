@@ -1315,7 +1315,7 @@ export const MissionStripStates = meta.story({
 		docs: {
 			description: {
 				story:
-					"Four companions each carrying one open mission, one per state a mission can be in, the running one live. The mission speaks in a strip under the row and never in the dot on the preview line: the strip is the state of the work, the dot is the state of the conversation, and the two shapes are never confused. Check each strip runs the full width of the row, from the leading edge of the avatar to the trailing inner edge, so it passes under the avatar rather than starting after it. Check the strip opens on the platform mark, then the identifier and the title, and closes on its state dot at the trailing edge, in the attention, failed and done colours the panel already uses and the muted grey of a mission running right now. Check the strip never moves: it is the one mark in the row that does not pulse, because a mission is a fact and not an alarm. The title and the mark carry `--muted-foreground`, which reaches 3.9:1 on the strip fill instead of the 4.5:1 AA asks for: the pair is the artboard’s and the fix is a lightness step on the token, which every muted line in the panel would take with it, so it is flagged for review here rather than settled inside this strip. Check every row measures 80px, the head staying 40px with the avatar centred on it rather than on the row plus the strip, and that the four chat signals are exactly what the host passed. Pick `MissionStripQuiet` for the running mission nobody is watching, `MissionStripStack` for a row carrying four, `MissionStripSelected` for the strip under a lit row.",
+					"Four companions each carrying one open mission, one per state a mission can be in, the running one live. The mission speaks in a strip under the row and the conversation in the dot on the preview line, and since the strip closes on a dot of its own, in the same three colours, on the same trailing column, the line each one sits on is what separates them: the dot above the strip is the state of the conversation, the dot inside it is the state of the work, and only the strip carries a ticket beside it. Check each strip runs the full width of the row, from the leading edge of the avatar to the trailing inner edge, so it passes under the avatar rather than starting after it. Check the strip opens on the platform mark, then the identifier and the title, and closes on its state dot at the trailing edge, in the attention, failed and done colours the panel already uses and the muted grey of a mission running right now. Check the strip never moves: it is the one mark in the row that does not pulse, because a mission is a fact and not an alarm. The title and the mark carry `--muted-foreground`, which reaches 3.9:1 on the strip fill instead of the 4.5:1 AA asks for: the pair is the artboard’s and the fix is a lightness step on the token, which every muted line in the panel would take with it, so it is flagged for review here rather than settled inside this strip. Check every row measures 80px, the head staying 40px with the avatar centred on it rather than on the row plus the strip, and that the four chat signals are exactly what the host passed. Pick `MissionStripQuiet` for the running mission nobody is watching, `MissionStripStack` for a row carrying four, `MissionStripSelected` for the strip under a lit row.",
 			},
 		},
 	},
@@ -1773,18 +1773,34 @@ export const MissionStripWithChatBadge = meta.story({
 		docs: {
 			description: {
 				story:
-					"A companion whose mission waits on the reader and whose conversation is asking for them too. Check both marks are drawn: the chat dot at the trailing edge of the preview line, the mission strip under the row, each answering a different question. A mission never eats the badge a conversation put there and a conversation never dims a mission, so the row can say two things at once without either mark moving. Check the strip hangs below the badge instead of colliding with it. Pick `Badges` for the dot alone, `MissionStripStates` for the strip alone.",
+					"A companion whose mission waits on the reader and whose conversation is asking for them too, which is the one case where the two marks of the row meet. Check both are drawn and that they stack: the chat dot at the trailing edge of the preview line, the mission dot at the trailing edge of the strip below it, their trailing edges 2px apart, so they read as one column down the row rather than as two. They carry the same attention colour here, measured against `--bot-badge-attention` on both, so colour and column are exactly what a reader cannot tell them apart by: the line each one sits on is, the preview line answering what the conversation wants and the strip answering what the work is doing. Check the strip hangs below the badge instead of colliding with it. Pick `Badges` for the dot alone, `MissionStripStates` for the strip alone.",
 			},
 		},
 	},
 	play: async ({ canvasElement }) => {
 		const rows = rowsIn(canvasElement)
 
+		const chatDot = slotIn(rows[0], "bot-activity-dot")
+		const missionDot = dotIn(rows[0])
+		const attention = tokenBackground(
+			canvasElement,
+			"var(--bot-badge-attention)",
+		)
+
 		await expect(stripStatesIn(rows[0])).toEqual(["waiting"])
 		await expect(badgeIn(rows[0])).toBe("attention")
+		await expect(chatDot.getBoundingClientRect().bottom).toBeLessThanOrEqual(
+			stripsIn(rows[0])[0].getBoundingClientRect().top,
+		)
 		await expect(
-			slotIn(rows[0], "bot-activity-dot").getBoundingClientRect().bottom,
-		).toBeLessThanOrEqual(stripsIn(rows[0])[0].getBoundingClientRect().top)
+			Math.round(
+				chatDot.getBoundingClientRect().right -
+					missionDot.getBoundingClientRect().right,
+			),
+		).toBe(2)
+		await expect(
+			[chatDot, missionDot].map((dot) => getComputedStyle(dot).backgroundColor),
+		).toEqual([attention, attention])
 		await expect(stripsIn(rows[1])).toHaveLength(0)
 		await expectAlignedRows(rows)
 	},
