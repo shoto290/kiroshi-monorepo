@@ -65,9 +65,11 @@ export const declaringGrants = (
 		return { dropped, carried }
 	}
 
+	const heldByTheCaller = () => undefined
+
 	return (name, accessToken) => {
 		const queued = declaring.then(() => pair(name, accessToken))
-		declaring = queued.catch(() => undefined)
+		declaring = queued.then(heldByTheCaller, heldByTheCaller)
 		return queued
 	}
 }

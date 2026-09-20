@@ -261,7 +261,7 @@ const declareFailure = (
 		`the renewed declaration outlasted its ${bound} ms deadline`,
 	)
 
-const storedValues = ({ base, perServer }: ServerEnv): string[] =>
+export const heldSecrets = ({ base, perServer }: ServerEnv = {}): string[] =>
 	[
 		...Object.values(base ?? {}),
 		...Object.values(perServer ?? {}).flatMap((scope) => Object.values(scope)),
@@ -692,8 +692,6 @@ const unreadableStatus = (
 ) => {
 	writeGiveUp(names, readable(cause, secrets))
 }
-
-export const heldSecrets = (env: ServerEnv = {}): string[] => storedValues(env)
 
 export const renewsBeforeTurn = ({ grants, names }: ConnectPass): boolean =>
 	Boolean(grants) && names.length > 0
