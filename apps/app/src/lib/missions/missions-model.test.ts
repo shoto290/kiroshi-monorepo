@@ -103,6 +103,11 @@ const RUNNING_MISSION: Mission = {
 	isAgentRunning: true,
 }
 
+const CLOSED_RUNNING_MISSION: Mission = {
+	...RUNNING_MISSION,
+	closedAt: READ_AT - 86_400_000,
+}
+
 const liveIn = (read: Partial<MissionLivenessRead>) => [
 	...liveMissionsIn({
 		missions: [RUNNING_MISSION],
@@ -154,6 +159,24 @@ describe("liveMissionsIn", () => {
 		expect(liveIn({})).toEqual([])
 	})
 
+	it("reads a closed mission whose agent still runs as resting", () => {
+		expect(
+			liveIn({
+				missions: [CLOSED_RUNNING_MISSION],
+				agentRuns: { "m-working": READ_AT },
+			}),
+		).toEqual([])
+	})
+
+	it("reads a closed mission its companion speaks on as resting", () => {
+		expect(
+			liveIn({
+				missions: [CLOSED_RUNNING_MISSION],
+				speakingBotIds: { "c-mission-1": ["b-1"] },
+			}),
+		).toEqual([])
+	})
+
 	it("leaves out a thread another companion speaks on", () => {
 		expect(
 			liveIn({
@@ -193,6 +216,16 @@ describe("stampedAgentRuns", () => {
 			"m-elsewhere": READ_AT - 60_000,
 			"m-working": READ_AT,
 		})
+	})
+
+	it("drops the stamp of a mission read closed", () => {
+		expect(
+			stampedAgentRuns(
+				{ "m-working": READ_AT - 60_000 },
+				[CLOSED_RUNNING_MISSION],
+				READ_AT,
+			),
+		).toEqual({})
 	})
 
 	it("stamps again once the agent stopped and started back", () => {

@@ -61,6 +61,8 @@ export type MissionLivenessRead = {
 	now: number
 }
 
+const isOpen = (mission: Mission): boolean => mission.closedAt === null
+
 const speaksOnItsThread = (
 	mission: Mission,
 	speakingBotIds: SpeakingBotIds,
@@ -91,8 +93,9 @@ export const liveMissionsIn = ({
 		missions
 			.filter(
 				(mission) =>
-					speaksOnItsThread(mission, speakingBotIds) ||
-					runsInsideTheWindow(mission, agentRuns, now),
+					isOpen(mission) &&
+					(speaksOnItsThread(mission, speakingBotIds) ||
+						runsInsideTheWindow(mission, agentRuns, now)),
 			)
 			.map(({ id }) => id),
 	)
@@ -112,11 +115,11 @@ export const stampedAgentRuns = (
 	now: number,
 ): AgentRunStamps => {
 	const read = { ...held }
-	for (const { id, isAgentRunning } of missions) {
-		if (isAgentRunning) {
-			read[id] = held[id] ?? now
+	for (const mission of missions) {
+		if (mission.isAgentRunning && isOpen(mission)) {
+			read[mission.id] = held[mission.id] ?? now
 		} else {
-			delete read[id]
+			delete read[mission.id]
 		}
 	}
 
