@@ -338,11 +338,12 @@ export const Narrow = meta.story({
 		const strip = canvas.getByRole("tablist")
 
 		const tabs = canvas.getAllByRole("tab")
+		const lineTop = boxOf(tabs[0]).top
 
 		await expect(tabs).toHaveLength(4)
 		await expect(boxOf(strip).right).toBeLessThanOrEqual(boxOf(column).right)
 		for (const tab of tabs) {
-			await expect(boxOf(tab).top).toBe(boxOf(tabs[0]).top)
+			await expect(boxOf(tab).top).toBe(lineTop)
 		}
 
 		await userEvent.click(canvas.getByRole("tab", { name: /release/i }))
@@ -381,7 +382,6 @@ export const LongHeaderScrolls = meta.story({
 		const longTab = canvas.getByRole("tab", { name: REGISTRY_QUESTION.header })
 		const shortTab = canvas.getByRole("tab", { name: SCOPE_QUESTION.header })
 		const asked = canvas.getByText(REGISTRY_QUESTION.question)
-
 		const submit = canvas.getByRole("button", { name: chat.toolQuestion.next })
 
 		await expect(boxOf(longTab).height).toBe(boxOf(shortTab).height)
