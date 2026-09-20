@@ -481,7 +481,7 @@ export const startMissionRunDriver = ({
 		raiseFailure(`the mission run's session failed with ${error.kind}`)
 	}
 
-	const reportStandingOf = async (threadConversationId: string) => {
+	const openStatusRun = async (threadConversationId: string) => {
 		const missionId = missionIdOfThread.get(threadConversationId)
 
 		if (missionId === undefined || isStopped || isBusy(missionId)) {
@@ -514,7 +514,7 @@ export const startMissionRunDriver = ({
 
 		if (!held) {
 			if (scope && event.type === "turnEnded") {
-				void reportStandingOf(scope.conversationId)
+				void openStatusRun(scope.conversationId)
 			}
 			return
 		}
@@ -548,13 +548,13 @@ export const startMissionRunDriver = ({
 	}
 
 	const catchUpOnOpenMissions = async () => {
-		const open = await missions.board()
+		const onBoard = await missions.board()
 
-		for (const { mission } of open) {
+		for (const { mission } of onBoard) {
 			rememberThread(mission)
 		}
 
-		startRunsFor(open.filter(({ mission }) => isTakenState(mission.state)))
+		startRunsFor(onBoard.filter(({ mission }) => isTakenState(mission.state)))
 	}
 
 	const catchUpOnUnreportedMissions = async () => {
