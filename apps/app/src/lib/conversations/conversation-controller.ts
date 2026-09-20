@@ -204,10 +204,6 @@ const NO_SPEAKERS: SpeakingBot[] = []
 
 const NO_UNRESOLVED_MENTIONS: UnresolvedMention[] = []
 
-const NO_HANDED_MENTIONS: HandedMention[] = []
-
-const NO_ARRIVED_BOT_IDS: string[] = []
-
 const isSameWork = (left: WorkingState | null, right: WorkingState | null) =>
 	left?.kind === right?.kind &&
 	left?.label === right?.label &&
@@ -299,7 +295,7 @@ export const createConversationController = (
 	let refused: RefusedMessage | null = null
 	let reportedCauses: ReportedRunsByTurnId = NO_REPORTED_RUNS
 	let latestError: ChatError | null = null
-	let arrivedBotIds: string[] = NO_ARRIVED_BOT_IDS
+	let arrivedBotIds: string[] = []
 	let unresolvedMentions: UnresolvedMention[] = NO_UNRESOLVED_MENTIONS
 	let errorCount = 0
 	let detach: Promise<() => void> | null = null
@@ -569,7 +565,7 @@ export const createConversationController = (
 
 	const resolveFromStore = async (handed: HandedMention[]) => {
 		const conversationId = conversation?.id
-		if (!conversationId) {
+		if (handed.length === 0 || !conversationId) {
 			return
 		}
 		const seated = await readSeating(conversationId)
@@ -623,7 +619,7 @@ export const createConversationController = (
 		speakers.delete(held.botId)
 		settleOpenReplies(held, completion)
 		void shutdownSpeaker(held)
-		const handed = held.isDropped ? NO_HANDED_MENTIONS : noteHandovers(held)
+		const handed = held.isDropped ? [] : noteHandovers(held)
 		if (handed.length === 0) {
 			closeTurnOf(held)
 			return
@@ -1059,7 +1055,7 @@ export const createConversationController = (
 			reported.content,
 			presentBotIds(),
 		)
-		if (named.length + unresolved.length === 0) {
+		if (named.length === 0 && unresolved.length === 0) {
 			return
 		}
 		if (!(await openReportTurn(reported))) {
@@ -1068,15 +1064,13 @@ export const createConversationController = (
 		for (const botId of named) {
 			queue = handedOver(queue, author, { botId, promptId: reported.id })
 		}
-		if (unresolved.length > 0) {
-			await resolveFromStore(
-				unresolved.map((botId) => ({
-					fromBotId: author,
-					botId,
-					promptId: reported.id,
-				})),
-			)
-		}
+		await resolveFromStore(
+			unresolved.map((botId) => ({
+				fromBotId: author,
+				botId,
+				promptId: reported.id,
+			})),
+		)
 		sync()
 		drive()
 	}
@@ -1247,7 +1241,7 @@ export const createConversationController = (
 		activeTurn = null
 		refused = null
 		reportedCauses = NO_REPORTED_RUNS
-		arrivedBotIds = NO_ARRIVED_BOT_IDS
+		arrivedBotIds = []
 		unresolvedMentions = NO_UNRESOLVED_MENTIONS
 		forgetFailure()
 		sync()
