@@ -12,7 +12,6 @@ import {
 	VIEW_BOX,
 } from "@workspace/ui/components/bot-avatar-3d"
 import type {
-	SealLevel,
 	SealSolid,
 	SealVertex,
 } from "@workspace/ui/components/bot-seal-solid"
@@ -29,8 +28,6 @@ const BOT_SEAL_STATES = [
 
 type BotSealState = (typeof BOT_SEAL_STATES)[number]
 
-type SealFrame = { lit: string; dim: string }
-
 const ANIMATED_STATES: BotSealState[] = [
 	"thinking",
 	"searching",
@@ -40,23 +37,21 @@ const ANIMATED_STATES: BotSealState[] = [
 
 const TAU = Math.PI * 2
 const CENTER = VIEW_BOX / 2
-const RADIUS = 88
-const DEPTH_REACH = 46
-const PERSPECTIVE = 0.5
-const SEAL_PITCH = toRadians(26)
-const REST_CUT = 0
-const BREAK_ANGLE = toRadians(46)
-const BREAK_PUSH = 0.14
+const RADIUS = 92
+const DEPTH_REACH = 12
+const PERSPECTIVE = 0.35
+const SEAL_PITCH = toRadians(11)
+const BREAK_ANGLE = toRadians(24)
+const BREAK_PUSH = 0.12
 const NO_BROKEN_ARM = -1
 const DEGENERATE_AREA = 1
-const CUT_MARGIN = 6
-const FLAT_LEVELS: SealLevel[] = [{ z: 0, scale: 1 }]
+const FLAT_LEVELS = [0]
+const SOLID_LEVELS = [-1, 1]
 
 const TURN_PERIOD = 2200
-const SWEEP_PERIOD = 4200
+const OPEN_PERIOD = 4200
 const PUMP_PERIOD = 2000
 const WRITE_PERIOD = 11000
-const SWEEP_REST = 0.235
 const WRITE_REST = 0.25
 
 type Stop = [number, number]
@@ -69,22 +64,21 @@ const TURN_BEAT: Stop[] = [
 	[1, 1],
 ]
 
+const OPEN_BEAT: Stop[] = [
+	[0, 1],
+	[0.07, 1.12],
+	[0.46, -0.08],
+	[0.58, -0.08],
+	[0.95, 1],
+	[1, 1],
+]
+
 const PUMP_BEAT: Stop[] = [
 	[0, 1],
 	[0.16, 0.42],
 	[0.52, 1.26],
 	[0.68, 1],
 	[1, 1],
-]
-
-const CUT_BEAT: Stop[] = [
-	[0, -1],
-	[0.05, -1.12],
-	[0.42, 1],
-	[0.55, 1],
-	[0.6, 1.12],
-	[0.95, -1],
-	[1, -1],
 ]
 
 const WRITE_BEAT: Stop[] = [
@@ -125,8 +119,8 @@ const turnOf = (elapsed: number, arms: number) =>
 
 type SealMotion = {
 	spin: number
+	open: number
 	pump: number
-	cut: number
 	armPhase: number
 	isFlat: boolean
 	isBroken: boolean
@@ -136,15 +130,10 @@ type MotionInput = { state?: BotSealState; elapsed: number; arms: number }
 
 const sealMotion = ({ state, elapsed, arms }: MotionInput): SealMotion => ({
 	spin: state === "thinking" ? turnOf(elapsed, arms) : 0,
+	open:
+		state === "searching" ? along(OPEN_BEAT, phaseOf(elapsed, OPEN_PERIOD)) : 1,
 	pump:
 		state === "working" ? along(PUMP_BEAT, phaseOf(elapsed, PUMP_PERIOD)) : 1,
-	cut:
-		state === "searching"
-			? along(
-					CUT_BEAT,
-					phaseOf(elapsed + SWEEP_REST * SWEEP_PERIOD, SWEEP_PERIOD),
-				)
-			: REST_CUT,
 	armPhase:
 		state === "writing"
 			? arms *
@@ -156,6 +145,13 @@ const sealMotion = ({ state, elapsed, arms }: MotionInput): SealMotion => ({
 	isFlat: state === "done",
 	isBroken: state === "blocked",
 })
+
+const rotationOf = (solid: SealSolid, motion: SealMotion) =>
+	quatFromEuler({
+		yaw: solid.tilt * motion.open,
+		pitch: SEAL_PITCH * motion.open,
+		roll: motion.spin,
+	})
 
 const armTip = ({ arms }: SealSolid, arm: number): Vec3 => [
 	Math.cos((TAU * arm) / arms) * RADIUS,
@@ -192,7 +188,7 @@ type Placement = {
 	rotation: Quat
 	brokenArm: number
 	vertex: SealVertex
-	level: SealLevel
+	level: number
 }
 
 const placeVertex = ({
@@ -207,9 +203,9 @@ const placeVertex = ({
 	const face =
 		vertex.arm === brokenArm ? brokenAway({ vertex, arms: solid.arms }) : vertex
 	const point: Vec3 = [
-		face.x * level.scale * RADIUS,
-		face.y * level.scale * RADIUS,
-		level.z * solid.depth * motion.pump * extruded * DEPTH_REACH,
+		face.x * RADIUS,
+		face.y * RADIUS,
+		level * solid.depth * motion.pump * extruded * DEPTH_REACH,
 	]
 	const [x, y] = project({
 		point: rotateVec3(rotation, point),
@@ -250,136 +246,58 @@ const fanFacings = (ring: Vec2[], outward: number): Facing[] => {
 	)
 }
 
-const stackSegments = (rings: Vec2[][]): Segment[] => {
-	const ring = rings[0]
-	if (rings.length === 1) return loopSegments(ring)
-	const count = ring.length
-	const walls = rings
-		.slice(1)
-		.map((upper, band) =>
-			Array.from({ length: count }, (_, at) =>
-				facingOf(
-					signedArea([
-						rings[band][at],
-						rings[band][(at + 1) % count],
-						upper[(at + 1) % count],
-						upper[at],
-					]),
-				),
-			),
-		)
-	const under = fanFacings(ring, -1)
-	const over = fanFacings(rings[rings.length - 1], 1)
-	const below = (level: number, at: number) =>
-		level === 0 ? under[at] : walls[level - 1][at]
-	const above = (level: number, at: number) =>
-		level === rings.length - 1 ? over[at] : walls[level][at]
-	const segments: Segment[] = []
-	rings.forEach((level, index) => {
-		for (let at = 0; at < count; at += 1) {
-			if (below(index, at) > 0 || above(index, at) > 0) {
-				segments.push([level[at], level[(at + 1) % count]])
-			}
-		}
-	})
-	walls.forEach((wall, band) => {
-		for (let at = 0; at < count; at += 1) {
-			if (wall[at] > 0 || wall[(at + count - 1) % count] > 0) {
-				segments.push([rings[band][at], rings[band + 1][at]])
-			}
-		}
-	})
-	return segments
-}
-
-const restReaches = new WeakMap<SealSolid, number>()
-
-const restReachOf = (solid: SealSolid) => {
-	const known = restReaches.get(solid)
-	if (known !== undefined) return known
-	const motion = sealMotion({ elapsed: 0, arms: solid.arms })
-	const rotation = quatFromEuler({
-		yaw: solid.tilt,
-		pitch: SEAL_PITCH,
-		roll: 0,
-	})
-	const reach = Math.max(
-		...solid.stacks.flatMap(({ profile, levels }) =>
-			levels.flatMap((level) =>
-				profile.map((vertex) =>
-					Math.abs(
-						placeVertex({
-							solid,
-							motion,
-							rotation,
-							brokenArm: NO_BROKEN_ARM,
-							vertex,
-							level,
-						})[1] - CENTER,
-					),
-				),
-			),
+const wallFacings = (back: Vec2[], front: Vec2[]): Facing[] =>
+	back.map((point, at) =>
+		facingOf(
+			signedArea([
+				point,
+				back[(at + 1) % back.length],
+				front[(at + 1) % front.length],
+				front[at],
+			]),
 		),
 	)
-	restReaches.set(solid, reach)
-	return reach
-}
 
-const cutHeightOf = (solid: SealSolid, cut: number) =>
-	CENTER + cut * (restReachOf(solid) + CUT_MARGIN)
+const solidSegments = (back: Vec2[], front: Vec2[]): Segment[] => {
+	const count = back.length
+	const walls = wallFacings(back, front)
+	const under = fanFacings(back, -1)
+	const over = fanFacings(front, 1)
+	const segments: Segment[] = []
+	for (let at = 0; at < count; at += 1) {
+		const next = (at + 1) % count
+		const shared = walls[(at + count - 1) % count]
+		if (under[at] > 0 || walls[at] > 0) segments.push([back[at], back[next]])
+		if (over[at] > 0 || walls[at] > 0) segments.push([front[at], front[next]])
+		if (walls[at] > 0 || shared > 0) segments.push([back[at], front[at]])
+	}
+	return segments
+}
 
 const line = (from: Vec2, to: Vec2) =>
 	`M${round2(from[0])} ${round2(from[1])}L${round2(to[0])} ${round2(to[1])}`
 
-const splitAtCut = (segments: Segment[], cutY: number): SealFrame => {
-	const lit: string[] = []
-	const dim: string[] = []
-	for (const [from, to] of segments) {
-		const isFromLit = from[1] <= cutY
-		const isToLit = to[1] <= cutY
-		if (isFromLit === isToLit) {
-			;(isFromLit ? lit : dim).push(line(from, to))
-			continue
-		}
-		const ratio = (cutY - from[1]) / (to[1] - from[1])
-		const crossing: Vec2 = [from[0] + (to[0] - from[0]) * ratio, cutY]
-		;(isFromLit ? lit : dim).push(line(from, crossing))
-		;(isToLit ? lit : dim).push(line(crossing, to))
-	}
-	return { lit: lit.join(""), dim: dim.join("") }
-}
+const pathOf = (segments: Segment[]) =>
+	segments.map(([from, to]) => line(from, to)).join("")
 
 type FrameInput = { solid: SealSolid; state?: BotSealState; elapsed: number }
 
-const sealFrame = ({ solid, state, elapsed }: FrameInput): SealFrame => {
+const sealFrame = ({ solid, state, elapsed }: FrameInput) => {
 	const motion = sealMotion({ state, elapsed, arms: solid.arms })
-	const rotation = quatFromEuler({
-		yaw: solid.tilt + motion.spin,
-		pitch: SEAL_PITCH,
-		roll: 0,
-	})
+	const rotation = rotationOf(solid, motion)
 	const brokenArm = motion.isBroken
 		? nearestArm(solid, rotation)
 		: NO_BROKEN_ARM
-	const segments = solid.stacks.flatMap((stack) =>
-		stackSegments(
-			(motion.isFlat ? FLAT_LEVELS : stack.levels).map((level) =>
-				stack.profile.map((vertex) =>
-					placeVertex({ solid, motion, rotation, brokenArm, vertex, level }),
-				),
+	const [back, front] = (motion.isFlat ? FLAT_LEVELS : SOLID_LEVELS).map(
+		(level) =>
+			solid.profile.map((vertex) =>
+				placeVertex({ solid, motion, rotation, brokenArm, vertex, level }),
 			),
-		),
 	)
-	return splitAtCut(segments, cutHeightOf(solid, motion.cut))
+	return pathOf(front ? solidSegments(back, front) : loopSegments(back))
 }
 
 const isSealAnimated = (state?: BotSealState) =>
 	state !== undefined && ANIMATED_STATES.includes(state)
 
-export {
-	BOT_SEAL_STATES,
-	type BotSealState,
-	isSealAnimated,
-	type SealFrame,
-	sealFrame,
-}
+export { BOT_SEAL_STATES, type BotSealState, isSealAnimated, sealFrame }

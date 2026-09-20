@@ -4,11 +4,15 @@ import { expect } from "storybook/test"
 import preview from "@workspace/storybook/preview"
 import { slotsIn } from "@workspace/storybook/story-utils"
 import { BotSeal } from "@workspace/ui/components/bot-seal"
-import { BOT_SEAL_STATES } from "@workspace/ui/components/bot-seal-frame"
+import {
+	BOT_SEAL_STATES,
+	type BotSealState,
+} from "@workspace/ui/components/bot-seal-frame"
 
 const CHIP_SIZE = 40
 const HERO_SIZE = 200
 const STILL_FRAMES = 6
+const MATRIX_SEEDS = 8
 
 const SEEDS = [
 	"amber",
@@ -55,6 +59,23 @@ const StatePair = (seal: ComponentProps<typeof BotSeal>) => (
 	</div>
 )
 
+const StateRow = ({
+	label,
+	state,
+}: {
+	label: string
+	state?: BotSealState
+}) => (
+	<div className="flex flex-col gap-3">
+		<h3 className="font-medium text-muted-foreground text-sm">{label}</h3>
+		<div className="flex flex-wrap items-end gap-6">
+			{SEEDS.slice(0, MATRIX_SEEDS).map((seed) => (
+				<StatePair key={seed} seed={seed} state={state} />
+			))}
+		</div>
+	</div>
+)
+
 const drawingOf = (seal: Element) =>
 	Array.from(seal.querySelectorAll("path"))
 		.map((path) => path.getAttribute("d"))
@@ -87,7 +108,7 @@ export const Playground = meta.story({
 		docs: {
 			description: {
 				story:
-					"Reach for this to audition one identity: type any seed and watch the solid it draws, then switch the state to see what that solid does while it works. The seed is the only input — the same string always draws the same solid, so a url carrying a typed seed reopens on the same mark. Leave the state empty for the mark a companion wears when nothing is running. Open it in Storybook for the motion: the test browser forces reduced motion, which freezes every state on its still frame.",
+					"Reach for this to audition one identity: type any seed and watch the mark it draws, then switch the state to see what that mark does while it works. The seed is the only input — the same string always draws the same mark, so a url carrying a typed seed reopens on it. Leave the state empty for the mark a companion wears when nothing is running. The ink is inherited from the text colour of whatever holds the seal, so set the page theme rather than a prop to recolour it. Open it in Storybook for the motion: the test browser forces reduced motion, which freezes every state on its still frame.",
 			},
 		},
 	},
@@ -99,7 +120,7 @@ export const Seeds = meta.story({
 		docs: {
 			description: {
 				story:
-					"Twenty identities at chip size and at hero size, the two slots a seal has to survive. An edge is drawn only when one of the two faces meeting on it turns toward the reader, so the mark reads as a solid rather than a wireframe tangle. Reach for this after touching the generator: check that no two marks read as the same solid, that none of them shows an edge that should sit behind the body, that each one stays inside its box, and that the 40px row still holds a one pixel line instead of thinning to a hairline. The path data is authored in viewBox units, so a chip and its hero are the same string — the play asserts exactly that, and that the twenty differ from each other.",
+					"Twenty identities at chip size and at hero size, the two slots a seal has to survive. Every mark is one flat profile extruded once and drawn in one ink: an edge shows only when a face it belongs to turns toward the reader, so the wall reads as a sliver along one edge of each arm instead of a box. Reach for this after touching the generator: check that no two marks read alike, that the tips are parted by a notch on all twenty, that each one stays inside its box, and that the chip row keeps its notches open. The path is authored in viewBox units, so a chip and its hero are the same string — the play asserts exactly that, and that the twenty differ from each other.",
 			},
 		},
 	},
@@ -135,22 +156,29 @@ export const States = meta.story({
 		docs: {
 			description: {
 				story:
-					"One identity through the seven states it can report, plus the mark it wears while nothing runs, each state at the chip size next to the hero size so a state that reads at 200px but smears at 40px is caught here. Four of them move, and each moves in beats rather than at a constant rate: a short wind up, an eased move that carries past its mark and settles, then a hold before the next beat. Thinking turns the solid by one arm sector at a time, searching carries the cut across it in one eased pass and holds it clear, working compresses the extrusion before overshooting it, writing extrudes one arm at a time and holds the solid out before it retracts. This story shows the frame each one holds under reduced motion. The three that never move are the ones to judge here: waiting drops the companion colour for the attention token, blocked snaps one arm off its axis, done flattens the solid onto a single glyph.",
+					"Every state the seal can report, plus the mark it wears while nothing runs, across eight identities and at both sizes it has to survive. Each cell is the same seal at 40px next to 200px: the stroke is authored so the two carry the same weight on screen, and the notches between tips stay open at the smaller one. Four states move, and each moves in beats rather than at a constant rate: a wind up, an eased move that carries past its mark and settles, then a hold. Thinking turns the mark in its own plane by one arm sector at a time, searching turns it until its walls close to a line and opens them again, working compresses the wall before overshooting it, writing raises one arm at a time and holds the mark out before it drops back. This story renders the frame each one holds under reduced motion. Reach for it when touching the generator or the beats: check that no tip is ever missing, that the wall stays a sliver along one edge of each arm rather than a box, and that every mark is drawn in the one ink it inherits from the page.",
 			},
 		},
 	},
-	render: (args) => (
-		<div className="grid grid-cols-2 gap-6">
-			<LabeledCell label="none">
-				<StatePair {...args} state={undefined} />
-			</LabeledCell>
+	render: () => (
+		<div className="flex flex-col gap-10">
+			<StateRow label="none" state={undefined} />
 			{BOT_SEAL_STATES.map((state) => (
-				<LabeledCell key={state} label={state}>
-					<StatePair {...args} state={state} />
-				</LabeledCell>
+				<StateRow key={state} label={state} state={state} />
 			))}
 		</div>
 	),
+	play: async ({ canvasElement }) => {
+		const seals = slotsIn(canvasElement, "bot-seal")
+		const inks = seals.flatMap((seal) =>
+			Array.from(seal.querySelectorAll("path")).map((path) =>
+				path.getAttribute("stroke"),
+			),
+		)
+
+		await expect(inks).toHaveLength(seals.length)
+		await expect(new Set(inks)).toEqual(new Set(["currentColor"]))
+	},
 })
 
 export const ReducedMotion = meta.story({
