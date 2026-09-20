@@ -83,6 +83,10 @@ const CAUSE_OF_STATE: Partial<Record<MissionState, MissionRunCause>> = {
 	failed: "failed",
 }
 
+const STATUS_CAUSE: MissionRunCause = "status"
+
+const isClosingRun = ({ call }: LiveMissionRun) => call.cause !== STATUS_CAUSE
+
 const isTakenState = (state: MissionState) =>
 	isSummonedMissionState(state) || Boolean(CAUSE_OF_STATE[state])
 
@@ -113,6 +117,7 @@ export const startMissionRunDriver = ({
 }: MissionRunDriverOptions): (() => void) => {
 	const live = new Map<string, LiveMissionRun>()
 	const kept = new Map<string, MissionChanged>()
+	const missionIdOfThread = new Map<string, string>()
 	const holding = new Set<string>()
 	const seqs = createMissionSeqs()
 	let isStopped = false
@@ -285,6 +290,10 @@ export const startMissionRunDriver = ({
 		}
 	}
 
+	const rememberThread = (mission: Mission) => {
+		missionIdOfThread.set(mission.threadConversationId, mission.id)
+	}
+
 	const take = async ({
 		mission,
 		events,
@@ -324,6 +333,7 @@ export const startMissionRunDriver = ({
 		holding.add(changed.missionId)
 		try {
 			const detail = await readMission(changed.missionId)
+			rememberThread(detail.mission)
 
 			if (await take(detail)) {
 				seqs.remember(changed.missionId, detail.mission.stateSeq)
@@ -368,9 +378,9 @@ export const startMissionRunDriver = ({
 		})
 	}
 
-	const readSettledMission = async ({ call }: LiveMissionRun) => {
+	const readSettledMission = async (missionId: string) => {
 		try {
-			const { mission } = await readMission(call.mission.id)
+			const { mission } = await readMission(missionId)
 			return mission
 		} catch (thrown) {
 			raiseFailure(detailOf(thrown))
@@ -403,7 +413,14 @@ export const startMissionRunDriver = ({
 		await recordReport(settled.id, reportedTurnId)
 	}
 
-	const settleNothingReported = async (settled: Mission | null) => {
+	const settleNothingReported = async (
+		held: LiveMissionRun,
+		settled: Mission | null,
+	) => {
+		if (!isClosingRun(held)) {
+			return raiseFailure("the status mission run reported nothing")
+		}
+
 		if (!isClosed(settled)) {
 			return
 		}
@@ -418,7 +435,7 @@ export const startMissionRunDriver = ({
 		holding.add(id)
 		shutdownSession(held.scope)
 
-		const settled = await readSettledMission(held)
+		const settled = isClosingRun(held) ? await readSettledMission(id) : null
 
 		if (isClosed(settled)) {
 			seqs.remember(settled.id, settled.stateSeq)
@@ -444,7 +461,7 @@ export const startMissionRunDriver = ({
 		}
 
 		if (report.outcome === "nothing") {
-			return settleNothingReported(settled)
+			return settleNothingReported(held, settled)
 		}
 
 		try {
@@ -463,6 +480,31 @@ export const startMissionRunDriver = ({
 		raiseFailure(`the mission run's session failed with ${error.kind}`)
 	}
 
+	const openStatusRun = async (threadConversationId: string) => {
+		const missionId = missionIdOfThread.get(threadConversationId)
+
+		if (missionId === undefined || isStopped || isBusy(missionId)) {
+			return
+		}
+
+		holding.add(missionId)
+		try {
+			const { mission, events } = await readMission(missionId)
+
+			if (isClosed(mission)) {
+				return
+			}
+
+			const call: MissionRunCall = { cause: STATUS_CAUSE, mission, events }
+			await begin({ ...call, rosterBlock: await rosterBlockOf(call) })
+		} catch (thrown) {
+			raiseFailure(detailOf(thrown))
+		} finally {
+			holding.delete(missionId)
+			takeAgain(missionId)
+		}
+	}
+
 	const runAt = (scope: RuntimeScope | null) =>
 		[...live.values()].find((held) => isSameRuntimeScope(scope, held.scope))
 
@@ -470,6 +512,9 @@ export const startMissionRunDriver = ({
 		const held = runAt(scope)
 
 		if (!held) {
+			if (scope && event.type === "turnEnded") {
+				void openStatusRun(scope.conversationId)
+			}
 			return
 		}
 
@@ -502,11 +547,13 @@ export const startMissionRunDriver = ({
 	}
 
 	const catchUpOnOpenMissions = async () => {
-		startRunsFor(
-			(await missions.board()).filter(({ mission }) =>
-				isTakenState(mission.state),
-			),
-		)
+		const onBoard = await missions.board()
+
+		for (const { mission } of onBoard) {
+			rememberThread(mission)
+		}
+
+		startRunsFor(onBoard.filter(({ mission }) => isTakenState(mission.state)))
 	}
 
 	const catchUpOnUnreportedMissions = async () => {
