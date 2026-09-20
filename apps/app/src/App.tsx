@@ -1,927 +1,43 @@
-import { useCallback, useEffect, useMemo, useState } from "react"
-
 import { AppSidebar } from "@workspace/ui/components/app-sidebar"
-import { readBotOutputStyle } from "@workspace/ui/components/bot-settings"
-import { BotSettingsDialog } from "@workspace/ui/components/bot-settings-dialog"
-import { ConversationSettingsDialog } from "@workspace/ui/components/conversation-settings-dialog"
-import { NoticeSurface } from "@workspace/ui/components/notice-surface"
-import { SearchPalette } from "@workspace/ui/components/search-palette"
-import { SpaceSettingsDialog } from "@workspace/ui/components/space-settings-dialog"
-import { UpdateBadge } from "@workspace/ui/components/update-badge"
-import { UserSettingsDialog } from "@workspace/ui/components/user-settings-dialog"
 import { WorkspaceShell } from "@workspace/ui/components/workspace-shell"
-import { useSettingsShortcut } from "@workspace/ui/hooks/use-settings-shortcut"
 import { probeRender } from "@workspace/ui/lib/render-probe"
 
+import { AppDialogs } from "@/components/app-dialogs"
 import { StartupScreen } from "@/components/startup-screen"
 import { WorkspaceBody } from "@/components/workspace-body"
-import { reloadPanelsHolding } from "@/lib/applications/application-panels"
-import {
-	applicationTitleOf,
-	openedServerScope,
-	toApplicationScope,
-	toServerEnvironmentSection,
-} from "@/lib/applications/application-settings"
-import { applicationTransport } from "@/lib/applications/application-transport"
-import { APPLICATIONS_TAB } from "@/lib/applications/connection-settings"
-import { connectionTransport } from "@/lib/applications/connection-transport"
-import {
-	createSessionReopener,
-	ownerOfScope,
-	type ReopenedScope,
-} from "@/lib/applications/session-reopening"
-import {
-	applicationToOpenIn,
-	type SettingsTarget,
-} from "@/lib/applications/settings-target"
-import { useApplicationInstalls } from "@/lib/applications/use-application-installs"
-import { useApplicationMarks } from "@/lib/applications/use-application-marks"
-import { useApplications } from "@/lib/applications/use-applications"
-import { useConnections } from "@/lib/applications/use-connections"
 import { ConversationApplicationsContext } from "@/lib/applications/use-conversation-installs"
 import { SessionApplicationsContext } from "@/lib/applications/use-session-application"
-import {
-	changesRuntime,
-	modelOptionsFor,
-	toRosterBots,
-	toSettingsValue,
-} from "@/lib/bots/bot-settings"
-import { useCompanionSettings } from "@/lib/bots/use-companion-settings"
-import { useEvolution } from "@/lib/bots/use-evolution"
-import { useHistoryView } from "@/lib/bots/use-history-view"
-import { useMcpServers } from "@/lib/bots/use-mcp-servers"
-import { useModelCatalogue } from "@/lib/bots/use-model-catalogue"
-import { useRoster } from "@/lib/bots/use-roster"
-import { useRosterClock } from "@/lib/bots/use-roster-clock"
-import { createAttachmentsController } from "@/lib/chat/attachments-controller"
-import { createAttachmentsPort } from "@/lib/chat/attachments-port"
-import { createChatDriver } from "@/lib/chat/create-driver"
-import { createDraftsController } from "@/lib/chat/drafts-controller"
-import {
-	toSpaceBadges,
-	withBadges,
-	withLineBadges,
-} from "@/lib/chat/sidebar-badges"
-import { useBotBadges } from "@/lib/chat/use-bot-badges"
-import {
-	activityIn,
-	activityOf,
-	busyBotCountIn,
-	previewsIn,
-	useBotActivity,
-	useBotPreviews,
-	useChat,
-} from "@/lib/chat/use-chat"
-import { useCompanionAnnouncements } from "@/lib/companions/use-companion-announcements"
-import { createConversationRuntimes } from "@/lib/conversations/conversation-runtimes"
-import { createTranscriptStore } from "@/lib/conversations/create-store"
-import {
-	leadOf,
-	presentParticipants,
-	toConversationBots,
-	toConversationSettingsValue,
-	toRosterConversations,
-} from "@/lib/conversations/roster-conversations"
-import { createSpokenWords } from "@/lib/conversations/spoken-words"
-import type { EnvOwner, EnvScope } from "@/lib/conversations/store-contract"
-import { useCompanionArrivals } from "@/lib/conversations/use-companion-arrivals"
-import { useCompanionSpokeDriver } from "@/lib/conversations/use-companion-spoke-driver"
-import {
-	useConversationPreviews,
-	useConversationWorkers,
-} from "@/lib/conversations/use-conversation"
-import { useConversationBadges } from "@/lib/conversations/use-conversation-badges"
-import {
-	type ConversationSeating,
-	ConversationSeatingContext,
-} from "@/lib/conversations/use-conversation-seating"
-import { toEnvironmentRows } from "@/lib/environment/environment-rows"
-import { useEnvironment } from "@/lib/environment/use-environment"
+import { ConversationSeatingContext } from "@/lib/conversations/use-conversation-seating"
 import { hasOverlayWindowControls, isSidebarResizable } from "@/lib/host"
-import { useExternalLinks } from "@/lib/links/use-external-links"
-import {
-	missionRingBadges,
-	missionsBySpaceId,
-	missionsIn,
-	withMissions,
-} from "@/lib/missions/missions-model"
-import { createOpenedMissionController } from "@/lib/missions/opened-mission-controller"
-import { useMissionBoard } from "@/lib/missions/use-mission-board"
-import { useMissionRunDriver } from "@/lib/missions/use-mission-run-driver"
-import { useWaitingMissions } from "@/lib/missions/use-waiting-missions"
-import { useNotifications } from "@/lib/notifications/use-notifications"
-import { onboardingTransport } from "@/lib/onboarding/onboarding-transport"
-import { signInWorldOf } from "@/lib/onboarding/sign-in-controller"
-import { useOnboarding } from "@/lib/onboarding/use-onboarding"
-import { useSignIn } from "@/lib/onboarding/use-sign-in"
-import { toPluginSkills } from "@/lib/plugins/plugin-skills"
-import { usePlugin } from "@/lib/plugins/use-plugin"
-import { createOpenedRoutineController } from "@/lib/routines/opened-routine-controller"
-import { useRunDriver } from "@/lib/routines/use-run-driver"
-import { createMessageLandingController } from "@/lib/search/message-landing-controller"
-import {
-	useSearch,
-	useSearchLookups,
-	useSearchNavigation,
-} from "@/lib/search/use-search"
-import { useCollapsedSections } from "@/lib/sections/use-collapsed-sections"
-import { useSections } from "@/lib/sections/use-sections"
-import { useSidebarActions } from "@/lib/sidebar/use-sidebar-actions"
-import { toSpaceSettingsValue } from "@/lib/spaces/space-settings"
-import { useSpaceEntry } from "@/lib/spaces/use-space-entry"
-import { useSpaces } from "@/lib/spaces/use-spaces"
-import { useTheme } from "@/lib/theme/use-theme"
-import { toUpdateBadgeProps } from "@/lib/updater/badge-model"
-import { useUpdater } from "@/lib/updater/use-updater"
-import type { ColorScheme } from "@/lib/user/preferences-contract"
-import { lastBotIn } from "@/lib/user/preferences-mirror"
-import { useUser } from "@/lib/user/use-user"
-import {
-	toNotificationChange,
-	toUserSettingsValue,
-} from "@/lib/user/user-settings"
-
-const browseWorkingDirectory = () => undefined
-
-const USER_OWNER: EnvOwner = { kind: "user" }
+import { useApplicationScopes } from "@/lib/workspace/use-application-scopes"
+import { useRosterLines } from "@/lib/workspace/use-roster-lines"
+import { useRosterLists } from "@/lib/workspace/use-roster-lists"
+import { useRosterView } from "@/lib/workspace/use-roster-view"
+import { useSettingsPanels } from "@/lib/workspace/use-settings-panels"
+import { useSpaceLoading } from "@/lib/workspace/use-space-loading"
+import { useSpaceSections } from "@/lib/workspace/use-space-sections"
+import { useWorkspaceCore } from "@/lib/workspace/use-workspace-core"
+import { useWorkspaceDrivers } from "@/lib/workspace/use-workspace-drivers"
+import { useWorkspaceOverlay } from "@/lib/workspace/use-workspace-overlay"
+import { useWorkspaceSubscriptions } from "@/lib/workspace/use-workspace-subscriptions"
 
 export function App() {
 	probeRender("App")
-	const driver = useMemo(createChatDriver, [])
-	const store = useMemo(createTranscriptStore, [])
-	const chat = useChat(driver, store)
-	const roster = useRoster(store)
-	const conversationRuntimes = useMemo(
-		() =>
-			createConversationRuntimes(driver, store, {
-				onNamed: roster.controller.nameConversation,
-			}),
-		[driver, store, roster.controller],
-	)
-
-	useEffect(
-		() => () => {
-			void conversationRuntimes.shutdown()
-		},
-		[conversationRuntimes],
-	)
-
-	const attachments = useMemo(
-		() =>
-			createAttachmentsController(
-				createAttachmentsPort({
-					chat: chat.controller,
-					driver,
-					runtimes: conversationRuntimes,
-				}),
-			),
-		[chat.controller, driver, conversationRuntimes],
-	)
-	const drafts = useMemo(createDraftsController, [])
-	const spokenWords = useMemo(createSpokenWords, [])
-	const openedMission = useMemo(
-		() => createOpenedMissionController(roster.controller),
-		[roster.controller],
-	)
-	const openedRoutine = useMemo(createOpenedRoutineController, [])
-	const messageLandings = useMemo(createMessageLandingController, [])
-	const sections = useSections(store, {
-		move: roster.controller.moveToSection,
-		clear: roster.controller.clearSection,
-		pin: roster.controller.pin,
-	})
-	const collapsedSections = useCollapsedSections(store)
-	const companionPlugin = usePlugin(store)
-	const botMcpServers = useMcpServers(store)
-	const spaceMcpServers = useMcpServers(store)
-	const botEnvironment = useEnvironment(store)
-	const spaceEnvironment = useEnvironment(store)
-	const serverEnvironment = useEnvironment(store)
-	const userMcpServers = useMcpServers(store)
-	const botConnections = useConnections(connectionTransport)
-	const spaceConnections = useConnections(connectionTransport)
-	const userConnections = useConnections(connectionTransport)
-	const applications = useApplications(applicationTransport, store)
-	const catalogue = useModelCatalogue()
-	const user = useUser()
-	const userPlugin = usePlugin(store)
-	const spaces = useSpaces(store)
-	const spacePlugin = usePlugin(store)
-	const preferences = user.state.preferences
-	const onboarding = useOnboarding(onboardingTransport, {
-		homeBotId: () => roster.controller.getState().selectedBotId,
-		send: chat.controller.send,
-		greet: async (botId, text) => {
-			await chat.controller.openAside(
-				botId,
-				roster.controller.getState().spaceId,
-			)
-			await chat.controller.sendTo(botId, text)
-		},
-		markFirstRunDone: user.controller.markFirstRunDone,
-	})
-	const signIn = useSignIn(
-		onboardingTransport,
-		signInWorldOf({
-			chat: chat.controller,
-			selectedBotId: () => roster.controller.getState().selectedBotId,
-		}),
-	)
-
-	const updater = useUpdater()
-
-	useExternalLinks()
-
-	useRunDriver({
-		driver,
-		store,
-		runtimes: conversationRuntimes,
-		chat: chat.controller,
-	})
-
-	useMissionRunDriver({
-		driver,
-		store,
-		runtimes: conversationRuntimes,
-		chat: chat.controller,
-	})
-
-	useCompanionSpokeDriver({
-		runtimes: conversationRuntimes,
-		roster: roster.controller,
-		spokenWords,
-	})
-
-	useNotifications({
-		chat: chat.controller,
-		runtimes: conversationRuntimes,
-		roster: roster.controller,
-		spaces: spaces.controller,
-		missions: openedMission,
-		spokenWords,
-		user: user.controller,
-	})
-
-	useEvolution({
-		driver,
-		roster: roster.controller,
-		companionPlugin: companionPlugin.controller,
-		userPlugin: userPlugin.controller,
-		spacePlugin: spacePlugin.controller,
-	})
-
-	const badges = useBotBadges({
-		chat: chat.controller,
-		roster: roster.controller,
-	})
-
-	const missionBoard = useMissionBoard()
-	const openMissions = useMemo(
-		() => missionBoard.map(({ mission }) => mission),
-		[missionBoard],
-	)
-	const waitingMissionIds = useWaitingMissions(
-		conversationRuntimes,
-		openMissions,
-	)
-
-	const conversationBadges = useConversationBadges({
-		runtimes: conversationRuntimes,
-		roster: roster.controller,
-		spokenWords,
-	})
-
-	const {
-		bots,
-		conversations,
-		conversationRosters,
-		soloThreads,
-		spaceId: rosteredSpaceId,
-		selectedBotId,
-		selectedConversationId,
-		settingsBotId,
-		settingsConversationId,
-		isEditing,
-		isShowingDanger,
-		isEditingConversation,
-		hasLoaded,
-	} = roster.state
-	const selected = bots.find((bot) => bot.id === selectedBotId)
-	const selectedConversation = conversations.find(
-		(conversation) => conversation.id === selectedConversationId,
-	)
-	const settingsBot = bots.find((bot) => bot.id === settingsBotId)
-	const settingsConversation = conversations.find(
-		(conversation) => conversation.id === settingsConversationId,
-	)
-	const missions = useMemo(
-		() =>
-			missionsBySpaceId({
-				board: missionBoard,
-				conversationRosters,
-				soloThreads,
-				waitingMissionIds,
-			}),
-		[missionBoard, conversationRosters, soloThreads, waitingMissionIds],
-	)
-
-	const [openedMcpServer, setOpenedMcpServer] = useState<EnvScope | null>(null)
-	const [settingsTab, setSettingsTab] = useState<string>()
-	const [settingsApplication, setSettingsApplication] =
-		useState<SettingsTarget>()
-	const openedServerName =
-		openedMcpServer?.kind === "server" ? openedMcpServer.name : null
-
-	const { selectedSpaceId, isSettingsOpen: isSpaceEditing } = spaces.state
-	const selectedSpace = spaces.state.spaces.find(
-		(space) => space.id === selectedSpaceId,
-	)
-
-	const reopenSessions = useMemo(
-		() =>
-			createSessionReopener({
-				chat: chat.controller,
-				rosters: () => roster.controller.getState().rosters,
-			}),
-		[chat.controller, roster.controller],
-	)
-
-	useApplicationInstalls(applicationTransport, ({ application, scope }) => {
-		void reloadPanelsHolding(scope, [
-			botMcpServers.controller,
-			spaceMcpServers.controller,
-			userMcpServers.controller,
-		])
-		void reopenSessions({
-			scope,
-			application: applicationTitleOf(
-				applications.controller.getState().curated,
-				application,
-			),
-		})
-	})
-
-	useApplicationMarks(applications.controller, [
-		...userMcpServers.state.servers,
-		...spaceMcpServers.state.servers,
-		...botMcpServers.state.servers,
-	])
-
-	const serverEnvironmentSection = toServerEnvironmentSection({
-		environment: serverEnvironment,
-		opened: openedMcpServer,
-		curated: applications.state.curated,
-		reopen: reopenSessions,
-	})
-
-	const userApplications = toApplicationScope({
-		applications,
-		servers: userMcpServers,
-		connections: userConnections,
-		openedName: openedServerName,
-		reopen: reopenSessions,
-	})
-
-	const spaceApplications = toApplicationScope({
-		applications,
-		servers: spaceMcpServers,
-		connections: spaceConnections,
-		openedName: openedServerName,
-		reopen: reopenSessions,
-	})
-
-	const botApplications = toApplicationScope({
-		applications,
-		servers: botMcpServers,
-		connections: botConnections,
-		openedName: openedServerName,
-		reopen: reopenSessions,
-	})
-
-	const botHistory = useHistoryView({
-		...companionPlugin.state,
-		isOpen: isEditing,
-		onOpenRun: companionPlugin.controller.openFiles,
-		onUndoRun: (oldestCommitId, newestCommitId) => {
-			companionPlugin.controller.revert(oldestCommitId, newestCommitId)
-			if (settingsBotId) chat.controller.redescribe(settingsBotId)
-		},
-	})
-
-	const spaceHistory = useHistoryView({
-		...spacePlugin.state,
-		isOpen: isSpaceEditing,
-		onOpenRun: spacePlugin.controller.openFiles,
-		onUndoRun: spacePlugin.controller.revert,
-	})
-
-	const userHistory = useHistoryView({
-		...userPlugin.state,
-		isOpen: user.state.isSettingsOpen,
-		onOpenRun: userPlugin.controller.openFiles,
-		onUndoRun: userPlugin.controller.revert,
-	})
-
-	const companionSkills = toPluginSkills(companionPlugin)
-	const spaceSkills = toPluginSkills(spacePlugin)
-	const personSkills = toPluginSkills(userPlugin)
-
-	const applicationToOpenOn = (scope: ReopenedScope) =>
-		applicationToOpenIn(scope, settingsApplication)
-
-	const closeSettingsTab = () => {
-		setSettingsTab(undefined)
-		setSettingsApplication(undefined)
-	}
-
-	const openApplicationsOf = useCallback(
-		(scope: ReopenedScope, server?: string) => {
-			setSettingsTab(APPLICATIONS_TAB)
-			setSettingsApplication(
-				server ? { scope, application: server } : undefined,
-			)
-			setOpenedMcpServer(
-				openedServerScope(server ?? null, ownerOfScope(scope, selectedSpaceId)),
-			)
-			if (scope.kind === "user") {
-				user.controller.setSettingsOpen(true)
-			} else if (scope.kind === "companion") {
-				roster.controller.edit(scope.id)
-			} else {
-				spaces.controller.setSettingsOpen(true)
-			}
-		},
-		[roster.controller, spaces.controller, user.controller, selectedSpaceId],
-	)
-	const conversationApplications = useMemo(
-		() => ({
-			port: applicationTransport,
-			curated: applications.state.curated,
-			spaces: spaces.state.spaces,
-			onOpen: openApplicationsOf,
-		}),
-		[applications.state.curated, spaces.state.spaces, openApplicationsOf],
-	)
-
-	useEffect(() => {
-		void applications.controller.open()
-	}, [applications.controller])
-	const sessionApplications = useMemo(
-		() => ({ spaceId: selectedSpaceId }),
-		[selectedSpaceId],
-	)
-
-	const listedSpaces = spaces.state.spaces.map((space) => space.id).join(" ")
-	const spaceIds = useMemo(
-		() => (listedSpaces === "" ? [] : listedSpaces.split(" ")),
-		[listedSpaces],
-	)
-
-	const loadSpaces = useCallback(() => {
-		void spaces.controller.load(
-			user.controller.getState().preferences.lastSpaceId,
-		)
-	}, [spaces.controller, user.controller])
-
-	useEffect(() => {
-		loadSpaces()
-	}, [loadSpaces])
-
-	useEffect(() => {
-		if (spaceIds.length === 0) {
-			return
-		}
-		const spaceId = spaces.controller.getState().selectedSpaceId
-		void roster.controller.load({
-			spaceIds,
-			spaceId,
-			lastRowId: lastBotIn(user.controller.getState().preferences, spaceId),
-		})
-	}, [roster.controller, spaces.controller, user.controller, spaceIds])
-
-	useSpaceEntry({
-		roster: roster.controller,
-		user: user.controller,
-		selectedSpaceId,
-	})
-
-	useEffect(() => {
-		void user.controller.load()
-		return user.controller.followOtherWindows()
-	}, [user.controller])
-
-	useCompanionAnnouncements({
-		onCreated: (created) => {
-			void roster.controller.reload()
-			if (!user.controller.getState().preferences.firstRunDone) {
-				void onboarding.controller.greetCompanion(created)
-			}
-		},
-		onFirstRunDone: () => void user.controller.load(),
-	})
-
-	useCompanionArrivals(() => {
-		void roster.controller.reload()
-	})
-
-	useCompanionSettings({
-		applications: applications.controller,
-		plugin: companionPlugin.controller,
-		servers: botMcpServers.controller,
-		environment: botEnvironment.controller,
-		connections: botConnections.controller,
-		companionId: settingsBotId,
-		spaceId: selectedSpaceId,
-		isOpen: isEditing,
-	})
-
-	useEffect(() => {
-		if (isSpaceEditing && selectedSpaceId) {
-			const owner = { kind: "space", id: selectedSpaceId } as const
-			void applications.controller.open()
-			void spaceEnvironment.controller.open(owner)
-			void spaceMcpServers.controller.open(owner)
-			void spaceConnections.controller.open(owner)
-		}
-	}, [
-		applications.controller,
-		spaceEnvironment.controller,
-		spaceMcpServers.controller,
-		spaceConnections.controller,
-		isSpaceEditing,
-		selectedSpaceId,
-	])
-
-	useEffect(() => {
-		if (openedMcpServer) {
-			void serverEnvironment.controller.open(openedMcpServer)
-		}
-	}, [serverEnvironment.controller, openedMcpServer])
-
-	useEffect(() => {
-		if (!user.state.isSettingsOpen) {
-			return
-		}
-		void applications.controller.open()
-		void userMcpServers.controller.open(USER_OWNER)
-		void userConnections.controller.open(USER_OWNER)
-	}, [
-		applications.controller,
-		userMcpServers.controller,
-		userConnections.controller,
-		user.state.isSettingsOpen,
-	])
-
-	const holdsSelectedBot = bots.some((bot) => bot.id === selectedBotId)
-
-	useEffect(() => {
-		if (!selectedBotId || !holdsSelectedBot) {
-			return
-		}
-		void chat.controller.open(selectedBotId, rosteredSpaceId)
-		void user.controller.setLastBot({
-			spaceId: rosteredSpaceId,
-			botId: selectedBotId,
-		})
-	}, [
-		chat.controller,
-		user.controller,
-		selectedBotId,
-		holdsSelectedBot,
-		rosteredSpaceId,
-	])
-
-	useEffect(() => {
-		if (!selectedConversationId) {
-			return
-		}
-		void user.controller.setLastBot({
-			spaceId: roster.controller.getState().spaceId,
-			botId: selectedConversationId,
-		})
-	}, [roster.controller, user.controller, selectedConversationId])
-
-	const rosters = roster.state.rosters
-
-	const startConversation = useCallback(() => {
-		void roster.controller.createConversation()
-	}, [roster.controller])
-
-	const conversationSeating = useMemo<ConversationSeating>(
-		() => ({
-			seat: roster.controller.recruitToConversation,
-			botsByPresence: roster.controller.botsByPresence,
-		}),
-		[roster.controller],
-	)
-
-	const sidebarActions = useSidebarActions({
-		attachments,
-		collapsedSections: collapsedSections.controller,
-		drafts,
-		roster: roster.controller,
-		runtimes: conversationRuntimes,
-		sections: sections.controller,
-		spacePlugin: spacePlugin.controller,
-		spaces: spaces.controller,
-		user: user.controller,
-		userPlugin: userPlugin.controller,
-	})
-
-	const deleteBot = async (id: string) => {
-		await chat.controller.close(id)
-		attachments.forget({ kind: "bot", id })
-		drafts.forget(id)
-		await roster.controller.remove(id)
-	}
-
-	const lines = useMemo(
-		() =>
-			Object.entries(rosters).flatMap(([spaceId, spaceBots]) =>
-				spaceBots.map((bot) => ({ spaceId, botId: bot.id })),
-			),
-		[rosters],
-	)
-	const working = useBotActivity({
-		controller: chat.controller,
-		lines,
-		soloThreads,
-	})
-	const previews = useBotPreviews({
-		controller: chat.controller,
-		lines,
-		stored: roster.state.previews,
-		soloThreads,
-	})
-	const activity = activityOf(working, settingsBotId)
-
-	const busyBotCount = useMemo(() => busyBotCountIn(working), [working])
-
-	const updateBadge = useMemo(
-		() => (
-			<UpdateBadge
-				{...toUpdateBadgeProps({ state: updater.state, busyBotCount })}
-				onDownload={() => {
-					void updater.controller.install()
-				}}
-				onRestart={() => {
-					if (busyBotCount === 0) {
-						void updater.controller.restart()
-					}
-				}}
-			/>
-		),
-		[updater.state, updater.controller, busyBotCount],
-	)
-
-	const now = useRosterClock()
-	const rosterBots = useMemo(() => {
-		probeRender("rosterBots")
-		return withMissions(
-			withLineBadges(
-				toRosterBots(
-					bots,
-					{
-						working: activityIn(working, rosteredSpaceId),
-						previews: previewsIn(previews, rosteredSpaceId),
-					},
-					now,
-				),
-				badges,
-				rosteredSpaceId,
-			),
-			missionsIn(missions, rosteredSpaceId),
-		)
-	}, [bots, rosteredSpaceId, working, previews, now, badges, missions])
-
-	const listedRosters = Object.keys(rosters).join(" ")
-
-	useEffect(() => {
-		const rosteredSpaceIds =
-			listedRosters === "" ? [] : listedRosters.split(" ")
-		sections.controller.keep(rosteredSpaceIds)
-		collapsedSections.controller.keep(rosteredSpaceIds)
-		const held = sections.controller.getState().sections
-		for (const spaceId of rosteredSpaceIds) {
-			if (!held[spaceId]) {
-				void sections.controller.enter(spaceId)
-				void collapsedSections.controller.enter(spaceId)
-			}
-		}
-	}, [sections.controller, collapsedSections.controller, listedRosters])
-
-	const collapsedSectionIds = useMemo(
-		() => Object.values(collapsedSections.state.collapsedBySpaceId).flat(),
-		[collapsedSections.state.collapsedBySpaceId],
-	)
-
-	const rosterBotsBySpace = useMemo(() => {
-		probeRender("rosterBotsBySpace")
-		return Object.fromEntries(
-			Object.entries(rosters).map(([spaceId, spaceBots]) => [
-				spaceId,
-				withMissions(
-					withLineBadges(
-						toRosterBots(
-							spaceBots,
-							{
-								working: activityIn(working, spaceId),
-								previews: previewsIn(previews, spaceId),
-							},
-							now,
-						),
-						badges,
-						spaceId,
-					),
-					missionsIn(missions, spaceId),
-				),
-			]),
-		)
-	}, [rosters, working, previews, now, badges, missions])
-
-	const conversationIds = useMemo(
-		() =>
-			Object.values(conversationRosters)
-				.flat()
-				.map((conversation) => conversation.id),
-		[conversationRosters],
-	)
-
-	const conversationWorkers = useConversationWorkers(
-		conversationRuntimes,
-		conversationIds,
-	)
-
-	const conversationPreviews = useConversationPreviews(
-		conversationRuntimes,
-		conversationIds,
-		roster.state.conversationPreviews,
-	)
-
-	const rosterConversations = useMemo(
-		() =>
-			withMissions(
-				withBadges(
-					toRosterConversations(
-						conversations,
-						{ working: conversationWorkers, previews: conversationPreviews },
-						now,
-					),
-					conversationBadges,
-				),
-				missionsIn(missions, rosteredSpaceId),
-			),
-		[
-			conversations,
-			rosteredSpaceId,
-			conversationWorkers,
-			conversationPreviews,
-			now,
-			conversationBadges,
-			missions,
-		],
-	)
-
-	const seatedBots = useMemo(
-		() =>
-			settingsConversation
-				? toConversationBots(presentParticipants(settingsConversation))
-				: [],
-		[settingsConversation],
-	)
-
-	const rosterConversationsBySpace = useMemo(
-		() =>
-			Object.fromEntries(
-				Object.entries(conversationRosters).map(([spaceId, spaceRooms]) => [
-					spaceId,
-					withMissions(
-						withBadges(
-							toRosterConversations(
-								spaceRooms,
-								{
-									working: conversationWorkers,
-									previews: conversationPreviews,
-								},
-								now,
-							),
-							conversationBadges,
-						),
-						missionsIn(missions, spaceId),
-					),
-				]),
-			),
-		[
-			conversationRosters,
-			conversationWorkers,
-			conversationPreviews,
-			now,
-			conversationBadges,
-			missions,
-		],
-	)
-
-	const badgesBySpaceId = useMemo(
-		() =>
-			toSpaceBadges(
-				rosterBotsBySpace,
-				rosterConversationsBySpace,
-				missionRingBadges(rosterBotsBySpace),
-				missionRingBadges(rosterConversationsBySpace),
-			),
-		[rosterBotsBySpace, rosterConversationsBySpace],
-	)
-
-	const isDialogOpen = [
-		isEditing,
-		isEditingConversation,
-		user.state.isSettingsOpen,
-		isSpaceEditing,
-	].some(Boolean)
-
-	const searchLookups = useSearchLookups({
-		rosters: roster.state.rosters,
-		conversationRosters,
-		spaces: spaces.state.spaces,
-		readerName: preferences.displayName,
-		now,
-	})
-
-	const searchNavigation = useSearchNavigation({
-		roster: roster.controller,
-		spaces: spaces.controller,
-		missions: openedMission,
-		routines: openedRoutine,
-		landings: messageLandings,
-		user: user.controller,
-	})
-
-	const search = useSearch({
-		spaceId: selectedSpaceId,
-		spaceName: selectedSpace?.name,
-		lookups: searchLookups,
-		navigation: searchNavigation,
-		canOpen: !isDialogOpen,
-	})
-
-	const isOverlayOpen = search.isOpen || isDialogOpen
-
-	const isThreadSettingsOpen = isEditing && settingsBotId === selectedBotId
-
-	const isThreadConversationSettingsOpen =
-		isEditingConversation && settingsConversationId === selectedConversationId
-
-	const toggleSettings = useCallback(() => {
-		if (isThreadSettingsOpen) {
-			roster.controller.setEditing(false)
-			return
-		}
-		if (selectedBotId) {
-			roster.controller.edit(selectedBotId)
-		}
-	}, [roster.controller, isThreadSettingsOpen, selectedBotId])
-
-	const userSettings = useMemo(
-		() => toUserSettingsValue(preferences),
-		[preferences],
-	)
-
-	const changeSidebarWidth = useCallback(
-		(sidebarWidth: number) => {
-			void user.controller.setSidebarWidth(sidebarWidth)
-		},
-		[user.controller],
-	)
-
-	const activityPanel = useMemo(
-		() => ({
-			isOpen: preferences.activityPanelOpen,
-			onOpenChange: (isOpen: boolean) => {
-				void user.controller.setActivityPanelOpen(isOpen)
-			},
-			openedRoutine,
-		}),
-		[preferences.activityPanelOpen, user.controller, openedRoutine],
-	)
-
-	const changeColorScheme = useCallback(
-		(colorScheme: ColorScheme) => {
-			void user.controller.setColorScheme(colorScheme)
-		},
-		[user.controller],
-	)
-
-	useTheme({
-		colorScheme: preferences.colorScheme,
-		onColorSchemeChange: changeColorScheme,
-	})
-
-	useSettingsShortcut({
-		isEnabled: Boolean(selected) && !isEditing && !search.isOpen,
-		onToggle: toggleSettings,
-	})
-
-	if (!hasLoaded) {
+	const core = useWorkspaceCore()
+	const drivers = useWorkspaceDrivers(core)
+	const rosterView = useRosterView({ core, drivers })
+	const scopes = useApplicationScopes(core)
+	const panels = useSettingsPanels({ core, rosterView, scopes })
+	const { loadSpaces } = useSpaceLoading({ core, scopes })
+	useWorkspaceSubscriptions({ core, drivers, rosterView, scopes })
+	const rosterLines = useRosterLines({ core, drivers, rosterView })
+	const { collapsedSectionIds } = useSpaceSections({ core, rosterLines })
+	const rosterLists = useRosterLists({ core, drivers, rosterLines, rosterView })
+	const overlay = useWorkspaceOverlay({ core, rosterLines, rosterView, scopes })
+
+	const { preferences, roster, spaces } = core
+
+	if (!rosterView.hasLoaded) {
 		return (
 			<StartupScreen
 				haveSpacesFailed={spaces.state.hasFailedToLoad}
@@ -934,260 +50,85 @@ export function App() {
 		<>
 			<WorkspaceShell
 				defaultOpen
-				spaceTint={selectedSpace?.colour}
+				spaceTint={scopes.selectedSpace?.colour}
 				width={preferences.sidebarWidth ?? undefined}
-				onWidthChange={changeSidebarWidth}
+				onWidthChange={overlay.changeSidebarWidth}
 				isResizable={isSidebarResizable()}
 				sidebar={
 					<AppSidebar
 						data-tauri-drag-region="deep"
 						insetWindowControls={hasOverlayWindowControls()}
-						bots={rosterBots}
+						bots={rosterLines.rosterBots}
 						haveBotsFailedToLoad={roster.state.hasFailedToLoad}
-						botsBySpaceId={rosterBotsBySpace}
-						conversations={rosterConversations}
-						conversationsBySpaceId={rosterConversationsBySpace}
-						badgesBySpaceId={badgesBySpaceId}
+						botsBySpaceId={rosterLists.rosterBotsBySpace}
+						conversations={rosterLists.rosterConversations}
+						conversationsBySpaceId={rosterLists.rosterConversationsBySpace}
+						badgesBySpaceId={rosterLists.badgesBySpaceId}
 						collapsedSectionIds={collapsedSectionIds}
-						sectionsBySpaceId={sections.state.sections}
-						footer={updateBadge}
-						isSpaceSwitchingEnabled={!isOverlayOpen}
-						onOpenSearch={search.open}
-						{...sidebarActions}
-						onCreateConversation={startConversation}
-						selectedBotId={selectedBotId ?? undefined}
-						selectedConversationId={selectedConversationId ?? undefined}
-						selectedSpaceId={selectedSpaceId ?? undefined}
+						sectionsBySpaceId={core.sections.state.sections}
+						footer={rosterLines.updateBadge}
+						isSpaceSwitchingEnabled={!overlay.isOverlayOpen}
+						onOpenSearch={overlay.search.open}
+						{...rosterLines.sidebarActions}
+						onCreateConversation={rosterLines.startConversation}
+						selectedBotId={rosterView.selectedBotId ?? undefined}
+						selectedConversationId={
+							rosterView.selectedConversationId ?? undefined
+						}
+						selectedSpaceId={scopes.selectedSpaceId ?? undefined}
 						spaces={spaces.state.spaces}
-						user={userSettings}
+						user={overlay.userSettings}
 					/>
 				}
 			>
-				<ConversationSeatingContext.Provider value={conversationSeating}>
-					<SessionApplicationsContext.Provider value={sessionApplications}>
+				<ConversationSeatingContext.Provider
+					value={rosterLines.conversationSeating}
+				>
+					<SessionApplicationsContext.Provider
+						value={panels.sessionApplications}
+					>
 						<ConversationApplicationsContext.Provider
-							value={conversationApplications}
+							value={panels.conversationApplications}
 						>
 							<WorkspaceBody
-								activityPanel={activityPanel}
-								attachments={attachments}
-								bot={selected}
-								bots={bots}
-								chat={chat}
-								conversation={selectedConversation}
-								conversationRuntimes={conversationRuntimes}
-								drafts={drafts}
+								activityPanel={overlay.activityPanel}
+								attachments={core.attachments}
+								bot={rosterView.selected}
+								bots={rosterView.bots}
+								chat={core.chat}
+								conversation={rosterView.selectedConversation}
+								conversationRuntimes={core.conversationRuntimes}
+								drafts={core.drafts}
 								haveSpacesFailed={spaces.state.hasFailedToLoad}
-								isConversationSettingsOpen={isThreadConversationSettingsOpen}
-								isOverlayOpen={isOverlayOpen}
-								isSettingsOpen={isThreadSettingsOpen}
-								landings={messageLandings}
-								missions={openedMission}
-								onboarding={preferences.firstRunDone ? undefined : onboarding}
+								isConversationSettingsOpen={
+									overlay.isThreadConversationSettingsOpen
+								}
+								isOverlayOpen={overlay.isOverlayOpen}
+								isSettingsOpen={overlay.isThreadSettingsOpen}
+								landings={core.messageLandings}
+								missions={core.openedMission}
+								onboarding={
+									preferences.firstRunDone ? undefined : drivers.onboarding
+								}
 								onOpenConversationSettings={roster.controller.editConversation}
 								onRetrySpaces={loadSpaces}
-								onToggleSettings={toggleSettings}
+								onToggleSettings={overlay.toggleSettings}
 								readerName={preferences.displayName}
-								signIn={signIn}
+								signIn={drivers.signIn}
 							/>
 						</ConversationApplicationsContext.Provider>
 					</SessionApplicationsContext.Provider>
 				</ConversationSeatingContext.Provider>
 			</WorkspaceShell>
-			{settingsBot ? (
-				<BotSettingsDialog
-					history={botHistory}
-					haveMcpServersFailedToLoad={botMcpServers.state.hasFailedToLoad}
-					{...botApplications}
-					mcpServerToOpen={applicationToOpenOn({
-						kind: "companion",
-						id: settingsBot.id,
-					})}
-					tab={settingsTab}
-					environment={toEnvironmentRows(botEnvironment.state.entries)}
-					hasEnvironmentFailedToRead={botEnvironment.state.hasFailedToRead}
-					onEnvironmentSet={({ name, value }) =>
-						botEnvironment.controller.set(name, value)
-					}
-					onEnvironmentDelete={botEnvironment.controller.remove}
-					onMcpServerOpen={(name) =>
-						setOpenedMcpServer(
-							name && selectedSpaceId
-								? {
-										kind: "server",
-										name,
-										owner: {
-											kind: "bot",
-											id: settingsBot.id,
-											spaceId: selectedSpaceId,
-										},
-									}
-								: null,
-						)
-					}
-					serverEnvironment={serverEnvironmentSection}
-					models={modelOptionsFor(settingsBot.model, catalogue)}
-					outputStyle={readBotOutputStyle(settingsBot.outputStyle)}
-					memory={settingsBot.memory}
-					onMemoryChange={(memory) => {
-						void roster.controller.remember(settingsBot.id, memory)
-					}}
-					onAvatarUpload={(file) => {
-						void roster.controller.uploadAvatar(settingsBot.id, file)
-					}}
-					onBrowseWorkingDirectory={browseWorkingDirectory}
-					onClose={() => {
-						closeSettingsTab()
-						roster.controller.setEditing(false)
-					}}
-					onDelete={() => {
-						void deleteBot(settingsBot.id)
-					}}
-					onOutputStyleChange={(outputStyle) => {
-						if (outputStyle === settingsBot.outputStyle) {
-							return
-						}
-						roster.controller.restyle(settingsBot.id, outputStyle)
-						chat.controller.redescribe(settingsBot.id)
-					}}
-					onValueChange={(value) => {
-						roster.controller.describe(settingsBot.id, value)
-						if (changesRuntime(settingsBot, value)) {
-							chat.controller.redescribe(settingsBot.id)
-						}
-					}}
-					open={isEditing}
-					seed={settingsBot.id}
-					{...companionSkills}
-					showDanger={isShowingDanger}
-					value={toSettingsValue(settingsBot)}
-					working={activity.isWorking}
-					workingKind={activity.kind}
-				/>
-			) : null}
-			{settingsConversation ? (
-				<ConversationSettingsDialog
-					leadId={leadOf(settingsConversation) ?? ""}
-					onClose={() => roster.controller.setConversationEditing(false)}
-					onDelete={() => {
-						void sidebarActions.onDeleteConversation(settingsConversation.id)
-					}}
-					onDismiss={(botId) => {
-						void roster.controller.dismissFromConversation(
-							settingsConversation.id,
-							botId,
-						)
-					}}
-					onLeadChange={(botId) => {
-						void roster.controller.setConversationLead(
-							settingsConversation.id,
-							botId,
-						)
-					}}
-					onValueChange={(value) =>
-						roster.controller.describeConversation(
-							settingsConversation.id,
-							value,
-						)
-					}
-					open={isEditingConversation}
-					participants={seatedBots}
-					value={toConversationSettingsValue(settingsConversation)}
-				/>
-			) : null}
-			{selectedSpace ? (
-				<SpaceSettingsDialog
-					environment={toEnvironmentRows(spaceEnvironment.state.entries)}
-					hasEnvironmentFailedToRead={spaceEnvironment.state.hasFailedToRead}
-					haveMcpServersFailedToLoad={spaceMcpServers.state.hasFailedToLoad}
-					{...spaceApplications}
-					mcpServerToOpen={applicationToOpenOn({
-						kind: "space",
-						id: selectedSpace.id,
-					})}
-					tab={settingsTab}
-					onMcpServerOpen={(name) =>
-						setOpenedMcpServer(
-							name
-								? {
-										kind: "server",
-										name,
-										owner: { kind: "space", id: selectedSpace.id },
-									}
-								: null,
-						)
-					}
-					serverEnvironment={serverEnvironmentSection}
-					history={spaceHistory}
-					isDeletable={spaces.state.spaces.length > 1}
-					onClose={() => {
-						closeSettingsTab()
-						spaces.controller.setSettingsOpen(false)
-					}}
-					onDelete={() => {
-						void spaces.controller.remove(selectedSpace.id)
-					}}
-					onEnvironmentDelete={spaceEnvironment.controller.remove}
-					onEnvironmentSet={({ name, value }) =>
-						spaceEnvironment.controller.set(name, value)
-					}
-					onValueChange={(value) =>
-						spaces.controller.describe(selectedSpace.id, value)
-					}
-					open={isSpaceEditing}
-					{...spaceSkills}
-					value={toSpaceSettingsValue(selectedSpace)}
-				/>
-			) : null}
-			<UserSettingsDialog
-				applications={{
-					servers: userApplications.mcpServers,
-					haveFailedToLoad: userMcpServers.state.hasFailedToLoad,
-					onServerCreate: userApplications.onMcpServerCreate,
-					onServerChange: userApplications.onMcpServerChange,
-					onServerDelete: userApplications.onMcpServerDelete,
-					onServerConnect: userApplications.onServerConnect,
-					onServerOpen: (name) =>
-						setOpenedMcpServer(openedServerScope(name, USER_OWNER)),
-					serverConnection: userApplications.serverConnection,
-					serverEnvironment: serverEnvironmentSection,
-					catalogue: userApplications.mcpCatalogue,
-					serverToOpen: applicationToOpenOn({ kind: "user" }),
-				}}
-				history={userHistory}
-				tab={settingsTab}
-				onClose={() => {
-					closeSettingsTab()
-					user.controller.setSettingsOpen(false)
-				}}
-				language={preferences.language}
-				onLanguageChange={(next) => {
-					void user.controller.setLanguage(next)
-				}}
-				onPictureRemove={() => {
-					void user.controller.removePicture()
-				}}
-				onPictureUpload={(file) => {
-					void user.controller.uploadPicture(file)
-				}}
-				onValueChange={(value) => {
-					if (value.name !== userSettings.name) {
-						user.controller.rename(value.name)
-					}
-					if (value.colorScheme !== userSettings.colorScheme) {
-						void user.controller.setColorScheme(value.colorScheme)
-					}
-					const notification = toNotificationChange(value, userSettings)
-					if (notification) {
-						void user.controller.setNotification(notification)
-					}
-				}}
-				open={user.state.isSettingsOpen}
-				{...personSkills}
-				value={userSettings}
+			<AppDialogs
+				core={core}
+				overlay={overlay}
+				panels={panels}
+				rosterLines={rosterLines}
+				rosterLists={rosterLists}
+				rosterView={rosterView}
+				scopes={scopes}
 			/>
-			<SearchPalette {...search.palette} />
-			<NoticeSurface />
 		</>
 	)
 }
