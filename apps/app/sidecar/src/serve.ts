@@ -11,6 +11,7 @@ import {
 import { readLines } from "./read-lines"
 
 import type {
+	AgentProvider,
 	AgentSession,
 	PermissionDecision,
 	ServerEnv,
@@ -19,7 +20,7 @@ import type {
 } from "./providers/provider"
 import { requireProvider } from "./providers/registry"
 
-type Command = {
+export type Command = {
 	type: string
 	session?: string
 	cwd?: string
@@ -83,11 +84,15 @@ const write = (payload: unknown) => {
 	process.stdout.write(`${JSON.stringify(payload)}\n`)
 }
 
-const emitter = (session: string) => (frame: SessionFrame) =>
-	write({ session, frame })
+type Handler = (command: Command, session: string) => unknown
 
-export const serve = async (requestedId?: string) => {
-	const provider = requireProvider(requestedId)
+export const createRouter = (
+	provider: AgentProvider,
+	write: (payload: unknown) => void,
+) => {
+	const emitter = (session: string) => (frame: SessionFrame) =>
+		write({ session, frame })
+
 	const opening = new Map<string, Promise<AgentSession | undefined>>()
 
 	const open = async (command: Command, session: string) => {
@@ -122,79 +127,123 @@ export const serve = async (requestedId?: string) => {
 		closeHostChannel(session)
 	}
 
-	const answerHost = async (command: Command) => {
-		const { type, text } = command
-		switch (type) {
-			case "check":
-				return write({
-					type,
-					...(await provider.authenticate(command.connection)),
-				})
-			case "models":
-				return write({
-					type,
-					models: await provider.models(command.connection).catch(() => []),
-				})
-			case "tools":
-				return write({
-					type,
-					tools: await provider.tools(command.connection).catch(() => []),
-				})
-			case "title":
-				return write({
-					type,
-					title: await provider
-						.title(text ?? "", command.connection)
-						.catch(() => null),
-				})
-			case SIGN_IN:
-				return write({ type, ...(await provider.signIn(write)) })
-			case SIGN_IN_CODE:
-				if (typeof text === "string") {
-					provider.enterSignInCode(text)
-				}
-				return
-			case SIGN_IN_CANCEL:
-				return provider.cancelSignIn()
-			case AUTHORIZE:
-				return write({ type, ...(await authorizeMcpServer(command, write)) })
-			case CANCEL:
-				return cancelMcpAuthorization()
-			case REVOKE:
-				return write({ type, ...(await revokeMcpToken(command)) })
-			case REFRESH:
-				return write({ type, ...(await refreshMcpToken(command)) })
+	const reportConnection = async (command: Command) =>
+		write({
+			type: "check",
+			...(await provider.authenticate(command.connection)),
+		})
+
+	const listModels = async (command: Command) =>
+		write({
+			type: "models",
+			models: await provider.models(command.connection).catch(() => []),
+		})
+
+	const listTools = async (command: Command) =>
+		write({
+			type: "tools",
+			tools: await provider.tools(command.connection).catch(() => []),
+		})
+
+	const nameConversation = async (command: Command) =>
+		write({
+			type: "title",
+			title: await provider
+				.title(command.text ?? "", command.connection)
+				.catch(() => null),
+		})
+
+	const startSignIn = async () =>
+		write({ type: SIGN_IN, ...(await provider.signIn(write)) })
+
+	const enterSignInCode = (command: Command) => {
+		if (typeof command.text === "string") {
+			provider.enterSignInCode(command.text)
 		}
 	}
 
+	const cancelSignIn = () => provider.cancelSignIn()
+
+	const authorizeServer = async (command: Command) =>
+		write({ type: AUTHORIZE, ...(await authorizeMcpServer(command, write)) })
+
+	const revokeGrant = async (command: Command) =>
+		write({ type: REVOKE, ...(await revokeMcpToken(command)) })
+
+	const refreshGrant = async (command: Command) =>
+		write({ type: REFRESH, ...(await refreshMcpToken(command)) })
+
+	const openSession = (command: Command, session: string) =>
+		opening.set(session, open(command, session))
+
+	const promptSession = (command: Command, session: string) =>
+		on(session, (opened) => opened.prompt(command.text ?? ""))
+
+	const interruptSession = (_command: Command, session: string) =>
+		on(session, (opened) => {
+			void opened.interrupt()
+		})
+
+	const decidePermission = (command: Command, session: string) =>
+		on(session, (opened) => {
+			if (command.requestId && command.decision) {
+				opened.decide(command.requestId, command.decision)
+			}
+		})
+
+	const settleHostRequest = (command: Command, session: string) =>
+		settleHostAnswer(session, command)
+
+	const closeSession = (_command: Command, session: string) => close(session)
+
+	const answering = new Map<string, Handler>([
+		["check", reportConnection],
+		["models", listModels],
+		["tools", listTools],
+		["title", nameConversation],
+		[SIGN_IN, startSignIn],
+		[SIGN_IN_CODE, enterSignInCode],
+		[SIGN_IN_CANCEL, cancelSignIn],
+		[AUTHORIZE, authorizeServer],
+		[CANCEL, cancelMcpAuthorization],
+		[REVOKE, revokeGrant],
+		[REFRESH, refreshGrant],
+	])
+
+	const acting = new Map<string, Handler>([
+		["open", openSession],
+		["prompt", promptSession],
+		["interrupt", interruptSession],
+		["permission", decidePermission],
+		["host_response", settleHostRequest],
+		["close", closeSession],
+	])
+
+	const route = (command: Command): Handler | undefined =>
+		command.session ? acting.get(command.type) : answering.get(command.type)
+
 	const dispatch = (command: Command) => {
-		const session = command.session
-		if (!session) {
-			void answerHost(command)
-			return
-		}
-		switch (command.type) {
-			case "open":
-				opening.set(session, open(command, session))
-				return
-			case "prompt":
-				return on(session, (opened) => opened.prompt(command.text ?? ""))
-			case "interrupt":
-				return on(session, (opened) => {
-					void opened.interrupt()
-				})
-			case "permission":
-				return on(session, (opened) => {
-					if (command.requestId && command.decision) {
-						opened.decide(command.requestId, command.decision)
-					}
-				})
-			case "host_response":
-				return settleHostAnswer(session, command)
-			case "close":
-				return close(session)
+		void route(command)?.(command, command.session ?? "")
+	}
+
+	const closeEvery = () => {
+		for (const session of [...opening.keys()]) {
+			close(session)
 		}
 	}
+
+	return {
+		route,
+		dispatch,
+		closeEvery,
+		answered: new Set(answering.keys()),
+		acted: new Set(acting.keys()),
+	}
+}
+
+export const serve = async (requestedId?: string) => {
+	const provider = requireProvider(requestedId)
+	const { dispatch, closeEvery } = createRouter(provider, write)
 
 	write({ type: "ready", ...describeProvider(provider) })
 
@@ -206,7 +255,5 @@ export const serve = async (requestedId?: string) => {
 		}
 	}
 
-	for (const session of [...opening.keys()]) {
-		close(session)
-	}
+	closeEvery()
 }

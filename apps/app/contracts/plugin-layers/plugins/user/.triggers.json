@@ -1,0 +1,24 @@
+{
+	"sources": [
+		{
+			"id": "schedule",
+			"title": "On a schedule, as the user layer declares it",
+			"payload": [
+				{ "name": "occurrenceId", "type": "string" },
+				{ "name": "firedAt", "type": "datetime" }
+			],
+			"dedupeKey": "occurrenceId"
+		},
+		{
+			"id": "user-inbox",
+			"title": "When the user inbox receives a message",
+			"header": "X-Kiroshi-user",
+			"payload": [
+				{ "name": "deliveryId", "type": "string" },
+				{ "name": "receivedAt", "type": "datetime" },
+				{ "name": "sizeBytes", "type": "number" }
+			],
+			"dedupeKey": "deliveryId"
+		}
+	]
+}

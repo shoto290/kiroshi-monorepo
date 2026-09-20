@@ -1,0 +1,12 @@
+{
+	"mcpServers": {
+		"clock": {
+			"command": "clock-of-space",
+			"args": ["--layer", "space"]
+		},
+		"space-only": {
+			"command": "space-server",
+			"args": []
+		}
+	}
+}

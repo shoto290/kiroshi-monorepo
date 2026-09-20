@@ -1,0 +1,172 @@
+{
+	"layers": {
+		"companion": {
+			"frontmatterDenials": [
+				"Bash",
+				"Edit"
+			],
+			"outputStyle": "Concise",
+			"permissions": {
+				"allow": [
+					"Read(./**)",
+					"mcp__kiroshi__delegate"
+				],
+				"ask": [
+					"Bash(git push:*)"
+				],
+				"defaultMode": "plan",
+				"deny": [
+					"Bash(rm:*)",
+					"Write(./secrets/**)"
+				]
+			}
+		},
+		"space": {
+			"frontmatterDenials": [],
+			"outputStyle": "Concise",
+			"permissions": {
+				"allow": [
+					"Read(./**)"
+				],
+				"ask": [],
+				"defaultMode": "auto",
+				"deny": []
+			}
+		},
+		"system": {
+			"frontmatterDenials": [
+				"Bash",
+				"Edit",
+				"Write",
+				"NotebookEdit"
+			],
+			"outputStyle": "Explanatory",
+			"permissions": {
+				"allow": [
+					"Read(./**)"
+				],
+				"ask": [
+					"WebFetch"
+				],
+				"defaultMode": "default",
+				"deny": [
+					"Bash(rm:*)"
+				]
+			}
+		},
+		"user": {
+			"frontmatterDenials": [
+				"Write"
+			],
+			"outputStyle": "Learning",
+			"permissions": {
+				"allow": [
+					"Read(./**)",
+					"Glob"
+				],
+				"ask": [],
+				"defaultMode": "acceptEdits",
+				"deny": [
+					"WebSearch"
+				]
+			}
+		}
+	},
+	"triggerSources": [
+		{
+			"dedupeKey": "occurrenceId",
+			"id": "schedule",
+			"payload": [
+				{
+					"name": "occurrenceId",
+					"type": "string"
+				},
+				{
+					"name": "firedAt",
+					"type": "datetime"
+				}
+			],
+			"title": "On a schedule, as the companion layer declares it"
+		},
+		{
+			"dedupeKey": "deliveryId",
+			"header": "X-Kiroshi-system",
+			"id": "system-inbox",
+			"payload": [
+				{
+					"name": "deliveryId",
+					"type": "string"
+				},
+				{
+					"name": "receivedAt",
+					"type": "datetime"
+				},
+				{
+					"name": "sizeBytes",
+					"type": "number"
+				}
+			],
+			"title": "When the system inbox receives a message"
+		},
+		{
+			"dedupeKey": "deliveryId",
+			"header": "X-Kiroshi-user",
+			"id": "user-inbox",
+			"payload": [
+				{
+					"name": "deliveryId",
+					"type": "string"
+				},
+				{
+					"name": "receivedAt",
+					"type": "datetime"
+				},
+				{
+					"name": "sizeBytes",
+					"type": "number"
+				}
+			],
+			"title": "When the user inbox receives a message"
+		},
+		{
+			"dedupeKey": "deliveryId",
+			"header": "X-Kiroshi-space",
+			"id": "space-inbox",
+			"payload": [
+				{
+					"name": "deliveryId",
+					"type": "string"
+				},
+				{
+					"name": "receivedAt",
+					"type": "datetime"
+				},
+				{
+					"name": "sizeBytes",
+					"type": "number"
+				}
+			],
+			"title": "When the space inbox receives a message"
+		},
+		{
+			"dedupeKey": "deliveryId",
+			"header": "X-Kiroshi-companion",
+			"id": "companion-inbox",
+			"payload": [
+				{
+					"name": "deliveryId",
+					"type": "string"
+				},
+				{
+					"name": "receivedAt",
+					"type": "datetime"
+				},
+				{
+					"name": "sizeBytes",
+					"type": "number"
+				}
+			],
+			"title": "When the companion inbox receives a message"
+		}
+	]
+}

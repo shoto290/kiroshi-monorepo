@@ -1,0 +1,24 @@
+{
+	"sources": [
+		{
+			"id": "schedule",
+			"title": "On a schedule, as the system layer declares it",
+			"payload": [
+				{ "name": "occurrenceId", "type": "string" },
+				{ "name": "firedAt", "type": "datetime" }
+			],
+			"dedupeKey": "occurrenceId"
+		},
+		{
+			"id": "system-inbox",
+			"title": "When the system inbox receives a message",
+			"header": "X-Kiroshi-system",
+			"payload": [
+				{ "name": "deliveryId", "type": "string" },
+				{ "name": "receivedAt", "type": "datetime" },
+				{ "name": "sizeBytes", "type": "number" }
+			],
+			"dedupeKey": "deliveryId"
+		}
+	]
+}

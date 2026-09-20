@@ -1,0 +1,610 @@
+[
+	{
+		"name": "delegate",
+		"description": "Hand a self-contained job to a nested read-only agent and read its report right here. Use it to keep a wide search out of this conversation. The report comes back as the result of this call, in this same turn.",
+		"inputSchema": {
+			"$schema": "https://json-schema.org/draft/2020-12/schema",
+			"type": "object",
+			"properties": {
+				"instructions": {
+					"type": "string",
+					"description": "Everything the nested agent needs to do the job and report back. It shares this working directory but sees none of this conversation."
+				}
+			},
+			"required": [
+				"instructions"
+			],
+			"additionalProperties": false
+		}
+	},
+	{
+		"name": "routine_list",
+		"description": "Read every routine of this conversation, whichever bot here owns it. Read this before creating one, so you update what already covers the need instead of adding beside it.",
+		"inputSchema": {
+			"$schema": "https://json-schema.org/draft/2020-12/schema",
+			"type": "object",
+			"properties": {},
+			"additionalProperties": false
+		}
+	},
+	{
+		"name": "routine_trigger_sources",
+		"description": "Read what can fire a routine here and, for each source, the fields its events carry. Read this before creating or filtering a routine.",
+		"inputSchema": {
+			"$schema": "https://json-schema.org/draft/2020-12/schema",
+			"type": "object",
+			"properties": {},
+			"additionalProperties": false
+		}
+	},
+	{
+		"name": "routine_create",
+		"description": "Create a routine of this conversation, owned by you. Confirm the schedule and the task with the person, in their own words, before calling this.",
+		"inputSchema": {
+			"$schema": "https://json-schema.org/draft/2020-12/schema",
+			"type": "object",
+			"properties": {
+				"title": {
+					"type": "string",
+					"description": "A short name the person will recognise in the Routines panel."
+				},
+				"instruction": {
+					"type": "string",
+					"description": "What you carry out when this routine fires, written as an order to yourself."
+				},
+				"triggerConfig": {
+					"type": "object",
+					"propertyNames": {
+						"type": "string"
+					},
+					"additionalProperties": {},
+					"description": "What the chosen source needs to fire, such as { expression: '0 8 * * 1-5' } for schedule."
+				},
+				"triggerSourceId": {
+					"type": "string",
+					"description": "The id of a source routine_trigger_sources answers, never one you invented."
+				},
+				"filter": {
+					"type": "object",
+					"properties": {
+						"matchMode": {
+							"type": "string",
+							"enum": [
+								"all",
+								"any"
+							]
+						},
+						"rows": {
+							"type": "array",
+							"items": {
+								"type": "object",
+								"properties": {
+									"field": {
+										"type": "string"
+									},
+									"operator": {
+										"type": "string"
+									},
+									"value": {}
+								},
+								"required": [
+									"field",
+									"operator"
+								],
+								"additionalProperties": false
+							}
+						}
+					},
+					"required": [
+						"matchMode",
+						"rows"
+					],
+					"additionalProperties": false,
+					"description": "Which events run this routine. Leave it out to run on every event of the source."
+				}
+			},
+			"required": [
+				"title",
+				"instruction",
+				"triggerConfig",
+				"triggerSourceId"
+			],
+			"additionalProperties": false
+		}
+	},
+	{
+		"name": "routine_update",
+		"description": "Rewrite a routine of this conversation, every field at once. Read it with routine_list first and send back what you are not changing.",
+		"inputSchema": {
+			"$schema": "https://json-schema.org/draft/2020-12/schema",
+			"type": "object",
+			"properties": {
+				"title": {
+					"type": "string",
+					"description": "A short name the person will recognise in the Routines panel."
+				},
+				"instruction": {
+					"type": "string",
+					"description": "What you carry out when this routine fires, written as an order to yourself."
+				},
+				"triggerConfig": {
+					"type": "object",
+					"propertyNames": {
+						"type": "string"
+					},
+					"additionalProperties": {},
+					"description": "What the chosen source needs to fire, such as { expression: '0 8 * * 1-5' } for schedule."
+				},
+				"id": {
+					"type": "string",
+					"description": "The id of a routine routine_list answers."
+				},
+				"filter": {
+					"type": "object",
+					"properties": {
+						"matchMode": {
+							"type": "string",
+							"enum": [
+								"all",
+								"any"
+							]
+						},
+						"rows": {
+							"type": "array",
+							"items": {
+								"type": "object",
+								"properties": {
+									"field": {
+										"type": "string"
+									},
+									"operator": {
+										"type": "string"
+									},
+									"value": {}
+								},
+								"required": [
+									"field",
+									"operator"
+								],
+								"additionalProperties": false
+							}
+						}
+					},
+					"required": [
+						"matchMode",
+						"rows"
+					],
+					"additionalProperties": false,
+					"description": "Which events run this routine. Leave it out to run on every event of the source."
+				},
+				"isEnabled": {
+					"type": "boolean",
+					"description": "Whether the routine fires. Turn it off instead of deleting it."
+				}
+			},
+			"required": [
+				"title",
+				"instruction",
+				"triggerConfig",
+				"id",
+				"filter",
+				"isEnabled"
+			],
+			"additionalProperties": false
+		}
+	},
+	{
+		"name": "routine_run_now",
+		"description": "Run a routine once, right now, without waiting for its trigger. Its report lands in this conversation like any other run.",
+		"inputSchema": {
+			"$schema": "https://json-schema.org/draft/2020-12/schema",
+			"type": "object",
+			"properties": {
+				"id": {
+					"type": "string",
+					"description": "The id of a routine routine_list answers."
+				}
+			},
+			"required": [
+				"id"
+			],
+			"additionalProperties": false
+		}
+	},
+	{
+		"name": "routine_delete",
+		"description": "Delete a routine and its run history. Ask the person first, and offer to turn it off instead when they only want it to stop for now.",
+		"inputSchema": {
+			"$schema": "https://json-schema.org/draft/2020-12/schema",
+			"type": "object",
+			"properties": {
+				"id": {
+					"type": "string",
+					"description": "The id of a routine routine_list answers."
+				}
+			},
+			"required": [
+				"id"
+			],
+			"additionalProperties": false
+		}
+	},
+	{
+		"name": "mission_open",
+		"description": "Open a mission on this conversation, owned by you, and get its own thread with one line telling whether that mission hears its agent. Given the checkout the work happens in, the agent hook is armed there in the same call. The work of the mission carries on in the thread it answers, so end the turn you are answering in with a single line of acknowledgement and nothing more. Call this once you and the person agree on the objective and the ticket it carries.",
+		"inputSchema": {
+			"$schema": "https://json-schema.org/draft/2020-12/schema",
+			"type": "object",
+			"properties": {
+				"objective": {
+					"type": "string",
+					"description": "What this mission delivers, in one sentence, written as an order to yourself."
+				},
+				"ticket": {
+					"type": "object",
+					"properties": {
+						"platform": {
+							"type": "string",
+							"description": "Where the ticket holding this objective lives."
+						},
+						"externalId": {
+							"type": "string",
+							"description": "The id the ticket carries on its own platform."
+						},
+						"url": {
+							"type": "string",
+							"description": "The address the person opens to read the ticket."
+						},
+						"title": {
+							"type": "string",
+							"description": "The title the ticket carries on its own platform."
+						}
+					},
+					"required": [
+						"platform",
+						"externalId",
+						"url",
+						"title"
+					],
+					"additionalProperties": false
+				},
+				"tools": {
+					"type": "array",
+					"items": {
+						"type": "string"
+					},
+					"description": "What this mission is allowed to reach for to meet its objective."
+				},
+				"workspacePath": {
+					"type": "string",
+					"description": "The git checkout on this machine the work of the mission happens in, a linked worktree included. Only a git checkout is accepted, so the path names a directory holding a .git entry and nothing else is taken. A path given arms the agent hook in that checkout, so what an agent does there reaches the thread of the mission. Left out, the mission moves only on the lines, the escalations and the closing you write."
+				}
+			},
+			"required": [
+				"objective",
+				"ticket",
+				"tools"
+			],
+			"additionalProperties": false
+		}
+	},
+	{
+		"name": "mission_note",
+		"description": "Record one line of progress on a mission of yours. Write what moved, not what you are about to do.",
+		"inputSchema": {
+			"$schema": "https://json-schema.org/draft/2020-12/schema",
+			"type": "object",
+			"properties": {
+				"id": {
+					"type": "string",
+					"description": "The id of the mission this lands on."
+				},
+				"line": {
+					"type": "string",
+					"description": "One line of progress, written for the person who reads the thread."
+				}
+			},
+			"required": [
+				"id",
+				"line"
+			],
+			"additionalProperties": false
+		}
+	},
+	{
+		"name": "mission_escalate",
+		"description": "Hand a mission back to the person with the one question that blocks you. The mission waits until they answer.",
+		"inputSchema": {
+			"$schema": "https://json-schema.org/draft/2020-12/schema",
+			"type": "object",
+			"properties": {
+				"id": {
+					"type": "string",
+					"description": "The id of the mission this lands on."
+				},
+				"question": {
+					"type": "string",
+					"description": "The one question the person has to answer for you to carry on."
+				},
+				"reason": {
+					"type": "string",
+					"description": "Why you cannot decide it yourself."
+				}
+			},
+			"required": [
+				"id",
+				"question",
+				"reason"
+			],
+			"additionalProperties": false
+		}
+	},
+	{
+		"name": "mission_close",
+		"description": "Close a mission of yours, its objective reached or given up, with a summary of where it landed. Nothing can be appended to it afterwards.",
+		"inputSchema": {
+			"$schema": "https://json-schema.org/draft/2020-12/schema",
+			"type": "object",
+			"properties": {
+				"id": {
+					"type": "string",
+					"description": "The id of the mission this lands on."
+				},
+				"outcome": {
+					"type": "string",
+					"enum": [
+						"done",
+						"failed"
+					],
+					"description": "done when the objective is reached, failed when it is given up."
+				},
+				"summary": {
+					"type": "string",
+					"description": "What came out of the mission, in a few lines."
+				}
+			},
+			"required": [
+				"id",
+				"outcome",
+				"summary"
+			],
+			"additionalProperties": false
+		}
+	},
+	{
+		"name": "mission_watch",
+		"description": "Arm a mission of yours on the branch it lands its work in, so what happens on that branch reaches its thread. It answers the address a call reaches the mission at, the key that call carries and the name of the header that key goes in. Call this once the branch exists.",
+		"inputSchema": {
+			"$schema": "https://json-schema.org/draft/2020-12/schema",
+			"type": "object",
+			"properties": {
+				"id": {
+					"type": "string",
+					"description": "The id of the mission this lands on."
+				},
+				"branch": {
+					"type": "string",
+					"description": "The branch this mission lands its work in, such as feature/ope-37."
+				},
+				"repository": {
+					"type": "string",
+					"description": "The repository that branch lives in, written owner then slash then name."
+				}
+			},
+			"required": [
+				"id",
+				"branch",
+				"repository"
+			],
+			"additionalProperties": false
+		}
+	},
+	{
+		"name": "mission_list",
+		"description": "Read the missions of yours this conversation still carries, each with its id, its ticket and where it stands. Read this when you no longer hold the id of a mission.",
+		"inputSchema": {
+			"$schema": "https://json-schema.org/draft/2020-12/schema",
+			"type": "object",
+			"properties": {},
+			"additionalProperties": false
+		}
+	},
+	{
+		"name": "application_search",
+		"description": "Find the applications matching what the person asked for, the curated ones first, before you install any of them.",
+		"inputSchema": {
+			"$schema": "https://json-schema.org/draft/2020-12/schema",
+			"type": "object",
+			"properties": {
+				"query": {
+					"type": "string",
+					"description": "The words the person used for the application, its name or what it should do."
+				}
+			},
+			"required": [
+				"query"
+			],
+			"additionalProperties": false
+		}
+	},
+	{
+		"name": "application_install",
+		"description": "Install one application answered by application_search in the one destination the person picked, once they have picked it.",
+		"inputSchema": {
+			"$schema": "https://json-schema.org/draft/2020-12/schema",
+			"type": "object",
+			"properties": {
+				"application": {
+					"type": "string",
+					"description": "The exact name application_search answered for the application."
+				},
+				"scope": {
+					"type": "string",
+					"enum": [
+						"companion",
+						"space",
+						"user"
+					],
+					"description": "The destination the person picked: companion, space or user."
+				}
+			},
+			"required": [
+				"application",
+				"scope"
+			],
+			"additionalProperties": false
+		}
+	},
+	{
+		"name": "application_status",
+		"description": "Read where an application stands in one destination, when the person asks whether it is installed or connected.",
+		"inputSchema": {
+			"$schema": "https://json-schema.org/draft/2020-12/schema",
+			"type": "object",
+			"properties": {
+				"application": {
+					"type": "string",
+					"description": "The exact name application_search answered for the application."
+				},
+				"scope": {
+					"type": "string",
+					"enum": [
+						"companion",
+						"space",
+						"user"
+					],
+					"description": "The destination the person picked: companion, space or user."
+				}
+			},
+			"required": [
+				"application",
+				"scope"
+			],
+			"additionalProperties": false
+		}
+	},
+	{
+		"name": "companion_suggestions",
+		"description": "Read the companions this app suggests, each with the name, the job, the description and the blurb it ships, before you ask the person which one they want.",
+		"inputSchema": {
+			"$schema": "https://json-schema.org/draft/2020-12/schema",
+			"type": "object",
+			"properties": {},
+			"additionalProperties": false
+		}
+	},
+	{
+		"name": "companion_create",
+		"description": "Create a companion in the space of this conversation, once the person has picked a suggestion or agreed on the name, the job and the description you read back to them.",
+		"inputSchema": {
+			"$schema": "https://json-schema.org/draft/2020-12/schema",
+			"type": "object",
+			"properties": {
+				"name": {
+					"type": "string",
+					"description": "The name the person will call this companion by, theirs or the one they picked."
+				},
+				"job": {
+					"type": "string",
+					"description": "What this companion is for, in a few words, read under its name on its roster line."
+				},
+				"description": {
+					"type": "string",
+					"description": "What this companion does and how it works, written as an order to it."
+				}
+			},
+			"required": [
+				"name",
+				"job",
+				"description"
+			],
+			"additionalProperties": false
+		}
+	},
+	{
+		"name": "companion_first_run_done",
+		"description": "Record the first run of the app as finished, once the person has answered the hand-off question, so the app stops opening on it.",
+		"inputSchema": {
+			"$schema": "https://json-schema.org/draft/2020-12/schema",
+			"type": "object",
+			"properties": {},
+			"additionalProperties": false
+		}
+	},
+	{
+		"name": "companion_invite",
+		"description": "Bring a companion of this space into this conversation before you mention it.",
+		"inputSchema": {
+			"$schema": "https://json-schema.org/draft/2020-12/schema",
+			"type": "object",
+			"properties": {
+				"companion": {
+					"type": "string",
+					"description": "The id or the name of the companion to bring in."
+				},
+				"conversation": {
+					"description": "The id of a room you sit in to bring the companion into, left out for this conversation.",
+					"type": "string"
+				}
+			},
+			"required": [
+				"companion"
+			],
+			"additionalProperties": false
+		}
+	},
+	{
+		"name": "conversation_open",
+		"description": "Open a new room in the space of this conversation, led by you, once the person asks for a topic of its own.",
+		"inputSchema": {
+			"$schema": "https://json-schema.org/draft/2020-12/schema",
+			"type": "object",
+			"properties": {
+				"title": {
+					"type": "string",
+					"description": "The title of the room, read in the space's list of rooms."
+				},
+				"with": {
+					"type": "array",
+					"items": {
+						"type": "string"
+					},
+					"description": "The id or the name of each companion of this space to seat in the room beside you, empty for you alone."
+				},
+				"message": {
+					"type": "string",
+					"description": "What you say to open the room, the first words read in it."
+				}
+			},
+			"required": [
+				"title",
+				"with",
+				"message"
+			],
+			"additionalProperties": false
+		}
+	},
+	{
+		"name": "conversation_say",
+		"description": "Say something in a room you hold a seat in, before you report back here on what you told it.",
+		"inputSchema": {
+			"$schema": "https://json-schema.org/draft/2020-12/schema",
+			"type": "object",
+			"properties": {
+				"conversation": {
+					"type": "string",
+					"description": "The id of the room you hold a seat in to say it in."
+				},
+				"message": {
+					"type": "string",
+					"description": "What you say in that room, read there in your name."
+				}
+			},
+			"required": [
+				"conversation",
+				"message"
+			],
+			"additionalProperties": false
+		}
+	}
+]
