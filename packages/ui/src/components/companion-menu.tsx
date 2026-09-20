@@ -138,11 +138,6 @@ const CompanionMenuProvider = ({
 	</CompanionMenuContext.Provider>
 )
 
-const useCompanionMenu = (companionId?: string) => {
-	const menuFor = useContext(CompanionMenuContext)
-	return companionId ? menuFor(companionId) : null
-}
-
 type CompanionMenuHostProps = {
 	companionId?: string
 	children: ReactElement<Record<string, unknown>>
@@ -152,7 +147,8 @@ const CompanionMenuHost = ({
 	companionId,
 	children,
 }: CompanionMenuHostProps) => {
-	const menu = useCompanionMenu(companionId)
+	const menuFor = useContext(CompanionMenuContext)
+	const menu = companionId ? menuFor(companionId) : null
 
 	if (!menu) return children
 
