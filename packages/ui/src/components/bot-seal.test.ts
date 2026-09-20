@@ -32,6 +32,7 @@ const SLOWEST_SHARE = 0.1
 const MEASURABLE_PEAK = 1
 const HIDDEN_EDGES = 2
 const ANIMATED_STATES = BOT_SEAL_STATES.filter(isSealAnimated)
+const TURNING_STATES = ANIMATED_STATES.filter((state) => state !== "searching")
 
 const pathOf = (seed: string, state?: BotSealState, elapsed = 0) => {
 	const { lit, dim } = sealFrame({ solid: sealSolid(seed), state, elapsed })
@@ -185,9 +186,7 @@ describe("sealFrame", () => {
 	it("holds the light still while the solid turns under it", () => {
 		for (const seed of CYCLE_SEEDS) {
 			const solid = sealSolid(seed)
-			for (const state of ANIMATED_STATES.filter(
-				(animated) => animated !== "searching",
-			)) {
+			for (const state of TURNING_STATES) {
 				const heights = CYCLE_SAMPLES.map(
 					(elapsed) => sampleOf(solid, state, elapsed).cut,
 				)
