@@ -127,15 +127,25 @@ describe("toTranscriptRows", () => {
 		])
 	})
 
-	it("keeps a row for a turn that ended before writing anything", () => {
+	it("keeps a row for a turn that failed before writing anything", () => {
 		const stopped = toTranscriptRows([message({ completion: "failed" })])
 
 		expect(stopped).toHaveLength(1)
 		expect(stopped[0].text).toBe("")
+		expect(stopped[0].completion).toBe("failed")
 		expect(
 			toTranscriptRows([message({ completion: "complete" })]),
 		).toHaveLength(0)
 		expect(toTranscriptRows([message()])).toHaveLength(0)
+	})
+
+	it("drops the row of a turn stopped before writing anything", () => {
+		expect(
+			toTranscriptRows([message({ id: "a", completion: "cancelled" })]),
+		).toEqual([])
+		expect(
+			toTranscriptRows([message({ id: "b", completion: "interrupted" })]),
+		).toEqual([])
 	})
 
 	it("keeps a fenced block whole through the blank lines inside it", () => {

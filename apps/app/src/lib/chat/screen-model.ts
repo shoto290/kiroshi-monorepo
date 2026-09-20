@@ -93,9 +93,9 @@ function assistantRows(message: TranscriptMessage): TranscriptRow[] {
 	const blocks = toPublishedBlocks(message.content, unfinished)
 
 	if (blocks.length === 0) {
-		return unfinished || ending === "complete"
-			? []
-			: [toRow(message, { text: "", completion: ending })]
+		return ending === "failed"
+			? [toRow(message, { text: "", completion: ending })]
+			: []
 	}
 
 	return blocks.map((text, blockIndex) => {

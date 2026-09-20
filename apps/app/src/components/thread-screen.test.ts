@@ -72,6 +72,7 @@ import type { Bot, EnvOwner, Space } from "@/lib/conversations/store-contract"
 import type { TranscriptStore } from "@/lib/conversations/store-port"
 import type {
 	CompanionArrival,
+	TerminalCompletion,
 	TranscriptRole,
 } from "@/lib/conversations/transcript-contract"
 import {
@@ -191,6 +192,13 @@ const REPORTED: SpokenTurn = {
 	turnId: REPORT_TURN,
 	text: REPORT_TEXT,
 	createdAt: A_MINUTE,
+}
+
+const STOPPED_BEFORE_WRITING: SpokenTurn = {
+	turnId: "t-stopped",
+	text: "",
+	createdAt: A_MINUTE,
+	completion: "cancelled",
 }
 
 const SAID_BEFORE: SpokenTurn = {
@@ -591,6 +599,7 @@ type SpokenTurn = {
 	createdAt: number
 	role?: TranscriptRole
 	author?: string
+	completion?: TerminalCompletion
 }
 
 type RoomFixture = {
@@ -619,7 +628,7 @@ const writeBotTurn = async (
 	store: TranscriptStore,
 	conversationId: string,
 	botId: string,
-	{ turnId, text, createdAt }: SpokenTurn,
+	{ turnId, text, createdAt, completion = "complete" }: SpokenTurn,
 ) => {
 	await store.openAssistantMessage({
 		id: `m-${turnId}`,
@@ -630,7 +639,7 @@ const writeBotTurn = async (
 		createdAt,
 	})
 	await store.appendText(`m-${turnId}`, text)
-	await store.finalizeMessage(`m-${turnId}`, "complete")
+	await store.finalizeMessage(`m-${turnId}`, completion)
 }
 
 const writeTurn = async (
@@ -1771,6 +1780,19 @@ describe("ThreadScreen", () => {
 		await settle()
 
 		expect(screen.getByText(REPORT_TEXT)).toBeTruthy()
+		expect(screen.queryByText(ROUTINE_TITLE)).toBeNull()
+	})
+
+	it("holds no routine line on a turn stopped before its first word", async () => {
+		const room = await roomOf({
+			names: ["Ada"],
+			spoken: [STOPPED_BEFORE_WRITING],
+			readReportedRuns: reportedRunsOf("t-stopped"),
+		})
+		render(screenOf(room.thread))
+		await settle()
+
+		expect(causeTitles()).toEqual([])
 		expect(screen.queryByText(ROUTINE_TITLE)).toBeNull()
 	})
 
