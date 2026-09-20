@@ -1285,7 +1285,6 @@ function ThreadView({
 	const offerSignIn = signInOfferOf(signIn, facts.bot?.id)
 	useSessionFailureNotice({
 		error: facts.latestError,
-		speakerId: speakerIdOf(thread, facts.latestError),
 		onDismiss: controller.dismissError,
 		onRestart: botController ? restart : undefined,
 		onSignIn: offerSignIn,

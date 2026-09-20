@@ -444,9 +444,6 @@ const bots = {
 			},
 			session: {
 				title: "{{name}} was left out",
-				description:
-					"It’s waiting for your authorization, so this session ran without its tools.",
-				action: "Open Applications",
 			},
 			refused: {
 				title: "The sign-in stopped working",

@@ -29,7 +29,6 @@ import {
 	createSessionReopener,
 	ownerOfScope,
 	type ReopenedScope,
-	scopeOfOwner,
 } from "@/lib/applications/session-reopening"
 import {
 	applicationToOpenIn,
@@ -454,10 +453,6 @@ export function App() {
 		},
 		[roster.controller, spaces.controller, user.controller, selectedSpaceId],
 	)
-	const openApplicationsOfOwner = useCallback(
-		(owner: EnvOwner) => openApplicationsOf(scopeOfOwner(owner)),
-		[openApplicationsOf],
-	)
 	const conversationApplications = useMemo(
 		() => ({
 			port: applicationTransport,
@@ -472,12 +467,8 @@ export function App() {
 		void applications.controller.open()
 	}, [applications.controller])
 	const sessionApplications = useMemo(
-		() => ({
-			port: connectionTransport,
-			spaceId: selectedSpaceId,
-			onOpen: openApplicationsOfOwner,
-		}),
-		[selectedSpaceId, openApplicationsOfOwner],
+		() => ({ spaceId: selectedSpaceId }),
+		[selectedSpaceId],
 	)
 
 	const listedSpaces = spaces.state.spaces.map((space) => space.id).join(" ")
