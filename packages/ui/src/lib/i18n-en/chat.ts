@@ -80,6 +80,14 @@ const chat = {
 			unknown: "Unknown companion",
 			counted_one: "{{count}} mention",
 			counted_other: "{{count}} mentions",
+			unresolved: {
+				title_one: "Couldn't summon a companion",
+				title_other: "Couldn't summon these companions",
+				description_one:
+					"{{names}} was named but holds no seat in this conversation.",
+				description_other:
+					"{{names}} were named but hold no seat in this conversation.",
+			},
 		},
 	},
 	turn: {

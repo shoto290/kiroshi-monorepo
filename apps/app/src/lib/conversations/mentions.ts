@@ -13,7 +13,7 @@ const TRAILING_SPACE = /\s$/
 
 const ARROBASE = "@"
 
-const tokenOf = (botId: string) => `<@${botId}>`
+export const mentionTokenOf = (botId: string) => `<@${botId}>`
 
 const isNamedAt = (text: string, from: number, name: string) =>
 	text.slice(from, from + name.length).toLocaleLowerCase() ===
@@ -46,7 +46,7 @@ export const toMentionTokens = (text: string, bots: MentionBot[]): string => {
 		}
 		written += text.slice(read, at)
 		const named = text[at - 1] === "<" ? null : botNamedAt(text, at + 1, bots)
-		written += named ? tokenOf(named.id) : ARROBASE
+		written += named ? mentionTokenOf(named.id) : ARROBASE
 		read = at + 1 + (named?.name.length ?? 0)
 	}
 
@@ -60,14 +60,21 @@ export const toMentionNames = (text: string, bots: MentionBot[]): string =>
 			`${ARROBASE}${nameOf(botId, bots) ?? i18n.t("chat:transcript.mention.unknown")}`,
 	)
 
-export const addresseesIn = (text: string, present: string[]): string[] => {
+export type Addressees = {
+	named: string[]
+	unresolved: string[]
+}
+
+export const addresseesIn = (text: string, present: string[]): Addressees => {
 	const named: string[] = []
+	const unresolved: string[] = []
 	for (const [, botId] of text.matchAll(MENTION_TOKEN)) {
-		if (present.includes(botId) && !named.includes(botId)) {
-			named.push(botId)
+		const shelf = present.includes(botId) ? named : unresolved
+		if (!shelf.includes(botId)) {
+			shelf.push(botId)
 		}
 	}
-	return named
+	return { named, unresolved }
 }
 
 export const mentionQueryIn = (prompt: string): string | null => {

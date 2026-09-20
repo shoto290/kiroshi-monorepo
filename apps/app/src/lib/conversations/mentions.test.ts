@@ -72,15 +72,28 @@ describe("addresseesIn", () => {
 	it("names the companions in the order they are named, once each", () => {
 		expect(
 			addresseesIn("<@nyx> and <@ada> and <@nyx>", ["ada", "nyx"]),
-		).toEqual(["nyx", "ada"])
+		).toEqual({ named: ["nyx", "ada"], unresolved: [] })
 	})
 
-	it("drops a token pointing at a companion that is not present", () => {
-		expect(addresseesIn("<@ghost> <@ada>", ["ada"])).toEqual(["ada"])
+	it("reports as unresolved a token pointing at a companion that is not present", () => {
+		expect(addresseesIn("<@ghost> <@ada>", ["ada"])).toEqual({
+			named: ["ada"],
+			unresolved: ["ghost"],
+		})
+	})
+
+	it("reports an unresolved token once however often it is written", () => {
+		expect(addresseesIn("<@ghost> then <@ghost>", ["ada"])).toEqual({
+			named: [],
+			unresolved: ["ghost"],
+		})
 	})
 
 	it("names nobody when no token is written", () => {
-		expect(addresseesIn("and now?", ["ada"])).toEqual([])
+		expect(addresseesIn("and now?", ["ada"])).toEqual({
+			named: [],
+			unresolved: [],
+		})
 	})
 })
 

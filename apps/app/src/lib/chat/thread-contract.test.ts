@@ -79,6 +79,7 @@ const conversationState = (
 	pendingPrompt,
 	latestError: null,
 	reportedCauses: new Map(),
+	unresolvedMentions: [],
 })
 
 const botController = {} as ChatController

@@ -87,6 +87,11 @@ export type RefusedMessage = {
 	repliedToMessageId: string | null
 }
 
+export type UnresolvedMention = {
+	botId: string
+	name: string | null
+}
+
 export type PendingPrompt =
 	| { kind: "question"; botId: string; request: QuestionRequest }
 	| { kind: "permission"; botId: string; request: PermissionRequest }
@@ -112,6 +117,7 @@ export type ConversationState = {
 	pendingPrompt: PendingPrompt | null
 	latestError: ChatError | null
 	reportedCauses: ReportedRunsByTurnId
+	unresolvedMentions: UnresolvedMention[]
 }
 
 export type ConversationController = {
@@ -133,6 +139,7 @@ export type ConversationController = {
 	unpin: (messageId: string, blockIndex: number) => Promise<void>
 	pins: () => Promise<MessagePin[]>
 	dismissError: (id: string) => void
+	dismissUnresolvedMentions: () => void
 	answer: (id: string, answers: QuestionAnswers) => Promise<void>
 	respond: (id: string, decision: PermissionDecision) => Promise<void>
 	stop: () => Promise<void>
@@ -165,6 +172,12 @@ type SentPrompt = {
 	answered: TranscriptMessage | null
 }
 
+type HandedMention = {
+	fromBotId: string
+	botId: string
+	promptId: string
+}
+
 type Speaker = {
 	botId: string
 	promptId: string
@@ -188,6 +201,12 @@ const NO_ARRIVALS: CompanionArrival[] = []
 const NO_PINS: MessagePin[] = []
 
 const NO_SPEAKERS: SpeakingBot[] = []
+
+const NO_UNRESOLVED_MENTIONS: UnresolvedMention[] = []
+
+const NO_HANDED_MENTIONS: HandedMention[] = []
+
+const NO_ARRIVED_BOT_IDS: string[] = []
 
 const isSameWork = (left: WorkingState | null, right: WorkingState | null) =>
 	left?.kind === right?.kind &&
@@ -219,7 +238,8 @@ const isSameState = (left: ConversationState, right: ConversationState) =>
 	left.refusedMessage === right.refusedMessage &&
 	left.pendingPrompt === right.pendingPrompt &&
 	left.latestError === right.latestError &&
-	left.reportedCauses === right.reportedCauses
+	left.reportedCauses === right.reportedCauses &&
+	left.unresolvedMentions === right.unresolvedMentions
 
 const promptWork = (pending: PendingPrompt): WorkingState => ({
 	kind: "waiting",
@@ -251,6 +271,7 @@ const initialState: ConversationState = {
 	pendingPrompt: null,
 	latestError: null,
 	reportedCauses: NO_REPORTED_RUNS,
+	unresolvedMentions: NO_UNRESOLVED_MENTIONS,
 }
 
 export const createConversationController = (
@@ -278,6 +299,8 @@ export const createConversationController = (
 	let refused: RefusedMessage | null = null
 	let reportedCauses: ReportedRunsByTurnId = NO_REPORTED_RUNS
 	let latestError: ChatError | null = null
+	let arrivedBotIds: string[] = NO_ARRIVED_BOT_IDS
+	let unresolvedMentions: UnresolvedMention[] = NO_UNRESOLVED_MENTIONS
 	let errorCount = 0
 	let detach: Promise<() => void> | null = null
 	let stopArrivals: Promise<() => void> | null = null
@@ -365,6 +388,7 @@ export const createConversationController = (
 			pendingPrompt: oldestPrompt(),
 			latestError,
 			reportedCauses,
+			unresolvedMentions,
 		})
 	}
 
@@ -380,7 +404,9 @@ export const createConversationController = (
 	const participants = () =>
 		conversation ? presentParticipants(conversation) : []
 
-	const presentBotIds = () => participants().map(({ botId }) => botId)
+	const presentBotIds = () => [
+		...new Set([...participants().map(({ botId }) => botId), ...arrivedBotIds]),
+	]
 
 	const mentionBots = () =>
 		participants().map(({ botId, name }) => ({ id: botId, name }))
@@ -515,17 +541,80 @@ export const createConversationController = (
 		write(() => store.completeTurn(turn.id, now()))
 	}
 
-	const noteHandovers = (held: Speaker) => {
+	const readSeating = async (conversationId: string) => {
+		try {
+			return await readConversation(store, conversationId)
+		} catch (reason) {
+			noteFailure(toReadError(reason))
+			return null
+		}
+	}
+
+	const nameSeatedIn = (seated: Conversation | null, botId: string) =>
+		seated?.participants.find((participant) => participant.botId === botId)
+			?.name ?? null
+
+	const rememberUnresolved = (missed: UnresolvedMention[]) => {
+		const held = new Map(
+			[...unresolvedMentions, ...missed].map((mention) => [
+				mention.botId,
+				mention,
+			]),
+		)
+		if (held.size === unresolvedMentions.length) {
+			return
+		}
+		unresolvedMentions = [...held.values()]
+	}
+
+	const resolveFromStore = async (handed: HandedMention[]) => {
+		const conversationId = conversation?.id
+		if (!conversationId) {
+			return
+		}
+		const seated = await readSeating(conversationId)
+		if (conversation?.id !== conversationId) {
+			return
+		}
+		const present = seated
+			? presentParticipants(seated).map(({ botId }) => botId)
+			: []
+		const missed: UnresolvedMention[] = []
+		for (const { fromBotId, botId, promptId } of handed) {
+			if (present.includes(botId)) {
+				queue = handedOver(queue, fromBotId, { botId, promptId })
+				continue
+			}
+			missed.push({ botId, name: nameSeatedIn(seated, botId) })
+		}
+		rememberUnresolved(missed)
+	}
+
+	const noteHandovers = (held: Speaker): HandedMention[] => {
 		const present = presentBotIds()
+		const handed: HandedMention[] = []
 		for (const [promptId, text] of held.written) {
-			for (const botId of addresseesIn(text, present)) {
+			const { named, unresolved } = addresseesIn(text, present)
+			for (const botId of named) {
 				queue = handedOver(queue, held.botId, { botId, promptId })
 			}
+			for (const botId of unresolved) {
+				handed.push({ fromBotId: held.botId, botId, promptId })
+			}
 		}
+		return handed
 	}
 
 	const isTurnRunning = (turn: OpenTurn) =>
 		[...speakers.values()].some((held) => held.turn === turn)
+
+	const closeTurnOf = (held: Speaker) => {
+		if (held.turn !== activeTurn && !isTurnRunning(held.turn)) {
+			completeTurn(held.turn)
+		}
+		sync()
+		drive()
+	}
 
 	const closeSpeaker = (held: Speaker, completion: TerminalCompletion) => {
 		if (speakers.get(held.botId) !== held) {
@@ -534,14 +623,12 @@ export const createConversationController = (
 		speakers.delete(held.botId)
 		settleOpenReplies(held, completion)
 		void shutdownSpeaker(held)
-		if (!held.isDropped) {
-			noteHandovers(held)
+		const handed = held.isDropped ? NO_HANDED_MENTIONS : noteHandovers(held)
+		if (handed.length === 0) {
+			closeTurnOf(held)
+			return
 		}
-		if (held.turn !== activeTurn && !isTurnRunning(held.turn)) {
-			completeTurn(held.turn)
-		}
-		sync()
-		drive()
+		void resolveFromStore(handed).then(() => closeTurnOf(held))
 	}
 
 	const failSpeaker = (held: Speaker, error: TransportError) => {
@@ -636,10 +723,19 @@ export const createConversationController = (
 		apply(held, event)
 	}
 
-	const announce = (arrival: CompanionArrival) => {
-		if (arrival.conversationId === conversation?.id) {
-			transcript.announce(arrival)
+	const seatArrival = (botId: string) => {
+		if (arrivedBotIds.includes(botId)) {
+			return
 		}
+		arrivedBotIds = [...arrivedBotIds, botId]
+	}
+
+	const announce = (arrival: CompanionArrival) => {
+		if (arrival.conversationId !== conversation?.id) {
+			return
+		}
+		seatArrival(arrival.botId)
+		transcript.announce(arrival)
 	}
 
 	const disconnect = () => {
@@ -811,7 +907,7 @@ export const createConversationController = (
 		answered: TranscriptMessage | null,
 	): Summons[] => {
 		const present = presentBotIds()
-		const named = addresseesIn(said.content, present)
+		const { named } = addresseesIn(said.content, present)
 		const author = answered?.authorBotId
 		const addressed =
 			author && present.includes(author)
@@ -959,12 +1055,27 @@ export const createConversationController = (
 		if (!author) {
 			return
 		}
-		const summoned = addresseesIn(reported.content, presentBotIds())
-		if (summoned.length === 0 || !(await openReportTurn(reported))) {
+		const { named, unresolved } = addresseesIn(
+			reported.content,
+			presentBotIds(),
+		)
+		if (named.length + unresolved.length === 0) {
 			return
 		}
-		for (const botId of summoned) {
+		if (!(await openReportTurn(reported))) {
+			return
+		}
+		for (const botId of named) {
 			queue = handedOver(queue, author, { botId, promptId: reported.id })
+		}
+		if (unresolved.length > 0) {
+			await resolveFromStore(
+				unresolved.map((botId) => ({
+					fromBotId: author,
+					botId,
+					promptId: reported.id,
+				})),
+			)
 		}
 		sync()
 		drive()
@@ -1136,6 +1247,8 @@ export const createConversationController = (
 		activeTurn = null
 		refused = null
 		reportedCauses = NO_REPORTED_RUNS
+		arrivedBotIds = NO_ARRIVED_BOT_IDS
+		unresolvedMentions = NO_UNRESOLVED_MENTIONS
 		forgetFailure()
 		sync()
 		await Promise.all([
@@ -1162,6 +1275,14 @@ export const createConversationController = (
 			return
 		}
 		forgetFailure()
+		sync()
+	}
+
+	const dismissUnresolvedMentions = () => {
+		if (unresolvedMentions.length === 0) {
+			return
+		}
+		unresolvedMentions = NO_UNRESOLVED_MENTIONS
 		sync()
 	}
 
@@ -1279,6 +1400,7 @@ export const createConversationController = (
 		unpin,
 		pins,
 		dismissError,
+		dismissUnresolvedMentions,
 		answer,
 		respond,
 		stop,
