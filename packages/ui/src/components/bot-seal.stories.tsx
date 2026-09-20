@@ -99,7 +99,7 @@ export const Seeds = meta.story({
 		docs: {
 			description: {
 				story:
-					"Twenty identities at chip size and at hero size, the two slots a seal has to survive. Reach for this after touching the generator: check that no two marks read as the same solid, that each one stays inside its box, and that the 40px row still holds a one pixel line instead of thinning to a hairline. The path data is authored in viewBox units, so a chip and its hero are the same string — the play asserts exactly that, and that the twenty differ from each other.",
+					"Twenty identities at chip size and at hero size, the two slots a seal has to survive. An edge is drawn only when one of the two faces meeting on it turns toward the reader, so the mark reads as a solid rather than a wireframe tangle. Reach for this after touching the generator: check that no two marks read as the same solid, that none of them shows an edge that should sit behind the body, that each one stays inside its box, and that the 40px row still holds a one pixel line instead of thinning to a hairline. The path data is authored in viewBox units, so a chip and its hero are the same string — the play asserts exactly that, and that the twenty differ from each other.",
 			},
 		},
 	},
@@ -135,7 +135,7 @@ export const States = meta.story({
 		docs: {
 			description: {
 				story:
-					"One identity through the seven states it can report, plus the mark it wears while nothing runs, each state at the chip size next to the hero size so a state that reads at 200px but smears at 40px is caught here. Four of them move — thinking turns the solid, searching sweeps the cut across it, working pumps the extrusion, writing extrudes the arms in order — and this story shows the frame each one holds under reduced motion. The three that never move are the ones to judge here: waiting drops the companion colour for the attention token, blocked snaps one arm off its axis, done flattens the solid onto a single glyph.",
+					"One identity through the seven states it can report, plus the mark it wears while nothing runs, each state at the chip size next to the hero size so a state that reads at 200px but smears at 40px is caught here. Four of them move, and each moves in beats rather than at a constant rate: a short wind up, an eased move that carries past its mark and settles, then a hold before the next beat. Thinking turns the solid by one arm sector at a time, searching carries the cut across it in one eased pass and holds it clear, working compresses the extrusion before overshooting it, writing extrudes one arm at a time and holds the solid out before it retracts. This story shows the frame each one holds under reduced motion. The three that never move are the ones to judge here: waiting drops the companion colour for the attention token, blocked snaps one arm off its axis, done flattens the solid onto a single glyph.",
 			},
 		},
 	},

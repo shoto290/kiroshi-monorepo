@@ -25,7 +25,12 @@ const samplesEvery = (step: number) =>
 const CYCLE_SAMPLES = samplesEvery(CYCLE_STEP)
 const COARSE_SAMPLES = samplesEvery(COARSE_STEP)
 const BOUNDS_STEP_LIMIT = 10
-const LIT_STEP_LIMIT = 0.5
+const CUT_STEP_LIMIT = 12
+const RATE_SPREAD_LIMIT = 1.5
+const MOVING_SHARE = 0.02
+const SLOWEST_SHARE = 0.1
+const MEASURABLE_PEAK = 1
+const HIDDEN_EDGES = 2
 const ANIMATED_STATES = BOT_SEAL_STATES.filter(isSealAnimated)
 
 const pathOf = (seed: string, state?: BotSealState, elapsed = 0) => {
@@ -56,13 +61,54 @@ const spanOf = (path: string) => {
 	}
 }
 
+const strokesIn = (path: string) => path.split("M").filter(Boolean)
+
+const edgesIn = (lit: string, dim: string) => {
+	const strokes = [...strokesIn(lit), ...strokesIn(dim)]
+	const cutY = boundsOf(lit)[3]
+	const halved = strokes.filter((stroke) => {
+		const [, from, , to] = coordinatesOf(stroke)
+		return from === cutY || to === cutY
+	}).length
+	return strokes.length - halved / 2
+}
+
+const edgeTotalOf = ({ stacks }: SealSolid) =>
+	stacks.reduce(
+		(total, { profile, levels }) =>
+			total + profile.length * (2 * levels.length - 1),
+		0,
+	)
+
 const sampleOf = (solid: SealSolid, state: BotSealState, elapsed: number) => {
 	const { lit, dim } = sealFrame({ solid, state, elapsed })
+	const bounds = boundsOf(`${lit}${dim}`)
 	return {
-		bounds: boundsOf(`${lit}${dim}`),
-		litStrokes: lit.split("M").length - 1,
-		strokes: `${lit}${dim}`.split("M").length - 1,
+		bounds,
+		cut: lit === "" ? bounds[1] : boundsOf(lit)[3],
+		edges: edgesIn(lit, dim),
+		strokes: strokesIn(`${lit}${dim}`).length,
 	}
+}
+
+const stepsOf = (solid: SealSolid, state: BotSealState) => {
+	const frames = CYCLE_SAMPLES.map((elapsed) => sampleOf(solid, state, elapsed))
+	return frames.slice(1).map((current, at) => ({
+		bounds: boundsShift(frames[at].bounds, current.bounds),
+		cut: Math.abs(frames[at].cut - current.cut),
+	}))
+}
+
+const rateSpreadOf = (solid: SealSolid, state: BotSealState) => {
+	const steps = stepsOf(solid, state).map(({ bounds, cut }) =>
+		Math.max(bounds, cut),
+	)
+	const peak = Math.max(...steps)
+	if (peak <= MEASURABLE_PEAK) return null
+	const moving = steps
+		.filter((step) => step > peak * MOVING_SHARE)
+		.sort((one, other) => one - other)
+	return peak / moving[Math.floor(moving.length * SLOWEST_SHARE)]
 }
 
 describe("sealSolid", () => {
@@ -125,20 +171,40 @@ describe("sealFrame", () => {
 	it("closes every animated cycle without a jump", () => {
 		const solid = sealSolid(CYCLE_SEEDS[0])
 		for (const state of ANIMATED_STATES) {
-			const frames = CYCLE_SAMPLES.map((elapsed) =>
-				sampleOf(solid, state, elapsed),
-			)
-			for (let at = 1; at < frames.length; at += 1) {
-				const previous = frames[at - 1]
-				const current = frames[at]
+			const steps = stepsOf(solid, state)
 
-				expect(boundsShift(previous.bounds, current.bounds)).toBeLessThan(
-					BOUNDS_STEP_LIMIT,
-				)
-				expect(Math.abs(current.litStrokes - previous.litStrokes)).toBeLessThan(
-					current.strokes * LIT_STEP_LIMIT,
-				)
+			expect(Math.max(...steps.map(({ bounds }) => bounds))).toBeLessThan(
+				BOUNDS_STEP_LIMIT,
+			)
+			expect(Math.max(...steps.map(({ cut }) => cut))).toBeLessThan(
+				CUT_STEP_LIMIT,
+			)
+		}
+	})
+
+	it("advances no animated value at a constant rate", () => {
+		for (const state of ANIMATED_STATES) {
+			const spreads = CYCLE_SEEDS.map((seed) =>
+				rateSpreadOf(sealSolid(seed), state),
+			).filter((spread): spread is number => spread !== null)
+
+			expect(spreads.length).toBeGreaterThan(0)
+			for (const spread of spreads) {
+				expect(spread).toBeGreaterThan(RATE_SPREAD_LIMIT)
 			}
+		}
+	})
+
+	it("hides the far edges of a turning solid", () => {
+		for (const seed of SEEDS) {
+			const solid = sealSolid(seed)
+			const turning = COARSE_SAMPLES.map(
+				(elapsed) => sampleOf(solid, "thinking", elapsed).edges,
+			)
+
+			expect(Math.min(...turning)).toBeLessThan(
+				edgeTotalOf(solid) - HIDDEN_EDGES,
+			)
 		}
 	})
 
