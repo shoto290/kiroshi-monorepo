@@ -1,0 +1,198 @@
+name: OPE-301 bun windows boot probe
+
+on:
+  push:
+    branches:
+      - feature/ope-301-prove-which-bun-version-boots-a-compiled-standalone-on
+  workflow_dispatch:
+
+permissions:
+  contents: read
+
+jobs:
+  probe:
+    runs-on: windows-latest
+    timeout-minutes: 45
+    strategy:
+      fail-fast: false
+      matrix:
+        bun: ["1.3.13", "1.3.14", "1.4.0", "1.4.1", "1.4.2"]
+    env:
+      OPE301_BUN_VERSION: ${{ matrix.bun }}
+    steps:
+      - name: Runner OS build and update revision
+        shell: pwsh
+        run: |
+          $ErrorActionPreference = 'Continue'
+          $current = Get-ItemProperty -LiteralPath 'HKLM:\SOFTWARE\Microsoft\Windows NT\CurrentVersion'
+          $build = "$($current.CurrentBuild).$($current.UBR)"
+          Write-Host "OPE301|os-build=$($current.CurrentBuild)|update-revision=$($current.UBR)|product=$($current.ProductName)|display=$($current.DisplayVersion)"
+          Add-Content -LiteralPath $env:GITHUB_ENV -Value "OPE301_OS_BUILD=$build"
+          exit 0
+
+      - uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1
+
+      - uses: oven-sh/setup-bun@0c5077e51419868618aeaa5fe8019c62421857d6 # v2.2.0
+        with:
+          bun-version: ${{ matrix.bun }}
+
+      - name: Write the probe helper
+        shell: pwsh
+        run: |
+          $helper = @'
+          $ErrorActionPreference = 'Continue'
+          $PSNativeCommandUseErrorActionPreference = $false
+
+          $ProbeReport = Join-Path $env:RUNNER_TEMP 'ope301-report.txt'
+          $ProbeHeadLines = 40
+
+          function Get-ProbeHead {
+          	param([string]$Path)
+          	if (-not (Test-Path -LiteralPath $Path)) { return @() }
+          	return @(Get-Content -LiteralPath $Path -TotalCount $ProbeHeadLines)
+          }
+
+          function Read-ProbeStream {
+          	param($Task)
+          	if ($Task.IsCompletedSuccessfully) { return $Task.Result }
+          	return "<stream unavailable: $($Task.Status)>"
+          }
+
+          function Write-ProbeOutcome {
+          	param(
+          		[Parameter(Mandatory = $true)][string]$Shape,
+          		[Parameter(Mandatory = $true)][string]$Outcome,
+          		[string]$ExitCode = 'none',
+          		[string]$StdoutPath = '',
+          		[string]$StderrPath = '',
+          		[string]$Expected = '',
+          		[string]$Detail = ''
+          	)
+          	$stdout = if ($StdoutPath) { Get-ProbeHead -Path $StdoutPath } else { @() }
+          	$stderr = if ($StderrPath) { Get-ProbeHead -Path $StderrPath } else { @() }
+          	$streams = ($stdout + $stderr) -join "`n"
+          	$panic = if ($streams -match 'panic|Bun has crashed|segmentation fault') { 'yes' } else { 'no' }
+          	$seen = if ($Expected) { if (($stdout -join "`n").Contains($Expected)) { 'yes' } else { 'no' } } else { 'n/a' }
+          	$row = "OPE301|version=$env:OPE301_BUN_VERSION|os-build=$env:OPE301_OS_BUILD|step=$Shape|outcome=$Outcome|exit=$ExitCode|expected=$seen|panic=$panic|detail=$Detail"
+          	Add-Content -LiteralPath $ProbeReport -Value $row
+          	Write-Host $row
+          	Write-Host "--- $Shape stdout, first $ProbeHeadLines lines ---"
+          	foreach ($line in $stdout) { Write-Host $line }
+          	Write-Host "--- $Shape stderr, first $ProbeHeadLines lines ---"
+          	foreach ($line in $stderr) { Write-Host $line }
+          }
+
+          function Start-Probe {
+          	param(
+          		[Parameter(Mandatory = $true)][string]$Shape,
+          		[Parameter(Mandatory = $true)][string]$FilePath,
+          		[string[]]$ProbeArguments = @(),
+          		[string]$WorkingDirectory = (Get-Location).Path,
+          		[string]$Expected = '',
+          		[int]$TimeoutSeconds = 120,
+          		[switch]$RedirectInput,
+          		[switch]$CloseInput,
+          		[switch]$NoWindow
+          	)
+          	$stdoutPath = Join-Path $env:RUNNER_TEMP "$Shape.out.txt"
+          	$stderrPath = Join-Path $env:RUNNER_TEMP "$Shape.err.txt"
+          	$info = [System.Diagnostics.ProcessStartInfo]::new()
+          	$info.FileName = $FilePath
+          	foreach ($argument in $ProbeArguments) { $info.ArgumentList.Add($argument) }
+          	$info.WorkingDirectory = $WorkingDirectory
+          	$info.UseShellExecute = $false
+          	$info.CreateNoWindow = [bool]$NoWindow
+          	$info.RedirectStandardOutput = $true
+          	$info.RedirectStandardError = $true
+          	$info.RedirectStandardInput = [bool]$RedirectInput
+          	try {
+          		$process = [System.Diagnostics.Process]::Start($info)
+          	} catch {
+          		Write-ProbeOutcome -Shape $Shape -Outcome 'start-failed' -Expected $Expected -Detail $_.Exception.Message
+          		return 'start-failed'
+          	}
+          	if ($RedirectInput -and $CloseInput) { $process.StandardInput.Close() }
+          	$stdoutTask = $process.StandardOutput.ReadToEndAsync()
+          	$stderrTask = $process.StandardError.ReadToEndAsync()
+          	$exited = $process.WaitForExit($TimeoutSeconds * 1000)
+          	if (-not $exited) {
+          		$process.Kill($true)
+          		[void]$process.WaitForExit(5000)
+          	}
+          	[void][System.Threading.Tasks.Task]::WaitAll([System.Threading.Tasks.Task[]]@($stdoutTask, $stderrTask), 10000)
+          	Set-Content -LiteralPath $stdoutPath -Value (Read-ProbeStream -Task $stdoutTask)
+          	Set-Content -LiteralPath $stderrPath -Value (Read-ProbeStream -Task $stderrTask)
+          	$outcome = if (-not $exited) { 'timeout' } elseif ($process.ExitCode -eq 0) { 'exit-zero' } else { 'exit-nonzero' }
+          	Write-ProbeOutcome -Shape $Shape -Outcome $outcome -ExitCode "$($process.ExitCode)" -StdoutPath $stdoutPath -StderrPath $stderrPath -Expected $Expected
+          	return $outcome
+          }
+          '@
+          Set-Content -LiteralPath (Join-Path $env:RUNNER_TEMP 'ope301-probe.ps1') -Value $helper
+          exit 0
+
+      - name: Compile the standalone probe
+        shell: pwsh
+        run: |
+          . "$env:RUNNER_TEMP\ope301-probe.ps1"
+          Write-Host "OPE301|version=$env:OPE301_BUN_VERSION|installed-bun=$(bun --version)"
+          $source = Join-Path $env:RUNNER_TEMP 'ope301.ts'
+          Set-Content -LiteralPath $source -Value 'console.log("ope301-booted")'
+          $outfile = Join-Path $env:RUNNER_TEMP 'ope301.exe'
+          $null = Start-Probe -Shape 'compile' -FilePath (Get-Command bun).Source -ProbeArguments @('build', '--compile', $source, '--outfile', $outfile) -WorkingDirectory $env:RUNNER_TEMP
+          exit 0
+
+      - name: Shape one, the standalone run as a step of the job
+        shell: pwsh
+        run: |
+          . "$env:RUNNER_TEMP\ope301-probe.ps1"
+          $null = Start-Probe -Shape 'shape1' -FilePath (Join-Path $env:RUNNER_TEMP 'ope301.exe') -Expected 'ope301-booted'
+          exit 0
+
+      - name: Shape two, ProcessStartInfo with no window and three pipes
+        shell: pwsh
+        run: |
+          . "$env:RUNNER_TEMP\ope301-probe.ps1"
+          $null = Start-Probe -Shape 'shape2' -FilePath (Join-Path $env:RUNNER_TEMP 'ope301.exe') -Expected 'ope301-booted' -RedirectInput -NoWindow
+          exit 0
+
+      - name: Shape three, the repo sidecar with --serve and stdin closed
+        shell: pwsh
+        run: |
+          . "$env:RUNNER_TEMP\ope301-probe.ps1"
+          $bun = (Get-Command bun).Source
+          $root = $env:GITHUB_WORKSPACE
+          $install = Start-Probe -Shape 'shape3-install' -FilePath $bun -ProbeArguments @('install', '--frozen-lockfile') -WorkingDirectory $root -TimeoutSeconds 600
+          if ($install -ne 'exit-zero') {
+            Write-ProbeOutcome -Shape 'shape3' -Outcome 'install-refused-lockfile' -Expected 'ready' -Detail "bun install --frozen-lockfile ended on $install"
+            exit 0
+          }
+          $build = Start-Probe -Shape 'shape3-build' -FilePath $bun -ProbeArguments @('run', '--filter', 'sidecar', 'build') -WorkingDirectory $root -TimeoutSeconds 600
+          if ($build -ne 'exit-zero') {
+            Write-ProbeOutcome -Shape 'shape3' -Outcome 'sidecar-build-failed' -Expected 'ready' -Detail "sidecar build ended on $build"
+            exit 0
+          }
+          $binaries = Join-Path $root 'apps\app\src-tauri\binaries'
+          $binary = Get-ChildItem -LiteralPath $binaries -Filter 'kiroshi-agent-*.exe' | Select-Object -First 1
+          if (-not $binary) {
+            Write-ProbeOutcome -Shape 'shape3' -Outcome 'sidecar-binary-missing' -Expected 'ready' -Detail "no kiroshi-agent-*.exe under $binaries"
+            exit 0
+          }
+          $null = Start-Probe -Shape 'shape3' -FilePath $binary.FullName -ProbeArguments @('--serve') -WorkingDirectory $root -Expected 'ready' -RedirectInput -CloseInput -NoWindow
+          exit 0
+
+      - name: Job outcome rows
+        if: always()
+        shell: pwsh
+        run: |
+          $ErrorActionPreference = 'Continue'
+          $report = Join-Path $env:RUNNER_TEMP 'ope301-report.txt'
+          $rows = if (Test-Path -LiteralPath $report) {
+            @(Get-Content -LiteralPath $report)
+          } else {
+            @("OPE301|version=$env:OPE301_BUN_VERSION|os-build=$env:OPE301_OS_BUILD|step=all|outcome=no-row-recorded")
+          }
+          foreach ($row in $rows) {
+            Write-Host $row
+            Add-Content -LiteralPath $env:GITHUB_STEP_SUMMARY -Value $row
+          }
+          exit 0
