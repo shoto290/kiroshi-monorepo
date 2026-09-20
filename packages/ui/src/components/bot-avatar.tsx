@@ -52,6 +52,16 @@ const BLOT_INK_STYLE = {
 	"--bot-avatar-ink": "var(--bot-blot-ink)",
 } as CSSProperties
 
+const PICTURE_RADIUS_RATIO = 0.25
+
+const MIN_PICTURE_RADIUS = 6
+
+const companionAvatarRadius = (size: number) =>
+	Math.max(MIN_PICTURE_RADIUS, size * PICTURE_RADIUS_RATIO)
+
+const marbleRadiusFor = (size: number) =>
+	round2((companionAvatarRadius(size) * VIEW_BOX) / size)
+
 type BotAvatarProps = {
 	animal?: BotAvatarAnimal
 	state?: BotAvatarState
@@ -100,6 +110,7 @@ function BotAvatar({
 	const headMaskId = `bot-avatar-head-mask-${id}`
 	const definition = ANIMALS[animal]
 	const weight = inkWeight({ ink, size })
+	const marbleRadius = marbleRadiusFor(size)
 	const boil = round2((BOIL_DISPLACEMENT * INK_WEIGHTS[ink]) / weight)
 	const prefersReducedMotion = usePrefersReducedMotion()
 	const isAnimated = animated && !prefersReducedMotion
@@ -130,15 +141,16 @@ function BotAvatar({
 		() => (
 			<BotAvatarBody
 				animal={animal}
-				blotFill={blot ? blotTint(blot) : undefined}
 				boil={boil}
 				clipId={clipId}
 				definition={definition}
 				filterId={filterId}
 				headMaskId={headMaskId}
 				headPathId={headPathId}
+				marbleRadius={marbleRadius}
 				seed={seed}
 				splitId={splitId}
+				tint={blot ? blotTint(blot) : undefined}
 				weight={weight}
 				wireframe={wireframe}
 			/>
@@ -152,6 +164,7 @@ function BotAvatar({
 			filterId,
 			headMaskId,
 			headPathId,
+			marbleRadius,
 			seed,
 			splitId,
 			weight,
@@ -190,4 +203,5 @@ export {
 	type BotAvatarOrientation,
 	type BotAvatarProps,
 	blotTint,
+	companionAvatarRadius,
 }

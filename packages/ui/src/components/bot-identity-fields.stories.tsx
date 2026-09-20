@@ -4,20 +4,35 @@ import { expect, fn } from "storybook/test"
 import preview from "@workspace/storybook/preview"
 import {
 	botIdentityAvatars,
+	marbleOf,
+	marblesIn,
 	pictureOf,
 	slotsIn,
 	UPLOADED_AVATAR_IMAGE,
 } from "@workspace/storybook/story-utils"
-import { blotTransform } from "@workspace/ui/components/bot-avatar-blot"
+import {
+	marbleLayers,
+	marbleTransform,
+} from "@workspace/ui/components/bot-avatar-marble"
 import {
 	BotIdentityFields,
 	type BotIdentityFieldsProps,
 } from "@workspace/ui/components/bot-identity-fields"
-import type { BotIdentity } from "@workspace/ui/components/bot-settings"
+import {
+	type BotIdentity,
+	nextSeed,
+} from "@workspace/ui/components/bot-settings"
 
 const BOT_ID = "bot-7"
 
 const IDENTITY: BotIdentity = { animal: "owl", blot: "blue" }
+
+const SEEDED_GEOMETRY = marbleLayers(BOT_ID).slice(1).map(marbleTransform)
+
+const marbleGeometryOf = (marble: Element) =>
+	Array.from(marble.querySelectorAll("path")).map((path) =>
+		path.getAttribute("transform"),
+	)
 
 const FieldsHost = (props: BotIdentityFieldsProps) => {
 	const [identity, setIdentity] = useState(props.identity)
@@ -166,9 +181,7 @@ export const TakesTheBlotOff = meta.story({
 			animal: "owl",
 			blot: undefined,
 		})
-		await expect(
-			slotsIn(previewAvatar(canvasElement), "bot-avatar-blot"),
-		).toHaveLength(0)
+		await expect(marblesIn(previewAvatar(canvasElement))).toHaveLength(0)
 	},
 })
 
@@ -254,18 +267,16 @@ export const Seeded = meta.story({
 		docs: {
 			description: {
 				story:
-					"The blot's shape comes from the companion's id and from nothing else, so every blot in the block — the preview's and all sixteen thumbnails' — wears the one shape this companion has always worn. Put it beside a block with no seed: the tints are the same and only the shape has turned.",
+					"The marble comes from the companion's id and from nothing else, so every marble in the block — the preview's and all sixteen thumbnails' — is the one this companion has always worn, at three shades of whatever tint is in play. Put it beside a block with no seed: the tints are the same and only the veins have moved.",
 			},
 		},
 	},
 	play: async ({ canvasElement }) => {
-		const shapes = slotsIn(canvasElement, "bot-avatar-blot")
+		const marbles = marblesIn(canvasElement).map(marbleGeometryOf)
 
-		await expect(shapes.length).toBeGreaterThan(0)
-		for (const shape of shapes) {
-			await expect(
-				shape.getAttribute("transform")?.endsWith(blotTransform(BOT_ID)),
-			).toBe(true)
+		await expect(marbles.length).toBeGreaterThan(0)
+		for (const marble of marbles) {
+			await expect(marble).toEqual(SEEDED_GEOMETRY)
 		}
 	},
 })
@@ -321,5 +332,50 @@ export const DroppedAndPasted = meta.story({
 			new ClipboardEvent("paste", { bubbles: true, clipboardData: clipboard }),
 		)
 		await expect(args.onAvatarUpload).toHaveBeenCalledWith(pasted)
+	},
+})
+
+export const Shuffles = meta.story({
+	parameters: {
+		docs: {
+			description: {
+				story:
+					"The one control that changes the marble. The tint grid says which colour a companion is; nothing in it says where the veins fall, so the reader who does not like the marble it was minted with needs a way out that is not renaming the companion. Pressing it mints a new seed and hands it back on the identity, so the host stores the marble rather than re-deriving it from the id and the choice survives a restart. The animal, the tint and the picture come back untouched — a shuffle is a background change, not a reset. Check that the preview redraws, that the sixteen thumbnails redraw with it, and that Tab reaches the button with a ring before the animal grid.",
+			},
+		},
+	},
+	play: async ({ args, canvas, canvasElement, userEvent }) => {
+		const before = marbleOf(previewAvatar(canvasElement))
+
+		await userEvent.click(
+			canvas.getByRole("button", { name: "Shuffle the background" }),
+		)
+
+		await expect(args.onIdentityChange).toHaveBeenCalledWith({
+			...IDENTITY,
+			seed: nextSeed(BOT_ID),
+		})
+		await expect(marbleOf(previewAvatar(canvasElement))).not.toBe(before)
+	},
+})
+
+export const ShuffleTakesFocus = meta.story({
+	tags: ["test-only"],
+	parameters: {
+		docs: {
+			description: {
+				story:
+					"The shuffle button under the keyboard. It is a real button in the reading order between the preview line and the animal grid, it carries its name from the catalogue rather than from the glyph, and it shows a focus ring the moment it is tabbed to. Check that the ring is visible against the block's surface on both themes.",
+			},
+		},
+	},
+	play: async ({ canvas, userEvent }) => {
+		const shuffle = canvas.getByRole("button", {
+			name: "Shuffle the background",
+		})
+
+		await userEvent.tab()
+		await expect(shuffle).toHaveFocus()
+		await expect(shuffle).toHaveAttribute("data-slot", "bot-identity-shuffle")
 	},
 })

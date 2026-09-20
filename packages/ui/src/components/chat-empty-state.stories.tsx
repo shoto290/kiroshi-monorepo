@@ -74,7 +74,7 @@ export const WithoutBlot = meta.story({
 		const [avatar] = botIdentityAvatars(canvasElement)
 
 		await expect(
-			avatar.querySelector('[data-slot="bot-avatar-blot"]'),
+			avatar.querySelector('[data-slot="bot-avatar-marble"]'),
 		).toBeNull()
 	},
 })

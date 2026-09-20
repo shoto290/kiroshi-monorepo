@@ -32,7 +32,7 @@ type AvatarFrameProps = {
 	slot: string
 	size: number
 	image?: string
-	imageRadius?: number
+	radius?: number
 	overlay?: ReactNode
 	className?: string
 	children: ReactNode
@@ -42,7 +42,7 @@ const AvatarFrame = ({
 	slot,
 	size,
 	image,
-	imageRadius,
+	radius,
 	overlay,
 	className,
 	children,
@@ -50,19 +50,15 @@ const AvatarFrame = ({
 	<Avatar
 		className={cn(FRAME_CLASS, className)}
 		data-slot={slot}
-		style={{
-			width: size,
-			height: size,
-			borderRadius: image ? imageRadius : undefined,
-		}}
+		style={{ width: size, height: size, borderRadius: radius }}
 	>
 		{image ? (
 			<AvatarImage
 				alt=""
 				aria-hidden="true"
-				className={imageRadius === undefined ? UPLOADED_IMAGE_SHAPE : undefined}
+				className={radius === undefined ? UPLOADED_IMAGE_SHAPE : undefined}
 				src={image}
-				style={{ borderRadius: imageRadius }}
+				style={{ borderRadius: radius }}
 			/>
 		) : (
 			<AvatarFallback className="bg-transparent text-inherit">

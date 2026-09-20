@@ -2,7 +2,7 @@ import type { ComponentProps, ReactNode } from "react"
 import { expect } from "storybook/test"
 
 import preview from "@workspace/storybook/preview"
-import { slotsIn } from "@workspace/storybook/story-utils"
+import { marbleOf, marblesIn } from "@workspace/storybook/story-utils"
 import { BLOT_TINTS, BotAvatar } from "@workspace/ui/components/bot-avatar"
 import {
 	ANIMALS,
@@ -14,11 +14,12 @@ import {
 	STATE_POOLS,
 } from "@workspace/ui/components/bot-avatar-data"
 import { GAZE_CADENCE } from "@workspace/ui/components/bot-avatar-gaze"
+import { MARBLE_SHADE_COUNT } from "@workspace/ui/components/bot-avatar-marble"
 
 const BOT_AVATAR_ANIMALS = Object.keys(ANIMALS) as BotAvatarAnimal[]
 const BOT_AVATAR_STATES = Object.keys(STATE_POOLS) as BotAvatarState[]
 const HERO_SIZE = 240
-const BLOT_SEEDS = [
+const MARBLE_SEEDS = [
 	"bot-1",
 	"bot-2",
 	"bot-7",
@@ -27,6 +28,13 @@ const BLOT_SEEDS = [
 	"bot-6",
 	"bot-3",
 	"bot-4",
+]
+
+const TWICE_DRAWN_LABEL = "bot-1 again"
+
+const MARBLE_CELLS = [
+	...MARBLE_SEEDS.map((seed) => ({ label: seed, seed })),
+	{ label: TWICE_DRAWN_LABEL, seed: MARBLE_SEEDS[0] },
 ]
 const STRESS_COUNT = 60
 const TURN_ANIMALS: BotAvatarAnimal[] = ["rabbit", "cat", "owl"]
@@ -208,7 +216,7 @@ export const Blots = meta.story({
 		docs: {
 			description: {
 				story:
-					"The eight tints a companion can be marked with, drawn once behind the whole animal, plus the avatar with no blot at all. The names are the ones an agent file's `color` key reads, so a tint survives the round trip to a companion's bundle unchanged. Seven of the eight inks came through the renaming untouched — `purple` is the lavender it always was. `orange` is the one that was drawn again: it inherited a grey, and a reader picking Orange is owed an orange, here and in the agent display that reads the same word. It sits between `red` and `yellow` now. The blot sits outside the sketch filter, so it never boils with the line and never animates — the ink is what moves, the mark is what stays. All eight are light on purpose: the line is near-black and the ear accent is coral, and neither reads over anything darker. Reach for this when adding a tint, and check on both themes — the tints do not flip under `.dark`, so a companion's mark is the same colour wherever it is shown. The first cell is the markup the avatar renders without a blot and must be untouched by any of this. Pick `BlotShapes` for the shapes one tint is laid down in.",
+					"The eight tints a companion can be marked with, each one marbled into three shades of itself behind the whole animal, plus the avatar with no tint at all. The names are the ones an agent file's `color` key reads, so a tint survives the round trip to a companion's bundle unchanged. Seven of the eight inks came through the renaming untouched — `purple` is the lavender it always was. `orange` is the one that was drawn again: it inherited a grey, and a reader picking Orange is owed an orange, here and in the agent display that reads the same word. It sits between `red` and `yellow` now. The marble sits outside the sketch filter, so it never boils with the line and never animates — the ink is what moves, the mark is what stays. All eight are light on purpose: the line is near-black and the ear accent is coral, and neither reads over anything darker. Reach for this when adding a tint, and check on both themes — the tints do not flip under `.dark`, so a companion's mark is the same colour wherever it is shown. The first cell is the markup the avatar renders without a tint and must be untouched by any of this. Pick `MarbleShapes` for the marbles one tint is laid down in.",
 			},
 		},
 	},
@@ -226,20 +234,20 @@ export const Blots = meta.story({
 	),
 })
 
-export const BlotShapes = meta.story({
+export const MarbleShapes = meta.story({
 	tags: ["test-only"],
 	parameters: {
 		docs: {
 			description: {
 				story:
-					"Eight companions on one tint and one animal, told apart by nothing but their id. The blot is the one authored outline in all eight — the seed only decides which quarter turn it is laid down at and whether it is mirrored, so the silhouette a reader learns is never redrawn and never warped. These ids cover all eight poses, and the first is the pose the outline was authored in, which is what an avatar with no seed draws. Reach for this when the ink or the outline changes: check that every pose still fills the same square, that none of them clips the animal or the edge of the box, and that the tint is identical across the row. Pick `Blots` for the eight tints on one shape.",
+					"Eight companions on one tint and one animal, told apart by nothing but their id, plus a ninth cell that repeats the first id. The three shades are the same in all nine because the tint is the same; what the id decides is where each of the three veins sits, how far it turns and how far it scales. The last cell proves the derivation is a function of the id alone: it must be pixel-identical to the first. Reach for this when the ink or the shades change: check that every marble fills the same rounded square, that none of them swamps the animal, and that the three shades stay far enough apart to read as marble rather than as a flat field. Pick `Blots` for the eight tints on one marble.",
 			},
 		},
 	},
 	render: (args) => (
 		<div className="grid grid-cols-4 gap-6">
-			{BLOT_SEEDS.map((seed) => (
-				<LabeledCell key={seed} label={seed}>
+			{MARBLE_CELLS.map(({ label, seed }) => (
+				<LabeledCell key={label} label={label}>
 					<BotAvatar
 						{...args}
 						animated={false}
@@ -252,11 +260,21 @@ export const BlotShapes = meta.story({
 		</div>
 	),
 	play: async ({ canvasElement }) => {
-		const shapes = slotsIn(canvasElement, "bot-avatar-blot").map((blot) =>
-			blot.getAttribute("transform"),
-		)
+		const marbles = marblesIn(canvasElement).map(marbleOf)
+		const [first, ...rest] = marbles
+		const twiceDrawn = rest.pop()
 
-		await expect(new Set(shapes).size).toBe(BLOT_SEEDS.length)
+		await expect(new Set([first, ...rest]).size).toBe(MARBLE_SEEDS.length)
+		await expect(twiceDrawn).toBe(first)
+
+		const painted = Array.from(
+			marblesIn(canvasElement)[0].querySelectorAll("rect, path"),
+		).map((shape) => getComputedStyle(shape).fill)
+
+		await expect(new Set(painted).size).toBe(MARBLE_SHADE_COUNT)
+		for (const shade of painted) {
+			await expect(shade).not.toBe("rgb(0, 0, 0)")
+		}
 	},
 })
 

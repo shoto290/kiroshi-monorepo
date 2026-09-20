@@ -19,6 +19,7 @@ branding-botidentityavatar--default
 branding-botidentityavatar--every-badge
 branding-botidentityavatar--every-blot
 branding-botidentityavatar--every-size
+branding-botidentityavatar--marble-at-every-size
 branding-botidentityavatar--named-skippy
 branding-botidentityavatar--seeded
 branding-botidentityavatar--unseeded
@@ -29,11 +30,11 @@ branding-botidentityavatar--uploaded-working
 branding-botidentityavatar--waiting
 branding-botidentityavatar--working
 branding-companion-avatar--all-states
-branding-companion-avatar--blot-shapes
 branding-companion-avatar--blots
 branding-companion-avatar--chip-row
 branding-companion-avatar--glances
 branding-companion-avatar--head-turn
+branding-companion-avatar--marble-shapes
 branding-companion-avatar--playground
 branding-companion-avatar--sizes
 branding-companion-avatar--states
@@ -916,6 +917,8 @@ settings-bot-botidentityfields--picks-a-blot
 settings-bot-botidentityfields--picks-an-animal
 settings-bot-botidentityfields--removes-the-picture
 settings-bot-botidentityfields--seeded
+settings-bot-botidentityfields--shuffle-takes-focus
+settings-bot-botidentityfields--shuffles
 settings-bot-botidentityfields--takes-the-blot-off
 settings-bot-botidentityfields--with-picture
 settings-bot-botidentityfields--working

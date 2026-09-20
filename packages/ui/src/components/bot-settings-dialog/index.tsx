@@ -124,7 +124,7 @@ const BotSettingsDialog = ({
 					image={value.identity.image}
 					kind={workingKind}
 					name={botName}
-					seed={seed}
+					seed={value.identity.seed ?? seed}
 					size={32}
 					working={working}
 				/>

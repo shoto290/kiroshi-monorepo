@@ -9,6 +9,9 @@ import {
 	expectCompanionPictureSquare,
 	FRAME_POLL,
 	hasOverlayScrollbars,
+	marbleOf,
+	marbleShadesOf,
+	marblesIn,
 	mergeA11y,
 	pictureOf,
 	settled,
@@ -29,7 +32,6 @@ import {
 	type Space,
 	type UserChipIdentity,
 } from "@workspace/ui/components/app-sidebar"
-import { blotTransform } from "@workspace/ui/components/bot-avatar-blot"
 import type {
 	BotMissionState,
 	BotMissionTicket,
@@ -256,11 +258,12 @@ const IDENTITY_ROSTER: AppSidebarBot[] = IDENTITY_BLOTS.map((blot, index) => ({
 	status: "idle",
 }))
 
-const blotsIn = (canvasElement: HTMLElement) =>
-	slotsIn(canvasElement, "bot-avatar-blot")
+const tintTokenOf = (shade: string | null) => shade?.split(" ")[1]
 
-const blotFillsIn = (canvasElement: HTMLElement) =>
-	blotsIn(canvasElement).map((path) => path.getAttribute("fill"))
+const marbleTintsIn = (canvasElement: HTMLElement) =>
+	marblesIn(canvasElement).flatMap((marble) => [
+		...new Set(marbleShadesOf(marble).map(tintTokenOf)),
+	])
 
 const SHARED_TINT_ROSTER: AppSidebarBot[] = IDENTITY_ROSTER.map((bot) => ({
 	...bot,
@@ -1038,22 +1041,15 @@ export const SharedTint = meta.story({
 		docs: {
 			description: {
 				story:
-					"Eight companions that all picked the same tint. Before a shape was derived from the id they were stamped from one die and a reader had to read the names to tell the rows apart; now each id lays the one authored blot down at its own quarter turn, mirrored or not. The vocabulary is deliberately small — eight poses, and eight tints over them — so two rows can still land on the same mark, and a reader who wants them apart changes a tint. What matters is that a row never changes shape: rename the companion, give it another animal, give it another tint, and the mark it wears is the one it was minted with. Pick `Identities` for the eight tints on their own.",
+					"Eight companions that all picked the same tint. Before a marble was derived from the id they were stamped from one die and a reader had to read the names to tell the rows apart; now each id lays its own three veins down, each with its own offset, turn and scale, over three shades of the one tint. The vocabulary is finite — a long enough roster still lands two rows on the same marble, and a reader who wants them apart changes a tint. What matters is that a row never changes marble: rename the companion, give it another animal, give it another tint, and the background it wears is the one it was minted with. Pick `Identities` for the eight tints on their own.",
 			},
 		},
 	},
 	play: async ({ canvasElement }) => {
-		const shapes = blotsIn(canvasElement).map((path) =>
-			path.getAttribute("transform"),
-		)
+		const marbles = marblesIn(canvasElement).map(marbleOf)
 
-		await expect(shapes).toHaveLength(SHARED_TINT_ROSTER.length)
-		for (const [at, shape] of shapes.entries()) {
-			await expect(
-				shape?.endsWith(blotTransform(SHARED_TINT_ROSTER[at].id)),
-			).toBe(true)
-		}
-		await expect(uniqueCount(shapes)).toBeGreaterThan(1)
+		await expect(marbles).toHaveLength(SHARED_TINT_ROSTER.length)
+		await expect(uniqueCount(marbles)).toBe(SHARED_TINT_ROSTER.length)
 	},
 })
 
@@ -1075,7 +1071,7 @@ export const Identities = meta.story({
 		const rows = rowsIn(canvasElement)
 
 		await expect(rows).toHaveLength(IDENTITY_BLOTS.length)
-		await expect(blotFillsIn(canvasElement)).toEqual(
+		await expect(marbleTintsIn(canvasElement)).toEqual(
 			IDENTITY_BLOTS.map((blot) => `var(--bot-blot-${blot})`),
 		)
 		for (const row of rows) {
@@ -1156,7 +1152,7 @@ export const Working = meta.story({
 		await expect(
 			within(resting).getByRole("img", { name: /idle$/ }),
 		).toBeVisible()
-		await expect(blotFillsIn(resting)).toEqual(["var(--bot-blot-purple)"])
+		await expect(marbleTintsIn(resting)).toEqual(["var(--bot-blot-purple)"])
 		await expect(resting.querySelector('[data-slot="text-shimmer"]')).toBeNull()
 		await expect(colorOf(resting, "roster-row-preview")).toBe(muted)
 

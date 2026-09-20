@@ -5,13 +5,21 @@ import preview from "@workspace/storybook/preview"
 import {
 	botIdentityAvatars,
 	expectCompanionPictureSquare,
+	marbleOf,
+	marblesIn,
 	pictureOf,
 	Row,
 	slotsIn,
 	UPLOADED_AVATAR_IMAGE,
 } from "@workspace/storybook/story-utils"
-import { BLOT_TINTS } from "@workspace/ui/components/bot-avatar"
-import { blotTransform } from "@workspace/ui/components/bot-avatar-blot"
+import {
+	BLOT_TINTS,
+	companionAvatarRadius,
+} from "@workspace/ui/components/bot-avatar"
+import {
+	marbleLayers,
+	marbleTransform,
+} from "@workspace/ui/components/bot-avatar-marble"
 import { BOT_BADGES } from "@workspace/ui/components/bot-badge"
 import {
 	BotIdentityAvatar,
@@ -35,8 +43,14 @@ const DrawnPictureSlots = (props: BotIdentityAvatarProps) => (
 	</Row>
 )
 
-const blotShapeOf = (avatar: HTMLElement) =>
-	slotsIn(avatar, "bot-avatar-blot")[0]?.getAttribute("transform")
+const MARBLE_SIZES = [16, 24, 40, 96]
+
+const UNSEEDED_GEOMETRY = marbleLayers().slice(1).map(marbleTransform)
+
+const marbleGeometryOf = (avatar: HTMLElement) =>
+	Array.from(marblesIn(avatar)[0]?.querySelectorAll("path") ?? []).map((path) =>
+		path.getAttribute("transform"),
+	)
 
 const activityDotOf = (avatar: HTMLElement) =>
 	slotsIn(avatar, "bot-activity-dot")[0]
@@ -201,14 +215,11 @@ export const EveryBlot = meta.story({
 	play: async ({ canvasElement }) => {
 		const [none, ...tinted] = botIdentityAvatars(canvasElement)
 
-		await expect(none.querySelector('[data-slot="bot-avatar-blot"]')).toBeNull()
-		await expect(
-			tinted.map((avatar) =>
-				avatar
-					.querySelector('[data-slot="bot-avatar-blot"]')
-					?.getAttribute("fill"),
-			),
-		).toEqual(BLOT_TINTS.map((blot) => `var(--bot-blot-${blot})`))
+		await expect(marblesIn(none)).toHaveLength(0)
+		await expect(new Set(tinted.map(marbleOf)).size).toBe(BLOT_TINTS.length)
+		for (const avatar of tinted) {
+			await expect(marbleOf(avatar)).toContain("oklch(from var(--bot-blot-")
+		}
 	},
 })
 
@@ -506,14 +517,14 @@ export const Unseeded = meta.story({
 		docs: {
 			description: {
 				story:
-					"A companion drawn without an id — a preview, a story, anything with no companion behind it yet. It gets the blot exactly as it was authored, so nothing that existed before shapes did has moved. Put it beside `Default`, whose companion is seeded onto a half turn: the tint and the animal are the same and only the blot has turned. Pick `Branding/Companion Avatar → BlotShapes` for all eight poses at once.",
+					"A companion drawn without an id — a preview, a story, anything with no companion behind it yet. Its marble is the one an empty seed lands on, so a preview never draws a different background from one render to the next. Put it beside `Default`, whose companion is seeded: the tint and the animal are the same and only the marble has moved. Pick `Branding/Companion Avatar → MarbleShapes` for a roster of marbles at once.",
 			},
 		},
 	},
 	play: async ({ canvasElement }) => {
 		const [avatar] = botIdentityAvatars(canvasElement)
 
-		await expect(blotShapeOf(avatar)?.endsWith(blotTransform())).toBe(true)
+		await expect(marbleGeometryOf(avatar)).toEqual(UNSEEDED_GEOMETRY)
 	},
 })
 
@@ -524,17 +535,49 @@ export const Seeded = meta.story({
 		docs: {
 			description: {
 				story:
-					"What the id buys: press the button and the companion is renamed in every way a reader can rename it — a different animal, a different tint, and mid-run rather than at rest — and its blot holds the shape it has always had. The shape is derived from the id and from nothing else, and it is drawn outside the node the animation engine rewrites, so neither an edit nor a frame of movement can touch it. Check that the blot is perfectly still while the animal works.",
+					"What the id buys: press the button and the companion is renamed in every way a reader can rename it — a different animal, a different tint, and mid-run rather than at rest — and its marble holds the geometry it has always had. The geometry is derived from the id and from nothing else, and it is drawn outside the node the animation engine rewrites and outside the sketch filter, so neither an edit nor a frame of movement can touch it. Check that the marble is perfectly still while the animal works.",
 			},
 		},
 	},
 	play: async ({ canvas, canvasElement, userEvent }) => {
 		const [avatar] = botIdentityAvatars(canvasElement)
-		const before = blotShapeOf(avatar)
+		const before = marbleGeometryOf(avatar)
 
 		await userEvent.click(
 			canvas.getByRole("button", { name: "Change everything but the id" }),
 		)
-		await expect(blotShapeOf(botIdentityAvatars(canvasElement)[0])).toBe(before)
+		await expect(
+			marbleGeometryOf(botIdentityAvatars(canvasElement)[0]),
+		).toEqual(before)
+	},
+})
+
+export const MarbleAtEverySize = meta.story({
+	tags: ["test-only"],
+	render: (args) => (
+		<Row>
+			{MARBLE_SIZES.map((size) => (
+				<BotIdentityAvatar {...args} key={size} size={size} />
+			))}
+		</Row>
+	),
+	parameters: {
+		docs: {
+			description: {
+				story:
+					"The same companion, no picture, at the four sizes the product puts it at: the mention row, the swatch, the roster row and the settings hero. The marble is drawn at all four — a background that vanished at 16px would make the smallest avatar a different companion — and each one is cut to the rounded square a picture avatar already follows at that size, so the drawn face and an uploaded one keep one silhouette. Check that the corner radius grows with the box rather than staying a fixed crumb, and that the animal never sits on a bare surface.",
+			},
+		},
+	},
+	play: async ({ canvasElement }) => {
+		const avatars = botIdentityAvatars(canvasElement)
+
+		await expect(avatars).toHaveLength(MARBLE_SIZES.length)
+		for (const [at, avatar] of avatars.entries()) {
+			await expect(marblesIn(avatar)).toHaveLength(1)
+			await expect(getComputedStyle(avatar).borderRadius).toBe(
+				`${companionAvatarRadius(MARBLE_SIZES[at])}px`,
+			)
+		}
 	},
 })

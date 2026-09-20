@@ -6,6 +6,7 @@ import {
 	ANIMALS,
 	type BotAvatarAnimal,
 } from "@workspace/ui/components/bot-avatar-animals"
+import { seedHash } from "@workspace/ui/components/bot-avatar-marble"
 
 const UNPICKABLE_ANIMAL = "skippy"
 
@@ -25,7 +26,12 @@ type BotIdentity = {
 	animal: BotIdentityAnimal
 	blot?: BotAvatarBlot
 	image?: string
+	seed?: string
 }
+
+const SHUFFLE_STEP = "+"
+
+const nextSeed = (seed = "") => seedHash(`${seed}${SHUFFLE_STEP}`).toString(36)
 
 type BotModelOption = {
 	label: string
@@ -487,6 +493,7 @@ export {
 	MCP_CONNECTION_STATES,
 	MCP_ENDPOINT_KINDS,
 	MCP_TRANSPORTS,
+	nextSeed,
 	parseMcpServerConfig,
 	readBotOutputStyle,
 	readBotPermissionMode,

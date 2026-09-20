@@ -6,6 +6,7 @@ import { useTranslation } from "react-i18next"
 import {
 	BotAvatar,
 	type BotAvatarBlot,
+	companionAvatarRadius,
 } from "@workspace/ui/components/bot-avatar"
 import type { BotAvatarAnimal } from "@workspace/ui/components/bot-avatar-animals"
 import type { BotAvatarState } from "@workspace/ui/components/bot-avatar-data"
@@ -27,15 +28,9 @@ const busyStateFor = (kind: ActivityIndicatorKind): BotAvatarState =>
 
 const DEFAULT_SIZE = 40
 
-const PICTURE_RADIUS_RATIO = 0.25
-
-const MIN_PICTURE_RADIUS = 6
-
-const companionPictureRadius = (size: number) =>
-	Math.max(MIN_PICTURE_RADIUS, size * PICTURE_RADIUS_RATIO)
-
-const pictureShapeStyle = (size: number, image?: string) =>
-	image ? { borderRadius: companionPictureRadius(size) } : undefined
+const avatarShapeStyle = (size: number) => ({
+	borderRadius: companionAvatarRadius(size),
+})
 
 type BotIdentityAvatarProps = {
 	name?: string
@@ -66,7 +61,6 @@ function BotIdentityAvatar({
 		<AvatarFrame
 			className={className}
 			image={image}
-			imageRadius={companionPictureRadius(size)}
 			overlay={
 				badge ? (
 					<BotBadgeDot
@@ -76,6 +70,7 @@ function BotIdentityAvatar({
 					/>
 				) : null
 			}
+			radius={companionAvatarRadius(size)}
 			size={size}
 			slot="bot-identity-avatar"
 		>
@@ -101,7 +96,6 @@ type BotStopProps =
 
 type BotStopButtonProps = {
 	name: string
-	image?: string
 	size?: number
 	onStop: () => void
 	children: ReactNode
@@ -109,7 +103,6 @@ type BotStopButtonProps = {
 
 const BotStopButton = ({
 	name,
-	image,
 	size = DEFAULT_SIZE,
 	onStop,
 	children,
@@ -127,15 +120,15 @@ const BotStopButton = ({
 			onPointerLeave={() => setArmed(false)}
 			onFocus={() => setArmed(true)}
 			onBlur={() => setArmed(false)}
-			className="relative block w-fit rounded-full outline-none focus-visible:ring-2 focus-visible:ring-ring"
-			style={pictureShapeStyle(size, image)}
+			className="relative block w-fit outline-none focus-visible:ring-2 focus-visible:ring-ring"
+			style={avatarShapeStyle(size)}
 		>
 			{children}
 			<span
 				aria-hidden="true"
 				data-slot="bot-working-stop-glyph"
 				className={cn(STOP_OVERLAY, armed ? "opacity-100" : "opacity-0")}
-				style={pictureShapeStyle(size, image)}
+				style={avatarShapeStyle(size)}
 			>
 				<Icons.Stop className="size-1/2" />
 			</span>
@@ -150,5 +143,4 @@ export {
 	BotStopButton,
 	type BotStopButtonProps,
 	type BotStopProps,
-	companionPictureRadius,
 }

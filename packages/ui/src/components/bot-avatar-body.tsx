@@ -1,6 +1,6 @@
 "use client"
 
-import { round2, VIEW_BOX } from "@workspace/ui/components/bot-avatar-3d"
+import { round2 } from "@workspace/ui/components/bot-avatar-3d"
 import type {
 	BotAvatarAnimal,
 	BotAvatarAnimalDefinition,
@@ -8,14 +8,10 @@ import type {
 	BotAvatarShape,
 } from "@workspace/ui/components/bot-avatar-animals"
 import {
-	BLOT_BOX,
-	BLOT_PATH,
-	blotTransform,
-} from "@workspace/ui/components/bot-avatar-blot"
-import {
 	type BotAvatarEarLayer,
 	PARTS,
 } from "@workspace/ui/components/bot-avatar-engine"
+import { BotAvatarMarble } from "@workspace/ui/components/bot-avatar-marble"
 
 const AUTHORED_WEIGHT = 5.5
 
@@ -32,11 +28,6 @@ const ROLE_PROPS = {
 } as const
 
 const HEAD_MASK_BOUNDS = { x: -240, y: -240, width: 720, height: 720 } as const
-
-const BLOT_RATIO = 16 / 15
-const BLOT_SPAN = VIEW_BOX * BLOT_RATIO
-const BLOT_INSET = round2((VIEW_BOX - BLOT_SPAN) / 2)
-const BLOT_PLACEMENT = `translate(${BLOT_INSET} ${BLOT_INSET}) scale(${round2(BLOT_SPAN / BLOT_BOX)})`
 
 const shapeKey = (shape: BotAvatarShape) =>
 	shape.kind === "path"
@@ -98,30 +89,32 @@ function Shape({ shape, weight }: ShapeProps) {
 
 type BotAvatarBodyProps = {
 	animal: BotAvatarAnimal
-	blotFill?: string
 	boil: number
 	clipId: string
 	definition: BotAvatarAnimalDefinition
 	filterId: string
 	headMaskId: string
 	headPathId: string
+	marbleRadius: number
 	seed?: string
 	splitId: string
+	tint?: string
 	weight: number
 	wireframe: boolean
 }
 
 const BotAvatarBody = ({
 	animal,
-	blotFill,
 	boil,
 	clipId,
 	definition,
 	filterId,
 	headMaskId,
 	headPathId,
+	marbleRadius,
 	seed,
 	splitId,
+	tint,
 	weight,
 	wireframe,
 }: BotAvatarBodyProps) => (
@@ -156,14 +149,8 @@ const BotAvatarBody = ({
 				</clipPath>
 			))}
 		</defs>
-		{blotFill ? (
-			<path
-				d={BLOT_PATH}
-				data-slot="bot-avatar-blot"
-				fill={blotFill}
-				stroke="none"
-				transform={`${BLOT_PLACEMENT} ${blotTransform(seed)}`}
-			/>
+		{tint ? (
+			<BotAvatarMarble radius={marbleRadius} seed={seed} tint={tint} />
 		) : null}
 		<g filter={`url(#${filterId})`}>
 			<g data-part={PARTS.rig}>

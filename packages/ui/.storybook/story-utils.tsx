@@ -3,7 +3,7 @@ import type { ComponentType, ReactNode } from "react"
 import type { ExtraProps } from "react-markdown"
 import { expect, waitFor } from "storybook/test"
 
-import { companionPictureRadius } from "@workspace/ui/components/bot-identity-avatar"
+import { companionAvatarRadius } from "@workspace/ui/components/bot-avatar"
 import {
 	MARKDOWN_CODE_SURFACE_CLASS,
 	MARKDOWN_TYPESET_CLASS,
@@ -128,6 +128,33 @@ export const probedStyleOf = (className: string, property: ProbedProperty) => {
 export const botIdentityAvatars = (canvasElement: HTMLElement) =>
 	slotsIn(canvasElement, "bot-identity-avatar")
 
+const MARBLE_SLOT = "bot-avatar-marble"
+
+export const marblesIn = (root: Element) => slotsIn(root, MARBLE_SLOT)
+
+const marbleWithin = (root: Element) =>
+	root.getAttribute("data-slot") === MARBLE_SLOT ? root : marblesIn(root)[0]
+
+export const marbleShadesOf = (root: Element) => {
+	const marble = marbleWithin(root)
+	return marble
+		? Array.from(marble.querySelectorAll("rect, path")).map((shape) =>
+				shape.getAttribute("fill"),
+			)
+		: []
+}
+
+export const marbleOf = (root: Element) => {
+	const marble = marbleWithin(root)
+	if (!marble) return undefined
+	return Array.from(marble.querySelectorAll("rect, path"))
+		.map(
+			(shape) =>
+				`${shape.getAttribute("fill")}@${shape.getAttribute("transform") ?? ""}`,
+		)
+		.join("|")
+}
+
 export const pictureOf = async (avatar: HTMLElement) => {
 	await waitFor(() => expect(avatar.querySelector("img")).not.toBeNull())
 	return avatar.querySelector("img") as HTMLImageElement
@@ -136,7 +163,7 @@ export const pictureOf = async (avatar: HTMLElement) => {
 export const expectCompanionPictureSquare = async (avatar: HTMLElement) => {
 	const picture = await pictureOf(avatar)
 	const { width } = avatar.getBoundingClientRect()
-	const radius = `${companionPictureRadius(width)}px`
+	const radius = `${companionAvatarRadius(width)}px`
 
 	for (const layer of [avatar, picture]) {
 		const style = getComputedStyle(layer)

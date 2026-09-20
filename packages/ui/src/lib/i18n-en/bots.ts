@@ -792,6 +792,7 @@ const bots = {
 	},
 	identity: {
 		avatar: "Avatar",
+		shuffle: "Shuffle the background",
 		uploadedImage: "Uploaded image",
 		current: "{{animal}}, {{colour}}",
 		animal: {

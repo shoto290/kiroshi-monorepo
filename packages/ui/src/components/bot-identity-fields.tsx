@@ -14,13 +14,16 @@ import {
 	type BotAvatarBlot,
 	type BotIdentity,
 	drawnAnimal,
+	nextSeed,
 } from "@workspace/ui/components/bot-settings"
+import { Icons } from "@workspace/ui/components/icons"
 import { ProfilePictureField } from "@workspace/ui/components/profile-picture-field"
 import { SettingsGroup } from "@workspace/ui/components/settings-group"
 import {
 	FIELD_OPTION_CLASS,
 	PICTURE_FIELD_SIZE,
 } from "@workspace/ui/components/settings-styles"
+import { Button } from "@workspace/ui/components/ui/button"
 import { cn } from "@workspace/ui/lib/utils"
 
 const PREVIEW_SIZE = 96
@@ -54,12 +57,20 @@ const BotIdentityFields = ({
 }: BotIdentityFieldsProps) => {
 	const { t } = useTranslation("bots")
 	const groupId = useId()
+	const drawnSeed = identity.seed ?? seed
 
 	const blotLabel = (blot?: BotAvatarBlot) =>
 		blot ? t(`identity.colour.option.${blot}`) : t("identity.colour.none")
 
 	const dropPicture = () =>
-		onIdentityChange({ animal: identity.animal, blot: identity.blot })
+		onIdentityChange({
+			animal: identity.animal,
+			blot: identity.blot,
+			seed: identity.seed,
+		})
+
+	const shuffle = () =>
+		onIdentityChange({ ...identity, seed: nextSeed(drawnSeed) })
 
 	const currentLabel = identity.image
 		? t("identity.uploadedImage")
@@ -82,11 +93,11 @@ const BotIdentityFields = ({
 					image={identity.image}
 					kind={workingKind}
 					name={name}
-					seed={seed}
+					seed={drawnSeed}
 					size={PREVIEW_SIZE}
 					working={working}
 				/>
-				<div className="flex min-w-0 flex-col gap-1">
+				<div className="flex min-w-0 flex-1 flex-col gap-1">
 					<span className="font-medium text-foreground text-sm">
 						{t("identity.avatar")}
 					</span>
@@ -94,6 +105,16 @@ const BotIdentityFields = ({
 						{currentLabel}
 					</p>
 				</div>
+				<Button
+					aria-label={t("identity.shuffle")}
+					data-slot="bot-identity-shuffle"
+					onClick={shuffle}
+					size="icon"
+					type="button"
+					variant="outline"
+				>
+					<Icons.Shuffle aria-hidden="true" />
+				</Button>
 			</div>
 
 			<SettingsGroup
@@ -106,7 +127,13 @@ const BotIdentityFields = ({
 							checked={identity.animal === animal}
 							className="sr-only"
 							name={`${groupId}-animal`}
-							onChange={() => onIdentityChange({ animal, blot: identity.blot })}
+							onChange={() =>
+								onIdentityChange({
+									animal,
+									blot: identity.blot,
+									seed: identity.seed,
+								})
+							}
 							type="radio"
 							value={animal}
 						/>
@@ -115,7 +142,7 @@ const BotIdentityFields = ({
 								animal={animal}
 								animated={false}
 								blot={identity.blot}
-								seed={seed}
+								seed={drawnSeed}
 								size={ANIMAL_SIZE}
 								state="idle"
 							/>
@@ -142,7 +169,11 @@ const BotIdentityFields = ({
 							className="sr-only"
 							name={`${groupId}-blot`}
 							onChange={() =>
-								onIdentityChange({ animal: identity.animal, blot })
+								onIdentityChange({
+									animal: identity.animal,
+									blot,
+									seed: identity.seed,
+								})
 							}
 							type="radio"
 							value={blot ?? ""}
@@ -152,7 +183,7 @@ const BotIdentityFields = ({
 								animal={identity.animal}
 								animated={false}
 								blot={blot}
-								seed={seed}
+								seed={drawnSeed}
 								size={BLOT_SIZE}
 								state="idle"
 							/>
@@ -176,7 +207,7 @@ const BotIdentityFields = ({
 							blot={identity.blot}
 							image={identity.image}
 							name={name}
-							seed={seed}
+							seed={drawnSeed}
 							size={PICTURE_FIELD_SIZE}
 						/>
 					}

@@ -451,7 +451,6 @@ function AssistantTurn(props: AssistantTurnProps) {
 	const stop =
 		props.stoppable && gutterBot ? (
 			<BotStopButton
-				image={gutterBot.image}
 				name={gutterBot.name}
 				onStop={props.onStop}
 				size={TURN_AVATAR_SIZE}

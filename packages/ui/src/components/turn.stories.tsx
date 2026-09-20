@@ -1276,7 +1276,7 @@ export const PictureBesideBlot = meta.story({
 		await expectCompanionPictureSquare(picture)
 		await expect(getComputedStyle(picture).borderRadius).toBe("10px")
 		await expect(drawn.querySelector("img")).toBeNull()
-		await expect(slotsIn(drawn, "bot-avatar-blot")).toHaveLength(1)
+		await expect(slotsIn(drawn, "bot-avatar-marble")).toHaveLength(1)
 	},
 })
 
