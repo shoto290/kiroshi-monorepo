@@ -98,12 +98,13 @@ const BotMissionStrip = ({
 	state,
 	ticket,
 	objective,
-	isLive = false,
+	isLive,
 	className,
 	...props
 }: BotMissionStripProps) => {
 	const { t } = useTranslation("bots")
 	const { Mark, isNamed } = missionTicketPlatform(ticket.platform)
+	const isDotDrawn = state !== "working" || isLive
 
 	return (
 		<span
@@ -129,17 +130,17 @@ const BotMissionStrip = ({
 			>
 				{ticket.title || objective}
 			</span>
-			{state === "working" && !isLive ? (
-				<span
-					aria-hidden="true"
-					className={BOT_MISSION_DOT_SLOT}
-					data-slot="bot-mission-dot-placeholder"
-				/>
-			) : (
+			{isDotDrawn ? (
 				<span
 					aria-hidden="true"
 					className={botMissionDotVariants({ state })}
 					data-slot="bot-mission-dot"
+				/>
+			) : (
+				<span
+					aria-hidden="true"
+					className={BOT_MISSION_DOT_SLOT}
+					data-slot="bot-mission-dot-placeholder"
 				/>
 			)}
 		</span>
