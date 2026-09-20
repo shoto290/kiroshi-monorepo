@@ -3,32 +3,17 @@
 import { Tabs } from "@base-ui/react/tabs"
 import { useTranslation } from "react-i18next"
 
-import type {
-	BotMcpServerItem,
-	BotSkillDraft,
-	BotSkillItem,
-} from "@workspace/ui/components/bot-settings"
 import { DangerZone } from "@workspace/ui/components/bot-settings-dialog/danger-zone"
-import type { McpConnectionSection } from "@workspace/ui/components/bot-settings-dialog/mcp-connection"
 import {
 	type EnvironmentEntry,
 	EnvironmentPanel,
-	type EnvironmentSection,
 	type EnvironmentWrite,
 } from "@workspace/ui/components/environment-panel"
 import { Icons } from "@workspace/ui/components/icons"
 import type { PluginHistory } from "@workspace/ui/components/plugin-settings/history-panel"
-import type { SettingsPage } from "@workspace/ui/components/plugin-settings/settings-pages"
-import type { PluginSkillFiles } from "@workspace/ui/components/plugin-settings/skill-files-panel"
-import {
-	HISTORY_TAB,
-	useHistorySession,
-} from "@workspace/ui/components/plugin-settings/use-history-session"
-import {
-	type ApplicationsCatalogueSection,
-	useMcpSession,
-} from "@workspace/ui/components/plugin-settings/use-mcp-session"
-import { useSkillSession } from "@workspace/ui/components/plugin-settings/use-skill-session"
+import { HISTORY_TAB } from "@workspace/ui/components/plugin-settings/use-history-session"
+import type { PluginSessionsProps } from "@workspace/ui/components/plugin-settings/use-plugin-sessions"
+import { usePluginSessions } from "@workspace/ui/components/plugin-settings/use-plugin-sessions"
 import { SettingsDialogShell } from "@workspace/ui/components/settings-dialog-shell"
 import {
 	DANGER_RAIL_ITEM_CLASS,
@@ -40,13 +25,12 @@ import {
 import type { SpaceSettingsValue } from "@workspace/ui/components/space-settings"
 import { SpaceFields } from "@workspace/ui/components/space-settings-dialog/space-fields"
 import { SpaceTint } from "@workspace/ui/components/space-tint"
-import { usePushedPages } from "@workspace/ui/hooks/use-pushed-pages"
 
 const FIRST_TAB = "space"
 
 const DANGER_TAB = "danger"
 
-type SpaceSettingsDialogProps = {
+type SpaceSettingsDialogProps = PluginSessionsProps & {
 	open: boolean
 	onClose: () => void
 	value: SpaceSettingsValue
@@ -55,27 +39,6 @@ type SpaceSettingsDialogProps = {
 	hasEnvironmentFailedToRead?: boolean
 	onEnvironmentSet: (write: EnvironmentWrite) => void | Promise<void>
 	onEnvironmentDelete: (name: string) => void | Promise<void>
-	skills: BotSkillItem[]
-	onSkillCreate: (draft: BotSkillDraft, isPreloaded: boolean) => void
-	onSkillChange: (id: string, draft: BotSkillDraft) => void
-	onSkillPreloadedChange: (id: string, isPreloaded: boolean) => void
-	onSkillDelete: (id: string) => void
-	skillFiles?: PluginSkillFiles
-	mcpServers: BotMcpServerItem[]
-	haveMcpServersFailedToLoad?: boolean
-	onMcpServerCreate: (name: string, config: Record<string, unknown>) => void
-	onMcpServerChange: (
-		openedName: string,
-		name: string,
-		config: Record<string, unknown>,
-	) => void
-	onMcpServerDelete: (name: string) => void
-	mcpCatalogue?: ApplicationsCatalogueSection
-	onMcpServerOpen?: (name: string | null) => void
-	onServerConnect?: (server: BotMcpServerItem) => void
-	serverConnection?: McpConnectionSection
-	serverEnvironment?: EnvironmentSection
-	mcpServerToOpen?: string
 	tab?: string
 	history: PluginHistory
 	onDelete: () => void
@@ -92,61 +55,21 @@ const SpaceSettingsDialog = ({
 	hasEnvironmentFailedToRead,
 	onEnvironmentSet,
 	onEnvironmentDelete,
-	skills,
-	onSkillCreate,
-	onSkillChange,
-	onSkillPreloadedChange,
-	onSkillDelete,
-	skillFiles,
-	mcpServers,
-	haveMcpServersFailedToLoad,
-	onMcpServerCreate,
-	onMcpServerChange,
-	onMcpServerDelete,
-	mcpCatalogue,
-	onMcpServerOpen,
-	onServerConnect,
-	serverConnection,
-	serverEnvironment,
-	mcpServerToOpen,
 	tab,
 	history,
 	onDelete,
 	isDeletable = true,
 	className,
+	...sessionProps
 }: SpaceSettingsDialogProps) => {
 	const { t } = useTranslation("settings")
 	const spaceName = value.name.trim() || t("space.untitled")
-	const pages = usePushedPages<SettingsPage>()
-	const skillSession = useSkillSession({
-		pages,
-		files: skillFiles,
-		onSkillChange,
-		onSkillCreate,
-		onSkillDelete,
-		onSkillPreloadedChange,
-		skills,
-	})
-	const mcpSession = useMcpSession({
-		pages,
+	const { pages, sessions } = usePluginSessions({
+		...sessionProps,
 		owner: { kind: "space", name: spaceName },
-		catalogue: mcpCatalogue,
-		servers: mcpServers,
-		haveFailedToLoad: haveMcpServersFailedToLoad,
-		onServerChange: onMcpServerChange,
-		onServerCreate: onMcpServerCreate,
-		onServerDelete: onMcpServerDelete,
-		onServerOpen: onMcpServerOpen,
-		onServerConnect,
-		serverConnection,
-		serverEnvironment,
-		serverToOpen: mcpServerToOpen,
 		isSettingsOpen: open,
-	})
-	const historySession = useHistorySession({
-		pages,
 		history,
-		companionName: t("plugin.author.bot"),
+		historyCompanionName: t("plugin.author.bot"),
 	})
 
 	return (
@@ -200,11 +123,7 @@ const SpaceSettingsDialog = ({
 					/>
 				</>
 			)}
-			sessions={{
-				skills: skillSession,
-				applications: mcpSession,
-				history: historySession,
-			}}
+			sessions={sessions}
 			tab={tab ?? FIRST_TAB}
 		>
 			<SettingsScrollingPanel value={FIRST_TAB}>
@@ -222,15 +141,15 @@ const SpaceSettingsDialog = ({
 			</Tabs.Panel>
 
 			<Tabs.Panel className={SETTINGS_PANEL_CLASS} value="skills">
-				{skillSession.panel}
+				{sessions.skills.panel}
 			</Tabs.Panel>
 
 			<Tabs.Panel className={SETTINGS_PANEL_CLASS} value="mcp">
-				{mcpSession.panel}
+				{sessions.applications.panel}
 			</Tabs.Panel>
 
 			<SettingsScrollingPanel isFlush value={HISTORY_TAB}>
-				{historySession.panel}
+				{sessions.history.panel}
 			</SettingsScrollingPanel>
 
 			<SettingsScrollingPanel value={DANGER_TAB}>

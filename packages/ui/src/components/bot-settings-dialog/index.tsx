@@ -19,29 +19,19 @@ import type {
 	BotSkillItem,
 } from "@workspace/ui/components/bot-settings"
 import { DangerZone } from "@workspace/ui/components/bot-settings-dialog/danger-zone"
-import type { McpConnectionSection } from "@workspace/ui/components/bot-settings-dialog/mcp-connection"
 import { MemoryPanel } from "@workspace/ui/components/bot-settings-dialog/memory-panel"
 import { PermissionsPanel } from "@workspace/ui/components/bot-settings-dialog/permissions-panel"
 import { RuntimeFields } from "@workspace/ui/components/bot-settings-dialog/runtime-fields"
 import {
 	type EnvironmentEntry,
 	EnvironmentPanel,
-	type EnvironmentSection,
 	type EnvironmentWrite,
 } from "@workspace/ui/components/environment-panel"
 import { Icons } from "@workspace/ui/components/icons"
 import type { PluginHistory } from "@workspace/ui/components/plugin-settings/history-panel"
-import type { SettingsPage } from "@workspace/ui/components/plugin-settings/settings-pages"
-import type { PluginSkillFiles } from "@workspace/ui/components/plugin-settings/skill-files-panel"
-import {
-	HISTORY_TAB,
-	useHistorySession,
-} from "@workspace/ui/components/plugin-settings/use-history-session"
-import {
-	type ApplicationsCatalogueSection,
-	useMcpSession,
-} from "@workspace/ui/components/plugin-settings/use-mcp-session"
-import { useSkillSession } from "@workspace/ui/components/plugin-settings/use-skill-session"
+import { HISTORY_TAB } from "@workspace/ui/components/plugin-settings/use-history-session"
+import type { PluginSessionsProps } from "@workspace/ui/components/plugin-settings/use-plugin-sessions"
+import { usePluginSessions } from "@workspace/ui/components/plugin-settings/use-plugin-sessions"
 import { SettingsDialogShell } from "@workspace/ui/components/settings-dialog-shell"
 import { SettingsField } from "@workspace/ui/components/settings-field"
 import {
@@ -51,13 +41,12 @@ import {
 	SettingsRailSeparator,
 	SettingsScrollingPanel,
 } from "@workspace/ui/components/settings-rail"
-import { usePushedPages } from "@workspace/ui/hooks/use-pushed-pages"
 
 const FIRST_TAB = "general"
 
 const DANGER_TAB = "danger"
 
-type BotSettingsDialogProps = {
+type BotSettingsDialogProps = PluginSessionsProps & {
 	open: boolean
 	onClose: () => void
 	value: BotSettingsValue
@@ -69,31 +58,10 @@ type BotSettingsDialogProps = {
 	onMemoryChange?: (memory: string) => void
 	onAvatarUpload: (file: File) => void
 	onBrowseWorkingDirectory: () => void
-	skills: BotSkillItem[]
-	onSkillCreate: (draft: BotSkillDraft, isPreloaded: boolean) => void
-	onSkillChange: (id: string, draft: BotSkillDraft) => void
-	onSkillPreloadedChange: (id: string, isPreloaded: boolean) => void
-	onSkillDelete: (id: string) => void
-	skillFiles?: PluginSkillFiles
-	mcpServers: BotMcpServerItem[]
-	haveMcpServersFailedToLoad?: boolean
-	onMcpServerCreate: (name: string, config: Record<string, unknown>) => void
-	onMcpServerChange: (
-		openedName: string,
-		name: string,
-		config: Record<string, unknown>,
-	) => void
-	onMcpServerDelete: (name: string) => void
-	mcpCatalogue?: ApplicationsCatalogueSection
 	environment: EnvironmentEntry[]
 	hasEnvironmentFailedToRead?: boolean
 	onEnvironmentSet: (write: EnvironmentWrite) => void | Promise<void>
 	onEnvironmentDelete: (name: string) => void | Promise<void>
-	onMcpServerOpen?: (name: string | null) => void
-	onServerConnect?: (server: BotMcpServerItem) => void
-	serverConnection?: McpConnectionSection
-	serverEnvironment?: EnvironmentSection
-	mcpServerToOpen?: string
 	tab?: string
 	history?: PluginHistory
 	seed?: string
@@ -116,27 +84,10 @@ const BotSettingsDialog = ({
 	onMemoryChange,
 	onAvatarUpload,
 	onBrowseWorkingDirectory,
-	skills,
-	onSkillCreate,
-	onSkillChange,
-	onSkillPreloadedChange,
-	onSkillDelete,
-	skillFiles,
-	mcpServers,
-	haveMcpServersFailedToLoad,
-	onMcpServerCreate,
-	onMcpServerChange,
-	onMcpServerDelete,
-	mcpCatalogue,
 	environment,
 	hasEnvironmentFailedToRead,
 	onEnvironmentSet,
 	onEnvironmentDelete,
-	onMcpServerOpen,
-	onServerConnect,
-	serverConnection,
-	serverEnvironment,
-	mcpServerToOpen,
 	tab,
 	history,
 	seed,
@@ -145,40 +96,17 @@ const BotSettingsDialog = ({
 	working = false,
 	workingKind,
 	className,
+	...sessionProps
 }: BotSettingsDialogProps) => {
 	const { t } = useTranslation("bots")
 	const botName = value.name.trim() || t("dialog.untitled")
-	const pages = usePushedPages<SettingsPage>()
-	const skillSession = useSkillSession({
-		pages,
-		skills,
-		files: skillFiles,
-		onSkillChange,
-		onSkillCreate,
-		onSkillDelete,
-		onSkillPreloadedChange,
-	})
-	const mcpSession = useMcpSession({
-		pages,
+	const { pages, sessions } = usePluginSessions({
+		...sessionProps,
 		owner: { kind: "companion", name: botName },
-		catalogue: mcpCatalogue,
-		servers: mcpServers,
-		haveFailedToLoad: haveMcpServersFailedToLoad,
-		onServerChange: onMcpServerChange,
-		onServerCreate: onMcpServerCreate,
-		onServerDelete: onMcpServerDelete,
-		onServerOpen: onMcpServerOpen,
-		onServerConnect,
-		serverConnection,
-		serverEnvironment,
-		serverToOpen: mcpServerToOpen,
 		isSettingsOpen: open,
-	})
-	const historySession = useHistorySession({
-		pages,
 		history,
-		companion: value.identity,
-		companionName: botName,
+		historyCompanion: value.identity,
+		historyCompanionName: botName,
 	})
 
 	const patch = (fields: Partial<BotSettingsValue>) =>
@@ -273,11 +201,7 @@ const BotSettingsDialog = ({
 					/>
 				</>
 			)}
-			sessions={{
-				skills: skillSession,
-				applications: mcpSession,
-				history: historySession,
-			}}
+			sessions={sessions}
 			tab={showDanger ? DANGER_TAB : (tab ?? FIRST_TAB)}
 		>
 			<SettingsScrollingPanel value={FIRST_TAB}>
@@ -324,11 +248,11 @@ const BotSettingsDialog = ({
 			</Tabs.Panel>
 
 			<Tabs.Panel className={SETTINGS_PANEL_CLASS} value="skills">
-				{skillSession.panel}
+				{sessions.skills.panel}
 			</Tabs.Panel>
 
 			<Tabs.Panel className={SETTINGS_PANEL_CLASS} value="mcp">
-				{mcpSession.panel}
+				{sessions.applications.panel}
 			</Tabs.Panel>
 
 			<Tabs.Panel className={SETTINGS_PANEL_CLASS} value="environment">
@@ -343,7 +267,7 @@ const BotSettingsDialog = ({
 
 			{history ? (
 				<SettingsScrollingPanel isFlush value={HISTORY_TAB}>
-					{historySession.panel}
+					{sessions.history.panel}
 				</SettingsScrollingPanel>
 			) : null}
 
