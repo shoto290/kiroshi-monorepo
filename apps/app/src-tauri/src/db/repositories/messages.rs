@@ -1,172 +1,19 @@
-
-use rusqlite::types::{FromSql, FromSqlError, FromSqlResult, ToSql, ToSqlOutput, ValueRef};
+use rusqlite::types::FromSql;
 use rusqlite::{params, Connection, OptionalExtension, Row, Transaction, TransactionBehavior};
 
 use super::arrivals::{self, Arrival, SeqSpan};
 use crate::db::{Access, DatabaseError};
 
-#[derive(Debug, Clone, Copy, PartialEq, Eq)]
-pub enum MessageRole {
-	User,
-	Assistant,
-}
+mod activities;
+mod state;
 
-impl MessageRole {
-	fn as_sql(self) -> &'static str {
-		match self {
-			MessageRole::User => "user",
-			MessageRole::Assistant => "assistant",
-		}
-	}
+pub use activities::{NewActivity, StoredActivity};
+pub(in crate::db) use state::stored_as_text;
+pub use state::{
+	ActivityStatus, InitialStatus, MessageRole, MessageState, TerminalState, TerminalStatus,
+};
 
-	fn parse(text: &str) -> Option<Self> {
-		match text {
-			"user" => Some(MessageRole::User),
-			"assistant" => Some(MessageRole::Assistant),
-			_ => None,
-		}
-	}
-}
-
-#[derive(Debug, Clone, Copy, PartialEq, Eq)]
-pub enum MessageState {
-	Pending,
-	Streaming,
-	Complete,
-	Cancelled,
-	Failed,
-	Interrupted,
-}
-
-impl MessageState {
-	fn as_sql(self) -> &'static str {
-		match self {
-			MessageState::Pending => "pending",
-			MessageState::Streaming => "streaming",
-			MessageState::Complete => "complete",
-			MessageState::Cancelled => "cancelled",
-			MessageState::Failed => "failed",
-			MessageState::Interrupted => "interrupted",
-		}
-	}
-
-	fn parse(text: &str) -> Option<Self> {
-		match text {
-			"pending" => Some(MessageState::Pending),
-			"streaming" => Some(MessageState::Streaming),
-			"complete" => Some(MessageState::Complete),
-			"cancelled" => Some(MessageState::Cancelled),
-			"failed" => Some(MessageState::Failed),
-			"interrupted" => Some(MessageState::Interrupted),
-			_ => None,
-		}
-	}
-}
-
-#[derive(Debug, Clone, Copy, PartialEq, Eq)]
-pub enum TerminalState {
-	Complete,
-	Cancelled,
-	Failed,
-	Interrupted,
-}
-
-impl From<TerminalState> for MessageState {
-	fn from(state: TerminalState) -> Self {
-		match state {
-			TerminalState::Complete => MessageState::Complete,
-			TerminalState::Cancelled => MessageState::Cancelled,
-			TerminalState::Failed => MessageState::Failed,
-			TerminalState::Interrupted => MessageState::Interrupted,
-		}
-	}
-}
-
-#[derive(Debug, Clone, Copy, PartialEq, Eq)]
-pub enum ActivityStatus {
-	Pending,
-	Running,
-	Succeeded,
-	Failed,
-	Terminated,
-}
-
-impl ActivityStatus {
-	fn as_sql(self) -> &'static str {
-		match self {
-			ActivityStatus::Pending => "pending",
-			ActivityStatus::Running => "running",
-			ActivityStatus::Succeeded => "succeeded",
-			ActivityStatus::Failed => "failed",
-			ActivityStatus::Terminated => "terminated",
-		}
-	}
-
-	fn parse(text: &str) -> Option<Self> {
-		match text {
-			"pending" => Some(ActivityStatus::Pending),
-			"running" => Some(ActivityStatus::Running),
-			"succeeded" => Some(ActivityStatus::Succeeded),
-			"failed" => Some(ActivityStatus::Failed),
-			"terminated" => Some(ActivityStatus::Terminated),
-			_ => None,
-		}
-	}
-}
-
-#[derive(Debug, Clone, Copy, PartialEq, Eq)]
-pub enum InitialStatus {
-	Pending,
-	Running,
-}
-
-impl From<InitialStatus> for ActivityStatus {
-	fn from(status: InitialStatus) -> Self {
-		match status {
-			InitialStatus::Pending => ActivityStatus::Pending,
-			InitialStatus::Running => ActivityStatus::Running,
-		}
-	}
-}
-
-#[derive(Debug, Clone, Copy, PartialEq, Eq)]
-pub enum TerminalStatus {
-	Succeeded,
-	Failed,
-	Terminated,
-}
-
-impl From<TerminalStatus> for ActivityStatus {
-	fn from(status: TerminalStatus) -> Self {
-		match status {
-			TerminalStatus::Succeeded => ActivityStatus::Succeeded,
-			TerminalStatus::Failed => ActivityStatus::Failed,
-			TerminalStatus::Terminated => ActivityStatus::Terminated,
-		}
-	}
-}
-
-macro_rules! stored_as_text {
-	($name:ident) => {
-		impl ToSql for $name {
-			fn to_sql(&self) -> rusqlite::Result<ToSqlOutput<'_>> {
-				Ok(ToSqlOutput::from(self.as_sql()))
-			}
-		}
-
-		impl FromSql for $name {
-			fn column_result(value: ValueRef<'_>) -> FromSqlResult<Self> {
-				$name::parse(value.as_str()?).ok_or(FromSqlError::InvalidType)
-			}
-		}
-	};
-}
-
-stored_as_text!(MessageRole);
-stored_as_text!(MessageState);
-stored_as_text!(ActivityStatus);
-
-pub(in crate::db) use stored_as_text;
+use activities::{advance_activity, read_activity, store_activity, ACTIVITIES_OF_TURN};
 
 #[derive(Debug)]
 pub enum TranscriptError {
@@ -288,25 +135,6 @@ pub struct LatestMessageQuery {
 	pub not_after: i64,
 }
 
-pub struct NewActivity {
-	pub id: String,
-	pub turn_id: String,
-	pub kind: String,
-	pub status: InitialStatus,
-	pub payload: String,
-	pub created_at: i64,
-}
-
-#[derive(Debug, Clone, PartialEq, Eq)]
-pub struct StoredActivity {
-	pub id: String,
-	pub kind: String,
-	pub status: ActivityStatus,
-	pub payload: String,
-	pub seq: i64,
-	pub created_at: i64,
-}
-
 #[derive(Debug, Clone, Copy, PartialEq, Eq)]
 pub struct RecoveryReport {
 	pub interrupted_messages: usize,
@@ -391,19 +219,6 @@ const RUN_OF_TURN: &str = "SELECT runtime_session_id FROM messages
 	ORDER BY seq LIMIT 1";
 const LAST_MESSAGE_SEQ: &str =
 	"SELECT COALESCE(MAX(seq), 0) FROM messages WHERE conversation_id = ?1";
-
-const ACTIVITY_KEY: &str = "SELECT id, kind, status, payload, seq, created_at, turn_id
-	FROM activities WHERE id = ?1";
-const ACTIVITY_STATUS: &str = "SELECT status FROM activities WHERE id = ?1";
-const INSERT_ACTIVITY: &str = "INSERT INTO activities
-	(id, turn_id, kind, status, payload, seq, created_at)
-	VALUES (?1, ?2, ?3, ?4, ?5,
-		(SELECT COALESCE(MAX(seq), 0) + 1 FROM activities WHERE turn_id = ?2), ?6)
-	RETURNING seq";
-const SET_ACTIVITY_STATUS: &str =
-	"UPDATE activities SET status = ?2 WHERE id = ?1 AND status IN ('pending', 'running')";
-const ACTIVITIES_OF_TURN: &str = "SELECT id, kind, status, payload, seq, created_at
-	FROM activities WHERE turn_id = ?1 ORDER BY seq";
 
 const INTERRUPT_OPEN_MESSAGES: &str = "UPDATE messages SET completion_state = 'interrupted'
 	WHERE completion_state IN ('pending', 'streaming')";
@@ -806,40 +621,6 @@ impl StoredMessageKey {
 	}
 }
 
-struct StoredActivityKey {
-	stored: StoredActivity,
-	turn_id: String,
-}
-
-impl StoredActivityKey {
-	fn diverging_field(&self, activity: &NewActivity) -> Option<&'static str> {
-		if self.turn_id != activity.turn_id {
-			return Some("turn_id");
-		}
-		if self.stored.kind != activity.kind {
-			return Some("kind");
-		}
-		if activity_stage(activity.status.into()) > activity_stage(self.stored.status) {
-			return Some("status");
-		}
-		if self.stored.payload != activity.payload {
-			return Some("payload");
-		}
-		if self.stored.created_at != activity.created_at {
-			return Some("created_at");
-		}
-		None
-	}
-}
-
-fn activity_stage(status: ActivityStatus) -> u8 {
-	match status {
-		ActivityStatus::Pending => 0,
-		ActivityStatus::Running => 1,
-		ActivityStatus::Succeeded | ActivityStatus::Failed | ActivityStatus::Terminated => 2,
-	}
-}
-
 fn store_turn(connection: &mut Connection, turn: NewTurn) -> Result<i64, TranscriptError> {
 	let transaction = write_transaction(connection)?;
 	if let Some(stored) = stored_turn_key(&transaction, &turn.id)? {
@@ -884,33 +665,6 @@ fn store_message(
 			content,
 			state,
 			message.created_at,
-		],
-		|row| row.get(0),
-	)?;
-	transaction.commit()?;
-	Ok(seq)
-}
-
-fn store_activity(
-	connection: &mut Connection,
-	activity: NewActivity,
-) -> Result<i64, TranscriptError> {
-	let transaction = write_transaction(connection)?;
-	if let Some(key) = stored_activity_key(&transaction, &activity.id)? {
-		if let Some(field) = key.diverging_field(&activity) {
-			return Err(TranscriptError::Conflict { id: activity.id, field });
-		}
-		return Ok(key.stored.seq);
-	}
-	let seq = transaction.query_row(
-		INSERT_ACTIVITY,
-		params![
-			activity.id,
-			activity.turn_id,
-			activity.kind,
-			ActivityStatus::from(activity.status),
-			activity.payload,
-			activity.created_at,
 		],
 		|row| row.get(0),
 	)?;
@@ -983,28 +737,6 @@ fn refuse_a_message_elsewhere(
 	Ok(())
 }
 
-fn advance_activity(
-	connection: &mut Connection,
-	id: &str,
-	target: ActivityStatus,
-) -> Result<(), TranscriptError> {
-	let transaction = write_transaction(connection)?;
-	if let Some(current) = stored_state::<ActivityStatus>(&transaction, ACTIVITY_STATUS, id)? {
-		if current != target {
-			if activity_stage(target) <= activity_stage(current) {
-				return Err(TranscriptError::InvalidTransition {
-					id: id.into(),
-					from: current.as_sql(),
-					to: target.as_sql(),
-				});
-			}
-			transaction.execute(SET_ACTIVITY_STATUS, params![id, target])?;
-		}
-	}
-	transaction.commit()?;
-	Ok(())
-}
-
 fn write_transaction(connection: &mut Connection) -> Result<Transaction<'_>, DatabaseError> {
 	Ok(connection.transaction_with_behavior(TransactionBehavior::Immediate)?)
 }
@@ -1040,17 +772,6 @@ fn stored_message_key(
 				created_at: row.get(6)?,
 				content: message.content.is_some().then(|| row.get(7)).transpose()?,
 			})
-		})
-		.optional()?)
-}
-
-fn stored_activity_key(
-	transaction: &Transaction<'_>,
-	id: &str,
-) -> Result<Option<StoredActivityKey>, DatabaseError> {
-	Ok(transaction
-		.query_row(ACTIVITY_KEY, params![id], |row| {
-			Ok(StoredActivityKey { stored: read_activity(row)?, turn_id: row.get(6)? })
 		})
 		.optional()?)
 }
@@ -1176,17 +897,6 @@ fn read_pin(row: &Row<'_>) -> rusqlite::Result<StoredPin> {
 	})
 }
 
-fn read_activity(row: &Row<'_>) -> rusqlite::Result<StoredActivity> {
-	Ok(StoredActivity {
-		id: row.get(0)?,
-		kind: row.get(1)?,
-		status: row.get(2)?,
-		payload: row.get(3)?,
-		seq: row.get(4)?,
-		created_at: row.get(5)?,
-	})
-}
-
 #[cfg(test)]
 mod tests {
 	use std::fs;
@@ -1217,10 +927,10 @@ mod tests {
 		TerminalState::Failed,
 		TerminalState::Interrupted,
 	];
-	const TERMINATIONS: [TerminalStatus; 3] =
+	pub(super) const TERMINATIONS: [TerminalStatus; 3] =
 		[TerminalStatus::Succeeded, TerminalStatus::Failed, TerminalStatus::Terminated];
 
-	async fn seeded(dir: &Path) -> Database {
+	pub(super) async fn seeded(dir: &Path) -> Database {
 		let database = open(dir);
 		database
 			.call(|connection| Ok(connection.execute_batch(FIXTURE)?))
@@ -1229,7 +939,7 @@ mod tests {
 		database
 	}
 
-	async fn a_turn(database: &Database, id: &str, conversation: &str) -> i64 {
+	pub(super) async fn a_turn(database: &Database, id: &str, conversation: &str) -> i64 {
 		database
 			.messages()
 			.start_turn(NewTurn {
@@ -1292,7 +1002,7 @@ mod tests {
 		}
 	}
 
-	fn an_activity(id: &str, status: InitialStatus) -> NewActivity {
+	pub(super) fn an_activity(id: &str, status: InitialStatus) -> NewActivity {
 		NewActivity {
 			id: id.into(),
 			turn_id: "t1".into(),
@@ -1355,7 +1065,7 @@ mod tests {
 		messages.iter().map(|message| message.state).collect()
 	}
 
-	async fn statuses(database: &Database) -> Vec<ActivityStatus> {
+	pub(super) async fn statuses(database: &Database) -> Vec<ActivityStatus> {
 		database
 			.messages()
 			.activities_for_turn("t1".into())
@@ -1432,7 +1142,7 @@ mod tests {
 		);
 	}
 
-	fn assert_rejected(refused: &Result<(), TranscriptError>, from: &str, to: &str) {
+	pub(super) fn assert_rejected(refused: &Result<(), TranscriptError>, from: &str, to: &str) {
 		assert!(
 			matches!(
 				refused,
@@ -2305,70 +2015,6 @@ mod tests {
 				.all(|message| message.content == "half a thought"),
 			"a streamed message lost its text when it ended"
 		);
-
-		drop(database);
-		fs::remove_dir_all(&dir).expect("cleanup");
-	}
-
-	#[tokio::test]
-	async fn an_activity_walks_its_graph_forward_and_refuses_every_other_move() {
-		let dir = temp_dir();
-		let database = seeded(&dir).await;
-		a_turn(&database, "t1", "c1").await;
-		let mut expected = Vec::new();
-		database
-			.messages()
-			.append_activity(an_activity("walked", InitialStatus::Pending))
-			.await
-			.expect("the activity is appended");
-		database
-			.messages()
-			.start_activity("walked".into())
-			.await
-			.expect("a pending step refused to start running");
-		database
-			.messages()
-			.finish_activity("walked".into(), TerminalStatus::Succeeded)
-			.await
-			.expect("a running step refused to end");
-		expected.push(ActivityStatus::Succeeded);
-		for (index, termination) in TERMINATIONS.into_iter().enumerate() {
-			for (id, opening) in [
-				(format!("p{index}"), InitialStatus::Pending),
-				(format!("r{index}"), InitialStatus::Running),
-			] {
-				database
-					.messages()
-					.append_activity(an_activity(&id, opening))
-					.await
-					.expect("the activity is appended");
-				database
-					.messages()
-					.finish_activity(id, termination)
-					.await
-					.expect("an open step refused to end");
-				expected.push(termination.into());
-			}
-		}
-		database
-			.messages()
-			.append_activity(an_activity("running", InitialStatus::Running))
-			.await
-			.expect("the activity is appended");
-		expected.push(ActivityStatus::Running);
-
-		let reopened = database.messages().start_activity("p0".into()).await;
-		let another_ending =
-			database.messages().finish_activity("p0".into(), TerminalStatus::Failed).await;
-		database
-			.messages()
-			.finish_activity("p0".into(), TerminalStatus::Succeeded)
-			.await
-			.expect("the same ending reported twice was refused");
-
-		assert_rejected(&reopened, "succeeded", "running");
-		assert_rejected(&another_ending, "succeeded", "failed");
-		assert_eq!(statuses(&database).await, expected, "a step moved somewhere it may not go");
 
 		drop(database);
 		fs::remove_dir_all(&dir).expect("cleanup");
