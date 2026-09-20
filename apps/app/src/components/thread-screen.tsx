@@ -1151,19 +1151,12 @@ type ThreadViewProps = {
 	onOpenMission: (missionId: string) => void
 }
 
-function ThreadView({
-	activityPanel,
+const useThreadSeats = ({
 	thread,
 	bots: known,
-	runtimes,
 	attachments,
-	drafts,
-	landings,
 	readerName,
-	onboarding,
-	signIn,
-	onOpenMission,
-}: ThreadViewProps) {
+}: ThreadViewProps) => {
 	const t = useChatCopy()
 	const { state, controller } = thread
 	const facts = factsOf(thread)
@@ -1189,6 +1182,51 @@ function ThreadView({
 		[facts.bot, facts.id],
 	)
 	const staged = useAttachments(attachments, owner, canAttach, rootRef)
+
+	return {
+		authors,
+		botFace,
+		botImage,
+		bots,
+		canAttach,
+		clock,
+		composerPlaceholder,
+		composerRef,
+		controller,
+		facts,
+		isMissionClosed,
+		isSoloThread,
+		missionSeat,
+		present,
+		promptRef,
+		promptResponder,
+		reader,
+		roster,
+		rootRef,
+		scrollerRef,
+		staged,
+		state,
+		t,
+	}
+}
+
+type ThreadSeats = ReturnType<typeof useThreadSeats>
+
+const useThreadContext = (
+	{ runtimes, landings }: ThreadViewProps,
+	seats: ThreadSeats,
+) => {
+	const {
+		clock,
+		controller,
+		facts,
+		missionSeat,
+		reader,
+		roster,
+		scrollerRef,
+		state,
+		t,
+	} = seats
 
 	const repliedToRefusal = facts.refused?.repliedToMessageId
 	const alsoQuoted = useMemo(
@@ -1240,6 +1278,34 @@ function ThreadView({
 			),
 		[pins.bubbles, faceOf, reader, toExcerpt],
 	)
+
+	return {
+		applications,
+		faceOf,
+		highlightedMessageId,
+		installs,
+		jumpToMessage,
+		liveMissionIds,
+		missions,
+		pinnedRows,
+		pins,
+		quotes,
+		repliedToRefusal,
+		routinesScope,
+		sessionApplications,
+		toQuote,
+	}
+}
+
+type ThreadContext = ReturnType<typeof useThreadContext>
+
+const useThreadActions = (
+	{ thread, bots: known, drafts, signIn }: ThreadViewProps,
+	seats: ThreadSeats,
+	context: ThreadContext,
+) => {
+	const { composerRef, controller, facts, scrollerRef, staged, state } = seats
+	const { toQuote } = context
 
 	const seatMentioned = useSeatMentioned({
 		conversation: facts.conversation,
@@ -1304,7 +1370,7 @@ function ThreadView({
 				scrollerRef.current?.scrollToEnd()
 			}
 		})
-	}, [controller])
+	}, [controller, scrollerRef])
 	const hasNewer = state.hasNewer
 
 	const { asked, recall } = useAskedQuestion({
@@ -1312,6 +1378,61 @@ function ThreadView({
 		messages: state.messages,
 		toQuote,
 	})
+
+	return {
+		asked,
+		botController,
+		hasNewer,
+		holdReply,
+		isSentInMount,
+		loadLatest,
+		loadNewer,
+		loadOlder,
+		offerSignIn,
+		readDraft,
+		recall,
+		releaseReply,
+		rememberDraft,
+		replyTarget,
+		restart,
+		retry,
+		stop,
+		submitPrompt,
+	}
+}
+
+type ThreadActions = ReturnType<typeof useThreadActions>
+
+const threadRowsOf = (
+	{ thread, bots: known, onboarding, signIn, onOpenMission }: ThreadViewProps,
+	seats: ThreadSeats,
+	context: ThreadContext,
+	actions: ThreadActions,
+) => {
+	const {
+		authors,
+		botFace,
+		facts,
+		isSoloThread,
+		missionSeat,
+		present,
+		promptResponder,
+		state,
+		t,
+	} = seats
+	const {
+		applications,
+		faceOf,
+		installs,
+		liveMissionIds,
+		missions,
+		pins,
+		quotes,
+		repliedToRefusal,
+		sessionApplications,
+		toQuote,
+	} = context
+	const { asked, botController, holdReply, isSentInMount, retry } = actions
 
 	const { runs, causes } = readRuns({
 		messages: state.messages,
@@ -1396,109 +1517,137 @@ function ThreadView({
 		: undefined
 	const onboardingTail = onboardingTailFor(thread, onboarding, signIn)
 
+	return { onboardingTail, refusedTarget, transcriptRows }
+}
+
+const useThreadView = (props: ThreadViewProps) => {
+	const seats = useThreadSeats(props)
+	const context = useThreadContext(props, seats)
+	const actions = useThreadActions(props, seats, context)
+
+	return {
+		...seats,
+		...context,
+		...actions,
+		...threadRowsOf(props, seats, context, actions),
+	}
+}
+
+function ThreadView(props: ThreadViewProps) {
+	const { activityPanel, thread, bots: known, runtimes, onOpenMission } = props
+	const view = useThreadView(props)
+
 	const layout = (
 		<ThreadLayout
-			anchorOnSend={isSoloThread}
-			busy={facts.isBusy}
+			anchorOnSend={view.isSoloThread}
+			busy={view.facts.isBusy}
 			composer={
 				<ThreadComposerSlot
 					bots={known}
-					canAttach={canAttach}
-					composerRef={composerRef}
-					isDisabled={isMissionClosed}
-					onPromptChange={rememberDraft}
-					onSubmitPrompt={submitPrompt}
-					placeholder={composerPlaceholder}
-					promptRef={promptRef}
-					readDraft={readDraft}
-					staged={staged}
+					canAttach={view.canAttach}
+					composerRef={view.composerRef}
+					isDisabled={view.isMissionClosed}
+					onPromptChange={view.rememberDraft}
+					onSubmitPrompt={view.submitPrompt}
+					placeholder={view.composerPlaceholder}
+					promptRef={view.promptRef}
+					readDraft={view.readDraft}
+					staged={view.staged}
 					thread={thread}
 				/>
 			}
 			header={
 				<ThreadHeader
-					botImage={botImage}
-					botWork={facts.botWork}
-					hasRoutines={routinesScope.conversationId !== null}
-					liveMissionIds={liveMissionIds}
-					mission={missionSeat}
-					onJumpToPin={(bubbleId) => jumpToMessage(pins.anchorOf(bubbleId))}
-					onUnpin={pins.unpin}
-					pinnedRows={pinnedRows}
-					present={present}
+					botImage={view.botImage}
+					botWork={view.facts.botWork}
+					hasRoutines={view.routinesScope.conversationId !== null}
+					liveMissionIds={view.liveMissionIds}
+					mission={view.missionSeat}
+					onJumpToPin={(bubbleId) =>
+						view.jumpToMessage(view.pins.anchorOf(bubbleId))
+					}
+					onUnpin={view.pins.unpin}
+					pinnedRows={view.pinnedRows}
+					present={view.present}
 					thread={thread}
 				/>
 			}
-			highlightedMessageId={highlightedMessageId}
-			label={missionSeat ? t("missions.feed.label") : t("screen.label")}
-			notice={<ThreadNotices pins={pins} staged={staged} />}
-			countsNewMessages={!isSoloThread}
-			marksNewMessages={!isSoloThread}
+			highlightedMessageId={view.highlightedMessageId}
+			label={
+				view.missionSeat
+					? view.t("missions.feed.label")
+					: view.t("screen.label")
+			}
+			notice={<ThreadNotices pins={view.pins} staged={view.staged} />}
+			countsNewMessages={!view.isSoloThread}
+			marksNewMessages={!view.isSoloThread}
 			newer={newerControlOf({
-				hasNewer,
-				isLoading: facts.isLoadingNewer,
-				onLoad: loadNewer,
-				onLoadLatest: loadLatest,
+				hasNewer: view.hasNewer,
+				isLoading: view.facts.isLoadingNewer,
+				onLoad: view.loadNewer,
+				onLoadLatest: view.loadLatest,
 			})}
 			older={
-				state.messages.length > 0
+				view.state.messages.length > 0
 					? {
-							has: state.hasOlder,
-							isLoading: facts.isLoadingOlder,
-							onLoad: loadOlder,
+							has: view.state.hasOlder,
+							isLoading: view.facts.isLoadingOlder,
+							onLoad: view.loadOlder,
 						}
 					: undefined
 			}
-			onFollowChange={controller.follow}
+			onFollowChange={view.controller.follow}
 			pending={
 				<ThreadPending
-					authors={authors}
-					permission={facts.permission}
-					questionRecall={recall}
-					responder={promptResponder}
+					authors={view.authors}
+					permission={view.facts.permission}
+					questionRecall={view.recall}
+					responder={view.promptResponder}
 				/>
 			}
 			reply={
-				replyTarget
-					? { ...toQuote(replyTarget), onDismiss: releaseReply }
+				view.replyTarget
+					? { ...view.toQuote(view.replyTarget), onDismiss: view.releaseReply }
 					: undefined
 			}
-			rootRef={rootRef}
-			rows={transcriptRows}
-			scrollerRef={scrollerRef}
-			transcriptKey={facts.id}
+			rootRef={view.rootRef}
+			rows={view.transcriptRows}
+			scrollerRef={view.scrollerRef}
+			transcriptKey={view.facts.id}
 		>
-			{showsEmptyState(transcriptRows, onboardingTail) ? (
+			{showsEmptyState(view.transcriptRows, view.onboardingTail) ? (
 				<ThreadEmptyState
-					botImage={botImage}
-					latestError={facts.latestError}
-					onRestart={restart}
-					onSignIn={offerSignIn}
-					present={present}
-					promptRef={promptRef}
+					botImage={view.botImage}
+					latestError={view.facts.latestError}
+					onRestart={view.restart}
+					onSignIn={view.offerSignIn}
+					present={view.present}
+					promptRef={view.promptRef}
 					thread={thread}
 				/>
 			) : null}
 
 			<ThreadTail
-				botWork={facts.botWork}
-				bots={bots}
-				onboarding={onboardingTail}
-				onStop={stop}
-				refusedQuote={refusedTarget ? toQuote(refusedTarget) : undefined}
+				botWork={view.facts.botWork}
+				bots={view.bots}
+				onboarding={view.onboardingTail}
+				onStop={view.stop}
+				refusedQuote={
+					view.refusedTarget ? view.toQuote(view.refusedTarget) : undefined
+				}
 				thread={thread}
 			/>
 		</ThreadLayout>
 	)
 
 	return (
-		<RosterProvider bots={bots}>
+		<RosterProvider bots={view.bots}>
 			<ThreadRoutines
-				{...routinesScope}
+				{...view.routinesScope}
 				activityPanel={activityPanel}
-				faceOf={faceOf}
-				liveMissionIds={liveMissionIds}
-				missions={missions}
+				faceOf={view.faceOf}
+				liveMissionIds={view.liveMissionIds}
+				missions={view.missions}
 				onOpenMission={onOpenMission}
 				runtimes={runtimes}
 			>

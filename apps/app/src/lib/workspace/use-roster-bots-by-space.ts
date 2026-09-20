@@ -35,6 +35,8 @@ export const useRosterBotsBySpace = ({
 	rosters,
 	working,
 }: RosterBotsBySpaceInput) => {
+	// React Compiler hoists probeRender out of the memo, which would make the
+	// rosterBotsBySpace count of PRF1 render baseline read one per render instead of one per recompute
 	"use no memo"
 
 	return useMemo(() => {
