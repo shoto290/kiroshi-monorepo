@@ -15,6 +15,12 @@ export type {
 	TriggerDecision,
 } from "@/lib/bindings"
 
+export type ReportRefusal =
+	| "unknownTurn"
+	| "turnOfAnotherConversation"
+	| "turnAlreadyReported"
+	| "turnWithoutReport"
+
 export type ReportedRunsByTurnId = ReadonlyMap<string, ReportedRun>
 
 export const NO_REPORTED_RUNS: ReportedRunsByTurnId = new Map()
