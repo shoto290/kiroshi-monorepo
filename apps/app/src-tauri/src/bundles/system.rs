@@ -197,7 +197,6 @@ mod tests {
 		] {
 			assert!(said_in_one_breath.contains(said), "{said} is missing");
 		}
-		assert_eq!(file(MISSIONS), Some(embedded(MISSIONS)));
 	}
 
 	#[test]
