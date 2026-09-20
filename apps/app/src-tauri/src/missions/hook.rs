@@ -25,7 +25,11 @@ const SETTINGS_NAME: &str = "settings.local.json";
 
 const HOOKS_KEY: &str = "hooks";
 
-const HOOKED_EVENTS: [&str; 3] = ["Notification", "UserPromptSubmit", "Stop"];
+pub const PROMPT_SUBMITTED: &str = "UserPromptSubmit";
+
+pub const TURN_STOPPED: &str = "Stop";
+
+const HOOKED_EVENTS: [&str; 3] = ["Notification", PROMPT_SUBMITTED, TURN_STOPPED];
 
 const SCRIPT: &str = include_str!("../../hooks/kiroshi-agent-hook.sh");
 

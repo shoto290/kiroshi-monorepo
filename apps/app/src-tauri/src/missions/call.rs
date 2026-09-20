@@ -8,6 +8,7 @@ use uuid::Uuid;
 
 use super::commands::announce_change;
 use super::contract::{MissionEntry, MissionError, MissionEventKind};
+use super::hook;
 use crate::conversations::commands::ready;
 use crate::db;
 use crate::routines::webhook::{self, Calls, DeliveryId};
@@ -15,10 +16,6 @@ use crate::routines::webhook::{self, Calls, DeliveryId};
 pub const PATH: &str = "/missions/call";
 
 pub const SOURCE: &str = "agent-hook";
-
-const STARTS_THE_AGENT: &str = "UserPromptSubmit";
-
-const STOPS_THE_AGENT: &str = "Stop";
 
 const ACCEPTED: (StatusCode, &str) = (StatusCode::ACCEPTED, "the mission was told");
 
@@ -103,8 +100,8 @@ async fn carried<R: Runtime>(
 
 fn entries(payload: Value) -> Vec<MissionEntry> {
 	match payload.get("event").and_then(Value::as_str) {
-		Some(STARTS_THE_AGENT) => vec![entry(MissionEventKind::AgentStarted, payload)],
-		Some(STOPS_THE_AGENT) => vec![
+		Some(hook::PROMPT_SUBMITTED) => vec![entry(MissionEventKind::AgentStarted, payload)],
+		Some(hook::TURN_STOPPED) => vec![
 			entry(MissionEventKind::AgentStopped, payload.clone()),
 			entry(MissionEventKind::AgentAsked, payload),
 		],
@@ -466,7 +463,7 @@ mod tests {
 		let mission = an_armed_mission(&app, A_KEY).await;
 		let webhook = listening(&app, Ticking::at(NOON));
 
-		for event in ["UserPromptSubmit", "Stop"] {
+		for event in [hook::PROMPT_SUBMITTED, hook::TURN_STOPPED] {
 			let held =
 				answered(webhook.address(), calling(Some(A_KEY), None, &a_body(event))).await;
 			assert_eq!(held, answer(ACCEPTED));
@@ -492,7 +489,7 @@ mod tests {
 		let webhook = listening(&app, Ticking::at(NOON));
 
 		for _ in 0..2 {
-			let request = calling(Some(A_KEY), Some("delivery-1"), &a_body("Stop"));
+			let request = calling(Some(A_KEY), Some("delivery-1"), &a_body(hook::TURN_STOPPED));
 			assert_eq!(answered(webhook.address(), request).await, answer(ACCEPTED));
 		}
 
@@ -528,7 +525,7 @@ mod tests {
 		let webhook = listening(&app, Ticking::at(NOON));
 
 		let held =
-			answered(webhook.address(), calling(Some(A_KEY), None, &a_body("UserPromptSubmit")))
+			answered(webhook.address(), calling(Some(A_KEY), None, &a_body(hook::PROMPT_SUBMITTED)))
 				.await;
 
 		assert_eq!(held, answer(ACCEPTED));
