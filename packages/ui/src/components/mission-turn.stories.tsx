@@ -10,6 +10,7 @@ import type {
 	MissionCardModel,
 	MissionState,
 } from "@workspace/ui/components/mission"
+import { hasStatePill } from "@workspace/ui/components/mission-state-pill"
 import { MissionTurn } from "@workspace/ui/components/mission-turn"
 import {
 	CLOSED_MISSION_CARD,
@@ -31,9 +32,7 @@ const MISSION_STATES = listExhaustively<MissionState>({
 	done: true,
 })
 
-const STATES_WITH_A_PILL = MISSION_STATES.filter(
-	(state) => state !== "working" && state !== "waiting_bot",
-)
+const STATES_WITH_A_PILL = MISSION_STATES.filter(hasStatePill)
 
 const ACTIVITIES = [true, false]
 

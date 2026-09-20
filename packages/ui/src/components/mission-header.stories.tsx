@@ -11,6 +11,7 @@ import {
 	MissionHeader,
 	type MissionHeaderProps,
 } from "@workspace/ui/components/mission-header"
+import { hasStatePill } from "@workspace/ui/components/mission-state-pill"
 import {
 	MISSION_BOT,
 	MISSION_NOW,
@@ -40,9 +41,7 @@ const WORKING_HEADER: Omit<MissionHeaderProps, "onBack"> = {
 	now: MISSION_NOW,
 }
 
-const STATES_WITH_A_PILL = MISSION_STATES.filter(
-	(state) => state !== "working" && state !== "waiting_bot",
-)
+const STATES_WITH_A_PILL = MISSION_STATES.filter(hasStatePill)
 
 const ACTIVITIES = [true, false]
 
