@@ -68,7 +68,7 @@ import {
 	createScriptedDriver,
 	type ScriptedDriver,
 } from "@/lib/conversations/scripted-driver"
-import type { Bot, EnvOwner, Space } from "@/lib/conversations/store-contract"
+import type { Bot, Space } from "@/lib/conversations/store-contract"
 import type { TranscriptStore } from "@/lib/conversations/store-port"
 import type {
 	CompanionArrival,
@@ -2360,166 +2360,75 @@ const APPLICATION_REFUSED = leftOutError(
 	'the server "atlas" was left out: it is waiting for you to authorize it',
 )
 
-const VARIABLE_REFUSED = leftOutError(
-	'the server "atlas" was left out: ATLAS_TOKEN is defined by no scope',
-)
-
-const UNNAMED_REFUSED = leftOutError("the application settings were refused")
-
 const APPLICATION_REFUSED_TITLE = "Couldn't start an application"
 
 const LEFT_OUT_TITLE = "atlas was left out"
 
-const SPEAKER: EnvOwner = { kind: "bot", id: "bot-1", spaceId: SPACE }
+const REFUSED_APPLICATION: AgentEvent[] = [
+	{ type: "failed", error: APPLICATION_REFUSED.error },
+]
 
-const SPEAKER_SPACE: EnvOwner = { kind: "space", id: SPACE }
+const CRASHED_SESSION: AgentEvent[] = [{ type: "failed", error: CRASH.error }]
 
-const refusedApplicationScreen = (
-	port: FakeConnectionPort,
-	onOpen: (owner: EnvOwner) => void = () => undefined,
-	refusal: ChatError = APPLICATION_REFUSED,
-) =>
+const refusedApplicationScreen = (port: FakeConnectionPort) =>
 	createElement(
 		Fragment,
 		null,
 		createElement(NoticeSurface),
 		createElement(
 			SessionApplicationsContext.Provider,
-			{ value: { port, spaceId: SPACE, onOpen } },
+			{ value: { port, spaceId: SPACE, onOpen: () => undefined } },
 			screenOf(
 				threadOf({
-					id: SPEAKER.id,
+					id: "bot-1",
 					name: "Nyx",
 					said: "the first answer",
-					errors: [refusal],
+					errors: [APPLICATION_REFUSED],
 				}),
 			),
 		),
 	)
 
-const expectTransportNoticeAlone = () => {
-	expect(raisedNotices(APPLICATION_REFUSED_TITLE)).toHaveLength(1)
+const conversationFailingWith = async (events: AgentEvent[]) => {
+	const room = await roomOf({ names: ["Ada"] })
+	render(createElement(NoticeSurface))
+	render(screenOf(room.thread, room.bots))
+	await room.send("hold the line")
+	act(() => {
+		room.driver.pushTo(room.idOf("Ada"), events)
+	})
+	await settle()
+}
+
+const expectNoFailureNotice = () => {
 	expect(raisedNotices(LEFT_OUT_TITLE)).toHaveLength(0)
-	expect(raisedNotices("ledger was left out")).toHaveLength(0)
+	expect(raisedNotices(APPLICATION_REFUSED_TITLE)).toHaveLength(0)
 }
 
 describe("ThreadScreen application left out of a session", () => {
 	afterEach(cleanup)
 
-	it("reads the applications of the speaking companion and of its space", async () => {
-		const port = createFakeConnectionPort()
-
-		render(refusedApplicationScreen(port))
-		await settle()
-
-		expect(port.calls).toEqual([
-			{ command: "status", owner: SPEAKER },
-			{ command: "status", owner: SPEAKER_SPACE },
-		])
-	})
-
-	it("names the application waiting for authorization in place of the transport notice", async () => {
+	it("raises no notice on a solo thread, and reads no application", async () => {
 		const port = createFakeConnectionPort()
 		port.rows.bot = [{ name: "atlas", status: "needsAuthorization" }]
 
 		render(refusedApplicationScreen(port))
 		await settle()
 
-		expect(raisedNotices(LEFT_OUT_TITLE)).toHaveLength(1)
-		expect(raisedNotices(APPLICATION_REFUSED_TITLE)).toHaveLength(0)
-	})
-
-	it("opens the applications of the owner that declares it", async () => {
-		const port = createFakeConnectionPort()
-		port.rows.space = [{ name: "atlas", status: "needsAuthorization" }]
-		const onOpen = vi.fn()
-		render(refusedApplicationScreen(port, onOpen))
-		await settle()
-
-		await pressInNotice(LEFT_OUT_TITLE, "Open Applications")
-
-		expect(onOpen).toHaveBeenCalledWith(SPEAKER_SPACE)
-	})
-
-	it("keeps the transport notice when no application waits for authorization", async () => {
-		const port = createFakeConnectionPort()
-		port.rows.bot = [{ name: "atlas", status: "connected" }]
-
-		render(refusedApplicationScreen(port))
-		await settle()
-
-		expectTransportNoticeAlone()
-	})
-
-	it("names the application the rejection names when two wait for authorization", async () => {
-		const port = createFakeConnectionPort()
-		port.rows.bot = [{ name: "ledger", status: "needsAuthorization" }]
-		port.rows.space = [{ name: "atlas", status: "needsAuthorization" }]
-		const onOpen = vi.fn()
-		render(refusedApplicationScreen(port, onOpen))
-		await settle()
-
-		expect(raisedNotices(LEFT_OUT_TITLE)).toHaveLength(1)
-		expect(raisedNotices("ledger was left out")).toHaveLength(0)
-
-		await pressInNotice(LEFT_OUT_TITLE, "Open Applications")
-
-		expect(onOpen).toHaveBeenCalledWith(SPEAKER_SPACE)
-	})
-
-	it("keeps the transport notice when the named application is not the one waiting", async () => {
-		const port = createFakeConnectionPort()
-		port.rows.bot = [
-			{ name: "atlas", status: "connected" },
-			{ name: "ledger", status: "needsAuthorization" },
-		]
-
-		render(refusedApplicationScreen(port))
-		await settle()
-
-		expectTransportNoticeAlone()
-	})
-
-	it("keeps the transport notice when the named server has no row", async () => {
-		const port = createFakeConnectionPort()
-		port.rows.bot = [{ name: "ledger", status: "needsAuthorization" }]
-
-		render(refusedApplicationScreen(port))
-		await settle()
-
-		expectTransportNoticeAlone()
-	})
-
-	it("keeps the transport notice when a missing variable left the server out", async () => {
-		const port = createFakeConnectionPort()
-		port.rows.bot = [{ name: "atlas", status: "connected" }]
-		port.rows.space = [{ name: "ledger", status: "needsAuthorization" }]
-
-		render(refusedApplicationScreen(port, undefined, VARIABLE_REFUSED))
-		await settle()
-
-		expectTransportNoticeAlone()
-	})
-
-	it("keeps the transport notice and reads nothing when the rejection names no server", async () => {
-		const port = createFakeConnectionPort()
-		port.rows.bot = [{ name: "atlas", status: "needsAuthorization" }]
-
-		render(refusedApplicationScreen(port, undefined, UNNAMED_REFUSED))
-		await settle()
-
-		expectTransportNoticeAlone()
+		expectNoFailureNotice()
 		expect(port.calls).toEqual([])
 	})
 
-	it("keeps the transport notice when the applications could not be read", async () => {
-		const port = createFakeConnectionPort()
-		port.refusals.status = { kind: "io", detail: "locked" }
+	it("raises no notice on a conversation", async () => {
+		await conversationFailingWith(REFUSED_APPLICATION)
 
-		render(refusedApplicationScreen(port))
-		await settle()
+		expectNoFailureNotice()
+	})
 
-		expect(raisedNotices(APPLICATION_REFUSED_TITLE)).toHaveLength(1)
+	it("keeps the notice of a session a conversation lost", async () => {
+		await conversationFailingWith(CRASHED_SESSION)
+
+		expect(raisedNotices(CRASH_TITLE)).toHaveLength(1)
 	})
 })
 

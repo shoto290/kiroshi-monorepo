@@ -448,9 +448,6 @@ const bots = {
 			},
 			session: {
 				title: "{{name}} a été laissé de côté",
-				description:
-					"Il attend votre autorisation, cette session s'est donc déroulée sans ses outils.",
-				action: "Ouvrir les applications",
 			},
 			refused: {
 				title: "La connexion ne fonctionne plus",

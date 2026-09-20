@@ -31,10 +31,16 @@ const crashed: ChatError = {
 	error: { kind: "crashed", code: null, detail: null },
 }
 
+const leftOutApplication: ChatError = {
+	id: "error-left-out",
+	error: {
+		kind: "serverEnvRejected",
+		detail: 'the server "atlas" was left out: it waits for your authorization',
+	},
+}
+
 const mountOn = (error: ChatError, onDismiss = vi.fn()) =>
-	renderHook(() =>
-		useSessionFailureNotice({ error, speakerId: "scribe", onDismiss }),
-	)
+	renderHook(() => useSessionFailureNotice({ error, onDismiss }))
 
 beforeEach(() => {
 	failureNotice.mockClear()
@@ -91,4 +97,14 @@ it("keeps the sticky notice of every other failure", () => {
 			title: i18n.t("chat:screen.notice.crashed"),
 		}),
 	)
+})
+
+it("raises no notice for an application left out of the session", () => {
+	const onDismiss = vi.fn()
+
+	mountOn(leftOutApplication, onDismiss)
+
+	expect(failureNotice).not.toHaveBeenCalled()
+	expect(transientNotice).not.toHaveBeenCalled()
+	expect(onDismiss).not.toHaveBeenCalled()
 })
