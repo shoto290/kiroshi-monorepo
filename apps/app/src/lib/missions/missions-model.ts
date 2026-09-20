@@ -83,20 +83,18 @@ const runsInsideTheWindow = (
 	)
 }
 
-export const liveMissionsIn = ({
-	missions,
-	speakingBotIds,
-	agentRuns,
-	now,
-}: MissionLivenessRead): LiveMissionIds =>
+const isLive = (
+	mission: Mission,
+	{ speakingBotIds, agentRuns, now }: MissionLivenessRead,
+): boolean =>
+	isOpen(mission) &&
+	(speaksOnItsThread(mission, speakingBotIds) ||
+		runsInsideTheWindow(mission, agentRuns, now))
+
+export const liveMissionsIn = (read: MissionLivenessRead): LiveMissionIds =>
 	new Set(
-		missions
-			.filter(
-				(mission) =>
-					isOpen(mission) &&
-					(speaksOnItsThread(mission, speakingBotIds) ||
-						runsInsideTheWindow(mission, agentRuns, now)),
-			)
+		read.missions
+			.filter((mission) => isLive(mission, read))
 			.map(({ id }) => id),
 	)
 
