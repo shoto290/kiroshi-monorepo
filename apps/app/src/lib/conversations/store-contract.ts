@@ -2,7 +2,6 @@ export type {
 	ApplicationMark_Serialize as McpServerMark,
 	AvatarAnimal,
 	AvatarBlot,
-	AvatarRejection,
 	Bot,
 	BotChangedFile,
 	BotDraft,
@@ -15,7 +14,6 @@ export type {
 	EnvOwner,
 	EnvScope_Serialize as EnvScope,
 	HistoryAuthor as BotHistoryAuthor,
-	HistoryFileChange as BotFileChange,
 	Json as BotSkillValue,
 	McpServer_Serialize as BotMcpServer,
 	MessageReference,
@@ -36,12 +34,9 @@ export type {
 	Space,
 	SpaceError,
 	SpacePreferences,
-	StorageFailure,
 	SuggestedBot,
 	TranscriptStoreError,
 } from "@/lib/bindings"
-
-export type BotModel = string
 
 export type ConversationDraft = {
 	spaceId: string

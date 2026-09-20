@@ -9,7 +9,7 @@ import type {
 	SessionHandle,
 } from "../agent/contract"
 
-export type ChatDriverUnsubscribe = () => void
+type ChatDriverUnsubscribe = () => void
 
 export type ChatDriver = {
 	check: (scope: RuntimeScope | null) => Promise<CheckReport>

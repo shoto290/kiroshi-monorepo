@@ -2,7 +2,7 @@ import type { OnboardingPort } from "./onboarding-port"
 
 import type { CheckReport } from "../agent/contract"
 
-export type OnboardingCommand =
+type OnboardingCommand =
 	| "check"
 	| "signIn"
 	| "enterCode"
@@ -10,7 +10,7 @@ export type OnboardingCommand =
 	| "holdApiKey"
 	| "openSignInUrl"
 
-export type OnboardingCall = {
+type OnboardingCall = {
 	command: OnboardingCommand
 	value?: string
 }

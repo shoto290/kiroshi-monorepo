@@ -16,7 +16,7 @@ export type Install =
 	| { kind: "oauth" }
 	| ({ kind: "refused" } & InstallRefusal)
 
-export type AuthPosture = "authRequired" | "noAuth"
+type AuthPosture = "authRequired" | "noAuth"
 
 export type Application = {
 	name: string
@@ -48,7 +48,7 @@ export type ApplicationSearch = {
 	isStale?: boolean
 }
 
-export type ApplicationDestination = "companion" | "space" | "user"
+type ApplicationDestination = "companion" | "space" | "user"
 
 export type InstallCase =
 	| { kind: "nothing" }

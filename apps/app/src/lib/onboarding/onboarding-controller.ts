@@ -19,7 +19,7 @@ import {
 import { createStore } from "../store"
 import type { CompanionCreated } from "../companions/companions-transport"
 
-export type OnboardingStep = "welcome" | "connection" | "summoned" | "done"
+type OnboardingStep = "welcome" | "connection" | "summoned" | "done"
 
 export type OnboardingState = {
 	step: OnboardingStep

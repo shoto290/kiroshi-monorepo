@@ -40,7 +40,7 @@ export type PluginController = SkillFilesController & {
 	revert: (oldestCommitId: string, newestCommitId: string) => void
 }
 
-export const initialPluginState: PluginState = {
+const initialPluginState: PluginState = {
 	...initialHistoryFilesState,
 	scope: null,
 	skills: [],

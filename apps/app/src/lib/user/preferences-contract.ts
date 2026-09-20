@@ -1,31 +1,13 @@
-import type {
-	AvatarRejection,
-	StorageFailure,
-} from "../conversations/store-contract"
+import type { UserPreferences as GeneratedUserPreferences } from "@/lib/bindings"
 
-export type ColorScheme = "system" | "light" | "dark"
-
-export type Language = string | null
+export type { ColorScheme, UserPreferencesError } from "@/lib/bindings"
 
 export type BotIdBySpace = Record<string, string>
 
-export type UserPreferences = {
-	displayName: string
-	profilePicturePath: string | null
-	colorScheme: ColorScheme
-	language: Language
-	notifyOnQuestion: boolean
-	notifyOnPermission: boolean
-	notifyOnFinishedTurn: boolean
-	notifyWithSound: boolean
-	sidebarWidth: number | null
-	activityPanelOpen: boolean
-	firstRunDone: boolean
-	lastSpaceId: string | null
-	lastBotIdBySpace: BotIdBySpace
-}
+type AlwaysSerialized =
+	| "activityPanelOpen"
+	| "firstRunDone"
+	| "lastBotIdBySpace"
 
-export type UserPreferencesError =
-	| { kind: "unavailable"; failure: StorageFailure }
-	| { kind: "storage"; failure: StorageFailure }
-	| { kind: "rejectedProfilePicture"; reason: AvatarRejection }
+export type UserPreferences = GeneratedUserPreferences &
+	Required<Pick<GeneratedUserPreferences, AlwaysSerialized>>

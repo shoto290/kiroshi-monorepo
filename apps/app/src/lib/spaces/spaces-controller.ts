@@ -38,7 +38,7 @@ const isSameOrder = (spaces: Space[], ids: string[]) =>
 	spaces.length === ids.length &&
 	spaces.every((space, position) => space.id === ids[position])
 
-export const initialSpacesState: SpacesState = {
+const initialSpacesState: SpacesState = {
 	spaces: [],
 	selectedSpaceId: null,
 	isSettingsOpen: false,

@@ -8,7 +8,6 @@ import type {
 } from "@/lib/bindings"
 
 export type {
-	Account,
 	AgentCommand_Serialize as AgentCommand,
 	CheckReport_Serialize as CheckReport,
 	ConnectionState,
@@ -16,10 +15,9 @@ export type {
 	PermissionDecision,
 	RuntimeScope,
 	SessionHandle,
-	SignInError,
 } from "@/lib/bindings"
 
-export type FrontTransportError =
+type FrontTransportError =
 	| { kind: "readFailed"; detail: string }
 	| { kind: "unknownFailure"; detail: string }
 
@@ -32,7 +30,7 @@ export type TurnState =
 	| "stopping"
 	| "failed"
 
-export type MessageRole = "user" | "assistant"
+type MessageRole = "user" | "assistant"
 
 export type MessageCompletion =
 	| "streaming"
@@ -48,7 +46,7 @@ export type ChatMessage = {
 	timestamp: number
 }
 
-export type ActivityKind = "tool" | "permission"
+type ActivityKind = "tool" | "permission"
 
 export type ActivityStatus = "pending" | "running" | "succeeded" | "failed"
 

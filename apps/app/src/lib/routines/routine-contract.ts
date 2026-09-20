@@ -1,7 +1,6 @@
 import type { ReportedRun } from "@/lib/bindings"
 
 export type {
-	Refusal,
 	ReportedRun,
 	Routine_Serialize as Routine,
 	RoutineDraft_Deserialize as RoutineDraft,
@@ -13,11 +12,11 @@ export type {
 	RunClosing_Deserialize as RunClosing,
 	RunOutcome,
 	RunRequested,
-	SkipReason,
 	TriggerDecision,
-	TriggerEvent,
 } from "@/lib/bindings"
 
+// read as text by every_refusal_of_a_reported_turn_carries_the_kind_the_front_declares
+// in apps/app/src-tauri/src/routines/contract.rs
 export type ReportRefusal =
 	| "unknownTurn"
 	| "turnOfAnotherConversation"

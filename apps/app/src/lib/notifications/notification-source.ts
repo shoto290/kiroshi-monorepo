@@ -82,7 +82,7 @@ type MissionsSource = {
 export type NotificationSourceSwitches = NotificationSwitches &
 	Pick<UserPreferences, "notifyWithSound">
 
-export type FailureNoticeReporter = (notice: NoticeMessage) => void
+type FailureNoticeReporter = (notice: NoticeMessage) => void
 
 export type NotificationSourceOptions = {
 	chat: ChatSource

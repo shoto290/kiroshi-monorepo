@@ -16,7 +16,7 @@ export type CollapsedSectionsController = {
 	collapse: (spaceId: string, sectionId: string, isCollapsed: boolean) => void
 }
 
-export const initialCollapsedSectionsState: CollapsedSectionsState = {
+const initialCollapsedSectionsState: CollapsedSectionsState = {
 	collapsedBySpaceId: {},
 }
 

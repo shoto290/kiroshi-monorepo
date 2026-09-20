@@ -11,7 +11,7 @@ export type NotificationRequest = {
 
 export type NotificationActivation = (target: NotificationTarget) => void
 
-export type NotificationUnsubscribe = () => void
+type NotificationUnsubscribe = () => void
 
 export type NotificationPort = {
 	send: (request: NotificationRequest) => Promise<void>

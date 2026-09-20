@@ -1,26 +1,14 @@
-export type TranscriptRole = "user" | "assistant"
+import type { TranscriptMessage } from "@/lib/bindings"
 
-export type TerminalCompletion =
-	| "complete"
-	| "cancelled"
-	| "failed"
-	| "interrupted"
-
-export type TranscriptCompletion = "pending" | "streaming" | TerminalCompletion
-
-export type TranscriptMessage = {
-	id: string
-	conversationId: string
-	turnId: string
-	seq: number
-	role: TranscriptRole
-	content: string
-	completion: TranscriptCompletion
-	createdAt: number
-	authorBotId: string | null
-	repliedToMessageId: string | null
-	runtimeSessionId: string | null
-}
+export type {
+	CompanionArrival,
+	TerminalCompletion,
+	TranscriptCompletion,
+	TranscriptMessage,
+	TranscriptPage,
+	TranscriptRole,
+	TranscriptWindow,
+} from "@/lib/bindings"
 
 export type TranscriptDraft = Omit<TranscriptMessage, "seq">
 
@@ -34,34 +22,12 @@ export const TRANSCRIPT_WINDOW_SIZE = 60
 
 export const COMPANION_ARRIVED_EVENT = "conversation://companion-arrived"
 
-export type CompanionArrival = {
-	id: string
-	conversationId: string
-	botId: string
-	invitedByBotId: string | null
-	lastMessageSeq: number
-	createdAt: number
-}
-
+// read as text by the_companion_spoke_event_is_named_and_shaped_like_its_mirror
+// in apps/app/src-tauri/src/conversations/contract.rs, which matches both spellings literally
 export const COMPANION_SPOKE_EVENT = "conversation://companion-spoke"
 
 export type CompanionSpoke = {
 	conversationId: string
 	authorBotId: string
 	text: string
-}
-
-export type TranscriptPage = {
-	conversationId: string
-	messages: TranscriptMessage[]
-	arrivals: CompanionArrival[]
-	hasMore: boolean
-}
-
-export type TranscriptWindow = {
-	conversationId: string
-	messages: TranscriptMessage[]
-	arrivals: CompanionArrival[]
-	hasOlder: boolean
-	hasNewer: boolean
 }

@@ -23,7 +23,7 @@ export type TranscriptSettlement = {
 	settledText?: string
 }
 
-export type TranscriptConversation = {
+type TranscriptConversation = {
 	messages: TranscriptMessage[]
 	arrivals: CompanionArrival[]
 	hasMore: boolean

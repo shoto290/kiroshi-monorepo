@@ -1,7 +1,7 @@
 import type { RunClosing, RunRequested } from "./routine-contract"
 import type { RunPort, RunRequestListener } from "./run-port"
 
-export type ClosedRun = {
+type ClosedRun = {
 	runId: string
 	closing: RunClosing
 }

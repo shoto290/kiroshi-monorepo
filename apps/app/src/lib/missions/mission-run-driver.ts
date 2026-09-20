@@ -41,9 +41,9 @@ export const MISSION_TRIGGER_SOURCE = "mission"
 
 export const RUN_DEADLINE_MS = 30 * 60_000
 
-export type MissionRunUnsubscribe = () => void
+type MissionRunUnsubscribe = () => void
 
-export type MissionRunPort = {
+type MissionRunPort = {
 	board: () => Promise<Pick<MissionOnBoard, "mission">[]>
 	unreported: () => Promise<Pick<MissionOnBoard, "mission">[]>
 	reported: (missionId: string, turnId: string | null) => Promise<unknown>

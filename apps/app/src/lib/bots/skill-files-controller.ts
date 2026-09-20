@@ -1,6 +1,6 @@
 import type { BotSkill } from "../conversations/store-contract"
 
-export type SkillFileFailure = "read" | "write" | "delete"
+type SkillFileFailure = "read" | "write" | "delete"
 
 export type OpenedSkillFile = {
 	skillId: string

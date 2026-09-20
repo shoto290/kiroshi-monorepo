@@ -25,7 +25,7 @@ export type NotificationChange = {
 	isEnabled: boolean
 }
 
-export type LastBotOpened = {
+type LastBotOpened = {
 	spaceId: string | null
 	botId: string
 }

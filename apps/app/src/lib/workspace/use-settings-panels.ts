@@ -1,0 +1,137 @@
+import { useCallback, useEffect, useMemo } from "react"
+
+import type { ApplicationScopes } from "./use-application-scopes"
+import type { RosterView } from "./use-roster-view"
+import type { WorkspaceCore } from "./use-workspace-core"
+
+import { openedServerScope } from "../applications/application-settings"
+import { applicationTransport } from "../applications/application-transport"
+import { APPLICATIONS_TAB } from "../applications/connection-settings"
+import {
+	ownerOfScope,
+	type ReopenedScope,
+} from "../applications/session-reopening"
+import { applicationToOpenIn } from "../applications/settings-target"
+import { useHistoryView } from "../bots/use-history-view"
+import { toPluginSkills } from "../plugins/plugin-skills"
+
+type SettingsPanelsInput = {
+	core: WorkspaceCore
+	rosterView: RosterView
+	scopes: ApplicationScopes
+}
+
+export const useSettingsPanels = ({
+	core,
+	rosterView,
+	scopes,
+}: SettingsPanelsInput) => {
+	const {
+		applications,
+		chat,
+		companionPlugin,
+		roster,
+		spacePlugin,
+		spaces,
+		user,
+		userPlugin,
+	} = core
+	const { isEditing, settingsBotId } = rosterView
+	const {
+		isSpaceEditing,
+		selectedSpaceId,
+		setOpenedMcpServer,
+		setSettingsApplication,
+		setSettingsTab,
+		settingsApplication,
+	} = scopes
+
+	const botHistory = useHistoryView({
+		...companionPlugin.state,
+		isOpen: isEditing,
+		onOpenRun: companionPlugin.controller.openFiles,
+		onUndoRun: (oldestCommitId, newestCommitId) => {
+			companionPlugin.controller.revert(oldestCommitId, newestCommitId)
+			if (settingsBotId) chat.controller.redescribe(settingsBotId)
+		},
+	})
+
+	const spaceHistory = useHistoryView({
+		...spacePlugin.state,
+		isOpen: isSpaceEditing,
+		onOpenRun: spacePlugin.controller.openFiles,
+		onUndoRun: spacePlugin.controller.revert,
+	})
+
+	const userHistory = useHistoryView({
+		...userPlugin.state,
+		isOpen: user.state.isSettingsOpen,
+		onOpenRun: userPlugin.controller.openFiles,
+		onUndoRun: userPlugin.controller.revert,
+	})
+
+	const companionSkills = toPluginSkills(companionPlugin)
+	const spaceSkills = toPluginSkills(spacePlugin)
+	const personSkills = toPluginSkills(userPlugin)
+
+	const applicationToOpenOn = (scope: ReopenedScope) =>
+		applicationToOpenIn(scope, settingsApplication)
+
+	const closeSettingsTab = () => {
+		setSettingsTab(undefined)
+		setSettingsApplication(undefined)
+	}
+
+	// biome-ignore lint/correctness/useExhaustiveDependencies: the setters come from useState in useApplicationScopes and never change
+	const openApplicationsOf = useCallback(
+		(scope: ReopenedScope, server?: string) => {
+			setSettingsTab(APPLICATIONS_TAB)
+			setSettingsApplication(
+				server ? { scope, application: server } : undefined,
+			)
+			setOpenedMcpServer(
+				openedServerScope(server ?? null, ownerOfScope(scope, selectedSpaceId)),
+			)
+			if (scope.kind === "user") {
+				user.controller.setSettingsOpen(true)
+			} else if (scope.kind === "companion") {
+				roster.controller.edit(scope.id)
+			} else {
+				spaces.controller.setSettingsOpen(true)
+			}
+		},
+		[roster.controller, spaces.controller, user.controller, selectedSpaceId],
+	)
+	const conversationApplications = useMemo(
+		() => ({
+			port: applicationTransport,
+			curated: applications.state.curated,
+			spaces: spaces.state.spaces,
+			onOpen: openApplicationsOf,
+		}),
+		[applications.state.curated, spaces.state.spaces, openApplicationsOf],
+	)
+
+	useEffect(() => {
+		void applications.controller.open()
+	}, [applications.controller])
+	const sessionApplications = useMemo(
+		() => ({ spaceId: selectedSpaceId }),
+		[selectedSpaceId],
+	)
+
+	return {
+		applicationToOpenOn,
+		botHistory,
+		closeSettingsTab,
+		companionSkills,
+		conversationApplications,
+		personSkills,
+		sessionApplications,
+		spaceHistory,
+		spaceSkills,
+		userHistory,
+	}
+}
+
+export type SettingsPanels = ReturnType<typeof useSettingsPanels>

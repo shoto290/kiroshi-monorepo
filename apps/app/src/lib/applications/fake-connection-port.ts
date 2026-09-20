@@ -3,7 +3,7 @@ import type { ConnectionCommand } from "./connections-controller"
 
 import type { EnvOwner } from "../conversations/store-contract"
 
-export type ConnectionCall = {
+type ConnectionCall = {
 	command: ConnectionCommand
 	owner?: EnvOwner
 	name?: string

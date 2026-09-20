@@ -119,7 +119,7 @@ export const serverScopeOf = (owner: EnvOwner, name: string): EnvScope => ({
 	owner,
 })
 
-export type InstallValues = Record<string, string>
+type InstallValues = Record<string, string>
 
 type TypedValue = { field: InstallField; value: string }
 

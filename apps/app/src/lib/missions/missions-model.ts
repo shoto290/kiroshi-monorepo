@@ -50,7 +50,7 @@ export const AGENT_LIVENESS_WINDOW_MS = 30 * 60 * 1000
 
 export type LiveMissionIds = ReadonlySet<string>
 
-export type SpeakingBotIds = Record<string, string[]>
+type SpeakingBotIds = Record<string, string[]>
 
 export type AgentRunStamps = Record<string, number>
 

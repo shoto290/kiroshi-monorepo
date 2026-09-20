@@ -173,7 +173,7 @@ export type ReplyTarget = {
 
 const targetsByMessage = new WeakMap<TranscriptMessage, ReplyTarget>()
 
-export function replyTargetOf(message: TranscriptMessage): ReplyTarget {
+function replyTargetOf(message: TranscriptMessage): ReplyTarget {
 	const held = targetsByMessage.get(message)
 	if (held) {
 		return held

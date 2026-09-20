@@ -144,4 +144,4 @@ const EXCHANGES: Record<string, SceneExchange> = {
 
 const exchangeOf = (id: string): SceneExchange | undefined => EXCHANGES[id]
 
-export { exchangeOf, type SceneExchange, type SceneTurn }
+export { exchangeOf, type SceneTurn }

@@ -7,14 +7,14 @@ import type {
 	InstallRefusal,
 } from "./application-port"
 
-export type ApplicationCommand =
+type ApplicationCommand =
 	| "catalogue"
 	| "search"
 	| "named"
 	| "runnable"
 	| "installs"
 
-export type ApplicationCall = {
+type ApplicationCall = {
 	command: ApplicationCommand
 	query?: string
 	name?: string
