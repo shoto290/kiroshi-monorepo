@@ -434,10 +434,8 @@ const readLine = (
 const rejectsTheHeader = (reason = ""): boolean =>
 	AUTHORIZATION_REJECTED.some((named) => named.test(reason))
 
-const tokenGivenTo = (
-	env: ServerEnv | undefined,
-	name: string,
-): string | undefined => env?.perServer?.[name]?.[ACCESS_TOKEN]
+const wasGivenAToken = (env: ServerEnv | undefined, name: string): boolean =>
+	Boolean(env?.perServer?.[name]?.[ACCESS_TOKEN])
 
 const askedGrant = async (
 	grants: GrantPort,
@@ -460,7 +458,7 @@ const renewed = async (
 	secrets: string[],
 ): Promise<Renewing> => {
 	const { grants, env, signal, bound = REQUEST_BOUND_MS } = pass
-	if (!grants || !rejectsTheHeader(error) || !tokenGivenTo(env, name)) {
+	if (!grants || !rejectsTheHeader(error) || !wasGivenAToken(env, name)) {
 		return UNCHANGED
 	}
 	const granted = await askedGrant(grants, name, secrets)
