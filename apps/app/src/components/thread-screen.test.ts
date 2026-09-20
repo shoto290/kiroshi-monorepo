@@ -1023,6 +1023,12 @@ const ASKED_AGAIN: SpokenTurn = {
 
 const SENT_FIRST = "does the wall hold"
 
+const QUEUED_FIRST = "and the gate"
+
+const QUEUED_LAST = "and the roof"
+
+const WAITING_TO_BE_SENT = "Waiting to be sent"
+
 const queuedSoloOf = async (queued: string[]) => {
 	const solo = await soloOf({})
 	await solo.send(SENT_FIRST)
@@ -1031,12 +1037,6 @@ const queuedSoloOf = async (queued: string[]) => {
 	}
 	return solo
 }
-
-const QUEUED_FIRST = "and the gate"
-
-const QUEUED_LAST = "and the roof"
-
-const WAITING_TO_BE_SENT = "Waiting to be sent"
 
 const runRoomOf = () =>
 	roomOf({
