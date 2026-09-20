@@ -119,6 +119,9 @@ bun run lint         # Check
 bun run lint:fix     # Fix
 bun run types        # Type check (tsc -b)
 bun run snapshots    # Rewrite every back-end contract snapshot in apps/app/contracts from the live code
+bun run baseline     # Check the three vitest suites, biome, knip and the story counts against baselines/
+bun run baseline:update  # Record the newly reported items and the live story counts, keeping every entry already there
+bun run baseline:prune   # Drop the baseline entries no longer reported
 ```
 
 ## Naming

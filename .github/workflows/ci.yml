@@ -26,14 +26,14 @@ jobs:
       - name: Install dependencies
         run: bun install --frozen-lockfile
 
-      - name: Lint
-        run: bun run lint
+      - name: Baseline unit tests
+        run: bun run test:baseline
+
+      - name: Biome and knip against the baseline
+        run: bun run baseline lint
 
       - name: Types
         run: bun run types
-
-      - name: Knip
-        run: bunx knip@6.37.0 --no-exit-code
 
       - name: Build website
         run: bun run --filter=website build
@@ -107,14 +107,8 @@ jobs:
         working-directory: packages/ui
         run: bunx playwright install --with-deps chromium
 
-      - name: Test app
-        run: bun run --filter=app test:unit
-
-      - name: Test ui
-        run: bun run --filter=@workspace/ui test
-
-      - name: Test sidecar
-        run: bun run --filter=sidecar test
+      - name: Tests and stories against the baseline
+        run: bun run baseline vitest
 
   verify:
     needs: [lint, rust, vitest]

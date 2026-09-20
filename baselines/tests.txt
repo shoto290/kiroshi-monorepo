@@ -1,0 +1,1 @@
+ui :: packages/ui/src/components/bot-settings-dialog/permissions-panel.stories.tsx :: Picking The Mode
