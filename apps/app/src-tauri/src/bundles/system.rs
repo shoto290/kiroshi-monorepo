@@ -188,6 +188,8 @@ mod tests {
 			"`mission_watch`",
 			"`mission_escalate`",
 			"`mission_close`",
+			"`mission_list`",
+			"## What the conversation it came from hears",
 			"Every time you stop working on a mission, a status of it lands in the conversation that mission came from.",
 			"It names, by name, whoever picks the work up next",
 			"A status says where the mission stands, what moved since the last one, what is waiting, and on whom.",
@@ -195,7 +197,7 @@ mod tests {
 		] {
 			assert!(said_in_one_breath.contains(said), "{said} is missing");
 		}
-		assert_eq!(FILES.len(), 13);
+		assert_eq!(file(MISSIONS), Some(embedded(MISSIONS)));
 	}
 
 	#[test]
