@@ -1,20 +1,17 @@
 import { expect, fn } from "storybook/test"
 
 import preview from "@workspace/storybook/preview"
-import {
-	listExhaustively,
-	slotIn,
-	slotsIn,
-} from "@workspace/storybook/story-utils"
+import { slotIn, slotsIn } from "@workspace/storybook/story-utils"
 import type {
 	MissionCardModel,
 	MissionState,
 } from "@workspace/ui/components/mission"
-import { hasStatePill } from "@workspace/ui/components/mission-state-pill"
 import { MissionTurn } from "@workspace/ui/components/mission-turn"
 import {
 	CLOSED_MISSION_CARD,
 	MISSION_AUTHOR,
+	MISSION_STATES,
+	MISSION_STATES_WITHOUT_A_PILL,
 	WAITING_MISSION_CARD,
 	WORKING_MISSION_CARD,
 } from "@workspace/ui/components/missions.fixtures"
@@ -23,31 +20,29 @@ import { AssistantTurn, TurnGroup } from "@workspace/ui/components/turn"
 const OPENING_ANSWER =
 	"That one is wide enough to run on its own, so I opened a mission for it and I will report here when it lands."
 
-const MISSION_STATES = listExhaustively<MissionState>({
-	working: true,
-	waiting_bot: true,
-	waiting_human: true,
-	ready_to_merge: true,
-	failed: true,
-	done: true,
-})
-
-const STATES_WITH_A_PILL = MISSION_STATES.filter(hasStatePill)
-
 const ACTIVITIES = [true, false]
+
+const PILLS_THE_MATRIX_DRAWS = 8
 
 const WORKING_POSE = "Companion avatar owl, working"
 
 const RESTING_POSE = "Companion avatar owl, idle"
 
-const STATE_MATRIX: MissionCardModel[] = MISSION_STATES.flatMap((state) =>
+const missionsIn = (state: MissionState): MissionCardModel[] =>
 	ACTIVITIES.map((isWorking) => ({
 		...WAITING_MISSION_CARD,
 		id: `mission-${state}-${isWorking}`,
 		state,
 		isWorking,
-	})),
-)
+	}))
+
+const holderOf = (canvasElement: HTMLElement, state: MissionState) => {
+	const holder = canvasElement.querySelector<HTMLElement>(
+		`[data-holds="${state}"]`,
+	)
+	if (!holder) throw new Error(`Nothing holds the ${state} state`)
+	return holder
+}
 
 const READY_MISSION_CARD: MissionCardModel = {
 	...WAITING_MISSION_CARD,
@@ -133,15 +128,24 @@ export const States = meta.story({
 	},
 	render: (args) => (
 		<div className="flex flex-col gap-6">
-			{STATE_MATRIX.map((mission) => (
-				<MissionTurn {...args} key={mission.id} mission={mission} />
+			{MISSION_STATES.map((state) => (
+				<section className="flex flex-col gap-6" data-holds={state} key={state}>
+					{missionsIn(state).map((mission) => (
+						<MissionTurn {...args} key={mission.id} mission={mission} />
+					))}
+				</section>
 			))}
 		</div>
 	),
 	play: async ({ canvas, canvasElement }) => {
 		await expect(slotsIn(canvasElement, "mission-state-pill")).toHaveLength(
-			STATES_WITH_A_PILL.length * ACTIVITIES.length,
+			PILLS_THE_MATRIX_DRAWS,
 		)
+		for (const state of MISSION_STATES_WITHOUT_A_PILL) {
+			await expect(
+				slotsIn(holderOf(canvasElement, state), "mission-state-pill"),
+			).toHaveLength(0)
+		}
 		await expect(
 			canvas.getAllByRole("img", { hidden: true, name: WORKING_POSE }),
 		).toHaveLength(MISSION_STATES.length)

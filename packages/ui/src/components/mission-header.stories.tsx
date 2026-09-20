@@ -1,34 +1,22 @@
 import { expect, fn } from "storybook/test"
 
 import preview from "@workspace/storybook/preview"
-import {
-	listExhaustively,
-	slotIn,
-	slotsIn,
-} from "@workspace/storybook/story-utils"
+import { slotIn, slotsIn } from "@workspace/storybook/story-utils"
 import type { MissionState } from "@workspace/ui/components/mission"
 import {
 	MissionHeader,
 	type MissionHeaderProps,
 } from "@workspace/ui/components/mission-header"
-import { hasStatePill } from "@workspace/ui/components/mission-state-pill"
 import {
 	MISSION_BOT,
 	MISSION_NOW,
 	MISSION_OBJECTIVE,
 	MISSION_OPENED_AT,
+	MISSION_STATES,
+	MISSION_STATES_WITHOUT_A_PILL,
 	MISSION_TICKET,
 	MISSION_TOOLS,
 } from "@workspace/ui/components/missions.fixtures"
-
-const MISSION_STATES = listExhaustively<MissionState>({
-	working: true,
-	waiting_bot: true,
-	waiting_human: true,
-	ready_to_merge: true,
-	failed: true,
-	done: true,
-})
 
 const WORKING_HEADER: Omit<MissionHeaderProps, "onBack"> = {
 	bot: MISSION_BOT,
@@ -41,13 +29,21 @@ const WORKING_HEADER: Omit<MissionHeaderProps, "onBack"> = {
 	now: MISSION_NOW,
 }
 
-const STATES_WITH_A_PILL = MISSION_STATES.filter(hasStatePill)
-
 const ACTIVITIES = [true, false]
+
+const PILLS_THE_MATRIX_DRAWS = 8
 
 const WORKING_POSE = "Companion avatar owl, working"
 
 const RESTING_POSE = "Companion avatar owl, idle"
+
+const holderOf = (canvasElement: HTMLElement, state: MissionState) => {
+	const holder = canvasElement.querySelector<HTMLElement>(
+		`[data-holds="${state}"]`,
+	)
+	if (!holder) throw new Error(`Nothing holds the ${state} state`)
+	return holder
+}
 
 const LONG_OBJECTIVE =
 	"Rework the mission thread so a reader can follow a run that spans several days without ever losing the ticket it answers"
@@ -107,7 +103,7 @@ export const States = meta.story({
 	render: (args) => (
 		<div className="flex w-[36rem] max-w-full flex-col gap-4">
 			{MISSION_STATES.map((state) => (
-				<section className="flex flex-col gap-2" key={state}>
+				<section className="flex flex-col gap-2" data-holds={state} key={state}>
 					{ACTIVITIES.map((isWorking) => (
 						<MissionHeader
 							{...args}
@@ -122,14 +118,49 @@ export const States = meta.story({
 	),
 	play: async ({ canvas, canvasElement }) => {
 		await expect(slotsIn(canvasElement, "mission-state-pill")).toHaveLength(
-			STATES_WITH_A_PILL.length * ACTIVITIES.length,
+			PILLS_THE_MATRIX_DRAWS,
 		)
+		for (const state of MISSION_STATES_WITHOUT_A_PILL) {
+			await expect(
+				slotsIn(holderOf(canvasElement, state), "mission-state-pill"),
+			).toHaveLength(0)
+		}
 		await expect(
 			canvas.getAllByRole("img", { name: WORKING_POSE }),
 		).toHaveLength(MISSION_STATES.length)
 		await expect(
 			canvas.getAllByRole("img", { name: RESTING_POSE }),
 		).toHaveLength(MISSION_STATES.length)
+	},
+})
+
+export const WithoutAPill = meta.story({
+	args: { state: "waiting_human", isWorking: false },
+	parameters: {
+		docs: {
+			description: {
+				story:
+					"The first band of a mission nobody can act on yet, beside the band of one waiting on its reader. Check that the trailing edge of the `working` header holds nothing at all: `packages/ui/src/components/app-header.tsx:33` mounts its trailing container on the truthiness of the node it is handed, so a pill left to render nothing would still reserve width beside the objective. " +
+					FILLED_BY_THE_THREAD,
+			},
+		},
+	},
+	render: (args) => (
+		<div className="flex w-[36rem] max-w-full flex-col gap-4">
+			<section data-holds="working">
+				<MissionHeader {...args} isWorking={true} state="working" />
+			</section>
+			<section data-holds="waiting_human">
+				<MissionHeader {...args} />
+			</section>
+		</div>
+	),
+	play: async ({ canvasElement }) => {
+		const barOf = (state: MissionState) =>
+			slotIn(holderOf(canvasElement, state), "app-header")
+
+		await expect(barOf("working").children).toHaveLength(1)
+		await expect(barOf("waiting_human").children).toHaveLength(2)
 	},
 })
 

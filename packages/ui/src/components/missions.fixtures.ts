@@ -1,13 +1,29 @@
+import { listExhaustively } from "@workspace/storybook/story-utils"
 import type { MessageAuthor } from "@workspace/ui/components/message"
 import type {
 	MissionBot,
 	MissionCardModel,
 	MissionEventModel,
+	MissionState,
 	MissionTicketLink,
 } from "@workspace/ui/components/mission"
 import type { MissionRowModel } from "@workspace/ui/components/mission-row"
 import type { ReportedRunRowModel } from "@workspace/ui/components/reported-run-row"
 import type { EarlierTodayRow } from "@workspace/ui/components/routines-panel"
+
+export const MISSION_STATES = listExhaustively<MissionState>({
+	working: true,
+	waiting_bot: true,
+	waiting_human: true,
+	ready_to_merge: true,
+	failed: true,
+	done: true,
+})
+
+export const MISSION_STATES_WITHOUT_A_PILL: MissionState[] = [
+	"working",
+	"waiting_bot",
+]
 
 export const MISSION_BOT: MissionBot = {
 	name: "Ada Martin",

@@ -1,20 +1,15 @@
 import { expect } from "storybook/test"
 
 import preview from "@workspace/storybook/preview"
-import { listExhaustively, slotsIn } from "@workspace/storybook/story-utils"
+import { slotsIn } from "@workspace/storybook/story-utils"
 import type { MissionState } from "@workspace/ui/components/mission"
 import { MissionStatePill } from "@workspace/ui/components/mission-state-pill"
+import {
+	MISSION_STATES,
+	MISSION_STATES_WITHOUT_A_PILL,
+} from "@workspace/ui/components/missions.fixtures"
 
-const MISSION_STATES = listExhaustively<MissionState>({
-	working: true,
-	waiting_bot: true,
-	waiting_human: true,
-	ready_to_merge: true,
-	failed: true,
-	done: true,
-})
-
-const STATES_WITHOUT_A_PILL: MissionState[] = ["working", "waiting_bot"]
+const PILLS_THE_STATES_DRAW = 4
 
 const holderOf = (canvasElement: HTMLElement, state: MissionState) => {
 	const holder = canvasElement.querySelector(`[data-holds="${state}"]`)
@@ -57,10 +52,10 @@ export const States = meta.story({
 	),
 	play: async ({ canvasElement }) => {
 		await expect(slotsIn(canvasElement, "mission-state-pill")).toHaveLength(
-			MISSION_STATES.length - STATES_WITHOUT_A_PILL.length,
+			PILLS_THE_STATES_DRAW,
 		)
 
-		for (const state of STATES_WITHOUT_A_PILL) {
+		for (const state of MISSION_STATES_WITHOUT_A_PILL) {
 			await expect(holderOf(canvasElement, state)).toBeEmptyDOMElement()
 		}
 	},

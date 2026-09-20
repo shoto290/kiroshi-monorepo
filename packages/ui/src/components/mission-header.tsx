@@ -13,7 +13,10 @@ import {
 	MissionTicketLine,
 	MissionToolMark,
 } from "@workspace/ui/components/mission-marks"
-import { MissionStatePill } from "@workspace/ui/components/mission-state-pill"
+import {
+	hasStatePill,
+	MissionStatePill,
+} from "@workspace/ui/components/mission-state-pill"
 import { Button } from "@workspace/ui/components/ui/button"
 import { toRelativeTime } from "@workspace/ui/lib/time-format"
 import { cn } from "@workspace/ui/lib/utils"
@@ -81,7 +84,9 @@ const MissionHeader = ({
 						</span>
 					</>
 				}
-				trailing={<MissionStatePill state={state} />}
+				trailing={
+					hasStatePill(state) ? <MissionStatePill state={state} /> : null
+				}
 			/>
 			<div
 				className="flex h-8.5 shrink-0 items-center gap-2 border-border border-b pe-4 ps-12.5"

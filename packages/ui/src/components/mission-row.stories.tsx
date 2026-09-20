@@ -4,16 +4,15 @@ import { expect, fn } from "storybook/test"
 import preview from "@workspace/storybook/preview"
 import {
 	A11Y_CONTRAST_AWAITING_DESIGN_DECISION,
-	listExhaustively,
 	slotIn,
 	slotsIn,
 } from "@workspace/storybook/story-utils"
 import { BotIdentityAvatar } from "@workspace/ui/components/bot-identity-avatar"
-import type { MissionState } from "@workspace/ui/components/mission"
 import { MissionRow } from "@workspace/ui/components/mission-row"
 import {
 	CLOSED_MISSION,
 	FAILED_MISSION,
+	MISSION_STATES,
 	READY_MISSION,
 	UNTICKETED_MISSION,
 	WAITING_BOT_MISSION,
@@ -23,15 +22,6 @@ import {
 import { ROUTINES_PANEL_WIDTH } from "@workspace/ui/components/routines-panel"
 import { SidebarListRow } from "@workspace/ui/components/sidebar-list-row"
 import { Sidebar, SidebarProvider } from "@workspace/ui/components/ui/sidebar"
-
-const MISSION_STATES = listExhaustively<MissionState>({
-	working: true,
-	waiting_bot: true,
-	waiting_human: true,
-	ready_to_merge: true,
-	failed: true,
-	done: true,
-})
 
 const ACTIVITIES = [true, false]
 
