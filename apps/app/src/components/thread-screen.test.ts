@@ -2366,25 +2366,6 @@ const REFUSED_APPLICATION: AgentEvent[] = [
 
 const CRASHED_SESSION: AgentEvent[] = [{ type: "failed", error: CRASH.error }]
 
-const refusedApplicationScreen = () =>
-	createElement(
-		Fragment,
-		null,
-		createElement(NoticeSurface),
-		createElement(
-			SessionApplicationsContext.Provider,
-			{ value: { spaceId: SPACE } },
-			screenOf(
-				threadOf({
-					id: "bot-1",
-					name: "Nyx",
-					said: "the first answer",
-					errors: [APPLICATION_REFUSED],
-				}),
-			),
-		),
-	)
-
 const conversationFailingWith = async (events: AgentEvent[]) => {
 	const room = await roomOf({ names: ["Ada"] })
 	render(createElement(NoticeSurface))
@@ -2405,7 +2386,21 @@ describe("ThreadScreen application left out of a session", () => {
 	afterEach(cleanup)
 
 	it("raises no notice on a solo thread", async () => {
-		render(refusedApplicationScreen())
+		render(createElement(NoticeSurface))
+		render(
+			createElement(
+				SessionApplicationsContext.Provider,
+				{ value: { spaceId: SPACE } },
+				screenOf(
+					threadOf({
+						id: "bot-1",
+						name: "Nyx",
+						said: "the first answer",
+						errors: [APPLICATION_REFUSED],
+					}),
+				),
+			),
+		)
 		await settle()
 
 		expectNoFailureNotice()
