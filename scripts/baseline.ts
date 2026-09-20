@@ -93,13 +93,18 @@ const VITEST_SUITES: VitestSuite[] = [
 	{ name: "ui", filter: "@workspace/ui", script: "test" },
 ]
 
-type ReportRun = { command: string[]; cwd: string; label: string }
+type Run = { command: string[]; cwd: string }
 
-const runInherited = ({ command, cwd }: ReportRun) => {
+type CapturedRun = Run & { label: string }
+
+const unreadable = (label: string) =>
+	new Error(`${label} ended without a readable report`)
+
+const runInherited = ({ command, cwd }: Run) => {
 	Bun.spawnSync({ cmd: command, cwd, stdout: "inherit", stderr: "inherit" })
 }
 
-const runCaptured = ({ command, cwd, label }: ReportRun) => {
+const runCaptured = ({ command, cwd, label }: CapturedRun) => {
 	const finished = Bun.spawnSync({
 		cmd: command,
 		cwd,
@@ -107,29 +112,23 @@ const runCaptured = ({ command, cwd, label }: ReportRun) => {
 		stderr: "inherit",
 	})
 	const written = finished.stdout.toString()
-	if (written.trim().length === 0) {
-		throw new Error(`${label} ended without a readable report`)
-	}
+	if (written.trim().length === 0) throw unreadable(label)
 	return written
 }
 
-const readReport = ({ path, label }: { path: string; label: string }) => {
-	if (!existsSync(path)) {
-		throw new Error(`${label} ended without a readable report at ${path}`)
-	}
+type ReportFile = { path: string; label: string }
+
+const readReport = ({ path, label }: ReportFile) => {
+	if (!existsSync(path)) throw unreadable(label)
 	return readFileSync(path, "utf8")
 }
 
 const repoPath = (path: string, from: string) =>
 	relative(REPO, resolve(from, path))
 
-const vitestReport = ({
-	suite,
-	into,
-}: {
-	suite: VitestSuite
-	into: string
-}) => {
+type SuiteRun = { suite: VitestSuite; into: string }
+
+const vitestReport = ({ suite, into }: SuiteRun) => {
 	const path = join(into, `${suite.name}.json`)
 	const label = `the ${suite.name} vitest suite`
 	runInherited({
@@ -143,22 +142,17 @@ const vitestReport = ({
 			`--outputFile=${path}`,
 		],
 		cwd: REPO,
-		label,
 	})
 	const report = JSON.parse(readReport({ path, label })) as VitestReport
 	if (!Array.isArray(report.testResults) || report.testResults.length === 0) {
-		throw new Error(`${label} ended without a readable report`)
+		throw unreadable(label)
 	}
 	return report
 }
 
-const vitestFailures = ({
-	suite,
-	report,
-}: {
-	suite: string
-	report: VitestReport
-}) =>
+type SuiteReport = { suite: string; report: VitestReport }
+
+const vitestFailures = ({ suite, report }: SuiteReport) =>
 	report.testResults.flatMap((file) =>
 		file.assertionResults
 			.filter((assertion) => assertion.status === "failed")
@@ -202,7 +196,9 @@ const unescapeXml = (text: string) =>
 		(entity) => XML_ENTITIES[entity] ?? entity,
 	)
 
-const attributeOf = ({ tag, name }: { tag: string; name: string }) =>
+type TagAttribute = { tag: string; name: string }
+
+const attributeOf = ({ tag, name }: TagAttribute) =>
 	unescapeXml(new RegExp(`${name}="([^"]*)"`).exec(tag)?.[1] ?? "")
 
 const sidecarFailures = (into: string) => {
@@ -219,12 +215,9 @@ const sidecarFailures = (into: string) => {
 			`--reporter-outfile=${path}`,
 		],
 		cwd: REPO,
-		label,
 	})
 	const written = readReport({ path, label })
-	if (!/<testsuites\b[^>]*\btests="\d+"/.test(written)) {
-		throw new Error(`${label} ended without a readable report`)
-	}
+	if (!/<testsuites\b[^>]*\btests="\d+"/.test(written)) throw unreadable(label)
 	return [
 		...written.matchAll(/<testcase\b([^>]*)>\s*<(?:failure|error)\b/g),
 	].map((match) => {
@@ -244,7 +237,9 @@ type BiomeReport = {
 	diagnostics: BiomeDiagnostic[]
 }
 
-const sourceLine = ({ path, line }: { path: string; line: number }) => {
+type SourceSpot = { path: string; line: number }
+
+const sourceLine = ({ path, line }: SourceSpot) => {
 	const absolute = join(REPO, path)
 	if (!existsSync(absolute)) return ""
 	const text = readFileSync(absolute, "utf8").split("\n")[line - 1] ?? ""
@@ -266,9 +261,7 @@ const biomeItems = () => {
 			label,
 		}),
 	) as BiomeReport
-	if (!Array.isArray(report.diagnostics)) {
-		throw new Error(`${label} ended without a readable report`)
-	}
+	if (!Array.isArray(report.diagnostics)) throw unreadable(label)
 	if (report.summary.diagnosticsNotPrinted > 0) {
 		throw new Error(
 			`${label} withheld ${report.summary.diagnosticsNotPrinted} diagnostics from its report`,
@@ -303,9 +296,7 @@ const knipItems = () => {
 			label,
 		}),
 	) as { issues: KnipIssue[] }
-	if (!Array.isArray(report.issues)) {
-		throw new Error(`${label} ended without a readable report`)
-	}
+	if (!Array.isArray(report.issues)) throw unreadable(label)
 	return report.issues.flatMap((issue) =>
 		findingsOf(issue).flatMap(([type, found]) =>
 			found.map(({ name }) =>
@@ -326,7 +317,9 @@ const readItems = (area: string) => {
 		.filter((line) => line.length > 0)
 }
 
-const writeItems = ({ area, items }: { area: string; items: string[] }) => {
+type AreaItems = { area: string; items: string[] }
+
+const writeItems = ({ area, items }: AreaItems) => {
 	mkdirSync(BASELINES, { recursive: true })
 	const sorted = [...new Set(items)].sort()
 	writeFileSync(
