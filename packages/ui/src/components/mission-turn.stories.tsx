@@ -1,7 +1,7 @@
 import { expect, fn } from "storybook/test"
 
 import preview from "@workspace/storybook/preview"
-import { slotIn, slotsIn } from "@workspace/storybook/story-utils"
+import { holderOf, slotIn, slotsIn } from "@workspace/storybook/story-utils"
 import type {
 	MissionCardModel,
 	MissionState,
@@ -35,14 +35,6 @@ const missionsIn = (state: MissionState): MissionCardModel[] =>
 		state,
 		isWorking,
 	}))
-
-const holderOf = (canvasElement: HTMLElement, state: MissionState) => {
-	const holder = canvasElement.querySelector<HTMLElement>(
-		`[data-holds="${state}"]`,
-	)
-	if (!holder) throw new Error(`Nothing holds the ${state} state`)
-	return holder
-}
 
 const READY_MISSION_CARD: MissionCardModel = {
 	...WAITING_MISSION_CARD,

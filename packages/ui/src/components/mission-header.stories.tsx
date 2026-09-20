@@ -1,7 +1,7 @@
 import { expect, fn } from "storybook/test"
 
 import preview from "@workspace/storybook/preview"
-import { slotIn, slotsIn } from "@workspace/storybook/story-utils"
+import { holderOf, slotIn, slotsIn } from "@workspace/storybook/story-utils"
 import type { MissionState } from "@workspace/ui/components/mission"
 import {
 	MissionHeader,
@@ -36,14 +36,6 @@ const PILLS_THE_MATRIX_DRAWS = 8
 const WORKING_POSE = "Companion avatar owl, working"
 
 const RESTING_POSE = "Companion avatar owl, idle"
-
-const holderOf = (canvasElement: HTMLElement, state: MissionState) => {
-	const holder = canvasElement.querySelector<HTMLElement>(
-		`[data-holds="${state}"]`,
-	)
-	if (!holder) throw new Error(`Nothing holds the ${state} state`)
-	return holder
-}
 
 const LONG_OBJECTIVE =
 	"Rework the mission thread so a reader can follow a run that spans several days without ever losing the ticket it answers"

@@ -1,8 +1,7 @@
 import { expect } from "storybook/test"
 
 import preview from "@workspace/storybook/preview"
-import { slotsIn } from "@workspace/storybook/story-utils"
-import type { MissionState } from "@workspace/ui/components/mission"
+import { holderOf, slotsIn } from "@workspace/storybook/story-utils"
 import { MissionStatePill } from "@workspace/ui/components/mission-state-pill"
 import {
 	MISSION_STATES,
@@ -10,12 +9,6 @@ import {
 } from "@workspace/ui/components/missions.fixtures"
 
 const PILLS_THE_STATES_DRAW = 4
-
-const holderOf = (canvasElement: HTMLElement, state: MissionState) => {
-	const holder = canvasElement.querySelector(`[data-holds="${state}"]`)
-	if (!holder) throw new Error(`Nothing holds the ${state} state`)
-	return holder
-}
 
 const meta = preview.meta({
 	title: "Conversation/Missions/MissionStatePill",
