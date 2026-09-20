@@ -61,15 +61,11 @@ export type MissionLivenessRead = {
 	now: number
 }
 
-const NO_SPEAKING_BOT_IDS: string[] = []
-
 const speaksOnItsThread = (
 	mission: Mission,
 	speakingBotIds: SpeakingBotIds,
 ): boolean =>
-	(
-		speakingBotIds[mission.threadConversationId] ?? NO_SPEAKING_BOT_IDS
-	).includes(mission.botId)
+	speakingBotIds[mission.threadConversationId]?.includes(mission.botId) ?? false
 
 const runsInsideTheWindow = (
 	mission: Mission,

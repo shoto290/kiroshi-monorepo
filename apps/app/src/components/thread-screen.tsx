@@ -20,7 +20,6 @@ import { ConversationEmptyState } from "@workspace/ui/components/conversation-em
 import { HeaderConversationButton } from "@workspace/ui/components/header-conversation-button"
 import { HeaderIdentityButton } from "@workspace/ui/components/header-identity-button"
 import { InitialsAvatar } from "@workspace/ui/components/initials-avatar"
-import type { MessageAuthor } from "@workspace/ui/components/message"
 import {
 	MessageQuote,
 	type QuotedMessage,
@@ -181,6 +180,7 @@ import {
 } from "@/lib/missions/mission-transcript"
 import {
 	type LiveMissionIds,
+	type MissionCardRead,
 	toMissionCard,
 } from "@/lib/missions/missions-model"
 import { useLiveMissions } from "@/lib/missions/use-live-missions"
@@ -886,11 +886,7 @@ type MissionCardRowsProps = {
 	onOpen: (missionId: string) => void
 }
 
-type MissionCardRowRead = {
-	mission: Mission
-	identity: ThreadFace
-	author: MessageAuthor | undefined
-	isWorking: boolean
+type MissionCardRowRead = MissionCardRead & {
 	onOpen: (missionId: string) => void
 }
 

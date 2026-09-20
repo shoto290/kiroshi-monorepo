@@ -26,8 +26,6 @@ const NO_SPEAKING_BOT_IDS: string[] = []
 const speakingBotIdsIn = (thread: SpeakingThread | null): string[] =>
 	thread?.getState().speakers.map(({ botId }) => botId) ?? NO_SPEAKING_BOT_IDS
 
-const NO_AGENT_RUNS: AgentRunStamps = {}
-
 export const useLiveMissions = (
 	runtimes: MissionSpeakingRuntimes,
 	missions: Mission[],
@@ -39,7 +37,7 @@ export const useLiveMissions = (
 		(conversationId) => speakingBotIdsIn(runtimes.heldFor(conversationId)),
 		(botIds) => botIds.join(","),
 	)
-	const held = useRef<AgentRunStamps>(NO_AGENT_RUNS)
+	const held = useRef<AgentRunStamps>({})
 	held.current = stampedAgentRuns(held.current, missions, now)
 	const agentRuns = held.current
 
