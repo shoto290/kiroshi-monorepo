@@ -49,5 +49,5 @@ export const useSpaceLoading = ({ core, scopes }: SpaceLoadingInput) => {
 		selectedSpaceId,
 	})
 
-	return { loadSpaces }
+	return loadSpaces
 }

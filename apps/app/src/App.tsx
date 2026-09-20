@@ -28,10 +28,10 @@ export function App() {
 	const rosterView = useRosterView({ core, drivers })
 	const scopes = useApplicationScopes(core)
 	const panels = useSettingsPanels({ core, rosterView, scopes })
-	const { loadSpaces } = useSpaceLoading({ core, scopes })
+	const loadSpaces = useSpaceLoading({ core, scopes })
 	useWorkspaceSubscriptions({ core, drivers, rosterView, scopes })
 	const rosterLines = useRosterLines({ core, drivers, rosterView })
-	const { collapsedSectionIds } = useSpaceSections({ core, rosterLines })
+	const collapsedSectionIds = useSpaceSections({ core, rosterLines })
 	const rosterLists = useRosterLists({ core, drivers, rosterLines, rosterView })
 	const overlay = useWorkspaceOverlay({ core, rosterLines, rosterView, scopes })
 

@@ -28,10 +28,8 @@ export const useSpaceSections = ({ core, rosterLines }: SpaceSectionsInput) => {
 		}
 	}, [sections.controller, collapsedSections.controller, listedRosters])
 
-	const collapsedSectionIds = useMemo(
+	return useMemo(
 		() => Object.values(collapsedSections.state.collapsedBySpaceId).flat(),
 		[collapsedSections.state.collapsedBySpaceId],
 	)
-
-	return { collapsedSectionIds }
 }
