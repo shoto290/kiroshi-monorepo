@@ -124,11 +124,13 @@ export const ThreadTurn = memo(function ThreadTurn({
 type QueuedTurnProps = {
 	entry: OutboxEntry
 	controller: ChatController
+	run?: TurnRun
 }
 
 export const QueuedTurn = memo(function QueuedTurn({
 	entry,
 	controller,
+	run,
 }: QueuedTurnProps) {
 	const { text, attachments } = messageWithAttachments(entry.text)
 
@@ -138,6 +140,7 @@ export const QueuedTurn = memo(function QueuedTurn({
 			onCancel={() => {
 				controller.discard(entry.id)
 			}}
+			run={run}
 			state="queued"
 		>
 			<TurnBody attachments={attachments} text={text} />

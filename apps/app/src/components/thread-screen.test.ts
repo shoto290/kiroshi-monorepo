@@ -1021,6 +1021,23 @@ const ASKED_AGAIN: SpokenTurn = {
 	role: "user",
 }
 
+const SENT_FIRST = "does the wall hold"
+
+const queuedSoloOf = async (queued: string[]) => {
+	const solo = await soloOf({})
+	await solo.send(SENT_FIRST)
+	for (const text of queued) {
+		await solo.send(text)
+	}
+	return solo
+}
+
+const QUEUED_FIRST = "and the gate"
+
+const QUEUED_LAST = "and the roof"
+
+const WAITING_TO_BE_SENT = "Waiting to be sent"
+
 const runRoomOf = () =>
 	roomOf({
 		names: ["Ada", "Nyx"],
@@ -1700,6 +1717,30 @@ describe("ThreadScreen", () => {
 		expect(bubbleShapeOf(ASKED_FIRST.text)).not.toEqual(
 			bubbleShapeOf(ASKED_AGAIN.text),
 		)
+	})
+
+	it("shapes the bubble that opens a queued run apart from the one that closes it", async () => {
+		const solo = await queuedSoloOf([QUEUED_FIRST, QUEUED_LAST])
+		render(screenOf(solo.thread()))
+		await settle()
+
+		expect(screen.getAllByText(WAITING_TO_BE_SENT)).toHaveLength(2)
+		expect(bubbleShapeOf(QUEUED_FIRST)).not.toEqual(bubbleShapeOf(QUEUED_LAST))
+	})
+
+	it("shapes a lone queued bubble apart from both ends of a queued run", async () => {
+		const grouped = await queuedSoloOf([QUEUED_FIRST, QUEUED_LAST])
+		const run = render(screenOf(grouped.thread()))
+		await settle()
+		const ends = [bubbleShapeOf(QUEUED_FIRST), bubbleShapeOf(QUEUED_LAST)]
+
+		run.unmount()
+		const lone = await queuedSoloOf([QUEUED_FIRST])
+		render(screenOf(lone.thread()))
+		await settle()
+
+		expect(screen.getAllByText(WAITING_TO_BE_SENT)).toHaveLength(1)
+		expect(ends).not.toContain(bubbleShapeOf(QUEUED_FIRST))
 	})
 
 	it("names the routine on the turn its report opened", async () => {
