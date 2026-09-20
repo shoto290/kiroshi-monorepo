@@ -1,4 +1,4 @@
-import type { ReactNode } from "react"
+import type { ComponentProps, ReactNode } from "react"
 import { expect } from "storybook/test"
 
 import preview from "@workspace/storybook/preview"
@@ -8,7 +8,6 @@ import { BOT_SEAL_STATES } from "@workspace/ui/components/bot-seal-frame"
 
 const CHIP_SIZE = 40
 const HERO_SIZE = 200
-const CELL_SIZE = 120
 const STILL_FRAMES = 6
 
 const SEEDS = [
@@ -46,6 +45,13 @@ const LabeledCell = ({
 	<div className="flex flex-col items-center gap-1">
 		{children}
 		<span className="text-muted-foreground text-xs">{label}</span>
+	</div>
+)
+
+const StatePair = (seal: ComponentProps<typeof BotSeal>) => (
+	<div className="flex items-end gap-4">
+		<BotSeal {...seal} size={CHIP_SIZE} />
+		<BotSeal {...seal} size={HERO_SIZE} />
 	</div>
 )
 
@@ -129,18 +135,18 @@ export const States = meta.story({
 		docs: {
 			description: {
 				story:
-					"One identity through the seven states it can report, plus the mark it wears while nothing runs. Four of them move — thinking turns the solid, searching sweeps the cut across it, working pumps the extrusion, writing extrudes the arms in order — and this story shows the frame each one holds under reduced motion. The three that never move are the ones to judge here: waiting drops the companion colour for the attention token, blocked snaps one arm off its axis, done flattens the solid onto a single glyph.",
+					"One identity through the seven states it can report, plus the mark it wears while nothing runs, each state at the chip size next to the hero size so a state that reads at 200px but smears at 40px is caught here. Four of them move — thinking turns the solid, searching sweeps the cut across it, working pumps the extrusion, writing extrudes the arms in order — and this story shows the frame each one holds under reduced motion. The three that never move are the ones to judge here: waiting drops the companion colour for the attention token, blocked snaps one arm off its axis, done flattens the solid onto a single glyph.",
 			},
 		},
 	},
 	render: (args) => (
-		<div className="grid grid-cols-4 gap-4">
+		<div className="grid grid-cols-2 gap-6">
 			<LabeledCell label="none">
-				<BotSeal {...args} size={CELL_SIZE} state={undefined} />
+				<StatePair {...args} state={undefined} />
 			</LabeledCell>
 			{BOT_SEAL_STATES.map((state) => (
 				<LabeledCell key={state} label={state}>
-					<BotSeal {...args} size={CELL_SIZE} state={state} />
+					<StatePair {...args} state={state} />
 				</LabeledCell>
 			))}
 		</div>

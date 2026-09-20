@@ -10,11 +10,10 @@ import {
 	type Vec3,
 	VIEW_BOX,
 } from "@workspace/ui/components/bot-avatar-3d"
-import {
-	type SealLevel,
-	type SealSolid,
-	type SealVertex,
-	sealStacks,
+import type {
+	SealLevel,
+	SealSolid,
+	SealVertex,
 } from "@workspace/ui/components/bot-seal-solid"
 
 const BOT_SEAL_STATES = [
@@ -45,9 +44,9 @@ const DEPTH_REACH = 50
 const PERSPECTIVE = 0.5
 const SEAL_PITCH = toRadians(26)
 const SPIN_PERIOD = 9000
-const SWEEP_PERIOD = 2600
+const SWEEP_PERIOD = 5200
 const PUMP_PERIOD = 1600
-const WRITE_PERIOD = 2800
+const WRITE_PERIOD = 5600
 const PUMP_FLOOR = 0.3
 const REST_CUT = 0
 const BREAK_ANGLE = toRadians(46)
@@ -70,6 +69,11 @@ const phaseOf = (elapsed: number, period: number) => (elapsed % period) / period
 const midPhaseOf = (elapsed: number, period: number) =>
 	phaseOf(elapsed + period / 2, period)
 
+const sweepOf = (elapsed: number, period: number) => {
+	const phase = phaseOf(elapsed + period / 4, period)
+	return phase < 0.5 ? phase * 2 : 2 - phase * 2
+}
+
 const sealMotion = ({ state, elapsed, arms }: MotionInput): SealMotion => ({
 	spin: state === "thinking" ? TAU * phaseOf(elapsed, SPIN_PERIOD) : 0,
 	pump:
@@ -79,16 +83,15 @@ const sealMotion = ({ state, elapsed, arms }: MotionInput): SealMotion => ({
 					(0.5 - 0.5 * Math.cos(TAU * midPhaseOf(elapsed, PUMP_PERIOD)))
 			: 1,
 	cut:
-		state === "searching"
-			? -1 + 2 * midPhaseOf(elapsed, SWEEP_PERIOD)
-			: REST_CUT,
-	armPhase:
-		state === "writing" ? arms * midPhaseOf(elapsed, WRITE_PERIOD) : arms,
+		state === "searching" ? -1 + 2 * sweepOf(elapsed, SWEEP_PERIOD) : REST_CUT,
+	armPhase: state === "writing" ? arms * sweepOf(elapsed, WRITE_PERIOD) : arms,
 	isFlat: state === "done",
 	isBroken: state === "blocked",
 })
 
 type Break = { vertex: SealVertex; arms: number }
+
+const brokenArm = ({ arms, shortArm }: SealSolid) => (shortArm + 1) % arms
 
 const brokenAway = ({ vertex: { x, y, arm }, arms }: Break) => {
 	const angle = (TAU * arm) / arms
@@ -121,7 +124,7 @@ const placeVertex = ({
 }: Placement): Vec2 => {
 	const extruded = clamp(motion.armPhase - vertex.arm, 0, 1)
 	const face =
-		motion.isBroken && vertex.arm === solid.shortArm
+		motion.isBroken && vertex.arm === brokenArm(solid)
 			? brokenAway({ vertex, arms: solid.arms })
 			: vertex
 	const point: Vec3 = [
@@ -183,7 +186,7 @@ const sealFrame = ({ solid, state, elapsed }: FrameInput): SealFrame => {
 		pitch: SEAL_PITCH,
 		roll: 0,
 	})
-	const segments = sealStacks(solid).flatMap((stack) =>
+	const segments = solid.stacks.flatMap((stack) =>
 		ringSegments(
 			(motion.isFlat ? FLAT_LEVELS : stack.levels).map((level) =>
 				stack.profile.map((vertex) =>

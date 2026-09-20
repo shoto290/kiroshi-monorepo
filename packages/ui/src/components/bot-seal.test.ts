@@ -13,10 +13,20 @@ import {
 	SEAL_FAMILIES,
 	type SealSolid,
 	sealSolid,
-	sealStacks,
 } from "@workspace/ui/components/bot-seal-solid"
 
 const SEEDS = Array.from({ length: 64 }, (_, at) => `bot-${at}-7c1e${at * 5}`)
+const CYCLE_SEEDS = SEEDS.slice(0, 8)
+const CYCLE_SPAN = 12000
+const CYCLE_STEP = 25
+const COARSE_STEP = 300
+const samplesEvery = (step: number) =>
+	Array.from({ length: CYCLE_SPAN / step + 1 }, (_, at) => at * step)
+const CYCLE_SAMPLES = samplesEvery(CYCLE_STEP)
+const COARSE_SAMPLES = samplesEvery(COARSE_STEP)
+const BOUNDS_STEP_LIMIT = 10
+const LIT_STEP_LIMIT = 0.5
+const ANIMATED_STATES = BOT_SEAL_STATES.filter(isSealAnimated)
 
 const pathOf = (seed: string, state?: BotSealState, elapsed = 0) => {
 	const { lit, dim } = sealFrame({ solid: sealSolid(seed), state, elapsed })
@@ -36,6 +46,32 @@ const strokeCount = ({
 
 const coordinatesOf = (path: string) =>
 	path.match(/-?\d+(\.\d+)?/g)?.map(Number) ?? []
+
+type Bounds = [number, number, number, number]
+
+const boundsOf = (path: string): Bounds => {
+	const values = coordinatesOf(path)
+	const xs = values.filter((_, at) => at % 2 === 0)
+	const ys = values.filter((_, at) => at % 2 === 1)
+	return [Math.min(...xs), Math.min(...ys), Math.max(...xs), Math.max(...ys)]
+}
+
+const boundsShift = (from: Bounds, to: Bounds) =>
+	Math.max(...from.map((value, at) => Math.abs(value - to[at])))
+
+const spanOf = (path: string) => {
+	const values = coordinatesOf(path)
+	return { lowest: Math.min(...values), highest: Math.max(...values) }
+}
+
+const sampleOf = (seed: string, state: BotSealState, elapsed: number) => {
+	const { lit, dim } = sealFrame({ solid: sealSolid(seed), state, elapsed })
+	return {
+		bounds: boundsOf(`${lit}${dim}`),
+		litStrokes: lit.split("M").length - 1,
+		strokes: `${lit}${dim}`.split("M").length - 1,
+	}
+}
 
 describe("sealSolid", () => {
 	it("derives the same description from the same seed", () => {
@@ -61,10 +97,9 @@ describe("sealSolid", () => {
 
 	it("builds a solid out of an empty seed", () => {
 		const solid = sealSolid("")
-		const stacks = sealStacks(solid)
 
 		expect(solid.arms).toBeGreaterThanOrEqual(MIN_ARMS)
-		expect(stacks.length).toBeGreaterThan(0)
+		expect(solid.stacks.length).toBeGreaterThan(0)
 		expect(pathOf("")).not.toBe("")
 	})
 })
@@ -82,16 +117,45 @@ describe("sealFrame", () => {
 		expect(paths.size).toBe(SEEDS.length)
 	})
 
-	it("keeps every point inside the view box", () => {
-		for (const seed of SEEDS) {
-			for (const state of BOT_SEAL_STATES) {
-				for (const elapsed of [0, 700, 1900, 4300]) {
-					for (const value of coordinatesOf(pathOf(seed, state, elapsed))) {
-						expect(value).toBeGreaterThanOrEqual(0)
-						expect(value).toBeLessThanOrEqual(VIEW_BOX)
-					}
-				}
+	it("keeps every point inside the view box across a full cycle", () => {
+		for (const state of BOT_SEAL_STATES) {
+			const spans = CYCLE_SEEDS.flatMap((seed) =>
+				COARSE_SAMPLES.map((elapsed) => spanOf(pathOf(seed, state, elapsed))),
+			)
+
+			expect(Math.min(...spans.map(({ lowest }) => lowest))).toBeGreaterThan(0)
+			expect(Math.max(...spans.map(({ highest }) => highest))).toBeLessThan(
+				VIEW_BOX,
+			)
+		}
+	})
+
+	it("closes every animated cycle without a jump", () => {
+		for (const state of ANIMATED_STATES) {
+			const frames = CYCLE_SAMPLES.map((elapsed) =>
+				sampleOf(CYCLE_SEEDS[0], state, elapsed),
+			)
+			for (let at = 1; at < frames.length; at += 1) {
+				const previous = frames[at - 1]
+				const current = frames[at]
+
+				expect(boundsShift(previous.bounds, current.bounds)).toBeLessThan(
+					BOUNDS_STEP_LIMIT,
+				)
+				expect(Math.abs(current.litStrokes - previous.litStrokes)).toBeLessThan(
+					current.strokes * LIT_STEP_LIMIT,
+				)
 			}
+		}
+	})
+
+	it("breaks one arm off its axis while the state is blocked", () => {
+		for (const seed of SEEDS) {
+			const solid = sealSolid(seed)
+			const held = sealFrame({ solid, state: "waiting", elapsed: 0 })
+			const broken = sealFrame({ solid, state: "blocked", elapsed: 0 })
+
+			expect(broken.lit + broken.dim).not.toBe(held.lit + held.dim)
 		}
 	})
 

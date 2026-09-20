@@ -5,7 +5,7 @@ const SEAL_FAMILIES = ["asterisk", "cross", "gem", "ring", "plates"] as const
 type SealFamily = (typeof SEAL_FAMILIES)[number]
 type SealSymmetry = "radial" | "mirrored"
 
-type SealSolid = {
+type SealShape = {
 	family: SealFamily
 	arms: number
 	profile: number
@@ -18,6 +18,7 @@ type SealSolid = {
 type SealVertex = { x: number; y: number; arm: number }
 type SealLevel = { z: number; scale: number }
 type SealStack = { profile: SealVertex[]; levels: SealLevel[] }
+type SealSolid = SealShape & { stacks: SealStack[] }
 
 const TAU = Math.PI * 2
 const MIN_ARMS = 3
@@ -49,7 +50,7 @@ type Draw = () => number
 const between = (draw: Draw, [min, max]: readonly [number, number]) =>
 	min + (draw() / UINT32) * (max - min)
 
-const sealSolid = (seed: string): SealSolid => {
+const sealShape = (seed: string): SealShape => {
 	const draw = stream(seed)
 	const family = SEAL_FAMILIES[draw() % SEAL_FAMILIES.length]
 	const arms = MIN_ARMS + (draw() % (MAX_ARMS - MIN_ARMS + 1))
@@ -66,7 +67,7 @@ const sealSolid = (seed: string): SealSolid => {
 
 const armAngle = (arms: number, arm: number) => (TAU * arm) / arms
 
-const armReach = ({ symmetry, shortArm }: SealSolid, arm: number) => {
+const armReach = ({ symmetry, shortArm }: SealShape, arm: number) => {
 	if (arm === shortArm) return SHORT_ARM_REACH
 	if (symmetry === "mirrored" && arm % 2 === 1) return MIRRORED_REACH
 	return 1
@@ -79,11 +80,11 @@ const polar = (angle: number, radius: number, arm: number): SealVertex => ({
 })
 
 const shaped = (
-	{ profile }: SealSolid,
+	{ profile }: SealShape,
 	[min, max]: readonly [number, number],
 ) => min + profile * (max - min)
 
-const asteriskProfile = (solid: SealSolid) => {
+const asteriskProfile = (solid: SealShape) => {
 	const hub = shaped(solid, HUB_RANGE)
 	return Array.from({ length: solid.arms }, (_, arm) => {
 		const angle = armAngle(solid.arms, arm)
@@ -94,7 +95,7 @@ const asteriskProfile = (solid: SealSolid) => {
 	}).flat()
 }
 
-const crossProfile = (solid: SealSolid) => {
+const crossProfile = (solid: SealShape) => {
 	const hub = shaped(solid, HUB_RANGE)
 	const half = shaped(solid, BAR_RANGE)
 	return Array.from({ length: solid.arms }, (_, arm) => {
@@ -116,7 +117,7 @@ const crossProfile = (solid: SealSolid) => {
 	}).flat()
 }
 
-const polygonProfile = (solid: SealSolid, scale = 1) =>
+const polygonProfile = (solid: SealShape, scale = 1) =>
 	Array.from({ length: solid.arms }, (_, arm) =>
 		polar(armAngle(solid.arms, arm), armReach(solid, arm) * scale, arm),
 	)
@@ -132,7 +133,7 @@ const GEM_LEVELS: SealLevel[] = [
 	{ z: 1, scale: GEM_TIP_SCALE },
 ]
 
-const plateLevels = (solid: SealSolid): SealLevel[] => {
+const plateLevels = (solid: SealShape): SealLevel[] => {
 	const taper = shaped(solid, PLATE_TAPER_RANGE)
 	return Array.from({ length: PLATE_LEVELS }, (_, index) => ({
 		z: -1 + (2 * index) / (PLATE_LEVELS - 1),
@@ -140,7 +141,7 @@ const plateLevels = (solid: SealSolid): SealLevel[] => {
 	}))
 }
 
-const STACKS: Record<SealFamily, (solid: SealSolid) => SealStack[]> = {
+const STACKS: Record<SealFamily, (solid: SealShape) => SealStack[]> = {
 	asterisk: (solid) => [
 		{ profile: asteriskProfile(solid), levels: EXTRUDED_LEVELS },
 	],
@@ -158,7 +159,10 @@ const STACKS: Record<SealFamily, (solid: SealSolid) => SealStack[]> = {
 	],
 }
 
-const sealStacks = (solid: SealSolid) => STACKS[solid.family](solid)
+const sealSolid = (seed: string): SealSolid => {
+	const shape = sealShape(seed)
+	return { ...shape, stacks: STACKS[shape.family](shape) }
+}
 
 export {
 	MAX_ARMS,
@@ -168,5 +172,4 @@ export {
 	type SealSolid,
 	type SealVertex,
 	sealSolid,
-	sealStacks,
 }
