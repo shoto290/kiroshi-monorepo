@@ -135,25 +135,24 @@ export const marblesIn = (root: Element) => slotsIn(root, MARBLE_SLOT)
 const marbleWithin = (root: Element) =>
 	root.getAttribute("data-slot") === MARBLE_SLOT ? root : marblesIn(root)[0]
 
-export const marbleShadesOf = (root: Element) => {
+const marbleShapesIn = (root: Element) => {
 	const marble = marbleWithin(root)
-	return marble
-		? Array.from(marble.querySelectorAll("rect, path")).map((shape) =>
-				shape.getAttribute("fill"),
-			)
-		: []
+	return marble ? Array.from(marble.querySelectorAll("rect, path")) : null
 }
 
-export const marbleOf = (root: Element) => {
-	const marble = marbleWithin(root)
-	if (!marble) return undefined
-	return Array.from(marble.querySelectorAll("rect, path"))
-		.map(
+export const marbleShadesOf = (root: Element) =>
+	marbleShapesIn(root)?.map((shape) => shape.getAttribute("fill")) ?? []
+
+export const marbleGeometryOf = (root: Element) =>
+	marbleShapesIn(root)?.map((shape) => shape.getAttribute("transform")) ?? []
+
+export const marbleOf = (root: Element) =>
+	marbleShapesIn(root)
+		?.map(
 			(shape) =>
 				`${shape.getAttribute("fill")}@${shape.getAttribute("transform") ?? ""}`,
 		)
 		.join("|")
-}
 
 export const pictureOf = async (avatar: HTMLElement) => {
 	await waitFor(() => expect(avatar.querySelector("img")).not.toBeNull())

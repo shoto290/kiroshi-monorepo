@@ -4,6 +4,7 @@ import { expect, fn } from "storybook/test"
 import preview from "@workspace/storybook/preview"
 import {
 	botIdentityAvatars,
+	marbleGeometryOf,
 	marbleOf,
 	marblesIn,
 	pictureOf,
@@ -27,12 +28,10 @@ const BOT_ID = "bot-7"
 
 const IDENTITY: BotIdentity = { animal: "owl", blot: "blue" }
 
-const SEEDED_GEOMETRY = marbleLayers(BOT_ID).slice(1).map(marbleTransform)
-
-const marbleGeometryOf = (marble: Element) =>
-	Array.from(marble.querySelectorAll("path")).map((path) =>
-		path.getAttribute("transform"),
-	)
+const SEEDED_GEOMETRY = [
+	null,
+	...marbleLayers(BOT_ID).slice(1).map(marbleTransform),
+]
 
 const FieldsHost = (props: BotIdentityFieldsProps) => {
 	const [identity, setIdentity] = useState(props.identity)

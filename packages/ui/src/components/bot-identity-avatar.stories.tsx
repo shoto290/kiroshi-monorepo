@@ -5,6 +5,7 @@ import preview from "@workspace/storybook/preview"
 import {
 	botIdentityAvatars,
 	expectCompanionPictureSquare,
+	marbleGeometryOf,
 	marbleOf,
 	marblesIn,
 	pictureOf,
@@ -45,12 +46,10 @@ const DrawnPictureSlots = (props: BotIdentityAvatarProps) => (
 
 const MARBLE_SIZES = [16, 24, 40, 96]
 
-const UNSEEDED_GEOMETRY = marbleLayers().slice(1).map(marbleTransform)
-
-const marbleGeometryOf = (avatar: HTMLElement) =>
-	Array.from(marblesIn(avatar)[0]?.querySelectorAll("path") ?? []).map((path) =>
-		path.getAttribute("transform"),
-	)
+const UNSEEDED_GEOMETRY = [
+	null,
+	...marbleLayers().slice(1).map(marbleTransform),
+]
 
 const activityDotOf = (avatar: HTMLElement) =>
 	slotsIn(avatar, "bot-activity-dot")[0]
