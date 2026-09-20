@@ -60,6 +60,7 @@ const BotIdentityFields = ({
 	const { t } = useTranslation("bots")
 	const groupId = useId()
 	const drawnSeed = identity.seed ?? seed
+	const isShuffleOffered = shufflable && !identity.image
 
 	const blotLabel = (blot?: BotAvatarBlot) =>
 		blot ? t(`identity.colour.option.${blot}`) : t("identity.colour.none")
@@ -107,7 +108,7 @@ const BotIdentityFields = ({
 						{currentLabel}
 					</p>
 				</div>
-				{shufflable && !identity.image ? (
+				{isShuffleOffered ? (
 					<Button
 						aria-label={t("identity.shuffle")}
 						data-slot="bot-identity-shuffle"
