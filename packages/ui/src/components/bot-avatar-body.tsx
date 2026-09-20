@@ -51,24 +51,22 @@ type EarLayerProps = {
 	splitId: string
 }
 
-const EarLayer = ({ animal, ears, layer, weight, splitId }: EarLayerProps) => {
-	return (
-		<g>
-			{ears.map((ear, index) => (
-				<g
-					clipPath={layer === "front" ? `url(#${splitId}-${index})` : undefined}
-					key={`${animal}-ear-${ear.pivot[0]}`}
-				>
-					<g data-part={PARTS.ear(index, layer)}>
-						{ear.shapes.map((shape) => (
-							<Shape key={shapeKey(shape)} shape={shape} weight={weight} />
-						))}
-					</g>
+const EarLayer = ({ animal, ears, layer, weight, splitId }: EarLayerProps) => (
+	<g>
+		{ears.map((ear, index) => (
+			<g
+				clipPath={layer === "front" ? `url(#${splitId}-${index})` : undefined}
+				key={`${animal}-ear-${ear.pivot[0]}`}
+			>
+				<g data-part={PARTS.ear(index, layer)}>
+					{ear.shapes.map((shape) => (
+						<Shape key={shapeKey(shape)} shape={shape} weight={weight} />
+					))}
 				</g>
-			))}
-		</g>
-	)
-}
+			</g>
+		))}
+	</g>
+)
 
 type ShapeProps = { shape: BotAvatarShape; weight: number }
 
@@ -126,98 +124,96 @@ const BotAvatarBody = ({
 	splitId,
 	weight,
 	wireframe,
-}: BotAvatarBodyProps) => {
-	return (
-		<>
-			<defs>
-				<filter id={filterId} x="-15%" y="-15%" width="130%" height="130%">
-					<feTurbulence
-						data-part={PARTS.noise}
-						type="fractalNoise"
-						baseFrequency="0.024"
-						numOctaves="3"
-						seed="3"
-						result="n"
-					/>
-					<feDisplacementMap in="SourceGraphic" in2="n" scale={boil} />
-				</filter>
-				<path data-part={PARTS.headClip} d={definition.head} id={headPathId} />
-				<clipPath id={clipId}>
-					<use href={`#${headPathId}`} />
-				</clipPath>
-				<mask id={headMaskId} maskUnits="userSpaceOnUse" {...HEAD_MASK_BOUNDS}>
-					<rect fill="white" {...HEAD_MASK_BOUNDS} />
-					<use fill="black" href={`#${headPathId}`} />
-				</mask>
-				{definition.ears.map((ear, index) => (
-					<clipPath
-						clipPathUnits="userSpaceOnUse"
-						id={`${splitId}-${index}`}
-						key={`${animal}-split-${ear.pivot[0]}`}
-					>
-						<path clipRule="evenodd" d="" data-part={PARTS.earSplit(index)} />
-					</clipPath>
-				))}
-			</defs>
-			{blotFill ? (
-				<path
-					d={BLOT_PATH}
-					data-slot="bot-avatar-blot"
-					fill={blotFill}
-					stroke="none"
-					transform={`${BLOT_PLACEMENT} ${blotTransform(seed)}`}
+}: BotAvatarBodyProps) => (
+	<>
+		<defs>
+			<filter id={filterId} x="-15%" y="-15%" width="130%" height="130%">
+				<feTurbulence
+					data-part={PARTS.noise}
+					type="fractalNoise"
+					baseFrequency="0.024"
+					numOctaves="3"
+					seed="3"
+					result="n"
 				/>
-			) : null}
-			<g filter={`url(#${filterId})`}>
-				<g data-part={PARTS.rig}>
-					<g mask={`url(#${headMaskId})`}>
-						<EarLayer
-							animal={animal}
-							ears={definition.ears}
-							layer="back"
-							splitId={splitId}
-							weight={weight}
-						/>
-					</g>
-					<g data-part={PARTS.head}>
-						<path
-							d={definition.head}
-							{...ROLE_PROPS.outline}
-							strokeWidth={round2(weight)}
-						/>
-					</g>
-					{definition.extras.map((shape, index) => (
-						<g data-part={PARTS.extra(index)} key={shapeKey(shape)}>
-							<Shape shape={shape} weight={weight} />
-						</g>
-					))}
+				<feDisplacementMap in="SourceGraphic" in2="n" scale={boil} />
+			</filter>
+			<path data-part={PARTS.headClip} d={definition.head} id={headPathId} />
+			<clipPath id={clipId}>
+				<use href={`#${headPathId}`} />
+			</clipPath>
+			<mask id={headMaskId} maskUnits="userSpaceOnUse" {...HEAD_MASK_BOUNDS}>
+				<rect fill="white" {...HEAD_MASK_BOUNDS} />
+				<use fill="black" href={`#${headPathId}`} />
+			</mask>
+			{definition.ears.map((ear, index) => (
+				<clipPath
+					clipPathUnits="userSpaceOnUse"
+					id={`${splitId}-${index}`}
+					key={`${animal}-split-${ear.pivot[0]}`}
+				>
+					<path clipRule="evenodd" d="" data-part={PARTS.earSplit(index)} />
+				</clipPath>
+			))}
+		</defs>
+		{blotFill ? (
+			<path
+				d={BLOT_PATH}
+				data-slot="bot-avatar-blot"
+				fill={blotFill}
+				stroke="none"
+				transform={`${BLOT_PLACEMENT} ${blotTransform(seed)}`}
+			/>
+		) : null}
+		<g filter={`url(#${filterId})`}>
+			<g data-part={PARTS.rig}>
+				<g mask={`url(#${headMaskId})`}>
 					<EarLayer
 						animal={animal}
 						ears={definition.ears}
-						layer="front"
+						layer="back"
 						splitId={splitId}
 						weight={weight}
 					/>
-					<g data-part={PARTS.blush} opacity={0}>
-						<ellipse rx={9} ry={4.5} {...ROLE_PROPS.accent} />
-						<ellipse rx={9} ry={4.5} {...ROLE_PROPS.accent} />
-					</g>
-					<g clipPath={`url(#${clipId})`}>
-						<path data-part={PARTS.eye0} fill="currentColor" />
-						<path data-part={PARTS.eye1} fill="currentColor" />
-					</g>
+				</g>
+				<g data-part={PARTS.head}>
 					<path
-						data-part={PARTS.wire}
-						fill="none"
-						stroke="var(--bot-avatar-accent, #e36f3d)"
-						strokeWidth={1}
-						opacity={0.55}
-						style={{ display: wireframe ? undefined : "none" }}
+						d={definition.head}
+						{...ROLE_PROPS.outline}
+						strokeWidth={round2(weight)}
 					/>
 				</g>
+				{definition.extras.map((shape, index) => (
+					<g data-part={PARTS.extra(index)} key={shapeKey(shape)}>
+						<Shape shape={shape} weight={weight} />
+					</g>
+				))}
+				<EarLayer
+					animal={animal}
+					ears={definition.ears}
+					layer="front"
+					splitId={splitId}
+					weight={weight}
+				/>
+				<g data-part={PARTS.blush} opacity={0}>
+					<ellipse rx={9} ry={4.5} {...ROLE_PROPS.accent} />
+					<ellipse rx={9} ry={4.5} {...ROLE_PROPS.accent} />
+				</g>
+				<g clipPath={`url(#${clipId})`}>
+					<path data-part={PARTS.eye0} fill="currentColor" />
+					<path data-part={PARTS.eye1} fill="currentColor" />
+				</g>
+				<path
+					data-part={PARTS.wire}
+					fill="none"
+					stroke="var(--bot-avatar-accent, #e36f3d)"
+					strokeWidth={1}
+					opacity={0.55}
+					style={{ display: wireframe ? undefined : "none" }}
+				/>
 			</g>
-		</>
-	)
-}
+		</g>
+	</>
+)
 
 export { BotAvatarBody }

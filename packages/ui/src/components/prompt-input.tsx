@@ -73,8 +73,7 @@ export function PromptInput({
 		[refs.textarea, externalTextareaRef],
 	)
 
-	const hasPrompt = Boolean(currentValue.trim())
-	const hasPayload = hasPrompt || hasAttachments
+	const hasPayload = Boolean(currentValue.trim()) || hasAttachments
 	const isDropTarget = canAttach && (dropTarget || isDragOver)
 	const canSubmit = hasPayload && !disabled
 
