@@ -22,6 +22,8 @@ export const TRANSCRIPT_WINDOW_SIZE = 60
 
 export const COMPANION_ARRIVED_EVENT = "conversation://companion-arrived"
 
+// read as text by the_companion_spoke_event_is_named_and_shaped_like_its_mirror
+// in apps/app/src-tauri/src/conversations/contract.rs, which matches both spellings literally
 export const COMPANION_SPOKE_EVENT = "conversation://companion-spoke"
 
 export type CompanionSpoke = {
