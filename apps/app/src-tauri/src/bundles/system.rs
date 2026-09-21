@@ -149,6 +149,22 @@ mod tests {
 	}
 
 	#[test]
+	fn the_learn_skill_bounds_what_the_space_directory_takes() {
+		let text = String::from_utf8_lossy(embedded(LEARN));
+		let said_in_one_breath = text.split_whitespace().collect::<Vec<_>>().join(" ");
+
+		for said in [
+			"## What the space directory takes",
+			"never what it is working on",
+			"Never keep a journal, a changelog or a log of the work",
+			"Keep SKILL.md under 200 lines",
+			"a rule that no longer holds is removed, never dated as closed",
+		] {
+			assert!(said_in_one_breath.contains(said), "{said} is missing");
+		}
+	}
+
+	#[test]
 	fn the_routines_skill_is_preloaded_and_says_when_to_ask_before_it_writes() {
 		let text = String::from_utf8_lossy(embedded(ROUTINES));
 
