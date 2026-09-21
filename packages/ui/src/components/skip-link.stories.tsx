@@ -7,6 +7,8 @@ const TARGET_ID = "skip-link-story-main"
 
 const LABEL = "Skip to the conversation"
 
+const CUSTOM_LABEL = "Skip to the main content"
+
 const meta = preview.meta({
 	title: "Navigation/SkipLink",
 	component: SkipLink,
@@ -68,6 +70,30 @@ export const Focused = meta.story({
 		await expect(link).toHaveFocus()
 		await expect(link.getBoundingClientRect().width).toBeGreaterThan(1)
 		await expect(link).toBeVisible()
+
+		await userEvent.keyboard("{Enter}")
+		await expect(canvas.getByRole("main")).toHaveFocus()
+	},
+})
+
+export const CustomLabel = meta.story({
+	args: {
+		label: CUSTOM_LABEL,
+	},
+	parameters: {
+		docs: {
+			description: {
+				story:
+					"The link on a page whose main region is not a conversation, carrying its own wording instead of the shell's. Check that Tab lands on it under that name and that Enter still moves focus into the main region.",
+			},
+		},
+	},
+	play: async ({ canvas, userEvent }) => {
+		const link = canvas.getByRole("link", { name: CUSTOM_LABEL })
+
+		await expect(canvas.queryByRole("link", { name: LABEL })).toBeNull()
+		await userEvent.tab()
+		await expect(link).toHaveFocus()
 
 		await userEvent.keyboard("{Enter}")
 		await expect(canvas.getByRole("main")).toHaveFocus()

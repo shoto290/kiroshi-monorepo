@@ -1,16 +1,16 @@
-const CONTROL_COLORS = ["#FF5F57", "#FEBC2E", "#28C840"]
+const CONTROL_FILLS = [
+	"bg-window-close",
+	"bg-window-minimize",
+	"bg-window-zoom",
+]
 
 export const WindowControls = () => (
 	<span
 		aria-hidden="true"
-		className="absolute top-[18px] left-3 z-20 flex items-center gap-2"
+		className="pointer-events-none absolute top-[18px] left-3 z-20 flex items-center gap-2"
 	>
-		{CONTROL_COLORS.map((color) => (
-			<span
-				className="size-3 rounded-full"
-				key={color}
-				style={{ backgroundColor: color }}
-			/>
+		{CONTROL_FILLS.map((fill) => (
+			<span className={`size-3 rounded-full ${fill}`} key={fill} />
 		))}
 	</span>
 )

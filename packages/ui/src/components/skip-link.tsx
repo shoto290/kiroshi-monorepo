@@ -6,9 +6,10 @@ const SKIP_LINK_CLASS =
 
 interface SkipLinkProps {
 	targetId: string
+	label?: string
 }
 
-const SkipLink = ({ targetId }: SkipLinkProps) => {
+const SkipLink = ({ targetId, label }: SkipLinkProps) => {
 	const { t } = useTranslation("common")
 
 	const skip = (event: MouseEvent<HTMLAnchorElement>) => {
@@ -25,7 +26,7 @@ const SkipLink = ({ targetId }: SkipLinkProps) => {
 			href={`#${targetId}`}
 			onClick={skip}
 		>
-			{t("skipLink")}
+			{label ?? t("skipLink")}
 		</a>
 	)
 }

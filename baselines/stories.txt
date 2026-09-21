@@ -816,6 +816,7 @@ navigation-sidebarsearchfield--label-wider-than-field
 navigation-sidebarsearchfield--on-dark-surface
 navigation-sidebarsearchfield--under-pointer
 navigation-sidebarsearchfield--with-host-chord
+navigation-skiplink--custom-label
 navigation-skiplink--focused
 navigation-skiplink--hidden
 navigation-spaceswitcher--badge-and-long-name

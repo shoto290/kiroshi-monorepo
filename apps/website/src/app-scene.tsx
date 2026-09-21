@@ -42,7 +42,24 @@ import { type SceneFrame, useSceneTimeline } from "./use-scene-timeline"
 import { WindowControls } from "./window-controls"
 
 const ROW_ENTER =
-	"animate-in slide-in-from-bottom-1 duration-200 ease-out motion-reduce:animate-none"
+	"motion-safe:animate-in motion-safe:fill-mode-backwards motion-safe:slide-in-from-bottom-1 motion-safe:duration-200 motion-safe:ease-out"
+
+const ROW_GROUP_DELAYS = ["", "motion-safe:delay-75", "motion-safe:delay-150"]
+
+const ROWS_PER_GROUP = 2
+
+type RowEntrance = (position: number) => string
+
+const staggeredEntrance: RowEntrance = (position) => {
+	const group = Math.min(
+		Math.floor(position / ROWS_PER_GROUP),
+		ROW_GROUP_DELAYS.length - 1,
+	)
+
+	return `${ROW_ENTER} ${ROW_GROUP_DELAYS[group]}`
+}
+
+const noEntrance: RowEntrance = () => ""
 
 // The transcript rests its column against the composer; the scene holds every
 // row it has played, so it anchors the column to the top of the thread area
@@ -56,12 +73,20 @@ const NO_ACTIVITY: EarlierTodayRow[] = []
 
 const doNothing = () => {}
 
-const sceneRow = (key: string, body: ReactNode): TranscriptItem => ({
+const sceneRow = (
+	key: string,
+	body: ReactNode,
+	entrance: string,
+): TranscriptItem => ({
 	key,
-	render: () => <div className={ROW_ENTER}>{body}</div>,
+	render: () => <div className={entrance}>{body}</div>,
 })
 
-const loopRows = (loop: SceneLoop, frame: SceneFrame): TranscriptItem[] => {
+const loopRows = (
+	loop: SceneLoop,
+	frame: SceneFrame,
+	entranceOf: RowEntrance,
+): TranscriptItem[] => {
 	const [first, second] = loop.speakers
 	const rows: TranscriptItem[] = [
 		sceneRow(
@@ -69,6 +94,7 @@ const loopRows = (loop: SceneLoop, frame: SceneFrame): TranscriptItem[] => {
 			<UserTurn>
 				<Markdown>{loop.request}</Markdown>
 			</UserTurn>,
+			entranceOf(0),
 		),
 	]
 
@@ -79,6 +105,7 @@ const loopRows = (loop: SceneLoop, frame: SceneFrame): TranscriptItem[] => {
 				<AssistantTurn author={first}>
 					<Markdown>{loop.answers[0].slice(0, frame.firstTyped)}</Markdown>
 				</AssistantTurn>,
+				entranceOf(rows.length),
 			),
 		)
 	}
@@ -90,6 +117,7 @@ const loopRows = (loop: SceneLoop, frame: SceneFrame): TranscriptItem[] => {
 				<AssistantTurn author={second}>
 					<Markdown>{loop.answers[1].slice(0, frame.secondTyped)}</Markdown>
 				</AssistantTurn>,
+				entranceOf(rows.length),
 			),
 		)
 	}
@@ -99,6 +127,7 @@ const loopRows = (loop: SceneLoop, frame: SceneFrame): TranscriptItem[] => {
 			sceneRow(
 				"mission",
 				<MissionTurn mission={loop.mission} onOpen={doNothing} />,
+				entranceOf(rows.length),
 			),
 		)
 	}
@@ -106,8 +135,13 @@ const loopRows = (loop: SceneLoop, frame: SceneFrame): TranscriptItem[] => {
 	return rows
 }
 
-const turnRow = (turn: SceneTurn, rank: number): TranscriptItem => {
+const turnRow = (
+	turn: SceneTurn,
+	rank: number,
+	entranceOf: RowEntrance,
+): TranscriptItem => {
 	const key = `turn-${rank}`
+	const entrance = entranceOf(rank)
 
 	if (turn.kind === "reader") {
 		return sceneRow(
@@ -115,6 +149,7 @@ const turnRow = (turn: SceneTurn, rank: number): TranscriptItem => {
 			<UserTurn>
 				<Markdown>{turn.text}</Markdown>
 			</UserTurn>,
+			entrance,
 		)
 	}
 
@@ -122,6 +157,7 @@ const turnRow = (turn: SceneTurn, rank: number): TranscriptItem => {
 		return sceneRow(
 			key,
 			<MissionTurn mission={turn.mission} onOpen={doNothing} />,
+			entrance,
 		)
 	}
 
@@ -130,6 +166,7 @@ const turnRow = (turn: SceneTurn, rank: number): TranscriptItem => {
 		<AssistantTurn author={turn.bot} cause={turn.cause} footer={turn.note}>
 			<Markdown>{turn.text}</Markdown>
 		</AssistantTurn>,
+		entrance,
 	)
 }
 
@@ -160,10 +197,18 @@ const ThreadTitle = ({ bot, conversation, onOpen }: ThreadTitleProps) =>
 type WorkingRowsProps = {
 	loop: SceneLoop
 	frame: SceneFrame
+	firstPosition: number
+	entranceOf: RowEntrance
 }
 
-const WorkingRows = ({ loop, frame }: WorkingRowsProps) => {
+const WorkingRows = ({
+	loop,
+	frame,
+	firstPosition,
+	entranceOf,
+}: WorkingRowsProps) => {
 	const [first, second] = loop.speakers
+	const secondPosition = firstPosition + (frame.hasFirstAnswer ? 0 : 1)
 
 	return (
 		<>
@@ -172,7 +217,7 @@ const WorkingRows = ({ loop, frame }: WorkingRowsProps) => {
 					animal={first.animal}
 					blot={first.blot}
 					botId={first.id}
-					className={ROW_ENTER}
+					className={entranceOf(firstPosition)}
 					elapsedSeconds={frame.elapsedSeconds}
 					kind="thinking"
 					name={first.name}
@@ -184,7 +229,7 @@ const WorkingRows = ({ loop, frame }: WorkingRowsProps) => {
 					animal={second.animal}
 					blot={second.blot}
 					botId={second.id}
-					className={ROW_ENTER}
+					className={entranceOf(secondPosition)}
 					elapsedSeconds={frame.elapsedSeconds}
 					kind={frame.hasFirstAnswer ? "writing" : "thinking"}
 					name={second.name}
@@ -200,6 +245,7 @@ export const AppScene = () => {
 	const [selectedId, setSelectedId] = useState(PERSONAL.defaultConversation.id)
 	const [isPanelOpen, setPanelOpen] = useState(false)
 	const [draft, setDraft] = useState("")
+	const [hasPicked, setHasPicked] = useState(false)
 	const readerAvatar = useReaderAvatar()
 	const space = spaceOf(spaceId)
 	const exchange = exchangeOf(selectedId)
@@ -212,12 +258,18 @@ export const AppScene = () => {
 		},
 		runId: exchange ? null : selectedId,
 	})
+	const entranceOf = hasPicked ? noEntrance : staggeredEntrance
+	const rows = exchange
+		? exchange.turns.map((turn, rank) => turnRow(turn, rank, entranceOf))
+		: loopRows(space.loop, frame, entranceOf)
 	const select = (id: string) => {
 		engage()
+		setHasPicked(true)
 		setSelectedId(id)
 	}
 	const selectSpace = (id: string) => {
 		cancelIdle()
+		setHasPicked(true)
 		setSpaceId(id)
 		setSelectedId(spaceOf(id).defaultConversation.id)
 	}
@@ -308,14 +360,15 @@ export const AppScene = () => {
 									}
 								/>
 							}
-							rows={
-								exchange
-									? exchange.turns.map(turnRow)
-									: loopRows(space.loop, frame)
-							}
+							rows={rows}
 						>
 							{exchange ? null : (
-								<WorkingRows frame={frame} loop={space.loop} />
+								<WorkingRows
+									entranceOf={entranceOf}
+									firstPosition={rows.length}
+									frame={frame}
+									loop={space.loop}
+								/>
 							)}
 						</ThreadLayout>
 					</RoutinesPanel>
