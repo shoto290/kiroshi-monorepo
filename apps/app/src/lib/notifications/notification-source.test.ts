@@ -793,7 +793,7 @@ describe("startNotificationSource when a subscription breaks", () => {
 
 		expect(harness.reportFailure).toHaveBeenCalledWith({
 			title:
-				"Notifications won't open their conversation. Restart Kiroshi to fix it.",
+				"Notifications won’t open their conversation. Restart Kiroshi to fix it.",
 			description: "no listener",
 		})
 	})
@@ -805,7 +805,7 @@ describe("startNotificationSource when a subscription breaks", () => {
 
 		expect(harness.reportFailure).toHaveBeenCalledWith({
 			title:
-				"Notifications may show while you're in Kiroshi. Restart Kiroshi to fix it.",
+				"Notifications may show while you’re in Kiroshi. Restart Kiroshi to fix it.",
 			description: "no window",
 		})
 	})
@@ -819,7 +819,7 @@ describe("startNotificationSource when a subscription breaks", () => {
 
 		expect(harness.reportFailure).toHaveBeenCalledWith({
 			title:
-				"Couldn't show a notification. Check Kiroshi's notification permission.",
+				"Couldn’t show a notification. Check Kiroshi’s notification permission.",
 			description: REFUSAL,
 		})
 	})

@@ -151,7 +151,7 @@ export const Empty = meta.story({
 	play: async ({ canvas }) => {
 		await expect(canvas.queryAllByRole("tab")).toHaveLength(0)
 		await expect(
-			canvas.getByText(/Couldn't read the files of this change/),
+			canvas.getByText(/Couldn’t read the files of this change/),
 		).toBeVisible()
 
 		const foot = canvas.getByText(
@@ -192,7 +192,7 @@ export const Error = meta.story({
 	},
 	play: async ({ args, canvas, userEvent }) => {
 		await expect(
-			canvas.getByText(/Couldn't read the files of this change/),
+			canvas.getByText(/Couldn’t read the files of this change/),
 		).toBeVisible()
 
 		await userEvent.click(canvas.getByRole("button", { name: "History" }))

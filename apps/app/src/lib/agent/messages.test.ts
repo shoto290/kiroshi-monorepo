@@ -13,7 +13,7 @@ describe("describeTransportError", () => {
 				kind: "binaryNotFound",
 				searched: ["/usr/bin", "/opt/bin"],
 			}),
-		).toBe("Couldn't find the agent. Reinstall Kiroshi.")
+		).toBe("Couldn’t find the agent. Reinstall Kiroshi.")
 	})
 
 	it("keeps a signed-out subscription apart from an unreachable agent", () => {
@@ -37,7 +37,7 @@ describe("describeTransportError", () => {
 				kind: "writeFailed",
 				detail: "pipe closed & gone",
 			}),
-		).toBe("Couldn't send the message (pipe closed & gone). Retry.")
+		).toBe("Couldn’t send the message (pipe closed & gone). Retry.")
 	})
 
 	it("names the server left out and the variable it waited for", () => {

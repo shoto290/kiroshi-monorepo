@@ -147,17 +147,15 @@ export function PromptInput({
 				inert={disabled}
 				className="ms-auto flex items-center"
 			>
-				{hasPayload ? (
-					<Button
-						type="submit"
-						size="icon"
-						disabled={!canSubmit}
-						aria-label={t("composer.send")}
-						className="rounded-full"
-					>
-						<Icons.Send />
-					</Button>
-				) : null}
+				<Button
+					type="submit"
+					size="icon"
+					disabled={disabled}
+					aria-label={t("composer.send")}
+					className="rounded-full"
+				>
+					<Icons.Send />
+				</Button>
 			</div>
 		</form>
 	)

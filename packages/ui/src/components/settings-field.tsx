@@ -8,6 +8,28 @@ import {
 } from "@workspace/ui/components/settings-styles"
 import { cn } from "@workspace/ui/lib/utils"
 
+type SettingsFieldKind =
+	| "text"
+	| "email"
+	| "url"
+	| "search"
+	| "password"
+	| "number"
+
+type ControlTraits = {
+	inputMode?: "text" | "email" | "url" | "search" | "decimal"
+	isLiteral?: boolean
+}
+
+const CONTROL_TRAITS: Record<SettingsFieldKind, ControlTraits> = {
+	text: {},
+	email: { inputMode: "email", isLiteral: true },
+	url: { inputMode: "url", isLiteral: true },
+	search: { inputMode: "search" },
+	password: { isLiteral: true },
+	number: { inputMode: "decimal" },
+}
+
 type SettingsFieldProps = {
 	label: string
 	value: string
@@ -18,8 +40,7 @@ type SettingsFieldProps = {
 	rows?: number
 	fill?: boolean
 	readOnly?: boolean
-	masked?: boolean
-	numeric?: boolean
+	kind?: SettingsFieldKind
 }
 
 const SettingsField = ({
@@ -32,11 +53,10 @@ const SettingsField = ({
 	rows,
 	fill = false,
 	readOnly = false,
-	masked = false,
-	numeric = false,
+	kind = "text",
 }: SettingsFieldProps) => {
 	const id = useId()
-	const controlType = numeric ? "number" : "text"
+	const traits = CONTROL_TRAITS[kind]
 	const hintId = hint ? `${id}-hint` : undefined
 	const errorId = error ? `${id}-error` : undefined
 	const describedBy = [hintId, errorId].filter(Boolean).join(" ") || undefined
@@ -70,19 +90,20 @@ const SettingsField = ({
 				<input
 					aria-describedby={describedBy}
 					aria-invalid={error ? true : undefined}
-					autoComplete={masked ? "off" : undefined}
+					autoComplete={kind === "password" ? "off" : undefined}
 					className={cn(
 						FIELD_CONTROL_CLASS,
 						error && FIELD_CONTROL_INVALID_CLASS,
 						readOnly && FIELD_CONTROL_READONLY_CLASS,
 					)}
 					id={id}
+					inputMode={traits.inputMode}
 					onChange={emit}
 					placeholder={placeholder}
 					readOnly={readOnly}
-					spellCheck={masked ? false : undefined}
-					step={numeric ? "any" : undefined}
-					type={masked ? "password" : controlType}
+					spellCheck={traits.isLiteral ? false : undefined}
+					step={kind === "number" ? "any" : undefined}
+					type={kind}
 					value={value}
 				/>
 			)}
@@ -92,7 +113,7 @@ const SettingsField = ({
 				</p>
 			) : null}
 			{error ? (
-				<p className="text-destructive text-xs" id={errorId}>
+				<p className="text-destructive text-xs" id={errorId} role="alert">
 					{error}
 				</p>
 			) : null}
@@ -100,4 +121,4 @@ const SettingsField = ({
 	)
 }
 
-export { SettingsField, type SettingsFieldProps }
+export { SettingsField, type SettingsFieldKind, type SettingsFieldProps }

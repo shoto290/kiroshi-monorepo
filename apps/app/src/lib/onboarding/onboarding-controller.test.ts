@@ -472,7 +472,7 @@ describe("the first companion", () => {
 		await controller.greetCompanion(CREATED_SCOUT)
 
 		expect(reportFailure).toHaveBeenCalledWith({
-			title: `${CREATED_SCOUT.name} couldn't say hello`,
+			title: `${CREATED_SCOUT.name} couldn’t say hello`,
 			description: "the agent stopped",
 		})
 	})

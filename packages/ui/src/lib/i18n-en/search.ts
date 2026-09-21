@@ -14,7 +14,7 @@ const search = {
 	seeAll: "See all",
 	solo: "solo conversation",
 	unavailable: {
-		title: "Couldn't run the search",
+		title: "Couldn’t run the search",
 		description: "Edit your search to retry.",
 	},
 	rest: {
@@ -23,7 +23,7 @@ const search = {
 		routines: "Routines",
 		messages: {
 			title: "Search every message",
-			body: "Type a word to search every message in {{space}}. Whole words only: “rout” won't find “routine”.",
+			body: "Type a word to search every message in {{space}}. Whole words only: “rout” won’t find “routine”.",
 		},
 		none: {
 			chats: "No conversation here yet",

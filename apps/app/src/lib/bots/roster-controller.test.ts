@@ -893,7 +893,7 @@ describe("createRosterController on memberships", () => {
 			refusing.getState().rosters[elsewhere.id].map((bot) => bot.id),
 		).toEqual(["default"])
 		expect(reportFailure).toHaveBeenCalledWith({
-			title: "Couldn't remove this companion from the space. Retry.",
+			title: "Couldn’t remove this companion from the space. Retry.",
 		})
 	})
 })
@@ -1397,7 +1397,7 @@ describe("createRosterController on conversations", () => {
 
 		expect(seated).toBeNull()
 		expect(reportFailure).toHaveBeenCalledWith({
-			title: `Couldn't bring ${refusing.getState().bots[0].name} into this conversation. Retry.`,
+			title: `Couldn’t bring ${refusing.getState().bots[0].name} into this conversation. Retry.`,
 		})
 		expect(seatedIn(refusing.getState().conversations[0])).toEqual([])
 	})

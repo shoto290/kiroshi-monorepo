@@ -132,7 +132,7 @@ describe("the onboarding tail", () => {
 		)
 
 		expect(askedOf(tail)?.question).toBe(
-			"That's it working. Ready for the last one?",
+			"That’s it working. Ready for the last one?",
 		)
 		expect(askedOf(tail)?.failure).toBeUndefined()
 	})
@@ -141,7 +141,7 @@ describe("the onboarding tail", () => {
 		const controller = await settled()
 
 		expect(askedOf(tailOf(controller, failedTurn))?.failure).toEqual({
-			title: "Couldn't sign you in",
+			title: "Couldn’t sign you in",
 			detail: "the agent stopped",
 		})
 	})

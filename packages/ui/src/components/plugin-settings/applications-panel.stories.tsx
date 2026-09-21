@@ -539,7 +539,7 @@ export const Unreadable = meta.story({
 	},
 	play: async ({ canvas }) => {
 		await expect(
-			canvas.getByText("Couldn't load applications. Reopen settings to retry."),
+			canvas.getByText("Couldn’t load applications. Reopen settings to retry."),
 		).toBeVisible()
 		await expect(
 			canvas.queryByRole("button", { name: "Add an application" }),

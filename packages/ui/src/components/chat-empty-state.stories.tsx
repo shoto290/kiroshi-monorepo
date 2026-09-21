@@ -50,7 +50,9 @@ export const WithSettings = meta.story({
 		},
 	},
 	play: async ({ args, canvas, userEvent }) => {
-		const settings = canvas.getByRole("button", { name: "Companion settings" })
+		const settings = canvas.getByRole("button", {
+			name: "Open companion settings",
+		})
 
 		await expect(
 			canvas.getByText(/Message a companion to start\./),
@@ -147,7 +149,7 @@ export const NotConnected = meta.story({
 		const signIn = canvas.getByRole("button", { name: "Sign in" })
 
 		await expect(
-			canvas.getByRole("heading", { name: "You're not signed in" }),
+			canvas.getByRole("heading", { name: "You’re not signed in" }),
 		).toBeVisible()
 		await expect(botIdentityAvatars(canvasElement)).toHaveLength(0)
 		await userEvent.click(signIn)

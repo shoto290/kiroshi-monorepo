@@ -87,7 +87,7 @@ export const Clearing = meta.story({
 		await userEvent.click(canvas.getByRole("button", { name: "Clear" }))
 
 		const question = await screen.findByRole("alertdialog")
-		await expect(question).toHaveTextContent("Clear this companion's memory?")
+		await expect(question).toHaveTextContent("Clear this companion’s memory?")
 		await expect(args.onSave).not.toHaveBeenCalled()
 
 		await userEvent.click(

@@ -39,7 +39,7 @@ const TRIGGER_LABEL = "Right-click this companion"
 
 const ITEMS_IN_ORDER = [
 	"Pin",
-	"Settings",
+	"Open settings",
 	"Duplicate",
 	"Move to section",
 	"Spaces",
@@ -154,7 +154,7 @@ export const WithoutBranches = meta.story({
 
 		await expect(
 			menu.getAllByRole("menuitem").map((item) => item.textContent),
-		).toEqual(["Settings", "Duplicate", "Delete"])
+		).toEqual(["Open settings", "Duplicate", "Delete"])
 	},
 })
 

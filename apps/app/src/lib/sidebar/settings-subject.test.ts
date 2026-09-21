@@ -97,7 +97,7 @@ const openSettingsFromContextMenu = async (name: string) => {
 	})
 	await settle(MOUNT_MS)
 	await act(async () => {
-		fireEvent.click(screen.getByRole("menuitem", { name: "Settings" }))
+		fireEvent.click(screen.getByRole("menuitem", { name: "Open settings" }))
 	})
 	await settle(MOUNT_MS)
 }

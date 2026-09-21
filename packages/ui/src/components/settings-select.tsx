@@ -107,7 +107,7 @@ const SettingsSelect = ({
 				</p>
 			) : null}
 			{error ? (
-				<p className="text-destructive text-xs" id={errorId}>
+				<p className="text-destructive text-xs" id={errorId} role="alert">
 					{error}
 				</p>
 			) : null}

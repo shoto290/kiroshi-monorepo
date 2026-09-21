@@ -137,7 +137,9 @@ export const Ready = meta.story({
 		await expect(
 			body.queryByRole("link", { name: RELEASE_NOTES_LABEL }),
 		).toBeNull()
-		await userEvent.click(await body.findByRole("button", { name: "Later" }))
+		await userEvent.click(
+			await body.findByRole("button", { name: "Remind me later" }),
+		)
 		await expect(args.onPostpone).toHaveBeenCalledTimes(1)
 		await expect(
 			canvas.getByRole("button", { name: "Restart to update" }),
@@ -213,7 +215,7 @@ export const Error = meta.story({
 	},
 	play: async ({ canvas, args, userEvent }) => {
 		await userEvent.click(
-			canvas.getByRole("button", { name: "Update failed, download again" }),
+			canvas.getByRole("button", { name: "Download the update again" }),
 		)
 		await expect(args.onDownload).toHaveBeenCalledTimes(1)
 	},

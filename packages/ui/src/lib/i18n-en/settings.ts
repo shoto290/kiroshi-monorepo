@@ -36,16 +36,16 @@ const settings = {
 		event: {
 			question: {
 				label: "A companion asks a question",
-				description: "It's paused until you answer.",
+				description: "It’s paused until you answer.",
 			},
 			permission: {
 				label: "A companion asks for approval",
 				description:
-					"It's waiting for your approval to run a command or edit a file.",
+					"It’s waiting for your approval to run a command or edit a file.",
 			},
 			turn: {
 				label: "A companion finishes its turn",
-				description: "It's done and waiting for your next message.",
+				description: "It’s done and waiting for your next message.",
 			},
 		},
 		sound: {
@@ -82,8 +82,8 @@ const settings = {
 		danger: {
 			delete: "Delete space",
 			description:
-				"Companions that are only in this space are deleted with it. This can't be undone.",
-			last: "You can't delete your last space.",
+				"Companions that are only in this space are deleted with it. This can’t be undone.",
+			last: "You can’t delete your last space.",
 			confirm: {
 				title: "Delete {{name}}?",
 			},

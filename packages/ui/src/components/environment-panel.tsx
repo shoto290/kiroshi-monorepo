@@ -125,7 +125,7 @@ const EnvironmentWriteDialog = ({
 					<SettingsField
 						hint={t("secrets.set.value.hint")}
 						label={t("secrets.set.value.label")}
-						masked
+						kind="password"
 						onValueChange={setValue}
 						value={value}
 					/>

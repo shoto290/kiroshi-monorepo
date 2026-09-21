@@ -1,20 +1,20 @@
 const chat = {
 	emptyState: {
 		ready: {
-			title: "Commencer avec l'agent",
+			title: "Commencer avec l’agent",
 			description:
-				"Kiroshi dialogue directement avec l'agent. Rien ne quitte votre appareil.",
+				"Kiroshi dialogue directement avec l’agent. Rien ne quitte votre appareil.",
 		},
 		unavailable: {
-			title: "Impossible de joindre l'agent",
-			description: "L'agent intégré de Kiroshi n'a pas répondu. Réessayez.",
+			title: "Impossible de joindre l’agent",
+			description: "L’agent intégré de Kiroshi n’a pas répondu. Réessayez.",
 		},
 		notConnected: {
-			title: "Vous n'êtes pas connecté",
+			title: "Vous n’êtes pas connecté",
 			description:
 				"Connectez votre compte Claude pour que vos compagnons puissent répondre.",
 		},
-		settings: "Réglages du compagnon",
+		settings: "Ouvrir les réglages du compagnon",
 		hint: "Écrivez à un compagnon pour commencer.",
 		setup: "Réessayer",
 		signIn: "Se connecter",
@@ -25,7 +25,7 @@ const chat = {
 		description_other: "{{count}} compagnons sont prêts.",
 		hint: "Écrivez à un compagnon pour commencer.",
 		nobody: {
-			title: "Personne n'est encore dans cette conversation",
+			title: "Personne n’est encore dans cette conversation",
 			description:
 				"Tapez @ et choisissez un nom. Le compagnon que vous mentionnez rejoint la conversation, et peut à son tour inviter ceux dont il a besoin.",
 			suggested: "Ceux à qui vous parlez le plus",
@@ -35,10 +35,10 @@ const chat = {
 		invitedByPerson:
 			"{{name}} a rejoint cette conversation, sur votre invitation",
 		invitedByCompanion:
-			"{{name}} a rejoint cette conversation, à l'invitation de {{inviter}}",
+			"{{name}} a rejoint cette conversation, à l’invitation de {{inviter}}",
 	},
 	connection: {
-		checking: "Vérification de l'agent…",
+		checking: "Vérification de l’agent…",
 		ready: "Agent prêt",
 		unavailable: "Agent indisponible",
 		crashed: "Agent arrêté",
@@ -55,13 +55,13 @@ const chat = {
 		startOfHistory: "Début de la conversation",
 		landing: {
 			unavailable: {
-				title: "Impossible d'ouvrir ce message",
+				title: "Impossible d’ouvrir ce message",
 				description: "Ouvrez à nouveau le résultat de recherche.",
 			},
 		},
 		message: {
-			user: "message de l'utilisateur",
-			assistant: "message de l'assistant",
+			user: "message de l’utilisateur",
+			assistant: "message de l’assistant",
 			mission: "mission ouverte",
 			actions: "Actions du message",
 		},
@@ -90,11 +90,11 @@ const chat = {
 				title_many: "Impossible de convoquer ces compagnons",
 				title_other: "Impossible de convoquer ces compagnons",
 				description_one:
-					"{{names}} a été nommé mais n'a pas de siège dans cette conversation.",
+					"{{names}} a été nommé mais n’a pas de siège dans cette conversation.",
 				description_many:
-					"{{names}} ont été nommés mais n'ont pas de siège dans cette conversation.",
+					"{{names}} ont été nommés mais n’ont pas de siège dans cette conversation.",
 				description_other:
-					"{{names}} ont été nommés mais n'ont pas de siège dans cette conversation.",
+					"{{names}} ont été nommés mais n’ont pas de siège dans cette conversation.",
 			},
 		},
 	},
@@ -102,14 +102,14 @@ const chat = {
 		copy: "Copier",
 		reply: "Répondre",
 		pin: "Épingler",
-		unpin: "Retirer l'épingle",
+		unpin: "Retirer l’épingle",
 		copied: "Copié",
 		retry: "Réessayer",
 		cancel: "Annuler ce message",
 		footer: {
 			cancelled: "Arrêté",
 			failed: "Cette réponse a échoué",
-			queued: "En attente d'envoi",
+			queued: "En attente d’envoi",
 		},
 	},
 	reply: {
@@ -123,7 +123,7 @@ const chat = {
 		counted_other: "Messages épinglés, {{count}} épinglés",
 		jump: "Aller",
 		jumpTo: "Aller au message de {{author}}",
-		unpin: "Retirer l'épingle du message de {{author}}",
+		unpin: "Retirer l’épingle du message de {{author}}",
 		empty: "Aucun message épinglé dans cette conversation.",
 		unavailable: {
 			title: "Impossible de synchroniser les messages épinglés",
@@ -148,7 +148,7 @@ const chat = {
 	},
 	notice: {
 		retry: "Réessayer",
-		dismiss: "Ignorer l'avis",
+		dismiss: "Ignorer l’avis",
 	},
 	attachments: {
 		label: "Pièces jointes",
@@ -168,30 +168,31 @@ const chat = {
 		mentioned_other: "{{count}} mentions dans le brouillon",
 		outside: "Pas dans cette conversation",
 		invite: "Ajouter à cette conversation",
-		further_one: "Continuez à taper pour atteindre l'autre dans {{space}}",
+		further_one: "Continuez à taper pour atteindre l’autre dans {{space}}",
 		further_many:
 			"Continuez à taper pour atteindre les {{count}} autres dans {{space}}",
 		further_other:
 			"Continuez à taper pour atteindre les {{count}} autres dans {{space}}",
 	},
 	toolApproval: {
-		title: "Autoriser cet outil à s'exécuter ?",
+		title: "Autoriser cet outil à s’exécuter ?",
 		status: {
 			pending: "Autorisation requise",
 			allowed: "Autorisé une fois",
 			denied: "Refusé",
 		},
 		sensitive: "Masqué",
-		input: "Entrée de l'outil",
+		input: "Entrée de l’outil",
 		allowOnce: "Autoriser une fois",
 		deny: "Refuser",
 	},
 	toolQuestion: {
 		freeText: "Autre réponse",
 		freeTextPlaceholder: "Écrivez votre propre réponse…",
+		blank: "Répondez à cette question pour continuer.",
 		preview: "Aperçu",
 		submit: "Envoyer les réponses",
-		next: "Question suivante",
+		next: "Passer à la question suivante",
 		continue: "Continuer",
 		dismiss: "Ignorer",
 		copy: "Copier",
@@ -237,12 +238,12 @@ const chat = {
 		todo: "À faire",
 	},
 	screen: {
-		label: "Conversation avec l'agent",
+		label: "Conversation avec l’agent",
 		identity: "{{name}} · réglages du compagnon",
 		conversationIdentity: "{{name}} · réglages de la conversation",
 		placeholder: "Message à {{name}}",
 		approval: {
-			description: "L'agent attend votre autorisation pour lancer cet outil.",
+			description: "L’agent attend votre autorisation pour lancer cet outil.",
 			path: "Chemin",
 		},
 		question: {
@@ -251,42 +252,42 @@ const chat = {
 		attachmentsRefused: "Impossible de joindre les fichiers",
 		restart: "Redémarrer la session",
 		notice: {
-			crashed: "L'agent s'est arrêté",
+			crashed: "L’agent s’est arrêté",
 			resumeFailed: "Impossible de reprendre la conversation",
 			workingDirectoryRefused: "Impossible de trouver le dossier du compagnon",
-			settingsRejected: "Impossible d'appliquer les réglages du compagnon",
+			settingsRejected: "Impossible d’appliquer les réglages du compagnon",
 			serverEnvRejected: "Impossible de démarrer une application",
-			notAuthenticated: "Vous n'êtes pas connecté",
-			unavailable: "Impossible de joindre l'agent",
-			failed: "Impossible d'envoyer cette demande",
+			notAuthenticated: "Vous n’êtes pas connecté",
+			unavailable: "Impossible de joindre l’agent",
+			failed: "Impossible d’envoyer cette demande",
 			readFailed: "Impossible de charger les messages précédents",
 		},
 		transport: {
-			binaryNotFound: "Impossible de trouver l'agent. Réinstallez Kiroshi.",
+			binaryNotFound: "Impossible de trouver l’agent. Réinstallez Kiroshi.",
 			notAuthenticated:
 				"Vous êtes déconnecté de votre abonnement Claude. Connectez-vous à Claude, puis relancez la conversation.",
 			notConnected:
-				"Votre compte Claude n'est pas connecté. Connectez-vous pour continuer.",
+				"Votre compte Claude n’est pas connecté. Connectez-vous pour continuer.",
 			authCheckFailed:
 				"Impossible de vérifier votre connexion ({{detail}}). Redémarrez la session.",
 			spawnFailed:
-				"Impossible de démarrer l'agent ({{detail}}). Redémarrez la session.",
+				"Impossible de démarrer l’agent ({{detail}}). Redémarrez la session.",
 			startupTimeout:
-				"L'agent n'a pas répondu en {{timeoutMs}} ms. Redémarrez la session.",
-			crashed: "L'agent s'est arrêté (code {{code}}). Redémarrez la session.",
+				"L’agent n’a pas répondu en {{timeoutMs}} ms. Redémarrez la session.",
+			crashed: "L’agent s’est arrêté (code {{code}}). Redémarrez la session.",
 			crashedDetail:
-				"L'agent s'est arrêté (code {{code}}) : {{detail}}. Redémarrez la session.",
+				"L’agent s’est arrêté (code {{code}}) : {{detail}}. Redémarrez la session.",
 			crashedUnknownCode:
-				"L'agent s'est arrêté (code inconnu). Redémarrez la session.",
+				"L’agent s’est arrêté (code inconnu). Redémarrez la session.",
 			crashedUnknownCodeDetail:
-				"L'agent s'est arrêté (code inconnu) : {{detail}}. Redémarrez la session.",
+				"L’agent s’est arrêté (code inconnu) : {{detail}}. Redémarrez la session.",
 			resumeFailed:
-				"L'agent a démarré une nouvelle session. Continuez, vos messages sont toujours là.",
+				"L’agent a démarré une nouvelle session. Continuez, vos messages sont toujours là.",
 			workingDirectoryRefused:
-				"{{path}} n'existe plus, le compagnon utilise son dossier par défaut. Choisissez-en un autre dans ses réglages.",
+				"{{path}} n’existe plus, le compagnon utilise son dossier par défaut. Choisissez-en un autre dans ses réglages.",
 			invalidFrame: "Trame illisible ignorée ({{detail}}). Continuez.",
 			settingsRejected:
-				"Impossible d'appliquer settings.json ({{detail}}). Corrigez-le, puis redémarrez la session.",
+				"Impossible d’appliquer settings.json ({{detail}}). Corrigez-le, puis redémarrez la session.",
 			serverEnvRejected:
 				"{{detail}}. Les autres applications tournent toujours, corrigez celui-ci puis redémarrez la session.",
 			notStarted:
@@ -298,8 +299,8 @@ const chat = {
 			staleRuntimeSession:
 				"Cette session a été remplacée. Continuez dans la session actuelle.",
 			unknownPermission:
-				"Demande d'autorisation introuvable ({{id}}). Ignorez-la.",
-			writeFailed: "Impossible d'envoyer le message ({{detail}}). Réessayez.",
+				"Demande d’autorisation introuvable ({{id}}). Ignorez-la.",
+			writeFailed: "Impossible d’envoyer le message ({{detail}}). Réessayez.",
 			readFailed:
 				"Impossible de charger les messages précédents ({{detail}}). Réessayez.",
 			unknownFailure: "Une erreur est survenue ({{detail}}). Réessayez.",
@@ -307,9 +308,9 @@ const chat = {
 		attachment: {
 			megabytes: "{{size}} Mo",
 			storage:
-				"Impossible d'enregistrer les fichiers ({{failure}}). Joignez-les à nouveau.",
+				"Impossible d’enregistrer les fichiers ({{failure}}). Joignez-les à nouveau.",
 			unknownConversation:
-				"Cette conversation n'existe plus. Rouvrez le compagnon et joignez-les à nouveau.",
+				"Cette conversation n’existe plus. Rouvrez le compagnon et joignez-les à nouveau.",
 			tooMany:
 				"Un message accepte {{limit}} fichiers au maximum, et {{staged}} sont en attente. Retirez-en.",
 			tooLarge:
@@ -317,7 +318,7 @@ const chat = {
 			tooLargeTogether:
 				"Ces fichiers totalisent {{bytes}}, au-delà de la limite de {{limit}} par message. Retirez-en.",
 			unwritable:
-				"Impossible d'enregistrer les fichiers ({{detail}}). Joignez-les à nouveau.",
+				"Impossible d’enregistrer les fichiers ({{detail}}). Joignez-les à nouveau.",
 		},
 	},
 	namelessConversation: {
@@ -352,12 +353,12 @@ const chat = {
 			lead: "Meneur",
 			promote: "Confier la conduite à {{name}}",
 			dismiss: "Retirer {{name}}",
-			last: "Une conversation a besoin d'au moins un compagnon.",
+			last: "Une conversation a besoin d’au moins un compagnon.",
 		},
 		danger: {
 			delete: "Supprimer la conversation",
 			description:
-				"Ses messages sont supprimés ; ses compagnons restent dans l'espace. C'est irréversible.",
+				"Ses messages sont supprimés ; ses compagnons restent dans l’espace. C’est irréversible.",
 			confirm: {
 				title: "Supprimer {{name}} ?",
 			},
@@ -365,21 +366,21 @@ const chat = {
 	},
 	activity: {
 		panel: {
-			close: "Fermer l'activité",
+			close: "Fermer l’activité",
 			label: "Activité",
-			toggle: "Activité",
+			toggle: "Afficher ou masquer l’activité",
 			title: "Activité",
 		},
 		missions: {
 			group: {
 				waiting: "En attente de vous",
 				inProgress: "En cours",
-				earlierToday: "Plus tôt aujourd'hui",
+				earlierToday: "Plus tôt aujourd’hui",
 			},
 		},
 		routines: {
 			title: "Routines",
-			back: "Retour à l'activité",
+			back: "Retour à l’activité",
 		},
 		runs: {
 			reported: "rapporté",
@@ -387,33 +388,33 @@ const chat = {
 		empty: {
 			title: "Rien ne tourne ici",
 			description:
-				"Les missions et les rapports de routine de cette conversation s'affichent ici.",
+				"Les missions et les rapports de routine de cette conversation s’affichent ici.",
 		},
 		failure: {
 			missions: {
 				title: "Impossible de charger les missions",
 				description:
-					"Les missions sont toujours là ; seule la liste n'a pas pu se charger.",
+					"Les missions sont toujours là ; seule la liste n’a pas pu se charger.",
 			},
 			routines: {
 				title: "Impossible de charger les routines",
 				description:
-					"Les routines continuent de tourner ; seule la liste n'a pas pu se charger.",
+					"Les routines continuent de tourner ; seule la liste n’a pas pu se charger.",
 			},
 			activity: {
-				title: "Impossible de charger l'activité",
+				title: "Impossible de charger l’activité",
 				description:
-					"Les missions et les routines sont toujours là ; seule la liste n'a pas pu se charger.",
+					"Les missions et les routines sont toujours là ; seule la liste n’a pas pu se charger.",
 			},
 			write: {
 				title: "Impossible de modifier la routine",
-				description: "Votre modification n'est pas enregistrée. Réessayez.",
+				description: "Votre modification n’est pas enregistrée. Réessayez.",
 			},
 		},
 	},
 	routines: {
 		form: {
-			new: "Nouvelle routine",
+			new: "Créer une routine",
 			edit: "Modifier la routine",
 			back: "Retour aux routines",
 			save: "Enregistrer la routine",
@@ -429,7 +430,7 @@ const chat = {
 			source: {
 				label: "Déclencheur",
 				placeholder: "Choisissez ce qui déclenche cette routine",
-				tied: "Vous ne pouvez pas changer le déclencheur d'une routine enregistrée.",
+				tied: "Vous ne pouvez pas changer le déclencheur d’une routine enregistrée.",
 			},
 			expression: {
 				label: "Expression cron",
@@ -442,14 +443,14 @@ const chat = {
 			webhook: {
 				url: "Adresse",
 				key: "Clé",
-				header: "Nom de l'en-tête",
+				header: "Nom de l’en-tête",
 				copy: "Copier {{field}} de cette routine",
 				copied: "{{field}} copié",
-				reading: "Chargement de l'adresse et de la clé…",
+				reading: "Chargement de l’adresse et de la clé…",
 				pending:
-					"Enregistrez la routine pour obtenir son adresse, sa clé et son nom d'en-tête.",
+					"Enregistrez la routine pour obtenir son adresse, sa clé et son nom d’en-tête.",
 				failure:
-					"Impossible de charger l'adresse et la clé. Rouvrez la routine pour réessayer.",
+					"Impossible de charger l’adresse et la clé. Rouvrez la routine pour réessayer.",
 			},
 			filter: {
 				label: "Filtre",
@@ -498,12 +499,12 @@ const chat = {
 				},
 			},
 			error: {
-				blankTitle: "Une routine a besoin d'un titre.",
-				blankInstruction: "Une routine a besoin d'une instruction.",
-				blankValue: "Cette ligne a besoin d'une valeur.",
+				blankTitle: "Une routine a besoin d’un titre.",
+				blankInstruction: "Une routine a besoin d’une instruction.",
+				blankValue: "Cette ligne a besoin d’une valeur.",
 				untypedComparison: "Choisissez un champ déclaré par le déclencheur.",
 				unreadableExpression:
-					"Impossible de lire cet horaire. Vérifiez l'expression cron.",
+					"Impossible de lire cet horaire. Vérifiez l’expression cron.",
 				unsupportedOperator:
 					"{{operator}} ne convient pas à un champ {{fieldType}}. Choisissez un autre opérateur.",
 			},
@@ -514,11 +515,11 @@ const chat = {
 			runNow: {
 				action: "Exécuter maintenant",
 				refusal: {
-					disabled: "Cette routine est désactivée. Activez-la pour l'exécuter.",
-					filter: "Rien n'a tourné : le filtre n'a rien laissé passer.",
+					disabled: "Cette routine est désactivée. Activez-la pour l’exécuter.",
+					filter: "Rien n’a tourné : le filtre n’a rien laissé passer.",
 					dedupeValueMissing:
-						"Rien n'a tourné : ce déclencheur ne distingue pas les événements.",
-					alreadySeen: "Rien n'a tourné : cet événement a déjà été exécuté.",
+						"Rien n’a tourné : ce déclencheur ne distingue pas les événements.",
+					alreadySeen: "Rien n’a tourné : cet événement a déjà été exécuté.",
 				},
 			},
 			history: {
@@ -543,23 +544,23 @@ const chat = {
 				},
 				empty: {
 					title: "Aucune exécution enregistrée",
-					description: "Les exécutions s'affichent ici au fur et à mesure.",
+					description: "Les exécutions s’affichent ici au fur et à mesure.",
 				},
 				failure: {
 					title: "Impossible de charger les exécutions",
 					description:
-						"La routine continue de tourner ; seul son historique n'a pas pu se charger.",
+						"La routine continue de tourner ; seul son historique n’a pas pu se charger.",
 				},
 			},
 		},
 		row: {
 			delete: "Supprimer {{title}}",
-			stopped: "S'est arrêtée",
+			stopped: "S’est arrêtée",
 		},
 		confirm: {
 			title: "Supprimer {{title}} ?",
 			description:
-				"Son historique d'exécutions est supprimé ; ses rapports passés restent dans la conversation. C'est irréversible.",
+				"Son historique d’exécutions est supprimé ; ses rapports passés restent dans la conversation. C’est irréversible.",
 			label: "Supprimer la routine",
 			failure: "Impossible de supprimer la routine. Réessayez.",
 		},
@@ -587,14 +588,14 @@ const chat = {
 			source: {
 				bot: "Le compagnon",
 				reader: "Vous",
-				agent: "L'agent",
+				agent: "L’agent",
 				github: "GitHub",
 			},
 			line: {
 				opened: "Mission ouverte par {{source}}",
 				note: "Note enregistrée par {{source}}",
-				agent_asked: "Question envoyée à l'agent par {{source}}",
-				answered: "Réponse envoyée à l'agent",
+				agent_asked: "Question envoyée à l’agent par {{source}}",
+				answered: "Réponse envoyée à l’agent",
 				escalated: "Remontée à un humain par {{source}}",
 				ready: "Marquée prête à fusionner par {{source}}",
 				checks_failed: "Vérifications en échec signalées par {{source}}",
@@ -626,7 +627,7 @@ const chat = {
 		},
 		summons: {
 			working: "Ouvert par la mission",
-			waiting_bot: "Ouvert par la question de l'agent",
+			waiting_bot: "Ouvert par la question de l’agent",
 		},
 		composer: {
 			placeholder: "Répondre à cette mission…",
@@ -635,10 +636,10 @@ const chat = {
 			read: {
 				title: "Impossible de charger cette mission",
 				description:
-					"La mission est toujours là ; seule cette vue n'a pas pu se charger.",
+					"La mission est toujours là ; seule cette vue n’a pas pu se charger.",
 			},
 			send: {
-				title: "Impossible d'envoyer votre réponse",
+				title: "Impossible d’envoyer votre réponse",
 				description: "Renvoyez-la.",
 			},
 			run: {
@@ -657,8 +658,8 @@ const chat = {
 				description: "Trois étapes, environ une minute.",
 			},
 			more: {
-				label: "Dites-m'en plus d'abord",
-				description: "Ce qu'est Kiroshi, avant de connecter quoi que ce soit.",
+				label: "Dites-m’en plus d’abord",
+				description: "Ce qu’est Kiroshi, avant de connecter quoi que ce soit.",
 			},
 		},
 		account: {
@@ -684,14 +685,14 @@ const chat = {
 			},
 			apiKey: {
 				label: "Coller une clé API",
-				description: "Paiement à l'usage, sans connexion.",
+				description: "Paiement à l’usage, sans connexion.",
 			},
 		},
 		code: {
 			header: "Connexion",
 			question: "Collez le code que Claude vous a donné",
 			link: "Ouvrez ce lien et connectez-vous",
-			entry: "Puis collez le code qu'il vous donne",
+			entry: "Puis collez le code qu’il vous donne",
 			exit: "Coller une clé à la place",
 		},
 		apiKey: {
@@ -712,8 +713,8 @@ const chat = {
 		},
 		connection: {
 			keyFailed: {
-				title: "Impossible d'utiliser cette clé",
-				sentence: "Cette clé a été refusée, donc rien n'a été enregistré.",
+				title: "Impossible d’utiliser cette clé",
+				sentence: "Cette clé a été refusée, donc rien n’a été enregistré.",
 				anotherKey: "Essayer une autre clé",
 				anotherKeyDescription: "Collez une autre clé API Anthropic.",
 				signIn: "Se connecter à la place",
@@ -727,12 +728,12 @@ const chat = {
 				description: "Encore une question, et vous êtes prêt.",
 			},
 			keepTalking: {
-				label: "Continuer à discuter d'abord",
-				description: "Posez-moi encore quelques questions. J'attends.",
+				label: "Continuer à discuter d’abord",
+				description: "Posez-moi encore quelques questions. J’attends.",
 			},
 		},
 		arrival: {
-			failure: "{{name}} n'a pas pu dire bonjour",
+			failure: "{{name}} n’a pas pu dire bonjour",
 		},
 	},
 } as const

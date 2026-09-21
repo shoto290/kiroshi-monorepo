@@ -4,10 +4,11 @@ const common = {
 	},
 	spaces: {
 		unavailable: {
-			title: "Couldn't load your spaces",
+			title: "Couldn’t load your spaces",
 			description: "Your companions are still there.",
 		},
 	},
+	skipLink: "Skip to the conversation",
 	dialog: {
 		close: "Close",
 	},
@@ -36,11 +37,11 @@ const common = {
 		},
 		failure: {
 			clicks:
-				"Notifications won't open their conversation. Restart Kiroshi to fix it.",
+				"Notifications won’t open their conversation. Restart Kiroshi to fix it.",
 			focus:
-				"Notifications may show while you're in Kiroshi. Restart Kiroshi to fix it.",
-			reveal: "Couldn't bring Kiroshi to the front. Switch to it yourself.",
-			send: "Couldn't show a notification. Check Kiroshi's notification permission.",
+				"Notifications may show while you’re in Kiroshi. Restart Kiroshi to fix it.",
+			reveal: "Couldn’t bring Kiroshi to the front. Switch to it yourself.",
+			send: "Couldn’t show a notification. Check Kiroshi’s notification permission.",
 		},
 	},
 	update: {
@@ -49,6 +50,7 @@ const common = {
 			downloading: "Downloading update",
 			ready: "Restart to update",
 			error: "Update failed, download again",
+			retry: "Download the update again",
 		},
 		panel: {
 			title: "Update ready",
@@ -57,7 +59,7 @@ const common = {
 			botsBusy_other:
 				"{{count}} companions are still running. Stop them to restart.",
 			restart: "Restart now",
-			postpone: "Later",
+			postpone: "Remind me later",
 			releaseNotes: "Read the full release notes in your browser",
 		},
 	},

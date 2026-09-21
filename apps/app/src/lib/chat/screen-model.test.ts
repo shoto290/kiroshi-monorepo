@@ -469,16 +469,16 @@ describe("notices", () => {
 			noticeTitleFor(t, { kind: "crashed", code: null, detail: null }),
 		).toBe("The agent stopped")
 		expect(noticeTitleFor(t, { kind: "binaryNotFound", searched: [] })).toBe(
-			"Couldn't reach the agent",
+			"Couldn’t reach the agent",
 		)
 		expect(noticeTitleFor(t, { kind: "noActiveTurn" })).toBe(
-			"Couldn't send that request",
+			"Couldn’t send that request",
 		)
 	})
 
 	it("titles a signed-out notice on the missing sign-in", () => {
 		expect(noticeTitleFor(t, { kind: "notAuthenticated" })).toBe(
-			"You're not signed in",
+			"You’re not signed in",
 		)
 	})
 
@@ -489,13 +489,13 @@ describe("notices", () => {
 				'the server "linear" was left out: LINEAR_KEY is defined by no scope',
 		} as const
 		expect(needsFreshSession(leftOut)).toBe(false)
-		expect(noticeTitleFor(t, leftOut)).toBe("Couldn't start an application")
+		expect(noticeTitleFor(t, leftOut)).toBe("Couldn’t start an application")
 	})
 
 	it("keeps a refused resume out of the session-ending errors", () => {
 		const refused = { kind: "resumeFailed", forgotSessionId: true } as const
 		expect(needsFreshSession(refused)).toBe(false)
-		expect(noticeTitleFor(t, refused)).toBe("Couldn't resume the conversation")
+		expect(noticeTitleFor(t, refused)).toBe("Couldn’t resume the conversation")
 	})
 })
 

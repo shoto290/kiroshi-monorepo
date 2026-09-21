@@ -10,15 +10,15 @@ import type {
 const bots = {
 	roster: {
 		label: "Conversations",
-		create: "New companion",
+		create: "Create a companion",
 		createMenu: "Create",
 		conversation: {
-			create: "New conversation",
+			create: "Start a conversation",
 			others: "+{{count}}",
 			preview: "{{name}}: {{text}}",
 		},
 		empty: "No companions yet",
-		unavailable: "Couldn't load your companions. Restart Kiroshi to retry.",
+		unavailable: "Couldn’t load your companions. Restart Kiroshi to retry.",
 		mission: {
 			state: {
 				waiting: "waiting for you",
@@ -27,13 +27,13 @@ const bots = {
 				working: "working",
 			},
 			unavailable: {
-				title: "Couldn't load missions",
+				title: "Couldn’t load missions",
 				description: "Restart Kiroshi to retry.",
 			},
 		},
 		actions: "Actions for {{name}}",
 		titled: "{{name}} · {{title}}",
-		settings: "Settings",
+		settings: "Open settings",
 		duplicate: "Duplicate",
 		spaces: {
 			label: "Spaces",
@@ -61,7 +61,7 @@ const bots = {
 			actions: "Actions for the {{name}} section",
 			moveTo: "Move to section",
 			none: "No section",
-			create: "New section",
+			create: "Create a section",
 			createField: "New section name",
 			createDefault: "New section",
 			rename: "Rename",
@@ -71,7 +71,7 @@ const bots = {
 			delete: "Delete",
 			empty: "Drop a companion here",
 		},
-		seedRefused: "Your first companion couldn't be set up",
+		seedRefused: "Your first companion couldn’t be set up",
 	},
 	spaces: {
 		label: "Spaces",
@@ -79,12 +79,12 @@ const bots = {
 		open: "Open {{name}}",
 		moveUp: "Move up",
 		moveDown: "Move down",
-		create: "New space",
-		settings: "Space settings",
+		create: "Create a space",
+		settings: "Open space settings",
 		shortcut: "⌘{{rank}}",
 		remove: {
 			lastSpace: "A companion needs at least one space.",
-			failed: "Couldn't remove this companion from the space. Retry.",
+			failed: "Couldn’t remove this companion from the space. Retry.",
 		},
 	},
 	dialog: {
@@ -121,20 +121,20 @@ const bots = {
 			save: "Save memory",
 			clear: {
 				action: "Clear",
-				title: "Clear this companion's memory?",
+				title: "Clear this companion’s memory?",
 				description:
-					"It starts learning again from your next conversation. This can't be undone.",
+					"It starts learning again from your next conversation. This can’t be undone.",
 				confirm: "Clear the memory",
 			},
 		},
 	},
 	history: {
 		empty: "No changes yet.",
-		unavailable: "Couldn't load the history. Reopen settings to retry.",
+		unavailable: "Couldn’t load the history. Reopen settings to retry.",
 		summary_one:
-			"Lists 1 change since {{date}}. Undoing one writes a new change, so nothing's ever removed.",
+			"Lists 1 change since {{date}}. Undoing one writes a new change, so nothing’s ever removed.",
 		summary_other:
-			"Lists {{count}} changes since {{date}}. Undoing one writes a new change, so nothing's ever removed.",
+			"Lists {{count}} changes since {{date}}. Undoing one writes a new change, so nothing’s ever removed.",
 		noMatch: "No change matches “{{text}}”.",
 		retouches_one: "(1 go)",
 		retouches_other: "({{count}} goes)",
@@ -181,7 +181,7 @@ const bots = {
 					"Puts everything back to how it read before this change, and writes that as a new change you can undo too.",
 			},
 			unavailable:
-				"Couldn't read the files of this change. Go back and open it again to retry.",
+				"Couldn’t read the files of this change. Go back and open it again to retry.",
 		},
 	},
 	skills: {
@@ -208,6 +208,7 @@ const bots = {
 			label: "Name",
 			placeholder: "release-notes",
 			hint: "Lowercase letters, numbers and hyphens. The companion reads the description, not the name.",
+			blank: "A skill needs a name.",
 		},
 		description: {
 			label: "Description",
@@ -229,7 +230,7 @@ const bots = {
 		argumentHint: {
 			label: "Argument hint",
 			placeholder: "[version] [--draft]",
-			hint: "What you're asked for when you run this skill yourself.",
+			hint: "What you’re asked for when you run this skill yourself.",
 		},
 		arguments: {
 			label: "Arguments",
@@ -254,21 +255,21 @@ const bots = {
 			label: "Preload this skill",
 			tag: "Preloaded",
 			description:
-				"On, it's in this companion's prompt every turn. Off, the companion reads it only when needed.",
+				"On, it’s in this companion’s prompt every turn. Off, the companion reads it only when needed.",
 		},
 		system: {
 			tag: "System",
 			notice:
-				"Kiroshi writes this skill and keeps it current. It's read-only here.",
+				"Kiroshi writes this skill and keeps it current. It’s read-only here.",
 		},
 		model: {
 			label: "Model",
-			placeholder: "The companion's own",
-			hint: "Leave empty to use the companion's model.",
+			placeholder: "The companion’s own",
+			hint: "Leave empty to use the companion’s model.",
 		},
 		effort: {
 			label: "Effort",
-			default: "The companion's own",
+			default: "The companion’s own",
 			option: {
 				low: "Low",
 				medium: "Medium",
@@ -287,7 +288,7 @@ const bots = {
 		shell: {
 			label: "Shell",
 			placeholder: "/bin/zsh",
-			hint: "The shell this skill's commands run in. Leave empty to use your default.",
+			hint: "The shell this skill’s commands run in. Leave empty to use your default.",
 		},
 		agent: {
 			label: "Agent",
@@ -311,7 +312,7 @@ const bots = {
 		hooks: {
 			label: "Hooks",
 			placeholder: '{\n  "PreToolUse": []\n}',
-			hint: "What runs around this skill's turn, as the bundle defines it.",
+			hint: "What runs around this skill’s turn, as the bundle defines it.",
 		},
 		license: {
 			label: "License",
@@ -325,18 +326,18 @@ const bots = {
 		metadata: {
 			label: "Metadata",
 			placeholder: '{\n  "author": "Ada Martin"\n}',
-			hint: "Extra bundle data Kiroshi doesn't use. It's kept as is.",
+			hint: "Extra bundle data Kiroshi doesn’t use. It’s kept as is.",
 		},
 		leave: {
 			title: "Leave without saving?",
 			description:
-				"You'll lose your unsaved changes. The saved skill stays as it is.",
+				"You’ll lose your unsaved changes. The saved skill stays as it is.",
 			action: "Leave",
 		},
 		delete: {
 			action: "Delete skill",
 			description:
-				"The companion can no longer use this skill. This can't be undone.",
+				"The companion can no longer use this skill. This can’t be undone.",
 			confirm: {
 				title: "Delete {{name}}?",
 			},
@@ -349,7 +350,9 @@ const bots = {
 			add: {
 				label: "New file",
 				placeholder: "reference/api.md",
-				hint: "A path inside the skill's folder. The file opens empty.",
+				hint: "A path inside the skill’s folder. The file opens empty.",
+				blank: "A file needs a path.",
+				taken: "This skill already has a file at that path.",
 				action: "Add file",
 			},
 			text: {
@@ -357,14 +360,14 @@ const bots = {
 				placeholder: "What this file holds",
 			},
 			failure: {
-				read: "Couldn't open this file. Retry.",
-				write: "Couldn't save this file. Save again; your text is still here.",
-				delete: "Couldn't delete this file. Retry.",
+				read: "Couldn’t open this file. Retry.",
+				write: "Couldn’t save this file. Save again; your text is still here.",
+				delete: "Couldn’t delete this file. Retry.",
 			},
 			delete: {
 				action: "Delete file",
 				description:
-					"The file is deleted from the skill's folder. This can't be undone.",
+					"The file is deleted from the skill’s folder. This can’t be undone.",
 				confirm: {
 					title: "Delete {{path}}?",
 				},
@@ -573,7 +576,7 @@ const bots = {
 				unavailable: "Can’t be added here",
 			},
 		},
-		unavailable: "Couldn't load applications. Reopen settings to retry.",
+		unavailable: "Couldn’t load applications. Reopen settings to retry.",
 		reopen: {
 			refused: {
 				title: "Couldn’t reopen {{companion}}’s session",
@@ -584,13 +587,14 @@ const bots = {
 			label: "Name",
 			placeholder: "atlas",
 			hint: "Lowercase letters, numbers and hyphens. The companion knows the application by this name.",
+			blank: "An application needs a name.",
 		},
 		config: {
 			label: "Configuration",
 			placeholder:
 				'{\n  "command": "npx",\n  "args": ["-y", "@scope/server"]\n}',
-			hint: "Paste the JSON from the application's instructions. A local application names a command, a remote one a URL.",
-			invalid: "This isn't a JSON object. Check the braces, commas and quotes.",
+			hint: "Paste the JSON from the application’s instructions. A local application names a command, a remote one a URL.",
+			invalid: "This isn’t a JSON object. Check the braces, commas and quotes.",
 		},
 		transport: {
 			label: "Transport",
@@ -603,7 +607,7 @@ const bots = {
 		command: {
 			label: "Command",
 			placeholder: "npx",
-			hint: "The program this companion starts. It runs with your account's access.",
+			hint: "The program this companion starts. It runs with your account’s access.",
 		},
 		args: {
 			label: "Arguments",
@@ -627,17 +631,17 @@ const bots = {
 		headers: {
 			label: "Headers",
 			placeholder: "Authorization: Bearer token",
-			hint: "One header per line, as name and value. Put the application's key here.",
+			hint: "One header per line, as name and value. Put the application’s key here.",
 		},
 		secrets: {
 			label: "Secrets",
-			placeholder: "ATLAS_TOKEN=sk-...",
+			placeholder: "ATLAS_TOKEN=sk-…",
 			hint: "One name and value per line. The application gets these secrets and no others.",
 		},
 		leave: {
 			title: "Leave without saving?",
 			description:
-				"You'll lose your unsaved changes. The saved application stays as it is.",
+				"You’ll lose your unsaved changes. The saved application stays as it is.",
 			action: "Leave",
 		},
 		launch: {
@@ -649,7 +653,7 @@ const bots = {
 		},
 		delete: {
 			action: "Remove application",
-			description: "This companion stops starting it. This can't be undone.",
+			description: "This companion stops starting it. This can’t be undone.",
 			confirm: {
 				title: "Remove {{name}}?",
 			},
@@ -660,13 +664,13 @@ const bots = {
 		notice:
 			"Kiroshi passes each value to what runs here and never shows it again.",
 		unreadable: {
-			title: "Couldn't load secrets",
+			title: "Couldn’t load secrets",
 			description: "Reopen settings to retry.",
 		},
 		empty: {
 			title: "No secrets yet",
 			description:
-				"Add a secret to pass a value to what runs here. You won't see the value again.",
+				"Add a secret to pass a value to what runs here. You won’t see the value again.",
 		},
 		scope: {
 			user: "You",
@@ -685,7 +689,7 @@ const bots = {
 			add: {
 				title: "Add a secret",
 				description:
-					"The value goes to what runs here. You won't see it again.",
+					"The value goes to what runs here. You won’t see it again.",
 			},
 			replace: {
 				title: "Replace a value",
@@ -704,13 +708,13 @@ const bots = {
 				hint: "Saved once and never shown again.",
 			},
 			submit: "Save secret",
-			failed: "Couldn't save this secret. Retry.",
+			failed: "Couldn’t save this secret. Retry.",
 		},
 		remove: {
 			title: "Remove {{name}}?",
-			description: "Nothing here receives it anymore. This can't be undone.",
+			description: "Nothing here receives it anymore. This can’t be undone.",
 			action: "Remove secret",
-			failed: "Couldn't remove this secret. Retry.",
+			failed: "Couldn’t remove this secret. Retry.",
 		},
 	},
 	runtime: {
@@ -727,7 +731,7 @@ const bots = {
 				},
 				default: {
 					label: "Standard",
-					hint: "The agent's standard answers.",
+					hint: "The agent’s standard answers.",
 				},
 			} as const satisfies Record<
 				BotOutputStyle,
@@ -750,7 +754,7 @@ const bots = {
 				},
 				default: {
 					label: "Ask every time",
-					hint: "You approve every tool the rules below don't cover.",
+					hint: "You approve every tool the rules below don’t cover.",
 				},
 				acceptEdits: {
 					label: "Accept edits",
@@ -762,7 +766,7 @@ const bots = {
 				},
 				dontAsk: {
 					label: "Never ask",
-					hint: "You're never asked. Only the deny rules below stop the companion.",
+					hint: "You’re never asked. Only the deny rules below stop the companion.",
 				},
 			} as const satisfies Record<
 				BotPermissionMode,
@@ -835,7 +839,7 @@ const bots = {
 	danger: {
 		delete: "Delete companion",
 		description:
-			"The companion is deleted everywhere, not just removed from its spaces. This can't be undone.",
+			"The companion is deleted everywhere, not just removed from its spaces. This can’t be undone.",
 		confirm: {
 			title: "Delete {{name}}?",
 		},

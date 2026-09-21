@@ -14,6 +14,7 @@ import { ApplicationMark } from "@workspace/ui/components/plugin-settings/applic
 import { SettingsField } from "@workspace/ui/components/settings-field"
 import {
 	FIELD_CONTROL_CLASS,
+	FIELD_CONTROL_INVALID_CLASS,
 	FIELD_LABEL_CLASS,
 } from "@workspace/ui/components/settings-styles"
 import { Button } from "@workspace/ui/components/ui/button"
@@ -25,6 +26,8 @@ import {
 import { Tabs, TabsList, TabsTrigger } from "@workspace/ui/components/ui/tabs"
 import { useAutoFocus } from "@workspace/ui/hooks/use-auto-focus"
 import { useCopyText } from "@workspace/ui/hooks/use-copy-text"
+import { useFocusFirstInvalid } from "@workspace/ui/hooks/use-focus-first-invalid"
+import { usePendingSubmit } from "@workspace/ui/hooks/use-pending-submit"
 import { cn } from "@workspace/ui/lib/utils"
 
 const QUESTION_TAB_LIST_CLASS =
@@ -104,7 +107,7 @@ export type ToolQuestionAnswers = Record<string, string>
 
 export interface ToolQuestionProps {
 	questions: (ToolQuestionItem | ToolQuestionNotice)[]
-	onAnswer?: (answers: ToolQuestionAnswers) => void
+	onAnswer?: (answers: ToolQuestionAnswers) => unknown
 	onDeny?: () => void
 	className?: string
 }
@@ -126,8 +129,13 @@ const ToolQuestion = ({
 	const cardRef = useAutoFocus<HTMLFormElement>()
 	const askedId = useId()
 	const failureId = useId()
+	const blankId = useId()
 	const [drafts, setDrafts] = useState<Record<string, Draft>>({})
 	const [shownIndex, setShownIndex] = useState(0)
+	const [refusedQuestion, setRefusedQuestion] = useState<string | null>(null)
+	const { root: fieldsRef, focusFirstInvalid } =
+		useFocusFirstInvalid<HTMLDivElement>()
+	const { isPending, run } = usePendingSubmit()
 
 	const draftOf = (question: string) => drafts[question] ?? EMPTY_DRAFT
 
@@ -170,13 +178,19 @@ const ToolQuestion = ({
 	const isAnswered = item.isNotice || answers[item.question] !== ""
 	const waiting = waitingAfter(item)
 
+	const isRefused = refusedQuestion === item.question && !isAnswered
+
 	const sendOrAdvance = () => {
-		if (!isAnswered) return
+		if (!isAnswered) {
+			setRefusedQuestion(item.question)
+			focusFirstInvalid()
+			return
+		}
 		if (waiting) {
 			show(waiting)
 			return
 		}
-		onAnswer?.(answers)
+		run(() => onAnswer?.(answers))
 	}
 
 	const submitForm = (event: FormEvent<HTMLFormElement>) => {
@@ -224,7 +238,7 @@ const ToolQuestion = ({
 				</TabsList>
 			</Tabs>
 
-			<div className={cn("grid", hasEntry ? "gap-3" : "gap-2")}>
+			<div className={cn("grid", hasEntry ? "gap-3" : "gap-2")} ref={fieldsRef}>
 				{item.failure ? (
 					<FailureBlock failure={item.failure} titleId={failureId} />
 				) : null}
@@ -232,6 +246,7 @@ const ToolQuestion = ({
 				{item.isNotice ? null : (
 					<QuestionFields
 						draft={draftOf(item.question)}
+						errorId={isRefused ? blankId : undefined}
 						item={item}
 						onPick={(label) => pickOption(item, label)}
 						onSubmit={sendOrAdvance}
@@ -239,13 +254,26 @@ const ToolQuestion = ({
 						questionId={askedId}
 					/>
 				)}
+				{isRefused ? (
+					<p
+						className="flex items-center gap-1.5 text-foreground text-xs"
+						id={blankId}
+						role="alert"
+					>
+						<Icons.Error
+							aria-hidden="true"
+							className="size-3.5 shrink-0 text-destructive"
+						/>
+						{t("toolQuestion.blank")}
+					</p>
+				) : null}
 			</div>
 
 			<div className="flex flex-wrap items-center gap-2">
 				{item.action ? (
 					<ActionButton action={item.action} />
 				) : (
-					<Button disabled={!isAnswered} size="sm" type="submit">
+					<Button disabled={isPending} size="sm" type="submit">
 						{waiting ? (
 							<>
 								{t("toolQuestion.next")}
@@ -284,6 +312,7 @@ const ToolQuestion = ({
 type QuestionFieldsProps = {
 	item: ToolQuestionItem
 	questionId: string
+	errorId?: string
 	draft: Draft
 	onPick: (label: string) => void
 	onType: (text: string) => void
@@ -293,6 +322,7 @@ type QuestionFieldsProps = {
 const QuestionFields = ({
 	item,
 	questionId,
+	errorId,
 	draft,
 	onPick,
 	onType,
@@ -336,6 +366,7 @@ const QuestionFields = ({
 			{item.entry ? (
 				<EntryField
 					entry={item.entry}
+					errorId={errorId}
 					onSubmit={onSubmit}
 					onValueChange={onType}
 					value={draft.text}
@@ -343,9 +374,18 @@ const QuestionFields = ({
 			) : (
 				<>
 					{item.multiSelect ? (
-						<div className="grid gap-2">{rows}</div>
+						<div
+							aria-describedby={errorId}
+							aria-invalid={errorId ? true : undefined}
+							className="grid gap-2"
+							role="group"
+						>
+							{rows}
+						</div>
 					) : (
 						<RadioGroup
+							aria-describedby={errorId}
+							aria-invalid={errorId ? true : undefined}
 							className="gap-2"
 							onValueChange={(label: string) => onPick(label)}
 							value={draft.selected[0] ?? ""}
@@ -464,6 +504,7 @@ const LinkField = ({ link }: LinkFieldProps) => {
 
 type EntryFieldProps = {
 	entry: ToolQuestionEntry
+	errorId?: string
 	value: string
 	onValueChange: (value: string) => void
 	onSubmit: () => void
@@ -476,6 +517,7 @@ const isComposing = (event: globalThis.KeyboardEvent) =>
 
 const EntryField = ({
 	entry,
+	errorId,
 	value,
 	onValueChange,
 	onSubmit,
@@ -494,11 +536,14 @@ const EntryField = ({
 				{entry.label}
 			</label>
 			<input
+				aria-describedby={errorId}
+				aria-invalid={errorId ? true : undefined}
 				autoComplete="off"
 				className={cn(
 					FIELD_CONTROL_CLASS,
 					QUESTION_MONO_LINE_CLASS,
 					"border-border",
+					errorId && FIELD_CONTROL_INVALID_CLASS,
 				)}
 				id={id}
 				onChange={(event) => onValueChange(event.target.value)}

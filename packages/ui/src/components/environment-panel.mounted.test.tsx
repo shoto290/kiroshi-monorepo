@@ -8,7 +8,7 @@ import { EnvironmentPanel } from "@workspace/ui/components/environment-panel"
 
 import "@workspace/ui/lib/i18n"
 
-const NOTICE = "Couldn't load secrets"
+const NOTICE = "Couldn’t load secrets"
 
 const panel = (hasFailedToRead: boolean, entries = BOT_ENVIRONMENT) =>
 	render(

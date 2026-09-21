@@ -6,14 +6,14 @@ const chat = {
 				"Kiroshi talks to the agent directly. Nothing leaves your device.",
 		},
 		unavailable: {
-			title: "Couldn't reach the agent",
-			description: "Kiroshi's built-in agent didn't answer. Try again.",
+			title: "Couldn’t reach the agent",
+			description: "Kiroshi’s built-in agent didn’t answer. Try again.",
 		},
 		notConnected: {
-			title: "You're not signed in",
+			title: "You’re not signed in",
 			description: "Connect your Claude account so your companions can answer.",
 		},
-		settings: "Companion settings",
+		settings: "Open companion settings",
 		hint: "Message a companion to start.",
 		setup: "Try again",
 		signIn: "Sign in",
@@ -51,7 +51,7 @@ const chat = {
 		startOfHistory: "Beginning of the conversation",
 		landing: {
 			unavailable: {
-				title: "Couldn't open that message",
+				title: "Couldn’t open that message",
 				description: "Open the search result again.",
 			},
 		},
@@ -71,7 +71,7 @@ const chat = {
 			label: "Routine report",
 			mission: "Mission summons",
 			unavailable: {
-				title: "Couldn't load routine reports",
+				title: "Couldn’t load routine reports",
 				description: "Reopen the conversation to retry.",
 				soloDescription: "Reopen the conversation to retry.",
 			},
@@ -81,8 +81,8 @@ const chat = {
 			counted_one: "{{count}} mention",
 			counted_other: "{{count}} mentions",
 			unresolved: {
-				title_one: "Couldn't summon a companion",
-				title_other: "Couldn't summon these companions",
+				title_one: "Couldn’t summon a companion",
+				title_other: "Couldn’t summon these companions",
 				description_one:
 					"{{names}} was named but holds no seat in this conversation.",
 				description_other:
@@ -117,7 +117,7 @@ const chat = {
 		unpin: "Unpin the message from {{author}}",
 		empty: "No pinned messages in this conversation yet.",
 		unavailable: {
-			title: "Couldn't sync pinned messages",
+			title: "Couldn’t sync pinned messages",
 			description: "Try again in a moment.",
 		},
 	},
@@ -176,15 +176,16 @@ const chat = {
 	toolQuestion: {
 		freeText: "Other answer",
 		freeTextPlaceholder: "Write your own answer…",
+		blank: "Answer this question to continue.",
 		preview: "Preview",
 		submit: "Send answers",
-		next: "Next question",
+		next: "Go to the next question",
 		continue: "Continue",
 		dismiss: "Dismiss",
 		copy: "Copy",
 		copied: "Copied",
 		copyAnnounced: "Link copied to clipboard",
-		copyFailed: "Couldn't copy. Select the link and copy it yourself.",
+		copyFailed: "Couldn’t copy. Select the link and copy it yourself.",
 	},
 	applicationInstall: {
 		openSettings: "Open Settings",
@@ -195,7 +196,7 @@ const chat = {
 		},
 		secret_one: "Its key goes in {{secret}}.",
 		secret_other: "Its keys go in {{secret}}.",
-		unreadable: "Couldn't read the applications added to this conversation.",
+		unreadable: "Couldn’t read the applications added to this conversation.",
 	},
 	code: {
 		snippet: "Code snippet",
@@ -204,7 +205,7 @@ const chat = {
 		copied: "Copied",
 		copyTooltip: "Copy",
 		copyAnnounced: "Code copied to clipboard",
-		copyFailed: "Couldn't copy the code. Try again.",
+		copyFailed: "Couldn’t copy the code. Try again.",
 		writing: "Writing",
 		ready: "Ready",
 	},
@@ -232,31 +233,31 @@ const chat = {
 		question: {
 			recall: "{{author}} is waiting on your answer",
 		},
-		attachmentsRefused: "Couldn't attach files",
+		attachmentsRefused: "Couldn’t attach files",
 		restart: "Restart session",
 		notice: {
 			crashed: "The agent stopped",
-			resumeFailed: "Couldn't resume the conversation",
-			workingDirectoryRefused: "Couldn't find the companion's folder",
-			settingsRejected: "Couldn't apply the companion's settings",
-			serverEnvRejected: "Couldn't start an application",
-			notAuthenticated: "You're not signed in",
-			unavailable: "Couldn't reach the agent",
-			failed: "Couldn't send that request",
-			readFailed: "Couldn't load earlier messages",
+			resumeFailed: "Couldn’t resume the conversation",
+			workingDirectoryRefused: "Couldn’t find the companion’s folder",
+			settingsRejected: "Couldn’t apply the companion’s settings",
+			serverEnvRejected: "Couldn’t start an application",
+			notAuthenticated: "You’re not signed in",
+			unavailable: "Couldn’t reach the agent",
+			failed: "Couldn’t send that request",
+			readFailed: "Couldn’t load earlier messages",
 		},
 		transport: {
-			binaryNotFound: "Couldn't find the agent. Reinstall Kiroshi.",
+			binaryNotFound: "Couldn’t find the agent. Reinstall Kiroshi.",
 			notAuthenticated:
-				"You're signed out of your Claude subscription. Sign in to Claude, then restart the conversation.",
+				"You’re signed out of your Claude subscription. Sign in to Claude, then restart the conversation.",
 			notConnected:
-				"Your Claude account isn't connected. Sign in to keep talking.",
+				"Your Claude account isn’t connected. Sign in to keep talking.",
 			authCheckFailed:
-				"Couldn't check your sign-in ({{detail}}). Restart the session.",
+				"Couldn’t check your sign-in ({{detail}}). Restart the session.",
 			spawnFailed:
-				"Couldn't start the agent ({{detail}}). Restart the session.",
+				"Couldn’t start the agent ({{detail}}). Restart the session.",
 			startupTimeout:
-				"The agent didn't answer within {{timeoutMs}} ms. Restart the session.",
+				"The agent didn’t answer within {{timeoutMs}} ms. Restart the session.",
 			crashed: "The agent exited (code {{code}}). Restart the session.",
 			crashedDetail:
 				"The agent exited (code {{code}}): {{detail}}. Restart the session.",
@@ -270,24 +271,24 @@ const chat = {
 				"{{path}} is gone, so the companion uses its default folder. Choose another in its settings.",
 			invalidFrame: "Skipped an unreadable frame ({{detail}}). Keep going.",
 			settingsRejected:
-				"Couldn't apply settings.json ({{detail}}). Fix it, then restart the session.",
+				"Couldn’t apply settings.json ({{detail}}). Fix it, then restart the session.",
 			serverEnvRejected:
 				"{{detail}}. The other applications still run, so fix this one and restart the session.",
 			notStarted: "No session is running. Start a session to continue.",
 			turnAlreadyRunning: "A turn is already running. Wait for it or stop it.",
 			transitionInProgress: "The session is already changing. Wait a moment.",
-			noActiveTurn: "There's no turn to stop.",
+			noActiveTurn: "There’s no turn to stop.",
 			staleRuntimeSession:
 				"That session was replaced. Keep going in the current one.",
 			unknownPermission:
-				"Couldn't match this approval request ({{id}}). Dismiss it.",
-			writeFailed: "Couldn't send the message ({{detail}}). Retry.",
-			readFailed: "Couldn't load earlier messages ({{detail}}). Retry.",
+				"Couldn’t match this approval request ({{id}}). Dismiss it.",
+			writeFailed: "Couldn’t send the message ({{detail}}). Retry.",
+			readFailed: "Couldn’t load earlier messages ({{detail}}). Retry.",
 			unknownFailure: "Something went wrong ({{detail}}). Retry.",
 		},
 		attachment: {
 			megabytes: "{{size}} MB",
-			storage: "Couldn't save the files ({{failure}}). Attach them again.",
+			storage: "Couldn’t save the files ({{failure}}). Attach them again.",
 			unknownConversation:
 				"This conversation no longer exists. Reopen the companion and attach them again.",
 			tooMany:
@@ -296,16 +297,16 @@ const chat = {
 				"{{name}} is over the {{limit}} file limit. Attach a smaller one.",
 			tooLargeTogether:
 				"These files total {{bytes}}, over the {{limit}} message limit. Remove some.",
-			unwritable: "Couldn't save the files ({{detail}}). Attach them again.",
+			unwritable: "Couldn’t save the files ({{detail}}). Attach them again.",
 		},
 	},
 	namelessConversation: {
 		separator: ", ",
 	},
 	conversationSeating: {
-		failed: "Couldn't change who is in this conversation. Retry.",
-		refused: "Couldn't bring {{name}} into this conversation. Retry.",
-		unavailable: "Couldn't load the companions to suggest. Retry.",
+		failed: "Couldn’t change who is in this conversation. Retry.",
+		refused: "Couldn’t bring {{name}} into this conversation. Retry.",
+		unavailable: "Couldn’t load the companions to suggest. Retry.",
 	},
 	conversationSettings: {
 		breadcrumb: "Settings",
@@ -335,7 +336,7 @@ const chat = {
 		danger: {
 			delete: "Delete conversation",
 			description:
-				"Its messages are deleted; its companions stay in the space. This can't be undone.",
+				"Its messages are deleted; its companions stay in the space. This can’t be undone.",
 			confirm: {
 				title: "Delete {{name}}?",
 			},
@@ -345,7 +346,7 @@ const chat = {
 		panel: {
 			close: "Close activity",
 			label: "Activity",
-			toggle: "Activity",
+			toggle: "Toggle activity",
 			title: "Activity",
 		},
 		missions: {
@@ -369,27 +370,27 @@ const chat = {
 		},
 		failure: {
 			missions: {
-				title: "Couldn't load missions",
-				description: "The missions are still there; only the list didn't load.",
+				title: "Couldn’t load missions",
+				description: "The missions are still there; only the list didn’t load.",
 			},
 			routines: {
-				title: "Couldn't load routines",
-				description: "The routines keep running; only the list didn't load.",
+				title: "Couldn’t load routines",
+				description: "The routines keep running; only the list didn’t load.",
 			},
 			activity: {
-				title: "Couldn't load the activity",
+				title: "Couldn’t load the activity",
 				description:
-					"Missions and routines are still there; only the list didn't load.",
+					"Missions and routines are still there; only the list didn’t load.",
 			},
 			write: {
-				title: "Couldn't update the routine",
-				description: "Your change wasn't saved. Retry.",
+				title: "Couldn’t update the routine",
+				description: "Your change wasn’t saved. Retry.",
 			},
 		},
 	},
 	routines: {
 		form: {
-			new: "New routine",
+			new: "Create a routine",
 			edit: "Edit routine",
 			back: "Back to the routines",
 			save: "Save routine",
@@ -404,7 +405,7 @@ const chat = {
 			source: {
 				label: "Trigger",
 				placeholder: "Pick what triggers this routine",
-				tied: "You can't change the trigger of a saved routine.",
+				tied: "You can’t change the trigger of a saved routine.",
 			},
 			expression: {
 				label: "Cron expression",
@@ -423,7 +424,7 @@ const chat = {
 				reading: "Loading the address and key…",
 				pending: "Save the routine to get its address, key and header name.",
 				failure:
-					"Couldn't load the address and key. Reopen the routine to retry.",
+					"Couldn’t load the address and key. Reopen the routine to retry.",
 			},
 			filter: {
 				label: "Filter",
@@ -456,9 +457,9 @@ const chat = {
 					exists: "is present",
 					not_exists: "is absent",
 					equals: "equals",
-					not_equals: "doesn't equal",
+					not_equals: "doesn’t equal",
 					contains: "contains",
-					not_contains: "doesn't contain",
+					not_contains: "doesn’t contain",
 					starts_with: "starts with",
 					ends_with: "ends with",
 					gt: "is greater than",
@@ -477,9 +478,9 @@ const chat = {
 				blankValue: "This row needs a value.",
 				untypedComparison: "Pick a field the trigger declares.",
 				unreadableExpression:
-					"Couldn't read this as a schedule. Check the cron expression.",
+					"Couldn’t read this as a schedule. Check the cron expression.",
 				unsupportedOperator:
-					"{{operator}} doesn't fit a {{fieldType}} field. Pick another operator.",
+					"{{operator}} doesn’t fit a {{fieldType}} field. Pick another operator.",
 			},
 		},
 		detail: {
@@ -491,7 +492,7 @@ const chat = {
 					disabled: "This routine is off. Turn it on to run it.",
 					filter: "Nothing ran: the filter let nothing through.",
 					dedupeValueMissing:
-						"Nothing ran: this trigger can't tell events apart.",
+						"Nothing ran: this trigger can’t tell events apart.",
 					alreadySeen: "Nothing ran: this event already ran.",
 				},
 			},
@@ -517,9 +518,9 @@ const chat = {
 					description: "Runs show up here as they happen.",
 				},
 				failure: {
-					title: "Couldn't load runs",
+					title: "Couldn’t load runs",
 					description:
-						"The routine keeps running; only its run history didn't load.",
+						"The routine keeps running; only its run history didn’t load.",
 				},
 			},
 		},
@@ -530,9 +531,9 @@ const chat = {
 		confirm: {
 			title: "Delete {{title}}?",
 			description:
-				"Its run history is deleted; its past reports stay in the conversation. This can't be undone.",
+				"Its run history is deleted; its past reports stay in the conversation. This can’t be undone.",
 			label: "Delete routine",
-			failure: "Couldn't delete the routine. Retry.",
+			failure: "Couldn’t delete the routine. Retry.",
 		},
 		empty: {
 			title: "No routine yet",
@@ -542,7 +543,7 @@ const chat = {
 		leave: {
 			title: "Leave without saving?",
 			description:
-				"You'll lose your unsaved changes. The saved routine stays as it is.",
+				"You’ll lose your unsaved changes. The saved routine stays as it is.",
 			action: "Leave",
 		},
 	},
@@ -597,22 +598,22 @@ const chat = {
 		},
 		summons: {
 			working: "Opened by the mission",
-			waiting_bot: "Opened by the agent's question",
+			waiting_bot: "Opened by the agent’s question",
 		},
 		composer: {
 			placeholder: "Answer this mission…",
 		},
 		failure: {
 			read: {
-				title: "Couldn't load this mission",
-				description: "The mission is still there; only this view didn't load.",
+				title: "Couldn’t load this mission",
+				description: "The mission is still there; only this view didn’t load.",
 			},
 			send: {
-				title: "Couldn't send your answer",
+				title: "Couldn’t send your answer",
 				description: "Send it again.",
 			},
 			run: {
-				title: "Couldn't run the companion on its mission",
+				title: "Couldn’t run the companion on its mission",
 				description: "Open its conversation to check on it.",
 			},
 		},
@@ -674,7 +675,7 @@ const chat = {
 		signInFailed: {
 			header: "Sign in",
 			question: "Try again, or use a key instead?",
-			title: "Couldn't sign you in",
+			title: "Couldn’t sign you in",
 			retry: {
 				label: "Try again",
 				description: "Opens your browser once more.",
@@ -682,7 +683,7 @@ const chat = {
 		},
 		connection: {
 			keyFailed: {
-				title: "Couldn't use that key",
+				title: "Couldn’t use that key",
 				sentence: "That key was refused, so nothing was saved.",
 				anotherKey: "Try another key",
 				anotherKeyDescription: "Paste a different Anthropic API key.",
@@ -691,18 +692,18 @@ const chat = {
 		},
 		firstReply: {
 			header: "Last step",
-			question: "That's it working. Ready for the last one?",
+			question: "That’s it working. Ready for the last one?",
 			pick: {
 				label: "Pick my first companion",
-				description: "One more question, then you're set up.",
+				description: "One more question, then you’re set up.",
 			},
 			keepTalking: {
 				label: "Keep talking first",
-				description: "Ask me a few more things. I'll wait.",
+				description: "Ask me a few more things. I’ll wait.",
 			},
 		},
 		arrival: {
-			failure: "{{name}} couldn't say hello",
+			failure: "{{name}} couldn’t say hello",
 		},
 	},
 } as const

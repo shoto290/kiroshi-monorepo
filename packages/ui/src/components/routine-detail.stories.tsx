@@ -289,13 +289,13 @@ export const Error = meta.story({
 		docs: {
 			description: {
 				story:
-					"Couldn't load runs, with nothing read before it. Check that the failure takes the place of the history rather than passing for an empty one, that it blames the read of the runs and not the read of the routines, and that a retry pressed from the keyboard stays mounted, focused and busy while it runs — a second press starts no second read, and a control that unmounts under the reader sends the next Tab back to the top of the document. Pick `Empty` for the routine that really has no run, and `ErrorOverHistory` for the read that failed over runs already on screen. " +
+					"Couldn’t load runs, with nothing read before it. Check that the failure takes the place of the history rather than passing for an empty one, that it blames the read of the runs and not the read of the routines, and that a retry pressed from the keyboard stays mounted, focused and busy while it runs — a second press starts no second read, and a control that unmounts under the reader sends the next Tab back to the top of the document. Pick `Empty` for the routine that really has no run, and `ErrorOverHistory` for the read that failed over runs already on screen. " +
 					OPENED_BY_THE_PANEL,
 			},
 		},
 	},
 	play: async ({ args, canvas, userEvent }) => {
-		await expect(canvas.getByText("Couldn't load runs")).toBeVisible()
+		await expect(canvas.getByText("Couldn’t load runs")).toBeVisible()
 		await expect(canvas.queryByText("No run recorded")).not.toBeInTheDocument()
 
 		const retry = canvas.getByRole("button", { name: "Retry" })
@@ -303,7 +303,7 @@ export const Error = meta.story({
 		await userEvent.keyboard("{Enter}")
 
 		await expect(args.onRetryRuns).toHaveBeenCalledTimes(1)
-		await expect(canvas.getByText("Couldn't load runs")).toBeVisible()
+		await expect(canvas.getByText("Couldn’t load runs")).toBeVisible()
 		await expect(retry).toHaveFocus()
 		await expect(retry).toHaveAttribute("aria-busy", "true")
 		await expect(retry).toHaveAttribute("aria-disabled", "true")
@@ -325,7 +325,7 @@ export const ErrorOverHistory = meta.story({
 		},
 	},
 	play: async ({ canvas, canvasElement }) => {
-		await expect(canvas.getByText("Couldn't load runs")).toBeVisible()
+		await expect(canvas.getByText("Couldn’t load runs")).toBeVisible()
 		await expect(slotsIn(canvasElement, "routine-run")).toHaveLength(
 			DIGEST_RUNS.length,
 		)

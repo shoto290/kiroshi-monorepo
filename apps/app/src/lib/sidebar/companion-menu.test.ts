@@ -137,7 +137,7 @@ describe("useCompanionMenuLookup", () => {
 
 		expect(itemNames(await openMenu())).toEqual([
 			"Pin",
-			"Settings",
+			"Open settings",
 			"Duplicate",
 			"Move to section",
 			"Spaces",
@@ -200,7 +200,7 @@ describe("useCompanionMenuLookup", () => {
 		const { actions } = mounted("bot-atlas")
 		const menu = await openMenu()
 
-		fireEvent.click(menu.getByRole("menuitem", { name: "Settings" }))
+		fireEvent.click(menu.getByRole("menuitem", { name: "Open settings" }))
 
 		expect(actions.onEditBot).toHaveBeenCalledWith("bot-atlas")
 

@@ -1,4 +1,4 @@
-import type { CSSProperties, ReactNode } from "react"
+import { type CSSProperties, type ReactNode, useId } from "react"
 
 import {
 	type BotAvatarBlot,
@@ -6,6 +6,7 @@ import {
 } from "@workspace/ui/components/bot-avatar"
 import { ContentCard } from "@workspace/ui/components/content-card"
 import { SidebarResizeProvider } from "@workspace/ui/components/sidebar-resize"
+import { SkipLink } from "@workspace/ui/components/skip-link"
 import { SidebarProvider } from "@workspace/ui/components/ui/sidebar"
 import { cn } from "@workspace/ui/lib/utils"
 
@@ -57,28 +58,36 @@ const WorkspaceShell = ({
 	isResizable,
 	children,
 	className,
-}: WorkspaceShellProps) => (
-	<SidebarResizeProvider
-		defaultWidth={defaultWidth}
-		isResizable={isResizable}
-		onWidthChange={onWidthChange}
-		width={width}
-	>
-		{(resize) => (
-			<SidebarProvider
-				className={cn(SHELL, className)}
-				data-resizing={resize.isResizing}
-				data-space-tint={spaceTint ?? undefined}
-				defaultOpen={defaultOpen}
-				onOpenChange={onOpenChange}
-				open={open}
-				style={shellStyle(resize.width, spaceTint)}
-			>
-				{sidebar}
-				<ContentCard isLandmark={isLandmark}>{children}</ContentCard>
-			</SidebarProvider>
-		)}
-	</SidebarResizeProvider>
-)
+}: WorkspaceShellProps) => {
+	const mainId = useId()
+	const isMain = isLandmark ?? true
+
+	return (
+		<SidebarResizeProvider
+			defaultWidth={defaultWidth}
+			isResizable={isResizable}
+			onWidthChange={onWidthChange}
+			width={width}
+		>
+			{(resize) => (
+				<SidebarProvider
+					className={cn(SHELL, className)}
+					data-resizing={resize.isResizing}
+					data-space-tint={spaceTint ?? undefined}
+					defaultOpen={defaultOpen}
+					onOpenChange={onOpenChange}
+					open={open}
+					style={shellStyle(resize.width, spaceTint)}
+				>
+					{isMain ? <SkipLink targetId={mainId} /> : null}
+					{sidebar}
+					<ContentCard id={isMain ? mainId : undefined} isLandmark={isMain}>
+						{children}
+					</ContentCard>
+				</SidebarProvider>
+			)}
+		</SidebarResizeProvider>
+	)
+}
 
 export { WorkspaceShell, type WorkspaceShellProps }

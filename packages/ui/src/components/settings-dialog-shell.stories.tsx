@@ -141,10 +141,10 @@ const ShellWithUnsavedWorkOffPage = (props: SettingsDialogShellProps) => (
 )
 
 const SKILL_LEAVE =
-	"You'll lose your unsaved changes. The saved skill stays as it is."
+	"You’ll lose your unsaved changes. The saved skill stays as it is."
 
 const APPLICATION_LEAVE =
-	"You'll lose your unsaved changes. The saved application stays as it is."
+	"You’ll lose your unsaved changes. The saved application stays as it is."
 
 const confirmationIn = async () => {
 	const asked = await screen.findByRole("alertdialog")

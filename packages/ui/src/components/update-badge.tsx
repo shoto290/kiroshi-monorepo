@@ -61,7 +61,7 @@ const UpdateAction = ({
 		<TooltipButton
 			data-slot="update-badge"
 			data-status={status}
-			aria-label={label}
+			aria-label={status === "error" ? t("update.badge.retry") : label}
 			tooltip={label}
 			tooltipSide="right"
 			size="icon-sm"
