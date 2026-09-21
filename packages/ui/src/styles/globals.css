@@ -474,12 +474,18 @@
 	.group\/badge,
 	[data-slot="switch"],
 	[data-slot="tabs-trigger"]
-).transition-all:not(.motion-reduce\:transition-none) {
+).transition-all {
 	transition-property: color, background-color, border-color, box-shadow;
 }
 
-[data-slot="sidebar-rail"].transition-all:not(.motion-reduce\:transition-none) {
+[data-slot="sidebar-rail"].transition-all {
 	transition-property: left, right, translate, background-color;
+}
+
+@media (prefers-reduced-motion: reduce) {
+	.transition-all.motion-reduce\:transition-none {
+		transition-property: none;
+	}
 }
 
 :is(
@@ -488,7 +494,6 @@
 	[data-slot="item"],
 	[data-slot="tabs-list"]:not([data-variant="line"]),
 	[data-slot="tabs-trigger"],
-	[data-slot="toast"],
 	[data-slot="skeleton"]
 ).rounded-2xl {
 	border-radius: var(--radius-lg);

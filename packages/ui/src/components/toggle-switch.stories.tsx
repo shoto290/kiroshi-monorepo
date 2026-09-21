@@ -23,6 +23,24 @@ const ToggleSwitchHost = (props: ToggleSwitchProps) => {
 	)
 }
 
+const isInBrowserRunner = () => "__vitest_browser__" in globalThis
+
+const emulateMotion = async (value: "no-preference" | "reduce") => {
+	const { cdp } = await import("vitest/browser")
+	await cdp().send("Emulation.setEmulatedMedia", {
+		features: [{ name: "prefers-reduced-motion", value }],
+	})
+}
+
+const withMotionAllowed = async (run: () => Promise<void>) => {
+	await emulateMotion("no-preference")
+	try {
+		await run()
+	} finally {
+		await emulateMotion("reduce")
+	}
+}
+
 const meta = preview.meta({
 	title: "Forms/ToggleSwitch",
 	component: ToggleSwitch,
@@ -59,6 +77,13 @@ export const Default = meta.story({
 		await userEvent.click(control)
 		await expect(args.onCheckedChange).toHaveBeenCalledWith(true)
 		await expect(control).toHaveAttribute("aria-checked", "true")
+
+		if (!isInBrowserRunner()) return
+		await withMotionAllowed(() =>
+			expect(getComputedStyle(control).transitionProperty).toBe(
+				"color, background-color, border-color, box-shadow",
+			),
+		)
 	},
 })
 
