@@ -58,6 +58,49 @@ export const WithPicture = meta.story({
 	},
 })
 
+const expectImageOutline = async (
+	canvasElement: HTMLElement,
+	alpha: string,
+) => {
+	const [avatar] = slotsIn(canvasElement, "user-avatar")
+	const style = getComputedStyle(await pictureOf(avatar))
+
+	await expect(style.outlineStyle).toBe("solid")
+	await expect(style.outlineWidth).toBe("1px")
+	await expect(style.outlineOffset).toBe("-1px")
+	await expect(style.outlineColor).toBe(alpha)
+}
+
+export const PictureOutlineLight = meta.story({
+	args: { image: UPLOADED_AVATAR_IMAGE },
+	globals: { theme: "light" },
+	parameters: {
+		docs: {
+			description: {
+				story:
+					"The hairline every picture wears in the light theme: a 1px outline drawn 1px inside the edge, black at 8 percent, so a white-edged photo still reads as a shape against a white surface. Pick `PictureOutlineDark` for the dark theme.",
+			},
+		},
+	},
+	play: ({ canvasElement }) =>
+		expectImageOutline(canvasElement, "oklch(0 0 0 / 0.08)"),
+})
+
+export const PictureOutlineDark = meta.story({
+	args: { image: UPLOADED_AVATAR_IMAGE },
+	globals: { theme: "dark" },
+	parameters: {
+		docs: {
+			description: {
+				story:
+					"The same hairline in the dark theme, turned white at 8 percent so a dark photo keeps its edge against a dark surface. Pick `PictureOutlineLight` for the light theme.",
+			},
+		},
+	},
+	play: ({ canvasElement }) =>
+		expectImageOutline(canvasElement, "oklch(1 0 0 / 0.08)"),
+})
+
 export const Empty = meta.story({
 	args: { name: "" },
 	parameters: {

@@ -57,7 +57,7 @@ export function PromptAttachments({
 						<img
 							alt=""
 							src={item.previewUrl}
-							className="size-8 shrink-0 rounded-lg object-cover"
+							className="image-outline size-8 shrink-0 rounded-lg object-cover"
 						/>
 					) : (
 						<span className="flex size-8 shrink-0 items-center justify-center rounded-lg bg-muted text-muted-foreground">

@@ -2,7 +2,10 @@ import type { ReactNode } from "react"
 import { expect, fn, screen, waitFor } from "storybook/test"
 
 import preview from "@workspace/storybook/preview"
-import { A11Y_CONTRAST_AWAITING_DESIGN_DECISION } from "@workspace/storybook/story-utils"
+import {
+	A11Y_CONTRAST_AWAITING_DESIGN_DECISION,
+	isInBrowserRunner,
+} from "@workspace/storybook/story-utils"
 import {
 	BotMissionStrip,
 	BotTitleBadge,
@@ -124,10 +127,7 @@ const boxOf = (row: HTMLElement) => {
 	}
 }
 
-const translateOf = (element: HTMLElement) =>
-	getComputedStyle(element).translate
-
-const isInBrowserRunner = () => "__vitest_browser__" in globalThis
+const scaleOf = (element: HTMLElement) => getComputedStyle(element).scale
 
 const colorOf = (element: HTMLElement) => getComputedStyle(element).color
 
@@ -175,7 +175,7 @@ const meta = preview.meta({
 		docs: {
 			description: {
 				component:
-					'The one row both roster lists of the left sidebar draw, a companion and a group conversation alike. Its root is the registry `Item` rendered as the sidebar menu button, so it keeps `data-slot="sidebar-menu-button"`, the sidebar tokens for hover, focus, active and selected, and gains the one pixel press the design system `Button` gives. Its structure is fixed and every part but the name is optional: a leading media (an avatar, an avatar group or an icon), a name line with a trailing slot beside the name and a timestamp at its end, a preview line, a badge dot and a strip area under both lines. A slot given nothing draws no box and no spacing; a slot given an empty string keeps its box, which is how the roster holds its timestamp column for a companion nobody has talked to yet. On the icon rail only the media is drawn, and the row keeps its name through `aria-label` and a hint.',
+					'The one row both roster lists of the left sidebar draw, a companion and a group conversation alike. Its root is the registry `Item` rendered as the sidebar menu button, so it keeps `data-slot="sidebar-menu-button"`, the sidebar tokens for hover, focus, active and selected, and gains the press scale the design system `Button` gives. Its structure is fixed and every part but the name is optional: a leading media (an avatar, an avatar group or an icon), a name line with a trailing slot beside the name and a timestamp at its end, a preview line, a badge dot and a strip area under both lines. A slot given nothing draws no box and no spacing; a slot given an empty string keeps its box, which is how the roster holds its timestamp column for a companion nobody has talked to yet. On the icon rail only the media is drawn, and the row keeps its name through `aria-label` and a hint.',
 			},
 		},
 	},
@@ -703,7 +703,7 @@ export const Pressed = meta.story({
 		docs: {
 			description: {
 				story:
-					"The row held down with the pointer beside a design system `Button` held the same way. The play holds a real pointer on each through the Vitest browser runner, so it only runs there; in Storybook, press the row by hand. Check the row moves by the displacement the `Button` moves by, transitions only its geometry and that displacement, and settles back on release. The play then restores the page to keyboard input, because a real press leaves Chromium in mouse modality, where a later synthetic tab in another story file would focus without a ring.",
+					"The row held down with the pointer beside a design system `Button` held the same way. The play holds a real pointer on each through the Vitest browser runner, so it only runs there; in Storybook, press the row by hand. Check the row scales down by the amount the `Button` scales down by, transitions only its geometry and that scale, and settles back on release. The play then restores the page to keyboard input, because a real press leaves Chromium in mouse modality, where a later synthetic tab in another story file would focus without a ring.",
 			},
 		},
 	},
@@ -713,22 +713,22 @@ export const Pressed = meta.story({
 
 		await waitFor(() =>
 			expect(getComputedStyle(row).transitionProperty).toBe(
-				"width, height, padding, translate",
+				"width, height, padding, scale",
 			),
 		)
 		if (!isInBrowserRunner()) return
 
-		let buttonDisplacement = ""
+		let buttonScale = ""
 		await holdPointerOn(button, async () => {
-			await waitFor(() => expect(translateOf(button)).not.toBe("none"))
-			buttonDisplacement = translateOf(button)
+			await waitFor(() => expect(scaleOf(button)).not.toBe("none"))
+			buttonScale = scaleOf(button)
 		})
 
-		await expect(translateOf(row)).toBe("none")
+		await expect(scaleOf(row)).toBe("none")
 		await holdPointerOn(row, async () => {
-			await waitFor(() => expect(translateOf(row)).toBe(buttonDisplacement))
+			await waitFor(() => expect(scaleOf(row)).toBe(buttonScale))
 		})
-		await waitFor(() => expect(translateOf(row)).toBe("none"))
+		await waitFor(() => expect(scaleOf(row)).toBe("none"))
 
 		row.blur()
 		await userEvent.tab()

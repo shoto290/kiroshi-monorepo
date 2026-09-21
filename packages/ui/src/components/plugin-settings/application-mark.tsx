@@ -56,7 +56,7 @@ const ApplicationMark = ({
 		return (
 			<img
 				alt=""
-				className="size-full object-cover"
+				className="image-outline size-full object-cover"
 				onError={() => setUnreachableMark(mark)}
 				src={mark}
 			/>

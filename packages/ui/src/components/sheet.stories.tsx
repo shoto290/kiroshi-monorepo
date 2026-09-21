@@ -59,7 +59,7 @@ const WorkspaceOnMobile = () => (
 			</SidebarContent>
 		</Sidebar>
 		<SidebarInset>
-			<SidebarTrigger aria-label="Toggle Workspace" />
+			<SidebarTrigger aria-label="Toggle workspace" />
 			<p className={SURFACE}>Whatever screen the shell hands the room to.</p>
 		</SidebarInset>
 	</SidebarProvider>
@@ -107,7 +107,7 @@ export const Drawer = meta.story({
 	},
 	play: async ({ canvas, userEvent }) => {
 		await userEvent.click(
-			canvas.getByRole("button", { name: "Toggle Workspace" }),
+			canvas.getByRole("button", { name: "Toggle workspace" }),
 		)
 
 		const drawer = await screen.findByRole("dialog", { name: "Sidebar" })

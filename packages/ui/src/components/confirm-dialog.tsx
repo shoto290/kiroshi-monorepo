@@ -85,7 +85,7 @@ const ConfirmDialog = ({
 						<AlertDialog.Title className="font-medium text-base">
 							{title}
 						</AlertDialog.Title>
-						<AlertDialog.Description className="text-muted-foreground text-sm">
+						<AlertDialog.Description className="text-pretty text-muted-foreground text-sm">
 							{description}
 						</AlertDialog.Description>
 					</div>

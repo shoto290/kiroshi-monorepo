@@ -1,6 +1,6 @@
 "use client"
 
-import { type CSSProperties, useId } from "react"
+import { useId } from "react"
 import { useTranslation } from "react-i18next"
 
 import {
@@ -14,8 +14,6 @@ import { FIELD_OPTION_CLASS } from "@workspace/ui/components/settings-styles"
 import type { SpaceSettingsValue } from "@workspace/ui/components/space-settings"
 import { SpaceTint } from "@workspace/ui/components/space-tint"
 import { cn } from "@workspace/ui/lib/utils"
-
-const TINT_INK_STYLE = { color: "var(--bot-blot-ink)" } as CSSProperties
 
 const COLOUR_OPTIONS = [undefined, ...BLOT_TINTS] as const
 
@@ -66,8 +64,7 @@ const SpaceFields = ({ value, onValueChange, className }: SpaceFieldsProps) => {
 							{value.colour === tint ? (
 								<Icons.Check
 									aria-hidden="true"
-									className="absolute size-3.5"
-									style={tint ? TINT_INK_STYLE : undefined}
+									className={cn("absolute size-3.5", tint && "on-bot-blot")}
 								/>
 							) : null}
 						</span>

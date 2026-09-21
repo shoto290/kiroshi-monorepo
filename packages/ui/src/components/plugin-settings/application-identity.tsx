@@ -15,11 +15,7 @@ const ApplicationVerifiedPill = () => {
 			className="flex shrink-0 items-center gap-0.75 rounded-full bg-muted py-px ps-1.5 pe-1.75 font-medium text-muted-foreground text-xs/4 group-hover:bg-background"
 			data-slot="application-verified"
 		>
-			<Icons.Check
-				aria-hidden="true"
-				className="size-3 shrink-0"
-				strokeWidth={3}
-			/>
+			<Icons.Check aria-hidden="true" className="size-3 shrink-0" />
 			{t("applications.verified")}
 		</span>
 	)

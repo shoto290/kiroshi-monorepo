@@ -12,7 +12,7 @@ import { Item } from "@workspace/ui/components/ui/item"
 import { useSidebar } from "@workspace/ui/components/ui/sidebar"
 
 const ROW =
-	"flex-nowrap border-0 py-1.5 pl-1.5 transition-[width,height,padding,translate] focus-visible:ring-sidebar-ring active:translate-y-px aria-expanded:bg-sidebar-accent/70 group-data-[collapsible=icon]:pl-0"
+	"flex-nowrap border-0 py-1.5 pl-1.5 transition-[width,height,padding,scale] will-change-transform focus-visible:ring-sidebar-ring active:scale-[0.98] aria-expanded:bg-sidebar-accent/70 group-data-[collapsible=icon]:pl-0"
 
 const STRIPS = "flex flex-col gap-1"
 

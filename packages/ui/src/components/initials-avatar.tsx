@@ -60,7 +60,10 @@ const AvatarFrame = ({
 			<AvatarImage
 				alt=""
 				aria-hidden="true"
-				className={imageRadius === undefined ? UPLOADED_IMAGE_SHAPE : undefined}
+				className={cn(
+					"image-outline",
+					imageRadius === undefined && UPLOADED_IMAGE_SHAPE,
+				)}
 				src={image}
 				style={{ borderRadius: imageRadius }}
 			/>

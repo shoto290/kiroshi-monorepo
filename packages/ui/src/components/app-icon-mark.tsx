@@ -25,8 +25,7 @@ const GROUND_FILL = "#FEFCEE"
 
 const RABBIT_TRANSFORM = "translate(-110.4 -14.2) scale(3.41)"
 
-const RABBIT_INK_CLASS =
-	"text-[color:var(--bot-blot-ink)] [--bot-avatar-ink:var(--bot-blot-ink)]"
+const RABBIT_INK_CLASS = "on-bot-blot"
 
 const RESTING_STATE: BotAvatarState = "waiting"
 

@@ -10,6 +10,7 @@ import {
 } from "react"
 import { useTranslation } from "react-i18next"
 
+import { IconSwap } from "@workspace/ui/components/icon-swap"
 import { Icons } from "@workspace/ui/components/icons"
 import { Button } from "@workspace/ui/components/ui/button"
 import { useCodeHighlightReady } from "@workspace/ui/hooks/use-code-highlight-ready"
@@ -131,7 +132,11 @@ function CodeBlockHeader({
 					aria-label={t("code.copy")}
 					onClick={onCopy}
 				>
-					{isCopied ? <Icons.Check /> : <Icons.Copy />}
+					<IconSwap
+						icon={<Icons.Copy />}
+						isSwapped={isCopied}
+						swappedIcon={<Icons.Check />}
+					/>
 				</Button>
 			) : null}
 		</div>

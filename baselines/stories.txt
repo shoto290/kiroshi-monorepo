@@ -850,7 +850,10 @@ overlays-confirmdialog--rejected
 overlays-contextmenu--as-menu-button
 overlays-contextmenu--closed
 overlays-contextmenu--default
+overlays-contextmenu--keyboard-focus-ring
 overlays-contextmenu--long-content
+overlays-contextmenu--pointer-focus-without-ring
+overlays-contextmenu--radius-ladder
 overlays-contextmenu--states
 overlays-contextmenu--with-checkbox-and-radio-items
 overlays-contextmenu--with-submenu
@@ -932,8 +935,13 @@ primitives-button--with-icons
 primitives-disclosure--closed
 primitives-disclosure--open
 primitives-disclosure--toggle
+primitives-iconswap--in-a-button
+primitives-iconswap--resting
+primitives-iconswap--swapped
 primitives-initialsavatar--default
 primitives-initialsavatar--empty
+primitives-initialsavatar--picture-outline-dark
+primitives-initialsavatar--picture-outline-light
 primitives-initialsavatar--sizes
 primitives-initialsavatar--with-picture
 primitives-item--default

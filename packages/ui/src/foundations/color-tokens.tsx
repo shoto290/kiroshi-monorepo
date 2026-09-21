@@ -26,14 +26,6 @@ export const CONTROL_TOKENS = ["--border", "--input", "--ring"]
 
 export const SCROLLBAR_TOKENS = ["--scrollbar", "--scrollbar-hover"]
 
-export const CHART_TOKENS = [
-	"--chart-1",
-	"--chart-2",
-	"--chart-3",
-	"--chart-4",
-	"--chart-5",
-]
-
 export const SIDEBAR_TOKENS = [
 	"--sidebar",
 	"--sidebar-foreground",

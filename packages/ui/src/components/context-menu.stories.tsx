@@ -6,6 +6,7 @@ import {
 	A11Y_FLOATING_FOCUS_GUARDS,
 	A11Y_SUBMENU_PORTAL_GUARD,
 	FRAME_POLL,
+	isInBrowserRunner,
 	mergeA11y,
 	tokenLengthOf,
 } from "@workspace/storybook/story-utils"
@@ -162,7 +163,7 @@ export const Default = meta.story({
 		docs: {
 			description: {
 				story:
-					"The nominal case: actions on one object, the destructive one separated and toned apart at the bottom. Check the menu opens at the cursor rather than at the card's corner, that its corner is the one every other surface carries — the scale collapses `xl` and `2xl` onto `lg`, so the registry's own `rounded-xl` lands there without the file being touched — that the shortcut hint is decorative text and not a second control, and that Escape closes it. Pick `WithCheckboxAndRadioItems` for the stateful item kinds. The app reaches the registry menu through `AppSidebar` and `SpaceSwitcher` at `apps/app/src/App.tsx:935`.",
+					"The nominal case: actions on one object, the destructive one separated and toned apart at the bottom. Check the menu opens at the cursor rather than at the card's corner, that its corner is the registry's `rounded-2xl` and its items sit one padding inside it on `rounded-xl`, so the two corners stay concentric, that the shortcut hint is decorative text and not a second control, and that Escape closes it. Pick `WithCheckboxAndRadioItems` for the stateful item kinds. The app reaches the registry menu through `AppSidebar` and `SpaceSwitcher` at `apps/app/src/App.tsx:935`.",
 			},
 		},
 	},
@@ -175,7 +176,7 @@ export const Default = meta.story({
 		).toBeVisible()
 
 		await expect(getComputedStyle(menu).borderStartStartRadius).toBe(
-			tokenLengthOf("--radius-lg"),
+			tokenLengthOf("--radius-2xl"),
 		)
 
 		await userEvent.keyboard("{Escape}")
@@ -281,6 +282,107 @@ export const States = meta.story({
 		await expect(
 			within(menu).getByRole("menuitem", { name: "Rename" }),
 		).toHaveAttribute("data-disabled")
+	},
+})
+
+const pixelsOf = (value: string) => Number.parseFloat(value)
+
+export const RadiusLadder = meta.story({
+	parameters: {
+		a11y: mergeA11y(A11Y_FLOATING_FOCUS_GUARDS, A11Y_SUBMENU_PORTAL_GUARD),
+		docs: {
+			description: {
+				story:
+					"The three corners side by side in one frame: the open menu, the item nested flush inside it, and a standalone `Button` beside the card. Check the item's corner is the menu's corner minus the menu's padding, so the two curves stay parallel, and that the button keeps the `lg` corner every standalone control carries rather than the menu's larger one.",
+			},
+		},
+	},
+	render: () => (
+		<div className="flex items-center gap-4">
+			<TranscriptCard />
+			<Button variant="outline">Save</Button>
+		</div>
+	),
+	play: async ({ canvas }) => {
+		const button = canvas.getByRole("button", { name: "Save" })
+		const menu = await openMenuOn(canvas.getByText("Right-click this card"))
+		const item = within(menu).getByRole("menuitem", {
+			name: /Copy transcript/,
+		})
+		const surface = getComputedStyle(menu)
+		const outer = pixelsOf(surface.borderStartStartRadius)
+
+		await expect(outer).toBe(pixelsOf(tokenLengthOf("--radius-2xl")))
+		await expect(pixelsOf(getComputedStyle(item).borderStartStartRadius)).toBe(
+			outer - pixelsOf(surface.paddingInlineStart),
+		)
+		await expect(getComputedStyle(button).borderStartStartRadius).toBe(
+			tokenLengthOf("--radius-lg"),
+		)
+	},
+})
+
+export const KeyboardFocusRing = meta.story({
+	tags: ["test-only"],
+	parameters: {
+		a11y: mergeA11y(A11Y_FLOATING_FOCUS_GUARDS, A11Y_SUBMENU_PORTAL_GUARD),
+		docs: {
+			description: {
+				story:
+					"An item reached with the arrows. Check it wears a 2px ring in the `ring` colour drawn inside its own corner, on top of the `accent` fill, so a keyboard reader sees where they are even where the fill is faint. Pick `PointerFocusWithoutRing` for the same item reached with the pointer.",
+			},
+		},
+	},
+	render: () => <TranscriptCard />,
+	play: async ({ canvas, userEvent }) => {
+		const menu = await openMenuOn(canvas.getByText("Right-click this card"))
+		await waitFor(() => expect(menu).toHaveFocus(), { timeout: 5000 })
+
+		await userEvent.keyboard("{ArrowDown}")
+		const copy = within(menu).getByRole("menuitem", { name: /Copy transcript/ })
+		await waitFor(() => expect(copy).toHaveFocus(), { timeout: 5000 })
+
+		await expect(copy.matches(":focus-visible")).toBe(true)
+		const ring = getComputedStyle(copy)
+		await expect(ring.outlineStyle).toBe("solid")
+		await expect(ring.outlineWidth).toBe("2px")
+		await expect(ring.outlineOffset).toBe("-2px")
+	},
+})
+
+export const PointerFocusWithoutRing = meta.story({
+	tags: ["test-only"],
+	parameters: {
+		a11y: mergeA11y(A11Y_FLOATING_FOCUS_GUARDS, A11Y_SUBMENU_PORTAL_GUARD),
+		docs: {
+			description: {
+				story:
+					"An item reached with the pointer, which Base UI focuses as it highlights it. Check it keeps the `accent` fill and draws no ring, since the pointer already marks where the reader is. The play drives a real pointer through the Vitest browser runner, so it only asserts there; in Storybook, open the menu with a right-click and hover an item by hand.",
+			},
+		},
+	},
+	render: () => <TranscriptCard />,
+	play: async ({ canvas }) => {
+		if (!isInBrowserRunner()) return
+		const pointer = (await import("vitest/browser")).userEvent
+		const card = canvas.getByText("Right-click this card")
+
+		try {
+			await pointer.click(card, { button: "right" })
+			const menu = await shownMenu(MENU_LABEL)
+			const copy = within(menu).getByRole("menuitem", {
+				name: /Copy transcript/,
+			})
+			await pointer.hover(copy)
+			await waitFor(() => expect(copy).toHaveFocus(), { timeout: 5000 })
+
+			await expect(copy.matches(":focus-visible")).toBe(false)
+			await expect(getComputedStyle(copy).outlineStyle).toBe("none")
+		} finally {
+			await pointer.keyboard("{Escape}")
+			await pointer.unhover(card)
+			await pointer.keyboard("{Shift}")
+		}
 	},
 })
 

@@ -104,7 +104,7 @@ export const MESSAGE_BUBBLE_INLINE_PADDING = "px-3.5"
 export const MESSAGE_BUBBLE_PADDING_INSET = "-inset-x-3.5 -inset-y-2.5"
 
 export const MESSAGE_BUBBLE_INTERACTIVE =
-	"cursor-pointer text-left outline-none transition-transform duration-150 hover:brightness-[0.98] focus-visible:ring-2 focus-visible:ring-ring active:scale-[0.99]"
+	"cursor-pointer text-left outline-none transition-[scale] duration-200 ease-out will-change-transform hover:brightness-[0.98] focus-visible:ring-2 focus-visible:ring-ring active:scale-[0.98]"
 
 const MENTION_OPENING_PADDING =
 	'has-[p:first-child>[data-slot="bot-mention"]:first-child]:py-3.5'
@@ -114,9 +114,9 @@ function bubbleContentClass(
 	interactive: boolean,
 ) {
 	return cn(
-		"relative z-0 min-w-9 max-w-full break-words rounded-bubble py-2.5 text-sm leading-6 text-foreground",
+		"relative z-0 min-w-9 break-words rounded-bubble py-2.5 text-sm leading-6 text-foreground",
 		MESSAGE_BUBBLE_INLINE_PADDING,
-		hasSurface(variant) && MENTION_OPENING_PADDING,
+		hasSurface(variant) && ["max-w-full", MENTION_OPENING_PADDING],
 		MARKDOWN_TYPESET_CLASS,
 		variant === "solid" && "on-user-bubble text-user-bubble-foreground",
 		variant === "ghost" && "w-full rounded-none px-0 py-0",
@@ -320,7 +320,7 @@ export function MessageBubbleCollapsible({
 					"transition-[mask-image] duration-200",
 					!currentOpen && LINE_CLAMP_CLASS[collapsedLines],
 					!currentOpen &&
-						"[mask-image:linear-gradient(to_bottom,#000_68%,transparent_100%)]",
+						"[mask-image:linear-gradient(to_bottom_in_oklab,#000_68%,transparent_100%)]",
 					contentClassName,
 				)}
 			>
