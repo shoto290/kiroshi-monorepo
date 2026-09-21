@@ -75,9 +75,13 @@ export const useCompanionMenuLookup = ({
 
 		const repin = (next: RosterPin[]) => actions.onPinRoster(openSpaceId, next)
 
+		const pin = (id: string) => repin(pinnedLast(pins, id))
+
+		const unpin = (id: string) => repin(withoutPin(pins, id))
+
 		const moveToSection = (id: string, sectionId: string | null) => {
 			if (sectionId === null) {
-				repin(withoutPin(pins, id))
+				unpin(id)
 				return
 			}
 			const filed = filedInSection(pins, id, sectionId)
@@ -98,9 +102,9 @@ export const useCompanionMenuLookup = ({
 					onDuplicate={actions.onDuplicateBot}
 					onEdit={actions.onEditBot}
 					onMoveToSection={sections.length > 0 ? moveToSection : undefined}
-					onPin={(id) => repin(pinnedLast(pins, id))}
+					onPin={pin}
 					onRemoveFromSpace={actions.onRemoveBotFromSpace}
-					onUnpin={(id) => repin(withoutPin(pins, id))}
+					onUnpin={unpin}
 					openSpaceId={openSpaceId}
 					sections={sections}
 					spaces={spaces}

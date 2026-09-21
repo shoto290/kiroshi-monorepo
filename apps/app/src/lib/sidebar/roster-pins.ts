@@ -69,7 +69,7 @@ export const pinnedLast = (pins: RosterPin[], id: string): RosterPin[] => [
 
 const endOfSection = (pins: RosterPin[], sectionId: string) => {
 	const head = pins.findIndex((pin) => pin.id === sectionId)
-	if (head < 0) return head
+	if (head < 0) return null
 	let at = head + 1
 	while (pins[at]?.sectionId === sectionId) at += 1
 	return at
@@ -82,6 +82,6 @@ export const filedInSection = (
 ): RosterPin[] | null => {
 	const rest = withoutPin(pins, id)
 	const at = endOfSection(rest, sectionId)
-	if (at < 0) return null
+	if (at === null) return null
 	return [...rest.slice(0, at), { id, sectionId }, ...rest.slice(at)]
 }
