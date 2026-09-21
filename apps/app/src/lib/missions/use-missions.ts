@@ -1,9 +1,22 @@
 import { useCallback, useEffect, useMemo, useRef, useState } from "react"
 
-import type { Mission } from "./mission-contract"
+import { coalescedRead } from "./coalesced-read"
+import type { Mission, MissionChanged } from "./mission-contract"
+import { withMissionChange } from "./missions-model"
 import { missionsTransport } from "./missions-transport"
 
 const NO_MISSIONS: Mission[] = []
+
+const withChangeApplied =
+	(changed: MissionChanged) =>
+	(held: Mission[]): Mission[] =>
+		held.some(({ id }) => id === changed.missionId)
+			? held.map((mission) =>
+					mission.id === changed.missionId
+						? withMissionChange(mission, changed)
+						: mission,
+				)
+			: held
 
 export type ConversationMissionsRead = {
 	open: Mission[]
@@ -50,15 +63,24 @@ export const useMissions = (
 	useEffect(reload, [reload])
 
 	useEffect(() => {
-		const listening = missionsTransport.onChanged(reload).catch((reason) => {
-			console.error(
-				"activity panel: mission changes could not be listened to",
-				reason,
-			)
-			return () => undefined
-		})
+		const rereading = coalescedRead(reload)
+		const applyChange = (changed: MissionChanged) => {
+			setRunning(withChangeApplied(changed))
+			setClosed(withChangeApplied(changed))
+			rereading.request()
+		}
+		const listening = missionsTransport
+			.onChanged(applyChange)
+			.catch((reason) => {
+				console.error(
+					"activity panel: mission changes could not be listened to",
+					reason,
+				)
+				return () => undefined
+			})
 
 		return () => {
+			rereading.cancel()
 			void listening.then((unsubscribe) => unsubscribe())
 		}
 	}, [reload])

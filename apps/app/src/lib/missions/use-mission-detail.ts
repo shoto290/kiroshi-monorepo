@@ -2,8 +2,9 @@ import { useCallback, useEffect, useMemo, useRef, useState } from "react"
 
 import type { MissionEventModel } from "@workspace/ui/components/mission"
 
+import { coalescedRead } from "./coalesced-read"
 import type { Mission } from "./mission-contract"
-import { toMissionEventModels } from "./missions-model"
+import { toMissionEventModels, withMissionChange } from "./missions-model"
 import { missionsTransport } from "./missions-transport"
 
 type MissionRead = {
@@ -25,11 +26,9 @@ export const useMissionDetail = (missionId: string): MissionDetailRead => {
 	const [hasFailedToRead, setFailedToRead] = useState(false)
 	const reads = useRef(0)
 
-	const readMission = useCallback(() => {
+	const fetchMission = useCallback(() => {
 		reads.current += 1
 		const ticket = reads.current
-
-		setReading(true)
 
 		void missionsTransport.detail(missionId).then(
 			(detail) => {
@@ -50,17 +49,27 @@ export const useMissionDetail = (missionId: string): MissionDetailRead => {
 		)
 	}, [missionId])
 
+	const readMission = useCallback(() => {
+		setReading(true)
+		fetchMission()
+	}, [fetchMission])
+
 	useEffect(() => {
 		setRead(null)
 		readMission()
 	}, [readMission])
 
 	useEffect(() => {
+		const rereading = coalescedRead(fetchMission)
 		const listening = missionsTransport
 			.onChanged((changed) => {
-				if (changed.missionId === missionId) {
-					readMission()
-				}
+				if (changed.missionId !== missionId) return
+				setRead((held) =>
+					held
+						? { ...held, mission: withMissionChange(held.mission, changed) }
+						: held,
+				)
+				rereading.request()
 			})
 			.catch((reason) => {
 				console.error(
@@ -71,9 +80,10 @@ export const useMissionDetail = (missionId: string): MissionDetailRead => {
 			})
 
 		return () => {
+			rereading.cancel()
 			void listening.then((unsubscribe) => unsubscribe())
 		}
-	}, [missionId, readMission])
+	}, [missionId, fetchMission])
 
 	return useMemo(
 		() => ({ read, isReading, hasFailedToRead, onRetry: readMission }),

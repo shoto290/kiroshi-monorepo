@@ -1,7 +1,7 @@
 // @vitest-environment happy-dom
 
-import { cleanup, renderHook, waitFor } from "@testing-library/react"
-import { afterEach, beforeEach, expect, it, vi } from "vitest"
+import { act, cleanup, renderHook, waitFor } from "@testing-library/react"
+import { afterEach, beforeEach, describe, expect, it, vi } from "vitest"
 
 import type { MissionChanged, MissionDetail } from "./mission-contract"
 import { missionsTransport } from "./missions-transport"
@@ -77,22 +77,6 @@ it("reads the mission it is opened on", async () => {
 	expect(result.current.read?.events).toHaveLength(1)
 })
 
-it("reads the mission again when a change names it", async () => {
-	const { result } = renderHook(() => useMissionDetail("m-1"))
-
-	await waitFor(() => expect(result.current.isReading).toBe(false))
-
-	announce({
-		missionId: "m-1",
-		state: "waiting_human",
-		stateSeq: 2,
-		isAgentRunning: false,
-		lastActivityAt: null,
-	})
-
-	await waitFor(() => expect(readDetail).toHaveBeenCalledTimes(2))
-})
-
 it("leaves the mission alone when a change names another one", async () => {
 	const { result } = renderHook(() => useMissionDetail("m-1"))
 
@@ -120,4 +104,111 @@ it("reports a failed read and reads again on retry", async () => {
 
 	await waitFor(() => expect(result.current.hasFailedToRead).toBe(false))
 	expect(result.current.read?.mission).toEqual(DETAIL.mission)
+})
+
+it("applies the activity of a change naming it before the reread returns", async () => {
+	const { result } = renderHook(() => useMissionDetail("m-1"))
+	await waitFor(() => expect(result.current.isReading).toBe(false))
+	readDetail.mockReturnValue(new Promise(() => undefined))
+
+	act(() =>
+		announce({
+			missionId: "m-1",
+			state: "working",
+			stateSeq: 2,
+			isAgentRunning: true,
+			lastActivityAt: 42,
+		}),
+	)
+
+	expect(result.current.read?.mission).toMatchObject({
+		isAgentRunning: true,
+		lastActivityAt: 42,
+	})
+})
+
+describe("when changes arrive in a burst", () => {
+	const A_CHANGE: MissionChanged = {
+		missionId: "m-1",
+		state: "working",
+		stateSeq: 2,
+		isAgentRunning: true,
+		lastActivityAt: 42,
+	}
+
+	const mountSettled = async () => {
+		const mounted = renderHook(() => useMissionDetail("m-1"))
+		await act(async () => undefined)
+		return mounted
+	}
+
+	beforeEach(() => {
+		vi.useFakeTimers()
+	})
+
+	afterEach(() => {
+		vi.useRealTimers()
+	})
+
+	it("reads the mission at most once a second while the burst lasts", async () => {
+		await mountSettled()
+		readDetail.mockClear()
+		const readAt: number[] = []
+		readDetail.mockImplementation(() => {
+			readAt.push(Date.now())
+			return new Promise(() => undefined)
+		})
+
+		for (let elapsed = 0; elapsed < 3000; elapsed += 100) {
+			act(() => announce(A_CHANGE))
+			act(() => vi.advanceTimersByTime(100))
+		}
+
+		const gaps = readAt.slice(1).map((at, i) => at - readAt[i])
+		expect(readAt.length).toBeGreaterThan(1)
+		expect(gaps.every((gap) => gap >= 1000)).toBe(true)
+	})
+
+	it("reads the mission once after the burst ends", async () => {
+		await mountSettled()
+		readDetail.mockClear()
+		for (let change = 0; change < 5; change += 1) {
+			act(() => announce(A_CHANGE))
+		}
+
+		act(() => vi.advanceTimersByTime(5000))
+
+		expect(readDetail).toHaveBeenCalledTimes(2)
+	})
+
+	it("drops the pending read when it unmounts", async () => {
+		const { unmount } = await mountSettled()
+		readDetail.mockClear()
+		act(() => announce(A_CHANGE))
+		act(() => announce(A_CHANGE))
+
+		unmount()
+		act(() => vi.advanceTimersByTime(5000))
+
+		expect(readDetail).toHaveBeenCalledTimes(1)
+	})
+
+	it("stays out of its reading state while it reads again on a change", async () => {
+		const { result } = await mountSettled()
+		readDetail.mockReturnValue(new Promise(() => undefined))
+
+		act(() => announce(A_CHANGE))
+
+		expect(readDetail).toHaveBeenCalledTimes(2)
+		expect(result.current.isReading).toBe(false)
+	})
+
+	it("enters its reading state when the reader retries", async () => {
+		const { result } = await mountSettled()
+		readDetail.mockReturnValue(new Promise(() => undefined))
+
+		act(() => result.current.onRetry())
+
+		expect(result.current.isReading).toBe(true)
+	})
 })

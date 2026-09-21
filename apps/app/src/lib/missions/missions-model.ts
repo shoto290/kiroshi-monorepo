@@ -5,8 +5,11 @@ import type {
 } from "@workspace/ui/components/bot-badge"
 import type { MessageAuthor } from "@workspace/ui/components/message"
 import type {
+	MissionActivity,
 	MissionCardModel,
+	MissionEventLink,
 	MissionEventModel,
+	MissionPullRequest,
 	MissionEventKind as ShownEventKind,
 } from "@workspace/ui/components/mission"
 import type { MissionRowModel } from "@workspace/ui/components/mission-row"
@@ -19,6 +22,7 @@ import { formatDateTime } from "@workspace/ui/lib/time-format"
 
 import type {
 	Mission,
+	MissionChanged,
 	MissionEvent,
 	MissionOnBoard,
 	MissionState,
@@ -46,18 +50,15 @@ export type WaitingMissionIds = ReadonlySet<string>
 
 const NO_WAITING_MISSIONS: WaitingMissionIds = new Set()
 
-export const AGENT_LIVENESS_WINDOW_MS = 30 * 60 * 1000
+export const AGENT_SILENCE_MS = 2 * 60 * 1000
 
 export type LiveMissionIds = ReadonlySet<string>
 
 type SpeakingBotIds = Record<string, string[]>
 
-export type AgentRunStamps = Record<string, number>
-
 export type MissionLivenessRead = {
 	missions: Mission[]
 	speakingBotIds: SpeakingBotIds
-	agentRuns: AgentRunStamps
 	now: number
 }
 
@@ -69,27 +70,17 @@ const speaksOnItsThread = (
 ): boolean =>
 	speakingBotIds[mission.threadConversationId]?.includes(mission.botId) ?? false
 
-const runsInsideTheWindow = (
-	mission: Mission,
-	agentRuns: AgentRunStamps,
-	now: number,
-): boolean => {
-	const since = agentRuns[mission.id]
-
-	return (
-		mission.isAgentRunning &&
-		since !== undefined &&
-		now - since < AGENT_LIVENESS_WINDOW_MS
-	)
-}
+const hasAgentActivity = (mission: Mission, now: number): boolean =>
+	mission.lastActivityAt === null
+		? mission.isAgentRunning
+		: now - mission.lastActivityAt < AGENT_SILENCE_MS
 
 const isLive = (
 	mission: Mission,
-	{ speakingBotIds, agentRuns, now }: MissionLivenessRead,
+	{ speakingBotIds, now }: MissionLivenessRead,
 ): boolean =>
 	isOpen(mission) &&
-	(speaksOnItsThread(mission, speakingBotIds) ||
-		runsInsideTheWindow(mission, agentRuns, now))
+	(speaksOnItsThread(mission, speakingBotIds) || hasAgentActivity(mission, now))
 
 export const liveMissionsIn = (read: MissionLivenessRead): LiveMissionIds =>
 	new Set(
@@ -98,31 +89,10 @@ export const liveMissionsIn = (read: MissionLivenessRead): LiveMissionIds =>
 			.map(({ id }) => id),
 	)
 
-const isSameStamps = (held: AgentRunStamps, read: AgentRunStamps): boolean => {
-	const keys = Object.keys(read)
-
-	return (
-		keys.length === Object.keys(held).length &&
-		keys.every((missionId) => held[missionId] === read[missionId])
-	)
-}
-
-export const stampedAgentRuns = (
-	held: AgentRunStamps,
-	missions: Mission[],
-	now: number,
-): AgentRunStamps => {
-	const read = { ...held }
-	for (const mission of missions) {
-		if (mission.isAgentRunning && isOpen(mission)) {
-			read[mission.id] = held[mission.id] ?? now
-		} else {
-			delete read[mission.id]
-		}
-	}
-
-	return isSameStamps(held, read) ? held : read
-}
+export const withMissionChange = (
+	mission: Mission,
+	{ lastActivityAt, isAgentRunning }: MissionChanged,
+): Mission => ({ ...mission, lastActivityAt, isAgentRunning })
 
 const WAITING_ON_READER: MissionState = "waiting_human"
 
@@ -146,12 +116,25 @@ const startOfLocalDay = (now: number): number => {
 
 type MissionFaces = (botId: string) => ThreadFace | undefined
 
+type AgentActivity = {
+	lastActivity?: MissionActivity
+	lastActivityAt?: number
+	commitsAhead?: number
+}
+
+const agentActivityOf = (mission: Mission): AgentActivity => ({
+	lastActivity: mission.lastActivity ?? undefined,
+	lastActivityAt: mission.lastActivityAt ?? undefined,
+	commitsAhead: mission.commitsAhead ?? undefined,
+})
+
 type MissionRowRead = {
 	mission: Mission
 	face: ThreadFace
 	timestamp: string
 	state: MissionState
 	isWorking: boolean
+	now: number
 }
 
 const toMissionRow = ({
@@ -160,6 +143,7 @@ const toMissionRow = ({
 	timestamp,
 	state,
 	isWorking,
+	now,
 }: MissionRowRead): MissionRowModel => ({
 	id: mission.id,
 	objective: mission.objective,
@@ -172,26 +156,34 @@ const toMissionRow = ({
 	state,
 	isWorking,
 	timestamp,
+	now,
 })
 
 const rowsOf = (
 	missions: Mission[],
 	faceOf: MissionFaces,
-	timestampOf: (mission: Mission) => string,
 	waitingMissionIds: WaitingMissionIds,
 	liveMissionIds: LiveMissionIds,
+	now: number,
 ): MissionRowModel[] =>
 	missions.flatMap((mission) => {
 		const face = faceOf(mission.botId)
 		return face
 			? [
-					toMissionRow({
-						mission,
-						face,
-						timestamp: timestampOf(mission),
-						state: shownStateOf(mission, waitingMissionIds),
-						isWorking: liveMissionIds.has(mission.id),
-					}),
+					{
+						...toMissionRow({
+							mission,
+							face,
+							timestamp: rosterTimestamp(
+								mission.lastActivityAt ?? mission.openedAt,
+								now,
+							),
+							state: shownStateOf(mission, waitingMissionIds),
+							isWorking: liveMissionIds.has(mission.id),
+							now,
+						}),
+						...agentActivityOf(mission),
+					},
 				]
 			: []
 	})
@@ -205,6 +197,7 @@ const closedTodayEntries = (
 	closed: Mission[],
 	faceOf: MissionFaces,
 	midnight: number,
+	now: number,
 ): EarlierTodayEntry[] =>
 	closed.flatMap((mission) => {
 		const face = faceOf(mission.botId)
@@ -223,6 +216,7 @@ const closedTodayEntries = (
 						timestamp: formatDateTime(mission.closedAt, TIME_OF_DAY),
 						state: mission.state,
 						isWorking: false,
+						now,
 					}),
 				},
 			},
@@ -277,15 +271,9 @@ export const toMissionRows = ({
 	const midnight = startOfLocalDay(now)
 
 	return {
-		open: rowsOf(
-			open,
-			faceOf,
-			(mission) => rosterTimestamp(mission.openedAt, now),
-			waitingMissionIds,
-			liveMissionIds,
-		),
+		open: rowsOf(open, faceOf, waitingMissionIds, liveMissionIds, now),
 		earlierToday: [
-			...closedTodayEntries(closed, faceOf, midnight),
+			...closedTodayEntries(closed, faceOf, midnight, now),
 			...reportedTodayEntries(reportedRuns, faceOf, midnight),
 		]
 			.sort((one, other) => other.at - one.at)
@@ -322,18 +310,57 @@ export const toMissionCard = ({
 	isClosed: mission.closedAt !== null,
 })
 
-const SPOKEN_KEYS = ["line", "message", "question", "summary"] as const
+export type MissionHeaderActivity = AgentActivity & {
+	pullRequest?: MissionPullRequest
+}
 
-const spokenTextOf = (payload: unknown): string | undefined => {
-	if (typeof payload !== "object" || payload === null) {
+const PULL_REQUEST_NUMBER = /^\d+$/
+
+const pullRequestOf = (url: string | null): MissionPullRequest | undefined => {
+	const lastSegment = url?.split("/").at(-1)
+	if (!url || !lastSegment || !PULL_REQUEST_NUMBER.test(lastSegment)) {
 		return undefined
 	}
 
-	const held = payload as Record<string, unknown>
+	return { url, number: Number(lastSegment) }
+}
+
+export const toMissionHeaderActivity = (
+	mission: Mission,
+): MissionHeaderActivity => ({
+	...agentActivityOf(mission),
+	pullRequest: pullRequestOf(mission.pullRequestUrl),
+})
+
+const SPOKEN_KEYS = ["line", "message", "question", "summary"] as const
+
+const payloadRecordOf = (
+	payload: unknown,
+): Record<string, unknown> | undefined =>
+	typeof payload === "object" && payload !== null
+		? (payload as Record<string, unknown>)
+		: undefined
+
+const spokenTextOf = (payload: unknown): string | undefined => {
+	const held = payloadRecordOf(payload)
+	if (!held) {
+		return undefined
+	}
 
 	return SPOKEN_KEYS.map((key) => held[key]).find(
 		(value): value is string => typeof value === "string" && value.length > 0,
 	)
+}
+
+const linkOf = (payload: unknown): MissionEventLink | undefined => {
+	const held = payloadRecordOf(payload)
+	if (typeof held?.url !== "string") {
+		return undefined
+	}
+
+	return typeof held.pullRequest === "number"
+		? { url: held.url, pullRequest: held.pullRequest }
+		: { url: held.url }
 }
 
 const SHOWN_EVENT_KINDS: Record<ShownEventKind, true> = {
@@ -362,6 +389,7 @@ export const toMissionEventModels = (
 		source: event.source,
 		createdAt: event.createdAt,
 		text: spokenTextOf(event.payload),
+		link: linkOf(event.payload),
 	}))
 
 export type MissionsByRow = Record<string, AppSidebarRowMission[]>

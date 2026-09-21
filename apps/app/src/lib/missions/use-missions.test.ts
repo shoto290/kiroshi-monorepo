@@ -3,7 +3,7 @@
 import { act, cleanup, renderHook, waitFor } from "@testing-library/react"
 import { afterEach, beforeEach, describe, expect, it, vi } from "vitest"
 
-import type { Mission } from "./mission-contract"
+import type { Mission, MissionChanged } from "./mission-contract"
 import { missionsTransport } from "./missions-transport"
 import { useMissions } from "./use-missions"
 
@@ -79,5 +79,121 @@ describe("useMissions", () => {
 		})
 
 		expect(result.current).toBe(read)
+	})
+
+	it("applies the activity of a change naming a held mission before the reread returns", async () => {
+		let announce: (changed: MissionChanged) => void = () => undefined
+		listenToMissions.mockImplementation((listener) => {
+			announce = listener
+			return Promise.resolve(() => undefined)
+		})
+		const { result } = renderHook(() => useMissions("c-1"))
+		await waitFor(() => expect(result.current.missions).toEqual([MISSION]))
+		listMissions.mockReturnValue(new Promise(() => undefined))
+
+		act(() =>
+			announce({
+				missionId: "m-1",
+				state: "working",
+				stateSeq: 2,
+				isAgentRunning: true,
+				lastActivityAt: 42,
+			}),
+		)
+
+		expect(result.current.open).toEqual([
+			{ ...MISSION, isAgentRunning: true, lastActivityAt: 42 },
+		])
+	})
+
+	it("holds its read when a change names a mission it does not hold", async () => {
+		let announce: (changed: MissionChanged) => void = () => undefined
+		listenToMissions.mockImplementation((listener) => {
+			announce = listener
+			return Promise.resolve(() => undefined)
+		})
+		const { result } = renderHook(() => useMissions("c-1"))
+		await waitFor(() => expect(result.current.missions).toEqual([MISSION]))
+		listMissions.mockReturnValue(new Promise(() => undefined))
+		const read = result.current
+
+		act(() =>
+			announce({
+				missionId: "m-2",
+				state: "working",
+				stateSeq: 2,
+				isAgentRunning: true,
+				lastActivityAt: 42,
+			}),
+		)
+
+		expect(result.current).toBe(read)
+	})
+
+	describe("when changes arrive in a burst", () => {
+		const A_CHANGE: MissionChanged = {
+			missionId: "m-1",
+			state: "working",
+			stateSeq: 2,
+			isAgentRunning: true,
+			lastActivityAt: 42,
+		}
+		let announce: (changed: MissionChanged) => void = () => undefined
+
+		const mountSettled = async () => {
+			const mounted = renderHook(() => useMissions("c-1"))
+			await act(async () => undefined)
+			listMissions.mockClear()
+			return mounted
+		}
+
+		beforeEach(() => {
+			vi.useFakeTimers()
+			listenToMissions.mockImplementation((listener) => {
+				announce = listener
+				return Promise.resolve(() => undefined)
+			})
+		})
+
+		it("lists the missions at most once a second while the burst lasts", async () => {
+			await mountSettled()
+			listMissions.mockClear()
+			const readAt: number[] = []
+			listMissions.mockImplementation(() => {
+				readAt.push(Date.now())
+				return new Promise(() => undefined)
+			})
+
+			for (let elapsed = 0; elapsed < 3000; elapsed += 100) {
+				act(() => announce(A_CHANGE))
+				act(() => vi.advanceTimersByTime(100))
+			}
+
+			const gaps = readAt.slice(1).map((at, i) => at - readAt[i])
+			expect(readAt.length).toBeGreaterThan(1)
+			expect(gaps.every((gap) => gap >= 1000)).toBe(true)
+		})
+
+		it("lists the missions once after the burst ends", async () => {
+			await mountSettled()
+			for (let change = 0; change < 5; change += 1) {
+				act(() => announce(A_CHANGE))
+			}
+
+			act(() => vi.advanceTimersByTime(5000))
+
+			expect(listMissions).toHaveBeenCalledTimes(2)
+		})
+
+		it("drops the pending list when it unmounts", async () => {
+			const { unmount } = await mountSettled()
+			act(() => announce(A_CHANGE))
+			act(() => announce(A_CHANGE))
+
+			unmount()
+			act(() => vi.advanceTimersByTime(5000))
+
+			expect(listMissions).toHaveBeenCalledTimes(1)
+		})
 	})
 })
