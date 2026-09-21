@@ -3,10 +3,43 @@
 
 @source "../../../packages/ui/src";
 
-@theme {
+@theme static {
 	--breakpoint-ultrawide: 125rem;
 	--font-mono:
 		"Roboto Mono Variable", ui-monospace, SFMono-Regular, Menlo, monospace;
+
+	--color-wash-lilac: #bcafe3;
+	--color-wash-teal: #92c9c2;
+	--color-wash-gold: #fbc600;
+	--color-wash-dark-lilac: #372b5c;
+	--color-wash-dark-teal: #0b3f38;
+	--color-wash-dark-gold: #6a3700;
+	--color-wash-back: #00000000;
+
+	--color-window-close: #ff5f57;
+	--color-window-minimize: #febc2e;
+	--color-window-zoom: #28c840;
+
+	--color-claude: #d97757;
+
+	/* Measured against the darkest pixel of the running wash behind the hero
+	   column and the footer, over 320 to 2560, six scroll positions, both
+	   schemes, animated and still: floor 4.60 in light, 4.85 in dark. Lowering
+	   either value spends that margin, so neither moves without a new sweep. */
+	--color-on-wash-muted: oklch(0.4 0.016 285.938);
+	--color-on-wash-muted-dark: oklch(0.78 0.015 286.067);
+
+	--color-frame-glow: rgb(20 20 24 / 0.15);
+	--color-frame-edge-dark: rgb(255 255 255 / 0.16);
+	--color-edge-drop: rgb(20 20 24 / 0.08);
+
+	--shadow-frame:
+		0 0 0 1px var(--color-border), 0 -2px 60px -14px var(--color-frame-glow);
+	--shadow-frame-dark:
+		0 0 0 1px var(--color-border), 0 0 0 2px var(--color-frame-edge-dark);
+	--shadow-edge:
+		0 0 0 1px var(--color-border), 0 1px 2px -1px var(--color-edge-drop);
+	--shadow-focus-edge: 0 0 0 1px var(--color-ring);
 }
 
 @layer base {
@@ -22,14 +55,10 @@
 }
 
 @utility on-wash {
-	/* Measured against the darkest pixel of the running wash behind the hero
-	   column and the footer, over 320 to 2560, six scroll positions, both
-	   schemes, animated and still: floor 4.60 in light, 4.85 in dark. Lowering
-	   either value spends that margin, so neither moves without a new sweep. */
-	--muted-foreground: oklch(0.4 0.016 285.938);
+	--muted-foreground: var(--color-on-wash-muted);
 	--color-muted-foreground: var(--muted-foreground);
 
 	&:is(.dark *) {
-		--muted-foreground: oklch(0.78 0.015 286.067);
+		--muted-foreground: var(--color-on-wash-muted-dark);
 	}
 }
