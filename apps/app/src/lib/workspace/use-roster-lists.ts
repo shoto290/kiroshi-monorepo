@@ -39,6 +39,7 @@ export const useRosterLists = ({
 	const { badges, conversationBadges } = drivers
 	const { now, previews, rosters, working } = rosterLines
 	const {
+		bots,
 		conversationRosters,
 		conversations,
 		missions,
@@ -101,9 +102,9 @@ export const useRosterLists = ({
 	const seatedBots = useMemo(
 		() =>
 			settingsConversation
-				? toConversationBots(presentParticipants(settingsConversation))
+				? toConversationBots(presentParticipants(settingsConversation), bots)
 				: [],
-		[settingsConversation],
+		[settingsConversation, bots],
 	)
 
 	const rosterConversationsBySpace = useMemo(

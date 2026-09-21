@@ -43,15 +43,17 @@ export function useThreadRoster({
 }: ThreadSeats): ThreadRoster {
 	const bots = useMemo(
 		() =>
-			conversation ? toConversationBots(conversation.participants) : NO_BOTS,
-		[conversation],
+			conversation
+				? toConversationBots(conversation.participants, records)
+				: NO_BOTS,
+		[conversation, records],
 	)
 	const present = useMemo(
 		() =>
 			conversation
-				? toConversationBots(presentParticipants(conversation))
+				? toConversationBots(presentParticipants(conversation), records)
 				: NO_BOTS,
-		[conversation],
+		[conversation, records],
 	)
 	const authors = useMemo<ThreadAuthors>(
 		() => (conversation ? authorsOf(conversation, records) : NO_AUTHORS),

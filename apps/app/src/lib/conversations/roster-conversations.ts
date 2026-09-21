@@ -49,8 +49,19 @@ const toAuthor = (
 	isDeleted: participant.isDeleted,
 })
 
-export const toConversationBots = (participants: Participant[]): RosterBot[] =>
-	participants.map(toParticipantRow)
+const titleOf = (bot: Bot): string | undefined => bot.title || undefined
+
+export const toConversationBots = (
+	participants: Participant[],
+	bots: Bot[],
+): RosterBot[] => {
+	const titles = new Map(bots.map((bot) => [bot.id, titleOf(bot)]))
+
+	return participants.map((participant) => ({
+		...toParticipantRow(participant),
+		title: titles.get(participant.botId),
+	}))
+}
 
 export const toBotRows = (bots: Bot[]): RosterBot[] =>
 	bots.map((bot) => toBotRow(bot.id, bot))
@@ -88,14 +99,16 @@ export const unseatedBots = (
 	const seated = new Set(
 		presentParticipants(conversation).map((participant) => participant.botId),
 	)
-	return toBotRows(bots.filter((bot) => !seated.has(bot.id)))
+	return bots
+		.filter((bot) => !seated.has(bot.id))
+		.map((bot) => ({ ...toBotRow(bot.id, bot), title: titleOf(bot) }))
 }
 
 export const mentionableBots = (
 	bots: Bot[],
 	conversation: Conversation,
 ): PromptMentionBot[] => [
-	...toConversationBots(presentParticipants(conversation)),
+	...toConversationBots(presentParticipants(conversation), bots),
 	...unseatedBots(bots, conversation).map((bot) => ({
 		...bot,
 		isOutside: true,

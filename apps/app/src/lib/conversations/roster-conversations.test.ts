@@ -9,6 +9,8 @@ import type {
 } from "./roster-conversations"
 import {
 	conversationName,
+	mentionableBots,
+	toConversationBots,
 	toConversationSettingsValue,
 	toRosterConversations,
 	unseatedBots,
@@ -318,6 +320,54 @@ describe("unseatedBots", () => {
 		)
 
 		expect(offered.map((held) => held.id)).toEqual(["b-1"])
+	})
+})
+
+describe("toConversationBots", () => {
+	it("puts the title of the companion's Bot record on its row", () => {
+		const [row] = toConversationBots(
+			[participant({ botId: "b-1" })],
+			[bot({ id: "b-1", title: "Head chef" })],
+		)
+
+		expect(row?.title).toBe("Head chef")
+	})
+
+	it("puts no title on the row of an untitled companion", () => {
+		const [row] = toConversationBots(
+			[participant({ botId: "b-1" })],
+			[bot({ id: "b-1", title: "" })],
+		)
+
+		expect(row?.title).toBeUndefined()
+	})
+})
+
+describe("mentionableBots", () => {
+	const seatedChef = participant({ botId: "b-1" })
+
+	it("puts each title on a seated row and on an outside row", () => {
+		const rows = mentionableBots(
+			[
+				bot({ id: "b-1", title: "Head chef" }),
+				bot({ id: "b-2", name: "Sous-chef", title: "Saucier" }),
+			],
+			conversation({ participants: [seatedChef] }),
+		)
+
+		expect(rows.map(({ id, title }) => ({ id, title }))).toEqual([
+			{ id: "b-1", title: "Head chef" },
+			{ id: "b-2", title: "Saucier" },
+		])
+	})
+
+	it("puts no title on the rows of untitled companions", () => {
+		const rows = mentionableBots(
+			[bot({ id: "b-1" }), bot({ id: "b-2", name: "Sous-chef" })],
+			conversation({ participants: [seatedChef] }),
+		)
+
+		expect(rows.map((row) => row.title)).toEqual([undefined, undefined])
 	})
 })
 
