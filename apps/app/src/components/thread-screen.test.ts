@@ -3938,11 +3938,7 @@ describe("ThreadScreen opening the companion menu of a gutter avatar", () => {
 	it("opens it in the solo thread", async () => {
 		const solo = await soloOf({ spoken: [ADA_CLOSES] })
 		const thread = solo.thread()
-		render(
-			underCompanionMenu(screenOf(thread), [
-				thread.kind === "bot" ? thread.bot.id : "",
-			]),
-		)
+		render(underCompanionMenu(screenOf(thread), [thread.bot.id]))
 		await settle()
 
 		expect(await rightClickGutterOf(ADA_CLOSES.text)).toBeTruthy()
@@ -3969,11 +3965,6 @@ describe("ThreadScreen opening the companion menu of a gutter avatar", () => {
 		render(underCompanionMenu(screenOf(room.thread, room.bots), []))
 		await settle()
 
-		fireEvent.contextMenu(gutterOf(MISSION_SAID.text) as HTMLElement, {
-			clientX: 20,
-			clientY: 20,
-		})
-
-		await expect(screen.findByRole("menu")).rejects.toThrow()
+		await expect(rightClickGutterOf(MISSION_SAID.text)).rejects.toThrow()
 	})
 })
