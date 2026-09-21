@@ -380,6 +380,7 @@ export const PointerFocusWithoutRing = meta.story({
 			await expect(getComputedStyle(copy).outlineStyle).toBe("none")
 		} finally {
 			await pointer.keyboard("{Escape}")
+			await pointer.unhover(card)
 			await pointer.keyboard("{Shift}")
 		}
 	},
