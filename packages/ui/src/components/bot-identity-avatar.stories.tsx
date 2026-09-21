@@ -509,7 +509,7 @@ export const NamedPitch = meta.story({
 		docs: {
 			description: {
 				story:
-					"The other animal a reader cannot pick: a companion whose name contains Pitch is drawn as Pitch, whatever animal it keeps. Press the button and the rabbit becomes Pitch in all three places at once, and pressing it again gives the rabbit back. When a name holds both Skippy and Pitch, the word that comes first wins.",
+					"The other animal a reader cannot pick: a companion whose name contains Pitch is drawn as Pitch, whatever animal it keeps. Press the button and the rabbit becomes Pitch in all three places at once, and pressing it again gives the rabbit back.",
 			},
 		},
 	},
