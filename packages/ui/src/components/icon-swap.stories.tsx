@@ -13,21 +13,17 @@ const layersOf = (canvasElement: HTMLElement) =>
 		),
 	)
 
-const expectHidden = (layer: HTMLElement) => {
+const expectHidden = async (layer: HTMLElement) => {
 	const style = getComputedStyle(layer)
-	return Promise.all([
-		expect(style.opacity).toBe("0"),
-		expect(style.scale).toBe("0.25"),
-		expect(style.filter).toBe("blur(4px)"),
-	])
+	await expect(style.opacity).toBe("0")
+	await expect(style.scale).toBe("0.25")
+	await expect(style.filter).toBe("blur(4px)")
 }
 
-const expectShown = (layer: HTMLElement) => {
+const expectShown = async (layer: HTMLElement) => {
 	const style = getComputedStyle(layer)
-	return Promise.all([
-		expect(style.opacity).toBe("1"),
-		expect(style.filter).toBe("none"),
-	])
+	await expect(style.opacity).toBe("1")
+	await expect(style.filter).toBe("none")
 }
 
 const CopyToggle = () => {

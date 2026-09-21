@@ -286,11 +286,6 @@ export const States = meta.story({
 
 const isInBrowserRunner = () => "__vitest_browser__" in globalThis
 
-const ringOf = (item: HTMLElement) => {
-	const style = getComputedStyle(item)
-	return { style: style.outlineStyle, width: style.outlineWidth }
-}
-
 export const KeyboardFocusRing = meta.story({
 	tags: ["test-only"],
 	parameters: {
@@ -312,9 +307,10 @@ export const KeyboardFocusRing = meta.story({
 		await waitFor(() => expect(copy).toHaveFocus(), { timeout: 5000 })
 
 		await expect(copy.matches(":focus-visible")).toBe(true)
-		await expect(ringOf(copy).style).toBe("solid")
-		await expect(ringOf(copy).width).toBe("2px")
-		await expect(getComputedStyle(copy).outlineOffset).toBe("-2px")
+		const ring = getComputedStyle(copy)
+		await expect(ring.outlineStyle).toBe("solid")
+		await expect(ring.outlineWidth).toBe("2px")
+		await expect(ring.outlineOffset).toBe("-2px")
 	},
 })
 
@@ -345,7 +341,7 @@ export const PointerFocusWithoutRing = meta.story({
 			await waitFor(() => expect(copy).toHaveFocus(), { timeout: 5000 })
 
 			await expect(copy.matches(":focus-visible")).toBe(false)
-			await expect(ringOf(copy).style).toBe("none")
+			await expect(getComputedStyle(copy).outlineStyle).toBe("none")
 		} finally {
 			await pointer.keyboard("{Escape}")
 			await pointer.keyboard("{Shift}")
