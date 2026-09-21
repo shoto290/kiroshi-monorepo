@@ -148,7 +148,7 @@ const BotMissionStrip = ({
 }
 
 const BOT_TITLE_BADGE =
-	"shrink-0 truncate rounded-full bg-foreground/10 px-1.5 py-0.5 font-medium text-[10px] text-foreground/80 leading-none"
+	"min-w-6 max-w-max grow basis-0 truncate rounded-full bg-foreground/10 px-1.5 py-0.5 font-medium text-[10px] text-foreground/80 leading-none"
 
 type BotTitleBadgeProps = Omit<ComponentPropsWithRef<"span">, "title"> & {
 	title?: string

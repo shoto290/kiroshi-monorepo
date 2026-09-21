@@ -2,6 +2,7 @@
 
 import { useTranslation } from "react-i18next"
 
+import { BotTitleBadge } from "@workspace/ui/components/bot-badge"
 import { BotIdentityAvatar } from "@workspace/ui/components/bot-identity-avatar"
 import { Icons } from "@workspace/ui/components/icons"
 import type { RosterBot } from "@workspace/ui/components/roster"
@@ -46,7 +47,12 @@ const ParticipantRow = ({
 					size={ROW_AVATAR_SIZE}
 				/>
 			</span>
-			<span className="min-w-0 flex-1 truncate">{bot.name}</span>
+			<span className="flex min-w-0 flex-1 items-center gap-1.5">
+				<span className="truncate" data-slot="participant-name">
+					{bot.name}
+				</span>
+				<BotTitleBadge title={bot.title} />
+			</span>
 
 			{isLead ? (
 				<span

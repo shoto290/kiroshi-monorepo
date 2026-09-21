@@ -1,7 +1,7 @@
-import { expect, fireEvent, fn, screen, within } from "storybook/test"
+import { expect, fireEvent, fn, screen, waitFor, within } from "storybook/test"
 
 import preview from "@workspace/storybook/preview"
-import { shown } from "@workspace/storybook/story-utils"
+import { shown, slotIn, slotsIn } from "@workspace/storybook/story-utils"
 import {
 	CompanionMenuContent,
 	type CompanionMenuSubject,
@@ -155,5 +155,90 @@ export const WithoutBranches = meta.story({
 		await expect(
 			menu.getAllByRole("menuitem").map((item) => item.textContent),
 		).toEqual(["Settings", "Duplicate", "Delete"])
+	},
+})
+
+const LONG_TITLE = "Release manager for the whole desktop platform"
+
+const TITLED_ATLAS: CompanionMenuSubject = { ...ATLAS, title: LONG_TITLE }
+
+const openMenuOn = async (target: HTMLElement) => {
+	fireEvent.contextMenu(target, { clientX: 120, clientY: 90 })
+	return shown(await screen.findByRole("menu", { name: MENU_LABEL }))
+}
+
+const leftOf = (element: Element) => element.getBoundingClientRect().left
+
+export const WithHeader = meta.story({
+	args: { companion: TITLED_ATLAS },
+	parameters: {
+		docs: {
+			description: {
+				story:
+					"The menu opened on a companion with a long title. Check that the first line is plain text naming it, name then a middle dot then the whole title, wrapping rather than cut, set on the same start edge as the items and fenced off by a separator. It is a label, not an item: the down arrow lands on Pin first. Pick `WithHeaderUntitled` for a companion with no title.",
+			},
+		},
+	},
+	play: async ({ canvas }) => {
+		const menu = await openMenuOn(canvas.getByText(TRIGGER_LABEL))
+		const header = slotIn(menu, "context-menu-label")
+		const [pin] = within(menu).getAllByRole("menuitem")
+
+		await expect(header).toHaveTextContent(`Atlas · ${LONG_TITLE}`)
+		await expect(header.scrollWidth).toBeLessThanOrEqual(header.clientWidth)
+		await expect(slotsIn(header, "bot-identity-avatar")).toHaveLength(0)
+		await expect(slotsIn(header, "bot-title-badge")).toHaveLength(0)
+		await expect(header.nextElementSibling).toHaveAttribute(
+			"data-slot",
+			"context-menu-separator",
+		)
+		await expect(leftOf(header)).toBe(leftOf(pin))
+		await expect(getComputedStyle(header).paddingInlineStart).toBe(
+			getComputedStyle(pin).paddingInlineStart,
+		)
+
+		fireEvent.keyDown(menu, { key: "ArrowDown" })
+
+		await waitFor(() => expect(document.activeElement).toBe(pin))
+	},
+})
+
+export const WithHeaderUntitled = meta.story({
+	parameters: {
+		docs: {
+			description: {
+				story:
+					"The same header on a companion with no title. Check it reads the name alone, with no dot left dangling after it. Pick `WithHeader` for a titled companion.",
+			},
+		},
+	},
+	play: async ({ canvas }) => {
+		const menu = await openMenuOn(canvas.getByText(TRIGGER_LABEL))
+
+		await expect(slotIn(menu, "context-menu-label").textContent).toBe("Atlas")
+	},
+})
+
+export const HeaderLabelsItsItems = meta.story({
+	args: { companion: TITLED_ATLAS },
+	parameters: {
+		docs: {
+			description: {
+				story:
+					"The header read as the label of the whole menu. Check that one group holds every item and takes its name from the header, and that no group is left holding a label and nothing else.",
+			},
+		},
+	},
+	play: async ({ canvas }) => {
+		const menu = await openMenuOn(canvas.getByText(TRIGGER_LABEL))
+		const inside = within(menu)
+		const groups = inside.getAllByRole("group")
+		const [labelled] = groups
+
+		await expect(groups).toHaveLength(1)
+		await expect(labelled).toHaveAccessibleName(`Atlas · ${LONG_TITLE}`)
+		await expect(within(labelled).getAllByRole("menuitem")).toEqual(
+			inside.getAllByRole("menuitem"),
+		)
 	},
 })

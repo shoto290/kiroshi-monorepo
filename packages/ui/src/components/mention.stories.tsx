@@ -2,7 +2,7 @@ import type { ReactNode } from "react"
 import { expect, fireEvent, fn, screen, within } from "storybook/test"
 
 import preview from "@workspace/storybook/preview"
-import { shown } from "@workspace/storybook/story-utils"
+import { shown, slotIn, slotsIn } from "@workspace/storybook/story-utils"
 import {
 	CONVERSATION_BOTS,
 	LONG_NAMED_BOTS,
@@ -630,5 +630,103 @@ export const CompanionSelectFromPill = meta.story({
 		rightClickOn(pill)
 		await shown(await screen.findByRole("menu", { name: COMPANION_MENU_LABEL }))
 		await expect(selectCompanion).toHaveBeenCalledTimes(3)
+	},
+})
+
+const TITLED_ATLAS = { ...ROOM[0], title: "Research lead" }
+
+const TitledConversation = ({ children }: { children: ReactNode }) => (
+	<RosterProvider bots={[TITLED_ATLAS]}>
+		<p className="max-w-md text-sm leading-6">{children}</p>
+	</RosterProvider>
+)
+
+const isOneLine = (element: HTMLElement) =>
+	element.getBoundingClientRect().height <=
+	Number.parseFloat(
+		getComputedStyle(element.parentElement as HTMLElement).lineHeight,
+	)
+
+export const WithTitle = meta.story({
+	parameters: {
+		docs: {
+			description: {
+				story:
+					"A mention of a companion that carries a title. Check that the title pill sits right after the name, whole and without an ellipsis while the line has room, and that the chip stays as tall as the line. Pick `Unknown` for an id with no companion behind it, `WithTitleCounted` for the same chip carrying a count.",
+			},
+		},
+	},
+	render: () => (
+		<TitledConversation>
+			Ask <Mention botId={TITLED_ATLAS.id} /> to take the next pass.
+		</TitledConversation>
+	),
+	play: async ({ canvasElement }) => {
+		const pill = slotIn(canvasElement, "bot-mention")
+		const name = slotIn(pill, "bot-mention-name")
+		const title = slotIn(pill, "bot-title-badge")
+
+		await expect(title).toHaveTextContent("Research lead")
+		await expect(name.nextElementSibling).toBe(title)
+		await expect(title.scrollWidth).toBeLessThanOrEqual(title.clientWidth)
+		await expect(isOneLine(pill)).toBe(true)
+	},
+})
+
+export const UnknownWithoutTitle = meta.story({
+	tags: ["test-only"],
+	parameters: {
+		docs: {
+			description: {
+				story:
+					"A mention of an id the conversation cannot resolve, in a conversation whose companions carry titles. Check that the chip draws no title pill: there is no companion to borrow one from.",
+			},
+		},
+	},
+	render: () => (
+		<TitledConversation>
+			Ask <Mention botId="bot-ghost" /> to take the next pass.
+		</TitledConversation>
+	),
+	play: async ({ canvas, canvasElement }) => {
+		const pill = slotIn(canvasElement, "bot-mention")
+
+		await expect(canvas.getByText("Unknown companion")).toBeVisible()
+		await expect(slotsIn(pill, "bot-title-badge")).toHaveLength(0)
+	},
+})
+
+export const WithTitleCounted = meta.story({
+	parameters: {
+		docs: {
+			description: {
+				story:
+					"A titled companion named three times in a row, in a sentence too narrow for the whole chip. Check the order reads name, title, count, that the title gives way first with an ellipsis, and that the count stays whole, on one line and in tabular figures.",
+			},
+		},
+	},
+	render: () => (
+		<TitledConversation>
+			<span className="inline-block w-36">
+				<Mention botId={TITLED_ATLAS.id} count={3} />
+			</span>
+		</TitledConversation>
+	),
+	play: async ({ canvasElement }) => {
+		const pill = slotIn(canvasElement, "bot-mention")
+		const name = slotIn(pill, "bot-mention-name")
+		const title = slotIn(pill, "bot-title-badge")
+		const count = slotIn(pill, "bot-mention-count")
+
+		await expect(name.nextElementSibling).toBe(title)
+		await expect(title.nextElementSibling).toBe(count)
+		await expect(count).toHaveTextContent("×3")
+		await expect(name.scrollWidth).toBeLessThanOrEqual(name.clientWidth)
+		await expect(title.scrollWidth).toBeGreaterThan(title.clientWidth)
+		await expect(count.scrollWidth).toBe(count.clientWidth)
+		await expect(getComputedStyle(count).fontVariantNumeric).toContain(
+			"tabular-nums",
+		)
+		await expect(isOneLine(pill)).toBe(true)
 	},
 })

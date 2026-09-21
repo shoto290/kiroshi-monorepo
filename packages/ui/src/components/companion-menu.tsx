@@ -21,7 +21,9 @@ import type { Space } from "@workspace/ui/components/space"
 import {
 	ContextMenu,
 	ContextMenuContent,
+	ContextMenuGroup,
 	ContextMenuItem,
+	ContextMenuLabel,
 	ContextMenuSeparator,
 	ContextMenuTrigger,
 } from "@workspace/ui/components/ui/context-menu"
@@ -30,6 +32,7 @@ import { STILL_UNDER_REDUCED_MOTION } from "@workspace/ui/lib/reduced-motion"
 interface CompanionMenuSubject {
 	id: string
 	name: string
+	title?: string
 	sectionId?: string | null
 }
 
@@ -76,44 +79,55 @@ const CompanionMenuContent = ({
 			className={STILL_UNDER_REDUCED_MOTION}
 			finalFocus={finalFocus}
 		>
-			<PinGroup
-				id={companion.id}
-				isPinned={isPinned}
-				onPin={onPin}
-				onUnpin={onUnpin}
-			/>
-			<ContextMenuItem onClick={() => onEdit?.(companion.id)}>
-				<Icons.Settings aria-hidden="true" className="size-3.5" />
-				{t("roster.settings")}
-			</ContextMenuItem>
-			<ContextMenuSeparator />
-			<ContextMenuItem onClick={() => onDuplicate?.(companion.id)}>
-				<Icons.Copy aria-hidden="true" className="size-3.5" />
-				{t("roster.duplicate")}
-			</ContextMenuItem>
-			<SectionBranch
-				id={companion.id}
-				onCreateSectionFor={onCreateSectionFor}
-				onMoveToSection={onMoveToSection}
-				sectionId={companion.sectionId}
-				sections={sections}
-			/>
-			<SpacesBranch
-				botId={companion.id}
-				memberships={memberships}
-				onAddToSpace={onAddToSpace}
-				onRemoveFromSpace={onRemoveFromSpace}
-				openSpaceId={openSpaceId}
-				spaces={spaces}
-			/>
-			<ContextMenuSeparator />
-			<ContextMenuItem
-				onClick={() => onDelete?.(companion.id)}
-				variant="destructive"
-			>
-				<Icons.Delete aria-hidden="true" className="size-3.5" />
-				{t("roster.delete")}
-			</ContextMenuItem>
+			<ContextMenuGroup>
+				<ContextMenuLabel>
+					{companion.title
+						? t("roster.titled", {
+								name: companion.name,
+								title: companion.title,
+							})
+						: companion.name}
+				</ContextMenuLabel>
+				<ContextMenuSeparator />
+				<PinGroup
+					id={companion.id}
+					isPinned={isPinned}
+					onPin={onPin}
+					onUnpin={onUnpin}
+				/>
+				<ContextMenuItem onClick={() => onEdit?.(companion.id)}>
+					<Icons.Settings aria-hidden="true" className="size-3.5" />
+					{t("roster.settings")}
+				</ContextMenuItem>
+				<ContextMenuSeparator />
+				<ContextMenuItem onClick={() => onDuplicate?.(companion.id)}>
+					<Icons.Copy aria-hidden="true" className="size-3.5" />
+					{t("roster.duplicate")}
+				</ContextMenuItem>
+				<SectionBranch
+					id={companion.id}
+					onCreateSectionFor={onCreateSectionFor}
+					onMoveToSection={onMoveToSection}
+					sectionId={companion.sectionId}
+					sections={sections}
+				/>
+				<SpacesBranch
+					botId={companion.id}
+					memberships={memberships}
+					onAddToSpace={onAddToSpace}
+					onRemoveFromSpace={onRemoveFromSpace}
+					openSpaceId={openSpaceId}
+					spaces={spaces}
+				/>
+				<ContextMenuSeparator />
+				<ContextMenuItem
+					onClick={() => onDelete?.(companion.id)}
+					variant="destructive"
+				>
+					<Icons.Delete aria-hidden="true" className="size-3.5" />
+					{t("roster.delete")}
+				</ContextMenuItem>
+			</ContextMenuGroup>
 		</ContextMenuContent>
 	)
 }

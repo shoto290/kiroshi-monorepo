@@ -112,6 +112,7 @@ const PromptMentionMenu = ({
 						<span className="truncate" data-slot="prompt-mention-name">
 							{bot.name}
 						</span>
+						<BotTitleBadge title={bot.title} />
 						{count > 0 ? (
 							<>
 								<span
@@ -127,7 +128,6 @@ const PromptMentionMenu = ({
 							</>
 						) : null}
 					</span>
-					<BotTitleBadge title={bot.title} />
 				</span>
 				{isLead || bot.isOutside ? (
 					<span

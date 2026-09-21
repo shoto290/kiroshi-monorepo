@@ -264,13 +264,7 @@ export const WithTrailingBadgeAndTimestamp = meta.story({
 	args: {
 		media: AVATAR,
 		timestamp: "09:24",
-		trailing: (
-			<BotTitleBadge
-				className="max-w-16"
-				data-slot="roster-row-badge"
-				title="Research"
-			/>
-		),
+		trailing: <BotTitleBadge data-slot="roster-row-badge" title="Research" />,
 	},
 	parameters: {
 		docs: {
@@ -477,13 +471,7 @@ export const AllSlots = meta.story({
 	tags: ["test-only"],
 	args: {
 		media: AVATAR,
-		trailing: (
-			<BotTitleBadge
-				className="max-w-16"
-				data-slot="roster-row-badge"
-				title="Research"
-			/>
-		),
+		trailing: <BotTitleBadge data-slot="roster-row-badge" title="Research" />,
 		timestamp: "09:24",
 		preview: "Pulled the papers for the brief.",
 		badge: "attention",
@@ -592,19 +580,13 @@ export const LongContent = meta.story({
 		timestamp: "Tue",
 		preview:
 			"Pulled every capacity report since January and flagged the three regions that will run out first.",
-		trailing: (
-			<BotTitleBadge
-				className="max-w-16"
-				data-slot="roster-row-badge"
-				title="Ops"
-			/>
-		),
+		trailing: <BotTitleBadge data-slot="roster-row-badge" title="Ops" />,
 	},
 	parameters: {
 		docs: {
 			description: {
 				story:
-					"A name longer than the room left by a title badge and a timestamp. Check the name alone is cut with an ellipsis while the badge and the timestamp stay whole at their own width, and the preview clips to one line. Pick `WithTrailingBadgeAndTimestamp` for the same line when everything fits. The app assembles it at `apps/app/src/App.tsx:935`.",
+					"A name longer than the room left by a title badge and a timestamp. Check the title gives way first down to a stub ending in an ellipsis, the name is then cut with an ellipsis, the timestamp stays whole at its own width, and the preview clips to one line. Pick `WithTrailingBadgeAndTimestamp` for the same line when everything fits. The app assembles it at `apps/app/src/App.tsx:935`.",
 			},
 		},
 	},
@@ -616,10 +598,87 @@ export const LongContent = meta.story({
 		if (!name || !badge || !timestamp) throw new Error("Missing name line slot")
 
 		await expect(name.scrollWidth).toBeGreaterThan(name.clientWidth)
-		await expect(badge.scrollWidth).toBeLessThanOrEqual(badge.clientWidth)
+		await expect(badge.scrollWidth).toBeGreaterThan(badge.clientWidth)
+		await expect(badge).toBeVisible()
 		await expect(timestamp.scrollWidth).toBeLessThanOrEqual(
 			timestamp.clientWidth,
 		)
+	},
+})
+
+const LONG_TITLE = "Research lead"
+
+const NARROW_ROW_WIDTH = 200
+
+const isCut = (element: HTMLElement) =>
+	element.scrollWidth > element.clientWidth
+
+const nameLineOf = (canvasElement: HTMLElement) => {
+	const row = rowIn(canvasElement)
+	const name = slotIn(row, "roster-row-name")
+	const badge = slotIn(row, "roster-row-badge")
+	const timestamp = slotIn(row, "roster-row-timestamp")
+	if (!name || !badge || !timestamp) throw new Error("Missing name line slot")
+	return { name, badge, timestamp, line: name.parentElement as HTMLElement }
+}
+
+export const WithFullTitle = meta.story({
+	args: {
+		media: AVATAR,
+		timestamp: "09:24",
+		trailing: <BotTitleBadge data-slot="roster-row-badge" title={LONG_TITLE} />,
+	},
+	parameters: {
+		docs: {
+			description: {
+				story:
+					"A roster row wide enough for the name and the whole title. Check neither carries an ellipsis: the title has no maximum width, so it is only ever cut for lack of room. Pick `WithTitleCutBeforeName` for the same row once the room runs out.",
+			},
+		},
+	},
+	play: async ({ canvasElement }) => {
+		const { name, badge, timestamp, line } = nameLineOf(canvasElement)
+
+		await expect(name).toHaveTextContent("Atlas")
+		await expect(badge).toHaveTextContent(LONG_TITLE)
+		await expect(isCut(name)).toBe(false)
+		await expect(isCut(badge)).toBe(false)
+		await expect(isCut(timestamp)).toBe(false)
+		await expect(line.getBoundingClientRect().height).toBe(20)
+	},
+})
+
+export const WithTitleCutBeforeName = meta.story({
+	args: {
+		media: AVATAR,
+		timestamp: "09:24",
+		trailing: <BotTitleBadge data-slot="roster-row-badge" title={LONG_TITLE} />,
+	},
+	render: (args) => (
+		<Shell>
+			<SidebarMenuItem style={{ width: NARROW_ROW_WIDTH }}>
+				<SidebarListRow {...args} />
+			</SidebarMenuItem>
+		</Shell>
+	),
+	parameters: {
+		docs: {
+			description: {
+				story:
+					"The same row held at 200px, too narrow for the whole title. Check the title is cut with an ellipsis while the name stays whole and the timestamp keeps its full width on one line. Pick `WithFullTitle` for the row with room to spare, `LongContent` for a name that gives way too.",
+			},
+		},
+	},
+	play: async ({ canvasElement }) => {
+		const { name, badge, timestamp, line } = nameLineOf(canvasElement)
+
+		await expect(name).toHaveTextContent("Atlas")
+		await expect(badge).toHaveTextContent(LONG_TITLE)
+		await expect(isCut(name)).toBe(false)
+		await expect(isCut(badge)).toBe(true)
+		await expect(getComputedStyle(badge).textOverflow).toBe("ellipsis")
+		await expect(isCut(timestamp)).toBe(false)
+		await expect(line.getBoundingClientRect().height).toBe(20)
 	},
 })
 

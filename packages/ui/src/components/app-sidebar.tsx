@@ -556,11 +556,7 @@ const BotRosterRow = ({
 						strips={missionStripsOf(bot.missions)}
 						timestamp={bot.timestamp ?? ""}
 						trailing={
-							<BotTitleBadge
-								className="max-w-16"
-								data-slot="roster-row-badge"
-								title={bot.title}
-							/>
+							<BotTitleBadge data-slot="roster-row-badge" title={bot.title} />
 						}
 					/>
 				</ContextMenuTrigger>

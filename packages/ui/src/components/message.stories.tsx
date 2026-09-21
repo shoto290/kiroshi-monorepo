@@ -215,3 +215,41 @@ export const Authors = meta.story({
 		await expect(deleted).toHaveTextContent("Deleted companion")
 	},
 })
+
+const LONG_TITLE = "Release manager for the whole desktop platform"
+
+export const AuthorWithLongTitle = meta.story({
+	parameters: {
+		docs: {
+			description: {
+				story:
+					"An author whose title runs far past the width the header once allowed it. Check that the whole title is drawn with no ellipsis while the line has room, on one line beside the name. Pick `Authors` for the everyday line.",
+			},
+		},
+	},
+	render: () => (
+		<Transcript>
+			<Message from="assistant">
+				<MessageContent>
+					<MessageAuthor
+						author={{ id: "bot-atlas", name: "Atlas", title: LONG_TITLE }}
+					/>
+					<p className="max-w-md">{SHORT_MESSAGES.assistant}</p>
+				</MessageContent>
+			</Message>
+		</Transcript>
+	),
+	play: async ({ canvasElement }) => {
+		const header = canvasElement.querySelector<HTMLElement>(
+			'[data-slot="message-author"]',
+		)
+		const title = header?.querySelector<HTMLElement>(
+			'[data-slot="bot-title-badge"]',
+		)
+		if (!header || !title) throw new Error("The header drew no title")
+
+		await expect(title).toHaveTextContent(LONG_TITLE)
+		await expect(title.scrollWidth).toBeLessThanOrEqual(title.clientWidth)
+		await expect(header.getBoundingClientRect().height).toBeLessThan(24)
+	},
+})
