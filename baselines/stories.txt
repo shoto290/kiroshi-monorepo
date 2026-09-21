@@ -149,6 +149,11 @@ conversation-message-emptystateshell--with-action
 conversation-message-emptystateshell--without-hint
 conversation-message-mention--companion-menu-off-pill
 conversation-message-mention--companion-menu-on-pill
+conversation-message-mention--companion-select-from-pill
+conversation-message-mention--companion-select-on-pill
+conversation-message-mention--companion-select-on-pill-focused
+conversation-message-mention--companion-select-on-pill-hovered
+conversation-message-mention--companion-select-on-unknown-pill
 conversation-message-mention--counted
 conversation-message-mention--counted-long-name
 conversation-message-mention--counted-to-nine
@@ -221,6 +226,11 @@ conversation-message-turn--cancelled-stoppable
 conversation-message-turn--companion-menu-off-gutter
 conversation-message-turn--companion-menu-on-gutter
 conversation-message-turn--companion-menu-unanswered
+conversation-message-turn--companion-select-from-gutter
+conversation-message-turn--companion-select-on-gutter
+conversation-message-turn--companion-select-on-gutter-focused
+conversation-message-turn--companion-select-on-gutter-hovered
+conversation-message-turn--companion-select-while-stoppable
 conversation-message-turn--complete-not-stoppable
 conversation-message-turn--complete-stoppable
 conversation-message-turn--default

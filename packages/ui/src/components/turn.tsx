@@ -12,10 +12,12 @@ import { useTranslation } from "react-i18next"
 
 import {
 	BotIdentityAvatar,
+	BotSelectButton,
 	BotStopButton,
 	type BotStopProps,
 } from "@workspace/ui/components/bot-identity-avatar"
 import { CompanionMenuHost } from "@workspace/ui/components/companion-menu"
+import { useCompanionSelect } from "@workspace/ui/components/companion-select"
 import { type Icon, Icons } from "@workspace/ui/components/icons"
 import { useMarkId } from "@workspace/ui/components/mark-context"
 import {
@@ -438,6 +440,7 @@ function AssistantTurn(props: AssistantTurnProps) {
 	const shownFooter = footerKey ? t(footerKey) : footer
 	const anchor = useMessageAnchor(messageId)
 	const actions = useTurnActions({ copyText, onReply, onPin, pinned })
+	const onSelectCompanion = useCompanionSelect()
 	const gutterBot = identity ?? (closesRun(run) ? author : undefined)
 	const mark = gutterBot ? (
 		<BotIdentityAvatar
@@ -460,6 +463,18 @@ function AssistantTurn(props: AssistantTurnProps) {
 				{mark}
 			</BotStopButton>
 		) : null
+	const select =
+		onSelectCompanion && gutterBot && !stop ? (
+			<BotSelectButton
+				image={gutterBot.image}
+				name={gutterBot.name}
+				onSelect={() => onSelectCompanion(gutterBot.id)}
+				size={TURN_AVATAR_SIZE}
+			>
+				{mark}
+			</BotSelectButton>
+		) : null
+	const control = stop ?? select
 
 	return (
 		<Message
@@ -484,11 +499,11 @@ function AssistantTurn(props: AssistantTurnProps) {
 				<CompanionMenuHost companionId={gutterBot?.id}>
 					<span
 						data-slot="message-gutter"
-						aria-hidden={stop ? undefined : "true"}
+						aria-hidden={control ? undefined : "true"}
 						className="col-start-1 row-start-2 self-end"
 					>
 						{mark ? (
-							<SharedMark markId={markId}>{stop ?? mark}</SharedMark>
+							<SharedMark markId={markId}>{control ?? mark}</SharedMark>
 						) : null}
 					</span>
 				</CompanionMenuHost>

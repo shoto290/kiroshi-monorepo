@@ -11,6 +11,7 @@ import {
 	CompanionMenuContent,
 	CompanionMenuProvider,
 } from "@workspace/ui/components/companion-menu"
+import { CompanionSelectProvider } from "@workspace/ui/components/companion-select"
 import { Markdown } from "@workspace/ui/components/markdown"
 import { Mention } from "@workspace/ui/components/mention"
 import { RosterProvider } from "@workspace/ui/components/roster"
@@ -439,5 +440,156 @@ export const CompanionMenuOffPill = meta.story({
 
 		await expect(defaulted).toBe(true)
 		await expect(screen.queryByRole("menu")).toBeNull()
+	},
+})
+
+const selectCompanion = fn()
+
+const UNKNOWN_ASKED = "Ask <@bot-ghost> for the changelog before the release."
+
+const SELECT_NOT_YET_RENDERED =
+	"No screen mounts `CompanionSelectProvider` yet: the thread hands it the select in OPE-328, so the story stays out of the sidebar until then."
+
+type SelectableMessageProps = MessageProps & { withMenu?: boolean }
+
+const SelectableMessage = ({ source, withMenu }: SelectableMessageProps) => {
+	const message = (
+		<CompanionSelectProvider onSelect={selectCompanion}>
+			<Message source={source} />
+		</CompanionSelectProvider>
+	)
+
+	return withMenu ? (
+		<CompanionMenuProvider menuFor={companionMenuFor}>
+			{message}
+		</CompanionMenuProvider>
+	) : (
+		message
+	)
+}
+
+const paragraphOf = (pill: HTMLElement) => {
+	const paragraph = pill.closest("p")
+	if (!paragraph) throw new Error("The chip sits in no paragraph")
+	return paragraph
+}
+
+export const CompanionSelectOnPill = meta.story({
+	tags: ["test-only"],
+	parameters: {
+		docs: {
+			description: {
+				story: `A mention at rest under a mounted select. Check that the chip is a button named after the companion, that it stays inline in its sentence at the text colour and font of the words around it, and that its background is the tint it wears with no select. ${SELECT_NOT_YET_RENDERED}`,
+			},
+		},
+	},
+	render: () => <SelectableMessage source={ASKED} />,
+	play: async ({ canvas, canvasElement }) => {
+		const pill = pillIn(canvasElement)
+		const paragraph = paragraphOf(pill)
+
+		await expect(pill.tagName).toBe("BUTTON")
+		await expect(canvas.getByRole("button", { name: WORDY.name })).toBe(pill)
+		await expect(getComputedStyle(pill).display).toBe("inline-flex")
+		await expect(getComputedStyle(pill).color).toBe(
+			getComputedStyle(paragraph).color,
+		)
+		await expect(getComputedStyle(pill).fontFamily).toBe(
+			getComputedStyle(paragraph).fontFamily,
+		)
+		await expect(pill).toHaveClass("bg-current/10")
+		await expect(getComputedStyle(pill).boxShadow).toBe("none")
+	},
+})
+
+export const CompanionSelectOnPillHovered = meta.story({
+	tags: ["test-only"],
+	parameters: {
+		pseudo: { hover: true },
+		docs: {
+			description: {
+				story: `The same mention with the pointer resting on it, drawn by the pseudo-state addon. Check by eye that the chip's own tint deepens, with no second surface colour behind it. ${SELECT_NOT_YET_RENDERED}`,
+			},
+		},
+	},
+	render: () => <SelectableMessage source={ASKED} />,
+	play: async ({ canvasElement }) => {
+		const pill = pillIn(canvasElement)
+
+		await expect(pill).toHaveClass("hover:bg-current/20")
+		await expect(pill).toHaveClass("motion-reduce:transition-none")
+	},
+})
+
+export const CompanionSelectOnPillFocused = meta.story({
+	tags: ["test-only"],
+	parameters: {
+		docs: {
+			description: {
+				story: `The mention reached by the keyboard. Check that Tab lands on the chip and that it wears the focus ring the other controls of the repo wear. ${SELECT_NOT_YET_RENDERED}`,
+			},
+		},
+	},
+	render: () => <SelectableMessage source={ASKED} />,
+	play: async ({ canvasElement, userEvent }) => {
+		const pill = pillIn(canvasElement)
+
+		await userEvent.tab()
+
+		await expect(pill).toHaveFocus()
+		await expect(getComputedStyle(pill).boxShadow).not.toBe("none")
+	},
+})
+
+export const CompanionSelectOnUnknownPill = meta.story({
+	tags: ["test-only"],
+	parameters: {
+		docs: {
+			description: {
+				story: `A mention the conversation cannot resolve, under a mounted select. Check that the chip is the dimmed span it is with no select, with nothing for Tab to reach. ${SELECT_NOT_YET_RENDERED}`,
+			},
+		},
+	},
+	render: () => <SelectableMessage source={UNKNOWN_ASKED} />,
+	play: async ({ canvas, canvasElement, userEvent }) => {
+		const pill = pillIn(canvasElement)
+
+		await expect(pill.tagName).toBe("SPAN")
+		await expect(pill).toHaveAttribute("data-unknown", "true")
+		await expect(canvas.queryByRole("button")).toBeNull()
+
+		await userEvent.tab()
+		await expect(pill).not.toHaveFocus()
+	},
+})
+
+export const CompanionSelectFromPill = meta.story({
+	tags: ["test-only"],
+	parameters: {
+		docs: {
+			description: {
+				story: `A mention under both a select and a companion menu. Check that a click, Enter and Space each report the companion id once, and that a right-click still opens the companion menu without reporting a select. ${SELECT_NOT_YET_RENDERED}`,
+			},
+		},
+	},
+	render: () => <SelectableMessage source={ASKED} withMenu />,
+	play: async ({ canvasElement, userEvent }) => {
+		selectCompanion.mockClear()
+		const pill = pillIn(canvasElement)
+
+		await userEvent.click(pill)
+		await expect(selectCompanion).toHaveBeenCalledTimes(1)
+		await expect(selectCompanion).toHaveBeenLastCalledWith(WORDY.id)
+
+		pill.focus()
+		await userEvent.keyboard("{Enter}")
+		await expect(selectCompanion).toHaveBeenCalledTimes(2)
+		await userEvent.keyboard(" ")
+		await expect(selectCompanion).toHaveBeenCalledTimes(3)
+		await expect(selectCompanion).toHaveBeenLastCalledWith(WORDY.id)
+
+		rightClickOn(pill)
+		await shown(await screen.findByRole("menu", { name: COMPANION_MENU_LABEL }))
+		await expect(selectCompanion).toHaveBeenCalledTimes(3)
 	},
 })
