@@ -15,6 +15,7 @@ import {
 	CompanionMenuContent,
 	CompanionMenuProvider,
 } from "@workspace/ui/components/companion-menu"
+import { CompanionSelectProvider } from "@workspace/ui/components/companion-select"
 import { MarkProvider } from "@workspace/ui/components/mark-context"
 import { Markdown } from "@workspace/ui/components/markdown"
 import type { MessageAuthor } from "@workspace/ui/components/message"
@@ -1666,5 +1667,166 @@ export const CompanionMenuUnanswered = meta.story({
 
 		await expect(defaulted).toBe(true)
 		await expect(screen.queryByRole("menu")).toBeNull()
+	},
+})
+
+const selectCompanion = fn()
+
+const PICTURED_BOT: RosterBot = { ...BOT, image: UPLOADED_AVATAR_IMAGE }
+
+const SELECT_NOT_YET_RENDERED =
+	"No screen mounts `CompanionSelectProvider` yet: the thread hands it the select in OPE-328, so the story stays out of the sidebar until then."
+
+const SelectableGutters = () => (
+	<CompanionSelectProvider onSelect={selectCompanion}>
+		<div className="flex flex-col gap-6">
+			<GutterTurn identity={BOT} />
+			<GutterTurn identity={PICTURED_BOT} />
+		</div>
+	</CompanionSelectProvider>
+)
+
+const gutterSelects = (canvas: ReturnType<typeof within>) =>
+	canvas.getAllByRole("button", { name: BOT.name })
+
+export const CompanionSelectOnGutter = meta.story({
+	tags: ["test-only"],
+	parameters: {
+		docs: {
+			description: {
+				story: `The gutter avatar at rest under a mounted select, once as a blot and once carrying a picture. Check that each avatar is a button named after the companion, that the gutter is no longer hidden from assistive technology, that it keeps its column and row, and that the button takes the circle of a blot and the picture radius of an avatar carrying an image. ${SELECT_NOT_YET_RENDERED}`,
+			},
+		},
+	},
+	render: () => <SelectableGutters />,
+	play: async ({ canvas, canvasElement }) => {
+		const [blot, pictured] = gutterSelects(canvas)
+		const [gutter] = slotsIn(canvasElement, "message-gutter")
+
+		if (!blot || !pictured || !gutter)
+			throw new globalThis.Error("Two gutters expected")
+
+		await expect(gutter).not.toHaveAttribute("aria-hidden")
+		await expect(gutterPlacement(gutter)).toEqual(HOSTLESS_GUTTER_PLACEMENT)
+		await expect(getComputedStyle(blot).borderRadius).not.toBe(
+			getComputedStyle(pictured).borderRadius,
+		)
+		await expect(getComputedStyle(blot).boxShadow).toBe("none")
+	},
+})
+
+export const CompanionSelectOnGutterHovered = meta.story({
+	tags: ["test-only"],
+	globals: { theme_layout: "side-by-side" },
+	parameters: {
+		pseudo: { hover: true },
+		docs: {
+			description: {
+				story: `The two gutter avatars with the pointer resting on them, in both themes at once, drawn by the pseudo-state addon. Check by eye that a solid ring in the muted foreground stands off each avatar by a gap of the page background, following the circle of the blot and the rounded square of the picture, so it reads over any picture in either theme. The stop veils the face because pressing it ends work; the select only opens the companion, so it marks the target and leaves the face in view. ${SELECT_NOT_YET_RENDERED}`,
+			},
+		},
+	},
+	render: () => <SelectableGutters />,
+	play: async ({ canvas }) => {
+		const buttons = gutterSelects(canvas)
+
+		await expect(buttons).toHaveLength(4)
+		for (const button of buttons) {
+			await expect(button).toHaveClass(
+				"hover:ring-muted-foreground",
+				"hover:ring-offset-background",
+				"motion-reduce:transition-none",
+			)
+		}
+	},
+})
+
+export const CompanionSelectOnGutterFocused = meta.story({
+	tags: ["test-only"],
+	parameters: {
+		docs: {
+			description: {
+				story: `The gutter avatar reached by the keyboard. Check that Tab lands on it and that it wears the focus ring the stop button already wears. ${SELECT_NOT_YET_RENDERED}`,
+			},
+		},
+	},
+	render: () => <SelectableGutters />,
+	play: async ({ canvas, userEvent }) => {
+		const [blot] = gutterSelects(canvas)
+
+		if (!blot) throw new globalThis.Error("The gutter drew no button")
+
+		await userEvent.tab()
+
+		await expect(blot).toHaveFocus()
+		await expect(getComputedStyle(blot).boxShadow).not.toBe("none")
+	},
+})
+
+export const CompanionSelectFromGutter = meta.story({
+	tags: ["test-only"],
+	parameters: {
+		docs: {
+			description: {
+				story: `The gutter avatar under both a select and a companion menu. Check that a click, Enter and Space each report the companion id once, and that a right-click still opens the companion menu without reporting a select. ${SELECT_NOT_YET_RENDERED}`,
+			},
+		},
+	},
+	render: () => (
+		<CompanionSelectProvider onSelect={selectCompanion}>
+			<CompanionMenuProvider menuFor={companionMenuFor}>
+				<GutterTurn identity={BOT} />
+			</CompanionMenuProvider>
+		</CompanionSelectProvider>
+	),
+	play: async ({ canvas, userEvent }) => {
+		selectCompanion.mockClear()
+		const button = canvas.getByRole("button", { name: BOT.name })
+
+		await userEvent.click(button)
+		await expect(selectCompanion).toHaveBeenCalledTimes(1)
+		await expect(selectCompanion).toHaveBeenLastCalledWith(BOT.id)
+
+		button.focus()
+		await userEvent.keyboard("{Enter}")
+		await expect(selectCompanion).toHaveBeenCalledTimes(2)
+		await userEvent.keyboard(" ")
+		await expect(selectCompanion).toHaveBeenCalledTimes(3)
+		await expect(selectCompanion).toHaveBeenLastCalledWith(BOT.id)
+
+		await rightClickOn(button)
+		await shown(await screen.findByRole("menu", { name: COMPANION_MENU_LABEL }))
+		await expect(selectCompanion).toHaveBeenCalledTimes(3)
+	},
+})
+
+export const CompanionSelectWhileStoppable = meta.story({
+	tags: ["test-only"],
+	parameters: {
+		docs: {
+			description: {
+				story: `A stoppable turn under a mounted select. Check that the stop stays the only control of the gutter and that pressing it stops the companion without reporting a select. ${SELECT_NOT_YET_RENDERED}`,
+			},
+		},
+	},
+	render: () => (
+		<CompanionSelectProvider onSelect={selectCompanion}>
+			<StoppableTurn state="complete" stoppable />
+		</CompanionSelectProvider>
+	),
+	play: async ({ canvasElement, userEvent }) => {
+		selectCompanion.mockClear()
+		stopTurn.mockClear()
+		const gutter = slotIn(canvasElement, "message-gutter")
+		const [stop, ...others] = within(gutter).getAllByRole("button")
+
+		if (!stop) throw new globalThis.Error("The gutter drew no stop")
+
+		await expect(others).toHaveLength(0)
+		await expect(stop).toHaveAccessibleName(`Stop ${LEAD.name}`)
+
+		await userEvent.click(stop)
+		await expect(stopTurn).toHaveBeenCalledTimes(1)
+		await expect(selectCompanion).not.toHaveBeenCalled()
 	},
 })
