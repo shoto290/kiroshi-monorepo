@@ -46,7 +46,7 @@ const shapeKey = (shape: BotAvatarShape) =>
 		: `${shape.kind}-${shape.role}-${shape.cx}-${shape.cy}`
 
 const isOccluded = (shape: BotAvatarShape) =>
-	"isOccluded" in shape && shape.isOccluded === true
+	"isOccluded" in shape && shape.isOccluded
 
 const eyeFill = (definition: BotAvatarAnimalDefinition) =>
 	definition.hasInkEyes ? INK : "currentColor"
