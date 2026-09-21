@@ -51,6 +51,7 @@ const calls: [string, Record<string, unknown>, string][] = [
 		"open",
 	],
 	["mission_note", { id: "m1", line: "The host answers" }, "note"],
+	["mission_status", { id: "m1", text: "Paused on the copy" }, "status"],
 	[
 		"mission_escalate",
 		{ id: "m1", question: "Which platform?", reason: "The person decides" },
@@ -82,6 +83,10 @@ const answers: Record<string, unknown> = {
 		acknowledge: "end the turn you are answering in with a single line",
 	},
 	note: A_MISSION,
+	status: {
+		...A_MISSION,
+		status: { text: "Paused on the copy", writtenAt: 2 },
+	},
 	escalate: { ...A_MISSION, state: "waiting_human" },
 	close: { ...A_MISSION, state: "done" },
 	watch: {
@@ -140,10 +145,11 @@ afterEach(() => {
 })
 
 describe("missionTools", () => {
-	it("serves the six mission tools under their own names", () => {
+	it("serves the seven mission tools under their own names", () => {
 		expect(missionTools(SESSION).map((held) => held.name)).toEqual([
 			"mission_open",
 			"mission_note",
+			"mission_status",
 			"mission_escalate",
 			"mission_close",
 			"mission_watch",
@@ -195,6 +201,7 @@ describe("missionTools", () => {
 		for (const name of [
 			"mission_open",
 			"mission_note",
+			"mission_status",
 			"mission_escalate",
 			"mission_close",
 			"mission_list",
@@ -206,6 +213,18 @@ describe("missionTools", () => {
 
 			expect(said).not.toMatch(NAMED_TOOLS)
 		}
+	})
+
+	it("tells the agent the status is written when it stops working, for a reader who saw none of the work", () => {
+		const held = toolNamed(SESSION, "mission_status")
+		const said = `${held.description} ${JSON.stringify(
+			z.toJSONSchema(z.object(held.inputSchema)),
+		)}`
+
+		expect(held.description).toContain("every time you stop working on it")
+		expect(held.description).toContain("the conversation the mission came from")
+		expect(held.description).toContain("saw none of the work")
+		expect(said).not.toMatch(/ticket|pull request|merge/i)
 	})
 
 	it("keeps mission_watch naming the branch and the repository it watches", () => {

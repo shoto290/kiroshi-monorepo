@@ -698,6 +698,7 @@ export type Mission = {
 	closedAt: number | null,
 	reportedAt: number | null,
 	reportedTurnId: string | null,
+	status: MissionStatus | null,
 };
 
 export type MissionClosing = {
@@ -738,7 +739,7 @@ export type MissionEvent = {
 	createdAt: number,
 };
 
-export type MissionEventKind = "opened" | "note" | "agent_asked" | "agent_started" | "agent_stopped" | "answered" | "escalated" | "ready" | "checks_failed" | "failed" | "closed";
+export type MissionEventKind = "opened" | "note" | "agent_asked" | "agent_started" | "agent_stopped" | "answered" | "escalated" | "ready" | "checks_failed" | "failed" | "closed" | "status";
 
 export type MissionNote = {
 	source: string,
@@ -753,6 +754,11 @@ export type MissionOnBoard = {
 export type MissionOutcome = "done" | "failed";
 
 export type MissionState = "working" | "waiting_bot" | "waiting_human" | "ready_to_merge" | "failed" | "done";
+
+export type MissionStatus = {
+	text: string,
+	writtenAt: number,
+};
 
 export type NewAssistantMessage = {
 	id: string,

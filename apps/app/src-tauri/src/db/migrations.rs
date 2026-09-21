@@ -44,6 +44,7 @@ const MIGRATIONS: &[Migration] = &[
 	Migration { version: 35, statements: APPLICATION_INSTALL_PRESENTATION },
 	Migration { version: 36, statements: BOTS_WITHOUT_UNREAD_COLUMNS },
 	Migration { version: 37, statements: MISSION_AGENT_LIVENESS },
+	Migration { version: 38, statements: MISSION_STATUS },
 ];
 
 const CONVERSATIONS_SCHEMA: &str = "
@@ -791,6 +792,52 @@ BEGIN
 END;
 ";
 
+const MISSION_STATUS: &str = "
+DROP TRIGGER mission_events_are_written_once;
+DROP TRIGGER mission_events_outlive_their_mission;
+
+PRAGMA legacy_alter_table = ON;
+ALTER TABLE mission_events RENAME TO mission_events_without_status;
+PRAGMA legacy_alter_table = OFF;
+
+CREATE TABLE mission_events (
+	id TEXT PRIMARY KEY,
+	mission_id TEXT NOT NULL REFERENCES missions (id) ON DELETE CASCADE,
+	seq INTEGER NOT NULL,
+	kind TEXT NOT NULL CHECK (kind IN
+		('opened', 'note', 'agent_asked', 'agent_started', 'agent_stopped', 'answered',
+			'escalated', 'ready', 'checks_failed', 'failed', 'closed', 'status')),
+	source TEXT NOT NULL,
+	payload TEXT NOT NULL,
+	created_at INTEGER NOT NULL,
+	delivery_id TEXT NOT NULL DEFAULT '',
+	UNIQUE (mission_id, seq)
+);
+
+INSERT INTO mission_events
+		(id, mission_id, seq, kind, source, payload, created_at, delivery_id)
+	SELECT id, mission_id, seq, kind, source, payload, created_at, delivery_id
+	FROM mission_events_without_status;
+
+DROP TABLE mission_events_without_status;
+
+CREATE UNIQUE INDEX mission_events_one_event_per_delivery
+	ON mission_events (mission_id, delivery_id) WHERE delivery_id <> '';
+
+CREATE TRIGGER mission_events_are_written_once
+BEFORE UPDATE ON mission_events
+BEGIN
+	SELECT RAISE(ABORT, 'a mission event records one moment: append a new one, never edit it');
+END;
+
+CREATE TRIGGER mission_events_outlive_their_mission
+BEFORE DELETE ON mission_events
+WHEN EXISTS (SELECT 1 FROM missions WHERE id = OLD.mission_id)
+BEGIN
+	SELECT RAISE(ABORT, 'a mission event is never erased while its mission stands');
+END;
+";
+
 const CONVERSATION_ARRIVALS: &str = "
 CREATE TABLE conversation_arrivals (
 	id TEXT PRIMARY KEY,
@@ -961,6 +1008,7 @@ mod tests {
 	const APPLICATION_INSTALLS_STEP: u32 = 34;
 	const APPLICATION_INSTALL_PRESENTATION_STEP: u32 = 35;
 	const BOTS_WITHOUT_UNREAD_COLUMNS_STEP: u32 = 36;
+	const MISSION_STATUS_STEP: u32 = 38;
 
 	const A_LIVE_SESSION: &str = "INSERT INTO runtime_sessions
 		(id, conversation_id, bot_id, provider_session_id, seq, status, started_at)
@@ -1164,6 +1212,80 @@ mod tests {
 		let erase = write(&connection, "DELETE FROM mission_events WHERE id = 'e1'");
 
 		assert!(red.is_ok(), "a red check had no word in the schema: {red:?}");
+		assert!(edit.is_err(), "a mission event was edited after the rebuild");
+		assert!(erase.is_err(), "a mission event was erased after the rebuild");
+		assert!(
+			has_index(&connection, "mission_events_one_event_per_delivery"),
+			"the rebuild dropped the index holding one event per delivery"
+		);
+
+		drop(connection);
+		fs::remove_dir_all(&dir).expect("cleanup");
+	}
+
+	#[test]
+	fn mission_events_stored_before_the_status_step_keep_their_rows_and_their_triggers() {
+		let dir = temp_dir();
+		let mut connection = open(&dir.join(FILE_NAME)).expect("open");
+		apply_each(&mut connection, shipped_before(MISSION_STATUS_STEP))
+			.expect("the shipped schema");
+		connection
+			.execute_batch(
+				"INSERT INTO bots (id, name, model, created_at)
+					VALUES ('b1', 'First', 'sonnet', 1);
+				INSERT INTO conversations (id, kind, title, created_at, updated_at)
+					VALUES ('c1', 'main', 'Chat', 1, 1), ('c2', 'mission', 'Fix it', 1, 1);
+				INSERT INTO conversation_participants
+					(conversation_id, bot_id, role, joined_at, join_seq)
+					VALUES ('c1', 'b1', 'assistant', 1, 0);
+				INSERT INTO missions (id, origin_conversation_id, bot_id, thread_conversation_id,
+					objective, ticket_platform, ticket_external_id, ticket_url, ticket_title,
+					tools, opened_at)
+					VALUES ('m1', 'c1', 'b1', 'c2', 'Fix it', 'github', '42',
+						'https://kiroshi.test/tickets/42', 'Crash', '[]', 1);
+				INSERT INTO mission_events
+					(id, mission_id, seq, kind, source, payload, created_at, delivery_id)
+					VALUES ('e1', 'm1', 1, 'opened', 'bot', '{\"pullRequest\":7}', 1, 'd1'),
+						('e2', 'm1', 2, 'agent_started', 'agent', '{}', 2, '');",
+			)
+			.expect("the mission events this build upgrades from");
+
+		apply(&mut connection).expect("the file comes up to this build");
+
+		assert_eq!(version(&connection).expect("version"), latest_version());
+		assert_eq!(
+			events_of(&connection, "m1"),
+			vec![
+				(
+					"e1".to_owned(),
+					1,
+					"opened".to_owned(),
+					"bot".to_owned(),
+					"{\"pullRequest\":7}".to_owned(),
+					1,
+					"d1".to_owned(),
+				),
+				(
+					"e2".to_owned(),
+					2,
+					"agent_started".to_owned(),
+					"agent".to_owned(),
+					"{}".to_owned(),
+					2,
+					String::new(),
+				),
+			],
+			"the step rewrote the events it was only meant to carry over"
+		);
+		let status = write(
+			&connection,
+			"INSERT INTO mission_events (id, mission_id, seq, kind, source, payload, created_at)
+				VALUES ('e3', 'm1', 3, 'status', 'bot', '{\"text\":\"Paused\"}', 3)",
+		);
+		let edit = write(&connection, "UPDATE mission_events SET source = 'human' WHERE id = 'e1'");
+		let erase = write(&connection, "DELETE FROM mission_events WHERE id = 'e1'");
+
+		assert!(status.is_ok(), "a status had no word in the schema: {status:?}");
 		assert!(edit.is_err(), "a mission event was edited after the rebuild");
 		assert!(erase.is_err(), "a mission event was erased after the rebuild");
 		assert!(

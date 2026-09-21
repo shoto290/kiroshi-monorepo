@@ -11,7 +11,7 @@ use crate::db::{Access, DatabaseError};
 use crate::missions::contract::{
 	ConversationMissions, HookedMission, Mission, MissionAnswer, MissionClosing, MissionDetail,
 	MissionDraft, MissionEntry, MissionError, MissionEvent, MissionEventKind, MissionInThread,
-	MissionState, MissionWatch, Ticket, WatchedMission,
+	MissionState, MissionStatus, MissionWatch, Ticket, WatchedMission,
 };
 
 const MAX_MISSIONS_PER_READ: u32 = 200;
@@ -45,16 +45,22 @@ pub(in crate::db) const MISSION_COLUMNS: &str =
 	opened_at, closed_at, reported_at, reported_turn_id,
 	COALESCE((SELECT kind FROM mission_events
 		WHERE mission_events.mission_id = missions.id
-			AND mission_events.kind NOT IN ('note', 'agent_started', 'agent_stopped')
+			AND mission_events.kind NOT IN ('note', 'agent_started', 'agent_stopped', 'status')
 		ORDER BY mission_events.seq DESC LIMIT 1), 'opened') AS state_kind,
 	COALESCE((SELECT seq FROM mission_events
 		WHERE mission_events.mission_id = missions.id
-			AND mission_events.kind NOT IN ('note', 'agent_started', 'agent_stopped')
+			AND mission_events.kind NOT IN ('note', 'agent_started', 'agent_stopped', 'status')
 		ORDER BY mission_events.seq DESC LIMIT 1), 0) AS state_seq,
 	COALESCE((SELECT mission_events.kind = 'agent_started' FROM mission_events
 		WHERE mission_events.mission_id = missions.id
 			AND mission_events.kind IN ('agent_started', 'agent_stopped')
-		ORDER BY mission_events.seq DESC LIMIT 1), 0) AS is_agent_running
+		ORDER BY mission_events.seq DESC LIMIT 1), 0) AS is_agent_running,
+	(SELECT payload FROM mission_events
+		WHERE mission_events.mission_id = missions.id AND mission_events.kind = 'status'
+		ORDER BY mission_events.seq DESC LIMIT 1) AS status_payload,
+	(SELECT created_at FROM mission_events
+		WHERE mission_events.mission_id = missions.id AND mission_events.kind = 'status'
+		ORDER BY mission_events.seq DESC LIMIT 1) AS status_at
 	FROM missions";
 
 const INSERT_MISSION: &str = "INSERT INTO missions
@@ -665,7 +671,21 @@ pub(in crate::db) fn mission(row: &Row<'_>) -> rusqlite::Result<Mission> {
 		state: derived(row.get(14)?)?,
 		state_seq: row.get(15)?,
 		is_agent_running: row.get(16)?,
+		status: last_status(row)?,
 	})
+}
+
+#[derive(serde::Deserialize)]
+struct StatusPayload {
+	text: String,
+}
+
+fn last_status(row: &Row<'_>) -> rusqlite::Result<Option<MissionStatus>> {
+	let Some(written_at) = row.get::<_, Option<i64>>(18)? else {
+		return Ok(None);
+	};
+	let payload: StatusPayload = from_text(row, 17)?;
+	Ok(Some(MissionStatus { text: payload.text, written_at }))
 }
 
 fn watched(row: &Row<'_>) -> rusqlite::Result<WatchedMission> {
@@ -785,6 +805,13 @@ mod tests {
 		MissionEntry::of(kind, MissionNote { source: "bot".to_owned(), payload: json!({}) })
 	}
 
+	fn a_status(text: &str) -> MissionEntry {
+		MissionEntry::of(
+			MissionEventKind::Status,
+			MissionNote { source: "bot".to_owned(), payload: json!({ "text": text }) },
+		)
+	}
+
 	async fn thread_of(database: &Database, id: String) -> (String, Option<String>, String, i64) {
 		database
 			.call(move |connection| {
@@ -840,10 +867,18 @@ mod tests {
 			.expect("the mission opens");
 
 		let mut walked = Vec::new();
-		for kind in MissionEventKind::ALL {
+		let shut_last = MissionEventKind::ALL
+			.into_iter()
+			.filter(|kind| !kind.closes())
+			.chain([MissionEventKind::Closed]);
+		for kind in shut_last {
+			let entry = match kind {
+				MissionEventKind::Status => a_status("Paused on the review"),
+				_ => an_entry(kind),
+			};
 			let written = database
 				.missions()
-				.append(opened.id.clone(), an_entry(kind))
+				.append(opened.id.clone(), entry)
 				.await
 				.expect("the event is appended");
 			walked.push((kind, written.state));
@@ -862,9 +897,64 @@ mod tests {
 				(MissionEventKind::Ready, MissionState::ReadyToMerge),
 				(MissionEventKind::ChecksFailed, MissionState::WaitingBot),
 				(MissionEventKind::Failed, MissionState::Failed),
+				(MissionEventKind::Status, MissionState::Failed),
 				(MissionEventKind::Closed, MissionState::Done),
 			],
 			"a kind moved the mission somewhere the contract does not name"
+		);
+
+		drop(database);
+		std::fs::remove_dir_all(&dir).expect("cleanup");
+	}
+
+	#[tokio::test]
+	async fn a_status_is_read_back_as_the_last_one_written_and_moves_nothing_else() {
+		let (database, dir) = planted().await;
+		let escalated = database
+			.missions()
+			.open(a_draft("c1", "b1", "Fix the crash"), a_key())
+			.await
+			.expect("the mission opens");
+		let escalated = database
+			.missions()
+			.append(escalated.id, an_entry(MissionEventKind::Escalated))
+			.await
+			.expect("the mission is escalated");
+
+		let mut written = Vec::new();
+		for text in ["Waiting on the person", "Still waiting on the person"] {
+			written.push(
+				database
+					.missions()
+					.append(escalated.id.clone(), a_status(text))
+					.await
+					.expect("the status is appended"),
+			);
+		}
+		let reread = database
+			.missions()
+			.held(escalated.id.clone())
+			.await
+			.expect("the mission reads")
+			.expect("the mission is there");
+
+		assert_eq!(escalated.status, None);
+		assert_eq!(
+			written
+				.iter()
+				.map(|held| held.status.as_ref().map(|status| status.text.as_str()))
+				.collect::<Vec<_>>(),
+			vec![Some("Waiting on the person"), Some("Still waiting on the person")]
+		);
+		assert_eq!(reread.status, written[1].status);
+		assert!(
+			reread.status.as_ref().is_some_and(|status| status.written_at > 0),
+			"got {reread:?}"
+		);
+		assert_eq!(
+			(reread.state, reread.state_seq, reread.closed_at),
+			(escalated.state, escalated.state_seq, escalated.closed_at),
+			"a status moved the mission"
 		);
 
 		drop(database);
@@ -1237,7 +1327,10 @@ mod tests {
 	}
 
 	fn a_watch(branch: &str) -> MissionWatch {
-		MissionWatch { branch: branch.to_owned(), repository: "shoto290/kiroshi-monorepo".to_owned() }
+		MissionWatch {
+			branch: branch.to_owned(),
+			repository: "shoto290/kiroshi-monorepo".to_owned(),
+		}
 	}
 
 	#[tokio::test]

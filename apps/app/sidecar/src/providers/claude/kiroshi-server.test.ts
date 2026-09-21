@@ -48,6 +48,7 @@ describe("kiroshiServer", () => {
 			"routine_delete",
 			"mission_open",
 			"mission_note",
+			"mission_status",
 			"mission_escalate",
 			"mission_close",
 			"mission_watch",

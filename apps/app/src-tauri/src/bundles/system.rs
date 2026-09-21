@@ -189,8 +189,12 @@ mod tests {
 			"`mission_escalate`",
 			"`mission_close`",
 			"`mission_list`",
+			"`mission_status`",
+			"You hold seven tools for them, on the `kiroshi` server.",
 			"## What the conversation it came from hears",
-			"Every time you stop working on a mission, a status of it lands in the conversation that mission came from.",
+			"`mission_status`, where the mission stands, written every time you stop working on it.",
+			"Every time you stop working on a mission, you write its status yourself with `mission_status`, whether the work is over or only paused.",
+			"Nothing writes it in your place: the conversation that mission came from hears only the status you write.",
 			"It names, by name, whoever picks the work up next",
 			"A status says where the mission stands, what moved since the last one, what is waiting, and on whom.",
 			"Whoever reads that conversation followed nothing of the mission thread.",
@@ -200,7 +204,7 @@ mod tests {
 	}
 
 	#[test]
-	fn the_status_section_of_the_missions_skill_names_no_tool_and_orders_no_step() {
+	fn the_status_section_of_the_missions_skill_says_nothing_of_the_work_and_orders_no_step() {
 		let text = String::from_utf8_lossy(embedded(MISSIONS));
 		let section = text
 			.split("## What the conversation it came from hears")
@@ -210,7 +214,7 @@ mod tests {
 			.next()
 			.expect("the section ends");
 
-		for unsaid in ["mission_", "merge", "ticket", "pull request", "1."] {
+		for unsaid in ["merge", "ticket", "pull request", "1."] {
 			assert!(!section.contains(unsaid), "{unsaid} is said in {section}");
 		}
 	}
