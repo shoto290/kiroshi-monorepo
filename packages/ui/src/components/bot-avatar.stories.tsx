@@ -394,10 +394,12 @@ export const InkDark = meta.story({
 		</div>
 	),
 	play: async ({ canvasElement }) => {
-		const avatars = Array.from(canvasElement.querySelectorAll("svg[role=img]"))
+		const avatars = Array.from(
+			canvasElement.querySelectorAll<SVGSVGElement>("svg[role=img]"),
+		)
 
 		await expect(avatars).toHaveLength(2)
-		for (const avatar of avatars as SVGSVGElement[]) {
+		for (const avatar of avatars) {
 			const ink = inkOf(avatar)
 			await expect(ink.eye).toBe(ink.outline)
 			await expect(ink.eye).not.toBe(surfaceBehind(avatar))
