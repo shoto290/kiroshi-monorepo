@@ -65,6 +65,8 @@ pub struct OpenRequest {
 	pub connection: Values,
 	#[serde(skip_serializing_if = "Option::is_none")]
 	pub output_schema: Option<Value>,
+	#[serde(skip_serializing_if = "std::ops::Not::not")]
+	pub mission_thread: bool,
 }
 
 #[derive(Debug, Clone, Deserialize)]

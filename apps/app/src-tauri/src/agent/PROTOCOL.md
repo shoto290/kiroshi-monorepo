@@ -212,7 +212,7 @@ Every other command names its session.
 
 | `type` | Carries | Becomes |
 | --- | --- | --- |
-| `open` | `cwd`, `resume?`, `pluginPath?`, `systemPluginPath?`, `userPluginPath?`, `agent?`, `identity?`, `outputStyle?`, `settingsPath?`, `partialMessages`, `env?`, `outputSchema?` | `query()` options |
+| `open` | `cwd`, `resume?`, `pluginPath?`, `systemPluginPath?`, `userPluginPath?`, `agent?`, `identity?`, `outputStyle?`, `settingsPath?`, `partialMessages`, `env?`, `outputSchema?`, `missionThread?` | `query()` options |
 | `prompt` | `text` | one `SDKUserMessage` on the session's prompt stream |
 | `interrupt` | — | `Query.interrupt()` |
 | `permission` | `requestId`, `decision` | the `canUseTool` promise's answer |
@@ -224,6 +224,13 @@ Every other command names its session.
 - `outputSchema` is the JSON schema a caller wants the turn's answer shaped by. It
   reaches the SDK as `outputFormat: { type: "json_schema", schema }` and is read by
   nothing on the way: a session opened without one asks for no `outputFormat` at all.
+- `missionThread` is carried, as `true`, only when the conversation the session opens
+  on has kind `mission`, and is omitted when that kind is any other or cannot be read.
+  It gives `query()` one `Stop` hook and no other: a turn that ends without an
+  `mcp__kiroshi__mission_status` tool use in the message stream is blocked once, told
+  to write the status of this mission, and let go when `stop_hook_active` is true.
+  The mark is dropped at every answer, so each turn is judged on its own calls, and the
+  transcript file is never read. A session without it passes no hooks at all.
 - `resume` is the SDK's `resume`. The stored id is tried first; a refusal falls
   back to a fresh session and the id is given up on only when the refusal was a
   crash — see `commands.rs::start_with_fallback`.

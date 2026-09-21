@@ -155,6 +155,13 @@ describe("serve", () => {
 		PROVIDER_TIMEOUT,
 	)
 
+	it("carries the mission thread flag the open command holds", () => {
+		expect(
+			sessionRequest(openCommand({ missionThread: true })).missionThread,
+		).toBe(true)
+		expect(sessionRequest(openCommand()).missionThread).toBeUndefined()
+	})
+
 	it("carries the environment the open command holds to the provider", () => {
 		const request = sessionRequest(openCommand())
 

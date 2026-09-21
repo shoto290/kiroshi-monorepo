@@ -30,6 +30,7 @@ export type SessionRequest = {
 	serverEnv?: ServerEnv
 	connection?: Record<string, string>
 	outputSchema?: Record<string, unknown>
+	missionThread?: boolean
 }
 
 export type PermissionDecision =

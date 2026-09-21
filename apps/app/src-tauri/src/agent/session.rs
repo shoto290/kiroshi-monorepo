@@ -104,6 +104,7 @@ pub struct SessionOptions {
 	pub server_env: ResolvedEnv,
 	pub connection: Values,
 	pub output_schema: Option<serde_json::Value>,
+	pub mission_thread: bool,
 	pub hosts: Vec<Arc<dyn HostRequests>>,
 }
 
@@ -120,6 +121,7 @@ impl SessionOptions {
 			server_env: ResolvedEnv::default(),
 			connection: Values::new(),
 			output_schema: None,
+			mission_thread: false,
 			hosts: Vec::new(),
 		}
 	}
@@ -169,6 +171,11 @@ impl SessionOptions {
 		self
 	}
 
+	pub fn on_mission_thread(mut self, mission_thread: bool) -> Self {
+		self.mission_thread = mission_thread;
+		self
+	}
+
 	pub fn open_request(&self, partial_messages: bool) -> OpenRequest {
 		OpenRequest {
 			cwd: self.cwd.to_string_lossy().into_owned(),
@@ -188,6 +195,7 @@ impl SessionOptions {
 			server_env: self.server_env.clone(),
 			connection: self.connection.clone(),
 			output_schema: self.output_schema.clone(),
+			mission_thread: self.mission_thread,
 		}
 	}
 }
@@ -630,6 +638,17 @@ mod tests {
 
 		assert_eq!(request.conversation_id.as_deref(), Some("c1"));
 		assert_eq!(options().open_request(true).conversation_id, None);
+	}
+
+	#[test]
+	fn only_a_mission_thread_run_names_its_thread() {
+		let serialized = |options: SessionOptions| {
+			serde_json::to_value(options.open_request(true)).expect("the request serializes")
+		};
+
+		assert_eq!(serialized(options().on_mission_thread(true))["missionThread"], true);
+		assert_eq!(serialized(options().on_mission_thread(false)).get("missionThread"), None);
+		assert_eq!(serialized(options()).get("missionThread"), None);
 	}
 
 	#[test]

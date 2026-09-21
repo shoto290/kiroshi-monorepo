@@ -8,6 +8,7 @@ import type { Settings } from "@anthropic-ai/claude-agent-sdk"
 import { claudeSourceExecutable } from "./build"
 import { EXECUTABLE_OVERRIDE_ENV } from "./executable"
 import { KIROSHI_SERVER } from "./kiroshi-server"
+import { createMissionStatusReminder } from "./mission-status-reminder"
 import {
 	type ConnectPass,
 	type ConnectPort,
@@ -88,6 +89,36 @@ describe("buildOptions", () => {
 
 		expect(options.outputFormat).toEqual({ type: "json_schema", schema })
 		expect((options.outputFormat as { schema: unknown }).schema).toBe(schema)
+	})
+
+	it("passes one Stop hook and no other event to a mission thread", () => {
+		const stop = createMissionStatusReminder().stop
+
+		const options = buildOptions(
+			{ ...request, missionThread: true },
+			undefined,
+			undefined,
+			undefined,
+			stop,
+		)
+
+		expect(options.hooks).toEqual({ Stop: [{ hooks: [stop] }] })
+	})
+
+	it("passes no hooks to a session outside a mission thread", () => {
+		const stop = createMissionStatusReminder().stop
+
+		for (const missionThread of [undefined, false]) {
+			expect(
+				buildOptions(
+					{ ...request, missionThread },
+					undefined,
+					undefined,
+					undefined,
+					stop,
+				).hooks,
+			).toBeUndefined()
+		}
 	})
 
 	it("asks for no structured answer when none was requested", () => {

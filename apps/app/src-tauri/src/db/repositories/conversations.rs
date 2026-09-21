@@ -34,7 +34,7 @@ const LEAD_ROLE: &str = "lead";
 const CHAT_TITLE: &str = "Chat";
 const CHAT_KIND: &str = "main";
 pub const TOPIC_KIND: &str = "topic";
-const MISSION_KIND: &str = "mission";
+pub const MISSION_KIND: &str = "mission";
 
 #[derive(Debug)]
 pub enum ConversationError {

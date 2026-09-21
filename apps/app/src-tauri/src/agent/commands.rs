@@ -21,7 +21,7 @@ use crate::companions::host::CompanionHost;
 use crate::json::JsonValue;
 use crate::conversations::commands::space_of_the_conversation;
 use crate::db;
-use crate::db::repositories::conversations::Bot as StoredBot;
+use crate::db::repositories::conversations::{Bot as StoredBot, MISSION_KIND};
 use crate::db::repositories::runtime_context::ParticipantKey;
 use crate::environment::connection;
 use crate::environment::contract::{EnvError, EnvOwner, ResolvedEnv, Values};
@@ -601,6 +601,16 @@ async fn runtime_identity<R: Runtime>(
 	}
 }
 
+async fn opens_on_a_mission_thread(state: &db::DatabaseState, conversation_id: &str) -> bool {
+	let Ok(database) = state.as_ref() else {
+		return false;
+	};
+	matches!(
+		database.conversations().kind(conversation_id.to_owned()).await,
+		Ok(Some(kind)) if kind == MISSION_KIND
+	)
+}
+
 async fn settled_permissions(
 	database: &db::Database,
 	root: Option<&Path>,
@@ -688,6 +698,7 @@ pub async fn agent_start_or_resume_session<R: Runtime>(
 
 	let sidecar = state.sidecar().await?;
 	let identity = runtime_identity(&app, &database, &scope, &sidecar).await;
+	let mission_thread = opens_on_a_mission_thread(&database, &scope.conversation_id).await;
 	let anywhere = cwd.map(PathBuf::from).unwrap_or_else(|| its_own_directory(&app, &scope.bot_id));
 	let (working_dir, refused_dir) = where_it_runs(identity.working_dir, anywhere);
 
@@ -728,7 +739,8 @@ pub async fn agent_start_or_resume_session<R: Runtime>(
 			scope.conversation_id.clone(),
 			scope.bot_id.clone(),
 		)))
-		.answering(output_schema);
+		.answering(output_schema)
+		.on_mission_thread(mission_thread);
 
 	let refused_id = resume.clone();
 	let started = match start_with_fallback(sidecar, options, resume, sink.clone()).await {
@@ -1601,6 +1613,27 @@ mod tests {
 		let scope_of =
 			|id: String, seq: i64| RuntimeScope { runtime_session_id: id, epoch: seq, ..a_scope() };
 		(Ok(database), scope_of(first.id, first.seq), scope_of(second.id, second.seq))
+	}
+
+	#[tokio::test]
+	async fn only_a_mission_conversation_opens_on_a_mission_thread() {
+		let database = crate::db::open(&crate::db::connection::temp_dir());
+		database
+			.call_mut(|connection| {
+				Ok(connection.execute_batch(
+					"INSERT INTO conversations (id, kind, title, created_at, updated_at)
+						VALUES ('m1', 'mission', 'Ship it', 1, 1);
+					INSERT INTO conversations (id, kind, title, created_at, updated_at)
+						VALUES ('c1', 'main', 'First', 1, 1);",
+				)?)
+			})
+			.await
+			.expect("the conversations are there");
+		let state: db::DatabaseState = Ok(database);
+
+		assert!(opens_on_a_mission_thread(&state, "m1").await);
+		assert!(!opens_on_a_mission_thread(&state, "c1").await);
+		assert!(!opens_on_a_mission_thread(&state, "missing").await);
 	}
 
 	#[tokio::test]
