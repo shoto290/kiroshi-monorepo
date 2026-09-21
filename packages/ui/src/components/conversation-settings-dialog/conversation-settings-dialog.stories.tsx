@@ -256,3 +256,43 @@ export const LongContent = meta.story({
 		).toBeVisible()
 	},
 })
+
+const TITLES = ["Research lead", "Release manager", "Reviewer"]
+
+const TITLED = SEATED.map((bot, index) => ({ ...bot, title: TITLES[index] }))
+
+export const ParticipantsWithTitles = meta.story({
+	args: { participants: TITLED, leadId: TITLED[0]?.id ?? "" },
+	parameters: {
+		docs: {
+			description: {
+				story:
+					"The seating pane on companions that carry titles. Check that every row shows its title pill right after the name and before the crown, whole while the row has room. Pick `Participants` for the same pane without titles.",
+			},
+		},
+	},
+	play: async ({ userEvent }) => {
+		const dialog = await openTab("Participants", userEvent)
+		const rows = slotsIn(dialog, "participant")
+
+		await expect(rows).toHaveLength(TITLES.length)
+
+		for (const [index, row] of rows.entries()) {
+			const name = row.querySelector('[data-slot="participant-name"]')
+			const title = row.querySelector<HTMLElement>(
+				'[data-slot="bot-title-badge"]',
+			)
+			if (!name || !title) throw new Error("A row drew no title")
+
+			await expect(title).toHaveTextContent(TITLES[index] ?? "")
+			await expect(name.nextElementSibling).toBe(title)
+			await expect(title.scrollWidth).toBeLessThanOrEqual(title.clientWidth)
+		}
+
+		const lead = slotsIn(dialog, "participant-lead")[0]
+		const [firstTitle] = slotsIn(rows[0] as HTMLElement, "bot-title-badge")
+		await expect(firstTitle?.compareDocumentPosition(lead as Node)).toBe(
+			Node.DOCUMENT_POSITION_FOLLOWING,
+		)
+	},
+})

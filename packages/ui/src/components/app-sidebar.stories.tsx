@@ -2003,7 +2003,7 @@ export const RowContextMenu = meta.story({
 		])
 		const [pin, settings, duplicate, held, remove] = items
 		await expect(pin.nextElementSibling).toBe(
-			within(menu).getAllByRole("separator")[0],
+			within(menu).getAllByRole("separator")[1],
 		)
 		await userEvent.keyboard("{ArrowDown}")
 		await waitFor(async () => {
@@ -3051,7 +3051,7 @@ export const OneSpaceRowMenu = meta.story({
 		await expect(
 			menu.getAllByRole("menuitem").map((item) => item.textContent),
 		).toEqual(["Settings", "Duplicate", SPACES_BRANCH, "Delete"])
-		await expect(menu.getAllByRole("separator")).toHaveLength(2)
+		await expect(menu.getAllByRole("separator")).toHaveLength(3)
 
 		const panel = await walkIntoSpacesBranch(canvasElement, "Beacon", userEvent)
 		const branch = screen.getByRole("menuitem", { name: SPACES_BRANCH })
@@ -4302,7 +4302,7 @@ export const FullRowMenu = meta.story({
 			SPACES_BRANCH,
 			"Delete",
 		])
-		await expect(menu.getAllByRole("separator")).toHaveLength(3)
+		await expect(menu.getAllByRole("separator")).toHaveLength(4)
 	},
 })
 
@@ -4326,7 +4326,7 @@ export const MoveBotToSection = meta.story({
 		const menu = await openRowMenu(canvasElement, "Beacon")
 		const branch = menu.getByRole("menuitem", { name: MOVE_TO })
 		await expect(branch).toHaveAttribute("aria-haspopup", "menu")
-		await expect(menu.getAllByRole("separator")).toHaveLength(3)
+		await expect(menu.getAllByRole("separator")).toHaveLength(4)
 
 		await userEvent.hover(branch)
 		const surface = await shown(

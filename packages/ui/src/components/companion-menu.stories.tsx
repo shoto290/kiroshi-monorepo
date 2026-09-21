@@ -1,4 +1,4 @@
-import { expect, fireEvent, fn, screen, within } from "storybook/test"
+import { expect, fireEvent, fn, screen, waitFor, within } from "storybook/test"
 
 import preview from "@workspace/storybook/preview"
 import { shown } from "@workspace/storybook/story-utils"
@@ -155,5 +155,120 @@ export const WithoutBranches = meta.story({
 		await expect(
 			menu.getAllByRole("menuitem").map((item) => item.textContent),
 		).toEqual(["Settings", "Duplicate", "Delete"])
+	},
+})
+
+const TITLED_ATLAS: CompanionMenuSubject = {
+	...ATLAS,
+	title: "Research lead",
+	animal: "owl",
+	blot: "blue",
+}
+
+const openMenuOn = async (target: HTMLElement, name = MENU_LABEL) => {
+	fireEvent.contextMenu(target, { clientX: 120, clientY: 90 })
+	return shown(await screen.findByRole("menu", { name }))
+}
+
+const LONG_NAME = "Atlas the quarterly infrastructure capacity planner"
+
+const slotIn = (element: HTMLElement, slot: string) =>
+	element.querySelector<HTMLElement>(`[data-slot="${slot}"]`)
+
+export const WithHeader = meta.story({
+	args: { companion: TITLED_ATLAS },
+	parameters: {
+		docs: {
+			description: {
+				story:
+					"The menu opened on a companion that carries a title. Check that a header naming it sits above every item: its avatar, its name and its title pill, fenced off by a separator. The header is a label, not an item: the down arrow lands on Pin first. Pick `WithHeaderUntitled` for a companion with no title.",
+			},
+		},
+	},
+	play: async ({ canvas }) => {
+		const menu = await openMenuOn(canvas.getByText(TRIGGER_LABEL))
+		const header = slotIn(menu, "companion-menu-header")
+		if (!header) throw new Error("The menu drew no header")
+
+		await expect(menu.firstElementChild?.contains(header)).toBe(true)
+		await expect(slotIn(header, "bot-identity-avatar")).not.toBeNull()
+		await expect(
+			slotIn(header, "companion-menu-header-name"),
+		).toHaveTextContent("Atlas")
+		await expect(slotIn(header, "bot-title-badge")).toHaveTextContent(
+			"Research lead",
+		)
+		await expect(header.nextElementSibling).toHaveAttribute(
+			"data-slot",
+			"context-menu-separator",
+		)
+		await expect(
+			within(menu)
+				.getAllByRole("menuitem")
+				.map((item) => item.textContent),
+		).toEqual(ITEMS_IN_ORDER)
+
+		fireEvent.keyDown(menu, { key: "ArrowDown" })
+
+		await waitFor(() => expect(document.activeElement).toHaveTextContent("Pin"))
+	},
+})
+
+export const WithHeaderUntitled = meta.story({
+	parameters: {
+		docs: {
+			description: {
+				story:
+					"The same header on a companion with no title. Check it carries the avatar and the name alone, with no empty pill left behind. Pick `WithHeader` for a titled companion.",
+			},
+		},
+	},
+	play: async ({ canvas }) => {
+		const menu = await openMenuOn(canvas.getByText(TRIGGER_LABEL))
+		const header = slotIn(menu, "companion-menu-header")
+		if (!header) throw new Error("The menu drew no header")
+
+		await expect(slotIn(header, "bot-identity-avatar")).not.toBeNull()
+		await expect(
+			slotIn(header, "companion-menu-header-name"),
+		).toHaveTextContent("Atlas")
+		await expect(slotIn(header, "bot-title-badge")).toBeNull()
+	},
+})
+
+export const WithHeaderLongContent = meta.story({
+	tags: ["test-only"],
+	args: {
+		companion: {
+			...TITLED_ATLAS,
+			name: LONG_NAME,
+			title: "Release manager for the whole desktop platform",
+		},
+	},
+	parameters: {
+		docs: {
+			description: {
+				story:
+					"A header whose name and title are both longer than the menu. Check that the menu keeps the width its items give it and the header cuts inside it with an ellipsis instead of stretching the menu.",
+			},
+		},
+	},
+	play: async ({ canvas }) => {
+		const menu = await openMenuOn(
+			canvas.getByText(TRIGGER_LABEL),
+			`Actions for ${LONG_NAME}`,
+		)
+		const header = slotIn(menu, "companion-menu-header")
+		const name = header && slotIn(header, "companion-menu-header-name")
+		const title = header && slotIn(header, "bot-title-badge")
+		if (!header || !name || !title)
+			throw new Error("The header drew a part short")
+
+		await expect(header.getBoundingClientRect().right).toBeLessThanOrEqual(
+			menu.getBoundingClientRect().right,
+		)
+		await expect(title.scrollWidth).toBeGreaterThan(title.clientWidth)
+		await expect(name.scrollWidth).toBeGreaterThan(name.clientWidth)
+		await expect(header.getBoundingClientRect().height).toBeLessThan(32)
 	},
 })

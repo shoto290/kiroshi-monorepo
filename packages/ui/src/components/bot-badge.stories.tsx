@@ -201,7 +201,7 @@ export const BotTitles = meta.story({
 			{BOT_TITLES.map((title) => (
 				<span className={TITLE_HOST} key={title || "untitled"}>
 					<span className="truncate font-medium">Atlas</span>
-					<BotTitleBadge className="max-w-16" title={title} />
+					<BotTitleBadge title={title} />
 				</span>
 			))}
 		</Row>
@@ -210,7 +210,7 @@ export const BotTitles = meta.story({
 		docs: {
 			description: {
 				story:
-					"The one pill a companion title is drawn in, worn by the roster row and by the message header alike. It holds its width against a name that grows, cuts a title longer than the width its caller allows with an ellipsis, and disappears node and all when a bot carries no title, so a name without one keeps the line it always had. The maximum width comes from the caller: the roster row holds it at 64px, shown here, while the message header gives it more. Check the three cases read as one component, and that the pill stays legible on both themes.",
+					"The one pill a companion title is drawn in, worn by the roster row and by the message header alike. It has no maximum width, of its own or from a caller: it takes the room the line leaves after the name, gives way before the name does, cuts with an ellipsis only when that room runs out, and disappears node and all when a bot carries no title, so a name without one keeps the line it always had. Each host here is 160px wide. Check the three cases read as one component, and that the pill stays legible on both themes.",
 			},
 		},
 	},

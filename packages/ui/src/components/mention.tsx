@@ -2,6 +2,7 @@
 
 import { useTranslation } from "react-i18next"
 
+import { BotTitleBadge } from "@workspace/ui/components/bot-badge"
 import { BotIdentityAvatar } from "@workspace/ui/components/bot-identity-avatar"
 import { CompanionMenuHost } from "@workspace/ui/components/companion-menu"
 import { useCompanionSelect } from "@workspace/ui/components/companion-select"
@@ -70,6 +71,7 @@ const Mention = ({ botId, count = 1, className }: MentionProps) => {
 			<span className={NAME_CLASS} data-slot="bot-mention-name">
 				{name}
 			</span>
+			<BotTitleBadge title={bot?.title} />
 			{isCounted ? (
 				<>
 					<span

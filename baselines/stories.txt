@@ -166,6 +166,10 @@ conversation-message-mention--in-text
 conversation-message-mention--long-name
 conversation-message-mention--repeated-apart
 conversation-message-mention--unknown
+conversation-message-mention--unknown-without-title
+conversation-message-mention--with-title
+conversation-message-mention--with-title-counted
+conversation-message-message--author-with-long-title
 conversation-message-message--authors
 conversation-message-message--long-content
 conversation-message-message--variants
@@ -766,8 +770,10 @@ navigation-sidebarlistrow--pressed
 navigation-sidebarlistrow--preview-from-nodes
 navigation-sidebarlistrow--skin-matches-menu-button
 navigation-sidebarlistrow--with-badge-dot
+navigation-sidebarlistrow--with-full-title
 navigation-sidebarlistrow--with-preview
 navigation-sidebarlistrow--with-strips
+navigation-sidebarlistrow--with-title-cut-before-name
 navigation-sidebarlistrow--with-trailing-badge-and-timestamp
 navigation-sidebarlistrow--working-preview
 navigation-sidebarmenurow--collapsed
@@ -816,6 +822,9 @@ navigation-userchip--without-name
 navigation-userchip--without-picture
 overlays-companionmenu--default
 overlays-companionmenu--pinned
+overlays-companionmenu--with-header
+overlays-companionmenu--with-header-long-content
+overlays-companionmenu--with-header-untitled
 overlays-companionmenu--without-branches
 overlays-confirmdialog--cancelled
 overlays-confirmdialog--confirmed
@@ -1018,6 +1027,7 @@ settings-conversation-conversationsettingsdialog--empty
 settings-conversation-conversationsettingsdialog--instructions
 settings-conversation-conversationsettingsdialog--long-content
 settings-conversation-conversationsettingsdialog--participants
+settings-conversation-conversationsettingsdialog--participants-with-titles
 settings-conversation-participantspanel--default
 settings-conversation-participantspanel--dismissed
 settings-conversation-participantspanel--last-participant

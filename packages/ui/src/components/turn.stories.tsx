@@ -898,7 +898,7 @@ export const Titled = meta.story({
 		docs: {
 			description: {
 				story:
-					"A conversation where three of the four companions carry a title. The title is written in a pill right after the name, the same pill the roster row wears, so a reader tells an ops companion from a release companion without opening the roster. A companion with no title keeps the bare name, no pill and no gap held for one. The column here is 320px wide on purpose: a title of fifteen characters is written whole, the name gives way before the pill does, and a title longer than the pill allows is cut with an ellipsis rather than pushing the crown or the header out of the column. " +
+					"A conversation where three of the four companions carry a title. The title is written in a pill right after the name, the same pill the roster row wears, so a reader tells an ops companion from a release companion without opening the roster. A companion with no title keeps the bare name, no pill and no gap held for one. The column here is 320px wide on purpose: the pill has no width cap of its own, so a long title is written whole beside a short name, gives way beside a name long enough to fill the line, and never pushes the crown or the header out of the column. " +
 					RENDERED_BY_THE_THREAD,
 			},
 		},
@@ -922,16 +922,16 @@ export const Titled = meta.story({
 			untitled.querySelector('[data-slot="bot-title-badge"]'),
 		).toBeNull()
 
-		const whole = slotIn(longName, "bot-title-badge")
+		const yielded = slotIn(longName, "bot-title-badge")
 		const name = longName.firstElementChild as HTMLElement
 
-		await expect(whole).toHaveTextContent(RELEASE_MANAGER)
-		await expect(whole.scrollWidth).toBe(whole.clientWidth)
+		await expect(yielded).toHaveTextContent(RELEASE_MANAGER)
+		await expect(yielded.scrollWidth).toBeGreaterThan(yielded.clientWidth)
 		await expect(name.scrollWidth).toBeGreaterThan(name.clientWidth)
 
-		const cut = slotIn(longTitle, "bot-title-badge")
+		const room = slotIn(longTitle, "bot-title-badge")
 
-		await expect(cut.scrollWidth).toBeGreaterThan(cut.clientWidth)
+		await expect(room.scrollWidth).toBeLessThanOrEqual(room.clientWidth)
 
 		const column = slotIn(canvasElement, "message").parentElement as HTMLElement
 

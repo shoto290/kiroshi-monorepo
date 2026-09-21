@@ -9,7 +9,10 @@ import {
 } from "react"
 import { useTranslation } from "react-i18next"
 
+import { BotTitleBadge } from "@workspace/ui/components/bot-badge"
+import { BotIdentityAvatar } from "@workspace/ui/components/bot-identity-avatar"
 import { Icons } from "@workspace/ui/components/icons"
+import type { RosterBot } from "@workspace/ui/components/roster"
 import {
 	PinGroup,
 	type RosterMenuSection,
@@ -21,17 +24,53 @@ import type { Space } from "@workspace/ui/components/space"
 import {
 	ContextMenu,
 	ContextMenuContent,
+	ContextMenuGroup,
 	ContextMenuItem,
+	ContextMenuLabel,
 	ContextMenuSeparator,
 	ContextMenuTrigger,
 } from "@workspace/ui/components/ui/context-menu"
 import { STILL_UNDER_REDUCED_MOTION } from "@workspace/ui/lib/reduced-motion"
 
-interface CompanionMenuSubject {
-	id: string
-	name: string
+interface CompanionMenuSubject extends RosterBot {
 	sectionId?: string | null
 }
+
+const HEADER_AVATAR_SIZE = 20
+
+type CompanionMenuHeaderProps = {
+	companion: CompanionMenuSubject
+}
+
+const CompanionMenuHeader = ({ companion }: CompanionMenuHeaderProps) => (
+	<ContextMenuGroup>
+		<ContextMenuLabel
+			className="flex w-0 min-w-full items-center gap-2 text-foreground"
+			data-slot="companion-menu-header"
+		>
+			<span aria-hidden="true" className="contents">
+				<BotIdentityAvatar
+					animal={companion.animal}
+					blot={companion.blot}
+					image={companion.image}
+					name={companion.name}
+					seed={companion.id}
+					size={HEADER_AVATAR_SIZE}
+				/>
+			</span>
+			<span className="flex min-w-0 flex-1 items-center gap-1.5">
+				<span
+					className="truncate font-medium"
+					data-slot="companion-menu-header-name"
+				>
+					{companion.name}
+				</span>
+				<BotTitleBadge title={companion.title} />
+			</span>
+		</ContextMenuLabel>
+		<ContextMenuSeparator />
+	</ContextMenuGroup>
+)
 
 interface CompanionMenuContentProps extends RosterPinActions {
 	companion: CompanionMenuSubject
@@ -76,6 +115,7 @@ const CompanionMenuContent = ({
 			className={STILL_UNDER_REDUCED_MOTION}
 			finalFocus={finalFocus}
 		>
+			<CompanionMenuHeader companion={companion} />
 			<PinGroup
 				id={companion.id}
 				isPinned={isPinned}

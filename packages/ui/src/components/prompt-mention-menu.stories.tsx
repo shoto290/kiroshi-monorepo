@@ -575,7 +575,7 @@ export const LongContent = meta.story({
 		docs: {
 			description: {
 				story:
-					"Two companions named far past their row, one leading the conversation and one outside it, each with a title. Check that only the name gives way to an ellipsis, that the title badge stays whole, and that the trailing slot keeps its full width with the crown or the add glyph flush to the row's end. " +
+					"Two companions named far past their row, one leading the conversation and one outside it, each with a title. Check that the title badge gives way first, then the name, each ending in an ellipsis, and that the trailing slot keeps its full width with the crown or the add glyph flush to the row's end. " +
 					OPENED_BY_THE_COMPOSER,
 			},
 		},
@@ -595,7 +595,7 @@ export const LongContent = meta.story({
 			const mark = trailing.querySelector("svg") as SVGElement
 
 			await expect(name.scrollWidth).toBeGreaterThan(name.clientWidth)
-			await expect(badge.scrollWidth).toBeLessThanOrEqual(badge.clientWidth)
+			await expect(badge.scrollWidth).toBeGreaterThan(badge.clientWidth)
 			await expect(trailing.getBoundingClientRect().width).toBe(
 				TRAILING_SLOT_WIDTH,
 			)
