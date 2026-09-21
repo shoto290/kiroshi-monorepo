@@ -138,7 +138,7 @@ type WebsitePageProps = {
 
 export const WebsitePage = ({ children }: WebsitePageProps) => (
 	<>
-		<SkipLink targetId={MAIN_CONTENT_ID} />
+		<SkipLink label={WEBSITE_COPY.skipLink} targetId={MAIN_CONTENT_ID} />
 		<main
 			className={`${VIEWPORT_RISE} relative flex min-h-dvh w-full flex-col items-center overflow-x-clip bg-background outline-none focus-visible:outline-2 focus-visible:-outline-offset-2 focus-visible:outline-solid focus-visible:outline-ring`}
 			id={MAIN_CONTENT_ID}

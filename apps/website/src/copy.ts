@@ -15,6 +15,7 @@ export const WEBSITE_COPY = {
 	credit: "Made by Shoto",
 	creditDestination: "Made by Shoto, on GitHub",
 	creditHandle: "@shoto290",
+	skipLink: "Skip to the main content",
 }
 
 const AUTHOR_SLUG = "shoto290"
