@@ -2,7 +2,7 @@ import { useRef } from "react"
 import { expect } from "storybook/test"
 
 import preview from "@workspace/storybook/preview"
-import { Row } from "@workspace/storybook/story-utils"
+import { expectInkContrast, Row } from "@workspace/storybook/story-utils"
 import {
 	AppIconMark,
 	type AppIconMarkHandle,
@@ -70,13 +70,16 @@ export const InkDark = meta.story({
 		},
 	},
 	play: async ({ canvasElement }) => {
-		const ground = canvasElement.querySelector("svg > path")
+		const ground = canvasElement.querySelector('[data-slot="app-icon-ground"]')
 		const eye = canvasElement.querySelector('[data-part="eye-0"]')
 		const outline = canvasElement.querySelector('[data-part="head"] path')
 		if (!ground || !eye || !outline) throw new Error("The mark draws no eyes")
 		const eyeFill = getComputedStyle(eye).fill
 
 		await expect(eyeFill).toBe(getComputedStyle(outline).stroke)
-		await expect(eyeFill).not.toBe(getComputedStyle(ground).fill)
+		await expectInkContrast({
+			ink: eyeFill,
+			surface: getComputedStyle(ground).fill,
+		})
 	},
 })

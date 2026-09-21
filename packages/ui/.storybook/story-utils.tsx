@@ -9,6 +9,7 @@ import {
 	MARKDOWN_TYPESET_CLASS,
 	MARKDOWN_WHITESPACE_CLASS,
 } from "@workspace/ui/components/markdown/prose"
+import { contrastRatio, type Rgb } from "@workspace/ui/lib/contrast"
 import { cn } from "@workspace/ui/lib/utils"
 
 export const withStoryProps = <Props,>(component: ComponentType<never>) =>
@@ -190,3 +191,31 @@ export const elementNode = (
 	children: ParserChild[],
 	properties: ParserNode["properties"] = {},
 ): ParserNode => ({ type: "element", tagName, properties, children })
+
+const OPAQUE_ALPHA = 255
+
+const rasterise = (side: string, color: string): Rgb => {
+	const pixel = document
+		.createElement("canvas")
+		.getContext("2d", { willReadFrequently: true })
+	if (!pixel) throw new Error("2D canvas context unavailable")
+	if (!CSS.supports("color", color)) {
+		throw new Error(`The ${side} colour is unreadable: "${color}"`)
+	}
+	pixel.fillStyle = color
+	pixel.fillRect(0, 0, 1, 1)
+	const [red, green, blue, alpha] = pixel.getImageData(0, 0, 1, 1).data
+	if (alpha !== OPAQUE_ALPHA) {
+		throw new Error(`The ${side} colour is not opaque: "${color}"`)
+	}
+	return [red, green, blue]
+}
+
+const GRAPHIC_CONTRAST_FLOOR = 3
+
+type InkOnSurface = { ink: string; surface: string }
+
+export const expectInkContrast = async ({ ink, surface }: InkOnSurface) =>
+	expect(
+		contrastRatio(rasterise("ink", ink), rasterise("surface", surface)),
+	).toBeGreaterThanOrEqual(GRAPHIC_CONTRAST_FLOOR)

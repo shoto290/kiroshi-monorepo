@@ -2,7 +2,7 @@ import type { ComponentProps, ReactNode } from "react"
 import { expect } from "storybook/test"
 
 import preview from "@workspace/storybook/preview"
-import { slotsIn } from "@workspace/storybook/story-utils"
+import { expectInkContrast, slotsIn } from "@workspace/storybook/story-utils"
 import { BLOT_TINTS, BotAvatar } from "@workspace/ui/components/bot-avatar"
 import {
 	ANIMALS,
@@ -402,7 +402,7 @@ export const InkDark = meta.story({
 		for (const avatar of avatars) {
 			const ink = inkOf(avatar)
 			await expect(ink.eye).toBe(ink.outline)
-			await expect(ink.eye).not.toBe(surfaceBehind(avatar))
+			await expectInkContrast({ ink: ink.eye, surface: surfaceBehind(avatar) })
 		}
 	},
 })
