@@ -4,6 +4,7 @@ import type { ComponentPropsWithoutRef } from "react"
 import { useTranslation } from "react-i18next"
 import type { ExtraProps } from "react-markdown"
 
+import { IconSwap } from "@workspace/ui/components/icon-swap"
 import { Icons } from "@workspace/ui/components/icons"
 import { MARKDOWN_ESCAPED_BLOCK_CLASS } from "@workspace/ui/components/markdown/prose"
 import { Button } from "@workspace/ui/components/ui/button"
@@ -88,7 +89,11 @@ export const MarkdownTable = ({
 					void copy()
 				}}
 			>
-				{copied ? <Icons.Check /> : <Icons.Copy />}
+				<IconSwap
+					icon={<Icons.Copy />}
+					isSwapped={copied}
+					swappedIcon={<Icons.Check />}
+				/>
 			</Button>
 
 			<span aria-live="polite" className="sr-only">

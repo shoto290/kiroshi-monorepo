@@ -66,7 +66,7 @@ export function MessageAttachments({
 									alt=""
 									src={preview}
 									onError={() => markBroken(item.id)}
-									className="block max-h-40 max-w-56 object-cover"
+									className="image-outline block max-h-40 max-w-56 object-cover"
 								/>
 							) : (
 								<>

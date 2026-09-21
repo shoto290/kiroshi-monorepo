@@ -38,9 +38,9 @@ const BACKDROP_CLASS = "fixed inset-0 z-50 bg-black/50"
 const DIALOG_BACKDROP_CLASS = `${BACKDROP_CLASS} transition-opacity duration-150 data-ending-style:opacity-0 data-starting-style:opacity-0 motion-reduce:transition-none`
 
 const POPUP_CLASS =
-	"border border-border bg-popover text-popover-foreground shadow-xl outline-none"
+	"bg-popover text-popover-foreground shadow-popover outline-none"
 
-const DIALOG_POPUP_CLASS = `${POPUP_CLASS} transition-[scale,opacity] duration-150 ease-out data-ending-style:scale-[0.98] data-ending-style:opacity-0 data-starting-style:scale-[0.98] data-starting-style:opacity-0 motion-reduce:transition-none`
+const DIALOG_POPUP_CLASS = `${POPUP_CLASS} transition-[scale,opacity,filter] duration-150 ease-out data-ending-style:scale-[0.99] data-ending-style:opacity-0 data-ending-style:blur-[4px] data-starting-style:scale-[0.98] data-starting-style:opacity-0 motion-reduce:transition-none`
 
 const POPUP_DROP_SHADOW_CLASS =
 	"[filter:drop-shadow(0_1px_2px_rgba(0,0,0,0.10))_drop-shadow(0_10px_18px_rgba(0,0,0,0.16))] dark:[filter:drop-shadow(0_0_1px_rgba(255,255,255,0.16))_drop-shadow(0_12px_28px_rgba(0,0,0,0.7))]"

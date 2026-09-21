@@ -54,7 +54,7 @@ const ACTIVATION_CLASS =
 	"outline-none hover:bg-muted/50 focus-visible:ring-3 focus-visible:ring-ring/30"
 
 const ACTIVE_CLASS =
-	"group/search-result-row data-[active=true]:bg-muted data-[active=true]:[--badge-ring:var(--color-muted)] [&[data-active=true]:hover]:bg-muted"
+	"group/search-result-row data-[active=true]:bg-muted data-[active=true]:[--badge-ring:var(--color-muted)] [@media(hover:hover)]:[&[data-active=true]:hover]:bg-muted"
 
 const MATCH_CLASS = "rounded-xs bg-mark/40 px-[0.15em] py-[0.05em] text-inherit"
 

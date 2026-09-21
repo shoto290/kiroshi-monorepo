@@ -38,10 +38,10 @@ const EmptyStateShell = ({
 		{mark}
 
 		<div className="flex max-w-md flex-col gap-2">
-			<h2 className="font-heading font-medium text-foreground text-lg">
+			<h2 className="text-balance font-heading font-medium text-foreground text-lg">
 				{title}
 			</h2>
-			<p className="text-muted-foreground text-sm">{description}</p>
+			<p className="text-pretty text-muted-foreground text-sm">{description}</p>
 		</div>
 
 		{action}

@@ -8,6 +8,7 @@ import {
 	readConfigPairs,
 	readConfigText,
 } from "@workspace/ui/components/bot-settings"
+import { IconSwap } from "@workspace/ui/components/icon-swap"
 import { type Icon, Icons } from "@workspace/ui/components/icons"
 import { FIELD_LABEL_CLASS } from "@workspace/ui/components/settings-styles"
 import { Button } from "@workspace/ui/components/ui/button"
@@ -109,11 +110,11 @@ const McpServerLaunch = ({ config }: McpServerLaunchProps) => {
 										size="icon-xs"
 										variant="ghost"
 									>
-										{isRevealed ? (
-											<Icons.Conceal aria-hidden="true" />
-										) : (
-											<Icons.Reveal aria-hidden="true" />
-										)}
+										<IconSwap
+											icon={<Icons.Reveal aria-hidden="true" />}
+											isSwapped={isRevealed}
+											swappedIcon={<Icons.Conceal aria-hidden="true" />}
+										/>
 									</Button>
 								</li>
 							)

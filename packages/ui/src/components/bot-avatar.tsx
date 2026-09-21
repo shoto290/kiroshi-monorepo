@@ -1,6 +1,6 @@
 "use client"
 
-import { type CSSProperties, useId, useMemo, useRef } from "react"
+import { useId, useMemo, useRef } from "react"
 
 import { round2, VIEW_BOX } from "@workspace/ui/components/bot-avatar-3d"
 import {
@@ -46,11 +46,6 @@ const BLOT_TINTS = [
 type BotAvatarBlot = (typeof BLOT_TINTS)[number]
 
 const blotTint = (blot: BotAvatarBlot) => `var(--bot-blot-${blot})`
-
-const BLOT_INK_STYLE = {
-	color: "var(--bot-blot-ink)",
-	"--bot-avatar-ink": "var(--bot-blot-ink)",
-} as CSSProperties
 
 type BotAvatarProps = {
 	animal?: BotAvatarAnimal
@@ -170,9 +165,8 @@ function BotAvatar({
 			onPointerDown={startDrag}
 			onPointerMove={moveDrag}
 			onPointerUp={endDrag}
-			style={blot ? BLOT_INK_STYLE : undefined}
 			className={cn(
-				"text-foreground",
+				blot ? "on-bot-blot" : "text-foreground",
 				interactive && "cursor-grab touch-none active:cursor-grabbing",
 				className,
 			)}

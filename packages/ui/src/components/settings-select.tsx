@@ -78,7 +78,7 @@ const SettingsSelect = ({
 						<Select.Popup
 							className={cn(
 								POPUP_CLASS,
-								"max-h-(--available-height) min-w-(--anchor-width) origin-(--transform-origin) overflow-y-auto rounded-xl p-1",
+								"max-h-(--available-height) min-w-(--anchor-width) origin-(--transform-origin) overflow-y-auto rounded-xl p-1 transition-[scale,opacity,filter] duration-150 ease-out data-ending-style:scale-[0.98] data-ending-style:opacity-0 data-ending-style:blur-[4px] motion-reduce:transition-none",
 							)}
 						>
 							<Select.List aria-label={label}>

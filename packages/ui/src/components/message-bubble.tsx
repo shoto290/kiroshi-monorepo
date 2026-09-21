@@ -104,7 +104,7 @@ export const MESSAGE_BUBBLE_INLINE_PADDING = "px-3.5"
 export const MESSAGE_BUBBLE_PADDING_INSET = "-inset-x-3.5 -inset-y-2.5"
 
 export const MESSAGE_BUBBLE_INTERACTIVE =
-	"cursor-pointer text-left outline-none transition-transform duration-150 hover:brightness-[0.98] focus-visible:ring-2 focus-visible:ring-ring active:scale-[0.99]"
+	"cursor-pointer text-left outline-none transition-[scale] duration-200 ease-out will-change-transform hover:brightness-[0.98] focus-visible:ring-2 focus-visible:ring-ring active:scale-[0.98]"
 
 const MENTION_OPENING_PADDING =
 	'has-[p:first-child>[data-slot="bot-mention"]:first-child]:py-3.5'
@@ -320,7 +320,7 @@ export function MessageBubbleCollapsible({
 					"transition-[mask-image] duration-200",
 					!currentOpen && LINE_CLAMP_CLASS[collapsedLines],
 					!currentOpen &&
-						"[mask-image:linear-gradient(to_bottom,#000_68%,transparent_100%)]",
+						"[mask-image:linear-gradient(to_bottom_in_oklab,#000_68%,transparent_100%)]",
 					contentClassName,
 				)}
 			>

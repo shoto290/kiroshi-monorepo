@@ -730,7 +730,7 @@ const RoutineForm = ({
 	return (
 		<form
 			aria-label={t(isWritten ? "routines.form.edit" : "routines.form.new")}
-			className="flex flex-col gap-4 outline-none"
+			className="flex flex-col gap-4 outline-offset-4"
 			data-slot="routine-form"
 			onSubmit={save}
 			ref={form}

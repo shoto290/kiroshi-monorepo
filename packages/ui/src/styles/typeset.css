@@ -58,6 +58,7 @@
       font-family: var(--typeset-font-heading);
       font-weight: 600;
       margin-block-end: 0;
+      text-wrap: balance;
     }
     &:where(h1) {
       font-size: 1.75em;
@@ -115,8 +116,10 @@
       text-decoration-line: underline;
       text-decoration-color: color-mix(in oklab, currentColor 30%, transparent);
     }
-    &:where(a:hover) {
-      text-decoration-color: currentColor;
+    @media (hover: hover) {
+      &:where(a:hover) {
+        text-decoration-color: currentColor;
+      }
     }
     &:where(a:focus-visible) {
       outline: 2px solid var(--color-ring, currentColor);
@@ -342,6 +345,7 @@
 
     /* Media. */
     &:where(img, video) {
+      @apply image-outline;
       border-radius: var(--radius, 0.625rem);
       max-width: 100%;
       height: auto;

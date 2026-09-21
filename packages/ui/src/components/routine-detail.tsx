@@ -246,7 +246,7 @@ const RoutineDetail = ({
 
 	return (
 		<div
-			className="flex flex-col gap-4 outline-none"
+			className="flex flex-col gap-4 outline-offset-4"
 			data-slot="routine-detail"
 			ref={surface}
 			tabIndex={-1}

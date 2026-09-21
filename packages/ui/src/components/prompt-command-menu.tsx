@@ -60,7 +60,7 @@ export function PromptCommandMenu({
 			rows={matches.map((command, index) => (
 				<PromptMenuRow
 					key={command.name}
-					className="flex w-full flex-col gap-0.5 rounded-lg px-2.5 py-1.5 text-left text-foreground text-sm outline-none"
+					className="flex w-full flex-col gap-0.5 rounded-md px-2.5 py-1.5 text-left text-foreground text-sm outline-none focus-visible:ring-2 focus-visible:ring-ring"
 					isActive={index === active}
 					onPointerMove={activateOnPointerMove(index)}
 					onSelect={() => onSelect(command.name)}
