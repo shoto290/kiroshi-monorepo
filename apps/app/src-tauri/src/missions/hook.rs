@@ -29,7 +29,9 @@ pub const PROMPT_SUBMITTED: &str = "UserPromptSubmit";
 
 pub const TURN_STOPPED: &str = "Stop";
 
-const HOOKED_EVENTS: [&str; 3] = ["Notification", PROMPT_SUBMITTED, TURN_STOPPED];
+pub const TOOL_USED: &str = "PostToolUse";
+
+const HOOKED_EVENTS: [&str; 4] = ["Notification", PROMPT_SUBMITTED, TURN_STOPPED, TOOL_USED];
 
 const SCRIPT: &str = include_str!("../../hooks/kiroshi-agent-hook.sh");
 
@@ -122,11 +124,21 @@ fn merged(held: Value, command: &str) -> Result<Value, MissionError> {
 			return Err(unreachable(format!("the {event} hooks hold no list")));
 		};
 		let mut kept: Vec<Value> = entries.into_iter().filter(|entry| !ours(entry)).collect();
-		kept.push(json!({ "hooks": [{ "type": "command", "command": command }] }));
+		kept.push(entry_of(event, command));
 		hooks.insert(event.to_owned(), Value::Array(kept));
 	}
 	settings.insert(HOOKS_KEY.to_owned(), Value::Object(hooks));
 	Ok(Value::Object(settings))
+}
+
+fn entry_of(event: &str, command: &str) -> Value {
+	match event {
+		TOOL_USED => json!({
+			"matcher": "*",
+			"hooks": [{ "type": "command", "command": command, "async": true }],
+		}),
+		_ => json!({ "hooks": [{ "type": "command", "command": command }] }),
+	}
 }
 
 fn ours(entry: &Value) -> bool {
@@ -259,6 +271,29 @@ mod tests {
 		assert_eq!(ours_in(&settings, "Notification"), 1);
 		assert_eq!(ours_in(&settings, "UserPromptSubmit"), 1);
 		assert_eq!(ours_in(&settings, "Stop"), 1);
+		assert_eq!(ours_in(&settings, TOOL_USED), 1);
+
+		fs::remove_dir_all(&dir).expect("cleanup");
+	}
+
+	#[test]
+	fn the_tool_hook_matches_every_tool_runs_async_and_leaves_the_entries_it_does_not_own() {
+		let dir = a_dir("tool-used");
+		let workspace = workspace_of(&dir);
+		let theirs = json!({ "matcher": "Bash", "hooks": [
+			{ "type": "command", "command": ANOTHER_HOOK }
+		] });
+		planted(&dir, &json!({ "hooks": { TOOL_USED: [theirs.clone()] } }));
+
+		installed(&dir.join("hook"), &workspace, A_URL, A_KEY).expect("the hook installs");
+		installed(&dir.join("hook"), &workspace, A_URL, A_KEY).expect("the hook installs again");
+
+		let entries = entries_of(&settings_of(&dir), TOOL_USED);
+		assert_eq!(entries.len(), 2, "got {entries:?}");
+		assert_eq!(entries[0], theirs, "the entry the install does not own moved");
+		assert_eq!(entries[1]["matcher"], json!("*"));
+		assert_eq!(entries[1]["hooks"][0]["async"], json!(true));
+		assert!(ours(&entries[1]));
 
 		fs::remove_dir_all(&dir).expect("cleanup");
 	}
@@ -482,6 +517,126 @@ mod tests {
 		assert!(
 			request.contains("\"message\": \"Claude needs your permission\""),
 			"the message of the notification was dropped: {request}"
+		);
+
+		fs::remove_dir_all(&dir).expect("cleanup");
+	}
+
+	async fn a_listening_hook(name: &str) -> (PathBuf, PathBuf, TcpListener) {
+		let dir = a_dir(name);
+		let hook_dir = dir.join("hook");
+		let listener = TcpListener::bind((Ipv4Addr::LOCALHOST, 0)).await.expect("the stub binds");
+		let address = listener.local_addr().expect("the stub is named");
+		installed(&hook_dir, &workspace_of(&dir), &format!("http://{address}/missions/call"), A_KEY)
+			.expect("the hook installs");
+		(dir, hook_dir, listener)
+	}
+
+	fn body_of(request: &str) -> Value {
+		let (_, body) = request.split_once("\r\n\r\n").expect("the call carries a body");
+		serde_json::from_str(body).expect("the body is JSON")
+	}
+
+	async fn tool_call_body(tool: &str, input: Value) -> Value {
+		let (dir, hook_dir, listener) = a_listening_hook(&format!("tool-{tool}")).await;
+		let called = tokio::spawn(one_call_to(listener));
+
+		let ended = carried_by(
+			&hook_dir.join(SCRIPT_NAME),
+			&json!({
+				"hook_event_name": TOOL_USED,
+				"session_id": "s1",
+				"cwd": dir.join("workspace").to_string_lossy(),
+				"tool_name": tool,
+				"tool_input": input,
+			}),
+		)
+		.await;
+
+		assert_eq!(ended.code(), Some(0));
+		let request = tokio::time::timeout(Duration::from_secs(20), called)
+			.await
+			.expect("the call lands")
+			.expect("the listener is joined");
+		fs::remove_dir_all(&dir).expect("cleanup");
+		body_of(&request)
+	}
+
+	#[tokio::test]
+	async fn a_tool_call_carries_the_tool_and_the_target_its_kind_names() {
+		let long = "a".repeat(200);
+		let cases = [
+			("Edit", json!({ "file_path": "/w/a.rs", "old_string": "x" }), "/w/a.rs".to_owned()),
+			("Write", json!({ "file_path": "/w/b.rs", "content": "y" }), "/w/b.rs".to_owned()),
+			("Read", json!({ "file_path": "/w/c.rs" }), "/w/c.rs".to_owned()),
+			("Bash", json!({ "command": long.clone() }), long[..80].to_owned()),
+			("Grep", json!({ "pattern": "needle" }), "Grep".to_owned()),
+		];
+
+		for (tool, input, target) in cases {
+			let body = tool_call_body(tool, input).await;
+			assert_eq!(body["event"], json!(TOOL_USED));
+			assert_eq!(body["tool"], json!(tool));
+			assert_eq!(body["target"], json!(target), "the target of {tool}");
+		}
+	}
+
+	#[cfg(unix)]
+	#[tokio::test]
+	async fn a_tool_call_is_sent_without_opening_the_transcript() {
+		let (dir, hook_dir, listener) = a_listening_hook("unopened").await;
+		let transcript = dir.join("transcript.jsonl");
+		let made = std::process::Command::new("mkfifo")
+			.arg(&transcript)
+			.status()
+			.expect("mkfifo runs");
+		assert!(made.success(), "the transcript fifo was not made");
+		let called = tokio::spawn(one_call_to(listener));
+
+		let ended = carried_by(
+			&hook_dir.join(SCRIPT_NAME),
+			&json!({
+				"hook_event_name": TOOL_USED,
+				"session_id": "s1",
+				"cwd": dir.join("workspace").to_string_lossy(),
+				"transcript_path": transcript.to_string_lossy(),
+				"tool_name": "Grep",
+				"tool_input": {},
+			}),
+		)
+		.await;
+
+		assert_eq!(ended.code(), Some(0), "the script opened the transcript and blocked on it");
+		let request = tokio::time::timeout(Duration::from_secs(20), called)
+			.await
+			.expect("the call lands")
+			.expect("the listener is joined");
+		assert!(body_of(&request).get("excerpt").is_none(), "the tool call carried an excerpt");
+
+		fs::remove_dir_all(&dir).expect("cleanup");
+	}
+
+	#[tokio::test]
+	async fn a_payload_carrying_an_agent_id_sends_no_call() {
+		let (dir, hook_dir, listener) = a_listening_hook("subagent").await;
+
+		let ended = carried_by(
+			&hook_dir.join(SCRIPT_NAME),
+			&json!({
+				"hook_event_name": TOOL_USED,
+				"session_id": "s1",
+				"agent_id": "a-subagent",
+				"cwd": dir.join("workspace").to_string_lossy(),
+				"tool_name": "Read",
+				"tool_input": { "file_path": "/w/c.rs" },
+			}),
+		)
+		.await;
+
+		assert_eq!(ended.code(), Some(0));
+		assert!(
+			tokio::time::timeout(Duration::from_millis(300), listener.accept()).await.is_err(),
+			"a call carrying an agent id was sent"
 		);
 
 		fs::remove_dir_all(&dir).expect("cleanup");

@@ -162,6 +162,24 @@ pub struct Mission {
 	pub reported_at: Option<i64>,
 	pub reported_turn_id: Option<String>,
 	pub status: Option<MissionStatus>,
+	pub last_activity_at: Option<i64>,
+	pub last_activity: Option<MissionActivity>,
+	pub commits_ahead: Option<i64>,
+	pub dirty_files: Option<i64>,
+	pub pull_request_url: Option<String>,
+}
+
+#[derive(Debug, Clone, PartialEq, Eq, Serialize, Deserialize, specta::Type)]
+#[serde(rename_all = "camelCase")]
+pub struct MissionActivity {
+	pub tool: String,
+	pub target: String,
+}
+
+#[derive(Debug, Clone, Copy, PartialEq, Eq)]
+pub struct CheckoutCounts {
+	pub commits_ahead: i64,
+	pub dirty_files: i64,
 }
 
 #[derive(Debug, Clone, PartialEq, Eq, Serialize, Deserialize, specta::Type)]

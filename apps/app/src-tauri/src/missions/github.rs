@@ -8,6 +8,7 @@ use serde_json::json;
 use tauri::{AppHandle, Manager, Runtime};
 use tokio::sync::watch as signal;
 
+use super::checkout;
 use super::commands::announce_change;
 use super::contract::{Mission, MissionEntry, MissionError, MissionEventKind, WatchedMission};
 use crate::conversations::commands::ready;
@@ -68,7 +69,10 @@ async fn polling<R: Runtime>(app: AppHandle<R>, base: String, mut halted: signal
 	loop {
 		tokio::select! {
 			_ = halted.changed() => return,
-			_ = ticker.tick() => pass(&app, &reach, database, &mut kept, &SystemClock).await,
+			_ = ticker.tick() => {
+				checkout::pass(&app, database).await;
+				pass(&app, &reach, database, &mut kept, &SystemClock).await;
+			}
 		}
 	}
 }
@@ -395,7 +399,10 @@ async fn recorded(
 	let entries = appended(held, &fresh, url, failed);
 	let stored = serde_json::to_string(&fresh)
 		.map_err(|error| Failure::Unreadable(format!("no fingerprint: {error}")))?;
-	Ok(database.missions().record_github(mission_id.to_owned(), entries, stored).await?)
+	Ok(database
+		.missions()
+		.record_github(mission_id.to_owned(), entries, stored, url.map(str::to_owned))
+		.await?)
 }
 
 fn asks_for_checks(held: Option<&Fingerprint>, pull: &Pull) -> bool {
@@ -918,6 +925,18 @@ mod tests {
 			vec![(MissionEventKind::Note, json!({ "pullRequest": 7, "url": A_PULL_URL }))],
 		);
 		assert_eq!(
+			database
+				.missions()
+				.detail(mission.id.clone())
+				.await
+				.expect("the mission reads")
+				.mission
+				.pull_request_url
+				.as_deref(),
+			Some(A_PULL_URL),
+			"the url of the pull request was not kept on the mission"
+		);
+		assert_eq!(
 			stub.asked().await.iter().map(|asked| asked.path.clone()).collect::<Vec<_>>(),
 			vec!["pulls".to_owned(), "checks".to_owned()],
 			"the first pass did not read the check runs of the pull request it found"
@@ -960,6 +979,7 @@ mod tests {
 				"state": state,
 				"stateSeq": seq,
 				"isAgentRunning": false,
+				"lastActivityAt": null,
 			})],
 			"the front was not told which mission github moved and where it stands"
 		);

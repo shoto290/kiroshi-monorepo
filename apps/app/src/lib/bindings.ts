@@ -699,6 +699,16 @@ export type Mission = {
 	reportedAt: number | null,
 	reportedTurnId: string | null,
 	status: MissionStatus | null,
+	lastActivityAt: number | null,
+	lastActivity: MissionActivity | null,
+	commitsAhead: number | null,
+	dirtyFiles: number | null,
+	pullRequestUrl: string | null,
+};
+
+export type MissionActivity = {
+	tool: string,
+	target: string,
 };
 
 export type MissionClosing = {

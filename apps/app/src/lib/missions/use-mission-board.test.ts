@@ -55,6 +55,7 @@ const A_CHANGE: MissionChanged = {
 	state: "working",
 	stateSeq: 1,
 	isAgentRunning: false,
+	lastActivityAt: null,
 }
 
 describe("useMissionBoard", () => {

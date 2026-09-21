@@ -804,6 +804,11 @@ const SOLO_MISSION: Mission = {
 	reportedAt: null,
 	reportedTurnId: null,
 	status: null,
+	lastActivityAt: null,
+	lastActivity: null,
+	commitsAhead: null,
+	dirtyFiles: null,
+	pullRequestUrl: null,
 }
 
 const TWO_HOURS_MS = 2 * 60 * 60 * 1000
@@ -1338,6 +1343,7 @@ describe("ThreadScreen", () => {
 			state: "waiting_human",
 			stateSeq: 2,
 			isAgentRunning: false,
+			lastActivityAt: null,
 		})
 		await settle()
 
@@ -1413,6 +1419,7 @@ describe("ThreadScreen", () => {
 			state: "waiting_human",
 			stateSeq: 2,
 			isAgentRunning: false,
+			lastActivityAt: null,
 		})
 		await settle()
 

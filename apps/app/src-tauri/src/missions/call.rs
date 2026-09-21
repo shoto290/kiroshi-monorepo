@@ -7,7 +7,7 @@ use tauri::{Manager, Runtime};
 use uuid::Uuid;
 
 use super::commands::announce_change;
-use super::contract::{MissionEntry, MissionError, MissionEventKind};
+use super::contract::{MissionActivity, MissionEntry, MissionError, MissionEventKind};
 use super::hook;
 use crate::conversations::commands::ready;
 use crate::db;
@@ -32,6 +32,8 @@ const FLOODED: (StatusCode, &str) =
 
 const REFUSED_DELIVERY_ID: (StatusCode, &str) =
 	(StatusCode::BAD_REQUEST, "the delivery id is unreadable or carried more than 200 bytes");
+
+const ACTIVITY_BUDGET: &str = ":activity";
 
 const FAILED: (StatusCode, &str) = (StatusCode::INTERNAL_SERVER_ERROR, "the call was not carried");
 
@@ -78,13 +80,31 @@ async fn carried<R: Runtime>(
 	if mission.closed_at.is_some() {
 		return Ok(REFUSED);
 	}
-	if !calls.limit.admits(&mission.id, calls.clock.as_ref()).await {
-		return Ok(FLOODED);
-	}
-	let Some(payload) = payload(&body) else {
+	let Some(held) = parsed(&body) else {
 		return Ok(UNREADABLE);
 	};
-	match database.missions().append_delivery(mission.id, entries(payload), delivery_id).await {
+	let is_tool_call = text(&held, "event") == hook::TOOL_USED;
+	let activity = activity(&held).filter(|_| is_tool_call);
+	if is_tool_call && activity.is_none() {
+		return Ok(UNREADABLE);
+	}
+	let budget = match activity {
+		Some(_) => format!("{}{ACTIVITY_BUDGET}", mission.id),
+		None => mission.id.clone(),
+	};
+	if !calls.limit.admits(&budget, calls.clock.as_ref()).await {
+		return Ok(FLOODED);
+	}
+	let written = match activity {
+		Some(activity) => {
+			database.missions().record_activity(mission.id, activity, calls.clock.now_ms()).await
+		}
+		None => {
+			let entries = entries(payload(&held));
+			database.missions().append_delivery(mission.id, entries, delivery_id).await
+		}
+	};
+	match written {
 		Ok(written) => {
 			if let Err(failure) = announce_change(&calls.app, &written) {
 				eprintln!("a hook call moved a mission the front was not told about: {failure:?}");
@@ -120,9 +140,22 @@ fn unread(rejection: StringRejection) -> (StatusCode, &'static str) {
 	}
 }
 
-fn payload(body: &str) -> Option<Value> {
-	let held: Value = serde_json::from_str(body).ok()?;
-	let held = held.as_object()?;
+fn parsed(body: &str) -> Option<Map<String, Value>> {
+	match serde_json::from_str(body).ok()? {
+		Value::Object(held) => Some(held),
+		_ => None,
+	}
+}
+
+fn activity(held: &Map<String, Value>) -> Option<MissionActivity> {
+	let tool = text(held, "tool");
+	if tool.is_empty() {
+		return None;
+	}
+	Some(MissionActivity { target: text(held, "target"), tool })
+}
+
+fn payload(held: &Map<String, Value>) -> Value {
 	let mut payload = Map::new();
 	payload.insert("event".to_owned(), json!(text(held, "event")));
 	payload.insert("branch".to_owned(), json!(text(held, "branch")));
@@ -131,7 +164,7 @@ fn payload(body: &str) -> Option<Value> {
 	if !message.is_empty() {
 		payload.insert("message".to_owned(), json!(message));
 	}
-	Some(Value::Object(payload))
+	Value::Object(payload)
 }
 
 fn text(held: &Map<String, Value>, name: &str) -> String {
@@ -397,6 +430,7 @@ mod tests {
 				"state": state,
 				"stateSeq": state_seq,
 				"isAgentRunning": false,
+				"lastActivityAt": null,
 			})],
 			"the front was not told the hook moved the mission"
 		);
@@ -635,6 +669,138 @@ mod tests {
 
 		assert_eq!(carried, answer(ACCEPTED));
 		assert_eq!(hook_events_of(&app, &mission.id).await.len(), CALLS_PER_WINDOW + 1);
+
+		webhook.stop();
+		cleaned(&app);
+	}
+
+	fn a_tool_body(tool: &str, target: &str) -> String {
+		json!({
+			"event": hook::TOOL_USED,
+			"sessionId": "s1",
+			"cwd": "/tmp/workspace",
+			"branch": "feature/ope-27",
+			"tool": tool,
+			"target": target,
+		})
+		.to_string()
+	}
+
+	#[tokio::test]
+	async fn a_tool_call_writes_the_activity_on_the_row_at_the_app_clock_and_appends_no_event() {
+		let app = a_host("active").await;
+		let mission = an_armed_mission(&app, A_KEY).await;
+		let before = events_of(&app, &mission.id).await;
+		let now = crate::routines::core::SystemClock.now_ms();
+		let webhook = listening(&app, Ticking::at(now));
+		let received = heard(&app);
+
+		let held =
+			answered(webhook.address(), calling(Some(A_KEY), None, &a_tool_body("Edit", "/w/a.rs")))
+				.await;
+
+		assert_eq!(held, answer(ACCEPTED));
+		assert_eq!(events_of(&app, &mission.id).await, before, "a tool call wrote a thread line");
+		let state = app.state::<db::DatabaseState>();
+		let written = ready(&state)
+			.expect("the database opens")
+			.missions()
+			.detail(mission.id.clone())
+			.await
+			.expect("the mission reads")
+			.mission;
+		assert_eq!(written.last_activity_at, Some(now));
+		assert_eq!(
+			written.last_activity,
+			Some(MissionActivity { tool: "Edit".to_owned(), target: "/w/a.rs".to_owned() }),
+		);
+		assert!(written.is_agent_running);
+		let announced = announced(&received);
+		assert_eq!(announced.len(), 1, "got {announced:?}");
+		assert_eq!(announced[0]["lastActivityAt"], json!(now));
+		assert_eq!(announced[0]["isAgentRunning"], json!(true));
+
+		webhook.stop();
+		cleaned(&app);
+	}
+
+	#[tokio::test]
+	async fn a_tool_call_naming_no_tool_leaves_the_thread_and_the_state_as_they_stood() {
+		let app = a_host("nameless-tool").await;
+		let mission = an_armed_mission(&app, A_KEY).await;
+		let before = events_of(&app, &mission.id).await;
+		let stood = state_of(&app, &mission.id).await;
+		let webhook = listening(&app, Ticking::at(NOON));
+		let nameless = json!({ "event": hook::TOOL_USED, "tool": 42, "target": "/w/a.rs" });
+		let blank = json!({ "event": hook::TOOL_USED, "tool": "", "target": "" });
+
+		for body in [nameless, blank] {
+			let held =
+				answered(webhook.address(), calling(Some(A_KEY), None, &body.to_string())).await;
+			assert_eq!(held, answer(UNREADABLE));
+		}
+
+		assert_eq!(events_of(&app, &mission.id).await, before, "a nameless tool call wrote a line");
+		assert_eq!(state_of(&app, &mission.id).await, stood, "a nameless tool call moved it");
+
+		webhook.stop();
+		cleaned(&app);
+	}
+
+	#[tokio::test]
+	async fn a_stop_carrying_a_tool_field_appends_the_rows_its_event_names_and_no_activity() {
+		let app = a_host("stop-with-tool").await;
+		let mission = an_armed_mission(&app, A_KEY).await;
+		let webhook = listening(&app, Ticking::at(NOON));
+		let body = json!({ "event": hook::TURN_STOPPED, "tool": "Edit", "target": "/w/a.rs" });
+
+		let held = answered(webhook.address(), calling(Some(A_KEY), None, &body.to_string())).await;
+
+		assert_eq!(held, answer(ACCEPTED));
+		assert_eq!(
+			kinds_of(&app, &mission.id).await,
+			vec![MissionEventKind::AgentStopped, MissionEventKind::AgentAsked],
+		);
+		let state = app.state::<db::DatabaseState>();
+		let written = ready(&state)
+			.expect("the database opens")
+			.missions()
+			.detail(mission.id.clone())
+			.await
+			.expect("the mission reads")
+			.mission;
+		assert_eq!((written.last_activity_at, written.last_activity), (None, None));
+
+		webhook.stop();
+		cleaned(&app);
+	}
+
+	#[tokio::test]
+	async fn tool_calls_past_their_budget_leave_the_thread_calls_of_that_mission_answered() {
+		let app = a_host("tool-flood").await;
+		let mission = an_armed_mission(&app, A_KEY).await;
+		let webhook = listening(&app, Ticking::at(NOON));
+		for call in 0..CALLS_PER_WINDOW {
+			let request = calling(Some(A_KEY), None, &a_tool_body("Read", &format!("/w/{call}")));
+			assert_eq!(answered(webhook.address(), request).await, answer(ACCEPTED));
+		}
+		let over = calling(Some(A_KEY), None, &a_tool_body("Read", "/w/over"));
+		assert_eq!(answered(webhook.address(), over).await, answer(FLOODED));
+
+		for event in ["Notification", hook::PROMPT_SUBMITTED, hook::TURN_STOPPED] {
+			let request = calling(Some(A_KEY), None, &a_body(event));
+			let held = answered(webhook.address(), request).await;
+			assert_eq!(held, answer(ACCEPTED), "the {event} call was refused");
+		}
+		assert_eq!(
+			kinds_of(&app, &mission.id).await,
+			vec![
+				MissionEventKind::AgentAsked,
+				MissionEventKind::AgentStarted,
+				MissionEventKind::AgentStopped,
+				MissionEventKind::AgentAsked,
+			],
+		);
 
 		webhook.stop();
 		cleaned(&app);

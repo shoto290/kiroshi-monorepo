@@ -218,6 +218,7 @@ const createHarness = async ({
 			state,
 			stateSeq: standingSeq,
 			isAgentRunning: false,
+			lastActivityAt: null,
 		})
 		await settled()
 	}

@@ -9,13 +9,15 @@ use super::conversations::open_thread_under;
 use super::messages::conversation_of_turn;
 use crate::db::{Access, DatabaseError};
 use crate::missions::contract::{
-	ConversationMissions, HookedMission, Mission, MissionAnswer, MissionClosing, MissionDetail,
-	MissionDraft, MissionEntry, MissionError, MissionEvent, MissionEventKind, MissionInThread,
-	MissionState, MissionStatus, MissionWatch, Ticket, WatchedMission,
+	CheckoutCounts, ConversationMissions, HookedMission, Mission, MissionActivity, MissionAnswer,
+	MissionClosing, MissionDetail, MissionDraft, MissionEntry, MissionError, MissionEvent,
+	MissionEventKind, MissionInThread, MissionState, MissionStatus, MissionWatch, Ticket,
+	WatchedMission,
 };
 
 const MAX_MISSIONS_PER_READ: u32 = 200;
 const MAX_EVENTS_PER_MISSION: u32 = 500;
+pub const AGENT_FRESHNESS_MS: i64 = 120_000;
 
 impl ToSql for MissionEventKind {
 	fn to_sql(&self) -> rusqlite::Result<ToSqlOutput<'_>> {
@@ -51,16 +53,21 @@ pub(in crate::db) const MISSION_COLUMNS: &str =
 		WHERE mission_events.mission_id = missions.id
 			AND mission_events.kind NOT IN ('note', 'agent_started', 'agent_stopped', 'status')
 		ORDER BY mission_events.seq DESC LIMIT 1), 0) AS state_seq,
-	COALESCE((SELECT mission_events.kind = 'agent_started' FROM mission_events
+	(SELECT CASE mission_events.kind WHEN 'agent_started' THEN created_at END
+		FROM mission_events
 		WHERE mission_events.mission_id = missions.id
 			AND mission_events.kind IN ('agent_started', 'agent_stopped')
-		ORDER BY mission_events.seq DESC LIMIT 1), 0) AS is_agent_running,
+		ORDER BY mission_events.seq DESC LIMIT 1) AS started_since_stop_at,
 	(SELECT payload FROM mission_events
 		WHERE mission_events.mission_id = missions.id AND mission_events.kind = 'status'
 		ORDER BY mission_events.seq DESC LIMIT 1) AS status_payload,
 	(SELECT created_at FROM mission_events
 		WHERE mission_events.mission_id = missions.id AND mission_events.kind = 'status'
-		ORDER BY mission_events.seq DESC LIMIT 1) AS status_at
+		ORDER BY mission_events.seq DESC LIMIT 1) AS status_at,
+	last_activity_at, last_activity, commits_ahead, dirty_files, pull_request_url,
+	(SELECT created_at FROM mission_events
+		WHERE mission_events.mission_id = missions.id AND mission_events.kind = 'agent_stopped'
+		ORDER BY mission_events.seq DESC LIMIT 1) AS agent_stopped_at
 	FROM missions";
 
 const INSERT_MISSION: &str = "INSERT INTO missions
@@ -86,6 +93,15 @@ const ARM_MISSION: &str = "UPDATE missions SET watch_branch = ?2, watch_reposito
 	delivery_key = ?4 WHERE id = ?1";
 
 const KEEP_FINGERPRINT: &str = "UPDATE missions SET github_fingerprint = ?2 WHERE id = ?1";
+
+const KEEP_PULL_REQUEST_URL: &str = "UPDATE missions SET pull_request_url = ?2 WHERE id = ?1";
+
+const KEEP_ACTIVITY: &str = "UPDATE missions SET last_activity_at = ?2, last_activity = ?3
+	WHERE id = ?1 AND (last_activity_at IS NULL OR last_activity_at <= ?2)";
+
+const KEEP_CHECKOUT: &str = "UPDATE missions SET commits_ahead = ?2, dirty_files = ?3
+	WHERE id = ?1 AND closed_at IS NULL
+		AND (commits_ahead IS NOT ?2 OR dirty_files IS NOT ?3)";
 
 const SELECT_KEY: &str = "SELECT delivery_key FROM missions WHERE id = ?1";
 
@@ -226,12 +242,50 @@ impl MissionsRepository {
 		mission_id: String,
 		entries: Vec<MissionEntry>,
 		fingerprint: String,
+		pull_request_url: Option<String>,
 	) -> Result<Option<Mission>, MissionError> {
 		self.access
 			.call_mut(move |connection| {
-				Ok(recorded(connection, &mission_id, &entries, &fingerprint))
+				Ok(recorded(
+					connection,
+					&mission_id,
+					&entries,
+					&fingerprint,
+					pull_request_url.as_deref(),
+				))
 			})
 			.await?
+	}
+
+	pub async fn record_activity(
+		&self,
+		mission_id: String,
+		activity: MissionActivity,
+		at: i64,
+	) -> Result<Mission, MissionError> {
+		self.access
+			.call_mut(move |connection| Ok(active(connection, &mission_id, &activity, at)))
+			.await?
+	}
+
+	pub async fn record_checkout(
+		&self,
+		mission_id: String,
+		counts: Option<CheckoutCounts>,
+	) -> Result<Option<Mission>, MissionError> {
+		self.access.call_mut(move |connection| Ok(counted(connection, &mission_id, counts))).await?
+	}
+
+	pub async fn workspace(&self, mission_id: String) -> Result<Option<String>, MissionError> {
+		Ok(self
+			.access
+			.call(move |connection| {
+				Ok(connection
+					.query_row(WORKSPACE_OF_MISSION, [&mission_id], |row| row.get(0))
+					.optional()?
+					.flatten())
+			})
+			.await?)
 	}
 
 	pub async fn of_conversation(
@@ -549,11 +603,48 @@ fn armed(
 	Ok((stored, key))
 }
 
+fn active(
+	connection: &mut Connection,
+	mission_id: &str,
+	activity: &MissionActivity,
+	at: i64,
+) -> Result<Mission, MissionError> {
+	let transaction = write_transaction(connection)?;
+	refuse_a_shut_mission(&transaction, mission_id)?;
+	transaction.execute(KEEP_ACTIVITY, params![mission_id, at, as_text(activity)?])?;
+	let stored = read(&transaction, mission_id)?;
+	transaction.commit()?;
+	Ok(stored)
+}
+
+fn counted(
+	connection: &mut Connection,
+	mission_id: &str,
+	counts: Option<CheckoutCounts>,
+) -> Result<Option<Mission>, MissionError> {
+	let transaction = write_transaction(connection)?;
+	let moved = transaction.execute(
+		KEEP_CHECKOUT,
+		params![
+			mission_id,
+			counts.map(|counts| counts.commits_ahead),
+			counts.map(|counts| counts.dirty_files),
+		],
+	)?;
+	let stored = match moved {
+		0 => None,
+		_ => Some(read(&transaction, mission_id)?),
+	};
+	transaction.commit()?;
+	Ok(stored)
+}
+
 fn recorded(
 	connection: &mut Connection,
 	mission_id: &str,
 	entries: &[MissionEntry],
 	fingerprint: &str,
+	pull_request_url: Option<&str>,
 ) -> Result<Option<Mission>, MissionError> {
 	let transaction = write_transaction(connection)?;
 	let Some(standing) = held(&transaction, mission_id)? else {
@@ -575,6 +666,9 @@ fn recorded(
 		transaction.execute(CLOSE_MISSION, params![mission_id, at])?;
 	}
 	transaction.execute(KEEP_FINGERPRINT, params![mission_id, fingerprint])?;
+	if let Some(url) = pull_request_url {
+		transaction.execute(KEEP_PULL_REQUEST_URL, params![mission_id, url])?;
+	}
 	let stored = read(&transaction, mission_id)?;
 	transaction.commit()?;
 	Ok(Some(stored))
@@ -670,9 +764,39 @@ pub(in crate::db) fn mission(row: &Row<'_>) -> rusqlite::Result<Mission> {
 		reported_turn_id: row.get(13)?,
 		state: derived(row.get(14)?)?,
 		state_seq: row.get(15)?,
-		is_agent_running: row.get(16)?,
+		is_agent_running: Liveness {
+			closed_at: row.get(11)?,
+			started_since_stop_at: row.get(16)?,
+			activity_at: row.get(19)?,
+			stopped_at: row.get(24)?,
+		}
+		.is_running(now()),
 		status: last_status(row)?,
+		last_activity_at: row.get(19)?,
+		last_activity: row.get::<_, Option<String>>(20)?.map(|_| from_text(row, 20)).transpose()?,
+		commits_ahead: row.get(21)?,
+		dirty_files: row.get(22)?,
+		pull_request_url: row.get(23)?,
 	})
+}
+
+struct Liveness {
+	closed_at: Option<i64>,
+	started_since_stop_at: Option<i64>,
+	activity_at: Option<i64>,
+	stopped_at: Option<i64>,
+}
+
+impl Liveness {
+	fn is_running(&self, now: i64) -> bool {
+		let is_in_a_turn = self.stopped_at.is_none() || self.started_since_stop_at.is_some();
+		let activity_in_a_turn = self.activity_at.filter(|_| is_in_a_turn);
+		self.closed_at.is_none()
+			&& [self.started_since_stop_at, activity_in_a_turn]
+				.into_iter()
+				.flatten()
+				.any(|at| now - at < AGENT_FRESHNESS_MS)
+	}
 }
 
 #[derive(serde::Deserialize)]
@@ -962,7 +1086,7 @@ mod tests {
 	}
 
 	#[tokio::test]
-	async fn the_liveness_of_a_mission_follows_the_last_of_its_agent_started_and_agent_stopped() {
+	async fn the_liveness_of_a_mission_reads_idle_the_moment_its_agent_stops() {
 		let (database, dir) = planted().await;
 		let opened = database
 			.missions()
@@ -976,6 +1100,7 @@ mod tests {
 			MissionEventKind::Note,
 			MissionEventKind::AgentStopped,
 			MissionEventKind::AgentStarted,
+			MissionEventKind::AgentStopped,
 		] {
 			let written = database
 				.missions()
@@ -984,8 +1109,141 @@ mod tests {
 				.expect("the event is appended");
 			walked.push(written.is_agent_running);
 		}
+		let late_tail = database
+			.missions()
+			.record_activity(opened.id.clone(), an_activity("Edit", "/w/a.rs"), now() + 1_000)
+			.await
+			.expect("an activity landing after the stop is taken");
+		walked.push(late_tail.is_agent_running);
+		let restarted = database
+			.missions()
+			.append(opened.id.clone(), an_entry(MissionEventKind::AgentStarted))
+			.await
+			.expect("the agent starts again");
+		walked.push(restarted.is_agent_running);
+		let in_the_turn = database
+			.missions()
+			.record_activity(opened.id.clone(), an_activity("Read", "/w/b.rs"), now() + 2_000)
+			.await
+			.expect("an activity inside the turn lands");
+		walked.push(in_the_turn.is_agent_running);
+		let closed = database
+			.missions()
+			.append(opened.id.clone(), an_entry(MissionEventKind::Closed))
+			.await
+			.expect("the mission closes");
+		walked.push(closed.is_agent_running);
 
-		assert_eq!(walked, vec![false, true, true, false, true]);
+		assert_eq!(walked, vec![false, true, true, false, true, false, false, true, true, false]);
+
+		drop(database);
+		std::fs::remove_dir_all(&dir).expect("cleanup");
+	}
+
+	fn liveness(started: Option<i64>, activity: Option<i64>, stopped: Option<i64>) -> Liveness {
+		Liveness {
+			closed_at: None,
+			started_since_stop_at: started,
+			activity_at: activity,
+			stopped_at: stopped,
+		}
+	}
+
+	#[test]
+	fn an_agent_is_running_while_its_freshest_sign_inside_a_turn_is_under_the_window() {
+		let at = 1_800_000_000_000;
+		let under = at + AGENT_FRESHNESS_MS - 1;
+		let stopped = Some(at - 10);
+
+		assert!(liveness(None, Some(at), None).is_running(under), "no stop ever seen");
+		assert!(
+			liveness(Some(at - 5), Some(at), stopped).is_running(under),
+			"a start after the stop"
+		);
+		assert!(!liveness(None, Some(at), stopped).is_running(at + 1), "the tail of an ended turn");
+		assert!(liveness(Some(at), None, None).is_running(under));
+		assert!(liveness(Some(at - AGENT_FRESHNESS_MS), Some(at), None).is_running(at + 1));
+		assert!(!liveness(Some(at), Some(at), None).is_running(at + AGENT_FRESHNESS_MS));
+		assert!(!liveness(None, None, None).is_running(at));
+		assert!(
+			!Liveness { closed_at: Some(at), ..liveness(Some(at), Some(at), None) }.is_running(at)
+		);
+	}
+
+	fn an_activity(tool: &str, target: &str) -> MissionActivity {
+		MissionActivity { tool: tool.to_owned(), target: target.to_owned() }
+	}
+
+	#[tokio::test]
+	async fn an_activity_moves_forward_only_lands_on_the_row_and_appends_no_event() {
+		let (database, dir) = planted().await;
+		let opened = database
+			.missions()
+			.open(a_draft("c1", "b1", "Fix the crash"), a_key())
+			.await
+			.expect("the mission opens");
+		let events_before = count_of(&database, "mission_events").await;
+		let recent = now();
+
+		let written = database
+			.missions()
+			.record_activity(opened.id.clone(), an_activity("Edit", "/w/a.rs"), recent)
+			.await
+			.expect("the activity lands");
+		let older = database
+			.missions()
+			.record_activity(opened.id.clone(), an_activity("Read", "/w/b.rs"), recent - 1)
+			.await
+			.expect("the older activity is taken");
+
+		assert_eq!(written.last_activity_at, Some(recent));
+		assert_eq!(written.last_activity, Some(an_activity("Edit", "/w/a.rs")));
+		assert!(written.is_agent_running);
+		assert_eq!(
+			(older.last_activity_at, older.last_activity),
+			(Some(recent), Some(an_activity("Edit", "/w/a.rs"))),
+			"an older activity moved the row back"
+		);
+		assert_eq!(count_of(&database, "mission_events").await, events_before);
+
+		let stale = database
+			.missions()
+			.open(a_draft("c1", "b1", "Fix the leak"), a_key())
+			.await
+			.expect("the mission opens");
+		let long_ago = database
+			.missions()
+			.record_activity(stale.id, an_activity("Bash", "ls"), recent - AGENT_FRESHNESS_MS)
+			.await
+			.expect("the activity lands");
+		assert!(!long_ago.is_agent_running, "an activity past the window read as running");
+
+		drop(database);
+		std::fs::remove_dir_all(&dir).expect("cleanup");
+	}
+
+	#[tokio::test]
+	async fn the_counts_of_a_checkout_answer_the_mission_only_when_they_moved() {
+		let (database, dir) = planted().await;
+		let opened = database
+			.missions()
+			.open(a_draft("c1", "b1", "Fix the crash"), a_key())
+			.await
+			.expect("the mission opens");
+		let counts = CheckoutCounts { commits_ahead: 3, dirty_files: 2 };
+		let record = |counts| database.missions().record_checkout(opened.id.clone(), counts);
+
+		let first = record(Some(counts)).await.expect("the counts land");
+		let again = record(Some(counts)).await.expect("the counts land again");
+		let unread = record(None).await.expect("the counts are cleared");
+		let still_unread = record(None).await.expect("the counts stay cleared");
+
+		let first = first.expect("the first counts moved the mission");
+		assert_eq!((first.commits_ahead, first.dirty_files), (Some(3), Some(2)));
+		assert_eq!(again, None, "unmoved counts answered a mission");
+		let unread = unread.expect("clearing the counts moved the mission");
+		assert_eq!((unread.commits_ahead, unread.dirty_files), (None, None));
+		assert_eq!(still_unread, None);
 
 		drop(database);
 		std::fs::remove_dir_all(&dir).expect("cleanup");

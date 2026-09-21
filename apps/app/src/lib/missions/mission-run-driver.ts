@@ -543,6 +543,7 @@ export const startMissionRunDriver = ({
 				state: mission.state,
 				stateSeq: mission.stateSeq,
 				isAgentRunning: mission.isAgentRunning,
+				lastActivityAt: mission.lastActivityAt,
 			})
 		}
 	}

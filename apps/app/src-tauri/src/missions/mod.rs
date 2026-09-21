@@ -1,4 +1,5 @@
 pub mod call;
+pub mod checkout;
 pub mod commands;
 pub mod contract;
 pub mod github;

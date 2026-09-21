@@ -38,6 +38,11 @@ const MISSION: Mission = {
 	reportedAt: null,
 	reportedTurnId: null,
 	status: null,
+	lastActivityAt: null,
+	lastActivity: null,
+	commitsAhead: null,
+	dirtyFiles: null,
+	pullRequestUrl: null,
 }
 
 const A_MINUTE_MS = 60_000

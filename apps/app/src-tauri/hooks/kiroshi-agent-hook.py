@@ -4,6 +4,9 @@ import sys
 import uuid
 
 MAX_TEXT_CHARACTERS = 500
+MAX_COMMAND_CHARACTERS = 80
+TOOL_USED = "PostToolUse"
+PATH_TOOLS = ("Edit", "Write", "Read")
 MAX_BODY_BYTES = 64 * 1024
 DEFAULT_CONFIG = os.path.join(".kiroshi", "agent-hook.json")
 BRANCH_PREFIX = "ref: refs/heads/"
@@ -106,6 +109,33 @@ def branch(start):
 	return head[len(BRANCH_PREFIX):] if head.startswith(BRANCH_PREFIX) else ""
 
 
+def target(tool, tool_input):
+	held = tool_input if isinstance(tool_input, dict) else {}
+	if tool in PATH_TOOLS:
+		return text(held.get("file_path"))
+	if tool == "Bash":
+		return text(held.get("command"))[:MAX_COMMAND_CHARACTERS]
+	return tool
+
+
+def reported(hook, directory):
+	event = text(hook.get("hook_event_name"))
+	payload = {
+		"event": event,
+		"sessionId": text(hook.get("session_id")),
+		"cwd": directory,
+		"branch": branch(directory),
+	}
+	if event == TOOL_USED:
+		tool = text(hook.get("tool_name"))
+		payload["tool"] = tool
+		payload["target"] = target(tool, hook.get("tool_input"))
+		return payload
+	payload["excerpt"] = excerpt(hook.get("transcript_path"))
+	payload["message"] = text(hook.get("message"))[:MAX_TEXT_CHARACTERS]
+	return payload
+
+
 def call():
 	hook = parsed(sys.stdin.read())
 	if not isinstance(hook, dict) or hook.get("agent_id"):
@@ -115,15 +145,7 @@ def call():
 		return None
 	url, key = held
 	directory = text(hook.get("cwd")) or os.getcwd()
-	payload = {
-		"event": text(hook.get("hook_event_name")),
-		"sessionId": text(hook.get("session_id")),
-		"cwd": directory,
-		"branch": branch(directory),
-		"excerpt": excerpt(hook.get("transcript_path")),
-		"message": text(hook.get("message"))[:MAX_TEXT_CHARACTERS],
-	}
-	body = json.dumps(payload)
+	body = json.dumps(reported(hook, directory))
 	if len(body.encode("utf-8")) > MAX_BODY_BYTES:
 		return None
 	return url, key, uuid.uuid4().hex, body
