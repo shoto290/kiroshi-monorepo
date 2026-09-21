@@ -46,6 +46,7 @@ const missionOf = (id: string, openedAt: number, botId = "bot-1"): Mission => ({
 	closedAt: null,
 	reportedAt: null,
 	reportedTurnId: null,
+	status: null,
 })
 
 const eventOf = (id: string, createdAt: number): MissionEventModel => ({

@@ -19,10 +19,11 @@ pub enum MissionEventKind {
 	ChecksFailed,
 	Failed,
 	Closed,
+	Status,
 }
 
 impl MissionEventKind {
-	pub const ALL: [MissionEventKind; 11] = [
+	pub const ALL: [MissionEventKind; 12] = [
 		MissionEventKind::Opened,
 		MissionEventKind::Note,
 		MissionEventKind::AgentAsked,
@@ -34,6 +35,7 @@ impl MissionEventKind {
 		MissionEventKind::ChecksFailed,
 		MissionEventKind::Failed,
 		MissionEventKind::Closed,
+		MissionEventKind::Status,
 	];
 
 	pub fn state(self) -> Option<MissionState> {
@@ -48,7 +50,8 @@ impl MissionEventKind {
 			MissionEventKind::Closed => Some(MissionState::Done),
 			MissionEventKind::Note
 			| MissionEventKind::AgentStarted
-			| MissionEventKind::AgentStopped => None,
+			| MissionEventKind::AgentStopped
+			| MissionEventKind::Status => None,
 		}
 	}
 
@@ -158,6 +161,14 @@ pub struct Mission {
 	pub closed_at: Option<i64>,
 	pub reported_at: Option<i64>,
 	pub reported_turn_id: Option<String>,
+	pub status: Option<MissionStatus>,
+}
+
+#[derive(Debug, Clone, PartialEq, Eq, Serialize, Deserialize, specta::Type)]
+#[serde(rename_all = "camelCase")]
+pub struct MissionStatus {
+	pub text: String,
+	pub written_at: i64,
 }
 
 #[derive(Debug, Clone, PartialEq, Serialize, Deserialize, specta::Type)]

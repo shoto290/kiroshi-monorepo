@@ -50,6 +50,7 @@ const missionIn = (state: MissionState): Mission => ({
 	closedAt: null,
 	reportedAt: null,
 	reportedTurnId: null,
+	status: null,
 })
 
 const READ_AT = Date.parse("2026-03-04T14:20:00")
@@ -470,6 +471,7 @@ const mission = (over: Partial<Mission>): Mission => ({
 	closedAt: null,
 	reportedAt: null,
 	reportedTurnId: null,
+	status: null,
 	...over,
 })
 

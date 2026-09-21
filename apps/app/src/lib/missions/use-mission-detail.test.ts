@@ -36,6 +36,7 @@ const DETAIL: MissionDetail = {
 		closedAt: null,
 		reportedAt: null,
 		reportedTurnId: null,
+		status: null,
 	},
 	events: [
 		{

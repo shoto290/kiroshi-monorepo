@@ -803,6 +803,7 @@ const SOLO_MISSION: Mission = {
 	closedAt: null,
 	reportedAt: null,
 	reportedTurnId: null,
+	status: null,
 }
 
 const TWO_HOURS_MS = 2 * 60 * 60 * 1000

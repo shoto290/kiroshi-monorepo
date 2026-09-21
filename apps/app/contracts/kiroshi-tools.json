@@ -312,6 +312,29 @@
 		}
 	},
 	{
+		"name": "mission_status",
+		"description": "Write the status of a mission of yours, every time you stop working on it, whether the work is over or only paused. It is read by whoever follows the conversation the mission came from, who saw none of the work, so it holds on its own and names whoever moves next.",
+		"inputSchema": {
+			"$schema": "https://json-schema.org/draft/2020-12/schema",
+			"type": "object",
+			"properties": {
+				"id": {
+					"type": "string",
+					"description": "The id of the mission this lands on."
+				},
+				"text": {
+					"type": "string",
+					"description": "Where the mission stands, what moved since the last status, what is waiting and on whom, in a few plain lines."
+				}
+			},
+			"required": [
+				"id",
+				"text"
+			],
+			"additionalProperties": false
+		}
+	},
+	{
 		"name": "mission_escalate",
 		"description": "Hand a mission back to the person with the one question that blocks you. The mission waits until they answer.",
 		"inputSchema": {

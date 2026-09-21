@@ -23,6 +23,9 @@ const MISSION_ID = "The id of the mission this lands on."
 const LINE =
 	"One line of progress, written for the person who reads the thread."
 
+const STATUS_TEXT =
+	"Where the mission stands, what moved since the last status, what is waiting and on whom, in a few plain lines."
+
 const QUESTION =
 	"The one question the person has to answer for you to carry on."
 
@@ -47,6 +50,9 @@ const OPEN =
 
 const NOTE =
 	"Record one line of progress on a mission of yours. Write what moved, not what you are about to do."
+
+const STATUS =
+	"Write the status of a mission of yours, every time you stop working on it, whether the work is over or only paused. It is read by whoever follows the conversation the mission came from, who saw none of the work, so it holds on its own and names whoever moves next."
 
 const ESCALATE =
 	"Hand a mission back to the person with the one question that blocks you. The mission waits until they answer."
@@ -82,6 +88,11 @@ const OPENED: ToolInput = {
 
 const NOTED: ToolInput = { ...NAMED, line: z.string().describe(LINE) }
 
+const STATED: ToolInput = {
+	...NAMED,
+	text: z.string().describe(STATUS_TEXT),
+}
+
 const ESCALATED: ToolInput = {
 	...NAMED,
 	question: z.string().describe(QUESTION),
@@ -107,6 +118,9 @@ type MissionTool = SdkMcpToolDefinition<ToolInput>
 export const missionTools = (session: string | undefined): MissionTool[] => [
 	tool("mission_open", OPEN, OPENED, (input) => asked(session, "open", input)),
 	tool("mission_note", NOTE, NOTED, (input) => asked(session, "note", input)),
+	tool("mission_status", STATUS, STATED, (input) =>
+		asked(session, "status", input),
+	),
 	tool("mission_escalate", ESCALATE, ESCALATED, (input) =>
 		asked(session, "escalate", input),
 	),

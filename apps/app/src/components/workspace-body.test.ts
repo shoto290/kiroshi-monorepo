@@ -119,6 +119,7 @@ const missionOf = (bot: Bot, origin: Conversation): Mission => ({
 	closedAt: null,
 	reportedAt: null,
 	reportedTurnId: null,
+	status: null,
 })
 
 const eventOf = (

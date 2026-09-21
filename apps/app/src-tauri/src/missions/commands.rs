@@ -154,6 +154,22 @@ pub async fn mission_note<R: Runtime>(
 	appended(&app, &state, mission_id, entry).await
 }
 
+pub async fn mission_status<R: Runtime>(
+	app: AppHandle<R>,
+	state: State<'_, db::DatabaseState>,
+	mission_id: String,
+	source: String,
+	text: String,
+) -> Result<Mission, MissionError> {
+	refuse_blank("text", &text)?;
+	let entry = MissionEntry {
+		kind: MissionEventKind::Status,
+		source,
+		payload: serde_json::json!({ "text": text }),
+	};
+	appended(&app, &state, mission_id, entry).await
+}
+
 pub async fn mission_escalate<R: Runtime>(
 	app: AppHandle<R>,
 	state: State<'_, db::DatabaseState>,

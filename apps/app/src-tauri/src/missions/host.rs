@@ -3,11 +3,12 @@ use serde_json::Value;
 use tauri::{AppHandle, Runtime};
 
 use super::commands::{
-	mission_close, mission_escalate, mission_note, mission_open, mission_row, mission_watch,
+	mission_close, mission_escalate, mission_note, mission_open, mission_row, mission_status,
+	mission_watch,
 };
 use super::contract::{
 	Mission, MissionClosing, MissionDraft, MissionEntry, MissionError, MissionEventKind,
-	MissionNote, MissionOutcome, MissionState, MissionWatch, Ticket,
+	MissionNote, MissionOutcome, MissionState, MissionStatus, MissionWatch, Ticket,
 };
 use crate::agent::host::{Host, Refusal};
 use crate::conversations::commands::ready;
@@ -92,6 +93,14 @@ impl<R: Runtime> Host for MissionHost<R> {
 				};
 				Self::answered(mission_note(self.app.clone(), state, asked.id, entry).await?)
 			}
+			Operation::Status => {
+				let asked: Stated = Self::read(payload)?;
+				self.refuse_a_mission_it_does_not_own(database, &asked.id).await?;
+				Self::answered(
+					mission_status(self.app.clone(), state, asked.id, BOT.to_owned(), asked.text)
+						.await?,
+				)
+			}
 			Operation::Escalate => {
 				let asked: Escalated = Self::read(payload)?;
 				self.refuse_a_mission_it_does_not_own(database, &asked.id).await?;
@@ -147,6 +156,7 @@ impl Refusal for MissionError {
 pub enum Operation {
 	Open,
 	Note,
+	Status,
 	Escalate,
 	Close,
 	Watch,
@@ -168,6 +178,13 @@ struct Opened {
 struct Noted {
 	id: String,
 	line: String,
+}
+
+#[derive(Debug, Deserialize)]
+#[serde(rename_all = "camelCase", deny_unknown_fields)]
+struct Stated {
+	id: String,
+	text: String,
 }
 
 #[derive(Debug, Deserialize)]
@@ -205,6 +222,7 @@ struct Listed {
 	ticket: Ticket,
 	state: MissionState,
 	opened_at: i64,
+	status: Option<MissionStatus>,
 }
 
 fn listed(mission: Mission) -> Listed {
@@ -213,6 +231,7 @@ fn listed(mission: Mission) -> Listed {
 		ticket: mission.ticket,
 		state: mission.state,
 		opened_at: mission.opened_at,
+		status: mission.status,
 	}
 }
 
@@ -222,8 +241,10 @@ mod tests {
 	use std::path::{Path, PathBuf};
 
 	use serde_json::json;
+	use std::sync::mpsc::channel;
 	use tauri::test::{mock_builder, mock_context, noop_assets, MockRuntime};
-	use tauri::{App, Manager as _};
+
+	use tauri::{App, Listener as _, Manager as _};
 
 	use super::super::commands::{mission_detail, mission_open as opened};
 	use super::super::contract::{MissionEvent, MissionState};
@@ -472,6 +493,7 @@ mod tests {
 
 		for asked in [
 			asking("note", json!({ "id": held.id, "line": "Sneaking in" })),
+			asking("status", json!({ "id": held.id, "text": "Sneaking in" })),
 			asking("escalate", json!({ "id": held.id, "question": "?", "reason": "?" })),
 			asking("close", json!({ "id": held.id, "outcome": "done", "summary": "?" })),
 			an_arming(&held.id),
@@ -498,6 +520,7 @@ mod tests {
 
 		for asked in [
 			asking("note", json!({ "id": held.id, "line": "Sneaking in" })),
+			asking("status", json!({ "id": held.id, "text": "Sneaking in" })),
 			asking("escalate", json!({ "id": held.id, "question": "?", "reason": "?" })),
 			asking("close", json!({ "id": held.id, "outcome": "done", "summary": "?" })),
 			an_arming(&held.id),
@@ -538,6 +561,7 @@ mod tests {
 		assert_eq!(row["ticket"]["externalId"], json!("OPE-1"));
 		assert_eq!(row["state"], json!("working"));
 		assert!(row["openedAt"].is_number(), "got {row}");
+		assert_eq!(row["status"], Value::Null, "got {row}");
 
 		cleaned(&app);
 	}
@@ -663,6 +687,84 @@ mod tests {
 		let mission = mission_detail(app.state(), id).await.expect("the mission reads").mission;
 		assert_eq!(mission.state, MissionState::Failed);
 		assert!(mission.closed_at.is_some(), "the failed close left the mission open");
+
+		cleaned(&app);
+	}
+
+	#[tokio::test]
+	async fn a_status_lands_on_the_mission_from_its_bot_and_moves_nothing_but_itself() {
+		let app = a_host("status").await;
+		let opened = a_mission_of(&app, "c1", "b1").await;
+		let host = serving(&app, &opened.thread_conversation_id);
+		let (sender, received) = channel();
+		app.handle().listen(super::super::commands::CHANGED_EVENT, move |event| {
+			let _ = sender.send(event.payload().to_owned());
+		});
+
+		let stated = host
+			.answer(asking(
+				"status",
+				json!({ "id": opened.id, "text": "Paused, the person picks the copy next" }),
+			))
+			.await
+			.expect("the status lands");
+		let answered =
+			host.answer(asking("list", json!({}))).await.expect("the missions are listed");
+
+		assert_eq!(stated["status"]["text"], json!("Paused, the person picks the copy next"));
+		assert!(stated["status"]["writtenAt"].is_number(), "got {stated}");
+		assert_eq!(stated["state"], json!("working"));
+		assert_eq!(stated["stateSeq"], json!(opened.state_seq));
+		assert_eq!(stated["closedAt"], Value::Null);
+		assert_eq!(answered[0]["status"], stated["status"], "got {answered}");
+		assert!(received.try_recv().is_ok(), "the status was not announced");
+		assert_eq!(
+			events(&app, &opened.id)
+				.await
+				.into_iter()
+				.map(|held| (held.kind, held.source, held.payload))
+				.collect::<Vec<_>>(),
+			vec![
+				(MissionEventKind::Opened, "human".to_owned(), json!({})),
+				(
+					MissionEventKind::Status,
+					BOT.to_owned(),
+					json!({ "text": "Paused, the person picks the copy next" })
+				),
+			]
+		);
+
+		cleaned(&app);
+	}
+
+	#[tokio::test]
+	async fn a_blank_status_and_a_status_on_a_closed_mission_are_refused() {
+		let app = a_host("status-refused").await;
+		let opened = a_mission_of(&app, "c1", "b1").await;
+		let host = serving(&app, "c1");
+
+		let blank = host
+			.answer(asking("status", json!({ "id": opened.id, "text": "  " })))
+			.await
+			.expect_err("the blank status is refused");
+		host.answer(asking(
+			"close",
+			json!({ "id": opened.id, "outcome": "done", "summary": "Shipped" }),
+		))
+		.await
+		.expect("the mission is closed");
+		let shut = host
+			.answer(asking("status", json!({ "id": opened.id, "text": "Too late" })))
+			.await
+			.expect_err("the status on a closed mission is refused");
+
+		assert_eq!(blank["kind"], json!("blankField"));
+		assert_eq!(blank["field"], json!("text"));
+		assert_eq!(shut["kind"], json!("missionAlreadyClosed"));
+		assert_eq!(
+			events(&app, &opened.id).await.into_iter().map(|event| event.kind).collect::<Vec<_>>(),
+			vec![MissionEventKind::Opened, MissionEventKind::Closed]
+		);
 
 		cleaned(&app);
 	}
