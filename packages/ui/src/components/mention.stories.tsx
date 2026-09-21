@@ -2,7 +2,7 @@ import type { ReactNode } from "react"
 import { expect, fireEvent, fn, screen, within } from "storybook/test"
 
 import preview from "@workspace/storybook/preview"
-import { shown } from "@workspace/storybook/story-utils"
+import { shown, slotIn, slotsIn } from "@workspace/storybook/story-utils"
 import {
 	CONVERSATION_BOTS,
 	LONG_NAMED_BOTS,
@@ -641,15 +641,6 @@ const TitledConversation = ({ children }: { children: ReactNode }) => (
 	</RosterProvider>
 )
 
-const slotOf = (pill: HTMLElement, slot: string) =>
-	pill.querySelector<HTMLElement>(`[data-slot="${slot}"]`)
-
-const onePill = (canvasElement: HTMLElement) => {
-	const [pill] = [...pills(canvasElement)]
-	if (!pill) throw new Error("The sentence drew no chip")
-	return pill
-}
-
 const isOneLine = (element: HTMLElement) =>
 	element.getBoundingClientRect().height <=
 	Number.parseFloat(
@@ -671,10 +662,9 @@ export const WithTitle = meta.story({
 		</TitledConversation>
 	),
 	play: async ({ canvasElement }) => {
-		const pill = onePill(canvasElement)
-		const name = slotOf(pill, "bot-mention-name")
-		const title = slotOf(pill, "bot-title-badge")
-		if (!name || !title) throw new Error("The chip drew no title")
+		const pill = slotIn(canvasElement, "bot-mention")
+		const name = slotIn(pill, "bot-mention-name")
+		const title = slotIn(pill, "bot-title-badge")
 
 		await expect(title).toHaveTextContent("Research lead")
 		await expect(name.nextElementSibling).toBe(title)
@@ -699,10 +689,10 @@ export const UnknownWithoutTitle = meta.story({
 		</TitledConversation>
 	),
 	play: async ({ canvas, canvasElement }) => {
-		const pill = onePill(canvasElement)
+		const pill = slotIn(canvasElement, "bot-mention")
 
 		await expect(canvas.getByText("Unknown companion")).toBeVisible()
-		await expect(slotOf(pill, "bot-title-badge")).toBeNull()
+		await expect(slotsIn(pill, "bot-title-badge")).toHaveLength(0)
 	},
 })
 
@@ -723,11 +713,10 @@ export const WithTitleCounted = meta.story({
 		</TitledConversation>
 	),
 	play: async ({ canvasElement }) => {
-		const pill = onePill(canvasElement)
-		const name = slotOf(pill, "bot-mention-name")
-		const title = slotOf(pill, "bot-title-badge")
-		const count = slotOf(pill, "bot-mention-count")
-		if (!name || !title || !count) throw new Error("The chip drew a part short")
+		const pill = slotIn(canvasElement, "bot-mention")
+		const name = slotIn(pill, "bot-mention-name")
+		const title = slotIn(pill, "bot-title-badge")
+		const count = slotIn(pill, "bot-mention-count")
 
 		await expect(name.nextElementSibling).toBe(title)
 		await expect(title.nextElementSibling).toBe(count)

@@ -1,7 +1,7 @@
 import { expect, fireEvent, fn, screen, waitFor, within } from "storybook/test"
 
 import preview from "@workspace/storybook/preview"
-import { shown } from "@workspace/storybook/story-utils"
+import { shown, slotIn, slotsIn } from "@workspace/storybook/story-utils"
 import {
 	CompanionMenuContent,
 	type CompanionMenuSubject,
@@ -172,9 +172,6 @@ const openMenuOn = async (target: HTMLElement, name = MENU_LABEL) => {
 
 const LONG_NAME = "Atlas the quarterly infrastructure capacity planner"
 
-const slotIn = (element: HTMLElement, slot: string) =>
-	element.querySelector<HTMLElement>(`[data-slot="${slot}"]`)
-
 export const WithHeader = meta.story({
 	args: { companion: TITLED_ATLAS },
 	parameters: {
@@ -188,10 +185,9 @@ export const WithHeader = meta.story({
 	play: async ({ canvas }) => {
 		const menu = await openMenuOn(canvas.getByText(TRIGGER_LABEL))
 		const header = slotIn(menu, "companion-menu-header")
-		if (!header) throw new Error("The menu drew no header")
 
 		await expect(menu.firstElementChild?.contains(header)).toBe(true)
-		await expect(slotIn(header, "bot-identity-avatar")).not.toBeNull()
+		await expect(slotIn(header, "bot-identity-avatar")).toBeVisible()
 		await expect(
 			slotIn(header, "companion-menu-header-name"),
 		).toHaveTextContent("Atlas")
@@ -226,13 +222,12 @@ export const WithHeaderUntitled = meta.story({
 	play: async ({ canvas }) => {
 		const menu = await openMenuOn(canvas.getByText(TRIGGER_LABEL))
 		const header = slotIn(menu, "companion-menu-header")
-		if (!header) throw new Error("The menu drew no header")
 
-		await expect(slotIn(header, "bot-identity-avatar")).not.toBeNull()
+		await expect(slotIn(header, "bot-identity-avatar")).toBeVisible()
 		await expect(
 			slotIn(header, "companion-menu-header-name"),
 		).toHaveTextContent("Atlas")
-		await expect(slotIn(header, "bot-title-badge")).toBeNull()
+		await expect(slotsIn(header, "bot-title-badge")).toHaveLength(0)
 	},
 })
 
@@ -259,10 +254,8 @@ export const WithHeaderLongContent = meta.story({
 			`Actions for ${LONG_NAME}`,
 		)
 		const header = slotIn(menu, "companion-menu-header")
-		const name = header && slotIn(header, "companion-menu-header-name")
-		const title = header && slotIn(header, "bot-title-badge")
-		if (!header || !name || !title)
-			throw new Error("The header drew a part short")
+		const name = slotIn(header, "companion-menu-header-name")
+		const title = slotIn(header, "bot-title-badge")
 
 		await expect(header.getBoundingClientRect().right).toBeLessThanOrEqual(
 			menu.getBoundingClientRect().right,
