@@ -195,10 +195,10 @@ export const ReadOnly = meta.story({
 	},
 })
 
-export const Masked = meta.story({
+export const PasswordKind = meta.story({
 	args: {
 		label: "Value",
-		masked: true,
+		kind: "password",
 		value: "",
 		hint: "Saved once and never shown again.",
 	},
@@ -222,10 +222,10 @@ export const Masked = meta.story({
 	},
 })
 
-export const Numeric = meta.story({
+export const NumberKind = meta.story({
 	args: {
 		label: "Attempt",
-		numeric: true,
+		kind: "number",
 		value: "10",
 	},
 	parameters: {
@@ -240,11 +240,123 @@ export const Numeric = meta.story({
 		const field = canvas.getByLabelText("Attempt")
 
 		await expect(field).toHaveAttribute("type", "number")
+		await expect(field).toHaveAttribute("inputmode", "decimal")
 		await expect(field).toHaveValue(10)
 
 		await userEvent.clear(field)
 		await userEvent.type(field, "many")
 		await expect(field).toHaveValue(null)
 		await expect(args.onValueChange).toHaveBeenLastCalledWith("")
+	},
+})
+
+export const TextKind = meta.story({
+	args: {
+		kind: "text",
+	},
+	parameters: {
+		docs: {
+			description: {
+				story:
+					"The kind every field takes unless its caller declares another: plain text, with the default keyboard and the spellchecker left on. Check that the control is a text input carrying no input mode of its own.",
+			},
+		},
+	},
+	play: async ({ canvas }) => {
+		const field = canvas.getByLabelText("Name")
+
+		await expect(field).toHaveAttribute("type", "text")
+		await expect(field).not.toHaveAttribute("inputmode")
+	},
+})
+
+export const EmailKind = meta.story({
+	args: {
+		kind: "email",
+		label: "Email",
+		value: "ada@example.com",
+	},
+	parameters: {
+		docs: {
+			description: {
+				story:
+					"The kind for an address a person reads back letter by letter. Check that the control is an email input, that it asks a touch keyboard for the at sign, and that the spellchecker stays off so a correct address is never underlined.",
+			},
+		},
+	},
+	play: async ({ canvas }) => {
+		const field = canvas.getByLabelText("Email")
+
+		await expect(field).toHaveAttribute("type", "email")
+		await expect(field).toHaveAttribute("inputmode", "email")
+		await expect(field).toHaveAttribute("spellcheck", "false")
+	},
+})
+
+export const UrlKind = meta.story({
+	args: {
+		kind: "url",
+		label: "URL",
+		value: "https://example.com/mcp",
+	},
+	parameters: {
+		docs: {
+			description: {
+				story:
+					"The kind for an address on the network. Check that the control is a url input, that a touch keyboard offers the slash and the dot, and that the spellchecker stays off.",
+			},
+		},
+	},
+	play: async ({ canvas }) => {
+		const field = canvas.getByLabelText("URL")
+
+		await expect(field).toHaveAttribute("type", "url")
+		await expect(field).toHaveAttribute("inputmode", "url")
+		await expect(field).toHaveAttribute("spellcheck", "false")
+	},
+})
+
+export const SearchKind = meta.story({
+	args: {
+		kind: "search",
+		label: "Search",
+		value: "",
+	},
+	parameters: {
+		docs: {
+			description: {
+				story:
+					"The kind for a query. Check that the control is a search input and that a touch keyboard turns its return key into a search key.",
+			},
+		},
+	},
+	play: async ({ canvas }) => {
+		const field = canvas.getByLabelText("Search")
+
+		await expect(field).toHaveAttribute("type", "search")
+		await expect(field).toHaveAttribute("inputmode", "search")
+	},
+})
+
+export const WithError = meta.story({
+	args: {
+		error: "A skill needs a name.",
+		value: "",
+	},
+	parameters: {
+		docs: {
+			description: {
+				story:
+					"The field once a submission refused it. Check that the message reads under the control in the destructive colour, that it is announced as an alert, and that the control is marked invalid and described by that message.",
+			},
+		},
+	},
+	play: async ({ canvas }) => {
+		const field = canvas.getByLabelText("Name")
+		const message = canvas.getByRole("alert")
+
+		await expect(message).toHaveTextContent("A skill needs a name.")
+		await expect(field).toHaveAttribute("aria-invalid", "true")
+		await expect(field).toHaveAccessibleDescription("A skill needs a name.")
 	},
 })

@@ -276,7 +276,7 @@ export const McpServersUnavailable = meta.story({
 
 		await expect(
 			within(panel).getByText(
-				"Couldn't load applications. Reopen settings to retry.",
+				"Couldn’t load applications. Reopen settings to retry.",
 			),
 		).toBeVisible()
 		await expect(

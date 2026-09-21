@@ -8,6 +8,7 @@ const common = {
 			description: "Vos compagnons sont toujours là.",
 		},
 	},
+	skipLink: "Passer à la conversation",
 	dialog: {
 		close: "Fermer",
 	},
@@ -22,7 +23,7 @@ const common = {
 	},
 	notice: {
 		label: "Avis",
-		close: "Fermer l'avis",
+		close: "Fermer l’avis",
 	},
 	notification: {
 		question: "Vous a posé une question",
@@ -36,12 +37,12 @@ const common = {
 		},
 		failure: {
 			clicks:
-				"Les notifications n'ouvriront plus leur conversation. Redémarrez Kiroshi pour corriger.",
+				"Les notifications n’ouvriront plus leur conversation. Redémarrez Kiroshi pour corriger.",
 			focus:
-				"Des notifications peuvent s'afficher pendant que vous êtes dans Kiroshi. Redémarrez Kiroshi pour corriger.",
+				"Des notifications peuvent s’afficher pendant que vous êtes dans Kiroshi. Redémarrez Kiroshi pour corriger.",
 			reveal:
 				"Impossible de mettre Kiroshi au premier plan. Basculez-y vous-même.",
-			send: "Impossible d'afficher une notification. Vérifiez l'autorisation de notification de Kiroshi.",
+			send: "Impossible d’afficher une notification. Vérifiez l’autorisation de notification de Kiroshi.",
 		},
 	},
 	update: {
@@ -50,6 +51,7 @@ const common = {
 			downloading: "Téléchargement de la mise à jour",
 			ready: "Redémarrer pour mettre à jour",
 			error: "Mise à jour échouée, télécharger à nouveau",
+			retry: "Télécharger à nouveau la mise à jour",
 		},
 		panel: {
 			title: "Mise à jour prête",
@@ -61,7 +63,7 @@ const common = {
 			botsBusy_other:
 				"{{count}} compagnons tournent encore. Arrêtez-les pour redémarrer.",
 			restart: "Redémarrer maintenant",
-			postpone: "Plus tard",
+			postpone: "Me le rappeler plus tard",
 			releaseNotes: "Lire les notes de version complètes dans votre navigateur",
 		},
 	},

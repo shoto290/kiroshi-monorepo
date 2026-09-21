@@ -108,6 +108,7 @@ export const Default = meta.story({
 		await expect(uniqueCount(avatarInsets(chip, avatar).slice(0, 3))).toBe(1)
 
 		await userEvent.tab()
+		await userEvent.tab()
 		await expect(chip).toHaveFocus()
 		await expect(chip.matches(":focus-visible")).toBe(true)
 

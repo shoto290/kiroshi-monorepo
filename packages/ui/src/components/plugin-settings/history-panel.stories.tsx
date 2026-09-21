@@ -382,7 +382,7 @@ export const Unreadable = meta.story({
 	},
 	play: async ({ canvas }) => {
 		await expect(
-			canvas.getByText("Couldn't load the history. Reopen settings to retry."),
+			canvas.getByText("Couldn’t load the history. Reopen settings to retry."),
 		).toBeVisible()
 		await expect(canvas.queryAllByRole("listitem")).toHaveLength(0)
 	},

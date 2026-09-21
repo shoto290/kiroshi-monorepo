@@ -118,7 +118,7 @@ export const SingleSelect = meta.story({
 	},
 	play: async ({ args, canvas, userEvent }) => {
 		const submit = canvas.getByRole("button", { name: /send answers/i })
-		await expect(submit).toBeDisabled()
+		await expect(submit).toBeEnabled()
 
 		await userEvent.click(
 			canvas.getByText("Server rendering and routing out of the box."),
@@ -256,7 +256,7 @@ export const FourQuestions = meta.story({
 		docs: {
 			description: {
 				story:
-					"The widest call the tool can make: four questions under four tabs, one on screen at a time. The primary button carries the reader through them: it reads `Next question` while another question still waits, and only becomes `Send answers` on the last one, so nothing is sent half-answered. Check that answering a single-select question hands over the next by itself, that the button is refused until the question on screen holds an answer, that a tab can be reached in any order once the reader wants to change an answer, that an answered tab carries its check, and that the send reports all four at once, keyed by question. " +
+					"The widest call the tool can make: four questions under four tabs, one on screen at a time. The primary button carries the reader through them: it reads `Next question` while another question still waits, and only becomes `Send answers` on the last one, so nothing is sent half-answered. Check that answering a single-select question hands over the next by itself, that pressing the button before the question on screen holds an answer keeps it on screen with an error, that a tab can be reached in any order once the reader wants to change an answer, that an answered tab carries its check, and that the send reports all four at once, keyed by question. " +
 					POSTED_BY_ONBOARDING,
 			},
 		},
@@ -266,7 +266,7 @@ export const FourQuestions = meta.story({
 			canvas.getByRole("button", { name: /next question|send answers/i })
 
 		await expect(canvas.getAllByRole("tab")).toHaveLength(4)
-		await expect(primary()).toBeDisabled()
+		await expect(primary()).toBeEnabled()
 
 		await userEvent.click(canvas.getByRole("radio", { name: /Next\.js/ }))
 		await expect(canvas.getByText(SCOPE_QUESTION.question)).toBeVisible()
@@ -287,7 +287,7 @@ export const FourQuestions = meta.story({
 		)
 		await userEvent.click(primary())
 		await expect(canvas.getByText(RELEASE_QUESTION.question)).toBeVisible()
-		await expect(primary()).toBeDisabled()
+		await expect(primary()).toBeEnabled()
 
 		await userEvent.click(canvas.getByRole("tab", { name: /framework/i }))
 		await expect(
@@ -586,7 +586,7 @@ const SIGN_IN_FAILED_STEP: ToolQuestionItem = {
 	header: "Sign in",
 	optionsOnly: true,
 	failure: {
-		title: "Couldn't sign you in",
+		title: "Couldn’t sign you in",
 		detail: "auth login exited with code 1",
 	},
 	options: [
@@ -621,17 +621,17 @@ const KEY_FAILED_STEP: ToolQuestionItem = {
 }
 
 const FIRST_REPLY_STEP: ToolQuestionItem = {
-	question: "That's it working. Ready for the last one?",
+	question: "That’s it working. Ready for the last one?",
 	header: "Last step",
 	optionsOnly: true,
 	options: [
 		{
 			label: "Pick my first companion",
-			description: "One more question, then you're set up.",
+			description: "One more question, then you’re set up.",
 		},
 		{
 			label: "Keep talking first",
-			description: "Ask me a few more things. I'll wait.",
+			description: "Ask me a few more things. I’ll wait.",
 		},
 	],
 }
@@ -760,17 +760,27 @@ export const StepPasteAnApiKey = meta.story({
 		docs: {
 			description: {
 				story:
-					"The same bubble with a single masked field, drawn empty, so `Continue` is refused until a key is pasted. The key is never drawn, so a screen share during onboarding shows the step without showing the secret. " +
+					"The same bubble with a single masked field, drawn empty. `Continue` stays enabled: pressing it with no key keeps the step open, marks the field invalid, describes it with the error and puts focus back in it. The key is never drawn, so a screen share during onboarding shows the step without showing the secret. " +
 					ASKED_BY_THE_SESSION,
 			},
 		},
 	},
-	play: async ({ canvas, canvasElement }) => {
+	play: async ({ canvas, canvasElement, userEvent }) => {
 		await expectAskedByShoto(canvasElement, KEY_STEP.question)
-		await expect(canvas.getByLabelText("Key")).toHaveValue("")
-		await expect(
-			canvas.getByRole("button", { name: "Continue" }),
-		).toBeDisabled()
+		const field = canvas.getByLabelText("Key")
+		const primary = canvas.getByRole("button", { name: "Continue" })
+		await expect(field).toHaveValue("")
+		await expect(primary).toBeEnabled()
+
+		await userEvent.click(primary)
+		const error = await canvas.findByRole("alert")
+		await expect(error).toHaveTextContent("Answer this question to continue.")
+		await expect(field).toHaveAttribute("aria-invalid", "true")
+		await expect(field).toHaveAccessibleDescription(
+			"Answer this question to continue.",
+		)
+		await expect(field).toHaveFocus()
+		await expect(canvas.getByText(KEY_STEP.question)).toBeVisible()
 	},
 })
 
@@ -994,7 +1004,7 @@ export const EntryWithLink = meta.story({
 		await userEvent.click(copy)
 		await expect(
 			await canvas.findByText(
-				"Couldn't copy. Select the link and copy it yourself.",
+				"Couldn’t copy. Select the link and copy it yourself.",
 			),
 		).toBeInTheDocument()
 		await expect(link).toHaveValue(SIGN_IN_URL)
@@ -1029,7 +1039,7 @@ export const EntryWithSecret = meta.story({
 		await expect(field).toHaveAttribute("spellcheck", "false")
 		const primary = canvas.getByRole("button", { name: "Continue" })
 		await expect(primary).toHaveTextContent(/^Continue$/)
-		await expect(primary).toBeDisabled()
+		await expect(primary).toBeEnabled()
 
 		await userEvent.type(field, "sk-ant-0f3c1a{Enter}")
 		await expect(args.onAnswer).toHaveBeenCalledWith({
@@ -1052,12 +1062,12 @@ export const Failure = meta.story({
 	play: async ({ canvas, canvasElement }) => {
 		const failure = slotIn(canvasElement, "tool-question-failure")
 		const question = canvas.getByText(SIGN_IN_FAILED_STEP.question)
-		const title = canvas.getByText("Couldn't sign you in")
+		const title = canvas.getByText("Couldn’t sign you in")
 		const detail = canvas.getByText("auth login exited with code 1")
 		const form = canvas.getByRole("form")
 
 		await expect(form).toContainElement(failure)
-		await expect(form).toHaveAccessibleDescription("Couldn't sign you in")
+		await expect(form).toHaveAccessibleDescription("Couldn’t sign you in")
 		await expect(detail.getBoundingClientRect().width).toBeLessThan(
 			title.getBoundingClientRect().width,
 		)
@@ -1228,7 +1238,7 @@ export const ApplicationScope = meta.story({
 
 		await expect(canvas.getAllByRole("radio")).toHaveLength(3)
 		await expect(canvas.queryByRole("textbox")).not.toBeInTheDocument()
-		await expect(send).toBeDisabled()
+		await expect(send).toBeEnabled()
 		await expect(send.getBoundingClientRect().height).toBe(28)
 
 		await userEvent.click(

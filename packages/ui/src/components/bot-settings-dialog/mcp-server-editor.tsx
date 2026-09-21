@@ -46,6 +46,8 @@ import {
 import { SettingsSelect } from "@workspace/ui/components/settings-select"
 import { SETTINGS_TAG_CLASS } from "@workspace/ui/components/settings-styles"
 import { Button, buttonVariants } from "@workspace/ui/components/ui/button"
+import { useFocusFirstInvalid } from "@workspace/ui/hooks/use-focus-first-invalid"
+import { usePendingSubmit } from "@workspace/ui/hooks/use-pending-submit"
 import { cn } from "@workspace/ui/lib/utils"
 
 const FIRST_SECTION = "connection"
@@ -283,7 +285,7 @@ type McpServerEditorProps = {
 	onDraftChange: (draft: BotMcpServerDraft) => void
 	saved?: BotMcpServerDraft
 	onBack: () => void
-	onSave: (config: Record<string, unknown>) => void
+	onSave: (config: Record<string, unknown>) => unknown
 	onDelete?: () => void
 	connection?: McpConnectionSection
 	environment?: EnvironmentSection
@@ -316,6 +318,10 @@ const McpServerEditor = ({
 	const { t } = useTranslation("bots")
 	const [isLeaving, setLeaving] = useState(Boolean(defaultLeaving))
 	const [typed, setTyped] = useState<Partial<BotMcpServerFields>>({})
+	const [section, setSection] = useState(defaultSection ?? FIRST_SECTION)
+	const [hasTriedSaving, setTriedSaving] = useState(false)
+	const { root, focusFirstInvalid } = useFocusFirstInvalid<HTMLDivElement>()
+	const { isPending, run } = usePendingSubmit()
 
 	const name = displayName ?? (draft.name.trim() || t("applications.untitled"))
 	const config = parseMcpServerConfig(draft.config)
@@ -323,8 +329,7 @@ const McpServerEditor = ({
 	const written = config && toMcpServerWrittenConfig(config, draft.transport)
 	const isWritten = Boolean(saved)
 	const isUnsaved = isMcpServerDraftUnsaved(draft, saved)
-	const isSavable =
-		Boolean(written) && isUnsaved && draft.name.trim().length > 0
+	const isNameBlank = draft.name.trim().length === 0
 
 	const patch = (next: Partial<BotMcpServerDraft>) =>
 		onDraftChange({ ...draft, ...next })
@@ -373,6 +378,18 @@ const McpServerEditor = ({
 
 	const leave = () => (isUnsaved ? setLeaving(true) : onBack())
 
+	const refuse = (invalidSection: string) => {
+		setTriedSaving(true)
+		setSection(invalidSection)
+		focusFirstInvalid()
+	}
+
+	const save = () => {
+		if (isNameBlank) refuse(FIRST_SECTION)
+		else if (!written) refuse("advanced")
+		else if (isUnsaved) run(() => onSave(written))
+	}
+
 	const transportOptions = MCP_TRANSPORTS.map((transport) => ({
 		label: t(`applications.transport.option.${transport}`),
 		value: transport,
@@ -395,9 +412,10 @@ const McpServerEditor = ({
 		<SettingsPushedPage
 			backLabel={t("applications.back")}
 			className={cn("min-w-0", className)}
-			defaultValue={defaultSection ?? FIRST_SECTION}
 			isMeasured
 			onBack={leave}
+			onValueChange={setSection}
+			value={section}
 			rail={(iconsOnly) => (
 				<>
 					<SettingsRailItem
@@ -421,7 +439,7 @@ const McpServerEditor = ({
 				</>
 			)}
 		>
-			<div className="flex min-h-0 min-w-0 flex-1 flex-col">
+			<div className="flex min-h-0 min-w-0 flex-1 flex-col" ref={root}>
 				<div className="flex shrink-0 items-center justify-between gap-2 border-border border-b px-5 py-3">
 					<div className="flex min-w-0 items-center gap-2">
 						<ApplicationMark mark={mark} size="xsm" />
@@ -459,11 +477,7 @@ const McpServerEditor = ({
 								})}
 							/>
 						) : null}
-						<Button
-							disabled={!isSavable}
-							onClick={() => written && onSave(written)}
-							size="sm"
-						>
+						<Button disabled={isPending} onClick={save} size="sm">
 							{isWritten ? (
 								<Icons.Check aria-hidden="true" className="size-3.5" />
 							) : (
@@ -485,6 +499,11 @@ const McpServerEditor = ({
 					) : null}
 					<EditorNotice icon={Icons.Alert} text={t("applications.notice")} />
 					<SettingsField
+						error={
+							hasTriedSaving && isNameBlank
+								? t("applications.name.blank")
+								: undefined
+						}
 						hint={t("applications.name.hint")}
 						label={t("applications.name.label")}
 						onValueChange={(value) => patch({ name: toBundleName(value) })}
@@ -523,6 +542,7 @@ const McpServerEditor = ({
 							<SettingsField
 								hint={t("applications.url.hint")}
 								label={t("applications.url.label")}
+								kind="url"
 								onValueChange={(value) => answer("url", value)}
 								placeholder={t("applications.url.placeholder")}
 								value={shown("url")}

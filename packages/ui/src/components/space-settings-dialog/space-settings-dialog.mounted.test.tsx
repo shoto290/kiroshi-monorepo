@@ -92,7 +92,7 @@ describe("SpaceSettingsDialog applications", () => {
 
 		expect(
 			within(panel).getByText(
-				"Couldn't load applications. Reopen settings to retry.",
+				"Couldn’t load applications. Reopen settings to retry.",
 			),
 		).toBeTruthy()
 		expect(screen.queryByRole("button", { name: "Add an application" })).toBe(

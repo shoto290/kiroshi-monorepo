@@ -17,7 +17,7 @@ const meta = preview.meta({
 		},
 	},
 	args: {
-		title: "Couldn't load your spaces",
+		title: "Couldn’t load your spaces",
 		description: "Your companions are still there.",
 		onRetry: fn(),
 	},

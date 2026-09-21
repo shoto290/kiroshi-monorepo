@@ -9,6 +9,7 @@ import {
 	FIELD_LABEL_CLASS,
 } from "@workspace/ui/components/settings-styles"
 import { Button } from "@workspace/ui/components/ui/button"
+import { useFocusFirstInvalid } from "@workspace/ui/hooks/use-focus-first-invalid"
 import { cn } from "@workspace/ui/lib/utils"
 
 type SettingsListFieldProps = {
@@ -39,6 +40,7 @@ const SettingsListField = ({
 	const id = useId()
 	const [typed, setTyped] = useState("")
 	const [isRefused, setRefused] = useState(false)
+	const { root, focusFirstInvalid } = useFocusFirstInvalid<HTMLFormElement>()
 	const hintId = hint ? `${id}-hint` : undefined
 	const errorId = isRefused ? `${id}-error` : undefined
 	const describedBy = [hintId, errorId].filter(Boolean).join(" ") || undefined
@@ -51,6 +53,7 @@ const SettingsListField = ({
 
 		if (isItemValid && !isItemValid(item)) {
 			setRefused(true)
+			focusFirstInvalid()
 			return
 		}
 
@@ -72,7 +75,7 @@ const SettingsListField = ({
 			<label className={FIELD_LABEL_CLASS} htmlFor={id}>
 				{label}
 			</label>
-			<form className="flex items-center gap-2" onSubmit={add}>
+			<form className="flex items-center gap-2" onSubmit={add} ref={root}>
 				<input
 					aria-describedby={describedBy}
 					aria-invalid={isRefused ? true : undefined}

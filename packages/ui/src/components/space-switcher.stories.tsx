@@ -275,7 +275,9 @@ export const Open = meta.story({
 				.nextElementSibling,
 		).toBe(rules[1])
 
-		await userEvent.click(within(menu).getByRole("menuitem", { name: /^New/ }))
+		await userEvent.click(
+			within(menu).getByRole("menuitem", { name: /^Create/ }),
+		)
 		await expect(args.onCreateSpace).toHaveBeenCalled()
 
 		await openMenu(canvas.getByRole("button", { name: /^Change space/ }))

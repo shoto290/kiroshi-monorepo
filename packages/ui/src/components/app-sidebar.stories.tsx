@@ -720,6 +720,7 @@ export const Roster = meta.story({
 
 		const create = canvas.getByRole("button", { name: CREATE })
 		await userEvent.tab()
+		await userEvent.tab()
 		await expect(slotIn(canvasElement, "space-switcher")).toHaveFocus()
 		await userEvent.tab()
 		await expect(create).toHaveFocus()
@@ -727,7 +728,7 @@ export const Roster = meta.story({
 		await userEvent.click(
 			within(await screen.findByRole("menu", { name: CREATE })).getByRole(
 				"menuitem",
-				{ name: "New companion" },
+				{ name: "Create a companion" },
 			),
 		)
 		await expect(args.onCreateBot).toHaveBeenCalled()
@@ -789,6 +790,7 @@ export const CreateLabel = meta.story({
 
 		await userEvent.tab()
 		await userEvent.tab()
+		await userEvent.tab()
 		await expect(create).toHaveFocus()
 		await opensBelow()
 	},
@@ -806,7 +808,7 @@ export const PlainCreateButton = meta.story({
 		},
 	},
 	play: async ({ args, canvas, userEvent }) => {
-		const create = canvas.getByRole("button", { name: "New companion" })
+		const create = canvas.getByRole("button", { name: "Create a companion" })
 		await expect(create).not.toHaveAttribute("aria-haspopup")
 
 		await userEvent.click(create)
@@ -836,6 +838,7 @@ export const Empty = meta.story({
 		const create = canvas.getByRole("button", { name: CREATE })
 		await userEvent.tab()
 		await userEvent.tab()
+		await userEvent.tab()
 		await expect(create).toHaveFocus()
 		await expect(create.matches(":focus-visible")).toBe(true)
 	},
@@ -856,7 +859,7 @@ export const UnreadableRoster = meta.story({
 		await expect(rowsIn(canvasElement)).toHaveLength(0)
 		await expect(
 			canvas.getByText(
-				"Couldn't load your companions. Restart Kiroshi to retry.",
+				"Couldn’t load your companions. Restart Kiroshi to retry.",
 			),
 		).toBeVisible()
 		await expect(
@@ -1987,6 +1990,7 @@ export const RowContextMenu = meta.story({
 		await userEvent.tab()
 		await userEvent.tab()
 		await userEvent.tab()
+		await userEvent.tab()
 		await expect(trigger).toHaveFocus()
 
 		fireEvent.contextMenu(trigger)
@@ -1996,7 +2000,7 @@ export const RowContextMenu = meta.story({
 		const items = within(menu).getAllByRole("menuitem")
 		await expect(items.map((item) => item.textContent)).toEqual([
 			"Pin",
-			"Settings",
+			"Open settings",
 			"Duplicate",
 			SPACES_BRANCH,
 			"Delete",
@@ -2035,7 +2039,7 @@ export const RowContextMenu = meta.story({
 
 		await userEvent.pointer({ keys: "[MouseRight]", target: trigger })
 		await userEvent.click(
-			await overlay.findByRole("menuitem", { name: "Settings" }),
+			await overlay.findByRole("menuitem", { name: "Open settings" }),
 		)
 		await expect(args.onEditBot).toHaveBeenCalledWith("cinder")
 		await waitFor(async () => {
@@ -2081,6 +2085,7 @@ export const Collapsed = meta.story({
 		}, FRAME_POLL)
 
 		const create = canvas.getByRole("button", { name: CREATE })
+		await userEvent.tab()
 		await userEvent.tab()
 		await userEvent.tab()
 		await expect(create).toHaveFocus()
@@ -2158,6 +2163,7 @@ export const Toggle = meta.story({
 		await userEvent.tab()
 		await userEvent.tab()
 		await userEvent.tab()
+		await userEvent.tab()
 		await expect(button).toHaveFocus()
 
 		await userEvent.keyboard("{Meta>}b{/Meta}")
@@ -2227,6 +2233,7 @@ export const ReducedMotion = meta.story({
 			"Cinder selected, working",
 		)
 
+		await userEvent.tab()
 		await userEvent.tab()
 		await userEvent.tab()
 		await userEvent.tab()
@@ -2733,7 +2740,7 @@ export const RowSpaces = meta.story({
 		const menu = await openRowMenu(canvasElement, "Beacon")
 		await expect(
 			menu.getAllByRole("menuitem").map((item) => item.textContent),
-		).toEqual(["Settings", "Duplicate", SPACES_BRANCH, "Delete"])
+		).toEqual(["Open settings", "Duplicate", SPACES_BRANCH, "Delete"])
 		await expect(
 			menu.getByRole("menuitem", { name: SPACES_BRANCH }),
 		).toHaveAttribute("aria-haspopup", "menu")
@@ -2837,7 +2844,7 @@ export const RowMembershipsUnknown = meta.story({
 
 		await expect(
 			menu.getAllByRole("menuitem").map((item) => item.textContent),
-		).toEqual(["Settings", "Duplicate", "Delete"])
+		).toEqual(["Open settings", "Duplicate", "Delete"])
 		await expect(
 			menu.queryByRole("menuitem", { name: SPACES_BRANCH }),
 		).toBeNull()
@@ -3050,7 +3057,7 @@ export const OneSpaceRowMenu = meta.story({
 
 		await expect(
 			menu.getAllByRole("menuitem").map((item) => item.textContent),
-		).toEqual(["Settings", "Duplicate", SPACES_BRANCH, "Delete"])
+		).toEqual(["Open settings", "Duplicate", SPACES_BRANCH, "Delete"])
 		await expect(menu.getAllByRole("separator")).toHaveLength(3)
 
 		const panel = await walkIntoSpacesBranch(canvasElement, "Beacon", userEvent)
@@ -3909,6 +3916,8 @@ const MOVE_TO = "Move to section"
 
 const NEW_SECTION = "New section"
 
+const CREATE_SECTION = "Create a section"
+
 const openMoveToBranch = async (
 	canvasElement: HTMLElement,
 	bot: string,
@@ -4296,7 +4305,7 @@ export const FullRowMenu = meta.story({
 			menu.getAllByRole("menuitem").map((item) => item.textContent),
 		).toEqual([
 			"Pin",
-			"Settings",
+			"Open settings",
 			"Duplicate",
 			MOVE_TO,
 			SPACES_BRANCH,
@@ -4396,7 +4405,9 @@ export const NewSectionForABot = meta.story({
 	play: async ({ args, canvasElement, userEvent }) => {
 		const openNewSection = async () => {
 			const branch = await openMoveToBranch(canvasElement, "Atlas", userEvent)
-			await userEvent.click(branch.getByRole("menuitem", { name: NEW_SECTION }))
+			await userEvent.click(
+				branch.getByRole("menuitem", { name: CREATE_SECTION }),
+			)
 		}
 
 		await openNewSection()
@@ -4458,32 +4469,36 @@ export const RosterSurfaceMenu = meta.story({
 		await expect(
 			menu.getAllByRole("menuitem").map((item) => item.textContent),
 		).toEqual([
-			"New companion",
-			"New conversation",
-			NEW_SECTION,
-			"Space settings",
+			"Create a companion",
+			"Start a conversation",
+			CREATE_SECTION,
+			"Open space settings",
 		])
 		await expect(menu.getAllByRole("separator")).toHaveLength(1)
 
-		await userEvent.click(menu.getByRole("menuitem", { name: "New companion" }))
+		await userEvent.click(
+			menu.getByRole("menuitem", { name: "Create a companion" }),
+		)
 		await expect(args.onCreateBot).toHaveBeenCalled()
 
 		await userEvent.click(
 			(await openSurfaceMenu(canvasElement)).getByRole("menuitem", {
-				name: "Space settings",
+				name: "Open space settings",
 			}),
 		)
 		await expect(args.onOpenSpaceSettings).toHaveBeenCalled()
 
 		await userEvent.click(
 			(await openSurfaceMenu(canvasElement)).getByRole("menuitem", {
-				name: "New conversation",
+				name: "Start a conversation",
 			}),
 		)
 		await expect(args.onCreateConversation).toHaveBeenCalled()
 
 		const row = await openRowMenu(canvasElement, "Beacon")
-		await expect(row.getByRole("menuitem", { name: "Settings" })).toBeVisible()
+		await expect(
+			row.getByRole("menuitem", { name: "Open settings" }),
+		).toBeVisible()
 	},
 })
 
@@ -4506,7 +4521,7 @@ export const RosterSurfaceWithoutSpaceSettings = meta.story({
 		const menu = await openSurfaceMenu(canvasElement)
 		await expect(
 			menu.getAllByRole("menuitem").map((item) => item.textContent),
-		).toEqual(["New companion", "New conversation", NEW_SECTION])
+		).toEqual(["Create a companion", "Start a conversation", CREATE_SECTION])
 		await expect(menu.queryAllByRole("separator")).toHaveLength(0)
 	},
 })
@@ -4529,7 +4544,9 @@ export const NewSectionFromNothing = meta.story({
 	play: async ({ args, canvasElement, userEvent }) => {
 		const openNewSection = async () => {
 			const menu = await openSurfaceMenu(canvasElement)
-			await userEvent.click(menu.getByRole("menuitem", { name: NEW_SECTION }))
+			await userEvent.click(
+				menu.getByRole("menuitem", { name: CREATE_SECTION }),
+			)
 		}
 
 		await openNewSection()
@@ -4999,6 +5016,7 @@ export const CollapsedSections = meta.story({
 		await expect(canvas.queryByRole("button", { name: "Research" })).toBeNull()
 		await expect(canvas.getByText("Drop a companion here")).not.toBeVisible()
 
+		await userEvent.tab()
 		await userEvent.tab()
 		await userEvent.tab()
 		await expect(canvas.getByRole("button", { name: CREATE })).toHaveFocus()
@@ -5579,7 +5597,7 @@ export const ConversationRowMenu = meta.story({
 		const menu = await openRowMenu(canvasElement, "Launch review")
 		await expect(
 			menu.getAllByRole("menuitem").map((item) => item.textContent),
-		).toEqual(["Pin", "Settings", MOVE_TO, "Delete"])
+		).toEqual(["Pin", "Open settings", MOVE_TO, "Delete"])
 		await expect(menu.queryByRole("menuitem", { name: "Duplicate" })).toBeNull()
 		await expect(menu.getAllByRole("separator")).toHaveLength(2)
 
@@ -5604,7 +5622,7 @@ export const ConversationRowMenu = meta.story({
 		await userEvent.click(
 			(await openRowMenu(canvasElement, "Launch review")).getByRole(
 				"menuitem",
-				{ name: "Settings" },
+				{ name: "Open settings" },
 			),
 		)
 		await expect(args.onOpenConversationSettings).toHaveBeenCalledWith("launch")
@@ -5640,13 +5658,14 @@ export const CreateMenu = meta.story({
 
 		await userEvent.tab()
 		await userEvent.tab()
+		await userEvent.tab()
 		await expect(create).toHaveFocus()
 		await userEvent.keyboard("{Enter}")
 
 		const menu = within(await screen.findByRole("menu", { name: CREATE }))
 		await expect(
 			menu.getAllByRole("menuitem").map((item) => item.textContent),
-		).toEqual(["New companion", "New conversation", NEW_SECTION])
+		).toEqual(["Create a companion", "Start a conversation", CREATE_SECTION])
 		await expect(args.onCreateBot).not.toHaveBeenCalled()
 
 		const pick = async (name: string) => {
@@ -5659,13 +5678,15 @@ export const CreateMenu = meta.story({
 			)
 		}
 
-		await userEvent.click(menu.getByRole("menuitem", { name: "New companion" }))
+		await userEvent.click(
+			menu.getByRole("menuitem", { name: "Create a companion" }),
+		)
 		await expect(args.onCreateBot).toHaveBeenCalled()
 
-		await pick("New conversation")
+		await pick("Start a conversation")
 		await expect(args.onCreateConversation).toHaveBeenCalled()
 
-		await pick(NEW_SECTION)
+		await pick(CREATE_SECTION)
 		await expect(sectionField(canvasElement)).toHaveFocus()
 	},
 })
@@ -5699,9 +5720,11 @@ export const NewSectionForAConversation = meta.story({
 		)
 		await expect(
 			branch.getAllByRole("menuitem").map((item) => item.textContent),
-		).toEqual([NEW_SECTION])
+		).toEqual([CREATE_SECTION])
 
-		await userEvent.click(branch.getByRole("menuitem", { name: NEW_SECTION }))
+		await userEvent.click(
+			branch.getByRole("menuitem", { name: CREATE_SECTION }),
+		)
 
 		const field = sectionField(canvasElement)
 		await expect(field).toHaveFocus()
@@ -5806,6 +5829,7 @@ export const NoSearch = meta.story({
 			rowButton(first).getBoundingClientRect().top,
 		).toBeGreaterThanOrEqual(header.getBoundingClientRect().bottom)
 
+		await userEvent.tab()
 		await userEvent.tab()
 		await userEvent.tab()
 		await expect(canvas.getByRole("button", { name: CREATE })).toHaveFocus()

@@ -1,6 +1,7 @@
 import type { ReactNode } from "react"
 
 import { SidebarInset } from "@workspace/ui/components/ui/sidebar"
+import { cn } from "@workspace/ui/lib/utils"
 
 const YIELDS_TO_NESTED_CARD = [
 	"has-[[data-content-card]]:m-0",
@@ -16,12 +17,18 @@ const SURFACE = `relative my-2 me-2 flex min-w-0 flex-1 flex-col overflow-hidden
 
 interface ContentCardProps {
 	isLandmark?: boolean
+	id?: string
 	children?: ReactNode
 }
 
-const ContentCard = ({ isLandmark = true, children }: ContentCardProps) =>
+const ContentCard = ({ isLandmark = true, id, children }: ContentCardProps) =>
 	isLandmark ? (
-		<SidebarInset className={SURFACE} data-content-card="">
+		<SidebarInset
+			className={cn(SURFACE, id && "outline-none")}
+			data-content-card=""
+			id={id}
+			tabIndex={id ? -1 : undefined}
+		>
 			{children}
 		</SidebarInset>
 	) : (

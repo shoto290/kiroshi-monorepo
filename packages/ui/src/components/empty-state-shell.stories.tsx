@@ -87,8 +87,8 @@ export const WithoutHint = meta.story({
 	args: {
 		hint: undefined,
 		action: <Button onClick={fn()}>Try again</Button>,
-		title: "Couldn't reach the agent",
-		description: "Kiroshi's built-in agent didn't answer. Try again.",
+		title: "Couldn’t reach the agent",
+		description: "Kiroshi’s built-in agent didn’t answer. Try again.",
 		mark: ALERT_MARK,
 	},
 	parameters: {

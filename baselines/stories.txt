@@ -555,11 +555,16 @@ forms-radiogroup--keyboard-walk
 forms-radiogroup--on-dark-surface
 forms-radiogroup--states
 forms-settingsfield--default
+forms-settingsfield--email-kind
 forms-settingsfield--fill
-forms-settingsfield--masked
 forms-settingsfield--multiline
-forms-settingsfield--numeric
+forms-settingsfield--number-kind
+forms-settingsfield--password-kind
 forms-settingsfield--read-only
+forms-settingsfield--search-kind
+forms-settingsfield--text-kind
+forms-settingsfield--url-kind
+forms-settingsfield--with-error
 forms-settingsfield--with-hint
 forms-settingsfield--zero-value
 forms-settingsgroup--default
@@ -615,6 +620,7 @@ layout-workspaceshell--resize-bounds
 layout-workspaceshell--resize-by-keyboard
 layout-workspaceshell--resize-reset
 layout-workspaceshell--resized
+layout-workspaceshell--skips-to-the-conversation
 layout-workspaceshell--space-tinted
 layout-workspaceshell--tall-content
 layout-workspaceshell--tall-host
@@ -800,6 +806,8 @@ navigation-sidebarsearchfield--label-wider-than-field
 navigation-sidebarsearchfield--on-dark-surface
 navigation-sidebarsearchfield--under-pointer
 navigation-sidebarsearchfield--with-host-chord
+navigation-skiplink--focused
+navigation-skiplink--hidden
 navigation-spaceswitcher--badge-and-long-name
 navigation-spaceswitcher--badge-here
 navigation-spaceswitcher--badge-on-rail

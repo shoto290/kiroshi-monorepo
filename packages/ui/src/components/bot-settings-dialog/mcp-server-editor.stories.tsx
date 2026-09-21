@@ -98,14 +98,16 @@ export const Connection = meta.story({
 		docs: {
 			description: {
 				story:
-					"A local server that already exists, opened on where it is reached from. Check that the notice says what a server is before a field is touched, that the command and its arguments are the shape a local server takes, and that answering one carries it into the JSON under Advanced — the save turns on the moment it does.",
+					"A local server that already exists, opened on where it is reached from. Check that the notice says what a server is before a field is touched, that the command and its arguments are the shape a local server takes, and that answering one carries it into the JSON under Advanced. The save stays enabled and sends nothing until something changed.",
 			},
 		},
 	},
 	play: async ({ args, canvas, userEvent }) => {
 		const save = canvas.getByRole("button", { name: "Save changes" })
 
-		await expect(save).toBeDisabled()
+		await expect(save).toBeEnabled()
+		await userEvent.click(save)
+		await expect(args.onSave).not.toHaveBeenCalled()
 		await expect(canvas.getByLabelText("Command")).toHaveValue("npx")
 
 		await userEvent.clear(canvas.getByLabelText("Command"))
@@ -270,15 +272,28 @@ export const Empty = meta.story({
 		docs: {
 			description: {
 				story:
-					"A server that does not exist yet. Reach for this over `Connection` to review what a reader is asked for before anything is written: the same notice, because trust is asked for while the server is being added rather than after, no delete, because there is nothing on the disk to take away, and no unsaved mark, because there is nothing kept to differ from. The button stays out of reach until the server is named.",
+					"A server that does not exist yet. Reach for this over `Connection` to review what a reader is asked for before anything is written: the same notice, because trust is asked for while the server is being added rather than after, no delete, because there is nothing on the disk to take away, and no unsaved mark, because there is nothing kept to differ from. The button stays enabled: pressing it before the server is named keeps the page open, marks the name invalid with its error and puts focus in it.",
 			},
 		},
 	},
 	play: async ({ args, canvas, userEvent }) => {
 		const create = canvas.getByRole("button", { name: "Add application" })
+		const name = canvas.getByLabelText("Name")
 
-		await expect(create).toBeDisabled()
+		await expect(create).toBeEnabled()
+		await userEvent.click(create)
+		await expect(args.onSave).not.toHaveBeenCalled()
+		await expect(await canvas.findByRole("alert")).toHaveTextContent(
+			"An application needs a name.",
+		)
+		await expect(name).toHaveAttribute("aria-invalid", "true")
+		await expect(name).toHaveAccessibleDescription(
+			/An application needs a name\./,
+		)
+		await expect(name).toHaveFocus()
+
 		await userEvent.type(canvas.getByLabelText("Name"), "Atlas Docs")
+		await expect(canvas.queryByRole("alert")).toBeNull()
 		await expect(canvas.getByLabelText("Name")).toHaveValue("atlas-docs")
 
 		await userEvent.type(canvas.getByLabelText("Command"), "npx")
@@ -293,14 +308,13 @@ export const Invalid = meta.story({
 		docs: {
 			description: {
 				story:
-					"A configuration the reader is halfway through. This is the state the raw field owes them: the message under the box says what is wrong and that nothing is saved, the edge turns without recolouring what they typed, and the reading disappears rather than showing a stale command. The save is out of reach until it parses, and the two sections read out of the configuration say so rather than showing fields that would drop what was typed.",
+					"A configuration the reader is halfway through. This is the state the raw field owes them: the message under the box says what is wrong and that nothing is saved, the edge turns without recolouring what they typed, and the reading disappears rather than showing a stale command. Pressing save before it parses sends nothing and puts focus back in the box, and the two sections read out of the configuration say so rather than showing fields that would drop what was typed.",
 			},
 		},
 	},
 	play: async ({ canvas, userEvent }) => {
-		await expect(
-			canvas.getByRole("button", { name: "Save changes" }),
-		).toBeDisabled()
+		await userEvent.click(canvas.getByRole("button", { name: "Save changes" }))
+		await expect(canvas.getByLabelText("Configuration")).toHaveFocus()
 		await expect(canvas.getByLabelText("Configuration")).toBeInvalid()
 		await expect(
 			canvas.queryByRole("heading", { name: "What this starts" }),

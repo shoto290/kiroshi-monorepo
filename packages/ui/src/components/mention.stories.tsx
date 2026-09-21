@@ -419,7 +419,7 @@ export const CompanionMenuOnPill = meta.story({
 
 		await expect(screen.getAllByRole("menu")).toHaveLength(1)
 		await expect(
-			within(menu).getByRole("menuitem", { name: "Settings" }),
+			within(menu).getByRole("menuitem", { name: "Open settings" }),
 		).toBeVisible()
 	},
 })

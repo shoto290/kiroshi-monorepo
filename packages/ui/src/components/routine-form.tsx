@@ -20,6 +20,8 @@ import {
 } from "@workspace/ui/components/settings-styles"
 import { Button } from "@workspace/ui/components/ui/button"
 import { useCopyText } from "@workspace/ui/hooks/use-copy-text"
+import { useFocusFirstInvalid } from "@workspace/ui/hooks/use-focus-first-invalid"
+import { usePendingSubmit } from "@workspace/ui/hooks/use-pending-submit"
 import { cn } from "@workspace/ui/lib/utils"
 
 type RoutineTriggerKind = "schedule" | "fileWatch" | "localWebhook" | "plain"
@@ -145,7 +147,7 @@ type RoutineFormModel = {
 
 type RoutineFormProps = RoutineFormModel & {
 	sources: RoutineTriggerSource[]
-	onSave: (values: RoutineFormValues) => void
+	onSave: (values: RoutineFormValues) => unknown
 	onUnsavedChange?: (isUnsaved: boolean) => void
 }
 
@@ -513,7 +515,7 @@ const ValueControl = ({
 		<SettingsField
 			error={error}
 			label={label}
-			numeric={fieldType === "number"}
+			kind={fieldType === "number" ? "number" : "text"}
 			onValueChange={onValueChange}
 			value={value}
 		/>
@@ -679,15 +681,18 @@ const RoutineForm = ({
 	const [rowRefusal, setRowRefusal] = useState(() => rowRefusalIn(refusal))
 	const [marksRefusedRows, setMarksRefusedRows] = useState(false)
 	const readRefusal = useRef(refusal)
-	const form = useRef<HTMLFormElement>(null)
+	const { root: form, focusFirstInvalid } =
+		useFocusFirstInvalid<HTMLFormElement>()
+	const { isPending, run } = usePendingSubmit()
 
 	useEffect(() => {
 		form.current?.focus({ preventScroll: true })
-	}, [])
+	}, [form])
 
 	if (readRefusal.current !== refusal) {
 		readRefusal.current = refusal
 		setRowRefusal(rowRefusalIn(refusal))
+		if (refusal) focusFirstInvalid()
 	}
 
 	const isWritten = id !== null
@@ -722,9 +727,11 @@ const RoutineForm = ({
 		)
 		setMarksRefusedRows(isRefused)
 
-		if (!isRefused) {
-			onSave(entered)
+		if (isRefused) {
+			focusFirstInvalid()
+			return
 		}
+		run(() => onSave(entered))
 	}
 
 	return (
@@ -814,7 +821,7 @@ const RoutineForm = ({
 				onChange={changeFilter}
 				refusal={rowRefusal}
 			/>
-			<Button className="w-full" type="submit">
+			<Button className="w-full" disabled={isPending} type="submit">
 				{t("routines.form.save")}
 			</Button>
 		</form>

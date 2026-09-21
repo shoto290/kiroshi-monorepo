@@ -188,6 +188,30 @@ export const Default = meta.story({
 	},
 })
 
+export const SkipsToTheConversation = meta.story({
+	args: {
+		sidebar: SIDEBAR,
+	},
+	parameters: {
+		docs: {
+			description: {
+				story:
+					"The skip link the shell puts ahead of everything else. Check that the first Tab lands on it before any sidebar control, that it shows while focused, and that Enter moves focus into the main region holding the conversation.",
+			},
+		},
+	},
+	play: async ({ canvas, userEvent }) => {
+		const link = canvas.getByRole("link", { name: "Skip to the conversation" })
+
+		await userEvent.tab()
+		await expect(link).toHaveFocus()
+		await expect(link).toBeVisible()
+
+		await userEvent.keyboard("{Enter}")
+		await expect(canvas.getByRole("main")).toHaveFocus()
+	},
+})
+
 export const SpaceTinted = meta.story({
 	args: {
 		sidebar: SIDEBAR,

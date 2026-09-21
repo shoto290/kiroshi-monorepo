@@ -31,6 +31,8 @@ import { SettingsSelect } from "@workspace/ui/components/settings-select"
 import { SETTINGS_TAG_CLASS } from "@workspace/ui/components/settings-styles"
 import { SettingsSwitch } from "@workspace/ui/components/settings-switch"
 import { Button, buttonVariants } from "@workspace/ui/components/ui/button"
+import { useFocusFirstInvalid } from "@workspace/ui/hooks/use-focus-first-invalid"
+import { usePendingSubmit } from "@workspace/ui/hooks/use-pending-submit"
 import { cn } from "@workspace/ui/lib/utils"
 
 const FIRST_SECTION = "instructions"
@@ -48,7 +50,7 @@ type SkillEditorProps = {
 	onDraftChange: (draft: BotSkillDraft) => void
 	saved?: BotSkillDraft
 	onBack: () => void
-	onSave: () => void
+	onSave: () => unknown
 	onDelete?: () => void
 	files?: SkillFilesPanelProps
 	isSystem?: boolean
@@ -74,6 +76,10 @@ const SkillEditor = ({
 }: SkillEditorProps) => {
 	const { t } = useTranslation("bots")
 	const [isLeaving, setLeaving] = useState(Boolean(defaultLeaving))
+	const [section, setSection] = useState(defaultSection ?? FIRST_SECTION)
+	const [hasTriedSaving, setTriedSaving] = useState(false)
+	const { root, focusFirstInvalid } = useFocusFirstInvalid<HTMLDivElement>()
+	const { isPending, run } = usePendingSubmit()
 
 	const name = draft.name.trim() || t("skills.untitled")
 
@@ -122,12 +128,22 @@ const SkillEditor = ({
 	const isUnsaved = isSkillDraftUnsaved(draft, saved)
 	const used = toSkillDescriptionLength(draft)
 	const isOverBudget = used > SKILL_DESCRIPTION_LIMIT
-	const isSavable = isUnsaved && !isOverBudget && draft.name.trim().length > 0
+	const isNameBlank = draft.name.trim().length === 0
 
 	const patch = (fields: Partial<BotSkillDraft>) =>
 		onDraftChange({ ...draft, ...fields })
 
 	const leave = () => (isUnsaved ? setLeaving(true) : onBack())
+
+	const save = () => {
+		if (isNameBlank || isOverBudget) {
+			setTriedSaving(true)
+			setSection("triggering")
+			focusFirstInvalid()
+		} else if (isUnsaved) {
+			run(onSave)
+		}
+	}
 
 	const effortOptions = [
 		{ label: t("skills.effort.default"), value: "" },
@@ -149,9 +165,10 @@ const SkillEditor = ({
 		<SettingsPushedPage
 			backLabel={t("skills.back")}
 			className={className}
-			defaultValue={defaultSection ?? FIRST_SECTION}
 			isMeasured
 			onBack={leave}
+			onValueChange={setSection}
+			value={section}
 			rail={(iconsOnly) => (
 				<>
 					<SettingsRailItem
@@ -195,7 +212,7 @@ const SkillEditor = ({
 				</>
 			)}
 		>
-			<div className="flex min-h-0 min-w-0 flex-1 flex-col">
+			<div className="flex min-h-0 min-w-0 flex-1 flex-col" ref={root}>
 				<div className="flex shrink-0 items-center justify-between gap-2 border-border border-b px-5 py-3">
 					<div className="flex min-w-0 items-center gap-2">
 						<span className="truncate font-medium text-foreground text-sm">
@@ -227,7 +244,7 @@ const SkillEditor = ({
 								})}
 							/>
 						) : null}
-						<Button disabled={!isSavable} onClick={onSave} size="sm">
+						<Button disabled={isPending} onClick={save} size="sm">
 							{isWritten ? (
 								<Icons.Check aria-hidden="true" className="size-3.5" />
 							) : (
@@ -264,6 +281,9 @@ const SkillEditor = ({
 
 				<SettingsScrollingPanel value="triggering">
 					<SettingsField
+						error={
+							hasTriedSaving && isNameBlank ? t("skills.name.blank") : undefined
+						}
 						hint={t("skills.name.hint")}
 						label={t("skills.name.label")}
 						onValueChange={(value) => patch({ name: toBundleName(value) })}

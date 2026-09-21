@@ -52,7 +52,7 @@ const settings = {
 			label: "Son",
 			switch: "Jouer un son",
 			description:
-				"Kiroshi joue un bref carillon à chaque notification, même quand votre système l'affiche en silence.",
+				"Kiroshi joue un bref carillon à chaque notification, même quand votre système l’affiche en silence.",
 		},
 	},
 	language: {
@@ -80,9 +80,9 @@ const settings = {
 			none: "Aucune couleur",
 		},
 		danger: {
-			delete: "Supprimer l'espace",
+			delete: "Supprimer l’espace",
 			description:
-				"Les compagnons présents uniquement dans cet espace sont supprimés avec lui. C'est irréversible.",
+				"Les compagnons présents uniquement dans cet espace sont supprimés avec lui. C’est irréversible.",
 			last: "Vous ne pouvez pas supprimer votre dernier espace.",
 			confirm: {
 				title: "Supprimer {{name}} ?",

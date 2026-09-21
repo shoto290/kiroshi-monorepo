@@ -205,7 +205,7 @@ export const KeyStillReading = meta.story({
 		).not.toBeInTheDocument()
 		await expect(
 			canvas.queryByText(
-				"Couldn't load the address and key. Reopen the routine to retry.",
+				"Couldn’t load the address and key. Reopen the routine to retry.",
 			),
 		).not.toBeInTheDocument()
 		await expect(canvas.getByLabelText("Key")).toHaveAccessibleDescription(
@@ -254,7 +254,7 @@ export const KeyReadFailingWhileOpen = meta.story({
 
 		await expect(canvas.getByRole("status")).toBe(region)
 		await expect(region).toHaveTextContent(
-			"Couldn't load the address and key. Reopen the routine to retry.",
+			"Couldn’t load the address and key. Reopen the routine to retry.",
 		)
 		await expect(slotIn(canvasElement, "routine-form")).toBe(form)
 	},
@@ -296,7 +296,7 @@ export const Refused = meta.story({
 	play: async ({ canvas }) => {
 		const field = canvas.getByRole("textbox", { name: "Cron expression" })
 		const message = canvas.getByText(
-			"Couldn't read this as a schedule. Check the cron expression.",
+			"Couldn’t read this as a schedule. Check the cron expression.",
 		)
 
 		await expect(field).toHaveAttribute("aria-invalid", "true")
@@ -344,7 +344,7 @@ export const KeyUnreadable = meta.story({
 	play: async ({ canvas }) => {
 		await expect(
 			canvas.getByText(
-				"Couldn't load the address and key. Reopen the routine to retry.",
+				"Couldn’t load the address and key. Reopen the routine to retry.",
 			),
 		).toBeVisible()
 		await expect(canvas.getByDisplayValue("Deploy report")).toBeVisible()
@@ -660,7 +660,7 @@ export const FilterRefusedForItsOperator = meta.story({
 			canvas.getByRole("group", { name: "Row 2" }),
 		).getByRole("combobox", { name: "Operator" })
 		const message = canvas.getByText(
-			"is greater than doesn't fit a boolean field. Pick another operator.",
+			"is greater than doesn’t fit a boolean field. Pick another operator.",
 		)
 
 		await expect(refused).toHaveAttribute("aria-invalid", "true")
@@ -708,7 +708,7 @@ export const FilterRefusedThenEdited = meta.story({
 		).not.toHaveAttribute("aria-invalid")
 		await expect(
 			canvas.queryByText(
-				"is greater than doesn't fit a boolean field. Pick another operator.",
+				"is greater than doesn’t fit a boolean field. Pick another operator.",
 			),
 		).not.toBeInTheDocument()
 	},
@@ -797,7 +797,7 @@ export const FilterRefusedThenMovedToAnotherSource = meta.story({
 
 		await expect(
 			canvas.queryByText(
-				"is greater than doesn't fit a boolean field. Pick another operator.",
+				"is greater than doesn’t fit a boolean field. Pick another operator.",
 			),
 		).not.toBeInTheDocument()
 		await expect(

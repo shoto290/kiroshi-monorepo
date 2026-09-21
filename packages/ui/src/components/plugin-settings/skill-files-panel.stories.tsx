@@ -109,7 +109,7 @@ export const Empty = meta.story({
 		docs: {
 			description: {
 				story:
-					"A skill that is only its own instructions. Check that nothing stands in for the list — no empty box, no placeholder row — and that the way to add the first file is the same field that adds the tenth.",
+					"A skill that is only its own instructions. Check that nothing stands in for the list — no empty box, no placeholder row — and that the way to add the first file is the same field that adds the tenth. Pressing the action with no path marks the field invalid with its error and puts focus in it.",
 			},
 		},
 	},
@@ -117,7 +117,15 @@ export const Empty = meta.story({
 		await expect(canvas.queryByRole("list")).toBe(null)
 
 		const add = canvas.getByRole("button", { name: "Add file" })
-		await expect(add).toBeDisabled()
+		const path = canvas.getByLabelText("New file")
+		await userEvent.click(add)
+		await expect(args.onAdd).not.toHaveBeenCalled()
+		await expect(canvas.getByRole("alert")).toHaveTextContent(
+			"A file needs a path.",
+		)
+		await expect(path).toHaveAttribute("aria-invalid", "true")
+		await expect(path).toHaveAccessibleDescription(/A file needs a path\./)
+		await expect(path).toHaveFocus()
 
 		await userEvent.type(canvas.getByLabelText("New file"), "reference/api.md")
 		await userEvent.click(add)
@@ -133,14 +141,15 @@ export const Opened = meta.story({
 		docs: {
 			description: {
 				story:
-					"One file open, on the text it holds on the disk. Check that the save stays off until something is typed, that the unsaved mark comes up beside the path at the same moment, and that the way back is a press away without a question — the file's text is only ever written by the save.",
+					"One file open, on the text it holds on the disk. Check that the save sends nothing until something is typed, that the unsaved mark comes up beside the path at the same moment, and that the way back is a press away without a question — the file's text is only ever written by the save.",
 			},
 		},
 	},
 	play: async ({ args, canvas, userEvent }) => {
 		const save = canvas.getByRole("button", { name: "Save file" })
 
-		await expect(save).toBeDisabled()
+		await userEvent.click(save)
+		await expect(args.onSave).not.toHaveBeenCalled()
 		await userEvent.type(canvas.getByLabelText("Contents"), " Nothing else.")
 
 		await expect(save).toBeEnabled()
@@ -225,7 +234,7 @@ export const RefusedDelete = meta.story({
 	},
 	play: async ({ canvas }) => {
 		await expect(canvas.getByRole("alert")).toHaveTextContent(
-			"Couldn't delete this file. Retry.",
+			"Couldn’t delete this file. Retry.",
 		)
 		await expect(canvas.getByLabelText("Contents")).toHaveValue(
 			SKILL_FILES[REFERENCE],

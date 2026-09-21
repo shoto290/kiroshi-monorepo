@@ -314,7 +314,7 @@ export const Default = meta.story({
 			within(panel).getByRole("button", { name: "Close activity" }),
 		).toBeVisible()
 		await expect(
-			canvas.queryByRole("button", { name: "Activity" }),
+			canvas.queryByRole("button", { name: "Toggle activity" }),
 		).not.toBeInTheDocument()
 
 		await expect(
@@ -472,7 +472,7 @@ export const Closed = meta.story({
 		},
 	},
 	play: async ({ canvas, canvasElement }) => {
-		const control = canvas.getByRole("button", { name: "Activity" })
+		const control = canvas.getByRole("button", { name: "Toggle activity" })
 		await expect(control).toHaveAttribute("aria-expanded", "false")
 		await expect(control).not.toHaveAttribute("aria-controls")
 
@@ -500,7 +500,7 @@ export const Toggling = meta.story({
 		},
 	},
 	play: async ({ args, canvas, canvasElement, userEvent }) => {
-		const opener = canvas.getByRole("button", { name: "Activity" })
+		const opener = canvas.getByRole("button", { name: "Toggle activity" })
 		const openerCentre = verticalCentreOf(opener)
 		const openerGlyphInset =
 			glyphInsetOf(opener, slotIn(canvasElement, "sidebar-inset")) +
@@ -512,7 +512,7 @@ export const Toggling = meta.story({
 		const panel = canvas.getByRole("complementary", { name: "Activity" })
 		await expect(panel.getBoundingClientRect().width).toBeGreaterThan(0)
 		await expect(
-			canvas.queryByRole("button", { name: "Activity" }),
+			canvas.queryByRole("button", { name: "Toggle activity" }),
 		).not.toBeInTheDocument()
 
 		const close = within(panel).getByRole("button", { name: "Close activity" })
@@ -523,7 +523,7 @@ export const Toggling = meta.story({
 		await userEvent.click(close)
 		await expect(args.onOpenChange).toHaveBeenCalledWith(false)
 
-		const control = canvas.getByRole("button", { name: "Activity" })
+		const control = canvas.getByRole("button", { name: "Toggle activity" })
 		await expect(control).toHaveAttribute("aria-expanded", "false")
 		await waitFor(() => expect(control).toHaveFocus(), FRAME_POLL)
 	},
@@ -548,7 +548,9 @@ export const Empty = meta.story({
 		await openRoutines(canvasElement, userEvent)
 		await expect(canvas.getByText("No routine yet")).toBeVisible()
 
-		await userEvent.click(canvas.getByRole("button", { name: "New routine" }))
+		await userEvent.click(
+			canvas.getByRole("button", { name: "Create a routine" }),
+		)
 		await expect(slotIn(canvasElement, "routine-form")).toBeVisible()
 	},
 })
@@ -660,9 +662,9 @@ export const RoutinesReadFailed = meta.story({
 		},
 	},
 	play: async ({ args, canvas, canvasElement, userEvent }) => {
-		await expect(canvas.getByText("Couldn't load routines")).toBeVisible()
+		await expect(canvas.getByText("Couldn’t load routines")).toBeVisible()
 		await expect(
-			canvas.queryByText("Couldn't load missions"),
+			canvas.queryByText("Couldn’t load missions"),
 		).not.toBeInTheDocument()
 		await expect(slotsIn(canvasElement, "routine-row")).toHaveLength(0)
 
@@ -684,9 +686,9 @@ export const MissionsReadFailed = meta.story({
 		},
 	},
 	play: async ({ canvas, canvasElement }) => {
-		await expect(canvas.getByText("Couldn't load missions")).toBeVisible()
+		await expect(canvas.getByText("Couldn’t load missions")).toBeVisible()
 		await expect(
-			canvas.queryByText("Couldn't load routines"),
+			canvas.queryByText("Couldn’t load routines"),
 		).not.toBeInTheDocument()
 		await expect(
 			within(slotIn(canvasElement, "routines-entry")).getByText(
@@ -712,7 +714,7 @@ export const ActivityReadFailed = meta.story({
 		},
 	},
 	play: async ({ args, canvas, canvasElement, userEvent }) => {
-		await expect(canvas.getByText("Couldn't load the activity")).toBeVisible()
+		await expect(canvas.getByText("Couldn’t load the activity")).toBeVisible()
 		await expect(slotsIn(canvasElement, "chat-notice")).toHaveLength(1)
 		await expect(
 			canvas.queryByText("Nothing is running here"),
@@ -737,9 +739,9 @@ export const WriteFailed = meta.story({
 	},
 	play: async ({ canvas, canvasElement, userEvent }) => {
 		await openRoutines(canvasElement, userEvent)
-		await expect(canvas.getByText("Couldn't update the routine")).toBeVisible()
+		await expect(canvas.getByText("Couldn’t update the routine")).toBeVisible()
 		await expect(
-			canvas.queryByText("Couldn't load routines"),
+			canvas.queryByText("Couldn’t load routines"),
 		).not.toBeInTheDocument()
 		await expect(slotsIn(canvasElement, "routine-row")).toHaveLength(
 			ROUTINES.length,
@@ -760,10 +762,12 @@ export const Creating = meta.story({
 	},
 	play: async ({ args, canvas, canvasElement, userEvent }) => {
 		await openRoutines(canvasElement, userEvent)
-		await userEvent.click(canvas.getByRole("button", { name: "New routine" }))
+		await userEvent.click(
+			canvas.getByRole("button", { name: "Create a routine" }),
+		)
 		await expect(args.form?.onNew).toHaveBeenCalled()
 
-		const form = canvas.getByRole("form", { name: "New routine" })
+		const form = canvas.getByRole("form", { name: "Create a routine" })
 		await waitFor(() => expect(form).toHaveFocus(), FRAME_POLL)
 		await expect(slotsIn(canvasElement, "routine-row")).toHaveLength(0)
 		await expect(canvas.queryByRole("dialog")).not.toBeInTheDocument()
@@ -777,7 +781,7 @@ export const Creating = meta.story({
 		await waitFor(
 			() =>
 				expect(
-					canvas.getByRole("button", { name: "New routine" }),
+					canvas.getByRole("button", { name: "Create a routine" }),
 				).toHaveFocus(),
 			FRAME_POLL,
 		)
@@ -1048,7 +1052,7 @@ export const RunNowFailed = meta.story({
 		},
 	},
 	play: async ({ canvas, canvasElement }) => {
-		await expect(canvas.getByText("Couldn't update the routine")).toBeVisible()
+		await expect(canvas.getByText("Couldn’t update the routine")).toBeVisible()
 		await expect(slotIn(canvasElement, "routine-detail")).toBeVisible()
 		await expect(slotsIn(canvasElement, "routine-run")).toHaveLength(
 			DIGEST_RUNS.length,
@@ -1081,7 +1085,7 @@ export const WithoutSeatedLead = meta.story({
 	play: async ({ canvas, canvasElement, userEvent }) => {
 		await openRoutines(canvasElement, userEvent)
 		await expect(
-			canvas.queryByRole("button", { name: "New routine" }),
+			canvas.queryByRole("button", { name: "Create a routine" }),
 		).not.toBeInTheDocument()
 		await expect(canvas.getByText("Morning digest")).toBeVisible()
 	},
@@ -1103,7 +1107,9 @@ export const InWorkspaceShell = meta.story({
 		const workspace = canvas.getByRole("complementary", { name: "Workspace" })
 		const widthBefore = workspace.getBoundingClientRect().width
 
-		await userEvent.click(canvas.getByRole("button", { name: "Activity" }))
+		await userEvent.click(
+			canvas.getByRole("button", { name: "Toggle activity" }),
+		)
 		const panel = canvas.getByRole("complementary", { name: "Activity" })
 		await waitFor(
 			() => expect(panel.getBoundingClientRect().width).toBeGreaterThan(0),

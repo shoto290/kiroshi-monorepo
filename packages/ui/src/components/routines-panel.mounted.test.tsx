@@ -97,7 +97,7 @@ describe("RoutinesPanel", () => {
 
 		const field = screen.getByLabelText("Cron expression")
 		const message = screen.getByText(
-			"Couldn't read this as a schedule. Check the cron expression.",
+			"Couldn’t read this as a schedule. Check the cron expression.",
 		)
 
 		expect(field.getAttribute("aria-invalid")).toBe("true")
@@ -126,7 +126,7 @@ describe("RoutinesPanel", () => {
 			within(screen.getByRole("group", { name: `Row ${rank}` }))
 		const refused = rowOf(2).getByRole("combobox", { name: "Operator" })
 		const message = screen.getByText(
-			"is greater than doesn't fit a boolean field. Pick another operator.",
+			"is greater than doesn’t fit a boolean field. Pick another operator.",
 		)
 
 		expect(refused.getAttribute("aria-invalid")).toBe("true")

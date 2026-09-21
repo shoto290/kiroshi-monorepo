@@ -76,14 +76,16 @@ export const Default = meta.story({
 		docs: {
 			description: {
 				story:
-					"A skill that already exists, opened on what it tells the companion to do. Check that the body takes the height the two fields under it leave, that the save is disabled while nothing has been typed, and that typing turns it on and raises the unsaved mark beside the name. Reach for a section story below to review one group of fields on its own.",
+					"A skill that already exists, opened on what it tells the companion to do. Check that the body takes the height the two fields under it leave, that the save stays enabled and sends nothing while nothing has been typed, and that typing raises the unsaved mark beside the name. Reach for a section story below to review one group of fields on its own.",
 			},
 		},
 	},
 	play: async ({ args, canvas, userEvent }) => {
 		const save = canvas.getByRole("button", { name: "Save skill" })
 
-		await expect(save).toBeDisabled()
+		await expect(save).toBeEnabled()
+		await userEvent.click(save)
+		await expect(args.onSave).not.toHaveBeenCalled()
 		await userEvent.type(canvas.getByLabelText("Body"), " Nothing else.")
 
 		await expect(args.onDraftChange).toHaveBeenCalled()
@@ -125,17 +127,17 @@ export const OverBudget = meta.story({
 		docs: {
 			description: {
 				story:
-					"A description and a when to use that together run past the 1536 characters they share. Check that the field is marked invalid and says by how much rather than truncating anything, and that the save stays out of reach until one of the two is shortened — the file would be refused as it stands. Pick `Triggering` for the same section inside its budget.",
+					"A description and a when to use that together run past the 1536 characters they share. Check that the field is marked invalid and says by how much rather than truncating anything, and that pressing save sends nothing and puts focus in that field until one of the two is shortened, because the file would be refused as it stands. Pick `Triggering` for the same section inside its budget.",
 			},
 		},
 	},
-	play: async ({ canvas }) => {
+	play: async ({ args, canvas, userEvent }) => {
 		await expect(
 			canvas.getByText(/characters over\. Shorten either field to save\./),
 		).toBeVisible()
-		await expect(
-			canvas.getByRole("button", { name: "Save skill" }),
-		).toBeDisabled()
+		await userEvent.click(canvas.getByRole("button", { name: "Save skill" }))
+		await expect(args.onSave).not.toHaveBeenCalled()
+		await expect(canvas.getByLabelText("When to use")).toHaveFocus()
 	},
 })
 
@@ -247,14 +249,22 @@ export const Empty = meta.story({
 		docs: {
 			description: {
 				story:
-					"A skill nobody has written yet. Reach for this over `Default` to review what a reader is asked for before anything exists: the same rail and the same sections, a save named as a creation, and no delete — there is nothing kept to take away. The marks stand where a file that says nothing about them stands, so a skill is invocable by hand from the moment it is created. The action stays out of reach until the skill is named, and leaving reports nothing.",
+					"A skill nobody has written yet. Reach for this over `Default` to review what a reader is asked for before anything exists: the same rail and the same sections, a save named as a creation, and no delete — there is nothing kept to take away. The marks stand where a file that says nothing about them stands, so a skill is invocable by hand from the moment it is created. Pressing the action before the skill is named opens Triggering, marks the name invalid with its error and puts focus in it, and leaving reports nothing.",
 			},
 		},
 	},
 	play: async ({ args, canvas, userEvent }) => {
 		const create = canvas.getByRole("button", { name: "Add skill" })
 
-		await expect(create).toBeDisabled()
+		await userEvent.click(create)
+		await expect(args.onSave).not.toHaveBeenCalled()
+		const name = await canvas.findByLabelText("Name")
+		await expect(name).toHaveAttribute("aria-invalid", "true")
+		await expect(name).toHaveAccessibleDescription(/A skill needs a name\./)
+		await expect(name).toHaveFocus()
+		await expect(canvas.getByRole("alert")).toHaveTextContent(
+			"A skill needs a name.",
+		)
 		await expect(canvas.queryByRole("button", { name: "Delete skill" })).toBe(
 			null,
 		)

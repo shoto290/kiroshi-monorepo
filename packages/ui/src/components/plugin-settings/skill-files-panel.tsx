@@ -9,6 +9,8 @@ import { Notice } from "@workspace/ui/components/notice"
 import { SettingsField } from "@workspace/ui/components/settings-field"
 import { SETTINGS_TAG_CLASS } from "@workspace/ui/components/settings-styles"
 import { Button, buttonVariants } from "@workspace/ui/components/ui/button"
+import { useFocusFirstInvalid } from "@workspace/ui/hooks/use-focus-first-invalid"
+import { usePendingSubmit } from "@workspace/ui/hooks/use-pending-submit"
 import { cn } from "@workspace/ui/lib/utils"
 
 type SkillFileFailure = "read" | "write" | "delete"
@@ -25,8 +27,8 @@ type PluginSkillFiles = {
 	opened: OpenedSkillFile | null
 	onOpen: (skillId: string, path: string) => void
 	onClose: () => void
-	onAdd: (skillId: string, path: string) => void
-	onSave: (skillId: string, path: string, text: string) => void
+	onAdd: (skillId: string, path: string) => unknown
+	onSave: (skillId: string, path: string, text: string) => unknown
 	onDelete: (skillId: string, path: string) => void
 }
 
@@ -41,8 +43,8 @@ type SkillFilesPanelProps = {
 	opened: SkillFile | null
 	onOpen: (path: string) => void
 	onClose: () => void
-	onAdd: (path: string) => void
-	onSave: (path: string, text: string) => void
+	onAdd: (path: string) => unknown
+	onSave: (path: string, text: string) => unknown
 	onDelete: (path: string) => void
 }
 
@@ -50,7 +52,7 @@ type SkillFileEditorProps = {
 	path: string
 	saved: string
 	failure?: SkillFileFailure
-	onSave: (text: string) => void
+	onSave: (text: string) => unknown
 	onDelete: () => void
 	onBack: () => void
 }
@@ -88,7 +90,12 @@ const SkillFileEditor = ({
 }: SkillFileEditorProps) => {
 	const { t } = useTranslation("bots")
 	const [text, setText] = useState(saved)
+	const { isPending, run } = usePendingSubmit()
 	const isUnsaved = text !== saved
+
+	const save = () => {
+		if (isUnsaved) run(() => onSave(text))
+	}
 
 	return (
 		<>
@@ -114,7 +121,7 @@ const SkillFileEditor = ({
 						size: "sm",
 					})}
 				/>
-				<Button disabled={!isUnsaved} onClick={() => onSave(text)} size="sm">
+				<Button disabled={isPending} onClick={save} size="sm">
 					<Icons.Check aria-hidden="true" className="size-3.5" />
 					{t("skills.files.save")}
 				</Button>
@@ -142,12 +149,22 @@ const SkillFilesPanel = ({
 }: SkillFilesPanelProps) => {
 	const { t } = useTranslation("bots")
 	const [added, setAdded] = useState("")
+	const [hasTriedAdding, setTriedAdding] = useState(false)
+	const { root, focusFirstInvalid } = useFocusFirstInvalid<HTMLDivElement>()
+	const { isPending, run } = usePendingSubmit()
 
 	const path = added.trim()
-	const isAddable = path.length > 0 && !paths.includes(path)
+	const refusal =
+		path.length === 0 ? "blank" : paths.includes(path) ? "taken" : null
 
 	const add = () => {
-		onAdd(path)
+		if (refusal) {
+			setTriedAdding(true)
+			focusFirstInvalid()
+			return
+		}
+		setTriedAdding(false)
+		run(() => onAdd(path))
 		setAdded("")
 	}
 
@@ -192,8 +209,13 @@ const SkillFilesPanel = ({
 
 	return (
 		<>
-			<div className="flex shrink-0 flex-col gap-2">
+			<div className="flex shrink-0 flex-col gap-2" ref={root}>
 				<SettingsField
+					error={
+						hasTriedAdding && refusal
+							? t(`skills.files.add.${refusal}`)
+							: undefined
+					}
 					hint={t("skills.files.add.hint")}
 					label={t("skills.files.add.label")}
 					onValueChange={setAdded}
@@ -202,7 +224,7 @@ const SkillFilesPanel = ({
 				/>
 				<div className="flex justify-end">
 					<Button
-						disabled={!isAddable}
+						disabled={isPending}
 						onClick={add}
 						size="sm"
 						variant="outline"
