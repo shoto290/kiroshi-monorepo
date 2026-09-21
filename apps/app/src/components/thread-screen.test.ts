@@ -8,7 +8,13 @@ import {
 	screen,
 	within,
 } from "@testing-library/react"
-import { createElement, Fragment, useState, useSyncExternalStore } from "react"
+import {
+	createElement,
+	Fragment,
+	type ReactNode,
+	useState,
+	useSyncExternalStore,
+} from "react"
 import {
 	afterEach,
 	beforeEach,
@@ -112,6 +118,10 @@ import {
 	createMessageLandingController,
 	type MessageLandingController,
 } from "@/lib/search/message-landing-controller"
+import {
+	CompanionMenuContext,
+	useCompanionMenuLookup,
+} from "@/lib/sidebar/companion-menu"
 
 vi.mock("@/lib/routines/routines-transport", async (importOriginal) => {
 	const actual =
@@ -1081,6 +1091,59 @@ const nameLineOf = (text: string) =>
 
 const gutterAvatarOf = (text: string) =>
 	turnOf(text)?.querySelector('[data-slot="message-gutter"] > *') ?? null
+
+const gutterOf = (text: string) =>
+	turnOf(text)?.querySelector('[data-slot="message-gutter"]') ?? null
+
+const NO_COMPANION_ACTIONS = {
+	onAddBotToSpace: () => undefined,
+	onDeleteBot: () => undefined,
+	onDuplicateBot: () => undefined,
+	onEditBot: () => undefined,
+	onPinRoster: () => undefined,
+	onRemoveBotFromSpace: () => undefined,
+}
+
+type CompanionMenuHarnessProps = {
+	companionIds: string[]
+	children: ReactNode
+}
+
+const CompanionMenuHarness = ({
+	companionIds,
+	children,
+}: CompanionMenuHarnessProps) =>
+	createElement(
+		CompanionMenuContext.Provider,
+		{
+			value: useCompanionMenuLookup({
+				actions: NO_COMPANION_ACTIONS,
+				conversationRosters: {},
+				openSpaceId: SPACE,
+				rosters: {
+					[SPACE]: companionIds.map((id) => ({
+						id,
+						name: id,
+						pinPosition: null,
+						sectionId: null,
+					})),
+				},
+				sectionsBySpaceId: {},
+				spaces: [{ id: SPACE, name: "Personal", colour: "blue" }],
+			}),
+		},
+		children,
+	)
+
+const underCompanionMenu = (children: ReactNode, companionIds: string[]) =>
+	createElement(CompanionMenuHarness, { children, companionIds })
+
+const rightClickGutterOf = async (text: string) => {
+	const gutter = gutterOf(text)
+	if (!gutter) throw new Error(`no gutter for ${text}`)
+	fireEvent.contextMenu(gutter, { clientX: 20, clientY: 20 })
+	return screen.findByRole("menu")
+}
 
 const markOf = (text: string) =>
 	turnOf(text)?.querySelector('[data-slot="shared-mark"][data-state="marked"]')
@@ -3853,5 +3916,66 @@ describe("ThreadScreen showing the applications installed", () => {
 		expect(rowIndexOf(NYX_SENTRY_RECEIPT)).toBe(-1)
 		expect(rowIndexOf("held")).not.toBe(-1)
 		expect(raisedNotices(UNREADABLE_INSTALLS_TITLE)).toHaveLength(1)
+	})
+})
+
+describe("ThreadScreen opening the companion menu of a gutter avatar", () => {
+	let layout: FakeLayout
+
+	beforeEach(() => {
+		layout = fakeLayout()
+		vi.clearAllMocks()
+		listRoutines.mockResolvedValue([])
+		listRuns.mockResolvedValue([])
+		listSources.mockResolvedValue([])
+		listMissions.mockResolvedValue({ open: [], done: [] })
+		listenToMissions.mockResolvedValue(() => undefined)
+	})
+
+	afterEach(() => {
+		cleanup()
+		layout.restore()
+	})
+
+	it("opens it in the solo thread", async () => {
+		const solo = await soloOf({ spoken: [ADA_CLOSES] })
+		const thread = solo.thread()
+		render(
+			underCompanionMenu(screenOf(thread), [
+				thread.kind === "bot" ? thread.bot.id : "",
+			]),
+		)
+		await settle()
+
+		expect(await rightClickGutterOf(ADA_CLOSES.text)).toBeTruthy()
+	})
+
+	it("opens it in the mission thread", async () => {
+		const room = await missionRoomOf({
+			events: [MISSION_OPENED],
+			spoken: [MISSION_SAID],
+		})
+		render(
+			underCompanionMenu(screenOf(room.thread, room.bots), [room.idOf("Ada")]),
+		)
+		await settle()
+
+		expect(await rightClickGutterOf(MISSION_SAID.text)).toBeTruthy()
+	})
+
+	it("opens none for a companion absent from the open space roster", async () => {
+		const room = await missionRoomOf({
+			events: [MISSION_OPENED],
+			spoken: [MISSION_SAID],
+		})
+		render(underCompanionMenu(screenOf(room.thread, room.bots), []))
+		await settle()
+
+		fireEvent.contextMenu(gutterOf(MISSION_SAID.text) as HTMLElement, {
+			clientX: 20,
+			clientY: 20,
+		})
+
+		expect(screen.queryByRole("menu")).toBeNull()
 	})
 })

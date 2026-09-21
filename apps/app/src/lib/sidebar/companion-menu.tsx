@@ -1,12 +1,6 @@
 import { createContext, useContext, useMemo } from "react"
 
-import type {
-	AppSidebarBot,
-	AppSidebarConversation,
-	AppSidebarSection,
-	RosterPin,
-	Space,
-} from "@workspace/ui/components/app-sidebar"
+import type { RosterPin, Space } from "@workspace/ui/components/app-sidebar"
 import {
 	CompanionMenuContent,
 	type CompanionMenuLookup,
@@ -15,6 +9,8 @@ import {
 import {
 	filedInSection,
 	isPinnedRow,
+	type PinnedRow,
+	type PinnedSection,
 	pinnedLast,
 	pinsOf,
 	withoutPin,
@@ -38,27 +34,31 @@ export type CompanionMenuActions = Pick<
 	| "onRemoveBotFromSpace"
 >
 
+type CompanionRow = PinnedRow & { name: string }
+
+type CompanionSection = PinnedSection & { name: string }
+
 export type CompanionMenuSource = {
 	actions: CompanionMenuActions
-	botsBySpaceId: Record<string, AppSidebarBot[]>
-	conversationsBySpaceId: Record<string, AppSidebarConversation[]>
-	sectionsBySpaceId: Record<string, AppSidebarSection[]>
+	rosters: Record<string, CompanionRow[]>
+	conversationRosters: Record<string, PinnedRow[]>
+	sectionsBySpaceId: Record<string, CompanionSection[]>
 	spaces: Space[]
 	openSpaceId: string | null
 }
 
 const spaceIdsOfBot = (
-	botsBySpaceId: Record<string, AppSidebarBot[]>,
+	rosters: Record<string, CompanionRow[]>,
 	botId: string,
 ) =>
-	Object.entries(botsBySpaceId)
+	Object.entries(rosters)
 		.filter(([, held]) => held.some((bot) => bot.id === botId))
 		.map(([spaceId]) => spaceId)
 
 export const useCompanionMenuLookup = ({
 	actions,
-	botsBySpaceId,
-	conversationsBySpaceId,
+	rosters,
+	conversationRosters,
 	sectionsBySpaceId,
 	spaces,
 	openSpaceId,
@@ -66,10 +66,10 @@ export const useCompanionMenuLookup = ({
 	useMemo(() => {
 		if (!openSpaceId) return NO_COMPANION_MENU
 
-		const bots = botsBySpaceId[openSpaceId] ?? []
+		const bots = rosters[openSpaceId] ?? []
 		const sections = sectionsBySpaceId[openSpaceId] ?? []
 		const pins = pinsOf({
-			rows: [...(conversationsBySpaceId[openSpaceId] ?? []), ...bots],
+			rows: [...(conversationRosters[openSpaceId] ?? []), ...bots],
 			sections,
 		})
 
@@ -96,7 +96,7 @@ export const useCompanionMenuLookup = ({
 				<CompanionMenuContent
 					companion={companion}
 					isPinned={isPinnedRow(companion)}
-					memberships={spaceIdsOfBot(botsBySpaceId, companionId)}
+					memberships={spaceIdsOfBot(rosters, companionId)}
 					onAddToSpace={actions.onAddBotToSpace}
 					onDelete={actions.onDeleteBot}
 					onDuplicate={actions.onDuplicateBot}
@@ -113,8 +113,8 @@ export const useCompanionMenuLookup = ({
 		}
 	}, [
 		actions,
-		botsBySpaceId,
-		conversationsBySpaceId,
+		rosters,
+		conversationRosters,
 		sectionsBySpaceId,
 		spaces,
 		openSpaceId,

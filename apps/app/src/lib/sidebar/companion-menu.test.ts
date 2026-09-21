@@ -4,7 +4,9 @@ import {
 	cleanup,
 	fireEvent,
 	render,
+	renderHook,
 	screen,
+	waitFor,
 	within,
 } from "@testing-library/react"
 import { createElement, type ReactElement } from "react"
@@ -37,11 +39,13 @@ const SCRIBE = {
 
 const STANDUP = {
 	id: "room-standup",
-	name: "Standup",
-	participants: [],
 	pinPosition: 1,
 	sectionId: null,
 }
+
+const NOVA = { id: "bot-nova", name: "Nova", pinPosition: null }
+
+const NOVA_JOINS_PERSO = [ATLAS, SCRIBE, NOVA]
 
 const actionsOf = (): CompanionMenuActions => ({
 	onAddBotToSpace: vi.fn(),
@@ -54,9 +58,9 @@ const actionsOf = (): CompanionMenuActions => ({
 
 const sourceWith = (actions: CompanionMenuActions): CompanionMenuSource => ({
 	actions,
-	botsBySpaceId: { perso: [ATLAS, SCRIBE], vocca: [ATLAS] },
-	conversationsBySpaceId: { perso: [STANDUP] },
+	conversationRosters: { perso: [STANDUP] },
 	openSpaceId: "perso",
+	rosters: { perso: [ATLAS, SCRIBE], vocca: [ATLAS] },
 	sectionsBySpaceId: {
 		perso: [{ id: "section-build", name: "Build", position: 0 }],
 	},
@@ -65,6 +69,17 @@ const sourceWith = (actions: CompanionMenuActions): CompanionMenuSource => ({
 		{ id: "vocca", name: "Vocca", colour: "green" },
 	],
 })
+
+const pinnedAtlasSource = (): CompanionMenuSource => {
+	const source = sourceWith(actionsOf())
+	return {
+		...source,
+		rosters: {
+			...source.rosters,
+			perso: [{ ...ATLAS, pinPosition: 2 }, SCRIBE],
+		},
+	}
+}
 
 type SubjectProps = {
 	companionId: string
@@ -87,10 +102,20 @@ const Subject = ({ companionId, source }: SubjectProps) =>
 		}),
 	)
 
-const mounted = (companionId: string, actions = actionsOf()) => {
-	render(createElement(Subject, { companionId, source: sourceWith(actions) }))
-	return actions
+const mounted = (companionId: string, source = sourceWith(actionsOf())) => {
+	const { rerender } = render(createElement(Subject, { companionId, source }))
+	return {
+		actions: source.actions,
+		showSource: (next: CompanionMenuSource) =>
+			rerender(createElement(Subject, { companionId, source: next })),
+	}
 }
+
+const lookupOf = (source: CompanionMenuSource) =>
+	renderHook(
+		({ read }: { read: CompanionMenuSource }) => useCompanionMenuLookup(read),
+		{ initialProps: { read: source } },
+	)
 
 const openMenu = async () => {
 	fireEvent.contextMenu(screen.getByRole("button", { name: TRIGGER_NAME }), {
@@ -98,6 +123,11 @@ const openMenu = async () => {
 		clientY: 40,
 	})
 	return within(await screen.findByRole("menu"))
+}
+
+const closeMenu = async () => {
+	fireEvent.keyDown(screen.getByRole("menu"), { key: "Escape" })
+	await waitFor(() => expect(screen.queryByRole("menu")).toBeNull())
 }
 
 const itemNames = (menu: ReturnType<typeof within>) =>
@@ -135,7 +165,7 @@ describe("useCompanionMenuLookup", () => {
 	})
 
 	it("pins the companion at the end of the open space pins", async () => {
-		const actions = mounted("bot-atlas")
+		const { actions } = mounted("bot-atlas")
 
 		fireEvent.click((await openMenu()).getByRole("menuitem", { name: "Pin" }))
 
@@ -148,7 +178,7 @@ describe("useCompanionMenuLookup", () => {
 	})
 
 	it("unpins the companion pinned in the open space", async () => {
-		const actions = mounted("bot-scribe")
+		const { actions } = mounted("bot-scribe")
 
 		fireEvent.click((await openMenu()).getByRole("menuitem", { name: "Unpin" }))
 
@@ -159,7 +189,7 @@ describe("useCompanionMenuLookup", () => {
 	})
 
 	it("runs the sidebar deletion for the companion", async () => {
-		const actions = mounted("bot-atlas")
+		const { actions } = mounted("bot-atlas")
 
 		fireEvent.click(
 			(await openMenu()).getByRole("menuitem", { name: "Delete" }),
@@ -169,7 +199,7 @@ describe("useCompanionMenuLookup", () => {
 	})
 
 	it("runs the sidebar settings and duplication for the companion", async () => {
-		const actions = mounted("bot-atlas")
+		const { actions } = mounted("bot-atlas")
 		const menu = await openMenu()
 
 		fireEvent.click(menu.getByRole("menuitem", { name: "Settings" }))
@@ -181,5 +211,57 @@ describe("useCompanionMenuLookup", () => {
 		)
 
 		expect(actions.onDuplicateBot).toHaveBeenCalledWith("bot-atlas")
+	})
+})
+
+describe("useCompanionMenuLookup identity", () => {
+	it("keeps its lookup while the roster state stands, as a roster clock tick leaves it", () => {
+		const source = sourceWith(actionsOf())
+		const { result, rerender } = lookupOf(source)
+		const before = result.current
+
+		rerender({ read: { ...source } })
+
+		expect(result.current).toBe(before)
+	})
+
+	it("reads a companion that joined the open space roster", () => {
+		const source = sourceWith(actionsOf())
+		const { result, rerender } = lookupOf(source)
+
+		expect(result.current("bot-nova")).toBeNull()
+
+		rerender({
+			read: {
+				...source,
+				rosters: { ...source.rosters, perso: [...NOVA_JOINS_PERSO] },
+			},
+		})
+
+		expect(result.current("bot-nova")).not.toBeNull()
+	})
+
+	it("reads a companion that left the open space roster", () => {
+		const source = sourceWith(actionsOf())
+		const { result, rerender } = lookupOf(source)
+
+		expect(result.current("bot-scribe")).not.toBeNull()
+
+		rerender({
+			read: { ...source, rosters: { ...source.rosters, perso: [ATLAS] } },
+		})
+
+		expect(result.current("bot-scribe")).toBeNull()
+	})
+
+	it("reads a companion pinned since the last render", async () => {
+		const { showSource } = mounted("bot-atlas")
+
+		expect(itemNames(await openMenu())).toContain("Pin")
+		await closeMenu()
+
+		showSource(pinnedAtlasSource())
+
+		expect(itemNames(await openMenu())).toContain("Unpin")
 	})
 })

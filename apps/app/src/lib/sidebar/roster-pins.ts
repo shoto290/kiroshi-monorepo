@@ -1,12 +1,12 @@
 import type { RosterPin } from "@workspace/ui/components/app-sidebar"
 
-type PinnedRow = {
+export type PinnedRow = {
 	id: string
 	sectionId?: string | null
 	pinPosition?: number | null
 }
 
-type PinnedSection = {
+export type PinnedSection = {
 	id: string
 	position: number
 }

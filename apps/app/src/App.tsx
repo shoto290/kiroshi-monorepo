@@ -40,9 +40,9 @@ export function App() {
 	const overlay = useWorkspaceOverlay({ core, rosterLines, rosterView, scopes })
 	const companionMenu = useCompanionMenuLookup({
 		actions: rosterLines.sidebarActions,
-		botsBySpaceId: rosterLists.rosterBotsBySpace,
-		conversationsBySpaceId: rosterLists.rosterConversationsBySpace,
+		conversationRosters: core.roster.state.conversationRosters,
 		openSpaceId: scopes.selectedSpaceId ?? null,
+		rosters: core.roster.state.rosters,
 		sectionsBySpaceId: core.sections.state.sections,
 		spaces: core.spaces.state.spaces,
 	})

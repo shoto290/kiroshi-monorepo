@@ -40,6 +40,18 @@ describe("pinsOf", () => {
 	it("leaves the unpinned rows out", () => {
 		expect(idsOf(pins())).not.toContain("bot-atlas")
 	})
+
+	it("keeps the caller order of two rows sharing a pin position", () => {
+		const tied = [
+			{ id: "room-standup", pinPosition: 4, sectionId: null },
+			{ id: "bot-atlas", pinPosition: 4, sectionId: null },
+		]
+
+		expect(idsOf(pinsOf({ rows: tied, sections: [] }))).toEqual([
+			"room-standup",
+			"bot-atlas",
+		])
+	})
 })
 
 describe("isPinnedRow", () => {
