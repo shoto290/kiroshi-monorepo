@@ -81,14 +81,8 @@ const MissionActivityLine = ({
 }: MissionActivityLineProps) => {
 	const { t } = useTranslation("chat")
 	const at = lastActivity ? lastActivityAt : undefined
-	const age = at === undefined ? undefined : toCompactAge(at, now)
 	const isSilent = isMissionSilent({ state, at, now })
-	const parts = [
-		lastActivity ? "activity" : undefined,
-		commitsAhead > 0 ? "commits" : undefined,
-		pullRequest ? "pullRequest" : undefined,
-	].filter(Boolean)
-	const leads = (part: string) => parts[0] === part
+	const hasCommits = commitsAhead > 0
 
 	return (
 		<span
@@ -116,29 +110,29 @@ const MissionActivityLine = ({
 					</span>
 				</>
 			) : null}
-			{age ? (
+			{at === undefined ? null : (
 				<time
 					className={cn(PART_CLASS, "tabular-nums", DOT_CLASS)}
 					data-slot={isSilent ? "mission-silence" : "mission-activity-age"}
-					dateTime={new Date(lastActivityAt ?? now).toISOString()}
+					dateTime={new Date(at).toISOString()}
 				>
-					{isSilent ? t("missions.activity.silent", { age }) : age}
+					{isSilent
+						? t("missions.activity.silent", { age: toCompactAge(at, now) })
+						: toCompactAge(at, now)}
 				</time>
-			) : null}
-			{commitsAhead > 0 ? (
+			)}
+			{hasCommits ? (
 				<span
-					className={cn(
-						PART_CLASS,
-						"tabular-nums",
-						!leads("commits") && DOT_CLASS,
-					)}
+					className={cn(PART_CLASS, "tabular-nums", lastActivity && DOT_CLASS)}
 					data-slot="mission-commits-ahead"
 				>
 					{t("missions.activity.commitsAhead", { count: commitsAhead })}
 				</span>
 			) : null}
 			{pullRequest ? (
-				<span className={cn(PART_CLASS, !leads("pullRequest") && DOT_CLASS)}>
+				<span
+					className={cn(PART_CLASS, (lastActivity || hasCommits) && DOT_CLASS)}
+				>
 					<MissionLink pullRequest={pullRequest.number} url={pullRequest.url} />
 				</span>
 			) : null}
