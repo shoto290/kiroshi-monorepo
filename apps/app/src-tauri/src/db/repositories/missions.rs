@@ -53,16 +53,21 @@ pub(in crate::db) const MISSION_COLUMNS: &str =
 		WHERE mission_events.mission_id = missions.id
 			AND mission_events.kind NOT IN ('note', 'agent_started', 'agent_stopped', 'status')
 		ORDER BY mission_events.seq DESC LIMIT 1), 0) AS state_seq,
-	(SELECT created_at FROM mission_events
-		WHERE mission_events.mission_id = missions.id AND mission_events.kind = 'agent_started'
-		ORDER BY mission_events.seq DESC LIMIT 1) AS agent_started_at,
+	(SELECT CASE mission_events.kind WHEN 'agent_started' THEN created_at END
+		FROM mission_events
+		WHERE mission_events.mission_id = missions.id
+			AND mission_events.kind IN ('agent_started', 'agent_stopped')
+		ORDER BY mission_events.seq DESC LIMIT 1) AS started_since_stop_at,
 	(SELECT payload FROM mission_events
 		WHERE mission_events.mission_id = missions.id AND mission_events.kind = 'status'
 		ORDER BY mission_events.seq DESC LIMIT 1) AS status_payload,
 	(SELECT created_at FROM mission_events
 		WHERE mission_events.mission_id = missions.id AND mission_events.kind = 'status'
 		ORDER BY mission_events.seq DESC LIMIT 1) AS status_at,
-	last_activity_at, last_activity, commits_ahead, dirty_files, pull_request_url
+	last_activity_at, last_activity, commits_ahead, dirty_files, pull_request_url,
+	(SELECT created_at FROM mission_events
+		WHERE mission_events.mission_id = missions.id AND mission_events.kind = 'agent_stopped'
+		ORDER BY mission_events.seq DESC LIMIT 1) AS agent_stopped_at
 	FROM missions";
 
 const INSERT_MISSION: &str = "INSERT INTO missions
@@ -759,7 +764,13 @@ pub(in crate::db) fn mission(row: &Row<'_>) -> rusqlite::Result<Mission> {
 		reported_turn_id: row.get(13)?,
 		state: derived(row.get(14)?)?,
 		state_seq: row.get(15)?,
-		is_agent_running: is_fresh(row.get(11)?, [row.get(16)?, row.get(19)?], now()),
+		is_agent_running: Liveness {
+			closed_at: row.get(11)?,
+			started_since_stop_at: row.get(16)?,
+			activity_at: row.get(19)?,
+			stopped_at: row.get(24)?,
+		}
+		.is_running(now()),
 		status: last_status(row)?,
 		last_activity_at: row.get(19)?,
 		last_activity: row.get::<_, Option<String>>(20)?.map(|_| from_text(row, 20)).transpose()?,
@@ -769,8 +780,23 @@ pub(in crate::db) fn mission(row: &Row<'_>) -> rusqlite::Result<Mission> {
 	})
 }
 
-fn is_fresh(closed_at: Option<i64>, seen_at: [Option<i64>; 2], now: i64) -> bool {
-	closed_at.is_none() && seen_at.into_iter().flatten().any(|at| now - at < AGENT_FRESHNESS_MS)
+struct Liveness {
+	closed_at: Option<i64>,
+	started_since_stop_at: Option<i64>,
+	activity_at: Option<i64>,
+	stopped_at: Option<i64>,
+}
+
+impl Liveness {
+	fn is_running(&self, now: i64) -> bool {
+		let activity_since_stop =
+			self.activity_at.filter(|at| self.stopped_at.is_none_or(|stopped| *at > stopped));
+		self.closed_at.is_none()
+			&& [self.started_since_stop_at, activity_since_stop]
+				.into_iter()
+				.flatten()
+				.any(|at| now - at < AGENT_FRESHNESS_MS)
+	}
 }
 
 #[derive(serde::Deserialize)]
@@ -1060,7 +1086,7 @@ mod tests {
 	}
 
 	#[tokio::test]
-	async fn the_liveness_of_a_mission_is_an_agent_started_within_the_window_and_outlives_a_stop() {
+	async fn the_liveness_of_a_mission_reads_idle_the_moment_its_agent_stops() {
 		let (database, dir) = planted().await;
 		let opened = database
 			.missions()
@@ -1069,9 +1095,13 @@ mod tests {
 			.expect("the mission opens");
 
 		let mut walked = vec![opened.is_agent_running];
-		for kind in
-			[MissionEventKind::AgentStarted, MissionEventKind::Note, MissionEventKind::AgentStopped]
-		{
+		for kind in [
+			MissionEventKind::AgentStarted,
+			MissionEventKind::Note,
+			MissionEventKind::AgentStopped,
+			MissionEventKind::AgentStarted,
+			MissionEventKind::AgentStopped,
+		] {
 			let written = database
 				.missions()
 				.append(opened.id.clone(), an_entry(kind))
@@ -1079,6 +1109,18 @@ mod tests {
 				.expect("the event is appended");
 			walked.push(written.is_agent_running);
 		}
+		let before_the_stop = database
+			.missions()
+			.record_activity(opened.id.clone(), an_activity("Read", "/w/a.rs"), now() - 60_000)
+			.await
+			.expect("an activity older than the stop lands");
+		walked.push(before_the_stop.is_agent_running);
+		let after_the_stop = database
+			.missions()
+			.record_activity(opened.id.clone(), an_activity("Edit", "/w/a.rs"), now() + 1_000)
+			.await
+			.expect("an activity newer than the stop lands");
+		walked.push(after_the_stop.is_agent_running);
 		let closed = database
 			.missions()
 			.append(opened.id.clone(), an_entry(MissionEventKind::Closed))
@@ -1086,22 +1128,37 @@ mod tests {
 			.expect("the mission closes");
 		walked.push(closed.is_agent_running);
 
-		assert_eq!(walked, vec![false, true, true, true, false]);
+		assert_eq!(walked, vec![false, true, true, false, true, false, false, true, false]);
 
 		drop(database);
 		std::fs::remove_dir_all(&dir).expect("cleanup");
 	}
 
-	#[test]
-	fn an_agent_is_running_while_its_freshest_sign_is_under_the_window() {
-		let at = 1_800_000_000_000;
+	fn liveness(started: Option<i64>, activity: Option<i64>, stopped: Option<i64>) -> Liveness {
+		Liveness {
+			closed_at: None,
+			started_since_stop_at: started,
+			activity_at: activity,
+			stopped_at: stopped,
+		}
+	}
 
-		assert!(is_fresh(None, [Some(at), None], at + AGENT_FRESHNESS_MS - 1));
-		assert!(is_fresh(None, [None, Some(at)], at + AGENT_FRESHNESS_MS - 1));
-		assert!(is_fresh(None, [Some(at - AGENT_FRESHNESS_MS), Some(at)], at + 1));
-		assert!(!is_fresh(None, [Some(at), Some(at)], at + AGENT_FRESHNESS_MS));
-		assert!(!is_fresh(None, [None, None], at));
-		assert!(!is_fresh(Some(at), [Some(at), Some(at)], at));
+	#[test]
+	fn an_agent_is_running_while_its_freshest_sign_follows_its_stop_and_is_under_the_window() {
+		let at = 1_800_000_000_000;
+		let under = at + AGENT_FRESHNESS_MS - 1;
+
+		assert!(liveness(Some(at), None, None).is_running(under));
+		assert!(liveness(None, Some(at), None).is_running(under));
+		assert!(liveness(None, Some(at), Some(at - 1)).is_running(under));
+		assert!(liveness(Some(at - AGENT_FRESHNESS_MS), Some(at), None).is_running(at + 1));
+		assert!(!liveness(Some(at), Some(at), None).is_running(at + AGENT_FRESHNESS_MS));
+		assert!(!liveness(None, None, None).is_running(at));
+		assert!(!liveness(None, Some(at), Some(at + 1)).is_running(at + 2));
+		assert!(!liveness(None, Some(at), Some(at)).is_running(at + 1));
+		assert!(
+			!Liveness { closed_at: Some(at), ..liveness(Some(at), Some(at), None) }.is_running(at)
+		);
 	}
 
 	fn an_activity(tool: &str, target: &str) -> MissionActivity {

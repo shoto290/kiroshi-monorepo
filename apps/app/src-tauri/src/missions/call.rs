@@ -83,7 +83,13 @@ async fn carried<R: Runtime>(
 	let Some(held) = parsed(&body) else {
 		return Ok(UNREADABLE);
 	};
-	let activity = activity(&held);
+	let activity = match text(&held, "event") == hook::TOOL_USED {
+		true => match activity(&held) {
+			Some(activity) => Some(activity),
+			None => return Ok(UNREADABLE),
+		},
+		false => None,
+	};
 	let budget = match activity {
 		Some(_) => format!("{}{ACTIVITY_BUDGET}", mission.id),
 		None => mission.id.clone(),
@@ -715,6 +721,57 @@ mod tests {
 		assert_eq!(announced.len(), 1, "got {announced:?}");
 		assert_eq!(announced[0]["lastActivityAt"], json!(now));
 		assert_eq!(announced[0]["isAgentRunning"], json!(true));
+
+		webhook.stop();
+		cleaned(&app);
+	}
+
+	#[tokio::test]
+	async fn a_tool_call_naming_no_tool_leaves_the_thread_and_the_state_as_they_stood() {
+		let app = a_host("nameless-tool").await;
+		let mission = an_armed_mission(&app, A_KEY).await;
+		let before = events_of(&app, &mission.id).await;
+		let stood = state_of(&app, &mission.id).await;
+		let webhook = listening(&app, Ticking::at(NOON));
+		let nameless = json!({ "event": hook::TOOL_USED, "tool": 42, "target": "/w/a.rs" });
+		let blank = json!({ "event": hook::TOOL_USED, "tool": "", "target": "" });
+
+		for body in [nameless, blank] {
+			let held =
+				answered(webhook.address(), calling(Some(A_KEY), None, &body.to_string())).await;
+			assert_eq!(held, answer(UNREADABLE));
+		}
+
+		assert_eq!(events_of(&app, &mission.id).await, before, "a nameless tool call wrote a line");
+		assert_eq!(state_of(&app, &mission.id).await, stood, "a nameless tool call moved it");
+
+		webhook.stop();
+		cleaned(&app);
+	}
+
+	#[tokio::test]
+	async fn a_stop_carrying_a_tool_field_appends_the_rows_its_event_names_and_no_activity() {
+		let app = a_host("stop-with-tool").await;
+		let mission = an_armed_mission(&app, A_KEY).await;
+		let webhook = listening(&app, Ticking::at(NOON));
+		let body = json!({ "event": hook::TURN_STOPPED, "tool": "Edit", "target": "/w/a.rs" });
+
+		let held = answered(webhook.address(), calling(Some(A_KEY), None, &body.to_string())).await;
+
+		assert_eq!(held, answer(ACCEPTED));
+		assert_eq!(
+			kinds_of(&app, &mission.id).await,
+			vec![MissionEventKind::AgentStopped, MissionEventKind::AgentAsked],
+		);
+		let state = app.state::<db::DatabaseState>();
+		let written = ready(&state)
+			.expect("the database opens")
+			.missions()
+			.detail(mission.id.clone())
+			.await
+			.expect("the mission reads")
+			.mission;
+		assert_eq!((written.last_activity_at, written.last_activity), (None, None));
 
 		webhook.stop();
 		cleaned(&app);
