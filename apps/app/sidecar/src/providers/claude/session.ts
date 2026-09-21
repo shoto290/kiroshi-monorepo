@@ -1,6 +1,7 @@
 import { homedir } from "node:os"
 
 import {
+	type HookCallback,
 	type Options,
 	query,
 	type SlashCommand,
@@ -10,6 +11,7 @@ import { readBotSettings, type SettingsOptions } from "./bot-settings"
 import type { BundleScope } from "./bundle-writes"
 import { resolveExecutable } from "./executable"
 import { KIROSHI_SERVER, kiroshiServer } from "./kiroshi-server"
+import { createMissionStatusReminder } from "./mission-status-reminder"
 import { createPermissionGate } from "./permissions"
 import { createPromptStream } from "./prompt-stream"
 import { securityFloor } from "./security-floor"
@@ -89,6 +91,7 @@ export const buildOptions = (
 	canUseTool: Options["canUseTool"],
 	settings: SettingsOptions = readBotSettings(request).options,
 	resolved: ResolvedServers = resolvedServers(request),
+	stop?: HookCallback,
 ): Options => {
 	const managedSettings = securityFloor({
 		appDataDir: request.appDataDir,
@@ -125,6 +128,9 @@ export const buildOptions = (
 						schema: request.outputSchema,
 					},
 				}
+			: {}),
+		...(request.missionThread && stop
+			? { hooks: { Stop: [{ hooks: [stop] }] } }
 			: {}),
 		systemPrompt: {
 			type: "preset",
@@ -303,11 +309,13 @@ export const openClaudeSession = async (
 		emit({ type: "server_env_rejected", detail: line.detail })
 		record(line)
 	}
+	const reminder = createMissionStatusReminder()
 	const options = buildOptions(
 		request,
 		permissions.canUseTool,
 		botSettings.options,
 		resolved,
+		reminder.stop,
 	)
 	const run = query({ prompt: prompts.stream, options })
 
@@ -316,6 +324,7 @@ export const openClaudeSession = async (
 	const pump = async () => {
 		try {
 			for await (const message of run) {
+				reminder.observe(message)
 				emit(message as unknown as SessionFrame)
 			}
 			return ENDED

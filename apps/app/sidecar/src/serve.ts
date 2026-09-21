@@ -38,6 +38,7 @@ export type Command = {
 	partialMessages?: boolean
 	serverEnv?: ServerEnv
 	outputSchema?: Record<string, unknown>
+	missionThread?: boolean
 	connection?: Record<string, string>
 	text?: string
 	url?: string
@@ -70,6 +71,7 @@ export const sessionRequest = (command: Command): SessionRequest => ({
 	serverEnv: command.serverEnv,
 	connection: command.connection,
 	outputSchema: command.outputSchema,
+	missionThread: command.missionThread,
 })
 
 const AUTHORIZE = "mcp_oauth_authorize"
