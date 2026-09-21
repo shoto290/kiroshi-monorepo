@@ -431,7 +431,7 @@ describe("PRF5 chat open baseline", () => {
 		expect(await measureOpenings(CALL_DELAY_MS)).toMatchInlineSnapshot(`
 			{
 			  "busyOpen": {
-			    "commits": 8,
+			    "commits": 9,
 			    "elapsedMs": 16,
 			    "storeCalls": [
 			      "mainChat",

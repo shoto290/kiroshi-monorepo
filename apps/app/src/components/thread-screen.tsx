@@ -12,6 +12,7 @@ import { ActivityIndicator } from "@workspace/ui/components/activity-indicator"
 import { AppHeader } from "@workspace/ui/components/app-header"
 import type { BotStopProps } from "@workspace/ui/components/bot-identity-avatar"
 import { ChatEmptyState } from "@workspace/ui/components/chat-empty-state"
+import { CompanionMenuProvider } from "@workspace/ui/components/companion-menu"
 import {
 	type ConversationArrivalInviter,
 	ConversationArrivalRow,
@@ -201,6 +202,7 @@ import { usePostedOnboardingStep } from "@/lib/onboarding/use-posted-onboarding-
 import type { SignIn } from "@/lib/onboarding/use-sign-in"
 import type { ReportedRun } from "@/lib/routines/routine-contract"
 import type { MessageLandingController } from "@/lib/search/message-landing-controller"
+import { useCompanionMenu } from "@/lib/sidebar/companion-menu"
 
 type WorkingBotProps = BotStopProps & {
 	face: ThreadFace
@@ -1547,6 +1549,7 @@ const useThreadView = (props: ThreadViewProps) => {
 function ThreadView(props: ThreadViewProps) {
 	const { activityPanel, thread, bots: known, runtimes, onOpenMission } = props
 	const view = useThreadView(props)
+	const companionMenu = useCompanionMenu()
 
 	const layout = (
 		<ThreadLayout
@@ -1658,19 +1661,21 @@ function ThreadView(props: ThreadViewProps) {
 	)
 
 	return (
-		<RosterProvider bots={view.bots}>
-			<ThreadRoutines
-				{...view.routinesScope}
-				activityPanel={activityPanel}
-				faceOf={view.faceOf}
-				liveMissionIds={view.liveMissionIds}
-				missions={view.missions}
-				onOpenMission={onOpenMission}
-				runtimes={runtimes}
-			>
-				{layout}
-			</ThreadRoutines>
-		</RosterProvider>
+		<CompanionMenuProvider menuFor={companionMenu}>
+			<RosterProvider bots={view.bots}>
+				<ThreadRoutines
+					{...view.routinesScope}
+					activityPanel={activityPanel}
+					faceOf={view.faceOf}
+					liveMissionIds={view.liveMissionIds}
+					missions={view.missions}
+					onOpenMission={onOpenMission}
+					runtimes={runtimes}
+				>
+					{layout}
+				</ThreadRoutines>
+			</RosterProvider>
+		</CompanionMenuProvider>
 	)
 }
 
