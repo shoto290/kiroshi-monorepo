@@ -276,6 +276,37 @@ describe("toMissionRows", () => {
 		expect(open[0]?.timestamp).toBe("2m")
 	})
 
+	it("gives a mission closed earlier today no agent activity", () => {
+		const { earlierToday } = rowsOf({
+			closed: [
+				{
+					...closedAt(READ_AT - 7_200_000),
+					lastActivity: { tool: "Edit", target: "parser.ts" },
+					lastActivityAt: READ_AT - 7_300_000,
+					commitsAhead: 3,
+				},
+			],
+		})
+
+		expect(earlierToday[0]).not.toHaveProperty("lastActivity")
+		expect(earlierToday[0]).not.toHaveProperty("lastActivityAt")
+		expect(earlierToday[0]).not.toHaveProperty("commitsAhead")
+	})
+
+	it("reads the start of the local day once per read of the rows", () => {
+		const startOfDay = vi.spyOn(Date.prototype, "setHours")
+
+		rowsOf({
+			closed: [
+				closedAt(READ_AT - 7_200_000),
+				closedAt(READ_AT - 3_600_000),
+				closedAt(READ_AT - 600_000),
+			],
+		})
+
+		expect(startOfDay).toHaveBeenCalledTimes(1)
+	})
+
 	it("gives a closed mission row the now of the read", () => {
 		const { earlierToday } = rowsOf({ closed: [closedAt(READ_AT - 7_200_000)] })
 

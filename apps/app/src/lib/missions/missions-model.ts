@@ -157,7 +157,6 @@ const toMissionRow = ({
 	isWorking,
 	timestamp,
 	now,
-	...agentActivityOf(mission),
 })
 
 const rowsOf = (
@@ -171,17 +170,20 @@ const rowsOf = (
 		const face = faceOf(mission.botId)
 		return face
 			? [
-					toMissionRow({
-						mission,
-						face,
-						timestamp: rosterTimestamp(
-							mission.lastActivityAt ?? mission.openedAt,
+					{
+						...toMissionRow({
+							mission,
+							face,
+							timestamp: rosterTimestamp(
+								mission.lastActivityAt ?? mission.openedAt,
+								now,
+							),
+							state: shownStateOf(mission, waitingMissionIds),
+							isWorking: liveMissionIds.has(mission.id),
 							now,
-						),
-						state: shownStateOf(mission, waitingMissionIds),
-						isWorking: liveMissionIds.has(mission.id),
-						now,
-					}),
+						}),
+						...agentActivityOf(mission),
+					},
 				]
 			: []
 	})
@@ -194,15 +196,12 @@ type EarlierTodayEntry = {
 const closedTodayEntries = (
 	closed: Mission[],
 	faceOf: MissionFaces,
+	midnight: number,
 	now: number,
 ): EarlierTodayEntry[] =>
 	closed.flatMap((mission) => {
 		const face = faceOf(mission.botId)
-		if (
-			!face ||
-			mission.closedAt === null ||
-			mission.closedAt < startOfLocalDay(now)
-		) {
+		if (!face || mission.closedAt === null || mission.closedAt < midnight) {
 			return []
 		}
 
@@ -274,7 +273,7 @@ export const toMissionRows = ({
 	return {
 		open: rowsOf(open, faceOf, waitingMissionIds, liveMissionIds, now),
 		earlierToday: [
-			...closedTodayEntries(closed, faceOf, now),
+			...closedTodayEntries(closed, faceOf, midnight, now),
 			...reportedTodayEntries(reportedRuns, faceOf, midnight),
 		]
 			.sort((one, other) => other.at - one.at)

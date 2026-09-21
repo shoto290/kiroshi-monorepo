@@ -1,5 +1,6 @@
 import { useCallback, useEffect, useMemo, useRef, useState } from "react"
 
+import { coalescedRead } from "./coalesced-read"
 import type { Mission, MissionChanged } from "./mission-contract"
 import { withMissionChange } from "./missions-model"
 import { missionsTransport } from "./missions-transport"
@@ -62,10 +63,11 @@ export const useMissions = (
 	useEffect(reload, [reload])
 
 	useEffect(() => {
+		const rereading = coalescedRead(reload)
 		const applyChange = (changed: MissionChanged) => {
 			setRunning(withChangeApplied(changed))
 			setClosed(withChangeApplied(changed))
-			reload()
+			rereading.request()
 		}
 		const listening = missionsTransport
 			.onChanged(applyChange)
@@ -78,6 +80,7 @@ export const useMissions = (
 			})
 
 		return () => {
+			rereading.cancel()
 			void listening.then((unsubscribe) => unsubscribe())
 		}
 	}, [reload])
