@@ -24,12 +24,27 @@ describe("drawnAnimal", () => {
 		expect(drawnAnimal("Skippy", "rabbit")).toBe("skippy")
 	})
 
-	it("reads the name past its case and its spaces", () => {
+	it("draws pitch for a companion called Pitch, whatever it keeps", () => {
+		expect(drawnAnimal("Pitch", "rabbit")).toBe("pitch")
+	})
+
+	it("finds either word embedded anywhere in the name", () => {
+		expect(drawnAnimal("Skippy the second", "rabbit")).toBe("skippy")
+		expect(drawnAnimal("Elevator pitches", "rabbit")).toBe("pitch")
+	})
+
+	it("reads the name past its case", () => {
 		expect(drawnAnimal("  sKiPpY  ", "rabbit")).toBe("skippy")
+		expect(drawnAnimal("PiTcH", "rabbit")).toBe("pitch")
+	})
+
+	it("draws the word that comes first when the name holds both", () => {
+		expect(drawnAnimal("Skippy pitches in", "rabbit")).toBe("skippy")
+		expect(drawnAnimal("Pitch to Skippy", "rabbit")).toBe("pitch")
 	})
 
 	it("draws the stored animal under any other name", () => {
-		expect(drawnAnimal("Skippy the second", "rabbit")).toBe("rabbit")
+		expect(drawnAnimal("Nibbles", "rabbit")).toBe("rabbit")
 	})
 
 	it("draws the stored animal for a companion with no name", () => {
@@ -38,6 +53,10 @@ describe("drawnAnimal", () => {
 
 	it("keeps drawing nothing where nothing is stored", () => {
 		expect(drawnAnimal("Nibbles", undefined)).toBeUndefined()
+	})
+
+	it("still draws the named animal where nothing is stored", () => {
+		expect(drawnAnimal("Pitch", undefined)).toBe("pitch")
 	})
 })
 

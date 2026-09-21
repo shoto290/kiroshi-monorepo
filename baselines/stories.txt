@@ -19,6 +19,7 @@ branding-botidentityavatar--default
 branding-botidentityavatar--every-badge
 branding-botidentityavatar--every-blot
 branding-botidentityavatar--every-size
+branding-botidentityavatar--named-pitch
 branding-botidentityavatar--named-skippy
 branding-botidentityavatar--seeded
 branding-botidentityavatar--unseeded

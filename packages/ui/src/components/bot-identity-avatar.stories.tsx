@@ -49,12 +49,14 @@ const EveryPlace = (props: BotIdentityAvatarProps) => (
 	</Row>
 )
 
-const Renamed = (props: BotIdentityAvatarProps) => {
+type RenamedProps = BotIdentityAvatarProps & { rename: string }
+
+const Renamed = ({ rename, ...props }: RenamedProps) => {
 	const [named, setNamed] = useState(false)
 
 	return (
 		<div className="flex flex-col items-start gap-4">
-			<EveryPlace {...props} name={named ? "Skippy" : "Nibbles"} />
+			<EveryPlace {...props} name={named ? rename : "Nibbles"} />
 			<Button onClick={() => setNamed(!named)} size="sm" variant="outline">
 				Rename the companion
 			</Button>
@@ -468,12 +470,12 @@ export const BoundToOneBot = meta.story({
 
 export const NamedSkippy = meta.story({
 	tags: ["test-only"],
-	render: (args) => <Renamed {...args} />,
+	render: (args) => <Renamed {...args} rename="Skippy" />,
 	parameters: {
 		docs: {
 			description: {
 				story:
-					"The one animal a reader cannot pick: a companion called Skippy is drawn as Skippy, whatever animal it keeps. Press the button and the rabbit becomes the kangaroo in all three places at once, and pressing it again gives the rabbit back — the name is read on every render and nothing is written, so the stored animal is the same rabbit before and after. The match ignores case and surrounding spaces, because a reader typing a name is not typing an identifier. A companion wearing an uploaded picture keeps the picture: pick `Uploaded` for that.",
+					"One of the two animals a reader cannot pick: a companion whose name contains Skippy is drawn as Skippy, whatever animal it keeps. Press the button and the rabbit becomes the kangaroo in all three places at once, and pressing it again gives the rabbit back — the name is read on every render and nothing is written, so the stored animal is the same rabbit before and after. The match ignores case and finds the word anywhere in the name, because a reader typing a name is not typing an identifier. A companion wearing an uploaded picture keeps the picture: pick `Uploaded` for that.",
 			},
 		},
 	},
@@ -495,6 +497,40 @@ export const NamedSkippy = meta.story({
 		await expectEveryPlace("rabbit")
 		await rename()
 		await expectEveryPlace("skippy")
+		await rename()
+		await expectEveryPlace("rabbit")
+	},
+})
+
+export const NamedPitch = meta.story({
+	tags: ["test-only"],
+	render: (args) => <Renamed {...args} rename="Pitch" />,
+	parameters: {
+		docs: {
+			description: {
+				story:
+					"The other animal a reader cannot pick: a companion whose name contains Pitch is drawn as Pitch, whatever animal it keeps. Press the button and the rabbit becomes Pitch in all three places at once, and pressing it again gives the rabbit back. When a name holds both Skippy and Pitch, the word that comes first wins.",
+			},
+		},
+	},
+	play: async ({ canvas, canvasElement, userEvent }) => {
+		const expectEveryPlace = async (animal: string) => {
+			for (const avatar of botIdentityAvatars(canvasElement)) {
+				await expect(
+					within(avatar).getByRole("img", {
+						name: `Companion avatar ${animal}, idle`,
+					}),
+				).toBeVisible()
+			}
+		}
+		const rename = () =>
+			userEvent.click(
+				canvas.getByRole("button", { name: "Rename the companion" }),
+			)
+
+		await expectEveryPlace("rabbit")
+		await rename()
+		await expectEveryPlace("pitch")
 		await rename()
 		await expectEveryPlace("rabbit")
 	},

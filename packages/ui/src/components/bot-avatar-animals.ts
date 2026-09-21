@@ -4,6 +4,7 @@ export type BotAvatarShape =
 			role: "outline" | "accent" | "line"
 			d: string
 			strokeWidth?: number
+			isOccluded?: true
 	  }
 	| {
 			kind: "circle"
@@ -41,6 +42,7 @@ export type BotAvatarAnimalDefinition = {
 	headDepth: number
 	ears: BotAvatarEar[]
 	extras: BotAvatarShape[]
+	hasInkEyes?: true
 }
 
 export const ANIMALS = {
@@ -381,6 +383,28 @@ export const ANIMALS = {
 				role: "line",
 				strokeWidth: 4,
 				d: "M82,192 C100,197 140,197 158,192",
+			},
+		],
+	},
+	pitch: {
+		faceY: 176,
+		scale: 0.53,
+		head: "M120,50 C128,66 140,86 150,100 L134,100 C144,116 156,134 166,148 L146,148 C156,164 168,180 178,192 C150,197 90,197 62,192 C72,180 84,164 94,148 L74,148 C84,134 96,116 106,100 L90,100 C100,86 112,66 120,50 Z",
+		headDepth: 56,
+		hasInkEyes: true,
+		ears: [],
+		extras: [
+			{
+				kind: "path",
+				role: "line",
+				isOccluded: true,
+				d: "M112,184 C111,192 111,199 110,206",
+			},
+			{
+				kind: "path",
+				role: "line",
+				isOccluded: true,
+				d: "M130,184 C131,192 131,199 132,206",
 			},
 		],
 	},

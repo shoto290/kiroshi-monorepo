@@ -19,8 +19,10 @@ import {
 
 const AUTHORED_WEIGHT = 5.5
 
+const INK = "var(--bot-avatar-ink, currentColor)"
+
 const STROKE_BASE = {
-	stroke: "var(--bot-avatar-ink, currentColor)",
+	stroke: INK,
 	strokeLinecap: "round",
 	strokeLinejoin: "round",
 } as const
@@ -42,6 +44,12 @@ const shapeKey = (shape: BotAvatarShape) =>
 	shape.kind === "path"
 		? `${shape.role}-${shape.d.slice(0, 24)}`
 		: `${shape.kind}-${shape.role}-${shape.cx}-${shape.cy}`
+
+const isOccluded = (shape: BotAvatarShape) =>
+	"isOccluded" in shape && shape.isOccluded === true
+
+const eyeFill = (definition: BotAvatarAnimalDefinition) =>
+	definition.hasInkEyes ? INK : "currentColor"
 
 type EarLayerProps = {
 	animal: BotAvatarAnimal
@@ -184,8 +192,13 @@ const BotAvatarBody = ({
 					/>
 				</g>
 				{definition.extras.map((shape, index) => (
-					<g data-part={PARTS.extra(index)} key={shapeKey(shape)}>
-						<Shape shape={shape} weight={weight} />
+					<g
+						key={shapeKey(shape)}
+						mask={isOccluded(shape) ? `url(#${headMaskId})` : undefined}
+					>
+						<g data-part={PARTS.extra(index)}>
+							<Shape shape={shape} weight={weight} />
+						</g>
 					</g>
 				))}
 				<EarLayer
@@ -200,8 +213,8 @@ const BotAvatarBody = ({
 					<ellipse rx={9} ry={4.5} {...ROLE_PROPS.accent} />
 				</g>
 				<g clipPath={`url(#${clipId})`}>
-					<path data-part={PARTS.eye0} fill="currentColor" />
-					<path data-part={PARTS.eye1} fill="currentColor" />
+					<path data-part={PARTS.eye0} fill={eyeFill(definition)} />
+					<path data-part={PARTS.eye1} fill={eyeFill(definition)} />
 				</g>
 				<path
 					data-part={PARTS.wire}

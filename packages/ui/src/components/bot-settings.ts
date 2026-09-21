@@ -7,19 +7,33 @@ import {
 	type BotAvatarAnimal,
 } from "@workspace/ui/components/bot-avatar-animals"
 
-const UNPICKABLE_ANIMAL = "skippy"
+const NAMED_ANIMALS = {
+	skippy: "skippy",
+	pitch: "pitch",
+} as const satisfies Record<string, BotAvatarAnimal>
 
-type BotIdentityAnimal = Exclude<BotAvatarAnimal, typeof UNPICKABLE_ANIMAL>
+type NamedAnimal = (typeof NAMED_ANIMALS)[keyof typeof NAMED_ANIMALS]
+
+type BotIdentityAnimal = Exclude<BotAvatarAnimal, NamedAnimal>
+
+const NAMED_ANIMAL_SET = new Set<BotAvatarAnimal>(Object.values(NAMED_ANIMALS))
 
 const BOT_IDENTITY_ANIMALS = (Object.keys(ANIMALS) as BotAvatarAnimal[]).filter(
-	(animal): animal is BotIdentityAnimal => animal !== UNPICKABLE_ANIMAL,
+	(animal): animal is BotIdentityAnimal => !NAMED_ANIMAL_SET.has(animal),
 )
+
+const earliestNamedAnimal = (name: string) => {
+	const lowered = name.toLowerCase()
+	return Object.entries(NAMED_ANIMALS)
+		.map(([word, animal]) => ({ at: lowered.indexOf(word), animal }))
+		.filter(({ at }) => at !== -1)
+		.sort((first, second) => first.at - second.at)[0]?.animal
+}
 
 const drawnAnimal = <Stored extends BotAvatarAnimal | undefined>(
 	name: string | undefined,
 	animal: Stored,
-) =>
-	name?.trim().toLowerCase() === UNPICKABLE_ANIMAL ? UNPICKABLE_ANIMAL : animal
+) => earliestNamedAnimal(name ?? "") ?? animal
 
 type BotIdentity = {
 	animal: BotIdentityAnimal
