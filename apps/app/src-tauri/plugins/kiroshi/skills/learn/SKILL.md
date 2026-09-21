@@ -55,6 +55,20 @@ Do the same in the person's directory, which every bot reads. Where what you fin
 either contradicts what your own memory says, your own memory holds, and you leave their
 file alone.
 
+## What the space directory takes
+
+The directory of the space says how this space works, never what it is working on. A line
+belongs there only if it is true whatever the ticket: how the project is laid out, built,
+shipped and merged, who does what, the words it uses. A line that names a date, a ticket,
+a pull request, a line number, or what someone read in the code at a given moment does not
+belong: the conversations, the commits and the issue tracker already hold it. Never keep a
+journal, a changelog or a log of the work under this directory, in SKILL.md or in
+references/. A reference file holds a procedure or a table a rule needs, never history.
+
+Keep SKILL.md under 200 lines. Before you add a line, ask whether a bot missing it would
+make a mistake; if not, do not write it. When a rule changes, rewrite the line that
+carries it; a rule that no longer holds is removed, never dated as closed.
+
 ## Which of the two
 
 Something true whatever you are asked — who they are, how they want you to answer, a
