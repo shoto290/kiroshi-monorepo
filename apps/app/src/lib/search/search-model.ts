@@ -95,7 +95,7 @@ const botFaceOf = (botId: string, lookups: SearchLookups): MissionBot =>
 const participantsOf = (
 	conversation: Conversation | undefined,
 ): ConversationParticipant[] =>
-	conversation ? toConversationBots(presentParticipants(conversation)) : []
+	conversation ? toConversationBots(presentParticipants(conversation), []) : []
 
 const soloPart = () => ({ key: "kind", text: i18n.t("search:solo") })
 
