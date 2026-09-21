@@ -1715,6 +1715,13 @@ export const CompanionSelectOnGutter = meta.story({
 	},
 })
 
+const REMOVED_HOVER_RING_CLASSES = [
+	"hover:ring-2",
+	"hover:ring-muted-foreground",
+	"hover:ring-offset-2",
+	"hover:ring-offset-background",
+]
+
 export const CompanionSelectOnGutterHovered = meta.story({
 	tags: ["test-only"],
 	globals: { theme_layout: "side-by-side" },
@@ -1738,10 +1745,8 @@ export const CompanionSelectOnGutterHovered = meta.story({
 				"hover:transition-none",
 				"motion-reduce:transition-none",
 			)
-			await expect(button).not.toHaveClass("hover:ring-2")
-			await expect(button).not.toHaveClass("hover:ring-muted-foreground")
-			await expect(button).not.toHaveClass("hover:ring-offset-2")
-			await expect(button).not.toHaveClass("hover:ring-offset-background")
+			for (const ringClass of REMOVED_HOVER_RING_CLASSES)
+				await expect(button).not.toHaveClass(ringClass)
 		}
 	},
 })
