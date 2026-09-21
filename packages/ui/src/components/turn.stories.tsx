@@ -1734,10 +1734,14 @@ export const CompanionSelectOnGutterHovered = meta.story({
 		for (const button of buttons) {
 			await expect(getComputedStyle(button).boxShadow).toBe("none")
 			await expect(button).toHaveClass(
-				"hover:opacity-70",
+				"hover:not-focus-visible:opacity-70",
 				"hover:transition-none",
 				"motion-reduce:transition-none",
 			)
+			await expect(button).not.toHaveClass("hover:ring-2")
+			await expect(button).not.toHaveClass("hover:ring-muted-foreground")
+			await expect(button).not.toHaveClass("hover:ring-offset-2")
+			await expect(button).not.toHaveClass("hover:ring-offset-background")
 		}
 	},
 })
@@ -1747,7 +1751,7 @@ export const CompanionSelectOnGutterFocused = meta.story({
 	parameters: {
 		docs: {
 			description: {
-				story: `The gutter avatar reached by the keyboard. Check that Tab lands on it and that it wears the focus ring the stop button already wears. ${SELECT_NOT_YET_RENDERED}`,
+				story: `The gutter avatar reached by the keyboard. Check that Tab lands on it and that it wears the focus ring the stop button already wears. A focused avatar does not dim under the pointer: opacity composites the element with its own shadow, so the dim would fade the focus ring with it and drop it below the 3:1 a focus indicator needs. ${SELECT_NOT_YET_RENDERED}`,
 			},
 		},
 	},
