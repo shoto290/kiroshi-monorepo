@@ -10,7 +10,7 @@ export type CompanionSelectSource = {
 	select: (companionId: string) => void
 }
 
-const selectNothing: CompanionSelect = () => undefined
+const NO_COMPANION_SELECT: CompanionSelect = () => undefined
 
 export const useCompanionSelectGuard = ({
 	rosters,
@@ -18,7 +18,7 @@ export const useCompanionSelectGuard = ({
 	select,
 }: CompanionSelectSource): CompanionSelect =>
 	useMemo(() => {
-		if (!openSpaceId) return selectNothing
+		if (!openSpaceId) return NO_COMPANION_SELECT
 
 		const members = rosters[openSpaceId] ?? []
 

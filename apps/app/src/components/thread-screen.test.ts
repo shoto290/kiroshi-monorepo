@@ -1138,8 +1138,10 @@ const CompanionMenuHarness = ({
 const underCompanionMenu = (children: ReactNode, companionIds: string[]) =>
 	createElement(CompanionMenuHarness, { children, companionIds })
 
-type CompanionSelectHarnessProps = CompanionMenuHarnessProps & {
+type CompanionSelectHarnessProps = {
+	companionIds: string[]
 	select: (companionId: string) => void
+	children: ReactNode
 }
 
 const CompanionSelectHarness = ({
