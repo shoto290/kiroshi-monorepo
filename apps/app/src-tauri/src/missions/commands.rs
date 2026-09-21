@@ -275,12 +275,7 @@ async fn recounted_once<R: Runtime>(
 	database: &db::Database,
 	armed: Mission,
 ) -> Mission {
-	let counted = match database.missions().workspace(armed.id.clone()).await {
-		Ok(Some(workspace)) => checkout::recounted(database, &armed.id, &workspace).await,
-		Ok(None) => return armed,
-		Err(failure) => Err(failure),
-	};
-	match counted {
+	match counted_in_its_checkout(database, &armed.id).await {
 		Ok(Some(written)) => {
 			checkout::told(app, &written);
 			written
@@ -291,6 +286,16 @@ async fn recounted_once<R: Runtime>(
 			armed
 		}
 	}
+}
+
+async fn counted_in_its_checkout(
+	database: &db::Database,
+	mission_id: &str,
+) -> Result<Option<Mission>, MissionError> {
+	let Some(workspace) = database.missions().workspace(mission_id.to_owned()).await? else {
+		return Ok(None);
+	};
+	checkout::recounted(database, mission_id, &workspace).await
 }
 
 fn normalised(watch: MissionWatch) -> MissionWatch {
