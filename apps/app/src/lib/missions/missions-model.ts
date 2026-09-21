@@ -116,6 +116,18 @@ const startOfLocalDay = (now: number): number => {
 
 type MissionFaces = (botId: string) => ThreadFace | undefined
 
+type AgentActivity = {
+	lastActivity?: MissionActivity
+	lastActivityAt?: number
+	commitsAhead?: number
+}
+
+const agentActivityOf = (mission: Mission): AgentActivity => ({
+	lastActivity: mission.lastActivity ?? undefined,
+	lastActivityAt: mission.lastActivityAt ?? undefined,
+	commitsAhead: mission.commitsAhead ?? undefined,
+})
+
 type MissionRowRead = {
 	mission: Mission
 	face: ThreadFace
@@ -145,9 +157,7 @@ const toMissionRow = ({
 	isWorking,
 	timestamp,
 	now,
-	lastActivity: mission.lastActivity ?? undefined,
-	lastActivityAt: mission.lastActivityAt ?? undefined,
-	commitsAhead: mission.commitsAhead ?? undefined,
+	...agentActivityOf(mission),
 })
 
 const rowsOf = (
@@ -301,10 +311,7 @@ export const toMissionCard = ({
 	isClosed: mission.closedAt !== null,
 })
 
-export type MissionHeaderActivity = {
-	lastActivity?: MissionActivity
-	lastActivityAt?: number
-	commitsAhead?: number
+export type MissionHeaderActivity = AgentActivity & {
 	pullRequest?: MissionPullRequest
 }
 
@@ -322,9 +329,7 @@ const pullRequestOf = (url: string | null): MissionPullRequest | undefined => {
 export const toMissionHeaderActivity = (
 	mission: Mission,
 ): MissionHeaderActivity => ({
-	lastActivity: mission.lastActivity ?? undefined,
-	lastActivityAt: mission.lastActivityAt ?? undefined,
-	commitsAhead: mission.commitsAhead ?? undefined,
+	...agentActivityOf(mission),
 	pullRequest: pullRequestOf(mission.pullRequestUrl),
 })
 
