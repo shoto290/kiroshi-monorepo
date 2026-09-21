@@ -783,3 +783,28 @@ export const InDarkTheme = meta.story({
 		await expect(canvas.getAllByRole("option")).toHaveLength(6)
 	},
 })
+
+export const CountedTitled = meta.story({
+	args: { bots: SPACE_BOTS, counts: { "bot-atlas": 2 }, query: "atl" },
+	parameters: {
+		docs: {
+			description: {
+				story:
+					"A titled companion the draft already names twice. Check the row reads name, title, count, the same order as the mention pill in the transcript, with the title pill held inside the group the count belongs to. " +
+					COUNTED_BY_THE_COMPOSER,
+			},
+		},
+	},
+	play: async ({ canvas }) => {
+		const row = canvas.getByRole("option", { name: /^Atlas/ })
+		const [name] = slotsIn(row, "prompt-mention-name")
+		const [title] = slotsIn(row, "bot-title-badge")
+		const [count] = slotsIn(row, "prompt-mention-count")
+
+		await expect(title).toHaveTextContent("Editor")
+		await expect(count).toHaveTextContent("×2")
+		await expect(name.nextElementSibling).toBe(title)
+		await expect(title.nextElementSibling).toBe(count)
+		await expect(title.parentElement).toBe(count.parentElement)
+	},
+})

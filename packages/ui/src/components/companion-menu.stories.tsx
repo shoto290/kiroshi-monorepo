@@ -158,19 +158,16 @@ export const WithoutBranches = meta.story({
 	},
 })
 
-const TITLED_ATLAS: CompanionMenuSubject = {
-	...ATLAS,
-	title: "Research lead",
-	animal: "owl",
-	blot: "blue",
-}
+const LONG_TITLE = "Release manager for the whole desktop platform"
 
-const openMenuOn = async (target: HTMLElement, name = MENU_LABEL) => {
+const TITLED_ATLAS: CompanionMenuSubject = { ...ATLAS, title: LONG_TITLE }
+
+const openMenuOn = async (target: HTMLElement) => {
 	fireEvent.contextMenu(target, { clientX: 120, clientY: 90 })
-	return shown(await screen.findByRole("menu", { name }))
+	return shown(await screen.findByRole("menu", { name: MENU_LABEL }))
 }
 
-const LONG_NAME = "Atlas the quarterly infrastructure capacity planner"
+const leftOf = (element: Element) => element.getBoundingClientRect().left
 
 export const WithHeader = meta.story({
 	args: { companion: TITLED_ATLAS },
@@ -178,35 +175,31 @@ export const WithHeader = meta.story({
 		docs: {
 			description: {
 				story:
-					"The menu opened on a companion that carries a title. Check that a header naming it sits above every item: its avatar, its name and its title pill, fenced off by a separator. The header is a label, not an item: the down arrow lands on Pin first. Pick `WithHeaderUntitled` for a companion with no title.",
+					"The menu opened on a companion with a long title. Check that the first line is plain text naming it, name then a middle dot then the whole title, wrapping rather than cut, set on the same start edge as the items and fenced off by a separator. It is a label, not an item: the down arrow lands on Pin first. Pick `WithHeaderUntitled` for a companion with no title.",
 			},
 		},
 	},
 	play: async ({ canvas }) => {
 		const menu = await openMenuOn(canvas.getByText(TRIGGER_LABEL))
-		const header = slotIn(menu, "companion-menu-header")
+		const header = slotIn(menu, "context-menu-label")
+		const [pin] = within(menu).getAllByRole("menuitem")
 
-		await expect(menu.firstElementChild?.contains(header)).toBe(true)
-		await expect(slotIn(header, "bot-identity-avatar")).toBeVisible()
-		await expect(
-			slotIn(header, "companion-menu-header-name"),
-		).toHaveTextContent("Atlas")
-		await expect(slotIn(header, "bot-title-badge")).toHaveTextContent(
-			"Research lead",
-		)
+		await expect(header).toHaveTextContent(`Atlas · ${LONG_TITLE}`)
+		await expect(header.scrollWidth).toBeLessThanOrEqual(header.clientWidth)
+		await expect(slotsIn(header, "bot-identity-avatar")).toHaveLength(0)
+		await expect(slotsIn(header, "bot-title-badge")).toHaveLength(0)
 		await expect(header.nextElementSibling).toHaveAttribute(
 			"data-slot",
 			"context-menu-separator",
 		)
-		await expect(
-			within(menu)
-				.getAllByRole("menuitem")
-				.map((item) => item.textContent),
-		).toEqual(ITEMS_IN_ORDER)
+		await expect(leftOf(header)).toBe(leftOf(pin))
+		await expect(getComputedStyle(header).paddingInlineStart).toBe(
+			getComputedStyle(pin).paddingInlineStart,
+		)
 
 		fireEvent.keyDown(menu, { key: "ArrowDown" })
 
-		await waitFor(() => expect(document.activeElement).toHaveTextContent("Pin"))
+		await waitFor(() => expect(document.activeElement).toBe(pin))
 	},
 })
 
@@ -215,53 +208,37 @@ export const WithHeaderUntitled = meta.story({
 		docs: {
 			description: {
 				story:
-					"The same header on a companion with no title. Check it carries the avatar and the name alone, with no empty pill left behind. Pick `WithHeader` for a titled companion.",
+					"The same header on a companion with no title. Check it reads the name alone, with no dot left dangling after it. Pick `WithHeader` for a titled companion.",
 			},
 		},
 	},
 	play: async ({ canvas }) => {
 		const menu = await openMenuOn(canvas.getByText(TRIGGER_LABEL))
-		const header = slotIn(menu, "companion-menu-header")
 
-		await expect(slotIn(header, "bot-identity-avatar")).toBeVisible()
-		await expect(
-			slotIn(header, "companion-menu-header-name"),
-		).toHaveTextContent("Atlas")
-		await expect(slotsIn(header, "bot-title-badge")).toHaveLength(0)
+		await expect(slotIn(menu, "context-menu-label").textContent).toBe("Atlas")
 	},
 })
 
-export const WithHeaderLongContent = meta.story({
-	tags: ["test-only"],
-	args: {
-		companion: {
-			...TITLED_ATLAS,
-			name: LONG_NAME,
-			title: "Release manager for the whole desktop platform",
-		},
-	},
+export const HeaderLabelsItsItems = meta.story({
+	args: { companion: TITLED_ATLAS },
 	parameters: {
 		docs: {
 			description: {
 				story:
-					"A header whose name and title are both longer than the menu. Check that the menu keeps the width its items give it and the header cuts inside it with an ellipsis instead of stretching the menu.",
+					"The header read as the label of the whole menu. Check that one group holds every item and takes its name from the header, and that no group is left holding a label and nothing else.",
 			},
 		},
 	},
 	play: async ({ canvas }) => {
-		const menu = await openMenuOn(
-			canvas.getByText(TRIGGER_LABEL),
-			`Actions for ${LONG_NAME}`,
-		)
-		const header = slotIn(menu, "companion-menu-header")
-		const name = slotIn(header, "companion-menu-header-name")
-		const title = slotIn(header, "bot-title-badge")
+		const menu = await openMenuOn(canvas.getByText(TRIGGER_LABEL))
+		const inside = within(menu)
+		const groups = inside.getAllByRole("group")
+		const [labelled] = groups
 
-		await expect(header.getBoundingClientRect().right).toBeLessThanOrEqual(
-			menu.getBoundingClientRect().right,
+		await expect(groups).toHaveLength(1)
+		await expect(labelled).toHaveAccessibleName(`Atlas · ${LONG_TITLE}`)
+		await expect(within(labelled).getAllByRole("menuitem")).toEqual(
+			inside.getAllByRole("menuitem"),
 		)
-		await expect(title.scrollWidth).toBeGreaterThan(title.clientWidth)
-		await expect(name.scrollWidth).toBeGreaterThan(name.clientWidth)
-		await expect(header.getBoundingClientRect().height).toBeLessThan(32)
 	},
 })

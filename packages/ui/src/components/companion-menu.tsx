@@ -9,8 +9,6 @@ import {
 } from "react"
 import { useTranslation } from "react-i18next"
 
-import { BotTitleBadge } from "@workspace/ui/components/bot-badge"
-import { BotIdentityAvatar } from "@workspace/ui/components/bot-identity-avatar"
 import { Icons } from "@workspace/ui/components/icons"
 import type { RosterBot } from "@workspace/ui/components/roster"
 import {
@@ -35,42 +33,6 @@ import { STILL_UNDER_REDUCED_MOTION } from "@workspace/ui/lib/reduced-motion"
 interface CompanionMenuSubject extends RosterBot {
 	sectionId?: string | null
 }
-
-const HEADER_AVATAR_SIZE = 20
-
-type CompanionMenuHeaderProps = {
-	companion: CompanionMenuSubject
-}
-
-const CompanionMenuHeader = ({ companion }: CompanionMenuHeaderProps) => (
-	<ContextMenuGroup>
-		<ContextMenuLabel
-			className="flex w-0 min-w-full items-center gap-2 text-foreground"
-			data-slot="companion-menu-header"
-		>
-			<span aria-hidden="true" className="contents">
-				<BotIdentityAvatar
-					animal={companion.animal}
-					blot={companion.blot}
-					image={companion.image}
-					name={companion.name}
-					seed={companion.id}
-					size={HEADER_AVATAR_SIZE}
-				/>
-			</span>
-			<span className="flex min-w-0 flex-1 items-center gap-1.5">
-				<span
-					className="truncate font-medium"
-					data-slot="companion-menu-header-name"
-				>
-					{companion.name}
-				</span>
-				<BotTitleBadge title={companion.title} />
-			</span>
-		</ContextMenuLabel>
-		<ContextMenuSeparator />
-	</ContextMenuGroup>
-)
 
 interface CompanionMenuContentProps extends RosterPinActions {
 	companion: CompanionMenuSubject
@@ -115,45 +77,55 @@ const CompanionMenuContent = ({
 			className={STILL_UNDER_REDUCED_MOTION}
 			finalFocus={finalFocus}
 		>
-			<CompanionMenuHeader companion={companion} />
-			<PinGroup
-				id={companion.id}
-				isPinned={isPinned}
-				onPin={onPin}
-				onUnpin={onUnpin}
-			/>
-			<ContextMenuItem onClick={() => onEdit?.(companion.id)}>
-				<Icons.Settings aria-hidden="true" className="size-3.5" />
-				{t("roster.settings")}
-			</ContextMenuItem>
-			<ContextMenuSeparator />
-			<ContextMenuItem onClick={() => onDuplicate?.(companion.id)}>
-				<Icons.Copy aria-hidden="true" className="size-3.5" />
-				{t("roster.duplicate")}
-			</ContextMenuItem>
-			<SectionBranch
-				id={companion.id}
-				onCreateSectionFor={onCreateSectionFor}
-				onMoveToSection={onMoveToSection}
-				sectionId={companion.sectionId}
-				sections={sections}
-			/>
-			<SpacesBranch
-				botId={companion.id}
-				memberships={memberships}
-				onAddToSpace={onAddToSpace}
-				onRemoveFromSpace={onRemoveFromSpace}
-				openSpaceId={openSpaceId}
-				spaces={spaces}
-			/>
-			<ContextMenuSeparator />
-			<ContextMenuItem
-				onClick={() => onDelete?.(companion.id)}
-				variant="destructive"
-			>
-				<Icons.Delete aria-hidden="true" className="size-3.5" />
-				{t("roster.delete")}
-			</ContextMenuItem>
+			<ContextMenuGroup>
+				<ContextMenuLabel>
+					{companion.title
+						? t("roster.titled", {
+								name: companion.name,
+								title: companion.title,
+							})
+						: companion.name}
+				</ContextMenuLabel>
+				<ContextMenuSeparator />
+				<PinGroup
+					id={companion.id}
+					isPinned={isPinned}
+					onPin={onPin}
+					onUnpin={onUnpin}
+				/>
+				<ContextMenuItem onClick={() => onEdit?.(companion.id)}>
+					<Icons.Settings aria-hidden="true" className="size-3.5" />
+					{t("roster.settings")}
+				</ContextMenuItem>
+				<ContextMenuSeparator />
+				<ContextMenuItem onClick={() => onDuplicate?.(companion.id)}>
+					<Icons.Copy aria-hidden="true" className="size-3.5" />
+					{t("roster.duplicate")}
+				</ContextMenuItem>
+				<SectionBranch
+					id={companion.id}
+					onCreateSectionFor={onCreateSectionFor}
+					onMoveToSection={onMoveToSection}
+					sectionId={companion.sectionId}
+					sections={sections}
+				/>
+				<SpacesBranch
+					botId={companion.id}
+					memberships={memberships}
+					onAddToSpace={onAddToSpace}
+					onRemoveFromSpace={onRemoveFromSpace}
+					openSpaceId={openSpaceId}
+					spaces={spaces}
+				/>
+				<ContextMenuSeparator />
+				<ContextMenuItem
+					onClick={() => onDelete?.(companion.id)}
+					variant="destructive"
+				>
+					<Icons.Delete aria-hidden="true" className="size-3.5" />
+					{t("roster.delete")}
+				</ContextMenuItem>
+			</ContextMenuGroup>
 		</ContextMenuContent>
 	)
 }

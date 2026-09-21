@@ -348,6 +348,7 @@ conversation-prompt-promptmentionmenu--counted
 conversation-prompt-promptmentionmenu--counted-again
 conversation-prompt-promptmentionmenu--counted-lead
 conversation-prompt-promptmentionmenu--counted-long-name
+conversation-prompt-promptmentionmenu--counted-titled
 conversation-prompt-promptmentionmenu--default
 conversation-prompt-promptmentionmenu--empty
 conversation-prompt-promptmentionmenu--filtered
@@ -821,9 +822,9 @@ navigation-userchip--on-rail
 navigation-userchip--without-name
 navigation-userchip--without-picture
 overlays-companionmenu--default
+overlays-companionmenu--header-labels-its-items
 overlays-companionmenu--pinned
 overlays-companionmenu--with-header
-overlays-companionmenu--with-header-long-content
 overlays-companionmenu--with-header-untitled
 overlays-companionmenu--without-branches
 overlays-confirmdialog--cancelled

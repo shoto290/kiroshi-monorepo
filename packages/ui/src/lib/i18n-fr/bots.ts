@@ -24,6 +24,7 @@ const bots = {
 			},
 		},
 		actions: "Actions pour {{name}}",
+		titled: "{{name}} · {{title}}",
 		settings: "Réglages",
 		duplicate: "Dupliquer",
 		spaces: {
