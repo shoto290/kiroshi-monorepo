@@ -92,6 +92,10 @@ import type { Mission, MissionChanged } from "@/lib/missions/mission-contract"
 import { missionSummonsFor } from "@/lib/missions/mission-summons"
 import { missionsTransport } from "@/lib/missions/missions-transport"
 import {
+	createOpenedMissionController,
+	type OpenedMissionController,
+} from "@/lib/missions/opened-mission-controller"
+import {
 	createFakeOnboardingPort,
 	type FakeOnboardingPort,
 } from "@/lib/onboarding/fake-onboarding-port"
@@ -1138,15 +1142,30 @@ const CompanionMenuHarness = ({
 const underCompanionMenu = (children: ReactNode, companionIds: string[]) =>
 	createElement(CompanionMenuHarness, { children, companionIds })
 
+type CompanionSelectTarget = {
+	select: Mock<(companionId: string) => void>
+	missions: OpenedMissionController
+}
+
+const selectTargetInMissionOf = (botId: string): CompanionSelectTarget => {
+	const missions = createOpenedMissionController({
+		getState: () => ({ selectedBotId: botId, selectedConversationId: null }),
+		subscribe: () => () => undefined,
+	})
+	missions.open({ missionId: SOLO_MISSION.id, rowId: botId })
+
+	return { select: vi.fn(), missions }
+}
+
 type CompanionSelectHarnessProps = {
 	companionIds: string[]
-	select: (companionId: string) => void
+	target: CompanionSelectTarget
 	children: ReactNode
 }
 
 const CompanionSelectHarness = ({
 	companionIds,
-	select,
+	target,
 	children,
 }: CompanionSelectHarnessProps) =>
 	createElement(
@@ -1155,7 +1174,8 @@ const CompanionSelectHarness = ({
 			onSelect: useCompanionSelectGuard({
 				openSpaceId: SPACE,
 				rosters: { [SPACE]: companionIds.map((id) => ({ id })) },
-				select,
+				select: target.select,
+				leaveMission: target.missions.leave,
 			}),
 		},
 		children,
@@ -1164,8 +1184,8 @@ const CompanionSelectHarness = ({
 const underCompanionSelect = (
 	children: ReactNode,
 	companionIds: string[],
-	select: (companionId: string) => void,
-) => createElement(CompanionSelectHarness, { children, companionIds, select })
+	target: CompanionSelectTarget,
+) => createElement(CompanionSelectHarness, { children, companionIds, target })
 
 const clickGutterOf = (text: string) => {
 	const avatar = gutterOf(text)?.querySelector("button")
@@ -4030,34 +4050,35 @@ describe("ThreadScreen selecting a companion from the transcript", () => {
 		layout.restore()
 	})
 
-	it("selects the companion of a gutter avatar", async () => {
-		const select = vi.fn()
+	it("selects the companion of a gutter avatar and leaves its open mission", async () => {
 		const room = await missionRoomOf({
 			events: [MISSION_OPENED],
 			spoken: [MISSION_SAID],
 		})
+		const target = selectTargetInMissionOf(room.idOf("Ada"))
 		render(
 			underCompanionSelect(
 				screenOf(room.thread, room.bots),
 				[room.idOf("Ada")],
-				select,
+				target,
 			),
 		)
 		await settle()
 
 		clickGutterOf(MISSION_SAID.text)
 
-		expect(select).toHaveBeenCalledWith(room.idOf("Ada"))
+		expect(target.select).toHaveBeenCalledWith(room.idOf("Ada"))
+		expect(target.missions.getState()).toBeNull()
 	})
 
 	it("selects the companion of a mention pill", async () => {
-		const select = vi.fn()
 		const room = await roomOf({ names: ["Ada", "Nyx"] })
+		const target = selectTargetInMissionOf(room.idOf("Ada"))
 		render(
 			underCompanionSelect(
 				screenOf(room.thread, room.bots),
 				[room.idOf("Ada"), room.idOf("Nyx")],
-				select,
+				target,
 			),
 		)
 		await settle()
@@ -4065,20 +4086,21 @@ describe("ThreadScreen selecting a companion from the transcript", () => {
 		await room.send(`<@${room.idOf("Nyx")}> hold the gate`)
 		clickMentionOf("hold the gate")
 
-		expect(select).toHaveBeenCalledWith(room.idOf("Nyx"))
+		expect(target.select).toHaveBeenCalledWith(room.idOf("Nyx"))
 	})
 
-	it("selects nothing for a companion absent from the open space roster", async () => {
-		const select = vi.fn()
+	it("selects nothing and keeps the mission open for a companion absent from the open space roster", async () => {
 		const room = await missionRoomOf({
 			events: [MISSION_OPENED],
 			spoken: [MISSION_SAID],
 		})
-		render(underCompanionSelect(screenOf(room.thread, room.bots), [], select))
+		const target = selectTargetInMissionOf(room.idOf("Ada"))
+		render(underCompanionSelect(screenOf(room.thread, room.bots), [], target))
 		await settle()
 
 		clickGutterOf(MISSION_SAID.text)
 
-		expect(select).not.toHaveBeenCalled()
+		expect(target.select).not.toHaveBeenCalled()
+		expect(target.missions.getState()).not.toBeNull()
 	})
 })

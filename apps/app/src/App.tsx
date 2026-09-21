@@ -50,6 +50,7 @@ export function App() {
 		openSpaceId: scopes.selectedSpaceId ?? null,
 		rosters: core.roster.state.rosters,
 		select: core.roster.controller.select,
+		leaveMission: core.openedMission.leave,
 	})
 
 	const { preferences, roster, spaces } = core
