@@ -76,7 +76,7 @@ export const Default = meta.story({
 		docs: {
 			description: {
 				story:
-					"A skill that already exists, opened on what it tells the companion to do. Check that the body takes the height the two fields under it leave, that the save stays enabled and sends nothing while nothing has been typed, and that typing raises the unsaved mark beside the name. Reach for a section story below to review one group of fields on its own.",
+					"A skill that already exists, opened on what it tells the companion to do. Check that the body takes the height the two fields under it leave, that the save stays enabled and still saves while nothing has been typed, and that typing raises the unsaved mark beside the name. Reach for a section story below to review one group of fields on its own.",
 			},
 		},
 	},
@@ -85,7 +85,7 @@ export const Default = meta.story({
 
 		await expect(save).toBeEnabled()
 		await userEvent.click(save)
-		await expect(args.onSave).not.toHaveBeenCalled()
+		await expect(args.onSave).toHaveBeenCalledTimes(1)
 		await userEvent.type(canvas.getByLabelText("Body"), " Nothing else.")
 
 		await expect(args.onDraftChange).toHaveBeenCalled()
@@ -93,7 +93,7 @@ export const Default = meta.story({
 		await expect(canvas.getByText("Unsaved changes")).toBeVisible()
 
 		await userEvent.click(save)
-		await expect(args.onSave).toHaveBeenCalledTimes(1)
+		await expect(args.onSave).toHaveBeenCalledTimes(2)
 	},
 })
 

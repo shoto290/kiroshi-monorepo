@@ -172,13 +172,13 @@ const SPAWN_FAILURE: ChatError = {
 	error: { kind: "spawnFailed", detail: "no binary" },
 }
 
-const SPAWN_TITLE = "Couldn't reach the agent"
+const SPAWN_TITLE = "Couldn’t reach the agent"
 
-const PINS_TITLE = "Couldn't sync pinned messages"
+const PINS_TITLE = "Couldn’t sync pinned messages"
 
-const UNRESOLVED_MENTION_TITLE = "Couldn't summon a companion"
+const UNRESOLVED_MENTION_TITLE = "Couldn’t summon a companion"
 
-const READ_TITLE = "Couldn't load earlier messages"
+const READ_TITLE = "Couldn’t load earlier messages"
 
 const SPACE = "personal"
 
@@ -188,7 +188,7 @@ const REPORT_TEXT = "Two tickets closed."
 
 const ROUTINE_TITLE = "Nightly report"
 
-const CAUSES_TITLE = "Couldn't load routine reports"
+const CAUSES_TITLE = "Couldn’t load routine reports"
 
 const CAUSES_SOLO_DESCRIPTION = "Reopen the conversation to retry."
 
@@ -744,7 +744,7 @@ const LANDED_SEQ = 80
 
 const LANDED_MESSAGE_ID = `m-t-${LANDED_SEQ}`
 
-const UNREACHABLE_TITLE = "Couldn't open that message"
+const UNREACHABLE_TITLE = "Couldn’t open that message"
 
 const textOfTurn = (index: number) => `Message ${index} of the long room`
 
@@ -822,11 +822,11 @@ const SCHEDULE_SOURCE = {
 	dedupeKey: "occurrenceId",
 }
 
-const ROUTINES_TOGGLE = "Activity"
+const ROUTINES_TOGGLE = "Toggle activity"
 
-const READ_ROUTINES_TITLE = "Couldn't load routines"
+const READ_ROUTINES_TITLE = "Couldn’t load routines"
 
-const READ_MISSIONS_TITLE = "Couldn't load missions"
+const READ_MISSIONS_TITLE = "Couldn’t load missions"
 
 const withoutMainConversation = (thread: BotThread): BotThread => ({
 	...thread,
@@ -949,7 +949,7 @@ const SUMMONS_CAUSE = "Opened by the mission"
 
 const SUMMONS_ANNOUNCEMENT = "Mission summons"
 
-const SUMMONS_AGAIN_CAUSE = "Opened by the agent's question"
+const SUMMONS_AGAIN_CAUSE = "Opened by the agent’s question"
 
 const MISSION_ASKED: SpokenTurn = {
 	turnId: "t-asked",
@@ -1476,7 +1476,7 @@ describe("ThreadScreen", () => {
 		await settle()
 
 		await openRoutinesPanel()
-		expect(screen.getByText("Couldn't load the activity")).toBeTruthy()
+		expect(screen.getByText("Couldn’t load the activity")).toBeTruthy()
 		expect(screen.queryByText(READ_MISSIONS_TITLE)).toBeNull()
 		expect(screen.queryByText(READ_ROUTINES_TITLE)).toBeNull()
 
@@ -2526,7 +2526,7 @@ const APPLICATION_REFUSED = leftOutError(
 	'the server "atlas" was left out: it is waiting for you to authorize it',
 )
 
-const APPLICATION_REFUSED_TITLE = "Couldn't start an application"
+const APPLICATION_REFUSED_TITLE = "Couldn’t start an application"
 
 const LEFT_OUT_TITLE = "atlas was left out"
 
@@ -2601,7 +2601,7 @@ const KEY_QUESTION = "Paste your Anthropic API key"
 
 const SIGN_IN_FAILED_QUESTION = "Try again, or use a key instead?"
 
-const FIRST_REPLY_QUESTION = "That's it working. Ready for the last one?"
+const FIRST_REPLY_QUESTION = "That’s it working. Ready for the last one?"
 
 const EMPTY_STATE_TITLE = "Start with the agent"
 
@@ -2897,7 +2897,7 @@ describe("the first run in a solo thread", () => {
 		await shown.refresh()
 
 		expect(isAsking(SIGN_IN_FAILED_QUESTION)).toBe(true)
-		expect(screen.getByText("Couldn't sign you in")).toBeTruthy()
+		expect(screen.getByText("Couldn’t sign you in")).toBeTruthy()
 		expect(screen.getByText("auth login exited with 1")).toBeTruthy()
 	})
 
@@ -2972,9 +2972,9 @@ const SIGNED_IN = {
 
 const ACCESS_QUESTION = "How do you want to connect?"
 
-const NOT_CONNECTED_TITLE = "You're not signed in"
+const NOT_CONNECTED_TITLE = "You’re not signed in"
 
-const UNAVAILABLE_TITLE = "Couldn't reach the agent"
+const UNAVAILABLE_TITLE = "Couldn’t reach the agent"
 
 const SIGN_IN = "Sign in"
 
@@ -3180,7 +3180,7 @@ describe("signing in from a companion's solo thread", () => {
 		await shown.refresh()
 
 		expect(isAsking(SIGN_IN_FAILED_QUESTION)).toBe(true)
-		expect(screen.getByText("Couldn't sign you in")).toBeTruthy()
+		expect(screen.getByText("Couldn’t sign you in")).toBeTruthy()
 		expect(choice("Try again")).toBeTruthy()
 		expect(choice("Paste an API key")).toBeTruthy()
 	})
@@ -3219,7 +3219,7 @@ describe("signing in from a companion's solo thread", () => {
 		).toBeNull()
 		expect(
 			within(notice).getByText(
-				"Your Claude account isn't connected. Sign in to keep talking.",
+				"Your Claude account isn’t connected. Sign in to keep talking.",
 			),
 		).toBeTruthy()
 		expect(within(notice).queryByText(/restart/i)).toBeNull()
@@ -3690,7 +3690,7 @@ const installOf = (
 const OPEN_SETTINGS = "Open Settings"
 
 const UNREADABLE_INSTALLS_TITLE =
-	"Couldn't read the applications added to this conversation."
+	"Couldn’t read the applications added to this conversation."
 
 type InstallRoom = {
 	port: FakeApplicationPort

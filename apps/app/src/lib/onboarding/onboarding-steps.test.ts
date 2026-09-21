@@ -270,7 +270,7 @@ describe("the key step", () => {
 		const refused = stepOf()
 
 		expect(askedOf(refused).failure).toEqual({
-			title: "Couldn't use that key",
+			title: "Couldn’t use that key",
 			detail: "read only",
 		})
 		expect(labelsOf(refused)).toEqual(["Try another key", "Sign in instead"])
@@ -318,7 +318,7 @@ describe("a refused sign-in whose run is still alive", () => {
 	})
 
 	it("reaches the code step of a new run on Try again", async () => {
-		expect(askedOf(stepOf()).failure?.title).toBe("Couldn't sign you in")
+		expect(askedOf(stepOf()).failure?.title).toBe("Couldn’t sign you in")
 
 		void answer(stepOf(), "Try again")
 		await flush()
@@ -351,7 +351,7 @@ describe("the refused sign-in", () => {
 		const step = stepOf()
 
 		expect(askedOf(step).failure).toEqual({
-			title: "Couldn't sign you in",
+			title: "Couldn’t sign you in",
 			detail: "auth login exited with 1",
 		})
 		expect(labelsOf(step)).toEqual(["Try again", "Paste an API key"])

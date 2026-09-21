@@ -26,10 +26,10 @@ import { createSpokenWords } from "../conversations/spoken-words"
 import { createFakeMissions } from "../missions/fake-missions"
 
 const CLICK_FAILURE_TITLE =
-	"Notifications won't open their conversation. Restart Kiroshi to fix it."
+	"Notifications won’t open their conversation. Restart Kiroshi to fix it."
 
 const REVEAL_FAILURE_TITLE =
-	"Couldn't bring Kiroshi to the front. Switch to it yourself."
+	"Couldn’t bring Kiroshi to the front. Switch to it yourself."
 
 const CONTROL_TITLE = "Positive control"
 

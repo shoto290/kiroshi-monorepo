@@ -303,15 +303,18 @@ export const Empty = meta.story({
 		docs: {
 			description: {
 				story:
-					"Nothing typed yet — the resting state of a new turn, and the narrowest the composer ever gets. Check that the placeholder stays readable against the surface and that the send button is absent rather than disabled, since there is neither a prompt nor a staged file to send yet and a blank value must never reach `onSubmit` on its own. `Default` covers the same input once a draft exists, `FilesOnly` once a chip alone carries the turn. " +
+					"Nothing typed yet — the resting state of a new turn, and the narrowest the composer ever gets. Check that the placeholder stays readable against the surface and that the send button stays enabled while pressing it does nothing: no call to `onSubmit`, no error, since there is neither a prompt nor a staged file to send yet and a blank value must never reach `onSubmit` on its own. `Default` covers the same input once a draft exists, `FilesOnly` once a chip alone carries the turn. " +
 					MOUNTED_BY_THE_COMPOSER,
 			},
 		},
 	},
-	play: async ({ canvas }) => {
-		await expect(
-			canvas.queryByRole("button", { name: "Send" }),
-		).not.toBeInTheDocument()
+	play: async ({ args, canvas, userEvent }) => {
+		const send = canvas.getByRole("button", { name: "Send" })
+		await expect(send).toBeEnabled()
+
+		await userEvent.click(send)
+		await expect(args.onSubmit).not.toHaveBeenCalled()
+		await expect(canvas.queryByRole("alert")).toBeNull()
 		await expect(
 			isExpanded(canvas.getByRole("textbox", { name: "Message" })),
 		).toBe(false)
@@ -323,7 +326,7 @@ export const States = meta.story({
 		docs: {
 			description: {
 				story:
-					"Every state of the composer stacked, idle to disabled. Reach for it when changing the border, ring or opacity tokens: the second instance is focused by the play function, so the focus ring can be compared against the resting border without touching the canvas. Check that disabled dims the whole composer, blocks the textarea and takes its `leading` control and its staged chips out of reach of both pointer and Tab, and that the idle instance carries no send button at all until something is worth sending. " +
+					"Every state of the composer stacked, idle to disabled. Reach for it when changing the border, ring or opacity tokens: the second instance is focused by the play function, so the focus ring can be compared against the resting border without touching the canvas. Check that disabled dims the whole composer, blocks the textarea and takes its `leading` control and its staged chips out of reach of both pointer and Tab, and that the send button stays enabled on the idle instance and disabled only on the disabled one. " +
 					MOUNTED_BY_THE_COMPOSER,
 			},
 		},
@@ -350,9 +353,10 @@ export const States = meta.story({
 		await expect(
 			canvas.getByRole("textbox", { name: "Disabled prompt" }),
 		).toBeDisabled()
-		await expect(canvas.getAllByRole("button", { name: "Send" })).toHaveLength(
-			2,
-		)
+		const sends = canvas.getAllByRole("button", { name: "Send" })
+		await expect(sends).toHaveLength(3)
+		await expect(sends[0]).toBeEnabled()
+		await expect(sends[2]).toBeDisabled()
 
 		const addContext = canvas.getByRole("button", { name: "Add context" })
 		const remove = canvas.getByRole("button", {

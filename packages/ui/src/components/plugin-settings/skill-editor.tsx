@@ -140,7 +140,7 @@ const SkillEditor = ({
 			setTriedSaving(true)
 			setSection("triggering")
 			focusFirstInvalid()
-		} else if (isUnsaved) {
+		} else {
 			run(onSave)
 		}
 	}
