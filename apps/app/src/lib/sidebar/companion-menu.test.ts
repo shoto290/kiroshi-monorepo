@@ -45,8 +45,6 @@ const STANDUP = {
 
 const NOVA = { id: "bot-nova", name: "Nova", pinPosition: null }
 
-const NOVA_JOINS_PERSO = [ATLAS, SCRIBE, NOVA]
-
 const actionsOf = (): CompanionMenuActions => ({
 	onAddBotToSpace: vi.fn(),
 	onDeleteBot: vi.fn(),
@@ -234,7 +232,7 @@ describe("useCompanionMenuLookup identity", () => {
 		rerender({
 			read: {
 				...source,
-				rosters: { ...source.rosters, perso: [...NOVA_JOINS_PERSO] },
+				rosters: { ...source.rosters, perso: [ATLAS, SCRIBE, NOVA] },
 			},
 		})
 

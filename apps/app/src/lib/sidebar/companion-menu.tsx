@@ -36,21 +36,20 @@ export type CompanionMenuActions = Pick<
 
 type CompanionRow = PinnedRow & { name: string }
 
+type CompanionRosters = Record<string, CompanionRow[]>
+
 type CompanionSection = PinnedSection & { name: string }
 
 export type CompanionMenuSource = {
 	actions: CompanionMenuActions
-	rosters: Record<string, CompanionRow[]>
+	rosters: CompanionRosters
 	conversationRosters: Record<string, PinnedRow[]>
 	sectionsBySpaceId: Record<string, CompanionSection[]>
 	spaces: Space[]
 	openSpaceId: string | null
 }
 
-const spaceIdsOfBot = (
-	rosters: Record<string, CompanionRow[]>,
-	botId: string,
-) =>
+const spaceIdsOfBot = (rosters: CompanionRosters, botId: string) =>
 	Object.entries(rosters)
 		.filter(([, held]) => held.some((bot) => bot.id === botId))
 		.map(([spaceId]) => spaceId)
