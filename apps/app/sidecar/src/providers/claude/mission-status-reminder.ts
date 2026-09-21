@@ -38,6 +38,9 @@ export const createMissionStatusReminder = () => {
 				written = true
 			}
 		},
+		forget: () => {
+			written = false
+		},
 		stop,
 	}
 }

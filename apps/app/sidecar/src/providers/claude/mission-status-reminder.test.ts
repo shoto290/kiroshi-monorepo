@@ -73,6 +73,19 @@ describe("mission status reminder", () => {
 		).toMatchObject({ decision: "block" })
 	})
 
+	it("blocks the turn after an interrupted one that wrote its status", async () => {
+		const reminder = createMissionStatusReminder()
+		reminder.observe(calling(MISSION_STATUS_TOOL))
+		reminder.forget()
+
+		expect(await reminder.stop(stopping(false), undefined, { signal })).toEqual(
+			{ decision: "block", reason: MISSION_STATUS_REASON },
+		)
+		expect(await reminder.stop(stopping(true), undefined, { signal })).toEqual(
+			{},
+		)
+	})
+
 	it("drops the mark on a continued stop too", async () => {
 		const reminder = createMissionStatusReminder()
 		reminder.observe(calling(MISSION_STATUS_TOOL))

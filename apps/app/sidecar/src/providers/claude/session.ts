@@ -376,12 +376,14 @@ export const openClaudeSession = async (
 
 	return {
 		prompt: report.prompt,
-		interrupt: () =>
-			stopTurn({
+		interrupt: () => {
+			reminder.forget()
+			return stopTurn({
 				dropped: report.drop(),
 				emit,
 				interrupt: () => run.interrupt(),
-			}),
+			})
+		},
 		decide: permissions.decide,
 		close: async () => {
 			closing = true
