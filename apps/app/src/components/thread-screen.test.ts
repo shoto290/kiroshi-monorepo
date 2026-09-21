@@ -25,6 +25,7 @@ import {
 	vi,
 } from "vitest"
 
+import { CompanionMenuProvider } from "@workspace/ui/components/companion-menu"
 import type { MissionEventModel } from "@workspace/ui/components/mission"
 import {
 	type NoticeMessage,
@@ -118,10 +119,7 @@ import {
 	createMessageLandingController,
 	type MessageLandingController,
 } from "@/lib/search/message-landing-controller"
-import {
-	CompanionMenuContext,
-	useCompanionMenuLookup,
-} from "@/lib/sidebar/companion-menu"
+import { useCompanionMenuLookup } from "@/lib/sidebar/companion-menu"
 
 vi.mock("@/lib/routines/routines-transport", async (importOriginal) => {
 	const actual =
@@ -1114,9 +1112,9 @@ const CompanionMenuHarness = ({
 	children,
 }: CompanionMenuHarnessProps) =>
 	createElement(
-		CompanionMenuContext.Provider,
+		CompanionMenuProvider,
 		{
-			value: useCompanionMenuLookup({
+			menuFor: useCompanionMenuLookup({
 				actions: NO_COMPANION_ACTIONS,
 				conversationRosters: {},
 				openSpaceId: SPACE,
@@ -3976,6 +3974,6 @@ describe("ThreadScreen opening the companion menu of a gutter avatar", () => {
 			clientY: 20,
 		})
 
-		expect(screen.queryByRole("menu")).toBeNull()
+		await expect(screen.findByRole("menu")).rejects.toThrow()
 	})
 })

@@ -1,4 +1,5 @@
 import { AppSidebar } from "@workspace/ui/components/app-sidebar"
+import { CompanionMenuProvider } from "@workspace/ui/components/companion-menu"
 import { WorkspaceShell } from "@workspace/ui/components/workspace-shell"
 import { probeRender } from "@workspace/ui/lib/render-probe"
 
@@ -9,10 +10,7 @@ import { ConversationApplicationsContext } from "@/lib/applications/use-conversa
 import { SessionApplicationsContext } from "@/lib/applications/use-session-application"
 import { ConversationSeatingContext } from "@/lib/conversations/use-conversation-seating"
 import { hasOverlayWindowControls, isSidebarResizable } from "@/lib/host"
-import {
-	CompanionMenuContext,
-	useCompanionMenuLookup,
-} from "@/lib/sidebar/companion-menu"
+import { useCompanionMenuLookup } from "@/lib/sidebar/companion-menu"
 import { useApplicationScopes } from "@/lib/workspace/use-application-scopes"
 import { useRosterLines } from "@/lib/workspace/use-roster-lines"
 import { useRosterLists } from "@/lib/workspace/use-roster-lists"
@@ -96,7 +94,7 @@ export function App() {
 				<ConversationSeatingContext.Provider
 					value={rosterLines.conversationSeating}
 				>
-					<CompanionMenuContext.Provider value={companionMenu}>
+					<CompanionMenuProvider menuFor={companionMenu}>
 						<SessionApplicationsContext.Provider
 							value={panels.sessionApplications}
 						>
@@ -133,7 +131,7 @@ export function App() {
 								/>
 							</ConversationApplicationsContext.Provider>
 						</SessionApplicationsContext.Provider>
-					</CompanionMenuContext.Provider>
+					</CompanionMenuProvider>
 				</ConversationSeatingContext.Provider>
 			</WorkspaceShell>
 			<AppDialogs

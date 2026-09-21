@@ -1,4 +1,4 @@
-import { createContext, useContext, useMemo } from "react"
+import { useMemo } from "react"
 
 import type { RosterPin, Space } from "@workspace/ui/components/app-sidebar"
 import {
@@ -18,11 +18,6 @@ import {
 import type { SidebarActions } from "./use-sidebar-actions"
 
 const NO_COMPANION_MENU: CompanionMenuLookup = () => null
-
-export const CompanionMenuContext =
-	createContext<CompanionMenuLookup>(NO_COMPANION_MENU)
-
-export const useCompanionMenu = () => useContext(CompanionMenuContext)
 
 export type CompanionMenuActions = Pick<
 	SidebarActions,
