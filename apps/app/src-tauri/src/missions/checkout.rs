@@ -16,6 +16,9 @@ const AHEAD_OF_MAIN: [&str; 3] = ["rev-list", "--count", "origin/main..HEAD"];
 
 const STATUS: [&str; 2] = ["status", "--porcelain"];
 
+#[cfg(windows)]
+const CREATE_NO_WINDOW: u32 = 0x0800_0000;
+
 #[derive(Debug, PartialEq, Eq)]
 enum Read {
 	Counted(CheckoutCounts),
@@ -107,13 +110,19 @@ async fn counts(workspace: &str) -> Result<CheckoutCounts, String> {
 }
 
 async fn answered(workspace: &str, arguments: &[&str]) -> Result<String, String> {
-	let output = Command::new("git")
+	let mut command = Command::new("git");
+	command
 		.arg("-C")
 		.arg(workspace)
 		.args(arguments)
 		.stdin(Stdio::null())
 		.stderr(Stdio::null())
-		.kill_on_drop(true)
+		.kill_on_drop(true);
+
+	#[cfg(windows)]
+	command.creation_flags(CREATE_NO_WINDOW);
+
+	let output = command
 		.output()
 		.await
 		.map_err(|error| format!("git {} did not run: {error}", arguments[0]))?;
