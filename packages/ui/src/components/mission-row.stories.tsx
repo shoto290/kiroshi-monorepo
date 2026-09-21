@@ -13,6 +13,7 @@ import {
 	CLOSED_MISSION,
 	FAILED_MISSION,
 	LONG_MISSION_STATUS,
+	MISSION_NOW,
 	MISSION_STATES,
 	MISSION_STATUS,
 	READY_MISSION,
@@ -449,7 +450,7 @@ export const BoxMatchesARosterRow = meta.story({
 })
 
 export const WithStatus = meta.story({
-	args: { ...WAITING_HUMAN_MISSION, status: MISSION_STATUS },
+	args: { ...WAITING_HUMAN_MISSION, status: MISSION_STATUS, now: MISSION_NOW },
 	parameters: {
 		docs: {
 			description: {
@@ -487,7 +488,11 @@ export const WithStatus = meta.story({
 })
 
 export const LongStatus = meta.story({
-	args: { ...WAITING_HUMAN_MISSION, status: LONG_MISSION_STATUS },
+	args: {
+		...WAITING_HUMAN_MISSION,
+		status: LONG_MISSION_STATUS,
+		now: MISSION_NOW,
+	},
 	parameters: {
 		docs: {
 			description: {

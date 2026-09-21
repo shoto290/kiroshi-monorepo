@@ -6,6 +6,7 @@ import { MissionCard } from "@workspace/ui/components/mission-card"
 import {
 	CLOSED_MISSION_CARD,
 	LONG_MISSION_STATUS,
+	MISSION_NOW,
 	MISSION_STATUS,
 	WAITING_MISSION_CARD,
 	WORKING_MISSION_CARD,
@@ -224,12 +225,12 @@ export const LongContent = meta.story({
 })
 
 const SHORT_OBJECTIVE_MISSION_CARD = {
-	...WAITING_MISSION_CARD,
+	...UNTICKETED_MISSION_CARD,
 	objective: "Ship the status line",
 }
 
 export const WithStatus = meta.story({
-	args: { status: MISSION_STATUS },
+	args: { status: MISSION_STATUS, now: MISSION_NOW },
 	parameters: {
 		docs: {
 			description: {
@@ -265,28 +266,37 @@ export const WithStatus = meta.story({
 })
 
 export const LongStatus = meta.story({
-	args: { ...SHORT_OBJECTIVE_MISSION_CARD, status: LONG_MISSION_STATUS },
+	args: {
+		...SHORT_OBJECTIVE_MISSION_CARD,
+		status: LONG_MISSION_STATUS,
+		now: MISSION_NOW,
+	},
 	parameters: {
 		docs: {
 			description: {
 				story:
-					"A status written as several sentences ending on an unbroken string, beside the same card with no status. Check that the status stops after three lines on an ellipsis, that the bubble keeps the width the card has without it, and that the tooltip raised from the bubble hands the whole text over. Pick `WithStatus` for a status that fits.",
+					"A status written as several sentences ending on an unbroken string, beside the same card with no status. Check that the status stops after three lines on an ellipsis, that its bubble widens to the widest a bubble takes and no further while the card without it keeps the width its objective gives it, and that the tooltip raised from the bubble hands the whole text over. Pick `WithStatus` for a status that fits.",
 			},
 		},
 	},
 	render: (args) => (
 		<div className="flex w-80 max-w-full flex-col items-start gap-4">
 			<MissionCard {...args} />
-			<MissionCard {...args} status={undefined} />
+			<MissionCard {...SHORT_OBJECTIVE_MISSION_CARD} onOpen={args.onOpen} />
 		</div>
 	),
 	play: async ({ canvas, canvasElement, userEvent }) => {
-		const [withStatus, withoutStatus] = slotsIn(canvasElement, "message-bubble")
-		const [text] = slotIn(canvasElement, "mission-status").children
-
-		await expect(withStatus.getBoundingClientRect().width).toBe(
-			withoutStatus.getBoundingClientRect().width,
+		const [withStatus, withoutStatus] = slotsIn(
+			canvasElement,
+			"message-bubble-content",
 		)
+		const [text] = slotIn(canvasElement, "mission-status").children
+		const widthOf = (element: Element) => element.getBoundingClientRect().width
+		const maximumOf = (content: Element) =>
+			widthOf(content.parentElement as Element)
+
+		await expect(widthOf(withStatus)).toBe(maximumOf(withStatus))
+		await expect(widthOf(withoutStatus)).toBeLessThan(maximumOf(withoutStatus))
 		await expect(text.scrollHeight).toBeGreaterThan(text.clientHeight)
 		await expect(getComputedStyle(text).webkitLineClamp).toBe("3")
 

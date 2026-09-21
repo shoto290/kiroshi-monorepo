@@ -183,7 +183,6 @@ const minutesBefore = (minutes: number) => MISSION_NOW - minutes * 60_000
 export const MISSION_STATUS: MissionStatus = {
 	text: "Running the storybook suite before opening the pull request",
 	writtenAt: minutesBefore(4),
-	now: MISSION_NOW,
 }
 
 export const LONG_MISSION_STATUS: MissionStatus = {

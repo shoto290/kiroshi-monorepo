@@ -11,7 +11,7 @@ import {
 	MISSION_AVATAR_SIZE,
 	type MissionBot,
 	type MissionState,
-	type MissionStatus,
+	type MissionStatusProps,
 	shownMissionStatus,
 } from "@workspace/ui/components/mission"
 import {
@@ -34,10 +34,10 @@ type MissionRowModel = {
 	timestamp: string
 }
 
-type MissionRowProps = MissionRowModel & {
-	status?: MissionStatus
-	onOpen: () => void
-}
+type MissionRowProps = MissionRowModel &
+	MissionStatusProps & {
+		onOpen: () => void
+	}
 
 const BADGE_OF: Partial<Record<MissionState, BotBadge>> = {
 	waiting_human: "attention",
@@ -62,6 +62,7 @@ const MissionRow = ({
 	isWorking,
 	timestamp,
 	status,
+	now,
 	onOpen,
 }: MissionRowProps) => {
 	const { t } = useTranslation("chat")
@@ -77,7 +78,7 @@ const MissionRow = ({
 			? [{ slot: "state", text: t(`missions.state.${state}`) }]
 			: []),
 	].filter((part) => part.text !== "")
-	const shownStatus = shownMissionStatus(status)
+	const shownStatus = shownMissionStatus(status, now)
 
 	return (
 		<li data-slot="mission-row">

@@ -10,7 +10,7 @@ import {
 } from "@workspace/ui/components/message-bubble"
 import {
 	type MissionCardModel,
-	type MissionStatus,
+	type MissionStatusProps,
 	shownMissionStatus,
 } from "@workspace/ui/components/mission"
 import {
@@ -25,11 +25,11 @@ import {
 import { TooltipHint } from "@workspace/ui/components/tooltip-hint"
 import { cn } from "@workspace/ui/lib/utils"
 
-type MissionCardProps = Omit<MissionCardModel, "author" | "identity"> & {
-	status?: MissionStatus
-	onOpen: (missionId: string) => void
-	className?: string
-}
+type MissionCardProps = Omit<MissionCardModel, "author" | "identity"> &
+	MissionStatusProps & {
+		onOpen: (missionId: string) => void
+		className?: string
+	}
 
 type MissionTitleRowProps = Pick<MissionCardModel, "state" | "tools">
 
@@ -58,12 +58,13 @@ const MissionCard = ({
 	isWorking,
 	isClosed,
 	status,
+	now,
 	onOpen,
 	className,
 }: MissionCardProps) => {
 	const { t } = useTranslation("chat")
 	const hasTicket = Boolean(ticket.externalId || ticket.title)
-	const shownStatus = shownMissionStatus(status)
+	const shownStatus = shownMissionStatus(status, now)
 
 	return (
 		<MessageBubble className={className} variant="soft">
@@ -102,7 +103,7 @@ const MissionCard = ({
 					</span>
 					{shownStatus ? (
 						<span
-							className="flex flex-col text-muted-foreground text-xs contain-inline-size"
+							className="flex flex-col text-muted-foreground text-xs"
 							data-slot="mission-status"
 						>
 							<span className="line-clamp-3 wrap-break-word">

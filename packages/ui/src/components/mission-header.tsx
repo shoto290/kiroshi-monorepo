@@ -65,7 +65,7 @@ const MissionHeader = ({
 	const { t } = useTranslation("chat")
 	const hasTicket = Boolean(ticket.externalId || ticket.title)
 	const hasTools = tools.length > 0
-	const shownStatus = shownMissionStatus(status)
+	const shownStatus = shownMissionStatus(status, now)
 
 	return (
 		<div

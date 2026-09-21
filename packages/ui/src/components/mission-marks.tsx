@@ -2,8 +2,8 @@ import type { ComponentType } from "react"
 
 import { type IconProps, Icons } from "@workspace/ui/components/icons"
 import type {
-	MissionStatus,
 	MissionTicketLink,
+	ShownMissionStatus,
 } from "@workspace/ui/components/mission"
 import { toRelativeTime } from "@workspace/ui/lib/time-format"
 import { cn } from "@workspace/ui/lib/utils"
@@ -171,7 +171,7 @@ const MissionTicketLine = ({
 }
 
 type MissionStatusTimeProps = {
-	status: MissionStatus
+	status: ShownMissionStatus
 	className?: string
 }
 
