@@ -1,6 +1,6 @@
 // @vitest-environment happy-dom
 
-import { cleanup, renderHook, waitFor } from "@testing-library/react"
+import { act, cleanup, renderHook, waitFor } from "@testing-library/react"
 import { afterEach, beforeEach, expect, it, vi } from "vitest"
 
 import type { MissionChanged, MissionDetail } from "./mission-contract"
@@ -120,4 +120,25 @@ it("reports a failed read and reads again on retry", async () => {
 
 	await waitFor(() => expect(result.current.hasFailedToRead).toBe(false))
 	expect(result.current.read?.mission).toEqual(DETAIL.mission)
+})
+
+it("applies the activity of a change naming it before the reread returns", async () => {
+	const { result } = renderHook(() => useMissionDetail("m-1"))
+	await waitFor(() => expect(result.current.isReading).toBe(false))
+	readDetail.mockReturnValue(new Promise(() => undefined))
+
+	act(() =>
+		announce({
+			missionId: "m-1",
+			state: "working",
+			stateSeq: 2,
+			isAgentRunning: true,
+			lastActivityAt: 42,
+		}),
+	)
+
+	expect(result.current.read?.mission).toMatchObject({
+		isAgentRunning: true,
+		lastActivityAt: 42,
+	})
 })

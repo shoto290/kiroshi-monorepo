@@ -3,7 +3,7 @@
 import { act, cleanup, renderHook, waitFor } from "@testing-library/react"
 import { afterEach, beforeEach, describe, expect, it, vi } from "vitest"
 
-import type { Mission } from "./mission-contract"
+import type { Mission, MissionChanged } from "./mission-contract"
 import { missionsTransport } from "./missions-transport"
 import { useMissions } from "./use-missions"
 
@@ -77,6 +77,55 @@ describe("useMissions", () => {
 		act(() => {
 			document.dispatchEvent(new Event("visibilitychange"))
 		})
+
+		expect(result.current).toBe(read)
+	})
+
+	it("applies the activity of a change naming a held mission before the reread returns", async () => {
+		let announce: (changed: MissionChanged) => void = () => undefined
+		listenToMissions.mockImplementation((listener) => {
+			announce = listener
+			return Promise.resolve(() => undefined)
+		})
+		const { result } = renderHook(() => useMissions("c-1"))
+		await waitFor(() => expect(result.current.missions).toEqual([MISSION]))
+		listMissions.mockReturnValue(new Promise(() => undefined))
+
+		act(() =>
+			announce({
+				missionId: "m-1",
+				state: "working",
+				stateSeq: 2,
+				isAgentRunning: true,
+				lastActivityAt: 42,
+			}),
+		)
+
+		expect(result.current.open).toEqual([
+			{ ...MISSION, isAgentRunning: true, lastActivityAt: 42 },
+		])
+	})
+
+	it("holds its read when a change names a mission it does not hold", async () => {
+		let announce: (changed: MissionChanged) => void = () => undefined
+		listenToMissions.mockImplementation((listener) => {
+			announce = listener
+			return Promise.resolve(() => undefined)
+		})
+		const { result } = renderHook(() => useMissions("c-1"))
+		await waitFor(() => expect(result.current.missions).toEqual([MISSION]))
+		listMissions.mockReturnValue(new Promise(() => undefined))
+		const read = result.current
+
+		act(() =>
+			announce({
+				missionId: "m-2",
+				state: "working",
+				stateSeq: 2,
+				isAgentRunning: true,
+				lastActivityAt: 42,
+			}),
+		)
 
 		expect(result.current).toBe(read)
 	})

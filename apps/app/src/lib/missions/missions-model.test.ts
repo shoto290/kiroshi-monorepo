@@ -12,7 +12,7 @@ import type {
 	MissionState,
 } from "./mission-contract"
 import {
-	AGENT_LIVENESS_WINDOW_MS,
+	AGENT_SILENCE_MS,
 	liveMissionsIn,
 	type MissionLivenessRead,
 	type MissionRowsRead,
@@ -20,8 +20,8 @@ import {
 	missionsByRow,
 	missionsBySpaceId,
 	missionsIn,
-	stampedAgentRuns,
 	toMissionEventModels,
+	toMissionHeaderActivity,
 	toMissionRows,
 	withMissions,
 } from "./missions-model"
@@ -118,7 +118,6 @@ const liveIn = (read: Partial<MissionLivenessRead>) => [
 	...liveMissionsIn({
 		missions: [RUNNING_MISSION],
 		speakingBotIds: {},
-		agentRuns: {},
 		now: READ_AT,
 		...read,
 	}),
@@ -134,17 +133,21 @@ describe("liveMissionsIn", () => {
 		).toEqual(["m-working"])
 	})
 
-	it("reads a mission whose agent started inside the window as live", () => {
-		expect(liveIn({ agentRuns: { "m-working": READ_AT - 60_000 } })).toEqual([
-			"m-working",
-		])
-	})
-
-	it("names a mission once when its companion speaks and its agent runs", () => {
+	it("reads a mission whose agent acted within the silence window as live", () => {
 		expect(
 			liveIn({
+				missions: [
+					{ ...missionIn("working"), lastActivityAt: READ_AT - 60_000 },
+				],
+			}),
+		).toEqual(["m-working"])
+	})
+
+	it("names a mission once when its companion speaks and its agent acts", () => {
+		expect(
+			liveIn({
+				missions: [{ ...RUNNING_MISSION, lastActivityAt: READ_AT }],
 				speakingBotIds: { "c-mission-1": ["b-1"] },
-				agentRuns: { "m-working": READ_AT },
 			}),
 		).toEqual(["m-working"])
 	})
@@ -153,23 +156,35 @@ describe("liveMissionsIn", () => {
 		expect(liveIn({ missions: [missionIn("working")] })).toEqual([])
 	})
 
-	it("reads a mission whose agent started before the window as resting", () => {
+	it("reads a running mission silent past the window as resting", () => {
 		expect(
 			liveIn({
-				agentRuns: { "m-working": READ_AT - AGENT_LIVENESS_WINDOW_MS },
+				missions: [
+					{ ...RUNNING_MISSION, lastActivityAt: READ_AT - AGENT_SILENCE_MS },
+				],
 			}),
 		).toEqual([])
 	})
 
-	it("reads a running mission the front never stamped as resting", () => {
-		expect(liveIn({})).toEqual([])
-	})
-
-	it("reads a closed mission whose agent still runs as resting", () => {
+	it("reads a silent mission its companion speaks on as live", () => {
 		expect(
 			liveIn({
-				missions: [CLOSED_RUNNING_MISSION],
-				agentRuns: { "m-working": READ_AT },
+				missions: [
+					{ ...RUNNING_MISSION, lastActivityAt: READ_AT - AGENT_SILENCE_MS },
+				],
+				speakingBotIds: { "c-mission-1": ["b-1"] },
+			}),
+		).toEqual(["m-working"])
+	})
+
+	it("reads a mission with no activity from its running agent alone, whatever its age", () => {
+		expect(liveIn({})).toEqual(["m-working"])
+	})
+
+	it("reads a closed mission whose agent still acts as resting", () => {
+		expect(
+			liveIn({
+				missions: [{ ...CLOSED_RUNNING_MISSION, lastActivityAt: READ_AT }],
 			}),
 		).toEqual([])
 	})
@@ -202,52 +217,6 @@ describe("liveMissionsIn", () => {
 	})
 })
 
-describe("stampedAgentRuns", () => {
-	it("stamps a mission the first time its agent reads as running", () => {
-		expect(stampedAgentRuns({}, [RUNNING_MISSION], READ_AT)).toEqual({
-			"m-working": READ_AT,
-		})
-	})
-
-	it("keeps the first stamp while the agent keeps running", () => {
-		const held = { "m-working": READ_AT - 60_000 }
-
-		expect(stampedAgentRuns(held, [RUNNING_MISSION], READ_AT)).toBe(held)
-	})
-
-	it("keeps the stamp of a mission the read does not name", () => {
-		const held = { "m-elsewhere": READ_AT - 60_000 }
-
-		expect(stampedAgentRuns(held, [RUNNING_MISSION], READ_AT)).toEqual({
-			"m-elsewhere": READ_AT - 60_000,
-			"m-working": READ_AT,
-		})
-	})
-
-	it("drops the stamp of a mission read closed", () => {
-		expect(
-			stampedAgentRuns(
-				{ "m-working": READ_AT - 60_000 },
-				[CLOSED_RUNNING_MISSION],
-				READ_AT,
-			),
-		).toEqual({})
-	})
-
-	it("stamps again once the agent stopped and started back", () => {
-		const stopped = stampedAgentRuns(
-			{ "m-working": READ_AT - 60_000 },
-			[missionIn("working")],
-			READ_AT,
-		)
-
-		expect(stopped).toEqual({})
-		expect(stampedAgentRuns(stopped, [RUNNING_MISSION], READ_AT)).toEqual({
-			"m-working": READ_AT,
-		})
-	})
-})
-
 describe("toMissionRows", () => {
 	it("reads an open mission as the row of the activity panel", () => {
 		const { open } = rowsOf({
@@ -268,8 +237,49 @@ describe("toMissionRows", () => {
 				state: "working",
 				isWorking: true,
 				timestamp: "1h",
+				now: READ_AT,
 			},
 		])
+	})
+
+	it("gives the row the last activity, its time and the commits ahead of its mission", () => {
+		const { open } = rowsOf({
+			open: [
+				{
+					...missionIn("working"),
+					lastActivity: { tool: "Edit", target: "parser.ts" },
+					lastActivityAt: READ_AT - 120_000,
+					commitsAhead: 3,
+				},
+			],
+		})
+
+		expect(open[0]).toMatchObject({
+			lastActivity: { tool: "Edit", target: "parser.ts" },
+			lastActivityAt: READ_AT - 120_000,
+			commitsAhead: 3,
+			now: READ_AT,
+		})
+	})
+
+	it("stamps the row with the age of the last activity of its mission", () => {
+		const { open } = rowsOf({
+			open: [
+				{
+					...missionIn("working"),
+					openedAt: READ_AT - 3_600_000,
+					lastActivityAt: READ_AT - 120_000,
+				},
+			],
+		})
+
+		expect(open[0]?.timestamp).toBe("2m")
+	})
+
+	it("gives a closed mission row the now of the read", () => {
+		const { earlierToday } = rowsOf({ closed: [closedAt(READ_AT - 7_200_000)] })
+
+		expect(earlierToday[0]).toMatchObject({ now: READ_AT })
 	})
 
 	it("reads a mission no companion is live on as resting whatever its state", () => {
@@ -442,6 +452,63 @@ it("keeps an event silent when its payload holds no spoken key", () => {
 		undefined,
 		undefined,
 	])
+})
+
+it("links an event to the url of its payload with the pull request it names", () => {
+	const models = toMissionEventModels([
+		{
+			...EVENT,
+			payload: { pullRequest: 7, url: "https://github.test/pull/7" },
+		},
+		{ ...EVENT, id: "e-2", payload: { url: "https://github.test/pull/8" } },
+		{ ...EVENT, id: "e-3", payload: { pullRequest: 7 } },
+		{ ...EVENT, id: "e-4", payload: { url: 42 } },
+	])
+
+	expect(models.map(({ link }) => link)).toEqual([
+		{ url: "https://github.test/pull/7", pullRequest: 7 },
+		{ url: "https://github.test/pull/8" },
+		undefined,
+		undefined,
+	])
+})
+
+describe("toMissionHeaderActivity", () => {
+	it("gives the header the last activity, its time and the commits ahead", () => {
+		expect(
+			toMissionHeaderActivity({
+				...missionIn("working"),
+				lastActivity: { tool: "Bash", target: "bun test" },
+				lastActivityAt: READ_AT,
+				commitsAhead: 2,
+			}),
+		).toEqual({
+			lastActivity: { tool: "Bash", target: "bun test" },
+			lastActivityAt: READ_AT,
+			commitsAhead: 2,
+			pullRequest: undefined,
+		})
+	})
+
+	it("reads the pull request number from the last segment of its url", () => {
+		const url = "https://github.com/vocca/kiroshi/pull/4172"
+
+		expect(
+			toMissionHeaderActivity({ ...missionIn("working"), pullRequestUrl: url })
+				.pullRequest,
+		).toEqual({ url, number: 4172 })
+	})
+
+	it.each([
+		null,
+		"https://github.com/vocca/kiroshi/pull/new",
+		"https://github.com/vocca/kiroshi/pull/",
+	])("gives the header no pull request for %s", (pullRequestUrl) => {
+		expect(
+			toMissionHeaderActivity({ ...missionIn("working"), pullRequestUrl })
+				.pullRequest,
+		).toBeUndefined()
+	})
 })
 
 it("carries the kind, the source and the time of every event", () => {

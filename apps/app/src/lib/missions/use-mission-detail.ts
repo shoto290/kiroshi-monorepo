@@ -3,7 +3,7 @@ import { useCallback, useEffect, useMemo, useRef, useState } from "react"
 import type { MissionEventModel } from "@workspace/ui/components/mission"
 
 import type { Mission } from "./mission-contract"
-import { toMissionEventModels } from "./missions-model"
+import { toMissionEventModels, withMissionChange } from "./missions-model"
 import { missionsTransport } from "./missions-transport"
 
 type MissionRead = {
@@ -58,9 +58,13 @@ export const useMissionDetail = (missionId: string): MissionDetailRead => {
 	useEffect(() => {
 		const listening = missionsTransport
 			.onChanged((changed) => {
-				if (changed.missionId === missionId) {
-					readMission()
-				}
+				if (changed.missionId !== missionId) return
+				setRead((held) =>
+					held
+						? { ...held, mission: withMissionChange(held.mission, changed) }
+						: held,
+				)
+				readMission()
 			})
 			.catch((reason) => {
 				console.error(

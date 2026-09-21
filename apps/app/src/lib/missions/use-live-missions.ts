@@ -1,6 +1,5 @@
 import { useMemo } from "react"
 
-import { stampMissionRuns } from "./agent-run-stamps"
 import type { Mission } from "./mission-contract"
 import { type LiveMissionIds, liveMissionsIn } from "./missions-model"
 
@@ -33,10 +32,9 @@ export const useLiveMissions = (
 		(conversationId) => speakingBotIdsIn(runtimes.heldFor(conversationId)),
 		(botIds) => botIds.join(","),
 	)
-	const agentRuns = stampMissionRuns(missions, now)
 
 	return useMemo(
-		() => liveMissionsIn({ missions, speakingBotIds, agentRuns, now }),
-		[missions, speakingBotIds, agentRuns, now],
+		() => liveMissionsIn({ missions, speakingBotIds, now }),
+		[missions, speakingBotIds, now],
 	)
 }
