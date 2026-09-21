@@ -22,6 +22,7 @@
     color: var(--color-foreground, currentColor);
     overflow-wrap: break-word;
     margin-trim: block-start;
+    max-inline-size: 70ch;
 
     @media (min-width: 48rem), print {
       font-size: var(--typeset-size);
@@ -35,6 +36,10 @@
       --color-border,
       color-mix(in oklab, currentColor 20%, transparent)
     );
+  }
+
+  .typeset .typeset {
+    max-inline-size: none;
   }
 
   .typeset

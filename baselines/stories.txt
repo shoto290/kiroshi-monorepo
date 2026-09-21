@@ -844,6 +844,7 @@ overlays-contextmenu--default
 overlays-contextmenu--keyboard-focus-ring
 overlays-contextmenu--long-content
 overlays-contextmenu--pointer-focus-without-ring
+overlays-contextmenu--radius-ladder
 overlays-contextmenu--states
 overlays-contextmenu--with-checkbox-and-radio-items
 overlays-contextmenu--with-submenu

@@ -108,7 +108,8 @@
 	--user-bubble-tint-strength: 50%;
 	--user-bubble-tint-ink: var(--foreground);
 	--popover-shadow:
-		0 0 1px rgb(255 255 255 / 0.16), 0 12px 28px rgb(0 0 0 / 0.7);
+		0 0 0 1px rgb(255 255 255 / 0.1), 0 0 1px rgb(255 255 255 / 0.16),
+		0 12px 28px rgb(0 0 0 / 0.7);
 	--image-outline: oklch(1 0 0 / 8%);
 }
 
@@ -467,16 +468,30 @@
 			opacity 150ms,
 			scale 200ms ease-out;
 	}
+}
 
-	.group\/badge.transition-all,
-	[data-slot="switch"].transition-all,
-	[data-slot="tabs-trigger"].transition-all {
-		transition-property: color, background-color, border-color, box-shadow;
-	}
+:is(
+	.group\/badge,
+	[data-slot="switch"],
+	[data-slot="tabs-trigger"]
+).transition-all:not(.motion-reduce\:transition-none) {
+	transition-property: color, background-color, border-color, box-shadow;
+}
 
-	[data-slot="sidebar-rail"].transition-all {
-		transition-property: left, right, translate, background-color;
-	}
+[data-slot="sidebar-rail"].transition-all:not(.motion-reduce\:transition-none) {
+	transition-property: left, right, translate, background-color;
+}
+
+:is(
+	.group\/button,
+	[data-slot="input"],
+	[data-slot="item"],
+	[data-slot="tabs-list"]:not([data-variant="line"]),
+	[data-slot="tabs-trigger"],
+	[data-slot="toast"],
+	[data-slot="skeleton"]
+).rounded-2xl {
+	border-radius: var(--radius-lg);
 }
 
 :is(
@@ -517,11 +532,7 @@
 }
 
 svg.lucide {
-	stroke-width: var(--icon-stroke);
-
-	& > * {
-		vector-effect: non-scaling-stroke;
-	}
+	stroke-width: calc(var(--icon-stroke) * 24 / 16);
 }
 
 @media (prefers-reduced-motion: reduce) {

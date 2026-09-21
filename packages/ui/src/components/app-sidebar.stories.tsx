@@ -1096,13 +1096,14 @@ export const Identities = meta.story({
 		)
 		await expect(panelWidth()).toBe(EXPANDED_PANEL_WIDTH)
 		await expect(getComputedStyle(panel).borderInlineEndWidth).toBe("0px")
+		const surfaceRadius = tokenLengthOf("--radius-lg")
 		await expect(
 			getComputedStyle(rowButton(rows[0])).borderStartStartRadius,
-		).toBe(tokenLengthOf("--radius-lg"))
+		).toBe(surfaceRadius)
 		await expect(
 			getComputedStyle(canvas.getByRole("button", { name: CREATE }))
 				.borderStartStartRadius,
-		).toBe(tokenLengthOf("--radius-2xl"))
+		).toBe(surfaceRadius)
 
 		await expectAvatarDrawnAtCallSiteSize(rows[0])
 		await expectAvatarWholeInRow(rows[0])

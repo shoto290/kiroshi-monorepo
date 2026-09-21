@@ -284,6 +284,43 @@ export const States = meta.story({
 	},
 })
 
+const pixelsOf = (value: string) => Number.parseFloat(value)
+
+export const RadiusLadder = meta.story({
+	parameters: {
+		a11y: mergeA11y(A11Y_FLOATING_FOCUS_GUARDS, A11Y_SUBMENU_PORTAL_GUARD),
+		docs: {
+			description: {
+				story:
+					"The three corners side by side in one frame: the open menu, the item nested flush inside it, and a standalone `Button` beside the card. Check the item's corner is the menu's corner minus the menu's padding, so the two curves stay parallel, and that the button keeps the `lg` corner every standalone control carries rather than the menu's larger one.",
+			},
+		},
+	},
+	render: () => (
+		<div className="flex items-center gap-4">
+			<TranscriptCard />
+			<Button variant="outline">Save</Button>
+		</div>
+	),
+	play: async ({ canvas }) => {
+		const button = canvas.getByRole("button", { name: "Save" })
+		const menu = await openMenuOn(canvas.getByText("Right-click this card"))
+		const item = within(menu).getByRole("menuitem", {
+			name: /Copy transcript/,
+		})
+		const surface = getComputedStyle(menu)
+		const outer = pixelsOf(surface.borderStartStartRadius)
+
+		await expect(outer).toBe(pixelsOf(tokenLengthOf("--radius-2xl")))
+		await expect(pixelsOf(getComputedStyle(item).borderStartStartRadius)).toBe(
+			outer - pixelsOf(surface.paddingInlineStart),
+		)
+		await expect(getComputedStyle(button).borderStartStartRadius).toBe(
+			tokenLengthOf("--radius-lg"),
+		)
+	},
+})
+
 const isInBrowserRunner = () => "__vitest_browser__" in globalThis
 
 export const KeyboardFocusRing = meta.story({
