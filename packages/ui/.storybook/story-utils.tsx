@@ -45,6 +45,8 @@ export const mergeA11y = (...sets: A11yRuleSet[]) => ({
 
 export const FRAME_POLL = { interval: 10 }
 
+export const isInBrowserRunner = () => "__vitest_browser__" in globalThis
+
 const runsToAnEnd = (animation: Animation) =>
 	animation.effect?.getTiming().duration !== "auto"
 

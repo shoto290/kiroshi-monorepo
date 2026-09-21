@@ -2,7 +2,7 @@ import { useState } from "react"
 import { expect, fn } from "storybook/test"
 
 import preview from "@workspace/storybook/preview"
-import { slotIn } from "@workspace/storybook/story-utils"
+import { isInBrowserRunner, slotIn } from "@workspace/storybook/story-utils"
 import {
 	ToggleSwitch,
 	type ToggleSwitchProps,
@@ -22,8 +22,6 @@ const ToggleSwitchHost = (props: ToggleSwitchProps) => {
 		/>
 	)
 }
-
-const isInBrowserRunner = () => "__vitest_browser__" in globalThis
 
 const emulateMotion = async (value: "no-preference" | "reduce") => {
 	const { cdp } = await import("vitest/browser")

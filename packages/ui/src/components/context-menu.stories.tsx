@@ -6,6 +6,7 @@ import {
 	A11Y_FLOATING_FOCUS_GUARDS,
 	A11Y_SUBMENU_PORTAL_GUARD,
 	FRAME_POLL,
+	isInBrowserRunner,
 	mergeA11y,
 	tokenLengthOf,
 } from "@workspace/storybook/story-utils"
@@ -320,8 +321,6 @@ export const RadiusLadder = meta.story({
 		)
 	},
 })
-
-const isInBrowserRunner = () => "__vitest_browser__" in globalThis
 
 export const KeyboardFocusRing = meta.story({
 	tags: ["test-only"],

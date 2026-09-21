@@ -2,7 +2,10 @@ import type { ReactNode } from "react"
 import { expect, fn, screen, waitFor } from "storybook/test"
 
 import preview from "@workspace/storybook/preview"
-import { A11Y_CONTRAST_AWAITING_DESIGN_DECISION } from "@workspace/storybook/story-utils"
+import {
+	A11Y_CONTRAST_AWAITING_DESIGN_DECISION,
+	isInBrowserRunner,
+} from "@workspace/storybook/story-utils"
 import {
 	BotMissionStrip,
 	BotTitleBadge,
@@ -125,8 +128,6 @@ const boxOf = (row: HTMLElement) => {
 }
 
 const scaleOf = (element: HTMLElement) => getComputedStyle(element).scale
-
-const isInBrowserRunner = () => "__vitest_browser__" in globalThis
 
 const colorOf = (element: HTMLElement) => getComputedStyle(element).color
 
