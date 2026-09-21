@@ -44,11 +44,7 @@ import { WindowControls } from "./window-controls"
 const ROW_ENTER =
 	"motion-safe:animate-in motion-safe:fill-mode-backwards motion-safe:slide-in-from-bottom-1 motion-safe:duration-200 motion-safe:ease-out"
 
-const ROW_GROUP_DELAYS = [
-	"motion-safe:delay-0",
-	"motion-safe:delay-75",
-	"motion-safe:delay-150",
-]
+const ROW_GROUP_DELAYS = ["", "motion-safe:delay-75", "motion-safe:delay-150"]
 
 const ROWS_PER_GROUP = 2
 
