@@ -150,6 +150,7 @@ conversation-message-emptystateshell--without-hint
 conversation-message-mention--companion-menu-off-pill
 conversation-message-mention--companion-menu-on-pill
 conversation-message-mention--companion-select-from-pill
+conversation-message-mention--companion-select-on-counted-pill
 conversation-message-mention--companion-select-on-pill
 conversation-message-mention--companion-select-on-pill-focused
 conversation-message-mention--companion-select-on-pill-hovered

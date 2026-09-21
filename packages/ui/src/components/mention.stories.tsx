@@ -521,23 +521,62 @@ export const CompanionSelectOnPillHovered = meta.story({
 	},
 })
 
+const ReaderBubble = ({ source }: MessageProps) => (
+	<CompanionSelectProvider onSelect={selectCompanion}>
+		<RosterProvider bots={ROOM}>
+			<div className="mx-auto max-w-md">
+				<UserTurn copyText={source} onReply={replyToMessage}>
+					<Markdown>{source}</Markdown>
+				</UserTurn>
+			</div>
+		</RosterProvider>
+	</CompanionSelectProvider>
+)
+
 export const CompanionSelectOnPillFocused = meta.story({
 	tags: ["test-only"],
 	parameters: {
 		docs: {
 			description: {
-				story: `The mention reached by the keyboard. Check that Tab lands on the chip and that it wears the focus ring the other controls of the repo wear. ${SELECT_NOT_YET_RENDERED}`,
+				story: `The mention reached by the keyboard inside the reader's own bubble, the surface the chip is hardest to ring on. Check that Tab lands on the chip and that its ring is drawn in the text colour of the bubble, so it holds against the bubble fill in either theme. ${SELECT_NOT_YET_RENDERED}`,
 			},
 		},
 	},
-	render: () => <SelectableMessage source={ASKED} />,
+	render: () => <ReaderBubble source={ASKED} />,
 	play: async ({ canvasElement, userEvent }) => {
 		const pill = pillIn(canvasElement)
 
 		await userEvent.tab()
 
 		await expect(pill).toHaveFocus()
-		await expect(getComputedStyle(pill).boxShadow).not.toBe("none")
+		await expect(getComputedStyle(pill).boxShadow).toContain(
+			getComputedStyle(pill).color,
+		)
+	},
+})
+
+export const CompanionSelectOnCountedPill = meta.story({
+	tags: ["test-only"],
+	parameters: {
+		docs: {
+			description: {
+				story: `A repeated mention collapsed into one counted chip, under a mounted select. Check that the chip is one button named after the companion with the count spoken after the name, and that a click reports the companion id once. ${SELECT_NOT_YET_RENDERED}`,
+			},
+		},
+	},
+	render: () => <SelectableMessage source={LONG_PAIR} />,
+	play: async ({ canvas, userEvent }) => {
+		selectCompanion.mockClear()
+		const [pill, ...others] = canvas.getAllByRole("button")
+
+		if (!pill) throw new Error("The sentence drew no chip")
+
+		await expect(others).toHaveLength(0)
+		await expect(pill).toHaveAccessibleName(expect.stringContaining(WORDY.name))
+
+		await userEvent.click(pill)
+		await expect(selectCompanion).toHaveBeenCalledTimes(1)
+		await expect(selectCompanion).toHaveBeenLastCalledWith(WORDY.id)
 	},
 })
 

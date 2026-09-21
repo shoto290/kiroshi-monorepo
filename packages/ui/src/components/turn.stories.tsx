@@ -1717,19 +1717,26 @@ export const CompanionSelectOnGutter = meta.story({
 
 export const CompanionSelectOnGutterHovered = meta.story({
 	tags: ["test-only"],
+	globals: { theme_layout: "side-by-side" },
 	parameters: {
 		pseudo: { hover: true },
 		docs: {
 			description: {
-				story: `The same two gutter avatars with the pointer resting on them, drawn by the pseudo-state addon. Check by eye that a faint ring rises around each one, following the circle of the blot and the rounded square of the picture. ${SELECT_NOT_YET_RENDERED}`,
+				story: `The two gutter avatars with the pointer resting on them, in both themes at once, drawn by the pseudo-state addon. Check by eye that a solid ring in the muted foreground stands off each avatar by a gap of the page background, following the circle of the blot and the rounded square of the picture, so it reads over any picture in either theme. The stop veils the face because pressing it ends work; the select only opens the companion, so it marks the target and leaves the face in view. ${SELECT_NOT_YET_RENDERED}`,
 			},
 		},
 	},
 	render: () => <SelectableGutters />,
 	play: async ({ canvas }) => {
-		for (const button of gutterSelects(canvas)) {
-			await expect(button).toHaveClass("hover:ring-foreground/15")
-			await expect(button).toHaveClass("motion-reduce:transition-none")
+		const buttons = gutterSelects(canvas)
+
+		await expect(buttons).toHaveLength(4)
+		for (const button of buttons) {
+			await expect(button).toHaveClass(
+				"hover:ring-muted-foreground",
+				"hover:ring-offset-background",
+				"motion-reduce:transition-none",
+			)
 		}
 	},
 })

@@ -452,29 +452,25 @@ function AssistantTurn(props: AssistantTurnProps) {
 			size={TURN_AVATAR_SIZE}
 		/>
 	) : null
-	const stop =
-		props.stoppable && gutterBot ? (
-			<BotStopButton
-				image={gutterBot.image}
-				name={gutterBot.name}
-				onStop={props.onStop}
-				size={TURN_AVATAR_SIZE}
-			>
-				{mark}
-			</BotStopButton>
-		) : null
-	const select =
-		onSelectCompanion && gutterBot && !stop ? (
-			<BotSelectButton
-				image={gutterBot.image}
-				name={gutterBot.name}
-				onSelect={() => onSelectCompanion(gutterBot.id)}
-				size={TURN_AVATAR_SIZE}
-			>
-				{mark}
-			</BotSelectButton>
-		) : null
-	const control = stop ?? select
+	const control = !gutterBot ? null : props.stoppable ? (
+		<BotStopButton
+			image={gutterBot.image}
+			name={gutterBot.name}
+			onStop={props.onStop}
+			size={TURN_AVATAR_SIZE}
+		>
+			{mark}
+		</BotStopButton>
+	) : onSelectCompanion ? (
+		<BotSelectButton
+			image={gutterBot.image}
+			name={gutterBot.name}
+			onSelect={() => onSelectCompanion(gutterBot.id)}
+			size={TURN_AVATAR_SIZE}
+		>
+			{mark}
+		</BotSelectButton>
+	) : null
 
 	return (
 		<Message
