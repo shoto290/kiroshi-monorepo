@@ -121,17 +121,19 @@ const MissionHeader = ({
 						))}
 					</ul>
 				) : null}
-				{shownStatus && (hasTicket || hasTools) ? <MissionTicketRule /> : null}
 				{shownStatus ? (
-					<span
-						className="flex min-w-0 items-center gap-1.5 text-muted-foreground text-xs leading-4"
-						data-slot="mission-status"
-					>
-						<TooltipHint content={shownStatus.text}>
-							<span className="truncate">{shownStatus.text}</span>
-						</TooltipHint>
-						<MissionStatusTime className="shrink-0" status={shownStatus} />
-					</span>
+					<>
+						{hasTicket || hasTools ? <MissionTicketRule /> : null}
+						<span
+							className="flex min-w-0 items-center gap-1.5 text-muted-foreground text-xs leading-4"
+							data-slot="mission-status"
+						>
+							<TooltipHint content={shownStatus.text}>
+								<span className="truncate">{shownStatus.text}</span>
+							</TooltipHint>
+							<MissionStatusTime className="shrink-0" status={shownStatus} />
+						</span>
+					</>
 				) : null}
 				<time
 					className="ms-auto shrink-0 text-[11px] text-muted-foreground leading-4 tabular-nums"
