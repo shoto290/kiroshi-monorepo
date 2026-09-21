@@ -455,7 +455,7 @@ export const WithStatus = meta.story({
 		docs: {
 			description: {
 				story:
-					"A mission whose companion wrote a last status. Check that it closes the preview line after the dot the other parts are separated by, in the colour of the line, that the line draws no time for it and the timestamp slot keeps the time it had, that its tooltip hands the text and its relative time over, and that the row stays the one keyboard target opening the mission. Pick `Working` for a row with no status. Nothing on main feeds this prop yet.",
+					"A mission whose companion wrote a last status. Check that it closes the preview line after the dot the other parts are separated by, in the colour of the line, that the line draws no time for it while its markup holds the time hidden from sight for assistive technology, that the line stays one line high, that the timestamp slot keeps the time it had, that its tooltip hands the text and its relative time over, and that the row stays the one keyboard target opening the mission. Pick `Working` for a row with no status. Nothing on main feeds this prop yet.",
 			},
 		},
 	},
@@ -469,7 +469,17 @@ export const WithStatus = meta.story({
 			separatorOf(partsIn(canvasElement)[1]),
 		)
 		await expect(colorOf(status)).toBe(colorOf(line))
-		await expect(line.querySelector("time")).toBeNull()
+		const time = slotIn(status, "mission-status-time")
+		await expect(time.tagName).toBe("TIME")
+		await expect(time).toHaveAttribute(
+			"datetime",
+			new Date(MISSION_STATUS.writtenAt).toISOString(),
+		)
+		await expect(time).toHaveTextContent("4 minutes ago")
+		await expect(getComputedStyle(time).position).toBe("absolute")
+		await expect(time.getBoundingClientRect().width).toBeLessThanOrEqual(1)
+		await expect(getComputedStyle(time).clipPath).toBe("inset(50%)")
+		await expect(line.getBoundingClientRect().height).toBe(16)
 		await expect(
 			canvas.getByText(WAITING_HUMAN_MISSION.timestamp),
 		).toBeVisible()

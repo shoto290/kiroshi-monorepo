@@ -128,6 +128,7 @@ const MissionRow = ({
 									data-slot="mission-status"
 								>
 									{shownStatus.text}
+									<MissionStatusTime className="sr-only" status={shownStatus} />
 								</span>
 							</TooltipHint>
 						) : null}

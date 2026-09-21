@@ -224,6 +224,8 @@ export const LongContent = meta.story({
 	),
 })
 
+const TOOLTIP_WAIT_MS = 400
+
 const SHORT_OBJECTIVE_MISSION_CARD = {
 	...UNTICKETED_MISSION_CARD,
 	objective: "Ship the status line",
@@ -235,7 +237,7 @@ export const WithStatus = meta.story({
 		docs: {
 			description: {
 				story:
-					"A mission whose companion wrote a last status. Check that it reads below the objective and the ticket line, in the muted foreground at the size of the ticket line, with its relative time after it in tabular figures, that it carries no pill and no colour of its own, and that the bubble stays the one target that opens the mission while its tooltip hands the status over. Pick `Default` for the card with no status. Nothing on main feeds this prop yet.",
+					"A mission whose companion wrote a last status. Check that it reads below the objective and the ticket line, in the muted foreground at the size of the ticket line, with its relative time after it in tabular figures, that it carries no pill and no colour of its own, and that the bubble stays the one target that opens the mission and raises no tooltip. Pick `Default` for the card with no status. Nothing on main feeds this prop yet.",
 			},
 		},
 	},
@@ -253,10 +255,12 @@ export const WithStatus = meta.story({
 		await expect(getComputedStyle(time).fontVariantNumeric).toBe("tabular-nums")
 
 		const open = canvas.getByRole("button")
-		await userEvent.hover(open)
-		await expect(await screen.findByRole("tooltip")).toHaveTextContent(
-			MISSION_STATUS.text,
+		await expect(open).toHaveAccessibleName(
+			`Open the mission: ${WAITING_MISSION_CARD.objective}`,
 		)
+		await userEvent.hover(open)
+		await new Promise((resolve) => setTimeout(resolve, TOOLTIP_WAIT_MS))
+		await expect(screen.queryByRole("tooltip")).toBeNull()
 
 		const box = status.getBoundingClientRect()
 		await expect(
@@ -275,7 +279,7 @@ export const LongStatus = meta.story({
 		docs: {
 			description: {
 				story:
-					"A status written as several sentences ending on an unbroken string, beside the same card with no status. Check that the status stops after three lines on an ellipsis, that its bubble widens to the widest a bubble takes and no further while the card without it keeps the width its objective gives it, and that the tooltip raised from the bubble hands the whole text over. Pick `WithStatus` for a status that fits.",
+					"A status written as several sentences ending on an unbroken string, beside the same card with no status. Check that the status stops after three lines on an ellipsis, that its bubble widens to the widest a bubble takes and no further while the card without it keeps the width its objective gives it, that the status never runs past the bubble, and that hovering the bubble raises no tooltip. Pick `WithStatus` for a status that fits.",
 			},
 		},
 	},
@@ -300,10 +304,15 @@ export const LongStatus = meta.story({
 		await expect(text.scrollHeight).toBeGreaterThan(text.clientHeight)
 		await expect(getComputedStyle(text).webkitLineClamp).toBe("3")
 
+		const status = slotIn(canvasElement, "mission-status")
+		await expect(status.getBoundingClientRect().right).toBeLessThanOrEqual(
+			withStatus.getBoundingClientRect().right,
+		)
+		await expect(status.scrollWidth).toBeLessThanOrEqual(status.clientWidth)
+
 		const [open] = canvas.getAllByRole("button")
 		await userEvent.hover(open)
-		await expect(await screen.findByRole("tooltip")).toHaveTextContent(
-			LONG_MISSION_STATUS.text,
-		)
+		await new Promise((resolve) => setTimeout(resolve, TOOLTIP_WAIT_MS))
+		await expect(screen.queryByRole("tooltip")).toBeNull()
 	},
 })
