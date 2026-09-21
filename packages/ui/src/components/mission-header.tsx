@@ -4,13 +4,19 @@ import { AppHeader } from "@workspace/ui/components/app-header"
 import { BotIdentityAvatar } from "@workspace/ui/components/bot-identity-avatar"
 import { Icons } from "@workspace/ui/components/icons"
 import {
+	type MissionActivity,
 	type MissionBot,
+	type MissionPullRequest,
 	type MissionState,
 	type MissionStatus,
 	type MissionTicketLink,
 	missionBadgeFor,
 	shownMissionStatus,
 } from "@workspace/ui/components/mission"
+import {
+	hasActivityLine,
+	MissionActivityLine,
+} from "@workspace/ui/components/mission-activity-line"
 import {
 	MissionStatusTime,
 	MissionTicketLine,
@@ -37,6 +43,10 @@ type MissionHeaderProps = {
 	openedAt: number
 	now: number
 	status?: MissionStatus
+	lastActivity?: MissionActivity
+	lastActivityAt?: number
+	commitsAhead?: number
+	pullRequest?: MissionPullRequest
 	onBack: () => void
 	className?: string
 }
@@ -59,6 +69,10 @@ const MissionHeader = ({
 	openedAt,
 	now,
 	status,
+	lastActivity,
+	lastActivityAt,
+	commitsAhead,
+	pullRequest,
 	onBack,
 	className,
 }: MissionHeaderProps) => {
@@ -144,6 +158,17 @@ const MissionHeader = ({
 					})}
 				</time>
 			</div>
+			{hasActivityLine({ lastActivity, commitsAhead, pullRequest }) ? (
+				<MissionActivityLine
+					className="h-7 shrink-0 border-border border-b pe-4 ps-12.5"
+					commitsAhead={commitsAhead}
+					lastActivity={lastActivity}
+					lastActivityAt={lastActivityAt}
+					now={now}
+					pullRequest={pullRequest}
+					state={state}
+				/>
+			) : null}
 		</div>
 	)
 }

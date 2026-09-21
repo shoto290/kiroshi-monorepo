@@ -48,6 +48,7 @@ const ROW: MissionRowModel = {
 	state: "waiting_human",
 	isWorking: false,
 	timestamp: "2d",
+	now: NOW,
 }
 
 const STATUS_SLOTS =
@@ -70,7 +71,7 @@ describe("a mission status holding only whitespace", () => {
 		const { container } = render(
 			<SidebarProvider>
 				<ul>
-					<MissionRow {...ROW} now={NOW} onOpen={open} status={BLANK_STATUS} />
+					<MissionRow {...ROW} onOpen={open} status={BLANK_STATUS} />
 				</ul>
 			</SidebarProvider>,
 		)
@@ -107,11 +108,19 @@ describe("a mission status holding only whitespace", () => {
 			// @ts-expect-error a status travels with the instant it is read at
 			<MissionCard {...CARD} onOpen={open} status={status} />
 		)
-		const row = (
-			// @ts-expect-error a status travels with the instant it is read at
-			<MissionRow {...ROW} onOpen={open} status={status} />
+
+		expect(card).toBeDefined()
+	})
+
+	it("draws no status on a row given no instant to read it at", () => {
+		const status: MissionStatus = { text: "Running", writtenAt: NOW }
+		const { container, queryByText } = render(
+			<SidebarProvider>
+				<MissionRow {...ROW} now={undefined} onOpen={open} status={status} />
+			</SidebarProvider>,
 		)
 
-		expect([card, row]).toHaveLength(2)
+		expect(queryByText("Running")).toBeNull()
+		expect(container.querySelectorAll(STATUS_SLOTS)).toHaveLength(0)
 	})
 })

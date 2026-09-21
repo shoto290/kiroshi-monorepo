@@ -737,6 +737,48 @@ export const Pressed = meta.story({
 	},
 })
 
+const HEIGHTS_ON_MAIN = [48, 48, 52, 52]
+
+const ROWS_WITHOUT_A_DETAIL = [
+	{ key: "name", name: "Atlas" },
+	{ key: "preview", name: "Atlas", preview: "Pulled the papers." },
+	{ key: "media", name: "Atlas", media: AVATAR, timestamp: "09:24" },
+	{
+		key: "full",
+		name: "Atlas",
+		media: AVATAR,
+		timestamp: "09:24",
+		preview: "Pulled the papers.",
+	},
+]
+
+export const HeightWithoutADetail = meta.story({
+	tags: ["test-only"],
+	render: () => (
+		<Shell>
+			{ROWS_WITHOUT_A_DETAIL.map(({ key, ...row }) => (
+				<SidebarMenuItem key={key}>
+					<SidebarListRow {...row} />
+				</SidebarMenuItem>
+			))}
+		</Shell>
+	),
+	parameters: {
+		docs: {
+			description: {
+				story:
+					"Rows given no detail, from the name alone to every slot but the detail. Check that each keeps the height it has on `origin/main`, where the stack held a fixed 36px, now that it holds a 36px minimum to make room for a detail line. Pick `BoxMetrics` for the full box.",
+			},
+		},
+	},
+	play: async ({ canvasElement }) => {
+		const heights = rowsIn(canvasElement).map(
+			(row) => row.getBoundingClientRect().height,
+		)
+		await expect(heights).toEqual(HEIGHTS_ON_MAIN)
+	},
+})
+
 export const BoxMetrics = meta.story({
 	tags: ["test-only"],
 	args: {

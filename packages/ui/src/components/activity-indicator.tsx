@@ -20,6 +20,7 @@ import {
 } from "@workspace/ui/components/motion/text-shimmer"
 import { TooltipHint } from "@workspace/ui/components/tooltip-hint"
 import { TURN_AVATAR_SIZE } from "@workspace/ui/components/turn"
+import { readableLabel } from "@workspace/ui/lib/agent-tool"
 import { cn } from "@workspace/ui/lib/utils"
 
 type ActivityIndicatorWait = "you" | "next"
@@ -40,22 +41,7 @@ type ActivityIndicatorProps = BotStopProps & {
 	className?: string
 }
 
-const MCP_PREFIX = "mcp__"
-
 const SECOND = 1000
-
-const readableTool = (t: TFunction<"chat">, token: string) => {
-	if (!token.startsWith(MCP_PREFIX)) return token
-	const [server, ...tool] = token.slice(MCP_PREFIX.length).split("__")
-	if (tool.length === 0) return token
-	return t("working.mcp", { server, tool: tool.join("__") })
-}
-
-const readableLabel = (t: TFunction<"chat">, label: string) =>
-	label
-		.split(" ")
-		.map((token) => readableTool(t, token))
-		.join(" ")
 
 type RowTextInput = {
 	t: TFunction<"chat">

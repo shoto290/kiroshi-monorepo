@@ -12,6 +12,7 @@ import type {
 	MissionBot,
 	MissionEventModel,
 } from "@workspace/ui/components/mission"
+import { MissionLink } from "@workspace/ui/components/mission-activity-line"
 import {
 	type MissionMark,
 	missionAgentTool,
@@ -93,7 +94,6 @@ type MissionEventLineProps = MissionEventTimeProps & {
 
 const MissionMachineLine = ({ event, label, now }: MissionEventLineProps) => {
 	const { t } = useTranslation("chat")
-
 	return (
 		<p
 			className="flex h-5 w-full min-w-0 items-center gap-2 px-1 text-muted-foreground text-xs leading-4"
@@ -103,9 +103,10 @@ const MissionMachineLine = ({ event, label, now }: MissionEventLineProps) => {
 				aria-hidden="true"
 				className="size-[5px] shrink-0 rounded-full bg-muted-foreground/45"
 			/>
-			<span className="min-w-0 flex-1 truncate">
+			<span className="min-w-0 truncate">
 				{t(`missions.event.line.${event.kind}`, { source: label })}
 			</span>
+			{event.link ? <MissionLink {...event.link} /> : null}
 			<MissionEventTime event={event} now={now} />
 		</p>
 	)

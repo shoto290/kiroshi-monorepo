@@ -28,7 +28,7 @@ const IDENTIFIER_CLASS = "shrink-0 font-medium tabular-nums"
 const PARTS_CLASS = "min-w-0 truncate"
 
 const STACK: Record<RowGeometry, string> = {
-	roster: "relative flex h-9 min-w-0 flex-col justify-center",
+	roster: "relative flex min-h-9 min-w-0 flex-col justify-center",
 	activity: "flex min-w-0 flex-1 flex-col gap-px",
 }
 
@@ -92,6 +92,7 @@ type RowAnatomyProps = RowAnatomyGeometry & {
 	trailing?: ReactNode
 	timestamp?: string
 	preview?: ReactNode
+	detail?: ReactNode
 	isWorking?: boolean
 	isNameMuted?: boolean
 	isNameRegular?: boolean
@@ -107,6 +108,7 @@ const RowAnatomy = ({
 	trailing,
 	timestamp,
 	preview,
+	detail,
 	isWorking = false,
 	isNameMuted = false,
 	isNameRegular = false,
@@ -147,6 +149,7 @@ const RowAnatomy = ({
 					)}
 				</span>
 			)}
+			{detail}
 			{badge ? (
 				<BotBadgeDot
 					badge={badge}

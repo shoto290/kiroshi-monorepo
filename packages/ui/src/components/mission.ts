@@ -62,13 +62,44 @@ type MissionStatusProps =
 
 type ShownMissionStatus = MissionStatus & { now: number }
 
+type MissionEventLink = {
+	url: string
+	pullRequest?: number
+}
+
 type MissionEventModel = {
 	id: string
 	kind: MissionEventKind
 	source: string
 	createdAt: number
 	text?: string
+	link?: MissionEventLink
 }
+
+type MissionActivity = {
+	tool: string
+	target: string
+}
+
+type MissionPullRequest = {
+	url: string
+	number: number
+}
+
+const MISSION_SILENCE_MS = 5 * 60_000
+
+const CLOSED_STATES: MissionState[] = ["done", "failed"]
+
+type MissionSilenceInput = {
+	state: MissionState
+	at?: number
+	now: number
+}
+
+const isMissionSilent = ({ state, at, now }: MissionSilenceInput) =>
+	at !== undefined &&
+	!CLOSED_STATES.includes(state) &&
+	now - at >= MISSION_SILENCE_MS
 
 const shownMissionStatus = (
 	status: MissionStatus | undefined,
@@ -80,11 +111,15 @@ const missionBadgeFor = (state: MissionState): BotBadge | undefined =>
 	state === "waiting_human" ? "attention" : undefined
 
 export {
+	isMissionSilent,
 	MISSION_AVATAR_SIZE,
+	type MissionActivity,
 	type MissionBot,
 	type MissionCardModel,
 	type MissionEventKind,
+	type MissionEventLink,
 	type MissionEventModel,
+	type MissionPullRequest,
 	type MissionState,
 	type MissionStatus,
 	type MissionStatusProps,

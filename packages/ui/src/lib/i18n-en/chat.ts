@@ -584,6 +584,16 @@ const chat = {
 				failed: "Failed",
 				closed: "Closed",
 			},
+			link: "Open {{host}}",
+		},
+		activity: {
+			silent: "No activity for {{age}}",
+			commitsAhead_one: "{{count}} commit ahead",
+			commitsAhead_other: "{{count}} commits ahead",
+		},
+		pullRequest: {
+			label: "#{{number}}",
+			open: "Open pull request #{{number}}",
 		},
 		card: {
 			open: "Open the mission: {{objective}}",
