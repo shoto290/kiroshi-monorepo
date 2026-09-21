@@ -1,7 +1,11 @@
 import type { ComponentType } from "react"
 
 import { type IconProps, Icons } from "@workspace/ui/components/icons"
-import type { MissionTicketLink } from "@workspace/ui/components/mission"
+import type {
+	MissionStatus,
+	MissionTicketLink,
+} from "@workspace/ui/components/mission"
+import { toRelativeTime } from "@workspace/ui/lib/time-format"
 import { cn } from "@workspace/ui/lib/utils"
 
 type MissionMark = ComponentType<IconProps>
@@ -166,10 +170,27 @@ const MissionTicketLine = ({
 	)
 }
 
+type MissionStatusTimeProps = {
+	status: MissionStatus
+	className?: string
+}
+
+const MissionStatusTime = ({ status, className }: MissionStatusTimeProps) => (
+	<time
+		className={cn("tabular-nums", className)}
+		data-slot="mission-status-time"
+		dateTime={new Date(status.writtenAt).toISOString()}
+	>
+		{toRelativeTime(status.writtenAt, status.now)}
+	</time>
+)
+
 export {
 	isNamedMissionTool,
 	type MissionMark,
 	type MissionSourceKind,
+	MissionStatusTime,
+	type MissionStatusTimeProps,
 	MissionTicketLine,
 	type MissionTicketLineProps,
 	type MissionTicketPlatform,

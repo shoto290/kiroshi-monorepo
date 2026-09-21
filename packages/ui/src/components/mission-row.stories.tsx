@@ -1,5 +1,5 @@
 import type { CSSProperties, ReactNode } from "react"
-import { expect, fn } from "storybook/test"
+import { expect, fn, screen } from "storybook/test"
 
 import preview from "@workspace/storybook/preview"
 import {
@@ -12,7 +12,9 @@ import { MissionRow } from "@workspace/ui/components/mission-row"
 import {
 	CLOSED_MISSION,
 	FAILED_MISSION,
+	LONG_MISSION_STATUS,
 	MISSION_STATES,
+	MISSION_STATUS,
 	READY_MISSION,
 	UNTICKETED_MISSION,
 	WAITING_BOT_MISSION,
@@ -165,6 +167,7 @@ export const Working = meta.story({
 			partsIn(canvasElement).map((part) => part.textContent),
 		).toEqual(["OPE-42", "Ada Martin"])
 		await expect(canvas.getByText("Working now")).toBeInTheDocument()
+		await expect(slotsIn(canvasElement, "mission-status")).toHaveLength(0)
 
 		const name = canvas.getByText("Ada Martin")
 		await expect(figuresOf(name)).toBe("normal")
@@ -442,5 +445,71 @@ export const BoxMatchesARosterRow = meta.story({
 		})
 		await expect(missionBox.height).toBe(48)
 		await expect(rosterBox.height).toBe(52)
+	},
+})
+
+export const WithStatus = meta.story({
+	args: { ...WAITING_HUMAN_MISSION, status: MISSION_STATUS },
+	parameters: {
+		docs: {
+			description: {
+				story:
+					"A mission whose companion wrote a last status. Check that it closes the preview line after the dot the other parts are separated by, in the colour of the line, that the line draws no time for it and the timestamp slot keeps the time it had, that its tooltip hands the text and its relative time over, and that the row stays the one keyboard target opening the mission. Pick `Working` for a row with no status. Nothing on main feeds this prop yet.",
+			},
+		},
+	},
+	play: async ({ args, canvas, canvasElement, userEvent }) => {
+		const line = previewIn(canvasElement)
+		const status = slotIn(line, "mission-status")
+
+		await expect(line.lastElementChild).toBe(status)
+		await expect(status).toHaveTextContent(MISSION_STATUS.text)
+		await expect(separatorOf(status)).toBe(
+			separatorOf(partsIn(canvasElement)[1]),
+		)
+		await expect(colorOf(status)).toBe(colorOf(line))
+		await expect(line.querySelector("time")).toBeNull()
+		await expect(
+			canvas.getByText(WAITING_HUMAN_MISSION.timestamp),
+		).toBeVisible()
+		await expect(
+			rowIn(canvasElement).querySelectorAll("[tabindex], button, a"),
+		).toHaveLength(0)
+
+		await userEvent.hover(status)
+		const tip = await screen.findByRole("tooltip")
+		await expect(tip).toHaveTextContent(MISSION_STATUS.text)
+		await expect(tip).toHaveTextContent("4 minutes ago")
+
+		await userEvent.click(status)
+		await expect(args.onOpen).toHaveBeenCalled()
+	},
+})
+
+export const LongStatus = meta.story({
+	args: { ...WAITING_HUMAN_MISSION, status: LONG_MISSION_STATUS },
+	parameters: {
+		docs: {
+			description: {
+				story:
+					"A status written as several sentences, in a row of the width the activity panel gives it. Check that the preview line stays one line high and cuts on an ellipsis, that the timestamp slot stays whole, and that the tooltip raised from the status hands the whole text over. Pick `WithStatus` for a status that fits.",
+			},
+		},
+	},
+	play: async ({ canvas, canvasElement, userEvent }) => {
+		const line = previewIn(canvasElement)
+		const status = slotIn(line, "mission-status")
+
+		await expect(line.getBoundingClientRect().height).toBe(16)
+		await expect(line.scrollWidth).toBeGreaterThan(line.clientWidth)
+		await expect(status).toHaveTextContent(LONG_MISSION_STATUS.text)
+		await expect(
+			canvas.getByText(WAITING_HUMAN_MISSION.timestamp),
+		).toBeVisible()
+
+		await userEvent.hover(status)
+		await expect(await screen.findByRole("tooltip")).toHaveTextContent(
+			LONG_MISSION_STATUS.text,
+		)
 	},
 })

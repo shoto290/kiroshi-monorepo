@@ -257,8 +257,10 @@ conversation-missions-missioncard--default
 conversation-missions-missioncard--identifier-without-title
 conversation-missions-missioncard--live
 conversation-missions-missioncard--long-content
+conversation-missions-missioncard--long-status
 conversation-missions-missioncard--unlinkable
 conversation-missions-missioncard--unrecognised
+conversation-missions-missioncard--with-status
 conversation-missions-missioncard--without-ticket
 conversation-missions-missioneventrow--authored-event
 conversation-missions-missioneventrow--authored-events
@@ -275,8 +277,10 @@ conversation-missions-missioneventrow--without-a-bot
 conversation-missions-missionheader--default
 conversation-missions-missionheader--empty
 conversation-missions-missionheader--long-content
+conversation-missions-missionheader--long-status
 conversation-missions-missionheader--states
 conversation-missions-missionheader--ticket-link
+conversation-missions-missionheader--with-status
 conversation-missions-missionheader--without-a-pill
 conversation-missions-missionheader--without-a-tool
 conversation-missions-missionmarks--as-line
@@ -285,11 +289,13 @@ conversation-missions-missionrow--box-matches-a-roster-row
 conversation-missions-missionrow--closed
 conversation-missions-missionrow--failed
 conversation-missions-missionrow--long-content
+conversation-missions-missionrow--long-status
 conversation-missions-missionrow--parts-repeating-the-same-words
 conversation-missions-missionrow--ready-to-merge
 conversation-missions-missionrow--states
 conversation-missions-missionrow--waiting-for-its-bot
 conversation-missions-missionrow--waiting-on-you
+conversation-missions-missionrow--with-status
 conversation-missions-missionrow--without-a-ticket
 conversation-missions-missionrow--working
 conversation-missions-missionstatepill--states

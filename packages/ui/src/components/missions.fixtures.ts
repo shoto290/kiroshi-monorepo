@@ -5,6 +5,7 @@ import type {
 	MissionCardModel,
 	MissionEventModel,
 	MissionState,
+	MissionStatus,
 	MissionTicketLink,
 } from "@workspace/ui/components/mission"
 import type { MissionRowModel } from "@workspace/ui/components/mission-row"
@@ -178,6 +179,17 @@ export const NO_MISSIONS: MissionRowModel[] = []
 export const MISSION_NOW = new Date("2026-03-04T09:30:00Z").getTime()
 
 const minutesBefore = (minutes: number) => MISSION_NOW - minutes * 60_000
+
+export const MISSION_STATUS: MissionStatus = {
+	text: "Running the storybook suite before opening the pull request",
+	writtenAt: minutesBefore(4),
+	now: MISSION_NOW,
+}
+
+export const LONG_MISSION_STATUS: MissionStatus = {
+	...MISSION_STATUS,
+	text: "Rebased the branch on main and resolved the conflict in the mission header. The storybook suite now passes on every story of the three mission surfaces, the type check is green and lint reports nothing. Waiting on the design review before opening the pull request against supercalifragilisticexpialidociousdesigntokensurface.",
+}
 
 export const MISSION_TICKET: MissionTicketLink = {
 	externalId: "OPE-30",

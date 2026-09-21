@@ -8,8 +8,13 @@ import {
 	MessageBubble,
 	MessageBubbleContent,
 } from "@workspace/ui/components/message-bubble"
-import type { MissionCardModel } from "@workspace/ui/components/mission"
 import {
+	type MissionCardModel,
+	type MissionStatus,
+	shownMissionStatus,
+} from "@workspace/ui/components/mission"
+import {
+	MissionStatusTime,
 	MissionTicketLine,
 	MissionToolMark,
 } from "@workspace/ui/components/mission-marks"
@@ -17,9 +22,11 @@ import {
 	hasStatePill,
 	MissionStatePill,
 } from "@workspace/ui/components/mission-state-pill"
+import { TooltipHint } from "@workspace/ui/components/tooltip-hint"
 import { cn } from "@workspace/ui/lib/utils"
 
 type MissionCardProps = Omit<MissionCardModel, "author" | "identity"> & {
+	status?: MissionStatus
 	onOpen: (missionId: string) => void
 	className?: string
 }
@@ -50,24 +57,28 @@ const MissionCard = ({
 	tools,
 	isWorking,
 	isClosed,
+	status,
 	onOpen,
 	className,
 }: MissionCardProps) => {
 	const { t } = useTranslation("chat")
 	const hasTicket = Boolean(ticket.externalId || ticket.title)
+	const shownStatus = shownMissionStatus(status)
 
 	return (
 		<MessageBubble className={className} variant="soft">
 			<MessageBubbleContent className={MESSAGE_BUBBLE_INTERACTIVE}>
-				<button
-					aria-label={t("missions.card.open", { objective })}
-					className={cn(
-						"absolute rounded-2xl outline-none focus-visible:ring-2 focus-visible:ring-ring",
-						MESSAGE_BUBBLE_PADDING_INSET,
-					)}
-					onClick={() => onOpen(id)}
-					type="button"
-				/>
+				<TooltipHint content={shownStatus?.text}>
+					<button
+						aria-label={t("missions.card.open", { objective })}
+						className={cn(
+							"absolute rounded-2xl outline-none focus-visible:ring-2 focus-visible:ring-ring",
+							MESSAGE_BUBBLE_PADDING_INSET,
+						)}
+						onClick={() => onOpen(id)}
+						type="button"
+					/>
+				</TooltipHint>
 				<span
 					className="flex flex-col gap-2"
 					data-closed={isClosed}
@@ -89,6 +100,17 @@ const MissionCard = ({
 						</span>
 						{hasTicket ? <MissionTicketLine ticket={ticket} /> : null}
 					</span>
+					{shownStatus ? (
+						<span
+							className="flex flex-col text-muted-foreground text-xs contain-inline-size"
+							data-slot="mission-status"
+						>
+							<span className="line-clamp-3 wrap-break-word">
+								{shownStatus.text}
+							</span>
+							<MissionStatusTime status={shownStatus} />
+						</span>
+					) : null}
 				</span>
 			</MessageBubbleContent>
 		</MessageBubble>

@@ -6,10 +6,13 @@ import { Icons } from "@workspace/ui/components/icons"
 import {
 	type MissionBot,
 	type MissionState,
+	type MissionStatus,
 	type MissionTicketLink,
 	missionBadgeFor,
+	shownMissionStatus,
 } from "@workspace/ui/components/mission"
 import {
+	MissionStatusTime,
 	MissionTicketLine,
 	MissionToolMark,
 } from "@workspace/ui/components/mission-marks"
@@ -17,6 +20,7 @@ import {
 	hasStatePill,
 	MissionStatePill,
 } from "@workspace/ui/components/mission-state-pill"
+import { TooltipHint } from "@workspace/ui/components/tooltip-hint"
 import { Button } from "@workspace/ui/components/ui/button"
 import { toRelativeTime } from "@workspace/ui/lib/time-format"
 import { cn } from "@workspace/ui/lib/utils"
@@ -32,9 +36,18 @@ type MissionHeaderProps = {
 	isWorking: boolean
 	openedAt: number
 	now: number
+	status?: MissionStatus
 	onBack: () => void
 	className?: string
 }
+
+const MissionTicketRule = () => (
+	<span
+		aria-hidden="true"
+		className="h-3 w-px shrink-0 bg-border"
+		data-slot="mission-ticket-rule"
+	/>
+)
 
 const MissionHeader = ({
 	bot,
@@ -45,12 +58,14 @@ const MissionHeader = ({
 	isWorking,
 	openedAt,
 	now,
+	status,
 	onBack,
 	className,
 }: MissionHeaderProps) => {
 	const { t } = useTranslation("chat")
 	const hasTicket = Boolean(ticket.externalId || ticket.title)
 	const hasTools = tools.length > 0
+	const shownStatus = shownMissionStatus(status)
 
 	return (
 		<div
@@ -93,13 +108,7 @@ const MissionHeader = ({
 				data-slot="mission-ticket-band"
 			>
 				{hasTicket ? <MissionTicketLine layout="line" ticket={ticket} /> : null}
-				{hasTicket && hasTools ? (
-					<span
-						aria-hidden="true"
-						className="h-3 w-px shrink-0 bg-border"
-						data-slot="mission-ticket-rule"
-					/>
-				) : null}
+				{hasTicket && hasTools ? <MissionTicketRule /> : null}
 				{hasTools ? (
 					<ul
 						aria-label={t("missions.header.tools")}
@@ -111,6 +120,18 @@ const MissionHeader = ({
 							</li>
 						))}
 					</ul>
+				) : null}
+				{shownStatus && (hasTicket || hasTools) ? <MissionTicketRule /> : null}
+				{shownStatus ? (
+					<span
+						className="flex min-w-0 items-center gap-1.5 text-muted-foreground text-xs leading-4"
+						data-slot="mission-status"
+					>
+						<TooltipHint content={shownStatus.text}>
+							<span className="truncate">{shownStatus.text}</span>
+						</TooltipHint>
+						<MissionStatusTime className="shrink-0" status={shownStatus} />
+					</span>
 				) : null}
 				<time
 					className="ms-auto shrink-0 text-[11px] text-muted-foreground leading-4 tabular-nums"
