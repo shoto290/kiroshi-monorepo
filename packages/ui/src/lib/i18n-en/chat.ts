@@ -583,7 +583,7 @@ const chat = {
 				failed: "Failed",
 				closed: "Closed",
 			},
-			link: "Open the link",
+			link: "Open {{host}}",
 		},
 		activity: {
 			silent: "No activity for {{age}}",

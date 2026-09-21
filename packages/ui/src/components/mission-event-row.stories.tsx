@@ -162,15 +162,16 @@ export const WithAnUnnumberedLink = meta.story({
 		docs: {
 			description: {
 				story:
-					"An event carrying a link with no pull request number. Check that the link reads a named action rather than a bare address. Pick `WithPullRequestLink` for a numbered pull request. " +
+					"An event carrying a link with no pull request number. Check that the link reads the host it leads to, and that its accessible name says it opens that host. Pick `WithPullRequestLink` for a numbered pull request. " +
 					PLACED_BY_THE_FEED,
 			},
 		},
 	},
 	play: async ({ canvas }) => {
-		await expect(
-			canvas.getByRole("link", { name: "Open the link" }),
-		).toHaveAttribute("href", MISSION_PULL_REQUEST.url)
+		const link = canvas.getByRole("link", { name: "Open github.example" })
+
+		await expect(link).toHaveTextContent("github.example")
+		await expect(link).toHaveAttribute("href", MISSION_PULL_REQUEST.url)
 	},
 })
 
@@ -279,7 +280,7 @@ export const EventKinds = meta.story({
 		docs: {
 			description: {
 				story:
-					"The eight kinds an event can carry, exhaustively, each once as a machine line and once as a bubble. Check that every machine line names the resolved actor except the answer, whose sentence names none, that every bubble carries its kind as a badge, and that only the agent asked badge is tinted. " +
+					"The eight kinds an event can carry, exhaustively, each once as a machine line and once as a bubble. Check that every machine line draws its dot, its wording and its time, that it names the resolved actor except the answer, whose sentence names none, that every bubble carries its kind as a badge, and that only the agent asked badge is tinted. " +
 					PLACED_BY_THE_FEED,
 			},
 		},
@@ -320,6 +321,16 @@ export const EventKinds = meta.story({
 		)
 
 		await expect(lines).toHaveLength(MISSION_EVENT_KINDS.length)
+		for (const line of lines) {
+			await expect(line.firstElementChild).toHaveAttribute(
+				"aria-hidden",
+				"true",
+			)
+			await expect(line.textContent?.trim()).not.toBe(
+				line.querySelector("time")?.textContent,
+			)
+			await expect(line.querySelector("time")).toBeVisible()
+		}
 		await expect(answered).not.toHaveTextContent(MISSION_BOT.name)
 		await expect(slotsIn(canvasElement, "mission-authored-event")).toHaveLength(
 			MISSION_EVENT_KINDS.length,

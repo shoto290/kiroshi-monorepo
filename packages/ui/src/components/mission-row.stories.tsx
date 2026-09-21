@@ -230,6 +230,28 @@ export const WorkingNow = meta.story({
 	},
 })
 
+export const WithoutAClock = meta.story({
+	args: { ...SILENT_MISSION, now: undefined },
+	parameters: {
+		docs: {
+			description: {
+				story:
+					"A mission given a last activity but no instant to read its age against, as the app passes it until it hands the row a clock. Check that the second line still names the tool and the target, and that it says neither an age nor how long there has been no activity. Pick `WorkingNow` for a row read against a clock. " +
+					LISTED_BY_THE_PANEL,
+			},
+		},
+	},
+	play: async ({ canvasElement }) => {
+		const line = activityIn(canvasElement)
+
+		await expect(line).toHaveTextContent(MISSION_ACTIVITY_TOOL)
+		await expect(line).toHaveTextContent(MISSION_ACTIVITY_LAST_SEGMENT)
+		await expect(slotsIn(line, "mission-activity-age")).toHaveLength(0)
+		await expect(slotsIn(line, "mission-silence")).toHaveLength(0)
+		await expect(line.querySelector("time")).toBeNull()
+	},
+})
+
 export const SilentForMinutes = meta.story({
 	args: SILENT_MISSION,
 	parameters: {

@@ -94,12 +94,6 @@ type MissionEventLineProps = MissionEventTimeProps & {
 
 const MissionMachineLine = ({ event, label, now }: MissionEventLineProps) => {
 	const { t } = useTranslation("chat")
-	const wording = t(`missions.event.line.${event.kind}`, {
-		source: label,
-		defaultValue: "",
-	})
-	if (!(wording || event.link)) return null
-
 	return (
 		<p
 			className="flex h-5 w-full min-w-0 items-center gap-2 px-1 text-muted-foreground text-xs leading-4"
@@ -109,7 +103,9 @@ const MissionMachineLine = ({ event, label, now }: MissionEventLineProps) => {
 				aria-hidden="true"
 				className="size-[5px] shrink-0 rounded-full bg-muted-foreground/45"
 			/>
-			<span className="min-w-0 truncate">{wording}</span>
+			<span className="min-w-0 truncate">
+				{t(`missions.event.line.${event.kind}`, { source: label })}
+			</span>
 			{event.link ? <MissionLink {...event.link} /> : null}
 			<MissionEventTime event={event} now={now} />
 		</p>

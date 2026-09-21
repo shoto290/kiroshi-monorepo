@@ -34,7 +34,7 @@ type MissionRowModel = {
 	state: MissionState
 	isWorking: boolean
 	timestamp: string
-	now: number
+	now?: number
 	status?: MissionStatus
 	lastActivity?: MissionActivity
 	lastActivityAt?: number

@@ -111,4 +111,16 @@ describe("a mission status holding only whitespace", () => {
 
 		expect(card).toBeDefined()
 	})
+
+	it("draws no status on a row given no instant to read it at", () => {
+		const status: MissionStatus = { text: "Running", writtenAt: NOW }
+		const { container, queryByText } = render(
+			<SidebarProvider>
+				<MissionRow {...ROW} now={undefined} onOpen={open} status={status} />
+			</SidebarProvider>,
+		)
+
+		expect(queryByText("Running")).toBeNull()
+		expect(container.querySelectorAll(STATUS_SLOTS)).toHaveLength(0)
+	})
 })

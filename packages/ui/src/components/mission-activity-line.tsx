@@ -15,20 +15,25 @@ import { readableTool } from "@workspace/ui/lib/agent-tool"
 import { toCompactAge } from "@workspace/ui/lib/time-format"
 import { cn } from "@workspace/ui/lib/utils"
 
+const PART_CLASS = "shrink-0 whitespace-nowrap"
+
 type MissionLinkProps = MissionEventLink & {
 	className?: string
 }
 
+const hostOf = (url: string) => (URL.canParse(url) ? new URL(url).host : url)
+
 const MissionLink = ({ url, pullRequest, className }: MissionLinkProps) => {
 	const { t } = useTranslation("chat")
 	const hasNumber = pullRequest !== undefined
+	const host = hostOf(url)
 
 	return (
 		<a
 			aria-label={
 				hasNumber
 					? t("missions.pullRequest.open", { number: pullRequest })
-					: undefined
+					: t("missions.event.link", { host })
 			}
 			className={cn(
 				"relative shrink-0 whitespace-nowrap rounded-sm font-medium text-foreground tabular-nums outline-none after:absolute after:-inset-1 hover:underline focus-visible:ring-2 focus-visible:ring-ring",
@@ -41,22 +46,42 @@ const MissionLink = ({ url, pullRequest, className }: MissionLinkProps) => {
 		>
 			{hasNumber
 				? t("missions.pullRequest.label", { number: pullRequest })
-				: t("missions.event.link")}
+				: host}
 		</a>
+	)
+}
+
+type MissionActivityAgeProps = {
+	state: MissionState
+	at: number
+	now: number
+}
+
+const MissionActivityAge = ({ state, at, now }: MissionActivityAgeProps) => {
+	const { t } = useTranslation("chat")
+	const age = toCompactAge(at, now)
+	const isSilent = isMissionSilent({ state, at, now })
+
+	return (
+		<time
+			className={cn(PART_CLASS, "tabular-nums", DOT_CLASS)}
+			data-slot={isSilent ? "mission-silence" : "mission-activity-age"}
+			dateTime={new Date(at).toISOString()}
+		>
+			{isSilent ? t("missions.activity.silent", { age }) : age}
+		</time>
 	)
 }
 
 type MissionActivityLineProps = {
 	state: MissionState
-	now: number
+	now?: number
 	lastActivity?: MissionActivity
 	lastActivityAt?: number
 	commitsAhead?: number
 	pullRequest?: MissionPullRequest
 	className?: string
 }
-
-const PART_CLASS = "shrink-0 whitespace-nowrap"
 
 const hasActivityLine = ({
 	lastActivity,
@@ -81,7 +106,6 @@ const MissionActivityLine = ({
 }: MissionActivityLineProps) => {
 	const { t } = useTranslation("chat")
 	const at = lastActivity ? lastActivityAt : undefined
-	const isSilent = isMissionSilent({ state, at, now })
 	const hasCommits = commitsAhead > 0
 
 	return (
@@ -110,16 +134,8 @@ const MissionActivityLine = ({
 					</span>
 				</>
 			) : null}
-			{at === undefined ? null : (
-				<time
-					className={cn(PART_CLASS, "tabular-nums", DOT_CLASS)}
-					data-slot={isSilent ? "mission-silence" : "mission-activity-age"}
-					dateTime={new Date(at).toISOString()}
-				>
-					{isSilent
-						? t("missions.activity.silent", { age: toCompactAge(at, now) })
-						: toCompactAge(at, now)}
-				</time>
+			{at === undefined || now === undefined ? null : (
+				<MissionActivityAge at={at} now={now} state={state} />
 			)}
 			{hasCommits ? (
 				<span

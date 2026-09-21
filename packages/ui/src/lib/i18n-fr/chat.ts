@@ -612,6 +612,17 @@ const chat = {
 				failed: "En échec",
 				closed: "Fermée",
 			},
+			link: "Ouvrir {{host}}",
+		},
+		activity: {
+			silent: "Aucune activité depuis {{age}}",
+			commitsAhead_one: "{{count}} commit d'avance",
+			commitsAhead_many: "{{count}} commits d'avance",
+			commitsAhead_other: "{{count}} commits d'avance",
+		},
+		pullRequest: {
+			label: "#{{number}}",
+			open: "Ouvrir la pull request n° {{number}}",
 		},
 		card: {
 			open: "Ouvrir la mission : {{objective}}",
