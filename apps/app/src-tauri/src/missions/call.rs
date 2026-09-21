@@ -83,13 +83,11 @@ async fn carried<R: Runtime>(
 	let Some(held) = parsed(&body) else {
 		return Ok(UNREADABLE);
 	};
-	let activity = match text(&held, "event") == hook::TOOL_USED {
-		true => match activity(&held) {
-			Some(activity) => Some(activity),
-			None => return Ok(UNREADABLE),
-		},
-		false => None,
-	};
+	let is_tool_call = text(&held, "event") == hook::TOOL_USED;
+	let activity = activity(&held).filter(|_| is_tool_call);
+	if is_tool_call && activity.is_none() {
+		return Ok(UNREADABLE);
+	}
 	let budget = match activity {
 		Some(_) => format!("{}{ACTIVITY_BUDGET}", mission.id),
 		None => mission.id.clone(),
