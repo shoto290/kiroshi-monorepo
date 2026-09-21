@@ -19,8 +19,10 @@ import {
 
 const AUTHORED_WEIGHT = 5.5
 
+const AVATAR_INK = "var(--bot-avatar-ink, currentColor)"
+
 const STROKE_BASE = {
-	stroke: "var(--bot-avatar-ink, currentColor)",
+	stroke: AVATAR_INK,
 	strokeLinecap: "round",
 	strokeLinejoin: "round",
 } as const
@@ -209,8 +211,8 @@ const BotAvatarBody = ({
 					<ellipse rx={9} ry={4.5} {...ROLE_PROPS.accent} />
 				</g>
 				<g clipPath={`url(#${clipId})`}>
-					<path data-part={PARTS.eye0} fill="currentColor" />
-					<path data-part={PARTS.eye1} fill="currentColor" />
+					<path data-part={PARTS.eye0} fill={AVATAR_INK} />
+					<path data-part={PARTS.eye1} fill={AVATAR_INK} />
 				</g>
 				<path
 					data-part={PARTS.wire}

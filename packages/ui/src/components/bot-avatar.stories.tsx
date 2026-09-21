@@ -352,3 +352,55 @@ export const ChipRow = meta.story({
 		</div>
 	),
 })
+
+const inkOf = (avatar: SVGSVGElement) => {
+	const eye = avatar.querySelector('[data-part="eye-0"]')
+	const outline = avatar.querySelector('[data-part="head"] path')
+	if (!eye || !outline) throw new Error("This avatar draws no eye or outline")
+	return {
+		eye: getComputedStyle(eye).fill,
+		outline: getComputedStyle(outline).stroke,
+	}
+}
+
+const surfaceBehind = (avatar: SVGSVGElement) => {
+	const blot = avatar.querySelector('[data-slot="bot-avatar-blot"]')
+	if (blot) return getComputedStyle(blot).fill
+	for (
+		let node: Element | null = avatar.parentElement;
+		node;
+		node = node.parentElement
+	) {
+		const { backgroundColor } = getComputedStyle(node)
+		if (backgroundColor !== "rgba(0, 0, 0, 0)") return backgroundColor
+	}
+	throw new Error("Nothing paints a surface behind this avatar")
+}
+
+export const InkDark = meta.story({
+	globals: { theme: "dark" },
+	parameters: {
+		docs: {
+			description: {
+				story:
+					"The avatar under the dark theme, bare and on a blot. Check that the eyes take the same ink as the outline in both cells: near-white on the dark surface without a blot, near-black on the tint with one. An eye that follows the text colour instead vanishes on any light ground.",
+			},
+		},
+	},
+	render: (args) => (
+		<div className="flex gap-6">
+			<BotAvatar {...args} animated={false} blot={undefined} />
+			<BotAvatar {...args} animated={false} blot="yellow" />
+		</div>
+	),
+	play: async ({ canvasElement }) => {
+		const avatars = Array.from(canvasElement.querySelectorAll("svg[role=img]"))
+
+		await expect(avatars).toHaveLength(2)
+		for (const avatar of avatars as SVGSVGElement[]) {
+			const ink = inkOf(avatar)
+			await expect(ink.eye).toBe(ink.outline)
+			await expect(ink.eye).not.toBe(surfaceBehind(avatar))
+		}
+	},
+})
