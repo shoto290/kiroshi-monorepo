@@ -45,6 +45,7 @@ const MIGRATIONS: &[Migration] = &[
 	Migration { version: 36, statements: BOTS_WITHOUT_UNREAD_COLUMNS },
 	Migration { version: 37, statements: MISSION_AGENT_LIVENESS },
 	Migration { version: 38, statements: MISSION_STATUS },
+	Migration { version: 39, statements: MISSION_PROGRESS },
 ];
 
 const CONVERSATIONS_SCHEMA: &str = "
@@ -838,6 +839,21 @@ BEGIN
 END;
 ";
 
+const MISSION_PROGRESS: &str = "
+ALTER TABLE missions ADD COLUMN last_activity_at INTEGER;
+ALTER TABLE missions ADD COLUMN last_activity TEXT;
+ALTER TABLE missions ADD COLUMN commits_ahead INTEGER;
+ALTER TABLE missions ADD COLUMN dirty_files INTEGER;
+ALTER TABLE missions ADD COLUMN pull_request_url TEXT;
+
+UPDATE missions SET pull_request_url = (
+	SELECT json_extract(payload, '$.url') FROM mission_events
+	WHERE mission_events.mission_id = missions.id AND mission_events.source = 'github'
+		AND mission_events.kind = 'note' AND json_extract(payload, '$.url') IS NOT NULL
+	ORDER BY mission_events.seq DESC LIMIT 1
+);
+";
+
 const CONVERSATION_ARRIVALS: &str = "
 CREATE TABLE conversation_arrivals (
 	id TEXT PRIMARY KEY,
@@ -1009,6 +1025,7 @@ mod tests {
 	const APPLICATION_INSTALL_PRESENTATION_STEP: u32 = 35;
 	const BOTS_WITHOUT_UNREAD_COLUMNS_STEP: u32 = 36;
 	const MISSION_STATUS_STEP: u32 = 38;
+	const MISSION_PROGRESS_STEP: u32 = 39;
 
 	const A_LIVE_SESSION: &str = "INSERT INTO runtime_sessions
 		(id, conversation_id, bot_id, provider_session_id, seq, status, started_at)
@@ -1293,6 +1310,81 @@ mod tests {
 			"the rebuild dropped the index holding one event per delivery"
 		);
 
+		drop(connection);
+		fs::remove_dir_all(&dir).expect("cleanup");
+	}
+
+	#[test]
+	fn a_mission_stored_before_the_progress_step_carries_the_url_its_github_note_named() {
+		let dir = temp_dir();
+		let mut connection = open(&dir.join(FILE_NAME)).expect("open");
+		apply_each(&mut connection, shipped_before(MISSION_PROGRESS_STEP))
+			.expect("the shipped schema");
+		connection
+			.execute_batch(
+				"INSERT INTO bots (id, name, model, created_at)
+					VALUES ('b1', 'First', 'sonnet', 1);
+				INSERT INTO conversations (id, kind, title, created_at, updated_at)
+					VALUES ('c1', 'main', 'Chat', 1, 1), ('c2', 'mission', 'Fix it', 1, 1),
+						('c3', 'mission', 'Plan it', 1, 1);
+				INSERT INTO conversation_participants
+					(conversation_id, bot_id, role, joined_at, join_seq)
+					VALUES ('c1', 'b1', 'assistant', 1, 0);
+				INSERT INTO missions (id, origin_conversation_id, bot_id, thread_conversation_id,
+					objective, ticket_platform, ticket_external_id, ticket_url, ticket_title,
+					tools, opened_at)
+					VALUES ('m1', 'c1', 'b1', 'c2', 'Fix it', 'github', '42',
+						'https://kiroshi.test/tickets/42', 'Crash', '[]', 1),
+						('m2', 'c1', 'b1', 'c3', 'Plan it', 'github', '43',
+						'https://kiroshi.test/tickets/43', 'Plan', '[]', 1);
+				INSERT INTO mission_events
+					(id, mission_id, seq, kind, source, payload, created_at)
+					VALUES ('e1', 'm1', 1, 'opened', 'bot', '{}', 1),
+						('e2', 'm1', 2, 'note', 'github',
+							'{\"pullRequest\":7,\"url\":\"https://kiroshi.test/pull/7\"}', 2),
+						('e3', 'm2', 1, 'opened', 'bot', '{}', 1);",
+			)
+			.expect("the missions this build upgrades from");
+
+		apply(&mut connection).expect("the file comes up to this build");
+
+		assert_eq!(version(&connection).expect("version"), latest_version());
+		let mut statement = connection
+			.prepare(
+				"SELECT id, pull_request_url, last_activity_at, last_activity, commits_ahead,
+					dirty_files FROM missions ORDER BY id",
+			)
+			.expect("the missions read");
+		let rows = statement
+			.query_map([], |row| {
+				Ok((
+					row.get::<_, String>(0)?,
+					row.get::<_, Option<String>>(1)?,
+					row.get::<_, Option<i64>>(2)?,
+					row.get::<_, Option<String>>(3)?,
+					row.get::<_, Option<i64>>(4)?,
+					row.get::<_, Option<i64>>(5)?,
+				))
+			})
+			.expect("the missions map")
+			.collect::<rusqlite::Result<Vec<_>>>()
+			.expect("the missions collect");
+		assert_eq!(
+			rows,
+			vec![
+				(
+					"m1".to_owned(),
+					Some("https://kiroshi.test/pull/7".to_owned()),
+					None,
+					None,
+					None,
+					None
+				),
+				("m2".to_owned(), None, None, None, None, None),
+			],
+		);
+
+		drop(statement);
 		drop(connection);
 		fs::remove_dir_all(&dir).expect("cleanup");
 	}

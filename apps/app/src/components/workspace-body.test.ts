@@ -120,6 +120,11 @@ const missionOf = (bot: Bot, origin: Conversation): Mission => ({
 	reportedAt: null,
 	reportedTurnId: null,
 	status: null,
+	lastActivityAt: null,
+	lastActivity: null,
+	commitsAhead: null,
+	dirtyFiles: null,
+	pullRequestUrl: null,
 })
 
 const eventOf = (
@@ -312,6 +317,7 @@ const missionChanges = () => {
 					state: "working",
 					stateSeq: 1,
 					isAgentRunning: false,
+					lastActivityAt: null,
 				})
 			}
 		})

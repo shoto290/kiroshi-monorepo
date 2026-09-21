@@ -1,3 +1,6 @@
+use std::collections::HashMap;
+use std::sync::{Mutex, MutexGuard, PoisonError};
+
 use serde::Serialize;
 use tauri::{AppHandle, Emitter, Manager, Runtime, State};
 
@@ -6,6 +9,7 @@ use super::contract::{
 	MissionDraft, MissionEntry, MissionError, MissionEventKind, MissionNote, MissionOnBoard,
 	MissionOpened, MissionState, MissionWatch, MissionWatching,
 };
+use super::checkout;
 use super::hook;
 use crate::avatars;
 use crate::bundles;
@@ -39,6 +43,16 @@ pub struct MissionChanged {
 	pub state: MissionState,
 	pub state_seq: i64,
 	pub is_agent_running: bool,
+	pub last_activity_at: Option<i64>,
+}
+
+#[derive(Default)]
+pub struct AnnouncedRunning(Mutex<HashMap<String, bool>>);
+
+impl AnnouncedRunning {
+	fn kept(&self) -> MutexGuard<'_, HashMap<String, bool>> {
+		self.0.lock().unwrap_or_else(PoisonError::into_inner)
+	}
 }
 
 pub(super) fn announce_change<R: Runtime>(
@@ -52,9 +66,27 @@ pub(super) fn announce_change<R: Runtime>(
 			state: mission.state,
 			state_seq: mission.state_seq,
 			is_agent_running: mission.is_agent_running,
+			last_activity_at: mission.last_activity_at,
 		},
 	)
-	.map_err(|error| MissionError::Undeliverable { detail: error.to_string() })
+	.map_err(|error| MissionError::Undeliverable { detail: error.to_string() })?;
+	remember_running(app, mission);
+	Ok(())
+}
+
+fn remember_running<R: Runtime>(app: &AppHandle<R>, mission: &Mission) {
+	let Some(announced) = app.try_state::<AnnouncedRunning>() else {
+		return;
+	};
+	let mut kept = announced.kept();
+	match mission.closed_at {
+		Some(_) => kept.remove(&mission.id),
+		None => kept.insert(mission.id.clone(), mission.is_agent_running),
+	};
+}
+
+pub(super) fn announced_running<R: Runtime>(app: &AppHandle<R>, mission_id: &str) -> Option<bool> {
+	app.try_state::<AnnouncedRunning>()?.kept().get(mission_id).copied()
 }
 
 fn refuse_blank(field: &str, held: &str) -> Result<(), MissionError> {
@@ -231,9 +263,34 @@ pub async fn mission_watch<R: Runtime>(
 	let watch = normalised(watch);
 	refused_watch(&watch)?;
 	let url = hook_url(&app)?;
-	let (mission, key) =
-		ready(&state)?.missions().arm(mission_id, watch, uuid::Uuid::new_v4().to_string()).await?;
+	let database = ready(&state)?;
+	let (armed, key) =
+		database.missions().arm(mission_id, watch, uuid::Uuid::new_v4().to_string()).await?;
+	let mission = recounted_once(&app, database, armed).await;
 	Ok(MissionWatching { mission, url, key, header: HEADER.to_owned() })
+}
+
+async fn recounted_once<R: Runtime>(
+	app: &AppHandle<R>,
+	database: &db::Database,
+	armed: Mission,
+) -> Mission {
+	let counted = match database.missions().workspace(armed.id.clone()).await {
+		Ok(Some(workspace)) => checkout::recounted(database, &armed.id, &workspace).await,
+		Ok(None) => return armed,
+		Err(failure) => Err(failure),
+	};
+	match counted {
+		Ok(Some(written)) => {
+			checkout::told(app, &written);
+			written
+		}
+		Ok(None) => armed,
+		Err(failure) => {
+			eprintln!("mission {} was armed and its checkout not counted: {failure:?}", armed.id);
+			armed
+		}
+	}
 }
 
 fn normalised(watch: MissionWatch) -> MissionWatch {
@@ -653,19 +710,22 @@ mod tests {
 					"missionId": opened.id,
 					"state": "waiting_bot",
 					"stateSeq": asked.state_seq,
-					"isAgentRunning": false
+					"isAgentRunning": false,
+					"lastActivityAt": null
 				}),
 				json!({
 					"missionId": opened.id,
 					"state": "working",
 					"stateSeq": answered.state_seq,
-					"isAgentRunning": false
+					"isAgentRunning": false,
+					"lastActivityAt": null
 				}),
 				json!({
 					"missionId": opened.id,
 					"state": "waiting_bot",
 					"stateSeq": asked_again.state_seq,
-					"isAgentRunning": false
+					"isAgentRunning": false,
+					"lastActivityAt": null
 				}),
 			],
 			"the front was not told the mission waited, worked, then waited again"
@@ -779,12 +839,14 @@ mod tests {
 					"state": "working",
 					"stateSeq": 1,
 					"isAgentRunning": false,
+					"lastActivityAt": null,
 				}),
 				json!({
 					"missionId": opened.id,
 					"state": "waiting_human",
 					"stateSeq": 2,
 					"isAgentRunning": false,
+					"lastActivityAt": null,
 				}),
 			],
 			"the front was not told which mission moved and where it stands"
@@ -868,6 +930,63 @@ mod tests {
 			.await
 			.expect("the missions holding a checkout read");
 		assert_eq!(still, hooked, "arming lost the checkout or the key the open call wrote");
+
+		if let Some(webhook) = app.try_state::<crate::routines::webhook::Webhook>() {
+			webhook.stop();
+		}
+		fs::remove_dir_all(&workspace).expect("cleanup");
+		cleaned(&app);
+	}
+
+	fn a_repository(name: &str) -> std::path::PathBuf {
+		let path = a_workspace(name);
+		for arguments in [
+			&["init", "--quiet", "--initial-branch", "main"][..],
+			&["commit", "--quiet", "--allow-empty", "-m", "base"],
+			&["update-ref", "refs/remotes/origin/main", "HEAD"],
+			&["commit", "--quiet", "--allow-empty", "-m", "ahead"],
+		] {
+			let ran = std::process::Command::new("git")
+				.arg("-C")
+				.arg(&path)
+				.args(arguments)
+				.env("GIT_AUTHOR_NAME", "Kiroshi")
+				.env("GIT_AUTHOR_EMAIL", "kiroshi@kiroshi.test")
+				.env("GIT_COMMITTER_NAME", "Kiroshi")
+				.env("GIT_COMMITTER_EMAIL", "kiroshi@kiroshi.test")
+				.status()
+				.expect("git runs");
+			assert!(ran.success(), "git {arguments:?} failed");
+		}
+		fs::write(path.join(".gitignore"), ".claude/\n.gitignore\n").expect("the ignore lands");
+		fs::write(path.join("loose"), "untracked").expect("the loose file lands");
+		path
+	}
+
+	#[tokio::test]
+	async fn arming_a_mission_counts_its_checkout_at_once() {
+		let app = a_host("armed-counts").await;
+		app.manage(crate::routines::webhook::start(app.handle().clone()));
+		let workspace = a_repository("armed-counts");
+		let opened =
+			mission_open(app.handle().clone(), app.state(), drafted_in("Fix it", Some(&workspace)))
+				.await
+				.expect("the mission opens");
+
+		let armed = mission_watch(
+			app.handle().clone(),
+			app.state(),
+			opened.mission.id.clone(),
+			a_watch("feature/ope-56"),
+		)
+		.await
+		.expect("the mission is armed");
+
+		assert_eq!(
+			(armed.mission.commits_ahead, armed.mission.dirty_files),
+			(Some(1), Some(1)),
+			"the checkout was not counted on arming"
+		);
 
 		if let Some(webhook) = app.try_state::<crate::routines::webhook::Webhook>() {
 			webhook.stop();

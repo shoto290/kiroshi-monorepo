@@ -37,6 +37,11 @@ const DETAIL: MissionDetail = {
 		reportedAt: null,
 		reportedTurnId: null,
 		status: null,
+		lastActivityAt: null,
+		lastActivity: null,
+		commitsAhead: null,
+		dirtyFiles: null,
+		pullRequestUrl: null,
 	},
 	events: [],
 }

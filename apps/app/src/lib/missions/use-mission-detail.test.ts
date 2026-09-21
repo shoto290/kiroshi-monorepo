@@ -37,6 +37,11 @@ const DETAIL: MissionDetail = {
 		reportedAt: null,
 		reportedTurnId: null,
 		status: null,
+		lastActivityAt: null,
+		lastActivity: null,
+		commitsAhead: null,
+		dirtyFiles: null,
+		pullRequestUrl: null,
 	},
 	events: [
 		{
@@ -82,6 +87,7 @@ it("reads the mission again when a change names it", async () => {
 		state: "waiting_human",
 		stateSeq: 2,
 		isAgentRunning: false,
+		lastActivityAt: null,
 	})
 
 	await waitFor(() => expect(readDetail).toHaveBeenCalledTimes(2))
@@ -97,6 +103,7 @@ it("leaves the mission alone when a change names another one", async () => {
 		state: "done",
 		stateSeq: 2,
 		isAgentRunning: false,
+		lastActivityAt: null,
 	})
 
 	expect(readDetail).toHaveBeenCalledTimes(1)

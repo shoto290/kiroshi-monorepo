@@ -19,4 +19,5 @@ export type MissionChanged = {
 	state: MissionState
 	stateSeq: number
 	isAgentRunning: boolean
+	lastActivityAt: number | null
 }

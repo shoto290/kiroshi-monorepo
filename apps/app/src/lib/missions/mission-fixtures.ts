@@ -27,6 +27,11 @@ const A_MISSION: Mission = {
 	reportedAt: null,
 	reportedTurnId: null,
 	status: null,
+	lastActivityAt: null,
+	lastActivity: null,
+	commitsAhead: null,
+	dirtyFiles: null,
+	pullRequestUrl: null,
 }
 
 export const aMission = (held: Partial<Mission> = {}): Mission => ({
