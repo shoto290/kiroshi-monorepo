@@ -215,7 +215,7 @@ const GRAPHIC_CONTRAST_FLOOR = 3
 
 type InkOnSurface = { ink: string; surface: string }
 
-export const expectInkContrast = async ({ ink, surface }: InkOnSurface) =>
+export const expectInkContrast = ({ ink, surface }: InkOnSurface) =>
 	expect(
 		contrastRatio(rasterise("ink", ink), rasterise("surface", surface)),
 	).toBeGreaterThanOrEqual(GRAPHIC_CONTRAST_FLOOR)
