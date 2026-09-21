@@ -789,10 +789,10 @@ struct Liveness {
 
 impl Liveness {
 	fn is_running(&self, now: i64) -> bool {
-		let activity_since_stop =
-			self.activity_at.filter(|at| self.stopped_at.is_none_or(|stopped| *at > stopped));
+		let is_in_a_turn = self.stopped_at.is_none() || self.started_since_stop_at.is_some();
+		let activity_in_a_turn = self.activity_at.filter(|_| is_in_a_turn);
 		self.closed_at.is_none()
-			&& [self.started_since_stop_at, activity_since_stop]
+			&& [self.started_since_stop_at, activity_in_a_turn]
 				.into_iter()
 				.flatten()
 				.any(|at| now - at < AGENT_FRESHNESS_MS)
@@ -1109,18 +1109,24 @@ mod tests {
 				.expect("the event is appended");
 			walked.push(written.is_agent_running);
 		}
-		let before_the_stop = database
-			.missions()
-			.record_activity(opened.id.clone(), an_activity("Read", "/w/a.rs"), now() - 60_000)
-			.await
-			.expect("an activity older than the stop lands");
-		walked.push(before_the_stop.is_agent_running);
-		let after_the_stop = database
+		let late_tail = database
 			.missions()
 			.record_activity(opened.id.clone(), an_activity("Edit", "/w/a.rs"), now() + 1_000)
 			.await
-			.expect("an activity newer than the stop lands");
-		walked.push(after_the_stop.is_agent_running);
+			.expect("an activity landing after the stop is taken");
+		walked.push(late_tail.is_agent_running);
+		let restarted = database
+			.missions()
+			.append(opened.id.clone(), an_entry(MissionEventKind::AgentStarted))
+			.await
+			.expect("the agent starts again");
+		walked.push(restarted.is_agent_running);
+		let in_the_turn = database
+			.missions()
+			.record_activity(opened.id.clone(), an_activity("Read", "/w/b.rs"), now() + 2_000)
+			.await
+			.expect("an activity inside the turn lands");
+		walked.push(in_the_turn.is_agent_running);
 		let closed = database
 			.missions()
 			.append(opened.id.clone(), an_entry(MissionEventKind::Closed))
@@ -1128,7 +1134,7 @@ mod tests {
 			.expect("the mission closes");
 		walked.push(closed.is_agent_running);
 
-		assert_eq!(walked, vec![false, true, true, false, true, false, false, true, false]);
+		assert_eq!(walked, vec![false, true, true, false, true, false, false, true, true, false]);
 
 		drop(database);
 		std::fs::remove_dir_all(&dir).expect("cleanup");
@@ -1144,18 +1150,21 @@ mod tests {
 	}
 
 	#[test]
-	fn an_agent_is_running_while_its_freshest_sign_follows_its_stop_and_is_under_the_window() {
+	fn an_agent_is_running_while_its_freshest_sign_inside_a_turn_is_under_the_window() {
 		let at = 1_800_000_000_000;
 		let under = at + AGENT_FRESHNESS_MS - 1;
+		let stopped = Some(at - 10);
 
+		assert!(liveness(None, Some(at), None).is_running(under), "no stop ever seen");
+		assert!(
+			liveness(Some(at - 5), Some(at), stopped).is_running(under),
+			"a start after the stop"
+		);
+		assert!(!liveness(None, Some(at), stopped).is_running(at + 1), "the tail of an ended turn");
 		assert!(liveness(Some(at), None, None).is_running(under));
-		assert!(liveness(None, Some(at), None).is_running(under));
-		assert!(liveness(None, Some(at), Some(at - 1)).is_running(under));
 		assert!(liveness(Some(at - AGENT_FRESHNESS_MS), Some(at), None).is_running(at + 1));
 		assert!(!liveness(Some(at), Some(at), None).is_running(at + AGENT_FRESHNESS_MS));
 		assert!(!liveness(None, None, None).is_running(at));
-		assert!(!liveness(None, Some(at), Some(at + 1)).is_running(at + 2));
-		assert!(!liveness(None, Some(at), Some(at)).is_running(at + 1));
 		assert!(
 			!Liveness { closed_at: Some(at), ..liveness(Some(at), Some(at), None) }.is_running(at)
 		);
