@@ -1,5 +1,6 @@
 import { AppSidebar } from "@workspace/ui/components/app-sidebar"
 import { CompanionMenuProvider } from "@workspace/ui/components/companion-menu"
+import { CompanionSelectProvider } from "@workspace/ui/components/companion-select"
 import { WorkspaceShell } from "@workspace/ui/components/workspace-shell"
 import { probeRender } from "@workspace/ui/lib/render-probe"
 
@@ -11,6 +12,7 @@ import { SessionApplicationsContext } from "@/lib/applications/use-session-appli
 import { ConversationSeatingContext } from "@/lib/conversations/use-conversation-seating"
 import { hasOverlayWindowControls, isSidebarResizable } from "@/lib/host"
 import { useCompanionMenuLookup } from "@/lib/sidebar/companion-menu"
+import { useCompanionSelectGuard } from "@/lib/sidebar/companion-select"
 import { useApplicationScopes } from "@/lib/workspace/use-application-scopes"
 import { useRosterLines } from "@/lib/workspace/use-roster-lines"
 import { useRosterLists } from "@/lib/workspace/use-roster-lists"
@@ -43,6 +45,11 @@ export function App() {
 		rosters: core.roster.state.rosters,
 		sectionsBySpaceId: core.sections.state.sections,
 		spaces: core.spaces.state.spaces,
+	})
+	const selectCompanion = useCompanionSelectGuard({
+		openSpaceId: scopes.selectedSpaceId ?? null,
+		rosters: core.roster.state.rosters,
+		select: core.roster.controller.select,
 	})
 
 	const { preferences, roster, spaces } = core
@@ -95,42 +102,44 @@ export function App() {
 					value={rosterLines.conversationSeating}
 				>
 					<CompanionMenuProvider menuFor={companionMenu}>
-						<SessionApplicationsContext.Provider
-							value={panels.sessionApplications}
-						>
-							<ConversationApplicationsContext.Provider
-								value={panels.conversationApplications}
+						<CompanionSelectProvider onSelect={selectCompanion}>
+							<SessionApplicationsContext.Provider
+								value={panels.sessionApplications}
 							>
-								<WorkspaceBody
-									activityPanel={overlay.activityPanel}
-									attachments={core.attachments}
-									bot={rosterView.selected}
-									bots={rosterView.bots}
-									chat={core.chat}
-									conversation={rosterView.selectedConversation}
-									conversationRuntimes={core.conversationRuntimes}
-									drafts={core.drafts}
-									haveSpacesFailed={spaces.state.hasFailedToLoad}
-									isConversationSettingsOpen={
-										overlay.isThreadConversationSettingsOpen
-									}
-									isOverlayOpen={overlay.isOverlayOpen}
-									isSettingsOpen={overlay.isThreadSettingsOpen}
-									landings={core.messageLandings}
-									missions={core.openedMission}
-									onboarding={
-										preferences.firstRunDone ? undefined : drivers.onboarding
-									}
-									onOpenConversationSettings={
-										roster.controller.editConversation
-									}
-									onRetrySpaces={loadSpaces}
-									onToggleSettings={overlay.toggleSettings}
-									readerName={preferences.displayName}
-									signIn={drivers.signIn}
-								/>
-							</ConversationApplicationsContext.Provider>
-						</SessionApplicationsContext.Provider>
+								<ConversationApplicationsContext.Provider
+									value={panels.conversationApplications}
+								>
+									<WorkspaceBody
+										activityPanel={overlay.activityPanel}
+										attachments={core.attachments}
+										bot={rosterView.selected}
+										bots={rosterView.bots}
+										chat={core.chat}
+										conversation={rosterView.selectedConversation}
+										conversationRuntimes={core.conversationRuntimes}
+										drafts={core.drafts}
+										haveSpacesFailed={spaces.state.hasFailedToLoad}
+										isConversationSettingsOpen={
+											overlay.isThreadConversationSettingsOpen
+										}
+										isOverlayOpen={overlay.isOverlayOpen}
+										isSettingsOpen={overlay.isThreadSettingsOpen}
+										landings={core.messageLandings}
+										missions={core.openedMission}
+										onboarding={
+											preferences.firstRunDone ? undefined : drivers.onboarding
+										}
+										onOpenConversationSettings={
+											roster.controller.editConversation
+										}
+										onRetrySpaces={loadSpaces}
+										onToggleSettings={overlay.toggleSettings}
+										readerName={preferences.displayName}
+										signIn={drivers.signIn}
+									/>
+								</ConversationApplicationsContext.Provider>
+							</SessionApplicationsContext.Provider>
+						</CompanionSelectProvider>
 					</CompanionMenuProvider>
 				</ConversationSeatingContext.Provider>
 			</WorkspaceShell>

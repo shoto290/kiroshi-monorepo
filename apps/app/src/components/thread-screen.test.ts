@@ -26,6 +26,7 @@ import {
 } from "vitest"
 
 import { CompanionMenuProvider } from "@workspace/ui/components/companion-menu"
+import { CompanionSelectProvider } from "@workspace/ui/components/companion-select"
 import type { MissionEventModel } from "@workspace/ui/components/mission"
 import {
 	type NoticeMessage,
@@ -120,6 +121,7 @@ import {
 	type MessageLandingController,
 } from "@/lib/search/message-landing-controller"
 import { useCompanionMenuLookup } from "@/lib/sidebar/companion-menu"
+import { useCompanionSelectGuard } from "@/lib/sidebar/companion-select"
 
 vi.mock("@/lib/routines/routines-transport", async (importOriginal) => {
 	const actual =
@@ -1135,6 +1137,45 @@ const CompanionMenuHarness = ({
 
 const underCompanionMenu = (children: ReactNode, companionIds: string[]) =>
 	createElement(CompanionMenuHarness, { children, companionIds })
+
+type CompanionSelectHarnessProps = CompanionMenuHarnessProps & {
+	select: (companionId: string) => void
+}
+
+const CompanionSelectHarness = ({
+	companionIds,
+	select,
+	children,
+}: CompanionSelectHarnessProps) =>
+	createElement(
+		CompanionSelectProvider,
+		{
+			onSelect: useCompanionSelectGuard({
+				openSpaceId: SPACE,
+				rosters: { [SPACE]: companionIds.map((id) => ({ id })) },
+				select,
+			}),
+		},
+		children,
+	)
+
+const underCompanionSelect = (
+	children: ReactNode,
+	companionIds: string[],
+	select: (companionId: string) => void,
+) => createElement(CompanionSelectHarness, { children, companionIds, select })
+
+const clickGutterOf = (text: string) => {
+	const avatar = gutterOf(text)?.querySelector("button")
+	if (!avatar) throw new Error(`no gutter avatar for ${text}`)
+	fireEvent.click(avatar)
+}
+
+const clickMentionOf = (text: string) => {
+	const pill = turnOf(text)?.querySelector('button[data-slot="bot-mention"]')
+	if (!pill) throw new Error(`no mention pill in ${text}`)
+	fireEvent.click(pill)
+}
 
 const rightClickGutterOf = async (text: string) => {
 	const gutter = gutterOf(text)
@@ -3966,5 +4007,76 @@ describe("ThreadScreen opening the companion menu of a gutter avatar", () => {
 		await settle()
 
 		await expect(rightClickGutterOf(MISSION_SAID.text)).rejects.toThrow()
+	})
+})
+
+describe("ThreadScreen selecting a companion from the transcript", () => {
+	let layout: FakeLayout
+
+	beforeEach(() => {
+		layout = fakeLayout()
+		vi.clearAllMocks()
+		listRoutines.mockResolvedValue([])
+		listRuns.mockResolvedValue([])
+		listSources.mockResolvedValue([])
+		listMissions.mockResolvedValue({ open: [], done: [] })
+		listenToMissions.mockResolvedValue(() => undefined)
+	})
+
+	afterEach(() => {
+		cleanup()
+		layout.restore()
+	})
+
+	it("selects the companion of a gutter avatar", async () => {
+		const select = vi.fn()
+		const room = await missionRoomOf({
+			events: [MISSION_OPENED],
+			spoken: [MISSION_SAID],
+		})
+		render(
+			underCompanionSelect(
+				screenOf(room.thread, room.bots),
+				[room.idOf("Ada")],
+				select,
+			),
+		)
+		await settle()
+
+		clickGutterOf(MISSION_SAID.text)
+
+		expect(select).toHaveBeenCalledWith(room.idOf("Ada"))
+	})
+
+	it("selects the companion of a mention pill", async () => {
+		const select = vi.fn()
+		const room = await roomOf({ names: ["Ada", "Nyx"] })
+		render(
+			underCompanionSelect(
+				screenOf(room.thread, room.bots),
+				[room.idOf("Ada"), room.idOf("Nyx")],
+				select,
+			),
+		)
+		await settle()
+
+		await room.send(`<@${room.idOf("Nyx")}> hold the gate`)
+		clickMentionOf("hold the gate")
+
+		expect(select).toHaveBeenCalledWith(room.idOf("Nyx"))
+	})
+
+	it("selects nothing for a companion absent from the open space roster", async () => {
+		const select = vi.fn()
+		const room = await missionRoomOf({
+			events: [MISSION_OPENED],
+			spoken: [MISSION_SAID],
+		})
+		render(underCompanionSelect(screenOf(room.thread, room.bots), [], select))
+		await settle()
+
+		clickGutterOf(MISSION_SAID.text)
+
+		expect(select).not.toHaveBeenCalled()
 	})
 })
