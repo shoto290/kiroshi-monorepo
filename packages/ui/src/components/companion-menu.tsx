@@ -10,7 +10,6 @@ import {
 import { useTranslation } from "react-i18next"
 
 import { Icons } from "@workspace/ui/components/icons"
-import type { RosterBot } from "@workspace/ui/components/roster"
 import {
 	PinGroup,
 	type RosterMenuSection,
@@ -30,7 +29,10 @@ import {
 } from "@workspace/ui/components/ui/context-menu"
 import { STILL_UNDER_REDUCED_MOTION } from "@workspace/ui/lib/reduced-motion"
 
-interface CompanionMenuSubject extends RosterBot {
+interface CompanionMenuSubject {
+	id: string
+	name: string
+	title?: string
 	sectionId?: string | null
 }
 
