@@ -166,7 +166,7 @@ function BotAvatar({
 			onPointerMove={moveDrag}
 			onPointerUp={endDrag}
 			className={cn(
-				blot ? "on-bot-blot" : "text-foreground",
+				blot && "on-bot-blot",
 				interactive && "cursor-grab touch-none active:cursor-grabbing",
 				className,
 			)}

@@ -147,7 +147,7 @@ const AppIconMark = ({
 					<stop offset="1" stopColor="white" />
 				</linearGradient>
 			</defs>
-			<path d={GROUND_PATH} fill={GROUND_FILL} />
+			<path d={GROUND_PATH} data-slot="app-icon-ground" fill={GROUND_FILL} />
 			<g clipPath={`url(#${clipId})`}>
 				<g transform={RABBIT_TRANSFORM}>
 					<BotAvatar

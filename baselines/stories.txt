@@ -1,4 +1,5 @@
 branding-appiconmark--default
+branding-appiconmark--ink-dark
 branding-appiconmark--themes
 branding-avatargroup--crowded
 branding-avatargroup--default
@@ -35,6 +36,7 @@ branding-companion-avatar--blots
 branding-companion-avatar--chip-row
 branding-companion-avatar--glances
 branding-companion-avatar--head-turn
+branding-companion-avatar--ink-dark
 branding-companion-avatar--playground
 branding-companion-avatar--sizes
 branding-companion-avatar--states

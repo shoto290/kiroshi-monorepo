@@ -1,7 +1,8 @@
 import { useRef } from "react"
+import { expect } from "storybook/test"
 
 import preview from "@workspace/storybook/preview"
-import { Row } from "@workspace/storybook/story-utils"
+import { expectInkContrast, Row } from "@workspace/storybook/story-utils"
 import {
 	AppIconMark,
 	type AppIconMarkHandle,
@@ -55,5 +56,30 @@ export const Themes = meta.story({
 					"Reach for this before shipping any change to the mark's ink. The ground is the brand cream in both themes, so the drawing must not follow the theme foreground: check that the eyes are the same near-black as the head outline and the ear strokes on the right-hand dark panel, not the near-white the app text takes there. `Default` covers the motion, this one covers the ink.",
 			},
 		},
+	},
+})
+
+export const InkDark = meta.story({
+	globals: { theme: "dark" },
+	parameters: {
+		docs: {
+			description: {
+				story:
+					"The mark under the dark theme. The ground stays brand cream, so the eyes must keep the near-black blot ink of the outline rather than the near-white text colour of the theme. Pick `Themes` to compare both panels by eye.",
+			},
+		},
+	},
+	play: async ({ canvasElement }) => {
+		const ground = canvasElement.querySelector('[data-slot="app-icon-ground"]')
+		const eye = canvasElement.querySelector('[data-part="eye-0"]')
+		const outline = canvasElement.querySelector('[data-part="head"] path')
+		if (!ground || !eye || !outline) throw new Error("The mark draws no eyes")
+		const eyeFill = getComputedStyle(eye).fill
+
+		await expect(eyeFill).toBe(getComputedStyle(outline).stroke)
+		await expectInkContrast({
+			ink: eyeFill,
+			surface: getComputedStyle(ground).fill,
+		})
 	},
 })
