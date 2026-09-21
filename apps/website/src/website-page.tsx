@@ -16,7 +16,7 @@ const MAIN_CONTENT_ID = "main-content"
 const FOCUS_RING =
 	"outline-none focus-visible:shadow-focus-edge focus-visible:ring-3 focus-visible:ring-ring/30"
 
-const ACTION_BASE = `${FOCUS_RING} h-[46px] shrink-0 items-center gap-2 rounded-sm text-[15px] leading-5 font-medium whitespace-nowrap shadow-edge transition-[color,background-color,transform] duration-200 ease-out will-change-transform active:transform-[scale(0.97)]`
+const ACTION_BASE = `${FOCUS_RING} h-[46px] shrink-0 items-center gap-2 rounded-sm text-[15px] leading-5 font-medium whitespace-nowrap transition-[color,background-color,transform] duration-200 ease-out hover:will-change-transform active:will-change-transform active:transform-[scale(0.97)]`
 
 const DOWNLOAD_LABEL: Record<DownloadPlatform, string> = {
 	macos: WEBSITE_COPY.downloadActionMacOS,
@@ -46,7 +46,7 @@ const DownloadAction = () => {
 
 const GithubAction = ({ label }: ActionProps) => (
 	<a
-		className={`${ACTION_BASE} inline-flex bg-background ps-4.5 pe-3.5 text-foreground hover:bg-accent`}
+		className={`${ACTION_BASE} inline-flex bg-background ps-4.5 shadow-edge pe-3.5 text-foreground hover:bg-accent`}
 		href={REPOSITORY_URL}
 	>
 		{label}
@@ -94,7 +94,7 @@ const AppWindow = ({ children }: AppWindowProps) => (
 	</div>
 )
 
-const CREDIT_LINK = `${FOCUS_RING} inline-flex items-center gap-1.5 rounded-sm px-1.5 py-1 transition-colors hover:text-foreground lg:min-h-10`
+const CREDIT_LINK = `${FOCUS_RING} inline-flex items-center gap-1.5 rounded-sm px-1.5 py-1 transition-colors min-h-10 hover:text-foreground`
 
 type CreditProps = {
 	label: string
@@ -140,7 +140,7 @@ export const WebsitePage = ({ children }: WebsitePageProps) => (
 	<>
 		<SkipLink targetId={MAIN_CONTENT_ID} />
 		<main
-			className={`${VIEWPORT_RISE} relative flex min-h-dvh w-full flex-col items-center overflow-x-clip bg-background outline-none`}
+			className={`${VIEWPORT_RISE} relative flex min-h-dvh w-full flex-col items-center overflow-x-clip bg-background outline-none focus-visible:outline-2 focus-visible:-outline-offset-2 focus-visible:outline-solid focus-visible:outline-ring`}
 			id={MAIN_CONTENT_ID}
 			tabIndex={-1}
 		>
