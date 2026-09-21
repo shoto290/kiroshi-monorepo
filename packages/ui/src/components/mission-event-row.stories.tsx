@@ -20,6 +20,7 @@ import {
 	MISSION_NOW,
 	MISSION_OBJECTIVE,
 	MISSION_OPENED_AT,
+	MISSION_PULL_REQUEST,
 	MISSION_TICKET,
 	MISSION_TOOLS,
 	MISSION_TOOLS_WITHOUT_A_MARK,
@@ -51,6 +52,17 @@ const GITHUB_NOTE: MissionEventModel = {
 	source: "github",
 	createdAt: MISSION_NOW - 900_000,
 	text: "Opened the pull request against the branch the mission was handed.",
+}
+
+const PULL_REQUEST_EVENT: MissionEventModel = {
+	id: "event-pull-request",
+	kind: "ready",
+	source: "github",
+	createdAt: MISSION_NOW - 300_000,
+	link: {
+		url: MISSION_PULL_REQUEST.url,
+		pullRequest: MISSION_PULL_REQUEST.number,
+	},
 }
 
 const HUMAN_ANSWER: MissionEventModel = {
@@ -113,6 +125,52 @@ export const MachineLine = meta.story({
 		await expect(slotsIn(canvasElement, "mission-authored-event")).toHaveLength(
 			0,
 		)
+	},
+})
+
+export const WithPullRequestLink = meta.story({
+	args: { event: PULL_REQUEST_EVENT },
+	parameters: {
+		docs: {
+			description: {
+				story:
+					"A pull request marked ready, with nothing written into its payload. Check that the machine line reads the wording of its kind, then the pull request number as a link opening in a new tab and naming the pull request it opens, then the time. Pick `WithAnUnnumberedLink` for a link that carries no pull request number. " +
+					PLACED_BY_THE_FEED,
+			},
+		},
+	},
+	play: async ({ canvas, canvasElement }) => {
+		const [line] = slotsIn(canvasElement, "mission-machine-line")
+		const link = canvas.getByRole("link", { name: "Open pull request #482" })
+
+		await expect(line).toHaveTextContent("Marked ready to merge by GitHub")
+		await expect(link).toHaveTextContent("#482")
+		await expect(link).toHaveAttribute("href", MISSION_PULL_REQUEST.url)
+		await expect(link).toHaveAttribute("target", "_blank")
+		await expect(link.nextElementSibling?.tagName).toBe("TIME")
+	},
+})
+
+export const WithAnUnnumberedLink = meta.story({
+	args: {
+		event: {
+			...PULL_REQUEST_EVENT,
+			link: { url: MISSION_PULL_REQUEST.url },
+		},
+	},
+	parameters: {
+		docs: {
+			description: {
+				story:
+					"An event carrying a link with no pull request number. Check that the link reads a named action rather than a bare address. Pick `WithPullRequestLink` for a numbered pull request. " +
+					PLACED_BY_THE_FEED,
+			},
+		},
+	},
+	play: async ({ canvas }) => {
+		await expect(
+			canvas.getByRole("link", { name: "Open the link" }),
+		).toHaveAttribute("href", MISSION_PULL_REQUEST.url)
 	},
 })
 

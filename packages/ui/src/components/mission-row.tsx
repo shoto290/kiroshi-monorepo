@@ -9,11 +9,13 @@ import type {
 import { BotIdentityAvatar } from "@workspace/ui/components/bot-identity-avatar"
 import {
 	MISSION_AVATAR_SIZE,
+	type MissionActivity,
 	type MissionBot,
 	type MissionState,
-	type MissionStatusProps,
+	type MissionStatus,
 	shownMissionStatus,
 } from "@workspace/ui/components/mission"
+import { MissionActivityLine } from "@workspace/ui/components/mission-activity-line"
 import {
 	MissionStatusTime,
 	missionTicketPlatform,
@@ -32,12 +34,16 @@ type MissionRowModel = {
 	state: MissionState
 	isWorking: boolean
 	timestamp: string
+	now: number
+	status?: MissionStatus
+	lastActivity?: MissionActivity
+	lastActivityAt?: number
+	commitsAhead?: number
 }
 
-type MissionRowProps = MissionRowModel &
-	MissionStatusProps & {
-		onOpen: () => void
-	}
+type MissionRowProps = MissionRowModel & {
+	onOpen: () => void
+}
 
 const BADGE_OF: Partial<Record<MissionState, BotBadge>> = {
 	waiting_human: "attention",
@@ -63,6 +69,9 @@ const MissionRow = ({
 	timestamp,
 	status,
 	now,
+	lastActivity,
+	lastActivityAt,
+	commitsAhead,
 	onOpen,
 }: MissionRowProps) => {
 	const { t } = useTranslation("chat")
@@ -85,6 +94,18 @@ const MissionRow = ({
 			<SidebarListRow
 				badge={BADGE_OF[state]}
 				data-opens={id}
+				detail={
+					lastActivity ? (
+						<MissionActivityLine
+							className="pe-3.5"
+							commitsAhead={commitsAhead}
+							lastActivity={lastActivity}
+							lastActivityAt={lastActivityAt}
+							now={now}
+							state={state}
+						/>
+					) : undefined
+				}
 				isNameMuted={state === "done"}
 				isWorking={isWorking}
 				media={

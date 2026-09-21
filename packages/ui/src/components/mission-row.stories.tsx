@@ -11,12 +11,17 @@ import { BotIdentityAvatar } from "@workspace/ui/components/bot-identity-avatar"
 import { MissionRow } from "@workspace/ui/components/mission-row"
 import {
 	CLOSED_MISSION,
+	DOING_NOW_MISSION,
 	FAILED_MISSION,
 	LONG_MISSION_STATUS,
+	MISSION_ACTIVITY,
+	MISSION_ACTIVITY_LAST_SEGMENT,
+	MISSION_ACTIVITY_TOOL,
 	MISSION_NOW,
 	MISSION_STATES,
 	MISSION_STATUS,
 	READY_MISSION,
+	SILENT_MISSION,
 	UNTICKETED_MISSION,
 	WAITING_BOT_MISSION,
 	WAITING_HUMAN_MISSION,
@@ -180,6 +185,75 @@ export const Working = meta.story({
 		await expect(row).toHaveAttribute("data-opens", WORKING_MISSION.id)
 		await userEvent.click(canvas.getByText(WORKING_MISSION.objective))
 		await expect(args.onOpen).toHaveBeenCalled()
+	},
+})
+
+const activityIn = (canvasElement: HTMLElement) =>
+	slotIn(canvasElement, "mission-activity")
+
+export const WorkingNow = meta.story({
+	args: DOING_NOW_MISSION,
+	parameters: {
+		docs: {
+			description: {
+				story:
+					"A mission whose agent acted seconds ago. Check that a second muted line sits under the ticket line, reading the tool in words rather than as its `mcp__` token, then the target cut at its start so its file name stays whole, the age in seconds and the commits the branch is ahead, in tabular figures and as text; that the tooltip on the target hands the whole path over; and that the row stays the one keyboard target. Pick `Working` for a row with no last activity. " +
+					LISTED_BY_THE_PANEL,
+			},
+		},
+	},
+	play: async ({ args, canvasElement, userEvent }) => {
+		const line = activityIn(canvasElement)
+		const target = slotIn(line, "mission-activity-target")
+
+		await expect(line).toHaveTextContent(MISSION_ACTIVITY_TOOL)
+		await expect(line).toHaveTextContent(MISSION_ACTIVITY_LAST_SEGMENT)
+		await expect(line).not.toHaveTextContent("mcp__")
+		await expect(slotIn(line, "mission-activity-age")).toHaveTextContent("12s")
+		const commits = slotIn(line, "mission-commits-ahead")
+		await expect(commits).toHaveTextContent("3 commits ahead")
+		await expect(figuresOf(commits)).toBe("tabular-nums")
+		await expect(target).toHaveAttribute("dir", "rtl")
+		await expect(getComputedStyle(target).textOverflow).toBe("ellipsis")
+		await expect(colorOf(line)).toBe(colorOf(previewIn(canvasElement)))
+		await expect(line.getBoundingClientRect().height).toBe(16)
+		await expect(
+			rowIn(canvasElement).querySelectorAll("[tabindex], button, a"),
+		).toHaveLength(0)
+
+		await userEvent.hover(target)
+		const tip = await screen.findByRole("tooltip")
+		await expect(tip).toHaveTextContent(MISSION_ACTIVITY.target)
+
+		await userEvent.click(target)
+		await expect(args.onOpen).toHaveBeenCalled()
+	},
+})
+
+export const SilentForMinutes = meta.story({
+	args: SILENT_MISSION,
+	parameters: {
+		docs: {
+			description: {
+				story:
+					"An open mission whose agent has done nothing for twelve minutes. Check that the second line still names what the agent last did, that it says in plain words how long there has been no activity instead of an age, and that the blot rests with no shimmer on the preview line, since nobody is on it. Pick `WorkingNow` for an agent that acted under five minutes ago. " +
+					LISTED_BY_THE_PANEL,
+			},
+		},
+	},
+	play: async ({ canvas, canvasElement }) => {
+		const line = activityIn(canvasElement)
+
+		await expect(line).toHaveTextContent(MISSION_ACTIVITY_TOOL)
+		await expect(slotIn(line, "mission-silence")).toHaveTextContent(
+			"No activity for 12m",
+		)
+		await expect(canvas.getByRole("img", { name: RESTING_POSE })).toBeVisible()
+		await expect(
+			canvas.queryByRole("img", { name: WORKING_POSE }),
+		).not.toBeInTheDocument()
+		await expect(slotsIn(canvasElement, "text-shimmer")).toHaveLength(0)
+		await expect(canvas.queryByText("Working now")).not.toBeInTheDocument()
 	},
 })
 

@@ -1,9 +1,11 @@
 import { listExhaustively } from "@workspace/storybook/story-utils"
 import type { MessageAuthor } from "@workspace/ui/components/message"
 import type {
+	MissionActivity,
 	MissionBot,
 	MissionCardModel,
 	MissionEventModel,
+	MissionPullRequest,
 	MissionState,
 	MissionStatus,
 	MissionTicketLink,
@@ -25,6 +27,10 @@ export const MISSION_STATES_WITHOUT_A_PILL: MissionState[] = [
 	"working",
 	"waiting_bot",
 ]
+
+export const MISSION_NOW = new Date("2026-03-04T09:30:00Z").getTime()
+
+const minutesBefore = (minutes: number) => MISSION_NOW - minutes * 60_000
 
 export const MISSION_BOT: MissionBot = {
 	name: "Ada Martin",
@@ -56,6 +62,7 @@ export const WAITING_HUMAN_MISSION: MissionRowModel = {
 	state: "waiting_human",
 	isWorking: false,
 	timestamp: "2d",
+	now: MISSION_NOW,
 }
 
 export const READY_MISSION: MissionRowModel = {
@@ -70,6 +77,7 @@ export const READY_MISSION: MissionRowModel = {
 	state: "ready_to_merge",
 	isWorking: false,
 	timestamp: "5h",
+	now: MISSION_NOW,
 }
 
 export const WORKING_MISSION: MissionRowModel = {
@@ -84,6 +92,7 @@ export const WORKING_MISSION: MissionRowModel = {
 	state: "working",
 	isWorking: true,
 	timestamp: "1h",
+	now: MISSION_NOW,
 }
 
 export const WAITING_BOT_MISSION: MissionRowModel = {
@@ -98,6 +107,7 @@ export const WAITING_BOT_MISSION: MissionRowModel = {
 	state: "waiting_bot",
 	isWorking: false,
 	timestamp: "12m",
+	now: MISSION_NOW,
 }
 
 export const FAILED_MISSION: MissionRowModel = {
@@ -112,6 +122,7 @@ export const FAILED_MISSION: MissionRowModel = {
 	state: "failed",
 	isWorking: false,
 	timestamp: "3d",
+	now: MISSION_NOW,
 }
 
 export const CLOSED_MISSION: MissionRowModel = {
@@ -126,6 +137,7 @@ export const CLOSED_MISSION: MissionRowModel = {
 	state: "done",
 	isWorking: false,
 	timestamp: "09:12",
+	now: MISSION_NOW,
 }
 
 export const UNTICKETED_MISSION: MissionRowModel = {
@@ -140,6 +152,38 @@ export const UNTICKETED_MISSION: MissionRowModel = {
 	state: "working",
 	isWorking: true,
 	timestamp: "22m",
+	now: MISSION_NOW,
+}
+
+export const MISSION_ACTIVITY: MissionActivity = {
+	tool: "mcp__filesystem__edit_file",
+	target: "packages/ui/src/components/mission-activity-line.tsx",
+}
+
+export const MISSION_ACTIVITY_TOOL = "filesystem · edit_file"
+
+export const MISSION_ACTIVITY_LAST_SEGMENT = "mission-activity-line.tsx"
+
+export const MISSION_PULL_REQUEST: MissionPullRequest = {
+	url: "https://github.example/kiroshi/kiroshi/pull/482",
+	number: 482,
+}
+
+export const DOING_NOW_MISSION: MissionRowModel = {
+	...WORKING_MISSION,
+	id: "mission-doing-now",
+	lastActivity: MISSION_ACTIVITY,
+	lastActivityAt: MISSION_NOW - 12_000,
+	commitsAhead: 3,
+}
+
+export const SILENT_MISSION: MissionRowModel = {
+	...WORKING_MISSION,
+	id: "mission-silent",
+	isWorking: false,
+	lastActivity: MISSION_ACTIVITY,
+	lastActivityAt: minutesBefore(12),
+	commitsAhead: 1,
 }
 
 export const OPEN_MISSIONS: MissionRowModel[] = [
@@ -175,10 +219,6 @@ export const EARLIER_TODAY_ROWS: EarlierTodayRow[] = [
 export const NO_EARLIER_TODAY: EarlierTodayRow[] = []
 
 export const NO_MISSIONS: MissionRowModel[] = []
-
-export const MISSION_NOW = new Date("2026-03-04T09:30:00Z").getTime()
-
-const minutesBefore = (minutes: number) => MISSION_NOW - minutes * 60_000
 
 export const MISSION_STATUS: MissionStatus = {
 	text: "Running the storybook suite before opening the pull request",

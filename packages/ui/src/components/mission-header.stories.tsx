@@ -9,10 +9,14 @@ import {
 } from "@workspace/ui/components/mission-header"
 import {
 	LONG_MISSION_STATUS,
+	MISSION_ACTIVITY,
+	MISSION_ACTIVITY_LAST_SEGMENT,
+	MISSION_ACTIVITY_TOOL,
 	MISSION_BOT,
 	MISSION_NOW,
 	MISSION_OBJECTIVE,
 	MISSION_OPENED_AT,
+	MISSION_PULL_REQUEST,
 	MISSION_STATES,
 	MISSION_STATES_WITHOUT_A_PILL,
 	MISSION_STATUS,
@@ -82,6 +86,7 @@ export const Default = meta.story({
 
 		await expect(args.onBack).toHaveBeenCalled()
 		await expect(slotsIn(canvasElement, "mission-status")).toHaveLength(0)
+		await expect(slotsIn(canvasElement, "mission-activity")).toHaveLength(0)
 	},
 })
 
@@ -323,5 +328,85 @@ export const LongStatus = meta.story({
 		await expect(await screen.findByRole("tooltip")).toHaveTextContent(
 			LONG_MISSION_STATUS.text,
 		)
+	},
+})
+
+export const WithPullRequest = meta.story({
+	args: {
+		lastActivity: MISSION_ACTIVITY,
+		lastActivityAt: MISSION_NOW - 42_000,
+		commitsAhead: 3,
+		pullRequest: MISSION_PULL_REQUEST,
+	},
+	parameters: {
+		docs: {
+			description: {
+				story:
+					"A mission whose agent acted under a minute ago on a branch with an open pull request, in a container squeezed to 320 pixels. Check that a line under the ticket band reads the tool in words, the target cut at its start, the age, the commits ahead in tabular figures and the pull request number as a link opening in a new tab; that the line stays one row high with the ellipsis on the target alone; and that the link shows a ring on keyboard focus and names the pull request it opens. " +
+					FILLED_BY_THE_THREAD,
+			},
+		},
+	},
+	render: (args) => (
+		<div className="w-80">
+			<MissionHeader {...args} />
+		</div>
+	),
+	play: async ({ canvas, canvasElement, userEvent }) => {
+		const line = slotIn(canvasElement, "mission-activity")
+		const target = slotIn(line, "mission-activity-target")
+		const age = slotIn(line, "mission-activity-age")
+		const commits = slotIn(line, "mission-commits-ahead")
+		const link = canvas.getByRole("link", { name: "Open pull request #482" })
+
+		await expect(line).toHaveTextContent(MISSION_ACTIVITY_TOOL)
+		await expect(line).toHaveTextContent(MISSION_ACTIVITY_LAST_SEGMENT)
+		await expect(age).toHaveTextContent("42s")
+		await expect(commits).toHaveTextContent("3 commits ahead")
+		await expect(getComputedStyle(commits).fontVariantNumeric).toBe(
+			"tabular-nums",
+		)
+		await expect(link).toHaveTextContent("#482")
+		await expect(link).toHaveAttribute("href", MISSION_PULL_REQUEST.url)
+		await expect(link).toHaveAttribute("target", "_blank")
+		await expect(line.getBoundingClientRect().height).toBe(28)
+		await expect(line.scrollWidth).toBeLessThanOrEqual(line.clientWidth + 1)
+		await expect(target.scrollWidth).toBeGreaterThan(target.clientWidth)
+		for (const whole of [age, commits, link]) {
+			await expect(whole.scrollWidth).toBeLessThanOrEqual(whole.clientWidth)
+		}
+
+		for (let step = 0; step < 10 && document.activeElement !== link; step++) {
+			await userEvent.tab()
+		}
+		await expect(link).toHaveFocus()
+		await expect(getComputedStyle(link).boxShadow).not.toBe("none")
+	},
+})
+
+export const ClosedMission = meta.story({
+	args: {
+		state: "done",
+		isWorking: false,
+		lastActivity: MISSION_ACTIVITY,
+		lastActivityAt: MISSION_NOW - 3 * 3_600_000,
+		commitsAhead: 3,
+		pullRequest: MISSION_PULL_REQUEST,
+	},
+	parameters: {
+		docs: {
+			description: {
+				story:
+					"A completed mission whose agent last acted three hours ago. Check that the line keeps what the agent last did with its age as the record of the run, and names no silence, since a closed mission is expected to be quiet. Pick `WithPullRequest` for an open mission. " +
+					FILLED_BY_THE_THREAD,
+			},
+		},
+	},
+	play: async ({ canvasElement }) => {
+		const line = slotIn(canvasElement, "mission-activity")
+
+		await expect(line).toHaveTextContent(MISSION_ACTIVITY_TOOL)
+		await expect(slotIn(line, "mission-activity-age")).toHaveTextContent("3h")
+		await expect(slotsIn(line, "mission-silence")).toHaveLength(0)
 	},
 })

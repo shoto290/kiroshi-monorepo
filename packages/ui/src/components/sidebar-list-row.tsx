@@ -33,6 +33,7 @@ interface SidebarListRowProps extends SidebarListRowElementProps {
 	trailing?: ReactNode
 	timestamp?: string
 	preview?: ReactNode
+	detail?: ReactNode
 	isWorking?: boolean
 	isNameMuted?: boolean
 	badge?: BotBadge
@@ -46,6 +47,7 @@ const SidebarListRow = ({
 	trailing,
 	timestamp,
 	preview,
+	detail,
 	isWorking = false,
 	isNameMuted = false,
 	badge,
@@ -73,6 +75,7 @@ const SidebarListRow = ({
 		>
 			<RowAnatomy
 				badge={badge}
+				detail={detail}
 				geometry="roster"
 				isNameMuted={isNameMuted}
 				isWorking={isWorking}
