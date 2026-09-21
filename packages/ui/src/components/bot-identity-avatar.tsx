@@ -163,7 +163,7 @@ const BotSelectButton = ({
 		data-slot="bot-select"
 		aria-label={name}
 		onClick={onSelect}
-		className="block w-fit cursor-pointer rounded-full outline-none transition-shadow duration-150 ease-out hover:ring-2 hover:ring-muted-foreground hover:ring-offset-2 hover:ring-offset-background focus-visible:ring-2 focus-visible:ring-ring motion-reduce:transition-none"
+		className="block w-fit cursor-pointer rounded-full outline-none transition-opacity duration-150 ease-out hover:not-focus-visible:opacity-70 hover:transition-none focus-visible:ring-2 focus-visible:ring-ring motion-reduce:transition-none"
 		style={pictureShapeStyle(size, image)}
 	>
 		{children}

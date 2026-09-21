@@ -1715,6 +1715,13 @@ export const CompanionSelectOnGutter = meta.story({
 	},
 })
 
+const REMOVED_HOVER_RING_CLASSES = [
+	"hover:ring-2",
+	"hover:ring-muted-foreground",
+	"hover:ring-offset-2",
+	"hover:ring-offset-background",
+]
+
 export const CompanionSelectOnGutterHovered = meta.story({
 	tags: ["test-only"],
 	globals: { theme_layout: "side-by-side" },
@@ -1722,7 +1729,7 @@ export const CompanionSelectOnGutterHovered = meta.story({
 		pseudo: { hover: true },
 		docs: {
 			description: {
-				story: `The two gutter avatars with the pointer resting on them, in both themes at once, drawn by the pseudo-state addon. Check by eye that a solid ring in the muted foreground stands off each avatar by a gap of the page background, following the circle of the blot and the rounded square of the picture, so it reads over any picture in either theme. The stop veils the face because pressing it ends work; the select only opens the companion, so it marks the target and leaves the face in view. ${SELECT_NOT_YET_RENDERED}`,
+				story: `The two gutter avatars with the pointer resting on them, in both themes at once, drawn by the pseudo-state addon. The select dims its target instead of ringing it: the stop veils the face because pressing it ends work, while the select only opens the companion, so it lowers the avatar to 70 percent opacity and leaves the face in view. Check by eye in the light and the dark theme that the blot and the picture read as dimmed by the same amount, with no ring and no shadow around either, and that each stays recognizable against the page background. The pseudo-state addon rewrites no hover rule under the vitest runner, so the play asserts the computed shadow and the hover classes rather than a computed opacity and transition. ${SELECT_NOT_YET_RENDERED}`,
 			},
 		},
 	},
@@ -1732,11 +1739,14 @@ export const CompanionSelectOnGutterHovered = meta.story({
 
 		await expect(buttons).toHaveLength(4)
 		for (const button of buttons) {
+			await expect(getComputedStyle(button).boxShadow).toBe("none")
 			await expect(button).toHaveClass(
-				"hover:ring-muted-foreground",
-				"hover:ring-offset-background",
+				"hover:not-focus-visible:opacity-70",
+				"hover:transition-none",
 				"motion-reduce:transition-none",
 			)
+			for (const ringClass of REMOVED_HOVER_RING_CLASSES)
+				await expect(button).not.toHaveClass(ringClass)
 		}
 	},
 })
@@ -1746,7 +1756,7 @@ export const CompanionSelectOnGutterFocused = meta.story({
 	parameters: {
 		docs: {
 			description: {
-				story: `The gutter avatar reached by the keyboard. Check that Tab lands on it and that it wears the focus ring the stop button already wears. ${SELECT_NOT_YET_RENDERED}`,
+				story: `The gutter avatar reached by the keyboard. Check that Tab lands on it and that it wears the focus ring the stop button already wears. A focused avatar does not dim under the pointer: opacity composites the element with its own shadow, so the dim would fade the focus ring with it and drop it below the 3:1 a focus indicator needs. ${SELECT_NOT_YET_RENDERED}`,
 			},
 		},
 	},
