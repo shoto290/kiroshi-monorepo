@@ -8,8 +8,13 @@ import {
 	MessageBubble,
 	MessageBubbleContent,
 } from "@workspace/ui/components/message-bubble"
-import type { MissionCardModel } from "@workspace/ui/components/mission"
 import {
+	type MissionCardModel,
+	type MissionStatusProps,
+	shownMissionStatus,
+} from "@workspace/ui/components/mission"
+import {
+	MissionStatusTime,
 	MissionTicketLine,
 	MissionToolMark,
 } from "@workspace/ui/components/mission-marks"
@@ -19,10 +24,11 @@ import {
 } from "@workspace/ui/components/mission-state-pill"
 import { cn } from "@workspace/ui/lib/utils"
 
-type MissionCardProps = Omit<MissionCardModel, "author" | "identity"> & {
-	onOpen: (missionId: string) => void
-	className?: string
-}
+type MissionCardProps = Omit<MissionCardModel, "author" | "identity"> &
+	MissionStatusProps & {
+		onOpen: (missionId: string) => void
+		className?: string
+	}
 
 type MissionTitleRowProps = Pick<MissionCardModel, "state" | "tools">
 
@@ -50,11 +56,14 @@ const MissionCard = ({
 	tools,
 	isWorking,
 	isClosed,
+	status,
+	now,
 	onOpen,
 	className,
 }: MissionCardProps) => {
 	const { t } = useTranslation("chat")
 	const hasTicket = Boolean(ticket.externalId || ticket.title)
+	const shownStatus = shownMissionStatus(status, now)
 
 	return (
 		<MessageBubble className={className} variant="soft">
@@ -89,6 +98,17 @@ const MissionCard = ({
 						</span>
 						{hasTicket ? <MissionTicketLine ticket={ticket} /> : null}
 					</span>
+					{shownStatus ? (
+						<span
+							className="flex flex-col text-muted-foreground text-xs"
+							data-slot="mission-status"
+						>
+							<span className="line-clamp-3 wrap-break-word">
+								{shownStatus.text}
+							</span>
+							<MissionStatusTime status={shownStatus} />
+						</span>
+					) : null}
 				</span>
 			</MessageBubbleContent>
 		</MessageBubble>

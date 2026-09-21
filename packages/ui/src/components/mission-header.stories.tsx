@@ -1,4 +1,4 @@
-import { expect, fn } from "storybook/test"
+import { expect, fn, screen } from "storybook/test"
 
 import preview from "@workspace/storybook/preview"
 import { holderOf, slotIn, slotsIn } from "@workspace/storybook/story-utils"
@@ -8,12 +8,14 @@ import {
 	type MissionHeaderProps,
 } from "@workspace/ui/components/mission-header"
 import {
+	LONG_MISSION_STATUS,
 	MISSION_BOT,
 	MISSION_NOW,
 	MISSION_OBJECTIVE,
 	MISSION_OPENED_AT,
 	MISSION_STATES,
 	MISSION_STATES_WITHOUT_A_PILL,
+	MISSION_STATUS,
 	MISSION_TICKET,
 	MISSION_TOOLS,
 } from "@workspace/ui/components/missions.fixtures"
@@ -73,12 +75,13 @@ export const Default = meta.story({
 			},
 		},
 	},
-	play: async ({ args, canvas, userEvent }) => {
+	play: async ({ args, canvas, canvasElement, userEvent }) => {
 		await userEvent.click(
 			canvas.getByRole("button", { name: "Back to the conversation" }),
 		)
 
 		await expect(args.onBack).toHaveBeenCalled()
+		await expect(slotsIn(canvasElement, "mission-status")).toHaveLength(0)
 	},
 })
 
@@ -251,5 +254,74 @@ export const LongContent = meta.story({
 
 		await expect(header.scrollWidth).toBeLessThanOrEqual(header.clientWidth + 1)
 		await expect(objective.scrollWidth).toBeGreaterThan(objective.clientWidth)
+	},
+})
+
+export const WithStatus = meta.story({
+	args: { status: MISSION_STATUS },
+	parameters: {
+		docs: {
+			description: {
+				story:
+					"A mission whose companion wrote a last status. Check that it reads in the ticket band after the tool marks and before the opening time, behind the same rule the band draws between the ticket and the tools, in the muted foreground with its relative time in tabular figures, and that its tooltip hands the text over. Pick `Default` for the band with no status. Nothing on main feeds this prop yet.",
+			},
+		},
+	},
+	play: async ({ canvasElement, userEvent }) => {
+		const band = slotIn(canvasElement, "mission-ticket-band")
+		const status = slotIn(band, "mission-status")
+		const time = slotIn(status, "mission-status-time")
+
+		await expect(status.previousElementSibling).toHaveAttribute(
+			"data-slot",
+			"mission-ticket-rule",
+		)
+		await expect(status.nextElementSibling?.tagName).toBe("TIME")
+		await expect(time).toHaveAttribute(
+			"datetime",
+			new Date(MISSION_STATUS.writtenAt).toISOString(),
+		)
+		await expect(time).toHaveTextContent("4 minutes ago")
+		await expect(getComputedStyle(time).fontVariantNumeric).toBe("tabular-nums")
+
+		await userEvent.hover(status.firstElementChild as HTMLElement)
+		await expect(await screen.findByRole("tooltip")).toHaveTextContent(
+			MISSION_STATUS.text,
+		)
+	},
+})
+
+export const LongStatus = meta.story({
+	args: { status: LONG_MISSION_STATUS },
+	parameters: {
+		docs: {
+			description: {
+				story:
+					"A status written as several sentences, in a container squeezed to 480 pixels. Check that the band stays one line high, that the status text alone truncates while its time and the opening time stay whole, and that the tooltip raised from the status hands the whole text over. Pick `WithStatus` for a status that fits.",
+			},
+		},
+	},
+	render: (args) => (
+		<div className="w-[30rem] max-w-full">
+			<MissionHeader {...args} />
+		</div>
+	),
+	play: async ({ canvasElement, userEvent }) => {
+		const band = slotIn(canvasElement, "mission-ticket-band")
+		const status = slotIn(band, "mission-status")
+		const text = status.firstElementChild as HTMLElement
+		const opened = band.lastElementChild as HTMLElement
+
+		await expect(band.scrollWidth).toBeLessThanOrEqual(band.clientWidth + 1)
+		await expect(text.scrollWidth).toBeGreaterThan(text.clientWidth)
+		await expect(opened.scrollWidth).toBeLessThanOrEqual(opened.clientWidth)
+		await expect(
+			slotIn(status, "mission-status-time").getBoundingClientRect().height,
+		).toBe(text.getBoundingClientRect().height)
+
+		await userEvent.hover(text)
+		await expect(await screen.findByRole("tooltip")).toHaveTextContent(
+			LONG_MISSION_STATUS.text,
+		)
 	},
 })

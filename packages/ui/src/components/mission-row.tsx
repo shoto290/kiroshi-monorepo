@@ -11,11 +11,17 @@ import {
 	MISSION_AVATAR_SIZE,
 	type MissionBot,
 	type MissionState,
+	type MissionStatusProps,
+	shownMissionStatus,
 } from "@workspace/ui/components/mission"
-import { missionTicketPlatform } from "@workspace/ui/components/mission-marks"
+import {
+	MissionStatusTime,
+	missionTicketPlatform,
+} from "@workspace/ui/components/mission-marks"
 import { hasStatePill } from "@workspace/ui/components/mission-state-pill"
 import { DOT_CLASS } from "@workspace/ui/components/row-anatomy"
 import { SidebarListRow } from "@workspace/ui/components/sidebar-list-row"
+import { TooltipHint } from "@workspace/ui/components/tooltip-hint"
 import { cn } from "@workspace/ui/lib/utils"
 
 type MissionRowModel = {
@@ -28,9 +34,10 @@ type MissionRowModel = {
 	timestamp: string
 }
 
-type MissionRowProps = MissionRowModel & {
-	onOpen: () => void
-}
+type MissionRowProps = MissionRowModel &
+	MissionStatusProps & {
+		onOpen: () => void
+	}
 
 const BADGE_OF: Partial<Record<MissionState, BotBadge>> = {
 	waiting_human: "attention",
@@ -54,6 +61,8 @@ const MissionRow = ({
 	state,
 	isWorking,
 	timestamp,
+	status,
+	now,
 	onOpen,
 }: MissionRowProps) => {
 	const { t } = useTranslation("chat")
@@ -69,6 +78,7 @@ const MissionRow = ({
 			? [{ slot: "state", text: t(`missions.state.${state}`) }]
 			: []),
 	].filter((part) => part.text !== "")
+	const shownStatus = shownMissionStatus(status, now)
 
 	return (
 		<li data-slot="mission-row">
@@ -104,6 +114,24 @@ const MissionRow = ({
 								{part.text}
 							</span>
 						))}
+						{shownStatus ? (
+							<TooltipHint
+								content={
+									<span className="flex flex-col">
+										<span>{shownStatus.text}</span>
+										<MissionStatusTime status={shownStatus} />
+									</span>
+								}
+							>
+								<span
+									className={cn(parts.length > 0 && DOT_CLASS)}
+									data-slot="mission-status"
+								>
+									{shownStatus.text}
+									<MissionStatusTime className="sr-only" status={shownStatus} />
+								</span>
+							</TooltipHint>
+						) : null}
 					</>
 				}
 				timestamp={timestamp}

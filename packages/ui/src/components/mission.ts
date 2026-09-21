@@ -51,6 +51,17 @@ type MissionCardModel = {
 	isClosed: boolean
 }
 
+type MissionStatus = {
+	text: string
+	writtenAt: number
+}
+
+type MissionStatusProps =
+	| { status: MissionStatus; now: number }
+	| { status?: undefined; now?: never }
+
+type ShownMissionStatus = MissionStatus & { now: number }
+
 type MissionEventModel = {
 	id: string
 	kind: MissionEventKind
@@ -58,6 +69,12 @@ type MissionEventModel = {
 	createdAt: number
 	text?: string
 }
+
+const shownMissionStatus = (
+	status: MissionStatus | undefined,
+	now: number | undefined,
+): ShownMissionStatus | undefined =>
+	status?.text.trim() && now !== undefined ? { ...status, now } : undefined
 
 const missionBadgeFor = (state: MissionState): BotBadge | undefined =>
 	state === "waiting_human" ? "attention" : undefined
@@ -69,7 +86,11 @@ export {
 	type MissionEventKind,
 	type MissionEventModel,
 	type MissionState,
+	type MissionStatus,
+	type MissionStatusProps,
 	type MissionTicket,
 	type MissionTicketLink,
 	missionBadgeFor,
+	type ShownMissionStatus,
+	shownMissionStatus,
 }
