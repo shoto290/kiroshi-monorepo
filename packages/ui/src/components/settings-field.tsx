@@ -17,18 +17,17 @@ type SettingsFieldKind =
 	| "number"
 
 type ControlTraits = {
-	type: SettingsFieldKind
 	inputMode?: "text" | "email" | "url" | "search" | "decimal"
 	isLiteral?: boolean
 }
 
 const CONTROL_TRAITS: Record<SettingsFieldKind, ControlTraits> = {
-	text: { type: "text" },
-	email: { type: "email", inputMode: "email", isLiteral: true },
-	url: { type: "url", inputMode: "url", isLiteral: true },
-	search: { type: "search", inputMode: "search" },
-	password: { type: "password", isLiteral: true },
-	number: { type: "number", inputMode: "decimal" },
+	text: {},
+	email: { inputMode: "email", isLiteral: true },
+	url: { inputMode: "url", isLiteral: true },
+	search: { inputMode: "search" },
+	password: { isLiteral: true },
+	number: { inputMode: "decimal" },
 }
 
 type SettingsFieldProps = {
@@ -104,7 +103,7 @@ const SettingsField = ({
 					readOnly={readOnly}
 					spellCheck={traits.isLiteral ? false : undefined}
 					step={kind === "number" ? "any" : undefined}
-					type={traits.type}
+					type={kind}
 					value={value}
 				/>
 			)}
