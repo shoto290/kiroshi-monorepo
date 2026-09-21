@@ -807,6 +807,7 @@ const bots = {
 				owl: "Owl",
 				koala: "Koala",
 				skippy: "Skippy",
+				pitch: "Pitch",
 			} as const satisfies Record<BotAvatarAnimal, string>,
 		},
 		colour: {

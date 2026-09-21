@@ -184,8 +184,17 @@ const BotAvatarBody = ({
 					/>
 				</g>
 				{definition.extras.map((shape, index) => (
-					<g data-part={PARTS.extra(index)} key={shapeKey(shape)}>
-						<Shape shape={shape} weight={weight} />
+					<g
+						key={shapeKey(shape)}
+						mask={
+							"isOccluded" in shape && shape.isOccluded
+								? `url(#${headMaskId})`
+								: undefined
+						}
+					>
+						<g data-part={PARTS.extra(index)}>
+							<Shape shape={shape} weight={weight} />
+						</g>
 					</g>
 				))}
 				<EarLayer

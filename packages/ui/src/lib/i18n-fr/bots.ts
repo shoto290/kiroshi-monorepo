@@ -822,6 +822,7 @@ const bots = {
 				owl: "Hibou",
 				koala: "Koala",
 				skippy: "Skippy",
+				pitch: "Pitch",
 			},
 		},
 		colour: {
