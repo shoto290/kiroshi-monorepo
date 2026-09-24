@@ -65,6 +65,15 @@ const blotColor = (blot: BotAvatarBlot) =>
 		.getPropertyValue(`--bot-blot-${blot}`)
 		.trim()
 
+type TileFrame = { size: number; blot: BotAvatarBlot }
+
+const tileFrameStyle = ({ size, blot }: TileFrame) => ({
+	width: size,
+	height: size,
+	borderRadius: size * CORNER_SCALE,
+	["--bot-tile-blot" as string]: blotTint(blot),
+})
+
 type BotTileProps = {
 	seed: string
 	shape?: BotAvatarType
@@ -98,12 +107,7 @@ const BotTile = ({
 				VARIANT_CLASSES[variant],
 				className,
 			)}
-			style={{
-				width: size,
-				height: size,
-				borderRadius: size * CORNER_SCALE,
-				["--bot-tile-blot" as string]: blotTint(resolvedBlot),
-			}}
+			style={tileFrameStyle({ size, blot: resolvedBlot })}
 		>
 			<BotAvatarShape
 				type={shape ?? seededShape({ seed, includeCharacters })}
@@ -126,5 +130,9 @@ export {
 	type BotTileProps,
 	type BotTileVariant,
 	CHARACTER_SHAPES,
+	SHAPE_SCALE,
 	seededBlot,
+	seededShape,
+	tileFrameStyle,
+	VARIANT_CLASSES,
 }

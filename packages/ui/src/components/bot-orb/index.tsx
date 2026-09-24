@@ -1,5 +1,6 @@
 "use client"
 
+import { botAvatarShapes } from "bot-avatars"
 import { useEffect, useRef } from "react"
 import { useTranslation } from "react-i18next"
 
@@ -14,9 +15,16 @@ import {
 import { MODE_FRAMES } from "@workspace/ui/components/bot-orb/engine/registry"
 import { resolvePreset } from "@workspace/ui/components/bot-orb/presets"
 import { useResolvedDark } from "@workspace/ui/components/bot-orb/theme"
-import type { OrbState } from "@workspace/ui/components/bot-orb/types"
-import { seededBlot } from "@workspace/ui/components/bot-tile"
+import type { OrbSize, OrbState } from "@workspace/ui/components/bot-orb/types"
+import {
+	SHAPE_SCALE,
+	seededBlot,
+	seededShape,
+	tileFrameStyle,
+	VARIANT_CLASSES,
+} from "@workspace/ui/components/bot-tile"
 import { usePrefersReducedMotion } from "@workspace/ui/hooks/use-prefers-reduced-motion"
+import { cn } from "@workspace/ui/lib/utils"
 
 const BOT_ORB_STATES = [
 	"working",
@@ -30,10 +38,10 @@ const BOT_ORB_STATES = [
 	"shaping",
 ] as const satisfies readonly OrbState[]
 
-const BOT_ORB_SIZES = [64, 20] as const
-
-type BotOrbSize = (typeof BOT_ORB_SIZES)[number]
-
+const ORB_SIZE: OrbSize = 20
+const SHAPE_SIZE = ORB_SIZE * SHAPE_SCALE
+const SHAPE_INSET = (ORB_SIZE - SHAPE_SIZE) / 2
+const SHAPE_DESIGN_UNITS = 100
 const RESTING_STATE: OrbState = "working"
 const STILL_FRAME_SECONDS = 0.6
 const MAX_PIXEL_RATIO = 2
@@ -96,7 +104,7 @@ type BotOrbProps = {
 	name: string
 	blot?: BotAvatarBlot
 	state?: OrbState
-	size?: BotOrbSize
+	size?: number
 	className?: string
 }
 
@@ -105,7 +113,7 @@ const BotOrb = ({
 	name,
 	blot,
 	state,
-	size = 64,
+	size = ORB_SIZE,
 	className,
 }: BotOrbProps) => {
 	const { t } = useTranslation("bots")
@@ -113,7 +121,9 @@ const BotOrb = ({
 	const isDark = useResolvedDark("auto", canvasRef)
 	const isReducedMotion = usePrefersReducedMotion()
 	const isAnimated = state !== undefined && !isReducedMotion
-	const tint = orbTint(blot ?? seededBlot(seed))
+	const resolvedBlot = blot ?? seededBlot(seed)
+	const shape = seededShape({ seed, includeCharacters: false })
+	const tint = orbTint(resolvedBlot)
 
 	useEffect(() => {
 		const canvas = canvasRef.current
@@ -121,16 +131,44 @@ const BotOrb = ({
 		if (!canvas || !context) return
 
 		const pixelRatio = Math.min(MAX_PIXEL_RATIO, window.devicePixelRatio || 1)
+		const devicePixelsPerOrbPixel = (pixelRatio * size) / ORB_SIZE
 		canvas.width = Math.round(size * pixelRatio)
 		canvas.height = Math.round(size * pixelRatio)
-		const { mode, speed, opts } = resolvePreset(state ?? RESTING_STATE, size)
+		const { mode, speed, opts } = resolvePreset(
+			state ?? RESTING_STATE,
+			ORB_SIZE,
+		)
 		const frameAt = MODE_FRAMES[mode]
+		canvas.style.color = tint
 		const ink = rgbOf(getComputedStyle(canvas).color)
+		const silhouette = new Path2D(botAvatarShapes[shape])
+		const silhouetteScale =
+			(devicePixelsPerOrbPixel * SHAPE_SIZE) / SHAPE_DESIGN_UNITS
+		const silhouetteOffset = devicePixelsPerOrbPixel * SHAPE_INSET
 
 		const paintAt = (seconds: number) => {
-			context.setTransform(pixelRatio, 0, 0, pixelRatio, 0, 0)
-			context.clearRect(0, 0, size, size)
-			paintFrame(context, frameAt(size, seconds, opts), isDark, ink)
+			context.setTransform(1, 0, 0, 1, 0, 0)
+			context.clearRect(0, 0, canvas.width, canvas.height)
+			context.save()
+			context.setTransform(
+				silhouetteScale,
+				0,
+				0,
+				silhouetteScale,
+				silhouetteOffset,
+				silhouetteOffset,
+			)
+			context.clip(silhouette)
+			context.setTransform(
+				devicePixelsPerOrbPixel,
+				0,
+				0,
+				devicePixelsPerOrbPixel,
+				0,
+				0,
+			)
+			paintFrame(context, frameAt(ORB_SIZE, seconds, opts), isDark, ink)
+			context.restore()
 		}
 
 		if (!isAnimated) {
@@ -140,14 +178,14 @@ const BotOrb = ({
 		return runWhileVisible(canvas, () =>
 			paintAt((performance.now() / 1000) * speed),
 		)
-	}, [isAnimated, isDark, size, state])
+	}, [isAnimated, isDark, shape, size, state, tint])
 
 	return (
-		<canvas
-			ref={canvasRef}
+		<div
 			data-slot="bot-orb"
 			data-state={state ?? "idle"}
 			data-animated={isAnimated}
+			data-shape={shape}
 			role="img"
 			aria-label={
 				state
@@ -157,10 +195,20 @@ const BotOrb = ({
 						})
 					: name
 			}
-			className={className}
-			style={{ width: size, height: size, display: "block", color: tint }}
-		/>
+			className={cn(
+				"shrink-0 overflow-hidden",
+				VARIANT_CLASSES.tinted,
+				className,
+			)}
+			style={tileFrameStyle({ size, blot: resolvedBlot })}
+		>
+			<canvas
+				ref={canvasRef}
+				data-slot="bot-orb-dots"
+				className="block size-full"
+			/>
+		</div>
 	)
 }
 
-export { BOT_ORB_SIZES, BOT_ORB_STATES, BotOrb, type BotOrbProps }
+export { BOT_ORB_STATES, BotOrb, type BotOrbProps }

@@ -36,13 +36,11 @@ branding-botorb--connecting
 branding-botorb--dark
 branding-botorb--light
 branding-botorb--listening
-branding-botorb--playground
 branding-botorb--reduced-motion
+branding-botorb--rest
 branding-botorb--searching
 branding-botorb--seeded-gallery
 branding-botorb--shaping
-branding-botorb--size-20
-branding-botorb--size-64
 branding-botorb--solving
 branding-botorb--weaving
 branding-botorb--working
