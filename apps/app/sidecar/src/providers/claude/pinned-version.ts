@@ -9,16 +9,8 @@ type VersionPin = {
 	resolved: string
 }
 
-export const pinnedClaudeCodeVersion = (): string => {
-	const manifest = JSON.parse(readFileSync(PIN_MANIFEST, "utf8"))
-	const pinned = manifest.claudeCodeVersion
-	if (typeof pinned !== "string" || pinned.length === 0) {
-		throw new Error(
-			`${PIN_MANIFEST_LABEL} carries no claudeCodeVersion field to pin the Claude Code executable.`,
-		)
-	}
-	return pinned
-}
+export const pinnedClaudeCodeVersion = (): string =>
+	JSON.parse(readFileSync(PIN_MANIFEST, "utf8")).claudeCodeVersion
 
 export const assertPinnedVersion = ({ pinned, resolved }: VersionPin) => {
 	if (resolved === pinned) {

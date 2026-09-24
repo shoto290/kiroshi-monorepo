@@ -84,14 +84,12 @@ const stageExecutable = ({ directory, targetTriple }: StageTarget) => {
 export const claudeBuild: ProviderBuild = {
 	prepare: async () => {
 		const manifest = await Bun.file(join(sdkDirectory(), "package.json")).json()
+		const executableVersion = manifest.claudeCodeVersion
 		assertPinnedVersion({
 			pinned: pinnedClaudeCodeVersion(),
-			resolved: manifest.claudeCodeVersion,
+			resolved: executableVersion,
 		})
-		writeGeneratedModule({
-			executableVersion: manifest.claudeCodeVersion,
-			sdkVersion: manifest.version,
-		})
+		writeGeneratedModule({ executableVersion, sdkVersion: manifest.version })
 	},
 	stage: stageExecutable,
 }
