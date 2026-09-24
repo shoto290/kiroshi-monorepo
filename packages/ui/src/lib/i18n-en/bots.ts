@@ -1,5 +1,6 @@
 import type { BotAvatarBlot } from "@workspace/ui/components/bot-avatar"
 import type { BotAvatarAnimal } from "@workspace/ui/components/bot-avatar-animals"
+import type { OrbState } from "@workspace/ui/components/bot-orb/types"
 import type {
 	BotOutputStyle,
 	BotPermissionMode,
@@ -799,6 +800,20 @@ const bots = {
 		avatar: "Avatar",
 		uploadedImage: "Uploaded image",
 		current: "{{animal}}, {{colour}}",
+		orb: {
+			label: "{{name}}, {{state}}",
+			state: {
+				working: "Working",
+				searching: "Searching",
+				solving: "Solving",
+				listening: "Listening",
+				connecting: "Connecting",
+				weaving: "Weaving",
+				composing: "Composing",
+				breathing: "Thinking",
+				shaping: "Shaping",
+			} as const satisfies Record<OrbState, string>,
+		},
 		animal: {
 			label: "Animal",
 			option: {

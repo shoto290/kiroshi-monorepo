@@ -26,6 +26,7 @@
 	--bot-blot-orange: #f2b57e;
 	--bot-blot-ink: oklch(0.08 0 0);
 	--bot-avatar-ink: var(--bot-blot-ink);
+	--bot-orb-shade: 45%;
 	--bot-badge-attention: oklch(0.72 0.18 62);
 	--bot-badge-done: oklch(0.68 0.17 148);
 	--bot-badge-failed: oklch(0.62 0.22 27);
@@ -73,6 +74,7 @@
 }
 
 .dark {
+	--bot-orb-shade: 0%;
 	--background: oklch(0.141 0.005 285.823);
 	--foreground: oklch(0.985 0 0);
 	--bot-avatar-ink: oklch(0.995 0 0);

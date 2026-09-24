@@ -814,6 +814,20 @@ const bots = {
 		avatar: "Avatar",
 		uploadedImage: "Image importée",
 		current: "{{animal}}, {{colour}}",
+		orb: {
+			label: "{{name}}, {{state}}",
+			state: {
+				working: "Travaille",
+				searching: "Cherche",
+				solving: "Résout",
+				listening: "Écoute",
+				connecting: "Se connecte",
+				weaving: "Tisse",
+				composing: "Rédige",
+				breathing: "Réfléchit",
+				shaping: "Façonne",
+			},
+		},
 		animal: {
 			label: "Animal",
 			option: {

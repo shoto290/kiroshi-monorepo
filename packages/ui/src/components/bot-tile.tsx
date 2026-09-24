@@ -126,4 +126,5 @@ export {
 	type BotTileProps,
 	type BotTileVariant,
 	CHARACTER_SHAPES,
+	seededBlot,
 }
