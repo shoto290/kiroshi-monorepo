@@ -13,6 +13,7 @@ import {
 	EXECUTABLE_EXTENSION,
 	externalBinaryName,
 } from "./executable-name"
+import { assertPinnedVersion, pinnedClaudeCodeVersion } from "./pinned-version"
 
 import type { ProviderBuild, StageTarget } from "../provider"
 
@@ -56,6 +57,18 @@ const writeGeneratedModule = ({
 	)
 }
 
+const assertStagedVersion = (executable: string) => {
+	const pinned = pinnedClaudeCodeVersion()
+	const run = Bun.spawnSync([executable, "--version"])
+	const output = `${run.stdout.toString()}${run.stderr.toString()}`.trim()
+	if (run.exitCode === 0 && output.includes(pinned)) {
+		return
+	}
+	throw new Error(
+		`${executable} --version exited ${run.exitCode} and reported "${output}", which does not carry the pinned Claude Code version ${pinned}.`,
+	)
+}
+
 const stageExecutable = ({ directory, targetTriple }: StageTarget) => {
 	mkdirSync(directory, { recursive: true })
 	const external = join(directory, externalBinaryName(targetTriple))
@@ -65,15 +78,18 @@ const stageExecutable = ({ directory, targetTriple }: StageTarget) => {
 	copyFileSync(claudeSourceExecutable(), external)
 	chmodSync(external, EXECUTABLE_MODE)
 	linkSync(external, bundled)
+	assertStagedVersion(external)
 }
 
 export const claudeBuild: ProviderBuild = {
 	prepare: async () => {
 		const manifest = await Bun.file(join(sdkDirectory(), "package.json")).json()
-		writeGeneratedModule({
-			executableVersion: manifest.claudeCodeVersion,
-			sdkVersion: manifest.version,
+		const executableVersion = manifest.claudeCodeVersion
+		assertPinnedVersion({
+			pinned: pinnedClaudeCodeVersion(),
+			resolved: executableVersion,
 		})
+		writeGeneratedModule({ executableVersion, sdkVersion: manifest.version })
 	},
 	stage: stageExecutable,
 }

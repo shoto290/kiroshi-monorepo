@@ -4,6 +4,7 @@
 	"private": true,
 	"license": "MIT",
 	"type": "module",
+	"claudeCodeVersion": "2.1.280",
 	"scripts": {
 		"build": "bun scripts/build.ts",
 		"types": "bun scripts/generate.ts && tsc --noEmit",

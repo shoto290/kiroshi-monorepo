@@ -22,7 +22,7 @@ Every bot also holds `delegate`, which hands a self-contained job to a nested re
 
 ## Requirements
 
-- **A [Claude](https://claude.com/claude-code) subscription, signed in.** Kiroshi bundles the Claude Code executable that answers — nothing to install — but it answers on your own sign-in.
+- **A [Claude](https://claude.com/claude-code) subscription, signed in.** Kiroshi bundles the Claude Code executable that answers — nothing to install — but it answers on your own sign-in. Its version is pinned by `claudeCodeVersion` in `apps/app/sidecar/package.json`; the sidecar build fails when the executable resolved in `node_modules` disagrees, so that pin is bumped in the same commit as `@anthropic-ai/claude-agent-sdk`.
 - **No API key.** The session Kiroshi opens inherits a fixed allowlist of environment variables, and no API key is on it.
 - [Bun](https://bun.sh) — runtime and package manager.
 - [Rust toolchain](https://rustup.rs) — the Tauri host is Rust.
