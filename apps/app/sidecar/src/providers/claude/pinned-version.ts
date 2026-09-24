@@ -27,7 +27,7 @@ export const readPinnedVersion = (manifest: SidecarManifest): string => {
 	return pinned
 }
 
-export const pinnedClaudeCodeVersion = (): string =>
+export const pinnedClaudeCodeVersion = () =>
 	readPinnedVersion(JSON.parse(readFileSync(PIN_MANIFEST, "utf8")))
 
 const releaseSegments = (version: string) => {
