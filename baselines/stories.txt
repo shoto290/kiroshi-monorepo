@@ -30,6 +30,14 @@ branding-botidentityavatar--uploaded-badged
 branding-botidentityavatar--uploaded-working
 branding-botidentityavatar--waiting
 branding-botidentityavatar--working
+branding-bottile--playground
+branding-bottile--roster
+branding-bottile--shading
+branding-bottile--shapes-by-blot
+branding-bottile--side-by-side
+branding-bottile--sizes
+branding-bottile--states
+branding-bottile--tile-styles
 branding-companion-avatar--all-states
 branding-companion-avatar--blot-shapes
 branding-companion-avatar--blots

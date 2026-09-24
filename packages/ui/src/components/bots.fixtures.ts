@@ -24,4 +24,13 @@ const LONG_NAMED_BOTS: RosterBot[] = [
 	},
 ]
 
-export { CONVERSATION_BOTS, LONG_NAMED_BOTS }
+const TILE_ROSTER_IDS = [
+	...CONVERSATION_BOTS.map((bot) => bot.id),
+	...LONG_NAMED_BOTS.map((bot) => bot.id),
+	"bot-gaspard",
+	"bot-hugo",
+	"bot-ines",
+	"bot-jules",
+]
+
+export { CONVERSATION_BOTS, LONG_NAMED_BOTS, TILE_ROSTER_IDS }

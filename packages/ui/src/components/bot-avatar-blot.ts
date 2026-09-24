@@ -57,4 +57,5 @@ export {
 	type BlotPose,
 	blotPose,
 	blotTransform,
+	hash,
 }
