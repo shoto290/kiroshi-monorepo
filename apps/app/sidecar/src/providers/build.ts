@@ -12,7 +12,7 @@ const RENAMED_BINARY_PREFIX = "opennest-"
 export const prepareProviders = () =>
 	Promise.all(PROVIDER_BUILDS.map((build) => build.prepare()))
 
-const removeRenamedBinaries = (directory: string) => {
+export const removeRenamedBinaries = (directory: string) => {
 	if (!existsSync(directory)) {
 		return
 	}
