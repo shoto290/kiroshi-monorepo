@@ -39,8 +39,7 @@ export interface Preset {
 	extra?: ModeOpts
 }
 
-/** Exported so `scripts/extract-spec.ts` can emit them for the native ports. */
-export const PRESETS: Record<ModeKey, Record<OrbSize, Preset>> = {
+const PRESETS: Record<ModeKey, Record<OrbSize, Preset>> = {
 	orbits: {
 		20: { speed: 3.9, count: 0.238, size: 2.4 },
 	},
