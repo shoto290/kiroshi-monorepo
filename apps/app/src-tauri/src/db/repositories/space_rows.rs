@@ -142,12 +142,18 @@ const TABLES: &[Table] = &[
 	},
 ];
 
-const SPACE_OWNED: &[(&str, &str)] = &[
-	("spaces", "id"),
-	("space_settings", "space_id"),
-	("sections", "space_id"),
-	("bot_spaces", "space_id"),
-	("conversations", "space_id"),
+struct SpaceOwned {
+	table: &'static str,
+	column: &'static str,
+	is_nullable: bool,
+}
+
+const SPACE_OWNED: &[SpaceOwned] = &[
+	SpaceOwned { table: "spaces", column: "id", is_nullable: false },
+	SpaceOwned { table: "space_settings", column: "space_id", is_nullable: false },
+	SpaceOwned { table: "sections", column: "space_id", is_nullable: false },
+	SpaceOwned { table: "bot_spaces", column: "space_id", is_nullable: false },
+	SpaceOwned { table: "conversations", column: "space_id", is_nullable: true },
 ];
 
 #[derive(Debug)]
@@ -347,10 +353,11 @@ fn refuse_foreign_rows(rows: &SpaceRows, space_id: &str) -> Result<(), SpaceRows
 	if rows.texts("spaces", "id") != [space_id] {
 		return Err(malformed("the archive must hold exactly the space its manifest names"));
 	}
-	for (table, column) in SPACE_OWNED {
+	for SpaceOwned { table, column, is_nullable } in SPACE_OWNED {
 		let foreign = rows.of(table).iter().any(|row| match row.get(*column) {
 			Some(Value::String(owner)) => owner != space_id,
-			_ => *table != "conversations",
+			Some(Value::Null) => !is_nullable,
+			_ => true,
 		});
 		if foreign {
 			return Err(malformed(&format!("a row of {table} belongs to another space")));
