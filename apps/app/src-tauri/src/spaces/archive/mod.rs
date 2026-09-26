@@ -330,13 +330,11 @@ fn packed(file: &mut File, space_id: &str, rows: &SpaceRows, trees: &Trees) -> i
 	let mut ordered: Vec<_> = trees.iter().collect();
 	ordered.sort();
 	for (tree, path) in ordered {
-		match tree {
-			Tree::Avatar(_) if path.is_file() => {
-				builder.append_path_with_name(path, tree.archived())?
-			}
-			Tree::Avatar(_) => {}
-			_ if path.is_dir() => appended_tree(&mut builder, &tree.archived(), path)?,
-			_ => {}
+		let is_avatar = matches!(tree, Tree::Avatar(_));
+		if is_avatar && path.is_file() {
+			builder.append_path_with_name(path, tree.archived())?;
+		} else if !is_avatar && path.is_dir() {
+			appended_tree(&mut builder, &tree.archived(), path)?;
 		}
 	}
 	builder.finish()
