@@ -605,7 +605,7 @@ fn cancelling_a_live_session_before_any_submit_closes_the_turn_the_host_opened()
 				"repliedToMessageId": null,
 				"content": "hello",
 				"createdAt": 1,
-			} }),
+			}, "summoned": [BOT] }),
 		)
 		.expect("the message is sent");
 

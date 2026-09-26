@@ -846,7 +846,12 @@ pub async fn agent_submit_prompt(
 	text: String,
 	turn: Option<SubmittedTurn>,
 ) -> Result<(), TransportError> {
-	state.live.session_for(&scope)?.submit(&text, turn).await
+	let turn_id = turn.as_ref().map(|handed| handed.turn_id.clone());
+	state.live.session_for(&scope)?.submit(&text, turn).await?;
+	if let Some(turn_id) = turn_id {
+		state.host_writes.record_submitted(&turn_id);
+	}
+	Ok(())
 }
 
 #[tauri::command]
@@ -885,7 +890,7 @@ async fn complete_unsubmitted_turns<R: Runtime>(
 	};
 	let messages = ready(state.inner())?.messages();
 	for id in messages.open_turns_without_reply(conversation_id.to_owned()).await? {
-		if owned.owns_turn(&id) {
+		if owned.owns_turn(&id) && !owned.was_submitted(&id) {
 			messages.complete_turn(id, now_ms()).await?;
 		}
 	}

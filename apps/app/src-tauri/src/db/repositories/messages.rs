@@ -1,9 +1,8 @@
-use std::time::{SystemTime, UNIX_EPOCH};
-
 use rusqlite::types::FromSql;
 use rusqlite::{params, Connection, OptionalExtension, Row, Transaction, TransactionBehavior};
 
 use super::arrivals::{self, Arrival, SeqSpan};
+use crate::agent::translate::now_ms;
 use crate::db::{Access, DatabaseError};
 
 mod activities;
@@ -156,11 +155,7 @@ const COMPLETE_EARLIER_UNANSWERED_TURNS: &str = "UPDATE turns SET completed_at =
 		AND NOT EXISTS (SELECT 1 FROM messages WHERE messages.turn_id = turns.id
 			AND messages.role = 'assistant'
 			AND messages.completion_state IN ('pending', 'streaming'))";
-const COMPLETE_UNANSWERED_TURNS: &str = "UPDATE turns SET completed_at = ?1
-	WHERE completed_at IS NULL
-		AND NOT EXISTS (SELECT 1 FROM messages WHERE messages.turn_id = turns.id
-			AND messages.role = 'assistant'
-			AND messages.completion_state IN ('pending', 'streaming'))";
+const COMPLETE_OPEN_TURNS: &str = "UPDATE turns SET completed_at = ?1 WHERE completed_at IS NULL";
 const OPEN_TURNS_WITHOUT_REPLY: &str = "SELECT id FROM turns
 	WHERE conversation_id = ?1 AND completed_at IS NULL
 		AND NOT EXISTS (SELECT 1 FROM messages WHERE messages.turn_id = turns.id
@@ -289,8 +284,13 @@ impl MessagesRepository {
 			.await?)
 	}
 
-	pub async fn send_user_message(&self, message: NewUserMessage) -> Result<i64, TranscriptError> {
-		self.call_mut(move |connection| Ok(open_turn_with(connection, message))).await?
+	pub async fn send_user_message(
+		&self,
+		message: NewUserMessage,
+		completed_at: Option<i64>,
+	) -> Result<i64, TranscriptError> {
+		self.call_mut(move |connection| Ok(open_turn_with(connection, message, completed_at)))
+			.await?
 	}
 
 	pub async fn open_turns_without_reply(
@@ -559,9 +559,9 @@ pub(in crate::db) fn sweep_unfinished(
 	connection: &mut Connection,
 ) -> Result<RecoveryReport, DatabaseError> {
 	let transaction = write_transaction(connection)?;
-	let completed_turns = transaction.execute(COMPLETE_UNANSWERED_TURNS, [now()])?;
 	let interrupted_messages = transaction.execute(INTERRUPT_OPEN_MESSAGES, [])?;
 	let terminated_activities = transaction.execute(TERMINATE_OPEN_ACTIVITIES, [])?;
+	let completed_turns = transaction.execute(COMPLETE_OPEN_TURNS, [now_ms()])?;
 	transaction.commit()?;
 	Ok(RecoveryReport { completed_turns, interrupted_messages, terminated_activities })
 }
@@ -707,6 +707,7 @@ fn insert_turn_once(transaction: &Transaction<'_>, turn: &NewTurn) -> Result<i64
 fn open_turn_with(
 	connection: &mut Connection,
 	message: NewUserMessage,
+	completed_at: Option<i64>,
 ) -> Result<i64, TranscriptError> {
 	let transaction = write_transaction(connection)?;
 	transaction.execute(
@@ -719,6 +720,9 @@ fn open_turn_with(
 		started_at: message.created_at,
 	};
 	insert_turn_once(&transaction, &turn)?;
+	if let Some(completed_at) = completed_at {
+		transaction.execute(COMPLETE_TURN, params![turn.id, completed_at])?;
+	}
 	let seq = insert_message_once(&transaction, message.into())?;
 	transaction.commit()?;
 	Ok(seq)
@@ -828,10 +832,6 @@ fn refuse_a_message_elsewhere(
 		return Err(TranscriptError::UnknownMessage { id: id.into() });
 	}
 	Ok(())
-}
-
-fn now() -> i64 {
-	SystemTime::now().duration_since(UNIX_EPOCH).unwrap_or_default().as_millis() as i64
 }
 
 fn write_transaction(connection: &mut Connection) -> Result<Transaction<'_>, DatabaseError> {
@@ -1821,7 +1821,7 @@ mod tests {
 		assert_eq!(
 			report,
 			RecoveryReport {
-				completed_turns: 0,
+				completed_turns: 1,
 				interrupted_messages: 1,
 				terminated_activities: 1
 			},
@@ -1830,11 +1830,11 @@ mod tests {
 		assert_eq!(
 			again,
 			RecoveryReport {
-				completed_turns: 1,
+				completed_turns: 0,
 				interrupted_messages: 0,
 				terminated_activities: 0
 			},
-			"a second sweep rewrote what the first one closed out, or kept open the turn it spared"
+			"a second sweep rewrote what the first one had already closed out"
 		);
 		let transcript = whole_transcript(&database, PAGE).await;
 		assert_eq!(transcript[1].state, MessageState::Interrupted);

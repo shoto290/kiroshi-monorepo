@@ -3090,7 +3090,18 @@ fn a_host_with_agents(home: &Home) -> App<MockRuntime> {
 }
 
 fn a_sent_message(id: &str, turn_id: &str, conversation_id: &str, created_at: i64) -> Value {
-	json!({ "message": {
+	let mut sent = a_message_nobody_is_summoned_to(id, turn_id, conversation_id, created_at);
+	sent["summoned"] = json!([BOT]);
+	sent
+}
+
+fn a_message_nobody_is_summoned_to(
+	id: &str,
+	turn_id: &str,
+	conversation_id: &str,
+	created_at: i64,
+) -> Value {
+	json!({ "summoned": [], "message": {
 		"id": id,
 		"conversationId": conversation_id,
 		"turnId": turn_id,
@@ -3233,7 +3244,7 @@ fn the_next_send_closes_the_turn_nobody_answered_and_spares_the_one_still_stream
 }
 
 #[test]
-fn opening_the_database_closes_the_orphan_turn_and_spares_the_one_with_a_streaming_reply() {
+fn opening_the_database_interrupts_open_replies_then_closes_every_open_turn() {
 	let home = Home::new();
 	let before = {
 		let app = home.app();
@@ -3256,9 +3267,20 @@ fn opening_the_database_closes_the_orphan_turn_and_spares_the_one_with_a_streami
 
 	let app = home.app();
 
-	let swept = completed_at(&app, "t1").expect("the orphan turn was left open");
-	assert!(swept >= before, "the orphan turn was not stamped with the open time");
-	assert_eq!(completed_at(&app, "t2"), None, "a turn whose reply was streaming was closed");
+	let orphan = completed_at(&app, "t1").expect("the orphan turn was left open");
+	let answered = completed_at(&app, "t2").expect("the turn of the streaming reply was left open");
+	assert!(orphan >= before && answered >= before, "a turn was not stamped with the open time");
+	let state = app.state::<db::DatabaseState>();
+	let database = state.as_ref().expect("the database is open");
+	let reply = tauri::async_runtime::block_on(database.messages().call(|connection| {
+		Ok(connection.query_row(
+			"SELECT completion_state FROM messages WHERE id = 'r2'",
+			[],
+			|row| row.get::<_, String>(0),
+		)?)
+	}))
+	.expect("the reply reads");
+	assert_eq!(reply, "interrupted", "the open reply was not interrupted");
 }
 
 #[test]
@@ -3282,4 +3304,85 @@ fn cancelling_before_any_submit_closes_the_turn_the_host_opened() {
 	assert!(cancelled.is_err(), "a cancel with nothing submitted was reported as done");
 	assert!(completed_at(&app, "t1").is_some(), "the unsubmitted host turn was left open");
 	assert_eq!(completed_at(&app, "t2"), None, "a turn the front owns was closed by the host");
+}
+
+#[test]
+fn a_message_nobody_is_summoned_to_is_written_with_its_turn_already_closed() {
+	let home = Home::new();
+	let app = a_host_with_agents(&home);
+	let window = window(&app);
+	let (_, conversation) = a_bot_and_its_chat(&window);
+
+	call(
+		&window,
+		"conversation_send_user_message",
+		a_message_nobody_is_summoned_to("m1", "t1", &conversation, 4),
+	)
+	.expect("the message is sent");
+
+	assert_eq!(a_turn_row(&app, "t1"), Some((4, Some(4))), "the unaddressed turn was left open");
+	let page = call(&window, "conversation_message_page", a_page(&conversation, None, 10))
+		.expect("the page");
+	assert_eq!(seqs(&page), vec![1], "the message was not written with its closed turn");
+}
+
+#[test]
+fn a_refused_message_nobody_is_summoned_to_leaves_no_closed_turn_behind() {
+	let home = Home::new();
+	let app = a_host_with_agents(&home);
+	let window = window(&app);
+	let (_, conversation) = a_bot_and_its_chat(&window);
+	call(&window, "conversation_start_turn", a_turn(&conversation)).expect("the turn is started");
+	call(&window, "conversation_append_user_message", a_user_message("m1", &conversation, "hi", 1))
+		.expect("the message is appended");
+
+	let refused = call(
+		&window,
+		"conversation_send_user_message",
+		a_message_nobody_is_summoned_to("m1", "t2", &conversation, 2),
+	);
+
+	assert!(refused.is_err(), "a conflicting message was accepted");
+	assert_eq!(a_turn_row(&app, "t2"), None, "the refused send left its closed turn behind");
+}
+
+#[cfg(feature = "fake-claude")]
+#[test]
+fn a_companion_cancelling_before_its_submit_spares_the_turn_another_companion_was_handed() {
+	use kiroshi_app::agent::commands::terminate_session;
+	use kiroshi_app::agent::sidecar::SIDECAR_OVERRIDE_ENV;
+
+	std::env::set_var(SIDECAR_OVERRIDE_ENV, env!("CARGO_BIN_EXE_fake_sidecar"));
+	std::env::set_var("FAKE_AGENT_SCENARIO", "slow");
+	let home = Home::new();
+	let app = a_host_with_agents(&home);
+	let window = window(&app);
+	let (_, conversation) = a_bot_and_its_chat(&window);
+	let speaking = json!({ "conversationId": conversation, "botId": BOT, "runtimeSessionId": "r1", "epoch": 1 });
+	let silent = json!({ "conversationId": conversation, "botId": "companion-a", "runtimeSessionId": "r2", "epoch": 1 });
+	call(
+		&window,
+		"agent_start_or_resume_session",
+		json!({ "scope": speaking, "resume": null, "cwd": std::env::temp_dir() }),
+	)
+	.expect("the speaking companion starts");
+	call(&window, "conversation_send_user_message", a_sent_message("m1", "t1", &conversation, 1))
+		.expect("the message is sent");
+	call(
+		&window,
+		"agent_submit_prompt",
+		json!({ "scope": speaking, "text": "hello", "turn": { "turnId": "t1", "promptId": "m1" } }),
+	)
+	.expect("the prompt is handed to the speaking companion");
+
+	let cancelled = call(&window, "agent_cancel_turn", json!({ "scope": silent }));
+
+	assert!(cancelled.is_err(), "a cancel with nothing submitted was reported as done");
+	let writes = app.state::<AgentState>();
+	assert!(
+		writes.host_writes().was_submitted("t1"),
+		"the handed turn was not recorded as submitted"
+	);
+	assert_eq!(completed_at(&app, "t1"), None, "the cancel closed a turn another companion holds");
+	tauri::async_runtime::block_on(terminate_session(&writes));
 }
