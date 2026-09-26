@@ -154,7 +154,9 @@ pub(crate) async fn list_bundles(root: Option<&Path>, database: &db::Database) {
 	};
 	if let Ok(roster) = database.conversations().bots(None).await {
 		for bot in &roster {
-			let _ = bundles::ensure(root, bot);
+			if let Err(failure) = bundles::ensure(root, bot) {
+				eprintln!("the bundle of bot {} was not brought in line: {failure}", bot.id);
+			}
 		}
 		let _ = bundles::write_marketplace(root, &roster);
 	}
@@ -597,6 +599,7 @@ pub async fn conversation_bot_commands(
 #[cfg(test)]
 mod tests {
 	use std::fs;
+	use std::path::PathBuf;
 
 	use super::*;
 	use crate::db::repositories::conversations::{AvatarAnimal, AvatarBlot as StoredBlot};
@@ -676,7 +679,7 @@ mod tests {
 			Ok(BotIdentity {
 				name: "Quill".to_owned(),
 				title: "a writing partner".to_owned(),
-				model: "sonnet".to_owned(),
+				model: DEFAULT_BOT_MODEL.to_owned(),
 				avatar_animal: contract::AvatarAnimal::Rabbit,
 				avatar_blot: Some(contract::AvatarBlot::Red),
 				avatar_image_path: None,
@@ -753,6 +756,58 @@ mod tests {
 		assert!(listed.iter().any(|bot| bot.id == created.id));
 		let root = bundles::root(app.handle()).expect("the bundle root is named");
 		assert!(bundles::dir(&root, &created.id).is_dir());
+	}
+
+	async fn a_bundle_on_the_default_model(app: &App<MockRuntime>, name: &str) -> PathBuf {
+		let created = created_from(app, a_draft(name, "a job", "A brief."))
+			.await
+			.expect("the bot is created");
+		let state = app.state::<db::DatabaseState>();
+		let held = ready(&state).expect("the database opens").conversations();
+		let stored =
+			held.bot(created.id.clone()).await.expect("the bot reads").expect("the bot is stored");
+		let root = bundles::root(app.handle()).expect("the bundle root is named");
+		bundles::write_remembered(&root, &stored, "They use bun.").expect("the memory lands");
+		let agent = bundles::agent_file(&root, &created.id).expect("the agent file stands");
+		let written = fs::read_to_string(&agent).expect("the agent file reads");
+		let retired = written.replacen("model: \"opus\"", "model: \"default\"", 1);
+		assert_ne!(retired, written);
+		fs::write(&agent, retired).expect("the retired model lands");
+		agent
+	}
+
+	#[tokio::test]
+	async fn a_launch_rewrites_only_the_model_line_of_a_bundle_left_on_the_default_model() {
+		let app = a_host("repaired-model");
+		let agent = a_bundle_on_the_default_model(&app, "Quill").await;
+		let before = fs::read_to_string(&agent).expect("the agent file reads");
+
+		let state = app.state::<db::DatabaseState>();
+		let database = ready(&state).expect("the database opens");
+		list_bundles(bundles::root(app.handle()).as_deref(), database).await;
+
+		let after = fs::read_to_string(&agent).expect("the agent file reads");
+		assert_eq!(after, before.replacen("model: \"default\"", "model: \"opus\"", 1));
+		assert!(after.contains("They use bun."), "got {after}");
+	}
+
+	#[tokio::test]
+	async fn a_launch_goes_on_past_a_bundle_it_cannot_write() {
+		let app = a_host("unwritable-model");
+		let blocked = a_bundle_on_the_default_model(&app, "Quill").await;
+		let repaired = a_bundle_on_the_default_model(&app, "Sage").await;
+		fs::remove_file(&blocked).expect("the agent file goes");
+		fs::create_dir(&blocked).expect("a directory stands in its place");
+
+		let state = app.state::<db::DatabaseState>();
+		let database = ready(&state).expect("the database opens");
+		let root = bundles::root(app.handle()).expect("the bundle root is named");
+		list_bundles(Some(&root), database).await;
+
+		assert!(blocked.is_dir());
+		let after = fs::read_to_string(&repaired).expect("the agent file reads");
+		assert!(after.contains("model: \"opus\""), "got {after}");
+		assert!(bundles::marketplace_file(&root).is_file());
 	}
 
 	#[tokio::test]

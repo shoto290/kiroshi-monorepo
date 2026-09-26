@@ -46,6 +46,7 @@ const MIGRATIONS: &[Migration] = &[
 	Migration { version: 37, statements: MISSION_AGENT_LIVENESS },
 	Migration { version: 38, statements: MISSION_STATUS },
 	Migration { version: 39, statements: MISSION_PROGRESS },
+	Migration { version: 40, statements: BOTS_WITHOUT_DEFAULT_MODEL },
 ];
 
 const CONVERSATIONS_SCHEMA: &str = "
@@ -854,6 +855,10 @@ UPDATE missions SET pull_request_url = (
 );
 ";
 
+const BOTS_WITHOUT_DEFAULT_MODEL: &str = "
+UPDATE bots SET model = 'opus' WHERE model = 'default';
+";
+
 const CONVERSATION_ARRIVALS: &str = "
 CREATE TABLE conversation_arrivals (
 	id TEXT PRIMARY KEY,
@@ -1026,6 +1031,7 @@ mod tests {
 	const BOTS_WITHOUT_UNREAD_COLUMNS_STEP: u32 = 36;
 	const MISSION_STATUS_STEP: u32 = 38;
 	const MISSION_PROGRESS_STEP: u32 = 39;
+	const BOTS_WITHOUT_DEFAULT_MODEL_STEP: u32 = 40;
 
 	const A_LIVE_SESSION: &str = "INSERT INTO runtime_sessions
 		(id, conversation_id, bot_id, provider_session_id, seq, status, started_at)
@@ -1310,6 +1316,45 @@ mod tests {
 			"the rebuild dropped the index holding one event per delivery"
 		);
 
+		drop(connection);
+		fs::remove_dir_all(&dir).expect("cleanup");
+	}
+
+	#[test]
+	fn a_bot_stored_on_the_default_model_comes_back_on_opus_and_every_other_model_stays() {
+		let dir = temp_dir();
+		let mut connection = open(&dir.join(FILE_NAME)).expect("open");
+		apply_each(&mut connection, shipped_before(BOTS_WITHOUT_DEFAULT_MODEL_STEP))
+			.expect("the shipped schema");
+		assert_eq!(version(&connection).expect("version"), MISSION_PROGRESS_STEP);
+		connection
+			.execute_batch(
+				"INSERT INTO bots (id, name, model, created_at)
+					VALUES ('b1', 'First', 'default', 1), ('b2', 'Second', 'sonnet', 1),
+						('b3', 'Third', 'claude-opus-4-1-20250805', 1), ('b4', 'Fourth', 'Default', 1);",
+			)
+			.expect("the bots this build upgrades from");
+
+		apply(&mut connection).expect("the file comes up to this build");
+
+		assert_eq!(version(&connection).expect("version"), latest_version());
+		let mut statement =
+			connection.prepare("SELECT id, model FROM bots ORDER BY id").expect("the bots read");
+		let models = statement
+			.query_map([], |row| Ok((row.get::<_, String>(0)?, row.get::<_, String>(1)?)))
+			.expect("the rows")
+			.collect::<Result<Vec<_>, _>>()
+			.expect("every row");
+		assert_eq!(
+			models,
+			vec![
+				("b1".to_owned(), "opus".to_owned()),
+				("b2".to_owned(), "sonnet".to_owned()),
+				("b3".to_owned(), "claude-opus-4-1-20250805".to_owned()),
+				("b4".to_owned(), "Default".to_owned()),
+			]
+		);
+		drop(statement);
 		drop(connection);
 		fs::remove_dir_all(&dir).expect("cleanup");
 	}

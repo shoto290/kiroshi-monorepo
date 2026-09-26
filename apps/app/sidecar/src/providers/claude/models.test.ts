@@ -2,7 +2,7 @@ import { describe, expect, it } from "bun:test"
 
 import { claudeSourceExecutable } from "./build"
 import { EXECUTABLE_OVERRIDE_ENV } from "./executable"
-import { modelsOptions } from "./models"
+import { modelsOptions, offeredModels } from "./models"
 import { CONNECTION_KEYS } from "./session-env"
 
 process.env[EXECUTABLE_OVERRIDE_ENV] = claudeSourceExecutable()
@@ -20,5 +20,25 @@ describe("modelsOptions", () => {
 		for (const key of CONNECTION_KEYS) {
 			expect(env).not.toHaveProperty(key)
 		}
+	})
+})
+
+describe("offeredModels", () => {
+	it("drops default and keeps the other values in their order", () => {
+		const offered = [
+			{ value: "opus" },
+			{ value: "default" },
+			{ value: "sonnet" },
+			{ value: "haiku" },
+		]
+
+		expect(offeredModels(offered)).toEqual(["opus", "sonnet", "haiku"])
+	})
+
+	it("returns every value while default is not offered", () => {
+		expect(offeredModels([{ value: "sonnet" }, { value: "opus" }])).toEqual([
+			"sonnet",
+			"opus",
+		])
 	})
 })

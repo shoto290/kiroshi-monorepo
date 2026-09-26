@@ -28,7 +28,7 @@ pub(in crate::db::repositories) use bots::{deleted_chat_in, retired_bot};
 
 pub const DEFAULT_BOT_ID: &str = "default";
 const DEFAULT_BOT_NAME: &str = "Claude";
-pub const DEFAULT_BOT_MODEL: &str = "sonnet";
+pub const DEFAULT_BOT_MODEL: &str = "opus";
 const PARTICIPANT_ROLE: &str = "assistant";
 const LEAD_ROLE: &str = "lead";
 const CHAT_TITLE: &str = "Chat";

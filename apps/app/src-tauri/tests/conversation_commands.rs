@@ -7,6 +7,7 @@ use std::time::Duration;
 use kiroshi_app::bundles;
 use kiroshi_app::commands::invoke_handler;
 use kiroshi_app::db;
+use kiroshi_app::db::repositories::conversations::DEFAULT_BOT_MODEL;
 use kiroshi_app::environment::contract::{EnvOwner, ResolvedEnv};
 use kiroshi_app::environment::store;
 use serde_json::{json, Value};
@@ -326,7 +327,7 @@ fn a_turn_written_over_ipc_reads_back_as_the_page_the_reader_displays() {
 	let (bot, conversation) = a_bot_and_its_chat(&window);
 	assert_eq!(bot["id"], json!(BOT));
 	assert_eq!(bot["name"], json!("Claude"));
-	assert_eq!(bot["model"], json!("sonnet"));
+	assert_eq!(bot["model"], json!(DEFAULT_BOT_MODEL));
 	assert!(bot["createdAt"].is_i64(), "the bot crossed without a camelCase moment: {bot}");
 
 	assert_eq!(call(&window, "conversation_start_turn", a_turn(&conversation)), Ok(json!(1)));
