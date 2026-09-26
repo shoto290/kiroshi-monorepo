@@ -4,11 +4,13 @@ use std::io::Read;
 use std::path::{Path, PathBuf};
 use std::sync::atomic::{AtomicUsize, Ordering};
 
+use kiroshi_app::avatars::{self, Avatars};
 use kiroshi_app::bundles;
 use kiroshi_app::commands::invoke_handler;
 use kiroshi_app::db;
 use kiroshi_app::environment::contract::EnvOwner;
 use kiroshi_app::environment::store;
+use kiroshi_app::file_store::FileStore;
 use serde_json::{json, Value};
 use tauri::test::{mock_builder, mock_context, noop_assets, MockRuntime, INVOKE_KEY};
 use tauri::webview::InvokeRequest;
@@ -128,6 +130,18 @@ impl Home {
 	fn bot_root(&self) -> PathBuf {
 		bundles::root(self.app.handle()).expect("a bot root")
 	}
+
+	fn avatar_dir(&self) -> PathBuf {
+		Avatars::dir(self.app.handle()).expect("an avatar dir")
+	}
+
+	fn avatar_of(&self, space_id: &str, bot_id: &str) -> Value {
+		self.bots_of(space_id)
+			.into_iter()
+			.find(|bot| bot["id"] == json!(bot_id))
+			.expect("the bot is listed")["avatarImagePath"]
+			.clone()
+	}
 }
 
 impl Drop for Home {
@@ -172,8 +186,25 @@ fn an_identity(name: &str) -> Value {
 	})
 }
 
+fn a_png() -> Vec<u8> {
+	let mut bytes = std::io::Cursor::new(Vec::new());
+	image::RgbaImage::from_pixel(32, 32, image::Rgba([200, 80, 40, 255]))
+		.write_to(&mut bytes, image::ImageFormat::Png)
+		.expect("the picture encodes");
+	bytes.into_inner()
+}
+
+fn worn_avatar(home: &Home, bot_id: &str) -> String {
+	home.call("conversation_set_bot_avatar_image", json!({ "id": bot_id, "bytes": a_png() }))
+		.expect("the avatar is stored")["avatarImagePath"]
+		.as_str()
+		.expect("a path")
+		.to_owned()
+}
+
 struct Seeded {
 	space_id: String,
+	avatar: String,
 	bot_ids: Vec<String>,
 	conversation_id: String,
 	attachment_name: String,
@@ -257,7 +288,10 @@ fn seeded(home: &Home) -> Seeded {
 	.expect("the bot env is written");
 	let attachment_name =
 		Path::new(&attachment).file_name().expect("a name").to_string_lossy().into_owned();
-	Seeded { space_id, bot_ids, conversation_id, attachment_name }
+	let avatar = worn_avatar(home, &bot_ids[0]);
+	let lost_avatar = worn_avatar(home, &bot_ids[1]);
+	fs::remove_file(lost_avatar).expect("the second avatar goes missing");
+	Seeded { space_id, avatar, bot_ids, conversation_id, attachment_name }
 }
 
 fn exported(home: &Home, space_id: &str, into: &Path) -> PathBuf {
@@ -345,6 +379,12 @@ fn a_space_travels_to_another_root_whole_and_twice_without_colliding() {
 		"a bot was seated in a space other than the imported one"
 	);
 	assert!(target.dir.join("spaces").join(&first_id).is_dir(), "the space plugin is missing");
+	let first_avatar =
+		target.avatar_of(&first_id, &seeded.bot_ids[0]).as_str().expect("an avatar").to_owned();
+	let resolved = avatars::readable(&target.avatar_dir(), &first_avatar)
+		.expect("the avatar resolves under the target avatars dir");
+	assert_eq!(fs::read(resolved).expect("the avatar"), fs::read(&seeded.avatar).expect("source"));
+	assert_eq!(target.avatar_of(&first_id, &seeded.bot_ids[1]), Value::Null);
 
 	let space_env = store::resolve(&target.env_root(), &EnvOwner::Space { id: first_id.clone() })
 		.expect("the space env");
@@ -394,6 +434,13 @@ fn a_space_travels_to_another_root_whole_and_twice_without_colliding() {
 	for bot_id in &second_bots {
 		assert!(!history_ids(&target.bot_root(), bot_id).is_empty());
 	}
+	let second_avatar = second_bots
+		.iter()
+		.find_map(|bot| target.avatar_of(&second_id, bot).as_str().map(str::to_owned))
+		.expect("the second copy wears an avatar");
+	assert_ne!(second_avatar, first_avatar, "the second avatar overwrote the first");
+	assert!(avatars::readable(&target.avatar_dir(), &second_avatar).is_some());
+	assert!(avatars::readable(&target.avatar_dir(), &first_avatar).is_some());
 	let relocated =
 		target.dir.join("attachments").join(&second_conversation).join(&seeded.attachment_name);
 	assert_eq!(fs::read(relocated).expect("the second copy of the attachment"), ATTACHMENT);
@@ -445,6 +492,28 @@ fn an_archive_of_another_version_or_that_fails_midway_leaves_the_target_untouche
 	assert_eq!(target.files(), files);
 	assert_eq!(target.table_counts(), counts);
 
+	let _ = fs::remove_dir_all(scratch);
+}
+
+#[cfg(unix)]
+#[test]
+fn an_export_that_fails_midway_leaves_no_file_behind() {
+	use std::os::unix::fs::PermissionsExt;
+
+	let source = Home::new();
+	let seeded = seeded(&source);
+	let scratch = scratch();
+	let unreadable = bundles::dir(&source.bot_root(), &seeded.bot_ids[0]).join("sealed.md");
+	fs::write(&unreadable, "no one reads this").expect("written");
+	fs::set_permissions(&unreadable, fs::Permissions::from_mode(0o000)).expect("sealed");
+	let archive = scratch.join("broken.kiroshi");
+
+	let refused = source
+		.call("space_export", json!({ "id": seeded.space_id, "path": archive.to_string_lossy() }))
+		.expect_err("an unreadable file fails the export");
+
+	assert_eq!(refused["kind"], json!("unwritableArchive"));
+	assert_eq!(fs::read_dir(&scratch).expect("the scratch dir").count(), 0);
 	let _ = fs::remove_dir_all(scratch);
 }
 

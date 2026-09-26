@@ -15,7 +15,11 @@ env/space-servers/            the space MCP server env files (env/server/space/<
 env/bots/<bot id>/            the bot env file (env/bot/<bot id>)
 env/bot-servers/<bot id>/     the bot MCP server env files (env/server/bot/<bot id>)
 attachments/<conversation id>/  the attachment files of each conversation of the space
+avatars/<file name>           the avatar image named by avatar_image_path of each exported bot
 ```
+
+An avatar whose file is missing, or lies outside the avatars directory, is not carried: its bot
+travels with `avatar_image_path` null.
 
 `manifest.json` is always the first entry and `rows.json` the second. Symbolic links inside a
 plugin or env directory are not carried.
@@ -43,10 +47,18 @@ layout or the meaning of a row changes.
 - The imported space is appended at the end of the space order.
 - Each seated bot is seated in the imported space only. A participant that was not seated in the
   exported space arrives retired.
+- Each carried avatar is laid into the avatars directory of the target under its own name, or
+  under a fresh one when that name is taken, and `avatar_image_path` is rewritten to it.
 - Attachment paths quoted in message contents are rewritten to the attachment directory of the
   target.
 - Files are laid down first, then the rows are written in one transaction. If any step fails,
-  every directory the import created is removed and no row lands.
+  every directory and avatar file the import created is removed and no row lands.
+
+## Export
+
+The archive is streamed through a tar builder into an owner-only temporary file beside the target,
+then renamed onto the target path; it is never held whole in memory. A failed export removes the
+temporary file and leaves the target path untouched.
 
 ## Security
 

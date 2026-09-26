@@ -11,6 +11,7 @@ use uuid::Uuid;
 
 use super::contract::{Space, SpaceError};
 use crate::attachments::{self, Attachments};
+use crate::avatars::{self, Avatars};
 use crate::bundles;
 use crate::db::repositories::space_rows::{MintedIds, SpaceRows};
 use crate::db::Database;
@@ -37,6 +38,7 @@ pub struct Places {
 	bots: PathBuf,
 	env: PathBuf,
 	attachments: PathBuf,
+	avatars: PathBuf,
 }
 
 impl Places {
@@ -49,6 +51,7 @@ impl Places {
 			bots: bundles::root(app).ok_or_else(homeless)?,
 			env: store::root(app).ok_or_else(homeless)?,
 			attachments: Attachments::dir(app).ok_or_else(homeless)?,
+			avatars: Avatars::dir(app).ok_or_else(homeless)?,
 		})
 	}
 }
@@ -62,6 +65,7 @@ enum Tree {
 	BotEnv(String),
 	BotServers(String),
 	Attachments(String),
+	Avatar(String),
 }
 
 impl Tree {
@@ -74,6 +78,7 @@ impl Tree {
 			Tree::BotEnv(id) => Path::new("env/bots").join(id),
 			Tree::BotServers(id) => Path::new("env/bot-servers").join(id),
 			Tree::Attachments(id) => Path::new("attachments").join(id),
+			Tree::Avatar(name) => Path::new("avatars").join(name),
 		}
 	}
 
@@ -93,6 +98,7 @@ impl Tree {
 			["env", "bots", id, rest @ ..] => (Tree::BotEnv((*id).to_owned()), rest),
 			["env", "bot-servers", id, rest @ ..] => (Tree::BotServers((*id).to_owned()), rest),
 			["attachments", id, rest @ ..] => (Tree::Attachments((*id).to_owned()), rest),
+			["avatars", name, rest @ ..] => (Tree::Avatar((*name).to_owned()), rest),
 			_ => return None,
 		};
 		Some((tree, rest.iter().collect()))
@@ -101,7 +107,11 @@ impl Tree {
 	fn owner<'a>(&'a self, space_id: &'a str) -> &'a str {
 		match self {
 			Tree::Space | Tree::SpaceEnv | Tree::SpaceServers => space_id,
-			Tree::Bot(id) | Tree::BotEnv(id) | Tree::BotServers(id) | Tree::Attachments(id) => id,
+			Tree::Bot(id)
+			| Tree::BotEnv(id)
+			| Tree::BotServers(id)
+			| Tree::Attachments(id)
+			| Tree::Avatar(id) => id,
 		}
 	}
 }
@@ -116,9 +126,14 @@ pub async fn export(
 ) -> Result<(), SpaceError> {
 	refuse_relative(&target).map_err(unwritable_archive)?;
 	blocking(move || {
-		let trees = trees_of(&places, &space_id, &rows, &MintedIds::new())?;
-		let packed = packed(&space_id, &rows, &trees).map_err(unwritable_archive)?;
-		private_files::replace_atomically(&target, &packed).map_err(unwritable_archive)
+		let mut rows = rows;
+		keep_readable_avatars(&places, &mut rows);
+		let mut trees = trees_of(&places, &space_id, &rows, &MintedIds::new())?;
+		trees.extend(carried_avatars(&rows, |name| places.avatars.join(name))?);
+		private_files::replace_atomically_with(&target, |file| {
+			packed(file, &space_id, &rows, &trees)
+		})
+		.map_err(unwritable_archive)
 	})
 	.await
 }
@@ -134,8 +149,11 @@ pub async fn import(
 	let (mut rows, held) = database.space_rows().held_ids(rows).await?;
 	let space_id = manifest.space_id;
 	let minted = minted(&places, &space_id, &rows, held)?;
-	let trees = trees_of(&places, &space_id, &rows, &minted)?;
+	let mut trees = trees_of(&places, &space_id, &rows, &minted)?;
 	relocate_attachments(&places, &mut rows, &minted);
+	let avatars = carried_avatars(&rows, |name| free_avatar_path(&places.avatars, name))?;
+	relocate_avatars(&mut rows, &avatars);
+	trees.extend(avatars);
 	let laid = blocking({
 		let minted = minted.clone();
 		move || laid_down(&archive, &trees, &minted)
@@ -266,22 +284,65 @@ fn relocated(
 	Some(path.to_string_lossy().into_owned())
 }
 
-fn packed(space_id: &str, rows: &SpaceRows, trees: &Trees) -> io::Result<Vec<u8>> {
-	let mut builder = tar::Builder::new(Vec::new());
+fn keep_readable_avatars(places: &Places, rows: &mut SpaceRows) {
+	rows.relocate_avatars(|recorded| {
+		avatars::readable(&places.avatars, recorded).map(|path| path.to_string_lossy().into_owned())
+	});
+}
+
+fn carried_avatars(
+	rows: &SpaceRows,
+	placed: impl Fn(&str) -> PathBuf,
+) -> Result<Trees, SpaceError> {
+	let mut carried = Trees::new();
+	for recorded in rows.avatar_paths() {
+		let name = file_name(&recorded);
+		refuse_unplain(name)?;
+		carried.entry(Tree::Avatar(name.to_owned())).or_insert_with(|| placed(name));
+	}
+	Ok(carried)
+}
+
+fn file_name(recorded: &str) -> &str {
+	recorded.rsplit(['/', '\\']).next().unwrap_or(recorded)
+}
+
+fn free_avatar_path(dir: &Path, name: &str) -> PathBuf {
+	let path = dir.join(name);
+	match path.exists() {
+		true => avatars::minted_path(dir),
+		false => path,
+	}
+}
+
+fn relocate_avatars(rows: &mut SpaceRows, avatars: &Trees) {
+	rows.relocate_avatars(|recorded| {
+		let placed = avatars.get(&Tree::Avatar(file_name(recorded).to_owned()))?;
+		Some(placed.to_string_lossy().into_owned())
+	});
+}
+
+fn packed(file: &mut File, space_id: &str, rows: &SpaceRows, trees: &Trees) -> io::Result<()> {
+	let mut builder = tar::Builder::new(file);
 	let manifest = Manifest { format_version: FORMAT_VERSION, space_id: space_id.to_owned() };
 	appended_bytes(&mut builder, MANIFEST_NAME, &serde_json::to_vec_pretty(&manifest)?)?;
 	appended_bytes(&mut builder, ROWS_NAME, &serde_json::to_vec(rows)?)?;
 	let mut ordered: Vec<_> = trees.iter().collect();
 	ordered.sort();
-	for (tree, dir) in ordered {
-		if dir.is_dir() {
-			appended_tree(&mut builder, &tree.archived(), dir)?;
+	for (tree, path) in ordered {
+		match tree {
+			Tree::Avatar(_) if path.is_file() => {
+				builder.append_path_with_name(path, tree.archived())?
+			}
+			Tree::Avatar(_) => {}
+			_ if path.is_dir() => appended_tree(&mut builder, &tree.archived(), path)?,
+			_ => {}
 		}
 	}
-	builder.into_inner()
+	builder.finish()
 }
 
-fn appended_bytes(builder: &mut tar::Builder<Vec<u8>>, name: &str, bytes: &[u8]) -> io::Result<()> {
+fn appended_bytes(builder: &mut tar::Builder<&mut File>, name: &str, bytes: &[u8]) -> io::Result<()> {
 	let mut header = tar::Header::new_gnu();
 	header.set_entry_type(tar::EntryType::Regular);
 	header.set_size(bytes.len() as u64);
@@ -291,7 +352,7 @@ fn appended_bytes(builder: &mut tar::Builder<Vec<u8>>, name: &str, bytes: &[u8])
 	builder.append_data(&mut header, name, bytes)
 }
 
-fn appended_tree(builder: &mut tar::Builder<Vec<u8>>, name: &Path, dir: &Path) -> io::Result<()> {
+fn appended_tree(builder: &mut tar::Builder<&mut File>, name: &Path, dir: &Path) -> io::Result<()> {
 	builder.append_dir(name, dir)?;
 	let mut entries = fs::read_dir(dir)?.collect::<io::Result<Vec<_>>>()?;
 	entries.sort_by_key(fs::DirEntry::file_name);
@@ -368,6 +429,10 @@ fn unpacked(
 		let root = trees.get(&tree).ok_or_else(|| {
 			unreadable_archive("the archive holds files of a row it does not carry")
 		})?;
+		if let Tree::Avatar(_) = tree {
+			laid_avatar(&mut entry, &rest, root, laid)?;
+			continue;
+		}
 		laid.claim(root).map_err(unwritable_bundle)?;
 		let target = root.join(rest);
 		match entry.header().entry_type() {
@@ -378,6 +443,22 @@ fn unpacked(
 		.map_err(unwritable_bundle)?;
 	}
 	reown_minted_bots(trees, minted).map_err(unwritable_bundle)
+}
+
+fn laid_avatar(
+	entry: &mut tar::Entry<'_, File>,
+	rest: &Path,
+	target: &Path,
+	laid: &mut Laid,
+) -> Result<(), SpaceError> {
+	let is_one_file = rest.as_os_str().is_empty()
+		&& entry.header().entry_type() == tar::EntryType::Regular
+		&& !target.exists();
+	if !is_one_file {
+		return Err(unreadable_archive("an avatar must be one new file"));
+	}
+	laid.claim_file(target).map_err(unwritable_bundle)?;
+	unpacked_file(entry, target).map_err(unwritable_bundle)
 }
 
 fn unpacked_file(entry: &mut tar::Entry<'_, File>, target: &Path) -> io::Result<()> {
@@ -411,11 +492,23 @@ impl Laid {
 		private_files::create_dir(dir)
 	}
 
+	fn claim_file(&mut self, file: &Path) -> io::Result<()> {
+		if let Some(dir) = file.parent() {
+			self.claim(dir)?;
+		}
+		self.0.push(file.to_path_buf());
+		Ok(())
+	}
+
 	fn take_back(self) {
-		for dir in self.0.iter().rev() {
-			match fs::remove_dir_all(dir) {
+		for path in self.0.iter().rev() {
+			let removed = match path.is_dir() {
+				true => fs::remove_dir_all(path),
+				false => fs::remove_file(path),
+			};
+			match removed {
 				Err(error) if error.kind() != io::ErrorKind::NotFound => {
-					eprintln!("a directory of a failed space import was left on disk: {error}")
+					eprintln!("a path of a failed space import was left on disk: {error}")
 				}
 				_ => {}
 			}

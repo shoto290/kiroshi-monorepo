@@ -202,6 +202,22 @@ impl SpaceRows {
 		self.texts("conversations", "id")
 	}
 
+	pub fn avatar_paths(&self) -> Vec<String> {
+		self.texts("bots", "avatar_image_path")
+	}
+
+	pub fn relocate_avatars(&mut self, relocated: impl Fn(&str) -> Option<String>) {
+		let Some(bots) = self.tables.get_mut("bots") else {
+			return;
+		};
+		for row in bots {
+			if let Some(Value::String(path)) = row.get("avatar_image_path") {
+				let placed = relocated(path).map_or(Value::Null, Value::String);
+				row.insert("avatar_image_path".to_owned(), placed);
+			}
+		}
+	}
+
 	pub fn relocate_message_contents(&mut self, relocated: impl Fn(&str) -> String) {
 		let Some(messages) = self.tables.get_mut("messages") else {
 			return;
