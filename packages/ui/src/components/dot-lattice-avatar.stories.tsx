@@ -8,7 +8,6 @@ import { DotLatticeAvatar } from "@workspace/ui/components/dot-lattice-avatar"
 const meta = preview.meta({
 	title: "Branding/DotLatticeAvatar",
 	component: DotLatticeAvatar,
-	tags: ["test-only"],
 	globals: { theme_layout: "side-by-side" },
 	parameters: {
 		docs: {

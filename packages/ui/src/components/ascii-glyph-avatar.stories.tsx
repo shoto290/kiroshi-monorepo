@@ -8,7 +8,6 @@ import { AsciiGlyphAvatar } from "@workspace/ui/components/ascii-glyph-avatar"
 const meta = preview.meta({
 	title: "Branding/AsciiGlyphAvatar",
 	component: AsciiGlyphAvatar,
-	tags: ["test-only"],
 	globals: { theme_layout: "side-by-side" },
 	parameters: {
 		docs: {

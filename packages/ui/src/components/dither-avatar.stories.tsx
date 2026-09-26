@@ -8,7 +8,6 @@ import { DitherAvatar } from "@workspace/ui/components/dither-avatar"
 const meta = preview.meta({
 	title: "Branding/DitherAvatar",
 	component: DitherAvatar,
-	tags: ["test-only"],
 	globals: { theme_layout: "side-by-side" },
 	parameters: {
 		docs: {
