@@ -5,7 +5,6 @@ import type {
 } from "@workspace/ui/components/bot-badge"
 import type { MessageAuthor } from "@workspace/ui/components/message"
 import type {
-	MissionActivity,
 	MissionCardModel,
 	MissionEventLink,
 	MissionEventModel,
@@ -117,13 +116,11 @@ const startOfLocalDay = (now: number): number => {
 type MissionFaces = (botId: string) => ThreadFace | undefined
 
 type AgentActivity = {
-	lastActivity?: MissionActivity
 	lastActivityAt?: number
 	commitsAhead?: number
 }
 
 const agentActivityOf = (mission: Mission): AgentActivity => ({
-	lastActivity: mission.lastActivity ?? undefined,
 	lastActivityAt: mission.lastActivityAt ?? undefined,
 	commitsAhead: mission.commitsAhead ?? undefined,
 })

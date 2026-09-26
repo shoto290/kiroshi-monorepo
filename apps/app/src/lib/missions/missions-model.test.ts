@@ -242,24 +242,27 @@ describe("toMissionRows", () => {
 		])
 	})
 
-	it("gives the row the last activity, its time and the commits ahead of its mission", () => {
+	it("gives the row the time of the last activity and the commits ahead, never the last tool call", () => {
+		const working = {
+			...missionIn("working"),
+			lastActivityAt: READ_AT - 120_000,
+			commitsAhead: 3,
+		}
 		const { open } = rowsOf({
 			open: [
-				{
-					...missionIn("working"),
-					lastActivity: { tool: "Edit", target: "parser.ts" },
-					lastActivityAt: READ_AT - 120_000,
-					commitsAhead: 3,
-				},
+				{ ...working, lastActivity: { tool: "Edit", target: "parser.ts" } },
 			],
 		})
 
 		expect(open[0]).toMatchObject({
-			lastActivity: { tool: "Edit", target: "parser.ts" },
 			lastActivityAt: READ_AT - 120_000,
 			commitsAhead: 3,
 			now: READ_AT,
 		})
+		expect(open[0]).not.toHaveProperty("lastActivity")
+		expect(open).toEqual(
+			rowsOf({ open: [{ ...working, lastActivity: null }] }).open,
+		)
 	})
 
 	it("stamps the row with the age of the last activity of its mission", () => {
@@ -505,20 +508,25 @@ it("links an event to the url of its payload with the pull request it names", ()
 })
 
 describe("toMissionHeaderActivity", () => {
-	it("gives the header the last activity, its time and the commits ahead", () => {
-		expect(
-			toMissionHeaderActivity({
-				...missionIn("working"),
-				lastActivity: { tool: "Bash", target: "bun test" },
-				lastActivityAt: READ_AT,
-				commitsAhead: 2,
-			}),
-		).toEqual({
+	it("gives the header the time of the last activity and the commits ahead, never the last tool call", () => {
+		const working = {
+			...missionIn("working"),
+			lastActivityAt: READ_AT,
+			commitsAhead: 2,
+		}
+		const header = toMissionHeaderActivity({
+			...working,
 			lastActivity: { tool: "Bash", target: "bun test" },
+		})
+
+		expect(header).toStrictEqual({
 			lastActivityAt: READ_AT,
 			commitsAhead: 2,
 			pullRequest: undefined,
 		})
+		expect(header).toStrictEqual(
+			toMissionHeaderActivity({ ...working, lastActivity: null }),
+		)
 	})
 
 	it("reads the pull request number from the last segment of its url", () => {
