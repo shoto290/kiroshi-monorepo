@@ -258,6 +258,27 @@ describe("modelOptionsFor", () => {
 		})
 		expect(fallen.at(-1)?.value).toBe("claude-mythos-preview")
 	})
+
+	it("puts opus first on the fallback list", () => {
+		expect(modelOptionsFor("sonnet", [])[0]?.value).toBe("opus")
+	})
+
+	it("leaves default out of what the catalogue carries", () => {
+		const values = modelOptionsFor("sonnet", ["default", ...CATALOGUE]).map(
+			(option) => option.value,
+		)
+
+		expect(values).toEqual(CATALOGUE)
+	})
+
+	it("does not offer default back when the companion carries it", () => {
+		expect(
+			modelOptionsFor("default", CATALOGUE).map((option) => option.value),
+		).toEqual(CATALOGUE)
+		expect(
+			modelOptionsFor("default", []).map((option) => option.value),
+		).toEqual(FALLBACK_MODELS)
+	})
 })
 
 describe("newBotIdentity", () => {
@@ -316,6 +337,10 @@ describe("newBotIdentity", () => {
 
 	it("draws from the whole list once every name is carried", () => {
 		expect(BOT_NAMES).toContain(newBotIdentity(rosterCarrying(BOT_NAMES)).name)
+	})
+
+	it("drafts a companion on opus", () => {
+		expect(newBotIdentity([]).model).toBe("opus")
 	})
 
 	it("records an alias rather than a versioned name", () => {

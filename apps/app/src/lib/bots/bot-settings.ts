@@ -21,9 +21,11 @@ import type {
 } from "../conversations/store-contract"
 import type { LastWord } from "../conversations/transcript-state"
 
-export const FALLBACK_MODELS = ["fable", "opus", "sonnet", "haiku"]
+export const FALLBACK_MODELS = ["opus", "fable", "sonnet", "haiku"]
 
-const NEW_BOT_MODEL = "sonnet"
+const NEW_BOT_MODEL = "opus"
+
+const UNRUNNABLE_MODEL = "default"
 
 export const CHANGING_TOOLS = ["Bash", "Edit", "NotebookEdit", "Write"]
 
@@ -37,8 +39,10 @@ export const modelOptionsFor = (
 	model: string,
 	catalogue: string[],
 ): BotModelOption[] => {
-	const offered = catalogue.length > 0 ? catalogue : FALLBACK_MODELS
-	const values = offered.includes(model) ? offered : [...offered, model]
+	const read = catalogue.filter((value) => value !== UNRUNNABLE_MODEL)
+	const offered = read.length > 0 ? read : FALLBACK_MODELS
+	const isOffered = offered.includes(model) || model === UNRUNNABLE_MODEL
+	const values = isOffered ? offered : [...offered, model]
 	return values.map((value) => ({ label: value, value }))
 }
 
