@@ -52,7 +52,11 @@ export interface TranscriptNewer {
 
 export interface TranscriptHandle {
 	scrollToEnd: (behavior?: ScrollBehavior) => void
-	scrollToMessage: (messageId: string, behavior?: ScrollBehavior) => boolean
+	scrollToMessage: (
+		messageId: string,
+		behavior?: ScrollBehavior,
+		align?: "start" | "center",
+	) => boolean
 }
 
 export interface TranscriptProps extends ComponentPropsWithRef<"div"> {
@@ -192,11 +196,13 @@ const useTranscriptHandle = (
 			scrollToEnd: (behavior = defaultBehavior) => {
 				scrollToEnd({ behavior })
 			},
-			scrollToMessage: (messageId, behavior = defaultBehavior) => {
+			scrollToMessage: (
+				messageId,
+				behavior = defaultBehavior,
+				align = "center",
+			) => {
 				const row = rowHolding(rowsRef.current, messageId)
-				return row
-					? scrollToMessage(row.key, { align: "center", behavior })
-					: false
+				return row ? scrollToMessage(row.key, { align, behavior }) : false
 			},
 		}),
 		[defaultBehavior, scrollToEnd, scrollToMessage],
