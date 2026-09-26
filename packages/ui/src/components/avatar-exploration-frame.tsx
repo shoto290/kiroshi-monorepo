@@ -88,4 +88,4 @@ const useFieldOpacity = ({ state, root }: FieldOpacity) => {
 	})
 }
 
-export { ExplorationFrame, type Paint, useExplorationClock, useFieldOpacity }
+export { ExplorationFrame, useExplorationClock, useFieldOpacity }
