@@ -14,7 +14,7 @@ const meta = preview.meta({
 		docs: {
 			description: {
 				component:
-					"Orbit: a core with one to three tilted orbits of satellites, or a ring and a moon. The layout is the family; tilt, satellite count, flattening and core size are the variant. SVG; satellites travel their orbit while busy. Every parameter comes from a hash of the companion name and its tint.",
+					"Orbit: a core with one to three tilted orbits of satellites, or a ring and a moon. The layout is the family; tilt in 45 degree steps, satellite count, flattening, core size and drawn trails are the variant. SVG; satellites travel their orbit while busy. Every parameter comes from a hash of the companion name and its tint.",
 			},
 		},
 	},

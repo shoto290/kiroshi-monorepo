@@ -14,7 +14,7 @@ const meta = preview.meta({
 		docs: {
 			description: {
 				component:
-					"Dither: a lit solid (sphere, torus, cube, capsule, cone) shaded on a 16 by 16 grid and thresholded through a 4 by 4 Bayer matrix. Light direction, scale and an optional rim are the variant. Canvas 2D, scaled with pixelated rendering. Every parameter comes from a hash of the companion name and its tint.",
+					"Dither: a lit solid (sphere, torus, cube, capsule, cone, cylinder, octahedron, dome) shaded on a 16 by 16 grid and thresholded through a 4 by 4 Bayer matrix. Light on eight compass steps at two heights, two scales and an optional rim are the variant. Canvas 2D, scaled with pixelated rendering. Every parameter comes from a hash of the companion name and its tint.",
 			},
 		},
 	},

@@ -8,8 +8,10 @@ import {
 	fieldIntensity,
 	pickSilhouette,
 	type Silhouette,
+	stepCount,
 	stillTime,
 	toField,
+	variantSteps,
 } from "@workspace/ui/components/avatar-exploration"
 import {
 	ExplorationFrame,
@@ -35,8 +37,7 @@ const SLOTS = 7
 const SLOT_PITCH = 10
 const HALF_SPAN = (SLOTS * SLOT_PITCH) / 2
 const STROKE = 5.5
-const DASHES = [SLOT_PITCH, 6, 3, 0]
-const CUT_NONE = ROWS
+const DASHES = [SLOT_PITCH, 5, 0]
 
 const PROFILES: Profile[] = [
 	(depth) => 0.45 + 0.5 * Math.sin(Math.PI * depth),
@@ -47,18 +48,26 @@ const PROFILES: Profile[] = [
 	(depth) => Math.sqrt(Math.max(0, 1 - (2 * depth - 1) ** 4)),
 ]
 
-const SCANLINE_SPACE = { families: PROFILES.length, variants: 128 }
+const SCANLINE_STEPS = [ROWS + 1, DASHES.length, 2, 2] as const
+
+const SCANLINE_SPACE = {
+	families: PROFILES.length,
+	variants: stepCount(SCANLINE_STEPS),
+}
 
 const scanSegments = ({ family, variant }: Silhouette): ScanSegment[] => {
 	const profile = PROFILES[family]
-	const cutRow = variant % (ROWS + 1)
-	const dash = DASHES[Math.floor(variant / (ROWS + 1)) % DASHES.length]
-	const isSplit = Math.floor(variant / 32) % 2 === 1
-	const isBrick = Math.floor(variant / 64) % 2 === 1
+	const [cutRow, dashStep, splitStep, brickStep] = variantSteps(
+		variant,
+		SCANLINE_STEPS,
+	)
+	const dash = DASHES[dashStep]
+	const isSplit = splitStep === 1
+	const isBrick = brickStep === 1
 
 	const segments: ScanSegment[] = []
 	for (let row = 0; row < ROWS; row++) {
-		if (row === cutRow && cutRow !== CUT_NONE) continue
+		if (row === cutRow) continue
 		const depth = row / (ROWS - 1)
 		const halfWidth = HALF_SPAN * profile(depth)
 		const y = TOP + row * ROW_PITCH
@@ -74,6 +83,11 @@ const scanSegments = ({ family, variant }: Silhouette): ScanSegment[] => {
 	}
 	return segments
 }
+
+const scanlineKey = (silhouette: Silhouette) =>
+	scanSegments(silhouette)
+		.map(({ row, x1, x2 }) => `${row}:${x1}-${x2}`)
+		.join(" ")
 
 const ScanlineAvatar = ({
 	name,
@@ -119,4 +133,4 @@ const ScanlineAvatar = ({
 	)
 }
 
-export { SCANLINE_SPACE, ScanlineAvatar, scanSegments }
+export { SCANLINE_SPACE, ScanlineAvatar, scanlineKey, scanSegments }

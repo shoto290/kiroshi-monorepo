@@ -61,6 +61,11 @@ const latticeDots = (silhouette: Silhouette): LatticeDot[] => {
 	return dots
 }
 
+const latticeKey = (silhouette: Silhouette) =>
+	latticeDots(silhouette)
+		.map(({ column, row }) => `${column},${row}`)
+		.join(" ")
+
 const DotLatticeAvatar = ({
 	name,
 	tint,
@@ -99,4 +104,4 @@ const DotLatticeAvatar = ({
 	)
 }
 
-export { DOT_LATTICE_SPACE, DotLatticeAvatar, latticeDots }
+export { DOT_LATTICE_SPACE, DotLatticeAvatar, latticeDots, latticeKey }
