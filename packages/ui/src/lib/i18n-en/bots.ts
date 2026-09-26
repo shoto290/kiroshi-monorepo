@@ -1,5 +1,4 @@
 import type { BotAvatarBlot } from "@workspace/ui/components/bot-avatar"
-import type { BotAvatarAnimal } from "@workspace/ui/components/bot-avatar-animals"
 import type {
 	BotOutputStyle,
 	BotPermissionMode,
@@ -798,22 +797,6 @@ const bots = {
 	identity: {
 		avatar: "Avatar",
 		uploadedImage: "Uploaded image",
-		current: "{{animal}}, {{colour}}",
-		animal: {
-			label: "Animal",
-			option: {
-				rabbit: "Rabbit",
-				cat: "Cat",
-				bear: "Bear",
-				chick: "Chick",
-				dog: "Dog",
-				mouse: "Mouse",
-				owl: "Owl",
-				koala: "Koala",
-				skippy: "Skippy",
-				pitch: "Pitch",
-			} as const satisfies Record<BotAvatarAnimal, string>,
-		},
 		colour: {
 			label: "Colour",
 			none: "No colour",

@@ -52,7 +52,7 @@ const BOX_ON_B1E22DA1 = {
 
 const PRESS_HOLD_MS = 800
 
-const NON_PHRASING = ":not(span, svg, svg *, img, button)"
+const NON_PHRASING = ":not(span, svg, svg *, img, canvas, button)"
 
 const AVATAR = <BotIdentityAvatar name="Atlas" seed="atlas" size={40} />
 

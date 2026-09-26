@@ -1,6 +1,7 @@
 "use client"
 
 import { type ReactNode, type RefObject, useEffect, useRef } from "react"
+import { useTranslation } from "react-i18next"
 
 import {
 	type ExplorationAvatarProps,
@@ -8,13 +9,18 @@ import {
 	fieldIntensity,
 	stillTime,
 } from "@workspace/ui/components/avatar-exploration"
-import { blotTint } from "@workspace/ui/components/bot-avatar"
-import { companionPictureRadius } from "@workspace/ui/components/bot-identity-avatar"
+import {
+	type BotAvatarBlot,
+	blotTint,
+} from "@workspace/ui/components/bot-avatar"
+import { companionPictureRadius } from "@workspace/ui/components/companion-picture"
 import { usePrefersReducedMotion } from "@workspace/ui/hooks/use-prefers-reduced-motion"
+import { cn } from "@workspace/ui/lib/utils"
 
 type Paint = (time: number) => void
 
-type ExplorationFrameProps = Required<ExplorationAvatarProps> & {
+type ExplorationFrameProps = Required<Omit<ExplorationAvatarProps, "tint">> & {
+	tint?: BotAvatarBlot
 	children: ReactNode
 }
 
@@ -47,23 +53,30 @@ const ExplorationFrame = ({
 	state,
 	size,
 	children,
-}: ExplorationFrameProps) => (
-	<span
-		aria-label={name}
-		className="relative inline-flex shrink-0 overflow-hidden text-(--bot-blot-ink)"
-		data-slot="avatar-exploration"
-		data-state={state}
-		role="img"
-		style={{
-			width: size,
-			height: size,
-			borderRadius: companionPictureRadius(size),
-			backgroundColor: blotTint(tint),
-		}}
-	>
-		{children}
-	</span>
-)
+}: ExplorationFrameProps) => {
+	const { t } = useTranslation("common")
+
+	return (
+		<span
+			aria-label={name.trim() || t("companion.unnamed")}
+			className={cn(
+				"relative inline-flex shrink-0 overflow-hidden",
+				tint ? "text-(--bot-blot-ink)" : "text-(--bot-avatar-ink)",
+			)}
+			data-slot="avatar-exploration"
+			data-state={state}
+			role="img"
+			style={{
+				width: size,
+				height: size,
+				borderRadius: companionPictureRadius(size),
+				backgroundColor: tint ? blotTint(tint) : undefined,
+			}}
+		>
+			{children}
+		</span>
+	)
+}
 
 const useExplorationClock = ({ state, paint }: ExplorationClock) => {
 	const prefersReducedMotion = usePrefersReducedMotion()

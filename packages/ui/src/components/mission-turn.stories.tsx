@@ -1,7 +1,12 @@
 import { expect, fn } from "storybook/test"
 
 import preview from "@workspace/storybook/preview"
-import { holderOf, slotIn, slotsIn } from "@workspace/storybook/story-utils"
+import {
+	companionGlyphsIn,
+	holderOf,
+	slotIn,
+	slotsIn,
+} from "@workspace/storybook/story-utils"
 import type {
 	MissionCardModel,
 	MissionState,
@@ -23,10 +28,6 @@ const OPENING_ANSWER =
 const ACTIVITIES = [true, false]
 
 const PILLS_THE_MATRIX_DRAWS = 8
-
-const WORKING_POSE = "Companion avatar owl, working"
-
-const RESTING_POSE = "Companion avatar owl, idle"
 
 const missionsIn = (state: MissionState): MissionCardModel[] =>
 	ACTIVITIES.map((isWorking) => ({
@@ -100,10 +101,8 @@ export const Working = meta.story({
 			},
 		},
 	},
-	play: async ({ canvas }) => {
-		await expect(
-			canvas.getByRole("img", { hidden: true, name: WORKING_POSE }),
-		).toBeVisible()
+	play: async ({ canvas, canvasElement }) => {
+		await expect(companionGlyphsIn(canvasElement, "working")[0]).toBeVisible()
 		await expect(canvas.getByRole("img", { name: "Superset" })).toBeVisible()
 	},
 })
@@ -129,7 +128,7 @@ export const States = meta.story({
 			))}
 		</div>
 	),
-	play: async ({ canvas, canvasElement }) => {
+	play: async ({ canvasElement }) => {
 		await expect(slotsIn(canvasElement, "mission-state-pill")).toHaveLength(
 			PILLS_THE_MATRIX_DRAWS,
 		)
@@ -138,12 +137,12 @@ export const States = meta.story({
 				slotsIn(holderOf(canvasElement, state), "mission-state-pill"),
 			).toHaveLength(0)
 		}
-		await expect(
-			canvas.getAllByRole("img", { hidden: true, name: WORKING_POSE }),
-		).toHaveLength(MISSION_STATES.length)
-		await expect(
-			canvas.getAllByRole("img", { hidden: true, name: RESTING_POSE }),
-		).toHaveLength(MISSION_STATES.length)
+		await expect(companionGlyphsIn(canvasElement, "working")).toHaveLength(
+			MISSION_STATES.length,
+		)
+		await expect(companionGlyphsIn(canvasElement, "idle")).toHaveLength(
+			MISSION_STATES.length,
+		)
 	},
 })
 
@@ -250,11 +249,9 @@ export const WorkingWithoutTools = meta.story({
 			},
 		},
 	},
-	play: async ({ canvas, canvasElement }) => {
+	play: async ({ canvasElement }) => {
 		await expect(slotsIn(canvasElement, "mission-title-row")).toHaveLength(0)
-		await expect(
-			canvas.getByRole("img", { hidden: true, name: WORKING_POSE }),
-		).toBeVisible()
+		await expect(companionGlyphsIn(canvasElement, "working")[0]).toBeVisible()
 	},
 })
 
