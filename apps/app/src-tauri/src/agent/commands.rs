@@ -845,11 +845,7 @@ pub async fn agent_submit_prompt(
 	text: String,
 	turn: Option<SubmittedTurn>,
 ) -> Result<(), TransportError> {
-	let session = state.live.session_for(&scope)?;
-	match turn {
-		Some(turn) => session.submit_turn(&text, turn).await,
-		None => session.submit_prompt(&text).await,
-	}
+	state.live.session_for(&scope)?.submit(&text, turn).await
 }
 
 #[tauri::command]

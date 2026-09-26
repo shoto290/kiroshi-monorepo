@@ -305,11 +305,11 @@ impl Session {
 		self.submit(text, None).await
 	}
 
-	pub async fn submit_turn(&self, text: &str, turn: SubmittedTurn) -> Result<(), TransportError> {
-		self.submit(text, Some(turn)).await
-	}
-
-	async fn submit(&self, text: &str, turn: Option<SubmittedTurn>) -> Result<(), TransportError> {
+	pub async fn submit(
+		&self,
+		text: &str,
+		turn: Option<SubmittedTurn>,
+	) -> Result<(), TransportError> {
 		let entering = {
 			let mut shared = self.shared.lock().await;
 			if matches!(
