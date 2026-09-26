@@ -21,6 +21,7 @@ type Paint = (time: number) => void
 
 type ExplorationFrameProps = Required<Omit<ExplorationAvatarProps, "tint">> & {
 	tint?: BotAvatarBlot
+	surface?: string
 	children: ReactNode
 }
 
@@ -52,6 +53,7 @@ const ExplorationFrame = ({
 	tint,
 	state,
 	size,
+	surface,
 	children,
 }: ExplorationFrameProps) => {
 	const { t } = useTranslation("common")
@@ -70,7 +72,7 @@ const ExplorationFrame = ({
 				width: size,
 				height: size,
 				borderRadius: companionPictureRadius(size),
-				backgroundColor: tint ? blotTint(tint) : undefined,
+				backgroundColor: surface ?? (tint ? blotTint(tint) : undefined),
 			}}
 		>
 			{children}

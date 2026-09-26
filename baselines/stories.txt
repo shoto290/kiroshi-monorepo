@@ -42,6 +42,10 @@ branding-companion-avatar--states
 branding-companion-avatar--stress
 branding-companion-avatar--variants
 branding-ditheravatar--roster
+branding-ditheredfieldavatar--halftone
+branding-ditheredfieldavatar--three-tone-organic
+branding-ditheredfieldavatar--two-tone-ordered
+branding-ditheredfieldavatar--weight-ramp
 branding-dotlatticeavatar--roster
 branding-orbitavatar--roster
 branding-scanlineavatar--roster
