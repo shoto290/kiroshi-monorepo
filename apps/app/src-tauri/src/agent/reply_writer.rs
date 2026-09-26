@@ -34,7 +34,7 @@ impl HostWrites {
 		held(&self.messages).contains(id)
 	}
 
-	pub fn claim_turn(&self, id: &str) {
+	pub(crate) fn claim_turn(&self, id: &str) {
 		held(&self.turns).insert(id.to_owned());
 	}
 
