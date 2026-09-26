@@ -25,6 +25,7 @@ import {
 import type { SpaceSettingsValue } from "@workspace/ui/components/space-settings"
 import { SpaceFields } from "@workspace/ui/components/space-settings-dialog/space-fields"
 import { SpaceTint } from "@workspace/ui/components/space-tint"
+import { Button } from "@workspace/ui/components/ui/button"
 
 const FIRST_TAB = "space"
 
@@ -43,6 +44,8 @@ type SpaceSettingsDialogProps = PluginSessionsProps & {
 	history: PluginHistory
 	onDelete: () => void
 	isDeletable?: boolean
+	onExport?: () => void
+	onImport?: () => void
 	className?: string
 }
 
@@ -59,6 +62,8 @@ const SpaceSettingsDialog = ({
 	history,
 	onDelete,
 	isDeletable = true,
+	onExport,
+	onImport,
 	className,
 	...sessionProps
 }: SpaceSettingsDialogProps) => {
@@ -128,6 +133,20 @@ const SpaceSettingsDialog = ({
 		>
 			<SettingsScrollingPanel value={FIRST_TAB}>
 				<SpaceFields onValueChange={onValueChange} value={value} />
+				{onExport || onImport ? (
+					<div className="flex flex-wrap gap-2" data-slot="space-transfer">
+						{onExport ? (
+							<Button onClick={onExport} size="sm" variant="outline">
+								{t("space.transfer.export")}
+							</Button>
+						) : null}
+						{onImport ? (
+							<Button onClick={onImport} size="sm" variant="outline">
+								{t("space.transfer.import")}
+							</Button>
+						) : null}
+					</div>
+				) : null}
 			</SettingsScrollingPanel>
 
 			<Tabs.Panel className={SETTINGS_PANEL_CLASS} value="environment">
