@@ -1,7 +1,7 @@
 import type { ComponentProps } from "react"
 import { useTranslation } from "react-i18next"
 
-import { BotIdentityAvatar } from "@workspace/ui/components/bot-identity-avatar"
+import { BotAvatar } from "@workspace/ui/components/bot-avatar"
 import { usePrefersReducedMotion } from "@workspace/ui/hooks/use-prefers-reduced-motion"
 import { cn } from "@workspace/ui/lib/utils"
 
@@ -23,12 +23,7 @@ function AppBootScreen({ className, ...props }: AppBootScreenProps) {
 			)}
 			{...props}
 		>
-			<BotIdentityAvatar
-				animal="rabbit"
-				kind="working"
-				size={BOOT_MARK_SIZE}
-				working
-			/>
+			<BotAvatar animal="rabbit" size={BOOT_MARK_SIZE} state="working" />
 			{prefersReducedMotion ? (
 				<p className="mt-6 text-muted-foreground text-sm" role="status">
 					{status}

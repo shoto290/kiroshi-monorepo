@@ -17,16 +17,13 @@ import {
 import { createPortal } from "react-dom"
 import { useTranslation } from "react-i18next"
 
+import { AsciiGlyphAvatar } from "@workspace/ui/components/ascii-glyph-avatar"
 import {
 	AvatarGroup,
 	type ConversationParticipant,
 } from "@workspace/ui/components/avatar-group"
-import {
-	BotAvatar,
-	type BotAvatarBlot,
-} from "@workspace/ui/components/bot-avatar"
+import type { BotAvatarBlot } from "@workspace/ui/components/bot-avatar"
 import type { BotAvatarAnimal } from "@workspace/ui/components/bot-avatar-animals"
-import type { BotAvatarState } from "@workspace/ui/components/bot-avatar-data"
 import {
 	type BotBadge,
 	type BotMissionState,
@@ -38,7 +35,6 @@ import {
 	type ActivityIndicatorKind,
 	BotIdentityAvatar,
 } from "@workspace/ui/components/bot-identity-avatar"
-import { BOT_IDENTITY_ANIMALS } from "@workspace/ui/components/bot-settings"
 import { CompanionMenuContent } from "@workspace/ui/components/companion-menu"
 import { ContextMenuPressTrigger } from "@workspace/ui/components/context-menu-press-trigger"
 import { Icons } from "@workspace/ui/components/icons"
@@ -192,19 +188,6 @@ const LIFTED_BOT =
 	"pointer-events-none fixed top-0 left-0 z-[100] drop-shadow-lg translate-x-[calc(var(--lift-x,0px)-50%)] translate-y-[calc(var(--lift-y,0px)-50%)]"
 
 const DROP_AVATAR_SIZE = 28
-
-const DROP_POSES: BotAvatarState[] = [
-	"thinking",
-	"searching",
-	"working",
-	"writing",
-	"listening",
-]
-
-const drawnFrom = <Item,>(pool: Item[], seed: string) => {
-	const total = [...seed].reduce((sum, letter) => sum + letter.charCodeAt(0), 0)
-	return pool[total % pool.length]
-}
 
 const CONTENT_INSET = "p-2 group-data-[collapsible=icon]:px-0"
 
@@ -801,12 +784,7 @@ const SectionDropZone = ({ name, label }: SectionDropZoneProps) => {
 	return (
 		<div className={SECTION_DROP} data-slot="roster-section-drop">
 			<span aria-hidden="true" className={SECTION_DROP_AVATAR}>
-				<BotAvatar
-					animal={drawnFrom(BOT_IDENTITY_ANIMALS, name)}
-					animated={false}
-					size={DROP_AVATAR_SIZE}
-					state={drawnFrom(DROP_POSES, name)}
-				/>
+				<AsciiGlyphAvatar name={name} size={DROP_AVATAR_SIZE} />
 			</span>
 			{label ?? t("roster.section.empty")}
 		</div>

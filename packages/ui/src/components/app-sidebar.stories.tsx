@@ -6,6 +6,9 @@ import {
 	A11Y_CONTRAST_AWAITING_DESIGN_DECISION,
 	A11Y_FLOATING_FOCUS_GUARDS,
 	A11Y_SUBMENU_PORTAL_GUARD,
+	companionGlyphOf,
+	companionGlyphs,
+	companionGlyphsIn,
 	expectCompanionPictureSquare,
 	FRAME_POLL,
 	hasOverlayScrollbars,
@@ -29,7 +32,14 @@ import {
 	type Space,
 	type UserChipIdentity,
 } from "@workspace/ui/components/app-sidebar"
-import { blotTransform } from "@workspace/ui/components/bot-avatar-blot"
+import {
+	ASCII_GLYPH_SPACE,
+	glyphKey,
+} from "@workspace/ui/components/ascii-glyph-avatar"
+import {
+	companionSeed,
+	pickSilhouette,
+} from "@workspace/ui/components/avatar-exploration"
 import type {
 	BotMissionState,
 	BotMissionTicket,
@@ -256,11 +266,8 @@ const IDENTITY_ROSTER: AppSidebarBot[] = IDENTITY_BLOTS.map((blot, index) => ({
 	status: "idle",
 }))
 
-const blotsIn = (canvasElement: HTMLElement) =>
-	slotsIn(canvasElement, "bot-avatar-blot")
-
-const blotFillsIn = (canvasElement: HTMLElement) =>
-	blotsIn(canvasElement).map((path) => path.getAttribute("fill"))
+const tintsIn = (root: HTMLElement) =>
+	companionGlyphs(root).map((glyph) => glyph.style.backgroundColor)
 
 const SHARED_TINT_ROSTER: AppSidebarBot[] = IDENTITY_ROSTER.map((bot) => ({
 	...bot,
@@ -385,11 +392,8 @@ const searchFieldIn = (canvasElement: HTMLElement) =>
 		name: /Search/,
 	})
 
-const avatarDrawingIn = (row: HTMLElement) => {
-	const drawing = slotIn(row, "bot-identity-avatar").querySelector("svg")
-	if (!drawing) throw new Error("No avatar drawing in the row")
-	return drawing
-}
+const avatarDrawingIn = (row: HTMLElement) =>
+	companionGlyphOf(slotIn(row, "bot-identity-avatar"))
 
 const expectAvatarDrawnAtCallSiteSize = async (row: HTMLElement) => {
 	const drawn = avatarDrawingIn(row).getBoundingClientRect()
@@ -1041,22 +1045,19 @@ export const SharedTint = meta.story({
 		docs: {
 			description: {
 				story:
-					"Eight companions that all picked the same tint. Before a shape was derived from the id they were stamped from one die and a reader had to read the names to tell the rows apart; now each id lays the one authored blot down at its own quarter turn, mirrored or not. The vocabulary is deliberately small — eight poses, and eight tints over them — so two rows can still land on the same mark, and a reader who wants them apart changes a tint. What matters is that a row never changes shape: rename the companion, give it another animal, give it another tint, and the mark it wears is the one it was minted with. Pick `Identities` for the eight tints on their own.",
+					"Eight companions that all picked the same colour. Each draws the glyph its name lands on, so the rows part by shape alone rather than by reading the names. Pick `Identities` for the eight colours on their own.",
 			},
 		},
 	},
 	play: async ({ canvasElement }) => {
-		const shapes = blotsIn(canvasElement).map((path) =>
-			path.getAttribute("transform"),
+		const glyphs = companionGlyphs(canvasElement)
+		const shapes = SHARED_TINT_ROSTER.map(({ name }) =>
+			glyphKey(pickSilhouette(companionSeed(name, "blue"), ASCII_GLYPH_SPACE)),
 		)
 
-		await expect(shapes).toHaveLength(SHARED_TINT_ROSTER.length)
-		for (const [at, shape] of shapes.entries()) {
-			await expect(
-				shape?.endsWith(blotTransform(SHARED_TINT_ROSTER[at].id)),
-			).toBe(true)
-		}
-		await expect(uniqueCount(shapes)).toBeGreaterThan(1)
+		await expect(glyphs).toHaveLength(SHARED_TINT_ROSTER.length)
+		await expect(uniqueCount(tintsIn(canvasElement))).toBe(1)
+		await expect(uniqueCount(shapes)).toBe(SHARED_TINT_ROSTER.length)
 	},
 })
 
@@ -1078,13 +1079,11 @@ export const Identities = meta.story({
 		const rows = rowsIn(canvasElement)
 
 		await expect(rows).toHaveLength(IDENTITY_BLOTS.length)
-		await expect(blotFillsIn(canvasElement)).toEqual(
+		await expect(tintsIn(canvasElement)).toEqual(
 			IDENTITY_BLOTS.map((blot) => `var(--bot-blot-${blot})`),
 		)
 		for (const row of rows) {
-			await expect(
-				within(row).getByRole("img", { name: /idle$/ }),
-			).toBeVisible()
+			await expect(avatarDrawingIn(row).dataset.state).toBe("idle")
 		}
 
 		await expect(
@@ -1146,20 +1145,14 @@ export const Working = meta.story({
 		await expect(slotIn(running, "roster-row-preview")).toHaveTextContent(
 			"writing…",
 		)
-		await expect(
-			within(running).getByRole("img", {
-				name: "Companion avatar dog, writing",
-			}),
-		).toBeVisible()
+		await expect(avatarDrawingIn(running).dataset.state).toBe("writing")
 
 		const resting = rowFor(canvasElement, "Ember")
 		await expect(
 			resting.querySelector('[data-slot="bot-activity-dot"]'),
 		).toBeNull()
-		await expect(
-			within(resting).getByRole("img", { name: /idle$/ }),
-		).toBeVisible()
-		await expect(blotFillsIn(resting)).toEqual(["var(--bot-blot-purple)"])
+		await expect(companionGlyphsIn(resting, "idle")[0]).toBeVisible()
+		await expect(tintsIn(resting)).toEqual(["var(--bot-blot-purple)"])
 		await expect(resting.querySelector('[data-slot="text-shimmer"]')).toBeNull()
 		await expect(colorOf(resting, "roster-row-preview")).toBe(muted)
 
@@ -1171,20 +1164,14 @@ export const Working = meta.story({
 		await expect(getComputedStyle(shimmer).color).toBe(muted)
 
 		await expect(
-			within(rowFor(canvasElement, "Atlas")).getByRole("img", {
-				name: /thinking$/,
-			}),
-		).toBeVisible()
+			avatarDrawingIn(rowFor(canvasElement, "Atlas")).dataset.state,
+		).toBe("thinking")
 		await expect(
-			within(rowFor(canvasElement, "Beacon")).getByRole("img", {
-				name: /searching$/,
-			}),
-		).toBeVisible()
+			avatarDrawingIn(rowFor(canvasElement, "Beacon")).dataset.state,
+		).toBe("searching")
 		await expect(
-			within(rowFor(canvasElement, "Dune")).getByRole("img", {
-				name: /working$/,
-			}),
-		).toBeVisible()
+			avatarDrawingIn(rowFor(canvasElement, "Dune")).dataset.state,
+		).toBe("working")
 
 		await expect(uniqueCount(rowHeights(rowsIn(canvasElement)))).toBe(1)
 		await expect(canvas.getByRole("status")).toHaveTextContent(
@@ -1206,16 +1193,13 @@ export const PermissionPending = meta.story({
 		docs: {
 			description: {
 				story:
-					'A turn blocked on a permission prompt, which a host maps to `status="working"` with `pose="waiting"` — the turn is waiting on the reader, not over. Check that the avatar holds its listening pose rather than the idle frame it wears at rest and that it is still animating: the panel reports itself busy and the announcement says the companion is waiting, so a row that looked idle here would contradict both at once. Pick `Working` for the work poses that cannot be mistaken for rest, `Identities` for the still frame this state must not fall back to.',
+					'A turn blocked on a permission prompt, which a host maps to `status="working"` with `pose="waiting"` — the turn is waiting on the reader, not over. Check that the glyph is in its waiting motion rather than the still frame it wears at rest: the panel reports itself busy and the announcement says the companion is waiting, so a row that looked idle here would contradict both at once. Pick `Working` for the work poses that cannot be mistaken for rest, `Identities` for the still frame this state must not fall back to.',
 			},
 		},
 	},
 	play: async ({ canvas, canvasElement }) => {
 		const row = rowFor(canvasElement, "Atlas")
-		await expect(
-			within(row).getByRole("img", { name: /listening$/ }),
-		).toBeVisible()
-		await expect(within(row).queryByRole("img", { name: /idle$/ })).toBeNull()
+		await expect(avatarDrawingIn(row).dataset.state).toBe("waiting")
 		await expect(slotIn(row, "roster-row-preview")).toHaveTextContent(
 			"waiting…",
 		)
@@ -4022,7 +4006,7 @@ export const EmptySection = meta.story({
 		docs: {
 			description: {
 				story:
-					"A section nothing has been filed into. It is drawn, not hidden: the header stays where the host put it and a dashed zone under it stands in for the rows that are not there yet. The zone wears a faded companion of its own, drawn from the section\u2019s name so it is the same companion every time that section is empty rather than a new face on every render — it is at rest and never animates, since a placeholder that moves competes with the companions that are actually working. It is decoration and is kept out of the accessibility tree; the invitation beside it is what a reader hears. Check it is drawn under the Archive header, that no row is drawn with it, and that it goes with the headers on the icon rail, where there is nothing to drop onto.",
+					"A section nothing has been filed into. It is drawn, not hidden: the header stays where the host put it and a dashed zone under it stands in for the rows that are not there yet. The zone wears a faded glyph of its own, drawn from the section\u2019s name so it is the same glyph every time that section is empty. It is at rest and never animates, since a placeholder that moves competes with the companions that are actually working. It is decoration and is kept out of the accessibility tree; the invitation beside it is what a reader hears. Check it is drawn under the Archive header, that no row is drawn with it, and that it goes with the headers on the icon rail, where there is nothing to drop onto.",
 			},
 		},
 	},
@@ -4031,12 +4015,9 @@ export const EmptySection = meta.story({
 		await expect(invitation).toBeVisible()
 
 		const zone = slotIn(canvasElement, "roster-section-drop")
-		const placeholder = zone.querySelector("svg")
-		await expect(placeholder?.closest("[aria-hidden='true']")).not.toBeNull()
-		await expect(placeholder).toHaveAttribute(
-			"aria-label",
-			expect.stringMatching(/^Companion avatar \w+, (?!idle)\w+$/),
-		)
+		const placeholder = companionGlyphOf(zone)
+		await expect(placeholder.closest("[aria-hidden='true']")).not.toBeNull()
+		await expect(placeholder.dataset.state).toBe("idle")
 		await expect(getComputedStyle(zone).color).toBe(
 			tokenColor(canvasElement, "--muted-foreground"),
 		)

@@ -1,7 +1,7 @@
 import { expect } from "storybook/test"
 
 import preview from "@workspace/storybook/preview"
-import { botIdentityAvatars, slotIn } from "@workspace/storybook/story-utils"
+import { slotIn } from "@workspace/storybook/story-utils"
 import { AppBootScreen } from "@workspace/ui/components/app-boot-screen"
 
 const meta = preview.meta({
@@ -32,7 +32,9 @@ export const Default = meta.story({
 		const screen = slotIn(canvasElement, "app-boot-screen")
 
 		await expect(screen.clientHeight).toBe(window.innerHeight)
-		await expect(botIdentityAvatars(canvasElement)).toHaveLength(1)
+		await expect(
+			canvas.getByRole("img", { name: /^Companion avatar rabbit/ }),
+		).toBeVisible()
 		await expect(canvas.getByRole("status")).toHaveTextContent(
 			"Starting Kiroshi",
 		)

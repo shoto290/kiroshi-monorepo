@@ -813,22 +813,6 @@ const bots = {
 	identity: {
 		avatar: "Avatar",
 		uploadedImage: "Image importée",
-		current: "{{animal}}, {{colour}}",
-		animal: {
-			label: "Animal",
-			option: {
-				rabbit: "Lapin",
-				cat: "Chat",
-				bear: "Ours",
-				chick: "Poussin",
-				dog: "Chien",
-				mouse: "Souris",
-				owl: "Hibou",
-				koala: "Koala",
-				skippy: "Skippy",
-				pitch: "Pitch",
-			},
-		},
 		colour: {
 			label: "Couleur",
 			none: "Aucune couleur",

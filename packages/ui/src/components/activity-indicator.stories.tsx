@@ -4,6 +4,8 @@ import { expect, fn, screen, waitFor } from "storybook/test"
 import preview from "@workspace/storybook/preview"
 import {
 	botIdentityAvatars,
+	companionGlyphOf,
+	companionGlyphs,
 	expectCompanionPictureSquare,
 	slotIn,
 	slotsIn,
@@ -240,20 +242,18 @@ export const Blot = meta.story({
 		docs: {
 			description: {
 				story:
-					"The tint a companion was marked with, held through every kind of work. The first row carries none and draws the bare animal; the rest carry the same blot, untouched by the work. Pick `Branding/BotIdentityAvatar → EveryBlot` for the eight tints themselves.",
+					"The colour a companion was marked with, held through every kind of work. The first row carries none and draws its glyph on no tile; the rest carry the same colour, untouched by the work. Pick `Branding/BotIdentityAvatar → EveryTint` for the eight colours themselves.",
 			},
 		},
 	},
 	play: async ({ canvasElement }) => {
 		const [bare, ...tinted] = botIdentityAvatars(canvasElement)
 
-		await expect(bare.querySelector('[data-slot="bot-avatar-blot"]')).toBeNull()
+		await expect(companionGlyphOf(bare).style.backgroundColor).toBe("")
 		for (const avatar of tinted) {
-			await expect(
-				avatar
-					.querySelector('[data-slot="bot-avatar-blot"]')
-					?.getAttribute("fill"),
-			).toBe("var(--bot-blot-blue)")
+			await expect(companionGlyphOf(avatar).style.backgroundColor).toBe(
+				"var(--bot-blot-blue)",
+			)
 		}
 	},
 })
@@ -587,20 +587,20 @@ export const Marked = meta.story({
 		docs: {
 			description: {
 				story:
-					"The companion doing the work, wearing exactly what it wears at rest: its own animal, its own tint, and the blot shape its id lands on. A run may change the pose and nothing else — a working row that dropped the tint or reposed the blot would put a different companion on the screen at the one moment the reader is watching it. Check that the mark is identical across all five kinds and against the roster row for the same companion, and that only the animal inside it moves.",
+					"The companion doing the work, wearing exactly what it wears at rest: its own glyph on its own colour. A run may change the motion and nothing else: a working row that dropped the colour would put a different companion on the screen at the one moment the reader is watching it. Check that the mark is identical across all five kinds and that only the motion differs.",
 			},
 		},
 	},
 	play: async ({ canvasElement }) => {
-		const [thinking, ...rest] = slotsIn(canvasElement, "bot-avatar-blot")
+		const [thinking, ...rest] = companionGlyphs(canvasElement)
 
 		await expect(rest).toHaveLength(BOT_WORKING_KINDS.length - 1)
-		for (const blot of rest) {
-			await expect(blot.getAttribute("fill")).toBe(
-				thinking.getAttribute("fill"),
+		for (const glyph of rest) {
+			await expect(glyph.getAttribute("aria-label")).toBe(
+				thinking.getAttribute("aria-label"),
 			)
-			await expect(blot.getAttribute("transform")).toBe(
-				thinking.getAttribute("transform"),
+			await expect(glyph.style.backgroundColor).toBe(
+				thinking.style.backgroundColor,
 			)
 		}
 	},
@@ -626,7 +626,7 @@ export const Stop = meta.story({
 		docs: {
 			description: {
 				story:
-					"Interrupting the run, from the row that is running it: the first two avatars are `stoppable` and become controls, the last is not and stays a drawing. Check that the veil covers the drawn avatar corner to corner and holds to the rounded square of the uploaded picture, that it appears the instant the avatar is pointed at with no fade — pointing at the words beside it reveals them and nothing else — that Tab reaches each control and lights the same glyph, and that the last row exposes no button at all.",
+					"Interrupting the run, from the row that is running it: the first two avatars are `stoppable` and become controls, the last is not and stays a drawing. Check that the veil holds to the rounded square of the glyph and of the uploaded picture alike, that it appears the instant the avatar is pointed at with no fade — pointing at the words beside it reveals them and nothing else — that Tab reaches each control and lights the same glyph, and that the last row exposes no button at all.",
 			},
 		},
 	},
@@ -641,9 +641,11 @@ export const Stop = meta.story({
 		const label = canvas.getAllByText("Atlas · Bash · npm test")[0]
 
 		await expect(canvas.getAllByRole("button")).toHaveLength(2)
-		const [, picture] = botIdentityAvatars(canvasElement)
+		const [drawn, picture] = botIdentityAvatars(canvasElement)
 
-		await expect(getComputedStyle(glyph).borderRadius).toBe("0px")
+		await expect(getComputedStyle(glyph).borderRadius).toBe(
+			getComputedStyle(drawn).borderRadius,
+		)
 		await expectCompanionPictureSquare(picture)
 		await expect(getComputedStyle(uploadedGlyph).borderRadius).toBe(
 			getComputedStyle(picture).borderRadius,
