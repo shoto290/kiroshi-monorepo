@@ -208,33 +208,37 @@ fn emit_init(key: &str, run: &Run) {
 	);
 }
 
-fn emit_text_turn(key: &str, run: &Run, text: &str) {
+fn emit_text_stream(key: &str, text: &str) -> String {
 	let message_id = next_message_id();
-	if run.partial_messages {
+	emit(
+		key,
+		json!({
+			"type": "stream_event",
+			"event": { "type": "message_start", "message": { "id": message_id, "role": "assistant" } }
+		}),
+	);
+	emit(
+		key,
+		json!({
+			"type": "stream_event",
+			"event": { "type": "content_block_start", "index": 0, "content_block": { "type": "text", "text": "" } }
+		}),
+	);
+	for chunk in text.split_inclusive(' ') {
 		emit(
 			key,
 			json!({
 				"type": "stream_event",
-				"event": { "type": "message_start", "message": { "id": message_id, "role": "assistant" } }
+				"event": { "type": "content_block_delta", "index": 0, "delta": { "type": "text_delta", "text": chunk } }
 			}),
 		);
-		emit(
-			key,
-			json!({
-				"type": "stream_event",
-				"event": { "type": "content_block_start", "index": 0, "content_block": { "type": "text", "text": "" } }
-			}),
-		);
-		for chunk in text.split_inclusive(' ') {
-			emit(
-				key,
-				json!({
-					"type": "stream_event",
-					"event": { "type": "content_block_delta", "index": 0, "delta": { "type": "text_delta", "text": chunk } }
-				}),
-			);
-		}
 	}
+	message_id
+}
+
+fn emit_text_turn(key: &str, run: &Run, text: &str) {
+	let message_id =
+		if run.partial_messages { emit_text_stream(key, text) } else { next_message_id() };
 	emit(
 		key,
 		json!({
@@ -343,6 +347,14 @@ fn on_prompt(key: &str, runs: &mut HashMap<String, Run>, text: &str) {
 	match run.scenario.clone().as_str() {
 		"crash" => {
 			emit_text_turn(key, run, "partial");
+			emit_closed(key, "the agent exited unexpectedly");
+			dropped = true;
+		}
+		"stalled_reply" => {
+			emit_text_stream(key, &format!("echo :: {text}"));
+		}
+		"crash_mid_reply" => {
+			emit_text_stream(key, &format!("echo :: {text}"));
 			emit_closed(key, "the agent exited unexpectedly");
 			dropped = true;
 		}

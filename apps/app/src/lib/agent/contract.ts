@@ -15,6 +15,7 @@ export type {
 	PermissionDecision,
 	RuntimeScope,
 	SessionHandle,
+	SubmittedTurn,
 } from "@/lib/bindings"
 
 type FrontTransportError =

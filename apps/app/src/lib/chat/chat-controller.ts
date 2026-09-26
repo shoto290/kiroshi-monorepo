@@ -1051,6 +1051,11 @@ export function createChatController(
 		)
 	}
 
+	const submittedTurnOf = ({ activeTurn }: BotChat) =>
+		activeTurn
+			? { turnId: activeTurn.id, promptId: activeTurn.promptId }
+			: undefined
+
 	const submit = async (bot: BotChat, id: string, text: string) => {
 		const runtime = bot.state.runtime
 		if (!runtime || !isAnswerable(bot)) {
@@ -1073,7 +1078,7 @@ export function createChatController(
 			return false
 		}
 		try {
-			await driver.submitPrompt(runtime, carried)
+			await driver.submitPrompt(runtime, carried, submittedTurnOf(bot))
 			bot.run.carried = true
 			bot.run.prompts += 1
 			return true

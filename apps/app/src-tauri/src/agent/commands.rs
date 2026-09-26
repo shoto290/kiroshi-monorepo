@@ -7,11 +7,12 @@ use tokio::sync::Mutex;
 
 use super::contract::{
 	AgentEvent, CheckReport, ConnectionState, EvolvedBundle, LiveSession, PermissionDecision,
-	RuntimeScope, ScopedEvent, SessionHandle, TransportError,
+	RuntimeScope, ScopedEvent, SessionHandle, SubmittedTurn, TransportError,
 };
 use super::host::hosted;
 use super::protocol::{self, Checked};
 use super::redact;
+use super::reply_writer::{HostWrites, ReplyWriter};
 use super::session::{Bundle, EventSink, GatedSink, Session, SessionOptions};
 use super::sidecar::{self, Sidecar, SidecarOptions};
 use super::translate::now_ms;
@@ -315,6 +316,7 @@ pub struct AgentState {
 	sidecar: Mutex<Option<Arc<Sidecar>>>,
 	models: Catalogue,
 	tools: Catalogue,
+	host_writes: Arc<HostWrites>,
 }
 
 struct Catalogue {
@@ -335,6 +337,7 @@ impl Default for AgentState {
 			sidecar: Mutex::default(),
 			models: Catalogue::of(protocol::MODELS),
 			tools: Catalogue::of(protocol::TOOLS),
+			host_writes: Arc::default(),
 		}
 	}
 }
@@ -366,6 +369,10 @@ impl Catalogue {
 }
 
 impl AgentState {
+	pub fn host_writes(&self) -> &HostWrites {
+		&self.host_writes
+	}
+
 	fn claim(&self, scope: &RuntimeScope) -> Result<Claim<'_>, TransportError> {
 		let mut gate = self.gate.lock().expect("gate");
 		let run = run_key(scope);
@@ -702,12 +709,14 @@ pub async fn agent_start_or_resume_session<R: Runtime>(
 	let anywhere = cwd.map(PathBuf::from).unwrap_or_else(|| its_own_directory(&app, &scope.bot_id));
 	let (working_dir, refused_dir) = where_it_runs(identity.working_dir, anywhere);
 
-	let sink: Arc<dyn EventSink> = Arc::new(RunSink {
+	let announcing: Arc<dyn EventSink> = Arc::new(RunSink {
 		app: app.clone(),
 		scope: scope.clone(),
 		live: state.live.clone(),
 		records_its_own_lineage: lineage_is_held_elsewhere,
 	});
+	let sink: Arc<dyn EventSink> =
+		Arc::new(ReplyWriter::spawn(app.clone(), &scope, state.host_writes.clone(), announcing));
 	let options = SessionOptions::new(working_dir)
 		.bundled(identity.bundle)
 		.serving(identity.server_env)
@@ -834,8 +843,9 @@ pub async fn agent_submit_prompt(
 	state: State<'_, AgentState>,
 	scope: RuntimeScope,
 	text: String,
+	turn: Option<SubmittedTurn>,
 ) -> Result<(), TransportError> {
-	state.live.session_for(&scope)?.submit_prompt(&text).await
+	state.live.session_for(&scope)?.submit(&text, turn).await
 }
 
 #[tauri::command]

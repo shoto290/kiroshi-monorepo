@@ -43,7 +43,10 @@ export const commands = {
 	agentTools: () => __TAURI_INVOKE<string[]>("agent_tools"),
 	agentTitle: (text: string) => __TAURI_INVOKE<string | null>("agent_title", { text }),
 	agentStartOrResumeSession: (scope: RuntimeScope, resume: string | null, cwd: string | null, outputSchema: null | boolean | number | null | string | Json[] | { [key in string]: Json } | null) => typedError<SessionHandle, TransportError>(__TAURI_INVOKE("agent_start_or_resume_session", { scope, resume, cwd, outputSchema })),
-	agentSubmitPrompt: (scope: RuntimeScope, text: string) => typedError<null, TransportError>(__TAURI_INVOKE("agent_submit_prompt", { scope, text })),
+	agentSubmitPrompt: (scope: RuntimeScope, text: string, turn: {
+	turnId: string,
+	promptId: string,
+} | null) => typedError<null, TransportError>(__TAURI_INVOKE("agent_submit_prompt", { scope, text, turn })),
 	agentCancelTurn: (scope: RuntimeScope) => typedError<null, TransportError>(__TAURI_INVOKE("agent_cancel_turn", { scope })),
 	agentRespondToPermission: (scope: RuntimeScope, id: string, decision: PermissionDecision) => typedError<null, TransportError>(__TAURI_INVOKE("agent_respond_to_permission", { scope, id, decision })),
 	agentAnswerQuestion: (scope: RuntimeScope, id: string, answers: { [key in string]: string }, annotations: null | boolean | number | null | string | Json[] | { [key in string]: Json } | null) => typedError<null, TransportError>(__TAURI_INVOKE("agent_answer_question", { scope, id, answers, annotations })),
@@ -1075,6 +1078,11 @@ export type StorageFailure = { kind: "appDataDir" } | { kind: "journalMode"; mod
 export type SubmittedAttachment = {
 	name: string,
 	bytes: number[],
+};
+
+export type SubmittedTurn = {
+	turnId: string,
+	promptId: string,
 };
 
 export type SuggestedBot = {

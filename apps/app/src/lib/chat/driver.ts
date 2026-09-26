@@ -7,6 +7,7 @@ import type {
 	RuntimeScope,
 	ScopedEvent,
 	SessionHandle,
+	SubmittedTurn,
 } from "../agent/contract"
 
 type ChatDriverUnsubscribe = () => void
@@ -20,7 +21,11 @@ export type ChatDriver = {
 		cwd?: string,
 		outputSchema?: Record<string, unknown>,
 	) => Promise<SessionHandle>
-	submitPrompt: (scope: RuntimeScope, text: string) => Promise<void>
+	submitPrompt: (
+		scope: RuntimeScope,
+		text: string,
+		turn?: SubmittedTurn,
+	) => Promise<void>
 	storeAttachments: (
 		conversationId: string,
 		attachments: SubmittedAttachment[],

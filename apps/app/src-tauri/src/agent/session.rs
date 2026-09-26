@@ -10,7 +10,8 @@ use serde_json::Value;
 use tokio::sync::{mpsc, oneshot, Mutex};
 
 use super::contract::{
-	AgentEvent, ConnectionState, PermissionDecision, TransportError, TurnOutcome, TurnState,
+	AgentEvent, ConnectionState, PermissionDecision, SubmittedTurn, TransportError, TurnOutcome,
+	TurnState,
 };
 use super::protocol::{self, ClosedFrame, Frame, HostAnswer, HostRequestFrame, OpenRequest};
 use super::sidecar::Sidecar;
@@ -23,6 +24,10 @@ pub const PARTIAL_MESSAGES: &str = "partialMessages";
 
 pub trait EventSink: Send + Sync + 'static {
 	fn emit(&self, event: AgentEvent);
+
+	fn submitted(&self, _turn: SubmittedTurn) {}
+
+	fn withdrawn(&self) {}
 }
 
 pub type Answering = Pin<Box<dyn Future<Output = HostAnswer> + Send>>;
@@ -77,6 +82,14 @@ impl EventSink for GatedSink {
 			Gate::Forwarding => self.inner.emit(event),
 			Gate::Discarding => {}
 		}
+	}
+
+	fn submitted(&self, turn: SubmittedTurn) {
+		self.inner.submitted(turn);
+	}
+
+	fn withdrawn(&self) {
+		self.inner.withdrawn();
 	}
 }
 
@@ -295,6 +308,14 @@ impl Session {
 	}
 
 	pub async fn submit_prompt(&self, text: &str) -> Result<(), TransportError> {
+		self.submit(text, None).await
+	}
+
+	pub async fn submit(
+		&self,
+		text: &str,
+		turn: Option<SubmittedTurn>,
+	) -> Result<(), TransportError> {
 		let entering = {
 			let mut shared = self.shared.lock().await;
 			if matches!(
@@ -305,8 +326,16 @@ impl Session {
 			}
 			shared.set_turn(TurnState::Submitting)
 		};
+		let handed = turn.is_some();
+		if let Some(turn) = turn {
+			self.sink.submitted(turn);
+		}
 		self.emit(entering);
-		self.write(protocol::prompt_command(&self.key, text))
+		let written = self.write(protocol::prompt_command(&self.key, text));
+		if written.is_err() && handed {
+			self.sink.withdrawn();
+		}
+		written
 	}
 
 	pub async fn cancel_turn(&self) -> Result<(), TransportError> {

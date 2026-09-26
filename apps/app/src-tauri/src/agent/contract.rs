@@ -275,6 +275,13 @@ pub struct RuntimeScope {
 
 #[derive(Debug, Clone, PartialEq, Eq, Serialize, Deserialize, specta::Type)]
 #[serde(rename_all = "camelCase")]
+pub struct SubmittedTurn {
+	pub turn_id: String,
+	pub prompt_id: String,
+}
+
+#[derive(Debug, Clone, PartialEq, Eq, Serialize, Deserialize, specta::Type)]
+#[serde(rename_all = "camelCase")]
 pub struct LiveSession {
 	pub bot_id: String,
 	pub conversation_id: String,

@@ -1,5 +1,5 @@
 
-use std::sync::{Arc, Mutex};
+use std::sync::{Arc, Mutex, MutexGuard, PoisonError};
 use std::time::{Duration, Instant};
 
 use kiroshi_app::agent::sidecar::SIDECAR_OVERRIDE_ENV;
@@ -11,6 +11,7 @@ use kiroshi_app::agent::contract::{
 use kiroshi_app::agent::AgentState;
 use kiroshi_app::commands::invoke_handler;
 use kiroshi_app::db;
+use kiroshi_app::db::repositories::messages::{MessagePageQuery, MessageState, StoredMessage};
 use serde_json::{json, Value};
 use tauri::test::{mock_builder, mock_context, noop_assets, MockRuntime, INVOKE_KEY};
 use tauri::webview::InvokeRequest;
@@ -36,6 +37,28 @@ fn a_run(epoch: i64) -> RuntimeScope {
 		runtime_session_id: format!("r{epoch}"),
 		epoch,
 	}
+}
+
+fn invoke(window: &WebviewWindow<MockRuntime>, cmd: &str, body: Value) -> Result<Value, Value> {
+	tauri::test::get_ipc_response(
+		window,
+		InvokeRequest {
+			cmd: cmd.into(),
+			callback: tauri::ipc::CallbackFn(0),
+			error: tauri::ipc::CallbackFn(1),
+			url: "tauri://localhost".parse().expect("url"),
+			body: body.into(),
+			headers: Default::default(),
+			invoke_key: INVOKE_KEY.to_string(),
+		},
+	)
+	.map(|response| response.deserialize::<Value>().unwrap_or(Value::Null))
+	.map_err(|error| serde_json::to_value(error).unwrap_or(Value::Null))
+}
+
+fn serial() -> MutexGuard<'static, ()> {
+	static SIDECAR_SETTINGS: Mutex<()> = Mutex::new(());
+	SIDECAR_SETTINGS.lock().unwrap_or_else(PoisonError::into_inner)
 }
 
 fn launch() -> Harness {
@@ -64,20 +87,7 @@ fn launch() -> Harness {
 
 impl Harness {
 	fn call(&self, cmd: &str, body: Value) -> Result<Value, Value> {
-		tauri::test::get_ipc_response(
-			&self.window,
-			InvokeRequest {
-				cmd: cmd.into(),
-				callback: tauri::ipc::CallbackFn(0),
-				error: tauri::ipc::CallbackFn(1),
-				url: "tauri://localhost".parse().expect("url"),
-				body: body.into(),
-				headers: Default::default(),
-				invoke_key: INVOKE_KEY.to_string(),
-			},
-		)
-		.map(|response| response.deserialize::<Value>().unwrap_or(Value::Null))
-		.map_err(|error| serde_json::to_value(error).unwrap_or(Value::Null))
+		invoke(&self.window, cmd, body)
 	}
 
 	fn quit(&self) {
@@ -247,6 +257,7 @@ fn shut_down_leaving_no_orphan(harness: &Harness) {
 
 #[test]
 fn a_session_streams_survives_a_relaunch_and_leaves_no_orphan() {
+	let _serial = serial();
 	std::env::set_var(SIDECAR_OVERRIDE_ENV, FAKE_SIDECAR);
 	std::env::set_var("FAKE_AGENT_PID_FILE", orphan_pid_file());
 	scenario("normal");
@@ -333,4 +344,247 @@ fn a_session_streams_survives_a_relaunch_and_leaves_no_orphan() {
 
 	assert_eq!(second.call("agent_shutdown", json!({ "scope": second.scope() })), Ok(Value::Null));
 	let _ = std::fs::remove_dir_all(&data_dir);
+}
+
+const BOT: &str = "default";
+const PROMPT: &str = "hello";
+const STREAMED: &str = "echo :: hello";
+
+struct Stored {
+	app: App<MockRuntime>,
+	window: WebviewWindow<MockRuntime>,
+	conversation_id: String,
+	data_dir: std::path::PathBuf,
+}
+
+fn launch_stored(name: &str, played: &str) -> Stored {
+	std::env::set_var(SIDECAR_OVERRIDE_ENV, FAKE_SIDECAR);
+	scenario(played);
+	let mut context = mock_context(noop_assets());
+	context.config_mut().identifier = format!("com.kiroshi.e2e-{name}-{}", std::process::id());
+	let app = mock_builder()
+		.manage(AgentState::default())
+		.invoke_handler(invoke_handler())
+		.build(context)
+		.expect("app builds");
+	let data_dir = app.path().app_data_dir().expect("data dir");
+	let _ = std::fs::remove_dir_all(&data_dir);
+	app.manage(db::bootstrap(app.handle()));
+	let window =
+		WebviewWindowBuilder::new(&app, "main", Default::default()).build().expect("window builds");
+	let chat = invoke(&window, "conversation_main_chat", json!({ "botId": BOT })).expect("the chat");
+	let conversation_id = chat["id"].as_str().expect("the chat holds an id").to_owned();
+	Stored { app, window, conversation_id, data_dir }
+}
+
+impl Stored {
+	fn call(&self, cmd: &str, body: Value) -> Result<Value, Value> {
+		invoke(&self.window, cmd, body)
+	}
+
+	fn scope(&self) -> Value {
+		json!({ "conversationId": self.conversation_id, "botId": BOT, "runtimeSessionId": "r1", "epoch": 1 })
+	}
+
+	fn start(&self) {
+		self.call(
+			"agent_start_or_resume_session",
+			json!({ "scope": self.scope(), "resume": null, "cwd": std::env::temp_dir() }),
+		)
+		.expect("the session starts");
+	}
+
+	fn submit(&self, turn_id: &str, prompt_id: &str) {
+		self.store_prompt(turn_id, prompt_id);
+		self.prompt(turn_id, prompt_id).expect("the prompt is accepted");
+	}
+
+	fn store_prompt(&self, turn_id: &str, prompt_id: &str) {
+		self.call(
+			"conversation_start_turn",
+			json!({ "turn": { "id": turn_id, "conversationId": self.conversation_id, "startedAt": 1 } }),
+		)
+		.expect("the turn is started");
+		self.call(
+			"conversation_append_user_message",
+			json!({ "message": {
+				"id": prompt_id,
+				"conversationId": self.conversation_id,
+				"turnId": turn_id,
+				"authorBotId": null,
+				"repliedToMessageId": null,
+				"content": PROMPT,
+				"createdAt": 1,
+			} }),
+		)
+		.expect("the prompt is stored");
+	}
+
+	fn prompt(&self, turn_id: &str, prompt_id: &str) -> Result<Value, Value> {
+		self.call(
+			"agent_submit_prompt",
+			json!({
+				"scope": self.scope(),
+				"text": PROMPT,
+				"turn": { "turnId": turn_id, "promptId": prompt_id },
+			}),
+		)
+	}
+
+	fn database(&self) -> &db::Database {
+		self.app.state::<db::DatabaseState>().inner().as_ref().expect("the database is open")
+	}
+
+	fn replies(&self) -> Vec<StoredMessage> {
+		let query = MessagePageQuery {
+			conversation_id: self.conversation_id.clone(),
+			before_seq: None,
+			limit: 50,
+		};
+		tauri::async_runtime::block_on(self.database().messages().page_messages(query))
+			.expect("the transcript reads")
+			.messages
+			.into_iter()
+			.filter(|message| message.author_bot_id.as_deref() == Some(BOT))
+			.collect()
+	}
+
+	fn completed_at(&self, turn_id: &'static str) -> Option<i64> {
+		tauri::async_runtime::block_on(self.database().messages().call(move |connection| {
+			Ok(connection.query_row(
+				"SELECT completed_at FROM turns WHERE id = ?1",
+				[turn_id],
+				|row| row.get(0),
+			)?)
+		}))
+		.expect("the turn reads")
+	}
+
+	fn wait_for<T>(&self, expected: &str, ready: impl Fn(&Self) -> Option<T>) -> T {
+		let deadline = Instant::now() + DEADLINE;
+		loop {
+			if let Some(found) = ready(self) {
+				return found;
+			}
+			assert!(
+				Instant::now() < deadline,
+				"waited {DEADLINE:?} for {expected}, the replies held {:#?}",
+				self.replies()
+			);
+			std::thread::sleep(POLL);
+		}
+	}
+
+	fn completed(&self, turn_id: &'static str) -> i64 {
+		self.wait_for("the turn to be completed", |stored| stored.completed_at(turn_id))
+	}
+
+	fn only_reply(&self) -> StoredMessage {
+		let replies = self.replies();
+		assert_eq!(replies.len(), 1, "the host wrote other than one reply: {replies:#?}");
+		replies.into_iter().next().expect("one reply")
+	}
+
+	fn close(self) {
+		tauri::async_runtime::block_on(terminate_session(&self.app.state::<AgentState>()));
+		let _ = std::fs::remove_dir_all(&self.data_dir);
+	}
+}
+
+#[test]
+fn the_host_persists_a_whole_turn_with_no_window_and_no_listener() {
+	let _serial = serial();
+	let stored = launch_stored("unheard", "normal");
+	stored.start();
+
+	stored.submit("t1", "p1");
+	stored.window.destroy().expect("the window closes");
+	stored.completed("t1");
+
+	let reply = stored.only_reply();
+	assert_eq!(reply.content, STREAMED);
+	assert_eq!(reply.state, MessageState::Complete);
+	assert_eq!(reply.turn_id, "t1");
+	assert_eq!(reply.replied_to_message_id.as_deref(), Some("p1"));
+	stored.close();
+}
+
+#[test]
+fn the_front_writing_a_reply_the_host_owns_changes_nothing() {
+	let _serial = serial();
+	let stored = launch_stored("owned", "stalled_reply");
+	stored.start();
+
+	stored.submit("t2", "p2");
+	let streamed = stored.wait_for("the streamed reply", |stored| {
+		stored.replies().into_iter().find(|reply| reply.content == STREAMED)
+	});
+	let id = streamed.id.clone();
+	let front_writes = [
+		(
+			"conversation_open_assistant_message",
+			json!({ "message": {
+				"id": id,
+				"conversationId": stored.conversation_id,
+				"turnId": "t2",
+				"authorBotId": BOT,
+				"repliedToMessageId": "p2",
+				"createdAt": 2,
+			} }),
+		),
+		("conversation_append_text", json!({ "id": id, "delta": STREAMED })),
+		(
+			"conversation_finalize_message",
+			json!({ "id": id, "completion": "complete", "settledText": null }),
+		),
+		("conversation_complete_turn", json!({ "id": "t2", "completedAt": 5 })),
+	];
+	for (command, body) in front_writes {
+		assert!(stored.call(command, body).is_ok(), "{command} refused a host-owned write");
+	}
+
+	assert_eq!(stored.only_reply(), streamed, "a front write moved the host-owned reply");
+	assert_eq!(stored.completed_at("t2"), None, "the front completed a turn the host owns");
+
+	stored.call("agent_cancel_turn", json!({ "scope": stored.scope() })).expect("cancelled");
+	assert_ne!(stored.completed("t2"), 5);
+	let settled = stored.only_reply();
+	assert_eq!(settled.content, STREAMED);
+	assert_eq!(settled.state, MessageState::Cancelled);
+	stored.close();
+}
+
+#[test]
+fn a_sidecar_dying_mid_reply_leaves_it_failed_and_the_turn_completed() {
+	let _serial = serial();
+	let stored = launch_stored("dying", "crash_mid_reply");
+	stored.start();
+
+	stored.submit("t3", "p3");
+	stored.completed("t3");
+
+	let reply = stored.only_reply();
+	assert_eq!(reply.content, STREAMED);
+	assert_eq!(reply.state, MessageState::Failed);
+	stored.close();
+}
+
+#[test]
+fn a_prompt_the_sidecar_never_received_leaves_its_turn_completed() {
+	let _serial = serial();
+	let stored = launch_stored("unsent", "normal");
+	stored.start();
+	let sidecar = tauri::async_runtime::block_on(stored.app.state::<AgentState>().sidecar())
+		.expect("the sidecar runs");
+	tauri::async_runtime::block_on(sidecar.shutdown());
+
+	stored.store_prompt("t4", "p4");
+	assert!(stored.prompt("t4", "p4").is_err(), "a sidecar that is gone accepted a prompt");
+
+	stored.completed("t4");
+	assert!(
+		stored.replies().iter().all(|reply| reply.state != MessageState::Pending),
+		"a reply of the refused turn was left pending"
+	);
+	stored.close();
 }

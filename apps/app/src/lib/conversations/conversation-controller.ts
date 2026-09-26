@@ -814,7 +814,10 @@ export const createConversationController = (
 			scope.runtimeSessionId,
 			held.promptId,
 		)
-		await driver.submitPrompt(scope, context)
+		await driver.submitPrompt(scope, context, {
+			turnId: held.turn.id,
+			promptId: held.turn.promptId,
+		})
 	}
 
 	const newSpeaker = (
