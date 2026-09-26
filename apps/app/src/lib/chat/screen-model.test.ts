@@ -354,6 +354,27 @@ describe("workingStateFor", () => {
 		})
 	})
 
+	it("waits on the first question asked, not its header", () => {
+		const state = chatState({
+			question: {
+				id: "ask-1",
+				questions: [
+					{
+						header: "Walls",
+						question: "Which wall?",
+						options: [],
+						multiSelect: false,
+					},
+				],
+			},
+		})
+
+		expect(workingStateFor(state)).toEqual({
+			kind: "waiting",
+			label: "Which wall?",
+		})
+	})
+
 	it("carries the instant the turn went busy", () => {
 		expect(
 			workingStateFor(chatState({ turnStartedAt: 1_700 }))?.startedAt,

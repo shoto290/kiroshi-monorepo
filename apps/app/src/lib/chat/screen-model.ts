@@ -239,7 +239,7 @@ export function workingStateFor(state: ChatState): WorkingState | null {
 		return null
 	}
 	if (state.question) {
-		return { kind: "waiting", label: state.question.questions[0]?.header }
+		return { kind: "waiting", label: state.question.questions[0]?.question }
 	}
 	if (state.permission) {
 		return { kind: "waiting", label: state.permission.title }
