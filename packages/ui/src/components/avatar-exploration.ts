@@ -138,7 +138,6 @@ export {
 	EXPLORATION_STATES,
 	type ExplorationAvatarProps,
 	type ExplorationState,
-	type FieldPoint,
 	fieldIntensity,
 	pickSilhouette,
 	type Silhouette,

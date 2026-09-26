@@ -86,6 +86,8 @@ const SOLIDS: Solid[] = [
 
 const DITHER_SPACE = { families: SOLIDS.length, variants: 256 }
 
+const cellCenter = (index: number) => ((index + 0.5) / GRID) * 2 - 1
+
 const lightOf = (variant: number): Vector => {
 	const azimuth = ((variant % LIGHT_ANGLES) / LIGHT_ANGLES) * TURN
 	const polar =
@@ -104,10 +106,7 @@ const shadedPixels = ({ family, variant }: Silhouette): ShadedPixel[] => {
 	const scale = SCALES[Math.floor(variant / 64) % SCALES.length]
 	const hasRim = Math.floor(variant / 128) % 2 === 1
 	const normalAt = (column: number, row: number) =>
-		solid(
-			(((column + 0.5) / GRID) * 2 - 1) / scale,
-			(((row + 0.5) / GRID) * 2 - 1) / scale,
-		)
+		solid(cellCenter(column) / scale, cellCenter(row) / scale)
 	const isEdge = (column: number, row: number) =>
 		[
 			[column - 1, row],
@@ -130,9 +129,13 @@ const shadedPixels = ({ family, variant }: Silhouette): ShadedPixel[] => {
 			)
 			const shade =
 				hasRim && isEdge(column, row) ? 1 : AMBIENT + (1 - AMBIENT) * lambert
-			const x = ((column + 0.5) / GRID) * 2 - 1
-			const y = ((row + 0.5) / GRID) * 2 - 1
-			pixels.push({ column, row, x, y, shade })
+			pixels.push({
+				column,
+				row,
+				x: cellCenter(column),
+				y: cellCenter(row),
+				shade,
+			})
 		}
 	return pixels
 }
