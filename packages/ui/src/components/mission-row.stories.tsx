@@ -17,6 +17,7 @@ import {
 	MISSION_NOW,
 	MISSION_STATES,
 	MISSION_STATUS,
+	MISSION_TOOL_CALL_SLOTS,
 	READY_MISSION,
 	UNTICKETED_MISSION,
 	WAITING_BOT_MISSION,
@@ -185,13 +186,6 @@ export const Working = meta.story({
 	},
 })
 
-const TOOL_CALL_SLOTS = [
-	"mission-activity-tool",
-	"mission-activity-target",
-	"mission-activity-age",
-	"mission-silence",
-]
-
 export const CommitsAhead = meta.story({
 	args: COMMITS_AHEAD_MISSION,
 	parameters: {
@@ -206,7 +200,7 @@ export const CommitsAhead = meta.story({
 	play: async ({ args, canvasElement, userEvent }) => {
 		const line = slotIn(canvasElement, "mission-activity")
 
-		for (const slot of TOOL_CALL_SLOTS) {
+		for (const slot of MISSION_TOOL_CALL_SLOTS) {
 			await expect(slotsIn(line, slot)).toHaveLength(0)
 		}
 		const commits = slotIn(line, "mission-commits-ahead")

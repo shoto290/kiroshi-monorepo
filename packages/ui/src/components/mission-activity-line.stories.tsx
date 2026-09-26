@@ -6,7 +6,10 @@ import {
 	MissionActivityLine,
 	type MissionActivityLineProps,
 } from "@workspace/ui/components/mission-activity-line"
-import { MISSION_PULL_REQUEST } from "@workspace/ui/components/missions.fixtures"
+import {
+	MISSION_PULL_REQUEST,
+	MISSION_TOOL_CALL_SLOTS,
+} from "@workspace/ui/components/missions.fixtures"
 
 const LINE: MissionActivityLineProps = {
 	commitsAhead: 1,
@@ -45,12 +48,7 @@ export const Default = meta.story({
 	play: async ({ canvasElement }) => {
 		const [commits] = slotsIn(canvasElement, "mission-commits-ahead")
 		await expect(commits).toHaveTextContent("1 commit ahead")
-		for (const slot of [
-			"mission-activity-tool",
-			"mission-activity-target",
-			"mission-activity-age",
-			"mission-silence",
-		]) {
+		for (const slot of MISSION_TOOL_CALL_SLOTS) {
 			await expect(slotsIn(canvasElement, slot)).toHaveLength(0)
 		}
 	},

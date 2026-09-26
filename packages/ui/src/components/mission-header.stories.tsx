@@ -18,6 +18,7 @@ import {
 	MISSION_STATES_WITHOUT_A_PILL,
 	MISSION_STATUS,
 	MISSION_TICKET,
+	MISSION_TOOL_CALL_SLOTS,
 	MISSION_TOOLS,
 } from "@workspace/ui/components/missions.fixtures"
 
@@ -328,15 +329,8 @@ export const LongStatus = meta.story({
 	},
 })
 
-const TOOL_CALL_SLOTS = [
-	"mission-activity-tool",
-	"mission-activity-target",
-	"mission-activity-age",
-	"mission-silence",
-]
-
 const expectNoToolCall = async (line: HTMLElement) => {
-	for (const slot of TOOL_CALL_SLOTS) {
+	for (const slot of MISSION_TOOL_CALL_SLOTS) {
 		await expect(slotsIn(line, slot)).toHaveLength(0)
 	}
 }

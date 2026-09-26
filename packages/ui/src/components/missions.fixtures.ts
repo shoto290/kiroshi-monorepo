@@ -159,6 +159,13 @@ export const MISSION_PULL_REQUEST: MissionPullRequest = {
 	number: 482,
 }
 
+export const MISSION_TOOL_CALL_SLOTS = [
+	"mission-activity-tool",
+	"mission-activity-target",
+	"mission-activity-age",
+	"mission-silence",
+]
+
 export const COMMITS_AHEAD_MISSION: MissionRowModel = {
 	...WORKING_MISSION,
 	id: "mission-commits-ahead",
