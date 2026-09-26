@@ -136,12 +136,12 @@ const SpaceSettingsDialog = ({
 				{onExport || onImport ? (
 					<div className="flex flex-wrap gap-2" data-slot="space-transfer">
 						{onExport ? (
-							<Button onClick={() => onExport()} size="sm" variant="outline">
+							<Button onClick={onExport} size="sm" variant="outline">
 								{t("space.transfer.export")}
 							</Button>
 						) : null}
 						{onImport ? (
-							<Button onClick={() => onImport()} size="sm" variant="outline">
+							<Button onClick={onImport} size="sm" variant="outline">
 								{t("space.transfer.import")}
 							</Button>
 						) : null}
