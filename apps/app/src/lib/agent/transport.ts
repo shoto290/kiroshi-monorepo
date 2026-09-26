@@ -9,6 +9,7 @@ import type {
 	RuntimeScope,
 	ScopedEvent,
 	SessionHandle,
+	SubmittedTurn,
 } from "./contract"
 
 import type { SubmittedAttachment } from "../chat/attachments-contract"
@@ -35,8 +36,8 @@ export const agentTransport: ChatDriver = {
 			outputSchema: outputSchema ?? null,
 		}),
 
-	submitPrompt: (scope: RuntimeScope, text: string) =>
-		invoke<void>("agent_submit_prompt", { scope, text }),
+	submitPrompt: (scope: RuntimeScope, text: string, turn?: SubmittedTurn) =>
+		invoke<void>("agent_submit_prompt", { scope, text, turn: turn ?? null }),
 
 	storeAttachments: (
 		conversationId: string,

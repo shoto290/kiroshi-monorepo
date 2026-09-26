@@ -254,6 +254,10 @@ impl MessagesRepository {
 		self.call_mut(move |connection| Ok(store_turn(connection, turn))).await?
 	}
 
+	pub async fn ensure_turn(&self, turn: NewTurn) -> Result<i64, TranscriptError> {
+		self.call_mut(move |connection| Ok(keep_turn(connection, turn))).await?
+	}
+
 	pub async fn complete_turn(
 		&self,
 		id: String,
@@ -626,6 +630,23 @@ fn store_turn(connection: &mut Connection, turn: NewTurn) -> Result<i64, Transcr
 	if let Some(stored) = stored_turn_key(&transaction, &turn.id)? {
 		if let Some(field) = stored.diverging_field(&turn) {
 			return Err(TranscriptError::Conflict { id: turn.id, field });
+		}
+		return Ok(stored.seq);
+	}
+	let seq = transaction.query_row(
+		INSERT_TURN,
+		params![turn.id, turn.conversation_id, turn.started_at],
+		|row| row.get(0),
+	)?;
+	transaction.commit()?;
+	Ok(seq)
+}
+
+fn keep_turn(connection: &mut Connection, turn: NewTurn) -> Result<i64, TranscriptError> {
+	let transaction = write_transaction(connection)?;
+	if let Some(stored) = stored_turn_key(&transaction, &turn.id)? {
+		if stored.conversation_id != turn.conversation_id {
+			return Err(TranscriptError::Conflict { id: turn.id, field: "conversation_id" });
 		}
 		return Ok(stored.seq);
 	}
@@ -1654,6 +1675,35 @@ mod tests {
 
 		drop(database);
 		fs::remove_dir_all(&dir).expect("cleanup");
+	}
+
+	#[tokio::test]
+	async fn ensuring_a_turn_keeps_the_row_already_there_and_refuses_another_conversation() {
+		let dir = temp_dir();
+		let database = seeded(&dir).await;
+		let started = a_turn(&database, "t1", "c1").await;
+		let later = NewTurn { id: "t1".into(), conversation_id: "c1".into(), started_at: 99 };
+
+		let kept = database.messages().ensure_turn(later).await.expect("the turn is kept");
+		let elsewhere = database
+			.messages()
+			.ensure_turn(NewTurn { id: "t1".into(), conversation_id: "c2".into(), started_at: 1 })
+			.await;
+
+		assert_eq!(kept, started);
+		assert_eq!(stored_turn(&database, "t1").await, ("c1".to_owned(), 1));
+		assert_conflict(&elsewhere, "t1", "conversation_id");
+	}
+
+	#[tokio::test]
+	async fn ensuring_a_turn_no_row_holds_yet_starts_it() {
+		let dir = temp_dir();
+		let database = seeded(&dir).await;
+		let fresh = NewTurn { id: "t9".into(), conversation_id: "c1".into(), started_at: 7 };
+
+		database.messages().ensure_turn(fresh).await.expect("the turn is started");
+
+		assert_eq!(stored_turn(&database, "t9").await, ("c1".to_owned(), 7));
 	}
 
 	#[tokio::test]

@@ -1060,6 +1060,7 @@ describe("createChatController", () => {
 			expect(submitPrompt).toHaveBeenCalledWith(
 				expect.anything(),
 				expect.stringContaining("with an API key"),
+				{ turnId: expect.any(String), promptId: expect.any(String) },
 			)
 			expect(onAnswers).not.toHaveBeenCalled()
 			const state = controller.getState()
@@ -2180,7 +2181,10 @@ describe("createChatController", () => {
 
 		const live = controller.getState().runtime
 		expect(startSpy).toHaveBeenCalledWith(live, sessionId)
-		expect(submitSpy).toHaveBeenCalledWith(live, "again")
+		expect(submitSpy).toHaveBeenCalledWith(live, "again", {
+			turnId: expect.any(String),
+			promptId: expect.any(String),
+		})
 		expect(live?.runtimeSessionId).not.toBe(replaced?.runtimeSessionId)
 	})
 

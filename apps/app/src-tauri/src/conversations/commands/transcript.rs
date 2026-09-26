@@ -1,4 +1,4 @@
-use tauri::State;
+use tauri::{AppHandle, Manager, Runtime, State};
 
 use super::super::context;
 use super::super::contract::{
@@ -6,6 +6,8 @@ use super::super::contract::{
 	TerminalCompletion, TranscriptPage, TranscriptStoreError, TranscriptWindow,
 };
 use super::bot::ready;
+use crate::agent::reply_writer::HostWrites;
+use crate::agent::AgentState;
 use crate::db;
 use crate::db::repositories::messages::{MessagePageQuery, MessagesAroundQuery};
 
@@ -91,21 +93,31 @@ pub async fn conversation_pinned_messages(
 
 #[tauri::command]
 #[specta::specta]
-pub async fn conversation_start_turn(
+pub async fn conversation_start_turn<R: Runtime>(
+	app: AppHandle<R>,
 	state: State<'_, db::DatabaseState>,
 	turn: NewTurn,
 ) -> Result<i64, TranscriptStoreError> {
-	Ok(ready(&state)?.messages().start_turn(turn.into()).await?)
+	let messages = ready(&state)?.messages();
+	if owned_by_host(&app, |host| host.owns_turn(&turn.id)) {
+		return Ok(messages.ensure_turn(turn.into()).await?);
+	}
+	Ok(messages.start_turn(turn.into()).await?)
 }
 
 #[tauri::command]
 #[specta::specta]
-pub async fn conversation_complete_turn(
+pub async fn conversation_complete_turn<R: Runtime>(
+	app: AppHandle<R>,
 	state: State<'_, db::DatabaseState>,
 	id: String,
 	completed_at: i64,
 ) -> Result<(), TranscriptStoreError> {
-	Ok(ready(&state)?.messages().complete_turn(id, completed_at).await?)
+	let messages = ready(&state)?.messages();
+	if owned_by_host(&app, |host| host.owns_turn(&id)) {
+		return Ok(());
+	}
+	Ok(messages.complete_turn(id, completed_at).await?)
 }
 
 #[tauri::command]
@@ -119,30 +131,52 @@ pub async fn conversation_append_user_message(
 
 #[tauri::command]
 #[specta::specta]
-pub async fn conversation_open_assistant_message(
+pub async fn conversation_open_assistant_message<R: Runtime>(
+	app: AppHandle<R>,
 	state: State<'_, db::DatabaseState>,
 	message: NewAssistantMessage,
 ) -> Result<i64, TranscriptStoreError> {
-	Ok(ready(&state)?.messages().open_assistant_message(message.into()).await?)
+	let messages = ready(&state)?.messages();
+	if !owned_by_host(&app, |host| host.owns_message(&message.id)) {
+		return Ok(messages.open_assistant_message(message.into()).await?);
+	}
+	match messages.message(message.conversation_id, message.id.clone()).await? {
+		Some(stored) => Ok(stored.seq),
+		None => Err(TranscriptStoreError::UnknownMessage { id: message.id }),
+	}
 }
 
 #[tauri::command]
 #[specta::specta]
-pub async fn conversation_append_text(
+pub async fn conversation_append_text<R: Runtime>(
+	app: AppHandle<R>,
 	state: State<'_, db::DatabaseState>,
 	id: String,
 	delta: String,
 ) -> Result<(), TranscriptStoreError> {
-	Ok(ready(&state)?.messages().append_text(id, delta).await?)
+	let messages = ready(&state)?.messages();
+	if owned_by_host(&app, |host| host.owns_message(&id)) {
+		return Ok(());
+	}
+	Ok(messages.append_text(id, delta).await?)
 }
 
 #[tauri::command]
 #[specta::specta]
-pub async fn conversation_finalize_message(
+pub async fn conversation_finalize_message<R: Runtime>(
+	app: AppHandle<R>,
 	state: State<'_, db::DatabaseState>,
 	id: String,
 	completion: TerminalCompletion,
 	settled_text: Option<String>,
 ) -> Result<(), TranscriptStoreError> {
-	Ok(ready(&state)?.messages().finalize_message(id, completion.into(), settled_text).await?)
+	let messages = ready(&state)?.messages();
+	if owned_by_host(&app, |host| host.owns_message(&id)) {
+		return Ok(());
+	}
+	Ok(messages.finalize_message(id, completion.into(), settled_text).await?)
+}
+
+fn owned_by_host<R: Runtime>(app: &AppHandle<R>, owns: impl Fn(&HostWrites) -> bool) -> bool {
+	app.try_state::<AgentState>().is_some_and(|agent| owns(agent.host_writes()))
 }
