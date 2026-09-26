@@ -395,6 +395,11 @@ impl Stored {
 	}
 
 	fn submit(&self, turn_id: &str, prompt_id: &str) {
+		self.store_prompt(turn_id, prompt_id);
+		self.prompt(turn_id, prompt_id).expect("the prompt is accepted");
+	}
+
+	fn store_prompt(&self, turn_id: &str, prompt_id: &str) {
 		self.call(
 			"conversation_start_turn",
 			json!({ "turn": { "id": turn_id, "conversationId": self.conversation_id, "startedAt": 1 } }),
@@ -413,6 +418,9 @@ impl Stored {
 			} }),
 		)
 		.expect("the prompt is stored");
+	}
+
+	fn prompt(&self, turn_id: &str, prompt_id: &str) -> Result<Value, Value> {
 		self.call(
 			"agent_submit_prompt",
 			json!({
@@ -421,7 +429,6 @@ impl Stored {
 				"turn": { "turnId": turn_id, "promptId": prompt_id },
 			}),
 		)
-		.expect("the prompt is accepted");
 	}
 
 	fn database(&self) -> &db::Database {
@@ -559,5 +566,25 @@ fn a_sidecar_dying_mid_reply_leaves_it_failed_and_the_turn_completed() {
 	let reply = stored.only_reply();
 	assert_eq!(reply.content, STREAMED);
 	assert_eq!(reply.state, MessageState::Failed);
+	stored.close();
+}
+
+#[test]
+fn a_prompt_the_sidecar_never_received_leaves_its_turn_completed() {
+	let _serial = serial();
+	let stored = launch_stored("unsent", "normal");
+	stored.start();
+	let sidecar = tauri::async_runtime::block_on(stored.app.state::<AgentState>().sidecar())
+		.expect("the sidecar runs");
+	tauri::async_runtime::block_on(sidecar.shutdown());
+
+	stored.store_prompt("t4", "p4");
+	assert!(stored.prompt("t4", "p4").is_err(), "a sidecar that is gone accepted a prompt");
+
+	stored.completed("t4");
+	assert!(
+		stored.replies().iter().all(|reply| reply.state != MessageState::Pending),
+		"a reply of the refused turn was left pending"
+	);
 	stored.close();
 }

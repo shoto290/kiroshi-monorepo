@@ -26,6 +26,8 @@ pub trait EventSink: Send + Sync + 'static {
 	fn emit(&self, event: AgentEvent);
 
 	fn submitted(&self, _turn: SubmittedTurn) {}
+
+	fn withdrawn(&self) {}
 }
 
 pub type Answering = Pin<Box<dyn Future<Output = HostAnswer> + Send>>;
@@ -84,6 +86,10 @@ impl EventSink for GatedSink {
 
 	fn submitted(&self, turn: SubmittedTurn) {
 		self.inner.submitted(turn);
+	}
+
+	fn withdrawn(&self) {
+		self.inner.withdrawn();
 	}
 }
 
@@ -320,11 +326,16 @@ impl Session {
 			}
 			shared.set_turn(TurnState::Submitting)
 		};
+		let handed = turn.is_some();
 		if let Some(turn) = turn {
 			self.sink.submitted(turn);
 		}
 		self.emit(entering);
-		self.write(protocol::prompt_command(&self.key, text))
+		let written = self.write(protocol::prompt_command(&self.key, text));
+		if written.is_err() && handed {
+			self.sink.withdrawn();
+		}
+		written
 	}
 
 	pub async fn cancel_turn(&self) -> Result<(), TransportError> {

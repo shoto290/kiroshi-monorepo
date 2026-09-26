@@ -49,6 +49,7 @@ fn held(ids: &Mutex<HashSet<String>>) -> MutexGuard<'_, HashSet<String>> {
 
 enum Entry {
 	Submitted(SubmittedTurn),
+	Withdrawn,
 	Event(AgentEvent),
 }
 
@@ -89,6 +90,10 @@ impl EventSink for ReplyWriter {
 	fn submitted(&self, turn: SubmittedTurn) {
 		self.queue(Entry::Submitted(turn));
 	}
+
+	fn withdrawn(&self) {
+		self.queue(Entry::Withdrawn);
+	}
 }
 
 async fn write_then_forward<R: Runtime>(
@@ -99,6 +104,7 @@ async fn write_then_forward<R: Runtime>(
 	while let Some(entry) = queued.recv().await {
 		match entry {
 			Entry::Submitted(turn) => desk.open_turn(turn).await,
+			Entry::Withdrawn => desk.end(TerminalState::Failed).await,
 			Entry::Event(event) => {
 				desk.record(&event).await;
 				inner.emit(event);
@@ -147,6 +153,7 @@ struct Desk<R: Runtime> {
 
 impl<R: Runtime> Desk<R> {
 	async fn open_turn(&mut self, turn: SubmittedTurn) {
+		self.end(TerminalState::Cancelled).await;
 		match self.store.start_turn(&turn.turn_id).await {
 			Ok(()) => self.turn = Some(OpenTurn::new(turn)),
 			Err(error) => {
@@ -467,7 +474,133 @@ fn is_named_at(chars: &[char], from: usize, name: &str) -> bool {
 
 #[cfg(test)]
 mod tests {
+	use tauri::test::{mock_builder, mock_context, noop_assets, MockRuntime};
+	use tauri::App;
+
 	use super::*;
+	use crate::db::repositories::conversations::DEFAULT_BOT_ID;
+	use crate::db::repositories::messages::{MessageRole, MessageState, NewUserMessage};
+
+	struct Written {
+		app: App<MockRuntime>,
+		conversation_id: String,
+	}
+
+	impl Written {
+		async fn new(name: &str) -> Self {
+			let mut context = mock_context(noop_assets());
+			context.config_mut().identifier =
+				format!("com.kiroshi.reply-writer-{name}-{}", std::process::id());
+			let app = mock_builder().build(context).expect("the app builds");
+			if let Ok(dir) = app.path().app_data_dir() {
+				let _ = std::fs::remove_dir_all(&dir);
+			}
+			app.manage(db::bootstrap(app.handle()));
+			let written = Self { app, conversation_id: String::new() };
+			let conversations = written.database().conversations();
+			conversations.ensure_default_bot().await.expect("the bot is seeded");
+			let chat = conversations
+				.ensure_chat(DEFAULT_BOT_ID.to_owned(), None)
+				.await
+				.expect("the chat is seeded");
+			Self { conversation_id: chat.id, ..written }
+		}
+
+		fn database(&self) -> &db::Database {
+			ready(self.app.state::<db::DatabaseState>().inner()).expect("the database opens")
+		}
+
+		fn desk(&self) -> Desk<MockRuntime> {
+			let store = Store {
+				app: self.app.handle().clone(),
+				conversation_id: self.conversation_id.clone(),
+				bot_id: DEFAULT_BOT_ID.to_owned(),
+				owned: Arc::default(),
+			};
+			Desk { store, turn: None }
+		}
+
+		async fn prompt(&self, turn_id: &str, prompt_id: &str) {
+			let messages = self.database().messages();
+			let turn = NewTurn {
+				id: turn_id.to_owned(),
+				conversation_id: self.conversation_id.clone(),
+				started_at: 1,
+			};
+			messages.start_turn(turn).await.expect("the turn starts");
+			let said = NewUserMessage {
+				id: prompt_id.to_owned(),
+				conversation_id: self.conversation_id.clone(),
+				turn_id: turn_id.to_owned(),
+				author_bot_id: None,
+				replied_to_message_id: None,
+				content: "hello".to_owned(),
+				created_at: 1,
+			};
+			messages.append_user_message(said).await.expect("the prompt is stored");
+		}
+
+		async fn completed_at(&self, turn_id: &'static str) -> Option<i64> {
+			self.database()
+				.messages()
+				.call(move |connection| {
+					Ok(connection.query_row(
+						"SELECT completed_at FROM turns WHERE id = ?1",
+						[turn_id],
+						|row| row.get(0),
+					)?)
+				})
+				.await
+				.expect("the turn reads")
+		}
+
+		fn close(self) {
+			if let Ok(dir) = self.app.path().app_data_dir() {
+				let _ = std::fs::remove_dir_all(&dir);
+			}
+		}
+	}
+
+	fn submitted(turn_id: &str, prompt_id: &str) -> SubmittedTurn {
+		SubmittedTurn { turn_id: turn_id.to_owned(), prompt_id: prompt_id.to_owned() }
+	}
+
+	fn streaming(id: &str) -> ChatMessage {
+		ChatMessage {
+			id: id.to_owned(),
+			role: super::super::contract::MessageRole::Assistant,
+			text: String::new(),
+			completion: MessageCompletion::Streaming,
+			timestamp: 2,
+		}
+	}
+
+	#[tokio::test]
+	async fn a_turn_submitted_over_an_open_one_cancels_its_replies_and_completes_it() {
+		let written = Written::new("overlap").await;
+		written.prompt("t1", "p1").await;
+		let mut desk = written.desk();
+
+		desk.open_turn(submitted("t1", "p1")).await;
+		desk.record(&AgentEvent::MessageStarted { message: streaming("m1") }).await;
+		desk.record(&AgentEvent::MessageDelta { id: "m1".into(), seq: 1, text: "half".into() })
+			.await;
+		desk.open_turn(submitted("t2", "p2")).await;
+
+		let earlier = written
+			.database()
+			.messages()
+			.message(written.conversation_id.clone(), "m1".into())
+			.await
+			.expect("the reply reads")
+			.expect("the reply is stored");
+		assert_eq!(earlier.role, MessageRole::Assistant);
+		assert_eq!(earlier.content, "half");
+		assert_eq!(earlier.state, MessageState::Cancelled);
+		assert!(written.completed_at("t1").await.is_some(), "the earlier turn was left open");
+		assert_eq!(written.completed_at("t2").await, None, "the new turn was closed");
+		written.close();
+	}
 
 	const BOTS: [MentionBot<'static>; 3] = [
 		MentionBot { id: "ada", name: "Ada" },
