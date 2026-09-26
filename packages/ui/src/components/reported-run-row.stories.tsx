@@ -40,14 +40,14 @@ export const Reported = meta.story({
 		docs: {
 			description: {
 				story:
-					"A morning digest that reported at 08:04. Check that the routine title reads at the foreground colour rather than muted, that no badge dot is drawn on the blot, that the trigger, the companion and the word reported follow the routine mark, and that the row answers neither the pointer nor the keyboard. `packages/ui/src/components/routines-panel.tsx:384` lists one row per run that reported earlier today, from the rows `apps/app/src/lib/missions/missions-model.ts:174` builds.",
+					"A morning digest that reported at 08:04. Check that the routine title reads at the foreground colour rather than muted, that no badge dot is drawn on the glyph, that the trigger, the companion and the word reported follow the routine mark, and that the row answers neither the pointer nor the keyboard. `packages/ui/src/components/routines-panel.tsx:384` lists one row per run that reported earlier today, from the rows `apps/app/src/lib/missions/missions-model.ts:174` builds.",
 			},
 		},
 	},
 	play: async ({ canvas, canvasElement }) => {
 		await expect(canvas.getByText(REPORTED_RUN.routineTitle)).toBeVisible()
 		await expect(
-			canvas.getByRole("img", { name: "Companion avatar owl, idle" }),
+			canvas.getByRole("img", { name: REPORTED_RUN.bot.name }),
 		).toBeVisible()
 		await expect(
 			canvas.getByText(REPORTED_RUN.triggerSourceTitle),

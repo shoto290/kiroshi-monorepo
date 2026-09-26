@@ -14,7 +14,7 @@ type ExplorationState = (typeof EXPLORATION_STATES)[number]
 
 type ExplorationAvatarProps = {
 	name: string
-	tint: BotAvatarBlot
+	tint?: BotAvatarBlot
 	state?: ExplorationState
 	size?: number
 }
@@ -44,9 +44,9 @@ const SWEEP_SPAN = 0.6
 const RIPPLE_SPAN = 0.5
 const TURN = Math.PI * 2
 
-const companionSeed = (name: string, tint: BotAvatarBlot) => {
+const companionSeed = (name: string, tint?: BotAvatarBlot) => {
 	let hash = FNV_OFFSET
-	for (const character of `${name}\u0000${tint}`) {
+	for (const character of `${name}\u0000${tint ?? ""}`) {
 		hash ^= character.codePointAt(0) ?? 0
 		hash = Math.imul(hash, FNV_PRIME)
 	}

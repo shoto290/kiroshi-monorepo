@@ -3,7 +3,7 @@ import type { ComponentType, ReactNode } from "react"
 import type { ExtraProps } from "react-markdown"
 import { expect, waitFor } from "storybook/test"
 
-import { companionPictureRadius } from "@workspace/ui/components/bot-identity-avatar"
+import { companionPictureRadius } from "@workspace/ui/components/companion-picture"
 import {
 	MARKDOWN_CODE_SURFACE_CLASS,
 	MARKDOWN_TYPESET_CLASS,
@@ -130,6 +130,15 @@ export const probedStyleOf = (className: string, property: ProbedProperty) => {
 
 export const botIdentityAvatars = (canvasElement: HTMLElement) =>
 	slotsIn(canvasElement, "bot-identity-avatar")
+
+export const companionGlyphOf = (avatar: Element) =>
+	slotIn(avatar, "avatar-exploration")
+
+export const companionGlyphs = (root: Element) =>
+	slotsIn(root, "avatar-exploration")
+
+export const companionGlyphsIn = (root: Element, state: string) =>
+	companionGlyphs(root).filter((glyph) => glyph.dataset.state === state)
 
 export const pictureOf = async (avatar: HTMLElement) => {
 	await waitFor(() => expect(avatar.querySelector("img")).not.toBeNull())

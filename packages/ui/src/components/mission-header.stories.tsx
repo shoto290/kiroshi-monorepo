@@ -1,7 +1,12 @@
 import { expect, fn, screen } from "storybook/test"
 
 import preview from "@workspace/storybook/preview"
-import { holderOf, slotIn, slotsIn } from "@workspace/storybook/story-utils"
+import {
+	companionGlyphsIn,
+	holderOf,
+	slotIn,
+	slotsIn,
+} from "@workspace/storybook/story-utils"
 import type { MissionState } from "@workspace/ui/components/mission"
 import {
 	MissionHeader,
@@ -38,10 +43,6 @@ const WORKING_HEADER: Omit<MissionHeaderProps, "onBack"> = {
 const ACTIVITIES = [true, false]
 
 const PILLS_THE_MATRIX_DRAWS = 8
-
-const WORKING_POSE = "Companion avatar owl, working"
-
-const RESTING_POSE = "Companion avatar owl, idle"
 
 const LONG_OBJECTIVE =
 	"Rework the mission thread so a reader can follow a run that spans several days without ever losing the ticket it answers"
@@ -116,7 +117,7 @@ export const States = meta.story({
 			))}
 		</div>
 	),
-	play: async ({ canvas, canvasElement }) => {
+	play: async ({ canvasElement }) => {
 		await expect(slotsIn(canvasElement, "mission-state-pill")).toHaveLength(
 			PILLS_THE_MATRIX_DRAWS,
 		)
@@ -125,12 +126,12 @@ export const States = meta.story({
 				slotsIn(holderOf(canvasElement, state), "mission-state-pill"),
 			).toHaveLength(0)
 		}
-		await expect(
-			canvas.getAllByRole("img", { name: WORKING_POSE }),
-		).toHaveLength(MISSION_STATES.length)
-		await expect(
-			canvas.getAllByRole("img", { name: RESTING_POSE }),
-		).toHaveLength(MISSION_STATES.length)
+		await expect(companionGlyphsIn(canvasElement, "working")).toHaveLength(
+			MISSION_STATES.length,
+		)
+		await expect(companionGlyphsIn(canvasElement, "idle")).toHaveLength(
+			MISSION_STATES.length,
+		)
 	},
 })
 

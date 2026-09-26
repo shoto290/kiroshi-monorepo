@@ -1169,11 +1169,10 @@ export const StoppableSameBotEitherWay = meta.story({
 	play: async ({ canvasElement }) => {
 		const authored = within(slotIn(canvasElement, "author-named-row"))
 		const identified = within(slotIn(canvasElement, "identity-named-row"))
-		const animal = new RegExp(LEAD.animal ?? "")
-		const authoredMark = authored.getByRole("img", { name: animal })
+		const authoredMark = authored.getByRole("img", { name: LEAD.name })
 
 		await expect(
-			identified.getByRole("img", { name: animal }),
+			identified.getByRole("img", { name: LEAD.name }),
 		).toHaveAccessibleName(accessibleNameOf(authoredMark))
 		await expect(
 			authored.getAllByRole("button", { name: `Stop ${LEAD.name}` }),
@@ -1229,8 +1228,8 @@ export const StoppableOtherIdentity = meta.story({
 		await expect(
 			canvas.queryByRole("button", { name: `Stop ${LEAD.name}` }),
 		).toBeNull()
-		await expect(drawn).toHaveAccessibleName(new RegExp(`${SECOND.animal}`))
-		await expect(drawn).not.toHaveAccessibleName(new RegExp(`${LEAD.animal}`))
+		await expect(drawn).toHaveAccessibleName(SECOND.name)
+		await expect(drawn).not.toHaveAccessibleName(LEAD.name)
 		await expect(canvas.getByText(LEAD.name)).toBeVisible()
 	},
 })
@@ -1278,7 +1277,7 @@ export const PictureBesideBlot = meta.story({
 		docs: {
 			description: {
 				story:
-					"The gutter of a companion wearing its picture above the gutter of one drawn from a blot. Check that the picture fills its 40px slot as a rounded square with no border, and that the drawn companion below keeps its animal over its blot. " +
+					"The gutter of a companion wearing its picture above the gutter of one drawn as its glyph. Check that the picture fills its 40px slot as a rounded square with no border, and that the drawn companion below keeps its glyph on its colour. " +
 					RENDERED_BY_THE_THREAD,
 			},
 		},
@@ -1289,7 +1288,7 @@ export const PictureBesideBlot = meta.story({
 		await expectCompanionPictureSquare(picture)
 		await expect(getComputedStyle(picture).borderRadius).toBe("10px")
 		await expect(drawn.querySelector("img")).toBeNull()
-		await expect(slotsIn(drawn, "bot-avatar-blot")).toHaveLength(1)
+		await expect(slotsIn(drawn, "avatar-exploration")).toHaveLength(1)
 	},
 })
 
@@ -1694,7 +1693,7 @@ export const CompanionSelectOnGutter = meta.story({
 	parameters: {
 		docs: {
 			description: {
-				story: `The gutter avatar at rest under a mounted select, once as a blot and once carrying a picture. Check that each avatar is a button named after the companion, that the gutter is no longer hidden from assistive technology, that it keeps its column and row, and that the button takes the circle of a blot and the picture radius of an avatar carrying an image. ${SELECT_NOT_YET_RENDERED}`,
+				story: `The gutter avatar at rest under a mounted select, once as a glyph and once carrying a picture. Check that each avatar is a button named after the companion, that the gutter is no longer hidden from assistive technology, that it keeps its column and row, and that the button takes the same rounded square whether it holds a glyph or a picture. ${SELECT_NOT_YET_RENDERED}`,
 			},
 		},
 	},
@@ -1708,7 +1707,7 @@ export const CompanionSelectOnGutter = meta.story({
 
 		await expect(gutter).not.toHaveAttribute("aria-hidden")
 		await expect(gutterPlacement(gutter)).toEqual(HOSTLESS_GUTTER_PLACEMENT)
-		await expect(getComputedStyle(blot).borderRadius).not.toBe(
+		await expect(getComputedStyle(blot).borderRadius).toBe(
 			getComputedStyle(pictured).borderRadius,
 		)
 		await expect(getComputedStyle(blot).boxShadow).toBe("none")

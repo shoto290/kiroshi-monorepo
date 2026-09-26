@@ -8,6 +8,7 @@ import { ScanlineAvatar } from "@workspace/ui/components/scanline-avatar"
 const meta = preview.meta({
 	title: "Branding/ScanlineAvatar",
 	component: ScanlineAvatar,
+	tags: ["test-only"],
 	globals: { theme_layout: "side-by-side" },
 	parameters: {
 		docs: {
