@@ -8,7 +8,6 @@ import { OrbitAvatar } from "@workspace/ui/components/orbit-avatar"
 const meta = preview.meta({
 	title: "Branding/OrbitAvatar",
 	component: OrbitAvatar,
-	tags: ["test-only"],
 	globals: { theme_layout: "side-by-side" },
 	parameters: {
 		docs: {
