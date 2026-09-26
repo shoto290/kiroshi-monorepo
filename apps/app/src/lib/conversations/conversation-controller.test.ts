@@ -1062,12 +1062,12 @@ describe("createConversationController", () => {
 			})
 		})
 
-		it("draws the companion that asked as waiting on its first question", async () => {
+		it("draws the companion that asked as waiting on its first question, not its header", async () => {
 			await askedIn(harness)
 
 			expect(workIn(harness.controller)).toEqual({
 				kind: "waiting",
-				label: "Walls",
+				label: "Which wall?",
 			})
 		})
 
@@ -1235,7 +1235,7 @@ describe("createConversationController", () => {
 			expect(
 				harness.controller.getState().speakers.map(({ work }) => work),
 			).toEqual([
-				{ kind: "waiting", label: "Walls" },
+				{ kind: "waiting", label: "Which wall?" },
 				{ kind: "waiting", label: "Run the mason" },
 			])
 		})

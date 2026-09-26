@@ -241,7 +241,7 @@ const promptWork = (pending: PendingPrompt): WorkingState => ({
 	kind: "waiting",
 	label:
 		pending.kind === "question"
-			? pending.request.questions[0]?.header
+			? pending.request.questions[0]?.question
 			: pending.request.title,
 })
 
