@@ -1,6 +1,7 @@
 branding-appiconmark--default
 branding-appiconmark--ink-dark
 branding-appiconmark--themes
+branding-asciiglyphavatar--roster
 branding-avatargroup--crowded
 branding-avatargroup--default
 branding-avatargroup--empty
@@ -42,6 +43,10 @@ branding-companion-avatar--sizes
 branding-companion-avatar--states
 branding-companion-avatar--stress
 branding-companion-avatar--variants
+branding-ditheravatar--roster
+branding-dotlatticeavatar--roster
+branding-orbitavatar--roster
+branding-scanlineavatar--roster
 branding-spacetint--default
 branding-spacetint--untinted
 branding-spacetint--variants
