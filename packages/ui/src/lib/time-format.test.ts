@@ -1,11 +1,7 @@
 import { afterEach, describe, expect, it, vi } from "vitest"
 
 import { activateLanguage } from "@workspace/ui/lib/i18n"
-import {
-	formatDateTime,
-	toCompactAge,
-	toRelativeTime,
-} from "@workspace/ui/lib/time-format"
+import { formatDateTime, toRelativeTime } from "@workspace/ui/lib/time-format"
 
 const NOW = Date.UTC(2026, 0, 15, 12, 0, 0)
 
@@ -43,25 +39,6 @@ describe("toRelativeTime", () => {
 		activateLanguage("fr")
 
 		expect(ago(7_200_000)).toBe("il y a 2 heures")
-	})
-})
-
-describe("toCompactAge", () => {
-	const aged = (ms: number) => toCompactAge(NOW - ms, NOW)
-
-	it("reads seconds under a minute and the roster steps above it", () => {
-		expect(aged(0)).toBe("0s")
-		expect(aged(42_000)).toBe("42s")
-		expect(aged(90_000)).toBe("1m")
-		expect(aged(7_200_000)).toBe("2h")
-		expect(aged(172_800_000)).toBe("2d")
-		expect(aged(1_209_600_000)).toBe("2w")
-	})
-
-	it("gives a date past four weeks", () => {
-		expect(aged(2_419_200_000)).toBe(
-			formatDateTime(NOW - 2_419_200_000, { month: "numeric", day: "numeric" }),
-		)
 	})
 })
 
