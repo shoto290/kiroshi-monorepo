@@ -7,16 +7,11 @@ import {
 	type MissionActivityLineProps,
 } from "@workspace/ui/components/mission-activity-line"
 import {
-	MISSION_ACTIVITY,
-	MISSION_NOW,
 	MISSION_PULL_REQUEST,
+	MISSION_TOOL_CALL_SLOTS,
 } from "@workspace/ui/components/missions.fixtures"
 
 const LINE: MissionActivityLineProps = {
-	state: "working",
-	now: MISSION_NOW,
-	lastActivity: MISSION_ACTIVITY,
-	lastActivityAt: MISSION_NOW - 42_000,
 	commitsAhead: 1,
 	pullRequest: MISSION_PULL_REQUEST,
 }
@@ -29,7 +24,7 @@ const meta = preview.meta({
 		docs: {
 			description: {
 				component:
-					"What a mission's agent last did, how far its branch is ahead and where its pull request is, as one muted line. `MissionRow` draws it under its ticket line and `MissionHeader` under its ticket band; reach for those rather than this line on its own.",
+					"How far a mission's branch is ahead and where its pull request is, as one muted line. `MissionRow` draws it under its ticket line and `MissionHeader` under its ticket band; reach for those rather than this line on its own.",
 			},
 		},
 	},
@@ -53,5 +48,8 @@ export const Default = meta.story({
 	play: async ({ canvasElement }) => {
 		const [commits] = slotsIn(canvasElement, "mission-commits-ahead")
 		await expect(commits).toHaveTextContent("1 commit ahead")
+		for (const slot of MISSION_TOOL_CALL_SLOTS) {
+			await expect(slotsIn(canvasElement, slot)).toHaveLength(0)
+		}
 	},
 })

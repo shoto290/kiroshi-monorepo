@@ -1,7 +1,6 @@
 import { listExhaustively } from "@workspace/storybook/story-utils"
 import type { MessageAuthor } from "@workspace/ui/components/message"
 import type {
-	MissionActivity,
 	MissionBot,
 	MissionCardModel,
 	MissionEventModel,
@@ -155,35 +154,22 @@ export const UNTICKETED_MISSION: MissionRowModel = {
 	now: MISSION_NOW,
 }
 
-export const MISSION_ACTIVITY: MissionActivity = {
-	tool: "mcp__filesystem__edit_file",
-	target: "packages/ui/src/components/mission-activity-line.tsx",
-}
-
-export const MISSION_ACTIVITY_TOOL = "filesystem · edit_file"
-
-export const MISSION_ACTIVITY_LAST_SEGMENT = "mission-activity-line.tsx"
-
 export const MISSION_PULL_REQUEST: MissionPullRequest = {
 	url: "https://github.example/kiroshi/kiroshi/pull/482",
 	number: 482,
 }
 
-export const DOING_NOW_MISSION: MissionRowModel = {
-	...WORKING_MISSION,
-	id: "mission-doing-now",
-	lastActivity: MISSION_ACTIVITY,
-	lastActivityAt: MISSION_NOW - 12_000,
-	commitsAhead: 3,
-}
+export const MISSION_TOOL_CALL_SLOTS = [
+	"mission-activity-tool",
+	"mission-activity-target",
+	"mission-activity-age",
+	"mission-silence",
+]
 
-export const SILENT_MISSION: MissionRowModel = {
+export const COMMITS_AHEAD_MISSION: MissionRowModel = {
 	...WORKING_MISSION,
-	id: "mission-silent",
-	isWorking: false,
-	lastActivity: MISSION_ACTIVITY,
-	lastActivityAt: minutesBefore(12),
-	commitsAhead: 1,
+	id: "mission-commits-ahead",
+	commitsAhead: 3,
 }
 
 export const OPEN_MISSIONS: MissionRowModel[] = [

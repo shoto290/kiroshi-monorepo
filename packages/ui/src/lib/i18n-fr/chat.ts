@@ -616,7 +616,6 @@ const chat = {
 			link: "Ouvrir {{host}}",
 		},
 		activity: {
-			silent: "Aucune activité depuis {{age}}",
 			commitsAhead_one: "{{count}} commit d'avance",
 			commitsAhead_many: "{{count}} commits d'avance",
 			commitsAhead_other: "{{count}} commits d'avance",

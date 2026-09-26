@@ -9,13 +9,15 @@ import type {
 import { BotIdentityAvatar } from "@workspace/ui/components/bot-identity-avatar"
 import {
 	MISSION_AVATAR_SIZE,
-	type MissionActivity,
 	type MissionBot,
 	type MissionState,
 	type MissionStatus,
 	shownMissionStatus,
 } from "@workspace/ui/components/mission"
-import { MissionActivityLine } from "@workspace/ui/components/mission-activity-line"
+import {
+	hasActivityLine,
+	MissionActivityLine,
+} from "@workspace/ui/components/mission-activity-line"
 import {
 	MissionStatusTime,
 	missionTicketPlatform,
@@ -36,8 +38,6 @@ type MissionRowModel = {
 	timestamp: string
 	now?: number
 	status?: MissionStatus
-	lastActivity?: MissionActivity
-	lastActivityAt?: number
 	commitsAhead?: number
 }
 
@@ -69,8 +69,6 @@ const MissionRow = ({
 	timestamp,
 	status,
 	now,
-	lastActivity,
-	lastActivityAt,
 	commitsAhead,
 	onOpen,
 }: MissionRowProps) => {
@@ -95,14 +93,10 @@ const MissionRow = ({
 				badge={BADGE_OF[state]}
 				data-opens={id}
 				detail={
-					lastActivity ? (
+					hasActivityLine({ commitsAhead }) ? (
 						<MissionActivityLine
 							className="pe-3.5"
 							commitsAhead={commitsAhead}
-							lastActivity={lastActivity}
-							lastActivityAt={lastActivityAt}
-							now={now}
-							state={state}
 						/>
 					) : undefined
 				}
