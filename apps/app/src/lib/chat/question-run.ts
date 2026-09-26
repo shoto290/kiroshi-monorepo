@@ -3,7 +3,7 @@ import { bubbleIdOf, type TranscriptRow } from "./screen-model"
 
 import type { QuestionRequest } from "../agent/contract"
 
-export type QuestionRun = {
+type QuestionRun = {
 	card: TranscriptRow
 	lead: TranscriptRow
 	context?: TranscriptRow
@@ -11,10 +11,7 @@ export type QuestionRun = {
 
 const CONTEXT_LINES = 2
 
-const isContextOf = (card: TranscriptRow, row: TranscriptRow) =>
-	row.role === "assistant" &&
-	row.authorBotId === card.authorBotId &&
-	row.text.trim().length > 0
+const isSaid = (row: TranscriptRow) => row.text.trim().length > 0
 
 const runHolding = (
 	run: TranscriptRow[],
@@ -29,7 +26,7 @@ const runHolding = (
 	return {
 		card,
 		lead,
-		context: run.slice(0, cardIndex).findLast((row) => isContextOf(card, row)),
+		context: run.slice(0, cardIndex).findLast(isSaid),
 	}
 }
 
