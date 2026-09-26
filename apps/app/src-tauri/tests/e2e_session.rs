@@ -588,3 +588,30 @@ fn a_prompt_the_sidecar_never_received_leaves_its_turn_completed() {
 	);
 	stored.close();
 }
+
+#[test]
+fn cancelling_a_live_session_before_any_submit_closes_the_turn_the_host_opened() {
+	let _serial = serial();
+	let stored = launch_stored("unsubmitted", "normal");
+	stored.start();
+	stored
+		.call(
+			"conversation_send_user_message",
+			json!({ "message": {
+				"id": "p1",
+				"conversationId": stored.conversation_id,
+				"turnId": "t1",
+				"authorBotId": null,
+				"repliedToMessageId": null,
+				"content": "hello",
+				"createdAt": 1,
+			}, "summoned": [BOT] }),
+		)
+		.expect("the message is sent");
+
+	let cancelled = stored.call("agent_cancel_turn", json!({ "scope": stored.scope() }));
+
+	assert_eq!(cancelled, Err(serde_json::to_value(TransportError::NoActiveTurn).expect("json")));
+	assert!(stored.completed_at("t1").is_some(), "the unsubmitted host turn was left open");
+	stored.close();
+}

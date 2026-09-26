@@ -20,7 +20,8 @@ use crate::applications::host::ApplicationHost;
 use crate::bundles;
 use crate::companions::host::CompanionHost;
 use crate::json::JsonValue;
-use crate::conversations::commands::space_of_the_conversation;
+use crate::conversations::commands::{ready, space_of_the_conversation};
+use crate::conversations::contract::TranscriptStoreError;
 use crate::db;
 use crate::db::repositories::conversations::{Bot as StoredBot, MISSION_KIND};
 use crate::db::repositories::runtime_context::ParticipantKey;
@@ -845,16 +846,55 @@ pub async fn agent_submit_prompt(
 	text: String,
 	turn: Option<SubmittedTurn>,
 ) -> Result<(), TransportError> {
-	state.live.session_for(&scope)?.submit(&text, turn).await
+	let turn_id = turn.as_ref().map(|handed| handed.turn_id.clone());
+	state.live.session_for(&scope)?.submit(&text, turn).await?;
+	if let Some(turn_id) = turn_id {
+		state.host_writes.record_submitted(&turn_id);
+	}
+	Ok(())
 }
 
 #[tauri::command]
 #[specta::specta]
-pub async fn agent_cancel_turn(
+pub async fn agent_cancel_turn<R: Runtime>(
+	app: AppHandle<R>,
 	state: State<'_, AgentState>,
 	scope: RuntimeScope,
 ) -> Result<(), TransportError> {
-	state.live.session_for(&scope)?.cancel_turn().await
+	let cancelled = match state.live.session_for(&scope) {
+		Ok(session) => session.cancel_turn().await,
+		Err(refused) => Err(refused),
+	};
+	if matches!(cancelled, Err(TransportError::NoActiveTurn | TransportError::NotStarted)) {
+		let conversation_id = &scope.conversation_id;
+		if let Err(error) =
+			complete_unsubmitted_turns(&app, &state.host_writes, conversation_id).await
+		{
+			eprintln!(
+				"the host could not close the unsubmitted turns of conversation {conversation_id}: {error:?}"
+			);
+		}
+	}
+	cancelled
+}
+
+async fn complete_unsubmitted_turns<R: Runtime>(
+	app: &AppHandle<R>,
+	owned: &HostWrites,
+	conversation_id: &str,
+) -> Result<(), TranscriptStoreError> {
+	let Some(state) = app.try_state::<db::DatabaseState>() else {
+		return Err(TranscriptStoreError::Unavailable {
+			failure: (&db::DatabaseError::AppDataDir).into(),
+		});
+	};
+	let messages = ready(state.inner())?.messages();
+	for id in messages.open_turns_without_reply(conversation_id.to_owned()).await? {
+		if owned.owns_turn(&id) && !owned.was_submitted(&id) {
+			messages.complete_turn(id, now_ms()).await?;
+		}
+	}
+	Ok(())
 }
 
 #[tauri::command]

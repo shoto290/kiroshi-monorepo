@@ -22,6 +22,7 @@ const MENTION_OPEN: char = '<';
 #[derive(Default)]
 pub struct HostWrites {
 	turns: Mutex<HashSet<String>>,
+	submitted: Mutex<HashSet<String>>,
 	messages: Mutex<HashSet<String>>,
 }
 
@@ -30,12 +31,20 @@ impl HostWrites {
 		held(&self.turns).contains(id)
 	}
 
+	pub fn was_submitted(&self, turn_id: &str) -> bool {
+		held(&self.submitted).contains(turn_id)
+	}
+
 	pub fn owns_message(&self, id: &str) -> bool {
 		held(&self.messages).contains(id)
 	}
 
-	fn claim_turn(&self, id: &str) {
+	pub(crate) fn claim_turn(&self, id: &str) {
 		held(&self.turns).insert(id.to_owned());
+	}
+
+	pub(crate) fn record_submitted(&self, turn_id: &str) {
+		held(&self.submitted).insert(turn_id.to_owned());
 	}
 
 	fn claim_message(&self, id: &str) {
