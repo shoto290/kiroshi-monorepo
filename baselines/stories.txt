@@ -1224,6 +1224,7 @@ settings-space-spacesettingsdialog--mcp-servers
 settings-space-spacesettingsdialog--mcp-servers-unavailable
 settings-space-spacesettingsdialog--opens-on-an-application
 settings-space-spacesettingsdialog--skills
+settings-space-spacesettingsdialog--transfer
 settings-user-appearancefields--dark
 settings-user-appearancefields--default
 settings-user-appearancefields--in-french
