@@ -9,6 +9,7 @@ import {
 	stillTime,
 } from "@workspace/ui/components/avatar-exploration"
 import { blotTint } from "@workspace/ui/components/bot-avatar"
+import { companionPictureRadius } from "@workspace/ui/components/bot-identity-avatar"
 import { usePrefersReducedMotion } from "@workspace/ui/hooks/use-prefers-reduced-motion"
 
 type Paint = (time: number) => void
@@ -49,11 +50,16 @@ const ExplorationFrame = ({
 }: ExplorationFrameProps) => (
 	<span
 		aria-label={name}
-		className="relative inline-flex shrink-0 overflow-hidden rounded-full text-(--bot-blot-ink)"
+		className="relative inline-flex shrink-0 overflow-hidden text-(--bot-blot-ink)"
 		data-slot="avatar-exploration"
 		data-state={state}
 		role="img"
-		style={{ width: size, height: size, backgroundColor: blotTint(tint) }}
+		style={{
+			width: size,
+			height: size,
+			borderRadius: companionPictureRadius(size),
+			backgroundColor: blotTint(tint),
+		}}
 	>
 		{children}
 	</span>
