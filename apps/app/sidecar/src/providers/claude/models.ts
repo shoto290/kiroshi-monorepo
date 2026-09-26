@@ -13,6 +13,13 @@ export const modelsOptions = (connection?: Record<string, string>) => ({
 	stderr: () => {},
 })
 
+const UNRESOLVED_MODEL = "default"
+
+export const offeredModels = (offered: readonly { value: string }[]) =>
+	offered
+		.map((model) => model.value)
+		.filter((value) => value !== UNRESOLVED_MODEL)
+
 export const claudeModels = async (connection?: Record<string, string>) => {
 	const prompts = createPromptStream()
 	const run = query({
@@ -20,8 +27,7 @@ export const claudeModels = async (connection?: Record<string, string>) => {
 		options: modelsOptions(connection),
 	})
 	try {
-		const offered = await run.supportedModels()
-		return offered.map((model) => model.value)
+		return offeredModels(await run.supportedModels())
 	} finally {
 		prompts.end()
 		run.close()
