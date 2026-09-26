@@ -164,6 +164,8 @@ export const commands = {
 	spaceUpdate: (id: string, name: string, colour: "red" | "yellow" | "green" | "cyan" | "blue" | "purple" | "pink" | "orange" | null) => typedError<Space, SpaceError>(__TAURI_INVOKE("space_update", { id, name, colour })),
 	spaceReorder: (ids: string[]) => typedError<null, SpaceError>(__TAURI_INVOKE("space_reorder", { ids })),
 	spaceDelete: (id: string) => typedError<null, SpaceError>(__TAURI_INVOKE("space_delete", { id })),
+	spaceExport: (id: string, path: string) => typedError<null, SpaceError>(__TAURI_INVOKE("space_export", { id, path })),
+	spaceImport: (path: string) => typedError<Space, SpaceError>(__TAURI_INVOKE("space_import", { path })),
 	botMoveToSpace: (botId: string, spaceId: string) => typedError<null, SpaceError>(__TAURI_INVOKE("bot_move_to_space", { botId, spaceId })),
 	botAddToSpace: (botId: string, spaceId: string, sectionId: string | null) => typedError<null, SpaceError>(__TAURI_INVOKE("bot_add_to_space", { botId, spaceId, sectionId })),
 	botRemoveFromSpace: (botId: string, spaceId: string) => typedError<null, SpaceError>(__TAURI_INVOKE("bot_remove_from_space", { botId, spaceId })),
@@ -1064,7 +1066,7 @@ export type Space = {
 	createdAt: number,
 };
 
-export type SpaceError = { kind: "unavailable"; failure: StorageFailure } | { kind: "storage"; failure: StorageFailure } | { kind: "unknownSpace"; id: string } | { kind: "unknownBot"; id: string } | { kind: "unwritableBundle"; detail: string } | { kind: "incompleteOrder" } | { kind: "lastSpace" } | { kind: "lastSpaceOfBot"; id: string } | { kind: "foreignSection"; id: string };
+export type SpaceError = { kind: "unavailable"; failure: StorageFailure } | { kind: "storage"; failure: StorageFailure } | { kind: "unknownSpace"; id: string } | { kind: "unknownBot"; id: string } | { kind: "unwritableBundle"; detail: string } | { kind: "incompleteOrder" } | { kind: "lastSpace" } | { kind: "lastSpaceOfBot"; id: string } | { kind: "foreignSection"; id: string } | { kind: "unsupportedArchive"; found: number | null; supported: number } | { kind: "unreadableArchive"; detail: string } | { kind: "unwritableArchive"; detail: string };
 
 export type SpacePreferences = {
 	collapsedSectionIds?: string[],

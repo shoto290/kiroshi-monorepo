@@ -46,7 +46,7 @@ impl FileStore for Attachments {
 	}
 }
 
-fn conversation_dir(root: &Path, conversation_id: &str) -> PathBuf {
+pub fn conversation_dir(root: &Path, conversation_id: &str) -> PathBuf {
 	root.join(conversation_id)
 }
 

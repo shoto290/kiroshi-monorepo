@@ -1,7 +1,7 @@
 use serde::{Deserialize, Serialize};
 
 use crate::conversations::contract::{AvatarBlot, StorageFailure};
-use crate::db::repositories::{space_settings, spaces};
+use crate::db::repositories::{space_rows, space_settings, spaces};
 use crate::db::DatabaseError;
 
 #[derive(Debug, Clone, PartialEq, Eq, Serialize, Deserialize, specta::Type)]
@@ -78,6 +78,19 @@ pub enum SpaceError {
 	ForeignSection {
 		id: String,
 	},
+	#[serde(rename_all = "camelCase")]
+	UnsupportedArchive {
+		found: Option<u32>,
+		supported: u32,
+	},
+	#[serde(rename_all = "camelCase")]
+	UnreadableArchive {
+		detail: String,
+	},
+	#[serde(rename_all = "camelCase")]
+	UnwritableArchive {
+		detail: String,
+	},
 }
 
 impl From<DatabaseError> for SpaceError {
@@ -97,6 +110,25 @@ impl From<spaces::SpaceError> for SpaceError {
 			spaces::SpaceError::ForeignSection { id } => SpaceError::ForeignSection { id },
 			spaces::SpaceError::Database(failure) => {
 				SpaceError::Storage { failure: (&failure).into() }
+			}
+		}
+	}
+}
+
+impl From<space_rows::SpaceRowsError> for SpaceError {
+	fn from(error: space_rows::SpaceRowsError) -> Self {
+		match error {
+			space_rows::SpaceRowsError::Database(failure) => {
+				SpaceError::Storage { failure: (&failure).into() }
+			}
+			space_rows::SpaceRowsError::UnknownSpace { id } => SpaceError::UnknownSpace { id },
+			space_rows::SpaceRowsError::Unportable { table, column } => {
+				SpaceError::UnwritableArchive {
+					detail: format!("{table}.{column} holds a value an archive cannot carry"),
+				}
+			}
+			space_rows::SpaceRowsError::Malformed { detail } => {
+				SpaceError::UnreadableArchive { detail }
 			}
 		}
 	}

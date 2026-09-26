@@ -147,6 +147,10 @@ fn copied_scope(root: &Path, source: &EnvScope, target: &EnvScope) -> Result<(),
 	Ok(())
 }
 
+pub fn owner_dirs(root: &Path, owner: &EnvOwner) -> Result<[PathBuf; 2], EnvError> {
+	Ok([scope_dir(root, &EnvScope::from(owner))?, servers_dir(root, owner)?])
+}
+
 fn owners(owner: &EnvOwner) -> Vec<EnvOwner> {
 	match owner {
 		EnvOwner::User | EnvOwner::Space { .. } => vec![owner.clone()],

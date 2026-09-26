@@ -12,8 +12,8 @@ pub use connection::DatabaseError;
 use repositories::{
 	messages, ApplicationInstallsRepository, CatalogueRepository, ConversationsRepository,
 	MessagesRepository, MissionsRepository, RoutinesRepository, RuntimeContextRepository,
-	SearchRepository, SectionsRepository, SpaceSettingsRepository, SpacesRepository,
-	UserRepository,
+	SearchRepository, SectionsRepository, SpaceRowsRepository, SpaceSettingsRepository,
+	SpacesRepository, UserRepository,
 };
 
 #[derive(Clone)]
@@ -74,6 +74,7 @@ pub struct Database {
 	runtime_context: RuntimeContextRepository,
 	search: SearchRepository,
 	sections: SectionsRepository,
+	space_rows: SpaceRowsRepository,
 	space_settings: SpaceSettingsRepository,
 	spaces: SpacesRepository,
 	user: UserRepository,
@@ -95,6 +96,7 @@ impl Database {
 			runtime_context: RuntimeContextRepository::new(access.clone()),
 			search: SearchRepository::new(access.clone()),
 			sections: SectionsRepository::new(access.clone()),
+			space_rows: SpaceRowsRepository::new(access.clone()),
 			space_settings: SpaceSettingsRepository::new(access.clone()),
 			spaces: SpacesRepository::new(access.clone()),
 			user: UserRepository::new(access.clone()),
@@ -152,6 +154,10 @@ impl Database {
 
 	pub fn sections(&self) -> &SectionsRepository {
 		&self.sections
+	}
+
+	pub fn space_rows(&self) -> &SpaceRowsRepository {
+		&self.space_rows
 	}
 
 	pub fn space_settings(&self) -> &SpaceSettingsRepository {

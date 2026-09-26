@@ -1,7 +1,8 @@
-use std::path::Path;
+use std::path::{Path, PathBuf};
 
 use tauri::{AppHandle, Runtime, State};
 
+use super::archive;
 use super::contract::{Space, SpaceError, SpacePreferences};
 use crate::bundles;
 use crate::conversations::commands::list_bundles;
@@ -73,6 +74,34 @@ pub async fn space_delete<R: Runtime>(
 	forget_bundles(bundles::root(&app).as_deref(), database, &held_bots).await;
 	environment::store::forget_space(&app, &id, &held_bots);
 	Ok(())
+}
+
+#[tauri::command]
+#[specta::specta]
+pub async fn space_export<R: Runtime>(
+	app: AppHandle<R>,
+	state: State<'_, db::DatabaseState>,
+	id: String,
+	path: String,
+) -> Result<(), SpaceError> {
+	let database = ready(&state)?;
+	let places = archive::Places::of(&app)?;
+	let rows = database.space_rows().read(id.clone()).await?;
+	archive::export(places, id, rows, PathBuf::from(path)).await
+}
+
+#[tauri::command]
+#[specta::specta]
+pub async fn space_import<R: Runtime>(
+	app: AppHandle<R>,
+	state: State<'_, db::DatabaseState>,
+	path: String,
+) -> Result<Space, SpaceError> {
+	let database = ready(&state)?;
+	let imported =
+		archive::import(archive::Places::of(&app)?, database, PathBuf::from(path)).await?;
+	list_bundles(bundles::root(&app).as_deref(), database).await;
+	Ok(imported)
 }
 
 #[tauri::command]
