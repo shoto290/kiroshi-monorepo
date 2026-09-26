@@ -9,6 +9,8 @@ import {
 	fieldIntensity,
 	pickSilhouette,
 	type Silhouette,
+	stepCount,
+	variantSteps,
 } from "@workspace/ui/components/avatar-exploration"
 import {
 	ExplorationFrame,
@@ -30,10 +32,10 @@ type ShadedPixel = {
 const GRID = 16
 const TURN = Math.PI * 2
 const DEGREE = Math.PI / 180
-const LIGHT_ANGLES = 16
-const LIGHT_POLARS = [80, 65, 50, 35]
+const COMPASS = 8
+const LIGHT_POLARS = [75, 40]
 const AMBIENT = 0.15
-const SCALES = [1, 0.8]
+const SCALES = [1, 0.72]
 const FIELD_HOLD = 0.45
 const BAYER = [0, 8, 2, 10, 12, 4, 14, 6, 3, 11, 1, 9, 15, 7, 13, 5]
 const TAN_30 = Math.tan(30 * DEGREE)
@@ -48,6 +50,8 @@ const facing = (x: number, y: number): Vector => [
 	y,
 	Math.sqrt(Math.max(0, 1 - x * x - y * y)),
 ]
+
+const CYLINDER_CAP = normalize([0, -0.9, 0.45])
 
 const CUBE_FACES = {
 	top: normalize([0, -0.8, 0.6]),
@@ -82,17 +86,38 @@ const SOLIDS: Solid[] = [
 		if (v > 0.7 || Math.abs(u) > halfWidth) return null
 		return normalize([(u / Math.max(halfWidth, 0.01)) * 0.8, -0.35, 0.5])
 	},
+	(u, v) => {
+		if (Math.abs(u) > 0.5 || v > 0.6) return null
+		if (Math.hypot(u / 0.5, (v + 0.55) / 0.2) <= 1) return CYLINDER_CAP
+		return v < -0.55 ? null : facing(u / 0.5, 0)
+	},
+	(u, v) => {
+		if (Math.abs(u) / 0.7 + Math.abs(v) / 0.85 > 1) return null
+		return normalize([Math.sign(u) * 0.6, Math.sign(v) * 0.5, 0.62])
+	},
+	(u, v) => {
+		const radius = 0.8
+		const dy = v - 0.35
+		if (dy > 0 || Math.hypot(u, dy) > radius) return null
+		return facing(u / radius, dy / radius)
+	},
 ]
 
-const DITHER_SPACE = { families: SOLIDS.length, variants: 256 }
+const DITHER_STEPS = [COMPASS, LIGHT_POLARS.length, SCALES.length, 2] as const
+
+const DITHER_SPACE = {
+	families: SOLIDS.length,
+	variants: stepCount(DITHER_STEPS),
+}
+
+const ditherKey = ({ family, variant }: Silhouette) =>
+	[family, ...variantSteps(variant, DITHER_STEPS)].join(".")
 
 const cellCenter = (index: number) => ((index + 0.5) / GRID) * 2 - 1
 
-const lightOf = (variant: number): Vector => {
-	const azimuth = ((variant % LIGHT_ANGLES) / LIGHT_ANGLES) * TURN
-	const polar =
-		LIGHT_POLARS[Math.floor(variant / LIGHT_ANGLES) % LIGHT_POLARS.length] *
-		DEGREE
+const lightOf = (compass: number, polarStep: number): Vector => {
+	const azimuth = (compass / COMPASS) * TURN
+	const polar = LIGHT_POLARS[polarStep] * DEGREE
 	return [
 		Math.sin(polar) * Math.cos(azimuth),
 		Math.sin(polar) * Math.sin(azimuth),
@@ -102,9 +127,13 @@ const lightOf = (variant: number): Vector => {
 
 const shadedPixels = ({ family, variant }: Silhouette): ShadedPixel[] => {
 	const solid = SOLIDS[family]
-	const [lx, ly, lz] = lightOf(variant)
-	const scale = SCALES[Math.floor(variant / 64) % SCALES.length]
-	const hasRim = Math.floor(variant / 128) % 2 === 1
+	const [compass, polarStep, scaleStep, rimStep] = variantSteps(
+		variant,
+		DITHER_STEPS,
+	)
+	const [lx, ly, lz] = lightOf(compass, polarStep)
+	const scale = SCALES[scaleStep]
+	const hasRim = rimStep === 1
 	const normalAt = (column: number, row: number) =>
 		solid(cellCenter(column) / scale, cellCenter(row) / scale)
 	const isEdge = (column: number, row: number) =>
@@ -182,4 +211,4 @@ const DitherAvatar = ({
 	)
 }
 
-export { DITHER_SPACE, DitherAvatar, shadedPixels }
+export { DITHER_SPACE, DitherAvatar, ditherKey, shadedPixels }

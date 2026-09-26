@@ -76,6 +76,11 @@ const glyphCells = (silhouette: Silhouette): GlyphCell[] => {
 	return cells
 }
 
+const glyphKey = (silhouette: Silhouette) =>
+	glyphCells(silhouette)
+		.map(({ column, row }) => `${column},${row}`)
+		.join(" ")
+
 const rampOf = (seed: number) =>
 	RAMPS[Math.floor(seededRandom(seed ^ RAMP_SALT)() * RAMPS.length)]
 
@@ -135,4 +140,4 @@ const AsciiGlyphAvatar = ({
 	)
 }
 
-export { ASCII_GLYPH_SPACE, AsciiGlyphAvatar, glyphCells }
+export { ASCII_GLYPH_SPACE, AsciiGlyphAvatar, glyphCells, glyphKey }

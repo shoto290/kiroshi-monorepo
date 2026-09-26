@@ -74,6 +74,15 @@ const pickSilhouette = (
 	}
 }
 
+const stepCount = (sizes: readonly number[]) =>
+	sizes.reduce((product, size) => product * size, 1)
+
+const variantSteps = (variant: number, sizes: readonly number[]) =>
+	sizes.map(
+		(size, index) =>
+			Math.floor(variant / stepCount(sizes.slice(0, index))) % size,
+	)
+
 const silhouetteRandom = ({ family, variant }: Silhouette) =>
 	seededRandom(variant * 7919 + family * 104729 + 1)
 
@@ -144,6 +153,8 @@ export {
 	type SilhouetteSpace,
 	seededRandom,
 	silhouetteRandom,
+	stepCount,
 	stillTime,
 	toField,
+	variantSteps,
 }

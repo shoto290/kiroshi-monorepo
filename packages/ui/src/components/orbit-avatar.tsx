@@ -9,8 +9,10 @@ import {
 	fieldIntensity,
 	pickSilhouette,
 	type Silhouette,
+	stepCount,
 	stillTime,
 	toField,
+	variantSteps,
 } from "@workspace/ui/components/avatar-exploration"
 import {
 	ExplorationFrame,
@@ -30,14 +32,16 @@ type OrbitLayout = { rings: number; spread: number; moon: boolean }
 
 type SatellitePlacement = { orbit: Orbit; index: number; time: number }
 
-type OrbitSystem = { coreRadius: number; orbits: Orbit[] }
+type OrbitSystem = { coreRadius: number; hasTrails: boolean; orbits: Orbit[] }
 
 const VIEW = 100
 const MIDDLE = VIEW / 2
 const TURN = Math.PI * 2
 const DEGREE = Math.PI / 180
 const REVOLUTION = 5000
-const TILT_STEPS = 8
+const TILT_STEP = 45
+const TILTS = 4
+const SATELLITE_COUNTS = [3, 4, 5, 6]
 const FLATTENINGS = [0.28, 0.44, 0.6]
 const CORE_RADII = [8, 13]
 const SATELLITE_RADIUS = 4.6
@@ -51,14 +55,37 @@ const LAYOUTS: OrbitLayout[] = [
 	{ rings: 2, spread: 180, moon: false },
 ]
 
-const ORBIT_SPACE = { families: LAYOUTS.length, variants: 192 }
+const ORBIT_STEPS = [
+	TILTS,
+	SATELLITE_COUNTS.length,
+	FLATTENINGS.length,
+	CORE_RADII.length,
+	2,
+] as const
+
+const ORBIT_SPACE = {
+	families: LAYOUTS.length,
+	variants: stepCount(ORBIT_STEPS),
+}
+
+const readableTilt = (family: number, tiltStep: number) => {
+	const { spread } = LAYOUTS[family]
+	return spread < TILT_STEP * 2 ? 0 : (tiltStep * TILT_STEP) % spread
+}
+
+const orbitKey = ({ family, variant }: Silhouette) => {
+	const [tiltStep, ...rest] = variantSteps(variant, ORBIT_STEPS)
+	return [family, readableTilt(family, tiltStep), ...rest].join(".")
+}
 
 const orbitSystem = ({ family, variant }: Silhouette): OrbitSystem => {
 	const layout = LAYOUTS[family]
-	const tilt = (variant % TILT_STEPS) * (layout.spread / TILT_STEPS) * DEGREE
-	const satellites = 3 + (Math.floor(variant / TILT_STEPS) % 4)
-	const flattening = FLATTENINGS[Math.floor(variant / 32) % FLATTENINGS.length]
-	const coreRadius = CORE_RADII[Math.floor(variant / 96) % CORE_RADII.length]
+	const [tiltStep, satelliteStep, flatteningStep, coreStep, trailStep] =
+		variantSteps(variant, ORBIT_STEPS)
+	const tilt = readableTilt(family, tiltStep) * DEGREE
+	const satellites = SATELLITE_COUNTS[satelliteStep]
+	const flattening = FLATTENINGS[flatteningStep]
+	const coreRadius = CORE_RADII[coreStep]
 	const isConcentric = family === 4
 
 	const rings = Array.from({ length: layout.rings }, (_, ring): Orbit => {
@@ -84,7 +111,11 @@ const orbitSystem = ({ family, variant }: Silhouette): OrbitSystem => {
 				},
 			]
 		: []
-	return { coreRadius, orbits: [...rings, ...moon] }
+	return {
+		coreRadius,
+		hasTrails: trailStep === 1,
+		orbits: [...rings, ...moon],
+	}
 }
 
 const satellitePosition = ({ orbit, index, time }: SatellitePlacement) => {
@@ -144,17 +175,19 @@ const OrbitAvatar = ({
 			>
 				{system.orbits.map((orbit, orbitIndex) => (
 					<g key={`${orbit.rx}-${orbit.tilt}`}>
-						<ellipse
-							cx={MIDDLE}
-							cy={MIDDLE}
-							fill="none"
-							opacity={0.4}
-							rx={orbit.rx}
-							ry={orbit.ry}
-							stroke="currentColor"
-							strokeWidth={2.5}
-							transform={`rotate(${orbit.tilt / DEGREE} ${MIDDLE} ${MIDDLE})`}
-						/>
+						{system.hasTrails && (
+							<ellipse
+								cx={MIDDLE}
+								cy={MIDDLE}
+								fill="none"
+								opacity={0.55}
+								rx={orbit.rx}
+								ry={orbit.ry}
+								stroke="currentColor"
+								strokeWidth={3}
+								transform={`rotate(${orbit.tilt / DEGREE} ${MIDDLE} ${MIDDLE})`}
+							/>
+						)}
 						{Array.from({ length: orbit.satellites }, (_, index) => {
 							const position = satellitePosition({
 								orbit,
@@ -187,4 +220,4 @@ const OrbitAvatar = ({
 	)
 }
 
-export { ORBIT_SPACE, OrbitAvatar, orbitSystem }
+export { ORBIT_SPACE, OrbitAvatar, orbitKey, orbitSystem }

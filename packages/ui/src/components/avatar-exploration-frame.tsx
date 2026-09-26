@@ -1,6 +1,6 @@
 "use client"
 
-import { type ReactNode, type RefObject, useEffect } from "react"
+import { type ReactNode, type RefObject, useEffect, useRef } from "react"
 
 import {
 	type ExplorationAvatarProps,
@@ -62,11 +62,16 @@ const ExplorationFrame = ({
 const useExplorationClock = ({ state, paint }: ExplorationClock) => {
 	const prefersReducedMotion = usePrefersReducedMotion()
 	const isAnimated = state !== "idle" && !prefersReducedMotion
+	const latestPaint = useRef(paint)
+	latestPaint.current = paint
 
 	useEffect(() => {
-		if (isAnimated) return subscribe(paint)
-		paint(stillTime(state))
-	}, [isAnimated, paint, state])
+		if (isAnimated) return subscribe((time) => latestPaint.current(time))
+	}, [isAnimated])
+
+	useEffect(() => {
+		if (!isAnimated) latestPaint.current(stillTime(state))
+	})
 }
 
 const readField = (element: SVGElement) => ({

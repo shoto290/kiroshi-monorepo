@@ -3,6 +3,7 @@ import { describe, expect, it } from "vitest"
 import {
 	ASCII_GLYPH_SPACE,
 	glyphCells,
+	glyphKey,
 } from "@workspace/ui/components/ascii-glyph-avatar"
 import {
 	companionSeed,
@@ -10,20 +11,32 @@ import {
 	type Silhouette,
 	type SilhouetteSpace,
 } from "@workspace/ui/components/avatar-exploration"
-import { BLOT_TINTS } from "@workspace/ui/components/bot-avatar"
+import {
+	BLOT_TINTS,
+	type BotAvatarBlot,
+} from "@workspace/ui/components/bot-avatar"
 import {
 	DITHER_SPACE,
+	ditherKey,
 	shadedPixels,
 } from "@workspace/ui/components/dither-avatar"
 import {
 	DOT_LATTICE_SPACE,
 	latticeDots,
+	latticeKey,
 } from "@workspace/ui/components/dot-lattice-avatar"
-import { ORBIT_SPACE, orbitSystem } from "@workspace/ui/components/orbit-avatar"
+import {
+	ORBIT_SPACE,
+	orbitKey,
+	orbitSystem,
+} from "@workspace/ui/components/orbit-avatar"
 import {
 	SCANLINE_SPACE,
+	scanlineKey,
 	scanSegments,
 } from "@workspace/ui/components/scanline-avatar"
+
+type Companion = { name: string; tint: BotAvatarBlot }
 
 const NAMES = [
 	"Lyra",
@@ -48,41 +61,45 @@ const NAMES = [
 	"Echo",
 ]
 
-const COMPANIONS = NAMES.map((name, index) => ({
+const COMPANIONS: Companion[] = NAMES.map((name, index) => ({
 	name,
 	tint: BLOT_TINTS[index % BLOT_TINTS.length],
 }))
 
-const EXPLORATIONS: [
+type Exploration = [
 	string,
 	SilhouetteSpace,
 	(silhouette: Silhouette) => unknown,
-][] = [
-	["dot lattice", DOT_LATTICE_SPACE, latticeDots],
-	["orbit", ORBIT_SPACE, orbitSystem],
-	["scanline", SCANLINE_SPACE, scanSegments],
-	["ascii glyph", ASCII_GLYPH_SPACE, glyphCells],
-	["dither", DITHER_SPACE, shadedPixels],
+	(silhouette: Silhouette) => string,
 ]
 
-describe.each(EXPLORATIONS)("%s silhouettes", (_, space, render) => {
-	const silhouetteOf = ({ name, tint }: (typeof COMPANIONS)[number]) =>
+const SAME_TINT_PAIR: Companion[] = [
+	{ name: "Lyra", tint: "blue" },
+	{ name: "Orion", tint: "blue" },
+]
+
+const EXPLORATIONS: Exploration[] = [
+	["dot lattice", DOT_LATTICE_SPACE, latticeDots, latticeKey],
+	["orbit", ORBIT_SPACE, orbitSystem, orbitKey],
+	["scanline", SCANLINE_SPACE, scanSegments, scanlineKey],
+	["ascii glyph", ASCII_GLYPH_SPACE, glyphCells, glyphKey],
+	["dither", DITHER_SPACE, shadedPixels, ditherKey],
+]
+
+describe.each(EXPLORATIONS)("%s silhouettes", (_, space, render, keyOf) => {
+	const silhouetteOf = ({ name, tint }: Companion) =>
 		pickSilhouette(companionSeed(name, tint), space)
 
-	it("gives twenty seeded names twenty distinct family and variant pairs", () => {
-		const pairs = COMPANIONS.map(silhouetteOf).map(
-			({ family, variant }) => `${family}:${variant}`,
-		)
-		expect(new Set(pairs).size).toBe(COMPANIONS.length)
+	it("gives twenty seeded names twenty distinct readable keys", () => {
+		const keys = COMPANIONS.map((companion) => keyOf(silhouetteOf(companion)))
+		expect(new Set(keys).size).toBe(COMPANIONS.length)
 	})
 
-	it("gives twenty seeded names twenty distinct drawings", () => {
-		const drawings = COMPANIONS.map((companion) =>
-			render(silhouetteOf(companion)),
+	it("gives Lyra and Orion, both blue, different readable keys", () => {
+		const [lyra, orion] = SAME_TINT_PAIR.map((companion) =>
+			keyOf(silhouetteOf(companion)),
 		)
-		for (const [index, drawing] of drawings.entries())
-			for (const other of drawings.slice(index + 1))
-				expect(drawing).not.toEqual(other)
+		expect(lyra).not.toBe(orion)
 	})
 
 	it("renders one seed identically twice", () => {
