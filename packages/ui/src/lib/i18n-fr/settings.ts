@@ -79,6 +79,10 @@ const settings = {
 			label: "Couleur",
 			none: "Aucune couleur",
 		},
+		transfer: {
+			export: "Exporter cet espace",
+			import: "Importer un espace",
+		},
 		danger: {
 			delete: "Supprimer l’espace",
 			description:

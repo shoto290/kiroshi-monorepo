@@ -126,6 +126,43 @@ export const Default = meta.story({
 	},
 })
 
+export const Transfer = meta.story({
+	args: {
+		onExport: fn(),
+		onImport: fn(),
+	},
+	parameters: {
+		docs: {
+			description: {
+				story:
+					"The space tab once the host can move a space between machines: Export this space and Import a space sit under the fields, each firing its own callback. Check that each button reports only its own action, by pointer and by keyboard, and that a dialog given neither callback draws the tab as `Default` does.",
+			},
+		},
+	},
+	play: async ({ args, userEvent }) => {
+		const dialog = await dialogIn()
+		const exportSpace = within(dialog).getByRole("button", {
+			name: "Export this space",
+		})
+		const importSpace = within(dialog).getByRole("button", {
+			name: "Import a space",
+		})
+
+		await userEvent.click(exportSpace)
+		await expect(args.onExport).toHaveBeenCalledOnce()
+		await expect(args.onImport).not.toHaveBeenCalled()
+
+		await userEvent.click(importSpace)
+		await expect(args.onImport).toHaveBeenCalledOnce()
+		await expect(args.onExport).toHaveBeenCalledOnce()
+
+		importSpace.focus()
+		await userEvent.keyboard("{Enter}")
+		await expect(args.onImport).toHaveBeenCalledTimes(2)
+		await expect(args.onExport).toHaveBeenCalledOnce()
+	},
+})
+
 export const Environment = meta.story({
 	parameters: {
 		docs: {
