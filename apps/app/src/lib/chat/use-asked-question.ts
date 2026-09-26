@@ -1,11 +1,10 @@
 import type { QuotedMessage } from "@workspace/ui/components/message-quote"
 
-import { questionMessageIdOf } from "./question-message"
-import { bubbleIdOf, bubbleOf, type ReplyTarget } from "./screen-model"
+import { bubbleIdOfRow, questionRunOf, recallExcerptOf } from "./question-run"
+import type { ReplyTarget, TranscriptRow } from "./screen-model"
 import { useBubbleVisibility } from "./use-bubble-visibility"
 
 import type { QuestionRequest } from "../agent/contract"
-import type { TranscriptMessage } from "../conversations/transcript-contract"
 
 export type AskedBubble = {
 	messageId: string
@@ -14,48 +13,41 @@ export type AskedBubble = {
 
 export type AskedQuestion = {
 	asked: AskedBubble | null
+	leadId?: string
 	recall?: QuotedMessage
 }
 
 type AskedQuestionInput = {
 	question: QuestionRequest | null
-	messages: TranscriptMessage[]
+	runs: TranscriptRow[][]
 	toQuote: (target: ReplyTarget) => QuotedMessage
 }
 
 const NOTHING_ASKED: AskedQuestion = { asked: null }
 
-const anchorOf = (message: TranscriptMessage): string | null => {
-	const bubble = bubbleOf(message, 0)
-	return bubble ? bubbleIdOf(bubble.messageId, bubble.blockIndex) : null
-}
-
 export function useAskedQuestion({
 	question,
-	messages,
+	runs,
 	toQuote,
 }: AskedQuestionInput): AskedQuestion {
-	const asking = question
-		? messages.findLast(
-				(message) => message.id === questionMessageIdOf(question.id),
-			)
-		: undefined
-	const anchor = asking ? anchorOf(asking) : null
+	const run = question ? questionRunOf(runs, question) : null
+	const anchor = run ? bubbleIdOfRow(run.card) : null
 	const isInView = useBubbleVisibility(anchor)
 
-	if (!question || !asking || !anchor) {
+	if (!question || !run || !anchor) {
 		return NOTHING_ASKED
 	}
 
 	return {
-		asked: { messageId: asking.id, request: question },
+		asked: { messageId: run.card.messageId, request: question },
+		leadId: bubbleIdOfRow(run.lead),
 		recall: isInView
 			? undefined
 			: toQuote({
 					messageId: anchor,
 					role: "assistant",
-					excerpt: question.questions[0]?.question ?? "",
-					authorBotId: asking.authorBotId,
+					excerpt: recallExcerptOf(question, run.context),
+					authorBotId: run.card.authorBotId,
 				}),
 	}
 }

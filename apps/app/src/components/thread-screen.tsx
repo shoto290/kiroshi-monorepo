@@ -130,6 +130,7 @@ import {
 	type PromptResponder,
 	usePromptResponder,
 } from "@/lib/chat/use-prompt-responder"
+import { useQuestionLanding } from "@/lib/chat/use-question-landing"
 import {
 	NO_QUOTED_IDS,
 	useQuotedMessages,
@@ -1317,7 +1318,17 @@ const useThreadActions = (
 	seats: ThreadSeats,
 	annotations: ThreadAnnotations,
 ) => {
-	const { composerRef, controller, facts, scrollerRef, staged, state } = seats
+	const {
+		composerRef,
+		controller,
+		facts,
+		isSoloThread,
+		missionSeat,
+		scrollerRef,
+		staged,
+		state,
+		t,
+	} = seats
 	const { toQuote } = annotations
 
 	const seatMentioned = useSeatMentioned({
@@ -1386,10 +1397,24 @@ const useThreadActions = (
 	}, [controller, scrollerRef])
 	const hasNewer = state.hasNewer
 
-	const { asked, recall } = useAskedQuestion({
-		question: facts.question,
+	const threadRuns = readRuns({
 		messages: state.messages,
+		missionSeat,
+		isSoloThread,
+		causes: facts.causes,
+		t,
+	})
+	const { asked, leadId, recall } = useAskedQuestion({
+		question: facts.question,
+		runs: threadRuns.runs,
 		toQuote,
+	})
+	useQuestionLanding({
+		conversationKey: facts.id,
+		isAsking: facts.question !== null,
+		hasMessages: state.messages.length > 0,
+		leadId,
+		scrollerRef,
 	})
 
 	return {
@@ -1411,6 +1436,7 @@ const useThreadActions = (
 		retry,
 		stop,
 		submitPrompt,
+		threadRuns,
 	}
 }
 
@@ -1431,7 +1457,6 @@ const threadRowsOf = (
 		present,
 		promptResponder,
 		state,
-		t,
 	} = seats
 	const {
 		applications,
@@ -1445,15 +1470,9 @@ const threadRowsOf = (
 		sessionApplications,
 		toQuote,
 	} = annotations
-	const { asked, botController, holdReply, isSentInMount, retry } = actions
-
-	const { runs, causes } = readRuns({
-		messages: state.messages,
-		missionSeat,
-		isSoloThread,
-		causes: facts.causes,
-		t,
-	})
+	const { asked, botController, holdReply, isSentInMount, retry, threadRuns } =
+		actions
+	const { runs, causes } = threadRuns
 	const presentations = runPresentationsOf({
 		runs,
 		workingBotIds: facts.workingBotIds,
