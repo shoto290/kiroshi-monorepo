@@ -4,12 +4,14 @@ use std::sync::atomic::{AtomicUsize, Ordering};
 use std::sync::mpsc;
 use std::time::Duration;
 
+use kiroshi_app::agent::AgentState;
 use kiroshi_app::bundles;
 use kiroshi_app::commands::invoke_handler;
 use kiroshi_app::db;
 use kiroshi_app::db::repositories::conversations::DEFAULT_BOT_MODEL;
 use kiroshi_app::environment::contract::{EnvOwner, ResolvedEnv};
 use kiroshi_app::environment::store;
+use rusqlite::OptionalExtension;
 use serde_json::{json, Value};
 use tauri::test::{mock_builder, mock_context, noop_assets, MockRuntime, INVOKE_KEY};
 use tauri::webview::InvokeRequest;
@@ -3080,4 +3082,204 @@ fn sections_in(window: &WebviewWindow<MockRuntime>, space_id: &str) -> Vec<Value
 		.iter()
 		.map(|bot| bot["sectionId"].clone())
 		.collect()
+}
+fn a_host_with_agents(home: &Home) -> App<MockRuntime> {
+	let app = home.app();
+	app.manage(AgentState::default());
+	app
+}
+
+fn a_sent_message(id: &str, turn_id: &str, conversation_id: &str, created_at: i64) -> Value {
+	json!({ "message": {
+		"id": id,
+		"conversationId": conversation_id,
+		"turnId": turn_id,
+		"authorBotId": null,
+		"repliedToMessageId": null,
+		"content": format!("said {id}"),
+		"createdAt": created_at
+	}})
+}
+
+fn a_turn_row(app: &App<MockRuntime>, turn_id: &str) -> Option<(i64, Option<i64>)> {
+	let state = app.state::<db::DatabaseState>();
+	let database = state.as_ref().expect("the database is open");
+	let turn_id = turn_id.to_owned();
+	tauri::async_runtime::block_on(database.messages().call(move |connection| {
+		Ok(connection
+			.query_row(
+				"SELECT started_at, completed_at FROM turns WHERE id = ?1",
+				[turn_id],
+				|row| Ok((row.get(0)?, row.get(1)?)),
+			)
+			.optional()?)
+	}))
+	.expect("the turn reads")
+}
+
+fn completed_at(app: &App<MockRuntime>, turn_id: &str) -> Option<i64> {
+	a_turn_row(app, turn_id).expect("the turn exists").1
+}
+
+fn a_reply_left_streaming(
+	window: &WebviewWindow<MockRuntime>,
+	conversation_id: &str,
+	turn_id: &str,
+	id: &str,
+) {
+	call(
+		window,
+		"conversation_open_assistant_message",
+		json!({ "message": {
+			"id": id,
+			"conversationId": conversation_id,
+			"turnId": turn_id,
+			"authorBotId": BOT,
+			"repliedToMessageId": null,
+			"createdAt": 2
+		}}),
+	)
+	.expect("the reply is opened");
+	call(window, "conversation_append_text", json!({ "id": id, "delta": "half" }))
+		.expect("the reply streams");
+}
+
+#[test]
+fn sending_opens_the_turn_with_the_message_and_hands_the_turn_to_the_host() {
+	let home = Home::new();
+	let app = a_host_with_agents(&home);
+	let window = window(&app);
+	let (_, conversation) = a_bot_and_its_chat(&window);
+
+	let seq = call(
+		&window,
+		"conversation_send_user_message",
+		a_sent_message("m1", "t1", &conversation, 7),
+	)
+	.expect("the message is sent");
+
+	assert_eq!(seq, json!(1));
+	assert_eq!(a_turn_row(&app, "t1"), Some((7, None)), "the turn did not open at the send time");
+	let page = call(&window, "conversation_message_page", a_page(&conversation, None, 10))
+		.expect("the page");
+	assert_eq!(seqs(&page), vec![1]);
+	assert!(
+		app.state::<AgentState>().host_writes().owns_turn("t1"),
+		"the host does not own the turn"
+	);
+
+	call(
+		&window,
+		"conversation_start_turn",
+		json!({ "turn": { "id": "t1", "conversationId": conversation, "startedAt": 99 } }),
+	)
+	.expect("the front start is accepted");
+	call(&window, "conversation_complete_turn", json!({ "id": "t1", "completedAt": 5 }))
+		.expect("the front completion is accepted");
+	assert_eq!(
+		a_turn_row(&app, "t1"),
+		Some((7, None)),
+		"a front turn command wrote a host-owned turn"
+	);
+}
+
+#[test]
+fn a_refused_message_leaves_no_turn_behind() {
+	let home = Home::new();
+	let app = a_host_with_agents(&home);
+	let window = window(&app);
+	let (_, conversation) = a_bot_and_its_chat(&window);
+	call(&window, "conversation_start_turn", a_turn(&conversation)).expect("the turn is started");
+	call(&window, "conversation_append_user_message", a_user_message("m1", &conversation, "hi", 1))
+		.expect("the message is appended");
+
+	let refused = call(
+		&window,
+		"conversation_send_user_message",
+		a_sent_message("m1", "t2", &conversation, 2),
+	);
+
+	assert_eq!(
+		refused,
+		Err(json!({ "kind": "conflict", "id": "m1", "field": "turn_id" })),
+		"the refusal did not say what disagreed"
+	);
+	assert_eq!(a_turn_row(&app, "t2"), None, "the refused send left its turn behind");
+	assert!(!app.state::<AgentState>().host_writes().owns_turn("t2"));
+}
+
+#[test]
+fn the_next_send_closes_the_turn_nobody_answered_and_spares_the_one_still_streaming() {
+	let home = Home::new();
+	let app = a_host_with_agents(&home);
+	let window = window(&app);
+	let (_, conversation) = a_bot_and_its_chat(&window);
+	call(&window, "conversation_send_user_message", a_sent_message("m1", "t1", &conversation, 1))
+		.expect("the first message is sent");
+	call(
+		&window,
+		"conversation_start_turn",
+		json!({ "turn": { "id": "t2", "conversationId": conversation, "startedAt": 2 } }),
+	)
+	.expect("the streaming turn is started");
+	a_reply_left_streaming(&window, &conversation, "t2", "r2");
+
+	call(&window, "conversation_send_user_message", a_sent_message("m3", "t3", &conversation, 3))
+		.expect("the next message is sent");
+
+	assert_eq!(completed_at(&app, "t1"), Some(3), "the unanswered turn was left open");
+	assert_eq!(completed_at(&app, "t2"), None, "a turn still streaming was closed");
+	assert_eq!(completed_at(&app, "t3"), None, "the turn just opened was closed");
+}
+
+#[test]
+fn opening_the_database_closes_the_orphan_turn_and_spares_the_one_with_a_streaming_reply() {
+	let home = Home::new();
+	let before = {
+		let app = home.app();
+		let window = window(&app);
+		let (_, conversation) = a_bot_and_its_chat(&window);
+		for (turn, started_at) in [("t1", 1), ("t2", 2)] {
+			call(
+				&window,
+				"conversation_start_turn",
+				json!({ "turn": { "id": turn, "conversationId": conversation, "startedAt": started_at } }),
+			)
+			.expect("the turn is started");
+		}
+		a_reply_left_streaming(&window, &conversation, "t2", "r2");
+		std::time::SystemTime::now()
+			.duration_since(std::time::UNIX_EPOCH)
+			.expect("the clock")
+			.as_millis() as i64
+	};
+
+	let app = home.app();
+
+	let swept = completed_at(&app, "t1").expect("the orphan turn was left open");
+	assert!(swept >= before, "the orphan turn was not stamped with the open time");
+	assert_eq!(completed_at(&app, "t2"), None, "a turn whose reply was streaming was closed");
+}
+
+#[test]
+fn cancelling_before_any_submit_closes_the_turn_the_host_opened() {
+	let home = Home::new();
+	let app = a_host_with_agents(&home);
+	let window = window(&app);
+	let (_, conversation) = a_bot_and_its_chat(&window);
+	call(&window, "conversation_send_user_message", a_sent_message("m1", "t1", &conversation, 1))
+		.expect("the message is sent");
+	call(
+		&window,
+		"conversation_start_turn",
+		json!({ "turn": { "id": "t2", "conversationId": conversation, "startedAt": 2 } }),
+	)
+	.expect("a front turn is started");
+	let scope = json!({ "conversationId": conversation, "botId": BOT, "runtimeSessionId": "r1", "epoch": 1 });
+
+	let cancelled = call(&window, "agent_cancel_turn", json!({ "scope": scope }));
+
+	assert!(cancelled.is_err(), "a cancel with nothing submitted was reported as done");
+	assert!(completed_at(&app, "t1").is_some(), "the unsubmitted host turn was left open");
+	assert_eq!(completed_at(&app, "t2"), None, "a turn the front owns was closed by the host");
 }

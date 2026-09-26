@@ -105,6 +105,7 @@ export const commands = {
 	conversationStartTurn: (turn: NewTurn) => typedError<number, TranscriptStoreError>(__TAURI_INVOKE("conversation_start_turn", { turn })),
 	conversationCompleteTurn: (id: string, completedAt: number) => typedError<null, TranscriptStoreError>(__TAURI_INVOKE("conversation_complete_turn", { id, completedAt })),
 	conversationAppendUserMessage: (message: NewUserMessage) => typedError<number, TranscriptStoreError>(__TAURI_INVOKE("conversation_append_user_message", { message })),
+	conversationSendUserMessage: (message: NewUserMessage) => typedError<number, TranscriptStoreError>(__TAURI_INVOKE("conversation_send_user_message", { message })),
 	conversationOpenAssistantMessage: (message: NewAssistantMessage) => typedError<number, TranscriptStoreError>(__TAURI_INVOKE("conversation_open_assistant_message", { message })),
 	conversationAppendText: (id: string, delta: string) => typedError<null, TranscriptStoreError>(__TAURI_INVOKE("conversation_append_text", { id, delta })),
 	conversationFinalizeMessage: (id: string, completion: TerminalCompletion, settledText: string | null) => typedError<null, TranscriptStoreError>(__TAURI_INVOKE("conversation_finalize_message", { id, completion, settledText })),

@@ -131,6 +131,21 @@ pub async fn conversation_append_user_message(
 
 #[tauri::command]
 #[specta::specta]
+pub async fn conversation_send_user_message<R: Runtime>(
+	app: AppHandle<R>,
+	state: State<'_, db::DatabaseState>,
+	message: NewUserMessage,
+) -> Result<i64, TranscriptStoreError> {
+	let turn_id = message.turn_id.clone();
+	let seq = ready(&state)?.messages().send_user_message(message.into()).await?;
+	if let Some(agent) = app.try_state::<AgentState>() {
+		agent.host_writes().claim_turn(&turn_id);
+	}
+	Ok(seq)
+}
+
+#[tauri::command]
+#[specta::specta]
 pub async fn conversation_open_assistant_message<R: Runtime>(
 	app: AppHandle<R>,
 	state: State<'_, db::DatabaseState>,

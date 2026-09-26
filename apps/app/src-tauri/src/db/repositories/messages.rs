@@ -1,3 +1,5 @@
+use std::time::{SystemTime, UNIX_EPOCH};
+
 use rusqlite::types::FromSql;
 use rusqlite::{params, Connection, OptionalExtension, Row, Transaction, TransactionBehavior};
 
@@ -137,6 +139,7 @@ pub struct LatestMessageQuery {
 
 #[derive(Debug, Clone, Copy, PartialEq, Eq)]
 pub struct RecoveryReport {
+	pub completed_turns: usize,
 	pub interrupted_messages: usize,
 	pub terminated_activities: usize,
 }
@@ -148,6 +151,21 @@ const INSERT_TURN: &str = "INSERT INTO turns (id, conversation_id, seq, started_
 	RETURNING seq";
 const COMPLETE_TURN: &str =
 	"UPDATE turns SET completed_at = ?2 WHERE id = ?1 AND completed_at IS NULL";
+const COMPLETE_EARLIER_UNANSWERED_TURNS: &str = "UPDATE turns SET completed_at = ?3
+	WHERE conversation_id = ?1 AND id <> ?2 AND completed_at IS NULL
+		AND NOT EXISTS (SELECT 1 FROM messages WHERE messages.turn_id = turns.id
+			AND messages.role = 'assistant'
+			AND messages.completion_state IN ('pending', 'streaming'))";
+const COMPLETE_UNANSWERED_TURNS: &str = "UPDATE turns SET completed_at = ?1
+	WHERE completed_at IS NULL
+		AND NOT EXISTS (SELECT 1 FROM messages WHERE messages.turn_id = turns.id
+			AND messages.role = 'assistant'
+			AND messages.completion_state IN ('pending', 'streaming'))";
+const OPEN_TURNS_WITHOUT_REPLY: &str = "SELECT id FROM turns
+	WHERE conversation_id = ?1 AND completed_at IS NULL
+		AND NOT EXISTS (SELECT 1 FROM messages WHERE messages.turn_id = turns.id
+			AND messages.role = 'assistant')
+	ORDER BY seq";
 
 const MESSAGE_KEY: &str = "SELECT seq, conversation_id, turn_id, author_bot_id,
 		replied_to_message_id, role, created_at, content
@@ -267,6 +285,25 @@ impl MessagesRepository {
 			.call(move |connection| {
 				connection.prepare_cached(COMPLETE_TURN)?.execute(params![id, completed_at])?;
 				Ok(())
+			})
+			.await?)
+	}
+
+	pub async fn send_user_message(&self, message: NewUserMessage) -> Result<i64, TranscriptError> {
+		self.call_mut(move |connection| Ok(open_turn_with(connection, message))).await?
+	}
+
+	pub async fn open_turns_without_reply(
+		&self,
+		conversation_id: String,
+	) -> Result<Vec<String>, TranscriptError> {
+		Ok(self
+			.call(move |connection| {
+				let mut statement = connection.prepare_cached(OPEN_TURNS_WITHOUT_REPLY)?;
+				let ids = statement
+					.query_map(params![conversation_id], |row| row.get(0))?
+					.collect::<Result<Vec<_>, _>>()?;
+				Ok(ids)
 			})
 			.await?)
 	}
@@ -522,10 +559,11 @@ pub(in crate::db) fn sweep_unfinished(
 	connection: &mut Connection,
 ) -> Result<RecoveryReport, DatabaseError> {
 	let transaction = write_transaction(connection)?;
+	let completed_turns = transaction.execute(COMPLETE_UNANSWERED_TURNS, [now()])?;
 	let interrupted_messages = transaction.execute(INTERRUPT_OPEN_MESSAGES, [])?;
 	let terminated_activities = transaction.execute(TERMINATE_OPEN_ACTIVITIES, [])?;
 	transaction.commit()?;
-	Ok(RecoveryReport { interrupted_messages, terminated_activities })
+	Ok(RecoveryReport { completed_turns, interrupted_messages, terminated_activities })
 }
 
 struct StoredTurnKey {
@@ -644,17 +682,44 @@ fn store_turn(connection: &mut Connection, turn: NewTurn) -> Result<i64, Transcr
 
 fn keep_turn(connection: &mut Connection, turn: NewTurn) -> Result<i64, TranscriptError> {
 	let transaction = write_transaction(connection)?;
-	if let Some(stored) = stored_turn_key(&transaction, &turn.id)? {
+	let seq = insert_turn_once(&transaction, &turn)?;
+	transaction.commit()?;
+	Ok(seq)
+}
+
+fn insert_turn_once(transaction: &Transaction<'_>, turn: &NewTurn) -> Result<i64, TranscriptError> {
+	if let Some(stored) = stored_turn_key(transaction, &turn.id)? {
 		if stored.conversation_id != turn.conversation_id {
-			return Err(TranscriptError::Conflict { id: turn.id, field: "conversation_id" });
+			return Err(TranscriptError::Conflict {
+				id: turn.id.clone(),
+				field: "conversation_id",
+			});
 		}
 		return Ok(stored.seq);
 	}
-	let seq = transaction.query_row(
+	Ok(transaction.query_row(
 		INSERT_TURN,
 		params![turn.id, turn.conversation_id, turn.started_at],
 		|row| row.get(0),
+	)?)
+}
+
+fn open_turn_with(
+	connection: &mut Connection,
+	message: NewUserMessage,
+) -> Result<i64, TranscriptError> {
+	let transaction = write_transaction(connection)?;
+	transaction.execute(
+		COMPLETE_EARLIER_UNANSWERED_TURNS,
+		params![message.conversation_id, message.turn_id, message.created_at],
 	)?;
+	let turn = NewTurn {
+		id: message.turn_id.clone(),
+		conversation_id: message.conversation_id.clone(),
+		started_at: message.created_at,
+	};
+	insert_turn_once(&transaction, &turn)?;
+	let seq = insert_message_once(&transaction, message.into())?;
 	transaction.commit()?;
 	Ok(seq)
 }
@@ -664,7 +729,16 @@ fn store_message(
 	message: AppendedMessage,
 ) -> Result<i64, TranscriptError> {
 	let transaction = write_transaction(connection)?;
-	if let Some(stored) = stored_message_key(&transaction, &message)? {
+	let seq = insert_message_once(&transaction, message)?;
+	transaction.commit()?;
+	Ok(seq)
+}
+
+fn insert_message_once(
+	transaction: &Transaction<'_>,
+	message: AppendedMessage,
+) -> Result<i64, TranscriptError> {
+	if let Some(stored) = stored_message_key(transaction, &message)? {
 		if let Some(field) = stored.diverging_field(&message) {
 			return Err(TranscriptError::Conflict { id: message.id, field });
 		}
@@ -674,7 +748,7 @@ fn store_message(
 		Some(authored) => (authored, MessageState::Complete),
 		None => (String::new(), MessageState::Pending),
 	};
-	let seq = transaction.query_row(
+	Ok(transaction.query_row(
 		INSERT_MESSAGE,
 		params![
 			message.id,
@@ -688,9 +762,7 @@ fn store_message(
 			message.created_at,
 		],
 		|row| row.get(0),
-	)?;
-	transaction.commit()?;
-	Ok(seq)
+	)?)
 }
 
 fn close_message(
@@ -756,6 +828,10 @@ fn refuse_a_message_elsewhere(
 		return Err(TranscriptError::UnknownMessage { id: id.into() });
 	}
 	Ok(())
+}
+
+fn now() -> i64 {
+	SystemTime::now().duration_since(UNIX_EPOCH).unwrap_or_default().as_millis() as i64
 }
 
 fn write_transaction(connection: &mut Connection) -> Result<Transaction<'_>, DatabaseError> {
@@ -1744,13 +1820,21 @@ mod tests {
 
 		assert_eq!(
 			report,
-			RecoveryReport { interrupted_messages: 1, terminated_activities: 1 },
+			RecoveryReport {
+				completed_turns: 0,
+				interrupted_messages: 1,
+				terminated_activities: 1
+			},
 			"the sweep closed out something other than what was left open"
 		);
 		assert_eq!(
 			again,
-			RecoveryReport { interrupted_messages: 0, terminated_activities: 0 },
-			"a second sweep rewrote what the first one had already closed out"
+			RecoveryReport {
+				completed_turns: 1,
+				interrupted_messages: 0,
+				terminated_activities: 0
+			},
+			"a second sweep rewrote what the first one closed out, or kept open the turn it spared"
 		);
 		let transcript = whole_transcript(&database, PAGE).await;
 		assert_eq!(transcript[1].state, MessageState::Interrupted);
