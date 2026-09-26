@@ -381,7 +381,7 @@ pub fn inherit(root: &Path, source_id: &str, bot_id: &str) -> std::io::Result<()
 	reowned(&target, source_id, bot_id)
 }
 
-fn reowned(bundle: &Path, source_id: &str, bot_id: &str) -> std::io::Result<()> {
+pub fn reowned(bundle: &Path, source_id: &str, bot_id: &str) -> std::io::Result<()> {
 	let Some(path) = owned_agent(bundle, source_id) else {
 		return Ok(());
 	};

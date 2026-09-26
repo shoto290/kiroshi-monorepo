@@ -16,8 +16,12 @@ pub(super) const PLUGIN: Descriptor = Descriptor {
 	laid_down_title: "The space's plugin was laid down",
 };
 
+pub fn root<R: Runtime>(app: &AppHandle<R>) -> Option<PathBuf> {
+	Some(app.path().app_data_dir().ok()?.join(PLUGIN.dir_name))
+}
+
 pub fn path<R: Runtime>(app: &AppHandle<R>, space_id: &str) -> Option<PathBuf> {
-	Some(app.path().app_data_dir().ok()?.join(PLUGIN.dir_name).join(space_id))
+	Some(root(app)?.join(space_id))
 }
 
 pub fn lay_down<R: Runtime>(app: &AppHandle<R>, space_id: &str) -> std::io::Result<()> {

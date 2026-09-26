@@ -132,6 +132,8 @@ fn commands<R: Runtime>() -> Commands<R> {
 		spaces::commands::space_update,
 		spaces::commands::space_reorder,
 		spaces::commands::space_delete::<tauri::Wry>,
+		spaces::commands::space_export::<tauri::Wry>,
+		spaces::commands::space_import::<tauri::Wry>,
 		spaces::commands::bot_move_to_space,
 		spaces::commands::bot_add_to_space,
 		spaces::commands::bot_remove_from_space,

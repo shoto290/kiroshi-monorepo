@@ -20,10 +20,17 @@ pub fn replace(path: &Path, bytes: &[u8]) -> std::io::Result<()> {
 }
 
 pub fn replace_atomically(path: &Path, bytes: &[u8]) -> std::io::Result<()> {
+	replace_atomically_with(path, |file| written_whole(file, bytes))
+}
+
+pub fn replace_atomically_with(
+	path: &Path,
+	fill: impl FnOnce(&mut fs::File) -> std::io::Result<()>,
+) -> std::io::Result<()> {
 	let dir = path.parent().ok_or_else(|| std::io::Error::other("the file has no directory"))?;
 	create_dir(dir)?;
 	let staged = dir.join(staged_name());
-	let renamed = write_and_sync(&staged, bytes).and_then(|()| fs::rename(&staged, path));
+	let renamed = filled_and_synced(&staged, fill).and_then(|()| fs::rename(&staged, path));
 	if renamed.is_err() {
 		let _ = fs::remove_file(&staged);
 	}
@@ -36,16 +43,23 @@ fn staged_name() -> String {
 	format!(".staged-{}-{}", std::process::id(), NEXT.fetch_add(1, Ordering::Relaxed))
 }
 
-fn write_and_sync(path: &Path, bytes: &[u8]) -> std::io::Result<()> {
+fn filled_and_synced(
+	path: &Path,
+	fill: impl FnOnce(&mut fs::File) -> std::io::Result<()>,
+) -> std::io::Result<()> {
+	let mut file = created_owned_file(path)?;
+	fill(&mut file)?;
+	file.sync_all()
+}
+
+fn written_whole(file: &mut fs::File, bytes: &[u8]) -> std::io::Result<()> {
 	use std::io::Write;
 
-	let mut file = created_owned_file(path)?;
 	if interrupted() {
 		file.write_all(&bytes[..bytes.len() / 2])?;
 		return Err(stopped_partway());
 	}
-	file.write_all(bytes)?;
-	file.sync_all()
+	file.write_all(bytes)
 }
 
 #[cfg(unix)]

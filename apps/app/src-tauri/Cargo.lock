@@ -2313,6 +2313,7 @@ dependencies = [
  "serde_json",
  "specta",
  "specta-typescript",
+ "tar",
  "tauri",
  "tauri-build",
  "tauri-plugin-notification",
