@@ -33,6 +33,7 @@ import {
 	questionMessageIdOf,
 	questionMessageText,
 } from "./question-message"
+import { storeQuestionRow } from "./question-row"
 import { ENDING_FOR, ENDING_FOR_OUTCOME, isWorthKeeping } from "./reply-endings"
 import {
 	EVOLVED,
@@ -67,6 +68,7 @@ import type {
 import type { TranscriptStore } from "../conversations/store-port"
 import type {
 	TerminalCompletion,
+	TranscriptDraft,
 	TranscriptMessage,
 } from "../conversations/transcript-contract"
 import { createTranscriptController } from "../conversations/transcript-controller"
@@ -319,11 +321,7 @@ export function createChatController(
 			return
 		}
 		bot.openMessages.set(id, seq)
-		write(
-			bot,
-			() => store.appendText(id, text),
-			() => transcript.stream({ conversationId, id, text }),
-		)
+		transcript.stream({ conversationId, id, text })
 	}
 
 	const isUnwritten = (bot: BotChat, id: string) =>
@@ -346,31 +344,18 @@ export function createChatController(
 			return
 		}
 		bot.openMessages.set(message.id, 0)
-		write(
-			bot,
-			() =>
-				store.openAssistantMessage({
-					id: message.id,
-					conversationId,
-					turnId: turn.id,
-					authorBotId: bot.id,
-					repliedToMessageId: turn.promptId,
-					createdAt: message.timestamp,
-				}),
-			() =>
-				transcript.append({
-					id: message.id,
-					conversationId,
-					turnId: turn.id,
-					role: "assistant",
-					content: "",
-					completion: "streaming",
-					createdAt: message.timestamp,
-					authorBotId: bot.id,
-					repliedToMessageId: turn.promptId,
-					runtimeSessionId: null,
-				}),
-		)
+		transcript.append({
+			id: message.id,
+			conversationId,
+			turnId: turn.id,
+			role: "assistant",
+			content: "",
+			completion: "streaming",
+			createdAt: message.timestamp,
+			authorBotId: bot.id,
+			repliedToMessageId: turn.promptId,
+			runtimeSessionId: null,
+		})
 		streamReply(bot, message.id, 1, message.text, conversationId)
 	}
 
@@ -385,11 +370,7 @@ export function createChatController(
 		}
 		bot.openMessages.delete(id)
 		bot.settledMessages.add(id)
-		write(
-			bot,
-			() => store.finalizeMessage(id, completion),
-			() => transcript.settle({ conversationId, id, completion }),
-		)
+		transcript.settle({ conversationId, id, completion })
 	}
 
 	const writeReply = (
@@ -443,6 +424,36 @@ export function createChatController(
 		}
 	}
 
+	const writeQuestionRow = (
+		bot: BotChat,
+		request: QuestionRequest,
+		conversationId: string,
+	) => {
+		const turn = bot.activeTurn
+		const id = questionMessageIdOf(request.id)
+		if (!turn || !isUnwritten(bot, id)) {
+			return
+		}
+		bot.settledMessages.add(id)
+		const row: TranscriptDraft = {
+			id,
+			conversationId,
+			turnId: turn.id,
+			role: "assistant",
+			content: questionMessageText(request),
+			completion: "complete",
+			createdAt: now(),
+			authorBotId: bot.id,
+			repliedToMessageId: turn.promptId,
+			runtimeSessionId: null,
+		}
+		write(
+			bot,
+			() => storeQuestionRow(store, row),
+			() => transcript.append(row),
+		)
+	}
+
 	const recordQuestion = (
 		bot: BotChat,
 		request: QuestionRequest,
@@ -452,18 +463,7 @@ export function createChatController(
 			return
 		}
 		settleOpenReplies(bot, "complete", conversationId)
-		writeReply(
-			bot,
-			{
-				id: questionMessageIdOf(request.id),
-				role: "assistant",
-				text: questionMessageText(request),
-				completion: "complete",
-				timestamp: now(),
-			},
-			"complete",
-			conversationId,
-		)
+		writeQuestionRow(bot, request, conversationId)
 	}
 
 	const endTurn = (
@@ -472,11 +472,7 @@ export function createChatController(
 		conversationId: string,
 	) => {
 		settleOpenReplies(bot, completion, conversationId)
-		const turn = bot.activeTurn
 		bot.activeTurn = null
-		if (turn) {
-			write(bot, () => store.completeTurn(turn.id, now()))
-		}
 	}
 
 	const recordProviderSession = (
@@ -1124,22 +1120,19 @@ export function createChatController(
 
 	type PromptRow = ReturnType<typeof promptRow>
 
-	const storePrompt = async (said: PromptRow) => {
-		await store.startTurn({
-			id: said.turnId,
-			conversationId: said.conversationId,
-			startedAt: said.createdAt,
-		})
-		await store.appendUserMessage({
-			id: said.id,
-			conversationId: said.conversationId,
-			turnId: said.turnId,
-			authorBotId: null,
-			repliedToMessageId: said.repliedToMessageId,
-			content: said.content,
-			createdAt: said.createdAt,
-		})
-	}
+	const storePrompt = (said: PromptRow, summoned: string[]) =>
+		store.sendUserMessage(
+			{
+				id: said.id,
+				conversationId: said.conversationId,
+				turnId: said.turnId,
+				authorBotId: null,
+				repliedToMessageId: said.repliedToMessageId,
+				content: said.content,
+				createdAt: said.createdAt,
+			},
+			summoned,
+		)
 
 	const showPrompt = (said: PromptRow) =>
 		transcript.append({
@@ -1185,7 +1178,7 @@ export function createChatController(
 
 		const said = promptRow(conversationId, trimmed, repliedToMessageId)
 		try {
-			await enqueue(() => storePrompt(said))
+			await enqueue(() => storePrompt(said, [bot.id]))
 		} catch (reason) {
 			dispatch(bot, {
 				type: "promptRejected",
@@ -1325,7 +1318,7 @@ export function createChatController(
 			)
 			write(
 				bot,
-				() => storePrompt(said),
+				() => storePrompt(said, []),
 				() => showPrompt(said),
 			)
 		}

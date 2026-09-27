@@ -23,6 +23,7 @@ import type {
 	RuntimeScope,
 	ScopedEvent,
 } from "../agent/contract"
+import { withFakeHostWrites } from "../conversations/fake-host-writes"
 import {
 	createFakeTranscriptStore,
 	FAKE_CHAT_ID,
@@ -43,10 +44,7 @@ import {
 	named,
 	message as storedMessage,
 } from "../conversations/transcript-fixtures"
-import {
-	isTerminalCompletion,
-	lastWordIn,
-} from "../conversations/transcript-state"
+import { lastWordIn } from "../conversations/transcript-state"
 
 const STEP_MS = 10
 const REPLY = "one two three four five six"
@@ -257,6 +255,12 @@ const referentialStore = (base: TranscriptStore) => {
 			takes(message)
 				? base.appendUserMessage(message)
 				: Promise.reject(REFUSED_REFERENCE),
+		sendUserMessage: (message, summoned) => {
+			conversationOf.set(message.turnId, message.conversationId)
+			return takes(message)
+				? base.sendUserMessage(message, summoned)
+				: Promise.reject(REFUSED_REFERENCE)
+		},
 		openAssistantMessage: (message) =>
 			takes(message)
 				? base.openAssistantMessage(message)
@@ -300,7 +304,10 @@ const createHarness = (options: HarnessOptions = {}): Harness => {
 		replyFor: options.replyFor ?? (() => REPLY),
 	})
 	const store = options.store ?? createFakeTranscriptStore()
-	const driver = options.driver ? options.driver(fake) : fake
+	const driver = withFakeHostWrites(
+		options.driver ? options.driver(fake) : fake,
+		store,
+	)
 	const controller = createChatController(driver, store, {
 		newId: () => {
 			minted += 1
@@ -390,15 +397,33 @@ describe("createChatController", () => {
 		detach()
 	})
 
+	it("sends the prompt through the host, summoning its companion, and writes no turn", async () => {
+		const { controller, store } = await bootedHarness()
+		const sent = vi.spyOn(store, "sendUserMessage")
+		const started = vi.spyOn(store, "startTurn")
+		const completed = vi.spyOn(store, "completeTurn")
+
+		await controller.send("hello")
+		await vi.runAllTimersAsync()
+
+		expect(sent).toHaveBeenCalledTimes(1)
+		expect(sent).toHaveBeenCalledWith(
+			expect.objectContaining({ content: "hello", authorBotId: null }),
+			[BOT],
+		)
+		expect(started).not.toHaveBeenCalled()
+		expect(completed).not.toHaveBeenCalled()
+	})
+
 	it("writes the prompt down before it submits it", async () => {
 		const order: string[] = []
 		const store = createFakeTranscriptStore()
 		const { controller } = await bootedHarness({
 			store: {
 				...store,
-				appendUserMessage: (message) => {
+				sendUserMessage: (message, summoned) => {
 					order.push("stored")
-					return store.appendUserMessage(message)
+					return store.sendUserMessage(message, summoned)
 				},
 			},
 			driver: (fake) => ({
@@ -415,115 +440,29 @@ describe("createChatController", () => {
 		expect(order).toEqual(["stored", "submitted"])
 	})
 
-	it.each(["startTurn", "appendUserMessage"] as const)(
-		"never submits a prompt the store refused at %s",
-		async (member) => {
-			const store = createFakeTranscriptStore()
-			const refusal = {
-				kind: "storage",
-				failure: { kind: "poisonedConnection" },
-			}
-			const { controller, driver } = await bootedHarness({
-				store: { ...store, [member]: () => Promise.reject(refusal) },
-			})
-			const submitSpy = vi.spyOn(driver, "submitPrompt")
-
-			await controller.send("hello")
-			await vi.runAllTimersAsync()
-
-			const state = controller.getState()
-			expect(submitSpy).not.toHaveBeenCalled()
-			expect(state.messages).toEqual([])
-			expect(state.turn).toBe("failed")
-			expect(state.errors.at(-1)?.error).toEqual({
-				kind: "writeFailed",
-				detail: "the transcript store refused it (storage, poisonedConnection)",
-			})
-			expect(await reload(store)).toEqual([])
-		},
-	)
-
-	const neverAheadOfStorage = (
-		visible: TranscriptMessage[],
-		stored: TranscriptMessage[],
-	) => {
-		expect(visible.map((message) => message.id)).toEqual(
-			stored.map((message) => message.id),
-		)
-		expect(visible.map((message) => message.content)).toEqual(
-			stored.map((message) => message.content),
-		)
-		for (const [index, message] of visible.entries()) {
-			if (isTerminalCompletion(message.completion)) {
-				expect(message.completion).toBe(stored[index].completion)
-			}
-		}
-	}
-
-	const refusingStore = (
-		member: "openAssistantMessage" | "appendText" | "finalizeMessage",
-	) => {
+	it("never submits a prompt the store refused to send", async () => {
 		const store = createFakeTranscriptStore()
-		return {
-			...store,
-			[member]: () =>
-				Promise.reject({
-					kind: "storage",
-					failure: { kind: "poisonedConnection" },
-				}),
+		const refusal = {
+			kind: "storage",
+			failure: { kind: "poisonedConnection" },
 		}
-	}
-
-	it("shows no reply at all when the store refuses to open it", async () => {
-		const store = refusingStore("openAssistantMessage")
-		const { controller } = await bootedHarness({ store })
+		const { controller, driver } = await bootedHarness({
+			store: { ...store, sendUserMessage: () => Promise.reject(refusal) },
+		})
+		const submitSpy = vi.spyOn(driver, "submitPrompt")
 
 		await controller.send("hello")
 		await vi.runAllTimersAsync()
 
 		const state = controller.getState()
-		expect(spoken(state.messages)).toEqual([["user", "hello", "complete"]])
+		expect(submitSpy).not.toHaveBeenCalled()
+		expect(state.messages).toEqual([])
+		expect(state.turn).toBe("failed")
 		expect(state.errors.at(-1)?.error).toEqual({
 			kind: "writeFailed",
 			detail: "the transcript store refused it (storage, poisonedConnection)",
 		})
-		neverAheadOfStorage(state.messages, await reload(store))
-	})
-
-	it("shows no word of a reply the store refused to write", async () => {
-		const store = refusingStore("appendText")
-		const { controller } = await bootedHarness({ store })
-
-		await controller.send("hello")
-		await vi.runAllTimersAsync()
-
-		const state = controller.getState()
-		expect(state.messages.at(-1)).toMatchObject({
-			role: "assistant",
-			content: "",
-		})
-		expect(state.errors.at(-1)?.error.kind).toBe("writeFailed")
-		neverAheadOfStorage(state.messages, await reload(store))
-	})
-
-	it("never settles a reply the store refused to close", async () => {
-		const store = refusingStore("finalizeMessage")
-		const { controller } = await bootedHarness({ store })
-
-		await controller.send("hello")
-		await vi.runAllTimersAsync()
-
-		const state = controller.getState()
-		const answer = state.messages.at(-1)
-		expect(answer).toMatchObject({ content: REPLY, completion: "streaming" })
-		expect(state.errors.at(-1)?.error.kind).toBe("writeFailed")
-
-		const stored = await reload(store)
-		expect(stored.at(-1)).toMatchObject({
-			content: REPLY,
-			completion: "interrupted",
-		})
-		neverAheadOfStorage(state.messages, stored)
+		expect(await reload(store)).toEqual([])
 	})
 
 	it("holds a second prompt over a running turn and sends it after", async () => {
@@ -1595,9 +1534,9 @@ describe("createChatController", () => {
 		const base = createFakeTranscriptStore()
 		const asking: TranscriptStore = {
 			...base,
-			appendUserMessage: (message) => {
+			sendUserMessage: (message, summoned) => {
 				askWhileThePromptIsWritten()
-				return base.appendUserMessage(message)
+				return base.sendUserMessage(message, summoned)
 			},
 		}
 		const store = referentialStore(asking)
@@ -3751,8 +3690,10 @@ describe("prompts the session cannot take yet", () => {
 		let refusing = true
 		const store: TranscriptStore = {
 			...base,
-			startTurn: (turn) =>
-				refusing ? Promise.reject({ kind: "storage" }) : base.startTurn(turn),
+			sendUserMessage: (message, summoned) =>
+				refusing
+					? Promise.reject({ kind: "storage" })
+					: base.sendUserMessage(message, summoned),
 		}
 		const harness = await bootedHarness({ store })
 
@@ -3783,10 +3724,10 @@ describe("prompts the session cannot take yet", () => {
 		let refusing = false
 		const store: TranscriptStore = {
 			...base,
-			appendUserMessage: (message) =>
+			sendUserMessage: (message, summoned) =>
 				refusing
 					? Promise.reject({ kind: "storage" })
-					: base.appendUserMessage(message),
+					: base.sendUserMessage(message, summoned),
 		}
 		const harness = await bootedHarness({ store })
 		await harness.controller.send("first")

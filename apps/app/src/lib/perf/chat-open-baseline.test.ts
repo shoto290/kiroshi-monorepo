@@ -34,9 +34,15 @@ vi.mock("@/lib/conversations/create-store", () => ({
 	createTranscriptStore: () => harness.store,
 }))
 
-vi.mock("@/lib/chat/create-driver", () => ({
-	createChatDriver: () => harness.driver,
-}))
+vi.mock("@/lib/chat/create-driver", async () => {
+	const { withFakeHostWrites } = await import(
+		"@/lib/conversations/fake-host-writes"
+	)
+	return {
+		createChatDriver: (store: TranscriptStore) =>
+			harness.driver && withFakeHostWrites(harness.driver, store),
+	}
+})
 
 vi.mock("@/lib/applications/application-transport", async (importOriginal) => {
 	const actual =
@@ -432,17 +438,16 @@ describe("PRF5 chat open baseline", () => {
 			{
 			  "busyOpen": {
 			    "commits": 8,
-			    "elapsedMs": 16,
+			    "elapsedMs": 11,
 			    "storeCalls": [
 			      "mainChat",
-			      "appendUserMessage",
-			      "botCommands",
 			      "captureCheckpoint",
 			      "pinnedMessages",
+			      "botCommands",
 			      "boundedContext",
 			      "loadPage",
 			    ],
-			    "writesAhead": 1,
+			    "writesAhead": 0,
 			  },
 			  "coldOpen": {
 			    "commits": 7,

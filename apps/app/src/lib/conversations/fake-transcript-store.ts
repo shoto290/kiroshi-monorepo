@@ -789,6 +789,32 @@ export const createFakeTranscriptStore = (
 	const transcriptPort = () =>
 		createFakeTranscriptPort({ messages: [...rows.values()], pageSize })
 
+	const startTurn = (turn: NewTurn) => {
+		const stored = turns.get(turn.id)
+		if (stored) {
+			return stored.startedAt === turn.startedAt &&
+				stored.conversationId === turn.conversationId
+				? Promise.resolve(stored.seq)
+				: refuse({ kind: "conflict", id: turn.id, field: "started_at" })
+		}
+		const seq = turns.size + 1
+		turns.set(turn.id, { ...turn, seq })
+		return Promise.resolve(seq)
+	}
+
+	const appendUserMessage = (message: NewUserMessage) => {
+		remember(message.id, message.repliedToMessageId)
+		return append({
+			...message,
+			role: "user",
+			completion: "complete",
+			runtimeSessionId: liveSessionOf(
+				message.conversationId,
+				message.authorBotId,
+			),
+		})
+	}
+
 	return {
 		loadPage: (conversationId: string, cursor: TranscriptCursor | null) =>
 			transcriptPort().loadPage(conversationId, cursor),
@@ -1614,18 +1640,7 @@ export const createFakeTranscriptStore = (
 			})
 		},
 
-		startTurn: (turn: NewTurn) => {
-			const stored = turns.get(turn.id)
-			if (stored) {
-				return stored.startedAt === turn.startedAt &&
-					stored.conversationId === turn.conversationId
-					? Promise.resolve(stored.seq)
-					: refuse({ kind: "conflict", id: turn.id, field: "started_at" })
-			}
-			const seq = turns.size + 1
-			turns.set(turn.id, { ...turn, seq })
-			return Promise.resolve(seq)
-		},
+		startTurn,
 
 		completeTurn: () => Promise.resolve(),
 
@@ -1678,17 +1693,15 @@ export const createFakeTranscriptStore = (
 					),
 			),
 
-		appendUserMessage: (message: NewUserMessage) => {
-			remember(message.id, message.repliedToMessageId)
-			return append({
-				...message,
-				role: "user",
-				completion: "complete",
-				runtimeSessionId: liveSessionOf(
-					message.conversationId,
-					message.authorBotId,
-				),
+		appendUserMessage,
+
+		sendUserMessage: async (message: NewUserMessage) => {
+			await startTurn({
+				id: message.turnId,
+				conversationId: message.conversationId,
+				startedAt: message.createdAt,
 			})
+			return appendUserMessage(message)
 		},
 
 		openAssistantMessage: (message: NewAssistantMessage) => {

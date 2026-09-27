@@ -4,6 +4,7 @@ import {
 	type ConversationController,
 	createConversationController,
 } from "./conversation-controller"
+import { withFakeHostWrites } from "./fake-host-writes"
 import { createFakeTranscriptStore } from "./fake-transcript-store"
 import {
 	createScriptedDriver,
@@ -84,9 +85,9 @@ const createHarness = async (
 	let isRefusingNextWrite = false
 	const store: TranscriptStore = {
 		...base,
-		appendUserMessage: (message) => {
+		sendUserMessage: (message, summoned) => {
 			if (!isRefusingNextWrite) {
-				return base.appendUserMessage(message)
+				return base.sendUserMessage(message, summoned)
 			}
 			isRefusingNextWrite = false
 			return Promise.reject(new Error("refused"))
@@ -118,14 +119,18 @@ const createHarness = async (
 	})
 	const named: [string, string][] = []
 	let minted = 0
-	const controller = createConversationController(driver, store, {
-		newId: () => {
-			minted += 1
-			return `id-${minted}`
+	const controller = createConversationController(
+		withFakeHostWrites(driver, store),
+		store,
+		{
+			newId: () => {
+				minted += 1
+				return `id-${minted}`
+			},
+			now: () => minted,
+			onNamed: (conversationId, title) => named.push([conversationId, title]),
 		},
-		now: () => minted,
-		onNamed: (conversationId, title) => named.push([conversationId, title]),
-	})
+	)
 	const detach = controller.attach()
 	await controller.open(conversation)
 	await settled()
@@ -499,7 +504,6 @@ describe("createConversationController", () => {
 	it("runs in a second wave the companion a wave mate named", async () => {
 		const ada = idOf(harness.conversation, "Ada")
 		const nyx = idOf(harness.conversation, "Nyx")
-		const completed = vi.spyOn(harness.store, "completeTurn")
 		await harness.controller.send("@Ada then @Nyx")
 		await harness.settled()
 
@@ -514,13 +518,11 @@ describe("createConversationController", () => {
 
 		expect(submittedIn(harness)).toEqual([ada, nyx, nyx])
 		expect(runningIn(harness.controller)).toEqual([nyx])
-		expect(completed).not.toHaveBeenCalled()
 
 		harness.driver.pushTo(nyx, spoke(nyx, "and the gates too"))
 		await harness.settled()
 
 		expect(runningIn(harness.controller)).toEqual([])
-		expect(completed).toHaveBeenCalledTimes(1)
 	})
 
 	it("keeps the named order of the companions yet to publish while a wave mate publishes", async () => {
@@ -585,7 +587,21 @@ describe("createConversationController", () => {
 		])
 	})
 
-	it("completes the turn once when the last companion of the wave stops", async () => {
+	it("sends the message through the host with every companion it summons", async () => {
+		const nyx = idOf(harness.conversation, "Nyx")
+		const iris = idOf(harness.conversation, "Iris")
+		const sent = vi.spyOn(harness.store, "sendUserMessage")
+		const started = vi.spyOn(harness.store, "startTurn")
+
+		await harness.controller.send("@Nyx then @Iris")
+		await harness.settled()
+
+		expect(sent).toHaveBeenCalledTimes(1)
+		expect(sent).toHaveBeenCalledWith(expect.anything(), [nyx, iris])
+		expect(started).not.toHaveBeenCalled()
+	})
+
+	it("leaves the turn for the host to close when the last companion of the wave stops", async () => {
 		const nyx = idOf(harness.conversation, "Nyx")
 		const iris = idOf(harness.conversation, "Iris")
 		const completed = vi.spyOn(harness.store, "completeTurn")
@@ -593,13 +609,11 @@ describe("createConversationController", () => {
 		await harness.settled()
 
 		harness.driver.pushTo(nyx, spoke(nyx, "walls up"))
-		await harness.settled()
-		expect(completed).not.toHaveBeenCalled()
-
 		harness.driver.pushTo(iris, spoke(iris, "gates up"))
 		await harness.settled()
 
-		expect(completed).toHaveBeenCalledTimes(1)
+		expect(runningIn(harness.controller)).toEqual([])
+		expect(completed).not.toHaveBeenCalled()
 	})
 
 	it("leaves no message of a companion that ended its turn writing nothing", async () => {
@@ -865,8 +879,7 @@ describe("createConversationController", () => {
 			)
 		})
 
-		it("leaves the companion removed and its turn completed when the release fails", async () => {
-			const completed = vi.spyOn(harness.store, "completeTurn")
+		it("leaves the companion removed when the release fails", async () => {
 			const reported = vi
 				.spyOn(console, "error")
 				.mockImplementation(() => undefined)
@@ -877,7 +890,6 @@ describe("createConversationController", () => {
 			const nyx = await spokenOnce(harness, "walls are held")
 
 			expect(runningIn(harness.controller)).toEqual([])
-			expect(completed).toHaveBeenCalledTimes(1)
 			expect(harness.controller.getState().latestError).toBeNull()
 			expect(spokenIn(harness.controller)).toEqual([
 				[null, `<@${nyx}> take the walls`],
@@ -1984,7 +1996,10 @@ describe("a run report relaying the companions it names", () => {
 			title: "Walls",
 			botIds: bots.map((bot) => bot.id),
 		})
-		const controller = createConversationController(driver, store)
+		const controller = createConversationController(
+			withFakeHostWrites(driver, store),
+			store,
+		)
 		controller.attach()
 		return { driver, store, controller, conversation }
 	}
@@ -2019,30 +2034,6 @@ describe("a run report relaying the companions it names", () => {
 		const answer = page.messages.find(({ authorBotId }) => authorBotId === nyx)
 		expect(answer?.content).toBe("read and noted")
 		expect(answer?.turnId).not.toBe(reportTurnId)
-	})
-
-	it("summons nobody when the turn of the summoned companions cannot be started", async () => {
-		const base = createFakeTranscriptStore()
-		let startedTurns = 0
-		const { driver, store, controller, conversation } = await createReporting({
-			...base,
-			startTurn: (turn) => {
-				startedTurns += 1
-				return startedTurns > 1
-					? Promise.reject(new Error("refused"))
-					: base.startTurn(turn)
-			},
-		})
-		const ada = idOf(conversation, "Ada")
-
-		await controller.reportRun(
-			draftFor(conversation.id, ada, "Walls are up. @Nyx, read it."),
-		)
-		await settled()
-
-		const page = await store.loadPage(conversation.id, null)
-		expect(page.messages).toHaveLength(1)
-		expect(driver.submissions).toHaveLength(0)
 	})
 
 	it("stores the report carrying the tokens of the companions it names", async () => {
@@ -2431,12 +2422,16 @@ describe("the mentions a finished turn carries", () => {
 			botIds: [ada.id],
 		})
 		const listeners: ((arrival: CompanionArrival) => void)[] = []
-		const controller = createConversationController(driver, store, {
-			onCompanionArrived: async (listener) => {
-				listeners.push(listener)
-				return () => undefined
+		const controller = createConversationController(
+			withFakeHostWrites(driver, store),
+			store,
+			{
+				onCompanionArrived: async (listener) => {
+					listeners.push(listener)
+					return () => undefined
+				},
 			},
-		})
+		)
 		const detach = controller.attach()
 		await controller.open(conversation)
 		await settled()

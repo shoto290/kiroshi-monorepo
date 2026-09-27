@@ -414,6 +414,9 @@ export const conversationStore: TranscriptStore = {
 	appendUserMessage: (message: NewUserMessage) =>
 		invoke<number>("conversation_append_user_message", { message }),
 
+	sendUserMessage: (message: NewUserMessage, summoned: string[]) =>
+		invoke<number>("conversation_send_user_message", { message, summoned }),
+
 	openAssistantMessage: (message: NewAssistantMessage) =>
 		invoke<number>("conversation_open_assistant_message", { message }),
 

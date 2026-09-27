@@ -26,8 +26,8 @@ import { useSpaces } from "../spaces/use-spaces"
 import { useUser } from "../user/use-user"
 
 export const useWorkspaceCore = () => {
-	const driver = useMemo(createChatDriver, [])
 	const store = useMemo(createTranscriptStore, [])
+	const driver = useMemo(() => createChatDriver(store), [store])
 	const chat = useChat(driver, store)
 	const roster = useRoster(store)
 	const conversationRuntimes = useMemo(
