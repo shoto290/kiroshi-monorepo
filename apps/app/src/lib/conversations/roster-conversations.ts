@@ -31,7 +31,6 @@ const NO_WORKERS: ConversationWorker[] = []
 const toBotRow = (id: string, face: BotFace): AppSidebarBot => ({
 	id,
 	name: face.name,
-	animal: face.avatarAnimal,
 	blot: face.avatarBlot ?? undefined,
 	image: avatarSrc(face.avatarImagePath),
 })

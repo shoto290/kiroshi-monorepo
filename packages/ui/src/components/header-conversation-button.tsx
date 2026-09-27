@@ -40,7 +40,6 @@ const HeaderConversationButton = ({
 			<span className="flex shrink-0 items-center gap-1">
 				{bots.map((bot) => (
 					<BotIdentityAvatar
-						animal={bot.animal}
 						blot={bot.blot}
 						image={bot.image}
 						key={bot.id}

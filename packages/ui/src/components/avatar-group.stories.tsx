@@ -22,35 +22,30 @@ const SIZES = [24, 40, 96]
 const ATLAS: ConversationParticipant = {
 	id: "atlas",
 	name: "Atlas",
-	animal: "rabbit",
 	blot: "blue",
 }
 
 const BEACON: ConversationParticipant = {
 	id: "beacon",
 	name: "Beacon",
-	animal: "owl",
 	blot: "orange",
 }
 
 const CINDER: ConversationParticipant = {
 	id: "cinder",
 	name: "Cinder",
-	animal: "bear",
 	blot: "red",
 }
 
 const DUNE: ConversationParticipant = {
 	id: "dune",
 	name: "Dune",
-	animal: "cat",
 	blot: "green",
 }
 
 const EMBER: ConversationParticipant = {
 	id: "ember",
 	name: "Ember",
-	animal: "mouse",
 	blot: "purple",
 }
 
@@ -95,7 +90,6 @@ const BesideItsBot = (props: AvatarGroupProps) => (
 	<Row>
 		<AvatarGroup {...props} />
 		<BotIdentityAvatar
-			animal={ATLAS.animal}
 			blot={ATLAS.blot}
 			name={ATLAS.name}
 			seed={ATLAS.id}
@@ -131,7 +125,7 @@ export const Default = meta.story({
 		docs: {
 			description: {
 				story:
-					"A room of two. Both companions sit inside the frame, each keeping the animal and the blot it wears everywhere else, and the frame is what says these two are somewhere together rather than side by side in a list. Check that the companions stay inside the frame and that the frame draws a border of its own — that border is the whole signal. Pick `OneBot` for the case this component was built for, `Crowded` for what happens past three.",
+					"A room of two. Both companions sit inside the frame, each keeping the dithered field it wears everywhere else, and the frame is what says these two are somewhere together rather than side by side in a list. Check that the companions stay inside the frame and that the frame draws a border of its own — that border is the whole signal. Pick `OneBot` for the case this component was built for, `Crowded` for what happens past three.",
 			},
 		},
 	},
@@ -265,7 +259,7 @@ export const Uploaded = meta.story({
 		docs: {
 			description: {
 				story:
-					"A room holding a companion that wears a picture its reader uploaded. The picture is held by the frame like any other companion, clipped to the same round shape it has on its own row, and it never moves — which is exactly why the frame matters here: a photograph in a list of drawn animals already looks like an exception, and the container is what still says this one is a room.",
+					"A room holding a companion that wears a picture its reader uploaded. The picture is held by the frame like any other companion, clipped to the same round shape it has on its own row, and it never moves — which is exactly why the frame matters here: a photograph in a list of dithered fields already looks like an exception, and the container is what still says this one is a room.",
 			},
 		},
 	},

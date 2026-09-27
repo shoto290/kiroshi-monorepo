@@ -1,10 +1,10 @@
-import type { BotAvatarBlot } from "@workspace/ui/components/bot-avatar"
 import type {
 	BotOutputStyle,
 	BotPermissionMode,
 	BotSkillContext,
 	BotSkillEffort,
 } from "@workspace/ui/components/bot-settings"
+import type { BotAvatarBlot } from "@workspace/ui/components/companion-colour"
 
 const bots = {
 	roster: {

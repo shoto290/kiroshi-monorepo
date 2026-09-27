@@ -93,7 +93,6 @@ const MissionHeader = ({
 							<Icons.Previous aria-hidden="true" />
 						</Button>
 						<BotIdentityAvatar
-							animal={bot.animal}
 							badge={missionBadgeFor(state)}
 							blot={bot.blot}
 							image={bot.image}

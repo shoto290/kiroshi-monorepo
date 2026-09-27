@@ -12,12 +12,12 @@ import {
 	slotsIn,
 	UPLOADED_AVATAR_IMAGE,
 } from "@workspace/storybook/story-utils"
-import { BLOT_TINTS } from "@workspace/ui/components/bot-avatar"
 import { BOT_BADGES } from "@workspace/ui/components/bot-badge"
 import {
 	BotIdentityAvatar,
 	type BotIdentityAvatarProps,
 } from "@workspace/ui/components/bot-identity-avatar"
+import { BLOT_TINTS } from "@workspace/ui/components/companion-colour"
 import { companionPictureRadius } from "@workspace/ui/components/companion-picture"
 import { InitialsAvatar } from "@workspace/ui/components/initials-avatar"
 import { Button } from "@workspace/ui/components/ui/button"

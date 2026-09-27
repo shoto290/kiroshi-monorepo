@@ -39,7 +39,6 @@ const ParticipantRow = ({
 		<li className={ROW_CLASS} data-slot="participant">
 			<span aria-hidden="true" className="contents">
 				<BotIdentityAvatar
-					animal={bot.animal}
 					blot={bot.blot}
 					image={bot.image}
 					name={bot.name}

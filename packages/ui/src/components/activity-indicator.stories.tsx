@@ -16,13 +16,12 @@ import {
 	ActivityIndicator,
 	type ActivityIndicatorKind,
 } from "@workspace/ui/components/activity-indicator"
-import { BLOT_TINTS } from "@workspace/ui/components/bot-avatar"
-import { ANIMALS } from "@workspace/ui/components/bot-avatar-animals"
+import { BLOT_TINTS } from "@workspace/ui/components/companion-colour"
 import { MarkProvider } from "@workspace/ui/components/mark-context"
 import { TURN_AVATAR_SIZE, UserTurn } from "@workspace/ui/components/turn"
 import { Button } from "@workspace/ui/components/ui/button"
 
-const BUSY_BOT = { animal: "owl", blot: "blue", seed: "bot-7" } as const
+const BUSY_BOT = { blot: "blue", seed: "bot-7" } as const
 
 const SECOND = 1000
 
@@ -38,9 +37,9 @@ const EDGE = 8
 const PAST_ONE_TICK = 1200
 
 const ROOM_BOTS = [
-	{ botId: "bot-lyra", name: "Lyra", animal: "owl", blot: "blue" },
-	{ botId: "bot-orion", name: "Orion", animal: "cat", blot: "orange" },
-	{ botId: "bot-vega", name: "Vega", animal: "rabbit", blot: "purple" },
+	{ botId: "bot-lyra", name: "Lyra", blot: "blue" },
+	{ botId: "bot-orion", name: "Orion", blot: "orange" },
+	{ botId: "bot-vega", name: "Vega", blot: "purple" },
 ] as const
 
 const [SPEAKING_BOT, ...WAITING_BOTS] = ROOM_BOTS
@@ -139,7 +138,7 @@ const meta = preview.meta({
 		docs: {
 			description: {
 				component:
-					"What the transcript shows while the companion is busy: its avatar in the pose that matches the work, the words that say who is busy and at what, and the time the run has taken so far at the end of the row. The label is always on the screen, shimmering while the companion works, so nothing has to be pointed at to be read; a busy row given a `startedAt` instant counts up from it every second, and a row without one shows the label alone. The avatar is also the stop control — given `stoppable`, pointing at it or reaching it by keyboard covers the animal with a stop glyph, so the composer below stays free for the next prompt. A waiting row carries neither shimmer nor clock: `waitingOn` says whether the companion is waiting for the reader or queued for the next wave. The kind comes from the running tool, so reading turns the avatar to `searching` and a shell command to `working`. Nothing here polls the transport; a screen maps its own state onto `kind` and `label`. Inside a transcript the avatar is understood to be the same mark the `AssistantTurn` gutter shows once the turn lands, so it travels there rather than being replaced — give both rows the same `botId` and it does, within that one conversation. See `Mark`, `MarkPerBot` for a room where several companions are busy at once, and `ConversationChange` for what a swapped conversation does to them.",
+					"What the transcript shows while the companion is busy: its avatar in the pose that matches the work, the words that say who is busy and at what, and the time the run has taken so far at the end of the row. The label is always on the screen, shimmering while the companion works, so nothing has to be pointed at to be read; a busy row given a `startedAt` instant counts up from it every second, and a row without one shows the label alone. The avatar is also the stop control — given `stoppable`, pointing at it or reaching it by keyboard covers the avatar with a stop glyph, so the composer below stays free for the next prompt. A waiting row carries neither shimmer nor clock: `waitingOn` says whether the companion is waiting for the reader or queued for the next wave. The kind comes from the running tool, so reading turns the avatar to `searching` and a shell command to `working`. Nothing here polls the transport; a screen maps its own state onto `kind` and `label`. Inside a transcript the avatar is understood to be the same mark the `AssistantTurn` gutter shows once the turn lands, so it travels there rather than being replaced — give both rows the same `botId` and it does, within that one conversation. See `Mark`, `MarkPerBot` for a room where several companions are busy at once, and `ConversationChange` for what a swapped conversation does to them.",
 			},
 		},
 	},
@@ -148,7 +147,6 @@ const meta = preview.meta({
 		kind: { control: "select", options: BOT_WORKING_KINDS },
 		waitingOn: { control: "inline-radio", options: ["you", "next"] },
 		botId: { control: "text" },
-		animal: { control: "select", options: Object.keys(ANIMALS) },
 		blot: { control: "select", options: [undefined, ...BLOT_TINTS] },
 		seed: { control: "text" },
 		size: { control: { type: "range", min: 20, max: 64, step: 2 } },
@@ -230,7 +228,7 @@ export const InWave = meta.story({
 
 export const Blot = meta.story({
 	tags: ["test-only"],
-	args: { animal: "rabbit", blot: "blue" },
+	args: { blot: "blue" },
 	render: (args) => (
 		<div className="flex flex-col gap-4">
 			<ActivityIndicator {...args} blot={undefined} />

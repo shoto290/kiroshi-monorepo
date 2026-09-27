@@ -22,12 +22,7 @@ const GLYPH = (
 const EMPTY = { isPlaceholder: true, onRemove: undefined, preview: GLYPH }
 
 const DRAWN_FACE = (
-	<BotIdentityAvatar
-		animal="owl"
-		blot="blue"
-		seed="bot-7"
-		size={PICTURE_FIELD_SIZE}
-	/>
+	<BotIdentityAvatar blot="blue" seed="bot-7" size={PICTURE_FIELD_SIZE} />
 )
 
 const meta = preview.meta({

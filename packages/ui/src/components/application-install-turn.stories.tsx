@@ -19,7 +19,6 @@ const SENTRY_MARK = CATALOGUE_APPLICATIONS.find(
 const INSTALLER: MessageAuthor = {
 	id: "bot-atlas",
 	name: "Atlas",
-	animal: "owl",
 	blot: "blue",
 }
 

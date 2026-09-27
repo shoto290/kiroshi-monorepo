@@ -1,4 +1,4 @@
-import type { BotAvatarBlot } from "@workspace/ui/components/bot-avatar"
+import type { BotAvatarBlot } from "@workspace/ui/components/companion-colour"
 
 type Space = {
 	id: string

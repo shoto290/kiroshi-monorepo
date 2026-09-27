@@ -2,14 +2,12 @@
 
 import { createContext, type PropsWithChildren, useContext } from "react"
 
-import type { BotAvatarAnimal } from "@workspace/ui/components/bot-avatar-animals"
 import type { BotAvatarBlot } from "@workspace/ui/components/bot-settings"
 
 type RosterBot = {
 	id: string
 	name: string
 	title?: string
-	animal?: BotAvatarAnimal
 	blot?: BotAvatarBlot
 	image?: string
 }

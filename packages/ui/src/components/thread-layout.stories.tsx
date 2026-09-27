@@ -28,7 +28,6 @@ const ANSWER =
 const BOT: RosterBot = {
 	id: "bot-skippy",
 	name: "Skippy",
-	animal: "owl",
 	blot: "blue",
 }
 

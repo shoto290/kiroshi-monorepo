@@ -26,7 +26,7 @@ const OVERFLOW_FONT_RATIO = 0.5
 
 type ConversationParticipant = Pick<
 	BotIdentityAvatarProps,
-	"name" | "animal" | "blot" | "image" | "working" | "kind"
+	"name" | "blot" | "image" | "working" | "kind"
 > & { id: string }
 
 type AvatarGroupProps = {
@@ -65,7 +65,6 @@ function AvatarGroup({
 		>
 			{held.map((participant) => (
 				<BotIdentityAvatar
-					animal={participant.animal}
 					blot={participant.blot}
 					image={participant.image}
 					key={participant.id}

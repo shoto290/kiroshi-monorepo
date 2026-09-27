@@ -2,12 +2,11 @@
 
 import { useTranslation } from "react-i18next"
 
-import type { BotAvatarBlot } from "@workspace/ui/components/bot-avatar"
-import type { BotAvatarAnimal } from "@workspace/ui/components/bot-avatar-animals"
 import {
 	type ActivityIndicatorKind,
 	BotIdentityAvatar,
 } from "@workspace/ui/components/bot-identity-avatar"
+import type { BotAvatarBlot } from "@workspace/ui/components/companion-colour"
 import {
 	ConnectionStatus,
 	type ConnectionStatusState,
@@ -22,7 +21,6 @@ const HEADER_IDENTITY_CLASS = "h-9 min-w-0 shrink gap-2 pr-2.5 pl-1.5"
 
 type HeaderIdentityButtonProps = {
 	name: string
-	animal?: BotAvatarAnimal
 	blot?: BotAvatarBlot
 	seed?: string
 	image?: string
@@ -37,7 +35,6 @@ type HeaderIdentityButtonProps = {
 
 const HeaderIdentityButton = ({
 	name,
-	animal,
 	blot,
 	seed,
 	image,
@@ -61,7 +58,6 @@ const HeaderIdentityButton = ({
 			variant="ghost"
 		>
 			<BotIdentityAvatar
-				animal={animal}
 				blot={blot}
 				image={image}
 				kind={kind}

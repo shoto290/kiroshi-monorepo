@@ -444,7 +444,6 @@ function AssistantTurn(props: AssistantTurnProps) {
 	const gutterBot = identity ?? (closesRun(run) ? author : undefined)
 	const mark = gutterBot ? (
 		<BotIdentityAvatar
-			animal={gutterBot.animal}
 			blot={gutterBot.blot}
 			image={gutterBot.image}
 			name={gutterBot.name}

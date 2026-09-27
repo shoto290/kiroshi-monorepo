@@ -35,7 +35,6 @@ const ANSWER =
 const BOT: RosterBot = {
 	id: "bot-skippy",
 	name: "Skippy",
-	animal: "owl",
 	blot: "blue",
 }
 
@@ -44,7 +43,6 @@ const ROSTER: AppSidebarBot[] = [
 		id: "atlas",
 		name: "Atlas",
 		title: "Research",
-		animal: "owl",
 		blot: "blue",
 		lastMessage: ANSWER,
 	},

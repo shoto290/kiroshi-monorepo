@@ -1,7 +1,7 @@
 import {
 	type BotAvatarBlot,
 	blotTint,
-} from "@workspace/ui/components/bot-avatar"
+} from "@workspace/ui/components/companion-colour"
 import { cn } from "@workspace/ui/lib/utils"
 
 const UNTINTED = "border border-border bg-muted"

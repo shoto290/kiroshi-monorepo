@@ -33,19 +33,16 @@ const minutesBefore = (minutes: number) => MISSION_NOW - minutes * 60_000
 
 export const MISSION_BOT: MissionBot = {
 	name: "Ada Martin",
-	animal: "owl",
 	seed: "bot-ada-martin",
 }
 
 const STORAGE_BOT: MissionBot = {
 	name: "Noor Beltran",
-	animal: "rabbit",
 	seed: "bot-noor-beltran",
 }
 
 const SHELL_BOT: MissionBot = {
 	name: "Iris Nakamura",
-	animal: "cat",
 	seed: "bot-iris-nakamura",
 }
 
@@ -322,7 +319,6 @@ export const MISSION_CARD_TOOLS = ["Superset", "paper", "GitHub"]
 export const MISSION_AUTHOR: MessageAuthor = {
 	id: "bot-ada-martin",
 	name: MISSION_BOT.name,
-	animal: MISSION_BOT.animal,
 	title: "Design",
 }
 
@@ -364,7 +360,6 @@ export const WAITING_MISSION_CARD: MissionCardModel = {
 const CLOSED_MISSION_BOT: MessageAuthor = {
 	id: "bot-noor-beltran",
 	name: "Noor Beltran",
-	animal: "rabbit",
 	title: "Storage",
 }
 
