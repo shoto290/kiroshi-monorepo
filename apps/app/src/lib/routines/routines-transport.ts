@@ -9,13 +9,8 @@ import type {
 	RoutineEdit,
 	RoutineKey,
 	RoutineRun,
-	RunClosing,
-	RunRequested,
 	TriggerDecision,
 } from "./routine-contract"
-import type { RunRequestListener } from "./run-port"
-
-const RUN_REQUESTED_EVENT = "routine://run-requested"
 
 const CHANGED_EVENT = "routine://changed"
 
@@ -33,14 +28,7 @@ export const routinesTransport = {
 	reportedRuns: (conversationId: string) =>
 		invoke<ReportedRun[]>("routine_reported_runs", { conversationId }),
 	runNow: (id: string) => invoke<TriggerDecision>("routine_run_now", { id }),
-	renewLease: (runId: string) => invoke<void>("routine_renew_lease", { runId }),
-	closeRun: (runId: string, closing: RunClosing) =>
-		invoke<RoutineRun>("routine_close_run", { runId, closing }),
 	key: (id: string) => invoke<RoutineKey>("routine_key", { id }),
-	onRunRequested: (listener: RunRequestListener) =>
-		listen<RunRequested>(RUN_REQUESTED_EVENT, ({ payload }) =>
-			listener(payload),
-		),
 	onChanged: (listener: (changed: RoutineChanged) => void) =>
 		listen<RoutineChanged>(CHANGED_EVENT, ({ payload }) => listener(payload)),
 }

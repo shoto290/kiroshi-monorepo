@@ -1434,9 +1434,6 @@ describe("createChatController", () => {
 
 		const asked = controller.getState().question
 		expect(asked).not.toBeNull()
-		expect(
-			controller.getState().messages.map((message) => message.id),
-		).not.toContain(questionMessageIdOf(asked?.id ?? ""))
 
 		await controller.send("never mind, do it your way")
 		asking.release()

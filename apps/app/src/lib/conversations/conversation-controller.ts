@@ -56,7 +56,6 @@ import {
 	questionMessageIdOf,
 	questionMessageText,
 } from "../chat/question-message"
-import { storeQuestionRow } from "../chat/question-row"
 import {
 	ENDING_FOR,
 	ENDING_FOR_OUTCOME,
@@ -135,6 +134,7 @@ export type ConversationController = {
 	send: (text: string, repliedToMessageId?: string) => Promise<void>
 	sendAgain: (messageId: string) => Promise<void>
 	reportRun: (draft: RunReportDraft) => Promise<string>
+	relayRunReport: (scope: RuntimeScope, message: ChatMessage) => Promise<void>
 	relaySpoken: (spoken: CompanionSpoke) => Promise<boolean>
 	pin: (messageId: string, blockIndex: number) => Promise<void>
 	unpin: (messageId: string, blockIndex: number) => Promise<void>
@@ -673,10 +673,7 @@ export const createConversationController = (
 			repliedToMessageId: held.turn.promptId,
 			runtimeSessionId: held.scope.runtimeSessionId,
 		}
-		write(
-			() => storeQuestionRow(store, row),
-			() => transcript.append(row),
-		)
+		transcript.append(row)
 	}
 
 	const askQuestion = (held: Speaker, request: QuestionRequest) => {
@@ -1073,16 +1070,46 @@ export const createConversationController = (
 		return reported.turnId
 	}
 
+	const readableSeatingFor = async (conversationId: string) => {
+		const seating = await seatingFor(conversationId)
+		if (seating === "unreadable") {
+			throw new Error(`the conversation ${conversationId} could not be read`)
+		}
+		return seating
+	}
+
+	const announcedReportOf = (
+		scope: RuntimeScope,
+		message: ChatMessage,
+	): TranscriptMessage => ({
+		id: message.id,
+		conversationId: scope.conversationId,
+		turnId: newId(),
+		seq: 0,
+		role: "assistant",
+		content: message.text,
+		completion: "complete",
+		createdAt: message.timestamp,
+		authorBotId: scope.botId,
+		repliedToMessageId: null,
+		runtimeSessionId: scope.runtimeSessionId,
+	})
+
+	const relayRunReport = async (scope: RuntimeScope, message: ChatMessage) => {
+		if ((await readableSeatingFor(scope.conversationId)) === "unknown") {
+			return
+		}
+		const reported = announcedReportOf(scope, message)
+		transcript.append(reported)
+		await relayReport(reported)
+	}
+
 	const relaySpoken = async ({
 		conversationId,
 		authorBotId,
 		text,
 	}: CompanionSpoke) => {
-		const seating = await seatingFor(conversationId)
-
-		if (seating === "unreadable") {
-			throw new Error(`the conversation ${conversationId} could not be read`)
-		}
+		const seating = await readableSeatingFor(conversationId)
 
 		if (seating === "unknown" || !presentBotIds().includes(authorBotId)) {
 			return false
@@ -1371,6 +1398,7 @@ export const createConversationController = (
 		send,
 		sendAgain,
 		reportRun,
+		relayRunReport,
 		relaySpoken,
 		pin,
 		unpin,

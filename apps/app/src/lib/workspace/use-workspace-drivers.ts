@@ -15,7 +15,7 @@ import { onboardingTransport } from "../onboarding/onboarding-transport"
 import { signInWorldOf } from "../onboarding/sign-in-controller"
 import { useOnboarding } from "../onboarding/use-onboarding"
 import { useSignIn } from "../onboarding/use-sign-in"
-import { useRunDriver } from "../routines/use-run-driver"
+import { useReportRelay } from "../routines/use-report-relay"
 import { useUpdater } from "../updater/use-updater"
 
 export const useWorkspaceDrivers = (core: WorkspaceCore) => {
@@ -58,11 +58,10 @@ export const useWorkspaceDrivers = (core: WorkspaceCore) => {
 
 	useExternalLinks()
 
-	useRunDriver({
+	useReportRelay({
 		driver,
 		store,
 		runtimes: conversationRuntimes,
-		chat: chat.controller,
 	})
 
 	useMissionRunDriver({

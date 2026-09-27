@@ -8,10 +8,15 @@ import { createQueue } from "../queue"
 import type {
 	AgentEvent,
 	ChatMessage,
+	QuestionRequest,
 	RuntimeScope,
 	SubmittedTurn,
 } from "../agent/contract"
 import type { ChatDriver } from "../chat/driver"
+import {
+	questionMessageIdOf,
+	questionMessageText,
+} from "../chat/question-message"
 import {
 	ENDING_FOR,
 	ENDING_FOR_OUTCOME,
@@ -194,6 +199,27 @@ export const withFakeHostWrites = (
 		}
 	}
 
+	const writeQuestion = (desk: Desk, request: QuestionRequest) => {
+		const turn = desk.turn
+		const id = questionMessageIdOf(request.id)
+		if (!turn || !isUnwritten(turn, id)) {
+			return
+		}
+		turn.settled.add(id)
+		write(async () => {
+			await store.openAssistantMessage({
+				id,
+				conversationId: desk.scope.conversationId,
+				turnId: turn.turnId,
+				authorBotId: desk.scope.botId,
+				repliedToMessageId: turn.promptId,
+				createdAt: Date.now(),
+			})
+			await store.appendText(id, questionMessageText(request))
+			await store.finalizeMessage(id, "complete")
+		})
+	}
+
 	const end = (desk: Desk, completion: TerminalCompletion) => {
 		settleOpen(desk, completion)
 		desk.turn = null
@@ -218,6 +244,7 @@ export const withFakeHostWrites = (
 				return
 			case "questionRequested":
 				settleOpen(desk, "complete")
+				writeQuestion(desk, event.request)
 				return
 			case "turnEnded":
 				end(desk, ENDING_FOR_OUTCOME[event.ended.outcome])
