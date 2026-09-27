@@ -47,7 +47,7 @@ export const WindowSurface = meta.story({
 		docs: {
 			description: {
 				story:
-					"How the app mounts it: the whole window, with the drag region a frameless desktop window needs so a launch is still movable. There is no shell yet — no sidebar, no header, no content card — and the shell replaces it whole once the record answers.",
+					"How the app mounts it: the whole window, with the drag region a frameless desktop window needs so a launch is still movable. There is no shell yet — no sidebar, no header, no content card — and the shell replaces it whole once the record answers. The mark is the Kiroshi hexagon ring in #A2B1D0 cells on white, working.",
 			},
 		},
 	},
@@ -55,5 +55,8 @@ export const WindowSurface = meta.story({
 		const screen = slotIn(canvasElement, "app-boot-screen")
 
 		await expect(screen).toHaveAttribute("data-tauri-drag-region", "deep")
+		await expect(screen.querySelector("canvas")?.style.color).toBe(
+			"var(--brand-mark-cells)",
+		)
 	},
 })

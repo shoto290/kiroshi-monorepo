@@ -1,4 +1,6 @@
 branding-appiconmark--default
+branding-appiconmark--every-size
+branding-appiconmark--every-state
 branding-appiconmark--themes
 branding-avatargroup--crowded
 branding-avatargroup--default

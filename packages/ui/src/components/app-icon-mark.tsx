@@ -9,14 +9,25 @@ import {
 	useState,
 } from "react"
 
-import type { ExplorationState } from "@workspace/ui/components/avatar-exploration"
-import { DitheredFieldAvatar } from "@workspace/ui/components/dithered-field-avatar"
+import {
+	companionSeed,
+	type ExplorationState,
+} from "@workspace/ui/components/avatar-exploration"
+import { brandRingField } from "@workspace/ui/components/brand-ring-field"
+import {
+	DitheredField,
+	FIELD_CELLS,
+} from "@workspace/ui/components/dithered-field-avatar"
 import { usePrefersReducedMotion } from "@workspace/ui/hooks/use-prefers-reduced-motion"
 import { cn } from "@workspace/ui/lib/utils"
 
 const BRAND_NAME = "Kiroshi"
 
-const BRAND_TINT = "blue"
+const BRAND_FIELD = brandRingField(companionSeed(BRAND_NAME), FIELD_CELLS)
+
+const BRAND_CELLS = "var(--brand-mark-cells)"
+
+const BRAND_GROUND = "var(--brand-mark-ground)"
 
 const RESTING_STATE: ExplorationState = "idle"
 
@@ -54,11 +65,13 @@ type BrandMarkProps = {
 }
 
 const BrandMark = ({ size, state = RESTING_STATE }: BrandMarkProps) => (
-	<DitheredFieldAvatar
+	<DitheredField
+		field={BRAND_FIELD}
+		ink={BRAND_CELLS}
 		name={BRAND_NAME}
 		size={size}
 		state={state}
-		tint={BRAND_TINT}
+		surface={BRAND_GROUND}
 	/>
 )
 
@@ -122,6 +135,8 @@ export {
 	AppIconMark,
 	type AppIconMarkHandle,
 	type AppIconMarkProps,
+	BRAND_FIELD,
 	BRAND_NAME,
 	BrandMark,
+	PLAYABLE_STATES,
 }

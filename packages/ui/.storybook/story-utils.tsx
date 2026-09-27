@@ -202,3 +202,46 @@ export const elementNode = (
 	children: ParserChild[],
 	properties: ParserNode["properties"] = {},
 ): ParserNode => ({ type: "element", tagName, properties, children })
+
+type LitCell = { x: number; y: number; alpha: number }
+
+const litCells = new WeakMap<HTMLCanvasElement, LitCell[]>()
+
+const canvasOf = (context: CanvasRenderingContext2D) =>
+	context.canvas as HTMLCanvasElement
+
+export const recordLitCells = () => {
+	const prototype = CanvasRenderingContext2D.prototype
+	const { clearRect, fillRect } = prototype
+	prototype.clearRect = new Proxy(clearRect, {
+		apply: (target, context: CanvasRenderingContext2D, args) => {
+			litCells.set(canvasOf(context), [])
+			return Reflect.apply(target, context, args)
+		},
+	})
+	prototype.fillRect = new Proxy(fillRect, {
+		apply: (target, context: CanvasRenderingContext2D, args: number[]) => {
+			const [x, y] = args.map((value) => value / context.canvas.width)
+			litCells
+				.get(canvasOf(context))
+				?.push({ x, y, alpha: context.globalAlpha })
+			return Reflect.apply(target, context, args)
+		},
+	})
+	return () => {
+		prototype.clearRect = clearRect
+		prototype.fillRect = fillRect
+	}
+}
+
+export const drawingOf = (canvas: HTMLCanvasElement) =>
+	(litCells.get(canvas) ?? [])
+		.map(({ x, y, alpha }) => `${x.toFixed(4)} ${y.toFixed(4)} ${alpha}`)
+		.join("|")
+
+export const litCellIndices = (canvas: HTMLCanvasElement) => {
+	const cells = Number(canvas.dataset.cells)
+	return (litCells.get(canvas) ?? []).map(
+		({ x, y }) => Math.floor(y * cells) * cells + Math.floor(x * cells),
+	)
+}

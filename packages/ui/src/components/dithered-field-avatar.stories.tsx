@@ -5,6 +5,7 @@ import {
 	playExplorationRoster,
 } from "@workspace/storybook/avatar-exploration-roster"
 import preview from "@workspace/storybook/preview"
+import { drawingOf, recordLitCells } from "@workspace/storybook/story-utils"
 import { BLOT_TINTS } from "@workspace/ui/components/companion-colour"
 import { DitheredFieldAvatar } from "@workspace/ui/components/dithered-field-avatar"
 
@@ -27,43 +28,14 @@ const COLOURS = [undefined, ...BLOT_TINTS]
 const drawnCanvases = (root: HTMLElement) =>
 	Array.from(root.querySelectorAll<HTMLCanvasElement>("canvas[data-cells]"))
 
-const litCells = new WeakMap<HTMLCanvasElement, string[]>()
-
-const recordLitCells = () => {
-	const prototype = CanvasRenderingContext2D.prototype
-	const { clearRect, fillRect } = prototype
-	prototype.clearRect = new Proxy(clearRect, {
-		apply: (target, context: CanvasRenderingContext2D, args) => {
-			litCells.set(context.canvas as HTMLCanvasElement, [])
-			return Reflect.apply(target, context, args)
-		},
-	})
-	prototype.fillRect = new Proxy(fillRect, {
-		apply: (target, context: CanvasRenderingContext2D, args: number[]) => {
-			const [x, y] = args.map((value) => value / context.canvas.width)
-			litCells
-				.get(context.canvas as HTMLCanvasElement)
-				?.push(`${x.toFixed(4)} ${y.toFixed(4)} ${context.globalAlpha}`)
-			return Reflect.apply(target, context, args)
-		},
-	})
-	return () => {
-		prototype.clearRect = clearRect
-		prototype.fillRect = fillRect
-	}
-}
-
-const litCellsOf = (canvas: HTMLCanvasElement) =>
-	(litCells.get(canvas) ?? []).join("|")
-
 const expectOneDrawing = async (root: HTMLElement, count: number) => {
 	const canvases = drawnCanvases(root)
 	await expect(canvases).toHaveLength(count)
 	await expect(
 		new Set(canvases.map((canvas) => canvas.dataset.cells)).size,
 	).toBe(1)
-	await waitFor(() => expect(litCellsOf(canvases[0])).not.toBe(""))
-	await expect(new Set(canvases.map(litCellsOf)).size).toBe(1)
+	await waitFor(() => expect(drawingOf(canvases[0])).not.toBe(""))
+	await expect(new Set(canvases.map(drawingOf)).size).toBe(1)
 }
 
 const meta = preview.meta({

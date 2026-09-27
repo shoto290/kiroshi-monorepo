@@ -30,6 +30,17 @@ type DensityField = {
 	cells: number
 	silhouette: Float32Array
 	lattice: Float32Array
+	mask?: Uint8Array
+}
+
+type DitheredFieldProps = {
+	name: string
+	state: ExplorationState
+	size: number
+	field: DensityField
+	ink: string
+	surface: string
+	tint?: BotAvatarBlot
 }
 
 const FIELD_CELLS = 16
@@ -66,6 +77,9 @@ const inkOf = (seed: number, tint?: BotAvatarBlot) => {
 const surfaceOf = (ink: string) =>
 	`oklch(from ${ink} ${SURFACE_LIGHTNESS} calc(c * ${SURFACE_CHROMA_SHARE}) h)`
 
+const fieldLattice = (seed: number) =>
+	Float32Array.from({ length: LATTICE * LATTICE }, seededRandom(seed))
+
 const densityField = (seed: number, cells: number): DensityField => {
 	const glyph = silhouetteCells(
 		pickSilhouette(seed, COMPANION_SILHOUETTE_SPACE),
@@ -85,9 +99,7 @@ const densityField = (seed: number, cells: number): DensityField => {
 				)
 			silhouette[row * cells + column] = clamp01(sum)
 		}
-	const random = seededRandom(seed)
-	const lattice = Float32Array.from({ length: LATTICE * LATTICE }, random)
-	return { cells, silhouette, lattice }
+	return { cells, silhouette, lattice: fieldLattice(seed) }
 }
 
 const smooth = (value: number) => value * value * (3 - 2 * value)
@@ -146,10 +158,19 @@ const organicTones = (field: number[], cells: number) => {
 	return tones
 }
 
+const fieldTones = (
+	field: DensityField,
+	state: ExplorationState,
+	time: number,
+) =>
+	organicTones(densities(field, state, time), field.cells).map((tone, index) =>
+		field.mask?.[index] === 0 ? 0 : tone,
+	)
+
 const paintScreen = (
 	context: CanvasRenderingContext2D,
 	ink: string,
-	field: number[],
+	tones: number[],
 	cells: number,
 	side: number,
 ) => {
@@ -157,7 +178,7 @@ const paintScreen = (
 	const inset = (cell * (1 - CELL_SHARE)) / 2
 	context.clearRect(0, 0, side, side)
 	context.fillStyle = ink
-	for (const [index, tone] of organicTones(field, cells).entries()) {
+	for (const [index, tone] of tones.entries()) {
 		if (tone === 0) continue
 		context.globalAlpha = tone === 1 ? 1 : HALF_TONE_ALPHA
 		context.fillRect(
@@ -170,18 +191,18 @@ const paintScreen = (
 	context.globalAlpha = 1
 }
 
-const DitheredFieldAvatar = ({
+const DitheredField = ({
 	name,
+	state,
+	size,
+	field,
+	ink,
+	surface,
 	tint,
-	state = "idle",
-	size = 40,
-}: DitheredFieldAvatarProps) => {
+}: DitheredFieldProps) => {
 	const canvas = useRef<HTMLCanvasElement>(null)
 	const prefersReducedMotion = usePrefersReducedMotion()
-	const seed = companionSeed(name)
-	const field = densityField(seed, FIELD_CELLS)
 	const drawnState = prefersReducedMotion ? "idle" : state
-	const ink = inkOf(seed, tint)
 
 	useExplorationClock({
 		state: drawnState,
@@ -197,7 +218,7 @@ const DitheredFieldAvatar = ({
 			paintScreen(
 				context,
 				getComputedStyle(element).color,
-				densities(field, drawnState, time),
+				fieldTones(field, drawnState, time),
 				field.cells,
 				side,
 			)
@@ -209,7 +230,7 @@ const DitheredFieldAvatar = ({
 			name={name}
 			size={size}
 			state={state}
-			surface={surfaceOf(ink)}
+			surface={surface}
 			tint={tint}
 		>
 			<canvas
@@ -223,4 +244,34 @@ const DitheredFieldAvatar = ({
 	)
 }
 
-export { DitheredFieldAvatar, type DitheredFieldAvatarProps }
+const DitheredFieldAvatar = ({
+	name,
+	tint,
+	state = "idle",
+	size = 40,
+}: DitheredFieldAvatarProps) => {
+	const seed = companionSeed(name)
+	const ink = inkOf(seed, tint)
+
+	return (
+		<DitheredField
+			field={densityField(seed, FIELD_CELLS)}
+			ink={ink}
+			name={name}
+			size={size}
+			state={state}
+			surface={surfaceOf(ink)}
+			tint={tint}
+		/>
+	)
+}
+
+export {
+	type DensityField,
+	DitheredField,
+	DitheredFieldAvatar,
+	type DitheredFieldAvatarProps,
+	FIELD_CELLS,
+	fieldLattice,
+	fieldTones,
+}
