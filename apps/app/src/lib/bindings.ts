@@ -180,6 +180,11 @@ export const commands = {
 	userSetProfilePicture: (bytes: number[]) => typedError<UserPreferences, UserPreferencesError>(__TAURI_INVOKE("user_set_profile_picture", { bytes })),
 };
 
+/* Constants */
+export const ARCHIVE_EXTENSION = "kiroshi" as const;
+
+export const ARCHIVE_FILTER_NAME = "Kiroshi space" as const;
+
 /* Types */
 export type Account = {
 	email: string | null,

@@ -21,6 +21,8 @@ use crate::file_store::FileStore;
 use crate::private_files;
 
 pub const FORMAT_VERSION: u32 = 1;
+pub const ARCHIVE_EXTENSION: &str = "kiroshi";
+pub const ARCHIVE_FILTER_NAME: &str = "Kiroshi space";
 
 const MANIFEST_NAME: &str = "manifest.json";
 const ROWS_NAME: &str = "rows.json";

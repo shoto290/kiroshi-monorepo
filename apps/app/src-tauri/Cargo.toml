@@ -42,6 +42,7 @@ tauri-plugin-process = "2"
 tauri-plugin-opener = "2"
 tauri-plugin-notification = "2"
 tauri-plugin-os = "2"
+tauri-plugin-dialog = "2"
 # The one route from the Rust command surface to the TypeScript the front reads: the
 # Builder yields both the invoke handler and the exporter, so a command signature and its
 # mirror can no longer drift. The Tauri v2 line is a pre-release, so all three are pinned.

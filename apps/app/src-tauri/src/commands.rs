@@ -7,7 +7,10 @@ use crate::{
 };
 
 pub fn builder() -> Builder<tauri::Wry> {
-	Builder::new().commands(commands())
+	Builder::new()
+		.commands(commands())
+		.constant("ARCHIVE_EXTENSION", spaces::archive::ARCHIVE_EXTENSION)
+		.constant("ARCHIVE_FILTER_NAME", spaces::archive::ARCHIVE_FILTER_NAME)
 }
 
 // `tauri::test::mock_builder` only ever yields a `Builder<MockRuntime>`, so the handler the
