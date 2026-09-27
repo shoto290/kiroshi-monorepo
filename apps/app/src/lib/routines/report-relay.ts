@@ -1,7 +1,12 @@
 import type { NoticeMessage } from "@workspace/ui/components/notice-surface"
 import { i18n } from "@workspace/ui/lib/i18n"
 
-import type { ChatMessage, RuntimeScope, ScopedEvent } from "../agent/contract"
+import type {
+	AgentEvent,
+	ChatMessage,
+	RuntimeScope,
+	ScopedEvent,
+} from "../agent/contract"
 import type { ChatDriver } from "../chat/driver"
 import type { ConversationRuntimes } from "../conversations/conversation-runtimes"
 import type { TranscriptStore } from "../conversations/store-port"
@@ -52,7 +57,7 @@ export const startReportRelay = ({
 		}
 	}
 
-	const noteRunEnded = (scope: RuntimeScope, event: ScopedEvent["event"]) => {
+	const noteRunEnded = (scope: RuntimeScope, event: AgentEvent) => {
 		if (event.type === "turnEnded" && event.ended.structuredOutput) {
 			endedRuns.add(scopeKeyOf(scope))
 		}
@@ -63,11 +68,12 @@ export const startReportRelay = ({
 			return
 		}
 		noteRunEnded(scope, event)
-		const key = scopeKeyOf(scope)
-		if (event.type !== "messageCompleted" || !endedRuns.has(key)) {
+		if (
+			event.type !== "messageCompleted" ||
+			!endedRuns.delete(scopeKeyOf(scope))
+		) {
 			return
 		}
-		endedRuns.delete(key)
 		void relay(scope, event.message)
 	}
 
