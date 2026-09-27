@@ -54,7 +54,7 @@ const runLength = (lit: Set<number>, start: number, step: number) => {
 }
 
 const expectRingDrawing = async (canvas: HTMLCanvasElement) => {
-	const { cells } = BRAND_FIELD
+	const { cells } = BRAND_FIELD.grid
 	const ring = ringCells()
 	const lit = new Set(litCellIndices(canvas))
 	const middle = cells / 2

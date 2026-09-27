@@ -216,10 +216,34 @@ const canvasOf = (context: CanvasRenderingContext2D) =>
 
 export const recordLitCells = () => {
 	const prototype = CanvasRenderingContext2D.prototype
-	const { clearRect, fillRect } = prototype
+	const { clearRect, fillRect, moveTo, fill } = prototype
+	const traced = new WeakMap<HTMLCanvasElement, Omit<LitCell, "alpha">[]>()
 	prototype.clearRect = new Proxy(clearRect, {
 		apply: (target, context: CanvasRenderingContext2D, args) => {
 			litCells.set(canvasOf(context), [])
+			return Reflect.apply(target, context, args)
+		},
+	})
+	prototype.moveTo = new Proxy(moveTo, {
+		apply: (target, context: CanvasRenderingContext2D, args: number[]) => {
+			const [x, y] = args.map((value) => value / context.canvas.width)
+			traced.set(canvasOf(context), [
+				...(traced.get(canvasOf(context)) ?? []),
+				{ x, y },
+			])
+			return Reflect.apply(target, context, args)
+		},
+	})
+	prototype.fill = new Proxy(fill, {
+		apply: (target, context: CanvasRenderingContext2D, args) => {
+			const canvas = canvasOf(context)
+			litCells.get(canvas)?.push(
+				...(traced.get(canvas) ?? []).map((corner) => ({
+					...corner,
+					alpha: context.globalAlpha,
+				})),
+			)
+			traced.set(canvas, [])
 			return Reflect.apply(target, context, args)
 		},
 	})
@@ -235,6 +259,8 @@ export const recordLitCells = () => {
 	return () => {
 		prototype.clearRect = clearRect
 		prototype.fillRect = fillRect
+		prototype.moveTo = moveTo
+		prototype.fill = fill
 	}
 }
 

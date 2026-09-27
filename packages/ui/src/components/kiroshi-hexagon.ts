@@ -10,6 +10,8 @@ type HexagonMetrics = {
 
 const OUTER: RoundedHexagon = { halfWidth: 200.5, halfHeight: 181.5 }
 const COS_30 = Math.cos(Math.PI / 6)
+const TAN_30 = Math.tan(Math.PI / 6)
+const EDGE_NORMAL = { x: -COS_30, y: 0.5 }
 const CORNERS = 6
 const TURN = Math.PI / 3
 
@@ -19,6 +21,27 @@ const hexagonMetrics = ({
 }: RoundedHexagon): HexagonMetrics => {
 	const apothem = (halfWidth - halfHeight) / (1 / COS_30 - 1)
 	return { apothem, rounding: halfHeight - apothem }
+}
+
+const hexagonDistance = (x: number, y: number, apothem: number) => {
+	let px = Math.abs(x)
+	let py = Math.abs(y)
+	const fold = 2 * Math.min(EDGE_NORMAL.x * px + EDGE_NORMAL.y * py, 0)
+	px -= fold * EDGE_NORMAL.x
+	py -= fold * EDGE_NORMAL.y
+	const reach = apothem * TAN_30
+	const dx = px - Math.min(Math.max(px, -reach), reach)
+	const dy = py - apothem
+	return Math.hypot(dx, dy) * Math.sign(dy)
+}
+
+const isInsideRoundedHexagon = (
+	shape: RoundedHexagon,
+	x: number,
+	y: number,
+) => {
+	const { apothem, rounding } = hexagonMetrics(shape)
+	return hexagonDistance(x, y, apothem) <= rounding
 }
 
 const roundedHexagonPath = (shape: RoundedHexagon) => {
@@ -40,4 +63,10 @@ const roundedHexagonPath = (shape: RoundedHexagon) => {
 	return `${steps.join(" ")} Z`
 }
 
-export { hexagonMetrics, OUTER, type RoundedHexagon, roundedHexagonPath }
+export {
+	hexagonMetrics,
+	isInsideRoundedHexagon,
+	OUTER,
+	type RoundedHexagon,
+	roundedHexagonPath,
+}

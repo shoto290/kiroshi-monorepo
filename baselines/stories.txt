@@ -20,6 +20,8 @@ branding-botidentityavatar--bound-to-one-bot
 branding-botidentityavatar--every-badge
 branding-botidentityavatar--every-size
 branding-botidentityavatar--every-tint
+branding-botidentityavatar--honeycomb-idle
+branding-botidentityavatar--honeycomb-working
 branding-botidentityavatar--no-chosen-colour
 branding-botidentityavatar--rest
 branding-botidentityavatar--uploaded-at-drawn-sizes

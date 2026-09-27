@@ -22,6 +22,12 @@ import {
 	COMPANION_SILHOUETTE_SPACE,
 	silhouetteCells,
 } from "@workspace/ui/components/companion-silhouette"
+import {
+	type FieldGrid,
+	type FieldPoint,
+	hexagonCorners,
+	honeycombGrid,
+} from "@workspace/ui/components/field-grid"
 import { usePrefersReducedMotion } from "@workspace/ui/hooks/use-prefers-reduced-motion"
 
 type FieldInk = "companion" | "foreground"
@@ -32,7 +38,7 @@ type DitheredFieldAvatarProps = ExplorationAvatarProps & {
 }
 
 type DensityField = {
-	cells: number
+	grid: FieldGrid
 	silhouette: Float32Array
 	lattice: Float32Array
 	mask?: Uint8Array
@@ -67,8 +73,14 @@ const SURFACE_CHROMA_SHARE = 0.15
 const CELL_SHARE = 0.9
 const TONES = [0, 0.5, 1]
 const HALF_TONE_ALPHA = 0.45
+const TONE_ALPHAS = [
+	[0.5, HALF_TONE_ALPHA],
+	[1, 1],
+] as const
 const DITHER_SCREEN = "square-tone"
 const FOREGROUND_INK = "var(--foreground)"
+
+const COMPANION_GRID = honeycombGrid(FIELD_CELLS, CELL_SHARE)
 
 const clamp01 = (value: number) => Math.min(1, Math.max(0, value))
 
@@ -86,26 +98,22 @@ const surfaceOf = (ink: string) =>
 const fieldLattice = (seed: number) =>
 	Float32Array.from({ length: LATTICE * LATTICE }, seededRandom(seed))
 
-const densityField = (seed: number, cells: number): DensityField => {
+const densityField = (seed: number, grid: FieldGrid): DensityField => {
 	const glyph = silhouetteCells(
 		pickSilhouette(seed, COMPANION_SILHOUETTE_SPACE),
 	).map(({ column, row }) => ({
 		x: 0.5 + (column - 2) * COLUMN_STEP,
 		y: 0.5 + (row - 3) * ROW_STEP,
 	}))
-	const silhouette = new Float32Array(cells * cells)
-	for (let row = 0; row < cells; row++)
-		for (let column = 0; column < cells; column++) {
-			const u = (column + 0.5) / cells
-			const v = (row + 0.5) / cells
-			let sum = 0
-			for (const blob of glyph)
-				sum += Math.exp(
-					-((u - blob.x) ** 2 + (v - blob.y) ** 2) / (2 * BLOB_SIGMA ** 2),
-				)
-			silhouette[row * cells + column] = clamp01(sum)
-		}
-	return { cells, silhouette, lattice: fieldLattice(seed) }
+	const silhouette = Float32Array.from(grid.points, ({ u, v }) => {
+		let sum = 0
+		for (const blob of glyph)
+			sum += Math.exp(
+				-((u - blob.x) ** 2 + (v - blob.y) ** 2) / (2 * BLOB_SIGMA ** 2),
+			)
+		return clamp01(sum)
+	})
+	return { grid, silhouette, lattice: fieldLattice(seed) }
 }
 
 const smooth = (value: number) => value * value * (3 - 2 * value)
@@ -125,14 +133,13 @@ const noiseAt = (lattice: Float32Array, u: number, v: number) => {
 }
 
 const densities = (
-	{ cells, silhouette, lattice }: DensityField,
+	{ grid, silhouette, lattice }: DensityField,
 	state: ExplorationState,
 	time: number,
 ) => {
 	const drift = state === "idle" ? 0 : time / DRIFT_PERIOD
 	return Array.from(silhouette, (shape, index) => {
-		const u = ((index % cells) + 0.5) / cells
-		const v = (Math.floor(index / cells) + 0.5) / cells
+		const { u, v } = grid.points[index]
 		const floor = FLOOR + NOISE_AMPLITUDE * noiseAt(lattice, u + drift, v)
 		const hold =
 			STATE_HOLD +
@@ -142,26 +149,17 @@ const densities = (
 	})
 }
 
-const organicTones = (field: number[], cells: number) => {
+const organicTones = (field: number[], { ahead }: FieldGrid) => {
 	const error = Float32Array.from(field)
-	const tones = new Array<number>(field.length)
-	for (let row = 0; row < cells; row++)
-		for (let column = 0; column < cells; column++) {
-			const index = row * cells + column
-			const value = error[index]
-			const tone = TONES.reduce((best, next) =>
-				Math.abs(next - value) < Math.abs(best - value) ? next : best,
-			)
-			tones[index] = tone
-			const spill = value - tone
-			if (column + 1 < cells) error[index + 1] += (spill * 7) / 16
-			if (row + 1 < cells) {
-				if (column > 0) error[index + cells - 1] += (spill * 3) / 16
-				error[index + cells] += (spill * 5) / 16
-				if (column + 1 < cells) error[index + cells + 1] += spill / 16
-			}
-		}
-	return tones
+	return Array.from(error, (_, index) => {
+		const value = error[index]
+		const tone = TONES.reduce((best, next) =>
+			Math.abs(next - value) < Math.abs(best - value) ? next : best,
+		)
+		for (const { to, share } of ahead[index])
+			error[to] += (value - tone) * share
+		return tone
+	})
 }
 
 const fieldTones = (
@@ -169,31 +167,67 @@ const fieldTones = (
 	state: ExplorationState,
 	time: number,
 ) =>
-	organicTones(densities(field, state, time), field.cells).map((tone, index) =>
+	organicTones(densities(field, state, time), field.grid).map((tone, index) =>
 		field.mask?.[index] === 0 ? 0 : tone,
 	)
+
+const traceHexagon = (
+	context: CanvasRenderingContext2D,
+	centre: FieldPoint,
+	radius: number,
+	side: number,
+) => {
+	for (const [corner, { u, v }] of hexagonCorners(centre, radius).entries())
+		if (corner === 0) context.moveTo(u * side, v * side)
+		else context.lineTo(u * side, v * side)
+}
+
+const paintHoneycomb = (
+	context: CanvasRenderingContext2D,
+	tones: number[],
+	{ points, radius }: FieldGrid,
+	side: number,
+) => {
+	for (const [lit, alpha] of TONE_ALPHAS) {
+		context.beginPath()
+		for (const [index, tone] of tones.entries())
+			if (tone === lit)
+				traceHexagon(context, points[index], radius * CELL_SHARE, side)
+		context.globalAlpha = alpha
+		context.fill()
+	}
+}
+
+const paintSquares = (
+	context: CanvasRenderingContext2D,
+	tones: number[],
+	{ points, radius }: FieldGrid,
+	side: number,
+) => {
+	const half = radius * CELL_SHARE
+	for (const [index, tone] of tones.entries()) {
+		if (tone === 0) continue
+		context.globalAlpha = tone === 1 ? 1 : HALF_TONE_ALPHA
+		context.fillRect(
+			(points[index].u - half) * side,
+			(points[index].v - half) * side,
+			2 * half * side,
+			2 * half * side,
+		)
+	}
+}
 
 const paintScreen = (
 	context: CanvasRenderingContext2D,
 	ink: string,
 	tones: number[],
-	cells: number,
+	grid: FieldGrid,
 	side: number,
 ) => {
-	const cell = side / cells
-	const inset = (cell * (1 - CELL_SHARE)) / 2
 	context.clearRect(0, 0, side, side)
 	context.fillStyle = ink
-	for (const [index, tone] of tones.entries()) {
-		if (tone === 0) continue
-		context.globalAlpha = tone === 1 ? 1 : HALF_TONE_ALPHA
-		context.fillRect(
-			(index % cells) * cell + inset,
-			Math.floor(index / cells) * cell + inset,
-			cell * CELL_SHARE,
-			cell * CELL_SHARE,
-		)
-	}
+	if (grid.shape === "hexagon") paintHoneycomb(context, tones, grid, side)
+	else paintSquares(context, tones, grid, side)
 	context.globalAlpha = 1
 }
 
@@ -225,7 +259,7 @@ const DitheredField = ({
 				context,
 				getComputedStyle(element).color,
 				fieldTones(field, drawnState, time),
-				field.cells,
+				field.grid,
 				side,
 			)
 		},
@@ -241,7 +275,7 @@ const DitheredField = ({
 		>
 			<canvas
 				className="pointer-events-none size-full"
-				data-cells={field.cells}
+				data-cells={field.grid.cells}
 				data-screen={DITHER_SCREEN}
 				ref={canvas}
 				style={{ color: ink }}
@@ -263,7 +297,7 @@ const DitheredFieldAvatar = ({
 
 	return (
 		<DitheredField
-			field={densityField(seed, FIELD_CELLS)}
+			field={densityField(seed, COMPANION_GRID)}
 			ink={ink}
 			name={name}
 			size={size}

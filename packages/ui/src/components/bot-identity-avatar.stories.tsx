@@ -6,11 +6,13 @@ import {
 	botIdentityAvatars,
 	companionGlyphOf,
 	companionTintOf,
+	drawingOf,
 	expectCellsIn,
 	expectCompanionPictureSquare,
 	expectCompanionSilhouette,
 	pictureOf,
 	Row,
+	recordLitCells,
 	slotsIn,
 	UPLOADED_AVATAR_IMAGE,
 } from "@workspace/storybook/story-utils"
@@ -25,6 +27,27 @@ import { InitialsAvatar } from "@workspace/ui/components/initials-avatar"
 import { Button } from "@workspace/ui/components/ui/button"
 
 const SIZES = [40, 96, 24]
+
+const HONEYCOMB_SIZES = [16, 96]
+
+const HoneycombSizes = (props: BotIdentityAvatarProps) => (
+	<Row>
+		{HONEYCOMB_SIZES.map((size) => (
+			<BotIdentityAvatar {...props} key={size} size={size} />
+		))}
+	</Row>
+)
+
+const expectOneHoneycomb = async (canvasElement: HTMLElement) => {
+	const drawings = botIdentityAvatars(canvasElement).map((avatar) => {
+		const canvas = avatar.querySelector("canvas")
+		return canvas ? drawingOf(canvas) : ""
+	})
+
+	await expect(drawings).toHaveLength(HONEYCOMB_SIZES.length * 2)
+	await expect(drawings.every((drawing) => drawing !== "")).toBe(true)
+	await expect(new Set(drawings).size).toBe(1)
+}
 
 const DRAWN_PICTURE_SLOTS = [
 	{ size: 40, radius: "10px" },
@@ -462,4 +485,35 @@ export const BoundToOneBot = meta.story({
 			await expectGlyph(avatar, "idle")
 		}
 	},
+})
+
+export const HoneycombIdle = meta.story({
+	globals: { theme_layout: "side-by-side" },
+	beforeEach: recordLitCells,
+	render: (args) => <HoneycombSizes {...args} />,
+	parameters: {
+		docs: {
+			description: {
+				story:
+					"The field as a honeycomb at rest, at 16 px, the smallest size the app draws a companion at, in mentions and arrival rows, and at 96 px, the settings preview. Flat-topped hexagons in the Kiroshi mark's orientation, every other row offset by half a cell, one gap between every pair of neighbours, and no hexagon cut at the outline. Check in both themes that the glyph reads at 16 px and that both sizes are one drawing. Pick `HoneycombWorking` for the same companion at work.",
+			},
+		},
+	},
+	play: ({ canvasElement }) => expectOneHoneycomb(canvasElement),
+})
+
+export const HoneycombWorking = meta.story({
+	globals: { theme_layout: "side-by-side" },
+	beforeEach: recordLitCells,
+	args: { working: true, kind: "working" },
+	render: (args) => <HoneycombSizes {...args} />,
+	parameters: {
+		docs: {
+			description: {
+				story:
+					"The same honeycomb at work, at 16 and 96 px in both themes: the field drifts and the working motion runs through the hexagons, never outside the outline. Under reduced motion, what the test run renders, it holds the still idle honeycomb. Pick `HoneycombIdle` for the resting companion.",
+			},
+		},
+	},
+	play: ({ canvasElement }) => expectOneHoneycomb(canvasElement),
 })
