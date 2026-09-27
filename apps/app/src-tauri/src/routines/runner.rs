@@ -115,7 +115,7 @@ async fn drive<R: Runtime>(
 				let Some(event) = arrived else {
 					return failed(EVENTS_LOST_REASON);
 				};
-				if let Some(closing) = settled_by(app, requested, scope, event).await {
+				if let Some(closing) = settled_by(app, run_id, scope, event).await {
 					return closing;
 				}
 			}
@@ -125,11 +125,10 @@ async fn drive<R: Runtime>(
 
 async fn settled_by<R: Runtime>(
 	app: &AppHandle<R>,
-	requested: &RunRequested,
+	run_id: &str,
 	scope: &RuntimeScope,
 	event: AgentEvent,
 ) -> Option<RunClosing> {
-	let run_id = &requested.run_id;
 	match event {
 		AgentEvent::TurnEnded { ended } => Some(settled(app, scope, ended).await),
 		AgentEvent::Failed { error } if ends_the_session(&error) => {
@@ -278,52 +277,46 @@ async fn refused<R: Runtime>(
 	scope: &RuntimeScope,
 	reason: &str,
 ) -> RunClosing {
-	let cancelled = match managed(app, NO_AGENT) {
-		Ok(state) => agent_cancel_turn(app.clone(), state, scope.clone())
-			.await
-			.map_err(|error| detail_of(&error)),
-		Err(detail) => Err(detail),
-	};
-	if let Err(detail) = cancelled {
+	if let Err(detail) = cancelled(app, scope).await {
 		eprintln!("routine run {run_id} could not cancel its turn: {detail}");
 	}
 	failed(reason)
 }
 
+async fn cancelled<R: Runtime>(app: &AppHandle<R>, scope: &RuntimeScope) -> Result<(), String> {
+	agent_cancel_turn(app.clone(), managed(app, NO_AGENT)?, scope.clone())
+		.await
+		.map_err(|error| detail_of(&error))
+}
+
 async fn shut_down<R: Runtime>(app: &AppHandle<R>, run_id: &str, scope: RuntimeScope) {
-	let shut = match managed(app, NO_AGENT) {
-		Ok(state) => {
-			agent_shutdown(app.clone(), state, scope).await.map_err(|error| detail_of(&error))
-		}
-		Err(detail) => Err(detail),
-	};
-	if let Err(detail) = shut {
+	if let Err(detail) = shut(app, scope).await {
 		eprintln!("routine run {run_id} could not shut its session down: {detail}");
 	}
 }
 
+async fn shut<R: Runtime>(app: &AppHandle<R>, scope: RuntimeScope) -> Result<(), String> {
+	agent_shutdown(app.clone(), managed(app, NO_AGENT)?, scope)
+		.await
+		.map_err(|error| detail_of(&error))
+}
+
 async fn renew<R: Runtime>(app: &AppHandle<R>, run_id: &str) {
-	let renewed = match database(app) {
-		Ok(database) => {
-			database.routines().renew_lease(run_id.to_owned(), SystemClock.now_ms()).await
-		}
-		Err(error) => Err(error.into()),
-	};
-	if let Err(error) = renewed {
+	if let Err(error) = renewed(app, run_id).await {
 		eprintln!("routine run {run_id} could not renew its lease: {error:?}");
 	}
 }
 
+async fn renewed<R: Runtime>(app: &AppHandle<R>, run_id: &str) -> Result<(), RoutineError> {
+	database(app)?.routines().renew_lease(run_id.to_owned(), SystemClock.now_ms()).await
+}
+
 async fn close<R: Runtime>(app: &AppHandle<R>, requested: &RunRequested, closing: RunClosing) {
 	let run_id = &requested.run_id;
-	let closing = closing.logged(run_id);
-	let closed = match database(app) {
-		Ok(database) => {
-			database.routines().close_run(run_id.clone(), closing, SystemClock.now_ms()).await
-		}
-		Err(error) => Err(error.into()),
-	};
-	if let Err(error) = closed {
+	if let (RunOutcome::Failed, Some(reason)) = (closing.outcome, &closing.reason) {
+		eprintln!("routine run {run_id} failed: {reason}");
+	}
+	if let Err(error) = closed(app, run_id, closing).await {
 		return eprintln!("routine run {run_id} could not be closed: {error:?}");
 	}
 	if let Err(error) = announce_change(app, &requested.conversation_id) {
@@ -331,6 +324,15 @@ async fn close<R: Runtime>(app: &AppHandle<R>, requested: &RunRequested, closing
 			"routine run {run_id} was closed but its change could not be announced: {error:?}"
 		);
 	}
+}
+
+async fn closed<R: Runtime>(
+	app: &AppHandle<R>,
+	run_id: &str,
+	closing: RunClosing,
+) -> Result<(), RoutineError> {
+	database(app)?.routines().close_run(run_id.to_owned(), closing, SystemClock.now_ms()).await?;
+	Ok(())
 }
 
 fn listen<R: Runtime>(
@@ -387,19 +389,6 @@ fn closing(outcome: RunOutcome) -> RunClosing {
 
 fn failed(reason: &str) -> RunClosing {
 	RunClosing { reason: Some(reason.to_owned()), ..closing(RunOutcome::Failed) }
-}
-
-trait Logged {
-	fn logged(self, run_id: &str) -> Self;
-}
-
-impl Logged for RunClosing {
-	fn logged(self, run_id: &str) -> Self {
-		if let (RunOutcome::Failed, Some(reason)) = (self.outcome, &self.reason) {
-			eprintln!("routine run {run_id} failed: {reason}");
-		}
-		self
-	}
 }
 
 fn detail_of(error: &impl Serialize) -> String {
