@@ -27,6 +27,7 @@ branding-botidentityavatar--waiting
 branding-botidentityavatar--with-badge
 branding-botidentityavatar--with-image
 branding-botidentityavatar--working
+branding-ditheredfieldavatar--every-state
 branding-ditheredfieldavatar--one-drawing-at-every-size
 branding-ditheredfieldavatar--one-glyph-in-every-colour
 branding-ditheredfieldavatar--one-screen-for-every-companion

@@ -32,7 +32,7 @@ type DensityField = {
 	lattice: Float32Array
 }
 
-const FIELD_CELLS = 13
+const FIELD_CELLS = 16
 const LATTICE = 5
 const BLOB_SIGMA = 0.055
 const COLUMN_STEP = 0.13

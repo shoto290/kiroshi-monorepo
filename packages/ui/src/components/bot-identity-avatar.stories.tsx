@@ -85,14 +85,18 @@ const cellsOf = (glyph: HTMLElement) => {
 	return canvas
 }
 
+const UNPREMULTIPLY_ROUNDING = 1
+
+const channelsOf = (colour: string) => (colour.match(/\d+/g) ?? []).map(Number)
+
 const solidInkOf = (canvas: HTMLCanvasElement) => {
-	const { data } =
+	const { data = new Uint8ClampedArray() } =
 		canvas.getContext("2d")?.getImageData(0, 0, canvas.width, canvas.height) ??
 		{}
-	for (let offset = 0; data && offset < data.length; offset += 4)
-		if (data[offset + 3] === 255)
-			return `rgb(${data[offset]}, ${data[offset + 1]}, ${data[offset + 2]})`
-	return ""
+	let solidest = 0
+	for (let offset = 0; offset < data.length; offset += 4)
+		if (data[offset + 3] > data[solidest + 3]) solidest = offset
+	return `rgb(${data[solidest]}, ${data[solidest + 1]}, ${data[solidest + 2]})`
 }
 
 const meta = preview.meta({
@@ -213,9 +217,14 @@ export const NoChosenColour = meta.story({
 			const glyph = companionGlyphOf(avatar)
 			await expectGlyph(avatar, "idle")
 			await expect(companionTintOf(glyph)).toBe("")
-			await expect(solidInkOf(cellsOf(glyph))).toBe(
+			const painted = channelsOf(solidInkOf(cellsOf(glyph)))
+			const token = channelsOf(
 				resolvedColourOf("var(--bot-avatar-field-untinted)"),
 			)
+			for (const [index, channel] of painted.entries())
+				await expect(Math.abs(channel - token[index])).toBeLessThanOrEqual(
+					UNPREMULTIPLY_ROUNDING,
+				)
 		}
 	},
 })
