@@ -4,14 +4,13 @@ import type { TFunction } from "i18next"
 import { useEffect, useState } from "react"
 import { useTranslation } from "react-i18next"
 
-import type { BotAvatarBlot } from "@workspace/ui/components/bot-avatar"
-import type { BotAvatarAnimal } from "@workspace/ui/components/bot-avatar-animals"
 import {
 	type ActivityIndicatorKind,
 	BotIdentityAvatar,
 	BotStopButton,
 	type BotStopProps,
 } from "@workspace/ui/components/bot-identity-avatar"
+import type { BotAvatarBlot } from "@workspace/ui/components/companion-colour"
 import { useMarkId } from "@workspace/ui/components/mark-context"
 import { SharedMark } from "@workspace/ui/components/motion/shared-mark"
 import {
@@ -33,7 +32,6 @@ type ActivityIndicatorProps = BotStopProps & {
 	waitingOn?: ActivityIndicatorWait
 	startedAt?: number
 	elapsedSeconds?: number
-	animal?: BotAvatarAnimal
 	blot?: BotAvatarBlot
 	image?: string
 	seed?: string
@@ -121,7 +119,6 @@ function ActivityIndicator(props: ActivityIndicatorProps) {
 		waitingOn = "you",
 		startedAt,
 		elapsedSeconds,
-		animal,
 		blot,
 		image,
 		seed,
@@ -135,7 +132,6 @@ function ActivityIndicator(props: ActivityIndicatorProps) {
 	const text = rowTextOf({ t, kind, name: named, label, waitingOn })
 	const avatar = (
 		<BotIdentityAvatar
-			animal={animal}
 			blot={blot}
 			image={image}
 			kind={kind}

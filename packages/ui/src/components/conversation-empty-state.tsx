@@ -58,7 +58,6 @@ const SuggestedBots = ({ bots, onPress }: SuggestedBotsProps) => {
 					>
 						<span aria-hidden="true" className="flex shrink-0">
 							<BotIdentityAvatar
-								animal={bot.animal}
 								blot={bot.blot}
 								image={bot.image}
 								name={bot.name}
@@ -122,7 +121,6 @@ const ConversationEmptyState = ({
 				<div className="flex flex-wrap items-center justify-center gap-2">
 					{bots.map((bot) => (
 						<BotIdentityAvatar
-							animal={bot.animal}
 							blot={bot.blot}
 							image={bot.image}
 							key={bot.id}

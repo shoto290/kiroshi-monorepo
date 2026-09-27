@@ -21,8 +21,6 @@ import {
 	AvatarGroup,
 	type ConversationParticipant,
 } from "@workspace/ui/components/avatar-group"
-import type { BotAvatarBlot } from "@workspace/ui/components/bot-avatar"
-import type { BotAvatarAnimal } from "@workspace/ui/components/bot-avatar-animals"
 import {
 	type BotBadge,
 	type BotMissionState,
@@ -34,6 +32,7 @@ import {
 	type ActivityIndicatorKind,
 	BotIdentityAvatar,
 } from "@workspace/ui/components/bot-identity-avatar"
+import type { BotAvatarBlot } from "@workspace/ui/components/companion-colour"
 import { CompanionMenuContent } from "@workspace/ui/components/companion-menu"
 import { ContextMenuPressTrigger } from "@workspace/ui/components/context-menu-press-trigger"
 import { DitheredFieldAvatar } from "@workspace/ui/components/dithered-field-avatar"
@@ -268,7 +267,6 @@ interface AppSidebarBot {
 	lastMessage?: string
 	timestamp?: string
 	lastActivityAt?: number
-	animal?: BotAvatarAnimal
 	blot?: BotAvatarBlot
 	image?: string
 	status?: AppSidebarStatus
@@ -415,7 +413,6 @@ interface BotRowAvatarProps {
 
 const BotRowAvatar = ({ bot, badge }: BotRowAvatarProps) => (
 	<BotIdentityAvatar
-		animal={bot.animal}
 		badge={badge}
 		blot={bot.blot}
 		image={bot.image}

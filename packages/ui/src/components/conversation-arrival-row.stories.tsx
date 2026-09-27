@@ -15,25 +15,21 @@ import type { RosterBot } from "@workspace/ui/components/roster"
 const MARLOW: RosterBot = {
 	id: "bot_5d1e92",
 	name: "Marlow",
-	animal: "owl",
 	blot: "purple",
 }
 const HAPPY: RosterBot = {
 	id: "bot_3a7c48",
 	name: "Happy",
-	animal: "rabbit",
 	blot: "orange",
 }
 const LONG_NAMED: RosterBot = {
 	id: "bot_6f0b27",
 	name: "Lighthousekeeperofthenorthshoreandthesouthernbayharbourwatchtower",
-	animal: "koala",
 	blot: "green",
 }
 const LONG_NAMED_INVITER: RosterBot = {
 	id: "bot_0c9e14",
 	name: "Harbourmasterofthewesternquay",
-	animal: "bear",
 	blot: "blue",
 }
 

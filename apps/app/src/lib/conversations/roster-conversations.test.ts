@@ -86,7 +86,6 @@ describe("toRosterConversations", () => {
 					{
 						id: "b-1",
 						name: "Chef",
-						animal: "cat",
 						blot: "cyan",
 						image: undefined,
 						status: "idle",
@@ -94,7 +93,6 @@ describe("toRosterConversations", () => {
 					{
 						id: "b-2",
 						name: "Sous-chef",
-						animal: "cat",
 						blot: "cyan",
 						image: undefined,
 						status: "idle",
@@ -304,7 +302,6 @@ describe("unseatedBots", () => {
 			{
 				id: "b-2",
 				name: "Sous-chef",
-				animal: "cat",
 				blot: "cyan",
 				image: undefined,
 			},

@@ -3,6 +3,7 @@ import { expect, fn, userEvent } from "storybook/test"
 import preview from "@workspace/storybook/preview"
 import { slotIn } from "@workspace/storybook/story-utils"
 import { AppBootNotice } from "@workspace/ui/components/app-boot-notice"
+import { BRAND_NAME } from "@workspace/ui/components/app-icon-mark"
 
 const meta = preview.meta({
 	title: "Feedback/AppBootNotice",
@@ -41,9 +42,7 @@ export const Default = meta.story({
 
 		await expect(surface.clientHeight).toBe(window.innerHeight)
 		await expect(surface).toHaveAttribute("data-tauri-drag-region", "deep")
-		await expect(
-			canvas.getByRole("img", { name: /^Companion avatar rabbit/ }),
-		).toBeVisible()
+		await expect(canvas.getByRole("img", { name: BRAND_NAME })).toBeVisible()
 
 		await userEvent.tab()
 

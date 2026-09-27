@@ -1,40 +1,22 @@
 import { describe, expect, it } from "vitest"
 
 import {
-	ASCII_GLYPH_SPACE,
-	glyphCells,
-	glyphKey,
-} from "@workspace/ui/components/ascii-glyph-avatar"
-import {
 	companionSeed,
 	pickSilhouette,
-	type Silhouette,
-	type SilhouetteSpace,
 } from "@workspace/ui/components/avatar-exploration"
 import {
 	BLOT_TINTS,
 	type BotAvatarBlot,
-} from "@workspace/ui/components/bot-avatar"
+} from "@workspace/ui/components/companion-colour"
 import {
-	DITHER_SPACE,
-	ditherKey,
-	shadedPixels,
-} from "@workspace/ui/components/dither-avatar"
+	COMPANION_SILHOUETTE_SPACE,
+	silhouetteCells,
+	silhouetteKey,
+} from "@workspace/ui/components/companion-silhouette"
 import {
-	DOT_LATTICE_SPACE,
-	latticeDots,
-	latticeKey,
-} from "@workspace/ui/components/dot-lattice-avatar"
-import {
-	ORBIT_SPACE,
-	orbitKey,
-	orbitSystem,
-} from "@workspace/ui/components/orbit-avatar"
-import {
-	SCANLINE_SPACE,
-	scanlineKey,
-	scanSegments,
-} from "@workspace/ui/components/scanline-avatar"
+	DITHER_SCREENS,
+	screenFor,
+} from "@workspace/ui/components/dithered-field-avatar"
 
 type Companion = { name: string; tint: BotAvatarBlot }
 
@@ -66,46 +48,38 @@ const COMPANIONS: Companion[] = NAMES.map((name, index) => ({
 	tint: BLOT_TINTS[index % BLOT_TINTS.length],
 }))
 
-type Exploration = [
-	string,
-	SilhouetteSpace,
-	(silhouette: Silhouette) => unknown,
-	(silhouette: Silhouette) => string,
-]
+const silhouetteOf = ({ name, tint }: Companion) =>
+	pickSilhouette(companionSeed(name, tint), COMPANION_SILHOUETTE_SPACE)
 
-const SAME_TINT_PAIR: Companion[] = [
-	{ name: "Lyra", tint: "blue" },
-	{ name: "Orion", tint: "blue" },
-]
-
-const EXPLORATIONS: Exploration[] = [
-	["dot lattice", DOT_LATTICE_SPACE, latticeDots, latticeKey],
-	["orbit", ORBIT_SPACE, orbitSystem, orbitKey],
-	["scanline", SCANLINE_SPACE, scanSegments, scanlineKey],
-	["ascii glyph", ASCII_GLYPH_SPACE, glyphCells, glyphKey],
-	["dither", DITHER_SPACE, shadedPixels, ditherKey],
-]
-
-describe.each(EXPLORATIONS)("%s silhouettes", (_, space, render, keyOf) => {
-	const silhouetteOf = ({ name, tint }: Companion) =>
-		pickSilhouette(companionSeed(name, tint), space)
-
-	it("gives twenty seeded names twenty distinct readable keys", () => {
-		const keys = COMPANIONS.map((companion) => keyOf(silhouetteOf(companion)))
+describe("companion silhouettes", () => {
+	it("gives twenty seeded names twenty distinct silhouettes", () => {
+		const keys = COMPANIONS.map((companion) =>
+			silhouetteKey(silhouetteOf(companion)),
+		)
 		expect(new Set(keys).size).toBe(COMPANIONS.length)
 	})
 
-	it("gives Lyra and Orion, both blue, different readable keys", () => {
-		const [lyra, orion] = SAME_TINT_PAIR.map((companion) =>
-			keyOf(silhouetteOf(companion)),
+	it("gives Lyra and Orion, both blue, different silhouettes", () => {
+		const [lyra, orion] = ["Lyra", "Orion"].map((name) =>
+			silhouetteKey(silhouetteOf({ name, tint: "blue" })),
 		)
 		expect(lyra).not.toBe(orion)
 	})
 
-	it("renders one seed identically twice", () => {
+	it("draws one seed identically twice", () => {
 		const [companion] = COMPANIONS
-		expect(render(silhouetteOf(companion))).toEqual(
-			render(silhouetteOf({ ...companion })),
+		expect(silhouetteCells(silhouetteOf(companion))).toEqual(
+			silhouetteCells(silhouetteOf({ ...companion })),
 		)
+	})
+})
+
+describe("dithered screens", () => {
+	it("picks the same screen for a name every time", () => {
+		expect(NAMES.map(screenFor)).toEqual(NAMES.map(screenFor))
+	})
+
+	it("reaches every screen across the twenty names", () => {
+		expect(new Set(NAMES.map(screenFor))).toEqual(new Set(DITHER_SCREENS))
 	})
 })

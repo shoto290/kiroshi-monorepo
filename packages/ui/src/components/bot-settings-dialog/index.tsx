@@ -119,7 +119,6 @@ const BotSettingsDialog = ({
 			hasSettingsShortcut
 			mark={
 				<BotIdentityAvatar
-					animal={value.identity.animal}
 					blot={value.identity.blot}
 					image={value.identity.image}
 					kind={workingKind}

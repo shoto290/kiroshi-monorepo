@@ -34,10 +34,6 @@ import {
 	type UserChipIdentity,
 } from "@workspace/ui/components/app-sidebar"
 import {
-	ASCII_GLYPH_SPACE,
-	glyphKey,
-} from "@workspace/ui/components/ascii-glyph-avatar"
-import {
 	companionSeed,
 	pickSilhouette,
 } from "@workspace/ui/components/avatar-exploration"
@@ -45,6 +41,10 @@ import type {
 	BotMissionState,
 	BotMissionTicket,
 } from "@workspace/ui/components/bot-badge"
+import {
+	COMPANION_SILHOUETTE_SPACE,
+	silhouetteKey,
+} from "@workspace/ui/components/companion-silhouette"
 import { Icons } from "@workspace/ui/components/icons"
 import { TooltipButton } from "@workspace/ui/components/tooltip-button"
 import { WorkspaceShell } from "@workspace/ui/components/workspace-shell"
@@ -71,7 +71,6 @@ const ROSTER: AppSidebarBot[] = [
 		blot: "blue",
 		name: "Atlas",
 		title: "Research",
-		animal: "owl",
 		lastMessage: "Pulled the three papers and summarised each one for you.",
 		timestamp: "09:24",
 	},
@@ -79,7 +78,6 @@ const ROSTER: AppSidebarBot[] = [
 		id: "beacon",
 		blot: "yellow",
 		name: "Beacon",
-		animal: "cat",
 		lastMessage: LAST_MESSAGE,
 		timestamp: "09:18",
 	},
@@ -88,7 +86,6 @@ const ROSTER: AppSidebarBot[] = [
 		blot: "red",
 		name: "Cinder",
 		title: "Build",
-		animal: "dog",
 		status: "working",
 		pose: "working",
 		lastMessage: "Rebuilding the desktop bundle.",
@@ -98,7 +95,6 @@ const ROSTER: AppSidebarBot[] = [
 		id: "dune",
 		blot: "green",
 		name: "Dune",
-		animal: "bear",
 		lastMessage: "Nothing since the migration landed.",
 		timestamp: "Mon",
 	},
@@ -107,7 +103,6 @@ const ROSTER: AppSidebarBot[] = [
 		blot: "purple",
 		name: "Ember",
 		title: "Review",
-		animal: "rabbit",
 		lastMessage: "Left four comments on the transport rename.",
 		timestamp: "Mon",
 	},
@@ -115,7 +110,6 @@ const ROSTER: AppSidebarBot[] = [
 		id: "flint",
 		blot: "pink",
 		name: "Flint",
-		animal: "mouse",
 		lastMessage: "Ran the suite twice, both green.",
 		timestamp: "Sun",
 	},
@@ -124,7 +118,6 @@ const ROSTER: AppSidebarBot[] = [
 		blot: "cyan",
 		name: "Grove",
 		title: "Docs",
-		animal: "koala",
 		lastMessage: "Rewrote the setup page around the new command.",
 		timestamp: "Sun",
 	},
@@ -132,7 +125,6 @@ const ROSTER: AppSidebarBot[] = [
 		id: "harbor",
 		blot: "orange",
 		name: "Harbor",
-		animal: "chick",
 		lastMessage: "Waiting on the credentials you promised.",
 		timestamp: "Sat",
 	},
@@ -141,7 +133,6 @@ const ROSTER: AppSidebarBot[] = [
 		blot: "yellow",
 		name: "Iris",
 		title: "Design",
-		animal: "cat",
 		lastMessage: "Swapped the rail avatars for the new blots.",
 		timestamp: "Sat",
 	},
@@ -149,7 +140,6 @@ const ROSTER: AppSidebarBot[] = [
 		id: "juno",
 		blot: "blue",
 		name: "Juno",
-		animal: "owl",
 		lastMessage: "Summarised yesterday's session into six bullets.",
 		timestamp: "Fri",
 	},
@@ -158,7 +148,6 @@ const ROSTER: AppSidebarBot[] = [
 		blot: "red",
 		name: "Kite",
 		title: "Ops",
-		animal: "dog",
 		lastMessage: "Rotated the signing key and restarted the runner.",
 		timestamp: "Fri",
 	},
@@ -166,7 +155,6 @@ const ROSTER: AppSidebarBot[] = [
 		id: "lumen",
 		blot: "orange",
 		name: "Lumen",
-		animal: "bear",
 		lastMessage: "Nothing yet.",
 		timestamp: "Thu",
 	},
@@ -1009,7 +997,7 @@ export const UploadedPictures = meta.story({
 		docs: {
 			description: {
 				story:
-					"Two companions wearing a picture their reader uploaded, beside one wearing its animal. A picture is a still image whatever the companion is doing, so the row that is running says so with its message line rather than by moving — and it lands in the same slot as a drawing, so the names and the timestamps stay on the column the rest of the roster holds. Check that a row with a picture draws no animal and no blot at all, that the picture fills its slot as a rounded square with no border, and that the picture is decorative: the row is already named by its own text. Pick `Identities` for the animals a companion wears when it has no picture.",
+					"Two companions wearing a picture their reader uploaded, beside one wearing its dithered field. A picture is a still image whatever the companion is doing, so the row that is running says so with its message line rather than by moving — and it lands in the same slot as a drawing, so the names and the timestamps stay on the column the rest of the roster holds. Check that a row with a picture draws no dithered field at all, that the picture fills its slot as a rounded square with no border, and that the picture is decorative: the row is already named by its own text. Pick `Identities` for the fields a companion wears when it has no picture.",
 			},
 		},
 	},
@@ -1053,7 +1041,9 @@ export const SharedTint = meta.story({
 	play: async ({ canvasElement }) => {
 		const glyphs = companionGlyphs(canvasElement)
 		const shapes = SHARED_TINT_ROSTER.map(({ name }) =>
-			glyphKey(pickSilhouette(companionSeed(name, "blue"), ASCII_GLYPH_SPACE)),
+			silhouetteKey(
+				pickSilhouette(companionSeed(name, "blue"), COMPANION_SILHOUETTE_SPACE),
+			),
 		)
 
 		await expect(glyphs).toHaveLength(SHARED_TINT_ROSTER.length)
@@ -1072,7 +1062,7 @@ export const Identities = meta.story({
 		docs: {
 			description: {
 				story:
-					"The eight blots a companion can be given in its settings, one per row, with nothing running. Every avatar here draws the same idle animal — what tells the rows apart is the tint behind it, not what the companion is doing — and every one of them is a still frame, so a panel of companions that are doing nothing is a panel that does not move. Check that each row wears its own tint, that the ink line and the ear accent stay legible over all eight, that no row carries an activity dot, and that the panel does not report itself busy. Check too that the panel is the width the stylesheet gives it, that it draws no rule down its trailing edge — the thread card's own border is the only edge between the two — and that an avatar is drawn at the size the row asks for rather than at the size the menu button forces on the icons around it. The test browser renders every story with reduced motion, so the stillness is read here rather than measured; open the story in Storybook beside `Working` to see the difference. Pick `Working` for the state that animates.",
+					"The eight blots a companion can be given in its settings, one per row, with nothing running. Every avatar here is a still dithered field; what tells the rows apart is its silhouette and the hue of its tint, not what the companion is doing — and every one of them is a still frame, so a panel of companions that are doing nothing is a panel that does not move. Check that each row wears its own tint, that the ink line and the ear accent stay legible over all eight, that no row carries an activity dot, and that the panel does not report itself busy. Check too that the panel is the width the stylesheet gives it, that it draws no rule down its trailing edge — the thread card's own border is the only edge between the two — and that an avatar is drawn at the size the row asks for rather than at the size the menu button forces on the icons around it. The test browser renders every story with reduced motion, so the stillness is read here rather than measured; open the story in Storybook beside `Working` to see the difference. Pick `Working` for the state that animates.",
 			},
 		},
 	},
@@ -1861,7 +1851,6 @@ export const LongContent = meta.story({
 				id: "long",
 				name: "Bartholomew Featherstonehaugh the Third",
 				title: "Infrastructure",
-				animal: "bear",
 				lastMessage: LAST_MESSAGE,
 				timestamp: "Yesterday",
 			},
@@ -1869,7 +1858,6 @@ export const LongContent = meta.story({
 			{
 				id: "longer",
 				name: "Anastasia Konstantinopoulos-Whitmore",
-				animal: "owl",
 				lastMessage: LAST_MESSAGE,
 				timestamp: "12:07",
 			},
@@ -1911,7 +1899,6 @@ export const MarkdownPreview = meta.story({
 			{
 				id: "marked",
 				name: "Atlas",
-				animal: "owl",
 				lastMessage:
 					"## Release notes\n\n- **Renamed** the `transport` module\n- Read [the report](https://example.com/report)\n\n```ts\nconst turn = resume()\n```",
 				timestamp: "12:07",
@@ -1919,7 +1906,6 @@ export const MarkdownPreview = meta.story({
 			{
 				id: "plain",
 				name: "Beacon",
-				animal: "bear",
 				lastMessage: "Ran the suite twice, both green.",
 				timestamp: "11:40",
 			},

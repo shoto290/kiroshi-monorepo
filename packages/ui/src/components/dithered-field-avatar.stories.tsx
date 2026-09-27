@@ -6,7 +6,7 @@ import {
 } from "@workspace/storybook/avatar-exploration-roster"
 import preview from "@workspace/storybook/preview"
 import type { ExplorationAvatarProps } from "@workspace/ui/components/avatar-exploration"
-import { BLOT_TINTS } from "@workspace/ui/components/bot-avatar"
+import { BLOT_TINTS } from "@workspace/ui/components/companion-colour"
 import {
 	DITHER_SCREENS,
 	DitheredFieldAvatar,

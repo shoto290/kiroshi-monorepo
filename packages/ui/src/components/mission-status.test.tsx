@@ -28,7 +28,7 @@ const TICKET = {
 	url: "https://linear.example/kiroshi/issue/OPE-30",
 }
 
-const BOT = { name: "Ada Martin", animal: "owl" as const, seed: "bot-ada" }
+const BOT = { name: "Ada Martin", seed: "bot-ada" }
 
 const CARD: Omit<MissionCardProps, "onOpen"> = {
 	id: "mission-ope-30",

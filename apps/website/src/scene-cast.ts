@@ -4,8 +4,7 @@ import type {
 	Space,
 	UserChipIdentity,
 } from "@workspace/ui/components/app-sidebar"
-import type { BotAvatarBlot } from "@workspace/ui/components/bot-avatar"
-import type { BotAvatarAnimal } from "@workspace/ui/components/bot-avatar-animals"
+import type { BotAvatarBlot } from "@workspace/ui/components/companion-colour"
 import type {
 	MissionCardModel,
 	MissionState,
@@ -25,7 +24,6 @@ type BotCopy = {
 
 type BotLook = {
 	id: string
-	animal: BotAvatarAnimal
 	blot: BotAvatarBlot
 }
 
@@ -35,50 +33,23 @@ const castBot = (look: BotLook, copy: BotCopy): RosterBot => ({
 	title: copy.title,
 })
 
-const MOCHI = castBot(
-	{ id: "mochi", animal: "cat", blot: "pink" },
-	SCENE_COPY.bots.mochi,
-)
+const MOCHI = castBot({ id: "mochi", blot: "pink" }, SCENE_COPY.bots.mochi)
 
-const OLIVE = castBot(
-	{ id: "olive", animal: "rabbit", blot: "green" },
-	SCENE_COPY.bots.olive,
-)
+const OLIVE = castBot({ id: "olive", blot: "green" }, SCENE_COPY.bots.olive)
 
-const PIP = castBot(
-	{ id: "pip", animal: "chick", blot: "yellow" },
-	SCENE_COPY.bots.pip,
-)
+const PIP = castBot({ id: "pip", blot: "yellow" }, SCENE_COPY.bots.pip)
 
-const TOMO = castBot(
-	{ id: "tomo", animal: "mouse", blot: "cyan" },
-	SCENE_COPY.bots.tomo,
-)
+const TOMO = castBot({ id: "tomo", blot: "cyan" }, SCENE_COPY.bots.tomo)
 
-const ASH = castBot(
-	{ id: "ash", animal: "owl", blot: "purple" },
-	SCENE_COPY.bots.ash,
-)
+const ASH = castBot({ id: "ash", blot: "purple" }, SCENE_COPY.bots.ash)
 
-const WREN = castBot(
-	{ id: "wren", animal: "koala", blot: "orange" },
-	SCENE_COPY.bots.wren,
-)
+const WREN = castBot({ id: "wren", blot: "orange" }, SCENE_COPY.bots.wren)
 
-const IVY = castBot(
-	{ id: "ivy", animal: "dog", blot: "blue" },
-	SCENE_COPY.bots.ivy,
-)
+const IVY = castBot({ id: "ivy", blot: "blue" }, SCENE_COPY.bots.ivy)
 
-const SABLE = castBot(
-	{ id: "sable", animal: "bear", blot: "purple" },
-	SCENE_COPY.bots.sable,
-)
+const SABLE = castBot({ id: "sable", blot: "purple" }, SCENE_COPY.bots.sable)
 
-const JUNO = castBot(
-	{ id: "juno", animal: "skippy", blot: "red" },
-	SCENE_COPY.bots.juno,
-)
+const JUNO = castBot({ id: "juno", blot: "red" }, SCENE_COPY.bots.juno)
 
 const rosterRow = (bot: RosterBot, copy: BotCopy): AppSidebarBot => ({
 	...bot,

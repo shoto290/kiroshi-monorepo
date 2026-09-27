@@ -1,5 +1,5 @@
-import type { BotAvatarBlot } from "@workspace/ui/components/bot-avatar"
-import type { BotAvatarState } from "@workspace/ui/components/bot-avatar-data"
+import type { BotAvatarBlot } from "@workspace/ui/components/companion-colour"
+import type { BotAvatarState } from "@workspace/ui/components/companion-state"
 
 const EXPLORATION_STATES = [
 	"idle",
@@ -74,15 +74,6 @@ const pickSilhouette = (
 	}
 }
 
-const stepCount = (sizes: readonly number[]) =>
-	sizes.reduce((product, size) => product * size, 1)
-
-const variantSteps = (variant: number, sizes: readonly number[]) =>
-	sizes.map(
-		(size, index) =>
-			Math.floor(variant / stepCount(sizes.slice(0, index))) % size,
-	)
-
 const silhouetteRandom = ({ family, variant }: Silhouette) =>
 	seededRandom(variant * 7919 + family * 104729 + 1)
 
@@ -139,9 +130,6 @@ const fieldIntensity = (
 	return FIELD_FLOOR + (1 - FIELD_FLOOR) * wave(cycle)
 }
 
-const toField = (coordinate: number, extent: number) =>
-	(coordinate / extent) * 2 - 1
-
 export {
 	companionSeed,
 	EXPLORATION_STATES,
@@ -153,8 +141,5 @@ export {
 	type SilhouetteSpace,
 	seededRandom,
 	silhouetteRandom,
-	stepCount,
 	stillTime,
-	toField,
-	variantSteps,
 }

@@ -3,14 +3,14 @@
 import { useTranslation } from "react-i18next"
 
 import {
-	type BotAvatarBlot,
-	blotTint,
-} from "@workspace/ui/components/bot-avatar"
-import {
 	type BotBadge,
 	BotBadgeDot,
 	botBadgeRingVariants,
 } from "@workspace/ui/components/bot-badge"
+import {
+	type BotAvatarBlot,
+	blotTint,
+} from "@workspace/ui/components/companion-colour"
 import { ContextMenuPressTrigger } from "@workspace/ui/components/context-menu-press-trigger"
 import { Icons } from "@workspace/ui/components/icons"
 import type { Space } from "@workspace/ui/components/space"

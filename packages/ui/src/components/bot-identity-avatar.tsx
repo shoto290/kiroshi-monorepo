@@ -3,11 +3,10 @@
 import { type ReactNode, useState } from "react"
 import { useTranslation } from "react-i18next"
 
-import type { BotAvatarBlot } from "@workspace/ui/components/bot-avatar"
-import type { BotAvatarAnimal } from "@workspace/ui/components/bot-avatar-animals"
-import type { BotAvatarState } from "@workspace/ui/components/bot-avatar-data"
 import { type BotBadge, BotBadgeDot } from "@workspace/ui/components/bot-badge"
+import type { BotAvatarBlot } from "@workspace/ui/components/companion-colour"
 import { companionPictureRadius } from "@workspace/ui/components/companion-picture"
+import type { BotAvatarState } from "@workspace/ui/components/companion-state"
 import { DitheredFieldAvatar } from "@workspace/ui/components/dithered-field-avatar"
 import { Icons } from "@workspace/ui/components/icons"
 import { AvatarFrame } from "@workspace/ui/components/initials-avatar"
@@ -26,7 +25,6 @@ const pictureShapeStyle = (size: number) => ({
 
 type BotIdentityAvatarProps = {
 	name?: string
-	animal?: BotAvatarAnimal
 	blot?: BotAvatarBlot
 	seed?: string
 	image?: string

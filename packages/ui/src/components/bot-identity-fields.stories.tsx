@@ -92,7 +92,7 @@ export const Default = meta.story({
 		docs: {
 			description: {
 				story:
-					"The nominal case: a companion that already picked a blue colour. Check that the preview, the colour grid and the picture field stand at once with nothing to open first, that no animal choice is offered, that the current colour is the checked one, and that every swatch draws the companion's own glyph on its colour.",
+					"The nominal case: a companion that already picked a blue colour. Check that the preview, the colour grid and the picture field stand at once with nothing to open first, that the current colour is the checked one, and that every swatch draws the companion's own glyph on its colour.",
 			},
 		},
 	},

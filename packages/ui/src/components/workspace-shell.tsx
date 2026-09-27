@@ -3,7 +3,7 @@ import { type CSSProperties, type ReactNode, useId } from "react"
 import {
 	type BotAvatarBlot,
 	blotTint,
-} from "@workspace/ui/components/bot-avatar"
+} from "@workspace/ui/components/companion-colour"
 import { ContentCard } from "@workspace/ui/components/content-card"
 import { SidebarResizeProvider } from "@workspace/ui/components/sidebar-resize"
 import { SkipLink } from "@workspace/ui/components/skip-link"

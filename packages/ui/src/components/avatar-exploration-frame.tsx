@@ -1,18 +1,17 @@
 "use client"
 
-import { type ReactNode, type RefObject, useEffect, useRef } from "react"
+import { type ReactNode, useEffect, useRef } from "react"
 import { useTranslation } from "react-i18next"
 
 import {
 	type ExplorationAvatarProps,
 	type ExplorationState,
-	fieldIntensity,
 	stillTime,
 } from "@workspace/ui/components/avatar-exploration"
 import {
 	type BotAvatarBlot,
 	blotTint,
-} from "@workspace/ui/components/bot-avatar"
+} from "@workspace/ui/components/companion-colour"
 import { companionPictureRadius } from "@workspace/ui/components/companion-picture"
 import { usePrefersReducedMotion } from "@workspace/ui/hooks/use-prefers-reduced-motion"
 import { cn } from "@workspace/ui/lib/utils"
@@ -26,11 +25,6 @@ type ExplorationFrameProps = Required<Omit<ExplorationAvatarProps, "tint">> & {
 }
 
 type ExplorationClock = { state: ExplorationState; paint: Paint }
-
-type FieldOpacity = {
-	state: ExplorationState
-	root: RefObject<SVGSVGElement | null>
-}
 
 const painters = new Set<Paint>()
 let frame = 0
@@ -98,23 +92,4 @@ const useExplorationClock = ({ state, paint }: ExplorationClock) => {
 	})
 }
 
-const readField = (element: SVGElement) => ({
-	element,
-	point: {
-		x: Number(element.dataset.x),
-		y: Number(element.dataset.y),
-	},
-})
-
-const useFieldOpacity = ({ state, root }: FieldOpacity) => {
-	useExplorationClock({
-		state,
-		paint: (time) => {
-			const cells = root.current?.querySelectorAll<SVGElement>("[data-x]")
-			for (const { element, point } of Array.from(cells ?? [], readField))
-				element.style.opacity = String(fieldIntensity(state, point, time))
-		},
-	})
-}
-
-export { ExplorationFrame, useExplorationClock, useFieldOpacity }
+export { ExplorationFrame, useExplorationClock }

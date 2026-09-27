@@ -29,16 +29,16 @@ const SHORT_MESSAGES: Record<MessageFrom, string> = {
 
 const AUTHORED: { author: MessageAuthor; message: string }[] = [
 	{
-		author: { id: "bot-atlas", name: "Atlas", animal: "owl", isLead: true },
+		author: { id: "bot-atlas", name: "Atlas", isLead: true },
 		message:
 			"I own this thread. Basile takes the migration, I keep the release notes.",
 	},
 	{
-		author: { id: "bot-basile", name: "Basile", animal: "cat" },
+		author: { id: "bot-basile", name: "Basile" },
 		message: "Migration is green on a fresh database. Notes are yours.",
 	},
 	{
-		author: { id: "bot-elia", name: "Elia", animal: "mouse", isDeleted: true },
+		author: { id: "bot-elia", name: "Elia", isDeleted: true },
 		message: "The fixture I left behind still reads the old column names.",
 	},
 ]

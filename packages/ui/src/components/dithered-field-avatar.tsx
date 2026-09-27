@@ -3,10 +3,6 @@
 import { useRef } from "react"
 
 import {
-	ASCII_GLYPH_SPACE,
-	glyphCells,
-} from "@workspace/ui/components/ascii-glyph-avatar"
-import {
 	companionSeed,
 	type ExplorationAvatarProps,
 	type ExplorationState,
@@ -21,7 +17,11 @@ import {
 import {
 	type BotAvatarBlot,
 	blotTint,
-} from "@workspace/ui/components/bot-avatar"
+} from "@workspace/ui/components/companion-colour"
+import {
+	COMPANION_SILHOUETTE_SPACE,
+	silhouetteCells,
+} from "@workspace/ui/components/companion-silhouette"
 import { usePrefersReducedMotion } from "@workspace/ui/hooks/use-prefers-reduced-motion"
 
 type DitherScreen = "weight" | "halftone" | "ordered" | "organic"
@@ -91,12 +91,12 @@ const screenFor = (name: string) =>
 	]
 
 const densityField = (seed: number, cells: number): DensityField => {
-	const glyph = glyphCells(pickSilhouette(seed, ASCII_GLYPH_SPACE)).map(
-		({ column, row }) => ({
-			x: 0.5 + (column - 2) * COLUMN_STEP,
-			y: 0.5 + (row - 3) * ROW_STEP,
-		}),
-	)
+	const glyph = silhouetteCells(
+		pickSilhouette(seed, COMPANION_SILHOUETTE_SPACE),
+	).map(({ column, row }) => ({
+		x: 0.5 + (column - 2) * COLUMN_STEP,
+		y: 0.5 + (row - 3) * ROW_STEP,
+	}))
 	const silhouette = new Float32Array(cells * cells)
 	for (let row = 0; row < cells; row++)
 		for (let column = 0; column < cells; column++) {

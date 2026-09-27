@@ -98,7 +98,6 @@ const TABLE = `| § | Subject |
 const LEAD: MessageAuthor = {
 	id: "bot-atlas",
 	name: "Atlas",
-	animal: "owl",
 	blot: "blue",
 	isLead: true,
 }
@@ -106,14 +105,12 @@ const LEAD: MessageAuthor = {
 const SECOND: MessageAuthor = {
 	id: "bot-basile",
 	name: "Basile",
-	animal: "cat",
 	blot: "purple",
 }
 
 const GONE: MessageAuthor = {
 	id: "bot-elia",
 	name: "Elia",
-	animal: "mouse",
 	isDeleted: true,
 }
 
@@ -134,7 +131,6 @@ const TITLED_ROOM: { author: MessageAuthor; message: string }[] = [
 		author: {
 			id: "bot-elia",
 			name: "Elia of the Migration and Release Desk",
-			animal: "mouse",
 			title: RELEASE_MANAGER,
 		},
 		message: "I am holding the tag until both of you sign off.",
@@ -143,7 +139,6 @@ const TITLED_ROOM: { author: MessageAuthor; message: string }[] = [
 		author: {
 			id: "bot-nyx",
 			name: "Nyx",
-			animal: "bear",
 			title: "Release manager for the whole platform",
 		},
 		message: "I will publish once the tag is cut.",
@@ -184,7 +179,6 @@ const TURN_STATES: TurnState[] = [
 const BOT: RosterBot = {
 	id: "bot-skippy",
 	name: "Skippy",
-	animal: "owl",
 	blot: "blue",
 }
 
@@ -255,7 +249,6 @@ const MARKED_BOT_ID = "bot-lyra"
 const MARKED_FACE: RosterBot = {
 	id: MARKED_BOT_ID,
 	name: "Lyra",
-	animal: "rabbit",
 	blot: "purple",
 }
 
@@ -1052,7 +1045,7 @@ export const CompleteStoppable = meta.story({
 		docs: {
 			description: {
 				story:
-					"The landed answer of a companion the screen still holds a seat for: `stoppable` turns the gutter avatar into the same control the waiting seat carries, named after the companion, and opens the gutter to assistive technology so the control can be reached at all. The wave keeps running around it — this stop ends one companion. Check that the control is the size of the avatar it rides, that pointing at it or reaching it by keyboard veils the animal with the stop glyph, that the ring shows where focus landed, and that pressing it reports the stop. " +
+					"The landed answer of a companion the screen still holds a seat for: `stoppable` turns the gutter avatar into the same control the waiting seat carries, named after the companion, and opens the gutter to assistive technology so the control can be reached at all. The wave keeps running around it — this stop ends one companion. Check that the control is the size of the avatar it rides, that pointing at it or reaching it by keyboard veils the avatar with the stop glyph, that the ring shows where focus landed, and that pressing it reports the stop. " +
 					STOPPED_BY_THE_SCREEN,
 			},
 		},
