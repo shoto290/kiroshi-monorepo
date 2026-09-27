@@ -147,6 +147,9 @@ export const pictureOf = async (avatar: HTMLElement) => {
 	return avatar.querySelector("img") as HTMLImageElement
 }
 
+export const expectCompanionSilhouette = (layer: Element) =>
+	expect(getComputedStyle(layer).maskImage).toContain("data:image/svg+xml")
+
 export const expectCompanionPictureSquare = async (avatar: HTMLElement) => {
 	const picture = await pictureOf(avatar)
 	const { width } = avatar.getBoundingClientRect()
@@ -163,6 +166,7 @@ export const expectCompanionPictureSquare = async (avatar: HTMLElement) => {
 	await expect(picture.getBoundingClientRect().width).toBe(width)
 	await expect(picture).toHaveAttribute("alt", "")
 	await expect(picture).toHaveAttribute("aria-hidden", "true")
+	await expectCompanionSilhouette(picture)
 }
 
 export const UPLOADED_AVATAR_IMAGE =

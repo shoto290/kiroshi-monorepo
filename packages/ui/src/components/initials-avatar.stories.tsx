@@ -2,6 +2,7 @@ import { expect } from "storybook/test"
 
 import preview from "@workspace/storybook/preview"
 import {
+	expectCompanionSilhouette,
 	pictureOf,
 	slotsIn,
 	UPLOADED_AVATAR_IMAGE,
@@ -30,12 +31,17 @@ export const Default = meta.story({
 		docs: {
 			description: {
 				story:
-					"A reader who has filled in a name but uploaded no picture. Check that the initials are the first letter of the first two words, upper case whatever the name's own casing, and that the circle is fully round rather than a squared avatar. Pick `WithPicture` for the uploaded one.",
+					"A reader who has filled in a name but uploaded no picture. Check that the initials are the first letter of the first two words, upper case whatever the name's own casing, and that they sit inside the rounded hexagon of the Kiroshi mark. Pick `WithPicture` for the uploaded one.",
 			},
 		},
 	},
 	play: async ({ canvas }) => {
-		await expect(canvas.getByText("AM")).toBeVisible()
+		const initials = canvas.getByText("AM")
+
+		await expect(initials).toBeVisible()
+		await expectCompanionSilhouette(
+			initials.closest('[data-slot="avatar-fallback"]') ?? initials,
+		)
 	},
 })
 
@@ -45,7 +51,7 @@ export const WithPicture = meta.story({
 		docs: {
 			description: {
 				story:
-					"A reader who uploaded a picture. Check that it wins over the initials, that it fills the circle by covering rather than stretching, and that it stays out of the accessible tree — the row around it already carries the name, and an avatar announcing it again would say it twice. Pick `Default` for the initials.",
+					"A reader who uploaded a picture. Check that it wins over the initials, that it fills the rounded hexagon by covering rather than stretching, and that it stays out of the accessible tree — the row around it already carries the name, and an avatar announcing it again would say it twice. Pick `Default` for the initials.",
 			},
 		},
 	},
@@ -69,6 +75,7 @@ const expectImageOutline = async (
 	await expect(style.outlineWidth).toBe("1px")
 	await expect(style.outlineOffset).toBe("-1px")
 	await expect(style.outlineColor).toBe(alpha)
+	await expectCompanionSilhouette(await pictureOf(avatar))
 }
 
 export const PictureOutlineLight = meta.story({

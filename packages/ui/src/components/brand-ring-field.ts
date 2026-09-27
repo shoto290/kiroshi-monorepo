@@ -2,14 +2,13 @@ import {
 	type DensityField,
 	fieldLattice,
 } from "@workspace/ui/components/dithered-field-avatar"
-
-type RoundedHexagon = {
-	halfWidth: number
-	halfHeight: number
-}
+import {
+	hexagonMetrics,
+	OUTER,
+	type RoundedHexagon,
+} from "@workspace/ui/components/kiroshi-hexagon"
 
 const REFERENCE_WIDTH = 401
-const OUTER: RoundedHexagon = { halfWidth: 200.5, halfHeight: 181.5 }
 const INNER: RoundedHexagon = { halfWidth: 134.5, halfHeight: 123.5 }
 const MARGIN_CELLS = 1
 const TAN_30 = Math.tan(Math.PI / 6)
@@ -27,13 +26,8 @@ const hexagonDistance = (x: number, y: number, apothem: number) => {
 	return Math.hypot(dx, dy) * Math.sign(dy)
 }
 
-const isInside = (
-	{ halfWidth, halfHeight }: RoundedHexagon,
-	x: number,
-	y: number,
-) => {
-	const apothem = (halfWidth - halfHeight) / (1 / Math.cos(Math.PI / 6) - 1)
-	const rounding = halfHeight - apothem
+const isInside = (shape: RoundedHexagon, x: number, y: number) => {
+	const { apothem, rounding } = hexagonMetrics(shape)
 	return hexagonDistance(x, y, apothem) <= rounding
 }
 

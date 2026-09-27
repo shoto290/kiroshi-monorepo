@@ -8,6 +8,7 @@ import {
 	companionTintOf,
 	expectCellsIn,
 	expectCompanionPictureSquare,
+	expectCompanionSilhouette,
 	pictureOf,
 	Row,
 	slotsIn,
@@ -105,11 +106,12 @@ const meta = preview.meta({
 })
 
 export const Rest = meta.story({
+	globals: { theme_layout: "side-by-side" },
 	parameters: {
 		docs: {
 			description: {
 				story:
-					"One companion at rest: its dithered field in the hue of the colour it was given, drawn once and left alone. Check that nothing moves, that the field fills the rounded square and that no dot is drawn. Pick `Working` for the same companion mid-run.",
+					"One companion at rest: its dithered field in the hue of the colour it was given, drawn once and left alone. Check in both themes that nothing moves, that the field fills the rounded hexagon of the Kiroshi mark and that no dot is drawn. Pick `Working` for the same companion mid-run.",
 			},
 		},
 	},
@@ -119,6 +121,7 @@ export const Rest = meta.story({
 
 		await expectGlyph(avatar, "idle")
 		await expect(companionTintOf(glyph)).toBe("var(--bot-blot-blue)")
+		await expectCompanionSilhouette(glyph)
 		await expect(getComputedStyle(avatar).borderRadius).toBe(
 			`${companionPictureRadius(96)}px`,
 		)

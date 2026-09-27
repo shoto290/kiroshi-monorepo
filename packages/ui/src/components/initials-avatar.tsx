@@ -1,5 +1,6 @@
 import type { ReactNode } from "react"
 
+import { COMPANION_SILHOUETTE } from "@workspace/ui/components/companion-picture"
 import {
 	Avatar,
 	AvatarFallback,
@@ -65,10 +66,13 @@ const AvatarFrame = ({
 					imageRadius === undefined && UPLOADED_IMAGE_SHAPE,
 				)}
 				src={image}
-				style={{ borderRadius: imageRadius }}
+				style={{ ...COMPANION_SILHOUETTE, borderRadius: imageRadius }}
 			/>
 		) : (
-			<AvatarFallback className="bg-transparent text-inherit">
+			<AvatarFallback
+				className="bg-transparent text-inherit"
+				style={COMPANION_SILHOUETTE}
+			>
 				{children}
 			</AvatarFallback>
 		)}
