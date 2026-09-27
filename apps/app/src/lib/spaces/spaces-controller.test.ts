@@ -416,9 +416,13 @@ describe("space transfer", () => {
 	})
 
 	it("reopens the open picker when the import failure is retried", async () => {
-		const { pickers, failures, controller } = await transferRig()
-
+		const { store, pickers, failures, controller } = await transferRig()
+		vi.spyOn(store, "importSpace").mockRejectedValueOnce({
+			kind: "unreadableArchive",
+			detail: "truncated",
+		})
 		await controller.importSpace()
+
 		failures[0]?.action?.onPress()
 
 		await vi.waitFor(() =>
