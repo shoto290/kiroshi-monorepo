@@ -235,7 +235,12 @@ const recordAvatarCanvasPaints = (): PaintRecorder => {
 		return {
 			clearRect: call("clearRect"),
 			fillRect: call("fillRect"),
-			fillText: call("fillText"),
+			beginPath: call("beginPath"),
+			arc: call("arc"),
+			moveTo: call("moveTo"),
+			lineTo: call("lineTo"),
+			fill: call("fill"),
+			stroke: call("stroke"),
 		}
 	}
 	HTMLCanvasElement.prototype.getContext = function patched(
@@ -645,10 +650,10 @@ describe("PRF1 render baseline", () => {
 			    "repeatedPaints": 0,
 			  },
 			  "working": {
-			    "draws": 3780,
+			    "draws": 14358,
 			    "movingAvatars": 3,
 			    "paints": 180,
-			    "repeatedPaints": 71,
+			    "repeatedPaints": 10,
 			  },
 			}
 		`)
