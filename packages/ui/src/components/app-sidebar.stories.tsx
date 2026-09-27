@@ -1042,7 +1042,7 @@ export const SharedTint = meta.story({
 		const glyphs = companionGlyphs(canvasElement)
 		const shapes = SHARED_TINT_ROSTER.map(({ name }) =>
 			silhouetteKey(
-				pickSilhouette(companionSeed(name, "blue"), COMPANION_SILHOUETTE_SPACE),
+				pickSilhouette(companionSeed(name), COMPANION_SILHOUETTE_SPACE),
 			),
 		)
 

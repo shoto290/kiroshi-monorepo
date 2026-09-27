@@ -135,7 +135,7 @@ export const EverySize = meta.story({
 		docs: {
 			description: {
 				story:
-					"The three sizes the product asks for, a roster row, a settings column and a reply, from one component and one identity. Check that they are the same field at three scales: the grid coarsens as the tile shrinks, so the 24px one reads by its silhouette.",
+					"The three sizes the product asks for, a roster row, a settings column and a reply, from one component and one identity. Check that they are the same field at three scales: the grid keeps its cell count and only the cell shrinks, so the 24px one is the same drawing.",
 			},
 		},
 	},

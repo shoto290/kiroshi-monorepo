@@ -28,6 +28,8 @@ branding-botidentityavatar--with-badge
 branding-botidentityavatar--with-image
 branding-botidentityavatar--working
 branding-ditheredfieldavatar--halftone
+branding-ditheredfieldavatar--one-drawing-at-every-size
+branding-ditheredfieldavatar--one-glyph-in-every-colour
 branding-ditheredfieldavatar--screens-by-name
 branding-ditheredfieldavatar--three-tone-organic
 branding-ditheredfieldavatar--two-tone-ordered

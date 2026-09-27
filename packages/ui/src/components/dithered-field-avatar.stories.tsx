@@ -1,4 +1,4 @@
-import { expect } from "storybook/test"
+import { expect, waitFor } from "storybook/test"
 
 import {
 	ExplorationRoster,
@@ -35,6 +35,35 @@ const NAMES = [
 	"Castor",
 	"Altair",
 ]
+
+const COMPARED_NAME = "Atlas"
+const COMPARED_SIZES = [20, 40, 96]
+const COLOURS = [undefined, ...BLOT_TINTS]
+
+const drawnCanvases = (root: HTMLElement) =>
+	Array.from(root.querySelectorAll<HTMLCanvasElement>("canvas[data-cells]"))
+
+const inkedCells = (canvas: HTMLCanvasElement) => {
+	const cells = Number(canvas.dataset.cells)
+	const cell = canvas.width / cells
+	const { data } =
+		canvas.getContext("2d")?.getImageData(0, 0, canvas.width, canvas.height) ??
+		{}
+	return Array.from({ length: cells * cells }, (_, index) => {
+		const x = Math.floor(((index % cells) + 0.5) * cell)
+		const y = Math.floor((Math.floor(index / cells) + 0.5) * cell)
+		return (data?.[(y * canvas.width + x) * 4 + 3] ?? 0) > 64 ? "#" : "."
+	}).join("")
+}
+
+const expectOneDrawing = async (root: HTMLElement, count: number) => {
+	const canvases = drawnCanvases(root)
+	await expect(canvases).toHaveLength(count)
+	await expect(
+		new Set(canvases.map((canvas) => canvas.dataset.cells)).size,
+	).toBe(1)
+	await waitFor(() => expect(new Set(canvases.map(inkedCells)).size).toBe(1))
+}
 
 const meta = preview.meta({
 	title: "Branding/DitheredFieldAvatar",
@@ -134,4 +163,48 @@ export const ScreensByName = meta.story({
 		await expect(screens).toHaveLength(NAMES.length * 2)
 		await expect(new Set(screens)).toEqual(new Set(DITHER_SCREENS))
 	},
+})
+
+export const OneDrawingAtEverySize = meta.story({
+	render: () => (
+		<div aria-label="Sizes" className="flex items-end gap-4" role="group">
+			{COMPARED_SIZES.map((size) => (
+				<DitheredFieldAvatar key={size} name={COMPARED_NAME} size={size} />
+			))}
+		</div>
+	),
+	parameters: {
+		docs: {
+			description: {
+				story:
+					"One companion at 20, 40 and 96 px, the header, the sidebar and the settings sizes. The grid holds the same number of cells at every size and only the cell grows, so the three tiles are one drawing at three scales. Check that the 20 px tile reads as a shrunken 40 px one, not as a coarser mosaic.",
+			},
+		},
+	},
+	play: ({ canvasElement }) =>
+		expectOneDrawing(canvasElement, COMPARED_SIZES.length * 2),
+})
+
+export const OneGlyphInEveryColour = meta.story({
+	render: () => (
+		<div aria-label="Colours" className="flex flex-wrap gap-4" role="group">
+			{COLOURS.map((tint) => (
+				<DitheredFieldAvatar
+					key={tint ?? "none"}
+					name={COMPARED_NAME}
+					tint={tint}
+				/>
+			))}
+		</div>
+	),
+	parameters: {
+		docs: {
+			description: {
+				story:
+					"One companion with no colour, then in each of the eight colours, as the Appearance picker lays its swatches. The seed comes from the name alone, so only the field colour changes and the glyph stays the companion's. Check that the nine tiles carry one shape.",
+			},
+		},
+	},
+	play: ({ canvasElement }) =>
+		expectOneDrawing(canvasElement, COLOURS.length * 2),
 })

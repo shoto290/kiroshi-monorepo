@@ -48,8 +48,8 @@ const COMPANIONS: Companion[] = NAMES.map((name, index) => ({
 	tint: BLOT_TINTS[index % BLOT_TINTS.length],
 }))
 
-const silhouetteOf = ({ name, tint }: Companion) =>
-	pickSilhouette(companionSeed(name, tint), COMPANION_SILHOUETTE_SPACE)
+const silhouetteOf = ({ name }: Companion) =>
+	pickSilhouette(companionSeed(name), COMPANION_SILHOUETTE_SPACE)
 
 describe("companion silhouettes", () => {
 	it("gives twenty seeded names twenty distinct silhouettes", () => {

@@ -44,9 +44,7 @@ type DrawCell = {
 	density: number
 }
 
-const CELL_CSS = 3.2
-const MIN_CELLS = 8
-const MAX_CELLS = 30
+const FIELD_CELLS = 13
 const LATTICE = 5
 const BLOB_SIGMA = 0.055
 const COLUMN_STEP = 0.13
@@ -66,9 +64,6 @@ const BAYER = [0, 8, 2, 10, 12, 4, 14, 6, 3, 11, 1, 9, 15, 7, 13, 5]
 const TONES = [0, 0.5, 1]
 
 const clamp01 = (value: number) => Math.min(1, Math.max(0, value))
-
-const cellsFor = (size: number) =>
-	Math.min(MAX_CELLS, Math.max(MIN_CELLS, Math.round(size / CELL_CSS)))
 
 const surfaceOf = (seed: number, tint?: BotAvatarBlot) => {
 	const random = seededRandom(seed ^ HUE_SALT)
@@ -247,8 +242,8 @@ const DitheredFieldAvatar = ({
 	const drawnScreen = screen ?? screenFor(name)
 	const canvas = useRef<HTMLCanvasElement>(null)
 	const prefersReducedMotion = usePrefersReducedMotion()
-	const seed = companionSeed(name, tint)
-	const field = densityField(seed, cellsFor(size))
+	const seed = companionSeed(name)
+	const field = densityField(seed, FIELD_CELLS)
 	const drawnState = prefersReducedMotion ? "idle" : state
 
 	useExplorationClock({
@@ -282,6 +277,7 @@ const DitheredFieldAvatar = ({
 		>
 			<canvas
 				className="pointer-events-none size-full"
+				data-cells={field.cells}
 				data-screen={drawnScreen}
 				ref={canvas}
 			/>
