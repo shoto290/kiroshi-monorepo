@@ -42,7 +42,7 @@ const markCanvases = (root: HTMLElement) =>
 
 const ringCells = () =>
 	new Set(
-		Array.from(BRAND_FIELD.mask ?? [], (lit, index) => (lit ? index : -1)),
+		[...(BRAND_FIELD.mask ?? [])].flatMap((lit, index) => (lit ? [index] : [])),
 	)
 
 const runLength = (lit: Set<number>, start: number, step: number) => {
