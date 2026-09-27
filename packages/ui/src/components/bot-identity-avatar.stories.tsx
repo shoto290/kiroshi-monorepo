@@ -70,6 +70,15 @@ const expectGlyph = async (avatar: HTMLElement, state: string) => {
 	await expect(glyph.dataset.state).toBe(state)
 }
 
+const resolvedColourOf = (value: string) => {
+	const probe = document.createElement("span")
+	probe.style.backgroundColor = value
+	document.body.append(probe)
+	const resolved = getComputedStyle(probe).backgroundColor
+	probe.remove()
+	return resolved
+}
+
 const meta = preview.meta({
 	title: "Branding/BotIdentityAvatar",
 	component: BotIdentityAvatar,
@@ -188,6 +197,9 @@ export const NoChosenColour = meta.story({
 			const glyph = companionGlyphOf(avatar)
 			await expectGlyph(avatar, "idle")
 			await expect(companionTintOf(glyph)).toBe("")
+			await expect(getComputedStyle(glyph).backgroundColor).toBe(
+				resolvedColourOf("var(--bot-avatar-field-untinted)"),
+			)
 		}
 	},
 })
