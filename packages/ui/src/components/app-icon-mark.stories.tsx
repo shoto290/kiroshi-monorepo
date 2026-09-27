@@ -63,7 +63,7 @@ export const Themes = meta.story({
 		docs: {
 			description: {
 				story:
-					"The mark on both themes. Its field is the brand hue in both, so it must not follow the theme: check the white ink reads the same on the light and on the dark panel.",
+					"The mark on both themes. Its cells are the brand hue on a pale tint of it in both, so it must not follow the theme: check the cells read the same on the light and on the dark panel.",
 			},
 		},
 	},

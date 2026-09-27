@@ -9,10 +9,6 @@ import {
 	silhouetteCells,
 	silhouetteKey,
 } from "@workspace/ui/components/companion-silhouette"
-import {
-	DITHER_SCREENS,
-	screenFor,
-} from "@workspace/ui/components/dithered-field-avatar"
 
 const NAMES = [
 	"Lyra",
@@ -58,15 +54,5 @@ describe("companion silhouettes", () => {
 		expect(silhouetteCells(silhouetteOf(name))).toEqual(
 			silhouetteCells(silhouetteOf(name)),
 		)
-	})
-})
-
-describe("dithered screens", () => {
-	it("picks the same screen for a name every time", () => {
-		expect(NAMES.map(screenFor)).toEqual(NAMES.map(screenFor))
-	})
-
-	it("reaches every screen across the twenty names", () => {
-		expect(new Set(NAMES.map(screenFor))).toEqual(new Set(DITHER_SCREENS))
 	})
 })

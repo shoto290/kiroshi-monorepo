@@ -1,29 +1,8 @@
 import { expect, waitFor } from "storybook/test"
 
-import {
-	ExplorationRoster,
-	playExplorationRoster,
-} from "@workspace/storybook/avatar-exploration-roster"
 import preview from "@workspace/storybook/preview"
-import type { ExplorationAvatarProps } from "@workspace/ui/components/avatar-exploration"
 import { BLOT_TINTS } from "@workspace/ui/components/companion-colour"
-import {
-	DITHER_SCREENS,
-	DitheredFieldAvatar,
-	type DitherScreen,
-} from "@workspace/ui/components/dithered-field-avatar"
-
-const screenAvatar = (screen: DitherScreen) => {
-	const ScreenAvatar = (props: ExplorationAvatarProps) => (
-		<DitheredFieldAvatar {...props} screen={screen} />
-	)
-	return ScreenAvatar
-}
-
-const WeightRampAvatar = screenAvatar("weight")
-const HalftoneAvatar = screenAvatar("halftone")
-const OrderedAvatar = screenAvatar("ordered")
-const OrganicAvatar = screenAvatar("organic")
+import { DitheredFieldAvatar } from "@workspace/ui/components/dithered-field-avatar"
 
 const NAMES = [
 	"Lyra",
@@ -34,6 +13,7 @@ const NAMES = [
 	"Juno",
 	"Castor",
 	"Altair",
+	"Atlas",
 ]
 
 const COMPARED_NAME = "Atlas"
@@ -73,74 +53,23 @@ const meta = preview.meta({
 		docs: {
 			description: {
 				component:
-					"A companion drawn as a dithered field that fills the whole rounded tile: white ink on a saturated field of the companion's hue, no outline, the shape carried by density alone. The density field is the companion's ASCII glyph silhouette, blurred, over a seeded low noise floor; the hue is the chosen colour's hue pushed to a saturated field and nudged by the seed. At 40 px the screen reads as texture and the identity comes from the macro shape of the field and its hue. At work the field drifts and the state motion passes through it; at rest, and under reduced motion, it holds still.",
+					"A companion drawn as a dithered field that fills the whole rounded tile: square cells in the companion colour on a pale tint of that same colour, no outline, the shape carried by cell density alone. Every companion shares one screen: each cell is a square of one fixed size, its tone carried by opacity in two steps through error diffusion, so the tile reads in three tones of one hue. The density field is the companion's ASCII glyph silhouette, blurred, over a seeded low noise floor, all seeded on the name. The grid holds the same cell count at every size. At work the field drifts and the state motion passes through it; at rest, and under reduced motion, it holds still.",
 			},
 		},
 	},
 })
 
-export const WeightRamp = meta.story({
-	render: () => <ExplorationRoster Avatar={WeightRampAvatar} />,
-	parameters: {
-		docs: {
-			description: {
-				story:
-					"Each cell picks its glyph from a ramp of increasing ink weight by the field density: a dot, a small square, a cross, a filled square. Check that the six silhouettes part at 40 px and that the 16 px one still shows its mass.",
-			},
-		},
-	},
-	play: playExplorationRoster,
-})
+const STILL_WAIT = 300
 
-export const Halftone = meta.story({
-	render: () => <ExplorationRoster Avatar={HalftoneAvatar} />,
-	parameters: {
-		docs: {
-			description: {
-				story:
-					"One dot per cell, its radius following the field density. Check that the silhouettes part at 40 px by where the dots swell, and that the 16 px one reads as a soft blob of the right shape.",
-			},
-		},
-	},
-	play: playExplorationRoster,
-})
+const pause = (duration: number) =>
+	new Promise((resolve) => setTimeout(resolve, duration))
 
-export const TwoToneOrdered = meta.story({
-	render: () => <ExplorationRoster Avatar={OrderedAvatar} />,
-	parameters: {
-		docs: {
-			description: {
-				story:
-					"The density thresholded through a 4 by 4 Bayer matrix into one square glyph, on or off. Check that the crosshatch of the Bayer pattern stays even and that the silhouettes part at 40 px.",
-			},
-		},
-	},
-	play: playExplorationRoster,
-})
-
-export const ThreeToneOrganic = meta.story({
-	render: () => <ExplorationRoster Avatar={OrganicAvatar} />,
-	parameters: {
-		docs: {
-			description: {
-				story:
-					"White ink plus a lighter tint of the hue on the field, through Floyd-Steinberg error diffusion over three tones. Check that the grain looks organic rather than gridded and that the silhouettes part at 40 px.",
-			},
-		},
-	},
-	play: playExplorationRoster,
-})
-
-export const ScreensByName = meta.story({
+export const OneScreenForEveryCompanion = meta.story({
 	render: () => (
 		<div aria-label="Companions" className="flex flex-wrap gap-4" role="group">
 			{NAMES.map((name, index) => (
 				<div className="flex flex-col items-center gap-2" key={name}>
-					<DitheredFieldAvatar
-						name={name}
-						size={40}
-						tint={BLOT_TINTS[index % BLOT_TINTS.length]}
-					/>
+					<DitheredFieldAvatar name={name} size={40} tint={COLOURS[index]} />
 					<span className="text-muted-foreground text-xs">{name}</span>
 				</div>
 			))}
@@ -150,18 +79,19 @@ export const ScreensByName = meta.story({
 		docs: {
 			description: {
 				story:
-					"The avatar as the app draws it: no screen pinned, so each companion's screen is picked from its name alone and a colour change never swaps it. Eight names, chosen so each of the four screens appears at least once. Check that every tile is a still field at rest and that each reads by its silhouette at 40 px.",
+					"The avatar as the app draws it, at 40 px: one companion with no colour, which takes the Kiroshi blue, then one per colour. Every tile uses the same screen, so the row reads as one family parted by silhouette and hue. Check that the cells read darker than their pale ground in both themes, and that every tile holds still at rest.",
 			},
 		},
 	},
 	play: async ({ canvasElement }) => {
-		const screens = Array.from(
-			canvasElement.querySelectorAll<HTMLCanvasElement>("canvas[data-screen]"),
-			(canvas) => canvas.dataset.screen,
-		)
+		const canvases = drawnCanvases(canvasElement)
+		const screens = canvases.map((canvas) => canvas.dataset.screen)
 
-		await expect(screens).toHaveLength(NAMES.length * 2)
-		await expect(new Set(screens)).toEqual(new Set(DITHER_SCREENS))
+		await expect(canvases).toHaveLength(NAMES.length * 2)
+		await expect(new Set(screens).size).toBe(1)
+		const before = canvases.map((canvas) => canvas.toDataURL())
+		await pause(STILL_WAIT)
+		await expect(canvases.map((canvas) => canvas.toDataURL())).toEqual(before)
 	},
 })
 

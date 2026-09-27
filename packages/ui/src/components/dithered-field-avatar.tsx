@@ -24,24 +24,12 @@ import {
 } from "@workspace/ui/components/companion-silhouette"
 import { usePrefersReducedMotion } from "@workspace/ui/hooks/use-prefers-reduced-motion"
 
-type DitherScreen = "weight" | "halftone" | "ordered" | "organic"
-
-type DitheredFieldAvatarProps = ExplorationAvatarProps & {
-	screen?: DitherScreen
-}
+type DitheredFieldAvatarProps = ExplorationAvatarProps
 
 type DensityField = {
 	cells: number
 	silhouette: Float32Array
 	lattice: Float32Array
-}
-
-type DrawCell = {
-	context: CanvasRenderingContext2D
-	x: number
-	y: number
-	cell: number
-	density: number
 }
 
 const FIELD_CELLS = 13
@@ -58,14 +46,16 @@ const HUE_SALT = 0x51ed270b
 const HUE_JITTER = 12
 const FIELD_LIGHTNESS = 0.5
 const FIELD_CHROMA = 0.16
-const INK = "oklch(1 0 0)"
-const HALF_TONE_ALPHA = 0.45
-const BAYER = [0, 8, 2, 10, 12, 4, 14, 6, 3, 11, 1, 9, 15, 7, 13, 5]
+const SURFACE_LIGHTNESS = 0.96
+const SURFACE_CHROMA_SHARE = 0.15
+const CELL_SHARE = 0.9
 const TONES = [0, 0.5, 1]
+const TONE_OPACITY = [0, 0.45, 1]
+const DITHER_SCREEN = "square-tone"
 
 const clamp01 = (value: number) => Math.min(1, Math.max(0, value))
 
-const surfaceOf = (seed: number, tint?: BotAvatarBlot) => {
+const inkOf = (seed: number, tint?: BotAvatarBlot) => {
 	const random = seededRandom(seed ^ HUE_SALT)
 	const jitter = Math.round((random() * 2 - 1) * HUE_JITTER)
 	return tint
@@ -73,17 +63,8 @@ const surfaceOf = (seed: number, tint?: BotAvatarBlot) => {
 		: "var(--bot-avatar-field-untinted)"
 }
 
-const DITHER_SCREENS: DitherScreen[] = [
-	"weight",
-	"halftone",
-	"ordered",
-	"organic",
-]
-
-const screenFor = (name: string) =>
-	DITHER_SCREENS[
-		Math.floor(seededRandom(companionSeed(name))() * DITHER_SCREENS.length)
-	]
+const surfaceOf = (ink: string) =>
+	`oklch(from ${ink} ${SURFACE_LIGHTNESS} calc(c * ${SURFACE_CHROMA_SHARE}) h)`
 
 const densityField = (seed: number, cells: number): DensityField => {
 	const glyph = silhouetteCells(
@@ -143,45 +124,6 @@ const densities = (
 	})
 }
 
-const square = ({ context, x, y, cell }: DrawCell, share: number) => {
-	const side = cell * share
-	context.fillRect(x + (cell - side) / 2, y + (cell - side) / 2, side, side)
-}
-
-const disc = ({ context, x, y, cell }: DrawCell, radius: number) => {
-	context.beginPath()
-	context.arc(x + cell / 2, y + cell / 2, radius, 0, Math.PI * 2)
-	context.fill()
-}
-
-const cross = ({ context, x, y, cell }: DrawCell) => {
-	const inset = cell * 0.15
-	context.lineWidth = cell * 0.16
-	context.beginPath()
-	context.moveTo(x + inset, y + inset)
-	context.lineTo(x + cell - inset, y + cell - inset)
-	context.moveTo(x + cell - inset, y + inset)
-	context.lineTo(x + inset, y + cell - inset)
-	context.stroke()
-}
-
-const drawWeight = (target: DrawCell) => {
-	const { density, cell } = target
-	if (density < 0.18) return
-	if (density < 0.4) return disc(target, cell * 0.14)
-	if (density < 0.6) return square(target, 0.42)
-	if (density < 0.8) return cross(target)
-	square(target, 0.92)
-}
-
-const drawHalftone = (target: DrawCell) => {
-	const radius = (target.cell / 2) * Math.sqrt(target.density) * 1.08
-	if (radius > target.cell * 0.06) disc(target, radius)
-}
-
-const bayerAt = (column: number, row: number) =>
-	(BAYER[(row % 4) * 4 + (column % 4)] + 0.5) / BAYER.length
-
 const organicTones = (field: number[], cells: number) => {
 	const error = Float32Array.from(field)
 	const tones = new Array<number>(field.length)
@@ -206,30 +148,26 @@ const organicTones = (field: number[], cells: number) => {
 
 const paintScreen = (
 	context: CanvasRenderingContext2D,
-	screen: DitherScreen,
+	ink: string,
 	field: number[],
 	cells: number,
 	side: number,
 ) => {
 	const cell = side / cells
-	const tones = screen === "organic" ? organicTones(field, cells) : []
+	const inset = (cell * (1 - CELL_SHARE)) / 2
 	context.clearRect(0, 0, side, side)
-	context.fillStyle = INK
-	context.strokeStyle = INK
-	for (const [index, density] of field.entries()) {
-		const column = index % cells
-		const row = Math.floor(index / cells)
-		const target = { context, x: column * cell, y: row * cell, cell, density }
-		if (screen === "weight") drawWeight(target)
-		if (screen === "halftone") drawHalftone(target)
-		if (screen === "ordered" && density > bayerAt(column, row))
-			square(target, 0.72)
-		if (screen === "organic" && tones[index] > 0) {
-			context.globalAlpha = tones[index] === 1 ? 1 : HALF_TONE_ALPHA
-			square(target, 0.9)
-			context.globalAlpha = 1
-		}
+	context.fillStyle = ink
+	for (const [index, tone] of organicTones(field, cells).entries()) {
+		if (tone === 0) continue
+		context.globalAlpha = TONE_OPACITY[TONES.indexOf(tone)]
+		context.fillRect(
+			(index % cells) * cell + inset,
+			Math.floor(index / cells) * cell + inset,
+			cell * CELL_SHARE,
+			cell * CELL_SHARE,
+		)
 	}
+	context.globalAlpha = 1
 }
 
 const DitheredFieldAvatar = ({
@@ -237,14 +175,13 @@ const DitheredFieldAvatar = ({
 	tint,
 	state = "idle",
 	size = 40,
-	screen,
 }: DitheredFieldAvatarProps) => {
-	const drawnScreen = screen ?? screenFor(name)
 	const canvas = useRef<HTMLCanvasElement>(null)
 	const prefersReducedMotion = usePrefersReducedMotion()
 	const seed = companionSeed(name)
 	const field = densityField(seed, FIELD_CELLS)
 	const drawnState = prefersReducedMotion ? "idle" : state
+	const ink = inkOf(seed, tint)
 
 	useExplorationClock({
 		state: drawnState,
@@ -259,7 +196,7 @@ const DitheredFieldAvatar = ({
 			}
 			paintScreen(
 				context,
-				drawnScreen,
+				getComputedStyle(element).color,
 				densities(field, drawnState, time),
 				field.cells,
 				side,
@@ -272,23 +209,18 @@ const DitheredFieldAvatar = ({
 			name={name}
 			size={size}
 			state={state}
-			surface={surfaceOf(seed, tint)}
+			surface={surfaceOf(ink)}
 			tint={tint}
 		>
 			<canvas
 				className="pointer-events-none size-full"
 				data-cells={field.cells}
-				data-screen={drawnScreen}
+				data-screen={DITHER_SCREEN}
 				ref={canvas}
+				style={{ color: ink }}
 			/>
 		</ExplorationFrame>
 	)
 }
 
-export {
-	DITHER_SCREENS,
-	DitheredFieldAvatar,
-	type DitheredFieldAvatarProps,
-	type DitherScreen,
-	screenFor,
-}
+export { DitheredFieldAvatar, type DitheredFieldAvatarProps }

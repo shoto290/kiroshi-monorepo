@@ -79,6 +79,22 @@ const resolvedColourOf = (value: string) => {
 	return resolved
 }
 
+const cellsOf = (glyph: HTMLElement) => {
+	const canvas = glyph.querySelector("canvas")
+	if (!canvas) throw new Error("This avatar draws no cells")
+	return canvas
+}
+
+const solidInkOf = (canvas: HTMLCanvasElement) => {
+	const { data } =
+		canvas.getContext("2d")?.getImageData(0, 0, canvas.width, canvas.height) ??
+		{}
+	for (let offset = 0; data && offset < data.length; offset += 4)
+		if (data[offset + 3] === 255)
+			return `rgb(${data[offset]}, ${data[offset + 1]}, ${data[offset + 2]})`
+	return ""
+}
+
 const meta = preview.meta({
 	title: "Branding/BotIdentityAvatar",
 	component: BotIdentityAvatar,
@@ -166,7 +182,7 @@ export const EveryTint = meta.story({
 		docs: {
 			description: {
 				story:
-					"The companion with no colour, then the eight colours a companion can be given. Each colour becomes a saturated field of its hue under white ink, and the colours do not follow the theme; the uncoloured one is a field of Kiroshi blue. Switch to dark and check the ink reads on all nine.",
+					"The companion with no colour, then the eight colours a companion can be given. Each colour paints the cells in its hue on a pale tint of that hue, and the colours do not follow the theme; the uncoloured one paints its cells in Kiroshi blue. Switch to dark and check the cells read darker than their ground on all nine.",
 			},
 		},
 	},
@@ -188,7 +204,7 @@ export const NoChosenColour = meta.story({
 		docs: {
 			description: {
 				story:
-					"A companion never given a colour: its field is the fixed Kiroshi blue rather than a hue of its own. Switch the theme and check the white ink holds on the blue against both backgrounds.",
+					"A companion never given a colour: its cells are the fixed Kiroshi blue rather than a hue of its own, on a pale tint of that blue. Switch the theme and check the blue cells hold on their ground against both backgrounds.",
 			},
 		},
 	},
@@ -197,7 +213,7 @@ export const NoChosenColour = meta.story({
 			const glyph = companionGlyphOf(avatar)
 			await expectGlyph(avatar, "idle")
 			await expect(companionTintOf(glyph)).toBe("")
-			await expect(getComputedStyle(glyph).backgroundColor).toBe(
+			await expect(solidInkOf(cellsOf(glyph))).toBe(
 				resolvedColourOf("var(--bot-avatar-field-untinted)"),
 			)
 		}

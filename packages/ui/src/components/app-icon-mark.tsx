@@ -18,8 +18,6 @@ const BRAND_NAME = "Kiroshi"
 
 const BRAND_TINT = "blue"
 
-const BRAND_SCREEN = "halftone"
-
 const RESTING_STATE: ExplorationState = "idle"
 
 const PLAYABLE_STATES: ExplorationState[] = [
@@ -58,7 +56,6 @@ type BrandMarkProps = {
 const BrandMark = ({ size, state = RESTING_STATE }: BrandMarkProps) => (
 	<DitheredFieldAvatar
 		name={BRAND_NAME}
-		screen={BRAND_SCREEN}
 		size={size}
 		state={state}
 		tint={BRAND_TINT}
