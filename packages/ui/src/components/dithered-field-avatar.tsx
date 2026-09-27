@@ -50,7 +50,7 @@ const SURFACE_LIGHTNESS = 0.96
 const SURFACE_CHROMA_SHARE = 0.15
 const CELL_SHARE = 0.9
 const TONES = [0, 0.5, 1]
-const TONE_OPACITY = [0, 0.45, 1]
+const HALF_TONE_ALPHA = 0.45
 const DITHER_SCREEN = "square-tone"
 
 const clamp01 = (value: number) => Math.min(1, Math.max(0, value))
@@ -159,7 +159,7 @@ const paintScreen = (
 	context.fillStyle = ink
 	for (const [index, tone] of organicTones(field, cells).entries()) {
 		if (tone === 0) continue
-		context.globalAlpha = TONE_OPACITY[TONES.indexOf(tone)]
+		context.globalAlpha = tone === 1 ? 1 : HALF_TONE_ALPHA
 		context.fillRect(
 			(index % cells) * cell + inset,
 			Math.floor(index / cells) * cell + inset,
