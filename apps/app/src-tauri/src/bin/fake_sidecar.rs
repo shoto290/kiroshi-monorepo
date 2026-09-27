@@ -301,6 +301,22 @@ fn emit_result(key: &str, run: &Run, subtype: &str, is_error: bool) {
 	);
 }
 
+fn emit_structured_result(key: &str, run: &Run, structured_output: Value) {
+	emit(
+		key,
+		json!({
+			"type": "result",
+			"subtype": "success",
+			"is_error": false,
+			"session_id": run.session_id,
+			"num_turns": 1,
+			"structured_output": structured_output,
+			"total_cost_usd": 0.0425,
+			"modelUsage": { "claude-sonnet-4-5": { "inputTokens": 12, "costUSD": 0.0425 } }
+		}),
+	);
+}
+
 fn emit_closed(key: &str, detail: &str) {
 	emit(key, json!({ "type": "closed", "detail": detail }));
 }
@@ -369,6 +385,30 @@ fn on_prompt(key: &str, runs: &mut HashMap<String, Run>, text: &str) {
 			emit_text_turn(key, run, "recovered");
 			emit_result(key, run, "success", false);
 		}
+		"routine_report" => {
+			emit_text_turn(key, run, "checking the shift log");
+			emit_structured_result(
+				key,
+				run,
+				json!({ "outcome": "report", "report": "  The shift log changed.\n" }),
+			);
+		}
+		"routine_report_naming" => {
+			emit_structured_result(
+				key,
+				run,
+				json!({ "outcome": "report", "report": "@Grace Hopper the shift log changed." }),
+			);
+		}
+		"routine_nothing" => {
+			emit_text_turn(key, run, "checking the shift log");
+			emit_structured_result(key, run, json!({ "outcome": "nothing", "report": "" }));
+		}
+		"routine_unstructured" => {
+			emit_text_turn(key, run, "checking the shift log");
+			emit_result(key, run, "success", false);
+		}
+		"routine_failed" => emit_result(key, run, "error_during_execution", true),
 		"identity" => {
 			let spoken = run.identity();
 			emit_text_turn(key, run, &spoken);

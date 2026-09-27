@@ -390,23 +390,31 @@ impl<R: Runtime> Store<R> {
 		&self,
 		written: &str,
 	) -> Result<Option<String>, TranscriptStoreError> {
-		if !written.contains(MENTION_SIGN) {
-			return Ok(None);
-		}
-		let conversations = self.database()?.conversations();
-		let kind = conversations.kind(self.conversation_id.clone()).await?;
-		if !kind.as_deref().is_some_and(|kind| kind == TOPIC_KIND || kind == MISSION_KIND) {
-			return Ok(None);
-		}
-		let seats = conversations.seats(self.conversation_id.clone()).await?;
-		let present: Vec<MentionBot<'_>> = seats
-			.iter()
-			.filter(|seat| seat.left_at.is_none() && !seat.is_deleted)
-			.map(|seat| MentionBot { id: &seat.bot_id, name: &seat.name })
-			.collect();
-		let settled = to_mention_tokens(written, &present);
-		Ok((settled != written).then_some(settled))
+		settled_mentions(self.database()?, &self.conversation_id, written).await
 	}
+}
+
+pub(crate) async fn settled_mentions(
+	database: &db::Database,
+	conversation_id: &str,
+	written: &str,
+) -> Result<Option<String>, TranscriptStoreError> {
+	if !written.contains(MENTION_SIGN) {
+		return Ok(None);
+	}
+	let conversations = database.conversations();
+	let kind = conversations.kind(conversation_id.to_owned()).await?;
+	if !kind.as_deref().is_some_and(|kind| kind == TOPIC_KIND || kind == MISSION_KIND) {
+		return Ok(None);
+	}
+	let seats = conversations.seats(conversation_id.to_owned()).await?;
+	let present: Vec<MentionBot<'_>> = seats
+		.iter()
+		.filter(|seat| seat.left_at.is_none() && !seat.is_deleted)
+		.map(|seat| MentionBot { id: &seat.bot_id, name: &seat.name })
+		.collect();
+	let settled = to_mention_tokens(written, &present);
+	Ok((settled != written).then_some(settled))
 }
 
 fn ending_for(completion: MessageCompletion) -> Option<TerminalState> {

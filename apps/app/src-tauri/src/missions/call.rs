@@ -191,6 +191,7 @@ mod tests {
 	use super::*;
 	use crate::routines::core::Clock;
 	use crate::routines::rate_limit::{CALLS_PER_WINDOW, WINDOW_MS};
+	use crate::routines::runner::Runner;
 	use crate::routines::webhook::{started, Webhook, DELIVERY_ID_HEADER, HEADER};
 
 	const NOON: i64 = 1_800_000_000_000;
@@ -356,7 +357,7 @@ mod tests {
 	}
 
 	fn listening(app: &App<MockRuntime>, clock: Arc<Ticking>) -> Webhook {
-		started(app.handle().clone(), clock)
+		started(app.handle().clone(), clock, Arc::new(Runner::new(app.handle().clone())))
 	}
 
 	#[tokio::test]

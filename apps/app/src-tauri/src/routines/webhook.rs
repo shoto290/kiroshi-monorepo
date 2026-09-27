@@ -14,10 +14,11 @@ use tokio::net::TcpListener;
 use tokio::sync::watch as signal;
 use uuid::Uuid;
 
-use super::commands::{declared_source, Announcer};
+use super::commands::declared_source;
 use super::contract::{RoutineError, TriggerDecision, TriggerEvent};
-use super::core::{self, Clock, SystemClock};
+use super::core::{self, Clock, RunSink, SystemClock};
 use super::rate_limit::RateLimit;
+use super::runner::Runner;
 use super::silence::Silence;
 use crate::conversations::commands::ready;
 use crate::db;
@@ -79,14 +80,20 @@ impl Webhook {
 }
 
 pub fn start<R: Runtime>(app: AppHandle<R>) -> Webhook {
-	started(app, Arc::new(SystemClock))
+	let runs = Arc::new(Runner::new(app.clone()));
+	started(app, Arc::new(SystemClock), runs)
 }
 
-pub(crate) fn started<R: Runtime>(app: AppHandle<R>, clock: Arc<dyn Clock>) -> Webhook {
+pub(crate) fn started<R: Runtime>(
+	app: AppHandle<R>,
+	clock: Arc<dyn Clock>,
+	runs: Arc<dyn RunSink + Send + Sync>,
+) -> Webhook {
 	let (stop, halted) = signal::channel(false);
 	let calls = Calls {
 		app,
 		clock,
+		runs,
 		limit: Arc::new(RateLimit::default()),
 		silence: Arc::new(Silence::default()),
 	};
@@ -143,6 +150,7 @@ async fn stopping(mut halted: signal::Receiver<bool>) {
 pub(crate) struct Calls<R: Runtime> {
 	pub(crate) app: AppHandle<R>,
 	pub(crate) clock: Arc<dyn Clock>,
+	runs: Arc<dyn RunSink + Send + Sync>,
 	pub(crate) limit: Arc<RateLimit>,
 	silence: Arc<Silence>,
 }
@@ -152,6 +160,7 @@ impl<R: Runtime> Clone for Calls<R> {
 		Calls {
 			app: self.app.clone(),
 			clock: self.clock.clone(),
+			runs: self.runs.clone(),
 			limit: self.limit.clone(),
 			silence: self.silence.clone(),
 		}
@@ -235,7 +244,7 @@ async fn carried<R: Runtime>(
 		payload: payload(body, delivery_id, calls.clock.now_ms())?,
 	};
 	let decision =
-		core::on_trigger(database, &Announcer { app }, calls.clock.as_ref(), event).await?;
+		core::on_trigger(database, calls.runs.as_ref(), calls.clock.as_ref(), event).await?;
 	if let TriggerDecision::Skipped { reason, .. } = decision {
 		turn.hold(reason);
 		return Ok(FLOODED);
@@ -295,13 +304,13 @@ mod tests {
 	use std::time::Duration;
 
 	use tauri::test::{mock_builder, mock_context, noop_assets, MockRuntime};
-	use tauri::{App, Listener as _};
+	use tauri::App;
 	use tokio::io::{AsyncReadExt, AsyncWriteExt};
 	use tokio::net::TcpStream;
 
-	use super::super::commands::RUN_REQUESTED_EVENT;
 	use super::super::contract::{
-		Filter, FilterMatchMode, RoutineDraft, RoutineRun, RunClosing, RunOutcome, SkipReason,
+		Filter, FilterMatchMode, RoutineDraft, RoutineRun, RunClosing, RunOutcome, RunRequested,
+		SkipReason,
 	};
 	use super::super::core::{HOURLY_CAP, HOUR_MS, LEASE_MS};
 	use super::super::rate_limit::{CALLS_PER_WINDOW, WINDOW_MS};
@@ -453,12 +462,40 @@ mod tests {
 		webhook.address.expect("the webhook bound an address")
 	}
 
-	fn delivery_id_of(arriving: &mpsc::Receiver<String>) -> String {
-		let announced = arriving
-			.recv_timeout(Duration::from_secs(5))
-			.expect("a run was announced to the front");
-		let announced: Value = serde_json::from_str(&announced).expect("the event is JSON");
-		announced["payload"]["deliveryId"]
+	struct HeldOpen;
+
+	impl RunSink for HeldOpen {
+		fn requested(&self, _event: RunRequested) -> Result<(), RoutineError> {
+			Ok(())
+		}
+	}
+
+	struct Recorded(std::sync::Mutex<mpsc::Sender<RunRequested>>);
+
+	impl RunSink for Recorded {
+		fn requested(&self, event: RunRequested) -> Result<(), RoutineError> {
+			self.0
+				.lock()
+				.expect("the sink is readable")
+				.send(event)
+				.map_err(|error| RoutineError::Undeliverable { detail: error.to_string() })
+		}
+	}
+
+	fn start(app: AppHandle<MockRuntime>) -> Webhook {
+		started(app, Arc::new(SystemClock), Arc::new(HeldOpen))
+	}
+
+	fn recording(app: AppHandle<MockRuntime>) -> (Webhook, mpsc::Receiver<RunRequested>) {
+		let (requested, arriving) = mpsc::channel();
+		let runs = Arc::new(Recorded(std::sync::Mutex::new(requested)));
+		(started(app, Arc::new(SystemClock), runs), arriving)
+	}
+
+	fn delivery_id_of(arriving: &mpsc::Receiver<RunRequested>) -> String {
+		let requested =
+			arriving.recv_timeout(Duration::from_secs(5)).expect("a run was requested");
+		requested.payload["deliveryId"]
 			.as_str()
 			.expect("the payload names a delivery id")
 			.to_owned()
@@ -583,20 +620,13 @@ mod tests {
 	#[tokio::test]
 	async fn a_call_carrying_the_key_of_a_webhook_routine_opens_a_run_from_what_it_carried() {
 		let app = a_host("fired").await;
-		let (requested, arriving) = mpsc::channel();
-		app.listen(RUN_REQUESTED_EVENT, move |event| {
-			requested.send(event.payload().to_owned()).expect("the test is listening");
-		});
-		let webhook = start(app.handle().clone());
+		let (webhook, arriving) = recording(app.handle().clone());
 
 		let answer = answered(address_of(&webhook), calling(Some(A_KEY), "{\"ok\":true}")).await;
 
 		assert_eq!(answer, (ACCEPTED.0.as_u16(), ACCEPTED.1.to_owned()));
-		let announced = arriving
-			.recv_timeout(Duration::from_secs(5))
-			.expect("the run was announced to the front");
-		let announced: Value = serde_json::from_str(&announced).expect("the event is JSON");
-		let payload = &announced["payload"];
+		let requested = arriving.recv_timeout(Duration::from_secs(5)).expect("the run was requested");
+		let payload = &requested.payload;
 		assert_eq!(payload["body"], json!("{\"ok\":true}"));
 		assert!(payload["deliveryId"].as_str().is_some_and(|id| !id.is_empty()), "got {payload}");
 		assert!(
@@ -670,7 +700,7 @@ mod tests {
 	async fn a_call_naming_the_loopback_with_or_without_the_bound_port_is_carried() {
 		let app = a_host("loopback").await;
 		let clock = Ticking::at(NOON);
-		let webhook = started(app.handle().clone(), clock.clone());
+		let webhook = started(app.handle().clone(), clock.clone(), Arc::new(HeldOpen));
 		let address = address_of(&webhook);
 
 		for host in ["localhost", "127.0.0.1", &format!("localhost:{}", address.port())] {
@@ -709,7 +739,7 @@ mod tests {
 	{
 		let app = a_host("flooded").await;
 		let clock = Ticking::at(NOON);
-		let webhook = started(app.handle().clone(), clock.clone());
+		let webhook = started(app.handle().clone(), clock.clone(), Arc::new(HeldOpen));
 		let address = address_of(&webhook);
 		for _ in 0..CALLS_PER_WINDOW {
 			let answer = answered(address, delivering(Some(A_KEY), "delivery-1", "{}")).await;
@@ -743,7 +773,7 @@ mod tests {
 	async fn a_hundred_calls_inside_one_hour_write_the_cap_in_starts_and_one_skip_naming_the_cap() {
 		let app = a_host("hourly-flood").await;
 		let clock = Ticking::at(NOON);
-		let webhook = started(app.handle().clone(), clock.clone());
+		let webhook = started(app.handle().clone(), clock.clone(), Arc::new(HeldOpen));
 		let started_runs = HOURLY_CAP as usize;
 		let silenced = A_HUNDRED_CALLS - started_runs - 1;
 
@@ -768,7 +798,7 @@ mod tests {
 	async fn a_call_landing_after_the_hour_of_silence_writes_a_second_skip_naming_the_cap() {
 		let app = a_host("hourly-forgotten").await;
 		let clock = Ticking::at(NOON);
-		let webhook = started(app.handle().clone(), clock.clone());
+		let webhook = started(app.handle().clone(), clock.clone(), Arc::new(HeldOpen));
 		let address = address_of(&webhook);
 		let to_the_cap = HOURLY_CAP as usize + 1;
 		calling_with_each_run_closed(&app, address, &clock, A_KEY, to_the_cap).await;
@@ -788,7 +818,7 @@ mod tests {
 	async fn two_routines_flooded_in_the_same_hour_each_keep_their_own_skip_naming_the_cap() {
 		let app = a_host("hourly-two").await;
 		let clock = Ticking::at(NOON);
-		let webhook = started(app.handle().clone(), clock.clone());
+		let webhook = started(app.handle().clone(), clock.clone(), Arc::new(HeldOpen));
 		let address = address_of(&webhook);
 		let to_the_cap = HOURLY_CAP as usize + 1;
 
@@ -809,7 +839,7 @@ mod tests {
 	async fn a_hundred_calls_while_the_first_run_stays_open_write_one_start_and_one_skip() {
 		let app = a_host("leased-flood").await;
 		let clock = Ticking::at(NOON);
-		let webhook = started(app.handle().clone(), clock.clone());
+		let webhook = started(app.handle().clone(), clock.clone(), Arc::new(HeldOpen));
 
 		let answers =
 			calling_with_the_run_left_open(address_of(&webhook), &clock, A_KEY, A_HUNDRED_CALLS)
@@ -827,7 +857,7 @@ mod tests {
 	async fn calls_fired_at_once_while_the_first_run_stays_open_write_one_start_and_one_skip() {
 		let app = a_host("leased-at-once").await;
 		let clock = Ticking::at(NOON);
-		let webhook = started(app.handle().clone(), clock.clone());
+		let webhook = started(app.handle().clone(), clock.clone(), Arc::new(HeldOpen));
 		let address = address_of(&webhook);
 		let silenced = CALLS_PER_WINDOW - 2;
 
@@ -853,7 +883,7 @@ mod tests {
 	async fn a_call_landing_after_the_length_of_a_lease_reaches_the_admission_again() {
 		let app = a_host("leased-forgotten").await;
 		let clock = Ticking::at(NOON);
-		let webhook = started(app.handle().clone(), clock.clone());
+		let webhook = started(app.handle().clone(), clock.clone(), Arc::new(HeldOpen));
 		let address = address_of(&webhook);
 		calling_with_the_run_left_open(address, &clock, A_KEY, 2).await;
 		assert_eq!(skipped_rows(&app, A_KEY, SkipReason::LeaseHeld).await, 1);
@@ -895,7 +925,7 @@ mod tests {
 	async fn one_delivery_id_carried_twice_opens_one_run_and_two_delivery_ids_open_two() {
 		let app = a_host("delivered").await;
 		let clock = Ticking::at(NOON);
-		let webhook = started(app.handle().clone(), clock.clone());
+		let webhook = started(app.handle().clone(), clock.clone(), Arc::new(HeldOpen));
 		let address = address_of(&webhook);
 
 		for _ in 0..2 {
@@ -923,11 +953,7 @@ mod tests {
 	#[tokio::test]
 	async fn a_carried_delivery_id_reaches_the_payload_and_a_blank_one_is_generated() {
 		let app = a_host("named").await;
-		let (requested, arriving) = mpsc::channel();
-		app.listen(RUN_REQUESTED_EVENT, move |event| {
-			requested.send(event.payload().to_owned()).expect("the test is listening");
-		});
-		let webhook = start(app.handle().clone());
+		let (webhook, arriving) = recording(app.handle().clone());
 		let address = address_of(&webhook);
 
 		answered(address, delivering(Some(A_KEY), "delivery-1", "{}")).await;

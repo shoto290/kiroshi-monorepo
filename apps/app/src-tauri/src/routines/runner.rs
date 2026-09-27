@@ -1,0 +1,415 @@
+use std::time::Duration;
+
+use serde::Serialize;
+use serde_json::Value;
+use tauri::{AppHandle, Emitter, EventId, Listener, Manager, Runtime, State};
+use tokio::sync::mpsc;
+use tokio::time::{self, Instant};
+use uuid::Uuid;
+
+use super::commands::announce_change;
+use super::contract::{RoutineError, RunClosing, RunOutcome, RunRequested};
+use super::core::{Clock, RunSink, SystemClock};
+use super::run::{read_run_report, run_output_schema, run_prompt_for, RunReport};
+use crate::agent::commands::{
+	agent_cancel_turn, agent_shutdown, agent_start_or_resume_session, agent_submit_prompt,
+	EVENT_CHANNEL,
+};
+use crate::agent::contract::{
+	AgentEvent, ChatMessage, MessageCompletion, MessageRole, RuntimeScope, ScopedEvent,
+	TransportError, TurnEnded, TurnOutcome,
+};
+use crate::agent::reply_writer::settled_mentions;
+use crate::conversations::commands::{conversation_open_runtime_session, ready};
+use crate::conversations::contract::TranscriptStoreError;
+use crate::db;
+use crate::db::repositories::messages::{NewAssistantMessage, NewTurn, TerminalState};
+
+const CANCELLED_REASON: &str = "the run's turn was cancelled";
+
+const FAILED_REASON: &str = "the run's turn failed";
+
+const MISSING_OUTPUT_REASON: &str = "the run's turn ended with no structured output";
+
+const QUESTION_REASON: &str = "a run cannot be asked a question";
+
+const PERMISSION_REASON: &str = "a run cannot be asked for a permission";
+
+const DEADLINE_REASON: &str = "the run outlived its deadline";
+
+const EVENTS_LOST_REASON: &str = "the run's session events stopped arriving";
+
+const UNKNOWN_KIND: &str = "unknownFailure";
+
+const NO_AGENT: &str = "the host holds no agent state";
+
+const NO_DATABASE: &str = "the host holds no database";
+
+#[derive(Debug, Clone, Copy)]
+pub struct RunTiming {
+	pub lease: Duration,
+	pub deadline: Duration,
+}
+
+pub const RUN_TIMING: RunTiming =
+	RunTiming { lease: Duration::from_secs(60), deadline: Duration::from_secs(30 * 60) };
+
+pub struct Runner<R: Runtime> {
+	app: AppHandle<R>,
+	timing: RunTiming,
+}
+
+impl<R: Runtime> Runner<R> {
+	pub fn new(app: AppHandle<R>) -> Self {
+		Self::timed(app, RUN_TIMING)
+	}
+
+	pub fn timed(app: AppHandle<R>, timing: RunTiming) -> Self {
+		Self { app, timing }
+	}
+}
+
+impl<R: Runtime> RunSink for Runner<R> {
+	fn requested(&self, requested: RunRequested) -> Result<(), RoutineError> {
+		tauri::async_runtime::spawn(run(self.app.clone(), self.timing, requested));
+		Ok(())
+	}
+}
+
+async fn run<R: Runtime>(app: AppHandle<R>, timing: RunTiming, requested: RunRequested) {
+	let scope = match opened_scope(&app, &requested).await {
+		Ok(scope) => scope,
+		Err(detail) => return close(&app, &requested, could_not_start(&detail)).await,
+	};
+	let (events, mut arriving) = mpsc::unbounded_channel();
+	let listening = listen(&app, &requested.run_id, scope.clone(), events);
+	let closing = drive(&app, timing, &requested, &scope, &mut arriving).await;
+	app.unlisten(listening);
+	close(&app, &requested, closing).await;
+	shut_down(&app, &requested.run_id, scope).await;
+}
+
+async fn drive<R: Runtime>(
+	app: &AppHandle<R>,
+	timing: RunTiming,
+	requested: &RunRequested,
+	scope: &RuntimeScope,
+	arriving: &mut mpsc::UnboundedReceiver<AgentEvent>,
+) -> RunClosing {
+	let run_id = &requested.run_id;
+	let expiry = time::sleep(timing.deadline);
+	tokio::pin!(expiry);
+	tokio::select! {
+		() = &mut expiry => return refused(app, run_id, scope, DEADLINE_REASON).await,
+		begun = started(app, scope, requested) => {
+			if let Err(detail) = begun {
+				return could_not_start(&detail);
+			}
+		}
+	}
+	let mut lease = time::interval_at(Instant::now() + timing.lease, timing.lease);
+	loop {
+		tokio::select! {
+			() = &mut expiry => return refused(app, run_id, scope, DEADLINE_REASON).await,
+			_ = lease.tick() => renew(app, run_id).await,
+			arrived = arriving.recv() => {
+				let Some(event) = arrived else {
+					return failed(EVENTS_LOST_REASON);
+				};
+				if let Some(closing) = settled_by(app, run_id, scope, event).await {
+					return closing;
+				}
+			}
+		}
+	}
+}
+
+async fn settled_by<R: Runtime>(
+	app: &AppHandle<R>,
+	run_id: &str,
+	scope: &RuntimeScope,
+	event: AgentEvent,
+) -> Option<RunClosing> {
+	match event {
+		AgentEvent::TurnEnded { ended } => Some(settled(app, scope, ended).await),
+		AgentEvent::Failed { error } if ends_the_session(&error) => {
+			Some(failed(&transport_reason(&error)))
+		}
+		AgentEvent::QuestionRequested { .. } => {
+			Some(refused(app, run_id, scope, QUESTION_REASON).await)
+		}
+		AgentEvent::PermissionRequested { .. } => {
+			Some(refused(app, run_id, scope, PERMISSION_REASON).await)
+		}
+		_ => None,
+	}
+}
+
+async fn settled<R: Runtime>(
+	app: &AppHandle<R>,
+	scope: &RuntimeScope,
+	ended: TurnEnded,
+) -> RunClosing {
+	let closing = match ended.outcome {
+		TurnOutcome::Cancelled => failed(CANCELLED_REASON),
+		TurnOutcome::Failed => failed(FAILED_REASON),
+		TurnOutcome::Completed => reported(app, scope, ended.structured_output.as_ref()).await,
+	};
+	RunClosing { cost_usd: ended.total_cost_usd, model_usage: ended.model_usage, ..closing }
+}
+
+async fn reported<R: Runtime>(
+	app: &AppHandle<R>,
+	scope: &RuntimeScope,
+	structured_output: Option<&Value>,
+) -> RunClosing {
+	let text = match read_run_report(structured_output) {
+		None => return failed(MISSING_OUTPUT_REASON),
+		Some(RunReport::Nothing) => return closing(RunOutcome::Nothing),
+		Some(RunReport::Report { text }) => text,
+	};
+	match write_report(app, scope, text).await {
+		Ok(turn_id) => RunClosing { reported_turn_id: Some(turn_id), ..closing(RunOutcome::Ok) },
+		Err(error) => failed(&format!("the report could not be written: {}", detail_of(&error))),
+	}
+}
+
+async fn write_report<R: Runtime>(
+	app: &AppHandle<R>,
+	scope: &RuntimeScope,
+	text: String,
+) -> Result<String, TranscriptStoreError> {
+	let database = database(app)?;
+	let text = settled_mentions(database, &scope.conversation_id, &text).await?.unwrap_or(text);
+	let messages = database.messages();
+	let turn_id = Uuid::new_v4().to_string();
+	let message_id = Uuid::new_v4().to_string();
+	let created_at = SystemClock.now_ms();
+	messages
+		.start_turn(NewTurn {
+			id: turn_id.clone(),
+			conversation_id: scope.conversation_id.clone(),
+			started_at: created_at,
+		})
+		.await?;
+	messages
+		.open_assistant_message(NewAssistantMessage {
+			id: message_id.clone(),
+			conversation_id: scope.conversation_id.clone(),
+			turn_id: turn_id.clone(),
+			author_bot_id: Some(scope.bot_id.clone()),
+			replied_to_message_id: None,
+			created_at,
+		})
+		.await?;
+	messages.append_text(message_id.clone(), text.clone()).await?;
+	messages.finalize_message(message_id.clone(), TerminalState::Complete, None).await?;
+	messages.complete_turn(turn_id.clone(), SystemClock.now_ms()).await?;
+	announce_report(
+		app,
+		scope,
+		ChatMessage {
+			id: message_id,
+			role: MessageRole::Assistant,
+			text,
+			completion: MessageCompletion::Complete,
+			timestamp: created_at,
+		},
+	);
+	Ok(turn_id)
+}
+
+fn announce_report<R: Runtime>(app: &AppHandle<R>, scope: &RuntimeScope, message: ChatMessage) {
+	let scoped =
+		ScopedEvent { scope: Some(scope.clone()), event: AgentEvent::MessageCompleted { message } };
+	if let Err(error) = app.emit(EVENT_CHANNEL, scoped) {
+		eprintln!(
+			"the report turn of conversation {} could not be announced: {error}",
+			scope.conversation_id
+		);
+	}
+}
+
+async fn opened_scope<R: Runtime>(
+	app: &AppHandle<R>,
+	requested: &RunRequested,
+) -> Result<RuntimeScope, String> {
+	let state = managed::<R, db::DatabaseState>(app, NO_DATABASE)?;
+	let opened = conversation_open_runtime_session(
+		state,
+		requested.conversation_id.clone(),
+		requested.bot_id.clone(),
+		SystemClock.now_ms(),
+		None,
+		None,
+	)
+	.await
+	.map_err(|error| detail_of(&error))?;
+	Ok(RuntimeScope {
+		conversation_id: opened.conversation_id,
+		bot_id: opened.bot_id,
+		runtime_session_id: opened.id,
+		epoch: opened.seq,
+	})
+}
+
+async fn started<R: Runtime>(
+	app: &AppHandle<R>,
+	scope: &RuntimeScope,
+	requested: &RunRequested,
+) -> Result<(), String> {
+	agent_start_or_resume_session(
+		app.clone(),
+		managed(app, NO_AGENT)?,
+		managed(app, NO_DATABASE)?,
+		scope.clone(),
+		None,
+		None,
+		Some(run_output_schema().into()),
+	)
+	.await
+	.map_err(|error| detail_of(&error))?;
+	agent_submit_prompt(managed(app, NO_AGENT)?, scope.clone(), run_prompt_for(requested), None)
+		.await
+		.map_err(|error| detail_of(&error))
+}
+
+async fn refused<R: Runtime>(
+	app: &AppHandle<R>,
+	run_id: &str,
+	scope: &RuntimeScope,
+	reason: &str,
+) -> RunClosing {
+	if let Err(detail) = cancelled(app, scope).await {
+		eprintln!("routine run {run_id} could not cancel its turn: {detail}");
+	}
+	failed(reason)
+}
+
+async fn cancelled<R: Runtime>(app: &AppHandle<R>, scope: &RuntimeScope) -> Result<(), String> {
+	agent_cancel_turn(app.clone(), managed(app, NO_AGENT)?, scope.clone())
+		.await
+		.map_err(|error| detail_of(&error))
+}
+
+async fn shut_down<R: Runtime>(app: &AppHandle<R>, run_id: &str, scope: RuntimeScope) {
+	if let Err(detail) = shut(app, scope).await {
+		eprintln!("routine run {run_id} could not shut its session down: {detail}");
+	}
+}
+
+async fn shut<R: Runtime>(app: &AppHandle<R>, scope: RuntimeScope) -> Result<(), String> {
+	agent_shutdown(app.clone(), managed(app, NO_AGENT)?, scope)
+		.await
+		.map_err(|error| detail_of(&error))
+}
+
+async fn renew<R: Runtime>(app: &AppHandle<R>, run_id: &str) {
+	if let Err(error) = renewed(app, run_id).await {
+		eprintln!("routine run {run_id} could not renew its lease: {error:?}");
+	}
+}
+
+async fn renewed<R: Runtime>(app: &AppHandle<R>, run_id: &str) -> Result<(), RoutineError> {
+	database(app)?.routines().renew_lease(run_id.to_owned(), SystemClock.now_ms()).await
+}
+
+async fn close<R: Runtime>(app: &AppHandle<R>, requested: &RunRequested, closing: RunClosing) {
+	let run_id = &requested.run_id;
+	if let (RunOutcome::Failed, Some(reason)) = (closing.outcome, &closing.reason) {
+		eprintln!("routine run {run_id} failed: {reason}");
+	}
+	if let Err(error) = closed(app, run_id, closing).await {
+		return eprintln!("routine run {run_id} could not be closed: {error:?}");
+	}
+	if let Err(error) = announce_change(app, &requested.conversation_id) {
+		eprintln!(
+			"routine run {run_id} was closed but its change could not be announced: {error:?}"
+		);
+	}
+}
+
+async fn closed<R: Runtime>(
+	app: &AppHandle<R>,
+	run_id: &str,
+	closing: RunClosing,
+) -> Result<(), RoutineError> {
+	database(app)?.routines().close_run(run_id.to_owned(), closing, SystemClock.now_ms()).await?;
+	Ok(())
+}
+
+fn listen<R: Runtime>(
+	app: &AppHandle<R>,
+	run_id: &str,
+	scope: RuntimeScope,
+	events: mpsc::UnboundedSender<AgentEvent>,
+) -> EventId {
+	let run_id = run_id.to_owned();
+	app.listen(EVENT_CHANNEL, move |heard| {
+		let scoped = match serde_json::from_str::<ScopedEvent>(heard.payload()) {
+			Ok(scoped) => scoped,
+			Err(error) => {
+				return eprintln!("routine run {run_id} could not read an agent event: {error}")
+			}
+		};
+		if scoped.scope.as_ref() != Some(&scope) {
+			return;
+		}
+		if events.send(scoped.event).is_err() {
+			eprintln!(
+				"routine run {run_id} has stopped, an agent event of its session was dropped"
+			);
+		}
+	})
+}
+
+fn ends_the_session(error: &TransportError) -> bool {
+	error.is_fatal()
+		|| matches!(error, TransportError::AuthCheckFailed { .. } | TransportError::NotStarted)
+}
+
+fn transport_reason(error: &TransportError) -> String {
+	let carried = match serde_json::to_value(error) {
+		Ok(carried) => carried,
+		Err(failure) => {
+			return format!("the run's session failed with an unreadable error: {failure}")
+		}
+	};
+	let kind = carried["kind"].as_str().unwrap_or(UNKNOWN_KIND);
+	match carried["detail"].as_str().filter(|detail| !detail.is_empty()) {
+		Some(detail) => format!("the run's session failed with {kind}: {detail}"),
+		None => format!("the run's session failed with {kind}"),
+	}
+}
+
+fn could_not_start(detail: &str) -> RunClosing {
+	failed(&format!("the run could not start: {detail}"))
+}
+
+fn closing(outcome: RunOutcome) -> RunClosing {
+	RunClosing { outcome, reason: None, cost_usd: None, model_usage: None, reported_turn_id: None }
+}
+
+fn failed(reason: &str) -> RunClosing {
+	RunClosing { reason: Some(reason.to_owned()), ..closing(RunOutcome::Failed) }
+}
+
+fn detail_of(error: &impl Serialize) -> String {
+	serde_json::to_string(error).unwrap_or_else(|failure| failure.to_string())
+}
+
+fn managed<'a, R: Runtime, T: Send + Sync + 'static>(
+	app: &'a AppHandle<R>,
+	missing: &str,
+) -> Result<State<'a, T>, String> {
+	app.try_state::<T>().ok_or_else(|| missing.to_owned())
+}
+
+fn database<R: Runtime>(app: &AppHandle<R>) -> Result<&db::Database, TranscriptStoreError> {
+	match app.try_state::<db::DatabaseState>() {
+		Some(state) => ready(state.inner()),
+		None => Err(TranscriptStoreError::Unavailable {
+			failure: (&db::DatabaseError::AppDataDir).into(),
+		}),
+	}
+}

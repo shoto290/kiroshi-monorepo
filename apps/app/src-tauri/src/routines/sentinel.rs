@@ -7,9 +7,10 @@ use notify_debouncer_full::{new_debouncer, DebounceEventResult, Debouncer, Recom
 use tauri::{AppHandle, Manager, Runtime};
 use tokio::sync::{mpsc, watch as signal};
 
-use super::commands::{declared_source, Announcer};
+use super::commands::declared_source;
 use super::contract::{Routine, RoutineError, TriggerEvent, TriggerSource};
 use super::core::{self, Clock, SystemClock};
+use super::runner::Runner;
 use super::{schedule, watch};
 use crate::conversations::commands::ready;
 use crate::db;
@@ -161,7 +162,8 @@ async fn fired<R: Runtime>(
 	let Some(source) = source_of(app, database, &held.routine).await? else {
 		return Ok(());
 	};
-	schedule::fire(database, &Announcer { app }, &SystemClock, &held.routine, &source, &occurrence)
+	let runner = Runner::new(app.clone());
+	schedule::fire(database, &runner, &SystemClock, &held.routine, &source, &occurrence)
 		.await
 		.map(drop)
 }
@@ -200,7 +202,7 @@ async fn notified<R: Runtime>(
 			source: source.clone(),
 			payload: watch::payload(change)?,
 		};
-		core::on_trigger(database, &Announcer { app }, &SystemClock, event).await?;
+		core::on_trigger(database, &Runner::new(app.clone()), &SystemClock, event).await?;
 	}
 	Ok(())
 }
