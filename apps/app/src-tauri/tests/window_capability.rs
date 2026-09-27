@@ -10,6 +10,9 @@ const WINDOW_PREFIX: &str = "core:window:allow-";
 const CORE_DEFAULT: &str = "core:default";
 const HANDLE_FACTORY: &str = "getCurrentWindow()";
 
+const DIALOG_PREFIX: &str = "dialog:";
+const DIALOG_PERMISSIONS_OF_THE_ARCHIVE_PICKERS: &[&str] = &["dialog:allow-save", "dialog:allow-open"];
+
 const WINDOW_COMMANDS_OF_CORE_DEFAULT: &[&str] = &["is-focused"];
 
 // The drag region handler the webview injects invokes `start_dragging` on the press
@@ -127,6 +130,20 @@ fn the_capability_grants_no_window_command_the_front_leaves_uncalled() {
 		.filter(|command| !called.contains(command))
 		.collect();
 	assert!(unused.is_empty(), "the capability grants {} that nothing calls", listed(unused));
+}
+
+#[test]
+fn the_capability_grants_only_the_archive_pickers_of_the_dialog_plugin() {
+	let parsed: Value = serde_json::from_str(CAPABILITY).expect("the capability is valid JSON");
+	let granted: BTreeSet<&str> = parsed["permissions"]
+		.as_array()
+		.expect("the capability lists its permissions")
+		.iter()
+		.filter_map(|entry| entry.as_str().or_else(|| entry["identifier"].as_str()))
+		.filter(|identifier| identifier.starts_with(DIALOG_PREFIX))
+		.collect();
+	let expected: BTreeSet<&str> = DIALOG_PERMISSIONS_OF_THE_ARCHIVE_PICKERS.iter().copied().collect();
+	assert_eq!(granted, expected, "the capability grants a dialog permission beyond save and open");
 }
 
 #[test]

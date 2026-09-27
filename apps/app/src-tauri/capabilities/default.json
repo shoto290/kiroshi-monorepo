@@ -11,6 +11,8 @@
 		"updater:default",
 		"process:allow-restart",
 		"os:allow-platform",
+		"dialog:allow-save",
+		"dialog:allow-open",
 		"opener:allow-open-url",
 		"opener:allow-default-urls",
 		{
