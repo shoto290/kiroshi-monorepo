@@ -3347,11 +3347,18 @@ fn a_refused_message_nobody_is_summoned_to_leaves_no_closed_turn_behind() {
 }
 
 #[cfg(feature = "fake-claude")]
+fn one_scenario_at_a_time() -> std::sync::MutexGuard<'static, ()> {
+	static SCENARIO: std::sync::Mutex<()> = std::sync::Mutex::new(());
+	SCENARIO.lock().unwrap_or_else(std::sync::PoisonError::into_inner)
+}
+
+#[cfg(feature = "fake-claude")]
 #[test]
 fn a_companion_cancelling_before_its_submit_spares_the_turn_another_companion_was_handed() {
 	use kiroshi_app::agent::commands::terminate_session;
 	use kiroshi_app::agent::sidecar::SIDECAR_OVERRIDE_ENV;
 
+	let _scenario = one_scenario_at_a_time();
 	std::env::set_var(SIDECAR_OVERRIDE_ENV, env!("CARGO_BIN_EXE_fake_sidecar"));
 	std::env::set_var("FAKE_AGENT_SCENARIO", "slow");
 	let home = Home::new();
@@ -3385,4 +3392,88 @@ fn a_companion_cancelling_before_its_submit_spares_the_turn_another_companion_wa
 	);
 	assert_eq!(completed_at(&app, "t1"), None, "the cancel closed a turn another companion holds");
 	tauri::async_runtime::block_on(terminate_session(&writes));
+}
+
+#[cfg(feature = "fake-claude")]
+fn a_question_row(app: &App<MockRuntime>) -> Option<(String, i64, String, String)> {
+	let state = app.state::<db::DatabaseState>();
+	let database = state.as_ref().expect("the database is open");
+	tauri::async_runtime::block_on(database.messages().call(|connection| {
+		Ok(connection
+			.query_row(
+				"SELECT id, seq, content, completion_state FROM messages WHERE id LIKE 'question-%'",
+				[],
+				|row| Ok((row.get(0)?, row.get(1)?, row.get(2)?, row.get(3)?)),
+			)
+			.optional()?)
+	}))
+	.expect("the question reads")
+}
+
+#[cfg(feature = "fake-claude")]
+#[test]
+fn a_question_line_the_host_wrote_answers_its_seq_and_refuses_every_front_write() {
+	use kiroshi_app::agent::commands::terminate_session;
+	use kiroshi_app::agent::sidecar::SIDECAR_OVERRIDE_ENV;
+
+	let _scenario = one_scenario_at_a_time();
+	std::env::set_var(SIDECAR_OVERRIDE_ENV, env!("CARGO_BIN_EXE_fake_sidecar"));
+	std::env::set_var("FAKE_AGENT_SCENARIO", "question");
+	let home = Home::new();
+	let app = a_host_with_agents(&home);
+	let window = window(&app);
+	let chat = call(&window, "conversation_main_chat", json!({ "botId": BOT })).expect("the chat");
+	let conversation = chat["id"].as_str().expect("the chat holds an id").to_owned();
+	let scope = json!({ "conversationId": conversation, "botId": BOT, "runtimeSessionId": "r1", "epoch": 1 });
+	call(
+		&window,
+		"agent_start_or_resume_session",
+		json!({ "scope": scope, "resume": null, "cwd": std::env::temp_dir() }),
+	)
+	.expect("the companion starts");
+	call(&window, "conversation_send_user_message", a_sent_message("m1", "t1", &conversation, 1))
+		.expect("the message is sent");
+	call(
+		&window,
+		"agent_submit_prompt",
+		json!({ "scope": scope, "text": "hello", "turn": { "turnId": "t1", "promptId": "m1" } }),
+	)
+	.expect("the prompt is handed to the companion");
+
+	let deadline = std::time::Instant::now() + Duration::from_secs(10);
+	let stored = loop {
+		if let Some(stored) = a_question_row(&app) {
+			break stored;
+		}
+		assert!(std::time::Instant::now() < deadline, "the host never wrote the question line");
+		std::thread::sleep(Duration::from_millis(20));
+	};
+	let (id, seq, content, state) = stored.clone();
+	assert_eq!(state, "complete");
+
+	let opened = call(
+		&window,
+		"conversation_open_assistant_message",
+		json!({ "message": {
+			"id": id,
+			"conversationId": conversation,
+			"turnId": "t1",
+			"authorBotId": BOT,
+			"repliedToMessageId": "m1",
+			"createdAt": 99
+		}}),
+	)
+	.expect("the front open is accepted");
+	call(&window, "conversation_append_text", json!({ "id": id, "delta": content }))
+		.expect("the front append is accepted");
+	call(
+		&window,
+		"conversation_finalize_message",
+		json!({ "id": id, "completion": "cancelled", "settledText": "rewritten" }),
+	)
+	.expect("the front finalize is accepted");
+
+	assert_eq!(opened, json!(seq), "the front open did not answer the stored seq");
+	assert_eq!(a_question_row(&app), Some(stored), "a front write reached the host question line");
+	tauri::async_runtime::block_on(terminate_session(&app.state::<AgentState>()));
 }

@@ -5,7 +5,8 @@ use tauri::{AppHandle, Manager, Runtime};
 use tokio::sync::mpsc;
 
 use super::contract::{
-	AgentEvent, ChatMessage, MessageCompletion, RuntimeScope, SubmittedTurn, TurnOutcome, TurnState,
+	AgentEvent, AskedQuestion, ChatMessage, MessageCompletion, QuestionOption, QuestionRequest,
+	RuntimeScope, SubmittedTurn, TurnOutcome, TurnState,
 };
 use super::session::EventSink;
 use super::translate::now_ms;
@@ -18,6 +19,8 @@ use crate::db::DatabaseError;
 
 const MENTION_SIGN: char = '@';
 const MENTION_OPEN: char = '<';
+const QUESTION_ID_PREFIX: &str = "question-";
+const OPTION_SEPARATOR: char = '\u{2014}';
 
 #[derive(Default)]
 pub struct HostWrites {
@@ -184,7 +187,7 @@ impl<R: Runtime> Desk<R> {
 			}
 			AgentEvent::MessageDelta { id, seq, text } => self.stream(id, *seq, text).await,
 			AgentEvent::MessageCompleted { message } => self.settle_completed(message).await,
-			AgentEvent::QuestionRequested { .. } => self.settle_open(TerminalState::Complete).await,
+			AgentEvent::QuestionRequested { request } => self.ask(request).await,
 			AgentEvent::TurnEnded { ended } => self.end(ending_of(ended.outcome)).await,
 			AgentEvent::TurnChanged { state: TurnState::Failed } => {
 				self.end(TerminalState::Failed).await
@@ -301,6 +304,22 @@ impl<R: Runtime> Desk<R> {
 		}
 	}
 
+	async fn ask(&mut self, request: &QuestionRequest) {
+		self.settle_open(TerminalState::Complete).await;
+		let Some(turn) = self.turn.as_mut() else {
+			return;
+		};
+		let id = question_message_id_of(&request.id);
+		if !turn.settled.insert(id.clone()) {
+			return;
+		}
+		if let Err(error) =
+			self.store.write_question(turn, &id, &question_message_text(request)).await
+		{
+			self.store.report(&id, &error);
+		}
+	}
+
 	async fn end(&mut self, completion: TerminalState) {
 		self.settle_open(completion).await;
 		let Some(turn) = self.turn.take() else {
@@ -352,16 +371,35 @@ impl<R: Runtime> Store<R> {
 		turn: &OpenTurn,
 		message: &ChatMessage,
 	) -> Result<(), TranscriptStoreError> {
+		self.open_assistant(turn, &message.id, message.timestamp).await
+	}
+
+	async fn write_question(
+		&self,
+		turn: &OpenTurn,
+		id: &str,
+		text: &str,
+	) -> Result<(), TranscriptStoreError> {
+		self.open_assistant(turn, id, now_ms()).await?;
+		self.finalize(id, TerminalState::Complete, Some(text.to_owned())).await
+	}
+
+	async fn open_assistant(
+		&self,
+		turn: &OpenTurn,
+		id: &str,
+		created_at: i64,
+	) -> Result<(), TranscriptStoreError> {
 		let reply = NewAssistantMessage {
-			id: message.id.clone(),
+			id: id.to_owned(),
 			conversation_id: self.conversation_id.clone(),
 			turn_id: turn.id.clone(),
 			author_bot_id: Some(self.bot_id.clone()),
 			replied_to_message_id: Some(turn.prompt_id.clone()),
-			created_at: message.timestamp,
+			created_at,
 		};
 		self.database()?.messages().open_assistant_message(reply).await?;
-		self.owned.claim_message(&message.id);
+		self.owned.claim_message(id);
 		Ok(())
 	}
 
@@ -430,6 +468,37 @@ fn is_worth_keeping(message: &ChatMessage, completion: TerminalState) -> bool {
 	!message.text.is_empty() || completion != TerminalState::Complete
 }
 
+fn question_message_id_of(request_id: &str) -> String {
+	format!("{QUESTION_ID_PREFIX}{request_id}")
+}
+
+fn question_message_text(request: &QuestionRequest) -> String {
+	request.questions.iter().flat_map(asked_lines).collect::<Vec<_>>().join("\n")
+}
+
+fn asked_lines(asked: &AskedQuestion) -> Vec<String> {
+	std::iter::once(format!("### {}", one_line(&asked.question)))
+		.chain(asked.options.iter().map(option_line))
+		.collect()
+}
+
+fn option_line(option: &QuestionOption) -> String {
+	match option.description.as_deref().filter(|description| !description.is_empty()) {
+		Some(description) => {
+			format!("- {} {OPTION_SEPARATOR} {}", one_line(&option.label), one_line(description))
+		}
+		None => format!("- {}", one_line(&option.label)),
+	}
+}
+
+fn one_line(text: &str) -> String {
+	text.split(is_js_whitespace).filter(|word| !word.is_empty()).collect::<Vec<_>>().join(" ")
+}
+
+fn is_js_whitespace(character: char) -> bool {
+	(character.is_whitespace() && character != '\u{85}') || character == '\u{feff}'
+}
+
 struct MentionBot<'a> {
 	id: &'a str,
 	name: &'a str,
@@ -488,7 +557,9 @@ mod tests {
 
 	use super::*;
 	use crate::db::repositories::conversations::DEFAULT_BOT_ID;
-	use crate::db::repositories::messages::{MessageRole, MessageState, NewUserMessage};
+	use crate::db::repositories::messages::{
+		MessageRole, MessageState, NewUserMessage, StoredMessage,
+	};
 
 	struct Written {
 		app: App<MockRuntime>,
@@ -609,6 +680,127 @@ mod tests {
 		assert!(written.completed_at("t1").await.is_some(), "the earlier turn was left open");
 		assert_eq!(written.completed_at("t2").await, None, "the new turn was closed");
 		written.close();
+	}
+
+	fn option(label: &str, description: Option<&str>) -> QuestionOption {
+		QuestionOption {
+			label: label.to_owned(),
+			description: description.map(str::to_owned),
+			preview: None,
+		}
+	}
+
+	fn asked(question: &str, options: Vec<QuestionOption>) -> AskedQuestion {
+		AskedQuestion {
+			header: "Pick".to_owned(),
+			question: question.to_owned(),
+			options,
+			multi_select: false,
+		}
+	}
+
+	fn question(request_id: &str) -> AgentEvent {
+		AgentEvent::QuestionRequested {
+			request: QuestionRequest {
+				id: request_id.to_owned(),
+				questions: vec![
+					asked(
+						"Which  wall\nfirst?",
+						vec![option("North", Some(" the cold\tone ")), option("South", None)],
+					),
+					asked("Paint @Ada?", vec![option(" Yes ", Some("")), option("No", None)]),
+				],
+				subject: None,
+			},
+		}
+	}
+
+	const QUESTION_TEXT: &str =
+		"### Which wall first?\n- North \u{2014} the cold one\n- South\n### Paint @Ada?\n- Yes\n- No";
+
+	impl Written {
+		async fn stored(&self, id: &str) -> Option<StoredMessage> {
+			self.database()
+				.messages()
+				.message(self.conversation_id.clone(), id.to_owned())
+				.await
+				.expect("the message reads")
+		}
+
+		async fn assistant_rows(&self) -> i64 {
+			self.database()
+				.messages()
+				.call(|connection| {
+					Ok(connection.query_row(
+						"SELECT COUNT(*) FROM messages WHERE role = 'assistant'",
+						[],
+						|row| row.get(0),
+					)?)
+				})
+				.await
+				.expect("the rows count")
+		}
+	}
+
+	#[tokio::test]
+	async fn a_question_stores_its_line_after_the_settled_reply_of_the_turn() {
+		let written = Written::new("question").await;
+		written.prompt("t1", "p1").await;
+		let mut desk = written.desk();
+
+		desk.open_turn(submitted("t1", "p1")).await;
+		desk.record(&AgentEvent::MessageStarted { message: streaming("m1") }).await;
+		desk.record(&AgentEvent::MessageDelta {
+			id: "m1".into(),
+			seq: 1,
+			text: "let me ask".into(),
+		})
+		.await;
+		desk.record(&question("r1")).await;
+
+		let reply = written.stored("m1").await.expect("the reply is stored");
+		let asked = written.stored("question-r1").await.expect("the question is stored");
+		assert_eq!(reply.state, MessageState::Complete);
+		assert_eq!(asked.role, MessageRole::Assistant);
+		assert_eq!(asked.turn_id, "t1");
+		assert_eq!(asked.author_bot_id.as_deref(), Some(DEFAULT_BOT_ID));
+		assert_eq!(asked.replied_to_message_id.as_deref(), Some("p1"));
+		assert_eq!(asked.state, MessageState::Complete);
+		assert!(asked.seq > reply.seq, "the question landed before the reply");
+		assert_eq!(asked.content, QUESTION_TEXT);
+		assert!(desk.store.owned.owns_message("question-r1"));
+		written.close();
+	}
+
+	#[tokio::test]
+	async fn a_question_asked_twice_in_a_turn_stores_one_line() {
+		let written = Written::new("question-twice").await;
+		written.prompt("t1", "p1").await;
+		let mut desk = written.desk();
+
+		desk.open_turn(submitted("t1", "p1")).await;
+		desk.record(&question("r1")).await;
+		desk.record(&question("r1")).await;
+
+		assert_eq!(written.assistant_rows().await, 1);
+		written.close();
+	}
+
+	#[tokio::test]
+	async fn a_question_without_an_open_turn_stores_nothing() {
+		let written = Written::new("question-no-turn").await;
+		let mut desk = written.desk();
+
+		desk.record(&question("r1")).await;
+
+		assert_eq!(written.stored("question-r1").await, None);
+		assert!(!desk.store.owned.owns_message("question-r1"));
+		written.close();
+	}
+
+	#[test]
+	fn a_question_line_folds_every_javascript_whitespace_and_keeps_the_rest() {
+		assert_eq!(one_line("\u{feff}a\u{a0}\u{2028}b\u{85}c "), "a b\u{85}c");
 	}
 
 	const BOTS: [MentionBot<'static>; 3] = [
