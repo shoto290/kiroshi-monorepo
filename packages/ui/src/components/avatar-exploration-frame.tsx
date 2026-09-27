@@ -45,6 +45,9 @@ const subscribe = (paint: Paint) => {
 	if (frame === 0) frame = requestAnimationFrame(tick)
 	return () => {
 		painters.delete(paint)
+		if (painters.size > 0) return
+		cancelAnimationFrame(frame)
+		frame = 0
 	}
 }
 
