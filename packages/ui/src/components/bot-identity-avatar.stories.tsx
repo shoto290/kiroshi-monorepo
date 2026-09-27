@@ -157,7 +157,7 @@ export const EveryTint = meta.story({
 		docs: {
 			description: {
 				story:
-					"The companion with no colour, then the eight colours a companion can be given. Each colour becomes a saturated field of its hue under white ink, and the colours do not follow the theme; the uncoloured one is a neutral grey field. Switch to dark and check the ink reads on all nine.",
+					"The companion with no colour, then the eight colours a companion can be given. Each colour becomes a saturated field of its hue under white ink, and the colours do not follow the theme; the uncoloured one is a field of Kiroshi blue. Switch to dark and check the ink reads on all nine.",
 			},
 		},
 	},
@@ -179,7 +179,7 @@ export const NoChosenColour = meta.story({
 		docs: {
 			description: {
 				story:
-					"A companion never given a colour: its field is a neutral grey rather than a hue, so the choice of no colour still reads as none. Switch the theme and check the white ink holds on the grey against both backgrounds.",
+					"A companion never given a colour: its field is the fixed Kiroshi blue rather than a hue of its own. Switch the theme and check the white ink holds on the blue against both backgrounds.",
 			},
 		},
 	},

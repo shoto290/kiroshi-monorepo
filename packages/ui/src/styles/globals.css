@@ -25,6 +25,7 @@
 	--bot-blot-pink: #f0a9c0;
 	--bot-blot-orange: #f2b57e;
 	--bot-blot-ink: oklch(0.08 0 0);
+	--bot-avatar-field-untinted: #1d3ccd;
 	--bot-avatar-ink: var(--bot-blot-ink);
 	--bot-badge-attention: oklch(0.72 0.18 62);
 	--bot-badge-done: oklch(0.68 0.17 148);

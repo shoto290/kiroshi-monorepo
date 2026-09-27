@@ -75,7 +75,7 @@ const surfaceOf = (seed: number, tint?: BotAvatarBlot) => {
 	const jitter = Math.round((random() * 2 - 1) * HUE_JITTER)
 	return tint
 		? `oklch(from ${blotTint(tint)} ${FIELD_LIGHTNESS} ${FIELD_CHROMA} calc(h + ${jitter}))`
-		: `oklch(${FIELD_LIGHTNESS} 0 0)`
+		: "var(--bot-avatar-field-untinted)"
 }
 
 const DITHER_SCREENS: DitherScreen[] = [

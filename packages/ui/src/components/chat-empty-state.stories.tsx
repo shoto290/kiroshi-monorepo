@@ -67,7 +67,7 @@ export const WithoutBlot = meta.story({
 		docs: {
 			description: {
 				story:
-					"Reach for this for a companion that was never marked with a tint: its field is drawn in neutral grey. Check that the mark still holds the same box as `WithSettings` — the heading must not shift up when the tint is gone. Pick `WithSettings` for a companion that carries one. `apps/app/src/components/thread-screen.tsx:549` passes no tint for a companion whose `avatarBlot` is null.",
+					"Reach for this for a companion that was never marked with a tint: its field is drawn in Kiroshi blue. Check that the mark still holds the same box as `WithSettings` — the heading must not shift up when the tint is gone. Pick `WithSettings` for a companion that carries one. `apps/app/src/components/thread-screen.tsx:549` passes no tint for a companion whose `avatarBlot` is null.",
 			},
 		},
 	},
