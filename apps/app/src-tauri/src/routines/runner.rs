@@ -224,8 +224,8 @@ fn announce_report<R: Runtime>(app: &AppHandle<R>, scope: &RuntimeScope, message
 		ScopedEvent { scope: Some(scope.clone()), event: AgentEvent::MessageCompleted { message } };
 	if let Err(error) = app.emit(EVENT_CHANNEL, scoped) {
 		eprintln!(
-			"the report turn of runtime session {} could not be announced: {error}",
-			scope.runtime_session_id
+			"the report turn of conversation {} could not be announced: {error}",
+			scope.conversation_id
 		);
 	}
 }
