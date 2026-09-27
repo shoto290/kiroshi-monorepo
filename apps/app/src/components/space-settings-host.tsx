@@ -61,6 +61,12 @@ export const SpaceSettingsHost = ({
 			onDelete={() => {
 				void spaces.controller.remove(selectedSpace.id)
 			}}
+			onExport={() => {
+				void spaces.controller.exportSpace(selectedSpace.id)
+			}}
+			onImport={() => {
+				void spaces.controller.importSpace()
+			}}
 			onEnvironmentDelete={spaceEnvironment.controller.remove}
 			onEnvironmentSet={({ name, value }) =>
 				spaceEnvironment.controller.set(name, value)

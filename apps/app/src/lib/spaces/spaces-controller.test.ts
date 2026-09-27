@@ -1,5 +1,8 @@
 import { describe, expect, it, vi } from "vitest"
 
+import type { NoticeMessage } from "@workspace/ui/components/notice-surface"
+
+import type { ArchivePickers } from "./archive-pickers"
 import {
 	createSpacesController,
 	type SpacesController,
@@ -264,5 +267,190 @@ describe("createSpacesController", () => {
 
 		expect(controller.getState().selectedSpaceId).toBe("personal")
 		expect(controller.getState().spaces).toHaveLength(1)
+	})
+})
+
+const ARCHIVE_PATH = "/archives/personal.kiroshi"
+
+type TransferRigOptions = {
+	exportPath?: string | null
+	importPath?: string | null
+}
+
+const transferRig = async ({
+	exportPath = ARCHIVE_PATH,
+	importPath = ARCHIVE_PATH,
+}: TransferRigOptions = {}) => {
+	const store = createFakeTranscriptStore()
+	const pickers: ArchivePickers = {
+		pickExportPath: vi.fn(() => Promise.resolve(exportPath)),
+		pickImportPath: vi.fn(() => Promise.resolve(importPath)),
+	}
+	const successes: NoticeMessage[] = []
+	const failures: NoticeMessage[] = []
+	const controller = createSpacesController(store, {
+		pickers,
+		reportSuccess: (notice) => successes.push(notice),
+		reportFailure: (notice) => failures.push(notice),
+	})
+	await controller.load(null)
+	return { store, pickers, successes, failures, controller }
+}
+
+describe("space transfer", () => {
+	it("exports the selected space to the chosen archive and names it in the notice", async () => {
+		const { store, pickers, successes, controller } = await transferRig()
+		const exporting = vi.spyOn(store, "exportSpace")
+
+		await controller.exportSpace("personal")
+
+		expect(pickers.pickExportPath).toHaveBeenCalledWith("Personal.kiroshi")
+		expect(exporting).toHaveBeenCalledWith("personal", ARCHIVE_PATH)
+		expect(successes.map((notice) => notice.title)).toEqual([
+			"Personal exported",
+		])
+	})
+
+	it("appends the imported space, selects it and names it in the notice", async () => {
+		const { store, successes, controller } = await transferRig()
+		await store.exportSpace("personal", ARCHIVE_PATH)
+
+		await controller.importSpace()
+
+		const { spaces, selectedSpaceId } = controller.getState()
+		expect(spaces).toHaveLength(2)
+		expect(selectedSpaceId).toBe(spaces[1]?.id)
+		expect(spaces[1]?.name).toBe("Personal")
+		expect(successes.map((notice) => notice.title)).toEqual([
+			"Personal imported",
+		])
+	})
+
+	it("calls no command and raises no notice when the save picker is dismissed", async () => {
+		const { store, successes, failures, controller } = await transferRig({
+			exportPath: null,
+		})
+		const exporting = vi.spyOn(store, "exportSpace")
+
+		await controller.exportSpace("personal")
+
+		expect(exporting).not.toHaveBeenCalled()
+		expect([...successes, ...failures]).toEqual([])
+	})
+
+	it("calls no command and raises no notice when the open picker is dismissed", async () => {
+		const { store, successes, failures, controller } = await transferRig({
+			importPath: null,
+		})
+		const importing = vi.spyOn(store, "importSpace")
+
+		await controller.importSpace()
+
+		expect(importing).not.toHaveBeenCalled()
+		expect([...successes, ...failures]).toEqual([])
+		expect(controller.getState().spaces).toHaveLength(1)
+	})
+
+	it.each([
+		[
+			{ kind: "unsupportedArchive", found: 3, supported: 1 },
+			"This archive is format version 3, this app reads version 1.",
+		],
+		[
+			{ kind: "unsupportedArchive", found: null, supported: 1 },
+			"This archive carries no format version, this app reads version 1.",
+		],
+		[
+			{ kind: "unreadableArchive", detail: "truncated" },
+			"The archive couldn’t be read.",
+		],
+		[{ kind: "lastSpace" }, "Something went wrong, nothing was changed."],
+		[new Error("host gone"), "Something went wrong, nothing was changed."],
+	])(
+		"names what failed when an import is refused with %o",
+		async (refusal, description) => {
+			const { store, successes, failures, controller } = await transferRig()
+			vi.spyOn(store, "importSpace").mockRejectedValue(refusal)
+
+			await controller.importSpace()
+
+			expect(successes).toEqual([])
+			expect(failures).toMatchObject([
+				{ title: "Couldn’t import the space", description },
+			])
+			expect(controller.getState().spaces).toHaveLength(1)
+		},
+	)
+
+	it("names the space and the unwritable archive when an export is refused", async () => {
+		const { store, failures, controller } = await transferRig()
+		vi.spyOn(store, "exportSpace").mockRejectedValue({
+			kind: "unwritableArchive",
+			detail: "read-only volume",
+		})
+
+		await controller.exportSpace("personal")
+
+		expect(failures).toMatchObject([
+			{
+				title: "Couldn’t export Personal",
+				description: "The archive couldn’t be written.",
+			},
+		])
+	})
+
+	it("reopens the save picker when the export failure is retried", async () => {
+		const { store, pickers, failures, controller } = await transferRig()
+		vi.spyOn(store, "exportSpace").mockRejectedValueOnce({
+			kind: "unwritableArchive",
+			detail: "read-only volume",
+		})
+		await controller.exportSpace("personal")
+
+		expect(failures[0]?.action?.label).toBe("Try again")
+		failures[0]?.action?.onPress()
+
+		await vi.waitFor(() =>
+			expect(pickers.pickExportPath).toHaveBeenCalledTimes(2),
+		)
+	})
+
+	it("reopens the open picker when the import failure is retried", async () => {
+		const { store, pickers, failures, controller } = await transferRig()
+		vi.spyOn(store, "importSpace").mockRejectedValueOnce({
+			kind: "unreadableArchive",
+			detail: "truncated",
+		})
+		await controller.importSpace()
+
+		failures[0]?.action?.onPress()
+
+		await vi.waitFor(() =>
+			expect(pickers.pickImportPath).toHaveBeenCalledTimes(2),
+		)
+	})
+
+	it("ignores a second press of either entry while a transfer runs", async () => {
+		const { store, pickers, controller } = await transferRig()
+		await store.exportSpace("personal", ARCHIVE_PATH)
+
+		await Promise.all([
+			controller.importSpace(),
+			controller.importSpace(),
+			controller.exportSpace("personal"),
+		])
+
+		expect(pickers.pickImportPath).toHaveBeenCalledTimes(1)
+		expect(pickers.pickExportPath).not.toHaveBeenCalled()
+		expect(controller.getState().spaces).toHaveLength(2)
+	})
+
+	it("raises a failure notice instead of rejecting when a picker fails", async () => {
+		const { pickers, failures, controller } = await transferRig()
+		vi.mocked(pickers.pickImportPath).mockRejectedValue(new Error("no window"))
+
+		await expect(controller.importSpace()).resolves.toBeUndefined()
+
+		expect(failures).toHaveLength(1)
 	})
 })

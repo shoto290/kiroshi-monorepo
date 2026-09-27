@@ -82,6 +82,20 @@ const settings = {
 		transfer: {
 			export: "Exporter cet espace",
 			import: "Importer un espace",
+			exported: "{{name}} exporté",
+			imported: "{{name}} importé",
+			exportFailed: "Impossible d’exporter {{name}}",
+			importFailed: "Impossible d’importer l’espace",
+			retry: "Réessayer",
+			reason: {
+				unsupportedArchive:
+					"Cette archive est au format version {{found}}, cette app lit la version {{supported}}.",
+				unversionedArchive:
+					"Cette archive ne porte aucune version de format, cette app lit la version {{supported}}.",
+				unreadableArchive: "L’archive n’a pas pu être lue.",
+				unwritableArchive: "L’archive n’a pas pu être écrite.",
+				generic: "Une erreur est survenue, rien n’a été modifié.",
+			},
 		},
 		danger: {
 			delete: "Supprimer l’espace",
