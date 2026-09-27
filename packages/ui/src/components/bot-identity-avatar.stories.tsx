@@ -6,6 +6,7 @@ import {
 	botIdentityAvatars,
 	companionGlyphOf,
 	companionTintOf,
+	expectCellsIn,
 	expectCompanionPictureSquare,
 	pictureOf,
 	Row,
@@ -70,33 +71,10 @@ const expectGlyph = async (avatar: HTMLElement, state: string) => {
 	await expect(glyph.dataset.state).toBe(state)
 }
 
-const resolvedColourOf = (value: string) => {
-	const probe = document.createElement("span")
-	probe.style.backgroundColor = value
-	document.body.append(probe)
-	const resolved = getComputedStyle(probe).backgroundColor
-	probe.remove()
-	return resolved
-}
-
 const cellsOf = (glyph: HTMLElement) => {
 	const canvas = glyph.querySelector("canvas")
 	if (!canvas) throw new Error("This avatar draws no cells")
 	return canvas
-}
-
-const UNPREMULTIPLY_ROUNDING = 1
-
-const channelsOf = (colour: string) => (colour.match(/\d+/g) ?? []).map(Number)
-
-const solidInkOf = (canvas: HTMLCanvasElement) => {
-	const { data = new Uint8ClampedArray() } =
-		canvas.getContext("2d")?.getImageData(0, 0, canvas.width, canvas.height) ??
-		{}
-	let solidest = 0
-	for (let offset = 0; offset < data.length; offset += 4)
-		if (data[offset + 3] > data[solidest + 3]) solidest = offset
-	return `rgb(${data[solidest]}, ${data[solidest + 1]}, ${data[solidest + 2]})`
 }
 
 const meta = preview.meta({
@@ -217,14 +195,7 @@ export const NoChosenColour = meta.story({
 			const glyph = companionGlyphOf(avatar)
 			await expectGlyph(avatar, "idle")
 			await expect(companionTintOf(glyph)).toBe("")
-			const painted = channelsOf(solidInkOf(cellsOf(glyph)))
-			const token = channelsOf(
-				resolvedColourOf("var(--bot-avatar-field-untinted)"),
-			)
-			for (const [index, channel] of painted.entries())
-				await expect(Math.abs(channel - token[index])).toBeLessThanOrEqual(
-					UNPREMULTIPLY_ROUNDING,
-				)
+			await expectCellsIn(cellsOf(glyph), "var(--bot-avatar-field-untinted)")
 		}
 	},
 })

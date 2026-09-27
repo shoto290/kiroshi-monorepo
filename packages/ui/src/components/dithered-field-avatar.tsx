@@ -24,8 +24,11 @@ import {
 } from "@workspace/ui/components/companion-silhouette"
 import { usePrefersReducedMotion } from "@workspace/ui/hooks/use-prefers-reduced-motion"
 
+type FieldInk = "companion" | "foreground"
+
 type DitheredFieldAvatarProps = ExplorationAvatarProps & {
 	hasGround?: boolean
+	ink?: FieldInk
 }
 
 type DensityField = {
@@ -65,6 +68,7 @@ const CELL_SHARE = 0.9
 const TONES = [0, 0.5, 1]
 const HALF_TONE_ALPHA = 0.45
 const DITHER_SCREEN = "square-tone"
+const FOREGROUND_INK = "var(--foreground)"
 
 const clamp01 = (value: number) => Math.min(1, Math.max(0, value))
 
@@ -252,9 +256,10 @@ const DitheredFieldAvatar = ({
 	state = "idle",
 	size = 40,
 	hasGround = true,
+	ink: fieldInk = "companion",
 }: DitheredFieldAvatarProps) => {
 	const seed = companionSeed(name)
-	const ink = inkOf(seed, tint)
+	const ink = fieldInk === "foreground" ? FOREGROUND_INK : inkOf(seed, tint)
 
 	return (
 		<DitheredField

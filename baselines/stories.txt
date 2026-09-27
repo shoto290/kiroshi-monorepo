@@ -517,6 +517,7 @@ feedback-activityindicator--with-tool
 feedback-appbootnotice--default
 feedback-appbootscreen--default
 feedback-appbootscreen--window-surface
+feedback-appbootscreen--window-surface-dark
 feedback-connectionstatus--default
 feedback-connectionstatus--variants
 feedback-connectionstatus--zero-value

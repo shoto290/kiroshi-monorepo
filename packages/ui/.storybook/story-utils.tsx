@@ -245,3 +245,42 @@ export const litCellIndices = (canvas: HTMLCanvasElement) => {
 		({ x, y }) => Math.floor(y * cells) * cells + Math.floor(x * cells),
 	)
 }
+
+const UNPREMULTIPLY_ROUNDING = 1
+
+const channelsAt = (data: Uint8ClampedArray, offset: number) =>
+	Array.from(data.subarray(offset, offset + 3))
+
+const resolvedChannelsOf = (token: string, scope: Element) => {
+	const probe = document.createElement("span")
+	probe.style.color = token
+	scope.append(probe)
+	const resolved = getComputedStyle(probe).color
+	probe.remove()
+	const context = document.createElement("canvas").getContext("2d")
+	if (!context) throw new Error("Nothing here can resolve a colour")
+	context.fillStyle = resolved
+	context.fillRect(0, 0, 1, 1)
+	return channelsAt(context.getImageData(0, 0, 1, 1).data, 0)
+}
+
+const solidestChannelsOf = (canvas: HTMLCanvasElement) => {
+	const context = canvas.getContext("2d")
+	if (!context) throw new Error("This canvas draws nothing")
+	const { data } = context.getImageData(0, 0, canvas.width, canvas.height)
+	let solidest = 0
+	for (let offset = 0; offset < data.length; offset += 4)
+		if (data[offset + 3] > data[solidest + 3]) solidest = offset
+	return channelsAt(data, solidest)
+}
+
+export const expectCellsIn = async (
+	canvas: HTMLCanvasElement,
+	token: string,
+) => {
+	const expected = resolvedChannelsOf(token, canvas.parentElement ?? canvas)
+	for (const [index, channel] of solidestChannelsOf(canvas).entries())
+		await expect(Math.abs(channel - expected[index])).toBeLessThanOrEqual(
+			UNPREMULTIPLY_ROUNDING,
+		)
+}

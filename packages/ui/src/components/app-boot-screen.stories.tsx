@@ -1,9 +1,20 @@
 import { expect } from "storybook/test"
 
 import preview from "@workspace/storybook/preview"
-import { slotIn } from "@workspace/storybook/story-utils"
+import { expectCellsIn, slotIn } from "@workspace/storybook/story-utils"
 import { AppBootScreen } from "@workspace/ui/components/app-boot-screen"
 import { BRAND_NAME } from "@workspace/ui/components/app-icon-mark"
+
+const schemeBeforeMount = (scheme: string) => () => {
+	document.documentElement.classList.add(scheme)
+	return () => document.documentElement.classList.remove(scheme)
+}
+
+const cellsOf = (avatar: HTMLElement) => {
+	const canvas = avatar.querySelector("canvas")
+	if (!canvas) throw new Error("This avatar draws no cells")
+	return canvas
+}
 
 const expectBootAvatar = async (screen: HTMLElement) => {
 	const avatar = slotIn(screen, "avatar-exploration")
@@ -11,9 +22,7 @@ const expectBootAvatar = async (screen: HTMLElement) => {
 	await expect(avatar.dataset.state).toBe("thinking")
 	await expect(avatar.style.backgroundColor).toBe("")
 	await expect(avatar.style.borderRadius).toBe("")
-	await expect(avatar.querySelector("canvas")?.style.color).toBe(
-		"var(--bot-avatar-field-untinted)",
-	)
+	await expectCellsIn(cellsOf(avatar), "var(--foreground)")
 }
 
 const meta = preview.meta({
@@ -54,12 +63,33 @@ export const Default = meta.story({
 })
 
 export const WindowSurface = meta.story({
+	globals: { theme: "light" },
 	render: () => <AppBootScreen data-tauri-drag-region="deep" />,
 	parameters: {
 		docs: {
 			description: {
 				story:
-					"How the app mounts it: the whole window, with the drag region a frameless desktop window needs so a launch is still movable. There is no shell yet — no sidebar, no header, no content card — and the shell replaces it whole once the record answers. The avatar is the Kiroshi companion, uncoloured so its cells are the Kiroshi blue, thinking with no ground.",
+					"How the app mounts it: the whole window, with the drag region a frameless desktop window needs so a launch is still movable. There is no shell yet — no sidebar, no header, no content card — and the shell replaces it whole once the record answers. The avatar is the Kiroshi companion, thinking with no ground, its cells in the theme's foreground: black on light, white on dark. Pick `WindowSurfaceDark` for the dark scheme.",
+			},
+		},
+	},
+	play: async ({ canvasElement }) => {
+		const screen = slotIn(canvasElement, "app-boot-screen")
+
+		await expect(screen).toHaveAttribute("data-tauri-drag-region", "deep")
+		await expectBootAvatar(screen)
+	},
+})
+
+export const WindowSurfaceDark = meta.story({
+	globals: { theme: "dark" },
+	beforeEach: schemeBeforeMount("dark"),
+	render: () => <AppBootScreen data-tauri-drag-region="deep" />,
+	parameters: {
+		docs: {
+			description: {
+				story:
+					"The window surface on the dark scheme: the same groundless thinking avatar, its cells turned white by the foreground token. Check that the cells read on the dark background and that nothing frames them.",
 			},
 		},
 	},
