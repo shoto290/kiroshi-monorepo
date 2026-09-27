@@ -146,3 +146,42 @@ export const OneGlyphInEveryColour = meta.story({
 	play: ({ canvasElement }) =>
 		expectOneDrawing(canvasElement, COLOURS.length * 2),
 })
+
+export const WithoutGround = meta.story({
+	render: () => (
+		<div
+			aria-label="Without ground"
+			className="flex items-end gap-4"
+			role="group"
+		>
+			<DitheredFieldAvatar
+				hasGround={false}
+				name={COMPARED_NAME}
+				size={96}
+				state="thinking"
+			/>
+			<DitheredFieldAvatar hasGround={false} name={COMPARED_NAME} />
+		</div>
+	),
+	parameters: {
+		docs: {
+			description: {
+				story:
+					"The field with no ground, as the boot screen draws it: the square cells sit straight on the page background, with no tinted tile and no rounded corner behind or around them. Uncoloured, so the cells are the Kiroshi blue. Check in both themes that the cells read on the bare background and that nothing frames them.",
+			},
+		},
+	},
+	play: async ({ canvasElement }) => {
+		const avatars = Array.from(
+			canvasElement.querySelectorAll<HTMLElement>(
+				'[data-slot="avatar-exploration"]',
+			),
+		)
+
+		await expect(avatars).toHaveLength(4)
+		for (const avatar of avatars) {
+			await expect(avatar.style.backgroundColor).toBe("")
+			await expect(avatar.style.borderRadius).toBe("")
+		}
+	},
+})

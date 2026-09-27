@@ -8,10 +8,7 @@ import {
 	type ExplorationState,
 	stillTime,
 } from "@workspace/ui/components/avatar-exploration"
-import {
-	type BotAvatarBlot,
-	blotTint,
-} from "@workspace/ui/components/companion-colour"
+import type { BotAvatarBlot } from "@workspace/ui/components/companion-colour"
 import { companionPictureRadius } from "@workspace/ui/components/companion-picture"
 import { usePrefersReducedMotion } from "@workspace/ui/hooks/use-prefers-reduced-motion"
 import { cn } from "@workspace/ui/lib/utils"
@@ -68,8 +65,8 @@ const ExplorationFrame = ({
 			style={{
 				width: size,
 				height: size,
-				borderRadius: companionPictureRadius(size),
-				backgroundColor: surface ?? (tint ? blotTint(tint) : undefined),
+				borderRadius: surface ? companionPictureRadius(size) : undefined,
+				backgroundColor: surface,
 			}}
 		>
 			{children}

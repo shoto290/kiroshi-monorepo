@@ -24,7 +24,9 @@ import {
 } from "@workspace/ui/components/companion-silhouette"
 import { usePrefersReducedMotion } from "@workspace/ui/hooks/use-prefers-reduced-motion"
 
-type DitheredFieldAvatarProps = ExplorationAvatarProps
+type DitheredFieldAvatarProps = ExplorationAvatarProps & {
+	hasGround?: boolean
+}
 
 type DensityField = {
 	cells: number
@@ -39,7 +41,7 @@ type DitheredFieldProps = {
 	size: number
 	field: DensityField
 	ink: string
-	surface: string
+	surface?: string
 	tint?: BotAvatarBlot
 }
 
@@ -249,6 +251,7 @@ const DitheredFieldAvatar = ({
 	tint,
 	state = "idle",
 	size = 40,
+	hasGround = true,
 }: DitheredFieldAvatarProps) => {
 	const seed = companionSeed(name)
 	const ink = inkOf(seed, tint)
@@ -260,7 +263,7 @@ const DitheredFieldAvatar = ({
 			name={name}
 			size={size}
 			state={state}
-			surface={surfaceOf(ink)}
+			surface={hasGround ? surfaceOf(ink) : undefined}
 			tint={tint}
 		/>
 	)
