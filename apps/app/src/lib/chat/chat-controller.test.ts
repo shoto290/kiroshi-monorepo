@@ -440,33 +440,30 @@ describe("createChatController", () => {
 		expect(order).toEqual(["stored", "submitted"])
 	})
 
-	it.each(["sendUserMessage"] as const)(
-		"never submits a prompt the store refused at %s",
-		async (member) => {
-			const store = createFakeTranscriptStore()
-			const refusal = {
-				kind: "storage",
-				failure: { kind: "poisonedConnection" },
-			}
-			const { controller, driver } = await bootedHarness({
-				store: { ...store, [member]: () => Promise.reject(refusal) },
-			})
-			const submitSpy = vi.spyOn(driver, "submitPrompt")
+	it("never submits a prompt the store refused to send", async () => {
+		const store = createFakeTranscriptStore()
+		const refusal = {
+			kind: "storage",
+			failure: { kind: "poisonedConnection" },
+		}
+		const { controller, driver } = await bootedHarness({
+			store: { ...store, sendUserMessage: () => Promise.reject(refusal) },
+		})
+		const submitSpy = vi.spyOn(driver, "submitPrompt")
 
-			await controller.send("hello")
-			await vi.runAllTimersAsync()
+		await controller.send("hello")
+		await vi.runAllTimersAsync()
 
-			const state = controller.getState()
-			expect(submitSpy).not.toHaveBeenCalled()
-			expect(state.messages).toEqual([])
-			expect(state.turn).toBe("failed")
-			expect(state.errors.at(-1)?.error).toEqual({
-				kind: "writeFailed",
-				detail: "the transcript store refused it (storage, poisonedConnection)",
-			})
-			expect(await reload(store)).toEqual([])
-		},
-	)
+		const state = controller.getState()
+		expect(submitSpy).not.toHaveBeenCalled()
+		expect(state.messages).toEqual([])
+		expect(state.turn).toBe("failed")
+		expect(state.errors.at(-1)?.error).toEqual({
+			kind: "writeFailed",
+			detail: "the transcript store refused it (storage, poisonedConnection)",
+		})
+		expect(await reload(store)).toEqual([])
+	})
 
 	it("holds a second prompt over a running turn and sends it after", async () => {
 		const { controller } = await bootedHarness()
