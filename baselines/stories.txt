@@ -43,6 +43,7 @@ branding-companion-avatar--stress
 branding-companion-avatar--variants
 branding-ditheravatar--roster
 branding-ditheredfieldavatar--halftone
+branding-ditheredfieldavatar--screens-by-name
 branding-ditheredfieldavatar--three-tone-organic
 branding-ditheredfieldavatar--two-tone-ordered
 branding-ditheredfieldavatar--weight-ramp

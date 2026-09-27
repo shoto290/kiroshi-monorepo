@@ -3,12 +3,12 @@
 import { type ReactNode, useState } from "react"
 import { useTranslation } from "react-i18next"
 
-import { AsciiGlyphAvatar } from "@workspace/ui/components/ascii-glyph-avatar"
 import type { BotAvatarBlot } from "@workspace/ui/components/bot-avatar"
 import type { BotAvatarAnimal } from "@workspace/ui/components/bot-avatar-animals"
 import type { BotAvatarState } from "@workspace/ui/components/bot-avatar-data"
 import { type BotBadge, BotBadgeDot } from "@workspace/ui/components/bot-badge"
 import { companionPictureRadius } from "@workspace/ui/components/companion-picture"
+import { DitheredFieldAvatar } from "@workspace/ui/components/dithered-field-avatar"
 import { Icons } from "@workspace/ui/components/icons"
 import { AvatarFrame } from "@workspace/ui/components/initials-avatar"
 import { cn } from "@workspace/ui/lib/utils"
@@ -65,7 +65,7 @@ function BotIdentityAvatar({
 			size={size}
 			slot="bot-identity-avatar"
 		>
-			<AsciiGlyphAvatar
+			<DitheredFieldAvatar
 				name={name ?? seed ?? ""}
 				size={size}
 				state={working ? kind : "idle"}

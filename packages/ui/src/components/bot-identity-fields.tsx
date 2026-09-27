@@ -3,7 +3,6 @@
 import { useId } from "react"
 import { useTranslation } from "react-i18next"
 
-import { AsciiGlyphAvatar } from "@workspace/ui/components/ascii-glyph-avatar"
 import {
 	type ActivityIndicatorKind,
 	BotIdentityAvatar,
@@ -13,6 +12,7 @@ import {
 	type BotAvatarBlot,
 	type BotIdentity,
 } from "@workspace/ui/components/bot-settings"
+import { DitheredFieldAvatar } from "@workspace/ui/components/dithered-field-avatar"
 import { ProfilePictureField } from "@workspace/ui/components/profile-picture-field"
 import { SettingsGroup } from "@workspace/ui/components/settings-group"
 import {
@@ -108,7 +108,7 @@ const BotIdentityFields = ({
 							value={blot ?? ""}
 						/>
 						<span aria-hidden="true">
-							<AsciiGlyphAvatar
+							<DitheredFieldAvatar
 								name={name ?? seed ?? ""}
 								size={BLOT_SIZE}
 								tint={blot}

@@ -6,6 +6,7 @@ import {
 	botIdentityAvatars,
 	companionGlyphOf,
 	companionGlyphs,
+	companionTintOf,
 	expectCompanionPictureSquare,
 	slotIn,
 	slotsIn,
@@ -249,9 +250,9 @@ export const Blot = meta.story({
 	play: async ({ canvasElement }) => {
 		const [bare, ...tinted] = botIdentityAvatars(canvasElement)
 
-		await expect(companionGlyphOf(bare).style.backgroundColor).toBe("")
+		await expect(companionTintOf(companionGlyphOf(bare))).toBe("")
 		for (const avatar of tinted) {
-			await expect(companionGlyphOf(avatar).style.backgroundColor).toBe(
+			await expect(companionTintOf(companionGlyphOf(avatar))).toBe(
 				"var(--bot-blot-blue)",
 			)
 		}
@@ -599,9 +600,7 @@ export const Marked = meta.story({
 			await expect(glyph.getAttribute("aria-label")).toBe(
 				thinking.getAttribute("aria-label"),
 			)
-			await expect(glyph.style.backgroundColor).toBe(
-				thinking.style.backgroundColor,
-			)
+			await expect(companionTintOf(glyph)).toBe(companionTintOf(thinking))
 		}
 	},
 })

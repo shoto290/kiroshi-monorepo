@@ -1,10 +1,14 @@
+import { expect } from "storybook/test"
+
 import {
 	ExplorationRoster,
 	playExplorationRoster,
 } from "@workspace/storybook/avatar-exploration-roster"
 import preview from "@workspace/storybook/preview"
 import type { ExplorationAvatarProps } from "@workspace/ui/components/avatar-exploration"
+import { BLOT_TINTS } from "@workspace/ui/components/bot-avatar"
 import {
+	DITHER_SCREENS,
 	DitheredFieldAvatar,
 	type DitherScreen,
 } from "@workspace/ui/components/dithered-field-avatar"
@@ -21,10 +25,20 @@ const HalftoneAvatar = screenAvatar("halftone")
 const OrderedAvatar = screenAvatar("ordered")
 const OrganicAvatar = screenAvatar("organic")
 
+const NAMES = [
+	"Lyra",
+	"Orion",
+	"Nova",
+	"Mira",
+	"Vega",
+	"Juno",
+	"Castor",
+	"Altair",
+]
+
 const meta = preview.meta({
 	title: "Branding/DitheredFieldAvatar",
 	component: DitheredFieldAvatar,
-	tags: ["test"],
 	globals: { theme_layout: "side-by-side" },
 	parameters: {
 		docs: {
@@ -86,4 +100,38 @@ export const ThreeToneOrganic = meta.story({
 		},
 	},
 	play: playExplorationRoster,
+})
+
+export const ScreensByName = meta.story({
+	render: () => (
+		<div aria-label="Companions" className="flex flex-wrap gap-4" role="group">
+			{NAMES.map((name, index) => (
+				<div className="flex flex-col items-center gap-2" key={name}>
+					<DitheredFieldAvatar
+						name={name}
+						size={40}
+						tint={BLOT_TINTS[index % BLOT_TINTS.length]}
+					/>
+					<span className="text-muted-foreground text-xs">{name}</span>
+				</div>
+			))}
+		</div>
+	),
+	parameters: {
+		docs: {
+			description: {
+				story:
+					"The avatar as the app draws it: no screen pinned, so each companion's screen is picked from its name alone and a colour change never swaps it. Eight names, chosen so each of the four screens appears at least once. Check that every tile is a still field at rest and that each reads by its silhouette at 40 px.",
+			},
+		},
+	},
+	play: async ({ canvasElement }) => {
+		const screens = Array.from(
+			canvasElement.querySelectorAll<HTMLCanvasElement>("canvas[data-screen]"),
+			(canvas) => canvas.dataset.screen,
+		)
+
+		await expect(screens).toHaveLength(NAMES.length * 2)
+		await expect(new Set(screens)).toEqual(new Set(DITHER_SCREENS))
+	},
 })
