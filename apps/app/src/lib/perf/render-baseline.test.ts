@@ -207,85 +207,71 @@ const takeFrameClock = (): FrameClock => {
 	}
 }
 
-type CanvasPaint = { canvas: HTMLCanvasElement; calls: string[] }
+type AttributeWrite = { isNoOp: boolean; owner: Element | null }
 
-type PaintRecorder = {
-	take: () => CanvasPaint[]
+type AttributeRecorder = {
+	take: () => AttributeWrite[]
 	restore: () => void
 }
 
-const AVATAR_CANVAS = '[data-slot="avatar-exploration"] canvas'
-
-const recordAvatarCanvasPaints = (): PaintRecorder => {
-	const original = HTMLCanvasElement.prototype.getContext
-	let paints: CanvasPaint[] = []
-	const open = new Map<HTMLCanvasElement, CanvasPaint>()
-	const contextFor = (canvas: HTMLCanvasElement) => {
-		const call =
-			(name: string) =>
-			(...args: unknown[]) => {
-				let paint = open.get(canvas)
-				if (name === "clearRect" || !paint) {
-					paint = { canvas, calls: [] }
-					open.set(canvas, paint)
-					paints.push(paint)
-				}
-				paint.calls.push(`${name}(${args.join(",")})`)
-			}
-		return {
-			clearRect: call("clearRect"),
-			fillRect: call("fillRect"),
-			beginPath: call("beginPath"),
-			arc: call("arc"),
-			moveTo: call("moveTo"),
-			lineTo: call("lineTo"),
-			fill: call("fill"),
-			stroke: call("stroke"),
-		}
-	}
-	HTMLCanvasElement.prototype.getContext = function patched(
-		this: HTMLCanvasElement,
+const recordAvatarAttributeWrites = (): AttributeRecorder => {
+	const original = Element.prototype.setAttribute
+	let writes: AttributeWrite[] = []
+	Element.prototype.setAttribute = function patched(
+		this: Element,
+		name: string,
+		value: string,
 	) {
-		return this.matches(AVATAR_CANVAS) ? contextFor(this) : null
-	} as unknown as typeof original
+		if (this.hasAttribute("data-part")) {
+			writes.push({
+				isNoOp: this.getAttribute(name) === value,
+				owner: this.closest("svg"),
+			})
+		}
+		return original.call(this, name, value)
+	}
 	return {
 		take: () => {
-			const taken = paints
-			paints = []
-			open.clear()
+			const taken = writes
+			writes = []
 			return taken
 		},
 		restore: () => {
-			HTMLCanvasElement.prototype.getContext = original
+			Element.prototype.setAttribute = original
 		},
 	}
 }
 
 type FrameTally = {
-	paints: number
-	draws: number
-	repeatedPaints: number
+	writes: number
+	noOpWrites: number
+	quietFrames: number
 	movingAvatars: number
 }
 
 const tallyFrames = (frames: FrameClock): FrameTally => {
-	const recorder = recordAvatarCanvasPaints()
-	const lastPaint = new Map<HTMLCanvasElement, string>()
-	let paints = 0
-	let draws = 0
-	let repeatedPaints = 0
+	const recorder = recordAvatarAttributeWrites()
+	recorder.take()
+	const owners = new Set<Element>()
+	let writes = 0
+	let noOpWrites = 0
+	let quietFrames = 0
 	for (let frame = 0; frame < FRAME_COUNT; frame += 1) {
 		frames.advance(frame * FRAME_MS)
-		for (const { canvas, calls } of recorder.take()) {
-			const drawn = calls.join(";")
-			if (lastPaint.get(canvas) === drawn) repeatedPaints += 1
-			lastPaint.set(canvas, drawn)
-			paints += 1
-			draws += calls.length - 1
+		const written = recorder.take()
+		let noOpsInFrame = 0
+		for (const write of written) {
+			if (write.isNoOp) noOpsInFrame += 1
+			if (write.owner) owners.add(write.owner)
+		}
+		writes += written.length
+		noOpWrites += noOpsInFrame
+		if (written.length > 0 && noOpsInFrame === written.length) {
+			quietFrames += 1
 		}
 	}
 	recorder.restore()
-	return { paints, draws, repeatedPaints, movingAvatars: lastPaint.size }
+	return { writes, noOpWrites, quietFrames, movingAvatars: owners.size }
 }
 
 type RenderTally = {
@@ -636,24 +622,29 @@ describe("PRF1 render baseline", () => {
 		const working = tallyFrames(frames)
 
 		expect({
-			avatars: document.querySelectorAll('[data-slot="avatar-exploration"]')
-				.length,
+			avatars: document.querySelectorAll('[data-part="rig"]').length,
+			filters: document.querySelectorAll("filter").length,
+			avatarFilters: document.querySelectorAll(
+				'filter[id^="bot-avatar-sketch-"]',
+			).length,
 			idle,
 			working,
 		}).toMatchInlineSnapshot(`
 			{
+			  "avatarFilters": 6,
 			  "avatars": 6,
+			  "filters": 6,
 			  "idle": {
-			    "draws": 0,
 			    "movingAvatars": 0,
-			    "paints": 0,
-			    "repeatedPaints": 0,
+			    "noOpWrites": 0,
+			    "quietFrames": 0,
+			    "writes": 0,
 			  },
 			  "working": {
-			    "draws": 14358,
 			    "movingAvatars": 3,
-			    "paints": 180,
-			    "repeatedPaints": 10,
+			    "noOpWrites": 0,
+			    "quietFrames": 0,
+			    "writes": 1022,
 			  },
 			}
 		`)

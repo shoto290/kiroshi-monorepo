@@ -9,9 +9,6 @@ const common = {
 		},
 	},
 	skipLink: "Skip to the conversation",
-	companion: {
-		unnamed: "Companion",
-	},
 	dialog: {
 		close: "Close",
 	},

@@ -3,26 +3,39 @@
 import { type ReactNode, useState } from "react"
 import { useTranslation } from "react-i18next"
 
-import type { BotAvatarBlot } from "@workspace/ui/components/bot-avatar"
+import {
+	BotAvatar,
+	type BotAvatarBlot,
+} from "@workspace/ui/components/bot-avatar"
 import type { BotAvatarAnimal } from "@workspace/ui/components/bot-avatar-animals"
 import type { BotAvatarState } from "@workspace/ui/components/bot-avatar-data"
 import { type BotBadge, BotBadgeDot } from "@workspace/ui/components/bot-badge"
-import { companionPictureRadius } from "@workspace/ui/components/companion-picture"
-import { DitheredFieldAvatar } from "@workspace/ui/components/dithered-field-avatar"
+import { drawnAnimal } from "@workspace/ui/components/bot-settings"
 import { Icons } from "@workspace/ui/components/icons"
 import { AvatarFrame } from "@workspace/ui/components/initials-avatar"
 import { cn } from "@workspace/ui/lib/utils"
+
+const REST_STATE: BotAvatarState = "idle"
 
 type ActivityIndicatorKind = Extract<
 	BotAvatarState,
 	"thinking" | "searching" | "working" | "writing" | "waiting"
 >
 
+const busyStateFor = (kind: ActivityIndicatorKind): BotAvatarState =>
+	kind === "waiting" ? "listening" : kind
+
 const DEFAULT_SIZE = 40
 
-const pictureShapeStyle = (size: number) => ({
-	borderRadius: companionPictureRadius(size),
-})
+const PICTURE_RADIUS_RATIO = 0.25
+
+const MIN_PICTURE_RADIUS = 6
+
+const companionPictureRadius = (size: number) =>
+	Math.max(MIN_PICTURE_RADIUS, size * PICTURE_RADIUS_RATIO)
+
+const pictureShapeStyle = (size: number, image?: string) =>
+	image ? { borderRadius: companionPictureRadius(size) } : undefined
 
 type BotIdentityAvatarProps = {
 	name?: string
@@ -39,6 +52,7 @@ type BotIdentityAvatarProps = {
 
 function BotIdentityAvatar({
 	name,
+	animal,
 	blot,
 	seed,
 	image,
@@ -65,11 +79,14 @@ function BotIdentityAvatar({
 			size={size}
 			slot="bot-identity-avatar"
 		>
-			<DitheredFieldAvatar
-				name={name ?? seed ?? ""}
+			<BotAvatar
+				animal={drawnAnimal(name, animal)}
+				animated={working}
+				blot={blot}
+				className="block size-full"
+				seed={seed}
 				size={size}
-				state={working ? kind : "idle"}
-				tint={blot}
+				state={working ? busyStateFor(kind) : REST_STATE}
 			/>
 		</AvatarFrame>
 	)
@@ -92,6 +109,7 @@ type BotStopButtonProps = {
 
 const BotStopButton = ({
 	name,
+	image,
 	size = DEFAULT_SIZE,
 	onStop,
 	children,
@@ -110,14 +128,14 @@ const BotStopButton = ({
 			onFocus={() => setArmed(true)}
 			onBlur={() => setArmed(false)}
 			className="relative block w-fit rounded-full outline-none focus-visible:ring-2 focus-visible:ring-ring"
-			style={pictureShapeStyle(size)}
+			style={pictureShapeStyle(size, image)}
 		>
 			{children}
 			<span
 				aria-hidden="true"
 				data-slot="bot-working-stop-glyph"
 				className={cn(STOP_OVERLAY, armed ? "opacity-100" : "opacity-0")}
-				style={pictureShapeStyle(size)}
+				style={pictureShapeStyle(size, image)}
 			>
 				<Icons.Stop className="size-1/2" />
 			</span>
@@ -135,6 +153,7 @@ type BotSelectButtonProps = {
 
 const BotSelectButton = ({
 	name,
+	image,
 	size = DEFAULT_SIZE,
 	onSelect,
 	children,
@@ -145,7 +164,7 @@ const BotSelectButton = ({
 		aria-label={name}
 		onClick={onSelect}
 		className="block w-fit cursor-pointer rounded-full outline-none transition-opacity duration-150 ease-out hover:not-focus-visible:opacity-70 hover:transition-none focus-visible:ring-2 focus-visible:ring-ring motion-reduce:transition-none"
-		style={pictureShapeStyle(size)}
+		style={pictureShapeStyle(size, image)}
 	>
 		{children}
 	</button>
@@ -160,4 +179,5 @@ export {
 	BotStopButton,
 	type BotStopButtonProps,
 	type BotStopProps,
+	companionPictureRadius,
 }

@@ -53,7 +53,7 @@ const AvatarFrame = ({
 		style={{
 			width: size,
 			height: size,
-			borderRadius: imageRadius,
+			borderRadius: image ? imageRadius : undefined,
 		}}
 	>
 		{image ? (

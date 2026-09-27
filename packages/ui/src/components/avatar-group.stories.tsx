@@ -3,7 +3,6 @@ import { expect } from "storybook/test"
 import preview from "@workspace/storybook/preview"
 import {
 	botIdentityAvatars,
-	companionGlyphOf,
 	pictureOf,
 	Row,
 	slotsIn,
@@ -81,7 +80,8 @@ const expectCentred = async (frame: HTMLElement, held: HTMLElement[]) => {
 	await expect(left).toBeCloseTo(right, 0)
 }
 
-const poseOf = (held: HTMLElement) => companionGlyphOf(held).dataset.state
+const poseOf = (held: HTMLElement) =>
+	held.querySelector("svg")?.getAttribute("aria-label")
 
 const EverySize = (props: AvatarGroupProps) => (
 	<Row>
@@ -251,8 +251,8 @@ export const Working = meta.story({
 		const frame = frameOf(canvasElement)
 		const [resting, running] = heldIn(frame)
 
-		await expect(poseOf(resting)).toBe("idle")
-		await expect(poseOf(running)).toBe("writing")
+		await expect(poseOf(resting)).toBe("Companion avatar rabbit, idle")
+		await expect(poseOf(running)).toBe("Companion avatar owl, writing")
 		await expect(slotsIn(frame, "bot-activity-dot")).toHaveLength(1)
 	},
 })
