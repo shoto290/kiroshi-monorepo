@@ -476,10 +476,9 @@ fn question_message_text(request: &QuestionRequest) -> String {
 	request.questions.iter().flat_map(asked_lines).collect::<Vec<_>>().join("\n")
 }
 
-fn asked_lines(asked: &AskedQuestion) -> Vec<String> {
+fn asked_lines(asked: &AskedQuestion) -> impl Iterator<Item = String> + '_ {
 	std::iter::once(format!("### {}", one_line(&asked.question)))
 		.chain(asked.options.iter().map(option_line))
-		.collect()
 }
 
 fn option_line(option: &QuestionOption) -> String {
