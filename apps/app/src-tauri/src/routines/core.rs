@@ -138,7 +138,7 @@ pub fn refuse_blank_task(title: &str, instruction: &str) -> Result<(), RoutineEr
 	Ok(())
 }
 
-pub async fn on_trigger<S: RunSink>(
+pub async fn on_trigger<S: RunSink + ?Sized>(
 	database: &db::Database,
 	sink: &S,
 	clock: &dyn Clock,
@@ -149,7 +149,7 @@ pub async fn on_trigger<S: RunSink>(
 	announce(sink, admitted)
 }
 
-pub async fn run_now<S: RunSink>(
+pub async fn run_now<S: RunSink + ?Sized>(
 	database: &db::Database,
 	sink: &S,
 	clock: &dyn Clock,
@@ -160,7 +160,7 @@ pub async fn run_now<S: RunSink>(
 	announce(sink, admitted)
 }
 
-fn announce<S: RunSink>(sink: &S, admitted: Admitted) -> Result<TriggerDecision, RoutineError> {
+fn announce<S: RunSink + ?Sized>(sink: &S, admitted: Admitted) -> Result<TriggerDecision, RoutineError> {
 	if let Some(requested) = admitted.requested {
 		sink.requested(requested)?;
 	}

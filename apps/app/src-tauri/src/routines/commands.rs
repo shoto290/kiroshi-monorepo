@@ -6,10 +6,11 @@ use tauri::{AppHandle, Emitter, Manager, Runtime, State};
 
 use super::contract::{
 	Filter, ReportedRun, Routine, RoutineDraft, RoutineEdit, RoutineError, RoutineKey, RoutineRun,
-	RunClosing, RunRequested, TriggerDecision, TriggerSource,
+	RunClosing, TriggerDecision, TriggerSource,
 };
-use super::core::{self, Clock, RunSink, SystemClock};
+use super::core::{self, Clock, SystemClock};
 use super::filter;
+use super::runner::Runner;
 use super::schedule;
 use super::sources;
 use super::webhook;
@@ -17,8 +18,6 @@ use crate::bundles;
 use crate::conversations::commands::{oldest_space, ready, space_of_the_conversation};
 use crate::conversations::contract::TranscriptStoreError;
 use crate::db;
-
-pub const RUN_REQUESTED_EVENT: &str = "routine://run-requested";
 
 pub const CHANGED_EVENT: &str = "routine://changed";
 
@@ -28,24 +27,12 @@ pub struct RoutineChanged {
 	pub conversation_id: String,
 }
 
-fn announce_change<R: Runtime>(
+pub(crate) fn announce_change<R: Runtime>(
 	app: &AppHandle<R>,
 	conversation_id: &str,
 ) -> Result<(), RoutineError> {
 	app.emit(CHANGED_EVENT, RoutineChanged { conversation_id: conversation_id.to_owned() })
 		.map_err(|error| RoutineError::Undeliverable { detail: error.to_string() })
-}
-
-pub(crate) struct Announcer<'a, R: Runtime> {
-	pub(crate) app: &'a AppHandle<R>,
-}
-
-impl<R: Runtime> RunSink for Announcer<'_, R> {
-	fn requested(&self, event: RunRequested) -> Result<(), RoutineError> {
-		self.app
-			.emit(RUN_REQUESTED_EVENT, event)
-			.map_err(|error| RoutineError::Undeliverable { detail: error.to_string() })
-	}
 }
 
 #[tauri::command]
@@ -209,7 +196,7 @@ pub async fn routine_run_now<R: Runtime>(
 ) -> Result<TriggerDecision, RoutineError> {
 	let database = ready(&state)?;
 	let held = routine_row(database, &id).await?;
-	let decision = core::run_now(database, &Announcer { app: &app }, &SystemClock, id).await?;
+	let decision = core::run_now(database, &Runner::new(app.clone()), &SystemClock, id).await?;
 	announce_change(&app, &held.conversation_id)?;
 	Ok(decision)
 }

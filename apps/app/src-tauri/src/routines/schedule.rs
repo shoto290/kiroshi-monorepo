@@ -65,7 +65,7 @@ pub fn due_for(held: &EnabledRoutine, now: i64) -> Result<Option<Occurrence>, Ro
 		.map(|at| Occurrence { at, expression: expression.to_owned() }))
 }
 
-pub async fn fire<S: RunSink>(
+pub async fn fire<S: RunSink + ?Sized>(
 	database: &db::Database,
 	sink: &S,
 	clock: &dyn Clock,
