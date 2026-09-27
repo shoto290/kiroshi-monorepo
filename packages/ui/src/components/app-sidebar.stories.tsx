@@ -9,6 +9,7 @@ import {
 	companionGlyphOf,
 	companionGlyphs,
 	companionGlyphsIn,
+	companionTintOf,
 	expectCompanionPictureSquare,
 	FRAME_POLL,
 	hasOverlayScrollbars,
@@ -267,7 +268,7 @@ const IDENTITY_ROSTER: AppSidebarBot[] = IDENTITY_BLOTS.map((blot, index) => ({
 }))
 
 const tintsIn = (root: HTMLElement) =>
-	companionGlyphs(root).map((glyph) => glyph.style.backgroundColor)
+	companionGlyphs(root).map((glyph) => companionTintOf(glyph))
 
 const SHARED_TINT_ROSTER: AppSidebarBot[] = IDENTITY_ROSTER.map((bot) => ({
 	...bot,

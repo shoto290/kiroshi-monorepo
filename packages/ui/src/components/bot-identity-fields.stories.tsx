@@ -6,6 +6,7 @@ import {
 	botIdentityAvatars,
 	companionGlyphOf,
 	companionGlyphs,
+	companionTintOf,
 	pictureOf,
 	slotsIn,
 	UPLOADED_AVATAR_IMAGE,
@@ -149,7 +150,7 @@ export const TakesTheBlotOff = meta.story({
 			blot: undefined,
 		})
 		await expect(
-			companionGlyphOf(previewAvatar(canvasElement)).style.backgroundColor,
+			companionTintOf(companionGlyphOf(previewAvatar(canvasElement))),
 		).toBe("")
 	},
 })

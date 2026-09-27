@@ -27,7 +27,7 @@ import { usePrefersReducedMotion } from "@workspace/ui/hooks/use-prefers-reduced
 type DitherScreen = "weight" | "halftone" | "ordered" | "organic"
 
 type DitheredFieldAvatarProps = ExplorationAvatarProps & {
-	screen: DitherScreen
+	screen?: DitherScreen
 }
 
 type DensityField = {
@@ -75,8 +75,20 @@ const surfaceOf = (seed: number, tint?: BotAvatarBlot) => {
 	const jitter = Math.round((random() * 2 - 1) * HUE_JITTER)
 	return tint
 		? `oklch(from ${blotTint(tint)} ${FIELD_LIGHTNESS} ${FIELD_CHROMA} calc(h + ${jitter}))`
-		: `oklch(${FIELD_LIGHTNESS} ${FIELD_CHROMA} ${Math.floor(random() * 360)})`
+		: `oklch(${FIELD_LIGHTNESS} 0 0)`
 }
+
+const DITHER_SCREENS: DitherScreen[] = [
+	"weight",
+	"halftone",
+	"ordered",
+	"organic",
+]
+
+const screenFor = (name: string) =>
+	DITHER_SCREENS[
+		Math.floor(seededRandom(companionSeed(name))() * DITHER_SCREENS.length)
+	]
 
 const densityField = (seed: number, cells: number): DensityField => {
 	const glyph = glyphCells(pickSilhouette(seed, ASCII_GLYPH_SPACE)).map(
@@ -232,6 +244,7 @@ const DitheredFieldAvatar = ({
 	size = 40,
 	screen,
 }: DitheredFieldAvatarProps) => {
+	const drawnScreen = screen ?? screenFor(name)
 	const canvas = useRef<HTMLCanvasElement>(null)
 	const prefersReducedMotion = usePrefersReducedMotion()
 	const seed = companionSeed(name, tint)
@@ -251,7 +264,7 @@ const DitheredFieldAvatar = ({
 			}
 			paintScreen(
 				context,
-				screen,
+				drawnScreen,
 				densities(field, drawnState, time),
 				field.cells,
 				side,
@@ -267,9 +280,19 @@ const DitheredFieldAvatar = ({
 			surface={surfaceOf(seed, tint)}
 			tint={tint}
 		>
-			<canvas className="pointer-events-none size-full" ref={canvas} />
+			<canvas
+				className="pointer-events-none size-full"
+				data-screen={drawnScreen}
+				ref={canvas}
+			/>
 		</ExplorationFrame>
 	)
 }
 
-export { DitheredFieldAvatar, type DitheredFieldAvatarProps, type DitherScreen }
+export {
+	DITHER_SCREENS,
+	DitheredFieldAvatar,
+	type DitheredFieldAvatarProps,
+	type DitherScreen,
+	screenFor,
+}

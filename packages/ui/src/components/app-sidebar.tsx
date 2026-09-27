@@ -17,7 +17,6 @@ import {
 import { createPortal } from "react-dom"
 import { useTranslation } from "react-i18next"
 
-import { AsciiGlyphAvatar } from "@workspace/ui/components/ascii-glyph-avatar"
 import {
 	AvatarGroup,
 	type ConversationParticipant,
@@ -37,6 +36,7 @@ import {
 } from "@workspace/ui/components/bot-identity-avatar"
 import { CompanionMenuContent } from "@workspace/ui/components/companion-menu"
 import { ContextMenuPressTrigger } from "@workspace/ui/components/context-menu-press-trigger"
+import { DitheredFieldAvatar } from "@workspace/ui/components/dithered-field-avatar"
 import { Icons } from "@workspace/ui/components/icons"
 import {
 	PinGroup,
@@ -784,7 +784,7 @@ const SectionDropZone = ({ name, label }: SectionDropZoneProps) => {
 	return (
 		<div className={SECTION_DROP} data-slot="roster-section-drop">
 			<span aria-hidden="true" className={SECTION_DROP_AVATAR}>
-				<AsciiGlyphAvatar name={name} size={DROP_AVATAR_SIZE} />
+				<DitheredFieldAvatar name={name} size={DROP_AVATAR_SIZE} />
 			</span>
 			{label ?? t("roster.section.empty")}
 		</div>

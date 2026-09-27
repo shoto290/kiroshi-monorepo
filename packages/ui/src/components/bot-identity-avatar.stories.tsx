@@ -5,6 +5,7 @@ import preview from "@workspace/storybook/preview"
 import {
 	botIdentityAvatars,
 	companionGlyphOf,
+	companionTintOf,
 	expectCompanionPictureSquare,
 	pictureOf,
 	Row,
@@ -77,7 +78,7 @@ const meta = preview.meta({
 		docs: {
 			description: {
 				component:
-					"A companion's face, wherever it is shown: the roster row, its settings column, the replies it signs, the row that says it is working. One component for all of them, so every place draws the same companion. A companion with an uploaded picture is that picture. Otherwise it is its ASCII glyph, drawn from its name and the colour it was given: two companions sharing a colour still part by the shape of their glyph. At rest the glyph holds still; at work it moves in the way its kind of work moves. The dot at the corner is a badge the caller hands down, never the work itself. Size is the only thing a call site changes.",
+					"A companion's face, wherever it is shown: the roster row, its settings column, the replies it signs, the row that says it is working. One component for all of them, so every place draws the same companion. A companion with an uploaded picture is that picture. Otherwise it is its dithered field, drawn from its name and the colour it was given: the silhouette and the screen come from the name, the hue from the colour, so two companions sharing a colour still part by shape. At rest the field holds still; at work it drifts in the way its kind of work moves. The dot at the corner is a badge the caller hands down, never the work itself. Size is the only thing a call site changes.",
 			},
 		},
 	},
@@ -101,7 +102,7 @@ export const Rest = meta.story({
 		docs: {
 			description: {
 				story:
-					"One companion at rest: its glyph on the colour it was given, drawn once and left alone. Check that nothing moves, that the tile is a rounded square and that no dot is drawn. Pick `Working` for the same companion mid-run.",
+					"One companion at rest: its dithered field in the hue of the colour it was given, drawn once and left alone. Check that nothing moves, that the field fills the rounded square and that no dot is drawn. Pick `Working` for the same companion mid-run.",
 			},
 		},
 	},
@@ -110,7 +111,7 @@ export const Rest = meta.story({
 		const glyph = companionGlyphOf(avatar)
 
 		await expectGlyph(avatar, "idle")
-		await expect(glyph.style.backgroundColor).toBe("var(--bot-blot-blue)")
+		await expect(companionTintOf(glyph)).toBe("var(--bot-blot-blue)")
 		await expect(getComputedStyle(avatar).borderRadius).toBe(
 			`${companionPictureRadius(96)}px`,
 		)
@@ -125,7 +126,7 @@ export const EverySize = meta.story({
 		docs: {
 			description: {
 				story:
-					"The three sizes the product asks for, a roster row, a settings column and a reply, from one component and one identity. Check that they are the same glyph at three scales: below a 3.5px cell the characters become solid blocks, so the 24px one reads by its shape.",
+					"The three sizes the product asks for, a roster row, a settings column and a reply, from one component and one identity. Check that they are the same field at three scales: the grid coarsens as the tile shrinks, so the 24px one reads by its silhouette.",
 			},
 		},
 	},
@@ -156,7 +157,7 @@ export const EveryTint = meta.story({
 		docs: {
 			description: {
 				story:
-					"The companion with no colour, then the eight colours a companion can be given. The glyph ink is near-black on every colour and the colours do not follow the theme; the uncoloured one draws its glyph in the theme ink on no tile. Switch to dark and check the glyph reads on all nine.",
+					"The companion with no colour, then the eight colours a companion can be given. Each colour becomes a saturated field of its hue under white ink, and the colours do not follow the theme; the uncoloured one is a neutral grey field. Switch to dark and check the ink reads on all nine.",
 			},
 		},
 	},
@@ -164,8 +165,8 @@ export const EveryTint = meta.story({
 		const [none, ...tinted] =
 			botIdentityAvatars(canvasElement).map(companionGlyphOf)
 
-		await expect(none.style.backgroundColor).toBe("")
-		await expect(tinted.map((glyph) => glyph.style.backgroundColor)).toEqual(
+		await expect(companionTintOf(none)).toBe("")
+		await expect(tinted.map((glyph) => companionTintOf(glyph))).toEqual(
 			BLOT_TINTS.map((blot) => `var(--bot-blot-${blot})`),
 		)
 	},
@@ -178,7 +179,7 @@ export const NoChosenColour = meta.story({
 		docs: {
 			description: {
 				story:
-					"A companion never given a colour, as it rendered before glyphs: no tile behind it, its ink following the theme. Switch the theme and check the glyph stays readable on both backgrounds.",
+					"A companion never given a colour: its field is a neutral grey rather than a hue, so the choice of no colour still reads as none. Switch the theme and check the white ink holds on the grey against both backgrounds.",
 			},
 		},
 	},
@@ -186,8 +187,7 @@ export const NoChosenColour = meta.story({
 		for (const avatar of botIdentityAvatars(canvasElement)) {
 			const glyph = companionGlyphOf(avatar)
 			await expectGlyph(avatar, "idle")
-			await expect(glyph.style.backgroundColor).toBe("")
-			await expect(glyph).toHaveClass("text-(--bot-avatar-ink)")
+			await expect(companionTintOf(glyph)).toBe("")
 		}
 	},
 })
