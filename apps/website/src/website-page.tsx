@@ -150,9 +150,9 @@ export const WebsitePage = ({ children }: WebsitePageProps) => (
 				<img
 					alt={WEBSITE_COPY.brandIcon}
 					className="size-16 lg:size-18 ultrawide:size-20"
-					height={512}
+					height={256}
 					src={BRAND_ICON_SRC}
-					width={512}
+					width={256}
 				/>
 				<h1 className="font-heading text-[28px] text-balance leading-[34px] font-medium tracking-[-0.028em] text-foreground lg:text-[54px] lg:leading-[60px] ultrawide:text-[64px] ultrawide:leading-[72px]">
 					{WEBSITE_COPY.headline}
