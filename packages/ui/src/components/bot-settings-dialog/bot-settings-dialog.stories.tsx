@@ -263,7 +263,7 @@ export const Appearance = meta.story({
 		docs: {
 			description: {
 				story:
-					"The whole of a companion's face, flat: the preview, the eight animals, the nine blot choices and the zone that takes a picture. Nothing is folded away behind a popover — the tab is the picker. Check that choosing an animal writes the whole value back through `onValueChange` and that the preview follows it immediately.",
+					"The whole of a companion's face, flat: the preview, the nine colour choices and the zone that takes a picture. Nothing is folded away behind a popover: the tab is the picker. Check that choosing a colour writes the whole value back through `onValueChange` and that the preview follows it immediately.",
 			},
 		},
 	},
@@ -273,10 +273,10 @@ export const Appearance = meta.story({
 
 		await expect(slotsIn(panel, "bot-identity-fields")).toHaveLength(1)
 
-		await userEvent.click(within(panel).getByRole("radio", { name: "Rabbit" }))
+		await userEvent.click(within(panel).getByRole("radio", { name: "Red" }))
 		await expect(args.onValueChange).toHaveBeenCalledWith(
 			expect.objectContaining({
-				identity: expect.objectContaining({ animal: "rabbit" }),
+				identity: expect.objectContaining({ blot: "red" }),
 			}),
 		)
 	},
@@ -468,14 +468,14 @@ export const ScrollsOneTab = meta.story({
 		docs: {
 			description: {
 				story:
-					"A group taller than the dialog — the animals, the blots and the picture zone together. Check that the panel is the one thing that moves: the breadcrumb stays on the companion's name and the rail stays where the reader left it, so the way out of a long group is never a scroll back up. The dialog itself never scrolls.",
+					"A group taller than the dialog: every approval a companion can be asked for. Check that the panel is the one thing that moves: the breadcrumb stays on the companion's name and the rail stays where the reader left it, so the way out of a long group is never a scroll back up. The dialog itself never scrolls.",
 			},
 		},
 	},
 	play: async ({ userEvent }) => {
 		const dialog = await dialogIn()
 		const rail = railIn(dialog)
-		const panel = await openTab(dialog, "Appearance", userEvent)
+		const panel = await openTab(dialog, "Approvals", userEvent)
 		const railTop = rail.getBoundingClientRect().top
 
 		await expect(panel.scrollHeight).toBeGreaterThan(panel.clientHeight)
@@ -484,7 +484,7 @@ export const ScrollsOneTab = meta.story({
 		panel.scrollTop = panel.scrollHeight
 		await waitFor(() => expect(rail.getBoundingClientRect().top).toBe(railTop))
 		await expect(
-			within(dialog).getByRole("tab", { name: "Appearance" }),
+			within(dialog).getByRole("tab", { name: "Approvals" }),
 		).toBeVisible()
 	},
 })

@@ -1,5 +1,5 @@
 import { BOOT_MARK_SIZE } from "@workspace/ui/components/app-boot-screen"
-import { BotIdentityAvatar } from "@workspace/ui/components/bot-identity-avatar"
+import { BotAvatar } from "@workspace/ui/components/bot-avatar"
 import { Notice } from "@workspace/ui/components/notice"
 
 type AppBootNoticeProps = {
@@ -14,7 +14,12 @@ const AppBootNotice = ({ title, description, onRetry }: AppBootNoticeProps) => (
 		className="flex h-svh w-full flex-col items-center justify-center gap-6 bg-background p-6"
 		data-tauri-drag-region="deep"
 	>
-		<BotIdentityAvatar animal="rabbit" size={BOOT_MARK_SIZE} />
+		<BotAvatar
+			animal="rabbit"
+			animated={false}
+			size={BOOT_MARK_SIZE}
+			state="idle"
+		/>
 		<div className="w-full max-w-sm" data-tauri-drag-region="false">
 			<Notice description={description} retry={{ onRetry }} title={title} />
 		</div>
