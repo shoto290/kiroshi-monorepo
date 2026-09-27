@@ -485,7 +485,7 @@ describe("WorkspaceBody missions", () => {
 		const store = createFakeTranscriptStore()
 		const refusing: TranscriptStore = {
 			...store,
-			startTurn: () => Promise.reject(new Error("refused")),
+			sendUserMessage: () => Promise.reject(new Error("refused")),
 		}
 		const { workspace } = await seed(
 			(mission) => ({ mission, events: [] }),

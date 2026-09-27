@@ -33,9 +33,15 @@ vi.mock("@/lib/conversations/create-store", () => ({
 	createTranscriptStore: () => harness.store,
 }))
 
-vi.mock("@/lib/chat/create-driver", () => ({
-	createChatDriver: () => harness.driver,
-}))
+vi.mock("@/lib/chat/create-driver", async () => {
+	const { withFakeHostWrites } = await import(
+		"@/lib/conversations/fake-host-writes"
+	)
+	return {
+		createChatDriver: (store: TranscriptStore) =>
+			harness.driver && withFakeHostWrites(harness.driver, store),
+	}
+})
 
 vi.mock("@/lib/notifications/create-notifications", () => ({
 	createNotifications: () => harness.notifications,

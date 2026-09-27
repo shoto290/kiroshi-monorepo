@@ -195,6 +195,10 @@ export type TranscriptStore = TranscriptPort & {
 	startTurn: (turn: NewTurn) => Promise<number>
 	completeTurn: (id: string, completedAt: number) => Promise<void>
 	appendUserMessage: (message: NewUserMessage) => Promise<number>
+	sendUserMessage: (
+		message: NewUserMessage,
+		summoned: string[],
+	) => Promise<number>
 	openAssistantMessage: (message: NewAssistantMessage) => Promise<number>
 	appendText: (id: string, delta: string) => Promise<void>
 	finalizeMessage: (

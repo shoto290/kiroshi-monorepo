@@ -4,6 +4,7 @@ import {
 	type ConversationRuntimes,
 	createConversationRuntimes,
 } from "./conversation-runtimes"
+import { withFakeHostWrites } from "./fake-host-writes"
 import { createFakeTranscriptStore } from "./fake-transcript-store"
 import { leadOf } from "./roster-conversations"
 import {
@@ -45,6 +46,8 @@ const ENDED: AgentEvent = {
 
 const FAILED: AgentEvent = { type: "failed", error: { kind: "notStarted" } }
 
+const TURN_FAILED: AgentEvent = { type: "turnChanged", state: "failed" }
+
 const leadIn = (conversation: Conversation) => {
 	const lead = leadOf(conversation)
 	if (!lead) {
@@ -71,7 +74,10 @@ type Reader = {
 const createReader = (): Reader => {
 	const driver = createScriptedDriver()
 	const store = createFakeTranscriptStore()
-	const runtimes = createConversationRuntimes(driver, store)
+	const runtimes = createConversationRuntimes(
+		withFakeHostWrites(driver, store),
+		store,
+	)
 
 	const settled = async () => {
 		for (let round = 0; round < 20; round += 1) {
@@ -185,7 +191,12 @@ describe("createConversationRuntimes", () => {
 		await screen.send("and now?")
 		screen.leave()
 
-		await reader.answer(ada, [started(ada), wrote(ada, "walls "), FAILED])
+		await reader.answer(ada, [
+			started(ada),
+			wrote(ada, "walls "),
+			FAILED,
+			TURN_FAILED,
+		])
 
 		expect(await reader.completionsIn(room)).toEqual([
 			["user", "complete"],

@@ -42,9 +42,15 @@ vi.mock("@workspace/ui/components/markdown", async (importOriginal) => {
 	}
 })
 
-vi.mock("@/lib/chat/create-driver", () => ({
-	createChatDriver: () => harness.driver,
-}))
+vi.mock("@/lib/chat/create-driver", async () => {
+	const { withFakeHostWrites } = await import(
+		"@/lib/conversations/fake-host-writes"
+	)
+	return {
+		createChatDriver: (store: TranscriptStore) =>
+			harness.driver && withFakeHostWrites(harness.driver, store),
+	}
+})
 
 vi.mock("@/lib/applications/application-transport", async (importOriginal) => {
 	const actual =
@@ -585,13 +591,13 @@ describe("PRF1 render baseline", () => {
 
 		expect(await measureTurn(SHORT_TURN_CHUNKS)).toMatchInlineSnapshot(`
 			{
-			  "app": 19,
-			  "appSidebar": 6,
+			  "app": 17,
+			  "appSidebar": 5,
 			  "chunks": 11,
 			  "quietTurn": 2,
-			  "rosterBots": 6,
-			  "rosterBotsBySpace": 6,
-			  "streamingTurn": 3,
+			  "rosterBots": 5,
+			  "rosterBotsBySpace": 5,
+			  "streamingTurn": 2,
 			}
 		`)
 	})
@@ -601,13 +607,13 @@ describe("PRF1 render baseline", () => {
 
 		expect(await measureTurn(LONG_TURN_CHUNKS)).toMatchInlineSnapshot(`
 			{
-			  "app": 30,
-			  "appSidebar": 6,
+			  "app": 28,
+			  "appSidebar": 5,
 			  "chunks": 22,
 			  "quietTurn": 2,
-			  "rosterBots": 6,
-			  "rosterBotsBySpace": 6,
-			  "streamingTurn": 3,
+			  "rosterBots": 5,
+			  "rosterBotsBySpace": 5,
+			  "streamingTurn": 2,
 			}
 		`)
 	})

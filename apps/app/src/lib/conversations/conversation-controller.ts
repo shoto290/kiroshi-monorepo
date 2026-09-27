@@ -10,6 +10,7 @@ import type {
 	CompanionArrival,
 	CompanionSpoke,
 	TerminalCompletion,
+	TranscriptDraft,
 	TranscriptMessage,
 } from "./transcript-contract"
 import { createTranscriptController } from "./transcript-controller"
@@ -46,7 +47,6 @@ import {
 	chatErrorOf,
 	isSameRuntimeScope,
 	toReadError,
-	toStoreError,
 	toTransportError,
 } from "../chat/chat-state"
 import type { ChatDriver } from "../chat/driver"
@@ -56,6 +56,7 @@ import {
 	questionMessageIdOf,
 	questionMessageText,
 } from "../chat/question-message"
+import { storeQuestionRow } from "../chat/question-row"
 import {
 	ENDING_FOR,
 	ENDING_FOR_OUTCOME,
@@ -417,30 +418,18 @@ export const createConversationController = (
 		const conversationId = conversation.id
 		const { runtimeSessionId } = held.scope
 		held.openMessages.set(message.id, 0)
-		write(
-			() =>
-				store.openAssistantMessage({
-					id: message.id,
-					conversationId,
-					turnId: held.turn.id,
-					authorBotId: held.botId,
-					repliedToMessageId: held.turn.promptId,
-					createdAt: message.timestamp,
-				}),
-			() =>
-				transcript.append({
-					id: message.id,
-					conversationId,
-					turnId: held.turn.id,
-					role: "assistant",
-					content: "",
-					completion: "streaming",
-					createdAt: message.timestamp,
-					authorBotId: held.botId,
-					repliedToMessageId: held.turn.promptId,
-					runtimeSessionId,
-				}),
-		)
+		transcript.append({
+			id: message.id,
+			conversationId,
+			turnId: held.turn.id,
+			role: "assistant",
+			content: "",
+			completion: "streaming",
+			createdAt: message.timestamp,
+			authorBotId: held.botId,
+			repliedToMessageId: held.turn.promptId,
+			runtimeSessionId,
+		})
 		streamReply(held, message.id, 1, message.text)
 	}
 
@@ -465,10 +454,7 @@ export const createConversationController = (
 		}
 		held.openMessages.set(id, seq)
 		held.written.set(id, (held.written.get(id) ?? "") + text)
-		write(
-			() => store.appendText(id, text),
-			() => transcript.stream({ conversationId, id, text }),
-		)
+		transcript.stream({ conversationId, id, text })
 	}
 
 	const settleMentions = (held: Speaker, id: string) => {
@@ -493,10 +479,7 @@ export const createConversationController = (
 		held.openMessages.delete(id)
 		held.settledMessages.add(id)
 		const settledText = settleMentions(held, id)
-		write(
-			() => store.finalizeMessage(id, completion, settledText),
-			() => transcript.settle({ conversationId, id, completion, settledText }),
-		)
+		transcript.settle({ conversationId, id, completion, settledText })
 	}
 
 	const writeReply = (
@@ -531,10 +514,6 @@ export const createConversationController = (
 		for (const id of [...held.openMessages.keys()]) {
 			settleReply(held, id, completion)
 		}
-	}
-
-	const completeTurn = (turn: OpenTurn) => {
-		write(() => store.completeTurn(turn.id, now()))
 	}
 
 	const readSeating = async (conversationId: string) => {
@@ -624,13 +603,7 @@ export const createConversationController = (
 		return unseated
 	}
 
-	const isTurnRunning = (turn: OpenTurn) =>
-		[...speakers.values()].some((held) => held.turn === turn)
-
-	const closeTurnOf = (held: Speaker) => {
-		if (held.turn !== activeTurn && !isTurnRunning(held.turn)) {
-			completeTurn(held.turn)
-		}
+	const syncAndDrive = () => {
 		sync()
 		drive()
 	}
@@ -644,12 +617,12 @@ export const createConversationController = (
 		void shutdownSpeaker(held)
 		const handed = held.isDropped ? [] : noteHandovers(held)
 		if (handed.length === 0) {
-			closeTurnOf(held)
+			syncAndDrive()
 			return
 		}
 		void seatedFromStore(handed).then((seated) => {
 			handOver(seated)
-			closeTurnOf(held)
+			syncAndDrive()
 		})
 	}
 
@@ -682,21 +655,33 @@ export const createConversationController = (
 		sync()
 	}
 
-	const askQuestion = (held: Speaker, request: QuestionRequest) => {
+	const writeQuestionRow = (held: Speaker, request: QuestionRequest) => {
 		const id = questionMessageIdOf(request.id)
-		settleOpenReplies(held, "complete")
-		writeReply(
-			held,
-			{
-				id,
-				role: "assistant",
-				text: questionMessageText(request),
-				completion: "complete",
-				timestamp: now(),
-			},
-			"complete",
+		if (!conversation || !held.scope || !isUnwritten(held, id)) {
+			return
+		}
+		held.settledMessages.add(id)
+		const row: TranscriptDraft = {
+			id,
+			conversationId: conversation.id,
+			turnId: held.turn.id,
+			role: "assistant",
+			content: questionMessageText(request),
+			completion: "complete",
+			createdAt: now(),
+			authorBotId: held.botId,
+			repliedToMessageId: held.turn.promptId,
+			runtimeSessionId: held.scope.runtimeSessionId,
+		}
+		write(
+			() => storeQuestionRow(store, row),
+			() => transcript.append(row),
 		)
-		held.written.delete(id)
+	}
+
+	const askQuestion = (held: Speaker, request: QuestionRequest) => {
+		settleOpenReplies(held, "complete")
+		writeQuestionRow(held, request)
 		holdPrompt(held, { kind: "question", botId: held.botId, request })
 	}
 
@@ -870,7 +855,6 @@ export const createConversationController = (
 		if (!activeTurn || speakers.size > 0 || queue.waiting.length > 0) {
 			return
 		}
-		completeTurn(activeTurn)
 		activeTurn = null
 	}
 
@@ -883,22 +867,19 @@ export const createConversationController = (
 		void Promise.all(started.map(begin)).then(drive)
 	}
 
-	const storePrompt = async (turn: OpenTurn, said: TranscriptMessage) => {
-		await store.startTurn({
-			id: turn.id,
-			conversationId: said.conversationId,
-			startedAt: said.createdAt,
-		})
-		await store.appendUserMessage({
-			id: said.id,
-			conversationId: said.conversationId,
-			turnId: turn.id,
-			authorBotId: null,
-			repliedToMessageId: said.repliedToMessageId,
-			content: said.content,
-			createdAt: said.createdAt,
-		})
-	}
+	const storePrompt = (said: TranscriptMessage, summoned: Summons[]) =>
+		store.sendUserMessage(
+			{
+				id: said.id,
+				conversationId: said.conversationId,
+				turnId: said.turnId,
+				authorBotId: null,
+				repliedToMessageId: said.repliedToMessageId,
+				content: said.content,
+				createdAt: said.createdAt,
+			},
+			summoned.map(({ botId }) => botId),
+		)
 
 	const messageAnsweredIn = (conversationId: string, messageId?: string) => {
 		if (!messageId) {
@@ -960,14 +941,8 @@ export const createConversationController = (
 	}
 
 	const interruptRunningTurn = () => {
-		if (speakers.size > 0) {
-			for (const held of speakers.values()) {
-				held.isDropped = true
-			}
-			return
-		}
-		if (activeTurn) {
-			completeTurn(activeTurn)
+		for (const held of speakers.values()) {
+			held.isDropped = true
 		}
 	}
 
@@ -992,8 +967,9 @@ export const createConversationController = (
 			return
 		}
 
+		const summoned = summonedBy(said, answered)
 		try {
-			await enqueue(() => storePrompt(turn, said))
+			await enqueue(() => storePrompt(said, summoned))
 		} catch {
 			refuse(said, trimmed)
 			return
@@ -1005,7 +981,7 @@ export const createConversationController = (
 		}
 		transcript.append(said)
 		interruptRunningTurn()
-		queue = reopenedFor(queue, summonedBy(said, answered))
+		queue = reopenedFor(queue, summoned)
 		activeTurn = turn
 		sync()
 		drive()
@@ -1051,28 +1027,10 @@ export const createConversationController = (
 		}
 	}
 
-	const openReportTurn = async (reported: TranscriptMessage) => {
-		if (speakers.size > 0) {
-			return true
+	const openReportTurn = (reported: TranscriptMessage) => {
+		if (speakers.size === 0) {
+			activeTurn = { id: newId(), promptId: reported.id }
 		}
-		const turn: OpenTurn = { id: newId(), promptId: reported.id }
-		try {
-			await enqueue(() =>
-				store.startTurn({
-					id: turn.id,
-					conversationId: reported.conversationId,
-					startedAt: now(),
-				}),
-			)
-		} catch (reason) {
-			noteFailure(toStoreError(reason))
-			return false
-		}
-		if (activeTurn) {
-			completeTurn(activeTurn)
-		}
-		activeTurn = turn
-		return true
 	}
 
 	const relayReport = async (reported: TranscriptMessage) => {
@@ -1090,9 +1048,10 @@ export const createConversationController = (
 				mentionsHandedBy(author, reported.id, unresolved),
 			)),
 		]
-		if (summoned.length === 0 || !(await openReportTurn(reported))) {
+		if (summoned.length === 0) {
 			return
 		}
+		openReportTurn(reported)
 		handOver(summoned)
 		sync()
 		drive()
