@@ -86,6 +86,11 @@ export const conversationStore: TranscriptStore = {
 
 	deleteSpace: (id: string) => invoke<void>("space_delete", { id }),
 
+	exportSpace: (id: string, path: string) =>
+		invoke<void>("space_export", { id, path }),
+
+	importSpace: (path: string) => invoke<Space>("space_import", { path }),
+
 	spacePreferences: (spaceId: string) =>
 		invoke<SpacePreferences>("space_preferences", { spaceId }),
 

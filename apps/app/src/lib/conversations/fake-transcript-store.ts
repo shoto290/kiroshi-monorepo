@@ -286,6 +286,7 @@ export const createFakeTranscriptStore = (
 	const pageSize = options.pageSize ?? TRANSCRIPT_PAGE_SIZE
 	const bots = new Map<string, Bot>([[DEFAULT_BOT.id, DEFAULT_BOT]])
 	const spaces = new Map<string, Space>([[DEFAULT_SPACE.id, DEFAULT_SPACE]])
+	const archives = new Map<string, Space>()
 	const departed = new Map<string, Bot>()
 	const spacesOf = new Map<string, Set<string>>([
 		[DEFAULT_BOT.id, new Set([DEFAULT_SPACE.id])],
@@ -849,6 +850,31 @@ export const createFakeTranscriptStore = (
 			spaces.delete(id)
 			forgetSpace(id)
 			return Promise.resolve()
+		},
+
+		exportSpace: (id: string, path: string) => {
+			const stored = spaces.get(id)
+			if (!stored) {
+				return refuse({ kind: "unknownSpace", id })
+			}
+			archives.set(path, stored)
+			return Promise.resolve()
+		},
+
+		importSpace: (path: string) => {
+			const archived = archives.get(path)
+			if (!archived) {
+				return refuse({ kind: "unreadableArchive", detail: path })
+			}
+			mintedSpaces += 1
+			const space: Space = {
+				...archived,
+				id: `space-${mintedSpaces}`,
+				position: mintedSpaces,
+				createdAt: mintedSpaces,
+			}
+			spaces.set(space.id, space)
+			return Promise.resolve(space)
 		},
 
 		spacePreferences: (spaceId: string) => {

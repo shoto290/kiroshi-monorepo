@@ -40,6 +40,8 @@ export type TranscriptStore = TranscriptPort & {
 	updateSpace: (id: string, name: string, colour?: AvatarBlot) => Promise<Space>
 	reorderSpaces: (ids: string[]) => Promise<void>
 	deleteSpace: (id: string) => Promise<void>
+	exportSpace: (id: string, path: string) => Promise<void>
+	importSpace: (path: string) => Promise<Space>
 	spacePreferences: (spaceId: string) => Promise<SpacePreferences>
 	setSpacePreferences: (
 		spaceId: string,
