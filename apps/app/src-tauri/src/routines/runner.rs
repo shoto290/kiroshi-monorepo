@@ -19,6 +19,7 @@ use crate::agent::contract::{
 	AgentEvent, ChatMessage, MessageCompletion, MessageRole, RuntimeScope, ScopedEvent,
 	TransportError, TurnEnded, TurnOutcome,
 };
+use crate::agent::reply_writer::settled_mentions;
 use crate::conversations::commands::{conversation_open_runtime_session, ready};
 use crate::conversations::contract::TranscriptStoreError;
 use crate::db;
@@ -178,7 +179,9 @@ async fn write_report<R: Runtime>(
 	scope: &RuntimeScope,
 	text: String,
 ) -> Result<String, TranscriptStoreError> {
-	let messages = database(app)?.messages();
+	let database = database(app)?;
+	let text = settled_mentions(database, &scope.conversation_id, &text).await?.unwrap_or(text);
+	let messages = database.messages();
 	let turn_id = Uuid::new_v4().to_string();
 	let message_id = Uuid::new_v4().to_string();
 	let created_at = SystemClock.now_ms();

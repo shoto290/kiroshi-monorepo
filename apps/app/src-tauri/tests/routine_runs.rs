@@ -48,7 +48,44 @@ fn scenario(name: &str) {
 	std::env::set_var(SCENARIO_ENV, path);
 }
 
+const A_ROOM: &str = "
+	INSERT INTO bots (id, name, model, created_at) VALUES ('b-ada', 'Ada', 'sonnet', 1);
+	INSERT INTO bots (id, name, model, created_at) VALUES ('b-grace', 'Grace Hopper', 'sonnet', 1);
+	INSERT INTO conversations (id, kind, title, created_at, updated_at, space_id)
+		VALUES ('room-1', 'topic', 'Shift room', 1, 1, 'personal');
+	INSERT INTO conversation_participants (conversation_id, bot_id, role, joined_at, join_seq)
+		VALUES ('room-1', 'default', 'assistant', 1, 0),
+			('room-1', 'b-ada', 'assistant', 1, 1),
+			('room-1', 'b-grace', 'assistant', 1, 2);
+";
+
+const REFUSED_TURNS: &str = "
+	CREATE TRIGGER refuse_every_turn BEFORE INSERT ON turns
+	BEGIN SELECT RAISE(ABORT, 'the turn is refused'); END;
+";
+
 fn launch(name: &str, played: &str) -> Host {
+	let app = booted(name, played);
+	let chat = block_on(conversation_main_chat(app.state(), BOT.to_owned(), None))
+		.expect("the main chat opens");
+	hosting(app, name, chat.id)
+}
+
+fn launch_in_a_room(name: &str, played: &str) -> Host {
+	let app = booted(name, played);
+	block_on(database_of(&app).conversations().ensure_default_bot()).expect("the default bot");
+	planted(&app, A_ROOM);
+	hosting(app, name, "room-1".to_owned())
+}
+
+fn planted(app: &App<MockRuntime>, statements: &'static str) {
+	block_on(
+		database_of(app).call_mut(move |connection| Ok(connection.execute_batch(statements)?)),
+	)
+	.expect("the fixture is planted");
+}
+
+fn booted(name: &str, played: &str) -> App<MockRuntime> {
 	std::env::set_var(SIDECAR_OVERRIDE_ENV, FAKE_SIDECAR);
 	scenario(played);
 	let mut context = mock_context(noop_assets());
@@ -58,7 +95,10 @@ fn launch(name: &str, played: &str) -> Host {
 	let data_dir = app.path().app_data_dir().expect("data dir");
 	let _ = std::fs::remove_dir_all(&data_dir);
 	app.manage(db::bootstrap(app.handle()));
+	app
+}
 
+fn hosting(app: App<MockRuntime>, name: &str, conversation_id: String) -> Host {
 	let changed: Arc<Mutex<Vec<String>>> = Arc::new(Mutex::new(Vec::new()));
 	let heard = changed.clone();
 	app.listen(CHANGED_EVENT, move |event| {
@@ -68,11 +108,9 @@ fn launch(name: &str, played: &str) -> Host {
 		heard.lock().expect("the change log").push(conversation_id.to_owned());
 	});
 
-	let chat = block_on(conversation_main_chat(app.state(), BOT.to_owned(), None))
-		.expect("the main chat opens");
 	let routine = block_on(database_of(&app).routines().create(
 		RoutineDraft {
-			conversation_id: chat.id.clone(),
+			conversation_id: conversation_id.clone(),
 			bot_id: BOT.to_owned(),
 			title: "Nightly report".to_owned(),
 			instruction: "Read the shift log and report what changed.".to_owned(),
@@ -84,7 +122,7 @@ fn launch(name: &str, played: &str) -> Host {
 		SystemClock.now_ms(),
 	))
 	.expect("the routine is stored");
-	Host { app, conversation_id: chat.id, routine, changed }
+	Host { app, conversation_id, routine, changed }
 }
 
 fn database_of(app: &App<MockRuntime>) -> &db::Database {
@@ -375,6 +413,44 @@ fn a_run_that_outlives_its_deadline_is_cancelled_after_renewing_its_lease() {
 	assert_eq!(run.reason.as_deref(), Some("the run outlived its deadline"));
 	let renewed = host.lease_renewed_at(&run.id).expect("the run holds a lease");
 	assert!(renewed > run.started_at, "the lease was never renewed while the run was live");
+	host.wait_for_no_live_session();
+	host.quit();
+}
+
+#[test]
+fn a_report_in_a_room_turns_the_name_of_a_seated_bot_into_its_token() {
+	let _serial = serial();
+	let host = launch_in_a_room("room", "routine_report_naming");
+
+	assert!(is_started(&host.fire_the_schedule()));
+	let run = host.closed_run();
+
+	assert_eq!(run.outcome, Some(RunOutcome::Ok), "the run closed as {run:?}");
+	let replies = host.replies();
+	assert_eq!(replies.len(), 1, "the room holds {replies:#?}");
+	assert_eq!(replies[0].content, "<@b-grace> the shift log changed.");
+	host.wait_for_no_live_session();
+	host.quit();
+}
+
+#[test]
+fn a_report_that_cannot_be_written_closes_the_run_failed_and_writes_no_message() {
+	let _serial = serial();
+	let host = launch("unwritten", "routine_report");
+	planted(&host.app, REFUSED_TURNS);
+
+	assert!(is_started(&host.fire_the_schedule()));
+	let run = host.closed_run();
+
+	assert_eq!(run.outcome, Some(RunOutcome::Failed), "the run closed as {run:?}");
+	let reason = run.reason.expect("the run names why it failed");
+	assert!(
+		reason.starts_with("the report could not be written: "),
+		"the run failed with {reason}"
+	);
+	assert!(host.replies().is_empty(), "an unwritten report left {:#?}", host.replies());
+	assert!(host.reported().is_empty());
+	host.wait_for_changes(1);
 	host.wait_for_no_live_session();
 	host.quit();
 }

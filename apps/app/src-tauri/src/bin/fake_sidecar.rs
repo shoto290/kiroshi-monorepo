@@ -393,6 +393,13 @@ fn on_prompt(key: &str, runs: &mut HashMap<String, Run>, text: &str) {
 				json!({ "outcome": "report", "report": "  The shift log changed.\n" }),
 			);
 		}
+		"routine_report_naming" => {
+			emit_structured_result(
+				key,
+				run,
+				json!({ "outcome": "report", "report": "@Grace Hopper the shift log changed." }),
+			);
+		}
 		"routine_nothing" => {
 			emit_text_turn(key, run, "checking the shift log");
 			emit_structured_result(key, run, json!({ "outcome": "nothing", "report": "" }));
