@@ -88,7 +88,8 @@ fn a_mission(home: &Home, window: &WebviewWindow<MockRuntime>) -> String {
 fn changes_of(home: &Home) -> mpsc::Receiver<Value> {
 	let (sender, received) = mpsc::channel();
 	home.app.listen(CHANGED_EVENT, move |event| {
-		let _ = sender.send(serde_json::from_str(event.payload()).expect("the payload is JSON"));
+		let change = serde_json::from_str(event.payload()).expect("the payload is JSON");
+		sender.send(change).expect("the test still listens");
 	});
 	received
 }
