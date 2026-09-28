@@ -47,7 +47,7 @@ fn publish<S: Serialize>(relay: &Relay, event: &str, payload: &S) {
 			}
 		}
 		Err(failure) => {
-			eprintln!("the event {event} reached no host api client: its payload did not serialize: {failure}");
+			eprintln!("the event {event} did not serialize for the host api: {failure}")
 		}
 	}
 }

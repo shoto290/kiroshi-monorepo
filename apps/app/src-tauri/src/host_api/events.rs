@@ -19,8 +19,6 @@ const TOKEN_PARAMETER: &str = "token=";
 
 const FELL_BEHIND: &str = "the client fell behind the event buffer";
 
-type Heard = Option<Result<Message, axum::Error>>;
-
 pub(crate) fn route<R: Runtime>(calls: Calls<R>) -> Router<Calls<R>> {
 	Router::new()
 		.route(PATH, get(opened::<R>))
@@ -82,7 +80,7 @@ async fn relayed(mut socket: WebSocket, mut heard: Receiver<Frame>) {
 	}
 }
 
-fn keeps_listening(sent: Heard) -> bool {
+fn keeps_listening(sent: Option<Result<Message, axum::Error>>) -> bool {
 	match sent {
 		None | Some(Ok(Message::Close(_))) => false,
 		Some(Ok(_)) => true,
