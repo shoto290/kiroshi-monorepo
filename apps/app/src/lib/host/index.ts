@@ -1,12 +1,67 @@
 import { getCurrentWindow } from "@tauri-apps/api/window"
 import { platform } from "@tauri-apps/plugin-os"
 
-import { convertFileSrc } from "./tauri"
+import {
+	endNotice,
+	raiseFailureNotice,
+} from "@workspace/ui/components/notice-surface"
+import { i18n } from "@workspace/ui/lib/i18n"
 
-export { invoke, listen } from "./tauri"
+import { adoptHostConnection } from "./connection"
+import { createHttpHost, type HttpHost } from "./http"
+import {
+	convertFileSrc,
+	invoke as tauriInvoke,
+	listen as tauriListen,
+} from "./tauri"
+
+const IS_DESKTOP_HOST =
+	typeof window !== "undefined" && "__TAURI_INTERNALS__" in window
+
+const raiseHostDownNotice = () =>
+	raiseFailureNotice({ title: i18n.t("chat:screen.notice.unavailable") })
+
+const connectHttpHost = (): HttpHost | null => {
+	const connection = adoptHostConnection(window)
+	if (!connection) {
+		return null
+	}
+	let downNoticeId: string | null = null
+	return createHttpHost({
+		...connection,
+		fetch: (input, init) => fetch(input, init),
+		openSocket: (url) => new WebSocket(url),
+		onDown: () => {
+			downNoticeId = raiseHostDownNotice()
+		},
+		onUp: () => {
+			if (downNoticeId) endNotice(downNoticeId)
+			downNoticeId = null
+		},
+	})
+}
+
+const bridgeGeneratedBindings = (host: HttpHost) => {
+	Object.assign(window, { __TAURI_INTERNALS__: { invoke: host.invoke } })
+}
+
+const httpHost =
+	IS_DESKTOP_HOST || typeof window === "undefined" ? null : connectHttpHost()
+
+if (httpHost) {
+	bridgeGeneratedBindings(httpHost)
+}
+
+export const invoke: typeof tauriInvoke = httpHost?.invoke ?? tauriInvoke
+
+export const listen: typeof tauriListen = httpHost?.listen ?? tauriListen
 
 export function isDesktopHost(): boolean {
-	return typeof window !== "undefined" && "__TAURI_INTERNALS__" in window
+	return IS_DESKTOP_HOST
+}
+
+export function drivesRealHost(): boolean {
+	return IS_DESKTOP_HOST || httpHost !== null
 }
 
 export function hasOverlayWindowControls(): boolean {
@@ -18,7 +73,10 @@ export function isSidebarResizable(): boolean {
 }
 
 export function assetSrc(path: string): string {
-	return isDesktopHost() ? convertFileSrc(path) : path
+	if (IS_DESKTOP_HOST) {
+		return convertFileSrc(path)
+	}
+	return httpHost ? httpHost.fileSrc(path) : path
 }
 
 export function avatarSrc(path: string | null): string | undefined {

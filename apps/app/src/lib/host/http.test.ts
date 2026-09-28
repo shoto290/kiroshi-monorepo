@@ -1,0 +1,254 @@
+import { afterEach, beforeEach, describe, expect, it, vi } from "vitest"
+
+import { createHttpHost, type HostSocket } from "./http"
+
+const HOST = "http://127.0.0.1:45367"
+
+type Answer = {
+	status?: number
+	body?: BodyInit
+	type?: string
+}
+
+const answerWith = ({ status = 200, body = "null", type }: Answer) =>
+	new Response(body, {
+		status,
+		headers: type ? { "content-type": type } : {},
+	})
+
+const socketStub = () => {
+	const socket: HostSocket = {
+		onopen: null,
+		onmessage: null,
+		onclose: null,
+		close: () => undefined,
+	}
+	return {
+		socket,
+		open: () => socket.onopen?.call(socket as WebSocket, new Event("open")),
+		drop: () =>
+			socket.onclose?.call(socket as WebSocket, new CloseEvent("close")),
+		send: (frame: unknown) =>
+			socket.onmessage?.call(
+				socket as WebSocket,
+				new MessageEvent("message", { data: JSON.stringify(frame) }),
+			),
+	}
+}
+
+type HostSeed = {
+	answer?: Answer
+}
+
+const hostOf = ({ answer = {} }: HostSeed = {}) => {
+	const fetch = vi.fn(async () => answerWith(answer))
+	const sockets: ReturnType<typeof socketStub>[] = []
+	const socketUrls: string[] = []
+	const onDown = vi.fn()
+	const onUp = vi.fn()
+	const host = createHttpHost({
+		host: HOST,
+		token: "abc",
+		fetch,
+		openSocket: (url) => {
+			const stub = socketStub()
+			sockets.push(stub)
+			socketUrls.push(url)
+			return stub.socket
+		},
+		onDown,
+		onUp,
+	})
+	return { host, fetch, sockets, socketUrls, onDown, onUp }
+}
+
+describe("invoke over http", () => {
+	it("posts the arguments as json with the bearer token", async () => {
+		const { host, fetch } = hostOf({
+			answer: { body: '{"id":"b1"}', type: "application/json" },
+		})
+
+		await expect(
+			host.invoke("conversation_set_bot_memory", {
+				id: "b1",
+				bytes: new Uint8Array([1, 2]),
+			}),
+		).resolves.toEqual({ id: "b1" })
+		expect(fetch).toHaveBeenCalledWith(
+			new URL(`${HOST}/api/invoke/conversation_set_bot_memory`),
+			{
+				method: "POST",
+				headers: {
+					authorization: "Bearer abc",
+					"content-type": "application/json",
+				},
+				body: '{"id":"b1","bytes":[1,2]}',
+			},
+		)
+	})
+
+	it("answers bytes as an array buffer", async () => {
+		const { host } = hostOf({
+			answer: {
+				body: new Uint8Array([7]),
+				type: "application/octet-stream",
+			},
+		})
+
+		const answer = await host.invoke<ArrayBuffer>("bundle_export")
+
+		expect([...new Uint8Array(answer)]).toEqual([7])
+	})
+
+	it("rejects with the host message when the command needs the window", async () => {
+		const message =
+			"desktop-only: the command runs through the desktop window, which is not open"
+		const { host } = hostOf({ answer: { status: 503, body: message } })
+
+		await expect(host.invoke("agent_models")).rejects.toBe(message)
+	})
+
+	it("rejects with the command error the host relayed", async () => {
+		const { host } = hostOf({
+			answer: {
+				status: 500,
+				body: '{"kind":"notFound"}',
+				type: "application/json",
+			},
+		})
+
+		await expect(host.invoke("conversation_delete_bot")).rejects.toEqual({
+			kind: "notFound",
+		})
+	})
+
+	it("rejects a call carrying a bad token", async () => {
+		const { host } = hostOf({
+			answer: { status: 401, body: "the call carried no valid bearer token" },
+		})
+
+		await expect(host.invoke("agent_models")).rejects.toBe(
+			"the call carried no valid bearer token",
+		)
+	})
+})
+
+describe("listen over the event socket", () => {
+	it("opens one socket for every listener, with the token", async () => {
+		const { host, sockets, socketUrls } = hostOf()
+
+		await host.listen("mission://changed", () => undefined)
+		await host.listen("routine://changed", () => undefined)
+
+		expect(sockets).toHaveLength(1)
+		expect(socketUrls).toEqual(["ws://127.0.0.1:45367/api/events?token=abc"])
+	})
+
+	it("delivers a frame to the listeners of its event only", async () => {
+		const { host, sockets } = hostOf()
+		const missions = vi.fn()
+		const routines = vi.fn()
+		await host.listen("mission://changed", missions)
+		await host.listen("routine://changed", routines)
+
+		sockets[0]?.send({ event: "mission://changed", payload: { id: "m1" } })
+
+		expect(missions).toHaveBeenCalledWith({
+			event: "mission://changed",
+			id: 0,
+			payload: { id: "m1" },
+		})
+		expect(routines).not.toHaveBeenCalled()
+	})
+
+	it("stops delivering to a listener once it unsubscribes", async () => {
+		const { host, sockets } = hostOf()
+		const missions = vi.fn()
+		const unlisten = await host.listen("mission://changed", missions)
+
+		unlisten()
+		sockets[0]?.send({ event: "mission://changed", payload: {} })
+
+		expect(missions).not.toHaveBeenCalled()
+	})
+
+	it("keeps a later listener when an earlier one unsubscribes twice", async () => {
+		const { host, sockets } = hostOf()
+		const unlisten = await host.listen("mission://changed", () => undefined)
+		unlisten()
+		const later = vi.fn()
+		await host.listen("mission://changed", later)
+
+		unlisten()
+		sockets[0]?.send({ event: "mission://changed", payload: {} })
+
+		expect(later).toHaveBeenCalledOnce()
+	})
+})
+
+describe("reconnecting the event socket", () => {
+	beforeEach(() => {
+		vi.useFakeTimers()
+	})
+
+	afterEach(() => {
+		vi.useRealTimers()
+	})
+
+	it("reconnects with growing delays and raises a notice while down", async () => {
+		const { host, sockets, onDown, onUp } = hostOf()
+		await host.listen("mission://changed", () => undefined)
+
+		sockets[0]?.drop()
+		expect(onDown).toHaveBeenCalledOnce()
+		vi.advanceTimersByTime(500)
+		expect(sockets).toHaveLength(2)
+
+		sockets[1]?.drop()
+		vi.advanceTimersByTime(500)
+		expect(sockets).toHaveLength(2)
+		vi.advanceTimersByTime(500)
+		expect(sockets).toHaveLength(3)
+		expect(onDown).toHaveBeenCalledOnce()
+
+		sockets[2]?.open()
+		expect(onUp).toHaveBeenCalledOnce()
+	})
+
+	it("delivers frames on the reconnected socket", async () => {
+		const { host, sockets } = hostOf()
+		const missions = vi.fn()
+		await host.listen("mission://changed", missions)
+
+		sockets[0]?.drop()
+		vi.advanceTimersByTime(500)
+		sockets[1]?.open()
+		sockets[1]?.send({ event: "mission://changed", payload: {} })
+
+		expect(missions).toHaveBeenCalledOnce()
+	})
+})
+
+describe("file sources", () => {
+	it("resolves an avatar path to the files route with the token", () => {
+		const { host } = hostOf()
+
+		expect(host.fileSrc("/Users/me/Library/app/avatars/b1.png")).toBe(
+			`${HOST}/api/files/avatars/b1.png?token=abc`,
+		)
+	})
+
+	it("resolves an attachment path to the files route with the token", () => {
+		const { host } = hostOf()
+
+		expect(host.fileSrc("C:\\Users\\me\\app\\attachments\\c1\\f 1.png")).toBe(
+			`${HOST}/api/files/attachments/c1/f%201.png?token=abc`,
+		)
+	})
+
+	it("leaves a path outside the served stores untouched", () => {
+		const { host } = hostOf()
+
+		expect(host.fileSrc("/tmp/other/b1.png")).toBe("/tmp/other/b1.png")
+	})
+})
