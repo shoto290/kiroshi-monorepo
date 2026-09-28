@@ -1,6 +1,6 @@
-import { invoke } from "@tauri-apps/api/core"
-
 import type { TriggerSource } from "./trigger-contract"
+
+import { invoke } from "../host"
 
 export const triggerSourcesTransport = {
 	sources: (botId: string) =>

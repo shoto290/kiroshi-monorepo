@@ -1,6 +1,9 @@
-import { convertFileSrc } from "@tauri-apps/api/core"
 import { getCurrentWindow } from "@tauri-apps/api/window"
 import { platform } from "@tauri-apps/plugin-os"
+
+import { convertFileSrc } from "./tauri"
+
+export { invoke, listen } from "./tauri"
 
 export function isDesktopHost(): boolean {
 	return typeof window !== "undefined" && "__TAURI_INTERNALS__" in window

@@ -1,6 +1,3 @@
-import { invoke } from "@tauri-apps/api/core"
-import { listen } from "@tauri-apps/api/event"
-
 import type {
 	AvatarBlot,
 	Bot,
@@ -46,6 +43,7 @@ import {
 	type TranscriptWindow,
 } from "./transcript-contract"
 
+import { invoke, listen } from "../host"
 import type { AgentCommand } from "@/lib/agent/contract"
 
 export const arrivalsTransport = {

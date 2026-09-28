@@ -1,6 +1,3 @@
-import { invoke } from "@tauri-apps/api/core"
-import { listen } from "@tauri-apps/api/event"
-
 import {
 	type ConversationMissions,
 	type Mission,
@@ -11,6 +8,8 @@ import {
 	type MissionOutcome,
 	PERSON_SOURCE,
 } from "./mission-contract"
+
+import { invoke, listen } from "../host"
 
 export const MISSION_CHANGED_EVENT = "mission://changed"
 
