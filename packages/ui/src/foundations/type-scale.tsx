@@ -26,6 +26,8 @@ const FONT_FAMILIES = [
 	{ className: "font-heading", token: "--font-heading" },
 ]
 
+const HEADING_LEVELS = ["h1", "h2", "h3", "h4", "h5", "h6"] as const
+
 const readFontStack = (token: string) =>
 	getComputedStyle(document.documentElement).getPropertyValue(token).trim()
 
@@ -81,6 +83,17 @@ export const FontWeights = () => (
 				</code>
 				<span className={`${className} text-foreground text-lg`}>Kiroshi</span>
 			</div>
+		))}
+	</div>
+)
+
+export const HeadingLevels = () => (
+	<div className="flex flex-col gap-2 rounded-lg border border-border bg-card p-4 text-foreground">
+		{HEADING_LEVELS.map((Level) => (
+			<Level key={Level} className="font-semibold text-base">
+				{Level}:{" "}
+				{Level === "h1" || Level === "h2" ? "font-heading" : "font-sans"}
+			</Level>
 		))}
 	</div>
 )

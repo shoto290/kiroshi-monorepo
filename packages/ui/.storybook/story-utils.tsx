@@ -95,6 +95,22 @@ export const opaque = async (element: HTMLElement) => {
 	return element
 }
 
+type FontUtility = "font-heading" | "font-sans"
+
+const fontFamilyOf = (utility: FontUtility) => {
+	const probe = document.createElement("span")
+	probe.className = utility
+	document.body.append(probe)
+	const family = getComputedStyle(probe).fontFamily
+	probe.remove()
+	return family
+}
+
+export const expectFont = async (element: Element, utility: FontUtility) => {
+	await expect(fontFamilyOf("font-heading")).not.toBe(fontFamilyOf("font-sans"))
+	await expect(getComputedStyle(element).fontFamily).toBe(fontFamilyOf(utility))
+}
+
 export const hasOverlayScrollbars = (element: HTMLElement) =>
 	OverlayScrollbars.valid(OverlayScrollbars(element))
 

@@ -197,6 +197,10 @@
 		text-underline-position: from-font;
 		text-decoration-skip-ink: auto;
 	}
+	h1,
+	h2 {
+		@apply font-heading;
+	}
 	[data-slot$="-description"] {
 		text-wrap: pretty;
 	}

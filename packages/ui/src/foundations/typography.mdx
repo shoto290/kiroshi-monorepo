@@ -3,6 +3,7 @@ import { Meta } from "@storybook/addon-docs/blocks"
 import {
 	FontSample,
 	FontWeights,
+	HeadingLevels,
 	TypeScale,
 } from "@workspace/ui/foundations/type-scale"
 
@@ -12,7 +13,7 @@ import {
 
 ## Fonts
 
-Two families, self-hosted through `@fontsource-variable/geist` and `@fontsource-variable/geist-mono`, imported at the top of `src/styles/globals.css`. They are bound in the `@theme inline` block: `font-sans` is the default everywhere, `font-heading` is opt-in for headings.
+Two families, self-hosted through `@fontsource-variable/geist` and `@fontsource-variable/geist-mono`, imported at the top of `src/styles/globals.css`. They are bound in the `@theme inline` block: `font-sans` is the default everywhere. Every `h1` and `h2` renders in `font-heading` through a base style in `src/styles/globals.css`, so a Base UI Title part, which draws an `h2`, needs no class for it; `h3` to `h6` stay in `font-sans`. Inside the markdown typeset each level keeps its own family.
 
 ```css
 --font-sans: "Geist Variable", sans-serif;
@@ -20,6 +21,8 @@ Two families, self-hosted through `@fontsource-variable/geist` and `@fontsource-
 ```
 
 <FontSample />
+
+<HeadingLevels />
 
 ## Size scale
 
