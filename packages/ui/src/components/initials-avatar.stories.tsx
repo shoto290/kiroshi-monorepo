@@ -2,7 +2,7 @@ import { expect } from "storybook/test"
 
 import preview from "@workspace/storybook/preview"
 import {
-	expectCompanionSilhouette,
+	expectRoundAvatar,
 	pictureOf,
 	slotsIn,
 	UPLOADED_AVATAR_IMAGE,
@@ -31,17 +31,15 @@ export const Default = meta.story({
 		docs: {
 			description: {
 				story:
-					"A reader who has filled in a name but uploaded no picture. Check that the initials are the first letter of the first two words, upper case whatever the name's own casing, and that they sit inside the rounded hexagon of the Kiroshi mark. Pick `WithPicture` for the uploaded one.",
+					"A reader who has filled in a name but uploaded no picture. Check that the initials are the first letter of the first two words, upper case whatever the name's own casing, and that they sit inside a circle: only a companion is hexagonal. Pick `WithPicture` for the uploaded one.",
 			},
 		},
 	},
-	play: async ({ canvas }) => {
+	play: async ({ canvas, canvasElement }) => {
 		const initials = canvas.getByText("AM")
 
 		await expect(initials).toBeVisible()
-		await expectCompanionSilhouette(
-			initials.closest('[data-slot="avatar-fallback"]') ?? initials,
-		)
+		await expectRoundAvatar(slotsIn(canvasElement, "user-avatar")[0])
 	},
 })
 
@@ -51,7 +49,7 @@ export const WithPicture = meta.story({
 		docs: {
 			description: {
 				story:
-					"A reader who uploaded a picture. Check that it wins over the initials, that it fills the rounded hexagon by covering rather than stretching, and that it stays out of the accessible tree — the row around it already carries the name, and an avatar announcing it again would say it twice. Pick `Default` for the initials.",
+					"A reader who uploaded a picture. Check that it wins over the initials, that it fills the circle by covering rather than stretching, and that it stays out of the accessible tree — the row around it already carries the name, and an avatar announcing it again would say it twice. Pick `Default` for the initials.",
 			},
 		},
 	},
@@ -71,10 +69,9 @@ const expectBarePicture = async (canvasElement: HTMLElement) => {
 	for (const layer of [avatar, picture]) {
 		const style = getComputedStyle(layer)
 		await expect(style.outlineStyle).toBe("none")
-		await expect(style.borderRadius).toBe("0px")
 		await expect(style.borderTopWidth).toBe("0px")
 	}
-	await expectCompanionSilhouette(picture)
+	await expectRoundAvatar(avatar)
 }
 
 export const PictureLight = meta.story({
@@ -84,7 +81,7 @@ export const PictureLight = meta.story({
 		docs: {
 			description: {
 				story:
-					"An uploaded picture in the light theme, cut to the rounded hexagon of the Kiroshi mark with nothing drawn around it: no hairline, no rounded corner, no border. Pick `PictureDark` for the dark theme.",
+					"An uploaded picture in the light theme, cut to a circle with nothing drawn around it: no hairline, no border. Only a companion is hexagonal. Pick `PictureDark` for the dark theme.",
 			},
 		},
 	},
@@ -98,7 +95,7 @@ export const PictureDark = meta.story({
 		docs: {
 			description: {
 				story:
-					"The same picture in the dark theme: the rounded hexagon alone, with no edge left around it on the dark surface. Pick `PictureLight` for the light theme.",
+					"The same picture in the dark theme: the circle alone, with no edge left around it on the dark surface. Pick `PictureLight` for the light theme.",
 			},
 		},
 	},
