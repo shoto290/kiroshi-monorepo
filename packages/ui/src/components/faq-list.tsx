@@ -14,7 +14,7 @@ interface FaqItem {
 
 interface FaqListProps {
 	items: readonly FaqItem[]
-	defaultOpen?: readonly string[]
+	defaultOpen?: string[]
 }
 
 const FOCUS_STEP: Partial<Record<string, number>> = {
@@ -39,7 +39,7 @@ const moveTriggerFocus = (event: KeyboardEvent<HTMLDivElement>) => {
 const FaqList = ({ items, defaultOpen }: FaqListProps) => (
 	<Accordion
 		className="rounded-none border-0 border-t **:data-[slot=accordion-content]:px-0 motion-reduce:**:data-[slot=accordion-content]:animate-none"
-		defaultValue={defaultOpen ? [...defaultOpen] : undefined}
+		defaultValue={defaultOpen}
 		multiple
 		onKeyDown={moveTriggerFocus}
 	>
