@@ -92,6 +92,15 @@ pub(crate) fn started<R: Runtime>(
 	clock: Arc<dyn Clock>,
 	runs: Arc<dyn RunSink + Send + Sync>,
 ) -> Webhook {
+	opened(app, clock, runs, listening())
+}
+
+fn opened<R: Runtime>(
+	app: AppHandle<R>,
+	clock: Arc<dyn Clock>,
+	runs: Arc<dyn RunSink + Send + Sync>,
+	bound: Result<(StandardListener, SocketAddr), std::io::Error>,
+) -> Webhook {
 	let (stop, halted) = signal::channel(false);
 	let token = host_token(&app);
 	let calls = Calls {
@@ -102,7 +111,7 @@ pub(crate) fn started<R: Runtime>(
 		silence: Arc::new(Silence::default()),
 		token,
 	};
-	let address = match listening() {
+	let address = match bound {
 		Ok((listener, address)) => {
 			web_link_left(&calls.app, calls.token.as_deref(), address);
 			tauri::async_runtime::spawn(serving(calls, listener, halted));
@@ -653,6 +662,24 @@ mod tests {
 		let database = ready(&state).expect("the database opens");
 		assert_eq!(counted(database, "SELECT count(*) FROM routine_runs").await, 0);
 		assert_eq!(counted(database, "SELECT count(*) FROM routine_dedupe_values").await, 0);
+	}
+
+	#[tokio::test]
+	async fn a_stale_web_link_is_removed_when_the_listener_cannot_bind() {
+		let app = a_host("unbound").await;
+		let host = app.path().app_data_dir().expect("the data dir resolves").join("host");
+		fs::create_dir_all(&host).expect("the host dir is made");
+		fs::write(host.join("token"), "a-held-token").expect("the token is written");
+		let link = host.join("web-link.txt");
+		fs::write(&link, "stale").expect("the stale link is written");
+		let taken = std::io::Error::from(ErrorKind::AddrInUse);
+
+		let webhook =
+			opened(app.handle().clone(), Arc::new(SystemClock), Arc::new(HeldOpen), Err(taken));
+
+		assert!(!link.exists());
+		assert_eq!(webhook.address, None);
+		cleaned(&app);
 	}
 
 	#[tokio::test]
