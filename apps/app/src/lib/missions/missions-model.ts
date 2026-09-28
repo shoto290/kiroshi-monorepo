@@ -129,7 +129,8 @@ const isShownInSpace = (
 	closedSince: number,
 ): boolean =>
 	SPACE_GROUP_BY_STATE[mission.state] !== "earlierToday" ||
-	(mission.closedAt !== null && mission.closedAt >= closedSince)
+	mission.closedAt === null ||
+	mission.closedAt >= closedSince
 
 export const toSpaceMissionGroups = ({
 	entries,

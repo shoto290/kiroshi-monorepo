@@ -82,6 +82,33 @@ describe("useSpaceMissions", () => {
 		expect(readSpaceFeed).toHaveBeenCalledTimes(2)
 	})
 
+	it("lists a mission a change closes in earlier today before the reread answers", async () => {
+		let announce: (changed: MissionChanged) => void = () => undefined
+		listenToMissions.mockImplementation((listener) => {
+			announce = listener
+			return Promise.resolve(() => undefined)
+		})
+		const { result } = renderHook(() => useSpaceMissions("s-1"))
+		await waitFor(() =>
+			expect(idsOf(result.current.inProgress)).toEqual(["m-1"]),
+		)
+		await waitFor(() => expect(listenToMissions).toHaveBeenCalled())
+		readSpaceFeed.mockReturnValue(new Promise(() => undefined))
+
+		act(() => {
+			announce({
+				missionId: "m-1",
+				state: "done",
+				stateSeq: 2,
+				isAgentRunning: false,
+				lastActivityAt: null,
+			})
+		})
+
+		expect(idsOf(result.current.earlierToday)).toEqual(["m-1"])
+		expect(result.current.inProgress).toEqual([])
+	})
+
 	it("flags a rejected read and keeps the missions it held", async () => {
 		const { result } = renderHook(() => useSpaceMissions("s-1"))
 		await waitFor(() =>
