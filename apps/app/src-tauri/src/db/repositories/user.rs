@@ -16,6 +16,7 @@ const NOTIFY_ON_PERMISSION_KEY: &str = "user.notify_on_permission";
 const NOTIFY_ON_FINISHED_TURN_KEY: &str = "user.notify_on_finished_turn";
 const NOTIFY_WITH_SOUND_KEY: &str = "user.notify_with_sound";
 const SIDEBAR_WIDTH_KEY: &str = "user.sidebar_width";
+const SIDEBAR_TAB_KEY: &str = "user.sidebar_tab";
 const ACTIVITY_PANEL_OPEN_KEY: &str = "user.activity_panel_open";
 const FIRST_RUN_DONE_KEY: &str = "user.first_run_done";
 const LAST_SPACE_ID_KEY: &str = "user.last_space_id";
@@ -63,6 +64,35 @@ impl ColorScheme {
 	}
 }
 
+#[derive(Debug, Clone, Copy, Default, PartialEq, Eq)]
+pub enum SidebarTab {
+	#[default]
+	Conversations,
+	Missions,
+	Companions,
+	Applications,
+}
+
+impl SidebarTab {
+	fn as_stored(self) -> &'static str {
+		match self {
+			SidebarTab::Conversations => "conversations",
+			SidebarTab::Missions => "missions",
+			SidebarTab::Companions => "companions",
+			SidebarTab::Applications => "applications",
+		}
+	}
+
+	fn of(stored: &str) -> Self {
+		match stored {
+			"missions" => SidebarTab::Missions,
+			"companions" => SidebarTab::Companions,
+			"applications" => SidebarTab::Applications,
+			_ => SidebarTab::Conversations,
+		}
+	}
+}
+
 #[derive(Debug, Clone, PartialEq, Eq)]
 pub struct Preferences {
 	pub display_name: String,
@@ -74,6 +104,7 @@ pub struct Preferences {
 	pub notify_on_finished_turn: bool,
 	pub notify_with_sound: bool,
 	pub sidebar_width: Option<u32>,
+	pub sidebar_tab: SidebarTab,
 	pub activity_panel_open: bool,
 	pub first_run_done: bool,
 	pub last_space_id: Option<String>,
@@ -92,6 +123,7 @@ impl Default for Preferences {
 			notify_on_finished_turn: true,
 			notify_with_sound: true,
 			sidebar_width: None,
+			sidebar_tab: SidebarTab::default(),
 			activity_panel_open: false,
 			first_run_done: false,
 			last_space_id: None,
@@ -196,6 +228,8 @@ fn stored_in(connection: &Connection) -> Result<Preferences, DatabaseError> {
 		notify_with_sound: switch_in(connection, NOTIFY_WITH_SOUND_KEY)?,
 		sidebar_width: setting_in(connection, SIDEBAR_WIDTH_KEY)?
 			.and_then(|stored| stored.parse().ok()),
+		sidebar_tab: setting_in(connection, SIDEBAR_TAB_KEY)?
+			.map_or(defaults.sidebar_tab, |stored| SidebarTab::of(&stored)),
 		activity_panel_open: switch_on_in(connection, ACTIVITY_PANEL_OPEN_KEY)?,
 		first_run_done: switch_on_in(connection, FIRST_RUN_DONE_KEY)?,
 		last_space_id: setting_in(connection, LAST_SPACE_ID_KEY)?,
@@ -227,6 +261,7 @@ fn write_in(transaction: &Transaction<'_>, preferences: &Preferences) -> Result<
 	write_switch_in(transaction, NOTIFY_WITH_SOUND_KEY, preferences.notify_with_sound)?;
 	let width = preferences.sidebar_width.map(|width| width.to_string());
 	write_optional_in(transaction, SIDEBAR_WIDTH_KEY, width.as_deref())?;
+	SETTINGS.write(transaction, None, SIDEBAR_TAB_KEY, preferences.sidebar_tab.as_stored())?;
 	write_switch_in(transaction, ACTIVITY_PANEL_OPEN_KEY, preferences.activity_panel_open)?;
 	write_switch_in(transaction, FIRST_RUN_DONE_KEY, preferences.first_run_done)?;
 	write_optional_in(transaction, LAST_SPACE_ID_KEY, preferences.last_space_id.as_deref())?;
@@ -286,6 +321,7 @@ mod tests {
 			notify_on_finished_turn: false,
 			notify_with_sound: false,
 			sidebar_width: Some(320),
+			sidebar_tab: SidebarTab::Missions,
 			activity_panel_open: true,
 			first_run_done: true,
 			last_space_id: Some("space-one".to_owned()),
@@ -319,6 +355,7 @@ mod tests {
 				notify_on_finished_turn: true,
 				notify_with_sound: true,
 				sidebar_width: None,
+				sidebar_tab: SidebarTab::Conversations,
 				activity_panel_open: false,
 				first_run_done: false,
 				last_space_id: None,
@@ -587,6 +624,40 @@ mod tests {
 		let read = database.user().preferences().await.expect("the record");
 
 		assert_eq!(read.color_scheme, ColorScheme::System);
+	}
+
+	#[tokio::test]
+	async fn a_written_tab_is_stored_as_its_lowercase_name() {
+		let dir = temp_dir();
+		let database = open(&dir);
+
+		database
+			.user()
+			.set_preferences(Preferences { sidebar_tab: SidebarTab::Applications, ..a_record() })
+			.await
+			.expect("the write");
+
+		assert_eq!(setting(&database, SIDEBAR_TAB_KEY).await.as_deref(), Some("applications"));
+	}
+
+	#[tokio::test]
+	async fn a_tab_outside_the_four_names_reads_as_conversations_and_spares_the_rest() {
+		let dir = temp_dir();
+		let database = open(&dir);
+		database.user().set_preferences(a_record()).await.expect("the write");
+		database
+			.call_mut(|connection| {
+				let transaction = write_transaction(connection)?;
+				SETTINGS.write(&transaction, None, SIDEBAR_TAB_KEY, "Missions")?;
+				transaction.commit()?;
+				Ok(())
+			})
+			.await
+			.expect("the planted value");
+
+		let read = database.user().preferences().await.expect("the record");
+
+		assert_eq!(read, Preferences { sidebar_tab: SidebarTab::Conversations, ..a_record() });
 	}
 
 	#[tokio::test]
