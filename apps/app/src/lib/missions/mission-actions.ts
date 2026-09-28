@@ -16,7 +16,7 @@ export type OpenMission = (missionId: string, landing?: MissionLanding) => void
 
 export type MissionActionsPort = {
 	openMission: OpenMission
-	openInBrowser: (url: string) => Promise<void>
+	openInBrowser: (url: string | null) => Promise<void>
 	writeClipboard: (text: string) => Promise<void>
 	stopThread: (conversationId: string) => Promise<void>
 	close: (
@@ -64,22 +64,17 @@ const attempt = (action: FailedAction, run: () => Promise<unknown>) => {
 	void Promise.resolve().then(run).catch(reportFailure(action))
 }
 
-const openedUrl = (url: string | null, port: MissionActionsPort) => () => {
-	if (!url) {
-		throw new Error("the mission carries no address")
-	}
-	return port.openInBrowser(url)
-}
-
 export const missionActionsOf = (
 	mission: Mission,
 	port: MissionActionsPort,
 ): MissionMenuActions => ({
 	onOpen: () => port.openMission(mission.id),
 	onOpenTicket: () =>
-		attempt("openTicket", openedUrl(mission.ticket.url, port)),
+		attempt("openTicket", () => port.openInBrowser(mission.ticket.url)),
 	onOpenPullRequest: () =>
-		attempt("openPullRequest", openedUrl(mission.pullRequestUrl, port)),
+		attempt("openPullRequest", () =>
+			port.openInBrowser(mission.pullRequestUrl),
+		),
 	onCopy: (kind) =>
 		attempt("copy", async () => {
 			const value = copiedValueOf(mission, kind)

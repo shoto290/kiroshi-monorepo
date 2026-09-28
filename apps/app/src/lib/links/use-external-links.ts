@@ -30,7 +30,7 @@ export const externalUrlOf = (
 	return url.href
 }
 
-export const openInBrowser = async (href: string): Promise<void> => {
+export const openInBrowser = async (href: string | null): Promise<void> => {
 	const url = externalUrlOf(href, window.location.href)
 	if (!url) {
 		throw new Error(`not an external address: ${href}`)
