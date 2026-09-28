@@ -71,19 +71,23 @@ const refusalOf = async (response: Response): Promise<Refusal> => {
 const messageOf = (reason: unknown): string =>
 	reason instanceof Error ? reason.message : String(reason)
 
-const frameOf = (data: unknown): unknown => {
-	try {
-		return JSON.parse(String(data))
-	} catch (failure) {
-		console.error("the host sent an event frame that is not json", failure)
-		return null
-	}
-}
-
 const isFrame = (value: unknown): value is Frame =>
 	typeof value === "object" &&
 	value !== null &&
 	typeof (value as Frame).event === "string"
+
+const frameOf = (data: unknown): Frame | null => {
+	try {
+		const frame: unknown = JSON.parse(String(data))
+		if (isFrame(frame)) {
+			return frame
+		}
+		console.error("the host sent an event frame with no event name", frame)
+	} catch (failure) {
+		console.error("the host sent an event frame that is not json", failure)
+	}
+	return null
+}
 
 const handOver = (handler: EventCallback<unknown>, frame: Frame) => {
 	try {
@@ -158,8 +162,7 @@ export const createHttpHost = ({
 
 	const deliver = (data: unknown) => {
 		const frame = frameOf(data)
-		if (!isFrame(frame)) {
-			console.error("the host sent an event frame with no event name", frame)
+		if (!frame) {
 			return
 		}
 		for (const handler of [...(listeners.get(frame.event) ?? [])]) {
