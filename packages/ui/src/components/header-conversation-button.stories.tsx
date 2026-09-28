@@ -1,6 +1,7 @@
 import { expect, fn, userEvent } from "storybook/test"
 
 import preview from "@workspace/storybook/preview"
+import { slotIn, slotsIn } from "@workspace/storybook/story-utils"
 import { AppHeader } from "@workspace/ui/components/app-header"
 import { HeaderConversationButton } from "@workspace/ui/components/header-conversation-button"
 import type { RosterBot } from "@workspace/ui/components/roster"
@@ -47,10 +48,15 @@ export const Default = meta.story({
 			},
 		},
 	},
-	play: async ({ args, canvas }) => {
+	play: async ({ args, canvas, canvasElement }) => {
 		const button = canvas.getByRole("button", {
 			name: "Billing migration · conversation settings",
 		})
+		const hive = slotIn(button, "conversation-avatar")
+
+		await expect(Math.round(hive.getBoundingClientRect().width)).toBe(24)
+		await expect(slotsIn(hive, "conversation-avatar-member")).toHaveLength(2)
+		await expect(slotsIn(canvasElement, "bot-identity-avatar")).toHaveLength(2)
 
 		await expect(button).toHaveAttribute("aria-expanded", "false")
 		await userEvent.click(button)
@@ -82,7 +88,7 @@ export const Crowded = meta.story({
 		docs: {
 			description: {
 				story:
-					"Reach for this when the room is full. Check that every seated face stays the same 24px and keeps its place, that the faces never shrink or wrap, and that it is the name that gives up room as the row fills. Pick `Default` for the usual pair. The app assembles it at `apps/app/src/components/thread-screen.tsx:348`.",
+					"Reach for this when the room is full. Check that the room still draws one 24px Hive icon, three companions and a `+2` cell, so the leading slot never widens with the room and it is the name that gives up room as the row fills. Pick `Default` for the usual pair. The app assembles it at `apps/app/src/components/thread-screen.tsx:348`.",
 			},
 		},
 	},
