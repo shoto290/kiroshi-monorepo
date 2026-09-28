@@ -2,6 +2,7 @@
 
 import { useTranslation } from "react-i18next"
 
+import { AvatarGroup } from "@workspace/ui/components/avatar-group"
 import { BotIdentityAvatar } from "@workspace/ui/components/bot-identity-avatar"
 import { HEADER_IDENTITY_CLASS } from "@workspace/ui/components/header-identity-button"
 import { Icons } from "@workspace/ui/components/icons"
@@ -37,18 +38,22 @@ const HeaderConversationButton = ({
 			onClick={onOpenSettings}
 			variant="ghost"
 		>
-			<span className="flex shrink-0 items-center gap-1">
-				{bots.map((bot) => (
-					<BotIdentityAvatar
-						blot={bot.blot}
-						image={bot.image}
-						key={bot.id}
-						name={bot.name}
-						seed={bot.id}
-						size={AVATAR_SIZE}
-					/>
-				))}
-			</span>
+			{bots.length > 1 ? (
+				<AvatarGroup participants={bots} size={AVATAR_SIZE} />
+			) : (
+				<span className="flex shrink-0 items-center gap-1">
+					{bots.map((bot) => (
+						<BotIdentityAvatar
+							blot={bot.blot}
+							image={bot.image}
+							key={bot.id}
+							name={bot.name}
+							seed={bot.id}
+							size={AVATAR_SIZE}
+						/>
+					))}
+				</span>
+			)}
 			<span className="min-w-0 truncate">{name}</span>
 			<Icons.Settings aria-hidden="true" className="text-muted-foreground" />
 		</Button>

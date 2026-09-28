@@ -11,7 +11,6 @@ import {
 	companionGlyphsIn,
 	companionTintOf,
 	expectCompanionPictureShape,
-	expectHexagonFrame,
 	FRAME_POLL,
 	hasOverlayScrollbars,
 	mergeA11y,
@@ -47,6 +46,7 @@ import {
 	silhouetteKey,
 } from "@workspace/ui/components/companion-silhouette"
 import { Icons } from "@workspace/ui/components/icons"
+import { OUTER } from "@workspace/ui/components/kiroshi-hexagon"
 import { TooltipButton } from "@workspace/ui/components/tooltip-button"
 import { WorkspaceShell } from "@workspace/ui/components/workspace-shell"
 
@@ -5081,11 +5081,7 @@ const conversationArgs = () => ({
 })
 
 const stackIn = (row: HTMLElement) =>
-	Array.from(
-		slotIn(row, "conversation-avatar").querySelectorAll(
-			'[data-slot="bot-identity-avatar"]',
-		),
-	)
+	slotsIn(slotIn(row, "conversation-avatar"), "conversation-avatar-member")
 
 const LONG_SPEAKER = "Bartholomew Featherstonehaugh the Third"
 
@@ -5096,7 +5092,7 @@ export const Conversations = meta.story({
 		docs: {
 			description: {
 				story:
-					"A conversation is a room holding several companions of the space, and it lives in the roster among them rather than in a list of its own. Its row is built from the same parts as a companion row — a 40px avatar slot, the name, the time of the last message and one clipped line of that message — so the two kinds sit on the same columns and stand the same height, which is what this story checks across a mixed list. What changes is the slot: instead of one companion it carries the companions in the room, drawn small in a fixed square so the column never widens. A room of two draws two, a room of five draws three and writes how many it left out in the fourth corner of the square. Pick `ConversationParticipants` for the stack on its own, `ConversationSelected` for the room a reader is in, `ConversationRowMenu` for what a right-click offers.",
+					"A conversation is a room holding several companions of the space, and it lives in the roster among them rather than in a list of its own. Its row is built from the same parts as a companion row — a 40px avatar slot, the name, the time of the last message and one clipped line of that message — so the two kinds sit on the same columns and stand the same height, which is what this story checks across a mixed list. What changes is the slot: instead of one companion it carries the Hive of the room, one hexagon cell per companion in a fixed square so the column never widens. Pick `ConversationParticipants` for the stack on its own, `ConversationSelected` for the room a reader is in, `ConversationRowMenu` for what a right-click offers.",
 			},
 		},
 	},
@@ -5129,7 +5125,7 @@ export const ConversationParticipants = meta.story({
 		docs: {
 			description: {
 				story:
-					"How many faces a room shows. Two companions draw two avatars, and the slot stays the same square a companion row gives one avatar — the tiles shrink, the column does not move. Past three the stack stops drawing and starts counting: three avatars and `+2` for the two it left out, so the slot never turns into a grid of specks nobody can tell apart. The count sits in the fourth cell of the square, the one the three faces leave free, rather than on the name line — the name reads as the name and nothing else. The square is the only thing that carries the count, so the row hands it to a screen reader as the label of that square; a room within its three faces stays decorative and hidden, since three avatar labels in front of the room name would bury the name.",
+					"How many companions a room shows. The slot draws the Hive: at most four rounded hexagon cells, one companion each, in the same square a companion row gives one avatar, so the column never moves. Two companions tile on the diagonal; a room of five shows three companions and a fourth cell counting the other two. That count is the only thing a screen reader hears, as the label of the square; a room within its four cells stays decorative and hidden, since a list of avatar labels in front of the room name would bury the name.",
 			},
 		},
 	},
@@ -5139,10 +5135,6 @@ export const ConversationParticipants = meta.story({
 
 		await expect(stackIn(pair)).toHaveLength(2)
 		await expect(stackIn(crowd)).toHaveLength(3)
-
-		await expect(
-			crowd.querySelector('[data-slot="roster-row-badge"]'),
-		).toBeNull()
 		await expect(
 			slotIn(crowd, "conversation-avatar-overflow"),
 		).toHaveTextContent("+2")
@@ -5166,24 +5158,15 @@ export const ConversationParticipants = meta.story({
 			),
 		)
 
-		const tiles = stackIn(crowd).map((tile) => tile.getBoundingClientRect())
-		for (const tile of tiles) {
-			await expect(Math.round(tile.width)).toBe(Math.round(tile.height))
+		for (const cell of stackIn(crowd)) {
+			const tile = cell.getBoundingClientRect()
+			const centre = tile.top + tile.height / 2
+			const reach = (tile.height / 2) * (OUTER.halfHeight / OUTER.halfWidth)
 			await expect(tile.left).toBeGreaterThanOrEqual(square.left)
 			await expect(tile.right).toBeLessThanOrEqual(square.right)
-			await expect(tile.top).toBeGreaterThanOrEqual(square.top)
-			await expect(tile.bottom).toBeLessThanOrEqual(square.bottom)
+			await expect(centre - reach).toBeGreaterThanOrEqual(square.top)
+			await expect(centre + reach).toBeLessThanOrEqual(square.bottom)
 		}
-		await expect(tiles[0].right).toBeLessThanOrEqual(tiles[1].left)
-		await expect(tiles[0].bottom).toBeLessThanOrEqual(tiles[2].top)
-
-		const count = slotIn(
-			crowd,
-			"conversation-avatar-overflow",
-		).getBoundingClientRect()
-		await expect(count.left).toBeGreaterThanOrEqual(tiles[2].right)
-		await expect(count.top).toBeGreaterThanOrEqual(tiles[1].bottom)
-		await expect(Math.round(count.width)).toBe(Math.round(tiles[0].width))
 	},
 })
 
@@ -5206,7 +5189,7 @@ export const ConversationOfOneBot = meta.story({
 		docs: {
 			description: {
 				story:
-					"A room holding one companion, sitting right above that same companion's own row. Nothing on the two lines of text says which is which — same name column, same preview, same time — so the kind is carried by the shape of the icon alone: a companion floats free at the full 40px of the slot, a room is drawn inside a frame with its companions held smaller within it. The footprint is identical, so the column never moves; only what fills it changes. A room of one is still a room, which is why it gets the frame rather than being flattened into the companion it holds.",
+					"A room holding one companion, sitting right above that same companion's own row. Nothing on the two lines of text says which is which — same name column, same preview, same time — so the kind is carried by the shape of the icon alone: a companion floats free at the full 40px of the slot, a room is one smaller Hive cell in its blot under a dot weave. The footprint is identical, so the column never moves; only what fills it changes. A room of one is still a room, which is why it gets the Hive cell rather than being flattened into the companion it holds.",
 			},
 		},
 	},
@@ -5223,9 +5206,8 @@ export const ConversationOfOneBot = meta.story({
 		await expect(Math.round(frame.getBoundingClientRect().width)).toBe(
 			Math.round(loose.getBoundingClientRect().width),
 		)
-		await expectHexagonFrame(frame)
-
 		const [held] = stackIn(room)
+		await expect(stackIn(room)).toHaveLength(1)
 		await expect(held.getBoundingClientRect().width).toBeLessThan(
 			loose.getBoundingClientRect().width,
 		)

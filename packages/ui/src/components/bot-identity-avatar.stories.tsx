@@ -10,6 +10,7 @@ import {
 	expectCellsIn,
 	expectCompanionPictureShape,
 	expectCompanionSilhouette,
+	expectRoundAvatar,
 	pictureOf,
 	Row,
 	recordLitCells,
@@ -415,7 +416,8 @@ export const UploadedAtDrawnSizes = meta.story({
 		}
 
 		const [reader] = slotsIn(canvasElement, "user-avatar")
-		await expectCompanionSilhouette(await pictureOf(reader))
+		await pictureOf(reader)
+		await expectRoundAvatar(reader)
 	},
 })
 

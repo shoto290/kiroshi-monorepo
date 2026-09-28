@@ -314,10 +314,13 @@ export const expectCellsIn = async (
 		)
 }
 
-export const expectHexagonFrame = async (frame: HTMLElement) => {
-	const style = getComputedStyle(frame)
-	await expect(style.borderTopWidth).toBe("0px")
-	await expect(style.borderRadius).toBe("0px")
-	await expect(style.backgroundColor).toBe("rgba(0, 0, 0, 0)")
-	await expectCompanionSilhouette(slotIn(frame, "conversation-avatar-edge"))
+export const expectRoundAvatar = async (avatar: HTMLElement) => {
+	const { width } = avatar.getBoundingClientRect()
+	const layer = avatar.firstElementChild as Element
+
+	await expect(
+		Number.parseFloat(getComputedStyle(avatar).borderTopLeftRadius),
+	).toBeGreaterThanOrEqual(width / 2)
+	await expect(getComputedStyle(avatar).overflow).toBe("hidden")
+	await expect(getComputedStyle(layer).maskImage).toBe("none")
 }

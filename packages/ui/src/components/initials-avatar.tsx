@@ -1,4 +1,4 @@
-import type { ReactNode } from "react"
+import type { CSSProperties, ReactNode } from "react"
 
 import { COMPANION_SILHOUETTE } from "@workspace/ui/components/companion-picture"
 import {
@@ -14,9 +14,21 @@ const DEFAULT_SIZE = 28
 
 const INITIALS_RATIO = 0.4
 
-const FRAME_CLASS = "block rounded-none after:hidden"
+type AvatarShape = "hexagon" | "round"
 
-const PICTURE_LAYER = "rounded-none"
+type ShapeStyle = { frame: string; layer: string; mask?: CSSProperties }
+
+const SHAPE_STYLES: Record<AvatarShape, ShapeStyle> = {
+	hexagon: {
+		frame: "block rounded-none after:hidden",
+		layer: "rounded-none",
+		mask: COMPANION_SILHOUETTE,
+	},
+	round: {
+		frame: "block overflow-hidden rounded-full after:hidden",
+		layer: "rounded-full",
+	},
+}
 
 const INITIALS_CLASS =
 	"grid size-full place-items-center bg-sidebar-accent font-medium text-sidebar-accent-foreground uppercase leading-none"
@@ -31,6 +43,7 @@ const initialsOf = (name: string) =>
 
 type AvatarFrameProps = {
 	slot: string
+	shape: AvatarShape
 	size: number
 	image?: string
 	overlay?: ReactNode
@@ -40,6 +53,7 @@ type AvatarFrameProps = {
 
 const AvatarFrame = ({
 	slot,
+	shape,
 	size,
 	image,
 	overlay,
@@ -47,7 +61,7 @@ const AvatarFrame = ({
 	children,
 }: AvatarFrameProps) => (
 	<Avatar
-		className={cn(FRAME_CLASS, className)}
+		className={cn(SHAPE_STYLES[shape].frame, className)}
 		data-slot={slot}
 		style={{ width: size, height: size }}
 	>
@@ -55,14 +69,14 @@ const AvatarFrame = ({
 			<AvatarImage
 				alt=""
 				aria-hidden="true"
-				className={PICTURE_LAYER}
+				className={SHAPE_STYLES[shape].layer}
 				src={image}
-				style={COMPANION_SILHOUETTE}
+				style={SHAPE_STYLES[shape].mask}
 			/>
 		) : (
 			<AvatarFallback
-				className={cn(PICTURE_LAYER, "bg-transparent text-inherit")}
-				style={COMPANION_SILHOUETTE}
+				className={cn(SHAPE_STYLES[shape].layer, "bg-transparent text-inherit")}
+				style={SHAPE_STYLES[shape].mask}
 			>
 				{children}
 			</AvatarFallback>
@@ -87,6 +101,7 @@ const InitialsAvatar = ({
 	<AvatarFrame
 		className={className}
 		image={image}
+		shape="round"
 		size={size}
 		slot="user-avatar"
 	>

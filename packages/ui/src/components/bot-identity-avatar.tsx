@@ -58,6 +58,7 @@ function BotIdentityAvatar({
 					/>
 				) : null
 			}
+			shape="hexagon"
 			size={size}
 			slot="bot-identity-avatar"
 		>
