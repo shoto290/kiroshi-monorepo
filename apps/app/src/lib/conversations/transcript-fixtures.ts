@@ -40,7 +40,6 @@ export const botIdentity = (
 	avatarAnimal: "owl",
 	avatarBlot: "green",
 	avatarImagePath: null,
-	workingDir: null,
 	instructions: "Answer with the file you would touch.",
 	deniedTools: [],
 	permissions: BLANK_BOT_PERMISSIONS,

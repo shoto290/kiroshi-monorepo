@@ -843,7 +843,6 @@ fn an_identity(name: &str, model: &str, animal: &str, blot: Value) -> Value {
 		"avatarAnimal": animal,
 		"avatarBlot": blot,
 		"avatarImagePath": null,
-		"workingDir": "/work/kiroshi",
 		"instructions": "Answer with the file you would touch.",
 		"deniedTools": []
 	})
@@ -869,7 +868,6 @@ fn a_bot_created_over_ipc_is_listed_described_and_deleted_with_its_chat() {
 	assert_eq!(created["avatarAnimal"], json!("owl"));
 	assert_eq!(created["avatarBlot"], json!("red"));
 	assert_eq!(created["avatarImagePath"], json!(null));
-	assert_eq!(created["workingDir"], json!("/work/kiroshi"));
 	assert_eq!(created["instructions"], json!("Answer with the file you would touch."));
 	assert!(created["createdAt"].is_i64(), "a bot crossed without a camelCase moment: {created}");
 
@@ -1965,7 +1963,6 @@ fn a_duplicated_bot_carries_the_bundle_and_none_of_the_transcript() {
 	assert_eq!(duplicate["avatarAnimal"], source["avatarAnimal"]);
 	assert_eq!(duplicate["avatarBlot"], source["avatarBlot"]);
 	assert_eq!(duplicate["avatarImagePath"], source["avatarImagePath"]);
-	assert_eq!(duplicate["workingDir"], source["workingDir"]);
 	assert_eq!(duplicate["instructions"], source["instructions"]);
 	assert_eq!(duplicate["deniedTools"], source["deniedTools"]);
 	assert_eq!(duplicate["outputStyle"], source["outputStyle"]);

@@ -20,7 +20,6 @@ pub struct Bot {
 	pub avatar_animal: AvatarAnimal,
 	pub avatar_blot: Option<AvatarBlot>,
 	pub avatar_image_path: Option<String>,
-	pub working_dir: Option<String>,
 	pub instructions: String,
 	pub memory: String,
 	pub denied_tools: Vec<String>,
@@ -36,7 +35,6 @@ pub struct BotIdentity {
 	pub avatar_animal: AvatarAnimal,
 	pub avatar_blot: Option<AvatarBlot>,
 	pub avatar_image_path: Option<String>,
-	pub working_dir: Option<String>,
 	pub instructions: String,
 	pub denied_tools: Vec<String>,
 }
@@ -50,7 +48,6 @@ impl From<Bot> for BotIdentity {
 			avatar_animal: bot.avatar_animal,
 			avatar_blot: bot.avatar_blot,
 			avatar_image_path: bot.avatar_image_path,
-			working_dir: bot.working_dir,
 			instructions: bot.instructions,
 			denied_tools: bot.denied_tools,
 		}
@@ -60,7 +57,7 @@ impl From<Bot> for BotIdentity {
 pub(super) const BOT_COLUMNS: &str = "SELECT bots.id, membership.section_id,
 		membership.pin_position, bots.name, bots.title, bots.model,
 		bots.avatar_animal, bots.avatar_color,
-		bots.avatar_image_path, bots.working_dir, bots.instructions, bots.memory,
+		bots.avatar_image_path, bots.instructions, bots.memory,
 		bots.denied_tools, bots.permissions, bots.created_at
 	FROM bots JOIN bot_spaces AS membership ON membership.bot_id = bots.id";
 
@@ -164,9 +161,8 @@ pub(super) fn created_bot(
 	let id = Uuid::new_v4().to_string();
 	transaction.execute(
 		"INSERT INTO bots (id, name, title, model, avatar_animal,
-				avatar_color, avatar_image_path, working_dir, instructions, denied_tools,
-				created_at)
-			VALUES (?1, ?2, ?3, ?4, ?5, ?6, ?7, ?8, ?9, ?10, ?11)",
+				avatar_color, avatar_image_path, instructions, denied_tools, created_at)
+			VALUES (?1, ?2, ?3, ?4, ?5, ?6, ?7, ?8, ?9, ?10)",
 		params![
 			id,
 			identity.name,
@@ -175,7 +171,6 @@ pub(super) fn created_bot(
 			identity.avatar_animal,
 			identity.avatar_blot,
 			identity.avatar_image_path,
-			identity.working_dir,
 			identity.instructions,
 			denied(identity)?,
 			now(),
@@ -197,8 +192,8 @@ pub(super) fn updated_bot(
 	let transaction = write_transaction(connection)?;
 	let written = transaction.execute(
 		"UPDATE bots SET name = ?2, title = ?3, model = ?4,
-				avatar_animal = ?5, avatar_color = ?6, avatar_image_path = ?7, working_dir = ?8,
-				instructions = ?9, denied_tools = ?10
+				avatar_animal = ?5, avatar_color = ?6, avatar_image_path = ?7,
+				instructions = ?8, denied_tools = ?9
 			WHERE id = ?1",
 		params![
 			id,
@@ -208,7 +203,6 @@ pub(super) fn updated_bot(
 			identity.avatar_animal,
 			identity.avatar_blot,
 			identity.avatar_image_path,
-			identity.working_dir,
 			identity.instructions,
 			denied(identity)?,
 		],
@@ -351,7 +345,6 @@ pub(super) fn bot(row: &Row<'_>) -> rusqlite::Result<Bot> {
 		avatar_animal: row.get("avatar_animal")?,
 		avatar_blot: row.get("avatar_color")?,
 		avatar_image_path: row.get("avatar_image_path")?,
-		working_dir: row.get("working_dir")?,
 		instructions: row.get("instructions")?,
 		memory: row.get("memory")?,
 		denied_tools: listed(row.get("denied_tools")?),
@@ -474,7 +467,6 @@ mod tests {
 			avatar_animal: AvatarAnimal::Owl,
 			avatar_blot: Some(AvatarBlot::Red),
 			avatar_image_path: Some("/pictures/owl.png".to_owned()),
-			working_dir: Some("/work/kiroshi".to_owned()),
 			instructions: "Answer briefly.".to_owned(),
 		};
 
@@ -492,7 +484,6 @@ mod tests {
 		assert_eq!(listed[0].avatar_animal, AvatarAnimal::Owl);
 		assert_eq!(listed[0].avatar_blot, Some(AvatarBlot::Red));
 		assert_eq!(listed[0].avatar_image_path.as_deref(), Some("/pictures/owl.png"));
-		assert_eq!(listed[0].working_dir.as_deref(), Some("/work/kiroshi"));
 		assert_eq!(listed[0].instructions, described.instructions);
 		assert_eq!(listed[0].denied_tools, described.denied_tools);
 		assert_eq!(listed[0].id, created.id);
@@ -612,7 +603,6 @@ mod tests {
 					avatar_animal: AvatarAnimal::Koala,
 					avatar_blot: Some(AvatarBlot::Orange),
 					avatar_image_path: Some("/pictures/koala.png".to_owned()),
-					working_dir: Some("/work/kiroshi".to_owned()),
 					instructions: "answer at length".to_owned(),
 				},
 			)
@@ -623,7 +613,6 @@ mod tests {
 		assert_eq!(updated.title, "Reviewer");
 		assert_eq!(updated.avatar_animal, AvatarAnimal::Koala);
 		assert_eq!(updated.avatar_blot, Some(AvatarBlot::Orange));
-		assert_eq!(updated.working_dir.as_deref(), Some("/work/kiroshi"));
 		assert_eq!(updated.model, "opus", "an update left the bot on its old model");
 		assert_eq!(
 			updated.instructions, "answer at length",

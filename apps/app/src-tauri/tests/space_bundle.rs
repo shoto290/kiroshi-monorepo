@@ -180,7 +180,6 @@ fn an_identity(name: &str) -> Value {
 		"avatarAnimal": "cat",
 		"avatarBlot": Value::Null,
 		"avatarImagePath": Value::Null,
-		"workingDir": Value::Null,
 		"instructions": format!("{name} answers briefly."),
 		"deniedTools": []
 	})

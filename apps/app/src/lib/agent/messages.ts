@@ -36,10 +36,6 @@ export function describeTransportError(
 			return describeCrash(t, error)
 		case "resumeFailed":
 			return t("screen.transport.resumeFailed")
-		case "workingDirectoryRefused":
-			return t("screen.transport.workingDirectoryRefused", {
-				path: error.path,
-			})
 		case "invalidFrame":
 			return t("screen.transport.invalidFrame", { detail: error.detail })
 		case "settingsRejected":

@@ -4,7 +4,7 @@ use std::sync::{Arc, Mutex};
 use std::time::{Duration, Instant};
 
 use kiroshi_app::agent::commands::EVENT_CHANNEL;
-use kiroshi_app::agent::contract::{AgentEvent, RuntimeScope, ScopedEvent, TransportError};
+use kiroshi_app::agent::contract::{AgentEvent, RuntimeScope, ScopedEvent};
 use kiroshi_app::agent::sidecar::SIDECAR_OVERRIDE_ENV;
 use kiroshi_app::agent::AgentState;
 use kiroshi_app::bundles;
@@ -108,17 +108,17 @@ impl Harness {
 	}
 
 	fn create_bot(&self) -> String {
-		self.call("conversation_create_bot", json!({ "identity": an_identity(None, None) }))
+		self.call("conversation_create_bot", json!({ "identity": an_identity(None) }))
 			.expect("the bot is created")["id"]
 			.as_str()
 			.expect("the bot holds an id")
 			.to_owned()
 	}
 
-	fn describe(&self, bot: &str, instructions: &str, working_dir: Option<&Path>) {
+	fn describe(&self, bot: &str, instructions: &str) {
 		self.call(
 			"conversation_update_bot",
-			json!({ "id": bot, "identity": an_identity(Some(instructions), working_dir) }),
+			json!({ "id": bot, "identity": an_identity(Some(instructions)) }),
 		)
 		.expect("the bot is described");
 	}
@@ -192,11 +192,11 @@ impl Harness {
 		}
 	}
 
-	fn start(&self, scope: &RuntimeScope) {
+	fn start(&self, scope: &RuntimeScope, cwd: Value) {
 		assert_eq!(
 			self.call(
 				"agent_start_or_resume_session",
-				json!({ "scope": scope, "resume": Value::Null, "cwd": std::env::temp_dir() }),
+				json!({ "scope": scope, "resume": Value::Null, "cwd": cwd }),
 			),
 			Ok(json!({ "resumed": false })),
 			"the run did not start"
@@ -204,9 +204,13 @@ impl Harness {
 	}
 
 	fn runtime_of(&self, conversation: &str, bot: &str, at: i64) -> Answer {
+		self.runtime_in(conversation, bot, at, json!(std::env::temp_dir()))
+	}
+
+	fn runtime_in(&self, conversation: &str, bot: &str, at: i64, cwd: Value) -> Answer {
 		self.forget_events();
 		let scope = self.open_run(conversation, bot, at);
-		self.start(&scope);
+		self.start(&scope, cwd);
 		self.call("agent_submit_prompt", json!({ "scope": scope, "text": "who are you?" }))
 			.expect("the prompt is taken");
 		self.wait_for("the child to say what it was started as", answered)
@@ -228,16 +232,7 @@ fn answered(seen: &[AgentEvent]) -> Option<Answer> {
 	})
 }
 
-fn refused_directory(seen: &[AgentEvent]) -> Option<String> {
-	seen.iter().find_map(|event| match event {
-		AgentEvent::Failed { error: TransportError::WorkingDirectoryRefused { path } } => {
-			Some(path.clone())
-		}
-		_ => None,
-	})
-}
-
-fn an_identity(instructions: Option<&str>, working_dir: Option<&Path>) -> Value {
+fn an_identity(instructions: Option<&str>) -> Value {
 	json!({
 		"name": NAME,
 		"title": "",
@@ -245,7 +240,6 @@ fn an_identity(instructions: Option<&str>, working_dir: Option<&Path>) -> Value 
 		"avatarAnimal": "cat",
 		"avatarBlot": Value::Null,
 		"avatarImagePath": Value::Null,
-		"workingDir": working_dir.map(|dir| dir.to_string_lossy().into_owned()),
 		"instructions": instructions.unwrap_or_default(),
 		"deniedTools": []
 	})
@@ -302,13 +296,6 @@ fn listed_plugins(harness: &Harness) -> Vec<(String, String)> {
 		.unwrap_or_default()
 }
 
-fn a_directory(name: &str) -> PathBuf {
-	let dir = std::env::temp_dir().join(format!("kiroshi-runtime-identity-{name}"));
-	let _ = std::fs::remove_dir_all(&dir);
-	std::fs::create_dir_all(&dir).expect("the directory is created");
-	dir
-}
-
 fn as_the_child_sees_it(dir: &Path) -> String {
 	dir.canonicalize().unwrap_or_else(|_| dir.to_owned()).display().to_string()
 }
@@ -336,8 +323,6 @@ fn every_run_carries_the_identity_the_bot_holds_when_it_starts() {
 	scenario("identity");
 
 	let harness = launch();
-	let workshop = a_directory("workshop");
-	let studio = a_directory("studio");
 	let bot = harness.create_bot();
 	let conversation = harness.main_chat(&bot);
 	harness
@@ -347,7 +332,7 @@ fn every_run_carries_the_identity_the_bot_holds_when_it_starts() {
 		)
 		.expect("the turn is started");
 
-	harness.describe(&bot, FRENCH, Some(&workshop));
+	harness.describe(&bot, FRENCH);
 	let first = harness.runtime_of(&conversation, &bot, 1);
 	assert!(first.spoken.contains(&briefed(FRENCH)), "got {}", first.spoken);
 	assert!(
@@ -357,22 +342,23 @@ fn every_run_carries_the_identity_the_bot_holds_when_it_starts() {
 	);
 	assert!(first.spoken.contains("You are not Claude Code"), "got {}", first.spoken);
 	assert!(
-		first.spoken.contains(&format!("cwd<{}>", as_the_child_sees_it(&workshop))),
+		first.spoken.contains(&format!("cwd<{}>", as_the_child_sees_it(&std::env::temp_dir()))),
 		"got {}",
 		first.spoken
 	);
 
-	harness.describe(&bot, DUTCH, Some(&studio));
-	let rotated = harness.runtime_of(&conversation, &bot, 2);
+	harness.describe(&bot, DUTCH);
+	let rotated = harness.runtime_in(&conversation, &bot, 2, Value::Null);
 	assert!(rotated.spoken.contains(&briefed(DUTCH)), "got {}", rotated.spoken);
+	let its_own = harness.app.path().app_data_dir().expect("the app data").join("runs").join(&bot);
 	assert!(
-		rotated.spoken.contains(&format!("cwd<{}>", as_the_child_sees_it(&studio))),
+		rotated.spoken.contains(&format!("cwd<{}>", as_the_child_sees_it(&its_own))),
 		"got {}",
 		rotated.spoken
 	);
 	assert_ne!(rotated.from, first.from, "the new identity landed in the same process");
 
-	harness.describe(&bot, "", None);
+	harness.describe(&bot, "");
 	let plain = harness.runtime_of(&conversation, &bot, 3);
 	assert!(!plain.spoken.contains(DUTCH), "got {}", plain.spoken);
 	assert!(plain.spoken.contains(&told()), "got {}", plain.spoken);
@@ -382,20 +368,7 @@ fn every_run_carries_the_identity_the_bot_holds_when_it_starts() {
 		plain.spoken
 	);
 
-	let gone = a_directory("gone");
-	std::fs::remove_dir_all(&gone).expect("the directory is taken away");
-	harness.describe(&bot, FRENCH, Some(&gone));
-	let elsewhere = harness.runtime_of(&conversation, &bot, 4);
-	assert!(
-		elsewhere.spoken.contains(&format!("cwd<{}>", as_the_child_sees_it(&std::env::temp_dir()))),
-		"got {}",
-		elsewhere.spoken
-	);
-	assert!(elsewhere.spoken.contains(&briefed(FRENCH)), "got {}", elsewhere.spoken);
-	let refused = harness.wait_for("the refused directory to be reported", refused_directory);
-	assert!(refused.ends_with("kiroshi-runtime-identity-gone"), "got {refused}");
-
-	harness.describe(&bot, DUTCH, None);
+	harness.describe(&bot, DUTCH);
 	let bundle = bundle_of(&harness, &bot);
 	let agent = bundle.join("agents").join("agent.md");
 	let written = std::fs::read_to_string(&agent).expect("the agent file is there");
@@ -414,7 +387,7 @@ fn every_run_carries_the_identity_the_bot_holds_when_it_starts() {
 	std::fs::create_dir_all(skill.parent().expect("the skill directory")).expect("made");
 	std::fs::write(&skill, "how to bake").expect("the skill is dropped in");
 	rewrite_the_brief(&agent, FRENCH);
-	harness.describe(&bot, DUTCH, None);
+	harness.describe(&bot, DUTCH);
 	assert_eq!(std::fs::read_to_string(&skill).ok().as_deref(), Some("how to bake"));
 	let kept = std::fs::read_to_string(&agent).expect("the agent file is there");
 	assert!(kept.contains(FRENCH), "the hand edited brief was written over: {kept}");
@@ -457,7 +430,7 @@ fn every_run_carries_the_identity_the_bot_holds_when_it_starts() {
 	let manifest_dir = bundle.join(".claude-plugin");
 	std::fs::remove_dir_all(&manifest_dir).expect("the manifest directory is taken away");
 	std::fs::write(&manifest_dir, "not a directory").expect("a file stands in its place");
-	let mut renaming = an_identity(Some(SPANISH), None);
+	let mut renaming = an_identity(Some(SPANISH));
 	renaming["name"] = json!("Renamed");
 	let refused = harness
 		.call("conversation_update_bot", json!({ "id": bot, "identity": renaming }))
@@ -470,8 +443,6 @@ fn every_run_carries_the_identity_the_bot_holds_when_it_starts() {
 	assert!(!bundle.exists(), "a deleted bot left its bundle behind");
 	assert_eq!(listed_plugins(&harness), Vec::new());
 
-	let _ = std::fs::remove_dir_all(&workshop);
-	let _ = std::fs::remove_dir_all(&studio);
 	if let Ok(dir) = harness.app.path().app_data_dir() {
 		let _ = std::fs::remove_dir_all(dir);
 	}

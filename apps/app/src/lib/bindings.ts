@@ -343,7 +343,6 @@ export type Bot = {
 	avatarAnimal: AvatarAnimal,
 	avatarBlot: AvatarBlot | null,
 	avatarImagePath: string | null,
-	workingDir: string | null,
 	instructions: string,
 	memory: string,
 	deniedTools: string[],
@@ -382,7 +381,6 @@ export type BotIdentity = {
 	avatarAnimal: AvatarAnimal,
 	avatarBlot: AvatarBlot | null,
 	avatarImagePath: string | null,
-	workingDir: string | null,
 	instructions: string,
 	deniedTools: string[],
 	permissions?: BotPermissions,
@@ -1145,7 +1143,7 @@ export type TranscriptWindow = {
 	hasNewer: boolean,
 };
 
-export type TransportError = { kind: "binaryNotFound"; searched: string[] } | { kind: "notAuthenticated" } | { kind: "authCheckFailed"; detail: string } | { kind: "spawnFailed"; detail: string } | { kind: "startupTimeout"; timeoutMs: number } | { kind: "crashed"; code: number | null; detail: string | null } | { kind: "resumeFailed"; forgotSessionId: boolean } | { kind: "workingDirectoryRefused"; path: string } | { kind: "invalidFrame"; detail: string } | { kind: "settingsRejected"; detail: string } | { kind: "serverEnvRejected"; detail: string } | { kind: "notStarted" } | { kind: "turnAlreadyRunning" } | { kind: "transitionInProgress" } | { kind: "noActiveTurn" } | { kind: "staleRuntimeSession"; runtimeSessionId: string } | { kind: "unknownPermission"; id: string } | { kind: "writeFailed"; detail: string };
+export type TransportError = { kind: "binaryNotFound"; searched: string[] } | { kind: "notAuthenticated" } | { kind: "authCheckFailed"; detail: string } | { kind: "spawnFailed"; detail: string } | { kind: "startupTimeout"; timeoutMs: number } | { kind: "crashed"; code: number | null; detail: string | null } | { kind: "resumeFailed"; forgotSessionId: boolean } | { kind: "invalidFrame"; detail: string } | { kind: "settingsRejected"; detail: string } | { kind: "serverEnvRejected"; detail: string } | { kind: "notStarted" } | { kind: "turnAlreadyRunning" } | { kind: "transitionInProgress" } | { kind: "noActiveTurn" } | { kind: "staleRuntimeSession"; runtimeSessionId: string } | { kind: "unknownPermission"; id: string } | { kind: "writeFailed"; detail: string };
 
 export type TriggerDecision = { kind: "started"; runId: string } | { kind: "skipped"; runId: string; reason: SkipReason } | { kind: "refused"; by: Refusal };
 

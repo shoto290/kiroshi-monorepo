@@ -11,7 +11,6 @@ use super::contract::{
 };
 use super::host::hosted;
 use super::protocol::{self, Checked};
-use super::redact;
 use super::reply_writer::{HostWrites, ReplyWriter};
 use super::session::{Bundle, EventSink, GatedSink, Session, SessionOptions};
 use super::sidecar::{self, Sidecar, SidecarOptions};
@@ -526,7 +525,6 @@ fn reported(binary_version: Option<String>, probe: Result<Checked, TransportErro
 #[derive(Default)]
 struct RuntimeIdentity {
 	bundle: Option<Bundle>,
-	working_dir: Option<String>,
 	server_env: ResolvedEnv,
 	space_id: Option<String>,
 }
@@ -603,7 +601,6 @@ async fn runtime_identity<R: Runtime>(
 	let server_env = served_environment(app, sidecar, &bot.id, &space_id, &serving).await;
 	RuntimeIdentity {
 		bundle,
-		working_dir: bot.working_dir,
 		server_env,
 		space_id: Some(space_id),
 	}
@@ -672,17 +669,6 @@ fn reserved_directory(app_data: PathBuf, bot_id: &str) -> PathBuf {
 	}
 }
 
-fn where_it_runs(stored: Option<String>, anywhere: PathBuf) -> (PathBuf, Option<String>) {
-	let Some(stored) = stored.filter(|path| !path.trim().is_empty()) else {
-		return (anywhere, None);
-	};
-	let asked = PathBuf::from(&stored);
-	if asked.is_dir() {
-		return (asked, None);
-	}
-	(anywhere, Some(redact::path(&asked)))
-}
-
 #[tauri::command]
 #[specta::specta]
 pub async fn agent_start_or_resume_session<R: Runtime>(
@@ -707,8 +693,8 @@ pub async fn agent_start_or_resume_session<R: Runtime>(
 	let sidecar = state.sidecar().await?;
 	let identity = runtime_identity(&app, &database, &scope, &sidecar).await;
 	let mission_thread = opens_on_a_mission_thread(&database, &scope.conversation_id).await;
-	let anywhere = cwd.map(PathBuf::from).unwrap_or_else(|| its_own_directory(&app, &scope.bot_id));
-	let (working_dir, refused_dir) = where_it_runs(identity.working_dir, anywhere);
+	let running_in =
+		cwd.map(PathBuf::from).unwrap_or_else(|| its_own_directory(&app, &scope.bot_id));
 
 	let announcing: Arc<dyn EventSink> = Arc::new(RunSink {
 		app: app.clone(),
@@ -718,7 +704,7 @@ pub async fn agent_start_or_resume_session<R: Runtime>(
 	});
 	let sink: Arc<dyn EventSink> =
 		Arc::new(ReplyWriter::spawn(app.clone(), &scope, state.host_writes.clone(), announcing));
-	let options = SessionOptions::new(working_dir)
+	let options = SessionOptions::new(running_in)
 		.bundled(identity.bundle)
 		.serving(identity.server_env)
 		.connected(held_connection(&app))
@@ -761,10 +747,6 @@ pub async fn agent_start_or_resume_session<R: Runtime>(
 			return Err(error);
 		}
 	};
-
-	if let Some(path) = refused_dir {
-		sink.emit(AgentEvent::Failed { error: TransportError::WorkingDirectoryRefused { path } });
-	}
 
 	if lineage_is_held_elsewhere {
 		sink.emit(AgentEvent::Failed {
@@ -1086,55 +1068,6 @@ mod tests {
 		std::fs::remove_dir_all(&app_data).expect("cleanup");
 	}
 
-	#[test]
-	fn a_bot_that_names_a_directory_runs_in_it() {
-		let asked = std::env::temp_dir();
-		let (running_in, refused) = where_it_runs(
-			Some(asked.to_string_lossy().into_owned()),
-			PathBuf::from("/somewhere/else"),
-		);
-
-		assert_eq!(running_in, asked);
-		assert_eq!(refused, None, "a directory that is there was refused");
-	}
-
-	#[test]
-	fn a_bot_that_names_none_runs_where_one_always_did() {
-		let anywhere = PathBuf::from("/somewhere/else");
-		for nothing in [None, Some(String::new()), Some("   ".to_owned())] {
-			let (running_in, refused) = where_it_runs(nothing, anywhere.clone());
-			assert_eq!(running_in, anywhere);
-			assert_eq!(refused, None);
-		}
-	}
-
-	#[test]
-	fn a_directory_that_is_gone_is_reported_and_the_run_happens_anyway() {
-		let anywhere = std::env::temp_dir();
-		let missing = anywhere.join("kiroshi-no-such-directory-3f2b");
-		let _ = std::fs::remove_dir_all(&missing);
-
-		let (running_in, refused) =
-			where_it_runs(Some(missing.to_string_lossy().into_owned()), anywhere.clone());
-
-		assert_eq!(running_in, anywhere, "a missing directory left the reader without a process");
-		assert_eq!(refused.as_deref(), Some(redact::path(&missing).as_str()));
-	}
-
-	#[test]
-	fn a_path_that_is_not_a_directory_is_refused_like_one_that_is_gone() {
-		let anywhere = std::env::temp_dir();
-		let file = anywhere.join("kiroshi-not-a-directory-3f2b");
-		std::fs::write(&file, b"i am a file").expect("the file is written");
-
-		let (running_in, refused) =
-			where_it_runs(Some(file.to_string_lossy().into_owned()), anywhere.clone());
-
-		assert_eq!(running_in, anywhere);
-		assert_eq!(refused.as_deref(), Some(redact::path(&file).as_str()));
-		std::fs::remove_file(&file).expect("cleanup");
-	}
-
 	fn a_stored_bot() -> StoredBot {
 		StoredBot {
 			id: "b1".to_owned(),
@@ -1146,7 +1079,6 @@ mod tests {
 			avatar_animal: crate::db::repositories::conversations::AvatarAnimal::Owl,
 			avatar_blot: None,
 			avatar_image_path: None,
-			working_dir: None,
 			instructions: "Answer briefly.".to_owned(),
 			memory: String::new(),
 			denied_tools: Vec::new(),

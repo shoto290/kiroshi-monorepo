@@ -46,7 +46,6 @@ describe("toSettingsValue", () => {
 					model: "haiku",
 					avatarAnimal: "owl",
 					avatarBlot: "green",
-					workingDir: "/work/kiroshi",
 				}),
 			),
 		).toEqual({
@@ -55,13 +54,9 @@ describe("toSettingsValue", () => {
 			title: "Reviewer",
 			instructions: "Answer briefly.",
 			model: "haiku",
-			workingDirectory: "/work/kiroshi",
+			workingDirectory: "",
 			permissions: BLANK_BOT_PERMISSIONS,
 		})
-	})
-
-	it("reads a directory the companion does not have as no text at all", () => {
-		expect(toSettingsValue(bot({ workingDir: null })).workingDirectory).toBe("")
 	})
 
 	it("reads a companion nobody marked as wearing no blot", () => {
@@ -72,18 +67,12 @@ describe("toSettingsValue", () => {
 })
 
 describe("changesRuntime", () => {
-	const stored = bot({
-		instructions: "Answer briefly.",
-		workingDir: "/work/kiroshi",
-	})
+	const stored = bot({ instructions: "Answer briefly." })
 	const value = toSettingsValue(stored)
 
-	it("says so for the instructions, the directory, the model and the permissions", () => {
+	it("says so for the instructions, the model and the permissions", () => {
 		expect(
 			changesRuntime(stored, { ...value, instructions: "Answer at length." }),
-		).toBe(true)
-		expect(
-			changesRuntime(stored, { ...value, workingDirectory: "/work/other" }),
 		).toBe(true)
 		expect(changesRuntime(stored, { ...value, model: "haiku" })).toBe(true)
 		expect(
@@ -112,18 +101,6 @@ describe("changesRuntime", () => {
 			changesRuntime(stored, {
 				...value,
 				identity: { animal: "owl", blot: "blue" },
-			}),
-		).toBe(false)
-	})
-
-	it("reads a directory emptied to spaces the way the store stores it", () => {
-		expect(changesRuntime(stored, { ...value, workingDirectory: "   " })).toBe(
-			true,
-		)
-		expect(
-			changesRuntime(bot({ workingDir: null }), {
-				...toSettingsValue(bot({ workingDir: null })),
-				workingDirectory: "   ",
 			}),
 		).toBe(false)
 	})
@@ -158,14 +135,6 @@ describe("toIdentity", () => {
 
 		expect(
 			toIdentity({ ...value, identity: { animal: "owl" } }, stored).avatarBlot,
-		).toBeNull()
-	})
-
-	it("writes a directory nobody typed as an absence rather than as empty text", () => {
-		const value = toSettingsValue(stored)
-
-		expect(
-			toIdentity({ ...value, workingDirectory: "   " }, stored).workingDir,
 		).toBeNull()
 	})
 
@@ -296,7 +265,6 @@ describe("newBotIdentity", () => {
 			instructions: "",
 			avatarAnimal: "rabbit",
 			avatarImagePath: null,
-			workingDir: null,
 		})
 	})
 

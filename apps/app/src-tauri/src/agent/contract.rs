@@ -179,10 +179,6 @@ pub enum TransportError {
 		forgot_session_id: bool,
 	},
 	#[serde(rename_all = "camelCase")]
-	WorkingDirectoryRefused {
-		path: String,
-	},
-	#[serde(rename_all = "camelCase")]
 	InvalidFrame {
 		detail: String,
 	},
@@ -238,9 +234,6 @@ impl std::fmt::Display for TransportError {
 			TransportError::Crashed { code, .. } => write!(f, "the agent exited with {code:?}"),
 			TransportError::ResumeFailed { .. } => {
 				write!(f, "the stored session could not be resumed")
-			}
-			TransportError::WorkingDirectoryRefused { path } => {
-				write!(f, "the working directory {path} is not there")
 			}
 			TransportError::InvalidFrame { detail } => write!(f, "invalid frame: {detail}"),
 			TransportError::SettingsRejected { detail } => {

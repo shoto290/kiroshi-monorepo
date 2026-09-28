@@ -278,7 +278,6 @@ const bot = (fields: Partial<Bot> = {}): Bot => ({
 	avatarAnimal: "cat",
 	avatarBlot: "cyan",
 	avatarImagePath: null,
-	workingDir: null,
 	instructions: "",
 	deniedTools: [],
 	permissions: BLANK_BOT_PERMISSIONS,

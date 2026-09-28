@@ -30,7 +30,6 @@ const BOT: Bot = {
 	avatarAnimal: "owl",
 	avatarBlot: "blue",
 	avatarImagePath: null,
-	workingDir: null,
 	instructions: "",
 	deniedTools: [],
 	permissions: BLANK_BOT_PERMISSIONS,

@@ -206,7 +206,6 @@ mod tests {
 			avatar_animal: AvatarAnimal::Owl,
 			avatar_blot: None,
 			avatar_image_path: None,
-			working_dir: None,
 			instructions: "Answer briefly.".to_owned(),
 			denied_tools: Vec::new(),
 		};

@@ -51,7 +51,6 @@ const SESSION_ENDING: Record<TransportError["kind"], boolean> = {
 	crashed: true,
 	notStarted: true,
 	resumeFailed: false,
-	workingDirectoryRefused: false,
 	invalidFrame: false,
 	settingsRejected: false,
 	serverEnvRejected: false,
@@ -296,9 +295,6 @@ export function noticeTitleFor(t: ChatCopy, error: TransportError): string {
 	}
 	if (error.kind === "resumeFailed") {
 		return t("screen.notice.resumeFailed")
-	}
-	if (error.kind === "workingDirectoryRefused") {
-		return t("screen.notice.workingDirectoryRefused")
 	}
 	if (error.kind === "settingsRejected") {
 		return t("screen.notice.settingsRejected")
