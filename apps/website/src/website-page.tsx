@@ -125,16 +125,17 @@ type FeatureSectionProps = SectionTitleProps & {
 }
 
 const FeatureSection = ({
+	title,
+	subtitle,
 	columns,
 	id,
 	className,
-	...title
 }: FeatureSectionProps) => (
 	<section
 		className={`${PAGE_COLUMN} flex flex-col gap-10 wrap-break-word ${className}`}
 		id={id}
 	>
-		<SectionTitle {...title} />
+		<SectionTitle subtitle={subtitle} title={title} />
 		<ul className="grid gap-10 lg:grid-cols-3">
 			{columns.map(({ name, body }) => (
 				<li className="flex flex-col gap-1 text-reading" key={name}>
