@@ -176,7 +176,7 @@ export const createHttpHost = ({
 				"content-type": JSON_TYPE,
 			},
 			body: JSON.stringify(args, encodeArgument),
-		}).catch((reason) => refuse(reason))
+		}).catch(refuse)
 
 	const invoke = async <T>(command: string, args: InvokeArgs = {}) => {
 		const response = await post(command, args)
