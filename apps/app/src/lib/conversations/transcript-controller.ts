@@ -14,6 +14,7 @@ import {
 	selectOldestSeq,
 	type TranscriptAction,
 	type TranscriptDelta,
+	type TranscriptRevision,
 	type TranscriptSettlement,
 	type TranscriptState,
 	transcriptReducer,
@@ -39,6 +40,7 @@ export type TranscriptController = {
 	announce: (arrival: CompanionArrival) => void
 	stream: (delta: TranscriptDelta) => void
 	settle: (settlement: TranscriptSettlement) => void
+	revise: (revision: TranscriptRevision) => void
 }
 
 export const createTranscriptController = (
@@ -164,5 +166,6 @@ export const createTranscriptController = (
 		announce: (arrival) => dispatch({ type: "arrivalAnnounced", arrival }),
 		stream: (delta) => dispatch({ type: "messageStreamed", delta }),
 		settle: (settlement) => dispatch({ type: "messageSettled", settlement }),
+		revise: (revision) => dispatch({ type: "messageRevised", revision }),
 	}
 }

@@ -4,6 +4,7 @@ import { type ChatController, createChatController } from "./chat-controller"
 import { isSessionReady, isTurnBusy } from "./chat-state"
 import type { ChatDriver } from "./driver"
 import { createFakeChatDriver, type FakeChatDriver } from "./fake-driver"
+import { attachmentBlock } from "./message-attachments"
 import type { PostedAnswerHandler, PostedRequest } from "./posted-question"
 import { questionMessageIdOf } from "./question-message"
 import {
@@ -354,6 +355,23 @@ const isAscending = (messages: TranscriptMessage[]) =>
 		(message, index) => index === 0 || message.seq > messages[index - 1].seq,
 	)
 
+const ATTACHMENT_BLOCK = attachmentBlock(
+	["/root/attachments/c-1/0b7c6d1e-2f3a-4b5c-8d9e-0f1a2b3c4d5e.png"],
+	new Date(0),
+)
+
+const completedAs = (id: string, text: string): AgentEvent => ({
+	type: "messageCompleted",
+	message: { ...STREAMING_MESSAGE, id, text, completion: "complete" },
+})
+
+const saidHello = async () => {
+	const harness = await bootedHarness()
+	vi.spyOn(harness.driver, "submitPrompt").mockResolvedValue()
+	await harness.controller.send("hello")
+	return harness
+}
+
 const spoken = (messages: TranscriptMessage[]) =>
 	messages.map((message) => [message.role, message.content, message.completion])
 
@@ -570,6 +588,59 @@ describe("createChatController", () => {
 		expect(spoken(await reload(store))).toEqual([
 			["user", "hello", "complete"],
 			["assistant", "Half an ans", "interrupted"],
+		])
+	})
+
+	it("shows the attachment block a later completion adds to a settled reply", async () => {
+		const { driver, controller } = await saidHello()
+
+		for (const event of spokenAnswer("here it is")) {
+			driver.pushEvent(event)
+		}
+		driver.pushEvent(
+			completedAs("msg-answer", `here it is\n${ATTACHMENT_BLOCK}`),
+		)
+		driver.pushEvent(ended("completed"))
+		await vi.runAllTimersAsync()
+
+		expect(spoken(controller.getState().messages)).toEqual([
+			["user", "hello", "complete"],
+			["assistant", `here it is\n${ATTACHMENT_BLOCK}`, "complete"],
+		])
+	})
+
+	it("keeps a single reply when a later completion repeats the settled text", async () => {
+		const { driver, controller } = await saidHello()
+		for (const event of spokenAnswer("here it is")) {
+			driver.pushEvent(event)
+		}
+		await vi.runAllTimersAsync()
+		const settledMessages = controller.getState().messages
+
+		driver.pushEvent(completedAs("msg-answer", "here it is"))
+		await vi.runAllTimersAsync()
+
+		expect(controller.getState().messages).toBe(settledMessages)
+		expect(spoken(controller.getState().messages)).toEqual([
+			["user", "hello", "complete"],
+			["assistant", "here it is", "complete"],
+		])
+	})
+
+	it("shows a reply carrying the attachment block alone", async () => {
+		const { driver, controller } = await saidHello()
+
+		driver.pushEvent({
+			type: "messageStarted",
+			message: { ...STREAMING_MESSAGE, id: "msg-block" },
+		})
+		driver.pushEvent(completedAs("msg-block", ATTACHMENT_BLOCK))
+		driver.pushEvent(ended("completed"))
+		await vi.runAllTimersAsync()
+
+		expect(spoken(controller.getState().messages)).toEqual([
+			["user", "hello", "complete"],
+			["assistant", ATTACHMENT_BLOCK, "complete"],
 		])
 	})
 

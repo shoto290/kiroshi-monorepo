@@ -2,6 +2,7 @@ import { describe, expect, it } from "vitest"
 
 import { promptWithAttachments } from "./attachments"
 import {
+	attachmentBlock,
 	messageWithAttachments,
 	storedAttachmentPath,
 } from "./message-attachments"
@@ -132,6 +133,38 @@ describe("a line that only looks like a stored path", () => {
 
 		expect(lifted.text).toBe(`Look\n${line}`)
 		expect(lifted.attachments).toEqual([])
+	})
+})
+
+const shownByCompanion = (lines: string[], paths: string[]) =>
+	[...lines, attachmentBlock(paths, SENT_AT)].join("\n")
+
+describe("reading back the block a companion attached", () => {
+	it("hands back the one image of a reply that is only the block", () => {
+		const lifted = messageWithAttachments(shownByCompanion([], [IMAGE]))
+
+		expect(lifted.text).toBe("")
+		expect(lifted.attachments.map((item) => item.id)).toEqual([IMAGE])
+	})
+
+	it("hands back every image of a reply in the order it attached them", () => {
+		const second = stored("chart.jpg")
+		const lifted = messageWithAttachments(
+			shownByCompanion(["Here are both"], [IMAGE, second]),
+		)
+
+		expect(lifted.text).toBe("Here are both")
+		expect(lifted.attachments.map((item) => item.id)).toEqual([IMAGE, second])
+	})
+
+	it("keeps the reply and its caption as text and the image out of it", () => {
+		const lifted = messageWithAttachments(
+			shownByCompanion(["The build is green.", "The coverage chart"], [IMAGE]),
+		)
+
+		expect(lifted.text).toBe("The build is green.\nThe coverage chart")
+		expect(lifted.text).not.toContain(IMAGE)
+		expect(lifted.attachments.map((item) => item.id)).toEqual([IMAGE])
 	})
 })
 
