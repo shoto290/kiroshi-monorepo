@@ -68,8 +68,9 @@ notify-debouncer-full = "0.6"
 # clock a cron expression is read against, and the moment a payload carries.
 chrono = "0.4"
 # Answers the one local route a webhook routine is called on. Shows through hyper, which
-# tauri already carries; only the HTTP/1 server is compiled in.
-axum = { version = "0.8", default-features = false, features = ["http1", "tokio"] }
+# tauri already carries; only the HTTP/1 server is compiled in. `ws` relays the host events
+# over a WebSocket, and brings tungstenite and sha1 in.
+axum = { version = "0.8", default-features = false, features = ["http1", "tokio", "ws"] }
 # Reads what became of the pull request of a mission. Already in the tree under
 # tauri-plugin-updater; named here with rustls so no system TLS stack is asked for.
 reqwest = { version = "0.13", default-features = false, features = ["json", "rustls-no-provider"] }

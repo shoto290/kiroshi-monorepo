@@ -26,9 +26,10 @@ const JSON: &str = "application/json";
 
 const BYTES: &str = "application/octet-stream";
 
-const REFUSED: (StatusCode, &str) = (StatusCode::NOT_FOUND, "no host api answers this call");
+pub(crate) const REFUSED: (StatusCode, &str) =
+	(StatusCode::NOT_FOUND, "no host api answers this call");
 
-const UNAUTHORIZED: (StatusCode, &str) =
+pub(crate) const UNAUTHORIZED: (StatusCode, &str) =
 	(StatusCode::UNAUTHORIZED, "the call carried no valid bearer token");
 
 const UNREGISTERED: (StatusCode, &str) = (StatusCode::NOT_FOUND, "no command bears this name");
@@ -78,7 +79,7 @@ fn declares_more_than_the_cap(headers: &HeaderMap) -> bool {
 		.is_some_and(|declared| declared > MAX_BODY_BYTES)
 }
 
-fn authorized<R: Runtime>(calls: &Calls<R>, headers: &HeaderMap) -> bool {
+pub(crate) fn authorized<R: Runtime>(calls: &Calls<R>, headers: &HeaderMap) -> bool {
 	let Some(token) = &calls.token else {
 		return false;
 	};

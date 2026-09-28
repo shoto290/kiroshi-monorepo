@@ -1,6 +1,6 @@
 use serde::{Deserialize, Serialize};
 use serde_json::Value;
-use tauri::{AppHandle, Emitter, Runtime};
+use tauri::{AppHandle, Runtime};
 
 use super::contract::{
 	CompanionCreated, CompanionError, CompanionInvited, ConversationOpened, ConversationSaid,
@@ -15,6 +15,7 @@ use crate::conversations::contract::{
 };
 use crate::db;
 use crate::db::repositories::conversations::{Bot as StoredBot, ConversationDraft, TOPIC_KIND};
+use crate::events;
 
 #[derive(Debug)]
 pub struct CompanionHost<R: Runtime> {
@@ -157,8 +158,7 @@ impl<R: Runtime> CompanionHost<R> {
 		event: &str,
 		payload: T,
 	) -> Result<(), CompanionError> {
-		self.app
-			.emit(event, payload)
+		events::emit(&self.app, event, payload)
 			.map_err(|error| CompanionError::Undeliverable { detail: error.to_string() })
 	}
 }

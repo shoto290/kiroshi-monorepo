@@ -1,19 +1,35 @@
 use std::os::unix::fs::PermissionsExt;
 use std::path::PathBuf;
 use std::sync::atomic::{AtomicUsize, Ordering};
+use std::sync::mpsc;
+use std::time::Duration;
 
 use kiroshi_app::commands::invoke_handler;
 use kiroshi_app::db;
+use kiroshi_app::events::{self, BUFFERED_FRAMES};
 use kiroshi_app::host_api::invoke::MAX_BODY_BYTES;
 use kiroshi_app::routines::webhook::{self, Webhook};
 use serde_json::{json, Value};
 use tauri::test::{mock_builder, mock_context, noop_assets, MockRuntime, INVOKE_KEY};
 use tauri::webview::InvokeRequest;
-use tauri::{App, Manager, WebviewWindow, WebviewWindowBuilder};
+use tauri::{App, Listener, Manager, WebviewWindow, WebviewWindowBuilder};
 use tokio::io::{AsyncReadExt, AsyncWriteExt};
-use tokio::net::TcpStream;
+use tokio::net::{TcpSocket, TcpStream};
+use tokio::time::timeout;
 
 const SPACE: &str = "personal";
+
+const PATIENCE: Duration = Duration::from_secs(20);
+
+const TEXT: u8 = 0x1;
+
+const BINARY: u8 = 0x2;
+
+const CLOSE: u8 = 0x8;
+
+const TRY_AGAIN_LATER: u16 = 1013;
+
+const CHANGED: &str = "mission://changed";
 
 struct Host {
 	app: App<MockRuntime>,
@@ -53,6 +69,18 @@ impl Host {
 	fn token(&self) -> String {
 		std::fs::read_to_string(self.token_path()).expect("the token is on disk")
 	}
+
+	fn emit(&self, event: &str, payload: Value) {
+		events::emit(self.app.handle(), event, payload).expect("the window took the event");
+	}
+
+	fn heard_by_the_window(&self, event: &str) -> mpsc::Receiver<String> {
+		let (told, hearing) = mpsc::channel();
+		self.app.listen_any(event, move |heard| {
+			told.send(heard.payload().to_owned()).expect("the test listens");
+		});
+		hearing
+	}
 }
 
 impl Drop for Host {
@@ -86,6 +114,40 @@ impl Server {
 		self.sent(request.into_bytes()).await
 	}
 
+	async fn upgraded(&self, target: &str, header: &str) -> (u16, Client) {
+		self.upgraded_over(
+			TcpStream::connect(self.address()).await.expect("the listener answers"),
+			target,
+			header,
+		)
+		.await
+	}
+
+	async fn upgraded_over(
+		&self,
+		mut stream: TcpStream,
+		target: &str,
+		header: &str,
+	) -> (u16, Client) {
+		let request = format!(
+			"GET {target} HTTP/1.1\r\nHost: 127.0.0.1\r\nConnection: Upgrade\r\nUpgrade: websocket\r\nSec-WebSocket-Version: 13\r\nSec-WebSocket-Key: dGhlIHNhbXBsZSBub25jZQ==\r\n{header}\r\n"
+		);
+		stream.write_all(request.as_bytes()).await.expect("the upgrade lands");
+		let mut head = Vec::new();
+		while !head.ends_with(b"\r\n\r\n") {
+			head.push(stream.read_u8().await.expect("the answer reads"));
+		}
+		let head = String::from_utf8_lossy(&head).into_owned();
+		let status = head.split_whitespace().nth(1).expect("the answer carries a status");
+		(status.parse().expect("the status is a number"), Client(stream))
+	}
+
+	async fn listening(&self, token: &str) -> Client {
+		let (status, client) = self.upgraded(&format!("/api/events?token={token}"), "").await;
+		assert_eq!(status, 101);
+		client
+	}
+
 	async fn sent(&self, request: Vec<u8>) -> (u16, String) {
 		let mut stream = TcpStream::connect(self.address()).await.expect("the listener answers");
 		stream.write_all(&request).await.expect("the request lands");
@@ -102,6 +164,53 @@ impl Drop for Server {
 	fn drop(&mut self) {
 		self.0.stop();
 	}
+}
+
+struct Client(TcpStream);
+
+impl Client {
+	async fn frame(&mut self) -> (u8, Vec<u8>) {
+		timeout(PATIENCE, self.read_frame()).await.expect("a frame arrives in time")
+	}
+
+	async fn read_frame(&mut self) -> (u8, Vec<u8>) {
+		let opcode = self.0.read_u8().await.expect("a frame head") & 0x0f;
+		let length = match self.0.read_u8().await.expect("a frame length") & 0x7f {
+			126 => u64::from(self.0.read_u16().await.expect("a 16 bit length")),
+			127 => self.0.read_u64().await.expect("a 64 bit length"),
+			short => u64::from(short),
+		};
+		let mut data = vec![0; usize::try_from(length).expect("a frame that fits")];
+		self.0.read_exact(&mut data).await.expect("the frame data");
+		(opcode, data)
+	}
+
+	async fn text(&mut self) -> String {
+		let (opcode, data) = self.frame().await;
+		assert_eq!(opcode, TEXT);
+		String::from_utf8(data).expect("the frame is UTF-8")
+	}
+
+	async fn ended(&mut self) {
+		let mut rest = Vec::new();
+		timeout(PATIENCE, self.0.read_to_end(&mut rest))
+			.await
+			.expect("the host closes the connection in time")
+			.expect("the connection ends cleanly");
+	}
+
+	async fn send(&mut self, opcode: u8, data: &[u8]) {
+		let unmasking_key = [0; 4];
+		let mut frame =
+			vec![0x80 | opcode, 0x80 | u8::try_from(data.len()).expect("a short frame")];
+		frame.extend_from_slice(&unmasking_key);
+		frame.extend_from_slice(data);
+		self.0.write_all(&frame).await.expect("the frame lands");
+	}
+}
+
+fn relayed(event: &str, window_payload: &str) -> String {
+	format!(r#"{{"event":"{event}","payload":{window_payload}}}"#)
 }
 
 fn direct(window: &WebviewWindow<MockRuntime>, cmd: &str, body: Value) -> Result<Value, Value> {
@@ -272,4 +381,151 @@ async fn the_token_is_private_and_reused_across_starts() {
 	let second = host.started();
 	assert_eq!(host.token(), token);
 	assert_eq!(second.invoke("conversation_list", Some(&token), &listed()).await.0, 200);
+}
+
+#[tokio::test(flavor = "multi_thread")]
+async fn an_upgrade_is_admitted_with_the_token_as_query_or_bearer() {
+	let host = Host::new();
+	let server = host.started();
+	let token = host.token();
+
+	assert_eq!(server.upgraded(&format!("/api/events?token={token}"), "").await.0, 101);
+	assert_eq!(server.upgraded(&format!("/api/events?a=b&token={token}"), "").await.0, 101);
+	assert_eq!(
+		server.upgraded("/api/events", &format!("Authorization: Bearer {token}\r\n")).await.0,
+		101
+	);
+}
+
+#[tokio::test(flavor = "multi_thread")]
+async fn an_upgrade_without_the_token_is_refused() {
+	let host = Host::new();
+	let server = host.started();
+	let wrong = format!("{}x", host.token());
+
+	assert_eq!(server.upgraded("/api/events", "").await.0, 401);
+	assert_eq!(server.upgraded("/api/events?token=", "").await.0, 401);
+	assert_eq!(server.upgraded(&format!("/api/events?token={wrong}"), "").await.0, 401);
+	assert_eq!(
+		server.upgraded("/api/events", &format!("Authorization: Bearer {wrong}\r\n")).await.0,
+		401
+	);
+}
+
+#[tokio::test(flavor = "multi_thread")]
+async fn an_upgrade_from_a_foreign_host_answers_the_invoke_refusal() {
+	let host = Host::new();
+	let server = host.started();
+	let token = host.token();
+	let upgrade = format!(
+		"GET /api/events?token={token} HTTP/1.1\r\nHost: attacker.example\r\nConnection: Upgrade, close\r\nUpgrade: websocket\r\nSec-WebSocket-Version: 13\r\nSec-WebSocket-Key: dGhlIHNhbXBsZSBub25jZQ==\r\n\r\n"
+	);
+	let invoke = format!(
+		"POST /api/invoke/conversation_list HTTP/1.1\r\nHost: attacker.example\r\nConnection: close\r\nAuthorization: Bearer {token}\r\nContent-Length: 0\r\n\r\n"
+	);
+
+	let refused = server.sent(upgrade.into_bytes()).await;
+
+	assert_eq!(refused.0, 404);
+	assert_eq!(refused, server.sent(invoke.into_bytes()).await);
+}
+
+#[tokio::test(flavor = "multi_thread")]
+async fn a_client_hears_the_payload_the_window_receives() {
+	let host = Host::new();
+	let server = host.started();
+	let mut client = server.listening(&host.token()).await;
+	let window = host.heard_by_the_window(CHANGED);
+	let payload = json!({ "missionId": "m1", "state": "running", "note": "é\n\"quoted\"", "at": 1.5, "none": null });
+
+	host.emit(CHANGED, payload);
+
+	let window_payload = window.recv_timeout(PATIENCE).expect("the window heard");
+	assert_eq!(client.text().await, relayed(CHANGED, &window_payload));
+}
+
+#[tokio::test(flavor = "multi_thread")]
+async fn every_client_hears_every_event_in_emit_order() {
+	let host = Host::new();
+	let server = host.started();
+	let token = host.token();
+	let mut first = server.listening(&token).await;
+	let mut second = server.listening(&token).await;
+
+	for order in 0..50 {
+		host.emit(CHANGED, json!(order));
+	}
+
+	for order in 0..50 {
+		assert_eq!(first.text().await, relayed(CHANGED, &order.to_string()));
+		assert_eq!(second.text().await, relayed(CHANGED, &order.to_string()));
+	}
+}
+
+#[tokio::test(flavor = "multi_thread")]
+async fn a_client_that_leaves_is_dropped_and_the_others_keep_hearing() {
+	let host = Host::new();
+	let server = host.started();
+	let token = host.token();
+	let leaving = server.listening(&token).await;
+	let mut staying = server.listening(&token).await;
+	let window = host.heard_by_the_window(CHANGED);
+	drop(leaving);
+
+	for order in 0..20 {
+		host.emit(CHANGED, json!(order));
+	}
+
+	for order in 0..20 {
+		assert_eq!(staying.text().await, relayed(CHANGED, &order.to_string()));
+		assert_eq!(window.recv_timeout(PATIENCE).expect("the window heard"), order.to_string());
+	}
+}
+
+#[tokio::test(flavor = "multi_thread")]
+async fn every_frame_a_client_sends_but_close_is_ignored() {
+	let host = Host::new();
+	let server = host.started();
+	let mut client = server.listening(&host.token()).await;
+
+	client.send(TEXT, b"hello").await;
+	client.send(BINARY, b"\x00\x01").await;
+	host.emit(CHANGED, json!("after"));
+
+	assert_eq!(client.text().await, relayed(CHANGED, r#""after""#));
+
+	client.send(CLOSE, &[]).await;
+	host.emit(CHANGED, json!("closed"));
+	client.ended().await;
+}
+
+#[tokio::test(flavor = "multi_thread")]
+async fn a_client_that_falls_behind_is_closed_without_blocking_the_emitter() {
+	let host = Host::new();
+	let server = host.started();
+	let socket = TcpSocket::new_v4().expect("a socket");
+	socket.set_recv_buffer_size(4096).expect("a small buffer");
+	let stream =
+		socket.connect(server.address().parse().expect("an address")).await.expect("connects");
+	let (status, mut client) =
+		server.upgraded_over(stream, &format!("/api/events?token={}", host.token()), "").await;
+	assert_eq!(status, 101);
+	let bulk = "x".repeat(8 * 1024);
+
+	let handle = host.app.handle().clone();
+	let emitting = tokio::task::spawn_blocking(move || {
+		for order in 0..BUFFERED_FRAMES * 4 {
+			events::emit(&handle, CHANGED, json!({ "order": order, "bulk": bulk }))
+				.expect("the window took the event");
+		}
+	});
+	timeout(PATIENCE, emitting).await.expect("the emitter never blocked").expect("emitted");
+
+	let closing = loop {
+		let (opcode, data) = client.frame().await;
+		if opcode == CLOSE {
+			break data;
+		}
+	};
+	assert_eq!(u16::from_be_bytes([closing[0], closing[1]]), TRY_AGAIN_LATER);
 }

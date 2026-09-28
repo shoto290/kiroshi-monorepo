@@ -2,7 +2,7 @@ use std::collections::HashMap;
 use std::sync::{Mutex, MutexGuard, PoisonError};
 
 use serde::Serialize;
-use tauri::{AppHandle, Emitter, Manager, Runtime, State};
+use tauri::{AppHandle, Manager, Runtime, State};
 
 use super::contract::{
 	ConversationMissions, HookedMission, Mission, MissionAnswer, MissionClosing, MissionDetail,
@@ -16,6 +16,7 @@ use crate::bundles;
 use crate::conversations::commands::{bot_row, ready};
 use crate::conversations::contract::Bot;
 use crate::db;
+use crate::events;
 use crate::file_store::FileStore;
 use crate::routines::webhook::{Webhook, HEADER};
 
@@ -59,7 +60,8 @@ pub(super) fn announce_change<R: Runtime>(
 	app: &AppHandle<R>,
 	mission: &Mission,
 ) -> Result<(), MissionError> {
-	app.emit(
+	events::emit(
+		app,
 		CHANGED_EVENT,
 		MissionChanged {
 			mission_id: mission.id.clone(),

@@ -2,11 +2,12 @@ use std::fmt::Debug;
 use std::sync::{Mutex, PoisonError};
 
 use serde::Serialize;
-use tauri::{AppHandle, Emitter, Manager, Runtime, State};
+use tauri::{AppHandle, Manager, Runtime, State};
 
 use super::contract::{
 	CompanionCreated, CompanionSeedRefused, LaunchOutcome, CREATED_EVENT, SEED_REFUSED_EVENT,
 };
+use crate::events;
 
 const REASON_SEPARATOR: &str = "; ";
 
@@ -56,7 +57,7 @@ pub(crate) fn announce<R: Runtime, T: Serialize + Clone + Debug>(
 	event: &str,
 	payload: T,
 ) {
-	if let Err(failure) = app.emit(event, payload.clone()) {
+	if let Err(failure) = events::emit(app, event, payload.clone()) {
 		eprintln!("{event} was not announced for {payload:?}: {failure}");
 	}
 }

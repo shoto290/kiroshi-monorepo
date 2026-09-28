@@ -22,8 +22,8 @@ use super::runner::Runner;
 use super::silence::Silence;
 use crate::conversations::commands::ready;
 use crate::db;
-use crate::host_api::invoke;
 use crate::host_api::token::{self, HostToken};
+use crate::host_api::{events, invoke};
 use crate::missions;
 
 pub const SOURCE_ID: &str = "local-webhook";
@@ -195,6 +195,7 @@ fn route<R: Runtime>(calls: Calls<R>) -> Router {
 		.route(missions::call::PATH, post(missions::call::called::<R>))
 		.layer(DefaultBodyLimit::max(MAX_BODY_BYTES))
 		.merge(invoke::route(calls.clone()))
+		.merge(events::route(calls.clone()))
 		.with_state(calls)
 }
 

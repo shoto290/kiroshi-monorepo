@@ -2,7 +2,7 @@ use std::time::Duration;
 
 use serde::Serialize;
 use serde_json::Value;
-use tauri::{AppHandle, Emitter, EventId, Listener, Manager, Runtime, State};
+use tauri::{AppHandle, EventId, Listener, Manager, Runtime, State};
 use tokio::sync::mpsc;
 use tokio::time::{self, Instant};
 use uuid::Uuid;
@@ -24,6 +24,7 @@ use crate::conversations::commands::{conversation_open_runtime_session, ready};
 use crate::conversations::contract::TranscriptStoreError;
 use crate::db;
 use crate::db::repositories::messages::{NewAssistantMessage, NewTurn, TerminalState};
+use crate::events;
 
 const CANCELLED_REASON: &str = "the run's turn was cancelled";
 
@@ -222,7 +223,7 @@ async fn write_report<R: Runtime>(
 fn announce_report<R: Runtime>(app: &AppHandle<R>, scope: &RuntimeScope, message: ChatMessage) {
 	let scoped =
 		ScopedEvent { scope: Some(scope.clone()), event: AgentEvent::MessageCompleted { message } };
-	if let Err(error) = app.emit(EVENT_CHANNEL, scoped) {
+	if let Err(error) = events::emit(app, EVENT_CHANNEL, scoped) {
 		eprintln!(
 			"the report turn of conversation {} could not be announced: {error}",
 			scope.conversation_id
