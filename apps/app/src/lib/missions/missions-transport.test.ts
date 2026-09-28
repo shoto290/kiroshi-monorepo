@@ -42,6 +42,8 @@ const DETAIL: MissionDetail = {
 		commitsAhead: null,
 		dirtyFiles: null,
 		pullRequestUrl: null,
+		branch: null,
+		workspacePath: null,
 	},
 	events: [],
 }

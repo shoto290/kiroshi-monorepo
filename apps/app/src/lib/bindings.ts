@@ -118,6 +118,7 @@ export const commands = {
 	mcpOauthDisconnect: (owner: EnvOwner, name: string, url: string) => typedError<Disconnected_Serialize, OauthError_Serialize>(__TAURI_INVOKE("mcp_oauth_disconnect", { owner, name, url })),
 	mcpApplicationStatus: (owner: EnvOwner) => typedError<ApplicationRow_Serialize[], EnvError>(__TAURI_INVOKE("mcp_application_status", { owner })),
 	missionClose: (missionId: string, closing: MissionClosing) => typedError<Mission, MissionError>(__TAURI_INVOKE("mission_close", { missionId, closing })),
+	missionReopen: (missionId: string) => typedError<Mission, MissionError>(__TAURI_INVOKE("mission_reopen", { missionId })),
 	missionList: (conversationId: string) => typedError<ConversationMissions, MissionError>(__TAURI_INVOKE("mission_list", { conversationId })),
 	missionDetail: (missionId: string) => typedError<MissionDetail, MissionError>(__TAURI_INVOKE("mission_detail", { missionId })),
 	missionBoard: () => typedError<MissionOnBoard[], MissionError>(__TAURI_INVOKE("mission_board")),
@@ -713,6 +714,8 @@ export type Mission = {
 	commitsAhead: number | null,
 	dirtyFiles: number | null,
 	pullRequestUrl: string | null,
+	branch: string | null,
+	workspacePath: string | null,
 };
 
 export type MissionActivity = {
@@ -758,7 +761,7 @@ export type MissionEvent = {
 	createdAt: number,
 };
 
-export type MissionEventKind = "opened" | "note" | "agent_asked" | "agent_started" | "agent_stopped" | "answered" | "escalated" | "ready" | "checks_failed" | "failed" | "closed" | "status";
+export type MissionEventKind = "opened" | "note" | "agent_asked" | "agent_started" | "agent_stopped" | "answered" | "escalated" | "ready" | "checks_failed" | "failed" | "closed" | "status" | "reopened";
 
 export type MissionNote = {
 	source: string,

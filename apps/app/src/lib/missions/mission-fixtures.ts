@@ -32,6 +32,8 @@ const A_MISSION: Mission = {
 	commitsAhead: null,
 	dirtyFiles: null,
 	pullRequestUrl: null,
+	branch: null,
+	workspacePath: null,
 }
 
 export const aMission = (held: Partial<Mission> = {}): Mission => ({

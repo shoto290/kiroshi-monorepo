@@ -125,6 +125,8 @@ const missionOf = (bot: Bot, origin: Conversation): Mission => ({
 	commitsAhead: null,
 	dirtyFiles: null,
 	pullRequestUrl: null,
+	branch: null,
+	workspacePath: null,
 })
 
 const eventOf = (
