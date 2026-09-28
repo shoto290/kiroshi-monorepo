@@ -10,10 +10,14 @@ branding-avatargroup--five-members
 branding-avatargroup--four-members
 branding-avatargroup--one-member
 branding-avatargroup--person-among-bots
+branding-avatargroup--several-working
+branding-avatargroup--starts-working-slides
+branding-avatargroup--starts-working-still
 branding-avatargroup--three-members
 branding-avatargroup--two-members
 branding-avatargroup--uploaded-member
 branding-avatargroup--working-member
+branding-avatargroup--working-past-the-overflow
 branding-botbadge--bot-badges
 branding-botbadge--bot-titles
 branding-botbadge--mission-long-content
