@@ -238,7 +238,6 @@ const chat = {
 		notice: {
 			crashed: "The agent stopped",
 			resumeFailed: "Couldn’t resume the conversation",
-			workingDirectoryRefused: "Couldn’t find the companion’s folder",
 			settingsRejected: "Couldn’t apply the companion’s settings",
 			serverEnvRejected: "Couldn’t start an application",
 			notAuthenticated: "You’re not signed in",
@@ -267,8 +266,6 @@ const chat = {
 				"The agent exited (code unknown): {{detail}}. Restart the session.",
 			resumeFailed:
 				"The agent started a new session. Keep going, your messages are still here.",
-			workingDirectoryRefused:
-				"{{path}} is gone, so the companion uses its default folder. Choose another in its settings.",
 			invalidFrame: "Skipped an unreadable frame ({{detail}}). Keep going.",
 			settingsRejected:
 				"Couldn’t apply settings.json ({{detail}}). Fix it, then restart the session.",

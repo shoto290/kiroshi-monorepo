@@ -254,7 +254,6 @@ const chat = {
 		notice: {
 			crashed: "L’agent s’est arrêté",
 			resumeFailed: "Impossible de reprendre la conversation",
-			workingDirectoryRefused: "Impossible de trouver le dossier du compagnon",
 			settingsRejected: "Impossible d’appliquer les réglages du compagnon",
 			serverEnvRejected: "Impossible de démarrer une application",
 			notAuthenticated: "Vous n’êtes pas connecté",
@@ -283,8 +282,6 @@ const chat = {
 				"L’agent s’est arrêté (code inconnu) : {{detail}}. Redémarrez la session.",
 			resumeFailed:
 				"L’agent a démarré une nouvelle session. Continuez, vos messages sont toujours là.",
-			workingDirectoryRefused:
-				"{{path}} n’existe plus, le compagnon utilise son dossier par défaut. Choisissez-en un autre dans ses réglages.",
 			invalidFrame: "Trame illisible ignorée ({{detail}}). Continuez.",
 			settingsRejected:
 				"Impossible d’appliquer settings.json ({{detail}}). Corrigez-le, puis redémarrez la session.",
