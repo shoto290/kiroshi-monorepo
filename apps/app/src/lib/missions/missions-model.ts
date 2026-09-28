@@ -11,7 +11,6 @@ import type {
 	MissionPullRequest,
 	MissionEventKind as ShownEventKind,
 } from "@workspace/ui/components/mission"
-import type { MissionRowModel } from "@workspace/ui/components/mission-row"
 import type { RosterBot } from "@workspace/ui/components/roster"
 import type {
 	EarlierTodayRow,
@@ -125,7 +124,7 @@ const agentActivityOf = (mission: Mission): AgentActivity => ({
 	commitsAhead: mission.commitsAhead ?? undefined,
 })
 
-type MissionRowRead = {
+type ActivityMissionRead = {
 	mission: Mission
 	face: ThreadFace
 	timestamp: string
@@ -134,26 +133,30 @@ type MissionRowRead = {
 	now: number
 }
 
-const toMissionRow = ({
+const toActivityMission = ({
 	mission,
 	face,
 	timestamp,
 	state,
 	isWorking,
 	now,
-}: MissionRowRead): MissionRowModel => ({
+}: ActivityMissionRead): MissionCardModel => ({
 	id: mission.id,
+	identity: face,
 	objective: mission.objective,
 	ticket: {
-		platform: mission.ticket.platform,
 		externalId: mission.ticket.externalId,
 		title: mission.ticket.title,
+		platform: mission.ticket.platform,
+		url: mission.ticket.url,
 	},
-	bot: toMissionFace(face),
+	tools: mission.tools,
 	state,
 	isWorking,
+	isClosed: mission.closedAt !== null,
 	timestamp,
 	now,
+	status: mission.status ?? undefined,
 })
 
 const rowsOf = (
@@ -162,13 +165,13 @@ const rowsOf = (
 	waitingMissionIds: WaitingMissionIds,
 	liveMissionIds: LiveMissionIds,
 	now: number,
-): MissionRowModel[] =>
+): MissionCardModel[] =>
 	missions.flatMap((mission) => {
 		const face = faceOf(mission.botId)
 		return face
 			? [
 					{
-						...toMissionRow({
+						...toActivityMission({
 							mission,
 							face,
 							timestamp: rosterTimestamp(
@@ -180,6 +183,7 @@ const rowsOf = (
 							now,
 						}),
 						...agentActivityOf(mission),
+						...missionProgressOf(mission),
 					},
 				]
 			: []
@@ -207,7 +211,7 @@ const closedTodayEntries = (
 				at: mission.closedAt,
 				row: {
 					kind: "mission",
-					...toMissionRow({
+					...toActivityMission({
 						mission,
 						face,
 						timestamp: formatDateTime(mission.closedAt, TIME_OF_DAY),
@@ -246,7 +250,7 @@ const reportedTodayEntries = (
 		]
 	})
 
-export type MissionRowsRead = {
+export type ActivityMissionsRead = {
 	open: Mission[]
 	closed: Mission[]
 	reportedRuns: ReportedRunRead[]
@@ -256,7 +260,7 @@ export type MissionRowsRead = {
 	now: number
 }
 
-export const toMissionRows = ({
+export const toActivityMissions = ({
 	open,
 	closed,
 	reportedRuns,
@@ -264,7 +268,7 @@ export const toMissionRows = ({
 	waitingMissionIds,
 	liveMissionIds,
 	now,
-}: MissionRowsRead): Omit<RoutinesPanelMissions, "onOpen"> => {
+}: ActivityMissionsRead): Omit<RoutinesPanelMissions, "onOpen"> => {
 	const midnight = startOfLocalDay(now)
 
 	return {
@@ -283,6 +287,7 @@ export type MissionCardRead = {
 	identity: RosterBot
 	author: MessageAuthor | undefined
 	isWorking: boolean
+	now: number
 }
 
 export const toMissionCard = ({
@@ -290,6 +295,7 @@ export const toMissionCard = ({
 	identity,
 	author,
 	isWorking,
+	now,
 }: MissionCardRead): MissionCardModel => ({
 	id: mission.id,
 	identity,
@@ -305,6 +311,14 @@ export const toMissionCard = ({
 	state: mission.state,
 	isWorking,
 	isClosed: mission.closedAt !== null,
+	timestamp: rosterTimestamp(
+		mission.closedAt ?? mission.lastActivityAt ?? mission.openedAt,
+		now,
+	),
+	now,
+	status: mission.status ?? undefined,
+	commitsAhead: mission.commitsAhead ?? undefined,
+	...missionProgressOf(mission),
 })
 
 export type MissionHeaderActivity = AgentActivity & {
@@ -321,6 +335,13 @@ const pullRequestOf = (url: string | null): MissionPullRequest | undefined => {
 
 	return { url, number: Number(lastSegment) }
 }
+
+const missionProgressOf = (
+	mission: Mission,
+): Pick<MissionCardModel, "pullRequest" | "lastActivity"> => ({
+	pullRequest: pullRequestOf(mission.pullRequestUrl),
+	lastActivity: mission.lastActivity ?? undefined,
+})
 
 export const toMissionHeaderActivity = (
 	mission: Mission,

@@ -19,11 +19,11 @@ import { ConfirmDialog } from "@workspace/ui/components/confirm-dialog"
 import { ContentCard } from "@workspace/ui/components/content-card"
 import { EmptyStateShell } from "@workspace/ui/components/empty-state-shell"
 import { Icons } from "@workspace/ui/components/icons"
-import type { MissionState } from "@workspace/ui/components/mission"
-import {
-	MissionRow,
-	type MissionRowModel,
-} from "@workspace/ui/components/mission-row"
+import type {
+	MissionCardModel,
+	MissionState,
+} from "@workspace/ui/components/mission"
+import { MissionCard } from "@workspace/ui/components/mission-card"
 import { NestedSidebarProvider } from "@workspace/ui/components/nested-sidebar-provider"
 import { Notice } from "@workspace/ui/components/notice"
 import {
@@ -119,11 +119,11 @@ type RoutinesPanelDetail = {
 }
 
 type EarlierTodayRow =
-	| ({ kind: "mission" } & MissionRowModel)
+	| ({ kind: "mission" } & MissionCardModel)
 	| ({ kind: "run" } & ReportedRunRowModel)
 
 type RoutinesPanelMissions = {
-	open: MissionRowModel[]
+	open: MissionCardModel[]
 	earlierToday: EarlierTodayRow[]
 	onOpen: (missionId: string) => void
 }
@@ -369,10 +369,11 @@ const RoutinesPanelBody = ({
 						title={t(`activity.missions.group.${key}`)}
 					>
 						{held.map((mission) => (
-							<MissionRow
+							<MissionCard
 								{...mission}
+								density="row"
 								key={mission.id}
-								onOpen={() => missions.onOpen(mission.id)}
+								onOpen={missions.onOpen}
 							/>
 						))}
 					</ActivityGroup>
@@ -392,10 +393,11 @@ const RoutinesPanelBody = ({
 						row.kind === "run" ? (
 							<ReportedRunRow {...row} key={row.id} />
 						) : (
-							<MissionRow
+							<MissionCard
 								{...row}
+								density="row"
 								key={row.id}
-								onOpen={() => missions.onOpen(row.id)}
+								onOpen={missions.onOpen}
 							/>
 						),
 					)}

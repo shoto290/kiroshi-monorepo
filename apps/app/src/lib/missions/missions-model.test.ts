@@ -12,17 +12,18 @@ import type {
 	MissionState,
 } from "./mission-contract"
 import {
+	type ActivityMissionsRead,
 	AGENT_SILENCE_MS,
 	liveMissionsIn,
 	type MissionLivenessRead,
-	type MissionRowsRead,
 	missionRingBadges,
 	missionsByRow,
 	missionsBySpaceId,
 	missionsIn,
+	toActivityMissions,
+	toMissionCard,
 	toMissionEventModels,
 	toMissionHeaderActivity,
-	toMissionRows,
 	withMissions,
 } from "./missions-model"
 
@@ -82,8 +83,8 @@ const reportedRun = (over: Partial<ReportedRunRead>): ReportedRunRead => ({
 	...over,
 })
 
-const rowsOf = (read: Partial<MissionRowsRead>) =>
-	toMissionRows({
+const rowsOf = (read: Partial<ActivityMissionsRead>) =>
+	toActivityMissions({
 		open: [],
 		closed: [],
 		reportedRuns: [],
@@ -216,7 +217,7 @@ describe("liveMissionsIn", () => {
 	})
 })
 
-describe("toMissionRows", () => {
+describe("toActivityMissions", () => {
 	it("reads an open mission as the row of the activity panel", () => {
 		const { open } = rowsOf({
 			open: [{ ...missionIn("working"), openedAt: READ_AT - 3_600_000 }],
@@ -227,41 +228,44 @@ describe("toMissionRows", () => {
 			{
 				id: "m-working",
 				objective: "Rewrite the changelog parser",
+				identity: FACE,
 				ticket: {
 					platform: "linear",
 					externalId: "OPE-42",
+					url: "https://linear.app/ope-42",
 					title: "Changelog parser",
 				},
-				bot: { name: "Ada Martin", seed: "b-1" },
+				tools: ["Read", "Write"],
 				state: "working",
 				isWorking: true,
+				isClosed: false,
 				timestamp: "1h",
 				now: READ_AT,
 			},
 		])
 	})
 
-	it("gives the row the time of the last activity and the commits ahead, never the last tool call", () => {
-		const working = {
-			...missionIn("working"),
-			lastActivityAt: READ_AT - 120_000,
-			commitsAhead: 3,
-		}
+	it("gives the row the time of the last activity, the commits ahead, the last tool call and the pull request", () => {
 		const { open } = rowsOf({
 			open: [
-				{ ...working, lastActivity: { tool: "Edit", target: "parser.ts" } },
+				{
+					...missionIn("working"),
+					lastActivityAt: READ_AT - 120_000,
+					commitsAhead: 3,
+					lastActivity: { tool: "Edit", target: "parser.ts" },
+					pullRequestUrl: "https://github.com/acme/app/pull/12",
+					status: { text: "Running the tests", writtenAt: READ_AT },
+				},
 			],
 		})
 
 		expect(open[0]).toMatchObject({
-			lastActivityAt: READ_AT - 120_000,
 			commitsAhead: 3,
 			now: READ_AT,
+			lastActivity: { tool: "Edit", target: "parser.ts" },
+			pullRequest: { url: "https://github.com/acme/app/pull/12", number: 12 },
+			status: { text: "Running the tests", writtenAt: READ_AT },
 		})
-		expect(open[0]).not.toHaveProperty("lastActivity")
-		expect(open).toEqual(
-			rowsOf({ open: [{ ...working, lastActivity: null }] }).open,
-		)
 	})
 
 	it("stamps the row with the age of the last activity of its mission", () => {
@@ -504,6 +508,34 @@ it("links an event to the url of its payload with the pull request it names", ()
 		undefined,
 		undefined,
 	])
+})
+
+describe("toMissionCard", () => {
+	it("gives the card its time, its status, its commits ahead, its last tool call and its pull request", () => {
+		const card = toMissionCard({
+			mission: {
+				...missionIn("working"),
+				lastActivityAt: READ_AT - 120_000,
+				commitsAhead: 2,
+				lastActivity: { tool: "Bash", target: "bun test" },
+				pullRequestUrl: "https://github.com/acme/app/pull/7",
+				status: { text: "Running the tests", writtenAt: READ_AT },
+			},
+			identity: FACE,
+			author: undefined,
+			isWorking: true,
+			now: READ_AT,
+		})
+
+		expect(card).toMatchObject({
+			timestamp: "2m",
+			now: READ_AT,
+			status: { text: "Running the tests", writtenAt: READ_AT },
+			commitsAhead: 2,
+			lastActivity: { tool: "Bash", target: "bun test" },
+			pullRequest: { url: "https://github.com/acme/app/pull/7", number: 7 },
+		})
+	})
 })
 
 describe("toMissionHeaderActivity", () => {

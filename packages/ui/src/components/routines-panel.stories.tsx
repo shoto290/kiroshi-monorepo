@@ -185,7 +185,7 @@ const NO_MISSION_AT_ALL = {
 	onOpen: fn(),
 }
 
-const shownMissionRows = (canvasElement: HTMLElement) =>
+const shownMissions = (canvasElement: HTMLElement) =>
 	slotsIn(canvasElement, "mission-row").filter((row) => row.checkVisibility())
 
 const shownActivityRows = (canvasElement: HTMLElement) =>
@@ -334,7 +334,7 @@ export const Default = meta.story({
 			),
 		).toBe(Node.DOCUMENT_POSITION_FOLLOWING)
 
-		await expect(shownMissionRows(canvasElement)).toHaveLength(
+		await expect(shownMissions(canvasElement)).toHaveLength(
 			OPEN_MISSIONS.length,
 		)
 		await expect(slotsIn(canvasElement, "routine-row")).toHaveLength(0)
@@ -446,7 +446,7 @@ export const EarlierTodayFoldTarget = meta.story({
 		const folded = listNamedBy(head)
 
 		await expect(folded).not.toBeVisible()
-		await expect(shownMissionRows(canvasElement)).toHaveLength(
+		await expect(shownMissions(canvasElement)).toHaveLength(
 			OPEN_MISSIONS.length,
 		)
 
@@ -617,7 +617,7 @@ export const OpeningTheRoutines = meta.story({
 		await userEvent.click(
 			canvas.getByRole("button", { name: "Back to the activity" }),
 		)
-		await expect(shownMissionRows(canvasElement)).toHaveLength(
+		await expect(shownMissions(canvasElement)).toHaveLength(
 			OPEN_MISSIONS.length,
 		)
 		await waitFor(

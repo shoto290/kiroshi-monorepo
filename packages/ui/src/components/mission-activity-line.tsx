@@ -3,6 +3,7 @@
 import { useTranslation } from "react-i18next"
 
 import type {
+	MissionActivity,
 	MissionEventLink,
 	MissionPullRequest,
 } from "@workspace/ui/components/mission"
@@ -90,9 +91,31 @@ const MissionActivityLine = ({
 	)
 }
 
+type MissionLiveActivityProps = MissionActivity & {
+	className?: string
+}
+
+const MissionLiveActivity = ({
+	tool,
+	target,
+	className,
+}: MissionLiveActivityProps) => (
+	<span
+		className={cn(
+			"block h-4 min-w-0 truncate text-muted-foreground text-xs leading-4",
+			className,
+		)}
+		data-slot="mission-live-activity"
+	>
+		{tool}
+		<span className={DOT_CLASS}>{target}</span>
+	</span>
+)
+
 export {
 	hasActivityLine,
 	MissionActivityLine,
 	type MissionActivityLineProps,
 	MissionLink,
+	MissionLiveActivity,
 }

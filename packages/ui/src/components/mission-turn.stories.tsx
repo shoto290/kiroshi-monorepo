@@ -244,13 +244,18 @@ export const WorkingWithoutTools = meta.story({
 		docs: {
 			description: {
 				story:
-					"A mission the companion opened without naming a tool, still being worked on. Check that the bubble opens straight on the objective, with no leading row and no space above it beyond the bubble's own padding, and that the gutter avatar is the only thing saying somebody is on it. Pick `WithoutTools` for the same mission once it waits on its reader. " +
+					"A mission the companion opened without naming a tool, still being worked on. Check that the title row holds the time alone, with no tool mark and no pill, and that the gutter avatar and the last tool call are what say somebody is on it. Pick `WithoutTools` for the same mission once it waits on its reader. " +
 					PLACED_BY_THE_FEED,
 			},
 		},
 	},
 	play: async ({ canvasElement }) => {
-		await expect(slotsIn(canvasElement, "mission-title-row")).toHaveLength(0)
+		await expect(
+			slotIn(canvasElement, "mission-title-row").children,
+		).toHaveLength(1)
+		await expect(slotsIn(canvasElement, "mission-live-activity")).toHaveLength(
+			1,
+		)
 		await expect(companionGlyphsIn(canvasElement, "working")[0]).toBeVisible()
 	},
 })

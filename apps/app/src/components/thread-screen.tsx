@@ -887,6 +887,7 @@ type MissionCardRowsProps = {
 	authors: ThreadAuthors
 	faceOf: ThreadNaming["faceOf"]
 	liveMissionIds: LiveMissionIds
+	now: number
 	onOpen: (missionId: string) => void
 }
 
@@ -899,12 +900,13 @@ const toMissionCardRow = ({
 	identity,
 	author,
 	isWorking,
+	now,
 	onOpen,
 }: MissionCardRowRead): TranscriptItem => ({
 	key: `mission-${mission.id}`,
 	render: () => (
 		<MissionTurn
-			mission={toMissionCard({ mission, identity, author, isWorking })}
+			mission={toMissionCard({ mission, identity, author, isWorking, now })}
 			onOpen={onOpen}
 		/>
 	),
@@ -915,6 +917,7 @@ const missionCardRowsAfter = ({
 	authors,
 	faceOf,
 	liveMissionIds,
+	now,
 	onOpen,
 }: MissionCardRowsProps): RowsAfterRun =>
 	rowsPlacedAfter(placed, ({ mission }) => {
@@ -928,6 +931,7 @@ const missionCardRowsAfter = ({
 				identity,
 				author: authors.get(mission.botId),
 				isWorking: liveMissionIds.has(mission.id),
+				now,
 				onOpen,
 			}),
 		]
@@ -1448,6 +1452,7 @@ const threadRowsOf = (
 	const {
 		authors,
 		botFace,
+		clock,
 		facts,
 		isSoloThread,
 		missionSeat,
@@ -1507,6 +1512,7 @@ const threadRowsOf = (
 				authors,
 				faceOf,
 				liveMissionIds,
+				now: clock,
 				onOpen: onOpenMission,
 				placed: placeMissions({
 					hasOlder: state.hasOlder,
