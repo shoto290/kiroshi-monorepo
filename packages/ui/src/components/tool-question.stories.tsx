@@ -4,9 +4,11 @@ import { expect, fireEvent, fn, spyOn, waitFor, within } from "storybook/test"
 import preview from "@workspace/storybook/preview"
 import {
 	A11Y_SIDE_BY_SIDE_TWIN_LANDMARKS,
+	expectInverseAtRest,
 	isInBrowserRunner,
-	probedStyleOf,
+	realPointer,
 	slotIn,
+	tokenStyleIn,
 } from "@workspace/storybook/story-utils"
 import { Icons } from "@workspace/ui/components/icons"
 import type { MessageAuthor } from "@workspace/ui/components/message"
@@ -1340,27 +1342,6 @@ const inverseButtonsIn = (canvasElement: HTMLElement) => [
 	...canvasElement.querySelectorAll<HTMLButtonElement>(INVERSE_BUTTONS),
 ]
 
-const tokenBeside = (
-	element: HTMLElement,
-	className: string,
-	property: "color" | "backgroundColor" | "borderTopColor",
-) => probedStyleOf(className, property, element)
-
-const realPointer = async () => (await import("vitest/browser")).userEvent
-
-const expectInverseAtRest = async (button: HTMLElement) => {
-	const style = getComputedStyle(button)
-	await expect(style.backgroundColor).toBe(
-		tokenBeside(button, "bg-foreground", "backgroundColor"),
-	)
-	await expect(style.color).toBe(
-		tokenBeside(button, "text-background", "color"),
-	)
-	await expect(style.backgroundColor).not.toBe(
-		tokenBeside(button, "bg-primary", "backgroundColor"),
-	)
-}
-
 const InverseButtonCards = (args: ComponentProps<typeof ToolQuestion>) => (
 	<div className="flex flex-col gap-4">
 		<ToolQuestion {...args} questions={[FRAMEWORK_QUESTION]} />
@@ -1390,7 +1371,7 @@ export const InverseButtonsIdle = meta.story({
 			name: /dismiss/i,
 		}))
 			await expect(getComputedStyle(dismiss).backgroundColor).not.toBe(
-				tokenBeside(dismiss, "bg-foreground", "backgroundColor"),
+				tokenStyleIn(dismiss, "bg-foreground", "backgroundColor"),
 			)
 	},
 })
@@ -1411,14 +1392,14 @@ export const InverseButtonsHover = meta.story({
 		if (!isInBrowserRunner()) return
 		const pointer = await realPointer()
 		for (const button of inverseButtonsIn(canvasElement)) {
-			const rest = tokenBeside(button, "bg-foreground", "backgroundColor")
+			const rest = tokenStyleIn(button, "bg-foreground", "backgroundColor")
 			await pointer.hover(button)
 			await waitFor(() => expect(button.matches(":hover")).toBe(true))
 			await waitFor(() =>
 				expect(getComputedStyle(button).backgroundColor).not.toBe(rest),
 			)
 			await expect(getComputedStyle(button).color).toBe(
-				tokenBeside(button, "text-background", "color"),
+				tokenStyleIn(button, "text-background", "color"),
 			)
 			await pointer.unhover(button)
 		}
@@ -1439,14 +1420,14 @@ export const InverseButtonsFocusVisible = meta.story({
 	render: InverseButtonCards,
 	play: async ({ canvasElement }) => {
 		for (const button of inverseButtonsIn(canvasElement)) {
-			const ring = tokenBeside(button, "border-ring", "borderTopColor")
+			const ring = tokenStyleIn(button, "border-ring", "borderTopColor")
 			button.focus()
 			await expect(button.matches(":focus-visible")).toBe(true)
 			await waitFor(() =>
 				expect(getComputedStyle(button).borderTopColor).toBe(ring),
 			)
 			await expect(getComputedStyle(button).backgroundColor).toBe(
-				tokenBeside(button, "bg-foreground", "backgroundColor"),
+				tokenStyleIn(button, "bg-foreground", "backgroundColor"),
 			)
 		}
 	},

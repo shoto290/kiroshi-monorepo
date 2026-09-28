@@ -3,8 +3,10 @@ import { expect, fn, waitFor } from "storybook/test"
 
 import preview from "@workspace/storybook/preview"
 import {
+	expectInverseAtRest,
 	isInBrowserRunner,
-	probedStyleOf,
+	realPointer,
+	tokenStyleIn,
 } from "@workspace/storybook/story-utils"
 import { Icons } from "@workspace/ui/components/icons"
 import { PromptAttachButton } from "@workspace/ui/components/prompt-attach-button"
@@ -384,25 +386,6 @@ const sendsIn = (canvasElement: HTMLElement) => [
 	...canvasElement.querySelectorAll<HTMLButtonElement>(SEND_SELECTOR),
 ]
 
-const tokenBeside = (
-	element: HTMLElement,
-	className: string,
-	property: "color" | "backgroundColor" | "borderTopColor",
-) => probedStyleOf(className, property, element)
-
-const realPointer = async () => (await import("vitest/browser")).userEvent
-
-const expectInverseAtRest = async (send: HTMLElement) => {
-	const style = getComputedStyle(send)
-	await expect(style.backgroundColor).toBe(
-		tokenBeside(send, "bg-foreground", "backgroundColor"),
-	)
-	await expect(style.color).toBe(tokenBeside(send, "text-background", "color"))
-	await expect(style.backgroundColor).not.toBe(
-		tokenBeside(send, "bg-primary", "backgroundColor"),
-	)
-}
-
 export const SendIdle = meta.story({
 	globals: { theme_layout: "side-by-side" },
 	parameters: {
@@ -429,14 +412,14 @@ export const SendHover = meta.story({
 		if (!isInBrowserRunner()) return
 		const pointer = await realPointer()
 		for (const send of sendsIn(canvasElement)) {
-			const rest = tokenBeside(send, "bg-foreground", "backgroundColor")
+			const rest = tokenStyleIn(send, "bg-foreground", "backgroundColor")
 			await pointer.hover(send)
 			await waitFor(() => expect(send.matches(":hover")).toBe(true))
 			await waitFor(() =>
 				expect(getComputedStyle(send).backgroundColor).not.toBe(rest),
 			)
 			await expect(getComputedStyle(send).color).toBe(
-				tokenBeside(send, "text-background", "color"),
+				tokenStyleIn(send, "text-background", "color"),
 			)
 			await pointer.unhover(send)
 		}
@@ -455,14 +438,14 @@ export const SendFocusVisible = meta.story({
 	},
 	play: async ({ canvasElement }) => {
 		for (const send of sendsIn(canvasElement)) {
-			const ring = tokenBeside(send, "border-ring", "borderTopColor")
+			const ring = tokenStyleIn(send, "border-ring", "borderTopColor")
 			send.focus()
 			await expect(send.matches(":focus-visible")).toBe(true)
 			await waitFor(() =>
 				expect(getComputedStyle(send).borderTopColor).toBe(ring),
 			)
 			await expect(getComputedStyle(send).backgroundColor).toBe(
-				tokenBeside(send, "bg-foreground", "backgroundColor"),
+				tokenStyleIn(send, "bg-foreground", "backgroundColor"),
 			)
 		}
 	},

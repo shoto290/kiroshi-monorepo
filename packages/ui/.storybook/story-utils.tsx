@@ -152,6 +152,28 @@ export const probedStyleOf = (
 	return value
 }
 
+export const tokenStyleIn = (
+	element: HTMLElement,
+	className: string,
+	property: ProbedProperty,
+) => probedStyleOf(className, property, element)
+
+export const expectInverseAtRest = async (button: HTMLElement) => {
+	const style = getComputedStyle(button)
+	await expect(style.backgroundColor).toBe(
+		tokenStyleIn(button, "bg-foreground", "backgroundColor"),
+	)
+	await expect(style.color).toBe(
+		tokenStyleIn(button, "text-background", "color"),
+	)
+	await expect(style.backgroundColor).not.toBe(
+		tokenStyleIn(button, "bg-primary", "backgroundColor"),
+	)
+}
+
+export const realPointer = async () =>
+	(await import("vitest/browser")).userEvent
+
 export const botIdentityAvatars = (canvasElement: HTMLElement) =>
 	slotsIn(canvasElement, "bot-identity-avatar")
 
