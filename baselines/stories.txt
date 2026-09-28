@@ -1053,7 +1053,6 @@ settings-bot-permissionspanel--untouched
 settings-bot-runtimefields--concise
 settings-bot-runtimefields--empty
 settings-bot-runtimefields--filled
-settings-bot-runtimefields--long-path
 settings-bot-runtimefields--no-models
 settings-bot-runtimefields--picking-a-model
 settings-bot-runtimefields--playground

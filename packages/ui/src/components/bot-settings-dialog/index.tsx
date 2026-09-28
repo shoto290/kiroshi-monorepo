@@ -57,7 +57,6 @@ type BotSettingsDialogProps = PluginSessionsProps & {
 	memory?: string
 	onMemoryChange?: (memory: string) => void
 	onAvatarUpload: (file: File) => void
-	onBrowseWorkingDirectory: () => void
 	environment: EnvironmentEntry[]
 	hasEnvironmentFailedToRead?: boolean
 	onEnvironmentSet: (write: EnvironmentWrite) => void | Promise<void>
@@ -83,7 +82,6 @@ const BotSettingsDialog = ({
 	memory,
 	onMemoryChange,
 	onAvatarUpload,
-	onBrowseWorkingDirectory,
 	environment,
 	hasEnvironmentFailedToRead,
 	onEnvironmentSet,
@@ -283,11 +281,9 @@ const BotSettingsDialog = ({
 				<RuntimeFields
 					model={value.model}
 					models={models}
-					onBrowseWorkingDirectory={onBrowseWorkingDirectory}
 					onModelChange={(model) => patch({ model })}
 					onOutputStyleChange={onOutputStyleChange}
 					outputStyle={outputStyle}
-					workingDirectory={value.workingDirectory}
 				/>
 			</SettingsScrollingPanel>
 

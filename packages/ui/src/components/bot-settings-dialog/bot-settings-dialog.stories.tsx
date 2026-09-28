@@ -56,7 +56,6 @@ const FILLED_BOT: BotSettingsValue = {
 	instructions:
 		"You are the Nest Keeper.\n\nEvery visual belongs to packages/ui. The app composes, it never draws.\n\nBefore proposing a component, search the package for one that already does the job. Answer with the file you would touch, then the change.",
 	model: "sonnet-4-5",
-	workingDirectory: "/Users/ada/Projects/kiroshi",
 	permissions: {
 		...BLANK_BOT_PERMISSIONS,
 		deny: ["Bash", "Edit", "Write", "NotebookEdit"],
@@ -69,7 +68,6 @@ const NEW_BOT: BotSettingsValue = {
 	title: "",
 	instructions: "",
 	model: "",
-	workingDirectory: "",
 	permissions: BLANK_BOT_PERMISSIONS,
 }
 
@@ -159,7 +157,6 @@ const meta = preview.meta({
 		onOutputStyleChange: fn(),
 		onValueChange: fn(),
 		onAvatarUpload: fn(),
-		onBrowseWorkingDirectory: fn(),
 		onDelete: fn(),
 		skills: BOT_SKILLS,
 		mcpServers: BOT_MCP_SERVERS,
@@ -339,7 +336,7 @@ export const Runtime = meta.story({
 		docs: {
 			description: {
 				story:
-					"What the companion runs on: the model out of the list the host supplies, and the folder it works in. Both are pickers — neither is something a reader can type correctly. Check that the folder row shows the whole path or truncates it from the end, that pressing it hands the ask to the host rather than opening anything itself, and that the model list marks the one in use.",
+					"What the companion runs on: the model out of the list the host supplies, and the answer style it writes in. Both are pickers: neither is something a reader can type correctly. Check that the model list marks the one in use.",
 			},
 		},
 	},
@@ -357,8 +354,9 @@ export const Runtime = meta.story({
 			expect.objectContaining({ model: "opus-4-1" }),
 		)
 
-		await userEvent.click(within(panel).getByRole("button", { name: /Folder/ }))
-		await expect(args.onBrowseWorkingDirectory).toHaveBeenCalledTimes(1)
+		await expect(
+			within(panel).queryByRole("button", { name: /Folder/ }),
+		).toBeNull()
 	},
 })
 
@@ -495,7 +493,7 @@ export const Empty = meta.story({
 		docs: {
 			description: {
 				story:
-					"A companion that has just been created and holds nothing yet. Check that the breadcrumb still names something rather than opening on a blank, that every field falls back to a placeholder saying what belongs there, and that the model reads `Choose a model` and the folder `Choose a folder` rather than empty boxes.",
+					"A companion that has just been created and holds nothing yet. Check that the breadcrumb still names something rather than opening on a blank, that every field falls back to a placeholder saying what belongs there, and that the model reads `Choose a model` rather than an empty box.",
 			},
 		},
 	},
@@ -506,8 +504,11 @@ export const Empty = meta.story({
 
 		const panel = await openTab(dialog, "Runtime", userEvent)
 		await expect(
-			within(panel).getByRole("button", { name: /Folder/ }),
-		).toHaveTextContent("Choose a folder")
+			within(panel).getByRole("combobox", { name: /Model/ }),
+		).toHaveTextContent("Choose a model")
+		await expect(
+			within(panel).queryByRole("button", { name: /Folder/ }),
+		).toBeNull()
 	},
 })
 

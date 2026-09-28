@@ -18,9 +18,6 @@ const MODELS: BotModelOption[] = [
 	{ label: "Nest Haiku 4.5", value: "nest-haiku-4-5" },
 ]
 
-const LONG_PATH =
-	"/Users/wren/Projects/kiroshi/packages/ui/src/components/bot-settings-dialog"
-
 const RuntimeFieldsHost = (props: RuntimeFieldsProps) => {
 	const [model, setModel] = useState(props.model)
 	const [outputStyle, setOutputStyle] = useState(props.outputStyle)
@@ -50,7 +47,7 @@ const meta = preview.meta({
 		docs: {
 			description: {
 				component:
-					"What a companion runs on: the model behind it, the answer style it writes in, and the folder it works in. All three are pickers, never text, because none is something a reader can type correctly — a mistyped model is a companion that never answers and a mistyped path is a companion working nowhere. What the companion is allowed to do is not here: that is the approvals panel next door. No field owns anything either: the model list comes from the host, and pressing the folder hands the ask back rather than opening a picker itself, which is what keeps the native dialog on the app's side of the line.",
+					"What a companion runs on: the model behind it and the answer style it writes in. Both are pickers, never text, because neither is something a reader can type correctly: a mistyped model is a companion that never answers. What the companion is allowed to do is not here: that is the approvals panel next door. No field owns anything either: the model list comes from the host.",
 			},
 		},
 	},
@@ -65,10 +62,8 @@ const meta = preview.meta({
 		models: MODELS,
 		model: "nest-sonnet-4-5",
 		outputStyle: DEFAULT_BOT_OUTPUT_STYLE,
-		workingDirectory: "/Users/wren/Projects/kiroshi",
 		onModelChange: fn(),
 		onOutputStyleChange: fn(),
-		onBrowseWorkingDirectory: fn(),
 	},
 	render: (args) => <RuntimeFieldsHost {...args} />,
 })
@@ -78,7 +73,7 @@ export const Playground = meta.story({
 		docs: {
 			description: {
 				story:
-					"Knob story for both fields. Check that the labels sit above their controls at the same rhythm, that the model trigger and the folder button share a height, and that the group needs no fieldset around it to read as one.",
+					"Knob story for both fields. Check that the labels sit above their controls at the same rhythm, that the model and answer style triggers share a height, and that the group needs no fieldset around it to read as one.",
 			},
 		},
 	},
@@ -86,6 +81,7 @@ export const Playground = meta.story({
 		await expect(
 			canvas.getByRole("combobox", { name: /Model/ }),
 		).toHaveTextContent("Nest Sonnet 4.5")
+		await expect(canvas.queryByRole("button", { name: /Folder/ })).toBeNull()
 	},
 })
 
@@ -94,7 +90,7 @@ export const Filled = meta.story({
 		docs: {
 			description: {
 				story:
-					"A configured companion: a model out of the host's list and a folder already chosen. The folder row keeps its `Change` affordance on the right even when full, so the row never becomes a label a reader mistakes for read-only text.",
+					"A configured companion: a model out of the host's list and an answer style already picked.",
 			},
 		},
 	},
@@ -149,17 +145,18 @@ export const StandardAnswers = meta.story({
 })
 
 export const Empty = meta.story({
-	args: { model: "", workingDirectory: "" },
+	args: { model: "" },
 	parameters: {
 		docs: {
 			description: {
 				story:
-					"A companion that has just been created. Both controls hold their size and show a muted instruction rather than an error — nothing is wrong yet, the reader simply has not answered. Check that the placeholders read as prompts to act (`Choose a model`, `Choose a folder`) and that the folder icon stays put, so the row does not shift once a path lands in it.",
+					"A companion that has just been created. The model trigger holds its size and shows a muted instruction rather than an error: nothing is wrong yet, the reader simply has not answered. Check that the placeholder reads as a prompt to act (`Choose a model`).",
 			},
 		},
 	},
 	play: async ({ canvas }) => {
-		await expect(canvas.getByText("Choose a folder")).toBeVisible()
+		await expect(canvas.getByText("Choose a model")).toBeVisible()
+		await expect(canvas.queryByRole("button", { name: /Folder/ })).toBeNull()
 	},
 })
 
@@ -201,25 +198,5 @@ export const NoModels = meta.story({
 	},
 	play: async ({ canvas }) => {
 		await expect(canvas.getByText("Choose a model")).toBeVisible()
-	},
-})
-
-export const LongPath = meta.story({
-	args: { workingDirectory: LONG_PATH },
-	parameters: {
-		docs: {
-			description: {
-				story:
-					"A folder deeper than the control is wide. The path truncates from the end and the full one stays available as the button's title, so the tail a reader needs is never the part that is lost — and `Change` keeps its place at the right edge rather than being pushed out. Check that the row stays one line and that the button still announces its label to a screen reader.",
-			},
-		},
-	},
-	play: async ({ args, canvas, userEvent }) => {
-		const folder = canvas.getByRole("button", { name: /Folder/ })
-
-		await expect(folder).toHaveAttribute("title", LONG_PATH)
-
-		await userEvent.click(folder)
-		await expect(args.onBrowseWorkingDirectory).toHaveBeenCalledTimes(1)
 	},
 })

@@ -435,7 +435,6 @@ type BotSettingsValue = {
 	title: string
 	instructions: string
 	model: string
-	workingDirectory: string
 	permissions: BotPermissions
 }
 
