@@ -128,12 +128,15 @@ const expectEntriesInBothDensities = async ({
 	canvasElement,
 	expected,
 }: EntriesCheck) => {
-	fireEvent.contextMenu(rowIn(canvasElement), { clientX: 40, clientY: 20 })
-	await expect(await entriesIn()).toEqual(expected)
-	await dismissMenu()
+	for (const surface of [rowIn(canvasElement), cardSurfaceIn(canvasElement)]) {
+		fireEvent.contextMenu(surface, { clientX: 40, clientY: 20 })
+		await expect(await entriesIn()).toEqual(expected)
+		await dismissMenu()
 
-	menuButtonIn(cardSurfaceIn(canvasElement)).click()
-	await expect(await entriesIn()).toEqual(expected)
+		menuButtonIn(surface).click()
+		await expect(await entriesIn()).toEqual(expected)
+		await dismissMenu()
+	}
 }
 
 const meta = preview.meta({
@@ -375,6 +378,69 @@ export const ClosePopover = meta.story({
 		await userEvent.click(panel.getByRole("button", { name: "Close mission" }))
 
 		await expect(args.onClose).toHaveBeenCalledWith("done", SUMMARY)
+		await waitFor(
+			() => expect(menuButtonIn(cardSurfaceIn(canvasElement))).toHaveFocus(),
+			FRAME_POLL,
+		)
+	},
+})
+
+const expectDismissedTo = async (
+	canvasElement: HTMLElement,
+	onClose: MissionMenuStoryArgs["onClose"] | undefined,
+) => {
+	await waitFor(
+		() =>
+			expect(
+				document.querySelector('[data-slot="mission-close-popover"]'),
+			).toBeNull(),
+		FRAME_POLL,
+	)
+	await expect(onClose).not.toHaveBeenCalled()
+	await waitFor(
+		() => expect(menuButtonIn(cardSurfaceIn(canvasElement))).toHaveFocus(),
+		FRAME_POLL,
+	)
+
+	const reopened = await chooseCloseAs(canvasElement, "Close as done")
+	await expect(within(reopened).getByRole("textbox")).toHaveValue("")
+}
+
+export const DismissedByEscape = meta.story({
+	parameters: {
+		docs: {
+			description: {
+				story:
+					"The close popover dismissed with Escape after a summary was typed. Check that `onClose` isn't called, that focus goes back to the card's ellipsis, and that the summary field is empty the next time the popover opens.",
+			},
+		},
+	},
+	play: async ({ args, canvasElement, userEvent }) => {
+		const popover = await chooseCloseAs(canvasElement, "Close as done")
+
+		await userEvent.type(within(popover).getByRole("textbox"), SUMMARY)
+		await userEvent.keyboard("{Escape}")
+
+		await expectDismissedTo(canvasElement, args.onClose)
+	},
+})
+
+export const DismissedByAnOutsideClick = meta.story({
+	parameters: {
+		docs: {
+			description: {
+				story:
+					"The close popover dismissed by a click outside it after a summary was typed. Check that `onClose` isn't called, that focus goes back to the card's ellipsis, and that the summary field is empty the next time the popover opens.",
+			},
+		},
+	},
+	play: async ({ args, canvasElement, userEvent }) => {
+		const popover = await chooseCloseAs(canvasElement, "Close as done")
+
+		await userEvent.type(within(popover).getByRole("textbox"), SUMMARY)
+		await userEvent.click(document.body)
+
+		await expectDismissedTo(canvasElement, args.onClose)
 	},
 })
 

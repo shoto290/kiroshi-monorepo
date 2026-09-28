@@ -216,6 +216,9 @@ type MissionClosePopoverProps = {
 	onConfirm: (outcome: MissionCloseOutcome, summary: string) => void
 }
 
+const menuButtonIn = (card: HTMLElement | null) =>
+	card?.querySelector<HTMLElement>('[data-slot="mission-menu"] button') ?? true
+
 const MissionClosePopover = ({
 	anchor,
 	outcome,
@@ -252,6 +255,7 @@ const MissionClosePopover = ({
 					sideOffset={4}
 				>
 					<PopoverPrimitive.Popup
+						finalFocus={() => menuButtonIn(anchor.current)}
 						className={cn(
 							POPUP_CLASS,
 							"w-72 max-w-[92vw] origin-(--transform-origin) rounded-2xl p-4 transition-[scale,opacity] duration-150 ease-out data-ending-style:opacity-0 data-starting-style:scale-[0.98] data-starting-style:opacity-0 motion-reduce:duration-[0.01ms]",

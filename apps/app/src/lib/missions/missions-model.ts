@@ -391,6 +391,7 @@ const SHOWN_EVENT_KINDS: Record<ShownEventKind, true> = {
 	checks_failed: true,
 	failed: true,
 	closed: true,
+	reopened: true,
 }
 
 const isShown = (
