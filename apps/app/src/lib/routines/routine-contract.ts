@@ -8,10 +8,7 @@ export type {
 	RoutineError,
 	RoutineKey_Serialize as RoutineKey,
 	RoutineRun,
-	RunCause,
-	RunClosing_Deserialize as RunClosing,
 	RunOutcome,
-	RunRequested,
 	TriggerDecision,
 } from "@/lib/bindings"
 

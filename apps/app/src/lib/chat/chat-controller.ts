@@ -33,7 +33,6 @@ import {
 	questionMessageIdOf,
 	questionMessageText,
 } from "./question-message"
-import { storeQuestionRow } from "./question-row"
 import { ENDING_FOR, ENDING_FOR_OUTCOME, isWorthKeeping } from "./reply-endings"
 import {
 	EVOLVED,
@@ -447,11 +446,7 @@ export function createChatController(
 			repliedToMessageId: turn.promptId,
 			runtimeSessionId: null,
 		}
-		write(
-			bot,
-			() => storeQuestionRow(store, row),
-			() => transcript.append(row),
-		)
+		transcript.append(row)
 	}
 
 	const recordQuestion = (

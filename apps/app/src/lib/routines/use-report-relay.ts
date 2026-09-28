@@ -1,35 +1,32 @@
 import { useEffect } from "react"
 
-import { createRunPort } from "./create-run-port"
-import { startRunDriver } from "./run-driver"
+import { raiseFailureNotice } from "@workspace/ui/components/notice-surface"
 
-import type { ChatController } from "../chat/chat-controller"
+import { startReportRelay } from "./report-relay"
+
 import type { ChatDriver } from "../chat/driver"
 import type { ConversationRuntimes } from "../conversations/conversation-runtimes"
 import type { TranscriptStore } from "../conversations/store-port"
 
-export type RunDriverMount = {
+export type ReportRelayMount = {
 	driver: ChatDriver
 	store: TranscriptStore
 	runtimes: ConversationRuntimes
-	chat: ChatController
 }
 
-export const useRunDriver = ({
+export const useReportRelay = ({
 	driver,
 	store,
 	runtimes,
-	chat,
-}: RunDriverMount) => {
+}: ReportRelayMount) => {
 	useEffect(
 		() =>
-			startRunDriver({
+			startReportRelay({
 				driver,
 				store,
 				runtimes,
-				chat,
-				runs: createRunPort(),
+				reportFailure: raiseFailureNotice,
 			}),
-		[driver, store, runtimes, chat],
+		[driver, store, runtimes],
 	)
 }
