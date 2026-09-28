@@ -1,5 +1,6 @@
 "use client"
 
+import { motion, useReducedMotionConfig } from "motion/react"
 import { useTranslation } from "react-i18next"
 
 import { type BotBadge, BotBadgeDot } from "@workspace/ui/components/bot-badge"
@@ -12,12 +13,13 @@ import {
 	OUTER,
 	roundedHexagonPath,
 } from "@workspace/ui/components/kiroshi-hexagon"
+import { SPRING_LAYOUT, TRANSITION_NONE } from "@workspace/ui/lib/ease"
 
 const DEFAULT_SIZE = 40
 
 const ARTBOARD_SIZE = 96
 
-const CELL_LIMIT = 4
+const CELL_LIMIT = 3
 
 const FRAME = "relative grid shrink-0"
 
@@ -31,9 +33,7 @@ const COLUMN_GAP_RATIO = 0.94
 
 const ROW_PITCH_RATIO = 1.087
 
-const LOOSE_CELL_RATIO = 0.4775
-
-const PACKED_CELL_RATIO = 0.38
+const CELL_HEIGHT_RATIO = 0.4775
 
 const COUNTER_FONT_RATIO = { small: 0.4605, large: 0.3589 }
 
@@ -43,7 +43,6 @@ const FILL_ORDER = [
 	{ column: 0, row: 0 },
 	{ column: 1, row: 0.5 },
 	{ column: 0, row: 1 },
-	{ column: 1, row: 1.5 },
 ]
 
 type ConversationParticipant = Pick<
@@ -94,19 +93,27 @@ const counterFontRatio = (size: number) => {
 	)
 }
 
+const workingFirst = (participants: ConversationParticipant[]) => [
+	...participants.filter(({ working }) => working),
+	...participants.filter(({ working }) => !working),
+]
+
 type MemberCellProps = {
 	participant: ConversationParticipant
 	shape: CellShape
 	spot: Spot
+	isStill: boolean
 }
 
-const MemberCell = ({ participant, shape, spot }: MemberCellProps) => {
+const MemberCell = ({ participant, shape, spot, isStill }: MemberCellProps) => {
 	const reach = participant.isPerson ? shape.halfHeight : shape.halfWidth
 	return (
-		<span
+		<motion.span
 			className={MEMBER_CELL}
 			data-slot="conversation-avatar-member"
+			layout="position"
 			style={{ left: spot.x - reach, top: spot.y - reach }}
+			transition={isStill ? TRANSITION_NONE : SPRING_LAYOUT}
 		>
 			{participant.isPerson ? (
 				<InitialsAvatar
@@ -125,7 +132,7 @@ const MemberCell = ({ participant, shape, spot }: MemberCellProps) => {
 					working={participant.working}
 				/>
 			)}
-		</span>
+		</motion.span>
 	)
 }
 
@@ -172,13 +179,13 @@ const AvatarGroup = ({
 	badge,
 }: AvatarGroupProps) => {
 	const { t } = useTranslation("bots")
+	const isStill = useReducedMotionConfig() ?? false
 	const cellCount = Math.min(participants.length, CELL_LIMIT)
-	const cellHeight =
-		(cellCount === CELL_LIMIT ? PACKED_CELL_RATIO : LOOSE_CELL_RATIO) * size
+	const cellHeight = CELL_HEIGHT_RATIO * size
 	const shape = cellShapeOf(cellHeight)
 	const spots = clusterSpots(cellCount, cellHeight, size)
 	const isOverflowing = participants.length > CELL_LIMIT
-	const shown = participants.slice(
+	const shown = workingFirst(participants).slice(
 		0,
 		isOverflowing ? CELL_LIMIT - 1 : CELL_LIMIT,
 	)
@@ -199,6 +206,7 @@ const AvatarGroup = ({
 		>
 			{shown.map((participant, index) => (
 				<MemberCell
+					isStill={isStill}
 					key={participant.id}
 					participant={participant}
 					shape={shape}
