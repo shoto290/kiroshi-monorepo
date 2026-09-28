@@ -1,5 +1,4 @@
 export const WEBSITE_COPY = {
-	brandIcon: "Kiroshi",
 	headline: "Your team of companions.",
 	lead: "They live on your machine, work in your tools, and keep going while you do something else.",
 	downloadAction: "Download",
@@ -9,10 +8,8 @@ export const WEBSITE_COPY = {
 	githubAction: "View on GitHub",
 	mobileNote:
 		"Desktop today, mobile soon. Open this page on your computer to download.",
-	fineprintRuns: "Runs on your",
-	fineprintSubscription: "Claude subscription",
-	fineprintSeparator: "·",
-	fineprintLicense: "MIT",
+	fineprint: "Runs on your Claude subscription · MIT",
+	creditSeparator: "·",
 	credit: "Made by Shoto",
 	creditDestination: "Made by Shoto, on GitHub",
 	creditHandle: "@shoto290",
