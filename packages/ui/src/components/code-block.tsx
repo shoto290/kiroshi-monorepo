@@ -69,7 +69,7 @@ export function CodeLine({ content, tokens, className }: CodeLineProps) {
 							"--code-token-dark": token.dark ?? token.light ?? "currentColor",
 						} as CSSProperties
 					}
-					className="text-[var(--code-token-light)] dark:text-[var(--code-token-dark)]"
+					className="text-[var(--code-ink,var(--code-token-light))] dark:text-[var(--code-ink,var(--code-token-dark))]"
 				>
 					{token.content}
 				</span>

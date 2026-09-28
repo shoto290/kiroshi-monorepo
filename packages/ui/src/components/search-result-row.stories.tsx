@@ -172,7 +172,7 @@ export const Message = meta.story({
 		docs: {
 			description: {
 				story:
-					"A message written by a companion, the nominal hit. Check that the excerpt is the title and stays at weight 400 because it is prose and not a name, that the matched word carries a `mark` on the amber token, and that the context line reads the author then the conversation. The palette draws it under `apps/app/src/App.tsx:1239`.",
+					"A message written by a companion, the nominal hit. Check that the excerpt is the title and stays at weight 400 because it is prose and not a name, that the matched word carries a `mark` on the translucent blue token, and that the context line reads the author then the conversation. The palette draws it under `apps/app/src/App.tsx:1239`.",
 			},
 		},
 	},

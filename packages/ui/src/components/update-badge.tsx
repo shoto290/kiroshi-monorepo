@@ -184,7 +184,7 @@ const UpdateReady = ({
 						</ul>
 					) : null}
 					{isBlocked ? (
-						<p className="text-amber-600 text-xs dark:text-amber-400">
+						<p className="text-bot-badge-attention text-xs">
 							{t("update.panel.botsBusy", { count: activeBotCount })}
 						</p>
 					) : null}

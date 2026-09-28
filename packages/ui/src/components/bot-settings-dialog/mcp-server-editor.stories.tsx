@@ -388,7 +388,7 @@ export const NeedsAuthorization = meta.story({
 		docs: {
 			description: {
 				story:
-					"A saved application that signs in through the browser and has not been authorized yet. Reach for this to check the block the Connection section opens on: it stands above the trust notice, says where the token is kept — with the application's secrets, never in the JSON under Advanced — and offers the one action that can be taken. Check that the state is readable from the title and the dot together, not from the amber field.",
+					"A saved application that signs in through the browser and has not been authorized yet. Reach for this to check the block the Connection section opens on: it stands above the trust notice, says where the token is kept — with the application's secrets, never in the JSON under Advanced — and offers the one action that can be taken. Check that the state is readable from the title and the dot together, not from the blue attention field.",
 			},
 		},
 	},
@@ -438,7 +438,7 @@ export const Connected = meta.story({
 		docs: {
 			description: {
 				story:
-					"An authorized application at rest. Check that the block goes quiet — the muted field, no amber, no red — and that the title carries the state on its own, with no sentence under it: there is nothing left to say once the connection holds. Disconnect is the only action, and it asks before it drops anything: `WithDisconnection` mounts that question.",
+					"An authorized application at rest. Check that the block goes quiet — the muted field, no blue attention tint, no red — and that the title carries the state on its own, with no sentence under it: there is nothing left to say once the connection holds. Disconnect is the only action, and it asks before it drops anything: `WithDisconnection` mounts that question.",
 			},
 		},
 	},

@@ -60,10 +60,12 @@
     /* Headings. */
     &:where(h1, h2, h3, h4, h5, h6) {
       color: var(--color-foreground, currentColor);
-      font-family: var(--typeset-font-heading);
       font-weight: 600;
       margin-block-end: 0;
       text-wrap: balance;
+    }
+    &:where(h1, h2) {
+      font-family: var(--typeset-font-heading);
     }
     &:where(h1) {
       font-size: 1.75em;
@@ -143,7 +145,7 @@
       font-weight: 600;
     }
     &:where(mark) {
-      background-color: color-mix(in oklab, var(--mark) 40%, transparent);
+      background-color: var(--mark);
       color: inherit;
       padding: 0.05em 0.15em;
       border-radius: 0.2em;

@@ -11,7 +11,7 @@ const noticeVariants = cva(
 	{
 		variants: {
 			tone: {
-				warning: "border-amber-500/30 bg-amber-500/10",
+				warning: "border-primary/30 bg-primary/10",
 				error: "border-destructive/30 bg-destructive/10",
 			},
 		},
@@ -29,7 +29,7 @@ const TONE_ICON = {
 } satisfies Record<NoticeTone, typeof Icons.Info>
 
 const TONE_ICON_CLASS = {
-	warning: "text-amber-600 dark:text-amber-400",
+	warning: "text-bot-badge-attention",
 	error: "text-destructive",
 } satisfies Record<NoticeTone, string>
 

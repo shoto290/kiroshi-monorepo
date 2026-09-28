@@ -56,7 +56,7 @@ const LanguageFields = ({
 						{language === id ? (
 							<Icons.Check
 								aria-hidden="true"
-								className="col-start-1 size-3.5 text-primary"
+								className="col-start-1 size-3.5 text-foreground"
 							/>
 						) : null}
 						<span className="col-start-2 truncate">{name}</span>

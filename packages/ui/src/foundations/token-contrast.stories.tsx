@@ -7,7 +7,6 @@ import {
 	ACTION_TOKENS,
 	SIDEBAR_TOKENS,
 	SURFACE_TOKENS,
-	TRANSCRIPT_TOKENS,
 } from "@workspace/ui/foundations/color-tokens"
 import { contrastRatio, type Rgb } from "@workspace/ui/lib/contrast"
 
@@ -37,10 +36,7 @@ const SUFFIXED_PAIRS: TokenPair[] = SEMANTIC_TOKENS.filter((token) =>
 const CROSS_FAMILY_PAIRS: TokenPair[] = [
 	{ background: "--sidebar", foreground: "--muted-foreground" },
 	{ background: "--sidebar-accent", foreground: "--muted-foreground" },
-	...TRANSCRIPT_TOKENS.map((foreground) => ({
-		background: ROOT_PAIR.background,
-		foreground,
-	})),
+	{ background: ROOT_PAIR.background, foreground: "--bot-badge-attention" },
 ]
 
 const TOKEN_PAIRS = [ROOT_PAIR, ...SUFFIXED_PAIRS, ...CROSS_FAMILY_PAIRS]
@@ -50,16 +46,8 @@ const USER_BUBBLE_PAIR: TokenPair = {
 	foreground: "--user-bubble-foreground",
 }
 
-const PAIRS_AWAITING_DESIGN_DECISION: Record<string, number> = {
-	"light --sidebar-primary-foreground on --sidebar-primary": 2.6,
-	"dark --sidebar-primary-foreground on --sidebar-primary": 1.7,
-}
-
 const pairKey = (scheme: ThemeName, pair: TokenPair) =>
 	`${scheme} ${pair.foreground} on ${pair.background}`
-
-const requiredRatio = (key: string) =>
-	PAIRS_AWAITING_DESIGN_DECISION[key] ?? AA_TEXT_RATIO
 
 const createPixel = () => {
 	const canvas = document.createElement("canvas")
@@ -147,23 +135,10 @@ type Measurement = { key: string; ratio: number }
 
 const failuresIn = (measurements: Measurement[]) =>
 	measurements
-		.filter(({ key, ratio }) => ratio < requiredRatio(key))
+		.filter(({ ratio }) => ratio < AA_TEXT_RATIO)
 		.map(
 			({ key, ratio }) =>
-				`${key}: measured ${ratio.toFixed(2)}:1, needs ${requiredRatio(key)}:1`,
-		)
-
-const settledExceptionsIn = (measurements: Measurement[]) =>
-	Object.keys(PAIRS_AWAITING_DESIGN_DECISION)
-		.filter((key) =>
-			measurements.every(
-				(measurement) =>
-					measurement.key !== key || measurement.ratio >= AA_TEXT_RATIO,
-			),
-		)
-		.map(
-			(key) =>
-				`${key}: now clears ${AA_TEXT_RATIO}:1, drop it from PAIRS_AWAITING_DESIGN_DECISION`,
+				`${key}: measured ${ratio.toFixed(2)}:1, needs ${AA_TEXT_RATIO}:1`,
 		)
 
 const meta = preview.meta({
@@ -197,10 +172,7 @@ export const SemanticPairsMeetAaText = meta.story({
 				ratio: measurePair(pixel, probe, pair),
 			})),
 		)
-		const problems = [
-			...failuresIn(measurements),
-			...settledExceptionsIn(measurements),
-		]
+		const problems = failuresIn(measurements)
 
 		await expect(
 			problems,
