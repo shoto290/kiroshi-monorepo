@@ -394,14 +394,27 @@ export function createChatController(
 		}
 	}
 
+	const reviseSettled = (message: ChatMessage, conversationId: string) => {
+		const shown = selectMessages(transcript.getState(), conversationId).find(
+			({ id }) => id === message.id,
+		)
+		if (!shown || !message.text || shown.content === message.text) {
+			return
+		}
+		transcript.revise({ conversationId, id: message.id, text: message.text })
+	}
+
 	const settleCompleted = (
 		bot: BotChat,
 		message: ChatMessage,
 		conversationId: string,
 	) => {
 		const completion = ENDING_FOR[message.completion]
-		if (!completion || bot.settledMessages.has(message.id)) {
+		if (!completion) {
 			return
+		}
+		if (bot.settledMessages.has(message.id)) {
+			return reviseSettled(message, conversationId)
 		}
 		if (bot.heldReply?.id === message.id) {
 			bot.heldReply = null

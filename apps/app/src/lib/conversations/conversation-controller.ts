@@ -493,7 +493,7 @@ export const createConversationController = (
 
 	const reviseSettled = (held: Speaker, message: ChatMessage) => {
 		const revised = toMentionTokens(message.text, mentionBots())
-		if (!conversation || revised === held.written.get(message.id)) {
+		if (!conversation || !revised || revised === held.written.get(message.id)) {
 			return
 		}
 		held.written.set(message.id, revised)

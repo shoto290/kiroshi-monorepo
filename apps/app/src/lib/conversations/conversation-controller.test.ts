@@ -759,6 +759,28 @@ describe("createConversationController", () => {
 		])
 	})
 
+	it("keeps a settled reply when a later ending carries no text", async () => {
+		const ada = idOf(harness.conversation, "Ada")
+		await harness.controller.send("and now?")
+		await harness.settled()
+		const [started, delta] = spoke(ada, "here it is")
+		const id = `msg-${ada}-10`
+
+		harness.driver.pushTo(ada, [
+			started,
+			delta,
+			completedAs(id, "here it is"),
+			completedAs(id, ""),
+			TURN_ENDED,
+		])
+		await harness.settled()
+
+		expect(spokenIn(harness.controller)).toEqual([
+			[null, "and now?"],
+			[ada, "here it is"],
+		])
+	})
+
 	it("shows a reply carrying the attachment block alone", async () => {
 		const ada = idOf(harness.conversation, "Ada")
 		await harness.controller.send("and now?")
