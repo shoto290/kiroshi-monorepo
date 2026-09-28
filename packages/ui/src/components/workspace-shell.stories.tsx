@@ -152,6 +152,38 @@ const meta = preview.meta({
 	},
 })
 
+export const ConversationOpenDark = meta.story({
+	args: {
+		sidebar: (
+			<AppSidebar
+				bots={ROSTER}
+				insetWindowControls
+				railDots={{ conversations: true, missions: true }}
+				selectedBotId="atlas"
+			/>
+		),
+	},
+	globals: { theme: "dark" },
+	parameters: {
+		docs: {
+			description: {
+				story:
+					"The V1e shell with a conversation open: rail, Conversations panel and the conversation sharing one shell card. Check the transcript and the composer sit on the card surface, so the panel and the conversation read as one card with a single divider between them rather than two surfaces.",
+			},
+		},
+	},
+	play: async ({ canvas, canvasElement }) => {
+		const card = canvas.getByRole("main")
+		const layout = canvasElement.querySelector<HTMLElement>(
+			'[data-slot="chat-layout"]',
+		)
+		if (!layout) throw new Error("No thread layout rendered")
+		await expect(getComputedStyle(layout).backgroundColor).toBe(
+			getComputedStyle(card).backgroundColor,
+		)
+	},
+})
+
 export const Default = meta.story({
 	args: {
 		sidebar: SIDEBAR,

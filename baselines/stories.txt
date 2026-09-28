@@ -629,11 +629,13 @@ layout-threadlayout--forwarded-region
 layout-threadlayout--loading-older-messages
 layout-threadlayout--long-content
 layout-threadlayout--older-messages
+layout-threadlayout--outside-content-card
 layout-threadlayout--pending
 layout-threadlayout--start-of-older-messages
 layout-threadlayout--streaming-into-short-transcript
 layout-workspaceshell--boxed-host
 layout-workspaceshell--collapsed
+layout-workspaceshell--conversation-open-dark
 layout-workspaceshell--default
 layout-workspaceshell--empty
 layout-workspaceshell--not-a-landmark
@@ -654,6 +656,7 @@ navigation-apprail--conversations-selected
 navigation-apprail--dark
 navigation-apprail--keyboard-reach
 navigation-apprail--missions-selected
+navigation-apprail--on-tinted-space
 navigation-apprail--with-count
 navigation-apprail--with-dot
 navigation-appsidebar--badges

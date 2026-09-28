@@ -2,6 +2,7 @@ import { useState } from "react"
 import { expect, fn, waitFor } from "storybook/test"
 
 import preview from "@workspace/storybook/preview"
+import { probedStyleOf, slotIn } from "@workspace/storybook/story-utils"
 import { AppHeader } from "@workspace/ui/components/app-header"
 import { ChatEmptyState } from "@workspace/ui/components/chat-empty-state"
 import type { ConnectionStatusState } from "@workspace/ui/components/connection-status"
@@ -239,6 +240,25 @@ export const Default = meta.story({
 			canvasElement.querySelector('[data-slot="message-scroller-older"]'),
 		).toBeNull()
 		await expectRestingAtBottom(canvasElement)
+	},
+})
+
+export const OutsideContentCard = meta.story({
+	tags: ["test-only"],
+	args: { rows: CONVERSATION_ROWS, children: null },
+	parameters: {
+		docs: {
+			description: {
+				story:
+					"The layout mounted with no content card around it. Check it keeps painting the background token itself: only a content card hands it the card surface.",
+			},
+		},
+	},
+	play: async ({ canvasElement }) => {
+		const layout = slotIn(canvasElement, "chat-layout")
+		await expect(getComputedStyle(layout).backgroundColor).toBe(
+			probedStyleOf("bg-background", "backgroundColor"),
+		)
 	},
 })
 

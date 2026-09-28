@@ -1,3 +1,4 @@
+import type { CSSProperties } from "react"
 import { expect, fn } from "storybook/test"
 
 import preview from "@workspace/storybook/preview"
@@ -7,6 +8,7 @@ import {
 	type AppRailPanel,
 	type AppRailProps,
 } from "@workspace/ui/components/app-rail"
+import { blotTint } from "@workspace/ui/components/companion-colour"
 
 const READER = { name: "Ada Lovelace" }
 
@@ -174,6 +176,35 @@ export const KeyboardReach = meta.story({
 		await expect(args.onOpenYou).toHaveBeenCalledTimes(1)
 		await userEvent.click(entryNamed(canvasElement, "Settings"))
 		await expect(args.onOpenSettings).toHaveBeenCalledTimes(1)
+	},
+})
+
+const TINTED_SHELL = { "--space-tint": blotTint("blue") } as CSSProperties
+
+export const OnTintedSpace = meta.story({
+	args: { counts: { conversations: 3 }, dots: { missions: true } },
+	render: (args: AppRailProps) => (
+		<div className="surface-shell flex h-[32rem]" style={TINTED_SHELL}>
+			<AppRail {...args} />
+		</div>
+	),
+	parameters: {
+		docs: {
+			description: {
+				story:
+					"The rail on a space that carries a colour, which washes the shell surface behind it. Check the ring around the count and around the dot is the tinted surface itself, so neither badge wears a halo of the untinted ground.",
+			},
+		},
+	},
+	play: async ({ canvasElement }) => {
+		const ground = getComputedStyle(
+			slotIn(canvasElement, "app-rail").parentElement as HTMLElement,
+		).backgroundColor
+		for (const badge of ["app-rail-count", "app-rail-dot"]) {
+			await expect(
+				getComputedStyle(slotIn(canvasElement, badge)).boxShadow,
+			).toContain(ground)
+		}
 	},
 })
 

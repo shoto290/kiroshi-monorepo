@@ -346,11 +346,12 @@
 }
 
 @utility surface-shell {
-	background-color: color-mix(
+	--shell-surface: color-mix(
 		in oklab,
 		var(--space-tint, var(--background)) var(--space-tint-strength),
 		var(--background)
 	);
+	background-color: var(--shell-surface);
 	transition: background-color 400ms ease-out;
 
 	@media (prefers-reduced-motion: reduce) {

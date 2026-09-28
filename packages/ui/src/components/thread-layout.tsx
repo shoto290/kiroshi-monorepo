@@ -68,7 +68,7 @@ function ThreadLayout({
 			ref={rootRef}
 			data-slot="chat-layout"
 			className={cn(
-				"flex h-svh max-h-full flex-col bg-background text-foreground",
+				"flex h-svh max-h-full flex-col bg-background text-foreground in-data-content-card:bg-card",
 				className,
 			)}
 		>
