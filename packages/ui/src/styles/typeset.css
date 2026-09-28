@@ -60,10 +60,12 @@
     /* Headings. */
     &:where(h1, h2, h3, h4, h5, h6) {
       color: var(--color-foreground, currentColor);
-      font-family: var(--typeset-font-heading);
       font-weight: 600;
       margin-block-end: 0;
       text-wrap: balance;
+    }
+    &:where(h1, h2) {
+      font-family: var(--typeset-font-heading);
     }
     &:where(h1) {
       font-size: 1.75em;

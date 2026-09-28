@@ -172,7 +172,7 @@ export const States = meta.story({
 		docs: {
 			description: {
 				story:
-					"The row under the keyboard: tabbing walks it in reading order and stops on the document after the thumbnail. Check that the focus ring is drawn from the bubble's own text color so it reads on the yellow as well as the grey, that its offset keeps it off the item's border, and that hovering an item dims it without moving it — a row that reflows under the pointer loses the reader's target. " +
+					"The row under the keyboard: tabbing walks it in reading order and stops on the document after the thumbnail. Check that the focus ring is drawn from the bubble's own text color so it reads on the blue as well as the grey, that its offset keeps it off the item's border, and that hovering an item dims it without moving it — a row that reflows under the pointer loses the reader's target. " +
 					FILLED_BY_TURN_BODY,
 			},
 		},
@@ -249,7 +249,7 @@ export const InTranscript = meta.story({
 		docs: {
 			description: {
 				story:
-					"The row on both surfaces it ever lands on: the reader's `solid` bubble and the companion's `soft` one. Check that the glyph, the name and the extension stay legible on the yellow as well as on the muted grey, and that the item border reads without turning into a hard edge. Flip the `theme_layout` toolbar to side-by-side before calling a change to these colors done. The row lands on the reader's bubble `packages/ui/src/components/turn.tsx:340` and on the companion's `packages/ui/src/components/turn.tsx:492`, filled both times by `apps/app/src/components/turn-body.tsx:9`.",
+					"The row on both surfaces it ever lands on: the reader's `solid` bubble and the companion's `soft` one. Check that the glyph, the name and the extension stay legible on the blue as well as on the muted grey, and that the item border reads without turning into a hard edge. Flip the `theme_layout` toolbar to side-by-side before calling a change to these colors done. The row lands on the reader's bubble `packages/ui/src/components/turn.tsx:340` and on the companion's `packages/ui/src/components/turn.tsx:492`, filled both times by `apps/app/src/components/turn-body.tsx:9`.",
 			},
 		},
 	},

@@ -70,7 +70,7 @@ const meta = preview.meta({
 		docs: {
 			description: {
 				component:
-					"One turn of a chat transcript. `solid` is the Kiroshi yellow and is reserved for what the user sent; the agent answers in `soft`. Wrap consecutive turns in `MessageBubbleGroup`, and reach for `MessageBubbleCollapsible` when an answer is long enough to bury the rest of the thread.",
+					"One turn of a chat transcript. `solid` is the Kiroshi blue and is reserved for what the user sent; the agent answers in `soft`. Wrap consecutive turns in `MessageBubbleGroup`, and reach for `MessageBubbleCollapsible` when an answer is long enough to bury the rest of the thread.",
 			},
 		},
 	},
@@ -96,7 +96,7 @@ export const Default = meta.story({
 		docs: {
 			description: {
 				story:
-					"The pairing every transcript is built from: the user in `solid` yellow pinned to the trailing edge, the agent in `soft` on the leading edge. Check that the two surfaces stay distinguishable in both themes and that each bubble hugs its own content, free to span the whole row when the message is long enough. Reach for `Variants` instead when you need to compare a surface in isolation. `packages/ui/src/components/turn.tsx:340` draws the reader in `solid` and `packages/ui/src/components/turn.tsx:492` the companion in `soft`.",
+					"The pairing every transcript is built from: the user in `solid` blue pinned to the trailing edge, the agent in `soft` on the leading edge. Check that the two surfaces stay distinguishable in both themes and that each bubble hugs its own content, free to span the whole row when the message is long enough. Reach for `Variants` instead when you need to compare a surface in isolation. `packages/ui/src/components/turn.tsx:340` draws the reader in `solid` and `packages/ui/src/components/turn.tsx:492` the companion in `soft`.",
 			},
 		},
 	},
@@ -244,7 +244,7 @@ export const SpaceTinted = meta.story({
 		docs: {
 			description: {
 				story:
-					"What the user sent, read inside a space that carries a colour: `solid` takes the space colour at full strength in light and a deepened variant in dark, `tint` keeps the queued opacity over the same colour. Check that the ink stays legible on all eight colours in both themes, and that a bubble outside any tinted space keeps the Kiroshi yellow of `Default`. `packages/ui/src/components/turn.tsx:340` picks `tint` for a prompt still in the outbox and `solid` for one that left, under the space colour the shell sets.",
+					"What the user sent, read inside a space that carries a colour: `solid` takes the space colour at full strength in light and a deepened variant in dark, `tint` keeps the queued opacity over the same colour. Check that the ink stays legible on all eight colours in both themes, and that a bubble outside any tinted space keeps the Kiroshi blue of `Default`. `packages/ui/src/components/turn.tsx:340` picks `tint` for a prompt still in the outbox and `solid` for one that left, under the space colour the shell sets.",
 			},
 		},
 	},

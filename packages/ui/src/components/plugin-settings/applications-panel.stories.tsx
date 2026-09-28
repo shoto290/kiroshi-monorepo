@@ -330,7 +330,7 @@ export const NeedsAuthorization = meta.story({
 		docs: {
 			description: {
 				story:
-					"An application that answered that nobody has authorized it yet. Check the amber dot beside its label, and that Connect is a target of its own: the keyboard reaches the row first, then Connect, each with its ring.",
+					"An application that answered that nobody has authorized it yet. Check the blue attention dot beside its label, and that Connect is a target of its own: the keyboard reaches the row first, then Connect, each with its ring.",
 			},
 		},
 	},

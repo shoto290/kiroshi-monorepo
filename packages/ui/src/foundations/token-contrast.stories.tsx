@@ -7,7 +7,6 @@ import {
 	ACTION_TOKENS,
 	SIDEBAR_TOKENS,
 	SURFACE_TOKENS,
-	TRANSCRIPT_TOKENS,
 } from "@workspace/ui/foundations/color-tokens"
 import { contrastRatio, type Rgb } from "@workspace/ui/lib/contrast"
 
@@ -37,10 +36,7 @@ const SUFFIXED_PAIRS: TokenPair[] = SEMANTIC_TOKENS.filter((token) =>
 const CROSS_FAMILY_PAIRS: TokenPair[] = [
 	{ background: "--sidebar", foreground: "--muted-foreground" },
 	{ background: "--sidebar-accent", foreground: "--muted-foreground" },
-	...TRANSCRIPT_TOKENS.map((foreground) => ({
-		background: ROOT_PAIR.background,
-		foreground,
-	})),
+	{ background: ROOT_PAIR.background, foreground: "--bot-badge-attention" },
 ]
 
 const TOKEN_PAIRS = [ROOT_PAIR, ...SUFFIXED_PAIRS, ...CROSS_FAMILY_PAIRS]
@@ -50,10 +46,7 @@ const USER_BUBBLE_PAIR: TokenPair = {
 	foreground: "--user-bubble-foreground",
 }
 
-const PAIRS_AWAITING_DESIGN_DECISION: Record<string, number> = {
-	"light --sidebar-primary-foreground on --sidebar-primary": 2.6,
-	"dark --sidebar-primary-foreground on --sidebar-primary": 1.7,
-}
+const PAIRS_AWAITING_DESIGN_DECISION: Record<string, number> = {}
 
 const pairKey = (scheme: ThemeName, pair: TokenPair) =>
 	`${scheme} ${pair.foreground} on ${pair.background}`

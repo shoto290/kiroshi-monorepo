@@ -297,7 +297,7 @@ const TranscriptNewMark = () => {
 	return (
 		<div data-slot="transcript-new-mark" className="flex items-center gap-3">
 			<span aria-hidden="true" className="h-px flex-1 bg-transcript-new-mark" />
-			<span className="font-medium text-transcript-new-mark text-xs">
+			<span className="font-medium text-bot-badge-attention text-xs">
 				{t("transcript.newMessages")}
 			</span>
 			<span aria-hidden="true" className="h-px flex-1 bg-transcript-new-mark" />

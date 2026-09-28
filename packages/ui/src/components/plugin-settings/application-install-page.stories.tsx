@@ -506,7 +506,7 @@ export const RunsOnItsHost = meta.story({
 		docs: {
 			description: {
 				story:
-					"E7b. A registry application its source runs for you. Check the verified pill after the name, the source and the uses under the description, the sign-in read as a plain fact rather than an amber field, the hosting fact in the attention colour with its host in monospace, the plain Add an application, the fine print sending it to its source’s server, and that nothing claims this machine.",
+					"E7b. A registry application its source runs for you. Check the verified pill after the name, the source and the uses under the description, the sign-in read as a plain fact rather than a tinted attention field, the hosting fact in the attention colour with its host in monospace, the plain Add an application, the fine print sending it to its source’s server, and that nothing claims this machine.",
 			},
 		},
 	},

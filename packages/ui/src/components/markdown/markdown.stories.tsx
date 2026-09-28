@@ -1403,7 +1403,7 @@ export const DestinationsFetchNothing = meta.story({
 		docs: {
 			description: {
 				story:
-					"Seven hosts in one answer, in both bubbles a transcript is made of. Rendering them sends nothing: no request goes to the sites themselves, and none to the service that used to answer for every site — which would have received the whole guest list, with the reader's address and the hour they read it. Each mark is the initial of its own host, tinted from the text so it holds on the muted surface and on the solid one, in either theme, and sized exactly as the icon was so no line moves. The last two are the ones a punycode host and an address would get wrong: the Cyrillic name is decoded for the mark and still spelled out in punycode beside it, and the IP literal takes a neutral dot rather than opening with a digit. Flip the theme layout toolbar to side-by-side, and check the marks against the amber bubble. " +
+					"Seven hosts in one answer, in both bubbles a transcript is made of. Rendering them sends nothing: no request goes to the sites themselves, and none to the service that used to answer for every site — which would have received the whole guest list, with the reader's address and the hour they read it. Each mark is the initial of its own host, tinted from the text so it holds on the muted surface and on the solid one, in either theme, and sized exactly as the icon was so no line moves. The last two are the ones a punycode host and an address would get wrong: the Cyrillic name is decoded for the mark and still spelled out in punycode beside it, and the IP literal takes a neutral dot rather than opening with a digit. Flip the theme layout toolbar to side-by-side, and check the marks against the blue bubble. " +
 					RENDERED_BY_TURN_BODY,
 			},
 		},
@@ -1671,7 +1671,7 @@ export const InSolidBubble = meta.story({
 		docs: {
 			description: {
 				story:
-					"What a reader types, in the solid bubble that carries their own turn. The bubble surface is `bg-primary`, the hardest case for a code chip and for a link destination: both are tinted from the foreground rather than the background, so the chip and the host stay visible on amber in both themes instead of dissolving into it. Flip the theme layout toolbar to side-by-side and check the inline chip, the fence and the dimmed host against the bubble. The source reaches the renderer through `apps/app/src/components/turn-body.tsx:10`, which renders what the reader typed the same way it renders an answer.",
+					"What a reader types, in the solid bubble that carries their own turn. The bubble surface is `bg-primary`, the hardest case for a code chip and for a link destination: both are tinted from the foreground rather than the background, so the chip and the host stay visible on blue in both themes instead of dissolving into it. Flip the theme layout toolbar to side-by-side and check the inline chip, the fence and the dimmed host against the bubble. The source reaches the renderer through `apps/app/src/components/turn-body.tsx:10`, which renders what the reader typed the same way it renders an answer.",
 			},
 		},
 	},
