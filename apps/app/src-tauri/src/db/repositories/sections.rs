@@ -290,7 +290,6 @@ mod tests {
 			avatar_animal: AvatarAnimal::Cat,
 			avatar_blot: None,
 			avatar_image_path: None,
-			working_dir: None,
 			instructions: String::new(),
 			denied_tools: Vec::new(),
 		}

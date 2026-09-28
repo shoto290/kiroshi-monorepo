@@ -125,7 +125,6 @@ export const newBotIdentity = (bots: Bot[]): BotIdentity => ({
 	avatarAnimal: nextFace(bots),
 	avatarBlot: nextBlot(bots),
 	avatarImagePath: null,
-	workingDir: null,
 	instructions: "",
 	deniedTools: [],
 	permissions: BLANK_BOT_PERMISSIONS,
@@ -142,7 +141,7 @@ export const toSettingsValue = (bot: Bot): BotSettingsValue => ({
 	title: bot.title,
 	instructions: bot.instructions,
 	model: bot.model,
-	workingDirectory: bot.workingDir ?? "",
+	workingDirectory: "",
 	permissions: {
 		...bot.permissions,
 		defaultMode: readBotPermissionMode(bot.permissions.defaultMode),
@@ -159,7 +158,6 @@ export const toIdentity = (
 	avatarAnimal: value.identity.animal,
 	avatarBlot: value.identity.blot ?? null,
 	avatarImagePath: value.identity.image ? bot.avatarImagePath : null,
-	workingDir: value.workingDirectory.trim() || null,
 	instructions: value.instructions,
 	deniedTools: withoutChangingTools(bot.deniedTools),
 	permissions: value.permissions,
@@ -180,7 +178,6 @@ export const changesRuntime = (bot: Bot, value: BotSettingsValue): boolean => {
 	const next = toIdentity(value, bot)
 	return (
 		next.instructions !== bot.instructions ||
-		next.workingDir !== bot.workingDir ||
 		next.model !== bot.model ||
 		listOf(next.deniedTools) !== listOf(bot.deniedTools) ||
 		permissionsOf(next.permissions) !== permissionsOf(bot.permissions)

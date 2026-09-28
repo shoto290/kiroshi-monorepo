@@ -51,15 +51,4 @@ describe("describeTransportError", () => {
 			'the server "linear" was left out: LINEAR_KEY is defined by no scope. The other applications still run, so fix this one and restart the session.',
 		)
 	})
-
-	it("names the folder a companion asked for and no longer has", () => {
-		expect(
-			describeTransportError(t, {
-				kind: "workingDirectoryRefused",
-				path: "/tmp/gone",
-			}),
-		).toBe(
-			"/tmp/gone is gone, so the companion uses its default folder. Choose another in its settings.",
-		)
-	})
 })

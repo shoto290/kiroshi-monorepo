@@ -203,7 +203,6 @@ fn an_identity() -> Value {
 		"avatarAnimal": "cat",
 		"avatarBlot": Value::Null,
 		"avatarImagePath": Value::Null,
-		"workingDir": Value::Null,
 		"instructions": BRIEF,
 		"deniedTools": []
 	})

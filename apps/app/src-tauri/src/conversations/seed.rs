@@ -188,7 +188,6 @@ fn identity(picture: &Path) -> BotIdentity {
 		avatar_animal: AvatarAnimal::Cat,
 		avatar_blot: None,
 		avatar_image_path: Some(picture.to_string_lossy().into_owned()),
-		working_dir: None,
 		instructions: shoto::persona(),
 		denied_tools: Vec::new(),
 		permissions: bundles::BotPermissions::default(),

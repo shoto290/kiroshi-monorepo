@@ -47,6 +47,7 @@ const MIGRATIONS: &[Migration] = &[
 	Migration { version: 38, statements: MISSION_STATUS },
 	Migration { version: 39, statements: MISSION_PROGRESS },
 	Migration { version: 40, statements: BOTS_WITHOUT_DEFAULT_MODEL },
+	Migration { version: 41, statements: BOTS_WITHOUT_WORKING_DIR },
 ];
 
 const CONVERSATIONS_SCHEMA: &str = "
@@ -938,6 +939,10 @@ INSERT INTO bots (id, name, model, created_at, instructions, memory, title, avat
 DROP TABLE bots_with_unread_columns;
 ";
 
+const BOTS_WITHOUT_WORKING_DIR: &str = "
+ALTER TABLE bots DROP COLUMN working_dir;
+";
+
 pub fn latest_version() -> u32 {
 	MIGRATIONS.last().map_or(0, |migration| migration.version)
 }
@@ -1032,6 +1037,7 @@ mod tests {
 	const MISSION_STATUS_STEP: u32 = 38;
 	const MISSION_PROGRESS_STEP: u32 = 39;
 	const BOTS_WITHOUT_DEFAULT_MODEL_STEP: u32 = 40;
+	const BOTS_WITHOUT_WORKING_DIR_STEP: u32 = 41;
 
 	const A_LIVE_SESSION: &str = "INSERT INTO runtime_sessions
 		(id, conversation_id, bot_id, provider_session_id, seq, status, started_at)
@@ -1355,6 +1361,80 @@ mod tests {
 			]
 		);
 		drop(statement);
+		drop(connection);
+		fs::remove_dir_all(&dir).expect("cleanup");
+	}
+
+	#[test]
+	fn a_bot_that_named_a_working_folder_keeps_every_other_value_once_the_column_leaves() {
+		let dir = temp_dir();
+		let mut connection = open(&dir.join(FILE_NAME)).expect("open");
+		apply_each(&mut connection, shipped_before(BOTS_WITHOUT_WORKING_DIR_STEP))
+			.expect("the shipped schema");
+		assert_eq!(version(&connection).expect("version"), BOTS_WITHOUT_DEFAULT_MODEL_STEP);
+		connection
+			.execute_batch(
+				"INSERT INTO bots (id, name, model, created_at, instructions, title,
+					avatar_image_path, working_dir, permissions, deleted_at)
+				VALUES ('b1', 'Nyx', 'opus', 1, 'answer briefly', 'Reviewer',
+					'/pictures/koala.png', '/work/kiroshi', '{}', 7),
+					('b2', 'Ada', 'sonnet', 2, '', '', NULL, NULL, NULL, NULL);
+				INSERT INTO bot_spaces (bot_id, space_id, joined_at) VALUES ('b1', 'personal', 1);",
+			)
+			.expect("the bots this build upgrades from");
+
+		apply(&mut connection).expect("the file comes up to this build");
+
+		assert_eq!(version(&connection).expect("version"), latest_version());
+		let kept = connection
+			.prepare(
+				"SELECT id, name, model, created_at, instructions, title, avatar_image_path,
+					permissions, deleted_at
+					FROM bots ORDER BY id",
+			)
+			.expect("the kept columns are all there")
+			.query_map([], |row| {
+				(0..9).map(|column| row.get::<_, rusqlite::types::Value>(column)).collect()
+			})
+			.expect("query")
+			.collect::<Result<Vec<Vec<rusqlite::types::Value>>, _>>()
+			.expect("the bots read back");
+		let text = |value: &str| rusqlite::types::Value::Text(value.to_owned());
+		let integer = rusqlite::types::Value::Integer;
+		let null = rusqlite::types::Value::Null;
+		assert_eq!(
+			kept,
+			vec![
+				vec![
+					text("b1"),
+					text("Nyx"),
+					text("opus"),
+					integer(1),
+					text("answer briefly"),
+					text("Reviewer"),
+					text("/pictures/koala.png"),
+					text("{}"),
+					integer(7),
+				],
+				vec![
+					text("b2"),
+					text("Ada"),
+					text("sonnet"),
+					integer(2),
+					text(""),
+					text(""),
+					null.clone(),
+					null.clone(),
+					null,
+				],
+			],
+		);
+		assert_eq!(bot_spaces_of(&connection), vec![("b1".to_owned(), "personal".to_owned())]);
+		assert!(
+			connection.prepare("SELECT working_dir FROM bots").is_err(),
+			"the bots table still carries working_dir"
+		);
+
 		drop(connection);
 		fs::remove_dir_all(&dir).expect("cleanup");
 	}
@@ -1751,7 +1831,7 @@ mod tests {
 		);
 		assert_eq!(
 			identity_of(&connection, "b1"),
-			(String::new(), "cat".to_owned(), None, None),
+			(String::new(), "cat".to_owned(), None),
 			"a bot from the older build came out of the step without a face"
 		);
 		assert_eq!(
@@ -1789,7 +1869,7 @@ mod tests {
 		);
 		assert_eq!(
 			identity_of(&connection, "default"),
-			(String::new(), "cat".to_owned(), None, None)
+			(String::new(), "cat".to_owned(), None)
 		);
 
 		drop(connection);
@@ -2242,13 +2322,13 @@ mod tests {
 		let kept = connection
 			.prepare(
 				"SELECT id, name, model, created_at, instructions, memory, title, avatar_animal,
-					avatar_image_path, working_dir, commands, avatar_color, denied_tools,
-					permissions, deleted_at
+					avatar_image_path, commands, avatar_color, denied_tools, permissions,
+					deleted_at
 					FROM bots ORDER BY id",
 			)
 			.expect("the kept columns are all there")
 			.query_map([], |row| {
-				(0..15).map(|column| row.get::<_, rusqlite::types::Value>(column)).collect()
+				(0..14).map(|column| row.get::<_, rusqlite::types::Value>(column)).collect()
 			})
 			.expect("query")
 			.collect::<Result<Vec<Vec<rusqlite::types::Value>>, _>>()
@@ -2269,7 +2349,6 @@ mod tests {
 					text("Reviewer"),
 					text("koala"),
 					text("/pictures/koala.png"),
-					text("/work/kiroshi"),
 					text("[\"ship\"]"),
 					text("orange"),
 					text("[\"Bash\"]"),
@@ -2285,7 +2364,6 @@ mod tests {
 					text(""),
 					text(""),
 					text("cat"),
-					null.clone(),
 					null.clone(),
 					text("[]"),
 					null.clone(),
@@ -2658,7 +2736,7 @@ mod tests {
 		assert_eq!(version(&connection).expect("version"), latest_version());
 		assert_eq!(
 			identity_of(&connection, "b1"),
-			("Reviewer".to_owned(), "owl".to_owned(), None, None),
+			("Reviewer".to_owned(), "owl".to_owned(), None),
 			"a second run rewrote a row it had nothing to do with"
 		);
 
@@ -2941,7 +3019,7 @@ mod tests {
 		);
 		assert_eq!(
 			identity_of(&connection, "default"),
-			("Reviewer".to_owned(), "owl".to_owned(), None, None),
+			("Reviewer".to_owned(), "owl".to_owned(), None),
 			"the step rewrote the face it was told to leave alone"
 		);
 
@@ -3033,15 +3111,14 @@ mod tests {
 		)
 	}
 
-	type StoredIdentity = (String, String, Option<String>, Option<String>);
+	type StoredIdentity = (String, String, Option<String>);
 
 	fn identity_of(connection: &Connection, id: &str) -> StoredIdentity {
 		connection
 			.query_row(
-				"SELECT title, avatar_animal, avatar_image_path, working_dir
-					FROM bots WHERE id = ?1",
+				"SELECT title, avatar_animal, avatar_image_path FROM bots WHERE id = ?1",
 				[id],
-				|row| Ok((row.get(0)?, row.get(1)?, row.get(2)?, row.get(3)?)),
+				|row| Ok((row.get(0)?, row.get(1)?, row.get(2)?)),
 			)
 			.expect("query")
 	}

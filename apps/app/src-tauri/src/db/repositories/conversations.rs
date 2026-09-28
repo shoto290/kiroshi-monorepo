@@ -953,7 +953,6 @@ mod tests {
 			avatar_animal: DEFAULT_BOT_ANIMAL,
 			avatar_blot: None,
 			avatar_image_path: None,
-			working_dir: None,
 			instructions: String::new(),
 			denied_tools: Vec::new(),
 		}

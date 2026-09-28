@@ -120,7 +120,6 @@ const TRANSPORT_KINDS: Record<TransportError["kind"], true> = {
 	startupTimeout: true,
 	crashed: true,
 	resumeFailed: true,
-	workingDirectoryRefused: true,
 	invalidFrame: true,
 	settingsRejected: true,
 	serverEnvRejected: true,

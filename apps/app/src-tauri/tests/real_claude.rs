@@ -80,7 +80,6 @@ fn probe_bot(id: &str, instructions: &str, model: &str) -> Bot {
 		avatar_animal: AvatarAnimal::Owl,
 		avatar_blot: None,
 		avatar_image_path: None,
-		working_dir: None,
 		instructions: instructions.to_owned(),
 		memory: String::new(),
 		denied_tools: Vec::new(),
