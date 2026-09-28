@@ -47,17 +47,17 @@ const encodeArgument = (_key: string, value: unknown): unknown =>
 const parsedJson = (text: string): unknown =>
 	text === "" ? undefined : JSON.parse(text)
 
-const isJson = (response: Response): boolean =>
-	response.headers.get("content-type")?.startsWith(JSON_TYPE) ?? false
+const carries = (response: Response, type: string): boolean =>
+	response.headers.get("content-type")?.startsWith(type) ?? false
 
 const answerOf = (response: Response): Promise<unknown> =>
-	response.headers.get("content-type")?.startsWith(BYTES)
+	carries(response, BYTES)
 		? response.arrayBuffer()
 		: response.text().then(parsedJson)
 
 const refusalOf = async (response: Response): Promise<unknown> => {
 	const text = await response.text()
-	return isJson(response) ? parsedJson(text) : text
+	return carries(response, JSON_TYPE) ? parsedJson(text) : text
 }
 
 const isFrame = (value: unknown): value is Frame =>
