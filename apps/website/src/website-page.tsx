@@ -9,6 +9,8 @@ import { type DownloadPlatform, useDownloadTarget } from "./use-download-target"
 
 const HEXAGON_SRC = "/hexagon.svg"
 
+const PAGE_COLUMN = "w-full max-w-[970px] shrink-0"
+
 const MAIN_CONTENT_ID = "main-content"
 
 const FOCUS_RING =
@@ -57,7 +59,9 @@ type AppWindowProps = {
 }
 
 const AppWindow = ({ children }: AppWindowProps) => (
-	<div className="scene-frozen relative hidden h-[700px] w-full max-w-[970px] shrink-0 overflow-clip rounded-[16px] bg-sidebar shadow-frame lg:block dark:shadow-frame-dark">
+	<div
+		className={`${PAGE_COLUMN} scene-frozen relative hidden h-[700px] overflow-clip rounded-[16px] bg-sidebar shadow-frame lg:block dark:shadow-frame-dark`}
+	>
 		{children}
 	</div>
 )
@@ -65,7 +69,7 @@ const AppWindow = ({ children }: AppWindowProps) => (
 const CREDIT_LINK = `${FOCUS_RING} -my-3 inline-flex rounded-sm py-3 transition-colors hover:text-foreground`
 
 const Credit = () => (
-	<footer className="flex w-full max-w-[970px] shrink-0 items-center gap-2.5 pt-40 pb-12">
+	<footer className={`${PAGE_COLUMN} flex items-center gap-2.5 pt-40 pb-12`}>
 		<img
 			alt=""
 			className="size-6 shrink-0 object-contain dark:invert"
@@ -94,15 +98,6 @@ const Credit = () => (
 	</footer>
 )
 
-type SectionSlotProps = {
-	id: string
-	spacing: string
-}
-
-const SectionSlot = ({ id, spacing }: SectionSlotProps) => (
-	<section className={`w-full max-w-[970px] shrink-0 ${spacing}`} id={id} />
-)
-
 type WebsitePageProps = {
 	children?: ReactNode
 }
@@ -115,7 +110,9 @@ export const WebsitePage = ({ children }: WebsitePageProps) => (
 			id={MAIN_CONTENT_ID}
 			tabIndex={-1}
 		>
-			<div className="flex w-full max-w-[970px] shrink-0 flex-col items-start gap-[18px] pt-[88px] pb-16 wrap-break-word">
+			<div
+				className={`${PAGE_COLUMN} flex flex-col items-start gap-[18px] pt-[88px] pb-16 wrap-break-word`}
+			>
 				<img
 					alt=""
 					className="h-[67px] w-[74px] shrink-0 dark:invert"
@@ -141,9 +138,9 @@ export const WebsitePage = ({ children }: WebsitePageProps) => (
 				</div>
 			</div>
 			<AppWindow>{children}</AppWindow>
-			<SectionSlot id="three-ways" spacing="pt-40" />
-			<SectionSlot id="yours" spacing="pt-32" />
-			<SectionSlot id="faq" spacing="pt-40" />
+			<section className={`${PAGE_COLUMN} pt-40`} id="three-ways" />
+			<section className={`${PAGE_COLUMN} pt-32`} id="yours" />
+			<section className={`${PAGE_COLUMN} pt-40`} id="faq" />
 			<Credit />
 		</main>
 	</>
