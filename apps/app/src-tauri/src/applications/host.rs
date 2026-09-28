@@ -2,7 +2,7 @@ use std::sync::Arc;
 
 use serde::Deserialize;
 use serde_json::Value;
-use tauri::{AppHandle, Emitter, Manager, Runtime};
+use tauri::{AppHandle, Manager, Runtime};
 
 use super::contract::{
 	Application, ApplicationInstall, ApplicationInstalled, ApplicationCallError, Install,
@@ -19,6 +19,7 @@ use crate::conversations::commands::ready;
 use crate::bundles::ApplicationMark;
 use crate::conversations::contract::McpServer;
 use crate::environment::contract::EnvOwner;
+use crate::events;
 use crate::mcp_oauth::commands::mcp_application_status;
 use crate::plugins::commands::{plugin_mcp_servers, plugin_set_mcp_server};
 
@@ -184,8 +185,7 @@ impl<R: Runtime> ApplicationHost<R> {
 	}
 
 	fn announce(&self, installed: ApplicationInstalled) -> Result<(), ApplicationCallError> {
-		self.app
-			.emit(INSTALLED_EVENT, installed)
+		events::emit(&self.app, INSTALLED_EVENT, installed)
 			.map_err(|error| ApplicationCallError::Undeliverable { detail: error.to_string() })
 	}
 }

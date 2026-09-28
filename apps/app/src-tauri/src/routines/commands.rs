@@ -2,7 +2,7 @@ use std::path::PathBuf;
 
 use serde::Serialize;
 use serde_json::Value;
-use tauri::{AppHandle, Emitter, Manager, Runtime, State};
+use tauri::{AppHandle, Manager, Runtime, State};
 
 use super::contract::{
 	Filter, ReportedRun, Routine, RoutineDraft, RoutineEdit, RoutineError, RoutineKey, RoutineRun,
@@ -18,6 +18,7 @@ use crate::bundles;
 use crate::conversations::commands::{oldest_space, ready, space_of_the_conversation};
 use crate::conversations::contract::TranscriptStoreError;
 use crate::db;
+use crate::events;
 
 pub const CHANGED_EVENT: &str = "routine://changed";
 
@@ -31,7 +32,7 @@ pub(crate) fn announce_change<R: Runtime>(
 	app: &AppHandle<R>,
 	conversation_id: &str,
 ) -> Result<(), RoutineError> {
-	app.emit(CHANGED_EVENT, RoutineChanged { conversation_id: conversation_id.to_owned() })
+	events::emit(app, CHANGED_EVENT, RoutineChanged { conversation_id: conversation_id.to_owned() })
 		.map_err(|error| RoutineError::Undeliverable { detail: error.to_string() })
 }
 

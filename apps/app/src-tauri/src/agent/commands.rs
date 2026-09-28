@@ -2,7 +2,7 @@ use std::collections::{BTreeSet, HashMap, HashSet};
 use std::path::{Path, PathBuf};
 use std::sync::Arc;
 
-use tauri::{AppHandle, Emitter, Manager, Runtime, State};
+use tauri::{AppHandle, Manager, Runtime, State};
 use tokio::sync::Mutex;
 
 use super::contract::{
@@ -27,6 +27,7 @@ use crate::db::repositories::runtime_context::ParticipantKey;
 use crate::environment::connection;
 use crate::environment::contract::{EnvError, EnvOwner, ResolvedEnv, Values};
 use crate::environment::store as environment;
+use crate::events;
 use crate::mcp_oauth::refresh;
 use crate::mcp_oauth::reports::StandingHost;
 use crate::missions::host::MissionHost;
@@ -38,7 +39,9 @@ pub const EVENT_CHANNEL: &str = "agent://event";
 const RUNS_DIR: &str = "runs";
 
 fn announce<R: Runtime>(app: &AppHandle<R>, scope: Option<RuntimeScope>, event: AgentEvent) {
-	let _ = app.emit(EVENT_CHANNEL, ScopedEvent { scope, event });
+	if let Err(failure) = events::emit(app, EVENT_CHANNEL, ScopedEvent { scope, event }) {
+		eprintln!("a turn event was not announced: {failure}");
+	}
 }
 
 type Participant = (String, String);
