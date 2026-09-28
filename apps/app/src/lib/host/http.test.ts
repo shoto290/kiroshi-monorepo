@@ -1,12 +1,21 @@
 import { afterEach, beforeEach, describe, expect, it, vi } from "vitest"
 
+import { raiseFailureNotice } from "@workspace/ui/components/notice-surface"
+
 import {
 	bridgeGeneratedBindings,
 	createHttpHost,
 	type HostSocket,
+	raiseRefusalNotice,
 } from "./http"
 
 import { commands } from "../bindings"
+
+vi.mock("@workspace/ui/components/notice-surface", () => ({
+	raiseFailureNotice: vi.fn(() => "notice-1"),
+}))
+
+const failureNotice = vi.mocked(raiseFailureNotice)
 
 const HOST = "http://127.0.0.1:45367"
 
@@ -130,7 +139,16 @@ describe("invoke over http", () => {
 		})
 
 		await expect(host.invoke("agent_models")).rejects.toBe(message)
-		expect(onRefused).toHaveBeenCalledExactlyOnceWith(message)
+		expect(onRefused).toHaveBeenCalledExactlyOnceWith(message, 503)
+	})
+
+	it("hands the status of a host failure to the refusal", async () => {
+		const { host, onRefused } = hostOf({
+			answer: { status: 500, body: "the host broke" },
+		})
+
+		await expect(host.invoke("agent_models")).rejects.toBe("the host broke")
+		expect(onRefused).toHaveBeenCalledExactlyOnceWith("the host broke", 500)
 	})
 
 	it("rejects with the command error the host relayed", async () => {
@@ -158,6 +176,7 @@ describe("invoke over http", () => {
 		)
 		expect(onRefused).toHaveBeenCalledExactlyOnceWith(
 			"the call carried no valid bearer token",
+			401,
 		)
 	})
 
@@ -165,7 +184,10 @@ describe("invoke over http", () => {
 		const { host, onRefused } = hostOf({ unreachable: true })
 
 		await expect(host.invoke("agent_models")).rejects.toThrow("Failed to fetch")
-		expect(onRefused).toHaveBeenCalledExactlyOnceWith("Failed to fetch")
+		expect(onRefused).toHaveBeenCalledExactlyOnceWith(
+			"Failed to fetch",
+			undefined,
+		)
 	})
 
 	it("sends a generated binding over http", async () => {
@@ -181,6 +203,46 @@ describe("invoke over http", () => {
 			expect.objectContaining({ method: "POST" }),
 		)
 		vi.unstubAllGlobals()
+	})
+})
+
+describe("the refusal notice", () => {
+	beforeEach(() => failureNotice.mockClear())
+
+	it("asks for the desktop window when the host answers 503", () => {
+		raiseRefusalNotice("desktop-only", 503)
+
+		expect(failureNotice).toHaveBeenCalledExactlyOnceWith({
+			title: "This needs the desktop window.",
+			description: "Open Kiroshi on the host and try again.",
+		})
+	})
+
+	it("asks to reopen the link when the host answers 401", () => {
+		raiseRefusalNotice("no valid bearer token", 401)
+
+		expect(failureNotice).toHaveBeenCalledExactlyOnceWith({
+			title: "The host refused this call.",
+			description: "Open the link from the desktop app again.",
+		})
+	})
+
+	it("shows the host text when the host answers another status", () => {
+		raiseRefusalNotice("the host broke", 500)
+
+		expect(failureNotice).toHaveBeenCalledExactlyOnceWith({
+			title: "Couldn’t send that request",
+			description: "the host broke",
+		})
+	})
+
+	it("shows the host text when the host could not be reached", () => {
+		raiseRefusalNotice("Failed to fetch")
+
+		expect(failureNotice).toHaveBeenCalledExactlyOnceWith({
+			title: "Couldn’t send that request",
+			description: "Failed to fetch",
+		})
 	})
 })
 
