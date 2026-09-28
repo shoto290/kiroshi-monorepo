@@ -885,6 +885,7 @@ overlays-dialogsurface--dismissing
 overlays-dialogsurface--long-title
 overlays-dialogsurface--overflowing
 overlays-dialogsurface--sized
+overlays-missionmenu--answer-the-question-leaves-the-card
 overlays-missionmenu--close-from-the-keyboard
 overlays-missionmenu--close-popover
 overlays-missionmenu--closing-without-a-summary
@@ -896,6 +897,7 @@ overlays-missionmenu--done-without-a-pull-request
 overlays-missionmenu--every-copy-choice
 overlays-missionmenu--failed
 overlays-missionmenu--keyboard-trigger
+overlays-missionmenu--message-the-agent-leaves-the-card
 overlays-missionmenu--ready-to-merge
 overlays-missionmenu--waiting-on-the-companion
 overlays-missionmenu--waiting-on-the-person

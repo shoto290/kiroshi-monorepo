@@ -503,6 +503,79 @@ export const CloseFromTheKeyboard = meta.story({
 	},
 })
 
+const COMPOSER_LABEL = "Composer"
+
+const COMPOSER_FOCUS_DELAY_MS = 60
+
+const WithComposer = (args: MissionMenuStoryArgs) => (
+	<div className="flex flex-col gap-4">
+		<Densities {...args} />
+		<input aria-label={COMPOSER_LABEL} />
+	</div>
+)
+
+type Clicking = {
+	click: (element: Element) => Promise<void>
+}
+
+type ComposerFocusCheck = {
+	canvasElement: HTMLElement
+	userEvent: Clicking
+	entry: string
+}
+
+const expectFocusLeftOnTheComposer = async ({
+	canvasElement,
+	userEvent,
+	entry,
+}: ComposerFocusCheck) => {
+	const composer = screen.getByRole("textbox", { name: COMPOSER_LABEL })
+	const focusComposerLater = () =>
+		window.setTimeout(() => composer.focus(), COMPOSER_FOCUS_DELAY_MS)
+
+	for (const surface of [rowIn(canvasElement), cardSurfaceIn(canvasElement)]) {
+		await userEvent.click(menuButtonIn(surface))
+		const item = (await openMenu()).getByRole("menuitem", { name: entry })
+		item.addEventListener("click", focusComposerLater)
+		await userEvent.click(item)
+		await waitFor(
+			() => expect(screen.queryByRole("menu")).toBeNull(),
+			FRAME_POLL,
+		)
+		await new Promise((resolve) =>
+			window.setTimeout(resolve, 4 * COMPOSER_FOCUS_DELAY_MS),
+		)
+
+		await expect(composer).toHaveFocus()
+	}
+}
+
+export const MessageTheAgentLeavesTheCard = meta.story({
+	tags: ["test-only"],
+	args: { state: "working" },
+	render: (args) => <WithComposer {...(args as MissionMenuStoryArgs)} />,
+	play: async ({ canvasElement, userEvent }) => {
+		await expectFocusLeftOnTheComposer({
+			canvasElement,
+			userEvent,
+			entry: "Message the agent",
+		})
+	},
+})
+
+export const AnswerTheQuestionLeavesTheCard = meta.story({
+	tags: ["test-only"],
+	args: { state: "waiting_human" },
+	render: (args) => <WithComposer {...(args as MissionMenuStoryArgs)} />,
+	play: async ({ canvasElement, userEvent }) => {
+		await expectFocusLeftOnTheComposer({
+			canvasElement,
+			userEvent,
+			entry: "Answer the question",
+		})
+	},
+})
+
 export const KeyboardTrigger = meta.story({
 	parameters: {
 		docs: {
