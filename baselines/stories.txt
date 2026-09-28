@@ -929,6 +929,8 @@ overlays-tooltiphint--on-focus
 overlays-tooltiphint--reduced-motion
 overlays-tooltiphint--with-side
 overlays-tooltiphint--without-content
+primitives-accordion--default
+primitives-accordion--one-open
 primitives-avatar--default
 primitives-avatar--empty
 primitives-avatar--in-group
@@ -945,6 +947,9 @@ primitives-button--with-icons
 primitives-disclosure--closed
 primitives-disclosure--open
 primitives-disclosure--toggle
+primitives-faqlist--all-open
+primitives-faqlist--default
+primitives-faqlist--long-content
 primitives-iconswap--in-a-button
 primitives-iconswap--resting
 primitives-iconswap--swapped

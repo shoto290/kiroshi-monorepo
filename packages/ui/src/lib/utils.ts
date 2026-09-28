@@ -5,7 +5,7 @@ import { extendTailwindMerge } from "tailwind-merge"
 const twMerge = extendTailwindMerge({
 	extend: {
 		classGroups: {
-			"font-size": [{ text: ["compact"] }],
+			"font-size": [{ text: ["compact", "reading"] }],
 			rounded: [{ rounded: ["card", "control", "control-lg"] }],
 			shadow: [{ shadow: ["popover"] }],
 		},
