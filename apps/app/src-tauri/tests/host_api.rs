@@ -1,6 +1,6 @@
 use std::io::ErrorKind;
 use std::os::unix::fs::PermissionsExt;
-use std::path::PathBuf;
+use std::path::{Path, PathBuf};
 use std::sync::atomic::{AtomicUsize, Ordering};
 use std::sync::mpsc;
 use std::time::Duration;
@@ -605,7 +605,7 @@ async fn a_client_that_stops_reading_is_dropped_while_the_others_keep_hearing() 
 	stalled.closed_by_the_host().await;
 }
 
-fn stored(path: &std::path::Path, bytes: &str) {
+fn stored(path: &Path, bytes: &str) {
 	std::fs::create_dir_all(path.parent().expect("a parent")).expect("the directory is made");
 	std::fs::write(path, bytes).expect("the file is written");
 }
