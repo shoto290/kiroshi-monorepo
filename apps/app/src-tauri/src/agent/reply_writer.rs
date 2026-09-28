@@ -8,8 +8,8 @@ use tokio::sync::mpsc;
 use uuid::Uuid;
 
 use super::contract::{
-	AgentEvent, AskedQuestion, ChatMessage, MessageCompletion, QuestionOption, QuestionRequest,
-	RuntimeScope, SubmittedTurn, TurnOutcome, TurnState,
+	AgentEvent, AskedQuestion, ChatMessage, MessageCompletion, MessageRole, QuestionOption,
+	QuestionRequest, RuntimeScope, SubmittedTurn, TurnOutcome, TurnState,
 };
 use super::session::EventSink;
 use super::translate::now_ms;
@@ -134,8 +134,7 @@ impl ReplyWriter {
 		};
 		tauri::async_runtime::spawn(write_then_forward(
 			queued,
-			Desk { store, turn: None, attachments },
-			inner,
+			Desk { store, turn: None, attachments, inner },
 		));
 		Self { entries }
 	}
@@ -164,7 +163,6 @@ impl EventSink for ReplyWriter {
 async fn write_then_forward<R: Runtime>(
 	mut queued: mpsc::UnboundedReceiver<Entry>,
 	mut desk: Desk<R>,
-	inner: Arc<dyn EventSink>,
 ) {
 	while let Some(entry) = queued.recv().await {
 		match entry {
@@ -172,7 +170,7 @@ async fn write_then_forward<R: Runtime>(
 			Entry::Withdrawn => desk.end(TerminalState::Failed).await,
 			Entry::Event(event) => {
 				desk.record(&event).await;
-				inner.emit(event);
+				desk.inner.emit(event);
 			}
 		}
 	}
@@ -186,6 +184,7 @@ struct OpenTurn {
 	written: HashMap<String, String>,
 	settled: HashSet<String>,
 	last_reply: Option<String>,
+	endings: HashMap<String, TerminalState>,
 }
 
 impl OpenTurn {
@@ -198,6 +197,7 @@ impl OpenTurn {
 			written: HashMap::new(),
 			settled: HashSet::new(),
 			last_reply: None,
+			endings: HashMap::new(),
 		}
 	}
 
@@ -217,6 +217,7 @@ struct Desk<R: Runtime> {
 	store: Store<R>,
 	turn: Option<OpenTurn>,
 	attachments: Arc<TurnAttachments>,
+	inner: Arc<dyn EventSink>,
 }
 
 impl<R: Runtime> Desk<R> {
@@ -309,6 +310,7 @@ impl<R: Runtime> Desk<R> {
 			return;
 		}
 		turn.settled.insert(id.to_owned());
+		turn.endings.insert(id.to_owned(), completion);
 		let written = turn.written.get(id).cloned().unwrap_or_default();
 		let settled_text = match self.store.settled_mentions(&written).await {
 			Ok(settled) => settled,
@@ -396,21 +398,31 @@ impl<R: Runtime> Desk<R> {
 			return;
 		}
 		let sent_at = Utc::now();
-		let (id, stored) = match &turn.last_reply {
+		match &turn.last_reply {
 			Some(id) => {
 				let written = turn.written.get(id).map(String::as_str).unwrap_or_default();
 				let shown = shown_with_attachments(written, &attached, sent_at);
-				(id.clone(), self.store.replace_content(id, shown).await)
+				if let Err(error) = self.store.replace_content(id, shown.clone()).await {
+					return self.store.report(id, &error);
+				}
+				let ending = turn.endings.get(id).copied().unwrap_or(TerminalState::Complete);
+				self.inner.emit(AgentEvent::MessageCompleted {
+					message: reply_of(id, shown, completion_of(ending)),
+				});
 			}
 			None => {
 				let id = Uuid::new_v4().to_string();
 				let shown = shown_with_attachments("", &attached, sent_at);
-				let stored = self.store.write_settled(turn, &id, &shown).await;
-				(id, stored)
+				if let Err(error) = self.store.write_settled(turn, &id, &shown).await {
+					return self.store.report(&id, &error);
+				}
+				self.inner.emit(AgentEvent::MessageStarted {
+					message: reply_of(&id, String::new(), MessageCompletion::Streaming),
+				});
+				self.inner.emit(AgentEvent::MessageCompleted {
+					message: reply_of(&id, shown, MessageCompletion::Complete),
+				});
 			}
-		};
-		if let Err(error) = stored {
-			self.store.report(&id, &error);
 		}
 	}
 }
@@ -541,6 +553,24 @@ pub(crate) async fn settled_mentions(
 		.collect();
 	let settled = to_mention_tokens(written, &present);
 	Ok((settled != written).then_some(settled))
+}
+
+fn reply_of(id: &str, text: String, completion: MessageCompletion) -> ChatMessage {
+	ChatMessage {
+		id: id.to_owned(),
+		role: MessageRole::Assistant,
+		text,
+		completion,
+		timestamp: now_ms(),
+	}
+}
+
+fn completion_of(ending: TerminalState) -> MessageCompletion {
+	match ending {
+		TerminalState::Complete => MessageCompletion::Complete,
+		TerminalState::Cancelled => MessageCompletion::Cancelled,
+		TerminalState::Failed | TerminalState::Interrupted => MessageCompletion::Failed,
+	}
 }
 
 fn ending_for(completion: MessageCompletion) -> Option<TerminalState> {
@@ -687,13 +717,32 @@ mod tests {
 		}
 
 		fn desk(&self) -> Desk<MockRuntime> {
+			self.desk_telling(Arc::new(mpsc::unbounded_channel().0))
+		}
+
+		fn desk_telling(&self, inner: Arc<dyn EventSink>) -> Desk<MockRuntime> {
 			let store = Store {
 				app: self.app.handle().clone(),
 				conversation_id: self.conversation_id.clone(),
 				bot_id: DEFAULT_BOT_ID.to_owned(),
 				owned: Arc::default(),
 			};
-			Desk { store, turn: None, attachments: self.attachments.clone() }
+			Desk { store, turn: None, attachments: self.attachments.clone(), inner }
+		}
+
+		async fn forwarded(&self, entries: Vec<Entry>) -> Vec<AgentEvent> {
+			let (told, mut heard) = mpsc::unbounded_channel();
+			let (queue, queued) = mpsc::unbounded_channel();
+			for entry in entries {
+				queue.send(entry).expect("the entry is queued");
+			}
+			drop(queue);
+			write_then_forward(queued, self.desk_telling(Arc::new(told))).await;
+			let mut events = Vec::new();
+			while let Ok(event) = heard.try_recv() {
+				events.push(event);
+			}
+			events
 		}
 
 		async fn prompt(&self, turn_id: &str, prompt_id: &str) {
@@ -1074,5 +1123,124 @@ mod tests {
 			assert_eq!(reply.state, state);
 			written.close();
 		}
+	}
+
+	fn turn_ended() -> AgentEvent {
+		AgentEvent::TurnEnded {
+			ended: super::super::contract::TurnEnded {
+				session_id: None,
+				outcome: TurnOutcome::Completed,
+				structured_output: None,
+				total_cost_usd: None,
+				model_usage: None,
+			},
+		}
+	}
+
+	fn a_spoken_turn() -> Vec<AgentEvent> {
+		vec![
+			AgentEvent::MessageStarted { message: streaming("m1") },
+			AgentEvent::MessageDelta { id: "m1".into(), seq: 1, text: "Here".into() },
+			AgentEvent::MessageCompleted {
+				message: ChatMessage {
+					text: "Here".into(),
+					completion: MessageCompletion::Complete,
+					..streaming("m1")
+				},
+			},
+			turn_ended(),
+		]
+	}
+
+	fn entries_of(events: &[AgentEvent]) -> Vec<Entry> {
+		std::iter::once(Entry::Submitted(submitted("t1", "p1")))
+			.chain(events.iter().cloned().map(Entry::Event))
+			.collect()
+	}
+
+	#[tokio::test]
+	async fn a_turn_without_attachments_forwards_exactly_the_events_it_received() {
+		let written = Written::new("attach-none-forwarded").await;
+		written.prompt("t1", "p1").await;
+		let spoken = a_spoken_turn();
+
+		let heard = written.forwarded(entries_of(&spoken)).await;
+
+		assert_eq!(heard, spoken);
+		written.close();
+	}
+
+	#[tokio::test]
+	async fn the_block_on_the_last_reply_is_told_as_its_completion_before_the_turn_ends() {
+		let written = Written::new("attach-told").await;
+		written.prompt("t1", "p1").await;
+		let spoken = a_spoken_turn();
+		attach(&written, "/data/attachments/c/a.png", None);
+
+		let heard = written.forwarded(entries_of(&spoken)).await;
+
+		let stored = written.stored("m1").await.expect("the reply is stored").content;
+		assert_eq!(heard.len(), spoken.len() + 1);
+		assert_eq!(heard[..3], spoken[..3]);
+		match &heard[3] {
+			AgentEvent::MessageCompleted { message } => {
+				assert_eq!(message.id, "m1");
+				assert_eq!(message.text, stored);
+				assert_eq!(message.completion, MessageCompletion::Complete);
+			}
+			other => panic!("expected the completion of m1, got {other:?}"),
+		}
+		assert_eq!(heard[4], turn_ended());
+		written.close();
+	}
+
+	#[tokio::test]
+	async fn a_block_without_a_reply_is_told_as_a_new_reply_before_the_turn_ends() {
+		let written = Written::new("attach-told-silent").await;
+		written.prompt("t1", "p1").await;
+		attach(&written, "/data/attachments/c/a.png", None);
+
+		let heard = written.forwarded(entries_of(&[turn_ended()])).await;
+
+		assert_eq!(heard.len(), 3, "{heard:?}");
+		let AgentEvent::MessageStarted { message: started } = &heard[0] else {
+			panic!("expected a started reply, got {:?}", heard[0]);
+		};
+		let AgentEvent::MessageCompleted { message: completed } = &heard[1] else {
+			panic!("expected a completed reply, got {:?}", heard[1]);
+		};
+		assert_eq!(started.id, completed.id);
+		assert_eq!(completed.completion, MessageCompletion::Complete);
+		let stored = written.stored(&completed.id).await.expect("the reply is stored").content;
+		assert_eq!(completed.text, stored);
+		with_block("", &["/data/attachments/c/a.png"])(&stored);
+		assert_eq!(heard[2], turn_ended());
+		written.close();
+	}
+
+	#[tokio::test]
+	async fn a_block_that_could_not_be_stored_is_told_nowhere() {
+		let written = Written::new("attach-unstored").await;
+		written.prompt("t1", "p1").await;
+		let spoken = a_spoken_turn();
+		let mut desk = written.desk_telling(Arc::new(mpsc::unbounded_channel().0));
+		desk.open_turn(submitted("t1", "p1")).await;
+		for event in &spoken[..3] {
+			desk.record(event).await;
+		}
+		written
+			.database()
+			.messages()
+			.call(|connection| Ok(connection.execute("DELETE FROM messages WHERE id = 'm1'", [])?))
+			.await
+			.expect("the reply is removed");
+		let (told, mut heard) = mpsc::unbounded_channel();
+		desk.inner = Arc::new(told);
+		attach(&written, "/data/attachments/c/a.png", None);
+
+		desk.record(&turn_ended()).await;
+
+		assert!(heard.try_recv().is_err(), "a block that was not stored was told");
+		written.close();
 	}
 }

@@ -361,6 +361,23 @@ mod tests {
 	}
 
 	#[test]
+	fn the_image_extensions_are_the_ones_the_frontend_previews() {
+		let source = include_str!("../../../src/lib/chat/message-attachments.ts");
+		let listed = source
+			.split("const IMAGE_EXTENSIONS = new Set([")
+			.nth(1)
+			.and_then(|rest| rest.split("])").next())
+			.expect("the frontend lists its image extensions");
+		let frontend: Vec<&str> = listed
+			.split(',')
+			.map(|entry| entry.trim().trim_matches('"'))
+			.filter(|entry| !entry.is_empty())
+			.collect();
+
+		assert_eq!(frontend, IMAGE_EXTENSIONS);
+	}
+
+	#[test]
 	fn a_block_reads_exactly_as_the_frontend_writes_it() {
 		let sent_at = DateTime::parse_from_rfc3339("2026-09-28T10:04:05.123Z")
 			.expect("the instant parses")
