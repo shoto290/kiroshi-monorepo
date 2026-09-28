@@ -5730,15 +5730,9 @@ export const DragConversationToSection = meta.story({
 
 const HEADER_ACTION_GAP = 2
 
-const settledRingOf = async (control: HTMLElement) => {
-	let last = ""
-	await waitFor(() => {
-		const ring = getComputedStyle(control).boxShadow
-		const isSettled = ring === last && ring !== "none"
-		last = ring
-		expect(isSettled).toBe(true)
-	}, FRAME_POLL)
-	return last
+const focusRingOf = (control: HTMLElement) => {
+	for (const transition of control.getAnimations()) transition.finish()
+	return getComputedStyle(control).boxShadow
 }
 
 export const WithSearch = meta.story({
@@ -5777,11 +5771,12 @@ export const WithSearch = meta.story({
 		const tooltip = await screen.findByRole("tooltip")
 		await expect(tooltip).toHaveTextContent(SEARCH)
 		await expect(tooltip).toHaveTextContent(SEARCH_CHORD)
-		const searchRing = await settledRingOf(search)
+		const searchRing = focusRingOf(search)
+		await expect(searchRing).not.toBe("none")
 
 		await userEvent.tab()
 		await expect(create).toHaveFocus()
-		await expect(await settledRingOf(create)).toBe(searchRing)
+		await expect(focusRingOf(create)).toBe(searchRing)
 
 		await userEvent.click(search)
 		await expect(args.onOpenSearch).toHaveBeenCalledTimes(1)
