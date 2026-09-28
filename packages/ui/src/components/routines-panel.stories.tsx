@@ -186,12 +186,14 @@ const NO_MISSION_AT_ALL = {
 }
 
 const shownMissions = (canvasElement: HTMLElement) =>
-	slotsIn(canvasElement, "mission-row").filter((row) => row.checkVisibility())
+	slotsIn(canvasElement, "mission-card-row").filter((row) =>
+		row.checkVisibility(),
+	)
 
 const shownActivityRows = (canvasElement: HTMLElement) =>
 	Array.from(
 		canvasElement.querySelectorAll<HTMLElement>(
-			'[data-slot="mission-row"], [data-slot="reported-run-row"]',
+			'[data-slot="mission-card-row"], [data-slot="reported-run-row"]',
 		),
 	).filter((row) => row.checkVisibility())
 
@@ -365,7 +367,7 @@ export const OneMission = meta.story({
 		},
 	},
 	play: async ({ canvas, canvasElement }) => {
-		await expect(slotsIn(canvasElement, "mission-row")).toHaveLength(1)
+		await expect(slotsIn(canvasElement, "mission-card-row")).toHaveLength(1)
 		await expect(
 			canvas.getByRole("heading", { name: "Waiting on you" }),
 		).toBeVisible()
@@ -547,7 +549,7 @@ export const Empty = meta.story({
 	},
 	play: async ({ canvas, canvasElement, userEvent }) => {
 		await expect(canvas.getByText("Nothing is running here")).toBeVisible()
-		await expect(slotsIn(canvasElement, "mission-row")).toHaveLength(0)
+		await expect(slotsIn(canvasElement, "mission-card-row")).toHaveLength(0)
 		await expect(slotsIn(canvasElement, "routine-row")).toHaveLength(0)
 
 		await openRoutines(canvasElement, userEvent)
@@ -574,7 +576,7 @@ export const NoMission = meta.story({
 	},
 	play: async ({ canvas, canvasElement }) => {
 		await expect(canvas.getByText("Nothing is running here")).toBeVisible()
-		await expect(slotsIn(canvasElement, "mission-row")).toHaveLength(0)
+		await expect(slotsIn(canvasElement, "mission-card-row")).toHaveLength(0)
 		await expect(
 			within(slotIn(canvasElement, "routines-entry")).getByText(
 				String(ROUTINES.length),
@@ -600,7 +602,7 @@ export const OpeningTheRoutines = meta.story({
 		await expect(slotsIn(canvasElement, "routine-row")).toHaveLength(
 			ROUTINES.length,
 		)
-		await expect(slotsIn(canvasElement, "mission-row")).toHaveLength(0)
+		await expect(slotsIn(canvasElement, "mission-card-row")).toHaveLength(0)
 		await expect(canvas.getByText("Every day at 08:00")).toBeVisible()
 		await expect(
 			canvas.getByText(SOURCE_NAMED_BY_ID.triggerSourceTitle),

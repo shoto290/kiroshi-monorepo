@@ -137,7 +137,7 @@ const previewIn = (canvasElement: HTMLElement) =>
 	slotIn(canvasElement, "roster-row-preview")
 
 const partsIn = (canvasElement: HTMLElement) =>
-	slotsIn(previewIn(canvasElement), "mission-row-part")
+	slotsIn(previewIn(canvasElement), "mission-card-part")
 
 const firstPartIn = (canvasElement: HTMLElement) => {
 	const [part] = partsIn(canvasElement)
@@ -1255,7 +1255,7 @@ export const RowMenuHoldsNoRoom = meta.story({
 		</Panel>
 	),
 	play: async ({ canvasElement }) => {
-		const [withMenu, withoutMenu] = slotsIn(canvasElement, "mission-row")
+		const [withMenu, withoutMenu] = slotsIn(canvasElement, "mission-card-row")
 
 		await expectMenuHoldsNoRoom({
 			withMenu,

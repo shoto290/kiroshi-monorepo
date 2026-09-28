@@ -258,7 +258,7 @@ const RowDensity = ({
 				Boolean(menu) && ROW_TIMESTAMP_YIELD,
 				className,
 			)}
-			data-slot="mission-row"
+			data-slot="mission-card-row"
 		>
 			<SidebarListRow
 				badge={BADGE_OF[state]}
@@ -304,7 +304,7 @@ const RowDensity = ({
 						{parts.map((part, index) => (
 							<span
 								className={cn(index > 0 && DOT_CLASS, part.className)}
-								data-slot="mission-row-part"
+								data-slot="mission-card-part"
 								key={part.slot}
 							>
 								{part.text}
