@@ -122,6 +122,7 @@ export const commands = {
 	missionList: (conversationId: string) => typedError<ConversationMissions, MissionError>(__TAURI_INVOKE("mission_list", { conversationId })),
 	missionDetail: (missionId: string) => typedError<MissionDetail, MissionError>(__TAURI_INVOKE("mission_detail", { missionId })),
 	missionBoard: () => typedError<MissionOnBoard[], MissionError>(__TAURI_INVOKE("mission_board")),
+	missionSpaceFeed: (spaceId: string, closedSince: number) => typedError<MissionInSpace[], MissionError>(__TAURI_INVOKE("mission_space_feed", { spaceId, closedSince })),
 	missionUnreported: () => typedError<MissionOnBoard[], MissionError>(__TAURI_INVOKE("mission_unreported")),
 	missionReported: (missionId: string, turnId: string | null) => typedError<Mission, MissionError>(__TAURI_INVOKE("mission_reported", { missionId, turnId })),
 	missionAnswered: (missionId: string, seq: number) => typedError<Mission, MissionError>(__TAURI_INVOKE("mission_answered", { missionId, seq })),
@@ -762,6 +763,12 @@ export type MissionEvent = {
 };
 
 export type MissionEventKind = "opened" | "note" | "agent_asked" | "agent_started" | "agent_stopped" | "answered" | "escalated" | "ready" | "checks_failed" | "failed" | "closed" | "status" | "reopened";
+
+export type MissionInSpace = {
+	mission: Mission,
+	conversationId: string,
+	conversationTitle: string,
+};
 
 export type MissionNote = {
 	source: string,

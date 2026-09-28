@@ -7,6 +7,7 @@ export type {
 	MissionDetail,
 	MissionEvent,
 	MissionEventKind,
+	MissionInSpace,
 	MissionOnBoard,
 	MissionOutcome,
 	MissionState,

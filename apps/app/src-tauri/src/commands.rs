@@ -94,6 +94,7 @@ fn commands<R: Runtime>() -> Commands<R> {
 		missions::commands::mission_list,
 		missions::commands::mission_detail,
 		missions::commands::mission_board::<tauri::Wry>,
+		missions::commands::mission_space_feed,
 		missions::commands::mission_unreported::<tauri::Wry>,
 		missions::commands::mission_reported,
 		missions::commands::mission_answered::<tauri::Wry>,

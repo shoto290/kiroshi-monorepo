@@ -11,8 +11,8 @@ use crate::db::{Access, DatabaseError};
 use crate::missions::contract::{
 	CheckoutCounts, ConversationMissions, HookedMission, Mission, MissionActivity, MissionAnswer,
 	MissionClosing, MissionDetail, MissionDraft, MissionEntry, MissionError, MissionEvent,
-	MissionEventKind, MissionInThread, MissionState, MissionStatus, MissionWatch, Ticket,
-	WatchedMission,
+	MissionEventKind, MissionInSpace, MissionInThread, MissionState, MissionStatus, MissionWatch,
+	Ticket, WatchedMission,
 };
 
 const MAX_MISSIONS_PER_READ: u32 = 200;
@@ -381,6 +381,28 @@ impl MissionsRepository {
 					ORDER BY opened_at DESC, id DESC LIMIT ?1"
 				))?;
 				let rows = statement.query_map([MAX_MISSIONS_PER_READ], mission)?;
+				Ok(oldest_first(rows.collect::<rusqlite::Result<Vec<_>>>()?))
+			})
+			.await?)
+	}
+
+	pub async fn of_space(
+		&self,
+		space_id: String,
+		closed_since: i64,
+	) -> Result<Vec<MissionInSpace>, MissionError> {
+		Ok(self
+			.access
+			.call(move |connection| {
+				let mut statement = connection.prepare_cached(&format!(
+					"SELECT feed.*, conversations.title AS conversation_title
+					FROM ({MISSION_COLUMNS} WHERE closed_at IS NULL OR closed_at >= ?2) AS feed
+					JOIN conversations ON conversations.id = feed.origin_conversation_id
+					WHERE conversations.space_id = ?1
+					ORDER BY feed.opened_at DESC, feed.id DESC LIMIT ?3"
+				))?;
+				let rows = statement
+					.query_map(params![space_id, closed_since, MAX_MISSIONS_PER_READ], in_space)?;
 				Ok(oldest_first(rows.collect::<rusqlite::Result<Vec<_>>>()?))
 			})
 			.await?)
@@ -817,6 +839,15 @@ pub(in crate::db) fn mission(row: &Row<'_>) -> rusqlite::Result<Mission> {
 		pull_request_url: row.get(23)?,
 		branch: row.get(25)?,
 		workspace_path: row.get(26)?,
+	})
+}
+
+fn in_space(row: &Row<'_>) -> rusqlite::Result<MissionInSpace> {
+	let mission = mission(row)?;
+	Ok(MissionInSpace {
+		conversation_id: mission.origin_conversation_id.clone(),
+		conversation_title: row.get("conversation_title")?,
+		mission,
 	})
 }
 

@@ -8,9 +8,11 @@ import { activateLanguage } from "@workspace/ui/lib/i18n"
 import type {
 	Mission,
 	MissionEvent,
+	MissionInSpace,
 	MissionOnBoard,
 	MissionState,
 } from "./mission-contract"
+import { aMission } from "./mission-fixtures"
 import {
 	type ActivityMissionsRead,
 	AGENT_SILENCE_MS,
@@ -24,6 +26,7 @@ import {
 	toMissionCard,
 	toMissionEventModels,
 	toMissionHeaderActivity,
+	toSpaceMissionGroups,
 	withMissions,
 } from "./missions-model"
 
@@ -981,5 +984,76 @@ describe("missionRingBadges", () => {
 	it("leaves the ring dark for a mission that is still moving", () => {
 		expect(ringOf([shownMission("m-1", "working")])).toBeUndefined()
 		expect(ringOf(undefined)).toBeUndefined()
+	})
+})
+
+describe("toSpaceMissionGroups", () => {
+	const MIDNIGHT = Date.parse("2026-03-04T00:00:00")
+	const AN_HOUR_MS = 60 * 60 * 1000
+	const STATES: MissionState[] = [
+		"waiting_human",
+		"working",
+		"waiting_bot",
+		"ready_to_merge",
+		"done",
+		"failed",
+	]
+	const CONVERSATIONS = ["c-crashes", "c-billing"]
+
+	const entryOf = (
+		state: MissionState,
+		conversationId: string,
+		movedAt: number,
+	): MissionInSpace => {
+		const isClosed = state === "done" || state === "failed"
+		return {
+			mission: aMission({
+				id: `${conversationId}-${state}`,
+				originConversationId: conversationId,
+				state,
+				openedAt: MIDNIGHT - AN_HOUR_MS,
+				lastActivityAt: isClosed ? null : movedAt,
+				closedAt: isClosed ? movedAt : null,
+			}),
+			conversationId,
+			conversationTitle: conversationId,
+		}
+	}
+
+	const idsOf = (entries: MissionInSpace[]): string[] =>
+		entries.map(({ mission }) => mission.id)
+
+	it("sorts the missions of every conversation into their group, latest move first", () => {
+		const entries = CONVERSATIONS.flatMap((conversationId, position) =>
+			STATES.map((state) =>
+				entryOf(state, conversationId, MIDNIGHT + (position + 1) * AN_HOUR_MS),
+			),
+		)
+		const closedYesterday = entryOf("done", "c-crashes", MIDNIGHT - 1)
+		closedYesterday.mission.id = "c-crashes-done-yesterday"
+
+		const groups = toSpaceMissionGroups({
+			entries: [...entries, closedYesterday],
+			closedSince: MIDNIGHT,
+		})
+
+		expect(idsOf(groups.waitingOnYou)).toEqual([
+			"c-billing-waiting_human",
+			"c-crashes-waiting_human",
+		])
+		expect(idsOf(groups.inProgress)).toEqual([
+			"c-billing-working",
+			"c-billing-waiting_bot",
+			"c-billing-ready_to_merge",
+			"c-crashes-working",
+			"c-crashes-waiting_bot",
+			"c-crashes-ready_to_merge",
+		])
+		expect(idsOf(groups.earlierToday)).toEqual([
+			"c-billing-done",
+			"c-billing-failed",
+			"c-crashes-done",
+			"c-crashes-failed",
+		])
 	})
 })
