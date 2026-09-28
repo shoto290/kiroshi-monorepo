@@ -15,7 +15,7 @@ import {
 	listen as tauriListen,
 } from "./tauri"
 
-const IS_DESKTOP_HOST =
+const hasTauriInternals = (): boolean =>
 	typeof window !== "undefined" && "__TAURI_INTERNALS__" in window
 
 const raiseHostDownNotice = () =>
@@ -50,7 +50,9 @@ const connectHttpHost = (): HttpHost | null => {
 }
 
 const httpHost =
-	IS_DESKTOP_HOST || typeof window === "undefined" ? null : connectHttpHost()
+	typeof window === "undefined" || hasTauriInternals()
+		? null
+		: connectHttpHost()
 
 if (httpHost) {
 	bridgeGeneratedBindings(httpHost, window)
@@ -61,11 +63,11 @@ export const invoke: typeof tauriInvoke = httpHost?.invoke ?? tauriInvoke
 export const listen: typeof tauriListen = httpHost?.listen ?? tauriListen
 
 export function isDesktopHost(): boolean {
-	return IS_DESKTOP_HOST
+	return httpHost === null && hasTauriInternals()
 }
 
 export function drivesRealHost(): boolean {
-	return IS_DESKTOP_HOST || httpHost !== null
+	return isDesktopHost() || httpHost !== null
 }
 
 export function hasOverlayWindowControls(): boolean {
@@ -77,7 +79,7 @@ export function isSidebarResizable(): boolean {
 }
 
 export function assetSrc(path: string): string {
-	if (IS_DESKTOP_HOST) {
+	if (isDesktopHost()) {
 		return convertFileSrc(path)
 	}
 	return httpHost ? httpHost.fileSrc(path) : path

@@ -33,7 +33,10 @@ const socketStub = () => {
 		socket,
 		open: () => socket.onopen?.call(socket as WebSocket, new Event("open")),
 		drop: () =>
-			socket.onclose?.call(socket as WebSocket, new CloseEvent("close")),
+			socket.onclose?.call(
+				socket as WebSocket,
+				new Event("close") as CloseEvent,
+			),
 		send: (frame: unknown) =>
 			socket.onmessage?.call(
 				socket as WebSocket,
