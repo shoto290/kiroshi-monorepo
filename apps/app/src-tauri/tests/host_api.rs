@@ -28,8 +28,7 @@ impl Host {
 			"com.kiroshi.host-api-{}-{}",
 			std::process::id(),
 			CLAIMED.fetch_add(1, Ordering::Relaxed)
-		)
-		.into();
+		);
 		let app =
 			mock_builder().invoke_handler(invoke_handler()).build(context).expect("app builds");
 		let dir = app.path().app_data_dir().expect("data dir");
