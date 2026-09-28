@@ -22,7 +22,10 @@ import { createAttachmentsPort } from "@/lib/chat/attachments-port"
 import { createChatController } from "@/lib/chat/chat-controller"
 import { initialChatState } from "@/lib/chat/chat-state"
 import { createDraftsController } from "@/lib/chat/drafts-controller"
-import { createConversationRuntimes } from "@/lib/conversations/conversation-runtimes"
+import {
+	type ConversationRuntimes,
+	createConversationRuntimes,
+} from "@/lib/conversations/conversation-runtimes"
 import { createFakeTranscriptStore } from "@/lib/conversations/fake-transcript-store"
 import {
 	createScriptedDriver,
@@ -70,6 +73,8 @@ vi.mock("@/lib/missions/missions-transport", () => ({
 	missionsTransport: {
 		list: vi.fn(),
 		detail: vi.fn(),
+		close: vi.fn(),
+		reopen: vi.fn(),
 		onChanged: vi.fn(),
 	},
 }))
@@ -80,6 +85,8 @@ const listSources = vi.mocked(triggerSourcesTransport.sources)
 const listMissions = vi.mocked(missionsTransport.list)
 const readMission = vi.mocked(missionsTransport.detail)
 const listenToMissions = vi.mocked(missionsTransport.onChanged)
+const closeMission = vi.mocked(missionsTransport.close)
+const reopenMission = vi.mocked(missionsTransport.reopen)
 
 const SPACE = "personal"
 
@@ -197,6 +204,7 @@ type Workspace = {
 	conversation: Conversation
 	otherConversation: Conversation
 	driver: ScriptedDriver
+	runtimes: ConversationRuntimes
 	body: (options?: BodyOptions) => ReturnType<typeof createElement>
 	controlledBody: (
 		activityPanel: ActivityPanel,
@@ -263,6 +271,7 @@ const workspaceOf = async (store = createFakeTranscriptStore()) => {
 		conversation,
 		otherConversation,
 		driver,
+		runtimes,
 		body: ({
 			selected = conversation,
 			isActivityPanelOpenAtFirst = false,
@@ -579,5 +588,303 @@ describe("WorkspaceBody activity panel", () => {
 
 		expect(onOpenChange).toHaveBeenCalledWith(true)
 		expect(isPanelClosed()).toBe(true)
+	})
+})
+
+describe("WorkspaceBody mission menu", () => {
+	const MENU = "Mission actions"
+	const SUMMARY = "Shipped behind the flag"
+	const PULL_REQUEST = "https://github.com/acme/app/pull/12"
+	const OPEN_ENTRY = /^Open mission/
+	const CLOSE_ENTRY = /^Close mission/
+
+	let layout: FakeLayout
+
+	beforeEach(() => {
+		layout = fakeLayout()
+		vi.clearAllMocks()
+		listRoutines.mockResolvedValue([])
+		listRuns.mockResolvedValue([])
+		listSources.mockResolvedValue([])
+		listenToMissions.mockResolvedValue(() => undefined)
+	})
+
+	afterEach(() => {
+		cleanup()
+		layout.restore()
+		vi.restoreAllMocks()
+	})
+
+	const seed = async (over: Partial<Mission> = {}) => {
+		const workspace = await workspaceOf()
+		const mission: Mission = {
+			...missionOf(workspace.bot, workspace.conversation),
+			...over,
+		}
+		const isClosed = mission.closedAt !== null
+		listMissions.mockResolvedValue(
+			isClosed ? { open: [], done: [mission] } : { open: [mission], done: [] },
+		)
+		readMission.mockResolvedValue({ mission, events: [] })
+		render(workspace.body({ isActivityPanelOpenAtFirst: true }))
+		render(createElement(NoticeSurface))
+		await settle()
+		return { workspace, mission }
+	}
+
+	const panelGroup = (group: string) =>
+		screen.queryByRole("region", { name: new RegExp(`^${group}`) })
+
+	const panelCardIn = (group: string) => {
+		const region = panelGroup(group)
+		if (!region) throw new Error(`no ${group} group in the Activity panel`)
+		const row = region.querySelector<HTMLElement>(
+			'[data-slot="mission-card-row"]',
+		)
+		if (!row) throw new Error(`no mission card in ${group}`)
+		return row
+	}
+
+	const transcriptCard = () =>
+		screen.getByRole("article", { name: "mission opened" })
+
+	const menuEntries = () =>
+		within(screen.getByRole("menu", { name: MENU }))
+			.getAllByRole("menuitem")
+			.map((item) => item.textContent)
+
+	const openMenuOf = async (card: HTMLElement) => {
+		fireEvent.click(within(card).getByRole("button", { name: MENU }))
+		await settle()
+	}
+
+	const choose = async (card: HTMLElement, entry: string | RegExp) => {
+		await openMenuOf(card)
+		fireEvent.click(screen.getByRole("menuitem", { name: entry }))
+		await settle()
+	}
+
+	const chooseIn = async (
+		card: HTMLElement,
+		submenu: string | RegExp,
+		entry: string,
+	) => {
+		await openMenuOf(card)
+		fireEvent.click(screen.getByRole("menuitem", { name: submenu }))
+		await settle()
+		fireEvent.click(screen.getByRole("menuitem", { name: entry }))
+		await settle()
+	}
+
+	const confirmClose = async (summary: string) => {
+		const popover = document.querySelector<HTMLElement>(
+			'[data-slot="mission-close-popover"]',
+		)
+		if (!popover) throw new Error("the close popover isn't open")
+		fireEvent.change(within(popover).getByRole("textbox"), {
+			target: { value: summary },
+		})
+		fireEvent.click(
+			within(popover).getByRole("button", { name: "Close mission" }),
+		)
+		await settle()
+	}
+
+	const noticeTitled = (title: string) => screen.findAllByText(title)
+
+	it("wraps the Activity panel card and the transcript card in the same menu with its two shortcuts", async () => {
+		await seed()
+
+		for (const card of [panelCardIn("Waiting on you"), transcriptCard()]) {
+			await openMenuOf(card)
+			expect(menuEntries()).toEqual([
+				"Open mission↵",
+				"Open in Linear",
+				"Copy",
+				"Answer the question",
+				"Close mission⌘⌫",
+			])
+			fireEvent.keyDown(document.activeElement ?? document.body, {
+				key: "Escape",
+			})
+			await settle()
+		}
+	})
+
+	it("opens the mission thread from Open mission", async () => {
+		await seed()
+
+		await choose(panelCardIn("Waiting on you"), OPEN_ENTRY)
+
+		expect(readMission).toHaveBeenCalledWith("m-1")
+		expect(missionHeader()?.textContent).toContain("OPE-42")
+	})
+
+	it("opens the ticket and the pull request in the browser", async () => {
+		const opened = vi.spyOn(window, "open").mockReturnValue(null)
+		await seed({ pullRequestUrl: PULL_REQUEST })
+
+		await choose(transcriptCard(), "Open in Linear")
+		await choose(transcriptCard(), "Open PR")
+
+		expect(opened.mock.calls.map(([url]) => url)).toEqual([
+			"https://linear.app/ope-42",
+			PULL_REQUEST,
+		])
+	})
+
+	it("copies each value of the mission and names what was copied", async () => {
+		const written = vi
+			.spyOn(navigator.clipboard, "writeText")
+			.mockResolvedValue(undefined)
+		await seed({
+			branch: "feature/ope-42",
+			pullRequestUrl: PULL_REQUEST,
+			workspacePath: "/work/ope-42",
+		})
+
+		for (const kind of ["Issue ID", "Branch", "PR URL", "Workspace path"]) {
+			await chooseIn(panelCardIn("Waiting on you"), "Copy", kind)
+			await noticeTitled(`${kind} copied`)
+		}
+
+		expect(written.mock.calls.map(([text]) => text)).toEqual([
+			"OPE-42",
+			"feature/ope-42",
+			PULL_REQUEST,
+			"/work/ope-42",
+		])
+	})
+
+	it("raises a failure notice when the clipboard refuses the copy", async () => {
+		vi.spyOn(navigator.clipboard, "writeText").mockRejectedValue(
+			new Error("denied"),
+		)
+		vi.spyOn(console, "error").mockImplementation(() => undefined)
+		await seed()
+
+		await chooseIn(transcriptCard(), "Copy", "Issue ID")
+
+		await noticeTitled("Couldn’t copy to the clipboard")
+	})
+
+	it("opens the mission thread with its composer focused from Message the agent", async () => {
+		await seed({ state: "working" })
+
+		await choose(panelCardIn("In progress"), "Message the agent")
+
+		expect(missionHeader()).toBeTruthy()
+		expect(document.activeElement).toBe(screen.getByRole("textbox"))
+	})
+
+	it("opens the mission thread with its composer focused from Answer the question", async () => {
+		await seed()
+
+		await choose(transcriptCard(), "Answer the question")
+
+		expect(missionHeader()).toBeTruthy()
+		expect(document.activeElement).toBe(screen.getByRole("textbox"))
+	})
+
+	it("cancels the running turn of the mission thread from Stop the agent", async () => {
+		const { workspace } = await seed({ state: "working" })
+		const thread = workspace.runtimes.runtimeFor(THREAD_CONVERSATION)
+		const stopped = vi.spyOn(thread, "stop").mockResolvedValue(undefined)
+
+		await choose(panelCardIn("In progress"), "Stop the agent")
+
+		expect(stopped).toHaveBeenCalledTimes(1)
+	})
+
+	it("closes the mission with its outcome and summary and moves it to the closed group", async () => {
+		const { mission } = await seed()
+		const closed: Mission = { ...mission, state: "done", closedAt: Date.now() }
+		closeMission.mockImplementation(async () => {
+			listMissions.mockResolvedValue({ open: [], done: [closed] })
+			return closed
+		})
+
+		await chooseIn(panelCardIn("Waiting on you"), CLOSE_ENTRY, "Close as done")
+		await confirmClose(SUMMARY)
+
+		expect(closeMission).toHaveBeenCalledWith("m-1", "done", SUMMARY)
+		expect(panelGroup("Waiting on you")).toBeNull()
+		expect(panelCardIn("Earlier today")).toBeTruthy()
+		expect(within(transcriptCard()).getByText("Completed")).toBeTruthy()
+	})
+
+	it("reopens the mission and moves it back to the open groups", async () => {
+		const { mission } = await seed({ state: "done", closedAt: Date.now() })
+		const reopened: Mission = { ...mission, state: "working", closedAt: null }
+		reopenMission.mockImplementation(async () => {
+			listMissions.mockResolvedValue({ open: [reopened], done: [] })
+			return reopened
+		})
+
+		await choose(transcriptCard(), "Reopen")
+
+		expect(reopenMission).toHaveBeenCalledWith("m-1")
+		expect(panelGroup("Earlier today")).toBeNull()
+		expect(panelCardIn("In progress")).toBeTruthy()
+		expect(within(transcriptCard()).queryByText("Completed")).toBeNull()
+	})
+
+	it("shows the close and the reopen as by you in the mission thread", async () => {
+		const { mission } = await seed()
+		readMission.mockResolvedValue({
+			mission,
+			events: [
+				{
+					...eventOf("closed", A_MINUTE, { summary: SUMMARY }),
+					source: "person",
+				},
+				{ ...eventOf("reopened", 2 * A_MINUTE), source: "person" },
+			],
+		})
+
+		await choose(panelCardIn("Waiting on you"), OPEN_ENTRY)
+
+		const closeLine = screen
+			.getByText(SUMMARY)
+			.closest('[data-slot="mission-authored-event"]')
+		expect(closeLine?.textContent).toMatch(/^YouClosed/)
+		expect(screen.getByText("Mission reopened by You")).toBeTruthy()
+	})
+
+	it("raises a failure notice naming the close or the reopen that was refused", async () => {
+		vi.spyOn(console, "error").mockImplementation(() => undefined)
+		closeMission.mockRejectedValue(new Error("refused"))
+		await seed()
+
+		await chooseIn(transcriptCard(), CLOSE_ENTRY, "Close as failed")
+		await confirmClose("")
+
+		await noticeTitled("Couldn’t close the mission")
+		expect(panelCardIn("Waiting on you")).toBeTruthy()
+	})
+
+	it("raises a failure notice when the reopen is refused", async () => {
+		vi.spyOn(console, "error").mockImplementation(() => undefined)
+		reopenMission.mockRejectedValue(new Error("refused"))
+		await seed({ state: "done", closedAt: Date.now() })
+
+		await choose(transcriptCard(), "Reopen")
+
+		await noticeTitled("Couldn’t reopen the mission")
+	})
+
+	it("opens the close choice on Cmd+Backspace from a focused card", async () => {
+		await seed()
+		const open = within(transcriptCard()).getByRole("button", {
+			name: `Open the mission: ${OBJECTIVE}`,
+		})
+		open.focus()
+
+		fireEvent.keyDown(open, { key: "Backspace", metaKey: true })
+		await settle()
+
+		expect(
+			document.querySelector('[data-slot="mission-close-popover"]'),
+		).toBeTruthy()
 	})
 })

@@ -124,25 +124,26 @@ const agentActivityOf = (mission: Mission): AgentActivity => ({
 	commitsAhead: mission.commitsAhead ?? undefined,
 })
 
-type ActivityMissionRead = {
+export type MissionCardRead = {
 	mission: Mission
-	face: ThreadFace
-	timestamp: string
+	identity: RosterBot
+	author?: MessageAuthor
 	state: MissionState
 	isWorking: boolean
 	now: number
 }
 
-const toActivityMission = ({
+export const toMissionCard = ({
 	mission,
-	face,
-	timestamp,
+	identity,
+	author,
 	state,
 	isWorking,
 	now,
-}: ActivityMissionRead): MissionCardModel => ({
+}: MissionCardRead): MissionCardModel => ({
 	id: mission.id,
-	identity: face,
+	identity,
+	author,
 	objective: mission.objective,
 	ticket: {
 		externalId: mission.ticket.externalId,
@@ -154,9 +155,14 @@ const toActivityMission = ({
 	state,
 	isWorking,
 	isClosed: mission.closedAt !== null,
-	timestamp,
+	timestamp: rosterTimestamp(
+		mission.closedAt ?? mission.lastActivityAt ?? mission.openedAt,
+		now,
+	),
 	now,
 	status: mission.status ?? undefined,
+	commitsAhead: mission.commitsAhead ?? undefined,
+	...missionProgressOf(mission),
 })
 
 const rowsOf = (
@@ -167,27 +173,25 @@ const rowsOf = (
 	now: number,
 ): MissionCardModel[] =>
 	missions.flatMap((mission) => {
-		const face = faceOf(mission.botId)
-		return face
+		const identity = faceOf(mission.botId)
+		return identity
 			? [
-					{
-						...toActivityMission({
-							mission,
-							face,
-							timestamp: rosterTimestamp(
-								mission.lastActivityAt ?? mission.openedAt,
-								now,
-							),
-							state: shownStateOf(mission, waitingMissionIds),
-							isWorking: liveMissionIds.has(mission.id),
-							now,
-						}),
-						...agentActivityOf(mission),
-						...missionProgressOf(mission),
-					},
+					toMissionCard({
+						mission,
+						identity,
+						state: shownStateOf(mission, waitingMissionIds),
+						isWorking: liveMissionIds.has(mission.id),
+						now,
+					}),
 				]
 			: []
 	})
+
+const withoutAgentActivity = ({
+	commitsAhead,
+	lastActivity,
+	...card
+}: MissionCardModel): MissionCardModel => card
 
 type EarlierTodayEntry = {
 	at: number
@@ -211,14 +215,16 @@ const closedTodayEntries = (
 				at: mission.closedAt,
 				row: {
 					kind: "mission",
-					...toActivityMission({
-						mission,
-						face,
-						timestamp: formatDateTime(mission.closedAt, TIME_OF_DAY),
-						state: mission.state,
-						isWorking: false,
-						now,
-					}),
+					...withoutAgentActivity(
+						toMissionCard({
+							mission,
+							identity: face,
+							state: mission.state,
+							isWorking: false,
+							now,
+						}),
+					),
+					timestamp: formatDateTime(mission.closedAt, TIME_OF_DAY),
 				},
 			},
 		]
@@ -281,45 +287,6 @@ export const toActivityMissions = ({
 			.map((entry) => entry.row),
 	}
 }
-
-export type MissionCardRead = {
-	mission: Mission
-	identity: RosterBot
-	author: MessageAuthor | undefined
-	isWorking: boolean
-	now: number
-}
-
-export const toMissionCard = ({
-	mission,
-	identity,
-	author,
-	isWorking,
-	now,
-}: MissionCardRead): MissionCardModel => ({
-	id: mission.id,
-	identity,
-	author,
-	objective: mission.objective,
-	ticket: {
-		externalId: mission.ticket.externalId,
-		title: mission.ticket.title,
-		platform: mission.ticket.platform,
-		url: mission.ticket.url,
-	},
-	tools: mission.tools,
-	state: mission.state,
-	isWorking,
-	isClosed: mission.closedAt !== null,
-	timestamp: rosterTimestamp(
-		mission.closedAt ?? mission.lastActivityAt ?? mission.openedAt,
-		now,
-	),
-	now,
-	status: mission.status ?? undefined,
-	commitsAhead: mission.commitsAhead ?? undefined,
-	...missionProgressOf(mission),
-})
 
 export type MissionHeaderActivity = AgentActivity & {
 	pullRequest?: MissionPullRequest

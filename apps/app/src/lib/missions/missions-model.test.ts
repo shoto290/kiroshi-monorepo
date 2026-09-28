@@ -524,7 +524,7 @@ describe("toMissionCard", () => {
 				status: { text: "Running the tests", writtenAt: READ_AT },
 			},
 			identity: FACE,
-			author: undefined,
+			state: "working",
 			isWorking: true,
 			now: READ_AT,
 		})
@@ -537,6 +537,47 @@ describe("toMissionCard", () => {
 			lastActivity: { tool: "Bash", target: "bun test" },
 			pullRequest: { url: "https://github.com/acme/app/pull/7", number: 7 },
 		})
+	})
+})
+
+describe("toMissionCard shared by the Activity panel and the thread", () => {
+	const cardOf = (mission: Mission, state: MissionState = mission.state) =>
+		toMissionCard({
+			mission,
+			identity: FACE,
+			author: { ...FACE, isLead: true },
+			state,
+			isWorking: false,
+			now: READ_AT,
+		})
+
+	it("shows the state it is given rather than the stored one", () => {
+		expect(cardOf(missionIn("working"), "waiting_human").state).toBe(
+			"waiting_human",
+		)
+	})
+
+	it("carries the author of the thread card", () => {
+		expect(cardOf(missionIn("working")).author).toEqual({
+			...FACE,
+			isLead: true,
+		})
+	})
+
+	it("stamps a closed mission with the age of its close", () => {
+		const card = cardOf({
+			...closedAt(READ_AT - 600_000),
+			lastActivityAt: READ_AT - 7_200_000,
+		})
+
+		expect(card).toMatchObject({ isClosed: true, timestamp: "10m" })
+	})
+
+	it("builds the open row of the Activity panel", () => {
+		const mission = { ...missionIn("working"), commitsAhead: 2 }
+		const { open } = rowsOf({ open: [mission] })
+
+		expect(open[0]).toEqual({ ...cardOf(mission), author: undefined })
 	})
 })
 

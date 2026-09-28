@@ -22,6 +22,7 @@ import type { ConversationRuntimes } from "../conversations/conversation-runtime
 import type { Bot, Conversation } from "../conversations/store-contract"
 import type { CompanionArrival } from "../conversations/transcript-contract"
 import type { Mission } from "../missions/mission-contract"
+import type { OpenedMission } from "../missions/opened-mission-controller"
 import type { ReportedRunsByTurnId } from "../routines/routine-contract"
 
 export type ThreadFace = RosterBot
@@ -43,6 +44,7 @@ export type ThreadMission = {
 	mission: Mission
 	events: MissionEventModel[]
 	now: number
+	opening: OpenedMission
 	onLeave: () => void
 }
 

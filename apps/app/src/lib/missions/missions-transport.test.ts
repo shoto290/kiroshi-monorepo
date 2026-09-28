@@ -87,6 +87,17 @@ it("answers a close with the mission the host wrote", async () => {
 	).resolves.toEqual(closed)
 })
 
+it("reopens a mission through the host", async () => {
+	const reopened = { ...DETAIL.mission, closedAt: null }
+	hostInvoke.mockResolvedValueOnce(reopened)
+
+	await expect(missionsTransport.reopen("m-1")).resolves.toEqual(reopened)
+
+	expect(hostInvoke).toHaveBeenCalledWith("mission_reopen", {
+		missionId: "m-1",
+	})
+})
+
 it("reads the open and the done missions of a conversation", async () => {
 	hostInvoke.mockResolvedValueOnce({ open: [], done: [] })
 

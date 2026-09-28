@@ -1,5 +1,6 @@
 import { type ReactNode, useMemo, useSyncExternalStore } from "react"
 
+import type { MissionCardWrap } from "@workspace/ui/components/mission-card"
 import {
 	type RoutinesFailure,
 	RoutinesPanel,
@@ -7,6 +8,7 @@ import {
 
 import { useRosterClock } from "@/lib/bots/use-roster-clock"
 import type { ThreadNaming } from "@/lib/chat/use-thread-roster"
+import type { OpenMission } from "@/lib/missions/mission-actions"
 import {
 	type LiveMissionIds,
 	toActivityMissions,
@@ -34,7 +36,8 @@ type ThreadRoutinesProps = {
 	missions: ConversationMissionsRead
 	runtimes: MissionThreadRuntimes
 	faceOf: ThreadNaming["faceOf"]
-	onOpenMission: (missionId: string) => void
+	onOpenMission: OpenMission
+	wrapMissionCard: MissionCardWrap
 	children: ReactNode
 }
 
@@ -58,6 +61,7 @@ const ThreadRoutines = ({
 	runtimes,
 	faceOf,
 	onOpenMission,
+	wrapMissionCard,
 	children,
 }: ThreadRoutinesProps) => {
 	const now = useRosterClock()
@@ -116,7 +120,7 @@ const ThreadRoutines = ({
 			failure={activityFailure(failure, missions.hasFailed)}
 			form={form}
 			isOpen={activityPanel.isOpen}
-			missions={{ ...rows, onOpen: onOpenMission }}
+			missions={{ ...rows, onOpen: onOpenMission, wrap: wrapMissionCard }}
 			onDelete={remove}
 			onEnabledChange={setEnabled}
 			onOpenChange={activityPanel.onOpenChange}

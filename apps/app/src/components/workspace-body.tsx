@@ -14,6 +14,7 @@ import type { Chat } from "@/lib/chat/use-chat"
 import type { ConversationRuntimes } from "@/lib/conversations/conversation-runtimes"
 import type { Bot, Conversation } from "@/lib/conversations/store-contract"
 import { hasOverlayWindowControls } from "@/lib/host"
+import type { MissionLanding } from "@/lib/missions/mission-actions"
 import type { OpenedMissionController } from "@/lib/missions/opened-mission-controller"
 import type { Onboarding } from "@/lib/onboarding/use-onboarding"
 import type { SignIn } from "@/lib/onboarding/use-sign-in"
@@ -82,17 +83,16 @@ export function WorkspaceBody(props: WorkspaceBodyProps) {
 	const rowId = props.conversation?.id ?? props.bot?.id ?? null
 
 	const openMission = useCallback(
-		(missionId: string) => {
+		(missionId: string, landing?: MissionLanding) => {
 			if (rowId) {
-				missions.open({ missionId, rowId })
+				missions.open({ missionId, rowId, landing })
 			}
 		},
 		[missions, rowId],
 	)
 	const leaveMission = useCallback(() => missions.leave(), [missions])
 
-	const openedMissionId =
-		opened && opened.rowId === rowId ? opened.missionId : null
+	const openedMission = opened && opened.rowId === rowId ? opened : null
 
 	if (props.haveSpacesFailed) {
 		return (
@@ -104,7 +104,7 @@ export function WorkspaceBody(props: WorkspaceBodyProps) {
 		)
 	}
 
-	if (openedMissionId) {
+	if (openedMission) {
 		return (
 			<MissionThreadScreen
 				activityPanel={props.activityPanel}
@@ -112,9 +112,9 @@ export function WorkspaceBody(props: WorkspaceBodyProps) {
 				bots={props.bots}
 				drafts={props.drafts}
 				landings={props.landings}
-				missionId={openedMissionId}
 				onLeave={leaveMission}
 				onOpenMission={openMission}
+				opening={openedMission}
 				readerName={props.readerName}
 				runtimes={props.conversationRuntimes}
 			/>

@@ -29,6 +29,8 @@ export const missionsTransport = {
 				summary,
 			} satisfies MissionClosing,
 		}),
+	reopen: (missionId: string) =>
+		invoke<Mission>("mission_reopen", { missionId }),
 	detail: (missionId: string) =>
 		invoke<MissionDetail>("mission_detail", { missionId }),
 	rosterBlock: (conversationId: string, botId: string) =>
