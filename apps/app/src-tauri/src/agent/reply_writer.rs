@@ -1,15 +1,19 @@
 use std::collections::{HashMap, HashSet};
+use std::path::PathBuf;
 use std::sync::{Arc, Mutex, MutexGuard, PoisonError};
 
+use chrono::{DateTime, Utc};
 use tauri::{AppHandle, Manager, Runtime};
 use tokio::sync::mpsc;
+use uuid::Uuid;
 
 use super::contract::{
-	AgentEvent, AskedQuestion, ChatMessage, MessageCompletion, QuestionOption, QuestionRequest,
-	RuntimeScope, SubmittedTurn, TurnOutcome, TurnState,
+	AgentEvent, AskedQuestion, ChatMessage, MessageCompletion, MessageRole, QuestionOption,
+	QuestionRequest, RuntimeScope, SubmittedTurn, TurnOutcome, TurnState,
 };
 use super::session::EventSink;
 use super::translate::now_ms;
+use crate::attachments::attachment_block;
 use crate::conversations::commands::ready;
 use crate::conversations::contract::TranscriptStoreError;
 use crate::db;
@@ -55,6 +59,50 @@ impl HostWrites {
 	}
 }
 
+#[derive(Debug, Clone)]
+pub struct HeldAttachment {
+	pub path: PathBuf,
+	pub bytes: u64,
+	pub caption: Option<String>,
+}
+
+#[derive(Debug, Default)]
+pub struct TurnAttachments {
+	held: Mutex<Vec<HeldAttachment>>,
+}
+
+impl TurnAttachments {
+	pub fn hold_with<E>(
+		&self,
+		attach: impl FnOnce(&[HeldAttachment]) -> Result<HeldAttachment, E>,
+	) -> Result<PathBuf, E> {
+		let mut held = self.held.lock().unwrap_or_else(PoisonError::into_inner);
+		let attached = attach(&held)?;
+		let path = attached.path.clone();
+		held.push(attached);
+		Ok(path)
+	}
+
+	pub(crate) fn take(&self) -> Vec<HeldAttachment> {
+		std::mem::take(&mut *self.held.lock().unwrap_or_else(PoisonError::into_inner))
+	}
+}
+
+pub(crate) fn shown_with_attachments(
+	text: &str,
+	attached: &[HeldAttachment],
+	sent_at: DateTime<Utc>,
+) -> String {
+	let paths: Vec<PathBuf> = attached.iter().map(|file| file.path.clone()).collect();
+	let captions = attached.iter().filter_map(|file| file.caption.as_deref()).map(one_line);
+	std::iter::once(text.trim_end().to_owned())
+		.chain(captions)
+		.chain(std::iter::once(attachment_block(&paths, sent_at)))
+		.filter(|part| !part.is_empty())
+		.collect::<Vec<_>>()
+		.join("\n")
+}
+
 fn held(ids: &Mutex<HashSet<String>>) -> MutexGuard<'_, HashSet<String>> {
 	ids.lock().unwrap_or_else(PoisonError::into_inner)
 }
@@ -74,6 +122,7 @@ impl ReplyWriter {
 		app: AppHandle<R>,
 		scope: &RuntimeScope,
 		owned: Arc<HostWrites>,
+		attachments: Arc<TurnAttachments>,
 		inner: Arc<dyn EventSink>,
 	) -> Self {
 		let (entries, queued) = mpsc::unbounded_channel();
@@ -83,7 +132,10 @@ impl ReplyWriter {
 			bot_id: scope.bot_id.clone(),
 			owned,
 		};
-		tauri::async_runtime::spawn(write_then_forward(queued, Desk { store, turn: None }, inner));
+		tauri::async_runtime::spawn(write_then_forward(
+			queued,
+			Desk { store, turn: None, attachments, inner },
+		));
 		Self { entries }
 	}
 
@@ -111,7 +163,6 @@ impl EventSink for ReplyWriter {
 async fn write_then_forward<R: Runtime>(
 	mut queued: mpsc::UnboundedReceiver<Entry>,
 	mut desk: Desk<R>,
-	inner: Arc<dyn EventSink>,
 ) {
 	while let Some(entry) = queued.recv().await {
 		match entry {
@@ -119,7 +170,7 @@ async fn write_then_forward<R: Runtime>(
 			Entry::Withdrawn => desk.end(TerminalState::Failed).await,
 			Entry::Event(event) => {
 				desk.record(&event).await;
-				inner.emit(event);
+				desk.inner.emit(event);
 			}
 		}
 	}
@@ -132,6 +183,8 @@ struct OpenTurn {
 	streamed: HashMap<String, u64>,
 	written: HashMap<String, String>,
 	settled: HashSet<String>,
+	last_reply: Option<String>,
+	endings: HashMap<String, TerminalState>,
 }
 
 impl OpenTurn {
@@ -143,6 +196,8 @@ impl OpenTurn {
 			streamed: HashMap::new(),
 			written: HashMap::new(),
 			settled: HashSet::new(),
+			last_reply: None,
+			endings: HashMap::new(),
 		}
 	}
 
@@ -161,6 +216,8 @@ impl OpenTurn {
 struct Desk<R: Runtime> {
 	store: Store<R>,
 	turn: Option<OpenTurn>,
+	attachments: Arc<TurnAttachments>,
+	inner: Arc<dyn EventSink>,
 }
 
 impl<R: Runtime> Desk<R> {
@@ -206,6 +263,7 @@ impl<R: Runtime> Desk<R> {
 		match self.store.open_reply(turn, message).await {
 			Ok(()) => {
 				turn.streamed.insert(message.id.clone(), 0);
+				turn.last_reply = Some(message.id.clone());
 			}
 			Err(error) => {
 				self.store.report(&message.id, &error);
@@ -252,6 +310,7 @@ impl<R: Runtime> Desk<R> {
 			return;
 		}
 		turn.settled.insert(id.to_owned());
+		turn.endings.insert(id.to_owned(), completion);
 		let written = turn.written.get(id).cloned().unwrap_or_default();
 		let settled_text = match self.store.settled_mentions(&written).await {
 			Ok(settled) => settled,
@@ -314,7 +373,7 @@ impl<R: Runtime> Desk<R> {
 			return;
 		}
 		if let Err(error) =
-			self.store.write_question(turn, &id, &question_message_text(request)).await
+			self.store.write_settled(turn, &id, &question_message_text(request)).await
 		{
 			self.store.report(&id, &error);
 		}
@@ -325,8 +384,45 @@ impl<R: Runtime> Desk<R> {
 		let Some(turn) = self.turn.take() else {
 			return;
 		};
+		self.show_attachments(&turn).await;
 		if let Err(error) = self.store.complete_turn(&turn.id).await {
 			self.store.report(&turn.id, &error);
+		}
+	}
+}
+
+impl<R: Runtime> Desk<R> {
+	async fn show_attachments(&self, turn: &OpenTurn) {
+		let attached = self.attachments.take();
+		if attached.is_empty() {
+			return;
+		}
+		let sent_at = Utc::now();
+		match &turn.last_reply {
+			Some(id) => {
+				let written = turn.written.get(id).map(String::as_str).unwrap_or_default();
+				let shown = shown_with_attachments(written, &attached, sent_at);
+				if let Err(error) = self.store.replace_content(id, shown.clone()).await {
+					return self.store.report(id, &error);
+				}
+				let ending = turn.endings.get(id).copied().unwrap_or(TerminalState::Complete);
+				self.inner.emit(AgentEvent::MessageCompleted {
+					message: reply_of(id, shown, completion_of(ending)),
+				});
+			}
+			None => {
+				let id = Uuid::new_v4().to_string();
+				let shown = shown_with_attachments("", &attached, sent_at);
+				if let Err(error) = self.store.write_settled(turn, &id, &shown).await {
+					return self.store.report(&id, &error);
+				}
+				self.inner.emit(AgentEvent::MessageStarted {
+					message: reply_of(&id, String::new(), MessageCompletion::Streaming),
+				});
+				self.inner.emit(AgentEvent::MessageCompleted {
+					message: reply_of(&id, shown, MessageCompletion::Complete),
+				});
+			}
 		}
 	}
 }
@@ -374,7 +470,7 @@ impl<R: Runtime> Store<R> {
 		self.open_assistant(turn, &message.id, message.timestamp).await
 	}
 
-	async fn write_question(
+	async fn write_settled(
 		&self,
 		turn: &OpenTurn,
 		id: &str,
@@ -382,6 +478,10 @@ impl<R: Runtime> Store<R> {
 	) -> Result<(), TranscriptStoreError> {
 		self.open_assistant(turn, id, now_ms()).await?;
 		self.finalize(id, TerminalState::Complete, Some(text.to_owned())).await
+	}
+
+	async fn replace_content(&self, id: &str, text: String) -> Result<(), TranscriptStoreError> {
+		Ok(self.database()?.messages().replace_content(id.to_owned(), text).await?)
 	}
 
 	async fn open_assistant(
@@ -453,6 +553,24 @@ pub(crate) async fn settled_mentions(
 		.collect();
 	let settled = to_mention_tokens(written, &present);
 	Ok((settled != written).then_some(settled))
+}
+
+fn reply_of(id: &str, text: String, completion: MessageCompletion) -> ChatMessage {
+	ChatMessage {
+		id: id.to_owned(),
+		role: MessageRole::Assistant,
+		text,
+		completion,
+		timestamp: now_ms(),
+	}
+}
+
+fn completion_of(ending: TerminalState) -> MessageCompletion {
+	match ending {
+		TerminalState::Complete => MessageCompletion::Complete,
+		TerminalState::Cancelled => MessageCompletion::Cancelled,
+		TerminalState::Failed | TerminalState::Interrupted => MessageCompletion::Failed,
+	}
 }
 
 fn ending_for(completion: MessageCompletion) -> Option<TerminalState> {
@@ -571,6 +689,7 @@ mod tests {
 	struct Written {
 		app: App<MockRuntime>,
 		conversation_id: String,
+		attachments: Arc<TurnAttachments>,
 	}
 
 	impl Written {
@@ -583,7 +702,7 @@ mod tests {
 				let _ = std::fs::remove_dir_all(&dir);
 			}
 			app.manage(db::bootstrap(app.handle()));
-			let written = Self { app, conversation_id: String::new() };
+			let written = Self { app, conversation_id: String::new(), attachments: Arc::default() };
 			let conversations = written.database().conversations();
 			conversations.ensure_default_bot().await.expect("the bot is seeded");
 			let chat = conversations
@@ -598,13 +717,32 @@ mod tests {
 		}
 
 		fn desk(&self) -> Desk<MockRuntime> {
+			self.desk_telling(Arc::new(mpsc::unbounded_channel().0))
+		}
+
+		fn desk_telling(&self, inner: Arc<dyn EventSink>) -> Desk<MockRuntime> {
 			let store = Store {
 				app: self.app.handle().clone(),
 				conversation_id: self.conversation_id.clone(),
 				bot_id: DEFAULT_BOT_ID.to_owned(),
 				owned: Arc::default(),
 			};
-			Desk { store, turn: None }
+			Desk { store, turn: None, attachments: self.attachments.clone(), inner }
+		}
+
+		async fn forwarded(&self, entries: Vec<Entry>) -> Vec<AgentEvent> {
+			let (told, mut heard) = mpsc::unbounded_channel();
+			let (queue, queued) = mpsc::unbounded_channel();
+			for entry in entries {
+				queue.send(entry).expect("the entry is queued");
+			}
+			drop(queue);
+			write_then_forward(queued, self.desk_telling(Arc::new(told))).await;
+			let mut events = Vec::new();
+			while let Ok(event) = heard.try_recv() {
+				events.push(event);
+			}
+			events
 		}
 
 		async fn prompt(&self, turn_id: &str, prompt_id: &str) {
@@ -852,5 +990,256 @@ mod tests {
 			&ChatMessage { text: "hi".into(), ..empty },
 			TerminalState::Complete
 		));
+	}
+
+	fn attach(written: &Written, path: &str, caption: Option<&str>) {
+		written
+			.attachments
+			.hold_with(|_| {
+				Ok::<_, ()>(HeldAttachment {
+					path: PathBuf::from(path),
+					bytes: 1,
+					caption: caption.map(str::to_owned),
+				})
+			})
+			.expect("the attachment is held");
+	}
+
+	fn with_block(text: &str, paths: &[&str]) -> impl Fn(&str) {
+		let expected_prefix = text.to_owned();
+		let listed: Vec<String> = paths
+			.iter()
+			.enumerate()
+			.map(|(index, path)| format!("{}/{} {path}", index + 1, paths.len()))
+			.collect();
+		let noun = if paths.len() == 1 { "file" } else { "files" };
+		let count = paths.len();
+		move |content: &str| {
+			let (head, block) = content
+				.split_once("Attached to this message, sent ")
+				.expect("the message carries a block");
+			assert_eq!(head, expected_prefix, "the text above the block moved");
+			let mut lines = block.lines();
+			let header = lines.next().expect("the header line");
+			assert!(header.ends_with(&format!(", {count} {noun}:")), "header {header}");
+			assert_eq!(lines.map(str::to_owned).collect::<Vec<_>>(), listed);
+		}
+	}
+
+	#[tokio::test]
+	async fn text_streamed_then_an_attach_ends_the_reply_with_its_block() {
+		let written = Written::new("attach-after-text").await;
+		written.prompt("t1", "p1").await;
+		let mut desk = written.desk();
+
+		desk.open_turn(submitted("t1", "p1")).await;
+		desk.record(&AgentEvent::MessageStarted { message: streaming("m1") }).await;
+		desk.record(&AgentEvent::MessageDelta { id: "m1".into(), seq: 1, text: "Here".into() })
+			.await;
+		desk.record(&AgentEvent::MessageCompleted {
+			message: ChatMessage {
+				text: "Here".into(),
+				completion: MessageCompletion::Complete,
+				..streaming("m1")
+			},
+		})
+		.await;
+		attach(&written, "/data/attachments/c/a.png", Some("The  chart\nof May"));
+		desk.end(TerminalState::Complete).await;
+
+		let reply = written.stored("m1").await.expect("the reply is stored");
+		with_block("Here\nThe chart of May\n", &["/data/attachments/c/a.png"])(&reply.content);
+		assert_eq!(reply.state, MessageState::Complete);
+		written.close();
+	}
+
+	#[tokio::test]
+	async fn two_attaches_of_one_turn_share_one_block_in_call_order() {
+		let written = Written::new("attach-twice").await;
+		written.prompt("t1", "p1").await;
+		let mut desk = written.desk();
+
+		desk.open_turn(submitted("t1", "p1")).await;
+		desk.record(&AgentEvent::MessageStarted { message: streaming("m1") }).await;
+		desk.record(&AgentEvent::MessageDelta { id: "m1".into(), seq: 1, text: "Two".into() })
+			.await;
+		attach(&written, "/data/attachments/c/a.png", None);
+		attach(&written, "/data/attachments/c/b.gif", Some("Second"));
+		desk.end(TerminalState::Complete).await;
+
+		let reply = written.stored("m1").await.expect("the reply is stored");
+		with_block("Two\nSecond\n", &["/data/attachments/c/a.png", "/data/attachments/c/b.gif"])(
+			&reply.content,
+		);
+		assert_eq!(written.assistant_rows().await, 1);
+		written.close();
+	}
+
+	#[tokio::test]
+	async fn a_turn_without_text_still_leaves_a_reply_carrying_the_block() {
+		let written = Written::new("attach-silent").await;
+		written.prompt("t1", "p1").await;
+		let mut desk = written.desk();
+
+		desk.open_turn(submitted("t1", "p1")).await;
+		attach(&written, "/data/attachments/c/a.png", None);
+		desk.end(TerminalState::Complete).await;
+
+		let content: String = written
+			.database()
+			.messages()
+			.call(|connection| {
+				Ok(connection.query_row(
+					"SELECT content FROM messages WHERE role = 'assistant' AND turn_id = 't1'",
+					[],
+					|row| row.get(0),
+				)?)
+			})
+			.await
+			.expect("the reply is stored");
+		with_block("", &["/data/attachments/c/a.png"])(&content);
+		written.close();
+	}
+
+	#[tokio::test]
+	async fn a_turn_cancelled_or_failed_after_an_attach_keeps_the_block_on_its_reply() {
+		for (name, ending, state) in [
+			("attach-cancelled", TerminalState::Cancelled, MessageState::Cancelled),
+			("attach-failed", TerminalState::Failed, MessageState::Failed),
+		] {
+			let written = Written::new(name).await;
+			written.prompt("t1", "p1").await;
+			let mut desk = written.desk();
+
+			desk.open_turn(submitted("t1", "p1")).await;
+			desk.record(&AgentEvent::MessageStarted { message: streaming("m1") }).await;
+			desk.record(&AgentEvent::MessageDelta { id: "m1".into(), seq: 1, text: "half".into() })
+				.await;
+			attach(&written, "/data/attachments/c/a.png", None);
+			desk.end(ending).await;
+
+			let reply = written.stored("m1").await.expect("the reply is stored");
+			with_block("half\n", &["/data/attachments/c/a.png"])(&reply.content);
+			assert_eq!(reply.state, state);
+			written.close();
+		}
+	}
+
+	fn turn_ended() -> AgentEvent {
+		AgentEvent::TurnEnded {
+			ended: super::super::contract::TurnEnded {
+				session_id: None,
+				outcome: TurnOutcome::Completed,
+				structured_output: None,
+				total_cost_usd: None,
+				model_usage: None,
+			},
+		}
+	}
+
+	fn a_spoken_turn() -> Vec<AgentEvent> {
+		vec![
+			AgentEvent::MessageStarted { message: streaming("m1") },
+			AgentEvent::MessageDelta { id: "m1".into(), seq: 1, text: "Here".into() },
+			AgentEvent::MessageCompleted {
+				message: ChatMessage {
+					text: "Here".into(),
+					completion: MessageCompletion::Complete,
+					..streaming("m1")
+				},
+			},
+			turn_ended(),
+		]
+	}
+
+	fn entries_of(events: &[AgentEvent]) -> Vec<Entry> {
+		std::iter::once(Entry::Submitted(submitted("t1", "p1")))
+			.chain(events.iter().cloned().map(Entry::Event))
+			.collect()
+	}
+
+	#[tokio::test]
+	async fn a_turn_without_attachments_forwards_exactly_the_events_it_received() {
+		let written = Written::new("attach-none-forwarded").await;
+		written.prompt("t1", "p1").await;
+		let spoken = a_spoken_turn();
+
+		let heard = written.forwarded(entries_of(&spoken)).await;
+
+		assert_eq!(heard, spoken);
+		written.close();
+	}
+
+	#[tokio::test]
+	async fn the_block_on_the_last_reply_is_told_as_its_completion_before_the_turn_ends() {
+		let written = Written::new("attach-told").await;
+		written.prompt("t1", "p1").await;
+		let spoken = a_spoken_turn();
+		attach(&written, "/data/attachments/c/a.png", None);
+
+		let heard = written.forwarded(entries_of(&spoken)).await;
+
+		let stored = written.stored("m1").await.expect("the reply is stored").content;
+		assert_eq!(heard.len(), spoken.len() + 1);
+		assert_eq!(heard[..3], spoken[..3]);
+		match &heard[3] {
+			AgentEvent::MessageCompleted { message } => {
+				assert_eq!(message.id, "m1");
+				assert_eq!(message.text, stored);
+				assert_eq!(message.completion, MessageCompletion::Complete);
+			}
+			other => panic!("expected the completion of m1, got {other:?}"),
+		}
+		assert_eq!(heard[4], turn_ended());
+		written.close();
+	}
+
+	#[tokio::test]
+	async fn a_block_without_a_reply_is_told_as_a_new_reply_before_the_turn_ends() {
+		let written = Written::new("attach-told-silent").await;
+		written.prompt("t1", "p1").await;
+		attach(&written, "/data/attachments/c/a.png", None);
+
+		let heard = written.forwarded(entries_of(&[turn_ended()])).await;
+
+		assert_eq!(heard.len(), 3, "{heard:?}");
+		let AgentEvent::MessageStarted { message: started } = &heard[0] else {
+			panic!("expected a started reply, got {:?}", heard[0]);
+		};
+		let AgentEvent::MessageCompleted { message: completed } = &heard[1] else {
+			panic!("expected a completed reply, got {:?}", heard[1]);
+		};
+		assert_eq!(started.id, completed.id);
+		assert_eq!(completed.completion, MessageCompletion::Complete);
+		let stored = written.stored(&completed.id).await.expect("the reply is stored").content;
+		assert_eq!(completed.text, stored);
+		with_block("", &["/data/attachments/c/a.png"])(&stored);
+		assert_eq!(heard[2], turn_ended());
+		written.close();
+	}
+
+	#[tokio::test]
+	async fn a_block_that_could_not_be_stored_is_told_nowhere() {
+		let written = Written::new("attach-unstored").await;
+		written.prompt("t1", "p1").await;
+		let spoken = a_spoken_turn();
+		let (told, mut heard) = mpsc::unbounded_channel();
+		let mut desk = written.desk_telling(Arc::new(told));
+		desk.open_turn(submitted("t1", "p1")).await;
+		for event in &spoken[..3] {
+			desk.record(event).await;
+		}
+		written
+			.database()
+			.messages()
+			.call(|connection| Ok(connection.execute("DELETE FROM messages WHERE id = 'm1'", [])?))
+			.await
+			.expect("the reply is removed");
+		attach(&written, "/data/attachments/c/a.png", None);
+
+		desk.record(&turn_ended()).await;
+
+		assert!(heard.try_recv().is_err(), "a block that was not stored was told");
+		written.close();
 	}
 }

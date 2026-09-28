@@ -14,7 +14,7 @@ import { KIROSHI_SERVER, kiroshiServer } from "./kiroshi-server"
 import { createMissionStatusReminder } from "./mission-status-reminder"
 import { createPermissionGate } from "./permissions"
 import { createPromptStream } from "./prompt-stream"
-import { securityFloor } from "./security-floor"
+import { type FloorScope, securityFloor } from "./security-floor"
 import {
 	type ConnectPass,
 	delay,
@@ -93,14 +93,15 @@ export const buildOptions = (
 	resolved: ResolvedServers = resolvedServers(request),
 	stop?: HookCallback,
 ): Options => {
-	const managedSettings = securityFloor({
+	const floor: FloorScope = {
 		appDataDir: request.appDataDir,
 		conversationId: request.conversationId,
 		home: homedir(),
 		platform: process.platform,
 		pluginPaths: pluginPaths(request),
 		writablePaths: writablePaths(writeScope(request)),
-	})
+	}
+	const managedSettings = securityFloor(floor)
 	return {
 		cwd: request.cwd,
 		resume: request.resume,
@@ -115,6 +116,7 @@ export const buildOptions = (
 						...resolved.servers,
 						...kiroshiServer({
 							cwd: request.cwd,
+							floor,
 							managedSettings,
 							session: request.session,
 						}),

@@ -182,6 +182,9 @@ const APPEND_TEXT: &str =
 const FINALIZE_MESSAGE: &str =
 	"UPDATE messages SET completion_state = ?2, content = COALESCE(?3, content)
 	WHERE id = ?1 AND completion_state IN ('pending', 'streaming')";
+const REPLACE_CONTENT: &str = "UPDATE messages SET content = ?2 WHERE id = ?1";
+const REPLACE_INDEXED_CONTENT: &str =
+	"UPDATE message_search SET content = ?2 WHERE message_id = ?1";
 const MESSAGE_PAGE: &str = "SELECT id, turn_id, author_bot_id, replied_to_message_id, seq, role,
 		content, completion_state, created_at, runtime_session_id
 	FROM messages WHERE conversation_id = ?1 AND seq < ?2 ORDER BY seq DESC LIMIT ?3";
@@ -341,6 +344,14 @@ impl MessagesRepository {
 			Ok(close_message(connection, &id, state, settled_text.as_deref()))
 		})
 		.await?
+	}
+
+	pub async fn replace_content(
+		&self,
+		id: String,
+		content: String,
+	) -> Result<(), TranscriptError> {
+		self.call_mut(move |connection| Ok(rewrite_content(connection, &id, &content))).await?
 	}
 
 	pub async fn page_messages(
@@ -789,6 +800,20 @@ fn close_message(
 			transaction.execute(FINALIZE_MESSAGE, params![id, target, settled_text])?;
 		}
 	}
+	transaction.commit()?;
+	Ok(())
+}
+
+fn rewrite_content(
+	connection: &mut Connection,
+	id: &str,
+	content: &str,
+) -> Result<(), TranscriptError> {
+	let transaction = write_transaction(connection)?;
+	if transaction.execute(REPLACE_CONTENT, params![id, content])? == 0 {
+		return Err(TranscriptError::UnknownMessage { id: id.into() });
+	}
+	transaction.execute(REPLACE_INDEXED_CONTENT, params![id, content])?;
 	transaction.commit()?;
 	Ok(())
 }

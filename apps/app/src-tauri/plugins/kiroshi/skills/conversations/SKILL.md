@@ -8,7 +8,7 @@ metadata:
 ---
 
 A room is a conversation of this space with a subject of its own and a seat for each
-companion the subject belongs to. You hold three tools for them, on the `kiroshi` server.
+companion the subject belongs to. You hold four tools for them, on the `kiroshi` server.
 
 - `conversation_open`, a new room led by you, answering the id of that room, its title and
   the companions seated in it.
@@ -16,6 +16,8 @@ companion the subject belongs to. You hold three tools for them, on the `kiroshi
   that room and its title.
 - `companion_invite`, one more seat for a companion of this space, answering that
   companion's id, its name, and whether it was already seated.
+- `conversation_attach`, one image file shown to the person, here or in a room you hold a
+  seat in, answering the path it was stored under and the id of that conversation.
 
 `companion_invite` seats a companion in this conversation, and in another room of the
 caller when a room id is passed.
@@ -64,6 +66,9 @@ nothing lists it later. Carry it with you for every `conversation_say` and every
 `companion_invite` you send there.
 
 ## What the person reads
+
+Reading an image with `Read` shows it to you and never to the person. To show an image,
+call `conversation_attach`.
 
 The person does not read the new room unless they open it. Nothing you say there reaches
 them here on its own.

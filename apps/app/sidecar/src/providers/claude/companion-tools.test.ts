@@ -1,6 +1,16 @@
-import { afterEach, describe, expect, it } from "bun:test"
+import { afterAll, afterEach, describe, expect, it } from "bun:test"
+import {
+	mkdirSync,
+	mkdtempSync,
+	realpathSync,
+	rmSync,
+	symlinkSync,
+	writeFileSync,
+} from "node:fs"
+import { tmpdir } from "node:os"
+import { join } from "node:path"
 
-import { companionTools } from "./companion-tools"
+import { type AttachScope, companionTools } from "./companion-tools"
 
 import type { SessionFrame } from "../provider"
 import {
@@ -11,6 +21,24 @@ import {
 } from "../../host"
 
 const SESSION = "k1"
+
+const HOME = realpathSync(mkdtempSync(join(tmpdir(), "kiroshi-attach-")))
+
+const SCOPE: AttachScope = {
+	cwd: HOME,
+	floor: { home: HOME, platform: "darwin", pluginPaths: [], writablePaths: [] },
+}
+
+const SHOWN = join(HOME, "shown.png")
+
+const SECRET = join(HOME, ".ssh", "key.png")
+
+const DISGUISED = join(HOME, "disguised.png")
+
+mkdirSync(join(HOME, ".ssh"))
+writeFileSync(SHOWN, "image")
+writeFileSync(SECRET, "secret")
+symlinkSync(SECRET, DISGUISED)
 
 const NAMES_A_MOMENT = /\b(before|once)\b/
 
@@ -92,7 +120,9 @@ const anAnsweringHost = () =>
 const aRefusingHost = () => aHost(() => ({ error: A_REFUSAL }))
 
 const toolNamed = (session: string | undefined, name: string) => {
-	const found = companionTools(session).find((held) => held.name === name)
+	const found = companionTools(session, SCOPE).find(
+		(held) => held.name === name,
+	)
 	if (!found) {
 		throw new Error(`the server carries no tool named ${name}`)
 	}
@@ -112,16 +142,20 @@ afterEach(() => {
 	closeHostChannel(SESSION)
 })
 
+afterAll(() => {
+	rmSync(HOME, { recursive: true, force: true })
+})
+
 describe("companionTools", () => {
 	it("takes neither a conversation id nor a space id from the agent", () => {
-		for (const held of companionTools(SESSION)) {
+		for (const held of companionTools(SESSION, SCOPE)) {
 			expect(Object.keys(held.inputSchema)).not.toContain("conversationId")
 			expect(Object.keys(held.inputSchema)).not.toContain("spaceId")
 		}
 	})
 
 	it("describes each tool in one sentence naming when to call it", () => {
-		for (const held of companionTools(SESSION)) {
+		for (const held of companionTools(SESSION, SCOPE)) {
 			expect(held.description.split(". ")).toHaveLength(1)
 			expect(held.description).toMatch(NAMES_A_MOMENT)
 		}
@@ -187,6 +221,52 @@ describe("companionTools", () => {
 		const result = await called("companion_suggestions", {}, undefined)
 
 		expect(spoken(result)).toMatchObject({ kind: "undeliverable" })
+		expect(result.isError).toBe(true)
+	})
+
+	it("hands the host the resolved path of the image, with its caption", async () => {
+		const asked = aHost(() => ({
+			result: { path: "/stored.png", conversationId: "c1" },
+		}))
+
+		const result = await called("conversation_attach", {
+			path: "shown.png",
+			caption: "The chart",
+		})
+
+		expect(asked).toEqual([
+			{
+				subtype: "companion",
+				operation: "conversationAttach",
+				payload: { path: SHOWN, caption: "The chart" },
+			},
+		])
+		expect(result.isError).toBeUndefined()
+	})
+
+	it("refuses a path the floor denies, symlinks resolved, without asking the host", async () => {
+		for (const path of [SECRET, DISGUISED]) {
+			const asked = anAnsweringHost()
+
+			const result = await called("conversation_attach", { path })
+
+			expect(asked).toEqual([])
+			expect(spoken(result)).toEqual({ kind: "deniedPath", path })
+			expect(result.isError).toBe(true)
+			closeHostChannel(SESSION)
+		}
+	})
+
+	it("refuses a missing file naming its path without asking the host", async () => {
+		const asked = anAnsweringHost()
+
+		const result = await called("conversation_attach", { path: "gone.png" })
+
+		expect(asked).toEqual([])
+		expect(spoken(result)).toMatchObject({
+			kind: "unreadableFile",
+			path: "gone.png",
+		})
 		expect(result.isError).toBe(true)
 	})
 })

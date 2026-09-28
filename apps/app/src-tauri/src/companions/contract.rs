@@ -1,5 +1,7 @@
 use serde::{Deserialize, Serialize};
 
+use crate::attachments::contract::AttachmentStoreError;
+use crate::attachments::Rejection;
 use crate::conversations::contract::{StorageFailure, TranscriptStoreError};
 use crate::db::DatabaseError;
 
@@ -46,6 +48,13 @@ pub struct ConversationSaid {
 	pub title: String,
 }
 
+#[derive(Debug, Clone, PartialEq, Eq, Serialize, Deserialize)]
+#[serde(rename_all = "camelCase")]
+pub struct ConversationAttached {
+	pub path: String,
+	pub conversation_id: String,
+}
+
 #[derive(Debug, Clone, PartialEq, Eq, Serialize, Deserialize, specta::Type)]
 #[serde(rename_all = "camelCase")]
 pub struct CompanionSeedRefused {
@@ -81,6 +90,12 @@ pub enum CompanionError {
 	#[serde(rename_all = "camelCase")]
 	CallerNotSeated { conversation_id: String },
 	#[serde(rename_all = "camelCase")]
+	UnreadableFile { path: String, detail: String },
+	#[serde(rename_all = "camelCase")]
+	NotAnImage { path: String, accepted: Vec<String> },
+	#[serde(rename_all = "camelCase")]
+	AttachmentRefused { refusal: AttachmentStoreError },
+	#[serde(rename_all = "camelCase")]
 	UnreadableRequest { detail: String },
 	#[serde(rename_all = "camelCase")]
 	Undeliverable { detail: String },
@@ -102,5 +117,11 @@ impl From<TranscriptStoreError> for CompanionError {
 			TranscriptStoreError::NamelessBot => CompanionError::NamelessCompanion,
 			other => CompanionError::Unexpected { detail: format!("{other:?}") },
 		}
+	}
+}
+
+impl From<Rejection> for CompanionError {
+	fn from(rejection: Rejection) -> Self {
+		CompanionError::AttachmentRefused { refusal: rejection.into() }
 	}
 }
