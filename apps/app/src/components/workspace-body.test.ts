@@ -6,6 +6,7 @@ import {
 	fireEvent,
 	render,
 	screen,
+	waitFor,
 	within,
 } from "@testing-library/react"
 import { type ComponentProps, createElement, useState } from "react"
@@ -768,23 +769,55 @@ describe("WorkspaceBody mission menu", () => {
 		await noticeTitled("Couldn’t copy to the clipboard")
 	})
 
-	it("opens the mission thread with its composer focused from Message the agent", async () => {
-		await seed({ state: "working" })
+	const MENU_EXIT_MS = 30
 
-		await choose(panelCardIn("In progress"), "Message the agent")
+	const holdMenuExit = () => {
+		const exiting = {
+			finished: new Promise((resolve) => setTimeout(resolve, MENU_EXIT_MS)),
+		} as unknown as Animation
+		screen.getByRole("menu").getAnimations = () => [exiting]
+	}
 
-		expect(missionHeader()).toBeTruthy()
-		expect(document.activeElement).toBe(screen.getByRole("textbox"))
-	})
+	const chooseAsTheMenuExits = async (card: HTMLElement, entry: string) => {
+		within(card).getByRole("button", { name: MENU }).focus()
+		await openMenuOf(card)
+		holdMenuExit()
+		fireEvent.click(screen.getByRole("menuitem", { name: entry }))
+		await settle()
+	}
 
-	it("opens the mission thread with its composer focused from Answer the question", async () => {
-		await seed()
+	const menuClosed = async () => {
+		await waitFor(() => expect(screen.queryByRole("menu")).toBeNull())
+		await act(
+			() => new Promise((resolve) => setTimeout(resolve, 2 * MENU_EXIT_MS)),
+		)
+	}
 
-		await choose(transcriptCard(), "Answer the question")
+	it.each([
+		{ entry: "Message the agent", state: "working", place: "Activity panel" },
+		{ entry: "Message the agent", state: "working", place: "thread" },
+		{
+			entry: "Answer the question",
+			state: "waiting_human",
+			place: "Activity panel",
+		},
+		{ entry: "Answer the question", state: "waiting_human", place: "thread" },
+	] as const)(
+		"leaves focus in the mission composer after $entry from the $place card",
+		async ({ entry, state, place }) => {
+			await seed({ state })
+			const card =
+				place === "thread"
+					? transcriptCard()
+					: panelCardIn(state === "working" ? "In progress" : "Waiting on you")
 
-		expect(missionHeader()).toBeTruthy()
-		expect(document.activeElement).toBe(screen.getByRole("textbox"))
-	})
+			await chooseAsTheMenuExits(card, entry)
+			await menuClosed()
+
+			expect(missionHeader()).toBeTruthy()
+			expect(document.activeElement).toBe(screen.getByRole("textbox"))
+		},
+	)
 
 	it("cancels the running turn of the mission thread from Stop the agent", async () => {
 		const { workspace } = await seed({ state: "working" })
