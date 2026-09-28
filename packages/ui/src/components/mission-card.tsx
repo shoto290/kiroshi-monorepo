@@ -64,8 +64,6 @@ const BADGE_OF: Partial<Record<MissionState, BotBadge>> = {
 const MARK_CLASS =
 	"me-[5px] inline-block size-[11px]! align-[-1px] text-muted-foreground"
 
-const TOOL_MARK_CLASS = "me-[5px] size-[11px] align-[-1px]"
-
 const IDENTIFIER_CLASS = "font-medium tabular-nums"
 
 const MENU_REVEAL =
@@ -298,11 +296,7 @@ const RowDensity = ({
 							<span className="sr-only">{t("missions.live")}</span>
 						) : null}
 						{tools.map((tool) => (
-							<MissionToolMark
-								className={TOOL_MARK_CLASS}
-								key={tool}
-								tool={tool}
-							/>
+							<MissionToolMark className={MARK_CLASS} key={tool} tool={tool} />
 						))}
 						{isTicketed(ticket) ? (
 							<Mark aria-hidden="true" className={MARK_CLASS} />
