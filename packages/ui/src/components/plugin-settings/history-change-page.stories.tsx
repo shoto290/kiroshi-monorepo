@@ -3,6 +3,7 @@ import { expect, fn, screen, waitFor, within } from "storybook/test"
 import preview from "@workspace/storybook/preview"
 import {
 	A11Y_CONTRAST_AWAITING_DESIGN_DECISION,
+	expectFont,
 	slotIn,
 } from "@workspace/storybook/story-utils"
 import {
@@ -81,9 +82,11 @@ export const Default = meta.story({
 		await expect(screen.findByRole("tooltip")).rejects.toThrow()
 		await readsStartAlignedBehindItsGlyph(only)
 
-		await expect(
-			canvas.getByRole("heading", { name: "Rewrote the instructions" }),
-		).toBeVisible()
+		const title = canvas.getByRole("heading", {
+			name: "Rewrote the instructions",
+		})
+		await expect(title).toBeVisible()
+		await expectFont(title, "font-heading")
 		await expect(canvas.getByText("Nest Keeper · Today, 09:42")).toBeVisible()
 		await expect(canvas.getByText("1 line added, 1 line removed")).toBeVisible()
 		await expect(

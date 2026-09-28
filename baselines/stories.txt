@@ -600,6 +600,7 @@ forms-toggleswitch--default
 forms-toggleswitch--reduced-motion
 forms-toggleswitch--states
 forms-toggleswitch--with-label
+foundations-heading-levels--heading-font-on-the-top-two-levels-only
 foundations-token-contrast--semantic-pairs-meet-aa-text
 foundations-token-contrast--tinted-user-bubble-meets-aa-text
 layout-appheader--default

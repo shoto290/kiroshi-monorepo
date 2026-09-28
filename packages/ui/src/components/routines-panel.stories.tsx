@@ -4,6 +4,7 @@ import { expect, fn, screen, waitFor, within } from "storybook/test"
 import preview from "@workspace/storybook/preview"
 import {
 	A11Y_CONTRAST_AWAITING_DESIGN_DECISION,
+	expectFont,
 	FRAME_POLL,
 	slotIn,
 	slotsIn,
@@ -316,10 +317,14 @@ export const Default = meta.story({
 		await expect(
 			canvas.queryByRole("button", { name: "Toggle activity" }),
 		).not.toBeInTheDocument()
+		await expectFont(
+			within(panel).getByRole("heading", { level: 2, name: "Activity" }),
+			"font-heading",
+		)
 
-		await expect(
-			canvas.getByRole("heading", { name: "Waiting on you" }),
-		).toBeVisible()
+		const waiting = canvas.getByRole("heading", { name: "Waiting on you" })
+		await expect(waiting).toBeVisible()
+		await expectFont(waiting, "font-sans")
 		await expect(
 			canvas.getByRole("heading", { name: "In progress" }),
 		).toBeVisible()
