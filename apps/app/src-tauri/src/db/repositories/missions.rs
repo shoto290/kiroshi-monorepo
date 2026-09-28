@@ -67,7 +67,8 @@ pub(in crate::db) const MISSION_COLUMNS: &str =
 	last_activity_at, last_activity, commits_ahead, dirty_files, pull_request_url,
 	(SELECT created_at FROM mission_events
 		WHERE mission_events.mission_id = missions.id AND mission_events.kind = 'agent_stopped'
-		ORDER BY mission_events.seq DESC LIMIT 1) AS agent_stopped_at
+		ORDER BY mission_events.seq DESC LIMIT 1) AS agent_stopped_at,
+	NULLIF(watch_branch, ''), NULLIF(watch_workspace_path, '')
 	FROM missions";
 
 const INSERT_MISSION: &str = "INSERT INTO missions
@@ -106,6 +107,9 @@ const KEEP_CHECKOUT: &str = "UPDATE missions SET commits_ahead = ?2, dirty_files
 const SELECT_KEY: &str = "SELECT delivery_key FROM missions WHERE id = ?1";
 
 const CLOSE_MISSION: &str = "UPDATE missions SET closed_at = ?2 WHERE id = ?1";
+
+const REOPEN_MISSION: &str = "UPDATE missions
+	SET closed_at = NULL, reported_at = NULL, reported_turn_id = NULL WHERE id = ?1";
 
 const REPORT_MISSION: &str =
 	"UPDATE missions SET reported_at = ?2, reported_turn_id = ?3 WHERE id = ?1";
@@ -168,6 +172,16 @@ impl MissionsRepository {
 	) -> Result<Mission, MissionError> {
 		self.access
 			.call_mut(move |connection| Ok(closed(connection, &mission_id, &closing)))
+			.await?
+	}
+
+	pub async fn reopen(
+		&self,
+		mission_id: String,
+		source: String,
+	) -> Result<Mission, MissionError> {
+		self.access
+			.call_mut(move |connection| Ok(reopened(connection, &mission_id, &source)))
 			.await?
 	}
 
@@ -542,6 +556,30 @@ fn closed(
 	Ok(stored)
 }
 
+fn reopened(
+	connection: &mut Connection,
+	mission_id: &str,
+	source: &str,
+) -> Result<Mission, MissionError> {
+	let transaction = write_transaction(connection)?;
+	let Some(standing) = held(&transaction, mission_id)? else {
+		return Err(MissionError::UnknownMission { id: mission_id.to_owned() });
+	};
+	if standing.closed_at.is_none() {
+		return Err(MissionError::MissionStillOpen { id: mission_id.to_owned() });
+	}
+	let entry = MissionEntry {
+		kind: MissionEventKind::Reopened,
+		source: source.to_owned(),
+		payload: serde_json::json!({}),
+	};
+	record(&transaction, mission_id, &entry, "", now())?;
+	transaction.execute(REOPEN_MISSION, [mission_id])?;
+	let stored = read(&transaction, mission_id)?;
+	transaction.commit()?;
+	Ok(stored)
+}
+
 fn reported(
 	connection: &mut Connection,
 	mission_id: &str,
@@ -777,6 +815,8 @@ pub(in crate::db) fn mission(row: &Row<'_>) -> rusqlite::Result<Mission> {
 		commits_ahead: row.get(21)?,
 		dirty_files: row.get(22)?,
 		pull_request_url: row.get(23)?,
+		branch: row.get(25)?,
+		workspace_path: row.get(26)?,
 	})
 }
 
@@ -878,7 +918,7 @@ mod tests {
 	use super::*;
 	use crate::db::connection::temp_dir;
 	use crate::db::{count_of, open, Database};
-	use crate::missions::contract::MissionNote;
+	use crate::missions::contract::{MissionNote, MissionOutcome};
 
 	const TWO_SPACES: &str = "
 		INSERT INTO spaces (id, name, colour, position, created_at)
@@ -1022,6 +1062,7 @@ mod tests {
 				(MissionEventKind::ChecksFailed, MissionState::WaitingBot),
 				(MissionEventKind::Failed, MissionState::Failed),
 				(MissionEventKind::Status, MissionState::Failed),
+				(MissionEventKind::Reopened, MissionState::Working),
 				(MissionEventKind::Closed, MissionState::Done),
 			],
 			"a kind moved the mission somewhere the contract does not name"
@@ -1934,6 +1975,232 @@ mod tests {
 			.expect("the mission stands");
 		assert_eq!(held.reported_at, reported.reported_at, "the report lost its moment");
 		assert_eq!(held.reported_turn_id, None, "the mission still names a turn nobody holds");
+
+		drop(database);
+		std::fs::remove_dir_all(&dir).expect("cleanup");
+	}
+
+	fn a_person_closing(outcome: MissionOutcome) -> MissionClosing {
+		MissionClosing {
+			source: "person".to_owned(),
+			outcome,
+			summary: "Settled by hand".to_owned(),
+		}
+	}
+
+	async fn an_armed_mission_in(database: &Database, workspace: &str) -> Mission {
+		let draft = MissionDraft {
+			workspace_path: Some(workspace.to_owned()),
+			..a_draft("c1", "b1", "Fix it")
+		};
+		let opened = database.missions().open(draft, a_key()).await.expect("the mission opens");
+		let (armed, _) = database
+			.missions()
+			.arm(opened.id, a_watch("feature/reopen"), a_key())
+			.await
+			.expect("the mission is armed");
+		armed
+	}
+
+	async fn reopened_after(database: &Database, outcome: MissionOutcome) -> (Mission, Mission) {
+		let opened = database
+			.missions()
+			.open(a_draft("c1", "b1", "Fix it"), a_key())
+			.await
+			.expect("the mission opens");
+		database
+			.missions()
+			.close(opened.id.clone(), a_person_closing(outcome))
+			.await
+			.expect("the mission closes");
+		let shut = database
+			.missions()
+			.report(opened.id.clone(), None)
+			.await
+			.expect("the report is recorded");
+		let reopened = database
+			.missions()
+			.reopen(opened.id, "person".to_owned())
+			.await
+			.expect("the mission reopens");
+		(shut, reopened)
+	}
+
+	async fn last_event_of(database: &Database, id: &str) -> (MissionEventKind, String) {
+		let detail = database.missions().detail(id.to_owned()).await.expect("the mission reads");
+		let last = detail.events.last().expect("the mission holds events");
+		(last.kind, last.source.clone())
+	}
+
+	#[tokio::test]
+	async fn a_close_by_the_person_is_read_back_with_that_source() {
+		let (database, dir) = planted().await;
+		let opened = database
+			.missions()
+			.open(a_draft("c1", "b1", "Fix it"), a_key())
+			.await
+			.expect("the mission opens");
+
+		database
+			.missions()
+			.close(opened.id.clone(), a_person_closing(MissionOutcome::Done))
+			.await
+			.expect("the mission closes");
+
+		assert_eq!(
+			last_event_of(&database, &opened.id).await,
+			(MissionEventKind::Closed, "person".to_owned()),
+		);
+
+		drop(database);
+		std::fs::remove_dir_all(&dir).expect("cleanup");
+	}
+
+	#[tokio::test]
+	async fn reopening_a_done_mission_appends_reopened_and_clears_its_closing_and_its_report() {
+		let (database, dir) = planted().await;
+
+		let (shut, reopened) = reopened_after(&database, MissionOutcome::Done).await;
+
+		assert_eq!(shut.state, MissionState::Done);
+		assert_eq!(reopened.state, MissionState::Working);
+		assert!(reopened.state_seq > shut.state_seq, "the reopen did not move the state seq");
+		assert_eq!(
+			(reopened.closed_at, reopened.reported_at, reopened.reported_turn_id.clone()),
+			(None, None, None),
+			"the reopen left the mission closed or reported"
+		);
+		assert_eq!(
+			last_event_of(&database, &reopened.id).await,
+			(MissionEventKind::Reopened, "person".to_owned()),
+		);
+
+		drop(database);
+		std::fs::remove_dir_all(&dir).expect("cleanup");
+	}
+
+	#[tokio::test]
+	async fn reopening_a_failed_mission_brings_it_back_to_working() {
+		let (database, dir) = planted().await;
+
+		let (shut, reopened) = reopened_after(&database, MissionOutcome::Failed).await;
+
+		assert_eq!(shut.state, MissionState::Failed);
+		assert_eq!(reopened.state, MissionState::Working);
+		assert!(reopened.state_seq > shut.state_seq, "the reopen did not move the state seq");
+		assert_eq!(reopened.closed_at, None);
+
+		drop(database);
+		std::fs::remove_dir_all(&dir).expect("cleanup");
+	}
+
+	#[tokio::test]
+	async fn reopening_a_mission_still_open_or_one_nobody_holds_is_refused_and_writes_nothing() {
+		let (database, dir) = planted().await;
+		let open = database
+			.missions()
+			.open(a_draft("c1", "b1", "Fix it"), a_key())
+			.await
+			.expect("the mission opens");
+
+		let still_open = database
+			.missions()
+			.reopen(open.id.clone(), "person".to_owned())
+			.await
+			.expect_err("an open mission reopens");
+		let unknown = database
+			.missions()
+			.reopen("nobody".to_owned(), "person".to_owned())
+			.await
+			.expect_err("an unknown mission reopens");
+
+		assert_eq!(still_open, MissionError::MissionStillOpen { id: open.id.clone() });
+		assert_eq!(unknown, MissionError::UnknownMission { id: "nobody".to_owned() });
+		assert_eq!(
+			database.missions().detail(open.id).await.expect("the mission reads").events.len(),
+			1,
+			"the refused reopen wrote an event"
+		);
+
+		drop(database);
+		std::fs::remove_dir_all(&dir).expect("cleanup");
+	}
+
+	#[tokio::test]
+	async fn a_mission_reads_back_the_branch_it_is_armed_on_and_the_workspace_it_opened_in() {
+		let (database, dir) = planted().await;
+		let bare = database
+			.missions()
+			.open(a_draft("c1", "b1", "Bare"), a_key())
+			.await
+			.expect("the mission opens");
+		let armed = an_armed_mission_in(&database, "/work/kiroshi").await;
+
+		let listed = database.missions().of_conversation("c1".to_owned()).await.expect("list");
+		let on_board = database.missions().still_open().await.expect("board");
+		let detail = database.missions().detail(armed.id.clone()).await.expect("detail");
+
+		let carried = (Some("feature/reopen".to_owned()), Some("/work/kiroshi".to_owned()));
+		assert_eq!((armed.branch.clone(), armed.workspace_path.clone()), carried);
+		assert_eq!((detail.mission.branch, detail.mission.workspace_path), carried);
+		for missions in [listed.open, on_board] {
+			let mut read: Vec<_> = missions
+				.into_iter()
+				.map(|held| (held.id, held.branch, held.workspace_path))
+				.collect();
+			let mut expected = vec![
+				(bare.id.clone(), None, None),
+				(armed.id.clone(), carried.0.clone(), carried.1.clone()),
+			];
+			read.sort();
+			expected.sort();
+			assert_eq!(read, expected);
+		}
+
+		drop(database);
+		std::fs::remove_dir_all(&dir).expect("cleanup");
+	}
+
+	#[tokio::test]
+	async fn a_reopened_armed_mission_is_watched_and_hooked_again() {
+		let (database, dir) = planted().await;
+		let armed = an_armed_mission_in(&database, "/work/kiroshi").await;
+		database
+			.missions()
+			.close(armed.id.clone(), a_person_closing(MissionOutcome::Done))
+			.await
+			.expect("the mission closes");
+		let watched_ids = || async {
+			database
+				.missions()
+				.watched()
+				.await
+				.expect("watched")
+				.into_iter()
+				.map(|held| held.id)
+				.collect::<Vec<_>>()
+		};
+		let hooked_ids = || async {
+			database
+				.missions()
+				.hooked()
+				.await
+				.expect("hooked")
+				.into_iter()
+				.map(|held| held.id)
+				.collect::<Vec<_>>()
+		};
+		assert!(watched_ids().await.is_empty(), "a closed mission is still watched");
+		assert!(hooked_ids().await.is_empty(), "a closed mission is still hooked");
+
+		database
+			.missions()
+			.reopen(armed.id.clone(), "person".to_owned())
+			.await
+			.expect("the mission reopens");
+
+		assert_eq!(watched_ids().await, vec![armed.id.clone()]);
+		assert_eq!(hooked_ids().await, vec![armed.id.clone()]);
 
 		drop(database);
 		std::fs::remove_dir_all(&dir).expect("cleanup");

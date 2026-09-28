@@ -1290,6 +1290,38 @@ mod tests {
 	}
 
 	#[tokio::test]
+	async fn a_mission_reopened_after_its_pull_request_merged_is_not_closed_again_by_that_merge() {
+		let (database, dir) = planted().await;
+		let mission = an_armed_mission(&database).await;
+		let stub = Stub::holding(a_pull("open", "abc", false), "\"one\"").await;
+		let clock = Ticking::at(NOON);
+		let mut kept = Kept::default();
+		walked(&stub, &database, &mut kept, &clock).await;
+		stub.answering(a_pull("closed", "abc", true), "\"two\"").await;
+		walked(&stub, &database, &mut kept, &clock).await;
+		database
+			.missions()
+			.reopen(mission.id.clone(), "person".to_owned())
+			.await
+			.expect("the mission reopens");
+
+		walked(&stub, &database, &mut kept, &clock).await;
+		stub.answering(a_pull("closed", "abc", true), "\"three\"").await;
+		walked(&stub, &database, &mut kept, &clock).await;
+
+		let closings = from_github(&database, &mission.id)
+			.await
+			.into_iter()
+			.filter(|(kind, _)| *kind == MissionEventKind::Closed)
+			.count();
+		assert_eq!(closings, 1, "the merge seen before the reopen closed the mission again");
+		assert_eq!(state_of(&database, &mission.id).await, (MissionState::Working, false));
+
+		stub.stop.send_replace(true);
+		std::fs::remove_dir_all(&dir).expect("cleanup");
+	}
+
+	#[tokio::test]
 	async fn a_mission_closed_between_two_passes_is_neither_read_nor_appended_to() {
 		let (database, dir) = planted().await;
 		let mission = an_armed_mission(&database).await;

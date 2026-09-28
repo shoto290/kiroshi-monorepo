@@ -20,10 +20,11 @@ pub enum MissionEventKind {
 	Failed,
 	Closed,
 	Status,
+	Reopened,
 }
 
 impl MissionEventKind {
-	pub const ALL: [MissionEventKind; 12] = [
+	pub const ALL: [MissionEventKind; 13] = [
 		MissionEventKind::Opened,
 		MissionEventKind::Note,
 		MissionEventKind::AgentAsked,
@@ -36,11 +37,14 @@ impl MissionEventKind {
 		MissionEventKind::Failed,
 		MissionEventKind::Closed,
 		MissionEventKind::Status,
+		MissionEventKind::Reopened,
 	];
 
 	pub fn state(self) -> Option<MissionState> {
 		match self {
-			MissionEventKind::Opened | MissionEventKind::Answered => Some(MissionState::Working),
+			MissionEventKind::Opened | MissionEventKind::Answered | MissionEventKind::Reopened => {
+				Some(MissionState::Working)
+			}
 			MissionEventKind::AgentAsked | MissionEventKind::ChecksFailed => {
 				Some(MissionState::WaitingBot)
 			}
@@ -167,6 +171,8 @@ pub struct Mission {
 	pub commits_ahead: Option<i64>,
 	pub dirty_files: Option<i64>,
 	pub pull_request_url: Option<String>,
+	pub branch: Option<String>,
+	pub workspace_path: Option<String>,
 }
 
 #[derive(Debug, Clone, PartialEq, Eq, Serialize, Deserialize, specta::Type)]

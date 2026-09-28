@@ -23,6 +23,8 @@ pub const CHANGED_EVENT: &str = "mission://changed";
 
 const BOT: &str = "bot";
 
+const PERSON: &str = "person";
+
 const HEARD: &str =
 	"the agent hook is installed in the checkout of this mission, so what the agent does there \
 	reaches its thread";
@@ -221,6 +223,18 @@ pub async fn mission_close<R: Runtime>(
 ) -> Result<Mission, MissionError> {
 	refuse_blank("source", &closing.source)?;
 	let written = ready(&state)?.missions().close(mission_id, closing).await?;
+	announce_change(&app, &written)?;
+	Ok(written)
+}
+
+#[tauri::command]
+#[specta::specta]
+pub async fn mission_reopen<R: Runtime>(
+	app: AppHandle<R>,
+	state: State<'_, db::DatabaseState>,
+	mission_id: String,
+) -> Result<Mission, MissionError> {
+	let written = ready(&state)?.missions().reopen(mission_id, PERSON.to_owned()).await?;
 	announce_change(&app, &written)?;
 	Ok(written)
 }
