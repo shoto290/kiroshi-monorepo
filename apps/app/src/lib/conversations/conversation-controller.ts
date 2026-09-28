@@ -491,10 +491,26 @@ export const createConversationController = (
 		settleReply(held, message.id, completion)
 	}
 
+	const reviseSettled = (held: Speaker, message: ChatMessage) => {
+		const revised = toMentionTokens(message.text, mentionBots())
+		if (!conversation || revised === held.written.get(message.id)) {
+			return
+		}
+		held.written.set(message.id, revised)
+		transcript.revise({
+			conversationId: conversation.id,
+			id: message.id,
+			text: revised,
+		})
+	}
+
 	const settleCompleted = (held: Speaker, message: ChatMessage) => {
 		const completion = ENDING_FOR[message.completion]
-		if (!completion || held.settledMessages.has(message.id)) {
+		if (!completion) {
 			return
+		}
+		if (held.settledMessages.has(message.id)) {
+			return reviseSettled(held, message)
 		}
 		if (held.heldReply?.id === message.id) {
 			held.heldReply = null

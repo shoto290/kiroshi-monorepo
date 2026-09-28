@@ -16,6 +16,12 @@ export type TranscriptDelta = {
 	text: string
 }
 
+export type TranscriptRevision = {
+	conversationId: string
+	id: string
+	text: string
+}
+
 export type TranscriptSettlement = {
 	conversationId: string
 	id: string
@@ -47,6 +53,7 @@ export type TranscriptAction =
 	| { type: "arrivalAnnounced"; arrival: CompanionArrival }
 	| { type: "messageStreamed"; delta: TranscriptDelta }
 	| { type: "messageSettled"; settlement: TranscriptSettlement }
+	| { type: "messageRevised"; revision: TranscriptRevision }
 	| { type: "threadLeft"; conversationId: string }
 
 export const initialTranscriptState: TranscriptState = { conversations: {} }
@@ -506,6 +513,36 @@ const applyMessageSettled = (
 	})
 }
 
+const applyMessageRevised = (
+	state: TranscriptState,
+	revision: TranscriptRevision,
+): TranscriptState => {
+	const current = state.conversations[revision.conversationId]
+	if (!current) {
+		return state
+	}
+	const index = current.messages.findIndex(
+		(message) => message.id === revision.id,
+	)
+	if (index === -1) {
+		return state
+	}
+	const target = current.messages[index]
+	if (
+		!isTerminalCompletion(target.completion) ||
+		target.content === revision.text
+	) {
+		return state
+	}
+	return withConversation(state, revision.conversationId, {
+		...current,
+		messages: current.messages.with(index, {
+			...target,
+			content: revision.text,
+		}),
+	})
+}
+
 export const transcriptReducer = (
 	state: TranscriptState,
 	action: TranscriptAction,
@@ -527,6 +564,8 @@ export const transcriptReducer = (
 			return applyMessageStreamed(state, action.delta)
 		case "messageSettled":
 			return applyMessageSettled(state, action.settlement)
+		case "messageRevised":
+			return applyMessageRevised(state, action.revision)
 		case "threadLeft":
 			return applyThreadLeft(state, action.conversationId)
 	}

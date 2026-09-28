@@ -26,6 +26,7 @@ import type {
 	TransportError,
 } from "../agent/contract"
 import type { ChatDriver } from "../chat/driver"
+import { attachmentBlock } from "../chat/message-attachments"
 import type { ReportedRun } from "../routines/routine-contract"
 
 const SPACE = "personal"
@@ -48,6 +49,27 @@ const SAID_NOTHING: AgentEvent[] = [
 	},
 	{ type: "turnEnded", ended: { sessionId: null, outcome: "completed" } },
 ]
+
+const ATTACHMENT_BLOCK = `\n${attachmentBlock(
+	["/root/attachments/c-1/0b7c6d1e-2f3a-4b5c-8d9e-0f1a2b3c4d5e.png"],
+	new Date(0),
+)}`
+
+const TURN_ENDED: AgentEvent = {
+	type: "turnEnded",
+	ended: { sessionId: null, outcome: "completed" },
+}
+
+const completedAs = (id: string, text: string): AgentEvent => ({
+	type: "messageCompleted",
+	message: {
+		id,
+		role: "assistant",
+		text,
+		completion: "complete",
+		timestamp: 1,
+	},
+})
 
 type Harness = {
 	driver: ScriptedDriver
@@ -693,6 +715,67 @@ describe("createConversationController", () => {
 		expect(page.messages.map((message) => message.content)).toContain(
 			`over to <@${nyx}>`,
 		)
+	})
+
+	it("shows the attachment block a later completion adds to a settled reply", async () => {
+		const ada = idOf(harness.conversation, "Ada")
+		await harness.controller.send("and now?")
+		await harness.settled()
+		const [started, delta] = spoke(ada, "here it is")
+		const id = `msg-${ada}-10`
+
+		harness.driver.pushTo(ada, [
+			started,
+			delta,
+			completedAs(id, "here it is"),
+			completedAs(id, `here it is${ATTACHMENT_BLOCK}`),
+			TURN_ENDED,
+		])
+		await harness.settled()
+
+		expect(spokenIn(harness.controller)).toEqual([
+			[null, "and now?"],
+			[ada, `here it is${ATTACHMENT_BLOCK}`],
+		])
+	})
+
+	it("keeps a single reply when a later completion repeats the settled text", async () => {
+		const ada = idOf(harness.conversation, "Ada")
+		await harness.controller.send("and now?")
+		await harness.settled()
+		const [started, delta] = spoke(ada, "here it is")
+		const id = `msg-${ada}-10`
+		harness.driver.pushTo(ada, [started, delta, completedAs(id, "here it is")])
+		await harness.settled()
+		const settledMessages = harness.controller.getState().messages
+
+		harness.driver.pushTo(ada, [completedAs(id, "here it is"), TURN_ENDED])
+		await harness.settled()
+
+		expect(harness.controller.getState().messages).toBe(settledMessages)
+		expect(spokenIn(harness.controller)).toEqual([
+			[null, "and now?"],
+			[ada, "here it is"],
+		])
+	})
+
+	it("shows a reply carrying the attachment block alone", async () => {
+		const ada = idOf(harness.conversation, "Ada")
+		await harness.controller.send("and now?")
+		await harness.settled()
+		const [started] = spoke(ada, "")
+
+		harness.driver.pushTo(ada, [
+			started,
+			completedAs(`msg-${ada}-0`, ATTACHMENT_BLOCK.trimStart()),
+			TURN_ENDED,
+		])
+		await harness.settled()
+
+		expect(spokenIn(harness.controller)).toEqual([
+			[null, "and now?"],
+			[ada, ATTACHMENT_BLOCK.trimStart()],
+		])
 	})
 
 	it("leaves an arobase naming no seated companion as plain text", async () => {
