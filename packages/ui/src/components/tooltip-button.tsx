@@ -1,5 +1,7 @@
 "use client"
 
+import type { ReactNode } from "react"
+
 import {
 	TooltipHint,
 	type TooltipHintSide,
@@ -7,7 +9,7 @@ import {
 import { Button } from "@workspace/ui/components/ui/button"
 
 type TooltipButtonProps = React.ComponentProps<typeof Button> & {
-	tooltip: string
+	tooltip: ReactNode
 	tooltipSide?: TooltipHintSide
 }
 

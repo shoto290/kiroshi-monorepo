@@ -813,13 +813,6 @@ navigation-sidebarresize--collapsed
 navigation-sidebarresize--default
 navigation-sidebarresize--fixed
 navigation-sidebarresize--right-side
-navigation-sidebarsearchfield--collapsed-rail
-navigation-sidebarsearchfield--default
-navigation-sidebarsearchfield--keyboard-focus
-navigation-sidebarsearchfield--label-wider-than-field
-navigation-sidebarsearchfield--on-dark-surface
-navigation-sidebarsearchfield--under-pointer
-navigation-sidebarsearchfield--with-host-chord
 navigation-skiplink--custom-label
 navigation-skiplink--focused
 navigation-skiplink--hidden
