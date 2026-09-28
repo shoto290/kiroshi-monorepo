@@ -30,7 +30,7 @@ pub(crate) fn route<R: Runtime>(calls: Calls<R>) -> Router<Calls<R>> {
 		.route_layer(middleware::from_fn_with_state(calls, guarded::<R>))
 }
 
-async fn guarded<R: Runtime>(
+pub(crate) async fn guarded<R: Runtime>(
 	State(calls): State<Calls<R>>,
 	request: Request,
 	next: Next,

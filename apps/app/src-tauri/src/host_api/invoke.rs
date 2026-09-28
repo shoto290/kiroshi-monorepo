@@ -24,7 +24,7 @@ const BEARER: &str = "Bearer ";
 
 const JSON: &str = "application/json";
 
-const BYTES: &str = "application/octet-stream";
+pub(crate) const BYTES: &str = "application/octet-stream";
 
 pub(crate) const REFUSED: (StatusCode, &str) =
 	(StatusCode::NOT_FOUND, "no host api answers this call");

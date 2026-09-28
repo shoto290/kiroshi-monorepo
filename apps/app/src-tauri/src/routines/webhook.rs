@@ -5,6 +5,7 @@ use std::sync::Arc;
 use axum::extract::rejection::StringRejection;
 use axum::extract::{DefaultBodyLimit, State};
 use axum::http::{header, HeaderMap, StatusCode};
+use axum::middleware;
 use axum::response::IntoResponse;
 use axum::routing::post;
 use axum::Router;
@@ -23,7 +24,7 @@ use super::silence::Silence;
 use crate::conversations::commands::ready;
 use crate::db;
 use crate::host_api::token::{self, HostToken};
-use crate::host_api::{events, invoke};
+use crate::host_api::{cors, events, files, invoke};
 use crate::missions;
 
 pub const SOURCE_ID: &str = "local-webhook";
@@ -103,11 +104,13 @@ pub(crate) fn started<R: Runtime>(
 	};
 	let address = match listening() {
 		Ok((listener, address)) => {
+			web_link_left(&calls.app, calls.token.as_deref(), address);
 			tauri::async_runtime::spawn(serving(calls, listener, halted));
 			Some(address)
 		}
 		Err(failure) => {
 			eprintln!("no local webhook call is answered: {failure}");
+			web_link_cleared(&calls.app);
 			None
 		}
 	};
@@ -121,6 +124,21 @@ fn host_token<R: Runtime>(app: &AppHandle<R>) -> Option<Arc<HostToken>> {
 			eprintln!("no host api call is answered: the token was not loaded: {failure:?}");
 			None
 		}
+	}
+}
+
+fn web_link_left<R: Runtime>(app: &AppHandle<R>, token: Option<&HostToken>, address: SocketAddr) {
+	let Some(token) = token else {
+		return web_link_cleared(app);
+	};
+	if let Err(failure) = token::web_link_written(app, token, address.port()) {
+		eprintln!("no web link was left for the host api: {failure:?}");
+	}
+}
+
+fn web_link_cleared<R: Runtime>(app: &AppHandle<R>) {
+	if let Err(failure) = token::web_link_removed(app) {
+		eprintln!("a stale web link for the host api was left in place: {failure:?}");
 	}
 }
 
@@ -196,6 +214,8 @@ fn route<R: Runtime>(calls: Calls<R>) -> Router {
 		.layer(DefaultBodyLimit::max(MAX_BODY_BYTES))
 		.merge(invoke::route(calls.clone()))
 		.merge(events::route(calls.clone()))
+		.merge(files::route(calls.clone()))
+		.layer(middleware::from_fn(cors::shared))
 		.with_state(calls)
 }
 
