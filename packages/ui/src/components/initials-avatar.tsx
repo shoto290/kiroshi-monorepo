@@ -16,19 +16,18 @@ const INITIALS_RATIO = 0.4
 
 type AvatarShape = "hexagon" | "round"
 
-const FRAME_CLASS: Record<AvatarShape, string> = {
-	hexagon: "block rounded-none after:hidden",
-	round: "block overflow-hidden rounded-full after:hidden",
-}
+type ShapeStyle = { frame: string; layer: string; mask?: CSSProperties }
 
-const PICTURE_LAYER: Record<AvatarShape, string> = {
-	hexagon: "rounded-none",
-	round: "rounded-full",
-}
-
-const LAYER_MASK: Record<AvatarShape, CSSProperties | undefined> = {
-	hexagon: COMPANION_SILHOUETTE,
-	round: undefined,
+const SHAPE_STYLES: Record<AvatarShape, ShapeStyle> = {
+	hexagon: {
+		frame: "block rounded-none after:hidden",
+		layer: "rounded-none",
+		mask: COMPANION_SILHOUETTE,
+	},
+	round: {
+		frame: "block overflow-hidden rounded-full after:hidden",
+		layer: "rounded-full",
+	},
 }
 
 const INITIALS_CLASS =
@@ -62,7 +61,7 @@ const AvatarFrame = ({
 	children,
 }: AvatarFrameProps) => (
 	<Avatar
-		className={cn(FRAME_CLASS[shape], className)}
+		className={cn(SHAPE_STYLES[shape].frame, className)}
 		data-slot={slot}
 		style={{ width: size, height: size }}
 	>
@@ -70,14 +69,14 @@ const AvatarFrame = ({
 			<AvatarImage
 				alt=""
 				aria-hidden="true"
-				className={PICTURE_LAYER[shape]}
+				className={SHAPE_STYLES[shape].layer}
 				src={image}
-				style={LAYER_MASK[shape]}
+				style={SHAPE_STYLES[shape].mask}
 			/>
 		) : (
 			<AvatarFallback
-				className={cn(PICTURE_LAYER[shape], "bg-transparent text-inherit")}
-				style={LAYER_MASK[shape]}
+				className={cn(SHAPE_STYLES[shape].layer, "bg-transparent text-inherit")}
+				style={SHAPE_STYLES[shape].mask}
 			>
 				{children}
 			</AvatarFallback>
