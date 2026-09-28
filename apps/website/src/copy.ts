@@ -14,6 +14,94 @@ export const WEBSITE_COPY = {
 	creditDestination: "Made by Shoto, on GitHub",
 	creditHandle: "@shoto290",
 	skipLink: "Skip to the main content",
+	threeWays: {
+		title: "Three ways to work with them.",
+		subtitle: "Talk to one, seat a few, or hand one a mission.",
+		columns: [
+			{
+				name: "Conversation",
+				body: "One companion, one thread. Correct it once and it keeps what you said.",
+			},
+			{
+				name: "Room",
+				body: "Seat a few companions and @ the ones you need. They split the work between them.",
+			},
+			{
+				name: "Mission",
+				body: "One objective it owns until it lands, with its own thread and a status you can read.",
+			},
+		],
+	},
+	yours: {
+		title: "Yours, and it stays that way.",
+		subtitle: "Everything they learn sits on your Mac.",
+		columns: [
+			{
+				name: "Local-first",
+				body: "Companions, skills and conversations live in a folder on your Mac, not on a server.",
+			},
+			{
+				name: "It learns as you go",
+				body: "Correct it once and it keeps a skill you can read, and undo.",
+			},
+			{
+				name: "Approvals",
+				body: "You decide what a companion may run on its own, and what waits for your yes.",
+			},
+			{
+				name: "Spaces",
+				body: "Personal and Work stay apart, each with its own companions and its own keys.",
+			},
+			{
+				name: "Applications",
+				body: "Plug in the tools you already use, for one companion, one space or all of them.",
+			},
+			{
+				name: "Routines",
+				body: "Every weekday at 8, or when a build fails. The report lands in the conversation.",
+			},
+		],
+	},
+	faq: {
+		title: "Questions? Answers.",
+		items: [
+			{
+				question: "What is Kiroshi?",
+				answer:
+					"A desktop app where you keep a team of companions. Each one has its own skills, memory and history, works in your tools, and keeps going while you do something else.",
+			},
+			{
+				question: "Do I need a subscription?",
+				answer:
+					"Yes, a Claude subscription you’re signed in to. Kiroshi ships the agent that answers and runs it on your own sign-in, so there’s no API key to paste. Kiroshi itself is free.",
+			},
+			{
+				question: "Where do my conversations live?",
+				answer:
+					"On your computer. Conversations, companions and what they learn are kept in a local folder, and they’re all there on the next launch. Replies are written by Claude, so what you send goes through your Claude account.",
+			},
+			{
+				question: "Which Macs can run it?",
+				answer:
+					"Any Mac on macOS 10.15 Catalina or later, Apple silicon and Intel alike.",
+			},
+			{
+				question: "Is there a Windows or Linux version?",
+				answer:
+					"Yes. Windows and Linux builds are also available for download, on the Download page.",
+			},
+			{
+				question: "Can I undo what a companion learned?",
+				answer:
+					"Yes. Everything a companion writes down is saved as its own change in that companion’s History, where you can read it and undo it, one change at a time.",
+			},
+			{
+				question: "Is Kiroshi open source?",
+				answer:
+					"Yes, under the MIT license. The code is on GitHub, and issues and pull requests are welcome.",
+			},
+		],
+	},
 }
 
 const AUTHOR_SLUG = "shoto290"
