@@ -174,6 +174,11 @@ impl Server {
 	}
 
 	async fn sent(&self, request: Vec<u8>) -> (u16, String) {
+		let answer = self.exchanged(request).await;
+		(answer.status, answer.body)
+	}
+
+	async fn exchanged(&self, request: Vec<u8>) -> Answer {
 		let mut stream = TcpStream::connect(self.address()).await.expect("the listener answers");
 		stream.write_all(&request).await.expect("the request lands");
 		let mut answer = Vec::new();
@@ -181,7 +186,34 @@ impl Server {
 		let answer = String::from_utf8_lossy(&answer).into_owned();
 		let (head, body) = answer.split_once("\r\n\r\n").expect("the answer carries a body");
 		let status = head.split_whitespace().nth(1).expect("the answer carries a status");
-		(status.parse().expect("the status is a number"), body.to_owned())
+		Answer {
+			status: status.parse().expect("the status is a number"),
+			head: head.to_ascii_lowercase(),
+			body: body.to_owned(),
+		}
+	}
+
+	async fn requested(&self, method: &str, target: &str, headers: &str) -> Answer {
+		let request = format!(
+			"{method} {target} HTTP/1.1\r\nHost: 127.0.0.1\r\nConnection: close\r\n{headers}\r\n"
+		);
+		self.exchanged(request.into_bytes()).await
+	}
+
+	async fn fetched(&self, target: &str, token: &str) -> Answer {
+		self.requested("GET", target, &format!("Authorization: Bearer {token}\r\n")).await
+	}
+}
+
+struct Answer {
+	status: u16,
+	head: String,
+	body: String,
+}
+
+impl Answer {
+	fn header(&self, name: &str) -> Option<&str> {
+		self.head.lines().find_map(|line| line.strip_prefix(&format!("{name}: ")))
 	}
 }
 
@@ -571,4 +603,182 @@ async fn a_client_that_stops_reading_is_dropped_while_the_others_keep_hearing() 
 
 	timeout(PATIENCE, hearing).await.expect("the reading client heard in time").expect("heard");
 	stalled.closed_by_the_host().await;
+}
+
+fn stored(path: &std::path::Path, bytes: &str) {
+	std::fs::create_dir_all(path.parent().expect("a parent")).expect("the directory is made");
+	std::fs::write(path, bytes).expect("the file is written");
+}
+
+#[tokio::test(flavor = "multi_thread")]
+async fn an_avatar_is_served_with_the_content_type_of_its_extension() {
+	let host = Host::new();
+	let server = host.started();
+	let token = host.token();
+	stored(&host.dir.join("avatars").join("face.png"), "png bytes");
+
+	let answer = server.fetched("/api/files/avatars/face.png", &token).await;
+
+	assert_eq!(answer.status, 200);
+	assert_eq!(answer.header("content-type"), Some("image/png"));
+	assert_eq!(answer.body, "png bytes");
+}
+
+#[tokio::test(flavor = "multi_thread")]
+async fn an_attachment_is_served_from_its_conversation() {
+	let host = Host::new();
+	let server = host.started();
+	let token = host.token();
+	stored(&host.dir.join("attachments").join("c1").join("note.txt"), "hello");
+
+	let answer = server.fetched("/api/files/attachments/c1/note.txt", &token).await;
+
+	assert_eq!(answer.status, 200);
+	assert_eq!(answer.header("content-type"), Some("text/plain; charset=utf-8"));
+	assert_eq!(answer.body, "hello");
+}
+
+#[tokio::test(flavor = "multi_thread")]
+async fn a_file_is_served_with_the_token_as_bearer_or_query_and_refused_without() {
+	let host = Host::new();
+	let server = host.started();
+	let token = host.token();
+	stored(&host.dir.join("avatars").join("face.png"), "png bytes");
+
+	assert_eq!(server.fetched("/api/files/avatars/face.png", &token).await.status, 200);
+	let queried = format!("/api/files/avatars/face.png?token={token}");
+	assert_eq!(server.requested("GET", &queried, "").await.status, 200);
+	assert_eq!(server.requested("GET", "/api/files/avatars/face.png", "").await.status, 401);
+	assert_eq!(server.fetched("/api/files/avatars/face.png", "wrong").await.status, 401);
+	let wrong = "/api/files/avatars/face.png?token=wrong";
+	assert_eq!(server.requested("GET", wrong, "").await.status, 401);
+}
+
+#[tokio::test(flavor = "multi_thread")]
+async fn a_path_that_leaves_its_directory_answers_not_found() {
+	let host = Host::new();
+	let server = host.started();
+	let token = host.token();
+	stored(&host.dir.join("attachments").join("c1").join("note.txt"), "hello");
+	std::fs::create_dir_all(host.dir.join("avatars")).expect("the directory is made");
+	std::os::unix::fs::symlink(host.token_path(), host.dir.join("avatars").join("out.png"))
+		.expect("the link is made");
+	std::os::unix::fs::symlink(host.dir.join("host"), host.dir.join("attachments").join("c2"))
+		.expect("the link is made");
+
+	for target in [
+		"/api/files/avatars/..",
+		"/api/files/avatars/%2E%2E",
+		"/api/files/avatars/.",
+		"/api/files/avatars/..%2Fhost%2Ftoken",
+		"/api/files/avatars/out.png",
+		"/api/files/attachments/../c1",
+		"/api/files/attachments/c1/..",
+		"/api/files/attachments/..%2Fhost/token",
+		"/api/files/attachments/c2/token",
+		"/api/files/attachments/c1/missing.txt",
+		"/api/files/attachments/c1/%2E",
+	] {
+		assert_eq!(server.fetched(target, &token).await.status, 404, "{target}");
+	}
+}
+
+#[tokio::test(flavor = "multi_thread")]
+async fn a_directory_answers_not_found() {
+	let host = Host::new();
+	let server = host.started();
+	let token = host.token();
+	std::fs::create_dir_all(host.dir.join("attachments").join("c1").join("inner"))
+		.expect("the directory is made");
+
+	assert_eq!(server.fetched("/api/files/attachments/c1/inner", &token).await.status, 404);
+}
+
+#[tokio::test(flavor = "multi_thread")]
+async fn a_preflight_from_the_dev_server_is_allowed() {
+	let host = Host::new();
+	let server = host.started();
+
+	for origin in ["http://127.0.0.1:1420", "http://localhost:1420"] {
+		let headers = format!(
+			"Origin: {origin}\r\nAccess-Control-Request-Method: POST\r\nAccess-Control-Request-Headers: authorization\r\n"
+		);
+		let answer = server.requested("OPTIONS", "/api/invoke/conversation_list", &headers).await;
+
+		assert!((200..300).contains(&answer.status), "{origin}");
+		assert_eq!(answer.header("access-control-allow-origin"), Some(origin));
+		assert_eq!(answer.header("access-control-allow-methods"), Some("get, post, options"));
+		assert_eq!(
+			answer.header("access-control-allow-headers"),
+			Some("authorization, content-type")
+		);
+	}
+}
+
+#[tokio::test(flavor = "multi_thread")]
+async fn a_call_from_the_dev_server_names_its_origin() {
+	let host = Host::new();
+	let server = host.started();
+
+	let answer = server
+		.requested("GET", "/api/files/avatars/face.png", "Origin: http://localhost:1420\r\n")
+		.await;
+
+	assert_eq!(answer.status, 401);
+	assert_eq!(answer.header("access-control-allow-origin"), Some("http://localhost:1420"));
+}
+
+#[tokio::test(flavor = "multi_thread")]
+async fn a_foreign_origin_is_given_no_cors_header() {
+	let host = Host::new();
+	let server = host.started();
+	let token = host.token();
+
+	let preflight = server
+		.requested(
+			"OPTIONS",
+			"/api/invoke/conversation_list",
+			"Origin: http://evil.test\r\nAccess-Control-Request-Method: POST\r\n",
+		)
+		.await;
+	let call = server
+		.requested(
+			"GET",
+			"/api/files/avatars/face.png",
+			&format!("Origin: http://evil.test\r\nAuthorization: Bearer {token}\r\n"),
+		)
+		.await;
+
+	for answer in [preflight, call] {
+		assert!(!answer.head.contains("access-control-allow"), "{}", answer.head);
+	}
+}
+
+#[tokio::test(flavor = "multi_thread")]
+async fn no_cors_header_is_given_outside_the_api() {
+	let host = Host::new();
+	let server = host.started();
+
+	let answer =
+		server.requested("OPTIONS", "/routines/call", "Origin: http://127.0.0.1:1420\r\n").await;
+
+	assert!(!answer.head.contains("access-control-allow"), "{}", answer.head);
+}
+
+#[tokio::test(flavor = "multi_thread")]
+async fn the_web_link_is_private_replaced_and_names_the_bound_port_and_the_token() {
+	let host = Host::new();
+	let path = host.dir.join("host").join("web-link.txt");
+	stored(&path, "stale");
+	let server = host.started();
+	let token = host.token();
+
+	let link = std::fs::read_to_string(&path).expect("the link is on disk");
+	let mode = std::fs::metadata(&path).expect("the link file").permissions().mode();
+
+	assert_eq!(
+		link,
+		format!("http://127.0.0.1:1420/#host=http://{}&token={token}\n", server.address())
+	);
+	assert_eq!(mode & 0o777, 0o600);
 }

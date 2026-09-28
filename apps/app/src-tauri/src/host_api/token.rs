@@ -5,11 +5,14 @@ use std::path::{Path, PathBuf};
 use tauri::{AppHandle, Manager, Runtime};
 use uuid::Uuid;
 
+use super::cors::WEB_ORIGIN;
 use crate::private_files;
 
 const HOST_DIR: &str = "host";
 
 const TOKEN_NAME: &str = "token";
+
+const WEB_LINK_NAME: &str = "web-link.txt";
 
 const RANDOM_PARTS: usize = 3;
 
@@ -35,9 +38,27 @@ impl HostToken {
 	}
 }
 
-fn path<R: Runtime>(app: &AppHandle<R>) -> Result<PathBuf, TokenError> {
+fn host_dir<R: Runtime>(app: &AppHandle<R>) -> Result<PathBuf, TokenError> {
 	let data = app.path().app_data_dir().map_err(|_| TokenError::NoDataDir)?;
-	Ok(data.join(HOST_DIR).join(TOKEN_NAME))
+	Ok(data.join(HOST_DIR))
+}
+
+fn path<R: Runtime>(app: &AppHandle<R>) -> Result<PathBuf, TokenError> {
+	Ok(host_dir(app)?.join(TOKEN_NAME))
+}
+
+pub fn web_link_written<R: Runtime>(
+	app: &AppHandle<R>,
+	token: &HostToken,
+	port: u16,
+) -> Result<(), TokenError> {
+	let path = host_dir(app)?.join(WEB_LINK_NAME);
+	private_files::replace_atomically(&path, web_link(token, port).as_bytes())
+		.map_err(TokenError::Unwritable)
+}
+
+fn web_link(token: &HostToken, port: u16) -> String {
+	format!("{WEB_ORIGIN}/#host=http://127.0.0.1:{port}&token={}\n", token.0)
 }
 
 pub fn loaded<R: Runtime>(app: &AppHandle<R>) -> Result<HostToken, TokenError> {
@@ -84,6 +105,15 @@ mod tests {
 		assert!(!token.admits("ab"));
 		assert!(!token.admits("abcd"));
 		assert!(!token.admits(""));
+	}
+
+	#[test]
+	fn the_web_link_names_the_dev_server_the_host_and_the_token() {
+		let token = HostToken("abc".to_owned());
+		assert_eq!(
+			web_link(&token, 45367),
+			"http://127.0.0.1:1420/#host=http://127.0.0.1:45367&token=abc\n"
+		);
 	}
 
 	#[test]
