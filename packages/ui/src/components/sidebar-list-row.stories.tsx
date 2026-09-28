@@ -606,6 +606,8 @@ export const LongContent = meta.story({
 	},
 })
 
+const FULL_TITLE = "Researcher"
+
 const LONG_TITLE = "Research lead"
 
 const NARROW_ROW_WIDTH = 200
@@ -626,7 +628,7 @@ export const WithFullTitle = meta.story({
 	args: {
 		media: AVATAR,
 		timestamp: "09:24",
-		trailing: <BotTitleBadge data-slot="roster-row-badge" title={LONG_TITLE} />,
+		trailing: <BotTitleBadge data-slot="roster-row-badge" title={FULL_TITLE} />,
 	},
 	parameters: {
 		docs: {
@@ -640,7 +642,7 @@ export const WithFullTitle = meta.story({
 		const { name, badge, timestamp, line } = nameLineOf(canvasElement)
 
 		await expect(name).toHaveTextContent("Atlas")
-		await expect(badge).toHaveTextContent(LONG_TITLE)
+		await expect(badge).toHaveTextContent(FULL_TITLE)
 		await expect(isCut(name)).toBe(false)
 		await expect(isCut(badge)).toBe(false)
 		await expect(isCut(timestamp)).toBe(false)
