@@ -148,6 +148,57 @@ fn a_sidecar_that_died_before_ready_is_reported_with_what_it_wrote() {
 }
 
 #[test]
+fn a_sidecar_that_died_before_ready_is_reported_with_its_exit_code() {
+	let _serial = serial();
+	std::env::set_var(SIDECAR_OVERRIDE_ENV, FAKE_SIDECAR);
+	std::env::set_var("FAKE_AGENT_STARTUP_STDERR", "refusing to start");
+
+	let state = AgentState::default();
+	runtime().block_on(async {
+		let report = check(&state, None).await;
+
+		assert_eq!(
+			report.error,
+			Some(TransportError::Crashed {
+				code: Some(70),
+				detail: Some("the sidecar exited during startup: refusing to start".into()),
+			})
+		);
+
+		terminate_session(&state).await;
+	});
+
+	std::env::remove_var("FAKE_AGENT_STARTUP_STDERR");
+	std::env::remove_var(SIDECAR_OVERRIDE_ENV);
+}
+
+#[cfg(unix)]
+#[test]
+fn a_sidecar_the_system_killed_at_launch_is_reported_with_the_signal() {
+	let _serial = serial();
+	std::env::set_var(SIDECAR_OVERRIDE_ENV, FAKE_SIDECAR);
+	std::env::set_var("FAKE_AGENT_STARTUP_SIGKILL", "1");
+
+	let state = AgentState::default();
+	runtime().block_on(async {
+		let report = check(&state, None).await;
+
+		assert_eq!(
+			report.error,
+			Some(TransportError::Crashed {
+				code: None,
+				detail: Some("the sidecar exited during startup: killed by signal 9".into()),
+			})
+		);
+
+		terminate_session(&state).await;
+	});
+
+	std::env::remove_var("FAKE_AGENT_STARTUP_SIGKILL");
+	std::env::remove_var(SIDECAR_OVERRIDE_ENV);
+}
+
+#[test]
 fn a_probe_that_could_not_run_is_reported_apart_from_a_refusal() {
 	let _serial = serial();
 	std::env::set_var(SIDECAR_OVERRIDE_ENV, FAKE_SIDECAR);

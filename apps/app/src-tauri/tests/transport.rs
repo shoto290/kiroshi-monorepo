@@ -355,6 +355,18 @@ async fn a_child_dying_during_startup_is_reported_as_a_crash() {
 }
 
 #[tokio::test]
+async fn a_child_exiting_before_opened_is_reported_with_its_code_and_last_stderr_line() {
+	let error = start(options("open_exit")).await.err().expect("handshake fails");
+	assert_eq!(
+		error,
+		TransportError::Crashed {
+			code: Some(71),
+			detail: Some("the sidecar exited during startup: the provider binary is missing".into()),
+		}
+	);
+}
+
+#[tokio::test]
 async fn a_child_can_refuse_the_resume_flag_alone() {
 	let refused = start(options("resume_crash").resuming(Some("dead-id".into()))).await;
 	assert!(matches!(refused.err(), Some(TransportError::Crashed { .. })));
