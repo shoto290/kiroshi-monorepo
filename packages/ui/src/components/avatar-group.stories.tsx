@@ -1,4 +1,6 @@
-import { expect } from "storybook/test"
+import { MotionConfig, type ReducedMotionConfig } from "motion/react"
+import { useState } from "react"
+import { expect, userEvent, waitFor, within } from "storybook/test"
 
 import preview from "@workspace/storybook/preview"
 import {
@@ -62,15 +64,12 @@ const MEMBERS = [MIRA, OSLO, LUMEN, TARN, SABLE, IRIS, VALE, WREN, PIKE]
 
 const membersOf = (count: number) => MEMBERS.slice(0, count)
 
-const LOOSE_CELL = 19.1 / 40
-
-const PACKED_CELL = 15.2 / 40
+const CELL_HEIGHT = 19.1 / 40
 
 const ARTBOARD_FILL_ORDER = [
 	[0, 0],
 	[0.94, 0.5435],
 	[0, 1.087],
-	[0.94, 1.6305],
 ]
 
 const HEXAGON_ASPECT = OUTER.halfWidth / OUTER.halfHeight
@@ -125,7 +124,7 @@ const artboardSpots = (count: number, cellHeight: number, size: number) => {
 const expectArtboardCluster = async (icon: HTMLElement, count: number) => {
 	const size = sizeOf(icon)
 	const box = icon.getBoundingClientRect()
-	const cellHeight = (count >= 4 ? PACKED_CELL : LOOSE_CELL) * size
+	const cellHeight = CELL_HEIGHT * size
 	const expected = artboardSpots(count, cellHeight, size)
 	const cells = cellsOf(icon)
 
@@ -202,14 +201,87 @@ const expectCounter = async (icon: HTMLElement, text: string) => {
 	)
 }
 
-const expectRoom = async (canvasElement: HTMLElement, held: typeof MEMBERS) => {
+const expectRoom = async (
+	canvasElement: HTMLElement,
+	shown: typeof MEMBERS,
+	others = 0,
+) => {
 	for (const icon of iconsIn(canvasElement)) {
-		await expectArtboardCluster(icon, Math.min(held.length, 4))
-		await expectMembers(icon, held.length > 4 ? held.slice(0, 3) : held)
-		if (held.length > 4) await expectCounter(icon, `+${held.length - 3}`)
+		await expectArtboardCluster(icon, shown.length + (others > 0 ? 1 : 0))
+		await expectMembers(icon, shown)
+		if (others > 0) await expectCounter(icon, `+${others}`)
 		else await expect(icon).toHaveAttribute("aria-hidden", "true")
 		await expectNoOverlap(icon)
 	}
+}
+
+const memberWearing = (
+	icon: HTMLElement,
+	{ blot }: ConversationParticipant,
+) => {
+	const member = membersIn(icon).find(
+		(cell) =>
+			companionTintOf(companionGlyphOf(cell)) === `var(--bot-blot-${blot})`,
+	)
+	if (!member) throw new Error(`No cell wears the ${blot} companion`)
+	return member
+}
+
+const nextFrame = () =>
+	new Promise((resolve) => requestAnimationFrame(() => resolve(undefined)))
+
+const isAtRest = (member: HTMLElement) =>
+	["none", "", "matrix(1, 0, 0, 1, 0, 0)"].includes(member.style.transform)
+
+const expectCellAt = async (
+	icon: HTMLElement,
+	member: HTMLElement,
+	index: number,
+) => {
+	const size = sizeOf(icon)
+	const box = icon.getBoundingClientRect()
+	const spot = artboardSpots(3, CELL_HEIGHT * size, size)[index]
+	const centre = centreOf(member.getBoundingClientRect())
+	await expect(centre.x - box.left).toBeCloseTo(spot.x, 0)
+	await expect(centre.y - box.top).toBeCloseTo(spot.y, 0)
+}
+
+type StartsWorkingProps = AvatarGroupProps & { motion: ReducedMotionConfig }
+
+const StartsWorking = ({
+	motion,
+	participants,
+	...props
+}: StartsWorkingProps) => {
+	const [workingId, setWorkingId] = useState<string>()
+	return (
+		<MotionConfig reducedMotion={motion}>
+			<Row>
+				<AvatarGroup
+					{...props}
+					participants={participants.map((participant) =>
+						participant.id === workingId
+							? { ...participant, working: true, kind: "writing" }
+							: participant,
+					)}
+					size={96}
+				/>
+				<button onClick={() => setWorkingId(LUMEN.id)} type="button">
+					Lumen starts working
+				</button>
+			</Row>
+		</MotionConfig>
+	)
+}
+
+const playStartsWorking = async (canvasElement: HTMLElement) => {
+	const [icon] = iconsIn(canvasElement)
+	await userEvent.click(
+		within(canvasElement).getByRole("button", { name: "Lumen starts working" }),
+	)
+	await nextFrame()
+	await nextFrame()
+	return icon
 }
 
 const EverySize = ({
@@ -231,7 +303,7 @@ const meta = preview.meta({
 		docs: {
 			description: {
 				component:
-					"The face of a room, drawn as a Hive: at most four rounded Kiroshi hexagon cells in two staggered columns, tiled in the square a companion avatar takes, so a room and a companion share a column without it moving. Each cell holds one member's own avatar: a companion clipped to the hexagon, the person as a circle, since only a companion is hexagonal. Cells fill column A top, column B top, column A bottom, column B bottom, and the cluster recentres and scales so no cell is ever left empty. Past four members the fourth cell counts the rest. The icon is hidden from a screen reader unless it counts, in which case the count is its label.",
+					"The face of a room, drawn as a Hive: at most three rounded Kiroshi hexagon cells in two staggered columns, tiled in the square a companion avatar takes, so a room and a companion share a column without it moving. Each cell holds one member's own avatar: a companion clipped to the hexagon, the person as a circle, since only a companion is hexagonal. Cells fill column A top, column B top, column A bottom, and the cluster recentres and scales so no cell is ever left empty. Past three members, two members show and the third cell counts the rest. A working companion moves to the first cell with a spring, the others shifting along by one cell, and several working companions keep the order of the participants list. The icon is hidden from a screen reader unless it counts, in which case the count is its label.",
 			},
 		},
 	},
@@ -278,11 +350,11 @@ export const FourMembers = meta.story({
 		docs: {
 			description: {
 				story:
-					"A room of four: every cell holds a companion, the cluster packed smaller so it spans the height of the square.",
+					"A room past three: two companions and a third cell counting the other two, dark on light and light on dark. The count is the icon's accessible name.",
 			},
 		},
 	},
-	play: ({ canvasElement }) => expectRoom(canvasElement, membersOf(4)),
+	play: ({ canvasElement }) => expectRoom(canvasElement, membersOf(2), 2),
 })
 
 export const FiveMembers = meta.story({
@@ -290,12 +362,11 @@ export const FiveMembers = meta.story({
 	parameters: {
 		docs: {
 			description: {
-				story:
-					"A room past four: three companions and a fourth cell counting the other two, dark on light and light on dark. The count is the icon's accessible name.",
+				story: "A room of five: the same three cells, the third reading `+3`.",
 			},
 		},
 	},
-	play: ({ canvasElement }) => expectRoom(canvasElement, membersOf(5)),
+	play: ({ canvasElement }) => expectRoom(canvasElement, membersOf(2), 3),
 })
 
 export const EightMembers = meta.story({
@@ -304,11 +375,11 @@ export const EightMembers = meta.story({
 		docs: {
 			description: {
 				story:
-					"A room of eight: the same four cells, the fourth reading `+5`. The cluster never grows past four cells.",
+					"A room of eight: the third cell reads `+6`. The cluster never grows past three cells.",
 			},
 		},
 	},
-	play: ({ canvasElement }) => expectRoom(canvasElement, membersOf(8)),
+	play: ({ canvasElement }) => expectRoom(canvasElement, membersOf(2), 6),
 })
 
 export const PersonAmongBots = meta.story({
@@ -352,13 +423,13 @@ export const WorkingMember = meta.story({
 		docs: {
 			description: {
 				story:
-					"A room where one companion is running: that cell plays the avatar's working motion in the pose it was given, and the other stays still.",
+					"A room where the second companion is running: it sits in the first cell, playing the avatar's working motion in the pose it was given, and the resting one takes the next cell.",
 			},
 		},
 	},
 	play: async ({ canvasElement }) => {
 		for (const icon of iconsIn(canvasElement)) {
-			const [resting, running] = botAvatarsOf(icon)
+			const [running, resting] = botAvatarsOf(icon)
 			await expect(companionGlyphOf(resting).dataset.state).toBe("idle")
 			await expect(companionGlyphOf(running).dataset.state).toBe("writing")
 		}
@@ -405,6 +476,87 @@ export const EveryPlace = meta.story({
 		const icons = iconsIn(canvasElement)
 
 		await expect(icons.map(sizeOf)).toEqual(APP_SIZES)
-		for (const icon of icons) await expectArtboardCluster(icon, 4)
+		for (const icon of icons) await expectArtboardCluster(icon, 3)
 	},
+})
+
+export const StartsWorkingSlides = meta.story({
+	globals: { theme_layout: "single" },
+	args: { participants: membersOf(3) },
+	render: (args) => <StartsWorking {...args} motion="never" />,
+	parameters: {
+		docs: {
+			description: {
+				story:
+					"Press the button: Lumen, in the third cell, starts working and springs into the first cell while Mira and Oslo each shift along by one. The avatar keeps its hexagon and its own working motion through the slide.",
+			},
+		},
+	},
+	play: async ({ canvasElement }) => {
+		const icon = await playStartsWorking(canvasElement)
+		const lumen = memberWearing(icon, LUMEN)
+
+		await expect(isAtRest(lumen)).toBe(false)
+		await waitFor(() => expect(isAtRest(lumen)).toBe(true), { timeout: 3000 })
+		await expectCellAt(icon, lumen, 0)
+		await expectCellAt(icon, memberWearing(icon, MIRA), 1)
+		await expectCellAt(icon, memberWearing(icon, OSLO), 2)
+		await expect(companionGlyphOf(lumen).dataset.state).toBe("writing")
+		await expectCompanionSilhouette(
+			slotIn(lumen, "bot-identity-avatar").firstElementChild as Element,
+		)
+	},
+})
+
+export const StartsWorkingStill = meta.story({
+	globals: { theme_layout: "single" },
+	args: { participants: membersOf(3) },
+	render: (args) => <StartsWorking {...args} motion="always" />,
+	parameters: {
+		docs: {
+			description: {
+				story:
+					"The same reorder under `prefers-reduced-motion`: Lumen lands in the first cell on the next frame with no movement, Mira and Oslo already shifted.",
+			},
+		},
+	},
+	play: async ({ canvasElement }) => {
+		const icon = await playStartsWorking(canvasElement)
+		const lumen = memberWearing(icon, LUMEN)
+
+		await expect(isAtRest(lumen)).toBe(true)
+		await expectCellAt(icon, lumen, 0)
+		await expectCellAt(icon, memberWearing(icon, MIRA), 1)
+		await expectCellAt(icon, memberWearing(icon, OSLO), 2)
+	},
+})
+
+export const WorkingPastTheOverflow = meta.story({
+	tags: ["test-only"],
+	args: {
+		participants: [MIRA, OSLO, LUMEN, { ...TARN, working: true }, SABLE],
+	},
+	play: ({ canvasElement }) =>
+		expectRoom(canvasElement, [{ ...TARN, working: true }, MIRA], 3),
+})
+
+export const SeveralWorking = meta.story({
+	tags: ["test-only"],
+	args: {
+		participants: [
+			MIRA,
+			{ ...OSLO, working: true },
+			LUMEN,
+			{ ...TARN, working: true },
+		],
+	},
+	play: ({ canvasElement }) =>
+		expectRoom(
+			canvasElement,
+			[
+				{ ...OSLO, working: true },
+				{ ...TARN, working: true },
+			],
+			2,
+		),
 })

@@ -88,7 +88,7 @@ export const Crowded = meta.story({
 		docs: {
 			description: {
 				story:
-					"Reach for this when the room is full. Check that the room still draws one 24px Hive icon, three companions and a `+2` cell, so the leading slot never widens with the room and it is the name that gives up room as the row fills. Pick `Default` for the usual pair. The app assembles it at `apps/app/src/components/thread-screen.tsx:348`.",
+					"Reach for this when the room is full. Check that the room still draws one 24px Hive icon, two companions and a `+3` cell, so the leading slot never widens with the room and it is the name that gives up room as the row fills. Pick `Default` for the usual pair. The app assembles it at `apps/app/src/components/thread-screen.tsx:348`.",
 			},
 		},
 	},

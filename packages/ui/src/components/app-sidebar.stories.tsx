@@ -5125,7 +5125,7 @@ export const ConversationParticipants = meta.story({
 		docs: {
 			description: {
 				story:
-					"How many companions a room shows. The slot draws the Hive: at most four rounded hexagon cells, one companion each, in the same square a companion row gives one avatar, so the column never moves. Two companions tile on the diagonal; a room of five shows three companions and a fourth cell counting the other two. That count is the only thing a screen reader hears, as the label of the square; a room within its four cells stays decorative and hidden, since a list of avatar labels in front of the room name would bury the name.",
+					"How many companions a room shows. The slot draws the Hive: at most three rounded hexagon cells, one companion each, in the same square a companion row gives one avatar, so the column never moves. Two companions tile on the diagonal; a room of five shows two companions and a third cell counting the other three. That count is the only thing a screen reader hears, as the label of the square; a room within its three cells stays decorative and hidden, since a list of avatar labels in front of the room name would bury the name.",
 			},
 		},
 	},
@@ -5134,17 +5134,17 @@ export const ConversationParticipants = meta.story({
 		const crowd = rowFor(canvasElement, "Transport migration")
 
 		await expect(stackIn(pair)).toHaveLength(2)
-		await expect(stackIn(crowd)).toHaveLength(3)
+		await expect(stackIn(crowd)).toHaveLength(2)
 		await expect(
 			slotIn(crowd, "conversation-avatar-overflow"),
-		).toHaveTextContent("+2")
+		).toHaveTextContent("+3")
 
 		await expect(slotIn(pair, "conversation-avatar")).toHaveAttribute(
 			"aria-hidden",
 			"true",
 		)
 		await expect(slotIn(crowd, "conversation-avatar")).toHaveAccessibleName(
-			"+2",
+			"+3",
 		)
 
 		const square = slotIn(crowd, "conversation-avatar").getBoundingClientRect()
