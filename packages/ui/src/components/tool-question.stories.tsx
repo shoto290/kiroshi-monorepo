@@ -366,7 +366,7 @@ export const LongHeaderScrolls = meta.story({
 		docs: {
 			description: {
 				story:
-					"A header too long for a 320px column, next to a short one. A tab never wraps: the strip keeps its one line inside the card and hands the tabs out of view to a sideways scroll, with no scrollbar drawn over them. Check that both tabs share a height and a top edge, that the first tab starts on the same line as the button below, that the strip stops at the edge of the column, that the question below stays clear of the strip, and that walking the strip with the arrow keys brings the tab it lands on back into view. " +
+					"A header too long for a 320px column, next to a short one. A tab never wraps and never grows past the strip, so a header wider than the whole column ends in an ellipsis instead of pushing the first tab off the button's edge: the strip keeps its one line inside the card and hands the tabs out of view to a sideways scroll, with no scrollbar drawn over them. Check that both tabs share a height and a top edge, that the first tab starts on the same line as the button below, that the strip stops at the edge of the column, that the question below stays clear of the strip, and that walking the strip with the arrow keys brings the tab it lands on back into view. " +
 					POSTED_BY_ONBOARDING,
 			},
 		},

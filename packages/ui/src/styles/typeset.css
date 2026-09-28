@@ -145,7 +145,7 @@
       font-weight: 600;
     }
     &:where(mark) {
-      background-color: color-mix(in oklab, var(--mark) 40%, transparent);
+      background-color: var(--mark);
       color: inherit;
       padding: 0.05em 0.15em;
       border-radius: 0.2em;

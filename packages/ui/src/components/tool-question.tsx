@@ -34,7 +34,7 @@ const QUESTION_TAB_LIST_CLASS =
 	"-m-1 relative scrollbar-hide max-w-full justify-start gap-1 overflow-x-auto scroll-px-1 bg-transparent p-1 group-data-horizontal/tabs:h-fit"
 
 const QUESTION_TAB_CLASS =
-	"h-fit shrink-0 px-2.5 py-1 motion-reduce:transition-none motion-reduce:duration-0"
+	"h-fit max-w-full shrink-0 px-2.5 py-1 motion-reduce:transition-none motion-reduce:duration-0"
 
 const QUESTION_FORM_CLASS =
 	"grid w-full grid-cols-[minmax(0,1fr)] gap-3 rounded-2xl text-sm outline-none focus-visible:ring-2 focus-visible:ring-ring focus-visible:ring-offset-4 focus-visible:ring-offset-background"
@@ -229,7 +229,7 @@ const ToolQuestion = ({
 							}
 							value={index}
 						>
-							{candidate.header}
+							<span className="truncate">{candidate.header}</span>
 							{!candidate.isNotice && answers[candidate.question] ? (
 								<Icons.Check className="size-3" />
 							) : null}
