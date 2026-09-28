@@ -3,6 +3,10 @@ import { expect } from "storybook/test"
 import preview from "@workspace/storybook/preview"
 import {
 	botIdentityAvatars,
+	companionGlyphOf,
+	companionGlyphs,
+	expectCompanionSilhouette,
+	expectHexagonFrame,
 	pictureOf,
 	Row,
 	slotsIn,
@@ -21,35 +25,30 @@ const SIZES = [24, 40, 96]
 const ATLAS: ConversationParticipant = {
 	id: "atlas",
 	name: "Atlas",
-	animal: "rabbit",
 	blot: "blue",
 }
 
 const BEACON: ConversationParticipant = {
 	id: "beacon",
 	name: "Beacon",
-	animal: "owl",
 	blot: "orange",
 }
 
 const CINDER: ConversationParticipant = {
 	id: "cinder",
 	name: "Cinder",
-	animal: "bear",
 	blot: "red",
 }
 
 const DUNE: ConversationParticipant = {
 	id: "dune",
 	name: "Dune",
-	animal: "cat",
 	blot: "green",
 }
 
 const EMBER: ConversationParticipant = {
 	id: "ember",
 	name: "Ember",
-	animal: "mouse",
 	blot: "purple",
 }
 
@@ -80,8 +79,7 @@ const expectCentred = async (frame: HTMLElement, held: HTMLElement[]) => {
 	await expect(left).toBeCloseTo(right, 0)
 }
 
-const poseOf = (held: HTMLElement) =>
-	held.querySelector("svg")?.getAttribute("aria-label")
+const poseOf = (held: HTMLElement) => companionGlyphOf(held).dataset.state
 
 const EverySize = (props: AvatarGroupProps) => (
 	<Row>
@@ -95,7 +93,6 @@ const BesideItsBot = (props: AvatarGroupProps) => (
 	<Row>
 		<AvatarGroup {...props} />
 		<BotIdentityAvatar
-			animal={ATLAS.animal}
 			blot={ATLAS.blot}
 			name={ATLAS.name}
 			seed={ATLAS.id}
@@ -127,11 +124,12 @@ const meta = preview.meta({
 })
 
 export const Default = meta.story({
+	globals: { theme_layout: "side-by-side" },
 	parameters: {
 		docs: {
 			description: {
 				story:
-					"A room of two. Both companions sit inside the frame, each keeping the animal and the blot it wears everywhere else, and the frame is what says these two are somewhere together rather than side by side in a list. Check that the companions stay inside the frame and that the frame draws a border of its own — that border is the whole signal. Pick `OneBot` for the case this component was built for, `Crowded` for what happens past three.",
+					"A room of two. Both companions sit inside the frame, each keeping the dithered field it wears everywhere else, and the frame is what says these two are somewhere together rather than side by side in a list. Check in both themes that each companion sits in the rounded hexagon of the Kiroshi mark, that the companions stay inside the frame and that the frame draws its own border along the same rounded hexagon — that border is the whole signal. Pick `OneBot` for the case this component was built for, `Crowded` for what happens past three.",
 			},
 		},
 	},
@@ -141,11 +139,11 @@ export const Default = meta.story({
 
 		await expect(held).toHaveLength(2)
 		await expect(frame).toHaveAttribute("aria-hidden", "true")
-		await expect(
-			Number.parseFloat(getComputedStyle(frame).borderTopWidth),
-		).toBeGreaterThan(0)
+		await expectHexagonFrame(frame)
 
 		await expectCentred(frame, held)
+		for (const glyph of companionGlyphs(frame))
+			await expectCompanionSilhouette(glyph)
 	},
 })
 
@@ -251,8 +249,8 @@ export const Working = meta.story({
 		const frame = frameOf(canvasElement)
 		const [resting, running] = heldIn(frame)
 
-		await expect(poseOf(resting)).toBe("Companion avatar rabbit, idle")
-		await expect(poseOf(running)).toBe("Companion avatar owl, writing")
+		await expect(poseOf(resting)).toBe("idle")
+		await expect(poseOf(running)).toBe("writing")
 		await expect(slotsIn(frame, "bot-activity-dot")).toHaveLength(1)
 	},
 })
@@ -265,7 +263,7 @@ export const Uploaded = meta.story({
 		docs: {
 			description: {
 				story:
-					"A room holding a companion that wears a picture its reader uploaded. The picture is held by the frame like any other companion, clipped to the same round shape it has on its own row, and it never moves — which is exactly why the frame matters here: a photograph in a list of drawn animals already looks like an exception, and the container is what still says this one is a room.",
+					"A room holding a companion that wears a picture its reader uploaded. The picture is held by the frame like any other companion, clipped to the same round shape it has on its own row, and it never moves — which is exactly why the frame matters here: a photograph in a list of dithered fields already looks like an exception, and the container is what still says this one is a room.",
 			},
 		},
 	},

@@ -4,7 +4,10 @@ import { expect, fn, screen, waitFor } from "storybook/test"
 import preview from "@workspace/storybook/preview"
 import {
 	botIdentityAvatars,
-	expectCompanionPictureSquare,
+	companionGlyphOf,
+	companionGlyphs,
+	companionTintOf,
+	expectCompanionPictureShape,
 	slotIn,
 	slotsIn,
 	UPLOADED_AVATAR_IMAGE,
@@ -13,13 +16,12 @@ import {
 	ActivityIndicator,
 	type ActivityIndicatorKind,
 } from "@workspace/ui/components/activity-indicator"
-import { BLOT_TINTS } from "@workspace/ui/components/bot-avatar"
-import { ANIMALS } from "@workspace/ui/components/bot-avatar-animals"
+import { BLOT_TINTS } from "@workspace/ui/components/companion-colour"
 import { MarkProvider } from "@workspace/ui/components/mark-context"
 import { TURN_AVATAR_SIZE, UserTurn } from "@workspace/ui/components/turn"
 import { Button } from "@workspace/ui/components/ui/button"
 
-const BUSY_BOT = { animal: "owl", blot: "blue", seed: "bot-7" } as const
+const BUSY_BOT = { blot: "blue", seed: "bot-7" } as const
 
 const SECOND = 1000
 
@@ -35,9 +37,9 @@ const EDGE = 8
 const PAST_ONE_TICK = 1200
 
 const ROOM_BOTS = [
-	{ botId: "bot-lyra", name: "Lyra", animal: "owl", blot: "blue" },
-	{ botId: "bot-orion", name: "Orion", animal: "cat", blot: "orange" },
-	{ botId: "bot-vega", name: "Vega", animal: "rabbit", blot: "purple" },
+	{ botId: "bot-lyra", name: "Lyra", blot: "blue" },
+	{ botId: "bot-orion", name: "Orion", blot: "orange" },
+	{ botId: "bot-vega", name: "Vega", blot: "purple" },
 ] as const
 
 const [SPEAKING_BOT, ...WAITING_BOTS] = ROOM_BOTS
@@ -136,7 +138,7 @@ const meta = preview.meta({
 		docs: {
 			description: {
 				component:
-					"What the transcript shows while the companion is busy: its avatar in the pose that matches the work, the words that say who is busy and at what, and the time the run has taken so far at the end of the row. The label is always on the screen, shimmering while the companion works, so nothing has to be pointed at to be read; a busy row given a `startedAt` instant counts up from it every second, and a row without one shows the label alone. The avatar is also the stop control — given `stoppable`, pointing at it or reaching it by keyboard covers the animal with a stop glyph, so the composer below stays free for the next prompt. A waiting row carries neither shimmer nor clock: `waitingOn` says whether the companion is waiting for the reader or queued for the next wave. The kind comes from the running tool, so reading turns the avatar to `searching` and a shell command to `working`. Nothing here polls the transport; a screen maps its own state onto `kind` and `label`. Inside a transcript the avatar is understood to be the same mark the `AssistantTurn` gutter shows once the turn lands, so it travels there rather than being replaced — give both rows the same `botId` and it does, within that one conversation. See `Mark`, `MarkPerBot` for a room where several companions are busy at once, and `ConversationChange` for what a swapped conversation does to them.",
+					"What the transcript shows while the companion is busy: its avatar in the pose that matches the work, the words that say who is busy and at what, and the time the run has taken so far at the end of the row. The label is always on the screen, shimmering while the companion works, so nothing has to be pointed at to be read; a busy row given a `startedAt` instant counts up from it every second, and a row without one shows the label alone. The avatar is also the stop control — given `stoppable`, pointing at it or reaching it by keyboard covers the avatar with a stop glyph, so the composer below stays free for the next prompt. A waiting row carries neither shimmer nor clock: `waitingOn` says whether the companion is waiting for the reader or queued for the next wave. The kind comes from the running tool, so reading turns the avatar to `searching` and a shell command to `working`. Nothing here polls the transport; a screen maps its own state onto `kind` and `label`. Inside a transcript the avatar is understood to be the same mark the `AssistantTurn` gutter shows once the turn lands, so it travels there rather than being replaced — give both rows the same `botId` and it does, within that one conversation. See `Mark`, `MarkPerBot` for a room where several companions are busy at once, and `ConversationChange` for what a swapped conversation does to them.",
 			},
 		},
 	},
@@ -145,7 +147,6 @@ const meta = preview.meta({
 		kind: { control: "select", options: BOT_WORKING_KINDS },
 		waitingOn: { control: "inline-radio", options: ["you", "next"] },
 		botId: { control: "text" },
-		animal: { control: "select", options: Object.keys(ANIMALS) },
 		blot: { control: "select", options: [undefined, ...BLOT_TINTS] },
 		seed: { control: "text" },
 		size: { control: { type: "range", min: 20, max: 64, step: 2 } },
@@ -227,7 +228,7 @@ export const InWave = meta.story({
 
 export const Blot = meta.story({
 	tags: ["test-only"],
-	args: { animal: "rabbit", blot: "blue" },
+	args: { blot: "blue" },
 	render: (args) => (
 		<div className="flex flex-col gap-4">
 			<ActivityIndicator {...args} blot={undefined} />
@@ -240,20 +241,18 @@ export const Blot = meta.story({
 		docs: {
 			description: {
 				story:
-					"The tint a companion was marked with, held through every kind of work. The first row carries none and draws the bare animal; the rest carry the same blot, untouched by the work. Pick `Branding/BotIdentityAvatar → EveryBlot` for the eight tints themselves.",
+					"The colour a companion was marked with, held through every kind of work. The first row carries none and draws its glyph on no tile; the rest carry the same colour, untouched by the work. Pick `Branding/BotIdentityAvatar → EveryTint` for the eight colours themselves.",
 			},
 		},
 	},
 	play: async ({ canvasElement }) => {
 		const [bare, ...tinted] = botIdentityAvatars(canvasElement)
 
-		await expect(bare.querySelector('[data-slot="bot-avatar-blot"]')).toBeNull()
+		await expect(companionTintOf(companionGlyphOf(bare))).toBe("")
 		for (const avatar of tinted) {
-			await expect(
-				avatar
-					.querySelector('[data-slot="bot-avatar-blot"]')
-					?.getAttribute("fill"),
-			).toBe("var(--bot-blot-blue)")
+			await expect(companionTintOf(companionGlyphOf(avatar))).toBe(
+				"var(--bot-blot-blue)",
+			)
 		}
 	},
 })
@@ -587,21 +586,19 @@ export const Marked = meta.story({
 		docs: {
 			description: {
 				story:
-					"The companion doing the work, wearing exactly what it wears at rest: its own animal, its own tint, and the blot shape its id lands on. A run may change the pose and nothing else — a working row that dropped the tint or reposed the blot would put a different companion on the screen at the one moment the reader is watching it. Check that the mark is identical across all five kinds and against the roster row for the same companion, and that only the animal inside it moves.",
+					"The companion doing the work, wearing exactly what it wears at rest: its own glyph on its own colour. A run may change the motion and nothing else: a working row that dropped the colour would put a different companion on the screen at the one moment the reader is watching it. Check that the mark is identical across all five kinds and that only the motion differs.",
 			},
 		},
 	},
 	play: async ({ canvasElement }) => {
-		const [thinking, ...rest] = slotsIn(canvasElement, "bot-avatar-blot")
+		const [thinking, ...rest] = companionGlyphs(canvasElement)
 
 		await expect(rest).toHaveLength(BOT_WORKING_KINDS.length - 1)
-		for (const blot of rest) {
-			await expect(blot.getAttribute("fill")).toBe(
-				thinking.getAttribute("fill"),
+		for (const glyph of rest) {
+			await expect(glyph.getAttribute("aria-label")).toBe(
+				thinking.getAttribute("aria-label"),
 			)
-			await expect(blot.getAttribute("transform")).toBe(
-				thinking.getAttribute("transform"),
-			)
+			await expect(companionTintOf(glyph)).toBe(companionTintOf(thinking))
 		}
 	},
 })
@@ -626,7 +623,7 @@ export const Stop = meta.story({
 		docs: {
 			description: {
 				story:
-					"Interrupting the run, from the row that is running it: the first two avatars are `stoppable` and become controls, the last is not and stays a drawing. Check that the veil covers the drawn avatar corner to corner and holds to the rounded square of the uploaded picture, that it appears the instant the avatar is pointed at with no fade — pointing at the words beside it reveals them and nothing else — that Tab reaches each control and lights the same glyph, and that the last row exposes no button at all.",
+					"Interrupting the run, from the row that is running it: the first two avatars are `stoppable` and become controls, the last is not and stays a drawing. Check that the veil holds to the rounded square of the glyph and of the uploaded picture alike, that it appears the instant the avatar is pointed at with no fade — pointing at the words beside it reveals them and nothing else — that Tab reaches each control and lights the same glyph, and that the last row exposes no button at all.",
 			},
 		},
 	},
@@ -641,10 +638,12 @@ export const Stop = meta.story({
 		const label = canvas.getAllByText("Atlas · Bash · npm test")[0]
 
 		await expect(canvas.getAllByRole("button")).toHaveLength(2)
-		const [, picture] = botIdentityAvatars(canvasElement)
+		const [drawn, picture] = botIdentityAvatars(canvasElement)
 
-		await expect(getComputedStyle(glyph).borderRadius).toBe("0px")
-		await expectCompanionPictureSquare(picture)
+		await expect(getComputedStyle(glyph).borderRadius).toBe(
+			getComputedStyle(drawn).borderRadius,
+		)
+		await expectCompanionPictureShape(picture)
 		await expect(getComputedStyle(uploadedGlyph).borderRadius).toBe(
 			getComputedStyle(picture).borderRadius,
 		)

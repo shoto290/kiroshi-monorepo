@@ -1,9 +1,8 @@
 import type { ComponentProps, ReactNode } from "react"
 import { useTranslation } from "react-i18next"
 
-import type { BotAvatarBlot } from "@workspace/ui/components/bot-avatar"
-import type { BotAvatarAnimal } from "@workspace/ui/components/bot-avatar-animals"
 import { BotIdentityAvatar } from "@workspace/ui/components/bot-identity-avatar"
+import type { BotAvatarBlot } from "@workspace/ui/components/companion-colour"
 import { EmptyStateShell } from "@workspace/ui/components/empty-state-shell"
 import { Icons } from "@workspace/ui/components/icons"
 import { Button } from "@workspace/ui/components/ui/button"
@@ -16,7 +15,6 @@ interface ChatEmptyStateProps extends Omit<ComponentProps<"div">, "children"> {
 	onSignIn?: () => void
 	onOpenSettings?: () => void
 	name?: string
-	animal?: BotAvatarAnimal
 	blot?: BotAvatarBlot
 	seed?: string
 	image?: string
@@ -30,7 +28,6 @@ function ChatEmptyState({
 	onSignIn,
 	onOpenSettings,
 	name,
-	animal,
 	blot,
 	seed,
 	image,
@@ -54,7 +51,6 @@ function ChatEmptyState({
 
 	const botMark = (
 		<BotIdentityAvatar
-			animal={animal}
 			blot={blot}
 			image={image}
 			name={name}

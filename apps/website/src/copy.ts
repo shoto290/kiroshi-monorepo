@@ -1,4 +1,5 @@
 export const WEBSITE_COPY = {
+	brandIcon: "Kiroshi",
 	headline: "Your team of companions.",
 	lead: "They live on your machine, work in your tools, and keep going while you do something else.",
 	downloadAction: "Download",

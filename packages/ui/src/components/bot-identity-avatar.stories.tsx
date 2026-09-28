@@ -1,31 +1,54 @@
 import { useState } from "react"
-import { expect, within } from "storybook/test"
+import { expect } from "storybook/test"
 
 import preview from "@workspace/storybook/preview"
 import {
 	botIdentityAvatars,
-	expectCompanionPictureSquare,
+	companionGlyphOf,
+	companionTintOf,
+	drawingOf,
+	expectCellsIn,
+	expectCompanionPictureShape,
+	expectCompanionSilhouette,
 	pictureOf,
 	Row,
+	recordLitCells,
 	slotsIn,
 	UPLOADED_AVATAR_IMAGE,
 } from "@workspace/storybook/story-utils"
-import { BLOT_TINTS } from "@workspace/ui/components/bot-avatar"
-import { blotTransform } from "@workspace/ui/components/bot-avatar-blot"
 import { BOT_BADGES } from "@workspace/ui/components/bot-badge"
 import {
 	BotIdentityAvatar,
 	type BotIdentityAvatarProps,
 } from "@workspace/ui/components/bot-identity-avatar"
+import { BLOT_TINTS } from "@workspace/ui/components/companion-colour"
 import { InitialsAvatar } from "@workspace/ui/components/initials-avatar"
 import { Button } from "@workspace/ui/components/ui/button"
 
 const SIZES = [40, 96, 24]
 
-const DRAWN_PICTURE_SLOTS = [
-	{ size: 40, radius: "10px" },
-	{ size: 20, radius: "6px" },
-]
+const HONEYCOMB_SIZES = [16, 96]
+
+const HoneycombSizes = (props: BotIdentityAvatarProps) => (
+	<Row>
+		{HONEYCOMB_SIZES.map((size) => (
+			<BotIdentityAvatar {...props} key={size} size={size} />
+		))}
+	</Row>
+)
+
+const expectOneHoneycomb = async (canvasElement: HTMLElement) => {
+	const drawings = botIdentityAvatars(canvasElement).map((avatar) => {
+		const canvas = avatar.querySelector("canvas")
+		return canvas ? drawingOf(canvas) : ""
+	})
+
+	await expect(drawings).toHaveLength(HONEYCOMB_SIZES.length * 2)
+	await expect(drawings.every((drawing) => drawing !== "")).toBe(true)
+	await expect(new Set(drawings).size).toBe(1)
+}
+
+const DRAWN_PICTURE_SLOTS = [{ size: 40 }, { size: 20 }]
 
 const DrawnPictureSlots = (props: BotIdentityAvatarProps) => (
 	<Row>
@@ -34,9 +57,6 @@ const DrawnPictureSlots = (props: BotIdentityAvatarProps) => (
 		))}
 	</Row>
 )
-
-const blotShapeOf = (avatar: HTMLElement) =>
-	slotsIn(avatar, "bot-avatar-blot")[0]?.getAttribute("transform")
 
 const activityDotOf = (avatar: HTMLElement) =>
 	slotsIn(avatar, "bot-activity-dot")[0]
@@ -49,43 +69,6 @@ const EveryPlace = (props: BotIdentityAvatarProps) => (
 	</Row>
 )
 
-type RenamedProps = BotIdentityAvatarProps & { rename: string }
-
-const Renamed = ({ rename, ...props }: RenamedProps) => {
-	const [named, setNamed] = useState(false)
-
-	return (
-		<div className="flex flex-col items-start gap-4">
-			<EveryPlace {...props} name={named ? rename : "Nibbles"} />
-			<Button onClick={() => setNamed(!named)} size="sm" variant="outline">
-				Rename the companion
-			</Button>
-		</div>
-	)
-}
-
-const Rebranded = (props: BotIdentityAvatarProps) => {
-	const [rebranded, setRebranded] = useState(false)
-
-	return (
-		<div className="flex flex-col items-start gap-4">
-			<BotIdentityAvatar
-				{...props}
-				animal={rebranded ? "bear" : "rabbit"}
-				blot={rebranded ? "red" : "blue"}
-				working={rebranded}
-			/>
-			<Button
-				onClick={() => setRebranded(!rebranded)}
-				size="sm"
-				variant="outline"
-			>
-				Change everything but the id
-			</Button>
-		</div>
-	)
-}
-
 const Changing = (props: BotIdentityAvatarProps) => {
 	const [wearing, setWearing] = useState(false)
 
@@ -93,7 +76,6 @@ const Changing = (props: BotIdentityAvatarProps) => {
 		<div className="flex flex-col items-start gap-4">
 			<EveryPlace
 				{...props}
-				animal={wearing ? "bear" : props.animal}
 				image={wearing ? UPLOADED_AVATAR_IMAGE : undefined}
 			/>
 			<Button onClick={() => setWearing(!wearing)} size="sm" variant="outline">
@@ -101,6 +83,18 @@ const Changing = (props: BotIdentityAvatarProps) => {
 			</Button>
 		</div>
 	)
+}
+
+const expectGlyph = async (avatar: HTMLElement, state: string) => {
+	const glyph = companionGlyphOf(avatar)
+	await expect(glyph).toHaveAccessibleName("Atlas")
+	await expect(glyph.dataset.state).toBe(state)
+}
+
+const cellsOf = (glyph: HTMLElement) => {
+	const canvas = glyph.querySelector("canvas")
+	if (!canvas) throw new Error("This avatar draws no cells")
+	return canvas
 }
 
 const meta = preview.meta({
@@ -111,12 +105,12 @@ const meta = preview.meta({
 		docs: {
 			description: {
 				component:
-					"A companion's face, wherever it is shown: the roster row, its settings column, the replies it signs, the row that says it is working. One component for all of them, because a companion that picked a rabbit is a rabbit everywhere or it is not an identity — three renderings drift the moment one of them learns something the others do not. It draws and nothing else: no name, no live region, no layout. What tells one companion from another is its animal and the ink blot behind it; every companion at rest holds the same idle frame, so a resting panel says nothing about what anyone is doing. Work is said by the pose alone; the dot at the corner is not work but a badge the caller hands down — attention, a finished turn, or a failed one — and a companion carrying none wears no dot at all. Size is the only thing a call site changes.",
+					"A companion's face, wherever it is shown: the roster row, its settings column, the replies it signs, the row that says it is working. One component for all of them, so every place draws the same companion. A companion with an uploaded picture is that picture. Otherwise it is its dithered field, drawn from its name and the colour it was given: the silhouette and the screen come from the name, the hue from the colour, so two companions sharing a colour still part by shape. At rest the field holds still; at work it drifts in the way its kind of work moves. The dot at the corner is a badge the caller hands down, never the work itself. Size is the only thing a call site changes.",
 			},
 		},
 	},
 	args: {
-		animal: "rabbit",
+		name: "Atlas",
 		blot: "blue",
 		seed: "bot-7",
 		size: 96,
@@ -124,32 +118,34 @@ const meta = preview.meta({
 	argTypes: {
 		badge: { control: "select", options: [undefined, ...BOT_BADGES] },
 		blot: { control: "select", options: [undefined, ...BLOT_TINTS] },
-		seed: { control: "text" },
+		name: { control: "text" },
 		size: { control: { type: "range", min: 16, max: 160, step: 8 } },
 		working: { control: "boolean" },
 	},
 })
 
-export const Default = meta.story({
+export const Rest = meta.story({
+	globals: { theme_layout: "side-by-side" },
 	parameters: {
 		docs: {
 			description: {
 				story:
-					"One companion at rest: the animal it was given, over the blot it was given, drawn once and left alone. Check that nothing moves, that the blot sits behind the whole animal without a stroke of its own, and that no activity dot is drawn — a companion doing nothing must look like a companion doing nothing. Pick `EveryBlot` for the other seven tints, `Working` for the same companion mid-run.",
+					"One companion at rest: its dithered field in the hue of the colour it was given, drawn once and left alone. Check in both themes that nothing moves, that the field fills the rounded hexagon of the Kiroshi mark and that no dot is drawn. Pick `Working` for the same companion mid-run.",
 			},
 		},
 	},
 	play: async ({ canvasElement }) => {
 		const [avatar] = botIdentityAvatars(canvasElement)
+		const glyph = companionGlyphOf(avatar)
 
-		await expect(
-			within(avatar).getByRole("img", {
-				name: "Companion avatar rabbit, idle",
-			}),
-		).toBeVisible()
-		await expect(
-			avatar.querySelector('[data-slot="bot-activity-dot"]'),
-		).toBeNull()
+		await expectGlyph(avatar, "idle")
+		await expect(companionTintOf(glyph)).toBe("var(--bot-blot-blue)")
+		await expectCompanionSilhouette(glyph)
+		for (const layer of [avatar, glyph]) {
+			await expect(getComputedStyle(layer).borderRadius).toBe("0px")
+			await expect(getComputedStyle(layer).outlineStyle).toBe("none")
+		}
+		await expect(activityDotOf(avatar)).toBeUndefined()
 	},
 })
 
@@ -160,7 +156,7 @@ export const EverySize = meta.story({
 		docs: {
 			description: {
 				story:
-					"The three sizes the product asks for — a roster row, a settings column, a reply — from one component and one identity. Check that they are the same drawing at three scales and not three drawings: the same animal, the same blot, the same round frame. Nothing else may differ, because nothing else is passed.",
+					"The three sizes the product asks for, a roster row, a settings column and a reply, from one component and one identity. Check that they are the same field at three scales: the grid keeps its cell count and only the cell shrinks, so the 24px one is the same drawing.",
 			},
 		},
 	},
@@ -171,18 +167,13 @@ export const EverySize = meta.story({
 		for (const [index, avatar] of drawn.entries()) {
 			await expect(avatar.getBoundingClientRect().width).toBeCloseTo(
 				SIZES[index],
-				0,
 			)
-			await expect(
-				within(avatar).getByRole("img", {
-					name: "Companion avatar rabbit, idle",
-				}),
-			).toBeVisible()
+			await expectGlyph(avatar, "idle")
 		}
 	},
 })
 
-export const EveryBlot = meta.story({
+export const EveryTint = meta.story({
 	tags: ["test-only"],
 	render: (args) => (
 		<Row>
@@ -196,21 +187,62 @@ export const EveryBlot = meta.story({
 		docs: {
 			description: {
 				story:
-					"The eight tints a companion can be marked with, and the companion marked with none. The names are the ones an agent file's `color` key reads. Seven inks came through the renaming untouched — `purple` is the lavender it always was; `orange` is the one that was drawn again, because the grey it inherited did not answer to the word. All eight are light on purpose: the ink line is near-black and the ear accent is coral, and both stop reading over anything darker — check that the outline, the eyes and the ears hold on every tint, and that the tint is the only thing that changes from one to the next. Switch the Storybook theme to dark: the tints do not flip, because a companion's mark is the same colour wherever it is shown. The first avatar draws no blot at all and must be identical to what the component rendered before blots existed.",
+					"The companion with no colour, then the eight colours a companion can be given. Each colour paints the cells in its hue on a pale tint of that hue, and the colours do not follow the theme; the uncoloured one paints its cells in Kiroshi blue. Switch to dark and check the cells read darker than their ground on all nine.",
 			},
 		},
 	},
 	play: async ({ canvasElement }) => {
-		const [none, ...tinted] = botIdentityAvatars(canvasElement)
+		const [none, ...tinted] =
+			botIdentityAvatars(canvasElement).map(companionGlyphOf)
 
-		await expect(none.querySelector('[data-slot="bot-avatar-blot"]')).toBeNull()
-		await expect(
-			tinted.map((avatar) =>
-				avatar
-					.querySelector('[data-slot="bot-avatar-blot"]')
-					?.getAttribute("fill"),
-			),
-		).toEqual(BLOT_TINTS.map((blot) => `var(--bot-blot-${blot})`))
+		await expect(companionTintOf(none)).toBe("")
+		await expect(tinted.map((glyph) => companionTintOf(glyph))).toEqual(
+			BLOT_TINTS.map((blot) => `var(--bot-blot-${blot})`),
+		)
+	},
+})
+
+export const NoChosenColour = meta.story({
+	args: { blot: undefined },
+	render: (args) => <EveryPlace {...args} />,
+	parameters: {
+		docs: {
+			description: {
+				story:
+					"A companion never given a colour: its cells are the fixed Kiroshi blue rather than a hue of its own, on a pale tint of that blue. Switch the theme and check the blue cells hold on their ground against both backgrounds.",
+			},
+		},
+	},
+	play: async ({ canvasElement }) => {
+		for (const avatar of botIdentityAvatars(canvasElement)) {
+			const glyph = companionGlyphOf(avatar)
+			await expectGlyph(avatar, "idle")
+			await expect(companionTintOf(glyph)).toBe("")
+			await expectCellsIn(cellsOf(glyph), "var(--bot-avatar-field-untinted)")
+		}
+	},
+})
+
+export const WithBadge = meta.story({
+	args: { badge: "attention" },
+	parameters: {
+		docs: {
+			description: {
+				story:
+					"A companion at rest carrying the badge its caller handed down. Check that the dot sits in the corner of the rounded square without leaving it. Pick `EveryBadge` for the three badges.",
+			},
+		},
+	},
+	play: async ({ canvasElement }) => {
+		const [avatar] = botIdentityAvatars(canvasElement)
+		const slot = avatar.getBoundingClientRect()
+		const dot = activityDotOf(avatar)
+		const box = dot.getBoundingClientRect()
+
+		await expectGlyph(avatar, "idle")
+		await expect(dot.dataset.badge).toBe("attention")
+		await expect(box.right).toBeLessThanOrEqual(slot.right)
+		await expect(box.bottom).toBeLessThanOrEqual(slot.bottom)
 	},
 })
 
@@ -254,17 +286,13 @@ export const BadgedWhileWorking = meta.story({
 		docs: {
 			description: {
 				story:
-					"A badge and a run are two different things, and the component keeps them apart: the animal is searching because `working` says so, and the dot is red because the caller said the last turn failed. Neither reads the other. Check that the dot is sized from the avatar so it lands the same on a 24px reply as on a 96px preview, and that the red is the same red at all three.",
+					"A badge and a run are two different things, and the component keeps them apart: the glyph is searching because `working` says so, and the dot is red because the caller said the last turn failed. Neither reads the other. Check that the dot is sized from the avatar so it lands the same on a 24px reply as on a 96px preview.",
 			},
 		},
 	},
 	play: async ({ canvasElement }) => {
 		for (const avatar of botIdentityAvatars(canvasElement)) {
-			await expect(
-				within(avatar).getByRole("img", {
-					name: "Companion avatar rabbit, searching",
-				}),
-			).toBeVisible()
+			await expectGlyph(avatar, "searching")
 			await expect(activityDotOf(avatar).dataset.badge).toBe("failed")
 		}
 	},
@@ -277,53 +305,44 @@ export const Working = meta.story({
 		docs: {
 			description: {
 				story:
-					"The companion at work, in all three places. The animal doing the work is the companion's own and it keeps its blot throughout — a run must never put a different creature or a different mark on the screen than the one the reader chose — and the pose is the work: writing, searching, thinking, or listening while it waits on the reader. No size wears a dot: a running companion is read from its pose and its message line, and the corner is reserved for a badge the caller passes. Pick `EveryBadge` for the three badges. Open this in Storybook for the movement; the test browser forces reduced motion.",
+					"The companion at work, in all three places. Its glyph and colour stay its own; the motion is the work: writing fills top to bottom, searching sweeps across, thinking ripples out, working spins and waiting breathes. No size wears a dot. Open this in Storybook for the movement; the test browser forces reduced motion, where each kind holds a still pose of its own.",
 			},
 		},
 	},
 	play: async ({ canvasElement }) => {
 		for (const avatar of botIdentityAvatars(canvasElement)) {
-			await expect(
-				within(avatar).getByRole("img", {
-					name: "Companion avatar rabbit, writing",
-				}),
-			).toBeVisible()
-			await expect(
-				avatar.querySelector('[data-slot="bot-activity-dot"]'),
-			).toBeNull()
+			await expectGlyph(avatar, "writing")
+			await expect(activityDotOf(avatar)).toBeUndefined()
 		}
 	},
 })
 
 export const Waiting = meta.story({
+	tags: ["test-only"],
 	args: { working: true, kind: "waiting" },
 	parameters: {
 		docs: {
 			description: {
 				story:
-					"The one kind of work that is not named after its own pose: a companion waiting on the reader is listening, not idling. Reach for this to check that waiting still reads as attention rather than as rest, and that the companion's own animal is the one doing the listening.",
+					"A companion waiting on the reader: its glyph breathes rather than resting, so waiting reads as attention and not as idleness.",
 			},
 		},
 	},
 	play: async ({ canvasElement }) => {
 		const [avatar] = botIdentityAvatars(canvasElement)
-
-		await expect(
-			within(avatar).getByRole("img", {
-				name: "Companion avatar rabbit, listening",
-			}),
-		).toBeVisible()
+		await expectGlyph(avatar, "waiting")
 	},
 })
 
-export const Uploaded = meta.story({
+export const WithImage = meta.story({
+	globals: { theme_layout: "side-by-side" },
 	args: { image: UPLOADED_AVATAR_IMAGE },
 	render: (args) => <EveryPlace {...args} />,
 	parameters: {
 		docs: {
 			description: {
 				story:
-					"A companion wearing a picture its reader uploaded. It wins over the animal and its blot in every place — a companion with a photograph is that photograph on the roster, in its settings and beside its replies — and it is decorative in all of them: the row, the column and the reply each name the companion in their own text, so the image says nothing twice. Check that no animal is drawn beside it. Pick `UploadedWorking` for the same picture mid-run.",
+					"A companion wearing a picture its reader uploaded. It wins over the glyph in every place and is decorative in all of them: the row, the column and the reply each name the companion in their own text. Check that no glyph is drawn beside it. Pick `UploadedWorking` for the same picture mid-run.",
 			},
 		},
 	},
@@ -333,8 +352,10 @@ export const Uploaded = meta.story({
 				"src",
 				UPLOADED_AVATAR_IMAGE,
 			)
-			await expect(avatar.querySelector("svg")).toBeNull()
-			await expectCompanionPictureSquare(avatar)
+			await expect(
+				avatar.querySelector('[data-slot="companion-field"]'),
+			).toBeNull()
+			await expectCompanionPictureShape(avatar)
 		}
 	},
 })
@@ -347,7 +368,7 @@ export const UploadedWorking = meta.story({
 		docs: {
 			description: {
 				story:
-					"A companion with a picture, working. The picture stays: swapping it for an animal that can move would put somebody else on the screen mid-run. A photograph cannot act, so a running picture is read from the line beside it: the corner belongs to the badge and stays empty while none is given. Check that no dot is drawn at any size and that the picture is untouched.",
+					"A companion with a picture, working. The picture stays: swapping it for a glyph that can move would put somebody else on the screen mid-run. A photograph cannot act, so a running picture is read from the line beside it: the corner belongs to the badge and stays empty while none is given. Check that no dot is drawn at any size and that the picture is untouched.",
 			},
 		},
 	},
@@ -360,7 +381,7 @@ export const UploadedWorking = meta.story({
 			await expect(
 				avatar.querySelector('[data-slot="bot-activity-dot"]'),
 			).toBeNull()
-			await expectCompanionPictureSquare(avatar)
+			await expectCompanionPictureShape(avatar)
 		}
 	},
 })
@@ -389,13 +410,12 @@ export const UploadedAtDrawnSizes = meta.story({
 	play: async ({ canvasElement }) => {
 		const avatars = botIdentityAvatars(canvasElement)
 
-		for (const [index, { radius }] of DRAWN_PICTURE_SLOTS.entries()) {
-			await expectCompanionPictureSquare(avatars[index])
-			await expect(getComputedStyle(avatars[index]).borderRadius).toBe(radius)
+		for (const index of DRAWN_PICTURE_SLOTS.keys()) {
+			await expectCompanionPictureShape(avatars[index])
 		}
 
 		const [reader] = slotsIn(canvasElement, "user-avatar")
-		await expect(await pictureOf(reader)).toHaveClass("rounded-full")
+		await expectCompanionSilhouette(await pictureOf(reader))
 	},
 })
 
@@ -416,7 +436,7 @@ export const UploadedBadged = meta.story({
 			const slot = avatar.getBoundingClientRect()
 			const dot = activityDotOf(avatar).getBoundingClientRect()
 
-			await expectCompanionPictureSquare(avatar)
+			await expectCompanionPictureShape(avatar)
 			await expect(dot.left).toBeGreaterThanOrEqual(slot.left)
 			await expect(dot.top).toBeGreaterThanOrEqual(slot.top)
 			await expect(dot.right).toBeLessThanOrEqual(slot.right)
@@ -432,145 +452,65 @@ export const BoundToOneBot = meta.story({
 		docs: {
 			description: {
 				story:
-					"What one component buys: change the companion and every place changes with it. Press the button and all three sizes go from the rabbit to a picture together — there is no fourth rendering left to forget, which is what the roster row and the reply avatar each used to be. Check that the three never disagree at any point.",
+					"What one component buys: change the companion and every place changes with it. Press the button and all three sizes go from the glyph to a picture together, and back. Check that the three never disagree at any point.",
 			},
 		},
 	},
 	play: async ({ canvas, canvasElement, userEvent }) => {
 		const drawn = () => botIdentityAvatars(canvasElement)
+		const change = () =>
+			userEvent.click(
+				canvas.getByRole("button", { name: "Change the companion" }),
+			)
 
-		for (const avatar of drawn()) {
-			await expect(avatar.querySelector("img")).toBeNull()
-		}
+		for (const avatar of drawn()) await expectGlyph(avatar, "idle")
 
-		await userEvent.click(
-			canvas.getByRole("button", { name: "Change the companion" }),
-		)
+		await change()
 		for (const avatar of drawn()) {
 			await expect(await pictureOf(avatar)).toHaveAttribute(
 				"src",
 				UPLOADED_AVATAR_IMAGE,
 			)
-			await expect(avatar.querySelector("svg")).toBeNull()
+			await expect(
+				avatar.querySelector('[data-slot="companion-field"]'),
+			).toBeNull()
 		}
 
-		await userEvent.click(
-			canvas.getByRole("button", { name: "Change the companion" }),
-		)
+		await change()
 		for (const avatar of drawn()) {
 			await expect(avatar.querySelector("img")).toBeNull()
-			await expect(
-				within(avatar).getByRole("img", {
-					name: "Companion avatar rabbit, idle",
-				}),
-			).toBeVisible()
+			await expectGlyph(avatar, "idle")
 		}
 	},
 })
 
-export const NamedSkippy = meta.story({
-	tags: ["test-only"],
-	render: (args) => <Renamed {...args} rename="Skippy" />,
+export const HoneycombIdle = meta.story({
+	globals: { theme_layout: "side-by-side" },
+	beforeEach: recordLitCells,
+	render: (args) => <HoneycombSizes {...args} />,
 	parameters: {
 		docs: {
 			description: {
 				story:
-					"One of the two animals a reader cannot pick: a companion whose name contains Skippy is drawn as Skippy, whatever animal it keeps. Press the button and the rabbit becomes the kangaroo in all three places at once, and pressing it again gives the rabbit back — the name is read on every render and nothing is written, so the stored animal is the same rabbit before and after. The match ignores case and finds the word anywhere in the name, because a reader typing a name is not typing an identifier. A companion wearing an uploaded picture keeps the picture: pick `Uploaded` for that.",
+					"The field as a honeycomb at rest, at 16 px, the smallest size the app draws a companion at, in mentions and arrival rows, and at 96 px, the settings preview. Flat-topped hexagons in the Kiroshi mark's orientation, every other row offset by half a cell, one gap between every pair of neighbours, and no hexagon cut at the outline. Check in both themes that the glyph reads at 16 px and that both sizes are one drawing. Pick `HoneycombWorking` for the same companion at work.",
 			},
 		},
 	},
-	play: async ({ canvas, canvasElement, userEvent }) => {
-		const expectEveryPlace = async (animal: string) => {
-			for (const avatar of botIdentityAvatars(canvasElement)) {
-				await expect(
-					within(avatar).getByRole("img", {
-						name: `Companion avatar ${animal}, idle`,
-					}),
-				).toBeVisible()
-			}
-		}
-		const rename = () =>
-			userEvent.click(
-				canvas.getByRole("button", { name: "Rename the companion" }),
-			)
-
-		await expectEveryPlace("rabbit")
-		await rename()
-		await expectEveryPlace("skippy")
-		await rename()
-		await expectEveryPlace("rabbit")
-	},
+	play: ({ canvasElement }) => expectOneHoneycomb(canvasElement),
 })
 
-export const NamedPitch = meta.story({
-	tags: ["test-only"],
-	render: (args) => <Renamed {...args} rename="Pitch" />,
+export const HoneycombWorking = meta.story({
+	globals: { theme_layout: "side-by-side" },
+	beforeEach: recordLitCells,
+	args: { working: true, kind: "working" },
+	render: (args) => <HoneycombSizes {...args} />,
 	parameters: {
 		docs: {
 			description: {
 				story:
-					"The other animal a reader cannot pick: a companion whose name contains Pitch is drawn as Pitch, whatever animal it keeps. Press the button and the rabbit becomes Pitch in all three places at once, and pressing it again gives the rabbit back.",
+					"The same honeycomb at work, at 16 and 96 px in both themes: the field drifts and the working motion runs through the hexagons, never outside the outline. Under reduced motion, what the test run renders, it holds the still idle honeycomb. Pick `HoneycombIdle` for the resting companion.",
 			},
 		},
 	},
-	play: async ({ canvas, canvasElement, userEvent }) => {
-		const expectEveryPlace = async (animal: string) => {
-			for (const avatar of botIdentityAvatars(canvasElement)) {
-				await expect(
-					within(avatar).getByRole("img", {
-						name: `Companion avatar ${animal}, idle`,
-					}),
-				).toBeVisible()
-			}
-		}
-		const rename = () =>
-			userEvent.click(
-				canvas.getByRole("button", { name: "Rename the companion" }),
-			)
-
-		await expectEveryPlace("rabbit")
-		await rename()
-		await expectEveryPlace("pitch")
-		await rename()
-		await expectEveryPlace("rabbit")
-	},
-})
-
-export const Unseeded = meta.story({
-	args: { seed: undefined },
-	parameters: {
-		docs: {
-			description: {
-				story:
-					"A companion drawn without an id — a preview, a story, anything with no companion behind it yet. It gets the blot exactly as it was authored, so nothing that existed before shapes did has moved. Put it beside `Default`, whose companion is seeded onto a half turn: the tint and the animal are the same and only the blot has turned. Pick `Branding/Companion Avatar → BlotShapes` for all eight poses at once.",
-			},
-		},
-	},
-	play: async ({ canvasElement }) => {
-		const [avatar] = botIdentityAvatars(canvasElement)
-
-		await expect(blotShapeOf(avatar)?.endsWith(blotTransform())).toBe(true)
-	},
-})
-
-export const Seeded = meta.story({
-	tags: ["test-only"],
-	render: (args) => <Rebranded {...args} />,
-	parameters: {
-		docs: {
-			description: {
-				story:
-					"What the id buys: press the button and the companion is renamed in every way a reader can rename it — a different animal, a different tint, and mid-run rather than at rest — and its blot holds the shape it has always had. The shape is derived from the id and from nothing else, and it is drawn outside the node the animation engine rewrites, so neither an edit nor a frame of movement can touch it. Check that the blot is perfectly still while the animal works.",
-			},
-		},
-	},
-	play: async ({ canvas, canvasElement, userEvent }) => {
-		const [avatar] = botIdentityAvatars(canvasElement)
-		const before = blotShapeOf(avatar)
-
-		await userEvent.click(
-			canvas.getByRole("button", { name: "Change everything but the id" }),
-		)
-		await expect(blotShapeOf(botIdentityAvatars(canvasElement)[0])).toBe(before)
-	},
+	play: ({ canvasElement }) => expectOneHoneycomb(canvasElement),
 })

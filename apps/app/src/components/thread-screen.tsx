@@ -212,7 +212,6 @@ type WorkingBotProps = BotStopProps & {
 const WorkingBot = ({ face, work, ...stop }: WorkingBotProps) => (
 	<ActivityIndicator
 		{...stop}
-		animal={face.animal}
 		blot={face.blot}
 		botId={face.id}
 		image={face.image}
@@ -352,7 +351,6 @@ const ThreadHeader = ({
 			leading={
 				thread.kind === "bot" ? (
 					<HeaderIdentityButton
-						animal={thread.bot.avatarAnimal}
 						blot={thread.bot.avatarBlot ?? undefined}
 						connection={thread.state.connection}
 						image={botImage}
@@ -565,7 +563,6 @@ const ThreadEmptyState = ({
 
 	return status ? (
 		<ChatEmptyState
-			animal={thread.bot.avatarAnimal}
 			blot={thread.bot.avatarBlot ?? undefined}
 			className="m-auto"
 			image={botImage}

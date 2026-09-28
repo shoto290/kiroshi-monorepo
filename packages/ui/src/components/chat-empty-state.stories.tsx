@@ -9,7 +9,6 @@ const UPLOADED_IMAGE =
 
 const BOT = {
 	name: "Nest Keeper",
-	animal: "rabbit",
 	blot: "blue",
 	seed: "bot_4f8c21",
 } as const
@@ -68,7 +67,7 @@ export const WithoutBlot = meta.story({
 		docs: {
 			description: {
 				story:
-					"Reach for this for a companion that was never marked with a tint: the animal is drawn on nothing. Check that the mark still holds the same box as `WithSettings` — the heading must not shift up when the tint behind the animal is gone. Pick `WithSettings` for a companion that carries one. `apps/app/src/components/thread-screen.tsx:549` passes no tint for a companion whose `avatarBlot` is null.",
+					"Reach for this for a companion that was never marked with a tint: its field is drawn in Kiroshi blue. Check that the mark still holds the same box as `WithSettings` — the heading must not shift up when the tint is gone. Pick `WithSettings` for a companion that carries one. `apps/app/src/components/thread-screen.tsx:549` passes no tint for a companion whose `avatarBlot` is null.",
 			},
 		},
 	},
@@ -87,7 +86,7 @@ export const WithPicture = meta.story({
 		docs: {
 			description: {
 				story:
-					"Reach for this for a companion whose reader uploaded a picture: it wins over the animal here exactly as it does on the roster row. Check that the picture fills the same round box the drawing would have, so the title lands on the same baseline. Pick `WithSettings` for a companion wearing its animal. `apps/app/src/components/thread-screen.tsx:551` passes the uploaded picture of the companion the thread belongs to.",
+					"Reach for this for a companion whose reader uploaded a picture: it wins over the dithered field here exactly as it does on the roster row. Check that the picture fills the same round box the drawing would have, so the title lands on the same baseline. Pick `WithSettings` for a companion wearing its dithered field. `apps/app/src/components/thread-screen.tsx:551` passes the uploaded picture of the companion the thread belongs to.",
 			},
 		},
 	},

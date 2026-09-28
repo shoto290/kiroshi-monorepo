@@ -63,7 +63,6 @@ const READ_AT = Date.parse("2026-03-04T14:20:00")
 const FACE: ThreadFace = {
 	id: "b-1",
 	name: "Ada Martin",
-	animal: "owl",
 }
 
 const faceOf = (botId: string): ThreadFace | undefined =>
@@ -233,7 +232,7 @@ describe("toMissionRows", () => {
 					externalId: "OPE-42",
 					title: "Changelog parser",
 				},
-				bot: { name: "Ada Martin", animal: "owl", seed: "b-1" },
+				bot: { name: "Ada Martin", seed: "b-1" },
 				state: "working",
 				isWorking: true,
 				timestamp: "1h",
@@ -380,7 +379,7 @@ describe("toMissionRows", () => {
 				id: "run-1",
 				routineTitle: "Nightly report",
 				triggerSourceTitle: "Every day at 08:00",
-				bot: { name: "Ada Martin", animal: "owl", seed: "b-1" },
+				bot: { name: "Ada Martin", seed: "b-1" },
 				timestamp: "12:20",
 			},
 		])

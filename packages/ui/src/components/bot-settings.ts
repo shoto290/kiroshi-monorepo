@@ -1,39 +1,17 @@
 import {
 	BLOT_TINTS,
 	type BotAvatarBlot,
-} from "@workspace/ui/components/bot-avatar"
-import {
-	ANIMALS,
-	type BotAvatarAnimal,
-} from "@workspace/ui/components/bot-avatar-animals"
+} from "@workspace/ui/components/companion-colour"
 
-const NAMED_ANIMALS = {
-	skippy: "skippy",
-	pitch: "pitch",
-} as const satisfies Record<string, BotAvatarAnimal>
-
-type NamedAnimal = (typeof NAMED_ANIMALS)[keyof typeof NAMED_ANIMALS]
-
-type BotIdentityAnimal = Exclude<BotAvatarAnimal, NamedAnimal>
-
-const NAMED_ANIMAL_SET = new Set<BotAvatarAnimal>(Object.values(NAMED_ANIMALS))
-
-const BOT_IDENTITY_ANIMALS = (Object.keys(ANIMALS) as BotAvatarAnimal[]).filter(
-	(animal): animal is BotIdentityAnimal => !NAMED_ANIMAL_SET.has(animal),
-)
-
-const earliestNamedAnimal = (name: string) => {
-	const lowered = name.toLowerCase()
-	return Object.entries(NAMED_ANIMALS)
-		.map(([word, animal]) => ({ at: lowered.indexOf(word), animal }))
-		.filter(({ at }) => at !== -1)
-		.sort((first, second) => first.at - second.at)[0]?.animal
-}
-
-const drawnAnimal = <Stored extends BotAvatarAnimal | undefined>(
-	name: string | undefined,
-	animal: Stored,
-) => earliestNamedAnimal(name ?? "") ?? animal
+type BotIdentityAnimal =
+	| "rabbit"
+	| "cat"
+	| "bear"
+	| "chick"
+	| "dog"
+	| "mouse"
+	| "owl"
+	| "koala"
 
 type BotIdentity = {
 	animal: BotIdentityAnimal
@@ -466,7 +444,6 @@ export {
 	BLANK_MCP_SERVER_DRAFT,
 	BLANK_SKILL_DRAFT,
 	BLOT_TINTS,
-	BOT_IDENTITY_ANIMALS,
 	BOT_OUTPUT_STYLES,
 	BOT_PERMISSION_MODES,
 	BOT_PERMISSION_RULE_LISTS,
@@ -492,7 +469,6 @@ export {
 	type BotSkillItem,
 	DEFAULT_BOT_OUTPUT_STYLE,
 	DEFAULT_BOT_PERMISSION_MODE,
-	drawnAnimal,
 	isConfigObject,
 	isMcpServerDraftUnsaved,
 	isPermissionRule,

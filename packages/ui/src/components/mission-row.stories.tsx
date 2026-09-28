@@ -4,6 +4,7 @@ import { expect, fn, screen } from "storybook/test"
 import preview from "@workspace/storybook/preview"
 import {
 	A11Y_CONTRAST_AWAITING_DESIGN_DECISION,
+	companionGlyphsIn,
 	slotIn,
 	slotsIn,
 } from "@workspace/storybook/story-utils"
@@ -29,10 +30,6 @@ import { SidebarListRow } from "@workspace/ui/components/sidebar-list-row"
 import { Sidebar, SidebarProvider } from "@workspace/ui/components/ui/sidebar"
 
 const ACTIVITIES = [true, false]
-
-const WORKING_POSE = "Companion avatar owl, working"
-
-const RESTING_POSE = "Companion avatar owl, idle"
 
 const STATE_MATRIX = MISSION_STATES.flatMap((state) =>
 	ACTIVITIES.map((isWorking) => ({
@@ -151,9 +148,7 @@ export const Working = meta.story({
 		},
 	},
 	play: async ({ args, canvas, canvasElement, userEvent }) => {
-		await expect(
-			canvas.getByRole("img", { name: "Companion avatar owl, working" }),
-		).toBeVisible()
+		await expect(companionGlyphsIn(canvasElement, "working")[0]).toBeVisible()
 		await expect(dotIn(canvasElement)).toBeNull()
 		await expect(canvas.getByText("1h")).toBeVisible()
 
@@ -235,16 +230,16 @@ export const States = meta.story({
 			))}
 		</Panel>
 	),
-	play: async ({ canvas }) => {
+	play: async ({ canvas, canvasElement }) => {
 		await expect(canvas.getAllByText("Working now")).toHaveLength(
 			MISSION_STATES.length,
 		)
-		await expect(
-			canvas.getAllByRole("img", { name: WORKING_POSE }),
-		).toHaveLength(MISSION_STATES.length)
-		await expect(
-			canvas.getAllByRole("img", { name: RESTING_POSE }),
-		).toHaveLength(MISSION_STATES.length)
+		await expect(companionGlyphsIn(canvasElement, "working")).toHaveLength(
+			MISSION_STATES.length,
+		)
+		await expect(companionGlyphsIn(canvasElement, "idle")).toHaveLength(
+			MISSION_STATES.length,
+		)
 		await expect(canvas.getAllByText("Blocked on you")).toHaveLength(
 			ACTIVITIES.length,
 		)
@@ -265,13 +260,11 @@ export const WaitingForItsBot = meta.story({
 			},
 		},
 	},
-	play: async ({ canvas, canvasElement }) => {
+	play: async ({ canvasElement }) => {
 		const line = previewIn(canvasElement)
 
 		await expect(dotIn(canvasElement)).toBeNull()
-		await expect(
-			canvas.getByRole("img", { name: "Companion avatar cat, idle" }),
-		).toBeVisible()
+		await expect(companionGlyphsIn(canvasElement, "idle")[0]).toBeVisible()
 		await expect(firstPartIn(canvasElement)).toHaveTextContent(
 			WAITING_BOT_MISSION.ticket.title,
 		)
@@ -380,9 +373,7 @@ export const Closed = meta.story({
 		},
 	},
 	play: async ({ canvas, canvasElement }) => {
-		await expect(
-			canvas.getByRole("img", { name: "Companion avatar rabbit, idle" }),
-		).toBeVisible()
+		await expect(companionGlyphsIn(canvasElement, "idle")[0]).toBeVisible()
 		await expect(dotIn(canvasElement)).toBeNull()
 		await expect(canvas.getByText("09:12")).toBeVisible()
 		await expect(canvas.getByText("Completed")).toBeVisible()

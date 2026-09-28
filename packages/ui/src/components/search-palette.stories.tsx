@@ -43,7 +43,6 @@ const NARROW_VIEWPORT = {
 
 const ROUTINE_BOT = {
 	name: "Noor Beltran",
-	animal: "rabbit",
 	seed: "bot-noor-beltran",
 } as const
 
@@ -74,8 +73,8 @@ const CHATS: SearchPaletteResult[] = [
 		identity: {
 			kind: "chat-group",
 			participants: [
-				{ id: "atlas", name: "Atlas", animal: "rabbit", blot: "blue" },
-				{ id: "beacon", name: "Beacon", animal: "owl", blot: "orange" },
+				{ id: "atlas", name: "Atlas", blot: "blue" },
+				{ id: "beacon", name: "Beacon", blot: "orange" },
 			],
 		},
 		title: [{ key: "title", text: "Changelog cleanup" }],

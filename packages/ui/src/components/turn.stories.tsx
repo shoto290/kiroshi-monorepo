@@ -4,7 +4,8 @@ import { expect, fireEvent, fn, screen, waitFor, within } from "storybook/test"
 import preview from "@workspace/storybook/preview"
 import {
 	botIdentityAvatars,
-	expectCompanionPictureSquare,
+	expectCompanionPictureShape,
+	expectCompanionSilhouette,
 	shown,
 	slotIn,
 	slotsIn,
@@ -98,7 +99,6 @@ const TABLE = `| § | Subject |
 const LEAD: MessageAuthor = {
 	id: "bot-atlas",
 	name: "Atlas",
-	animal: "owl",
 	blot: "blue",
 	isLead: true,
 }
@@ -106,14 +106,12 @@ const LEAD: MessageAuthor = {
 const SECOND: MessageAuthor = {
 	id: "bot-basile",
 	name: "Basile",
-	animal: "cat",
 	blot: "purple",
 }
 
 const GONE: MessageAuthor = {
 	id: "bot-elia",
 	name: "Elia",
-	animal: "mouse",
 	isDeleted: true,
 }
 
@@ -134,7 +132,6 @@ const TITLED_ROOM: { author: MessageAuthor; message: string }[] = [
 		author: {
 			id: "bot-elia",
 			name: "Elia of the Migration and Release Desk",
-			animal: "mouse",
 			title: RELEASE_MANAGER,
 		},
 		message: "I am holding the tag until both of you sign off.",
@@ -143,7 +140,6 @@ const TITLED_ROOM: { author: MessageAuthor; message: string }[] = [
 		author: {
 			id: "bot-nyx",
 			name: "Nyx",
-			animal: "bear",
 			title: "Release manager for the whole platform",
 		},
 		message: "I will publish once the tag is cut.",
@@ -184,7 +180,6 @@ const TURN_STATES: TurnState[] = [
 const BOT: RosterBot = {
 	id: "bot-skippy",
 	name: "Skippy",
-	animal: "owl",
 	blot: "blue",
 }
 
@@ -255,7 +250,6 @@ const MARKED_BOT_ID = "bot-lyra"
 const MARKED_FACE: RosterBot = {
 	id: MARKED_BOT_ID,
 	name: "Lyra",
-	animal: "rabbit",
 	blot: "purple",
 }
 
@@ -1052,7 +1046,7 @@ export const CompleteStoppable = meta.story({
 		docs: {
 			description: {
 				story:
-					"The landed answer of a companion the screen still holds a seat for: `stoppable` turns the gutter avatar into the same control the waiting seat carries, named after the companion, and opens the gutter to assistive technology so the control can be reached at all. The wave keeps running around it — this stop ends one companion. Check that the control is the size of the avatar it rides, that pointing at it or reaching it by keyboard veils the animal with the stop glyph, that the ring shows where focus landed, and that pressing it reports the stop. " +
+					"The landed answer of a companion the screen still holds a seat for: `stoppable` turns the gutter avatar into the same control the waiting seat carries, named after the companion, and opens the gutter to assistive technology so the control can be reached at all. The wave keeps running around it — this stop ends one companion. Check that the control is the size of the avatar it rides, that pointing at it or reaching it by keyboard veils the avatar with the stop glyph, that the ring shows where focus landed, and that pressing it reports the stop. " +
 					STOPPED_BY_THE_SCREEN,
 			},
 		},
@@ -1169,11 +1163,10 @@ export const StoppableSameBotEitherWay = meta.story({
 	play: async ({ canvasElement }) => {
 		const authored = within(slotIn(canvasElement, "author-named-row"))
 		const identified = within(slotIn(canvasElement, "identity-named-row"))
-		const animal = new RegExp(LEAD.animal ?? "")
-		const authoredMark = authored.getByRole("img", { name: animal })
+		const authoredMark = authored.getByRole("img", { name: LEAD.name })
 
 		await expect(
-			identified.getByRole("img", { name: animal }),
+			identified.getByRole("img", { name: LEAD.name }),
 		).toHaveAccessibleName(accessibleNameOf(authoredMark))
 		await expect(
 			authored.getAllByRole("button", { name: `Stop ${LEAD.name}` }),
@@ -1229,8 +1222,8 @@ export const StoppableOtherIdentity = meta.story({
 		await expect(
 			canvas.queryByRole("button", { name: `Stop ${LEAD.name}` }),
 		).toBeNull()
-		await expect(drawn).toHaveAccessibleName(new RegExp(`${SECOND.animal}`))
-		await expect(drawn).not.toHaveAccessibleName(new RegExp(`${LEAD.animal}`))
+		await expect(drawn).toHaveAccessibleName(SECOND.name)
+		await expect(drawn).not.toHaveAccessibleName(LEAD.name)
 		await expect(canvas.getByText(LEAD.name)).toBeVisible()
 	},
 })
@@ -1254,8 +1247,8 @@ export const StoppablePicture = meta.story({
 		await expect(
 			canvas.getByRole("button", { name: "Stop Atlas" }),
 		).toBeVisible()
-		await expectCompanionPictureSquare(picture)
-		await expect(getComputedStyle(glyph).borderRadius).toBe("10px")
+		await expectCompanionPictureShape(picture)
+		await expectCompanionSilhouette(glyph)
 	},
 })
 
@@ -1278,7 +1271,7 @@ export const PictureBesideBlot = meta.story({
 		docs: {
 			description: {
 				story:
-					"The gutter of a companion wearing its picture above the gutter of one drawn from a blot. Check that the picture fills its 40px slot as a rounded square with no border, and that the drawn companion below keeps its animal over its blot. " +
+					"The gutter of a companion wearing its picture above the gutter of one drawn as its glyph. Check that the picture fills its 40px slot as a rounded square with no border, and that the drawn companion below keeps its glyph on its colour. " +
 					RENDERED_BY_THE_THREAD,
 			},
 		},
@@ -1286,10 +1279,9 @@ export const PictureBesideBlot = meta.story({
 	play: async ({ canvasElement }) => {
 		const [picture, drawn] = botIdentityAvatars(canvasElement)
 
-		await expectCompanionPictureSquare(picture)
-		await expect(getComputedStyle(picture).borderRadius).toBe("10px")
+		await expectCompanionPictureShape(picture)
 		await expect(drawn.querySelector("img")).toBeNull()
-		await expect(slotsIn(drawn, "bot-avatar-blot")).toHaveLength(1)
+		await expect(slotsIn(drawn, "companion-field")).toHaveLength(1)
 	},
 })
 
@@ -1694,7 +1686,7 @@ export const CompanionSelectOnGutter = meta.story({
 	parameters: {
 		docs: {
 			description: {
-				story: `The gutter avatar at rest under a mounted select, once as a blot and once carrying a picture. Check that each avatar is a button named after the companion, that the gutter is no longer hidden from assistive technology, that it keeps its column and row, and that the button takes the circle of a blot and the picture radius of an avatar carrying an image. ${SELECT_NOT_YET_RENDERED}`,
+				story: `The gutter avatar at rest under a mounted select, once as a glyph and once carrying a picture. Check that each avatar is a button named after the companion, that the gutter is no longer hidden from assistive technology, that it keeps its column and row, and that the button takes the same rounded square whether it holds a glyph or a picture. ${SELECT_NOT_YET_RENDERED}`,
 			},
 		},
 	},
@@ -1708,7 +1700,7 @@ export const CompanionSelectOnGutter = meta.story({
 
 		await expect(gutter).not.toHaveAttribute("aria-hidden")
 		await expect(gutterPlacement(gutter)).toEqual(HOSTLESS_GUTTER_PLACEMENT)
-		await expect(getComputedStyle(blot).borderRadius).not.toBe(
+		await expect(getComputedStyle(blot).borderRadius).toBe(
 			getComputedStyle(pictured).borderRadius,
 		)
 		await expect(getComputedStyle(blot).boxShadow).toBe("none")
@@ -1769,7 +1761,7 @@ export const CompanionSelectOnGutterFocused = meta.story({
 		await userEvent.tab()
 
 		await expect(blot).toHaveFocus()
-		await expect(getComputedStyle(blot).boxShadow).not.toBe("none")
+		await expect(getComputedStyle(blot).filter).toContain("drop-shadow")
 	},
 })
 

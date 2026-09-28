@@ -145,7 +145,7 @@ const meta = preview.meta({
 		docs: {
 			description: {
 				component:
-					"Everything a companion is, in one overlay. A breadcrumb heads it with the companion's avatar, its name and the word Settings, so a reader who opened it from a roster of twelve knows which one they are editing on every tab. Down the left is a rail of groups — General, Appearance, Instructions, Runtime, then a separator and Danger zone in destructive tone, last because it is the one action that cannot be undone. It opens on General, unless the host set `showDanger` to say a row's own delete is what opened it. It is fully controlled and saves as you type: every keystroke emits `onValueChange` with the whole value, and the dialog owns no draft, no debounce and no persistence. A skill is the exception: it is written on a press, so closing over one with something unsaved asks first. The breadcrumb and the rail hold still and only the open group scrolls, so the rail is where a reader left it after a long scroll through the animals. Below 42rem of content the rail drops to its icons, each one still named to a screen reader and named on hover and focus with a tooltip.",
+					"Everything a companion is, in one overlay. A breadcrumb heads it with the companion's avatar, its name and the word Settings, so a reader who opened it from a roster of twelve knows which one they are editing on every tab. Down the left is a rail of groups — General, Appearance, Instructions, Runtime, then a separator and Danger zone in destructive tone, last because it is the one action that cannot be undone. It opens on General, unless the host set `showDanger` to say a row's own delete is what opened it. It is fully controlled and saves as you type: every keystroke emits `onValueChange` with the whole value, and the dialog owns no draft, no debounce and no persistence. A skill is the exception: it is written on a press, so closing over one with something unsaved asks first. The breadcrumb and the rail hold still and only the open group scrolls, so the rail is where a reader left it after a long scroll. Below 42rem of content the rail drops to its icons, each one still named to a screen reader and named on hover and focus with a tooltip.",
 			},
 		},
 	},
@@ -214,7 +214,7 @@ export const Rail = meta.story({
 		docs: {
 			description: {
 				story:
-					"The groups and the way between them. Check the order — General, Appearance, Instructions, Skills, Applications, Secrets, History, Approvals, Runtime, then a rule and Danger zone alone below it, the only item in destructive tone. One tab stop reaches the rail and the arrow keys walk it, so a keyboard reader crosses the whole dialog in two stops rather than five. Walking is not opening: focus moves with the arrows and the group opens on Enter, so nobody drags a grid of animals or a model list past on their way to the one they wanted. No item carries a tooltip: its name is already on the screen. Pick `ScrollsOneTab` for the rail beside a group taller than the dialog. The breadcrumb is unchanged whichever group is open: it names the companion, not the group.",
+					"The groups and the way between them. Check the order — General, Appearance, Instructions, Skills, Applications, Secrets, History, Approvals, Runtime, then a rule and Danger zone alone below it, the only item in destructive tone. One tab stop reaches the rail and the arrow keys walk it, so a keyboard reader crosses the whole dialog in two stops rather than five. Walking is not opening: focus moves with the arrows and the group opens on Enter, so nobody drags a long group or a model list past on their way to the one they wanted. No item carries a tooltip: its name is already on the screen. Pick `ScrollsOneTab` for the rail beside a group taller than the dialog. The breadcrumb is unchanged whichever group is open: it names the companion, not the group.",
 			},
 		},
 	},
@@ -263,7 +263,7 @@ export const Appearance = meta.story({
 		docs: {
 			description: {
 				story:
-					"The whole of a companion's face, flat: the preview, the eight animals, the nine blot choices and the zone that takes a picture. Nothing is folded away behind a popover — the tab is the picker. Check that choosing an animal writes the whole value back through `onValueChange` and that the preview follows it immediately.",
+					"The whole of a companion's face, flat: the preview, the nine colour choices and the zone that takes a picture. Nothing is folded away behind a popover: the tab is the picker. Check that choosing a colour writes the whole value back through `onValueChange` and that the preview follows it immediately.",
 			},
 		},
 	},
@@ -273,10 +273,10 @@ export const Appearance = meta.story({
 
 		await expect(slotsIn(panel, "bot-identity-fields")).toHaveLength(1)
 
-		await userEvent.click(within(panel).getByRole("radio", { name: "Rabbit" }))
+		await userEvent.click(within(panel).getByRole("radio", { name: "Red" }))
 		await expect(args.onValueChange).toHaveBeenCalledWith(
 			expect.objectContaining({
-				identity: expect.objectContaining({ animal: "rabbit" }),
+				identity: expect.objectContaining({ blot: "red" }),
 			}),
 		)
 	},
@@ -468,14 +468,14 @@ export const ScrollsOneTab = meta.story({
 		docs: {
 			description: {
 				story:
-					"A group taller than the dialog — the animals, the blots and the picture zone together. Check that the panel is the one thing that moves: the breadcrumb stays on the companion's name and the rail stays where the reader left it, so the way out of a long group is never a scroll back up. The dialog itself never scrolls.",
+					"A group taller than the dialog: every approval a companion can be asked for. Check that the panel is the one thing that moves: the breadcrumb stays on the companion's name and the rail stays where the reader left it, so the way out of a long group is never a scroll back up. The dialog itself never scrolls.",
 			},
 		},
 	},
 	play: async ({ userEvent }) => {
 		const dialog = await dialogIn()
 		const rail = railIn(dialog)
-		const panel = await openTab(dialog, "Appearance", userEvent)
+		const panel = await openTab(dialog, "Approvals", userEvent)
 		const railTop = rail.getBoundingClientRect().top
 
 		await expect(panel.scrollHeight).toBeGreaterThan(panel.clientHeight)
@@ -484,7 +484,7 @@ export const ScrollsOneTab = meta.story({
 		panel.scrollTop = panel.scrollHeight
 		await waitFor(() => expect(rail.getBoundingClientRect().top).toBe(railTop))
 		await expect(
-			within(dialog).getByRole("tab", { name: "Appearance" }),
+			within(dialog).getByRole("tab", { name: "Approvals" }),
 		).toBeVisible()
 	},
 })

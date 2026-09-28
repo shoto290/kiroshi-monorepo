@@ -2,7 +2,6 @@ import { describe, expect, it } from "vitest"
 
 import {
 	type BotSkillDraft,
-	drawnAnimal,
 	isMcpServerDraftUnsaved,
 	isSkillDraftUnsaved,
 	readMcpServerFields,
@@ -18,47 +17,6 @@ const SKILL: BotSkillDraft = {
 	description: "How this project words a changelog entry",
 	body: "One line per change.",
 }
-
-describe("drawnAnimal", () => {
-	it("draws skippy for a companion called Skippy, whatever it keeps", () => {
-		expect(drawnAnimal("Skippy", "rabbit")).toBe("skippy")
-	})
-
-	it("draws pitch for a companion called Pitch, whatever it keeps", () => {
-		expect(drawnAnimal("Pitch", "rabbit")).toBe("pitch")
-	})
-
-	it("finds either word embedded anywhere in the name", () => {
-		expect(drawnAnimal("Skippy the second", "rabbit")).toBe("skippy")
-		expect(drawnAnimal("Elevator pitches", "rabbit")).toBe("pitch")
-	})
-
-	it("reads the name past its case", () => {
-		expect(drawnAnimal("  sKiPpY  ", "rabbit")).toBe("skippy")
-		expect(drawnAnimal("PiTcH", "rabbit")).toBe("pitch")
-	})
-
-	it("draws the word that comes first when the name holds both", () => {
-		expect(drawnAnimal("Skippy pitches in", "rabbit")).toBe("skippy")
-		expect(drawnAnimal("Pitch to Skippy", "rabbit")).toBe("pitch")
-	})
-
-	it("draws the stored animal under any other name", () => {
-		expect(drawnAnimal("Nibbles", "rabbit")).toBe("rabbit")
-	})
-
-	it("draws the stored animal for a companion with no name", () => {
-		expect(drawnAnimal(undefined, "rabbit")).toBe("rabbit")
-	})
-
-	it("keeps drawing nothing where nothing is stored", () => {
-		expect(drawnAnimal("Nibbles", undefined)).toBeUndefined()
-	})
-
-	it("still draws the named animal where nothing is stored", () => {
-		expect(drawnAnimal("Pitch", undefined)).toBe("pitch")
-	})
-})
 
 describe("isSkillDraftUnsaved", () => {
 	it("reads a draft as untouched while every answer holds", () => {

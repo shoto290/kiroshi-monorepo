@@ -6,7 +6,12 @@ import {
 	A11Y_CONTRAST_AWAITING_DESIGN_DECISION,
 	A11Y_FLOATING_FOCUS_GUARDS,
 	A11Y_SUBMENU_PORTAL_GUARD,
-	expectCompanionPictureSquare,
+	companionGlyphOf,
+	companionGlyphs,
+	companionGlyphsIn,
+	companionTintOf,
+	expectCompanionPictureShape,
+	expectHexagonFrame,
 	FRAME_POLL,
 	hasOverlayScrollbars,
 	mergeA11y,
@@ -29,11 +34,18 @@ import {
 	type Space,
 	type UserChipIdentity,
 } from "@workspace/ui/components/app-sidebar"
-import { blotTransform } from "@workspace/ui/components/bot-avatar-blot"
 import type {
 	BotMissionState,
 	BotMissionTicket,
 } from "@workspace/ui/components/bot-badge"
+import {
+	companionSeed,
+	pickSilhouette,
+} from "@workspace/ui/components/companion-field"
+import {
+	COMPANION_SILHOUETTE_SPACE,
+	silhouetteKey,
+} from "@workspace/ui/components/companion-silhouette"
 import { Icons } from "@workspace/ui/components/icons"
 import { TooltipButton } from "@workspace/ui/components/tooltip-button"
 import { WorkspaceShell } from "@workspace/ui/components/workspace-shell"
@@ -60,7 +72,6 @@ const ROSTER: AppSidebarBot[] = [
 		blot: "blue",
 		name: "Atlas",
 		title: "Research",
-		animal: "owl",
 		lastMessage: "Pulled the three papers and summarised each one for you.",
 		timestamp: "09:24",
 	},
@@ -68,7 +79,6 @@ const ROSTER: AppSidebarBot[] = [
 		id: "beacon",
 		blot: "yellow",
 		name: "Beacon",
-		animal: "cat",
 		lastMessage: LAST_MESSAGE,
 		timestamp: "09:18",
 	},
@@ -77,7 +87,6 @@ const ROSTER: AppSidebarBot[] = [
 		blot: "red",
 		name: "Cinder",
 		title: "Build",
-		animal: "dog",
 		status: "working",
 		pose: "working",
 		lastMessage: "Rebuilding the desktop bundle.",
@@ -87,7 +96,6 @@ const ROSTER: AppSidebarBot[] = [
 		id: "dune",
 		blot: "green",
 		name: "Dune",
-		animal: "bear",
 		lastMessage: "Nothing since the migration landed.",
 		timestamp: "Mon",
 	},
@@ -96,7 +104,6 @@ const ROSTER: AppSidebarBot[] = [
 		blot: "purple",
 		name: "Ember",
 		title: "Review",
-		animal: "rabbit",
 		lastMessage: "Left four comments on the transport rename.",
 		timestamp: "Mon",
 	},
@@ -104,7 +111,6 @@ const ROSTER: AppSidebarBot[] = [
 		id: "flint",
 		blot: "pink",
 		name: "Flint",
-		animal: "mouse",
 		lastMessage: "Ran the suite twice, both green.",
 		timestamp: "Sun",
 	},
@@ -113,7 +119,6 @@ const ROSTER: AppSidebarBot[] = [
 		blot: "cyan",
 		name: "Grove",
 		title: "Docs",
-		animal: "koala",
 		lastMessage: "Rewrote the setup page around the new command.",
 		timestamp: "Sun",
 	},
@@ -121,7 +126,6 @@ const ROSTER: AppSidebarBot[] = [
 		id: "harbor",
 		blot: "orange",
 		name: "Harbor",
-		animal: "chick",
 		lastMessage: "Waiting on the credentials you promised.",
 		timestamp: "Sat",
 	},
@@ -130,7 +134,6 @@ const ROSTER: AppSidebarBot[] = [
 		blot: "yellow",
 		name: "Iris",
 		title: "Design",
-		animal: "cat",
 		lastMessage: "Swapped the rail avatars for the new blots.",
 		timestamp: "Sat",
 	},
@@ -138,7 +141,6 @@ const ROSTER: AppSidebarBot[] = [
 		id: "juno",
 		blot: "blue",
 		name: "Juno",
-		animal: "owl",
 		lastMessage: "Summarised yesterday's session into six bullets.",
 		timestamp: "Fri",
 	},
@@ -147,7 +149,6 @@ const ROSTER: AppSidebarBot[] = [
 		blot: "red",
 		name: "Kite",
 		title: "Ops",
-		animal: "dog",
 		lastMessage: "Rotated the signing key and restarted the runner.",
 		timestamp: "Fri",
 	},
@@ -155,7 +156,6 @@ const ROSTER: AppSidebarBot[] = [
 		id: "lumen",
 		blot: "orange",
 		name: "Lumen",
-		animal: "bear",
 		lastMessage: "Nothing yet.",
 		timestamp: "Thu",
 	},
@@ -256,11 +256,8 @@ const IDENTITY_ROSTER: AppSidebarBot[] = IDENTITY_BLOTS.map((blot, index) => ({
 	status: "idle",
 }))
 
-const blotsIn = (canvasElement: HTMLElement) =>
-	slotsIn(canvasElement, "bot-avatar-blot")
-
-const blotFillsIn = (canvasElement: HTMLElement) =>
-	blotsIn(canvasElement).map((path) => path.getAttribute("fill"))
+const tintsIn = (root: HTMLElement) =>
+	companionGlyphs(root).map((glyph) => companionTintOf(glyph))
 
 const SHARED_TINT_ROSTER: AppSidebarBot[] = IDENTITY_ROSTER.map((bot) => ({
 	...bot,
@@ -385,11 +382,8 @@ const searchFieldIn = (canvasElement: HTMLElement) =>
 		name: /Search/,
 	})
 
-const avatarDrawingIn = (row: HTMLElement) => {
-	const drawing = slotIn(row, "bot-identity-avatar").querySelector("svg")
-	if (!drawing) throw new Error("No avatar drawing in the row")
-	return drawing
-}
+const avatarDrawingIn = (row: HTMLElement) =>
+	companionGlyphOf(slotIn(row, "bot-identity-avatar"))
 
 const expectAvatarDrawnAtCallSiteSize = async (row: HTMLElement) => {
 	const drawn = avatarDrawingIn(row).getBoundingClientRect()
@@ -1004,7 +998,7 @@ export const UploadedPictures = meta.story({
 		docs: {
 			description: {
 				story:
-					"Two companions wearing a picture their reader uploaded, beside one wearing its animal. A picture is a still image whatever the companion is doing, so the row that is running says so with its message line rather than by moving — and it lands in the same slot as a drawing, so the names and the timestamps stay on the column the rest of the roster holds. Check that a row with a picture draws no animal and no blot at all, that the picture fills its slot as a rounded square with no border, and that the picture is decorative: the row is already named by its own text. Pick `Identities` for the animals a companion wears when it has no picture.",
+					"Two companions wearing a picture their reader uploaded, beside one wearing its dithered field. A picture is a still image whatever the companion is doing, so the row that is running says so with its message line rather than by moving — and it lands in the same slot as a drawing, so the names and the timestamps stay on the column the rest of the roster holds. Check that a row with a picture draws no dithered field at all, that the picture fills its slot as a rounded square with no border, and that the picture is decorative: the row is already named by its own text. Pick `Identities` for the fields a companion wears when it has no picture.",
 			},
 		},
 	},
@@ -1019,8 +1013,7 @@ export const UploadedPictures = meta.story({
 		await expect(wearing.querySelector("svg")).toBeNull()
 		for (const row of [wearing, running]) {
 			const [picture] = slotsIn(row, "bot-identity-avatar")
-			await expectCompanionPictureSquare(picture)
-			await expect(getComputedStyle(picture).borderRadius).toBe("10px")
+			await expectCompanionPictureShape(picture)
 		}
 		await expect(drawn.querySelector("img")).toBeNull()
 		await expect(within(drawn).getByRole("img")).toBeVisible()
@@ -1041,22 +1034,21 @@ export const SharedTint = meta.story({
 		docs: {
 			description: {
 				story:
-					"Eight companions that all picked the same tint. Before a shape was derived from the id they were stamped from one die and a reader had to read the names to tell the rows apart; now each id lays the one authored blot down at its own quarter turn, mirrored or not. The vocabulary is deliberately small — eight poses, and eight tints over them — so two rows can still land on the same mark, and a reader who wants them apart changes a tint. What matters is that a row never changes shape: rename the companion, give it another animal, give it another tint, and the mark it wears is the one it was minted with. Pick `Identities` for the eight tints on their own.",
+					"Eight companions that all picked the same colour. Each draws the glyph its name lands on, so the rows part by shape alone rather than by reading the names. Pick `Identities` for the eight colours on their own.",
 			},
 		},
 	},
 	play: async ({ canvasElement }) => {
-		const shapes = blotsIn(canvasElement).map((path) =>
-			path.getAttribute("transform"),
+		const glyphs = companionGlyphs(canvasElement)
+		const shapes = SHARED_TINT_ROSTER.map(({ name }) =>
+			silhouetteKey(
+				pickSilhouette(companionSeed(name), COMPANION_SILHOUETTE_SPACE),
+			),
 		)
 
-		await expect(shapes).toHaveLength(SHARED_TINT_ROSTER.length)
-		for (const [at, shape] of shapes.entries()) {
-			await expect(
-				shape?.endsWith(blotTransform(SHARED_TINT_ROSTER[at].id)),
-			).toBe(true)
-		}
-		await expect(uniqueCount(shapes)).toBeGreaterThan(1)
+		await expect(glyphs).toHaveLength(SHARED_TINT_ROSTER.length)
+		await expect(uniqueCount(tintsIn(canvasElement))).toBe(1)
+		await expect(uniqueCount(shapes)).toBe(SHARED_TINT_ROSTER.length)
 	},
 })
 
@@ -1070,7 +1062,7 @@ export const Identities = meta.story({
 		docs: {
 			description: {
 				story:
-					"The eight blots a companion can be given in its settings, one per row, with nothing running. Every avatar here draws the same idle animal — what tells the rows apart is the tint behind it, not what the companion is doing — and every one of them is a still frame, so a panel of companions that are doing nothing is a panel that does not move. Check that each row wears its own tint, that the ink line and the ear accent stay legible over all eight, that no row carries an activity dot, and that the panel does not report itself busy. Check too that the panel is the width the stylesheet gives it, that it draws no rule down its trailing edge — the thread card's own border is the only edge between the two — and that an avatar is drawn at the size the row asks for rather than at the size the menu button forces on the icons around it. The test browser renders every story with reduced motion, so the stillness is read here rather than measured; open the story in Storybook beside `Working` to see the difference. Pick `Working` for the state that animates.",
+					"The eight blots a companion can be given in its settings, one per row, with nothing running. Every avatar here is a still dithered field; what tells the rows apart is its silhouette and the hue of its tint, not what the companion is doing — and every one of them is a still frame, so a panel of companions that are doing nothing is a panel that does not move. Check that each row wears its own tint, that the ink line and the ear accent stay legible over all eight, that no row carries an activity dot, and that the panel does not report itself busy. Check too that the panel is the width the stylesheet gives it, that it draws no rule down its trailing edge — the thread card's own border is the only edge between the two — and that an avatar is drawn at the size the row asks for rather than at the size the menu button forces on the icons around it. The test browser renders every story with reduced motion, so the stillness is read here rather than measured; open the story in Storybook beside `Working` to see the difference. Pick `Working` for the state that animates.",
 			},
 		},
 	},
@@ -1078,13 +1070,11 @@ export const Identities = meta.story({
 		const rows = rowsIn(canvasElement)
 
 		await expect(rows).toHaveLength(IDENTITY_BLOTS.length)
-		await expect(blotFillsIn(canvasElement)).toEqual(
+		await expect(tintsIn(canvasElement)).toEqual(
 			IDENTITY_BLOTS.map((blot) => `var(--bot-blot-${blot})`),
 		)
 		for (const row of rows) {
-			await expect(
-				within(row).getByRole("img", { name: /idle$/ }),
-			).toBeVisible()
+			await expect(avatarDrawingIn(row).dataset.state).toBe("idle")
 		}
 
 		await expect(
@@ -1146,20 +1136,14 @@ export const Working = meta.story({
 		await expect(slotIn(running, "roster-row-preview")).toHaveTextContent(
 			"writing…",
 		)
-		await expect(
-			within(running).getByRole("img", {
-				name: "Companion avatar dog, writing",
-			}),
-		).toBeVisible()
+		await expect(avatarDrawingIn(running).dataset.state).toBe("writing")
 
 		const resting = rowFor(canvasElement, "Ember")
 		await expect(
 			resting.querySelector('[data-slot="bot-activity-dot"]'),
 		).toBeNull()
-		await expect(
-			within(resting).getByRole("img", { name: /idle$/ }),
-		).toBeVisible()
-		await expect(blotFillsIn(resting)).toEqual(["var(--bot-blot-purple)"])
+		await expect(companionGlyphsIn(resting, "idle")[0]).toBeVisible()
+		await expect(tintsIn(resting)).toEqual(["var(--bot-blot-purple)"])
 		await expect(resting.querySelector('[data-slot="text-shimmer"]')).toBeNull()
 		await expect(colorOf(resting, "roster-row-preview")).toBe(muted)
 
@@ -1171,20 +1155,14 @@ export const Working = meta.story({
 		await expect(getComputedStyle(shimmer).color).toBe(muted)
 
 		await expect(
-			within(rowFor(canvasElement, "Atlas")).getByRole("img", {
-				name: /thinking$/,
-			}),
-		).toBeVisible()
+			avatarDrawingIn(rowFor(canvasElement, "Atlas")).dataset.state,
+		).toBe("thinking")
 		await expect(
-			within(rowFor(canvasElement, "Beacon")).getByRole("img", {
-				name: /searching$/,
-			}),
-		).toBeVisible()
+			avatarDrawingIn(rowFor(canvasElement, "Beacon")).dataset.state,
+		).toBe("searching")
 		await expect(
-			within(rowFor(canvasElement, "Dune")).getByRole("img", {
-				name: /working$/,
-			}),
-		).toBeVisible()
+			avatarDrawingIn(rowFor(canvasElement, "Dune")).dataset.state,
+		).toBe("working")
 
 		await expect(uniqueCount(rowHeights(rowsIn(canvasElement)))).toBe(1)
 		await expect(canvas.getByRole("status")).toHaveTextContent(
@@ -1206,16 +1184,13 @@ export const PermissionPending = meta.story({
 		docs: {
 			description: {
 				story:
-					'A turn blocked on a permission prompt, which a host maps to `status="working"` with `pose="waiting"` — the turn is waiting on the reader, not over. Check that the avatar holds its listening pose rather than the idle frame it wears at rest and that it is still animating: the panel reports itself busy and the announcement says the companion is waiting, so a row that looked idle here would contradict both at once. Pick `Working` for the work poses that cannot be mistaken for rest, `Identities` for the still frame this state must not fall back to.',
+					'A turn blocked on a permission prompt, which a host maps to `status="working"` with `pose="waiting"` — the turn is waiting on the reader, not over. Check that the glyph is in its waiting motion rather than the still frame it wears at rest: the panel reports itself busy and the announcement says the companion is waiting, so a row that looked idle here would contradict both at once. Pick `Working` for the work poses that cannot be mistaken for rest, `Identities` for the still frame this state must not fall back to.',
 			},
 		},
 	},
 	play: async ({ canvas, canvasElement }) => {
 		const row = rowFor(canvasElement, "Atlas")
-		await expect(
-			within(row).getByRole("img", { name: /listening$/ }),
-		).toBeVisible()
-		await expect(within(row).queryByRole("img", { name: /idle$/ })).toBeNull()
+		await expect(avatarDrawingIn(row).dataset.state).toBe("waiting")
 		await expect(slotIn(row, "roster-row-preview")).toHaveTextContent(
 			"waiting…",
 		)
@@ -1876,7 +1851,6 @@ export const LongContent = meta.story({
 				id: "long",
 				name: "Bartholomew Featherstonehaugh the Third",
 				title: "Infrastructure",
-				animal: "bear",
 				lastMessage: LAST_MESSAGE,
 				timestamp: "Yesterday",
 			},
@@ -1884,7 +1858,6 @@ export const LongContent = meta.story({
 			{
 				id: "longer",
 				name: "Anastasia Konstantinopoulos-Whitmore",
-				animal: "owl",
 				lastMessage: LAST_MESSAGE,
 				timestamp: "12:07",
 			},
@@ -1926,7 +1899,6 @@ export const MarkdownPreview = meta.story({
 			{
 				id: "marked",
 				name: "Atlas",
-				animal: "owl",
 				lastMessage:
 					"## Release notes\n\n- **Renamed** the `transport` module\n- Read [the report](https://example.com/report)\n\n```ts\nconst turn = resume()\n```",
 				timestamp: "12:07",
@@ -1934,7 +1906,6 @@ export const MarkdownPreview = meta.story({
 			{
 				id: "plain",
 				name: "Beacon",
-				animal: "bear",
 				lastMessage: "Ran the suite twice, both green.",
 				timestamp: "11:40",
 			},
@@ -4022,7 +3993,7 @@ export const EmptySection = meta.story({
 		docs: {
 			description: {
 				story:
-					"A section nothing has been filed into. It is drawn, not hidden: the header stays where the host put it and a dashed zone under it stands in for the rows that are not there yet. The zone wears a faded companion of its own, drawn from the section\u2019s name so it is the same companion every time that section is empty rather than a new face on every render — it is at rest and never animates, since a placeholder that moves competes with the companions that are actually working. It is decoration and is kept out of the accessibility tree; the invitation beside it is what a reader hears. Check it is drawn under the Archive header, that no row is drawn with it, and that it goes with the headers on the icon rail, where there is nothing to drop onto.",
+					"A section nothing has been filed into. It is drawn, not hidden: the header stays where the host put it and a dashed zone under it stands in for the rows that are not there yet. The zone wears a faded glyph of its own, drawn from the section\u2019s name so it is the same glyph every time that section is empty. It is at rest and never animates, since a placeholder that moves competes with the companions that are actually working. It is decoration and is kept out of the accessibility tree; the invitation beside it is what a reader hears. Check it is drawn under the Archive header, that no row is drawn with it, and that it goes with the headers on the icon rail, where there is nothing to drop onto.",
 			},
 		},
 	},
@@ -4031,12 +4002,9 @@ export const EmptySection = meta.story({
 		await expect(invitation).toBeVisible()
 
 		const zone = slotIn(canvasElement, "roster-section-drop")
-		const placeholder = zone.querySelector("svg")
-		await expect(placeholder?.closest("[aria-hidden='true']")).not.toBeNull()
-		await expect(placeholder).toHaveAttribute(
-			"aria-label",
-			expect.stringMatching(/^Companion avatar \w+, (?!idle)\w+$/),
-		)
+		const placeholder = companionGlyphOf(zone)
+		await expect(placeholder.closest("[aria-hidden='true']")).not.toBeNull()
+		await expect(placeholder.dataset.state).toBe("idle")
 		await expect(getComputedStyle(zone).color).toBe(
 			tokenColor(canvasElement, "--muted-foreground"),
 		)
@@ -5255,9 +5223,7 @@ export const ConversationOfOneBot = meta.story({
 		await expect(Math.round(frame.getBoundingClientRect().width)).toBe(
 			Math.round(loose.getBoundingClientRect().width),
 		)
-		await expect(
-			Number.parseFloat(getComputedStyle(frame).borderTopWidth),
-		).toBeGreaterThan(0)
+		await expectHexagonFrame(frame)
 
 		const [held] = stackIn(room)
 		await expect(held.getBoundingClientRect().width).toBeLessThan(

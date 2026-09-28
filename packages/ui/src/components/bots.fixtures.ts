@@ -1,25 +1,23 @@
 import type { RosterBot } from "@workspace/ui/components/roster"
 
 const CONVERSATION_BOTS: RosterBot[] = [
-	{ id: "bot-atlas", name: "Atlas", animal: "owl", blot: "blue" },
-	{ id: "bot-basile", name: "Basile", animal: "cat", blot: "purple" },
-	{ id: "bot-clemence", name: "Clémence", animal: "rabbit", blot: "pink" },
-	{ id: "bot-dorian", name: "Dorian", animal: "bear", blot: "orange" },
-	{ id: "bot-elia", name: "Elia", animal: "mouse", blot: "green" },
-	{ id: "bot-faust", name: "Faust", animal: "dog", blot: "cyan" },
+	{ id: "bot-atlas", name: "Atlas", blot: "blue" },
+	{ id: "bot-basile", name: "Basile", blot: "purple" },
+	{ id: "bot-clemence", name: "Clémence", blot: "pink" },
+	{ id: "bot-dorian", name: "Dorian", blot: "orange" },
+	{ id: "bot-elia", name: "Elia", blot: "green" },
+	{ id: "bot-faust", name: "Faust", blot: "cyan" },
 ]
 
 const LONG_NAMED_BOTS: RosterBot[] = [
 	{
 		id: "bot-release",
 		name: "Release notes editor for the desktop build",
-		animal: "koala",
 		blot: "yellow",
 	},
 	{
 		id: "bot-triage",
 		name: "Incident triage and on-call handover companion",
-		animal: "chick",
 		blot: "red",
 	},
 ]

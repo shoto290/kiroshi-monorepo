@@ -14,19 +14,16 @@ import type { RosterBot } from "@workspace/ui/components/roster"
 const KEEPER: RosterBot = {
 	id: "bot_4f8c21",
 	name: "Nest Keeper",
-	animal: "rabbit",
 	blot: "blue",
 }
 const SCOUT: RosterBot = {
 	id: "bot_9a2b40",
 	name: "Twig Scout",
-	animal: "mouse",
 	blot: "orange",
 }
 const WARDEN: RosterBot = {
 	id: "bot_1c7d55",
 	name: "Shell Warden",
-	animal: "koala",
 	blot: "green",
 }
 
@@ -91,7 +88,7 @@ export const WithPicture = meta.story({
 		docs: {
 			description: {
 				story:
-					"Reach for this when one seated companion carries an uploaded picture and the others wear their drawn animal. Check that the picture fills the same round box the drawing would, so the row of faces keeps one baseline and one rhythm. Pick `Default` when every companion wears its animal. The picture comes from the seated companion `apps/app/src/components/thread-screen.tsx:504` passes.",
+					"Reach for this when one seated companion carries an uploaded picture and the others wear their dithered field. Check that the picture fills the same round box the drawing would, so the row of faces keeps one baseline and one rhythm. Pick `Default` when every companion wears its dithered field. The picture comes from the seated companion `apps/app/src/components/thread-screen.tsx:504` passes.",
 			},
 		},
 	},
@@ -109,8 +106,8 @@ const SUGGESTED: RosterBot[] = [
 	KEEPER,
 	SCOUT,
 	WARDEN,
-	{ id: "bot_7e3f18", name: "Moss Reader", animal: "owl", blot: "purple" },
-	{ id: "bot_2b9a06", name: "Pebble Clerk", animal: "cat", blot: "pink" },
+	{ id: "bot_7e3f18", name: "Moss Reader", blot: "purple" },
+	{ id: "bot_2b9a06", name: "Pebble Clerk", blot: "pink" },
 ]
 
 const NOBODY_SEATED_WITH_SUGGESTIONS = {
@@ -127,7 +124,6 @@ const NOBODY_DESCRIPTION =
 const LONG_NAMED_SUGGESTION: RosterBot = {
 	id: "bot_6a0c58",
 	name: "Keeper of the Lighthouse at the Far End of the Northern Harbour Wall",
-	animal: "cat",
 	blot: "purple",
 }
 
@@ -296,9 +292,9 @@ export const LongContent = meta.story({
 			"Ship the December release, then plan the January retrospective with everyone involved",
 		bots: [
 			...SEATED,
-			{ id: "bot_7e3f18", name: "Moss Reader", animal: "owl", blot: "purple" },
-			{ id: "bot_2b9a06", name: "Pebble Clerk", animal: "cat", blot: "pink" },
-			{ id: "bot_8d4c73", name: "Fern Guide", animal: "bear", blot: "cyan" },
+			{ id: "bot_7e3f18", name: "Moss Reader", blot: "purple" },
+			{ id: "bot_2b9a06", name: "Pebble Clerk", blot: "pink" },
+			{ id: "bot_8d4c73", name: "Fern Guide", blot: "cyan" },
 		],
 	},
 	parameters: {

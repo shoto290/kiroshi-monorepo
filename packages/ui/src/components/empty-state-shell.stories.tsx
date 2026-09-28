@@ -8,7 +8,6 @@ import { Button } from "@workspace/ui/components/ui/button"
 
 const MARK = (
 	<BotIdentityAvatar
-		animal="rabbit"
 		blot="blue"
 		name="Nest Keeper"
 		seed="bot_4f8c21"

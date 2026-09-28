@@ -8,12 +8,12 @@ import {
 	slotIn,
 	slotsIn,
 } from "@workspace/storybook/story-utils"
+import { CodeSnippet } from "@workspace/ui/components/code-snippet"
 import {
 	BLOT_TINTS,
 	type BotAvatarBlot,
 	blotTint,
-} from "@workspace/ui/components/bot-avatar"
-import { CodeSnippet } from "@workspace/ui/components/code-snippet"
+} from "@workspace/ui/components/companion-colour"
 import { MessageAttachments } from "@workspace/ui/components/message-attachments"
 import {
 	MessageBubble,

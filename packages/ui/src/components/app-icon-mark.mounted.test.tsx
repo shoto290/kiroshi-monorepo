@@ -17,7 +17,7 @@ import {
 	type AppIconMarkHandle,
 } from "@workspace/ui/components/app-icon-mark"
 
-const RESTING_STATE = "waiting"
+const RESTING_STATE = "idle"
 const LONG_ENOUGH_FOR_SEVERAL_ANIMATIONS = 60_000
 
 const reducedMotion = {

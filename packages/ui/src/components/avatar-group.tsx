@@ -7,6 +7,7 @@ import {
 	BotIdentityAvatar,
 	type BotIdentityAvatarProps,
 } from "@workspace/ui/components/bot-identity-avatar"
+import { COMPANION_SILHOUETTE } from "@workspace/ui/components/companion-picture"
 
 const DEFAULT_SIZE = 40
 
@@ -16,17 +17,20 @@ const HELD_GAP = 2
 
 const FRAME_INSET_RATIO = 0.125
 
-const CORNER = "rounded-[28%]"
+const FRAME = "relative isolate grid shrink-0 place-content-center"
 
-const FRAME = `relative grid shrink-0 place-content-center border border-border bg-muted ${CORNER}`
+const FRAME_EDGE = "pointer-events-none absolute inset-0 -z-10 bg-border"
 
-const OVERFLOW_CELL = `grid place-content-center bg-foreground/10 font-medium text-foreground leading-none tabular-nums ${CORNER}`
+const FRAME_FILL = "pointer-events-none absolute inset-px -z-10 bg-muted"
+
+const OVERFLOW_CELL =
+	"grid place-content-center bg-foreground/10 font-medium text-foreground leading-none tabular-nums"
 
 const OVERFLOW_FONT_RATIO = 0.5
 
 type ConversationParticipant = Pick<
 	BotIdentityAvatarProps,
-	"name" | "animal" | "blot" | "image" | "working" | "kind"
+	"name" | "blot" | "image" | "working" | "kind"
 > & { id: string }
 
 type AvatarGroupProps = {
@@ -63,9 +67,19 @@ function AvatarGroup({
 				gridTemplateColumns: `repeat(${isStacked ? 2 : 1}, auto)`,
 			}}
 		>
+			<span
+				aria-hidden="true"
+				className={FRAME_EDGE}
+				data-slot="conversation-avatar-edge"
+				style={COMPANION_SILHOUETTE}
+			/>
+			<span
+				aria-hidden="true"
+				className={FRAME_FILL}
+				style={COMPANION_SILHOUETTE}
+			/>
 			{held.map((participant) => (
 				<BotIdentityAvatar
-					animal={participant.animal}
 					blot={participant.blot}
 					image={participant.image}
 					key={participant.id}
@@ -81,6 +95,7 @@ function AvatarGroup({
 					className={OVERFLOW_CELL}
 					data-slot="conversation-avatar-overflow"
 					style={{
+						...COMPANION_SILHOUETTE,
 						width: tile,
 						height: tile,
 						fontSize: Math.round(tile * OVERFLOW_FONT_RATIO),

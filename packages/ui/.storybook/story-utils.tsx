@@ -3,13 +3,11 @@ import type { ComponentType, ReactNode } from "react"
 import type { ExtraProps } from "react-markdown"
 import { expect, waitFor } from "storybook/test"
 
-import { companionPictureRadius } from "@workspace/ui/components/bot-identity-avatar"
 import {
 	MARKDOWN_CODE_SURFACE_CLASS,
 	MARKDOWN_TYPESET_CLASS,
 	MARKDOWN_WHITESPACE_CLASS,
 } from "@workspace/ui/components/markdown/prose"
-import { contrastRatio, type Rgb } from "@workspace/ui/lib/contrast"
 import { cn } from "@workspace/ui/lib/utils"
 
 export const withStoryProps = <Props,>(component: ComponentType<never>) =>
@@ -131,19 +129,34 @@ export const probedStyleOf = (className: string, property: ProbedProperty) => {
 export const botIdentityAvatars = (canvasElement: HTMLElement) =>
 	slotsIn(canvasElement, "bot-identity-avatar")
 
+export const companionGlyphOf = (avatar: Element) =>
+	slotIn(avatar, "companion-field")
+
+export const companionGlyphs = (root: Element) =>
+	slotsIn(root, "companion-field")
+
+export const companionTintOf = (glyph: HTMLElement) =>
+	glyph.style.backgroundColor.match(/var\(--bot-blot-\w+\)/)?.[0] ?? ""
+
+export const companionGlyphsIn = (root: Element, state: string) =>
+	companionGlyphs(root).filter((glyph) => glyph.dataset.state === state)
+
 export const pictureOf = async (avatar: HTMLElement) => {
 	await waitFor(() => expect(avatar.querySelector("img")).not.toBeNull())
 	return avatar.querySelector("img") as HTMLImageElement
 }
 
-export const expectCompanionPictureSquare = async (avatar: HTMLElement) => {
+export const expectCompanionSilhouette = (layer: Element) =>
+	expect(getComputedStyle(layer).maskImage).toContain("data:image/svg+xml")
+
+export const expectCompanionPictureShape = async (avatar: HTMLElement) => {
 	const picture = await pictureOf(avatar)
 	const { width } = avatar.getBoundingClientRect()
-	const radius = `${companionPictureRadius(width)}px`
 
 	for (const layer of [avatar, picture]) {
 		const style = getComputedStyle(layer)
-		await expect(style.borderRadius).toBe(radius)
+		await expect(style.borderRadius).toBe("0px")
+		await expect(style.outlineStyle).toBe("none")
 		await expect(style.borderTopWidth).toBe("0px")
 		await expect(style.boxShadow).toBe("none")
 	}
@@ -152,6 +165,7 @@ export const expectCompanionPictureSquare = async (avatar: HTMLElement) => {
 	await expect(picture.getBoundingClientRect().width).toBe(width)
 	await expect(picture).toHaveAttribute("alt", "")
 	await expect(picture).toHaveAttribute("aria-hidden", "true")
+	await expectCompanionSilhouette(picture)
 }
 
 export const UPLOADED_AVATAR_IMAGE =
@@ -192,30 +206,118 @@ export const elementNode = (
 	properties: ParserNode["properties"] = {},
 ): ParserNode => ({ type: "element", tagName, properties, children })
 
-const OPAQUE_ALPHA = 255
+type LitCell = { x: number; y: number; alpha: number }
 
-const rasterise = (side: string, color: string): Rgb => {
-	const pixel = document
-		.createElement("canvas")
-		.getContext("2d", { willReadFrequently: true })
-	if (!pixel) throw new Error("2D canvas context unavailable")
-	if (!CSS.supports("color", color)) {
-		throw new Error(`The ${side} colour is unreadable: "${color}"`)
+const litCells = new WeakMap<HTMLCanvasElement, LitCell[]>()
+
+const canvasOf = (context: CanvasRenderingContext2D) =>
+	context.canvas as HTMLCanvasElement
+
+export const recordLitCells = () => {
+	const prototype = CanvasRenderingContext2D.prototype
+	const { clearRect, fillRect, moveTo, fill } = prototype
+	const traced = new WeakMap<HTMLCanvasElement, Omit<LitCell, "alpha">[]>()
+	prototype.clearRect = new Proxy(clearRect, {
+		apply: (target, context: CanvasRenderingContext2D, args) => {
+			litCells.set(canvasOf(context), [])
+			return Reflect.apply(target, context, args)
+		},
+	})
+	prototype.moveTo = new Proxy(moveTo, {
+		apply: (target, context: CanvasRenderingContext2D, args: number[]) => {
+			const [x, y] = args.map((value) => value / context.canvas.width)
+			traced.set(canvasOf(context), [
+				...(traced.get(canvasOf(context)) ?? []),
+				{ x, y },
+			])
+			return Reflect.apply(target, context, args)
+		},
+	})
+	prototype.fill = new Proxy(fill, {
+		apply: (target, context: CanvasRenderingContext2D, args) => {
+			const canvas = canvasOf(context)
+			litCells.get(canvas)?.push(
+				...(traced.get(canvas) ?? []).map((corner) => ({
+					...corner,
+					alpha: context.globalAlpha,
+				})),
+			)
+			traced.set(canvas, [])
+			return Reflect.apply(target, context, args)
+		},
+	})
+	prototype.fillRect = new Proxy(fillRect, {
+		apply: (target, context: CanvasRenderingContext2D, args: number[]) => {
+			const [x, y] = args.map((value) => value / context.canvas.width)
+			litCells
+				.get(canvasOf(context))
+				?.push({ x, y, alpha: context.globalAlpha })
+			return Reflect.apply(target, context, args)
+		},
+	})
+	return () => {
+		prototype.clearRect = clearRect
+		prototype.fillRect = fillRect
+		prototype.moveTo = moveTo
+		prototype.fill = fill
 	}
-	pixel.fillStyle = color
-	pixel.fillRect(0, 0, 1, 1)
-	const [red, green, blue, alpha] = pixel.getImageData(0, 0, 1, 1).data
-	if (alpha !== OPAQUE_ALPHA) {
-		throw new Error(`The ${side} colour is not opaque: "${color}"`)
-	}
-	return [red, green, blue]
 }
 
-const GRAPHIC_CONTRAST_FLOOR = 3
+export const drawingOf = (canvas: HTMLCanvasElement) =>
+	(litCells.get(canvas) ?? [])
+		.map(({ x, y, alpha }) => `${x.toFixed(4)} ${y.toFixed(4)} ${alpha}`)
+		.join("|")
 
-type InkOnSurface = { ink: string; surface: string }
+export const litCellIndices = (canvas: HTMLCanvasElement) => {
+	const cells = Number(canvas.dataset.cells)
+	return (litCells.get(canvas) ?? []).map(
+		({ x, y }) => Math.floor(y * cells) * cells + Math.floor(x * cells),
+	)
+}
 
-export const expectInkContrast = ({ ink, surface }: InkOnSurface) =>
-	expect(
-		contrastRatio(rasterise("ink", ink), rasterise("surface", surface)),
-	).toBeGreaterThanOrEqual(GRAPHIC_CONTRAST_FLOOR)
+const UNPREMULTIPLY_ROUNDING = 1
+
+const channelsAt = (data: Uint8ClampedArray, offset: number) =>
+	Array.from(data.subarray(offset, offset + 3))
+
+const resolvedChannelsOf = (token: string, scope: Element) => {
+	const probe = document.createElement("span")
+	probe.style.color = token
+	scope.append(probe)
+	const resolved = getComputedStyle(probe).color
+	probe.remove()
+	const context = document.createElement("canvas").getContext("2d")
+	if (!context) throw new Error("Nothing here can resolve a colour")
+	context.fillStyle = resolved
+	context.fillRect(0, 0, 1, 1)
+	return channelsAt(context.getImageData(0, 0, 1, 1).data, 0)
+}
+
+const solidestChannelsOf = (canvas: HTMLCanvasElement) => {
+	const context = canvas.getContext("2d")
+	if (!context) throw new Error("This canvas draws nothing")
+	const { data } = context.getImageData(0, 0, canvas.width, canvas.height)
+	let solidest = 0
+	for (let offset = 0; offset < data.length; offset += 4)
+		if (data[offset + 3] > data[solidest + 3]) solidest = offset
+	return channelsAt(data, solidest)
+}
+
+export const expectCellsIn = async (
+	canvas: HTMLCanvasElement,
+	token: string,
+) => {
+	const expected = resolvedChannelsOf(token, canvas.parentElement ?? canvas)
+	for (const [index, channel] of solidestChannelsOf(canvas).entries())
+		await expect(Math.abs(channel - expected[index])).toBeLessThanOrEqual(
+			UNPREMULTIPLY_ROUNDING,
+		)
+}
+
+export const expectHexagonFrame = async (frame: HTMLElement) => {
+	const style = getComputedStyle(frame)
+	await expect(style.borderTopWidth).toBe("0px")
+	await expect(style.borderRadius).toBe("0px")
+	await expect(style.backgroundColor).toBe("rgba(0, 0, 0, 0)")
+	await expectCompanionSilhouette(slotIn(frame, "conversation-avatar-edge"))
+}

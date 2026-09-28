@@ -2,7 +2,7 @@ import type { CSSProperties } from "react"
 import { expect } from "storybook/test"
 
 import preview from "@workspace/storybook/preview"
-import { BLOT_TINTS, blotTint } from "@workspace/ui/components/bot-avatar"
+import { BLOT_TINTS, blotTint } from "@workspace/ui/components/companion-colour"
 import {
 	ACTION_TOKENS,
 	SIDEBAR_TOKENS,

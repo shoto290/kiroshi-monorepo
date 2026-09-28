@@ -3,7 +3,7 @@ import { expect, fn, waitFor } from "storybook/test"
 
 import preview from "@workspace/storybook/preview"
 import {
-	expectCompanionPictureSquare,
+	expectCompanionPictureShape,
 	FRAME_POLL,
 	slotsIn,
 	UPLOADED_AVATAR_IMAGE,
@@ -26,144 +26,125 @@ const SPACE_BOTS: MentionBot[] = [
 		id: "bot-atlas",
 		name: "Atlas",
 		title: "Editor",
-		animal: "owl",
 		blot: "blue",
 	},
 	{
 		id: "bot-margaux",
 		name: "Margaux",
 		title: "Research",
-		animal: "koala",
 		blot: "red",
 		isOutside: true,
 	},
-	{ id: "bot-basile", name: "Basile", animal: "cat", blot: "purple" },
+	{ id: "bot-basile", name: "Basile", blot: "purple" },
 	{
 		id: "bot-nolan",
 		name: "Nolan",
-		animal: "chick",
 		blot: "yellow",
 		isOutside: true,
 	},
-	{ id: "bot-clemence", name: "Clémence", animal: "rabbit", blot: "pink" },
-	{ id: "bot-dorian", name: "Dorian", animal: "bear", blot: "orange" },
+	{ id: "bot-clemence", name: "Clémence", blot: "pink" },
+	{ id: "bot-dorian", name: "Dorian", blot: "orange" },
 	{
 		id: "bot-octave",
 		name: "Octave",
-		animal: "dog",
 		blot: "green",
 		isOutside: true,
 	},
-	{ id: "bot-elia", name: "Elia", animal: "mouse", blot: "green" },
-	{ id: "bot-faust", name: "Faust", animal: "dog", blot: "cyan" },
+	{ id: "bot-elia", name: "Elia", blot: "green" },
+	{ id: "bot-faust", name: "Faust", blot: "cyan" },
 	{
 		id: "bot-paloma",
 		name: "Paloma",
-		animal: "owl",
 		blot: "pink",
 		isOutside: true,
 	},
-	{ id: "bot-gaspard", name: "Gaspard", animal: "koala", blot: "yellow" },
-	{ id: "bot-helene", name: "Hélène", animal: "chick", blot: "red" },
+	{ id: "bot-gaspard", name: "Gaspard", blot: "yellow" },
+	{ id: "bot-helene", name: "Hélène", blot: "red" },
 	{
 		id: "bot-quentin",
 		name: "Quentin",
-		animal: "cat",
 		blot: "cyan",
 		isOutside: true,
 	},
-	{ id: "bot-ines", name: "Ines", animal: "bear", blot: "blue" },
+	{ id: "bot-ines", name: "Ines", blot: "blue" },
 	{
 		id: "bot-rosalie",
 		name: "Rosalie",
-		animal: "rabbit",
 		blot: "orange",
 		isOutside: true,
 	},
-	{ id: "bot-jules", name: "Jules", animal: "mouse", blot: "purple" },
+	{ id: "bot-jules", name: "Jules", blot: "purple" },
 	{
 		id: "bot-sacha",
 		name: "Sacha",
-		animal: "owl",
 		blot: "green",
 		isOutside: true,
 	},
-	{ id: "bot-kenza", name: "Kenza", animal: "dog", blot: "pink" },
+	{ id: "bot-kenza", name: "Kenza", blot: "pink" },
 	{
 		id: "bot-theo",
 		name: "Théo",
-		animal: "koala",
 		blot: "blue",
 		isOutside: true,
 	},
-	{ id: "bot-lucien", name: "Lucien", animal: "cat", blot: "yellow" },
+	{ id: "bot-lucien", name: "Lucien", blot: "yellow" },
 	{
 		id: "bot-ursule",
 		name: "Ursule",
-		animal: "bear",
 		blot: "red",
 		isOutside: true,
 	},
 	{
 		id: "bot-victor",
 		name: "Victor",
-		animal: "chick",
 		blot: "cyan",
 		isOutside: true,
 	},
 	{
 		id: "bot-wanda",
 		name: "Wanda",
-		animal: "rabbit",
 		blot: "purple",
 		isOutside: true,
 	},
 	{
 		id: "bot-xavier",
 		name: "Xavier",
-		animal: "mouse",
 		blot: "orange",
 		isOutside: true,
 	},
 	{
 		id: "bot-yasmine",
 		name: "Yasmine",
-		animal: "owl",
 		blot: "red",
 		isOutside: true,
 	},
 	{
 		id: "bot-zoe",
 		name: "Zoé",
-		animal: "dog",
 		blot: "yellow",
 		isOutside: true,
 	},
 	{
 		id: "bot-ambre",
 		name: "Ambre",
-		animal: "koala",
 		blot: "green",
 		isOutside: true,
 	},
 	{
 		id: "bot-bastien",
 		name: "Bastien",
-		animal: "cat",
 		blot: "pink",
 		isOutside: true,
 	},
 	{
 		id: "bot-celeste",
 		name: "Céleste",
-		animal: "bear",
 		blot: "cyan",
 		isOutside: true,
 	},
 	{
 		id: "bot-damien",
 		name: "Damien",
-		animal: "rabbit",
 		blot: "blue",
 		isOutside: true,
 	},
@@ -331,7 +312,7 @@ export const Pictured = meta.story({
 		docs: {
 			description: {
 				story:
-					"A companion wearing its picture, listed above companions drawn from a blot. Check that the picture fills its 24px slot as a rounded square with no border, that it adds nothing to the option's name, and that the rows below keep their animal over their blot. " +
+					"A companion wearing its picture, listed above companions drawn as their glyph. Check that the picture fills its 24px slot as a rounded square with no border, that it adds nothing to the option's name, and that the rows below keep their glyph on their colour. " +
 					OPENED_BY_THE_COMPOSER,
 			},
 		},
@@ -340,10 +321,9 @@ export const Pictured = meta.story({
 		const [pictured, drawn] = canvas.getAllByRole("option")
 		const [picture] = slotsIn(pictured, "bot-identity-avatar")
 
-		await expectCompanionPictureSquare(picture)
-		await expect(getComputedStyle(picture).borderRadius).toBe("6px")
+		await expectCompanionPictureShape(picture)
 		await expect(drawn.querySelector("img")).toBeNull()
-		await expect(slotsIn(drawn, "bot-avatar-blot")).toHaveLength(1)
+		await expect(slotsIn(drawn, "companion-field")).toHaveLength(1)
 	},
 })
 

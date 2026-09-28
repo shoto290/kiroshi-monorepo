@@ -455,7 +455,6 @@ export const ReducedMotion = meta.story({
 const SHOTO: MessageAuthor = {
 	id: "bot-shoto",
 	name: "Shoto",
-	animal: "koala",
 	blot: "green",
 }
 

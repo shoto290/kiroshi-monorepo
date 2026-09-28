@@ -1,6 +1,5 @@
 import type { ReactNode } from "react"
 
-import { AppIconMark } from "@workspace/ui/components/app-icon-mark"
 import { Icons } from "@workspace/ui/components/icons"
 import { SkipLink } from "@workspace/ui/components/skip-link"
 
@@ -12,6 +11,8 @@ import { type DownloadPlatform, useDownloadTarget } from "./use-download-target"
 const VIEWPORT_RISE = "[--rise:clamp(0px,100vw_-_1440px,1120px)]"
 
 const MAIN_CONTENT_ID = "main-content"
+
+const BRAND_ICON_SRC = "/favicon.png"
 
 const FOCUS_RING =
 	"outline-none focus-visible:shadow-focus-edge focus-visible:ring-3 focus-visible:ring-ring/30"
@@ -146,7 +147,13 @@ export const WebsitePage = ({ children }: WebsitePageProps) => (
 		>
 			<PageWash />
 			<div className="on-wash relative z-10 flex w-full shrink-0 flex-col items-center gap-4 px-7 pt-33 text-center wrap-break-word lg:min-h-[60dvh] lg:justify-center lg:gap-[18px] lg:pt-7 ultrawide:gap-5 ultrawide:pt-10">
-				<AppIconMark className="lg:size-18 ultrawide:size-20" size={64} />
+				<img
+					alt={WEBSITE_COPY.brandIcon}
+					className="size-16 lg:size-18 ultrawide:size-20"
+					height={256}
+					src={BRAND_ICON_SRC}
+					width={256}
+				/>
 				<h1 className="font-heading text-[28px] text-balance leading-[34px] font-medium tracking-[-0.028em] text-foreground lg:text-[54px] lg:leading-[60px] ultrawide:text-[64px] ultrawide:leading-[72px]">
 					{WEBSITE_COPY.headline}
 				</h1>

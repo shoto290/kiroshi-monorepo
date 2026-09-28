@@ -179,7 +179,6 @@ type ThreadTitleProps = {
 const ThreadTitle = ({ bot, conversation, onOpen }: ThreadTitleProps) =>
 	bot ? (
 		<HeaderIdentityButton
-			animal={bot.animal}
 			blot={bot.blot}
 			connection="ready"
 			name={bot.name}
@@ -214,7 +213,6 @@ const WorkingRows = ({
 		<>
 			{frame.hasFirstAnswer ? null : (
 				<ActivityIndicator
-					animal={first.animal}
 					blot={first.blot}
 					botId={first.id}
 					className={entranceOf(firstPosition)}
@@ -226,7 +224,6 @@ const WorkingRows = ({
 			)}
 			{frame.hasSecondAnswer ? null : (
 				<ActivityIndicator
-					animal={second.animal}
 					blot={second.blot}
 					botId={second.id}
 					className={entranceOf(secondPosition)}

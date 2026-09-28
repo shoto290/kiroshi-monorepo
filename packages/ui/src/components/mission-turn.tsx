@@ -47,7 +47,6 @@ const MissionTurn = ({ mission, onOpen }: MissionTurnProps) => {
 					data-slot="message-gutter"
 				>
 					<BotIdentityAvatar
-						animal={identity.animal}
 						badge={missionBadgeFor(card.state)}
 						blot={identity.blot}
 						image={identity.image}

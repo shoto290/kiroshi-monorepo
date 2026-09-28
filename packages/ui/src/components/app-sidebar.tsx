@@ -22,12 +22,6 @@ import {
 	type ConversationParticipant,
 } from "@workspace/ui/components/avatar-group"
 import {
-	BotAvatar,
-	type BotAvatarBlot,
-} from "@workspace/ui/components/bot-avatar"
-import type { BotAvatarAnimal } from "@workspace/ui/components/bot-avatar-animals"
-import type { BotAvatarState } from "@workspace/ui/components/bot-avatar-data"
-import {
 	type BotBadge,
 	type BotMissionState,
 	BotMissionStrip,
@@ -38,9 +32,10 @@ import {
 	type ActivityIndicatorKind,
 	BotIdentityAvatar,
 } from "@workspace/ui/components/bot-identity-avatar"
-import { BOT_IDENTITY_ANIMALS } from "@workspace/ui/components/bot-settings"
+import type { BotAvatarBlot } from "@workspace/ui/components/companion-colour"
 import { CompanionMenuContent } from "@workspace/ui/components/companion-menu"
 import { ContextMenuPressTrigger } from "@workspace/ui/components/context-menu-press-trigger"
+import { DitheredFieldAvatar } from "@workspace/ui/components/dithered-field-avatar"
 import { Icons } from "@workspace/ui/components/icons"
 import {
 	PinGroup,
@@ -193,19 +188,6 @@ const LIFTED_BOT =
 
 const DROP_AVATAR_SIZE = 28
 
-const DROP_POSES: BotAvatarState[] = [
-	"thinking",
-	"searching",
-	"working",
-	"writing",
-	"listening",
-]
-
-const drawnFrom = <Item,>(pool: Item[], seed: string) => {
-	const total = [...seed].reduce((sum, letter) => sum + letter.charCodeAt(0), 0)
-	return pool[total % pool.length]
-}
-
 const CONTENT_INSET = "p-2 group-data-[collapsible=icon]:px-0"
 
 const SEARCH_INSET = "px-[9px] pb-[9px] group-data-[collapsible=icon]:px-0"
@@ -285,7 +267,6 @@ interface AppSidebarBot {
 	lastMessage?: string
 	timestamp?: string
 	lastActivityAt?: number
-	animal?: BotAvatarAnimal
 	blot?: BotAvatarBlot
 	image?: string
 	status?: AppSidebarStatus
@@ -432,7 +413,6 @@ interface BotRowAvatarProps {
 
 const BotRowAvatar = ({ bot, badge }: BotRowAvatarProps) => (
 	<BotIdentityAvatar
-		animal={bot.animal}
 		badge={badge}
 		blot={bot.blot}
 		image={bot.image}
@@ -801,12 +781,7 @@ const SectionDropZone = ({ name, label }: SectionDropZoneProps) => {
 	return (
 		<div className={SECTION_DROP} data-slot="roster-section-drop">
 			<span aria-hidden="true" className={SECTION_DROP_AVATAR}>
-				<BotAvatar
-					animal={drawnFrom(BOT_IDENTITY_ANIMALS, name)}
-					animated={false}
-					size={DROP_AVATAR_SIZE}
-					state={drawnFrom(DROP_POSES, name)}
-				/>
+				<DitheredFieldAvatar name={name} size={DROP_AVATAR_SIZE} />
 			</span>
 			{label ?? t("roster.section.empty")}
 		</div>
