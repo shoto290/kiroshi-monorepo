@@ -37,25 +37,24 @@ const PANEL_WIDTH = {
 
 const LEADING_ENTRIES = ["Open mission↵", "Open in Linear"]
 
-const AGENT_ENTRIES = ["Message the agent", "Stop the agent"]
+const OPEN_ENTRIES = [...LEADING_ENTRIES, "Copy"]
+
+const AGENT_RUNNING_ENTRIES = [
+	...OPEN_ENTRIES,
+	"Message the agent",
+	"Stop the agent",
+	"Close mission⌘W",
+]
+
+const CLOSED_ENTRIES = [...OPEN_ENTRIES, "Reopen"]
 
 const ENTRIES_WITHOUT_A_PULL_REQUEST: Record<MissionState, string[]> = {
-	working: [...LEADING_ENTRIES, "Copy", ...AGENT_ENTRIES, "Close mission⌘W"],
-	waiting_bot: [
-		...LEADING_ENTRIES,
-		"Copy",
-		...AGENT_ENTRIES,
-		"Close mission⌘W",
-	],
-	waiting_human: [
-		...LEADING_ENTRIES,
-		"Copy",
-		"Answer the question",
-		"Close mission⌘W",
-	],
-	ready_to_merge: [...LEADING_ENTRIES, "Copy", "Close mission⌘W"],
-	failed: [...LEADING_ENTRIES, "Copy", "Reopen"],
-	done: [...LEADING_ENTRIES, "Copy", "Reopen"],
+	working: AGENT_RUNNING_ENTRIES,
+	waiting_bot: AGENT_RUNNING_ENTRIES,
+	waiting_human: [...OPEN_ENTRIES, "Answer the question", "Close mission⌘W"],
+	ready_to_merge: [...OPEN_ENTRIES, "Close mission⌘W"],
+	failed: CLOSED_ENTRIES,
+	done: CLOSED_ENTRIES,
 }
 
 const entriesFor = (state: MissionState, hasPullRequest: boolean) => {
