@@ -1223,7 +1223,8 @@ mod tests {
 		let written = Written::new("attach-unstored").await;
 		written.prompt("t1", "p1").await;
 		let spoken = a_spoken_turn();
-		let mut desk = written.desk_telling(Arc::new(mpsc::unbounded_channel().0));
+		let (told, mut heard) = mpsc::unbounded_channel();
+		let mut desk = written.desk_telling(Arc::new(told));
 		desk.open_turn(submitted("t1", "p1")).await;
 		for event in &spoken[..3] {
 			desk.record(event).await;
@@ -1234,8 +1235,6 @@ mod tests {
 			.call(|connection| Ok(connection.execute("DELETE FROM messages WHERE id = 'm1'", [])?))
 			.await
 			.expect("the reply is removed");
-		let (told, mut heard) = mpsc::unbounded_channel();
-		desk.inner = Arc::new(told);
 		attach(&written, "/data/attachments/c/a.png", None);
 
 		desk.record(&turn_ended()).await;
