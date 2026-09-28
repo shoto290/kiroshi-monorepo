@@ -2,7 +2,7 @@ use std::io::ErrorKind;
 use std::path::{Path, PathBuf};
 
 use axum::extract::{Path as Segments, State};
-use axum::http::{header, StatusCode};
+use axum::http::{header, HeaderValue, StatusCode};
 use axum::middleware;
 use axum::response::{IntoResponse, Response};
 use axum::routing::get;
@@ -22,13 +22,15 @@ pub const ATTACHMENT_PATH: &str = "/api/files/attachments/{conversation_id}/{fil
 
 const SEPARATORS: [char; 2] = ['/', '\\'];
 
+const SVG: &str = "image/svg+xml";
+
 const CONTENT_TYPES: [(&str, &str); 8] = [
 	("png", "image/png"),
 	("jpg", "image/jpeg"),
 	("jpeg", "image/jpeg"),
 	("gif", "image/gif"),
 	("webp", "image/webp"),
-	("svg", "image/svg+xml"),
+	("svg", SVG),
 	("pdf", "application/pdf"),
 	("txt", "text/plain; charset=utf-8"),
 ];
@@ -105,15 +107,16 @@ fn plain(segment: &str) -> bool {
 }
 
 fn answered(path: &Path, bytes: Vec<u8>) -> Response {
-	(
-		[
-			(header::CONTENT_TYPE, content_type(path)),
-			(header::X_CONTENT_TYPE_OPTIONS, NO_SNIFF),
-			(header::CONTENT_SECURITY_POLICY, INERT),
-		],
-		bytes,
-	)
-		.into_response()
+	let content_type = content_type(path);
+	let mut response =
+		([(header::CONTENT_TYPE, content_type), (header::X_CONTENT_TYPE_OPTIONS, NO_SNIFF)], bytes)
+			.into_response();
+	if content_type == SVG {
+		response
+			.headers_mut()
+			.insert(header::CONTENT_SECURITY_POLICY, HeaderValue::from_static(INERT));
+	}
+	response
 }
 
 fn content_type(path: &Path) -> &'static str {

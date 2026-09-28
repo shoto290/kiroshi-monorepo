@@ -57,6 +57,13 @@ pub fn web_link_written<R: Runtime>(
 		.map_err(TokenError::Unwritable)
 }
 
+pub fn web_link_removed<R: Runtime>(app: &AppHandle<R>) -> Result<(), TokenError> {
+	match fs::remove_file(host_dir(app)?.join(WEB_LINK_NAME)) {
+		Err(missing) if missing.kind() == ErrorKind::NotFound => Ok(()),
+		removed => removed.map_err(TokenError::Unwritable),
+	}
+}
+
 fn web_link(token: &HostToken, port: u16) -> String {
 	format!("{WEB_ORIGIN}/#host=http://127.0.0.1:{port}&token={}\n", token.0)
 }

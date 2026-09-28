@@ -110,6 +110,7 @@ pub(crate) fn started<R: Runtime>(
 		}
 		Err(failure) => {
 			eprintln!("no local webhook call is answered: {failure}");
+			web_link_cleared(&calls.app);
 			None
 		}
 	};
@@ -128,10 +129,16 @@ fn host_token<R: Runtime>(app: &AppHandle<R>) -> Option<Arc<HostToken>> {
 
 fn web_link_left<R: Runtime>(app: &AppHandle<R>, token: Option<&HostToken>, address: SocketAddr) {
 	let Some(token) = token else {
-		return;
+		return web_link_cleared(app);
 	};
 	if let Err(failure) = token::web_link_written(app, token, address.port()) {
 		eprintln!("no web link was left for the host api: {failure:?}");
+	}
+}
+
+fn web_link_cleared<R: Runtime>(app: &AppHandle<R>) {
+	if let Err(failure) = token::web_link_removed(app) {
+		eprintln!("a stale web link for the host api was left in place: {failure:?}");
 	}
 }
 

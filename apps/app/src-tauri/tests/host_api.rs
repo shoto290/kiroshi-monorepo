@@ -782,3 +782,34 @@ async fn the_web_link_is_private_replaced_and_names_the_bound_port_and_the_token
 	);
 	assert_eq!(mode & 0o777, 0o600);
 }
+
+#[tokio::test(flavor = "multi_thread")]
+async fn only_an_svg_is_served_inert_and_every_file_unsniffed() {
+	let host = Host::new();
+	let server = host.started();
+	let token = host.token();
+	stored(&host.dir.join("avatars").join("face.png"), "png bytes");
+	stored(&host.dir.join("avatars").join("face.svg"), "<svg/>");
+
+	let svg = server.fetched("/api/files/avatars/face.svg", &token).await;
+	let png = server.fetched("/api/files/avatars/face.png", &token).await;
+
+	assert_eq!(svg.header("content-type"), Some("image/svg+xml"));
+	assert_eq!(svg.header("content-security-policy"), Some("default-src 'none'; sandbox"));
+	assert_eq!(png.header("content-security-policy"), None);
+	for answer in [svg, png] {
+		assert_eq!(answer.header("x-content-type-options"), Some("nosniff"));
+	}
+}
+
+#[tokio::test(flavor = "multi_thread")]
+async fn a_stale_web_link_is_removed_when_no_token_is_held() {
+	let host = Host::new();
+	let link = host.dir.join("host").join("web-link.txt");
+	stored(&host.token_path(), " \n");
+	stored(&link, "stale");
+
+	let _server = host.started();
+
+	assert!(!link.exists());
+}
