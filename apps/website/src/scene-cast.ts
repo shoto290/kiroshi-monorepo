@@ -9,7 +9,6 @@ import type {
 	MissionCardModel,
 	MissionState,
 } from "@workspace/ui/components/mission"
-import type { MissionRowModel } from "@workspace/ui/components/mission-row"
 import type { RosterBot } from "@workspace/ui/components/roster"
 import type { RoutineRowModel } from "@workspace/ui/components/routine-row"
 
@@ -86,12 +85,14 @@ const castConversation = ({
 type SceneMissionInput = {
 	bot: RosterBot
 	objective: string
+	timestamp: string
 	externalId?: string
 }
 
 const sceneMission = ({
 	bot,
 	objective,
+	timestamp,
 	externalId = "",
 }: SceneMissionInput): MissionCardModel => ({
 	id: `mission-${bot.id}`,
@@ -107,29 +108,21 @@ const sceneMission = ({
 	state: "working",
 	isWorking: true,
 	isClosed: false,
+	timestamp,
 })
 
-type MissionRowInput = SceneMissionInput & {
+type ActivityMissionInput = SceneMissionInput & {
 	state: MissionState
-	timestamp: string
 }
 
 const missionRow = ({
 	state,
-	timestamp,
 	...mission
-}: MissionRowInput): MissionRowModel => {
-	const { id, objective, ticket, identity } = sceneMission(mission)
-	return {
-		id,
-		objective,
-		ticket,
-		bot: identity,
-		state,
-		isWorking: state === "working",
-		timestamp,
-	}
-}
+}: ActivityMissionInput): MissionCardModel => ({
+	...sceneMission(mission),
+	state,
+	isWorking: state === "working",
+})
 
 type RoutineCopy = {
 	title: string
@@ -156,7 +149,7 @@ type SceneSpace = Space & {
 	rows: AppSidebarBot[]
 	conversations: AppSidebarConversation[]
 	defaultConversation: AppSidebarConversation
-	missions: MissionRowModel[]
+	missions: MissionCardModel[]
 	routines: RoutineRowModel[]
 	loop: SceneLoop
 }
@@ -225,6 +218,7 @@ const PERSONAL: SceneSpace = {
 		mission: sceneMission({
 			bot: ASH,
 			objective: SCENE_COPY.loops.personal.missionObjective,
+			timestamp: SCENE_COPY.loops.personal.missionTimestamp,
 		}),
 	},
 }
@@ -273,6 +267,7 @@ const WORK: SceneSpace = {
 		mission: sceneMission({
 			bot: SABLE,
 			objective: SCENE_COPY.loops.work.missionObjective,
+			timestamp: SCENE_COPY.loops.work.missionTimestamp,
 		}),
 	},
 }

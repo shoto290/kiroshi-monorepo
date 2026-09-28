@@ -1,6 +1,7 @@
 import { listExhaustively } from "@workspace/storybook/story-utils"
 import type { MessageAuthor } from "@workspace/ui/components/message"
 import type {
+	MissionActivity,
 	MissionBot,
 	MissionCardModel,
 	MissionEventModel,
@@ -9,8 +10,8 @@ import type {
 	MissionStatus,
 	MissionTicketLink,
 } from "@workspace/ui/components/mission"
-import type { MissionRowModel } from "@workspace/ui/components/mission-row"
 import type { ReportedRunRowModel } from "@workspace/ui/components/reported-run-row"
+import type { RosterBot } from "@workspace/ui/components/roster"
 import type { EarlierTodayRow } from "@workspace/ui/components/routines-panel"
 
 export const MISSION_STATES = listExhaustively<MissionState>({
@@ -46,106 +47,138 @@ const SHELL_BOT: MissionBot = {
 	seed: "bot-iris-nakamura",
 }
 
-export const WAITING_HUMAN_MISSION: MissionRowModel = {
+const identityOf = ({ seed = "", name }: MissionBot): RosterBot => ({
+	id: seed,
+	name,
+})
+
+export const MISSION_LAST_ACTIVITY: MissionActivity = {
+	tool: "Edit",
+	target: "packages/changelog/src/parse-release-notes.ts",
+}
+
+export const WAITING_HUMAN_MISSION: MissionCardModel = {
 	id: "mission-migration",
 	objective: "Migrate the run history table",
 	ticket: {
 		platform: "linear",
 		externalId: "OPE-51",
 		title: "Move the run history off the shared database",
+		url: "",
 	},
-	bot: MISSION_BOT,
+	identity: identityOf(MISSION_BOT),
+	tools: ["GitHub"],
 	state: "waiting_human",
+	isClosed: false,
 	isWorking: false,
 	timestamp: "2d",
 	now: MISSION_NOW,
 }
 
-export const READY_MISSION: MissionRowModel = {
+export const READY_MISSION: MissionCardModel = {
 	id: "mission-badges",
 	objective: "Draw the badge dots of the roster",
 	ticket: {
 		platform: "github",
 		externalId: "OPE-29",
 		title: "Badge dots on the roster rows",
+		url: "",
 	},
-	bot: STORAGE_BOT,
+	identity: identityOf(STORAGE_BOT),
+	tools: ["GitHub"],
 	state: "ready_to_merge",
+	isClosed: false,
 	isWorking: false,
 	timestamp: "5h",
 	now: MISSION_NOW,
 }
 
-export const WORKING_MISSION: MissionRowModel = {
+export const WORKING_MISSION: MissionCardModel = {
 	id: "mission-parser",
 	objective: "Rewrite the changelog parser",
 	ticket: {
 		platform: "linear",
 		externalId: "OPE-42",
 		title: "Changelog parser",
+		url: "",
 	},
-	bot: MISSION_BOT,
+	identity: identityOf(MISSION_BOT),
+	tools: ["Superset", "GitHub"],
 	state: "working",
+	isClosed: false,
 	isWorking: true,
 	timestamp: "1h",
 	now: MISSION_NOW,
+	lastActivity: MISSION_LAST_ACTIVITY,
 }
 
-export const WAITING_BOT_MISSION: MissionRowModel = {
+export const WAITING_BOT_MISSION: MissionCardModel = {
 	id: "mission-transcript",
 	objective: "Store the transcript of a mission thread",
 	ticket: {
 		platform: "jira",
 		externalId: "",
 		title: "Mission transcripts kept next to the conversation",
+		url: "",
 	},
-	bot: SHELL_BOT,
+	identity: identityOf(SHELL_BOT),
+	tools: [],
 	state: "waiting_bot",
+	isClosed: false,
 	isWorking: false,
 	timestamp: "12m",
 	now: MISSION_NOW,
 }
 
-export const FAILED_MISSION: MissionRowModel = {
+export const FAILED_MISSION: MissionCardModel = {
 	id: "mission-upgrade",
 	objective: "Upgrade the desktop shell",
 	ticket: {
 		platform: "github",
 		externalId: "OPE-17",
 		title: "Desktop shell upgrade",
+		url: "",
 	},
-	bot: SHELL_BOT,
+	identity: identityOf(SHELL_BOT),
+	tools: ["Terminal"],
 	state: "failed",
+	isClosed: false,
 	isWorking: false,
 	timestamp: "3d",
 	now: MISSION_NOW,
 }
 
-export const CLOSED_MISSION: MissionRowModel = {
+export const CLOSED_MISSION: MissionCardModel = {
 	id: "mission-tools",
 	objective: "Let a bot manage its routines through MCP",
 	ticket: {
 		platform: "linear",
 		externalId: "OPE-22",
 		title: "Routines over MCP",
+		url: "",
 	},
-	bot: STORAGE_BOT,
+	identity: identityOf(STORAGE_BOT),
+	tools: ["Superset"],
 	state: "done",
+	isClosed: true,
 	isWorking: false,
 	timestamp: "09:12",
 	now: MISSION_NOW,
 }
 
-export const UNTICKETED_MISSION: MissionRowModel = {
+export const UNTICKETED_MISSION: MissionCardModel = {
 	id: "mission-unticketed",
 	objective: "Read the shift log of the night",
 	ticket: {
 		platform: "",
 		externalId: "",
 		title: "",
+		url: "",
 	},
-	bot: MISSION_BOT,
+	identity: identityOf(MISSION_BOT),
+	tools: [],
 	state: "working",
+	isClosed: false,
 	isWorking: true,
 	timestamp: "22m",
 	now: MISSION_NOW,
@@ -163,13 +196,13 @@ export const MISSION_TOOL_CALL_SLOTS = [
 	"mission-silence",
 ]
 
-export const COMMITS_AHEAD_MISSION: MissionRowModel = {
+export const COMMITS_AHEAD_MISSION: MissionCardModel = {
 	...WORKING_MISSION,
 	id: "mission-commits-ahead",
 	commitsAhead: 3,
 }
 
-export const OPEN_MISSIONS: MissionRowModel[] = [
+export const OPEN_MISSIONS: MissionCardModel[] = [
 	WAITING_HUMAN_MISSION,
 	READY_MISSION,
 	WORKING_MISSION,
@@ -201,7 +234,7 @@ export const EARLIER_TODAY_ROWS: EarlierTodayRow[] = [
 
 export const NO_EARLIER_TODAY: EarlierTodayRow[] = []
 
-export const NO_MISSIONS: MissionRowModel[] = []
+export const NO_MISSIONS: MissionCardModel[] = []
 
 export const MISSION_STATUS: MissionStatus = {
 	text: "Running the storybook suite before opening the pull request",
@@ -338,6 +371,8 @@ export const WORKING_MISSION_CARD: MissionCardModel = {
 	state: "working",
 	isWorking: true,
 	isClosed: false,
+	timestamp: "4m",
+	lastActivity: MISSION_LAST_ACTIVITY,
 }
 
 export const WAITING_MISSION_CARD: MissionCardModel = {
@@ -355,6 +390,7 @@ export const WAITING_MISSION_CARD: MissionCardModel = {
 	state: "waiting_human",
 	isWorking: false,
 	isClosed: false,
+	timestamp: "2d",
 }
 
 const CLOSED_MISSION_BOT: MessageAuthor = {
@@ -379,4 +415,5 @@ export const CLOSED_MISSION_CARD: MissionCardModel = {
 	state: "done",
 	isWorking: false,
 	isClosed: true,
+	timestamp: "09:12",
 }

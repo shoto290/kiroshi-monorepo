@@ -24,7 +24,8 @@ type MissionTurnProps = {
 
 const MissionTurn = ({ mission, onOpen }: MissionTurnProps) => {
 	const { t } = useTranslation("chat")
-	const { author, identity, ...card } = mission
+	const { author, ...card } = mission
+	const { identity } = card
 
 	return (
 		<Message aria-label={t("transcript.message.mission")} from="assistant">
@@ -60,6 +61,7 @@ const MissionTurn = ({ mission, onOpen }: MissionTurnProps) => {
 				<MissionCard
 					{...card}
 					className="col-start-2 row-start-2 min-w-0"
+					density="card"
 					onOpen={onOpen}
 				/>
 			</MessageContent>

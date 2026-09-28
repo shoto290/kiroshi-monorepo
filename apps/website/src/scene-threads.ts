@@ -87,7 +87,13 @@ const EXCHANGES: Record<string, SceneExchange> = {
 		bot: TOMO,
 		turns: [
 			asks(COPY.tomo.ask),
-			opens(sceneMission({ bot: TOMO, objective: COPY.tomo.missionObjective })),
+			opens(
+				sceneMission({
+					bot: TOMO,
+					objective: COPY.tomo.missionObjective,
+					timestamp: COPY.tomo.missionTimestamp,
+				}),
+			),
 			says(TOMO, COPY.tomo.answer),
 		],
 	},
@@ -108,6 +114,7 @@ const EXCHANGES: Record<string, SceneExchange> = {
 					bot: WREN,
 					objective: COPY.wren.missionObjective,
 					externalId: COPY.wren.missionTicket,
+					timestamp: COPY.wren.missionTimestamp,
 				}),
 			),
 			says(WREN, COPY.wren.answer),

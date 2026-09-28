@@ -9,7 +9,7 @@ import { useRosterClock } from "@/lib/bots/use-roster-clock"
 import type { ThreadNaming } from "@/lib/chat/use-thread-roster"
 import {
 	type LiveMissionIds,
-	toMissionRows,
+	toActivityMissions,
 } from "@/lib/missions/missions-model"
 import type { ConversationMissionsRead } from "@/lib/missions/use-missions"
 import {
@@ -85,7 +85,7 @@ const ThreadRoutines = ({
 	const waitingMissionIds = useWaitingMissions(runtimes, missions.open)
 	const rows = useMemo(
 		() =>
-			toMissionRows({
+			toActivityMissions({
 				open: missions.open,
 				closed: missions.closed,
 				reportedRuns,

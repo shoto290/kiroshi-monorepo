@@ -38,6 +38,21 @@ type MissionTicketLink = MissionTicket & {
 	url: string
 }
 
+type MissionStatus = {
+	text: string
+	writtenAt: number
+}
+
+type MissionActivity = {
+	tool: string
+	target: string
+}
+
+type MissionPullRequest = {
+	url: string
+	number: number
+}
+
 type MissionCardModel = {
 	id: string
 	identity: RosterBot
@@ -48,16 +63,13 @@ type MissionCardModel = {
 	state: MissionState
 	isWorking: boolean
 	isClosed: boolean
+	timestamp: string
+	now?: number
+	status?: MissionStatus
+	commitsAhead?: number
+	pullRequest?: MissionPullRequest
+	lastActivity?: MissionActivity
 }
-
-type MissionStatus = {
-	text: string
-	writtenAt: number
-}
-
-type MissionStatusProps =
-	| { status: MissionStatus; now: number }
-	| { status?: undefined; now?: never }
 
 type ShownMissionStatus = MissionStatus & { now: number }
 
@@ -73,16 +85,6 @@ type MissionEventModel = {
 	createdAt: number
 	text?: string
 	link?: MissionEventLink
-}
-
-type MissionActivity = {
-	tool: string
-	target: string
-}
-
-type MissionPullRequest = {
-	url: string
-	number: number
 }
 
 const shownMissionStatus = (
@@ -105,7 +107,6 @@ export {
 	type MissionPullRequest,
 	type MissionState,
 	type MissionStatus,
-	type MissionStatusProps,
 	type MissionTicket,
 	type MissionTicketLink,
 	missionBadgeFor,

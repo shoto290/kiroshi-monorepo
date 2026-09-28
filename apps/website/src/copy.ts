@@ -267,6 +267,7 @@ export const SCENE_COPY = {
 			secondAnswer:
 				"Alfama and Graça are both walking distance from everything, and Graça’s the quiet one.",
 			missionObjective: "Find a flat in Graça for four nights, under 600 €.",
+			missionTimestamp: "now",
 		},
 		work: {
 			request:
@@ -277,6 +278,7 @@ export const SCENE_COPY = {
 				"The empty state’s drawn: a sentence and a button, not a blank panel.",
 			missionObjective:
 				"Take that empty state through the five screens that still don’t have one.",
+			missionTimestamp: "now",
 		},
 	},
 	exchanges: {
@@ -303,6 +305,7 @@ export const SCENE_COPY = {
 		tomo: {
 			ask: "Find what I’m paying for and never use.",
 			missionObjective: "List every subscription nothing’s touched in 90 days.",
+			missionTimestamp: "now",
 			answer:
 				"Seven so far. Two of them renew this week, so I’ll be back before Thursday.",
 		},
@@ -318,6 +321,7 @@ export const SCENE_COPY = {
 			ask: "What’s left before Thursday?",
 			missionObjective: "Write the release note from what merged this week.",
 			missionTicket: "APP-217",
+			missionTimestamp: "now",
 			answer: "Two tickets and this note. You’ll have it first thing tomorrow.",
 		},
 		ivy: {

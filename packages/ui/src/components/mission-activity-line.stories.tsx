@@ -24,7 +24,7 @@ const meta = preview.meta({
 		docs: {
 			description: {
 				component:
-					"How far a mission's branch is ahead and where its pull request is, as one muted line. `MissionRow` draws it under its ticket line and `MissionHeader` under its ticket band; reach for those rather than this line on its own.",
+					"How far a mission's branch is ahead and where its pull request is, as one muted line. `MissionCard` draws it under its ticket line in both densities and `MissionHeader` under its ticket band; reach for those rather than this line on its own.",
 			},
 		},
 	},

@@ -9,10 +9,6 @@ import {
 	type MissionCardProps,
 } from "@workspace/ui/components/mission-card"
 import { MissionHeader } from "@workspace/ui/components/mission-header"
-import {
-	MissionRow,
-	type MissionRowModel,
-} from "@workspace/ui/components/mission-row"
 import { SidebarProvider } from "@workspace/ui/components/ui/sidebar"
 
 import "@workspace/ui/lib/i18n"
@@ -30,25 +26,16 @@ const TICKET = {
 
 const BOT = { name: "Ada Martin", seed: "bot-ada" }
 
-const CARD: Omit<MissionCardProps, "onOpen"> = {
+const CARD: Omit<MissionCardProps, "density" | "onOpen"> = {
 	id: "mission-ope-30",
+	identity: { id: BOT.seed, name: BOT.name },
 	objective: "Ship the mission card",
 	ticket: TICKET,
 	tools: ["GitHub"],
 	state: "waiting_human",
 	isWorking: false,
 	isClosed: false,
-}
-
-const ROW: MissionRowModel = {
-	id: "mission-ope-30",
-	objective: "Ship the mission row",
-	ticket: TICKET,
-	bot: BOT,
-	state: "waiting_human",
-	isWorking: false,
 	timestamp: "2d",
-	now: NOW,
 }
 
 const STATUS_SLOTS =
@@ -61,7 +48,13 @@ afterEach(cleanup)
 describe("a mission status holding only whitespace", () => {
 	it("draws no status and no time on the card", () => {
 		const { container } = render(
-			<MissionCard {...CARD} now={NOW} onOpen={open} status={BLANK_STATUS} />,
+			<MissionCard
+				{...CARD}
+				density="card"
+				now={NOW}
+				onOpen={open}
+				status={BLANK_STATUS}
+			/>,
 		)
 
 		expect(container.querySelectorAll(`${STATUS_SLOTS}, time`)).toHaveLength(0)
@@ -71,7 +64,13 @@ describe("a mission status holding only whitespace", () => {
 		const { container } = render(
 			<SidebarProvider>
 				<ul>
-					<MissionRow {...ROW} onOpen={open} status={BLANK_STATUS} />
+					<MissionCard
+						{...CARD}
+						density="row"
+						now={NOW}
+						onOpen={open}
+						status={BLANK_STATUS}
+					/>
 				</ul>
 			</SidebarProvider>,
 		)
@@ -102,25 +101,25 @@ describe("a mission status holding only whitespace", () => {
 		expect(container.querySelectorAll("time")).toHaveLength(1)
 	})
 
-	it("refuses a status passed without the instant it is read at", () => {
-		const status: MissionStatus = { text: "Running", writtenAt: NOW }
-		const card = (
-			// @ts-expect-error a status travels with the instant it is read at
-			<MissionCard {...CARD} onOpen={open} status={status} />
-		)
+	it.each(["row", "card"] as const)(
+		"draws no status on the %s given no instant to read it at",
+		(density) => {
+			const status: MissionStatus = { text: "Running", writtenAt: NOW }
+			const { container, queryByText } = render(
+				<SidebarProvider>
+					<ul>
+						<MissionCard
+							{...CARD}
+							density={density}
+							onOpen={open}
+							status={status}
+						/>
+					</ul>
+				</SidebarProvider>,
+			)
 
-		expect(card).toBeDefined()
-	})
-
-	it("draws no status on a row given no instant to read it at", () => {
-		const status: MissionStatus = { text: "Running", writtenAt: NOW }
-		const { container, queryByText } = render(
-			<SidebarProvider>
-				<MissionRow {...ROW} now={undefined} onOpen={open} status={status} />
-			</SidebarProvider>,
-		)
-
-		expect(queryByText("Running")).toBeNull()
-		expect(container.querySelectorAll(STATUS_SLOTS)).toHaveLength(0)
-	})
+			expect(queryByText("Running")).toBeNull()
+			expect(container.querySelectorAll(STATUS_SLOTS)).toHaveLength(0)
+		},
+	)
 })
