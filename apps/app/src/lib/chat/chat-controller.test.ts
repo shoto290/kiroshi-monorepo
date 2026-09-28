@@ -365,6 +365,13 @@ const completedAs = (id: string, text: string): AgentEvent => ({
 	message: { ...STREAMING_MESSAGE, id, text, completion: "complete" },
 })
 
+const saidHello = async () => {
+	const harness = await bootedHarness()
+	vi.spyOn(harness.driver, "submitPrompt").mockResolvedValue()
+	await harness.controller.send("hello")
+	return harness
+}
+
 const spoken = (messages: TranscriptMessage[]) =>
 	messages.map((message) => [message.role, message.content, message.completion])
 
@@ -585,9 +592,7 @@ describe("createChatController", () => {
 	})
 
 	it("shows the attachment block a later completion adds to a settled reply", async () => {
-		const { driver, controller } = await bootedHarness()
-		vi.spyOn(driver, "submitPrompt").mockResolvedValue()
-		await controller.send("hello")
+		const { driver, controller } = await saidHello()
 
 		for (const event of spokenAnswer("here it is")) {
 			driver.pushEvent(event)
@@ -605,9 +610,7 @@ describe("createChatController", () => {
 	})
 
 	it("keeps a single reply when a later completion repeats the settled text", async () => {
-		const { driver, controller } = await bootedHarness()
-		vi.spyOn(driver, "submitPrompt").mockResolvedValue()
-		await controller.send("hello")
+		const { driver, controller } = await saidHello()
 		for (const event of spokenAnswer("here it is")) {
 			driver.pushEvent(event)
 		}
@@ -625,9 +628,7 @@ describe("createChatController", () => {
 	})
 
 	it("shows a reply carrying the attachment block alone", async () => {
-		const { driver, controller } = await bootedHarness()
-		vi.spyOn(driver, "submitPrompt").mockResolvedValue()
-		await controller.send("hello")
+		const { driver, controller } = await saidHello()
 
 		driver.pushEvent({
 			type: "messageStarted",
