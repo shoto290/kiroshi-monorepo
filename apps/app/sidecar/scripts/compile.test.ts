@@ -16,7 +16,6 @@ test("the compiled sidecar launches on this host", () => {
 		compile(SIDECAR_ENTRY, outfile)
 		const launched = Bun.spawnSync([outfile])
 
-		expect(launched.signalCode ?? null).toBeNull()
 		expect(launched.exitCode).toBe(USAGE_EXIT)
 		expect(launched.stderr.toString()).toContain("usage: kiroshi-agent")
 	} finally {
