@@ -569,6 +569,7 @@ const chat = {
 				checks_failed: "Red checks reported by {{source}}",
 				failed: "Failure reported by {{source}}",
 				closed: "Mission closed by {{source}}",
+				reopened: "Mission reopened by {{source}}",
 			},
 			kind: {
 				opened: "Opened",
@@ -580,6 +581,7 @@ const chat = {
 				checks_failed: "Checks failed",
 				failed: "Failed",
 				closed: "Closed",
+				reopened: "Reopened",
 			},
 			link: "Open {{host}}",
 		},
@@ -590,6 +592,33 @@ const chat = {
 		pullRequest: {
 			label: "#{{number}}",
 			open: "Open pull request #{{number}}",
+		},
+		menu: {
+			label: "Mission actions",
+			open: "Open mission",
+			openTicket: "Open in Linear",
+			openPullRequest: "Open PR",
+			copy: "Copy",
+			copyKind: {
+				issue_id: "Issue ID",
+				branch: "Branch",
+				pull_request_url: "PR URL",
+				workspace_path: "Workspace path",
+			},
+			messageAgent: "Message the agent",
+			stopAgent: "Stop the agent",
+			answer: "Answer the question",
+			close: "Close mission",
+			closeAs: {
+				done: "Close as done",
+				failed: "Close as failed",
+			},
+			reopen: "Reopen",
+		},
+		close: {
+			summary: "Summary (optional)",
+			summaryPlaceholder: "What’s the outcome?",
+			confirm: "Close mission",
 		},
 		card: {
 			open: "Open the mission: {{objective}}",

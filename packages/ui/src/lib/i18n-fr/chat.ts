@@ -598,6 +598,7 @@ const chat = {
 				checks_failed: "Vérifications en échec signalées par {{source}}",
 				failed: "Échec signalé par {{source}}",
 				closed: "Mission fermée par {{source}}",
+				reopened: "Mission rouverte par {{source}}",
 			},
 			kind: {
 				opened: "Ouverture",
@@ -609,6 +610,7 @@ const chat = {
 				checks_failed: "Vérifications en échec",
 				failed: "En échec",
 				closed: "Fermée",
+				reopened: "Rouverte",
 			},
 			link: "Ouvrir {{host}}",
 		},
@@ -620,6 +622,33 @@ const chat = {
 		pullRequest: {
 			label: "#{{number}}",
 			open: "Ouvrir la pull request n° {{number}}",
+		},
+		menu: {
+			label: "Actions de la mission",
+			open: "Ouvrir la mission",
+			openTicket: "Ouvrir dans Linear",
+			openPullRequest: "Ouvrir la PR",
+			copy: "Copier",
+			copyKind: {
+				issue_id: "Identifiant du ticket",
+				branch: "Branche",
+				pull_request_url: "URL de la PR",
+				workspace_path: "Chemin de l’espace de travail",
+			},
+			messageAgent: "Écrire à l’agent",
+			stopAgent: "Arrêter l’agent",
+			answer: "Répondre à la question",
+			close: "Fermer la mission",
+			closeAs: {
+				done: "Fermer comme terminée",
+				failed: "Fermer comme échouée",
+			},
+			reopen: "Rouvrir",
+		},
+		close: {
+			summary: "Résumé (facultatif)",
+			summaryPlaceholder: "Quel est le résultat ?",
+			confirm: "Fermer la mission",
 		},
 		card: {
 			open: "Ouvrir la mission : {{objective}}",
