@@ -1,5 +1,6 @@
 import type { ReactNode } from "react"
 
+import { FaqList } from "@workspace/ui/components/faq-list"
 import { Icons } from "@workspace/ui/components/icons"
 import { SkipLink } from "@workspace/ui/components/skip-link"
 
@@ -98,6 +99,67 @@ const Credit = () => (
 	</footer>
 )
 
+type SectionTitleProps = {
+	title: string
+	subtitle?: string
+}
+
+const SectionTitle = ({ title, subtitle }: SectionTitleProps) => (
+	<h2 className="font-heading text-[28px] text-balance leading-[34px] font-medium tracking-[-0.028em] text-foreground">
+		<span className="block">{title}</span>
+		{subtitle && (
+			<span className="block text-muted-foreground">{subtitle}</span>
+		)}
+	</h2>
+)
+
+type FeatureColumn = {
+	name: string
+	body: string
+}
+
+type FeatureSectionProps = SectionTitleProps & {
+	columns: readonly FeatureColumn[]
+	id: string
+	className: string
+}
+
+const FeatureSection = ({
+	columns,
+	id,
+	className,
+	...title
+}: FeatureSectionProps) => (
+	<section
+		className={`${PAGE_COLUMN} flex flex-col gap-10 wrap-break-word ${className}`}
+		id={id}
+	>
+		<SectionTitle {...title} />
+		<ul className="grid gap-10 lg:grid-cols-3">
+			{columns.map(({ name, body }) => (
+				<li className="flex flex-col gap-1 text-reading" key={name}>
+					<h3 className="font-medium text-foreground">{name}</h3>
+					<p className="text-muted-foreground">{body}</p>
+				</li>
+			))}
+		</ul>
+	</section>
+)
+
+const FAQ_OPEN_ON_LOAD = WEBSITE_COPY.faq.items.map(({ question }) => question)
+
+const FaqSection = () => (
+	<section
+		className={`${PAGE_COLUMN} flex flex-col gap-8 pt-40 wrap-break-word`}
+		id="faq"
+	>
+		<SectionTitle title={WEBSITE_COPY.faq.title} />
+		<div className="w-full max-w-[760px]">
+			<FaqList defaultOpen={FAQ_OPEN_ON_LOAD} items={WEBSITE_COPY.faq.items} />
+		</div>
+	</section>
+)
+
 type WebsitePageProps = {
 	children?: ReactNode
 }
@@ -138,9 +200,13 @@ export const WebsitePage = ({ children }: WebsitePageProps) => (
 				</div>
 			</div>
 			<AppWindow>{children}</AppWindow>
-			<section className={`${PAGE_COLUMN} pt-40`} id="three-ways" />
-			<section className={`${PAGE_COLUMN} pt-32`} id="yours" />
-			<section className={`${PAGE_COLUMN} pt-40`} id="faq" />
+			<FeatureSection
+				{...WEBSITE_COPY.threeWays}
+				className="pt-40"
+				id="three-ways"
+			/>
+			<FeatureSection {...WEBSITE_COPY.yours} className="pt-32" id="yours" />
+			<FaqSection />
 			<Credit />
 		</main>
 	</>
