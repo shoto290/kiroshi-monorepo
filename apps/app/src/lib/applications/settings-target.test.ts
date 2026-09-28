@@ -41,7 +41,6 @@ const COMPANION = {
 	title: "Repository archivist",
 	instructions: "",
 	model: "sonnet-4-5",
-	workingDirectory: "/Users/ada/Projects/nest",
 	permissions: BLANK_BOT_PERMISSIONS,
 }
 
@@ -113,7 +112,6 @@ const OpenedSettings = ({ application }: SettingsProps) =>
 			mcpServerToOpen: applicationToOpenIn(COMPANION_SCOPE, application),
 			models: [{ label: "Claude Sonnet 4.5", value: "sonnet-4-5" }],
 			onAvatarUpload: vi.fn(),
-			onBrowseWorkingDirectory: vi.fn(),
 			onClose: vi.fn(),
 			onDelete: vi.fn(),
 			onEnvironmentDelete: vi.fn(),

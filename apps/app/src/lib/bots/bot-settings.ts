@@ -141,7 +141,6 @@ export const toSettingsValue = (bot: Bot): BotSettingsValue => ({
 	title: bot.title,
 	instructions: bot.instructions,
 	model: bot.model,
-	workingDirectory: "",
 	permissions: {
 		...bot.permissions,
 		defaultMode: readBotPermissionMode(bot.permissions.defaultMode),

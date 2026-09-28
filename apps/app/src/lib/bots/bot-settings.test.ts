@@ -54,7 +54,6 @@ describe("toSettingsValue", () => {
 			title: "Reviewer",
 			instructions: "Answer briefly.",
 			model: "haiku",
-			workingDirectory: "",
 			permissions: BLANK_BOT_PERMISSIONS,
 		})
 	})
