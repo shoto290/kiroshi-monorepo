@@ -885,6 +885,7 @@ overlays-dialogsurface--dismissing
 overlays-dialogsurface--long-title
 overlays-dialogsurface--overflowing
 overlays-dialogsurface--sized
+overlays-missionmenu--close-from-the-keyboard
 overlays-missionmenu--close-popover
 overlays-missionmenu--closing-without-a-summary
 overlays-missionmenu--copy-choices

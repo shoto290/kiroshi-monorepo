@@ -5,6 +5,7 @@ import { Popover as PopoverPrimitive } from "@base-ui/react/popover"
 import {
 	cloneElement,
 	type FormEvent,
+	type KeyboardEvent,
 	type ReactElement,
 	type RefObject,
 	useId,
@@ -306,6 +307,9 @@ const MissionMenuButton = () => {
 	)
 }
 
+const isCloseKey = (event: KeyboardEvent<HTMLElement>) =>
+	event.key === "Backspace" && event.metaKey
+
 const MissionMenu = ({ children, onClose, ...props }: MissionMenuProps) => {
 	const cardRef = useRef<HTMLElement>(null)
 	const [outcome, setOutcome] = useState<MissionCloseOutcome>("done")
@@ -321,6 +325,12 @@ const MissionMenu = ({ children, onClose, ...props }: MissionMenuProps) => {
 		onClose(chosen, summary)
 	}
 
+	const closeFromKeyboard = (event: KeyboardEvent<HTMLElement>) => {
+		if (!isCloseKey(event) || isClosedState(props.state)) return
+		event.preventDefault()
+		chooseClose("done")
+	}
+
 	return (
 		<>
 			<ContextMenu>
@@ -328,7 +338,11 @@ const MissionMenu = ({ children, onClose, ...props }: MissionMenuProps) => {
 					render={({ ref, ...surface }) =>
 						cloneElement(children, {
 							menu: <MissionMenuButton />,
-							surface: { ...surface, ref: mergeRefs(ref, cardRef) },
+							surface: {
+								...surface,
+								onKeyDown: closeFromKeyboard,
+								ref: mergeRefs(ref, cardRef),
+							},
 						})
 					}
 				/>
@@ -353,5 +367,6 @@ export {
 	type MissionCloseOutcome,
 	type MissionCopyKind,
 	MissionMenu,
+	type MissionMenuActions,
 	type MissionMenuProps,
 }

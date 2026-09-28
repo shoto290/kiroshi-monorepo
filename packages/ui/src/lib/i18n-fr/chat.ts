@@ -644,6 +644,15 @@ const chat = {
 				failed: "Fermer comme échouée",
 			},
 			reopen: "Rouvrir",
+			copied: "{{kind}} copié",
+			failed: {
+				openTicket: "Impossible d’ouvrir le ticket",
+				openPullRequest: "Impossible d’ouvrir la pull request",
+				copy: "Impossible de copier dans le presse-papiers",
+				stopAgent: "Impossible d’arrêter l’agent",
+				close: "Impossible de fermer la mission",
+				reopen: "Impossible de rouvrir la mission",
+			},
 		},
 		close: {
 			summary: "Résumé (facultatif)",

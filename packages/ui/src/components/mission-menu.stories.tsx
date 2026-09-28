@@ -27,7 +27,7 @@ const MENU_LABEL = "Mission actions"
 
 const OPEN_SHORTCUT = "↵"
 
-const CLOSE_SHORTCUT = "⌘W"
+const CLOSE_SHORTCUT = "⌘⌫"
 
 const SUMMARY = "Shipped behind the flag"
 
@@ -43,7 +43,7 @@ const AGENT_RUNNING_ENTRIES = [
 	...OPEN_ENTRIES,
 	"Message the agent",
 	"Stop the agent",
-	"Close mission⌘W",
+	"Close mission⌘⌫",
 ]
 
 const CLOSED_ENTRIES = [...OPEN_ENTRIES, "Reopen"]
@@ -51,8 +51,8 @@ const CLOSED_ENTRIES = [...OPEN_ENTRIES, "Reopen"]
 const ENTRIES_WITHOUT_A_PULL_REQUEST: Record<MissionState, string[]> = {
 	working: AGENT_RUNNING_ENTRIES,
 	waiting_bot: AGENT_RUNNING_ENTRIES,
-	waiting_human: [...OPEN_ENTRIES, "Answer the question", "Close mission⌘W"],
-	ready_to_merge: [...OPEN_ENTRIES, "Close mission⌘W"],
+	waiting_human: [...OPEN_ENTRIES, "Answer the question", "Close mission⌘⌫"],
+	ready_to_merge: [...OPEN_ENTRIES, "Close mission⌘⌫"],
 	failed: CLOSED_ENTRIES,
 	done: CLOSED_ENTRIES,
 }
@@ -461,6 +461,45 @@ export const ClosingWithoutASummary = meta.story({
 		)
 
 		await expect(args.onClose).toHaveBeenCalledWith("failed", "")
+	},
+})
+
+export const CloseFromTheKeyboard = meta.story({
+	parameters: {
+		docs: {
+			description: {
+				story:
+					"Cmd+Backspace pressed while the card's open button has focus. Check that the Close as done popover opens under the card with its summary field focused, and that confirming calls `onClose` with `done`.",
+			},
+		},
+	},
+	play: async ({ args, canvasElement, userEvent }) => {
+		const surface = cardSurfaceIn(canvasElement)
+		within(surface)
+			.getByRole("button", { name: /^Open the mission/ })
+			.focus()
+
+		await userEvent.keyboard("{Meta>}{Backspace}{/Meta}")
+
+		const popover = await shown(
+			await waitFor(() => {
+				const found = document.querySelector<HTMLElement>(
+					'[data-slot="mission-close-popover"]',
+				)
+				if (!found) throw new Error("the close popover isn't open")
+				return found
+			}, FRAME_POLL),
+		)
+		const panel = within(popover)
+		await expect(panel.getByText("Close as done")).toBeVisible()
+		await waitFor(
+			() => expect(panel.getByRole("textbox")).toHaveFocus(),
+			FRAME_POLL,
+		)
+
+		await userEvent.click(panel.getByRole("button", { name: "Close mission" }))
+
+		await expect(args.onClose).toHaveBeenCalledWith("done", "")
 	},
 })
 

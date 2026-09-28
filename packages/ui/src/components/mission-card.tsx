@@ -1,6 +1,6 @@
 "use client"
 
-import type { HTMLAttributes, ReactNode } from "react"
+import type { HTMLAttributes, ReactElement, ReactNode } from "react"
 import { useTranslation } from "react-i18next"
 
 import type { BotBadge } from "@workspace/ui/components/bot-badge"
@@ -365,4 +365,11 @@ const MissionCard = ({ density, status, now, ...props }: MissionCardProps) => {
 	)
 }
 
-export { MissionCard, type MissionCardProps }
+type MissionCardWrap = (card: ReactElement<MissionCardProps>) => ReactNode
+
+const wrapCard = (
+	card: ReactElement<MissionCardProps>,
+	wrap: MissionCardWrap | undefined,
+) => (wrap ? wrap(card) : card)
+
+export { MissionCard, type MissionCardProps, type MissionCardWrap, wrapCard }
