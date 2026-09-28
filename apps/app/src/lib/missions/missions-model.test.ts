@@ -1029,8 +1029,7 @@ describe("toSpaceMissionGroups", () => {
 				entryOf(state, conversationId, MIDNIGHT + (position + 1) * AN_HOUR_MS),
 			),
 		)
-		const closedYesterday = entryOf("done", "c-crashes", MIDNIGHT - 1)
-		closedYesterday.mission.id = "c-crashes-done-yesterday"
+		const closedYesterday = entryOf("done", "c-yesterday", MIDNIGHT - 1)
 
 		const groups = toSpaceMissionGroups({
 			entries: [...entries, closedYesterday],
