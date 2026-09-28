@@ -1097,7 +1097,7 @@ export const Identities = meta.story({
 		docs: {
 			description: {
 				story:
-					"The eight blots a companion can be given in its settings, one per row, with nothing running. Every avatar here is a still dithered field; what tells the rows apart is its silhouette and the hue of its tint, not what the companion is doing — and every one of them is a still frame, so a panel of companions that are doing nothing is a panel that does not move. Check that each row wears its own tint, that the ink line and the ear accent stay legible over all eight, that no row carries an activity dot, and that the panel does not report itself busy. Check too that the panel is the width the stylesheet gives it, that its trailing edge is the one 1px divider between it and the conversation inside the shell card, and that an avatar is drawn at the size the row asks for rather than at the size the menu button forces on the icons around it. The test browser renders every story with reduced motion, so the stillness is read here rather than measured; open the story in Storybook beside `Working` to see the difference. Pick `Working` for the state that animates.",
+					"The eight blots a companion can be given in its settings, one per row, with nothing running. Every avatar here is a still dithered field; what tells the rows apart is its silhouette and the hue of its tint, not what the companion is doing, and every one of them is a still frame, so a panel of companions that are doing nothing is a panel that does not move. Check that each row wears its own tint, that the ink line and the ear accent stay legible over all eight, that no row carries an activity dot, and that the panel does not report itself busy. Check too that the panel is the width the stylesheet gives it, that its trailing edge is the one 1px divider between it and the conversation inside the shell card, and that an avatar is drawn at the size the row asks for rather than at the size the menu button forces on the icons around it. The test browser renders every story with reduced motion, so the stillness is read here rather than measured; open the story in Storybook beside `Working` to see the difference. Pick `Working` for the state that animates.",
 			},
 		},
 	},
@@ -2265,7 +2265,7 @@ export const NoFooter = meta.story({
 		docs: {
 			description: {
 				story:
-					"The same column with neither a reader nor a slot, which the app never mounts and no other story here reproduces. Check that no pinned region is drawn at all — not an empty one, not a reserved strip — and that the list runs all the way to the bottom edge of the column, so a host that wants nothing under its roster pays nothing for the slot. Pick `IdleFooter` for the resting slot the app does pass, `Footer` for the same list with the slot filled.",
+					"The same column with neither a reader nor a slot, which the app never mounts and no other story here reproduces. Check that no pinned region is drawn at all, not an empty one, not a reserved strip, and that the list runs all the way to the bottom edge of the column, so a host that wants nothing under its roster pays nothing for the slot. Pick `IdleFooter` for the resting slot the app does pass, `Footer` for the same list with the slot filled.",
 			},
 		},
 	},
@@ -2553,7 +2553,7 @@ export const OneSpace = meta.story({
 		docs: {
 			description: {
 				story:
-					"The state every account opens in: one space, so the header names it and nothing else navigates. Check the switcher names it in the title bar above the panel header, that the create button keeps its 2px insets inside the 32px header row, that no dot strip is drawn in the pinned region, that the row holds exactly one panel filling the list area, and that the row is no wider than that panel, so the trackpad has nothing to scroll and lands nowhere new — there is nowhere to go, and a gesture that silently does nothing is better than one that rubber-bands. Pick `FiveSpaces` for the navigating case, `SpaceScrolling` for the row under the gesture.",
+					"The state every account opens in: one space, so the header names it and nothing else navigates. Check the switcher names it in the title bar above the panel header, that the create button keeps its 2px insets inside the 32px header row, that no dot strip is drawn in the pinned region, that the row holds exactly one panel filling the list area, and that the row is no wider than that panel, so the trackpad has nothing to scroll and lands nowhere new, there is nowhere to go, and a gesture that silently does nothing is better than one that rubber-bands. Pick `FiveSpaces` for the navigating case, `SpaceScrolling` for the row under the gesture.",
 			},
 		},
 	},

@@ -316,7 +316,7 @@ export const OffCanvas = meta.story({
 		docs: {
 			description: {
 				story:
-					"The same shell on a window too narrow for two columns, where the panel stops being a column and becomes a drawer over the page. Check that the conversation keeps the whole width beside the rail until the trigger in the bar opens the drawer, that the drawer comes in over the transcript with the scrim dimming it rather than pushing it aside, and that Escape closes it and puts focus back on the trigger that opened it. Opening hands the keyboard to the first control in the drawer, whose tooltip opens with it, so the first Escape dismisses that tooltip and the second closes the drawer. The page underneath keeps its full height throughout — the drawer must never resize the column it covers. Pick `Default` for the two-column shell.",
+					"The same shell on a window too narrow for two columns, where the panel stops being a column and becomes a drawer over the page. Check that the conversation keeps the whole width beside the rail until the trigger in the bar opens the drawer, that the drawer comes in over the transcript with the scrim dimming it rather than pushing it aside, and that Escape closes it and puts focus back on the trigger that opened it. Opening hands the keyboard to the first control in the drawer, whose tooltip opens with it, so the first Escape dismisses that tooltip and the second closes the drawer. The page underneath keeps its full height throughout, the drawer must never resize the column it covers. Pick `Default` for the two-column shell.",
 			},
 		},
 	},
