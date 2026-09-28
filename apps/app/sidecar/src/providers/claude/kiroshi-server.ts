@@ -4,7 +4,7 @@ import {
 } from "@anthropic-ai/claude-agent-sdk"
 
 import { applicationTools } from "./application-tools"
-import { companionTools } from "./companion-tools"
+import { type AttachScope, companionTools } from "./companion-tools"
 import {
 	DELEGATE_TOOL_NAME,
 	type DelegateScope,
@@ -17,14 +17,15 @@ export const KIROSHI_SERVER = "kiroshi"
 
 export const DELEGATE_TOOL = `mcp__${KIROSHI_SERVER}__${DELEGATE_TOOL_NAME}`
 
-export type KiroshiScope = DelegateScope & { session?: string }
+export type KiroshiScope = DelegateScope &
+	Pick<AttachScope, "floor"> & { session?: string }
 
 export const kiroshiTools = ({ session, ...scope }: KiroshiScope) => [
 	delegateTool(scope),
 	...routineTools(session),
 	...missionTools(session),
 	...applicationTools(session),
-	...companionTools(session),
+	...companionTools(session, scope),
 ]
 
 export const kiroshiServer = (

@@ -6,6 +6,7 @@ use std::fs;
 use std::io;
 use std::path::{Path, PathBuf};
 
+use chrono::{DateTime, SecondsFormat, Utc};
 use uuid::Uuid;
 
 use crate::db::{Database, DatabaseError};
@@ -19,6 +20,14 @@ const MAX_ATTACHMENTS: usize = 20;
 const MAX_TOTAL_BYTES: u64 = 30 * 1024 * 1024;
 
 const MAX_EXTENSION_LENGTH: usize = 16;
+
+pub const IMAGE_EXTENSIONS: [&str; 9] =
+	["avif", "bmp", "gif", "ico", "jpeg", "jpg", "png", "svg", "webp"];
+
+pub struct SizedFile<'a> {
+	pub name: &'a str,
+	pub bytes: u64,
+}
 
 #[derive(Debug, Clone, PartialEq, Eq)]
 pub enum Rejection {
@@ -77,21 +86,52 @@ pub fn store(
 }
 
 fn refuse(submitted: &[SubmittedAttachment]) -> Result<(), Rejection> {
-	if submitted.len() > MAX_ATTACHMENTS {
-		return Err(Rejection::TooMany { count: submitted.len(), limit: MAX_ATTACHMENTS });
-	}
-	if let Some(attachment) = submitted.iter().find(|it| it.bytes.len() as u64 > MAX_BYTES) {
-		return Err(Rejection::TooLarge {
-			name: attachment.name.clone(),
+	let sized: Vec<SizedFile<'_>> = submitted
+		.iter()
+		.map(|attachment| SizedFile {
+			name: &attachment.name,
 			bytes: attachment.bytes.len() as u64,
+		})
+		.collect();
+	refuse_block(&sized)
+}
+
+pub fn refuse_file(file: &SizedFile<'_>) -> Result<(), Rejection> {
+	match file.bytes > MAX_BYTES {
+		true => Err(Rejection::TooLarge {
+			name: file.name.to_owned(),
+			bytes: file.bytes,
 			limit: MAX_BYTES,
-		});
+		}),
+		false => Ok(()),
 	}
-	let total: u64 = submitted.iter().map(|attachment| attachment.bytes.len() as u64).sum();
+}
+
+pub fn refuse_block(files: &[SizedFile<'_>]) -> Result<(), Rejection> {
+	if files.len() > MAX_ATTACHMENTS {
+		return Err(Rejection::TooMany { count: files.len(), limit: MAX_ATTACHMENTS });
+	}
+	files.iter().try_for_each(refuse_file)?;
+	let total: u64 = files.iter().map(|file| file.bytes).sum();
 	if total > MAX_TOTAL_BYTES {
 		return Err(Rejection::TooLargeTogether { bytes: total, limit: MAX_TOTAL_BYTES });
 	}
 	Ok(())
+}
+
+pub fn attachment_block(paths: &[PathBuf], sent_at: DateTime<Utc>) -> String {
+	let count = paths.len();
+	let noun = match count {
+		1 => "file",
+		_ => "files",
+	};
+	let sent = sent_at.to_rfc3339_opts(SecondsFormat::Millis, true);
+	let header = format!("Attached to this message, sent {sent}, {count} {noun}:");
+	let lines = paths
+		.iter()
+		.enumerate()
+		.map(|(index, path)| format!("{}/{count} {}", index + 1, path.display()));
+	std::iter::once(header).chain(lines).collect::<Vec<_>>().join("\n")
 }
 
 fn take_back(stored: &[PathBuf]) {
@@ -318,6 +358,31 @@ mod tests {
 			Rejection::TooLargeTogether { bytes: each * count, limit: MAX_TOTAL_BYTES }
 		);
 		assert!(!root.exists(), "a refused call made the place its files would have gone");
+	}
+
+	#[test]
+	fn a_block_reads_exactly_as_the_frontend_writes_it() {
+		let sent_at = DateTime::parse_from_rfc3339("2026-09-28T10:04:05.123Z")
+			.expect("the instant parses")
+			.with_timezone(&Utc);
+
+		let single = attachment_block(&[PathBuf::from("/data/attachments/c1/a.png")], sent_at);
+		let pair = attachment_block(
+			&[
+				PathBuf::from("/data/attachments/c1/a.png"),
+				PathBuf::from("/data/attachments/c1/b.gif"),
+			],
+			sent_at,
+		);
+
+		assert_eq!(
+			single,
+			"Attached to this message, sent 2026-09-28T10:04:05.123Z, 1 file:\n1/1 /data/attachments/c1/a.png"
+		);
+		assert_eq!(
+			pair,
+			"Attached to this message, sent 2026-09-28T10:04:05.123Z, 2 files:\n1/2 /data/attachments/c1/a.png\n2/2 /data/attachments/c1/b.gif"
+		);
 	}
 
 	#[test]

@@ -629,5 +629,31 @@
 			],
 			"additionalProperties": false
 		}
+	},
+	{
+		"name": "conversation_attach",
+		"description": "Show an image file to the person, in this conversation or in a room you hold a seat in, once you want them to see it rather than only read it yourself.",
+		"inputSchema": {
+			"$schema": "https://json-schema.org/draft/2020-12/schema",
+			"type": "object",
+			"properties": {
+				"path": {
+					"type": "string",
+					"description": "The path of the image file to show, absolute or relative to your working directory."
+				},
+				"caption": {
+					"description": "A line read right above the image.",
+					"type": "string"
+				},
+				"conversation": {
+					"description": "The id of a room you hold a seat in to show it there, left out for this conversation.",
+					"type": "string"
+				}
+			},
+			"required": [
+				"path"
+			],
+			"additionalProperties": false
+		}
 	}
 ]

@@ -510,6 +510,32 @@ command, a `closed` frame, or an `open` reusing the same session key settles
 every request that channel still awaits as `undeliverable`, since a host answer
 has no deadline of its own.
 
+`companion` is served by `companions::host::CompanionHost`. Its operation
+`conversationAttach` shows one image file to the person, from the tool
+`conversation_attach`, with `path`, an optional `caption` and an optional
+`conversation`:
+
+- the sidecar resolves `path` against the working directory, symlinks
+  included, and refuses it as `deniedPath` without asking the host when the
+  security floor denies that bot to read it, or as `unreadableFile` when it
+  does not resolve; the host is sent the resolved path;
+- the host refuses a file that is missing, unreadable or a directory
+  (`unreadableFile`), an extension outside the image set of
+  `message-attachments.ts` (`notAnImage`, the accepted extensions listed), and a
+  file or a block past the limits of `attachments` (`attachmentRefused`, the
+  size and the limit named); a refusal stores nothing and changes no message;
+- without `conversation`, the file is copied to
+  `attachments/<conversation id>/<uuid>.<ext>` and held for the turn: when the
+  turn ends, completed, cancelled or failed, the last reply of the turn ends
+  with one attachment block listing every file held, in call order, each
+  caption on its own line above it; a turn that wrote no reply gets one carrying
+  the block alone;
+- with `conversation`, the seat checks of `conversationSay` apply, the file is
+  copied under that room id, and one `companion://spoke` carries the caption
+  then the block, the way `conversationSay` posts;
+- the answer is `{ "path", "conversationId" }`, the stored absolute path and the
+  conversation it was shown in.
+
 ## Stop and shutdown
 
 - `interrupt` ends the turn with `result.subtype = "error_during_execution"` and

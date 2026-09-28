@@ -1,12 +1,22 @@
+use std::fs;
+use std::path::{Path, PathBuf};
+use std::sync::Arc;
+
+use chrono::Utc;
 use serde::{Deserialize, Serialize};
 use serde_json::Value;
 use tauri::{AppHandle, Runtime};
 
 use super::contract::{
-	CompanionCreated, CompanionError, CompanionInvited, ConversationOpened, ConversationSaid,
-	SeatedCompanion, CREATED_EVENT, FIRST_RUN_DONE_EVENT,
+	CompanionCreated, CompanionError, CompanionInvited, ConversationAttached, ConversationOpened,
+	ConversationSaid, SeatedCompanion, CREATED_EVENT, FIRST_RUN_DONE_EVENT,
 };
 use crate::agent::host::{Host, Refusal};
+use crate::agent::reply_writer::{shown_with_attachments, HeldAttachment, TurnAttachments};
+use crate::attachments::contract::SubmittedAttachment;
+use crate::attachments::{
+	refuse_block, refuse_file, store, Attachments, Rejection, SizedFile, IMAGE_EXTENSIONS,
+};
 use crate::conversations::commands::{
 	conversation_create_bot_from_draft, conversation_suggested_bots, ready, seat_participant,
 };
@@ -16,17 +26,24 @@ use crate::conversations::contract::{
 use crate::db;
 use crate::db::repositories::conversations::{Bot as StoredBot, ConversationDraft, TOPIC_KIND};
 use crate::events;
+use crate::file_store::FileStore;
 
 #[derive(Debug)]
 pub struct CompanionHost<R: Runtime> {
 	app: AppHandle<R>,
 	conversation_id: String,
 	bot_id: String,
+	attachments: Arc<TurnAttachments>,
 }
 
 impl<R: Runtime> CompanionHost<R> {
-	pub fn new(app: AppHandle<R>, conversation_id: String, bot_id: String) -> Self {
-		Self { app, conversation_id, bot_id }
+	pub fn new(
+		app: AppHandle<R>,
+		conversation_id: String,
+		bot_id: String,
+		attachments: Arc<TurnAttachments>,
+	) -> Self {
+		Self { app, conversation_id, bot_id, attachments }
 	}
 
 	async fn invite(
@@ -149,6 +166,81 @@ impl<R: Runtime> CompanionHost<R> {
 		Ok(ConversationSaid { conversation_id: asked.conversation, title })
 	}
 
+	async fn attach(
+		&self,
+		database: &db::Database,
+		asked: Attached,
+	) -> Result<ConversationAttached, CompanionError> {
+		let caption = asked
+			.caption
+			.map(|caption| caption.trim().to_owned())
+			.filter(|caption| !caption.is_empty());
+		let root = Attachments::dir(&self.app).ok_or_else(|| Rejection::Unwritable {
+			detail: "there is no application data directory to store attachments in".to_owned(),
+		})?;
+		match asked.conversation {
+			None => self.attach_here(&root, &asked.path, caption),
+			Some(room) => self.attach_in_room(database, &root, room, &asked.path, caption).await,
+		}
+	}
+
+	fn attach_here(
+		&self,
+		root: &Path,
+		path: &str,
+		caption: Option<String>,
+	) -> Result<ConversationAttached, CompanionError> {
+		let stored = self.attachments.hold_with(|held| {
+			let bytes = image_bytes(path)?;
+			let held_names: Vec<String> =
+				held.iter().map(|file| file.path.to_string_lossy().into_owned()).collect();
+			let mut block: Vec<SizedFile<'_>> = held
+				.iter()
+				.zip(&held_names)
+				.map(|(file, name)| SizedFile { name, bytes: file.bytes })
+				.collect();
+			block.push(SizedFile { name: path, bytes: bytes.len() as u64 });
+			refuse_block(&block)?;
+			let size = bytes.len() as u64;
+			let stored = stored_copy(root, &self.conversation_id, path, bytes)?;
+			Ok::<_, CompanionError>(HeldAttachment { path: stored, bytes: size, caption })
+		})?;
+		Ok(ConversationAttached {
+			path: stored.to_string_lossy().into_owned(),
+			conversation_id: self.conversation_id.clone(),
+		})
+	}
+
+	async fn attach_in_room(
+		&self,
+		database: &db::Database,
+		root: &Path,
+		room: String,
+		path: &str,
+		caption: Option<String>,
+	) -> Result<ConversationAttached, CompanionError> {
+		carries_seats(database, &room).await?;
+		self.holds_seat(database, &room).await?;
+		let bytes = image_bytes(path)?;
+		let size = bytes.len() as u64;
+		refuse_block(&[SizedFile { name: path, bytes: size }])?;
+		let stored = stored_copy(root, &room, path, bytes)?;
+		let shown = HeldAttachment { path: stored.clone(), bytes: size, caption };
+		let spoken = CompanionSpoke {
+			conversation_id: room.clone(),
+			author_bot_id: self.bot_id.clone(),
+			text: shown_with_attachments("", &[shown], Utc::now()),
+		};
+		if let Err(error) = self.announce(COMPANION_SPOKE_EVENT, spoken) {
+			take_back(&stored);
+			return Err(error);
+		}
+		Ok(ConversationAttached {
+			path: stored.to_string_lossy().into_owned(),
+			conversation_id: room,
+		})
+	}
+
 	async fn space(&self, database: &db::Database) -> Result<String, CompanionError> {
 		space_of(database, &self.conversation_id).await
 	}
@@ -160,6 +252,45 @@ impl<R: Runtime> CompanionHost<R> {
 	) -> Result<(), CompanionError> {
 		events::emit(&self.app, event, payload)
 			.map_err(|error| CompanionError::Undeliverable { detail: error.to_string() })
+	}
+}
+
+fn image_bytes(path: &str) -> Result<Vec<u8>, CompanionError> {
+	let is_image = Path::new(path)
+		.extension()
+		.and_then(|extension| extension.to_str())
+		.is_some_and(|extension| IMAGE_EXTENSIONS.contains(&extension.to_lowercase().as_str()));
+	if !is_image {
+		return Err(CompanionError::NotAnImage {
+			path: path.to_owned(),
+			accepted: IMAGE_EXTENSIONS.iter().map(|extension| (*extension).to_owned()).collect(),
+		});
+	}
+	let unreadable =
+		|detail: String| CompanionError::UnreadableFile { path: path.to_owned(), detail };
+	let metadata = fs::metadata(path).map_err(|error| unreadable(error.to_string()))?;
+	if metadata.is_dir() {
+		return Err(unreadable("it is a directory".to_owned()));
+	}
+	refuse_file(&SizedFile { name: path, bytes: metadata.len() })?;
+	fs::read(path).map_err(|error| unreadable(error.to_string()))
+}
+
+fn stored_copy(
+	root: &Path,
+	conversation_id: &str,
+	path: &str,
+	bytes: Vec<u8>,
+) -> Result<PathBuf, CompanionError> {
+	let submitted = SubmittedAttachment { name: path.to_owned(), bytes };
+	store(root, conversation_id, &[submitted])?.into_iter().next().ok_or_else(|| {
+		CompanionError::Unexpected { detail: "the attachment store answered no path".to_owned() }
+	})
+}
+
+fn take_back(stored: &Path) {
+	if let Err(error) = fs::remove_file(stored) {
+		eprintln!("an attachment left behind by a refused post could not be removed: {error}");
 	}
 }
 
@@ -240,6 +371,10 @@ impl<R: Runtime> Host for CompanionHost<R> {
 				let asked: Said = Self::read(payload)?;
 				Self::answered(self.say(database, asked).await?)
 			}
+			Operation::ConversationAttach => {
+				let asked: Attached = Self::read(payload)?;
+				Self::answered(self.attach(database, asked).await?)
+			}
 		}
 	}
 }
@@ -263,6 +398,7 @@ pub enum Operation {
 	Invite,
 	ConversationOpen,
 	ConversationSay,
+	ConversationAttach,
 }
 
 #[derive(Debug, Deserialize)]
@@ -290,6 +426,14 @@ struct Opened {
 struct Said {
 	conversation: String,
 	message: String,
+}
+
+#[derive(Debug, Deserialize)]
+#[serde(rename_all = "camelCase", deny_unknown_fields)]
+struct Attached {
+	path: String,
+	caption: Option<String>,
+	conversation: Option<String>,
 }
 
 fn picked<'a>(roster: &'a [StoredBot], companion: &str) -> Result<&'a StoredBot, CompanionError> {
@@ -415,7 +559,12 @@ mod tests {
 	}
 
 	fn serving(app: &App<MockRuntime>, conversation_id: &str) -> CompanionHost<MockRuntime> {
-		CompanionHost::new(app.handle().clone(), conversation_id.to_owned(), "b1".to_owned())
+		CompanionHost::new(
+			app.handle().clone(),
+			conversation_id.to_owned(),
+			"b1".to_owned(),
+			Arc::default(),
+		)
 	}
 
 	async fn a_room(name: &str) -> App<MockRuntime> {
@@ -1071,9 +1220,14 @@ mod tests {
 		.await;
 		let before = standing(&app).await;
 		let never = refusal(
-			CompanionHost::new(app.handle().clone(), "c1".to_owned(), "b2".to_owned())
-				.answer(an_invite(json!({ "companion": "b3", "conversation": "studio" })))
-				.await,
+			CompanionHost::new(
+				app.handle().clone(),
+				"c1".to_owned(),
+				"b2".to_owned(),
+				Arc::default(),
+			)
+			.answer(an_invite(json!({ "companion": "b3", "conversation": "studio" })))
+			.await,
 		);
 
 		assert_eq!(left, json!({ "kind": "callerNotSeated", "conversationId": "unled" }));
@@ -1141,7 +1295,12 @@ mod tests {
 	#[tokio::test]
 	async fn a_caller_holding_no_seat_at_all_carries_no_word() {
 		let app = a_room("say-unseated").await;
-		let stranger = CompanionHost::new(app.handle().clone(), "c1".to_owned(), "b2".to_owned());
+		let stranger = CompanionHost::new(
+			app.handle().clone(),
+			"c1".to_owned(),
+			"b2".to_owned(),
+			Arc::default(),
+		);
 
 		let refused =
 			say_refused(&app, &stranger, json!({ "conversation": "unled", "message": "Hi" })).await;
@@ -1248,6 +1407,223 @@ mod tests {
 				"conversationKind": "main"
 			})
 		);
+
+		cleaned(&app);
+	}
+
+	fn an_attach(payload: Value) -> Value {
+		json!({ "subtype": "companion", "operation": "conversationAttach", "payload": payload })
+	}
+
+	fn an_image(app: &App<MockRuntime>, name: &str, size: usize) -> String {
+		let dir = app.path().app_data_dir().expect("the app data dir").join("outside");
+		fs::create_dir_all(&dir).expect("the source dir");
+		let path = dir.join(name);
+		fs::write(&path, vec![7u8; size]).expect("the source image");
+		path.to_string_lossy().into_owned()
+	}
+
+	fn stored_files(app: &App<MockRuntime>) -> Vec<PathBuf> {
+		let root = Attachments::dir(app.handle()).expect("the attachments root");
+		let Ok(conversations) = fs::read_dir(&root) else {
+			return Vec::new();
+		};
+		conversations
+			.flatten()
+			.flat_map(|conversation| fs::read_dir(conversation.path()).expect("a conversation dir"))
+			.flatten()
+			.map(|file| file.path())
+			.collect()
+	}
+
+	async fn attach_refused(
+		app: &App<MockRuntime>,
+		host: &CompanionHost<MockRuntime>,
+		payload: Value,
+	) -> Value {
+		let arriving = heard(app, COMPANION_SPOKE_EVENT);
+		let before = written(app).await;
+		let refused = refusal(host.answer(an_attach(payload)).await);
+		assert_eq!(stored_files(app), Vec::<PathBuf>::new(), "a refused attach stored a file");
+		assert_eq!(written(app).await, before, "a refused attach wrote a row");
+		assert!(arriving.recv_timeout(Duration::from_millis(200)).is_err(), "a refusal announced");
+		assert!(host.attachments.take().is_empty(), "a refused attach was held for the turn");
+		refused
+	}
+
+	#[tokio::test]
+	async fn an_image_attached_here_is_copied_under_this_conversation_and_held_for_the_turn() {
+		let app = a_host("attach-here").await;
+		let host = serving(&app, "c1");
+		let source = an_image(&app, "chart.PNG", 3);
+
+		let answered = host
+			.answer(an_attach(json!({ "path": source, "caption": " The chart " })))
+			.await
+			.expect("it is attached");
+
+		let stored = stored_files(&app);
+		assert_eq!(stored.len(), 1);
+		let root = Attachments::dir(app.handle()).expect("the attachments root");
+		assert_eq!(stored[0].parent(), Some(root.join("c1").as_path()));
+		assert_eq!(stored[0].extension().and_then(|it| it.to_str()), Some("png"));
+		assert_eq!(fs::read(&stored[0]).expect("the copy reads"), vec![7u8; 3]);
+		assert_eq!(
+			answered,
+			json!({ "path": stored[0].to_string_lossy(), "conversationId": "c1" })
+		);
+		let held = host.attachments.take();
+		assert_eq!(held.len(), 1);
+		assert_eq!(held[0].path, stored[0]);
+		assert_eq!(held[0].caption.as_deref(), Some("The chart"));
+
+		cleaned(&app);
+	}
+
+	#[tokio::test]
+	async fn an_image_attached_in_a_room_posts_its_caption_then_its_block_there() {
+		let app = a_room("attach-room").await;
+		let arriving = heard(&app, COMPANION_SPOKE_EVENT);
+		let host = serving(&app, "c1");
+		let source = an_image(&app, "chart.png", 3);
+
+		let answered = host
+			.answer(an_attach(json!({
+				"path": source,
+				"caption": "The chart",
+				"conversation": "room"
+			})))
+			.await
+			.expect("it is attached");
+
+		let stored = stored_files(&app);
+		assert_eq!(stored.len(), 1);
+		let root = Attachments::dir(app.handle()).expect("the attachments root");
+		assert_eq!(stored[0].parent(), Some(root.join("room").as_path()));
+		let path = stored[0].to_string_lossy().into_owned();
+		assert_eq!(answered, json!({ "path": path, "conversationId": "room" }));
+		let spoken = announced(&arriving);
+		assert_eq!(spoken["conversationId"], json!("room"));
+		assert_eq!(spoken["authorBotId"], json!("b1"));
+		let text = spoken["text"].as_str().expect("the text");
+		let lines: Vec<&str> = text.lines().collect();
+		assert_eq!(lines.len(), 3, "{text}");
+		assert_eq!(lines[0], "The chart");
+		assert!(lines[1].starts_with("Attached to this message, sent "), "{text}");
+		assert!(lines[1].ends_with(", 1 file:"), "{text}");
+		assert_eq!(lines[2], format!("1/1 {path}"));
+		assert!(host.attachments.take().is_empty(), "a room post was held for this turn");
+
+		cleaned(&app);
+	}
+
+	#[tokio::test]
+	async fn a_missing_file_a_directory_or_a_file_that_is_no_image_is_refused_naming_it() {
+		let app = a_room("attach-unreadable").await;
+		let host = serving(&app, "c1");
+		let text = an_image(&app, "notes.txt", 3);
+		let folder = an_image(&app, "album.png", 0);
+		fs::remove_file(&folder).expect("the placeholder goes");
+		fs::create_dir(&folder).expect("the folder lands");
+		let missing = format!("{text}.png");
+
+		let not_image = attach_refused(&app, &host, json!({ "path": text })).await;
+		assert_eq!(not_image["kind"], json!("notAnImage"));
+		assert_eq!(not_image["path"], json!(text));
+		assert_eq!(
+			not_image["accepted"],
+			json!(["avif", "bmp", "gif", "ico", "jpeg", "jpg", "png", "svg", "webp"])
+		);
+		for path in [missing, folder] {
+			let refused = attach_refused(&app, &host, json!({ "path": path })).await;
+			assert_eq!(refused["kind"], json!("unreadableFile"));
+			assert_eq!(refused["path"], json!(path));
+		}
+
+		cleaned(&app);
+	}
+
+	#[tokio::test]
+	async fn a_file_over_the_limit_is_refused_naming_its_size_and_the_limit() {
+		let app = a_host("attach-large").await;
+		let host = serving(&app, "c1");
+		let source = an_image(&app, "huge.png", 10 * 1024 * 1024 + 1);
+
+		let refused = attach_refused(&app, &host, json!({ "path": source })).await;
+
+		assert_eq!(
+			refused,
+			json!({
+				"kind": "attachmentRefused",
+				"refusal": {
+					"kind": "tooLarge",
+					"name": source,
+					"bytes": 10 * 1024 * 1024 + 1,
+					"limit": 10 * 1024 * 1024
+				}
+			})
+		);
+
+		cleaned(&app);
+	}
+
+	#[tokio::test]
+	async fn a_block_past_its_count_or_its_total_refuses_the_attach_that_overflows_it() {
+		let app = a_host("attach-block").await;
+		let host = serving(&app, "c1");
+		let small = an_image(&app, "small.png", 1);
+		for _ in 0..20 {
+			host.answer(an_attach(json!({ "path": small }))).await.expect("it is attached");
+		}
+		let held_before = stored_files(&app);
+
+		let arriving = heard(&app, COMPANION_SPOKE_EVENT);
+		let refused = refusal(host.answer(an_attach(json!({ "path": small }))).await);
+
+		assert_eq!(
+			refused,
+			json!({ "kind": "attachmentRefused", "refusal": { "kind": "tooMany", "count": 21, "limit": 20 } })
+		);
+		assert_eq!(stored_files(&app).len(), held_before.len(), "the refused file was stored");
+		assert!(arriving.recv_timeout(Duration::from_millis(200)).is_err());
+		assert_eq!(host.attachments.take().len(), 20);
+
+		let big = an_image(&app, "big.png", 9 * 1024 * 1024);
+		let fresh = serving(&app, "c1");
+		for _ in 0..3 {
+			fresh.answer(an_attach(json!({ "path": big }))).await.expect("it is attached");
+		}
+		let overflowing = refusal(fresh.answer(an_attach(json!({ "path": big }))).await);
+		assert_eq!(overflowing["refusal"]["kind"], json!("tooLargeTogether"));
+		assert_eq!(overflowing["refusal"]["bytes"], json!(36 * 1024 * 1024));
+		assert_eq!(overflowing["refusal"]["limit"], json!(30 * 1024 * 1024));
+		assert_eq!(fresh.attachments.take().len(), 3);
+
+		cleaned(&app);
+	}
+
+	#[tokio::test]
+	async fn an_attach_into_a_room_the_caller_holds_no_seat_in_is_refused_and_stores_nothing() {
+		let app = a_room("attach-unseated").await;
+		planted(&app, A_MISSION).await;
+		planted(&app, ANOTHER_ROOM).await;
+		let source = an_image(&app, "chart.png", 3);
+
+		let unseated = attach_refused(
+			&app,
+			&serving(&app, "c1"),
+			json!({ "path": source, "conversation": "unled" }),
+		)
+		.await;
+		let seatless = attach_refused(
+			&app,
+			&serving(&app, "c1"),
+			json!({ "path": source, "conversation": "errand" }),
+		)
+		.await;
+
+		assert_eq!(unseated["kind"], json!("callerNotSeated"));
+		assert_eq!(seatless["kind"], json!("conversationWithoutSeats"));
 
 		cleaned(&app);
 	}

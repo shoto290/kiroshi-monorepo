@@ -46,6 +46,12 @@ const bundleOf = (layer: string) =>
 const toolEntries = () =>
 	kiroshiTools({
 		cwd: "/workspace/space",
+		floor: {
+			home: "/home",
+			platform: "darwin",
+			pluginPaths: [],
+			writablePaths: [],
+		},
 		managedSettings: {},
 		session: "k1",
 	}).map((held) => ({

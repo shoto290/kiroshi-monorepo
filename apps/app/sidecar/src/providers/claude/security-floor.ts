@@ -1,5 +1,5 @@
 import { readdirSync } from "node:fs"
-import { join, sep } from "node:path"
+import { join, matchesGlob, sep } from "node:path"
 
 import type { Settings } from "@anthropic-ai/claude-agent-sdk"
 
@@ -141,31 +141,48 @@ export type FloorScope = {
 	writablePaths: string[]
 }
 
-export const securityFloor = ({
+const readFloor = ({
 	appDataDir,
 	conversationId,
 	home,
-	platform,
 	pluginPaths,
-	writablePaths,
-}: FloorScope): Settings => {
-	const reads = deniedReads(home, appDataDir)
-	const writes = deniedWrites(home)
+}: FloorScope) => {
 	const attachments = ownedAttachments(appDataDir, conversationId)
-	const readablePaths = attachments
-		? [...pluginPaths, attachments]
-		: pluginPaths
+	return {
+		reads: deniedReads(home, appDataDir),
+		bundles: foreignBundles(appDataDir, pluginPaths),
+		attachments: foreignAttachments(appDataDir, attachments),
+		trees: under(appDataDir, DENIED_TREES),
+		readablePaths: attachments ? [...pluginPaths, attachments] : pluginPaths,
+	}
+}
+
+const covers = (entry: string, path: string): boolean =>
+	holds(entry, path) || matchesGlob(path, entry)
+
+export const deniesRead = (scope: FloorScope, path: string): boolean => {
+	const { reads, bundles, attachments, trees, readablePaths } = readFloor(scope)
+	const refused = [reads, bundles, attachments].flatMap(pathsOf)
+	if (refused.some((entry) => covers(entry, path))) {
+		return true
+	}
+	return (
+		trees.some((tree) => holds(tree, path)) &&
+		!readablePaths.some((readable) => holds(readable, path))
+	)
+}
+
+export const securityFloor = (scope: FloorScope): Settings => {
+	const { platform, writablePaths } = scope
+	const { reads, bundles, attachments, trees, readablePaths } = readFloor(scope)
+	const writes = deniedWrites(scope.home)
 	return {
 		permissions: {
 			deny: [
 				...DENIED_TOOLS,
 				...rulesFor("Read", reads, platform),
-				...rulesFor("Read", foreignBundles(appDataDir, pluginPaths), platform),
-				...rulesFor(
-					"Read",
-					foreignAttachments(appDataDir, attachments),
-					platform,
-				),
+				...rulesFor("Read", bundles, platform),
+				...rulesFor("Read", attachments, platform),
 				...rulesFor("Edit", writes, platform),
 			],
 			...(writablePaths.length > 0
@@ -176,7 +193,7 @@ export const securityFloor = ({
 			...SANDBOX,
 			failIfUnavailable: failsWithoutSandbox(platform),
 			filesystem: {
-				denyRead: [...pathsOf(reads), ...under(appDataDir, DENIED_TREES)],
+				denyRead: [...pathsOf(reads), ...trees],
 				denyWrite: pathsOf(writes),
 				...(readablePaths.length > 0 ? { allowRead: readablePaths } : {}),
 			},

@@ -3,11 +3,22 @@ import { describe, expect, it } from "bun:test"
 import {
 	DELEGATE_TOOL,
 	KIROSHI_SERVER,
+	type KiroshiScope,
 	kiroshiServer,
 	kiroshiTools,
 } from "./kiroshi-server"
 
-const scope = { cwd: "/tmp", managedSettings: {}, session: "k1" }
+const scope: KiroshiScope = {
+	cwd: "/tmp",
+	floor: {
+		home: "/home",
+		platform: "darwin",
+		pluginPaths: [],
+		writablePaths: [],
+	},
+	managedSettings: {},
+	session: "k1",
+}
 
 const NAMES_A_SECRET = /key|secret|token|password|credential|value|header/i
 
@@ -62,6 +73,7 @@ describe("kiroshiServer", () => {
 			"companion_invite",
 			"conversation_open",
 			"conversation_say",
+			"conversation_attach",
 		])
 	})
 })

@@ -261,6 +261,9 @@ mod tests {
 			"The person does not read the new room unless they open it.",
 			"Whatever the person decides is asked in the conversation the person is talking in.",
 			"Opening a room is reported in one line carrying its title, in the conversation the room was opened from.",
+			"`conversation_attach`, one image file shown to the person, here or in a room you hold a seat in, answering the path it was stored under and the id of that conversation.",
+			"Reading an image with `Read` shows it to you and never to the person.",
+			"To show an image, call `conversation_attach`.",
 		] {
 			assert!(said_in_one_breath.contains(said), "{said} is missing");
 		}

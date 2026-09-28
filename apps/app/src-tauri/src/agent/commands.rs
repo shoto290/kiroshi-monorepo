@@ -11,7 +11,7 @@ use super::contract::{
 };
 use super::host::hosted;
 use super::protocol::{self, Checked};
-use super::reply_writer::{HostWrites, ReplyWriter};
+use super::reply_writer::{HostWrites, ReplyWriter, TurnAttachments};
 use super::session::{Bundle, EventSink, GatedSink, Session, SessionOptions};
 use super::sidecar::{self, Sidecar, SidecarOptions};
 use super::translate::now_ms;
@@ -705,8 +705,14 @@ pub async fn agent_start_or_resume_session<R: Runtime>(
 		live: state.live.clone(),
 		records_its_own_lineage: lineage_is_held_elsewhere,
 	});
-	let sink: Arc<dyn EventSink> =
-		Arc::new(ReplyWriter::spawn(app.clone(), &scope, state.host_writes.clone(), announcing));
+	let attachments = Arc::new(TurnAttachments::default());
+	let sink: Arc<dyn EventSink> = Arc::new(ReplyWriter::spawn(
+		app.clone(),
+		&scope,
+		state.host_writes.clone(),
+		attachments.clone(),
+		announcing,
+	));
 	let options = SessionOptions::new(running_in)
 		.bundled(identity.bundle)
 		.serving(identity.server_env)
@@ -727,6 +733,7 @@ pub async fn agent_start_or_resume_session<R: Runtime>(
 			app.clone(),
 			scope.conversation_id.clone(),
 			scope.bot_id.clone(),
+			attachments,
 		)))
 		.hosting(hosted(StandingHost::new(
 			app.clone(),

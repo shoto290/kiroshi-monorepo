@@ -1,7 +1,11 @@
+import { realpath } from "node:fs/promises"
+import { resolve } from "node:path"
+
 import { type SdkMcpToolDefinition, tool } from "@anthropic-ai/claude-agent-sdk"
 import { z } from "zod"
 
-import { carriedTo } from "./host-calls"
+import { carriedTo, refused } from "./host-calls"
+import { deniesRead, type FloorScope } from "./security-floor"
 
 const SUBTYPE = "companion"
 
@@ -48,6 +52,17 @@ const ROOM = "The id of the room you hold a seat in to say it in."
 
 const SPOKEN = "What you say in that room, read there in your name."
 
+const ATTACH =
+	"Show an image file to the person, in this conversation or in a room you hold a seat in, once you want them to see it rather than only read it yourself."
+
+const IMAGE_PATH =
+	"The path of the image file to show, absolute or relative to your working directory."
+
+const CAPTION = "A line read right above the image."
+
+const ATTACH_ROOM =
+	"The id of a room you hold a seat in to show it there, left out for this conversation."
+
 type ToolInput = Record<string, z.ZodType>
 
 const NOTHING: ToolInput = {}
@@ -68,6 +83,12 @@ const SAID: ToolInput = {
 	message: z.string().describe(SPOKEN),
 }
 
+const ATTACHED: ToolInput = {
+	path: z.string().describe(IMAGE_PATH),
+	caption: z.string().optional().describe(CAPTION),
+	conversation: z.string().optional().describe(ATTACH_ROOM),
+}
+
 const DRAFTED: ToolInput = {
 	name: z.string().describe(NAME),
 	job: z.string().describe(JOB),
@@ -78,8 +99,44 @@ const asked = carriedTo(SUBTYPE)
 
 type CompanionTool = SdkMcpToolDefinition<ToolInput>
 
+export type AttachScope = {
+	cwd: string
+	floor: FloorScope
+}
+
+type AttachInput = {
+	path: string
+	caption?: string
+	conversation?: string
+}
+
+const detailOf = (error: unknown): string =>
+	error instanceof Error ? error.message : String(error)
+
+const attached = async (
+	session: string | undefined,
+	{ cwd, floor }: AttachScope,
+	{ path, ...rest }: AttachInput,
+) => {
+	const named = resolve(cwd, path)
+	if (deniesRead(floor, named)) {
+		return refused({ kind: "deniedPath", path })
+	}
+	let resolved: string
+	try {
+		resolved = await realpath(named)
+	} catch (error) {
+		return refused({ kind: "unreadableFile", path, detail: detailOf(error) })
+	}
+	if (deniesRead(floor, resolved)) {
+		return refused({ kind: "deniedPath", path })
+	}
+	return asked(session, "conversationAttach", { path: resolved, ...rest })
+}
+
 export const companionTools = (
 	session: string | undefined,
+	scope: AttachScope,
 ): CompanionTool[] => [
 	tool("companion_suggestions", SUGGESTIONS, NOTHING, () =>
 		asked(session, "suggestions", {}),
@@ -98,5 +155,8 @@ export const companionTools = (
 	),
 	tool("conversation_say", SAY, SAID, (input) =>
 		asked(session, "conversationSay", input),
+	),
+	tool("conversation_attach", ATTACH, ATTACHED, (input) =>
+		attached(session, scope, input as AttachInput),
 	),
 ]
