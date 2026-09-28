@@ -46,13 +46,8 @@ const USER_BUBBLE_PAIR: TokenPair = {
 	foreground: "--user-bubble-foreground",
 }
 
-const PAIRS_AWAITING_DESIGN_DECISION: Record<string, number> = {}
-
 const pairKey = (scheme: ThemeName, pair: TokenPair) =>
 	`${scheme} ${pair.foreground} on ${pair.background}`
-
-const requiredRatio = (key: string) =>
-	PAIRS_AWAITING_DESIGN_DECISION[key] ?? AA_TEXT_RATIO
 
 const createPixel = () => {
 	const canvas = document.createElement("canvas")
@@ -140,23 +135,10 @@ type Measurement = { key: string; ratio: number }
 
 const failuresIn = (measurements: Measurement[]) =>
 	measurements
-		.filter(({ key, ratio }) => ratio < requiredRatio(key))
+		.filter(({ ratio }) => ratio < AA_TEXT_RATIO)
 		.map(
 			({ key, ratio }) =>
-				`${key}: measured ${ratio.toFixed(2)}:1, needs ${requiredRatio(key)}:1`,
-		)
-
-const settledExceptionsIn = (measurements: Measurement[]) =>
-	Object.keys(PAIRS_AWAITING_DESIGN_DECISION)
-		.filter((key) =>
-			measurements.every(
-				(measurement) =>
-					measurement.key !== key || measurement.ratio >= AA_TEXT_RATIO,
-			),
-		)
-		.map(
-			(key) =>
-				`${key}: now clears ${AA_TEXT_RATIO}:1, drop it from PAIRS_AWAITING_DESIGN_DECISION`,
+				`${key}: measured ${ratio.toFixed(2)}:1, needs ${AA_TEXT_RATIO}:1`,
 		)
 
 const meta = preview.meta({
@@ -190,10 +172,7 @@ export const SemanticPairsMeetAaText = meta.story({
 				ratio: measurePair(pixel, probe, pair),
 			})),
 		)
-		const problems = [
-			...failuresIn(measurements),
-			...settledExceptionsIn(measurements),
-		]
+		const problems = failuresIn(measurements)
 
 		await expect(
 			problems,
