@@ -179,7 +179,9 @@ export const KeyboardReach = meta.story({
 	},
 })
 
-const TINTED_SHELL = { "--space-tint": blotTint("blue") } as CSSProperties
+type TintedShellStyle = CSSProperties & { "--space-tint": string }
+
+const TINTED_SHELL: TintedShellStyle = { "--space-tint": blotTint("blue") }
 
 export const OnTintedSpace = meta.story({
 	args: { counts: { conversations: 3 }, dots: { missions: true } },
