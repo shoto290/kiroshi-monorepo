@@ -1,6 +1,6 @@
-import { invoke } from "@tauri-apps/api/core"
-
 import type { UserPreferences } from "./preferences-contract"
+
+import { invoke } from "../host"
 
 export const userPreferencesStore = {
 	read: () => invoke<UserPreferences>("user_preferences"),

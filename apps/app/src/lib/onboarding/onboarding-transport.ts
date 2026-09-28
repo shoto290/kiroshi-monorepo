@@ -1,9 +1,8 @@
-import { invoke } from "@tauri-apps/api/core"
-import { listen } from "@tauri-apps/api/event"
 import { openUrl } from "@tauri-apps/plugin-opener"
 
 import type { OnboardingPort } from "./onboarding-port"
 
+import { invoke, listen } from "../host"
 import { agentTransport } from "../agent/transport"
 
 const SIGN_IN_STARTED_CHANNEL = "agent://sign-in-started"

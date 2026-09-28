@@ -1,10 +1,10 @@
-import { invoke } from "@tauri-apps/api/core"
-
 import type {
 	ApplicationRow,
 	ConnectionPort,
 	Disconnected,
 } from "./connection-port"
+
+import { invoke } from "../host"
 
 export const connectionTransport: ConnectionPort = {
 	connect: (owner, name, url) =>

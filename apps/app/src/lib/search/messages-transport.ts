@@ -1,6 +1,6 @@
-import { invoke } from "@tauri-apps/api/core"
-
 import type { MessageHit, MessageSearchQuery } from "./search-contract"
+
+import { invoke } from "../host"
 
 export const messagesTransport = {
 	search: (query: MessageSearchQuery) =>

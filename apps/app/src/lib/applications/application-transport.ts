@@ -1,6 +1,3 @@
-import { invoke } from "@tauri-apps/api/core"
-import { listen } from "@tauri-apps/api/event"
-
 import type {
 	Application,
 	ApplicationInstall,
@@ -9,6 +6,8 @@ import type {
 	ApplicationSearch,
 	InstallRefusal,
 } from "./application-port"
+
+import { invoke, listen } from "../host"
 
 export const INSTALLED_EVENT = "application://installed"
 

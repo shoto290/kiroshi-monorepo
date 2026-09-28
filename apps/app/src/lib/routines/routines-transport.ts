@@ -1,6 +1,3 @@
-import { invoke } from "@tauri-apps/api/core"
-import { listen } from "@tauri-apps/api/event"
-
 import type {
 	ReportedRun,
 	Routine,
@@ -11,6 +8,8 @@ import type {
 	RoutineRun,
 	TriggerDecision,
 } from "./routine-contract"
+
+import { invoke, listen } from "../host"
 
 const CHANGED_EVENT = "routine://changed"
 

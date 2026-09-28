@@ -1,6 +1,6 @@
-import { invoke } from "@tauri-apps/api/core"
-
 import type { Catalogue, CatalogueChat } from "./catalogue-contract"
+
+import { invoke } from "../host"
 
 export type RecentScope = {
 	spaceId: string

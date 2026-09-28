@@ -1,6 +1,3 @@
-import { invoke } from "@tauri-apps/api/core"
-import { listen } from "@tauri-apps/api/event"
-
 import type {
 	CheckReport,
 	LiveSession,
@@ -12,6 +9,7 @@ import type {
 	SubmittedTurn,
 } from "./contract"
 
+import { invoke, listen } from "../host"
 import type { SubmittedAttachment } from "../chat/attachments-contract"
 import type { ChatDriver } from "../chat/driver"
 
